@@ -1,7 +1,8 @@
 {
-  "task": "R2-05",
   "object": "rxdb-plugin-search-angular",
   "sourceRoot": "packages/rxdb-plugin-search-angular",
+  "status": "queued",
+  "task": "R2-05",
   "trackedFiles": [
     {
       "path": "packages/rxdb-plugin-search-angular/LICENSE",
@@ -76,6 +77,5 @@
     "requirements/reviews/packages/rxdb-plugin-search-angular.md",
     "requirements/reviews/results/packages/rxdb-plugin-search-angular.md",
     "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular"
-  ],
-  "status": "queued"
+  ]
 }

@@ -1,0 +1,76 @@
+COMMAND: ["pnpm", "nx", "run", "rxdb-plugin-working-tree-angular:test", "review-round2-lifecycle", "--run", "--maxWorkers=1", "--coverage.enabled=false", "--parallel=1", "--excludeTaskDependencies", "--skipRemoteCache", "--skipNxCache", "--output-style=static"]
+CWD: /Users/jimmy/Documents/aiao/rxdb
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-working-tree-angular:test review-round2-lifecycle --run --maxWorkers=1 --coverage.enabled=false
+
+> vitest review-round2-lifecycle --run --maxWorkers=1 --coverage.enabled=false
+
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular
+
+stderr | src/__tests__/review-round2-lifecycle.spec.ts > R2-07 Angular 注入、signal 与命令所有权 > 输入改变不偷偷切库或分支，显式命令透传当前输入
+NG0303: Can't set value of the 'branchId' input on the 'WorkingTreePanel' component. Make sure that the 'branchId' property is declared as an input using the input() or model() function or the @Input() decorator.
+
+ ❯ |rxdb-plugin-working-tree-angular| src/__tests__/review-round2-lifecycle.spec.ts (12 tests | 1 failed) 52ms
+     ✓ 脱离注入上下文直接调用会抛错 1ms
+     ✓ 缺插件在创建入口时显式报错，不伪造干净工作树 5ms
+     ✓ 实际 OnPush 组件创建不发 IO，未启用状态不触发隐式 enable 23ms
+     ✓ 同组件两次入口互不共享状态，diff 不重算 status 的下游 computed 2ms
+     ✓ OnPush DOM 可观察 pending/error/empty，而不是只测返回值 4ms
+     × 输入改变不偷偷切库或分支，显式命令透传当前输入 5ms
+     ✓ 同一格并发按发起代次收尾，旧 promise 仍将自己的结果给原调用方 2ms
+     ✓ 子 environment provider 覆盖只影响子组件，并保持外部数据库所有权 2ms
+     ✓ 组件销毁后旧 status 的完成不会污染重新挂载的实例 2ms
+     ✓ 销毁后旧命令仍刷新旧库，但不会回写另一个 provider 的新状态 2ms
+     ✓ 销毁中的拒绝仍归原调用方，不转成新实例的错误 1ms
+     ✓ 已读取的敏感 diff 在外部保留 resource 时不会因组件销毁自动清空 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-plugin-working-tree-angular| src/__tests__/review-round2-lifecycle.spec.ts > R2-07 Angular 注入、signal 与命令所有权 > 输入改变不偷偷切库或分支，显式命令透传当前输入
+AssertionError: expected 'main' to be 'feature' // Object.is equality
+
+Expected: "feature"
+Received: "main"
+
+ ❯ src/__tests__/review-round2-lifecycle.spec.ts:145:47
+    143|     fixture.detectChanges();
+    144|
+    145|     expect(branchText(fixture.nativeElement)).toBe('feature');
+       |                                               ^
+    146|     expect(versionManager.switchBranch).not.toHaveBeenCalled();
+    147|     expect(tree.diffState()).toBe(before);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 11 passed (12)
+   Start at  15:12:17
+   Duration  1.68s (transform 984ms, setup 173ms, import 1.15s, tests 52ms, environment 207ms)
+
+Warning: command "vitest review-round2-lifecycle --run --maxWorkers=1 --coverage.enabled=false" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-plugin-working-tree-angular failed
+
+Failed tasks:
+
+- rxdb-plugin-working-tree-angular:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      2.0s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     2.0s (1 task)
+  Recoverable time:  <1ms

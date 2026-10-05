@@ -1,8 +1,57 @@
 {
-  "date": "2026-10-05",
-  "object": "rxdb-plugin-search-angular",
-  "recordedAt": "2026-10-05T11:07:10.962597+08:00",
+  "additionalTargetsPending": [
+    "rxdb-plugin-search-angular:test",
+    "rxdb-plugin-search-angular:lint",
+    "rxdb-plugin-search-angular:typecheck",
+    "rxdb-plugin-search-angular:build",
+    "dev-rxdb-angular-e2e:e2e-ci--src/search.spec.ts"
+  ],
+  "coverageBaseline": {
+    "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-search-angular/coverage-summary.json",
+    "thresholdEach": 80,
+    "metricTotals": {
+      "lines": {
+        "total": 55,
+        "covered": 55,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 65,
+        "covered": 65,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 17,
+        "covered": 17,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 12,
+        "covered": 12,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": "Unknown"
+      }
+    },
+    "statements": 100,
+    "branches": 100,
+    "functions": 100,
+    "lines": 100,
+    "productionFiles": ["src/index.ts", "src/inject-search.ts"],
+    "include": "src/**/*",
+    "provider": "v8",
+    "notCurrentRerun": true
+  },
   "currentHeadAtRead": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "date": "2026-10-05",
   "environment": {
     "node": "26.7.0",
     "pnpm": "10.34.6",
@@ -13,25 +62,6 @@
     "realBrowserByAgent": false
   },
   "executedValidationTargetsByAgent": [],
-  "readOnlyDiscovery": [
-    "pnpm nx show project rxdb-plugin-search-angular --json",
-    "pnpm nx show project dev-rxdb-angular-e2e --json",
-    "Angular MCP list_projects"
-  ],
-  "toolObservations": [
-    {
-      "tool": "angular-cli/list_projects",
-      "result": "只列两个Angular21 examples CLI workspace；当前Nx包不在其中，不能使用那些workspace构建本包"
-    },
-    {
-      "tool": "angular-cli/get_best_practices",
-      "result": "调用失败：Unexpected response type；已记录，不阻断只读和有界评审"
-    },
-    {
-      "tool": "@nx/angular/PLUGIN.md",
-      "result": "未存在，未推定有该指引"
-    }
-  ],
   "historicalMeasurements": [
     {
       "id": "original-unit-and-coverage",
@@ -88,77 +118,16 @@
       "notCurrentHeadGate": true
     }
   ],
-  "unitBaseline": {
-    "log": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage.txt",
-    "lines": [
-      9058,
-      9087
-    ],
-    "filesPassed": 3,
-    "testsPassed": 22,
-    "skipped": 0,
-    "includesRound2Probe": false,
-    "includesReviewParallelProbe": false
-  },
-  "coverageBaseline": {
-    "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-search-angular/coverage-summary.json",
-    "thresholdEach": 80,
-    "metricTotals": {
-      "lines": {
-        "total": 55,
-        "covered": 55,
-        "skipped": 0,
-        "pct": 100
-      },
-      "statements": {
-        "total": 65,
-        "covered": 65,
-        "skipped": 0,
-        "pct": 100
-      },
-      "functions": {
-        "total": 17,
-        "covered": 17,
-        "skipped": 0,
-        "pct": 100
-      },
-      "branches": {
-        "total": 12,
-        "covered": 12,
-        "skipped": 0,
-        "pct": 100
-      },
-      "branchesTrue": {
-        "total": 0,
-        "covered": 0,
-        "skipped": 0,
-        "pct": "Unknown"
-      }
-    },
-    "statements": 100,
-    "branches": 100,
-    "functions": 100,
-    "lines": 100,
-    "productionFiles": [
-      "src/index.ts",
-      "src/inject-search.ts"
-    ],
-    "include": "src/**/*",
-    "provider": "v8",
-    "notCurrentRerun": true
-  },
   "lateProbeBaseline": {
     "log": "requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes.txt",
-    "lines": [
-      637,
-      649
-    ],
+    "lines": [637, 649],
     "filesPassed": 1,
     "testsPassed": 1,
     "coverageEnabled": false,
     "currentProbeHashChanged": true,
     "notCurrentC1Closure": true
   },
+  "object": "rxdb-plugin-search-angular",
   "packedEntriesHistorical": {
     "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/packed-consumer-entry-check.json",
     "distRoot": "dist/packages/rxdb-plugin-search-angular",
@@ -169,6 +138,12 @@
     "runtimeImport": false,
     "notCurrentHeadRuntimeProof": true
   },
+  "readOnlyDiscovery": [
+    "pnpm nx show project rxdb-plugin-search-angular --json",
+    "pnpm nx show project dev-rxdb-angular-e2e --json",
+    "Angular MCP list_projects"
+  ],
+  "recordedAt": "2026-10-05T11:07:10.962597+08:00",
   "round2Consumer": {
     "status": "controller-measured-qualified-pass-bare-risk-retained",
     "checkedAt": "2026-10-05T11:04:20.684784+08:00",
@@ -203,10 +178,7 @@
       "exitCode": 0,
       "result": {
         "name": "@aiao/rxdb-plugin-search-angular",
-        "exports": [
-          "SearchExecutionError",
-          "useSearch"
-        ]
+        "exports": ["SearchExecutionError", "useSearch"]
       }
     },
     "bareConsumer": {
@@ -223,9 +195,7 @@
       "exitCode": 0,
       "additionalTypePackage": "@types/ms 2.1.0",
       "typePackageTarballSha256": "af7b364f6ef9ab424c010f41bafadd96baf8f07201559112e741f75b6db2a53f",
-      "explicitTypes": [
-        "node"
-      ],
+      "explicitTypes": ["node"],
       "isExtraConsumerEnvironmentRequirement": true,
       "bareConsumerResultRetained": "isolated-consumer-validation-bare.json",
       "notAPublicDeclarationSelfContainmentPass": true
@@ -239,11 +209,29 @@
     "helpersInvokedAtRuntime": false,
     "runtimeIsNotFullFrameworkPath": true
   },
-  "additionalTargetsPending": [
-    "rxdb-plugin-search-angular:test",
-    "rxdb-plugin-search-angular:lint",
-    "rxdb-plugin-search-angular:typecheck",
-    "rxdb-plugin-search-angular:build",
-    "dev-rxdb-angular-e2e:e2e-ci--src/search.spec.ts"
-  ]
+  "testsFrozenAt": "2026-10-05T11:10:29.638149+08:00",
+  "testsFrozenSha256": "0e0c7dbc1734098a27214f9137b9d8117875df414f57e0e249d156761c807726",
+  "toolObservations": [
+    {
+      "tool": "angular-cli/list_projects",
+      "result": "只列两个Angular21 examples CLI workspace；当前Nx包不在其中，不能使用那些workspace构建本包"
+    },
+    {
+      "tool": "angular-cli/get_best_practices",
+      "result": "调用失败：Unexpected response type；已记录，不阻断只读和有界评审"
+    },
+    {
+      "tool": "@nx/angular/PLUGIN.md",
+      "result": "未存在，未推定有该指引"
+    }
+  ],
+  "unitBaseline": {
+    "log": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage.txt",
+    "lines": [9058, 9087],
+    "filesPassed": 3,
+    "testsPassed": 22,
+    "skipped": 0,
+    "includesRound2Probe": false,
+    "includesReviewParallelProbe": false
+  }
 }

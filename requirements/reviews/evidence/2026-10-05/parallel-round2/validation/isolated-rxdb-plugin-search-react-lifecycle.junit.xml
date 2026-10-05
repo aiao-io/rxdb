@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="13" failures="1" errors="0" time="0.046619">
+    <testsuite name="rxdb-plugin-search-react.spec.ts" timestamp="2026-10-05T03:44:59.013Z" hostname="liuleideMacBook-Pro-4.local" tests="13" failures="1" errors="0" skipped="0" time="0.046619">
+        <testcase classname="rxdb-plugin-search-react.spec.ts" name="第二轮评审：真实 SearchHandle 与 React 生命周期 &gt; 快速 A→B 由 core 防抖，只执行 B 且不重建 handle" time="0.014803667">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-react.spec.ts" name="第二轮评审：真实 SearchHandle 与 React 生命周期 &gt; 已执行 A 后输入 B，串行闸门最终只留下 B 的第一页结果" time="0.001856583">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-react.spec.ts" name="第二轮评审：真实 SearchHandle 与 React 生命周期 &gt; 换 source 与 scope 后，旧请求晚到 result 不回流" time="0.002502667">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-react.spec.ts" name="第二轮评审：真实 SearchHandle 与 React 生命周期 &gt; 换 source 与 scope 后，旧请求晚到 error 不回流" time="0.001742959">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-react.spec.ts" name="第二轮评审：真实 SearchHandle 与 React 生命周期 &gt; 相同值新 options 保持返回值，pageSize 与 snippetLength 变化才重建" time="0.00118575">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-react.spec.ts" name="第二轮评审：真实 SearchHandle 与 React 生命周期 &gt; undefined↔空 options 按公开 core 比较判据重建，而非复用旧 snapshot" time="0.002870833">
+            <failure message="expected &quot;vi.fn()&quot; to be called 2 times, but got 1 times" type="AssertionError">
+AssertionError: expected &quot;vi.fn()&quot; to be called 2 times, but got 1 times
+ ❯ rxdb-plugin-search-react.spec.ts:188:28
+            </failure>
+        </testcase>
+        <testcase classname="rxdb-plugin-search-react.spec.ts" name="第二轮评审：真实 SearchHandle 与 React 生命周期 &gt; 并发 loadMore 不重入执行闸门、不重复追加页" time="0.00124375">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-react.spec.ts" name="第二轮评审：真实 SearchHandle 与 React 生命周期 &gt; 已执行分页在 clear 后被取消，晚到结果不改状态且调用可结算" time="0.000939292">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-react.spec.ts" name="第二轮评审：真实 SearchHandle 与 React 生命周期 &gt; 已执行分页在 unmount 后被取消，晚到结果不改状态且调用可结算" time="0.001131042">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-react.spec.ts" name="第二轮评审：真实 SearchHandle 与 React 生命周期 &gt; 两个独立 StrictMode root 的重放、卸载与晚到结果各归其主" time="0.002194917">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-react.spec.ts" name="第二轮评审：真实 SearchHandle 与 React 生命周期 &gt; SSR render 不调用 search，initialQuery 仅成为初始快照" time="0.004260083">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-react.spec.ts" name="第二轮评审：真实 SearchHandle 与 React 生命周期 &gt; 真实 RxDB 的 missing-plugin 不伪装 empty，交给异常边界" time="0.00921175">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-react.spec.ts" name="第二轮评审：真实 SearchHandle 与 React 生命周期 &gt; 真实 RxDB 的 not-installed 不伪装 empty，交给异常边界" time="0.00166425">
+        </testcase>
+    </testsuite>
+</testsuites>

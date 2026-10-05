@@ -1,4 +1,466 @@
 {
+  "missing": [
+    {
+      "name": "@use-gesture/vanilla",
+      "range": "^10.0.0",
+      "optional": true
+    },
+    {
+      "name": "zone.js",
+      "range": "~0.15.0 || ~0.16.0",
+      "optional": true
+    },
+    {
+      "name": "@angular/animations",
+      "range": "22.2.1",
+      "optional": true
+    },
+    {
+      "name": "tsx",
+      "range": "^4.8.1",
+      "optional": true
+    },
+    {
+      "name": "sugarss",
+      "range": "^5.0.0",
+      "optional": true
+    },
+    {
+      "name": "stylus",
+      "range": ">=0.54.8",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-win32-x64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-win32-arm64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-unknown-all",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-linux-x64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-linux-riscv64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-linux-musl-x64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-linux-musl-riscv64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-linux-musl-arm64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-linux-musl-arm",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-linux-arm64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-linux-arm",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-darwin-x64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-android-x64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-android-riscv64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-android-arm64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-android-arm",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-all-unknown",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-freebsd-x64",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-android-arm64",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-linux-arm-musl",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-linux-arm-glibc",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-linux-arm64-musl",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-linux-arm64-glibc",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-linux-x64-musl",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-linux-x64-glibc",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-win32-arm64",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-win32-x64",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-darwin-x64",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/win32-x64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/win32-ia32",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/win32-arm64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/sunos-x64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/openharmony-arm64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/openbsd-x64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/openbsd-arm64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/netbsd-x64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/netbsd-arm64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-x64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-s390x",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-riscv64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-ppc64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-mips64el",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-loong64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-ia32",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-arm64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-arm",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/freebsd-x64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/freebsd-arm64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/darwin-x64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/android-x64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/android-arm64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/android-arm",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/aix-ppc64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@vitejs/devtools",
+      "range": "^0.7.1",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-linux-x64-musl",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-linux-x64-gnu",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-freebsd-x64",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-win32-x64-msvc",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-darwin-x64",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-linux-s390x-gnu",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-linux-ppc64-gnu",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-linux-arm-gnueabihf",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-android-arm-eabi",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-openharmony-arm64",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-linux-arm64-musl",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-linux-arm64-gnu",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-win32-arm64-msvc",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-android-arm64",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-android-arm64",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-freebsd-x64",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-linux-x64-musl",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-linux-arm64-musl",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-linux-arm-gnueabihf",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-linux-arm64-gnu",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-win32-arm64-msvc",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-win32-x64-msvc",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-linux-x64-gnu",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-darwin-x64",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "msw",
+      "range": "^2.4.9",
+      "optional": true
+    },
+    {
+      "name": "utf-8-validate",
+      "range": ">=5.0.2",
+      "optional": true
+    },
+    {
+      "name": "bufferutil",
+      "range": "^4.0.1",
+      "optional": true
+    },
+    {
+      "name": "@vitest/browser-webdriverio",
+      "range": "4.1.11",
+      "optional": true
+    },
+    {
+      "name": "@vitest/browser-preview",
+      "range": "4.1.11",
+      "optional": true
+    },
+    {
+      "name": "jsdom",
+      "range": "*",
+      "optional": true
+    },
+    {
+      "name": "@opentelemetry/api",
+      "range": "^1.9.0",
+      "optional": true
+    },
+    {
+      "name": "@edge-runtime/vm",
+      "range": "*",
+      "optional": true
+    }
+  ],
   "picked": [
     {
       "name": "@angular/compiler",
@@ -1279,468 +1741,6 @@
       "name": "@rrweb/types",
       "version": "2.1.7",
       "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@rrweb+types@2.1.7/node_modules/@rrweb/types/package.json"
-    }
-  ],
-  "missing": [
-    {
-      "name": "@use-gesture/vanilla",
-      "range": "^10.0.0",
-      "optional": true
-    },
-    {
-      "name": "zone.js",
-      "range": "~0.15.0 || ~0.16.0",
-      "optional": true
-    },
-    {
-      "name": "@angular/animations",
-      "range": "22.2.1",
-      "optional": true
-    },
-    {
-      "name": "tsx",
-      "range": "^4.8.1",
-      "optional": true
-    },
-    {
-      "name": "sugarss",
-      "range": "^5.0.0",
-      "optional": true
-    },
-    {
-      "name": "stylus",
-      "range": ">=0.54.8",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-win32-x64",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-win32-arm64",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-unknown-all",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-linux-x64",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-linux-riscv64",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-linux-musl-x64",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-linux-musl-riscv64",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-linux-musl-arm64",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-linux-musl-arm",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-linux-arm64",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-linux-arm",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-darwin-x64",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-android-x64",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-android-riscv64",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-android-arm64",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-android-arm",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "sass-embedded-all-unknown",
-      "range": "1.105.1",
-      "optional": true
-    },
-    {
-      "name": "@parcel/watcher-freebsd-x64",
-      "range": "2.6.0",
-      "optional": true
-    },
-    {
-      "name": "@parcel/watcher-android-arm64",
-      "range": "2.6.0",
-      "optional": true
-    },
-    {
-      "name": "@parcel/watcher-linux-arm-musl",
-      "range": "2.6.0",
-      "optional": true
-    },
-    {
-      "name": "@parcel/watcher-linux-arm-glibc",
-      "range": "2.6.0",
-      "optional": true
-    },
-    {
-      "name": "@parcel/watcher-linux-arm64-musl",
-      "range": "2.6.0",
-      "optional": true
-    },
-    {
-      "name": "@parcel/watcher-linux-arm64-glibc",
-      "range": "2.6.0",
-      "optional": true
-    },
-    {
-      "name": "@parcel/watcher-linux-x64-musl",
-      "range": "2.6.0",
-      "optional": true
-    },
-    {
-      "name": "@parcel/watcher-linux-x64-glibc",
-      "range": "2.6.0",
-      "optional": true
-    },
-    {
-      "name": "@parcel/watcher-win32-arm64",
-      "range": "2.6.0",
-      "optional": true
-    },
-    {
-      "name": "@parcel/watcher-win32-x64",
-      "range": "2.6.0",
-      "optional": true
-    },
-    {
-      "name": "@parcel/watcher-darwin-x64",
-      "range": "2.6.0",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/win32-x64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/win32-ia32",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/win32-arm64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/sunos-x64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/openharmony-arm64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/openbsd-x64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/openbsd-arm64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/netbsd-x64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/netbsd-arm64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/linux-x64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/linux-s390x",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/linux-riscv64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/linux-ppc64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/linux-mips64el",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/linux-loong64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/linux-ia32",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/linux-arm64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/linux-arm",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/freebsd-x64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/freebsd-arm64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/darwin-x64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/android-x64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/android-arm64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/android-arm",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@esbuild/aix-ppc64",
-      "range": "0.28.2",
-      "optional": true
-    },
-    {
-      "name": "@vitejs/devtools",
-      "range": "^0.7.1",
-      "optional": true
-    },
-    {
-      "name": "@rolldown/binding-linux-x64-musl",
-      "range": "1.2.12",
-      "optional": true
-    },
-    {
-      "name": "@rolldown/binding-linux-x64-gnu",
-      "range": "1.2.12",
-      "optional": true
-    },
-    {
-      "name": "@rolldown/binding-freebsd-x64",
-      "range": "1.2.12",
-      "optional": true
-    },
-    {
-      "name": "@rolldown/binding-win32-x64-msvc",
-      "range": "1.2.12",
-      "optional": true
-    },
-    {
-      "name": "@rolldown/binding-darwin-x64",
-      "range": "1.2.12",
-      "optional": true
-    },
-    {
-      "name": "@rolldown/binding-linux-s390x-gnu",
-      "range": "1.2.12",
-      "optional": true
-    },
-    {
-      "name": "@rolldown/binding-linux-ppc64-gnu",
-      "range": "1.2.12",
-      "optional": true
-    },
-    {
-      "name": "@rolldown/binding-linux-arm-gnueabihf",
-      "range": "1.2.12",
-      "optional": true
-    },
-    {
-      "name": "@rolldown/binding-android-arm-eabi",
-      "range": "1.2.12",
-      "optional": true
-    },
-    {
-      "name": "@rolldown/binding-openharmony-arm64",
-      "range": "1.2.12",
-      "optional": true
-    },
-    {
-      "name": "@rolldown/binding-linux-arm64-musl",
-      "range": "1.2.12",
-      "optional": true
-    },
-    {
-      "name": "@rolldown/binding-linux-arm64-gnu",
-      "range": "1.2.12",
-      "optional": true
-    },
-    {
-      "name": "@rolldown/binding-win32-arm64-msvc",
-      "range": "1.2.12",
-      "optional": true
-    },
-    {
-      "name": "@rolldown/binding-android-arm64",
-      "range": "1.2.12",
-      "optional": true
-    },
-    {
-      "name": "lightningcss-android-arm64",
-      "range": "1.33.0",
-      "optional": true
-    },
-    {
-      "name": "lightningcss-freebsd-x64",
-      "range": "1.33.0",
-      "optional": true
-    },
-    {
-      "name": "lightningcss-linux-x64-musl",
-      "range": "1.33.0",
-      "optional": true
-    },
-    {
-      "name": "lightningcss-linux-arm64-musl",
-      "range": "1.33.0",
-      "optional": true
-    },
-    {
-      "name": "lightningcss-linux-arm-gnueabihf",
-      "range": "1.33.0",
-      "optional": true
-    },
-    {
-      "name": "lightningcss-linux-arm64-gnu",
-      "range": "1.33.0",
-      "optional": true
-    },
-    {
-      "name": "lightningcss-win32-arm64-msvc",
-      "range": "1.33.0",
-      "optional": true
-    },
-    {
-      "name": "lightningcss-win32-x64-msvc",
-      "range": "1.33.0",
-      "optional": true
-    },
-    {
-      "name": "lightningcss-linux-x64-gnu",
-      "range": "1.33.0",
-      "optional": true
-    },
-    {
-      "name": "lightningcss-darwin-x64",
-      "range": "1.33.0",
-      "optional": true
-    },
-    {
-      "name": "msw",
-      "range": "^2.4.9",
-      "optional": true
-    },
-    {
-      "name": "utf-8-validate",
-      "range": ">=5.0.2",
-      "optional": true
-    },
-    {
-      "name": "bufferutil",
-      "range": "^4.0.1",
-      "optional": true
-    },
-    {
-      "name": "@vitest/browser-webdriverio",
-      "range": "4.1.11",
-      "optional": true
-    },
-    {
-      "name": "@vitest/browser-preview",
-      "range": "4.1.11",
-      "optional": true
-    },
-    {
-      "name": "jsdom",
-      "range": "*",
-      "optional": true
-    },
-    {
-      "name": "@opentelemetry/api",
-      "range": "^1.9.0",
-      "optional": true
-    },
-    {
-      "name": "@edge-runtime/vm",
-      "range": "*",
-      "optional": true
     }
   ]
 }

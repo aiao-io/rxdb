@@ -1,0 +1,164 @@
+{
+  "assessment": "🟡 证据未全；不是业务缺陷评级，不假绿。",
+  "boundaries": [
+    "不跑重任务；不等待全73或其他大环境。",
+    "只有完整原 C 场景才允许主控后补核销；frozen 请求不等于动态通过。",
+    "node/@types-ms 对照是额外环境要求，裸 upstream utils 记录保留。",
+    "RV-070 仅 React，不泛化三端。",
+    "不改业务/已有测试/依赖/总台账/index/scope；本范围交付冻结后不无限发现新问题。"
+  ],
+  "completeCCount": 0,
+  "completeCs": [],
+  "controlledFiles": {
+    "expected": 15,
+    "fullContentRead": 15,
+    "readLines": 556,
+    "scopeHashesMatched": true,
+    "sourceEdits": 0,
+    "existingTestEdits": 0,
+    "dependencyEdits": 0,
+    "newSpecs": 1
+  },
+  "frozenSpecSha256": "ccb0f574dfd4dafd22cb185518a1b537422670700161e5f16e013763f5dc33b8",
+  "fullObjectCandidate": false,
+  "localSubsurfaces": [
+    {
+      "surface": "全部原 15 文件 + APF/tarball 来源",
+      "status": "completed-static"
+    },
+    {
+      "surface": "旧 Angular wrapper parity/config unit + 四覆盖 + lint/build",
+      "status": "controller-baseline-passed-scoped"
+    },
+    {
+      "surface": "fresh tar root runtime import",
+      "status": "controller-exit-0-not-player-E2E"
+    },
+    {
+      "surface": "新 Angular+core load/switch/destroy/restore/provider/status 属性",
+      "status": "14-cases-frozen-requested-not-executed"
+    },
+    {
+      "surface": "tsc/ngc 公共包正反类型消费",
+      "status": "fixtures-frozen-owner-controller-pending"
+    },
+    {
+      "surface": "原生键盘/resize/route/同录像三端/真实恢复决策",
+      "status": "necessary-unverified-owner-controller"
+    }
+  ],
+  "newFindings": 0,
+  "newProbeCases": 14,
+  "object": "rxdb-plugin-replay-angular",
+  "originalCompletionConditions": [
+    {
+      "id": "F1",
+      "condition": "全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。",
+      "status": "met",
+      "evidence": "15/15 全正文、556 行，APF/source map/六文件真 tar 对应核对。"
+    },
+    {
+      "id": "F2",
+      "condition": "每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。",
+      "status": "met-for-reporting-not-full-C-closure",
+      "evidence": "C1–C5 原场景逐项保留，5 个 partial，未验 owner/controller 请求明确。"
+    },
+    {
+      "id": "F3",
+      "condition": "不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。",
+      "status": "met-for-reported-evidence",
+      "evidence": "源码行/原 boundary gate 与新 frozen 未执行 probe 分层，happy-dom/原生区分。"
+    },
+    {
+      "id": "F4",
+      "condition": "实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。",
+      "status": "partial",
+      "evidence": "既有 build/lint/unit/coverage/cache/input/stdout 已证；新 spec focused/lint/类型/typed ngc 等待主控，不能继承旧测量。"
+    },
+    {
+      "id": "F5",
+      "condition": "上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。",
+      "status": "partial",
+      "evidence": "公开三端输入/事件/命令静态对齐；同真实 recording/marker 三端、尺寸键盘、Angular route 尚缺；不扩大所有宿主。"
+    },
+    {
+      "id": "F6",
+      "condition": "确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。",
+      "status": "met-with-no-new-own-findings",
+      "evidence": "本对象无新确认问题；裸 utils 错误上游归属，RV-070 仅 React 引用，不改旧 RV/总台账。"
+    },
+    {
+      "id": "F7",
+      "condition": "形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。",
+      "status": "partial",
+      "evidence": "🟡 当前证据结论；有界交付完成，原完整对象和发布就绪不核销。"
+    }
+  ],
+  "partialCs": ["C1", "C2", "C3", "C4", "C5"],
+  "releaseReady": false,
+  "remainingActions": [
+    {
+      "requestId": "replay-angular-strict-packed-consumer",
+      "project": "rxdb-plugin-replay-angular",
+      "target": "isolated-packed-consumer",
+      "criticalForC": ["C3", "C5"],
+      "owner": "controller",
+      "status": "requested",
+      "reason": "只编译真正 tarball 公开根声明：valid exit 0，invalid 必须命中命令、事件、hint 和输入返回类型的预期诊断。node/@types/ms 是额外环境要求，裸上游 utils NodeJS/ms 错误必须独立保留，不归罪于 Angular wrapper。"
+    },
+    {
+      "requestId": "replay-angular-strict-template-consumer",
+      "project": "rxdb-plugin-replay-angular",
+      "target": "isolated-ngc-consumer",
+      "criticalForC": ["C5"],
+      "owner": "controller",
+      "status": "requested",
+      "reason": "tsc 不验证 Angular 模板；ngc 验证真实 tarball ɵcmp 的必填输入、input signal 与 output $event，拒绝错误 replay/sessionId/initialTime、缺输入、错误事件和 seek 参数；不得用浅层 tsc 代替。"
+    },
+    {
+      "requestId": "replay-angular-real-core-lifecycle",
+      "project": "rxdb-plugin-replay-angular",
+      "target": "test",
+      "criticalForC": ["C1", "C2", "C3", "C4", "C5"],
+      "owner": "controller",
+      "status": "requested",
+      "reason": "新增最小 spec：真实 Angular TestBed + 未打桩 mountReplayer，受控 ReplayManager/rrweb 边界验证空态、失败、session/replay 切换、多实例、销毁晚完成、marker 恢复及 role/label；happy-dom 只证组件/core 状态链，不能冒充真实 rrweb/浏览器/IME 端到端。"
+    },
+    {
+      "requestId": "replay-angular-new-spec-lint",
+      "project": "rxdb-plugin-replay-angular",
+      "target": "lint",
+      "criticalForC": ["C4", "C5"],
+      "owner": "controller",
+      "status": "requested",
+      "reason": "新 spec 不继承旧十包 lint/unit。只补本对象静态门禁，TS strict；resolved target 与参数由主控核对，不发明已有 target。"
+    },
+    {
+      "requestId": "replay-angular-new-spec-typecheck",
+      "project": "rxdb-plugin-replay-angular",
+      "target": "typecheck",
+      "criticalForC": ["C4", "C5"],
+      "owner": "controller",
+      "status": "requested",
+      "reason": "新 spec 的 TS strict 语义编译；生产 typecheck 和旧 lint 不自动证明新 spec 类型。沿用本对象 tsconfig.spec.json、禁止源码 alias 作为 consumer 证据。"
+    },
+    {
+      "requestId": "replay-angular-native-player-route-a11y",
+      "project": "rxdb-plugin-replay-angular",
+      "target": "controller-browser-followup",
+      "criticalForC": ["C1", "C2", "C3", "C4", "C5"],
+      "owner": "controller",
+      "status": "necessary-unverified-owner-controller",
+      "reason": "原 C 的浏览器/route/三端真实 recording/marker 和尺寸键盘测量不能删减；复用主控已有应用/浏览器，不要求本代理新增路由或等待73环境。原生 IME 如被作主张必须真实设备验证，不用合成 composition 事件核销。"
+    }
+  ],
+  "requestCount": 6,
+  "reviewComplete": false,
+  "task": "R2-10",
+  "totalCCount": 5,
+  "updatedAt": "2026-10-05T11:41:34.429601+08:00",
+  "validationOwner": "controller",
+  "validationRequests": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/validation-requests.json",
+  "workerDeliveryComplete": true,
+  "workerDeliveryStatus": "delivered-awaiting-controller-validation"
+}

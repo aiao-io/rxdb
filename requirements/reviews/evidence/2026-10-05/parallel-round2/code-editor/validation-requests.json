@@ -3,14 +3,9 @@
     "id": "R2-01-V1",
     "project": "code-editor",
     "target": "build",
-    "args": [
-      "--skipRemoteCache",
-      "--skipNxCache"
-    ],
+    "args": ["--skipRemoteCache", "--skipNxCache"],
     "reason": "主控已实际重新pack，tar SHA与第一轮相同；不把pack称新build或确定性重构建。21文件scope无漂移；无需为本任务重复全量门禁。构建新鲜性由主控按自身已存构建输入裁定，本任务没有执行build。",
-    "criticalForC": [
-      "C5"
-    ],
+    "criticalForC": ["C5"],
     "status": "pack-verified-build-freshness-not-claimed",
     "runner": "controller",
     "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/pack-code-editor.txt"
@@ -31,12 +26,7 @@
       "no-paths"
     ],
     "reason": "按用户追加要求，主控复制任务目录consumer-valid.mts/consumer-invalid.mts/runtime-smoke.mjs到仓库外独立离线真实tar安装目录运行。有效consumer严格编译成功；无忽略指令的9处错例必须为真实公开类型诊断，不能以TS2307缺依赖或工具失败算负对照通过；runtime执行公开root和helper/SQL真实parser行为。追加type-only-consumer.mts覆盖原C5的Node只导入类型：严格emit后确认输出不含运行时包import并以Node导入marker。解析路径必须独立tar的dist，不能软链仓库或extends仓库tsconfig。记录tar/input/fixture hash、依赖版本、命令、exitCode、诊断与stdout；详consumer-protocol.md。此目标为主控协议，不是Nx已有target。",
-    "criticalForC": [
-      "C2",
-      "C3",
-      "C4",
-      "C5"
-    ],
+    "criticalForC": ["C2", "C3", "C4", "C5"],
     "status": "verified-main-probes-type-only-auxiliary-prepared",
     "runner": "controller",
     "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-results.json",
@@ -55,16 +45,9 @@
     "project": "code-editor",
     "target": "single-language-and-missing-resource-consumer",
     "targetKind": "controller-evidence-probe-not-nx-target",
-    "args": [
-      "packed-entry",
-      "sql-consumer",
-      "chunk-graph",
-      "missing-language-resource-negative-control"
-    ],
+    "args": ["packed-entry", "sql-consumer", "chunk-graph", "missing-language-resource-negative-control"],
     "reason": "从独立已pack consumer构建仅SQL使用面，记录initial/chunk原始和gzip体积与模块图，明确顶层元数据@codemirror/language-data和按需parser的差别，不能以没有自有chunk判失败。缺失真实语言模块须用独立fresh副本或主控loader机制，不能拿正常SQL资源去修改仓库、也不能凭error helper证明物理缺资源。SQL正常load作正对照；缺请求模块时root仍可导入、对应load明确reject且无fallback。主控选择现有工具；本任务只留原C5必要未验，禁止发包或变更工作区依赖。",
-    "criticalForC": [
-      "C5"
-    ],
+    "criticalForC": ["C5"],
     "status": "requested",
     "runner": "controller"
   },
@@ -88,11 +71,7 @@
       "repeat-mount-destroy"
     ],
     "reason": "原C1/C3/C4的DOM、IME、键盘/辅助技术、大文档和释放由三端EditorView绑定承担，不能删原要求或把helper单测冒充浏览器。主控可复用三端证据；逐条记录实际断言/浏览器或设备/版本，未验保留未验，不要求无关后端。归属与原最低场景已写responsibility-boundary.md；补证或有证据分流由主控裁定。",
-    "criticalForC": [
-      "C1",
-      "C3",
-      "C4"
-    ],
+    "criticalForC": ["C1", "C3", "C4"],
     "status": "requested",
     "runner": "controller"
   }

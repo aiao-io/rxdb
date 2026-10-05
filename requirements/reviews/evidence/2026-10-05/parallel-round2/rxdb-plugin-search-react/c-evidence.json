@@ -1,21 +1,4 @@
 {
-  "object": "rxdb-plugin-search-react",
-  "taskRequested": "R2-05",
-  "taskInScope": "R2-06",
-  "reviewDate": "2026-10-05",
-  "headAtReadStart": "465f9078e9844af2cbef9936c7321a5576333a01",
-  "headAtSnapshot": "465f9078e9844af2cbef9936c7321a5576333a01",
-  "completeC": [
-    "C1"
-  ],
-  "completeCCount": 1,
-  "originalCCount": 5,
-  "partialC": [
-    "C2",
-    "C3",
-    "C4",
-    "C5"
-  ],
   "c": [
     {
       "id": "C1",
@@ -29,70 +12,46 @@
         {
           "path": "packages/rxdb-plugin-search-react/src/use-search.ts",
           "ranges": [
-            [
-              31,
-              50
-            ],
-            [
-              81,
-              145
-            ]
+            [31, 50],
+            [81, 145]
           ],
           "role": "read-implementation"
         },
         {
           "path": "packages/rxdb-plugin-search/src/core/search-state.ts",
-          "ranges": [
-            [
-              96,
-              136
-            ]
-          ],
+          "ranges": [[96, 136]],
           "role": "upstream-state-contract"
         }
       ],
       "scenarios": [
         {
           "name": "空词",
-          "evidence": [
-            "src/__tests__/review-parallel-real-handle.spec.ts:52-54",
-            "new-parallel-probes.txt:652-666"
-          ],
+          "evidence": ["src/__tests__/review-parallel-real-handle.spec.ts:52-54", "new-parallel-probes.txt:652-666"],
           "status": "historical-measured-reusable"
         },
         {
           "name": "无结果",
-          "evidence": [
-            "src/__tests__/review-parallel-real-handle.spec.ts:56-59"
-          ],
+          "evidence": ["src/__tests__/review-parallel-real-handle.spec.ts:56-59"],
           "status": "historical-measured-reusable"
         },
         {
           "name": "查询失败/重试/error 身份",
-          "evidence": [
-            "src/__tests__/review-parallel-real-handle.spec.ts:61-69"
-          ],
+          "evidence": ["src/__tests__/review-parallel-real-handle.spec.ts:61-69"],
           "status": "historical-measured-reusable"
         },
         {
           "name": "末页/无更多 no-op",
-          "evidence": [
-            "src/__tests__/review-parallel-real-handle.spec.ts:71-76"
-          ],
+          "evidence": ["src/__tests__/review-parallel-real-handle.spec.ts:71-76"],
           "status": "historical-measured-reusable"
         },
         {
           "name": "清空",
-          "evidence": [
-            "src/__tests__/review-parallel-real-handle.spec.ts:78-79"
-          ],
+          "evidence": ["src/__tests__/review-parallel-real-handle.spec.ts:78-79"],
           "status": "historical-measured-reusable"
         },
         {
           "name": "取消待执行分页",
-          "evidence": [
-            "requirements/reviews/RV-062-parallel-search-cancel.md"
-          ],
+          "evidence": ["requirements/reviews/RV-062-parallel-search-cancel.md"],
           "status": "known-confirmed-upstream-issue-not-duplicated"
         }
       ],
@@ -111,56 +70,34 @@
         {
           "path": "packages/rxdb-plugin-search-react/src/use-search.ts",
           "ranges": [
-            [
-              54,
-              65
-            ],
-            [
-              104,
-              139
-            ]
+            [54, 65],
+            [104, 139]
           ],
           "role": "read-implementation"
         },
         {
           "path": "packages/rxdb-plugin-search/src/core/search-handle.ts",
           "ranges": [
-            [
-              108,
-              171
-            ],
-            [
-              237,
-              269
-            ]
+            [108, 171],
+            [237, 269]
           ],
           "role": "upstream-generation-and-pump"
         },
         {
           "path": "packages/rxdb-plugin-search/src/core/options-equality.ts",
-          "ranges": [
-            [
-              34,
-              62
-            ]
-          ],
+          "ranges": [[34, 62]],
           "role": "public-comparator"
         }
       ],
       "scenarios": [
         {
           "name": "A→B 快速输入及已执行 A 的串行 B",
-          "evidence": [
-            "src/__tests__/review-round2-lifecycle.spec.ts:87-124"
-          ],
+          "evidence": ["src/__tests__/review-round2-lifecycle.spec.ts:87-124"],
           "status": "authored-not-run"
         },
         {
           "name": "相同值新对象",
-          "evidence": [
-            "src/__tests__/use-search.spec.ts:211-233",
-            "framework-editor-coverage.txt:9088-9119"
-          ],
+          "evidence": ["src/__tests__/use-search.spec.ts:211-233", "framework-editor-coverage.txt:9088-9119"],
           "status": "historical-measured-reusable"
         },
         {
@@ -178,17 +115,12 @@
         },
         {
           "name": "并发翻页",
-          "evidence": [
-            "src/__tests__/review-round2-lifecycle.spec.ts:189-208"
-          ],
+          "evidence": ["src/__tests__/review-round2-lifecycle.spec.ts:189-208"],
           "status": "authored-not-run"
         },
         {
           "name": "undefined↔{}",
-          "evidence": [
-            "src/__tests__/review-round2-lifecycle.spec.ts:175-187",
-            "findings.pending.md"
-          ],
+          "evidence": ["src/__tests__/review-round2-lifecycle.spec.ts:175-187", "findings.pending.md"],
           "status": "pending-candidate-not-executed"
         }
       ],
@@ -208,57 +140,32 @@
       "minimum": "缺 plugin、typed consumer、同 fixtures parity、卸载；必须依赖能通过 inject 闭合。",
       "status": "partial",
       "fullC": false,
-      "conclusion": "实际三端 public root 都用 useSearch，Shared types 与 SearchExecutionError 值透传对齐；Signal/Ref/React value 为框架 idiom。缺插件/ready 是真实 RxDB 运行时约束，不由类型 augmentation 保证。core inject adapter:local 与 unsupported/unverified 拒绝已有明确来源；workspace README 编译不替代 tar。主控已真实 root import；初次正向 strict tar 编译受 NodeJS/ms 外部声明错误阻断，负向出现7处真实诊断但不能单靠 exit2核销。",
+      "conclusion": "实际三端 public root 都用 useSearch，Shared types 与 SearchExecutionError 值透传对齐；Signal/Ref/React value 为框架 idiom。RxDB plugin/ready 与 inject adapter:local、unsupported policy 已读。独立真实 tar 在显式 Node+@types/ms 环境下 strict valid0、invalid2仅7处消费类型诊断、rootimport0；原裸声明错误独立保留。缺插件/卸载动态新探针仍在主控unit队列，真实 branch/后端用户链路未验不冒充完成。",
       "production": [
         {
           "path": "packages/rxdb-plugin-search-react/src/index.ts",
-          "ranges": [
-            [
-              14,
-              17
-            ]
-          ],
+          "ranges": [[14, 17]],
           "role": "public-exports"
         },
         {
           "path": "packages/rxdb-plugin-search-react/README.md",
-          "ranges": [
-            [
-              13,
-              70
-            ]
-          ],
+          "ranges": [[13, 70]],
           "role": "documented-consumer-contract"
         },
         {
           "path": "packages/rxdb-plugin-search/src/plugin.ts",
           "ranges": [
-            [
-              189,
-              196
-            ],
-            [
-              636,
-              653
-            ],
-            [
-              728,
-              775
-            ]
+            [189, 196],
+            [636, 653],
+            [728, 775]
           ],
           "role": "upstream-injection-and-runtime-augmentation"
         },
         {
           "path": "packages/rxdb-plugin-search/src/backend/backend-registry.ts",
           "ranges": [
-            [
-              64,
-              90
-            ],
-            [
-              125,
-              138
-            ]
+            [64, 90],
+            [125, 138]
           ],
           "role": "backend-admission-policy"
         }
@@ -266,9 +173,7 @@
       "scenarios": [
         {
           "name": "缺 plugin/未安装",
-          "evidence": [
-            "src/__tests__/review-round2-lifecycle.spec.ts:274-290"
-          ],
+          "evidence": ["src/__tests__/review-round2-lifecycle.spec.ts:274-290"],
           "status": "authored-real-RxDB-boundary-not-run"
         },
         {
@@ -276,9 +181,10 @@
           "evidence": [
             "consumer-valid.mts",
             "consumer-invalid.mts",
-            "parallel-round2/validation/isolated-consumer-validation.json"
+            "parallel-round2/validation/isolated-consumer-validation.json",
+            "parallel-round2/validation/isolated-consumer-validation-bare.json"
           ],
-          "status": "executed-positive-blocked-negative-partial"
+          "status": "coordinator-measured-positive-pass-and-seven-clean-negative-diagnostics"
         },
         {
           "name": "同 fixtures parity",
@@ -301,15 +207,11 @@
         },
         {
           "name": "不支持的 backend",
-          "evidence": [
-            "core backend-registry.ts:64-90,125-138",
-            "core backend-registry.spec.ts 历史9用例通过"
-          ],
+          "evidence": ["core backend-registry.ts:64-90,125-138", "core backend-registry.spec.ts 历史9用例通过"],
           "status": "historical-policy-test-not-all-hosts-validated"
         }
       ],
       "remainingActions": [
-        "search-react-r2-packed-consumer followup",
         "search-react-r2-hooks",
         "search-react-r2-branch-consumer",
         "主控处理 README 同族命名/判据文字候选"
@@ -328,14 +230,8 @@
         {
           "path": "packages/rxdb-plugin-search-react/src/use-search.ts",
           "ranges": [
-            [
-              52,
-              65
-            ],
-            [
-              81,
-              145
-            ]
+            [52, 65],
+            [81, 145]
           ],
           "role": "effect-cleanup-command-ownership"
         }
@@ -360,24 +256,16 @@
         },
         {
           "name": "卸载后晚到结果/error",
-          "evidence": [
-            "src/__tests__/review-round2-lifecycle.spec.ts:126-153,211-235"
-          ],
+          "evidence": ["src/__tests__/review-round2-lifecycle.spec.ts:126-153,211-235"],
           "status": "authored-not-run"
         },
         {
           "name": "多个独立 root/状态不回流",
-          "evidence": [
-            "src/__tests__/review-round2-lifecycle.spec.ts:237-262"
-          ],
+          "evidence": ["src/__tests__/review-round2-lifecycle.spec.ts:237-262"],
           "status": "authored-not-run"
         }
       ],
-      "remainingActions": [
-        "search-react-r2-hooks",
-        "search-react-r2-lint",
-        "search-react-r2-types"
-      ]
+      "remainingActions": ["search-react-r2-hooks", "search-react-r2-lint", "search-react-r2-types"]
     },
     {
       "id": "C5",
@@ -386,30 +274,19 @@
       "minimum": "typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。",
       "status": "partial",
       "fullC": false,
-      "conclusion": "实际 API 为结构化 SearchSourceLike/SearchOptions→UseSearchReturn（不是需凭空提供实体泛型的接口），九字段逐项对照。source.search 在 commit effect 内，render 仅纯 memo/snapshot。新增错误 source/SSR/相同值重渲染探针，以及包名正负 typed fixtures；未执行 hooks，初次 tar 正向编译失败原因在依赖声明，不宣告本包类型绿。",
+      "conclusion": "实际 API 为 SearchSourceLike/SearchOptions→UseSearchReturn；九字段逐项对照。source.search 在 commit effect 内，render 仅纯 memo/snapshot。独立真实 tar 的显式 Node+@types/ms strict valid0、invalid2仅7处消费类型诊断、rootimport0已闭合typed inputs；原裸声明失败保留。SSR/错误source/相同值重渲染与新probe的strict spec门禁仍未收到主控最终日志。",
       "production": [
         {
           "path": "packages/rxdb-plugin-search-react/src/use-search.ts",
           "ranges": [
-            [
-              31,
-              65
-            ],
-            [
-              81,
-              145
-            ]
+            [31, 65],
+            [81, 145]
           ],
           "role": "public-shape-and-render-boundary"
         },
         {
           "path": "packages/rxdb-plugin-search-react/src/index.ts",
-          "ranges": [
-            [
-              14,
-              17
-            ]
-          ],
+          "ranges": [[14, 17]],
           "role": "public-consumer-entry"
         }
       ],
@@ -421,7 +298,7 @@
             "consumer-invalid.mts:1-19",
             "parallel-round2/validation/consumer-rxdb-plugin-search-react-invalid.txt"
           ],
-          "status": "expected-seven-real-diagnostics-observed-but-positive-blocked"
+          "status": "coordinator-measured-with-explicit-ambient-control"
         },
         {
           "name": "相同值不同引用/返回对象/重渲染",
@@ -433,30 +310,21 @@
         },
         {
           "name": "错误 props 与 runtime source",
-          "evidence": [
-            "consumer-invalid.mts:10-16",
-            "src/__tests__/review-round2-lifecycle.spec.ts:274-290"
-          ],
-          "status": "type-negatives-partial-runtime-unrun"
+          "evidence": ["consumer-invalid.mts:10-16", "src/__tests__/review-round2-lifecycle.spec.ts:274-290"],
+          "status": "strict-type-negatives-measured-runtime-new-unit-in-progress"
         },
         {
           "name": "render/SSR 没有搜索 IO",
-          "evidence": [
-            "src/use-search.ts:106-124",
-            "src/__tests__/review-round2-lifecycle.spec.ts:264-272"
-          ],
+          "evidence": ["src/use-search.ts:106-124", "src/__tests__/review-round2-lifecycle.spec.ts:264-272"],
           "status": "static-established-dynamic-authored-not-run"
         }
       ],
-      "remainingActions": [
-        "search-react-r2-packed-consumer followup",
-        "search-react-r2-hooks",
-        "search-react-r2-lint",
-        "search-react-r2-types"
-      ],
+      "remainingActions": ["search-react-r2-hooks", "search-react-r2-lint", "search-react-r2-types"],
       "boundary": "consumer .mts 只有未执行的函数内 hook 类型调用；main runtime root import 不运行 hook。没有 any/ts-expect-error、没有关闭 Hooks lint 或吞异常的测试策略。"
     }
   ],
+  "completeC": ["C1"],
+  "completeCCount": 1,
   "completionConditions": [
     {
       "id": "D1",
@@ -492,7 +360,7 @@
       "status": "partial",
       "evidence": [
         "validation-observations.json historical commands, cache off, maxWorkers1, 24 passed and four metrics",
-        "initial tar consumer failure retained, root import separated",
+        "bare tar failure retained; explicit Node/ms strict positive+negative/rootimport measured",
         "new target executions/JUnit/coverage pending, old coverage not inherited"
       ]
     },
@@ -503,7 +371,7 @@
       "evidence": [
         "three public roots and matching C1 fixture recorded",
         "RxDB inject/backend admission policy/UI source caller read only",
-        "true branch checkout/paging and complete independent typed consumer still required"
+        "independent typed consumer measured with explicit Node/ms control; true branch checkout/paging remains with task owner"
       ]
     },
     {
@@ -526,6 +394,27 @@
       ]
     }
   ],
+  "evidenceRoot": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react",
+  "freeze": {
+    "at": "2026-10-05T11:13:21.905685+08:00",
+    "probeSha256": "fed2e5879558928d53d1daca9410f3e32dcab1d10ce5651c46221a203e56e3d5",
+    "noFurtherSpecEdits": true
+  },
+  "headAtReadStart": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "headAtSnapshot": "465f9078e9844af2cbef9936c7321a5576333a01",
   "historicalC1ReuseBoundary": "C1 最低功能序列已有主控实际运行；current wrapper hash 与 measured hash 一致，probe body/import set 等价，core 已记录80输入无漂移。没有声称全工作树同 HEAD，或本轮新增 probe 已运行。",
-  "evidenceRoot": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react"
+  "object": "rxdb-plugin-search-react",
+  "originalCCount": 5,
+  "partialC": ["C2", "C3", "C4", "C5"],
+  "reviewDate": "2026-10-05",
+  "taskInScope": "R2-06",
+  "taskRequested": "R2-05",
+  "validationOwner": {
+    "taskRequested": "R2-05",
+    "taskInScope": "R2-06",
+    "object": "rxdb-plugin-search-react",
+    "runtimeAndGateExecutor": "coordinator",
+    "packageReviewOwner": "rxdb-plugin-search-react task owner",
+    "noWaitForAll73": true
+  }
 }

@@ -1,10 +1,8 @@
 {
-  "task": "R2-03",
-  "object": "rxdb-plugin-tree-react",
-  "updatedAt": "2026-10-05T11:01:00+08:00",
-  "headAtRead": "465f9078e9844af2cbef9936c7321a5576333a01",
-  "workerDeliveryStatus": "delivered-awaiting-controller-validation",
-  "workerDeliveryComplete": true,
+  "completeCCount": 2,
+  "completeCs": ["C4", "C5"],
+  "consumerNegativeExpressions": 10,
+  "consumerResult": "strict valid0/invalid ten semantic errors/root0 with node/@types/ms; bare upstream declaration failure retained",
   "controlledFiles": {
     "expected": 13,
     "fullContentRead": 13,
@@ -14,38 +12,38 @@
     "existingTestEdits": 0,
     "newSpecs": 1
   },
-  "completeCCount": 0,
-  "totalCCount": 5,
-  "completeCs": [],
-  "partialCs": [
-    "C1",
-    "C2",
-    "C3",
-    "C4",
-    "C5"
-  ],
+  "controllerDeferralRequired": true,
+  "controllerValidation": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/controller-validation.json",
+  "frozenSpecSha256": "e138ed22e843ac7bfdca1f83628684caf30179512fcf71d121bf2e7dff7ce9ec",
+  "fullObjectCandidate": false,
+  "gitMutationByWorker": false,
+  "headAtRead": "465f9078e9844af2cbef9936c7321a5576333a01",
   "localSubsurfaces": [
     {
-      "surface": "全部受控正文 + 生成/依赖接口来源",
-      "status": "completed-static",
-      "evidence": "file-inspection.json / generated-artifacts.json"
+      "surface": "13/13 full content + generated/type provenance",
+      "status": "completed-static"
     },
     {
-      "surface": "四 method/root/default/string fixture",
-      "status": "historical-local-passed",
-      "evidence": "validation-observations.json (3 files/6 tests; previous HEAD with own measured hashes matching)"
+      "surface": "dispatch/errors/params/root StrictMode/provider/render",
+      "status": "controller-passed-16-tests",
+      "evidence": "controller-validation.json"
     },
     {
-      "surface": "numeric/string independent declaration consumer",
-      "status": "prepared-not-compiled",
-      "evidence": "consumer-valid.mts / consumer-invalid.mts / consumer-contract.json"
+      "surface": "numeric/string real-package isolated declaration consumer",
+      "status": "passed-with-explicit-ambient-types-bare-upstream-failure-retained",
+      "evidence": "consumer-contract.json"
     },
     {
-      "surface": "参数/卸载/root StrictMode/provider/errors/render",
-      "status": "prepared-not-run",
-      "evidence": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/review-round2-lifecycle.spec.ts"
+      "surface": "current build/lint/coverage",
+      "status": "passed-scoped-not-repeated-build-or-test-TS-compile",
+      "evidence": "controller-validation.json"
     }
   ],
+  "newFindings": 0,
+  "newProbeCases": 10,
+  "newSpecFrozen": true,
+  "newSpecTypecheck": "pending-controller-quality-gate",
+  "object": "rxdb-plugin-tree-react",
   "originalCompletionConditions": [
     {
       "id": "F1",
@@ -57,31 +55,31 @@
       "id": "F2",
       "condition": "每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。",
       "status": "met-for-reporting-not-C-closure",
-      "evidence": "c-evidence.json preserves original actions/minimum scenes and remaining actions; 0/5 complete"
+      "evidence": "c-evidence.json: C4/C5 full original-minimum evidence; C1-C3 partial; whole object not completed"
     },
     {
       "id": "F3",
       "condition": "不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。",
-      "status": "partial",
-      "evidence": "production anchors and old exact run surface recorded; new probes only syntax parsing, no new dynamic assertions claimed"
+      "status": "met-for-reported-evidence",
+      "evidence": "production anchors + exact controller commands/environment/current frozen input SHA; dynamic claims scoped to actual own results"
     },
     {
       "id": "F4",
       "condition": "实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。",
       "status": "partial",
-      "evidence": "historical command/cache/input/100% four metrics recorded, branches 0/0; current new test/lint/typecheck/build results absent"
+      "evidence": "current build/lint/16 unit + four 100% metrics/cache/skip/input recorded; new spec semantic typecheck and JUnit not observed; repeated determinism not measured"
     },
     {
       "id": "F5",
       "condition": "上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。",
       "status": "partial",
-      "evidence": "public 3-wrapper/types and generator static-slot protocol checked; same real tree three-framework fixture and independent consumer compilation pending"
+      "evidence": "public native three-wrapper types/generator protocol/real tarball consumers checked; original same real-tree three-framework fixture pending; bare utils gap upstream-owned"
     },
     {
       "id": "F6",
       "condition": "确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。",
       "status": "met-with-no-new-findings",
-      "evidence": "findings.pending.md; existing registry inspected, unrelated RV069/070 not charged to tree wrapper; no new RV allocated"
+      "evidence": "no new own finding/RV; confirmed bare utils NodeJS/ms gap explicitly upstream-owned, ambient comparison retained"
     },
     {
       "id": "F7",
@@ -90,53 +88,41 @@
       "evidence": "scoped review assessment 🟡 evidence incomplete; no whole-object final grade; reviewComplete=false/releaseReady=false"
     }
   ],
-  "fullObjectCandidate": false,
-  "reviewComplete": false,
+  "ownCurrentUnitResult": {
+    "filesPassed": 4,
+    "testsPassed": 16,
+    "newTestsPassed": 10
+  },
+  "partialCs": ["C1", "C2", "C3"],
+  "published": false,
   "releaseReady": false,
-  "newFindings": 0,
-  "newProbeCases": 10,
-  "consumerNegativeExpressions": 10,
-  "validationRequests": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/validation-requests.json",
-  "validationOwner": "controller",
-  "requestCount": 6,
   "remainingActions": [
     {
-      "action": "串行执行本包 new+existing unit/coverage/lint/typecheck，结果绑定 newSpec SHA 和真实依赖输入",
-      "criticalForC": [
-        "C1",
-        "C2",
-        "C3",
-        "C4",
-        "C5"
-      ]
+      "action": "主控补新 spec 类型质量门禁；不新增模式，不阻塞 queued 小包",
+      "criticalForC": ["C4", "C5"],
+      "kind": "quality-not-missing-original-minimum-scene"
     },
     {
-      "action": "真实 tarball offline consumer 正向成功/负向语义诊断逐锚点成立；root runtime import 单独记录，不执行顶层 hook",
-      "criticalForC": [
-        "C1",
-        "C3",
-        "C5"
-      ]
+      "action": "原 C1-C3 real numeric/string/deep/plugin/QueryCache/move/delete/full-query 与同 fixture 三端对照；精准复用 upstream，不等无关大包",
+      "criticalForC": ["C1", "C2", "C3"]
     },
     {
-      "action": "稳定输入 build + 对应声明产物与重复构建输出字节比较",
-      "criticalForC": [
-        "C1",
-        "C3",
-        "C5"
-      ]
+      "action": "稳定输入 repeat build/hash；fresh build已过但确定性未測",
+      "kind": "original-object-completion-condition"
     },
     {
-      "action": "原最低真实 tree 链路 numeric/string/deep/querycache/missing-plugin/move/delete/full-query 与同 fixture 三端 state/多实例清理；已有 upstream 可复用但精确配对",
-      "criticalForC": [
-        "C1",
-        "C2",
-        "C3"
-      ]
+      "action": "裸 utils NodeJS/ms 声明缺口主控上游定责；保持裸失败与补类型成功，不改本包依赖",
+      "kind": "confirmed-upstream-declaration-gap"
     }
   ],
-  "controllerDeferralRequired": true,
+  "requestCount": 6,
+  "reviewComplete": false,
   "scopeExpanded": false,
-  "published": false,
-  "gitMutationByWorker": false
+  "task": "R2-03",
+  "totalCCount": 5,
+  "updatedAt": "2026-10-05T11:15:05+08:00",
+  "validationOwner": "controller",
+  "validationRequests": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/validation-requests.json",
+  "workerDeliveryComplete": true,
+  "workerDeliveryStatus": "delivered-awaiting-controller-validation"
 }

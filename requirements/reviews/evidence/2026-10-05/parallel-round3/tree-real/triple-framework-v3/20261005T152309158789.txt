@@ -1,0 +1,65 @@
+COMMAND: ["node", "../../node_modules/vitest/vitest.mjs", "run", "--config", "vitest.config.mts"]
+CWD: /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/framework-tests/round3-tree-real
+
+ RUN  v4.1.11 /private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/framework-tests/round3-tree-real
+
+ ❯ tree-real.spec.mts (3 tests | 2 failed) 11846ms
+     × 四查询、层级、跨父移动、级联删除、空树和多实例退订与独立 SQL 全查一致 6069ms
+     × 四查询、层级、跨父移动、级联删除、空树和多实例退订与独立 SQL 全查一致 5760ms
+   ✓ 真实注册期拒绝漏装 Tree 插件和 QueryCache 组合 16ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tree-real.spec.mts > 真实 PGlite number 树的三框架对照 > 四查询、层级、跨父移动、级联删除、空树和多实例退订与独立 SQL 全查一致
+AssertionError: framework reader 0: expected { descendants: [], …(4) } to match object { descendants: [], …(3) }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+@@ -2,8 +2,8 @@
+    "ancestorCount": 1,
+    "ancestors": [
+      "2",
+      "9",
+    ],
+-   "descendantCount": 0,
++   "descendantCount": -1,
+    "descendants": [],
+  }
+
+ ❯ vi.waitFor.timeout tree-real.spec.mts:124:80
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tree-real.spec.mts > 真实 PGlite string 树的三框架对照 > 四查询、层级、跨父移动、级联删除、空树和多实例退订与独立 SQL 全查一致
+AssertionError: framework reader 0: expected { descendants: [], …(4) } to match object { descendants: [], …(3) }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+@@ -2,8 +2,8 @@
+    "ancestorCount": 1,
+    "ancestors": [
+      "00000000-0000-4000-8000-000000000002",
+      "00000000-0000-4000-8000-000000000009",
+    ],
+-   "descendantCount": 0,
++   "descendantCount": -1,
+    "descendants": [],
+  }
+
+ ❯ vi.waitFor.timeout tree-real.spec.mts:124:80
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed | 1 passed (3)
+   Start at  15:23:09
+   Duration  12.52s (transform 26ms, setup 0ms, import 345ms, tests 11.85s, environment 231ms)
+
+JUNIT report written to /private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/framework-tests/round3-tree-real/tree-real.junit.xml

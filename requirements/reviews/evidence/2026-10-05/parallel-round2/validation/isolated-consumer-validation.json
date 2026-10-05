@@ -1,11 +1,13 @@
 {
+  "bareConsumerErrorsRetained": "isolated-consumer-validation-bare.json",
   "clientDate": "2026-10-05",
-  "peerEnvironment": "Real tarball internal libraries and installed peer tarballs, outside workspace; optional peers not available/excluded, Angular compiler explicitly bootstrapped for Node import",
+  "compiledDeclarationsNotSourceAliases": true,
   "consumerDirectory": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer",
+  "extraAmbientTypesRequired": ["node", "@types/ms"],
   "objects": [
     {
       "project": "code-editor",
-      "checkedAt": "2026-10-05T11:04:03.696215+08:00",
+      "checkedAt": "2026-10-05T11:56:30.419765+08:00",
       "cwd": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/code-editor",
       "noWorkspaceAliasesOrLinks": true,
       "strict": true,
@@ -71,7 +73,7 @@
     },
     {
       "project": "rxdb-plugin-tree-angular",
-      "checkedAt": "2026-10-05T11:04:06.456242+08:00",
+      "checkedAt": "2026-10-05T11:56:32.859380+08:00",
       "cwd": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-angular",
       "noWorkspaceAliasesOrLinks": true,
       "strict": true,
@@ -95,18 +97,13 @@
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-tree-angular",
-          "exports": [
-            "useCountAncestors",
-            "useCountDescendants",
-            "useFindAncestors",
-            "useFindDescendants"
-          ]
+          "exports": ["useCountAncestors", "useCountDescendants", "useFindAncestors", "useFindDescendants"]
         }
       }
     },
     {
       "project": "rxdb-plugin-tree-react",
-      "checkedAt": "2026-10-05T11:04:13.246331+08:00",
+      "checkedAt": "2026-10-05T11:56:39.359711+08:00",
       "cwd": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-react",
       "noWorkspaceAliasesOrLinks": true,
       "strict": true,
@@ -138,44 +135,65 @@
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-tree-react",
-          "exports": [
-            "useCountAncestors",
-            "useCountDescendants",
-            "useFindAncestors",
-            "useFindDescendants"
-          ]
+          "exports": ["useCountAncestors", "useCountDescendants", "useFindAncestors", "useFindDescendants"]
         }
       }
     },
     {
       "project": "rxdb-plugin-tree-vue",
-      "checkedAt": "2026-10-05T11:04:20.356242+08:00",
+      "checkedAt": "2026-10-05T11:56:46.215882+08:00",
       "cwd": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-vue",
       "noWorkspaceAliasesOrLinks": true,
       "strict": true,
       "skipLibCheck": false,
       "valid": {
-        "status": "fixture-not-yet-written"
+        "exitCode": 2,
+        "errors": [
+          "../../node_modules/.pnpm/@aiao+rxdb-plugin-tree-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6gl_187a288282eb9d24c7fdc5a9dc512e00/node_modules/@aiao/rxdb-plugin-tree-vue/dist/use-tree.d.ts(3,15): error TS2305: Module '\"@aiao/rxdb-vue\"' has no exported member 'RxDBResource'.",
+          "../../node_modules/.pnpm/@aiao+rxdb-plugin-tree-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6gl_187a288282eb9d24c7fdc5a9dc512e00/node_modules/@aiao/rxdb-plugin-tree-vue/dist/use-tree.d.ts(3,34): error TS2305: Module '\"@aiao/rxdb-vue\"' has no exported member 'UseOptions'.",
+          "../../node_modules/.pnpm/@aiao+rxdb-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000_ebfdff267b9a5a2441bb2995ce4a7636/node_modules/@aiao/rxdb-vue/dist/index.d.ts(21,15): error TS2834: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.",
+          "../../node_modules/.pnpm/@aiao+rxdb-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000_ebfdff267b9a5a2441bb2995ce4a7636/node_modules/@aiao/rxdb-vue/dist/index.d.ts(25,15): error TS2834: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.",
+          "../../node_modules/.pnpm/@aiao+rxdb-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000_ebfdff267b9a5a2441bb2995ce4a7636/node_modules/@aiao/rxdb-vue/dist/index.d.ts(29,15): error TS2834: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.",
+          "../../node_modules/.pnpm/@aiao+rxdb-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000_ebfdff267b9a5a2441bb2995ce4a7636/node_modules/@aiao/rxdb-vue/dist/index.d.ts(34,15): error TS2834: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.",
+          "../../node_modules/.pnpm/@aiao+rxdb-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000_ebfdff267b9a5a2441bb2995ce4a7636/node_modules/@aiao/rxdb-vue/dist/index.d.ts(39,15): error TS2834: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.",
+          "../../node_modules/.pnpm/@aiao+rxdb-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000_ebfdff267b9a5a2441bb2995ce4a7636/node_modules/@aiao/rxdb-vue/dist/index.d.ts(44,15): error TS2834: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.",
+          "../../node_modules/.pnpm/@aiao+rxdb-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000_ebfdff267b9a5a2441bb2995ce4a7636/node_modules/@aiao/rxdb-vue/dist/index.d.ts(49,15): error TS2834: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-vue/consumer-valid.mts(35,15): error TS2305: Module '\"@aiao/rxdb-vue\"' has no exported member 'RxDBResource'."
+        ],
+        "fixtureSha256": "ab4aae8ffb8a8f64b77325555633c0cefb350c8b9754c9fdd93b78103ad74c8a",
+        "status": "failed-or-nonconsumer-error"
       },
       "invalid": {
-        "status": "fixture-not-yet-written"
+        "exitCode": 2,
+        "errors": [
+          "../../node_modules/.pnpm/@aiao+rxdb-plugin-tree-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6gl_187a288282eb9d24c7fdc5a9dc512e00/node_modules/@aiao/rxdb-plugin-tree-vue/dist/use-tree.d.ts(3,15): error TS2305: Module '\"@aiao/rxdb-vue\"' has no exported member 'RxDBResource'.",
+          "../../node_modules/.pnpm/@aiao+rxdb-plugin-tree-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6gl_187a288282eb9d24c7fdc5a9dc512e00/node_modules/@aiao/rxdb-plugin-tree-vue/dist/use-tree.d.ts(3,34): error TS2305: Module '\"@aiao/rxdb-vue\"' has no exported member 'UseOptions'.",
+          "../../node_modules/.pnpm/@aiao+rxdb-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000_ebfdff267b9a5a2441bb2995ce4a7636/node_modules/@aiao/rxdb-vue/dist/index.d.ts(21,15): error TS2834: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.",
+          "../../node_modules/.pnpm/@aiao+rxdb-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000_ebfdff267b9a5a2441bb2995ce4a7636/node_modules/@aiao/rxdb-vue/dist/index.d.ts(25,15): error TS2834: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.",
+          "../../node_modules/.pnpm/@aiao+rxdb-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000_ebfdff267b9a5a2441bb2995ce4a7636/node_modules/@aiao/rxdb-vue/dist/index.d.ts(29,15): error TS2834: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.",
+          "../../node_modules/.pnpm/@aiao+rxdb-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000_ebfdff267b9a5a2441bb2995ce4a7636/node_modules/@aiao/rxdb-vue/dist/index.d.ts(34,15): error TS2834: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.",
+          "../../node_modules/.pnpm/@aiao+rxdb-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000_ebfdff267b9a5a2441bb2995ce4a7636/node_modules/@aiao/rxdb-vue/dist/index.d.ts(39,15): error TS2834: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.",
+          "../../node_modules/.pnpm/@aiao+rxdb-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000_ebfdff267b9a5a2441bb2995ce4a7636/node_modules/@aiao/rxdb-vue/dist/index.d.ts(44,15): error TS2834: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.",
+          "../../node_modules/.pnpm/@aiao+rxdb-vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000_ebfdff267b9a5a2441bb2995ce4a7636/node_modules/@aiao/rxdb-vue/dist/index.d.ts(49,15): error TS2834: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Consider adding an extension to the import path.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-vue/consumer-invalid.mts(45,20): error TS2345: Argument of type 'typeof PlainNode' is not assignable to parameter of type 'TreeEntityType'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-vue/consumer-invalid.mts(46,21): error TS2345: Argument of type 'typeof PlainNode' is not assignable to parameter of type 'TreeEntityType'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-vue/consumer-invalid.mts(47,18): error TS2345: Argument of type 'typeof PlainNode' is not assignable to parameter of type 'TreeEntityType'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-vue/consumer-invalid.mts(48,19): error TS2345: Argument of type 'typeof PlainNode' is not assignable to parameter of type 'TreeEntityType'."
+        ],
+        "fixtureSha256": "a8e90812f6323374b787eb8f1c2b2e78e0b81b6130a07eb91986cd6dc49f8707",
+        "status": "failed-or-nonconsumer-error"
       },
       "rootRuntimeImport": {
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-tree-vue",
-          "exports": [
-            "useCountAncestors",
-            "useCountDescendants",
-            "useFindAncestors",
-            "useFindDescendants"
-          ]
+          "exports": ["useCountAncestors", "useCountDescendants", "useFindAncestors", "useFindDescendants"]
         }
       }
     },
     {
       "project": "rxdb-plugin-search-angular",
-      "checkedAt": "2026-10-05T11:04:20.684784+08:00",
+      "checkedAt": "2026-10-05T11:56:53.679470+08:00",
       "cwd": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-search-angular",
       "noWorkspaceAliasesOrLinks": true,
       "strict": true,
@@ -202,16 +220,13 @@
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-search-angular",
-          "exports": [
-            "SearchExecutionError",
-            "useSearch"
-          ]
+          "exports": ["SearchExecutionError", "useSearch"]
         }
       }
     },
     {
       "project": "rxdb-plugin-search-react",
-      "checkedAt": "2026-10-05T11:04:27.409678+08:00",
+      "checkedAt": "2026-10-05T11:57:00.309027+08:00",
       "cwd": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-search-react",
       "noWorkspaceAliasesOrLinks": true,
       "strict": true,
@@ -240,16 +255,13 @@
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-search-react",
-          "exports": [
-            "SearchExecutionError",
-            "useSearch"
-          ]
+          "exports": ["SearchExecutionError", "useSearch"]
         }
       }
     },
     {
       "project": "rxdb-plugin-search-vue",
-      "checkedAt": "2026-10-05T11:04:34.220947+08:00",
+      "checkedAt": "2026-10-05T11:57:07.235819+08:00",
       "cwd": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-search-vue",
       "noWorkspaceAliasesOrLinks": true,
       "strict": true,
@@ -285,89 +297,149 @@
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-search-vue",
-          "exports": [
-            "SearchExecutionError",
-            "useSearch"
-          ]
+          "exports": ["SearchExecutionError", "useSearch"]
         }
       }
     },
     {
       "project": "rxdb-plugin-working-tree-angular",
-      "checkedAt": "2026-10-05T11:04:43.267131+08:00",
+      "checkedAt": "2026-10-05T11:57:16.208675+08:00",
       "cwd": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-angular",
       "noWorkspaceAliasesOrLinks": true,
       "strict": true,
       "skipLibCheck": false,
       "valid": {
-        "status": "fixture-not-yet-written"
+        "exitCode": 0,
+        "errors": [],
+        "fixtureSha256": "319e762dfbd0f28fc0fcf3737eed200af5b595a5adab6f478f4e3b170e7df6a4",
+        "status": "passed"
       },
       "invalid": {
-        "status": "fixture-not-yet-written"
+        "exitCode": 2,
+        "errors": [
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-angular/consumer-invalid.mts(4,20): error TS2339: Property 'set' does not exist on type 'Signal<WorkingTreeQueryState<WorkingTreeStatus>>'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-angular/consumer-invalid.mts(5,22): error TS2339: Property 'value' does not exist on type 'WorkingTreeQueryState<WorkingTreeStatus>'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-angular/consumer-invalid.mts(6,15): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-angular/consumer-invalid.mts(7,21): error TS2345: Argument of type '{}' is not assignable to parameter of type 'CommitOptions'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-angular/consumer-invalid.mts(8,18): error TS2353: Object literal may only specify known properties, and 'kind' does not exist in type 'WorkingTreeRestoreTarget'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-angular/consumer-invalid.mts(9,18): error TS2322: Type 'string' is not assignable to type 'number'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-angular/consumer-invalid.mts(10,15): error TS2322: Type 'string' is not assignable to type 'number'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-angular/consumer-invalid.mts(11,21): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-angular/consumer-invalid.mts(12,31): error TS2322: Type 'string' is not assignable to type 'boolean | undefined'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-angular/consumer-invalid.mts(13,9): error TS2322: Type '() => WorkingTreeResource' is not assignable to type '() => string'."
+        ],
+        "fixtureSha256": "77c896cda6de320d31555c354b5d5938967659b40f70475717b1b65c3986b598",
+        "status": "rejected-as-expected"
       },
       "rootRuntimeImport": {
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-working-tree-angular",
-          "exports": [
-            "useWorkingTree"
-          ]
+          "exports": ["useWorkingTree"]
         }
       }
     },
     {
       "project": "rxdb-plugin-working-tree-vue",
-      "checkedAt": "2026-10-05T11:04:43.482340+08:00",
+      "checkedAt": "2026-10-05T11:57:22.555562+08:00",
       "cwd": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-vue",
       "noWorkspaceAliasesOrLinks": true,
       "strict": true,
       "skipLibCheck": false,
       "valid": {
-        "status": "fixture-not-yet-written"
+        "exitCode": 0,
+        "errors": [],
+        "fixtureSha256": "c154bdc94cc43d32759c8d042661d6b28d54ccfcd0fcdfb5745258b633881658",
+        "status": "passed"
       },
       "invalid": {
-        "status": "fixture-not-yet-written"
+        "exitCode": 2,
+        "errors": [
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-vue/consumer-invalid.mts(4,18): error TS2554: Expected 0 arguments, but got 1.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-vue/consumer-invalid.mts(5,20): error TS2540: Cannot assign to 'value' because it is a read-only property.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-vue/consumer-invalid.mts(6,25): error TS2345: Argument of type '{}' is not assignable to parameter of type 'CommitOptions'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-vue/consumer-invalid.mts(7,35): error TS2322: Type 'string' is not assignable to type 'boolean | undefined'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-working-tree-vue/consumer-invalid.mts(8,18): error TS2322: Type 'number' is not assignable to type 'string'."
+        ],
+        "fixtureSha256": "c7348784d181fd00da011b8dcbea96d2e5e4e396ab3f20fbbb4a4aa2b0078fc3",
+        "status": "rejected-as-expected"
       },
       "rootRuntimeImport": {
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-working-tree-vue",
-          "exports": [
-            "useWorkingTree"
-          ]
+          "exports": ["useWorkingTree"]
         }
       }
     },
     {
       "project": "rxdb-plugin-replay-angular",
-      "checkedAt": "2026-10-05T11:04:43.658067+08:00",
+      "checkedAt": "2026-10-05T11:57:31.318194+08:00",
       "cwd": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-replay-angular",
       "noWorkspaceAliasesOrLinks": true,
       "strict": true,
       "skipLibCheck": false,
       "valid": {
-        "status": "fixture-not-yet-written"
+        "exitCode": 2,
+        "errors": [
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(15,27): error TS2663: Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(15,27): error TS1254: A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference.",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(26,27): error TS2663: Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(26,27): error TS1254: A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference.",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(48,27): error TS2663: Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(48,27): error TS1254: A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference.",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(74,27): error TS2663: Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(74,27): error TS1254: A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference.",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(86,27): error TS2663: Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(86,27): error TS1254: A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference.",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(152,27): error TS2663: Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(152,27): error TS1254: A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference.",
+          "../../node_modules/.pnpm/rrweb@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_3863d37780c1a6b6ed32b46c26987f09/node_modules/rrweb/dist/rrweb.d.ts(211,25): error TS2395: Individual declarations in merged declaration 'record' must be all exported or all local.",
+          "../../node_modules/.pnpm/rrweb@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_3863d37780c1a6b6ed32b46c26987f09/node_modules/rrweb/dist/rrweb.d.ts(213,26): error TS2395: Individual declarations in merged declaration 'record' must be all exported or all local.",
+          "../../node_modules/.pnpm/rrweb@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_3863d37780c1a6b6ed32b46c26987f09/node_modules/rrweb/dist/rrweb.d.ts(464,19): error TS2395: Individual declarations in merged declaration 'record' must be all exported or all local."
+        ],
+        "fixtureSha256": "977c55253701de918ccaa19210591f14e17fe3f4a9bed45402fe62fc101d8e67",
+        "status": "failed-or-nonconsumer-error"
       },
       "invalid": {
-        "status": "fixture-not-yet-written"
+        "exitCode": 2,
+        "errors": [
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(15,27): error TS2663: Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(15,27): error TS1254: A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference.",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(26,27): error TS2663: Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(26,27): error TS1254: A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference.",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(48,27): error TS2663: Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(48,27): error TS1254: A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference.",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(74,27): error TS2663: Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(74,27): error TS1254: A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference.",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(86,27): error TS2663: Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(86,27): error TS1254: A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference.",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(152,27): error TS2663: Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?",
+          "../../node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts(152,27): error TS1254: A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference.",
+          "../../node_modules/.pnpm/rrweb@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_3863d37780c1a6b6ed32b46c26987f09/node_modules/rrweb/dist/rrweb.d.ts(211,25): error TS2395: Individual declarations in merged declaration 'record' must be all exported or all local.",
+          "../../node_modules/.pnpm/rrweb@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_3863d37780c1a6b6ed32b46c26987f09/node_modules/rrweb/dist/rrweb.d.ts(213,26): error TS2395: Individual declarations in merged declaration 'record' must be all exported or all local.",
+          "../../node_modules/.pnpm/rrweb@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_3863d37780c1a6b6ed32b46c26987f09/node_modules/rrweb/dist/rrweb.d.ts(464,19): error TS2395: Individual declarations in merged declaration 'record' must be all exported or all local.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-replay-angular/consumer-invalid.mts(10,15): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-replay-angular/consumer-invalid.mts(11,28): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-replay-angular/consumer-invalid.mts(12,76): error TS2322: Type '\"not-a-reason\"' is not assignable to type '\"error\" | ReplayRestoreRejection'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-replay-angular/consumer-invalid.mts(13,33): error TS2345: Argument of type '(time: string) => undefined' is not assignable to parameter of type '(value: number) => void'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-replay-angular/consumer-invalid.mts(14,21): error TS2345: Argument of type '\"error\"' is not assignable to parameter of type 'ReplayRestoreRejection'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-replay-angular/consumer-invalid.mts(15,9): error TS2322: Type 'string' is not assignable to type 'number'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-replay-angular/consumer-invalid.mts(16,9): error TS2322: Type 'ReplayManager' is not assignable to type 'string'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-replay-angular/consumer-invalid.mts(17,9): error TS2322: Type 'number | undefined' is not assignable to type 'string'."
+        ],
+        "fixtureSha256": "49059107a085ca080af77374bed163168c1b26699ab7de43a1631586dd9a0e6c",
+        "status": "failed-or-nonconsumer-error"
       },
       "rootRuntimeImport": {
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-replay-angular",
-          "exports": [
-            "ReplayerComponent",
-            "replayRestoreHint"
-          ]
+          "exports": ["ReplayerComponent", "replayRestoreHint"]
         }
       }
     }
   ],
-  "compiledDeclarationsNotSourceAliases": true,
-  "runtimeRootImportIsNotAFullFrameworkUserPath": true,
-  "extraAmbientTypesRequired": [
-    "node",
-    "@types/ms"
-  ],
-  "bareConsumerErrorsRetained": "isolated-consumer-validation-bare.json"
+  "peerEnvironment": "Real tarball internal libraries and installed peer tarballs, outside workspace; optional peers not available/excluded, Angular compiler explicitly bootstrapped for Node import",
+  "runtimeRootImportIsNotAFullFrameworkUserPath": true
 }

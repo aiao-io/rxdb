@@ -1,0 +1,22 @@
+{
+  "clientDate": "2026-10-05",
+  "startedAt": "2026-10-05T15:14:28.572221+08:00",
+  "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "command": [
+    "/Users/jimmy/.nvm/versions/node/v26.7.0/bin/node",
+    "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/vue-tsc/bin/vue-tsc.js",
+    "--project",
+    "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/tsconfig.doc-depth-bundler.json",
+    "--noEmit",
+    "--pretty",
+    "false"
+  ],
+  "cwd": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3",
+  "exitCode": 2,
+  "elapsedSeconds": 5.923,
+  "scopedInputCount": 339,
+  "changedInputsDuringMeasurement": [],
+  "serialHeavyTaskLock": true,
+  "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/doc-depth-bundler-9e7a67dd79c3/20261005T151428529474.txt"
+}

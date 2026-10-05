@@ -1,4 +1,4 @@
-import { RxDB } from '@aiao/rxdb';
+import { RxDB, SyncType } from '@aiao/rxdb';
 import {
   createSearchHandle,
   rxDBPluginSearch,
@@ -7,7 +7,7 @@ import {
   type SearchPage
 } from '@aiao/rxdb-plugin-search';
 import { act, cleanup, render, renderHook, screen } from '@testing-library/react';
-import { Component, StrictMode, createElement, type PropsWithChildren } from 'react';
+import { Component, createElement, type PropsWithChildren } from 'react';
 import { renderToString } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -39,7 +39,12 @@ function controlledSource() {
     return gate.promise;
   });
   const search = vi.fn((initialQuery: string, options?: SearchOptions): SearchHandle => {
-    const core = createSearchHandle({ performSearch, initialQuery, debounceMs: options?.debounce ?? 0 });
+    const core = createSearchHandle({
+      performSearch,
+      initialQuery,
+      refreshAuditMs: 0,
+      debounceMs: options?.debounce ?? 0
+    });
     const handle: SearchHandle = { ...core, destroy: vi.fn(() => core.destroy()) };
     handles.push(handle);
     return handle;
@@ -61,8 +66,6 @@ function page(id: string, hasMore = false): SearchPage {
   };
 }
 
-const StrictWrapper = ({ children }: PropsWithChildren) => createElement(StrictMode, null, children);
-
 class SearchBoundary extends Component<PropsWithChildren, { error: Error | undefined }> {
   override state: { error: Error | undefined } = { error: undefined };
 
@@ -81,7 +84,12 @@ function BindingProbe({ source }: { source: SearchSourceLike }) {
 }
 
 function database(name: string): RxDB {
-  return new RxDB({ dbName: name, entities: [], multiInstance: false, sync: { local: { adapter: 'sqlite' } } });
+  return new RxDB({
+    dbName: name,
+    entities: [],
+    multiInstance: false,
+    sync: { type: SyncType.None, local: { adapter: 'sqlite' } }
+  });
 }
 
 afterEach(() => {
@@ -154,11 +162,12 @@ describe('第二轮评审：真实 SearchHandle 与 React 生命周期', () => {
 
   it('相同值新 options 保持返回值，pageSize 与 snippetLength 变化才重建', () => {
     const control = controlledSource();
+    const initialProps: { options: SearchOptions } = {
+      options: { debounce: 0, pageSize: 2, snippetLength: 20, collections: ['Article'] }
+    };
     const { result, rerender } = renderHook(
       ({ options }: { options: SearchOptions }) => useSearch(control.source, options),
-      {
-        initialProps: { options: { debounce: 0, pageSize: 2, snippetLength: 20, collections: ['Article'] } }
-      }
+      { initialProps }
     );
     const before = result.current;
     rerender({
@@ -174,9 +183,10 @@ describe('第二轮评审：真实 SearchHandle 与 React 生命周期', () => {
 
   it('undefined↔空 options 按公开 core 比较判据重建，而非复用旧 snapshot', () => {
     const control = controlledSource();
+    const initialProps: { options: SearchOptions | undefined } = { options: undefined };
     const { rerender } = renderHook(
       ({ options }: { options: SearchOptions | undefined }) => useSearch(control.source, options),
-      { initialProps: { options: undefined } }
+      { initialProps }
     );
     expect(searchOptionsEqual(undefined, {})).toBe(false);
     rerender({ options: {} });
@@ -236,8 +246,8 @@ describe('第二轮评审：真实 SearchHandle 与 React 生命周期', () => {
   it('两个独立 StrictMode root 的重放、卸载与晚到结果各归其主', async () => {
     const first = controlledSource();
     const second = controlledSource();
-    const left = renderHook(() => useSearch(first.source), { wrapper: StrictWrapper });
-    const right = renderHook(() => useSearch(second.source), { wrapper: StrictWrapper });
+    const left = renderHook(() => useSearch(first.source), { reactStrictMode: true });
+    const right = renderHook(() => useSearch(second.source), { reactStrictMode: true });
     expect(first.handles).toHaveLength(2);
     expect(second.handles).toHaveLength(2);
     expect(first.handles[0]?.destroy).toHaveBeenCalledTimes(1);

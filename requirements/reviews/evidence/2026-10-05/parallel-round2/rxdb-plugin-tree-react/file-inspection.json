@@ -1,23 +1,11 @@
 {
-  "task": "R2-03",
-  "object": "rxdb-plugin-tree-react",
-  "inspectedAt": "2026-10-05T11:01:00+08:00",
-  "headAtInspection": "465f9078e9844af2cbef9936c7321a5576333a01",
   "controlledFileCount": 13,
-  "fullyReadControlledFileCount": 13,
-  "lineCount": 615,
-  "hashIsNotReadEvidence": true,
   "files": [
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/LICENSE",
       "relativePath": "packages/rxdb-plugin-tree-react/LICENSE",
       "lineCount": 21,
-      "readRanges": [
-        [
-          1,
-          21
-        ]
-      ],
+      "readRanges": [[1, 21]],
       "readMode": "full-content",
       "focus": "MIT 正文、2025 Aiao Team 版权与保留通知；package files 未排除许可证，历史 tarball 含 LICENSE。",
       "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
@@ -29,12 +17,7 @@
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/README.md",
       "relativePath": "packages/rxdb-plugin-tree-react/README.md",
       "lineCount": 58,
-      "readRanges": [
-        [
-          1,
-          58
-        ]
-      ],
+      "readRanges": [[1, 58]],
       "readMode": "full-content",
       "focus": "安装所需全部 peers；四 hook 的同名仓储映射、[]/0 默认值、注册 Tree 插件前置、resource 错误呈现与迁移入口；示例不是 runtime consumer。",
       "sha256": "b40cefde2c502a7f333e59138ed2b77543f88bf04ea5df4a7938a1c82d907765",
@@ -46,12 +29,7 @@
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/package.json",
       "relativePath": "packages/rxdb-plugin-tree-react/package.json",
       "lineCount": 59,
-      "readRanges": [
-        [
-          1,
-          59
-        ]
-      ],
+      "readRanges": [[1, 59]],
       "readMode": "full-content",
       "focus": "module/sideEffects、types/import/default、dist/src 打包及 spec/buildinfo 排除、react ^19.3.0 peers、workspace dev peers、public 发布设置；不执行发布。",
       "sha256": "fe1c38d3c9412de40740ff07eb68eeb07d3a280a2486d74d61c83f8327f69c16",
@@ -63,12 +41,7 @@
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/project.json",
       "relativePath": "packages/rxdb-plugin-tree-react/project.json",
       "lineCount": 12,
-      "readRanges": [
-        [
-          1,
-          12
-        ]
-      ],
+      "readRanges": [[1, 12]],
       "readMode": "full-content",
       "focus": "局部 typecheck 的 build/^typecheck 依赖；与 nx show project 的真实 inferred targets 对照，未用局部配置冒充全配置。",
       "sha256": "fcaa8eddeb691af2d6d334c09daea77971b8c1b63134137e779193c548287c4b",
@@ -80,12 +53,7 @@
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/index.spec.ts",
       "relativePath": "packages/rxdb-plugin-tree-react/src/__tests__/index.spec.ts",
       "lineCount": 19,
-      "readRanges": [
-        [
-          1,
-          19
-        ]
-      ],
+      "readRanges": [[1, 19]],
       "readMode": "full-content",
       "focus": "根入口四个运行时导出精确集合和函数值；不是独立 tarball 导入。",
       "sha256": "76dcbfef9ee1c38dc9a2d42e1a62794d5452781a53d3228233ebc85e98f7d3ec",
@@ -97,12 +65,7 @@
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/tri-framework-generics.spec.ts",
       "relativePath": "packages/rxdb-plugin-tree-react/src/__tests__/tri-framework-generics.spec.ts",
       "lineCount": 77,
-      "readRanges": [
-        [
-          1,
-          77
-        ]
-      ],
+      "readRanges": [[1, 77]],
       "readMode": "full-content",
       "focus": "四个 PlainEntity 编译期拒绝；TreeEntity string ID 正向；函数体不执行，Vitest 的两条 expect 不是泛型编译证据。",
       "sha256": "6d84c01a924a9e9631bfb0a9ae60f89fc14e7ba59fa3acd6e2f334c0d2b03bba",
@@ -114,12 +77,7 @@
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/use-tree.spec.ts",
       "relativePath": "packages/rxdb-plugin-tree-react/src/__tests__/use-tree.spec.ts",
       "lineCount": 128,
-      "readRanges": [
-        [
-          1,
-          128
-        ]
-      ],
+      "readRanges": [[1, 128]],
       "readMode": "full-content",
       "focus": "三个既有用例：四 method dispatch、数组/计数值透传、Subject 延迟计数默认 0；string ID 的 static mock，未覆盖真实 TreeRepository、StrictMode 或 provider。",
       "sha256": "c5959cee5d1ada1d45e8d57daa45869be33b7b601f5263d5f84a1275c609fb15",
@@ -131,12 +89,7 @@
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/index.ts",
       "relativePath": "packages/rxdb-plugin-tree-react/src/index.ts",
       "lineCount": 15,
-      "readRanges": [
-        [
-          1,
-          15
-        ]
-      ],
+      "readRanges": [[1, 15]],
       "readMode": "full-content",
       "focus": "use client 客户端入口与四个运行时导出；无额外共享类型再导出，和同族两端 root 一致。",
       "sha256": "9163971666e43f5f5f8493798e383cb07a9e5e9a46ebc5c4b6d4cf3b042126db",
@@ -148,12 +101,7 @@
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/use-tree.ts",
       "relativePath": "packages/rxdb-plugin-tree-react/src/use-tree.ts",
       "lineCount": 81,
-      "readRanges": [
-        [
-          1,
-          81
-        ]
-      ],
+      "readRanges": [[1, 81]],
       "readMode": "full-content",
       "focus": "四个 TreeEntityType 泛型、EntityStaticType<具体 Options key>、RxDBResource<InstanceType<T>[]/number>；默认值和方法名逐条核对；仅委托 core，无 context 读取/ID coercion/flat fallback/额外订阅。",
       "sha256": "0f02c001d36953d8df494c48d3ca77bb891135311ffe768aec921804a2a269e8",
@@ -165,12 +113,7 @@
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/tsconfig.json",
       "relativePath": "packages/rxdb-plugin-tree-react/tsconfig.json",
       "lineCount": 16,
-      "readRanges": [
-        [
-          1,
-          16
-        ]
-      ],
+      "readRanges": [[1, 16]],
       "readMode": "full-content",
       "focus": "extends 根 strict 配置；lib/spec references；本配置没有把 tests 从 typecheck references 删掉。",
       "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
@@ -182,12 +125,7 @@
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/tsconfig.lib.json",
       "relativePath": "packages/rxdb-plugin-tree-react/tsconfig.lib.json",
       "lineCount": 39,
-      "readRanges": [
-        [
-          1,
-          39
-        ]
-      ],
+      "readRanges": [[1, 39]],
       "readMode": "full-content",
       "focus": "src root、bundler/react-jsx、声明产物位置、spec 与配置排除、rxdb-react/tree/core 引用；与真实 dist declarations 的源码 map 对照。",
       "sha256": "5110d28459ebf149a64f219ed27826fd59840a18deba39b2d897e718bfb91009",
@@ -199,12 +137,7 @@
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/tsconfig.spec.json",
       "relativePath": "packages/rxdb-plugin-tree-react/tsconfig.spec.json",
       "lineCount": 27,
-      "readRanges": [
-        [
-          1,
-          27
-        ]
-      ],
+      "readRanges": [[1, 27]],
       "readMode": "full-content",
       "focus": "Vitest types、react-jsx/bundler、包含 .spec.ts/.spec.tsx 与新 review-round2 spec；只有 lib reference，不新增外包依赖。",
       "sha256": "28ae7c8b6b9de02abba8aaf41d0fde25b185fde4cb5ce5744d083087cf778b5d",
@@ -216,12 +149,7 @@
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/vite.config.mts",
       "relativePath": "packages/rxdb-plugin-tree-react/vite.config.mts",
       "lineCount": 63,
-      "readRanges": [
-        [
-          1,
-          63
-        ]
-      ],
+      "readRanges": [[1, 63]],
       "readMode": "full-content",
       "focus": "dts entryRoot/tsconfig/pathsToAliases:false；ES bundle 和 peers external；happy-dom include；v8 coverage 原始 include 未改；CI+token 条件 Codecov 插件，不执行构建或上传。",
       "sha256": "7795ba6908f8c78dd3a0830b9963d27c94843fee91d1e5d01f01b8e74f364a78",
@@ -230,15 +158,43 @@
       "generated": false
     }
   ],
+  "fullyReadControlledFileCount": 13,
+  "generatedOutputsInSeparateEvidence": "generated-artifacts.json",
+  "hashIsNotReadEvidence": true,
+  "headAtInspection": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "inspectedAt": "2026-10-05T11:01:00+08:00",
+  "lineCount": 615,
+  "newArtifactsRead": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/review-round2-lifecycle.spec.ts",
+      "lineCount": 354,
+      "readRanges": [[1, 354]],
+      "readMode": "full-content",
+      "sha256": "e138ed22e843ac7bfdca1f83628684caf30179512fcf71d121bf2e7dff7ce9ec",
+      "execution": "controller 10/10 new unit probes passed"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-valid.mts",
+      "lineCount": 107,
+      "readRanges": [[1, 107]],
+      "readMode": "full-content",
+      "sha256": "6c401afeabd8bcd2c5b4f5655f0b05b71aa6d4b62d945ff3c5a600a5671ce8c5",
+      "execution": "controller strict consumer passed with explicit node/@types/ms; bare upstream failure retained"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-invalid.mts",
+      "lineCount": 65,
+      "readRanges": [[1, 65]],
+      "readMode": "full-content",
+      "sha256": "4cb1e253b88438229aa3822eb48af9b543d5def5004db6a54406940ec1801c5d",
+      "execution": "controller strict consumer passed with explicit node/@types/ms; bare upstream failure retained"
+    }
+  ],
+  "object": "rxdb-plugin-tree-react",
   "readOnlyDependencies": [
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/hooks.ts",
-      "readRanges": [
-        [
-          1,
-          214
-        ]
-      ],
+      "readRanges": [[1, 214]],
       "sha256": "aa1156408f19c3af3dd5946ae1a73fa4804ddbe96378de20a45230e5a4c08f7f",
       "purpose": "公开 resource/state contract；effect option identity、layout 代次、active guard、missing method/sync/observable error 与 cleanup；只读，不审其他 hooks。",
       "writeAllowed": false,
@@ -246,12 +202,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/query-options.ts",
-      "readRanges": [
-        [
-          1,
-          47
-        ]
-      ],
+      "readRanges": [[1, 47]],
       "sha256": "753d0fd6beac8bf1a0d6dd128a98937d55d23666af54ce2fec537897cc53e952",
       "purpose": "UseOptions 幂等 factory、内容 key、可序列化与 TypeError 来源。",
       "writeAllowed": false,
@@ -259,12 +210,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/rxdb-react.tsx",
-      "readRanges": [
-        [
-          1,
-          277
-        ]
-      ],
+      "readRanges": [[1, 277]],
       "sha256": "532180786002483723d8c85a17589ce2efdf706f86b284ca511a71b93602860e",
       "purpose": "public provider/context/source/ownership 与 useRxDB；tree wrapper 不调用该 context，provider 查询实体由 consumer 显式选择。",
       "writeAllowed": false,
@@ -272,12 +218,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/index.ts",
-      "readRanges": [
-        [
-          1,
-          59
-        ]
-      ],
+      "readRanges": [[1, 59]],
       "sha256": "a1b690382f49c6f54103492c4dc8010b03911a19dc66665164a2132420f8f339",
       "purpose": "RxDBResource/UseOptions/provider 的根导出，consumer 不走内部文件。",
       "writeAllowed": false,
@@ -285,12 +226,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb/src/entity/entity.interface.ts",
-      "readRanges": [
-        [
-          21,
-          153
-        ]
-      ],
+      "readRanges": [[21, 153]],
       "sha256": "9bb7a9294e82f38188dbeac3fc19e6dfd739ad21b301698603e673476c864d8a",
       "purpose": "ENTITY_STATIC_TYPES 与 EntityStaticType 取声明槽的优先级、idType 和 constructor 约束。",
       "writeAllowed": false,
@@ -298,12 +234,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb/src/rxdb.interface.ts",
-      "readRanges": [
-        [
-          83,
-          151
-        ]
-      ],
+      "readRanges": [[83, 151]],
       "sha256": "d8236e35a42bbafc23cf12fa317757c3eb420cf022fbb229239091b2ce78cbfc",
       "purpose": "未连接的真实 RxDB provider fixture 的必填配置与所有权。",
       "writeAllowed": false,
@@ -311,12 +242,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb/src/RxDB.ts",
-      "readRanges": [
-        [
-          582,
-          620
-        ]
-      ],
+      "readRanges": [[582, 620]],
       "sha256": "1d33507321f58543b03b96bafbf3eaae18509026906040021d9ef13f74f08d33",
       "purpose": "constructor 不连接 adapter；新 spec 只作 context carrier、卸载后显式 destroy。",
       "writeAllowed": false,
@@ -324,12 +250,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/utils/src/types/repository-query.ts",
-      "readRanges": [
-        [
-          1,
-          81
-        ]
-      ],
+      "readRanges": [[1, 81]],
       "sha256": "989b55e2327d2b3830a6313b09ff9a955a57460695723aa9f2a8028f3f678eef",
       "purpose": "精确静态方法查找与 this binding；missing method 不选择 find。",
       "writeAllowed": false,
@@ -337,12 +258,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/index.ts",
-      "readRanges": [
-        [
-          1,
-          23
-        ]
-      ],
+      "readRanges": [[1, 23]],
       "sha256": "827039c5a0595f79d3574b7d7a0cea5a1ec3c90f85994af4bcd7e2451faa3b6f",
       "purpose": "FindTreeOptions/ITreeEntity/TreeEntityType 根出口。",
       "writeAllowed": false,
@@ -350,12 +266,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/entity/tree-entity.interface.ts",
-      "readRanges": [
-        [
-          1,
-          43
-        ]
-      ],
+      "readRanges": [[1, 43]],
       "sha256": "947d4324278de2239165bb7aab012ca28ab5940a42828439387511038728b44a",
       "purpose": "parentId 的 RxDBEntityId 域和 TreeEntityType 的 timestamps/id 约束。",
       "writeAllowed": false,
@@ -363,12 +274,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/repository/tree-repository.interface.ts",
-      "readRanges": [
-        [
-          1,
-          76
-        ]
-      ],
+      "readRanges": [[1, 76]],
       "sha256": "ef31692f2fc08b4d5f61d5bcbe05a15895d938187c178fe8ce5b5ee810f30a28",
       "purpose": "entityId 随 idType；level/where 泛型、self inclusion、find 与 count 语义不同。",
       "writeAllowed": false,
@@ -377,14 +283,8 @@
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/repository/TreeRepository.ts",
       "readRanges": [
-        [
-          1,
-          128
-        ],
-        [
-          130,
-          133
-        ]
+        [1, 128],
+        [130, 133]
       ],
       "sha256": "a65058ffd9b31182e5ce716e21b39d31bfb1e0cb29c76fb71e3719558e6ea7fc",
       "purpose": "四个 task/result$ 的 lazy runner、incremental merge 注册、level 和 entityId ?? null；未把正确性委托等同于实测。",
@@ -394,14 +294,8 @@
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/plugin.ts",
       "readRanges": [
-        [
-          42,
-          73
-        ],
-        [
-          90,
-          105
-        ]
+        [42, 73],
+        [90, 105]
       ],
       "sha256": "1460b5ca4175dd8e9d97a3d646cc8a1e8325adab402a763280519c592f054be4",
       "purpose": "scoped TreeRepository 注册与 unsupported QueryCache 错误原因；缺插件注册期失败与 effect 缺方法是不同测量面。",
@@ -410,12 +304,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/generator/TreeRepositoryGenerator.ts",
-      "readRanges": [
-        [
-          1,
-          153
-        ]
-      ],
+      "readRanges": [[1, 153]],
       "sha256": "3bb48ea760f887f500d7bcc55d79bf5f8c3507049ea8b753cd98e204d70ceb71",
       "purpose": "FindTreeOptions<typeof Entity,EntityTreeRuleGroup> 四方法、数组/number 返回和实体模块来源；只读生成接口来源。",
       "writeAllowed": false,
@@ -423,12 +312,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-client-generator/src/generators/RepositoryGeneratorBase.ts",
-      "readRanges": [
-        [
-          136,
-          208
-        ]
-      ],
+      "readRanges": [[136, 208]],
       "sha256": "511995cf37b1c0ba91758951d5b1060e88f0197ffb8567f0506775c4e6a9fb6f",
       "purpose": "addStaticMethod 将 methodOptions 加入静态槽；静态泛型的来源，不执行生成器。",
       "writeAllowed": false,
@@ -436,12 +320,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-client-generator/src/generators/entity-definition.ts",
-      "readRanges": [
-        [
-          80,
-          170
-        ]
-      ],
+      "readRanges": [[80, 170]],
       "sha256": "6e1cdae72368e6fb982d4810218691d1927173ea05e80ed6e64b90acf0b512cf",
       "purpose": "声明 class 的 [ENTITY_STATIC_TYPES] 与 StaticTypes interface 生成位置。",
       "writeAllowed": false,
@@ -449,12 +328,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/index.ts",
-      "readRanges": [
-        [
-          1,
-          14
-        ]
-      ],
+      "readRanges": [[1, 14]],
       "sha256": "8caca19e174c964ff8f8016eb6933d9249129c10e2a6d838a3b16431168c8f35",
       "purpose": "三端四个运行时出口同名；不写 Angular。",
       "writeAllowed": false,
@@ -462,12 +336,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/use-tree.ts",
-      "readRanges": [
-        [
-          1,
-          78
-        ]
-      ],
+      "readRanges": [[1, 78]],
       "sha256": "eccc5a9fbfe95f06fea471ddc75747972f5497c6c18fcaa80543232e02dd4731",
       "purpose": "只读对应四个输入泛型/仓储方法/defaultValue。",
       "writeAllowed": false,
@@ -475,12 +344,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/index.ts",
-      "readRanges": [
-        [
-          1,
-          13
-        ]
-      ],
+      "readRanges": [[1, 13]],
       "sha256": "7afa278a6f70219c12038ff59b36d2473041f2d6cf943e30dab5c9eed5e83cd7",
       "purpose": "三端四个运行时出口同名；不写 Vue。",
       "writeAllowed": false,
@@ -488,12 +352,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/use-tree.ts",
-      "readRanges": [
-        [
-          1,
-          77
-        ]
-      ],
+      "readRanges": [[1, 77]],
       "sha256": "1911bdbdbd9284735c8bee0c97344f05386998a2b0d76bd2b59a02f294757335",
       "purpose": "只读对应四个输入泛型/仓储方法/defaultValue。",
       "writeAllowed": false,
@@ -501,12 +360,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular/src/hooks.ts",
-      "readRanges": [
-        [
-          1,
-          49
-        ]
-      ],
+      "readRanges": [[1, 49]],
       "sha256": "95ac95f7840b0d4f2ca348cf70a78f02702cd26042fb6fc567acd743ce8461e0",
       "purpose": "仅公开 UseOptions/RxDBResource<Signal<T>>；不评 Angular 生命周期。",
       "writeAllowed": false,
@@ -515,14 +369,8 @@
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-vue/src/hooks.ts",
       "readRanges": [
-        [
-          19,
-          27
-        ],
-        [
-          52,
-          105
-        ]
+        [19, 27],
+        [52, 105]
       ],
       "sha256": "3f64f2a26d03db95364f0f46b07173418d97c26fd33348bf98db2adc5f9c0d3b",
       "purpose": "仅公开 Ref/ComputedRef options 与 readonly resource 状态；不把 native container 差异误报为 API 缺失。",
@@ -531,12 +379,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/tri-framework-generics.spec.ts",
-      "readRanges": [
-        [
-          21,
-          77
-        ]
-      ],
+      "readRanges": [[21, 77]],
       "sha256": "17eba8518f5e892ce126a1acb88eeeb0cb910e384a253ecccebb5347759fd85d",
       "purpose": "既有 string-ID class 正/反类型 fixture，非真实运行链路。",
       "writeAllowed": false,
@@ -544,12 +387,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/__tests__/tri-framework-generics.spec.ts",
-      "readRanges": [
-        [
-          21,
-          77
-        ]
-      ],
+      "readRanges": [[21, 77]],
       "sha256": "51061937e70fec2bd183d6c8cad64343b82577859cfe34a0753b3cc22b68522d",
       "purpose": "既有 string-ID class 正/反类型 fixture，非真实运行链路。",
       "writeAllowed": false,
@@ -557,12 +395,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/__tests__/query/numeric-id-tree-merge.browser.spec.ts",
-      "readRanges": [
-        [
-          1,
-          132
-        ]
-      ],
+      "readRanges": [[1, 132]],
       "sha256": "2352c75500f8a165d4ba04210716de969763628ce5aba660154099acd9be00d7",
       "purpose": "数值 0 的 QueryManager harness 证据入口；无真实 SQL/tree wrapper，不据此核销 C1。",
       "writeAllowed": false,
@@ -570,12 +403,7 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/__tests__/contracts/querycache-ban.browser.spec.ts",
-      "readRanges": [
-        [
-          68,
-          122
-        ]
-      ],
+      "readRanges": [[68, 122]],
       "sha256": "d5d9d35137001e9478721a4c88c57a40a22540820e9daa51fc0924e2f1f0c14b",
       "purpose": "已读 init QueryCache guard、插件缺失、实例覆盖场景定义；未在本 worker 执行，头部 fixture 未全读。",
       "writeAllowed": false,
@@ -583,59 +411,13 @@
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/__tests__/contracts/missing-plugin-error.browser.spec.ts",
-      "readRanges": [
-        [
-          1,
-          65
-        ]
-      ],
+      "readRanges": [[1, 65]],
       "sha256": "d512b63bd7bbf84cb64b1a98298f321cffee5acc1cd37fec7294168ab77697a7",
       "purpose": "缺插件 init() 与装插件后注册场景定义；真实 RxDB/mock adapter，不当作 SQL consumer。",
       "writeAllowed": false,
       "reviewScopeExtended": false
     }
   ],
-  "newArtifactsRead": [
-    {
-      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/review-round2-lifecycle.spec.ts",
-      "lineCount": 354,
-      "readRanges": [
-        [
-          1,
-          354
-        ]
-      ],
-      "readMode": "full-content",
-      "sha256": "e138ed22e843ac7bfdca1f83628684caf30179512fcf71d121bf2e7dff7ce9ec",
-      "execution": "syntax-only; semantic/type/runtime validation delegated to controller"
-    },
-    {
-      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-valid.mts",
-      "lineCount": 107,
-      "readRanges": [
-        [
-          1,
-          107
-        ]
-      ],
-      "readMode": "full-content",
-      "sha256": "6c401afeabd8bcd2c5b4f5655f0b05b71aa6d4b62d945ff3c5a600a5671ce8c5",
-      "execution": "syntax-only; semantic/type/runtime validation delegated to controller"
-    },
-    {
-      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-invalid.mts",
-      "lineCount": 65,
-      "readRanges": [
-        [
-          1,
-          65
-        ]
-      ],
-      "readMode": "full-content",
-      "sha256": "4cb1e253b88438229aa3822eb48af9b543d5def5004db6a54406940ec1801c5d",
-      "execution": "syntax-only; semantic/type/runtime validation delegated to controller"
-    }
-  ],
-  "generatedOutputsInSeparateEvidence": "generated-artifacts.json",
+  "task": "R2-03",
   "uncontrolledBuildMetadata": "dist/*.tsbuildinfo/out-tsc 为不受控构建元数据，不发布、不当源码阅读/生成确定性证据。"
 }

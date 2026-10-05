@@ -1,6 +1,6 @@
 {
   "clientDate": "2026-10-05",
-  "peerEnvironment": "Real tarball internal libraries and installed peer tarballs, outside workspace; optional peers not available/excluded, Angular compiler explicitly bootstrapped for Node import",
+  "compiledDeclarationsNotSourceAliases": true,
   "consumerDirectory": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer",
   "objects": [
     {
@@ -100,12 +100,7 @@
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-tree-angular",
-          "exports": [
-            "useCountAncestors",
-            "useCountDescendants",
-            "useFindAncestors",
-            "useFindDescendants"
-          ]
+          "exports": ["useCountAncestors", "useCountDescendants", "useFindAncestors", "useFindDescendants"]
         }
       }
     },
@@ -148,12 +143,7 @@
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-tree-react",
-          "exports": [
-            "useCountAncestors",
-            "useCountDescendants",
-            "useFindAncestors",
-            "useFindDescendants"
-          ]
+          "exports": ["useCountAncestors", "useCountDescendants", "useFindAncestors", "useFindDescendants"]
         }
       }
     },
@@ -174,12 +164,7 @@
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-tree-vue",
-          "exports": [
-            "useCountAncestors",
-            "useCountDescendants",
-            "useFindAncestors",
-            "useFindDescendants"
-          ]
+          "exports": ["useCountAncestors", "useCountDescendants", "useFindAncestors", "useFindDescendants"]
         }
       }
     },
@@ -217,10 +202,7 @@
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-search-angular",
-          "exports": [
-            "SearchExecutionError",
-            "useSearch"
-          ]
+          "exports": ["SearchExecutionError", "useSearch"]
         }
       }
     },
@@ -260,10 +242,7 @@
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-search-react",
-          "exports": [
-            "SearchExecutionError",
-            "useSearch"
-          ]
+          "exports": ["SearchExecutionError", "useSearch"]
         }
       }
     },
@@ -310,10 +289,7 @@
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-search-vue",
-          "exports": [
-            "SearchExecutionError",
-            "useSearch"
-          ]
+          "exports": ["SearchExecutionError", "useSearch"]
         }
       }
     },
@@ -334,9 +310,7 @@
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-working-tree-angular",
-          "exports": [
-            "useWorkingTree"
-          ]
+          "exports": ["useWorkingTree"]
         }
       }
     },
@@ -357,9 +331,7 @@
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-working-tree-vue",
-          "exports": [
-            "useWorkingTree"
-          ]
+          "exports": ["useWorkingTree"]
         }
       }
     },
@@ -380,14 +352,11 @@
         "exitCode": 0,
         "result": {
           "name": "@aiao/rxdb-plugin-replay-angular",
-          "exports": [
-            "ReplayerComponent",
-            "replayRestoreHint"
-          ]
+          "exports": ["ReplayerComponent", "replayRestoreHint"]
         }
       }
     }
   ],
-  "compiledDeclarationsNotSourceAliases": true,
+  "peerEnvironment": "Real tarball internal libraries and installed peer tarballs, outside workspace; optional peers not available/excluded, Angular compiler explicitly bootstrapped for Node import",
   "runtimeRootImportIsNotAFullFrameworkUserPath": true
 }

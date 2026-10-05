@@ -4,7 +4,7 @@ object: rxdb-plugin-working-tree-angular
 source_root: packages/rxdb-plugin-working-tree-angular
 created: 2026-10-03
 baseline: 2e820521187cbfcd1fe76fb705659fea0a548f0e
-execution: in-progress
+execution: complete
 ---
 
 # rxdb-plugin-working-tree-angular：深度评审计划
@@ -159,3 +159,58 @@ pnpm audit:coverage --projects=rxdb-plugin-working-tree-angular
 发布 pack 根是 `dist/packages/rxdb-plugin-working-tree-angular`，实际 tarball 目标文件存在、独立根 ESM 解析通过；**不包含 typed consumer 编译/runtime import**。Angular 不能按源 manifest 缺 exports 报错。
 
 逐 C 原场景、函数/测试证据与完成条件详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-working-tree-angular.md`；机器证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`。
+
+## 2026-10-05 R2-07 有界收尾（唯一对象）
+
+**本轮本对象权威状态：15/15 原 scope 文件正文已读；原 C 评审结论完成 5/5；原最低场景全部验证闭合 0/5。对象评审 complete，必要验证 pending-required；不是验证全绿或发布就绪。** 用户最新任务编号 R2-07 优先于 scope 内旧 R2-08；对象没有变，不改调度文件。结论 🟡：评审完成与验证全通过分开。每个原 C 的必要未验都指定主控 owner、核销条件与证据目录；没有证据就不报绿。
+
+日期 2026-10-05（Asia/Shanghai）；源码指纹均与 scope 相符。Git HEAD 浮动，以本目录 start/final 及主控 gate 的输入摘要为准，不拿不同 HEAD 的老绿冒充当前全对象绿。15 个原受控文件（源码/两份旧 spec/setup/全部配置/README/LICENSE）均完整正文读取；新 spec 单独记录为已写未跑，未改旧 tests。
+
+| 原 C                      | 本轮有证结论                                                                             | 原最低场景剩余动作（不删要求）                                                                                                    |
+| ------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| C1 状态与作用域           | 独立 signal、注入时库 ownership、创建无 IO/无隐式 enable；core 缺插件 guard 已读         | 未 enable/缺插件/换库/多实例/输入和分支的新增 probe 待主控；真实 branch/DB 用户链路仍需证据裁定                                   |
+| C2 动作结果与并发         | CAS/restore 是返回值，dirty switch 是 throw；同格 latest-only 与原 promise 返回各归其主  | 新并发/动作中换 owner probe 未跑；真实 CAS/dirty/unreachable/并发点击的数据未损坏不能拿 facade stub 证明                          |
+| C3 三端与敏感数据         | 同 24 成员，core 类型不重定义，错误类不再导是既定 API；无调试历史输出                    | 三端拒绝序列/应用敏感摘要、关闭清理与 retained diff、strict consumer 未全证；是否需要销毁 guard 由主控契约裁定                    |
+| C4 Angular 生命周期与注入 | provider borrowed/owned DB 规则与 wrapper 无订阅/effect 已核；不能顺手 destroy 共享库    | 12 个 OnPush/component/input/child-provider/multi-instance/pending-destroy probe 及新 spec 门禁待跑；现状刻画通过也不自动达成清理 |
+| C5 Angular 类型与运行证据 | 生成声明/源接口对齐；真实 tarball root runtime import=0（已 bootstrap Angular compiler） | tsc 正负/ngc 正负/原 README 模板都待跑；happy-dom 组件不是实际 browser/route，真实 route 挂卸及错误空态仍需证据                   |
+
+### 当前可复用测量与禁止越界的读法
+
+- 主控第二轮单对象 **2 files / 48 tests passed，无 skip 行**；四指标 **statements 19/19，branches 0/0，functions 15/15，lines 18/18，均 100%**，门槛各项 ≥80%。整个十包队列 test exitCode=1 与本包通过分开登记；没有继承其他包的绿/红。
+- fresh build/lint=0，skipNxCache/skipRemoteCache，parallel=1；每阶段 13 个本对象受控测量输入与当前指纹逐个对照。新 spec 不在该测量中，不能借旧零警告。
+- 历史全对象 typecheck=0 属于 44de1138 基线，且本项目 root `skipLibCheck=true`；不等同于严格独立消费者 `skipLibCheck=false`，也未包括新 spec。
+- 实际发布根是 `dist/packages/rxdb-plugin-working-tree-angular`，Angular peer 当前 **22.2.1**；源 manifest 缺 exports 不报缺陷。生成 ESM/声明和源接口已对照，但未二次重建证明 bit-for-bit；原 scope 没有受控生成文件。
+- 本对象主控消费者记录在读取时仍写 `fixture-not-yet-written`；本轮现已交付，不把待验证消费者说成通过。显式 node+@types/ms 环境和保留的裸 utils 声明缺口分开。root import 0 不是组件/模板/route 运行。
+
+### 有界交付与主控下一步
+
+已写正/负 `.mts`（包名 import，无 alias/any/错误抑制）、独立模板负例及 README 原模板探针；新增唯一 `review-round2-lifecycle.spec.ts` 共 12 例。销毁后的旧 signal 更新/旧命令刷新/保留 diff 为**现状/隔离刻画**，没有承诺清理达标，也没有凭“没 DestroyRef”就报泄漏。没有复制 React RV-069，没有新增已确认 RV；不扩新业务 bug。
+
+主控固定五项动作：① packed strict consumer 正/负；② ngc 正/负与原 README；③ focused lifecycle spec；④新 spec 单对象 lint/typecheck；⑤复用/补最小真实数据、三端/敏感摘要、route 证据并裁定原 C 未验分流。请求详细 project/target/args/reason/criticalForC 已落盘。本代理不跑 build/test/coverage/e2e/server/容器，不等待无关后端，不改实现/依赖/旧 tests/台账/index/旧 RV。
+
+依用户最新口径，本对象七条评审完成条件已按“全范围阅读 + 每原 C 明确结论 + 已确认问题去重 + 必要未验责任/核销条件/证据归属”闭合，评审状态 complete。原最低场景的验证状态仍 pending：通用工作树宿主/CAS 数据安全归 core 联审，不扩读/等待长矩阵；本对象新 spec/cov/types/模板和必要 Angular route 证据由主控交付。**“已有归属”不等于“已验证通过”**，releaseReady=false。本槽位结束，立即交下一 queued，不等待主控队列。
+
+### 本轮逐项证据（绝对路径）
+
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/file-inspection.json`
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/c-evidence.json`
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/validation-observations.json`
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/validation-requests.json`
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/api-comparison.json`
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/consumer-expectations.json`
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/findings.pending.md`
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/source-fingerprint-start.json`
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/source-fingerprint-final.json`
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/closure.json`
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/changed-files.json`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/__tests__/review-round2-lifecycle.spec.ts`
+
+## R2 主控验证结算（不扩大子代理原核销范围）
+
+本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
+
+[真实tar类型正负/运行时证据](../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+
+消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
+
+主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。

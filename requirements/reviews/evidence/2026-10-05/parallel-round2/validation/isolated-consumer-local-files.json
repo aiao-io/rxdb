@@ -1,6 +1,6 @@
 {
-  "exitCode": 1,
   "consumerDirectory": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer",
+  "exitCode": 1,
   "internalTarballOverrides": {
     "@aiao/rxdb-plugin-replay-angular": "file:/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-replay-angular.tgz",
     "@aiao/rxdb-plugin-replay": "file:/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-replay.tgz",

@@ -1,7 +1,8 @@
 {
-  "task": "R2-09",
   "object": "rxdb-plugin-working-tree-vue",
   "sourceRoot": "packages/rxdb-plugin-working-tree-vue",
+  "status": "queued",
+  "task": "R2-09",
   "trackedFiles": [
     {
       "path": "packages/rxdb-plugin-working-tree-vue/LICENSE",
@@ -64,6 +65,5 @@
     "requirements/reviews/packages/rxdb-plugin-working-tree-vue.md",
     "requirements/reviews/results/packages/rxdb-plugin-working-tree-vue.md",
     "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue"
-  ],
-  "status": "queued"
+  ]
 }

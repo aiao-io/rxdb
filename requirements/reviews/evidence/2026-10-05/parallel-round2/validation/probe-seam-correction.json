@@ -1,0 +1,20 @@
+{
+  "files": {
+    "packages/rxdb-plugin-search-react/src/__tests__/review-round2-lifecycle.spec.ts": {
+      "originalSha256": "fed2e5879558928d53d1daca9410f3e32dcab1d10ce5651c46221a203e56e3d5",
+      "initialSource": "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/react-initial-probe-source.txt",
+      "correctedSha256": "34a268ff207860a3cfdbd6ce0987813dd8a3ed84aa5bb7b06e081fb074edf492"
+    },
+    "packages/rxdb-plugin-search-angular/src/__tests__/review-round2-lifecycle.spec.ts": {
+      "originalSha256": "0e0c7dbc1734098a27214f9137b9d8117875df414f57e0e249d156761c807726",
+      "initialSource": "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/angular-initial-probe-source.txt",
+      "correctedSha256": "90c2d6b43112042b007bbe467d5c5a90139550e97a4cf58357d303ba1530bf4c"
+    },
+    "packages/rxdb-plugin-search-vue/src/__tests__/review-round2-component-lifecycle.spec.ts": {
+      "originalSha256": "015e526bae9de2de24902cbafd6bde042e951140bff15fad31d46dc137f8e79a",
+      "initialSource": "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/vue-initial-probe-source.txt",
+      "correctedSha256": "2cadfa0eb4a3f70f50ab054c0546778931066123f32bbb9545e4003d1f169ab7"
+    }
+  },
+  "reason": "Core initialQuery routes through default80ms data-refresh audit; wrapper ownership tests need controlled audit0 rather than assume immediate default query. React19 nested StrictMode need root strict renderer to exercise actual effect replay, not infer two mounts from nested wrapper. Only newly-added test seams corrected; original failures/source preserved. No production changes or assertion removal."
+}

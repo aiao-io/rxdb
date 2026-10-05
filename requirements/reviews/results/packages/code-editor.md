@@ -107,25 +107,25 @@ C1/C2/C3/C4 的共享 helper 已逐源追踪：字符串最小差量、resolved 
 
 ### 当日已有动态证据：承接，不冒充新执行
 
-| 测量面 | 实际结果 | 当轮边界 |
-| --- | --- | --- |
-| 本包Node suite | 107 passed /0 failed /0 skipped；6 suites | JUnit记录accessibility12、diff15、language55、error6、resolution11、properties8 |
-| V8四指标 | statements99.13%、branches97.95%、functions100%、lines100%，threshold80通过 | summary六源码；没有浏览器/辅助技术覆盖 |
-| strict lint / typecheck | 第一轮实际exitCode=0，禁缓存、重并发1 | 本对象纳入；19个被测源码/配置输入当前匹配，LICENSE/README未在测量指纹内 |
-| 三端语言竞态证据 | Angular76、React34、Vue68，报告均0fail/0skip | 真实CM + happy-dom的相关suite；不把Vue mock suite说成browser |
-| 实际tar /root resolve | tar22文件，manifest入口引用missing=[]；第一轮root resolve成功 | tar SHA cb20a30c7d6c931e91f1d78175305be4c2a3f2a24cd8bc3b2831a855c82fc9cf；第一轮typed/runtime仍为false，第二轮通过见下节 |
+| 测量面                  | 实际结果                                                                    | 当轮边界                                                                                                                 |
+| ----------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 本包Node suite          | 107 passed /0 failed /0 skipped；6 suites                                   | JUnit记录accessibility12、diff15、language55、error6、resolution11、properties8                                          |
+| V8四指标                | statements99.13%、branches97.95%、functions100%、lines100%，threshold80通过 | summary六源码；没有浏览器/辅助技术覆盖                                                                                   |
+| strict lint / typecheck | 第一轮实际exitCode=0，禁缓存、重并发1                                       | 本对象纳入；19个被测源码/配置输入当前匹配，LICENSE/README未在测量指纹内                                                  |
+| 三端语言竞态证据        | Angular76、React34、Vue68，报告均0fail/0skip                                | 真实CM + happy-dom的相关suite；不把Vue mock suite说成browser                                                             |
+| 实际tar /root resolve   | tar22文件，manifest入口引用missing=[]；第一轮root resolve成功               | tar SHA cb20a30c7d6c931e91f1d78175305be4c2a3f2a24cd8bc3b2831a855c82fc9cf；第一轮typed/runtime仍为false，第二轮通过见下节 |
 
 精确命令、status、JUnit路径和四指标来源已汇总到`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/inherited-evidence.json`。这些测量HEAD为44de1138b4d396fc45d6e76ab60476c40fef2223；R2复读HEAD为465f9078e9844af2cbef9936c7321a5576333a01。对象19个纳入输入及19个相关绑定输入无漂移，**不声称全仓同一稳定HEAD或新增probe已通过门禁**。framework-editor-coverage聚合exitCode=1不污染本包107绿报告；不扩scope修无关对象。
 
 ### 原C逐项最终结论
 
-| 原C | 完整原C？ | 生产锚点与已有判别力 | 必要剩余动作 |
-| --- | --- | --- | --- |
-| C1共享文档同步 | 否，部分 | `/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/document-sync.ts:54-69`；15边界+8性质/4096对，UTF-16坐标合法、回放精确、等文档null；三端接External/history annotation | 连续外部更新与用户输入交错、真实selection/IME、只读/undo/scroll由绑定/browser补证 |
-| C2语言异步竞态 | **是，核销** | `/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/language-resolution.ts:71-109`；`languages.ts:28-31,58-69,72-232`；error28-70；三端真实facet/compartment断言B先返后A不覆盖，unknown与load-failed分离，旧failure不发事件；JUnit匹配 | 无原C2最低场景缺口；独立tar/物理chunk验证另属C5，不挪用C2通过 |
-| C3配置与跨框架 | 否，部分 | `/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/index.ts:11-20`、`accessibility.ts:25-85`、`language-error.ts:28-70`；三端公共入口、默认值、共享payload和helper接线对照 | 相同宿主options/input序列的文档/事件矩阵待主控；不能忽略Angular RV-071 |
-| C4可访问性/资源 | 否，部分 | `/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/accessibility.ts:61-85`；12helper用例；共享源码与生成JS不创建EditorView；模块级language cache不是隐藏editor | 键盘/原生IME/辅助技术、大文档、重复mount/destroy真实宿主未验；接线归属不等于验收 |
-| C5打包/依赖 | 否，部分 | `/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/package.json:24-58`、`vite.config.mts:16-20,39-74`；真实pack与root resolve；新强类型/runtime探针已准备 | 主控valid/invalid/root runtime/smoke已过；仅SQL bundle模块图/体积、缺物理语言资源正负对照仍待补，type-only辅助未执行 |
+| 原C             | 完整原C？    | 生产锚点与已有判别力                                                                                                                                                                                                                          | 必要剩余动作                                                                                                         |
+| --------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| C1共享文档同步  | 否，部分     | `/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/document-sync.ts:54-69`；15边界+8性质/4096对，UTF-16坐标合法、回放精确、等文档null；三端接External/history annotation                                                              | 连续外部更新与用户输入交错、真实selection/IME、只读/undo/scroll由绑定/browser补证                                    |
+| C2语言异步竞态  | **是，核销** | `/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/language-resolution.ts:71-109`；`languages.ts:28-31,58-69,72-232`；error28-70；三端真实facet/compartment断言B先返后A不覆盖，unknown与load-failed分离，旧failure不发事件；JUnit匹配 | 无原C2最低场景缺口；独立tar/物理chunk验证另属C5，不挪用C2通过                                                        |
+| C3配置与跨框架  | 否，部分     | `/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/index.ts:11-20`、`accessibility.ts:25-85`、`language-error.ts:28-70`；三端公共入口、默认值、共享payload和helper接线对照                                                            | 相同宿主options/input序列的文档/事件矩阵待主控；不能忽略Angular RV-071                                               |
+| C4可访问性/资源 | 否，部分     | `/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/accessibility.ts:61-85`；12helper用例；共享源码与生成JS不创建EditorView；模块级language cache不是隐藏editor                                                                        | 键盘/原生IME/辅助技术、大文档、重复mount/destroy真实宿主未验；接线归属不等于验收                                     |
+| C5打包/依赖     | 否，部分     | `/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/package.json:24-58`、`vite.config.mts:16-20,39-74`；真实pack与root resolve；新强类型/runtime探针已准备                                                                                 | 主控valid/invalid/root runtime/smoke已过；仅SQL bundle模块图/体积、缺物理语言资源正负对照仍待补，type-only辅助未执行 |
 
 最低场景与helper/绑定/browser分工完整保留在`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/responsibility-boundary.md`。差量、解析、aria/error是纯helper；动态loader有缓存，竞态与view销毁是绑定责任。**不通过删要求/改不适用来增加完整C数量。**
 
@@ -140,15 +140,15 @@ C1/C2/C3/C4 的共享 helper 已逐源追踪：字符串最小差量、resolved 
 
 ### 原完成条件逐条
 
-| 原完成条件 | R2状态 | 证据 / 限制 |
-| --- | --- | --- |
-| 全部受控源码/配置/tests/构建清点 | 满足 | 21/21全文；0未读；0受控生成；inspection区间/关注点完整 |
-| 每个C明确结论与证据/动作 | 满足登记要求 | C2完整；C1/C3/C4/C5部分，每项未验场景及归属不隐藏 |
-| 不变量由生产符号锚定，动态有命令/环境 | 满足现有主张 | helper/source锚点、继承status/JUnit与输入核对；新probe标未执行 |
-| target/cache/skip/失败/复跑/coverage测量面 | 满足现有记录 | 第一轮禁缓存并发1、107/0/0、四指标和聚合失败边界；本任务重任务0 |
-| 适用三框架/宿主链路对照 | **部分，待主控裁定分流/补证** | 静态接线与C2动态对照已闭环；C1/C3/C4真实browser/设备面不能冒充已验 |
-| 确认问题去重/根因/回归 | 满足本对象无新问题的登记 | 新问题0；RV-071引用现registry归Angular，不复制编号或红报告 |
-| 有证据评级且评审/修复/发布分开 | 满足候选记录 | 🟡源码/设计评审候选；不代表整对象已接受、全部C通过或发布就绪 |
+| 原完成条件                                 | R2状态                        | 证据 / 限制                                                        |
+| ------------------------------------------ | ----------------------------- | ------------------------------------------------------------------ |
+| 全部受控源码/配置/tests/构建清点           | 满足                          | 21/21全文；0未读；0受控生成；inspection区间/关注点完整             |
+| 每个C明确结论与证据/动作                   | 满足登记要求                  | C2完整；C1/C3/C4/C5部分，每项未验场景及归属不隐藏                  |
+| 不变量由生产符号锚定，动态有命令/环境      | 满足现有主张                  | helper/source锚点、继承status/JUnit与输入核对；新probe标未执行     |
+| target/cache/skip/失败/复跑/coverage测量面 | 满足现有记录                  | 第一轮禁缓存并发1、107/0/0、四指标和聚合失败边界；本任务重任务0    |
+| 适用三框架/宿主链路对照                    | **部分，待主控裁定分流/补证** | 静态接线与C2动态对照已闭环；C1/C3/C4真实browser/设备面不能冒充已验 |
+| 确认问题去重/根因/回归                     | 满足本对象无新问题的登记      | 新问题0；RV-071引用现registry归Angular，不复制编号或红报告         |
+| 有证据评级且评审/修复/发布分开             | 满足候选记录                  | 🟡源码/设计评审候选；不代表整对象已接受、全部C通过或发布就绪       |
 
 **完成条件6/7满足登记；完整对象候选尚未被主控接受，publishReady=false。** 剩余只有上表原要求，不新增业务/bug范围。机器可读闭环、完整C/局部子面与具体余项在`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/closure.json`；全部本任务改动绝对路径在`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/changed-files.json`。
 
@@ -156,15 +156,33 @@ C1/C2/C3/C4 的共享 helper 已逐源追踪：字符串最小差量、resolved 
 
 收到主控确认并读取`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json`及四份code-editor日志；当前三份探针指纹与主控测量全部相同。对象checkedAt=**2026-10-05T10:57:55.292703+08:00**。
 
-| 第二轮测量 | 实际结果 | 判别力 |
-| --- | --- | --- |
-| strict valid | exitCode0，无诊断 | 实际tar d.ts公开类型输入/返回全部可编译，SUPPORT_LANGUAGES标称类型仍可回流 |
-| strict invalid | exitCode2；9个TS2322/TS2345；无TS2307 | 主题/errorKind、语言名/文档坐标、found缺description、disabled、loader extension及函数输入全部按预期拒绝，不是依赖缺失假红 |
-| root runtime import | exitCode0；24个runtime exports | 实际执行独立tar root，非仅resolve |
-| runtime-smoke | exitCode0，passed=true | 无window/document；helper断言、SQL真实parser无错误节点、重复load缓存；browserBehaviorValidated=false |
+| 第二轮测量          | 实际结果                              | 判别力                                                                                                                    |
+| ------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| strict valid        | exitCode0，无诊断                     | 实际tar d.ts公开类型输入/返回全部可编译，SUPPORT_LANGUAGES标称类型仍可回流                                                |
+| strict invalid      | exitCode2；9个TS2322/TS2345；无TS2307 | 主题/errorKind、语言名/文档坐标、found缺description、disabled、loader extension及函数输入全部按预期拒绝，不是依赖缺失假红 |
+| root runtime import | exitCode0；24个runtime exports        | 实际执行独立tar root，非仅resolve                                                                                         |
+| runtime-smoke       | exitCode0，passed=true                | 无window/document；helper断言、SQL真实parser无错误节点、重复load缓存；browserBehaviorValidated=false                      |
 
 独立离线真实tar安装环境由主控提供；本对象tar SHA与第一轮相同，版本0.0.26。Node26.7.0、TypeScript6.0.3；actual config是ES2024/NodeNext/strict/skipLibCheck=false，无paths/baseUrl/extends仓库配置。不是运行本任务提出的ES2022完整配置，**actual/proposed已区分**。完整日志、actual config、tar/fixture指纹与依赖版本：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-results.json`。
 
 这批结果关闭C5的公开类型和pack后Node实际消费子面，**不是完整C5/发布就绪**。主控继续补仅SQL bundle模块图/体积与缺语言模块负对照；type-only辅助probe未执行，保留其未验记录。C1/C3/C4真实宿主最低场景仍保留归属和分流裁定，完整原C仍仅C2。源码/C结论先交，不等待整批10任务。
 
 阶段final：源码/设计与独立tar主探针结果已交付；主控ten-packages-current-*串行build/unit+coverage/lint已启动，尚未将其算作通过。SQL实际bundle/missing-lang负例由主控继续，本任务结束、不再扩读或新增用例。
+
+## R2 主控已执行补证：C5 打包与依赖
+
+**C5 原专题已核查，C1/C3/C4 的绑定/browser最低场景未因此通过。** 当前fresh build退出0、scope/依赖输入无漂移；真实published tar消费者 strict/skipLibCheck=false 正例0、反例仅消费输入九项错误，root import和runtime smoke0，Node无DOM环境SQL解析实际成功并缓存。类型only辅助消费者0。
+
+SQL-only esbuild consumer静态依赖闭包2文件、原始277158字节，输出总124个lazy/shared文件、1517375字节，模块图已保存；不把全部lazy产物当首屏或声称已测浏览器网络。独立消费者暂移Python ESM入口，根导入与helper仍可用，请求该语言明确拒绝ERR_MODULE_NOT_FOUND，finally恢复临时文件；没有改工作区资源/业务。
+
+证据：[消费者正负/运行时](../../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[类型only](../../evidence/2026-10-05/parallel-round2/validation/editor-type-only-consumer.json)、[SQL图与缺资源负例](../../evidence/2026-10-05/parallel-round2/validation/editor-artifact-probes.json)。结果目录相对路径若位于results/packages，以本段对应计划页的同名证据为准。
+
+## R2 主控验证结算（不扩大子代理原核销范围）
+
+本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
+
+[真实tar类型正负/运行时证据](../../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+
+消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
+
+主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。

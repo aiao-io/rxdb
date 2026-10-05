@@ -1,81 +1,46 @@
 {
-  "task": "R2-03",
-  "object": "rxdb-plugin-tree-react",
-  "observedAt": "2026-10-05T11:01:00+08:00",
+  "consumerEntityDeclarations": "consumer-valid/invalid.mts are handwritten declaration fixtures matching the read generator static-slot protocol, not outputs produced in this task; numeric generator end-to-end remains controller action",
   "controlledGeneratedFiles": 0,
-  "outputs": [
-    {
-      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/dist/index.js",
-      "sha256": "7bedf3540e2118c7c7c9bfdd67e41c4ef7a9d496ed9829a8277b3fccbf57b9ee",
-      "readRanges": [
-        [
-          1,
-          6
-        ]
-      ],
-      "tracked": false,
-      "source": "src/index.ts",
-      "sourceMapSourceVerified": false,
-      "newBuildExecuted": false
+  "controllerBuildEvidence": {
+    "source": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-build-status.json",
+    "log": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-build.txt",
+    "command": [
+      "pnpm",
+      "nx",
+      "run-many",
+      "--projects=code-editor,rxdb-plugin-tree-angular,rxdb-plugin-tree-react,rxdb-plugin-tree-vue,rxdb-plugin-search-angular,rxdb-plugin-search-react,rxdb-plugin-search-vue,rxdb-plugin-working-tree-angular,rxdb-plugin-working-tree-vue,rxdb-plugin-replay-angular",
+      "--parallel=1",
+      "--skipRemoteCache",
+      "--skipNxCache",
+      "--output-style=static",
+      "-t",
+      "build"
+    ],
+    "startedAt": "2026-10-05T11:04:54.769726+08:00",
+    "head": "465f9078e9844af2cbef9936c7321a5576333a01",
+    "aggregateExitCode": 0,
+    "ownResult": "passed",
+    "cacheDisabled": true,
+    "concurrency": 1,
+    "ownMeasuredInputs": {
+      "packages/rxdb-plugin-tree-react/project.json": "fcaa8eddeb691af2d6d334c09daea77971b8c1b63134137e779193c548287c4b",
+      "packages/rxdb-plugin-tree-react/vite.config.mts": "7795ba6908f8c78dd3a0830b9963d27c94843fee91d1e5d01f01b8e74f364a78",
+      "packages/rxdb-plugin-tree-react/package.json": "fe1c38d3c9412de40740ff07eb68eeb07d3a280a2486d74d61c83f8327f69c16",
+      "packages/rxdb-plugin-tree-react/tsconfig.json": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "packages/rxdb-plugin-tree-react/tsconfig.lib.json": "5110d28459ebf149a64f219ed27826fd59840a18deba39b2d897e718bfb91009",
+      "packages/rxdb-plugin-tree-react/tsconfig.spec.json": "28ae7c8b6b9de02abba8aaf41d0fde25b185fde4cb5ce5744d083087cf778b5d",
+      "packages/rxdb-plugin-tree-react/src/use-tree.ts": "0f02c001d36953d8df494c48d3ca77bb891135311ffe768aec921804a2a269e8",
+      "packages/rxdb-plugin-tree-react/src/index.ts": "9163971666e43f5f5f8493798e383cb07a9e5e9a46ebc5c4b6d4cf3b042126db",
+      "packages/rxdb-plugin-tree-react/src/__tests__/index.spec.ts": "76dcbfef9ee1c38dc9a2d42e1a62794d5452781a53d3228233ebc85e98f7d3ec",
+      "packages/rxdb-plugin-tree-react/src/__tests__/review-round2-lifecycle.spec.ts": "e138ed22e843ac7bfdca1f83628684caf30179512fcf71d121bf2e7dff7ce9ec",
+      "packages/rxdb-plugin-tree-react/src/__tests__/tri-framework-generics.spec.ts": "6d84c01a924a9e9631bfb0a9ae60f89fc14e7ba59fa3acd6e2f334c0d2b03bba",
+      "packages/rxdb-plugin-tree-react/src/__tests__/use-tree.spec.ts": "c5959cee5d1ada1d45e8d57daa45869be33b7b601f5263d5f84a1275c609fb15"
     },
-    {
-      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/dist/index.d.ts",
-      "sha256": "d4a8f22501380f1c5a5116f467e5424dd2d8fb8990b3184a1c458ee3ff882d52",
-      "readRanges": [
-        [
-          1,
-          13
-        ]
-      ],
-      "tracked": false,
-      "source": "src/index.ts",
-      "sourceMapSourceVerified": false,
-      "newBuildExecuted": false
-    },
-    {
-      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/dist/use-tree.d.ts",
-      "sha256": "910e17182af3608f59d21bd92342e6bcb112493c7c88a4bd7b87515103cdaadc",
-      "readRanges": [
-        [
-          1,
-          46
-        ]
-      ],
-      "tracked": false,
-      "source": "src/use-tree.ts",
-      "sourceMapSourceVerified": false,
-      "newBuildExecuted": false
-    },
-    {
-      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/dist/index.d.ts.map",
-      "sha256": "22b67bd33c6d7f1cb4c2665c5fff888fa4ad4f16d9caf6407130ed15b8ec4130",
-      "readRanges": [
-        [
-          1,
-          1
-        ]
-      ],
-      "tracked": false,
-      "source": "src/index.ts",
-      "sourceMapSourceVerified": true,
-      "newBuildExecuted": false
-    },
-    {
-      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/dist/use-tree.d.ts.map",
-      "sha256": "51a3e52ca7124423319d250657a627a93f60f528b892a7f9ab0b40d1de7fbe1e",
-      "readRanges": [
-        [
-          1,
-          1
-        ]
-      ],
-      "tracked": false,
-      "source": "src/use-tree.ts",
-      "sourceMapSourceVerified": true,
-      "newBuildExecuted": false
-    }
-  ],
-  "generator": "vite.config.mts dts({entryRoot:src,pathsToAliases:false,tsconfigPath:tsconfig.lib.json}) + ES lib bundle",
+    "ownAllCurrentInputShaMatch": true,
+    "aggregateExitCodeDoesNotOverrideOwnUnitSegment": false
+  },
+  "determinismVerified": false,
+  "freshBuildPassed": true,
   "generationSources": [
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/vite.config.mts",
@@ -108,31 +73,86 @@
       "role": "read-implementation"
     }
   ],
+  "generator": "vite.config.mts dts({entryRoot:src,pathsToAliases:false,tsconfigPath:tsconfig.lib.json}) + ES lib bundle",
+  "object": "rxdb-plugin-tree-react",
+  "observedAt": "2026-10-05T11:01:00+08:00",
   "observedInvariants": [
     "dist/index.js retains use client and imports useRepositoryQuery only from @aiao/rxdb-react; four dispatch/default tuples match source",
     "dist/index.d.ts exports four hook names; use-tree.d.ts retains TreeEntityType/EntityStaticType/UseOptions/RxDBResource<InstanceType<T>[]|number> from package names",
     "maps point to ../src/index.ts and ../src/use-tree.ts; not used to claim fresh reproducibility"
   ],
+  "outputs": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/dist/index.js",
+      "sha256": "7bedf3540e2118c7c7c9bfdd67e41c4ef7a9d496ed9829a8277b3fccbf57b9ee",
+      "readRanges": [[1, 6]],
+      "tracked": false,
+      "source": "src/index.ts",
+      "sourceMapSourceVerified": false,
+      "newBuildExecuted": true,
+      "shaBeforeControllerBuild": "7bedf3540e2118c7c7c9bfdd67e41c4ef7a9d496ed9829a8277b3fccbf57b9ee",
+      "sameBytesAsPreviouslyInspected": true,
+      "buildExecutor": "controller, not worker"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/dist/index.d.ts",
+      "sha256": "d4a8f22501380f1c5a5116f467e5424dd2d8fb8990b3184a1c458ee3ff882d52",
+      "readRanges": [[1, 13]],
+      "tracked": false,
+      "source": "src/index.ts",
+      "sourceMapSourceVerified": false,
+      "newBuildExecuted": true,
+      "shaBeforeControllerBuild": "d4a8f22501380f1c5a5116f467e5424dd2d8fb8990b3184a1c458ee3ff882d52",
+      "sameBytesAsPreviouslyInspected": true,
+      "buildExecutor": "controller, not worker"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/dist/use-tree.d.ts",
+      "sha256": "2074b913a538e0dbf006a4cd03175ade8e5b1f9df655ec28ee79ac073355c6ff",
+      "readRanges": [[1, 46]],
+      "tracked": false,
+      "source": "src/use-tree.ts",
+      "sourceMapSourceVerified": false,
+      "newBuildExecuted": true,
+      "shaBeforeControllerBuild": "910e17182af3608f59d21bd92342e6bcb112493c7c88a4bd7b87515103cdaadc",
+      "sameBytesAsPreviouslyInspected": false,
+      "buildExecutor": "controller, not worker"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/dist/index.d.ts.map",
+      "sha256": "22b67bd33c6d7f1cb4c2665c5fff888fa4ad4f16d9caf6407130ed15b8ec4130",
+      "readRanges": [[1, 1]],
+      "tracked": false,
+      "source": "src/index.ts",
+      "sourceMapSourceVerified": true,
+      "newBuildExecuted": true,
+      "shaBeforeControllerBuild": "22b67bd33c6d7f1cb4c2665c5fff888fa4ad4f16d9caf6407130ed15b8ec4130",
+      "sameBytesAsPreviouslyInspected": true,
+      "buildExecutor": "controller, not worker"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/dist/use-tree.d.ts.map",
+      "sha256": "51a3e52ca7124423319d250657a627a93f60f528b892a7f9ab0b40d1de7fbe1e",
+      "readRanges": [[1, 1]],
+      "tracked": false,
+      "source": "src/use-tree.ts",
+      "sourceMapSourceVerified": true,
+      "newBuildExecuted": true,
+      "shaBeforeControllerBuild": "51a3e52ca7124423319d250657a627a93f60f528b892a7f9ab0b40d1de7fbe1e",
+      "sameBytesAsPreviouslyInspected": true,
+      "buildExecutor": "controller, not worker"
+    }
+  ],
   "realGeneratedEntityExample": {
     "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/dist/entities/MenuSimple.d.ts",
     "sha256": "e6b1cc95cd61abb57e87b9694eaf0450a5ac601e9db37a0a3adfa9b574031672",
     "readRanges": [
-      [
-        1,
-        33
-      ],
-      [
-        86,
-        144
-      ],
-      [
-        165,
-        171
-      ]
+      [1, 33],
+      [86, 144],
+      [165, 171]
     ],
     "observed": "FindTreeOptions<typeof MenuSimple,MenuSimpleTreeRuleGroup> in all four static option keys; static [ENTITY_STATIC_TYPES]:MenuSimpleStaticTypes; idType:UUID. Ignored output, not current numeric generator execution."
   },
-  "consumerEntityDeclarations": "consumer-valid/invalid.mts are handwritten declaration fixtures matching the read generator static-slot protocol, not outputs produced in this task; numeric generator end-to-end remains controller action",
-  "determinismVerified": false,
-  "remainingAction": "controller build twice at a stable input snapshot and hash public output bytes; existing ignored dist/pack is not proof of current reproducibility"
+  "remainingAction": "fresh build passed; no repeated stable rebuild/hash comparison observed",
+  "task": "R2-03"
 }

@@ -1,14 +1,22 @@
 {
-  "recordedAt": "2026-10-05T10:59:42.063579+08:00",
-  "sourceGeneration": [
-    "vite.config.mts:13–17 的 dts entryRoot/tsconfigPath",
-    "vite.config.mts:29–46 的 ES lib 构建与 external",
-    "tsconfig.lib.json:1–35 声明输出配置"
-  ],
-  "trackedGeneratedFiles": 0,
-  "historicalPackEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/packed-consumer-entry-check.json",
   "archive": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-review-pack-qunrcwin/rxdb-plugin-search-vue.tgz",
   "archiveSha256": "271b2973fdd0ec8d96f4d4d91c0035a3353d26041f2450b1d2a13f417df0e20d",
+  "declarationDifference": "--- historical tar d.ts\n+++ current ignored d.ts\n@@ -1,5 +1,5 @@\n-import { type MaybeRefOrGetter, type Ref } from 'vue';\n-import type { SearchExecutionError, SearchOptions, SearchResult, SearchSourceLike, SearchState } from '@aiao/rxdb-plugin-search';\n+import { MaybeRefOrGetter, Ref } from 'vue';\n+import { SearchExecutionError, SearchOptions, SearchResult, SearchSourceLike, SearchState } from '@aiao/rxdb-plugin-search';\n /**\n  * Vue 集成 - rxdb-plugin-search\n  *\n",
+  "declarationDifferenceConclusion": "仅头两行 type import 的打印形式不同，已读公开签名一致；不把 ignored local dist 伪装成同一次生成。",
+  "declarationMapsSources": ["../src/index.ts", "../src/use-search.ts"],
+  "finalHandoffCoordinatorReport": {
+    "recordedAt": "2026-10-05T11:09:34.173740+08:00",
+    "source": "用户/主控在本 chat 的最新直接报告；交接不扩读、不等待后续日志",
+    "bareEnvironmentResultRetained": true,
+    "supplementalEnvironment": "显式 Node typings + @types/ms，独立实际 tar consumer，严格声明检查",
+    "validStrictExitCode": 0,
+    "invalidResult": "仅消费类型诊断拒绝（非零；本消息未给具体数值）",
+    "rootRuntimeImportExitCode": 0,
+    "unitCoverageAndLint": "主控已启动 current newSpec unit+coverage/lint；尚未报告完成，不改写为通过",
+    "sfcTemplates": "正负 .vue fixture 已交付；本次报告没有给 SFC vue-tsc 模板结果",
+    "note": "explicit Node/@types/ms 对照通过不抹除裸环境 NodeJS/ms 的上游声明闭合失败；不自行修改 utils/依赖/stub/skipLibCheck。"
+  },
+  "historicalPackEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/packed-consumer-entry-check.json",
   "matchesRecordedTarball": true,
   "members": [
     {
@@ -92,27 +100,16 @@
       "lines": 234
     }
   ],
-  "declarationDifference": "--- historical tar d.ts\n+++ current ignored d.ts\n@@ -1,5 +1,5 @@\n-import { type MaybeRefOrGetter, type Ref } from 'vue';\n-import type { SearchExecutionError, SearchOptions, SearchResult, SearchSourceLike, SearchState } from '@aiao/rxdb-plugin-search';\n+import { MaybeRefOrGetter, Ref } from 'vue';\n+import { SearchExecutionError, SearchOptions, SearchResult, SearchSourceLike, SearchState } from '@aiao/rxdb-plugin-search';\n /**\n  * Vue 集成 - rxdb-plugin-search\n  *\n",
-  "declarationDifferenceConclusion": "仅头两行 type import 的打印形式不同，已读公开签名一致；不把 ignored local dist 伪装成同一次生成。",
-  "declarationMapsSources": [
-    "../src/index.ts",
-    "../src/use-search.ts"
+  "newBuildOrDeterminismRunByThisAgent": false,
+  "recordedAt": "2026-10-05T10:59:42.063579+08:00",
+  "sourceGeneration": [
+    "vite.config.mts:13–17 的 dts entryRoot/tsconfigPath",
+    "vite.config.mts:29–46 的 ES lib 构建与 external",
+    "tsconfig.lib.json:1–35 声明输出配置"
   ],
   "testsAndTsbuildinfoInTar": false,
-  "newBuildOrDeterminismRunByThisAgent": false,
+  "trackedGeneratedFiles": 0,
   "unverified": [
     "正负 SFC vue-tsc 模板与本轮重复构建确定性未由本代理测量，交主控已有证据映射/追加；.mts 与根 import 已由主控验证。"
-  ],
-  "finalHandoffCoordinatorReport": {
-    "recordedAt": "2026-10-05T11:09:34.173740+08:00",
-    "source": "用户/主控在本 chat 的最新直接报告；交接不扩读、不等待后续日志",
-    "bareEnvironmentResultRetained": true,
-    "supplementalEnvironment": "显式 Node typings + @types/ms，独立实际 tar consumer，严格声明检查",
-    "validStrictExitCode": 0,
-    "invalidResult": "仅消费类型诊断拒绝（非零；本消息未给具体数值）",
-    "rootRuntimeImportExitCode": 0,
-    "unitCoverageAndLint": "主控已启动 current newSpec unit+coverage/lint；尚未报告完成，不改写为通过",
-    "sfcTemplates": "正负 .vue fixture 已交付；本次报告没有给 SFC vue-tsc 模板结果",
-    "note": "explicit Node/@types/ms 对照通过不抹除裸环境 NodeJS/ms 的上游声明闭合失败；不自行修改 utils/依赖/stub/skipLibCheck。"
-  }
+  ]
 }

@@ -1,16 +1,14 @@
 {
-  "task": "R2-06",
-  "scopeTask": "R2-07",
-  "object": "rxdb-plugin-search-vue",
-  "recordedAt": "2026-10-05T10:59:42.063579+08:00",
-  "headAtReadClose": "465f9078e9844af2cbef9936c7321a5576333a01",
-  "scopeFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/scope.json",
-  "taskMismatch": "用户指定 R2-06，scope 是 R2-07；以唯一包/15 文件为准，不改 scope。",
-  "trackedCount": 15,
-  "fullContentReadCount": 15,
-  "partialReadCount": 0,
-  "navigationOnlyCount": 0,
-  "unreadCount": 0,
+  "additionalOwnedSource": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/review-round2-component-lifecycle.spec.ts",
+      "sha256": "015e526bae9de2de24902cbafd6bde042e951140bff15fad31d46dc137f8e79a",
+      "lines": 252,
+      "readStatus": "authored-and-reviewed",
+      "testCasesDefined": 6,
+      "executedByThisAgent": false
+    }
+  ],
   "files": [
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/LICENSE",
@@ -26,9 +24,7 @@
           "end": 21
         }
       ],
-      "focus": [
-        "完整 MIT 授权、归属与再分发声明；不属于执行逻辑。"
-      ],
+      "focus": ["完整 MIT 授权、归属与再分发声明；不属于执行逻辑。"],
       "basis": "逐段正文阅读；hash 仅绑定该已读版本，不替代阅读。",
       "generatedTracked": false
     },
@@ -261,9 +257,7 @@
           "end": 16
         }
       ],
-      "focus": [
-        "继承 base strict；references 同时纳入 lib/spec，ignoreDeprecations=6.0。"
-      ],
+      "focus": ["继承 base strict；references 同时纳入 lib/spec，ignoreDeprecations=6.0。"],
       "basis": "逐段正文阅读；hash 仅绑定该已读版本，不替代阅读。",
       "generatedTracked": false
     },
@@ -302,9 +296,7 @@
           "end": 29
         }
       ],
-      "focus": [
-        "Vitest/Vite/Node 类型、spec/test include、引用本包 lib；没有 .vue SFC consumer include。"
-      ],
+      "focus": ["Vitest/Vite/Node 类型、spec/test include、引用本包 lib；没有 .vue SFC consumer include。"],
       "basis": "逐段正文阅读；hash 仅绑定该已读版本，不替代阅读。",
       "generatedTracked": false
     },
@@ -331,17 +323,13 @@
       "generatedTracked": false
     }
   ],
+  "fullContentReadCount": 15,
   "generatedTrackedCount": 0,
-  "additionalOwnedSource": [
-    {
-      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/review-round2-component-lifecycle.spec.ts",
-      "sha256": "015e526bae9de2de24902cbafd6bde042e951140bff15fad31d46dc137f8e79a",
-      "lines": 252,
-      "readStatus": "authored-and-reviewed",
-      "testCasesDefined": 6,
-      "executedByThisAgent": false
-    }
-  ],
+  "headAtReadClose": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "navigationOnlyCount": 0,
+  "object": "rxdb-plugin-search-vue",
+  "partialReadCount": 0,
+  "recordedAt": "2026-10-05T10:59:42.063579+08:00",
   "relatedReads": [
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/index.ts",
@@ -404,5 +392,11 @@
       "role": "本地 typecheck 不等价于独立 tar d.ts 的完整依赖检查"
     }
   ],
-  "scopeExpanded": false
+  "scopeExpanded": false,
+  "scopeFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/scope.json",
+  "scopeTask": "R2-07",
+  "task": "R2-06",
+  "taskMismatch": "用户指定 R2-06，scope 是 R2-07；以唯一包/15 文件为准，不改 scope。",
+  "trackedCount": 15,
+  "unreadCount": 0
 }

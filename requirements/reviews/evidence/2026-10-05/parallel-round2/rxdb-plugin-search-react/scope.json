@@ -1,7 +1,8 @@
 {
-  "task": "R2-06",
   "object": "rxdb-plugin-search-react",
   "sourceRoot": "packages/rxdb-plugin-search-react",
+  "status": "queued",
+  "task": "R2-06",
   "trackedFiles": [
     {
       "path": "packages/rxdb-plugin-search-react/LICENSE",
@@ -64,6 +65,5 @@
     "requirements/reviews/packages/rxdb-plugin-search-react.md",
     "requirements/reviews/results/packages/rxdb-plugin-search-react.md",
     "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react"
-  ],
-  "status": "queued"
+  ]
 }

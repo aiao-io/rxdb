@@ -1,0 +1,29 @@
+{
+  "clientDate": "2026-10-05",
+  "startedAt": "2026-10-05T15:26:03.004785+08:00",
+  "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-plugin-replay-angular:test",
+    "review-round2-player-lifecycle.spec.ts",
+    "--run",
+    "--maxWorkers=1",
+    "--fileParallelism=false",
+    "--coverage.enabled=false",
+    "--excludeTaskDependencies",
+    "--skipSync",
+    "--skipRemoteCache",
+    "--skipNxCache",
+    "--output-style=static"
+  ],
+  "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+  "exitCode": 1,
+  "elapsedSeconds": 12.867,
+  "scopedInputCount": 60,
+  "changedInputsDuringMeasurement": [],
+  "serialHeavyTaskLock": true,
+  "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/24-dual-rrweb-r2/20261005T152602951175.txt"
+}

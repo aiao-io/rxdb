@@ -1,0 +1,44 @@
+{
+  "clientDate": "2026-10-05",
+  "startedAt": "2026-10-05T15:13:52.243848+08:00",
+  "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "command": [
+    "/Users/jimmy/.nvm/versions/node/v26.7.0/bin/node",
+    "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/vue-tsc/bin/vue-tsc.js",
+    "--project",
+    "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/tsconfig.invalid-inputs-bundler.json",
+    "--noEmit",
+    "--pretty",
+    "false"
+  ],
+  "cwd": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3",
+  "exitCode": 2,
+  "elapsedSeconds": 4.569,
+  "scopedInputCount": 339,
+  "changedInputsDuringMeasurement": [],
+  "serialHeavyTaskLock": true,
+  "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/invalid-inputs-bundler-9e7a67dd79c3/20261005T151352188573.txt"
+}
+COMMAND: ["/Users/jimmy/.nvm/versions/node/v26.7.0/bin/node", "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/vue-tsc/bin/vue-tsc.js", "--project", "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/tsconfig.invalid-inputs-bundler.json", "--noEmit", "--pretty", "false"]
+CWD: /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3
+../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidInputs.vue(10,35): error TS2322: Type 'string' is not assignable to type 'number'.
+../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidInputs.vue(11,36): error TS2322: Type 'string' is not assignable to type 'number'.
+../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidInputs.vue(12,33): error TS2322: Type 'string' is not assignable to type 'number'.
+../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidInputs.vue(13,34): error TS2322: Type 'string' is not assignable to type 'number'.
+../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidInputs.vue(14,34): error TS2322: Type 'number' is not assignable to type 'string'.
+../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidInputs.vue(15,20): error TS2345: Argument of type 'typeof PlainNode' is not assignable to parameter of type 'TreeEntityType'.
+  Type 'typeof PlainNode' is not assignable to type 'new (...args: never[]) => ITreeEntity'.
+    Type 'PlainNode' is missing the following properties from type 'ITreeEntity': createdAt, updatedAt
+../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidInputs.vue(16,21): error TS2345: Argument of type 'typeof PlainNode' is not assignable to parameter of type 'TreeEntityType'.
+  Type 'typeof PlainNode' is not assignable to type 'new (...args: never[]) => ITreeEntity'.
+    Type 'PlainNode' is missing the following properties from type 'ITreeEntity': createdAt, updatedAt
+../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidInputs.vue(17,18): error TS2345: Argument of type 'typeof PlainNode' is not assignable to parameter of type 'TreeEntityType'.
+  Type 'typeof PlainNode' is not assignable to type 'new (...args: never[]) => ITreeEntity'.
+    Type 'PlainNode' is missing the following properties from type 'ITreeEntity': createdAt, updatedAt
+../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidInputs.vue(18,19): error TS2345: Argument of type 'typeof PlainNode' is not assignable to parameter of type 'TreeEntityType'.
+  Type 'typeof PlainNode' is not assignable to type 'new (...args: never[]) => ITreeEntity'.
+    Type 'PlainNode' is missing the following properties from type 'ITreeEntity': createdAt, updatedAt
+../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidInputs.vue(20,10): error TS2540: Cannot assign to 'value' because it is a read-only property.
+../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidInputs.vue(21,7): error TS2322: Type 'number' is not assignable to type 'string'.
+../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidInputs.vue(22,48): error TS2322: Type 'string' is not assignable to type 'number'.

@@ -1,0 +1,31 @@
+{
+  "angularMcpSearchVersion": 22,
+  "angularMcpSearchResults": 0,
+  "webRunAttempts": 3,
+  "sources": [
+    {
+      "url": "https://angular.dev/guide/components/inputs",
+      "httpStatus": 200,
+      "bodyFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/official-guide-components-inputs.html",
+      "sha256": "03df08956b7832b9f40445d2006c1fd9e7790ed0ff72c8ffb07a734f53cf395b"
+    },
+    {
+      "url": "https://angular.dev/errors/NG0950",
+      "httpStatus": 200,
+      "bodyFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/official-errors-NG0950.html",
+      "sha256": "c4a2ffc9e758af1100b25d8d4472060694db224a03cf4d27eae1ae1bb45ca00c"
+    },
+    {
+      "url": "https://angular.dev/tools/cli/template-typecheck",
+      "httpStatus": 200,
+      "bodyFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/official-tools-cli-template-typecheck.html",
+      "sha256": "0b38f64ce267f879264e80eab3d15be80b48c60fa014f6c10b2e6f5f1d7b6e3c"
+    },
+    {
+      "url": "https://angular.dev/guide/testing/components-scenarios",
+      "httpStatus": 200,
+      "bodyFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/official-guide-testing-components-scenarios.html",
+      "sha256": "9f2e21b04861da3c57135f2a5d058c658496e28b9c8903be362e0d9640db9a72"
+    }
+  ]
+}

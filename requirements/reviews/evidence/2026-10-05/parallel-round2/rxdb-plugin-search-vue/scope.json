@@ -1,7 +1,8 @@
 {
-  "task": "R2-07",
   "object": "rxdb-plugin-search-vue",
   "sourceRoot": "packages/rxdb-plugin-search-vue",
+  "status": "queued",
+  "task": "R2-07",
   "trackedFiles": [
     {
       "path": "packages/rxdb-plugin-search-vue/LICENSE",
@@ -68,6 +69,5 @@
     "requirements/reviews/packages/rxdb-plugin-search-vue.md",
     "requirements/reviews/results/packages/rxdb-plugin-search-vue.md",
     "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue"
-  ],
-  "status": "queued"
+  ]
 }

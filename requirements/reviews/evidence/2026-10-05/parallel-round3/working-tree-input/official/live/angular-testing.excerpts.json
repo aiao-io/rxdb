@@ -1,0 +1,14 @@
+[
+  {
+    "term": "whenStable",
+    "context": "after createComponent()' , () => { expect (h1.textContent). toEqual ( '' ); }); whenStable() You can tell the TestBed to wait for change detection to run with await fixture.whenStable() . Only then does the <h1> have the expected title. it ( 'should display original title' , async () => { await fixt"
+  },
+  {
+    "term": "signal",
+    "context": "uction What is Angular? Installation Essentials Start coding! 🚀 In-depth Guides Signals Updated Components Templates Directives Dependency Injection Updated Routing Forms Updated HTTP Client Server-side & hybrid-rendering Testing Angular Aria New Internationalization Animations Drag and drop Build w"
+  },
+  {
+    "term": "automatic change detection",
+    "context": "未找到"
+  }
+]

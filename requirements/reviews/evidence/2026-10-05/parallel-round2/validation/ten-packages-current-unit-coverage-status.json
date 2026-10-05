@@ -1,16 +1,6 @@
 {
-  "projects": [
-    "code-editor",
-    "rxdb-plugin-tree-angular",
-    "rxdb-plugin-tree-react",
-    "rxdb-plugin-tree-vue",
-    "rxdb-plugin-search-angular",
-    "rxdb-plugin-search-react",
-    "rxdb-plugin-search-vue",
-    "rxdb-plugin-working-tree-angular",
-    "rxdb-plugin-working-tree-vue",
-    "rxdb-plugin-replay-angular"
-  ],
+  "cacheDisabled": true,
+  "changedInputsDuringMeasurement": [],
   "command": [
     "pnpm",
     "nx",
@@ -24,10 +14,8 @@
     "test",
     "--args=--run --maxWorkers=1 --coverage.enabled=true --coverage.reportOnFailure=true --coverage.reporter=text --coverage.reporter=json-summary --coverage.reporter=json"
   ],
-  "startedAt": "2026-10-05T11:05:55.831274+08:00",
   "elapsedSeconds": 80.206,
   "exitCode": 1,
-  "headAtFinish": "465f9078e9844af2cbef9936c7321a5576333a01",
   "freshArtifacts": [
     "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/code-editor/coverage-summary.json",
     "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/code-editor/coverage-final.json",
@@ -51,8 +39,20 @@
     "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-replay-angular/coverage-summary.json",
     "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-replay-angular/coverage-final.json"
   ],
+  "headAtFinish": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "heavyTaskConcurrency": 1,
+  "projects": [
+    "code-editor",
+    "rxdb-plugin-tree-angular",
+    "rxdb-plugin-tree-react",
+    "rxdb-plugin-tree-vue",
+    "rxdb-plugin-search-angular",
+    "rxdb-plugin-search-react",
+    "rxdb-plugin-search-vue",
+    "rxdb-plugin-working-tree-angular",
+    "rxdb-plugin-working-tree-vue",
+    "rxdb-plugin-replay-angular"
+  ],
   "reviewedProjectAndDependencyInputCount": 2149,
-  "changedInputsDuringMeasurement": [],
-  "cacheDisabled": true,
-  "heavyTaskConcurrency": 1
+  "startedAt": "2026-10-05T11:05:55.831274+08:00"
 }

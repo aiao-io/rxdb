@@ -1,49 +1,28 @@
 {
-  "task": "R2-03",
-  "object": "rxdb-plugin-tree-react",
-  "preparedAt": "2026-10-05T11:01:00+08:00",
-  "validFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-valid.mts",
-  "invalidFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-invalid.mts",
-  "validSha256": "6c401afeabd8bcd2c5b4f5655f0b05b71aa6d4b62d945ff3c5a600a5671ce8c5",
-  "invalidSha256": "4cb1e253b88438229aa3822eb48af9b543d5def5004db6a54406940ec1801c5d",
-  "imports": [
-    "@aiao/rxdb",
-    "@aiao/rxdb-plugin-tree",
-    "@aiao/rxdb-plugin-tree-react",
-    "@aiao/rxdb-react"
-  ],
-  "workspacePathsUsed": false,
   "anyUsed": false,
-  "typeIgnoreUsed": false,
-  "topLevelHookCalls": false,
+  "consumerHarnessOwner": "controller",
+  "controllerEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/controller-validation.json",
+  "controllerValidation": {
+    "checkedAt": "2026-10-05T11:04:13.246331+08:00",
+    "validExitCode": 0,
+    "invalidExitCode": 2,
+    "diagnosticCount": 10,
+    "expectedLinesMatched": true,
+    "rootRuntimeImportExitCode": 0,
+    "strict": true,
+    "skipLibCheck": false,
+    "fixtureShaMatch": true,
+    "requiresNodeAndTypesMs": true,
+    "bareUpstreamFailuresRetained": true,
+    "publicDeclarationsSelfContained": false
+  },
+  "expectedInvalidDiagnosticCount": 10,
+  "expectedInvalidOutcome": "nonzero exit caused by the ten listed type errors; missing packages, parse failures or dependency diagnostics alone are not a negative contract pass",
   "hookCallsOnlyInUninvokedCustomHooks": true,
-  "positiveContracts": [
-    "number entityId accepts numeric 0; string entityId accepts string 0",
-    "all four hook method option slots use real FindTreeOptions<Entity> and EntityStaticType",
-    "array resources preserve concrete entity/id/label types; count resources preserve number",
-    "both object and factory options accepted; type Equal/Assert rejects erasure of ID/result generic"
-  ],
+  "imports": ["@aiao/rxdb", "@aiao/rxdb-plugin-tree", "@aiao/rxdb-plugin-tree-react", "@aiao/rxdb-react"],
+  "invalidFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-invalid.mts",
+  "invalidSha256": "4cb1e253b88438229aa3822eb48af9b543d5def5004db6a54406940ec1801c5d",
   "negativeCases": [
-    {
-      "line": 4,
-      "expression": "useCountAncestors,",
-      "expected": "semantic assignability/type error (not module resolution failure)"
-    },
-    {
-      "line": 5,
-      "expression": "useCountDescendants,",
-      "expected": "semantic assignability/type error (not module resolution failure)"
-    },
-    {
-      "line": 6,
-      "expression": "useFindAncestors,",
-      "expected": "semantic assignability/type error (not module resolution failure)"
-    },
-    {
-      "line": 7,
-      "expression": "useFindDescendants",
-      "expected": "semantic assignability/type error (not module resolution failure)"
-    },
     {
       "line": 48,
       "expression": "useFindDescendants(NumericTreeNode, { entityId: '0' });",
@@ -95,12 +74,23 @@
       "expected": "semantic assignability/type error (not module resolution failure)"
     }
   ],
-  "expectedInvalidDiagnosticCount": 14,
-  "expectedInvalidOutcome": "nonzero exit caused by the ten listed type errors; missing packages, parse failures or dependency diagnostics alone are not a negative contract pass",
-  "consumerHarnessOwner": "controller",
-  "requireStrict": true,
+  "object": "rxdb-plugin-tree-react",
+  "positiveContracts": [
+    "number entityId accepts numeric 0; string entityId accepts string 0",
+    "all four hook method option slots use real FindTreeOptions<Entity> and EntityStaticType",
+    "array resources preserve concrete entity/id/label types; count resources preserve number",
+    "both object and factory options accepted; type Equal/Assert rejects erasure of ID/result generic"
+  ],
+  "preparedAt": "2026-10-05T11:01:00+08:00",
   "requireNoWorkspacePathsOrSymlinks": true,
+  "requireStrict": true,
   "runHookAtModuleTopLevel": false,
+  "task": "R2-03",
+  "topLevelHookCalls": false,
+  "typeIgnoreUsed": false,
+  "validFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-valid.mts",
+  "validSha256": "6c401afeabd8bcd2c5b4f5655f0b05b71aa6d4b62d945ff3c5a600a5671ce8c5",
+  "workerRuntimeExecuted": false,
   "workerTypecheckExecuted": false,
-  "workerRuntimeExecuted": false
+  "workspacePathsUsed": false
 }

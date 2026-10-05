@@ -1,0 +1,43 @@
+# 2026-10-05：当前完成度与第三轮有界补证
+
+## 1. 重新核对的真实完成度
+
+本轮起点 HEAD `76a3848e2086f4617b80f7b1a1b896ef76e5719c`，不是把上轮总结照抄成新门禁。由本轮 resolved Nx graph 与逐对象计划/结果交叉核对：
+
+| 口径 | 已完成 / 总量 | 判据与限制 |
+| --- | --- | --- |
+| 逐对象计划与执行记录 | 73 / 73 | 50 有效包、22 应用、1 desktop 残留；有效 Nx 对象 72 个，无漏项 |
+| 第二轮追加十任务交付 | 10 / 10 | 153 原受控文件全文阅读、50 个 C 结论；不是全仓所有文件阅读完成 |
+| 原完整 C 专项核销 | 11 / 403（2.73%） | 部分子面有证据不算完整 C；392 个尚未完整核销 |
+| 有效包 / 应用整对象闭环 | 0 / 72 | 不用一条测试、一个修复或一次 build 抵消平台/最低场景缺口 |
+| desktop 残留范围核查 | 1 / 1 | 无受控源码及 Nx 节点，未运行/删除忽略产物 |
+
+11 个完整 C：workspace C2/C3、replay C1、code-editor C2/C5、tree-react C4/C5、search-react C1、desktop C1/C2/C3。分别保留原范围、上游风险或历史证据复用限定。工作树 Angular 的 `execution: complete` 与最低场景未验冲突，本轮改回 partial；“评审交付完成”单独记录，不计整对象核销。
+
+[起点机器盘点、403 项原状态与文档指纹](evidence/2026-10-05/parallel-round3/progress-start.json) · [本轮工作区 graph](evidence/2026-10-05/parallel-round3/workspace-graph.json)
+
+## 2. 尚未处理的评审意见
+
+起点保留 **17 份 Open 业务/工具源码问题报告：1 P1、16 P2**，另有 RV-022 立项准入报告；RV-058 为已解决的历史引用保留，不算 Open。最近三份真实意见为 RV-076（React options presence）、RV-077（Angular README 必填输入）、RV-078（utils 裸消费者声明依赖）。本轮不把夹具错误、旧 registry core、不匹配的第三方声明登记成新的本包缺陷。
+
+这是报告数，不是把 RV-022 的内部条目压成一个问题总数。此前 RV-066/067/068 修复已复验，已删除主报告；没有证据表明本轮又修好其余 Open 条目，不清掉红日志。
+
+## 3. 本轮实际调度
+
+六个子代理均已真实派出，写集合互斥；主控立即做范围盘点和真实 PGlite 树三端对照，不等待代理空转。所有重测试/编译经过同一串行锁，单 worker，禁止全仓并发假失败。
+
+| 任务 | 本轮唯一缺口 | 当前状态 |
+| --- | --- | --- |
+| R3-01 | Angular tree/search 正确父模板必填绑定、ngc 正反模板 | 执行中 |
+| R3-02 | Vue tree 真 SFC 编译、readonly 与 NodeNext 判别 | 执行中 |
+| R3-03 | Replay Angular 真 core 边界与跨文件 mock 缓存 | 执行中 |
+| R3-04 | Working-tree Angular 输入绑定、OnPush DOM 红例归属 | 执行中 |
+| R3-05 | 成功事务 body + cleanup 拒绝能否让套件假绿 | 执行中 |
+| R3-06 | Replay core 真 PGlite restore 调用序列与数据对照 | 执行中 |
+| 主控 | numeric/string 真实树四查询、移动/删除、三端同 fixture、多实例清理 | 执行中 |
+
+[任务派发清单](evidence/2026-10-05/parallel-round3/dispatch.json)。禁止改业务/旧 tests/工作区依赖、禁止 git 暂存/提交、禁止降低 strict/skipLibCheck。只修评审新加的夹具时保留原源码与红记录。
+
+## 4. 增量证据与核销
+
+待测量结束逐项补入；不把“在执行”写成成功，不以当前 73 份结果文档宣称全仓完成。

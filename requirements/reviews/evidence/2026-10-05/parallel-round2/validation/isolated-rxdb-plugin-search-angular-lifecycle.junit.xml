@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="13" failures="1" errors="0" time="0.075686458">
+    <testsuite name="rxdb-plugin-search-angular.spec.ts" timestamp="2026-10-05T03:45:05.717Z" hostname="liuleideMacBook-Pro-4.local" tests="13" failures="1" errors="0" skipped="0" time="0.075686458">
+        <testcase classname="rxdb-plugin-search-angular.spec.ts" name="第二轮评审：Angular 真实 SearchHandle 与生命周期 &gt; 快速输入只由核心防抖，连续分页不重复执行" time="0.012914459">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-angular.spec.ts" name="第二轮评审：Angular 真实 SearchHandle 与生命周期 &gt; 真实组件 inputs 等价不重建，换源中异步旧结果不回写" time="0.032085291">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-angular.spec.ts" name="第二轮评审：Angular 真实 SearchHandle 与生命周期 &gt; 在途分页换源后结算但不串页，清空恢复 idle" time="0.002393167">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-angular.spec.ts" name="第二轮评审：Angular 真实 SearchHandle 与生命周期 &gt; 清空和销毁期间晚到成功或错误不更新框架信号" time="0.001353791">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-angular.spec.ts" name="第二轮评审：Angular 真实 SearchHandle 与生命周期 &gt; 组件销毁中晚到成功不回写，重新挂载不继承旧订阅" time="0.00393375">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-angular.spec.ts" name="第二轮评审：Angular 真实 SearchHandle 与生命周期 &gt; 子 provider 覆盖与同组件多实例各自拥有 handle" time="0.006650666">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-angular.spec.ts" name="第二轮评审：Angular 真实 SearchHandle 与生命周期 &gt; results 协议流损坏交给 ErrorHandler，并解绑所有流" time="0.001616166">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-angular.spec.ts" name="第二轮评审：Angular 真实 SearchHandle 与生命周期 &gt; state 协议流损坏交给 ErrorHandler，并解绑所有流" time="0.001096458">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-angular.spec.ts" name="第二轮评审：Angular 真实 SearchHandle 与生命周期 &gt; error 协议流损坏交给 ErrorHandler，并解绑所有流" time="0.001045167">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-angular.spec.ts" name="第二轮评审：Angular 真实 SearchHandle 与生命周期 &gt; hasMore 协议流损坏交给 ErrorHandler，并解绑所有流" time="0.001520834">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-angular.spec.ts" name="第二轮评审：Angular 真实 SearchHandle 与生命周期 &gt; loadMore 的拒绝原样传出，不伪造框架 error signal" time="0.001497">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-angular.spec.ts" name="第二轮评审：Angular 真实 SearchHandle 与生命周期 &gt; 真实组件模板保留空态和错误，DOM 输入事件写回 query" time="0.003157416">
+        </testcase>
+        <testcase classname="rxdb-plugin-search-angular.spec.ts" name="第二轮评审：Angular 真实 SearchHandle 与生命周期 &gt; README 的 required input 用法应能在 setInput 之前创建组件" time="0.005335542">
+            <failure message="expected [Function] to not throw an error but &apos;Error: NG0950: Input is required but …&apos; was thrown" type="AssertionError">
+AssertionError: expected [Function] to not throw an error but &apos;Error: NG0950: Input is required but …&apos; was thrown
+
+- Expected:
+undefined
+
++ Received:
+&quot;Error: NG0950: Input is required but no value is available yet. Find more at https://v22.angular.dev/errors/NG0950&quot;
+
+ ❯ rxdb-plugin-search-angular.spec.ts:412:12
+            </failure>
+        </testcase>
+    </testsuite>
+</testsuites>

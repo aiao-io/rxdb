@@ -1,0 +1,128 @@
+{
+  "agentRunsHeavyTasks": false,
+  "date": "2026-10-05",
+  "executionOwner": "主控",
+  "frozenAt": "2026-10-05T11:35:02.083260+08:00",
+  "frozenEvidence": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/__tests__/review-round2-vue-scope.spec.ts",
+      "sha256": "e101763b84c658686c3491b398852dd3f34b08ee9e79fd5b2e227d4abcfdac54"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/valid.mts",
+      "sha256": "ab4aae8ffb8a8f64b77325555633c0cefb350c8b9754c9fdd93b78103ad74c8a"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/invalid.mts",
+      "sha256": "a8e90812f6323374b787eb8f1c2b2e78e0b81b6130a07eb91986cd6dc49f8707"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/valid.vue",
+      "sha256": "9f63858c7614714d8d347053d854f769ee4586cb4e5d1b444ce01269e8507b82"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/invalid.vue",
+      "sha256": "eedc1fa5a402fc82df7bfd3ab6507f9dfb50b812006a25eaec8bf44999506797"
+    }
+  ],
+  "furtherScopeExpansion": false,
+  "headAtRequest": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "newProbeFrozen": true,
+  "object": "rxdb-plugin-tree-vue",
+  "recordedAt": "2026-10-05T11:27:30.545503+08:00",
+  "requests": [
+    {
+      "id": "typed-consumer",
+      "project": "rxdb-plugin-tree-vue",
+      "target": "isolated-packed-typed-consumer",
+      "args": {
+        "valid": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/valid.mts",
+        "invalid": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/invalid.mts",
+        "strict": true,
+        "skipLibCheck": false,
+        "moduleResolution": "NodeNext",
+        "paths": null,
+        "extraAmbientTypes": ["node", "@types/ms"]
+      },
+      "reason": "使用主控已创建的真实 tar consumer 环境；正例必须 exit 0，反例必须逐行出现预定诊断而非任意 exit 非零；验证四 hooks、numeric/string id、readonly/computed 输入与返回类型。禁止源目录 aliases、any、expect-error。",
+      "criticalForC": true,
+      "status": "frozen-ready-for-controller-not-executed",
+      "cItems": ["C1", "C3", "C5"]
+    },
+    {
+      "id": "sfc-consumer",
+      "project": "rxdb-plugin-tree-vue",
+      "target": "isolated-packed-vue-tsc-consumer",
+      "args": {
+        "valid": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/valid.vue",
+        "invalid": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/invalid.vue",
+        "support": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/valid.mts",
+        "strict": true,
+        "skipLibCheck": false,
+        "extraAmbientTypes": ["node", "@types/ms"]
+      },
+      "reason": "有效模板四 hooks + 数值 props/readonly/computed/emit；无效模板必须诊断 string 根参数、错误 emit、实体缺字段与数字 toUpperCase。使用主控真实 tar 环境，单独正/反 include，不借 workspace paths，不改依赖。",
+      "criticalForC": true,
+      "status": "frozen-ready-for-controller-not-executed",
+      "cItems": ["C3", "C5"]
+    },
+    {
+      "id": "vue-binding-probe",
+      "project": "rxdb-plugin-tree-vue",
+      "target": "test",
+      "args": [
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--args=--run src/__tests__/review-round2-vue-scope.spec.ts --maxWorkers=1"
+      ],
+      "reason": "将新增 spec 纳入本包 Nx test：四 hooks、真实 effectScope/ref/reactive/computed/getter/readonly、深改/替换/结构等价、快切参数、旧订阅释放、error/empty、实体身份、真实组件 props 与卸载。只证明 Vue binding，不代替 SQL 树移动/删除。",
+      "criticalForC": true,
+      "status": "frozen-ready-for-controller-not-executed",
+      "cItems": ["C2", "C3", "C4"],
+      "probe": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/__tests__/review-round2-vue-scope.spec.ts",
+      "probeCases": 30
+    },
+    {
+      "id": "remaining-original-scenarios",
+      "project": "rxdb-plugin-tree-vue",
+      "target": "controller-adjudication",
+      "args": {
+        "treeCore": [
+          "numeric/string id 实际仓储查询",
+          "QueryCache 禁止",
+          "深树",
+          "跨父移动",
+          "父删除",
+          "与全量树查询一致"
+        ],
+        "crossFramework": ["同一真实 tree fixture 三端运行"],
+        "sfc": ["vue-tsc 独立 pack SFC consumer 与模板错误"]
+      },
+      "reason": "原 C 保留完整；只读上游不能视为真实 branch 复验。请主控明确可复用证据或后续裁定，本任务不跑其他包、不扩 core 实现。",
+      "criticalForC": true,
+      "status": "unverified",
+      "cItems": ["C1", "C2", "C3", "C5"]
+    },
+    {
+      "id": "new-spec-lint",
+      "project": "rxdb-plugin-tree-vue",
+      "target": "lint",
+      "args": ["--max-warnings=0", "--skipRemoteCache", "--skipNxCache"],
+      "reason": "新spec加入后串行执行；旧门禁不继承。typecheck若Nx production输入/cache面排除spec，仍须检查tsconfig.spec编译，不把Vitest转译当编译。",
+      "criticalForC": true,
+      "cItems": ["C3", "C4", "C5"],
+      "status": "requested"
+    },
+    {
+      "id": "new-spec-typecheck",
+      "project": "rxdb-plugin-tree-vue",
+      "target": "typecheck",
+      "args": ["--skipRemoteCache", "--skipNxCache"],
+      "reason": "新spec加入后串行执行；旧门禁不继承。typecheck若Nx production输入/cache面排除spec，仍须检查tsconfig.spec编译，不把Vitest转译当编译。",
+      "criticalForC": true,
+      "cItems": ["C3", "C4", "C5"],
+      "status": "requested"
+    }
+  ],
+  "task": "R2-04"
+}

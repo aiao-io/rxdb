@@ -1,0 +1,425 @@
+{
+  "boundedReadDependencies": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-vue/src/rxdb-vue.ts",
+      "readRanges": [[1, 251]],
+      "readStatus": "full-content-read",
+      "focus": "provider Ref/工厂所有权、useRxDB 快照、原始创建错误；provider 销毁自己创建的库，不替 wrapper 清 state。",
+      "observedSha256": "af0da2a424c19a2ac3cbaa0e831eb1f9433c5ea913764084d9c2257876e324c9"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+      "readRanges": [[1, 301]],
+      "readStatus": "full-content-read",
+      "focus": "每 key latest-only 代次、缺 workingTree 显式错误、workingTree 捕获与 versionManager getter、命令结果/拒绝/重读；无生命周期 epoch。",
+      "observedSha256": "cd685b7781f81e1aa4d68eabd5be2b0d44f4b430a8b23d8dd2e47157ae6edbca"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts",
+      "readRanges": [[119, 251]],
+      "readStatus": "bounded-content-read",
+      "focus": "十二格类型及初态、命令/查询 loading/终态、异常继续原样抛；不声称核心其余实现全读。",
+      "observedSha256": "8919cb6f169de97a1cd060a8cf337aabbb6f2f3574abfdf227f4e146d46eb16a"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/testing/use-working-tree-fixtures.ts",
+      "readRanges": [
+        [35, 119],
+        [190, 303]
+      ],
+      "readStatus": "bounded-content-read",
+      "focus": "载荷/deferred、凭据、门面 IO 桩来源与刻意的 unknown 类型断言；桩不证明事务/CAS 数据安全。",
+      "observedSha256": "0fde51350dbe2100f288b639cab50167cc2c6627b1f6117705805af97dc81345"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/use-working-tree.ts",
+      "readRanges": [[1, 190]],
+      "readStatus": "full-content-read",
+      "focus": "Signal 原生形态与接口/命令 delegate；一次调用捕获库。",
+      "observedSha256": "f2010e0f47fd867399db0248fcbe7e917be16326fcc472bd06113c78857bd733"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts",
+      "readRanges": [[1, 96]],
+      "readStatus": "full-content-read",
+      "focus": "Readonly<WorkingTreeAsyncStates> & WorkingTreeCommands；useMemo 按 database 重建 commands，useState 不随换库重置。",
+      "observedSha256": "b8df3cc14193a2e17d0f3a0946a0423f85043408977c4fa6c838341b4214e86e"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/index.ts",
+      "readRanges": [[1, 17]],
+      "readStatus": "full-content-read",
+      "focus": "同一对 type/runtime 根公开符号；不依据 Angular 源 manifest 缺 exports 下结论。",
+      "observedSha256": "621fad7bc03e7b8077d49c66017e8ef7340d4ed2365968f011ad727541d3b020"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/index.ts",
+      "readRanges": [[1, 19]],
+      "readStatus": "full-content-read",
+      "focus": "同一对 type/runtime 根公开符号，另有 use client 指令。",
+      "observedSha256": "7363461c414bad9a4271e7be118040ee3002c3e5f069675a58b5e8319bb46af0"
+    }
+  ],
+  "controlledFileCount": 14,
+  "files": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/LICENSE",
+      "controlled": true,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 21]],
+      "lineCount": 21,
+      "scopeSha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "observedSha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "matchesScope": true,
+      "focus": "MIT 全文、版权及分发义务；无运行时逻辑。"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/README.md",
+      "controlled": true,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 84]],
+      "lineCount": 84,
+      "scopeSha256": "7c6eedda91cdfffe13f06c20f8501ea9455d8e694f082f77251213a548f0b43a",
+      "observedSha256": "7c6eedda91cdfffe13f06c20f8501ea9455d8e694f082f77251213a548f0b43a",
+      "matchesScope": true,
+      "focus": "安装 peers、setup/provider 前置、十二项实际 API 与文案、CAS/restore 返回值及 switchBranch 异常、显式刷新、core 类型导入边界；不修改文档。"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/package.json",
+      "controlled": true,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 60]],
+      "lineCount": 60,
+      "scopeSha256": "8597a3aa51a398536a71dc48231b93ca5a5e6f490f5249a48325addf4d9e41b5",
+      "observedSha256": "8597a3aa51a398536a71dc48231b93ca5a5e6f490f5249a48325addf4d9e41b5",
+      "matchesScope": true,
+      "focus": "ESM 根 exports、types/import/default 三路对应 dist；发布包含源码但排除所有 __tests__/spec 和 tsbuildinfo；五项 peer 边界。"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/project.json",
+      "controlled": true,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 12]],
+      "lineCount": 12,
+      "scopeSha256": "2daa110072da035415136d8e51419f60bee662eb778bf07cff0b1d0f8b1c96c3",
+      "observedSha256": "2daa110072da035415136d8e51419f60bee662eb778bf07cff0b1d0f8b1c96c3",
+      "matchesScope": true,
+      "focus": "全文核对仅声明 typecheck 的 build/^typecheck 依赖；先保存 resolved config，再读受控声明，不将此文件当完整 Nx 配置。"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/__tests__/index.spec.ts",
+      "controlled": true,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 30]],
+      "lineCount": 30,
+      "scopeSha256": "0325389380d8f755cb9f8089ac582ceb65059f553d7b65f369a4c6ea0292a2f3",
+      "observedSha256": "0325389380d8f755cb9f8089ac582ceb65059f553d7b65f369a4c6ea0292a2f3",
+      "matchesScope": true,
+      "focus": "3 个入口断言：唯一 runtime 导出与 type-only WorkingTreeResource；具名类型引用不等于真实独立消费。"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/__tests__/rxdb-provider-harness.ts",
+      "controlled": true,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 11]],
+      "lineCount": 11,
+      "scopeSha256": "14a12010068b58c54681eee4b774204007929a22d4e2c4a566c45c8fb82099c2",
+      "observedSha256": "14a12010068b58c54681eee4b774204007929a22d4e2c4a566c45c8fb82099c2",
+      "matchesScope": true,
+      "focus": "RxDBInput<RxDB> 原样传给 provideRxDB；子树 setup 调用，未自行把 Ref 解成实例。"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/__tests__/setup-harness.ts",
+      "controlled": true,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 9]],
+      "lineCount": 9,
+      "scopeSha256": "c748cb9704ab61c684dd983940c44baf7a0505920457b30fcaadbe335b768b05",
+      "observedSha256": "c748cb9704ab61c684dd983940c44baf7a0505920457b30fcaadbe335b768b05",
+      "matchesScope": true,
+      "focus": "真正 defineComponent/setup/h span；回调仅在 setup 执行，没有 getter watch 或 dispose 模拟。"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/__tests__/use-working-tree.spec.ts",
+      "controlled": true,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 520]],
+      "lineCount": 520,
+      "scopeSha256": "600f993fd52d0657a3238d7386a274be140565587f720d7984ad357e50f41bfb",
+      "observedSha256": "600f993fd52d0657a3238d7386a274be140565587f720d7984ad357e50f41bfb",
+      "matchesScope": true,
+      "focus": "全部 520 行实读：45 个原用例（含 it.each 展开）、deferred loading、empty/no-op/CAS/四种 restore 拒绝、status 重读失败、dirty 异常、无 provider、成员/选项守卫和类型；IO 是核心官方桩，不拥有数据库事务。"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/index.ts",
+      "controlled": true,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 17]],
+      "lineCount": 17,
+      "scopeSha256": "16ff00ab8ca489f33e127d668aea888ac597f94c5ac2d97dfae71deeb8f8e0ea",
+      "observedSha256": "16ff00ab8ca489f33e127d668aea888ac597f94c5ac2d97dfae71deeb8f8e0ea",
+      "matchesScope": true,
+      "focus": "runtime 仅 useWorkingTree，type-only WorkingTreeResource；刻意不透传 core 错误类/结果类型，三端保持相同决定。"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts",
+      "controlled": true,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 174]],
+      "lineCount": 174,
+      "scopeSha256": "42b15923b583e48e2db67202fb022a34ba910d899d86cd4dbaef224a3f5cdd5f",
+      "observedSha256": "42b15923b583e48e2db67202fb022a34ba910d899d86cd4dbaef224a3f5cdd5f",
+      "matchesScope": true,
+      "focus": "174 行全读：十二 ComputedRef/十二 Promise 方法；一次 useRxDB 实例捕获、单 shallowRef、computed 分格、同步 patch 闭包；没有 watch/onScopeDispose/onUnmounted 或取消。"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/tsconfig.json",
+      "controlled": true,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 16]],
+      "lineCount": 16,
+      "scopeSha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "observedSha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "matchesScope": true,
+      "focus": "base 继承、空 files/include 与 lib/spec references；不是 consumer 配置。"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/tsconfig.lib.json",
+      "controlled": true,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 41]],
+      "lineCount": 41,
+      "scopeSha256": "ebe4e6d885279bc5d9e70900ce9a95214bc11a780b343177b7eb54b1b91b5a91",
+      "observedSha256": "ebe4e6d885279bc5d9e70900ce9a95214bc11a780b343177b7eb54b1b91b5a91",
+      "matchesScope": true,
+      "focus": "bundler/esnext、dts 发布与三个内部引用；全部 spec/__tests__/配置被排除，所以新增 probe 必须另跑 test/spec 类型门禁。"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/tsconfig.spec.json",
+      "controlled": true,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 30]],
+      "lineCount": 30,
+      "scopeSha256": "4b23b52c0b4607ef2ba16e07d087a22d9575c805c1d6b64be04649ccd609687f",
+      "observedSha256": "4b23b52c0b4607ef2ba16e07d087a22d9575c805c1d6b64be04649ccd609687f",
+      "matchesScope": true,
+      "focus": "Vitest/Node/Vite 类型与所有 src spec/harness include；声明库 exclude 不能被冒充新 spec 验证。"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/vite.config.mts",
+      "controlled": true,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 63]],
+      "lineCount": 63,
+      "scopeSha256": "c3a5fbaa71fd1c358e6f254649cb7b9f37e3fc99a26042ad19a35aede36e2acd",
+      "observedSha256": "c3a5fbaa71fd1c358e6f254649cb7b9f37e3fc99a26042ad19a35aede36e2acd",
+      "matchesScope": true,
+      "focus": "63 行全读：Vue/dts 插件、pathsToAliases:false、src/index.ts 单入口、ESM 与五类外部 imports、happy-dom、include、v8 include src/**/*、条件 CI 上传；覆盖率含两份非 spec harness。"
+    }
+  ],
+  "fullContentReadCount": 14,
+  "generatedAndPublishedVerification": {
+    "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-working-tree-vue.tgz",
+    "tarballSha256": "7557628ad2ff57a6ba007528fe9add743a258ca5e226ed581d74c2ea68c4d6e1",
+    "declaredTarballSha256": "7557628ad2ff57a6ba007528fe9add743a258ca5e226ed581d74c2ea68c4d6e1",
+    "fileCount": 10,
+    "comparisons": [
+      {
+        "entry": "package/dist/index.js",
+        "tarEntrySha256": "ac462f2a5c59bbf8b8ffb814ba4d01c647cd397d70173a70dcc56a7f47d07a36",
+        "currentPath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/dist/index.js",
+        "currentSha256": "ac462f2a5c59bbf8b8ffb814ba4d01c647cd397d70173a70dcc56a7f47d07a36",
+        "equalToCurrent": true
+      },
+      {
+        "entry": "package/dist/index.d.ts",
+        "tarEntrySha256": "fa7d555792c6e66a878898a76f5dad666b628e55238fb9f452fe0b90337bd875",
+        "currentPath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/dist/index.d.ts",
+        "currentSha256": "fa7d555792c6e66a878898a76f5dad666b628e55238fb9f452fe0b90337bd875",
+        "equalToCurrent": true
+      },
+      {
+        "entry": "package/dist/use-working-tree.d.ts",
+        "tarEntrySha256": "ab567473ab48c37db27a1245bcab367b3d8aea4c71a5ba861f3f811a10031433",
+        "currentPath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/dist/use-working-tree.d.ts",
+        "currentSha256": "ab567473ab48c37db27a1245bcab367b3d8aea4c71a5ba861f3f811a10031433",
+        "equalToCurrent": true
+      },
+      {
+        "entry": "package/src/index.ts",
+        "tarEntrySha256": "16ff00ab8ca489f33e127d668aea888ac597f94c5ac2d97dfae71deeb8f8e0ea",
+        "currentPath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/index.ts",
+        "currentSha256": "16ff00ab8ca489f33e127d668aea888ac597f94c5ac2d97dfae71deeb8f8e0ea",
+        "equalToCurrent": true
+      },
+      {
+        "entry": "package/src/use-working-tree.ts",
+        "tarEntrySha256": "42b15923b583e48e2db67202fb022a34ba910d899d86cd4dbaef224a3f5cdd5f",
+        "currentPath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts",
+        "currentSha256": "42b15923b583e48e2db67202fb022a34ba910d899d86cd4dbaef224a3f5cdd5f",
+        "equalToCurrent": true
+      },
+      {
+        "entry": "package/package.json",
+        "tarEntrySha256": "fced78886c4dbb7b8b31fee89674bab3608a5b5acf07267f6607c9c1de05e312",
+        "currentPath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/package.json",
+        "currentSha256": "8597a3aa51a398536a71dc48231b93ca5a5e6f490f5249a48325addf4d9e41b5",
+        "equalToCurrent": false
+      }
+    ],
+    "typesShapeComparison": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/api-comparison.json",
+    "repeatBuildDeterminism": "not-run-by-this-task；单次 source/map/dts/tar 对照不证明第二次构建确定性",
+    "publicationManifest": {
+      "rawManifestBytesMatch": false,
+      "runtimeAndTypesRelevantKeys": {
+        "name": {
+          "equal": true,
+          "published": "@aiao/rxdb-plugin-working-tree-vue"
+        },
+        "version": {
+          "equal": true,
+          "published": "0.0.26"
+        },
+        "type": {
+          "equal": true,
+          "published": "module"
+        },
+        "main": {
+          "equal": true,
+          "published": "./dist/index.js"
+        },
+        "module": {
+          "equal": true,
+          "published": "./dist/index.js"
+        },
+        "types": {
+          "equal": true,
+          "published": "./dist/index.d.ts"
+        },
+        "exports": {
+          "equal": true,
+          "published": {
+            "./package.json": "./package.json",
+            ".": {
+              "types": "./dist/index.d.ts",
+              "import": "./dist/index.js",
+              "default": "./dist/index.js"
+            }
+          }
+        },
+        "files": {
+          "equal": true,
+          "published": [
+            "dist",
+            "src",
+            "!src/**/*.spec.*",
+            "!src/**/*.test.*",
+            "!src/**/__tests__/**",
+            "!**/*.tsbuildinfo"
+          ]
+        },
+        "peerDependencies": {
+          "equal": true,
+          "published": {
+            "@aiao/rxdb": "*",
+            "@aiao/rxdb-plugin-working-tree": "*",
+            "@aiao/rxdb-vue": "*",
+            "rxjs": "^7.8.2",
+            "vue": "^3.5.43"
+          }
+        },
+        "sideEffects": {
+          "equal": true,
+          "published": false
+        },
+        "publishConfig": {
+          "equal": true,
+          "published": {
+            "access": "public"
+          }
+        }
+      },
+      "allRuntimeAndTypesRelevantKeysMatch": true,
+      "sourceDevDependencies": {
+        "@aiao/rxdb": "workspace:*",
+        "@aiao/rxdb-plugin-working-tree": "workspace:*",
+        "@aiao/rxdb-vue": "workspace:*"
+      },
+      "publishedDevDependencies": {
+        "@aiao/rxdb-plugin-working-tree": "0.0.26",
+        "@aiao/rxdb": "0.0.26",
+        "@aiao/rxdb-vue": "0.0.26"
+      },
+      "interpretation": "实际 pnpm pack 将 devDependencies 中 workspace:* 改为 0.0.26 且键排序不同；JS/dts/src 五份文件逐字节一致，manifest 仅原始字节不同。不将正常发布转换误报为输入漂移，也不虚称 manifest 原始字节一致。"
+    },
+    "allComparedJsDtsAndSourcesMatch": true
+  },
+  "generatedOutputs": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/dist/index.js",
+      "controlled": false,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 29]],
+      "sha256": "ac462f2a5c59bbf8b8ffb814ba4d01c647cd397d70173a70dcc56a7f47d07a36",
+      "origin": "vite.config.mts:11-17,29-46 的 src/index.ts 与 dts(tsconfig.lib.json)",
+      "role": "对应当轮已 build 的生成输出，不把 ignored 产物本身当作新的受控源码"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/dist/index.d.ts",
+      "controlled": false,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 11]],
+      "sha256": "fa7d555792c6e66a878898a76f5dad666b628e55238fb9f452fe0b90337bd875",
+      "origin": "vite.config.mts:11-17,29-46 的 src/index.ts 与 dts(tsconfig.lib.json)",
+      "role": "对应当轮已 build 的生成输出，不把 ignored 产物本身当作新的受控源码"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/dist/use-working-tree.d.ts",
+      "controlled": false,
+      "readStatus": "full-content-read",
+      "readRanges": [[1, 121]],
+      "sha256": "ab567473ab48c37db27a1245bcab367b3d8aea4c71a5ba861f3f811a10031433",
+      "origin": "vite.config.mts:11-17,29-46 的 src/index.ts 与 dts(tsconfig.lib.json)",
+      "role": "对应当轮已 build 的生成输出，不把 ignored 产物本身当作新的受控源码"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/dist/index.d.ts.map",
+      "controlled": false,
+      "readStatus": "source-map-structure-inspected",
+      "sourceFile": "index.d.ts",
+      "sources": ["../src/index.ts"],
+      "mappingCharacterCount": 102,
+      "sha256": "d020ce21cf801d33328794dc0f7cbbb8f0504b3f29d0a2e6d6238ce8cb86ff0d"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/dist/use-working-tree.d.ts.map",
+      "controlled": false,
+      "readStatus": "source-map-structure-inspected",
+      "sourceFile": "use-working-tree.d.ts",
+      "sources": ["../src/use-working-tree.ts"],
+      "mappingCharacterCount": 2652,
+      "sha256": "42cb030b73339843d3f89b332b4b5f9d3375b7f2abb88e0b735fe73c6b355006"
+    }
+  ],
+  "hashesAreNotReadingEvidence": true,
+  "headObserved": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "newProbe": {
+    "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/__tests__/review-round2-lifecycle.spec.ts",
+    "sha256": "6327e258a03caffc502c1aee426d5f370ea1cf56ac27e37a12407b110e56794c",
+    "caseCount": 9,
+    "role": "未执行的 bounded characterization，不是生产源码/原受控 14 文件"
+  },
+  "object": "rxdb-plugin-working-tree-vue",
+  "outlineOnlyCount": 0,
+  "readCompletedAt": "2026-10-05T11:33:00.580418+08:00",
+  "readOnlyTooling": {
+    "resolvedProject": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/resolved-project.json",
+    "command": "NX_DAEMON=false pnpm nx show project rxdb-plugin-working-tree-vue --json",
+    "heavyTasksRunBySubtask": [],
+    "angularCliTools": "list_projects 入口返回工具不可用；没有可调用的 get_best_practices，不阻断同族公开源码只读对照"
+  },
+  "scopeIdentityNote": "人类指定 R2-08；已有 scope/instructions 为 R2-09，未修改它们。",
+  "scopeTask": "R2-09",
+  "task": "R2-08",
+  "unreadCount": 0
+}

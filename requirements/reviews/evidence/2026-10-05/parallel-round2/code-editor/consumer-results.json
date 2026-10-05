@@ -1,10 +1,46 @@
 {
-  "task": "R2-01",
-  "object": "code-editor",
+  "actualConsumerConfigurations": {
+    "tsconfig.valid.json": {
+      "compilerOptions": {
+        "target": "ES2024",
+        "lib": ["ES2024", "DOM", "DOM.Iterable"],
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "strict": true,
+        "skipLibCheck": false,
+        "types": ["node"],
+        "noEmit": true,
+        "experimentalDecorators": true
+      },
+      "files": ["consumer-valid.mts"]
+    },
+    "tsconfig.invalid.json": {
+      "compilerOptions": {
+        "target": "ES2024",
+        "lib": ["ES2024", "DOM", "DOM.Iterable"],
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "strict": true,
+        "skipLibCheck": false,
+        "types": ["node"],
+        "noEmit": true,
+        "experimentalDecorators": true
+      },
+      "files": ["consumer-invalid.mts"]
+    }
+  },
   "adoptedAt": "2026-10-05T11:05:04+08:00",
-  "executedBy": "controller",
-  "thisTaskExecutedConsumer": false,
-  "report": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json",
+  "adoptionChecks": {
+    "validExitCode0": true,
+    "invalidExitCode2": true,
+    "invalidSemanticErrorCount": 9,
+    "invalidContainsTS2307": false,
+    "rootRuntimeExitCode0": true,
+    "smokeExitCode0": true,
+    "fixtureHashesMatch": true,
+    "strictAndSkipLibCheckFalse": true,
+    "noSourceAliasesOrWorkspaceLinks": true
+  },
   "checkedAt": "2026-10-05T11:04:03.696215+08:00",
   "controllerObjectResult": {
     "project": "code-editor",
@@ -72,52 +108,20 @@
       "fixtureSha256": "5200a50a8a5e3b07a54f002e8868b606589861ccd683760854b809f99028bab1"
     }
   },
-  "actualConsumerConfigurations": {
-    "tsconfig.valid.json": {
-      "compilerOptions": {
-        "target": "ES2024",
-        "lib": [
-          "ES2024",
-          "DOM",
-          "DOM.Iterable"
-        ],
-        "module": "NodeNext",
-        "moduleResolution": "NodeNext",
-        "strict": true,
-        "skipLibCheck": false,
-        "types": [
-          "node"
-        ],
-        "noEmit": true,
-        "experimentalDecorators": true
-      },
-      "files": [
-        "consumer-valid.mts"
-      ]
-    },
-    "tsconfig.invalid.json": {
-      "compilerOptions": {
-        "target": "ES2024",
-        "lib": [
-          "ES2024",
-          "DOM",
-          "DOM.Iterable"
-        ],
-        "module": "NodeNext",
-        "moduleResolution": "NodeNext",
-        "strict": true,
-        "skipLibCheck": false,
-        "types": [
-          "node"
-        ],
-        "noEmit": true,
-        "experimentalDecorators": true
-      },
-      "files": [
-        "consumer-invalid.mts"
-      ]
-    }
+  "exactCodeMirrorVersions": {
+    "@codemirror/lang-css": "6.3.1",
+    "@codemirror/lang-html": "6.4.12",
+    "@codemirror/lang-javascript": "6.2.5",
+    "@codemirror/lang-json": "6.0.2",
+    "@codemirror/lang-markdown": "6.5.2",
+    "@codemirror/lang-python": "6.2.1",
+    "@codemirror/lang-sass": "6.0.2",
+    "@codemirror/lang-sql": "6.10.0",
+    "@codemirror/lang-xml": "6.1.0",
+    "@codemirror/language": "6.12.4",
+    "@codemirror/language-data": "6.5.2"
   },
+  "executedBy": "controller",
   "fixtureIntegrity": {
     "consumer-valid.mts": {
       "currentSha256": "4e62ba0061e8704e56ba6cec95eabf358afff10eefb0b6a9ed4703dc819caa17",
@@ -135,6 +139,20 @@
       "matches": true
     }
   },
+  "logs": {
+    "valid": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/consumer-code-editor-valid.txt",
+    "invalid": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/consumer-code-editor-invalid.txt",
+    "rootRuntimeImport": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/consumer-code-editor-root-import.txt",
+    "runtimeSmoke": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/consumer-code-editor-runtime-smoke.txt"
+  },
+  "nodeVersion": "v26.7.0",
+  "notProven": [
+    "single-SQL initial/chunk module graph and raw/gzip sizes",
+    "physical missing language module/resource rejection control",
+    "real browser behavior"
+  ],
+  "object": "code-editor",
+  "report": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json",
   "runtimeResult": {
     "probe": "R2-01-runtime-smoke",
     "passed": true,
@@ -152,46 +170,12 @@
     "tarballSha256": "cb20a30c7d6c931e91f1d78175305be4c2a3f2a24cd8bc3b2831a855c82fc9cf"
   },
   "tarballCurrentSha256": "cb20a30c7d6c931e91f1d78175305be4c2a3f2a24cd8bc3b2831a855c82fc9cf",
-  "nodeVersion": "v26.7.0",
-  "typescriptVersion": "6.0.3",
-  "exactCodeMirrorVersions": {
-    "@codemirror/lang-css": "6.3.1",
-    "@codemirror/lang-html": "6.4.12",
-    "@codemirror/lang-javascript": "6.2.5",
-    "@codemirror/lang-json": "6.0.2",
-    "@codemirror/lang-markdown": "6.5.2",
-    "@codemirror/lang-python": "6.2.1",
-    "@codemirror/lang-sass": "6.0.2",
-    "@codemirror/lang-sql": "6.10.0",
-    "@codemirror/lang-xml": "6.1.0",
-    "@codemirror/language": "6.12.4",
-    "@codemirror/language-data": "6.5.2"
-  },
-  "logs": {
-    "valid": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/consumer-code-editor-valid.txt",
-    "invalid": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/consumer-code-editor-invalid.txt",
-    "rootRuntimeImport": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/consumer-code-editor-root-import.txt",
-    "runtimeSmoke": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/consumer-code-editor-runtime-smoke.txt"
-  },
+  "task": "R2-01",
+  "thisTaskExecutedConsumer": false,
   "typeOnlyAuxiliary": {
     "fixture": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/type-only-consumer.mts",
     "status": "prepared-not-executed",
     "notClaimedByMainThreeProbeResult": true
   },
-  "notProven": [
-    "single-SQL initial/chunk module graph and raw/gzip sizes",
-    "physical missing language module/resource rejection control",
-    "real browser behavior"
-  ],
-  "adoptionChecks": {
-    "validExitCode0": true,
-    "invalidExitCode2": true,
-    "invalidSemanticErrorCount": 9,
-    "invalidContainsTS2307": false,
-    "rootRuntimeExitCode0": true,
-    "smokeExitCode0": true,
-    "fixtureHashesMatch": true,
-    "strictAndSkipLibCheckFalse": true,
-    "noSourceAliasesOrWorkspaceLinks": true
-  }
+  "typescriptVersion": "6.0.3"
 }

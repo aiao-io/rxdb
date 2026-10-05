@@ -1,208 +1,6 @@
 {
   "clientDate": "2026-10-05",
-  "requestedProjects": [
-    "code-editor",
-    "rxdb-plugin-tree-angular",
-    "rxdb-plugin-tree-react",
-    "rxdb-plugin-tree-vue",
-    "rxdb-plugin-search-angular",
-    "rxdb-plugin-search-react",
-    "rxdb-plugin-search-vue",
-    "rxdb-plugin-working-tree-angular",
-    "rxdb-plugin-working-tree-vue",
-    "rxdb-plugin-replay-angular"
-  ],
-  "internalPackages": [
-    {
-      "project": "rxdb-plugin-replay-angular",
-      "name": "@aiao/rxdb-plugin-replay-angular",
-      "publicationRoot": "dist/packages/rxdb-plugin-replay-angular",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-replay-angular.tgz",
-      "tarballSha256": "4cd06e51c1901b617cb1aa4b26090375df94d8622e5cd43fc911a87fedfe38e6"
-    },
-    {
-      "project": "rxdb-plugin-replay",
-      "name": "@aiao/rxdb-plugin-replay",
-      "publicationRoot": "packages/rxdb-plugin-replay",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-replay.tgz",
-      "tarballSha256": "f84eb94f78f56294f70dac215edd03d124a2d02d9e284731c696ff37c66f6ee2"
-    },
-    {
-      "project": "rxdb-plugin-working-tree",
-      "name": "@aiao/rxdb-plugin-working-tree",
-      "publicationRoot": "packages/rxdb-plugin-working-tree",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-working-tree.tgz",
-      "tarballSha256": "5a56c944e033b295cfb6a2a6258d81fafc5a205195078c0718fc0b90b8665122"
-    },
-    {
-      "project": "utils",
-      "name": "@aiao/utils",
-      "publicationRoot": "packages/utils",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/utils.tgz",
-      "tarballSha256": "4fa0e3e53e54ebd02168bc1bd0a25e1ce2b07750921cffd2ec17a3a3515cf946"
-    },
-    {
-      "project": "rxdb-plugin-history",
-      "name": "@aiao/rxdb-plugin-history",
-      "publicationRoot": "packages/rxdb-plugin-history",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-history.tgz",
-      "tarballSha256": "c3e93944e53be099dc4f4388f9395ce020d67746e5390ea00b9acf20247c62a1"
-    },
-    {
-      "project": "rxdb",
-      "name": "@aiao/rxdb",
-      "publicationRoot": "packages/rxdb",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb.tgz",
-      "tarballSha256": "cb7cc0e0238d55a52855fec5c44d29a481fc2e6b42c53aab47cb90c3edc8fbbe"
-    },
-    {
-      "project": "rxdb-plugin-working-tree-vue",
-      "name": "@aiao/rxdb-plugin-working-tree-vue",
-      "publicationRoot": "packages/rxdb-plugin-working-tree-vue",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-working-tree-vue.tgz",
-      "tarballSha256": "e7b3c2ff270dbd803246473a426680661709cd8ff896036969a9970e993cf6ed"
-    },
-    {
-      "project": "rxdb-vue",
-      "name": "@aiao/rxdb-vue",
-      "publicationRoot": "packages/rxdb-vue",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-vue.tgz",
-      "tarballSha256": "59ea48d27032f0d0046a317a017b06054a4502f90d9ee8166585adb979937cc5"
-    },
-    {
-      "project": "rxdb-plugin-graph",
-      "name": "@aiao/rxdb-plugin-graph",
-      "publicationRoot": "packages/rxdb-plugin-graph",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-graph.tgz",
-      "tarballSha256": "728313bd3493fce4107c94572fde279a547051293f54b1b64583e6affac580ce"
-    },
-    {
-      "project": "rxdb-client-generator",
-      "name": "@aiao/rxdb-client-generator",
-      "publicationRoot": "packages/rxdb-client-generator",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-client-generator.tgz",
-      "tarballSha256": "0e86190bcef58f26b6bcfb311863a968bca6fa0b00930d26dcbfbfc1c87fd0cb"
-    },
-    {
-      "project": "rxdb-adapter-sqlite-core",
-      "name": "@aiao/rxdb-adapter-sqlite-core",
-      "publicationRoot": "packages/rxdb-adapter-sqlite-core",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-adapter-sqlite-core.tgz",
-      "tarballSha256": "876d1ffda0a88bd7374eee6bea0b742bbe8eef1172c4896eaa02522c98f284b8"
-    },
-    {
-      "project": "rxdb-test",
-      "name": "@aiao/rxdb-test",
-      "publicationRoot": "packages/rxdb-test",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-test.tgz",
-      "tarballSha256": "e6b5754e8426a161242278b76ef3e679b9d11cfccd82dafe5dee3433e66dd10b"
-    },
-    {
-      "project": "rxdb-plugin-tree",
-      "name": "@aiao/rxdb-plugin-tree",
-      "publicationRoot": "packages/rxdb-plugin-tree",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-tree.tgz",
-      "tarballSha256": "64ebd6782962361b56303a7845884f9c38c815e2ac8e1e31a9cdc8560cbf7196"
-    },
-    {
-      "project": "rxdb-adapter-encrypted",
-      "name": "@aiao/rxdb-adapter-encrypted",
-      "publicationRoot": "packages/rxdb-adapter-encrypted",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-adapter-encrypted.tgz",
-      "tarballSha256": "e93289462bbf98ab843f736b78e602bbc7c8de00aac8e7a82d9663f2e45e4162"
-    },
-    {
-      "project": "rxdb-plugin-working-tree-angular",
-      "name": "@aiao/rxdb-plugin-working-tree-angular",
-      "publicationRoot": "dist/packages/rxdb-plugin-working-tree-angular",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-working-tree-angular.tgz",
-      "tarballSha256": "b27de6b3eb484b80f6470ba27b73d037199bb8196cf15a056f91329056bb7190"
-    },
-    {
-      "project": "rxdb-angular",
-      "name": "@aiao/rxdb-angular",
-      "publicationRoot": "dist/packages/rxdb-angular",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-angular.tgz",
-      "tarballSha256": "e53932fafc0502a900d56d6b25c6ffbec82f54bdc177e5c3ad1e43b3c65d22c0"
-    },
-    {
-      "project": "rxdb-plugin-search-vue",
-      "name": "@aiao/rxdb-plugin-search-vue",
-      "publicationRoot": "packages/rxdb-plugin-search-vue",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-search-vue.tgz",
-      "tarballSha256": "0c5f8ccfad70797492baea3b235a005a9b2339cf52be583a08a6d00c397d3227"
-    },
-    {
-      "project": "rxdb-plugin-search",
-      "name": "@aiao/rxdb-plugin-search",
-      "publicationRoot": "packages/rxdb-plugin-search",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-search.tgz",
-      "tarballSha256": "626426dc0268586b6def1945792e335b0e12cf1b80196294cfecb3ba3db80fba"
-    },
-    {
-      "project": "rxdb-adapter-sqlite-wasm",
-      "name": "@aiao/rxdb-adapter-sqlite-wasm",
-      "publicationRoot": "packages/rxdb-adapter-sqlite-wasm",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-adapter-sqlite-wasm.tgz",
-      "tarballSha256": "c2f91074252af966b7dd4c676a51d74b07c37aa519a02a884d3dc597139ecf80"
-    },
-    {
-      "project": "rxdb-adapter-pglite",
-      "name": "@aiao/rxdb-adapter-pglite",
-      "publicationRoot": "packages/rxdb-adapter-pglite",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-adapter-pglite.tgz",
-      "tarballSha256": "68ed51062e5a499b27ee6bdada6810217d24e9e54e3cb9fdec67e2e6d3b977e7"
-    },
-    {
-      "project": "rxdb-plugin-search-react",
-      "name": "@aiao/rxdb-plugin-search-react",
-      "publicationRoot": "packages/rxdb-plugin-search-react",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-search-react.tgz",
-      "tarballSha256": "15e496b2a65f10b82b3e06b33b39cefe243eff2e82e9e927050511c4e0e55ced"
-    },
-    {
-      "project": "rxdb-plugin-search-angular",
-      "name": "@aiao/rxdb-plugin-search-angular",
-      "publicationRoot": "dist/packages/rxdb-plugin-search-angular",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-search-angular.tgz",
-      "tarballSha256": "82c5d08b16b01685fed17aed68f7ad4e0ef9b943d0dd923b1600f2bdadbe0af9"
-    },
-    {
-      "project": "rxdb-plugin-tree-vue",
-      "name": "@aiao/rxdb-plugin-tree-vue",
-      "publicationRoot": "packages/rxdb-plugin-tree-vue",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-tree-vue.tgz",
-      "tarballSha256": "b9e94032c3a19bb2da84102b789fe37e43503c9c0ab042852f284cfd7e62f933"
-    },
-    {
-      "project": "rxdb-plugin-tree-react",
-      "name": "@aiao/rxdb-plugin-tree-react",
-      "publicationRoot": "packages/rxdb-plugin-tree-react",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-tree-react.tgz",
-      "tarballSha256": "c2de47ad8fc10c3ccd2f6e89bb3197954bea0962b4076b2a1c94a6af02367a0d"
-    },
-    {
-      "project": "rxdb-react",
-      "name": "@aiao/rxdb-react",
-      "publicationRoot": "packages/rxdb-react",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-react.tgz",
-      "tarballSha256": "ad78bfd45d4e6a7c5044b5e28ef27bc2ea7335f9496bfc7fe7887b72fa6816c5"
-    },
-    {
-      "project": "rxdb-plugin-tree-angular",
-      "name": "@aiao/rxdb-plugin-tree-angular",
-      "publicationRoot": "dist/packages/rxdb-plugin-tree-angular",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-tree-angular.tgz",
-      "tarballSha256": "a0b9e4b51356c90182ec56d4e9062a3f98bfdaa6dd0f03f716f7026e165be54d"
-    },
-    {
-      "project": "code-editor",
-      "name": "@aiao/code-editor",
-      "publicationRoot": "packages/code-editor",
-      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/code-editor.tgz",
-      "tarballSha256": "cb20a30c7d6c931e91f1d78175305be4c2a3f2a24cd8bc3b2831a855c82fc9cf"
-    }
-  ],
+  "consumerDirectory": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer",
   "externalExactVersions": {
     "tslib": "2.8.1",
     "@angular/core": "22.2.1",
@@ -243,8 +41,6 @@
     "@types/react-dom": "19.3.0",
     "@angular/compiler": "22.2.1"
   },
-  "consumerDirectory": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer",
-  "temporaryDirectory": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu",
   "installCommand": [
     "pnpm",
     "install",
@@ -254,9 +50,213 @@
     "--config.auto-install-peers=false"
   ],
   "installExitCode": 1,
-  "workspaceManifestChanged": false,
-  "workspacePathsUsed": false,
-  "workspaceNodeModulesLinksUsed": false,
+  "internalPackages": [
+    {
+      "project": "rxdb-plugin-replay-angular",
+      "name": "@aiao/rxdb-plugin-replay-angular",
+      "publicationRoot": "dist/packages/rxdb-plugin-replay-angular",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-replay-angular.tgz",
+      "tarballSha256": "4cd06e51c1901b617cb1aa4b26090375df94d8622e5cd43fc911a87fedfe38e6"
+    },
+    {
+      "project": "rxdb-plugin-replay",
+      "name": "@aiao/rxdb-plugin-replay",
+      "publicationRoot": "packages/rxdb-plugin-replay",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-replay.tgz",
+      "tarballSha256": "6169a315f5d45a8e234f3f0d440203ebb6cea4b3fe65ae70615acca0b96f9a32"
+    },
+    {
+      "project": "rxdb-plugin-working-tree",
+      "name": "@aiao/rxdb-plugin-working-tree",
+      "publicationRoot": "packages/rxdb-plugin-working-tree",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-working-tree.tgz",
+      "tarballSha256": "2a55360c0561b117582ac90833e7d21627f723b8df69a1c35636141119b61953"
+    },
+    {
+      "project": "utils",
+      "name": "@aiao/utils",
+      "publicationRoot": "packages/utils",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/utils.tgz",
+      "tarballSha256": "3606f3fca2fcc9d0f61e82054524be95182fbb793a837592a73c7febb5bf79eb"
+    },
+    {
+      "project": "rxdb-plugin-history",
+      "name": "@aiao/rxdb-plugin-history",
+      "publicationRoot": "packages/rxdb-plugin-history",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-history.tgz",
+      "tarballSha256": "2366476629289e6ce6c73a6773f58afbce2c869156946198fb608bad0e61bcb0"
+    },
+    {
+      "project": "rxdb",
+      "name": "@aiao/rxdb",
+      "publicationRoot": "packages/rxdb",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb.tgz",
+      "tarballSha256": "118ba512afaa6cddfdfe1e8a3c4605255dd4d351f425a358a3278a417bd653e6"
+    },
+    {
+      "project": "rxdb-plugin-working-tree-vue",
+      "name": "@aiao/rxdb-plugin-working-tree-vue",
+      "publicationRoot": "packages/rxdb-plugin-working-tree-vue",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-working-tree-vue.tgz",
+      "tarballSha256": "7557628ad2ff57a6ba007528fe9add743a258ca5e226ed581d74c2ea68c4d6e1"
+    },
+    {
+      "project": "rxdb-vue",
+      "name": "@aiao/rxdb-vue",
+      "publicationRoot": "packages/rxdb-vue",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-vue.tgz",
+      "tarballSha256": "e9c6a8f4378088ebacc80ca5bc28045b616b72d3a83c438b3ed5664bf6bc45e2"
+    },
+    {
+      "project": "rxdb-plugin-graph",
+      "name": "@aiao/rxdb-plugin-graph",
+      "publicationRoot": "packages/rxdb-plugin-graph",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-graph.tgz",
+      "tarballSha256": "93ba0a4a0e9dbf1ecacc5e54300f08acc7945279d7ea365e4bde576fb580ddfd"
+    },
+    {
+      "project": "rxdb-client-generator",
+      "name": "@aiao/rxdb-client-generator",
+      "publicationRoot": "packages/rxdb-client-generator",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-client-generator.tgz",
+      "tarballSha256": "9c8308780ad2ac8c0d43e9eee2a373ad682fbd31dcfafea0860f3c237e14329b"
+    },
+    {
+      "project": "rxdb-adapter-sqlite-core",
+      "name": "@aiao/rxdb-adapter-sqlite-core",
+      "publicationRoot": "packages/rxdb-adapter-sqlite-core",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-adapter-sqlite-core.tgz",
+      "tarballSha256": "3a7d5aee4fb1724a933df666ba7b8f89030d2ab14ad02cbd49a7447ffa68c204"
+    },
+    {
+      "project": "rxdb-test",
+      "name": "@aiao/rxdb-test",
+      "publicationRoot": "packages/rxdb-test",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-test.tgz",
+      "tarballSha256": "2750236b2c0b5647aa90ab2aeb2a24d62d2f41d7ec58560e3048100868729b18"
+    },
+    {
+      "project": "rxdb-plugin-tree",
+      "name": "@aiao/rxdb-plugin-tree",
+      "publicationRoot": "packages/rxdb-plugin-tree",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-tree.tgz",
+      "tarballSha256": "3cc0564ebfd3733ec77b81b99b7e6dd8ed0d1427720ffb51704d279493a8276b"
+    },
+    {
+      "project": "rxdb-adapter-encrypted",
+      "name": "@aiao/rxdb-adapter-encrypted",
+      "publicationRoot": "packages/rxdb-adapter-encrypted",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-adapter-encrypted.tgz",
+      "tarballSha256": "bda6e82fcf7d3984cca28f1f60ebc6d07c35ddf4fa9b166b7746a8569c67438c"
+    },
+    {
+      "project": "rxdb-plugin-working-tree-angular",
+      "name": "@aiao/rxdb-plugin-working-tree-angular",
+      "publicationRoot": "dist/packages/rxdb-plugin-working-tree-angular",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-working-tree-angular.tgz",
+      "tarballSha256": "b27de6b3eb484b80f6470ba27b73d037199bb8196cf15a056f91329056bb7190"
+    },
+    {
+      "project": "rxdb-angular",
+      "name": "@aiao/rxdb-angular",
+      "publicationRoot": "dist/packages/rxdb-angular",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-angular.tgz",
+      "tarballSha256": "e53932fafc0502a900d56d6b25c6ffbec82f54bdc177e5c3ad1e43b3c65d22c0"
+    },
+    {
+      "project": "rxdb-plugin-search-vue",
+      "name": "@aiao/rxdb-plugin-search-vue",
+      "publicationRoot": "packages/rxdb-plugin-search-vue",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-search-vue.tgz",
+      "tarballSha256": "271b2973fdd0ec8d96f4d4d91c0035a3353d26041f2450b1d2a13f417df0e20d"
+    },
+    {
+      "project": "rxdb-plugin-search",
+      "name": "@aiao/rxdb-plugin-search",
+      "publicationRoot": "packages/rxdb-plugin-search",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-search.tgz",
+      "tarballSha256": "36850448f670efa39aa8bfa6acfbcf244ba11811a4c401f90ecd335d025a7f9a"
+    },
+    {
+      "project": "rxdb-adapter-sqlite-wasm",
+      "name": "@aiao/rxdb-adapter-sqlite-wasm",
+      "publicationRoot": "packages/rxdb-adapter-sqlite-wasm",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-adapter-sqlite-wasm.tgz",
+      "tarballSha256": "dfcf04465e856ebb34821886bdc235b2b7ba35356ca0703c3cea548f5af978b3"
+    },
+    {
+      "project": "rxdb-adapter-pglite",
+      "name": "@aiao/rxdb-adapter-pglite",
+      "publicationRoot": "packages/rxdb-adapter-pglite",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-adapter-pglite.tgz",
+      "tarballSha256": "1436710bacf5c1a42443072c7bfcad2807bce534d3ab4ce015aa2d08f3ecc22c"
+    },
+    {
+      "project": "rxdb-plugin-search-react",
+      "name": "@aiao/rxdb-plugin-search-react",
+      "publicationRoot": "packages/rxdb-plugin-search-react",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-search-react.tgz",
+      "tarballSha256": "d5285e141635778e793e04920237278f16bc9de5fa974af217d0597ca42a04ea"
+    },
+    {
+      "project": "rxdb-plugin-search-angular",
+      "name": "@aiao/rxdb-plugin-search-angular",
+      "publicationRoot": "dist/packages/rxdb-plugin-search-angular",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-search-angular.tgz",
+      "tarballSha256": "82c5d08b16b01685fed17aed68f7ad4e0ef9b943d0dd923b1600f2bdadbe0af9"
+    },
+    {
+      "project": "rxdb-plugin-tree-vue",
+      "name": "@aiao/rxdb-plugin-tree-vue",
+      "publicationRoot": "packages/rxdb-plugin-tree-vue",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-tree-vue.tgz",
+      "tarballSha256": "ad426dd76883279aba3f32e72558c08f9d376d8df7c686da24fcc5840aec9680"
+    },
+    {
+      "project": "rxdb-plugin-tree-react",
+      "name": "@aiao/rxdb-plugin-tree-react",
+      "publicationRoot": "packages/rxdb-plugin-tree-react",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-tree-react.tgz",
+      "tarballSha256": "0433804993a4338df4765eb1609c8703f92e2207823582f4115fd9fe8955d05e"
+    },
+    {
+      "project": "rxdb-react",
+      "name": "@aiao/rxdb-react",
+      "publicationRoot": "packages/rxdb-react",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-react.tgz",
+      "tarballSha256": "b233dc9dbf0bdd192abc1561456fbe44fcae22b2eeac1d1c3d233d3185a07bfb"
+    },
+    {
+      "project": "rxdb-plugin-tree-angular",
+      "name": "@aiao/rxdb-plugin-tree-angular",
+      "publicationRoot": "dist/packages/rxdb-plugin-tree-angular",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-tree-angular.tgz",
+      "tarballSha256": "8f44d4132051203687deaa4057a18b8cb32f7b8b9cb1e9ad29281770bbf9ada2"
+    },
+    {
+      "project": "code-editor",
+      "name": "@aiao/code-editor",
+      "publicationRoot": "packages/code-editor",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/code-editor.tgz",
+      "tarballSha256": "cb20a30c7d6c931e91f1d78175305be4c2a3f2a24cd8bc3b2831a855c82fc9cf"
+    }
+  ],
+  "method": "Real pnpm packed publication roots installed in new directory outside workspace with pinned existing peer versions, offline, no lifecycle hooks. All workspace dependencies are local tarball packages, not source/path mappings.",
   "packageLifecycleScriptsRun": false,
-  "method": "Real pnpm packed publication roots installed in new directory outside workspace with pinned existing peer versions, offline, no lifecycle hooks. All workspace dependencies are local tarball packages, not source/path mappings."
+  "requestedProjects": [
+    "code-editor",
+    "rxdb-plugin-tree-angular",
+    "rxdb-plugin-tree-react",
+    "rxdb-plugin-tree-vue",
+    "rxdb-plugin-search-angular",
+    "rxdb-plugin-search-react",
+    "rxdb-plugin-search-vue",
+    "rxdb-plugin-working-tree-angular",
+    "rxdb-plugin-working-tree-vue",
+    "rxdb-plugin-replay-angular"
+  ],
+  "temporaryDirectory": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu",
+  "workspaceManifestChanged": false,
+  "workspaceNodeModulesLinksUsed": false,
+  "workspacePathsUsed": false
 }

@@ -1,0 +1,2 @@
+COMMAND: ["pnpm", "exec", "ngc", "-p", "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsconfig.fixture-positive.json"]
+CWD: /Users/jimmy/Documents/aiao/rxdb

@@ -1,0 +1,99 @@
+COMMAND: pnpm nx run-many -t lint --projects=code-editor,rxdb-plugin-tree-angular,rxdb-plugin-tree-react,rxdb-plugin-tree-vue,rxdb-plugin-search-angular,rxdb-plugin-search-react,rxdb-plugin-search-vue,rxdb-plugin-working-tree-angular,rxdb-plugin-working-tree-vue,rxdb-plugin-replay-angular --max-warnings=0 --parallel=1 --skipRemoteCache --skipNxCache --output-style=static
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Running target lint for 10 projects:
+
+- code-editor
+- rxdb-plugin-tree-angular
+- rxdb-plugin-tree-react
+- rxdb-plugin-tree-vue
+- rxdb-plugin-search-angular
+- rxdb-plugin-search-react
+- rxdb-plugin-search-vue
+- rxdb-plugin-working-tree-angular
+- rxdb-plugin-working-tree-vue
+- rxdb-plugin-replay-angular
+
+With additional flags:
+  --max-warnings=0
+
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run code-editor:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+
+> nx run rxdb-plugin-working-tree-angular:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+
+> nx run rxdb-plugin-working-tree-vue:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+
+> nx run rxdb-plugin-search-react:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+
+/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/review-round2-lifecycle.spec.ts
+  69:7  warning  'StrictWrapper' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+✖ 1 problem (0 errors, 1 warning)
+
+ESLint found too many warnings (maximum: 0).
+Warning: command "eslint . --max-warnings=0" exited with non-zero status code
+> nx run rxdb-plugin-replay-angular:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+
+> nx run rxdb-plugin-search-vue:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+
+> nx run rxdb-plugin-search-angular:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+
+> nx run rxdb-plugin-tree-react:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+
+> nx run rxdb-plugin-tree-angular:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+
+> nx run rxdb-plugin-tree-vue:lint --max-warnings=0
+
+> eslint . --max-warnings=0
+
+
+
+
+ NX   Running target lint for 10 projects failed
+
+Failed tasks:
+
+- rxdb-plugin-search-react:lint
+
+  Run duration:      9.7s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1.2s (1 task)
+  Recoverable time:  8.4s (87% of the run)

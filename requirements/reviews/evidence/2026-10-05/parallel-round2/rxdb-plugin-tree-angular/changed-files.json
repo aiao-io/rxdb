@@ -1,7 +1,4 @@
 {
-  "task": "R2-02",
-  "object": "rxdb-plugin-tree-angular",
-  "updatedAt": "2026-10-05T11:06:04.266015+08:00",
   "absolutePaths": [
     "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/packages/rxdb-plugin-tree-angular.md",
     "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-tree-angular.md",
@@ -18,11 +15,35 @@
     "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/findings.pending.md",
     "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/c-evidence.json",
     "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/closure.json",
-    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/changed-files.json"
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/changed-files.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-required-input.mts",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/probe-original-required-input.spec.ts.txt"
   ],
   "excludedExistingScopeInputs": [
     "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/scope.json",
     "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/instructions.md"
   ],
-  "note": "仅列本代理写入；共享validation为主控写入。未执行git add/commit/reset/stash/unstage；若文件在index中，是其他进程行为。"
+  "note": "仅列本代理写入；共享validation为主控写入。未执行git add/commit/reset/stash/unstage；若文件在index中，是其他进程行为。",
+  "object": "rxdb-plugin-tree-angular",
+  "sha256": {
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/packages/rxdb-plugin-tree-angular.md": "fb607f518318ac5fdf3d0312c34451f28fb994291dcc3de0410bd10f0248da0e",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-tree-angular.md": "683135bd8ab256911f9909ab43016fc03bf7250cf0b1783c8c88b2b504e0d894",
+    "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts": "5c8914ddfde37b559e1b49637081fe9d65d5098542074f0fe1c6cfc4f0f8262b",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-requests.json": "4050d58c9399b3c404f09b8533ff0678a819161c74832cc7311a031950482e35",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-valid.mts": "89977882de400649c47563a55a6ea511159aa4781ced39b4f2823cf5faab9bd4",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-invalid.mts": "0d0e87dbbbc3b48be7fe46dd8afc7bbcca7ecdf914c82ed3b656d56aea03323b",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-fixtures.json": "c9cc10a7d145a92f29428be47cd7a4f517ae54a54a67d6245ea1b412221f969c",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/nx-resolved.json": "5236e59dd80fc0ed0d8a5b23a65fca1380e7d99fcffd17472fd13c41929ac1fc",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/file-inspection.json": "f810926d736fccbccb14f3e7fb3d3807567bfa6754133015feb80be1c58403e5",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-observations.json": "917e593ecade26ca3a8bb21d0feb946178fdfff25d9c8c9f49a1d4fb2c7757ab",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/angular-tool-observations.json": "d0ad18b890526b522a6360e6bbac6e242b13b31f4d7ccbb94dd19547e2b5bfe6",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/spec-design.md": "364e27611d382e0066f88ebb1fa66eff1cb2efe0eea71145c006336f291e4bfc",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/findings.pending.md": "4991251ecac80592ef7ae2c405b12636bc2604f42a8165b33907cffd2ec9eaed",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/c-evidence.json": "0d34b0469cc167a0b6b8fd954961ffa0fc1d3ba14f33ce991ec9a46b2d1a8c2d",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/closure.json": "dd5af937b163c653cd735d3b9b499fed6201f780e8dde096ad746765666091e2",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-required-input.mts": "d994e202b9e34ec8ccb3e734b4ed1f7523748c05fd62cf1698a34676db5fb8e2",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/probe-original-required-input.spec.ts.txt": "2859c2fb42ac2232b003b8b05302fa441686139a73a8d7da13e7e820c8838c21"
+  },
+  "task": "R2-02",
+  "updatedAt": "2026-10-05T11:19:13.946985+08:00"
 }

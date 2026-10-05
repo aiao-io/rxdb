@@ -1,0 +1,25 @@
+{
+  "clientDate": "2026-10-05",
+  "startedAt": "2026-10-05T15:23:01.954850+08:00",
+  "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-plugin-replay-angular:typecheck",
+    "--command=node /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/strict-check.cjs spec",
+    "--excludeTaskDependencies",
+    "--skipSync",
+    "--skipRemoteCache",
+    "--skipNxCache",
+    "--output-style=static"
+  ],
+  "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+  "exitCode": 1,
+  "elapsedSeconds": 7.203,
+  "scopedInputCount": 60,
+  "changedInputsDuringMeasurement": [],
+  "serialHeavyTaskLock": true,
+  "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/23-strict-spec/20261005T152301923892.txt"
+}

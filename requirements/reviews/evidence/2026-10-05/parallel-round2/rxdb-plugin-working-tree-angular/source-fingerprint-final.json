@@ -1,0 +1,184 @@
+{
+  "changedOriginalFilesSinceStart": [],
+  "changedReadDependencies": [],
+  "checkedAt": "2026-10-05T11:37:08.708756+08:00",
+  "claims": "同内容指纹绑定测量面；不同 Git HEAD 不自动变成新整批绿。新 spec 的独立 hash 不属于旧 48 tests/lint/typecheck。",
+  "files": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "startSha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "scopeSha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "unchangedSinceRead": true,
+      "matchesScope": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/README.md",
+      "sha256": "0a7c884f60a92a64c1c0962c4ff3da69478884b834999bcc66061ce044918911",
+      "startSha256": "0a7c884f60a92a64c1c0962c4ff3da69478884b834999bcc66061ce044918911",
+      "scopeSha256": "0a7c884f60a92a64c1c0962c4ff3da69478884b834999bcc66061ce044918911",
+      "unchangedSinceRead": true,
+      "matchesScope": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/ng-package.json",
+      "sha256": "53bc0b51550e3825a17b2cec4c183128187ccbc8af0d2f05b71a6bacd4c624f7",
+      "startSha256": "53bc0b51550e3825a17b2cec4c183128187ccbc8af0d2f05b71a6bacd4c624f7",
+      "scopeSha256": "53bc0b51550e3825a17b2cec4c183128187ccbc8af0d2f05b71a6bacd4c624f7",
+      "unchangedSinceRead": true,
+      "matchesScope": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/package.json",
+      "sha256": "cedaf1aab610593e7cf88579912f680a49e2c8640d6ad284cda1067c758fac9a",
+      "startSha256": "cedaf1aab610593e7cf88579912f680a49e2c8640d6ad284cda1067c758fac9a",
+      "scopeSha256": "cedaf1aab610593e7cf88579912f680a49e2c8640d6ad284cda1067c758fac9a",
+      "unchangedSinceRead": true,
+      "matchesScope": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/project.json",
+      "sha256": "46e72867ba3f907ad93674cb7a722a4bcc3314a6a09d3509e37e25f6007b5b70",
+      "startSha256": "46e72867ba3f907ad93674cb7a722a4bcc3314a6a09d3509e37e25f6007b5b70",
+      "scopeSha256": "46e72867ba3f907ad93674cb7a722a4bcc3314a6a09d3509e37e25f6007b5b70",
+      "unchangedSinceRead": true,
+      "matchesScope": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/__tests__/index.spec.ts",
+      "sha256": "0325389380d8f755cb9f8089ac582ceb65059f553d7b65f369a4c6ea0292a2f3",
+      "startSha256": "0325389380d8f755cb9f8089ac582ceb65059f553d7b65f369a4c6ea0292a2f3",
+      "scopeSha256": "0325389380d8f755cb9f8089ac582ceb65059f553d7b65f369a4c6ea0292a2f3",
+      "unchangedSinceRead": true,
+      "matchesScope": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/__tests__/use-working-tree.spec.ts",
+      "sha256": "b2d8a932d5de4034751ddf6a267bd2f0c4441e26559f1b308a34985cbf0b8aac",
+      "startSha256": "b2d8a932d5de4034751ddf6a267bd2f0c4441e26559f1b308a34985cbf0b8aac",
+      "scopeSha256": "b2d8a932d5de4034751ddf6a267bd2f0c4441e26559f1b308a34985cbf0b8aac",
+      "unchangedSinceRead": true,
+      "matchesScope": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/index.ts",
+      "sha256": "621fad7bc03e7b8077d49c66017e8ef7340d4ed2365968f011ad727541d3b020",
+      "startSha256": "621fad7bc03e7b8077d49c66017e8ef7340d4ed2365968f011ad727541d3b020",
+      "scopeSha256": "621fad7bc03e7b8077d49c66017e8ef7340d4ed2365968f011ad727541d3b020",
+      "unchangedSinceRead": true,
+      "matchesScope": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/test-setup.ts",
+      "sha256": "1576379410b4dd466bcbddbec1875b6c88e1e70ddc74b652e805fbbc6a0ed6ac",
+      "startSha256": "1576379410b4dd466bcbddbec1875b6c88e1e70ddc74b652e805fbbc6a0ed6ac",
+      "scopeSha256": "1576379410b4dd466bcbddbec1875b6c88e1e70ddc74b652e805fbbc6a0ed6ac",
+      "unchangedSinceRead": true,
+      "matchesScope": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/use-working-tree.ts",
+      "sha256": "f2010e0f47fd867399db0248fcbe7e917be16326fcc472bd06113c78857bd733",
+      "startSha256": "f2010e0f47fd867399db0248fcbe7e917be16326fcc472bd06113c78857bd733",
+      "scopeSha256": "f2010e0f47fd867399db0248fcbe7e917be16326fcc472bd06113c78857bd733",
+      "unchangedSinceRead": true,
+      "matchesScope": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/tsconfig.json",
+      "sha256": "39485b026f99d20bbf2ef186c576dfbb65e80a3936e2abf44958b4c93ded4f84",
+      "startSha256": "39485b026f99d20bbf2ef186c576dfbb65e80a3936e2abf44958b4c93ded4f84",
+      "scopeSha256": "39485b026f99d20bbf2ef186c576dfbb65e80a3936e2abf44958b4c93ded4f84",
+      "unchangedSinceRead": true,
+      "matchesScope": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/tsconfig.lib.json",
+      "sha256": "613c307eb77dec103643e3f1877b5fd048a96c963941bde9095ed456f2018f9c",
+      "startSha256": "613c307eb77dec103643e3f1877b5fd048a96c963941bde9095ed456f2018f9c",
+      "scopeSha256": "613c307eb77dec103643e3f1877b5fd048a96c963941bde9095ed456f2018f9c",
+      "unchangedSinceRead": true,
+      "matchesScope": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/tsconfig.lib.prod.json",
+      "sha256": "848772818d2f1f11e5815d1d163f94e63c9bb758ce888c5491e314d608c836b9",
+      "startSha256": "848772818d2f1f11e5815d1d163f94e63c9bb758ce888c5491e314d608c836b9",
+      "scopeSha256": "848772818d2f1f11e5815d1d163f94e63c9bb758ce888c5491e314d608c836b9",
+      "unchangedSinceRead": true,
+      "matchesScope": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/tsconfig.spec.json",
+      "sha256": "106172344c56e3af2e2664240ab8071b468260eaf9dd4595561a2f6dfd60f176",
+      "startSha256": "106172344c56e3af2e2664240ab8071b468260eaf9dd4595561a2f6dfd60f176",
+      "scopeSha256": "106172344c56e3af2e2664240ab8071b468260eaf9dd4595561a2f6dfd60f176",
+      "unchangedSinceRead": true,
+      "matchesScope": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/vite.config.mts",
+      "sha256": "3532d43aad1a2892e6bdb2ecabf56fa3009a44414765944facf42e8099f02e0d",
+      "startSha256": "3532d43aad1a2892e6bdb2ecabf56fa3009a44414765944facf42e8099f02e0d",
+      "scopeSha256": "3532d43aad1a2892e6bdb2ecabf56fa3009a44414765944facf42e8099f02e0d",
+      "unchangedSinceRead": true,
+      "matchesScope": true
+    }
+  ],
+  "generatedSourceContentStillMatches": true,
+  "head": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "newAuthorizedSpec": {
+    "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/__tests__/review-round2-lifecycle.spec.ts",
+    "sha256": "cca755320b7cf4fd119cd839f2563622531ea8dab1468cc6dceeb45cb131aa20",
+    "caseCount": 12,
+    "executed": false
+  },
+  "object": "rxdb-plugin-working-tree-angular",
+  "readDependencyAnchors": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular/src/rxdb.provider.ts",
+      "readSha256": "88c29c0fa63e1aa437ed5401e90a051f72427fbb045cdab60c35e79a1abb45f1",
+      "finalSha256": "88c29c0fa63e1aa437ed5401e90a051f72427fbb045cdab60c35e79a1abb45f1",
+      "unchangedSinceRead": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+      "readSha256": "cd685b7781f81e1aa4d68eabd5be2b0d44f4b430a8b23d8dd2e47157ae6edbca",
+      "finalSha256": "cd685b7781f81e1aa4d68eabd5be2b0d44f4b430a8b23d8dd2e47157ae6edbca",
+      "unchangedSinceRead": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/testing/use-working-tree-fixtures.ts",
+      "readSha256": "0fde51350dbe2100f288b639cab50167cc2c6627b1f6117705805af97dc81345",
+      "finalSha256": "0fde51350dbe2100f288b639cab50167cc2c6627b1f6117705805af97dc81345",
+      "unchangedSinceRead": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/index.ts",
+      "readSha256": "7363461c414bad9a4271e7be118040ee3002c3e5f069675a58b5e8319bb46af0",
+      "finalSha256": "7363461c414bad9a4271e7be118040ee3002c3e5f069675a58b5e8319bb46af0",
+      "unchangedSinceRead": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/index.ts",
+      "readSha256": "16ff00ab8ca489f33e127d668aea888ac597f94c5ac2d97dfae71deeb8f8e0ea",
+      "finalSha256": "16ff00ab8ca489f33e127d668aea888ac597f94c5ac2d97dfae71deeb8f8e0ea",
+      "unchangedSinceRead": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts",
+      "readSha256": "b8df3cc14193a2e17d0f3a0946a0423f85043408977c4fa6c838341b4214e86e",
+      "finalSha256": "b8df3cc14193a2e17d0f3a0946a0423f85043408977c4fa6c838341b4214e86e",
+      "unchangedSinceRead": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts",
+      "readSha256": "42b15923b583e48e2db67202fb022a34ba910d899d86cd4dbaef224a3f5cdd5f",
+      "finalSha256": "42b15923b583e48e2db67202fb022a34ba910d899d86cd4dbaef224a3f5cdd5f",
+      "unchangedSinceRead": true
+    }
+  ],
+  "scopeTrackedInventoryAdded": [],
+  "scopeTrackedInventoryRemoved": [],
+  "task": "R2-07"
+}

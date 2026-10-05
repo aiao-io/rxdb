@@ -1,0 +1,91 @@
+{
+  "capturedAt": "2026-10-05T15:16:11.409225+08:00",
+  "sourceCount": 115,
+  "specAbsentBefore": true,
+  "resolveCommand": [
+    "pnpm",
+    "nx",
+    "show",
+    "project",
+    "rxdb-test",
+    "--json"
+  ],
+  "resolveExit": 0,
+  "inherited": [
+    {
+      "path": "requirements/reviews/results/packages/rxdb-test.md",
+      "sha256": "3e86a32977cf389bfc790d921c702df0d59f7232bbf3bd2ec3df1bafdc93f933",
+      "snapshot": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/baseline/inherited/requirements/reviews/results/packages/rxdb-test.md"
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/core/findings.pending.md",
+      "sha256": "a1594529af9c44bf6f920d0e49859d0c1fd779fe0674be4fdfbe8516829f4ea2",
+      "snapshot": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/baseline/inherited/requirements/reviews/evidence/2026-10-05/parallel/core/findings.pending.md"
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/core/validation-requests.json",
+      "sha256": "61136d9e3e664566168b15b0c3ddcbbdef99609bfd66d37a2ecf28ae48a5985c",
+      "snapshot": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/baseline/inherited/requirements/reviews/evidence/2026-10-05/parallel/core/validation-requests.json"
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/core/validation-reconciliation.json",
+      "sha256": "15fd11a8193e4e7e8587692d9c8de3c7302bf679e776294de4ea5590be4a890a",
+      "snapshot": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/baseline/inherited/requirements/reviews/evidence/2026-10-05/parallel/core/validation-reconciliation.json"
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/core/file-inspection.json",
+      "sha256": "10bbc7f2a9d1f4be921b95b1f51efbc1c860ab9f043eb009ae7e015fd8a8c935",
+      "snapshot": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/baseline/inherited/requirements/reviews/evidence/2026-10-05/parallel/core/file-inspection.json"
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes.txt",
+      "sha256": "ecf50fb22e5c5919dc8145f5b9f0c99ea47394ddf289d49f8dd5388ec82f358c",
+      "snapshot": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/baseline/inherited/requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes.txt"
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/validation/corrected-new-probes.txt",
+      "sha256": "e8b134a5f0d31d0412e5bb9ae2bace6c3f31abf339cccbfe7cccd8c0fcb87454",
+      "snapshot": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/baseline/inherited/requirements/reviews/evidence/2026-10-05/parallel/validation/corrected-new-probes.txt"
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes-input-sha256.json",
+      "sha256": "8d1f3b54c4de413b48633eddcdbef42cc14bb081b5199018f1d2be73332c9c49",
+      "snapshot": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/baseline/inherited/requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes-input-sha256.json"
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/validation/corrected-new-probes-input-sha256.json",
+      "sha256": "5748cb95037e8e124959cff3f4ea5c47f2dfc2a68cc05e2b59cddfb26a9bb3e6",
+      "snapshot": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/baseline/inherited/requirements/reviews/evidence/2026-10-05/parallel/validation/corrected-new-probes-input-sha256.json"
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/validation/new-spec-types/rxdb-test/compiler-initial.txt",
+      "sha256": "860bf13d5aa4c919a816b15b76027c54cfb17d25daf06d7780c72572f8c0a999",
+      "snapshot": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/baseline/inherited/requirements/reviews/evidence/2026-10-05/parallel/validation/new-spec-types/rxdb-test/compiler-initial.txt"
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/validation/new-spec-types/rxdb-test/config.json",
+      "sha256": "b105468e77c4c349934853eb08f8744020bf12b1e6551e2bfcccb883a2b136c1",
+      "snapshot": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/baseline/inherited/requirements/reviews/evidence/2026-10-05/parallel/validation/new-spec-types/rxdb-test/config.json"
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/transaction/review-parallel-teardown-rejection.spec.ts",
+      "sha256": "0ab82285ac5611c65ac8e81090f54730b621dffc3e112058fffae641779f47b9",
+      "snapshot": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/baseline/inherited/packages/rxdb-test/src/__tests__/transaction/review-parallel-teardown-rejection.spec.ts"
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "45c106f7a72e6904f452d352a37bcf5854e640a224535d391703a85e916c5f55",
+      "snapshot": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/baseline/inherited/AGENTS.md"
+    },
+    {
+      "path": ".agents/skills/nx-workspace/SKILL.md",
+      "sha256": "0f145bc0313ab4454ab730b53db7d7080f65665f260abf17b66be0c9508368fc",
+      "snapshot": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/baseline/inherited/.agents/skills/nx-workspace/SKILL.md"
+    },
+    {
+      "path": ".agents/skills/nx-run-tasks/SKILL.md",
+      "sha256": "544e773afd7eb6d22b7768f8932a150f6767becb61b34608060d0f11bcb722f3",
+      "snapshot": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/baseline/inherited/.agents/skills/nx-run-tasks/SKILL.md"
+    }
+  ]
+}

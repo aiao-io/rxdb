@@ -1,7 +1,20 @@
 {
-  "object": "rxdb-plugin-search-vue",
-  "recordedAt": "2026-10-05T10:59:42.063579+08:00",
+  "consumerCompilerOrRuntimeRunByThisAgent": false,
+  "coverageRunByThisAgent": false,
+  "finalHandoffCoordinatorReport": {
+    "recordedAt": "2026-10-05T11:09:34.173740+08:00",
+    "source": "用户/主控在本 chat 的最新直接报告；交接不扩读、不等待后续日志",
+    "bareEnvironmentResultRetained": true,
+    "supplementalEnvironment": "显式 Node typings + @types/ms，独立实际 tar consumer，严格声明检查",
+    "validStrictExitCode": 0,
+    "invalidResult": "仅消费类型诊断拒绝（非零；本消息未给具体数值）",
+    "rootRuntimeImportExitCode": 0,
+    "unitCoverageAndLint": "主控已启动 current newSpec unit+coverage/lint；尚未报告完成，不改写为通过",
+    "sfcTemplates": "正负 .vue fixture 已交付；本次报告没有给 SFC vue-tsc 模板结果",
+    "note": "explicit Node/@types/ms 对照通过不抹除裸环境 NodeJS/ms 的上游声明闭合失败；不自行修改 utils/依赖/stub/skipLibCheck。"
+  },
   "headAtObservation": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "heavyTargetsRunByThisAgent": [],
   "historicalRuns": [
     {
       "run": "framework-editor-coverage",
@@ -50,10 +63,7 @@
       ],
       "round2ProbeCovered": false,
       "objectResult": "passed-historical-4-files-28-tests",
-      "logLines": [
-        8989,
-        9057
-      ],
+      "logLines": [8989, 9057],
       "skipsReported": 0,
       "expectedReadonlyRuntimeWarnings": "两次 readonly 负向写入产生 Vue warn；不是 ESLint 警告，也不隐去。",
       "objectJUnitPresent": false,
@@ -65,10 +75,7 @@
         "lines": 100
       },
       "thresholdEach": 80,
-      "measuredFiles": [
-        "src/index.ts",
-        "src/use-search.ts"
-      ],
+      "measuredFiles": ["src/index.ts", "src/use-search.ts"],
       "uncoveredStatement": "src/use-search.ts:58 snippetLength 快照分支",
       "qualification": "已测本包/core 原文件未漂移，但未覆盖当前 real-handle 和本轮新 probe；不能自动扩大为完整 C 或新一轮覆盖率。"
     },
@@ -119,10 +126,7 @@
       ],
       "round2ProbeCovered": false,
       "objectResult": "passed-historical-eslint-max-warnings-0",
-      "logLines": [
-        310,
-        314
-      ],
+      "logLines": [310, 314],
       "qualification": "不覆盖当前 real-handle 和本轮新增 probe；批次退出 0 不自动证明新 HEAD 一致。"
     },
     {
@@ -171,10 +175,7 @@
       ],
       "round2ProbeCovered": false,
       "objectResult": "passed-historical-workspace-vue-tsc-build",
-      "logLines": [
-        1029,
-        1033
-      ],
+      "logLines": [1029, 1033],
       "qualification": "workspace aliases 与默认 skipLibCheck；不是独立 packed 声明或 SFC 模板验证；不覆盖本轮 probe。"
     },
     {
@@ -231,21 +232,22 @@
       ],
       "round2ProbeCovered": false,
       "objectResult": "one-real-core-sequence-passed-historical",
-      "logLines": [
-        622,
-        634
-      ],
+      "logLines": [622, 634],
       "sameFixtureHistoricalParityLogs": {
-        "angular": [
-          637,
-          649
-        ],
-        "react": [
-          652,
-          664
-        ]
+        "angular": [637, 649],
+        "react": [652, 664]
       },
       "qualification": "包源/core 实现指纹一致，但 Vue probe 文件 f30c85…→1be30d…；不宣称当前 93 行版本已执行。其它对象失败导致批次 exit 1，不等于本包失败。"
+    }
+  ],
+  "object": "rxdb-plugin-search-vue",
+  "ownCommands": [
+    {
+      "command": "NX_DAEMON=false NX_NO_CLOUD=true pnpm nx show project rxdb-plugin-search-vue --json",
+      "result": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/resolved-project.json",
+      "action": "仅获取配置，不运行目标",
+      "stderrEmpty": true,
+      "wrapperExit": "查询已生成合法 JSON；后置 zsh status 是 readonly，包装命令 exit=1，不把包装错误当 Nx 项目失败。"
     }
   ],
   "packedEntryCheck": {
@@ -296,6 +298,7 @@
     "newR2TarballSha256": "0c5f8ccfad70797492baea3b235a005a9b2339cf52be583a08a6d00c397d3227",
     "newR2PackNotEquivalentToHistoricalTarball": true
   },
+  "recordedAt": "2026-10-05T10:59:42.063579+08:00",
   "round2CoordinatorSnapshots": [
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-setup.json",
@@ -334,29 +337,5 @@
       "qualification": "读取时的中间安装状态；不能推断最终 root import/typed consumer 结果，也不能将全组离线 peer 失败归为本包代码缺陷。"
     }
   ],
-  "ownCommands": [
-    {
-      "command": "NX_DAEMON=false NX_NO_CLOUD=true pnpm nx show project rxdb-plugin-search-vue --json",
-      "result": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/resolved-project.json",
-      "action": "仅获取配置，不运行目标",
-      "stderrEmpty": true,
-      "wrapperExit": "查询已生成合法 JSON；后置 zsh status 是 readonly，包装命令 exit=1，不把包装错误当 Nx 项目失败。"
-    }
-  ],
-  "heavyTargetsRunByThisAgent": [],
-  "coverageRunByThisAgent": false,
-  "consumerCompilerOrRuntimeRunByThisAgent": false,
-  "verificationOwnership": "用户指定主控离线安装真实 tar、严格 Vue d.ts compile 和 root runtime import；新增 unit/coverage/lint/typecheck 均只提交请求。",
-  "finalHandoffCoordinatorReport": {
-    "recordedAt": "2026-10-05T11:09:34.173740+08:00",
-    "source": "用户/主控在本 chat 的最新直接报告；交接不扩读、不等待后续日志",
-    "bareEnvironmentResultRetained": true,
-    "supplementalEnvironment": "显式 Node typings + @types/ms，独立实际 tar consumer，严格声明检查",
-    "validStrictExitCode": 0,
-    "invalidResult": "仅消费类型诊断拒绝（非零；本消息未给具体数值）",
-    "rootRuntimeImportExitCode": 0,
-    "unitCoverageAndLint": "主控已启动 current newSpec unit+coverage/lint；尚未报告完成，不改写为通过",
-    "sfcTemplates": "正负 .vue fixture 已交付；本次报告没有给 SFC vue-tsc 模板结果",
-    "note": "explicit Node/@types/ms 对照通过不抹除裸环境 NodeJS/ms 的上游声明闭合失败；不自行修改 utils/依赖/stub/skipLibCheck。"
-  }
+  "verificationOwnership": "用户指定主控离线安装真实 tar、严格 Vue d.ts compile 和 root runtime import；新增 unit/coverage/lint/typecheck 均只提交请求。"
 }

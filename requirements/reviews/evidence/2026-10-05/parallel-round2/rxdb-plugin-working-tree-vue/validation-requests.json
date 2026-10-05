@@ -1,0 +1,129 @@
+{
+  "executionPolicy": "子任务不执行 build/test/coverage/e2e/serve/容器；由主控执行请求并裁定原 C 未验分流。",
+  "object": "rxdb-plugin-working-tree-vue",
+  "remainingRequiredMeasurements": [
+    {
+      "owner": "controller",
+      "surface": "冻结后的9-case state/commands/provider生命周期probe；本包新spec lint/spec类型检查"
+    },
+    {
+      "owner": "controller-consumer-harness",
+      "surface": "已有两份最小.vue发布包vue-tsc正/反例；不扩组件或应用"
+    },
+    {
+      "owner": "rxdb-plugin-working-tree及应用/平台评审",
+      "surface": "真实事务/CAS无损、跨库/分支数据ownership、应用敏感摘要及设备/浏览器/后端历史",
+      "packageTaskWaitsForIt": false,
+      "note": "原C未验场景保留，明确归属；本14文件包不排队全core/全部后端，不新增相关重测请求。"
+    }
+  ],
+  "requestedAt": "2026-10-05",
+  "requests": [
+    {
+      "project": "rxdb-plugin-working-tree-vue",
+      "target": "test",
+      "args": ["--skipRemoteCache", "--skipNxCache", "--args=--run --maxWorkers=1 --testNamePattern=review-round2"],
+      "reason": "仅补 provider 固定快照/不同 getter、destructure/watch、并发 latest-state、scope disposing 与 pending 命令回写的框架级缺口；不重跑后端。",
+      "criticalForC": ["C1", "C2", "C3", "C4"],
+      "probeFile": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/__tests__/review-round2-lifecycle.spec.ts",
+      "probeReady": true,
+      "probeKind": "characterization；Ref 旧快照/卸载后回写断言记录当前行为，不代表满足原 C 安全目标",
+      "caseCount": 9,
+      "probeFrozen": true,
+      "probeSha256": "6327e258a03caffc502c1aee426d5f370ea1cf56ac27e37a12407b110e56794c",
+      "frozenAt": "2026-10-05T11:37:48.334543+08:00",
+      "afterProbePolicy": "本包 state/commands/source 生命周期特征化，仅由主控跑；冻结后不扩用例。"
+    },
+    {
+      "project": "rxdb-plugin-working-tree-vue",
+      "target": "independent-packed-consumer",
+      "args": ["consumer-valid.mts", "consumer-invalid.mts"],
+      "reason": "对实际 tar 包、无 workspace paths 的独立 Node/types ESM 环境进行 strict 正例/反例编译。反例应有预定的具体诊断，不计为验证失败。root runtime import 复用主控已测记录。",
+      "criticalForC": ["C5"],
+      "compilerRequirements": {
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "strict": true,
+        "types": ["node"],
+        "skipLibCheck": false,
+        "noEmit": true,
+        "paths": null
+      },
+      "validExpectedExitCode": 0,
+      "invalidExpectedDiagnostics": [
+        {
+          "line": 4,
+          "code": "TS2554",
+          "reason": "useWorkingTree 不接收数据库或 getter"
+        },
+        {
+          "line": 5,
+          "code": "TS2540",
+          "reason": "ComputedRef.value 只读"
+        },
+        {
+          "line": 6,
+          "code": "TS2345",
+          "reason": "commit 缺少必填凭据/作者/operationId"
+        },
+        {
+          "line": 7,
+          "code": "TS2322",
+          "reason": "requireClean 必须是 boolean"
+        },
+        {
+          "line": 8,
+          "code": "TS2322",
+          "reason": "commitId 必须是 string"
+        }
+      ],
+      "ambientTypes": {
+        "@types/node": "26.6.4",
+        "@types/ms": "2.1.0"
+      },
+      "environmentCaveat": "显式 Node/@types/ms 环境；通过不等于发布声明对 bare consumer 自包含。",
+      "measurementType": "controller-consumer-harness",
+      "notAnNxTarget": true,
+      "status": "completed-by-controller",
+      "result": {
+        "record": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json",
+        "checkedAt": "2026-10-05T11:31:58.067563+08:00",
+        "validExitCode": 0,
+        "invalidExitCode": 2,
+        "expectedDiagnosticCount": 5,
+        "fixtureHashesMatch": true
+      }
+    },
+    {
+      "project": "rxdb-plugin-working-tree-vue",
+      "target": "independent-vue-tsc-consumer",
+      "notAnNxTarget": true,
+      "args": ["consumer-valid.vue", "consumer-invalid.vue"],
+      "reason": "原 C5 明确要求 SFC/vue-tsc；最小独立发布包消费验证顶层 ComputedRef 模板解包、嵌套资源 .value、readonly 及 consumer 自身的 props/emits。普通 .mts tsc 不能替代。",
+      "criticalForC": ["C5"],
+      "validExpectedExitCode": 0,
+      "invalidMustReject": [
+        "readonly ComputedRef.value 赋值",
+        "switchBranch 数字 branchId",
+        "template emits 的非 CommitResult 载荷"
+      ],
+      "compilerRequirements": {
+        "strict": true,
+        "noEmit": true,
+        "skipLibCheck": false,
+        "types": ["node"],
+        "paths": null
+      },
+      "ambientTypes": {
+        "@types/node": "26.6.4",
+        "@types/ms": "2.1.0"
+      },
+      "executionPolicy": "由主控在既有独立消费者目录配置仅相应单份 .vue 的 vue-tsc；不新增工作区依赖，不以 SFC 编译代替真实浏览器挂载。"
+    }
+  ],
+  "reuseControllerGates": ["fresh lint/typecheck/test/coverage/build 与已完成 packed root runtime import"],
+  "scopeTask": "R2-09",
+  "status": "lifecycle-probe-and-sfc-still-awaiting-controller",
+  "task": "R2-08",
+  "taskIdentityNote": "用户指定 R2-08；既有 scope/instructions 标记 R2-09。按唯一对象执行，不改 scope。"
+}

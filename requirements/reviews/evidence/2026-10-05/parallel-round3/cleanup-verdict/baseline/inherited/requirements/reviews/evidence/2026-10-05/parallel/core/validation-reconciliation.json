@@ -1,0 +1,175 @@
+{
+  "cacheDisabled": true,
+  "coverageRun": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage.txt",
+  "elapsedSeconds": 525.429,
+  "head": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+  "heavyTaskConcurrency": 1,
+  "lateSpecsNotCoveredByInitialLintTypecheck": [
+    "packages/utils/src/__tests__/lifecycle/review-parallel-acquire-close.spec.ts",
+    "packages/utils/src/__tests__/object/review-parallel-clone-array-shape.spec.ts",
+    "packages/rxdb-client-generator/src/__tests__/cli/review-parallel-glob-patterns.spec.ts",
+    "packages/rxdb-test/src/__tests__/transaction/review-parallel-teardown-rejection.spec.ts"
+  ],
+  "logExcerpts": [
+    {
+      "line": 210,
+      "text": "Public contract OK: 97 exports across 8 entries"
+    },
+    {
+      "line": 506,
+      "text": " ❯ |utils| src/__tests__/lifecycle/review-parallel-acquire-close.spec.ts (2 tests | 1 failed) 5ms"
+    },
+    {
+      "line": 563,
+      "text": " FAIL  |utils| src/__tests__/lifecycle/review-parallel-acquire-close.spec.ts > LifecycleScope 获取过程关闭的资源归属 > setup 同步关闭 scope 后仍释放刚取得的资源"
+    },
+    {
+      "line": 565,
+      "text": " ❯ src/__tests__/lifecycle/review-parallel-acquire-close.spec.ts:23:21"
+    },
+    {
+      "line": 1002,
+      "text": " ❯ |rxdb-client-generator| src/__tests__/cli/review-parallel-glob-patterns.spec.ts (3 tests | 2 failed) 16ms"
+    },
+    {
+      "line": 1009,
+      "text": " FAIL  |rxdb-client-generator| src/__tests__/cli/review-parallel-glob-patterns.spec.ts > 实体模式使用完整 glob 语法 > 展开不含星号或问号的 [AB].ts"
+    },
+    {
+      "line": 1021,
+      "text": " ❯ src/__tests__/cli/review-parallel-glob-patterns.spec.ts:21:27"
+    },
+    {
+      "line": 1031,
+      "text": " FAIL  |rxdb-client-generator| src/__tests__/cli/review-parallel-glob-patterns.spec.ts > 实体模式使用完整 glob 语法 > 展开不含星号或问号的 {A,B}.ts"
+    },
+    {
+      "line": 1043,
+      "text": " ❯ src/__tests__/cli/review-parallel-glob-patterns.spec.ts:21:27"
+    }
+  ],
+  "ownProjectResults": {
+    "rxdb": {
+      "testSummary": ["Test Files 135 passed (135)", "Tests 2400 passed | 1 skipped (2401)"],
+      "coverage": {
+        "project": "rxdb",
+        "run": "core-plugins-small-adapters-coverage",
+        "threshold": 90,
+        "metrics": {
+          "statements": 95.55,
+          "branches": 93.16,
+          "functions": 95.38,
+          "lines": 96.11
+        },
+        "coveragePass": true,
+        "belowThreshold": [],
+        "tests": {},
+        "measurementInputDrift": [],
+        "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb/coverage-summary.json"
+      }
+    },
+    "utils": {
+      "testSummary": ["Test Files 1 failed | 119 passed (120)", "Tests 1 failed | 948 passed (949)"],
+      "coverage": null
+    },
+    "rxdb-test": {
+      "testSummary": ["Test Files 21 passed (21)", "Tests 210 passed (210)"],
+      "coverage": {
+        "project": "rxdb-test",
+        "run": "core-plugins-small-adapters-coverage",
+        "threshold": 80,
+        "metrics": {
+          "statements": 91.12,
+          "branches": 91.92,
+          "functions": 83.22,
+          "lines": 92.27
+        },
+        "coveragePass": true,
+        "belowThreshold": [],
+        "tests": {},
+        "measurementInputDrift": [],
+        "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-test/coverage-summary.json"
+      }
+    },
+    "rxdb-client-generator": {
+      "testSummary": ["Test Files 1 failed | 39 passed (40)", "Tests 2 failed | 374 passed (376)"],
+      "coverage": null
+    },
+    "rxdb-plugin-history": {
+      "testSummary": ["Test Files 25 passed (25)", "Tests 349 passed (349)"],
+      "coverage": {
+        "project": "rxdb-plugin-history",
+        "run": "core-plugins-small-adapters-coverage",
+        "threshold": 80,
+        "metrics": {
+          "statements": 98.29,
+          "branches": 93.42,
+          "functions": 98.31,
+          "lines": 98.87
+        },
+        "coveragePass": true,
+        "belowThreshold": [],
+        "tests": {
+          "total": 349,
+          "passed": 349,
+          "failed": 0,
+          "skipped": 0
+        },
+        "measurementInputDrift": [],
+        "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-plugin-history/coverage-summary.json"
+      }
+    }
+  },
+  "requestDisposition": {
+    "completedForOriginalInputs": [
+      "core5 original lint",
+      "core5 original typecheck with builds",
+      "core5 test first batch",
+      "lifecycle first probe",
+      "glob first probe"
+    ],
+    "outstanding": [
+      "late clone-array/teardown supplement",
+      "four new specs lint/typecheck",
+      "rxdb-test canonical coverage-acceptance",
+      "utils/generator full four metrics"
+    ],
+    "rule": "已执行请求不重复跑；红测试是已取得的审查证据，不是未执行。"
+  },
+  "reviewDate": "2026-10-05",
+  "runExitCode": 1,
+  "rxdbTestDenominator": {
+    "ordinaryCoverageKeys": 33,
+    "acceptanceExpectedControlledProductionKeys": 59,
+    "missingFromOrdinary": [
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/entities/Account.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/entities/Article.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/entities/AuditLog.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/entities/Comment.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/entities/Contract.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/entities/FileLarge.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/entities/FileNode.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/entities/Invoice.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/entities/MenuLarge.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/entities/MenuSimple.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/entities/Task.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/entities/Todo.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/entities/TypeDemo.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/entities/TypeDemoNative.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/entities/index.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/shop/Attribute.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/shop/AttributeValue.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/shop/Category.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/shop/IdCard.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/shop/Order.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/shop/OrderItem.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/shop/Product.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/shop/SKU.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/shop/SKUAttributes.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/shop/User.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/shop/index.ts"
+    ],
+    "ordinaryCoverageIsAcceptance": false
+  },
+  "startedAt": "2026-10-05T09:12:34.661461+08:00"
+}

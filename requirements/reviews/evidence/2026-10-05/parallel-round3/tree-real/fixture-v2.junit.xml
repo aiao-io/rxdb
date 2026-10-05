@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="3" failures="2" errors="0" time="12.160972791">
+    <testsuite name="tree-real.spec.mts" timestamp="2026-10-05T07:21:01.569Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="2" errors="0" skipped="0" time="12.160972791">
+        <testcase classname="tree-real.spec.mts" name="真实 PGlite number 树的三框架对照 &gt; 四查询、层级、跨父移动、级联删除、空树和多实例退订与独立 SQL 全查一致" time="6.10970325">
+            <failure message="framework reader 0: expected { Object (descendants, descendantCount, ...) } to match object { descendants: [ &apos;0&apos;, &apos;1&apos; ], …(3) }
+(1 matching property omitted from actual)" type="AssertionError">
+AssertionError: framework reader 0: expected { Object (descendants, descendantCount, ...) } to match object { descendants: [ &apos;0&apos;, &apos;1&apos; ], …(3) }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   &quot;ancestorCount&quot;: 1,
++   &quot;ancestorCount&quot;: 2,
+    &quot;ancestors&quot;: [
++     &quot;0&quot;,
++     &quot;1&quot;,
+      &quot;2&quot;,
+-     &quot;9&quot;,
+    ],
+-   &quot;descendantCount&quot;: 1,
++   &quot;descendantCount&quot;: 2,
+    &quot;descendants&quot;: [
+      &quot;0&quot;,
+      &quot;1&quot;,
++     &quot;2&quot;,
+    ],
+  }
+
+ ❯ vi.waitFor.timeout tree-real.spec.mts:124:80
+            </failure>
+        </testcase>
+        <testcase classname="tree-real.spec.mts" name="真实 PGlite string 树的三框架对照 &gt; 四查询、层级、跨父移动、级联删除、空树和多实例退订与独立 SQL 全查一致" time="6.029675916">
+            <failure message="framework reader 0: expected { descendants: [ …(3) ], …(4) } to match object { descendants: [ …(2) ], …(3) }
+(1 matching property omitted from actual)" type="AssertionError">
+AssertionError: framework reader 0: expected { descendants: [ …(3) ], …(4) } to match object { descendants: [ …(2) ], …(3) }
+(1 matching property omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   &quot;ancestorCount&quot;: 1,
++   &quot;ancestorCount&quot;: 2,
+    &quot;ancestors&quot;: [
++     &quot;00000000-0000-4000-8000-000000000000&quot;,
++     &quot;00000000-0000-4000-8000-000000000001&quot;,
+      &quot;00000000-0000-4000-8000-000000000002&quot;,
+-     &quot;00000000-0000-4000-8000-000000000009&quot;,
+    ],
+-   &quot;descendantCount&quot;: 1,
++   &quot;descendantCount&quot;: 2,
+    &quot;descendants&quot;: [
+      &quot;00000000-0000-4000-8000-000000000000&quot;,
+      &quot;00000000-0000-4000-8000-000000000001&quot;,
++     &quot;00000000-0000-4000-8000-000000000002&quot;,
+    ],
+  }
+
+ ❯ vi.waitFor.timeout tree-real.spec.mts:124:80
+            </failure>
+        </testcase>
+        <testcase classname="tree-real.spec.mts" name="真实注册期拒绝漏装 Tree 插件和 QueryCache 组合" time="0.019839667">
+        </testcase>
+    </testsuite>
+</testsuites>

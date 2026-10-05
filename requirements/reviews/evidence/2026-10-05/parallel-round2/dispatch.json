@@ -1,7 +1,11 @@
 {
-  "clientDate": "2026-10-05",
   "baselineHead": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "clientDate": "2026-10-05",
+  "concurrencyLimitObserved": 6,
   "deadline": "2026-10-05 end of day Asia/Shanghai, no falsely verified device claims",
+  "dispatchedAdditionalTasks": 10,
+  "parentTask": "Independently validate typed/runtime consumption while agents read, test-case design and C closure",
+  "queuedAdditionalTasks": 0,
   "requestedAdditionalTasks": 10,
   "tasks": [
     {
@@ -99,9 +103,10 @@
         "requirements/reviews/results/packages/code-editor.md",
         "requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor"
       ],
-      "status": "active",
+      "status": "agent-delivered-controller-validation",
       "agentNickname": "Fermat",
-      "agentId": "01a109eb-dfcc-78d2-9444-7610ff1b3b8d"
+      "agentId": "01a109eb-dfcc-78d2-9444-7610ff1b3b8d",
+      "agentClosed": true
     },
     {
       "task": "R2-02",
@@ -178,9 +183,10 @@
         "requirements/reviews/results/packages/rxdb-plugin-tree-angular.md",
         "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular"
       ],
-      "status": "active",
+      "status": "agent-delivered-controller-validation",
       "agentNickname": "Singer",
-      "agentId": "01a109ec-1b41-7f02-af07-c0a17b97f64e"
+      "agentId": "01a109ec-1b41-7f02-af07-c0a17b97f64e",
+      "agentClosed": true
     },
     {
       "task": "R2-03",
@@ -245,9 +251,10 @@
         "requirements/reviews/results/packages/rxdb-plugin-tree-react.md",
         "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react"
       ],
-      "status": "active",
+      "status": "agent-delivered-controller-validation",
       "agentNickname": "Peirce",
-      "agentId": "01a109ec-57f6-7f23-a044-5e6588ee9575"
+      "agentId": "01a109ec-57f6-7f23-a044-5e6588ee9575",
+      "agentClosed": true
     },
     {
       "task": "R2-04",
@@ -312,7 +319,10 @@
         "requirements/reviews/results/packages/rxdb-plugin-tree-vue.md",
         "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue"
       ],
-      "status": "queued-capacity"
+      "status": "agent-delivered-controller-validation",
+      "agentNickname": "McClintock",
+      "agentId": "01a10a0c-3794-7b71-aade-cd382c0121fc",
+      "agentClosed": true
     },
     {
       "task": "R2-05",
@@ -393,9 +403,10 @@
         "requirements/reviews/results/packages/rxdb-plugin-search-angular.md",
         "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular"
       ],
-      "status": "active",
+      "status": "agent-delivered-controller-validation",
       "agentNickname": "Hume",
-      "agentId": "01a109ec-a26a-7701-80a6-79a126d15d8a"
+      "agentId": "01a109ec-a26a-7701-80a6-79a126d15d8a",
+      "agentClosed": true
     },
     {
       "task": "R2-06",
@@ -464,9 +475,10 @@
         "requirements/reviews/results/packages/rxdb-plugin-search-react.md",
         "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react"
       ],
-      "status": "active",
+      "status": "agent-delivered-controller-validation",
       "agentNickname": "Pasteur",
-      "agentId": "01a109ec-d5cf-7400-91e7-092b9e799355"
+      "agentId": "01a109ec-d5cf-7400-91e7-092b9e799355",
+      "agentClosed": true
     },
     {
       "task": "R2-07",
@@ -539,9 +551,10 @@
         "requirements/reviews/results/packages/rxdb-plugin-search-vue.md",
         "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue"
       ],
-      "status": "active",
+      "status": "agent-delivered-controller-validation",
       "agentNickname": "Dirac",
-      "agentId": "01a109ed-0a85-75b0-a00b-2fd0fbc7f779"
+      "agentId": "01a109ed-0a85-75b0-a00b-2fd0fbc7f779",
+      "agentClosed": true
     },
     {
       "task": "R2-08",
@@ -614,7 +627,10 @@
         "requirements/reviews/results/packages/rxdb-plugin-working-tree-angular.md",
         "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular"
       ],
-      "status": "queued-capacity"
+      "status": "agent-delivered-controller-validation",
+      "agentNickname": "Chandrasekhar",
+      "agentId": "01a10a0a-793e-7d63-b317-fe37078397aa",
+      "agentClosed": true
     },
     {
       "task": "R2-09",
@@ -683,7 +699,10 @@
         "requirements/reviews/results/packages/rxdb-plugin-working-tree-vue.md",
         "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue"
       ],
-      "status": "queued-capacity"
+      "status": "agent-delivered-controller-validation",
+      "agentNickname": "Hegel",
+      "agentId": "01a10a0a-f938-7890-b365-1a68be14b7e5",
+      "agentClosed": true
     },
     {
       "task": "R2-10",
@@ -756,10 +775,11 @@
         "requirements/reviews/results/packages/rxdb-plugin-replay-angular.md",
         "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular"
       ],
-      "status": "queued-capacity"
+      "status": "agent-delivered-controller-validation",
+      "agentNickname": "Newton",
+      "agentId": "01a10a0f-3339-73b2-a2e3-0b45a30fed02",
+      "agentClosed": true
     }
   ],
-  "validationPolicy": "Parent manages heavy targets, agents complete one bounded object with exact original C evidence, all tracked files read or generated provenance proven. No unbounded new issues; no business patches or git index changes.",
-  "concurrencyLimitObserved": 6,
-  "parentTask": "Independently validate typed/runtime consumption while agents read, test-case design and C closure"
+  "validationPolicy": "Parent manages heavy targets, agents complete one bounded object with exact original C evidence, all tracked files read or generated provenance proven. No unbounded new issues; no business patches or git index changes."
 }

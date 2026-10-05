@@ -164,3 +164,88 @@ Angular：SearchHandle 的框架响应式输入、结果、状态与清理封装
 - `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/validation-observations.json`：已读取的主控测量与 pack 消费来源。
 - `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/findings.pending.md`：只保留两个候选及 Angular 门禁边界。
 - `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/validation-requests.json`：已请求的 late spec focused 验证；本交付不等待更大队列。
+
+## 2026-10-05 parallel-round2：最新实际收尾记录
+
+阅读 HEAD `76a3848e2086f4617b80f7b1a1b896ef76e5719c`；记录 `2026-10-05T11:10:29.638149+08:00`；任务 R2-04 / scope R2-05 的标签差异已登记，唯一对象始终 `rxdb-plugin-search-angular`。
+
+**17/17 原文件全文读取；本包代理源码/C文档交付完成，13个新增probe case冻结。execution 保持 partial；完整 C 0/5，reviewComplete=false、releaseReady=false、fullObjectCandidate=false。** 下文覆盖前轮“13文件未读”的当前状态，原历史记录不删除。必要缺口与主控在跑的验证如实保留，不等无关大包修复。
+
+### 1. 生产所有权、错误、取消与泛型边界
+
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/inject-search.ts:85–98,125–166`：注入 DestroyRef/ErrorHandler；首个handle同步install，四core流直接写四只读Signal；query是唯一WritableSignal。
+- 同文件168–192：source/options Signal语义变化时重建；旧订阅先unsubscribe/destroy，当前query作为seed；两个effect与最新handle归DestroyRef清理。
+- 同文件203–211：commands走最新active；loadMore的拒绝不catch、不变成成功，clear去重防二次setQuery。recoverable SearchExecutionError由error$保持对象identity；协议流损坏只交ErrorHandler并解绑nextSubs。
+- `useSearch/UseSearchReturn` 当前无实体泛型参数；SearchResult是跨collection归一metadata，不是虚构的RxDocument<T>。对原“泛型推导”要求按实际公开SearchSourceLike/Signal/返回签名与consumer检查落实，不增加any或断言掩盖错误。
+- core取消/等待者的 **RV-062** 原问题仍只引用，Angular委托clear/destroy不代表任意pending loadMore Promise结算。新探针只处理已启动的分页，未复制造成该问题的success同步重入场景。
+
+### 2. 已实读的实际证据与环境限制
+
+| 测量                   | 实际结果                                                             | 必须保留的边界                                                                                          |
+| ---------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| 历史unit               | 3 files / 22 tests passed，skip0                                     | 日志框架批9058–9087；source/core已测子集无漂移；不包含新的13例或late real-handle文件                    |
+| 历史四指标             | S/B/F/L=100/100/100/100；阈值逐项80%                                 | v8 include src/**/*，65 statements/12 branches/17 functions/55 lines；不是当前扩充测试门禁              |
+| late真实core C1        | 历史1 passed                                                         | 当前88行probe与实测SHA不同，不能继承为完整C1核销                                                        |
+| 真实tar runtime root   | exit0，值导出SearchExecutionError/useSearch                          | Node侧显式预载Angular compiler；只import根，不在无inject上下文执行helper，也不是完整UI                  |
+| 裸tar typed consumer   | valid与invalid均受utils NodeJS/ms声明错误影响                        | 保留原环境失败，不是consumer调用根因，也不是负例正确拒绝的充分证据                                      |
+| 补充环境tar typed      | valid0；invalid2，五个TS2322/TS2345在consumer行；当前fixture SHA匹配 | strict、skipLibCheck=false、无workspace aliases；显式Node+@types/ms 2.1.0对照，不宣称零附加环境声明闭合 |
+| 本轮unit+coverage/lint | 主控已开始10包当前输入验证                                           | 本代理不预填通过、不等待其他大包修复；实际结果后续由主控追加                                            |
+| ngc/真实browser        | 未验证                                                               | tsc/Vite JIT不核销inline模板；TestBed重挂不冒充route/browser                                            |
+
+消费实测文件：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation-bare.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-ambient-types.json`。具体编译/root日志同一validation目录 `consumer-rxdb-plugin-search-angular-*.txt`。无补充环境的上游风险由主控去重/裁定，不在本包擅改utils或依赖。
+
+### 3. 五个原 C：已证与必要未验
+
+**C1 SearchHandle映射 — partial。** 原空词、无结果、查询失败、清空、末页场景完整保留。源码锚点48–65/94–98/153–156/199–211；原stock tests、current real-handle序列与新增loadMore rejection probe都有精确锚点。旧实测源稳定，但current real-handle helper已变；需主控当前执行，不能把文件存在/旧测试绿当完整C。
+
+**C2 快速输入与options — partial。** 原A→B、同值新对象、换库/branch、并发翻页保留。source/options按core equality、current query种子和旧订阅隔离已证；新增fake timer/真实异步换源分页在新spec177–259。**source-new标签不是同库branch切换**；真实branch与分页交错、更强A已在途→B等待窗口的中间输出仍须主控证据，当前探针不虚构SQL。
+
+**C3 三端类型与依赖闭合 — partial。** 三端实际root/type/class透传一致，框架容器差异合法；core plugin inject=adapter:local、constructor backend admission和assertInstalled已读。当前tar根import和严格正负consumer在补充环境闭环；bare上游风险保留。缺plugin/不支持backend真实RxDB动态路径、当前同fixture parity和卸载仍需主控；原throwing source仅证明wrapper透传。
+
+**C4 生命周期与注入 — partial。** 原inputs、销毁中异步、子provider、多实例/无泄漏要求保留。历史EnvironmentInjector cleanup已证；新增真实JIT组件setInput、两个parent+一个child实例、在途销毁、四协议流observed归零和data-change disposer精确计数待跑。正常fixture使用@Input setter→Signal，避免Vite无Angular transformer的假元数据问题；不是仅回调DestroyRef桩或把happy-dom当browser。
+
+**C5 类型与真实运行 — partial。** tar `.mts`正负值/类型消费者有条件验证已证；模板正负 `template-valid.ts/template-invalid.ts` 已交给主控ngc，未使用any/ts-expect-error或paths。真实JIT模板DOM输入/空态/执行错误的新探针已写，不等于ngc类型证据。实际demo OnPush/useSearch(computed options)入口已读；现有E2E search单例是a11y/模拟错误，真实route挂卸与真正查询失败不被自动核销。
+
+### 4. 候选与去重
+
+**SA-R2-required-input-read / P2静态候选，未确认。** README48–52在字段初始化中把required input传给useSearch；实现91–92/165–166会立即readSource。疑似构造阶段NG0950，最小期望行为复验在新spec405–412，主控必须按实际错误归因，不能预判或把fixture问题登记为业务bug。只在本目录findings.pending登记，不改README、实现、旧tests或新建RV。
+
+**RV-062只引用**：已有core waiters取消根因与报告，不重复编号。其影响与本包必要未验证分开：缺陷分流不等于完整评审C证据已齐。
+
+### 5. 原七项完成条件与closure
+
+| 条件                                | 结论               | 证据                                                    |
+| ----------------------------------- | ------------------ | ------------------------------------------------------- |
+| 全范围清点/内容读取/构建来源        | passed             | 原17/17全文、scope SHA吻合；APF/d.ts/source-map来源核对 |
+| 每C明确结论/原最低场景保留/补证动作 | passed（登记层）   | 五C全部partial，原场景与具体动作未删除；不等于完整C     |
+| 不变量和动态主张分别锚定            | partial            | 源码/历史日志/新未执行probe分开；新门禁待主控           |
+| 命令/缓存/skip/四指标当轮记录       | partial            | 历史如实登记；current unit+coverage/lint在跑            |
+| 上游/三端/公开消费链                | partial            | root/类型/有条件tar通过；bare/ngc/真实branch/route仍待  |
+| 问题根因与去重                      | passed（诚实登记） | RV-062只引用；required input候选未编号、不假确认        |
+| 最终评级/评审完成/发布就绪分离      | partial            | 阶段🟡，完整C0/5、最终全对象评级暂缓                    |
+
+详表 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/c-evidence.json` 与 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/closure.json`。主控只需消费现成 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/validation-requests.json`，追加必要实际结果与分流裁定；**原要求不能为赶名额删掉，局部执行不冒充全C**。
+
+### 6. 本包交付附件
+
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/file-inspection.json`：17原文件完整内容/行区间/关注点与摘要；新增probe单列。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/c-evidence.json`：五原C、生产锚点、测试角色、原最低场景、已证/待验映射。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/validation-observations.json`：历史测量SHA边界、当前tar/bare/补充环境真实证据、工具局限。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/validation-requests.json`：已发现的必要targets、consumer/ngc/browser动作；当前unit/lint由主控执行。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/findings.pending.md`：required-input候选与RV-062去重引用。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/closure.json`：代理交付完成、原完成条件逐条判定、完整C/局部子面/剩余动作与主控最终裁定。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/consumer-valid.mts` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/consumer-invalid.mts`：真实tar独立正负编译已实测，helper不会在无inject context运行。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/template-valid.ts` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/template-invalid.ts`：ngc inline模板输入/事件正负例，待实测。
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/review-round2-lifecycle.spec.ts`：13个case冻结，真实core handle与协议流专项明确分面；主控当前运行中。
+
+## R2 主控验证结算（不扩大子代理原核销范围）
+
+本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
+
+[真实tar类型正负/运行时证据](../../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+
+消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
+
+主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。
+
+当轮确认意见：[RV-077](../../RV-077-round2-angular-required-search.md)，公开输入边界与独立正确peer环境复验，不等于所有消费情形失败。

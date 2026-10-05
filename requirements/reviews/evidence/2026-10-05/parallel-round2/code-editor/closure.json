@@ -1,21 +1,23 @@
 {
-  "task": "R2-01",
-  "object": "code-editor",
-  "date": "2026-10-05",
-  "sourceRoot": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor",
-  "status": "stage-final-controller-owns-remaining-evidence",
-  "reviewRating": "yellow",
-  "publishReady": false,
-  "scope": {
-    "trackedFiles": 21,
-    "bodyRead": 21,
-    "fullBodyRead": 21,
-    "unread": 0,
-    "scopeHashDrift": 0,
-    "controlledGeneratedFiles": 0,
-    "newProductionSpecs": 0,
-    "inspection": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/file-inspection.json"
+  "completeOriginalC": ["C2"],
+  "controllerCompletedOriginalC5": {
+    "status": "closed",
+    "evidence": [
+      "validation/isolated-consumer-validation.json",
+      "validation/editor-type-only-consumer.json",
+      "validation/editor-artifact-probes.json"
+    ],
+    "limits": "No claim that composing/selection/UI/browser performance are verified."
   },
+  "controllerRequests": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/validation-requests.json",
+  "currentControllerValidation": {
+    "status": "started-not-adopted-as-passed",
+    "owner": "controller",
+    "logPrefix": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-*",
+    "targets": ["build", "unit-and-coverage", "lint"],
+    "thisTaskWaitsForWholeBatch": false
+  },
+  "date": "2026-10-05",
   "evidenceProvenance": {
     "inherited": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/inherited-evidence.json",
     "responsibilityBoundary": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/responsibility-boundary.md",
@@ -24,6 +26,40 @@
     "importantBoundary": "第一轮107测试/四指标/pack root resolve保留原来源；第二轮独立真实tar valid/invalid/root runtime/smoke已由主控执行并通过，非本任务执行。",
     "round2Consumer": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-results.json"
   },
+  "finalizedAt": "2026-10-05T11:07:33+08:00",
+  "findings": {
+    "newConfirmed": [],
+    "newPending": [],
+    "deduplicatedExisting": [
+      {
+        "id": "RV-071",
+        "owner": "code-editor-angular",
+        "status": "confirmed-open",
+        "sharedCodeEditorCoreDuplicate": false,
+        "registry": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/findings-registry.json"
+      }
+    ]
+  },
+  "fullObjectCandidate": {
+    "status": "submitted-with-explicit-controller-owned-gaps",
+    "candidateBasis": [
+      "21/21受控文件正文阅读、无scope漂移",
+      "C2完整核销",
+      "C1/C3/C4/C5未验面已精确划给shared helper、三端binding、browser/consumer"
+    ],
+    "blockingAcceptance": [
+      "独立真实tar主探针已通过；保留仅SQL bundle/物理缺语言模块证据与Node type-only辅助测量的未验记录",
+      "主控必须明确C1/C3/C4浏览器/宿主最低场景是补证还是有证据分流",
+      "C5仅SQL bundle和物理缺资源负对照必须有结果或保留partial"
+    ],
+    "reviewCompleteAndPublishReadyAreSeparate": true,
+    "accepted": false,
+    "candidateSubmitted": true
+  },
+  "fullObjectComplete": false,
+  "heavyValidationsExecutedByThisTask": [],
+  "nextOwner": "controller",
+  "object": "code-editor",
   "originalC": [
     {
       "id": "C1",
@@ -154,79 +190,6 @@
       ]
     }
   ],
-  "fullObjectCandidate": {
-    "status": "submitted-with-explicit-controller-owned-gaps",
-    "candidateBasis": [
-      "21/21受控文件正文阅读、无scope漂移",
-      "C2完整核销",
-      "C1/C3/C4/C5未验面已精确划给shared helper、三端binding、browser/consumer"
-    ],
-    "blockingAcceptance": [
-      "独立真实tar主探针已通过；保留仅SQL bundle/物理缺语言模块证据与Node type-only辅助测量的未验记录",
-      "主控必须明确C1/C3/C4浏览器/宿主最低场景是补证还是有证据分流",
-      "C5仅SQL bundle和物理缺资源负对照必须有结果或保留partial"
-    ],
-    "reviewCompleteAndPublishReadyAreSeparate": true,
-    "accepted": false,
-    "candidateSubmitted": true
-  },
-  "findings": {
-    "newConfirmed": [],
-    "newPending": [],
-    "deduplicatedExisting": [
-      {
-        "id": "RV-071",
-        "owner": "code-editor-angular",
-        "status": "confirmed-open",
-        "sharedCodeEditorCoreDuplicate": false,
-        "registry": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/findings-registry.json"
-      }
-    ]
-  },
-  "controllerRequests": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/validation-requests.json",
-  "remainingActionCount": 3,
-  "nextOwner": "controller",
-  "completeOriginalC": [
-    "C2"
-  ],
-  "partialOriginalC": [
-    "C1",
-    "C3",
-    "C4",
-    "C5"
-  ],
-  "fullObjectComplete": false,
-  "remainingActions": [
-    {
-      "id": "R2-01-V3",
-      "owner": "controller",
-      "action": "仅SQL bundle模块图/体积与缺语言模块负对照",
-      "criticalForC": [
-        "C5"
-      ]
-    },
-    {
-      "id": "R2-01-V4",
-      "owner": "controller",
-      "action": "C1/C3/C4绑定/browser最低场景补证或有证据分流裁定",
-      "criticalForC": [
-        "C1",
-        "C3",
-        "C4"
-      ]
-    },
-    {
-      "id": "R2-01-V2-type-only-auxiliary",
-      "owner": "controller",
-      "action": "type-only-consumer.mts严格emit后输出无runtime import与Node marker探针尚未执行",
-      "criticalForC": [
-        "C5"
-      ],
-      "blockingStageFinal": false,
-      "note": "已准备的type-only辅助探针，未新增case；不要求本任务继续执行或等待。"
-    }
-  ],
-  "heavyValidationsExecutedByThisTask": [],
   "originalCompletionCriteria": [
     {
       "id": "D1",
@@ -282,19 +245,46 @@
       "evidence": "reviewRating yellow；fullObjectComplete=false；publishReady=false"
     }
   ],
-  "updatedAt": "2026-10-05T11:05:04+08:00",
-  "stageDeliveryComplete": true,
+  "partialOriginalC": ["C1", "C3", "C4", "C5"],
+  "publishReady": false,
+  "remainingActionCount": 3,
+  "remainingActions": [
+    {
+      "id": "R2-01-V3",
+      "owner": "controller",
+      "action": "仅SQL bundle模块图/体积与缺语言模块负对照",
+      "criticalForC": ["C5"]
+    },
+    {
+      "id": "R2-01-V4",
+      "owner": "controller",
+      "action": "C1/C3/C4绑定/browser最低场景补证或有证据分流裁定",
+      "criticalForC": ["C1", "C3", "C4"]
+    },
+    {
+      "id": "R2-01-V2-type-only-auxiliary",
+      "owner": "controller",
+      "action": "type-only-consumer.mts严格emit后输出无runtime import与Node marker探针尚未执行",
+      "criticalForC": ["C5"],
+      "blockingStageFinal": false,
+      "note": "已准备的type-only辅助探针，未新增case；不要求本任务继续执行或等待。"
+    }
+  ],
+  "reviewRating": "yellow",
+  "scope": {
+    "trackedFiles": 21,
+    "bodyRead": 21,
+    "fullBodyRead": 21,
+    "unread": 0,
+    "scopeHashDrift": 0,
+    "controlledGeneratedFiles": 0,
+    "newProductionSpecs": 0,
+    "inspection": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/file-inspection.json"
+  },
   "sourceReviewComplete": true,
-  "finalizedAt": "2026-10-05T11:07:33+08:00",
-  "currentControllerValidation": {
-    "status": "started-not-adopted-as-passed",
-    "owner": "controller",
-    "logPrefix": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-*",
-    "targets": [
-      "build",
-      "unit-and-coverage",
-      "lint"
-    ],
-    "thisTaskWaitsForWholeBatch": false
-  }
+  "sourceRoot": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor",
+  "stageDeliveryComplete": true,
+  "status": "stage-final-controller-owns-remaining-evidence",
+  "task": "R2-01",
+  "updatedAt": "2026-10-05T11:05:04+08:00"
 }

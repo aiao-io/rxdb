@@ -1,6 +1,15 @@
 {
   "clientDate": "2026-10-05",
-  "reason": "Offline mirror lacks Angular metadata; instead of downloading/changing versions, tar actual installed exact third-party peers/transitive deps and install real files. No scripts, aliases, or workspace node_modules links. Installed patches, if any, are part of this explicitly measured local environment, not a clean registry baseline.",
+  "command": [
+    "pnpm",
+    "install",
+    "--offline",
+    "--ignore-scripts",
+    "--no-frozen-lockfile",
+    "--config.auto-install-peers=false"
+  ],
+  "consumerDirectory": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer",
+  "exitCode": 1,
   "peerPackages": [
     {
       "name": "@angular/compiler",
@@ -1883,15 +1892,6 @@
       "lifecycleScriptsRun": false
     }
   ],
-  "unresolvedPeers": [],
-  "exitCode": 1,
-  "consumerDirectory": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer",
-  "command": [
-    "pnpm",
-    "install",
-    "--offline",
-    "--ignore-scripts",
-    "--no-frozen-lockfile",
-    "--config.auto-install-peers=false"
-  ]
+  "reason": "Offline mirror lacks Angular metadata; instead of downloading/changing versions, tar actual installed exact third-party peers/transitive deps and install real files. No scripts, aliases, or workspace node_modules links. Installed patches, if any, are part of this explicitly measured local environment, not a clean registry baseline.",
+  "unresolvedPeers": []
 }

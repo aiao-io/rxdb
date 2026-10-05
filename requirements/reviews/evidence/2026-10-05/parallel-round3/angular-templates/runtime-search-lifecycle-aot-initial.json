@@ -1,0 +1,85 @@
+{
+  "mode": "search-lifecycle-aot",
+  "compiledFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/aot/consumer-esm/consumer.mjs",
+  "harnessSha256": "01a2f0eb5da3dec6972bb6a6820d121a57ce152a6373659ff40142abddb86fa4",
+  "toolsSha256": "21e9989fd948c57c26c5e3000ceb58f62face06149a99c47588abebb91cd5546",
+  "compiledSha256": "047bde5c6bce7a7f9b793e82f4d2bbdd05a0a618d8501eacc3919327322c8d70",
+  "domPackageEntry": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/happy-dom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+_f2992d1449638deff249d09cb06b144b/node_modules/happy-dom/lib/index.js",
+  "inputMetadata": {
+    "TreeChild": {
+      "rootId": [
+        "rootId",
+        1,
+        null
+      ]
+    },
+    "FieldSourceSearchChild": {
+      "source": [
+        "source",
+        1,
+        null
+      ]
+    },
+    "FieldOptionsSearchChild": {
+      "options": [
+        "options",
+        1,
+        null
+      ]
+    },
+    "LifecycleSearchChild": {
+      "source": [
+        "source",
+        1,
+        null
+      ],
+      "options": [
+        "options",
+        1,
+        null
+      ]
+    }
+  },
+  "assertionCount": 10,
+  "assertions": [
+    "required source and options are available at ngOnInit",
+    "real SearchHandle receives bound seed/options",
+    "real handle has four observable subscriptions",
+    "DOM Event narrows to string and updates real query",
+    "bound required options change rebuilds current handle",
+    "rebuild retains current query instead of stale seed",
+    "rebuild releases old subscriptions and destroy once",
+    "controlled real handle execution error reaches alert",
+    "clear removes results and returns idle",
+    "destroy releases every real handle stream and callback"
+  ],
+  "searchRecords": [
+    {
+      "query": "seed",
+      "options": {
+        "debounce": 0,
+        "initialQuery": "seed"
+      },
+      "subscriptions": 0,
+      "destroyed": 1,
+      "released": 1
+    },
+    {
+      "query": "typed",
+      "options": {
+        "debounce": 0,
+        "pageSize": 2
+      },
+      "subscriptions": 0,
+      "destroyed": 1,
+      "released": 1
+    }
+  ],
+  "searchExecutions": [
+    "seed",
+    "typed",
+    "typed",
+    "failure"
+  ],
+  "exitCode": 0
+}

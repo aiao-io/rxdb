@@ -1,0 +1,50 @@
+{
+  "node": "v26.7.0",
+  "nodeExecutable": "/Users/jimmy/.nvm/versions/node/v26.7.0/bin/node",
+  "compilerPath": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/typescript@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T_8cf64798441d87b81dbce1be29234292/node_modules/typescript/lib/tsc.js",
+  "compilerRealPath": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/typescript@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T_8cf64798441d87b81dbce1be29234292/node_modules/typescript/lib/tsc.js",
+  "packages": {
+    "vue-tsc": {
+      "version": "3.3.12",
+      "path": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/vue-tsc@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rx_0c655b5256d7867ca93b0d19b6db3c00/node_modules/vue-tsc/package.json",
+      "realPath": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/vue-tsc@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rx_0c655b5256d7867ca93b0d19b6db3c00/node_modules/vue-tsc/package.json",
+      "manifestSha256": "f7a2eeb69c7edea50570cd74d7318d75581981368aaa8639fa1070d1eab02054"
+    },
+    "typescript": {
+      "version": "6.0.3",
+      "path": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/typescript@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T_8cf64798441d87b81dbce1be29234292/node_modules/typescript/package.json",
+      "realPath": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/typescript@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T_8cf64798441d87b81dbce1be29234292/node_modules/typescript/package.json",
+      "manifestSha256": "9332e97c30d3e53ed54910b89207ed657fb444066484df6e5b6965bf130865e9"
+    },
+    "@vue/language-core": {
+      "version": "3.3.12",
+      "path": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@vue+language-core@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v30_04dd0148d92cbf747b39ade2f5cc71b6/node_modules/@vue/language-core/package.json",
+      "realPath": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@vue+language-core@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v30_04dd0148d92cbf747b39ade2f5cc71b6/node_modules/@vue/language-core/package.json",
+      "manifestSha256": "50e6bafd1c2de2f7cb9921459b320df99daa84be552151b71bc578e014d1e01a"
+    },
+    "@volar/typescript": {
+      "version": "2.4.28",
+      "path": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@volar+typescript@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300_6746a821f710512d6a1d973ebd1a1190/node_modules/@volar/typescript/package.json",
+      "realPath": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@volar+typescript@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300_6746a821f710512d6a1d973ebd1a1190/node_modules/@volar/typescript/package.json",
+      "manifestSha256": "b7325a337e30f0f37873c038f21efa0d6eda7553e5985c6f679f590b023ff744"
+    },
+    "vue": {
+      "version": "3.5.43",
+      "path": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb-r_eb147154cc9d84e303545b98610084c8/node_modules/vue/package.json",
+      "realPath": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/vue@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb-r_eb147154cc9d84e303545b98610084c8/node_modules/vue/package.json",
+      "manifestSha256": "b5cbf896563ac8087e8acdfe81ff5155db2eb75aced9725cdc05820be483cdda"
+    },
+    "rxjs": {
+      "version": "7.8.2",
+      "path": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rxjs@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb-_3a83c4ad857dec3b3d1eac6946f9bfda/node_modules/rxjs/package.json",
+      "realPath": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rxjs@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb-_3a83c4ad857dec3b3d1eac6946f9bfda/node_modules/rxjs/package.json",
+      "manifestSha256": "2399f5d968d1d693ecd206e7972fd26cb7e3daa45931ecc12202b3a924be38b7"
+    },
+    "@types/node": {
+      "version": "26.6.4",
+      "path": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@types+node@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+_4512d4f3dbd526f5dff65ffec7541a83/node_modules/@types/node/package.json",
+      "realPath": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@types+node@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+_4512d4f3dbd526f5dff65ffec7541a83/node_modules/@types/node/package.json",
+      "manifestSha256": "c0bfc803197d095b73cfdf344d2f23a9c92e096f2e1b141e9aaddc309421192d"
+    }
+  }
+}

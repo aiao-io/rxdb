@@ -1,0 +1,36 @@
+{
+  "clientDate": "2026-10-05",
+  "projects": [
+    {
+      "project": "rxdb-plugin-search-react",
+      "exitCode": 1,
+      "sourceProbeSha256": "e6ba72bc386be9efd1feb063b7c5d0615011d8dac1630b2a227f5d4767b7739e",
+      "actualPackageVersion": "0.0.26",
+      "actualCoreVersion": "0.0.26",
+      "publishedTarRuntimeNotWorkspaceSource": true,
+      "testLogicChanged": false,
+      "relativeSelfImportReplacedByPublishedPackageNameOnly": true
+    },
+    {
+      "project": "rxdb-plugin-search-vue",
+      "exitCode": 0,
+      "sourceProbeSha256": "f46f6854118c3953db838860d0f16422dd5cf83bde27002da54b446b89b8edcd",
+      "actualPackageVersion": "0.0.26",
+      "actualCoreVersion": "0.0.26",
+      "publishedTarRuntimeNotWorkspaceSource": true,
+      "testLogicChanged": false,
+      "relativeSelfImportReplacedByPublishedPackageNameOnly": true
+    },
+    {
+      "project": "rxdb-plugin-search-angular",
+      "exitCode": 1,
+      "sourceProbeSha256": "90c2d6b43112042b007bbe467d5c5a90139550e97a4cf58357d303ba1530bf4c",
+      "actualPackageVersion": "0.0.26",
+      "actualCoreVersion": "0.0.26",
+      "publishedTarRuntimeNotWorkspaceSource": true,
+      "testLogicChanged": false,
+      "relativeSelfImportReplacedByPublishedPackageNameOnly": true
+    }
+  ],
+  "scope": "New R2 probes copy unchanged behavior, self-source import -> real published package import; all internal peers installed tarballs0.0.26. Preserves original workspace peer0.0.25 failures separately, no workspace dependencies/configs edited. Real frameworks/happy-dom, not real browsers/devices."
+}

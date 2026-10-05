@@ -1,446 +1,27 @@
 {
-  "schemaVersion": 1,
-  "task": "R2-02",
-  "object": "rxdb-plugin-tree-angular",
-  "updatedAt": "2026-10-05T11:06:04.266015+08:00",
-  "headAtRead": "465f9078e9844af2cbef9936c7321a5576333a01",
-  "status": "partial-awaiting-controller-validation",
-  "deliveryWritten": true,
-  "reviewComplete": false,
-  "releaseReady": false,
-  "completeObjectCandidate": false,
-  "objectCompleteCandidate": false,
-  "controlledInventory": {
-    "scopeCount": 16,
-    "fullyRead": 16,
-    "unread": 0,
-    "partialRead": 0,
-    "hashDrift": [],
-    "newNecessarySpecs": 1
-  },
-  "originalC": {
-    "total": 5,
-    "complete": [],
-    "completeCount": 0,
-    "partial": [
-      "C1",
-      "C2",
-      "C3",
-      "C4",
-      "C5"
-    ],
-    "notApplicable": [],
-    "requirementsReduced": false
-  },
+  "changedFiles": [
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/packages/rxdb-plugin-tree-angular.md",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-tree-angular.md",
+    "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-requests.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-valid.mts",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-invalid.mts",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-fixtures.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/nx-resolved.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/file-inspection.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-observations.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/angular-tool-observations.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/spec-design.md",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/findings.pending.md",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/c-evidence.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/closure.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/changed-files.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-required-input.mts",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/probe-original-required-input.spec.ts.txt"
+  ],
   "completeC": [],
   "completeCCount": 0,
-  "partialSubsurfaces": [
-    {
-      "id": "C1",
-      "conclusion": "静态类型/固定派发/参数层级与注册护栏链路明确，新增真实core边界探针与numeric/string消费者；尚缺其执行和真实SQL深树，原C不核销。",
-      "scenarios": [
-        {
-          "scenario": "numeric/string id",
-          "status": "partial",
-          "proven": "源泛型/真实FindTreeOptions按idType推导；历史string mock派发，numeric=0真实core probe与独立numeric/string consumer已准备。",
-          "notProven": "numeric/string SQL实际查询与数据对比；numeric probe/consumer尚未执行。",
-          "probe": [
-            {
-              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-              "lines": [
-                186,
-                214
-              ],
-              "symbol": "四入口懒启动/ID=0",
-              "role": "new-probe-not-executed"
-            }
-          ],
-          "requestIds": [
-            "R2-02-V1",
-            "R2-02-V2T",
-            "R2-02-V3",
-            "R2-02-V5"
-          ]
-        },
-        {
-          "scenario": "缺 Tree 插件",
-          "status": "source-confirmed/dynamic-pending",
-          "proven": "真实EntityManager.init按仓储登记拒绝缺TreeRepository；没有核心扁平fallback。",
-          "probe": [
-            {
-              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-              "lines": [
-                143,
-                153
-              ],
-              "symbol": "missing.init()",
-              "role": "new-probe-not-executed"
-            }
-          ],
-          "requestIds": [
-            "R2-02-V1"
-          ]
-        },
-        {
-          "scenario": "QueryCache 禁止",
-          "status": "source-confirmed/dynamic-pending",
-          "proven": "RxDBPluginTree.install声明unsupportedSyncTypes.QueryCache，核心按生效配置校验。",
-          "probe": [
-            {
-              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-              "lines": [
-                155,
-                166
-              ],
-              "symbol": "cached.init()",
-              "role": "new-probe-not-executed"
-            }
-          ],
-          "requestIds": [
-            "R2-02-V1"
-          ]
-        },
-        {
-          "scenario": "深树/层级/懒查询",
-          "status": "partial",
-          "proven": "wrapper原样options；TreeRepository.#normalizeOptions不传level不限层，0不误判；新probe证明四资源在read前无subscription、状态read能启动（待执行）。",
-          "notProven": "真实深树level省略/0/1结果及完整SQL链路。",
-          "requestIds": [
-            "R2-02-V1",
-            "R2-02-V5"
-          ]
-        },
-        {
-          "scenario": "错误透明，不 fallback 到扁平查询",
-          "status": "source-confirmed/dynamic-pending",
-          "proven": "四个wrapper固定tree method；上游useRepositoryQuery缺方法/subscribe抛错与error走setFailure，无普通find查询；新probe透传真实normalize非法level错误。",
-          "probe": [
-            {
-              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-              "lines": [
-                174,
-                184
-              ],
-              "symbol": "resource.error() instanceof RxDBError",
-              "role": "new-probe-not-executed"
-            }
-          ],
-          "requestIds": [
-            "R2-02-V1"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "C2",
-      "conclusion": "参数切换、错误与订阅归属已追到真实Angular/core源码，新增组件晚到/空态/销毁探针；跨父移动/父删除的live-vs-full未验，原C不核销。",
-      "scenarios": [
-        {
-          "scenario": "跨父移动",
-          "status": "unverified",
-          "proven": "TreeRepository构造注册tree merge；wrapper无第二增量状态机。",
-          "notProven": "同一真实SQL fixture的live结果与全量结果一致。",
-          "requestIds": [
-            "R2-02-V5"
-          ]
-        },
-        {
-          "scenario": "父删除",
-          "status": "unverified",
-          "notProven": "真实删除后子树/祖先live结果与全量查询的联动。",
-          "requestIds": [
-            "R2-02-V5"
-          ]
-        },
-        {
-          "scenario": "快速改 query/新父或过滤条件不串旧结果",
-          "status": "probe-ready-not-executed",
-          "proven": "Angular effect cleanup在options依赖改动时unsubscribe旧task。",
-          "probe": [
-            {
-              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-              "lines": [
-                216,
-                238
-              ],
-              "symbol": "componentRef.setInput; 晚到旧结果",
-              "role": "new-probe-not-executed"
-            }
-          ],
-          "notProven": "SQL实时变更/过滤条件和树移动时的live对照。",
-          "requestIds": [
-            "R2-02-V1",
-            "R2-02-V5"
-          ]
-        },
-        {
-          "scenario": "空树",
-          "status": "probe-ready-not-executed",
-          "probe": [
-            {
-              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-              "lines": [
-                240,
-                266
-              ],
-              "symbol": "loading/empty/error呈现",
-              "role": "new-probe-not-executed"
-            }
-          ],
-          "notProven": "fixture的空数组边界不是真实持久化空树。",
-          "requestIds": [
-            "R2-02-V1",
-            "R2-02-V5"
-          ]
-        },
-        {
-          "scenario": "销毁/与全量查询一致",
-          "status": "partial",
-          "proven": "wrapper所有权委托；effect cleanup与QueryManager最后observer清理成对；新probe计数到零并晚拒绝。",
-          "notProven": "新probe执行和真实树更新后的全量一致性。",
-          "requestIds": [
-            "R2-02-V1",
-            "R2-02-V5"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "C3",
-      "conclusion": "四入口/泛型/默认值和原生资源字段静态对称；同一真实fixture三端动态、独立消费者/多实例实测未齐，原C不核销。",
-      "scenarios": [
-        {
-          "scenario": "公共返回类型/输入泛型三端一致",
-          "status": "static-pass",
-          "proven": "三端四个同名导出/TreeEntityType/options静态槽/[]或0一致。Angular返回Signal字段，React值字段，Vue reactive值字段；native用法差异不是API缺失，Vue支持Ref是原生扩展。",
-          "requestIds": []
-        },
-        {
-          "scenario": "同一 tree fixtures 三端运行、loading/error/empty",
-          "status": "partial",
-          "proven": "三端原generics正文与public roots已对照，历史单位只是各端同形mock；新增本端core组件probe。",
-          "notProven": "相同输入与状态序列的真实tree fixture三端动态对照。",
-          "requestIds": [
-            "R2-02-V4"
-          ]
-        },
-        {
-          "scenario": "consumer 编译，无内部路径消费",
-          "status": "fixtures-ready-not-executed",
-          "proven": "发布根与真实tar旧root resolve；本目录consumer根包imports与79行valid、10行invalid已交付。",
-          "notProven": "独立tar安装后valid=0、invalid两处TS2322与runtime import实际结果。",
-          "consumerFiles": [
-            "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-valid.mts",
-            "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-invalid.mts"
-          ],
-          "requestIds": [
-            "R2-02-V3"
-          ]
-        },
-        {
-          "scenario": "多实例/泄漏",
-          "status": "probe-ready-not-executed",
-          "probe": [
-            {
-              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-              "lines": [
-                216,
-                238
-              ],
-              "symbol": "同一组件两个query resources",
-              "role": "new-probe-not-executed"
-            },
-            {
-              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-              "lines": [
-                268,
-                295
-              ],
-              "symbol": "父子injector、两实体类、释放到零",
-              "role": "new-probe-not-executed"
-            }
-          ],
-          "notProven": "其他两端相同fixture动态、多root/真实挂卸证据归各对象主控；本对象不代审。",
-          "requestIds": [
-            "R2-02-V1",
-            "R2-02-V4"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "C4",
-      "conclusion": "生命周期生产链完整实读，8例中覆盖context/input/销毁晚到/子provider/多实例；尚未收到新probe执行，不把test-definition当test-pass。",
-      "scenarios": [
-        {
-          "scenario": "注入上下文/standalone/OnPush",
-          "status": "static-pass/dynamic-pending",
-          "proven": "上游effect/toLazySignal需要injection context；新增fixture显式standalone/OnPush、signals、@if/@for。",
-          "probe": [
-            {
-              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-              "lines": [
-                104,
-                131
-              ],
-              "symbol": "Consumer; input.required<number>",
-              "role": "new-probe-not-executed"
-            },
-            {
-              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-              "lines": [
-                168,
-                172
-              ],
-              "symbol": "四入口上下文外拒绝",
-              "role": "new-probe-not-executed"
-            }
-          ],
-          "requestIds": [
-            "R2-02-V1"
-          ]
-        },
-        {
-          "scenario": "切换 inputs",
-          "status": "probe-ready-not-executed",
-          "probe": [
-            {
-              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-              "lines": [
-                216,
-                238
-              ],
-              "symbol": "setInput(0→1→2)",
-              "role": "new-probe-not-executed"
-            }
-          ],
-          "requestIds": [
-            "R2-02-V1"
-          ]
-        },
-        {
-          "scenario": "销毁中异步完成",
-          "status": "probe-ready-not-executed",
-          "probe": [
-            {
-              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-              "lines": [
-                240,
-                266
-              ],
-              "symbol": "Promise晚拒绝/订阅归零",
-              "role": "new-probe-not-executed"
-            }
-          ],
-          "requestIds": [
-            "R2-02-V1"
-          ]
-        },
-        {
-          "scenario": "子 provider 覆盖/无跨库状态",
-          "status": "source-confirmed/probe-ready",
-          "proven": "hook查询目标是显式EntityType静态方法，不自行inject RxDB；父子probe用各自实体类和真实RxDB provider，子销毁不撤父订阅。",
-          "probe": [
-            {
-              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-              "lines": [
-                268,
-                295
-              ],
-              "symbol": "provideRxDB; useRxDB; EnvironmentInjector.destroy",
-              "role": "new-probe-not-executed"
-            }
-          ],
-          "requestIds": [
-            "R2-02-V1"
-          ]
-        },
-        {
-          "scenario": "同组件多实例/无订阅泄漏",
-          "status": "probe-ready-not-executed",
-          "proven": "useRepositoryQuery effect cleanup、toSignal DestroyRef及QueryManager observer最后清理已实读。",
-          "probe": [
-            {
-              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-              "lines": [
-                124,
-                127
-              ],
-              "symbol": "nodes与second资源",
-              "role": "new-probe-not-executed"
-            },
-            {
-              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-              "lines": [
-                231,
-                237
-              ],
-              "symbol": "结果与cleanup count=0",
-              "role": "new-probe-not-executed"
-            }
-          ],
-          "requestIds": [
-            "R2-02-V1"
-          ]
-        }
-      ]
-    },
-    {
-      "id": "C5",
-      "conclusion": "strict配置、泛型fixture及真实standalone组件定义已读，正负独立consumer已写；typed/runtime/strictTemplates反例/真实route未验，原C不核销。",
-      "scenarios": [
-        {
-          "scenario": "typed consumer 编译/泛型推导",
-          "status": "partial",
-          "proven": "历史workspace正反fixture，当前consumer准备精确numeric/string+四返回Signal；不使用断言/any/ts-expect-error。",
-          "notProven": "新独立tar consumer编译/负错代码核对。",
-          "consumerFiles": [
-            "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-valid.mts",
-            "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-invalid.mts"
-          ],
-          "requestIds": [
-            "R2-02-V2T",
-            "R2-02-V3"
-          ]
-        },
-        {
-          "scenario": "模板事件/输入错误",
-          "status": "unverified",
-          "proven": "tsconfig严格模板配置和真实component positive定义；它们不是ngc negative证据。",
-          "notProven": "独立strictTemplates正例和错误input/event编译拒绝（不能拿ID TS反例替模板反例）。",
-          "requestIds": [
-            "R2-02-V3"
-          ]
-        },
-        {
-          "scenario": "错误与空态",
-          "status": "probe-ready-not-executed",
-          "probe": [
-            {
-              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-              "lines": [
-                240,
-                266
-              ],
-              "symbol": "真实组件loading/empty/error DOM",
-              "role": "new-probe-not-executed"
-            }
-          ],
-          "requestIds": [
-            "R2-02-V1"
-          ]
-        },
-        {
-          "scenario": "真实 route 挂载/卸载",
-          "status": "unverified",
-          "notProven": "EnvironmentInjector与TestBed组件销毁不等于真实router/browser route；需route挂卸重复后状态/订阅、晚到不写已卸载组件。",
-          "requestIds": [
-            "R2-02-V3"
-          ]
-        }
-      ]
-    }
-  ],
+  "completeObjectCandidate": false,
   "completionConditions": [
     {
       "id": "D1",
@@ -468,14 +49,14 @@
       "originalCondition": "实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。",
       "status": "partial",
       "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-observations.json",
-      "detail": "旧测量命令/禁缓存/无测量中漂移/7例/四指标/警告已登记；当轮新增spec的所有门禁待主控。"
+      "detail": "本轮build通过、旧版probe lint零警告；本轮15例13过2fixture失败，四指标100/100/100/100不抹unit红；修复仅新spec待focused重跑/typecheck/lint。consumer条件性正负/runtime已登记。"
     },
     {
       "id": "D5",
       "originalCondition": "上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。",
       "status": "partial",
       "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/c-evidence.json",
-      "detail": "本包/core接口/三端根导出与泛型静态对照完成；同一fixture三端动态、typed/runtime/模板与route未齐。不扩大成其他对象审计。"
+      "detail": "本包/core/三端API对照与独立d.ts+runtime根消费在显式ambient环境通过，bare utils风险保留；三端相同fixture动态、SQL树、模板/route待验。"
     },
     {
       "id": "D6",
@@ -491,115 +72,502 @@
       "detail": "本包源码封装🟢；全对象🟡partial-awaiting-validation，不宣称评审完成或发布就绪。"
     }
   ],
-  "rating": {
-    "sourceWrapper": "🟢",
-    "wholeObject": "🟡 partial; necessary validation still missing"
+  "consumerFixtures": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-fixtures.json",
+  "controlledInventory": {
+    "scopeCount": 16,
+    "fullyRead": 16,
+    "unread": 0,
+    "partialRead": 0,
+    "hashDrift": [],
+    "newNecessarySpecs": 1
   },
+  "controllerConsumerResult": {
+    "strictValidExitCode": 0,
+    "invalidExitCode": 2,
+    "expectedConsumerErrors": ["TS2322 consumer-invalid.mts:5", "TS2322 consumer-invalid.mts:9"],
+    "rootRuntimeImportExitCode": 0,
+    "conditions": ["strict=true", "skipLibCheck=false", "no-workspace-paths", "explicit node", "@types/ms 2.1.0"],
+    "bareUpstreamRiskRetained": true,
+    "publicDeclarationsSelfContained": false,
+    "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json"
+  },
+  "currentMeasurementSummary": {
+    "build": "pass",
+    "lint": "pass-before-fixture-only-repair; corrected replay pending",
+    "unitInitial": "13 passed / 2 failed (new 6/8 passed; original7 passed)",
+    "failureClass": "TestBed/JIT input绑定失败已证；正确编译/绑定后生产可达性与NG0950最终归属未证，不以setter消场景",
+    "coverageFourMetrics": [100, 100, 100, 100],
+    "coverageDoesNotOverrideUnitFailure": true,
+    "focusedCorrectedReplay": "not executed by agent, controller requested",
+    "typecheck": "pending-controller"
+  },
+  "deliveryHead": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "deliveryWritten": true,
+  "finalAuthority": "原C未测设备/浏览器/SQL场景是否有充分理由分流由主控裁定；本代理未改不适用。",
+  "headAtRead": "465f9078e9844af2cbef9936c7321a5576333a01",
   "newFindings": {
     "confirmed": 0,
     "pendingBusinessCandidates": 0,
     "deduplicatedAgainst": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/findings-registry.json",
-    "toolWarningsAreNotBusinessFindings": true
+    "toolWarningsAreNotBusinessFindings": true,
+    "upstreamRiskOwner": "@aiao/utils 的NodeJS/ms公开声明依赖，由主控归档；不是本包新调用错误"
   },
+  "object": "rxdb-plugin-tree-angular",
+  "objectCompleteCandidate": false,
+  "originalC": {
+    "total": 5,
+    "complete": [],
+    "completeCount": 0,
+    "partial": ["C1", "C2", "C3", "C4", "C5"],
+    "notApplicable": [],
+    "requirementsReduced": false
+  },
+  "originalRequiredSignalInput": {
+    "firstRunEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt",
+    "firstRunLogLines": [975, 1039],
+    "observed": "analog明确新spec不在TS program；NG0303不能设置rootId input，随后hook options getter读input.required发生NG0950。",
+    "fixtureBindingFailureConfirmed": true,
+    "correctlyCompiledAndBoundSignalInputFailureProven": false,
+    "productionReachability": "unverified",
+    "rootCauseFinalOwnership": "未证；当前证据倾向TestBed/JIT input metadata问题，但没有AOT对照，不排除生产可达。不得登记为tree确认业务bug或证明生产不可达。",
+    "replacementProbeDoesNotCloseOriginalRequiredSignalScenario": true,
+    "originalSnapshot": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/probe-original-required-input.spec.ts.txt",
+    "snapshotSha256": "2859c2fb42ac2232b003b8b05302fa441686139a73a8d7da13e7e820c8838c21",
+    "snapshotMatchesMeasuredSha256": true,
+    "independentBoundRequiredSignalFixture": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-required-input.mts",
+    "independentFixtureSha256": "d994e202b9e34ec8ccb3e734b4ed1f7523748c05fd62cf1698a34676db5fb8e2",
+    "independentFixtureExecuted": false,
+    "nextAction": "主控独立真实tar consumer用Angular ngc(非tsc仅类型检查/非降级JIT)编译consumer-required-input.mts，strictTemplates；RequiredInputHost模板显式[ rootId ]绑定0，渲染后将rootId.set(7)，观察data-required-id 0→7且无NG0303/NG0950。NumericTree未注册时资源可报告missing-method，必须与required-input绑定错误分开；该fixture不替真实SQL。",
+    "snapshotProvenance": "从唯一fixture-only编辑反向还原，字节SHA与主控初测input manifest相同"
+  },
+  "partialSubsurfaces": [
+    {
+      "id": "C1",
+      "conclusion": "真实core注册护栏、错误透明、ID0/lazy已测；独立numeric/string类型消费在显式环境下通过。缺真实SQL深树/数据查询最低场景，原C仍partial。",
+      "scenarios": [
+        {
+          "scenario": "numeric/string id",
+          "status": "partial-dynamic-and-typed-pass",
+          "proven": "ID=0实际core查询新probe已通过；string历史派发；独立tar numeric/string valid0及numeric/string负例两处TS2322在显式node+@types/ms下已测。",
+          "notProven": "真实numeric/string SQL树数据对比与深树。",
+          "probe": [
+            {
+              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+              "lines": [192, 221],
+              "symbol": "四入口懒启动/ID=0",
+              "role": "initial-probe-pass-source-fixture-only-adjusted"
+            }
+          ],
+          "requestIds": ["R2-02-V1", "R2-02-V2T", "R2-02-V3", "R2-02-V5"]
+        },
+        {
+          "scenario": "缺 Tree 插件",
+          "status": "pass-core-boundary",
+          "proven": "真实EntityManager.init按仓储登记拒绝缺TreeRepository；没有核心扁平fallback。",
+          "probe": [
+            {
+              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+              "lines": [149, 160],
+              "symbol": "missing.init()",
+              "role": "initial-probe-pass-source-fixture-only-adjusted"
+            }
+          ],
+          "requestIds": ["R2-02-V1"],
+          "dynamicEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt",
+          "notProven": "不替代SQL深树场景。"
+        },
+        {
+          "scenario": "QueryCache 禁止",
+          "status": "pass-core-boundary",
+          "proven": "RxDBPluginTree.install声明unsupportedSyncTypes.QueryCache，核心按生效配置校验。",
+          "probe": [
+            {
+              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+              "lines": [161, 173],
+              "symbol": "cached.init()",
+              "role": "initial-probe-pass-source-fixture-only-adjusted"
+            }
+          ],
+          "requestIds": ["R2-02-V1"],
+          "dynamicEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt",
+          "notProven": "不替代SQL深树场景。"
+        },
+        {
+          "scenario": "深树/层级/懒查询",
+          "status": "partial-lazy-pass",
+          "proven": "四方法惰性、数值0/参数归一/非法level已在真实core边界新probe通过。",
+          "notProven": "真实SQL深树及level省略/0/1的数据断言。",
+          "requestIds": ["R2-02-V1", "R2-02-V5"]
+        },
+        {
+          "scenario": "错误透明，不 fallback 到扁平查询",
+          "status": "pass-core-boundary",
+          "proven": "四个wrapper固定tree method；上游useRepositoryQuery缺方法/subscribe抛错与error走setFailure，无普通find查询；新probe透传真实normalize非法level错误。",
+          "probe": [
+            {
+              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+              "lines": [180, 191],
+              "symbol": "resource.error() instanceof RxDBError",
+              "role": "initial-probe-pass-source-fixture-only-adjusted"
+            }
+          ],
+          "requestIds": ["R2-02-V1"],
+          "dynamicEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt",
+          "notProven": "不替代SQL深树场景。"
+        }
+      ]
+    },
+    {
+      "id": "C2",
+      "conclusion": "真实core源码归属明确；快速input/空态/销毁组件probe初次失败属于JIT input fixture，修复后未复跑；跨父移动/父删除live-vs-full未验，原Cpartial。",
+      "scenarios": [
+        {
+          "scenario": "跨父移动",
+          "status": "unverified",
+          "proven": "TreeRepository构造注册tree merge；wrapper无第二增量状态机。",
+          "notProven": "同一真实SQL fixture的live结果与全量结果一致。",
+          "requestIds": ["R2-02-V5"]
+        },
+        {
+          "scenario": "父删除",
+          "status": "unverified",
+          "notProven": "真实删除后子树/祖先live结果与全量查询的联动。",
+          "requestIds": ["R2-02-V5"]
+        },
+        {
+          "scenario": "快速改 query/新父或过滤条件不串旧结果",
+          "status": "initial-fixture-failed-corrected-replay-pending",
+          "proven": "Angular effect cleanup在options依赖改动时unsubscribe旧task。",
+          "probe": [
+            {
+              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+              "lines": [222, 245],
+              "symbol": "componentRef.setInput; 晚到旧结果",
+              "role": "fixture-only-repair-pending-replay"
+            }
+          ],
+          "notProven": "SQL实时变更/过滤条件和树移动时的live对照。",
+          "requestIds": ["R2-02-V1", "R2-02-V5"],
+          "initialFailureEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt",
+          "correction": "仅新增spec以@Input({required:true})setter驱动signal提供JIT输入metadata；未改待验证行为或实现。"
+        },
+        {
+          "scenario": "空树",
+          "status": "initial-fixture-failed-corrected-replay-pending",
+          "probe": [
+            {
+              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+              "lines": [246, 273],
+              "symbol": "loading/empty/error呈现",
+              "role": "fixture-only-repair-pending-replay"
+            }
+          ],
+          "notProven": "fixture的空数组边界不是真实持久化空树。",
+          "requestIds": ["R2-02-V1", "R2-02-V5"],
+          "initialFailureEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt",
+          "correction": "仅新增spec以@Input({required:true})setter驱动signal提供JIT输入metadata；未改待验证行为或实现。"
+        },
+        {
+          "scenario": "销毁/与全量查询一致",
+          "status": "partial",
+          "proven": "wrapper所有权委托；effect cleanup与QueryManager最后observer清理成对；新probe计数到零并晚拒绝。",
+          "notProven": "新probe执行和真实树更新后的全量一致性。",
+          "requestIds": ["R2-02-V1", "R2-02-V5"]
+        }
+      ]
+    },
+    {
+      "id": "C3",
+      "conclusion": "静态三端对称与独立typed/runtime根消费（显式Node+types/ms条件）已证；bare上游风险保留，同一真实fixture三端动态和组件多资源未齐，原Cpartial。",
+      "scenarios": [
+        {
+          "scenario": "公共返回类型/输入泛型三端一致",
+          "status": "static-pass",
+          "proven": "三端四个同名导出/TreeEntityType/options静态槽/[]或0一致。Angular返回Signal字段，React值字段，Vue reactive值字段；native用法差异不是API缺失，Vue支持Ref是原生扩展。",
+          "requestIds": []
+        },
+        {
+          "scenario": "同一 tree fixtures 三端运行、loading/error/empty",
+          "status": "partial",
+          "proven": "三端原generics正文与public roots已对照，历史单位只是各端同形mock；新增本端core组件probe。",
+          "notProven": "相同输入与状态序列的真实tree fixture三端动态对照。",
+          "requestIds": ["R2-02-V4"]
+        },
+        {
+          "scenario": "consumer 编译，无内部路径消费",
+          "status": "pass-with-explicit-ambient-control-bare-upstream-failed",
+          "proven": "独立实际tar安装的d.ts，strict=true skipLibCheck=false无paths：显式node+@types/ms下valid0/invalid两处TS2322，root runtime import0，SHA匹配本目录fixtures。",
+          "notProven": "不证明裸公开声明自包含；bare utils TS2503/TS7016风险保留。模板/route另列。",
+          "consumerFiles": [
+            "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-valid.mts",
+            "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-invalid.mts"
+          ],
+          "requestIds": ["R2-02-V3"],
+          "dynamicEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json",
+          "upstreamEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation-bare.json"
+        },
+        {
+          "scenario": "多实例/泄漏",
+          "status": "provider-multi-instance-pass-component-duplicate-query-replay-pending",
+          "probe": [
+            {
+              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+              "lines": [222, 245],
+              "symbol": "同一组件两个query resources",
+              "role": "fixture-only-repair-pending-replay"
+            },
+            {
+              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+              "lines": [274, 301],
+              "symbol": "父子injector、两实体类、释放到零",
+              "role": "initial-probe-pass-source-fixture-only-adjusted"
+            }
+          ],
+          "notProven": "其他两端相同fixture动态、多root/真实挂卸证据归各对象主控；本对象不代审。",
+          "requestIds": ["R2-02-V1", "R2-02-V4"],
+          "proven": "两个真实数据库/父子injector资源独立与cleanup归零已测；同组件两资源probe初次metadata失败，修fixture待重跑。"
+        }
+      ]
+    },
+    {
+      "id": "C4",
+      "conclusion": "context与父子provider/独立库cleanup已测。两组件初版先NG0303后NG0950，现setter只为恢复其他生命周期测量，不替代required signal验证。独立input.required由父模板正确绑定fixture已交付未执行，原NG0950生产可达性/最终归属未证，C4仍partial。",
+      "scenarios": [
+        {
+          "scenario": "注入上下文/standalone/OnPush",
+          "status": "context-dynamic-pass-component-input-fixture-replay-pending",
+          "proven": "四入口无context拒绝已测；standalone/OnPush组件初次因JIT没有signal authoring input metadata而失败，现仅新spec修成Input required setter+signal，待重跑。",
+          "probe": [
+            {
+              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+              "lines": [107, 133],
+              "symbol": "Consumer; @Input({required:true}) setter驱动signal",
+              "role": "fixture-only-repair-pending-replay"
+            },
+            {
+              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+              "lines": [174, 179],
+              "symbol": "四入口上下文外拒绝",
+              "role": "initial-probe-pass-source-fixture-only-adjusted"
+            }
+          ],
+          "requestIds": ["R2-02-V1"]
+        },
+        {
+          "scenario": "切换 inputs",
+          "status": "initial-fixture-failed-corrected-replay-pending",
+          "probe": [
+            {
+              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+              "lines": [222, 245],
+              "symbol": "setInput(0→1→2)",
+              "role": "fixture-only-repair-pending-replay"
+            }
+          ],
+          "requestIds": ["R2-02-V1"],
+          "initialFailureEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt",
+          "correction": "仅新增spec以@Input({required:true})setter驱动signal提供JIT输入metadata；未改待验证行为或实现。"
+        },
+        {
+          "scenario": "销毁中异步完成",
+          "status": "initial-fixture-failed-corrected-replay-pending",
+          "probe": [
+            {
+              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+              "lines": [246, 273],
+              "symbol": "Promise晚拒绝/订阅归零",
+              "role": "fixture-only-repair-pending-replay"
+            }
+          ],
+          "requestIds": ["R2-02-V1"],
+          "initialFailureEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt",
+          "correction": "仅新增spec以@Input({required:true})setter驱动signal提供JIT输入metadata；未改待验证行为或实现。"
+        },
+        {
+          "scenario": "子 provider 覆盖/无跨库状态",
+          "status": "pass-core-boundary",
+          "proven": "真实父子RxDB provider、各自EntityType、结果不串、子销毁不撤父订阅与最后订阅归零，new probe已测通过。",
+          "probe": [
+            {
+              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+              "lines": [274, 301],
+              "symbol": "provideRxDB; useRxDB; EnvironmentInjector.destroy",
+              "role": "initial-probe-pass-source-fixture-only-adjusted"
+            }
+          ],
+          "requestIds": ["R2-02-V1"]
+        },
+        {
+          "scenario": "同组件多实例/无订阅泄漏",
+          "status": "initial-fixture-failed-corrected-replay-pending",
+          "proven": "useRepositoryQuery effect cleanup、toSignal DestroyRef及QueryManager observer最后清理已实读。",
+          "probe": [
+            {
+              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+              "lines": [132, 133],
+              "symbol": "nodes与second资源",
+              "role": "fixture-only-repair-pending-replay"
+            },
+            {
+              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+              "lines": [222, 245],
+              "symbol": "结果与cleanup count=0",
+              "role": "fixture-only-repair-pending-replay"
+            }
+          ],
+          "requestIds": ["R2-02-V1"],
+          "initialFailureEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt",
+          "correction": "仅新增spec以@Input({required:true})setter驱动signal提供JIT输入metadata；未改待验证行为或实现。"
+        },
+        {
+          "scenario": "input.required正确绑定与原NG0950归属",
+          "status": "unverified-required-signal-binding-control",
+          "proven": "初版夹具NG0303输入绑定失败已证，旧required原文快照保留，按已测SHA核对。",
+          "notProven": "正确ngc编译、父组件模板显式绑定后，原tree-hook options getter不再NG0950；生产可达性与最终归属未证。",
+          "requiredFixture": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-required-input.mts",
+          "originalFixture": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/probe-original-required-input.spec.ts.txt",
+          "requestIds": ["R2-02-V6"],
+          "dynamicEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt"
+        }
+      ]
+    },
+    {
+      "id": "C5",
+      "conclusion": "严格独立d.ts正负消费在显式Node+types/ms下有效；bare上游utils问题未掩盖；真实组件错误空态probe需重跑，ngc输入事件反例/真实route未验。",
+      "scenarios": [
+        {
+          "scenario": "typed consumer 编译/泛型推导",
+          "status": "pass-with-explicit-ambient-control-bare-upstream-failed",
+          "proven": "独立实际tar安装的d.ts，strict=true skipLibCheck=false无paths：显式node+@types/ms下valid0/invalid两处TS2322，root runtime import0，SHA匹配本目录fixtures。",
+          "notProven": "不证明裸公开声明自包含；bare utils TS2503/TS7016风险保留。模板/route另列。",
+          "consumerFiles": [
+            "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-valid.mts",
+            "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-invalid.mts"
+          ],
+          "requestIds": ["R2-02-V2T", "R2-02-V3"],
+          "dynamicEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json",
+          "upstreamEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation-bare.json"
+        },
+        {
+          "scenario": "模板事件/输入错误",
+          "status": "unverified",
+          "proven": "tsconfig严格模板配置和真实component positive定义；它们不是ngc negative证据。",
+          "notProven": "独立strictTemplates正例和错误input/event编译拒绝（不能拿ID TS反例替模板反例）。",
+          "requestIds": ["R2-02-V3"]
+        },
+        {
+          "scenario": "错误与空态",
+          "status": "initial-fixture-failed-corrected-replay-pending",
+          "probe": [
+            {
+              "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+              "lines": [246, 273],
+              "symbol": "真实组件loading/empty/error DOM",
+              "role": "fixture-only-repair-pending-replay"
+            }
+          ],
+          "requestIds": ["R2-02-V1"],
+          "initialFailureEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt",
+          "correction": "仅新增spec以@Input({required:true})setter驱动signal提供JIT输入metadata；未改待验证行为或实现。"
+        },
+        {
+          "scenario": "真实 route 挂载/卸载",
+          "status": "unverified",
+          "notProven": "EnvironmentInjector与TestBed组件销毁不等于真实router/browser route；需route挂卸重复后状态/订阅、晚到不写已卸载组件。",
+          "requestIds": ["R2-02-V3"]
+        },
+        {
+          "scenario": "独立ngc required signal输入绑定",
+          "status": "fixture-ready-not-executed",
+          "requiredFixture": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-required-input.mts",
+          "notProven": "tsc validconsumer通过不是Angular signal input metadata/模板或运行验证；需真实ngc输出及父模板绑定0→7无NG0950对照。",
+          "requestIds": ["R2-02-V6"]
+        }
+      ]
+    }
+  ],
+  "probeDefinitionsOnly": {
+    "testCount": 8,
+    "executedByAgent": false,
+    "initialExecutedByController": true,
+    "initialPassed": 6,
+    "initialFailed": 2,
+    "correctedProbeSha256": "5c8914ddfde37b559e1b49637081fe9d65d5098542074f0fe1c6cfc4f0f8262b",
+    "correctedReplayed": false,
+    "measure": "真实core/Angular、可控adapter Promise；修复JIT fixture metadata，不含SQL/真实route"
+  },
+  "rating": {
+    "sourceWrapper": "🟢",
+    "wholeObject": "🟡 partial; necessary validation still missing"
+  },
+  "releaseReady": false,
   "remainingActions": [
     {
       "id": "R2-02-V1",
       "project": "rxdb-plugin-tree-angular",
       "target": "test",
-      "criticalForC": [
-        "C1",
-        "C2",
-        "C3",
-        "C4",
-        "C5"
-      ],
+      "criticalForC": ["C1", "C2", "C3", "C4", "C5"],
+      "status": "needs-focused-replay-after-fixture-only-repair",
       "owner": "主控",
-      "status": "ready-requested",
-      "reason": "请在本包新增 review-round2 探针落盘后串行验证：真实 core/TreeRepository 契约、数值/string id、错误透明、Signal 生命周期/input 切换/多实例；保留 JUnit、coverage-summary 四指标、日志与实际输入摘要，旧7用例只可作历史局部证据。"
+      "reason": "请仅focused重跑本包review-round2或全15例：原R2新8例6绿2fixture失败；只在新spec将signal authoring input改为显式@Input required setter驱动signal，以便JIT metadata有效。保留原失败及新结果/四指标，不能把coverage100%当unit绿。"
     },
     {
       "id": "R2-02-V2L",
       "project": "rxdb-plugin-tree-angular",
       "target": "lint",
-      "criticalForC": [
-        "C1",
-        "C3",
-        "C5"
-      ],
+      "criticalForC": ["C1", "C3", "C5"],
+      "status": "initial-probe-lint-pass-corrected-fixture-replay-requested",
       "owner": "主控",
-      "status": "requested",
       "reason": "新增 spec 后请求 lint 零警告、typecheck(含 numeric 泛型正反断言)、生产 ng-packagr build；由主控串行安排，记录前后输入摘要/缓存/skip/失败分类。"
     },
     {
       "id": "R2-02-V2T",
       "project": "rxdb-plugin-tree-angular",
       "target": "typecheck",
-      "criticalForC": [
-        "C1",
-        "C3",
-        "C5"
-      ],
-      "owner": "主控",
+      "criticalForC": ["C1", "C3", "C5"],
       "status": "requested",
-      "reason": "新增 spec 后请求 lint 零警告、typecheck(含 numeric 泛型正反断言)、生产 ng-packagr build；由主控串行安排，记录前后输入摘要/缓存/skip/失败分类。"
-    },
-    {
-      "id": "R2-02-V2B",
-      "project": "rxdb-plugin-tree-angular",
-      "target": "build",
-      "criticalForC": [
-        "C1",
-        "C3",
-        "C5"
-      ],
       "owner": "主控",
-      "status": "requested",
       "reason": "新增 spec 后请求 lint 零警告、typecheck(含 numeric 泛型正反断言)、生产 ng-packagr build；由主控串行安排，记录前后输入摘要/缓存/skip/失败分类。"
     },
     {
       "id": "R2-02-V3",
       "project": "rxdb-plugin-tree-angular",
       "target": "独立 packed typed/runtime consumer + strictTemplates + 真实 route fixture",
-      "criticalForC": [
-        "C3",
-        "C5"
-      ],
+      "criticalForC": ["C3", "C5"],
+      "status": "typed-and-root-runtime-pass-with-explicit-ambient-types-template-route-pending",
       "owner": "主控",
-      "status": "requested",
-      "reason": "只从 dist/packages/rxdb-plugin-tree-angular 的实际 tar 包根消费，无仓库 paths；编译四个入口与 numeric/string 类型正反例及输入/事件/模板错误，运行空态/错误态/路由挂卸；root ESM resolve 和 happy-dom 单元测试不能替代。主控补独立 consumer/动态验证。"
+      "reason": "独立tar安装/Node root import已过；strict skipLibCheck=false在显式node+@types/ms下valid0/invalid两处consumer TS2322已证，bare上游utils错误保留。原C5还缺ngc模板输入/事件反例与真实route，主控分流裁定，不等待上游代码修复。"
     },
     {
       "id": "R2-02-V4",
       "project": "rxdb-plugin-tree-{angular,react,vue}",
       "target": "同一 tree fixture 三端状态/多实例对照",
-      "criticalForC": [
-        "C3"
-      ],
-      "owner": "主控",
+      "criticalForC": ["C3"],
       "status": "requested",
+      "owner": "主控",
       "reason": "本代理只读同族源码，不写 React/Vue；请主控协调同族代理复用同一输入/状态序列，对照 loading/error/empty/销毁和多实例，不以同名 mock/三端导出静态一致代替原C3。"
     },
     {
       "id": "R2-02-V5",
       "project": "rxdb-plugin-tree-angular",
       "target": "controller-owned packed runtime tree integration",
-      "criticalForC": [
-        "C1",
-        "C2"
-      ],
-      "owner": "主控",
+      "criticalForC": ["C1", "C2"],
       "status": "requested",
+      "owner": "主控",
       "reason": "原C1/C2仍需真实支持树SQL的adapter对同一numeric/string fixture复验：深树level省略/0/1、跨父移动、父删除；live资源与全量查询一致。新增spec只有适配器Promise边界，不能假冒这些场景。只收尾本包委托契约，不要求重开所有后端审计。"
+    },
+    {
+      "id": "R2-02-V6",
+      "project": "rxdb-plugin-tree-angular",
+      "target": "independent ngc + bound input.required runtime control",
+      "criticalForC": ["C4", "C5"],
+      "status": "unverified-required-original-scenario",
+      "owner": "主控",
+      "reason": "主控独立真实tar consumer用Angular ngc(非tsc仅类型检查/非降级JIT)编译consumer-required-input.mts，strictTemplates；RequiredInputHost模板显式[ rootId ]绑定0，渲染后将rootId.set(7)，观察data-required-id 0→7且无NG0303/NG0950。NumericTree未注册时资源可报告missing-method，必须与required-input绑定错误分开；该fixture不替真实SQL。"
     }
   ],
-  "validationRequests": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-requests.json",
-  "validationObserved": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-observations.json",
-  "consumerFixtures": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-fixtures.json",
-  "probeDefinitionsOnly": {
-    "testCount": 8,
-    "executedByAgent": false,
-    "measure": "真实core/Angular，adapter Promise边界；不含SQL/真实route"
-  },
+  "reviewComplete": false,
+  "schemaVersion": 1,
   "scopeCompliance": {
     "implementationEdits": false,
     "originalTestEdits": false,
@@ -610,23 +578,9 @@
     "gui": false,
     "heavyTasks": false
   },
-  "changedFiles": [
-    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/packages/rxdb-plugin-tree-angular.md",
-    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-tree-angular.md",
-    "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
-    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-requests.json",
-    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-valid.mts",
-    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-invalid.mts",
-    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-fixtures.json",
-    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/nx-resolved.json",
-    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/file-inspection.json",
-    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-observations.json",
-    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/angular-tool-observations.json",
-    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/spec-design.md",
-    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/findings.pending.md",
-    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/c-evidence.json",
-    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/closure.json",
-    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/changed-files.json"
-  ],
-  "finalAuthority": "原C未测设备/浏览器/SQL场景是否有充分理由分流由主控裁定；本代理未改不适用。"
+  "status": "partial-focused-probe-replay-and-original-scenarios-pending",
+  "task": "R2-02",
+  "updatedAt": "2026-10-05T11:19:13.946985+08:00",
+  "validationObserved": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-observations.json",
+  "validationRequests": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-requests.json"
 }

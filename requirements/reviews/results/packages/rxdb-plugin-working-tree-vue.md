@@ -163,3 +163,116 @@ Vue：working-tree status/diff/commit/discard/restore 的框架状态与动作�
 - `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/validation-observations.json`：已读取的主控测量与 pack 消费来源。
 - `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/findings.pending.md`：只保留两个候选及 Angular 门禁边界。
 - `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/validation-requests.json`：已请求的 late spec focused 验证；本交付不等待更大队列。
+
+## 2026-10-05 R2-08 包级有界收尾
+
+**🟡 本轮有界交付 phase done；全对象 execution partial、完整 C 0/5、不是完整对象候选，未宣称发布就绪。** 本节更新此前“仅正文片段/未读 8 文件”的历史事实：截至本次 `2026-10-05T11:33:00.580418+08:00`，实际已完整实读 **14/14**；原受控文件与 scope 全部一致，新增 spec 单列。原报告不删，当前结论以本节及 closure 为准。
+
+### 核心生产锚点与三端真实差异
+
+- Vue `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts:150-174`：`useRxDB()` 返回实例被取一次，`shallowRef` 只保持浅状态，computed 分格；没有 ref/getter 参数、watch、onScopeDispose/onUnmounted 或取消。provider 的 Ref 可以换，现存 resource 却仍绑定创建时的库；不能称“新输入自动生效”。
+- 上游 `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-vue/src/rxdb-vue.ts:19-38,114-145,225-237`：Ref/undefined 是 provider 超集；函数/Promise 按一次性 factory 解析且仅 provider 自造的库由其 destroy。读实例快照与读注入 Ref 是两套接口；不要混同。
+- core `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts:125-137,205-229,259-299`：latest-only 逐 key 代次不是 scope token，不取消事务；CAS/restore 拒绝保留 success 值，dirty switchBranch 抛原错，refresh 失败不改 commit 成功；versionManager() 现取的 getter 仍属同一已捕获库。
+- Vue `ComputedRef` 读 `.value`，Angular `Signal` 调 `()`，React `Readonly<WorkingTreeAsyncStates> & WorkingTreeCommands` 是当前 render 快照。三端公开 24 成员归一后一致；React 随 database render 重建 commands 而 state 延续（已有 RV-069），Vue/Angular 不同样自动重建。没有将“同名 API”当“生命周期全对称”。
+- `WorkingTreeResource` 无 generic 参数，也没有本包的 component props/emits；这些局部不适用不豁免独立 SFC/vue-tsc、template readonly、provider input 与生命周期原场景。类型/错误从 core peer 直接 import 是三端已有决定，不误报遗漏转出。
+
+### 已读取的主控当前证据，和绝不能继承的新增面
+
+| 测量面       | 真实记录                                                                                                                                                                                                      | 边界                                                                                                                     |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| 原 unit      | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt:930-965`：2 files、48 tests、0 failed/skip                       | 仅原 spec；十对象总任务 exit=1 不是本包失败；新 probe 未包含                                                             |
+| 四指标       | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-working-tree-vue/coverage-summary.json`：100/100/100/100 | 28 statements、20 functions、26 lines，含 2 harness；branches 0/0 不证明 core 安全/分支                                  |
+| build/lint   | 当前主控状态 exit=0；已记录输入与原本包 12 个运行面文件无漂移                                                                                                                                                 | 新 spec 的 lint/spec 类型门禁仍需主控补跑；当前 typecheck 按 observation 保存，不借历史绿                                |
+| 生成/pack    | 实读 dist JS/dts，并核对 map 来源、实际 tar 与 current 字节                                                                                                                                                   | 来源一致不是第二次构建确定性；publish root 是本包源码目录，Angular 对照不按源 manifest 缺 exports 判错                   |
+| root runtime | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/consumer-rxdb-plugin-working-tree-vue-root-import.txt`：exit 0，runtime 仅 useWorkingTree               | 不等于 setup/SFC 挂载或声明 strict consumer                                                                              |
+| 独立 typed   | .mts/.vue 正反例均已落盘；要求 strict、skipLibCheck:false、无 paths/aliases/工作区链接                                                                                                                        | 独立 .mts 正例 0 / 反例 2，5 个预定诊断与双 fixture SHA 匹配；SFC 仍待测，显式 Node/@types/ms 环境不等于 bare 声明自包含 |
+
+### 五个原 C：逐项保留原完成面
+
+#### C1 状态与作用域 — partial
+
+原最低场景：未 enable、插件缺失、切分支、换库、多实例；不显示旧库 diff 或偷偷启用数据库能力。
+
+局部已有证据：原 48 tests 中十二格 idle/不主动 IO、缺 provider 抛错和 switchBranch 参数/自动 status 刷新场景通过。；源码只提供显式查询状态，没有 status/diff 的自动订阅，不能虚构退订项。
+
+必要未验：新增未 enable/缺插件/Ref 换库/多实例桩场景未运行。；真实未 enable/缺插件数据库与分支/库切换时旧 diff 不显示、状态 ownership；桩不能证明。
+
+下一步：主控运行新 probe 后按实际快照行为裁定 C1 结果；真实数据/应用换 scope 仍须补证或明确分流。
+
+#### C2 动作结果与并发 — partial
+
+原最低场景：CAS 落败、dirty tree、不可达 commit、并发点击、动作中换 scope；原有数据不损坏。
+
+局部已有证据：原测试证明 CAS conflict/四种 restore 拒绝保留 success+原结果；dirty switchBranch 抛原错并记 error。；status 刷新失败只落 statusState；不改变已经完成的 commit 结果。
+
+必要未验：同格并发/异格隔离及飞行 commit 换 provider Ref 的新 probe 未运行。；真实 CAS 落败、dirty/不可达恢复、并发写入以及动作中换 scope 的数据无损性；core 桩没有事务。
+
+下一步：主控先跑 bounded state probe；数据无损必须引用真实 core/应用同场景证据，不能从 state success 推导。
+
+#### C3 三端与敏感数据 — partial
+
+原最低场景：相同拒绝序列三端同语义、关闭清理、敏感字段摘要；不能为调试直接输出完整历史。
+
+局部已有证据：24 成员的 AST 对照：12 状态/12 命令及 core 类型归一后三端一致；Vue 生成 dts 同形。；本 wrapper 的实现无调试/console 输出；不把直接返回 WorkingTreeDiff 解释成已脱敏摘要。；原 tests 使用核心官方共享拒绝载荷；没有把 fixture 的存在当作三端真实应用序列已测。
+
+必要未验：卸载后的 retained diff/晚到 command probe 未运行；不存在该 hook 的自动敏感信息擦除证明。；三端真实相同拒绝序列、关闭清理与真实应用敏感字段摘要/日志边界未完成。
+
+下一步：主控裁定 lifecycle 特征化测量后仍单列实际关闭/敏感数据显示验证；不扩其它功能族。
+
+#### C4 Vue 生命周期与响应式来源 — partial
+
+原最低场景：替换与深改输入、scope 销毁、卸载后晚到结果、多实例；旧订阅释放，新输入生效。
+
+局部已有证据：useWorkingTree() 不接收 ref/computed/getter 参数；状态是只读 ComputedRef 容器，不是可写 reactive entity。；provider 原生 Ref 透传；函数由 Promise 链求值一次，属于 factory，不是 watch getter。；provider 的 onScopeDispose 只负责自身创建/等待的库；外部实例/Ref 归调用方所有。
+
+必要未验：新 provider factory/ref、watch/identity、多实例与卸载 probe 尚未运行。；provider computed/ref 深改来源、真实 SFC 卸载/重新挂载/关闭库中的命令与数据 ownership，不能用 no subscription 代替。
+
+下一步：主控运行新 probe、如实标快照/disposing 的当前行为；没有完整原场景前仍 partial。
+
+#### C5 Vue 类型与 SFC 消费 — partial
+
+原最低场景：vue-tsc consumer、模板输入错误、readonly/computed 来源、独立 pack 消费；没有宽化 any 或丢失 emits 契约。
+
+局部已有证据：真实 tar 包根 runtime import exitCode=0，运行时仅 useWorkingTree；它不等于 setup/SFC 挂载。；生成声明的 24 成员/零参数入口与源 AST 对齐，实际 tar 的 JS/dts/source/manifest 字节逐个与 current 对照。；已有项目 build 原声明输出通过；fresh typecheck 尚须主控状态，不用内部 paths 当 consumer。
+
+必要未验：独立发布包 .vue 的 vue-tsc 正/反例（模板解包、readonly、emits）未运行。；真实 SFC/browse 挂载与类型/身份/错误序列的原应用链路未完整证明。
+
+下一步：独立 .mts strict 正/反例已由主控通过，5 个预定诊断与双 fixture SHA 匹配；继续 .vue/vue-tsc 及实际 SFC 链路。额外 Node/@types/ms 需求保留，不冒称 bare 发布声明自包含。
+
+### 原七项完成条件逐条分类
+
+1. **satisfied** — 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。 14/14 完整实读、全区间与关注点记录；scope 摘要全部匹配，生成/发布来源另核。
+2. **satisfied** — 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。 5/5 原 C 逐场景有局部已证、源码结论、必要未验与动作；完整 C 0/5。
+3. **partial** — 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。 源码 ownership/参数/相位锚点与原测量环境已记录；新 lifecycle 探针尚未执行，真实数据权限/无损链路未证。
+4. **partial** — 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。 主控 fresh 原 48 tests/四项/build/lint 已登记；全组 unit exit=1 不指本对象；新 probe 和 consumer 不继承，typecheck 状态按观察记录。
+5. **partial** — 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。 core/provider/三端公开面与 native 容器/命令绑定差异已对照，未改用户行为；完整实际 SFC/库关闭/敏感数据链路未证。
+6. **partial** — 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。 不扩发现，不新增 RV；既有 React RV-069 仅引用。原 C 的 Vue 快照/disposing 边界交主控跑 probe 后裁定，不提前宣布确认/去重完成。
+7. **partial** — 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。 🟡 有界包级阅读/补证交付已完成，可交接；完整对象评审仍 partial，不是完整对象候选，也未宣称发布就绪。
+
+### 最小补证与交接
+
+新 `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/__tests__/review-round2-lifecycle.spec.ts`：9 个场景，仅补原 C 的未 enable/缺插件、provider Ref/factory、解构 watch/载荷身份、多实例、同格 latest-only、飞行 commit 换 scope、卸载后 watch/retained diff/late state。**它是当前行为特征化，不是把旧快照或晚到 patch 包装成安全回归通过。** 本子任务未运行 build/test/coverage/e2e/serve/容器，未改业务/原 tests/依赖/总台账/index，也未嵌套 agent。
+
+剩余动作、measurement surface 与主控最终分流责任均在 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/closure.json`；请求在 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/validation-requests.json`。源码完整阅读不豁免真实事务/应用/SFC/关闭清理；这些未验没有为今天收尾而改成不适用。
+
+### 交接前增量证据（不继承 SFC/生命周期通过）
+
+主控独立 .mts consumer 在 2026-10-05 11:31:58（+08:00）已测：正例 exit=0；反例 exit=2，五条预定诊断全部匹配，两份 fixture SHA 与本目录一致。因此仅 typed .mts 子面已核销，**完整 C5 仍 partial**，SFC/vue-tsc 和真实用户链路未测。详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/validation-observations.json`。
+
+实际 tar 的 JS/dts/src 五份文件与 current 逐字节一致；package.json 的 workspace:* devDependencies 被 pack 转成 0.0.26，键顺序不同，故原始 manifest 字节不相同。已逐项核对 name/version/type/exports/types/import/main/module/files/peers 等发布相关键一致，未误报为源码漂移或假称原始字节全相同。
+
+### 14 文件包职责归属与冻结交接
+
+本包 **state / commands / typedSource 的源码评审已闭合，phase done**；不继续等待通用 core 的全部后端/历史验证。冻结新 probe SHA-256 `6327e258a03caffc502c1aee426d5f370ea1cf56ac27e37a12407b110e56794c`，共 9 场景，主控执行；本任务此后不增删探针。
+
+原 C 的真实事务/CAS 数据无损、实际分支/换库数据 ownership、敏感摘要 UI、关闭库/设备/浏览器链路仍如实未验，归 core/应用/平台评审。它们不是继续扩大本包职责或无限等待的理由，也没有被改成不适用。包内独立 .mts typedSource 已过；最小 .vue 与冻结 probe 由主控补测。**评审交付完成 ≠ 原最低场景全部已测 ≠ 平台全部通过 ≠ 发布就绪**；完整 C 仍 0/5，closure 已逐项分类。
+
+## R2 主控验证结算（不扩大子代理原核销范围）
+
+本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
+
+[真实tar类型正负/运行时证据](../../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+
+消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
+
+主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。

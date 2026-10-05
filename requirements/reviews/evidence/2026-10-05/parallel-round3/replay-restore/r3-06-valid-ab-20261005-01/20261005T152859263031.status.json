@@ -1,0 +1,25 @@
+{
+  "clientDate": "2026-10-05",
+  "startedAt": "2026-10-05T15:28:59.414120+08:00",
+  "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-plugin-replay:test",
+    "--excludeTaskDependencies",
+    "--skipSync",
+    "--skipRemoteCache",
+    "--skipNxCache",
+    "--output-style=static",
+    "--args=--run src/__tests__/review-parallel-restore.spec.ts --maxWorkers=1 --coverage.enabled=false --outputFile.junit=../../requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/r3-06-valid-ab-20261005-01/junit.xml"
+  ],
+  "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+  "exitCode": 0,
+  "elapsedSeconds": 7.58,
+  "scopedInputCount": 582,
+  "changedInputsDuringMeasurement": [],
+  "serialHeavyTaskLock": true,
+  "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/r3-06-valid-ab-20261005-01/20261005T152859263031.txt"
+}

@@ -1,0 +1,214 @@
+{
+  "allNormalizedMembersMatch": true,
+  "allPublishedDeclarationsMatch": true,
+  "commandCount": 12,
+  "lifecycleNotes": [
+    "Vue/Angular 一次调用持有库快照；React 随 render 的 database 变化重建 commands，但 states 保留，既有 RV-069 不在本任务重复登记",
+    "Vue 无 MaybeRefOrGetter 入参；provider 工厂不是 watch getter；无该 wrapper 的 onScopeDispose/onUnmounted",
+    "核心 versionManager 是每次 switchBranch 现取的 getter，与 provider getter 不是一回事"
+  ],
+  "lifecycleSymmetric": false,
+  "members": [
+    {
+      "key": "isEnabledState",
+      "vue": "ComputedRef<WorkingTreeCommandState<boolean>>",
+      "angular": "Signal<WorkingTreeCommandState<boolean>>",
+      "core": "WorkingTreeCommandState<boolean>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "enableState",
+      "vue": "ComputedRef<WorkingTreeCommandState<CommitCapabilityInfo>>",
+      "angular": "Signal<WorkingTreeCommandState<CommitCapabilityInfo>>",
+      "core": "WorkingTreeCommandState<CommitCapabilityInfo>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "enableIfEmptyState",
+      "vue": "ComputedRef<WorkingTreeCommandState<WorkingTreeEnableIfEmptyResult>>",
+      "angular": "Signal<WorkingTreeCommandState<WorkingTreeEnableIfEmptyResult>>",
+      "core": "WorkingTreeCommandState<WorkingTreeEnableIfEmptyResult>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "statusState",
+      "vue": "ComputedRef<WorkingTreeQueryState<WorkingTreeStatus>>",
+      "angular": "Signal<WorkingTreeQueryState<WorkingTreeStatus>>",
+      "core": "WorkingTreeQueryState<WorkingTreeStatus>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "diffState",
+      "vue": "ComputedRef<WorkingTreeQueryState<WorkingTreeDiff>>",
+      "angular": "Signal<WorkingTreeQueryState<WorkingTreeDiff>>",
+      "core": "WorkingTreeQueryState<WorkingTreeDiff>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "listCommitsState",
+      "vue": "ComputedRef<WorkingTreeQueryState<CommitLogPage>>",
+      "angular": "Signal<WorkingTreeQueryState<CommitLogPage>>",
+      "core": "WorkingTreeQueryState<CommitLogPage>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "commitChangesState",
+      "vue": "ComputedRef<WorkingTreeQueryState<CommitChangeSetPage>>",
+      "angular": "Signal<WorkingTreeQueryState<CommitChangeSetPage>>",
+      "core": "WorkingTreeQueryState<CommitChangeSetPage>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "commitState",
+      "vue": "ComputedRef<WorkingTreeCommandState<CommitResult>>",
+      "angular": "Signal<WorkingTreeCommandState<CommitResult>>",
+      "core": "WorkingTreeCommandState<CommitResult>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "discardState",
+      "vue": "ComputedRef<WorkingTreeCommandState<WorkingTreeDiscardResult>>",
+      "angular": "Signal<WorkingTreeCommandState<WorkingTreeDiscardResult>>",
+      "core": "WorkingTreeCommandState<WorkingTreeDiscardResult>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "restoreState",
+      "vue": "ComputedRef<WorkingTreeCommandState<WorkingTreeRestoreResult>>",
+      "angular": "Signal<WorkingTreeCommandState<WorkingTreeRestoreResult>>",
+      "core": "WorkingTreeCommandState<WorkingTreeRestoreResult>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "restoreSessionState",
+      "vue": "ComputedRef<WorkingTreeQueryState<WorkingTreeRestoreSessionInfo|null>>",
+      "angular": "Signal<WorkingTreeQueryState<WorkingTreeRestoreSessionInfo|null>>",
+      "core": "WorkingTreeQueryState<WorkingTreeRestoreSessionInfo|null>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "switchBranchState",
+      "vue": "ComputedRef<WorkingTreeCommandState<void>>",
+      "angular": "Signal<WorkingTreeCommandState<void>>",
+      "core": "WorkingTreeCommandState<void>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "isEnabled",
+      "vue": "()=>Promise<boolean>",
+      "angular": "()=>Promise<boolean>",
+      "core": "()=>Promise<boolean>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "enable",
+      "vue": "()=>Promise<CommitCapabilityInfo>",
+      "angular": "()=>Promise<CommitCapabilityInfo>",
+      "core": "()=>Promise<CommitCapabilityInfo>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "enableIfEmpty",
+      "vue": "()=>Promise<WorkingTreeEnableIfEmptyResult>",
+      "angular": "()=>Promise<WorkingTreeEnableIfEmptyResult>",
+      "core": "()=>Promise<WorkingTreeEnableIfEmptyResult>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "status",
+      "vue": "()=>Promise<WorkingTreeStatus>",
+      "angular": "()=>Promise<WorkingTreeStatus>",
+      "core": "()=>Promise<WorkingTreeStatus>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "diff",
+      "vue": "(options?:WorkingTreeDiffOptions)=>Promise<WorkingTreeDiff>",
+      "angular": "(options?:WorkingTreeDiffOptions)=>Promise<WorkingTreeDiff>",
+      "core": "(options?:WorkingTreeDiffOptions)=>Promise<WorkingTreeDiff>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "listCommits",
+      "vue": "(options?:CommitLogOptions)=>Promise<CommitLogPage>",
+      "angular": "(options?:CommitLogOptions)=>Promise<CommitLogPage>",
+      "core": "(options?:CommitLogOptions)=>Promise<CommitLogPage>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "commitChanges",
+      "vue": "(commitId:string)=>Promise<CommitChangeSetPage>",
+      "angular": "(commitId:string)=>Promise<CommitChangeSetPage>",
+      "core": "(commitId:string)=>Promise<CommitChangeSetPage>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "commit",
+      "vue": "(message:string,options:CommitOptions)=>Promise<CommitResult>",
+      "angular": "(message:string,options:CommitOptions)=>Promise<CommitResult>",
+      "core": "(message:string,options:CommitOptions)=>Promise<CommitResult>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "discard",
+      "vue": "(options:WorkingTreeDiscardOptions)=>Promise<WorkingTreeDiscardResult>",
+      "angular": "(options:WorkingTreeDiscardOptions)=>Promise<WorkingTreeDiscardResult>",
+      "core": "(options:WorkingTreeDiscardOptions)=>Promise<WorkingTreeDiscardResult>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "restore",
+      "vue": "(target:WorkingTreeRestoreTarget,options:WorkingTreeRestoreOptions)=>Promise<WorkingTreeRestoreResult>",
+      "angular": "(target:WorkingTreeRestoreTarget,options:WorkingTreeRestoreOptions)=>Promise<WorkingTreeRestoreResult>",
+      "core": "(target:WorkingTreeRestoreTarget,options:WorkingTreeRestoreOptions)=>Promise<WorkingTreeRestoreResult>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "restoreSession",
+      "vue": "()=>Promise<WorkingTreeRestoreSessionInfo|null>",
+      "angular": "()=>Promise<WorkingTreeRestoreSessionInfo|null>",
+      "core": "()=>Promise<WorkingTreeRestoreSessionInfo|null>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    },
+    {
+      "key": "switchBranch",
+      "vue": "(branchId:string,options?:WorkingTreeSwitchBranchOptions)=>Promise<void>",
+      "angular": "(branchId:string,options?:WorkingTreeSwitchBranchOptions)=>Promise<void>",
+      "core": "(branchId:string,options?:WorkingTreeSwitchBranchOptions)=>Promise<void>",
+      "sameAfterNativeContainerRemoval": true,
+      "publishedDeclarationMatches": true
+    }
+  ],
+  "method": "TypeScript AST 只读结构比对；不是类型检查或动态运行",
+  "object": "rxdb-plugin-working-tree-vue",
+  "reactResourceAlias": "Readonly<WorkingTreeAsyncStates>&WorkingTreeCommands",
+  "reactUsesCoreIntersection": true,
+  "runtimeRootExport": "useWorkingTree",
+  "stateCount": 12,
+  "syntaxDiagnosticsOnly": [],
+  "typeOnlyRootExport": "WorkingTreeResource",
+  "vueMemberCount": 24
+}

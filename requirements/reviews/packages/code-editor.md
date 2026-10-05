@@ -28,7 +28,7 @@ CodeMirror 三端共享的文档同步、语言解析、动态语言装载与可
 | 计划基线            | `main@2e820521187cbfcd1fe76fb705659fea0a548f0e`，2026-10-03（Asia/Shanghai） |
 | 建议波次 / 优先风险 | W4 / 中（排期依据，不是缺陷结论）                                            |
 | 受控文件盘点        | 原基线20/5；R2 scope为21个文件、6个测试入口（非用例数）                      |
-| 执行状态            | R2-01：完整源码/设计评审候选；完整原C2已核销，consumer/绑定browser余项待主控                    |
+| 执行状态            | R2-01：完整源码/设计评审候选；完整原C2已核销，consumer/绑定browser余项待主控 |
 
 范围是此对象的**全部 Git 受控源码、配置、测试、fixture、构建/打包文件与资源声明**，不是只看下面的导航入口。受控生成代码需验证生成来源与确定性；忽略的旧产物不作为当前源码证据。基线变化后先复盘 inventory / Nx targets / API，再开始评审。
 
@@ -55,10 +55,10 @@ CodeMirror 三端共享的文档同步、语言解析、动态语言装载与可
 | 编号 | 专项             | 核查动作                                                                            | 最低复验场景 / 证据要求                                                              | 状态                                                            |
 | ---- | ---------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
 | C1   | 共享文档同步     | 检查外部 value 与内部编辑的比较、回写、selection/IME 保持，不做相同内容的无谓重建。 | 外部连续更新、用户输入同时更新、空文档、Unicode、只读切换；无回写死循环或输入丢失。  | 部分核销：字符串差量已核销（详本轮逐C表）                       |
-| C2   | 语言异步竞态     | 核查语言解析、动态 loader、错误类型与过期加载结果，区分未知语言与加载失败。         | A→B 快速切换、A 最后返回、未知语言、模块加载失败；旧配置不能覆盖当前语言。           | R2-01完整原C已核销：解析/loader/三端竞态；限定第一轮测量输入 |
+| C2   | 语言异步竞态     | 核查语言解析、动态 loader、错误类型与过期加载结果，区分未知语言与加载失败。         | A→B 快速切换、A 最后返回、未知语言、模块加载失败；旧配置不能覆盖当前语言。           | R2-01完整原C已核销：解析/loader/三端竞态；限定第一轮测量输入    |
 | C3   | 配置与跨框架语义 | 列出主题、语言、只读、变更回调和无障碍公共契约，逐一与三个组件对照。                | 相同 options/input 在三端产生同文档/错误/事件；原生 prop 形式差异不掩盖能力缺失。    | 部分执行；当轮子面已核实：共享契约及三端基础对照（详本轮逐C表） |
 | C4   | 可访问性与资源   | 核查 shared aria/input contract、扩展构造和可用环境边界。                           | 键盘焦点、IME、屏幕阅读器属性、大文档、重复消费；共享层不创建隐藏全局编辑器。        | 部分核销：纯 a11y helper / 不拥有 view 已核销（详本轮逐C表）    |
-| C5   | 打包与依赖       | 检查 CodeMirror 依赖边界、语言包按需加载和公开类型独立消费。                        | 仅一种语言 bundle、pack 后导入、缺语言资源、Node 仅导入类型；不靠工作区 alias 过关。 | 部分核销：打包条目/root 解析已核销（详本轮逐C表）               |
+| C5   | 打包与依赖       | 检查 CodeMirror 依赖边界、语言包按需加载和公开类型独立消费。                        | 仅一种语言 bundle、pack 后导入、缺语言资源、Node 仅导入类型；不靠工作区 alias 过关。 | 已核查；独立tar类型/运行时/SQL模块图/缺资源负例，见主控补证     |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -171,13 +171,13 @@ pnpm audit:coverage --projects=code-editor
 - 独立阅读证据：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/file-inspection.json`；resolved Nx配置：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/nx-project.json`。Angular工具只识别examples CLI workspace，generic best-practices返回Unexpected response type；未改Angular代码，不以工具误范围阻断只读接口对照。
 - 第一轮继承证据：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/inherited-evidence.json`。本包107/0fail/0skip；四指标99.13/97.95/100/100%，均≥80%。测量HEAD为44de1138b4d396fc45d6e76ab60476c40fef2223；当前正文复读HEAD为465f9078e9844af2cbef9936c7321a5576333a01，19个被测输入一致，LICENSE/README不在测量指纹里。**这是已有测量，不是新HEAD全仓绿。**
 
-| 原C | 最新状态 | 必须保留的边界 / 下一动作 |
-| --- | --- | --- |
-| C1 | 部分；差量helper闭环 | 真实输入/连续回写交错、selection/IME、只读/undo/scroll由绑定browser补证，原要求不删 |
-| C2 | **完整原C核销**（第一轮输入限定） | Node解析/loader与三端A→B/B先返/A迟到、unknown、failure断言完整；不代验C5物理chunk |
-| C3 | 部分；共享契约和三端静态接线闭环 | 同公开宿主序列的文档/事件矩阵待主控；RV-071归Angular绑定，不新报core问题 |
-| C4 | 部分；aria/focus predicate和无view责任闭环 | 真实键盘/原生IME/屏幕阅读器、大文档、重复mount/destroy未验；不写不适用 |
-| C5 | 部分；实际pack/entries/root resolve已证明 | 主控valid/invalid强类型、Node root/runtime已通过；仅SQL bundle/缺物理语言资源仍需证据，type-only辅助探针未执行 |
+| 原C | 最新状态                                   | 必须保留的边界 / 下一动作                                                                                      |
+| --- | ------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| C1  | 部分；差量helper闭环                       | 真实输入/连续回写交错、selection/IME、只读/undo/scroll由绑定browser补证，原要求不删                            |
+| C2  | **完整原C核销**（第一轮输入限定）          | Node解析/loader与三端A→B/B先返/A迟到、unknown、failure断言完整；不代验C5物理chunk                              |
+| C3  | 部分；共享契约和三端静态接线闭环           | 同公开宿主序列的文档/事件矩阵待主控；RV-071归Angular绑定，不新报core问题                                       |
+| C4  | 部分；aria/focus predicate和无view责任闭环 | 真实键盘/原生IME/屏幕阅读器、大文档、重复mount/destroy未验；不写不适用                                         |
+| C5  | 部分；实际pack/entries/root resolve已证明  | 主控valid/invalid强类型、Node root/runtime已通过；仅SQL bundle/缺物理语言资源仍需证据，type-only辅助探针未执行 |
 
 完整划面与逐场景证据：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/responsibility-boundary.md`。语言description/load存在上游缓存，不把整个语言模块说成纯函数；共享源码自身不创建EditorView，但这不等于取消绑定宿主验证。
 
@@ -196,3 +196,21 @@ pnpm audit:coverage --projects=code-editor
 完整结果与actual tsconfig摘录：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-results.json`。C5已闭环公开声明强类型与pack后实际Node helper/SQL loader消费子面；**C5仍为部分**，仅SQL bundle模块图/体积与缺语言模块负对照由主控继续补。type-only辅助fixture已准备但未执行，不拿valid的noEmit冒称它已执行。本对象源码/C结论已交付，无需等待其他九任务。
 
 阶段final：源码/设计与独立tar主探针结果已交付；主控ten-packages-current-*串行build/unit+coverage/lint已启动，尚未将其算作通过。SQL实际bundle/missing-lang负例由主控继续，本任务结束、不再扩读或新增用例。
+
+## R2 主控已执行补证：C5 打包与依赖
+
+**C5 原专题已核查，C1/C3/C4 的绑定/browser最低场景未因此通过。** 当前fresh build退出0、scope/依赖输入无漂移；真实published tar消费者 strict/skipLibCheck=false 正例0、反例仅消费输入九项错误，root import和runtime smoke0，Node无DOM环境SQL解析实际成功并缓存。类型only辅助消费者0。
+
+SQL-only esbuild consumer静态依赖闭包2文件、原始277158字节，输出总124个lazy/shared文件、1517375字节，模块图已保存；不把全部lazy产物当首屏或声称已测浏览器网络。独立消费者暂移Python ESM入口，根导入与helper仍可用，请求该语言明确拒绝ERR_MODULE_NOT_FOUND，finally恢复临时文件；没有改工作区资源/业务。
+
+证据：[消费者正负/运行时](../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[类型only](../evidence/2026-10-05/parallel-round2/validation/editor-type-only-consumer.json)、[SQL图与缺资源负例](../evidence/2026-10-05/parallel-round2/validation/editor-artifact-probes.json)。结果目录相对路径若位于results/packages，以本段对应计划页的同名证据为准。
+
+## R2 主控验证结算（不扩大子代理原核销范围）
+
+本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
+
+[真实tar类型正负/运行时证据](../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+
+消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
+
+主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。

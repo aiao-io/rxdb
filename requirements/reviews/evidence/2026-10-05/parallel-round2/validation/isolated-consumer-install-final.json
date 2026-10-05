@@ -1,8 +1,5 @@
 {
-  "exitCode": 1,
-  "consumerDirectory": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer",
   "additionalExistingPeer": "node-addon-api 7.1.1, matching required >=7 <8; packed from installed dependency store, no scripts",
-  "tarballSha256": "08f848e072fd2c2ff6378e02234046ccc86ab94272ae53f1ab0daf145f7e3d9e",
   "command": [
     "pnpm",
     "install",
@@ -10,5 +7,8 @@
     "--ignore-scripts",
     "--no-frozen-lockfile",
     "--config.auto-install-peers=false"
-  ]
+  ],
+  "consumerDirectory": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer",
+  "exitCode": 1,
+  "tarballSha256": "08f848e072fd2c2ff6378e02234046ccc86ab94272ae53f1ab0daf145f7e3d9e"
 }

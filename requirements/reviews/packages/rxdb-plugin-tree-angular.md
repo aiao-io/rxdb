@@ -163,25 +163,41 @@ pnpm audit:coverage --projects=rxdb-plugin-tree-angular
 
 ## 2026-10-05 R2-02：本包有界收尾（最新）
 
-当前实读基线 `465f9078e9844af2cbef9936c7321a5576333a01`；唯一对象 `rxdb-plugin-tree-angular`。原 C1–C5 及第6节完成条件均保留，**不缩最低场景、不把未测改成不适用**。
+基线 `76a3848e2086f4617b80f7b1a1b896ef76e5719c`，`2026-10-05T11:13:46.687238+08:00`。原C1–C5与第6节完成条件保留，不缩场景、不把未验改不适用。
 
-- [x] 原16受控文件全内容实读；配置、README、LICENSE、3个原spec、setup均计入；全部与scope摘要一致。
-- [x] 生产边界追到 `EntityStaticType` / `TreeRepository` / `useRepositoryQuery` / `QueryManager`；三端根导出与泛型正文只读对照。
-- [x] Angular `list_projects` / `get_best_practices` 已按要求调用；只发现examples，指南/文档工具失败已记录；未跑错误workspace。新fixture使用standalone/OnPush/signals/control flow。
-- [x] 新增一个8例 `review-round2-core-lifecycle.spec.ts`，只控制adapter Promise边界、保留真实core；独立consumer正负fixture已交主控。
-- [x] 每个原C按场景记录已证/待验/生产符号/测试定义/必要动作；无新业务缺陷，去重范围限定本包。
-- [ ] 新spec unit/coverage、零警告lint、typecheck、build实际回写；独立tar typed/runtime consumer。
-- [ ] SQL深树、跨父移动/父删除live-vs-full、同一fixture三端动态、strictTemplates输入/事件反例、真实route挂卸。
-- [ ] 原完整C及全对象完成核销；本次仍 **0/5、execution=in-progress、完整对象候选=false、发布就绪=false**。主控裁定合理分流，代理不自行豁免。
+- [x] 16/16受控文件全内容实读，未读0、scope SHA漂移0；配置/文档/3原spec/setup全计入。追加1个必要spec，未改实现、原tests、依赖。
+- [x] 生命周期/泛型生产链读到真实core，三端根API/原generic正文静态对照；包发布根resolved为dist，不能报源exports缺失。
+- [x] 主控独立实际tar、无paths、strict skipLibCheck=false：显式node+@types/ms条件下valid0、invalid两处TS2322、root runtime import0。bare utils公开声明阻断TS2503/TS7016保留归上游，不称声明自包含。
+- [x] 当前生产build exit0；初版probe零警告lint exit0；15例初测13过2fixture失败，四覆盖率100/100/100/100只覆盖wrapper8语句/4函数/0分支。
+- [x] 新8例中真实缺插件/QueryCache/context/非法level/ID0-lazy/父子provider与cleanup六例已过；两组件因analog JIT缺signal input metadata而失败，仅新fixture改成Input required setter+signal，未删断言或修实现。
+- [ ] 主控focused复跑修fixture的两组件/全8例、本包typecheck及修后lint；不等待无关all73后端。
+- [ ] 真实SQL深树与numeric/string数据查询、跨父移动/父删除live-vs-full、同fixture三端动态、ngc模板输入/事件反例、真实route挂卸。
+- [ ] 原完整C/全对象核销：仍0/5，execution=in-progress、完整对象候选false、评审完成false、发布就绪false。合理未验分流由主控裁定。
 
-| 原C | 本轮补齐 | 不能核销的必要原因 |
-| --- | --- | --- |
-| C1 | 全读numeric/static slots/生成器options；真实注册/非法level/ID=0 probe；numeric/string typed consumer | 新probe与consumer未执行，SQL深树最低场景未验 |
-| C2 | 真实组件快速input切换、旧结果晚到、空态、销毁probe；core observer清理锚点 | 跨父移动/父删除与全量树查询对比未验 |
-| C3 | 四导出/泛型/原生返回字段静态对称，consumer正负例与多实例probe | 同一fixture三端动态及独立消费执行缺口 |
-| C4 | standalone/OnPush组件input、context、父子provider、多资源、异步销毁probe | 8例未运行，不能由定义算通过 |
-| C5 | strict配置实读、实际组件正例定义、79行valid/10行invalid consumer | tar编译/runtime、ngc模板负例与真实route缺口 |
+| 原C | 已测/已读局部                                                    | 原最低场景必要缺口                                 |
+| --- | ---------------------------------------------------------------- | -------------------------------------------------- |
+| C1  | 核心护栏/ID0/lazy/错误透明过；独立numeric/string类型正负条件性过 | 真实SQL深树与id查询数据对比                        |
+| C2  | core订阅cleanup源码归属明确；组件late/input探针只修fixture       | 修后复跑、跨父移动/父删除与全量查询对比            |
+| C3  | API静态对称、独立tar类型与runtime根import、父子实例cleanup过     | 同一tree fixture三端动态、组件两资源修后测量       |
+| C4  | context/provider六例局部过，standalone/OnPush真实组件定义齐      | 两组件JIT fixture修后focused复跑；未将失败冒充通过 |
+| C5  | strict独立d.ts正负、Node root import条件性过；bare上游风险保留   | 组件错误空态复跑、ngc输入事件负例、真实route       |
 
-历史100/100/100/100是8语句/4函数/0分支的wrapper测量，原7例只证mock派发与原string类型fixture；不含新增probe。源peer为22.2.1，旧dist为^22.1.6；发布根是resolved `dist/packages/rxdb-plugin-tree-angular`，其exports存在。旧根resolve不等于typed/runtime消费。
+Angular tools mandatory调用已记；只发现examples，指南/文档tool响应失败。用安装22.2.1本地官方effect声明核对规范。所有业务门禁由主控执行，本代理未跑重任务或Git写命令。
 
-机器核销：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/closure.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/c-evidence.json`；逐文件实读：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/file-inspection.json`；主控请求：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-requests.json`；绝对改动清单：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/changed-files.json`。
+核销与绝对改动清单：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/closure.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/changed-files.json`。逐文件/逐C/测量细节：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/file-inspection.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/c-evidence.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-observations.json`。验证请求：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-requests.json`。
+
+### 原required-input场景不得由替代夹具核销（最终补充）
+
+初版**已证**的是TestBed/JIT未识别输入（NG0303）导致绑定失败，随后读空required signal（NG0950）；**未证**的是正确ngc编译并正确父模板绑定后生产是否仍可达、最终根因归属。此前倾向fixture编译边界的判断仅是证据解释，不是生产不可达结论。setter+signal(0)只恢复其他生命周期测量，不核销原input.required场景。
+
+原夹具快照 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/probe-original-required-input.spec.ts.txt`，SHA `2859c2fb42ac2232b003b8b05302fa441686139a73a8d7da13e7e820c8838c21`，与主控实际测量SHA匹配=True；原日志保留不删除。独立 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-required-input.mts` 保持 `input.required<number>()` 和tree hook options getter，父组件 `RequiredInputHost` 用模板显式 `[rootId]="rootId()"` 绑定。需主控ngc编译与运行0→7、无NG0303/NG0950对照，R2-02-V6，尚未执行。它不替typed tsc、SQL、route，也不把C4/全对象绿化。
+
+## R2 主控验证结算（不扩大子代理原核销范围）
+
+本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
+
+[真实tar类型正负/运行时证据](../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+
+消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
+
+主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。

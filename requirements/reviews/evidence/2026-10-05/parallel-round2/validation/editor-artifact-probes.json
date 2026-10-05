@@ -1,8 +1,17 @@
 {
-  "clientDate": "2026-10-05",
   "bundleExitCode": 0,
+  "clientDate": "2026-10-05",
   "consumer": "Actual installed tarball isolated consumer, esbuild tool invoked from workspace; no aliases for app dependencies",
-  "sourceConsumer": "import { SQL } from '@aiao/code-editor';\nexport const loadSql = () => SQL.load();\n",
+  "initialAndChunksNeedSeparateReading": true,
+  "metafile": "editor-sql-only-metafile.json",
+  "missingLanguageControl": {
+    "rootImported": true,
+    "helperWorks": true,
+    "requestedMissingLanguageRejected": true,
+    "errorCode": "ERR_MODULE_NOT_FOUND",
+    "errorMessage": "Cannot find module '/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+code-editor@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300_8f7b19366c3d427a794430a82991dd60/node_modules/@codemirror/lang-python/dist/index.js' imported from /private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+code-editor@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300_8f7b19366c3d427a794430a82991dd60/node_modules/@aiao/code-editor/dist/index.js\nDid you mean to import \"@codemirror/lang-python/dist/index.cjs\"?"
+  },
+  "missingLanguageControlExitCode": 0,
   "outputs": [
     {
       "path": "artifact-probes/bundle/idl-27KWU7BU.js",
@@ -749,19 +758,8 @@
       "sha256": "05417b93ce0da01f040212b56ac3b46c9c9d5061ee7b9220f75bfe82372385cb"
     }
   ],
-  "metafile": "editor-sql-only-metafile.json",
-  "initialAndChunksNeedSeparateReading": true,
-  "missingLanguageControlExitCode": 0,
-  "missingLanguageControl": {
-    "rootImported": true,
-    "helperWorks": true,
-    "requestedMissingLanguageRejected": true,
-    "errorCode": "ERR_MODULE_NOT_FOUND",
-    "errorMessage": "Cannot find module '/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+code-editor@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300_8f7b19366c3d427a794430a82991dd60/node_modules/@codemirror/lang-python/dist/index.js' imported from /private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+code-editor@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300_8f7b19366c3d427a794430a82991dd60/node_modules/@aiao/code-editor/dist/index.js\nDid you mean to import \"@codemirror/lang-python/dist/index.cjs\"?"
-  },
   "publishedOrWorkspaceFilesModified": false,
-  "temporaryConsumerDependencyRestored": true,
-  "trueBrowserIMESelectionPerformanceNotClaimed": true,
+  "sourceConsumer": "import { SQL } from '@aiao/code-editor';\nexport const loadSql = () => SQL.load();\n",
   "sqlConsumerGraphSummary": {
     "entry": "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/sql-only.js",
     "staticFiles": [
@@ -924,5 +922,7 @@
       "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-DOK2U3V6.js"
     ],
     "notes": "All lazy language outputs are not initial transfer size; root metadata keeps dynamic imports reachable. This is esbuild consumer graph, not a browser network trace or bundle-budget requirement."
-  }
+  },
+  "temporaryConsumerDependencyRestored": true,
+  "trueBrowserIMESelectionPerformanceNotClaimed": true
 }

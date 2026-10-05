@@ -1,134 +1,7 @@
 {
-  "task": "R2-06",
-  "scopeTask": "R2-07",
-  "object": "rxdb-plugin-search-vue",
-  "recordedAt": "2026-10-05T11:09:34.173740+08:00",
-  "headAtInspection": "465f9078e9844af2cbef9936c7321a5576333a01",
-  "ownedWorkStatus": "final-artifacts-delivered; slot-released; remaining-validation-owned-by-coordinator",
-  "execution": "partial",
-  "reviewComplete": false,
-  "releaseReady": false,
-  "fullObjectCandidate": false,
-  "provisionalQuality": "🟡",
-  "finalObjectRating": null,
-  "controlledInventory": {
-    "scopeFiles": 15,
-    "readFull": 15,
-    "unchangedAgainstScope": true,
-    "newAllowedProbeFiles": 1,
-    "newProbeCasesDefined": 6
-  },
+  "agentWillNotWaitForRemainingQueuedTasksOrOtherPackages": true,
   "completeC": [],
   "completeCCount": 0,
-  "originalCCount": 5,
-  "partialC": [
-    {
-      "id": "C1",
-      "proved": [
-        "四 Observable 分别写入输出、只有 query 可写；commands 透传最新 active。",
-        "历史 28 tests 映射/命令通过且源实现未漂移；historical real-core sequence 1 passed 但 probe 文件漂移。"
-      ],
-      "remaining": [
-        "在当前 93 行 real-handle 版本执行全部空词→empty→error/identity→retry→两页/末页→clear 的序列，并绑定 fingerprint/JUnit。"
-      ],
-      "requestIds": [
-        "search-vue-r2-unit"
-      ]
-    },
-    {
-      "id": "C2",
-      "proved": [
-        "options 字段依赖快照与 core equality；initialQuery 仅初始种子，重建使用当前 query。",
-        "历史 source ref/语义等价新对象/deep pageSize/collections/旧流隔离/最新命令路由通过；Vue 不再实现一层 debounce。"
-      ],
-      "remaining": [
-        "执行真实在途分页+source/computed/deep options 切换、A→B 队列最终结果的新探针。",
-        "source identity/collections 代理场景不是同一真实 RxDB branch；真实 branch+并发分页以及跨框架同 fixture 证据仍由主控映射或补证。",
-        "A→B 新探针只断言最终 B，未断言每一帧/中间 emission 都立即符合最新输入；不以最终快照核销更强时序主张。"
-      ],
-      "requestIds": [
-        "search-vue-r2-unit",
-        "search-vue-r2-same-fixture-branch"
-      ]
-    },
-    {
-      "id": "C3",
-      "proved": [
-        "三端实际根入口均是 useSearch 与相同 core class/type 透传；Signal/hooks/ref 容器差异是原生 idiom，不是单端 API 缺失。",
-        "安装与 backend admission 在 core；Vue 直接调用 source.search，没有 catch/fallback；core inject=adapter:local，await connect/ready 是用户前置。",
-        "历史实际 tar 条目与 ESM resolve 已通过；本轮 tar 是不同摘要，消费者不能混用。",
-        "主控最新报告：显式 Node + @types/ms 的实际 tar strict valid exit=0，invalid 仅消费类型拒绝，root import exit=0；裸上游 NodeJS/ms 错误保留。"
-      ],
-      "remaining": [
-        "主控正在执行真实 RxDB 缺插件/插件未连接/backend 拒绝与组件卸载新探针；没有完成报告，待追加日志。",
-        "原同 fixtures parity/真实 branch 测量面仍需主控映射具体证据；typed .mts 已在显式类型环境闭合，不再请求重复编译。",
-        "裸环境与显式 Node/@types/ms 的不同依赖边界保留归因记录，不假称所有无 Node ambient 的 Vue consumer 均通过。"
-      ],
-      "requestIds": [
-        "search-vue-r2-unit",
-        "search-vue-r2-sfc-consumer",
-        "search-vue-r2-same-fixture-branch"
-      ]
-    },
-    {
-      "id": "C4",
-      "proved": [
-        "guard 限定 setup/active effectScope；activate 同步建立 watch 并注册 onScopeDispose；不另外注册 onUnmounted 造成双 destroy。",
-        "scope disposal 先 active=null 后四订阅 unsubscribe+destroy；重建顺序隔离旧流。",
-        "历史真实 effectScope/SSR renderToString、ref/getter/deep options 场景通过；SSR 不创建句柄/订阅，输出保留初始状态。"
-      ],
-      "remaining": [
-        "真实 Vue mount 组件在 happy-dom 的多实例、卸载、迟到失败/结果、四订阅与 watcher 停止探针仍需主控运行。",
-        "SFC fixture 的编译仅证明模板消费，defineComponent mount 仅证明组件运行；两者均不能声称真实浏览器/整页 hydration 已跑。"
-      ],
-      "requestIds": [
-        "search-vue-r2-unit",
-        "search-vue-r2-sfc-consumer"
-      ]
-    },
-    {
-      "id": "C5",
-      "proved": [
-        "useSearch 当前不是泛型实体 composable；SearchResult 有固定公开结构；不能凭计划词汇发明缺少的泛型 API。",
-        "返回 query Ref<string>，四个 Readonly<Ref<...>> 与精确 Promise<void>/void；d.ts 公开签名已读，old tar 当前 source/bundle 匹配，local d.ts 仅 import 打印不同。",
-        "本包没有 props/emits 组件；要求落实到 typed SFC consumer，而不是删为不适用。",
-        "主控最新报告：显式 Node + @types/ms 的实际 tar strict valid exit=0，invalid 仅消费类型拒绝，root import exit=0；裸上游 NodeJS/ms 错误保留。"
-      ],
-      "remaining": [
-        "正负 .vue fixture 的 vue-tsc 模板/props/emits 结果仍需主控追加；.mts strict 对照已通过，不能代替模板。",
-        "frozen SearchResult 数组/元素 identity 与 current real-core error identity 在主控已启动的新 unit 中待结果；不提前报绿。"
-      ],
-      "requestIds": [
-        "search-vue-r2-unit",
-        "search-vue-r2-sfc-consumer",
-        "search-vue-r2-types",
-        "search-vue-r2-zero-warning"
-      ]
-    }
-  ],
-  "localSubfaces": [
-    {
-      "name": "全范围阅读/生成来源/实际根 API 对照",
-      "status": "complete-read-only",
-      "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/file-inspection.json"
-    },
-    {
-      "name": "原 28 tests/四指标/零警告/类型",
-      "status": "valid-historical-only",
-      "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/validation-observations.json"
-    },
-    {
-      "name": "本轮组件/取消/错误/前置探针",
-      "status": "started-by-coordinator-awaiting-result",
-      "evidence": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/review-round2-component-lifecycle.spec.ts"
-    },
-    {
-      "name": "真实 tar typed/ref/SFC 正负消费者",
-      "status": "mts-positive-negative-and-root-runtime-passed-with-explicit-types; SFC pending",
-      "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/consumer-contract.json",
-      "bareFailureRetained": true
-    }
-  ],
   "completionConditions": [
     {
       "id": "F1",
@@ -201,84 +74,16 @@
       "conclusion": "阶段品质 🟡（已读实现/历史小包门禁）；非全对象最终评级。完整评审/发布就绪均不核销；RV-062 分流不代替缺验证。"
     }
   ],
-  "existingFindingReferenceOnly": [
-    "RV-062"
-  ],
-  "newConfirmedFindings": [],
-  "remainingActions": [
-    {
-      "requestId": "search-vue-r2-unit",
-      "owner": "主控",
-      "status": "started-by-coordinator-awaiting-result",
-      "reason": "串行执行本包 5 个既有 spec 和新增的 6-case review-round2 组件探针：真实 core handle 多实例/卸载/迟到错误、computed/source+deep options 切换期间分页、A→B 最终结果、clear 取消、四订阅释放、真实 RxDB 缺插件/未连接/不支持 backend；记录逐 testcase、skip、错误与四指标。只此包，不跑 affected，不自行执行依赖 build 链。",
-      "criticalForC": [
-        "C1",
-        "C2",
-        "C3",
-        "C4"
-      ]
-    },
-    {
-      "requestId": "search-vue-r2-sfc-consumer",
-      "owner": "主控",
-      "status": "mts-valid-invalid-and-runtime-verified-with-explicit-types; sfc-remaining",
-      "reason": [
-        "SFC vue-tsc positive/negative template evidence",
-        "preserve bare upstream failure and explicit environment contrast"
-      ],
-      "criticalForC": [
-        "C3",
-        "C5"
-      ]
-    },
-    {
-      "requestId": "search-vue-r2-zero-warning",
-      "owner": "主控",
-      "status": "started-by-coordinator-awaiting-result",
-      "reason": "本轮新增 spec/consumer 后核对当前内容指纹对应的零警告；不将第一轮基线绿冒充新输入。",
-      "criticalForC": [
-        "C3",
-        "C5"
-      ]
-    },
-    {
-      "requestId": "search-vue-r2-types",
-      "owner": "主控",
-      "status": "coordinator-addendum-required",
-      "reason": "本包 resolved typecheck 是 vue-tsc --build --emitDeclarationOnly；lib include 不含 .vue，spec types 不等于外部 SFC 模板/packed d.ts consumer。主控串行验证并核对依赖输入；不自行触发 dependsOn build/^typecheck 链。",
-      "criticalForC": [
-        "C3",
-        "C5"
-      ]
-    },
-    {
-      "requestId": "search-vue-r2-same-fixture-branch",
-      "owner": "主控",
-      "status": "coordinator-addendum-required",
-      "reason": "新 Vue 探针用 source identity + collections 替换隔离旧分页，不等价于真实同一个 RxDB branch 切换。原 C2/C3 要求的三端同 fixture 异步快速输入/换库/真实 branch+分页组合仍需要主控映射现有有效证据或补最小独立 consumer；不扩业务或等待所有 backend。",
-      "criticalForC": [
-        "C2",
-        "C3"
-      ]
-    }
-  ],
-  "notRunByThisAgent": [
-    "build",
-    "test",
-    "coverage",
-    "lint",
-    "typecheck",
-    "e2e",
-    "serve",
-    "container",
-    "consumer install/compile/runtime"
-  ],
-  "scopeRestrictionRespected": true,
-  "noBusinessOrOriginalTestOrDependencyChanges": true,
+  "controlledInventory": {
+    "scopeFiles": 15,
+    "readFull": 15,
+    "unchangedAgainstScope": true,
+    "newAllowedProbeFiles": 1,
+    "newProbeCasesDefined": 6
+  },
+  "execution": "partial",
+  "existingFindingReferenceOnly": ["RV-062"],
   "finalArbitrationOwner": "主控；待具体证据与必要未验证分流裁定，不能凭产物数量/旧绿标全对象完成。",
-  "handoffComplete": true,
-  "sourceReadingComplete": true,
-  "agentWillNotWaitForRemainingQueuedTasksOrOtherPackages": true,
   "finalHandoffCoordinatorReport": {
     "recordedAt": "2026-10-05T11:09:34.173740+08:00",
     "source": "用户/主控在本 chat 的最新直接报告；交接不扩读、不等待后续日志",
@@ -290,5 +95,169 @@
     "unitCoverageAndLint": "主控已启动 current newSpec unit+coverage/lint；尚未报告完成，不改写为通过",
     "sfcTemplates": "正负 .vue fixture 已交付；本次报告没有给 SFC vue-tsc 模板结果",
     "note": "explicit Node/@types/ms 对照通过不抹除裸环境 NodeJS/ms 的上游声明闭合失败；不自行修改 utils/依赖/stub/skipLibCheck。"
-  }
+  },
+  "finalObjectRating": null,
+  "fullObjectCandidate": false,
+  "handoffComplete": true,
+  "headAtInspection": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "localSubfaces": [
+    {
+      "name": "全范围阅读/生成来源/实际根 API 对照",
+      "status": "complete-read-only",
+      "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/file-inspection.json"
+    },
+    {
+      "name": "原 28 tests/四指标/零警告/类型",
+      "status": "valid-historical-only",
+      "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/validation-observations.json"
+    },
+    {
+      "name": "本轮组件/取消/错误/前置探针",
+      "status": "started-by-coordinator-awaiting-result",
+      "evidence": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/review-round2-component-lifecycle.spec.ts"
+    },
+    {
+      "name": "真实 tar typed/ref/SFC 正负消费者",
+      "status": "mts-positive-negative-and-root-runtime-passed-with-explicit-types; SFC pending",
+      "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/consumer-contract.json",
+      "bareFailureRetained": true
+    }
+  ],
+  "newConfirmedFindings": [],
+  "noBusinessOrOriginalTestOrDependencyChanges": true,
+  "notRunByThisAgent": [
+    "build",
+    "test",
+    "coverage",
+    "lint",
+    "typecheck",
+    "e2e",
+    "serve",
+    "container",
+    "consumer install/compile/runtime"
+  ],
+  "object": "rxdb-plugin-search-vue",
+  "originalCCount": 5,
+  "ownedWorkStatus": "final-artifacts-delivered; slot-released; remaining-validation-owned-by-coordinator",
+  "partialC": [
+    {
+      "id": "C1",
+      "proved": [
+        "四 Observable 分别写入输出、只有 query 可写；commands 透传最新 active。",
+        "历史 28 tests 映射/命令通过且源实现未漂移；historical real-core sequence 1 passed 但 probe 文件漂移。"
+      ],
+      "remaining": [
+        "在当前 93 行 real-handle 版本执行全部空词→empty→error/identity→retry→两页/末页→clear 的序列，并绑定 fingerprint/JUnit。"
+      ],
+      "requestIds": ["search-vue-r2-unit"]
+    },
+    {
+      "id": "C2",
+      "proved": [
+        "options 字段依赖快照与 core equality；initialQuery 仅初始种子，重建使用当前 query。",
+        "历史 source ref/语义等价新对象/deep pageSize/collections/旧流隔离/最新命令路由通过；Vue 不再实现一层 debounce。"
+      ],
+      "remaining": [
+        "执行真实在途分页+source/computed/deep options 切换、A→B 队列最终结果的新探针。",
+        "source identity/collections 代理场景不是同一真实 RxDB branch；真实 branch+并发分页以及跨框架同 fixture 证据仍由主控映射或补证。",
+        "A→B 新探针只断言最终 B，未断言每一帧/中间 emission 都立即符合最新输入；不以最终快照核销更强时序主张。"
+      ],
+      "requestIds": ["search-vue-r2-unit", "search-vue-r2-same-fixture-branch"]
+    },
+    {
+      "id": "C3",
+      "proved": [
+        "三端实际根入口均是 useSearch 与相同 core class/type 透传；Signal/hooks/ref 容器差异是原生 idiom，不是单端 API 缺失。",
+        "安装与 backend admission 在 core；Vue 直接调用 source.search，没有 catch/fallback；core inject=adapter:local，await connect/ready 是用户前置。",
+        "历史实际 tar 条目与 ESM resolve 已通过；本轮 tar 是不同摘要，消费者不能混用。",
+        "主控最新报告：显式 Node + @types/ms 的实际 tar strict valid exit=0，invalid 仅消费类型拒绝，root import exit=0；裸上游 NodeJS/ms 错误保留。"
+      ],
+      "remaining": [
+        "主控正在执行真实 RxDB 缺插件/插件未连接/backend 拒绝与组件卸载新探针；没有完成报告，待追加日志。",
+        "原同 fixtures parity/真实 branch 测量面仍需主控映射具体证据；typed .mts 已在显式类型环境闭合，不再请求重复编译。",
+        "裸环境与显式 Node/@types/ms 的不同依赖边界保留归因记录，不假称所有无 Node ambient 的 Vue consumer 均通过。"
+      ],
+      "requestIds": ["search-vue-r2-unit", "search-vue-r2-sfc-consumer", "search-vue-r2-same-fixture-branch"]
+    },
+    {
+      "id": "C4",
+      "proved": [
+        "guard 限定 setup/active effectScope；activate 同步建立 watch 并注册 onScopeDispose；不另外注册 onUnmounted 造成双 destroy。",
+        "scope disposal 先 active=null 后四订阅 unsubscribe+destroy；重建顺序隔离旧流。",
+        "历史真实 effectScope/SSR renderToString、ref/getter/deep options 场景通过；SSR 不创建句柄/订阅，输出保留初始状态。"
+      ],
+      "remaining": [
+        "真实 Vue mount 组件在 happy-dom 的多实例、卸载、迟到失败/结果、四订阅与 watcher 停止探针仍需主控运行。",
+        "SFC fixture 的编译仅证明模板消费，defineComponent mount 仅证明组件运行；两者均不能声称真实浏览器/整页 hydration 已跑。"
+      ],
+      "requestIds": ["search-vue-r2-unit", "search-vue-r2-sfc-consumer"]
+    },
+    {
+      "id": "C5",
+      "proved": [
+        "useSearch 当前不是泛型实体 composable；SearchResult 有固定公开结构；不能凭计划词汇发明缺少的泛型 API。",
+        "返回 query Ref<string>，四个 Readonly<Ref<...>> 与精确 Promise<void>/void；d.ts 公开签名已读，old tar 当前 source/bundle 匹配，local d.ts 仅 import 打印不同。",
+        "本包没有 props/emits 组件；要求落实到 typed SFC consumer，而不是删为不适用。",
+        "主控最新报告：显式 Node + @types/ms 的实际 tar strict valid exit=0，invalid 仅消费类型拒绝，root import exit=0；裸上游 NodeJS/ms 错误保留。"
+      ],
+      "remaining": [
+        "正负 .vue fixture 的 vue-tsc 模板/props/emits 结果仍需主控追加；.mts strict 对照已通过，不能代替模板。",
+        "frozen SearchResult 数组/元素 identity 与 current real-core error identity 在主控已启动的新 unit 中待结果；不提前报绿。"
+      ],
+      "requestIds": [
+        "search-vue-r2-unit",
+        "search-vue-r2-sfc-consumer",
+        "search-vue-r2-types",
+        "search-vue-r2-zero-warning"
+      ]
+    }
+  ],
+  "provisionalQuality": "🟡",
+  "recordedAt": "2026-10-05T11:09:34.173740+08:00",
+  "releaseReady": false,
+  "remainingActions": [
+    {
+      "requestId": "search-vue-r2-unit",
+      "owner": "主控",
+      "status": "started-by-coordinator-awaiting-result",
+      "reason": "串行执行本包 5 个既有 spec 和新增的 6-case review-round2 组件探针：真实 core handle 多实例/卸载/迟到错误、computed/source+deep options 切换期间分页、A→B 最终结果、clear 取消、四订阅释放、真实 RxDB 缺插件/未连接/不支持 backend；记录逐 testcase、skip、错误与四指标。只此包，不跑 affected，不自行执行依赖 build 链。",
+      "criticalForC": ["C1", "C2", "C3", "C4"]
+    },
+    {
+      "requestId": "search-vue-r2-sfc-consumer",
+      "owner": "主控",
+      "status": "mts-valid-invalid-and-runtime-verified-with-explicit-types; sfc-remaining",
+      "reason": [
+        "SFC vue-tsc positive/negative template evidence",
+        "preserve bare upstream failure and explicit environment contrast"
+      ],
+      "criticalForC": ["C3", "C5"]
+    },
+    {
+      "requestId": "search-vue-r2-zero-warning",
+      "owner": "主控",
+      "status": "started-by-coordinator-awaiting-result",
+      "reason": "本轮新增 spec/consumer 后核对当前内容指纹对应的零警告；不将第一轮基线绿冒充新输入。",
+      "criticalForC": ["C3", "C5"]
+    },
+    {
+      "requestId": "search-vue-r2-types",
+      "owner": "主控",
+      "status": "coordinator-addendum-required",
+      "reason": "本包 resolved typecheck 是 vue-tsc --build --emitDeclarationOnly；lib include 不含 .vue，spec types 不等于外部 SFC 模板/packed d.ts consumer。主控串行验证并核对依赖输入；不自行触发 dependsOn build/^typecheck 链。",
+      "criticalForC": ["C3", "C5"]
+    },
+    {
+      "requestId": "search-vue-r2-same-fixture-branch",
+      "owner": "主控",
+      "status": "coordinator-addendum-required",
+      "reason": "新 Vue 探针用 source identity + collections 替换隔离旧分页，不等价于真实同一个 RxDB branch 切换。原 C2/C3 要求的三端同 fixture 异步快速输入/换库/真实 branch+分页组合仍需要主控映射现有有效证据或补最小独立 consumer；不扩业务或等待所有 backend。",
+      "criticalForC": ["C2", "C3"]
+    }
+  ],
+  "reviewComplete": false,
+  "scopeRestrictionRespected": true,
+  "scopeTask": "R2-07",
+  "sourceReadingComplete": true,
+  "task": "R2-06"
 }

@@ -1,0 +1,101 @@
+{
+  "environment": {
+    "useControllerTarConsumer": true,
+    "strict": true,
+    "skipLibCheck": false,
+    "moduleResolution": "NodeNext",
+    "forbid": ["workspace paths", "source package aliases", "any", "expect-error"],
+    "ambient": ["node", "@types/ms"],
+    "negativeFilesMustCompileSeparately": true
+  },
+  "invalid": {
+    "file": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/invalid.mts",
+    "expectedExitCode": "nonzero-with-all-targeted-diagnostics",
+    "cases": [
+      {
+        "line": 40,
+        "case": "错误id类型",
+        "codes": [2322, 2345]
+      },
+      {
+        "line": 41,
+        "case": "错误id类型",
+        "codes": [2322, 2345]
+      },
+      {
+        "line": 42,
+        "case": "错误id类型",
+        "codes": [2322, 2345]
+      },
+      {
+        "line": 43,
+        "case": "错误id类型",
+        "codes": [2322, 2345]
+      },
+      {
+        "line": 44,
+        "case": "错误id类型",
+        "codes": [2322, 2345]
+      },
+      {
+        "line": 45,
+        "case": "非树实例缺createdAt/updatedAt",
+        "codes": [2345]
+      },
+      {
+        "line": 46,
+        "case": "非树实例缺createdAt/updatedAt",
+        "codes": [2345]
+      },
+      {
+        "line": 47,
+        "case": "非树实例缺createdAt/updatedAt",
+        "codes": [2345]
+      },
+      {
+        "line": 48,
+        "case": "非树实例缺createdAt/updatedAt",
+        "codes": [2345]
+      },
+      {
+        "line": 50,
+        "case": "readonly资源写入",
+        "codes": [2540]
+      },
+      {
+        "line": 51,
+        "case": "number结果不能宽化string",
+        "codes": [2322]
+      },
+      {
+        "line": 52,
+        "case": "level错误类型",
+        "codes": [2322, 2345]
+      }
+    ],
+    "mustRejectEveryCase": true,
+    "mustNotPassOnlyBecauseAmbientOrModuleErrors": true
+  },
+  "project": "rxdb-plugin-tree-vue",
+  "sfc": {
+    "validFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/valid.vue",
+    "invalidFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/invalid.vue",
+    "supportFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/valid.mts",
+    "positiveMustExit0": true,
+    "negativeExpected": [
+      "string rootId传numeric实体getter",
+      "emit selected参数string不匹配number",
+      "node.missingField不存在",
+      "number.toUpperCase不存在"
+    ],
+    "tool": "vue-tsc",
+    "status": "prepared-not-run"
+  },
+  "status": "prepared-not-run",
+  "valid": {
+    "file": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/valid.mts",
+    "expectedExitCode": 0,
+    "publicImportsOnly": true,
+    "scope": "真实packed声明的四hooks；生成式static types+FindTreeOptions；不是SQL/Runtime仓储测试"
+  }
+}

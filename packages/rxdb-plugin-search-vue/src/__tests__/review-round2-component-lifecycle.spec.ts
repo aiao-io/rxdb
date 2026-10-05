@@ -1,11 +1,25 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
-import { createSearchHandle, RxDBPluginSearch, SearchExecutionError, SearchUnsupportedAdapterError, type SearchHandle, type SearchPage, type SearchResult } from '@aiao/rxdb-plugin-search';
+import {
+  createSearchHandle,
+  RxDBPluginSearch,
+  SearchExecutionError,
+  SearchUnsupportedAdapterError,
+  type SearchHandle,
+  type SearchPage,
+  type SearchResult
+} from '@aiao/rxdb-plugin-search';
 import { mount } from '@vue/test-utils';
 import { BehaviorSubject } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { computed, defineComponent, effectScope, h, nextTick, readonly, ref, shallowRef } from 'vue';
 
-import { useSearch, type SearchOptions, type SearchSourceLike, type SearchState, type UseSearchReturn } from '../index.js';
+import {
+  useSearch,
+  type SearchOptions,
+  type SearchSourceLike,
+  type SearchState,
+  type UseSearchReturn
+} from '../index.js';
 
 const disposers: Array<() => void> = [];
 
@@ -31,6 +45,7 @@ function controlledSource() {
   const search = vi.fn((initialQuery: string, options?: SearchOptions): SearchHandle => {
     const handle = createSearchHandle({
       initialQuery,
+      refreshAuditMs: 0,
       debounceMs: options?.debounce ?? 0,
       performSearch: (query, page, signal) => {
         const deferred = Promise.withResolvers<SearchPage>();
@@ -57,7 +72,11 @@ function mountSearch(factory: () => UseSearchReturn) {
     setup() {
       const search = factory();
       binding = search;
-      return () => h('output', `${search.query.value}:${search.state.value}:${search.results.value.map(value => value.id).join(',')}`);
+      return () =>
+        h(
+          'output',
+          `${search.query.value}:${search.state.value}:${search.results.value.map(value => value.id).join(',')}`
+        );
     }
   });
   const wrapper = mount(Component);
@@ -119,7 +138,12 @@ describe('第二轮收尾：Vue 真实组件与搜索所有权', () => {
     const second = controlledSource();
     const source = shallowRef<SearchSourceLike>(first.source);
     const options = ref<SearchOptions>({ initialQuery: 'kept', pageSize: 1, collections: ['article'] });
-    const component = mountSearch(() => useSearch(computed(() => source.value), readonly(options)));
+    const component = mountSearch(() =>
+      useSearch(
+        computed(() => source.value),
+        readonly(options)
+      )
+    );
     await vi.waitFor(() => expect(first.requests).toHaveLength(1));
     first.request(0).resolve({ results: [row('old-page-0')], hasMore: true });
     await vi.waitFor(() => expect(component.binding.state.value).toBe('success'));
@@ -134,7 +158,11 @@ describe('第二轮收尾：Vue 真实组件与搜索所有权', () => {
     expect(oldPage.signal?.aborted).toBe(true);
     expect(first.handles[0]?.destroy).toHaveBeenCalledTimes(1);
     expect(second.search).toHaveBeenCalledTimes(1);
-    expect(second.search).toHaveBeenCalledWith('kept', { initialQuery: 'kept', pageSize: 2, collections: ['article', 'notes'] });
+    expect(second.search).toHaveBeenCalledWith('kept', {
+      initialQuery: 'kept',
+      pageSize: 2,
+      collections: ['article', 'notes']
+    });
     oldPage.resolve({ results: [row('stale-page-1')], hasMore: false });
     await pagination;
     expect(component.binding.query.value).toBe('kept');
@@ -164,7 +192,9 @@ describe('第二轮收尾：Vue 真实组件与搜索所有权', () => {
     const handle = fixture.handles[0];
     if (!handle) throw new Error('缺少活动 handle');
     let rawResults: readonly Readonly<SearchResult>[] = [];
-    const subscription = handle.results$.subscribe(results => { rawResults = results; });
+    const subscription = handle.results$.subscribe(results => {
+      rawResults = results;
+    });
     disposers.push(() => subscription.unsubscribe());
     expect(component.binding.results.value).toBe(rawResults);
     expect(component.binding.results.value[0]).toBe(rawResults[0]);
@@ -192,14 +222,26 @@ describe('第二轮收尾：Vue 真实组件与搜索所有权', () => {
     const error$ = new BehaviorSubject<SearchExecutionError | undefined>(undefined);
     const hasMore$ = new BehaviorSubject(false);
     const handle: SearchHandle = {
-      results$, state$, error$, hasMore$,
-      setQuery: vi.fn(), loadMore: vi.fn(() => Promise.resolve()), clear: vi.fn(), retry: vi.fn(), destroy: vi.fn()
+      results$,
+      state$,
+      error$,
+      hasMore$,
+      setQuery: vi.fn(),
+      loadMore: vi.fn(() => Promise.resolve()),
+      clear: vi.fn(),
+      retry: vi.fn(),
+      destroy: vi.fn()
     };
     const source: SearchSourceLike = { search: () => handle };
     const component = mountSearch(() => useSearch(() => source));
     expect([results$.observed, state$.observed, error$.observed, hasMore$.observed]).toEqual([true, true, true, true]);
     component.unmount();
-    expect([results$.observed, state$.observed, error$.observed, hasMore$.observed]).toEqual([false, false, false, false]);
+    expect([results$.observed, state$.observed, error$.observed, hasMore$.observed]).toEqual([
+      false,
+      false,
+      false,
+      false
+    ]);
     results$.next([row('late')]);
     state$.next('error');
     error$.next(new SearchExecutionError('旧流错误'));
@@ -222,7 +264,9 @@ describe('第二轮收尾：Vue 真实组件与搜索所有权', () => {
 
   it('真实 RxDB 缺少插件或插件未连接时显式失败，不返回假空态', async () => {
     const database = new RxDB({
-      dbName: 'review-round2-search-vue-prerequisite', entities: [], multiInstance: false,
+      dbName: 'review-round2-search-vue-prerequisite',
+      entities: [],
+      multiInstance: false,
       sync: { type: SyncType.None, local: { adapter: 'sqlite-wasm' } }
     });
     const scope = effectScope();
@@ -239,7 +283,9 @@ describe('第二轮收尾：Vue 真实组件与搜索所有权', () => {
 
   it('真实插件在不支持的 backend 上创建失败，早于组件 setup 与假句柄', async () => {
     const database = new RxDB({
-      dbName: 'review-round2-search-vue-unsupported', entities: [], multiInstance: false,
+      dbName: 'review-round2-search-vue-unsupported',
+      entities: [],
+      multiInstance: false,
       sync: { type: SyncType.None, local: { adapter: 'http' } }
     });
     try {

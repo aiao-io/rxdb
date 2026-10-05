@@ -1,13 +1,7 @@
 {
-  "object": "rxdb-plugin-search-angular",
-  "task": "R2-04",
-  "scopeTask": "R2-05",
-  "recordedAt": "2026-10-05T11:07:10.962597+08:00",
-  "headAtInspection": "465f9078e9844af2cbef9936c7321a5576333a01",
-  "originalCCount": 5,
-  "fullCCount": 0,
-  "partialCCount": 5,
   "allOriginalScenariosRetained": true,
+  "fullCCount": 0,
+  "headAtInspection": "465f9078e9844af2cbef9936c7321a5576333a01",
   "items": [
     {
       "id": "C1",
@@ -34,9 +28,7 @@
         "以当前88行review-parallel-real-handle版本重跑空词→无结果→错误identity→retry→末页→clear完整序列；09:34日志不能自动继承。",
         "运行新loadMore拒绝探针，确认来自外部SearchSourceLike的命令Promise不被吞；不同于core可恢复查询错误。"
       ],
-      "requestIds": [
-        "search-angular-round2-test"
-      ],
+      "requestIds": ["search-angular-round2-test"],
       "scenarioCoverage": [
         {
           "scenario": "空词",
@@ -91,10 +83,7 @@
         "执行fake-timer A→B debounce、真实core在途查询换源/分页late完成新探针，核对订阅计数与AbortSignal；新源名字source-new不是RxDB branch证据。",
         "原场景中的真实同一RxDB branch与分页交错、同fixture三端结果需要主控补证/映射；A已经执行时B排队的中间输出尚未由本探针逐帧断言，不用最终快照假称强latest-only时序。"
       ],
-      "requestIds": [
-        "search-angular-round2-test",
-        "search-angular-round2-browser"
-      ],
+      "requestIds": ["search-angular-round2-test", "search-angular-round2-browser"],
       "scenarioCoverage": [
         {
           "scenario": "A→B快速输入",
@@ -298,6 +287,10 @@
       ]
     }
   ],
+  "object": "rxdb-plugin-search-angular",
+  "originalCCount": 5,
+  "partialCCount": 5,
+  "recordedAt": "2026-10-05T11:07:10.962597+08:00",
   "registeredIssueReferenceOnly": [
     {
       "id": "RV-062",
@@ -306,5 +299,7 @@
       "rootCauseOwner": "rxdb-plugin-search/core",
       "qualification": "clear/destroy丢pending waiters，Angular await loadMore不能替core保证所有取消结算；只引用，不重复登记或修改。"
     }
-  ]
+  ],
+  "scopeTask": "R2-05",
+  "task": "R2-04"
 }

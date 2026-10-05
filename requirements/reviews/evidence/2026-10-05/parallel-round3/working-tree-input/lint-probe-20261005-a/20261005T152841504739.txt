@@ -1,0 +1,39 @@
+COMMAND: ["pnpm", "nx", "run", "rxdb-plugin-working-tree-angular:lint", "--command=eslint src/__tests__/review-round3-input-component.spec.ts --max-warnings=0", "--parallel=1", "--excludeTaskDependencies", "--skipRemoteCache", "--skipNxCache", "--output-style=static"]
+CWD: /Users/jimmy/Documents/aiao/rxdb
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-working-tree-angular:lint --command=eslint src/__tests__/review-round3-input-component.spec.ts --max-warnings=0
+
+> eslint src/__tests__/review-round3-input-component.spec.ts --max-warnings=0
+
+
+/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/__tests__/review-round3-input-component.spec.ts
+  14:1  warning  Projects cannot be imported by a relative or absolute path, and must begin with a npm scope  @nx/enforce-module-boundaries
+
+✖ 1 problem (0 errors, 1 warning)
+
+ESLint found too many warnings (maximum: 0).
+Warning: command "eslint src/__tests__/review-round3-input-component.spec.ts --max-warnings=0" exited with non-zero status code
+
+
+ NX   Running target lint for project rxdb-plugin-working-tree-angular failed
+
+Failed tasks:
+
+- rxdb-plugin-working-tree-angular:lint
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      785ms
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     758ms (1 task)
+  Recoverable time:  <1ms

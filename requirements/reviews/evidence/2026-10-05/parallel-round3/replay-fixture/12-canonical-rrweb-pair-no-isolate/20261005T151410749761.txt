@@ -1,0 +1,388 @@
+COMMAND: ["pnpm", "nx", "run", "rxdb-plugin-replay-angular:test", "replayer.component.spec.ts", "review-round2-player-lifecycle.spec.ts", "--run", "--maxWorkers=1", "--fileParallelism=false", "--isolate=false", "--coverage.enabled=false", "--excludeTaskDependencies", "--skipSync", "--skipRemoteCache", "--skipNxCache", "--output-style=static"]
+CWD: /Users/jimmy/Documents/aiao/rxdb
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-replay-angular:test replayer.component.spec.ts review-round2-player-lifecycle.spec.ts --run --maxWorkers=1 --fileParallelism=false --isolate=false --coverage.enabled=false
+
+> vitest replayer.component.spec.ts review-round2-player-lifecycle.spec.ts --run --maxWorkers=1 --fileParallelism=false --isolate=false --coverage.enabled=false
+
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular
+
+ ❯ |rxdb-plugin-replay-angular| src/__tests__/review-round2-player-lifecycle.spec.ts (15 tests | 1 failed) 2201ms
+     ✓ R3 夹具守卫：组件入口转发真实核心，rrweb 使用同一可解析模块 1ms
+     ✓ 空 recording 与加载失败显示各自状态，不启动录制 80ms
+     ✓ 切 session 和 replay 不重建组件，旧 load 晚完成不能覆盖新 recording 110ms
+     ✓ 挂载后加载中的 seek 与之后 initialTime 走真实时间轴和输出 61ms
+     × 父子 provider 分别供给同组件的两个实例，各自读取和销毁 1033ms
+     ✓ 加载中销毁，晚 load 不生成播放器、不向已销毁组件输出 5ms
+     ✓ 首次渲染前销毁，afterNextRender 不留后台 mount 4ms
+     ✓ 实际 marker 点击后转发受控恢复结果 0 109ms
+     ✓ 实际 marker 点击后转发受控恢复结果 1 106ms
+     ✓ 实际 marker 点击后转发受控恢复结果 2 106ms
+     ✓ 实际 marker 点击后转发受控恢复结果 3 112ms
+     ✓ 实际 marker 点击后转发受控恢复结果 4 112ms
+     ✓ 实际 marker 点击后转发受控恢复结果 5 125ms
+     ✓ 同播放器的两个在途 restore 各自完成，不把受控结果冒充真实工作树 CAS 173ms
+     ✓ 恢复中卸载，晚结果不输出、不复建 DOM，核心播放器销毁一次 63ms
+stderr | src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular）parity > 1. 挂载 → mountReplayer 一次，宿主在组件内，输入原样传入
+ERROR TypeError: replay.readEvents is not a function
+    at ReplayerView.#load (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:177:25)
+    at new ReplayerView (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:105:15)
+    at mountReplayer (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:337:16)
+    at /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts:72:22
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4346:27
+    at AfterRenderImpl.maybeTrace (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4403:75)
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:78
+    at NoopNgZone.runOutsideAngular (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_pending_tasks-chunk.mjs:2671:12)
+    at AfterRenderImpl.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:49)
+    at AfterRenderManager.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4307:16)
+
+stderr | src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular）parity > 2. 改 sessionId → update({ sessionId }) 一次，不重新挂载
+ERROR TypeError: replay.readEvents is not a function
+    at ReplayerView.#load (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:177:25)
+    at new ReplayerView (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:105:15)
+    at mountReplayer (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:337:16)
+    at /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts:72:22
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4346:27
+    at AfterRenderImpl.maybeTrace (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4403:75)
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:78
+    at NoopNgZone.runOutsideAngular (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_pending_tasks-chunk.mjs:2671:12)
+    at AfterRenderImpl.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:49)
+    at AfterRenderManager.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4307:16)
+
+stderr | src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular）parity > 3. 改 initialTime → update({ initialTime })
+ERROR TypeError: replay.readEvents is not a function
+    at ReplayerView.#load (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:177:25)
+    at new ReplayerView (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:105:15)
+    at mountReplayer (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:337:16)
+    at /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts:72:22
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4346:27
+    at AfterRenderImpl.maybeTrace (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4403:75)
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:78
+    at NoopNgZone.runOutsideAngular (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_pending_tasks-chunk.mjs:2671:12)
+    at AfterRenderImpl.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:49)
+    at AfterRenderManager.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4307:16)
+
+stderr | src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular）parity > 4. onTimeChange(1234) → 时刻输出收到 1234
+ERROR TypeError: replay.readEvents is not a function
+    at ReplayerView.#load (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:177:25)
+    at new ReplayerView (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:105:15)
+    at mountReplayer (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:337:16)
+    at /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts:72:22
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4346:27
+    at AfterRenderImpl.maybeTrace (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4403:75)
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:78
+    at NoopNgZone.runOutsideAngular (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_pending_tasks-chunk.mjs:2671:12)
+    at AfterRenderImpl.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:49)
+    at AfterRenderManager.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4307:16)
+
+stderr | src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular）parity > 5. onCommitRestore(e) → 恢复输出收到同一个 e
+ERROR TypeError: replay.readEvents is not a function
+    at ReplayerView.#load (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:177:25)
+    at new ReplayerView (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:105:15)
+    at mountReplayer (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:337:16)
+    at /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts:72:22
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4346:27
+    at AfterRenderImpl.maybeTrace (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4403:75)
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:78
+    at NoopNgZone.runOutsideAngular (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_pending_tasks-chunk.mjs:2671:12)
+    at AfterRenderImpl.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:49)
+    at AfterRenderManager.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4307:16)
+
+stderr | src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular）parity > 6. play / pause / seek(500) → 句柄同名方法各一次
+ERROR TypeError: replay.readEvents is not a function
+    at ReplayerView.#load (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:177:25)
+    at new ReplayerView (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:105:15)
+    at mountReplayer (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:337:16)
+    at /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts:72:22
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4346:27
+    at AfterRenderImpl.maybeTrace (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4403:75)
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:78
+    at NoopNgZone.runOutsideAngular (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_pending_tasks-chunk.mjs:2671:12)
+    at AfterRenderImpl.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:49)
+    at AfterRenderManager.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4307:16)
+
+stderr | src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular）parity > 7. 卸载 → destroy() 一次
+ERROR TypeError: replay.readEvents is not a function
+    at ReplayerView.#load (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:177:25)
+    at new ReplayerView (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:105:15)
+    at mountReplayer (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:337:16)
+    at /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts:72:22
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4346:27
+    at AfterRenderImpl.maybeTrace (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4403:75)
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:78
+    at NoopNgZone.runOutsideAngular (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_pending_tasks-chunk.mjs:2671:12)
+    at AfterRenderImpl.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:49)
+    at AfterRenderManager.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4307:16)
+
+stderr | src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular） > 换 replay 实例 → update({ replay })；同一轮改两项合成一次 update
+ERROR TypeError: replay.readEvents is not a function
+    at ReplayerView.#load (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:177:25)
+    at new ReplayerView (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:105:15)
+    at mountReplayer (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:337:16)
+    at /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts:72:22
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4346:27
+    at AfterRenderImpl.maybeTrace (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4403:75)
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:78
+    at NoopNgZone.runOutsideAngular (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_pending_tasks-chunk.mjs:2671:12)
+    at AfterRenderImpl.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:49)
+    at AfterRenderManager.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4307:16)
+
+stderr | src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular） > 宿主是 ao-replayer 里的一个 div
+ERROR TypeError: replay.readEvents is not a function
+    at ReplayerView.#load (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:177:25)
+    at new ReplayerView (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:105:15)
+    at mountReplayer (/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts:337:16)
+    at /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts:72:22
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4346:27
+    at AfterRenderImpl.maybeTrace (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4403:75)
+    at file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:78
+    at NoopNgZone.runOutsideAngular (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_pending_tasks-chunk.mjs:2671:12)
+    at AfterRenderImpl.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4344:49)
+    at AfterRenderManager.execute (file:///Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/fesm2022/_debug_node-chunk.mjs:4307:16)
+
+ ❯ |rxdb-plugin-replay-angular| src/__tests__/replayer.component.spec.ts (9 tests | 9 failed) 23ms
+     × 1. 挂载 → mountReplayer 一次，宿主在组件内，输入原样传入 7ms
+     × 2. 改 sessionId → update({ sessionId }) 一次，不重新挂载 2ms
+     × 3. 改 initialTime → update({ initialTime }) 2ms
+     × 4. onTimeChange(1234) → 时刻输出收到 1234 2ms
+     × 5. onCommitRestore(e) → 恢复输出收到同一个 e 2ms
+     × 6. play / pause / seek(500) → 句柄同名方法各一次 2ms
+     × 7. 卸载 → destroy() 一次 2ms
+     × 换 replay 实例 → update({ replay })；同一轮改两项合成一次 update 3ms
+     × 宿主是 ao-replayer 里的一个 div 2ms
+
+⎯⎯⎯⎯⎯⎯ Failed Tests 10 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-plugin-replay-angular| src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular）parity > 1. 挂载 → mountReplayer 一次，宿主在组件内，输入原样传入
+Error: [replayer parity] mountReplayer must be called exactly once; actual: 0
+ ❯ t ../rxdb-plugin-replay/dist/testing/index.js:37:8
+     35|  }
+     36| }, t = (e, t) => {
+     37|  throw Error(`[replayer parity] ${e}; actual: ${JSON.stringify(t)}`);
+       |        ^
+     38| }, n = (e, n, r) => {
+     39|  JSON.stringify(e) !== JSON.stringify(n) && t(`${r}; expected: ${JSON.…
+ ❯ a ../rxdb-plugin-replay/dist/testing/index.js:48:27
+ ❯ Object.run ../rxdb-plugin-replay/dist/testing/index.js:57:34
+ ❯ src/__tests__/replayer.component.spec.ts:58:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/10]⎯
+
+ FAIL  |rxdb-plugin-replay-angular| src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular）parity > 2. 改 sessionId → update({ sessionId }) 一次，不重新挂载
+Error: [replayer parity] mountReplayer must be called exactly once; actual: 0
+ ❯ t ../rxdb-plugin-replay/dist/testing/index.js:37:8
+     35|  }
+     36| }, t = (e, t) => {
+     37|  throw Error(`[replayer parity] ${e}; actual: ${JSON.stringify(t)}`);
+       |        ^
+     38| }, n = (e, n, r) => {
+     39|  JSON.stringify(e) !== JSON.stringify(n) && t(`${r}; expected: ${JSON.…
+ ❯ a ../rxdb-plugin-replay/dist/testing/index.js:48:27
+ ❯ Object.run ../rxdb-plugin-replay/dist/testing/index.js:70:67
+ ❯ src/__tests__/replayer.component.spec.ts:58:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/10]⎯
+
+ FAIL  |rxdb-plugin-replay-angular| src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular）parity > 3. 改 initialTime → update({ initialTime })
+Error: [replayer parity] mountReplayer must be called exactly once; actual: 0
+ ❯ t ../rxdb-plugin-replay/dist/testing/index.js:37:8
+     35|  }
+     36| }, t = (e, t) => {
+     37|  throw Error(`[replayer parity] ${e}; actual: ${JSON.stringify(t)}`);
+       |        ^
+     38| }, n = (e, n, r) => {
+     39|  JSON.stringify(e) !== JSON.stringify(n) && t(`${r}; expected: ${JSON.…
+ ❯ a ../rxdb-plugin-replay/dist/testing/index.js:48:27
+ ❯ Object.run ../rxdb-plugin-replay/dist/testing/index.js:79:68
+ ❯ src/__tests__/replayer.component.spec.ts:58:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/10]⎯
+
+ FAIL  |rxdb-plugin-replay-angular| src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular）parity > 4. onTimeChange(1234) → 时刻输出收到 1234
+Error: [replayer parity] mountReplayer must be called exactly once; actual: 0
+ ❯ t ../rxdb-plugin-replay/dist/testing/index.js:37:8
+     35|  }
+     36| }, t = (e, t) => {
+     37|  throw Error(`[replayer parity] ${e}; actual: ${JSON.stringify(t)}`);
+       |        ^
+     38| }, n = (e, n, r) => {
+     39|  JSON.stringify(e) !== JSON.stringify(n) && t(`${r}; expected: ${JSON.…
+ ❯ a ../rxdb-plugin-replay/dist/testing/index.js:48:27
+ ❯ Object.run ../rxdb-plugin-replay/dist/testing/index.js:92:8
+ ❯ src/__tests__/replayer.component.spec.ts:58:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/10]⎯
+
+ FAIL  |rxdb-plugin-replay-angular| src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular）parity > 5. onCommitRestore(e) → 恢复输出收到同一个 e
+Error: [replayer parity] mountReplayer must be called exactly once; actual: 0
+ ❯ t ../rxdb-plugin-replay/dist/testing/index.js:37:8
+     35|  }
+     36| }, t = (e, t) => {
+     37|  throw Error(`[replayer parity] ${e}; actual: ${JSON.stringify(t)}`);
+       |        ^
+     38| }, n = (e, n, r) => {
+     39|  JSON.stringify(e) !== JSON.stringify(n) && t(`${r}; expected: ${JSON.…
+ ❯ a ../rxdb-plugin-replay/dist/testing/index.js:48:27
+ ❯ Object.run ../rxdb-plugin-replay/dist/testing/index.js:115:4
+ ❯ src/__tests__/replayer.component.spec.ts:58:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/10]⎯
+
+ FAIL  |rxdb-plugin-replay-angular| src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular）parity > 6. play / pause / seek(500) → 句柄同名方法各一次
+Error: [replayer parity] commands; expected: [{"method":"play","args":[]},{"method":"pause","args":[]},{"method":"seek","args":[500]}]; actual: []
+ ❯ t ../rxdb-plugin-replay/dist/testing/index.js:37:8
+     35|  }
+     36| }, t = (e, t) => {
+     37|  throw Error(`[replayer parity] ${e}; actual: ${JSON.stringify(t)}`);
+       |        ^
+     38| }, n = (e, n, r) => {
+     39|  JSON.stringify(e) !== JSON.stringify(n) && t(`${r}; expected: ${JSON.…
+ ❯ n ../rxdb-plugin-replay/dist/testing/index.js:39:45
+ ❯ Object.run ../rxdb-plugin-replay/dist/testing/index.js:121:61
+ ❯ src/__tests__/replayer.component.spec.ts:58:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/10]⎯
+
+ FAIL  |rxdb-plugin-replay-angular| src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular）parity > 7. 卸载 → destroy() 一次
+Error: [replayer parity] unmounting; expected: [[]]; actual: []
+ ❯ t ../rxdb-plugin-replay/dist/testing/index.js:37:8
+     35|  }
+     36| }, t = (e, t) => {
+     37|  throw Error(`[replayer parity] ${e}; actual: ${JSON.stringify(t)}`);
+       |        ^
+     38| }, n = (e, n, r) => {
+     39|  JSON.stringify(e) !== JSON.stringify(n) && t(`${r}; expected: ${JSON.…
+ ❯ n ../rxdb-plugin-replay/dist/testing/index.js:39:45
+ ❯ Object.run ../rxdb-plugin-replay/dist/testing/index.js:140:46
+ ❯ src/__tests__/replayer.component.spec.ts:58:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/10]⎯
+
+ FAIL  |rxdb-plugin-replay-angular| src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular） > 换 replay 实例 → update({ replay })；同一轮改两项合成一次 update
+AssertionError: expected [] to deeply equal [ Array(2) ]
+
+- Expected
++ Received
+
+- [
+-   [
+-     {
+-       "replay": {
+-         "next": true,
+-       },
+-     },
+-   ],
+-   [
+-     {
+-       "initialTime": 9,
+-       "sessionId": "s2",
+-     },
+-   ],
+- ]
++ []
+
+ ❯ src/__tests__/replayer.component.spec.ts:76:38
+     74|     fixture.componentRef.setInput('initialTime', 9);
+     75|     await fixture.whenStable();
+     76|     expect(current.argsOf('update')).toEqual([[{ replay: next }], [{ s…
+       |                                      ^
+     77|     expect(current.mounts).toHaveLength(1);
+     78|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/10]⎯
+
+ FAIL  |rxdb-plugin-replay-angular| src/__tests__/replayer.component.spec.ts > ReplayerComponent（Angular） > 宿主是 ao-replayer 里的一个 div
+AssertionError: expected undefined to be 'DIV' // Object.is equality
+
+- Expected:
+"DIV"
+
++ Received:
+undefined
+
+ ❯ src/__tests__/replayer.component.spec.ts:88:27
+     86|     await fixture.whenStable();
+     87|     const host = current.mounts[0]?.host;
+     88|     expect(host?.tagName).toBe('DIV');
+       |                           ^
+     89|     expect(host?.parentElement).toBe(fixture.nativeElement);
+     90|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/10]⎯
+
+ FAIL  |rxdb-plugin-replay-angular| src/__tests__/review-round2-player-lifecycle.spec.ts > R2-10 Angular + 真实核心：加载与生命周期 > 父子 provider 分别供给同组件的两个实例，各自读取和销毁
+AssertionError: expected [ ControlledReplayer{ …(6) } ] to have a length of 2 but got 1
+
+- Expected
++ Received
+
+- 2
++ 1
+
+ ❯ src/__tests__/review-round2-player-lifecycle.spec.ts:217:55
+    215|     const fixture = TestBed.createComponent(ParentReplayHost);
+    216|     await fixture.whenStable();
+    217|     await vi.waitFor(() => expect(boundary.instances).toHaveLength(2));
+       |                                                       ^
+    218|     expect(parent.readEvents).toHaveBeenCalledWith('parent-session');
+    219|     expect(childSource.readEvents).toHaveBeenCalledWith('child-session…
+ ❯ Timeout.<anonymous> ../../node_modules/.pnpm/happy-dom@20.14.5/node_modules/happy-dom/src/window/BrowserWindow.ts:2595:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[10/10]⎯
+
+⎯⎯⎯⎯⎯⎯ Unhandled Errors ⎯⎯⎯⎯⎯⎯
+
+Vitest caught 1 unhandled error during the test run.
+This might cause false positive tests. Resolve unhandled errors to make sure your tests are not affected.
+
+⎯⎯⎯⎯ Unhandled Rejection ⎯⎯⎯⎯⎯
+Error: rrweb-snapshot.rebuild() cannot rebuild into an unprotected browser document. Use rebuildIntoSandboxedIframe() or set UNSAFE_allowUnprotectedRebuild: true only when you accept the script-execution risk.
+ ❯ assertRebuildTargetAllowed ../../node_modules/.pnpm/rrweb@2.1.7/node_modules/rrweb/dist/rrweb.js:5395:9
+ ❯ rebuild ../../node_modules/.pnpm/rrweb@2.1.7/node_modules/rrweb/dist/rrweb.js:5736:3
+ ❯ Replayer.rebuildFullSnapshot ../../node_modules/.pnpm/rrweb@2.1.7/node_modules/rrweb/dist/rrweb.js:16430:5
+ ❯ castFn ../../node_modules/.pnpm/rrweb@2.1.7/node_modules/rrweb/dist/rrweb.js:15919:18
+ ❯ wrappedCastFn ../../node_modules/.pnpm/rrweb@2.1.7/node_modules/rrweb/dist/rrweb.js:15968:11
+ ❯ Replayer.<anonymous> ../../node_modules/.pnpm/rrweb@2.1.7/node_modules/rrweb/dist/rrweb.js:15886:9
+ ❯ play ../../node_modules/.pnpm/rrweb@2.1.7/node_modules/rrweb/dist/rrweb.js:15270:11
+ ❯ ../../node_modules/.pnpm/rrweb@2.1.7/node_modules/rrweb/dist/rrweb.js:15118:18
+ ❯ l ../../node_modules/.pnpm/rrweb@2.1.7/node_modules/rrweb/dist/rrweb.js:15116:21
+
+This error originated in "src/__tests__/review-round2-player-lifecycle.spec.ts" test file. It doesn't mean the error was thrown inside the file itself, but while it was running.
+The latest test that might've caused the error is "父子 provider 分别供给同组件的两个实例，各自读取和销毁". It might mean one of the following:
+- The error was thrown, while Vitest was running this test.
+- If the error occurred after the test had been completed, this was the last documented test before it was thrown.
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯
+
+
+ Test Files  2 failed (2)
+      Tests  10 failed | 14 passed (24)
+     Errors  1 error
+   Start at  15:14:17
+   Duration  2.77s (transform 112ms, setup 202ms, import 53ms, tests 2.22s, environment 190ms)
+
+Warning: command "vitest replayer.component.spec.ts review-round2-player-lifecycle.spec.ts --run --maxWorkers=1 --fileParallelism=false --isolate=false --coverage.enabled=false" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-plugin-replay-angular failed
+
+Failed tasks:
+
+- rxdb-plugin-replay-angular:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      7.0s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     7.0s (1 task)
+  Recoverable time:  <1ms

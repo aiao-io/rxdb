@@ -1,0 +1,2 @@
+COMMAND: ["pnpm", "exec", "tsc", "-p", "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsconfig.probe-strict.json"]
+CWD: /Users/jimmy/Documents/aiao/rxdb

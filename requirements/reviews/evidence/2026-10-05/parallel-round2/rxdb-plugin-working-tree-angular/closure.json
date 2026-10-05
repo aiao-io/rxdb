@@ -1,0 +1,143 @@
+{
+  "absoluteChangeList": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/changed-files.json",
+  "boundedAgentReviewWorkFinished": true,
+  "completeC": [],
+  "completeCCount": 0,
+  "completeCMeaning": "原最低场景全部验证闭合，不是原 C 结论完成；当前 fullCCount=0 不表示仍在无限评审。",
+  "completeObjectCandidate": true,
+  "currentOriginalFilesChanged": [],
+  "currentReadDependenciesChanged": [],
+  "finalHead": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "fullyReadOriginalFiles": 15,
+  "heavyTasksExecutedByAgent": 0,
+  "knownIssuesDuplicated": 0,
+  "latestUserClarificationAt": "2026-10-05T11:37:08.708756+08:00",
+  "localCompletedSubsurfaces": [
+    "15/15 全受控正文/原 C/文档/配置/旧 tests 读取",
+    "resolved Nx build/test/lint/typecheck/release 边界确认",
+    "十二 Signal/十二 commands/types 与 Vue/core/generated declaration 静态对照；React API 对照且 RV-069 去重",
+    "无自动 enable/订阅、按资源/库捕获与 generation 归属静态核查",
+    "主控 fresh baseline 48 tests / four metrics 100 / build/lint / root runtime import 0 读取并按输入 sha 绑定",
+    "four package-only consumers + 12 lifecycle definitions + 主控请求落盘"
+  ],
+  "newConfirmedFindings": 0,
+  "object": "rxdb-plugin-working-tree-angular",
+  "observedAt": "2026-10-05T11:32:38.002764+08:00",
+  "originalCompletionConditions": [
+    {
+      "id": "D1",
+      "originalCondition": "全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。",
+      "status": "passed",
+      "evidence": "15/15 full file content read + inventory/sha; no excluded originals"
+    },
+    {
+      "id": "D2",
+      "originalCondition": "每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。",
+      "status": "passed",
+      "evidence": "c-evidence.json preserves 5 original actions/minimum scenarios, explicit unverified actions"
+    },
+    {
+      "id": "D3",
+      "originalCondition": "不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。",
+      "status": "passed-with-measured-boundaries",
+      "evidence": "production/source/test role anchors + controller command/env; new probes never promoted to measured"
+    },
+    {
+      "id": "D4",
+      "originalCondition": "实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。",
+      "status": "passed-baseline-only",
+      "evidence": "build/unit/lint status/cache/input snapshots + four coverage counters; historical typecheck identified"
+    },
+    {
+      "id": "D5",
+      "originalCondition": "上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。",
+      "status": "passed-review-with-owned-required-validation-pending",
+      "evidence": "薄绑定上下游/三端公开 API/注入-provider/commands/generated/pack 已对照并分类；必要 typed/template/route/cleanup 动态面逐 C 分给主控；通用宿主/CAS 数据层属于 core 联审，不扩全矩阵。"
+    },
+    {
+      "id": "D6",
+      "originalCondition": "确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。",
+      "status": "passed-no-new-confirmed-findings",
+      "evidence": "registry read, RV-069 not duplicated; findings.pending.md keeps contract questions unconfirmed"
+    },
+    {
+      "id": "D7",
+      "originalCondition": "形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。",
+      "status": "passed-review-not-release",
+      "evidence": "🟡 对象评审 complete；验证仍 pending-required、releaseReady=false。每个原 C 的未验 owner/closureCondition/证据目录已固定，不假绿。"
+    }
+  ],
+  "originalCompletionConditionsReviewClosed": true,
+  "originalScopeFileCount": 15,
+  "partialC": ["C1", "C2", "C3", "C4", "C5"],
+  "partialCCount": 5,
+  "provisionalRating": "🟡 对象评审完成，必要验证仍 pending；不报全绿、不等同发布就绪",
+  "readyToReleaseSlot": true,
+  "releaseReady": false,
+  "remainingActions": [
+    {
+      "id": "working-tree-angular-strict-consumer",
+      "project": "rxdb-plugin-working-tree-angular",
+      "target": "isolated-packed-consumer",
+      "criticalForC": ["C3", "C5"],
+      "status": "requested",
+      "owner": "主控",
+      "closureCondition": "主控刷新 build→pack 后的离线、无 alias/链接环境：strict/skipLibCheck=false、显式 node+@types/ms。positive exit 0；negative 逐预期 API 行失败且不由依赖声明噪声替代。独立保留 bare 缺口。",
+      "resultEvidenceOwnerDirectory": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation"
+    },
+    {
+      "id": "working-tree-angular-strict-template",
+      "project": "rxdb-plugin-working-tree-angular",
+      "target": "isolated-ngc-consumer",
+      "criticalForC": ["C5"],
+      "status": "requested",
+      "owner": "主控",
+      "closureCondition": "主控 ngc strictTemplates 实际输出：安全正例通过、输入/事件/联合未缩窄负例失败；原 README 模板单独给实测结论。",
+      "resultEvidenceOwnerDirectory": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation"
+    },
+    {
+      "id": "working-tree-angular-lifecycle",
+      "project": "rxdb-plugin-working-tree-angular",
+      "target": "test",
+      "criticalForC": ["C1", "C2", "C3", "C4", "C5"],
+      "status": "requested",
+      "owner": "主控",
+      "closureCondition": "主控当轮聚焦 12 例输出、输入 sha 与环境；分别确认安全隔离和现状刻画，不把 retained state/旧 refresh 用例通过称为 cleanup 通过。",
+      "resultEvidenceOwnerDirectory": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation"
+    },
+    {
+      "id": "working-tree-angular-remaining-scenarios",
+      "project": "rxdb-plugin-working-tree-angular",
+      "target": "controller-adjudication-and-existing-user-path",
+      "criticalForC": ["C1", "C2", "C3", "C4", "C5"],
+      "status": "awaiting-controller-adjudication",
+      "owner": "主控",
+      "closureCondition": "主控对照已有框架/core/app 证据逐条裁定 C1-C5 必要未验项；若必要仅补 Angular 绑定/route 最小场景。通用 worktree 宿主/CAS 数据安全由 core 联审负责，不要求本对象等待/重跑长矩阵。没有证据仍保留必要 pending，不改为通过或不适用。",
+      "resultEvidenceOwnerDirectory": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation"
+    },
+    {
+      "id": "working-tree-angular-new-spec-gates",
+      "project": "rxdb-plugin-working-tree-angular",
+      "target": "lint/typecheck",
+      "criticalForC": ["C4", "C5"],
+      "status": "requested",
+      "owner": "主控",
+      "closureCondition": "主控当轮新 spec 的单对象零警告 lint/typecheck 与该 spec 实际输入摘要；当轮 coverage 独立登记，不继承旧 48 例。",
+      "resultEvidenceOwnerDirectory": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation"
+    }
+  ],
+  "reviewCompletionMeaning": "依 2026-10-05 用户最新口径：15文件全读，每个原 C 有准确结论，已确认问题去重，必要未验有责任人/核销条件/证据归属；完成的是对象评审，不是验证全通过。",
+  "reviewConclusionC": ["C1", "C2", "C3", "C4", "C5"],
+  "reviewConclusionCount": 5,
+  "reviewFullyComplete": true,
+  "scopeTask": "R2-08",
+  "sourceFingerprintRecheck": "source-fingerprint-final.json (written at final handoff)",
+  "sourceFingerprintRecheckAt": "2026-10-05T11:37:08.708756+08:00",
+  "sourceStableAtHandoff": true,
+  "status": "complete",
+  "task": "R2-07",
+  "taskMismatchHandled": "按 2026-10-05 用户最新 R2-07 指令执行；对象相同，scope/instructions 原调度编号不改",
+  "unverifiedRoutingRequiresControllerDecision": true,
+  "validationFullyComplete": false,
+  "validationStatus": "pending-required-controller-evidence"
+}

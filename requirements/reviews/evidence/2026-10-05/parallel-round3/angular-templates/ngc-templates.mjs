@@ -1,0 +1,74 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { base, load, virtualRoot, consumerRequire, assertFrozen, hash } from './consumer-tools.mjs';
+
+assertFrozen();
+const name = process.argv[2];
+const mode = process.argv[3] ?? 'ngc';
+const tag = process.argv[4];
+const ts = (await load('typescript')).default;
+const ng = await load('@angular/compiler-cli');
+const configFile = path.join(base, `tsconfig-${name}.json`);
+const config = ng.readConfiguration(configFile);
+const options = { ...config.options, rootDir: virtualRoot };
+if (mode === 'tsc') options.outDir = path.join(base, 'jit', name);
+const physicalRoot = path.join(base, 'fixtures');
+const fixtureNames = fs.readdirSync(physicalRoot).filter(file => file.endsWith('.ts') || file.endsWith('.mts'));
+const mapped = new Map(fixtureNames.map(file => [path.join(virtualRoot, file), path.join(physicalRoot, file)]));
+const rootNames = config.rootNames.map(file => path.join(virtualRoot, path.basename(file)));
+const host = ts.createCompilerHost(options);
+const readFile = host.readFile.bind(host);
+const fileExists = host.fileExists.bind(host);
+const getSourceFile = host.getSourceFile.bind(host);
+host.getCurrentDirectory = () => virtualRoot;
+host.directoryExists = directory => directory === virtualRoot || ts.sys.directoryExists(directory);
+host.fileExists = file => mapped.has(file) || fileExists(file);
+host.readFile = file => readFile(mapped.get(file) ?? file);
+host.getSourceFile = (file, languageVersion, onError, shouldCreateNewSourceFile) => mapped.has(file)
+  ? ts.createSourceFile(file, host.readFile(file), languageVersion, true)
+  : getSourceFile(file, languageVersion, onError, shouldCreateNewSourceFile);
+const emittedFiles = [];
+const writeFile = host.writeFile.bind(host);
+host.writeFile = (file, ...args) => {
+  if (!file.startsWith(base + path.sep)) throw new Error(`write outside evidence: ${file}`);
+  emittedFiles.push(file);
+  writeFile(file, ...args);
+};
+let diagnostics;
+let program;
+let emitted;
+if (mode === 'ngc') {
+  const result = ng.performCompilation({ rootNames, options, host });
+  diagnostics = [...config.errors, ...result.diagnostics];
+  program = result.program?.getTsProgram();
+  emitted = result.emitResult;
+} else {
+  program = ts.createProgram({ rootNames, options, host });
+  diagnostics = [...config.errors, ...ts.getPreEmitDiagnostics(program)];
+  emitted = program.emit();
+  diagnostics.push(...emitted.diagnostics);
+}
+const errors = diagnostics.filter(d => d.category === ts.DiagnosticCategory.Error);
+console.log(`ENGINE=${mode} compiler-cli=${consumerRequire.resolve('@angular/compiler-cli')} typescript=${ts.version}`);
+console.log(`strict=${options.strict} strictTemplates=${options.strictTemplates} skipLibCheck=${options.skipLibCheck}`);
+console.log(ng.formatDiagnostics(diagnostics));
+const exitCode = mode === 'ngc' ? ng.exitCodeFromResult(diagnostics) : errors.length ? 1 : 0;
+const esmMirrors = [];
+for (const file of emittedFiles.filter(file => file.endsWith('.js'))) {
+  const target = file.slice(0, -3) + '.mjs';
+  fs.copyFileSync(file, target);
+  esmMirrors.push({ file, target, byteIdentical: fs.readFileSync(file).equals(fs.readFileSync(target)), sha256: hash(fs.readFileSync(file)) });
+}
+const output = {
+  fixture: name, mode, virtualRoot, physicalRoot, configFile, harnessSha256: hash(fs.readFileSync(import.meta.filename)), toolsSha256: hash(fs.readFileSync(path.join(base, 'consumer-tools.mjs'))),
+  strict: options.strict, strictTemplates: options.strictTemplates, skipLibCheck: options.skipLibCheck,
+  sourceFiles: Object.fromEntries(fixtureNames.map(file => [file, hash(fs.readFileSync(path.join(physicalRoot, file)))])),
+  compilerCliEntry: consumerRequire.resolve('@angular/compiler-cli'), typescriptVersion: ts.version,
+  diagnostics: diagnostics.map(d => ({ code: d.code, category: ts.DiagnosticCategory[d.category], message: ts.flattenDiagnosticMessageText(d.messageText, '\n'), file: d.file?.fileName, line: d.file && d.start !== undefined ? d.file.getLineAndCharacterOfPosition(d.start).line + 1 : undefined })),
+  errorCount: errors.length, exitCode, emittedFiles, esmMirrors, emitSkipped: emitted?.emitSkipped,
+  resolvedTarDeclarations: program?.getSourceFiles().filter(file => file.fileName.includes('@aiao')).map(file => file.fileName)
+};
+fs.writeFileSync(path.join(base, `compiler-${name}-${mode}${tag ? '-' + tag : ''}.json`), JSON.stringify(output, null, 2) + '\n');
+console.log(`SUMMARY fixture=${name} mode=${mode} errors=${errors.length} emitted=${emittedFiles.length} exit=${exitCode}`);
+assertFrozen();
+process.exitCode = exitCode;

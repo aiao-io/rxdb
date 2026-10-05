@@ -1,0 +1,27 @@
+{
+  "clientDate": "2026-10-05",
+  "startedAt": "2026-10-05T15:13:47.423585+08:00",
+  "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "command": [
+    "/Users/jimmy/.nvm/versions/node/v26.7.0/bin/node",
+    "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/vue-tsc/bin/vue-tsc.js",
+    "--project",
+    "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/tsconfig.invalid-template-bundler.json",
+    "--noEmit",
+    "--pretty",
+    "false"
+  ],
+  "cwd": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3",
+  "exitCode": 2,
+  "elapsedSeconds": 4.705,
+  "scopedInputCount": 339,
+  "changedInputsDuringMeasurement": [],
+  "serialHeavyTaskLock": true,
+  "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/invalid-template-bundler-9e7a67dd79c3/20261005T151347339543.txt"
+}
+COMMAND: ["/Users/jimmy/.nvm/versions/node/v26.7.0/bin/node", "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/vue-tsc/bin/vue-tsc.js", "--project", "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/tsconfig.invalid-template-bundler.json", "--noEmit", "--pretty", "false"]
+CWD: /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3
+../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidTemplate.vue(11,36): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidTemplate.vue(12,63): error TS2339: Property 'missingField' does not exist on type 'NumericNode'.
+../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidTemplate.vue(13,21): error TS2339: Property 'toUpperCase' does not exist on type 'number'.

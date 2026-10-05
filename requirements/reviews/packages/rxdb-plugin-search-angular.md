@@ -160,3 +160,63 @@ pnpm audit:coverage --projects=rxdb-plugin-search-angular
 发布 pack 根是 `dist/packages/rxdb-plugin-search-angular`，实际 tarball 目标文件存在、独立根 ESM 解析通过；**不包含 typed consumer 编译/runtime import**。Angular 不能按源 manifest 缺 exports 报错。
 
 逐 C 原场景、函数/测试证据与完成条件详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-search-angular.md`；机器证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`。
+
+## 2026-10-05 parallel-round2：本包有界收尾交付
+
+本节是**最新状态**；前一轮统计保留为历史，不代表当前阅读范围。用户任务 **R2-04**，本包 `scope.json` 标记 **R2-05**；按同一个明确对象执行，未改 scope。阅读 HEAD `76a3848e2086f4617b80f7b1a1b896ef76e5719c`，记录时间 `2026-10-05T11:10:29.638149+08:00`。
+
+**代理负责的源码阅读/证据/探针交付已收尾，主控实际验证待续入；execution 保持 in-progress，完整 C 仍 0/5，非全对象完成候选。** 不等其他大包修复，不将等待验证改称不适用。
+
+### 范围、来源与测量边界
+
+- 原 scope **17/17 文件全文读完**，SHA 全部吻合；LICENSE、README、配置、全部四个原 spec 与生产入口均未默认排除。详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/file-inspection.json`。
+- 只额外新增本包 `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/review-round2-lifecycle.spec.ts`，**13 个探针 case 已冻结**；不改原测试、实现、依赖、README、RV 或总台账。scope 的17个原文件与新增探针单独计数。
+- `ng-package.json` 生成 APF，resolved 发布根是 `dist/packages/rxdb-plugin-search-angular`；当前生成声明已读，bundle source-map 内容与 `inject-search.ts` 相符。未由本代理重建或声明新 HEAD 可重复构建成功。
+- 原22测试通过与 statements/branches/functions/lines **100%/100%/100%/100%** 仅限旧测量；当前已测源码子集 SHA 无漂移，但 late C1 probe SHA 已变，新13例不继承旧绿。
+- 独立真实 tar 根 import **exit0**。补充 Node ambient + `@types/ms` 后，strict/all-d.ts、`skipLibCheck=false` 的正例 **exit0**，负例 **exit2** 且五个错误位于本 consumer 调用行。fixture SHA 与本目录正负例一致。
+- **裸环境仍失败**：上游 utils 的 NodeJS / ms 公开声明错误保留。对照通过不是普通 consumer 声明自闭合通过；Angular Node root import 显式预载 compiler，不代表运行了无上下文 `useSearch` 或完整 UI。
+
+### 原 C 不缩小：已证子面与剩余必要动作
+
+| C                              | 已证子面                                                                                   | 必要未验 / 当前结论                                                                                                                |
+| ------------------------------ | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
+| C1 SearchHandle 映射           | 四流/五态、readonly 输出、最新handle命令；历史真实core序列通过                             | 当前88行 real-handle spec 需重跑；新分页拒绝透传探针待主控。**partial**                                                            |
+| C2 快速输入与 options identity | core debounce 归属、语义相等判据、initialQuery仅初始种子、旧订阅先释放                     | 快速A→B、真实换源/在途分页新探针待跑；同一个真实RxDB branch交错和更强中间时序仍需主控证据。source-new名称不当成branch。**partial** |
+| C3 三端类型与依赖闭合          | 三端实际root/class/type对称；core inject/backend fail-fast归属；有条件tar正负/根import实测 | bare公开声明风险待裁定；缺plugin/不支持backend真实RxDB路径和当前同fixture parity尚缺；README required input候选未复验。**partial** |
+| C4 Angular 生命周期与注入      | DestroyRef/两effect/四Subscription清理，ErrorHandler与可恢复error分工；历史injector测试    | 组件inputs、子provider/三个实例、销毁中late成功或失败、四路协议error新探针待主控；不当成browser。**partial**                       |
+| C5 Angular 类型与运行证据      | 非实体泛型API的实际签名、严格tar正负consumer有条件验证、真实demo入口已读                   | ngc strictTemplates模板正负例和真正route挂卸未验；tsc/Vite JIT不是模板编译。**partial**                                            |
+
+新增源码只用真实 `createSearchHandle` + 明确的异步 executor 接缝，mock协议流用于 ErrorHandler 专项；分别记录，不冒称真实 SQL。健康 JIT fixture 用真实 `@Input` setter 桥接 signal，避免在无 Angular transformer 的 Vite 中制造 input 元数据假失败；required input 候选测试只针对构造阶段同步读取。
+
+### 原完成条件逐条收束
+
+1. **通过**：17原文件清点与全文阅读、生成来源/发布入口登记完成。
+2. **通过（登记层）**：五个原 C 的动作/最低场景保留，结论均明确为 partial，补证到具体动作；不是完整 C 核销。
+3. **partial**：源码不变量、历史运行与新探针角色分开；新动态主张仍等主控日志。
+4. **partial**：旧命令/缓存/skip/四指标已登记；主控本轮10包 unit+coverage/lint 在跑，不能预填结果。
+5. **partial**：三端/core/consumer归属已对照；bare风险、ngc、真实 branch/route 未补齐。
+6. **通过（去重与诚实登记）**：RV-062只引用；README required input仅静态候选，主控复验后决定是否登记新RV。
+7. **partial**：阶段品质🟡；最终全对象评级、reviewComplete/releaseReady/fullObjectCandidate 均不核销。
+
+### 主控接续：只跑必要 target / 消费面
+
+`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/validation-requests.json` 已给出 project/target/args/reason/criticalForC；本代理没有执行 build/test/coverage/lint/typecheck/e2e/server/容器或 consumer 编译。
+
+- 当前包 `test`、零警告 `lint`、`typecheck` 与 production `build` 的指纹/skip/逐case/四指标由主控记录。
+- 有条件tar `.mts`正负编译与根import已实测，无需重复；保留 bare 失败对照和附加类型环境限制。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/template-valid.ts` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/template-invalid.ts` 需要独立 `ngc strictTemplates=true`；仅 `.mts` tsc 不够。
+- 已发现真实 `dev-rxdb-angular-e2e:e2e-ci--src/search.spec.ts`，但现有单例只覆盖a11y与模拟错误，不能单凭它关闭真实query失败、branch+分页或route反复挂卸；主控补最小动态证据/裁定，不能擅自删除要求。
+
+机器闭环 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/closure.json`：原17文件全读、13个新case冻结、完整 C 0/5、局部子面及剩余动作齐全；**本包代理交付完成不等于全对象评审/发布就绪**。
+
+## R2 主控验证结算（不扩大子代理原核销范围）
+
+本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
+
+[真实tar类型正负/运行时证据](../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+
+消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
+
+主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。
+
+当轮确认意见：[RV-077](../RV-077-round2-angular-required-search.md)，公开输入边界与独立正确peer环境复验，不等于所有消费情形失败。

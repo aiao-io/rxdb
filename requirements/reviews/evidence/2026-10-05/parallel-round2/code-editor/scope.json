@@ -1,7 +1,8 @@
 {
-  "task": "R2-01",
   "object": "code-editor",
   "sourceRoot": "packages/code-editor",
+  "status": "queued",
+  "task": "R2-01",
   "trackedFiles": [
     {
       "path": "packages/code-editor/LICENSE",
@@ -92,6 +93,5 @@
     "requirements/reviews/packages/code-editor.md",
     "requirements/reviews/results/packages/code-editor.md",
     "requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor"
-  ],
-  "status": "queued"
+  ]
 }

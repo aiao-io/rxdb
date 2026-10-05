@@ -1,0 +1,40 @@
+COMMAND: node /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/vitest/vitest.mjs run --config /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/framework-tests/rxdb-plugin-search-react.config.mts
+
+ RUN  v4.1.11 /private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/framework-tests
+
+ ❯ |isolated-rxdb-plugin-search-react| rxdb-plugin-search-react.spec.ts (13 tests | 1 failed) 47ms
+     ✓ 快速 A→B 由 core 防抖，只执行 B 且不重建 handle 15ms
+     ✓ 已执行 A 后输入 B，串行闸门最终只留下 B 的第一页结果 2ms
+     ✓ 换 source 与 scope 后，旧请求晚到 result 不回流 3ms
+     ✓ 换 source 与 scope 后，旧请求晚到 error 不回流 2ms
+     ✓ 相同值新 options 保持返回值，pageSize 与 snippetLength 变化才重建 1ms
+     × undefined↔空 options 按公开 core 比较判据重建，而非复用旧 snapshot 3ms
+     ✓ 并发 loadMore 不重入执行闸门、不重复追加页 1ms
+     ✓ 已执行分页在 clear 后被取消，晚到结果不改状态且调用可结算 1ms
+     ✓ 已执行分页在 unmount 后被取消，晚到结果不改状态且调用可结算 1ms
+     ✓ 两个独立 StrictMode root 的重放、卸载与晚到结果各归其主 2ms
+     ✓ SSR render 不调用 search，initialQuery 仅成为初始快照 4ms
+     ✓ 真实 RxDB 的 missing-plugin 不伪装 empty，交给异常边界 9ms
+     ✓ 真实 RxDB 的 not-installed 不伪装 empty，交给异常边界 2ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 12 passed (13)
+   Start at  11:44:58
+   Duration  596ms (transform 28ms, setup 0ms, import 252ms, tests 47ms, environment 172ms)
+
+JUNIT report written to /private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/framework-tests/rxdb-plugin-search-react.junit.xml
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |isolated-rxdb-plugin-search-react| rxdb-plugin-search-react.spec.ts > 第二轮评审：真实 SearchHandle 与 React 生命周期 > undefined↔空 options 按公开 core 比较判据重建，而非复用旧 snapshot
+AssertionError: expected "vi.fn()" to be called 2 times, but got 1 times
+ ❯ rxdb-plugin-search-react.spec.ts:188:28
+    186|     expect(searchOptionsEqual(undefined, {})).toBe(false);
+    187|     rerender({ options: {} });
+    188|     expect(control.search).toHaveBeenCalledTimes(2);
+       |                            ^
+    189|     expect(control.search).toHaveBeenLastCalledWith('', {});
+    190|     rerender({ options: undefined });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+

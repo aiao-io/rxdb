@@ -118,8 +118,8 @@ pnpm audit:coverage --projects=rxdb-plugin-working-tree-vue
 
 ## 6. 完成条件
 
-- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。
-- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。
+- [x] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。
+- [x] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。
 - [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。
 - [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。
 - [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。
@@ -159,3 +159,48 @@ pnpm audit:coverage --projects=rxdb-plugin-working-tree-vue
 发布 pack 根是 `packages/rxdb-plugin-working-tree-vue`，实际 tarball 目标文件存在、独立根 ESM 解析通过；**不包含 typed consumer 编译/runtime import**。Angular 不能按源 manifest 缺 exports 报错。
 
 逐 C 原场景、函数/测试证据与完成条件详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-working-tree-vue.md`；机器证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`。
+
+## 2026-10-05 R2-08 包级有界收尾
+
+**phase: done（本轮阅读/证据交付）；execution 仍 in-progress/partial；完整 C 0/5，完整对象候选 false。** scope 的 R2-09 与用户的 R2-08 编号不一致，按唯一对象执行，未修改 scope。本轮观测 HEAD `76a3848e2086f4617b80f7b1a1b896ef76e5719c`；持续外部改动下，14 个受控文件与 scope 指纹全部相符。
+
+- [x] 14/14 文件正文完整实读（不是 sha/outline），包含全部 tests/fixture/README/LICENSE/配置；记录具体行区间和关注点。
+- [x] 五个原 C 的原动作、最低场景、局部已证、源码锚点、必要未验与动作逐项落盘；没有删原要求。
+- [x] 三端 12 状态/12 命令和生成 dts 静态对齐；native 形态/绑定生命周期差异如实记载。
+- [x] 主控当前原 48 tests、四项 100%、build/lint 与真 tar root import 0 证据读取登记；branches 为 0/0，两个 harness 在 coverage 面内。
+- [x] 两份独立 .mts consumer、两份最小 SFC consumer 与 9-case review-round2 probe 已交付；零 workspace alias、零 any、零 expect-error。
+- [ ] 新 probe/SFC consumer 的匹配 SHA 结果、当前 typecheck 与真实完整原场景证据由主控收尾；本任务未跑重门禁。
+
+| 原 C | 本轮局部结论                                                                   | 不能宣称完整通过的原因                                                                                                   |
+| ---- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| C1   | 初态/显式查询与 branch status 刷新已有原 unit 证据；Ref 换库仍是旧实例快照     | 新未 enable/缺插件/多实例 probe 未跑；真实库/branch ownership 与旧 diff 不显示未全证                                     |
+| C2   | CAS/restore 返回值拒绝与 dirty 异常语义保留；latest-only 是逐 key 代次         | 新并发/飞行换 scope probe 未跑；真实事务并发/CAS 数据无损不能由桩证明                                                    |
+| C3   | 三端公开成员/core 类型对齐，wrapper 不输出调试历史                             | watcher 停止不等于 retained diff/late patch 清理；实际三端序列/关闭/敏感摘要未全证                                       |
+| C4   | 零入参 API；provider Ref 与一次性 factory 区分，没用 live getter/watch/dispose | source snapshot 不能说成响应式重绑定；晚到命令、深改/provider computed 与真实 SFC 生命周期仍缺验证                       |
+| C5   | 实际 tar root runtime import 0；源/生成 dts/发布 JS 字节和 24 成员核对         | .mts strict 正/反例已通过（SHA 对齐）；.vue vue-tsc 正反例与实际用户链路未测；显式 Node/@types/ms 不证明 bare 声明自包含 |
+
+原七项完成条件分类见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/closure.json`：1、2 satisfied；3–7 partial。🟡 是有证据的本轮有限结论，不是全对象绿，也不是发布就绪。
+
+具体机器证据：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/file-inspection.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/api-comparison.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/c-evidence.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/validation-observations.json`。最小主控动作：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/validation-requests.json`；新测试不继承原 48 tests 通过。
+
+### 交接前增量证据（不继承 SFC/生命周期通过）
+
+主控独立 .mts consumer 在 2026-10-05 11:31:58（+08:00）已测：正例 exit=0；反例 exit=2，五条预定诊断全部匹配，两份 fixture SHA 与本目录一致。因此仅 typed .mts 子面已核销，**完整 C5 仍 partial**，SFC/vue-tsc 和真实用户链路未测。详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/validation-observations.json`。
+
+实际 tar 的 JS/dts/src 五份文件与 current 逐字节一致；package.json 的 workspace:* devDependencies 被 pack 转成 0.0.26，键顺序不同，故原始 manifest 字节不相同。已逐项核对 name/version/type/exports/types/import/main/module/files/peers 等发布相关键一致，未误报为源码漂移或假称原始字节全相同。
+
+### 14 文件包职责归属与冻结交接
+
+本包 **state / commands / typedSource 的源码评审已闭合，phase done**；不继续等待通用 core 的全部后端/历史验证。冻结新 probe SHA-256 `6327e258a03caffc502c1aee426d5f370ea1cf56ac27e37a12407b110e56794c`，共 9 场景，主控执行；本任务此后不增删探针。
+
+原 C 的真实事务/CAS 数据无损、实际分支/换库数据 ownership、敏感摘要 UI、关闭库/设备/浏览器链路仍如实未验，归 core/应用/平台评审。它们不是继续扩大本包职责或无限等待的理由，也没有被改成不适用。包内独立 .mts typedSource 已过；最小 .vue 与冻结 probe 由主控补测。**评审交付完成 ≠ 原最低场景全部已测 ≠ 平台全部通过 ≠ 发布就绪**；完整 C 仍 0/5，closure 已逐项分类。
+
+## R2 主控验证结算（不扩大子代理原核销范围）
+
+本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
+
+[真实tar类型正负/运行时证据](../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+
+消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
+
+主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。

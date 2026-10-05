@@ -1,0 +1,226 @@
+{
+  "bareConsumer": {
+    "source": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation-bare.json",
+    "checkedAt": "2026-10-05T10:58:02.521166+08:00",
+    "validLog": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/consumer-rxdb-plugin-tree-react-valid-bare.txt",
+    "invalidLog": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/consumer-rxdb-plugin-tree-react-invalid-bare.txt",
+    "validExitCode": 2,
+    "invalidExitCode": 2,
+    "upstreamErrors": [
+      "../../node_modules/.pnpm/@aiao+utils@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+_f186740f0f82232d0feceb1ce71e5c4a/node_modules/@aiao/utils/dist/async/nextMacroTask.d.ts(14,60): error TS2503: Cannot find namespace 'NodeJS'.",
+      "../../node_modules/.pnpm/@aiao+utils@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+_f186740f0f82232d0feceb1ce71e5c4a/node_modules/@aiao/utils/dist/date/msTimeToMilliseconds.d.ts(1,31): error TS7016: Could not find a declaration file for module 'ms'. '/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/ms@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb-r2_0a5978298dfb5b49c9c50a76d7915f08/node_modules/ms/index.js' implicitly has an 'any' type."
+    ],
+    "owner": "@aiao/utils public declarations: nextMacroTask.d.ts NodeJS; msTimeToMilliseconds.d.ts ms",
+    "notASelfContainedPublicDeclarationPass": true,
+    "noSourceOrDependencyFixInThisTask": true,
+    "noNewRvAllocated": true
+  },
+  "consumer": {
+    "source": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json",
+    "checkedAt": "2026-10-05T11:04:13.246331+08:00",
+    "actual": {
+      "project": "rxdb-plugin-tree-react",
+      "checkedAt": "2026-10-05T11:04:13.246331+08:00",
+      "cwd": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-react",
+      "noWorkspaceAliasesOrLinks": true,
+      "strict": true,
+      "skipLibCheck": false,
+      "valid": {
+        "exitCode": 0,
+        "errors": [],
+        "fixtureSha256": "6c401afeabd8bcd2c5b4f5655f0b05b71aa6d4b62d945ff3c5a600a5671ce8c5",
+        "status": "passed"
+      },
+      "invalid": {
+        "exitCode": 2,
+        "errors": [
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-react/consumer-invalid.mts(48,41): error TS2322: Type 'string' is not assignable to type 'number'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-react/consumer-invalid.mts(49,40): error TS2345: Argument of type '() => { entityId: string; }' is not assignable to parameter of type 'UseOptions<FindTreeOptions<typeof NumericTreeNode, RuleGroup<NumericTreeNode>>>'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-react/consumer-invalid.mts(50,38): error TS2322: Type 'number' is not assignable to type 'string'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-react/consumer-invalid.mts(51,37): error TS2345: Argument of type '() => { entityId: number; }' is not assignable to parameter of type 'UseOptions<FindTreeOptions<typeof StringTreeNode, RuleGroup<StringTreeNode>>>'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-react/consumer-invalid.mts(52,54): error TS2322: Type 'string' is not assignable to type 'number'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-react/consumer-invalid.mts(54,94): error TS2322: Type 'string' is not assignable to type 'number'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-react/consumer-invalid.mts(55,95): error TS2322: Type 'number' is not assignable to type 'string'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-react/consumer-invalid.mts(56,9): error TS2322: Type 'RxDBResource<NumericTreeNode[]>' is not assignable to type 'RxDBResource<StringTreeNode[]>'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-react/consumer-invalid.mts(57,9): error TS2322: Type 'RxDBResource<StringTreeNode[]>' is not assignable to type 'RxDBResource<NumericTreeNode[]>'.",
+          "../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-react/consumer-invalid.mts(58,9): error TS2322: Type 'RxDBResource<number>' is not assignable to type 'RxDBResource<string>'."
+        ],
+        "fixtureSha256": "4cb1e253b88438229aa3822eb48af9b543d5def5004db6a54406940ec1801c5d",
+        "status": "rejected-as-expected"
+      },
+      "rootRuntimeImport": {
+        "exitCode": 0,
+        "result": {
+          "name": "@aiao/rxdb-plugin-tree-react",
+          "exports": ["useCountAncestors", "useCountDescendants", "useFindAncestors", "useFindDescendants"]
+        }
+      }
+    },
+    "ambientEnvironmentSource": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-ambient-types.json",
+    "ambientEnvironment": {
+      "exitCode": 0,
+      "additionalTypePackage": "@types/ms 2.1.0",
+      "typePackageTarballSha256": "af7b364f6ef9ab424c010f41bafadd96baf8f07201559112e741f75b6db2a53f",
+      "explicitTypes": ["node"],
+      "isExtraConsumerEnvironmentRequirement": true,
+      "bareConsumerResultRetained": "isolated-consumer-validation-bare.json",
+      "notAPublicDeclarationSelfContainmentPass": true
+    },
+    "fixtureShaMatch": true,
+    "negativeDiagnosticLinesMatch": true,
+    "negativeDiagnosticsCount": 10,
+    "runtimeImportNotAHookRenderOrFullFrameworkUserPath": true
+  },
+  "coverage": {
+    "source": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-tree-react/coverage-summary.json",
+    "metrics": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "denominators": {
+      "statements": 9,
+      "branches": 0,
+      "functions": 4,
+      "lines": 9
+    },
+    "thresholdEach": 80,
+    "notCoreOrRealTreeCoverage": true
+  },
+  "frozenSpecSha256": "e138ed22e843ac7bfdca1f83628684caf30179512fcf71d121bf2e7dff7ce9ec",
+  "gateRuns": {
+    "build": {
+      "source": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-build-status.json",
+      "log": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-build.txt",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "--projects=code-editor,rxdb-plugin-tree-angular,rxdb-plugin-tree-react,rxdb-plugin-tree-vue,rxdb-plugin-search-angular,rxdb-plugin-search-react,rxdb-plugin-search-vue,rxdb-plugin-working-tree-angular,rxdb-plugin-working-tree-vue,rxdb-plugin-replay-angular",
+        "--parallel=1",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static",
+        "-t",
+        "build"
+      ],
+      "startedAt": "2026-10-05T11:04:54.769726+08:00",
+      "head": "465f9078e9844af2cbef9936c7321a5576333a01",
+      "aggregateExitCode": 0,
+      "ownResult": "passed",
+      "cacheDisabled": true,
+      "concurrency": 1,
+      "ownMeasuredInputs": {
+        "packages/rxdb-plugin-tree-react/project.json": "fcaa8eddeb691af2d6d334c09daea77971b8c1b63134137e779193c548287c4b",
+        "packages/rxdb-plugin-tree-react/vite.config.mts": "7795ba6908f8c78dd3a0830b9963d27c94843fee91d1e5d01f01b8e74f364a78",
+        "packages/rxdb-plugin-tree-react/package.json": "fe1c38d3c9412de40740ff07eb68eeb07d3a280a2486d74d61c83f8327f69c16",
+        "packages/rxdb-plugin-tree-react/tsconfig.json": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+        "packages/rxdb-plugin-tree-react/tsconfig.lib.json": "5110d28459ebf149a64f219ed27826fd59840a18deba39b2d897e718bfb91009",
+        "packages/rxdb-plugin-tree-react/tsconfig.spec.json": "28ae7c8b6b9de02abba8aaf41d0fde25b185fde4cb5ce5744d083087cf778b5d",
+        "packages/rxdb-plugin-tree-react/src/use-tree.ts": "0f02c001d36953d8df494c48d3ca77bb891135311ffe768aec921804a2a269e8",
+        "packages/rxdb-plugin-tree-react/src/index.ts": "9163971666e43f5f5f8493798e383cb07a9e5e9a46ebc5c4b6d4cf3b042126db",
+        "packages/rxdb-plugin-tree-react/src/__tests__/index.spec.ts": "76dcbfef9ee1c38dc9a2d42e1a62794d5452781a53d3228233ebc85e98f7d3ec",
+        "packages/rxdb-plugin-tree-react/src/__tests__/review-round2-lifecycle.spec.ts": "e138ed22e843ac7bfdca1f83628684caf30179512fcf71d121bf2e7dff7ce9ec",
+        "packages/rxdb-plugin-tree-react/src/__tests__/tri-framework-generics.spec.ts": "6d84c01a924a9e9631bfb0a9ae60f89fc14e7ba59fa3acd6e2f334c0d2b03bba",
+        "packages/rxdb-plugin-tree-react/src/__tests__/use-tree.spec.ts": "c5959cee5d1ada1d45e8d57daa45869be33b7b601f5263d5f84a1275c609fb15"
+      },
+      "ownAllCurrentInputShaMatch": true,
+      "aggregateExitCodeDoesNotOverrideOwnUnitSegment": false
+    },
+    "unit-coverage": {
+      "source": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage-status.json",
+      "log": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "--projects=code-editor,rxdb-plugin-tree-angular,rxdb-plugin-tree-react,rxdb-plugin-tree-vue,rxdb-plugin-search-angular,rxdb-plugin-search-react,rxdb-plugin-search-vue,rxdb-plugin-working-tree-angular,rxdb-plugin-working-tree-vue,rxdb-plugin-replay-angular",
+        "--parallel=1",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static",
+        "-t",
+        "test",
+        "--args=--run --maxWorkers=1 --coverage.enabled=true --coverage.reportOnFailure=true --coverage.reporter=text --coverage.reporter=json-summary --coverage.reporter=json"
+      ],
+      "startedAt": "2026-10-05T11:05:55.831274+08:00",
+      "head": "465f9078e9844af2cbef9936c7321a5576333a01",
+      "aggregateExitCode": 1,
+      "ownResult": "passed",
+      "cacheDisabled": true,
+      "concurrency": 1,
+      "ownMeasuredInputs": {
+        "packages/rxdb-plugin-tree-react/project.json": "fcaa8eddeb691af2d6d334c09daea77971b8c1b63134137e779193c548287c4b",
+        "packages/rxdb-plugin-tree-react/vite.config.mts": "7795ba6908f8c78dd3a0830b9963d27c94843fee91d1e5d01f01b8e74f364a78",
+        "packages/rxdb-plugin-tree-react/package.json": "fe1c38d3c9412de40740ff07eb68eeb07d3a280a2486d74d61c83f8327f69c16",
+        "packages/rxdb-plugin-tree-react/tsconfig.json": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+        "packages/rxdb-plugin-tree-react/tsconfig.lib.json": "5110d28459ebf149a64f219ed27826fd59840a18deba39b2d897e718bfb91009",
+        "packages/rxdb-plugin-tree-react/tsconfig.spec.json": "28ae7c8b6b9de02abba8aaf41d0fde25b185fde4cb5ce5744d083087cf778b5d",
+        "packages/rxdb-plugin-tree-react/src/use-tree.ts": "0f02c001d36953d8df494c48d3ca77bb891135311ffe768aec921804a2a269e8",
+        "packages/rxdb-plugin-tree-react/src/index.ts": "9163971666e43f5f5f8493798e383cb07a9e5e9a46ebc5c4b6d4cf3b042126db",
+        "packages/rxdb-plugin-tree-react/src/__tests__/index.spec.ts": "76dcbfef9ee1c38dc9a2d42e1a62794d5452781a53d3228233ebc85e98f7d3ec",
+        "packages/rxdb-plugin-tree-react/src/__tests__/review-round2-lifecycle.spec.ts": "e138ed22e843ac7bfdca1f83628684caf30179512fcf71d121bf2e7dff7ce9ec",
+        "packages/rxdb-plugin-tree-react/src/__tests__/tri-framework-generics.spec.ts": "6d84c01a924a9e9631bfb0a9ae60f89fc14e7ba59fa3acd6e2f334c0d2b03bba",
+        "packages/rxdb-plugin-tree-react/src/__tests__/use-tree.spec.ts": "c5959cee5d1ada1d45e8d57daa45869be33b7b601f5263d5f84a1275c609fb15"
+      },
+      "ownAllCurrentInputShaMatch": true,
+      "aggregateExitCodeDoesNotOverrideOwnUnitSegment": true
+    },
+    "lint": {
+      "source": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-lint-status.json",
+      "log": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-lint.txt",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "--projects=code-editor,rxdb-plugin-tree-angular,rxdb-plugin-tree-react,rxdb-plugin-tree-vue,rxdb-plugin-search-angular,rxdb-plugin-search-react,rxdb-plugin-search-vue,rxdb-plugin-working-tree-angular,rxdb-plugin-working-tree-vue,rxdb-plugin-replay-angular",
+        "--parallel=1",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static",
+        "-t",
+        "lint",
+        "--max-warnings=0"
+      ],
+      "startedAt": "2026-10-05T11:07:16.135726+08:00",
+      "head": "465f9078e9844af2cbef9936c7321a5576333a01",
+      "aggregateExitCode": 0,
+      "ownResult": "passed",
+      "cacheDisabled": true,
+      "concurrency": 1,
+      "ownMeasuredInputs": {
+        "packages/rxdb-plugin-tree-react/project.json": "fcaa8eddeb691af2d6d334c09daea77971b8c1b63134137e779193c548287c4b",
+        "packages/rxdb-plugin-tree-react/vite.config.mts": "7795ba6908f8c78dd3a0830b9963d27c94843fee91d1e5d01f01b8e74f364a78",
+        "packages/rxdb-plugin-tree-react/package.json": "fe1c38d3c9412de40740ff07eb68eeb07d3a280a2486d74d61c83f8327f69c16",
+        "packages/rxdb-plugin-tree-react/tsconfig.json": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+        "packages/rxdb-plugin-tree-react/tsconfig.lib.json": "5110d28459ebf149a64f219ed27826fd59840a18deba39b2d897e718bfb91009",
+        "packages/rxdb-plugin-tree-react/tsconfig.spec.json": "28ae7c8b6b9de02abba8aaf41d0fde25b185fde4cb5ce5744d083087cf778b5d",
+        "packages/rxdb-plugin-tree-react/src/use-tree.ts": "0f02c001d36953d8df494c48d3ca77bb891135311ffe768aec921804a2a269e8",
+        "packages/rxdb-plugin-tree-react/src/index.ts": "9163971666e43f5f5f8493798e383cb07a9e5e9a46ebc5c4b6d4cf3b042126db",
+        "packages/rxdb-plugin-tree-react/src/__tests__/index.spec.ts": "76dcbfef9ee1c38dc9a2d42e1a62794d5452781a53d3228233ebc85e98f7d3ec",
+        "packages/rxdb-plugin-tree-react/src/__tests__/review-round2-lifecycle.spec.ts": "e138ed22e843ac7bfdca1f83628684caf30179512fcf71d121bf2e7dff7ce9ec",
+        "packages/rxdb-plugin-tree-react/src/__tests__/tri-framework-generics.spec.ts": "6d84c01a924a9e9631bfb0a9ae60f89fc14e7ba59fa3acd6e2f334c0d2b03bba",
+        "packages/rxdb-plugin-tree-react/src/__tests__/use-tree.spec.ts": "c5959cee5d1ada1d45e8d57daa45869be33b7b601f5263d5f84a1275c609fb15"
+      },
+      "ownAllCurrentInputShaMatch": true,
+      "aggregateExitCodeDoesNotOverrideOwnUnitSegment": false
+    }
+  },
+  "observedAt": "2026-10-05T11:15:05+08:00",
+  "repeatedBuildDeterminism": "not measured",
+  "specFrozen": true,
+  "typecheckNewSpec": "not observed; Vitest and lib build do not compile test types",
+  "unit": {
+    "log": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt",
+    "lineRange": [1052, 1084],
+    "startAtLocal": "2026-10-05T11:07:10+08:00",
+    "testFilesPassed": 4,
+    "testsPassed": 16,
+    "newSpecTestsPassed": 10,
+    "testsFailed": 0,
+    "skipsPrintedInOwnSegment": false,
+    "happyDomNotRealBrowser": true,
+    "JUnitFileNotAvailable": true
+  }
+}

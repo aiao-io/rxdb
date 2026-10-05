@@ -17,7 +17,9 @@ export const source: SearchSourceLike = {
       initialQuery: query,
       debounceMs: options?.debounce ?? 0,
       performSearch: async value => ({
-        results: [{ entity: 'Article', collection: 'article', id: value, rank: -1, matchedField: 'title', snippet: value }],
+        results: [
+          { entity: 'Article', collection: 'article', id: value, rank: -1, matchedField: 'title', snippet: value }
+        ],
         hasMore: false
       })
     });
@@ -27,14 +29,28 @@ export const source: SearchSourceLike = {
 export function createConsumer() {
   const scope = effectScope();
   const sourceRef = shallowRef<SearchSourceLike>(source);
-  const optionsRef = ref<SearchOptions>({ initialQuery: 'article', debounce: 0, pageSize: 2, collections: ['article'] });
+  const optionsRef = ref<SearchOptions>({
+    initialQuery: 'article',
+    debounce: 0,
+    pageSize: 2,
+    collections: ['article']
+  });
   const result = scope.run(() => {
     const direct: UseSearchReturn = useSearch(source, { pageSize: 2 });
     const refInput: UseSearchReturn = useSearch(sourceRef, optionsRef);
     const readonlyInput: UseSearchReturn = useSearch(readonly(sourceRef), readonly(optionsRef));
-    const computedInput: UseSearchReturn = useSearch(computed(() => sourceRef.value), computed(() => optionsRef.value));
-    const getterInput: UseSearchReturn = useSearch(() => sourceRef.value, () => optionsRef.value);
-    const optionalInput: UseSearchReturn = useSearch(source, computed<SearchOptions | undefined>(() => undefined));
+    const computedInput: UseSearchReturn = useSearch(
+      computed(() => sourceRef.value),
+      computed(() => optionsRef.value)
+    );
+    const getterInput: UseSearchReturn = useSearch(
+      () => sourceRef.value,
+      () => optionsRef.value
+    );
+    const optionalInput: UseSearchReturn = useSearch(
+      source,
+      computed<SearchOptions | undefined>(() => undefined)
+    );
     const query: Ref<string> = direct.query;
     const results: Readonly<Ref<readonly SearchResult[]>> = direct.results;
     const state: Readonly<Ref<SearchState>> = direct.state;
@@ -48,8 +64,23 @@ export function createConsumer() {
     const failure: SearchExecutionError | undefined = error.value;
     const runtimeError: Error = new SearchExecutionError('consumer failure');
     return {
-      direct, refInput, readonlyInput, computedInput, getterInput, optionalInput,
-      query, results, state, error, hasMore, loadMore, clear, retry, snapshot, failure, runtimeError
+      direct,
+      refInput,
+      readonlyInput,
+      computedInput,
+      getterInput,
+      optionalInput,
+      query,
+      results,
+      state,
+      error,
+      hasMore,
+      loadMore,
+      clear,
+      retry,
+      snapshot,
+      failure,
+      runtimeError
     };
   });
   if (!result) throw new Error('consumer 必须在活动 scope 内建立');

@@ -123,6 +123,7 @@ function makeSource(performSearch: PerformSearch) {
     const core = createSearchHandle({
       performSearch,
       initialQuery: query,
+      refreshAuditMs: 0,
       debounceMs: options?.debounce ?? 0,
       subscribeDataChanges: () => released
     });

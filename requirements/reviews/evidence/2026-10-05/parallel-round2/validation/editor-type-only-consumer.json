@@ -1,0 +1,15 @@
+{
+  "command": [
+    "node",
+    "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/typescript/bin/tsc",
+    "-p",
+    "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/code-editor/tsconfig.type-only.json",
+    "--pretty",
+    "false"
+  ],
+  "declarationsFromRealPackedPackage": true,
+  "exitCode": 0,
+  "fixtureSha256": "a4725ac083a8daed10da77d61e14f22ffc2b2d0ec01c7f48104cc51e81f2062d",
+  "skipLibCheck": false,
+  "strict": true
+}

@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "composite": false,
+    "incremental": false
+  },
+  "extends": "./tsconfig.spec.json",
+  "include": ["src/__tests__/review-round2-component-lifecycle.spec.ts"],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    }
+  ]
+}

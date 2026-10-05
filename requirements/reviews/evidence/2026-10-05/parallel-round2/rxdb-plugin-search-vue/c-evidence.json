@@ -1,11 +1,19 @@
 {
-  "object": "rxdb-plugin-search-vue",
-  "recordedAt": "2026-10-05T10:59:42.063579+08:00",
-  "headAtInspection": "465f9078e9844af2cbef9936c7321a5576333a01",
-  "originalCCount": 5,
-  "fullCCount": 0,
-  "partialCCount": 5,
   "allOriginalScenariosRetained": true,
+  "finalHandoffCoordinatorReport": {
+    "recordedAt": "2026-10-05T11:09:34.173740+08:00",
+    "source": "用户/主控在本 chat 的最新直接报告；交接不扩读、不等待后续日志",
+    "bareEnvironmentResultRetained": true,
+    "supplementalEnvironment": "显式 Node typings + @types/ms，独立实际 tar consumer，严格声明检查",
+    "validStrictExitCode": 0,
+    "invalidResult": "仅消费类型诊断拒绝（非零；本消息未给具体数值）",
+    "rootRuntimeImportExitCode": 0,
+    "unitCoverageAndLint": "主控已启动 current newSpec unit+coverage/lint；尚未报告完成，不改写为通过",
+    "sfcTemplates": "正负 .vue fixture 已交付；本次报告没有给 SFC vue-tsc 模板结果",
+    "note": "explicit Node/@types/ms 对照通过不抹除裸环境 NodeJS/ms 的上游声明闭合失败；不自行修改 utils/依赖/stub/skipLibCheck。"
+  },
+  "fullCCount": 0,
+  "headAtInspection": "465f9078e9844af2cbef9936c7321a5576333a01",
   "items": [
     {
       "id": "C1",
@@ -29,9 +37,7 @@
       "remaining": [
         "在当前 93 行 real-handle 版本执行全部空词→empty→error/identity→retry→两页/末页→clear 的序列，并绑定 fingerprint/JUnit。"
       ],
-      "requestIds": [
-        "search-vue-r2-unit"
-      ],
+      "requestIds": ["search-vue-r2-unit"],
       "status": "partial",
       "fullC": false,
       "productionAnchors": [
@@ -48,11 +54,7 @@
       "title": "快速输入与 options identity",
       "action": "核查 debounce 的归属、语义相等选项、scope/branch 切换和异步过期结果。",
       "minimumScenarios": "A→B 快速输入、相同值新对象、换库/branch、并发翻页；不重复创建 handle 或串结果。",
-      "sourceAnchors": [
-        "src/use-search.ts:53–61",
-        "src/use-search.ts:156–173",
-        "src/use-search.ts:185–204"
-      ],
+      "sourceAnchors": ["src/use-search.ts:53–61", "src/use-search.ts:156–173", "src/use-search.ts:185–204"],
       "proved": [
         "options 字段依赖快照与 core equality；initialQuery 仅初始种子，重建使用当前 query。",
         "历史 source ref/语义等价新对象/deep pageSize/collections/旧流隔离/最新命令路由通过；Vue 不再实现一层 debounce。"
@@ -66,10 +68,7 @@
         "source identity/collections 代理场景不是同一真实 RxDB branch；真实 branch+并发分页以及跨框架同 fixture 证据仍由主控映射或补证。",
         "A→B 新探针只断言最终 B，未断言每一帧/中间 emission 都立即符合最新输入；不以最终快照核销更强时序主张。"
       ],
-      "requestIds": [
-        "search-vue-r2-unit",
-        "search-vue-r2-same-fixture-branch"
-      ],
+      "requestIds": ["search-vue-r2-unit", "search-vue-r2-same-fixture-branch"],
       "status": "partial",
       "fullC": false,
       "productionAnchors": [
@@ -108,11 +107,7 @@
         "原同 fixtures parity/真实 branch 测量面仍需主控映射具体证据；typed .mts 已在显式类型环境闭合，不再请求重复编译。",
         "裸环境与显式 Node/@types/ms 的不同依赖边界保留归因记录，不假称所有无 Node ambient 的 Vue consumer 均通过。"
       ],
-      "requestIds": [
-        "search-vue-r2-unit",
-        "search-vue-r2-sfc-consumer",
-        "search-vue-r2-same-fixture-branch"
-      ],
+      "requestIds": ["search-vue-r2-unit", "search-vue-r2-sfc-consumer", "search-vue-r2-same-fixture-branch"],
       "status": "partial",
       "fullC": false,
       "productionAnchors": [
@@ -130,11 +125,7 @@
       "title": "Vue 生命周期与响应式来源",
       "action": "核查 ref/computed/getter 输入解包、watch 依赖、onScopeDispose/onUnmounted 与 provider scope，避免把首次取值变成永久快照。",
       "minimumScenarios": "替换与深改输入、scope 销毁、卸载后晚到结果、多实例；旧订阅释放，新输入生效。",
-      "sourceAnchors": [
-        "src/use-search.ts:53–61",
-        "src/use-search.ts:112–121",
-        "src/use-search.ts:156–215"
-      ],
+      "sourceAnchors": ["src/use-search.ts:53–61", "src/use-search.ts:112–121", "src/use-search.ts:156–215"],
       "proved": [
         "guard 限定 setup/active effectScope；activate 同步建立 watch 并注册 onScopeDispose；不另外注册 onUnmounted 造成双 destroy。",
         "scope disposal 先 active=null 后四订阅 unsubscribe+destroy；重建顺序隔离旧流。",
@@ -148,10 +139,7 @@
         "真实 Vue mount 组件在 happy-dom 的多实例、卸载、迟到失败/结果、四订阅与 watcher 停止探针仍需主控运行。",
         "SFC fixture 的编译仅证明模板消费，defineComponent mount 仅证明组件运行；两者均不能声称真实浏览器/整页 hydration 已跑。"
       ],
-      "requestIds": [
-        "search-vue-r2-unit",
-        "search-vue-r2-sfc-consumer"
-      ],
+      "requestIds": ["search-vue-r2-unit", "search-vue-r2-sfc-consumer"],
       "status": "partial",
       "fullC": false,
       "productionAnchors": [
@@ -212,6 +200,10 @@
       "newProbe": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/review-round2-component-lifecycle.spec.ts"
     }
   ],
+  "object": "rxdb-plugin-search-vue",
+  "originalCCount": 5,
+  "partialCCount": 5,
+  "recordedAt": "2026-10-05T10:59:42.063579+08:00",
   "registeredIssueReferenceOnly": [
     {
       "id": "RV-062",
@@ -220,17 +212,5 @@
       "statusFromRegistry": "confirmed-open",
       "qualification": "Vue clear/dispose 转发上游取消，不能承诺任意 pending loadMore 都结算；不新登记、不改 issue/实现/旧测试。"
     }
-  ],
-  "finalHandoffCoordinatorReport": {
-    "recordedAt": "2026-10-05T11:09:34.173740+08:00",
-    "source": "用户/主控在本 chat 的最新直接报告；交接不扩读、不等待后续日志",
-    "bareEnvironmentResultRetained": true,
-    "supplementalEnvironment": "显式 Node typings + @types/ms，独立实际 tar consumer，严格声明检查",
-    "validStrictExitCode": 0,
-    "invalidResult": "仅消费类型诊断拒绝（非零；本消息未给具体数值）",
-    "rootRuntimeImportExitCode": 0,
-    "unitCoverageAndLint": "主控已启动 current newSpec unit+coverage/lint；尚未报告完成，不改写为通过",
-    "sfcTemplates": "正负 .vue fixture 已交付；本次报告没有给 SFC vue-tsc 模板结果",
-    "note": "explicit Node/@types/ms 对照通过不抹除裸环境 NodeJS/ms 的上游声明闭合失败；不自行修改 utils/依赖/stub/skipLibCheck。"
-  }
+  ]
 }

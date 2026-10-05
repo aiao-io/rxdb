@@ -1,70 +1,23 @@
 {
-  "object": "rxdb-plugin-search-react",
-  "taskRequested": "R2-05",
-  "scopeTask": "R2-06",
-  "scopeMismatch": "object/writeScope authoritative; no other task written",
-  "recordedAt": "2026-10-05T11:05:50.822052+08:00",
-  "headAtSnapshot": "465f9078e9844af2cbef9936c7321a5576333a01",
-  "sourceRead": {
-    "controlledFiles": 14,
-    "fullRead": 14,
-    "unread": 0,
-    "scopeHashMatches": 14
+  "attachments": {
+    "plan": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/packages/rxdb-plugin-search-react.md",
+    "result": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-search-react.md",
+    "fileInspection": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/file-inspection.json",
+    "cEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/c-evidence.json",
+    "validationObservations": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/validation-observations.json",
+    "validationRequests": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/validation-requests.json",
+    "pendingFindings": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/findings.pending.md"
   },
-  "completeC": [
-    "C1"
-  ],
-  "completeCCount": 1,
-  "partialC": [
-    "C2",
-    "C3",
-    "C4",
-    "C5"
-  ],
-  "localSubsurfaces": [
-    {
-      "c": "C1",
-      "surface": "真实 core handle 的空词/empty/error/retry/末页/clear 三端同 fixture",
-      "status": "historical-measured-with-reuse-proof"
-    },
-    {
-      "c": "C2/C4",
-      "surface": "options 快照/source 保词/四回调最新路由/首个 layout effect/StrictMode 基础",
-      "status": "historical-basics-measured"
-    },
-    {
-      "c": "C3/C5",
-      "surface": "真实 tar Node root import 的 useSearch 与 SearchExecutionError export",
-      "status": "coordinator-measured-exit0-not-full-user-path"
-    },
-    {
-      "c": "C3/C5",
-      "surface": "strict negative inputs 的7处真实公开类型诊断",
-      "status": "observed-but-not-complete-negative-control-because-positive-blocked"
-    },
-    {
-      "c": "C2/C4/C5",
-      "surface": "新增真实异步/取消/多 root/SSR/缺插件/同值返回对象探针13例",
-      "status": "authored-not-run"
-    }
-  ],
-  "fullObjectCandidate": false,
-  "reviewComplete": false,
   "boundedTaskArtifactsDelivered": true,
-  "releaseReady": false,
-  "rating": "🟡 静态结论；完整对象评级待必要验证",
-  "knownIssues": [
+  "completeC": ["C1"],
+  "completeCCount": 1,
+  "completedValidationRequests": [
     {
-      "id": "RV-062",
-      "referenceOnly": true,
-      "rootOwner": "rxdb-plugin-search",
-      "status": "confirmed-open in registry",
-      "impact": "取消 pending 分页调用未结算，不被新增 active-request probe 洗白"
+      "id": "search-react-r2-packed-consumer",
+      "status": "completed-with-explicit-ambient-control",
+      "source": "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json",
+      "bareSource": "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation-bare.json"
     }
-  ],
-  "pendingFindings": [
-    "React options presence 与 core comparator 不一致（需动态复验/主控裁定）",
-    "README 的 Angular injectSearch 与 shared comparator 说法过期（静态文档候选）"
   ],
   "completionConditions": [
     {
@@ -101,7 +54,7 @@
       "status": "partial",
       "evidence": [
         "validation-observations.json historical commands, cache off, maxWorkers1, 24 passed and four metrics",
-        "initial tar consumer failure retained, root import separated",
+        "bare tar failure retained; explicit Node/ms strict positive+negative/rootimport measured",
         "new target executions/JUnit/coverage pending, old coverage not inherited"
       ]
     },
@@ -112,7 +65,7 @@
       "evidence": [
         "three public roots and matching C1 fixture recorded",
         "RxDB inject/backend admission policy/UI source caller read only",
-        "true branch checkout/paging and complete independent typed consumer still required"
+        "independent typed consumer measured with explicit Node/ms control; true branch checkout/paging remains with task owner"
       ]
     },
     {
@@ -135,67 +88,11 @@
       ]
     }
   ],
-  "remainingActions": [
-    {
-      "id": "search-react-r2-lint",
-      "project": "rxdb-plugin-search-react",
-      "target": "lint",
-      "status": "requested",
-      "criticalForC": [
-        "C2",
-        "C4",
-        "C5"
-      ]
-    },
-    {
-      "id": "search-react-r2-types",
-      "project": "rxdb-plugin-search-react",
-      "target": "typecheck",
-      "status": "requested",
-      "criticalForC": [
-        "C2",
-        "C4",
-        "C5"
-      ]
-    },
-    {
-      "id": "search-react-r2-hooks",
-      "project": "rxdb-plugin-search-react",
-      "target": "test",
-      "status": "requested",
-      "criticalForC": [
-        "C1",
-        "C2",
-        "C4",
-        "C5"
-      ]
-    },
-    {
-      "id": "search-react-r2-packed-consumer",
-      "project": "rxdb-plugin-search-react",
-      "target": "independent-packed-consumer",
-      "status": "executed-awaiting-diagnostic-audit",
-      "criticalForC": [
-        "C3",
-        "C5"
-      ]
-    },
-    {
-      "id": "search-react-r2-branch-consumer",
-      "project": "rxdb-plugin-search-react",
-      "target": "supported-backend-branch-runtime",
-      "status": "requested",
-      "criticalForC": [
-        "C2",
-        "C3"
-      ]
-    }
-  ],
-  "nonApplicableAssertions": [],
   "deferredToController": [
-    "同一真实 RxDB branch checkout + 在途分页的 required runtime surface，未验不是不适用",
-    "consumer-valid 依赖声明初测阻断需要严格复跑，不扩大改 utils/依赖",
-    "原最低场景全部有证据或主控按理由裁定未验分流后，才能最终核销全对象"
+    "同一真实 RxDB branch checkout + 在途分页未验留给本对象 task owner；不等无关/all73队列，不标不适用",
+    "主控执行中的新 unit+coverage/lint 最终结果与新spec真实strict门禁需归入本对象；syntax parsing/Vitest转译不能当类型验证",
+    "options presence候选由主控实际assertion去重/归类；README静态文字候选由主控分流",
+    "上游裸utils public.d.ts NodeJS/ms声明错误保留；显式Node/ms consumer对照已通过，此处不扩大成其它对象修复"
   ],
   "doNotClaim": [
     "new probe executed",
@@ -205,13 +102,145 @@
     "root import equals rendered hook lifecycle",
     "failed valid consumer or invalid exit2 alone equals type contract pass"
   ],
-  "attachments": {
-    "plan": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/packages/rxdb-plugin-search-react.md",
-    "result": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-search-react.md",
-    "fileInspection": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/file-inspection.json",
-    "cEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/c-evidence.json",
-    "validationObservations": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/validation-observations.json",
-    "validationRequests": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/validation-requests.json",
-    "pendingFindings": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/findings.pending.md"
+  "fullObjectCandidate": false,
+  "handoff": "bounded package artifacts delivered; no more tests/implementation edits; final now without waiting all73",
+  "headAtSnapshot": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "knownIssues": [
+    {
+      "id": "RV-062",
+      "referenceOnly": true,
+      "rootOwner": "rxdb-plugin-search",
+      "status": "confirmed-open in registry",
+      "impact": "取消 pending 分页调用未结算，不被新增 active-request probe 洗白"
+    }
+  ],
+  "localSubsurfaces": [
+    {
+      "c": "C1",
+      "surface": "真实 core handle 的空词/empty/error/retry/末页/clear 三端同 fixture",
+      "status": "historical-measured-with-reuse-proof"
+    },
+    {
+      "c": "C2/C4",
+      "surface": "options 快照/source 保词/四回调最新路由/首个 layout effect/StrictMode 基础",
+      "status": "historical-basics-measured"
+    },
+    {
+      "c": "C3/C5",
+      "surface": "真实 tar Node root import 的 useSearch 与 SearchExecutionError export",
+      "status": "coordinator-measured-exit0-not-full-user-path"
+    },
+    {
+      "c": "C3/C5",
+      "surface": "strict negative inputs 的7处真实公开类型诊断",
+      "status": "coordinator-measured-and-negative-control-accepted-with-explicit-Node-ms"
+    },
+    {
+      "c": "C2/C4/C5",
+      "surface": "新增真实异步/取消/多 root/SSR/缺插件/同值返回对象探针13例",
+      "status": "authored-not-run"
+    },
+    {
+      "c": "C3/C5",
+      "surface": "独立真实tar strict valid consumer",
+      "status": "coordinator-measured-exit0-explicit-Node-ms; bare failure preserved"
+    }
+  ],
+  "nonApplicableAssertions": [],
+  "object": "rxdb-plugin-search-react",
+  "partialC": ["C2", "C3", "C4", "C5"],
+  "pendingFindings": [
+    "React options presence 与 core comparator 不一致（需动态复验/主控裁定）",
+    "README 的 Angular injectSearch 与 shared comparator 说法过期（静态文档候选）"
+  ],
+  "rating": "🟡 静态结论；完整对象评级待必要验证",
+  "recordedAt": "2026-10-05T11:05:50.822052+08:00",
+  "recordedAtFinalHandoff": "2026-10-05T11:13:21.905685+08:00",
+  "releaseReady": false,
+  "remainingActions": [
+    {
+      "id": "search-react-r2-lint",
+      "project": "rxdb-plugin-search-react",
+      "target": "lint",
+      "status": "in-progress-by-coordinator",
+      "criticalForC": ["C2", "C4", "C5"],
+      "owner": {
+        "taskRequested": "R2-05",
+        "taskInScope": "R2-06",
+        "object": "rxdb-plugin-search-react",
+        "runtimeAndGateExecutor": "coordinator",
+        "packageReviewOwner": "rxdb-plugin-search-react task owner",
+        "noWaitForAll73": true
+      }
+    },
+    {
+      "id": "search-react-r2-types",
+      "project": "rxdb-plugin-search-react",
+      "target": "typecheck",
+      "status": "requested-left-to-task-owner",
+      "criticalForC": ["C2", "C4", "C5"],
+      "owner": {
+        "taskRequested": "R2-05",
+        "taskInScope": "R2-06",
+        "object": "rxdb-plugin-search-react",
+        "runtimeAndGateExecutor": "coordinator",
+        "packageReviewOwner": "rxdb-plugin-search-react task owner",
+        "noWaitForAll73": true
+      }
+    },
+    {
+      "id": "search-react-r2-hooks",
+      "project": "rxdb-plugin-search-react",
+      "target": "test",
+      "status": "in-progress-by-coordinator",
+      "criticalForC": ["C1", "C2", "C4", "C5"],
+      "owner": {
+        "taskRequested": "R2-05",
+        "taskInScope": "R2-06",
+        "object": "rxdb-plugin-search-react",
+        "runtimeAndGateExecutor": "coordinator",
+        "packageReviewOwner": "rxdb-plugin-search-react task owner",
+        "noWaitForAll73": true
+      }
+    },
+    {
+      "id": "search-react-r2-branch-consumer",
+      "project": "rxdb-plugin-search-react",
+      "target": "supported-backend-branch-runtime",
+      "status": "unverified-left-to-task-owner",
+      "criticalForC": ["C2", "C3"],
+      "owner": {
+        "taskRequested": "R2-05",
+        "taskInScope": "R2-06",
+        "object": "rxdb-plugin-search-react",
+        "runtimeAndGateExecutor": "coordinator",
+        "packageReviewOwner": "rxdb-plugin-search-react task owner",
+        "noWaitForAll73": true
+      }
+    }
+  ],
+  "reviewComplete": false,
+  "scopeMismatch": "object/writeScope authoritative; no other task written",
+  "scopeTask": "R2-06",
+  "sourceRead": {
+    "controlledFiles": 14,
+    "fullRead": 14,
+    "unread": 0,
+    "scopeHashMatches": 14
+  },
+  "taskRequested": "R2-05",
+  "testsFrozen": {
+    "at": "2026-10-05T11:13:21.905685+08:00",
+    "probeSha256": "fed2e5879558928d53d1daca9410f3e32dcab1d10ce5651c46221a203e56e3d5",
+    "noFurtherEdits": true,
+    "newGateStatus": "coordinator-running-not-awaited"
+  },
+  "validationOwner": {
+    "taskRequested": "R2-05",
+    "taskInScope": "R2-06",
+    "object": "rxdb-plugin-search-react",
+    "runtimeAndGateExecutor": "coordinator",
+    "packageReviewOwner": "rxdb-plugin-search-react task owner",
+    "noWaitForAll73": true
   }
 }

@@ -39,13 +39,13 @@ execution: in-progress
 
 ## 3. 原 C 任务与最低场景（不删、不降格）
 
-| 原 C | 专项 | 原核查动作 | 原最低复验场景 / 证据要求 | 当前结论与剩余动作 |
-| --- | --- | --- | --- | --- |
-| C1 | SearchHandle 映射 | 逐项核对 results/state/error/hasMore、setQuery/loadMore/clear 到核心 handle，保留空态与错误差异。 | 空词、无结果、查询失败、清空、末页；框架状态不能吞掉核心错误。 | partial。映射源码与历史 suite 已证；当前 93 行 real-handle spec 与旧运行 fingerprint 不同，主控补跑完整序列。 |
-| C2 | 快速输入与 options identity | 核查 debounce 的归属、语义相等选项、scope/branch 切换和异步过期结果。 | A→B 快速输入、相同值新对象、换库/branch、并发翻页；不重复创建 handle 或串结果。 | partial。快照、语义去重、旧流释放已读/局部已测；新增真实在途/source/分页探针待跑。同一真实 RxDB branch 与三端同 fixture 仍需具体证据。 |
-| C3 | 三端类型与依赖闭合 | 对照三端框架 idiom、公开 consumer 与 README 使用；明确必需搜索插件和不支持的 backend。 | 缺 plugin、typed consumer、同 fixtures parity、卸载；必须依赖能通过 inject 闭合。 | partial。API/core inject 安装归属和真实根 import 已证；strict .mts 正负在显式 Node/@types/ms 环境已闭合（裸失败保留）；前置/卸载新 probe、SFC 与当前 parity 待补。 |
-| C4 | Vue 生命周期与响应式来源 | 核查 ref/computed/getter 输入解包、watch 依赖、onScopeDispose/onUnmounted 与 provider scope，避免把首次取值变成永久快照。 | 替换与深改输入、scope 销毁、卸载后晚到结果、多实例；旧订阅释放，新输入生效。 | partial。scope guard、同步 watch、dispose 顺序与历史 effectScope/SSR 已证；新真实组件多实例/卸载/迟到/四订阅场景待主控执行。 |
-| C5 | Vue 类型与 SFC 消费 | 核查泛型 composable、SFC props/emits 与声明输出；响应式代理不能改变实体身份或隐藏错误。 | vue-tsc consumer、模板输入错误、readonly/computed 来源、独立 pack 消费；没有宽化 any 或丢失 emits 契约。 | partial。签名/readonly 与生成声明已读；strict .mts 正负对照已通过，裸依赖失败保留；SFC 正负模板与输出 identity 新 probe 待主控结果。 |
+| 原 C | 专项                        | 原核查动作                                                                                                                | 原最低复验场景 / 证据要求                                                                                | 当前结论与剩余动作                                                                                                                                                 |
+| ---- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| C1   | SearchHandle 映射           | 逐项核对 results/state/error/hasMore、setQuery/loadMore/clear 到核心 handle，保留空态与错误差异。                         | 空词、无结果、查询失败、清空、末页；框架状态不能吞掉核心错误。                                           | partial。映射源码与历史 suite 已证；当前 93 行 real-handle spec 与旧运行 fingerprint 不同，主控补跑完整序列。                                                      |
+| C2   | 快速输入与 options identity | 核查 debounce 的归属、语义相等选项、scope/branch 切换和异步过期结果。                                                     | A→B 快速输入、相同值新对象、换库/branch、并发翻页；不重复创建 handle 或串结果。                          | partial。快照、语义去重、旧流释放已读/局部已测；新增真实在途/source/分页探针待跑。同一真实 RxDB branch 与三端同 fixture 仍需具体证据。                             |
+| C3   | 三端类型与依赖闭合          | 对照三端框架 idiom、公开 consumer 与 README 使用；明确必需搜索插件和不支持的 backend。                                    | 缺 plugin、typed consumer、同 fixtures parity、卸载；必须依赖能通过 inject 闭合。                        | partial。API/core inject 安装归属和真实根 import 已证；strict .mts 正负在显式 Node/@types/ms 环境已闭合（裸失败保留）；前置/卸载新 probe、SFC 与当前 parity 待补。 |
+| C4   | Vue 生命周期与响应式来源    | 核查 ref/computed/getter 输入解包、watch 依赖、onScopeDispose/onUnmounted 与 provider scope，避免把首次取值变成永久快照。 | 替换与深改输入、scope 销毁、卸载后晚到结果、多实例；旧订阅释放，新输入生效。                             | partial。scope guard、同步 watch、dispose 顺序与历史 effectScope/SSR 已证；新真实组件多实例/卸载/迟到/四订阅场景待主控执行。                                       |
+| C5   | Vue 类型与 SFC 消费         | 核查泛型 composable、SFC props/emits 与声明输出；响应式代理不能改变实体身份或隐藏错误。                                   | vue-tsc consumer、模板输入错误、readonly/computed 来源、独立 pack 消费；没有宽化 any 或丢失 emits 契约。 | partial。签名/readonly 与生成声明已读；strict .mts 正负对照已通过，裸依赖失败保留；SFC 正负模板与输出 identity 新 probe 待主控结果。                               |
 
 `useSearch` 当前公开 API **不是泛型实体 composable**；本包也不导出 SFC props/emits。按真实 API 检查固定 SearchResult/ref 类型，把模板/props/emits 要求落实到 consumer，不凭计划词汇发明 API，也不删掉场景说不适用。
 
@@ -55,13 +55,13 @@ execution: in-progress
 
 本代理不执行 build/test/coverage/lint/typecheck/e2e/server/容器/安装/consumer 编译。只读获取 resolved 配置；用户指定主控离线真实 tar 安装、严格声明编译与 runtime root import。
 
-| 请求 | 测量面 | 必须保留 |
-| --- | --- | --- |
-| search-vue-r2-unit | 本包 5 个既有 spec + 6 case 新 probe | 当前内容指纹、串行命令/退出码、testcase/skip/JUnit、V8 四指标；依赖 build 链由主控控制，不扩 affected。 |
-| search-vue-r2-sfc-consumer | 实际 tar 的 .mts 正负与 SFC 正负消费者、runtime root import | 无 workspace paths/源 symlink，strict=true，skipLibCheck 状态，具体诊断命中；正负分开，不能用依赖错误代替负例成功。 |
-| search-vue-r2-zero-warning | 当前包 lint | max-warnings=0 与已执行内容指纹；旧绿不覆盖新增文件。 |
-| search-vue-r2-types | 当前包 workspace typecheck | resolved 为 vue-tsc --build --emitDeclarationOnly，dependsOn build/^typecheck；本地 paths/skipLibCheck 不冒充独立声明/模板验证。 |
-| search-vue-r2-same-fixture-branch | 原 C2/C3 同 fixture 与真实 branch/分页 | 新 probe 的 source identity 替换不等价于真实同 DB branch；最小链路证据或由主控明确裁定必要未验证分流。 |
+| 请求                              | 测量面                                                      | 必须保留                                                                                                                         |
+| --------------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| search-vue-r2-unit                | 本包 5 个既有 spec + 6 case 新 probe                        | 当前内容指纹、串行命令/退出码、testcase/skip/JUnit、V8 四指标；依赖 build 链由主控控制，不扩 affected。                          |
+| search-vue-r2-sfc-consumer        | 实际 tar 的 .mts 正负与 SFC 正负消费者、runtime root import | 无 workspace paths/源 symlink，strict=true，skipLibCheck 状态，具体诊断命中；正负分开，不能用依赖错误代替负例成功。              |
+| search-vue-r2-zero-warning        | 当前包 lint                                                 | max-warnings=0 与已执行内容指纹；旧绿不覆盖新增文件。                                                                            |
+| search-vue-r2-types               | 当前包 workspace typecheck                                  | resolved 为 vue-tsc --build --emitDeclarationOnly，dependsOn build/^typecheck；本地 paths/skipLibCheck 不冒充独立声明/模板验证。 |
+| search-vue-r2-same-fixture-branch | 原 C2/C3 同 fixture 与真实 branch/分页                      | 新 probe 的 source identity 替换不等价于真实同 DB branch；最小链路证据或由主控明确裁定必要未验证分流。                           |
 
 请求已直接落盘：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/validation-requests.json`。
 
@@ -99,3 +99,13 @@ execution: in-progress
 主控最新直接报告：显式 **Node typings + @types/ms** 后，同一独立实际 tar consumer 的 **strict valid exit=0 / invalid 仅消费类型拒绝 / root import exit=0**。前述裸环境上游 NodeJS/ms 两项失败完整保留，对照环境成功不抹去裸声明闭合风险。本次直接报告未给正负 SFC 模板结果。
 
 主控已启动 current newSpec 的 unit+coverage/lint；本代理不等待、不追加探针、不扩读，也不预判绿。**本代理阅读与文件交付完毕，剩余验证归主控追加。** 原完整 C/全对象候选仍按缺测场景保留 partial，不为释放名额改口。
+
+## R2 主控验证结算（不扩大子代理原核销范围）
+
+本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
+
+[真实tar类型正负/运行时证据](../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+
+消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
+
+主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。

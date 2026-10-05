@@ -113,8 +113,9 @@ afterEach(async () => {
 
 describe('R2-03 树 React 参数与生命周期', () => {
   it('四个 hook 原样区分数值 0 与字符串 0，并保留默认值和空态', () => {
+    const initialProps: TreeOptions = { entityId: 0 };
     const hook = renderHook(({ entityId }: TreeOptions) => useTreeResources({ entityId, level: 1 }), {
-      initialProps: { entityId: 0 }
+      initialProps
     });
 
     expect(hook.result.current.descendants.value).toEqual([]);

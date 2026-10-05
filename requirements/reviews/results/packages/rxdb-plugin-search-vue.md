@@ -16,13 +16,13 @@ execution: partial
 
 ## 1. 全范围阅读与生成/消费入口
 
-| 文件组 | 实际阅读范围 | 结论/边界 |
-| --- | --- | --- |
-| 生产 | index.ts 1–16、use-search.ts 1–234 | scope guard、options 快照、两个 watch、四 Observable、重建/清理/命令所有权及 SSR 全部读取。 |
-| 全部既有测试 | index 1–35、package-exports 1–12、review-options 1–65、review-parallel-real-handle 1–93、use-search 1–408 | 5 个 spec 全文；区分桩/effectScope/SSR/真实 core；当前 real-handle 与历史运行 fingerprint 不同。 |
-| 配置/资源/文档 | LICENSE 1–21、README 1–49、package 1–56、project 1–12、tsconfig 1–16、lib 1–35、spec 1–29、vite 1–63 | 全部 scope 文件，不只导航；获得完整 resolved targets；未执行其 build/测试依赖链。 |
-| 生成/发布 | 历史真实 tar 10 个文件，生成 source/d.ts/ESM/maps | 已核源码与产物来源；source/JS 与当前阅读版本一致。ignored local d.ts 与旧 tar 仅 type import 打印不同，不假称重建或确定性通过。 |
-| 本轮追加 | review-round2-component-lifecycle.spec.ts 1–252（6 case）、正负 .mts/.vue | 唯一新增获准测试文件；主控已启动新 unit/coverage/lint，尚未给完成结果。consumer .mts 首轮裸失败与最后环境对照见第 3 节及最终追加。 |
+| 文件组         | 实际阅读范围                                                                                              | 结论/边界                                                                                                                          |
+| -------------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 生产           | index.ts 1–16、use-search.ts 1–234                                                                        | scope guard、options 快照、两个 watch、四 Observable、重建/清理/命令所有权及 SSR 全部读取。                                        |
+| 全部既有测试   | index 1–35、package-exports 1–12、review-options 1–65、review-parallel-real-handle 1–93、use-search 1–408 | 5 个 spec 全文；区分桩/effectScope/SSR/真实 core；当前 real-handle 与历史运行 fingerprint 不同。                                   |
+| 配置/资源/文档 | LICENSE 1–21、README 1–49、package 1–56、project 1–12、tsconfig 1–16、lib 1–35、spec 1–29、vite 1–63      | 全部 scope 文件，不只导航；获得完整 resolved targets；未执行其 build/测试依赖链。                                                  |
+| 生成/发布      | 历史真实 tar 10 个文件，生成 source/d.ts/ESM/maps                                                         | 已核源码与产物来源；source/JS 与当前阅读版本一致。ignored local d.ts 与旧 tar 仅 type import 打印不同，不假称重建或确定性通过。    |
+| 本轮追加       | review-round2-component-lifecycle.spec.ts 1–252（6 case）、正负 .mts/.vue                                 | 唯一新增获准测试文件；主控已启动新 unit/coverage/lint，尚未给完成结果。consumer .mts 首轮裸失败与最后环境对照见第 3 节及最终追加。 |
 
 证据：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/file-inspection.json`、同目录 `generated-artifact-inspection.json`。**15 个 scope 文件全部与分配 SHA 相符；只新增一个允许的 probe，不回写 scope。**
 
@@ -41,14 +41,14 @@ execution: partial
 
 ### 第一轮有效历史测量
 
-| 测量 | 本包实际结果 | 证据与边界 |
-| --- | --- | --- |
-| Unit/V8 | 2026-10-05 09:06:02，4 files / 28 tests passed，无 skip | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage.txt:8989–9057`；2 次 readonly 负例 Vue warn 留原日志，不等于 ESLint 警告。本包目录无独立 JUnit，不凭其它包补造。 |
-| 四指标 | statements 98.57 / branches 96.42 / functions 100 / lines 100，均 ≥80% | 同批 `framework-editor-coverage/rxdb-plugin-search-vue/coverage-summary.json` 与 `coverage-gate.json`；源/配置/core 已测生产输入无漂移，未覆盖当前 real-handle 或本轮新 probe。 |
-| ESLint | max-warnings=0，旧批通过 | `parallel/validation/all-object-strict-lint.txt:310–314` 与 status/input sha；新增文件不继承旧绿。 |
-| 类型 | workspace vue-tsc --build --emitDeclarationOnly，旧批通过 | `parallel/validation/all-object-typecheck.txt:1029–1033`；workspace paths/skipLibCheck 与 include 不等于外部 strict .vue 模板消费者。 |
-| 真实 core probe | 09:34:17 Vue 1 test passed；Angular/React 同名序列分别有绿日志 | `parallel/validation/new-parallel-probes.txt:622–664`；Vue measured f30c85…→当前 1be30d…，不说当前 93 行已跑。整批 exit=1 是其他对象失败，不说本包红。 |
-| 实际 tar 静态 | 旧 tar 10 文件齐，根 ESM resolve 成功 | `parallel/validation/packed-consumer-entry-check.json`；旧 tar SHA 271b2973…，当时没执行声明编译/runtime import，不能扩大。 |
+| 测量            | 本包实际结果                                                           | 证据与边界                                                                                                                                                                                                                                |
+| --------------- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit/V8         | 2026-10-05 09:06:02，4 files / 28 tests passed，无 skip                | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage.txt:8989–9057`；2 次 readonly 负例 Vue warn 留原日志，不等于 ESLint 警告。本包目录无独立 JUnit，不凭其它包补造。 |
+| 四指标          | statements 98.57 / branches 96.42 / functions 100 / lines 100，均 ≥80% | 同批 `framework-editor-coverage/rxdb-plugin-search-vue/coverage-summary.json` 与 `coverage-gate.json`；源/配置/core 已测生产输入无漂移，未覆盖当前 real-handle 或本轮新 probe。                                                           |
+| ESLint          | max-warnings=0，旧批通过                                               | `parallel/validation/all-object-strict-lint.txt:310–314` 与 status/input sha；新增文件不继承旧绿。                                                                                                                                        |
+| 类型            | workspace vue-tsc --build --emitDeclarationOnly，旧批通过              | `parallel/validation/all-object-typecheck.txt:1029–1033`；workspace paths/skipLibCheck 与 include 不等于外部 strict .vue 模板消费者。                                                                                                     |
+| 真实 core probe | 09:34:17 Vue 1 test passed；Angular/React 同名序列分别有绿日志         | `parallel/validation/new-parallel-probes.txt:622–664`；Vue measured f30c85…→当前 1be30d…，不说当前 93 行已跑。整批 exit=1 是其他对象失败，不说本包红。                                                                                    |
+| 实际 tar 静态   | 旧 tar 10 文件齐，根 ESM resolve 成功                                  | `parallel/validation/packed-consumer-entry-check.json`；旧 tar SHA 271b2973…，当时没执行声明编译/runtime import，不能扩大。                                                                                                               |
 
 历史四批均禁 local/remote cache、串行，状态/命令/测量输入/本包与 core 漂移已存 `validation-observations.json`。没有将 72 对象不同批次的绿称作一个稳定最新 HEAD。
 
@@ -134,15 +134,15 @@ RV-062 的成功订阅重入 pending loadMore 场景**不重复新增**；第 2 
 
 **无新增确认业务缺陷。** RV-062 P2/core root cause 保持引用；strict consumer 首轮上游 NodeJS/ms 声明诊断留在 findings.pending，交主控归因去重，不写新 RV，不修改 utils。README 旧 Angular 名称仅记录静态对照。
 
-| 原全对象完成条件 | 判定 | 具体依据 |
-| --- | --- | --- |
-| 全受控清点/内容阅读/构建入口 | 通过 | 15/15 full-content 与 generated-artifact-inspection；新 probe 单列，scope 未改。 |
-| 每 C 明确结论/原因/补证 | 通过（结论登记），场景核销未完成 | 5 个 partial 原动作/最低场景/生产锚点/请求全部保留；完整 C 0/5。 |
-| 源码不变量与动态最小证据分离 | 已登记范围通过 | 历史命令/fingerprints/错误与新未运行 probe 各自标明。 |
-| 当前目标/cache/skip/重跑/四指标 | partial | 历史与首轮 consumer 已完整登记；新小包 unit/quality/JUnit 未到，不能继承旧覆盖率。 |
-| 上下游/三端/消费链路/行为风险 | partial | 静态对照/root runtime import 通过；typed .mts 显式环境通过；SFC/branch/parity 必要缺口明确。没有行为修改。 |
-| 问题去重/未验证不包装 | 通过 | RV-062 reference-only，无新确认 RV；声明消费失败不洗绿。 |
-| 评级/评审完成/发布就绪分开 | 未全核销 | 阶段 🟡；reviewComplete=false、fullObjectCandidate=false、releaseReady=false。缺验证不因上游已分流而消失。 |
+| 原全对象完成条件                | 判定                             | 具体依据                                                                                                   |
+| ------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 全受控清点/内容阅读/构建入口    | 通过                             | 15/15 full-content 与 generated-artifact-inspection；新 probe 单列，scope 未改。                           |
+| 每 C 明确结论/原因/补证         | 通过（结论登记），场景核销未完成 | 5 个 partial 原动作/最低场景/生产锚点/请求全部保留；完整 C 0/5。                                           |
+| 源码不变量与动态最小证据分离    | 已登记范围通过                   | 历史命令/fingerprints/错误与新未运行 probe 各自标明。                                                      |
+| 当前目标/cache/skip/重跑/四指标 | partial                          | 历史与首轮 consumer 已完整登记；新小包 unit/quality/JUnit 未到，不能继承旧覆盖率。                         |
+| 上下游/三端/消费链路/行为风险   | partial                          | 静态对照/root runtime import 通过；typed .mts 显式环境通过；SFC/branch/parity 必要缺口明确。没有行为修改。 |
+| 问题去重/未验证不包装           | 通过                             | RV-062 reference-only，无新确认 RV；声明消费失败不洗绿。                                                   |
+| 评级/评审完成/发布就绪分开      | 未全核销                         | 阶段 🟡；reviewComplete=false、fullObjectCandidate=false、releaseReady=false。缺验证不因上游已分流而消失。 |
 
 ## 7. 交付与主控剩余动作
 
@@ -167,3 +167,13 @@ RV-062 的成功订阅重入 pending loadMore 场景**不重复新增**；第 2 
 - 主控已启动 current newSpec unit+coverage/lint，结果尚未交付；SFC 正负模板、原真实 branch/parity 等未测面由主控按请求追加。root import 与 .mts 不能充当 SFC/组件运行证据。
 - **本代理审读/文件交付完毕；不再扩读、不增加探针、不等待 4 个 queued 或其它大包。** 完整 C 0/5、全对象候选 false 是当前缺测事实，主控拿到剩余日志后直接补证/裁定 closure。没有 git add/commit/reset/stash/unstage 操作；他人已 staged 的共享改动保持原样。
 - 全部改动绝对路径在 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/changed-files.json`。
+
+## R2 主控验证结算（不扩大子代理原核销范围）
+
+本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
+
+[真实tar类型正负/运行时证据](../../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+
+消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
+
+主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。

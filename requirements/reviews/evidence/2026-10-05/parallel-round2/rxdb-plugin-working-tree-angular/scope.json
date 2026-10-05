@@ -1,7 +1,8 @@
 {
-  "task": "R2-08",
   "object": "rxdb-plugin-working-tree-angular",
   "sourceRoot": "packages/rxdb-plugin-working-tree-angular",
+  "status": "queued",
+  "task": "R2-08",
   "trackedFiles": [
     {
       "path": "packages/rxdb-plugin-working-tree-angular/LICENSE",
@@ -68,6 +69,5 @@
     "requirements/reviews/packages/rxdb-plugin-working-tree-angular.md",
     "requirements/reviews/results/packages/rxdb-plugin-working-tree-angular.md",
     "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular"
-  ],
-  "status": "queued"
+  ]
 }

@@ -159,3 +159,37 @@ pnpm audit:coverage --projects=rxdb-plugin-replay-angular
 发布 pack 根是 `dist/packages/rxdb-plugin-replay-angular`，实际 tarball 目标文件存在、独立根 ESM 解析通过；**不包含 typed consumer 编译/runtime import**。Angular 不能按源 manifest 缺 exports 报错。
 
 逐 C 原场景、函数/测试证据与完成条件详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-replay-angular.md`；机器证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`。
+
+## 2026-10-05 R2-10：15 文件有界收尾（最新结论）
+
+**本代理交付完成；原计划仍 `in-progress`。** 15/15 原受控文件全正文实读，共 556 行；配置/测试/README/LICENSE 无排除，源码/旧测试/依赖修改均为 0。此前“5 片段/10 未读”是历史状态，本节取代该阅读结论。详情 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/file-inspection.json`。
+
+源码起始 HEAD `76a3848e2086f4617b80f7b1a1b896ef76e5719c`，交付 HEAD `76a3848e2086f4617b80f7b1a1b896ef76e5719c`；scope 15 摘要均匹配且读取期间不变。HEAD 因外部并行工作变化，不把整仓 HEAD 相同当成测量依据。当前 scope/发布 peer Angular **22.2.1**，原计划 22.1.6 是历史基线。
+
+| 原 C                      | R2-10 结论                                                             | 必要未验与 owner                                                                                             |
+| ------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| C1 播放器挂载与按需依赖   | partial；单 mount/delta/destroy 旧边界通过，真实核心状态源已读         | 新 Angular+未打桩 core 空/错/切换/双实例/销毁 probe 待主控；真实 rrweb loader/player 链不由 happy-dom 核销   |
+| C2 恢复交互与状态         | partial；marker/pending/result/callback/HEAD 所有权明确                | 主控跑受控结果 probe；真实 unreachable/dirty/CAS 决策不能用受控恢复结果替代                                  |
+| C3 三端可访问性与类型     | partial；公开 payload/hint/options/commands 静态对齐，原生控件属性已读 | 主控补同 recording/marker 三端实际结果、resize、Tab/Space/Enter/Arrow；click/input 不是键盘验证              |
+| C4 Angular 生命周期与注入 | partial；OnPush/standalone/signals/DestroyRef 核对                     | 新原生 Angular consumer 父子 provider/多实例/异步晚完成/首次渲染前销毁 probe 待主控，不强加包内 provider API |
+| C5 Angular 类型与运行证据 | partial；APF 真根声明/导入已证，正反例已冻结                           | 主控独立 tarball tsc + ngc 模板正反例、真实 route 挂载/卸载；语法 parse 不算 typed 通过                      |
+
+**完整 C：0/5；完整对象候选：否。** 只有完整原场景才核销；必要未验 owner 为主控。本任务不等待其他 73 对象，不无限扩大 rrweb/core 录制库所有宿主。
+
+主控当前本包旧测试 **10/10**，四覆盖 **97.72 / 93.75 / 100 / 100%**，fresh build / lint 0、实际 tarball root import 0。测量只覆盖旧 wrapper 与 core 边界桩；新增 spec 不继承旧通过。十包 unit 批总 exit 1 与本包旧套通过区分记录。
+
+新增且冻结 `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts`：14 个场景，真实 Angular fixture + 未打桩 `mountReplayer`，ReplayManager/rrweb 边界受控；不冒充原生播放器、IME、工作树决策或 route 端到端。最小请求 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/validation-requests.json` 已交主控；本代理未执行 build/test/coverage/e2e/server。
+
+独立 consumer `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/consumer-valid.mts` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/consumer-invalid.mts` 无 paths/any/类型断言/ts suppress；**额外** node ambient、`@types/node`、`@types/ms` 要求写明，裸上游 utils 诊断保留。RV-070 仅 React 既有意见引用，不泛化三端；本对象新增发现 0。
+
+完成条件：F1 全受控实读通过；F2/F3/F6 已完整报告真实结论/锚点/归属；F4 新门禁与类型、F5 完整用户链、F7 完整对象/发布状态仍 partial。机器证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/closure.json` 与 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/c-evidence.json` 不删除原要求。
+
+## R2 主控验证结算（不扩大子代理原核销范围）
+
+本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
+
+[真实tar类型正负/运行时证据](../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+
+消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
+
+主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。

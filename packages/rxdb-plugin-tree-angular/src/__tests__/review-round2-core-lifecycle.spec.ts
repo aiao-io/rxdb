@@ -125,12 +125,13 @@ const createComponent = (core: ReturnType<typeof createCoreFixture>) => {
   class Consumer {
     private readonly entityId = signal(0);
 
+    readonly nodes = useFindDescendants(core.Node, () => ({ entityId: this.entityId(), level: 1 }));
+    readonly second = useFindDescendants(core.Node, () => ({ entityId: this.entityId(), level: 1 }));
+
     @Input({ required: true })
     set rootId(value: number) {
       this.entityId.set(value);
     }
-    readonly nodes = useFindDescendants(core.Node, () => ({ entityId: this.entityId(), level: 1 }));
-    readonly second = useFindDescendants(core.Node, () => ({ entityId: this.entityId(), level: 1 }));
   }
 
   return TestBed.createComponent(Consumer);

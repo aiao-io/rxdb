@@ -1,0 +1,62 @@
+{
+  "actualTarRuntimeRootImportsPassed": 10,
+  "allRuntimePlatformsVerified": false,
+  "checkedAt": "2026-10-05T12:12:04.588054+08:00",
+  "clientDate": "2026-10-05",
+  "closedWorkerAgents": 10,
+  "deliveryHead": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "dispatchedTasks": 10,
+  "lastAllTenStrictLintExitCode": 0,
+  "mainChangedBusinessImplementation": false,
+  "mainChangedWorkspaceDependencies": false,
+  "mainIndexOrCommitOperations": false,
+  "mainModifiedOnlyOwnedNewProbeFixtures": true,
+  "newConfirmedIssues": [
+    {
+      "id": "RV-076",
+      "status": "confirmed-open",
+      "severity": "P2",
+      "title": "React 搜索绑定丢失 undefined 与空 options 的输入差异",
+      "file": "requirements/reviews/RV-076-round2-react-options-presence.md",
+      "key": "react-options-presence",
+      "source": "packages/rxdb-plugin-search-react/src/use-search.ts",
+      "evidence": "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-rxdb-plugin-search-react-lifecycle.txt"
+    },
+    {
+      "id": "RV-077",
+      "status": "confirmed-open",
+      "severity": "P2",
+      "title": "Angular 搜索 README 的 required input 用法在构造时失败",
+      "file": "requirements/reviews/RV-077-round2-angular-required-search.md",
+      "key": "angular-required-search",
+      "source": "packages/rxdb-plugin-search-angular/src/inject-search.ts",
+      "evidence": "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-rxdb-plugin-search-angular-lifecycle.txt"
+    },
+    {
+      "id": "RV-078",
+      "status": "confirmed-open",
+      "severity": "P2",
+      "title": "utils 发布声明依赖未声明的环境类型，严格独立消费者失败",
+      "file": "requirements/reviews/RV-078-round2-utils-public-types.md",
+      "key": "utils-public-types",
+      "source": "packages/utils/package.json",
+      "evidence": "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation-bare.json"
+    }
+  ],
+  "newProbeStrictTypechecksPassed": 9,
+  "newProbeStrictTypechecksTotal": 9,
+  "nodeNextStrictValidConsumerPasses": 8,
+  "objectsReviewedInScope": 10,
+  "originalCConclusionsWritten": 50,
+  "originalFilesReadByWorkers": 153,
+  "remainingNecessary": [
+    "Cross-framework same real tree/query fixtures and branch route scenarios",
+    "Vue SFC/template and Angular ngc strict consumers",
+    "Original tree/working-tree/replayer browser and true rrweb boundaries where explicitly demanded",
+    "Acknowledge and resolve existing workspace core0.0.25 peer resolution vs current0.0.26 tests without source alias hacks",
+    "Do not treat exact tar root imports or generated coverage on test failure as scenario green"
+  ],
+  "requestedNewTasks": 10,
+  "strictConsumerCaveats": "Explicit node and @types/ms consumer environment; bare inherited utils publication types failure kept. Vue tree NodeNext and readonly RuleGroup consumer plus rrweb/rrdom declaration failures not hidden.",
+  "whole73ObjectReviewComplete": false
+}

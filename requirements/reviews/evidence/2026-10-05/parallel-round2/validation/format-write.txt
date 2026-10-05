@@ -1,0 +1,274 @@
+requirements/reviews/execution-2026-10-05-parallel-round2.md 39ms
+requirements/reviews/README.md 99ms (unchanged)
+requirements/reviews/deep-review-plan.md 71ms (unchanged)
+requirements/reviews/packages/code-editor.md 36ms
+requirements/reviews/packages/rxdb-plugin-tree-angular.md 29ms
+requirements/reviews/packages/rxdb-plugin-tree-react.md 19ms
+requirements/reviews/packages/rxdb-plugin-tree-vue.md 17ms
+requirements/reviews/packages/rxdb-plugin-search-angular.md 24ms (unchanged)
+requirements/reviews/packages/rxdb-plugin-search-react.md 12ms
+requirements/reviews/packages/rxdb-plugin-search-vue.md 14ms
+requirements/reviews/packages/rxdb-plugin-working-tree-angular.md 23ms
+requirements/reviews/packages/rxdb-plugin-working-tree-vue.md 23ms
+requirements/reviews/packages/rxdb-plugin-replay-angular.md 19ms
+requirements/reviews/results/packages/code-editor.md 24ms
+requirements/reviews/results/packages/rxdb-plugin-tree-angular.md 30ms
+requirements/reviews/results/packages/rxdb-plugin-tree-react.md 18ms (unchanged)
+requirements/reviews/results/packages/rxdb-plugin-tree-vue.md 19ms
+requirements/reviews/results/packages/rxdb-plugin-search-angular.md 25ms (unchanged)
+requirements/reviews/results/packages/rxdb-plugin-search-react.md 24ms
+requirements/reviews/results/packages/rxdb-plugin-search-vue.md 19ms
+requirements/reviews/results/packages/rxdb-plugin-working-tree-angular.md 20ms
+requirements/reviews/results/packages/rxdb-plugin-working-tree-vue.md 25ms
+requirements/reviews/results/packages/rxdb-plugin-replay-angular.md 21ms
+requirements/reviews/RV-078-round2-utils-public-types.md 3ms (unchanged)
+requirements/reviews/RV-077-round2-angular-required-search.md 3ms (unchanged)
+requirements/reviews/RV-076-round2-react-options-presence.md 3ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/findings-registry.json 8ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/delivery-summary.json 3ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/dispatch.json 10ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/object-progress.json 3ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/instructions.md 3ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-invalid.tsconfig.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/changed-files.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-invalid.mts 112ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/inherited-evidence.json 3ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/runtime-smoke.mjs 23ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/scope.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/type-only-consumer.tsconfig.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-protocol.md 7ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/responsibility-boundary.md 11ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/nx-project.json 4ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-results.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-valid.mts 18ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/file-inspection.json 7ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/type-only-consumer.mts 8ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/validation-requests.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/closure.json 3ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/instructions.md 1ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-valid.tsconfig.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/resolved-project.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/scope.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/validation-observations.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/file-inspection.json 3ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/invalid.mts 12ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/findings.pending.md 1ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/validation-requests.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/closure.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/c-evidence.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/consumer-expectations.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/instructions.md 1ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/valid.mts 15ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/changed-files.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-invalid.mts 6ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/scope.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-required-input.mts 30ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-observations.json 4ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/spec-design.md 4ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-fixtures.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-valid.mts 13ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/file-inspection.json 4ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/findings.pending.md 4ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/angular-tool-observations.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/nx-resolved.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-requests.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/closure.json 4ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/c-evidence.json 4ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/instructions.md 1ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/consumer-invalid.mts 6ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/resolved-project.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/scope.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/api-comparison.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/validation-observations.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/consumer-valid.mts 8ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/file-inspection.json 3ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/findings.pending.md 2ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/validation-requests.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/closure.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/c-evidence.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue/instructions.md 1ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/changed-files.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/consumer-invalid.mts 5ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/syntax-observations.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/scope.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/api-comparison.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/consumer-readme-template.mts 11ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/consumer-template-invalid.mts 8ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/validation-observations.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/consumer-valid.mts 15ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/file-inspection.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/findings.pending.md 3ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/source-fingerprint-final.json 6ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/validation-requests.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/closure.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/c-evidence.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/consumer-expectations.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/instructions.md 1ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/nx-resolved-project.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/source-fingerprint-start.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/changed-files.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-invalid.mts 10ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/scope.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/syntax-check.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/controller-validation.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/nx-project.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-contract.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/validation-observations.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-valid.mts 12ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/file-inspection.json 4ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/findings.pending.md 2ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/generated-artifacts.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/validation-requests.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/closure.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/c-evidence.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/instructions.md 1ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/delivery-qa.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/changed-files.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/consumer-invalid.mts 19ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/scope.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/validation-observations.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/consumer-fixtures.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/consumer-valid.mts 14ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/file-inspection.json 3ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/findings.pending.md 2ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/generated-artifacts.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/validation-requests.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/closure.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/c-evidence.json 6ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/instructions.md 1ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/source-fingerprint-start.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/consumer-invalid.mts 6ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/template-invalid.ts 7ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/scope.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/template-valid.ts 9ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/validation-observations.json 2ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/consumer-valid.mts 7ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/file-inspection.json 3ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/findings.pending.md 4ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/validation-requests.json 1ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/closure.json 2ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/c-evidence.json 2ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/instructions.md 1ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/generated-artifact-inspection.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/changed-files.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/consumer-invalid.mts 6ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/resolved-project.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/scope.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/consumer-contract.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/validation-observations.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/consumer-valid.mts 10ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/file-inspection.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/findings.pending.md 2ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/validation-requests.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/closure.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/c-evidence.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/instructions.md 1ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/changed-files.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/consumer-invalid.mts 6ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/resolved-project.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/scope.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/validation-observations.json 3ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/consumer-valid.mts 7ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/file-inspection.json 5ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/findings.pending.md 4ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/validation-requests.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/closure.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/c-evidence.json 3ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/instructions.md 1ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/historical-reuse.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/editor-artifact-probes.json 4ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/replayer-new-isolated-file-input-sha256.json 10ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/workspace-peer-resolution.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/all-final-owned-spec-lint-input-sha256.json 15ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-test-tool-install.json 3ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/r2-frozen-current-lint-input-sha256.json 15ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-package-unit-stdout-counts.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/replayer-new-isolated-file-status.json 0ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-angular-original-toolchain.json 0ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage-input-sha256.json 14ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-setup.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit-status.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-angular-local-tool-config-initial.mts 8ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-build-input-sha256.json 16ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/search-react-final-types.json 0ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/r2-all-frozen-lint-input-sha256.json 14ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage-status.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/probe-seam-correction.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/editor-sql-only-metafile.json 23ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/r2-frozen-current-lint-status.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/controller-delivery-inputs.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-lint-status.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-test-setup.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/tree-vue-bundler-consumer.json 1ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/new-spec-types-before-controller-final-fixes.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-lint-input-sha256.json 14ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-fresh-repack.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-local-peers.json 9ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-install-final.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-ambient-types.json 0ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/replayer-original-parity-only-status.json 0ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/installed-peer-test-catalog-selection.json 12ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/all-final-owned-spec-lint-status.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-build-status.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/all-ten-late-spec-lint-status.json 0ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-lifecycle-results.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/new-spec-types.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/editor-type-only-consumer.json 0ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/installed-peer-catalog-selection.json 6ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/r2-all-frozen-lint-status.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit-input-sha256.json 12ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/all-ten-late-spec-lint-input-sha256.json 14ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-package-counts.json 1ms (unchanged)
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-local-files.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-catalog-install.json 8ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/replayer-original-parity-only-input-sha256.json 9ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation-bare.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/code-editor/coverage-summary.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/code-editor/coverage-final.json 16ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-tree-vue/coverage-summary.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-tree-vue/coverage-final.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-tree-angular/coverage-summary.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-tree-angular/coverage-final.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-working-tree-vue/coverage-summary.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-working-tree-vue/coverage-final.json 5ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-working-tree-angular/coverage-summary.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-working-tree-angular/coverage-final.json 4ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-tree-react/coverage-summary.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-tree-react/coverage-final.json 2ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-replay-angular/coverage-summary.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-replay-angular/coverage-final.json 5ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-search-angular/coverage-summary.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-search-angular/coverage-final.json 7ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-search-vue/coverage-summary.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-search-vue/coverage-final.json 8ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-search-react/coverage-summary.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage/rxdb-plugin-search-react/coverage-final.json 7ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit/rxdb-plugin-tree-vue/coverage-summary.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit/rxdb-plugin-tree-vue/coverage-final.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit/rxdb-plugin-tree-angular/coverage-summary.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit/rxdb-plugin-tree-angular/coverage-final.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit/rxdb-plugin-working-tree-vue/coverage-summary.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit/rxdb-plugin-working-tree-vue/coverage-final.json 4ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit/rxdb-plugin-working-tree-angular/coverage-summary.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit/rxdb-plugin-working-tree-angular/coverage-final.json 3ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit/rxdb-plugin-replay-angular/coverage-summary.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit/rxdb-plugin-replay-angular/coverage-final.json 5ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/new-spec-types/rxdb-plugin-tree-vue/config.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/new-spec-types/rxdb-plugin-tree-angular/config.json 0ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/new-spec-types/rxdb-plugin-working-tree-vue/config.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/new-spec-types/rxdb-plugin-working-tree-angular/config.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/new-spec-types/rxdb-plugin-tree-react/config.json 0ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/new-spec-types/rxdb-plugin-replay-angular/config.json 1ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/new-spec-types/rxdb-plugin-search-angular/config.json 0ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/new-spec-types/rxdb-plugin-search-vue/config.json 0ms
+requirements/reviews/evidence/2026-10-05/parallel-round2/validation/new-spec-types/rxdb-plugin-search-react/config.json 1ms
+packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts 37ms (unchanged)
+packages/rxdb-plugin-tree-react/src/__tests__/review-round2-lifecycle.spec.ts 43ms (unchanged)
+packages/rxdb-plugin-tree-vue/src/__tests__/review-round2-vue-scope.spec.ts 30ms (unchanged)
+packages/rxdb-plugin-search-angular/src/__tests__/review-round2-lifecycle.spec.ts 39ms (unchanged)
+packages/rxdb-plugin-search-react/src/__tests__/review-round2-lifecycle.spec.ts 30ms (unchanged)
+packages/rxdb-plugin-search-vue/src/__tests__/review-round2-component-lifecycle.spec.ts 35ms (unchanged)
+packages/rxdb-plugin-working-tree-angular/src/__tests__/review-round2-lifecycle.spec.ts 27ms
+packages/rxdb-plugin-working-tree-vue/src/__tests__/review-round2-lifecycle.spec.ts 21ms (unchanged)
+packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts 28ms (unchanged)

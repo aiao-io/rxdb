@@ -26,4 +26,4 @@
 
 ## 独立 tar 的暂时编译阻断：只登记测量归属，不扩 bug
 
-主控裸 strict consumer 的 valid/invalid 都有 utils public.d.ts 的 NodeJS/ms 声明错误；invalid 同时出现本 fixture 7 处预期真实类型错误，root import 已通过。保留失败日志，补显式 Node + @types/ms 环境对照，不加 ambient any、不改 source mapping、不改 utils 或本包依赖。该阻断不是本对象新 RV；跟随 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/validation-requests.json` 的既有 consumer 请求收束。
+主控裸 strict consumer 的 valid/invalid 都有 utils public.d.ts 的 NodeJS/ms 声明错误；invalid 同时出现本 fixture 7 处预期真实类型错误，root import 已通过。保留失败日志，补显式 Node + @types/ms 环境对照，不加 ambient any、不改 source mapping、不改 utils 或本包依赖。显式 Node + @types/ms 对照已实测 valid0/invalid仅7处消费错误/rootimport0；原裸失败在 bare日志保留，typed子面已关闭。该裸声明阻断不是本对象新 RV；跟随 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/validation-requests.json` 的既有 consumer 请求收束。

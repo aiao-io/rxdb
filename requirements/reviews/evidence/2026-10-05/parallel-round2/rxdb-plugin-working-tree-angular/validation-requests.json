@@ -1,0 +1,94 @@
+{
+  "latestControllerInstruction": "2026-10-05 主控已看到 consumer，刷新 build→pack→离线 strict Node+@types/ms positive/negative 正在运行；新 spec/cov/types 后续由主控交付。代理不得等待或扩读全 core。",
+  "object": "rxdb-plugin-working-tree-angular",
+  "policy": "由主控执行；本代理不运行 build/test/coverage/e2e/server；沿用已完成门禁不重复整批。",
+  "requests": [
+    {
+      "id": "working-tree-angular-strict-consumer",
+      "project": "rxdb-plugin-working-tree-angular",
+      "target": "isolated-packed-consumer",
+      "args": [
+        "consumer-valid.mts",
+        "consumer-invalid.mts",
+        "strict=true",
+        "skipLibCheck=false",
+        "types=node",
+        "@types/ms=installed",
+        "paths=none"
+      ],
+      "reason": "尽早接入已安装真实 tarball；valid 必须 0，invalid 必须只由预期 API 类型诊断失败，裸环境 utils 声明缺口独立保留。",
+      "criticalForC": ["C3", "C5"],
+      "status": "requested",
+      "owner": "主控",
+      "closureCondition": "主控刷新 build→pack 后的离线、无 alias/链接环境：strict/skipLibCheck=false、显式 node+@types/ms。positive exit 0；negative 逐预期 API 行失败且不由依赖声明噪声替代。独立保留 bare 缺口。",
+      "resultEvidenceOwnerDirectory": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation"
+    },
+    {
+      "id": "working-tree-angular-strict-template",
+      "project": "rxdb-plugin-working-tree-angular",
+      "target": "isolated-ngc-consumer",
+      "args": [
+        "consumer-valid.mts",
+        "strictTemplates=true",
+        "strictInjectionParameters=true",
+        "strictInputAccessModifiers=true",
+        "paths=none",
+        "consumer-template-invalid.mts",
+        "consumer-readme-template.mts"
+      ],
+      "reason": "tsc 不检查模板；ngc 严格编译正例，以及仅模板错误的输入/事件/联合未缩窄反例；分别记录实际诊断。 另将 README 20-31 的重复 getter 模板原样送 ngc；@let 正例不能代替原示例的类型正确性。",
+      "criticalForC": ["C5"],
+      "status": "requested",
+      "owner": "主控",
+      "closureCondition": "主控 ngc strictTemplates 实际输出：安全正例通过、输入/事件/联合未缩窄负例失败；原 README 模板单独给实测结论。",
+      "resultEvidenceOwnerDirectory": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation"
+    },
+    {
+      "id": "working-tree-angular-lifecycle",
+      "project": "rxdb-plugin-working-tree-angular",
+      "target": "test",
+      "args": [
+        "--args=--run --maxWorkers=1 src/__tests__/review-round2-lifecycle.spec.ts",
+        "--skipRemoteCache",
+        "--skipNxCache"
+      ],
+      "reason": "新增 12 个真实 OnPush 组件/子 environment provider/同实例多入口/输入/并发/销毁所有权探针；IO 使用共享门面桩。3 个销毁用例刻画现状（旧 signal 仍更新、旧命令仍 refresh、diff 仍留存），通过也不等于清理通过。不继承 48 baseline 结果。",
+      "criticalForC": ["C1", "C2", "C3", "C4", "C5"],
+      "status": "requested",
+      "owner": "主控",
+      "closureCondition": "主控当轮聚焦 12 例输出、输入 sha 与环境；分别确认安全隔离和现状刻画，不把 retained state/旧 refresh 用例通过称为 cleanup 通过。",
+      "resultEvidenceOwnerDirectory": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation"
+    },
+    {
+      "id": "working-tree-angular-remaining-scenarios",
+      "project": "rxdb-plugin-working-tree-angular",
+      "target": "controller-adjudication-and-existing-user-path",
+      "args": [
+        "仅原 C 场景的本对象结论与证据归属",
+        "通用数据层 safety → core 联审/主控既有证据",
+        "Angular binding + route 必要未验 → 主控最小补证/明确裁定",
+        "不重跑通用全部宿主/CAS长矩阵"
+      ],
+      "reason": "薄 Angular binding 已读到直接委托 core，无存储写入实现；通用工作树/CAS 数据完整性归 core 联审。必要 Angular 交互/敏感摘要/实际 route 未验仍由主控复用或最小补证后裁定，不等待全宿主长矩阵。",
+      "criticalForC": ["C1", "C2", "C3", "C4", "C5"],
+      "status": "awaiting-controller-adjudication",
+      "owner": "主控",
+      "closureCondition": "主控对照已有框架/core/app 证据逐条裁定 C1-C5 必要未验项；若必要仅补 Angular 绑定/route 最小场景。通用 worktree 宿主/CAS 数据安全由 core 联审负责，不要求本对象等待/重跑长矩阵。没有证据仍保留必要 pending，不改为通过或不适用。",
+      "resultEvidenceOwnerDirectory": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation"
+    },
+    {
+      "id": "working-tree-angular-new-spec-gates",
+      "project": "rxdb-plugin-working-tree-angular",
+      "target": "lint/typecheck",
+      "args": ["lint --max-warnings=0 --skipRemoteCache --skipNxCache", "typecheck --skipRemoteCache --skipNxCache"],
+      "reason": "主控现有 lint/typecheck 早于新 lifecycle spec；如纳入最终证据，需单对象补门禁，不重跑十包。",
+      "criticalForC": ["C4", "C5"],
+      "status": "requested",
+      "owner": "主控",
+      "closureCondition": "主控当轮新 spec 的单对象零警告 lint/typecheck 与该 spec 实际输入摘要；当轮 coverage 独立登记，不继承旧 48 例。",
+      "resultEvidenceOwnerDirectory": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation"
+    }
+  ],
+  "scopeTask": "R2-08",
+  "task": "R2-07"
+}

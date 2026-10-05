@@ -1,0 +1,24 @@
+{
+  "attempt1Retained": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/attempt1",
+  "changes": [
+    {
+      "file": "Valid.vue",
+      "beforeSha256": "f65971adbd27d68126e26e0ea778caa9e4274cdcf2068bbb3d5ef081a4ba96c5",
+      "afterSha256": "6001dc2e511a6e20dc9007cf06cdce2a4284ed3737a43ce95d98af5344bb554e",
+      "replaced": "{{ upstreamScalar.value }}",
+      "replacement": "{{ upstreamScalar.entityId }}",
+      "reason": "消费模板对顶层 Ref 自动解包；修正夹具二次读取 .value，不改变 hooks 调用或被测包声明。"
+    },
+    {
+      "file": "ReadonlyRulesRejected.vue",
+      "beforeSha256": "19fc8a80ed5edcf6821a4115dd03c998340676c0e3be9d2b4707d72601d38d9b",
+      "afterSha256": "f9faf8c26c737453fcd6027bd8775843c8959698ddc135aef31b89ce1e452ceb",
+      "replaced": "{{ full.value.entityId }}",
+      "replacement": "{{ full.entityId }}",
+      "reason": "消费模板对顶层 Ref 自动解包；修正夹具二次读取 .value，不改变 hooks 调用或被测包声明。"
+    }
+  ],
+  "declarationEdits": false,
+  "strictReduced": false,
+  "skipLibCheckChanged": false
+}

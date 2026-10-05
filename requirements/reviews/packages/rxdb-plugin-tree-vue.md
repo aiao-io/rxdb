@@ -26,7 +26,7 @@ Vue：Tree repository 的响应式查询与加载状态封装。
 | 计划基线            | `main@2e820521187cbfcd1fe76fb705659fea0a548f0e`，2026-10-03（Asia/Shanghai） |
 | 建议波次 / 优先风险 | W4 / 中（排期依据，不是缺陷结论）                                            |
 | 受控文件盘点        | 13 个；测试/共享套件入口 3 个（按文件名，不代表覆盖率）                      |
-| 执行状态            | 执行中：已进入全范围基线/入口阶段；专项及覆盖率未全部完成                    |
+| 执行状态            | R2-04：13/13 已全读；原 C 动态补证由主控串行核销                             |
 
 范围是此对象的**全部 Git 受控源码、配置、测试、fixture、构建/打包文件与资源声明**，不是只看下面的导航入口。受控生成代码需验证生成来源与确定性；忽略的旧产物不作为当前源码证据。基线变化后先复盘 inventory / Nx targets / API，再开始评审。
 
@@ -69,7 +69,7 @@ Vue：Tree repository 的响应式查询与加载状态封装。
 
 运行配置：[`vite.config.mts`](../../../packages/rxdb-plugin-tree-vue/vite.config.mts)。核对 include、provider、setup、coverage 与资源回收；文件存在不等于被 target 执行。
 
-覆盖率验收：`statements / branches / functions / lines` 四项均 ≥ **80%**；本轮尚未测量。 按 [仓库覆盖率门禁](../../../scripts/audit/coverage-check.mjs) 核对来源、include / exclude 与当轮 summary；不能只报告平均值或把 skipped 当已覆盖。
+覆盖率验收：`statements / branches / functions / lines` 四项均 ≥ **80%**；2026-10-05 主控原 wrapper 测量均100%，新 spec 待复跑。 按 [仓库覆盖率门禁](../../../scripts/audit/coverage-check.mjs) 核对来源、include / exclude 与当轮 summary；不能只报告平均值或把 skipped 当已覆盖。
 
 ### 联审边界
 
@@ -119,12 +119,12 @@ pnpm audit:coverage --projects=rxdb-plugin-tree-vue
 
 ## 6. 完成条件
 
-- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。
-- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。
-- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。
-- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。
+- [x] 全部 13 个原受控文件清点及正文阅读；范围外导航未充当已读。
+- [x] C1–C5 原动作/最低场景逐项保留，区分已证、prepared-not-run、未验证及补证动作。
+- [x] 不变量有生产锚点；主控原测量与新探针准备状态分开，不预判新探针通过/失败。
+- [x] 主控原 build/lint/test 命令、串行/禁缓存、原5tests无skip与四指标/测量面已登记；新spec尚未跑。
 - [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。
-- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。
+- [x] 本轮未新增本包候选；只读去重 registry，未测 core branch 明确留待证。
 - [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。
 
 正式结论按总计划的证据与严重度规则登记；证据不足时保留“未验证”，不能因看过源码、跑过 lint 或存在测试文件就给全绿。
@@ -133,30 +133,40 @@ pnpm audit:coverage --projects=rxdb-plugin-tree-vue
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-plugin-tree-vue.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
 
-## 2026-10-05 frameworks 本轮完成条件与实际核查
+## 2026-10-05 R2-04 有界收口
 
-本轮 `main/worktree@44de1138b4d396fc45d6e76ab60476c40fef2223`，日期 2026-10-05。不是新泛计划，而是对原 C 的实际结论：**0/5 个完整 C、execution 保持 in-progress；结果记录保持 partial；本对象不是全对象完成候选。**
+**正文 13/13 已读，C1–C5 每项已明确落盘；0/5 完整原 C，5/5 partial。** 唯一对象本包，主控已有测量在 `76a3848e2086f4617b80f7b1a1b896ef76e5719c`；新补证未运行，因此不标全对象完成候选、不标发布就绪。第一轮“5正文/8未读”已被本次13份全文阅读覆盖；未删原场景。
 
-全部 13 个受控文件的范围/摘要已核对，正文片段 5、outline 0、仅导航 0、未人工检查 8；不能将 scope 盘点称为全读。
+| C                           | 本次已完成的阅读/已有证据                                                                                    | 必要待证（不虚标）                                                                                                                   |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| C1 树查询与输入类型         | 原测试四hooks各派发同名静态仓储方法；原类型fixture只含string id树实体/PlainEntity正反例                      | numeric/string id实际TreeRepository查询；未注册Tree插件的实际仓储链路（区别于缺方法mock）；QueryCache禁止组合；深树/lazy/层级SQL结果 |
+| C2 增量结果与参数切换       | 订阅责任在useRepositoryQuery，不把旧value消失当不变量：重查保留stale value，hasValue=false/isEmpty=undefined | 真实跨父移动；真实父删除；真实空树与全量树查询结果一致；上述core变更的当前branch回归                                                 |
+| C3 三端 contract 与泄漏     | 三端实际index/use-tree局部对照；命名本仓库均为use，不按通用inject约定误报Angular                             | 同一真实tree fixture三端运行与状态对照；三端真实仓储多实例泄漏对照；tar声明consumer当前正反编译                                      |
+| C4 Vue 生命周期与响应式来源 | 旧测试运行的确实是Vue effectScope，不是mock useRepositoryQuery                                               | 新Vue scope与组件probe的实际执行/类型检查；真实RxDB provider/Tree初始化接线由C1仓储链路补证或主控明确归属，不虚标执行                |
+| C5 Vue 类型与 SFC 消费      | 真实tar与当前dist/index.js、index.d.ts、use-tree.d.ts字节一致；这是产物映射，不是重复构建确定性              | 独立tar strict/skipLibCheck=false正反.mts编译；独立tar vue-tsc有效/无效模板及emit契约；新spec实体identity运行断言                    |
 
-| 原 C                        | 本轮结论          | 原场景中仍缺的必要证据                                                                                                                                                         |
-| --------------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| C1 树查询与输入类型         | partial；局部通过 | 缺 numeric id 实际查询、无 Tree 插件、QueryCache 禁止组合及深树真实仓储链路；四个同名 mock method 不能替代这些原场景。                                                         |
-| C2 增量结果与参数切换       | partial；局部通过 | 没有在树 wrapper 上运行跨父移动、父删除、快速改 query、空树与销毁同 fixture；状态模型源码相同不等于真实树增量结果已复验。                                                      |
-| C3 三端 contract 与泄漏     | partial；局部通过 | 缺同一真实 tree fixture 的三端状态/多实例泄漏对照及独立 typed consumer；pack root resolve 不证明声明可消费。                                                                   |
-| C4 Vue 生命周期与响应式来源 | partial；局部通过 | Angular 缺真实组件 input/provider override/route；React wrapper 套件没有 StrictMode 与多 root；Vue 套件仅 effectScope，没有真实 SFC props 深改/挂卸/晚到组合。                 |
-| C5 Vue 类型与 SFC 消费      | partial；局部通过 | 现有 fixture 不是独立声明 consumer；Angular 模板错误/route、React 同值新引用和错误 props 渲染、Vue vue-tsc/readonly/SFC pack 消费不能由 root resolve 和类型 fixture 自动补齐。 |
+### 今日最小补证与主控分工
 
-本轮完成条件：
+- 新增 [review-round2-vue-scope.spec.ts](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/__tests__/review-round2-vue-scope.spec.ts)：30 个计划用例，四 hooks × 五响应式来源、参数换代、error/empty、真实 Vue 多 scope/组件 props 与卸载，**待主控执行**；mock 静态仓储不冒充真树 SQL。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/valid.mts` / `invalid.mts` 已尽早落盘：公开包 imports、FindTreeOptions、numeric/string 与四 hooks；正反分离、无 paths/any/expect-error。node/@types/ms 环境为主控已有环境，不改依赖。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/valid.vue` / `invalid.vue`：vue-tsc 正反模板/props/emits/readonly/computed fixture，主控独立 tar consumer 执行。
+- 主控原3spec/5tests通过，build/lint通过，四指标100/100/100/100（8 statements、4 functions、0 branches）。真实 tar root runtime import exit0。上述绿**不继承新spec或typed/SFC consumer**。
+- 原 tree core 真实 branch / QueryCache / 深树 / 移动删除 / 全量一致性、三端同一真实 fixture仍待主控明确复用证据或裁定；不改原 C 为不适用，不在本任务扩新bug/实现。
 
-- [x] 全受控 inventory / 摘要核对，未排除配置/资源/fixture。
-- [ ] 全部受控内容阅读及全部原 C 场景核销（缺口见表，保持 partial）。
-- [x] 每 C 已有明确的已证/未证结论及角色明确的源码、测试锚点。
-- [x] 当前 baseline 的 unit / 四指标 / 零警告 lint / typecheck / 真 pack 来源已读取登记。
-- [ ] 晚加探针补跑、独立 typed/runtime consumer、真实完整 UI/生命周期等必要缺口全部关闭。
-- [ ] 全对象证据完成与最终评级（不要求零缺陷，但不能缺验证）；尚未完成。
+### 交付与状态
 
-本对象四指标（statements/branches/functions/lines）：**100% / 100% / 100% / 100%**；阈值各项 ≥ 80%。其余18包的绿不能抹掉 rxdb-angular 的16个失败；新探针不继承基线通过。
-发布 pack 根是 `packages/rxdb-plugin-tree-vue`，实际 tarball 目标文件存在、独立根 ESM 解析通过；**不包含 typed consumer 编译/runtime import**。Angular 不能按源 manifest 缺 exports 报错。
+本地有界交付完成（阅读、C映射、最小补证、plan/result/closure）；原完整 C 与发布门禁仍 partial。详见 [rxdb-plugin-tree-vue.md](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-tree-vue.md)、[closure.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/closure.json) 和 [validation-requests.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/validation-requests.json)。不等待其他包，不执行重任务、不派agent、未改实现/旧tests/依赖/全局index。
 
-逐 C 原场景、函数/测试证据与完成条件详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-tree-vue.md`；机器证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`。
+### R2-04 最终冻结交接
+
+2026-10-05，冻结时间 `2026-10-05T11:35:02.083260+08:00`。30用例新spec与5份补证文件（spec、typed正反、SFC正反）已冻结，SHA见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue/validation-requests.json` / `closure.json`。本代理结束有界交付，不继续读core/backend或扩任务；主控串行运行冻结输入。原移动/删除/全量一致性、参数实际换代与strict消费者不得无证标过。
+
+## R2 主控验证结算（不扩大子代理原核销范围）
+
+本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
+
+[真实tar类型正负/运行时证据](../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+
+消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
+
+主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。

@@ -1,0 +1,46 @@
+{
+  "clientDate": "2026-10-05",
+  "startedHead": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+  "workersDispatched": 6,
+  "maxActiveWorkers": 6,
+  "heavyTestsSerialized": true,
+  "coordinatorWork": "当前范围/原C统计；真实PGlite树同fixture三端对照；集成与核销",
+  "tasks": [
+    {
+      "task": "R3-01",
+      "scope": "Angular 必填父输入与正反模板",
+      "agentId": "01a10adc-ff21-7bc3-9d31-1a09aeb07662",
+      "evidenceDirectory": "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates"
+    },
+    {
+      "task": "R3-02",
+      "scope": "Vue SFC 与 readonly 严格消费者",
+      "agentId": "01a10add-5eb9-7fe1-88c6-0adb62e7961c",
+      "evidenceDirectory": "requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer"
+    },
+    {
+      "task": "R3-03",
+      "scope": "Replay Angular 夹具与缓存隔离",
+      "agentId": "01a10add-bbfd-7a02-b8ee-c1b20555ea0b",
+      "evidenceDirectory": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture"
+    },
+    {
+      "task": "R3-04",
+      "scope": "Working-tree Angular 输入与 DOM",
+      "agentId": "01a10ade-2192-72f2-b1ba-ae304784456a",
+      "evidenceDirectory": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input"
+    },
+    {
+      "task": "R3-05",
+      "scope": "事务套件 cleanup 判别力",
+      "agentId": "01a10ae8-6d54-78b3-ab9f-b41a746116b2",
+      "evidenceDirectory": "requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict"
+    },
+    {
+      "task": "R3-06",
+      "scope": "Replay core 真实恢复序列",
+      "agentId": "01a10ae9-9e57-7070-94e3-dce07166a392",
+      "evidenceDirectory": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore"
+    }
+  ]
+}

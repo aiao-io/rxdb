@@ -1,0 +1,681 @@
+{
+  "Cs": [
+    {
+      "C": "C1",
+      "status": "partial",
+      "verdict": "静态/旧边界证据已收尾；原完整场景未全部验证，不核销完整 C。",
+      "anchors": [
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+          "start": 50,
+          "end": 117,
+          "role": "read-implementation"
+        }
+      ],
+      "testAnchors": [
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+          "start": 18,
+          "end": 60,
+          "role": "read-implementation"
+        }
+      ],
+      "established": [
+        "真实框架组件运行 shared parity：输入原样送 mountReplayer，输入变化仅 update，commands 委托，销毁调用 destroy；React 另有 StrictMode 活视图数守恒。",
+        "shared MountReplayerSpy 只观察核心边界，没有加载 rrweb 或真实 recording。"
+      ],
+      "title": "播放器挂载与按需依赖",
+      "action": "核查 wrapper 委托 mount-replayer 的输入、容器和 rrweb 懒加载；组件出现不等于授权录制。",
+      "originalScenario": "空 recording、加载失败、切 recording、双播放器、卸载；无多重 mount 或后台录制。",
+      "round1HistoricalEvidencePreserved": true,
+      "round2Established": [
+        "全文件实读确认 afterNextRender 对当前输入单次委托；effect 只发送引用变化字段，DestroyRef 清句柄。",
+        "旧 9 组件用例只验证 mountReplayer spy 的边界；10/10 包套件含 1 release 配置例，不是 rrweb 端到端。",
+        "真实核心使用 generation 丢晚 load/restore，空/错/就绪状态已源码锚定；新增 14 例尚待主控执行。"
+      ],
+      "round2Anchors": [
+        {
+          "path": "packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts",
+          "start": 100,
+          "end": 120,
+          "role": "read-dependency-implementation"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts",
+          "start": 156,
+          "end": 195,
+          "role": "read-dependency-implementation"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts",
+          "start": 120,
+          "end": 167,
+          "role": "frozen-test-definition-not-executed"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts",
+          "start": 198,
+          "end": 243,
+          "role": "frozen-test-definition-not-executed"
+        }
+      ],
+      "originalScenarioEvidence": [
+        {
+          "scenario": "空 recording",
+          "evidence": "existing core empty state source; new probe 120–141",
+          "status": "requested-controlled-core",
+          "owner": "controller",
+          "requestId": "replay-angular-real-core-lifecycle"
+        },
+        {
+          "scenario": "加载失败",
+          "evidence": "role=alert path core 190–193/302–315; probe 120–141",
+          "status": "requested-controlled-core",
+          "owner": "controller",
+          "requestId": "replay-angular-real-core-lifecycle"
+        },
+        {
+          "scenario": "切 recording",
+          "evidence": "source identity/session delta; generation invalidation core 172–195; probe 143–167",
+          "status": "old-boundary-pass-new-core-probe-pending",
+          "owner": "controller",
+          "requestId": "replay-angular-real-core-lifecycle"
+        },
+        {
+          "scenario": "双播放器",
+          "evidence": "Angular consumer parent/child provider + 2 ao-replayer, probe 198–212",
+          "status": "requested-real-angular-controlled-core",
+          "owner": "controller",
+          "requestId": "replay-angular-real-core-lifecycle"
+        },
+        {
+          "scenario": "卸载",
+          "evidence": "old parity destroy passed; new load/restore late completion probes 214–243/302–318",
+          "status": "old-boundary-pass-new-core-probe-pending",
+          "owner": "controller",
+          "requestId": "replay-angular-real-core-lifecycle"
+        },
+        {
+          "scenario": "无多重 mount 或后台录制",
+          "evidence": "wrapper one mount, only readEvents/listCommitMarkers; start spies and per-player destroy counters authored",
+          "status": "static-established-dynamic-pending",
+          "owner": "controller",
+          "requestId": "replay-angular-real-core-lifecycle"
+        },
+        {
+          "scenario": "实际 rrweb 按需播放器链路",
+          "evidence": "fresh tar root import != rrweb Angular player mount/load; loader and iframe path not run here",
+          "status": "necessary-unverified",
+          "owner": "controller",
+          "requestId": "replay-angular-native-player-route-a11y"
+        }
+      ],
+      "remainingActions": ["replay-angular-real-core-lifecycle", "replay-angular-native-player-route-a11y"],
+      "round1HistoricalGaps": ["空 recording、加载失败、切 recording、双播放器和无后台录制的实际核心/浏览器链路尚缺。"],
+      "gaps": [
+        "空 recording：requested-controlled-core；owner=controller；request=replay-angular-real-core-lifecycle",
+        "加载失败：requested-controlled-core；owner=controller；request=replay-angular-real-core-lifecycle",
+        "切 recording：old-boundary-pass-new-core-probe-pending；owner=controller；request=replay-angular-real-core-lifecycle",
+        "双播放器：requested-real-angular-controlled-core；owner=controller；request=replay-angular-real-core-lifecycle",
+        "卸载：old-boundary-pass-new-core-probe-pending；owner=controller；request=replay-angular-real-core-lifecycle",
+        "无多重 mount 或后台录制：static-established-dynamic-pending；owner=controller；request=replay-angular-real-core-lifecycle",
+        "实际 rrweb 按需播放器链路：necessary-unverified；owner=controller；request=replay-angular-native-player-route-a11y"
+      ]
+    },
+    {
+      "C": "C2",
+      "status": "partial",
+      "verdict": "静态/旧边界证据已收尾；原完整场景未全部验证，不核销完整 C。",
+      "anchors": [
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+          "start": 64,
+          "end": 76,
+          "role": "read-implementation"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+          "start": 174,
+          "end": 184,
+          "role": "read-dependency-test-definition"
+        }
+      ],
+      "testAnchors": [
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+          "start": 54,
+          "end": 59,
+          "role": "read-implementation"
+        }
+      ],
+      "established": [
+        "同一个 dirty_working_tree restore event 在 parity 中保持对象身份；组件仅转发核心事件，不直接更新 HEAD。"
+      ],
+      "title": "恢复交互与状态",
+      "action": "跟踪时间轴 marker 点击、restore callback、拒绝和 loading 状态，不私自改 HEAD。",
+      "originalScenario": "不可达 commit、dirty tree、并发恢复、恢复中卸载；与 replay/working-tree 原 API 一致。",
+      "round1HistoricalEvidencePreserved": true,
+      "round2Established": [
+        "Angular 不调用 workingTree 或直接改 HEAD，只输出 core ReplayerCommitRestoreEvent。",
+        "核心 marker 在点击后 pause/seek，Restoring… 后 await restoreToCommit，描述四种拒绝/错误/成功并转发。",
+        "受控恢复结果只验证 wrapper/core 的状态与 callback，不等于真实 dirty/unreachable/并发 CAS 决策。"
+      ],
+      "round2Anchors": [
+        {
+          "path": "packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts",
+          "start": 232,
+          "end": 267,
+          "role": "read-dependency-implementation"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay/src/restore.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/restore.ts",
+          "start": 29,
+          "end": 51,
+          "role": "read-dependency-implementation"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts",
+          "start": 245,
+          "end": 318,
+          "role": "frozen-test-definition-not-executed"
+        }
+      ],
+      "originalScenarioEvidence": [
+        {
+          "scenario": "不可达 commit",
+          "evidence": "unreachable_target controlled response -> real marker/status/output authored at 245–278",
+          "status": "controlled-decision-not-working-tree-verification",
+          "owner": "controller",
+          "requestId": "replay-angular-real-core-lifecycle"
+        },
+        {
+          "scenario": "dirty tree",
+          "evidence": "dirty_working_tree controlled response + prior same event identity parity passed",
+          "status": "old-boundary-pass-controlled-decision-pending",
+          "owner": "controller",
+          "requestId": "replay-angular-real-core-lifecycle"
+        },
+        {
+          "scenario": "并发恢复",
+          "evidence": "two in-flight restore promises authored 280–300; no claim serialisation or real CAS",
+          "status": "controlled-promises-pending-real-CAS-unverified",
+          "owner": "controller",
+          "requestId": "replay-angular-native-player-route-a11y"
+        },
+        {
+          "scenario": "恢复中卸载",
+          "evidence": "DestroyRef + generation guard; probe 302–318",
+          "status": "requested-real-angular-controlled-core",
+          "owner": "controller",
+          "requestId": "replay-angular-real-core-lifecycle"
+        },
+        {
+          "scenario": "marker/callback/拒绝/loading 不私改 HEAD",
+          "evidence": "core real marker click + Restoring/status + four reasons/success/error authored; wrapper only emits",
+          "status": "static-established-dynamic-pending",
+          "owner": "controller",
+          "requestId": "replay-angular-real-core-lifecycle"
+        },
+        {
+          "scenario": "与 replay/working-tree 原 API 一致",
+          "evidence": "restore.ts reads fresh status and delegates restore expected revisions; actual dirty/unreachable/CAS path not executed in this object",
+          "status": "necessary-unverified-owner-controller-working-tree-decision",
+          "owner": "controller",
+          "requestId": "replay-angular-native-player-route-a11y"
+        }
+      ],
+      "remainingActions": ["replay-angular-real-core-lifecycle", "replay-angular-native-player-route-a11y"],
+      "round1HistoricalGaps": [
+        "parity 只有手动触发 restore callback；缺实际 marker 点击、不可达/dirty/并发 restore 与恢复中卸载的加载/拒绝序列。"
+      ],
+      "gaps": [
+        "不可达 commit：controlled-decision-not-working-tree-verification；owner=controller；request=replay-angular-real-core-lifecycle",
+        "dirty tree：old-boundary-pass-controlled-decision-pending；owner=controller；request=replay-angular-real-core-lifecycle",
+        "并发恢复：controlled-promises-pending-real-CAS-unverified；owner=controller；request=replay-angular-native-player-route-a11y",
+        "恢复中卸载：requested-real-angular-controlled-core；owner=controller；request=replay-angular-real-core-lifecycle",
+        "marker/callback/拒绝/loading 不私改 HEAD：static-established-dynamic-pending；owner=controller；request=replay-angular-real-core-lifecycle",
+        "与 replay/working-tree 原 API 一致：necessary-unverified-owner-controller-working-tree-decision；owner=controller；request=replay-angular-native-player-route-a11y"
+      ]
+    },
+    {
+      "C": "C3",
+      "status": "partial",
+      "verdict": "静态/旧边界证据已收尾；原完整场景未全部验证，不核销完整 C。",
+      "anchors": [
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/index.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/index.ts",
+          "start": 10,
+          "end": 12,
+          "role": "read-implementation"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+          "start": 50,
+          "end": 117,
+          "role": "read-implementation"
+        }
+      ],
+      "testAnchors": [
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+          "start": 54,
+          "end": 59,
+          "role": "read-implementation"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+          "start": 129,
+          "end": 213,
+          "role": "read-dependency-test-definition"
+        }
+      ],
+      "established": [
+        "公开 replay/sessionId/initialTime、两个输出和 play/pause/seek 已按框架 idiom 对齐；core 的事件类型及 replayRestoreHint 三端同样透传。",
+        "共用七条 parity 不是三份 demo 截图；Vue toRaw 额外保护门面原始对象。"
+      ],
+      "title": "三端可访问性与类型",
+      "action": "对照 replayer-parity fixture、公开 options/events、控件键盘与错误提示。",
+      "originalScenario": "同 recording/marker 序列三端同结果、尺寸变化、键盘操作；不靠三份 demo 手动截图证明对称。",
+      "round1HistoricalEvidencePreserved": true,
+      "round2Established": [
+        "三端公开 payload/hint 来自同一 core；Angular signals/output+实例命令，React props/ref，Vue props/emits/expose，属框架原生表达。",
+        "core 使用有 type 的原生 button/range、Timeline/Commits label、aria-pressed/valuetext、status/live、alert；源码有 focus-visible/flex 样式。",
+        "只读属性或 .click()/synthetic input 不证明原生键盘、尺寸、屏幕阅读器、IME、三端同真实录像。RV-070 限 React 首次 layout seek。"
+      ],
+      "round2Anchors": [
+        {
+          "path": "packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts",
+          "start": 203,
+          "end": 245,
+          "role": "read-dependency-implementation"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts",
+          "start": 290,
+          "end": 315,
+          "role": "read-dependency-implementation"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts",
+          "start": 169,
+          "end": 196,
+          "role": "frozen-test-definition-not-executed"
+        }
+      ],
+      "originalScenarioEvidence": [
+        {
+          "scenario": "公开 options/events",
+          "evidence": "replay/sessionId/initialTime + two shared payloads + play/pause/seek + same hint type, native idioms aligned",
+          "status": "static-established-old-parity-pass",
+          "owner": "R2-10-static/controller-baseline",
+          "requestId": "replay-angular-strict-packed-consumer"
+        },
+        {
+          "scenario": "同 recording/marker 序列三端同结果",
+          "evidence": "shared seven boundary-spy cases passed in baseline; no genuine same-recording UI sequence here",
+          "status": "necessary-unverified",
+          "owner": "controller",
+          "requestId": "replay-angular-native-player-route-a11y"
+        },
+        {
+          "scenario": "尺寸变化",
+          "evidence": "shared core style flex/overflow/focus-visible read; no resized viewport/layout measurement",
+          "status": "necessary-unverified",
+          "owner": "controller",
+          "requestId": "replay-angular-native-player-route-a11y"
+        },
+        {
+          "scenario": "键盘操作",
+          "evidence": "native button/range, aria label/pressed/valuetext/status/alert source; synthetic click/input probe not Tab/Space/Enter/Arrow",
+          "status": "necessary-unverified",
+          "owner": "controller",
+          "requestId": "replay-angular-native-player-route-a11y"
+        }
+      ],
+      "remainingActions": ["replay-angular-strict-packed-consumer", "replay-angular-native-player-route-a11y"],
+      "round1HistoricalGaps": [
+        "缺同 recording/marker 序列的真实 UI、尺寸变化、键盘与错误提示；七条边界桩 parity 不覆盖控件可访问性。"
+      ],
+      "gaps": [
+        "同 recording/marker 序列三端同结果：necessary-unverified；owner=controller；request=replay-angular-native-player-route-a11y",
+        "尺寸变化：necessary-unverified；owner=controller；request=replay-angular-native-player-route-a11y",
+        "键盘操作：necessary-unverified；owner=controller；request=replay-angular-native-player-route-a11y"
+      ]
+    },
+    {
+      "C": "C4",
+      "status": "partial",
+      "verdict": "静态/旧边界证据已收尾；原完整场景未全部验证，不核销完整 C。",
+      "anchors": [
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+          "start": 50,
+          "end": 117,
+          "role": "read-implementation"
+        }
+      ],
+      "testAnchors": [
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+          "start": 63,
+          "end": 77,
+          "role": "read-implementation"
+        }
+      ],
+      "established": [
+        "Angular 是 OnPush、afterNextRender 安装 + DestroyRef cleanup；React effect cleanup 对应 mount，useEffectEvent 更新回调；Vue onMounted/onBeforeUnmount 与 watch 按输入引用 delta update。",
+        "React StrictMode 已实际测试，不列为完全未测；但测试仅证明 mount/destroy 计数。"
+      ],
+      "title": "Angular 生命周期与注入",
+      "action": "核查注入上下文、DestroyRef/effect cleanup、provider scope 和框架原生 Signal 更新；按仓库约定检查 standalone/OnPush，避免为风格改写已稳定 API。",
+      "originalScenario": "切换 inputs、销毁中异步完成、子 provider 覆盖、同组件多实例；无订阅泄漏或跨库状态。",
+      "round1HistoricalEvidencePreserved": true,
+      "round2Established": [
+        "Angular OnPush、signal inputs、afterNextRender、DestroyRef/effect 的源与 APF metadata 一致，standalone 生成结果已核。",
+        "门面由消费者显式输入；不存在要强改的包内数据库 provider/inject API。子 provider 场景由真实 Angular consumer fixture 注入两份门面。",
+        "旧输入更新通过；销毁晚完成、多实例、子 provider 和 before-render cancellation 的新探针未继承旧测量。"
+      ],
+      "round2Anchors": [
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+          "start": 69,
+          "end": 96,
+          "role": "read-implementation"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts",
+          "start": 96,
+          "end": 243,
+          "role": "frozen-test-definition-not-executed"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts",
+          "start": 302,
+          "end": 318,
+          "role": "frozen-test-definition-not-executed"
+        }
+      ],
+      "originalScenarioEvidence": [
+        {
+          "scenario": "切换 inputs",
+          "evidence": "old setInput delta/same-tick update passed; new real core session/replay/initialTime 143–196",
+          "status": "old-boundary-pass-new-core-probe-pending",
+          "owner": "controller",
+          "requestId": "replay-angular-real-core-lifecycle"
+        },
+        {
+          "scenario": "销毁中异步完成",
+          "evidence": "load/restore pending completion + before-render cancellation authored 214–243/302–318",
+          "status": "requested-real-angular-controlled-core",
+          "owner": "controller",
+          "requestId": "replay-angular-real-core-lifecycle"
+        },
+        {
+          "scenario": "子 provider 覆盖",
+          "evidence": "wrapper accepts explicit ReplayManager, no database provider API; real parent/child Angular DI consumer supplies distinct facade, probe 96–113/198–212",
+          "status": "requested-real-angular-consumer-provider",
+          "owner": "controller",
+          "requestId": "replay-angular-real-core-lifecycle"
+        },
+        {
+          "scenario": "同组件多实例",
+          "evidence": "two ao-replayer with independent read/session/destroy authored 198–212",
+          "status": "requested-real-angular-controlled-core",
+          "owner": "controller",
+          "requestId": "replay-angular-real-core-lifecycle"
+        },
+        {
+          "scenario": "无订阅泄漏或跨库状态",
+          "evidence": "wrapper/core do not subscribe state$; handles per instance and generation invalidate late callbacks; pending probe only controls rrweb resources",
+          "status": "static-established-new-runtime-pending",
+          "owner": "controller",
+          "requestId": "replay-angular-real-core-lifecycle"
+        }
+      ],
+      "remainingActions": ["replay-angular-real-core-lifecycle"],
+      "round1HistoricalGaps": [
+        "缺销毁中真实 async 完成、同组件多实例/多个 root；Angular 缺 provider/route；Vue 缺 ref/computed/getter 真实父子链路。React first layout seek 另有未跑回归。"
+      ],
+      "gaps": [
+        "切换 inputs：old-boundary-pass-new-core-probe-pending；owner=controller；request=replay-angular-real-core-lifecycle",
+        "销毁中异步完成：requested-real-angular-controlled-core；owner=controller；request=replay-angular-real-core-lifecycle",
+        "子 provider 覆盖：requested-real-angular-consumer-provider；owner=controller；request=replay-angular-real-core-lifecycle",
+        "同组件多实例：requested-real-angular-controlled-core；owner=controller；request=replay-angular-real-core-lifecycle",
+        "无订阅泄漏或跨库状态：static-established-new-runtime-pending；owner=controller；request=replay-angular-real-core-lifecycle"
+      ]
+    },
+    {
+      "C": "C5",
+      "status": "partial",
+      "verdict": "静态/旧边界证据已收尾；原完整场景未全部验证，不核销完整 C。",
+      "anchors": [
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+          "start": 50,
+          "end": 117,
+          "role": "read-implementation"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/index.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/index.ts",
+          "start": 10,
+          "end": 12,
+          "role": "read-implementation"
+        }
+      ],
+      "testAnchors": [
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+          "start": 1,
+          "end": 16,
+          "role": "read-implementation"
+        }
+      ],
+      "established": [
+        "基线 typed source 与 lint/typecheck 通过，pack 发布入口/目标文件已在真正 tarball 核对；组件的 imperative/output 容器差异是框架表达。"
+      ],
+      "title": "Angular 类型与运行证据",
+      "action": "核查模板类型、泛型推导和真实组件 fixture；区分纯函数、模拟组件与浏览器/实际应用证据。",
+      "originalScenario": "typed consumer 编译、模板事件/输入错误、错误与空态；真实 route 挂载/卸载，不用类型断言掩盖错误。",
+      "round1HistoricalEvidencePreserved": true,
+      "round2Established": [
+        "当前 APF 根有真实 types/default exports，root import exit 0；原计划 22.1.6 是历史，当前 scope/发布 peer 为 22.2.1。",
+        "consumer 样例无 paths/any/类型断言/ts suppress，syntax parse 0 仅为语法证据，不是 tsc/ngc 通过。",
+        "额外 node ambient/@types/ms 要求显式；裸 upstream utils NodeJS/ms 诊断文件保留，不能偷用 skipLibCheck 或临时声明抹去。"
+      ],
+      "round2Anchors": [
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/index.ts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/index.ts",
+          "start": 1,
+          "end": 12,
+          "role": "read-implementation"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/tsconfig.json",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/tsconfig.json",
+          "start": 1,
+          "end": 26,
+          "role": "read-configuration"
+        },
+        {
+          "path": "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/consumer-valid.mts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/consumer-valid.mts",
+          "start": 1,
+          "end": 60,
+          "role": "frozen-consumer-definition-not-compiled"
+        },
+        {
+          "path": "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/consumer-invalid.mts",
+          "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular/consumer-invalid.mts",
+          "start": 1,
+          "end": 49,
+          "role": "frozen-negative-consumer-definition-not-compiled"
+        }
+      ],
+      "originalScenarioEvidence": [
+        {
+          "scenario": "typed consumer 编译",
+          "evidence": "actual tar declaration read + consumer fixtures frozen; latest observed own tsc fixtures not yet measured",
+          "status": "requested-independent-packed-consumer",
+          "owner": "controller",
+          "requestId": "replay-angular-strict-packed-consumer"
+        },
+        {
+          "scenario": "模板事件/输入错误",
+          "evidence": "valid signal host + eight TS negatives and wrong required/input/output/seek templates; must use ngc not tsc",
+          "status": "requested-independent-ngc",
+          "owner": "controller",
+          "requestId": "replay-angular-strict-template-consumer"
+        },
+        {
+          "scenario": "错误与空态",
+          "evidence": "new real TestBed/core state/error/status probes authored 120–141/255–278, no shallow component mocks",
+          "status": "requested-real-angular-controlled-core",
+          "owner": "controller",
+          "requestId": "replay-angular-real-core-lifecycle"
+        },
+        {
+          "scenario": "真实 route 挂载/卸载",
+          "evidence": "no router dependency/route added; controller reuse real Angular application to mount/unmount wrapper with actual loader",
+          "status": "necessary-unverified",
+          "owner": "controller",
+          "requestId": "replay-angular-native-player-route-a11y"
+        }
+      ],
+      "remainingActions": [
+        "replay-angular-strict-packed-consumer",
+        "replay-angular-strict-template-consumer",
+        "replay-angular-real-core-lifecycle",
+        "replay-angular-native-player-route-a11y"
+      ],
+      "round1HistoricalGaps": [
+        "独立 typed consumer 未执行；Angular 模板负例/真实 route，React 首次 layout 命令及错误 props，Vue SFC emits/readonly/模板消费仍未完整验证。"
+      ],
+      "gaps": [
+        "typed consumer 编译：requested-independent-packed-consumer；owner=controller；request=replay-angular-strict-packed-consumer",
+        "模板事件/输入错误：requested-independent-ngc；owner=controller；request=replay-angular-strict-template-consumer",
+        "错误与空态：requested-real-angular-controlled-core；owner=controller；request=replay-angular-real-core-lifecycle",
+        "真实 route 挂载/卸载：necessary-unverified；owner=controller；request=replay-angular-native-player-route-a11y"
+      ]
+    }
+  ],
+  "completeCCount": 0,
+  "existingFindingReference": {
+    "id": "RV-070",
+    "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/RV-070-parallel-react-replayer-layout-seek.md",
+    "owner": "rxdb-plugin-replay-react",
+    "scope": "仅 React 首次 layout effect seek 丢失；不泛化 Angular/Vue。"
+  },
+  "fullObjectCandidate": false,
+  "interpretation": "逐 C 原动作与最低场景完整保留；只完整原场景才核销，不把 frozen probe/旧 boundary suite/root import 算成新动态证据。",
+  "nativeApiParity": [
+    {
+      "surface": "输入",
+      "angular": "InputSignal replay/sessionId/initialTime",
+      "react": "ReplayerProps replay/sessionId/initialTime",
+      "vue": "props replay/sessionId/initialTime",
+      "status": "静态对称"
+    },
+    {
+      "surface": "事件",
+      "angular": "aoTimeChange/aoCommitRestore",
+      "react": "onTimeChange/onCommitRestore",
+      "vue": "time-change/commit-restore",
+      "status": "同 core payload；framework idiom 不强行改名"
+    },
+    {
+      "surface": "命令",
+      "angular": "ReplayerComponent play/pause/seek",
+      "react": "ReplayerRef",
+      "vue": "expose ReplayerRef",
+      "status": "类型/委托静态对称；生命周期动态不外推"
+    },
+    {
+      "surface": "共享根类型/文案",
+      "angular": "ReplayerCommitRestoreEvent/replayRestoreHint",
+      "react": "same core exports",
+      "vue": "same core exports",
+      "status": "三个 index 正文核对"
+    }
+  ],
+  "newOwnFindings": 0,
+  "object": "rxdb-plugin-replay-angular",
+  "originalCSource": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/packages/rxdb-plugin-replay-angular.md 原 §3 C1–C5",
+  "originalEvidenceSource": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json",
+  "partialCCount": 5,
+  "playerLifecycleCallbackRestoreKeyboardTable": [
+    {
+      "surface": "加载",
+      "source": "core #render 310–315: data-state=loading/aria-busy",
+      "probe": "120–141",
+      "verdict": "源码已证；新动态未执行"
+    },
+    {
+      "surface": "空/错误",
+      "source": "core #load 180–193/#renderError 302–307: empty 文本/role=alert",
+      "probe": "120–141",
+      "verdict": "源码已证；空态不假称有 alert；新动态未执行"
+    },
+    {
+      "surface": "播放/暂停",
+      "source": "core #mount/#renderToggle: button type=button, Play/Pause, aria-pressed",
+      "probe": "169–196 .click + instance pause",
+      "verdict": "点击链待执行；原生 Enter/Space 尚未验证"
+    },
+    {
+      "surface": "时间轴",
+      "source": "native range aria-label=Timeline, aria-valuetext; input -> seek",
+      "probe": "169–196 synthetic input",
+      "verdict": "input链待执行；原生 Arrow/Tab 尚未验证"
+    },
+    {
+      "surface": "commit 恢复",
+      "source": "ul aria-label=Commits, button data-commit-id; role=status/aria-live=polite",
+      "probe": "255–318 actual DOM .click with controlled decision",
+      "verdict": "pending/result链待执行；键盘激活/焦点顺序/AT播报尚未验证"
+    },
+    {
+      "surface": "尺寸/焦点",
+      "source": "shared REPLAYER_STYLE flex/overflow/:focus-visible",
+      "probe": null,
+      "verdict": "只有静态样式；无真实 viewport resize/焦点可见/视觉对比测量"
+    },
+    {
+      "surface": "原生 IME",
+      "source": "原 C 未提出单独 IME 功能；本任务没有相关动态主张",
+      "probe": null,
+      "verdict": "未验证；不将 node/happy-dom/合成 composition 包装为原生 IME；若主控扩充此主张需真实设备，不无限扩录制库宿主"
+    }
+  ],
+  "reviewComplete": false,
+  "task": "R2-10",
+  "totalCCount": 5,
+  "updatedAt": "2026-10-05T11:41:34.429601+08:00"
+}

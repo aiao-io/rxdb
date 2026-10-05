@@ -1,24 +1,17 @@
 {
-  "object": "rxdb-plugin-search-react",
-  "kind": "read-only-syntax-and-evidence-reuse-not-typecheck-or-test",
-  "generator": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/write-search-probes.py",
-  "templateSha256": "3901f52569baed128d0b7305baed990b52337db97d548ca15d86fc84e9f6e670",
-  "currentProbeSha256": "46273f898b443419de3465454405224a00a5444d6aac4ca5f2491686194c3105",
-  "measuredProbeSha256": "3901f52569baed128d0b7305baed990b52337db97d548ca15d86fc84e9f6e670",
-  "templateMatchesMeasuredHash": true,
+  "changedCoreInputs": [],
+  "claimBoundary": "仅证明已测 React C1 探针与现有探针的 import 集合与非 import token 相同、core 的 80 个已记录输入未漂移；不是新 HEAD 执行、不是 TS 类型检查、不是新增 13 个用例通过。imports 的声明顺序经格式化调整，报告明确保留此差别。",
   "comparison": {
     "importsEquivalent": true,
     "bodyTokensEquivalent": true,
-    "syntaxErrors": [
-      [],
-      [],
-      [],
-      [],
-      []
-    ]
+    "syntaxErrors": [[], [], [], [], []]
   },
   "coreManifestInputCount": 80,
-  "changedCoreInputs": [],
+  "currentProbeSha256": "46273f898b443419de3465454405224a00a5444d6aac4ca5f2491686194c3105",
+  "generator": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/write-search-probes.py",
+  "kind": "read-only-syntax-and-evidence-reuse-not-typecheck-or-test",
+  "measuredProbeSha256": "3901f52569baed128d0b7305baed990b52337db97d548ca15d86fc84e9f6e670",
+  "object": "rxdb-plugin-search-react",
   "sourceFilesInParseOrder": [
     "archived generator reconstruction",
     "packages/rxdb-plugin-search-react/src/__tests__/review-parallel-real-handle.spec.ts",
@@ -26,5 +19,6 @@
     "consumer-valid.mts",
     "consumer-invalid.mts"
   ],
-  "claimBoundary": "仅证明已测 React C1 探针与现有探针的 import 集合与非 import token 相同、core 的 80 个已记录输入未漂移；不是新 HEAD 执行、不是 TS 类型检查、不是新增 13 个用例通过。imports 的声明顺序经格式化调整，报告明确保留此差别。"
+  "templateMatchesMeasuredHash": true,
+  "templateSha256": "3901f52569baed128d0b7305baed990b52337db97d548ca15d86fc84e9f6e670"
 }

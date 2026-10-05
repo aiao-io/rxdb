@@ -1,7 +1,5 @@
 {
   "compilerVersion": "6.0.3",
-  "typecheckExecuted": false,
-  "testsExecuted": false,
   "results": [
     {
       "path": "packages/rxdb-plugin-tree-react/src/__tests__/review-round2-lifecycle.spec.ts",
@@ -18,5 +16,7 @@
       "syntaxOnly": true,
       "diagnostics": []
     }
-  ]
+  ],
+  "testsExecuted": false,
+  "typecheckExecuted": false
 }

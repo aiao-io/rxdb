@@ -6,27 +6,27 @@
 
 ## 共享层实际拥有的能力
 
-| 公开能力 | 生产锚点 | 可独立证明的范围 | 不能由它证明的范围 |
-| --- | --- | --- | --- |
-| `computeMinimalDocumentChange` | `packages/code-editor/src/document-sync.ts:54-69` | UTF-16 字符串的单个最小前后缀替换；相同内容返回 null；不修改输入，无 view 状态 | selection 映射、输入时序、IME、history、scroll、只读的实际用户输入 |
-| `resolveCodeEditorLanguage` / `isSameResolvedLanguage` | `packages/code-editor/src/language-resolution.ts:31-50,71-81,101-109` | none/not-found/found 与 description identity；同描述的新容器不影响结果 | 谁发起 load、请求版本、何时 reconfigure、销毁后丢弃晚到结果 |
-| `codeEditorLanguageNotFound` / `codeEditorLanguageLoadFailed` | `packages/code-editor/src/language-error.ts:28-70` | 冻结载荷、稳定 kind/language/message、原 cause | 三端输出/回调/emit 的事件次数；物理网络资源失效 |
-| `buildCodeEditorContentAttributes` / `shouldAutoFocusCodeEditor` | `packages/code-editor/src/accessibility.ts:61-85` | 字典内容、空项不产生属性、新对象、禁用/只读的布尔判定 | 字典是否写到真实 contentDOM；键盘/Tab、屏幕阅读器是否读到；实际抢焦点 |
-| 主题类型、语言描述/loader | `packages/code-editor/src/index.ts:11-20`；`packages/code-editor/src/languages.ts:7-31,58-69,72-232` | light/dark 类型；自定义结构契约；15个内置描述+上游元数据；动态 parser import | 主题/只读扩展组装属于绑定；消费者 bundler 的 initial/chunk 图与资源加载属于 C5 动态取证 |
+| 公开能力                                                         | 生产锚点                                                                                             | 可独立证明的范围                                                               | 不能由它证明的范围                                                                      |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------- |
+| `computeMinimalDocumentChange`                                   | `packages/code-editor/src/document-sync.ts:54-69`                                                    | UTF-16 字符串的单个最小前后缀替换；相同内容返回 null；不修改输入，无 view 状态 | selection 映射、输入时序、IME、history、scroll、只读的实际用户输入                      |
+| `resolveCodeEditorLanguage` / `isSameResolvedLanguage`           | `packages/code-editor/src/language-resolution.ts:31-50,71-81,101-109`                                | none/not-found/found 与 description identity；同描述的新容器不影响结果         | 谁发起 load、请求版本、何时 reconfigure、销毁后丢弃晚到结果                             |
+| `codeEditorLanguageNotFound` / `codeEditorLanguageLoadFailed`    | `packages/code-editor/src/language-error.ts:28-70`                                                   | 冻结载荷、稳定 kind/language/message、原 cause                                 | 三端输出/回调/emit 的事件次数；物理网络资源失效                                         |
+| `buildCodeEditorContentAttributes` / `shouldAutoFocusCodeEditor` | `packages/code-editor/src/accessibility.ts:61-85`                                                    | 字典内容、空项不产生属性、新对象、禁用/只读的布尔判定                          | 字典是否写到真实 contentDOM；键盘/Tab、屏幕阅读器是否读到；实际抢焦点                   |
+| 主题类型、语言描述/loader                                        | `packages/code-editor/src/index.ts:11-20`；`packages/code-editor/src/languages.ts:7-31,58-69,72-232` | light/dark 类型；自定义结构契约；15个内置描述+上游元数据；动态 parser import   | 主题/只读扩展组装属于绑定；消费者 bundler 的 initial/chunk 图与资源加载属于 C5 动态取证 |
 
 字符串、解析、aria 和 error 构造是纯 helper；`LanguageDescription.load()` **不是纯函数**，上游会缓存加载 promise/support。共享层创建模块级语言描述、Map/Set，不创建 `EditorView`、不注册 DOM 监听、不拥有销毁 hook；“没有隐藏编辑器”不等于“整个语言模块没有状态”。Node runtime probe已由主控执行通过，记录见`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-results.json`；仍不将Node执行当浏览器行为证明。
 
 ## 三端实际接线，非名字猜测
 
-| 责任 | Angular | React | Vue |
-| --- | --- | --- | --- |
-| value 差量 / 外部回写不进 history | `packages/code-editor-angular/src/code-editor.ts:331-342,406-419` | `packages/code-editor-react/src/CodeEditor.tsx:227-236` | `packages/code-editor-vue/src/CodeEditor.vue:145-162` |
-| 本地 change 与外部回写隔离 | `packages/code-editor-angular/src/code-editor.ts:132-138` | `packages/code-editor-react/src/CodeEditor.tsx:354-358` | `packages/code-editor-vue/src/CodeEditor.vue:109-115` |
-| 请求号 + view identity 守卫 | `packages/code-editor-angular/src/code-editor.ts:470-516` | `packages/code-editor-react/src/CodeEditor.tsx:461-512` | `packages/code-editor-vue/src/CodeEditor.vue:207-259` |
-| 真实只读/禁用扩展 | `packages/code-editor-angular/src/code-editor.ts:582-595`（另有 CVA 禁用合并） | `packages/code-editor-react/src/CodeEditor.tsx:404-411` | `packages/code-editor-vue/src/CodeEditor.vue:262-271` |
-| aria facet 落点 | `packages/code-editor-angular/src/code-editor.ts:572-580` | `packages/code-editor-react/src/CodeEditor.tsx:416-421` | `packages/code-editor-vue/src/CodeEditor.vue:282-285` |
-| view 创建/销毁 | `packages/code-editor-angular/src/code-editor.ts:301-305,386-391` | `packages/code-editor-react/src/CodeEditor.tsx:361-376` | `packages/code-editor-vue/src/CodeEditor.vue:118-143` |
-| 结构化语言错误通道 | `aoLanguageError.emit` | `onLanguageError` | `emit('language-error', payload)` |
+| 责任                              | Angular                                                                        | React                                                   | Vue                                                   |
+| --------------------------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------- | ----------------------------------------------------- |
+| value 差量 / 外部回写不进 history | `packages/code-editor-angular/src/code-editor.ts:331-342,406-419`              | `packages/code-editor-react/src/CodeEditor.tsx:227-236` | `packages/code-editor-vue/src/CodeEditor.vue:145-162` |
+| 本地 change 与外部回写隔离        | `packages/code-editor-angular/src/code-editor.ts:132-138`                      | `packages/code-editor-react/src/CodeEditor.tsx:354-358` | `packages/code-editor-vue/src/CodeEditor.vue:109-115` |
+| 请求号 + view identity 守卫       | `packages/code-editor-angular/src/code-editor.ts:470-516`                      | `packages/code-editor-react/src/CodeEditor.tsx:461-512` | `packages/code-editor-vue/src/CodeEditor.vue:207-259` |
+| 真实只读/禁用扩展                 | `packages/code-editor-angular/src/code-editor.ts:582-595`（另有 CVA 禁用合并） | `packages/code-editor-react/src/CodeEditor.tsx:404-411` | `packages/code-editor-vue/src/CodeEditor.vue:262-271` |
+| aria facet 落点                   | `packages/code-editor-angular/src/code-editor.ts:572-580`                      | `packages/code-editor-react/src/CodeEditor.tsx:416-421` | `packages/code-editor-vue/src/CodeEditor.vue:282-285` |
+| view 创建/销毁                    | `packages/code-editor-angular/src/code-editor.ts:301-305,386-391`              | `packages/code-editor-react/src/CodeEditor.tsx:361-376` | `packages/code-editor-vue/src/CodeEditor.vue:118-143` |
+| 结构化语言错误通道                | `aoLanguageError.emit`                                                         | `onLanguageError`                                       | `emit('language-error', payload)`                     |
 
 三端公共入口实际导出 `CodeEditor`、`CodeEditorSetup`、`CodeEditorTheme`，框架 props/handle 类型按原生范式表达，不强制同名。公共默认 language=sql、theme=light、setup=basic、indentUnit=两个空格；light/dark 是共享类型，扩展选择在三端。Angular CVA/value 优先级的已登记 **RV-071** 属绑定，不转嫁成 shared diff 算法缺陷、不在本任务重复登记。
 

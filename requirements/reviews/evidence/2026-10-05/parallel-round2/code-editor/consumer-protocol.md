@@ -28,17 +28,17 @@ pnpm exec tsc -p consumer-invalid.tsconfig.json
 
 期望非零退出，且以下 **9 个错例各有对应语义诊断**：
 
-| 符号 | 必须拒绝的类型 |
-| --- | --- |
-| `wrongTheme` | `'sepia'` 不属于主题联合 |
-| `wrongErrorKind` | `'network-error'` 不属于错误类别 |
-| `wrongError.language` | 数字不能作语言名 |
-| `wrongChange.from` | 字符串不能作文档坐标 |
-| `missingDescription` | `found` 分支不能缺 `description` |
-| `wrongAccessibility.disabled` | 字符串不能作禁用布尔值 |
-| `wrongLoader.load` | Promise 的 support.extension 不能是数字 |
-| `wrongDocumentInput` | 计算差量的 current 不能是数字 |
-| `wrongLanguageInput` | 候选必须是 description，不能是字符串 |
+| 符号                          | 必须拒绝的类型                          |
+| ----------------------------- | --------------------------------------- |
+| `wrongTheme`                  | `'sepia'` 不属于主题联合                |
+| `wrongErrorKind`              | `'network-error'` 不属于错误类别        |
+| `wrongError.language`         | 数字不能作语言名                        |
+| `wrongChange.from`            | 字符串不能作文档坐标                    |
+| `missingDescription`          | `found` 分支不能缺 `description`        |
+| `wrongAccessibility.disabled` | 字符串不能作禁用布尔值                  |
+| `wrongLoader.load`            | Promise 的 support.extension 不能是数字 |
+| `wrongDocumentInput`          | 计算差量的 current 不能是数字           |
+| `wrongLanguageInput`          | 候选必须是 description，不能是字符串    |
 
 不使用 `ts-expect-error` 或 `ts-ignore`。典型诊断是 TS2322 / TS2345；具体以实际 TypeScript 输出为准。只有模块无法解析、ambient 声明缺失、compiler 崩溃或参数错误时不算“类型负对照通过”。它是刻意不通过的独立文件，不能与 valid 一起作为成功编译目标。
 

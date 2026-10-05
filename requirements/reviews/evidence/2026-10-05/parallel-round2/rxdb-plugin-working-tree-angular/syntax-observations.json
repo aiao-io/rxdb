@@ -1,0 +1,26 @@
+{
+  "files": [
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/consumer-valid.mts",
+      "syntaxDiagnostics": []
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/consumer-invalid.mts",
+      "syntaxDiagnostics": []
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/consumer-template-invalid.mts",
+      "syntaxDiagnostics": []
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular/consumer-readme-template.mts",
+      "syntaxDiagnostics": []
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-angular/src/__tests__/review-round2-lifecycle.spec.ts",
+      "syntaxDiagnostics": []
+    }
+  ],
+  "mode": "AST syntax parse only; not a build, lint, typecheck or test",
+  "typescriptVersion": "6.0.3"
+}
