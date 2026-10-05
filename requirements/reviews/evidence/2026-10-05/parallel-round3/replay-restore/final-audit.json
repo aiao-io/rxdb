@@ -1,9 +1,0 @@
-{
-  "sourceDriftAfterSettlement": [],
-  "oldRedLogsStillUnchanged": true,
-  "head": "fe69a25d2b2f0994d7c9e35fe61757e04b7da995",
-  "indexEntriesSha256": "88bb236093a8604dd86b4aefaa5d7b9cbaea189763e91d9416239facf568cb84",
-  "resultSha256": "cec9b38b2800d4a8117256499d718168a2731abd4b1ee17910160977baf977f9",
-  "sourceReviewDelivered": true,
-  "noFurtherExecution": true
-}

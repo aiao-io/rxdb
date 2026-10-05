@@ -1,7 +1,0 @@
-COMMAND: ["/Users/jimmy/.nvm/versions/node/v26.7.0/bin/node", "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/vue-tsc/bin/vue-tsc.js", "--project", "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/tsconfig.invalid-parent-bundler.json", "--noEmit", "--pretty", "false"]
-CWD: /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3
-../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidParent.vue(7,10): error TS2322: Type 'string' is not assignable to type 'number'.
-../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/InvalidParent.vue(7,27): error TS2322: Type '(id: string) => string' is not assignable to type '(id: number) => any'.
-  Types of parameters 'id' and 'id' are incompatible.
-    Type 'number' is not assignable to type 'string'.
-../../../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/r3-02-vue-consumer-9e7a67dd79c3/Valid.vue(63,100): error TS2339: Property 'value' does not exist on type 'NumericOptions'.

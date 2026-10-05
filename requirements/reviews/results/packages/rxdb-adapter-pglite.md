@@ -14,7 +14,7 @@ execution: partial
 
 ## 1. 实际范围与取证方式
 
-调用当前源码 SQL 构建器，在真实 Node PGlite 内存库执行 JSONB/NULL 查询。3 个一致性断言均失败；一轮配套的[现有系统迁移 test-node 日志](../../evidence/2026-10-03/pglite-migration-baseline.txt)记录为 10 passed，但不等于本包完整迁移/浏览器/OPFS 已验证。
+调用当前源码 SQL 构建器，在真实 Node PGlite 内存库执行 JSONB/NULL 查询。3 个一致性断言均失败；一轮配套的现有系统迁移 test-node 日志记录为 10 passed，但不等于本包完整迁移/浏览器/OPFS 已验证。
 
 以下是实际阅读/追踪的模块入口，包含专题片段，**不是声称逐行审完每个文件**：
 
@@ -32,7 +32,7 @@ execution: partial
 
 ## 3. 动态证据与复验
 
-[SQL/JS 两后端的真实一致性断言日志](../../evidence/2026-10-03/query-probes-round2.txt)
+SQL/JS 两后端的真实一致性断言日志
 
 业务源码基线 `58b4bbb61efa71d4591cafab6a4c92955a7760dd`。SQL 复验明确关闭覆盖率；测试失败是预期的缺陷红灯，非 worker/service stopped 并发假失败。覆盖率未测量，也没有执行修复。
 
@@ -43,7 +43,7 @@ execution: partial
 - [ ] 适用的三框架/真实宿主及公开 API 兼容回归。
 - [ ] 四项覆盖率、整包门禁与实际应用/E2E 链路。
 
-原计划：[对应对象评审计划](../../packages/rxdb-adapter-pglite.md)；进度：[全范围执行台账](../../execution-2026-10-03.md)。
+原计划：[对应对象评审计划](../../packages/rxdb-adapter-pglite.md)；进度：全范围执行台账。
 
 ## 全范围启动批：入口与实际门禁
 
@@ -51,7 +51,7 @@ execution: partial
 
 浏览器本地 PostgreSQL 适配器，含 Worker、通知、FTS、系统迁移与备份恢复。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -67,10 +67,10 @@ execution: partial
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 失败，已留原日志              | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 失败，已留原日志              | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：RV-027/029/034（已修复，见 README 2026-10-05 清理记录）
 
@@ -92,7 +92,7 @@ execution: partial
 
 ### 真实工作树公开提交链路
 
-实际 PGlite / Chromium / memory store，使用同一共享 conformance。原 **53 passed**；新增公共 commit 原请求重放断言后 **1 failed / 53 passed**：[日志](../../evidence/2026-10-03/follow-up/rxdb-adapter-pglite-public-retry.txt)。两端同样被过期 HEAD 凭据挡住，统一记 RV-041（已修复，记录已删除），不重复报成两个 SQL 编译器问题。
+实际 PGlite / Chromium / memory store，使用同一共享 conformance。原 **53 passed**；新增公共 commit 原请求重放断言后 **1 failed / 53 passed**：日志。两端同样被过期 HEAD 凭据挡住，统一记 RV-041（已修复，记录已删除），不重复报成两个 SQL 编译器问题。
 
 本次配置的 testing 与门面走源码入口；与 SQLite 的构建输入不同。真实事务对照不证明本轮持久化 store、恢复/加密/全部并发边界已经通过（原 RV-027 / RV-029 / RV-034 查询红测试已于 2026-10-05 修复，见 README 清理记录）。
 
@@ -102,13 +102,13 @@ execution: partial
 
 人工阅读 restoreLocked 独占锁/目标非空检查、RestoreMemoryFs / RestoreIdbFs 的提交前禁止 syncToFs、引擎/schema/codec 验证、marker 生命周期、失败关闭/删除目标与 cleanup_pending。本专题未发现新增确认缺陷。
 
-failure / memory / concurrency / roundtrip 四个 spec **50 passed**：[日志](../../evidence/2026-10-04/pglite-backup-boundaries.txt)。真实 PGlite / Chromium 的 memory + IndexedDB 路径，包含同目标两个恢复者、stage 期间拒绝连接、非空/忙/不兼容/损坏/取消、失败后清理与显式重试。不是所有 Worker/目录/桌面/强杀场景（原 RV-027/029/034 已于 2026-10-05 修复，见 README 清理记录）。
+failure / memory / concurrency / roundtrip 四个 spec **50 passed**：日志。真实 PGlite / Chromium 的 memory + IndexedDB 路径，包含同目标两个恢复者、stage 期间拒绝连接、非空/忙/不兼容/损坏/取消、失败后清理与显式重试。不是所有 Worker/目录/桌面/强杀场景（原 RV-027/029/034 已于 2026-10-05 修复，见 README 清理记录）。
 
 C5 仍部分核销；其它宿主和完整加密/强杀矩阵继续执行，不给全对象通过评级。
 
 ## 2026-10-04：树查询与 DevTools 第三批深审
 
-🔴 树普通字段筛选确认 RV-045（已修复，见 README 2026-10-05 清理记录）。PGlite alias 只处理 children.field，标准 title 条件在递归 self join 里未限定，四方法真实 SQL 报 42702。新增 **4 failed /2 passed**：[日志](../../evidence/2026-10-04/tree-devtools/tree-scalar-filter-pglite.txt)，无筛选的两个对照正常。
+🔴 树普通字段筛选确认 RV-045（已修复，见 README 2026-10-05 清理记录）。PGlite alias 只处理 children.field，标准 title 条件在递归 self join 里未限定，四方法真实 SQL 报 42702。新增 **4 failed /2 passed**：日志，无筛选的两个对照正常。
 
 最初尝试订阅增量时初次快照已失败，日志有未处理 SQL error；它不是 RV-046 的 PGlite 漂移证据。后续改成直接 await repository 的六个明确断言，保留源探针快照和初次日志，不隐藏收集/前置错误。业务实现未修，已有 query/array/backup/commit 记录不覆盖这个新问题。
 
@@ -116,7 +116,7 @@ C5 仍部分核销；其它宿主和完整加密/强杀矩阵继续执行，不�
 
 C2 与加密生命周期联审：Chromium 的原 PGlite memory adapter/storage/encryption facade 真实执行，keyring 表 COUNT 证实被取消 A 仍初始化，B 被旧 verifier 拦住；**2 failed /1 passed**，统一 RV-058（已修复，见 README 2026-10-05 清理记录）。初版误假设 facade 有 isInitialized，已改原表查询；不为满足复验添加不存在的 API。memory 测量不外推磁盘崩溃/关闭恢复；本包原查询红仍保留。
 
-[本轮源码/命令与未完成项](../../execution-2026-10-05-encrypted.md) · [最终状态观测](../../evidence/2026-10-05/encrypted/final-observations.json)。encrypted/Electron/PGlite 严格 lint/typecheck 通过，业务未改；sqlite-core 没有伪造本轮独立 lint/整包通过。coverage 关闭，不自动核销 C 专题。
+本轮源码/命令与未完成项 · 最终状态观测。encrypted/Electron/PGlite 严格 lint/typecheck 通过，业务未改；sqlite-core 没有伪造本轮独立 lint/整包通过。coverage 关闭，不自动核销 C 专题。
 
 ## 2026-10-05：local-adapters 并行实审收束
 
@@ -153,4 +153,4 @@ C2 与加密生命周期联审：Chromium 的原 PGlite memory adapter/storage/e
 
 **🟡 已确认P2 RV-079。** 对不存在/已删除锚点，真实PGlite仓储countDescendants/countAncestors均返回-1，行查询为空；存在锚点对照各1正确。生成器非根分支count(*)-1无条件减锚点，SQLite同契约已处理空集，仅作源码对照。numeric0/string三端各六公开资源也发布成功的-1，归适配器SQL，不在三个wrapper重复登记。
 
-[最小SQL原日志](../../evidence/2026-10-05/parallel-round3/tree-real/independent-count-anchor/20261005T153041127937.txt) · [本轮判定与tar来源](../../evidence/2026-10-05/parallel-round3/tree-real/settlement.json)。没有修改业务、没有宣布整包已审完/发布就绪。
+最小SQL原日志 · 本轮判定与tar来源。没有修改业务、没有宣布整包已审完/发布就绪。

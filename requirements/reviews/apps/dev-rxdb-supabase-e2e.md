@@ -11,7 +11,7 @@ execution: in-progress
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -136,7 +136,7 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-supabase-e2e:e2e-remote --skipRemot
 
 **部分执行，未完成全对象深审。** 默认 4 条与显式远端 2 条分开测量，无 BASE_URL、workers=1、retries=0、reuseExistingServer=false；未认证/RLS/离线恢复/最后删除确认与失败清理不算完整通过。
 
-确认意见：本轮无新增对象独立 RV，不意味着全对象通过。全批门禁、接缝和中间取证错误见 [本轮执行台账](../execution-2026-10-05-supabase.md)；[源码指纹](../evidence/2026-10-05/supabase/runtime-and-sources.json)、[最终计数](../evidence/2026-10-05/supabase/final-counts.json) 与 [交付校验](../evidence/2026-10-05/supabase/delivery-validation.json)。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
+确认意见：本轮无新增对象独立 RV，不意味着全对象通过。全批门禁、接缝和中间取证错误见 本轮执行台账；源码指纹、最终计数 与 交付校验。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
 
 尚需核销原 C 项中的未覆盖边界，尤其认证/RLS、Realtime、跨宿主、覆盖率与打包消费；本轮没有新增完整 C 核销。助手未修改业务源码，不操作用户暂存区。
 
@@ -146,7 +146,7 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-supabase-e2e:e2e-remote --skipRemot
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 Supabase历史基线：`b7edef590051c8842d4914e30e31475977dea6ac`，2026-10-05 07:48 app:test 47、08:04 local4、08:05 remote2；package交付557pass/5fail/0skip，原553全过。**不是这次parallel门禁**。RV-059/060/061仍Open，只引用不重复登记。
 
@@ -158,6 +158,6 @@ Supabase历史基线：`b7edef590051c8842d4914e30e31475977dea6ac`，2026-10-05 0
 | C4 身份与 RLS              | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts:20-22,70-71 明确未认证警告`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/src/app/remote-security-notice.ts:13-15 身份提示`<br>现有remote两例明确未启用身份认证；没有两个受限身份跨读写/越权拒绝断言。此C未核销，不把未认证demo成功当RLS通过。                                                       | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控受控checkout-isolated stack测试账号A/B、RLS/RPC权限与privileged key不进页面；环境不足保持未验证，不标不适用。     |
 | C5 外部资源与清理          | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts:24-59 unique title/正常删除、50-52 finally仅closeContext`<br>uniqueTitle降低冲突，但数据删除只在前序成功后运行；finally不清远端数据，最后只数RPC请求而未确认删除。候选B是旧cleanup缺口具体化，不是本轮动态确认。                                                                                                   | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控分流失败注入/Push超时/删除拒绝后teardown，按唯一id/scope从受限身份确认无残留；仅授权隔离stack，不碰未知生产远端。 |
 
-证据：[逐C矩阵](../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

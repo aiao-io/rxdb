@@ -18,7 +18,7 @@ execution: partial
 
 AES-GCM 字段加密 wrapper、versioned envelope、keyring 和查询能力约束。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -34,10 +34,10 @@ AES-GCM 字段加密 wrapper、versioned envelope、keyring 和查询能力约�
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -58,7 +58,7 @@ AES-GCM 字段加密 wrapper、versioned envelope、keyring 和查询能力约�
 
 首次 provider 返回之前 lock 的初始化提交边界确认 RV-058（已修复，见 README 2026-10-05 清理记录）（P2）：内存发布被阻止，废弃 verifier 仍被实际存储，新 B 因此被拒绝。原 Keyring/WebCrypto+native SQLite 接口 **2 failed /1 passed**；最终整包 **275 passed /2 failed**，原 274 条全过。C1/C2/C4/C5 源码与基线已追踪，C3 有确认问题、C6 两实际后端补证；所有完整 C 仍未核销。没有把已有 AEAD/AAD/lockEpoch/singleton 冲突保护漏看成无实现，亦不从 helper 的非字符串 passthrough 推出真实 row 可绕过解密。
 
-[本轮源码/命令与未完成项](../../execution-2026-10-05-encrypted.md) · [最终状态观测](../../evidence/2026-10-05/encrypted/final-observations.json)。encrypted/Electron/PGlite 严格 lint/typecheck 通过，业务未改；sqlite-core 没有伪造本轮独立 lint/整包通过。coverage 关闭，不自动核销 C 专题。
+本轮源码/命令与未完成项 · 最终状态观测。encrypted/Electron/PGlite 严格 lint/typecheck 通过，业务未改；sqlite-core 没有伪造本轮独立 lint/整包通过。coverage 关闭，不自动核销 C 专题。
 
 ## 2026-10-05：local-adapters 并行实审收束
 

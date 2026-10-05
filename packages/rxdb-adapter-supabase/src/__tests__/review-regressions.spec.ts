@@ -1470,6 +1470,71 @@ describe('supabase review regressions', () => {
     expect(count).toBe(0);
   });
 
+  /**
+   * 整数主键里 `0` 是合法 id。树查询曾用 truthy 判断「有没有传 entityId」与「祖先链有没有走到根」：
+   * `entityId: 0` 退化成全树查询、`countDescendants` 不再扣掉锚点、
+   * 祖先链在 `parentId: 0` 处提前收尾。sqlite-core / PGlite 都用 `== null`，三个适配器必须同一答案。
+   */
+  describe('integer id 0 is a real tree node', () => {
+    /** 0 ← 1 ← 2 一条链，另有一个与之无关的根 10：全树查询会把它带出来，起到判别作用 */
+    const createNumericHarness = () => {
+      const nodes = [
+        { id: 0, parentId: null },
+        { id: 1, parentId: 0 },
+        { id: 2, parentId: 1 },
+        { id: 10, parentId: null }
+      ];
+      // 与真 PostgREST 一样每次 `select()` 开一条新的过滤链：findDescendants 复用同一个 `from()` 发多次查询
+      const select = () => {
+        const calls: Array<{ method: string; args: unknown[] }> = [];
+        const proxy: Record<string, unknown> = {};
+        const record =
+          (method: string) =>
+          (...args: unknown[]) => {
+            calls.push({ method, args });
+            return proxy;
+          };
+        for (const method of ['eq', 'in', 'is', 'order', 'range', 'limit']) proxy[method] = record(method);
+        proxy['then'] = (resolve: (value: unknown) => unknown) => {
+          const byId = calls.find(call => call.method === 'eq' && call.args[0] === 'id');
+          const byParent = calls.find(call => call.method === 'in' && call.args[0] === 'parentId');
+          // PostgREST 走 URL 传参，`in()` 里的 '0' 与整数 0 在服务端是同一个值
+          const parentKeys = new Set((byParent?.args[1] as unknown[] | undefined)?.map(String));
+          const data = byId
+            ? nodes.filter(node => node.id === byId.args[1])
+            : byParent
+              ? nodes.filter(node => node.parentId !== null && parentKeys.has(String(node.parentId)))
+              : nodes.filter(node => node.parentId === null);
+          return Promise.resolve(resolve({ data, error: null }));
+        };
+        return proxy;
+      };
+      const from = vi.fn(() => ({ select }));
+      const schema = vi.fn(() => ({ from }));
+      return buildTreeRepository(createAdapter({ schema }));
+    };
+    const idsOf = (entities: unknown[]) => entities.map(entity => (entity as { id: number }).id);
+
+    it('findDescendants anchors on id 0 instead of listing every root', async () => {
+      const descendants = await createNumericHarness().findDescendants({ entityId: 0 as never });
+
+      expect(idsOf(descendants)).toEqual([0, 1, 2]);
+    });
+
+    it('countDescendants excludes the id 0 anchor', async () => {
+      const count = await createNumericHarness().countDescendants({ entityId: 0 as never });
+
+      expect(count).toBe(2);
+    });
+
+    it('findAncestors walks through a parentId of 0 and accepts 0 as the anchor', async () => {
+      const repository = createNumericHarness();
+
+      expect(idsOf(await repository.findAncestors({ entityId: 2 as never }))).toEqual([2, 1, 0]);
+      expect(idsOf(await repository.findAncestors({ entityId: 0 as never }))).toEqual([0]);
+    });
+  });
+
   it.each([Number.NaN, Number.POSITIVE_INFINITY, -1, 1.5])(
     'tree repositories reject an invalid level before querying: %s',
     async level => {

@@ -1,7 +1,0 @@
-COMMAND: ["pnpm", "nx", "run", "--help"]
-CWD: /Users/jimmy/Documents/aiao/rxdb
-
- NX   Both project and target have to be specified
-
-Pass --verbose to see the stacktrace.
-

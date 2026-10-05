@@ -16,7 +16,7 @@ execution: partial
 
 Angular HTTP/QueryCache 演示客户端，显示流量、ETag、分页和变更流诊断。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -30,10 +30,10 @@ Angular HTTP/QueryCache 演示客户端，显示流量、ETag、分页和变更�
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -55,7 +55,7 @@ Angular HTTP/QueryCache 演示客户端，显示流量、ETag、分页和变更�
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 已有2026-10-04/05前段HTTP/SQLite/进程内host证据仅保留历史；历史401/SWR/outbox修复不重新登记，RV-058已Resolved。进程内host不是GUI/真实IPC。
 
@@ -67,6 +67,6 @@ Angular HTTP/QueryCache 演示客户端，显示流量、ETag、分页和变更�
 | C4 流量与变更流安全  | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http/src/app/traffic-recorder.ts:105-176 CAPACITY/installTrafficRecorder/onTraffic`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http/src/app/app.ts:369-385 DestroyRef解除订阅`<br>traffic最多200条，记录method/path/status/duration，不记录headers/body；取消后恢复fetch，页面订阅有DestroyRef清理。SSE诊断和HTTP错误区分，不据日志说已同步。                                                                                                       | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 本轮大量流量/离开页面/失败response/敏感query URL与断流，确认所有subscriber/timer释放；file-inspection仅分段，不声称诊断每条分支已测。 |
 | C5 端到端对照        | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-e2e/src/offline-fallback.spec.ts:23-60 离线/409对照`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-e2e/src/orphan-cleanup.spec.ts:23-50 远端删→离线刷新`<br>E2E有真实HTTP错误与离线分类对照；orphan验证后端删除后页面消失并离线reload仍不存在，强于只看UI提示。CORS当前只证明允许origin，不证明拒绝。                                                                                                                                        | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 本轮HTTP E2E运行待主控；恶意origin/token、候选A、对数据清理的失败路径与当前app bundle仍待补，不能以旧成功给全对象complete。           |
 
-证据：[逐C矩阵](../../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

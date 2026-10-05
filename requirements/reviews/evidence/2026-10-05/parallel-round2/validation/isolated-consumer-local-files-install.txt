@@ -1,6 +1,0 @@
-COMMAND: pnpm install --offline --ignore-scripts --no-frozen-lockfile --config.auto-install-peers=false
-Progress: resolved 0, reused 1, downloaded 0, added 0
- ERR_PNPM_NO_OFFLINE_META  Failed to resolve node-addon-api@>=7.0.0 <8.0.0-0 in package mirror /Users/jimmy/Library/Caches/pnpm/metadata-v1.3/registry.npmjs.org/node-addon-api.json
-
-This error happened while installing the dependencies of sass@1.105.1
- at @parcel/watcher@2.6.0

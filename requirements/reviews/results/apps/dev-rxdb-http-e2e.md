@@ -16,7 +16,7 @@ execution: partial
 
 真实 HTTP client/server 链路的 Playwright：条件请求、分页、CORS、离线写与变更流。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -31,9 +31,9 @@ execution: partial
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `e2e`       | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/e2e.txt)       |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `e2e`       | 本轮通过（限定当前配置/平台） | 执行日志       |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -55,7 +55,7 @@ execution: partial
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 已有2026-10-04/05前段HTTP/SQLite/进程内host证据仅保留历史；历史401/SWR/outbox修复不重新登记，RV-058已Resolved。进程内host不是GUI/真实IPC。
 
@@ -67,6 +67,6 @@ execution: partial
 | C4 流与 CORS 安全   | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-e2e/src/change-feed.spec.ts:103-159 接通失效/双页面可见`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-e2e/src/cors.spec.ts:47-64 预检allow headers/origin`<br>feed用重连失效计数和双页面2秒可见性断言，不只看connected。CORS允许origin与预检覆盖，不是未授权origin拒绝测试；合批来源候选A需主控分流。                                                                                                                       | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 当前e2e待主控；断流/混合写入者合批/最后订阅退出及credential/CORS拒绝需补证。                                                            |
 | C5 清理与错误断言   | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-e2e/src/local-first-writes.spec.ts:64-66 resetDemo beforeEach`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-e2e/src/orphan-cleanup.spec.ts:19-50 reset/删除/离线reload`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-e2e/playwright.config.ts:31-33 workers/retries`<br>每例reset、串行worker与离线/409错误对照能区分真实失败；orphan通过远端删除和离线刷新交叉。失败cleanup/interrupted过程未运行，不自动全绿。 | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控保留失败与重试原日志，验证中断时服务/DB释放、控制fault复位和重复执行；不能以重试成功抹原始失败。                                    |
 
-证据：[逐C矩阵](../../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

@@ -1,8 +1,0 @@
-COMMAND: ["pnpm", "exec", "ngc", "-p", "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsconfig.fixture-wrong-input-type.json"]
-CWD: /Users/jimmy/Documents/aiao/rxdb
-[96mfixtures/wrong-input-type.ts[0m:[93m9[0m:[93m47[0m - [91merror[0m[90m TS2322: [0mType 'number' is not assignable to type 'string'.
-
-[7m9[0m   template: `<r3-required-working-tree-panel [branchId]="42" />`
-[7m [0m [91m                                              ~~~~~~~~[0m
-
-

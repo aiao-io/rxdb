@@ -6,42 +6,52 @@ import {
   Component,
   input,
   provideZonelessChangeDetection,
-  reflectComponentType
+  reflectComponentType,
+  signal
 } from '@angular/core';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { useWorkingTree } from '../index.js';
 
-type InputFixtureModule =
-  typeof import('../../../../requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/compiled/input-fixture.js');
-type RequiredPanelInstance = InstanceType<InputFixtureModule['RequiredWorkingTreePanel']>;
-type InputParentInstance = InstanceType<InputFixtureModule['WorkingTreeInputParent']>;
-
-const { RequiredWorkingTreePanel, RXDB_ENTRY, WORKING_TREE_ENTRY, WorkingTreeInputParent } =
-  await vi.importActual<InputFixtureModule>(
-    '../../../../requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/compiled/input-fixture.js'
-  );
-
+// 组件经 vite.config.mts 里的 analog 插件编译，input.required() 带真实输入元数据；
+// 此前包里缺这个插件，只能靠提交 ngc 产物绕过，现已不需要。
 @Component({
-  selector: 'r3-untransformed-plain-panel',
+  selector: 'r3-required-working-tree-panel',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<span data-testid="branch">{{ branchId() }}</span>`
+  template: `
+    <span data-testid="branch">{{ branchId() }}</span>
+    <span data-testid="phase">{{ tree.statusState().phase }}</span>
+    <span data-testid="switch-phase">{{ tree.switchBranchState().phase }}</span>
+    @let state = tree.statusState();
+    @if (state.phase === 'empty' || state.phase === 'success') {
+      <span data-testid="status-branch">{{ state.value.branchId }}</span>
+    }
+    <button (click)="selectBranch()" data-testid="switch">切分支</button>
+  `
 })
-class UntransformedPlainPanel {
-  readonly branchId = input('main');
+class RequiredWorkingTreePanel {
+  readonly branchId = input.required<string>();
+  readonly database = useRxDB();
+  readonly tree = useWorkingTree();
+  lastSwitch?: Promise<void>;
+
+  selectBranch(): Promise<void> {
+    this.lastSwitch = this.tree.switchBranch(this.branchId());
+    return this.lastSwitch;
+  }
 }
 
 @Component({
-  selector: 'r3-untransformed-working-tree-panel',
+  selector: 'r3-working-tree-parent',
   standalone: true,
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<span data-testid="branch">{{ branchId() }}</span>`
+  imports: [RequiredWorkingTreePanel],
+  template: `<r3-required-working-tree-panel [branchId]="branchId()" />`
 })
-class UntransformedWorkingTreePanel {
-  readonly branchId = input('main');
-  readonly tree = useWorkingTree();
+class WorkingTreeInputParent {
+  readonly branchId = signal('main');
 }
 
 const rootElement = (element: unknown): HTMLElement => {
@@ -52,7 +62,7 @@ const rootElement = (element: unknown): HTMLElement => {
 const text = (element: unknown, name: string): string | null =>
   rootElement(element).querySelector(`[data-testid="${name}"]`)?.textContent ?? null;
 
-const panelOf = (fixture: ComponentFixture<InputParentInstance>): RequiredPanelInstance => {
+const panelOf = (fixture: ComponentFixture<WorkingTreeInputParent>): RequiredWorkingTreePanel => {
   const element = fixture.debugElement.query(By.directive(RequiredWorkingTreePanel));
   if (!element) throw new Error('父模板没有挂载工作树子组件');
   return element.injector.get(RequiredWorkingTreePanel);
@@ -68,12 +78,7 @@ const configure = () => {
   const stubs = createWorkingTreeHookStubs();
   TestBed.configureTestingModule({
     imports: [RequiredWorkingTreePanel, WorkingTreeInputParent],
-    providers: [
-      provideZonelessChangeDetection(),
-      provideRxDB(stubs.rxdb),
-      { provide: RXDB_ENTRY, useValue: useRxDB },
-      { provide: WORKING_TREE_ENTRY, useValue: useWorkingTree }
-    ],
+    providers: [provideZonelessChangeDetection(), provideRxDB(stubs.rxdb)],
     errorOnUnknownProperties: true
   });
   return stubs;
@@ -90,40 +95,9 @@ const branchStatus = (branchId: string): WorkingTreeStatus => ({ ...statusWith(0
 
 const branchDiff = (branchId: string): WorkingTreeDiff => ({ ...diffWith(1), branchId });
 
-afterEach(() => {
-  const { assertionCalls, currentTestName } = expect.getState();
-  console.info('R3_ASSERTIONS', JSON.stringify({ currentTestName, assertionCalls }));
-  TestBed.resetTestingModule();
-});
+afterEach(() => TestBed.resetTestingModule());
 
 describe('R3-04 required signal 输入与真实父模板归属', () => {
-  it.each([
-    { name: '纯 Angular 组件', component: UntransformedPlainPanel },
-    { name: '真实 useWorkingTree 组件', component: UntransformedWorkingTreePanel }
-  ])('$name 未经 Angular 输入变换时复现 NG0303 与旧 DOM', ({ component }) => {
-    const stubs = createWorkingTreeHookStubs();
-    TestBed.configureTestingModule({
-      imports: [component],
-      providers: [provideZonelessChangeDetection(), provideRxDB(stubs.rxdb)]
-    });
-    const fixture = TestBed.createComponent(component);
-    fixture.detectChanges();
-    expect(reflectComponentType(component)?.inputs).toEqual([]);
-    expect(text(fixture.nativeElement, 'branch')).toBe('main');
-    const error = vi.spyOn(console, 'error');
-    try {
-      fixture.componentRef.setInput('branchId', 'feature');
-      fixture.detectChanges();
-      expect(error).toHaveBeenCalledTimes(1);
-      expect(error).toHaveBeenCalledWith(expect.stringContaining('NG0303'));
-      expect(fixture.componentInstance.branchId()).toBe('main');
-      expect(text(fixture.nativeElement, 'branch')).toBe('main');
-      expect(stubs.versionManager.switchBranch).not.toHaveBeenCalled();
-    } finally {
-      error.mockRestore();
-    }
-  });
-
   it('真实编译的 required 输入未绑定时抛 NG0950，不伪造默认分支', () => {
     const { workingTree, versionManager } = configure();
     const fixture = TestBed.createComponent(RequiredWorkingTreePanel);
@@ -159,8 +133,6 @@ describe('R3-04 required signal 输入与真实父模板归属', () => {
     expect(panel.branchId()).toBe('main');
     expect(text(fixture.nativeElement, 'branch')).toBe('main');
     expect(panel.database).toBe(rxdb);
-    expect(TestBed.inject(RXDB_ENTRY)).toBe(useRxDB);
-    expect(TestBed.inject(WORKING_TREE_ENTRY)).toBe(useWorkingTree);
     expect(text(fixture.nativeElement, 'phase')).toBe('idle');
     expect(text(fixture.nativeElement, 'switch-phase')).toBe('idle');
     expect(workingTree.status).not.toHaveBeenCalled();

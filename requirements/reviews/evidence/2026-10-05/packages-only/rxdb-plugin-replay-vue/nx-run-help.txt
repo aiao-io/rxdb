@@ -1,5 +1,0 @@
-
- NX   Both project and target have to be specified
-
-Pass --verbose to see the stacktrace.
-

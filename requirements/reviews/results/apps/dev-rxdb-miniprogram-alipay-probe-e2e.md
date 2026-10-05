@@ -7,7 +7,7 @@ execution: partial
 
 # dev-rxdb-miniprogram-alipay-probe-e2e：实际评审记录
 
-[本对象计划](../../apps/dev-rxdb-miniprogram-alipay-probe-e2e.md) · [源码区间与摘要](../../evidence/2026-10-05/parallel/app-scope-addendum/dev-rxdb-miniprogram-alipay-probe-e2e/file-inspection.json) · [本轮CLI门禁](../../evidence/2026-10-05/parallel/validation/added-apps-strict-lint.txt) / [typecheck](../../evidence/2026-10-05/parallel/validation/added-apps-typecheck.txt)
+[本对象计划](../../apps/dev-rxdb-miniprogram-alipay-probe-e2e.md) · 源码区间与摘要 · 本轮CLI门禁 / typecheck
 
 ## 当轮实际证据与结论
 

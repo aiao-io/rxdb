@@ -14,7 +14,7 @@ release-readiness: not-claimed
 
 # rxdb-plugin-search-vue：第二轮实际评审结果
 
-**当前分轴（2026-10-05口径审计）：** 原范围全文审阅与逐C意见交付已完成；完整专题证据仍部分闭合，修复/发布未宣称完成。旧 `execution` 不再单独充当总代码评审完成度；见 [四轴进度审计](../../progress-2026-10-05.md)。
+**当前分轴（2026-10-05口径审计）：** 原范围全文审阅与逐C意见交付已完成；完整专题证据仍部分闭合，修复/发布未宣称完成。旧 `execution` 不再单独充当总代码评审完成度；见 四轴进度审计。
 
 **🟡阶段结论：15/15 原 scope 文件已全文读完，源码与既有局部行为可解释；完整 C 仍 0/5，不是全对象完成候选。** 根 runtime import 已通过；strict tar .mts 正负已在显式 Node/@types/ms 环境闭合，裸上游声明失败保留；组件新 probe/SFC 模板等结果交主控追加。没有修改业务实现/原 tests/依赖，没有自行跑大任务。RV-062 只引用。
 
@@ -178,7 +178,7 @@ RV-062 的成功订阅重入 pending loadMore 场景**不重复新增**；第 2 
 
 本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
 
-[真实tar类型正负/运行时证据](../../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+真实tar类型正负/运行时证据、十包本轮test/四指标、后四组及修正树夹具复验、新增spec独立严格类型。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
 
 消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
 

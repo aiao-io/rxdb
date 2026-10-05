@@ -14,17 +14,17 @@ release-readiness: not-claimed
 
 # rxdb-plugin-tree-react：R2-03 实际结果与 closure
 
-**当前分轴（2026-10-05口径审计）：** 原范围全文审阅与逐C意见交付已完成；完整专题证据仍部分闭合，修复/发布未宣称完成。旧 `execution` 不再单独充当总代码评审完成度；见 [四轴进度审计](../../progress-2026-10-05.md)。
+**当前分轴（2026-10-05口径审计）：** 原范围全文审阅与逐C意见交付已完成；完整专题证据仍部分闭合，修复/发布未宣称完成。旧 `execution` 不再单独充当总代码评审完成度；见 四轴进度审计。
 
 **材料完整交付，新增测试已冻结。13/13受控文件、615行全文实读；主控4文件/16例通过、build与零警告lint通过、四覆盖率指标100%。完整原C 2/5（C4、C5）；C1–C3仍partial，全对象不核销、不冒充发布就绪。** 本 worker 没有执行重任务或改实现/原测试/依赖。
 
 ## 1. 阅读/基线/生成
 
-13个 scope SHA 全相符：LICENSE/README、manifest/project、三份原spec、index/use-tree、三份tsconfig、Vite。正文/区间/关注点均在 [file-inspection.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/file-inspection.json)，消除了第一轮8文件未读缺口。R2 HEAD `465f9078e9844af2cbef9936c7321a5576333a01`；主控build/unit/lint测量中本包12输入（含new spec）全部当前SHA匹配。不是整仓无并发变化承诺。
+13个 scope SHA 全相符：LICENSE/README、manifest/project、三份原spec、index/use-tree、三份tsconfig、Vite。正文/区间/关注点均在 file-inspection.json，消除了第一轮8文件未读缺口。R2 HEAD `465f9078e9844af2cbef9936c7321a5576333a01`；主控build/unit/lint测量中本包12输入（含new spec）全部当前SHA匹配。不是整仓无并发变化承诺。
 
-原入口门禁（2026-10-03）和第一轮 `44de1138b4d396fc45d6e76ab60476c40fef2223` 的3 files/6 tests及coverage只作历史证据；不替代新增测试。实际 inferred targets为 [nx-project.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/nx-project.json)，typecheck包含build/^typecheck。
+原入口门禁（2026-10-03）和第一轮 `44de1138b4d396fc45d6e76ab60476c40fef2223` 的3 files/6 tests及coverage只作历史证据；不替代新增测试。实际 inferred targets为 nx-project.json，typecheck包含build/^typecheck。
 
-生成协议已读：TreeRepositoryGenerator→RepositoryGeneratorBase 的四 `methodOptions`→entity-definition 的 `ENTITY_STATIC_TYPES`；实际MenuSimple.d.ts有 `FindTreeOptions<typeof Entity,EntityTreeRuleGroup>`。本包dist JS/d.ts/maps与source对应，fresh build通过；consumer实体是对齐协议的手写声明fixture，**未假称执行 numeric client generator**；repeat确定性未测。[generated-artifacts.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/generated-artifacts.json)。
+生成协议已读：TreeRepositoryGenerator→RepositoryGeneratorBase 的四 `methodOptions`→entity-definition 的 `ENTITY_STATIC_TYPES`；实际MenuSimple.d.ts有 `FindTreeOptions<typeof Entity,EntityTreeRuleGroup>`。本包dist JS/d.ts/maps与source对应，fresh build通过；consumer实体是对齐协议的手写声明fixture，**未假称执行 numeric client generator**；repeat确定性未测。generated-artifacts.json。
 
 ## 2. 原最低场景的实际证据
 
@@ -110,7 +110,7 @@ release-readiness: not-claimed
 
 **剩余原场景**：无；全对象质量/上游和发布剩余不冒充原最低场景缺口，见第5节。
 
-逐C完整生产锚点/原场景映射：[c-evidence.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/c-evidence.json)。四wrapper生产锚点 `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/use-tree.ts:23–81`；core代次/identity/active/cleanup `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/hooks.ts:71–159`；options factory `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/query-options.ts:13–30`；tree task/merge/level 与 QueryCache 在 tree plugin/Repository。
+逐C完整生产锚点/原场景映射：c-evidence.json。四wrapper生产锚点 `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/use-tree.ts:23–81`；core代次/identity/active/cleanup `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/hooks.ts:71–159`；options factory `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/query-options.ts:13–30`；tree task/merge/level 与 QueryCache 在 tree plugin/Repository。
 
 ## 3. 当轮主控测量：不混淆范围
 
@@ -120,7 +120,7 @@ release-readiness: not-claimed
 - **newSpec内容**：四hookzero/string转发、[]/0和空态；根 `reactStrictMode:true`订阅2/清理1/active1、最后active0；A→B→C，消费方layout在旧订阅active1时发射晚到；同值object/factory两例；缺方法不fallback、同步/Observable错误、成功后错误、非幂等factory render失败；双root/context carrier显式换实体/单根卸载隔离。
 - **provider边界**：tree hook根本不读context；消费方 `useRxDB`选对应实体静态方法。两真实**未连接**RxDB只作context carrier，查询是可控Observable，不冒充真实多库tree。
 
-完整命令/caches/skip/input/当轮coverage/时间：[controller-validation.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/controller-validation.json)；历史对比 [validation-observations.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/validation-observations.json)。原四资源都是native公开状态，元数据复位期间value可以stale但hasValue=false，不能把stale宣称新query成功。
+完整命令/caches/skip/input/当轮coverage/时间：controller-validation.json；历史对比 validation-observations.json。原四资源都是native公开状态，元数据复位期间value可以stale但hasValue=false，不能把stale宣称新query成功。
 
 ## 4. 独立真实 tar consumer：成功环境与裸失败并存
 
@@ -133,9 +133,9 @@ release-readiness: not-claimed
 - root runtime import exit0：四个公开hook函数名精确一致；import不是实际hook render或真实仓储全链路。
 - 两consumer SHA与主控编译输入匹配；只使用真实包name imports，无workspace aliases/links、any/类型忽略；所有hook在未调用函数体内，不在模块顶层runtime调用。
 
-这证明**显式ambient环境下本包消费泛型契约**，不是“typed consumer无条件全过”或“发布声明自包含”。裸上游失败仍真实存在，主控上游归属/汇总；[consumer-contract.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-contract.json) / [findings.pending.md](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/findings.pending.md) / [controller-validation.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/controller-validation.json)。
+这证明**显式ambient环境下本包消费泛型契约**，不是“typed consumer无条件全过”或“发布声明自包含”。裸上游失败仍真实存在，主控上游归属/汇总；consumer-contract.json / findings.pending.md / controller-validation.json。
 
-冻结fixture：[consumer-valid.mts](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-valid.mts) / [consumer-invalid.mts](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-invalid.mts)；冻结spec：[review-round2-lifecycle.spec.ts](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/review-round2-lifecycle.spec.ts)，SHA `e138ed22e843ac7bfdca1f83628684caf30179512fcf71d121bf2e7dff7ce9ec`。
+冻结fixture：consumer-valid.mts / consumer-invalid.mts；冻结spec：[review-round2-lifecycle.spec.ts](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/review-round2-lifecycle.spec.ts)，SHA `e138ed22e843ac7bfdca1f83628684caf30179512fcf71d121bf2e7dff7ce9ec`。
 
 ## 5. 原全对象完成条件/剩余/正式意见
 
@@ -151,13 +151,13 @@ release-readiness: not-claimed
 
 `workerDeliveryComplete=true`；完整C4/C5（2/5）；`fullObjectCandidate=false`、`reviewComplete=false`、`releaseReady=false`。未新建本包待确认缺陷/RV，未把RV069/070错归tree或重登已清理RV066/067/068。
 
-剩余固定为原要求：C1–C3真实tree/同fixture三端证据；newSpec类型质量门禁；repeat build/hash；裸utils声明上游归属。请求状态已回填 [validation-requests.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/validation-requests.json)，不再扩模式、不等所有big包。必要未验证分流由主控裁定。机器交付 [closure.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/closure.json)，源阅读与结果完成，本任务释放给后续queued包。
+剩余固定为原要求：C1–C3真实tree/同fixture三端证据；newSpec类型质量门禁；repeat build/hash；裸utils声明上游归属。请求状态已回填 validation-requests.json，不再扩模式、不等所有big包。必要未验证分流由主控裁定。机器交付 closure.json，源阅读与结果完成，本任务释放给后续queued包。
 
 ## R2 主控验证结算（不扩大子代理原核销范围）
 
 本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
 
-[真实tar类型正负/运行时证据](../../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+真实tar类型正负/运行时证据、十包本轮test/四指标、后四组及修正树夹具复验、新增spec独立严格类型。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
 
 消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
 

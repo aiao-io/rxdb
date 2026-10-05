@@ -27,10 +27,10 @@ rating: "🟡"
 
 对象根 `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react`；scope 记载 `943c50cc85b4be3b0635f736a35a9659c3fe209a`。本次以逐文件当前 SHA 判定阅读对象，12 文件全部与已给冻结 scope 一致。正文四批无截断，旧 plan/results 分片全文读完；历史大指纹清单的无关输出截断不充当全文证据，相关六键已单独补取。
 
-- [冻结 scope](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/scope.json) / [冻结 resolved](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/resolved-project.json) / [冻结核对](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/scope-freeze.json)。
-- [12 文件 SHA/行数/真实全文区间/具体关注及 C 归属](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/file-inspection.json)。
-- [原 plan 全文](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/baseline/original-plan.md) / [原 results 全文](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/baseline/original-results.md)，保留旧 11 文件/partial/0 个完整专项的历史原语境；本次新增第 12 个受控 layout 探针全文阅读，不继续沿用旧“未读6文件”。
-- [支撑性依赖阅读](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/dependency-inspection.json)：core contract/lifecycle/restore 的真实区间、完整 spy/parity 定义、三端根导出及继承 TS 配置的指定区间。**不是另外两框架或核心包的全文交付。**
+- 冻结 scope / 冻结 resolved / 冻结核对。
+- 12 文件 SHA/行数/真实全文区间/具体关注及 C 归属。
+- 原 plan 全文 / 原 results 全文，保留旧 11 文件/partial/0 个完整专项的历史原语境；本次新增第 12 个受控 layout 探针全文阅读，不继续沿用旧“未读6文件”。
+- 支撑性依赖阅读：core contract/lifecycle/restore 的真实区间、完整 spy/parity 定义、三端根导出及继承 TS 配置的指定区间。**不是另外两框架或核心包的全文交付。**
 
 ## 2. 问题去重：RV-070 保留 Open，不再新报
 
@@ -46,7 +46,7 @@ rating: "🟡"
 **同 hash 证据复用而非本轮重跑**：实际既有日志显示该探针 **1 test failed：expected `[[500]]`，received `[]`**。当前实现、layout 探针、普通 spec、vite 配置、包 manifest 及核心 spy 定义六个关键输入均与当时指纹相同。完整工具链没有全量锁证，不将此写成 fresh 环境重新运行。
 
 - 失败原日志：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes.txt:710–751`，命令当时单worker且跳过远端/本地缓存。
-- 本包摘录：[rv070-log-excerpt.txt](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/rv070-log-excerpt.txt)；指纹与复用限制：[reused-evidence.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/reused-evidence.json)。
+- 本包摘录：rv070-log-excerpt.txt；指纹与复用限制：reused-evidence.json。
 - 复现定义：`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/__tests__/review-parallel-layout-seek.spec.ts:17–29`；**真实 React layout/passive 时序，MountReplayerSpy 核心边界观测**，不是 rrweb/真实 iframe 时间轴执行。
 
 **最小改进方向**：无 handle 期间只保存最后一次 seek，在本次 handle 建立后交付，或验证过后调整挂载阶段；加载前 play/pause 仍为空操作，不能为全部命令新增队列/兜底。修复必须覆盖 StrictMode、SSR/hydration、卸载、多 root 与 latest-seek。已存在的红测试不删、不 skip、不重复造另一个 RV。本轮只交付评审，不实施修复。
@@ -176,7 +176,7 @@ props非泛型但索引引用core类型，Ref仅Pick三个命令；render返回d
 | 历史 pack | 10文件含dist入口/声明、两个生产src、LICENSE/README/manifest，无spec | 没有本轮build/pack/独立typed/runtime消费 |
 | 历史 lint/typecheck | 原results已登记通过，本次保留历史语境 | 本轮没有新运行；新probe的compiler.txt仅命令，无exitCode，不从空日志推导类型通过 |
 
-正常单测/四指标原文：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage.txt:9253–9280`；本包 [摘录](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/historical-unit-coverage-excerpt.txt)。实际summary与pack来源、指纹、读取范围见 [reused-evidence.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/reused-evidence.json)。
+正常单测/四指标原文：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage.txt:9253–9280`；本包 摘录。实际summary与pack来源、指纹、读取范围见 reused-evidence.json。
 
 **配置完整阅读后的限制**：
 
@@ -205,9 +205,9 @@ props非泛型但索引引用core类型，Ref仅Pick三个命令；render返回d
 **源码/意见完整，专项/发布未全验。** 旧plan/results把这几件事统一记为partial；本轮按packages-only指令拆账，原最低场景没有被删除或缩成spy场景。🟡由仍Open的RV-070和明确消费/真实链路边界支撑，不是自动绿，不冒充已修。
 
 - [本包 plan](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/packages/rxdb-plugin-replay-react.md)：原 C 与源码完成条件，独立专项/发布清单。
-- [file-inspection.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/file-inspection.json)：12文件真实SHA/N/完整readRanges/具体notes/C。
-- [c-evidence.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/c-evidence.json)：C1–C5原动作/场景、结论、源码与测试角色、未验归属。
-- [reused-evidence.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/reused-evidence.json)：同hash RV-070、历史四指标/pack/未运行边界。
-- [closure.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/closure.json)：sourceReviewComplete=true、opinionDeliveryComplete=true，五原C齐全，评级🟡、确认问题/candidates与owner原因。
+- file-inspection.json：12文件真实SHA/N/完整readRanges/具体notes/C。
+- c-evidence.json：C1–C5原动作/场景、结论、源码与测试角色、未验归属。
+- reused-evidence.json：同hash RV-070、历史四指标/pack/未运行边界。
+- closure.json：sourceReviewComplete=true、opinionDeliveryComplete=true，五原C齐全，评级🟡、确认问题/candidates与owner原因。
 
 范围内业务/原tests/依赖无改动；仅更新本包 plan/results/evidence，并以用户指定脚本校验后原子更新50包总进度与ETA。

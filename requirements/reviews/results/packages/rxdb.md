@@ -36,7 +36,7 @@ execution: partial
 
 ## 3. 动态证据与复验
 
-[SQL/JS 两后端的真实一致性断言日志](../../evidence/2026-10-03/query-probes-round2.txt)
+SQL/JS 两后端的真实一致性断言日志
 
 业务源码基线 `58b4bbb61efa71d4591cafab6a4c92955a7760dd`。SQL 复验明确关闭覆盖率；测试失败是预期的缺陷红灯，非 worker/service stopped 并发假失败。覆盖率未测量，也没有执行修复。
 
@@ -47,7 +47,7 @@ execution: partial
 - [ ] 适用的三框架/真实宿主及公开 API 兼容回归。
 - [ ] 四项覆盖率、整包门禁与实际应用/E2E 链路。
 
-原计划：[对应对象评审计划](../../packages/rxdb.md)；进度：[全范围执行台账](../../execution-2026-10-03.md)。
+原计划：[对应对象评审计划](../../packages/rxdb.md)；进度：全范围执行台账。
 
 ## 全范围启动批：入口与实际门禁
 
@@ -55,7 +55,7 @@ execution: partial
 
 本地优先数据层的核心契约：实体、查询、事务、插件生命周期、系统迁移、备份与可信写入。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -72,10 +72,10 @@ execution: partial
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：RV-038（已修复，记录已删除）、RV-039（已修复，记录已删除）、RV-027（已修复，见 README 2026-10-05 清理记录）、RV-028（已修复，见 README 2026-10-05 清理记录）、RV-029（已修复，见 README 2026-10-05 清理记录）、RV-034（已修复，见 README 2026-10-05 清理记录）
 
@@ -95,7 +95,7 @@ execution: partial
 
 ## 专项任务核销
 
-- [核心四指标 ≥90%](../../evidence/2026-10-03/full-run/core-coverage-gate.txt)。
+- 核心四指标 ≥90%。
 
 上述只是对应任务/平台的证据，专项 C 项/其它宿主未自动完成。
 
@@ -108,7 +108,7 @@ execution: partial
 
 ### 已执行的生命周期/事务对照
 
-人工追到 connect epoch、disconnectAll→shutdown→EntityManager.destroy、仓储关闭、事务事件排空和 trusted-write scope。原有五个相关 spec **52 passed**：[日志](../../evidence/2026-10-03/follow-up/core-lifecycle-transaction.txt)。这只证明这些对照，不覆盖新发现的 teardown 错误；新增复验分别仍 [2 failed / 1 passed](../../evidence/2026-10-03/follow-up/repository-teardown.txt) 和 [1 failed / 2 passed](../../evidence/2026-10-03/follow-up/backup-queue-sync-throw.txt)。
+人工追到 connect epoch、disconnectAll→shutdown→EntityManager.destroy、仓储关闭、事务事件排空和 trusted-write scope。原有五个相关 spec **52 passed**：日志。这只证明这些对照，不覆盖新发现的 teardown 错误；新增复验分别仍 2 failed / 1 passed 和 1 failed / 2 passed。
 
 C1 / C6 部分执行，不勾完整核查：真实宿主资源释放、全备份恢复边界仍待验证。旧核心 coverage 数值和启动批绿色 test 不能覆盖新增红测试。
 
@@ -116,13 +116,13 @@ C1 / C6 部分执行，不勾完整核查：真实宿主资源释放、全备份
 
 **execution: partial。原计划完整 C 核销为 0；下表“部分核销”只核销已实审子面，不勾原 C，也不等于业务修复/发布就绪。** 未读/必要未测明确保留，覆盖率和当前门禁通过不覆盖未审正文。
 
-本轮基线 `44de1138b4d396fc45d6e76ab60476c40fef2223` + 当前工作区，2026-10-05（Asia/Shanghai）。scope 受控 292 文件；有正文审读记录 2 文件（全文 0、分段 2），不是整对象全文清单。新生成spec另记，不计作已审生产代码。逐区间/版本见 [实际文件审读登记](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/core/file-inspection.json)。
+本轮基线 `44de1138b4d396fc45d6e76ab60476c40fef2223` + 当前工作区，2026-10-05（Asia/Shanghai）。scope 受控 292 文件；有正文审读记录 2 文件（全文 0、分段 2），不是整对象全文清单。新生成spec另记，不计作已审生产代码。逐区间/版本见 实际文件审读登记。
 
 ### 当前验证（只限其日期、输入与测量面）
 
-- 2026-10-05 统一 strict lint、typecheck 均通过，缓存禁用、主控串行；typecheck包含51依赖任务。输入清单**不含本子任务晚加的4个spec**，不外推这些新文件门禁已绿。[lint状态](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint-status.json)；[typecheck状态](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck-status.json)。
-- 本轮主控普通test：Test Files 135 passed (135)；Tests 2400 passed | 1 skipped (2401)。[原始执行日志](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage.txt)。整批退出1不等于本对象全部失败，也不把失败测试算通过。
-- 当前原配置四指标 **95.55/93.16/95.38/96.11%**（S/B/F/L），阈值 90% 达标；只证明当前include/exclude分母，不证明完整真实链路。[保留的summary](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb/coverage-summary.json)。
+- 2026-10-05 统一 strict lint、typecheck 均通过，缓存禁用、主控串行；typecheck包含51依赖任务。输入清单**不含本子任务晚加的4个spec**，不外推这些新文件门禁已绿。lint状态；typecheck状态。
+- 本轮主控普通test：Test Files 135 passed (135)；Tests 2400 passed | 1 skipped (2401)。原始执行日志。整批退出1不等于本对象全部失败，也不把失败测试算通过。
+- 当前原配置四指标 **95.55/93.16/95.38/96.11%**（S/B/F/L），阈值 90% 达标；只证明当前include/exclude分母，不证明完整真实链路。保留的summary。
 - 2026-10-03/04 原日志、原SHA、原pass/skip继续保留为历史；不称作本轮。晚加 clone-array/teardown spec 的最终结果由主控 supplement 追加，本次写作未取得，不等队列空转。
 
 ### C 证据 / 结论表
@@ -141,4 +141,4 @@ C1 / C6 部分执行，不勾完整核查：真实宿主资源释放、全备份
 
 下表不是再排一次计划：它记录已读实现、正常路径/反证、当前测试结果与确切缺口。**已闭环的是对应子面和门禁事实，不是未读的整 C。** 全对象收尾数仍为0；未完成条件主要是受控正文未全审、必要动态/真实消费或本包验收缺口。
 
-候选问题及最小修法/回归见 [4个待主控去重编号候选](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/core/findings.pending.md)；不自分RV、不改现有报告。请求与已完成/待补测边界见 [原验证请求](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/core/validation-requests.json)、[当前验证核对](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/core/validation-reconciliation.json)。
+候选问题及最小修法/回归见 4个待主控去重编号候选；不自分RV、不改现有报告。请求与已完成/待补测边界见 原验证请求、当前验证核对。

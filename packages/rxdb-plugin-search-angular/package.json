@@ -28,6 +28,7 @@
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-plugin-search": "workspace:*",
     "@angular/common": "22.2.1",
     "@angular/compiler": "22.2.1",

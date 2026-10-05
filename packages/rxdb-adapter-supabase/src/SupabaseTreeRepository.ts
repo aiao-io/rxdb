@@ -3,7 +3,7 @@
  * 提供树形结构的查询功能（邻接表模型）
  */
 
-import { assertOptionalNonNegativeSafeInteger, type EntityType, type RuleGroup } from '@aiao/rxdb';
+import { assertOptionalNonNegativeSafeInteger, type EntityType, type RuleGroup, type RxDBEntityId } from '@aiao/rxdb';
 import type { FindTreeOptions, ITreeRepository } from '@aiao/rxdb-plugin-tree';
 import { chunk_values, select_all_pages, SUPABASE_PAGE_SIZE } from './pagination.js';
 import { assert_postgrest_ok } from './postgrest-error.js';
@@ -62,8 +62,9 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
     // 使用 findDescendants 然后计数
     const descendants = await this.findDescendants(options);
 
-    // 如果指定了 entityId，不包含当前节点（节点不存在时 descendants 为空，需避免返回负数）
-    if (entityId) {
+    // 如果指定了 entityId，不包含当前节点（节点不存在时 descendants 为空，需避免返回负数）。
+    // `!= null` 而非 truthy：整数主键 0 是合法 id，与 sqlite-core / PGlite 的判据一致。
+    if (entityId != null) {
       return Math.max(0, descendants.length - 1);
     }
 
@@ -115,7 +116,7 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
     // （sqlite-core `WHERE id = ?` / `parentId is null`），起点是否匹配不影响它自身是否返回。
     // 根节点可能有任意多个，必须翻页。
     const loadRoots = async (): Promise<Record<string, unknown>[]> => {
-      if (entityId) {
+      if (entityId != null) {
         const { data, error, status } = await tableClient.select('*').eq('id', entityId).limit(1);
         assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to find descendants');
         return (data ?? []) as Record<string, unknown>[];
@@ -236,7 +237,7 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
       `tree query 'level' must be a non-negative integer, received: ${String(options.level)}`
     );
 
-    if (!entityId) {
+    if (entityId == null) {
       return [];
     }
 
@@ -252,14 +253,17 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
     // 返回不完整的祖先链且不报任何错。往返次数由树深度决定（给了 level 时 ≤ level + 1），
     // 树的深度天然有界，代价可控。
     const rows: Record<string, unknown>[] = [];
+    // 环检测按字符串归一：PostgREST 回来的 parentId 可能是 number 也可能是 string
     const seen = new Set<string>();
-    let currentId: string | null = entityId as string;
+    let currentId: RxDBEntityId | null = entityId as RxDBEntityId;
     let currentLevel = 0;
 
-    while (currentId && (level === undefined || currentLevel <= level)) {
+    // `!= null` 而非 truthy：`parentId: 0` 指向的是 id 为 0 的真实父节点，不是根
+    while (currentId != null && (level === undefined || currentLevel <= level)) {
       // 环保护：不传 level 时它就是唯一的终止条件；给了 level 时也不该让循环跑满 level 次
-      if (seen.has(currentId)) break;
-      seen.add(currentId);
+      const seenKey = String(currentId);
+      if (seen.has(seenKey)) break;
+      seen.add(seenKey);
 
       // where 只作用于往上的每一跳（递归成员），起点豁免：
       // 某一级祖先不匹配即断链，它上面的整条链都不再返回，即使更高处的节点自身匹配。
@@ -271,7 +275,7 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
       if (!node) break;
 
       rows.push(node);
-      currentId = (node['parentId'] as string) ?? null;
+      currentId = (node['parentId'] as RxDBEntityId | null | undefined) ?? null;
       currentLevel++;
     }
 

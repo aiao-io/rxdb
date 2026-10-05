@@ -1,1 +1,0 @@
-COMMAND: pnpm nx exec -p rxdb-adapter-sqlite-wasm --skipRemoteCache --skipNxCache -- pnpm exec tsc -p /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/.review-new-parallel-specs.tsconfig.json --noEmit --pretty false

@@ -12,7 +12,7 @@ release-readiness: not-claimed
 
 # rxdb-plugin-search-angular：实际评审执行记录
 
-**当前分轴（2026-10-05口径审计）：** 原范围全文审阅与逐C意见交付已完成；完整专题证据仍部分闭合，修复/发布未宣称完成。旧 `execution` 不再单独充当总代码评审完成度；见 [四轴进度审计](../../progress-2026-10-05.md)。
+**当前分轴（2026-10-05口径审计）：** 原范围全文审阅与逐C意见交付已完成；完整专题证据仍部分闭合，修复/发布未宣称完成。旧 `execution` 不再单独充当总代码评审完成度；见 四轴进度审计。
 
 **部分执行，暂不作全对象评级。** 已开始入口与门禁阶段；专项语义/真实环境没有全部完成。
 
@@ -22,7 +22,7 @@ release-readiness: not-claimed
 
 Angular：SearchHandle 的框架响应式输入、结果、状态与清理封装。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -33,10 +33,10 @@ Angular：SearchHandle 的框架响应式输入、结果、状态与清理封装
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -248,7 +248,7 @@ Angular：SearchHandle 的框架响应式输入、结果、状态与清理封装
 
 本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
 
-[真实tar类型正负/运行时证据](../../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+真实tar类型正负/运行时证据、十包本轮test/四指标、后四组及修正树夹具复验、新增spec独立严格类型。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
 
 消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
 
@@ -258,7 +258,7 @@ Angular：SearchHandle 的框架响应式输入、结果、状态与清理封装
 
 ## R3-01 Angular 模板补证结算（2026-10-05；仅建议，主控裁定）
 
-本有界任务的最小正反对照已交付；**不修改原C状态/全对象评级/发布结论**。源码全文审阅与逐C意见交付沿用R2记录，专题证据核销、发布/设备验证分开；不把剩余运行场景未核销写成“未评审”。[补证总账](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/report.md)、[全部真实命令/退出/诊断/断言](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/settlement.json)、[现场manifest与声明](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/onsite-package-declarations.json)。
+本有界任务的最小正反对照已交付；**不修改原C状态/全对象评级/发布结论**。源码全文审阅与逐C意见交付沿用R2记录，专题证据核销、发布/设备验证分开；不把剩余运行场景未核销写成“未评审”。补证总账、全部真实命令/退出/诊断/断言、现场manifest与声明。
 
 消费版本现场逐项读取：core、tree/search核心与两Angular wrapper 0.0.26，`@aiao/rxdb-angular` **0.0.27**；Angular/compiler-cli 22.2.1、TS6.0.3、RxJS7.8.2。六个已安装包逐文件匹配R2真实tar。真实公开入口，无workspace业务alias、fake input、deps改动。官方规范另存；只用真实compiler-cli.performCompilation与fixture-only虚拟CompilerHost，不冒称CLI入口或v21例子是Nx根。
 
@@ -266,9 +266,9 @@ Angular：SearchHandle 的框架响应式输入、结果、状态与清理封装
 
 ### search：正确AOT父绑定不能冲销RV-077
 
-- [同源父/子消费者](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/fixtures/consumer.ts) 的source/options都是真实required signal，父模板绑定与AOT signal元数据正确。
-- [required source字段初始化](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-search-field-source-aot-ts-final.json)、[required options字段初始化](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-search-field-options-aot-ts-final.json)均退出1、成功断言0：分别在`useSearch`的readSource/readOptions同步读取时NG0950；source.search调用数均0。正确父绑定不把输入供应提前到构造期。只补既有 **RV-077** 的AOT与同根因options证据，不重新登记。
-- [ngOnInit+runInInjectionContext消费对照](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-search-lifecycle-aot-ts-final.json)退出0、10断言：两required绑定后可读，真实useSearch/createSearchHandle种子及DOM InputEvent→string query、options重建保留query、旧订阅/handle释放、受控executor错误、clear、销毁清理。是调用时机与注入上下文的消费者对照，**不是业务修复，不冲销字段初始化红**；不声称真实搜索SQL/backend。
+- 同源父/子消费者 的source/options都是真实required signal，父模板绑定与AOT signal元数据正确。
+- required source字段初始化、required options字段初始化均退出1、成功断言0：分别在`useSearch`的readSource/readOptions同步读取时NG0950；source.search调用数均0。正确父绑定不把输入供应提前到构造期。只补既有 **RV-077** 的AOT与同根因options证据，不重新登记。
+- ngOnInit+runInInjectionContext消费对照退出0、10断言：两required绑定后可读，真实useSearch/createSearchHandle种子及DOM InputEvent→string query、options重建保留query、旧订阅/handle释放、受控executor错误、clear、销毁清理。是调用时机与注入上下文的消费者对照，**不是业务修复，不冲销字段初始化红**；不声称真实搜索SQL/backend。
 - ngc search三反例均退出1：缺source/options→一条NG8008同时列两输入；错source/options→TS2322+TS2559；InputEvent/number写string query→TS2345×2。共有5条诊断，正例0诊断；不是仅tsc或JIT模板猜测。`compiler-search-*-ngc-final.json`保存真实诊断。
 
 ### 原C建议与未证边界

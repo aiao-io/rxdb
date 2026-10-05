@@ -16,7 +16,7 @@ execution: partial
 
 未入库 NEW 实体草稿的内存/IndexedDB 恢复与同源广播；不是 working tree。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -29,11 +29,11 @@ execution: partial
 
 | target         | 当前证据                      | 日志                                                            |
 | -------------- | ----------------------------- | --------------------------------------------------------------- |
-| `lint`         | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)         |
-| `typecheck`    | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt)    |
-| `test`         | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)         |
-| `build`        | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)        |
-| `test-browser` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test-browser.txt) |
+| `lint`         | 本轮通过（限定当前配置/平台） | 执行日志         |
+| `typecheck`    | 本轮通过（限定当前配置/平台） | 执行日志    |
+| `test`         | 本轮通过（限定当前配置/平台） | 执行日志         |
+| `build`        | 本轮通过（限定当前配置/平台） | 执行日志        |
+| `test-browser` | 本轮通过（限定当前配置/平台） | 执行日志 |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -57,8 +57,8 @@ execution: partial
 
 补入 [两个删除阶段失败/并发新值回归](../../../../packages/rxdb-plugin-workspace/src/__tests__/RxDBPluginWorkspace.spec.ts)，确认 setMany 已成功而 delMany 失败时不丢合法草稿，显式重试能完成删除，旧批次不会覆盖新排队值。
 
-- 单元项目 **96 passed**：[日志](../../evidence/2026-10-03/follow-up/workspace-unit.txt)，IDB 故障注入使用测试替身。
-- 真实 Chromium / IndexedDB 项目 **20 passed**：[日志](../../evidence/2026-10-03/follow-up/workspace-browser.txt)，覆盖刷新/重开、不可克隆隔离、失败字段修复、关闭中的 flush 和 IDB versionchange。
+- 单元项目 **96 passed**：日志，IDB 故障注入使用测试替身。
+- 真实 Chromium / IndexedDB 项目 **20 passed**：日志，覆盖刷新/重开、不可克隆隔离、失败字段修复、关闭中的 flush 和 IDB versionchange。
 
 C3 的规定边界本批已核销；不等于 C2 install 失败/重装竞态、C4 所有跨页乱序、C5 全平台生命周期均已审完。未测所有浏览器、长时间故障或整个对象覆盖率，本轮 coverage 显式关闭。
 

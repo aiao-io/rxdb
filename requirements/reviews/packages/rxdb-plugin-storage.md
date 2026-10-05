@@ -11,7 +11,7 @@ execution: in-progress
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -149,7 +149,7 @@ pnpm audit:coverage --projects=rxdb-plugin-storage
 
 ## 2026-10-04：第二批实际深审
 
-[本对象实际结论与证据](../results/packages/rxdb-plugin-storage.md) · [2026-10-04 执行台账](../execution-2026-10-04.md)。只核销明确标识的包级专题；不把平台 skip、历史绿色门禁或不适用授权边界当成应用已通过。
+[本对象实际结论与证据](../results/packages/rxdb-plugin-storage.md) · 2026-10-04 执行台账。只核销明确标识的包级专题；不把平台 skip、历史绿色门禁或不适用授权边界当成应用已通过。
 
 ## 8. 2026-10-05：plugins 实际逐 C 交付
 

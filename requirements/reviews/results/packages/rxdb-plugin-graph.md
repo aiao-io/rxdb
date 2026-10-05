@@ -16,7 +16,7 @@ execution: partial
 
 图实体、边表、遍历/路径查询、响应式增量与 repository 生成器。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -31,10 +31,10 @@ execution: partial
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -52,9 +52,9 @@ execution: partial
 
 ## 2026-10-04：生成器、图与小程序第四批深审
 
-🔴 C2 确认 RV-050（已修复，见 README 2026-10-05 清理记录）：NaN 穿过深度 clamp，真实 wa-sqlite 图的三个 API 返回成功空结果，隐藏非法数值。**3 failed /2 真实可达性对照 passed**：[日志](../../evidence/2026-10-04/generator-graph-miniprogram/graph-nan-depth-repaired.txt)，不是 SQL 结果假对象。
+🔴 C2 确认 RV-050（已修复，见 README 2026-10-05 清理记录）：NaN 穿过深度 clamp，真实 wa-sqlite 图的三个 API 返回成功空结果，隐藏非法数值。**3 failed /2 真实可达性对照 passed**：日志，不是 SQL 结果假对象。
 
-整包基线 **17 files /184 passed**：[日志](../../evidence/2026-10-04/generator-graph-miniprogram/rxdb-plugin-graph-baseline.txt)。人工检查 directed/undirected 边 upsert/remove、两向写的单事务、neighbors/path 规范化、CTE cycle/expansion、路径回填与 reactive task 依赖。undirected 两条语句已经在一个事务里、neighbors 层级上限 100、paths 上限 100000 expansions；没有把仅凭关键词想到的“无限递归/半边写”包装成缺陷。
+整包基线 **17 files /184 passed**：日志。人工检查 directed/undirected 边 upsert/remove、两向写的单事务、neighbors/path 规范化、CTE cycle/expansion、路径回填与 reactive task 依赖。undirected 两条语句已经在一个事务里、neighbors 层级上限 100、paths 上限 100000 expansions；没有把仅凭关键词想到的“无限递归/半边写”包装成缺陷。
 
 既有负值/超上限规范化是文档化行为，不擅自改；其它数字形态、完整边属性/类型与所有并发/后端组合仍未全部深审。C1/C2 全对象结论保持未完成。
 

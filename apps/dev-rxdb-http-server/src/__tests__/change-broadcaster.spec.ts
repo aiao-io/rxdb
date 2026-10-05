@@ -1,4 +1,4 @@
-import { EntityLocalUpdatedEvent, RxDB, SyncType } from '@aiao/rxdb';
+import { EntityLocalCreatedEvent, EntityLocalRemovedEvent, EntityLocalUpdatedEvent, RxDB, SyncType } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { createChangeBroadcaster } from '../change-broadcaster.ts';
 import type { ChangeSubscribers } from '../change-subscribers.ts';
@@ -93,6 +93,41 @@ describe('批量变更通知不能把其他写入者的变更当作自回声（R
     expect(broadcast.mock.calls.map(([frame]) => frame)).toEqual([
       `data:${JSON.stringify({ entity: CLIENT_ENTITY_NAME })}\n\n`,
       `data:${JSON.stringify({ entity: CLIENT_ENTITY_NAME, clientId: 'client-c' })}\n\n`
+    ]);
+  });
+
+  /**
+   * 一次写入（如 `__control` 的 reset：先删后种）在同一批里同时产出 REMOVE 与 CREATE。
+   * core 在 TRANSACTION_COMMIT 时同步排空整批事件，中间插不进别的 `recordWrite`，
+   * 所以首条事件消费的写入者集合已覆盖整批；载荷只有实体名，同批后续事件再广播只是重复帧。
+   * 这条锁住「同批只发一帧、归属不丢、不串到下一次写」，防止有人把去重误当成丢事件去「修」。
+   */
+  it('同一批里多种事件类型只广播一帧，且不把来源串给下一次写入', () => {
+    const { database, broadcaster, broadcast } = setup();
+    broadcaster.recordWrite('client-a');
+    database.dispatchEvent(
+      new EntityLocalRemovedEvent([
+        {
+          type: 'DELETE',
+          namespace: 'public',
+          entity: CLIENT_ENTITY_NAME,
+          id: 'old',
+          inversePatch: {},
+          recordAt: new Date()
+        }
+      ])
+    );
+    database.dispatchEvent(
+      new EntityLocalCreatedEvent([
+        { type: 'INSERT', namespace: 'public', entity: CLIENT_ENTITY_NAME, id: 'new', patch: {}, recordAt: new Date() }
+      ])
+    );
+    database.dispatchEvent(aggregatedUpdate(['new']));
+    broadcaster.recordWrite('client-b');
+    database.dispatchEvent(aggregatedUpdate(['row-b']));
+    expect(broadcast.mock.calls.map(([frame]) => frame)).toEqual([
+      `data:${JSON.stringify({ entity: CLIENT_ENTITY_NAME, clientId: 'client-a' })}\n\n`,
+      `data:${JSON.stringify({ entity: CLIENT_ENTITY_NAME, clientId: 'client-b' })}\n\n`
     ]);
   });
 });

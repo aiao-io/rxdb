@@ -11,7 +11,7 @@ execution: in-progress
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -145,7 +145,7 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-electron:audit-lazy-backend --skipR
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 已有2026-10-04/05前段HTTP/SQLite/进程内host证据仅保留历史；历史401/SWR/outbox修复不重新登记，RV-058已Resolved。进程内host不是GUI/真实IPC。
 
@@ -158,6 +158,6 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-electron:audit-lazy-backend --skipR
 | C5 打包资源与延迟后端         | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-electron/src/app/setup_rxdb.ts:75-100 动态backend imports`<br>`src-electron/main.ts:141-148 app scheme资产、151-170 preload`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-electron-e2e/src/packaged-app.ts:80-96 packaged-only`<br>renderer延迟装载两desktop后端与wa preview，preload使用app资源路径；runner缺打包产物直接阻断。包依赖build通过仅属TS/typecheck链，不代表app资源冷安装成功。 | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控audit-lazy-backend和冷electron-package-dir、离线启动/WASM/Worker/native/可选peer缺失；当前未取得打包产物消费证据。                       |
 | C6 Electron 专项              | `src-electron/main.ts:212-225 destroyed/render-process-gone释放`<br>`src-electron/desktop-host-bridge.ts:152-170 releaseTarget/closeAll`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-electron-e2e/src/desktop-persistence.spec.ts:62-136 重启`<br>关窗/renderer crash由宿主释放target，三类host closeAll用finally链收束；真实持久化E2E核对adapter与实际文件/重启count，不是浏览器demo。                                                     | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控真实Electron窗口/崩溃/关停、node:sqlite能力与生产依赖、strict app/tests/发布consumer；未跑平台必须留未验证。                             |
 
-证据：[逐C矩阵](../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

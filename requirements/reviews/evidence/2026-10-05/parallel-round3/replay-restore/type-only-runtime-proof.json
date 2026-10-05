@@ -1,6 +1,0 @@
-{
-  "sameEmittedRuntime": true,
-  "beforeRuntimeSha256": "32e62559a737815a5f898222781fe867fbe843c12fdd2f684751ed2187e54deb",
-  "afterRuntimeSha256": "32e62559a737815a5f898222781fe867fbe843c12fdd2f684751ed2187e54deb",
-  "meaning": "最后修订仅 UUID 返回类型收窄；与已通过真实 PGlite 对照的版本产出相同 JS。不是替代 strict 检查；strict noEmit 已独立通过。"
-}

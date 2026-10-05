@@ -22,7 +22,7 @@ release-readiness: not-claimed
 
 官方 SQLite WASM 的 adapter、oo1 client 与装载边界。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -37,10 +37,10 @@ release-readiness: not-claimed
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -60,17 +60,17 @@ release-readiness: not-claimed
 
 ### 真实工作树公开提交链路
 
-使用实际官方 SQLite-WASM / Chromium，沿 shared conformance 的库工厂、插件安装、enable、实体 save 和公开 commit 复验。原共享套件 **53 passed**，新增公共 API 原请求重试断言后 **1 failed / 53 passed**：[日志](../../evidence/2026-10-03/follow-up/rxdb-adapter-sqlite-public-retry-built.txt)。根因是公共插件命令顺序，不重复建立后端 SQL 缺陷，统一记 RV-041（已修复，记录已删除）。
+使用实际官方 SQLite-WASM / Chromium，沿 shared conformance 的库工厂、插件安装、enable、实体 save 和公开 commit 复验。原共享套件 **53 passed**，新增公共 API 原请求重试断言后 **1 failed / 53 passed**：日志。根因是公共插件命令顺序，不重复建立后端 SQL 缺陷，统一记 RV-041（已修复，记录已删除）。
 
-该配置实际读取 built testing 子路径。新源码第一次未重建时未收集 probe；已 [登记该绿结果的限制](../../evidence/2026-10-03/follow-up/rxdb-adapter-sqlite-public-retry-status.json)，重建后失败栈落到新产物断言。证明“无 Nx 缓存”仍不自动证明输入产物足够新。
+该配置实际读取 built testing 子路径。新源码第一次未重建时未收集 probe；已 登记该绿结果的限制，重建后失败栈落到新产物断言。证明“无 Nx 缓存”仍不自动证明输入产物足够新。
 
 这是 Chromium / 当前 WASM 路径，不外推其它 VFS、平台或全部适配器行为；完整专项继续待核销。
 
 ## 2026-10-04：树查询与 DevTools 第三批深审
 
-🔴 树 where 拓扑与增量的真实跨层对照确认 RV-046（已修复，见 README 2026-10-05 清理记录）。本后端的标量字段 alias 正常，实际 SQL 按 where 截断 hidden-parent；公开 query task 却将叶子错误增入。官方 SQLite-WASM / Chromium，实际 ORM save 与原生树查询 **1 failed /1 passed**：[日志](../../evidence/2026-10-04/tree-devtools/tree-filter-incremental-sqlite-linked.txt)。
+🔴 树 where 拓扑与增量的真实跨层对照确认 RV-046（已修复，见 README 2026-10-05 清理记录）。本后端的标量字段 alias 正常，实际 SQL 按 where 截断 hidden-parent；公开 query task 却将叶子错误增入。官方 SQLite-WASM / Chromium，实际 ORM save 与原生树查询 **1 failed /1 passed**：日志。
 
-新增 spec 直接用 tree workspace 包。首次 0 tests 为该 consumer 未声明直接 devDependency，已按 link-workspace-packages 用 pnpm --save-dev/workspace:* 正式链接，没有补假 tsconfig paths：[链接日志](../../evidence/2026-10-04/tree-devtools/sqlite-test-dependency-link.txt) / [lock 语义范围](../../evidence/2026-10-04/tree-devtools/dependency-link-scope.json)。pnpm 顺便重算 website 两个 Docusaurus 的 debug peer key；版本 key 集合未新增/删除，不能谎称 lock 文本只改一条。未运行 approve-builds 或其它 lifecycle。
+新增 spec 直接用 tree workspace 包。首次 0 tests 为该 consumer 未声明直接 devDependency，已按 link-workspace-packages 用 pnpm --save-dev/workspace:* 正式链接，没有补假 tsconfig paths：链接日志 / lock 语义范围。pnpm 顺便重算 website 两个 Docusaurus 的 debug peer key；版本 key 集合未新增/删除，不能谎称 lock 文本只改一条。未运行 approve-builds 或其它 lifecycle。
 
 该测试的类型导入初次写错类文件/导出名已修正测试本身，未把这类取证错误算产品缺陷。其它 C 项和所有宿主未完成。
 
@@ -107,7 +107,7 @@ release-readiness: not-claimed
 
 ## 2026-10-05 packages-only：本包源码评审交付完成
 
-**🟡：34/34原受控文件、1980行全文审阅完成；C1–C5均有实质意见。** 14个有界正文分片重新覆盖首次工具截断部分，未将盘点/哈希当阅读。[全文件阅读与关注点](../../evidence/2026-10-05/packages-only/rxdb-adapter-sqlite/file-inspection.json) · [评审意见](../../evidence/2026-10-05/packages-only/rxdb-adapter-sqlite/findings.md) · [闭合与必要未验](../../evidence/2026-10-05/packages-only/rxdb-adapter-sqlite/closure.json)。
+**🟡：34/34原受控文件、1980行全文审阅完成；C1–C5均有实质意见。** 14个有界正文分片重新覆盖首次工具截断部分，未将盘点/哈希当阅读。全文件阅读与关注点 · 评审意见 · 闭合与必要未验。
 
 | C | 已完成的源码结论 | 运行验证状态/归属 |
 | --- | --- | --- |

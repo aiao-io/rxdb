@@ -11,7 +11,7 @@ execution: complete
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -88,4 +88,4 @@ git grep -n 'rxdb-adapter-desktop' -- packages apps modules scripts requirements
 
 ## 2026-10-05：parallel integrations 残留闭环
 
-只读取证完成原 C1–C3 和四项完成条件：[逐 C 证据与结论](../evidence/2026-10-05/parallel/integrations/desktop-closure.json)、[独立执行记录](../results/packages/rxdb-adapter-desktop.md)。有效宿主边界仅联审迁移归属；Electron/Tauri 的业务、安全、发布消费与真实 GUI 门禁仍在各自对象中保留未完成。没有执行旧产物、没有清理文件。
+只读取证完成原 C1–C3 和四项完成条件：逐 C 证据与结论、[独立执行记录](../results/packages/rxdb-adapter-desktop.md)。有效宿主边界仅联审迁移归属；Electron/Tauri 的业务、安全、发布消费与真实 GUI 门禁仍在各自对象中保留未完成。没有执行旧产物、没有清理文件。

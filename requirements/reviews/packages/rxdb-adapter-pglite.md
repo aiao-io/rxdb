@@ -11,7 +11,7 @@ execution: in-progress
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -144,7 +144,7 @@ CI=true NX_DAEMON=false pnpm nx run rxdb-adapter-pglite:test-node --skipRemoteCa
 
 ## 7. 本轮实际执行记录
 
-[已执行范围、实际评审意见与证据](../results/packages/rxdb-adapter-pglite.md)；[全仓执行台账](../execution-2026-10-03.md)。
+[已执行范围、实际评审意见与证据](../results/packages/rxdb-adapter-pglite.md)；全仓执行台账。
 
 调用当前源码 SQL 构建器，在真实 Node PGlite 内存库执行 JSONB/NULL 查询。3 个一致性断言均失败；一轮配套的现有系统迁移 test-node 记录为 10 passed，但不等于本包完整迁移/浏览器/OPFS 已验证。
 
@@ -152,19 +152,19 @@ CI=true NX_DAEMON=false pnpm nx run rxdb-adapter-pglite:test-node --skipRemoteCa
 
 ## 续执行：2026-10-03 边界取证
 
-本批实际源码专题、确认意见和复验结果见 [此对象执行记录](../results/packages/rxdb-adapter-pglite.md) 与 [续执行汇总](../follow-up-2026-10-03.md)。只核销记录中明确覆盖的 C 项，不把全量门禁或单用例通过当作全对象评审完成。
+本批实际源码专题、确认意见和复验结果见 [此对象执行记录](../results/packages/rxdb-adapter-pglite.md) 与 续执行汇总。只核销记录中明确覆盖的 C 项，不把全量门禁或单用例通过当作全对象评审完成。
 
 ## 2026-10-04：第二批实际深审
 
-[本对象实际结论与证据](../results/packages/rxdb-adapter-pglite.md) · [2026-10-04 执行台账](../execution-2026-10-04.md)。只核销明确标识的包级专题；不把平台 skip、历史绿色门禁或不适用授权边界当成应用已通过。
+[本对象实际结论与证据](../results/packages/rxdb-adapter-pglite.md) · 2026-10-04 执行台账。只核销明确标识的包级专题；不把平台 skip、历史绿色门禁或不适用授权边界当成应用已通过。
 
 ## 2026-10-04：树查询与 DevTools 第三批深审
 
-[本对象实际意见与源码/运行证据](../results/packages/rxdb-adapter-pglite.md) · [本批台账](../execution-2026-10-04-tree-devtools.md)。未核销项不由生成器、mock 或其它后端门禁代证。
+[本对象实际意见与源码/运行证据](../results/packages/rxdb-adapter-pglite.md) · 本批台账。未核销项不由生成器、mock 或其它后端门禁代证。
 
 ### 2026-10-05：加密初始化取消
 
-[实际 Keyring /文件 SQLite /Chromium-PGlite 联审](../execution-2026-10-05-encrypted.md)：RV-058 有三个测量面的失败复验及正常已建凭据保护对照。只登记一个共同根因，不把 memory/管道接缝包装为所有后端安全，完整 C 与对象仍未完成。
+实际 Keyring /文件 SQLite /Chromium-PGlite 联审：RV-058 有三个测量面的失败复验及正常已建凭据保护对照。只登记一个共同根因，不把 memory/管道接缝包装为所有后端安全，完整 C 与对象仍未完成。
 
 ## 2026-10-05：local-adapters 并行实审收束
 

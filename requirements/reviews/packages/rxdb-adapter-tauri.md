@@ -11,7 +11,7 @@ execution: in-progress
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -156,7 +156,7 @@ CI=true NX_DAEMON=false pnpm nx run rxdb-adapter-tauri:test-conformance --skipRe
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 已有2026-10-04/05前段HTTP/SQLite/进程内host证据仅保留历史；历史401/SWR/outbox修复不重新登记，RV-058已Resolved。进程内host不是GUI/真实IPC。
 
@@ -169,6 +169,6 @@ CI=true NX_DAEMON=false pnpm nx run rxdb-adapter-tauri:test-conformance --skipRe
 | C5 加密与备份            | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-tauri/src/RxDBAdapterTauri.ts:74-85 backupStorage/createRestoreTargetClient`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-tauri/conformance/tauri-sqlite-backup.spec.ts 已存在，仅清单`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/src/desktop-backup-restore.spec.ts:115-139 native闭环`<br>备份storageKey按实际databaseName争锁，restore先取得独占target；native E2E区分DATABASE_ONLY并删除源库后restore/relaunch。未声称共享加密套件或Rust backup测试已执行。 | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控真实Tauri加密/二进制/BigInt/tamper、restore目标在用/失败重试和原库重开；仅原共享core契约继承不能核销动态。                                         |
 | C6 发布与应用权限        | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-tauri/package.json:15-29 exports/files、40-43 core依赖`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-tauri/rust/src/commands.rs:142-149 window allowlist`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri/src-tauri/src/lib.rs:371-408 command/host注册`<br>WebView入口与Rust宿主分离；app仅main label进入DesktopHost，不是靠capability JSON隐藏UI就授权；npm入口与crate/安装资源消费仍需单独验证。                                                                       | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控cargo-check/clippy、dev/release真实WebView、生产CSP/window/command拒绝及pack消费；当前TS lint/typecheck/依赖build不覆盖Rust发布宿主。              |
 
-证据：[逐C矩阵](../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

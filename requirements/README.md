@@ -31,21 +31,21 @@
 
 一个问题一个文件。查什么去哪里：
 
-| 文件                                         | 回答的问题                                                     |
-| -------------------------------------------- | -------------------------------------------------------------- |
-| [status-overview.md](status-overview.md)     | 每条故事**现在是什么状态**、哪些在做、哪些卡住                 |
-| [roadmap.md](roadmap.md)                     | **接下来做什么**、什么必须排在什么前面                         |
-| [capability-matrix.md](capability-matrix.md) | 仓库**现在能做什么**、哪些组合还不支持                         |
-| [release-plan.md](release-plan.md)           | **下一次发布**要做什么、桥接版本卡在哪                         |
-| [versioning-policy.md](versioning-policy.md) | 什么算公开 API、什么改动算破坏性                               |
-| [zh-glossary.md](zh-glossary.md)             | 中文注释 / TSDoc 词汇规约（哪些词保留、哪些要改）              |
-| [code-scanning/](code-scanning/README.md)    | GitHub CodeQL 告警工作集（open 才留文件，关闭即归档删除）      |
-| `migration-release.json`                     | 当前发布的迁移清单（门禁读它）                                 |
-| `epics/`                                     | 史诗目标与阶段划分                                             |
-| `stories/`                                   | 按领域拆分的用户故事（**状态真相源**，含 `story.template.md`） |
-| `api-baseline/`                              | 各包公开 API 表面基线（由门禁生成与校验）                      |
-| `reviews/`                                   | 给 AI 的 review 规则与结论记录（修复后标解决）                 |
-| `CONVENTIONS.md`                             | 命名 / 状态 / 写作规范（单一真相源）                           |
+| 文件                                         | 回答的问题                                                             |
+| -------------------------------------------- | ---------------------------------------------------------------------- |
+| [status-overview.md](status-overview.md)     | 每条故事**现在是什么状态**、哪些在做、哪些卡住                         |
+| [roadmap.md](roadmap.md)                     | **接下来做什么**、什么必须排在什么前面                                 |
+| [capability-matrix.md](capability-matrix.md) | 仓库**现在能做什么**、哪些组合还不支持                                 |
+| [release-plan.md](release-plan.md)           | **下一次发布**要做什么、桥接版本卡在哪                                 |
+| [versioning-policy.md](versioning-policy.md) | 什么算公开 API、什么改动算破坏性                                       |
+| [zh-glossary.md](zh-glossary.md)             | 中文注释 / TSDoc 词汇规约（哪些词保留、哪些要改）                      |
+| [code-scanning/](code-scanning/README.md)    | GitHub CodeQL 告警工作集（open 才留文件，关闭即归档删除）              |
+| `migration-release.json`                     | 当前发布的迁移清单（门禁读它）                                         |
+| `epics/`                                     | 史诗目标与阶段划分                                                     |
+| `stories/`                                   | 按领域拆分的用户故事（**状态真相源**，含 `story.template.md`）         |
+| `api-baseline/`                              | 各包公开 API 表面基线（由门禁生成与校验）                              |
+| `reviews/`                                   | review 规则、逐包/逐应用评审记录与未处理问题（修复后删除，留清理记录） |
+| `CONVENTIONS.md`                             | 命名 / 状态 / 写作规范（单一真相源）                                   |
 
 `stories/` 子目录与编号段见 [CONVENTIONS.md](CONVENTIONS.md#文档类型与编号段)（唯一真相源，不在此重复）。
 

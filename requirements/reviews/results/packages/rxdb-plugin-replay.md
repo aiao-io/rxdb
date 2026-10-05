@@ -16,7 +16,7 @@ execution: partial
 
 显式启动的 rrweb 会话录制、独立录制库、回放时间轴及 working-tree commit 恢复联动。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -32,11 +32,11 @@ execution: partial
 
 | target         | 当前证据                      | 日志                                                            |
 | -------------- | ----------------------------- | --------------------------------------------------------------- |
-| `lint`         | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)         |
-| `typecheck`    | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt)    |
-| `test`         | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)         |
-| `build`        | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)        |
-| `test-browser` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test-browser.txt) |
+| `lint`         | 本轮通过（限定当前配置/平台） | 执行日志         |
+| `typecheck`    | 本轮通过（限定当前配置/平台） | 执行日志    |
+| `test`         | 本轮通过（限定当前配置/平台） | 执行日志         |
+| `build`        | 本轮通过（限定当前配置/平台） | 执行日志        |
+| `test-browser` | 本轮通过（限定当前配置/平台） | 执行日志 |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -52,7 +52,7 @@ execution: partial
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
 
-四指标合并后已通过 80% 门禁，见 [合并门禁](../../evidence/2026-10-03/full-run/merged-coverage-gate.txt)；不代表全部 C 项完成。
+四指标合并后已通过 80% 门禁，见 合并门禁；不代表全部 C 项完成。
 
 ## 2026-10-04：第二批实际深审
 
@@ -60,9 +60,9 @@ execution: partial
 
 🟢 **限定本包提供的契约**：首次无 stash 安装默认不录；start 是显式入口，合法 recording stash 的恢复是延续此前会话；stop 停 rrweb 并冲刷；默认 maskAllInputs=true、强制 blockSelector 与显式 selector 透传。人工检查 options / plugin / manager / recorder / store / resume 的调用与持久化链路。
 
-- options / manager / recorder 三文件 **45 passed**：[日志](../../evidence/2026-10-04/replay-consent-lifecycle-controls.txt)。门面与录制库用真实 PGlite memory，Node 的 rrweb 为测试替身，用于无 DOM/默认不录/start-stop/失败/并发等状态对照。
-- 真实 Chromium / rrweb 的 masking 四例＋新增两例 **6 passed**：[最终日志](../../evidence/2026-10-04/replay-consent-final.txt)。新增 [真实持久化 spec](../../../../packages/rxdb-plugin-replay/src/__tests__/review-persisted-consent.browser.spec.ts) 实际读取 PGlite 的 ReplayEventRecord.data，不只断言 UI/假 sink：默认输入原文不在记录中，stop 后新输入不增加事件；显式关闭 maskAllInputs 的反证能在同一数据库链路看到原文。
-- 新引入 PGlite browser 依赖首次发现触发 Vite reload、0 tests；记录没有删除。补浏览器测试专用 optimizeDeps include 后，用独立新缓存目录从冷状态验证 **6 passed**，没有 reloaded 诊断：[冷缓存状态](../../evidence/2026-10-04/replay-consent-cold-cache-status.json)。只修改测试配置，不改变生产 API；临时配置/缓存已删除，未删除既有缓存。
+- options / manager / recorder 三文件 **45 passed**：日志。门面与录制库用真实 PGlite memory，Node 的 rrweb 为测试替身，用于无 DOM/默认不录/start-stop/失败/并发等状态对照。
+- 真实 Chromium / rrweb 的 masking 四例＋新增两例 **6 passed**：最终日志。新增 [真实持久化 spec](../../../../packages/rxdb-plugin-replay/src/__tests__/review-persisted-consent.browser.spec.ts) 实际读取 PGlite 的 ReplayEventRecord.data，不只断言 UI/假 sink：默认输入原文不在记录中，stop 后新输入不增加事件；显式关闭 maskAllInputs 的反证能在同一数据库链路看到原文。
+- 新引入 PGlite browser 依赖首次发现触发 Vite reload、0 tests；记录没有删除。补浏览器测试专用 optimizeDeps include 后，用独立新缓存目录从冷状态验证 **6 passed**，没有 reloaded 诊断：冷缓存状态。只修改测试配置，不改变生产 API；临时配置/缓存已删除，未删除既有缓存。
 
 **C1 的“未授权页面”子场景对包本身不适用：**公开选项没有页面身份/角色授权输入，是否允许调用 start 必须由应用控制。对应应用授权/同意 UI 仍需要 apps 独立补证，不能由此宣布通过。maskAllInputs 也不承诺任意正文/URL 自动脱敏；内容屏蔽依赖明确的 block/mask selectors，允许显式 maskAllInputs:false 不算默认策略失败。
 
@@ -96,7 +96,7 @@ C1 按现有包级契约/上述不适用边界核销；C2 配额与全录制库�
 
 ## 2026-10-05：R3-06 有界补证结算（源码审阅 / 意见已交付）
 
-**本专项源码审阅及归属意见已完成，不将专题验证 / 发布门禁未全量执行算作“评审没做”。** 主控编号 R3-06；[归属证据与最小调用序列](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/README.md)、[执行 / 指纹账本](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/execution-ledger.json)、[主控结算](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/closure.json)。
+**本专项源码审阅及归属意见已完成，不将专题验证 / 发布门禁未全量执行算作“评审没做”。** 主控编号 R3-06；归属证据与最小调用序列、执行 / 指纹账本、主控结算。
 
 - 保存旧源码与 SHA（`ad5d98db3470`）后，旧 probe fresh 复现 1 pass / 1 fail，仍在 title 断言红；最后那条红不是非法 disconnect / 嵌套事务造成。历史红日志未覆盖。
 - 合法序列：普通 save/commit 至 clean（公开调用在 adapter.transaction 外）→ Replay 现取 status 后 restore → 读 diff/session → dirty 拒绝 → fresh credentials discard 退场。真实 PGlite 同库正向对照为直接 WorkingTree restore；反向为 dirty / unreachable / disconnectAll 后 not_installed。

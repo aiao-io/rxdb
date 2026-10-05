@@ -135,6 +135,47 @@ describe('executeHelper', () => {
     expect(sqlite.step).not.toHaveBeenCalled();
   });
 
+  it('多语句拒绝时第一个句柄 finalize 失败不跳过第二个句柄，且不掩盖多语句拒绝错误', async () => {
+    const sqlite = createSqliteMock([
+      { statement: 1, actionCodes: [SQLITE_UPDATE] },
+      { statement: 2, actionCodes: [SQLITE_UPDATE] }
+    ]);
+    vi.mocked(sqlite.finalize).mockRejectedValueOnce(new Error('finalize 1 failed'));
+
+    const execution = executeHelper(sqlite, 1, 'UPDATE a SET x = ?; UPDATE b SET y = 1;', [1]);
+
+    await expect(execution).rejects.toThrow('multi-statement SQL with bindings is not supported');
+    expect(sqlite.finalize).toHaveBeenCalledWith(1);
+    expect(sqlite.finalize).toHaveBeenCalledWith(2);
+  });
+
+  it('绑定单语句执行失败后 finalize 也失败时，上抛的是执行错误', async () => {
+    const sqlite = createSqliteMock([{ statement: 1, actionCodes: [SQLITE_UPDATE] }]);
+    vi.mocked(sqlite.step).mockRejectedValueOnce(new Error('step failed'));
+    vi.mocked(sqlite.finalize).mockRejectedValueOnce(new Error('finalize failed'));
+
+    await expect(executeHelper(sqlite, 1, 'UPDATE users SET active = ?', [1])).rejects.toThrow(
+      'wa-sqlite execute() failed for SQL "UPDATE users SET active = ?": step failed'
+    );
+  });
+
+  it('无绑定语句执行失败后 finalize 也失败时，上抛的是执行错误', async () => {
+    const sqlite = createSqliteMock([{ statement: 1, actionCodes: [SQLITE_SELECT] }]);
+    vi.mocked(sqlite.step).mockRejectedValueOnce(new Error('step failed'));
+    vi.mocked(sqlite.finalize).mockRejectedValueOnce(new Error('finalize failed'));
+
+    await expect(executeHelper(sqlite, 1, 'SELECT broken()')).rejects.toThrow(
+      'wa-sqlite execute() failed for SQL "SELECT broken()": step failed'
+    );
+  });
+
+  it('绑定单语句正常执行后 finalize 失败时仍会上抛（不静默吞掉清理失败）', async () => {
+    const sqlite = createSqliteMock([{ statement: 1, actionCodes: [SQLITE_UPDATE], changes: 1 }]);
+    vi.mocked(sqlite.finalize).mockRejectedValueOnce(new Error('finalize failed'));
+
+    await expect(executeHelper(sqlite, 1, 'UPDATE users SET active = ?', [1])).rejects.toThrow('finalize failed');
+  });
+
   it('保留返回列但无数据行的结果集', async () => {
     const sqlite = createSqliteMock([
       { statement: 1, actionCodes: [SQLITE_SELECT], columns: ['id', 'name'], rows: [], changes: 7 }

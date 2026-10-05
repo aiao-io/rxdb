@@ -11,7 +11,7 @@ execution: in-progress
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -146,7 +146,7 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-tauri:audit-lazy-backend --skipRemo
 
 ## 续执行：2026-10-03 边界取证
 
-本批实际源码专题、确认意见和复验结果见 [此对象执行记录](../results/apps/dev-rxdb-tauri.md) 与 [续执行汇总](../follow-up-2026-10-03.md)。只核销记录中明确覆盖的 C 项，不把全量门禁或单用例通过当作全对象评审完成。
+本批实际源码专题、确认意见和复验结果见 [此对象执行记录](../results/apps/dev-rxdb-tauri.md) 与 续执行汇总。只核销记录中明确覆盖的 C 项，不把全量门禁或单用例通过当作全对象评审完成。
 
 ## 2026-10-05：parallel integrations 逐 C 交付
 
@@ -154,7 +154,7 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-tauri:audit-lazy-backend --skipRemo
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 已有2026-10-04/05前段HTTP/SQLite/进程内host证据仅保留历史；历史401/SWR/outbox修复不重新登记，RV-058已Resolved。进程内host不是GUI/真实IPC。
 
@@ -167,6 +167,6 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-tauri:audit-lazy-backend --skipRemo
 | C5 打包资源与延迟后端         | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri/src/app/setup_rxdb.ts:54-75 动态backend`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri/src-tauri/tauri.conf.json:build.frontendDist/security.csp/bundle.targets`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri/src-tauri/src/lib.rs:388-417 dev专用注册/窗口`<br>frontendDist指向当前Angular产物，CSP限制connect-src，devtools注册与资源dev gating可定位；build-devtools/audit-lazy-backend必须当前执行才能证明资源闭环。 | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控冷tauri-package-dev/release、WASM/Worker/native/面板缺资源、离线安装包启动；TS依赖build不是Rust安装包通过。                            |
 | C6 Tauri 专项                 | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri/src-tauri/src/lib.rs:371-408 invoke_handler/host注册、429-464 WindowDestroyed/Exit`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri/src-tauri/capabilities/default.json/devtools.json 窗口名单`<br>command注册明确，window destroyed回收owner，退出close_all；Rust宿主授权与WebView origin/CSP需结合真实driver，而不是只看本轮TS typecheck。                                                                                           | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控cargo-check/clippy/test与两档真实smoke分别补日志；普通窗口调devtools command、transport晚到/关闭与native file操作未核销。              |
 
-证据：[逐C矩阵](../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

@@ -16,7 +16,7 @@ execution: partial
 
 push/pull、分支同步、冲突处理、依赖排序与 QueryCache outbox orchestration。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -32,10 +32,10 @@ push/pull、分支同步、冲突处理、依赖排序与 QueryCache outbox orch
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 全范围启动批当时尚无新增确认问题；不表示下述续评无问题，也不能据此给全对象通过结论。
 
@@ -54,7 +54,7 @@ push/pull、分支同步、冲突处理、依赖排序与 QueryCache outbox orch
 
 ## 2026-10-04：恢复编排与 outbox 深审
 
-基线 `8b29b549ac5758b2e31a6148b98b8c394754e918`，详见 [本批台账](../../execution-2026-10-04-sync-querycache.md)。当前仍为**部分执行**，不作全包完成评级。
+基线 `8b29b549ac5758b2e31a6148b98b8c394754e918`，详见 本批台账。当前仍为**部分执行**，不作全包完成评级。
 
 确认意见：RV-052：自动恢复忽略结构化 failures（已修复，见 README 2026-10-05 清理记录）（P2）。原 outbox 与原监听器/SyncStateHub 实际运行，REST 403/网络失败后水位仍被保护，但错误被清空且宣布成功。不是待推写已经丢失。
 
@@ -67,7 +67,7 @@ push/pull、分支同步、冲突处理、依赖排序与 QueryCache outbox orch
 | C5 QueryCache outbox | **部分执行，确认 RV-052**；真实返回 failures 与恢复成功聚合不一致                 | partial success/repair、新写竞争、branch 切换与身份隔离 |
 | C6 保留与清理        | **部分执行**；cleanup 非 dryRun 的候选/未推保护/merge 同事务，未报无条件清理      | 跨分支/水位策略、清理与 push/写竞争的真实后端矩阵       |
 
-原基线 **449 passed、无 skip**；最终整包 **450 passed /2 failed、无 skip**，两个红用例均属于 RV-052：[完整日志](../../evidence/2026-10-04/sync-querycache/final-all-tests.txt) / [JUnit](../../evidence/2026-10-04/sync-querycache/rxdb-plugin-sync-final-junit.xml)。原 449 条仍通过。严格 lint /typecheck 通过，coverage 关闭，没有核销任何完整 C 专项。
+原基线 **449 passed、无 skip**；最终整包 **450 passed /2 failed、无 skip**，两个红用例均属于 RV-052：完整日志 / JUnit。原 449 条仍通过。严格 lint /typecheck 通过，coverage 关闭，没有核销任何完整 C 专项。
 
 [复验 spec](../../../../packages/rxdb-plugin-sync/src/__tests__/review-resume-outbox-result.spec.ts) 不 mock flush；系统仓储与 REST/宿主事件是明确接缝，不代表 SQLite/HTTP/Supabase 服务已实测。业务实现未改，问题仍 Open。
 
@@ -75,7 +75,7 @@ push/pull、分支同步、冲突处理、依赖排序与 QueryCache outbox orch
 
 本轮补真实 metadata 401 的 RV-052；新增 RV-055（已修复，见 README 2026-10-05 清理记录）：旧 KEEP_REMOTE repair 覆盖快照后 B，native SQLite 和公开查询均为 R，B 的日志及 pending=1 仍保留。C1/C5 **部分执行，有确认缺陷**，不将水位正确等同投影正确。restore/drop、多实体、branch 及重试继续。
 
-[本轮实际链路与取证限制](../../execution-2026-10-04-sync-http-sqlite.md) · [完整日志](../../evidence/2026-10-04/sync-http-sqlite/final-full-app-tests.txt) · [提交/wire/队列观测](../../evidence/2026-10-04/sync-http-sqlite/final-observations.json)。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。
+本轮实际链路与取证限制 · 完整日志 · 提交/wire/队列观测。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。
 
 ## 2026-10-05：plugins 并行源码深审与逐 C 交付
 

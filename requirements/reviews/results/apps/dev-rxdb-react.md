@@ -16,7 +16,7 @@ execution: partial
 
 React 浏览器综合演示，含 context/hooks、文件/树、搜索、工作树和模型页面。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -30,10 +30,10 @@ React 浏览器综合演示，含 context/hooks、文件/树、搜索、工作�
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 仅对已取证专题下结论，不代表全对象审完。
 
@@ -54,7 +54,7 @@ React 浏览器综合演示，含 context/hooks、文件/树、搜索、工作�
 
 沿代码编辑器/Generator/OPFS 预览消费入口联审。与 RV-057（已修复）同序列，原预览按 entry.path 重建且每个 await 后检查 active，交错及顺序 **2 passed**，不凑 React 相同缺陷。初始化/切换已正确包在 act 中，未忽略警告；服务与 Blob.text 时序为接缝，不代验真实 OPFS/整个应用。编辑器扩展语言的跨包边界见 RV-056，实际 app 默认配置是否使用该自定义 loader 未由本轮验收。
 
-[本轮实际范围、门禁与剩余项](../../execution-2026-10-04-editor-frameworks.md) · [三端观测](../../evidence/2026-10-04/editor-frameworks/final-observations.json)。七对象严格零警告 lint/typecheck 通过；新红保留，业务实现未改。happy-dom 不是浏览器/辅助技术验收，所有完整 C 项仍需逐项核销。
+本轮实际范围、门禁与剩余项 · 三端观测。七对象严格零警告 lint/typecheck 通过；新红保留，业务实现未改。happy-dom 不是浏览器/辅助技术验收，所有完整 C 项仍需逐项核销。
 
 ## 2026-10-05 frontends 并行评审收束
 

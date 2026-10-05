@@ -16,7 +16,7 @@ execution: complete
 
 已拆包目录的本地忽略构建残留，不是当前 Git/Nx 有效源码包。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -47,6 +47,6 @@ execution: complete
 | C2  | Electron `src/index.ts:19–71`；Tauri `src/index.ts:31–94`；core `src/desktop-host.ts:23–93`   | 有效契约归core、特权host归运行时。全仓旧名61处已区分：运行时源码无旧import；CI旧路径过滤不执行；迁移文档为旧→新说明，非生产依赖。 | 完成 |
 | C3  | 当前两包`exports/dependencies`同C1；CI `ci-template.yml:320–335`、`release-desktop.yml:44–53` | 根及所有packages/apps消费者无旧包link；删除suite零匹配；不导入旧dist、不复活writer lease、不清理任何产物。                        | 完成 |
 
-证据：[closure](../../evidence/2026-10-05/parallel/integrations/desktop-closure.json)、[Git原输出](../../evidence/2026-10-05/parallel/integrations/desktop-residue-commands.json)、[本机清单](../../evidence/2026-10-05/parallel/integrations/desktop-residue-inventory.json)、[全仓旧引用分类](../../evidence/2026-10-05/parallel/integrations/desktop-reference-audit.json)、[消费者link](../../evidence/2026-10-05/parallel/integrations/desktop-consumer-links.json)。
+证据：closure、Git原输出、本机清单、全仓旧引用分类、消费者link。
 
 无新增缺陷。原完成条件在残留限定范围内满足，**可以收尾本对象**；没有把缺失平台写成不适用。没有实际创建全新checkout/运行consumer，因本对象原条件是证明旧目录不是源码/依赖，依据受控清单与无解析入口完成；真实桌面应用剩余项在其各自记录保留。

@@ -24,7 +24,7 @@ release-readiness: not-claimed
 - 13 个 scope 文件 SHA 全匹配，LICENSE/README、全部配置、三份原 spec 均实读；不是仅入口或 hash 清单。原源码/原测试/依赖未修改；只新增本包一份 `review-round2-lifecycle.spec.ts`。
 - 写范围仅本计划、本对象结果、本对象证据目录和必要新增 spec；无 Git 状态操作、GUI、发布、server、容器、重任务或嵌套代理。依赖接口/同族三端只读，不扩对象。
 
-全文件/区间/关注点：[file-inspection.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/file-inspection.json)。实际 inferred targets：[nx-project.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/nx-project.json)；局部 `project.json` 不代替 resolved config。
+全文件/区间/关注点：file-inspection.json。实际 inferred targets：nx-project.json；局部 `project.json` 不代替 resolved config。
 
 ## 2. 数据结构、委托与公开边界
 
@@ -38,7 +38,7 @@ release-readiness: not-claimed
 | peers          | core/tree/react bindings 各 `*`，React `^19.3.0`、RxJS `^7.8.2`；原计划 React `^19.2.8` 已过时，本任务未改依赖                                                         |
 | 三端/生成      | root 四名称与 method/default/输入输出泛型对称；Angular Signal、Vue Ref/readonly 与 React snapshot 是 native 容器差异；生成静态槽和实际 MenuSimple.d.ts 已对照          |
 
-source 没有受控生成文件；本包 JS/d.ts/maps 已核对应来源，主控 fresh build 已过，**repeat build 确定性未测**。[generated-artifacts.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/generated-artifacts.json)。
+source 没有受控生成文件；本包 JS/d.ts/maps 已核对应来源，主控 fresh build 已过，**repeat build 确定性未测**。generated-artifacts.json。
 
 ## 3. 原 C 逐项（原动作和最低场景不变）
 
@@ -88,7 +88,7 @@ source 没有受控生成文件；本包 JS/d.ts/maps 已核对应来源，主�
 - **裸失败保留**：10:58:02 +08:00 valid/invalid 包含上游 `@aiao/utils` NodeJS/ms 声明错误。补类型成功不证明发布声明自包含、不隐藏裸失败；归主控上游定责，不改本包依赖。
 - **尚未测**：new spec 的 TS 语义编译（unit 转译/库 build 不等于 test typecheck）、repeat build/hash、C1–C3 原真实 tree/同 fixture 三端链路。新测试不再改，不等所有 big 包。
 
-实测命令/日期/input/caches/typed对照：[controller-validation.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/controller-validation.json)。历史第一轮证据与新结果边界：[validation-observations.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/validation-observations.json)。
+实测命令/日期/input/caches/typed对照：controller-validation.json。历史第一轮证据与新结果边界：validation-observations.json。
 
 ## 5. 六项验证请求的当前状态
 
@@ -101,9 +101,9 @@ source 没有受控生成文件；本包 JS/d.ts/maps 已核对应来源，主�
 | V5 independent consumer   | 显式 ambient 环境的严格正反和 root import通过；裸上游声明失败保留，非自包含绿 |
 | V6 real tree same fixture | 原 C1–C3 必要证据仍未完成，可精确复用已有 upstream，不跑无关矩阵              |
 
-V5/V6 是主控编排步骤，不是本包 Nx target；不运行猜测 target。[validation-requests.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/validation-requests.json)。
+V5/V6 是主控编排步骤，不是本包 Nx target；不运行猜测 target。validation-requests.json。
 
-冻结输入：[新增生命周期 spec](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/review-round2-lifecycle.spec.ts)，[consumer-valid.mts](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-valid.mts) / [consumer-invalid.mts](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-invalid.mts)。consumer 仅在未调用函数体里使用 hook，无顶层 runtime 调用、无 any/ignore；[consumer-contract.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-contract.json)。
+冻结输入：[新增生命周期 spec](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/review-round2-lifecycle.spec.ts)，consumer-valid.mts / consumer-invalid.mts。consumer 仅在未调用函数体里使用 hook，无顶层 runtime 调用、无 any/ignore；consumer-contract.json。
 
 ## 6. 原对象完成条件逐条判定
 
@@ -117,13 +117,13 @@ V5/V6 是主控编排步骤，不是本包 Nx target；不运行猜测 target。
 
 **工作材料交付完成 ≠ 全对象评审完成 ≠ 发布就绪**：`workerDeliveryComplete=true`，`completeCCount=2/5`，`fullObjectCandidate=false`、`reviewComplete=false`、`releaseReady=false`。必要未验证分流只能由主控明确裁定；不自己标不适用、不将其他框架 router/SFC/模板要求错归本 React 包。
 
-实际结果：[对象执行记录](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-tree-react.md)。最终机器交付：[closure.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/closure.json) / [c-evidence.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/c-evidence.json)。冻结新 spec，只交文档并释放本任务，不等后续 queued 包。
+实际结果：[对象执行记录](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-tree-react.md)。最终机器交付：closure.json / c-evidence.json。冻结新 spec，只交文档并释放本任务，不等后续 queued 包。
 
 ## R2 主控验证结算（不扩大子代理原核销范围）
 
 本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
 
-[真实tar类型正负/运行时证据](../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+真实tar类型正负/运行时证据、十包本轮test/四指标、后四组及修正树夹具复验、新增spec独立严格类型。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
 
 消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
 

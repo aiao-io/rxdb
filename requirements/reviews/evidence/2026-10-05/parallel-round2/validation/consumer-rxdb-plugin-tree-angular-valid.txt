@@ -1,1 +1,0 @@
-COMMAND: node /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/typescript/bin/tsc -p /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-tree-angular/tsconfig.valid.json --pretty false

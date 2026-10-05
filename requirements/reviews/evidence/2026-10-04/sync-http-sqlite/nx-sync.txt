@@ -1,9 +1,0 @@
-
- NX   The workspace is out of sync
-
-[@nx/js:typescript-sync]: Some TypeScript configuration files are missing project references to the projects they depend on, contain stale project references, or have duplicate project references.
-
-Syncing the workspace...
-The workspace was synced successfully!
-
-Please make sure to commit the changes to your repository.

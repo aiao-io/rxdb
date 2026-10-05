@@ -11,7 +11,7 @@ execution: in-progress
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -145,15 +145,15 @@ pnpm audit:coverage --projects=rxdb-adapter-electron
 
 ## 2026-10-04：第二批实际深审
 
-[本对象实际结论与证据](../results/packages/rxdb-adapter-electron.md) · [2026-10-04 执行台账](../execution-2026-10-04.md)。只核销明确标识的包级专题；不把平台 skip、历史绿色门禁或不适用授权边界当成应用已通过。
+[本对象实际结论与证据](../results/packages/rxdb-adapter-electron.md) · 2026-10-04 执行台账。只核销明确标识的包级专题；不把平台 skip、历史绿色门禁或不适用授权边界当成应用已通过。
 
 ### 2026-10-04 第六批：真实后端联审
 
-[原应用/PGlite + HTTP + 文件 SQLite 的实际取证](../execution-2026-10-04-sync-http-sqlite.md)。新增 RV-055，RV-052/053/054 补真实后端证据；scope、缓存收敛和配置适用性已分别写入独立执行记录，不给未测 GUI/CORS/Supabase/发布消费通过结论。
+原应用/PGlite + HTTP + 文件 SQLite 的实际取证。新增 RV-055，RV-052/053/054 补真实后端证据；scope、缓存收敛和配置适用性已分别写入独立执行记录，不给未测 GUI/CORS/Supabase/发布消费通过结论。
 
 ### 2026-10-05：加密初始化取消
 
-[实际 Keyring /文件 SQLite /Chromium-PGlite 联审](../execution-2026-10-05-encrypted.md)：RV-058 有三个测量面的失败复验及正常已建凭据保护对照。只登记一个共同根因，不把 memory/管道接缝包装为所有后端安全，完整 C 与对象仍未完成。
+实际 Keyring /文件 SQLite /Chromium-PGlite 联审：RV-058 有三个测量面的失败复验及正常已建凭据保护对照。只登记一个共同根因，不把 memory/管道接缝包装为所有后端安全，完整 C 与对象仍未完成。
 
 ## 2026-10-05：parallel integrations 逐 C 交付
 
@@ -161,7 +161,7 @@ pnpm audit:coverage --projects=rxdb-adapter-electron
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 已有2026-10-04/05前段HTTP/SQLite/进程内host证据仅保留历史；历史401/SWR/outbox修复不重新登记，RV-058已Resolved。进程内host不是GUI/真实IPC。
 
@@ -174,6 +174,6 @@ pnpm audit:coverage --projects=rxdb-adapter-electron
 | C5 加密与备份恢复         | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-electron/src/pglite-host/pglite-host-restore.ts:130-157 writeData/writeEntry、166-195 claimTarget/discardTarget`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-electron/src/pglite-host/pglite-host-lock.ts:133-147 restore marker`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-electron-e2e/src/backup-restore.spec.ts:131-188 restore/relaunch`<br>恢复校验写入长度/文件独占，目标reserved+目录锁，marker用于恢复失败状态；E2E源目录删除后新位置restore/relaunch能区别假备份。RV-058已修复，不用旧cancel失败重开。 | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控SQLite/PGlite两档、恢复中断/目标占用/失败重试、加密tamper/BigInt/binary与原库重开；未跑本轮真实宿主和覆盖率。        |
 | C6 host 与应用集成        | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-electron/src-electron/main.ts:151-177 contextIsolation/sandbox/navigation`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-electron/src-electron/preload.ts:108-135 narrow bridge`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-electron-e2e/src/packaged-app.ts:80-96 resolveExecutable`<br>应用真实IPC通道只暴露request/subscribe且sandbox/contextIsolation开启，runner只找packaged可执行文件、缺失报错不浏览器替代。主控当前包build/typecheck不是packaged E2E。                                                                      | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控冷打包/Electron GUI、两后端重启持久化、多窗口/沙箱、生产依赖解析与consumer；平台不足保持未验证。                     |
 
-证据：[逐C矩阵](../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

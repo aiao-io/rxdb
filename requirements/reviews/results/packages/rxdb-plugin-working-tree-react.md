@@ -25,11 +25,11 @@ rating: "🔴"
 
 - 唯一对象：`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react`；13 文件 / 1088 行，源码/config/tests/docs/license 全范围。
 - 沿用冻结scope标识 `943c50cc85b4be3b0635f736a35a9659c3fe209a`；实际阅读以当前文件SHA及真实区间为准，不自行执行Git操作。
-- [scope](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/scope.json) / [resolved](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/resolved-project.json) / [冻结核对](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/scope-freeze.json)；没有把project.json局部targets当完整配置。
-- 旧文档先读并保留：[旧plan](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/baseline/original-plan.md) / [旧results](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/baseline/original-results.md)；旧partial不能继续冒充本次源码状态，原场景仍保留。
-- [全文台账](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/file-inspection.json)记录实际SHA、N、真实readRanges、具体notes/C；输出trace与hash盘点不自动等于阅读。
+- scope / resolved / 冻结核对；没有把project.json局部targets当完整配置。
+- 旧文档先读并保留：旧plan / 旧results；旧partial不能继续冒充本次源码状态，原场景仍保留。
+- 全文台账记录实际SHA、N、真实readRanges、具体notes/C；输出trace与hash盘点不自动等于阅读。
 
-支撑依赖只读必要契约，不交付另一个包：[dependency-inspection.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/dependency-inspection.json)。
+支撑依赖只读必要契约，不交付另一个包：dependency-inspection.json。
 
 ## 2. 确认问题 / 去重 / 影响边界
 
@@ -49,7 +49,7 @@ README仍称十个状态/十个方法/十格，当前公开类型与spec数量�
 
 移除硬编码旧数量或同步成当前十二项；不改公开API，不需要运行大门禁。
 
-历史输入指纹、原日志/测量分母/复用限制：[reused-evidence.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/reused-evidence.json)。旧红探针不删、不skip；不重复创建同根因RV。
+历史输入指纹、原日志/测量分母/复用限制：reused-evidence.json。旧红探针不删、不skip；不重复创建同根因RV。
 
 ## 3. 每个原 C 的结论 / 锚点 / 未验归属
 
@@ -168,5 +168,5 @@ hook没有自动status/diff订阅，不把“没有变更流”作为新bug。�
 
 🔴：同SHA已证P1跨库状态残留及迟到覆盖，比单纯文档或未测风险严重；100%薄封装覆盖不能抵消P1。另有局部P3文档漂移，不影响主评级依据。
 sourceReviewComplete=true / opinionDeliveryComplete=true；所有原C意见完成，scenario/release不冒充完成。
-[plan](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/packages/rxdb-plugin-working-tree-react.md) / [file-inspection.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/file-inspection.json) / [c-evidence.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/c-evidence.json) / [closure.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/closure.json)。
+[plan](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/packages/rxdb-plugin-working-tree-react.md) / file-inspection.json / c-evidence.json / closure.json。
 校验后使用指定进度脚本--complete；在完成事件与总进度/ETA原子更新之前不启动下一包。

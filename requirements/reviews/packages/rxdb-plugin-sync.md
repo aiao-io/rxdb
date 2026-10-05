@@ -11,7 +11,7 @@ execution: in-progress
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -144,11 +144,11 @@ pnpm audit:coverage --projects=rxdb-plugin-sync
 
 ## 8. 2026-10-04 续评
 
-[恢复编排、共享查询、读写竞争的实际台账](../execution-2026-10-04-sync-querycache.md)。新增意见与 C 项取证/剩余矩阵已写入独立执行记录。两包原基线均实际通过，但新增复验确认缺陷，最终门禁保留红；未将所有 C 项或覆盖率标为通过。
+恢复编排、共享查询、读写竞争的实际台账。新增意见与 C 项取证/剩余矩阵已写入独立执行记录。两包原基线均实际通过，但新增复验确认缺陷，最终门禁保留红；未将所有 C 项或覆盖率标为通过。
 
 ### 2026-10-04 第六批：真实后端联审
 
-[原应用/PGlite + HTTP + 文件 SQLite 的实际取证](../execution-2026-10-04-sync-http-sqlite.md)。新增 RV-055，RV-052/053/054 补真实后端证据；scope、缓存收敛和配置适用性已分别写入独立执行记录，不给未测 GUI/CORS/Supabase/发布消费通过结论。
+原应用/PGlite + HTTP + 文件 SQLite 的实际取证。新增 RV-055，RV-052/053/054 补真实后端证据；scope、缓存收敛和配置适用性已分别写入独立执行记录，不给未测 GUI/CORS/Supabase/发布消费通过结论。
 
 ## 8. 2026-10-05：plugins 实际逐 C 交付
 

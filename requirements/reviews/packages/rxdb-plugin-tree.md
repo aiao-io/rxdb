@@ -11,7 +11,7 @@ execution: in-progress
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -147,7 +147,7 @@ pnpm audit:coverage --projects=rxdb-plugin-tree
 
 ## 2026-10-04：树查询与 DevTools 第三批深审
 
-[本对象实际意见与源码/运行证据](../results/packages/rxdb-plugin-tree.md) · [本批台账](../execution-2026-10-04-tree-devtools.md)。未核销项不由生成器、mock 或其它后端门禁代证。
+[本对象实际意见与源码/运行证据](../results/packages/rxdb-plugin-tree.md) · 本批台账。未核销项不由生成器、mock 或其它后端门禁代证。
 
 ## 8. 2026-10-05：plugins 实际逐 C 交付
 

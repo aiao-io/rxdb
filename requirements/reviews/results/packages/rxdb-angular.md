@@ -16,7 +16,7 @@ execution: partial
 
 Angular：核心查询资源、provider、状态/action/同步与无限滚动的框架封装。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -31,10 +31,10 @@ Angular：核心查询资源、provider、状态/action/同步与无限滚动的
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 失败，已留原日志              | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 失败，已留原日志              | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -54,7 +54,7 @@ Angular：核心查询资源、provider、状态/action/同步与无限滚动的
 
 ### 全包隔离复跑
 
-相同项目配置、无缓存、串行独立复跑 **13 files / 265 passed**：[日志](../../evidence/2026-10-03/follow-up/rxdb-angular-isolated.txt)。上轮全范围批次的 directive 假实体/mock 失败未在此轮复现，当前不足以确认为 directive 对真实实体的业务缺陷。
+相同项目配置、无缓存、串行独立复跑 **13 files / 265 passed**：日志。上轮全范围批次的 directive 假实体/mock 失败未在此轮复现，当前不足以确认为 directive 对真实实体的业务缺陷。
 
 不剔除/改写上轮失败记录，不通过放宽 getEntityStatus 接受假实体换绿。模块身份、mock 求值和跨文件顺序仍需专门证明；本轮关闭 coverage，核心四指标 ≥90% 不因此验收。
 

@@ -16,7 +16,7 @@ execution: partial
 
 开发态 connector、线协议、事件缓冲、序列化和浏览器/原生 provider。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -33,10 +33,10 @@ execution: partial
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -55,7 +55,7 @@ execution: partial
 
 ## 2026-10-04：树查询与 DevTools 第三批深审
 
-先前整包实际 **44 files /994 passed**：[基线](../../evidence/2026-10-04/tree-devtools/rxdb-devtools-baseline.txt)。人工检查三层授权、session/envelope 路由、provider 请求结算、脱敏与 buffer 顺序；一个 endpoint 构造时铸 session、dispose 终态，因此“同 endpoint 新 session 复用 requestId 被旧结果抢占”的初始猜测没有成立，未生成无证据 RV。
+先前整包实际 **44 files /994 passed**：基线。人工检查三层授权、session/envelope 路由、provider 请求结算、脱敏与 buffer 顺序；一个 endpoint 构造时铸 session、dispose 终态，因此“同 endpoint 新 session 复用 requestId 被旧结果抢占”的初始猜测没有成立，未生成无证据 RV。
 
 这不是完整协议/权限矩阵或真实全部宿主已审完。C1/C3/C4/C6 的其它输入和资源关闭组合继续；不以已有 conformance 绿覆盖新增 mask preprocessor 故障。
 

@@ -5,6 +5,7 @@
  * 父子门面分轮加载、同时存活，不证明同轮动态装载、真实录像、iframe 布局、键盘或原生 IME。
  */
 import {
+  mountReplayer,
   replayRestoreHint,
   type ReplayCommitMarker,
   type ReplayManager,
@@ -169,11 +170,15 @@ afterAll(() => {
 
 describe('R2-10 Angular + 真实核心：加载与生命周期', () => {
   it('R3 夹具守卫：组件入口转发真实核心，rrweb 使用同一可解析模块', async () => {
-    const core = await import('@aiao/rxdb-plugin-replay');
+    // 本包 vite 配置下 `@aiao/rxdb-plugin-replay` 解析到 dist；这里改走顶部已静态导入的
+    // `mountReplayer`（经由上方 `vi.mock` 工厂转发到核心 src），不再额外动态 `import()`
+    // 同一个包名，避免被 `@nx/enforce-module-boundaries` 误判成「懒加载」。`source` / `rrweb`
+    // 两个相对路径导入拿的是核心包未导出的内部实现文件与其私有依赖，没有包名可走，是这条断言
+    // 要证「同一可解析模块」本身要求的，无法消去。
     const source = await import('../../../rxdb-plugin-replay/src/replayer/mount-replayer.js');
     const rrweb = await import('../../../rxdb-plugin-replay/node_modules/rrweb/dist/rrweb.js');
-    expect(core.mountReplayer).toBe(source.mountReplayer);
-    expect(vi.isMockFunction(core.mountReplayer)).toBe(false);
+    expect(mountReplayer).toBe(source.mountReplayer);
+    expect(vi.isMockFunction(mountReplayer)).toBe(false);
     expect(rrweb.Replayer).toBe(boundary.Replayer);
     const fixture = await mount(createReplay());
     await ready(fixture);
@@ -488,6 +493,13 @@ describe('R3-03 真实核心：控制契约与代际取消', () => {
     fixture.componentInstance.play();
     fixture.componentInstance.pause();
     fixture.componentInstance.seek(500);
+    // `fixture.destroy()` 里 `this.#mounted.set(false)` 这次 signal 写入，会让 Angular 自己的
+    // 无 Zone 调度器（`scheduleCallbackWithRafRace`）额外登记一次全局 `requestAnimationFrame`，
+    // 和 setTimeout 赛跑去通知一次变更检测——这与被测的播放帧循环无关，但同一个全局 spy 会把它也
+    // 记进 `frames`。它靠自己那个 setTimeout（同样 0 延迟、先入队）在下一轮宏任务里自行
+    // cancelAnimationFrame 收尾，所以这里要等一轮宏任务，才能把「Angular 框架自身的陪跑帧」
+    // 和「核心播放器真的泄漏的帧」分开：若核心真的泄漏，settle 后 frames 仍不会清零。
+    await settle();
     expect(time).toHaveBeenCalledTimes(count);
     expect(player.destroy).toHaveBeenCalledTimes(1);
     expect(frames.size).toBe(0);

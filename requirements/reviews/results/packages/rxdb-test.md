@@ -16,7 +16,7 @@ execution: partial
 
 实体与跨框架 fixtures、适配器契约共享套件及测试基础设施；这是后续证据的可信根之一。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -30,10 +30,10 @@ execution: partial
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -52,7 +52,7 @@ execution: partial
 
 ## 专项任务核销
 
-- [专用合并验收通过](../../evidence/2026-10-03/full-run/coverage-acceptance.txt)。
+- 专用合并验收通过。
 
 上述只是对应任务/平台的证据，专项 C 项/其它宿主未自动完成。
 
@@ -60,13 +60,13 @@ execution: partial
 
 **execution: partial。原计划完整 C 核销为 0；下表“部分核销”只核销已实审子面，不勾原 C，也不等于业务修复/发布就绪。** 未读/必要未测明确保留，覆盖率和当前门禁通过不覆盖未审正文。
 
-本轮基线 `44de1138b4d396fc45d6e76ab60476c40fef2223` + 当前工作区，2026-10-05（Asia/Shanghai）。scope 受控 114 文件；有正文审读记录 18 文件（全文 16、分段 2），不是整对象全文清单。新生成spec另记，不计作已审生产代码。逐区间/版本见 [实际文件审读登记](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/core/file-inspection.json)。
+本轮基线 `44de1138b4d396fc45d6e76ab60476c40fef2223` + 当前工作区，2026-10-05（Asia/Shanghai）。scope 受控 114 文件；有正文审读记录 18 文件（全文 16、分段 2），不是整对象全文清单。新生成spec另记，不计作已审生产代码。逐区间/版本见 实际文件审读登记。
 
 ### 当前验证（只限其日期、输入与测量面）
 
-- 2026-10-05 统一 strict lint、typecheck 均通过，缓存禁用、主控串行；typecheck包含51依赖任务。输入清单**不含本子任务晚加的4个spec**，不外推这些新文件门禁已绿。[lint状态](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint-status.json)；[typecheck状态](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck-status.json)。
-- 本轮主控普通test：Test Files 21 passed (21)；Tests 210 passed (210)。[原始执行日志](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage.txt)。整批退出1不等于本对象全部失败，也不把失败测试算通过。
-- 当前原配置四指标 **91.12/91.92/83.22/92.27%**（S/B/F/L），阈值 80% 达标；这是普通src测量面，不是本包coverage-acceptance。[保留的summary](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-test/coverage-summary.json)。
+- 2026-10-05 统一 strict lint、typecheck 均通过，缓存禁用、主控串行；typecheck包含51依赖任务。输入清单**不含本子任务晚加的4个spec**，不外推这些新文件门禁已绿。lint状态；typecheck状态。
+- 本轮主控普通test：Test Files 21 passed (21)；Tests 210 passed (210)。原始执行日志。整批退出1不等于本对象全部失败，也不把失败测试算通过。
+- 当前原配置四指标 **91.12/91.92/83.22/92.27%**（S/B/F/L），阈值 80% 达标；这是普通src测量面，不是本包coverage-acceptance。保留的summary。
 - 2026-10-03/04 原日志、原SHA、原pass/skip继续保留为历史；不称作本轮。晚加 clone-array/teardown spec 的最终结果由主控 supplement 追加，本次写作未取得，不等队列空转。
 
 ### C 证据 / 结论表
@@ -84,7 +84,7 @@ execution: partial
 
 下表不是再排一次计划：它记录已读实现、正常路径/反证、当前测试结果与确切缺口。**已闭环的是对应子面和门禁事实，不是未读的整 C。** 全对象收尾数仍为0；未完成条件主要是受控正文未全审、必要动态/真实消费或本包验收缺口。
 
-候选问题及最小修法/回归见 [4个待主控去重编号候选](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/core/findings.pending.md)；不自分RV、不改现有报告。请求与已完成/待补测边界见 [原验证请求](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/core/validation-requests.json)、[当前验证核对](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/core/validation-reconciliation.json)。
+候选问题及最小修法/回归见 4个待主控去重编号候选；不自分RV、不改现有报告。请求与已完成/待补测边界见 原验证请求、当前验证核对。
 
 ## R3-05 · 2026-10-05 · cleanup verdict 有界补证结算
 
@@ -93,4 +93,4 @@ execution: partial
 - **结算轴分开**：有界补证缺口闭合 1；只补强既有 CORE-PENDING-3，新增独立候选 0、主 RV 确认 0。三共享 hook 明确 best-effort，原 adapter 工厂还自行 catch disconnectAll；公开 C1/C2/C3 声明未明确要求 cleanup 失败令 conformance 红。是否违反 cleanup 契约交主控，不自编号。不能把成功体/失败关闭的实际假绿外推为真实后端泄漏或业务事务实现错误。
 - 边界仅三原 suite 的 opened 数据库 afterEach；不含 bootstrap probe finally，不核销整组、完整 C1/C2、覆盖率或全适配器收尾。不等待平台或全量门禁，无待跑测试。
 - 原 115 包文件 sourcehash 无变化。仅新增独占 spec / 证据、追加本节；新 spec strict 与 ESLint 零警告通过。全部测量使用指定共享锁，1 worker、CI、daemon false、skipRemoteCache/skipNxCache、排除任务依赖；不暂存提交。
-- [最小对照与 raw output 索引](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/settlement.md)；[冻结四用例和 trace](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/minimal-control.frozen.json)；[机器核对与测量状态](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/cleanup-verdict/comparison.json)。
+- 最小对照与 raw output 索引；冻结四用例和 trace；机器核对与测量状态。

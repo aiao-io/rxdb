@@ -11,7 +11,7 @@ execution: in-progress
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -137,15 +137,15 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-angular:test --coverage --skipRemot
 
 ## 续执行：2026-10-03 边界取证
 
-本批实际源码专题、确认意见和复验结果见 [此对象执行记录](../results/apps/dev-rxdb-angular.md) 与 [续执行汇总](../follow-up-2026-10-03.md)。只核销记录中明确覆盖的 C 项，不把全量门禁或单用例通过当作全对象评审完成。
+本批实际源码专题、确认意见和复验结果见 [此对象执行记录](../results/apps/dev-rxdb-angular.md) 与 续执行汇总。只核销记录中明确覆盖的 C 项，不把全量门禁或单用例通过当作全对象评审完成。
 
 ## 2026-10-04：第二批实际深审
 
-[本对象实际结论与证据](../results/apps/dev-rxdb-angular.md) · [2026-10-04 执行台账](../execution-2026-10-04.md)。只核销明确标识的包级专题；不把平台 skip、历史绿色门禁或不适用授权边界当成应用已通过。
+[本对象实际结论与证据](../results/apps/dev-rxdb-angular.md) · 2026-10-04 执行台账。只核销明确标识的包级专题；不把平台 skip、历史绿色门禁或不适用授权边界当成应用已通过。
 
 ### 2026-10-04 第七批：编辑器 /文件预览
 
-[本轮源码、实际复验和未完成边界](../execution-2026-10-04-editor-frameworks.md)：RV-056 三端同步 loader 异常；RV-057 Angular/Vue 的 Blob.text 后归属缺口，React 对照通过。核心覆盖率四项通过不代替整个 C/宿主完成，详见独立执行记录。
+本轮源码、实际复验和未完成边界：RV-056 三端同步 loader 异常；RV-057 Angular/Vue 的 Blob.text 后归属缺口，React 对照通过。核心覆盖率四项通过不代替整个 C/宿主完成，详见独立执行记录。
 
 ## 2026-10-05 frontends 并行评审收束
 

@@ -1,6 +1,0 @@
-CWD: /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer
-COMMAND: pnpm install --offline --ignore-scripts --no-frozen-lockfile --config.auto-install-peers=false
- ERR_PNPM_NO_OFFLINE_META  Failed to resolve @angular/core@22.2.1 in package mirror /Users/jimmy/Library/Caches/pnpm/metadata-v1.3/registry.npmjs.org/@angular/core.json
-
-This error happened while installing a direct dependency of /private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer
-Progress: resolved 1, reused 0, downloaded 0, added 0

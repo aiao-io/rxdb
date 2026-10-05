@@ -1,1 +1,0 @@
-COMMAND: pnpm nx exec -p rxdb-adapter-supabase --skipRemoteCache --skipNxCache -- pnpm exec tsc -p /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-supabase/.review-new-spec-types-delivery.json --noEmit --pretty false

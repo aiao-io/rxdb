@@ -12,7 +12,7 @@ release-readiness: not-claimed
 
 # rxdb-plugin-replay-angular：实际评审执行记录
 
-**当前分轴（2026-10-05口径审计）：** 原范围全文审阅与逐C意见交付已完成；完整专题证据仍部分闭合，修复/发布未宣称完成。旧 `execution` 不再单独充当总代码评审完成度；见 [四轴进度审计](../../progress-2026-10-05.md)。
+**当前分轴（2026-10-05口径审计）：** 原范围全文审阅与逐C意见交付已完成；完整专题证据仍部分闭合，修复/发布未宣称完成。旧 `execution` 不再单独充当总代码评审完成度；见 四轴进度审计。
 
 **部分执行，暂不作全对象评级。** 已开始入口与门禁阶段；专项语义/真实环境没有全部完成。
 
@@ -22,7 +22,7 @@ release-readiness: not-claimed
 
 Angular：回放播放器挂载、资源装载和 commit 恢复交互的框架封装。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -33,10 +33,10 @@ Angular：回放播放器挂载、资源装载和 commit 恢复交互的框架�
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -224,7 +224,7 @@ component props/signals 是输入，core mountReplayer 拥有真实播放器/res
 
 本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
 
-[真实tar类型正负/运行时证据](../../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+真实tar类型正负/运行时证据、十包本轮test/四指标、后四组及修正树夹具复验、新增spec独立严格类型。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
 
 消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
 
@@ -234,7 +234,7 @@ component props/signals 是输入，core mountReplayer 拥有真实播放器/res
 
 **源码阅读及逐 C 意见交付：完成（按主控十包 153 文件统计）；本专题证据：partial-frozen；发布验证：独立 pending。** 不因平台/验证红灯把已完成评审一律算成未评审。按最新用户要求冻结，不再扩 rrweb 或测试矩阵。
 
-本轮仅改新增 R2 spec 夹具，不改生产代码/依赖/既有 spec/配置；接手旧源 SHA `47478ce39514355ef208742835603a1e6ef1296eabb499290ef83ceb54edc6fd`、失败日志和输入 SHA 留存。[完整有界说明](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/README.md)、[执行清单](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/executions.json)、[闭环与归属](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/closure.json)。
+本轮仅改新增 R2 spec 夹具，不改生产代码/依赖/既有 spec/配置；接手旧源 SHA `47478ce39514355ef208742835603a1e6ef1296eabb499290ef83ceb54edc6fd`、失败日志和输入 SHA 留存。完整有界说明、执行清单、闭环与归属。
 
 | 对照                        | 真实结果                           | exit  | 结论                                                                 |
 | --------------------------- | ---------------------------------- | ----- | -------------------------------------------------------------------- |
@@ -245,7 +245,7 @@ component props/signals 是输入，core mountReplayer 拥有真实播放器/res
 | 最终冻结独立                | 18 pass / 1 fail（19）             | 1     | 唯一红为全局 RAF 队列残 1 条，未归属 pending                         |
 | 同最终 SHA 合跑、不隔离     | 27 pass / 1 fail（28），旧文件 9/9 | 1     | 同一 RAF 断言红，旧 spec 未再被污染                                  |
 
-最终 spec SHA `aa62d9cf16d8c66c49e7a5a9f126c8c222915fe499de22051b87c8146efb06fd`；独立和合跑 raw/status/inputSHA 一致追溯：[独立](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/28-final-independent/20261005T153621267684.txt)、[合跑](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/29-frozen-minimal-pair/20261005T153739704095.txt)。新确认产品问题 0、新产品风险候选 0；不把 pending 红包装成缺陷，也不把 exit 1 写成全绿。
+最终 spec SHA `aa62d9cf16d8c66c49e7a5a9f126c8c222915fe499de22051b87c8146efb06fd`；独立和合跑 raw/status/inputSHA 一致追溯：独立、合跑。新确认产品问题 0、新产品风险候选 0；不把 pending 红包装成缺陷，也不把 exit 1 写成全绿。
 
 有效产品边界：真实 Angular + core 的四态、不启动 recording、挂载后 pending seek/initialTime、夹紧与 rrweb +1 偏移、控制/finish 输出、replay/session 输入更新与代际取消、销毁一次及晚 load/restore 不输出。恢复成功/四拒绝/错误及双 pending restore 只是受控转发，不证明真实 working-tree CAS。父子 provider 仅证明分轮加载、同时存活；同轮 loader 漏出真实 rrweb 的中间失败及真实 iframe/浏览器链未核销。最终 RAF Map 拦截全局 requestAnimationFrame，未证明余帧属于 Replay core；该断言红冻结交主控判归属，不删断言、不 skip。
 

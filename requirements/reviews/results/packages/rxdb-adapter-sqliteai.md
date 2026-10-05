@@ -22,7 +22,7 @@ release-readiness: not-claimed
 
 SQLiteAI 运行时的 adapter、client 和资源装载，复用 SQLite 数据层。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -37,10 +37,10 @@ SQLiteAI 运行时的 adapter、client 和资源装载，复用 SQLite 数据层
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -87,7 +87,7 @@ SQLiteAI 运行时的 adapter、client 和资源装载，复用 SQLite 数据层
 
 ## 2026-10-05 packages-only：源码评审交付完成
 
-**🟡，35/35原受控文件、2017行全文已审，原C1–C5逐项结论齐全。** [阅读台账](../../evidence/2026-10-05/packages-only/rxdb-adapter-sqliteai/file-inspection.json) · [意见](../../evidence/2026-10-05/packages-only/rxdb-adapter-sqliteai/findings.md) · [closure及必要未验](../../evidence/2026-10-05/packages-only/rxdb-adapter-sqliteai/closure.json)。
+**🟡，35/35原受控文件、2017行全文已审，原C1–C5逐项结论齐全。** 阅读台账 · 意见 · closure及必要未验。
 
 | C | 已完成的评审结论 | 验证/发布未验归属 |
 | --- | --- | --- |

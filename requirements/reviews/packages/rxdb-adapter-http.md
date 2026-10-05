@@ -11,7 +11,7 @@ execution: in-progress
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -142,7 +142,7 @@ pnpm audit:coverage --projects=rxdb-adapter-http
 
 ## 7. 本轮实际执行记录
 
-[已执行范围、实际评审意见与证据](../results/packages/rxdb-adapter-http.md)；[全仓执行台账](../execution-2026-10-03.md)。
+[已执行范围、实际评审意见与证据](../results/packages/rxdb-adapter-http.md)；全仓执行台账。
 
 仅完成上述模块的部分静态阅读。已核对“切换用户需 disconnect/connect”和“只有首个同身份查询的观测回调生效”等已明确文档化限制，未将其误报为新缺陷。没有执行该包完整网络/取消/SSE/缓存/浏览器套件，不能给整体通过结论。
 
@@ -150,7 +150,7 @@ pnpm audit:coverage --projects=rxdb-adapter-http
 
 ### 2026-10-04 第六批：真实后端联审
 
-[原应用/PGlite + HTTP + 文件 SQLite 的实际取证](../execution-2026-10-04-sync-http-sqlite.md)。新增 RV-055，RV-052/053/054 补真实后端证据；scope、缓存收敛和配置适用性已分别写入独立执行记录，不给未测 GUI/CORS/Supabase/发布消费通过结论。
+原应用/PGlite + HTTP + 文件 SQLite 的实际取证。新增 RV-055，RV-052/053/054 补真实后端证据；scope、缓存收敛和配置适用性已分别写入独立执行记录，不给未测 GUI/CORS/Supabase/发布消费通过结论。
 
 ## 2026-10-05：parallel integrations 逐 C 交付
 
@@ -158,7 +158,7 @@ pnpm audit:coverage --projects=rxdb-adapter-http
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 已有2026-10-04/05前段HTTP/SQLite/进程内host证据仅保留历史；历史401/SWR/outbox修复不重新登记，RV-058已Resolved。进程内host不是GUI/真实IPC。
 
@@ -171,6 +171,6 @@ pnpm audit:coverage --projects=rxdb-adapter-http
 | C5 取消与不可信响应       | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/transport.ts:501-517 classify、529-548 #prepare、569-597 #send、311-318 decodeJson`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts:209-268 connect/disconnect`<br>断开信号与timeout分开分类，fetch和body消费同处try/finally，timer被清理；connect/disconnect换transport并终止旧请求。响应text读取没有在所读路径证明body字节上限。                                                                                                                        | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控慢body/晚到响应、auth await期间断开、卸载、快速参数变化和超大/非法数字二进制响应；本轮无这些动态证据，不把未见容量限制直接包装成已复现OOM。                         |
 | C6 CORS / 凭证 / 生产消费 | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/transport.ts:477-486 buildHeaders、535-546 #prepare`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/README.md:227-231 换身份前置条件`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/cors.ts:52-74 applyCorsHeaders`<br>auth在每次发请求前求值且覆盖静态header；handler变体入缓存键。换身份必须disconnect/connect，直接换token并非支持路径。demo回显origin/假Bearer不构成生产鉴权证明。                                                                     | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 受控server真实未授权origin/credentials与跨scope拒绝、日志无token敏感body、pack后consumer仍待证；当前依赖build不是独立发布消费。                                         |
 
-证据：[逐C矩阵](../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

@@ -41,7 +41,7 @@ execution: partial
 - [ ] 适用的三框架/真实宿主及公开 API 兼容回归。
 - [ ] 四项覆盖率、整包门禁与实际应用/E2E 链路。
 
-原计划：[对应对象评审计划](../../packages/rxdb-adapter-http.md)；进度：[全范围执行台账](../../execution-2026-10-03.md)。
+原计划：[对应对象评审计划](../../packages/rxdb-adapter-http.md)；进度：全范围执行台账。
 
 ## 全范围启动批：入口与实际门禁
 
@@ -49,7 +49,7 @@ execution: partial
 
 QueryCache 的 HTTP remote adapter：规则查询、条件缓存、分页、变更流与 transport。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -66,10 +66,10 @@ QueryCache 的 HTTP remote adapter：规则查询、条件缓存、分页、变�
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -90,7 +90,7 @@ QueryCache 的 HTTP remote adapter：规则查询、条件缓存、分页、变�
 
 C1/C4/C5 **部分执行**。原 HTTP adapter、REST handlers、native fetch 对原应用/PGlite 发真实 metadata/by-ids/PATCH/删除请求，真实 401 映射和网络拒绝不是 Response 桩。失败状态的责任在 RV-052（已修复，见 README 2026-10-05 清理记录），缓存/共享结算在 RV-053（已修复，见 README 2026-10-05 清理记录）/RV-054（已修复，见 README 2026-10-05 清理记录），旧修复覆盖新写在 RV-055（已修复，见 README 2026-10-05 清理记录）。没有因此给 HTTP adapter 四条重复意见。SSE/ETag/分页、CORS 和打包 consumer 未由本轮验收。
 
-[本轮实际链路与取证限制](../../execution-2026-10-04-sync-http-sqlite.md) · [完整日志](../../evidence/2026-10-04/sync-http-sqlite/final-full-app-tests.txt) · [提交/wire/队列观测](../../evidence/2026-10-04/sync-http-sqlite/final-observations.json)。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。
+本轮实际链路与取证限制 · 完整日志 · 提交/wire/队列观测。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。
 
 ## 2026-10-05：parallel integrations 逐 C 交付
 
@@ -98,7 +98,7 @@ C1/C4/C5 **部分执行**。原 HTTP adapter、REST handlers、native fetch 对�
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 已有2026-10-04/05前段HTTP/SQLite/进程内host证据仅保留历史；历史401/SWR/outbox修复不重新登记，RV-058已Resolved。进程内host不是GUI/真实IPC。
 
@@ -111,6 +111,6 @@ C1/C4/C5 **部分执行**。原 HTTP adapter、REST handlers、native fetch 对�
 | C5 取消与不可信响应       | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/transport.ts:501-517 classify、529-548 #prepare、569-597 #send、311-318 decodeJson`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts:209-268 connect/disconnect`<br>断开信号与timeout分开分类，fetch和body消费同处try/finally，timer被清理；connect/disconnect换transport并终止旧请求。响应text读取没有在所读路径证明body字节上限。                                                                                                                        | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控慢body/晚到响应、auth await期间断开、卸载、快速参数变化和超大/非法数字二进制响应；本轮无这些动态证据，不把未见容量限制直接包装成已复现OOM。                         |
 | C6 CORS / 凭证 / 生产消费 | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/transport.ts:477-486 buildHeaders、535-546 #prepare`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/README.md:227-231 换身份前置条件`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/cors.ts:52-74 applyCorsHeaders`<br>auth在每次发请求前求值且覆盖静态header；handler变体入缓存键。换身份必须disconnect/connect，直接换token并非支持路径。demo回显origin/假Bearer不构成生产鉴权证明。                                                                     | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 受控server真实未授权origin/credentials与跨scope拒绝、日志无token敏感body、pack后consumer仍待证；当前依赖build不是独立发布消费。                                         |
 
-证据：[逐C矩阵](../../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

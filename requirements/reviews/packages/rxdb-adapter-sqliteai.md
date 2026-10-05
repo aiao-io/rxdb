@@ -15,7 +15,7 @@ release-readiness: not-claimed
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -163,4 +163,4 @@ pnpm audit:coverage --projects=rxdb-adapter-sqliteai
 
 ## 2026-10-05 packages-only 收口
 
-35文件/2017行原受控全文审阅、原C1–C5意见交付完成，评级🟡；[当前结果](../results/packages/rxdb-adapter-sqliteai.md)与[closure](../evidence/2026-10-05/packages-only/rxdb-adapter-sqliteai/closure.json)。保持原场景标准；engine capability/冷pack/OPFS真实恢复/共有类型判别力另列必要未验。apps消费者页面按最新用户范围暂停，不阻止本包源码交付。
+35文件/2017行原受控全文审阅、原C1–C5意见交付完成，评级🟡；[当前结果](../results/packages/rxdb-adapter-sqliteai.md)与closure。保持原场景标准；engine capability/冷pack/OPFS真实恢复/共有类型判别力另列必要未验。apps消费者页面按最新用户范围暂停，不阻止本包源码交付。

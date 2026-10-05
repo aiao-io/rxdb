@@ -16,7 +16,7 @@ execution: partial
 
 Angular wa-sqlite + Supabase 本地优先同步演示，区分本地/远端部署和凭证档位。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -30,10 +30,10 @@ Angular wa-sqlite + Supabase 本地优先同步演示，区分本地/远端部�
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -51,7 +51,7 @@ Angular wa-sqlite + Supabase 本地优先同步演示，区分本地/远端部�
 
 ## 专项任务核销
 
-- [当前 build 后凭证审计通过](../../evidence/2026-10-03/full-run/secrets-audit.txt)。
+- 当前 build 后凭证审计通过。
 
 上述只是对应任务/平台的证据，专项 C 项/其它宿主未自动完成。
 
@@ -59,7 +59,7 @@ Angular wa-sqlite + Supabase 本地优先同步演示，区分本地/远端部�
 
 **部分执行，未完成全对象深审。** 47 条整套单测，4 条 local E2E，2 条 remote E2E 实际执行。本批没有新增应用独立缺陷；当前 Todo 是 Full 策略/公开 schema，不能把 adapter 原语和 shop QueryCache 缺陷冒称已复现 UI 故障。
 
-确认意见：本轮无新增对象独立 RV，不意味着全对象通过。全批门禁、接缝和中间取证错误见 [本轮执行台账](../../execution-2026-10-05-supabase.md)；[源码指纹](../../evidence/2026-10-05/supabase/runtime-and-sources.json)、[最终计数](../../evidence/2026-10-05/supabase/final-counts.json) 与 [交付校验](../../evidence/2026-10-05/supabase/delivery-validation.json)。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
+确认意见：本轮无新增对象独立 RV，不意味着全对象通过。全批门禁、接缝和中间取证错误见 本轮执行台账；源码指纹、最终计数 与 交付校验。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
 
 尚需核销原 C 项中的未覆盖边界，尤其认证/RLS、Realtime、跨宿主、覆盖率与打包消费；本轮没有新增完整 C 核销。助手未修改业务源码，不操作用户暂存区。
 
@@ -71,7 +71,7 @@ Angular wa-sqlite + Supabase 本地优先同步演示，区分本地/远端部�
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 Supabase历史基线：`b7edef590051c8842d4914e30e31475977dea6ac`，2026-10-05 07:48 app:test 47、08:04 local4、08:05 remote2；package交付557pass/5fail/0skip，原553全过。**不是这次parallel门禁**。RV-059/060/061仍Open，只引用不重复登记。
 
@@ -83,6 +83,6 @@ Supabase历史基线：`b7edef590051c8842d4914e30e31475977dea6ac`，2026-10-05 0
 | C4 本地库与分支    | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/src/app/setup_rxdb_wa-sqlite.ts:17-66 dbName/Worker/SharedWorker`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/src/app/branch-manager.ts:182-209 create/switch finally`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/src/app/todo-cursor/todo-cursor.page.ts:74-118 completed/id游标`<br>本地库名和worker作用域明确；branch操作防重复、失败有alert、finally复位；Todo排序用completed后id打破同值。仅看到普通同值游标配置，不证明所有nullable与跨tab行为。 | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控多标签共享库、初始化退出/关闭重连、nullable/同值翻页、分支切换限制；核心/框架依赖问题不在本对象擅自修。 |
 | C5 真实场景与隔离  | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase-e2e/src/home.spec.ts:103-154 reload/跨页断言`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts:11-59 跨contextPush/Pull`<br>历史2026-10-05 07:48 app:test 47例、08:04 local4、08:05 remote2均先前运行；remote跨context有实际数据判别力，且明确未认证。不能冒充parallel当前门禁或身份隔离。                                                                                                                                                       | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控后补当轮app:test、本地/远端E2E与隔离资源回收；默认remote未运行/skip按未测记，故全对象partial。          |
 
-证据：[逐C矩阵](../../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

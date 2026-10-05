@@ -15,7 +15,7 @@ release-readiness: not-claimed
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -144,11 +144,11 @@ pnpm audit:coverage --projects=rxdb-adapter-sqlite
 
 ## 续执行：2026-10-03 边界取证
 
-本批实际源码专题、确认意见和复验结果见 [此对象执行记录](../results/packages/rxdb-adapter-sqlite.md) 与 [续执行汇总](../follow-up-2026-10-03.md)。只核销记录中明确覆盖的 C 项，不把全量门禁或单用例通过当作全对象评审完成。
+本批实际源码专题、确认意见和复验结果见 [此对象执行记录](../results/packages/rxdb-adapter-sqlite.md) 与 续执行汇总。只核销记录中明确覆盖的 C 项，不把全量门禁或单用例通过当作全对象评审完成。
 
 ## 2026-10-04：树查询与 DevTools 第三批深审
 
-[本对象实际意见与源码/运行证据](../results/packages/rxdb-adapter-sqlite.md) · [本批台账](../execution-2026-10-04-tree-devtools.md)。未核销项不由生成器、mock 或其它后端门禁代证。
+[本对象实际意见与源码/运行证据](../results/packages/rxdb-adapter-sqlite.md) · 本批台账。未核销项不由生成器、mock 或其它后端门禁代证。
 
 ## 2026-10-05：local-adapters 并行实审收束
 
@@ -171,4 +171,4 @@ pnpm audit:coverage --projects=rxdb-adapter-sqlite
 
 ## 2026-10-05 packages-only 收口
 
-源码审阅与意见交付已完成：34文件/1980行、原C1–C5结论齐全，评级🟡；[当前结果](../results/packages/rxdb-adapter-sqlite.md)及[closure](../evidence/2026-10-05/packages-only/rxdb-adapter-sqlite/closure.json)。原C最低运行场景不删除、不自动核销；测试判别力、冷发布consumer、OPFS/native恢复及共享core数据场景明确列必要未验owner。当前用户任务以源码评审交付计数，发布/全矩阵仍单独partial。
+源码审阅与意见交付已完成：34文件/1980行、原C1–C5结论齐全，评级🟡；[当前结果](../results/packages/rxdb-adapter-sqlite.md)及closure。原C最低运行场景不删除、不自动核销；测试判别力、冷发布consumer、OPFS/native恢复及共享core数据场景明确列必要未验owner。当前用户任务以源码评审交付计数，发布/全矩阵仍单独partial。

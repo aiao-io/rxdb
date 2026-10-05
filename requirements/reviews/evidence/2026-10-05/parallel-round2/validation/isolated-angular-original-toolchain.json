@@ -1,8 +1,0 @@
-{
-  "buildToolFromVerifiedWorkspaceInstalledAnalog": true,
-  "exitCode": 1,
-  "frameworkVersionsSameAsRecorded": true,
-  "noRuntimeOrTestedLibraryWorkspaceAliases": true,
-  "reason": "Fresh consumer global peer override flattened magic-string npm alias incorrectly for build tool; original installed compiler toolchain retained while tested runtime and peer modules remain independent packed packages.",
-  "runtimePackagesAreAllIsolatedActualTarballs": true
-}

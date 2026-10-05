@@ -1,1 +1,0 @@
-COMMAND: pnpm nx exec -p rxdb-plugin-tree-react --skipRemoteCache --skipNxCache -- pnpm exec tsc -p /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/.review-round2-strict.json --noEmit --pretty false

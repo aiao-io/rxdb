@@ -16,7 +16,7 @@ execution: partial
 
 Vue：共享 CodeMirror 文档/语言契约的框架组件。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -28,10 +28,10 @@ Vue：共享 CodeMirror 文档/语言契约的框架组件。
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -51,7 +51,7 @@ Vue：共享 CodeMirror 文档/语言契约的框架组件。
 
 C1/C2/C3/C4 已追踪真实 mounted/watch/expose 与 request/view 代次。确认 RV-056（已修复）：同步异常不仅漏 language-error，还中断后续 readonly/disabled 初始化，createApp 的真实编辑区为 readOnly=false/contenteditable=true。最终 **67 passed /1 failed**，原 66 条全部保留通过。真实 CodeMirror 测量不使用原模拟 view spec 替代；浏览器输入/IME/独立 SFC 消费未全量完成。
 
-[本轮实际范围、门禁与剩余项](../../execution-2026-10-04-editor-frameworks.md) · [三端观测](../../evidence/2026-10-04/editor-frameworks/final-observations.json)。七对象严格零警告 lint/typecheck 通过；新红保留，业务实现未改。happy-dom 不是浏览器/辅助技术验收，所有完整 C 项仍需逐项核销。
+本轮实际范围、门禁与剩余项 · 三端观测。七对象严格零警告 lint/typecheck 通过；新红保留，业务实现未改。happy-dom 不是浏览器/辅助技术验收，所有完整 C 项仍需逐项核销。
 
 ## 2026-10-05 frontends 并行评审收束
 

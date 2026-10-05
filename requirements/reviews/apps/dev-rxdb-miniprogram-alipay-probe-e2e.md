@@ -10,7 +10,7 @@ execution: in-progress
 
 范围：9个Git受控文件，支付宝IDE/CDP独占实验型E2E；Nx resolved targets为lint、typecheck、e2e-devtools。建议W6，高风险排期，不等于代码缺陷等级。
 
-[执行记录](../results/apps/dev-rxdb-miniprogram-alipay-probe-e2e.md) · [并行台账](../execution-2026-10-05-parallel.md) · [源码阅读](../evidence/2026-10-05/parallel/app-scope-addendum/dev-rxdb-miniprogram-alipay-probe-e2e/file-inspection.json) · [resolved targets](../evidence/2026-10-05/parallel/validation/alipay-probe-project.json)
+[执行记录](../results/apps/dev-rxdb-miniprogram-alipay-probe-e2e.md) · 并行台账 · 源码阅读 · resolved targets
 
 ## 当轮实际证据与结论
 

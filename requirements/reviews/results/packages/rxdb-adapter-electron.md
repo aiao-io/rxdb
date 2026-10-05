@@ -16,7 +16,7 @@ execution: partial
 
 Electron 桌面 SQLite 与 PGlite adapter/host；两种后端的锁与多窗口语义分别核查。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -32,10 +32,10 @@ Electron 桌面 SQLite 与 PGlite adapter/host；两种后端的锁与多窗口�
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -56,13 +56,13 @@ Electron 桌面 SQLite 与 PGlite adapter/host；两种后端的锁与多窗口�
 
 C1/C2/C6 **部分执行**。实际 Electron SQLite adapter/client/host 使用临时 node:sqlite 文件，native DatabaseSync 第二只只读连接直接核对已提交行；host 管道仍为进程内直连，不能当 Electron GUI/安全隔离/跨窗口/packaged 的证据。原生缓存旧提交与新写错位统一 RV-053（已修复，见 README 2026-10-05 清理记录）/RV-055（已修复，见 README 2026-10-05 清理记录），不归因 host 虚构结果。既有文件别名/备份意见和未完成矩阵保留。
 
-[本轮实际链路与取证限制](../../execution-2026-10-04-sync-http-sqlite.md) · [完整日志](../../evidence/2026-10-04/sync-http-sqlite/final-full-app-tests.txt) · [提交/wire/队列观测](../../evidence/2026-10-04/sync-http-sqlite/final-observations.json)。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。
+本轮实际链路与取证限制 · 完整日志 · 提交/wire/队列观测。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。
 
 ## 2026-10-05：加密初始化取消联审
 
 C2/C6 加密生命周期继续：原 adapter/core storage/client/host/临时文件真实执行，取消首次 unlock 后 locked=true 但 initialized=true；排队 B verifier_mismatch，正常已建 A 的凭据保护对照通过。**2 failed /1 passed**，统一 RV-058（已修复，见 README 2026-10-05 清理记录）。进程内 host 传输不是 Electron GUI/真实 IPC 或权限隔离；完整本包测试/发布 consumer 未由聚焦代验。
 
-[本轮源码/命令与未完成项](../../execution-2026-10-05-encrypted.md) · [最终状态观测](../../evidence/2026-10-05/encrypted/final-observations.json)。encrypted/Electron/PGlite 严格 lint/typecheck 通过，业务未改；sqlite-core 没有伪造本轮独立 lint/整包通过。coverage 关闭，不自动核销 C 专题。
+本轮源码/命令与未完成项 · 最终状态观测。encrypted/Electron/PGlite 严格 lint/typecheck 通过，业务未改；sqlite-core 没有伪造本轮独立 lint/整包通过。coverage 关闭，不自动核销 C 专题。
 
 ## 2026-10-05：parallel integrations 逐 C 交付
 
@@ -70,7 +70,7 @@ C2/C6 加密生命周期继续：原 adapter/core storage/client/host/临时文�
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 已有2026-10-04/05前段HTTP/SQLite/进程内host证据仅保留历史；历史401/SWR/outbox修复不重新登记，RV-058已Resolved。进程内host不是GUI/真实IPC。
 
@@ -83,6 +83,6 @@ C2/C6 加密生命周期继续：原 adapter/core storage/client/host/临时文�
 | C5 加密与备份恢复         | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-electron/src/pglite-host/pglite-host-restore.ts:130-157 writeData/writeEntry、166-195 claimTarget/discardTarget`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-electron/src/pglite-host/pglite-host-lock.ts:133-147 restore marker`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-electron-e2e/src/backup-restore.spec.ts:131-188 restore/relaunch`<br>恢复校验写入长度/文件独占，目标reserved+目录锁，marker用于恢复失败状态；E2E源目录删除后新位置restore/relaunch能区别假备份。RV-058已修复，不用旧cancel失败重开。 | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控SQLite/PGlite两档、恢复中断/目标占用/失败重试、加密tamper/BigInt/binary与原库重开；未跑本轮真实宿主和覆盖率。        |
 | C6 host 与应用集成        | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-electron/src-electron/main.ts:151-177 contextIsolation/sandbox/navigation`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-electron/src-electron/preload.ts:108-135 narrow bridge`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-electron-e2e/src/packaged-app.ts:80-96 resolveExecutable`<br>应用真实IPC通道只暴露request/subscribe且sandbox/contextIsolation开启，runner只找packaged可执行文件、缺失报错不浏览器替代。主控当前包build/typecheck不是packaged E2E。                                                                      | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控冷打包/Electron GUI、两后端重启持久化、多窗口/沙箱、生产依赖解析与consumer；平台不足保持未验证。                     |
 
-证据：[逐C矩阵](../../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

@@ -16,7 +16,7 @@ execution: partial
 
 Vue 浏览器综合演示，含 composable、SQLite-WASM、树/文件、模型、搜索与工作树页面。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -30,10 +30,10 @@ Vue 浏览器综合演示，含 composable、SQLite-WASM、树/文件、模型�
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -54,7 +54,7 @@ Vue 浏览器综合演示，含 composable、SQLite-WASM、树/文件、模型�
 
 沿代码编辑器/Generator/OPFS 预览消费入口联审。确认 RV-057（已修复）：文本读取之后没有当前归属检查，出现 B 标题/A 文本；**1 failed /1 passed**。原 SFC/watch 与真实 Blob 参与，服务为接缝；不归因 CodeMirror diff，不宣称文件被写坏。实际 OPFS/关闭/销毁/URL/ABA 及整个应用/E2E 未完成。
 
-[本轮实际范围、门禁与剩余项](../../execution-2026-10-04-editor-frameworks.md) · [三端观测](../../evidence/2026-10-04/editor-frameworks/final-observations.json)。七对象严格零警告 lint/typecheck 通过；新红保留，业务实现未改。happy-dom 不是浏览器/辅助技术验收，所有完整 C 项仍需逐项核销。
+本轮实际范围、门禁与剩余项 · 三端观测。七对象严格零警告 lint/typecheck 通过；新红保留，业务实现未改。happy-dom 不是浏览器/辅助技术验收，所有完整 C 项仍需逐项核销。
 
 ## 2026-10-05 frontends 并行评审收束
 

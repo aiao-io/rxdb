@@ -1,1 +1,0 @@
-{"name":"@aiao/rxdb-plugin-working-tree-vue","exports":["useWorkingTree"]}

@@ -14,7 +14,7 @@ release-readiness: not-claimed
 
 # code-editor：实际评审执行记录
 
-**当前分轴（2026-10-05口径审计）：** 原范围全文审阅与逐C意见交付已完成；完整专题证据仍部分闭合，修复/发布未宣称完成。旧 `execution` 不再单独充当总代码评审完成度；见 [四轴进度审计](../../progress-2026-10-05.md)。
+**当前分轴（2026-10-05口径审计）：** 原范围全文审阅与逐C意见交付已完成；完整专题证据仍部分闭合，修复/发布未宣称完成。旧 `execution` 不再单独充当总代码评审完成度；见 四轴进度审计。
 
 **当前R2-01结论：🟡完整源码/设计评审收口候选，完整原C仅C2；独立tar typed/runtime主探针已过，C5 bundle/缺资源与绑定/browser必要未验待主控。** 下文启动批/第七批/frontends段保留其历史时间与测量边界；以末尾R2-01逐项表及closure.json为最新判定。
 
@@ -24,7 +24,7 @@ release-readiness: not-claimed
 
 CodeMirror 三端共享的文档同步、语言解析、动态语言装载与可访问性契约。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -38,10 +38,10 @@ CodeMirror 三端共享的文档同步、语言解析、动态语言装载与可
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -61,7 +61,7 @@ CodeMirror 三端共享的文档同步、语言解析、动态语言装载与可
 
 C1/C2/C3/C4 的共享 helper 已逐源追踪：字符串最小差量、resolved language identity、不可变错误载荷与 a11y/autofocus。新增固定种子 4,096 对文本及 Unicode/换行/NUL 边界复验，核心本轮 **107 passed**。四指标为 statements 99.13%、branches 97.95%、functions/lines 100%，80% 门禁通过。仍不把纯字符串性质当作真实浏览器 selection/IME 已完成；C1 保持部分执行，C5 独立发布消费未完成。语言异常属于封装的 RV-056（已修复），不重复报成 core helper 缺陷。
 
-[本轮实际范围、门禁与剩余项](../../execution-2026-10-04-editor-frameworks.md) · [三端观测](../../evidence/2026-10-04/editor-frameworks/final-observations.json)。七对象严格零警告 lint/typecheck 通过；新红保留，业务实现未改。happy-dom 不是浏览器/辅助技术验收，所有完整 C 项仍需逐项核销。
+本轮实际范围、门禁与剩余项 · 三端观测。七对象严格零警告 lint/typecheck 通过；新红保留，业务实现未改。happy-dom 不是浏览器/辅助技术验收，所有完整 C 项仍需逐项核销。
 
 ## 2026-10-05 frontends 并行评审收束
 
@@ -181,13 +181,13 @@ C1/C2/C3/C4 的共享 helper 已逐源追踪：字符串最小差量、resolved 
 
 SQL-only esbuild consumer静态依赖闭包2文件、原始277158字节，输出总124个lazy/shared文件、1517375字节，模块图已保存；不把全部lazy产物当首屏或声称已测浏览器网络。独立消费者暂移Python ESM入口，根导入与helper仍可用，请求该语言明确拒绝ERR_MODULE_NOT_FOUND，finally恢复临时文件；没有改工作区资源/业务。
 
-证据：[消费者正负/运行时](../../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[类型only](../../evidence/2026-10-05/parallel-round2/validation/editor-type-only-consumer.json)、[SQL图与缺资源负例](../../evidence/2026-10-05/parallel-round2/validation/editor-artifact-probes.json)。结果目录相对路径若位于results/packages，以本段对应计划页的同名证据为准。
+证据：消费者正负/运行时、类型only、SQL图与缺资源负例。结果目录相对路径若位于results/packages，以本段对应计划页的同名证据为准。
 
 ## R2 主控验证结算（不扩大子代理原核销范围）
 
 本对象原scope文件已由独占代理全文审阅。源码评审交接、原C最低场景验证、发布就绪三个状态分别保留；存在具体补证未验，不用deadline批量改绿。
 
-[真实tar类型正负/运行时证据](../../evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json)、[十包本轮test/四指标](../../evidence/2026-10-05/parallel-round2/validation/ten-packages-current-unit-coverage.txt)、[后四组及修正树夹具复验](../../evidence/2026-10-05/parallel-round2/validation/late-four-and-tree-angular-unit.txt)、[新增spec独立严格类型](../../evidence/2026-10-05/parallel-round2/validation/new-spec-types.json)。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
+真实tar类型正负/运行时证据、十包本轮test/四指标、后四组及修正树夹具复验、新增spec独立严格类型。reportOnFailure=true只保证失败时产覆盖率，不使失败用例成为通过。
 
 消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
 

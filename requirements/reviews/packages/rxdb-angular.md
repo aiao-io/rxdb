@@ -11,7 +11,7 @@ execution: in-progress
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -142,7 +142,7 @@ pnpm audit:coverage --projects=rxdb-angular
 
 ## 续执行：2026-10-03 边界取证
 
-本批实际源码专题、确认意见和复验结果见 [此对象执行记录](../results/packages/rxdb-angular.md) 与 [续执行汇总](../follow-up-2026-10-03.md)。只核销记录中明确覆盖的 C 项，不把全量门禁或单用例通过当作全对象评审完成。
+本批实际源码专题、确认意见和复验结果见 [此对象执行记录](../results/packages/rxdb-angular.md) 与 续执行汇总。只核销记录中明确覆盖的 C 项，不把全量门禁或单用例通过当作全对象评审完成。
 
 ## 2026-10-05 frameworks 本轮完成条件与实际核查
 

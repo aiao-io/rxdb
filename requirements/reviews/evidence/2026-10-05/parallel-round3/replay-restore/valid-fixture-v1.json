@@ -1,5 +1,0 @@
-{
-  "path": "packages/rxdb-plugin-replay/src/__tests__/review-parallel-restore.spec.ts",
-  "sha256": "26ac89026cdc26f37a2237145a482ed10a36dfe089fafa355bc0fd6dbe087778",
-  "changeBoundary": "仅评审新增 probe；补目标 ChangeSet/diff 正向断言、原 title 误期望改为业务投影不变、与直接 workingTree.restore 对照，fresh 凭据 discard 退场"
-}

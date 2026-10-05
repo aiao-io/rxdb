@@ -11,7 +11,7 @@ execution: in-progress
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -140,17 +140,17 @@ pnpm audit:coverage --projects=rxdb-plugin-querycache
 
 ## 8. 2026-10-04 续评
 
-[恢复编排、共享查询、读写竞争的实际台账](../execution-2026-10-04-sync-querycache.md)。新增意见与 C 项取证/剩余矩阵已写入独立执行记录。两包原基线均实际通过，但新增复验确认缺陷，最终门禁保留红；未将所有 C 项或覆盖率标为通过。
+恢复编排、共享查询、读写竞争的实际台账。新增意见与 C 项取证/剩余矩阵已写入独立执行记录。两包原基线均实际通过，但新增复验确认缺陷，最终门禁保留红；未将所有 C 项或覆盖率标为通过。
 
 ### 2026-10-04 第六批：真实后端联审
 
-[原应用/PGlite + HTTP + 文件 SQLite 的实际取证](../execution-2026-10-04-sync-http-sqlite.md)。新增 RV-055，RV-052/053/054 补真实后端证据；scope、缓存收敛和配置适用性已分别写入独立执行记录，不给未测 GUI/CORS/Supabase/发布消费通过结论。
+原应用/PGlite + HTTP + 文件 SQLite 的实际取证。新增 RV-055，RV-052/053/054 补真实后端证据；scope、缓存收敛和配置适用性已分别写入独立执行记录，不给未测 GUI/CORS/Supabase/发布消费通过结论。
 
 ## 2026-10-05：Supabase /真实 QueryCache 联审
 
 **部分执行，未完成全对象深审。** 原 engine/session/primary 与公开 EntityManager.findAll 路径，确认关系条件和 namespace 冷缓存两个接缝。历史 Sync/HTTP 测量不重写。
 
-确认意见：RV-060、RV-061。全批门禁、接缝和中间取证错误见 [本轮执行台账](../execution-2026-10-05-supabase.md)；[源码指纹](../evidence/2026-10-05/supabase/runtime-and-sources.json)、[最终计数](../evidence/2026-10-05/supabase/final-counts.json) 与 [交付校验](../evidence/2026-10-05/supabase/delivery-validation.json)。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
+确认意见：RV-060、RV-061。全批门禁、接缝和中间取证错误见 本轮执行台账；源码指纹、最终计数 与 交付校验。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
 
 尚需核销原 C 项中的未覆盖边界，尤其认证/RLS、Realtime、跨宿主、覆盖率与打包消费；本轮没有新增完整 C 核销。助手未修改业务源码，不操作用户暂存区。
 

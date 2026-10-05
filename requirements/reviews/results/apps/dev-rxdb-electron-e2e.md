@@ -16,7 +16,7 @@ execution: partial
 
 打包 Electron 应用的真实持久化、SQLite/PGlite 备份及 DevTools relay/权限测试。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -31,9 +31,9 @@ execution: partial
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `e2e`       | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/e2e.txt)       |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `e2e`       | 本轮通过（限定当前配置/平台） | 执行日志       |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -56,7 +56,7 @@ execution: partial
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 已有2026-10-04/05前段HTTP/SQLite/进程内host证据仅保留历史；历史401/SWR/outbox修复不重新登记，RV-058已Resolved。进程内host不是GUI/真实IPC。
 
@@ -69,6 +69,6 @@ execution: partial
 | C5 扩展与生产隔离      | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-electron-e2e/src/devtools-extension-loading.spec.ts:55-89 显式dev唯一扩展/production空列表`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-electron-e2e/src/packaged-app.ts:133-182 真沙箱`<br>通过宿主session.extensions枚举对照开发/生产，不只renderer提示；需要真sandbox和MV3扩展。production用继承launchEnv，运行需记录配置避免父进程dev开关污染。                                                                                                                           | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控dev/prod配置隔离、生产包扩展bootstrap/资源检查与unsupported scheme/MV3实际执行；不从regex或浏览器页面证明。   |
 | C6 稳定性与清理        | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-electron-e2e/src/desktop-persistence.spec.ts:62-76 app finally close、135-136 temp清理`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-electron-e2e/src/devtools-session-rotation.spec.ts:192-195 app/server/profile finally`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-electron-e2e/playwright.config.ts:22-24 workers/retries`<br>串行worker、独立profile及finally关闭app/server/temp基本收束；仍需launch之前失败/关停失败时的真实资源确认。retries不能抹除首轮失败。 | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控当前E2E保留trace/首失败/重试与退出后子进程/端口/profile证据；本轮未实际GUI，不预先判稳定。                    |
 
-证据：[逐C矩阵](../../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

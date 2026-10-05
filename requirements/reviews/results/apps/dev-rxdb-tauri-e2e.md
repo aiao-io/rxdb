@@ -16,7 +16,7 @@ execution: partial
 
 Vitest 驱动的真实 Tauri desktop/devtools smoke；不是普通 Playwright e2e 目标。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -31,8 +31,8 @@ Vitest 驱动的真实 Tauri desktop/devtools smoke；不是普通 Playwright e2
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -51,7 +51,7 @@ Vitest 驱动的真实 Tauri desktop/devtools smoke；不是普通 Playwright e2
 
 ## 专项任务核销
 
-- [两个真实打包 smoke 通过](../../evidence/2026-10-03/full-run/tauri-smoke.txt)。
+- 两个真实打包 smoke 通过。
 
 上述只是对应任务/平台的证据，专项 C 项/其它宿主未自动完成。
 
@@ -61,7 +61,7 @@ Vitest 驱动的真实 Tauri desktop/devtools smoke；不是普通 Playwright e2
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 已有2026-10-04/05前段HTTP/SQLite/进程内host证据仅保留历史；历史401/SWR/outbox修复不重新登记，RV-058已Resolved。进程内host不是GUI/真实IPC。
 
@@ -74,6 +74,6 @@ Vitest 驱动的真实 Tauri desktop/devtools smoke；不是普通 Playwright e2
 | C5 调试与生产隔离      | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/src/devtools-release-isolation.spec.ts:53-117 capability/cfg regex与cargo-check`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/vitest.devtools.mts:26 include devtools-window/provider`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/src-tauri/src/lib.rs:388-395 编译期隔离`<br>release-isolation部分是结构/regex和cargo-check，不是release WebView授权实测；devtools smoke是另一个debug binary目标，provider真/假档需独立确认。             | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控dev/release双binary、production无入口/资源/command、capability缺失与native provider；cargo成功不能代GUI。                |
 | C6 结论与环境限定      | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/vitest.smoke.mts:26-45 全spec排除两dev例、vitest.devtools.mts:26-32 仅两dev例`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/src/desktop-backup-restore.spec.ts:174-197 crossOS skipIf`<br>两target覆盖边界已区分，default smoke与devtools不是普通e2e目标；跨OSskip/env限定必须逐项报告。当前strict lint/typecheck过，不预先写cargo/native smoke已过。                                                                                                        | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控后补两target实际logs/skip/失败/重跑/platform；未覆盖原完成条件维持partial。                                              |
 
-证据：[逐C矩阵](../../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

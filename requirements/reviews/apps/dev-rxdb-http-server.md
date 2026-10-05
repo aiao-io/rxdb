@@ -11,7 +11,7 @@ execution: in-progress
 
 > 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+导航：全仓总计划 · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
 
 ## 1. 范围与基线
 
@@ -132,7 +132,7 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-http-server:test --coverage --skipR
 
 ## 7. 本轮实际执行记录
 
-[已执行范围、实际评审意见与证据](../results/apps/dev-rxdb-http-server.md)；[全仓执行台账](../execution-2026-10-03.md)。
+[已执行范围、实际评审意见与证据](../results/apps/dev-rxdb-http-server.md)；全仓执行台账。
 
 真实 Nx serve＋隔离文件 PGlite 目录＋回环端口。正常查询 200、超限 body 413 两条路径通过；null/数组 metadata 及非法 request-target 各有实际请求证据。未执行全套端点测试、SSE/备份/分页并发或生产部署审查。
 
@@ -140,7 +140,7 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-http-server:test --coverage --skipR
 
 ### 2026-10-04 第六批：真实后端联审
 
-[原应用/PGlite + HTTP + 文件 SQLite 的实际取证](../execution-2026-10-04-sync-http-sqlite.md)。新增 RV-055，RV-052/053/054 补真实后端证据；scope、缓存收敛和配置适用性已分别写入独立执行记录，不给未测 GUI/CORS/Supabase/发布消费通过结论。
+原应用/PGlite + HTTP + 文件 SQLite 的实际取证。新增 RV-055，RV-052/053/054 补真实后端证据；scope、缓存收敛和配置适用性已分别写入独立执行记录，不给未测 GUI/CORS/Supabase/发布消费通过结论。
 
 ## 2026-10-05：parallel integrations 逐 C 交付
 
@@ -148,7 +148,7 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-http-server:test --coverage --skipR
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 **晚于门禁快照新增的探针**：`src/__tests__/review-parallel-change-broadcast-origin.spec.ts` 未运行，也未继承上述lint/typecheck；已列验证请求交主控分流。
 
@@ -163,6 +163,6 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-http-server:test --coverage --skipR
 | C5 数据事务与进程生命周期    | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/rxdb-store.ts:51-73 createRxdbRecipeStore`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/server.ts:253-282 reseed/close`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/main.ts:53-57 信号清理`<br>数据层使用真实RxDB/PGlite文件而非旧node:sqlite demo；reset先destroy再换库，body await后现取store避免已释放句柄；停机先关SSE再server/store。                                                                       | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控test中验证并发reset/请求、提交失败、信号退出、重开持久化与clear/reset不同语义；本轮没有启动进程，不判进程收束通过。                    |
 | C6 client-server conformance | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/server.ts:170-230 routeProtocol`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/recipes-repository.ts:111-125 listMetadataByOffset、308-320 deleteRecipes`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-e2e/playwright.config.ts:61-75 双服务`<br>逐项对照metadata/by-ids/create/update/delete和变更流；应用server与客户端协议路径可追溯，E2E依赖冷前端build及后端build-deps而非旧产物。                                       | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 本轮server整包、HTTP adapter wire、本轮E2E由主控后补；协议fixture/mock不能代替真实应用server的响应与数据库状态。                           |
 
-证据：[逐C矩阵](../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

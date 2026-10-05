@@ -1,1 +1,0 @@
-COMMAND: pnpm nx exec -p rxdb-plugin-search-react --skipRemoteCache --skipNxCache -- pnpm exec tsc -p /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/.review-new-parallel-specs.tsconfig.json --noEmit --pretty false

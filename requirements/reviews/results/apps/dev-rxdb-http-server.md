@@ -34,7 +34,7 @@ execution: partial
 
 ## 3. 动态证据与复验
 
-[HTTP 实际请求结果](../../evidence/2026-10-03/http-body-probes.json)
+HTTP 实际请求结果
 
 业务源码基线 `58b4bbb61efa71d4591cafab6a4c92955a7760dd`。SQL 复验明确关闭覆盖率；测试失败是预期的缺陷红灯，非 worker/service stopped 并发假失败。覆盖率未测量，也没有执行修复。
 
@@ -45,7 +45,7 @@ execution: partial
 - [ ] 适用的三框架/真实宿主及公开 API 兼容回归。
 - [ ] 四项覆盖率、整包门禁与实际应用/E2E 链路。
 
-原计划：[对应对象评审计划](../../apps/dev-rxdb-http-server.md)；进度：[全范围执行台账](../../execution-2026-10-03.md)。
+原计划：[对应对象评审计划](../../apps/dev-rxdb-http-server.md)；进度：全范围执行台账。
 
 ## 全范围启动批：入口与实际门禁
 
@@ -53,7 +53,7 @@ execution: partial
 
 隔离 HTTP 演示服务端，承载 RuleGroup 查询、ETag、分页 token、SSE/变更流和本地数据存储。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -68,9 +68,9 @@ execution: partial
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
 
 当前确认意见：RV-030（已修复，见 README 2026-10-05 清理记录）、RV-031（已修复，见 README 2026-10-05 清理记录）
 
@@ -91,7 +91,7 @@ execution: partial
 
 原四套端点/store/error/SSE **55 条均实际通过**；新增作为完整客户端后端的 12 例复验为 **5 failed /7 passed**。应用整套 **62 passed /5 failed /0 skipped**；五个红是上层 RV-052（已修复，见 README 2026-10-05 清理记录）/RV-053（已修复，见 README 2026-10-05 清理记录）/RV-054（已修复，见 README 2026-10-05 清理记录）/RV-055（已修复，见 README 2026-10-05 清理记录），不伪造服务本身新增四个根因。C2/C6 **部分执行**，鉴权仅 malformed Bearer 的既有 401，不验收真实身份认证/浏览器 CORS；新测试客户端 default memo 与 Recipe 示例 0ms 明确区分。增加五个 workspace devDeps、app/spec references 是测试基础设施，业务源码未改。
 
-[本轮实际链路与取证限制](../../execution-2026-10-04-sync-http-sqlite.md) · [完整日志](../../evidence/2026-10-04/sync-http-sqlite/final-full-app-tests.txt) · [提交/wire/队列观测](../../evidence/2026-10-04/sync-http-sqlite/final-observations.json)。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。
+本轮实际链路与取证限制 · 完整日志 · 提交/wire/队列观测。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。
 
 ## 2026-10-05：parallel integrations 逐 C 交付
 
@@ -99,7 +99,7 @@ execution: partial
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 **晚于门禁快照新增的探针**：`src/__tests__/review-parallel-change-broadcast-origin.spec.ts` 未运行，也未继承上述lint/typecheck；已列验证请求交主控分流。
 
@@ -114,6 +114,6 @@ execution: partial
 | C5 数据事务与进程生命周期    | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/rxdb-store.ts:51-73 createRxdbRecipeStore`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/server.ts:253-282 reseed/close`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/main.ts:53-57 信号清理`<br>数据层使用真实RxDB/PGlite文件而非旧node:sqlite demo；reset先destroy再换库，body await后现取store避免已释放句柄；停机先关SSE再server/store。                                                                       | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控test中验证并发reset/请求、提交失败、信号退出、重开持久化与clear/reset不同语义；本轮没有启动进程，不判进程收束通过。                    |
 | C6 client-server conformance | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/server.ts:170-230 routeProtocol`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/recipes-repository.ts:111-125 listMetadataByOffset、308-320 deleteRecipes`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-e2e/playwright.config.ts:61-75 双服务`<br>逐项对照metadata/by-ids/create/update/delete和变更流；应用server与客户端协议路径可追溯，E2E依赖冷前端build及后端build-deps而非旧产物。                                       | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 本轮server整包、HTTP adapter wire、本轮E2E由主控后补；协议fixture/mock不能代替真实应用server的响应与数据库状态。                           |
 
-证据：[逐C矩阵](../../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

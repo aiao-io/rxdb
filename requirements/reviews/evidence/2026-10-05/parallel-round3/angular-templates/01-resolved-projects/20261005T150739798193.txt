@@ -1,5 +1,0 @@
-COMMAND: ["env", "NX_WORKSPACE_DATA_DIRECTORY=/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/nx-data", "NX_CACHE_DIRECTORY=/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/nx-cache", "bash", "-c", "set -e; for project in rxdb-plugin-tree-angular rxdb-plugin-search-angular rxdb-angular; do pnpm nx show project \"$project\" --json > \"requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/resolved-$project.json\"; echo \"resolved $project exit=0\"; done"]
-CWD: /Users/jimmy/Documents/aiao/rxdb
-resolved rxdb-plugin-tree-angular exit=0
-resolved rxdb-plugin-search-angular exit=0
-resolved rxdb-angular exit=0

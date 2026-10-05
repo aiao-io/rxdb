@@ -1,5 +1,0 @@
-{
-  "redInputSha256": "4a4b6f8ccfcf63a46894b5e7d69d2a177a021804cf528574a99c6d1b6553f379",
-  "greenInputSha256": "a7fc95c42a69876ffafeacb0958d1790d120cd026b8212a236e0f86561113b22",
-  "repair": "createAndCommit 的 noteId 使用 ConformanceNote[id]，不把 UUID 主键拓宽到 string；strict/查询类型保持原合同，未 cast/any/skip。"
-}

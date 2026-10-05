@@ -16,7 +16,7 @@ execution: partial
 
 SyncType.QueryCache 查询缓存引擎、远端主适配器和离线写语义。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -31,10 +31,10 @@ SyncType.QueryCache 查询缓存引擎、远端主适配器和离线写语义。
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 全范围启动批当时尚无新增确认问题；不表示下述续评无问题，也不能据此给全对象通过结论。
 
@@ -52,7 +52,7 @@ SyncType.QueryCache 查询缓存引擎、远端主适配器和离线写语义。
 
 ## 2026-10-04：共享查询与读写竞争深审
 
-基线 `8b29b549ac5758b2e31a6148b98b8c394754e918`，详见 [本批台账](../../execution-2026-10-04-sync-querycache.md)。当前仍为**部分执行**，不作全包完成评级。
+基线 `8b29b549ac5758b2e31a6148b98b8c394754e918`，详见 本批台账。当前仍为**部分执行**，不作全包完成评级。
 
 确认两条 P2：RV-053：迟到旧 pull 回滚已确认写（已修复，见 README 2026-10-05 清理记录）、RV-054：共享 SWR 失败被记成已校验（已修复，见 README 2026-10-05 清理记录）。跨包状态问题另见 RV-052（已修复，见 README 2026-10-05 清理记录），不复制为第四条缺陷。
 
@@ -64,7 +64,7 @@ SyncType.QueryCache 查询缓存引擎、远端主适配器和离线写语义。
 | C4 插件 scope 与生命周期 | **部分执行**；独立 session memo、adapter identity/generation、scoped 注册撤销入口已读 | 连接切换、关闭中请求、同实体多库的完整生命周期矩阵              |
 | C5 公开能力收窄          | **部分执行**；duck/verb 拒绝与稳定 Repository/实验性直接引擎边界已核对                | 真实 HTTP/Supabase、Tree/Graph 限制、发布 consumer              |
 
-原基线 **197 passed、无 skip**；新增用例 **3 failed /3 passed**；最终整包 **200 passed /3 failed、无 skip**：[完整日志](../../evidence/2026-10-04/sync-querycache/final-all-tests.txt) / [JUnit](../../evidence/2026-10-04/sync-querycache/rxdb-plugin-querycache-final-junit.xml)。原 197 条仍通过。严格 lint /typecheck 通过，coverage 关闭，没有核销完整 C 专项。
+原基线 **197 passed、无 skip**；新增用例 **3 failed /3 passed**；最终整包 **200 passed /3 failed、无 skip**：完整日志 / JUnit。原 197 条仍通过。严格 lint /typecheck 通过，coverage 关闭，没有核销完整 C 专项。
 
 三个失败经实际 RxDB/EntityManager/Repository/QueryManager/插件工厂/primary/引擎执行；[helper](../../../../packages/rxdb-plugin-querycache/src/__tests__/fixtures/review-querycache-harness.ts) 的存储/远端交付仍是接缝，不能称真实 SQLite 或 HTTP/Supabase 网络实测。每例 destroy 真实 RxDB，初始缺 disconnect 的取证错误已修正并单列日志。业务实现未改，两条仍 Open。
 
@@ -72,13 +72,13 @@ SyncType.QueryCache 查询缓存引擎、远端主适配器和离线写语义。
 
 RV-053（已修复，见 README 2026-10-05 清理记录） 实测需要限定：在线新查询可收敛，origin 停止后的旧响应落地使离线读返回旧值/复活行；RV-054（已修复，见 README 2026-10-05 清理记录） 已补真实 HTTP 401→原共享回调→memo。出站新写保护另见 RV-055（已修复，见 README 2026-10-05 清理记录），不重复登记。C1/C2/C3 **部分执行**；默认 1000ms 是测试客户端配置，Recipe 示例的 0ms 不受 RV-054 影响。scope/发布消费/Supabase 仍待补证。
 
-[本轮实际链路与取证限制](../../execution-2026-10-04-sync-http-sqlite.md) · [完整日志](../../evidence/2026-10-04/sync-http-sqlite/final-full-app-tests.txt) · [提交/wire/队列观测](../../evidence/2026-10-04/sync-http-sqlite/final-observations.json)。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。
+本轮实际链路与取证限制 · 完整日志 · 提交/wire/队列观测。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。
 
 ## 2026-10-05：Supabase /真实 QueryCache 联审
 
 **部分执行，未完成全对象深审。** 原 engine/session/primary 与公开 EntityManager.findAll 路径，确认关系条件和 namespace 冷缓存两个接缝。历史 Sync/HTTP 测量不重写。
 
-确认意见：RV-060、RV-061。全批门禁、接缝和中间取证错误见 [本轮执行台账](../../execution-2026-10-05-supabase.md)；[源码指纹](../../evidence/2026-10-05/supabase/runtime-and-sources.json)、[最终计数](../../evidence/2026-10-05/supabase/final-counts.json) 与 [交付校验](../../evidence/2026-10-05/supabase/delivery-validation.json)。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
+确认意见：RV-060、RV-061。全批门禁、接缝和中间取证错误见 本轮执行台账；源码指纹、最终计数 与 交付校验。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
 
 尚需核销原 C 项中的未覆盖边界，尤其认证/RLS、Realtime、跨宿主、覆盖率与打包消费；本轮没有新增完整 C 核销。助手未修改业务源码，不操作用户暂存区。
 

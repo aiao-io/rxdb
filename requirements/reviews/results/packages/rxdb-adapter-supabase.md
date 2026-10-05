@@ -16,7 +16,7 @@ execution: partial
 
 Supabase remote adapter、repository、PostgREST 规则、分页、Realtime 与 RLS 边界。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -32,10 +32,10 @@ Supabase remote adapter、repository、PostgREST 规则、分页、Realtime 与 
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 独立 Supabase 环境通过        | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 独立 Supabase 环境通过        | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 ### 尚未完成的专项
 
@@ -54,7 +54,7 @@ Supabase remote adapter、repository、PostgREST 规则、分页、Realtime 与 
 
 **部分执行，未完成全对象深审。** 实际 SDK/REST 与普通仓储/metadata 对照，确认两项；1100 行 upsert 截断猜测被否定。未通过 RLS/Realtime/发布消费完整专题。
 
-确认意见：RV-059、RV-060。全批门禁、接缝和中间取证错误见 [本轮执行台账](../../execution-2026-10-05-supabase.md)；[源码指纹](../../evidence/2026-10-05/supabase/runtime-and-sources.json)、[最终计数](../../evidence/2026-10-05/supabase/final-counts.json) 与 [交付校验](../../evidence/2026-10-05/supabase/delivery-validation.json)。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
+确认意见：RV-059、RV-060。全批门禁、接缝和中间取证错误见 本轮执行台账；源码指纹、最终计数 与 交付校验。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
 
 尚需核销原 C 项中的未覆盖边界，尤其认证/RLS、Realtime、跨宿主、覆盖率与打包消费；本轮没有新增完整 C 核销。助手未修改业务源码，不操作用户暂存区。
 
@@ -64,7 +64,7 @@ Supabase remote adapter、repository、PostgREST 规则、分页、Realtime 与 
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 Supabase历史基线：`b7edef590051c8842d4914e30e31475977dea6ac`，2026-10-05 07:48 app:test 47、08:04 local4、08:05 remote2；package交付557pass/5fail/0skip，原553全过。**不是这次parallel门禁**。RV-059/060/061仍Open，只引用不重复登记。
 
@@ -77,6 +77,6 @@ Supabase历史基线：`b7edef590051c8842d4914e30e31475977dea6ac`，2026-10-05 0
 | C5 真实环境测试         | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts:585-608 fetchMetadata 实际SDK路径`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-supabase/src/pagination.ts:69-86 SDK分页`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-supabase/src/__tests__/review-large-rest-writes.spec.ts、review-querycache-relations.spec.ts 原失败保留`<br>已核对10-05先前隔离环境final-counts：553原例均过，交付557pass/5fail/0skip；失败属于既有RV-059/060/061。此为早先baseline，不是parallel本轮整包结果。当前主控lint/typecheck及依赖build实际过。 | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 本轮Supabase:test与认证/RPC/Realtime矩阵交主控；覆盖率四指标未收，本轮不能拿先前553或557当当前门禁。spec文件仅盘点/既有记录对照，不宣称本轮全文审阅。 |
 | C6 依赖与客户端安全     | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts:107-118 supplied client/createClient`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/src/app/runtime-config.ts:26-63 public key拒绝`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/scripts/audit-build-credentials.mjs:22-35,54-85 指纹审计`<br>adapter允许外部client，server/client安全不能混同；应用拒绝secret/service-role并只输出审计credential指纹。包依赖build/typecheck有当轮证据，不代证生产bundle无凭证或pack消费。                                                     | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控当前app冷build后audit-secrets、consumer及session轮换；SDK/RPC日志无token、privileged key不入浏览器，认证环境缺失时明确未验证。                    |
 
-证据：[逐C矩阵](../../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

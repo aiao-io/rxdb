@@ -1,1 +1,0 @@
-{"name":"@aiao/rxdb-plugin-search-angular","exports":["SearchExecutionError","useSearch"]}

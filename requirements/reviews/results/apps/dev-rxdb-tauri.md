@@ -16,7 +16,7 @@ execution: partial
 
 Tauri Angular WebView、Rust commands/capabilities、native SQLite 与 DevTools 面板集成。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -30,10 +30,10 @@ Tauri Angular WebView、Rust commands/capabilities、native SQLite 与 DevTools 
 
 | target      | 当前证据                      | 日志                                                         |
 | ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 失败，已留原日志              | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+| `lint`      | 本轮通过（限定当前配置/平台） | 执行日志      |
+| `typecheck` | 本轮通过（限定当前配置/平台） | 执行日志 |
+| `test`      | 失败，已留原日志              | 执行日志      |
+| `build`     | 本轮通过（限定当前配置/平台） | 执行日志     |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -52,8 +52,8 @@ Tauri Angular WebView、Rust commands/capabilities、native SQLite 与 DevTools 
 
 ## 专项任务核销
 
-- [Rust 三目标通过](../../evidence/2026-10-03/full-run/cargo.txt)。
-- [backend 延迟加载产物审计通过](../../evidence/2026-10-03/full-run/lazy-backend-audit.txt)。
+- Rust 三目标通过。
+- backend 延迟加载产物审计通过。
 
 上述只是对应任务/平台的证据，专项 C 项/其它宿主未自动完成。
 
@@ -61,7 +61,7 @@ Tauri Angular WebView、Rust commands/capabilities、native SQLite 与 DevTools 
 
 ### Angular 组件测试隔离复跑
 
-独立串行无缓存 **32 files / 343 passed**：[日志](../../evidence/2026-10-03/follow-up/dev-rxdb-tauri-isolated.txt)。上轮两个 DesktopLaunchService TestBed 初始化失败本轮未复现，不凭历史红灯改业务服务。
+独立串行无缓存 **32 files / 343 passed**：日志。上轮两个 DesktopLaunchService TestBed 初始化失败本轮未复现，不凭历史红灯改业务服务。
 
 此轮是项目配置的 happy-dom 测试，不是新一轮真实 Tauri 窗口/权限/持久化证明；既有 Rust/conformance/smoke 证据保持原测量面，不外推全平台。完整应用专项仍未完成。
 
@@ -71,7 +71,7 @@ Tauri Angular WebView、Rust commands/capabilities、native SQLite 与 DevTools 
 
 主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
 
-日志：[strict lint](../../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+日志：strict lint、typecheck；当轮门禁限定。
 
 已有2026-10-04/05前段HTTP/SQLite/进程内host证据仅保留历史；历史401/SWR/outbox修复不重新登记，RV-058已Resolved。进程内host不是GUI/真实IPC。
 
@@ -84,6 +84,6 @@ Tauri Angular WebView、Rust commands/capabilities、native SQLite 与 DevTools 
 | C5 打包资源与延迟后端         | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri/src/app/setup_rxdb.ts:54-75 动态backend`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri/src-tauri/tauri.conf.json:build.frontendDist/security.csp/bundle.targets`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri/src-tauri/src/lib.rs:388-417 dev专用注册/窗口`<br>frontendDist指向当前Angular产物，CSP限制connect-src，devtools注册与资源dev gating可定位；build-devtools/audit-lazy-backend必须当前执行才能证明资源闭环。 | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控冷tauri-package-dev/release、WASM/Worker/native/面板缺资源、离线安装包启动；TS依赖build不是Rust安装包通过。                            |
 | C6 Tauri 专项                 | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri/src-tauri/src/lib.rs:371-408 invoke_handler/host注册、429-464 WindowDestroyed/Exit`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri/src-tauri/capabilities/default.json/devtools.json 窗口名单`<br>command注册明确，window destroyed回收owner，退出close_all；Rust宿主授权与WebView origin/CSP需结合真实driver，而不是只看本轮TS typecheck。                                                                                           | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控cargo-check/clippy/test与两档真实smoke分别补日志；普通窗口调devtools command、transport晚到/关闭与native file操作未核销。              |
 
-证据：[逐C矩阵](../../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+证据：逐C矩阵、实际阅读、验证请求、待主控去重候选、历史验证分账。
 
 未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

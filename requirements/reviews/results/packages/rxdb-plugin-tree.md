@@ -16,7 +16,7 @@ execution: partial
 
 树实体、repository、增量查询与生成器；浏览器运行套件单独配置。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 本轮内容指纹清单。
 
 入口/配置已读取并核对：
 
@@ -31,11 +31,11 @@ execution: partial
 
 | target         | 当前证据                      | 日志                                                            |
 | -------------- | ----------------------------- | --------------------------------------------------------------- |
-| `lint`         | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)         |
-| `typecheck`    | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt)    |
-| `test`         | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)         |
-| `build`        | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)        |
-| `test-browser` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test-browser.txt) |
+| `lint`         | 本轮通过（限定当前配置/平台） | 执行日志         |
+| `typecheck`    | 本轮通过（限定当前配置/平台） | 执行日志    |
+| `test`         | 本轮通过（限定当前配置/平台） | 执行日志         |
+| `build`        | 本轮通过（限定当前配置/平台） | 执行日志        |
+| `test-browser` | 本轮通过（限定当前配置/平台） | 执行日志 |
 
 当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
 
@@ -51,13 +51,13 @@ execution: partial
 
 覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
 
-四指标合并后已通过 80% 门禁，见 [合并门禁](../../evidence/2026-10-03/full-run/merged-coverage-gate.txt)；不代表全部 C 项完成。
+四指标合并后已通过 80% 门禁，见 合并门禁；不代表全部 C 项完成。
 
 ## 2026-10-04：树查询与 DevTools 第三批深审
 
-🔴 C2 确认 RV-046（已修复，见 README 2026-10-05 清理记录）：where 截断了 SQL 遍历的中间祖先，JS merge 更新却把未知祖先当成可达，叶子只出现在增量中。真实 SQLite/RxDB 实体 save＋observable 与同库 SQL 比较 **1 failed /1 passed**：[日志](../../evidence/2026-10-04/tree-devtools/tree-filter-incremental-sqlite-linked.txt)。
+🔴 C2 确认 RV-046（已修复，见 README 2026-10-05 清理记录）：where 截断了 SQL 遍历的中间祖先，JS merge 更新却把未知祖先当成可达，叶子只出现在增量中。真实 SQLite/RxDB 实体 save＋observable 与同库 SQL 比较 **1 failed /1 passed**：日志。
 
-Node 默认 target 只跑生成器，**4 passed**；实际浏览器 target **17 files /250 passed**：[运行时日志](../../evidence/2026-10-04/tree-devtools/tree-browser-baseline.txt)。这些既有 runtime 多为模型/合并接缝，不能替代真实 SQL 对照；新漂移不被 250 个绿掩盖。PGlite 初始查询又被 RV-045 阻断，未把该增量场景冒充两端均复现。
+Node 默认 target 只跑生成器，**4 passed**；实际浏览器 target **17 files /250 passed**：运行时日志。这些既有 runtime 多为模型/合并接缝，不能替代真实 SQL 对照；新漂移不被 250 个绿掩盖。PGlite 初始查询又被 RV-045 阻断，未把该增量场景冒充两端均复现。
 
 人工检查 entity/TreeRepository/TreeHelper/merge_update、where/level 的规范化和递归 SQL。CTE 现有 1000 层保护不是无限递归，未把未测循环/深树风险直接报告成缺陷。C1 完整合法树/移动/失败原子性、其余 C2 组合与三框架仍待逐项核查；全对象不完成。
 

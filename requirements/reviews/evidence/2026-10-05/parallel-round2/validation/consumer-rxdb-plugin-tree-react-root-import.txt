@@ -1,1 +1,0 @@
-{"name":"@aiao/rxdb-plugin-tree-react","exports":["useCountAncestors","useCountDescendants","useFindAncestors","useFindDescendants"]}
