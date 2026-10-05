@@ -61,20 +61,21 @@
 
 **Purpose**: 拿到基线，确认夹具约束，验证配对规则依赖的客户端压缩不变量（research D3 的**推断**）
 
-- [ ] T001 确认 PR-A 分支基于 US-220 分支最新提交（US-220 合入 `main` 后改 rebase 到 `main`）；`pnpm nx run rxdb-adapter-supabase:test-env` 起环境，
+- [x] T001 确认 PR-A 分支基于 US-220 分支最新提交（US-220 合入 `main` 后改 rebase 到 `main`）；`pnpm nx run rxdb-adapter-supabase:test-env` 起环境，
       重载 SQL 后执行 `bash 回归脚本`，记录 16 个用例基线：15 条 `🟢 PASS`，`rls-filtered-delete` 红（期望 42501，今天成功且写了日志）。贴进 PR-A 描述草稿
-- [ ] T002 读 006 tasks T004 的「验证记录」，决定本阶段夹具表 `rls_owned_ids` 与新建夹具表是否保留 `FORCE ROW LEVEL SECURITY`：
+- [x] T002 读 006 tasks T004 的「验证记录」，决定本阶段夹具表 `rls_owned_ids` 与新建夹具表是否保留 `FORCE ROW LEVEL SECURITY`：
       探针在 `FORCE` 表上正确返回 → 保留 `FORCE`；抛「query would be affected by row-level security policy」→ 本阶段走到探针的夹具表一律只
       `ENABLE`（不 `FORCE`），并在回归 SQL 夹具区加注释说明原因。结论写回下方「决策记录」
 
-  决策记录：（实现时填写）
+  决策记录：**保留 `FORCE`**。006 T004 验证记录：探针对开了 `FORCE ROW LEVEL SECURITY` 的同步表正确返回 `{probe-forced-1}`——函数属主
+  `postgres` 带 `BYPASSRLS`，压过 `FORCE`。本阶段 `rls_owned_ids`、`rls_hidden_ids` 照常 `FORCE`，`delete-hidden-row` 等用例在 `FORCE` 表上走到探针并转绿
 
-- [ ] T003 [P] 在 `packages/rxdb/src/__tests__/sync-contract/compact-changes.spec.ts` 补三组断言，验证 `compactChanges`
+- [x] T003 [P] 在 `packages/rxdb/src/__tests__/sync-contract/compact-changes.spec.ts` 补三组断言，验证 `compactChanges`
       （`packages/rxdb/src/sync-contract/compact-changes.ts`）满足配对规则的前提：
       ① 同一实体任意变更序列压缩后，结果操作为 DELETE 当且仅当最后一条源变更为 DELETE（覆盖 INSERT→UPDATE、UPDATE→DELETE、
       INSERT→UPDATE→DELETE、DELETE→INSERT 等序列）；② INSERT→DELETE 抵消后不产生任何动作；③ 动作里的实体 id 文本与源变更的 `entityId` 逐字相同。
       跑一遍：全绿 → 在 PR-A 描述记「D3 推断已验证」；有红 → 修 `compactChanges`，不改 SQL 规则（research D3）
-- [ ] T004 [P] 在 `packages/rxdb-adapter-supabase/src/__tests__/review-regressions.spec.ts` 加一条载荷断言：一批里实体 X 为 UPDATE→DELETE、
+- [x] T004 [P] 在 `packages/rxdb-adapter-supabase/src/__tests__/review-regressions.spec.ts` 加一条载荷断言：一批里实体 X 为 UPDATE→DELETE、
       实体 Y 为 INSERT、实体 Z 为 INSERT→UPDATE 时，`rxdb_mutations` 调用参数满足：`p_changes` 中每个 main 日志的键恰好出现在
       `p_upserts` / `p_updates` / `p_deletes` 之一；`p_deletes` 的 id 恰好是「最后一条 main 日志为 DELETE」的那些键，字符串逐字相等
 
@@ -90,32 +91,32 @@
 
 ### Tests（先红）
 
-- [ ] T005 [US1] 改写回归 SQL 中的 `test_rls_filtered_delete`（AC#1，[push-integrity §2、§4](contracts/push-integrity.md)）：
+- [x] T005 [US1] 改写回归 SQL 中的 `test_rls_filtered_delete`（AC#1，[push-integrity §2、§4](contracts/push-integrity.md)）：
       在夹具区为 `rls_owned_ids` 调用 `rxdb_enable_sync_for_table('rls_owned_ids', 'rxdb_sql_regression', 'RlsOwnedId')`，`FORCE` 按 T002 决策；
       保留既有场景（SELECT `USING (true)`、DELETE 仅本人，行 `'owned-by-b'` 属 `sql-owner-b`，客户端 `sql-rls-filter-client`、`localId` 730001），
       断言补齐为：SQLSTATE `42501`；`MESSAGE` 等于 `format('rxdb: DELETE denied by row-level security: %I.%I id=%s', 'rxdb_sql_regression', 'rls_owned_ids', 'owned-by-b')`；
       `DETAIL::jsonb` 等于 `{"op":"DELETE","schema":"rxdb_sql_regression","table":"rls_owned_ids","entityId":"owned-by-b","reason":"denied"}`；
       行仍在；该客户端该 `localId` 无日志。改之前先 `grep -n rls_owned_ids 回归 SQL`，确认其它用例不因新挂的同步触发器多出日志而改变断言结果。
       单跑确认红（今天成功并写了日志）
-- [ ] T006 [US1] 在回归 SQL 新增用例 `delete-hidden-row`（AC#2）：夹具表 `rls_hidden_ids`（`text` 主键 + `owner` 列），开 RLS（`FORCE` 按 T002），
+- [x] T006 [US1] 在回归 SQL 新增用例 `delete-hidden-row`（AC#2）：夹具表 `rls_hidden_ids`（`text` 主键 + `owner` 列），开 RLS（`FORCE` 按 T002），
       SELECT 与 DELETE 策略都是 `owner = current_setting('rxdb_sql_regression.uid', true)`，挂同步触发器，一行属 `sql-owner-b`。
       拆两个函数、同一 kebab 名：`test_delete_hidden_row()`（在 `anon` 区，uid 设为 `sql-owner-a`，推送删除该行 + 一条 main DELETE 日志，
       `p_skip_sync = true`，断言 42501 且 `DETAIL.reason = 'denied'`，**不是**成功）与 `test_delete_hidden_row_verify()`（在 `RESET ROLE` 之后，
       断言行仍在、该客户端无日志）。分发区两行都用 `IN ('all', 'delete-hidden-row')`，`CASES` 只追加一次。单跑确认红
-- [ ] T007 [US1] 在回归 SQL 新增用例 `delete-gone`（AC#4，护栏）：在挂同步触发器的夹具表上，① 推送删除一个从未存在的 id + main DELETE 日志
+- [x] T007 [US1] 在回归 SQL 新增用例 `delete-gone`（AC#4，护栏）：在挂同步触发器的夹具表上，① 推送删除一个从未存在的 id + main DELETE 日志
       → 成功，返回 `deleted = 0`，日志按既有幂等语义写入 1 条；② 同组一个可删 id + 一个不存在 id → 成功，可删的行已删除；
       ③ 在不挂同步触发器的普通表上推送删除不存在的 id（`p_skip_sync = true`）→ `invalid_parameter_value`（22023）。
       单跑：①② 今天即绿（护栏），③ 今天红（今天不判定、直接成功）
-- [ ] T008 [US1] 在回归 SQL 新增用例 `mixed-batch-rollback`（AC#5）：同一次调用含一条被拒删除（`rls_owned_ids` 的 `'owned-by-b'`）+ 一条
+- [x] T008 [US1] 在回归 SQL 新增用例 `mixed-batch-rollback`（AC#5）：同一次调用含一条被拒删除（`rls_owned_ids` 的 `'owned-by-b'`）+ 一条
       可放行新建（同 schema 另一张放行表）及各自 main 日志 → 42501；调用前后对两张业务表与 `rxdb_change` 计数，全部不变。单跑确认红（今天新建落库）
 
 ### Implementation
 
-- [ ] T009 [US1] 在参考 SQL 的 `rxdb_mutations`（5 参签名）`p_deletes` 分支加 DELETE 零行判定，代码形状照 [push-integrity §2](contracts/push-integrity.md)：
+- [x] T009 [US1] 在参考 SQL 的 `rxdb_mutations`（5 参签名）`p_deletes` 分支加 DELETE 零行判定，代码形状照 [push-integrity §2](contracts/push-integrity.md)：
       只在 `p_skip_sync = true` 时执行；`rxdb_batch_delete` 返回值小于 `cardinality(ids)` 时对整组调 `rxdb_existing_ids`，非空 → `RAISE`
       `insufficient_privilege`，`MESSAGE` / `DETAIL` 取第一个被拒 id；空 → 不抛。`rxdb_batch_delete` 签名与返回值不变，不加 `RETURNING`。
       执行顺序按 [push-integrity §1](contracts/push-integrity.md)（步骤 0 留给 T014）
-- [ ] T010 [US1] 重载 SQL；单跑 `rls-filtered-delete`、`delete-hidden-row`、`delete-gone`、`mixed-batch-rollback` 全部转绿；再跑一次 `bash 回归脚本`
+- [x] T010 [US1] 重载 SQL；单跑 `rls-filtered-delete`、`delete-hidden-row`、`delete-gone`、`mixed-batch-rollback` 全部转绿；再跑一次 `bash 回归脚本`
       确认既有 16 条未回退
 
 **Checkpoint**: 幽灵 DELETE 消失（SC-001、SC-002）；此时没有逐实体回执的客户端遇到被拒删除会被卡住，所以 PR-A 合入后不单独发版（T018）
@@ -130,7 +131,7 @@
 
 ### Tests（先红）
 
-- [ ] T011 [US2] 在回归 SQL 新增用例 `push-integrity`（AC#6，[push-integrity §3](contracts/push-integrity.md)），在挂同步触发器、RLS 放行的夹具表上：
+- [x] T011 [US2] 在回归 SQL 新增用例 `push-integrity`（AC#6，[push-integrity §3](contracts/push-integrity.md)），在挂同步触发器、RLS 放行的夹具表上：
       ① 五种 `reason` 各一例——`explicit_log_in_trigger_mode`（`p_skip_sync = false` + 一条 main 日志）、`duplicate_write`（同一键同时在
       `p_upserts` 与 `p_deletes`，`DETAIL.op` 为第二次出现所在数组的操作 `DELETE`）、`unpaired_change`（main DELETE 日志无对应删除）、
       `unpaired_write`（`p_skip_sync = true`，一次 `p_updates` 写无日志，`DETAIL.op = 'UPDATE'`）、`op_mismatch`（最后一条 main 日志为 DELETE，
@@ -145,11 +146,11 @@
 
 ### Implementation
 
-- [ ] T012 [US2] 在参考 SQL 的 `rxdb_mutations` 步骤 0 实现配对校验：只读 `p_changes` / `p_upserts` / `p_updates` / `p_deletes`，
+- [x] T012 [US2] 在参考 SQL 的 `rxdb_mutations` 步骤 0 实现配对校验：只读 `p_changes` / `p_upserts` / `p_updates` / `p_deletes`，
       键 = （`COALESCE(schema, 'public')`、`table`、`id` 文本），main = `COALESCE("branchId", 'main') = 'main'`；按 §3 表的五条检查顺序，报第一处违规，
       `RAISE` 形状照 §3。校验在快照与写 `rxdb_change` 之前，失败时什么都没写。可抽成内部 helper，若抽则 `SECURITY INVOKER`、
       `SET search_path = pg_catalog, pg_temp`，不 `GRANT` 给客户端角色
-- [ ] T013 [US2] 重载 SQL；单跑 `push-integrity` 转绿；`pnpm nx test rxdb-adapter-supabase` 全绿（正常推送路径因配对校验被拒 0 次，SC-003）
+- [x] T013 [US2] 重载 SQL；单跑 `push-integrity` 转绿；`pnpm nx test rxdb-adapter-supabase` 全绿（正常推送路径因配对校验被拒 0 次，SC-003）
 
 **Checkpoint**: 推送入口不再接受不配对的调用
 
@@ -161,17 +162,17 @@
 
 **Independent Test**: `bash 回归脚本` 20 条全部 `🟢 PASS`
 
-- [ ] T014 [US7] 在回归 SQL 的 `test_update_denied`（006 T023）加一条断言：`p_skip_sync = true` 推送被拒修改后，该 `clientId` 无新日志；
+- [x] T014 [US7] 在回归 SQL 的 `test_update_denied`（006 T023）加一条断言：`p_skip_sync = true` 推送被拒修改后，该 `clientId` 无新日志；
       在函数头加注释「同时覆盖 US-218 AC#3」。护栏，今天即绿
-- [ ] T015 [US7] 重载 SQL 后执行 `bash 回归脚本`，20 个用例全部 `🟢 PASS`；完整输出贴进 PR-A 描述（FR-027）
-- [ ] T016 [P] [US7] 文档口径核对：`contracts/push-integrity.md` §4、`quickstart.md` A1、`plan.md` Project Structure 的用例数均为「新增 4 条、共 20 条」，AC#3 注明由 US-220 `update-denied` 覆盖（T014）；与实跑结果不符则同步修正
+- [x] T015 [US7] 重载 SQL 后执行 `bash 回归脚本`，20 个用例全部 `🟢 PASS`；完整输出贴进 PR-A 描述（FR-027）
+- [x] T016 [P] [US7] 文档口径核对：`contracts/push-integrity.md` §4、`quickstart.md` A1、`plan.md` Project Structure 的用例数均为「新增 4 条、共 20 条」，AC#3 注明由 US-220 `update-denied` 覆盖（T014）；与实跑结果不符则同步修正
 
 ### PR-A 收尾
 
-- [ ] T017 跑 PR-A 门禁：`pnpm nx run-many -t lint test --projects=rxdb,rxdb-adapter-supabase`；本 PR 只改 SQL 与测试，不涉及导出、系统表，其余门禁不需要
-- [ ] T018 [P] 在 `requirements/release-plan.md` 标注：US-218 阶段 A 合入后不单独发版，与阶段 B 同一版本发布（research D4）；该版本含系统模式 7，
+- [x] T017 跑 PR-A 门禁：`pnpm nx run-many -t lint test --projects=rxdb,rxdb-adapter-supabase`；本 PR 只改 SQL 与测试，不涉及导出、系统表，其余门禁不需要
+- [x] T018 [P] 在 `requirements/release-plan.md` 标注：US-218 阶段 A 合入后不单独发版，与阶段 B 同一版本发布（research D4）；该版本含系统模式 7，
       属 `kind=migration`，按 release-plan 须先有一个 `kind=bridge` 版本；与 US-305 迁移版本如何合并由发布负责人定。不改 `requirements/migration-release.json`
-- [ ] T019 更新 `requirements/stories/adapter/US-218-supabase-rls-push-integrity.md` 验收表 AC#1～7 状态与「实现文件」，同步 `requirements/status-overview.md`；
+- [x] T019 更新 `requirements/stories/adapter/US-218-supabase-rls-push-integrity.md` 验收表 AC#1～7 状态与「实现文件」，同步 `requirements/status-overview.md`；
       PR-A 描述汇总 T001 基线、T002 决策、T003 结论、T015 回归输出
 
 **Checkpoint（PR-A 可合入）**: AC#1～7 有 SQL 回归证据；阶段 A 不发版，等 PR-B

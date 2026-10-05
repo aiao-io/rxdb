@@ -180,6 +180,11 @@ Supabase 适配器（唯一实现）；被拒状态复用 `RxDBChange` 与 `Sync
    「重复写」一条（[push-integrity §3](contracts/push-integrity.md)）。
 7. **被拒上报点**：changelog 推送由 `SyncManager.push` 显式触发，不经 `sync-listeners.ts` 的回推轮，所以 `reportRejections` 在
    `pushRepository` 提交后调用（D15）。
+8. **既有用例的载荷随配对校验调整**（阶段 A 实现时发现）：AC#7 要求既有用例「不变并全部 PASS」，但其中 4 条以 `p_skip_sync = true`
+   做不带日志的直写（`text-varchar`、`uuid`、`search-path`、`rls-write-boundary`），1 条只写日志不写业务（`entity-id`），
+   1 条的日志缺 `schema` / `table`（`idempotent-retry`），在配对校验下分别是 `unpaired_write`、`unpaired_change`。断言的行为不变，只调载荷：
+   无日志直写改 `p_skip_sync = false`（触发器模式），`entity-id` 补同 id 的新建，`idempotent-retry` 的日志补 `schema` / `table`。
+   客户端推送载荷本就满足配对（tasks T003、T004），这些改动不对应任何真实调用方的变化。
 
 ## Complexity Tracking
 

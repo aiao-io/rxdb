@@ -1,7 +1,7 @@
 ---
 id: US-218
 title: Supabase 远端启用 RLS 时的推送完整性
-status: Backlog
+status: In Progress
 priority: High
 epic: epic-004-future-features
 created: 2026-10-02
@@ -70,7 +70,7 @@ INVEST 检查清单:
 
 | 阶段 | 状态 | 交付                                                                                                           | 必过 AC   | 门禁                                                                      |
 | ---- | ---- | -------------------------------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------- |
-| A    | ⬜   | 参考 SQL：被 RLS 过滤或拒绝的操作不写日志，统一以 42501 拒绝；区分「被拒」与「已不存在」；日志与业务写必须配对 | AC#1～7   | `rls-filtered-delete` 转绿，阶段 A 新增用例全绿，既有 9 条 SQL 回归不回退 |
+| A    | ⚠️   | 参考 SQL：被 RLS 过滤或拒绝的操作不写日志，统一以 42501 拒绝；区分「被拒」与「已不存在」；日志与业务写必须配对 | AC#1～7   | `rls-filtered-delete` 转绿，阶段 A 新增用例全绿，既有 9 条 SQL 回归不回退 |
 | B    | ⬜   | 逐实体回执与 rejected 状态：一条被拒不再拖垮整批；被拒实体在本地回到远端状态；客户端可见被拒原因               | AC#8～16  | `RemoteMergeResult` / `mergeChanges` 契约变更过 API 基线，并附迁移说明    |
 | C    | ⬜   | 生产部署指引与 `rxdb_change` 写入收口：客户端角色不能直接写日志表，非 main 分支变更保留显式写日志的路径        | AC#17～19 | 用 `authenticated` 角色直写 `rxdb_change` 被拒；分支推送回归不回退        |
 
@@ -112,13 +112,13 @@ INVEST 检查清单:
 
 | #   | 前置条件                                                                          | 操作                                       | 预期结果                                                                                                                                                                                                                        | 状态 |
 | --- | --------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 业务表开 RLS，目标行对调用方可见，DELETE 策略不放行                               | `rxdb_mutations` 删除该行并附 DELETE       | 抛 42501；行仍在；`rxdb_change` 无该客户端的新记录（即 `rls-filtered-delete`）                                                                                                                                                  | ⬜   |
-| 2   | 业务表开 RLS，目标行存在，但 SELECT 与 DELETE 策略都不放行                        | `rxdb_mutations` 删除该行并附 DELETE       | 抛 42501，**不**按「已不存在」放过；行仍在；无新日志                                                                                                                                                                            | ⬜   |
-| 3   | 目标行对调用方可见，UPDATE 的 `USING` 策略不放行                                  | `rxdb_mutations` 推送对该行的 UPDATE       | 抛 42501；行未变；无新日志。今天的 upsert 路径已成立，作为回归护栏；US-220 改走普通 `UPDATE` 后由其 AC#4 继续保证                                                                                                               | ⬜   |
-| 4   | 目标行已被他人删除（对任何角色都不存在）                                          | `rxdb_mutations` 删除该行                  | 按既有幂等语义成功，不因「零行生效」被误判为拒绝                                                                                                                                                                                | ⬜   |
-| 5   | 同批含一条被拒操作和若干可放行操作                                                | `rxdb_mutations`                           | 整批回滚，无任何日志写入（阶段 A 的语义；阶段 B 再放开部分成功）                                                                                                                                                                | ⬜   |
-| 6   | main 分支的日志与业务写不配对：有 DELETE 日志而无对应删除，或有业务写而无对应日志 | `rxdb_mutations`                           | 拒绝，业务表与 `rxdb_change` 都不变。规则：main 分支每条日志都须有业务写；`p_skip_sync => true` 时每条业务写都须有日志（`false` 时由同步触发器写）。按 (schema, table, entityId) 配对，压缩后 N 条源变更对应 1 条业务写视为配对 | ⬜   |
-| 7   | 既有 SQL 回归 9 条                                                                | `run-supabase-sql-security-regressions.sh` | 全部 PASS                                                                                                                                                                                                                       | ⬜   |
+| 1   | 业务表开 RLS，目标行对调用方可见，DELETE 策略不放行                               | `rxdb_mutations` 删除该行并附 DELETE       | 抛 42501；行仍在；`rxdb_change` 无该客户端的新记录（即 `rls-filtered-delete`）                                                                                                                                                  | ✅   |
+| 2   | 业务表开 RLS，目标行存在，但 SELECT 与 DELETE 策略都不放行                        | `rxdb_mutations` 删除该行并附 DELETE       | 抛 42501，**不**按「已不存在」放过；行仍在；无新日志                                                                                                                                                                            | ✅   |
+| 3   | 目标行对调用方可见，UPDATE 的 `USING` 策略不放行                                  | `rxdb_mutations` 推送对该行的 UPDATE       | 抛 42501；行未变；无新日志。今天的 upsert 路径已成立，作为回归护栏；US-220 改走普通 `UPDATE` 后由其 AC#4 继续保证                                                                                                               | ✅   |
+| 4   | 目标行已被他人删除（对任何角色都不存在）                                          | `rxdb_mutations` 删除该行                  | 按既有幂等语义成功，不因「零行生效」被误判为拒绝                                                                                                                                                                                | ✅   |
+| 5   | 同批含一条被拒操作和若干可放行操作                                                | `rxdb_mutations`                           | 整批回滚，无任何日志写入（阶段 A 的语义；阶段 B 再放开部分成功）                                                                                                                                                                | ✅   |
+| 6   | main 分支的日志与业务写不配对：有 DELETE 日志而无对应删除，或有业务写而无对应日志 | `rxdb_mutations`                           | 拒绝，业务表与 `rxdb_change` 都不变。规则：main 分支每条日志都须有业务写；`p_skip_sync => true` 时每条业务写都须有日志（`false` 时由同步触发器写）。按 (schema, table, entityId) 配对，压缩后 N 条源变更对应 1 条业务写视为配对 | ✅   |
+| 7   | 既有 SQL 回归 9 条                                                                | `run-supabase-sql-security-regressions.sh` | 全部 PASS                                                                                                                                                                                                                       | ✅   |
 
 ### 阶段 B：逐实体回执
 
@@ -200,19 +200,21 @@ INVEST 检查清单:
 
 ## 实现文件
 
-| 阶段 | 路径                                                                                    | 说明                                                                             |
-| ---- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| A    | `docker/sql/04-rxdb-utils-functions.sql`                                                | `rxdb_mutations` / `rxdb_batch_delete` / `rxdb_batch_upsert`；存在性探针（若选） |
-| A    | `packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql`    | 阶段 A 回归用例（`rls-filtered-delete` 已在；AC#2～6 待补）                      |
-| A    | `packages/rxdb-adapter-supabase/src/__tests__/run-supabase-sql-security-regressions.sh` | 新用例登记进 `CASES`                                                             |
-| B    | `packages/rxdb/src/rxdb-adapter.ts`                                                     | `RemoteMergeResult` / `mergeChanges` 契约                                        |
-| B    | `packages/rxdb-plugin-sync/src/push-repository.ts`                                      | 逐实体结果扇出、rejected 不重推、被拒实体本地对齐、依赖级联                      |
-| B    | `packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts`                             | 按新契约返回回执；`executeRetryableWrite` 保留 SQLSTATE                          |
-| B    | `packages/rxdb-adapter-supabase/src/supabase.helpers.ts`                                | `validateMergeResponse` 按新回执形状校验                                         |
-| B    | `packages/rxdb-test/src/cross-framework-fixtures/sync-override.ts`                      | 测试夹具按新契约返回                                                             |
-| B    | `website/docs/migration/`                                                               | 契约变更迁移说明                                                                 |
-| C    | `docker/sql/01-rxdb-system-tables.sql`、`docker/sql/02-*.sql`                           | `rxdb_change` 权限与日志写入路径                                                 |
-| C    | `website/docs/adapters/supabase.md`                                                     | 生产部署指引                                                                     |
+| 阶段 | 路径                                                                                    | 说明                                                                                                                                               |
+| ---- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A    | `docker/sql/04-rxdb-utils-functions.sql`                                                | `rxdb_mutations`：DELETE 零行判定（探针 `rxdb_existing_ids`，42501 `denied`）；配对校验 `rxdb_assert_push_integrity`（`RX002`）                    |
+| A    | `packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql`    | 改写 `rls-filtered-delete`；新增 `delete-hidden-row` / `delete-gone` / `mixed-batch-rollback` / `push-integrity`；`update-denied` 补 AC#3 日志断言 |
+| A    | `packages/rxdb/src/__tests__/sync-contract/compact-changes.spec.ts`                     | 配对规则依赖的压缩不变量：每键恰一个动作，DELETE ⇔ 最后一条为 DELETE                                                                               |
+| A    | `packages/rxdb-adapter-supabase/src/__tests__/review-regressions.spec.ts`               | `mergeChanges` 载荷里每个 main 日志键恰对应一次业务写                                                                                              |
+| A    | `packages/rxdb-adapter-supabase/src/__tests__/run-supabase-sql-security-regressions.sh` | 新用例登记进 `CASES`                                                                                                                               |
+| B    | `packages/rxdb/src/rxdb-adapter.ts`                                                     | `RemoteMergeResult` / `mergeChanges` 契约                                                                                                          |
+| B    | `packages/rxdb-plugin-sync/src/push-repository.ts`                                      | 逐实体结果扇出、rejected 不重推、被拒实体本地对齐、依赖级联                                                                                        |
+| B    | `packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts`                             | 按新契约返回回执；`executeRetryableWrite` 保留 SQLSTATE                                                                                            |
+| B    | `packages/rxdb-adapter-supabase/src/supabase.helpers.ts`                                | `validateMergeResponse` 按新回执形状校验                                                                                                           |
+| B    | `packages/rxdb-test/src/cross-framework-fixtures/sync-override.ts`                      | 测试夹具按新契约返回                                                                                                                               |
+| B    | `website/docs/migration/`                                                               | 契约变更迁移说明                                                                                                                                   |
+| C    | `docker/sql/01-rxdb-system-tables.sql`、`docker/sql/02-*.sql`                           | `rxdb_change` 权限与日志写入路径                                                                                                                   |
+| C    | `website/docs/adapters/supabase.md`                                                     | 生产部署指引                                                                                                                                       |
 
 ## References
 
