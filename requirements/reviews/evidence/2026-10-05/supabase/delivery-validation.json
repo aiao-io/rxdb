@@ -1,0 +1,61 @@
+{
+  "applicationUnitTests": 47,
+  "assistantBusinessImplementationChanges": false,
+  "assistantIndexOrCommitOperations": false,
+  "brokenLocalPathLinks": [],
+  "checkedAt": "2026-10-05T08:37:27.089435+08:00",
+  "clientDate": "2026-10-05",
+  "deliveryHead": "c72d0193e9872af03d828a9f3d7d740efffd5f00",
+  "evidenceTrackable": true,
+  "executionRecordCount": 70,
+  "existingSpecTypecheck": {
+    "exitCode": 1,
+    "diagnostics": 9,
+    "files": 3
+  },
+  "finalSupabaseTests": {
+    "passed": 557,
+    "failed": 5,
+    "skipped": 0
+  },
+  "focusedTests": {
+    "passed": 4,
+    "failed": 5,
+    "skipped": 0
+  },
+  "limits": [
+    "Filesystem link targets only, not URL/anchor correctness.",
+    "Fingerprint checks cover listed reviewed inputs, not a claim that the entire dependency universe is unchanged.",
+    "External graph/PGlite/encrypted changes and external staging are preserved.",
+    "No coverage, authenticated RLS, successful Realtime handshake, all-host conformance or full-object sign-off."
+  ],
+  "localE2EPassed": 4,
+  "localMarkdownPathLinksChecked": 4093,
+  "measurementBaselineHead": "b7edef590051c8842d4914e30e31475977dea6ac",
+  "newConfirmedFindings": ["RV-059", "RV-060", "RV-061"],
+  "newFullyClosedChecks": 0,
+  "newSpecTypecheck": "passed",
+  "planCount": 70,
+  "postBuildCredentialAudit": {
+    "exitCode": 0,
+    "scannedArtifacts": 44
+  },
+  "priorOriginalTestsRetained": 553,
+  "rawTextAttributesUnset": true,
+  "remoteE2EPassed": 2,
+  "scopedFormatAndDiffCheck": {
+    "files": 65,
+    "allPassed": true
+  },
+  "sixObjectConfiguredTypecheck": "passed",
+  "sixObjectStrictLint": "passed",
+  "sourceFingerprints": {
+    "sourceSha256": 123,
+    "additionalSourceSha256": 8,
+    "reproductionSha256": 2
+  },
+  "specializedCheckCount": 385,
+  "temporaryProbeConfigsRemoved": true,
+  "uniqueFingerprintedInputs": 132,
+  "wholeObjectsComplete": 0
+}
