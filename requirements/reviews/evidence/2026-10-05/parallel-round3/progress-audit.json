@@ -1,7 +1,7 @@
 {
   "clientDate": "2026-10-05",
-  "checkedAt": "2026-10-05T15:39:15.468435+08:00",
-  "head": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+  "checkedAt": "2026-10-05T15:49:15.399609+08:00",
+  "head": "fb6c31ebc02e19bbdce22d3d27d4caf628c07752",
   "scope": {
     "effectivePackages": 50,
     "apps": 22,
@@ -181,8 +181,8 @@
       "currentNxRoot": "packages/code-editor",
       "plan": "requirements/reviews/packages/code-editor.md",
       "result": "requirements/reviews/results/packages/code-editor.md",
-      "planSha256": "3a96885b6857db85708af21bfc1c4d4a88046481e43d976a9895550db2a571f9",
-      "resultSha256": "cf64fd549a911bae674cd376da1f852a673e5dcce70cc3f56f03754cc372e721",
+      "planSha256": "67f2f7ecbb410cc250aa83c92781150f81edad73f6dbe50aa12e1c9ad948ac22",
+      "resultSha256": "cdb991aae510a84fb3629dc0ec61cf158345ede0536bcf5073aa03318c74945a",
       "executionFrontmatterAtSnapshot": "partial",
       "fullObjectValidatedClosed": false,
       "C": [
@@ -494,7 +494,7 @@
       "plan": "requirements/reviews/packages/rxdb-adapter-pglite.md",
       "result": "requirements/reviews/results/packages/rxdb-adapter-pglite.md",
       "planSha256": "56967feba5b04916600c02ed700ca537f829ace3aeb679a59027f4ff0e2633b9",
-      "resultSha256": "af94d48a9bab6429cbbd8ae44f1e15815c9eaafc9697362d89e1520c8726deb5",
+      "resultSha256": "9dd5cb83564a2f8e4991b22daeeb6cdf288faaa6d76fa51787808d4ee2bc77dd",
       "executionFrontmatterAtSnapshot": "partial",
       "fullObjectValidatedClosed": false,
       "C": [
@@ -1471,8 +1471,8 @@
       "currentNxRoot": "packages/rxdb-plugin-replay-angular",
       "plan": "requirements/reviews/packages/rxdb-plugin-replay-angular.md",
       "result": "requirements/reviews/results/packages/rxdb-plugin-replay-angular.md",
-      "planSha256": "3ea0911bfdb1eec0e0f237043b200a36e25dde07a310c67b60cecf4601544285",
-      "resultSha256": "aa756f8c92cd1669f21f8a74fcd8b3b73c4681bb7503e1acb7a3c5b4fe42c9d6",
+      "planSha256": "4d0d0e39dd65bf33f68e6bb2c66fa015cd5ec4a6141f0e7ac448df91926f447b",
+      "resultSha256": "aebc3be5a58e71e6d6b7010b849755c20a4f7b0adce8fb49241dd658e1790ef6",
       "executionFrontmatterAtSnapshot": "partial",
       "fullObjectValidatedClosed": false,
       "C": [
@@ -1625,7 +1625,7 @@
       "plan": "requirements/reviews/packages/rxdb-plugin-replay.md",
       "result": "requirements/reviews/results/packages/rxdb-plugin-replay.md",
       "planSha256": "5eaf0ab9888a4d903d8f1e45269876d0750d009ce71c831288025a9ef94591dc",
-      "resultSha256": "0c1b3fe6f389c384e9e7dd5a3841f4c69afbe10d7ffcded4c8e8f091eb24d85e",
+      "resultSha256": "cec9b38b2800d4a8117256499d718168a2731abd4b1ee17910160977baf977f9",
       "executionFrontmatterAtSnapshot": "partial",
       "fullObjectValidatedClosed": false,
       "C": [
@@ -1675,8 +1675,8 @@
       "currentNxRoot": "packages/rxdb-plugin-search-angular",
       "plan": "requirements/reviews/packages/rxdb-plugin-search-angular.md",
       "result": "requirements/reviews/results/packages/rxdb-plugin-search-angular.md",
-      "planSha256": "16910064fb4547a2e1701a5baf1d8c0a8137fc4f1c11a99ccc969fe43de1dee4",
-      "resultSha256": "0366be3b5f34e647eb553dc7e85825d672031760b708963b180ae6db4efbcff9",
+      "planSha256": "75f006f4ac7633e22d0e55e9816491df99ebd405bb1687534e3eb22a2996b04c",
+      "resultSha256": "c271a4ad109b7431781d7512ba848c6ccb61c5a6577cbf3953d9105934968d86",
       "executionFrontmatterAtSnapshot": "partial",
       "fullObjectValidatedClosed": false,
       "C": [
@@ -1726,8 +1726,8 @@
       "currentNxRoot": "packages/rxdb-plugin-search-react",
       "plan": "requirements/reviews/packages/rxdb-plugin-search-react.md",
       "result": "requirements/reviews/results/packages/rxdb-plugin-search-react.md",
-      "planSha256": "9c42a9a5b2c398dea48043b23d6b75ef3c934343f3ba95d05ba35fe619fe78c4",
-      "resultSha256": "6311738d65c3fd6fe386d6c3b0f6601656c03d88765ea413ed194f37a901d400",
+      "planSha256": "815b452019911d59c5f9530de82f321fe3d1cbe6ff610028b4af4c550fd64913",
+      "resultSha256": "03c958fda0af520be86e5613c572b588c07677b9527d3f257c199718c5215e08",
       "executionFrontmatterAtSnapshot": "partial",
       "fullObjectValidatedClosed": false,
       "C": [
@@ -1777,8 +1777,8 @@
       "currentNxRoot": "packages/rxdb-plugin-search-vue",
       "plan": "requirements/reviews/packages/rxdb-plugin-search-vue.md",
       "result": "requirements/reviews/results/packages/rxdb-plugin-search-vue.md",
-      "planSha256": "d53d45c0c2b89937387881233ea5fc39b55c9b7fb261b35caacd7ac49fee0411",
-      "resultSha256": "5f3c6aea1bf614a95e22df4ecb122933a8642b94be5ad4bfe828ba22f18cfe2d",
+      "planSha256": "8d41383e3406700a8f8b36bb57a743f4623abe659dfa81845b3a4981bf1138e1",
+      "resultSha256": "945b2ca349e7c632448b5e98374df09ad976e06cafbc7bb1fdef2d8ed5ec11c0",
       "executionFrontmatterAtSnapshot": "partial",
       "fullObjectValidatedClosed": false,
       "C": [
@@ -1993,8 +1993,8 @@
       "currentNxRoot": "packages/rxdb-plugin-tree-angular",
       "plan": "requirements/reviews/packages/rxdb-plugin-tree-angular.md",
       "result": "requirements/reviews/results/packages/rxdb-plugin-tree-angular.md",
-      "planSha256": "bab2d46b0a2ee1fe69558a6c957073977cb80a3dbb907fb8279ba4bf6d323236",
-      "resultSha256": "7d9f33fb395c78068fdfe7ddaf1cdd6201cf4ef657854d9f8f3e4c0783052901",
+      "planSha256": "a36d84a9a8f080c285fd8d9a198f88bed2c1b3308ffe8de590f1370724757bf6",
+      "resultSha256": "49871c10a9b8e9dc80d29455ade2591fa70757239ea347724396e67600728773",
       "executionFrontmatterAtSnapshot": "partial",
       "fullObjectValidatedClosed": false,
       "C": [
@@ -2044,8 +2044,8 @@
       "currentNxRoot": "packages/rxdb-plugin-tree-react",
       "plan": "requirements/reviews/packages/rxdb-plugin-tree-react.md",
       "result": "requirements/reviews/results/packages/rxdb-plugin-tree-react.md",
-      "planSha256": "f15db2828c02255b390d252274e665e165e578127da88d1f8579354381cd6401",
-      "resultSha256": "dbac1a7a5a9cd13791d0b840a72d31d617ce0827a2c73f2d3a22874ead814fa7",
+      "planSha256": "35edb3dd2906382d59d27318c459762377104b674aaf8da80a0958020ef41e81",
+      "resultSha256": "38b2ebec35db55a117b3a3e2bf4e72b76785557507d0c5661a372b13db44c7da",
       "executionFrontmatterAtSnapshot": "partial",
       "fullObjectValidatedClosed": false,
       "C": [
@@ -2095,8 +2095,8 @@
       "currentNxRoot": "packages/rxdb-plugin-tree-vue",
       "plan": "requirements/reviews/packages/rxdb-plugin-tree-vue.md",
       "result": "requirements/reviews/results/packages/rxdb-plugin-tree-vue.md",
-      "planSha256": "0c9da8fa70489df55ff2388d5c7d2c5271c7520fd2c0589e566ecf23273d71d8",
-      "resultSha256": "b844c9495d689c64b8551c5ed47d872ebf1290faf8774194ac7cfbf67897cc27",
+      "planSha256": "a8d3d5c2c204514834db8c1f779da71c7baec46828169089ad14824ec2be650a",
+      "resultSha256": "0d12a32b203a78d48da96407c1f7be8f81ea7794ef291464a4a96a5c31ced9d8",
       "executionFrontmatterAtSnapshot": "partial",
       "fullObjectValidatedClosed": false,
       "C": [
@@ -2197,8 +2197,8 @@
       "currentNxRoot": "packages/rxdb-plugin-working-tree-angular",
       "plan": "requirements/reviews/packages/rxdb-plugin-working-tree-angular.md",
       "result": "requirements/reviews/results/packages/rxdb-plugin-working-tree-angular.md",
-      "planSha256": "2372161f40c1804c14a514bb1b9be932edef88d05a57119ab48b8fc54ad4f718",
-      "resultSha256": "49ed2e8dea50dbc0fe58475c42b5949c81311e3cfd27ea3c67907cb9a695a137",
+      "planSha256": "278db83bddb37a692781acf161f65cf6e1387854c6cb2da3ad16eec2495e0552",
+      "resultSha256": "a92e150fc3d4c0b8bf7aad09f94e6add4c18cfc0c6e23eacaafecfde4833b2a1",
       "executionFrontmatterAtSnapshot": "complete",
       "fullObjectValidatedClosed": false,
       "C": [
@@ -2299,8 +2299,8 @@
       "currentNxRoot": "packages/rxdb-plugin-working-tree-vue",
       "plan": "requirements/reviews/packages/rxdb-plugin-working-tree-vue.md",
       "result": "requirements/reviews/results/packages/rxdb-plugin-working-tree-vue.md",
-      "planSha256": "27257d42e79dcb24c194b18afb0889bcaf2115d165b602cba1acd2be1cbf9ebd",
-      "resultSha256": "aaa29706dcb8a3d371ca5dd74dc692125ba857967948d24c9a5db353d8694bb6",
+      "planSha256": "3447d7a024e0aee287d782c166a270f2ff981df49b3000ed516719761705bc83",
+      "resultSha256": "7c13bab1bc918bd1add999285614099041044dbe3abf9be42f6a1c82db7b9297",
       "executionFrontmatterAtSnapshot": "partial",
       "fullObjectValidatedClosed": false,
       "C": [
@@ -2522,7 +2522,7 @@
       "plan": "requirements/reviews/packages/rxdb-test.md",
       "result": "requirements/reviews/results/packages/rxdb-test.md",
       "planSha256": "2d30504fddeb2e635a95244a0bcb359fa3e3db06d80458d7f408669147592909",
-      "resultSha256": "3e86a32977cf389bfc790d921c702df0d59f7232bbf3bd2ec3df1bafdc93f933",
+      "resultSha256": "1b15981de247eede3f251db7b9ec7dc20a8d09ea0fb3d7cda0f15e595b0840aa",
       "executionFrontmatterAtSnapshot": "partial",
       "fullObjectValidatedClosed": false,
       "C": [
@@ -4122,7 +4122,17 @@
       "total": 1
     },
     "confirmedOpenSourceIssueReportsAtRoundStart": 17,
-    "wholeReviewPlanCompleted": false
+    "wholeReviewPlanCompleted": false,
+    "confirmedOpenSourceIssueReportsCurrent": 18,
+    "openSourceSeverityCurrent": {
+      "P2": 17,
+      "P1": 1
+    },
+    "round3WorkerHandoffs": {
+      "delivered": 6,
+      "total": 6,
+      "wholeOriginalCClosureIncreaseNotClaimed": true
+    }
   },
   "fullTextReadingEvidenceByObject": {
     "code-editor": {
@@ -5136,6 +5146,11 @@
       "Keep all original C criteria, failures and raw logs.",
       "Separate full-text review/opinions, scenario-evidence closure, issue remediation and release readiness.",
       "Prioritize remaining effective object source scope and opinions instead of expanding full-platform release validation."
+    ],
+    "correctionsApplied": [
+      "Primary counts/checklist and historical dates normalized; current 73 objects/22 apps.",
+      "Ten reviewed object plan/result headers carry separate source-review, assessment-delivery, scenario-validation and release-readiness states.",
+      "All six R3 bounded workers delivered and closed; no extra full-text object credits for repeated verification."
     ]
   }
 }

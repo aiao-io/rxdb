@@ -42,5 +42,8 @@
       "agentId": "01a10ae9-9e57-7070-94e3-dce07166a392",
       "evidenceDirectory": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore"
     }
-  ]
+  ],
+  "workerTasksDelivered": 6,
+  "workerAgentsClosed": 6,
+  "wholeWorkspaceReviewComplete": false
 }

@@ -7,10 +7,10 @@ baseline: 2e820521187cbfcd1fe76fb705659fea0a548f0e
 execution: in-progress
 round2_task: R2-01
 round2_execution: stage-final-controller-owns-remaining-evidence
-source_review: complete-original-scope
-opinion_delivery: complete-original-scope
-scenario_evidence: partial
-release_readiness: not-claimed
+source-review: complete-original-scope
+assessment-delivery: complete-original-scope
+scenario-validation: partial
+release-readiness: not-claimed
 ---
 
 # code-editor：深度评审计划

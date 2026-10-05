@@ -7,10 +7,10 @@ updated: 2026-10-05
 baseline: 2e820521187cbfcd1fe76fb705659fea0a548f0e
 round2_read_head: 465f9078e9844af2cbef9936c7321a5576333a01
 execution: in-progress
-source_review: complete-original-scope
-opinion_delivery: complete-original-scope
-scenario_evidence: partial
-release_readiness: not-claimed
+source-review: complete-original-scope
+assessment-delivery: complete-original-scope
+scenario-validation: partial
+release-readiness: not-claimed
 ---
 
 # rxdb-plugin-search-react：有界收尾计划

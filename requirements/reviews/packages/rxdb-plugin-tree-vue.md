@@ -5,10 +5,10 @@ source_root: packages/rxdb-plugin-tree-vue
 created: 2026-10-03
 baseline: 2e820521187cbfcd1fe76fb705659fea0a548f0e
 execution: in-progress
-source_review: complete-original-scope
-opinion_delivery: complete-original-scope
-scenario_evidence: partial
-release_readiness: not-claimed
+source-review: complete-original-scope
+assessment-delivery: complete-original-scope
+scenario-validation: partial
+release-readiness: not-claimed
 ---
 
 # rxdb-plugin-tree-vue：深度评审计划
