@@ -1500,11 +1500,10 @@ describe('supabase review regressions', () => {
           const byParent = calls.find(call => call.method === 'in' && call.args[0] === 'parentId');
           // PostgREST 走 URL 传参，`in()` 里的 '0' 与整数 0 在服务端是同一个值
           const parentKeys = new Set((byParent?.args[1] as unknown[] | undefined)?.map(String));
-          const data = byId
-            ? nodes.filter(node => node.id === byId.args[1])
-            : byParent
-              ? nodes.filter(node => node.parentId !== null && parentKeys.has(String(node.parentId)))
-              : nodes.filter(node => node.parentId === null);
+          const data =
+            byId ? nodes.filter(node => node.id === byId.args[1])
+            : byParent ? nodes.filter(node => node.parentId !== null && parentKeys.has(String(node.parentId)))
+            : nodes.filter(node => node.parentId === null);
           return Promise.resolve(resolve({ data, error: null }));
         };
         return proxy;

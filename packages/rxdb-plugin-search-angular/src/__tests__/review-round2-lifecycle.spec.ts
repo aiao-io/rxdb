@@ -12,9 +12,9 @@ import {
   Component,
   computed,
   ErrorHandler,
+  inject,
   InjectionToken,
   Input,
-  inject,
   input,
   signal
 } from '@angular/core';

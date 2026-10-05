@@ -160,7 +160,10 @@ describe('executeHelper', () => {
   });
 
   it('多语句拒绝时第一个句柄 finalize 失败不跳过第二个句柄，且不掩盖多语句拒绝错误（RV-065）', async () => {
-    const finalize = vi.fn<SQLiteAPI['finalize']>().mockRejectedValueOnce(new Error('finalize 1 failed')).mockResolvedValueOnce(SQLITE_OK);
+    const finalize = vi
+      .fn<SQLiteAPI['finalize']>()
+      .mockRejectedValueOnce(new Error('finalize 1 failed'))
+      .mockResolvedValueOnce(SQLITE_OK);
     const sqlite = {
       set_authorizer: vi.fn(),
       finalize,

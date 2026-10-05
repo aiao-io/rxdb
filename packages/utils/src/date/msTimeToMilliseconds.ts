@@ -10,13 +10,37 @@ export type Milliseconds = number;
  * `ms`（ms@2.1.3）单位片段，大小写不敏感，与 {@link MS_TIME_PATTERN} 接受的单位同一张表。
  */
 type MSUnit =
-  | 'Years' | 'Year' | 'Yrs' | 'Yr' | 'Y'
-  | 'Weeks' | 'Week' | 'W'
-  | 'Days' | 'Day' | 'D'
-  | 'Hours' | 'Hour' | 'Hrs' | 'Hr' | 'H'
-  | 'Minutes' | 'Minute' | 'Mins' | 'Min' | 'M'
-  | 'Seconds' | 'Second' | 'Secs' | 'Sec' | 's'
-  | 'Milliseconds' | 'Millisecond' | 'Msecs' | 'Msec' | 'Ms';
+  | 'Years'
+  | 'Year'
+  | 'Yrs'
+  | 'Yr'
+  | 'Y'
+  | 'Weeks'
+  | 'Week'
+  | 'W'
+  | 'Days'
+  | 'Day'
+  | 'D'
+  | 'Hours'
+  | 'Hour'
+  | 'Hrs'
+  | 'Hr'
+  | 'H'
+  | 'Minutes'
+  | 'Minute'
+  | 'Mins'
+  | 'Min'
+  | 'M'
+  | 'Seconds'
+  | 'Second'
+  | 'Secs'
+  | 'Sec'
+  | 's'
+  | 'Milliseconds'
+  | 'Millisecond'
+  | 'Msecs'
+  | 'Msec'
+  | 'Ms';
 
 type MSUnitAnyCase = MSUnit | Uppercase<MSUnit> | Lowercase<MSUnit>;
 

@@ -1,5 +1,11 @@
 import type { RxDB } from '@aiao/rxdb';
-import { CREDENTIALS, createWorkingTreeHookStubs, deferred, diffWith, statusWith } from '@aiao/rxdb-plugin-working-tree/testing';
+import {
+  CREDENTIALS,
+  createWorkingTreeHookStubs,
+  deferred,
+  diffWith,
+  statusWith
+} from '@aiao/rxdb-plugin-working-tree/testing';
 import { RxDBProvider } from '@aiao/rxdb-react';
 import { act, cleanup, renderHook, type RenderHookOptions } from '@testing-library/react';
 import { createElement, type PropsWithChildren } from 'react';

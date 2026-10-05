@@ -22,7 +22,10 @@ const createApp = async (): Promise<RxDB> => {
   return db;
 };
 
-const createAndCommit = async (db: RxDB, title: string): Promise<{ commitId: string; noteId: ConformanceNote['id'] }> => {
+const createAndCommit = async (
+  db: RxDB,
+  title: string
+): Promise<{ commitId: string; noteId: ConformanceNote['id'] }> => {
   const note = db.entityManager.instantiate(ConformanceNote);
   note.title = title;
   note.body = null;
