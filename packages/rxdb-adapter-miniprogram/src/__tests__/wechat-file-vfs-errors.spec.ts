@@ -10,6 +10,7 @@ import { createWechatFileVFS, type WechatFileVFS } from '../wechat-file-vfs.js';
 const SQLITE_OK = 0;
 const SQLITE_IOERR = 10;
 const SQLITE_NOTFOUND = 12;
+const SQLITE_FULL = 13;
 const SQLITE_CANTOPEN = 14;
 const SQLITE_IOERR_READ = 266;
 const SQLITE_IOERR_SHORT_READ = 522;
@@ -26,6 +27,17 @@ const SQLITE_OPEN_DELETEONCLOSE = 0x00000008;
 const SQLITE_OPEN_TEMP_JOURNAL = 0x00001000;
 
 const READ_WRITE_CREATE = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+
+/** 抖音模拟器与 iOS 真机实测的配额错误，原文逐字照抄（US-211 实验 v6/v7）。 */
+function douyinQuotaError(): Error {
+  const error = new Error('writeFileSync:fail user dir saved file size limit exceeded');
+  return Object.assign(error, { name: 'API_ERROR', errNo: 21103, errorCode: 0 });
+}
+
+/** 微信文档里 `writeFileSync` 超出存储上限的文案（文档旁证，未真机复现）。 */
+function wechatQuotaError(): { readonly errMsg: string } {
+  return { errMsg: 'writeFileSync:fail the maximum size of the file storage limit is exceeded' };
+}
 const ROOT = '/data/rxdb-wa-sqlite';
 const UNKNOWN_HANDLE = 9999;
 
@@ -165,6 +177,37 @@ describe('createWechatFileVFS 引导失败', () => {
     );
   });
 
+  it.each([
+    ['抖音实测原文', 'mkdirSync:fail file already exists, mkdirSync ttfile://user/aiao-douyin-spike/fs'],
+    ['EEXIST', 'EEXIST: file already exists, mkdir'],
+    ['中文文案', '目录已存在']
+  ])('已存在的%s被吞掉', (_label, message) => {
+    const { handle } = createFixture('mkdir-exists-variants.sqlite', {
+      faults: {
+        mkdirSync: () => {
+          throw new Error(message);
+        }
+      }
+    });
+
+    expect(handle.root).toBe(ROOT);
+  });
+
+  it.each([
+    ['not exist', 'mkdirSync:fail parent directory does not exist'],
+    ['no such file', 'mkdirSync:fail no such file or directory, mkdirSync /data/rxdb-wa-sqlite']
+  ])('缺失类错误（%s）不能当成「已存在」吞掉', (_label, message) => {
+    expect(() =>
+      createFixture('mkdir-missing.sqlite', {
+        faults: {
+          mkdirSync: () => {
+            throw new Error(message);
+          }
+        }
+      })
+    ).toThrow(message);
+  });
+
   it('缺少 root 时用 wx.env.USER_DATA_PATH 推导默认目录', () => {
     const { handle } = createFixture('default-root.sqlite');
 
@@ -223,6 +266,23 @@ describe('xOpen 失败路径', () => {
 
     expect(await vfs.xOpen(0, 64, 128, READ_WRITE_CREATE, 0)).toBe(SQLITE_CANTOPEN);
     expect(handle.lastError?.message).toContain('writeFileSync(create): ENOSPC: disk full');
+  });
+
+  it('创建文件撞配额时返回 SQLITE_FULL 而不是 SQLITE_CANTOPEN', async () => {
+    const thrown = douyinQuotaError();
+    const { handle, vfs } = createFixture('create-quota.sqlite', {
+      faults: {
+        writeFileSync: () => {
+          throw thrown;
+        }
+      },
+      names: new Map([[64, 'create-quota.sqlite']])
+    });
+
+    expect(await vfs.xOpen(0, 64, 128, READ_WRITE_CREATE, 0)).toBe(SQLITE_FULL);
+    expect(handle.lastError?.message).toContain('writeFileSync(create): writeFileSync:fail user dir saved file size');
+    expect(handle.lastError?.cause).toBeInstanceOf(Error);
+    expect((handle.lastError?.cause as Error).cause).toBe(thrown);
   });
 
   it('zName 为 0 时生成临时文件并在关闭时删除', async () => {
@@ -324,6 +384,50 @@ describe('文件句柄与只读约束', () => {
 
     faults.writeFileSync = undefined;
     expect(await vfs.xClose(128)).toBe(SQLITE_OK);
+  });
+
+  it.each([
+    ['抖音实测', douyinQuotaError],
+    ['微信文档', wechatQuotaError]
+  ])('%s的配额错误：xSync 与 xClose 返回 SQLITE_FULL，lastError 保留平台原文与原始错误', async (_label, quota) => {
+    const faults: FileSystemFaults = {};
+    const { handle, vfs } = createFixture('quota.sqlite', { faults, names: new Map([[64, 'quota.sqlite']]) });
+    const thrown = quota();
+
+    expect(await vfs.xOpen(0, 64, 128, READ_WRITE_CREATE, 0)).toBe(SQLITE_OK);
+    expect(await vfs.xWrite(128, 256, 4, 0, 0)).toBe(SQLITE_OK);
+    faults.writeFileSync = () => {
+      throw thrown;
+    };
+
+    expect(await vfs.xSync(128, 0)).toBe(SQLITE_FULL);
+    const syncError = handle.lastError;
+    expect(syncError?.message).toContain(`${ROOT}/rxdb-quota.sqlite`);
+    expect(syncError?.message).toContain('limit');
+    expect(syncError?.cause).toBe(thrown);
+
+    expect(await vfs.xClose(128)).toBe(SQLITE_FULL);
+    expect(handle.lastError).not.toBe(syncError);
+    expect(handle.lastError?.cause).toBe(thrown);
+
+    faults.writeFileSync = undefined;
+    expect(await vfs.xClose(128)).toBe(SQLITE_OK);
+  });
+
+  it('不按 errNo 判配额：21103 也表示文件缺失，缺失文案仍是 SQLITE_IOERR_WRITE', async () => {
+    const faults: FileSystemFaults = {};
+    const { handle, vfs } = createFixture('errno.sqlite', { faults, names: new Map([[64, 'errno.sqlite']]) });
+    const missing = Object.assign(new Error('writeFileSync:fail no such file or directory'), { errNo: 21103 });
+
+    expect(await vfs.xOpen(0, 64, 128, READ_WRITE_CREATE, 0)).toBe(SQLITE_OK);
+    expect(await vfs.xWrite(128, 256, 4, 0, 0)).toBe(SQLITE_OK);
+    faults.writeFileSync = () => {
+      throw missing;
+    };
+
+    expect(await vfs.xSync(128, 0)).toBe(SQLITE_IOERR_WRITE);
+    expect(handle.lastError?.cause).toBe(missing);
+    faults.writeFileSync = undefined;
   });
 
   it('临时文件已被外部删除时 xClose 仍然成功', async () => {

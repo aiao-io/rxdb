@@ -18,7 +18,10 @@
     "src/**/*.test.jsx",
     "src/**/*.spec.jsx",
     "src/**/*.d.ts",
-    "src/__tests__/subframe-wasm-factory.ts"
+    "src/__tests__/subframe-wasm-factory.ts",
+    "src/__tests__/quota-file-system.ts",
+    "src/__tests__/fake-douyin.ts",
+    "src/__tests__/fake-alipay.ts"
   ],
   "references": [
     {

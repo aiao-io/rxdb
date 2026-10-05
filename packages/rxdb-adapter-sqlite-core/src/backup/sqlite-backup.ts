@@ -44,9 +44,10 @@ const PAGE_BUDGET_BYTES = 256 * 1024;
 const MAX_PAGE_ROWS = 512;
 
 const COMMA = 0x2c;
-const encoder = new TextEncoder();
+/** 抖音 iOS 没有原生编码器、polyfill 在 import 之后才装，模块顶层不能构造：第一次用到再建。 */
+let encoder: TextEncoder | undefined;
 /** 只用来校验行字面量：恢复端用同样严格的解码读条目。 */
-const utf8 = new TextDecoder('utf-8', { fatal: true });
+let utf8: TextDecoder | undefined;
 
 /** 备份一次需要的全部上下文。 */
 export interface SqliteBackupInput {
@@ -61,7 +62,7 @@ export interface SqliteBackupInput {
 
 const assertUtf8Row = (bytes: Uint8Array, tableName: string): void => {
   try {
-    utf8.decode(bytes);
+    (utf8 ??= new TextDecoder('utf-8', { fatal: true })).decode(bytes);
   } catch {
     throw new RxDBBackupError('unsupported_combination', `Table "${tableName}" has TEXT that is not valid UTF-8`, {
       details: { field: 'rowText', actual: tableName }
@@ -170,7 +171,7 @@ const dumpTable = async (
 };
 
 const writeJsonEntry = async (archive: RxDBBackupArchiveWriter, path: string, value: unknown): Promise<void> => {
-  const data = encoder.encode(JSON.stringify(value));
+  const data = (encoder ??= new TextEncoder()).encode(JSON.stringify(value));
   await archive.beginEntry({ path, kind: 'file', size: data.length });
   await archive.writeData(data);
 };

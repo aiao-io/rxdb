@@ -71,7 +71,7 @@ function resolveProjectPath(): string {
     throw new Error(
       [
         `小程序产物缺失: ${join(projectPath, 'dist', 'app.json')}`,
-        '先跑 `pnpm nx build dev-rxdb-miniprogram`（e2e-devtools target 已声明这条依赖，',
+        '先跑 `pnpm nx run dev-rxdb-miniprogram:build-weapp`（e2e-devtools target 已声明这条依赖，',
         '手工单跑 playwright 时才会撞到）。'
       ].join('\n  ')
     );

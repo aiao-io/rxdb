@@ -9,7 +9,13 @@ import { assertMiniProgramRuntimeCapabilities, checkMiniProgramRuntimeCapabiliti
 import { prepareMiniProgramRuntime } from '../runtime-polyfills.js';
 import { textDecoderPolyfill, textEncoderPolyfill } from '../text-encoding-polyfills.js';
 
-const fileSystem = {} as MiniProgramFileSystemManager;
+const fileSystem: MiniProgramFileSystemManager = {
+  accessSync: vi.fn(),
+  mkdirSync: vi.fn(),
+  readFileSync: vi.fn(),
+  unlinkSync: vi.fn(),
+  writeFileSync: vi.fn()
+};
 const wechat: MiniProgramWechatApi = {
   env: { USER_DATA_PATH: '/data' },
   getFileSystemManager: () => fileSystem
@@ -85,5 +91,34 @@ describe('微信小程序运行时能力', () => {
     expect(() => assertMiniProgramRuntimeCapabilities({ moduleFactory, wasmRuntime, wechat })).toThrow(
       'crypto.getRandomValues, structuredClone, TextEncoder, TextDecoder, performance.now'
     );
+  });
+
+  it('文件系统五个同步方法缺任何一个都不可用，逐个列出缺失的方法', () => {
+    const partial = { accessSync: vi.fn(), readFileSync: vi.fn(), writeFileSync: vi.fn() };
+    const options = {
+      moduleFactory,
+      wasmRuntime,
+      wechat: { ...wechat, getFileSystemManager: () => partial as unknown as MiniProgramFileSystemManager }
+    };
+
+    const missing = checkMiniProgramRuntimeCapabilities(options).filter(item => !item.available);
+    expect(missing.map(item => item.name)).toEqual([
+      'wx.getFileSystemManager().mkdirSync',
+      'wx.getFileSystemManager().unlinkSync'
+    ]);
+    expect(() => assertMiniProgramRuntimeCapabilities(options)).toThrow(
+      '微信小程序运行时缺少 RxDB 必需能力: wx.getFileSystemManager().mkdirSync, wx.getFileSystemManager().unlinkSync'
+    );
+  });
+
+  it('拿不到文件系统时只报入口本身', () => {
+    const options = {
+      moduleFactory,
+      wasmRuntime,
+      wechat: { ...wechat, getFileSystemManager: () => undefined as unknown as MiniProgramFileSystemManager }
+    };
+
+    const missing = checkMiniProgramRuntimeCapabilities(options).filter(item => !item.available);
+    expect(missing.map(item => item.name)).toEqual(['wx.getFileSystemManager']);
   });
 });

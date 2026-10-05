@@ -1,0 +1,11 @@
+{
+  "appid": "testAppId",
+  "description": "@aiao/rxdb-adapter-miniprogram 的 Taro + React 抖音小程序演示",
+  "projectname": "dev-rxdb-miniprogram",
+  "setting": {
+    "urlCheck": false,
+    "es6": false,
+    "minified": false,
+    "autoCompile": true
+  }
+}

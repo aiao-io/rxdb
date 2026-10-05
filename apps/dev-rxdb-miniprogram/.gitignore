@@ -6,3 +6,5 @@ node_modules/
 .DS_Store
 .swc
 *.local
+dist-tt/
+dist-alipay/

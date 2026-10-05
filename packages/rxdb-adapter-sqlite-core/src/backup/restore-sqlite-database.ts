@@ -67,7 +67,8 @@ export interface SqliteRestoreOutcome {
 type PersistentStorage = Extract<SqliteSupportedBackupStorage, { kind: 'persistent' }>;
 
 const MARKER = quote_sql_identifier(SQLITE_RESTORE_MARKER_TABLE);
-const decoder = new TextDecoder('utf-8', { fatal: true });
+/** 抖音 iOS 没有原生编码器、polyfill 在 import 之后才装，模块顶层不能构造：第一次用到再建。 */
+let decoder: TextDecoder | undefined;
 
 const corrupt = (message: string, field: string, expected?: unknown, actual?: unknown): RxDBBackupError =>
   new RxDBBackupError('corrupt_archive', message, { details: { field, expected, actual } });
@@ -234,7 +235,7 @@ const readEntryText = async (reader: RxDBBackupArchiveReader, header: RxDBBackup
     at += item.bytes.length;
   }
   try {
-    return decoder.decode(data);
+    return (decoder ??= new TextDecoder('utf-8', { fatal: true })).decode(data);
   } catch (error) {
     throw new RxDBBackupError('corrupt_archive', `Backup entry "${header.path}" is not UTF-8`, { cause: error });
   }
