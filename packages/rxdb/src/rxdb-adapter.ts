@@ -34,16 +34,45 @@ export interface PullBatchRequest {
  * 远端合并一批本地变更之后回传的结果
  *
  * @remarks
- * 两个字段都可省——远端实现可以只回传其中之一，甚至都不回传（那种情况下调用方按
- * 「无映射」处理，见 `push-repository.ts`）。
- *
- * `changeIdMapping` 是本地变更 id 到远端分配 id 的对照表：本地变更在推送前就已落盘，
- * 带的是本地自增 id，而远端有自己的一套。拿到映射才能把本地变更日志标上 `remoteId`，
- * 后续拉取时据此认出「这条是我自己推上去的」而不是当成新的远端变更再落一遍。
+ * `results` 必须恰好覆盖调用时传入的全部 `changes`：每条源变更对应恰好一条结果，
+ * 不多不少。推送方据此做覆盖检查（见 `push-repository.ts`）——缺项、重复或多余的
+ * `localId` 都视为契约违反，整轮失败、水位线不推进。不传 `changes` 时 `results`
+ * 为空数组（没有源变更可对应）。
  */
 export interface RemoteMergeResult {
+  /** 本次远端最大变更 id */
   maxChangeId?: number;
-  changeIdMapping?: Array<{ localId: number; remoteId: number }>;
+  /** 每条源变更的结果；必须恰好覆盖调用时传入的全部 `changes` */
+  results: RemoteChangeResult[];
+}
+
+/**
+ * 单条源变更的远端处理结果
+ *
+ * @remarks
+ * `localId` 对应调用 `mergeChanges` 时传入的本地变更 id（即 {@link RxDBChange.id}）。
+ * `applied` 带上远端分配的 `remoteId`——本地变更在推送前就已落盘，带的是本地自增 id，
+ * 而远端有自己的一套，拿到映射才能把本地变更日志标上 `remoteId`，后续拉取时据此认出
+ * 「这条是我自己推上去的」而不是当成新的远端变更再落一遍。`rejected` 带上拒绝详情。
+ */
+export type RemoteChangeResult =
+  | { localId: number; status: 'applied'; remoteId: number }
+  | { localId: number; status: 'rejected'; rejection: RemoteChangeRejection };
+
+/**
+ * 远端拒绝一条本地变更的原因
+ */
+export interface RemoteChangeRejection {
+  /** 数据库 SQLSTATE，例如 `42501` */
+  code: string;
+  /** 归类：权限拒绝 / 目标行已不存在 / 依赖的实体不可用 */
+  reason: 'denied' | 'gone' | 'dependency';
+  /** 远端原始消息 */
+  message: string;
+  /** 被拒的实体 */
+  entity: RemoteEntityRef;
+  /** `reason = 'dependency'` 时指向父实体；无法定位时给出约束名 */
+  dependsOn?: RemoteEntityRef | { constraint: string };
 }
 
 /**
@@ -737,7 +766,7 @@ export abstract class RxDBAdapterRemoteBase extends RxDBAdapterBase {
     actions: SwitchVersionActions,
     branchId?: string,
     changes?: IRxDBChange[]
-  ): Promise<RemoteMergeResult | number | void>;
+  ): Promise<RemoteMergeResult>;
 
   /**
    * 批量拉取多个实体的变更记录（单次 HTTP 请求）

@@ -11,6 +11,7 @@ import {
   FindOneOrFailOptions,
   FindOptions
 } from '../repository/query-options.interface.js';
+import type { RemoteChangeRejection } from '../rxdb-adapter.js';
 import { RxDBBranch } from './branch.js';
 import { IRxDBChange } from './system.interface.js';
 import { RxDBChangeOrderByField, RxDBChangeRuleGroup, RxDBChangeStaticTypes } from './types.js';
@@ -160,7 +161,7 @@ export class RxDBChange implements IRxDBChange {
    * @remarks
    * 与 {@link RxDBChange.rejectedAt} 同时写入、同时为空。
    */
-  rejection?: Record<string, unknown> | null;
+  rejection?: RemoteChangeRejection | null;
   /**
    * 命名空间
    */
