@@ -13,7 +13,7 @@ import {
   getSyncType,
   IRepository,
   type PushRepositoryResult,
-  type RemoteMergeResult,
+  type RemoteChangeResult,
   repositoryKey,
   RepositorySyncBeginEvent,
   RepositorySyncCompleteEvent,
@@ -513,7 +513,6 @@ interface CompactedPushEntry {
 interface CompactedPushBatch {
   actions: SwitchVersionActions;
   sourceChanges: RxDBChange[];
-  sourceChangesByLocalId: Map<number, RxDBChange[]>;
 }
 
 /**
@@ -581,51 +580,74 @@ function createCompactedPushBatch(entries: CompactedPushEntry[]): CompactedPushB
     inserts: new Map()
   };
   const sourceChanges: RxDBChange[] = [];
-  const sourceChangesByLocalId = new Map<number, RxDBChange[]>();
 
   for (const entry of entries) {
     actions[entry.actionKind].set(entry.key, entry.action);
     for (const sourceChange of entry.sourceChanges) {
       sourceChanges.push(sourceChange);
-      sourceChangesByLocalId.set(sourceChange.id, [sourceChange]);
     }
   }
 
   sourceChanges.sort((left, right) => left.id - right.id);
   return {
     actions,
-    sourceChanges,
-    sourceChangesByLocalId
+    sourceChanges
   };
 }
 
-function getChangeIdMapping(
-  mergeResult: RemoteMergeResult | number | void
-): NonNullable<RemoteMergeResult['changeIdMapping']> {
-  if (typeof mergeResult !== 'object' || mergeResult === null) return [];
-  return mergeResult.changeIdMapping ?? [];
-}
+/**
+ * 覆盖检查：远端结果必须与本批源变更的 localId 集合一一对应。
+ *
+ * @remarks
+ * 缺项、重复、或多出未知 localId 都视为契约违反——远端没有按约定覆盖本批全部源变更，
+ * 整轮必须失败、水位线不能推进（AC#14、FR-017）。检查先于任何本地写入，
+ * 因此失败时本地不会留下任何 `remoteId`。
+ */
+function assertMergeResultCoversBatch(results: RemoteChangeResult[], sourceChanges: RxDBChange[]): void {
+  const expectedLocalIds = new Set(sourceChanges.map(change => change.id));
+  const seenLocalIds = new Set<number>();
 
-function mapRemoteIds(
-  mapping: NonNullable<RemoteMergeResult['changeIdMapping']>,
-  sourceChangesByLocalId: Map<number, RxDBChange[]>
-): Array<{ change: RxDBChange; remoteId: number }> {
-  const resolvedMappings = mapping.map(({ localId, remoteId }) => {
-    const sourceChanges = sourceChangesByLocalId.get(localId);
-    if (!sourceChanges) {
-      throw new RxDBError(`Remote change mapping references unknown local change: ${localId}`);
+  for (const result of results) {
+    if (!expectedLocalIds.has(result.localId)) {
+      throw new RxDBError(`Remote merge result references unknown local change: ${result.localId}`);
     }
-    return { remoteId, sourceChanges };
-  });
-  const remoteIdsByChange = new Map<RxDBChange, number>();
-
-  for (const { remoteId, sourceChanges } of resolvedMappings) {
-    for (const change of sourceChanges) {
-      remoteIdsByChange.set(change, remoteId);
+    if (seenLocalIds.has(result.localId)) {
+      throw new RxDBError(`Remote merge result duplicates local change: ${result.localId}`);
     }
+    seenLocalIds.add(result.localId);
   }
 
-  return [...remoteIdsByChange].map(([change, remoteId]) => ({ change, remoteId }));
+  if (seenLocalIds.size !== expectedLocalIds.size) {
+    const missing = [...expectedLocalIds].filter(localId => !seenLocalIds.has(localId));
+    throw new RxDBError(`Remote merge result missing local changes: ${missing.join(', ')}`);
+  }
+}
+
+/**
+ * 从覆盖检查通过的结果中取出 `applied` 项，解析回对应的本地变更。
+ *
+ * @remarks
+ * `rejected` 项在这里被跳过——它们的本地落库（`rejectedAt` / `rejection` 对齐）属于 US3，
+ * 阶段 B 只保证覆盖检查通过、`applied` 项正确写回 `remoteId`。
+ */
+function mapRemoteIds(
+  results: RemoteChangeResult[],
+  sourceChanges: RxDBChange[]
+): Array<{ change: RxDBChange; remoteId: number }> {
+  const changeByLocalId = new Map(sourceChanges.map(change => [change.id, change]));
+  const mapped: Array<{ change: RxDBChange; remoteId: number }> = [];
+
+  for (const result of results) {
+    if (result.status !== 'applied') continue;
+    const change = changeByLocalId.get(result.localId);
+    if (!change) {
+      // 覆盖检查已确保 result.localId ∈ expectedLocalIds = changeByLocalId 的 key 集合
+      throw new RxDBError(`Remote merge result references unknown local change: ${result.localId}`);
+    }
+    mapped.push({ change, remoteId: result.remoteId });
+  }
+
+  return mapped;
 }
 
 async function mergePushBatch(
@@ -634,7 +656,8 @@ async function mergePushBatch(
   batch: CompactedPushBatch
 ): Promise<Array<{ change: RxDBChange; remoteId: number }>> {
   const mergeResult = await remoteAdapter.mergeChanges(batch.actions, branchId, batch.sourceChanges);
-  return mapRemoteIds(getChangeIdMapping(mergeResult), batch.sourceChangesByLocalId);
+  assertMergeResultCoversBatch(mergeResult.results, batch.sourceChanges);
+  return mapRemoteIds(mergeResult.results, batch.sourceChanges);
 }
 
 /**
