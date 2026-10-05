@@ -381,7 +381,7 @@
       T061～T064 转绿（`pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`、`pnpm nx run dev-rxdb-react-e2e:e2e`、`pnpm nx run dev-rxdb-vue-e2e:e2e`）
 - [ ] T069 [P] [US5] 核对 demo 范围与已批准偏离一致：`spec.md` US5「批准的偏离」、`contracts/sync-rejections-api.md` §4、`quickstart.md` B4、
       `research.md` D16、`plan.md`「偏离与澄清」3 与 T061～T068 的实际实现相符；不符则修实现，不改批准内容
-- [ ] T070 [P] [US5] `website/docs/plugins/rxdb-plugin-sync/README.md` 的同步状态部分加 `lastRejections`（语义：不被后续成功清空、下一轮有被拒整体替换），
+- [X] T070 [P] [US5] `website/docs/plugins/rxdb-plugin-sync/README.md` 的同步状态部分加 `lastRejections`（语义：不被后续成功清空、下一轮有被拒整体替换），
       附跨重启查询示例：查询 `RxDBChange` 中 `rejectedAt` 不为空的行
 
 **Checkpoint**: 三框架 API 对称（SC-007）

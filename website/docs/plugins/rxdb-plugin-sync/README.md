@@ -75,6 +75,43 @@ await rxdb.syncManager.pushRepository('public', 'note');
 
 `syncState` 面板上的待拉数由本包维护：远端适配器在实时订阅恢复后发 `syncState.requestPullableRefresh()`，本包接住它并调 `refreshPullableCount()`。没装本包，那个读数就是无人维护——这正是实情，不是零。
 
+## 被拒的推送
+
+远端按实体合并后整体落库或整体被拒。被拒的实体不会让整轮推送失败：本地提交照常完成，该实体的全部源变更写上 `rejectedAt` 与 `rejection`、`remoteId` 留空，此后不再重推；本轮有被拒时，本包调一次 `syncState.reportRejections()`。
+
+`SyncState.lastRejections` 是最近一轮有被拒的推送里的 `SyncRejection` 列表，每条带实体（`namespace` / `entity` / `entityId`）、合并后的远端操作 `op`、SQLSTATE `code`、归类 `reason`、远端原始 `message`、提交时刻 `at` 与源变更 `changeIds`：
+
+| `reason`     | 含义                 | 典型 `code` |
+| ------------ | -------------------- | ----------- |
+| `denied`     | 被 RLS 拒绝          | `42501`     |
+| `gone`       | 远端行已不存在       | `RX001`     |
+| `dependency` | 依赖的父实体推送失败 | `23503`     |
+
+两条语义：
+
+- **不被后续成功清空**——之后几轮推送全部成功，列表原样保留；
+- **下一轮有被拒时整体替换**——不与上一轮合并。
+
+三框架经 `useSyncState().lastRejections` 读取（Angular `Signal`、Vue `ComputedRef`、React 快照字段）。
+
+`lastRejections` 只在内存里，重启即空。跨重启要查被拒的变更，直接查 `RxDBChange` 中 `rejectedAt` 不为空的行：
+
+```ts
+import { RxDBChange } from '@aiao/rxdb';
+
+rxdb.entityManager
+  .getRepository(RxDBChange)
+  .find({
+    where: {
+      combinator: 'and',
+      rules: [{ field: 'rejectedAt', operator: '!=', value: null }]
+    }
+  })
+  .subscribe(changes => {
+    for (const change of changes) console.log(change.entity, change.rejection);
+  });
+```
+
 ## 连接纪元
 
 插件声明 `lifecycle: 'scoped'`，三处宿主改动全部登记在 `install(scope)` 收到的作用域上，`disconnectAll()` 时逆序释放，宿主不调用 `destroy()`：`SyncManager` 实例本身（`destroy()` 随它撤掉 `connected$` 自动回推订阅与远端事件监听）、`rxdb.syncManager` 槽位、`syncState.bindPullableRefresh()` 跳板。释放走逆拓扑序，本包先于历史插件撤销。
