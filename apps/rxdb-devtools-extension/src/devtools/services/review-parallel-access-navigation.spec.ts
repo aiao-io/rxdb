@@ -9,7 +9,13 @@ afterEach(() => {
 });
 
 const createAccess = () => {
-  const grant = Promise.withResolvers<boolean>();
+  const grant = (() => {
+    let resolve!: (value: boolean) => void;
+    const promise = new Promise<boolean>(done => {
+      resolve = done;
+    });
+    return { promise, resolve };
+  })();
   const activateTab = vi.fn();
   const navigations = new Set<(url: string) => void>();
   vi.stubGlobal('chrome', {

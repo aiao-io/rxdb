@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.spec.json",
+  "compilerOptions": {
+    "composite": false,
+    "incremental": false
+  },
+  "include": [
+    "src/__tests__/review-parallel-statement-cleanup.spec.ts"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-test/tsconfig.lib.json"
+    }
+  ]
+}

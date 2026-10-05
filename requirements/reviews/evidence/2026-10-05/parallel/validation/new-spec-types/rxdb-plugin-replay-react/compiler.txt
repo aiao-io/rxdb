@@ -1,0 +1,1 @@
+COMMAND: pnpm nx exec -p rxdb-plugin-replay-react --skipRemoteCache --skipNxCache -- pnpm exec tsc -p /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/.review-new-parallel-specs.tsconfig.json --noEmit --pretty false

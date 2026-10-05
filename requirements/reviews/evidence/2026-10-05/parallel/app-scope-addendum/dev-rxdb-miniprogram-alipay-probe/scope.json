@@ -1,0 +1,399 @@
+{
+  "date": "2026-10-05",
+  "object": "dev-rxdb-miniprogram-alipay-probe",
+  "kind": "apps",
+  "reason": "resolved Nx node existed before this task; original review coverage omitted it",
+  "node": {
+    "name": "dev-rxdb-miniprogram-alipay-probe",
+    "type": "app",
+    "data": {
+      "root": "apps/dev-rxdb-miniprogram-alipay-probe",
+      "targets": {
+        "typecheck": {
+          "dependsOn": [
+            "^typecheck"
+          ],
+          "cache": true,
+          "inputs": [
+            "{workspaceRoot}/tsconfig.base.json",
+            "{projectRoot}/tsconfig.json",
+            "{projectRoot}/tsconfig.app.json",
+            "{projectRoot}/tsconfig.spec.json",
+            "{projectRoot}/src/**/*.ts",
+            "{projectRoot}/scripts/*.mjs",
+            "!{projectRoot}/src/__tests__/**",
+            {
+              "dependentTasksOutputFiles": "**/*.{d.ts,d.cts,d.mts,tsbuildinfo}",
+              "transitive": true
+            },
+            {
+              "fileset": "{projectRoot}/**/*.{d.ts,d.cts,d.mts}",
+              "dependencies": true
+            },
+            "^{projectRoot}/tsconfig.lib.json"
+          ],
+          "outputs": [
+            "{projectRoot}/tsconfig.tsbuildinfo",
+            "{workspaceRoot}/dist/out-tsc/apps/dev-rxdb-miniprogram-alipay-probe/app/**/*.{d.ts,d.cts,d.mts}",
+            "{workspaceRoot}/dist/out-tsc/apps/dev-rxdb-miniprogram-alipay-probe/app/**/*.{d.ts,d.cts,d.mts}.map",
+            "{workspaceRoot}/dist/out-tsc/apps/dev-rxdb-miniprogram-alipay-probe/app/tsconfig.app.tsbuildinfo",
+            "{workspaceRoot}/dist/out-tsc/dev-rxdb-miniprogram-alipay-probe-test/**/*.{d.ts,d.cts,d.mts}",
+            "{workspaceRoot}/dist/out-tsc/dev-rxdb-miniprogram-alipay-probe-test/**/*.{d.ts,d.cts,d.mts}.map",
+            "{workspaceRoot}/dist/out-tsc/dev-rxdb-miniprogram-alipay-probe-test.tsbuildinfo"
+          ],
+          "syncGenerators": [
+            "@nx/js:typescript-sync"
+          ],
+          "metadata": {
+            "technologies": [
+              "typescript"
+            ],
+            "description": "Runs type-checking for the project.",
+            "help": {
+              "command": "pnpm exec tsc --build --help",
+              "example": {
+                "args": [
+                  "--force"
+                ]
+              }
+            }
+          },
+          "executor": "nx:run-commands",
+          "options": {
+            "cwd": "apps/dev-rxdb-miniprogram-alipay-probe",
+            "command": "tsc --build tsconfig.json --emitDeclarationOnly"
+          },
+          "configurations": {},
+          "parallelism": true
+        },
+        "lint": {
+          "cache": true,
+          "inputs": [
+            "default",
+            "^production"
+          ],
+          "outputs": [
+            "{options.outputFile}"
+          ],
+          "metadata": {
+            "technologies": [
+              "eslint"
+            ],
+            "description": "Runs ESLint on project",
+            "help": {
+              "command": "pnpm exec eslint --help",
+              "example": {
+                "options": {
+                  "max-warnings": 0
+                }
+              }
+            }
+          },
+          "executor": "nx:run-commands",
+          "options": {
+            "cwd": "apps/dev-rxdb-miniprogram-alipay-probe",
+            "command": "eslint ."
+          },
+          "configurations": {},
+          "parallelism": true
+        },
+        "test": {
+          "cache": true,
+          "inputs": [
+            "default",
+            "^production"
+          ],
+          "outputs": [
+            "{workspaceRoot}/coverage/apps/dev-rxdb-miniprogram-alipay-probe"
+          ],
+          "metadata": {
+            "technologies": [
+              "vitest"
+            ],
+            "description": "Run Vitest tests",
+            "help": {
+              "command": "pnpm exec vitest --help",
+              "example": {
+                "options": {
+                  "bail": 1,
+                  "coverage": true
+                }
+              }
+            }
+          },
+          "executor": "nx:run-commands",
+          "dependsOn": [
+            "^build"
+          ],
+          "options": {
+            "cwd": "apps/dev-rxdb-miniprogram-alipay-probe",
+            "command": "vitest"
+          },
+          "configurations": {},
+          "parallelism": true
+        },
+        "build": {
+          "cache": true,
+          "dependsOn": [],
+          "inputs": [
+            "production",
+            "^production"
+          ],
+          "executor": "nx:run-commands",
+          "outputs": [
+            "{projectRoot}/dist"
+          ],
+          "options": {
+            "command": "node scripts/build.mjs",
+            "cwd": "apps/dev-rxdb-miniprogram-alipay-probe"
+          },
+          "configurations": {},
+          "parallelism": true
+        }
+      },
+      "metadata": {},
+      "name": "dev-rxdb-miniprogram-alipay-probe",
+      "$schema": "../../node_modules/nx/schemas/project-schema.json",
+      "// build": "US-211 阶段 C 的支付宝可行性实验工程，不发布；支付宝 2026-10-04 凭本探针 v7 改判 supported 并登记 alipay。结构与 dev-rxdb-miniprogram-douyin-spike 同构：esbuild 从源码打两个包——页面包（/runtime 引导 + 不依赖核心的实验）、核心包（adapter 主入口 + 持久化 / 配额实验，由页面在 prepare 之后懒 require）；Worker 包是 adapter 包里预编译的 ES5 随机数 Worker（alipay-random-worker.js）原样拷贝。交给 adapter 的是正式支付宝 host（createAlipayMiniProgramHost）。直接打源码，所以不依赖上游 build。",
+      "projectType": "application",
+      "sourceRoot": "apps/dev-rxdb-miniprogram-alipay-probe/src",
+      "tags": [
+        "miniprogram-app"
+      ],
+      "implicitDependencies": []
+    }
+  },
+  "trackedFiles": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/README.md",
+      "sha256": "36991223ec0e6e237dd39a68dc9a41f89324d5b40bbad1fbeb85f1620bf11e8d",
+      "lines": 147
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/eslint.config.mjs",
+      "sha256": "82f8259605be05936c454fa97563935042a07dfdfcb33e260889563f975f14d9",
+      "lines": 3
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/project.json",
+      "sha256": "c65aebd8391b80006439bf70b4d07f6789816306d5741cce98dc719e1efed1f9",
+      "lines": 36
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/scripts/build.mjs",
+      "sha256": "f2ed07d4e32efde3685463bd421488527bedc9d7482c9b67992027e0252716fc",
+      "lines": 201
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/__tests__/fake-alipay.ts",
+      "sha256": "5e464023e7b281f0cb997aa8fd76e89b34ce2e93be63e6ed5266f48f089e2411",
+      "lines": 326
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/alipay-api.ts",
+      "sha256": "087e4afe138a69414330c9a8ac9e4171d13dd99a28df739ba11505cd538cb6cb",
+      "lines": 80
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/alipay-fs.spec.ts",
+      "sha256": "110ecdbbac878fd313c82e980d411c322de2f6b1fe7ea121cea47351d1b68197",
+      "lines": 141
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/alipay-fs.ts",
+      "sha256": "20252515b50e3b8cef0325c03f980808437d6ab60684e0f5b94d606c9cdfb9f2",
+      "lines": 79
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/core-contract.ts",
+      "sha256": "02a41cf5fce588cbd5e7f0d0901d73c6efd01024d92c58a7661d7e1ceb0cce47",
+      "lines": 115
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/core.ts",
+      "sha256": "edc33055c0c5b7ccd2c5758fa68f13af294496cab1b1c64efca46b72c624b5ca",
+      "lines": 239
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/describe-error.spec.ts",
+      "sha256": "fdad21eaf67332dec4ae02258155008aaaac3563fd13f11e9c69b7193119dde4",
+      "lines": 54
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/describe-error.ts",
+      "sha256": "fb6523f5b0c2eb0fef0c7103f7183ed327b69ef942d79a10ea91aaa01c15b213",
+      "lines": 90
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/dist-smoke.spec.ts",
+      "sha256": "2e0c123e757af65c33db583230c9e35a45102953b7381556fc80b59bd19f7cb8",
+      "lines": 334
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/experiments/environment.ts",
+      "sha256": "7aefb7324b46b43fc8ce65ac2655407351436adf22ac6802b1a1eb50a31fd036",
+      "lines": 134
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/experiments/fs-errors.spec.ts",
+      "sha256": "73dea30c35e6a39547482c9c95a2fc0aeb486b1cdb18c9a128cf6f5f5acb48b3",
+      "lines": 76
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/experiments/fs-errors.ts",
+      "sha256": "5ebd69d92bd15e82840a9f4a7817cd21ffa484f3f459eaa9aa19adc1d42462f7",
+      "lines": 157
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/experiments/fs-raw.ts",
+      "sha256": "a1d344b6d7399b6a66bbf2ac29595c22e82beba824074b0212ab99dcd9d9c43d",
+      "lines": 164
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/experiments/quota-accounting.spec.ts",
+      "sha256": "e7c5b243b4e7b8db1bf6f31639b7960e98366275c215301652a1ff70a99a056a",
+      "lines": 109
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/experiments/quota-accounting.ts",
+      "sha256": "dde1b318be7bfabb488e5b28ee81d17965b2f34e2967edf2b38b5c026f333d15",
+      "lines": 175
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/experiments/random.ts",
+      "sha256": "782025913be9147c643c21f99c44ae1f0371f40962b41b8562fd4527ea4239dc",
+      "lines": 71
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/experiments/wasm.ts",
+      "sha256": "0d29f1287043d2d64dd2320edd6010a00cd7b65fa9aa27d30a594f8fdb911f51",
+      "lines": 67
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/findings.spec.ts",
+      "sha256": "a4ce128e2a97a8c4b346c1347f0f31379a373faaf685f8baade2e9a71d011025",
+      "lines": 24
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/findings.ts",
+      "sha256": "f286dc00051f4a298b900ecf558121b1aec16c26d9b6824b2e17b35e900cf976",
+      "lines": 303
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/free-globals.spec.ts",
+      "sha256": "02921cb3cc0f3a30374cd8540e04428cb6a75d3fb53b7388a237e5fcbff7f0ad",
+      "lines": 19
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/free-globals.ts",
+      "sha256": "2d6d68ef3794f69a06f16c5b192f01d56e40151d9f42dade380424c3acf7ca01",
+      "lines": 36
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/official-host.ts",
+      "sha256": "08ff1b6ebbc091d930ab2f7fcd326ec98463348c975d974a64730f1e87d9610f",
+      "lines": 27
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/page.ts",
+      "sha256": "fe204dc88d71f93adccbeb2dd47dd91ec28e2c14d15a1372ad609cfb5c68a7ba",
+      "lines": 94
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/probe.ts",
+      "sha256": "2d7b657cf25dfbee2cbc930a9b0884e2965ea0669f1b390742ac9c366502ed4c",
+      "lines": 39
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/realm-probe.spec.ts",
+      "sha256": "36878a21e8cfce331597b8c00530578df635aa84b5e99725c69c4b3feb9a98c3",
+      "lines": 8
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/realm-probe.ts",
+      "sha256": "c13b546299c81b24353c4c96fec7a2a369947f7cf5c7285ec81855cce16129cc",
+      "lines": 54
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/run-probe.spec.ts",
+      "sha256": "09522a8d2ecc6b6ee2de04659aadbf94f455c2353a523cb8e2b54a1971336bf9",
+      "lines": 415
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/run-probe.ts",
+      "sha256": "2e18d0a34692044a899fad829b1ea16a2d30e27ac612d702581fd325c692e6d9",
+      "lines": 304
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/runtime-snapshot.spec.ts",
+      "sha256": "c1b7751a092b115583000fb508c55050f07ac9bc734cc6d76412ea380f173a0c",
+      "lines": 22
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/runtime-snapshot.ts",
+      "sha256": "eb27b9c792ecb3015a477d1e70151cae17237de341d55e2c68bb556d2e2df378",
+      "lines": 43
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/vfs-classifiers.spec.ts",
+      "sha256": "7a8e9d824d36256fec453d3c33a03c1bd76a880c4b955fdebfc7aa419271a5eb",
+      "lines": 57
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/vfs-classifiers.ts",
+      "sha256": "cdc6ce4c89014af9ab5964ab27ce68b7cf18ea52d0771324da81f28485189ee1",
+      "lines": 24
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/static/app.js",
+      "sha256": "1ab645c73bcea61604f9cc4805a752ab9ba8fb66813d8c57cad34328c0ce4109",
+      "lines": 1
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/static/app.json",
+      "sha256": "0e31dfffc88ee6201843e697ba1f6f8dbc3951a9440ae6650a970565668036c3",
+      "lines": 7
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/static/mini.project.json",
+      "sha256": "602cbda7d1f0e9d22cd178c90681479d78288c58d7e9396cf32d82991613aed5",
+      "lines": 11
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/static/pages/index/index.acss",
+      "sha256": "0074d2217cb439502477e411e14a814347c8ecb856dd0c591451c655b3475c18",
+      "lines": 18
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/static/pages/index/index.axml",
+      "sha256": "77145cfc7f3da1b884602e8494172746ced10e2a53021e89b7df1ae853bcad2c",
+      "lines": 8
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/static/pages/index/index.json",
+      "sha256": "8854f35a277d8ad5b8cdfb54bdcb667dbf82293e8d8699214f6d84e2bf532463",
+      "lines": 1
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/tsconfig.app.json",
+      "sha256": "5c8d5f9cf050266d1917832282fe7d9697e9f31568f7d137ce16852fab6821e3",
+      "lines": 15
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/tsconfig.json",
+      "sha256": "210c59c2969b329e8f397cd4b7a3d383c3b83b9a8117bafcfbcf0a3ff6820acb",
+      "lines": 24
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/tsconfig.spec.json",
+      "sha256": "11d1ac775d914f7f5eebe3a64adc7e8ba6d5c98fc0b5f680979212d826b6ff96",
+      "lines": 28
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/vitest.config.mts",
+      "sha256": "99d2c2ecfdf9bb9e9b5987454be86d0242ce79122a9da123fe26413b5ddbeec0",
+      "lines": 27
+    }
+  ],
+  "inventoryIsReadEvidence": false
+}

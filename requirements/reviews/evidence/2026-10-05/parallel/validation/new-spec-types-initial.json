@@ -1,0 +1,142 @@
+{
+  "scope": "Only new parallel specs with original strict compiler settings; composite/incremental disabled only for temporary noEmit checking. Production referenced declarations already built. No skipLibCheck/strict weakening and no workspace edits.",
+  "projects": [
+    {
+      "project": "rxdb-plugin-working-tree-react",
+      "exitCode": 0,
+      "diagnostics": [],
+      "specs": [
+        "packages/rxdb-plugin-working-tree-react/src/__tests__/review-parallel-provider-switch.spec.ts"
+      ]
+    },
+    {
+      "project": "rxdb-plugin-search-angular",
+      "exitCode": 0,
+      "diagnostics": [],
+      "specs": [
+        "packages/rxdb-plugin-search-angular/src/__tests__/review-parallel-real-handle.spec.ts"
+      ]
+    },
+    {
+      "project": "rxdb-adapter-sqlite-core",
+      "exitCode": 0,
+      "diagnostics": [],
+      "specs": [
+        "packages/rxdb-adapter-sqlite-core/src/__tests__/review-parallel-oo1-init-close.spec.ts",
+        "packages/rxdb-adapter-sqlite-core/src/__tests__/review-parallel-init-disconnect.spec.ts"
+      ]
+    },
+    {
+      "project": "rxdb-adapter-sqlite-wasm",
+      "exitCode": 0,
+      "diagnostics": [],
+      "specs": [
+        "packages/rxdb-adapter-sqlite-wasm/src/__tests__/review-parallel-statement-cleanup.spec.ts"
+      ]
+    },
+    {
+      "project": "rxdb-plugin-replay-react",
+      "exitCode": 0,
+      "diagnostics": [],
+      "specs": [
+        "packages/rxdb-plugin-replay-react/src/__tests__/review-parallel-layout-seek.spec.ts"
+      ]
+    },
+    {
+      "project": "rxdb-plugin-search-react",
+      "exitCode": 0,
+      "diagnostics": [],
+      "specs": [
+        "packages/rxdb-plugin-search-react/src/__tests__/review-parallel-real-handle.spec.ts"
+      ]
+    },
+    {
+      "project": "rxdb-plugin-search-vue",
+      "exitCode": 0,
+      "diagnostics": [],
+      "specs": [
+        "packages/rxdb-plugin-search-vue/src/__tests__/review-parallel-real-handle.spec.ts"
+      ]
+    },
+    {
+      "project": "rxdb-client-generator",
+      "exitCode": 0,
+      "diagnostics": [],
+      "specs": [
+        "packages/rxdb-client-generator/src/__tests__/cli/review-parallel-glob-patterns.spec.ts"
+      ]
+    },
+    {
+      "project": "code-editor-angular",
+      "exitCode": 0,
+      "diagnostics": [],
+      "specs": [
+        "packages/code-editor-angular/src/__tests__/review-parallel-form-value.spec.ts"
+      ]
+    },
+    {
+      "project": "rxdb-devtools-extension",
+      "exitCode": 1,
+      "diagnostics": [
+        "../../apps/rxdb-devtools-extension/src/devtools/services/review-parallel-access-navigation.spec.ts(12,25): error TS2550: Property 'withResolvers' does not exist on type 'PromiseConstructor'. Do you need to change your target library? Try changing the 'lib' compiler option to 'es2024' or later."
+      ],
+      "specs": [
+        "apps/rxdb-devtools-extension/src/devtools/services/review-parallel-access-navigation.spec.ts"
+      ]
+    },
+    {
+      "project": "rxdb-plugin-storage",
+      "exitCode": 0,
+      "diagnostics": [],
+      "specs": [
+        "packages/rxdb-plugin-storage/src/__tests__/review-parallel-preview-lifecycle.spec.ts"
+      ]
+    },
+    {
+      "project": "rxdb-plugin-replay",
+      "exitCode": 0,
+      "diagnostics": [],
+      "specs": [
+        "packages/rxdb-plugin-replay/src/__tests__/review-parallel-restore.spec.ts"
+      ]
+    },
+    {
+      "project": "rxdb-plugin-search",
+      "exitCode": 0,
+      "diagnostics": [],
+      "specs": [
+        "packages/rxdb-plugin-search/src/__tests__/review-parallel-loadmore-settlement.spec.ts"
+      ]
+    },
+    {
+      "project": "dev-rxdb-http-server",
+      "exitCode": 1,
+      "diagnostics": [
+        "../../apps/dev-rxdb-http-server/src/__tests__/review-parallel-change-broadcast-origin.spec.ts(29,29): error TS2345: Argument of type '{ dbName: string; entities: never[]; }' is not assignable to parameter of type 'RxDBOptions'."
+      ],
+      "specs": [
+        "apps/dev-rxdb-http-server/src/__tests__/review-parallel-change-broadcast-origin.spec.ts"
+      ]
+    },
+    {
+      "project": "rxdb-test",
+      "exitCode": 1,
+      "diagnostics": [
+        "../rxdb-test/src/__tests__/transaction/review-parallel-teardown-rejection.spec.ts(34,77): error TS2322: Type '{}' is not assignable to type 'SyncOptions'."
+      ],
+      "specs": [
+        "packages/rxdb-test/src/__tests__/transaction/review-parallel-teardown-rejection.spec.ts"
+      ]
+    },
+    {
+      "project": "utils",
+      "exitCode": 0,
+      "diagnostics": [],
+      "specs": [
+        "packages/utils/src/__tests__/lifecycle/review-parallel-acquire-close.spec.ts",
+        "packages/utils/src/__tests__/object/review-parallel-clone-array-shape.spec.ts"
+      ]
+    }
+  ],
+  "temporaryConfigsRemoved": true
+}

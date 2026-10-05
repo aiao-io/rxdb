@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.spec.json",
+  "compilerOptions": {
+    "composite": false,
+    "incremental": false
+  },
+  "include": [
+    "src/__tests__/review-parallel-form-value.spec.ts"
+  ],
+  "references": [
+    {
+      "path": "../code-editor/tsconfig.lib.json"
+    }
+  ]
+}

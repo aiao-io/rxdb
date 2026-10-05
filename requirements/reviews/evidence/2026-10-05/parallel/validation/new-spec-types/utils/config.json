@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.spec.json",
+  "compilerOptions": {
+    "composite": false,
+    "incremental": false
+  },
+  "include": [
+    "src/__tests__/lifecycle/review-parallel-acquire-close.spec.ts",
+    "src/__tests__/object/review-parallel-clone-array-shape.spec.ts"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.spec.json",
+  "compilerOptions": {
+    "composite": false,
+    "incremental": false
+  },
+  "include": [
+    "src/__tests__/review-parallel-preview-lifecycle.spec.ts"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-adapter-wa-sqlite/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-adapter-electron/tsconfig.lib.json"
+    }
+  ]
+}

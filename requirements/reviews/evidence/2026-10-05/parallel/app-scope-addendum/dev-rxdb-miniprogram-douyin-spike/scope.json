@@ -1,0 +1,364 @@
+{
+  "date": "2026-10-05",
+  "object": "dev-rxdb-miniprogram-douyin-spike",
+  "kind": "apps",
+  "reason": "resolved Nx node existed before this task; original review coverage omitted it",
+  "node": {
+    "name": "dev-rxdb-miniprogram-douyin-spike",
+    "type": "app",
+    "data": {
+      "root": "apps/dev-rxdb-miniprogram-douyin-spike",
+      "targets": {
+        "typecheck": {
+          "dependsOn": [
+            "^typecheck"
+          ],
+          "cache": true,
+          "inputs": [
+            "{workspaceRoot}/tsconfig.base.json",
+            "{projectRoot}/tsconfig.json",
+            "{projectRoot}/tsconfig.app.json",
+            "{projectRoot}/tsconfig.spec.json",
+            "{projectRoot}/src/**/*.ts",
+            "{projectRoot}/scripts/*.mjs",
+            "!{projectRoot}/src/__tests__/**",
+            {
+              "dependentTasksOutputFiles": "**/*.{d.ts,d.cts,d.mts,tsbuildinfo}",
+              "transitive": true
+            },
+            {
+              "fileset": "{projectRoot}/**/*.{d.ts,d.cts,d.mts}",
+              "dependencies": true
+            },
+            "^{projectRoot}/tsconfig.lib.json"
+          ],
+          "outputs": [
+            "{projectRoot}/tsconfig.tsbuildinfo",
+            "{workspaceRoot}/dist/out-tsc/apps/dev-rxdb-miniprogram-douyin-spike/app/**/*.{d.ts,d.cts,d.mts}",
+            "{workspaceRoot}/dist/out-tsc/apps/dev-rxdb-miniprogram-douyin-spike/app/**/*.{d.ts,d.cts,d.mts}.map",
+            "{workspaceRoot}/dist/out-tsc/apps/dev-rxdb-miniprogram-douyin-spike/app/tsconfig.app.tsbuildinfo",
+            "{workspaceRoot}/dist/out-tsc/dev-rxdb-miniprogram-douyin-spike-test/**/*.{d.ts,d.cts,d.mts}",
+            "{workspaceRoot}/dist/out-tsc/dev-rxdb-miniprogram-douyin-spike-test/**/*.{d.ts,d.cts,d.mts}.map",
+            "{workspaceRoot}/dist/out-tsc/dev-rxdb-miniprogram-douyin-spike-test.tsbuildinfo"
+          ],
+          "syncGenerators": [
+            "@nx/js:typescript-sync"
+          ],
+          "metadata": {
+            "technologies": [
+              "typescript"
+            ],
+            "description": "Runs type-checking for the project.",
+            "help": {
+              "command": "pnpm exec tsc --build --help",
+              "example": {
+                "args": [
+                  "--force"
+                ]
+              }
+            }
+          },
+          "executor": "nx:run-commands",
+          "options": {
+            "cwd": "apps/dev-rxdb-miniprogram-douyin-spike",
+            "command": "tsc --build tsconfig.json --emitDeclarationOnly"
+          },
+          "configurations": {},
+          "parallelism": true
+        },
+        "lint": {
+          "cache": true,
+          "inputs": [
+            "default",
+            "^production"
+          ],
+          "outputs": [
+            "{options.outputFile}"
+          ],
+          "metadata": {
+            "technologies": [
+              "eslint"
+            ],
+            "description": "Runs ESLint on project",
+            "help": {
+              "command": "pnpm exec eslint --help",
+              "example": {
+                "options": {
+                  "max-warnings": 0
+                }
+              }
+            }
+          },
+          "executor": "nx:run-commands",
+          "options": {
+            "cwd": "apps/dev-rxdb-miniprogram-douyin-spike",
+            "command": "eslint ."
+          },
+          "configurations": {},
+          "parallelism": true
+        },
+        "test": {
+          "cache": true,
+          "inputs": [
+            "default",
+            "^production"
+          ],
+          "outputs": [
+            "{workspaceRoot}/coverage/apps/dev-rxdb-miniprogram-douyin-spike"
+          ],
+          "metadata": {
+            "technologies": [
+              "vitest"
+            ],
+            "description": "Run Vitest tests",
+            "help": {
+              "command": "pnpm exec vitest --help",
+              "example": {
+                "options": {
+                  "bail": 1,
+                  "coverage": true
+                }
+              }
+            }
+          },
+          "executor": "nx:run-commands",
+          "dependsOn": [
+            "^build"
+          ],
+          "options": {
+            "cwd": "apps/dev-rxdb-miniprogram-douyin-spike",
+            "command": "vitest"
+          },
+          "configurations": {},
+          "parallelism": true
+        },
+        "build": {
+          "cache": true,
+          "dependsOn": [],
+          "inputs": [
+            "production",
+            "^production"
+          ],
+          "executor": "nx:run-commands",
+          "outputs": [
+            "{projectRoot}/dist"
+          ],
+          "options": {
+            "command": "node scripts/build.mjs",
+            "cwd": "apps/dev-rxdb-miniprogram-douyin-spike"
+          },
+          "configurations": {},
+          "parallelism": true
+        }
+      },
+      "metadata": {},
+      "name": "dev-rxdb-miniprogram-douyin-spike",
+      "$schema": "../../node_modules/nx/schemas/project-schema.json",
+      "// build": "US-211 阶段 B 前的抖音实验工程，不发布、不进 MINI_PROGRAM_PLATFORM_IDS。esbuild 从源码打两个 CommonJS 包：页面包只含 /runtime 引导与不依赖核心的实验；核心包（adapter 主入口 + 持久化 / 配额实验）由页面在 prepare 之后懒 require。拆开是为了让核心包模块顶层的副作用落在 polyfill 之后，加载失败也只记进报告而不是整页白屏。直接打源码，所以不依赖上游 build。",
+      "projectType": "application",
+      "sourceRoot": "apps/dev-rxdb-miniprogram-douyin-spike/src",
+      "tags": [
+        "miniprogram-app"
+      ],
+      "implicitDependencies": []
+    }
+  },
+  "trackedFiles": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/README.md",
+      "sha256": "f61bc7293a0ad51776866478c6218c54c2de4809c69e240af54c3d8bc3014a7c",
+      "lines": 63
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/eslint.config.mjs",
+      "sha256": "82f8259605be05936c454fa97563935042a07dfdfcb33e260889563f975f14d9",
+      "lines": 3
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/project.json",
+      "sha256": "f84299038231fa011bf95e6198a474bec7943c7c3ed61dddab0c9b51fc419b68",
+      "lines": 36
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/scripts/build.mjs",
+      "sha256": "2349e61706b97d84729fb93dc40c589740c2783971d4658d129cd776f57c7ec3",
+      "lines": 159
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/__tests__/fake-douyin.ts",
+      "sha256": "786d5c12e25d4a5e49adb8a7382b2a2729ed41ba12838727a4dbecb8459cf447",
+      "lines": 229
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/core-contract.ts",
+      "sha256": "08b2ee8d9058ca0dea89fa87a0889ddc079c9d3635a8867c00fa374d848d49d9",
+      "lines": 112
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/core.ts",
+      "sha256": "71f5cc5070235cdb0f516c8b4fd708393d82a1fb93dfe7fa6dbfcb4aa6812af6",
+      "lines": 240
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/describe-error.spec.ts",
+      "sha256": "b07dcdb62ba1fe52f629cfc9ca3cca6dcc628aeddc5d34cdbab35d1dc8766def",
+      "lines": 45
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/describe-error.ts",
+      "sha256": "d10ea496a9982b0e2508ddc76c7d8ddddfc3a57e7c75d8ecc89f2ecae343f641",
+      "lines": 87
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/dist-smoke.spec.ts",
+      "sha256": "8844850c82a90e9061b463d4d6bb9a9e80f9a797d29d9a9cb0b24414eaaecd4d",
+      "lines": 262
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/douyin-api.ts",
+      "sha256": "acd8a7d9627df208ec5120af862e36958ed12ca62817397a10d81961c47cc69f",
+      "lines": 54
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/experiments/environment.ts",
+      "sha256": "6c4a8fb10b861606a026d7d465634e7be74e1dd9dc588026baa4f8247894d830",
+      "lines": 164
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/experiments/fs-errors.ts",
+      "sha256": "d37ab41b7d460ccc0a05d56f78d0b53c34d804bcfc8b1e9fb3fa1979bcc3da9c",
+      "lines": 116
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/experiments/quota-accounting.spec.ts",
+      "sha256": "c5ae8658e5ca11801cea099094886a455e200d78d9d587f7444f51e89b3cf3a8",
+      "lines": 79
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/experiments/quota-accounting.ts",
+      "sha256": "ceeda1b2b382a43fa1341e2e4d626627fe482432b1d8f6c469f7274233dcbe8e",
+      "lines": 129
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/experiments/random.ts",
+      "sha256": "b518ade267130d41e7d484b4b1cbc6d837d2ecd688bf583310bb97766a83e37d",
+      "lines": 61
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/experiments/wasm-path.ts",
+      "sha256": "d529d4f9665666af8042dda52519fcb72d04e2fecc30e484abc8085f9a315b52",
+      "lines": 40
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/findings.spec.ts",
+      "sha256": "cfbf167983850a9f09819c880773b13f81f54f15780de514f745cc803b5ed19a",
+      "lines": 24
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/findings.ts",
+      "sha256": "6b0a6a51ad021c45a932f10c651ed1f87ef6a4e908d70acca33779c74e39249c",
+      "lines": 227
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/free-globals.spec.ts",
+      "sha256": "22095eecb87d544a680932fe4d2dd6f4dc8bea4a1112519ccd06506c557b231f",
+      "lines": 14
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/free-globals.ts",
+      "sha256": "af2495a0207de70477651f87c687b7bbf24811a62f6ac309185b84a5aa31a457",
+      "lines": 36
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/page.ts",
+      "sha256": "1ed399b1da0911613b82847b1821889a332a2c9c59c43b2bbca0bb46ebf38684",
+      "lines": 90
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/probe.ts",
+      "sha256": "2d7b657cf25dfbee2cbc930a9b0884e2965ea0669f1b390742ac9c366502ed4c",
+      "lines": 39
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/realm-probe.spec.ts",
+      "sha256": "36878a21e8cfce331597b8c00530578df635aa84b5e99725c69c4b3feb9a98c3",
+      "lines": 8
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/realm-probe.ts",
+      "sha256": "c86fc95bad5ebdb459dce4742ffd5b70f5f63c4b542ffcdfb9e3951110d9a7c9",
+      "lines": 51
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/run-spike.spec.ts",
+      "sha256": "d508015d5fe1d50b0231040abd4ea7c8694eb2b8a86656705ab0f809b751a2fe",
+      "lines": 302
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/run-spike.ts",
+      "sha256": "76874594382bf05d54fbee5178f85647a32614a2d481a37ce49b1e2e65c51dcf",
+      "lines": 210
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/vfs-classifiers.spec.ts",
+      "sha256": "6575b383693622bca26bc18368903253afbabda2f6657f803e3df0c7c087a8d2",
+      "lines": 57
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/vfs-classifiers.ts",
+      "sha256": "0017b45fa0e8ed8c5547048b2b1e4760bc2688f95d7516264b89ada7180fb382",
+      "lines": 24
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/static/app.js",
+      "sha256": "1ab645c73bcea61604f9cc4805a752ab9ba8fb66813d8c57cad34328c0ce4109",
+      "lines": 1
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/static/app.json",
+      "sha256": "5bad1e4ee09d030a88f95fb5ceadbcf584f97603c73d131d926ceaf4e395e771",
+      "lines": 6
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/static/pages/index/index.json",
+      "sha256": "492bef4358e6171f3f6e1b5684c6540d078b13ba6e20a53d534680c45af7f50f",
+      "lines": 3
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/static/pages/index/index.ttml",
+      "sha256": "3cf9db1ad653655ce0cb34a8ef0e7e29c8a13f1fefb79ba3c606faa1c6b0124a",
+      "lines": 8
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/static/pages/index/index.ttss",
+      "sha256": "c3515802680915a467c0070897ec1f6683eccde26215bb45a4738659021bd844",
+      "lines": 20
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/static/project.config.json",
+      "sha256": "f6b4eff67d85151aeb1b619e027c417ac488c76f5ae3fa45bfd53574e314315c",
+      "lines": 11
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/tsconfig.app.json",
+      "sha256": "82521bb0ee436c14835906c23f7df3e0ce90b932caac1220e1ae152d1e813e85",
+      "lines": 15
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/tsconfig.json",
+      "sha256": "210c59c2969b329e8f397cd4b7a3d383c3b83b9a8117bafcfbcf0a3ff6820acb",
+      "lines": 24
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/tsconfig.spec.json",
+      "sha256": "a1ed838e47f4fc7aff46d8c507f84a083809d2ce7db66c08e0f358d10c709b52",
+      "lines": 28
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/vitest.config.mts",
+      "sha256": "b06714b14cb8281ac10286c8a0ed8c76a61cf04f4e66e54d212a520fa1ee2973",
+      "lines": 27
+    }
+  ],
+  "inventoryIsReadEvidence": false
+}

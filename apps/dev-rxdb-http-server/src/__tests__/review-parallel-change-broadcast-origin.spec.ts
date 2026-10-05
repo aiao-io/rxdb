@@ -1,4 +1,4 @@
-import { EntityLocalUpdatedEvent, RxDB } from '@aiao/rxdb';
+import { EntityLocalUpdatedEvent, RxDB, SyncType } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import { createChangeBroadcaster } from '../change-broadcaster.ts';
 import type { ChangeSubscribers } from '../change-subscribers.ts';
@@ -26,7 +26,7 @@ function setup() {
     broadcast,
     closeAll: () => undefined
   };
-  const database = new RxDB({ dbName: 'review-parallel-broadcast', entities: [] });
+  const database = new RxDB({ dbName: 'review-parallel-broadcast', entities: [], sync: { type: SyncType.None } });
   const broadcaster = createChangeBroadcaster(subscribers);
   broadcaster.attach(database);
   return { database, broadcaster, broadcast };

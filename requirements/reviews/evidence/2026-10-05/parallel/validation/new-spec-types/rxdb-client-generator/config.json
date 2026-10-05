@@ -1,0 +1,15 @@
+{
+  "extends": "./tsconfig.spec.json",
+  "compilerOptions": {
+    "composite": false,
+    "incremental": false
+  },
+  "include": [
+    "src/__tests__/cli/review-parallel-glob-patterns.spec.ts"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    }
+  ]
+}

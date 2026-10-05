@@ -1,0 +1,1 @@
+COMMAND: pnpm nx exec -p dev-rxdb-http-server --skipRemoteCache --skipNxCache -- pnpm exec tsc -p /Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/.review-new-parallel-specs.tsconfig.json --noEmit --pretty false

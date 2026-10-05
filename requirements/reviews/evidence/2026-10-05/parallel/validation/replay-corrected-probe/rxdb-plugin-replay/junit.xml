@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="2" failures="1" errors="0" time="1.75402675">
+    <testsuite name="src/__tests__/review-parallel-restore.spec.ts" timestamp="2026-10-05T01:45:49.663Z" hostname="liuleideMacBook-Pro-4.local" tests="2" failures="1" errors="0" skipped="0" time="1.75402675">
+        <testcase classname="src/__tests__/review-parallel-restore.spec.ts" name="并行评审：replay 恢复走真实 PGlite 工作树事务 &gt; 恢复旧提交形成未提交变更，HEAD 不动，重复恢复以 dirty 拒绝" time="1.051654125">
+            <failure message="expected &apos;changed&apos; to be &apos;first&apos; // Object.is equality" type="AssertionError">
+AssertionError: expected &apos;changed&apos; to be &apos;first&apos; // Object.is equality
+
+Expected: &quot;first&quot;
+Received: &quot;changed&quot;
+
+ ❯ src/__tests__/review-parallel-restore.spec.ts:86:37
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/review-parallel-restore.spec.ts" name="并行评审：replay 恢复走真实 PGlite 工作树事务 &gt; 不可达目标拒绝不改数据/HEAD，断开后公开入口明确拒绝" time="0.70166125">
+        </testcase>
+    </testsuite>
+</testsuites>

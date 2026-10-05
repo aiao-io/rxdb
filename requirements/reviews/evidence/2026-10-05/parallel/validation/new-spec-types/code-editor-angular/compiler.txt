@@ -1,0 +1,1 @@
+COMMAND: pnpm nx exec -p code-editor-angular --skipRemoteCache --skipNxCache -- pnpm exec tsc -p /Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/.review-new-parallel-specs.tsconfig.json --noEmit --pretty false

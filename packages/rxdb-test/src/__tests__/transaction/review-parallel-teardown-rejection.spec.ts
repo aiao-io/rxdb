@@ -1,4 +1,4 @@
-import { RxDB } from '@aiao/rxdb';
+import { RxDB, SyncType } from '@aiao/rxdb';
 import { vi } from 'vitest';
 import { runBootstrapAtomicitySuite } from '../../transaction/bootstrap.suite.js';
 import { runTransactionIsolationSuite } from '../../transaction/isolation.suite.js';
@@ -31,7 +31,7 @@ const registerFailingConnection = (
   runSuite: (options: TransactionSuiteOptions) => void,
   dispose: () => Promise<void>
 ) => {
-  const rxdb = new RxDB({ dbName: 'review-parallel-teardown', entities: [], sync: {} });
+  const rxdb = new RxDB({ dbName: 'review-parallel-teardown', entities: [], sync: { type: SyncType.None } });
   vi.spyOn(rxdb, 'connect').mockRejectedValue(new Error('intentional connect failure'));
   const database: TransactionSuiteDatabase = {
     rxdb,

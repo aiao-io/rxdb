@@ -1,0 +1,1 @@
+COMMAND: pnpm nx exec -p rxdb-plugin-storage --skipRemoteCache --skipNxCache -- pnpm exec tsc -p /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-storage/.review-new-parallel-specs.tsconfig.json --noEmit --pretty false

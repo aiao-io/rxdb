@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.spec.json",
+  "compilerOptions": {
+    "composite": false,
+    "incremental": false
+  },
+  "include": [
+    "src/__tests__/review-parallel-oo1-init-close.spec.ts",
+    "src/__tests__/review-parallel-init-disconnect.spec.ts"
+  ],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-test/tsconfig.lib.json"
+    }
+  ]
+}
