@@ -476,7 +476,14 @@ export const buildRuleGroupPG = <RG extends RuleGroup<EntityData> = RuleGroup<En
   const processedRules = runtimeGroup.rules
     .map(ruleOrGroup =>
       isRuleGroup(ruleOrGroup) ?
-        buildRuleGroupPG(ruleOrGroup as RuleGroup<EntityData>, params, fieldAliasMap, entityMetadata, tableAlias, resolve)
+        buildRuleGroupPG(
+          ruleOrGroup as RuleGroup<EntityData>,
+          params,
+          fieldAliasMap,
+          entityMetadata,
+          tableAlias,
+          resolve
+        )
       : build_rule_pg(ruleOrGroup, params, fieldAliasMap, entityMetadata, tableAlias, resolve)
     )
     .filter(sql => sql.length > 0);
