@@ -44,18 +44,21 @@ describe('评审：树筛选增量必须与实际递归 SQL 重查一致', () =>
       });
       unsubscribe = () => sub.unsubscribe();
       await vi.waitFor(() => expect(snapshots).toBeGreaterThan(0));
-      const before = snapshots;
       child.title = 'visible-child';
       await child.save();
-      await vi.waitFor(() => expect(snapshots).toBeGreaterThan(before));
       const sql = await adapter
         .getRepository<typeof MenuSimple, ITreeRepository<typeof MenuSimple>>(MenuSimple)
         .findDescendants(options);
+      const ids = (rows: MenuSimple[]): string[] => rows.map(x => x.id).sort();
+      // 正确结果可能与更新前相同（hidden-parent 截断了 child），QueryTask 按指纹去重不会再发射，
+      // 所以不能等「新快照」，而是等 live 收敛到 SQL 结果，再静置一段确认没有被错误的增量覆盖。
+      await vi.waitFor(() => expect(ids(live)).toEqual(ids(sql)));
+      await new Promise(resolve => setTimeout(resolve, 50));
       console.log(
         'REVIEW_TREE_FILTER ' +
           JSON.stringify({ parentTitle, live: live.map(x => x.title).sort(), sql: sql.map(x => x.title).sort() })
       );
-      expect(live.map(x => x.id).sort()).toEqual(sql.map(x => x.id).sort());
+      expect(ids(live)).toEqual(ids(sql));
     } finally {
       unsubscribe();
       await db.destroy();

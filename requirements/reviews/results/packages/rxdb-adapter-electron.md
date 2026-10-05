@@ -60,6 +60,6 @@ C1/C2/C6 **部分执行**。实际 Electron SQLite adapter/client/host 使用临
 
 ## 2026-10-05：加密初始化取消联审
 
-C2/C6 加密生命周期继续：原 adapter/core storage/client/host/临时文件真实执行，取消首次 unlock 后 locked=true 但 initialized=true；排队 B verifier_mismatch，正常已建 A 的凭据保护对照通过。**2 failed /1 passed**，统一 [RV-058](../../RV-058-cancelled-first-unlock-persists-abandoned-key.md)。进程内 host 传输不是 Electron GUI/真实 IPC 或权限隔离；完整本包测试/发布 consumer 未由聚焦代验。
+C2/C6 加密生命周期继续：原 adapter/core storage/client/host/临时文件真实执行，取消首次 unlock 后 locked=true 但 initialized=true；排队 B verifier_mismatch，正常已建 A 的凭据保护对照通过。**2 failed /1 passed**，统一 RV-058（已修复，见 README 2026-10-05 清理记录）。进程内 host 传输不是 Electron GUI/真实 IPC 或权限隔离；完整本包测试/发布 consumer 未由聚焦代验。
 
 [本轮源码/命令与未完成项](../../execution-2026-10-05-encrypted.md) · [最终状态观测](../../evidence/2026-10-05/encrypted/final-observations.json)。encrypted/Electron/PGlite 严格 lint/typecheck 通过，业务未改；sqlite-core 没有伪造本轮独立 lint/整包通过。coverage 关闭，不自动核销 C 专题。

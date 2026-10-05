@@ -16,11 +16,12 @@ import { resolveAncestorForCount, TreeHelper } from './tree-helper.js';
  * 一个**已在结果集中**的实体在本批 UPDATE 后的去留判定
  *
  * - `keep` 留在结果里
- * - `drop-unmatched` 因 where 命中翻转而移除（不牵连子树）
- * - `drop-moved` 因改父移出子树而移除（其名下未被直接更新的子孙要做孤儿复查）
+ * - `drop` 因 where 命中翻为不匹配、或改父移出子树而移除。两种都会截断递归 CTE 的遍历，
+ *   其名下未被直接更新的子孙要做孤儿复查（RV-046：此前 where 翻转「不牵连子树」，
+ *   与 SQL 重查分叉）
  * - `refresh` 本地判不了，交回 SQL 重算
  */
-type DescendantVerdict = 'keep' | 'drop-unmatched' | 'drop-moved' | 'refresh';
+type DescendantVerdict = 'keep' | 'drop' | 'refresh';
 
 /**
  * 处理 findDescendants 查询的增量更新
@@ -61,10 +62,15 @@ export const handleFindDescendantsUpdate = <T extends EntityType>(
     }
   });
 
+  // 旧结果集成员的冻结快照：`TreeHelper.resolveParentEntity` 走父链时会把本批序列化
+  // 实体回填进 `oldResultMap`，之后再拿它判「此前是否已在结果里」就会把刚走过的父节点
+  // 误判成旧成员。成员判定只读这份快照。
+  const oldResultIds = new Set(oldResultMap.keys());
   const helper = new TreeHelper(cache, oldResultMap);
   let hasChanges = false; // 标记是否有变化，避免不必要的更新
-  // 记录"因 parentId 改变而移出子树"的节点，供孤儿复查使用
-  const removedDueToMove = new Set<RxDBEntityId>();
+  // 记录本批被摘出结果的非锚点（改父移出子树 / where 由匹配翻为不匹配），供孤儿复查使用：
+  // 递归 CTE 在递归成员上过 where，两种摘除都会把它名下整棵子树一起截断（RV-046）
+  const cutFromScope = new Set<RxDBEntityId>();
 
   /**
    * 该实体是否是递归 CTE 的**基准成员**行。
@@ -95,8 +101,8 @@ export const handleFindDescendantsUpdate = <T extends EntityType>(
     // 会把锚点连同整棵子树（孤儿复查）一起清空，而 SQL 其实一行没少。
     if (isTreeAnchor(entityId, cache.getSerializedUpdate(entityId) ?? entity)) return 'keep';
 
-    // 情况1: 实体从匹配变为不匹配 where 条件 → 移除
-    if (classification.newlyUnmatchedIds.has(entityId)) return 'drop-unmatched';
+    // 情况1: 实体从匹配变为不匹配 where 条件 → 移除，子树随孤儿复查一并摘除
+    if (classification.newlyUnmatchedIds.has(entityId)) return 'drop';
 
     // 情况2: 实体更新后仍然匹配，检查是否还是后代且在 level 范围内
     if (!classification.matchNowIds.has(entityId)) return 'keep';
@@ -113,7 +119,7 @@ export const handleFindDescendantsUpdate = <T extends EntityType>(
     if (!updatedEntity) return 'refresh';
 
     const { isDescendant, level: entityLevel } = helper.isEntityDescendant(updatedEntity, targetEntityId);
-    return isDescendant && (level === undefined || entityLevel <= level) ? 'keep' : 'drop-moved';
+    return isDescendant && (level === undefined || entityLevel <= level) ? 'keep' : 'drop';
   };
 
   let needsRefresh = false;
@@ -127,7 +133,7 @@ export const handleFindDescendantsUpdate = <T extends EntityType>(
       return true;
     }
     if (verdict === 'keep') return true;
-    if (verdict === 'drop-moved') removedDueToMove.add(entityId);
+    cutFromScope.add(entityId);
     hasChanges = true;
     return false;
   });
@@ -150,12 +156,12 @@ export const handleFindDescendantsUpdate = <T extends EntityType>(
     return entity;
   });
 
-  // 中间节点 P 改 parentId 移出子树后，第一步只遍历 updatedIds，无法发现
-  // P 名下"未被直接更新"的子节点 X —— 它们会作为孤儿残留在结果集中。
+  // 中间节点 P 改 parentId 移出子树、或 where 翻为不匹配后，第一步只看每个实体自己，
+  // 无法发现 P 名下的子节点 X —— 它们会作为孤儿残留在结果集中。
   // 保守策略：仅当能"证明"某节点的父链穿过本批被移出的节点时才移除；
   // 父链无法解析（缺失/循环）时一律保留，避免误删合法节点。
   let updatedEntities = afterFieldUpdate;
-  if (removedDueToMove.size > 0) {
+  if (cutFromScope.size > 0) {
     const survivingMap = new Map<RxDBEntityId, InstanceType<T>>();
     afterFieldUpdate.forEach(entity => {
       const id = getEntityId(entity);
@@ -185,7 +191,7 @@ export const handleFindDescendantsUpdate = <T extends EntityType>(
           orphaned = known; // 这条链的上半段之前算过
           break;
         }
-        if (removedDueToMove.has(currentParentId)) {
+        if (cutFromScope.has(currentParentId)) {
           orphaned = true; // 父链穿过被移出节点
           break;
         }
@@ -204,8 +210,9 @@ export const handleFindDescendantsUpdate = <T extends EntityType>(
     };
     updatedEntities = afterFieldUpdate.filter(entity => {
       const entityId = getEntityId(entity);
-      // 已被直接更新的实体在第一步已判定，这里只复查未更新的实体（潜在孤儿）
-      if (entityId !== undefined && !classification.updatedIds.has(entityId) && isOrphaned(entity)) {
+      // 本批被直接更新、第一步判 keep 的实体也要复查：只改了字段的子节点，第一步看不到
+      // 它的父节点刚被摘掉。`entity` 已应用 patch，走的是更新后的父链。锚点恒在结果中。
+      if (entityId !== undefined && !isTreeAnchor(entityId, entity) && isOrphaned(entity)) {
         hasChanges = true;
         return false;
       }
@@ -213,66 +220,37 @@ export const handleFindDescendantsUpdate = <T extends EntityType>(
     });
   }
 
-  const newlyMatchedEntities: InstanceType<T>[] = [];
+  // 不在旧结果集、更新后匹配 where 的实体，有两条路进入 scope：
+  // - 父节点真的动了（判据走 `hasTreeParentChanged` 这一处实现，不在这里重抄 ——
+  //   抄一份就等于给 null/undefined 归一再开一个分叉口，F-11）；
+  // - where 由不匹配翻为匹配：递归 CTE 在递归成员上过 where，它此前把整条遍历截断在
+  //   这里，名下匹配的子孙同样从未进过结果（RV-046）。
+  // 两种情况下本地增量缓存都看不到它的既有子孙，也无法证明它没有子孙；只把它自己
+  // 加进结果会漏掉整棵子树，跨 scope 边界只能整体交回 SQL 重算。
+  // 父链走不通（未知父节点）时 `isEntityDescendant` 在全树模式下仍判真 —— 这里只拿它
+  // 当「可能进入 scope」的保守信号去 refresh，而不是据此把实体直接拼进结果。
+  const entitiesToCheck = data.filter(d => {
+    const entityId = d.id as RxDBEntityId;
+    if (!classification.matchNowIds.has(entityId) || oldResultIds.has(entityId)) return false;
+    return classification.newlyMatchedIds.has(entityId) || hasTreeParentChanged(d);
+  });
 
-  // 筛选出需要检查的实体: 更新后匹配 where 条件、不在旧结果集中、且父节点真的动了。
-  // 父没动就不可能「新成为后代」；判据走 `hasTreeParentChanged` 这一处实现，
-  // 不在这里重抄 —— 抄一份就等于给 null/undefined 归一再开一个分叉口（F-11）。
-  const entitiesToCheck = data.filter(
-    d =>
-      classification.matchNowIds.has(d.id as RxDBEntityId) &&
-      !oldResultMap.has(d.id as RxDBEntityId) &&
-      hasTreeParentChanged(d)
-  );
-
-  // 检查这些实体是否成为后代
   for (const event of entitiesToCheck) {
     const serialized = cache.getSerializedUpdate(event.id as RxDBEntityId);
     if (!serialized) continue;
 
     const { isDescendant, level: entityLevel } = helper.isEntityDescendant(serialized, targetEntityId);
-    // 是后代 且 在层级范围内 → 一个新子树根经由 parentId 变化进入 scope
     if (isDescendant && (level === undefined || entityLevel <= level)) {
-      // 这个节点此前不在 oldResultMap（从未被追踪），若它此前已有子孙，
-      // 这些子孙既不在 oldResultMap，也不在本批 UPDATE 事件里（本批只触及了被
-      // 移动的根节点自己）——本地增量缓存对它们完全不可见。只把移动的根节点加入
-      // 结果会漏掉整棵子树（ancestor/descendant 结果与 level 失真），且无法在本地
-      // 证明"这个节点没有子孙"。跨 scope 边界的移动只能整体交回 SQL 重算。
       task.refresh();
       return;
     }
   }
 
-  // 这些实体可能已经在结果集中（因为它们是后代），但之前不匹配 where 条件
-  // 现在匹配了，需要确保它们在结果中
-  data.forEach(event => {
-    const entityId = event.id as RxDBEntityId;
-    if (classification.newlyMatchedIds.has(entityId)) {
-      const serialized = cache.getSerializedUpdate(entityId);
-      if (serialized) {
-        const { isDescendant, level: entityLevel } = helper.isEntityDescendant(serialized, targetEntityId);
-        if (isDescendant && (level === undefined || entityLevel <= level)) {
-          // 检查是否已经在结果中（可能在前面步骤已添加）。
-          // `oldResultMap` 已经是这个问题的完整答案：旧结果集的全部成员建图时就已入表，
-          // 新加入的成员在 push 的同一步 `set` 进去。此前那两次线性 `.some()` 扫描
-          // （O(N×M)）覆盖的是 `oldResultMap` 的真子集，纯属冗余。
-          if (!oldResultMap.has(entityId)) {
-            hasChanges = true;
-            newlyMatchedEntities.push(serialized);
-            oldResultMap.set(entityId, serialized);
-          }
-        }
-      }
-    }
-  });
-
   if (!hasChanges) {
     return; // 没有变化，直接返回，避免不必要的通知
   }
-  // 合并更新后的实体和新添加的实体
-  const newResult = [...updatedEntities, ...newlyMatchedEntities];
   // 通知查询任务结果已更新
-  task.next(newResult, true);
+  task.next(updatedEntities, true);
 };
 
 /**
@@ -312,6 +290,8 @@ export const handleFindAncestorsUpdate = <T extends EntityType>(
     }
   });
 
+  // 走父链会把序列化实体回填进 `oldResultMap`，成员判定读冻结快照（同 findDescendants）
+  const oldResultIds = new Set(oldResultMap.keys());
   const helper = new TreeHelper(cache, oldResultMap);
 
   /**
@@ -345,22 +325,26 @@ export const handleFindAncestorsUpdate = <T extends EntityType>(
     return;
   }
 
-  let hasChanges = false;
-
   // 走到这里说明本批没有任何祖先链位置发生变化（上面已提前 refresh），
-  // 剩下的移除原因只可能是纯 where 匹配翻转。
-  const afterRemoval = oldResult.filter(entity => {
-    const entityId = getEntityId(entity);
-    if (entityId === undefined) return true;
+  // 剩下的只有纯 where 匹配翻转。递归成员上过 where：链上一个非目标节点翻为不匹配，
+  // 它上方的整段祖先随之被截断；翻为匹配，它上方此前被截断的祖先重新可达。上方那些
+  // 节点不在本批事件里，本地只能摘/补这一个节点，与 SQL 重查分叉（RV-046）。目标自己
+  // 是基准成员，不过 where，翻转不影响结果。
+  const targetNow = getTargetEntity();
+  const flipsOnChain = (id: RxDBEntityId): boolean => {
+    if (id === targetEntityId) return false;
+    if (oldResultIds.has(id)) return true;
+    const serialized = cache.getSerializedUpdate(id);
+    return !!targetNow && !!serialized && helper.isEntityAncestor(targetNow, serialized, level);
+  };
+  const flipped = [...classification.newlyMatchedIds, ...classification.newlyUnmatchedIds];
+  if (flipped.some(flipsOnChain)) {
+    task.refresh();
+    return;
+  }
 
-    if (classification.newlyUnmatchedIds.has(entityId)) {
-      hasChanges = true;
-      return false;
-    }
-    return true; // 保留该实体
-  });
-
-  const updatedEntities = afterRemoval.map(entity => {
+  let hasChanges = false;
+  const updatedEntities = oldResult.map(entity => {
     const entityId = getEntityId(entity);
     if (entityId !== undefined && classification.updatedIds.has(entityId)) {
       const eventData = cache.getData(entityId);
@@ -372,33 +356,14 @@ export const handleFindAncestorsUpdate = <T extends EntityType>(
     return entity;
   });
 
-  const newlyMatchedEntities: InstanceType<T>[] = [];
-  classification.newlyMatchedIds.forEach(id => {
-    const serialized = cache.getSerializedUpdate(id);
-    if (!serialized) return;
-
-    const targetEntity = getTargetEntity();
-    // 是祖先 且 在层级范围内 → 添加。
-    // 层级必须传：适配器递归成员带 `c.__level < level`，超出上限的祖先 SQL 不会返回，
-    // 本地补进去就会比 SQL 多行（默认 level=0 时连直接父节点都不该出现）。
-    if (targetEntity && helper.isEntityAncestor(targetEntity, serialized, level)) {
-      hasChanges = true;
-      newlyMatchedEntities.push(serialized);
-      oldResultMap.set(id, serialized);
-    }
-  });
-
   // findAncestors 总是包含目标实体本身（level=0）
-  const targetEntity = getTargetEntity();
-  if (targetEntity) {
-    const targetId = getEntityId(targetEntity);
+  if (targetNow) {
+    const targetId = getEntityId(targetNow);
     if (targetId !== undefined) {
-      const targetInResult =
-        updatedEntities.some(e => getEntityId(e) === targetId) ||
-        newlyMatchedEntities.some(e => getEntityId(e) === targetId);
+      const targetInResult = updatedEntities.some(e => getEntityId(e) === targetId);
       if (!targetInResult) {
         hasChanges = true;
-        updatedEntities.push(targetEntity);
+        updatedEntities.push(targetNow);
       }
     }
   }
@@ -407,11 +372,8 @@ export const handleFindAncestorsUpdate = <T extends EntityType>(
     return; // 没有变化，直接返回
   }
 
-  // 合并更新后的实体和新添加的实体
-  const newResult = [...updatedEntities, ...newlyMatchedEntities];
-
   // 通知查询任务结果已更新
-  task.next(newResult, true);
+  task.next(updatedEntities, true);
 };
 
 /**
@@ -419,13 +381,13 @@ export const handleFindAncestorsUpdate = <T extends EntityType>(
  *
  * 计数查询的特点:
  * - 只需要返回数量，不需要返回具体实体
- * - 需要精确计算增减变化
- * - 如果无法确定关系（父实体链中断），则触发 SQL 刷新
+ * - 没有实体级追踪，看不到不在本批事件里的子孙
  *
  * UPDATE 场景下的计数变化:
- * 1. 实体的 parentId 变化 → 可能从非后代变为后代，或相反
- * 2. 实体从不匹配变为匹配 where 条件 → 如果是后代，计数+1
- * 3. 实体从匹配变为不匹配 where 条件 → 如果是后代，计数-1
+ * 1. scope 内（或无法判定）的非基准节点 parentId 变化 → 子树整体进出 / 平移深度，触发 SQL 刷新
+ * 2. scope 内（或无法判定）的非基准节点 where 命中翻转 → 递归遍历在它这里被截断或放开，
+ *    名下子孙随之进出，触发 SQL 刷新
+ * 3. 只改了其他字段、或变化发生在 scope 之外 → 计数不变，不通知
  *
  * @param task 查询任务
  * @param data 更新的实体数据列表
@@ -440,8 +402,6 @@ export const handleCountDescendantsUpdate = <T extends EntityType>(
 ) => {
   const options = task.options as FindTreeOptions<T>;
   const targetEntityId = options.entityId as RxDBEntityId | null | undefined; // 目标实体ID
-  const currentCount = (task.result as number) || 0; // 当前计数
-
   const { level } = options; // 层级上限，口径同 FindTreeOptions.level（含当前节点）
 
   const oldResultMap = new Map<RxDBEntityId, InstanceType<T>>();
@@ -467,77 +427,36 @@ export const handleCountDescendantsUpdate = <T extends EntityType>(
   const isTreeBaseMember = (entity: InstanceType<T> | null | undefined): boolean =>
     (targetEntityId === null || targetEntityId === undefined) && !!entity && get_tree_parent_id(entity) === null;
 
-  let needsRefresh = false; // 是否需要触发 SQL 刷新
-  let countChange = 0; // 计数变化量
-
-  // 遍历所有更新的实体，计算计数变化
-  for (const updateData of data) {
+  // 递归成员上过 where：scope 内一个非基准节点 where 翻转或改父，都会把它名下整棵子树
+  // 一起截断/放开（改父还会整体平移子树深度，碰到 level 上限就有子孙进出）。count 只是个
+  // 数字，没有实体级追踪，看不到那些不在本批事件里的子孙，局部 ±1 只算得了这一个节点
+  // （RV-046，及 review 描述的「count 只加减 1」）。所以本处理器只做一件事：判断本批
+  // 有没有碰到 scope 的结构性变化，有就交回 SQL，没有就什么都不用发。
+  const needsRefresh = data.some(updateData => {
     const entityId = updateData.id as RxDBEntityId;
     // where 判定必须基于"完整实体"，而 `classification` 正是拿
     // `getSerializedBefore` / `getSerializedUpdate` 出来的完整实体跑同一个
     // `isEntityMatchWhere` 算出来的（见 `classifyUpdates`）。直接读它的结论，
     // 不在这里重算第二遍。
+    const whereFlipped = classification.matchBeforeIds.has(entityId) !== classification.matchNowIds.has(entityId);
+    const parentChanged = hasTreeParentChanged(updateData);
+    if (!whereFlipped && !parentChanged) return false;
+
     const beforeEntity = cache.getSerializedBefore(entityId, updateData.inversePatch);
-    const matchedBefore = classification.matchBeforeIds.has(entityId);
-    const isDescendantBefore = isCountedDescendant(beforeEntity);
-
-    // 无法确定更新前的后代关系 → 触发刷新
-    if (isDescendantBefore === undefined) {
-      needsRefresh = true;
-      break;
-    }
-
-    // 更新前: 匹配条件 且 是后代 → 计入计数（基准成员豁免 where）
-    const wasDescendantBefore = isTreeBaseMember(beforeEntity) || (matchedBefore && isDescendantBefore);
-
     const afterEntity = cache.getSerializedUpdate(entityId);
-    const matchesNow = classification.matchNowIds.has(entityId);
+    // 前后都是基准成员（查全树时的根节点）：不过 where、父也没动，计数不受影响
+    if (isTreeBaseMember(beforeEntity) && isTreeBaseMember(afterEntity)) return false;
+
+    const isDescendantBefore = isCountedDescendant(beforeEntity);
     // 后代判定只读起点自身的 parentId，往上每一跳读的都是 `getSerializedUpdate`
     // （更新后的祖先）。起点 parentId 没变，这趟走链与 before 那趟逐跳等价，
     // 结论必然相同 —— 直接复用，不重走。
-    const parentUnchanged = !!afterEntity && get_tree_parent_id(beforeEntity) === get_tree_parent_id(afterEntity);
-    const isDescendantNowResult = parentUnchanged ? isDescendantBefore : isCountedDescendant(afterEntity);
+    const isDescendantNow = parentChanged ? isCountedDescendant(afterEntity) : isDescendantBefore;
+    // 无法确定前/后的后代关系，或前后任一时刻落在 scope 内 → 交回 SQL
+    return isDescendantBefore !== false || isDescendantNow !== false;
+  });
 
-    // 无法确定更新后的后代关系 → 触发刷新
-    if (isDescendantNowResult === undefined) {
-      needsRefresh = true;
-      break;
-    }
-
-    // 树成员关系本身（不看 where）因 parentId 变化而翻转，说明这个节点
-    // 跨越了 scope 边界——它此前/此后可能带着一批未出现在本批事件里的既有子孙一起
-    // 进出 scope。count 只是个数字，没有实体级追踪，无法知道被带动的子孙有多少个，
-    // 局部 ±1 只会按"这一个节点"计数、漏掉整棵子树（review 描述的"count 只加减 1"）。
-    // 纯 where 匹配翻转（parentId 未变）不受影响，仍走下面的 ±1 快速路径。
-    if (hasTreeParentChanged(updateData) && isDescendantBefore !== isDescendantNowResult) {
-      needsRefresh = true;
-      break;
-    }
-
-    // 更新后: 匹配条件 且 是后代 → 计入计数（基准成员豁免 where）
-    const isDescendantNow = isTreeBaseMember(afterEntity) || (matchesNow && isDescendantNowResult);
-
-    if (isDescendantNow && !wasDescendantBefore) {
-      countChange++; // 新增后代
-    } else if (!isDescendantNow && wasDescendantBefore) {
-      countChange--; // 减少后代
-    }
-    // 否则: 更新前后都是后代 或 都不是后代 → 计数不变
-  }
-
-  if (needsRefresh) {
-    // 无法准确计算，触发 SQL 刷新
-    task.refresh();
-  } else if (countChange !== 0) {
-    // 如果计数有变化，更新结果
-    const newCount = Math.max(0, currentCount + countChange);
-    // autoCache 必须传 false：`QueryTask#next` 在 autoCache=true 时无条件清空
-    // `resultEntityIds`（清空逻辑在类型分支之外），而 count 结果是个 number，
-    // 不会重新填充它。沿用默认值会把跨批次去重集合抹掉，同一实体被重复计数。
-    // 与 merge_create.ts / merge_remove.ts 的 count 分支同口径。
-    task.next(newCount, false);
-  }
-  // 否则: 计数没有变化，不需要通知
+  if (needsRefresh) task.refresh();
 };
 
 /**
@@ -545,14 +464,15 @@ export const handleCountDescendantsUpdate = <T extends EntityType>(
  *
  * 计数查询的特点:
  * - 只需要返回数量，不需要返回具体实体
- * - 需要精确计算增减变化
+ * - 没有实体级追踪，看不到不在本批事件里的上方祖先
  * - 如果无法确定关系（父实体链中断）或目标实体的 parentId 变化，则触发 SQL 刷新
  *
  * UPDATE 场景下的计数变化:
  * 1. 目标实体的 parentId 变化 → 整个祖先链改变，必须触发刷新
- * 2. 其他实体的 parentId 变化 → 可能从非祖先变为祖先，或相反
- * 3. 实体从不匹配变为匹配 where 条件 → 如果是祖先，计数+1
- * 4. 实体从匹配变为不匹配 where 条件 → 如果是祖先，计数-1
+ * 2. 链上（或无法判定）的祖先 parentId 变化 → 它上方整段链被换掉，触发刷新
+ * 3. 链上（或无法判定）的祖先 where 命中翻转 → 递归遍历在它这里被截断或放开，
+ *    上方祖先随之进出，触发刷新
+ * 4. 只改了其他字段、或变化发生在链外 → 计数不变，不通知
  *
  * @param task 查询任务
  * @param data 更新的实体数据列表
@@ -567,7 +487,6 @@ export const handleCountAncestorsUpdate = <T extends EntityType>(
 ) => {
   const options = task.options as FindTreeOptions<T>;
   const targetEntityId = options.entityId as RxDBEntityId | null | undefined; // 目标实体ID
-  const currentCount = (task.result as number) || 0; // 当前计数
   const { level } = options; // 层级上限，口径同 FindTreeOptions.level
 
   if (targetEntityId === null || targetEntityId === undefined) {
@@ -606,83 +525,34 @@ export const handleCountAncestorsUpdate = <T extends EntityType>(
     return;
   }
 
-  let countChange = 0; // 计数变化量
-  let needsRefresh = false; // 是否需要触发 SQL 刷新
-
   // 目标的父链在本批内不变（上面 parentId 比对不等就已经 refresh 走了），链上每一跳
   // 读的又都是 `getSerializedUpdate`，于是 before / after 两趟走链逐跳等价，整批候选
   // 面对的是同一条链。走一次收成 Set，候选判定降为 O(1) 查表；此前是每个候选都从
   // target 重走一遍整条链。
   const targetAncestors = helper.collectAncestorIdsForCount(targetAfter, level);
 
-  for (const updateData of data) {
+  // 链上一个祖先 where 翻转或改父，它上方的整段链都会随之截断/放开/换掉 —— 那些节点
+  // 不在本批事件里，per-entity 的 ±1 结构性地看不到（RV-046，及 review 描述的
+  // 「count 只加减 1」）。链外节点的变化碰不到这条链。所以只判断本批有没有碰到链，
+  // 有就交回 SQL，没有就什么都不用发。
+  const needsRefresh = data.some(updateData => {
     const entityId = updateData.id as RxDBEntityId;
-
-    // 跳过目标实体本身（目标实体不是自己的祖先）
-    if (entityId === targetEntityId) {
-      continue;
-    }
+    // 目标实体是基准成员（不是自己的祖先），它的 parentId 变化上面已处理
+    if (entityId === targetEntityId) return false;
 
     // where 判定必须基于"完整实体"，`classification` 已经用
     // `getSerializedBefore` / `getSerializedUpdate` 跑过同一个 `isEntityMatchWhere`，
     // 这里读结论即可（见 `classifyUpdates`）。
-    const entityBefore = cache.getSerializedBefore(entityId, updateData.inversePatch);
-    const matchedBefore = classification.matchBeforeIds.has(entityId);
+    const whereFlipped = classification.matchBeforeIds.has(entityId) !== classification.matchNowIds.has(entityId);
+    if (!whereFlipped && !hasTreeParentChanged(updateData)) return false;
+
     // 候选的 before / after 两份序列化必须分别查：`getEntityId` 可能只在其中一份上有值。
+    const entityBefore = cache.getSerializedBefore(entityId, updateData.inversePatch);
     const wasAncestorBefore = resolveAncestorForCount(targetAncestors, entityBefore);
+    const isAncestorNow = resolveAncestorForCount(targetAncestors, cache.getSerializedUpdate(entityId));
+    // 无法确定前/后的祖先关系，或前后任一时刻在链上 → 交回 SQL
+    return wasAncestorBefore !== false || isAncestorNow !== false;
+  });
 
-    // 无法确定更新前的祖先关系 → 触发刷新
-    if (wasAncestorBefore === undefined) {
-      needsRefresh = true;
-      break;
-    }
-
-    // 这个实体本身就是 target 的既有祖先，且它自己的 parentId 又变了——
-    // 它上方的链路整体发生位移（旧链路上方的祖先需要退出计数，新链路上方的祖先
-    // 需要计入）。target 走到这个实体为止的路径不受影响（该实体本身是否仍是
-    // target 的祖先，只取决于它和 target 之间的节点，与它自己的父节点无关），
-    // 所以下面基于 before/after 的 ±1 对这个实体自身永远算不出变化——真正的变化
-    // 全部发生在它上方、完全不在本批事件里的节点上，per-entity 的 ±1 结构性地
-    // 看不到，必须整体刷新（对应 review 的"count 只加减 1"）。
-    if (wasAncestorBefore && hasTreeParentChanged(updateData)) {
-      needsRefresh = true;
-      break;
-    }
-
-    const entityAfter = cache.getSerializedUpdate(entityId);
-    const matchesNow = classification.matchNowIds.has(entityId);
-    const isAncestorNow = resolveAncestorForCount(targetAncestors, entityAfter);
-
-    // 无法确定更新后的祖先关系 → 触发刷新
-    if (isAncestorNow === undefined) {
-      needsRefresh = true;
-      break;
-    }
-
-    // 更新前: 匹配条件 且 是祖先 → 计入计数
-    const wasCountedBefore = matchedBefore && wasAncestorBefore;
-    // 更新后: 匹配条件 且 是祖先 → 计入计数
-    const isCountedNow = matchesNow && isAncestorNow;
-
-    if (isCountedNow && !wasCountedBefore) {
-      countChange++; // 新增祖先
-    } else if (!isCountedNow && wasCountedBefore) {
-      countChange--; // 减少祖先
-    }
-    // 否则: 更新前后都是祖先 或 都不是祖先 → 计数不变
-  }
-
-  if (needsRefresh) {
-    // 无法准确计算，触发 SQL 刷新
-    task.refresh();
-  } else if (countChange !== 0) {
-    // 如果计数有变化，更新结果
-    const newCount = Math.max(0, currentCount + countChange);
-    // autoCache 必须传 false：`QueryTask#next` 在 autoCache=true 时无条件清空
-    // `resultEntityIds`（清空逻辑在类型分支之外），而 count 结果是个 number，
-    // 不会重新填充它。沿用默认值会把跨批次去重集合抹掉，同一实体被重复计数。
-    // 与 merge_create.ts / merge_remove.ts 的 count 分支同口径。
-    task.next(newCount, false);
-  }
-  // 否则: 计数没有变化，不需要通知
+  if (needsRefresh) task.refresh();
 };

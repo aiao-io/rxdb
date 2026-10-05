@@ -52,7 +52,7 @@ execution: partial
 
 ## 2026-10-04：生成器、图与小程序第四批深审
 
-🔴 C2 确认 [RV-050](../../RV-050-graph-nan-depth-silent-empty-result.md)：NaN 穿过深度 clamp，真实 wa-sqlite 图的三个 API 返回成功空结果，隐藏非法数值。**3 failed /2 真实可达性对照 passed**：[日志](../../evidence/2026-10-04/generator-graph-miniprogram/graph-nan-depth-repaired.txt)，不是 SQL 结果假对象。
+🔴 C2 确认 RV-050（已修复，见 README 2026-10-05 清理记录）：NaN 穿过深度 clamp，真实 wa-sqlite 图的三个 API 返回成功空结果，隐藏非法数值。**3 failed /2 真实可达性对照 passed**：[日志](../../evidence/2026-10-04/generator-graph-miniprogram/graph-nan-depth-repaired.txt)，不是 SQL 结果假对象。
 
 整包基线 **17 files /184 passed**：[日志](../../evidence/2026-10-04/generator-graph-miniprogram/rxdb-plugin-graph-baseline.txt)。人工检查 directed/undirected 边 upsert/remove、两向写的单事务、neighbors/path 规范化、CTE cycle/expansion、路径回填与 reactive task 依赖。undirected 两条语句已经在一个事务里、neighbors 层级上限 100、paths 上限 100000 expansions；没有把仅凭关键词想到的“无限递归/半边写”包装成缺陷。
 

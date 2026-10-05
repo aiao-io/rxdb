@@ -194,19 +194,28 @@ const build_order_by = (orderBy?: OrderBy[], metadata?: EntityMetadata): string 
     .join(', ');
 };
 
+/**
+ * 本实体列的表限定前缀
+ *
+ * @remarks
+ * 主查询有 JOIN 时为主表别名 `_`；树查询递归成员里为 `children`——递归表 `c` 与 `children`
+ * 列同名，不限定会报 42702 列名歧义（RV-045）。
+ */
+const qualify = (tableAlias: string | undefined, columnSql: string): string =>
+  tableAlias ? `${tableAlias}.${columnSql}` : columnSql;
+
 const get_field_sql = (
   originalField: string,
   aliasField?: string,
   entityMetadata?: EntityMetadata,
-  hasJoin?: boolean,
+  tableAlias?: string,
   kind: JsonAccessorKind = 'text'
 ): string => {
   if (aliasField) return aliasField;
 
   if (!originalField.includes('.')) {
     const columnName = resolve_column_name(originalField, entityMetadata);
-    const prefix = hasJoin ? `${MAIN_TABLE_ALIAS}.` : '';
-    return `${prefix}${formatColumn(columnName)}`;
+    return qualify(tableAlias, formatColumn(columnName));
   }
 
   const parts = originalField.split('.');
@@ -215,7 +224,7 @@ const get_field_sql = (
   if (prop && (prop.type === PropertyType.json || prop.type === PropertyType.keyValue)) {
     const jsonPath = parts.slice(1);
     assertSafeJsonPath(jsonPath);
-    return jsonAccessor(quoteIdentifier(prop.columnName), jsonPath, kind);
+    return jsonAccessor(qualify(tableAlias, quoteIdentifier(prop.columnName)), jsonPath, kind);
   }
 
   if (entityMetadata) {
@@ -293,13 +302,13 @@ const build_rule_pg = (
   params: unknown[],
   fieldAliasMap: Map<string, FieldAlias>,
   entityMetadata?: EntityMetadata,
-  hasJoin?: boolean
+  tableAlias?: string
 ): string => {
   const rule = readRule(ruleValue);
   assertOperator(rule.operator);
 
   const alias = fieldAliasMap.get(rule.field);
-  const fieldSql = get_field_sql(rule.field, alias?.text, entityMetadata, hasJoin);
+  const fieldSql = get_field_sql(rule.field, alias?.text, entityMetadata, tableAlias);
   const prop = getProperty(rule.field, entityMetadata);
   const { operator, value } = rule;
   assertPropertyOperator(prop, operator);
@@ -352,7 +361,8 @@ const build_rule_pg = (
     if (COMPARISON_OPERATORS.has(operator) && wantsJsonbComparison(value)) {
       // join 路径必须用它自己算出的 jsonb 形态：拿 metadata 重算会得到主表列，
       // 与 alias 指向的连接表不是同一个东西。
-      const jsonbField = alias ? alias.jsonb : get_field_sql(rule.field, undefined, entityMetadata, hasJoin, 'jsonb');
+      const jsonbField =
+        alias ? alias.jsonb : get_field_sql(rule.field, undefined, entityMetadata, tableAlias, 'jsonb');
       if (jsonbField) {
         params.push(JSON.stringify(value));
         return `${jsonbField} ${operator} $${params.length}::jsonb`;
@@ -422,7 +432,7 @@ export const buildRuleGroupPG = <RG extends RuleGroup<EntityData> = RuleGroup<En
   params: unknown[],
   fieldAliasMap: Map<string, FieldAlias> = new Map(),
   entityMetadata?: EntityMetadata,
-  hasJoin?: boolean
+  tableAlias?: string
 ): string => {
   const runtimeGroup = readRuleGroup(ruleGroup);
   const combinator = runtimeGroup.combinator.toLowerCase();
@@ -433,8 +443,8 @@ export const buildRuleGroupPG = <RG extends RuleGroup<EntityData> = RuleGroup<En
   const processedRules = runtimeGroup.rules
     .map(ruleOrGroup =>
       isRuleGroup(ruleOrGroup) ?
-        buildRuleGroupPG(ruleOrGroup as RuleGroup<EntityData>, params, fieldAliasMap, entityMetadata, hasJoin)
-      : build_rule_pg(ruleOrGroup, params, fieldAliasMap, entityMetadata, hasJoin)
+        buildRuleGroupPG(ruleOrGroup as RuleGroup<EntityData>, params, fieldAliasMap, entityMetadata, tableAlias)
+      : build_rule_pg(ruleOrGroup, params, fieldAliasMap, entityMetadata, tableAlias)
     )
     .filter(sql => sql.length > 0);
 
@@ -489,8 +499,9 @@ export const generate_find_sql = (
     options.where ?
       build_rule_group_join_pg(adapter, metadata, options.where)
     : { joinSQL: '', fieldAliasMap: new Map<string, FieldAlias>() };
-  const hasJoin = joinSQL.length > 0;
-  const where = options.where ? buildRuleGroupPG(options.where, params, fieldAliasMap, metadata, hasJoin) : undefined;
+  const tableAlias = joinSQL.length > 0 ? MAIN_TABLE_ALIAS : undefined;
+  const where =
+    options.where ? buildRuleGroupPG(options.where, params, fieldAliasMap, metadata, tableAlias) : undefined;
   const orderBy = build_order_by(options.orderBy, metadata);
   const limit = 'limit' in options ? options.limit : undefined;
   const offset = 'offset' in options ? options.offset : undefined;
@@ -516,7 +527,8 @@ export const generate_count_sql = (
     options.where ?
       build_rule_group_join_pg(adapter, metadata, options.where)
     : { joinSQL: '', fieldAliasMap: new Map<string, FieldAlias>() };
-  const hasJoin = joinSQL.length > 0;
-  const where = options.where ? buildRuleGroupPG(options.where, params, fieldAliasMap, metadata, hasJoin) : undefined;
+  const tableAlias = joinSQL.length > 0 ? MAIN_TABLE_ALIAS : undefined;
+  const where =
+    options.where ? buildRuleGroupPG(options.where, params, fieldAliasMap, metadata, tableAlias) : undefined;
   return { sql: generate_count_sql_helper({ tableName, where, join: joinSQL }), params };
 };

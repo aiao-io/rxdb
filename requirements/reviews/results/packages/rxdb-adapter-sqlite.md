@@ -62,7 +62,7 @@ execution: partial
 
 ## 2026-10-04：树查询与 DevTools 第三批深审
 
-🔴 树 where 拓扑与增量的真实跨层对照确认 [RV-046](../../RV-046-tree-filtered-ancestor-incremental-drift.md)。本后端的标量字段 alias 正常，实际 SQL 按 where 截断 hidden-parent；公开 query task 却将叶子错误增入。官方 SQLite-WASM / Chromium，实际 ORM save 与原生树查询 **1 failed /1 passed**：[日志](../../evidence/2026-10-04/tree-devtools/tree-filter-incremental-sqlite-linked.txt)。
+🔴 树 where 拓扑与增量的真实跨层对照确认 RV-046（已修复，见 README 2026-10-05 清理记录）。本后端的标量字段 alias 正常，实际 SQL 按 where 截断 hidden-parent；公开 query task 却将叶子错误增入。官方 SQLite-WASM / Chromium，实际 ORM save 与原生树查询 **1 failed /1 passed**：[日志](../../evidence/2026-10-04/tree-devtools/tree-filter-incremental-sqlite-linked.txt)。
 
 新增 spec 直接用 tree workspace 包。首次 0 tests 为该 consumer 未声明直接 devDependency，已按 link-workspace-packages 用 pnpm --save-dev/workspace:* 正式链接，没有补假 tsconfig paths：[链接日志](../../evidence/2026-10-04/tree-devtools/sqlite-test-dependency-link.txt) / [lock 语义范围](../../evidence/2026-10-04/tree-devtools/dependency-link-scope.json)。pnpm 顺便重算 website 两个 Docusaurus 的 debug peer key；版本 key 集合未新增/删除，不能谎称 lock 文本只改一条。未运行 approve-builds 或其它 lifecycle。
 

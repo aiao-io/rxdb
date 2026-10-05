@@ -1,7 +1,7 @@
 ---
 id: RV-058
 title: 首次解锁取消后仍提交废弃密钥的 verifier
-status: Open
+status: Resolved
 severity: P2
 created: 2026-10-05
 updated: 2026-10-05
@@ -12,7 +12,7 @@ baseline: 8b29b549ac5758b2e31a6148b98b8c394754e918
 
 ## 问题
 
-**P2，确认问题，待修复。** 新数据库尚无 keyring singleton，解锁 A 已进入 keyProvider，但 provider 还没返回。此时调用 lock()，再开始新密钥 B 的解锁；交付 A 后，A 请求虽拒绝为 unlock_aborted_by_lock，却已经把 A 的 salt/kid/verifier 写进真实数据库。B 被 verifier_mismatch 拒绝，数据库被废弃请求的凭据占用。
+**P2，确认问题，已修复（2026-10-05）。** 新数据库尚无 keyring singleton，解锁 A 已进入 keyProvider，但 provider 还没返回。此时调用 lock()，再开始新密钥 B 的解锁；交付 A 后，A 请求虽拒绝为 unlock_aborted_by_lock，却已经把 A 的 salt/kid/verifier 写进真实数据库。B 被 verifier_mismatch 拒绝，数据库被废弃请求的凭据占用。
 
 实际锁状态仍为 locked，**没有发现锁定后返回明文、AES 认证绕过或既有数据被覆写**。本问题是首次初始化的持久副作用不受取消屏障保护。仍知道 A 时可重新用 A 解锁；不宣称不可恢复的数据丢失。
 
@@ -49,5 +49,5 @@ CI=true CODECOV_TOKEN= NX_DAEMON=false pnpm nx run-many -t test --projects=rxdb-
 ## 解决记录
 
 - [x] 原 Keyring/native SQLite、Electron 文件 SQLite、Chromium/PGlite 的失败与正常凭据保护对照保留。
-- [ ] 明确初始化持久提交的取消协议，补不同等待段/并发初始化回归。
-- [ ] 当前 Open，业务实现未改。
+- [x] 首次初始化在不可撤销的 `writeSingleton` 之前同步调用 `assertUnlockNotAborted(epoch)`；写入进行中的 lock() 仍由发布内存 key 前的同一检查兜住内存态。三个复验面均 3 passed，encrypted 整包 277 passed。
+- [ ] 当日加密台账（execution-2026-10-05-encrypted.md）仍链接本文件，台账入库后按清理规则整份删除。

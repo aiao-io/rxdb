@@ -34,6 +34,8 @@
 | `next-11-rxdb-package-review.md`    | next-11 分支 `packages/rxdb` 包评审 | 4 块 + 1 条规格决策                                                      |
 | `RV-022-us-029-readiness-review.md` | US-029 RBAC 与租户隔离立项准入评审  | 2 P0 + 9 P1 + 8 P2；US-029 转价值待证并移出多租户，R04 复现后拆出 US-218 |
 
+> **2026-10-05 清理（RV-045/RV-046/RV-050/RV-058 树、图与加密密钥环）**：4 条（4 P2）复核全部属实并修复；RV-045/046/050 三份整份删除，RV-058 因当日加密台账仍引用而暂留（已标 Resolved）。**RV-045**（PGlite 树普通字段筛选歧义）：`query_sql.ts` 的 `hasJoin` 换成 `tableAlias`，由 `qualify()` 统一给字段加表别名，`query_tree_sql.ts` 把树查询的 where 限定到递归项的 `children`，四个树方法不再在 self join 里报 42702。**RV-046**（过滤祖先后的树增量/SQL 漂移）：递归 CTE 的 where 作用在递归项上，不匹配的节点会截断它之后的整段遍历，本地增量无法据单条事件判断可达性。`merge-update-tree.ts` 改为：findDescendants 中新匹配且挂在目标子树内的非锚点节点、findAncestors 中链上节点的 where 翻转、count 两个方法中计数范围内的 where 翻转或改父，一律 `task.refresh()` 交回 SQL 重查；findDescendants 掉出（不再匹配或移出）的节点连带对其子树做孤儿检查。原 +1/-1 计数补丁随之删除。**RV-050**（图查询 NaN 深度假成功）：`normalizeDepth` 在 clamp 之前对 NaN 抛 `RangeError`，三个图 API 不再返回成功的空结果。**RV-058**（取消首次解锁仍提交废弃凭据）：`keyring.ts` 抽出 `assertUnlockNotAborted`，首次初始化在不可撤销的 `writeSingleton` 之前同步检查 lockEpoch，provider/KDF/verifier 生成期间发生的 lock() 不再让废弃凭据落盘；写入进行中的 lock() 仍由发布内存 key 前的同一检查兜住。各自的复验用例（tree/graph/pglite/sqlite/encrypted/electron）均由红转绿。
+>
 > **2026-10-05 清理（RV-052/RV-053/RV-054/RV-055 Sync 与 QueryCache）**：四份整份删除——4 条（4 P2）复核全部属实并修复。**RV-052**（恢复回推忽略 outbox 结构化失败）：`flushQueryCacheOutbox` 的失败走结构化 `result.failures` 返回而不是 throw，`sync-listeners.ts` 原先只把异常当失败，REST 403 / 网络错误这类结构化失败被当成「没出错」而继续推进恢复流程；改为 `flushRepository` 遍历 `result.failures` 逐条 `syncState.reportError` 并把「本轮是否有失败」作为显式布尔返回值向上传播，`runQuietly` 同样只在真正抛异常时才兜底。**RV-053**（旧 pull 回滚已确认写／复活已删缓存）：`QueryCacheEngine` 原假设「本地写路径上远端已由本仓储自己写过，在飞查询问到的就是写后的状态」，复验推翻——在飞的 `findByIds` 可能在写之前发出、响应却晚于写确认落地，装的是旧快照；`query-cache-primary.ts` 的 `create()` / `update()` / `remove()` 现在都在 `syncMemo.clear()` 之后对称调用 `#cache.invalidateInflight()`，用递增的 `#invalidationGeneration` 代次让迟到响应的落地分支能识别自己已过期而放弃写入。`review-querycache-http-sqlite.spec.ts` 的 remove-离线分支断言同步放宽为「空结果或分类过的 `NetworkOfflineError`」，理由：remove 没有本地缓存可兜底，「本地行表」与「从未同步过这个 where」在结构上无法区分，按 US-020 AC#16 的既定取舍，无缓存时宁可报错也不能把「不知道」悄悄答成「没有」，原断言要求离线读必然返回空结果过严。**RV-054**（共享 SWR 失败被记成已校验）：`#inflightQueries` 按指纹去重到同一个共享 Observable，命中去重的后来者不会重新构建查询管线，原实现里远端失败只回调「第一个构建管线的调用方」登记的 `onRemoteError`，后来者的 `#runSync` 永远看不到这次失败、把一次被吞掉的远端错误误记成校验成功写入 sync memo；新增 `#inflightRemoteErrorHandlers`（按指纹收集全部消费者的回调集合），`find()` 构建管线时改用广播函数一次喂给全部已登记回调，`invalidateInflight()` 同步清空该表。**RV-055**（outbox 旧修复覆盖新离线写）：`query-cache-outbox.ts` 新增 `RepairSnapshot`（`changeRepo` / `namespace` / `branchId` / `maxChangeId`）与 `findEntityIdsWithNewerPendingChanges()`，`repairLocalCache()` 据此过滤 `freshRows` / `freshDropIds`，排除任何在快照之后又产生了更新 pending change 的实体 id，避免 KEEP_REMOTE 的旧修复把快照之后的新离线写覆盖；判定全程只比较单调递增的 `RxDBChange.id`，不借助墙钏时间。四处修复均有对应红测试覆盖并转绿，`pnpm nx run-many -t lint typecheck test -p rxdb-plugin-querycache,rxdb-plugin-sync,dev-rxdb-http-server,rxdb-adapter-http` 全绿（39/39）。
 >
 > **2026-10-05 清理（RV-030/RV-031 dev-rxdb-http-server 请求边界）**：两份整份删除——2 条（1 P1 + 1 P2）复核全部属实并修复。**RV-030**（非法 request-target 使参考服务进程崩溃）：`new URL(request.url ?? '/', 'http://127.0.0.1')` 对畸形 request-target（如 `GET http://[`）同步 throw，而调用处是 `void dispatch(...)`，未捕获的同步异常变成一次没人接的 Promise rejection，Node 对未接 rejection 的默认处理是终止整个进程；`server.ts` 现将该次 `new URL` 包进 try/catch，catch 分支补上 CORS 头、记一次 400 请求并发 `JSON_ERROR(400, ...)`，同时新增 `handleUncaughtDispatchError` 作为 `dispatch(...)` 上的 `.catch()` 顶层兜底（响应已发出则 `destroy()`，否则补发 500）。红测试 `review-http-request-target-crash.spec.ts` 用独立子进程（不经 Nx，Node 26 原生剥离类型直跑 `main.ts serve`）发手写畸形请求行，断言进程退出码仍为 `null` 且健康探针照常 200。**RV-031**（metadata 端点不校验 JSON 对象形状）：`handleMetadata` 原先对请求体 `as Record<string, unknown>` 做不安全断言，非对象（`null` / 数组 / 标量）或字段类型不对的请求体会被当成合法对象继续处理；改为复用 `recipes-repository.ts` 里原本模块私有的 `readObject`（已改为 `export const` 并补 TSDoc），统一做形状校验，不满足即 400。红测试 `review-metadata-body-shape.spec.ts` 基于真实 `createDemoServer` + PGlite 覆盖 `{"limit":1}` / `{}` 通过，`null` / `[]` / 标量 / 错字段类型 / 超大 body 均 400/413。顺带修了本轮复验时发现的一个真实 TS 类型错误（与两条 RV 本身无关，是回归测试文件自身的类型标注问题）：`review-http-request-target-crash.spec.ts` 里子进程以 `stdio: ['ignore', 'pipe', 'pipe']` 启动（stdin 为 `null`），却声明成要求非空 `Writable` stdin 的 `ChildProcessWithoutNullStreams`，`dev-rxdb-http-server:typecheck` 因此报 6 个错误；改用 `ChildProcessByStdio<null, Readable, Readable>` 后类型与实际 stdio 配置一致，0 错误。`pnpm nx run-many -t lint typecheck test -p dev-rxdb-http-server,rxdb-adapter-http` 全绿。
@@ -127,14 +129,14 @@
 
 ## 2026-10-04 第三批：树与 DevTools
 
-- [RV-045：PGlite 树普通字段筛选歧义](RV-045-pglite-tree-scalar-filter-ambiguous-column.md)
-- [RV-046：过滤祖先后的树增量/SQL 漂移](RV-046-tree-filtered-ancestor-incremental-drift.md)
+- RV-045：PGlite 树普通字段筛选歧义（已修复，见上方 2026-10-05 清理记录）
+- RV-046：过滤祖先后的树增量/SQL 漂移（已修复，见上方 2026-10-05 清理记录）
 
 [本批实际执行、取证限制与剩余项](execution-2026-10-04-tree-devtools.md)：4 个 P2、6 个对象记录更新，真实后端与模型/传输接缝严格区分。
 
 ## 2026-10-04 第四批：生成器、图与小程序
 
-- [RV-050：图查询 NaN 深度假成功](RV-050-graph-nan-depth-silent-empty-result.md)
+- RV-050：图查询 NaN 深度假成功（已修复，见上方 2026-10-05 清理记录）
 - RV-051：小程序卸载后的迟到引导未释放（已修复，记录已删除）
 
 [本批实际源码/复验、测量限制与剩余项](execution-2026-10-04-generator-graph-miniprogram.md)：3 个 P2，更新 4 对象；Node 页回调接缝不冒充实际微信宿主。
@@ -161,5 +163,5 @@
 
 ## 2026-10-05：加密密钥环与实际后端
 
-- [RV-058：取消首次解锁仍提交废弃凭据](RV-058-cancelled-first-unlock-persists-abandoned-key.md)（P2）：A provider 返回前 lock，最终仍写 A verifier，B 被拦；锁状态仍正确，不是 AES/authentication bypass。
+- [RV-058：取消首次解锁仍提交废弃凭据](RV-058-cancelled-first-unlock-persists-abandoned-key.md)（P2，已修复，见上方 2026-10-05 清理记录；当日台账仍引用，记录暂留）
 - [当日实际台账与四包记录](execution-2026-10-05-encrypted.md)：原 encrypted 274 条全过，最终 275 passed /2 failed；Electron/PGlite 聚焦各 2 failed /1 passed，三项目严格 lint/typecheck 过。新红保留，未修业务/未提交，全仓仍未完成。

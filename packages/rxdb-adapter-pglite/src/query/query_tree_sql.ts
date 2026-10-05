@@ -98,7 +98,8 @@ export const generate_tree_sql = (
 
     collectFieldAliases(rule_group);
 
-    const whereClause = buildRuleGroupPG(rule_group, params, fieldAliasMap, metadata);
+    // 裸字段限定到递归成员 children：递归表 c 与它列同名，未限定会报 42702 列名歧义（RV-045）
+    const whereClause = buildRuleGroupPG(rule_group, params, fieldAliasMap, metadata, 'children');
     if (whereClause) {
       children_where_conditions.push(whereClause);
     }

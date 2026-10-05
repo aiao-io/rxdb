@@ -106,12 +106,12 @@ C5 仍部分核销；其它宿主和完整加密/强杀矩阵继续执行，不�
 
 ## 2026-10-04：树查询与 DevTools 第三批深审
 
-🔴 树普通字段筛选确认 [RV-045](../../RV-045-pglite-tree-scalar-filter-ambiguous-column.md)。PGlite alias 只处理 children.field，标准 title 条件在递归 self join 里未限定，四方法真实 SQL 报 42702。新增 **4 failed /2 passed**：[日志](../../evidence/2026-10-04/tree-devtools/tree-scalar-filter-pglite.txt)，无筛选的两个对照正常。
+🔴 树普通字段筛选确认 RV-045（已修复，见 README 2026-10-05 清理记录）。PGlite alias 只处理 children.field，标准 title 条件在递归 self join 里未限定，四方法真实 SQL 报 42702。新增 **4 failed /2 passed**：[日志](../../evidence/2026-10-04/tree-devtools/tree-scalar-filter-pglite.txt)，无筛选的两个对照正常。
 
 最初尝试订阅增量时初次快照已失败，日志有未处理 SQL error；它不是 RV-046 的 PGlite 漂移证据。后续改成直接 await repository 的六个明确断言，保留源探针快照和初次日志，不隐藏收集/前置错误。业务实现未修，已有 query/array/backup/commit 记录不覆盖这个新问题。
 
 ## 2026-10-05：加密初始化取消联审
 
-C2 与加密生命周期联审：Chromium 的原 PGlite memory adapter/storage/encryption facade 真实执行，keyring 表 COUNT 证实被取消 A 仍初始化，B 被旧 verifier 拦住；**2 failed /1 passed**，统一 [RV-058](../../RV-058-cancelled-first-unlock-persists-abandoned-key.md)。初版误假设 facade 有 isInitialized，已改原表查询；不为满足复验添加不存在的 API。memory 测量不外推磁盘崩溃/关闭恢复；本包原查询红仍保留。
+C2 与加密生命周期联审：Chromium 的原 PGlite memory adapter/storage/encryption facade 真实执行，keyring 表 COUNT 证实被取消 A 仍初始化，B 被旧 verifier 拦住；**2 failed /1 passed**，统一 RV-058（已修复，见 README 2026-10-05 清理记录）。初版误假设 facade 有 isInitialized，已改原表查询；不为满足复验添加不存在的 API。memory 测量不外推磁盘崩溃/关闭恢复；本包原查询红仍保留。
 
 [本轮源码/命令与未完成项](../../execution-2026-10-05-encrypted.md) · [最终状态观测](../../evidence/2026-10-05/encrypted/final-observations.json)。encrypted/Electron/PGlite 严格 lint/typecheck 通过，业务未改；sqlite-core 没有伪造本轮独立 lint/整包通过。coverage 关闭，不自动核销 C 专题。

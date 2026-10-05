@@ -14,12 +14,12 @@ execution: in-progress
 
 ## 1. 已确认意见
 
-| 编号                                                           | 实际问题                                                         | 本轮复验                                                        |
-| -------------------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------- |
-| [RV-045](RV-045-pglite-tree-scalar-filter-ambiguous-column.md) | PGlite 树普通字段 where 未限定 alias，四方法报 42702             | 实际 PGlite/Chromium：4 failed /2 passed                        |
-| [RV-046](RV-046-tree-filtered-ancestor-incremental-drift.md)   | where 截断祖先后，增量错误加入叶子，与 SQL 重查漂移              | 官方 SQLite-WASM/RxDB observable：1 failed /1 passed            |
-| RV-047（已修复）                                               | changes 环引用在 mask 阶段溢出，query 丢字段、event 向生产者抛错 | 实际 connector＋项目接缝：新增 2 failed /2 passed               |
-| RV-048（已修复）                                               | 同 port INIT7→INIT8 留旧路由，断开未撤销全部映射                 | 实际 wire guards/controller＋port 接缝：新增 2 failed /2 passed |
+| 编号                                            | 实际问题                                                         | 本轮复验                                                        |
+| ----------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------------------------------- |
+| RV-045（已修复，见 README 2026-10-05 清理记录） | PGlite 树普通字段 where 未限定 alias，四方法报 42702             | 实际 PGlite/Chromium：4 failed /2 passed                        |
+| RV-046（已修复，见 README 2026-10-05 清理记录） | where 截断祖先后，增量错误加入叶子，与 SQL 重查漂移              | 官方 SQLite-WASM/RxDB observable：1 failed /1 passed            |
+| RV-047（已修复）                                | changes 环引用在 mask 阶段溢出，query 丢字段、event 向生产者抛错 | 实际 connector＋项目接缝：新增 2 failed /2 passed               |
+| RV-048（已修复）                                | 同 port INIT7→INIT8 留旧路由，断开未撤销全部映射                 | 实际 wire guards/controller＋port 接缝：新增 2 failed /2 passed |
 
 全部 Open，业务实现未修，负向断言保留。复验测量面分别标明，不能将 metadata 查询夹具等包装成真实业务 SQL/Chrome GUI。
 

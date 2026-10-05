@@ -539,6 +539,10 @@ export class Keyring {
         kid,
         verifier: verifierEnvelope
       };
+      // RV-058：singleton 写入不可撤销 —— 落盘后会占住空库的凭据选择。取消若已发生在
+      // provider/KDF/verifier 生成期间，必须在提交前拦下，而不是等到发布内存 key 时才发现。
+      // 检查与 writeSingleton 之间同步衔接，写入进行中的 lock() 只能由末尾的检查兜住内存态。
+      this.assertUnlockNotAborted(epoch);
       try {
         await this.storage.writeSingleton(row);
       } catch (error) {
@@ -551,6 +555,17 @@ export class Keyring {
       }
     }
 
+    this.assertUnlockNotAborted(epoch);
+    this.key = candidate;
+    this.kidValue = kid;
+    this.idleTimeoutMs = idleTimeoutMs;
+    this.legacyEnvelopePolicy = legacyEnvelopePolicy;
+    this.armTimer();
+    this.lockState$.next(false);
+  }
+
+  /** 本次 unlock 开始后若发生过 lock()，以 `unlock_aborted_by_lock` 中止。 */
+  private assertUnlockNotAborted(epoch: number): void {
     if (this.lockEpoch !== epoch) {
       throw new EncryptedUnlockError({
         code: 'unlock_aborted_by_lock',
@@ -558,12 +573,6 @@ export class Keyring {
         hint: 'Await the unlock() promise before calling lock(), or re-run unlock() afterwards.'
       });
     }
-    this.key = candidate;
-    this.kidValue = kid;
-    this.idleTimeoutMs = idleTimeoutMs;
-    this.legacyEnvelopePolicy = legacyEnvelopePolicy;
-    this.armTimer();
-    this.lockState$.next(false);
   }
 
   private armTimer(): void {

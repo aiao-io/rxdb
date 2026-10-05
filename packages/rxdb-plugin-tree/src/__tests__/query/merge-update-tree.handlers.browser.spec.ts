@@ -341,10 +341,12 @@ describe('树形更新合并处理器', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('adds a newly matching descendant without requiring a parent patch', () => {
+    it('RV-046: refreshes for a newly matching descendant instead of adding it alone', () => {
+      // 递归 CTE 在递归成员上过 where：'matched' 此前不匹配，遍历被截断在它这里，名下若有
+      // 匹配的子孙也从未进过结果，本地缓存看不到、也无法证明它没有子孙。
       const existing = createNode('existing', 'root');
       const updates = [createUpdate('matched', { id: 'matched', active: true }, { active: false })];
-      const { task, next } = createFindDescendantsTask({ entityId: 'root' }, [existing]);
+      const { task, next, refresh } = createFindDescendantsTask({ entityId: 'root' }, [existing]);
 
       handleFindDescendantsUpdate(
         task,
@@ -357,7 +359,63 @@ describe('树形更新合并处理器', () => {
         createCache(updates, [['matched', createNode('matched', 'root', { active: true })]])
       );
 
-      expect(idsOf(next.mock.calls[0][0])).toEqual(['existing', 'matched']);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('RV-046: ignores a newly matching entity whose parent was cut off by where', () => {
+      // root → hidden（不匹配，不在结果里）→ leaf。leaf 翻为匹配，但 SQL 遍历在 hidden 处
+      // 就截断了，leaf 不可达：既不能加进结果，也不必回 SQL。
+      const updates = [createUpdate('leaf', { id: 'leaf', active: true }, { active: false })];
+      const { task, next, refresh } = createFindDescendantsTask({ entityId: 'root' }, [createNode('root', null)]);
+
+      handleFindDescendantsUpdate(
+        task,
+        updates,
+        createClassification({ updatedIds: ['leaf'], matchNowIds: ['leaf'], newlyMatchedIds: ['leaf'] }),
+        createCache(updates, [['leaf', createNode('leaf', 'hidden', { active: true })]])
+      );
+
+      expect(refresh).not.toHaveBeenCalled();
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('RV-046: drops the subtree of a descendant that stops matching where', () => {
+      // root → parent → child → grandchild。parent 翻为不匹配后 SQL 遍历在它这里截断，
+      // child（只改了字段）与 grandchild（本批未动）都随之退出结果。
+      const root = createNode('root', null);
+      const parent = createNode('parent', 'root', { active: true });
+      const child = createNode('child', 'parent', { active: true, label: 'before' });
+      const grandchild = createNode('grandchild', 'child', { active: true });
+      const updates = [
+        createUpdate('parent', { id: 'parent', active: false }, { active: true }),
+        createUpdate('child', { id: 'child', label: 'after' }, { label: 'before' })
+      ];
+      const { task, next, refresh } = createFindDescendantsTask({ entityId: 'root' }, [
+        root,
+        parent,
+        child,
+        grandchild
+      ]);
+
+      handleFindDescendantsUpdate(
+        task,
+        updates,
+        createClassification({
+          updatedIds: ['parent', 'child'],
+          matchBeforeIds: ['parent', 'child'],
+          matchNowIds: ['child'],
+          newlyUnmatchedIds: ['parent'],
+          stillMatchedIds: ['child']
+        }),
+        createCache(updates, [
+          ['parent', createNode('parent', 'root', { active: false })],
+          ['child', createNode('child', 'parent', { active: true, label: 'after' })]
+        ])
+      );
+
+      expect(refresh).not.toHaveBeenCalled();
+      expect(idsOf(next.mock.calls[0][0])).toEqual(['root']);
     });
 
     it('does not duplicate a newly matching entity already retained in the result', () => {
@@ -590,14 +648,16 @@ describe('树形更新合并处理器', () => {
       expect(ancestor.label).toBe('before');
     });
 
-    it('removes an unmatched ancestor and patches a retained target', () => {
+    it('RV-046: refreshes when an ancestor on the chain stops matching where', () => {
+      // 递归成员上过 where：ancestor 不再匹配后，它上方此前可达的祖先也随之截断，
+      // 那些节点不在本批事件里，只摘 ancestor 自己会留下孤儿。
       const ancestor = createNode('ancestor', null, { active: true });
       const target = createNode('target', 'ancestor', { label: 'before' });
       const updates = [
         createUpdate('ancestor', { id: 'ancestor', active: false }, { active: true }),
         createUpdate('target', { id: 'target', label: 'after' }, { label: 'before' })
       ];
-      const { task, next } = createFindAncestorsTask({ entityId: 'target' }, [ancestor, target]);
+      const { task, next, refresh } = createFindAncestorsTask({ entityId: 'target' }, [ancestor, target]);
 
       handleFindAncestorsUpdate(
         task,
@@ -610,8 +670,8 @@ describe('树形更新合并处理器', () => {
         createCache(updates, [['target', createNode('target', 'ancestor', { label: 'after' })]])
       );
 
-      expect(idsOf(next.mock.calls[0][0])).toEqual(['target']);
-      expect(next.mock.calls[0][0][0].label).toBe('after');
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('RXD-022: refreshes instead of locally rechecking every old result when the target moves', () => {
@@ -773,10 +833,11 @@ describe('树形更新合并处理器', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('adds a newly matching direct parent that is within the requested level', () => {
+    it('RV-046: refreshes when a direct parent within the level starts matching where', () => {
+      // parent 此前不匹配，遍历截断在它这里；翻为匹配后它上方的祖先可能重新可达。
       const target = createNode('target', 'parent', { active: true });
       const updates = [createUpdate('parent', { active: true }, { active: false })];
-      const { task, next } = createFindAncestorsTask({ entityId: 'target', level: 1 }, [target]);
+      const { task, next, refresh } = createFindAncestorsTask({ entityId: 'target', level: 1 }, [target]);
 
       handleFindAncestorsUpdate(
         task,
@@ -785,8 +846,8 @@ describe('树形更新合并处理器', () => {
         createCache(updates, [['parent', createNode('parent', null, { active: true })]])
       );
 
-      expect(next).toHaveBeenCalledTimes(1);
-      expect(idsOf(next.mock.calls[0][0])).toEqual(['target', 'parent']);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(next).not.toHaveBeenCalled();
     });
   });
 
@@ -828,12 +889,13 @@ describe('树形更新合并处理器', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('counts a descendant that starts matching where', () => {
+    it('RV-046: refreshes instead of +1 when a descendant starts matching where', () => {
       // where 命中与否直接读 `classification`：那两个集合本来就是 `classifyUpdates`
       // 用 `getSerializedBefore` / `getSerializedUpdate` 的**完整实体**跑同一个
       // `isEntityMatchWhere` 算出来的，处理器不再自己跑第二遍（「完整实体」这条
       // 保证随之移交给 rxdb 核心的 `merge-update.utils` 用例）。
-      // 这里只验证树侧的那一半：成员关系没变、where 由不匹配翻为匹配 → +1。
+      // 这里只验证树侧的那一半：成员关系没变、where 由不匹配翻为匹配。递归成员上过 where，
+      // child 此前把遍历截断在它这里，名下子孙随它一起进来，count 看不到 → 回 SQL。
       const updates = [
         createUpdate('child', { id: 'child', parentId: 'root', active: true, category: 'stable' }, { active: false })
       ];
@@ -846,11 +908,11 @@ describe('树形更新合并处理器', () => {
         createCache(updates, [['child', createNode('child', 'root', { active: true, category: 'stable' })]])
       );
 
-      expect(next).toHaveBeenCalledWith(5, false);
-      expect(refresh).not.toHaveBeenCalled();
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(next).not.toHaveBeenCalled();
     });
 
-    it('drops a descendant that stops matching where', () => {
+    it('RV-046: refreshes instead of -1 when a descendant stops matching where', () => {
       const updates = [createUpdate('child', { id: 'child', parentId: 'root', active: false }, { active: true })];
       const { task, next, refresh } = createCountDescendantsTask({ entityId: 'root' }, 4);
 
@@ -861,14 +923,37 @@ describe('树形更新合并处理器', () => {
         createCache(updates, [['child', createNode('child', 'root', { active: false })]])
       );
 
-      expect(next).toHaveBeenCalledWith(3, false);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(next).not.toHaveBeenCalled();
+    });
+
+    it('RV-046: ignores a where flip beyond the requested level', () => {
+      // deep 在第 2 层，level=1 时连它带子孙都不在计数范围内。count 只能从本批更新里
+      // 解析父链，所以 parent 也带一条不改结构的更新。
+      const updates = [
+        createUpdate('deep', { id: 'deep', active: true }, { active: false }),
+        createUpdate('parent', { id: 'parent', label: 'renamed' }, { label: 'before' })
+      ];
+      const { task, next, refresh } = createCountDescendantsTask({ entityId: 'root', level: 1 }, 1);
+
+      handleCountDescendantsUpdate(
+        task,
+        updates,
+        createClassification({ updatedIds: ['deep', 'parent'], matchNowIds: ['deep'], newlyMatchedIds: ['deep'] }),
+        createCache(updates, [
+          ['deep', createNode('deep', 'parent', { active: true })],
+          ['parent', createNode('parent', 'root')]
+        ])
+      );
+
       expect(refresh).not.toHaveBeenCalled();
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('does not notify when membership and matching stay unchanged', () => {
       const updates = [
-        createUpdate('child', { id: 'child', parentId: 'root', active: true }, { active: true }),
-        createUpdate('outside', { id: 'outside', parentId: null, active: false }, { active: false })
+        createUpdate('child', { id: 'child', parentId: 'root', active: true }, { parentId: 'root', active: true }),
+        createUpdate('outside', { id: 'outside', parentId: null, active: false }, { parentId: null, active: false })
       ];
       const { task, next, refresh } = createCountDescendantsTask({ entityId: 'root' }, 1);
 
@@ -891,14 +976,14 @@ describe('树形更新合并处理器', () => {
       expect(refresh).not.toHaveBeenCalled();
     });
 
-    it('refreshes when the previous parent chain cannot be resolved', () => {
+    it('refreshes when the parent chain of a where flip cannot be resolved', () => {
       const updates = [createUpdate('child', { id: 'child', parentId: 'missing' }, { parentId: 'missing' })];
       const { task, next, refresh } = createCountDescendantsTask({ entityId: 'root' }, 1);
 
       handleCountDescendantsUpdate(
         task,
         updates,
-        createClassification(),
+        createClassification({ updatedIds: ['child'], matchNowIds: ['child'], newlyMatchedIds: ['child'] }),
         createCache(updates, [['child', createNode('child', 'missing')]])
       );
 
@@ -921,9 +1006,11 @@ describe('树形更新合并处理器', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('supports all-tree counts with an undefined target', () => {
-      const updates = [createUpdate('child', { id: 'child', parentId: 'root', active: true }, { active: false })];
-      const { task, next } = createCountDescendantsTask({}, 0);
+    it('RV-046: refreshes all-tree counts with an undefined target on a where flip', () => {
+      const updates = [
+        createUpdate('child', { id: 'child', parentId: 'root', active: true }, { parentId: 'root', active: false })
+      ];
+      const { task, next, refresh } = createCountDescendantsTask({}, 0);
 
       handleCountDescendantsUpdate(
         task,
@@ -935,7 +1022,8 @@ describe('树形更新合并处理器', () => {
         ])
       );
 
-      expect(next).toHaveBeenCalledWith(1, false);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('keeps a root node counted in all-tree mode when it stops matching where', () => {
@@ -999,7 +1087,8 @@ describe('树形更新合并处理器', () => {
       expect(refresh).toHaveBeenCalledTimes(1);
     });
 
-    it('increments when a direct ancestor starts matching where', () => {
+    it('RV-046: refreshes instead of +1 when a direct ancestor starts matching where', () => {
+      // parent 此前不匹配，遍历截断在它这里；翻为匹配后它上方的祖先可能一并重新可达
       const updates = [
         createUpdate('target', { id: 'target', parentId: 'parent' }, { parentId: 'parent' }),
         createUpdate('parent', { id: 'parent', parentId: null, active: true }, { active: false })
@@ -1020,16 +1109,16 @@ describe('树形更新合并处理器', () => {
         ])
       );
 
-      expect(next).toHaveBeenCalledWith(3, false);
-      expect(refresh).not.toHaveBeenCalled();
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(next).not.toHaveBeenCalled();
     });
 
-    it('decrements and clamps when a direct ancestor stops matching where', () => {
+    it('RV-046: refreshes instead of -1 when a direct ancestor stops matching where', () => {
       const updates = [
         createUpdate('target', { id: 'target', parentId: 'parent' }, { parentId: 'parent' }),
         createUpdate('parent', { id: 'parent', parentId: null, active: false }, { active: true })
       ];
-      const { task, next } = createCountAncestorsTask({ entityId: 'target' }, 0);
+      const { task, next, refresh } = createCountAncestorsTask({ entityId: 'target' }, 0);
 
       handleCountAncestorsUpdate(
         task,
@@ -1045,7 +1134,8 @@ describe('树形更新合并处理器', () => {
         ])
       );
 
-      expect(next).toHaveBeenCalledWith(0, false);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      expect(next).not.toHaveBeenCalled();
     });
 
     it('reuses one ancestor set across duplicate updates and emits no unchanged count', () => {
@@ -1101,7 +1191,7 @@ describe('树形更新合并处理器', () => {
       expect(refresh).not.toHaveBeenCalled();
     });
 
-    it('refreshes when the previous ancestor chain cannot be resolved', () => {
+    it('refreshes when the ancestor chain behind a where flip cannot be resolved', () => {
       const updates = [
         createUpdate('target', { id: 'target', parentId: 'middle' }, { parentId: 'middle' }),
         createUpdate('candidate', { id: 'candidate', parentId: null }, { parentId: null })
@@ -1111,10 +1201,10 @@ describe('树形更新合并处理器', () => {
       handleCountAncestorsUpdate(
         task,
         updates,
-        createClassification(),
+        createClassification({ updatedIds: ['candidate'], matchNowIds: ['candidate'], newlyMatchedIds: ['candidate'] }),
         createCache(updates, [
           ['target', createNode('target', 'middle')],
-          ['candidate', createNode('candidate', null)]
+          ['candidate', createNode('candidate', null, { active: true })]
         ])
       );
 
@@ -1122,7 +1212,7 @@ describe('树形更新合并处理器', () => {
       expect(next).not.toHaveBeenCalled();
     });
 
-    it('refreshes when only the updated candidate serialization lacks an identifier', () => {
+    it('refreshes when only the updated serialization of a flipped candidate lacks an identifier', () => {
       const updates = [
         createUpdate('target', { id: 'target', parentId: 'candidate' }, { parentId: 'candidate' }),
         createUpdate('candidate', { parentId: null }, { id: 'candidate', parentId: null })
@@ -1132,7 +1222,7 @@ describe('树形更新合并处理器', () => {
       handleCountAncestorsUpdate(
         task,
         updates,
-        createClassification(),
+        createClassification({ updatedIds: ['candidate'], matchNowIds: ['candidate'], newlyMatchedIds: ['candidate'] }),
         createCache(updates, [
           ['target', createNode('target', 'candidate')],
           ['candidate', createNode(undefined, null)]

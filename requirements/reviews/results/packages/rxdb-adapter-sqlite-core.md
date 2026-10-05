@@ -97,7 +97,7 @@ SQLite 适配器共同实现：SQL/映射、事务、迁移、FTS、备份及桌
 
 ## 2026-10-04：树查询与 DevTools 第三批深审
 
-树查询联审读取 generate_tree_sql 的 metadata property/FK alias、where 在递归项的位置与 level 条件。普通 scalar alias 已限定 children，PGlite 的歧义不重复记成 sqlite-core 错误；SQL 遍历与插件 JS 增量不一致统一 [RV-046](../../RV-046-tree-filtered-ancestor-incremental-drift.md)。
+树查询联审读取 generate_tree_sql 的 metadata property/FK alias、where 在递归项的位置与 level 条件。普通 scalar alias 已限定 children，PGlite 的歧义不重复记成 sqlite-core 错误；SQL 遍历与插件 JS 增量不一致统一 RV-046（已修复，见 README 2026-10-05 清理记录）。
 
 真实 SQLite 后端结果/公开 query task 对照 **1 failed /1 passed**：[日志](../../evidence/2026-10-04/tree-devtools/tree-filter-incremental-sqlite-linked.txt)。不能仅看共享 mock 断言或不传 where 的成功。本轮没有把递归保护常量删掉，也没有复验深度>1000/环形图全部行为，C3/C4 完整语义继续核查。
 
@@ -109,6 +109,6 @@ C2 **部分执行**。原 upsertMany 的事务、触发器抑制、实体刷新�
 
 ## 2026-10-05：加密初始化取消联审
 
-C2/C4 与加密 storage 生命周期联审：原 SqliteCoreKeyringStorage 的 ensure/read/INSERT OR FAIL、冲突分类，以及 base encryption facade 真实参与 Electron 复验。取消首次 provider 后仍提交 singleton 的根因统一 [RV-058](../../RV-058-cancelled-first-unlock-persists-abandoned-key.md)，不是 SQLite 违反事务/主键。native 文件档位 **2 failed /1 passed**，新 B 被 A verifier 拒绝。仍未完成各 browser backend/工作树/备份/崩溃矩阵；不恢复 writer lease，不重复登记四条后端缺陷。
+C2/C4 与加密 storage 生命周期联审：原 SqliteCoreKeyringStorage 的 ensure/read/INSERT OR FAIL、冲突分类，以及 base encryption facade 真实参与 Electron 复验。取消首次 provider 后仍提交 singleton 的根因统一 RV-058（已修复，见 README 2026-10-05 清理记录），不是 SQLite 违反事务/主键。native 文件档位 **2 failed /1 passed**，新 B 被 A verifier 拒绝。仍未完成各 browser backend/工作树/备份/崩溃矩阵；不恢复 writer lease，不重复登记四条后端缺陷。
 
 [本轮源码/命令与未完成项](../../execution-2026-10-05-encrypted.md) · [最终状态观测](../../evidence/2026-10-05/encrypted/final-observations.json)。encrypted/Electron/PGlite 严格 lint/typecheck 通过，业务未改；sqlite-core 没有伪造本轮独立 lint/整包通过。coverage 关闭，不自动核销 C 专题。
