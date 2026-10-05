@@ -1,0 +1,1746 @@
+{
+  "picked": [
+    {
+      "name": "@angular/compiler",
+      "version": "22.2.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+compiler@22.2.1/node_modules/@angular/compiler/package.json"
+    },
+    {
+      "name": "tslib",
+      "version": "2.8.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/tslib@2.8.1/node_modules/tslib/package.json"
+    },
+    {
+      "name": "@types/react-dom",
+      "version": "19.3.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@types+react-dom@19.3.0_@types+react@19.3.0/node_modules/@types/react-dom/package.json"
+    },
+    {
+      "name": "@types/react",
+      "version": "19.3.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@types+react@19.3.0/node_modules/@types/react/package.json"
+    },
+    {
+      "name": "csstype",
+      "version": "3.2.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/csstype@3.2.3/node_modules/csstype/package.json"
+    },
+    {
+      "name": "@types/node",
+      "version": "26.6.4",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@types+node@26.6.4/node_modules/@types/node/package.json"
+    },
+    {
+      "name": "undici-types",
+      "version": "8.9.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/undici-types@8.9.0/node_modules/undici-types/package.json"
+    },
+    {
+      "name": "typescript",
+      "version": "6.0.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/package.json"
+    },
+    {
+      "name": "@codemirror/language-data",
+      "version": "6.5.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+language-data@6.5.2/node_modules/@codemirror/language-data/package.json"
+    },
+    {
+      "name": "@codemirror/legacy-modes",
+      "version": "6.5.4",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+legacy-modes@6.5.4/node_modules/@codemirror/legacy-modes/package.json"
+    },
+    {
+      "name": "@codemirror/language",
+      "version": "6.12.4",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language/package.json"
+    },
+    {
+      "name": "style-mod",
+      "version": "4.1.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/style-mod@4.1.3/node_modules/style-mod/package.json"
+    },
+    {
+      "name": "@lezer/lr",
+      "version": "1.4.10",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/package.json"
+    },
+    {
+      "name": "@lezer/common",
+      "version": "1.5.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+common@1.5.2/node_modules/@lezer/common/package.json"
+    },
+    {
+      "name": "@lezer/highlight",
+      "version": "1.2.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/package.json"
+    },
+    {
+      "name": "@codemirror/view",
+      "version": "6.43.13",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view/package.json"
+    },
+    {
+      "name": "w3c-keyname",
+      "version": "2.2.8",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/w3c-keyname@2.2.8/node_modules/w3c-keyname/package.json"
+    },
+    {
+      "name": "crelt",
+      "version": "1.0.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/crelt@1.0.7/node_modules/crelt/package.json"
+    },
+    {
+      "name": "@codemirror/state",
+      "version": "6.7.6",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+state@6.7.6/node_modules/@codemirror/state/package.json"
+    },
+    {
+      "name": "@marijn/find-cluster-break",
+      "version": "1.0.4",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@marijn+find-cluster-break@1.0.4/node_modules/@marijn/find-cluster-break/package.json"
+    },
+    {
+      "name": "@codemirror/lang-yaml",
+      "version": "6.1.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-yaml@6.1.3/node_modules/@codemirror/lang-yaml/package.json"
+    },
+    {
+      "name": "@lezer/yaml",
+      "version": "1.0.4",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+yaml@1.0.4/node_modules/@lezer/yaml/package.json"
+    },
+    {
+      "name": "@codemirror/autocomplete",
+      "version": "6.20.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+autocomplete@6.20.3/node_modules/@codemirror/autocomplete/package.json"
+    },
+    {
+      "name": "@codemirror/lang-xml",
+      "version": "6.1.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-xml@6.1.0/node_modules/@codemirror/lang-xml/package.json"
+    },
+    {
+      "name": "@lezer/xml",
+      "version": "1.0.6",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+xml@1.0.6/node_modules/@lezer/xml/package.json"
+    },
+    {
+      "name": "@codemirror/lang-wast",
+      "version": "6.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-wast@6.0.2/node_modules/@codemirror/lang-wast/package.json"
+    },
+    {
+      "name": "@codemirror/lang-vue",
+      "version": "0.1.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-vue@0.1.3/node_modules/@codemirror/lang-vue/package.json"
+    },
+    {
+      "name": "@codemirror/lang-javascript",
+      "version": "6.2.5",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-javascript@6.2.5/node_modules/@codemirror/lang-javascript/package.json"
+    },
+    {
+      "name": "@lezer/javascript",
+      "version": "1.5.4",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+javascript@1.5.4/node_modules/@lezer/javascript/package.json"
+    },
+    {
+      "name": "@codemirror/lint",
+      "version": "6.9.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lint@6.9.7/node_modules/@codemirror/lint/package.json"
+    },
+    {
+      "name": "@codemirror/lang-html",
+      "version": "6.4.12",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-html@6.4.12/node_modules/@codemirror/lang-html/package.json"
+    },
+    {
+      "name": "@lezer/css",
+      "version": "1.3.6",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+css@1.3.6/node_modules/@lezer/css/package.json"
+    },
+    {
+      "name": "@lezer/html",
+      "version": "1.3.13",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+html@1.3.13/node_modules/@lezer/html/package.json"
+    },
+    {
+      "name": "@codemirror/lang-css",
+      "version": "6.3.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-css@6.3.1/node_modules/@codemirror/lang-css/package.json"
+    },
+    {
+      "name": "@codemirror/lang-sql",
+      "version": "6.10.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-sql@6.10.0/node_modules/@codemirror/lang-sql/package.json"
+    },
+    {
+      "name": "@codemirror/lang-sass",
+      "version": "6.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-sass@6.0.2/node_modules/@codemirror/lang-sass/package.json"
+    },
+    {
+      "name": "@lezer/sass",
+      "version": "1.1.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+sass@1.1.0/node_modules/@lezer/sass/package.json"
+    },
+    {
+      "name": "@codemirror/lang-rust",
+      "version": "6.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-rust@6.0.2/node_modules/@codemirror/lang-rust/package.json"
+    },
+    {
+      "name": "@lezer/rust",
+      "version": "1.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+rust@1.0.2/node_modules/@lezer/rust/package.json"
+    },
+    {
+      "name": "@codemirror/lang-python",
+      "version": "6.2.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-python@6.2.1/node_modules/@codemirror/lang-python/package.json"
+    },
+    {
+      "name": "@lezer/python",
+      "version": "1.1.19",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+python@1.1.19/node_modules/@lezer/python/package.json"
+    },
+    {
+      "name": "@codemirror/lang-php",
+      "version": "6.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-php@6.0.2/node_modules/@codemirror/lang-php/package.json"
+    },
+    {
+      "name": "@lezer/php",
+      "version": "1.0.6",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+php@1.0.6/node_modules/@lezer/php/package.json"
+    },
+    {
+      "name": "@codemirror/lang-markdown",
+      "version": "6.5.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-markdown@6.5.2/node_modules/@codemirror/lang-markdown/package.json"
+    },
+    {
+      "name": "@lezer/markdown",
+      "version": "1.7.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+markdown@1.7.2/node_modules/@lezer/markdown/package.json"
+    },
+    {
+      "name": "@codemirror/lang-less",
+      "version": "6.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-less@6.0.2/node_modules/@codemirror/lang-less/package.json"
+    },
+    {
+      "name": "@codemirror/lang-liquid",
+      "version": "6.3.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-liquid@6.3.2/node_modules/@codemirror/lang-liquid/package.json"
+    },
+    {
+      "name": "@codemirror/lang-json",
+      "version": "6.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-json@6.0.2/node_modules/@codemirror/lang-json/package.json"
+    },
+    {
+      "name": "@lezer/json",
+      "version": "1.0.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+json@1.0.3/node_modules/@lezer/json/package.json"
+    },
+    {
+      "name": "@codemirror/lang-jinja",
+      "version": "6.0.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-jinja@6.0.1/node_modules/@codemirror/lang-jinja/package.json"
+    },
+    {
+      "name": "@codemirror/lang-java",
+      "version": "6.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-java@6.0.2/node_modules/@codemirror/lang-java/package.json"
+    },
+    {
+      "name": "@lezer/java",
+      "version": "1.1.4",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+java@1.1.4/node_modules/@lezer/java/package.json"
+    },
+    {
+      "name": "@codemirror/lang-go",
+      "version": "6.0.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-go@6.0.1/node_modules/@codemirror/lang-go/package.json"
+    },
+    {
+      "name": "@lezer/go",
+      "version": "1.0.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+go@1.0.1/node_modules/@lezer/go/package.json"
+    },
+    {
+      "name": "@codemirror/lang-cpp",
+      "version": "6.0.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-cpp@6.0.3/node_modules/@codemirror/lang-cpp/package.json"
+    },
+    {
+      "name": "@lezer/cpp",
+      "version": "1.1.6",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+cpp@1.1.6/node_modules/@lezer/cpp/package.json"
+    },
+    {
+      "name": "@codemirror/lang-angular",
+      "version": "0.1.4",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-angular@0.1.4/node_modules/@codemirror/lang-angular/package.json"
+    },
+    {
+      "name": "react-dom",
+      "version": "19.3.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom/package.json"
+    },
+    {
+      "name": "react",
+      "version": "19.3.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/react@19.3.0/node_modules/react/package.json"
+    },
+    {
+      "name": "scheduler",
+      "version": "0.28.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/scheduler@0.28.0/node_modules/scheduler/package.json"
+    },
+    {
+      "name": "@electric-sql/pglite",
+      "version": "0.5.8",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@electric-sql+pglite@0.5.8/node_modules/@electric-sql/pglite/package.json"
+    },
+    {
+      "name": "@subframe7536/sqlite-wasm",
+      "version": "1.4.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@subframe7536+sqlite-wasm@1.4.0/node_modules/@subframe7536/sqlite-wasm/package.json"
+    },
+    {
+      "name": "ngxtension",
+      "version": "7.3.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/ngxtension@7.3.1_@angular+common@22.2.1_@angular+core@22.2.1_@angular+compiler@22.2.1_r_a1f72d86c942f8e85914dbc96467a175/node_modules/ngxtension/package.json"
+    },
+    {
+      "name": "rxjs",
+      "version": "7.8.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs/package.json"
+    },
+    {
+      "name": "@angular/core",
+      "version": "22.2.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core/package.json"
+    },
+    {
+      "name": "@angular/common",
+      "version": "22.2.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+common@22.2.1_@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2__rxjs@7.8.2/node_modules/@angular/common/package.json"
+    },
+    {
+      "name": "@angular/platform-browser",
+      "version": "22.2.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+platform-browser@22.2.1_@angular+common@22.2.1_@angular+core@22.2.1_@angular+c_29fc8fb89ccf5cf9f7fde60b3e6d1c3e/node_modules/@angular/platform-browser/package.json"
+    },
+    {
+      "name": "comlink",
+      "version": "4.4.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/comlink@4.4.2/node_modules/comlink/package.json"
+    },
+    {
+      "name": "ts-morph",
+      "version": "28.0.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/ts-morph@28.0.0/node_modules/ts-morph/package.json"
+    },
+    {
+      "name": "code-block-writer",
+      "version": "13.0.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/code-block-writer@13.0.3/node_modules/code-block-writer/package.json"
+    },
+    {
+      "name": "@ts-morph/common",
+      "version": "0.29.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@ts-morph+common@0.29.0/node_modules/@ts-morph/common/package.json"
+    },
+    {
+      "name": "tinyglobby",
+      "version": "0.2.17",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/tinyglobby@0.2.17/node_modules/tinyglobby/package.json"
+    },
+    {
+      "name": "picomatch",
+      "version": "4.0.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/picomatch@4.0.7/node_modules/picomatch/package.json"
+    },
+    {
+      "name": "fdir",
+      "version": "6.5.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/fdir@6.5.0_picomatch@4.0.7/node_modules/fdir/package.json"
+    },
+    {
+      "name": "path-browserify",
+      "version": "1.0.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/path-browserify@1.0.1/node_modules/path-browserify/package.json"
+    },
+    {
+      "name": "minimatch",
+      "version": "10.2.6",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/minimatch@10.2.6/node_modules/minimatch/package.json"
+    },
+    {
+      "name": "brace-expansion",
+      "version": "5.0.12",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/brace-expansion@5.0.12/node_modules/brace-expansion/package.json"
+    },
+    {
+      "name": "balanced-match",
+      "version": "4.0.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/balanced-match@4.0.3/node_modules/balanced-match/package.json"
+    },
+    {
+      "name": "jiti",
+      "version": "2.7.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/jiti@2.7.0/node_modules/jiti/package.json"
+    },
+    {
+      "name": "glob",
+      "version": "13.0.6",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/glob@13.0.6/node_modules/glob/package.json"
+    },
+    {
+      "name": "path-scurry",
+      "version": "2.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/path-scurry@2.0.2/node_modules/path-scurry/package.json"
+    },
+    {
+      "name": "minipass",
+      "version": "7.1.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/minipass@7.1.3/node_modules/minipass/package.json"
+    },
+    {
+      "name": "lru-cache",
+      "version": "11.5.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/lru-cache@11.5.2/node_modules/lru-cache/package.json"
+    },
+    {
+      "name": "vue",
+      "version": "3.5.43",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vue@3.5.43_typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb_/node_modules/vue/package.json"
+    },
+    {
+      "name": "@vue/server-renderer",
+      "version": "3.5.43",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+server-renderer@3.5.43/node_modules/@vue/server-renderer/package.json"
+    },
+    {
+      "name": "@vue/runtime-dom",
+      "version": "3.5.43",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+runtime-dom@3.5.43/node_modules/@vue/runtime-dom/package.json"
+    },
+    {
+      "name": "@vue/reactivity",
+      "version": "3.5.43",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+reactivity@3.5.43/node_modules/@vue/reactivity/package.json"
+    },
+    {
+      "name": "@vue/shared",
+      "version": "3.5.43",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+shared@3.5.43/node_modules/@vue/shared/package.json"
+    },
+    {
+      "name": "@vue/runtime-core",
+      "version": "3.5.43",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+runtime-core@3.5.43/node_modules/@vue/runtime-core/package.json"
+    },
+    {
+      "name": "@vue/compiler-ssr",
+      "version": "3.5.43",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+compiler-ssr@3.5.43/node_modules/@vue/compiler-ssr/package.json"
+    },
+    {
+      "name": "@vue/compiler-dom",
+      "version": "3.5.43",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+compiler-dom@3.5.43/node_modules/@vue/compiler-dom/package.json"
+    },
+    {
+      "name": "@vue/compiler-core",
+      "version": "3.5.43",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+compiler-core@3.5.43/node_modules/@vue/compiler-core/package.json"
+    },
+    {
+      "name": "source-map-js",
+      "version": "1.2.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/source-map-js@1.2.1/node_modules/source-map-js/package.json"
+    },
+    {
+      "name": "estree-walker",
+      "version": "2.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/estree-walker@2.0.2/node_modules/estree-walker/package.json"
+    },
+    {
+      "name": "entities",
+      "version": "7.0.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/entities@7.0.1/node_modules/entities/package.json"
+    },
+    {
+      "name": "@babel/parser",
+      "version": "7.29.8",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+parser@7.29.8/node_modules/@babel/parser/package.json"
+    },
+    {
+      "name": "@babel/types",
+      "version": "7.29.8",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+types@7.29.8/node_modules/@babel/types/package.json"
+    },
+    {
+      "name": "@babel/helper-validator-identifier",
+      "version": "7.29.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+helper-validator-identifier@7.29.7/node_modules/@babel/helper-validator-identifier/package.json"
+    },
+    {
+      "name": "@babel/helper-string-parser",
+      "version": "7.29.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+helper-string-parser@7.29.7/node_modules/@babel/helper-string-parser/package.json"
+    },
+    {
+      "name": "@vue/compiler-sfc",
+      "version": "3.5.43",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+compiler-sfc@3.5.43/node_modules/@vue/compiler-sfc/package.json"
+    },
+    {
+      "name": "postcss",
+      "version": "8.5.28",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/postcss@8.5.28/node_modules/postcss/package.json"
+    },
+    {
+      "name": "picocolors",
+      "version": "1.1.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/picocolors@1.1.1/node_modules/picocolors/package.json"
+    },
+    {
+      "name": "nanoid",
+      "version": "3.3.18",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/nanoid@3.3.18/node_modules/nanoid/package.json"
+    },
+    {
+      "name": "magic-string",
+      "version": "0.30.21",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/magic-string@0.30.21/node_modules/magic-string/package.json"
+    },
+    {
+      "name": "@jridgewell/sourcemap-codec",
+      "version": "1.6.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@jridgewell+sourcemap-codec@1.6.0/node_modules/@jridgewell/sourcemap-codec/package.json"
+    },
+    {
+      "name": "uuid",
+      "version": "14.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/uuid@14.0.2/node_modules/uuid/package.json"
+    },
+    {
+      "name": "type-fest",
+      "version": "5.10.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/type-fest@5.10.0/node_modules/type-fest/package.json"
+    },
+    {
+      "name": "tagged-tag",
+      "version": "1.0.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/tagged-tag@1.0.0/node_modules/tagged-tag/package.json"
+    },
+    {
+      "name": "ts-xor",
+      "version": "1.3.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/ts-xor@1.3.0/node_modules/ts-xor/package.json"
+    },
+    {
+      "name": "ms",
+      "version": "2.1.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/ms@2.1.3/node_modules/ms/package.json"
+    },
+    {
+      "name": "fastest-levenshtein",
+      "version": "1.0.16",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/fastest-levenshtein@1.0.16/node_modules/fastest-levenshtein/package.json"
+    },
+    {
+      "name": "vitest",
+      "version": "4.1.11",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vitest@4.1.11_@types+node@26.6.3_@vitest+browser-playwright@4.1.11_@vitest+coverage-ist_ded75e5b12a7e2f424c5f78a2c33d2a8/node_modules/vitest/package.json"
+    },
+    {
+      "name": "@vitest/ui",
+      "version": "4.1.11",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+ui@4.1.11_vitest@4.1.11/node_modules/@vitest/ui/package.json"
+    },
+    {
+      "name": "@vitest/utils",
+      "version": "4.1.11",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+utils@4.1.11/node_modules/@vitest/utils/package.json"
+    },
+    {
+      "name": "@vitest/pretty-format",
+      "version": "4.1.11",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+pretty-format@4.1.11/node_modules/@vitest/pretty-format/package.json"
+    },
+    {
+      "name": "tinyrainbow",
+      "version": "3.1.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/tinyrainbow@3.1.1/node_modules/tinyrainbow/package.json"
+    },
+    {
+      "name": "convert-source-map",
+      "version": "2.0.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/convert-source-map@2.0.0/node_modules/convert-source-map/package.json"
+    },
+    {
+      "name": "sirv",
+      "version": "3.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/sirv@3.0.2/node_modules/sirv/package.json"
+    },
+    {
+      "name": "totalist",
+      "version": "3.0.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/totalist@3.0.1/node_modules/totalist/package.json"
+    },
+    {
+      "name": "mrmime",
+      "version": "2.0.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/mrmime@2.0.1/node_modules/mrmime/package.json"
+    },
+    {
+      "name": "@polka/url",
+      "version": "1.0.0-next.29",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@polka+url@1.0.0-next.29/node_modules/@polka/url/package.json"
+    },
+    {
+      "name": "pathe",
+      "version": "2.0.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/pathe@2.0.3/node_modules/pathe/package.json"
+    },
+    {
+      "name": "flatted",
+      "version": "3.4.4",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/flatted@3.4.4/node_modules/flatted/package.json"
+    },
+    {
+      "name": "fflate",
+      "version": "0.8.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/fflate@0.8.3/node_modules/fflate/package.json"
+    },
+    {
+      "name": "@vitest/coverage-istanbul",
+      "version": "4.1.11",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+coverage-istanbul@4.1.11_vitest@4.1.11/node_modules/@vitest/coverage-istanbul/package.json"
+    },
+    {
+      "name": "obug",
+      "version": "2.2.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/obug@2.2.1/node_modules/obug/package.json"
+    },
+    {
+      "name": "magicast",
+      "version": "0.5.4",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/magicast@0.5.4/node_modules/magicast/package.json"
+    },
+    {
+      "name": "istanbul-reports",
+      "version": "3.2.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/istanbul-reports@3.2.0/node_modules/istanbul-reports/package.json"
+    },
+    {
+      "name": "istanbul-lib-report",
+      "version": "3.0.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/istanbul-lib-report@3.0.1/node_modules/istanbul-lib-report/package.json"
+    },
+    {
+      "name": "supports-color",
+      "version": "7.2.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/supports-color@7.2.0/node_modules/supports-color/package.json"
+    },
+    {
+      "name": "has-flag",
+      "version": "4.0.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/has-flag@4.0.0/node_modules/has-flag/package.json"
+    },
+    {
+      "name": "make-dir",
+      "version": "4.0.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/make-dir@4.0.0/node_modules/make-dir/package.json"
+    },
+    {
+      "name": "semver",
+      "version": "7.8.5",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/semver@7.8.5/node_modules/semver/package.json"
+    },
+    {
+      "name": "istanbul-lib-coverage",
+      "version": "3.2.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/istanbul-lib-coverage@3.2.2/node_modules/istanbul-lib-coverage/package.json"
+    },
+    {
+      "name": "html-escaper",
+      "version": "2.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/html-escaper@2.0.2/node_modules/html-escaper/package.json"
+    },
+    {
+      "name": "@jridgewell/trace-mapping",
+      "version": "0.3.31",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@jridgewell+trace-mapping@0.3.31/node_modules/@jridgewell/trace-mapping/package.json"
+    },
+    {
+      "name": "@jridgewell/resolve-uri",
+      "version": "3.1.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@jridgewell+resolve-uri@3.1.2/node_modules/@jridgewell/resolve-uri/package.json"
+    },
+    {
+      "name": "@jridgewell/gen-mapping",
+      "version": "0.3.13",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@jridgewell+gen-mapping@0.3.13/node_modules/@jridgewell/gen-mapping/package.json"
+    },
+    {
+      "name": "@istanbuljs/schema",
+      "version": "0.1.6",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@istanbuljs+schema@0.1.6/node_modules/@istanbuljs/schema/package.json"
+    },
+    {
+      "name": "@babel/core",
+      "version": "7.29.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+core@7.29.7/node_modules/@babel/core/package.json"
+    },
+    {
+      "name": "json5",
+      "version": "2.2.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/json5@2.2.3/node_modules/json5/package.json"
+    },
+    {
+      "name": "gensync",
+      "version": "1.0.0-beta.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/gensync@1.0.0-beta.2/node_modules/gensync/package.json"
+    },
+    {
+      "name": "debug",
+      "version": "4.4.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/debug@4.4.3_supports-color@7.2.0/node_modules/debug/package.json"
+    },
+    {
+      "name": "@jridgewell/remapping",
+      "version": "2.3.5",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@jridgewell+remapping@2.3.5/node_modules/@jridgewell/remapping/package.json"
+    },
+    {
+      "name": "@babel/traverse",
+      "version": "7.29.8",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+traverse@7.29.8/node_modules/@babel/traverse/package.json"
+    },
+    {
+      "name": "@babel/template",
+      "version": "7.29.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+template@7.29.7/node_modules/@babel/template/package.json"
+    },
+    {
+      "name": "@babel/code-frame",
+      "version": "7.29.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+code-frame@7.29.7/node_modules/@babel/code-frame/package.json"
+    },
+    {
+      "name": "js-tokens",
+      "version": "4.0.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/js-tokens@4.0.0/node_modules/js-tokens/package.json"
+    },
+    {
+      "name": "@babel/helper-globals",
+      "version": "7.29.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+helper-globals@7.29.7/node_modules/@babel/helper-globals/package.json"
+    },
+    {
+      "name": "@babel/generator",
+      "version": "7.29.8",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+generator@7.29.8/node_modules/@babel/generator/package.json"
+    },
+    {
+      "name": "jsesc",
+      "version": "3.1.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/jsesc@3.1.0/node_modules/jsesc/package.json"
+    },
+    {
+      "name": "@babel/helpers",
+      "version": "7.29.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+helpers@7.29.7/node_modules/@babel/helpers/package.json"
+    },
+    {
+      "name": "@babel/helper-module-transforms",
+      "version": "7.29.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+helper-module-transforms@7.29.7_@babel+core@7.29.7/node_modules/@babel/helper-module-transforms/package.json"
+    },
+    {
+      "name": "@babel/helper-module-imports",
+      "version": "7.29.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+helper-module-imports@7.29.7/node_modules/@babel/helper-module-imports/package.json"
+    },
+    {
+      "name": "@babel/helper-compilation-targets",
+      "version": "7.29.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+helper-compilation-targets@7.29.7/node_modules/@babel/helper-compilation-targets/package.json"
+    },
+    {
+      "name": "browserslist",
+      "version": "4.28.9",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/browserslist@4.28.9/node_modules/browserslist/package.json"
+    },
+    {
+      "name": "update-browserslist-db",
+      "version": "1.3.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/update-browserslist-db@1.3.2_browserslist@4.28.9/node_modules/update-browserslist-db/package.json"
+    },
+    {
+      "name": "escalade",
+      "version": "3.2.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/escalade@3.2.0/node_modules/escalade/package.json"
+    },
+    {
+      "name": "node-releases",
+      "version": "2.0.55",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/node-releases@2.0.55/node_modules/node-releases/package.json"
+    },
+    {
+      "name": "electron-to-chromium",
+      "version": "1.5.426",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/electron-to-chromium@1.5.426/node_modules/electron-to-chromium/package.json"
+    },
+    {
+      "name": "caniuse-lite",
+      "version": "1.0.30001810",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/caniuse-lite@1.0.30001810/node_modules/caniuse-lite/package.json"
+    },
+    {
+      "name": "baseline-browser-mapping",
+      "version": "2.11.21",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/baseline-browser-mapping@2.11.21/node_modules/baseline-browser-mapping/package.json"
+    },
+    {
+      "name": "@babel/helper-validator-option",
+      "version": "7.29.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+helper-validator-option@7.29.7/node_modules/@babel/helper-validator-option/package.json"
+    },
+    {
+      "name": "@babel/compat-data",
+      "version": "7.29.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+compat-data@7.29.7/node_modules/@babel/compat-data/package.json"
+    },
+    {
+      "name": "@vitest/coverage-v8",
+      "version": "4.1.11",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+coverage-v8@4.1.11_@vitest+browser@4.1.11_vitest@4.1.11/node_modules/@vitest/coverage-v8/package.json"
+    },
+    {
+      "name": "@vitest/browser",
+      "version": "4.1.11",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+browser@4.1.11_vite@8.3.0_@types+node@26.6.3_esbuild@0.28.2_jiti@2.7.0_less@4.9_c1b402d86274cfb108b1d050ab20b8e3/node_modules/@vitest/browser/package.json"
+    },
+    {
+      "name": "@vitest/mocker",
+      "version": "4.1.11",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+mocker@4.1.11_vite@8.3.0_@types+node@26.6.3_esbuild@0.28.2_jiti@2.7.0_less@4.9._fc7c608bb723c1a12c093f41e4544025/node_modules/@vitest/mocker/package.json"
+    },
+    {
+      "name": "vite",
+      "version": "8.3.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vite@8.3.2_@types+node@26.6.4_esbuild@0.28.2_jiti@2.7.0_less@4.9.1_sass-embedded@1.104._ce9e48061e9f2892ec96cba9aef7544b/node_modules/vite/package.json"
+    },
+    {
+      "name": "fsevents",
+      "version": "2.3.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/fsevents@2.3.3/node_modules/fsevents/package.json"
+    },
+    {
+      "name": "yaml",
+      "version": "2.9.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/yaml@2.9.0/node_modules/yaml/package.json"
+    },
+    {
+      "name": "terser",
+      "version": "5.51.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/terser@5.51.2/node_modules/terser/package.json"
+    },
+    {
+      "name": "source-map-support",
+      "version": "0.5.21",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/source-map-support@0.5.21/node_modules/source-map-support/package.json"
+    },
+    {
+      "name": "source-map",
+      "version": "0.6.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/source-map@0.6.1/node_modules/source-map/package.json"
+    },
+    {
+      "name": "buffer-from",
+      "version": "1.1.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/buffer-from@1.1.2/node_modules/buffer-from/package.json"
+    },
+    {
+      "name": "commander",
+      "version": "2.20.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/commander@2.20.3/node_modules/commander/package.json"
+    },
+    {
+      "name": "acorn",
+      "version": "8.18.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/acorn@8.18.0/node_modules/acorn/package.json"
+    },
+    {
+      "name": "@jridgewell/source-map",
+      "version": "0.3.11",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@jridgewell+source-map@0.3.11/node_modules/@jridgewell/source-map/package.json"
+    },
+    {
+      "name": "sass-embedded",
+      "version": "1.105.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/sass-embedded@1.105.1/node_modules/sass-embedded/package.json"
+    },
+    {
+      "name": "sass-embedded-darwin-arm64",
+      "version": "1.105.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/sass-embedded-darwin-arm64@1.105.1/node_modules/sass-embedded-darwin-arm64/package.json"
+    },
+    {
+      "name": "varint",
+      "version": "6.0.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/varint@6.0.0/node_modules/varint/package.json"
+    },
+    {
+      "name": "sync-child-process",
+      "version": "1.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/sync-child-process@1.0.2/node_modules/sync-child-process/package.json"
+    },
+    {
+      "name": "sync-message-port",
+      "version": "1.2.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/sync-message-port@1.2.0/node_modules/sync-message-port/package.json"
+    },
+    {
+      "name": "immutable",
+      "version": "5.1.9",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/immutable@5.1.9/node_modules/immutable/package.json"
+    },
+    {
+      "name": "colorjs.io",
+      "version": "0.7.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/colorjs.io@0.7.1/node_modules/colorjs.io/package.json"
+    },
+    {
+      "name": "@bufbuild/protobuf",
+      "version": "2.15.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@bufbuild+protobuf@2.15.0/node_modules/@bufbuild/protobuf/package.json"
+    },
+    {
+      "name": "sass",
+      "version": "1.105.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/sass@1.105.1/node_modules/sass/package.json"
+    },
+    {
+      "name": "@parcel/watcher",
+      "version": "2.6.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@parcel+watcher@2.6.0/node_modules/@parcel/watcher/package.json"
+    },
+    {
+      "name": "@parcel/watcher-darwin-arm64",
+      "version": "2.6.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@parcel+watcher-darwin-arm64@2.6.0/node_modules/@parcel/watcher-darwin-arm64/package.json"
+    },
+    {
+      "name": "node-addon-api",
+      "version": "7.1.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/node-addon-api@7.1.1/node_modules/node-addon-api/package.json"
+    },
+    {
+      "name": "is-glob",
+      "version": "4.0.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/is-glob@4.0.3/node_modules/is-glob/package.json"
+    },
+    {
+      "name": "is-extglob",
+      "version": "2.1.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/is-extglob@2.1.1/node_modules/is-extglob/package.json"
+    },
+    {
+      "name": "detect-libc",
+      "version": "2.1.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/detect-libc@2.1.2/node_modules/detect-libc/package.json"
+    },
+    {
+      "name": "chokidar",
+      "version": "5.0.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/chokidar@5.0.0/node_modules/chokidar/package.json"
+    },
+    {
+      "name": "readdirp",
+      "version": "5.1.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/readdirp@5.1.1/node_modules/readdirp/package.json"
+    },
+    {
+      "name": "less",
+      "version": "4.9.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/less@4.9.1/node_modules/less/package.json"
+    },
+    {
+      "name": "needle",
+      "version": "3.5.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/needle@3.5.0/node_modules/needle/package.json"
+    },
+    {
+      "name": "sax",
+      "version": "1.6.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/sax@1.6.1/node_modules/sax/package.json"
+    },
+    {
+      "name": "iconv-lite",
+      "version": "0.6.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/iconv-lite@0.6.3/node_modules/iconv-lite/package.json"
+    },
+    {
+      "name": "safer-buffer",
+      "version": "2.1.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/safer-buffer@2.1.2/node_modules/safer-buffer/package.json"
+    },
+    {
+      "name": "mime",
+      "version": "1.6.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/mime@1.6.0/node_modules/mime/package.json"
+    },
+    {
+      "name": "probe-image-size",
+      "version": "7.4.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/probe-image-size@7.4.0/node_modules/probe-image-size/package.json"
+    },
+    {
+      "name": "stream-parser",
+      "version": "0.3.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/stream-parser@0.3.1/node_modules/stream-parser/package.json"
+    },
+    {
+      "name": "lodash.merge",
+      "version": "4.6.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/lodash.merge@4.6.2/node_modules/lodash.merge/package.json"
+    },
+    {
+      "name": "graceful-fs",
+      "version": "4.2.11",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/graceful-fs@4.2.11/node_modules/graceful-fs/package.json"
+    },
+    {
+      "name": "errno",
+      "version": "0.1.8",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/errno@0.1.8/node_modules/errno/package.json"
+    },
+    {
+      "name": "prr",
+      "version": "1.0.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/prr@1.0.1/node_modules/prr/package.json"
+    },
+    {
+      "name": "parse-node-version",
+      "version": "1.0.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/parse-node-version@1.0.1/node_modules/parse-node-version/package.json"
+    },
+    {
+      "name": "copy-anything",
+      "version": "3.0.5",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/copy-anything@3.0.5/node_modules/copy-anything/package.json"
+    },
+    {
+      "name": "is-what",
+      "version": "4.1.16",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/is-what@4.1.16/node_modules/is-what/package.json"
+    },
+    {
+      "name": "esbuild",
+      "version": "0.28.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/esbuild@0.28.2/node_modules/esbuild/package.json"
+    },
+    {
+      "name": "@esbuild/darwin-arm64",
+      "version": "0.28.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@esbuild+darwin-arm64@0.28.2/node_modules/@esbuild/darwin-arm64/package.json"
+    },
+    {
+      "name": "rolldown",
+      "version": "1.2.12",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rolldown@1.2.12/node_modules/rolldown/package.json"
+    },
+    {
+      "name": "@rolldown/binding-darwin-arm64",
+      "version": "1.2.12",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@rolldown+binding-darwin-arm64@1.2.12/node_modules/@rolldown/binding-darwin-arm64/package.json"
+    },
+    {
+      "name": "@rolldown/pluginutils",
+      "version": "1.0.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@rolldown+pluginutils@1.0.1/node_modules/@rolldown/pluginutils/package.json"
+    },
+    {
+      "name": "@oxc-project/types",
+      "version": "0.152.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@oxc-project+types@0.152.0/node_modules/@oxc-project/types/package.json"
+    },
+    {
+      "name": "lightningcss",
+      "version": "1.33.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/lightningcss@1.33.0/node_modules/lightningcss/package.json"
+    },
+    {
+      "name": "lightningcss-darwin-arm64",
+      "version": "1.33.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/lightningcss-darwin-arm64@1.33.0/node_modules/lightningcss-darwin-arm64/package.json"
+    },
+    {
+      "name": "@vitest/spy",
+      "version": "4.1.11",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+spy@4.1.11/node_modules/@vitest/spy/package.json"
+    },
+    {
+      "name": "ws",
+      "version": "8.21.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/ws@8.21.3/node_modules/ws/package.json"
+    },
+    {
+      "name": "pngjs",
+      "version": "7.0.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs/package.json"
+    },
+    {
+      "name": "@blazediff/core",
+      "version": "1.9.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@blazediff+core@1.9.1/node_modules/@blazediff/core/package.json"
+    },
+    {
+      "name": "std-env",
+      "version": "4.2.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/std-env@4.2.0/node_modules/std-env/package.json"
+    },
+    {
+      "name": "ast-v8-to-istanbul",
+      "version": "1.0.6",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/ast-v8-to-istanbul@1.0.6/node_modules/ast-v8-to-istanbul/package.json"
+    },
+    {
+      "name": "@bcoe/v8-coverage",
+      "version": "1.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@bcoe+v8-coverage@1.0.2/node_modules/@bcoe/v8-coverage/package.json"
+    },
+    {
+      "name": "@vitest/browser-playwright",
+      "version": "4.1.11",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+browser-playwright@4.1.11_playwright@1.63.0_vite@8.3.0_@types+node@26.6.3_esbui_28040fc4daeafd6249a3288a62bd0e56/node_modules/@vitest/browser-playwright/package.json"
+    },
+    {
+      "name": "playwright",
+      "version": "1.63.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/playwright@1.63.0/node_modules/playwright/package.json"
+    },
+    {
+      "name": "playwright-core",
+      "version": "1.63.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core/package.json"
+    },
+    {
+      "name": "happy-dom",
+      "version": "20.14.5",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/happy-dom@20.14.5/node_modules/happy-dom/package.json"
+    },
+    {
+      "name": "buffer-image-size",
+      "version": "0.6.4",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/buffer-image-size@0.6.4/node_modules/buffer-image-size/package.json"
+    },
+    {
+      "name": "whatwg-mimetype",
+      "version": "3.0.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/whatwg-mimetype@3.0.0/node_modules/whatwg-mimetype/package.json"
+    },
+    {
+      "name": "@types/ws",
+      "version": "8.18.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@types+ws@8.18.1/node_modules/@types/ws/package.json"
+    },
+    {
+      "name": "@types/whatwg-mimetype",
+      "version": "3.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@types+whatwg-mimetype@3.0.2/node_modules/@types/whatwg-mimetype/package.json"
+    },
+    {
+      "name": "@vitest/snapshot",
+      "version": "4.1.11",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+snapshot@4.1.11/node_modules/@vitest/snapshot/package.json"
+    },
+    {
+      "name": "@vitest/runner",
+      "version": "4.1.11",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner/package.json"
+    },
+    {
+      "name": "@vitest/expect",
+      "version": "4.1.11",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+expect@4.1.11/node_modules/@vitest/expect/package.json"
+    },
+    {
+      "name": "chai",
+      "version": "6.2.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/chai@6.2.2/node_modules/chai/package.json"
+    },
+    {
+      "name": "@types/chai",
+      "version": "5.2.3",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@types+chai@5.2.3/node_modules/@types/chai/package.json"
+    },
+    {
+      "name": "assertion-error",
+      "version": "2.0.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/assertion-error@2.0.1/node_modules/assertion-error/package.json"
+    },
+    {
+      "name": "@types/deep-eql",
+      "version": "4.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@types+deep-eql@4.0.2/node_modules/@types/deep-eql/package.json"
+    },
+    {
+      "name": "@standard-schema/spec",
+      "version": "1.1.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@standard-schema+spec@1.1.0/node_modules/@standard-schema/spec/package.json"
+    },
+    {
+      "name": "why-is-node-running",
+      "version": "2.3.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/why-is-node-running@2.3.0/node_modules/why-is-node-running/package.json"
+    },
+    {
+      "name": "stackback",
+      "version": "0.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/stackback@0.0.2/node_modules/stackback/package.json"
+    },
+    {
+      "name": "siginfo",
+      "version": "2.0.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/siginfo@2.0.0/node_modules/siginfo/package.json"
+    },
+    {
+      "name": "tinyexec",
+      "version": "1.3.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/tinyexec@1.3.1/node_modules/tinyexec/package.json"
+    },
+    {
+      "name": "tinybench",
+      "version": "2.9.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/tinybench@2.9.0/node_modules/tinybench/package.json"
+    },
+    {
+      "name": "expect-type",
+      "version": "1.4.0",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/expect-type@1.4.0/node_modules/expect-type/package.json"
+    },
+    {
+      "name": "es-module-lexer",
+      "version": "2.3.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/es-module-lexer@2.3.2/node_modules/es-module-lexer/package.json"
+    },
+    {
+      "name": "rrweb",
+      "version": "2.1.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrweb@2.1.7/node_modules/rrweb/package.json"
+    },
+    {
+      "name": "rrweb-snapshot",
+      "version": "2.1.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrweb-snapshot@2.1.7/node_modules/rrweb-snapshot/package.json"
+    },
+    {
+      "name": "rrdom",
+      "version": "2.1.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrdom@2.1.7/node_modules/rrdom/package.json"
+    },
+    {
+      "name": "mitt",
+      "version": "3.0.1",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/mitt@3.0.1/node_modules/mitt/package.json"
+    },
+    {
+      "name": "base64-arraybuffer",
+      "version": "1.0.2",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/base64-arraybuffer@1.0.2/node_modules/base64-arraybuffer/package.json"
+    },
+    {
+      "name": "@xstate/fsm",
+      "version": "1.6.5",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@xstate+fsm@1.6.5/node_modules/@xstate/fsm/package.json"
+    },
+    {
+      "name": "@types/css-font-loading-module",
+      "version": "0.0.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@types+css-font-loading-module@0.0.7/node_modules/@types/css-font-loading-module/package.json"
+    },
+    {
+      "name": "@rrweb/utils",
+      "version": "2.1.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@rrweb+utils@2.1.7/node_modules/@rrweb/utils/package.json"
+    },
+    {
+      "name": "@rrweb/types",
+      "version": "2.1.7",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@rrweb+types@2.1.7/node_modules/@rrweb/types/package.json"
+    }
+  ],
+  "missing": [
+    {
+      "name": "@use-gesture/vanilla",
+      "range": "^10.0.0",
+      "optional": true
+    },
+    {
+      "name": "zone.js",
+      "range": "~0.15.0 || ~0.16.0",
+      "optional": true
+    },
+    {
+      "name": "@angular/animations",
+      "range": "22.2.1",
+      "optional": true
+    },
+    {
+      "name": "tsx",
+      "range": "^4.8.1",
+      "optional": true
+    },
+    {
+      "name": "sugarss",
+      "range": "^5.0.0",
+      "optional": true
+    },
+    {
+      "name": "stylus",
+      "range": ">=0.54.8",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-win32-x64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-win32-arm64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-unknown-all",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-linux-x64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-linux-riscv64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-linux-musl-x64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-linux-musl-riscv64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-linux-musl-arm64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-linux-musl-arm",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-linux-arm64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-linux-arm",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-darwin-x64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-android-x64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-android-riscv64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-android-arm64",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-android-arm",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "sass-embedded-all-unknown",
+      "range": "1.105.1",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-freebsd-x64",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-android-arm64",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-linux-arm-musl",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-linux-arm-glibc",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-linux-arm64-musl",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-linux-arm64-glibc",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-linux-x64-musl",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-linux-x64-glibc",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-win32-arm64",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-win32-x64",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@parcel/watcher-darwin-x64",
+      "range": "2.6.0",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/win32-x64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/win32-ia32",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/win32-arm64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/sunos-x64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/openharmony-arm64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/openbsd-x64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/openbsd-arm64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/netbsd-x64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/netbsd-arm64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-x64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-s390x",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-riscv64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-ppc64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-mips64el",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-loong64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-ia32",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-arm64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/linux-arm",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/freebsd-x64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/freebsd-arm64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/darwin-x64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/android-x64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/android-arm64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/android-arm",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@esbuild/aix-ppc64",
+      "range": "0.28.2",
+      "optional": true
+    },
+    {
+      "name": "@vitejs/devtools",
+      "range": "^0.7.1",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-linux-x64-musl",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-linux-x64-gnu",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-freebsd-x64",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-win32-x64-msvc",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-darwin-x64",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-linux-s390x-gnu",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-linux-ppc64-gnu",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-linux-arm-gnueabihf",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-android-arm-eabi",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-openharmony-arm64",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-linux-arm64-musl",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-linux-arm64-gnu",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-win32-arm64-msvc",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "@rolldown/binding-android-arm64",
+      "range": "1.2.12",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-android-arm64",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-freebsd-x64",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-linux-x64-musl",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-linux-arm64-musl",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-linux-arm-gnueabihf",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-linux-arm64-gnu",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-win32-arm64-msvc",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-win32-x64-msvc",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-linux-x64-gnu",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "lightningcss-darwin-x64",
+      "range": "1.33.0",
+      "optional": true
+    },
+    {
+      "name": "msw",
+      "range": "^2.4.9",
+      "optional": true
+    },
+    {
+      "name": "utf-8-validate",
+      "range": ">=5.0.2",
+      "optional": true
+    },
+    {
+      "name": "bufferutil",
+      "range": "^4.0.1",
+      "optional": true
+    },
+    {
+      "name": "@vitest/browser-webdriverio",
+      "range": "4.1.11",
+      "optional": true
+    },
+    {
+      "name": "@vitest/browser-preview",
+      "range": "4.1.11",
+      "optional": true
+    },
+    {
+      "name": "jsdom",
+      "range": "*",
+      "optional": true
+    },
+    {
+      "name": "@opentelemetry/api",
+      "range": "^1.9.0",
+      "optional": true
+    },
+    {
+      "name": "@edge-runtime/vm",
+      "range": "*",
+      "optional": true
+    }
+  ]
+}

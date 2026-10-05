@@ -1,0 +1,1 @@
+{"name":"@aiao/rxdb-plugin-tree-angular","exports":["useCountAncestors","useCountDescendants","useFindAncestors","useFindDescendants"]}

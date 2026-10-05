@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="107" failures="0" errors="0" time="0.104242417">
+    <testsuite name="src/__tests__/accessibility.spec.ts" timestamp="2026-10-05T03:06:45.803Z" hostname="liuleideMacBook-Pro-4.local" tests="12" failures="0" errors="0" skipped="0" time="0.002923">
+        <testcase classname="src/__tests__/accessibility.spec.ts" name="buildCodeEditorContentAttributes &gt; 没有任何取值时返回空对象" time="0.001175833">
+        </testcase>
+        <testcase classname="src/__tests__/accessibility.spec.ts" name="buildCodeEditorContentAttributes &gt; 把四项状态映射成对应的 aria 属性" time="0.000139875">
+        </testcase>
+        <testcase classname="src/__tests__/accessibility.spec.ts" name="buildCodeEditorContentAttributes &gt; describedBy 为空串时不产出属性" time="0.000068">
+        </testcase>
+        <testcase classname="src/__tests__/accessibility.spec.ts" name="buildCodeEditorContentAttributes &gt; label 为空串时不产出属性" time="0.000053167">
+        </testcase>
+        <testcase classname="src/__tests__/accessibility.spec.ts" name="buildCodeEditorContentAttributes &gt; labelledBy 为空串时不产出属性" time="0.000046375">
+        </testcase>
+        <testcase classname="src/__tests__/accessibility.spec.ts" name="buildCodeEditorContentAttributes &gt; 未禁用时不写 aria-disabled=&quot;false&quot;" time="0.000058166">
+        </testcase>
+        <testcase classname="src/__tests__/accessibility.spec.ts" name="buildCodeEditorContentAttributes &gt; 每次调用返回新对象，可直接交给 contentAttributes facet" time="0.00021425">
+        </testcase>
+        <testcase classname="src/__tests__/accessibility.spec.ts" name="shouldAutoFocusCodeEditor &gt; {} → true" time="0.000078209">
+        </testcase>
+        <testcase classname="src/__tests__/accessibility.spec.ts" name="shouldAutoFocusCodeEditor &gt; {&quot;disabled&quot;:false,&quot;readonly&quot;:false} → true" time="0.000068542">
+        </testcase>
+        <testcase classname="src/__tests__/accessibility.spec.ts" name="shouldAutoFocusCodeEditor &gt; {&quot;disabled&quot;:true} → false" time="0.000033209">
+        </testcase>
+        <testcase classname="src/__tests__/accessibility.spec.ts" name="shouldAutoFocusCodeEditor &gt; {&quot;readonly&quot;:true} → false" time="0.000034917">
+        </testcase>
+        <testcase classname="src/__tests__/accessibility.spec.ts" name="shouldAutoFocusCodeEditor &gt; {&quot;disabled&quot;:true,&quot;readonly&quot;:true} → false" time="0.000028416">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/document-sync.spec.ts" timestamp="2026-10-05T03:06:45.805Z" hostname="liuleideMacBook-Pro-4.local" tests="15" failures="0" errors="0" skipped="0" time="0.004068042">
+        <testcase classname="src/__tests__/document-sync.spec.ts" name="computeMinimalDocumentChange &gt; 内容相同时返回 null，调用方据此完全跳过事务" time="0.001191042">
+        </testcase>
+        <testcase classname="src/__tests__/document-sync.spec.ts" name="computeMinimalDocumentChange &gt; 只替换变化区间，保留公共前后缀" time="0.000483041">
+        </testcase>
+        <testcase classname="src/__tests__/document-sync.spec.ts" name="computeMinimalDocumentChange &gt; 纯追加" time="0.000086959">
+        </testcase>
+        <testcase classname="src/__tests__/document-sync.spec.ts" name="computeMinimalDocumentChange &gt; 纯前置" time="0.000064708">
+        </testcase>
+        <testcase classname="src/__tests__/document-sync.spec.ts" name="computeMinimalDocumentChange &gt; 纯删除（尾部）" time="0.000068209">
+        </testcase>
+        <testcase classname="src/__tests__/document-sync.spec.ts" name="computeMinimalDocumentChange &gt; 纯删除（头部）" time="0.000043833">
+        </testcase>
+        <testcase classname="src/__tests__/document-sync.spec.ts" name="computeMinimalDocumentChange &gt; 中间替换" time="0.000056042">
+        </testcase>
+        <testcase classname="src/__tests__/document-sync.spec.ts" name="computeMinimalDocumentChange &gt; 清空" time="0.000044542">
+        </testcase>
+        <testcase classname="src/__tests__/document-sync.spec.ts" name="computeMinimalDocumentChange &gt; 从空写入" time="0.000060209">
+        </testcase>
+        <testcase classname="src/__tests__/document-sync.spec.ts" name="computeMinimalDocumentChange &gt; 完全不同" time="0.000041583">
+        </testcase>
+        <testcase classname="src/__tests__/document-sync.spec.ts" name="computeMinimalDocumentChange &gt; 前后缀重叠时区间仍然合法：重复字符缩短" time="0.000314417">
+        </testcase>
+        <testcase classname="src/__tests__/document-sync.spec.ts" name="computeMinimalDocumentChange &gt; 前后缀重叠时区间仍然合法：重复字符加长" time="0.00009975">
+        </testcase>
+        <testcase classname="src/__tests__/document-sync.spec.ts" name="computeMinimalDocumentChange &gt; 前后缀重叠时区间仍然合法：同字符全串" time="0.000074666">
+        </testcase>
+        <testcase classname="src/__tests__/document-sync.spec.ts" name="computeMinimalDocumentChange &gt; 前后缀重叠时区间仍然合法：单字符" time="0.0000945">
+        </testcase>
+        <testcase classname="src/__tests__/document-sync.spec.ts" name="computeMinimalDocumentChange &gt; 多行文本按字符定位，行尾符不影响正确性" time="0.000118958">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/index.spec.ts" timestamp="2026-10-05T03:06:45.806Z" hostname="liuleideMacBook-Pro-4.local" tests="55" failures="0" errors="0" skipped="0" time="0.068601917">
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; SUPPORT_LANGUAGES &gt; 包含全部自定义语言且名称不重复" time="0.006246833">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; SUPPORT_LANGUAGES &gt; 可直接喂给 CodeMirror 的 LanguageDescription 静态方法" time="0.000287833">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; SUPPORT_LANGUAGES &gt; 保留未被覆盖的上游语言并可加载真实解析器" time="0.009944375">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; &apos;CSS&apos; 的 alias 与 extensions 是上游的超集" time="0.000199708">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; &apos;HTML&apos; 的 alias 与 extensions 是上游的超集" time="0.00011325">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; &apos;XML&apos; 的 alias 与 extensions 是上游的超集" time="0.000086167">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; &apos;JavaScript&apos; 的 alias 与 extensions 是上游的超集" time="0.000068125">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; &apos;JSX&apos; 的 alias 与 extensions 是上游的超集" time="0.000075541">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; &apos;TypeScript&apos; 的 alias 与 extensions 是上游的超集" time="0.00007125">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; &apos;TSX&apos; 的 alias 与 extensions 是上游的超集" time="0.000065875">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; &apos;JSON&apos; 的 alias 与 extensions 是上游的超集" time="0.000063167">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; &apos;SCSS&apos; 的 alias 与 extensions 是上游的超集" time="0.000049917">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; &apos;Sass&apos; 的 alias 与 extensions 是上游的超集" time="0.000048333">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; &apos;Python&apos; 的 alias 与 extensions 是上游的超集" time="0.000055417">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; &apos;Markdown&apos; 的 alias 与 extensions 是上游的超集" time="0.000051625">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; &apos;SQLite&apos; 的 alias 与 extensions 是上游的超集" time="0.000086958">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; &apos;SQL&apos; 的 alias 与 extensions 是上游的超集" time="0.000052334">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; &apos;PostgreSQL&apos; 的 alias 与 extensions 是上游的超集" time="0.000047208">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; 自身没有 filename 时沿用上游的 filename 正则" time="0.000064709">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; matchFilename(&apos;icon.svg&apos;) 命中 &apos;XML&apos;" time="0.00014675">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; matchFilename(&apos;transform.xsl&apos;) 命中 &apos;XML&apos;" time="0.00004125">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; matchFilename(&apos;schema.xsd&apos;) 命中 &apos;XML&apos;" time="0.000053667">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; matchFilename(&apos;card.hbs&apos;) 命中 &apos;HTML&apos;" time="0.000044916">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; matchFilename(&apos;notes.mkd&apos;) 命中 &apos;Markdown&apos;" time="0.000041125">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; matchFilename(&apos;rules.bzl&apos;) 命中 &apos;Python&apos;" time="0.000039667">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; matchFilename(&apos;BUILD&apos;) 命中 &apos;Python&apos;" time="0.000033042">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; matchFilename(&apos;BUCK&apos;) 命中 &apos;Python&apos;" time="0.000030834">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; findLanguageByName(&apos;xhtml&apos;) 命中 &apos;HTML&apos;" time="0.000064167">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; findLanguageByName(&apos;rss&apos;) 命中 &apos;XML&apos;" time="0.000057625">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 覆盖上游语言时保留上游元数据 &gt; findLanguageByName(&apos;wsdl&apos;) 命中 &apos;XML&apos;" time="0.000067875">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 语言 loader &gt; &apos;CSS&apos; loader 应加载对应解析器并解析代表性语法" time="0.004992375">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 语言 loader &gt; &apos;HTML&apos; loader 应加载对应解析器并解析代表性语法" time="0.01448725">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 语言 loader &gt; &apos;XML&apos; loader 应加载对应解析器并解析代表性语法" time="0.004617375">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 语言 loader &gt; &apos;JavaScript&apos; loader 应加载对应解析器并解析代表性语法" time="0.001006625">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 语言 loader &gt; &apos;JSX&apos; loader 应加载对应解析器并解析代表性语法" time="0.0003115">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 语言 loader &gt; &apos;TypeScript&apos; loader 应加载对应解析器并解析代表性语法" time="0.00028125">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 语言 loader &gt; &apos;TSX&apos; loader 应加载对应解析器并解析代表性语法" time="0.000273208">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 语言 loader &gt; &apos;JSON&apos; loader 应加载对应解析器并解析代表性语法" time="0.002249125">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 语言 loader &gt; &apos;SCSS&apos; loader 应加载对应解析器并解析代表性语法" time="0.004270083">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 语言 loader &gt; &apos;Sass&apos; loader 应加载对应解析器并解析代表性语法" time="0.000305042">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 语言 loader &gt; &apos;Python&apos; loader 应加载对应解析器并解析代表性语法" time="0.005539958">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 语言 loader &gt; &apos;Markdown&apos; loader 应加载对应解析器并解析代表性语法" time="0.006708">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 语言 loader &gt; &apos;SQLite&apos; loader 应绑定正确 SQL 方言并解析代表性语法" time="0.000872083">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 语言 loader &gt; &apos;SQL&apos; loader 应绑定正确 SQL 方言并解析代表性语法" time="0.000306416">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; 语言 loader &gt; &apos;PostgreSQL&apos; loader 应绑定正确 SQL 方言并解析代表性语法" time="0.000486208">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; JSON5 别名契约 &gt; json5 是 JSON 描述的文件类型别名，与上游一致" time="0.000501583">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; JSON5 别名契约 &gt; 解析 JSON5 的 &apos;行注释&apos; 会产生错误节点（严格 JSON 解析器）" time="0.000573333">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; JSON5 别名契约 &gt; 解析 JSON5 的 &apos;无引号键&apos; 会产生错误节点（严格 JSON 解析器）" time="0.000153">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; JSON5 别名契约 &gt; 解析 JSON5 的 &apos;尾逗号&apos; 会产生错误节点（严格 JSON 解析器）" time="0.000098541">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; JSON5 别名契约 &gt; README 说明了 json5 只是别名而非 JSON5 解析器" time="0.000371541">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; findLanguageByName &gt; 按名称查找时忽略大小写" time="0.000120917">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; findLanguageByName &gt; 按别名查找时忽略大小写" time="0.000072625">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; findLanguageByName &gt; 未知名称和空名称返回 null" time="0.000111875">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; findLanguageByName &gt; 扩展名不是名称查找契约的一部分" time="0.0001045">
+        </testcase>
+        <testcase classname="src/__tests__/index.spec.ts" name="code-editor languages &gt; findLanguageByName &gt; 只在调用方提供的语言列表中查找" time="0.000073">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/language-error.spec.ts" timestamp="2026-10-05T03:06:45.809Z" hostname="liuleideMacBook-Pro-4.local" tests="6" failures="0" errors="0" skipped="0" time="0.00266325">
+        <testcase classname="src/__tests__/language-error.spec.ts" name="language-error &gt; codeEditorLanguageNotFound &gt; 保留原始大小写并把 cause 留空" time="0.001268208">
+        </testcase>
+        <testcase classname="src/__tests__/language-error.spec.ts" name="language-error &gt; codeEditorLanguageNotFound &gt; 载荷冻结，消费者改不动共享实例" time="0.000138708">
+        </testcase>
+        <testcase classname="src/__tests__/language-error.spec.ts" name="language-error &gt; codeEditorLanguageLoadFailed &gt; 原样透传 rejection 值而不包装成 Error" time="0.000130417">
+        </testcase>
+        <testcase classname="src/__tests__/language-error.spec.ts" name="language-error &gt; codeEditorLanguageLoadFailed &gt; 非 Error 的 &apos;字符串&apos; rejection 也原样透传" time="0.000061292">
+        </testcase>
+        <testcase classname="src/__tests__/language-error.spec.ts" name="language-error &gt; codeEditorLanguageLoadFailed &gt; 非 Error 的 &apos;undefined&apos; rejection 也原样透传" time="0.00003875">
+        </testcase>
+        <testcase classname="src/__tests__/language-error.spec.ts" name="language-error &gt; codeEditorLanguageLoadFailed &gt; 非 Error 的 &apos;普通对象&apos; rejection 也原样透传" time="0.000034667">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/language-resolution.spec.ts" timestamp="2026-10-05T03:06:45.809Z" hostname="liuleideMacBook-Pro-4.local" tests="11" failures="0" errors="0" skipped="0" time="0.003550083">
+        <testcase classname="src/__tests__/language-resolution.spec.ts" name="resolveCodeEditorLanguage &gt; 把 &quot;&quot; 解析为不高亮" time="0.001400125">
+        </testcase>
+        <testcase classname="src/__tests__/language-resolution.spec.ts" name="resolveCodeEditorLanguage &gt; 把 &quot;plaintext&quot; 解析为不高亮" time="0.0000995">
+        </testcase>
+        <testcase classname="src/__tests__/language-resolution.spec.ts" name="resolveCodeEditorLanguage &gt; 候选列表为空时解析为不高亮，而不是 not-found" time="0.00013625">
+        </testcase>
+        <testcase classname="src/__tests__/language-resolution.spec.ts" name="resolveCodeEditorLanguage &gt; 按名称与别名解析到同一个描述" time="0.000166209">
+        </testcase>
+        <testcase classname="src/__tests__/language-resolution.spec.ts" name="resolveCodeEditorLanguage &gt; 找不到时返回 not-found 并原样保留语言名" time="0.00007025">
+        </testcase>
+        <testcase classname="src/__tests__/language-resolution.spec.ts" name="isSameResolvedLanguage &gt; 没有上一次结果时一律判为不同" time="0.000208209">
+        </testcase>
+        <testcase classname="src/__tests__/language-resolution.spec.ts" name="isSameResolvedLanguage &gt; 两次都不高亮时判为相同" time="0.000077416">
+        </testcase>
+        <testcase classname="src/__tests__/language-resolution.spec.ts" name="isSameResolvedLanguage &gt; 解析到同一个描述时判为相同 —— 即使语言名换成了别名" time="0.000067583">
+        </testcase>
+        <testcase classname="src/__tests__/language-resolution.spec.ts" name="isSameResolvedLanguage &gt; 描述换成同名的另一个实例时判为不同" time="0.000068167">
+        </testcase>
+        <testcase classname="src/__tests__/language-resolution.spec.ts" name="isSameResolvedLanguage &gt; kind 不同时判为不同" time="0.000067458">
+        </testcase>
+        <testcase classname="src/__tests__/language-resolution.spec.ts" name="isSameResolvedLanguage &gt; 两次 not-found 的语言名不同时判为不同" time="0.000062875">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/review-document-change-properties.spec.ts" timestamp="2026-10-05T03:06:45.810Z" hostname="liuleideMacBook-Pro-4.local" tests="8" failures="0" errors="0" skipped="0" time="0.022436125">
+        <testcase classname="src/__tests__/review-document-change-properties.spec.ts" name="评审核销：共享字符串文档同步的坐标和回放不变量 &gt; 固定种子的 4096 对 UTF-16/换行/空字符文本都能精确回放" time="0.02088675">
+        </testcase>
+        <testcase classname="src/__tests__/review-document-change-properties.spec.ts" name="评审核销：共享字符串文档同步的坐标和回放不变量 &gt; 相同文档 &quot;&quot; 不创建变更，追加/删除同样可回放" time="0.000103417">
+        </testcase>
+        <testcase classname="src/__tests__/review-document-change-properties.spec.ts" name="评审核销：共享字符串文档同步的坐标和回放不变量 &gt; 相同文档 &quot;😀&quot; 不创建变更，追加/删除同样可回放" time="0.000039542">
+        </testcase>
+        <testcase classname="src/__tests__/review-document-change-properties.spec.ts" name="评审核销：共享字符串文档同步的坐标和回放不变量 &gt; 相同文档 &quot;\ud83d&quot; 不创建变更，追加/删除同样可回放" time="0.000045083">
+        </testcase>
+        <testcase classname="src/__tests__/review-document-change-properties.spec.ts" name="评审核销：共享字符串文档同步的坐标和回放不变量 &gt; 相同文档 &quot;\ude00&quot; 不创建变更，追加/删除同样可回放" time="0.00003175">
+        </testcase>
+        <testcase classname="src/__tests__/review-document-change-properties.spec.ts" name="评审核销：共享字符串文档同步的坐标和回放不变量 &gt; 相同文档 &quot;中\r\n文&quot; 不创建变更，追加/删除同样可回放" time="0.000098792">
+        </testcase>
+        <testcase classname="src/__tests__/review-document-change-properties.spec.ts" name="评审核销：共享字符串文档同步的坐标和回放不变量 &gt; 相同文档 &quot;é&quot; 不创建变更，追加/删除同样可回放" time="0.000035458">
+        </testcase>
+        <testcase classname="src/__tests__/review-document-change-properties.spec.ts" name="评审核销：共享字符串文档同步的坐标和回放不变量 &gt; 相同文档 &quot;\u0000\u0000&quot; 不创建变更，追加/删除同样可回放" time="0.000030791">
+        </testcase>
+    </testsuite>
+</testsuites>

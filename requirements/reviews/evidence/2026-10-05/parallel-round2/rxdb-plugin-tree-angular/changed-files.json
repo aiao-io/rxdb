@@ -1,0 +1,28 @@
+{
+  "task": "R2-02",
+  "object": "rxdb-plugin-tree-angular",
+  "updatedAt": "2026-10-05T11:06:04.266015+08:00",
+  "absolutePaths": [
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/packages/rxdb-plugin-tree-angular.md",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-tree-angular.md",
+    "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-requests.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-valid.mts",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-invalid.mts",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-fixtures.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/nx-resolved.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/file-inspection.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-observations.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/angular-tool-observations.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/spec-design.md",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/findings.pending.md",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/c-evidence.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/closure.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/changed-files.json"
+  ],
+  "excludedExistingScopeInputs": [
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/scope.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/instructions.md"
+  ],
+  "note": "仅列本代理写入；共享validation为主控写入。未执行git add/commit/reset/stash/unstage；若文件在index中，是其他进程行为。"
+}

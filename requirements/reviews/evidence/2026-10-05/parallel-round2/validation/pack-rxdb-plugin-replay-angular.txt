@@ -1,0 +1,27 @@
+CWD: /Users/jimmy/Documents/aiao/rxdb/dist/packages/rxdb-plugin-replay-angular
+COMMAND: pnpm pack --json --out /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-replay-angular.tgz
+{
+  "name": "@aiao/rxdb-plugin-replay-angular",
+  "version": "0.0.26",
+  "filename": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-replay-angular.tgz",
+  "files": [
+    {
+      "path": "fesm2022/aiao-rxdb-plugin-replay-angular.mjs"
+    },
+    {
+      "path": "fesm2022/aiao-rxdb-plugin-replay-angular.mjs.map"
+    },
+    {
+      "path": "LICENSE"
+    },
+    {
+      "path": "package.json"
+    },
+    {
+      "path": "README.md"
+    },
+    {
+      "path": "types/aiao-rxdb-plugin-replay-angular.d.ts"
+    }
+  ]
+}

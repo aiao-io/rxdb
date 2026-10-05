@@ -2,165 +2,221 @@
 kind: review-execution
 object: rxdb-plugin-search-react
 created: 2026-10-03
-baseline: 3b3e449e10c6a587056a2ae947eddfd161834f97
+updated: 2026-10-05
+baseline: 465f9078e9844af2cbef9936c7321a5576333a01
+historical_measurement_head: 44de1138b4d396fc45d6e76ab60476c40fef2223
 execution: partial
 ---
 
-# rxdb-plugin-search-react：实际评审执行记录
+# rxdb-plugin-search-react：第二轮实际收尾记录
 
-**部分执行，暂不作全对象评级。** 已开始入口与门禁阶段；专项语义/真实环境没有全部完成。
+**🟡有界静态收尾完成；原完整 C 1/5（C1），C2–C5 partial。全对象评审未核销，发布未就绪。** 已将本对象全部受控内容、原要求、真实测量与必要补证逐项落盘；没有只交发现，也不把探针已写/pack 已有当测试通过。
 
-## 全范围启动批：入口与实际门禁
+## 1. 唯一范围与全读
 
-本对象已进入全仓执行范围；本节是**入口自动核查＋实际门禁**，不是全部 C 项已经人工深审。
+- 用户请求 R2-05；对象目录 scope 标 R2-06。按 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/scope.json` 的 object/writeScope 执行，未修改任务编排或其他对象。
+- **14/14 原受控文件完整正文已读，未读 0，仅导航 0，14 个源摘要与 scope 相符。** 配置、全部4个原测试、README、LICENSE/发布资源均未排除。
+- 源文件清单及每文件 `[1, end]` 阅读/关注点：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/file-inspection.json`。该记录来自实际正文读取、对截断部分补读，不从 sha 推定已读。
+- 增加的唯一包内文件：`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/review-round2-lifecycle.spec.ts`，13 个最小用例；实现、原 tests、README、依赖不变。本任务**未执行** build/test/coverage/e2e/server/容器，没有 git 修改命令。
+- 现存 ignored dist JS/d.ts 已读，Vite/Vite-plugin-dts 对应来源已核对；没有重生成/确定性验证主张。真实 tar 才是 consumer 入口证据。
+- HEAD 读取起点/当前快照 `465f9078e9844af2cbef9936c7321a5576333a01`；历史门禁为 `44de1138b4d396fc45d6e76ab60476c40fef2223`。共享工作树持续更新，不能称全69/72对象历史门禁是同一稳定新 HEAD。
 
-React：SearchHandle 的框架响应式输入、结果、状态与清理封装。
+## 2. 动态证据：来源、范围与限制
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+### 第一轮实际证据的限定复用
 
-入口/配置已读取并核对：
+| 测量 | 实际读取结果 | 来源 / 不能扩大之处 |
+| --- | --- | --- |
+| 本包旧 unit | 3 files / 24 tests passed，无报告 skip | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage.txt:9088–9119`；未含新 round2 probe |
+| 四指标 S/B/F/L | 96.66% / 81.81% / 100% / 100%，各 ≥80% | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-search-react/coverage-summary.json`；仅 happy-dom/V8 wrapper，不等于 backend/branch/真实浏览器 |
+| 真实 C1 晚探针 | React/Angular/Vue 各 1 test passed | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes.txt:622–666`；真实 core handle，performSearch I/O 接缝而非 SQL backend |
+| C1 复用证明 | 旧 generator hash=实测 hash；current import 集合/非 import tokens 等价；core 80 记录输入未漂移 | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/historical-reuse.json`；只复用 C1，不假称新 HEAD 或新13例实跑 |
+| lint / typecheck | 原批 exit0，晚探针单独 strict 类型 exit0/无 diagnostics | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint-status.json`、`all-object-typecheck-status.json`、`new-probe-strict-lint-status.json`、`new-spec-types.json`；新增 round2 spec 不继承这些通过 |
+| 旧实际 pack / ESM resolve | 10 files、declared entries 缺失0、独立 root resolve 通过 | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/packed-consumer-entry-check.json`；当时未运行 typed/runtime consumer |
 
-- [`packages/rxdb-plugin-search-react/src/use-search.ts`](../../../../packages/rxdb-plugin-search-react/src/use-search.ts)
-- [`packages/rxdb-plugin-search-react/src/index.ts`](../../../../packages/rxdb-plugin-search-react/src/index.ts)
-- [`packages/rxdb-plugin-search-react/package.json`](../../../../packages/rxdb-plugin-search-react/package.json)
-- [`packages/rxdb-plugin-search-react/project.json`](../../../../packages/rxdb-plugin-search-react/project.json)
+原命令、禁缓存、maxWorkers=1/串行、输入漂移与测量面完整保留在 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/validation-observations.json`。框架大批整体 exit1 不意味着此包失败；不借其他对象的绿，也不抹掉其他对象的失败。第一轮本包没有 JUnit artifact，采用实际日志与 summary，不编造 JUnit；新测量已请求 JUnit。
 
-| target      | 当前证据                      | 日志                                                         |
-| ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
+### 第二轮主控实际 tar consumer（追加测量）
 
-当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
+- root import **exit0**，实际 runtime exports 为 `SearchExecutionError`、`useSearch`：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/consumer-rxdb-plugin-search-react-root-import.txt`。这不是已挂载 React hook 的完整用户链路，runtime 没有顶层调用 hook。
+- 初次裸 strict (`strict=true`, `skipLibCheck=false`, 无 workspace paths/links) **valid exit2**：utils public.d.ts 缺 `NodeJS` 命名空间及 `ms` 声明。原始失败保留：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/consumer-rxdb-plugin-search-react-valid.txt`。
+- invalid **exit2**，有全部7处 fixture-local 真实类型诊断（SearchSourceLike 返回值、debounce、collections 元素、setQuery、readonly results、SearchState、loadMore），但混有上述依赖错误：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/consumer-rxdb-plugin-search-react-invalid.txt`。**不能只看非零退出把负对照整体核销。**
+- 初测总记录/真实 tar 版本与摘要：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json` / `isolated-consumer-setup.json`。两 fixture 的 SHA 与主控记录一致；已编译声明而非源码 aliases。
+- 主控按追加要求补显式 **Node + @types/ms 环境对照**；同 fixture、strict/skipLibCheck 不弱化，不补 ambient any、不改 source mapping/本包/其他包，不删除裸失败。对照未回传前，typed 部分保持 partial。
 
-### 尚未完成的专项
+## 3. 原 C 逐项结论（要求未缩小）
 
-以下为原计划 C 项，状态保持待核销；门禁通过不自动勾选：
+### C1 SearchHandle 映射 — 完整 C（限定证据复用）
 
-- [ ] C1 SearchHandle 映射：逐项核对 results/state/error/hasMore、setQuery/loadMore/clear 到核心 handle，保留空态与错误差异。
-- [ ] C2 快速输入与 options identity：核查 debounce 的归属、语义相等选项、scope/branch 切换和异步过期结果。
-- [ ] C3 三端类型与依赖闭合：对照三端框架 idiom、公开 consumer 与 README 使用；明确必需搜索插件和不支持的 backend。
-- [ ] C4 React 生命周期与竞态：核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。
-- [ ] C5 React 类型与 render 边界：检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。
+**原动作**：逐项核对 results/state/error/hasMore、setQuery/loadMore/clear 到核心 handle，保留空态与错误差异。
 
-覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+**原最低场景**：空词、无结果、查询失败、清空、末页；框架状态不能吞掉核心错误。
 
-## 2026-10-05 frameworks 并行评审：逐 C 实际交付
+**结论**：原空词、无结果、执行失败/相同 error、重试、末页、清空已由真实 SearchHandle 完整序列实测，框架四输出与命令逐项映射。历史 C1 晚探针已在 09:34:20 通过；本轮通过 generator hash/token 与 core 80 输入未变对照限定复用，不伪装新 HEAD。RV-062 为另一个已确认的 pending 分页取消边界，仅引用。
 
-基线 `44de1138b4d396fc45d6e76ab60476c40fef2223`；唯一范围 `packages/rxdb-plugin-search-react` 的 13 个受控文件，摘要与 scope.json 全部相符。**execution: partial；完整 C 核销 0/5，本对象不是完整完成候选。** 不把已证局部场景当作原完整 C。
+**生产锚点**：
 
-阅读登记：4 个文件有正文片段、0 个仅测试 outline、0 个仅导航锚点、9 个未人工检查。正文登记不等价于全文件阅读；截断/函数范围及测试覆盖差别详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`。
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts:31–50, 81–145`（read-implementation）。
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search/src/core/search-state.ts:96–136`（upstream-state-contract）。
 
-### 当前动态证据（限定真实测量面）
+| 原场景 / 子面 | 测量状态 | 具体证据（本包测试行号；原日志路径见第2节/JSON） |
+| --- | --- | --- |
+| 空词 | historical-measured-reusable | src/__tests__/review-parallel-real-handle.spec.ts:52-54；new-parallel-probes.txt:652-666 |
+| 无结果 | historical-measured-reusable | src/__tests__/review-parallel-real-handle.spec.ts:56-59 |
+| 查询失败/重试/error 身份 | historical-measured-reusable | src/__tests__/review-parallel-real-handle.spec.ts:61-69 |
+| 末页/无更多 no-op | historical-measured-reusable | src/__tests__/review-parallel-real-handle.spec.ts:71-76 |
+| 清空 | historical-measured-reusable | src/__tests__/review-parallel-real-handle.spec.ts:78-79 |
+| 取消待执行分页 | known-confirmed-upstream-issue-not-duplicated | requirements/reviews/RV-062-parallel-search-cancel.md |
 
-| 门禁                     | 2026-10-05 已读取结果                                                                     | 证据 / 边界                                                                                                                                                                                                                                                                                      |
-| ------------------------ | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| unit                     | Test Files 3 passed (3)；Tests 24 passed (24)                                             | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage.txt` 行 9088–9119；新增 review-parallel 不在此基线                                                                                                                      |
-| 四项覆盖率               | statements / branches / functions / lines = 96.66% / 81.81% / 100% / 100%；要求各项 ≥ 80% | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/coverage-gate.json`；原 include/exclude、禁缓存、maxWorkers=1；达标但不代替 C 语义                                                                                                                |
-| lint / typecheck         | 全 69 对象分别 exitCode=0；typecheck 含 51 依赖任务，输入无漂移                           | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint-status.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck-status.json`；新 spec 仍待 focused rerun |
-| 实际 pack / root resolve | 10 个包内文件，declared entries 缺失 0；root 解析通过                                     | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/packed-consumer-entry-check.json`；发布根 `packages/rxdb-plugin-search-react`；未执行 typed consumer/runtime import                                                                               |
+**剩余动作**：原 C1 最低序列无剩余必要测量；RV-062 的修复/发布状态独立保留。
 
-全局框架/editor 队列是 22/23 通过，**本子任务范围为 18/19 通过**；唯 rxdb-angular 的 16 个 directive fixture/mock 边界失败。这里不借另外 4 个 editor 包的数据补足自身对象。
 
-### 功能族、订阅生命周期与双向事件所有权
 
-输入 query 是 consumer 所有；结果/state/error/hasMore 归属 core handle。重建先 unsubscribe/destroy 旧 handle；命令通过 active/ref 路由最新 handle。initialQuery 仅初次种子，不能当作 v-model/受控 query。Angular 清空 last 防二次 setQuery，Vue suppressedQuery 同样防 clear 回声；React clear 更新 queryRef。
+### C2 快速输入与 options identity — partial
 
-### 逐 C 结论（原场景没有缩小）
+**原动作**：核查 debounce 的归属、语义相等选项、scope/branch 切换和异步过期结果。
 
-#### C1 SearchHandle 映射 — partial
+**原最低场景**：A→B 快速输入、相同值新对象、换库/branch、并发翻页；不重复创建 handle 或串结果。
 
-原动作：逐项核对 results/state/error/hasMore、setQuery/loadMore/clear 到核心 handle，保留空态与错误差异。
-原最低场景：空词、无结果、查询失败、清空、末页；框架状态不能吞掉核心错误。
+**结论**：防抖/执行代次和 AbortController 归 core；React 只持 queryRef/稳定 options/active handle。已有相同对象值、collections/source 更换保词、稳定四命令动态证据；presence 判据静态发现候选，13 个新 probe 中覆盖 A→B、异步 source/scope、并发分页但尚未运行。同一 RxDB 真实 branch checkout 没有用换 source 桩替代。
 
-**已证结论**：已逐项核对 query/results/state/error/hasMore 及 loadMore/clear/retry 路由；旧套件通过。；Angular 既有 221–255 用真实 core handle 验证两页及末页；React/Vue 既有主体是 BehaviorSubject 句柄桩，不能算同一真实 core 场景。
+**生产锚点**：
 
-**源码 / 类型锚点**：
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts:54–65, 104–139`（read-implementation）。
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search/src/core/search-handle.ts:108–171, 237–269`（upstream-generation-and-pump）。
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search/src/core/options-equality.ts:34–62`（public-comparator）。
 
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts:81–145`（read-implementation）
-  **实际读取的测试定义/新增探针**：
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts:59–182`（read-implementation）
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/review-parallel-real-handle.spec.ts:1–70`（owned-new-test-not-yet-run）
+| 原场景 / 子面 | 测量状态 | 具体证据（本包测试行号；原日志路径见第2节/JSON） |
+| --- | --- | --- |
+| A→B 快速输入及已执行 A 的串行 B | authored-not-run | src/__tests__/review-round2-lifecycle.spec.ts:87-124 |
+| 相同值新对象 | historical-measured-reusable | src/__tests__/use-search.spec.ts:211-233；framework-editor-coverage.txt:9088-9119 |
+| 换库/source + collections scope | partial-historical-stub-and-new-real-core-unrun | src/__tests__/use-search.spec.ts:191-209,243-279；src/__tests__/review-round2-lifecycle.spec.ts:126-153 |
+| 同一 RxDB branch 变化 + 在途分页 | unverified-controller-runtime-request | 保留必要未验，见主控请求 |
+| 并发翻页 | authored-not-run | src/__tests__/review-round2-lifecycle.spec.ts:189-208 |
+| undefined↔{} | pending-candidate-not-executed | src/__tests__/review-round2-lifecycle.spec.ts:175-187；findings.pending.md |
 
-**必要缺口 / 不能核销原因**：三端同序列空词→无结果→失败→重试→末页→清空的真实 core handle 新探针已写，主控尚未补跑；因此不把 C1 提前核销。
+**剩余动作**：search-react-r2-hooks；search-react-r2-lint；search-react-r2-types；search-react-r2-branch-consumer；主控对 options-presence 候选去重/复验/分流
 
-#### C2 快速输入与 options identity — partial
+**主张边界**：串行 A→B 只证明最终 B 第一页不拼入 A，不声称任意中间 loading 都删除旧结果；core 明确保留已有结果以平滑 UI。
 
-原动作：核查 debounce 的归属、语义相等选项、scope/branch 切换和异步过期结果。
-原最低场景：A→B 快速输入、相同值新对象、换库/branch、并发翻页；不重复创建 handle 或串结果。
+### C3 三端类型与依赖闭合 — partial
 
-**已证结论**：source/options identity 的重建与当前 query 保留已有断言；initialQuery 只播种、不当作受控输入；语义等价对象不重建。；Vue 已实际读取并核对 options 深修改回归（pageSize/collections）；React snapshot 复制 collections；Angular 接受 Signal。
+**原动作**：对照三端框架 idiom、公开 consumer 与 README 使用；明确必需搜索插件和不支持的 backend。
 
-**源码 / 类型锚点**：
+**原最低场景**：缺 plugin、typed consumer、同 fixtures parity、卸载；必须依赖能通过 inject 闭合。
 
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts:54–124`（read-implementation）
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts:81–145`（read-implementation）
-  **实际读取的测试定义/新增探针**：
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts:191–368`（read-implementation）
+**结论**：实际三端 public root 都用 useSearch，Shared types 与 SearchExecutionError 值透传对齐；Signal/Ref/React value 为框架 idiom。缺插件/ready 是真实 RxDB 运行时约束，不由类型 augmentation 保证。core inject adapter:local 与 unsupported/unverified 拒绝已有明确来源；workspace README 编译不替代 tar。主控已真实 root import；初次正向 strict tar 编译受 NodeJS/ms 外部声明错误阻断，负向出现7处真实诊断但不能单靠 exit2核销。
 
-**必要缺口 / 不能核销原因**：缺 A→B 真正异步查询代次与 branch 变化并发翻页的三端同 fixture；既有桩 emission 隔离不等价于完整搜索后端时序。
+**生产锚点**：
 
-#### C3 三端类型与依赖闭合 — partial
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/index.ts:14–17`（public-exports）。
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/README.md:13–70`（documented-consumer-contract）。
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search/src/plugin.ts:189–196, 636–653, 728–775`（upstream-injection-and-runtime-augmentation）。
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search/src/backend/backend-registry.ts:64–90, 125–138`（backend-admission-policy）。
 
-原动作：对照三端框架 idiom、公开 consumer 与 README 使用；明确必需搜索插件和不支持的 backend。
-原最低场景：缺 plugin、typed consumer、同 fixtures parity、卸载；必须依赖能通过 inject 闭合。
+| 原场景 / 子面 | 测量状态 | 具体证据（本包测试行号；原日志路径见第2节/JSON） |
+| --- | --- | --- |
+| 缺 plugin/未安装 | authored-real-RxDB-boundary-not-run | src/__tests__/review-round2-lifecycle.spec.ts:274-290 |
+| typed consumer | executed-positive-blocked-negative-partial | consumer-valid.mts；consumer-invalid.mts；parallel-round2/validation/isolated-consumer-validation.json |
+| 同 fixtures parity | historical-measured-reusable-for-C1-only | review-parallel-real-handle 三端同 body；new-parallel-probes.txt:622-666；historical-reuse.json |
+| 卸载/依赖 inject 闭合 | partial-static-and-historical-upstream-new-real-roots-unrun | src/use-search.ts:106-124；core plugin.ts:196；core-plugins-small-adapters-coverage.txt:2302-2320；src/__tests__/review-round2-lifecycle.spec.ts:237-290 |
+| 不支持的 backend | historical-policy-test-not-all-hosts-validated | core backend-registry.ts:64-90,125-138；core backend-registry.spec.ts 历史9用例通过 |
 
-**已证结论**：三端根入口同样透传 SearchExecutionError（运行时）、SearchHandle/SearchOptions/SearchResult/SearchState（类型）和 SearchSourceLike/UseSearchReturn。；已读取真实 pack 的发布根/入口清单及独立 root ESM resolve；没有拿 Angular 源 manifest 缺 exports 误报。；React README consumer 只定义函数、由本轮 workspace typecheck 编译；它没有启动数据库或挂载页面。
+**剩余动作**：search-react-r2-packed-consumer followup；search-react-r2-hooks；search-react-r2-branch-consumer；主控处理 README 同族命名/判据文字候选
 
-**源码 / 类型锚点**：
+**主张边界**：不写其他框架/README，不把第一轮 source-root 的 Angular manifest 当实际发布 manifest，不称 unverified adapter 真机已通过。
 
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/index.ts:14–17`（read-implementation）
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts:81–145`（read-implementation）
-  **实际读取的测试定义/新增探针**：
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/readme-consumer.spec.tsx:6–42`（read-implementation）
+### C4 React 生命周期与竞态 — partial
 
-**必要缺口 / 不能核销原因**：pack 证据未执行声明编译/runtime import；缺插件、backend 不支持、typed root consumer 及同 fixtures parity 的完整消费链路未全部覆盖。
+**原动作**：核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。
 
-#### C4 React 生命周期与竞态 — partial
+**原最低场景**：StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。
 
-原动作：核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。
-原最低场景：StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。
+**结论**：handle 创建仅在同构 layout effect；依赖为 source/stableOptions；清理顺序 unsubscribe→destroy→仅清同一 ref。四回调稳定且查询 ref 保种子；本 hook 无全局 provider/context 单例。既有 StrictMode 双 effect/消费者首个 layout effect 先绑定已测，完整新异步多 root 与晚到成功/错误仍等主控运行。
 
-**已证结论**：旧 cleanup 先 unsubscribe/destroy，新 layout effect 建 handle；已有真实 StrictMode 两 handle 与 captured callback 指向新 handle 的断言。
+**生产锚点**：
 
-**源码 / 类型锚点**：
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts:52–65, 81–145`（effect-cleanup-command-ownership）。
 
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts:81–145`（read-implementation）
-  **实际读取的测试定义/新增探针**：
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts:120–146`（read-implementation）
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts:371–399`（read-implementation）
+| 原场景 / 子面 | 测量状态 | 具体证据（本包测试行号；原日志路径见第2节/JSON） |
+| --- | --- | --- |
+| StrictMode 双挂载 | historical-basics-measured-new-real-roots-unrun | src/__tests__/use-search.spec.ts:120-147；framework-editor-coverage.txt:9096；src/__tests__/review-round2-lifecycle.spec.ts:237-262 |
+| 快速 props 变化/最新命令 | partial-historical-stub-and-new-real-core-unrun | src/__tests__/use-search.spec.ts:305-368；src/__tests__/review-round2-lifecycle.spec.ts:126-173 |
+| 卸载后晚到结果/error | authored-not-run | src/__tests__/review-round2-lifecycle.spec.ts:126-153,211-235 |
+| 多个独立 root/状态不回流 | authored-not-run | src/__tests__/review-round2-lifecycle.spec.ts:237-262 |
 
-**必要缺口 / 不能核销原因**：缺多个独立 root、真实异步查询快速 props 与卸载后的 core 结果组合。
+**剩余动作**：search-react-r2-hooks；search-react-r2-lint；search-react-r2-types
 
-#### C5 React 类型与 render 边界 — partial
 
-原动作：检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。
-原最低场景：typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。
 
-**已证结论**：公开返回字段的 framework idiom 已核对，基线 lint/typecheck 通过；source 与方法执行不在 React render 中发 IO。
+### C5 React 类型与 render 边界 — partial
 
-**源码 / 类型锚点**：
+**原动作**：检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。
 
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts:31–65`（read-implementation）
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/index.ts:1–17`（read-implementation）
+**原最低场景**：typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。
 
-**必要缺口 / 不能核销原因**：错误 props 的独立 strict consumer 与 render/异常边界未完整取证；新 spec 类型门禁需补跑。
+**结论**：实际 API 为结构化 SearchSourceLike/SearchOptions→UseSearchReturn（不是需凭空提供实体泛型的接口），九字段逐项对照。source.search 在 commit effect 内，render 仅纯 memo/snapshot。新增错误 source/SSR/相同值重渲染探针，以及包名正负 typed fixtures；未执行 hooks，初次 tar 正向编译失败原因在依赖声明，不宣告本包类型绿。
 
-### 全对象完成条件逐条判定
+**生产锚点**：
 
-1. **全部受控文件清点：通过；全部内容阅读：partial。** 13 个全范围文件已登记，9 个仍未人工检查；不从 scope 默默删配置、fixture、README、资源。
-2. **逐 C 明确结论与原场景登记：通过；原完整 C 核销：未完成。** 每条保留原动作/场景和局部证据，缺必要验证不是完成。
-3. **源码不变量 / 动态主张分离：通过（已登记范围）。** read-implementation 与 navigation-only 标注分离；新增探针不引用预期红当实际失败。
-4. **当轮门禁、缓存、skip、四指标：基线已登记。** 当前报告原测量面不变；晚加 spec 没有被老 baseline 自动覆盖。
-5. **上游 / 三端 / 消费链路：partial。** 已作公开根入口、类型/容器、delegation/所有权局部对照；pack 不等于独立 typed/runtime consumer，完整 UI 链路见各 C 缺口。
-6. **问题去重 / 正式结论：partial。** 仅 React working-tree/provider 和 replay/early-seek 两个候选在 findings.pending.md 待主控复验/去重编号；不生成 RV，不扩新问题。
-7. **全对象评级与完成：不核销。** 没有把“后续可审”“测试很多”“100% thin wrapper coverage”当作完成；评审完成不要求零缺陷，但仍要求原场景/全范围有证据。
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts:31–65, 81–145`（public-shape-and-render-boundary）。
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/index.ts:14–17`（public-consumer-entry）。
 
-### 交付附件
+| 原场景 / 子面 | 测量状态 | 具体证据（本包测试行号；原日志路径见第2节/JSON） |
+| --- | --- | --- |
+| typed consumer 编译/错误 inputs | expected-seven-real-diagnostics-observed-but-positive-blocked | consumer-valid.mts:1-39；consumer-invalid.mts:1-19；parallel-round2/validation/consumer-rxdb-plugin-search-react-invalid.txt |
+| 相同值不同引用/返回对象/重渲染 | partial-historical-and-new-exact-identity-unrun | src/__tests__/use-search.spec.ts:211-233,325-368；src/__tests__/review-round2-lifecycle.spec.ts:155-173 |
+| 错误 props 与 runtime source | type-negatives-partial-runtime-unrun | consumer-invalid.mts:10-16；src/__tests__/review-round2-lifecycle.spec.ts:274-290 |
+| render/SSR 没有搜索 IO | static-established-dynamic-authored-not-run | src/use-search.ts:106-124；src/__tests__/review-round2-lifecycle.spec.ts:264-272 |
 
-- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json`：原场景、结论、源码/测试角色、具体缺口。
-- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`：完整受控 inventory、真实正文/outline/导航的区别与摘要。
-- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/validation-observations.json`：已读取的主控测量与 pack 消费来源。
-- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/findings.pending.md`：只保留两个候选及 Angular 门禁边界。
-- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/validation-requests.json`：已请求的 late spec focused 验证；本交付不等待更大队列。
+**剩余动作**：search-react-r2-packed-consumer followup；search-react-r2-hooks；search-react-r2-lint；search-react-r2-types
+
+**主张边界**：consumer .mts 只有未执行的函数内 hook 类型调用；main runtime root import 不运行 hook。没有 any/ts-expect-error、没有关闭 Hooks lint 或吞异常的测试策略。
+
+
+## 4. 三端/上游/消费边界
+
+| 边界 | 本轮实际对照 | 结论 |
+| --- | --- | --- |
+| 三端 runtime root | React、Angular、Vue 实际均导出 `useSearch` 与 runtime `SearchExecutionError` | 名称/值透传对称；没有误报 Angular 必须导出 injectSearch |
+| Shared types | SearchHandle/Options/Result/State/SourceLike、各端 UseSearchReturn | core 类型来源相同；Signal/Ref/React value 原生容器允许不同 |
+| 重建/所有权 | 当前 query 播种、旧 unsubscribe/destroy、命令最新 handle | 普通切换合同已读/有局部旧实测；presence 候选留最小 probe |
+| 必需搜索插件 | RxDB module augmentation 仅给静态类型；运行时必须 use/plugin ready/connect 纪元 | 新真实缺插件/未安装 boundary 用例待主控，不用类型编译证明已安装 |
+| backend admission | sqlite-wasm/sqlite/sqliteai/pglite 登記 supported；wa-sqlite/小程序为 unverified，未登记拒绝 | 只核策略及既有 upstream registry 9用例，不冒充设备/全部 backend 已验 |
+| 真实 UI 入口 | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/pages/search/SearchPage.tsx:59–116` | 只读 caller 的 source/options/queryRef；不称整 app 已读或 E2E 已通过 |
+
+Angular 只读入口前已执行 list_projects/get_best_practices：CLI 仅发现 Angular21 的 examples workspace，仓库根 get_best_practices 返回 Unexpected response type。错误记录于 file-inspection；没有把 examples 的工具信息当目标包验证，也没有修改 Angular。
+
+## 5. 问题、取消与剩余验证
+
+- **RV-062 只引用** `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/RV-062-parallel-search-cancel.md`：已登记 core pendingQuery 取消后 loadMore waiter 未结算。本任务不重复登记、不动 core。新取消探针覆盖已执行请求的 AbortSignal/迟到结果/调用结算，不能洗白成功订阅重入 pending 窗口。
+- 有界候选只在 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/findings.pending.md`：options presence 与 core comparator 差异需主控复验；README Angular 名称/判据说法的静态文字候选。未分配 RV，不再扩新大 bug。
+- 五个主控请求（lint/typecheck/unit/strict tar consumer 环境对照/真实 branch runtime）见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/validation-requests.json`。后三个必要缺口分别有真实 fixture 和测量面；manual 请求明确不是猜出来的 Nx target。
+- React wrapper 自身没有 branch 属性/设备驱动，因此新增 source/scope 控制器不冒充同一 RxDB 的真实 branch checkout。不等所有无关后端；主控选一 supported 既有 fixture 取证或按理由裁定分流，不能偷标不适用。
+
+## 6. 原全对象完成条件逐条判定
+
+| 条件 | 原要求 | 当前状态 | 足够证据 / 尚缺面 |
+| --- | --- | --- | --- |
+| D1 | 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。 | complete | file-inspection.json:14/14 full-content-read, 14 scope hashes match；existing dist/codegen sources explicitly read, no regeneration claim |
+| D2 | 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。 | complete-for-classification-not-full-C-closure | c-evidence.json:5 entries, original action/minimum preserved, C1 complete + C2-C5 partial；validation-requests.json:explicit criticalForC and reasons |
+| D3 | 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。 | partial | c-evidence.json production ranges；validation-observations.json history and new tar initial command/environment；new 13 probes not executed; main request pending |
+| D4 | 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。 | partial | validation-observations.json historical commands, cache off, maxWorkers1, 24 passed and four metrics；initial tar consumer failure retained, root import separated；new target executions/JUnit/coverage pending, old coverage not inherited |
+| D5 | 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。 | partial | three public roots and matching C1 fixture recorded；RxDB inject/backend admission policy/UI source caller read only；true branch checkout/paging and complete independent typed consumer still required |
+| D6 | 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。 | partial | RV-062 reference only, registry confirmed-open unchanged；findings.pending.md contains one dynamic-pending options candidate and one documentation-only candidate; no duplicate RV；main classification/numbering pending |
+| D7 | 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。 | partial | 🟡 bounded static assessment with exact unresolved gates；full object candidate=false, releaseReady=false; no blanket rating of unvalidated surfaces |
+
+**结论**：本次交付的范围阅读、对象计划/结果、逐 C/closure/请求和最小探针均已落盘；`reviewComplete=false`、`fullObjectCandidate=false`、`releaseReady=false`。完整评审不要求零缺陷，但要求原最低场景有实际证据；已确认风险分流与必要未验不是一回事。
+
+## 7. 附件与关闭路径
+
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/packages/rxdb-plugin-search-react.md`：保留原动作/最低场景/七完成条件的对象计划。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/file-inspection.json`：全14文件真实内容阅读、源/生成输出、只读同族范围。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/historical-reuse.json`：C1 历史来源/token/hash 复用边界。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/c-evidence.json`：5个原 C 与所有最低子面、生产锚点、实际/未验区分。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/validation-observations.json`：历史门禁与主控 tar 初测原始结果归属。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/validation-requests.json`：主控唯一必要复验/环境对照与 branch 面。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/findings.pending.md`：两处有界候选与仅引用的 RV-062。
+- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/closure.json`：C1完整、C2–C5部分、全对象候选否和逐条剩余动作。
+
+历史 2026-10-03 的入口批、2026-10-05 第一轮“13文件/4正文/9未读/C1未补跑”没有删除其原日志，但已被本轮14/14全读与真实晚测证明取代；旧测量时间/HEAD不改写成新执行。主控的新 unit 与环境对照回传后，只更新本对象证据/结论，不扩 scope。

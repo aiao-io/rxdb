@@ -1,0 +1,138 @@
+{
+  "task": "R2-03",
+  "object": "rxdb-plugin-tree-react",
+  "observedAt": "2026-10-05T11:01:00+08:00",
+  "controlledGeneratedFiles": 0,
+  "outputs": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/dist/index.js",
+      "sha256": "7bedf3540e2118c7c7c9bfdd67e41c4ef7a9d496ed9829a8277b3fccbf57b9ee",
+      "readRanges": [
+        [
+          1,
+          6
+        ]
+      ],
+      "tracked": false,
+      "source": "src/index.ts",
+      "sourceMapSourceVerified": false,
+      "newBuildExecuted": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/dist/index.d.ts",
+      "sha256": "d4a8f22501380f1c5a5116f467e5424dd2d8fb8990b3184a1c458ee3ff882d52",
+      "readRanges": [
+        [
+          1,
+          13
+        ]
+      ],
+      "tracked": false,
+      "source": "src/index.ts",
+      "sourceMapSourceVerified": false,
+      "newBuildExecuted": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/dist/use-tree.d.ts",
+      "sha256": "910e17182af3608f59d21bd92342e6bcb112493c7c88a4bd7b87515103cdaadc",
+      "readRanges": [
+        [
+          1,
+          46
+        ]
+      ],
+      "tracked": false,
+      "source": "src/use-tree.ts",
+      "sourceMapSourceVerified": false,
+      "newBuildExecuted": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/dist/index.d.ts.map",
+      "sha256": "22b67bd33c6d7f1cb4c2665c5fff888fa4ad4f16d9caf6407130ed15b8ec4130",
+      "readRanges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "tracked": false,
+      "source": "src/index.ts",
+      "sourceMapSourceVerified": true,
+      "newBuildExecuted": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/dist/use-tree.d.ts.map",
+      "sha256": "51a3e52ca7124423319d250657a627a93f60f528b892a7f9ab0b40d1de7fbe1e",
+      "readRanges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "tracked": false,
+      "source": "src/use-tree.ts",
+      "sourceMapSourceVerified": true,
+      "newBuildExecuted": false
+    }
+  ],
+  "generator": "vite.config.mts dts({entryRoot:src,pathsToAliases:false,tsconfigPath:tsconfig.lib.json}) + ES lib bundle",
+  "generationSources": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/vite.config.mts",
+      "start": 8,
+      "end": 17,
+      "role": "read-implementation"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/vite.config.mts",
+      "start": 29,
+      "end": 46,
+      "role": "read-implementation"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/generator/TreeRepositoryGenerator.ts",
+      "start": 92,
+      "end": 155,
+      "role": "read-implementation"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-client-generator/src/generators/RepositoryGeneratorBase.ts",
+      "start": 136,
+      "end": 208,
+      "role": "read-implementation"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-client-generator/src/generators/entity-definition.ts",
+      "start": 136,
+      "end": 160,
+      "role": "read-implementation"
+    }
+  ],
+  "observedInvariants": [
+    "dist/index.js retains use client and imports useRepositoryQuery only from @aiao/rxdb-react; four dispatch/default tuples match source",
+    "dist/index.d.ts exports four hook names; use-tree.d.ts retains TreeEntityType/EntityStaticType/UseOptions/RxDBResource<InstanceType<T>[]|number> from package names",
+    "maps point to ../src/index.ts and ../src/use-tree.ts; not used to claim fresh reproducibility"
+  ],
+  "realGeneratedEntityExample": {
+    "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test/dist/entities/MenuSimple.d.ts",
+    "sha256": "e6b1cc95cd61abb57e87b9694eaf0450a5ac601e9db37a0a3adfa9b574031672",
+    "readRanges": [
+      [
+        1,
+        33
+      ],
+      [
+        86,
+        144
+      ],
+      [
+        165,
+        171
+      ]
+    ],
+    "observed": "FindTreeOptions<typeof MenuSimple,MenuSimpleTreeRuleGroup> in all four static option keys; static [ENTITY_STATIC_TYPES]:MenuSimpleStaticTypes; idType:UUID. Ignored output, not current numeric generator execution."
+  },
+  "consumerEntityDeclarations": "consumer-valid/invalid.mts are handwritten declaration fixtures matching the read generator static-slot protocol, not outputs produced in this task; numeric generator end-to-end remains controller action",
+  "determinismVerified": false,
+  "remainingAction": "controller build twice at a stable input snapshot and hash public output bytes; existing ignored dist/pack is not proof of current reproducibility"
+}

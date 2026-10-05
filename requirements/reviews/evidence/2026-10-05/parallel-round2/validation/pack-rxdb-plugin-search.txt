@@ -1,0 +1,273 @@
+CWD: /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search
+COMMAND: pnpm pack --json --out /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-search.tgz
+{
+  "name": "@aiao/rxdb-plugin-search",
+  "version": "0.0.26",
+  "filename": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-search.tgz",
+  "files": [
+    {
+      "path": "dist/backend/backend-registry.d.ts"
+    },
+    {
+      "path": "dist/backend/backend-registry.d.ts.map"
+    },
+    {
+      "path": "dist/backend/fts5-backend.d.ts"
+    },
+    {
+      "path": "dist/backend/fts5-backend.d.ts.map"
+    },
+    {
+      "path": "dist/backend/pg/pg-backend.d.ts"
+    },
+    {
+      "path": "dist/backend/pg/pg-backend.d.ts.map"
+    },
+    {
+      "path": "dist/backend/pg/pg-engine.d.ts"
+    },
+    {
+      "path": "dist/backend/pg/pg-engine.d.ts.map"
+    },
+    {
+      "path": "dist/backend/pg/pg-fts-contract.d.ts"
+    },
+    {
+      "path": "dist/backend/pg/pg-fts-contract.d.ts.map"
+    },
+    {
+      "path": "dist/backend/pg/pg-query-compiler.d.ts"
+    },
+    {
+      "path": "dist/backend/pg/pg-query-compiler.d.ts.map"
+    },
+    {
+      "path": "dist/backend/pg/pg-runtime.d.ts"
+    },
+    {
+      "path": "dist/backend/pg/pg-runtime.d.ts.map"
+    },
+    {
+      "path": "dist/backend/pg/pg-search-sql.d.ts"
+    },
+    {
+      "path": "dist/backend/pg/pg-search-sql.d.ts.map"
+    },
+    {
+      "path": "dist/backend/pg/pg-statements.d.ts"
+    },
+    {
+      "path": "dist/backend/pg/pg-statements.d.ts.map"
+    },
+    {
+      "path": "dist/backend/search-backend.d.ts"
+    },
+    {
+      "path": "dist/backend/search-backend.d.ts.map"
+    },
+    {
+      "path": "dist/core/adapter-guard.d.ts"
+    },
+    {
+      "path": "dist/core/adapter-guard.d.ts.map"
+    },
+    {
+      "path": "dist/core/aggregator.d.ts"
+    },
+    {
+      "path": "dist/core/aggregator.d.ts.map"
+    },
+    {
+      "path": "dist/core/debounce.d.ts"
+    },
+    {
+      "path": "dist/core/debounce.d.ts.map"
+    },
+    {
+      "path": "dist/core/fts5-installer.d.ts"
+    },
+    {
+      "path": "dist/core/fts5-installer.d.ts.map"
+    },
+    {
+      "path": "dist/core/fts5-runtime.d.ts"
+    },
+    {
+      "path": "dist/core/fts5-runtime.d.ts.map"
+    },
+    {
+      "path": "dist/core/merge-results.d.ts"
+    },
+    {
+      "path": "dist/core/merge-results.d.ts.map"
+    },
+    {
+      "path": "dist/core/options-equality.d.ts"
+    },
+    {
+      "path": "dist/core/options-equality.d.ts.map"
+    },
+    {
+      "path": "dist/core/options-guard.d.ts"
+    },
+    {
+      "path": "dist/core/options-guard.d.ts.map"
+    },
+    {
+      "path": "dist/core/query-compiler.d.ts"
+    },
+    {
+      "path": "dist/core/query-compiler.d.ts.map"
+    },
+    {
+      "path": "dist/core/result-mapper.d.ts"
+    },
+    {
+      "path": "dist/core/result-mapper.d.ts.map"
+    },
+    {
+      "path": "dist/core/schema-validator.d.ts"
+    },
+    {
+      "path": "dist/core/schema-validator.d.ts.map"
+    },
+    {
+      "path": "dist/core/scope-resolver.d.ts"
+    },
+    {
+      "path": "dist/core/scope-resolver.d.ts.map"
+    },
+    {
+      "path": "dist/core/search-engine.d.ts"
+    },
+    {
+      "path": "dist/core/search-engine.d.ts.map"
+    },
+    {
+      "path": "dist/core/search-handle.d.ts"
+    },
+    {
+      "path": "dist/core/search-handle.d.ts.map"
+    },
+    {
+      "path": "dist/core/search-state.d.ts"
+    },
+    {
+      "path": "dist/core/search-state.d.ts.map"
+    },
+    {
+      "path": "dist/index.d.ts"
+    },
+    {
+      "path": "dist/index.d.ts.map"
+    },
+    {
+      "path": "dist/index.js"
+    },
+    {
+      "path": "dist/plugin.d.ts"
+    },
+    {
+      "path": "dist/plugin.d.ts.map"
+    },
+    {
+      "path": "dist/types.d.ts"
+    },
+    {
+      "path": "dist/types.d.ts.map"
+    },
+    {
+      "path": "LICENSE"
+    },
+    {
+      "path": "package.json"
+    },
+    {
+      "path": "README.md"
+    },
+    {
+      "path": "src/backend/backend-registry.ts"
+    },
+    {
+      "path": "src/backend/fts5-backend.ts"
+    },
+    {
+      "path": "src/backend/pg/pg-backend.ts"
+    },
+    {
+      "path": "src/backend/pg/pg-engine.ts"
+    },
+    {
+      "path": "src/backend/pg/pg-fts-contract.ts"
+    },
+    {
+      "path": "src/backend/pg/pg-query-compiler.ts"
+    },
+    {
+      "path": "src/backend/pg/pg-runtime.ts"
+    },
+    {
+      "path": "src/backend/pg/pg-search-sql.ts"
+    },
+    {
+      "path": "src/backend/pg/pg-statements.ts"
+    },
+    {
+      "path": "src/backend/search-backend.ts"
+    },
+    {
+      "path": "src/core/adapter-guard.ts"
+    },
+    {
+      "path": "src/core/aggregator.ts"
+    },
+    {
+      "path": "src/core/debounce.ts"
+    },
+    {
+      "path": "src/core/fts5-installer.ts"
+    },
+    {
+      "path": "src/core/fts5-runtime.ts"
+    },
+    {
+      "path": "src/core/merge-results.ts"
+    },
+    {
+      "path": "src/core/options-equality.ts"
+    },
+    {
+      "path": "src/core/options-guard.ts"
+    },
+    {
+      "path": "src/core/query-compiler.ts"
+    },
+    {
+      "path": "src/core/result-mapper.ts"
+    },
+    {
+      "path": "src/core/schema-validator.ts"
+    },
+    {
+      "path": "src/core/scope-resolver.ts"
+    },
+    {
+      "path": "src/core/search-engine.ts"
+    },
+    {
+      "path": "src/core/search-handle.ts"
+    },
+    {
+      "path": "src/core/search-state.ts"
+    },
+    {
+      "path": "src/index.ts"
+    },
+    {
+      "path": "src/plugin.ts"
+    },
+    {
+      "path": "src/types.ts"
+    }
+  ]
+}

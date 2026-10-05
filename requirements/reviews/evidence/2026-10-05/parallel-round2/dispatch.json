@@ -1,0 +1,765 @@
+{
+  "clientDate": "2026-10-05",
+  "baselineHead": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "deadline": "2026-10-05 end of day Asia/Shanghai, no falsely verified device claims",
+  "requestedAdditionalTasks": 10,
+  "tasks": [
+    {
+      "task": "R2-01",
+      "object": "code-editor",
+      "sourceRoot": "packages/code-editor",
+      "trackedFiles": [
+        {
+          "path": "packages/code-editor/LICENSE",
+          "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b"
+        },
+        {
+          "path": "packages/code-editor/README.md",
+          "sha256": "18f42e1201ff98566527d85f01a416073dc86f1504ef08bbd834fd678e112d94"
+        },
+        {
+          "path": "packages/code-editor/eslint.config.mjs",
+          "sha256": "8076559dc3bc94d44eb1aafe0317314d0beee5ca0cb014f7e3848cf3a3e91520"
+        },
+        {
+          "path": "packages/code-editor/package.json",
+          "sha256": "931ed586f55e71b4be1ceaeb9d472f211b4a21e9e439592d14fdb3be7083b799"
+        },
+        {
+          "path": "packages/code-editor/project.json",
+          "sha256": "9a78598b29c6a14fa774b6bc28920ecfa6f36d1b8bd3c83834d127b837813749"
+        },
+        {
+          "path": "packages/code-editor/src/__tests__/accessibility.spec.ts",
+          "sha256": "c6286f2871e4cf0f3d6c3e8b549a649301da888232b28487b32d871bc46fbdbe"
+        },
+        {
+          "path": "packages/code-editor/src/__tests__/document-sync.spec.ts",
+          "sha256": "965ec48df13dc37df4251fbf2b1d496ba505008c0e6dd9bc8f9a01ad80a2d325"
+        },
+        {
+          "path": "packages/code-editor/src/__tests__/index.spec.ts",
+          "sha256": "0b2e7617c760799593c4676457e4f10c28b95427c6084326c6adf779cc50ed2b"
+        },
+        {
+          "path": "packages/code-editor/src/__tests__/language-error.spec.ts",
+          "sha256": "dc2360c0ccc5f1768b5fce5cf29dc84e72d17a64ae132c5df13f59964bb2dec7"
+        },
+        {
+          "path": "packages/code-editor/src/__tests__/language-resolution.spec.ts",
+          "sha256": "4b018b374e890fb6087a9c08076a62becd531fc809431305fc8e4c90d4039386"
+        },
+        {
+          "path": "packages/code-editor/src/__tests__/review-document-change-properties.spec.ts",
+          "sha256": "5e6d632053331fbe85855e35cc943a2379b62040d30b129c5864a57aeed9bf6f"
+        },
+        {
+          "path": "packages/code-editor/src/accessibility.ts",
+          "sha256": "b5baea5111a527837a527641e68d86a7d54db26710c07d69623110a213671537"
+        },
+        {
+          "path": "packages/code-editor/src/document-sync.ts",
+          "sha256": "f65d69873b8b8918bd7753f6469f7d3fa820d229156b22d15142adac30970879"
+        },
+        {
+          "path": "packages/code-editor/src/index.ts",
+          "sha256": "599c40d8647442d55a6f7735e07e27dca3413d754875cecb75f331c3d5c975ea"
+        },
+        {
+          "path": "packages/code-editor/src/language-error.ts",
+          "sha256": "823bfa1016e56088d59c4c21ca482e307ed5c379b8fdb33074568faa754ea114"
+        },
+        {
+          "path": "packages/code-editor/src/language-resolution.ts",
+          "sha256": "df7ae741adbdcbae8955ea5df7f19599e6744788b5a24b1e7d6d34362f8b84bb"
+        },
+        {
+          "path": "packages/code-editor/src/languages.ts",
+          "sha256": "6add6ff1a70b04db71bb10028a82dfd16d66ac8fdf56d839fc789b9621474a99"
+        },
+        {
+          "path": "packages/code-editor/tsconfig.json",
+          "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd"
+        },
+        {
+          "path": "packages/code-editor/tsconfig.lib.json",
+          "sha256": "9c8d4f409a8b273b59ceb8a2e43686cb4a9527feabda1db6f5cacf3ff93aba8d"
+        },
+        {
+          "path": "packages/code-editor/tsconfig.spec.json",
+          "sha256": "547550007c92b83502269468e38b5b6c9101a61af1823d67af4e44f2ea81be71"
+        },
+        {
+          "path": "packages/code-editor/vite.config.mts",
+          "sha256": "50346926e4c83716b12d736eb2b90f7b10998ef3619a948a56e2206133c56964"
+        }
+      ],
+      "writeScope": [
+        "requirements/reviews/packages/code-editor.md",
+        "requirements/reviews/results/packages/code-editor.md",
+        "requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor"
+      ],
+      "status": "active",
+      "agentNickname": "Fermat",
+      "agentId": "01a109eb-dfcc-78d2-9444-7610ff1b3b8d"
+    },
+    {
+      "task": "R2-02",
+      "object": "rxdb-plugin-tree-angular",
+      "sourceRoot": "packages/rxdb-plugin-tree-angular",
+      "trackedFiles": [
+        {
+          "path": "packages/rxdb-plugin-tree-angular/LICENSE",
+          "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-angular/README.md",
+          "sha256": "b5e277f3373f80684211a9dd333134d8c20c44e3cc42dad62397bc849a5a4643"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-angular/ng-package.json",
+          "sha256": "a077726530691e59c3c66b0f57e4a8acb6dd828b5dcb34f8bd0bd6e919da862e"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-angular/package.json",
+          "sha256": "2d9205ce5f6f66aa4a774c67f3ef1ae917a8e28400d2c0d59caa2b6db2fe9f22"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-angular/project.json",
+          "sha256": "c6c9a5829c7cfdc79b82329793453df81225a9e416585e8acad76719e5486530"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-angular/src/__tests__/index.spec.ts",
+          "sha256": "810b61524df7deca709c1ad4dbccece8bf029e808da0c2883785cc558208fb9b"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-angular/src/__tests__/tri-framework-generics.spec.ts",
+          "sha256": "17eba8518f5e892ce126a1acb88eeeb0cb910e384a253ecccebb5347759fd85d"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-angular/src/__tests__/use-tree.spec.ts",
+          "sha256": "9ee06597be41c8638df9d256065f84ecbc64fc45a978a397ec77d55724173dcd"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-angular/src/index.ts",
+          "sha256": "8caca19e174c964ff8f8016eb6933d9249129c10e2a6d838a3b16431168c8f35"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-angular/src/test-setup.ts",
+          "sha256": "1576379410b4dd466bcbddbec1875b6c88e1e70ddc74b652e805fbbc6a0ed6ac"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-angular/src/use-tree.ts",
+          "sha256": "eccc5a9fbfe95f06fea471ddc75747972f5497c6c18fcaa80543232e02dd4731"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-angular/tsconfig.json",
+          "sha256": "39485b026f99d20bbf2ef186c576dfbb65e80a3936e2abf44958b4c93ded4f84"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-angular/tsconfig.lib.json",
+          "sha256": "a345e8c3d8012b1932d6da1e04865003e0ca51d553dc6199d0cd94fa554f2bf3"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-angular/tsconfig.lib.prod.json",
+          "sha256": "848772818d2f1f11e5815d1d163f94e63c9bb758ce888c5491e314d608c836b9"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-angular/tsconfig.spec.json",
+          "sha256": "71732472f5200d3d58b71466a995e8570372c64b6459ad20a77a3f8075e1c2cb"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-angular/vite.config.mts",
+          "sha256": "0e812ec2199bff852b837f96ef77e449cdc1148b70e8dfb0ff3dade4d51252fc"
+        }
+      ],
+      "writeScope": [
+        "requirements/reviews/packages/rxdb-plugin-tree-angular.md",
+        "requirements/reviews/results/packages/rxdb-plugin-tree-angular.md",
+        "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular"
+      ],
+      "status": "active",
+      "agentNickname": "Singer",
+      "agentId": "01a109ec-1b41-7f02-af07-c0a17b97f64e"
+    },
+    {
+      "task": "R2-03",
+      "object": "rxdb-plugin-tree-react",
+      "sourceRoot": "packages/rxdb-plugin-tree-react",
+      "trackedFiles": [
+        {
+          "path": "packages/rxdb-plugin-tree-react/LICENSE",
+          "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-react/README.md",
+          "sha256": "b40cefde2c502a7f333e59138ed2b77543f88bf04ea5df4a7938a1c82d907765"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-react/package.json",
+          "sha256": "fe1c38d3c9412de40740ff07eb68eeb07d3a280a2486d74d61c83f8327f69c16"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-react/project.json",
+          "sha256": "fcaa8eddeb691af2d6d334c09daea77971b8c1b63134137e779193c548287c4b"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-react/src/__tests__/index.spec.ts",
+          "sha256": "76dcbfef9ee1c38dc9a2d42e1a62794d5452781a53d3228233ebc85e98f7d3ec"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-react/src/__tests__/tri-framework-generics.spec.ts",
+          "sha256": "6d84c01a924a9e9631bfb0a9ae60f89fc14e7ba59fa3acd6e2f334c0d2b03bba"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-react/src/__tests__/use-tree.spec.ts",
+          "sha256": "c5959cee5d1ada1d45e8d57daa45869be33b7b601f5263d5f84a1275c609fb15"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-react/src/index.ts",
+          "sha256": "9163971666e43f5f5f8493798e383cb07a9e5e9a46ebc5c4b6d4cf3b042126db"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-react/src/use-tree.ts",
+          "sha256": "0f02c001d36953d8df494c48d3ca77bb891135311ffe768aec921804a2a269e8"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-react/tsconfig.json",
+          "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-react/tsconfig.lib.json",
+          "sha256": "5110d28459ebf149a64f219ed27826fd59840a18deba39b2d897e718bfb91009"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-react/tsconfig.spec.json",
+          "sha256": "28ae7c8b6b9de02abba8aaf41d0fde25b185fde4cb5ce5744d083087cf778b5d"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-react/vite.config.mts",
+          "sha256": "7795ba6908f8c78dd3a0830b9963d27c94843fee91d1e5d01f01b8e74f364a78"
+        }
+      ],
+      "writeScope": [
+        "requirements/reviews/packages/rxdb-plugin-tree-react.md",
+        "requirements/reviews/results/packages/rxdb-plugin-tree-react.md",
+        "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react"
+      ],
+      "status": "active",
+      "agentNickname": "Peirce",
+      "agentId": "01a109ec-57f6-7f23-a044-5e6588ee9575"
+    },
+    {
+      "task": "R2-04",
+      "object": "rxdb-plugin-tree-vue",
+      "sourceRoot": "packages/rxdb-plugin-tree-vue",
+      "trackedFiles": [
+        {
+          "path": "packages/rxdb-plugin-tree-vue/LICENSE",
+          "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-vue/README.md",
+          "sha256": "213e47d14f74011c2c1d5b563d8a9179cc3369eeba424ce32e9f3ebe874f7032"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-vue/package.json",
+          "sha256": "f4f0461ea016f93d7ddee0d87a93804deb6a2f3029ce2e3924c63b81fc989ea2"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-vue/project.json",
+          "sha256": "3a081d98b0854de384a5169c70e9549a068e6fc6c0d1b52e43dee65d096674fb"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-vue/src/__tests__/index.spec.ts",
+          "sha256": "053170579ea8922f0176c63d0ac2f02b57c4d76da32335a245af19df97cfaf99"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-vue/src/__tests__/tri-framework-generics.spec.ts",
+          "sha256": "51061937e70fec2bd183d6c8cad64343b82577859cfe34a0753b3cc22b68522d"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-vue/src/__tests__/use-tree.spec.ts",
+          "sha256": "21b1129cb29b03aa84fba3c670e8d801e1f76d3454067629ffae23bf211b126e"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-vue/src/index.ts",
+          "sha256": "7afa278a6f70219c12038ff59b36d2473041f2d6cf943e30dab5c9eed5e83cd7"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-vue/src/use-tree.ts",
+          "sha256": "1911bdbdbd9284735c8bee0c97344f05386998a2b0d76bd2b59a02f294757335"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-vue/tsconfig.json",
+          "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-vue/tsconfig.lib.json",
+          "sha256": "b4a6d74c7748728096f01d28d8324b404d8fa292e65a5733f4df27ac95b0ecda"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-vue/tsconfig.spec.json",
+          "sha256": "25c2fe308cf62b0ef6da8b5d1ab8c573c503f2999655e8e35708f48de1e35e83"
+        },
+        {
+          "path": "packages/rxdb-plugin-tree-vue/vite.config.mts",
+          "sha256": "cecbd8cdfd6528fbfca613f3d276b42f5c7ef8b47a7f8edf9ac83b90dfe875ae"
+        }
+      ],
+      "writeScope": [
+        "requirements/reviews/packages/rxdb-plugin-tree-vue.md",
+        "requirements/reviews/results/packages/rxdb-plugin-tree-vue.md",
+        "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue"
+      ],
+      "status": "queued-capacity"
+    },
+    {
+      "task": "R2-05",
+      "object": "rxdb-plugin-search-angular",
+      "sourceRoot": "packages/rxdb-plugin-search-angular",
+      "trackedFiles": [
+        {
+          "path": "packages/rxdb-plugin-search-angular/LICENSE",
+          "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-angular/README.md",
+          "sha256": "686556b78fc4cafdedad5c0fa96bbf165dc2dcab25e80411fd792bc49e6b8e09"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-angular/ng-package.json",
+          "sha256": "7b81fad0c14e04fe3a1c76da8c512fad27c814510da9b88d83032d4caa98f4f6"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-angular/package.json",
+          "sha256": "4bc0877216a98750837edd95e4987d812cdca836720435c18b0bded710890f60"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-angular/project.json",
+          "sha256": "2265bfdad13979fbfdc090a86a6002e2513e544ef5f5021e4cc5454d00854686"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-angular/src/__tests__/index.spec.ts",
+          "sha256": "8fd5a4221ce821084a8823f6c507431d3cf02d993e78e2dc5d84f9c213412027"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts",
+          "sha256": "545f613b63f007862102045263bc331921ce7f9e4500c3a02c96b8b61ed42540"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-angular/src/__tests__/release-config.spec.ts",
+          "sha256": "4f59db6620e0ec27aad16269c4621ab4cbeb5be40780221b99fbd335c68dd982"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-angular/src/__tests__/review-parallel-real-handle.spec.ts",
+          "sha256": "d99876680e1dcf4bd5eb152309aeb22cc47be9bbed99bb11d04055cb2c636595"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-angular/src/index.ts",
+          "sha256": "a39817258c007f623dcbf31ab517b225e2631360b66eaa90da0bf8f5b99b7fa3"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-angular/src/inject-search.ts",
+          "sha256": "e45d9042ae69f33256c415d0df59c118c81e52e38fa35fc519bc3949469401c9"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-angular/src/test-setup.ts",
+          "sha256": "1576379410b4dd466bcbddbec1875b6c88e1e70ddc74b652e805fbbc6a0ed6ac"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-angular/tsconfig.json",
+          "sha256": "39485b026f99d20bbf2ef186c576dfbb65e80a3936e2abf44958b4c93ded4f84"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-angular/tsconfig.lib.json",
+          "sha256": "72e1ff3cdbe0eaaebd2b568ca938a5400d92133305e04b14096be846a2feb075"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-angular/tsconfig.lib.prod.json",
+          "sha256": "848772818d2f1f11e5815d1d163f94e63c9bb758ce888c5491e314d608c836b9"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-angular/tsconfig.spec.json",
+          "sha256": "e24144258a064afb1381cabbd1fe27a252f0453a890e780e15ca09a383a6661c"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-angular/vite.config.mts",
+          "sha256": "a38027aabeb2fb14817d45e04f1332a286886739eb5f74b2cca588e10906870a"
+        }
+      ],
+      "writeScope": [
+        "requirements/reviews/packages/rxdb-plugin-search-angular.md",
+        "requirements/reviews/results/packages/rxdb-plugin-search-angular.md",
+        "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular"
+      ],
+      "status": "active",
+      "agentNickname": "Hume",
+      "agentId": "01a109ec-a26a-7701-80a6-79a126d15d8a"
+    },
+    {
+      "task": "R2-06",
+      "object": "rxdb-plugin-search-react",
+      "sourceRoot": "packages/rxdb-plugin-search-react",
+      "trackedFiles": [
+        {
+          "path": "packages/rxdb-plugin-search-react/LICENSE",
+          "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-react/README.md",
+          "sha256": "edee0d4daf3d58464b1ebea1989f131bd012bff223eaaa6876e026c11d94e627"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-react/package.json",
+          "sha256": "cbc2d23bdbfd36c257fb7fcb2910ee705d7392f9b0b28ce2a9bd3dd2421fdc19"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-react/project.json",
+          "sha256": "8a6d3fbe7f375764bdc3c0f0e96776b86362e4123a314645abe38556bc05c844"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-react/src/__tests__/index.spec.ts",
+          "sha256": "af56bcebf4c6aa7ddda38d5137d2f8e2cc5d257e9a3160f0836f91a4384043f2"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-react/src/__tests__/readme-consumer.spec.tsx",
+          "sha256": "b748749420d479a19c4448fa4667672ae6f365ce0c020891b77bb864f1fa530b"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-react/src/__tests__/review-parallel-real-handle.spec.ts",
+          "sha256": "46273f898b443419de3465454405224a00a5444d6aac4ca5f2491686194c3105"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts",
+          "sha256": "4df352b784f8e62a90d6f99753fd8d96fbb0b907e8558ab10e8a476b18e38cdd"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-react/src/index.ts",
+          "sha256": "e637edcc8c3d95af9ef58a06228042288718bed95b423849d2f5fb844655a80a"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-react/src/use-search.ts",
+          "sha256": "b108d77f90c92436926a3e25151d108662ba2a34bd32fd3b8011cce969d068c2"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-react/tsconfig.json",
+          "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-react/tsconfig.lib.json",
+          "sha256": "e7c6f20d8421d41d9d31f1aa0a6418557691f7eee144b9ee259501a159e8ef69"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-react/tsconfig.spec.json",
+          "sha256": "28ae7c8b6b9de02abba8aaf41d0fde25b185fde4cb5ce5744d083087cf778b5d"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-react/vite.config.mts",
+          "sha256": "e5795e6ea0991d70b7006f76be618804b929639221034703e1cfdf8c471d7c6d"
+        }
+      ],
+      "writeScope": [
+        "requirements/reviews/packages/rxdb-plugin-search-react.md",
+        "requirements/reviews/results/packages/rxdb-plugin-search-react.md",
+        "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react"
+      ],
+      "status": "active",
+      "agentNickname": "Pasteur",
+      "agentId": "01a109ec-d5cf-7400-91e7-092b9e799355"
+    },
+    {
+      "task": "R2-07",
+      "object": "rxdb-plugin-search-vue",
+      "sourceRoot": "packages/rxdb-plugin-search-vue",
+      "trackedFiles": [
+        {
+          "path": "packages/rxdb-plugin-search-vue/LICENSE",
+          "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-vue/README.md",
+          "sha256": "1b16ea1a312b1061bc133144ff7ee5d466188ce7b8165f40017b6d71ed9f98fd"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-vue/package.json",
+          "sha256": "57b7fc348500acfe62e03307c46190e24a849ec4543cdc95216e99a7a70ab4d9"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-vue/project.json",
+          "sha256": "aeb3ee8f68cd029385fa0783a88bc6f7316b9b6191a9efd4c4f7b067556c07f7"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-vue/src/__tests__/index.spec.ts",
+          "sha256": "dc3e3c80273df471067ddc6a2afd6332a1f50fc00d44d608310530f7ce1fe975"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-vue/src/__tests__/package-exports.spec.ts",
+          "sha256": "9c80a7ff72c868d7aabdafdc9756b8ee289d28308a4a7171e6ea42e096cece53"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-vue/src/__tests__/review-options-mutation.spec.ts",
+          "sha256": "4cfbd8cfa55f643e1f59ddead8b09a5f1773d50722e6afe18f8d4ae0107e70c2"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-vue/src/__tests__/review-parallel-real-handle.spec.ts",
+          "sha256": "1be30dc8ba2151888e51d972b20052378c452dec68076c7f1a74c45237a8c000"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-vue/src/__tests__/use-search.spec.ts",
+          "sha256": "affe2a543887640e57d264c84d41292e0387a8f923ab9ebce449233e40dab9b6"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-vue/src/index.ts",
+          "sha256": "4b6383e5d4495eb330f5e80544a70b9bd6ef8bfe40e92464f1b6846140f6fc54"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-vue/src/use-search.ts",
+          "sha256": "7c2f9d0c88d7262ec440720fc3d9238e6a5ad701b38dc3482830474860bf7c73"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-vue/tsconfig.json",
+          "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-vue/tsconfig.lib.json",
+          "sha256": "2c2e32e36e1c124288da4262456f00ff832a7da327f58d67d938fc890a15b0a1"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-vue/tsconfig.spec.json",
+          "sha256": "25c2fe308cf62b0ef6da8b5d1ab8c573c503f2999655e8e35708f48de1e35e83"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-vue/vite.config.mts",
+          "sha256": "c84f07f483379b46ee0643da10306cbeb8b7cd5df881662441e33e9d05ff855d"
+        }
+      ],
+      "writeScope": [
+        "requirements/reviews/packages/rxdb-plugin-search-vue.md",
+        "requirements/reviews/results/packages/rxdb-plugin-search-vue.md",
+        "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue"
+      ],
+      "status": "active",
+      "agentNickname": "Dirac",
+      "agentId": "01a109ed-0a85-75b0-a00b-2fd0fbc7f779"
+    },
+    {
+      "task": "R2-08",
+      "object": "rxdb-plugin-working-tree-angular",
+      "sourceRoot": "packages/rxdb-plugin-working-tree-angular",
+      "trackedFiles": [
+        {
+          "path": "packages/rxdb-plugin-working-tree-angular/LICENSE",
+          "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-angular/README.md",
+          "sha256": "0a7c884f60a92a64c1c0962c4ff3da69478884b834999bcc66061ce044918911"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-angular/ng-package.json",
+          "sha256": "53bc0b51550e3825a17b2cec4c183128187ccbc8af0d2f05b71a6bacd4c624f7"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-angular/package.json",
+          "sha256": "cedaf1aab610593e7cf88579912f680a49e2c8640d6ad284cda1067c758fac9a"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-angular/project.json",
+          "sha256": "46e72867ba3f907ad93674cb7a722a4bcc3314a6a09d3509e37e25f6007b5b70"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-angular/src/__tests__/index.spec.ts",
+          "sha256": "0325389380d8f755cb9f8089ac582ceb65059f553d7b65f369a4c6ea0292a2f3"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-angular/src/__tests__/use-working-tree.spec.ts",
+          "sha256": "b2d8a932d5de4034751ddf6a267bd2f0c4441e26559f1b308a34985cbf0b8aac"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-angular/src/index.ts",
+          "sha256": "621fad7bc03e7b8077d49c66017e8ef7340d4ed2365968f011ad727541d3b020"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-angular/src/test-setup.ts",
+          "sha256": "1576379410b4dd466bcbddbec1875b6c88e1e70ddc74b652e805fbbc6a0ed6ac"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-angular/src/use-working-tree.ts",
+          "sha256": "f2010e0f47fd867399db0248fcbe7e917be16326fcc472bd06113c78857bd733"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-angular/tsconfig.json",
+          "sha256": "39485b026f99d20bbf2ef186c576dfbb65e80a3936e2abf44958b4c93ded4f84"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-angular/tsconfig.lib.json",
+          "sha256": "613c307eb77dec103643e3f1877b5fd048a96c963941bde9095ed456f2018f9c"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-angular/tsconfig.lib.prod.json",
+          "sha256": "848772818d2f1f11e5815d1d163f94e63c9bb758ce888c5491e314d608c836b9"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-angular/tsconfig.spec.json",
+          "sha256": "106172344c56e3af2e2664240ab8071b468260eaf9dd4595561a2f6dfd60f176"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-angular/vite.config.mts",
+          "sha256": "3532d43aad1a2892e6bdb2ecabf56fa3009a44414765944facf42e8099f02e0d"
+        }
+      ],
+      "writeScope": [
+        "requirements/reviews/packages/rxdb-plugin-working-tree-angular.md",
+        "requirements/reviews/results/packages/rxdb-plugin-working-tree-angular.md",
+        "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-angular"
+      ],
+      "status": "queued-capacity"
+    },
+    {
+      "task": "R2-09",
+      "object": "rxdb-plugin-working-tree-vue",
+      "sourceRoot": "packages/rxdb-plugin-working-tree-vue",
+      "trackedFiles": [
+        {
+          "path": "packages/rxdb-plugin-working-tree-vue/LICENSE",
+          "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-vue/README.md",
+          "sha256": "7c6eedda91cdfffe13f06c20f8501ea9455d8e694f082f77251213a548f0b43a"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-vue/package.json",
+          "sha256": "8597a3aa51a398536a71dc48231b93ca5a5e6f490f5249a48325addf4d9e41b5"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-vue/project.json",
+          "sha256": "2daa110072da035415136d8e51419f60bee662eb778bf07cff0b1d0f8b1c96c3"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-vue/src/__tests__/index.spec.ts",
+          "sha256": "0325389380d8f755cb9f8089ac582ceb65059f553d7b65f369a4c6ea0292a2f3"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-vue/src/__tests__/rxdb-provider-harness.ts",
+          "sha256": "14a12010068b58c54681eee4b774204007929a22d4e2c4a566c45c8fb82099c2"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-vue/src/__tests__/setup-harness.ts",
+          "sha256": "c748cb9704ab61c684dd983940c44baf7a0505920457b30fcaadbe335b768b05"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-vue/src/__tests__/use-working-tree.spec.ts",
+          "sha256": "600f993fd52d0657a3238d7386a274be140565587f720d7984ad357e50f41bfb"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-vue/src/index.ts",
+          "sha256": "16ff00ab8ca489f33e127d668aea888ac597f94c5ac2d97dfae71deeb8f8e0ea"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts",
+          "sha256": "42b15923b583e48e2db67202fb022a34ba910d899d86cd4dbaef224a3f5cdd5f"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-vue/tsconfig.json",
+          "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-vue/tsconfig.lib.json",
+          "sha256": "ebe4e6d885279bc5d9e70900ce9a95214bc11a780b343177b7eb54b1b91b5a91"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-vue/tsconfig.spec.json",
+          "sha256": "4b23b52c0b4607ef2ba16e07d087a22d9575c805c1d6b64be04649ccd609687f"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-vue/vite.config.mts",
+          "sha256": "c3a5fbaa71fd1c358e6f254649cb7b9f37e3fc99a26042ad19a35aede36e2acd"
+        }
+      ],
+      "writeScope": [
+        "requirements/reviews/packages/rxdb-plugin-working-tree-vue.md",
+        "requirements/reviews/results/packages/rxdb-plugin-working-tree-vue.md",
+        "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue"
+      ],
+      "status": "queued-capacity"
+    },
+    {
+      "task": "R2-10",
+      "object": "rxdb-plugin-replay-angular",
+      "sourceRoot": "packages/rxdb-plugin-replay-angular",
+      "trackedFiles": [
+        {
+          "path": "packages/rxdb-plugin-replay-angular/LICENSE",
+          "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/README.md",
+          "sha256": "b0751f9538cf6c853e4813f1af2637ffd0f65eb6eefb3fa5d319ee8354e8c7ff"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/ng-package.json",
+          "sha256": "ecde736d40e65a227cd5ba3ecef8dafcbb73c409375e922fee9c724a53be5e07"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/package.json",
+          "sha256": "68b1f80ddad750ede3bf0cfeae4306cac8b73c104c2eb157ab691db474b1f116"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/project.json",
+          "sha256": "b84122ae50765eb8c2d8179d51c7d4403c98c620075627144acc493f38d8bc80"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/__tests__/release-config.spec.ts",
+          "sha256": "4f59db6620e0ec27aad16269c4621ab4cbeb5be40780221b99fbd335c68dd982"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+          "sha256": "de067950e5e185549e662128e8ed20d895c2764a3590c57b3c6b6fbacb2a9843"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/index.ts",
+          "sha256": "a068548ea8d47f74f161d8c4f6a393791aa24237ef2d69a87640b381000d9a3f"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+          "sha256": "babd32ee9320a477a919fc5e6ee965beab42b6c6add391d718edcd15340f4cf0"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/src/test-setup.ts",
+          "sha256": "1576379410b4dd466bcbddbec1875b6c88e1e70ddc74b652e805fbbc6a0ed6ac"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/tsconfig.json",
+          "sha256": "39485b026f99d20bbf2ef186c576dfbb65e80a3936e2abf44958b4c93ded4f84"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/tsconfig.lib.json",
+          "sha256": "c40f1fac0e0b26a577540f2eef3ee32374004d277e9500effc8fc0e15d7a55d9"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/tsconfig.lib.prod.json",
+          "sha256": "848772818d2f1f11e5815d1d163f94e63c9bb758ce888c5491e314d608c836b9"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/tsconfig.spec.json",
+          "sha256": "312b7d0b62665dedb15dd6afc96b46ec0df2df22b6e6aea12ec4288a196f1b16"
+        },
+        {
+          "path": "packages/rxdb-plugin-replay-angular/vite.config.mts",
+          "sha256": "8937d358b6eb02abee5a49d797d6d23c4ff65fc82688948b1d70ec93aa9f683f"
+        }
+      ],
+      "writeScope": [
+        "requirements/reviews/packages/rxdb-plugin-replay-angular.md",
+        "requirements/reviews/results/packages/rxdb-plugin-replay-angular.md",
+        "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-replay-angular"
+      ],
+      "status": "queued-capacity"
+    }
+  ],
+  "validationPolicy": "Parent manages heavy targets, agents complete one bounded object with exact original C evidence, all tracked files read or generated provenance proven. No unbounded new issues; no business patches or git index changes.",
+  "concurrencyLimitObserved": 6,
+  "parentTask": "Independently validate typed/runtime consumption while agents read, test-case design and C closure"
+}

@@ -1,0 +1,639 @@
+CWD: /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-test
+COMMAND: pnpm pack --json --out /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-test.tgz
+{
+  "name": "@aiao/rxdb-test",
+  "version": "0.0.26",
+  "filename": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-test.tgz",
+  "files": [
+    {
+      "path": "dist/chunks/decorate-BJVyhdRd.js"
+    },
+    {
+      "path": "dist/chunks/generate-test-db-name-Di74wjZu.js"
+    },
+    {
+      "path": "dist/chunks/generate-test-db-name-Di74wjZu.js.map"
+    },
+    {
+      "path": "dist/cross-framework-fixtures/entity-fields-descriptor.d.ts"
+    },
+    {
+      "path": "dist/cross-framework-fixtures/entity-fields-descriptor.d.ts.map"
+    },
+    {
+      "path": "dist/cross-framework-fixtures/index.d.ts"
+    },
+    {
+      "path": "dist/cross-framework-fixtures/index.d.ts.map"
+    },
+    {
+      "path": "dist/cross-framework-fixtures/live-cursor-boundary.d.ts"
+    },
+    {
+      "path": "dist/cross-framework-fixtures/live-cursor-boundary.d.ts.map"
+    },
+    {
+      "path": "dist/cross-framework-fixtures/search-parity.d.ts"
+    },
+    {
+      "path": "dist/cross-framework-fixtures/search-parity.d.ts.map"
+    },
+    {
+      "path": "dist/cross-framework-fixtures/sync-override.d.ts"
+    },
+    {
+      "path": "dist/cross-framework-fixtures/sync-override.d.ts.map"
+    },
+    {
+      "path": "dist/encrypted/bigint-binary.suite.d.ts"
+    },
+    {
+      "path": "dist/encrypted/bigint-binary.suite.d.ts.map"
+    },
+    {
+      "path": "dist/encrypted/change-log.suite.d.ts"
+    },
+    {
+      "path": "dist/encrypted/change-log.suite.d.ts.map"
+    },
+    {
+      "path": "dist/encrypted/crud.suite.d.ts"
+    },
+    {
+      "path": "dist/encrypted/crud.suite.d.ts.map"
+    },
+    {
+      "path": "dist/encrypted/error-contract.d.ts"
+    },
+    {
+      "path": "dist/encrypted/error-contract.d.ts.map"
+    },
+    {
+      "path": "dist/encrypted/fixtures.d.ts"
+    },
+    {
+      "path": "dist/encrypted/fixtures.d.ts.map"
+    },
+    {
+      "path": "dist/encrypted/index.d.ts"
+    },
+    {
+      "path": "dist/encrypted/index.d.ts.map"
+    },
+    {
+      "path": "dist/encrypted/index.js"
+    },
+    {
+      "path": "dist/encrypted/index.js.map"
+    },
+    {
+      "path": "dist/encrypted/lifecycle.suite.d.ts"
+    },
+    {
+      "path": "dist/encrypted/lifecycle.suite.d.ts.map"
+    },
+    {
+      "path": "dist/encrypted/query-count.d.ts"
+    },
+    {
+      "path": "dist/encrypted/query-count.d.ts.map"
+    },
+    {
+      "path": "dist/encrypted/tamper.suite.d.ts"
+    },
+    {
+      "path": "dist/encrypted/tamper.suite.d.ts.map"
+    },
+    {
+      "path": "dist/encrypted/temporary-value.d.ts"
+    },
+    {
+      "path": "dist/encrypted/temporary-value.d.ts.map"
+    },
+    {
+      "path": "dist/encrypted/types.d.ts"
+    },
+    {
+      "path": "dist/encrypted/types.d.ts.map"
+    },
+    {
+      "path": "dist/entities/.rxdb-client-generator-manifest.json"
+    },
+    {
+      "path": "dist/entities/Account.d.ts"
+    },
+    {
+      "path": "dist/entities/Account.js"
+    },
+    {
+      "path": "dist/entities/Article.d.ts"
+    },
+    {
+      "path": "dist/entities/Article.js"
+    },
+    {
+      "path": "dist/entities/AuditLog.d.ts"
+    },
+    {
+      "path": "dist/entities/AuditLog.js"
+    },
+    {
+      "path": "dist/entities/Comment.d.ts"
+    },
+    {
+      "path": "dist/entities/Comment.js"
+    },
+    {
+      "path": "dist/entities/Contract.d.ts"
+    },
+    {
+      "path": "dist/entities/Contract.js"
+    },
+    {
+      "path": "dist/entities/FileLarge.d.ts"
+    },
+    {
+      "path": "dist/entities/FileLarge.js"
+    },
+    {
+      "path": "dist/entities/FileNode.d.ts"
+    },
+    {
+      "path": "dist/entities/FileNode.js"
+    },
+    {
+      "path": "dist/entities/index.d.ts"
+    },
+    {
+      "path": "dist/entities/index.js"
+    },
+    {
+      "path": "dist/entities/Invoice.d.ts"
+    },
+    {
+      "path": "dist/entities/Invoice.js"
+    },
+    {
+      "path": "dist/entities/MenuLarge.d.ts"
+    },
+    {
+      "path": "dist/entities/MenuLarge.js"
+    },
+    {
+      "path": "dist/entities/MenuSimple.d.ts"
+    },
+    {
+      "path": "dist/entities/MenuSimple.js"
+    },
+    {
+      "path": "dist/entities/Task.d.ts"
+    },
+    {
+      "path": "dist/entities/Task.js"
+    },
+    {
+      "path": "dist/entities/Todo.d.ts"
+    },
+    {
+      "path": "dist/entities/Todo.js"
+    },
+    {
+      "path": "dist/entities/TypeDemo.d.ts"
+    },
+    {
+      "path": "dist/entities/TypeDemo.js"
+    },
+    {
+      "path": "dist/entities/TypeDemoNative.d.ts"
+    },
+    {
+      "path": "dist/entities/TypeDemoNative.js"
+    },
+    {
+      "path": "dist/index.d.ts"
+    },
+    {
+      "path": "dist/index.d.ts.map"
+    },
+    {
+      "path": "dist/index.js"
+    },
+    {
+      "path": "dist/index.js.map"
+    },
+    {
+      "path": "dist/query-cache-contract/fixtures.d.ts"
+    },
+    {
+      "path": "dist/query-cache-contract/fixtures.d.ts.map"
+    },
+    {
+      "path": "dist/query-cache-contract/index.d.ts"
+    },
+    {
+      "path": "dist/query-cache-contract/index.d.ts.map"
+    },
+    {
+      "path": "dist/query-cache-contract/index.js"
+    },
+    {
+      "path": "dist/query-cache-contract/index.js.map"
+    },
+    {
+      "path": "dist/query-cache-contract/row-contract.suite.d.ts"
+    },
+    {
+      "path": "dist/query-cache-contract/row-contract.suite.d.ts.map"
+    },
+    {
+      "path": "dist/query-cache-contract/types.d.ts"
+    },
+    {
+      "path": "dist/query-cache-contract/types.d.ts.map"
+    },
+    {
+      "path": "dist/shop/.rxdb-client-generator-manifest.json"
+    },
+    {
+      "path": "dist/shop/Attribute.d.ts"
+    },
+    {
+      "path": "dist/shop/Attribute.js"
+    },
+    {
+      "path": "dist/shop/AttributeValue.d.ts"
+    },
+    {
+      "path": "dist/shop/AttributeValue.js"
+    },
+    {
+      "path": "dist/shop/Category.d.ts"
+    },
+    {
+      "path": "dist/shop/Category.js"
+    },
+    {
+      "path": "dist/shop/IdCard.d.ts"
+    },
+    {
+      "path": "dist/shop/IdCard.js"
+    },
+    {
+      "path": "dist/shop/index.d.ts"
+    },
+    {
+      "path": "dist/shop/index.js"
+    },
+    {
+      "path": "dist/shop/Order.d.ts"
+    },
+    {
+      "path": "dist/shop/Order.js"
+    },
+    {
+      "path": "dist/shop/OrderItem.d.ts"
+    },
+    {
+      "path": "dist/shop/OrderItem.js"
+    },
+    {
+      "path": "dist/shop/Product.d.ts"
+    },
+    {
+      "path": "dist/shop/Product.js"
+    },
+    {
+      "path": "dist/shop/SKU.d.ts"
+    },
+    {
+      "path": "dist/shop/SKU.js"
+    },
+    {
+      "path": "dist/shop/SKUAttributes.d.ts"
+    },
+    {
+      "path": "dist/shop/SKUAttributes.js"
+    },
+    {
+      "path": "dist/shop/User.d.ts"
+    },
+    {
+      "path": "dist/shop/User.js"
+    },
+    {
+      "path": "dist/sortable/fixtures.d.ts"
+    },
+    {
+      "path": "dist/sortable/fixtures.d.ts.map"
+    },
+    {
+      "path": "dist/sortable/index.d.ts"
+    },
+    {
+      "path": "dist/sortable/index.d.ts.map"
+    },
+    {
+      "path": "dist/sortable/index.js"
+    },
+    {
+      "path": "dist/sortable/index.js.map"
+    },
+    {
+      "path": "dist/sortable/manual-order-edits.suite.d.ts"
+    },
+    {
+      "path": "dist/sortable/manual-order-edits.suite.d.ts.map"
+    },
+    {
+      "path": "dist/sortable/manual-order-group.suite.d.ts"
+    },
+    {
+      "path": "dist/sortable/manual-order-group.suite.d.ts.map"
+    },
+    {
+      "path": "dist/sortable/manual-order.suite.d.ts"
+    },
+    {
+      "path": "dist/sortable/manual-order.suite.d.ts.map"
+    },
+    {
+      "path": "dist/sortable/transaction-barrier.d.ts"
+    },
+    {
+      "path": "dist/sortable/transaction-barrier.d.ts.map"
+    },
+    {
+      "path": "dist/sortable/types.d.ts"
+    },
+    {
+      "path": "dist/sortable/types.d.ts.map"
+    },
+    {
+      "path": "dist/testing/clear-entity-records.d.ts"
+    },
+    {
+      "path": "dist/testing/clear-entity-records.d.ts.map"
+    },
+    {
+      "path": "dist/testing/e2e-db-name.d.ts"
+    },
+    {
+      "path": "dist/testing/e2e-db-name.d.ts.map"
+    },
+    {
+      "path": "dist/testing/generate-test-db-name.d.ts"
+    },
+    {
+      "path": "dist/testing/generate-test-db-name.d.ts.map"
+    },
+    {
+      "path": "dist/testing/index.d.ts"
+    },
+    {
+      "path": "dist/testing/index.d.ts.map"
+    },
+    {
+      "path": "dist/testing/observable-sequence.d.ts"
+    },
+    {
+      "path": "dist/testing/observable-sequence.d.ts.map"
+    },
+    {
+      "path": "dist/testing/search-demo-api.d.ts"
+    },
+    {
+      "path": "dist/testing/search-demo-api.d.ts.map"
+    },
+    {
+      "path": "dist/testing/seed-lock.d.ts"
+    },
+    {
+      "path": "dist/testing/seed-lock.d.ts.map"
+    },
+    {
+      "path": "dist/testing/sqlite.d.ts"
+    },
+    {
+      "path": "dist/testing/sqlite.d.ts.map"
+    },
+    {
+      "path": "dist/transaction/bootstrap.suite.d.ts"
+    },
+    {
+      "path": "dist/transaction/bootstrap.suite.d.ts.map"
+    },
+    {
+      "path": "dist/transaction/fixtures.d.ts"
+    },
+    {
+      "path": "dist/transaction/fixtures.d.ts.map"
+    },
+    {
+      "path": "dist/transaction/index.d.ts"
+    },
+    {
+      "path": "dist/transaction/index.d.ts.map"
+    },
+    {
+      "path": "dist/transaction/index.js"
+    },
+    {
+      "path": "dist/transaction/index.js.map"
+    },
+    {
+      "path": "dist/transaction/isolation.suite.d.ts"
+    },
+    {
+      "path": "dist/transaction/isolation.suite.d.ts.map"
+    },
+    {
+      "path": "dist/transaction/readiness.suite.d.ts"
+    },
+    {
+      "path": "dist/transaction/readiness.suite.d.ts.map"
+    },
+    {
+      "path": "dist/transaction/types.d.ts"
+    },
+    {
+      "path": "dist/transaction/types.d.ts.map"
+    },
+    {
+      "path": "dist/tree-unique/fixtures.d.ts"
+    },
+    {
+      "path": "dist/tree-unique/fixtures.d.ts.map"
+    },
+    {
+      "path": "dist/tree-unique/index.d.ts"
+    },
+    {
+      "path": "dist/tree-unique/index.d.ts.map"
+    },
+    {
+      "path": "dist/tree-unique/index.js"
+    },
+    {
+      "path": "dist/tree-unique/index.js.map"
+    },
+    {
+      "path": "dist/tree-unique/sibling-unique.suite.d.ts"
+    },
+    {
+      "path": "dist/tree-unique/sibling-unique.suite.d.ts.map"
+    },
+    {
+      "path": "dist/tree-unique/types.d.ts"
+    },
+    {
+      "path": "dist/tree-unique/types.d.ts.map"
+    },
+    {
+      "path": "LICENSE"
+    },
+    {
+      "path": "package.json"
+    },
+    {
+      "path": "README.md"
+    },
+    {
+      "path": "src/cross-framework-fixtures/entity-fields-descriptor.ts"
+    },
+    {
+      "path": "src/cross-framework-fixtures/index.ts"
+    },
+    {
+      "path": "src/cross-framework-fixtures/live-cursor-boundary.ts"
+    },
+    {
+      "path": "src/cross-framework-fixtures/search-parity.ts"
+    },
+    {
+      "path": "src/cross-framework-fixtures/sync-override.ts"
+    },
+    {
+      "path": "src/encrypted/bigint-binary.suite.ts"
+    },
+    {
+      "path": "src/encrypted/change-log.suite.ts"
+    },
+    {
+      "path": "src/encrypted/crud.suite.ts"
+    },
+    {
+      "path": "src/encrypted/error-contract.ts"
+    },
+    {
+      "path": "src/encrypted/fixtures.ts"
+    },
+    {
+      "path": "src/encrypted/index.ts"
+    },
+    {
+      "path": "src/encrypted/lifecycle.suite.ts"
+    },
+    {
+      "path": "src/encrypted/query-count.ts"
+    },
+    {
+      "path": "src/encrypted/tamper.suite.ts"
+    },
+    {
+      "path": "src/encrypted/temporary-value.ts"
+    },
+    {
+      "path": "src/encrypted/types.ts"
+    },
+    {
+      "path": "src/index.ts"
+    },
+    {
+      "path": "src/query-cache-contract/fixtures.ts"
+    },
+    {
+      "path": "src/query-cache-contract/index.ts"
+    },
+    {
+      "path": "src/query-cache-contract/row-contract.suite.ts"
+    },
+    {
+      "path": "src/query-cache-contract/types.ts"
+    },
+    {
+      "path": "src/sortable/fixtures.ts"
+    },
+    {
+      "path": "src/sortable/index.ts"
+    },
+    {
+      "path": "src/sortable/manual-order-edits.suite.ts"
+    },
+    {
+      "path": "src/sortable/manual-order-group.suite.ts"
+    },
+    {
+      "path": "src/sortable/manual-order.suite.ts"
+    },
+    {
+      "path": "src/sortable/transaction-barrier.ts"
+    },
+    {
+      "path": "src/sortable/types.ts"
+    },
+    {
+      "path": "src/testing/clear-entity-records.ts"
+    },
+    {
+      "path": "src/testing/e2e-db-name.ts"
+    },
+    {
+      "path": "src/testing/generate-test-db-name.ts"
+    },
+    {
+      "path": "src/testing/index.ts"
+    },
+    {
+      "path": "src/testing/observable-sequence.ts"
+    },
+    {
+      "path": "src/testing/search-demo-api.ts"
+    },
+    {
+      "path": "src/testing/seed-lock.ts"
+    },
+    {
+      "path": "src/testing/sqlite.ts"
+    },
+    {
+      "path": "src/transaction/bootstrap.suite.ts"
+    },
+    {
+      "path": "src/transaction/fixtures.ts"
+    },
+    {
+      "path": "src/transaction/index.ts"
+    },
+    {
+      "path": "src/transaction/isolation.suite.ts"
+    },
+    {
+      "path": "src/transaction/readiness.suite.ts"
+    },
+    {
+      "path": "src/transaction/types.ts"
+    },
+    {
+      "path": "src/tree-unique/fixtures.ts"
+    },
+    {
+      "path": "src/tree-unique/index.ts"
+    },
+    {
+      "path": "src/tree-unique/sibling-unique.suite.ts"
+    },
+    {
+      "path": "src/tree-unique/types.ts"
+    }
+  ]
+}

@@ -1,0 +1,928 @@
+{
+  "clientDate": "2026-10-05",
+  "bundleExitCode": 0,
+  "consumer": "Actual installed tarball isolated consumer, esbuild tool invoked from workspace; no aliases for app dependencies",
+  "sourceConsumer": "import { SQL } from '@aiao/code-editor';\nexport const loadSql = () => SQL.load();\n",
+  "outputs": [
+    {
+      "path": "artifact-probes/bundle/idl-27KWU7BU.js",
+      "bytes": 11642,
+      "gzipBytes": 4529,
+      "sha256": "abec19ac48038a60d98b2a1663b425b26869c90b29d2e4dcafd9011f58f8b894"
+    },
+    {
+      "path": "artifact-probes/bundle/oz-VJA5FKFE.js",
+      "bytes": 2894,
+      "gzipBytes": 1271,
+      "sha256": "c31ff41f483d191fc425a6c419aec53f22c2f4849c369c6edd8c1fad59627623"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-MK6PLQCE.js",
+      "bytes": 16285,
+      "gzipBytes": 7217,
+      "sha256": "fd6e9e8c447608dbbc9977bf5ca2373e770f4487edfc3e37b835a09b9acc81f3"
+    },
+    {
+      "path": "artifact-probes/bundle/livescript-MC7UK4XQ.js",
+      "bytes": 4082,
+      "gzipBytes": 1627,
+      "sha256": "893b3a934105009abd1d34cd8ca4c18a068e51f5c626b5bae831f7d9a7ed876c"
+    },
+    {
+      "path": "artifact-probes/bundle/cmake-4NATEVBM.js",
+      "bytes": 781,
+      "gzipBytes": 459,
+      "sha256": "78d2bb1ce8e0c034ebf054260bb205f7f99cf8ed752b04336a5fdb7e340307ca"
+    },
+    {
+      "path": "artifact-probes/bundle/ttcn-cfg-I5SXB5PI.js",
+      "bytes": 4109,
+      "gzipBytes": 1716,
+      "sha256": "175285d9052346c91daa93e8d409d469ae7e351af214a78ef4997053fe9f0fa5"
+    },
+    {
+      "path": "artifact-probes/bundle/ruby-ZYNXG3JD.js",
+      "bytes": 5210,
+      "gzipBytes": 2140,
+      "sha256": "6b667923f1ec80066c94aa13c1ec82be77f264112f53efd45c518bea988c386f"
+    },
+    {
+      "path": "artifact-probes/bundle/ntriples-O2XUSBSB.js",
+      "bytes": 2100,
+      "gzipBytes": 736,
+      "sha256": "73c61ec5b1066a64ce031cbd732c2f650c78e9696e8d6d3d4fbea381ff427fce"
+    },
+    {
+      "path": "artifact-probes/bundle/puppet-IGG3VGF4.js",
+      "bytes": 2541,
+      "gzipBytes": 1188,
+      "sha256": "5e3d299d72d097e603526d54199a7b1da4e8d931f702afbdafde5a9631463fc7"
+    },
+    {
+      "path": "artifact-probes/bundle/chunk-CYBBJ47V.js",
+      "bytes": 2292,
+      "gzipBytes": 1103,
+      "sha256": "823df3f43d941692895ba4d730155ace91480b71b22a39b629f65478d76e395c"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-4ZHJHTR6.js",
+      "bytes": 5072,
+      "gzipBytes": 2357,
+      "sha256": "7b63ba19362a7ca36c7c6ff29dabce2e1ef823a5ce1765c344c180fc8a76138b"
+    },
+    {
+      "path": "artifact-probes/bundle/python-RJ3OKP3Q.js",
+      "bytes": 6469,
+      "gzipBytes": 2709,
+      "sha256": "b210872d578012264771dfd2be1d75a2d2cb93c9924b5dfc6af842c143f4fc1e"
+    },
+    {
+      "path": "artifact-probes/bundle/apl-XM73ZYXB.js",
+      "bytes": 2425,
+      "gzipBytes": 1245,
+      "sha256": "4b92f47dbee41713d9284b34b82c3c047729d48f39a78090b7114d80cdb0928f"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-26EPH3QD.js",
+      "bytes": 30807,
+      "gzipBytes": 12324,
+      "sha256": "29f316dba45a228b1c9c6bd94662f3c3d421e822da4ae19a8d6a4f7afdcced5f"
+    },
+    {
+      "path": "artifact-probes/bundle/mscgen-QQF7ZGFD.js",
+      "bytes": 3508,
+      "gzipBytes": 967,
+      "sha256": "133eb10de861f4bf177e8637232d5fb49652669e286dbf9f8782076aebaf9961"
+    },
+    {
+      "path": "artifact-probes/bundle/julia-BJ2TBECU.js",
+      "bytes": 5383,
+      "gzipBytes": 2123,
+      "sha256": "5e9ab436c10e056da8996fe4dd61455513729ad70eef4fc4479437247caadf25"
+    },
+    {
+      "path": "artifact-probes/bundle/clike-UHEMFG3X.js",
+      "bytes": 22304,
+      "gzipBytes": 7793,
+      "sha256": "1db627e00c872aed122f4990f5257f738ed13bcc70d2c1c6da9478a353109de2"
+    },
+    {
+      "path": "artifact-probes/bundle/tcl-5JDNLQ3J.js",
+      "bytes": 2354,
+      "gzipBytes": 1219,
+      "sha256": "ac0e373fb4e5c1b3b3c0935515b99439d0ed0228d838fed4a6cb5c6b6a67ea20"
+    },
+    {
+      "path": "artifact-probes/bundle/verilog-JVRBJLEH.js",
+      "bytes": 8503,
+      "gzipBytes": 3535,
+      "sha256": "d83076253b7cc933af63735f1a9862fc1f15476638332c72ae548e5d44560e65"
+    },
+    {
+      "path": "artifact-probes/bundle/nginx-5MSSGAO6.js",
+      "bytes": 7339,
+      "gzipBytes": 2731,
+      "sha256": "6be1f775371948e16b84886e5a3d7afb9dbc28d5e67290a2acfb4abd0a98fca6"
+    },
+    {
+      "path": "artifact-probes/bundle/nsis-IETDBCCL.js",
+      "bytes": 7056,
+      "gzipBytes": 3042,
+      "sha256": "8664be5c91564df22a7f7aa892fa9a2b43655ef830e8e22ee32a1a2446b9b36e"
+    },
+    {
+      "path": "artifact-probes/bundle/chunk-DIWX4EI7.js",
+      "bytes": 26553,
+      "gzipBytes": 8792,
+      "sha256": "1aab57088252772931ec0c442b9ef44811e64f16d4f1964b99b624cf64b0147d"
+    },
+    {
+      "path": "artifact-probes/bundle/sas-TVKJHRZX.js",
+      "bytes": 9332,
+      "gzipBytes": 4067,
+      "sha256": "9ce7889c12e07088592ba9b3e92d3467be1825838c15a994990cf4245b8032b4"
+    },
+    {
+      "path": "artifact-probes/bundle/coffeescript-HN4VECVE.js",
+      "bytes": 3866,
+      "gzipBytes": 1670,
+      "sha256": "e3574de29c6ff3fab29044eef36f640eca45fd5f13dc32d25d0c1e15a77feaec"
+    },
+    {
+      "path": "artifact-probes/bundle/perl-RGN7PYMA.js",
+      "bytes": 9751,
+      "gzipBytes": 3397,
+      "sha256": "89509c3424a9140d8d5c71b4df59dbaf366e9fa93e48e9247d0923f48a2e1f65"
+    },
+    {
+      "path": "artifact-probes/bundle/tiddlywiki-BIVUDIIF.js",
+      "bytes": 2779,
+      "gzipBytes": 1062,
+      "sha256": "ad00cbefd00e55f2e97cc38231aa716ffdcacc179ddfa986c64d908ab615d4e2"
+    },
+    {
+      "path": "artifact-probes/bundle/css-CP6BMH2P.js",
+      "bytes": 27124,
+      "gzipBytes": 8475,
+      "sha256": "3ab9680eae58a0bf78a231f0fcea8073d1c08deb96384a233d8a7c6c70abdac6"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-IRYDZNUR.js",
+      "bytes": 21202,
+      "gzipBytes": 9490,
+      "sha256": "b805f10d14eb87aeaa1ae721b161dafe63ff6b147a75d0026e8ccd9f4a8baf80"
+    },
+    {
+      "path": "artifact-probes/bundle/chunk-DFBHNO4J.js",
+      "bytes": 258744,
+      "gzipBytes": 84455,
+      "sha256": "13cbadaa6247d99cbae91e6ed56bbfd191ff559b9053d4af0936c8168746ee6d"
+    },
+    {
+      "path": "artifact-probes/bundle/mumps-V2WKKKIT.js",
+      "bytes": 2067,
+      "gzipBytes": 973,
+      "sha256": "382e8bcb498cf0dd46748aed809950a3ad6b40a369cd387240a15b9c6035d158"
+    },
+    {
+      "path": "artifact-probes/bundle/chunk-DHPPHWUD.js",
+      "bytes": 8597,
+      "gzipBytes": 3659,
+      "sha256": "c9e597637f5a70eed9d5e6a450f7ee12b76438cc8c6eb0a4db400f67710c6983"
+    },
+    {
+      "path": "artifact-probes/bundle/eiffel-HZWUQQLT.js",
+      "bytes": 1810,
+      "gzipBytes": 915,
+      "sha256": "01257fa5f23ea7edfc7d193669da71fd482d10ffaddbf9a68a8e5f17984e176a"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-GKXEKF6V.js",
+      "bytes": 2633,
+      "gzipBytes": 1463,
+      "sha256": "8bb0f56a30facb1008d87f16f6aa5b685fe7943acbf7711e1b8525954d4fa362"
+    },
+    {
+      "path": "artifact-probes/bundle/sparql-OFCRN4RH.js",
+      "bytes": 3543,
+      "gzipBytes": 1611,
+      "sha256": "6f34ad6a122facde9e0e35395a8aa2a09b2a595f5dd8cbb5adf9f2a6542a1714"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-ROYY6NYM.js",
+      "bytes": 98292,
+      "gzipBytes": 28057,
+      "sha256": "4551bd4fa903ce15fe11da684d65c6d55c94c66a42defbf8f214fc05bcf61a25"
+    },
+    {
+      "path": "artifact-probes/bundle/solr-NU2MVLIL.js",
+      "bytes": 864,
+      "gzipBytes": 449,
+      "sha256": "0f5b0386252d9fd54cf4b8035c388484dd8d790d9b5afcbb49128866b368c2d4"
+    },
+    {
+      "path": "artifact-probes/bundle/toml-4IRTRQWU.js",
+      "bytes": 1136,
+      "gzipBytes": 536,
+      "sha256": "72fc16a5b8910272458e0421cc458c272f12690cade22be62a584ed547e7e5cc"
+    },
+    {
+      "path": "artifact-probes/bundle/erlang-JNFZ2SPL.js",
+      "bytes": 8093,
+      "gzipBytes": 2860,
+      "sha256": "62779dccf17618772fb3172c982c00e357121b1a1e10df8042280d15cf2ca760"
+    },
+    {
+      "path": "artifact-probes/bundle/protobuf-SIHILTL6.js",
+      "bytes": 872,
+      "gzipBytes": 507,
+      "sha256": "410e397f9c686772145d7b1f691fc311d5a8193ad3161d3be3f2b5718e06a285"
+    },
+    {
+      "path": "artifact-probes/bundle/yacas-OODG747C.js",
+      "bytes": 2152,
+      "gzipBytes": 1085,
+      "sha256": "256cffab9fd9a2dc7ee18771a2ec2b4fa973661cccb7f31bd309da9aa9764605"
+    },
+    {
+      "path": "artifact-probes/bundle/asn1-EBJHIGQM.js",
+      "bytes": 3987,
+      "gzipBytes": 1926,
+      "sha256": "37fd612ac97c886725e5e4ef2db2126d1f3c316551b2da7544903cf4a39552a2"
+    },
+    {
+      "path": "artifact-probes/bundle/stex-FQASFPLD.js",
+      "bytes": 3122,
+      "gzipBytes": 1195,
+      "sha256": "ab604168789a0e3f36f408a8d5fa5333f1b994417a40848a1b1e9e492d9272f8"
+    },
+    {
+      "path": "artifact-probes/bundle/sieve-6H7S23FM.js",
+      "bytes": 1616,
+      "gzipBytes": 770,
+      "sha256": "d85afee6ec6f35f9933390722a8f98b99494cf99121d475683454f24bdae9f75"
+    },
+    {
+      "path": "artifact-probes/bundle/asterisk-JP6COBCU.js",
+      "bytes": 4492,
+      "gzipBytes": 1786,
+      "sha256": "fa4030d99c961dd89397874877fc4efa728701f5cdb6e10ca103933affbfaabb"
+    },
+    {
+      "path": "artifact-probes/bundle/haskell-ZBZ64IKE.js",
+      "bytes": 4160,
+      "gzipBytes": 1863,
+      "sha256": "3952a0a14d10b0d14a04c336b0a55368b39b4caf26e32e270f3ebb8d9a11bf36"
+    },
+    {
+      "path": "artifact-probes/bundle/mllike-L6ZXQ2TI.js",
+      "bytes": 4824,
+      "gzipBytes": 1554,
+      "sha256": "b0a6c538cf8b8ddf3084ae276ed2ca754569c8cc0bedddd1af6621bde7072a7e"
+    },
+    {
+      "path": "artifact-probes/bundle/vb-TL73BQVO.js",
+      "bytes": 3933,
+      "gzipBytes": 1792,
+      "sha256": "5950f887f47656c17983113fc6f94e3853293acb5876ab9ae0ce42de0c271cbc"
+    },
+    {
+      "path": "artifact-probes/bundle/pascal-CHO7R446.js",
+      "bytes": 2299,
+      "gzipBytes": 1188,
+      "sha256": "c8b73a5f275048f6ae6cd2afa592987a53e8319148867208e455508c7fc8ce4c"
+    },
+    {
+      "path": "artifact-probes/bundle/velocity-AVJITJ5A.js",
+      "bytes": 2669,
+      "gzipBytes": 1101,
+      "sha256": "d77e7ef9afc4bc45dd216354d0e016c0f0926f5e9c768c6fc73c67863c4d75aa"
+    },
+    {
+      "path": "artifact-probes/bundle/gherkin-IX3MPAX2.js",
+      "bytes": 10157,
+      "gzipBytes": 4962,
+      "sha256": "b4a89a0e7c48d380363356a916fc98f66fe5bbbf976c78256f7f905b975dfe23"
+    },
+    {
+      "path": "artifact-probes/bundle/fortran-E32FPZMS.js",
+      "bytes": 4650,
+      "gzipBytes": 1999,
+      "sha256": "d73f3b95936fd7908f01c344d152f08e142a4bf0dacb88d66249cc73562e7d6c"
+    },
+    {
+      "path": "artifact-probes/bundle/sql-only.js",
+      "bytes": 18414,
+      "gzipBytes": 4462,
+      "sha256": "28c2ed9a1bc900192256331889add493c94bdc1bc63230bd42842e2c6a4cda5a"
+    },
+    {
+      "path": "artifact-probes/bundle/powershell-SH4FIEHM.js",
+      "bytes": 7767,
+      "gzipBytes": 3297,
+      "sha256": "d477202cc14e4c550a4f57d38d276847b4f387f872ac4315582f423f6cbe8ee5"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-DUBQUAC6.js",
+      "bytes": 20938,
+      "gzipBytes": 9126,
+      "sha256": "614dd3b2a67fa98d26e644540447bcac629ac12388092bfc7ef63b4ff5d6cba5"
+    },
+    {
+      "path": "artifact-probes/bundle/groovy-W27LS6BB.js",
+      "bytes": 4137,
+      "gzipBytes": 1754,
+      "sha256": "6599751648bf56d39727e72f1fe6ac4fdf4ab2310f23a0b151e0a2c63d7dafa2"
+    },
+    {
+      "path": "artifact-probes/bundle/haxe-VZQ3KWDJ.js",
+      "bytes": 7903,
+      "gzipBytes": 2918,
+      "sha256": "807c307683c1dbb5fc67913667253009b530c457150e2f1f857378172b9a1bc5"
+    },
+    {
+      "path": "artifact-probes/bundle/xquery-NDHU62KY.js",
+      "bytes": 6622,
+      "gzipBytes": 2552,
+      "sha256": "90d4e85265a80be5d2eba48923a4cb4851004fa7bf467bd0fbef924e119eb762"
+    },
+    {
+      "path": "artifact-probes/bundle/chunk-P5WEW42S.js",
+      "bytes": 86795,
+      "gzipBytes": 33568,
+      "sha256": "a57818a25635e57537ad707a5fe60f7d59890bfe07aa50ef2174203943b7e14e"
+    },
+    {
+      "path": "artifact-probes/bundle/fcl-JOXGES6W.js",
+      "bytes": 2073,
+      "gzipBytes": 944,
+      "sha256": "d724b34da36e9d4858971e53a49352eb054b742c53584e51db211f43449ce125"
+    },
+    {
+      "path": "artifact-probes/bundle/ttcn-YIK665SY.js",
+      "bytes": 4855,
+      "gzipBytes": 2129,
+      "sha256": "4e627d8a6f36da80deec78b9916aba36a0f41c1a697a11538bdb2e5721a3fb1b"
+    },
+    {
+      "path": "artifact-probes/bundle/lua-SIUIFH4S.js",
+      "bytes": 3405,
+      "gzipBytes": 1417,
+      "sha256": "f9112def38a992796e7a82ee04a7d2b878cef0d83cfe213ffe36cb2c94a67a5c"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-IOSHM5CZ.js",
+      "bytes": 32325,
+      "gzipBytes": 12948,
+      "sha256": "02cf8e7dd761a979cfb3aadeef77e3e716a4f1b2e7d74b307acaeffe27213d7f"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-AHEQLBL2.js",
+      "bytes": 70812,
+      "gzipBytes": 25035,
+      "sha256": "abf1cf5a2496ee60a007566f15f060fcdca8116420bdc925de338627eba85194"
+    },
+    {
+      "path": "artifact-probes/bundle/turtle-VMBWGS47.js",
+      "bytes": 2027,
+      "gzipBytes": 906,
+      "sha256": "7b0e366c9662ebb88b2069a229859a395e97653aebbc64d97269b3ba06620f9f"
+    },
+    {
+      "path": "artifact-probes/bundle/webidl-VW7SLLQA.js",
+      "bytes": 2515,
+      "gzipBytes": 1237,
+      "sha256": "bddba99780fcaf664ea3d5e1a4613b0c6895499321bfa60031bd1b293d918238"
+    },
+    {
+      "path": "artifact-probes/bundle/javascript-KYBUV3G3.js",
+      "bytes": 104,
+      "gzipBytes": 104,
+      "sha256": "1e57f1f1b383bd209faaac7d9c70fb7478f86136e7d31101d384803ca19b1652"
+    },
+    {
+      "path": "artifact-probes/bundle/scheme-4NA5YDQH.js",
+      "bytes": 6370,
+      "gzipBytes": 2382,
+      "sha256": "7320cdf1e147fcb7988ae8f98f41edaa8da899df3d44e745064623120b0bae93"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-LZBHW6QJ.js",
+      "bytes": 23027,
+      "gzipBytes": 9981,
+      "sha256": "6102c4d8496ef727cd4ba9f6091b9335ea629bfb9091597d9f676c2ef9d4f6d2"
+    },
+    {
+      "path": "artifact-probes/bundle/pug-WL5AFZDZ.js",
+      "bytes": 6665,
+      "gzipBytes": 1936,
+      "sha256": "ef1715abccf62f9813849e95e612362fdfc66b74804c9c392d8abaa345940117"
+    },
+    {
+      "path": "artifact-probes/bundle/sql-4YBE5FED.js",
+      "bytes": 37066,
+      "gzipBytes": 10908,
+      "sha256": "0f016ed1f9cbb3e50ba1ffbb0f69fb535cfb097afbddddea3ab732e2561b426c"
+    },
+    {
+      "path": "artifact-probes/bundle/chunk-V7JID457.js",
+      "bytes": 28164,
+      "gzipBytes": 12398,
+      "sha256": "378059d7eba953ffc44d3860741261679943d79a810185f58571c97bfb301fdb"
+    },
+    {
+      "path": "artifact-probes/bundle/chunk-S2CZQRKR.js",
+      "bytes": 28581,
+      "gzipBytes": 11368,
+      "sha256": "6a4a16cbfd3b363048a5998aee1fd7f38b29cee276160afc48e620d2f833c659"
+    },
+    {
+      "path": "artifact-probes/bundle/factor-TFAPMXQP.js",
+      "bytes": 1664,
+      "gzipBytes": 610,
+      "sha256": "6e219224a026e962c89653d9138ef4c60c912fa71a38586af15e6eb821442854"
+    },
+    {
+      "path": "artifact-probes/bundle/vbscript-QSNYEAKE.js",
+      "bytes": 5813,
+      "gzipBytes": 2542,
+      "sha256": "76631977c4dcd6e362fd5ca04d27d2818116aae83121cd339f06ec8b36c91ee5"
+    },
+    {
+      "path": "artifact-probes/bundle/modelica-C2AAJIEX.js",
+      "bytes": 2786,
+      "gzipBytes": 1277,
+      "sha256": "f8bdb6737ad441b4fba6817baba6b28d9a219fbbb6a2d696eca6e2ca2b5b2966"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-UOZGVIIV.js",
+      "bytes": 12709,
+      "gzipBytes": 5511,
+      "sha256": "e66fbca24489d2faf06a5a645e45b7e9a0e187c2746836a1173e23d6fdac5c90"
+    },
+    {
+      "path": "artifact-probes/bundle/shell-QLNFXMPN.js",
+      "bytes": 2569,
+      "gzipBytes": 1203,
+      "sha256": "be07e9940077eb67689c5a287e91a34879711f8836b538027a05da5cd28d91a6"
+    },
+    {
+      "path": "artifact-probes/bundle/troff-DB5ZKAH2.js",
+      "bytes": 958,
+      "gzipBytes": 438,
+      "sha256": "d7ee4ca850b59722d1a5b0bfee05777cfe8bf4f6d48e500655cfe1cb552592ed"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-IILR24X2.js",
+      "bytes": 391,
+      "gzipBytes": 234,
+      "sha256": "8ef29ee6572a7ce763724603007d49aa60d783024cea6bef64db1a002135bcaa"
+    },
+    {
+      "path": "artifact-probes/bundle/cypher-RCLYHR27.js",
+      "bytes": 3555,
+      "gzipBytes": 1518,
+      "sha256": "09f1966e655c3cfd6b3e57487f67541eaf2b1cee34f0d8b6848bbe745127cc3c"
+    },
+    {
+      "path": "artifact-probes/bundle/brainfuck-WTDU62EZ.js",
+      "bytes": 600,
+      "gzipBytes": 321,
+      "sha256": "0f03dfbbd7a30826f45e20292f4d08f97725b800945ba2ae6277e76345e4f200"
+    },
+    {
+      "path": "artifact-probes/bundle/rpm-2ZVNMXG6.js",
+      "bytes": 1606,
+      "gzipBytes": 807,
+      "sha256": "78ab7b51edbf99682932f65526ec01942716f67c255b83b3836ffec1f4e69557"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-ECGZNC4Z.js",
+      "bytes": 3409,
+      "gzipBytes": 1695,
+      "sha256": "de4d29231c3efb865086fd1421cac57ce7c8e0f1ef68cf879c03a3c7dc9335b3"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-ZN2EJTRA.js",
+      "bytes": 14662,
+      "gzipBytes": 5858,
+      "sha256": "9d360c6c56837d422f084b1ad7bc70ab73f796cb1544d3b387680c780f2bace3"
+    },
+    {
+      "path": "artifact-probes/bundle/vhdl-6F5NXMM2.js",
+      "bytes": 3346,
+      "gzipBytes": 1508,
+      "sha256": "38ba0dfc22038f8ccfa29ad605cf77777fb118f00cde2407755135f81ff3ec7e"
+    },
+    {
+      "path": "artifact-probes/bundle/gas-AB5RAWSA.js",
+      "bytes": 4565,
+      "gzipBytes": 1277,
+      "sha256": "62b0f4eef468985fffdcd082e94fedf65e3861e09cf1527a9b89a7fc64cd6e5f"
+    },
+    {
+      "path": "artifact-probes/bundle/d-AKBHE3UL.js",
+      "bytes": 3707,
+      "gzipBytes": 1661,
+      "sha256": "9ac8ccd3093a7744ce9a0dc01165fdd2a6098bf203c54075a2dea2c097ef9649"
+    },
+    {
+      "path": "artifact-probes/bundle/dtd-NTXKKPDU.js",
+      "bytes": 2057,
+      "gzipBytes": 870,
+      "sha256": "0a67234055aa6d1bf0b0d11c1c0831b2a21dc9f212b982686973def1a58a2c16"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-O2YH664T.js",
+      "bytes": 103916,
+      "gzipBytes": 33226,
+      "sha256": "3440a4e5592b64e0d1398e9c28c91c7ad6a13862233efc90a06daae3a729ebba"
+    },
+    {
+      "path": "artifact-probes/bundle/mbox-KJSI63RV.js",
+      "bytes": 1395,
+      "gzipBytes": 651,
+      "sha256": "5414f931db7235464879ddb9c6d4f8bbd02303650bbb5d4d57967d80cd99cdc1"
+    },
+    {
+      "path": "artifact-probes/bundle/octave-EN7YSQOF.js",
+      "bytes": 2314,
+      "gzipBytes": 1077,
+      "sha256": "a4e7f0e01bac4664047806c1df1214f31c6c70d064db04ed2d9a83cec7f5a7f2"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-DOK2U3V6.js",
+      "bytes": 44333,
+      "gzipBytes": 15337,
+      "sha256": "79f5471f6f227faafc4a3c3e59a1e279c5addb210864d9839739b1ef81853c51"
+    },
+    {
+      "path": "artifact-probes/bundle/dockerfile-Q64KW3VD.js",
+      "bytes": 1937,
+      "gzipBytes": 663,
+      "sha256": "01ac15c69a4f8eabfd167b551514d95177da3068bfc8a8e81969009efd1c2614"
+    },
+    {
+      "path": "artifact-probes/bundle/textile-YAGMWQZI.js",
+      "bytes": 6795,
+      "gzipBytes": 2425,
+      "sha256": "a0be62a500928cec43aefda9c6fdd08c2ec63b40fb963c9dfd983eac6be4ae38"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-ETFY5IWB.js",
+      "bytes": 40257,
+      "gzipBytes": 15993,
+      "sha256": "5c80ef364a18d8b3f25e83aa69736824ba47079c128f16921b886ed3edc21a6f"
+    },
+    {
+      "path": "artifact-probes/bundle/http-5WQOMU2G.js",
+      "bytes": 846,
+      "gzipBytes": 410,
+      "sha256": "8169ca411f69f15101a6936d04b00424a2fdf1b352184c221efd7db503d6d56e"
+    },
+    {
+      "path": "artifact-probes/bundle/z80-AQNKWKSD.js",
+      "bytes": 1749,
+      "gzipBytes": 803,
+      "sha256": "11273679846d6b08bd43ebb8b5c5f714938f006807f2230f930985784ae69c78"
+    },
+    {
+      "path": "artifact-probes/bundle/elm-J6XVQGPX.js",
+      "bytes": 1885,
+      "gzipBytes": 803,
+      "sha256": "fca29dbbe3d87a98846951145a911fd9c24a07f03094da7de0814d04cba18cce"
+    },
+    {
+      "path": "artifact-probes/bundle/mirc-BVINNRLM.js",
+      "bytes": 5918,
+      "gzipBytes": 2658,
+      "sha256": "7e543249dc49945ef1e0a9183bad230852b1a152aa3d4b7e4860b7037cc1a5db"
+    },
+    {
+      "path": "artifact-probes/bundle/ebnf-WNJD2OYJ.js",
+      "bytes": 1980,
+      "gzipBytes": 800,
+      "sha256": "0df36821e5551fb3980273b189311f8bd87d3d4e1d1540c61bef2568a87330d8"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-7WDVRZKU.js",
+      "bytes": 295,
+      "gzipBytes": 187,
+      "sha256": "e39ad9f9afb75582eb54edff7f98a6aecb3ef30d7a4a69e49b89a0ccecab1c64"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-DYYB4GRM.js",
+      "bytes": 2419,
+      "gzipBytes": 1474,
+      "sha256": "3cc9964c4829f1881f58d0c2559a1d2b9c9a449e5f7345c0134b2ebee10ff9fa"
+    },
+    {
+      "path": "artifact-probes/bundle/properties-HQONKPMC.js",
+      "bytes": 665,
+      "gzipBytes": 342,
+      "sha256": "f2264c2812350a6af004c2beb7be779e6c40874652c912cf34e7595f3d15a6f8"
+    },
+    {
+      "path": "artifact-probes/bundle/smalltalk-TH7NER7N.js",
+      "bytes": 2001,
+      "gzipBytes": 846,
+      "sha256": "9dd4fa479e556a155958b7d61aadc6ee7fa5671957fa9ef3a63915c66269fa79"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-V7YHTKIM.js",
+      "bytes": 45125,
+      "gzipBytes": 18635,
+      "sha256": "96c09a23144d744c96b45a7e302167c9c76290c43b2a7c495fa31c30c5ae4dd9"
+    },
+    {
+      "path": "artifact-probes/bundle/q-PUWODASD.js",
+      "bytes": 4030,
+      "gzipBytes": 1663,
+      "sha256": "c9c2683e86745ff8a4ef81466db029efe9298d8889f38bf960d79c787b36b340"
+    },
+    {
+      "path": "artifact-probes/bundle/swift-2POMNLSX.js",
+      "bytes": 3953,
+      "gzipBytes": 1780,
+      "sha256": "d9d4bb028702d1f50aefb526298b719dfef21dfdacb2c7a59ac9a2894aabbe5b"
+    },
+    {
+      "path": "artifact-probes/bundle/diff-SWAL2SM7.js",
+      "bytes": 303,
+      "gzipBytes": 235,
+      "sha256": "bb1d08aae39aa784345ce3189ad49843504284a35e716f6ecc0c214079e00ccb"
+    },
+    {
+      "path": "artifact-probes/bundle/dylan-SVHHIH5X.js",
+      "bytes": 4051,
+      "gzipBytes": 1645,
+      "sha256": "2427481182099b753d1d610da9e14db9ce161a51fbd63e537323cd7f49c7f5fb"
+    },
+    {
+      "path": "artifact-probes/bundle/mathematica-UTR2DWVJ.js",
+      "bytes": 1914,
+      "gzipBytes": 812,
+      "sha256": "3b99ca4dcd64a814a67e58d4928ade211d685d9dd548ebd39ca971978491497e"
+    },
+    {
+      "path": "artifact-probes/bundle/asciiarmor-VIXVQOH2.js",
+      "bytes": 784,
+      "gzipBytes": 402,
+      "sha256": "0649617ec2a38a4dad1399d2dbf906fcf9fe5a85d8b532d2b6e3bf6b681dcf5e"
+    },
+    {
+      "path": "artifact-probes/bundle/forth-UFHE7WKK.js",
+      "bytes": 2542,
+      "gzipBytes": 1308,
+      "sha256": "1339b61b1172b937d49fae864b8d96daca2ebb276ec7f42685a8a99c8aeabc3d"
+    },
+    {
+      "path": "artifact-probes/bundle/clojure-YG3RHLN7.js",
+      "bytes": 10813,
+      "gzipBytes": 3953,
+      "sha256": "fa2a7a2ee1322292ae70621950485c728153bb1d8d4459fa94f582925259f8b2"
+    },
+    {
+      "path": "artifact-probes/bundle/ecl-6NGZ223T.js",
+      "bytes": 5126,
+      "gzipBytes": 2285,
+      "sha256": "159cf6b72d5a90c264a0708b4f46381320015790163fae40a461cee5f20ad05d"
+    },
+    {
+      "path": "artifact-probes/bundle/spreadsheet-TP5BDVB5.js",
+      "bytes": 1136,
+      "gzipBytes": 538,
+      "sha256": "f70f40f14099175b32a8a7d07ef5be421237ae73d5ff57bc31347cba398128e5"
+    },
+    {
+      "path": "artifact-probes/bundle/chunk-2VAQ3EZS.js",
+      "bytes": 17071,
+      "gzipBytes": 5715,
+      "sha256": "7678fc249ece8b45ec06ccd8bcb0cc098d698175e39c3c4a7dcc59220f37d9ba"
+    },
+    {
+      "path": "artifact-probes/bundle/tiki-2PKYN7M5.js",
+      "bytes": 3247,
+      "gzipBytes": 1257,
+      "sha256": "cfa0729f2adbb71d15c53f819bac8e18266ed5d1816436eff027db5cbeda5d6c"
+    },
+    {
+      "path": "artifact-probes/bundle/cobol-H44NLR6F.js",
+      "bytes": 6230,
+      "gzipBytes": 2934,
+      "sha256": "0a456d4c6fd4fdec69fd443b0fa9268c4b17de36e8835ad4853bbddced01af6f"
+    },
+    {
+      "path": "artifact-probes/bundle/r-7O6JAB3Z.js",
+      "bytes": 2940,
+      "gzipBytes": 1359,
+      "sha256": "4399288c78c9db7f28b0dd749996a4d0ba27aa917aec69a7dfdf2fa5df9bafeb"
+    },
+    {
+      "path": "artifact-probes/bundle/commonlisp-YCT6BHNW.js",
+      "bytes": 2321,
+      "gzipBytes": 1090,
+      "sha256": "3674f81321486e01ddb62d014eb8bea712549ae558e9ce989d6ec35a0d337f0b"
+    },
+    {
+      "path": "artifact-probes/bundle/stylus-GV42EXY3.js",
+      "bytes": 25799,
+      "gzipBytes": 8586,
+      "sha256": "a7cb068f732e1b01630305b29e91a69962922e0a66b190fd5020995e46d9ed8c"
+    },
+    {
+      "path": "artifact-probes/bundle/crystal-VJS3C6CJ.js",
+      "bytes": 5128,
+      "gzipBytes": 2048,
+      "sha256": "b0a801637538b09eee08cec21135733a047f655f3a19295e5a760d59f4d1d221"
+    },
+    {
+      "path": "artifact-probes/bundle/pig-ZC4UX76E.js",
+      "bytes": 2532,
+      "gzipBytes": 1351,
+      "sha256": "f0ce0dc4ef94def864d948ced6b69d728be4aa0f6cbfe9d30bd9dbf00e0842fe"
+    },
+    {
+      "path": "artifact-probes/bundle/dist-I7I6IHU7.js",
+      "bytes": 188,
+      "gzipBytes": 145,
+      "sha256": "05417b93ce0da01f040212b56ac3b46c9c9d5061ee7b9220f75bfe82372385cb"
+    }
+  ],
+  "metafile": "editor-sql-only-metafile.json",
+  "initialAndChunksNeedSeparateReading": true,
+  "missingLanguageControlExitCode": 0,
+  "missingLanguageControl": {
+    "rootImported": true,
+    "helperWorks": true,
+    "requestedMissingLanguageRejected": true,
+    "errorCode": "ERR_MODULE_NOT_FOUND",
+    "errorMessage": "Cannot find module '/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+code-editor@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300_8f7b19366c3d427a794430a82991dd60/node_modules/@codemirror/lang-python/dist/index.js' imported from /private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+code-editor@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300_8f7b19366c3d427a794430a82991dd60/node_modules/@aiao/code-editor/dist/index.js\nDid you mean to import \"@codemirror/lang-python/dist/index.cjs\"?"
+  },
+  "publishedOrWorkspaceFilesModified": false,
+  "temporaryConsumerDependencyRestored": true,
+  "trueBrowserIMESelectionPerformanceNotClaimed": true,
+  "sqlConsumerGraphSummary": {
+    "entry": "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/sql-only.js",
+    "staticFiles": [
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/chunk-DFBHNO4J.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/sql-only.js"
+    ],
+    "staticRawBytes": 277158,
+    "entryRawBytes": 18414,
+    "allOutputCount": 124,
+    "allOutputRawBytes": 1517375,
+    "dynamicImportPathsAtEntry": [
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-IOSHM5CZ.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-O2YH664T.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-O2YH664T.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-I7I6IHU7.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-26EPH3QD.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-7WDVRZKU.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-ETFY5IWB.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-IILR24X2.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-DUBQUAC6.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-DYYB4GRM.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-IILR24X2.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-MK6PLQCE.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-IRYDZNUR.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-DOK2U3V6.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-ROYY6NYM.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-V7YHTKIM.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-AHEQLBL2.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-LZBHW6QJ.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-LZBHW6QJ.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-IILR24X2.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-IILR24X2.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-GKXEKF6V.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-ZN2EJTRA.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-UOZGVIIV.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/apl-XM73ZYXB.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/asciiarmor-VIXVQOH2.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/asn1-EBJHIGQM.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/asterisk-JP6COBCU.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/brainfuck-WTDU62EZ.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/cobol-H44NLR6F.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/clike-UHEMFG3X.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/clojure-YG3RHLN7.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/clojure-YG3RHLN7.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/css-CP6BMH2P.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/cmake-4NATEVBM.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/coffeescript-HN4VECVE.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/commonlisp-YCT6BHNW.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/cypher-RCLYHR27.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/python-RJ3OKP3Q.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/crystal-VJS3C6CJ.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/d-AKBHE3UL.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/clike-UHEMFG3X.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/diff-SWAL2SM7.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dockerfile-Q64KW3VD.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dtd-NTXKKPDU.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dylan-SVHHIH5X.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/ebnf-WNJD2OYJ.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/ecl-6NGZ223T.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/clojure-YG3RHLN7.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/eiffel-HZWUQQLT.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/elm-J6XVQGPX.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/erlang-JNFZ2SPL.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/sql-4YBE5FED.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/factor-TFAPMXQP.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/fcl-JOXGES6W.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/forth-UFHE7WKK.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/fortran-E32FPZMS.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/mllike-L6ZXQ2TI.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/gas-AB5RAWSA.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/gherkin-IX3MPAX2.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/groovy-W27LS6BB.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/haskell-ZBZ64IKE.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/haxe-VZQ3KWDJ.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/haxe-VZQ3KWDJ.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/http-5WQOMU2G.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/idl-27KWU7BU.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/javascript-KYBUV3G3.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/julia-BJ2TBECU.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/clike-UHEMFG3X.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/livescript-MC7UK4XQ.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/lua-SIUIFH4S.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/mirc-BVINNRLM.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/mathematica-UTR2DWVJ.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/modelica-C2AAJIEX.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/mumps-V2WKKKIT.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/mbox-KJSI63RV.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/nginx-5MSSGAO6.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/nsis-IETDBCCL.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/ntriples-O2XUSBSB.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/clike-UHEMFG3X.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/clike-UHEMFG3X.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/mllike-L6ZXQ2TI.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/octave-EN7YSQOF.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/oz-VJA5FKFE.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/pascal-CHO7R446.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/perl-RGN7PYMA.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/pig-ZC4UX76E.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/powershell-SH4FIEHM.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/properties-HQONKPMC.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/protobuf-SIHILTL6.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/pug-WL5AFZDZ.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/puppet-IGG3VGF4.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/q-PUWODASD.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/r-7O6JAB3Z.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/rpm-2ZVNMXG6.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/rpm-2ZVNMXG6.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/ruby-ZYNXG3JD.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/sas-TVKJHRZX.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/clike-UHEMFG3X.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/scheme-4NA5YDQH.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/shell-QLNFXMPN.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/sieve-6H7S23FM.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/smalltalk-TH7NER7N.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/solr-NU2MVLIL.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/mllike-L6ZXQ2TI.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/sparql-OFCRN4RH.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/spreadsheet-TP5BDVB5.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/clike-UHEMFG3X.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/stylus-GV42EXY3.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/swift-2POMNLSX.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/stex-FQASFPLD.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/stex-FQASFPLD.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/verilog-JVRBJLEH.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/tcl-5JDNLQ3J.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/textile-YAGMWQZI.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/tiddlywiki-BIVUDIIF.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/tiki-2PKYN7M5.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/toml-4IRTRQWU.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/troff-DB5ZKAH2.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/ttcn-YIK665SY.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/ttcn-cfg-I5SXB5PI.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/turtle-VMBWGS47.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/webidl-VW7SLLQA.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/vb-TL73BQVO.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/vbscript-QSNYEAKE.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/velocity-AVJITJ5A.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/verilog-JVRBJLEH.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/vhdl-6F5NXMM2.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/xquery-NDHU62KY.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/yacas-OODG747C.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/z80-AQNKWKSD.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/mscgen-QQF7ZGFD.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/mscgen-QQF7ZGFD.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/mscgen-QQF7ZGFD.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-ECGZNC4Z.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-4ZHJHTR6.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-IOSHM5CZ.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-I7I6IHU7.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-DYYB4GRM.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-LZBHW6QJ.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-LZBHW6QJ.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-IILR24X2.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-IILR24X2.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-IILR24X2.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-IILR24X2.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-7WDVRZKU.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-ZN2EJTRA.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-V7YHTKIM.js",
+      "../../../../../../../../var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle/dist-DOK2U3V6.js"
+    ],
+    "notes": "All lazy language outputs are not initial transfer size; root metadata keeps dynamic imports reachable. This is esbuild consumer graph, not a browser network trace or bundle-budget requirement."
+  }
+}

@@ -1,0 +1,831 @@
+{
+  "task": "R2-01",
+  "object": "code-editor",
+  "inspectedAt": "2026-10-05T10:55:42+08:00",
+  "headAtInspection": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "scope": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/scope.json",
+  "method": "sha清单只用于版本核对；21个文件正文已通过cat/nl实际展示阅读并记录关注点",
+  "summary": {
+    "trackedFiles": 21,
+    "bodyRead": 21,
+    "fullBodyRead": 21,
+    "unread": [],
+    "scopeHashDrift": [],
+    "trackedGeneratedFiles": [],
+    "newSpecsAdded": []
+  },
+  "files": [
+    {
+      "path": "packages/code-editor/LICENSE",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/LICENSE",
+      "lineCount": 21,
+      "readRanges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "MIT许可、版权归属、打包必须带许可证"
+      ],
+      "scopeSha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "currentSha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/README.md",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/README.md",
+      "lineCount": 72,
+      "readRanges": [
+        [
+          1,
+          72
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "不创建编辑器实例的声明",
+        "名称/别名与文件匹配边界",
+        "按需loader与严格JSON5说明"
+      ],
+      "scopeSha256": "18f42e1201ff98566527d85f01a416073dc86f1504ef08bbd834fd678e112d94",
+      "currentSha256": "18f42e1201ff98566527d85f01a416073dc86f1504ef08bbd834fd678e112d94",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/eslint.config.mjs",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/eslint.config.mjs",
+      "lineCount": 22,
+      "readRanges": [
+        [
+          1,
+          22
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "继承根ESLint",
+        "Nx dependency-checks及构建配置排除"
+      ],
+      "scopeSha256": "8076559dc3bc94d44eb1aafe0317314d0beee5ca0cb014f7e3848cf3a3e91520",
+      "currentSha256": "8076559dc3bc94d44eb1aafe0317314d0beee5ca0cb014f7e3848cf3a3e91520",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/package.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/package.json",
+      "lineCount": 60,
+      "readRanges": [
+        [
+          1,
+          60
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "真实发布根、type=module/exports/types/files/sideEffects",
+        "依赖与external清单对应",
+        "排除spec/测试和tsbuildinfo"
+      ],
+      "scopeSha256": "931ed586f55e71b4be1ceaeb9d472f211b4a21e9e439592d14fdb3be7083b799",
+      "currentSha256": "931ed586f55e71b4be1ceaeb9d472f211b4a21e9e439592d14fdb3be7083b799",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/project.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/project.json",
+      "lineCount": 10,
+      "readRanges": [
+        [
+          1,
+          10
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "typecheck dependsOn，不把局部targets当resolved config"
+      ],
+      "scopeSha256": "9a78598b29c6a14fa774b6bc28920ecfa6f36d1b8bd3c83834d127b837813749",
+      "currentSha256": "9a78598b29c6a14fa774b6bc28920ecfa6f36d1b8bd3c83834d127b837813749",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/accessibility.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/accessibility.spec.ts",
+      "lineCount": 53,
+      "readRanges": [
+        [
+          1,
+          53
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "12个字典/空字段/新对象/autofocus正反用例，不证明实际焦点/AT"
+      ],
+      "scopeSha256": "c6286f2871e4cf0f3d6c3e8b549a649301da888232b28487b32d871bc46fbdbe",
+      "currentSha256": "c6286f2871e4cf0f3d6c3e8b549a649301da888232b28487b32d871bc46fbdbe",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/document-sync.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/document-sync.spec.ts",
+      "lineCount": 62,
+      "readRanges": [
+        [
+          1,
+          62
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "15个差量边界",
+        "空文档与前后缀重叠合法坐标和回放"
+      ],
+      "scopeSha256": "965ec48df13dc37df4251fbf2b1d496ba505008c0e6dd9bc8f9a01ad80a2d325",
+      "currentSha256": "965ec48df13dc37df4251fbf2b1d496ba505008c0e6dd9bc8f9a01ad80a2d325",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/index.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/index.spec.ts",
+      "lineCount": 330,
+      "readRanges": [
+        [
+          1,
+          330
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "55个语言用例",
+        "标称LanguageDescription回流、15loader及方言",
+        "上游Rust/元数据、JSON5负对照/包README"
+      ],
+      "scopeSha256": "0b2e7617c760799593c4676457e4f10c28b95427c6084326c6adf779cc50ed2b",
+      "currentSha256": "0b2e7617c760799593c4676457e4f10c28b95427c6084326c6adf779cc50ed2b",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/language-error.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/language-error.spec.ts",
+      "lineCount": 42,
+      "readRanges": [
+        [
+          1,
+          42
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "6个错误载荷/冻结/原cause用例"
+      ],
+      "scopeSha256": "dc2360c0ccc5f1768b5fce5cf29dc84e72d17a64ae132c5df13f59964bb2dec7",
+      "currentSha256": "dc2360c0ccc5f1768b5fce5cf29dc84e72d17a64ae132c5df13f59964bb2dec7",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/language-resolution.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/language-resolution.spec.ts",
+      "lineCount": 85,
+      "readRanges": [
+        [
+          1,
+          85
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "11个none/found/not-found与description identity用例"
+      ],
+      "scopeSha256": "4b018b374e890fb6087a9c08076a62becd531fc809431305fc8e4c90d4039386",
+      "currentSha256": "4b018b374e890fb6087a9c08076a62becd531fc809431305fc8e4c90d4039386",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/review-document-change-properties.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/review-document-change-properties.spec.ts",
+      "lineCount": 44,
+      "readRanges": [
+        [
+          1,
+          44
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "8个固定种子4096对与UTF-16/CRLF/NUL/组合字符性质用例"
+      ],
+      "scopeSha256": "5e6d632053331fbe85855e35cc943a2379b62040d30b129c5864a57aeed9bf6f",
+      "currentSha256": "5e6d632053331fbe85855e35cc943a2379b62040d30b129c5864a57aeed9bf6f",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/src/accessibility.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/accessibility.ts",
+      "lineCount": 85,
+      "readRanges": [
+        [
+          1,
+          85
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "四项aria输入和字段移除契约",
+        "仅字典与布尔值，不负责DOM落点和焦点"
+      ],
+      "scopeSha256": "b5baea5111a527837a527641e68d86a7d54db26710c07d69623110a213671537",
+      "currentSha256": "b5baea5111a527837a527641e68d86a7d54db26710c07d69623110a213671537",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/src/document-sync.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/document-sync.ts",
+      "lineCount": 69,
+      "readRanges": [
+        [
+          1,
+          69
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "相等null、UTF-16前后缀单一替换",
+        "不拥有view/selection/history"
+      ],
+      "scopeSha256": "f65d69873b8b8918bd7753f6469f7d3fa820d229156b22d15142adac30970879",
+      "currentSha256": "f65d69873b8b8918bd7753f6469f7d3fa820d229156b22d15142adac30970879",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/src/index.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/index.ts",
+      "lineCount": 20,
+      "readRanges": [
+        [
+          1,
+          20
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "全部公开导出与light/dark类型"
+      ],
+      "scopeSha256": "599c40d8647442d55a6f7735e07e27dca3413d754875cecb75f331c3d5c975ea",
+      "currentSha256": "599c40d8647442d55a6f7735e07e27dca3413d754875cecb75f331c3d5c975ea",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/src/language-error.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/language-error.ts",
+      "lineCount": 70,
+      "readRanges": [
+        [
+          1,
+          70
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "错误类型/冻结载荷/unknown cause，事件由绑定负责"
+      ],
+      "scopeSha256": "823bfa1016e56088d59c4c21ca482e307ed5c379b8fdb33074568faa754ea114",
+      "currentSha256": "823bfa1016e56088d59c4c21ca482e307ed5c379b8fdb33074568faa754ea114",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/src/language-resolution.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/language-resolution.ts",
+      "lineCount": 109,
+      "readRanges": [
+        [
+          1,
+          109
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "none/not-found/found联合、identity等价、不发起load或竞态守卫"
+      ],
+      "scopeSha256": "df7ae741adbdcbae8955ea5df7f19599e6744788b5a24b1e7d6d34362f8b84bb",
+      "currentSha256": "df7ae741adbdcbae8955ea5df7f19599e6744788b5a24b1e7d6d34362f8b84bb",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/src/languages.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/languages.ts",
+      "lineCount": 232,
+      "readRanges": [
+        [
+          1,
+          232
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "结构化support/description和标称SUPPORT_LANGUAGES",
+        "上游元数据合并、15动态loader及SQL方言",
+        "module级description缓存不是隐藏EditorView"
+      ],
+      "scopeSha256": "6add6ff1a70b04db71bb10028a82dfd16d66ac8fdf56d839fc789b9621474a99",
+      "currentSha256": "6add6ff1a70b04db71bb10028a82dfd16d66ac8fdf56d839fc789b9621474a99",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/tsconfig.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/tsconfig.json",
+      "lineCount": 16,
+      "readRanges": [
+        [
+          1,
+          16
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "继承root及lib/spec references"
+      ],
+      "scopeSha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "currentSha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/tsconfig.lib.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/tsconfig.lib.json",
+      "lineCount": 26,
+      "readRanges": [
+        [
+          1,
+          26
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "声明生成来源/tsbuildinfo/测试排除/真实include"
+      ],
+      "scopeSha256": "9c8d4f409a8b273b59ceb8a2e43686cb4a9527feabda1db6f5cacf3ff93aba8d",
+      "currentSha256": "9c8d4f409a8b273b59ceb8a2e43686cb4a9527feabda1db6f5cacf3ff93aba8d",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/tsconfig.spec.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/tsconfig.spec.json",
+      "lineCount": 28,
+      "readRanges": [
+        [
+          1,
+          28
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "spec与vite配置include，不与仅lib检查混淆"
+      ],
+      "scopeSha256": "547550007c92b83502269468e38b5b6c9101a61af1823d67af4e44f2ea81be71",
+      "currentSha256": "547550007c92b83502269468e38b5b6c9101a61af1823d67af4e44f2ea81be71",
+      "scopeHashMatches": true,
+      "generated": false
+    },
+    {
+      "path": "packages/code-editor/vite.config.mts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/vite.config.mts",
+      "lineCount": 105,
+      "readRanges": [
+        [
+          1,
+          105
+        ]
+      ],
+      "bodyRead": true,
+      "readMode": "full-body-cat-or-nl",
+      "inspectionFocus": [
+        "Vite ES产物/dts maps/external依赖/Node环境",
+        "6套spec覆盖include和4指标",
+        "无自行browser验证或新build"
+      ],
+      "scopeSha256": "50346926e4c83716b12d736eb2b90f7b10998ef3619a948a56e2206133c56964",
+      "currentSha256": "50346926e4c83716b12d736eb2b90f7b10998ef3619a948a56e2206133c56964",
+      "scopeHashMatches": true,
+      "generated": false
+    }
+  ],
+  "supplementaryReadOnlyFiles": [
+    {
+      "path": "packages/code-editor-angular/src/index.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/index.ts",
+      "readRanges": [
+        [
+          1,
+          15
+        ]
+      ],
+      "readMode": "bounded-comparison",
+      "focus": "实际公开导出对照",
+      "sha256": "a298af8221a0e4d55e5bd07a25d163707ff95f6e6050538ec18ca0a586d8de2c",
+      "write": false
+    },
+    {
+      "path": "packages/code-editor-react/src/index.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/index.ts",
+      "readRanges": [
+        [
+          1,
+          23
+        ]
+      ],
+      "readMode": "bounded-comparison",
+      "focus": "实际公开导出对照",
+      "sha256": "a199a92ca7270fc64a68277b6841f1de21d43aa1a710d31f9688e94effc44fbd",
+      "write": false
+    },
+    {
+      "path": "packages/code-editor-vue/src/index.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/index.ts",
+      "readRanges": [
+        [
+          1,
+          22
+        ]
+      ],
+      "readMode": "bounded-comparison",
+      "focus": "实际公开导出对照",
+      "sha256": "3c49259b38ef2998dec2fb01c7428120c0588d7d75f876197e86d774e25d1e60",
+      "write": false
+    },
+    {
+      "path": "packages/code-editor-angular/src/code-editor.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/code-editor.ts",
+      "readRanges": [
+        [
+          132,
+          138
+        ],
+        [
+          190,
+          249
+        ],
+        [
+          301,
+          306
+        ],
+        [
+          323,
+          342
+        ],
+        [
+          384,
+          391
+        ],
+        [
+          402,
+          422
+        ],
+        [
+          470,
+          516
+        ],
+        [
+          572,
+          595
+        ]
+      ],
+      "readMode": "bounded-comparison",
+      "focus": "差量/事件/输入默认/竞态/aria/access/view归属，非全包审查",
+      "sha256": "076d5b49ca1b6d0ba078f9340a25911bbb75e3c0861b62a187649c5a36002cdb",
+      "write": false
+    },
+    {
+      "path": "packages/code-editor-react/src/CodeEditor.tsx",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/CodeEditor.tsx",
+      "readRanges": [
+        [
+          227,
+          237
+        ],
+        [
+          261,
+          282
+        ],
+        [
+          350,
+          378
+        ],
+        [
+          394,
+          421
+        ],
+        [
+          449,
+          516
+        ]
+      ],
+      "readMode": "bounded-comparison",
+      "focus": "差量/事件/默认/竞态/view归属，非全包审查",
+      "sha256": "ffb1618f60ca5f3db94d80deac5c9746cc1aa13c522b738ffa619cfd3764a7da",
+      "write": false
+    },
+    {
+      "path": "packages/code-editor-vue/src/CodeEditor.vue",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/CodeEditor.vue",
+      "readRanges": [
+        [
+          28,
+          63
+        ],
+        [
+          75,
+          117
+        ],
+        [
+          118,
+          174
+        ],
+        [
+          199,
+          221
+        ],
+        [
+          238,
+          271
+        ],
+        [
+          282,
+          285
+        ]
+      ],
+      "readMode": "bounded-comparison",
+      "focus": "差量/默认/事件/竞态/aria/view归属，非全包审查",
+      "sha256": "b2064e8a2ebf5d9fca553fb7769853bba82a526b0684c3765c33b7f5b96e8391",
+      "write": false
+    },
+    {
+      "path": "packages/code-editor-angular/src/__tests__/code-editor.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/__tests__/code-editor.spec.ts",
+      "readRanges": [
+        [
+          344,
+          390
+        ],
+        [
+          945,
+          1010
+        ]
+      ],
+      "readMode": "bounded-comparison",
+      "focus": "原C2晚到成功/unknown/failed/stale断言",
+      "sha256": "962bc928d2ed3f2b762838b528ab08d79089b7ec1a51fc0ea4c8c0cdee5dd76e",
+      "write": false
+    },
+    {
+      "path": "packages/code-editor-react/src/__tests__/CodeEditor.spec.tsx",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/__tests__/CodeEditor.spec.tsx",
+      "readRanges": [
+        [
+          385,
+          427
+        ],
+        [
+          574,
+          604
+        ],
+        [
+          636,
+          646
+        ]
+      ],
+      "readMode": "bounded-comparison",
+      "focus": "原C2真实CM语言facet/错误事件/原cause断言",
+      "sha256": "d01586eb8ea2eefa2f656b1ed82f78aaadfc5aa2145df92914460da7fa7cc7bc",
+      "write": false
+    },
+    {
+      "path": "packages/code-editor-vue/src/__tests__/CodeEditor.reconfigure.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/__tests__/CodeEditor.reconfigure.spec.ts",
+      "readRanges": [
+        [
+          194,
+          255
+        ]
+      ],
+      "readMode": "bounded-comparison",
+      "focus": "原C2真实compartment/deferred晚到成功断言",
+      "sha256": "806962cde5a658b37dae701c7633ad7c6784b5a445092b252cffa471557b73ac",
+      "write": false
+    },
+    {
+      "path": "packages/code-editor-vue/src/__tests__/CodeEditor.language.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/__tests__/CodeEditor.language.spec.ts",
+      "readRanges": [
+        [
+          166,
+          228
+        ]
+      ],
+      "readMode": "bounded-comparison",
+      "focus": "原C2 unknown/failure/stale以及实际载荷断言",
+      "sha256": "45141463abb2724606aa6339e5a6cc5225e0805a0f54da9cb4cf8262a3406b7f",
+      "write": false
+    }
+  ],
+  "generatedOutputInspection": [
+    {
+      "path": "packages/code-editor/dist/accessibility.d.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/dist/accessibility.d.ts",
+      "sha256": "a919e873722214dc8f91fa48000f150783ffd5500e35e426e3aef30df2ff765d",
+      "tracked": false,
+      "rebuildExecuted": false,
+      "readMode": "public-signatures-comments-elided",
+      "lineCount": 76,
+      "source": "packages/code-editor/src/accessibility.ts"
+    },
+    {
+      "path": "packages/code-editor/dist/accessibility.d.ts.map",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/dist/accessibility.d.ts.map",
+      "sha256": "2644ddc6fb1406738253690650b0d37fa6f52becc215bc7465e4777ca0747cc3",
+      "tracked": false,
+      "rebuildExecuted": false,
+      "readMode": "json-source-relation",
+      "sources": [
+        "../src/accessibility.ts"
+      ]
+    },
+    {
+      "path": "packages/code-editor/dist/document-sync.d.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/dist/document-sync.d.ts",
+      "sha256": "0d033f065422fe323fa90430c056bc6766dae92b9504904a0572f1e5ff716535",
+      "tracked": false,
+      "rebuildExecuted": false,
+      "readMode": "public-signatures-comments-elided",
+      "lineCount": 53,
+      "source": "packages/code-editor/src/document-sync.ts"
+    },
+    {
+      "path": "packages/code-editor/dist/document-sync.d.ts.map",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/dist/document-sync.d.ts.map",
+      "sha256": "df600ee58840bfa677abc04d7d3f76df53eaee5f4f7dba9902e7a7ab11680e1b",
+      "tracked": false,
+      "rebuildExecuted": false,
+      "readMode": "json-source-relation",
+      "sources": [
+        "../src/document-sync.ts"
+      ]
+    },
+    {
+      "path": "packages/code-editor/dist/index.d.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/dist/index.d.ts",
+      "sha256": "d2b915ccbd6e945ecf96524fe53adc469bf25cce91743c56e5ec62a4207257a4",
+      "tracked": false,
+      "rebuildExecuted": false,
+      "readMode": "public-signatures-comments-elided",
+      "lineCount": 20,
+      "source": "packages/code-editor/src/index.ts"
+    },
+    {
+      "path": "packages/code-editor/dist/index.d.ts.map",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/dist/index.d.ts.map",
+      "sha256": "ee40445ee8c01242d6e6d7b5fd82774c8f09615e5bce5455815dbf62727c9cdf",
+      "tracked": false,
+      "rebuildExecuted": false,
+      "readMode": "json-source-relation",
+      "sources": [
+        "../src/index.ts"
+      ]
+    },
+    {
+      "path": "packages/code-editor/dist/index.js",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/dist/index.js",
+      "sha256": "102cacd1b1daaae637683c76a4444423bc8d9e3e2dc99301768137508c88217e",
+      "tracked": false,
+      "rebuildExecuted": false,
+      "readRanges": [
+        [
+          1,
+          151
+        ]
+      ],
+      "readMode": "full-generated-js",
+      "sourceMapping": "当前六源码的helper/loader/import/export静态对应；非再构建证明"
+    },
+    {
+      "path": "packages/code-editor/dist/language-error.d.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/dist/language-error.d.ts",
+      "sha256": "0b2857294ad4b345b9be0a71ce8f1f6114819f657aa7d321f60f18790fcb7076",
+      "tracked": false,
+      "rebuildExecuted": false,
+      "readMode": "public-signatures-comments-elided",
+      "lineCount": 55,
+      "source": "packages/code-editor/src/language-error.ts"
+    },
+    {
+      "path": "packages/code-editor/dist/language-error.d.ts.map",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/dist/language-error.d.ts.map",
+      "sha256": "386fc20fbcf7c7a92fddf0ff62bc37557b379270c3c0625ec4326cb999847f10",
+      "tracked": false,
+      "rebuildExecuted": false,
+      "readMode": "json-source-relation",
+      "sources": [
+        "../src/language-error.ts"
+      ]
+    },
+    {
+      "path": "packages/code-editor/dist/language-resolution.d.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/dist/language-resolution.d.ts",
+      "sha256": "36016a62139e8b25da69dd6d666be7001977c4c82d47d99c16d4fbf88ce452f5",
+      "tracked": false,
+      "rebuildExecuted": false,
+      "readMode": "public-signatures-comments-elided",
+      "lineCount": 82,
+      "source": "packages/code-editor/src/language-resolution.ts"
+    },
+    {
+      "path": "packages/code-editor/dist/language-resolution.d.ts.map",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/dist/language-resolution.d.ts.map",
+      "sha256": "f588c557570465a72a8c485de04d440d93bd7e844178a8c6dfc93120565f87d1",
+      "tracked": false,
+      "rebuildExecuted": false,
+      "readMode": "json-source-relation",
+      "sources": [
+        "../src/language-resolution.ts"
+      ]
+    },
+    {
+      "path": "packages/code-editor/dist/languages.d.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/dist/languages.d.ts",
+      "sha256": "732cc03f730f67175af5d89f02cbc8e4b0d4613b3523efa5f38d9bd69bb20d44",
+      "tracked": false,
+      "rebuildExecuted": false,
+      "readMode": "public-signatures-comments-elided",
+      "lineCount": 65,
+      "source": "packages/code-editor/src/languages.ts"
+    },
+    {
+      "path": "packages/code-editor/dist/languages.d.ts.map",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/dist/languages.d.ts.map",
+      "sha256": "a502cc55f544c1186ea1ec1f3853b49cab26c0d7f9f0feec09304a08b3b4c5b6",
+      "tracked": false,
+      "rebuildExecuted": false,
+      "readMode": "json-source-relation",
+      "sources": [
+        "../src/languages.ts"
+      ]
+    }
+  ],
+  "reproducibility": {
+    "generator": "vite.config.mts dts(entryRoot=src,tsconfig.lib.json) + Vite ES library build; TypeScript declarationMap继承根配置",
+    "deterministicRebuildExecuted": false,
+    "sourceAndCurrentOutputStaticContractCompared": true,
+    "publishConsumerExecutionOwner": "controller"
+  },
+  "toolBoundaries": {
+    "nxDiscoveryCommand": "NX_DAEMON=false pnpm nx show project code-editor --json",
+    "nxResolvedConfig": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/nx-project.json",
+    "angularListProjects": "仅返回examples/angular-todo与tmp baseline的CLI workspace；未包含本Nx包，不迁就错误examples范围",
+    "angularBestPractices": "generic调用失败：Unexpected response type；只读跨框架接口，不改Angular代码，不阻断本对象",
+    "skillsRead": [
+      "nx-workspace",
+      "tri-framework-check"
+    ],
+    "heavyTasksExecutedByThisTask": []
+  }
+}

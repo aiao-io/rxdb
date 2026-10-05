@@ -1,0 +1,300 @@
+{
+  "task": "R2-01",
+  "object": "code-editor",
+  "date": "2026-10-05",
+  "sourceRoot": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor",
+  "status": "stage-final-controller-owns-remaining-evidence",
+  "reviewRating": "yellow",
+  "publishReady": false,
+  "scope": {
+    "trackedFiles": 21,
+    "bodyRead": 21,
+    "fullBodyRead": 21,
+    "unread": 0,
+    "scopeHashDrift": 0,
+    "controlledGeneratedFiles": 0,
+    "newProductionSpecs": 0,
+    "inspection": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/file-inspection.json"
+  },
+  "evidenceProvenance": {
+    "inherited": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/inherited-evidence.json",
+    "responsibilityBoundary": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/responsibility-boundary.md",
+    "consumerProtocol": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-protocol.md",
+    "validationRequests": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/validation-requests.json",
+    "importantBoundary": "第一轮107测试/四指标/pack root resolve保留原来源；第二轮独立真实tar valid/invalid/root runtime/smoke已由主控执行并通过，非本任务执行。",
+    "round2Consumer": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-results.json"
+  },
+  "originalC": [
+    {
+      "id": "C1",
+      "title": "共享文档同步",
+      "complete": false,
+      "status": "partial",
+      "evidence": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/document-sync.ts:54-69",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/document-sync.spec.ts:5-62",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/review-document-change-properties.spec.ts:13-43",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/code-editor.ts:331-342",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/CodeEditor.tsx:227-236",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/CodeEditor.vue:145-162"
+      ],
+      "unverified": [
+        "真实用户输入与连续外部回写交错",
+        "composing期间外部写入与IME保留",
+        "DOM selection、undo、scroll、只读切换的用户链路"
+      ],
+      "nextAction": "主控按validation-requests.json执行三端真实浏览器/最小绑定证据；没有对应浏览器或设备结果就保持partial。",
+      "closedSubareas": [
+        "纯字符串最小前后缀差量",
+        "相同内容返回null并跳过事务的helper契约",
+        "UTF-16/代理项/组合字符/换行/NUL固定种子回放",
+        "三端源码均使用External与Transaction.addToHistory.of(false)"
+      ]
+    },
+    {
+      "id": "C2",
+      "title": "语言异步竞态",
+      "complete": true,
+      "status": "closed-with-scoped-evidence",
+      "evidence": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/language-resolution.ts:31-50,71-81,101-109",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/languages.ts:28-31,58-69,72-232",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/language-error.ts:28-70",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/__tests__/code-editor.spec.ts:371-390,957-1010",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/__tests__/CodeEditor.spec.tsx:385-427,574-640",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/__tests__/CodeEditor.reconfigure.spec.ts:217-254",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/__tests__/CodeEditor.language.spec.ts:166-228"
+      ],
+      "measurementBoundary": "第一轮当轮Node/真实CodeMirror与happy-dom测量；不是C5物理chunk或完整浏览器可用性证明。",
+      "closedSubareas": [
+        "none/not-found/found解析分离",
+        "同description identity跳过重复加载",
+        "A→B快速切换与A迟到成功/失败不覆盖B",
+        "未知语言、loader rejection、同步throw统一错误通道",
+        "卸载后晚到结果不再dispatch/emit"
+      ]
+    },
+    {
+      "id": "C3",
+      "title": "配置与跨框架语义",
+      "complete": false,
+      "status": "partial",
+      "evidence": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/index.ts:11-20",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/index.ts:14-15",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/index.ts:22-23",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/index.ts:15-22",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/code-editor.ts:190-249",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/CodeEditor.tsx:261-282",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/CodeEditor.vue:28-45"
+      ],
+      "unverified": [
+        "相同宿主options/input交错序列的三端文档/事件矩阵",
+        "CVA/controlled value与共享value语义的完整端到端对照"
+      ],
+      "nextAction": "主控按请求运行最小三端consumer/browser或明确按绑定对象分流；RV-071不复制为shared问题。",
+      "closedSubareas": [
+        "共享主题类型、language description/support、error payload、a11y helper契约",
+        "Angular/React/Vue公开入口与原生props/output/callback/emit责任对照",
+        "默认theme/light、language/sql、setup/basic、indentUnit双空格的源码对照"
+      ]
+    },
+    {
+      "id": "C4",
+      "title": "可访问性与资源",
+      "complete": false,
+      "status": "partial",
+      "evidence": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/accessibility.ts:61-85",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/accessibility.spec.ts:5-53",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/code-editor.ts:572-595",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/CodeEditor.tsx:413-421",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/CodeEditor.vue:282-285"
+      ],
+      "unverified": [
+        "真实键盘/Tab焦点可达性",
+        "原生IME",
+        "真实屏幕阅读器名称、disabled/readonly播报",
+        "大文档性能/内存和重复mount/destroy资源曲线"
+      ],
+      "nextAction": "主控补真实浏览器/设备/辅助技术或记录无法覆盖的具体测量面；不能以Node/happy-dom/helper覆盖率代替。",
+      "closedSubareas": [
+        "aria-disabled/label/labelledBy/describedBy字典",
+        "disabled/readonly autofocus predicate",
+        "共享层不创建EditorView/DOM监听/隐藏全局编辑器的源码边界",
+        "三端将属性写入EditorView.contentAttributes的接线归属"
+      ]
+    },
+    {
+      "id": "C5",
+      "title": "打包与依赖",
+      "complete": false,
+      "status": "partial-awaiting-controller",
+      "evidence": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/package.json:24-58",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/vite.config.mts:16-20,39-74",
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/packed-consumer-entry-check.json",
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json",
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-results.json"
+      ],
+      "unverified": [
+        "仅SQL消费的initial/chunk模块图与raw/gzip体积",
+        "物理缺语言模块/资源负对照",
+        "Node仅import type的独立emit/runtime辅助探针尚未执行，不由valid noEmit冒充"
+      ],
+      "nextAction": "主控继续补仅SQL bundle模块图与缺语言模块负对照；type-only辅助fixture可复用。本任务不等待整批10任务，不删除原要求。",
+      "closedSubareas": [
+        "package exports/types/import/default/files/sideEffects静态核对",
+        "15个自定义语言loader与上游语言元数据保留源码/当前dist静态核对",
+        "真实tar 22文件、声明入口无缺失、独立root ESM resolve",
+        "独立真实tar strict/skipLibCheck=false valid consumer编译exitCode0",
+        "9处真实公开输入类型错误被拒绝，invalid exitCode2且无TS2307",
+        "Node实际公开root import exitCode0、24 runtime exports",
+        "Node无DOM runtime smoke/纯helper/SQL真实parser与重复load缓存exitCode0"
+      ]
+    }
+  ],
+  "fullObjectCandidate": {
+    "status": "submitted-with-explicit-controller-owned-gaps",
+    "candidateBasis": [
+      "21/21受控文件正文阅读、无scope漂移",
+      "C2完整核销",
+      "C1/C3/C4/C5未验面已精确划给shared helper、三端binding、browser/consumer"
+    ],
+    "blockingAcceptance": [
+      "独立真实tar主探针已通过；保留仅SQL bundle/物理缺语言模块证据与Node type-only辅助测量的未验记录",
+      "主控必须明确C1/C3/C4浏览器/宿主最低场景是补证还是有证据分流",
+      "C5仅SQL bundle和物理缺资源负对照必须有结果或保留partial"
+    ],
+    "reviewCompleteAndPublishReadyAreSeparate": true,
+    "accepted": false,
+    "candidateSubmitted": true
+  },
+  "findings": {
+    "newConfirmed": [],
+    "newPending": [],
+    "deduplicatedExisting": [
+      {
+        "id": "RV-071",
+        "owner": "code-editor-angular",
+        "status": "confirmed-open",
+        "sharedCodeEditorCoreDuplicate": false,
+        "registry": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/findings-registry.json"
+      }
+    ]
+  },
+  "controllerRequests": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/validation-requests.json",
+  "remainingActionCount": 3,
+  "nextOwner": "controller",
+  "completeOriginalC": [
+    "C2"
+  ],
+  "partialOriginalC": [
+    "C1",
+    "C3",
+    "C4",
+    "C5"
+  ],
+  "fullObjectComplete": false,
+  "remainingActions": [
+    {
+      "id": "R2-01-V3",
+      "owner": "controller",
+      "action": "仅SQL bundle模块图/体积与缺语言模块负对照",
+      "criticalForC": [
+        "C5"
+      ]
+    },
+    {
+      "id": "R2-01-V4",
+      "owner": "controller",
+      "action": "C1/C3/C4绑定/browser最低场景补证或有证据分流裁定",
+      "criticalForC": [
+        "C1",
+        "C3",
+        "C4"
+      ]
+    },
+    {
+      "id": "R2-01-V2-type-only-auxiliary",
+      "owner": "controller",
+      "action": "type-only-consumer.mts严格emit后输出无runtime import与Node marker探针尚未执行",
+      "criticalForC": [
+        "C5"
+      ],
+      "blockingStageFinal": false,
+      "note": "已准备的type-only辅助探针，未新增case；不要求本任务继续执行或等待。"
+    }
+  ],
+  "heavyValidationsExecutedByThisTask": [],
+  "originalCompletionCriteria": [
+    {
+      "id": "D1",
+      "status": "satisfied",
+      "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/file-inspection.json"
+    },
+    {
+      "id": "D2",
+      "status": "satisfied-as-evidence-accounting",
+      "evidence": "originalC逐项结论/锚点/未验/nextAction"
+    },
+    {
+      "id": "D3",
+      "status": "satisfied-for-claims-made",
+      "evidence": [
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/inherited-evidence.json",
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-results.json"
+      ]
+    },
+    {
+      "id": "D4",
+      "status": "satisfied-for-recorded-measurements",
+      "evidence": [
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/inherited-evidence.json",
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-results.json"
+      ]
+    },
+    {
+      "id": "D5",
+      "status": "partial-awaiting-controller",
+      "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/responsibility-boundary.md"
+    },
+    {
+      "id": "D6",
+      "status": "satisfied-no-new-findings",
+      "evidence": {
+        "newConfirmed": [],
+        "newPending": [],
+        "deduplicatedExisting": [
+          {
+            "id": "RV-071",
+            "owner": "code-editor-angular",
+            "status": "confirmed-open",
+            "sharedCodeEditorCoreDuplicate": false,
+            "registry": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/findings-registry.json"
+          }
+        ]
+      }
+    },
+    {
+      "id": "D7",
+      "status": "satisfied-as-candidate-not-publication",
+      "evidence": "reviewRating yellow；fullObjectComplete=false；publishReady=false"
+    }
+  ],
+  "updatedAt": "2026-10-05T11:05:04+08:00",
+  "stageDeliveryComplete": true,
+  "sourceReviewComplete": true,
+  "finalizedAt": "2026-10-05T11:07:33+08:00",
+  "currentControllerValidation": {
+    "status": "started-not-adopted-as-passed",
+    "owner": "controller",
+    "logPrefix": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/ten-packages-current-*",
+    "targets": [
+      "build",
+      "unit-and-coverage",
+      "lint"
+    ],
+    "thisTaskWaitsForWholeBatch": false
+  }
+}

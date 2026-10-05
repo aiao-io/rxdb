@@ -1,0 +1,1 @@
+{"name":"@aiao/rxdb-plugin-search-react","exports":["SearchExecutionError","useSearch"]}

@@ -1,0 +1,25 @@
+COMMAND: /Users/jimmy/Documents/aiao/rxdb/node_modules/.bin/esbuild /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/sql-only.mjs --bundle --format=esm --platform=browser --target=es2022 --splitting --minify --outdir=/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/bundle --metafile=/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/artifact-probes/sql-only-metafile.json
+
+  ...lated-me20tptu/consumer/artifact-probes/bundle/chunk-DFBHNO4J.js  252.7kb
+  ...olated-me20tptu/consumer/artifact-probes/bundle/dist-O2YH664T.js  101.5kb
+  ...olated-me20tptu/consumer/artifact-probes/bundle/dist-ROYY6NYM.js   96.0kb
+  ...lated-me20tptu/consumer/artifact-probes/bundle/chunk-P5WEW42S.js   84.8kb
+  ...olated-me20tptu/consumer/artifact-probes/bundle/dist-AHEQLBL2.js   69.2kb
+  ...olated-me20tptu/consumer/artifact-probes/bundle/dist-V7YHTKIM.js   44.1kb
+  ...olated-me20tptu/consumer/artifact-probes/bundle/dist-DOK2U3V6.js   43.3kb
+  ...olated-me20tptu/consumer/artifact-probes/bundle/dist-ETFY5IWB.js   39.3kb
+  ...solated-me20tptu/consumer/artifact-probes/bundle/sql-4YBE5FED.js   36.2kb
+  ...olated-me20tptu/consumer/artifact-probes/bundle/dist-IOSHM5CZ.js   31.6kb
+  ...olated-me20tptu/consumer/artifact-probes/bundle/dist-26EPH3QD.js   30.1kb
+  ...lated-me20tptu/consumer/artifact-probes/bundle/chunk-S2CZQRKR.js   27.9kb
+  ...lated-me20tptu/consumer/artifact-probes/bundle/chunk-V7JID457.js   27.5kb
+  ...solated-me20tptu/consumer/artifact-probes/bundle/css-CP6BMH2P.js   26.5kb
+  ...lated-me20tptu/consumer/artifact-probes/bundle/chunk-DIWX4EI7.js   25.9kb
+  ...ated-me20tptu/consumer/artifact-probes/bundle/stylus-GV42EXY3.js   25.2kb
+  ...olated-me20tptu/consumer/artifact-probes/bundle/dist-LZBHW6QJ.js   22.5kb
+  ...lated-me20tptu/consumer/artifact-probes/bundle/clike-UHEMFG3X.js   21.8kb
+  ...olated-me20tptu/consumer/artifact-probes/bundle/dist-IRYDZNUR.js   20.7kb
+  ...olated-me20tptu/consumer/artifact-probes/bundle/dist-DUBQUAC6.js   20.4kb
+  ...and 104 more output files...
+
+⚡ Done in 98ms

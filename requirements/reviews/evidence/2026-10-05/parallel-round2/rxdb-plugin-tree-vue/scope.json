@@ -1,0 +1,65 @@
+{
+  "task": "R2-04",
+  "object": "rxdb-plugin-tree-vue",
+  "sourceRoot": "packages/rxdb-plugin-tree-vue",
+  "trackedFiles": [
+    {
+      "path": "packages/rxdb-plugin-tree-vue/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-vue/README.md",
+      "sha256": "213e47d14f74011c2c1d5b563d8a9179cc3369eeba424ce32e9f3ebe874f7032"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-vue/package.json",
+      "sha256": "f4f0461ea016f93d7ddee0d87a93804deb6a2f3029ce2e3924c63b81fc989ea2"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-vue/project.json",
+      "sha256": "3a081d98b0854de384a5169c70e9549a068e6fc6c0d1b52e43dee65d096674fb"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-vue/src/__tests__/index.spec.ts",
+      "sha256": "053170579ea8922f0176c63d0ac2f02b57c4d76da32335a245af19df97cfaf99"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-vue/src/__tests__/tri-framework-generics.spec.ts",
+      "sha256": "51061937e70fec2bd183d6c8cad64343b82577859cfe34a0753b3cc22b68522d"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-vue/src/__tests__/use-tree.spec.ts",
+      "sha256": "21b1129cb29b03aa84fba3c670e8d801e1f76d3454067629ffae23bf211b126e"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-vue/src/index.ts",
+      "sha256": "7afa278a6f70219c12038ff59b36d2473041f2d6cf943e30dab5c9eed5e83cd7"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-vue/src/use-tree.ts",
+      "sha256": "1911bdbdbd9284735c8bee0c97344f05386998a2b0d76bd2b59a02f294757335"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-vue/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-vue/tsconfig.lib.json",
+      "sha256": "b4a6d74c7748728096f01d28d8324b404d8fa292e65a5733f4df27ac95b0ecda"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-vue/tsconfig.spec.json",
+      "sha256": "25c2fe308cf62b0ef6da8b5d1ab8c573c503f2999655e8e35708f48de1e35e83"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-vue/vite.config.mts",
+      "sha256": "cecbd8cdfd6528fbfca613f3d276b42f5c7ef8b47a7f8edf9ac83b90dfe875ae"
+    }
+  ],
+  "writeScope": [
+    "requirements/reviews/packages/rxdb-plugin-tree-vue.md",
+    "requirements/reviews/results/packages/rxdb-plugin-tree-vue.md",
+    "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-vue"
+  ],
+  "status": "queued"
+}

@@ -1,0 +1,362 @@
+{
+  "object": "rxdb-plugin-search-vue",
+  "recordedAt": "2026-10-05T10:59:42.063579+08:00",
+  "headAtObservation": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "historicalRuns": [
+    {
+      "run": "framework-editor-coverage",
+      "statusSource": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage-status.json",
+      "log": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage.txt",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "test",
+        "--projects=rxdb-angular,rxdb-react,rxdb-vue,rxdb-model,rxdb-model-angular,rxdb-model-react,rxdb-model-vue,rxdb-plugin-replay-angular,rxdb-plugin-replay-react,rxdb-plugin-replay-vue,rxdb-plugin-tree-angular,rxdb-plugin-tree-react,rxdb-plugin-tree-vue,rxdb-plugin-working-tree-angular,rxdb-plugin-working-tree-react,rxdb-plugin-working-tree-vue,rxdb-plugin-search-angular,rxdb-plugin-search-react,rxdb-plugin-search-vue,code-editor,code-editor-angular,code-editor-react,code-editor-vue",
+        "--parallel=1",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static",
+        "--args=--run --maxWorkers=1 --coverage.enabled=true --coverage.reporter=text --coverage.reporter=json-summary --coverage.reporter=json"
+      ],
+      "startedAt": "2026-10-05T09:02:58.412105+08:00",
+      "headAtFinish": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+      "aggregateExitCode": 1,
+      "cacheDisabled": true,
+      "changedInputsDuringMeasurement": [],
+      "ownRecordedInputCount": 12,
+      "ownRecordedInputDrift": [],
+      "coreProductionRecordedInputCount": 28,
+      "coreProductionDrift": [],
+      "coveredCurrentOriginalScopeFiles": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/package.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/project.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/index.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/package-exports.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/review-options-mutation.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/use-search.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/index.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/use-search.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/tsconfig.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/tsconfig.lib.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/tsconfig.spec.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/vite.config.mts"
+      ],
+      "notCoveredCurrentOriginalScopeFiles": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/LICENSE",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/README.md",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/review-parallel-real-handle.spec.ts"
+      ],
+      "round2ProbeCovered": false,
+      "objectResult": "passed-historical-4-files-28-tests",
+      "logLines": [
+        8989,
+        9057
+      ],
+      "skipsReported": 0,
+      "expectedReadonlyRuntimeWarnings": "两次 readonly 负向写入产生 Vue warn；不是 ESLint 警告，也不隐去。",
+      "objectJUnitPresent": false,
+      "coverageSummary": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-search-vue/coverage-summary.json",
+      "coverageMetrics": {
+        "statements": 98.57,
+        "branches": 96.42,
+        "functions": 100,
+        "lines": 100
+      },
+      "thresholdEach": 80,
+      "measuredFiles": [
+        "src/index.ts",
+        "src/use-search.ts"
+      ],
+      "uncoveredStatement": "src/use-search.ts:58 snippetLength 快照分支",
+      "qualification": "已测本包/core 原文件未漂移，但未覆盖当前 real-handle 和本轮新 probe；不能自动扩大为完整 C 或新一轮覆盖率。"
+    },
+    {
+      "run": "all-object-strict-lint",
+      "statusSource": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint-status.json",
+      "log": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "lint",
+        "--projects=rxdb,utils,rxdb-test,rxdb-client-generator,rxdb-plugin-history,rxdb-adapter-sqlite-core,rxdb-adapter-pglite,rxdb-adapter-encrypted,rxdb-adapter-sqlite,rxdb-adapter-sqlite-wasm,rxdb-adapter-wa-sqlite,rxdb-adapter-sqliteai,rxdb-adapter-miniprogram,rxdb-adapter-electron,rxdb-adapter-tauri,rxdb-adapter-http,rxdb-adapter-supabase,dev-rxdb-electron,dev-rxdb-electron-e2e,dev-rxdb-tauri,dev-rxdb-tauri-e2e,dev-rxdb-http,dev-rxdb-http-e2e,dev-rxdb-http-server,dev-rxdb-supabase,dev-rxdb-supabase-e2e,rxdb-plugin-graph,rxdb-plugin-querycache,rxdb-plugin-sync,rxdb-plugin-tree,rxdb-plugin-working-tree,rxdb-plugin-workspace,rxdb-plugin-storage,rxdb-plugin-replay,rxdb-plugin-search,rxdb-angular,rxdb-react,rxdb-vue,rxdb-model,rxdb-model-angular,rxdb-model-react,rxdb-model-vue,rxdb-plugin-replay-angular,rxdb-plugin-replay-react,rxdb-plugin-replay-vue,rxdb-plugin-tree-angular,rxdb-plugin-tree-react,rxdb-plugin-tree-vue,rxdb-plugin-working-tree-angular,rxdb-plugin-working-tree-react,rxdb-plugin-working-tree-vue,rxdb-plugin-search-angular,rxdb-plugin-search-react,rxdb-plugin-search-vue,code-editor,code-editor-angular,code-editor-react,code-editor-vue,rxdb-devtools,dev-rxdb-angular,dev-rxdb-angular-e2e,dev-rxdb-react,dev-rxdb-react-e2e,dev-rxdb-vue,dev-rxdb-vue-e2e,dev-rxdb-miniprogram,dev-rxdb-miniprogram-e2e,rxdb-devtools-extension,rxdb-devtools-extension-e2e",
+        "--parallel=1",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static",
+        "--max-warnings=0"
+      ],
+      "startedAt": "2026-10-05T09:06:37.871805+08:00",
+      "headAtFinish": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+      "aggregateExitCode": 0,
+      "cacheDisabled": true,
+      "changedInputsDuringMeasurement": [],
+      "ownRecordedInputCount": 12,
+      "ownRecordedInputDrift": [],
+      "coreProductionRecordedInputCount": 28,
+      "coreProductionDrift": [],
+      "coveredCurrentOriginalScopeFiles": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/package.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/project.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/index.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/package-exports.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/review-options-mutation.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/use-search.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/index.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/use-search.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/tsconfig.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/tsconfig.lib.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/tsconfig.spec.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/vite.config.mts"
+      ],
+      "notCoveredCurrentOriginalScopeFiles": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/LICENSE",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/README.md",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/review-parallel-real-handle.spec.ts"
+      ],
+      "round2ProbeCovered": false,
+      "objectResult": "passed-historical-eslint-max-warnings-0",
+      "logLines": [
+        310,
+        314
+      ],
+      "qualification": "不覆盖当前 real-handle 和本轮新增 probe；批次退出 0 不自动证明新 HEAD 一致。"
+    },
+    {
+      "run": "all-object-typecheck",
+      "statusSource": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck-status.json",
+      "log": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck.txt",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "typecheck",
+        "--projects=rxdb,utils,rxdb-test,rxdb-client-generator,rxdb-plugin-history,rxdb-adapter-sqlite-core,rxdb-adapter-pglite,rxdb-adapter-encrypted,rxdb-adapter-sqlite,rxdb-adapter-sqlite-wasm,rxdb-adapter-wa-sqlite,rxdb-adapter-sqliteai,rxdb-adapter-miniprogram,rxdb-adapter-electron,rxdb-adapter-tauri,rxdb-adapter-http,rxdb-adapter-supabase,dev-rxdb-electron,dev-rxdb-electron-e2e,dev-rxdb-tauri,dev-rxdb-tauri-e2e,dev-rxdb-http,dev-rxdb-http-e2e,dev-rxdb-http-server,dev-rxdb-supabase,dev-rxdb-supabase-e2e,rxdb-plugin-graph,rxdb-plugin-querycache,rxdb-plugin-sync,rxdb-plugin-tree,rxdb-plugin-working-tree,rxdb-plugin-workspace,rxdb-plugin-storage,rxdb-plugin-replay,rxdb-plugin-search,rxdb-angular,rxdb-react,rxdb-vue,rxdb-model,rxdb-model-angular,rxdb-model-react,rxdb-model-vue,rxdb-plugin-replay-angular,rxdb-plugin-replay-react,rxdb-plugin-replay-vue,rxdb-plugin-tree-angular,rxdb-plugin-tree-react,rxdb-plugin-tree-vue,rxdb-plugin-working-tree-angular,rxdb-plugin-working-tree-react,rxdb-plugin-working-tree-vue,rxdb-plugin-search-angular,rxdb-plugin-search-react,rxdb-plugin-search-vue,code-editor,code-editor-angular,code-editor-react,code-editor-vue,rxdb-devtools,dev-rxdb-angular,dev-rxdb-angular-e2e,dev-rxdb-react,dev-rxdb-react-e2e,dev-rxdb-vue,dev-rxdb-vue-e2e,dev-rxdb-miniprogram,dev-rxdb-miniprogram-e2e,rxdb-devtools-extension,rxdb-devtools-extension-e2e",
+        "--parallel=1",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static"
+      ],
+      "startedAt": "2026-10-05T09:08:24.790015+08:00",
+      "headAtFinish": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+      "aggregateExitCode": 0,
+      "cacheDisabled": true,
+      "changedInputsDuringMeasurement": [],
+      "ownRecordedInputCount": 12,
+      "ownRecordedInputDrift": [],
+      "coreProductionRecordedInputCount": 28,
+      "coreProductionDrift": [],
+      "coveredCurrentOriginalScopeFiles": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/package.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/project.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/index.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/package-exports.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/review-options-mutation.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/use-search.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/index.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/use-search.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/tsconfig.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/tsconfig.lib.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/tsconfig.spec.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/vite.config.mts"
+      ],
+      "notCoveredCurrentOriginalScopeFiles": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/LICENSE",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/README.md",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/review-parallel-real-handle.spec.ts"
+      ],
+      "round2ProbeCovered": false,
+      "objectResult": "passed-historical-workspace-vue-tsc-build",
+      "logLines": [
+        1029,
+        1033
+      ],
+      "qualification": "workspace aliases 与默认 skipLibCheck；不是独立 packed 声明或 SFC 模板验证；不覆盖本轮 probe。"
+    },
+    {
+      "run": "new-parallel-probes",
+      "statusSource": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes-status.json",
+      "log": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes.txt",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "test",
+        "--projects=rxdb-plugin-working-tree-react,rxdb-plugin-search-angular,rxdb-adapter-sqlite-core,rxdb-adapter-sqlite-wasm,rxdb-plugin-replay-react,rxdb-plugin-search-react,rxdb-plugin-search-vue,rxdb-client-generator,code-editor-angular,rxdb-devtools-extension,rxdb-plugin-storage,rxdb-plugin-replay,rxdb-plugin-search,dev-rxdb-http-server,rxdb-test,utils",
+        "--parallel=1",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static",
+        "--excludeTaskDependencies",
+        "--args=review-parallel --run --maxWorkers=1 --coverage.enabled=false"
+      ],
+      "startedAt": "2026-10-05T09:33:47.962760+08:00",
+      "headAtFinish": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+      "aggregateExitCode": 1,
+      "cacheDisabled": true,
+      "changedInputsDuringMeasurement": [],
+      "ownRecordedInputCount": 13,
+      "ownRecordedInputDrift": [
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/review-parallel-real-handle.spec.ts",
+          "measuredSha256": "f30c85ea8e23765b4706ce505b5fcc472eb60214fe0182cfe6eac219778894fd",
+          "currentSha256": "1be30dc8ba2151888e51d972b20052378c452dec68076c7f1a74c45237a8c000"
+        }
+      ],
+      "coreProductionRecordedInputCount": 28,
+      "coreProductionDrift": [],
+      "coveredCurrentOriginalScopeFiles": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/package.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/project.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/index.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/package-exports.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/review-options-mutation.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/review-parallel-real-handle.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/use-search.spec.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/index.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/use-search.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/tsconfig.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/tsconfig.lib.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/tsconfig.spec.json",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/vite.config.mts"
+      ],
+      "notCoveredCurrentOriginalScopeFiles": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/LICENSE",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/README.md"
+      ],
+      "round2ProbeCovered": false,
+      "objectResult": "one-real-core-sequence-passed-historical",
+      "logLines": [
+        622,
+        634
+      ],
+      "sameFixtureHistoricalParityLogs": {
+        "angular": [
+          637,
+          649
+        ],
+        "react": [
+          652,
+          664
+        ]
+      },
+      "qualification": "包源/core 实现指纹一致，但 Vue probe 文件 f30c85…→1be30d…；不宣称当前 93 行版本已执行。其它对象失败导致批次 exit 1，不等于本包失败。"
+    }
+  ],
+  "packedEntryCheck": {
+    "source": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/packed-consumer-entry-check.json",
+    "package": {
+      "project": "rxdb-plugin-search-vue",
+      "resolvedPublishedPackageRoot": "packages/rxdb-plugin-search-vue",
+      "rootManifestIsNotAlwaysPublishManifest": true,
+      "publicationExecuted": false,
+      "temporaryArtifactsOutsideWorkspace": true,
+      "exitCode": 0,
+      "status": "passed-static-packed-entries",
+      "packedName": "@aiao/rxdb-plugin-search-vue",
+      "packedVersion": "0.0.26",
+      "packedFileCount": 10,
+      "declaredEntries": [
+        "./package.json",
+        "./dist/index.d.ts",
+        "./dist/index.js",
+        "./dist/index.js",
+        "./dist/index.js",
+        "./dist/index.js",
+        "./dist/index.d.ts"
+      ],
+      "missingDeclaredEntries": [],
+      "tarballSha256": "271b2973fdd0ec8d96f4d4d91c0035a3353d26041f2450b1d2a13f417df0e20d",
+      "publishedManifestSha256": "57b7fc348500acfe62e03307c46190e24a849ec4543cdc95216e99a7a70ab4d9",
+      "files": [
+        "package/LICENSE",
+        "package/README.md",
+        "package/dist/index.d.ts",
+        "package/dist/index.d.ts.map",
+        "package/dist/index.js",
+        "package/dist/use-search.d.ts",
+        "package/dist/use-search.d.ts.map",
+        "package/package.json",
+        "package/src/index.ts",
+        "package/src/use-search.ts"
+      ]
+    },
+    "rootResolution": {
+      "name": "@aiao/rxdb-plugin-search-vue",
+      "resolved": "file:///private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-review-pack-qunrcwin/consumer/node_modules/@aiao/rxdb-plugin-search-vue/dist/index.js",
+      "status": "resolved"
+    },
+    "declarationCompilationExecuted": false,
+    "runtimeImportExecuted": false,
+    "newR2TarballSha256": "0c5f8ccfad70797492baea3b235a005a9b2339cf52be583a08a6d00c397d3227",
+    "newR2PackNotEquivalentToHistoricalTarball": true
+  },
+  "round2CoordinatorSnapshots": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-setup.json",
+      "sha256": "e1280b52a42a39848ffccd132944a6209c173ff04578e1e6bcee2a4661ddaa68",
+      "exitCode": 1,
+      "method": "Real pnpm packed publication roots installed in new directory outside workspace with pinned existing peer versions, offline, no lifecycle hooks. All workspace dependencies are local tarball packages, not source/path mappings.",
+      "consumerDirectory": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer",
+      "observedAt": "2026-10-05T10:59:42.063579+08:00",
+      "qualification": "读取时的中间安装状态；不能推断最终 root import/typed consumer 结果，也不能将全组离线 peer 失败归为本包代码缺陷。"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-local-files.json",
+      "sha256": "941dd6aedefdfb4403e68ea1f146126acd1f405c9ede5a43bc68768b4063f642",
+      "exitCode": 1,
+      "method": "All internal published packages pinned to local real tarballs, including transitives; installed third-party tarball peers pinned to existing versions. No workspace paths/source links, network, scripts or publication.",
+      "consumerDirectory": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer",
+      "observedAt": "2026-10-05T10:59:42.063579+08:00",
+      "qualification": "读取时的中间安装状态；不能推断最终 root import/typed consumer 结果，也不能将全组离线 peer 失败归为本包代码缺陷。"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-local-peers.json",
+      "sha256": "e697dade41253745d891525c5e2f0da2f06872974f8c152feb198ae16b0c96f9",
+      "exitCode": 1,
+      "method": "Offline mirror lacks Angular metadata; instead of downloading/changing versions, tar actual installed exact third-party peers/transitive deps and install real files. No scripts, aliases, or workspace node_modules links. Installed patches, if any, are part of this explicitly measured local environment, not a clean registry baseline.",
+      "consumerDirectory": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer",
+      "observedAt": "2026-10-05T10:59:42.063579+08:00",
+      "qualification": "读取时的中间安装状态；不能推断最终 root import/typed consumer 结果，也不能将全组离线 peer 失败归为本包代码缺陷。"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-install-final.json",
+      "sha256": "54ae8a848673b3dd9d26b145946209866ed8394d7ff6769b27ad16abf6e5574b",
+      "exitCode": 1,
+      "method": null,
+      "consumerDirectory": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer",
+      "observedAt": "2026-10-05T10:59:42.063579+08:00",
+      "qualification": "读取时的中间安装状态；不能推断最终 root import/typed consumer 结果，也不能将全组离线 peer 失败归为本包代码缺陷。"
+    }
+  ],
+  "ownCommands": [
+    {
+      "command": "NX_DAEMON=false NX_NO_CLOUD=true pnpm nx show project rxdb-plugin-search-vue --json",
+      "result": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-vue/resolved-project.json",
+      "action": "仅获取配置，不运行目标",
+      "stderrEmpty": true,
+      "wrapperExit": "查询已生成合法 JSON；后置 zsh status 是 readonly，包装命令 exit=1，不把包装错误当 Nx 项目失败。"
+    }
+  ],
+  "heavyTargetsRunByThisAgent": [],
+  "coverageRunByThisAgent": false,
+  "consumerCompilerOrRuntimeRunByThisAgent": false,
+  "verificationOwnership": "用户指定主控离线安装真实 tar、严格 Vue d.ts compile 和 root runtime import；新增 unit/coverage/lint/typecheck 均只提交请求。",
+  "finalHandoffCoordinatorReport": {
+    "recordedAt": "2026-10-05T11:09:34.173740+08:00",
+    "source": "用户/主控在本 chat 的最新直接报告；交接不扩读、不等待后续日志",
+    "bareEnvironmentResultRetained": true,
+    "supplementalEnvironment": "显式 Node typings + @types/ms，独立实际 tar consumer，严格声明检查",
+    "validStrictExitCode": 0,
+    "invalidResult": "仅消费类型诊断拒绝（非零；本消息未给具体数值）",
+    "rootRuntimeImportExitCode": 0,
+    "unitCoverageAndLint": "主控已启动 current newSpec unit+coverage/lint；尚未报告完成，不改写为通过",
+    "sfcTemplates": "正负 .vue fixture 已交付；本次报告没有给 SFC vue-tsc 模板结果",
+    "note": "explicit Node/@types/ms 对照通过不抹除裸环境 NodeJS/ms 的上游声明闭合失败；不自行修改 utils/依赖/stub/skipLibCheck。"
+  }
+}

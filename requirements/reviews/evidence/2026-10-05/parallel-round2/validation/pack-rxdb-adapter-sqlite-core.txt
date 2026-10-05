@@ -1,0 +1,675 @@
+CWD: /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core
+COMMAND: pnpm pack --json --out /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-adapter-sqlite-core.tgz
+{
+  "name": "@aiao/rxdb-adapter-sqlite-core",
+  "version": "0.0.26",
+  "filename": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-adapter-sqlite-core.tgz",
+  "files": [
+    {
+      "path": "dist/backup/restore-sqlite-database.d.ts"
+    },
+    {
+      "path": "dist/backup/restore-sqlite-database.d.ts.map"
+    },
+    {
+      "path": "dist/backup/sqlite-backup-schema.d.ts"
+    },
+    {
+      "path": "dist/backup/sqlite-backup-schema.d.ts.map"
+    },
+    {
+      "path": "dist/backup/sqlite-backup-sql.d.ts"
+    },
+    {
+      "path": "dist/backup/sqlite-backup-sql.d.ts.map"
+    },
+    {
+      "path": "dist/backup/sqlite-backup.d.ts"
+    },
+    {
+      "path": "dist/backup/sqlite-backup.d.ts.map"
+    },
+    {
+      "path": "dist/backup/sqlite-backup.interface.d.ts"
+    },
+    {
+      "path": "dist/backup/sqlite-backup.interface.d.ts.map"
+    },
+    {
+      "path": "dist/backup/sqlite-blank-database.d.ts"
+    },
+    {
+      "path": "dist/backup/sqlite-blank-database.d.ts.map"
+    },
+    {
+      "path": "dist/create_sqlite_client.d.ts"
+    },
+    {
+      "path": "dist/create_sqlite_client.d.ts.map"
+    },
+    {
+      "path": "dist/desktop-host-protocol-C3_XdsR-.js"
+    },
+    {
+      "path": "dist/desktop-host.d.ts"
+    },
+    {
+      "path": "dist/desktop-host.d.ts.map"
+    },
+    {
+      "path": "dist/desktop-host.js"
+    },
+    {
+      "path": "dist/desktop/desktop-adapter-name.d.ts"
+    },
+    {
+      "path": "dist/desktop/desktop-adapter-name.d.ts.map"
+    },
+    {
+      "path": "dist/desktop/desktop-error.d.ts"
+    },
+    {
+      "path": "dist/desktop/desktop-error.d.ts.map"
+    },
+    {
+      "path": "dist/desktop/desktop-host-protocol.d.ts"
+    },
+    {
+      "path": "dist/desktop/desktop-host-protocol.d.ts.map"
+    },
+    {
+      "path": "dist/desktop/desktop-options.interface.d.ts"
+    },
+    {
+      "path": "dist/desktop/desktop-options.interface.d.ts.map"
+    },
+    {
+      "path": "dist/desktop/desktop-pglite-protocol.d.ts"
+    },
+    {
+      "path": "dist/desktop/desktop-pglite-protocol.d.ts.map"
+    },
+    {
+      "path": "dist/desktop/desktop-protocol-primitives.d.ts"
+    },
+    {
+      "path": "dist/desktop/desktop-protocol-primitives.d.ts.map"
+    },
+    {
+      "path": "dist/desktop/desktop-restore-target.d.ts"
+    },
+    {
+      "path": "dist/desktop/desktop-restore-target.d.ts.map"
+    },
+    {
+      "path": "dist/desktop/desktop-sqlite-client.d.ts"
+    },
+    {
+      "path": "dist/desktop/desktop-sqlite-client.d.ts.map"
+    },
+    {
+      "path": "dist/desktop/desktop-storage.d.ts"
+    },
+    {
+      "path": "dist/desktop/desktop-storage.d.ts.map"
+    },
+    {
+      "path": "dist/entity/delete_sql.d.ts"
+    },
+    {
+      "path": "dist/entity/delete_sql.d.ts.map"
+    },
+    {
+      "path": "dist/entity/deletes_sql.d.ts"
+    },
+    {
+      "path": "dist/entity/deletes_sql.d.ts.map"
+    },
+    {
+      "path": "dist/entity/insert_sql.d.ts"
+    },
+    {
+      "path": "dist/entity/insert_sql.d.ts.map"
+    },
+    {
+      "path": "dist/entity/inserts_sql.d.ts"
+    },
+    {
+      "path": "dist/entity/inserts_sql.d.ts.map"
+    },
+    {
+      "path": "dist/entity/update_sql.d.ts"
+    },
+    {
+      "path": "dist/entity/update_sql.d.ts.map"
+    },
+    {
+      "path": "dist/execute_oo1_helper.d.ts"
+    },
+    {
+      "path": "dist/execute_oo1_helper.d.ts.map"
+    },
+    {
+      "path": "dist/execute-sql.utils.d.ts"
+    },
+    {
+      "path": "dist/execute-sql.utils.d.ts.map"
+    },
+    {
+      "path": "dist/fts5/build-fts-triggers.d.ts"
+    },
+    {
+      "path": "dist/fts5/build-fts-triggers.d.ts.map"
+    },
+    {
+      "path": "dist/fts5/cjk-bigram.d.ts"
+    },
+    {
+      "path": "dist/fts5/cjk-bigram.d.ts.map"
+    },
+    {
+      "path": "dist/fts5/create-fts-table.d.ts"
+    },
+    {
+      "path": "dist/fts5/create-fts-table.d.ts.map"
+    },
+    {
+      "path": "dist/fts5/index.d.ts"
+    },
+    {
+      "path": "dist/fts5/index.d.ts.map"
+    },
+    {
+      "path": "dist/fts5/types.d.ts"
+    },
+    {
+      "path": "dist/fts5/types.d.ts.map"
+    },
+    {
+      "path": "dist/handle_rxdb_change.d.ts"
+    },
+    {
+      "path": "dist/handle_rxdb_change.d.ts.map"
+    },
+    {
+      "path": "dist/index.d.ts"
+    },
+    {
+      "path": "dist/index.d.ts.map"
+    },
+    {
+      "path": "dist/index.js"
+    },
+    {
+      "path": "dist/keyring/sqlite-core-keyring-storage.d.ts"
+    },
+    {
+      "path": "dist/keyring/sqlite-core-keyring-storage.d.ts.map"
+    },
+    {
+      "path": "dist/oo1-types.d.ts"
+    },
+    {
+      "path": "dist/oo1-types.d.ts.map"
+    },
+    {
+      "path": "dist/Oo1ClientBase.d.ts"
+    },
+    {
+      "path": "dist/Oo1ClientBase.d.ts.map"
+    },
+    {
+      "path": "dist/query-cache-events.d.ts"
+    },
+    {
+      "path": "dist/query-cache-events.d.ts.map"
+    },
+    {
+      "path": "dist/query-cache-row-contract.d.ts"
+    },
+    {
+      "path": "dist/query-cache-row-contract.d.ts.map"
+    },
+    {
+      "path": "dist/query/count_sql.d.ts"
+    },
+    {
+      "path": "dist/query/count_sql.d.ts.map"
+    },
+    {
+      "path": "dist/query/find_by_row_ids_sql.d.ts"
+    },
+    {
+      "path": "dist/query/find_by_row_ids_sql.d.ts.map"
+    },
+    {
+      "path": "dist/query/find_sql.d.ts"
+    },
+    {
+      "path": "dist/query/find_sql.d.ts.map"
+    },
+    {
+      "path": "dist/query/join_sql.d.ts"
+    },
+    {
+      "path": "dist/query/join_sql.d.ts.map"
+    },
+    {
+      "path": "dist/query/query_sql.d.ts"
+    },
+    {
+      "path": "dist/query/query_sql.d.ts.map"
+    },
+    {
+      "path": "dist/query/query_sql.utils.d.ts"
+    },
+    {
+      "path": "dist/query/query_sql.utils.d.ts.map"
+    },
+    {
+      "path": "dist/query/query_tree_sql.d.ts"
+    },
+    {
+      "path": "dist/query/query_tree_sql.d.ts.map"
+    },
+    {
+      "path": "dist/query/sql_alias.utils.d.ts"
+    },
+    {
+      "path": "dist/query/sql_alias.utils.d.ts.map"
+    },
+    {
+      "path": "dist/query/validate-encrypted-query.d.ts"
+    },
+    {
+      "path": "dist/query/validate-encrypted-query.d.ts.map"
+    },
+    {
+      "path": "dist/repository/SqliteRepository.d.ts"
+    },
+    {
+      "path": "dist/repository/SqliteRepository.d.ts.map"
+    },
+    {
+      "path": "dist/repository/SqliteRepositoryBase.d.ts"
+    },
+    {
+      "path": "dist/repository/SqliteRepositoryBase.d.ts.map"
+    },
+    {
+      "path": "dist/repository/SqliteTreeRepository.d.ts"
+    },
+    {
+      "path": "dist/repository/SqliteTreeRepository.d.ts.map"
+    },
+    {
+      "path": "dist/rxdb_adapter_mutations.d.ts"
+    },
+    {
+      "path": "dist/rxdb_adapter_mutations.d.ts.map"
+    },
+    {
+      "path": "dist/RxDBAdapterSqliteBase.d.ts"
+    },
+    {
+      "path": "dist/RxDBAdapterSqliteBase.d.ts.map"
+    },
+    {
+      "path": "dist/sqlite-backend.interface-CpZvrt9U.js"
+    },
+    {
+      "path": "dist/sqlite-backend.interface.d.ts"
+    },
+    {
+      "path": "dist/sqlite-backend.interface.d.ts.map"
+    },
+    {
+      "path": "dist/sqlite-client.utils.d.ts"
+    },
+    {
+      "path": "dist/sqlite-client.utils.d.ts.map"
+    },
+    {
+      "path": "dist/sqlite-core.interface.d.ts"
+    },
+    {
+      "path": "dist/sqlite-core.interface.d.ts.map"
+    },
+    {
+      "path": "dist/sqlite-core.types.d.ts"
+    },
+    {
+      "path": "dist/sqlite-core.types.d.ts.map"
+    },
+    {
+      "path": "dist/sqlite-core.utils.d.ts"
+    },
+    {
+      "path": "dist/sqlite-core.utils.d.ts.map"
+    },
+    {
+      "path": "dist/sqlite-oo1-load.utils.d.ts"
+    },
+    {
+      "path": "dist/sqlite-oo1-load.utils.d.ts.map"
+    },
+    {
+      "path": "dist/src-CQOq8Qve.js"
+    },
+    {
+      "path": "dist/system/encrypt-patch.d.ts"
+    },
+    {
+      "path": "dist/system/encrypt-patch.d.ts.map"
+    },
+    {
+      "path": "dist/table/create_table_sql.d.ts"
+    },
+    {
+      "path": "dist/table/create_table_sql.d.ts.map"
+    },
+    {
+      "path": "dist/table/create_tables_sql.d.ts"
+    },
+    {
+      "path": "dist/table/create_tables_sql.d.ts.map"
+    },
+    {
+      "path": "dist/table/remove_trigger_sql.d.ts"
+    },
+    {
+      "path": "dist/table/remove_trigger_sql.d.ts.map"
+    },
+    {
+      "path": "dist/table/trigger_sql.d.ts"
+    },
+    {
+      "path": "dist/table/trigger_sql.d.ts.map"
+    },
+    {
+      "path": "dist/testing.d.ts"
+    },
+    {
+      "path": "dist/testing.d.ts.map"
+    },
+    {
+      "path": "dist/testing.js"
+    },
+    {
+      "path": "dist/transaction_sqlite_result.d.ts"
+    },
+    {
+      "path": "dist/transaction_sqlite_result.d.ts.map"
+    },
+    {
+      "path": "dist/transaction/SqliteTransactionExecutor.d.ts"
+    },
+    {
+      "path": "dist/transaction/SqliteTransactionExecutor.d.ts.map"
+    },
+    {
+      "path": "dist/version/execute_switch_actions.d.ts"
+    },
+    {
+      "path": "dist/version/execute_switch_actions.d.ts.map"
+    },
+    {
+      "path": "dist/version/execute-sql-statements.d.ts"
+    },
+    {
+      "path": "dist/version/execute-sql-statements.d.ts.map"
+    },
+    {
+      "path": "dist/version/read_current_branch_id.d.ts"
+    },
+    {
+      "path": "dist/version/read_current_branch_id.d.ts.map"
+    },
+    {
+      "path": "dist/version/switch_branch.d.ts"
+    },
+    {
+      "path": "dist/version/switch_branch.d.ts.map"
+    },
+    {
+      "path": "dist/version/switch_transaction_id.d.ts"
+    },
+    {
+      "path": "dist/version/switch_transaction_id.d.ts.map"
+    },
+    {
+      "path": "dist/version/switch-result.utils.d.ts"
+    },
+    {
+      "path": "dist/version/switch-result.utils.d.ts.map"
+    },
+    {
+      "path": "dist/version/with_triggers_disabled.d.ts"
+    },
+    {
+      "path": "dist/version/with_triggers_disabled.d.ts.map"
+    },
+    {
+      "path": "LICENSE"
+    },
+    {
+      "path": "package.json"
+    },
+    {
+      "path": "README.md"
+    },
+    {
+      "path": "src/backup/restore-sqlite-database.ts"
+    },
+    {
+      "path": "src/backup/sqlite-backup-schema.ts"
+    },
+    {
+      "path": "src/backup/sqlite-backup-sql.ts"
+    },
+    {
+      "path": "src/backup/sqlite-backup.interface.ts"
+    },
+    {
+      "path": "src/backup/sqlite-backup.ts"
+    },
+    {
+      "path": "src/backup/sqlite-blank-database.ts"
+    },
+    {
+      "path": "src/create_sqlite_client.ts"
+    },
+    {
+      "path": "src/desktop-host.ts"
+    },
+    {
+      "path": "src/desktop/desktop-adapter-name.ts"
+    },
+    {
+      "path": "src/desktop/desktop-error.ts"
+    },
+    {
+      "path": "src/desktop/desktop-host-protocol.ts"
+    },
+    {
+      "path": "src/desktop/desktop-options.interface.ts"
+    },
+    {
+      "path": "src/desktop/desktop-pglite-protocol.ts"
+    },
+    {
+      "path": "src/desktop/desktop-protocol-primitives.ts"
+    },
+    {
+      "path": "src/desktop/desktop-restore-target.ts"
+    },
+    {
+      "path": "src/desktop/desktop-sqlite-client.ts"
+    },
+    {
+      "path": "src/desktop/desktop-storage.ts"
+    },
+    {
+      "path": "src/entity/delete_sql.ts"
+    },
+    {
+      "path": "src/entity/deletes_sql.ts"
+    },
+    {
+      "path": "src/entity/insert_sql.ts"
+    },
+    {
+      "path": "src/entity/inserts_sql.ts"
+    },
+    {
+      "path": "src/entity/update_sql.ts"
+    },
+    {
+      "path": "src/execute_oo1_helper.ts"
+    },
+    {
+      "path": "src/execute-sql.utils.ts"
+    },
+    {
+      "path": "src/fts5/build-fts-triggers.ts"
+    },
+    {
+      "path": "src/fts5/cjk-bigram.ts"
+    },
+    {
+      "path": "src/fts5/create-fts-table.ts"
+    },
+    {
+      "path": "src/fts5/index.ts"
+    },
+    {
+      "path": "src/fts5/types.ts"
+    },
+    {
+      "path": "src/handle_rxdb_change.ts"
+    },
+    {
+      "path": "src/index.ts"
+    },
+    {
+      "path": "src/keyring/sqlite-core-keyring-storage.ts"
+    },
+    {
+      "path": "src/oo1-types.ts"
+    },
+    {
+      "path": "src/Oo1ClientBase.ts"
+    },
+    {
+      "path": "src/query-cache-events.ts"
+    },
+    {
+      "path": "src/query-cache-row-contract.ts"
+    },
+    {
+      "path": "src/query/count_sql.ts"
+    },
+    {
+      "path": "src/query/find_by_row_ids_sql.ts"
+    },
+    {
+      "path": "src/query/find_sql.ts"
+    },
+    {
+      "path": "src/query/join_sql.ts"
+    },
+    {
+      "path": "src/query/query_sql.ts"
+    },
+    {
+      "path": "src/query/query_sql.utils.ts"
+    },
+    {
+      "path": "src/query/query_tree_sql.ts"
+    },
+    {
+      "path": "src/query/sql_alias.utils.ts"
+    },
+    {
+      "path": "src/query/validate-encrypted-query.ts"
+    },
+    {
+      "path": "src/repository/SqliteRepository.ts"
+    },
+    {
+      "path": "src/repository/SqliteRepositoryBase.ts"
+    },
+    {
+      "path": "src/repository/SqliteTreeRepository.ts"
+    },
+    {
+      "path": "src/rxdb_adapter_mutations.ts"
+    },
+    {
+      "path": "src/RxDBAdapterSqliteBase.ts"
+    },
+    {
+      "path": "src/sqlite-backend.interface.ts"
+    },
+    {
+      "path": "src/sqlite-client.utils.ts"
+    },
+    {
+      "path": "src/sqlite-core.interface.ts"
+    },
+    {
+      "path": "src/sqlite-core.types.ts"
+    },
+    {
+      "path": "src/sqlite-core.utils.ts"
+    },
+    {
+      "path": "src/sqlite-oo1-load.utils.ts"
+    },
+    {
+      "path": "src/system/encrypt-patch.ts"
+    },
+    {
+      "path": "src/table/create_table_sql.ts"
+    },
+    {
+      "path": "src/table/create_tables_sql.ts"
+    },
+    {
+      "path": "src/table/remove_trigger_sql.ts"
+    },
+    {
+      "path": "src/table/trigger_sql.ts"
+    },
+    {
+      "path": "src/testing.ts"
+    },
+    {
+      "path": "src/transaction_sqlite_result.ts"
+    },
+    {
+      "path": "src/transaction/SqliteTransactionExecutor.ts"
+    },
+    {
+      "path": "src/version/execute_switch_actions.ts"
+    },
+    {
+      "path": "src/version/execute-sql-statements.ts"
+    },
+    {
+      "path": "src/version/read_current_branch_id.ts"
+    },
+    {
+      "path": "src/version/switch_branch.ts"
+    },
+    {
+      "path": "src/version/switch_transaction_id.ts"
+    },
+    {
+      "path": "src/version/switch-result.utils.ts"
+    },
+    {
+      "path": "src/version/with_triggers_disabled.ts"
+    }
+  ]
+}

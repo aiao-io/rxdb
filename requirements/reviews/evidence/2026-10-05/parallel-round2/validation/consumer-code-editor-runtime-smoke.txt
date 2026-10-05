@@ -1,0 +1,9 @@
+{
+  "probe": "R2-01-runtime-smoke",
+  "passed": true,
+  "rootResolved": "file:///private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/@aiao+code-editor@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300_8f7b19366c3d427a794430a82991dd60/node_modules/@aiao/code-editor/dist/index.js",
+  "node": "v26.7.0",
+  "domRequired": false,
+  "sqlTree": "Script(Statement(Keyword,Operator,Keyword,Identifier,\";\"))",
+  "browserBehaviorValidated": false
+}

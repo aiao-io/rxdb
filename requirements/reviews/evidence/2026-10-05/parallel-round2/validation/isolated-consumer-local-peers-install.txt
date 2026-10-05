@@ -1,0 +1,6 @@
+COMMAND: pnpm install --offline --ignore-scripts --no-frozen-lockfile --config.auto-install-peers=false
+Progress: resolved 0, reused 0, downloaded 1, added 0
+Progress: resolved 258, reused 0, downloaded 258, added 0
+ ERR_PNPM_NO_OFFLINE_META  Failed to resolve @aiao/rxdb-plugin-history@0.0.26 in package mirror /Users/jimmy/Library/Caches/pnpm/metadata-v1.3/registry.npmjs.org/@aiao/rxdb-plugin-history.json
+
+This error happened while installing the dependencies of @aiao/rxdb-plugin-working-tree@0.0.26

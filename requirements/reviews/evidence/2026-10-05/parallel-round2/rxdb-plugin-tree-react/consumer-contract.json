@@ -1,0 +1,106 @@
+{
+  "task": "R2-03",
+  "object": "rxdb-plugin-tree-react",
+  "preparedAt": "2026-10-05T11:01:00+08:00",
+  "validFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-valid.mts",
+  "invalidFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-invalid.mts",
+  "validSha256": "6c401afeabd8bcd2c5b4f5655f0b05b71aa6d4b62d945ff3c5a600a5671ce8c5",
+  "invalidSha256": "4cb1e253b88438229aa3822eb48af9b543d5def5004db6a54406940ec1801c5d",
+  "imports": [
+    "@aiao/rxdb",
+    "@aiao/rxdb-plugin-tree",
+    "@aiao/rxdb-plugin-tree-react",
+    "@aiao/rxdb-react"
+  ],
+  "workspacePathsUsed": false,
+  "anyUsed": false,
+  "typeIgnoreUsed": false,
+  "topLevelHookCalls": false,
+  "hookCallsOnlyInUninvokedCustomHooks": true,
+  "positiveContracts": [
+    "number entityId accepts numeric 0; string entityId accepts string 0",
+    "all four hook method option slots use real FindTreeOptions<Entity> and EntityStaticType",
+    "array resources preserve concrete entity/id/label types; count resources preserve number",
+    "both object and factory options accepted; type Equal/Assert rejects erasure of ID/result generic"
+  ],
+  "negativeCases": [
+    {
+      "line": 4,
+      "expression": "useCountAncestors,",
+      "expected": "semantic assignability/type error (not module resolution failure)"
+    },
+    {
+      "line": 5,
+      "expression": "useCountDescendants,",
+      "expected": "semantic assignability/type error (not module resolution failure)"
+    },
+    {
+      "line": 6,
+      "expression": "useFindAncestors,",
+      "expected": "semantic assignability/type error (not module resolution failure)"
+    },
+    {
+      "line": 7,
+      "expression": "useFindDescendants",
+      "expected": "semantic assignability/type error (not module resolution failure)"
+    },
+    {
+      "line": 48,
+      "expression": "useFindDescendants(NumericTreeNode, { entityId: '0' });",
+      "expected": "semantic assignability/type error (not module resolution failure)"
+    },
+    {
+      "line": 49,
+      "expression": "useCountDescendants(NumericTreeNode, () => ({ entityId: '0' }));",
+      "expected": "semantic assignability/type error (not module resolution failure)"
+    },
+    {
+      "line": 50,
+      "expression": "useFindAncestors(StringTreeNode, { entityId: 0 });",
+      "expected": "semantic assignability/type error (not module resolution failure)"
+    },
+    {
+      "line": 51,
+      "expression": "useCountAncestors(StringTreeNode, () => ({ entityId: 0 }));",
+      "expected": "semantic assignability/type error (not module resolution failure)"
+    },
+    {
+      "line": 52,
+      "expression": "useFindDescendants(NumericTreeNode, { entityId: 0, level: '1' });",
+      "expected": "semantic assignability/type error (not module resolution failure)"
+    },
+    {
+      "line": 54,
+      "expression": "const numericOptions: EntityStaticType<typeof NumericTreeNode, 'findAncestorsOptions'> = { entityId: '0' };",
+      "expected": "semantic assignability/type error (not module resolution failure)"
+    },
+    {
+      "line": 55,
+      "expression": "const stringOptions: EntityStaticType<typeof StringTreeNode, 'countDescendantsOptions'> = { entityId: 0 };",
+      "expected": "semantic assignability/type error (not module resolution failure)"
+    },
+    {
+      "line": 56,
+      "expression": "const stringResult: RxDBResource<StringTreeNode[]> = useFindDescendants(NumericTreeNode, { entityId: 0 });",
+      "expected": "semantic assignability/type error (not module resolution failure)"
+    },
+    {
+      "line": 57,
+      "expression": "const numericResult: RxDBResource<NumericTreeNode[]> = useFindAncestors(StringTreeNode, { entityId: '0' });",
+      "expected": "semantic assignability/type error (not module resolution failure)"
+    },
+    {
+      "line": 58,
+      "expression": "const stringCount: RxDBResource<string> = useCountAncestors(NumericTreeNode, { entityId: 0 });",
+      "expected": "semantic assignability/type error (not module resolution failure)"
+    }
+  ],
+  "expectedInvalidDiagnosticCount": 14,
+  "expectedInvalidOutcome": "nonzero exit caused by the ten listed type errors; missing packages, parse failures or dependency diagnostics alone are not a negative contract pass",
+  "consumerHarnessOwner": "controller",
+  "requireStrict": true,
+  "requireNoWorkspacePathsOrSymlinks": true,
+  "runHookAtModuleTopLevel": false,
+  "workerTypecheckExecuted": false,
+  "workerRuntimeExecuted": false
+}

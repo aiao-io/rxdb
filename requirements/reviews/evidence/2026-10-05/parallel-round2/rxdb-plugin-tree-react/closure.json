@@ -1,0 +1,142 @@
+{
+  "task": "R2-03",
+  "object": "rxdb-plugin-tree-react",
+  "updatedAt": "2026-10-05T11:01:00+08:00",
+  "headAtRead": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "workerDeliveryStatus": "delivered-awaiting-controller-validation",
+  "workerDeliveryComplete": true,
+  "controlledFiles": {
+    "expected": 13,
+    "fullContentRead": 13,
+    "readLines": 615,
+    "scopeHashesMatched": true,
+    "sourceEdits": 0,
+    "existingTestEdits": 0,
+    "newSpecs": 1
+  },
+  "completeCCount": 0,
+  "totalCCount": 5,
+  "completeCs": [],
+  "partialCs": [
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5"
+  ],
+  "localSubsurfaces": [
+    {
+      "surface": "全部受控正文 + 生成/依赖接口来源",
+      "status": "completed-static",
+      "evidence": "file-inspection.json / generated-artifacts.json"
+    },
+    {
+      "surface": "四 method/root/default/string fixture",
+      "status": "historical-local-passed",
+      "evidence": "validation-observations.json (3 files/6 tests; previous HEAD with own measured hashes matching)"
+    },
+    {
+      "surface": "numeric/string independent declaration consumer",
+      "status": "prepared-not-compiled",
+      "evidence": "consumer-valid.mts / consumer-invalid.mts / consumer-contract.json"
+    },
+    {
+      "surface": "参数/卸载/root StrictMode/provider/errors/render",
+      "status": "prepared-not-run",
+      "evidence": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/review-round2-lifecycle.spec.ts"
+    }
+  ],
+  "originalCompletionConditions": [
+    {
+      "id": "F1",
+      "condition": "全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。",
+      "status": "met",
+      "evidence": "13/13 full content; 615 lines, every concern and interval in file-inspection.json"
+    },
+    {
+      "id": "F2",
+      "condition": "每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。",
+      "status": "met-for-reporting-not-C-closure",
+      "evidence": "c-evidence.json preserves original actions/minimum scenes and remaining actions; 0/5 complete"
+    },
+    {
+      "id": "F3",
+      "condition": "不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。",
+      "status": "partial",
+      "evidence": "production anchors and old exact run surface recorded; new probes only syntax parsing, no new dynamic assertions claimed"
+    },
+    {
+      "id": "F4",
+      "condition": "实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。",
+      "status": "partial",
+      "evidence": "historical command/cache/input/100% four metrics recorded, branches 0/0; current new test/lint/typecheck/build results absent"
+    },
+    {
+      "id": "F5",
+      "condition": "上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。",
+      "status": "partial",
+      "evidence": "public 3-wrapper/types and generator static-slot protocol checked; same real tree three-framework fixture and independent consumer compilation pending"
+    },
+    {
+      "id": "F6",
+      "condition": "确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。",
+      "status": "met-with-no-new-findings",
+      "evidence": "findings.pending.md; existing registry inspected, unrelated RV069/070 not charged to tree wrapper; no new RV allocated"
+    },
+    {
+      "id": "F7",
+      "condition": "形成 🟢 / 🟡 / 🔴 的有证据结论，并区分评审完成和修复/发布就绪；本计划勾选完成不代表缺陷已经修复。",
+      "status": "partial",
+      "evidence": "scoped review assessment 🟡 evidence incomplete; no whole-object final grade; reviewComplete=false/releaseReady=false"
+    }
+  ],
+  "fullObjectCandidate": false,
+  "reviewComplete": false,
+  "releaseReady": false,
+  "newFindings": 0,
+  "newProbeCases": 10,
+  "consumerNegativeExpressions": 10,
+  "validationRequests": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/validation-requests.json",
+  "validationOwner": "controller",
+  "requestCount": 6,
+  "remainingActions": [
+    {
+      "action": "串行执行本包 new+existing unit/coverage/lint/typecheck，结果绑定 newSpec SHA 和真实依赖输入",
+      "criticalForC": [
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C5"
+      ]
+    },
+    {
+      "action": "真实 tarball offline consumer 正向成功/负向语义诊断逐锚点成立；root runtime import 单独记录，不执行顶层 hook",
+      "criticalForC": [
+        "C1",
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "action": "稳定输入 build + 对应声明产物与重复构建输出字节比较",
+      "criticalForC": [
+        "C1",
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "action": "原最低真实 tree 链路 numeric/string/deep/querycache/missing-plugin/move/delete/full-query 与同 fixture 三端 state/多实例清理；已有 upstream 可复用但精确配对",
+      "criticalForC": [
+        "C1",
+        "C2",
+        "C3"
+      ]
+    }
+  ],
+  "controllerDeferralRequired": true,
+  "scopeExpanded": false,
+  "published": false,
+  "gitMutationByWorker": false
+}

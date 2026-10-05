@@ -1,0 +1,104 @@
+{
+  "task": "R2-01",
+  "object": "code-editor",
+  "finalizedAt": "2026-10-05T11:07:33+08:00",
+  "writeScopeValidated": true,
+  "paths": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/packages/code-editor.md",
+      "sha256": "8daf9ff982be25e0c9a95ccc5d2b60601661f98ec80aedea2e0dd3967b08c5a5"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/code-editor.md",
+      "sha256": "b6a7932e08bca465250d83582a870236ddf318cdcde29d71a581210a154e37c3"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-valid.mts",
+      "sha256": "4e62ba0061e8704e56ba6cec95eabf358afff10eefb0b6a9ed4703dc819caa17"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-invalid.mts",
+      "sha256": "55125ff4370464b9d48aa12915d8688d461439f1146e6b9384bfea17c89209ec"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/runtime-smoke.mjs",
+      "sha256": "5200a50a8a5e3b07a54f002e8868b606589861ccd683760854b809f99028bab1"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/type-only-consumer.mts",
+      "sha256": "a4725ac083a8daed10da77d61e14f22ffc2b2d0ec01c7f48104cc51e81f2062d"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-valid.tsconfig.json",
+      "sha256": "29a51de3f1b924d7ffd66c9da7ba2c52d568b291c0b374a3aa3570972b2597bf"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-invalid.tsconfig.json",
+      "sha256": "115edc262f0c1e5a345ded56726bfd3518d48485101d6dbfc495448cb9f4d472"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/type-only-consumer.tsconfig.json",
+      "sha256": "60edabfe986d6ab97208e0aac63364b3e07e124aeb403f5a3815e7aa621f34c3"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-protocol.md",
+      "sha256": "b54ec97b42871568bf2f43aae0540c1f0a4edc7a2ed7ecd2c23826f876e896e5"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/responsibility-boundary.md",
+      "sha256": "e411ea92311efbca0fc06084583d8f87a20262fc61038dd24ee0b4232da6a247"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/validation-requests.json",
+      "sha256": "2ae2863c0216b0d2381a23961454c2fea45554c9cb9e2ff658d292cc7dbe34f6"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/file-inspection.json",
+      "sha256": "7d0d9933114a283652782f5300be5a521691192c81c81adfa34c7a83e6b348f0"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/inherited-evidence.json",
+      "sha256": "fe89db9c188c4fbedc067578911bf5e1b52f2adc011824a396a059cace3ad774"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-results.json",
+      "sha256": "5f168fcbee689c83dbfa34f960bd7b3c4fac80eb4f1331a8695ab6f2fa6d03ae"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/closure.json",
+      "sha256": "d349bf1480414e9879b851efc8a0aeb4c8919b30f78b40a9da37d42ca99f64a1"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/nx-project.json",
+      "sha256": "14f09a9a8fa85d56a21d50da840c9c12105dcfb19a280001ddbbf37c15d978fa"
+    }
+  ],
+  "selfManifestPath": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/changed-files.json",
+  "allChangedAbsolutePaths": [
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/packages/code-editor.md",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/code-editor.md",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-valid.mts",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-invalid.mts",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/runtime-smoke.mjs",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/type-only-consumer.mts",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-valid.tsconfig.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-invalid.tsconfig.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/type-only-consumer.tsconfig.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-protocol.md",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/responsibility-boundary.md",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/validation-requests.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/file-inspection.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/inherited-evidence.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-results.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/closure.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/nx-project.json",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/changed-files.json"
+  ],
+  "excludedPreexistingFiles": [
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/instructions.md",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/scope.json"
+  ],
+  "newProductionSpecCount": 0,
+  "heavyValidationExecutedByTask": false,
+  "note": "仅本任务实际新写/改写18文件；scope/instructions为主控预置未改写。部分新文件由外部主控暂存，本任务未操作Git索引。"
+}

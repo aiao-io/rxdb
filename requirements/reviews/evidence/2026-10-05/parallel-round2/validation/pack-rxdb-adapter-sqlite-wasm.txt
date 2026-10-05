@@ -1,0 +1,120 @@
+CWD: /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm
+COMMAND: pnpm pack --json --out /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-adapter-sqlite-wasm.tgz
+{
+  "name": "@aiao/rxdb-adapter-sqlite-wasm",
+  "version": "0.0.26",
+  "filename": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-adapter-sqlite-wasm.tgz",
+  "files": [
+    {
+      "path": "dist/create_sqlite_client.d.ts"
+    },
+    {
+      "path": "dist/create_sqlite_client.d.ts.map"
+    },
+    {
+      "path": "dist/execute_helper.d.ts"
+    },
+    {
+      "path": "dist/execute_helper.d.ts.map"
+    },
+    {
+      "path": "dist/index.d.ts"
+    },
+    {
+      "path": "dist/index.d.ts.map"
+    },
+    {
+      "path": "dist/index.js"
+    },
+    {
+      "path": "dist/RxDBAdapterSqlite-DHJG5t3H.js"
+    },
+    {
+      "path": "dist/RxDBAdapterSqlite.d.ts"
+    },
+    {
+      "path": "dist/RxDBAdapterSqlite.d.ts.map"
+    },
+    {
+      "path": "dist/sqlite-api.type.d.ts"
+    },
+    {
+      "path": "dist/sqlite-api.type.d.ts.map"
+    },
+    {
+      "path": "dist/sqlite-load.utils.d.ts"
+    },
+    {
+      "path": "dist/sqlite-load.utils.d.ts.map"
+    },
+    {
+      "path": "dist/sqlite.interface.d.ts"
+    },
+    {
+      "path": "dist/sqlite.interface.d.ts.map"
+    },
+    {
+      "path": "dist/SqliteClient.d.ts"
+    },
+    {
+      "path": "dist/SqliteClient.d.ts.map"
+    },
+    {
+      "path": "dist/testing.d.ts"
+    },
+    {
+      "path": "dist/testing.d.ts.map"
+    },
+    {
+      "path": "dist/testing.js"
+    },
+    {
+      "path": "dist/vfs-storage-loaders-DWd6MhAv.js"
+    },
+    {
+      "path": "dist/vfs-storage-loaders.d.ts"
+    },
+    {
+      "path": "dist/vfs-storage-loaders.d.ts.map"
+    },
+    {
+      "path": "LICENSE"
+    },
+    {
+      "path": "package.json"
+    },
+    {
+      "path": "README.md"
+    },
+    {
+      "path": "src/create_sqlite_client.ts"
+    },
+    {
+      "path": "src/execute_helper.ts"
+    },
+    {
+      "path": "src/index.ts"
+    },
+    {
+      "path": "src/RxDBAdapterSqlite.ts"
+    },
+    {
+      "path": "src/sqlite-api.type.ts"
+    },
+    {
+      "path": "src/sqlite-load.utils.ts"
+    },
+    {
+      "path": "src/sqlite.interface.ts"
+    },
+    {
+      "path": "src/SqliteClient.ts"
+    },
+    {
+      "path": "src/testing.ts"
+    },
+    {
+      "path": "src/vfs-storage-loaders.ts"
+    }
+  ]
+}

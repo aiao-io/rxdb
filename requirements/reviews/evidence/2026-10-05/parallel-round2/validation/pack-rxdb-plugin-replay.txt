@@ -1,0 +1,168 @@
+CWD: /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay
+COMMAND: pnpm pack --json --out /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-replay.tgz
+{
+  "name": "@aiao/rxdb-plugin-replay",
+  "version": "0.0.26",
+  "filename": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-replay.tgz",
+  "files": [
+    {
+      "path": "dist/entities.d.ts"
+    },
+    {
+      "path": "dist/entities.d.ts.map"
+    },
+    {
+      "path": "dist/errors.d.ts"
+    },
+    {
+      "path": "dist/errors.d.ts.map"
+    },
+    {
+      "path": "dist/index.d.ts"
+    },
+    {
+      "path": "dist/index.d.ts.map"
+    },
+    {
+      "path": "dist/index.js"
+    },
+    {
+      "path": "dist/manager.d.ts"
+    },
+    {
+      "path": "dist/manager.d.ts.map"
+    },
+    {
+      "path": "dist/markers.d.ts"
+    },
+    {
+      "path": "dist/markers.d.ts.map"
+    },
+    {
+      "path": "dist/options.d.ts"
+    },
+    {
+      "path": "dist/options.d.ts.map"
+    },
+    {
+      "path": "dist/plugin.d.ts"
+    },
+    {
+      "path": "dist/plugin.d.ts.map"
+    },
+    {
+      "path": "dist/recorder.d.ts"
+    },
+    {
+      "path": "dist/recorder.d.ts.map"
+    },
+    {
+      "path": "dist/replayer/mount-replayer.d.ts"
+    },
+    {
+      "path": "dist/replayer/mount-replayer.d.ts.map"
+    },
+    {
+      "path": "dist/replayer/style.d.ts"
+    },
+    {
+      "path": "dist/replayer/style.d.ts.map"
+    },
+    {
+      "path": "dist/restore.d.ts"
+    },
+    {
+      "path": "dist/restore.d.ts.map"
+    },
+    {
+      "path": "dist/resume.d.ts"
+    },
+    {
+      "path": "dist/resume.d.ts.map"
+    },
+    {
+      "path": "dist/store.d.ts"
+    },
+    {
+      "path": "dist/store.d.ts.map"
+    },
+    {
+      "path": "dist/testing/index.d.ts"
+    },
+    {
+      "path": "dist/testing/index.d.ts.map"
+    },
+    {
+      "path": "dist/testing/index.js"
+    },
+    {
+      "path": "dist/testing/replayer-parity.d.ts"
+    },
+    {
+      "path": "dist/testing/replayer-parity.d.ts.map"
+    },
+    {
+      "path": "dist/types.d.ts"
+    },
+    {
+      "path": "dist/types.d.ts.map"
+    },
+    {
+      "path": "LICENSE"
+    },
+    {
+      "path": "package.json"
+    },
+    {
+      "path": "README.md"
+    },
+    {
+      "path": "src/entities.ts"
+    },
+    {
+      "path": "src/errors.ts"
+    },
+    {
+      "path": "src/index.ts"
+    },
+    {
+      "path": "src/manager.ts"
+    },
+    {
+      "path": "src/markers.ts"
+    },
+    {
+      "path": "src/options.ts"
+    },
+    {
+      "path": "src/plugin.ts"
+    },
+    {
+      "path": "src/recorder.ts"
+    },
+    {
+      "path": "src/replayer/mount-replayer.ts"
+    },
+    {
+      "path": "src/replayer/style.ts"
+    },
+    {
+      "path": "src/restore.ts"
+    },
+    {
+      "path": "src/resume.ts"
+    },
+    {
+      "path": "src/store.ts"
+    },
+    {
+      "path": "src/testing/index.ts"
+    },
+    {
+      "path": "src/testing/replayer-parity.ts"
+    },
+    {
+      "path": "src/types.ts"
+    }
+  ]
+}

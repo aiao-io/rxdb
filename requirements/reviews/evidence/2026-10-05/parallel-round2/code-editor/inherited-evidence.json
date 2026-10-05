@@ -1,0 +1,293 @@
+{
+  "task": "R2-01",
+  "object": "code-editor",
+  "recordedAt": "2026-10-05T10:55:42+08:00",
+  "headAtRead": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "provenanceRule": "本记录为第一轮实际证据摘录与当前对象输入比对，非新执行/非稳定全仓HEAD门禁",
+  "measurements": [
+    {
+      "run": "framework-editor-coverage",
+      "statusPath": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage-status.json",
+      "inputsPath": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage-input-sha256.json",
+      "headAtFinish": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+      "exitCode": 1,
+      "cacheDisabled": true,
+      "heavyTaskConcurrency": 1,
+      "startedAt": "2026-10-05T09:02:58.412105+08:00",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "test",
+        "--projects=rxdb-angular,rxdb-react,rxdb-vue,rxdb-model,rxdb-model-angular,rxdb-model-react,rxdb-model-vue,rxdb-plugin-replay-angular,rxdb-plugin-replay-react,rxdb-plugin-replay-vue,rxdb-plugin-tree-angular,rxdb-plugin-tree-react,rxdb-plugin-tree-vue,rxdb-plugin-working-tree-angular,rxdb-plugin-working-tree-react,rxdb-plugin-working-tree-vue,rxdb-plugin-search-angular,rxdb-plugin-search-react,rxdb-plugin-search-vue,code-editor,code-editor-angular,code-editor-react,code-editor-vue",
+        "--parallel=1",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static",
+        "--args=--run --maxWorkers=1 --coverage.enabled=true --coverage.reporter=text --coverage.reporter=json-summary --coverage.reporter=json"
+      ],
+      "changedInputsDuringMeasurement": [],
+      "currentObjectInputComparison": {
+        "included": 19,
+        "matching": 19,
+        "missingFromMeasurement": [
+          "packages/code-editor/LICENSE",
+          "packages/code-editor/README.md"
+        ],
+        "drift": []
+      },
+      "readOnlyBindingInputComparison": {
+        "included": 19,
+        "matching": 19,
+        "drift": []
+      },
+      "currentHeadNotClaimed": true,
+      "objectIncluded": true
+    },
+    {
+      "run": "all-object-strict-lint",
+      "statusPath": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint-status.json",
+      "inputsPath": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint-input-sha256.json",
+      "headAtFinish": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+      "exitCode": 0,
+      "cacheDisabled": true,
+      "heavyTaskConcurrency": 1,
+      "startedAt": "2026-10-05T09:06:37.871805+08:00",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "lint",
+        "--projects=rxdb,utils,rxdb-test,rxdb-client-generator,rxdb-plugin-history,rxdb-adapter-sqlite-core,rxdb-adapter-pglite,rxdb-adapter-encrypted,rxdb-adapter-sqlite,rxdb-adapter-sqlite-wasm,rxdb-adapter-wa-sqlite,rxdb-adapter-sqliteai,rxdb-adapter-miniprogram,rxdb-adapter-electron,rxdb-adapter-tauri,rxdb-adapter-http,rxdb-adapter-supabase,dev-rxdb-electron,dev-rxdb-electron-e2e,dev-rxdb-tauri,dev-rxdb-tauri-e2e,dev-rxdb-http,dev-rxdb-http-e2e,dev-rxdb-http-server,dev-rxdb-supabase,dev-rxdb-supabase-e2e,rxdb-plugin-graph,rxdb-plugin-querycache,rxdb-plugin-sync,rxdb-plugin-tree,rxdb-plugin-working-tree,rxdb-plugin-workspace,rxdb-plugin-storage,rxdb-plugin-replay,rxdb-plugin-search,rxdb-angular,rxdb-react,rxdb-vue,rxdb-model,rxdb-model-angular,rxdb-model-react,rxdb-model-vue,rxdb-plugin-replay-angular,rxdb-plugin-replay-react,rxdb-plugin-replay-vue,rxdb-plugin-tree-angular,rxdb-plugin-tree-react,rxdb-plugin-tree-vue,rxdb-plugin-working-tree-angular,rxdb-plugin-working-tree-react,rxdb-plugin-working-tree-vue,rxdb-plugin-search-angular,rxdb-plugin-search-react,rxdb-plugin-search-vue,code-editor,code-editor-angular,code-editor-react,code-editor-vue,rxdb-devtools,dev-rxdb-angular,dev-rxdb-angular-e2e,dev-rxdb-react,dev-rxdb-react-e2e,dev-rxdb-vue,dev-rxdb-vue-e2e,dev-rxdb-miniprogram,dev-rxdb-miniprogram-e2e,rxdb-devtools-extension,rxdb-devtools-extension-e2e",
+        "--parallel=1",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static",
+        "--max-warnings=0"
+      ],
+      "changedInputsDuringMeasurement": [],
+      "currentObjectInputComparison": {
+        "included": 19,
+        "matching": 19,
+        "missingFromMeasurement": [
+          "packages/code-editor/LICENSE",
+          "packages/code-editor/README.md"
+        ],
+        "drift": []
+      },
+      "readOnlyBindingInputComparison": {
+        "included": 19,
+        "matching": 19,
+        "drift": []
+      },
+      "currentHeadNotClaimed": true,
+      "objectIncluded": true
+    },
+    {
+      "run": "all-object-typecheck",
+      "statusPath": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck-status.json",
+      "inputsPath": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck-input-sha256.json",
+      "headAtFinish": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+      "exitCode": 0,
+      "cacheDisabled": true,
+      "heavyTaskConcurrency": 1,
+      "startedAt": "2026-10-05T09:08:24.790015+08:00",
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "typecheck",
+        "--projects=rxdb,utils,rxdb-test,rxdb-client-generator,rxdb-plugin-history,rxdb-adapter-sqlite-core,rxdb-adapter-pglite,rxdb-adapter-encrypted,rxdb-adapter-sqlite,rxdb-adapter-sqlite-wasm,rxdb-adapter-wa-sqlite,rxdb-adapter-sqliteai,rxdb-adapter-miniprogram,rxdb-adapter-electron,rxdb-adapter-tauri,rxdb-adapter-http,rxdb-adapter-supabase,dev-rxdb-electron,dev-rxdb-electron-e2e,dev-rxdb-tauri,dev-rxdb-tauri-e2e,dev-rxdb-http,dev-rxdb-http-e2e,dev-rxdb-http-server,dev-rxdb-supabase,dev-rxdb-supabase-e2e,rxdb-plugin-graph,rxdb-plugin-querycache,rxdb-plugin-sync,rxdb-plugin-tree,rxdb-plugin-working-tree,rxdb-plugin-workspace,rxdb-plugin-storage,rxdb-plugin-replay,rxdb-plugin-search,rxdb-angular,rxdb-react,rxdb-vue,rxdb-model,rxdb-model-angular,rxdb-model-react,rxdb-model-vue,rxdb-plugin-replay-angular,rxdb-plugin-replay-react,rxdb-plugin-replay-vue,rxdb-plugin-tree-angular,rxdb-plugin-tree-react,rxdb-plugin-tree-vue,rxdb-plugin-working-tree-angular,rxdb-plugin-working-tree-react,rxdb-plugin-working-tree-vue,rxdb-plugin-search-angular,rxdb-plugin-search-react,rxdb-plugin-search-vue,code-editor,code-editor-angular,code-editor-react,code-editor-vue,rxdb-devtools,dev-rxdb-angular,dev-rxdb-angular-e2e,dev-rxdb-react,dev-rxdb-react-e2e,dev-rxdb-vue,dev-rxdb-vue-e2e,dev-rxdb-miniprogram,dev-rxdb-miniprogram-e2e,rxdb-devtools-extension,rxdb-devtools-extension-e2e",
+        "--parallel=1",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static"
+      ],
+      "changedInputsDuringMeasurement": [],
+      "currentObjectInputComparison": {
+        "included": 19,
+        "matching": 19,
+        "missingFromMeasurement": [
+          "packages/code-editor/LICENSE",
+          "packages/code-editor/README.md"
+        ],
+        "drift": []
+      },
+      "readOnlyBindingInputComparison": {
+        "included": 19,
+        "matching": 19,
+        "drift": []
+      },
+      "currentHeadNotClaimed": true,
+      "objectIncluded": true
+    }
+  ],
+  "junit": [
+    {
+      "project": "code-editor",
+      "junit": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor/junit.xml",
+      "sha256": "60853c416a14f879dda0c12ce43470dbc82a17b9b60064c4e23054e1be4e4f4f",
+      "tests": 107,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "suiteTests": {
+        "src/__tests__/accessibility.spec.ts": 12,
+        "src/__tests__/document-sync.spec.ts": 15,
+        "src/__tests__/index.spec.ts": 55,
+        "src/__tests__/language-error.spec.ts": 6,
+        "src/__tests__/language-resolution.spec.ts": 11,
+        "src/__tests__/review-document-change-properties.spec.ts": 8
+      },
+      "environment": "code-editor: node; bindings: happy-dom/真实CM混合具体断言，Vue mock-suite不冒充真实browser"
+    },
+    {
+      "project": "code-editor-angular",
+      "junit": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor-angular/junit.xml",
+      "sha256": "9905c5b787e1391100d5c980f0774b4834dee55c6e26626b4b6ace4e28cfc007",
+      "tests": 76,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "suiteTests": {
+        "src/__tests__/code-editor.spec.ts": 72,
+        "src/__tests__/index.spec.ts": 2,
+        "src/__tests__/review-language-sync-throw.spec.ts": 2
+      },
+      "environment": "code-editor: node; bindings: happy-dom/真实CM混合具体断言，Vue mock-suite不冒充真实browser"
+    },
+    {
+      "project": "code-editor-react",
+      "junit": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor-react/junit.xml",
+      "sha256": "1cd548d1595a74cc1ff48037552abf8ccac06cd1694efa78a3a6405378434661",
+      "tests": 34,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "suiteTests": {
+        "src/__tests__/CodeEditor.spec.tsx": 31,
+        "src/__tests__/index.spec.ts": 1,
+        "src/__tests__/review-language-sync-throw.spec.tsx": 2
+      },
+      "environment": "code-editor: node; bindings: happy-dom/真实CM混合具体断言，Vue mock-suite不冒充真实browser"
+    },
+    {
+      "project": "code-editor-vue",
+      "junit": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor-vue/junit.xml",
+      "sha256": "b12f5cc673e2d65bf0275f00d7287840ccec9990aa3bc8ace80c9a856c733a9f",
+      "tests": 68,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "suiteTests": {
+        "src/__tests__/CodeEditor.a11y.spec.ts": 6,
+        "src/__tests__/CodeEditor.document-sync.spec.ts": 5,
+        "src/__tests__/CodeEditor.highlight.spec.ts": 3,
+        "src/__tests__/CodeEditor.language.spec.ts": 9,
+        "src/__tests__/CodeEditor.reconfigure.spec.ts": 16,
+        "src/__tests__/CodeEditor.spec.ts": 23,
+        "src/__tests__/index.spec.ts": 4,
+        "src/__tests__/review-language-sync-throw.spec.ts": 2
+      },
+      "environment": "code-editor: node; bindings: happy-dom/真实CM混合具体断言，Vue mock-suite不冒充真实browser"
+    }
+  ],
+  "coverage": {
+    "summary": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor/coverage-summary.json",
+    "summarySha256": "a2fb7904a6ddec6db416e36a74b922db8d7037fba21b6d6eb2056678f6ba01e3",
+    "gate": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/coverage-gate.json",
+    "measurement": {
+      "project": "code-editor",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 99.13,
+        "branches": 97.95,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 107,
+        "passed": 107,
+        "failed": 0,
+        "skipped": 0
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor/coverage-summary.json"
+    },
+    "measurementSurface": "Node src/**/*；summary列六源码，V8默认测试排除；没有DOM/IME/辅助技术测量"
+  },
+  "pack": {
+    "source": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/packed-consumer-entry-check.json",
+    "object": {
+      "project": "code-editor",
+      "resolvedPublishedPackageRoot": "packages/code-editor",
+      "rootManifestIsNotAlwaysPublishManifest": true,
+      "publicationExecuted": false,
+      "temporaryArtifactsOutsideWorkspace": true,
+      "exitCode": 0,
+      "status": "passed-static-packed-entries",
+      "packedName": "@aiao/code-editor",
+      "packedVersion": "0.0.26",
+      "packedFileCount": 22,
+      "declaredEntries": [
+        "./package.json",
+        "./dist/index.d.ts",
+        "./dist/index.js",
+        "./dist/index.js",
+        "./dist/index.js",
+        "./dist/index.js",
+        "./dist/index.d.ts"
+      ],
+      "missingDeclaredEntries": [],
+      "tarballSha256": "cb20a30c7d6c931e91f1d78175305be4c2a3f2a24cd8bc3b2831a855c82fc9cf",
+      "publishedManifestSha256": "931ed586f55e71b4be1ceaeb9d472f211b4a21e9e439592d14fdb3be7083b799",
+      "files": [
+        "package/LICENSE",
+        "package/README.md",
+        "package/dist/accessibility.d.ts",
+        "package/dist/accessibility.d.ts.map",
+        "package/dist/document-sync.d.ts",
+        "package/dist/document-sync.d.ts.map",
+        "package/dist/index.d.ts",
+        "package/dist/index.d.ts.map",
+        "package/dist/index.js",
+        "package/dist/language-error.d.ts",
+        "package/dist/language-error.d.ts.map",
+        "package/dist/language-resolution.d.ts",
+        "package/dist/language-resolution.d.ts.map",
+        "package/dist/languages.d.ts",
+        "package/dist/languages.d.ts.map",
+        "package/package.json",
+        "package/src/accessibility.ts",
+        "package/src/document-sync.ts",
+        "package/src/index.ts",
+        "package/src/language-error.ts",
+        "package/src/language-resolution.ts",
+        "package/src/languages.ts"
+      ]
+    },
+    "rootResolution": {
+      "name": "@aiao/code-editor",
+      "resolved": "file:///private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-review-pack-qunrcwin/consumer/node_modules/@aiao/code-editor/dist/index.js",
+      "status": "resolved"
+    },
+    "declarationCompilationExecuted": false,
+    "runtimeImportExecuted": false,
+    "independentTypedRuntimeRound2": "prepared-not-executed-by-this-task"
+  },
+  "crossObjectFinding": {
+    "id": "RV-071",
+    "status": "confirmed-open",
+    "owner": "code-editor-angular",
+    "registry": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/findings-registry.json",
+    "repeatedRegistration": false,
+    "notASharedHelperDefect": true
+  },
+  "thisTaskNewFindings": []
+}

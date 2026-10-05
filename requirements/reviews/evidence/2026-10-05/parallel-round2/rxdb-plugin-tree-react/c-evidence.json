@@ -1,0 +1,333 @@
+{
+  "task": "R2-03",
+  "object": "rxdb-plugin-tree-react",
+  "head": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "updatedAt": "2026-10-05T11:01:00+08:00",
+  "originalCsPreserved": true,
+  "completeCCount": 0,
+  "partialCCount": 5,
+  "criteria": [
+    {
+      "id": "C1",
+      "title": "树查询与输入类型",
+      "originalAction": "对照 Tree repository 和生成泛型，核查 tree options、numeric id、懒查询/层级语义与禁用组合。",
+      "originalMinimum": "numeric/string id、缺 Tree 插件、QueryCache 禁止、深树；错误透明，不 fallback 到扁平查询。",
+      "status": "partial",
+      "complete": false,
+      "conclusion": "四个 wrapper 保留 entity/options 泛型并仅选择精确静态方法和 []/0 默认值；数字 0 不做真值转换。真实层级/QueryCache 禁用在 tree plugin/Repository，不能由 mock 证明。",
+      "productionAnchors": [
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/use-tree.ts",
+          "start": 23,
+          "end": 81,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb/src/entity/entity.interface.ts",
+          "start": 31,
+          "end": 91,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/repository/tree-repository.interface.ts",
+          "start": 6,
+          "end": 36,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/repository/TreeRepository.ts",
+          "start": 65,
+          "end": 119,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/repository/TreeRepository.ts",
+          "start": 130,
+          "end": 132,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/plugin.ts",
+          "start": 44,
+          "end": 64,
+          "role": "read-implementation"
+        }
+      ],
+      "evidence": [
+        "historical 6-test dispatch/default/string fixture unit result; source matched",
+        "generated-artifacts.json provenance and public declarations read",
+        "review-round2-lifecycle.spec.ts:115-154/244-279 prepared numeric/string forwarding and missing-method/error probes",
+        "consumer-valid/invalid.mts prepared numeric/string ID/options/return generics"
+      ],
+      "minimumScenarios": [
+        {
+          "scene": "numeric/string IDs",
+          "state": "type fixtures + zero forwarding probe prepared; real query pending"
+        },
+        {
+          "scene": "缺 Tree 插件",
+          "state": "registration-phase upstream spec read; wrapper missing-method probe prepared; no new execution"
+        },
+        {
+          "scene": "QueryCache 禁止",
+          "state": "production registration/guard and upstream spec inspected; controller runtime reconciliation pending"
+        },
+        {
+          "scene": "深树/level/懒查询",
+          "state": "Repository normalized level and lazy result$ inspected; real complete tree chain pending"
+        },
+        {
+          "scene": "错误透明/无 flat fallback",
+          "state": "source checked and historical delegation; new error probe not run"
+        }
+      ],
+      "remainingActions": [
+        "controller test/typecheck/consumer",
+        "real numeric/string/deep tree and plugin/QueryCache guard evidence paired to actual inputs"
+      ]
+    },
+    {
+      "id": "C2",
+      "title": "增量结果与参数切换",
+      "originalAction": "核查树更新/移动的订阅与请求代次，确保新父节点/过滤条件不沿用旧节点结果。",
+      "originalMinimum": "跨父移动、父删除、快速改 query、空树、销毁；与全量树查询一致。",
+      "status": "partial",
+      "complete": false,
+      "conclusion": "wrapper 没有增量合并状态机；Repository 注册 tree merge；core 的 content identity + layout/request generation + active cleanup 失效旧请求。仅 options 变化保留 stale value 但 hasValue=false，entity identity 变化复位 []，不是旧树被宣称为新查询成功。",
+      "productionAnchors": [
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/use-tree.ts",
+          "start": 23,
+          "end": 81,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/hooks.ts",
+          "start": 71,
+          "end": 159,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/repository/TreeRepository.ts",
+          "start": 48,
+          "end": 59,
+          "role": "read-implementation"
+        }
+      ],
+      "evidence": [
+        "historical result pass-through/default state",
+        "review-round2-lifecycle.spec.ts:115-228 prepared empty tree/pending/query A-B-C/active layout late value/unmount"
+      ],
+      "minimumScenarios": [
+        {
+          "scene": "跨父移动/父删除 vs full query",
+          "state": "controller real TreeRepository/adapter fixture required"
+        },
+        {
+          "scene": "快速改 query",
+          "state": "prepared active-old-subscription layout race and A-B-C test, not run"
+        },
+        {
+          "scene": "空树",
+          "state": "prepared []/0 and flags checks, not run"
+        },
+        {
+          "scene": "销毁/卸载",
+          "state": "prepared explicit unsubscribe/late error/count probes, not run"
+        }
+      ],
+      "remainingActions": [
+        "controller unit",
+        "real cross-parent move/parent deletion comparisons to full tree query; no unrelated backend matrix required"
+      ]
+    },
+    {
+      "id": "C3",
+      "title": "三端 contract 与泄漏",
+      "originalAction": "逐项对照公共返回类型、加载/错误/空态及 tri-framework-generics fixtures。",
+      "originalMinimum": "同一 tree fixtures 三端运行、consumer 编译、多实例；无需读取 UI 实现细节即可消费。",
+      "status": "partial",
+      "complete": false,
+      "conclusion": "三端 root 全部只导出四个同名 hook，method/options/default/result 泛型对称。React/Vue readonly resource 语义字段对齐，Angular 用 Signal 读取；Vue Ref/ComputedRef options 是 native 容器差异，不要求字面类型相同。不能把源码对称或三个独立 mock fixture 当作同一真实树运行。",
+      "productionAnchors": [
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/index.ts",
+          "start": 1,
+          "end": 15,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/use-tree.ts",
+          "start": 23,
+          "end": 81,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/use-tree.ts",
+          "start": 23,
+          "end": 78,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/use-tree.ts",
+          "start": 23,
+          "end": 77,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/hooks.ts",
+          "start": 10,
+          "end": 39,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular/src/hooks.ts",
+          "start": 19,
+          "end": 34,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-vue/src/hooks.ts",
+          "start": 77,
+          "end": 101,
+          "role": "read-implementation"
+        }
+      ],
+      "evidence": [
+        "three counterpart string generic fixtures fully inspected for relevant ranges",
+        "historical actual pack + ESM root resolution (not import/typecheck)",
+        "new consumer positive/negative files and provider/multi-root test prepared"
+      ],
+      "minimumScenarios": [
+        {
+          "scene": "同一 tree fixture 三端状态",
+          "state": "not executed; controller must provide/reconcile equivalent fixture"
+        },
+        {
+          "scene": "独立 consumer compile",
+          "state": "actual package-name inputs ready; controller offline real installation typecheck pending"
+        },
+        {
+          "scene": "多实例/泄漏",
+          "state": "prepared separate React roots/context carriers, not real connected multi-db tree and not run"
+        }
+      ],
+      "remainingActions": [
+        "controller offline consumer positive+negative diagnostics",
+        "same real fixture state/teardown evidence across three native wrappers"
+      ]
+    },
+    {
+      "id": "C4",
+      "title": "React 生命周期与竞态",
+      "originalAction": "核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。",
+      "originalMinimum": "StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。",
+      "status": "partial",
+      "complete": false,
+      "conclusion": "四 wrapper 委托同一 core hook；根 StrictMode 真 setup-cleanup-setup 的计数、layout 清理窗口和多 root/entity-provider 显式选择已写最小探针。tree hook 自身不读 useRxDB，不增加自动 provider 重定向或 fallback。",
+      "productionAnchors": [
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/use-tree.ts",
+          "start": 23,
+          "end": 81,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/hooks.ts",
+          "start": 71,
+          "end": 159,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/rxdb-react.tsx",
+          "start": 228,
+          "end": 251,
+          "role": "read-implementation"
+        }
+      ],
+      "evidence": [
+        "review-round2-lifecycle.spec.ts:156-228/303-353 prepared",
+        "RTL local pure.js root strictModeIfNeeded source read (per-call reactStrictMode:true, not wrapper:StrictMode)",
+        "provider uses genuine unconnected RxDB instances as context carriers; Observable queries stay controlled mocks"
+      ],
+      "minimumScenarios": [
+        {
+          "scene": "根级 StrictMode",
+          "state": "prepared exact subscriptions=2/cleaned=1/active=1 then unmount active=0; not run"
+        },
+        {
+          "scene": "快速 props/卸载晚到",
+          "state": "prepared active layout emission and A-B-C teardown; not run"
+        },
+        {
+          "scene": "多个 root/provider",
+          "state": "prepared explicit entity selection and one-root teardown isolation; not run"
+        }
+      ],
+      "remainingActions": [
+        "controller test + zero-warning lint + typecheck at current new spec SHA"
+      ],
+      "completeAfter": [
+        "all prepared C4 probes run and pass (or issues confirmed with stable evidence), without replacing root StrictMode with nested wrapper"
+      ]
+    },
+    {
+      "id": "C5",
+      "title": "React 类型与 render 边界",
+      "originalAction": "检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。",
+      "originalMinimum": "typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。",
+      "status": "partial",
+      "complete": false,
+      "conclusion": "public declaration retains inputs/InstanceType<T> output; missing method/query error is resource.error, non-idempotent/non-serializable options cause explicit render TypeError. identity comparison by content avoids same-value new object/factory resubscriptions; these lifecycle claims require new execution. No new any/TS ignore/Hooks rule suppression.",
+      "productionAnchors": [
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/use-tree.ts",
+          "start": 23,
+          "end": 81,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/hooks.ts",
+          "start": 71,
+          "end": 159,
+          "role": "read-implementation"
+        },
+        {
+          "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/query-options.ts",
+          "start": 13,
+          "end": 30,
+          "role": "read-implementation"
+        }
+      ],
+      "evidence": [
+        "historical workspace typecheck/string negative fixtures and strict lint only",
+        "consumer-valid.mts 4 exact ID/result type assertions and 8 positive hook calls in uninvoked functions",
+        "consumer-invalid.mts ten expected semantic errors with no type ignores",
+        "review-round2-lifecycle.spec.ts:230-301 object/factory rerender + error + invalid options prepared"
+      ],
+      "minimumScenarios": [
+        {
+          "scene": "typed real-package consumer",
+          "state": "prepared positive/negative, controller compile pending"
+        },
+        {
+          "scene": "相同值新引用/重渲染",
+          "state": "prepared two mode test (object/factory); not run"
+        },
+        {
+          "scene": "错误输入/props",
+          "state": "prepared numeric/string/level/resource negatives and render factory throw; not run"
+        },
+        {
+          "scene": "不吞异常/不屏蔽规则",
+          "state": "new source static inspected; zero-warning lint still controller request"
+        }
+      ],
+      "remainingActions": [
+        "controller positive exit0 + invalid expected diagnostic anchors, not TS2307 alone",
+        "controller unit/lint/typecheck/build public declarations"
+      ]
+    }
+  ],
+  "generalProhibition": "source inspection/probe creation/syntax parsing/old coverage are not new dynamic passes; unverified requirements only controller can defer"
+}

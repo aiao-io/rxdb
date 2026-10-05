@@ -5,6 +5,8 @@ source_root: packages/code-editor
 created: 2026-10-03
 baseline: 2e820521187cbfcd1fe76fb705659fea0a548f0e
 execution: in-progress
+round2_task: R2-01
+round2_execution: stage-final-controller-owns-remaining-evidence
 ---
 
 # code-editor：深度评审计划
@@ -25,8 +27,8 @@ CodeMirror 三端共享的文档同步、语言解析、动态语言装载与可
 | npm 名称            | `@aiao/code-editor`                                                          |
 | 计划基线            | `main@2e820521187cbfcd1fe76fb705659fea0a548f0e`，2026-10-03（Asia/Shanghai） |
 | 建议波次 / 优先风险 | W4 / 中（排期依据，不是缺陷结论）                                            |
-| 受控文件盘点        | 20 个；测试/共享套件入口 5 个（按文件名，不代表覆盖率）                      |
-| 执行状态            | 执行中：已进入全范围基线/入口阶段；专项及覆盖率未全部完成                    |
+| 受控文件盘点        | 原基线20/5；R2 scope为21个文件、6个测试入口（非用例数）                      |
+| 执行状态            | R2-01：完整源码/设计评审候选；完整原C2已核销，consumer/绑定browser余项待主控                    |
 
 范围是此对象的**全部 Git 受控源码、配置、测试、fixture、构建/打包文件与资源声明**，不是只看下面的导航入口。受控生成代码需验证生成来源与确定性；忽略的旧产物不作为当前源码证据。基线变化后先复盘 inventory / Nx targets / API，再开始评审。
 
@@ -53,7 +55,7 @@ CodeMirror 三端共享的文档同步、语言解析、动态语言装载与可
 | 编号 | 专项             | 核查动作                                                                            | 最低复验场景 / 证据要求                                                              | 状态                                                            |
 | ---- | ---------------- | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
 | C1   | 共享文档同步     | 检查外部 value 与内部编辑的比较、回写、selection/IME 保持，不做相同内容的无谓重建。 | 外部连续更新、用户输入同时更新、空文档、Unicode、只读切换；无回写死循环或输入丢失。  | 部分核销：字符串差量已核销（详本轮逐C表）                       |
-| C2   | 语言异步竞态     | 核查语言解析、动态 loader、错误类型与过期加载结果，区分未知语言与加载失败。         | A→B 快速切换、A 最后返回、未知语言、模块加载失败；旧配置不能覆盖当前语言。           | 部分执行；当轮子面已核实：解析/loader 与竞态子项（详本轮逐C表） |
+| C2   | 语言异步竞态     | 核查语言解析、动态 loader、错误类型与过期加载结果，区分未知语言与加载失败。         | A→B 快速切换、A 最后返回、未知语言、模块加载失败；旧配置不能覆盖当前语言。           | R2-01完整原C已核销：解析/loader/三端竞态；限定第一轮测量输入 |
 | C3   | 配置与跨框架语义 | 列出主题、语言、只读、变更回调和无障碍公共契约，逐一与三个组件对照。                | 相同 options/input 在三端产生同文档/错误/事件；原生 prop 形式差异不掩盖能力缺失。    | 部分执行；当轮子面已核实：共享契约及三端基础对照（详本轮逐C表） |
 | C4   | 可访问性与资源   | 核查 shared aria/input contract、扩展构造和可用环境边界。                           | 键盘焦点、IME、屏幕阅读器属性、大文档、重复消费；共享层不创建隐藏全局编辑器。        | 部分核销：纯 a11y helper / 不拥有 view 已核销（详本轮逐C表）    |
 | C5   | 打包与依赖       | 检查 CodeMirror 依赖边界、语言包按需加载和公开类型独立消费。                        | 仅一种语言 bundle、pack 后导入、缺语言资源、Node 仅导入类型；不靠工作区 alias 过关。 | 部分核销：打包条目/root 解析已核销（详本轮逐C表）               |
@@ -62,7 +64,7 @@ CodeMirror 三端共享的文档同步、语言解析、动态语言装载与可
 
 ## 4. 测试证据与联审边界
 
-按 `.spec / .test / .suite` 的 JS/TS 文件名盘点到 **5** 个受控测试/共享套件文件；该数字不是用例数、通过数或覆盖率。Rust inline tests、生成客户端类型测试和外部 suite 是否运行，需另外核对。
+原基线按 `.spec / .test / .suite` 盘点5个；R2 scope为 **6** 个受控测试/共享套件文件；该数字不是用例数、通过数或覆盖率。Rust inline tests、生成客户端类型测试和外部 suite 是否运行，需另外核对。
 
 优先核对以下测试证据入口，随后覆盖项目全部测试与配置：
 
@@ -71,10 +73,11 @@ CodeMirror 三端共享的文档同步、语言解析、动态语言装载与可
 - [`src/__tests__/language-resolution.spec.ts`](../../../packages/code-editor/src/__tests__/language-resolution.spec.ts)
 - [`src/__tests__/index.spec.ts`](../../../packages/code-editor/src/__tests__/index.spec.ts)
 - [`src/__tests__/language-error.spec.ts`](../../../packages/code-editor/src/__tests__/language-error.spec.ts)
+- [`src/__tests__/review-document-change-properties.spec.ts`](../../../packages/code-editor/src/__tests__/review-document-change-properties.spec.ts)
 
 运行配置：[`vite.config.mts`](../../../packages/code-editor/vite.config.mts)。核对 include、provider、setup、coverage 与资源回收；文件存在不等于被 target 执行。
 
-覆盖率验收：`statements / branches / functions / lines` 四项均 ≥ **80%**；本轮尚未测量。 按 [仓库覆盖率门禁](../../../scripts/audit/coverage-check.mjs) 核对来源、include / exclude 与当轮 summary；不能只报告平均值或把 skipped 当已覆盖。
+覆盖率验收：`statements / branches / functions / lines` 四项均 ≥ **80%**；2026-10-05第一轮已有真实测量，详R2继承证据；本任务不重跑。 按 [仓库覆盖率门禁](../../../scripts/audit/coverage-check.mjs) 核对来源、include / exclude 与当轮 summary；不能只报告平均值或把 skipped 当已覆盖。
 
 ### 联审边界
 
@@ -124,13 +127,13 @@ pnpm audit:coverage --projects=code-editor
 
 ## 6. 完成条件
 
-- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。
-- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。
-- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。
-- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。
+- [x] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。
+- [x] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。
+- [x] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。
+- [x] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。
 - [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。
-- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。
-- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。
+- [x] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。
+- [x] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。
 
 正式结论按总计划的证据与严重度规则登记；证据不足时保留“未验证”，不能因看过源码、跑过 lint 或存在测试文件就给全绿。
 
@@ -160,3 +163,36 @@ pnpm audit:coverage --projects=code-editor
 | C5 打包与依赖       | 部分核销：打包条目/root 解析已核销            | `/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/package.json:24-58 sideEffects/exports/files/dependencies`；`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/vite.config.mts:16-20,39-74 dts / external / lazy parser imports`             | 语言声明顶层导出；parser 动态 import；external 清单与 dependencies 对照；pack 排除 spec。                                                 | 主控 packed-consumer-entry-check.json：本包实际 pack、条目无缺失、新 consumer root resolve 成功；不是仅工作区 alias。                                                                                                                                                      | declarationCompilationExecuted=false、runtimeImportExecuted=false；独立 typed consumer、缺语言 chunk、仅 SQL bundle 实测体积仍需补证。未把可解析说成可运行。 |
 
 完整当轮门禁、完成条件逐项证据：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/code-editor.md`；本对象独立证据副本：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frontends/objects/code-editor.md`。
+
+## R2-01：2026-10-05 有界收尾（当前判定）
+
+✅ 值得做：只补实际tar consumer与原C责任划面，不扩业务/新bug。**21/21受控文件正文复读、0未读、0scope指纹漂移；受控生成文件0。** source↔当前忽略dist的公开签名/动态import及6张声明map来源已静态核对，不声称执行过确定性重构建。
+
+- 独立阅读证据：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/file-inspection.json`；resolved Nx配置：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/nx-project.json`。Angular工具只识别examples CLI workspace，generic best-practices返回Unexpected response type；未改Angular代码，不以工具误范围阻断只读接口对照。
+- 第一轮继承证据：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/inherited-evidence.json`。本包107/0fail/0skip；四指标99.13/97.95/100/100%，均≥80%。测量HEAD为44de1138b4d396fc45d6e76ab60476c40fef2223；当前正文复读HEAD为465f9078e9844af2cbef9936c7321a5576333a01，19个被测输入一致，LICENSE/README不在测量指纹里。**这是已有测量，不是新HEAD全仓绿。**
+
+| 原C | 最新状态 | 必须保留的边界 / 下一动作 |
+| --- | --- | --- |
+| C1 | 部分；差量helper闭环 | 真实输入/连续回写交错、selection/IME、只读/undo/scroll由绑定browser补证，原要求不删 |
+| C2 | **完整原C核销**（第一轮输入限定） | Node解析/loader与三端A→B/B先返/A迟到、unknown、failure断言完整；不代验C5物理chunk |
+| C3 | 部分；共享契约和三端静态接线闭环 | 同公开宿主序列的文档/事件矩阵待主控；RV-071归Angular绑定，不新报core问题 |
+| C4 | 部分；aria/focus predicate和无view责任闭环 | 真实键盘/原生IME/屏幕阅读器、大文档、重复mount/destroy未验；不写不适用 |
+| C5 | 部分；实际pack/entries/root resolve已证明 | 主控valid/invalid强类型、Node root/runtime已通过；仅SQL bundle/缺物理语言资源仍需证据，type-only辅助探针未执行 |
+
+完整划面与逐场景证据：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/responsibility-boundary.md`。语言description/load存在上游缓存，不把整个语言模块说成纯函数；共享源码自身不创建EditorView，但这不等于取消绑定宿主验证。
+
+### 主控验证交接与已承接结果（本任务未执行重验证）
+
+用户指定探针已直接写在任务目录根：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-valid.mts`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-invalid.mts`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/runtime-smoke.mjs`。附加`type-only-consumer.mts`覆盖原C5 Node仅导入类型；独立tsconfig均strict/skipLibCheck=false/no paths，无any或忽略指令。负对照9处必须有真实公开类型错误，缺依赖失败不算通过。
+
+运行/验收协议：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-protocol.md`；4项主控请求：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/validation-requests.json`。只有build是已有Nx target，其余为明确的consumer/browser证据协议，不臆造Nx target。重验证由主控串行执行，日志写parallel-round2/validation。
+
+**完成条件6/7有足够登记证据；未勾的“适用三端/多宿主链路”仍需主控接受明确归属分流/补证。** 本对象提交🟡完整源码/设计评审收口候选，不把它当完整原C全部通过、主控已接受或发布就绪。对象级机器判定和剩余动作：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/closure.json`；最新执行记录：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/code-editor.md`。
+
+### 10:57 主控consumer结果已到，不等待整批
+
+共享报告`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json`中code-editor checkedAt=2026-10-05T10:57:55.292703+08:00。**valid exit0；invalid exit2，9个预期TS2322/TS2345语义诊断、没有TS2307；root import exit0；runtime-smoke exit0。** 三个fixture SHA逐一匹配，实际tar SHA也匹配；TypeScript6.0.3、Node26.7.0，独立目录、无source aliases/工作区软链、strict/skipLibCheck=false，配置实际为ES2024/NodeNext，未套用仓库配置。
+
+完整结果与actual tsconfig摘录：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/code-editor/consumer-results.json`。C5已闭环公开声明强类型与pack后实际Node helper/SQL loader消费子面；**C5仍为部分**，仅SQL bundle模块图/体积与缺语言模块负对照由主控继续补。type-only辅助fixture已准备但未执行，不拿valid的noEmit冒称它已执行。本对象源码/C结论已交付，无需等待其他九任务。
+
+阶段final：源码/设计与独立tar主探针结果已交付；主控ten-packages-current-*串行build/unit+coverage/lint已启动，尚未将其算作通过。SQL实际bundle/missing-lang负例由主控继续，本任务结束、不再扩读或新增用例。

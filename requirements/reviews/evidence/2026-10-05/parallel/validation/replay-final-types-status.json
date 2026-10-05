@@ -1,0 +1,19 @@
+{
+  "exitCode": 1,
+  "temporaryConfig": {
+    "extends": "./tsconfig.spec.json",
+    "compilerOptions": {
+      "composite": false,
+      "incremental": false
+    },
+    "include": [
+      "src/__tests__/review-parallel-restore.spec.ts"
+    ],
+    "references": [
+      {
+        "path": "./tsconfig.lib.json"
+      }
+    ]
+  },
+  "strictSettingsUnchanged": true
+}

@@ -1,0 +1,11 @@
+{
+  "exitCode": 0,
+  "additionalTypePackage": "@types/ms 2.1.0",
+  "typePackageTarballSha256": "af7b364f6ef9ab424c010f41bafadd96baf8f07201559112e741f75b6db2a53f",
+  "explicitTypes": [
+    "node"
+  ],
+  "isExtraConsumerEnvironmentRequirement": true,
+  "bareConsumerResultRetained": "isolated-consumer-validation-bare.json",
+  "notAPublicDeclarationSelfContainmentPass": true
+}

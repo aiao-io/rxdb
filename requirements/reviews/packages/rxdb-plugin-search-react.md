@@ -3,160 +3,82 @@ kind: review-plan
 object: rxdb-plugin-search-react
 source_root: packages/rxdb-plugin-search-react
 created: 2026-10-03
+updated: 2026-10-05
 baseline: 2e820521187cbfcd1fe76fb705659fea0a548f0e
+round2_read_head: 465f9078e9844af2cbef9936c7321a5576333a01
 execution: in-progress
 ---
 
-# rxdb-plugin-search-react：深度评审计划
+# rxdb-plugin-search-react：有界收尾计划
 
-> 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
+**2026-10-05 第二轮：14/14 受控文件已完整阅读；完整 C 1/5（C1）；C2–C5 partial；完整对象候选否，发布未就绪。** 不把交付文档等同于原场景全部通过。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+## 1. 唯一范围与版本
 
-## 1. 范围与基线
+- 工作区：`/Users/jimmy/Documents/aiao/rxdb`；唯一对象：`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react`。
+- 用户任务号 R2-05，scope/instructions 为 R2-06：按指定 object 和 writeScope 执行，不修改 dispatch/scope，也不写另一任务。
+- scope 的 14 个原受控文件/摘要全部相符；新增且只新增自己的 `src/__tests__/review-round2-lifecycle.spec.ts`，未改实现、原 tests、README、依赖或其他对象。
+- 原计划 main 基线为 `2e820521187cbfcd1fe76fb705659fea0a548f0e`；历史实测为 `44de1138b4d396fc45d6e76ab60476c40fef2223`；本轮读取 HEAD 为 `465f9078e9844af2cbef9936c7321a5576333a01`。共享工作树持续变化，不称第一轮全门禁是新 HEAD 测量。
+- 全文件阅读区间、关注点、源摘要、同族只读边界与忽略的 dist 生成来源见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/file-inspection.json`。sha 核对不是阅读证据。
 
-React：SearchHandle 的框架响应式输入、结果、状态与清理封装。
+## 2. 数据与生命周期核查边界
 
-| 项目                | 基线事实                                                                          |
-| ------------------- | --------------------------------------------------------------------------------- |
-| 对象类型            | 包                                                                                |
-| 源码范围            | [`packages/rxdb-plugin-search-react`](../../../packages/rxdb-plugin-search-react) |
-| Nx 项目             | `rxdb-plugin-search-react`                                                        |
-| npm 名称            | `@aiao/rxdb-plugin-search-react`                                                  |
-| 计划基线            | `main@2e820521187cbfcd1fe76fb705659fea0a548f0e`，2026-10-03（Asia/Shanghai）      |
-| 建议波次 / 优先风险 | W4 / 中（排期依据，不是缺陷结论）                                                 |
-| 受控文件盘点        | 13 个；测试/共享套件入口 3 个（按文件名，不代表覆盖率）                           |
-| 执行状态            | 执行中：已进入全范围基线/入口阶段；专项及覆盖率未全部完成                         |
+`SearchSourceLike.search(string, SearchOptions?) → SearchHandle` 是真实输入结构；`UseSearchReturn` 是 React value + 稳定命令，不凭空添加实体泛型。query 由用户拥有，results/state/error/hasMore 由 core 拥有。
 
-范围是此对象的**全部 Git 受控源码、配置、测试、fixture、构建/打包文件与资源声明**，不是只看下面的导航入口。受控生成代码需验证生成来源与确定性；忽略的旧产物不作为当前源码证据。基线变化后先复盘 inventory / Nx targets / API，再开始评审。
+- `use-search.ts:54–65`：options 字段快照/collections 复制、初次 initialQuery 与重建判据分开；presence 与 core comparator 的差异留最小候选。
+- `use-search.ts:106–124`：仅 commit effect 创建 handle；订阅四输出；cleanup 先 unsubscribe，再 destroy，再清当前 ref。
+- `use-search.ts:126–143`：命令路由最新 handle，queryRef 播种，返回值 memo。
+- `src/index.ts:14–17` / `package.json:23–51`：共享类型、runtime error class、真实 root exports/peers；React peer 当前为 `^19.3.0`，不是旧计划 `^19.2.8`。
+- core cancel 等待者缺陷 **RV-062 只引用**；不重登记、不改 core、不把 active 请求取消的期望绿说成该缺陷修好。
 
-## 2. 阅读入口（导航，不是全部范围）
+## 3. 原 C：动作与最低场景原样保留
 
-- [`src/use-search.ts`](../../../packages/rxdb-plugin-search-react/src/use-search.ts)
-- [`src/index.ts`](../../../packages/rxdb-plugin-search-react/src/index.ts)
-- [`README.md`](../../../packages/rxdb-plugin-search-react/README.md)
-- [`package.json`](../../../packages/rxdb-plugin-search-react/package.json)
-- [`project.json`](../../../packages/rxdb-plugin-search-react/project.json)
-- [`tsconfig.lib.json`](../../../packages/rxdb-plugin-search-react/tsconfig.lib.json)
-- [`tsconfig.json`](../../../packages/rxdb-plugin-search-react/tsconfig.json)
+| 原 C | 核查动作 | 原最低复验场景 / 证据要求 | 当前状态 |
+| --- | --- | --- | --- |
+| C1 SearchHandle 映射 | 逐项核对 results/state/error/hasMore、setQuery/loadMore/clear 到核心 handle，保留空态与错误差异。 | 空词、无结果、查询失败、清空、末页；框架状态不能吞掉核心错误。 | 完整 C；历史证据限定复用 |
+| C2 快速输入与 options identity | 核查 debounce 的归属、语义相等选项、scope/branch 切换和异步过期结果。 | A→B 快速输入、相同值新对象、换库/branch、并发翻页；不重复创建 handle 或串结果。 | partial；见结果/剩余动作 |
+| C3 三端类型与依赖闭合 | 对照三端框架 idiom、公开 consumer 与 README 使用；明确必需搜索插件和不支持的 backend。 | 缺 plugin、typed consumer、同 fixtures parity、卸载；必须依赖能通过 inject 闭合。 | partial；见结果/剩余动作 |
+| C4 React 生命周期与竞态 | 核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。 | StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。 | partial；见结果/剩余动作 |
+| C5 React 类型与 render 边界 | 检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。 | typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。 | partial；见结果/剩余动作 |
 
-公共边界：
+共同底线仍为 TS strict、禁止 any/隐藏警告、TSDoc 与公开类型一致、简洁/单一职责，不加 fallback 掩盖错误。完整分类详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/c-evidence.json`，不因包小而删 branch/取消/错误/多 root/typed consumer。
 
-- 源 `package.json` 的 `exports` 键：`./package.json`、`.`；逐一核查 types / import / default 与发布文件对应关系。
-- API 对照：[当前 API baseline](../../api-baseline/rxdb-plugin-search-react.json)；符号存在不等于归属、语义和兼容性已验证。
-- `peerDependencies` 边界：`@aiao/rxdb: *`、`@aiao/rxdb-plugin-search: *`、`react: ^19.2.8`、`rxjs: ^7.8.2`；验证消费端配置，不用内部路径绕过缺失依赖。
+## 4. 已完成证据与最小追加探针
 
-## 3. 专项核查与最低复验场景
+- 已读 14 个原文件：2 个源码、4 个测试文件、README、LICENSE、manifest/Nx/三个 TS 配置/Vite；无遗漏、无只导航代全读。
+- 第一轮 unit：3 files / 24 tests 通过；真实 C1 晚探针三端各 1 test 通过。React 当前探针只有 import 排序/格式化变化，import 集合和非 import token 等价、core 80 个已记录输入未变，限定复用证明见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/historical-reuse.json`。
+- 历史四指标（statements/branches/functions/lines）：96.66% / 81.81% / 100% / 100%，各 ≥80%；仅 V8 的 wrapper 测量面，不含本轮新探针，不证明真实 browser/backend/branch。
+- 新探针 13 个用例只补边界：真实 core 防抖/串行 A→B、换 source/scope 迟到结果或错误、options 返回 identity/presence、并发分页、clear/unmount 取消已执行分页、两个独立 StrictMode root、SSR 无 render IO、真实 RxDB 缺插件/未安装的错误边界。**本任务未运行。**
+- task 目录 `consumer-valid.mts` / `consumer-invalid.mts` 用真实公开类型和包名 imports，无 paths/any/ts-expect-error；所有 hook 类型调用在未执行函数体内，runtime 不顶层调用 hook。
 
-| 编号                                                                                                                                                                                                                                                 | 专项                        | 核查动作                                                                                                             | 最低复验场景 / 证据要求                                                                               | 状态    |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------- |
-| C1                                                                                                                                                                                                                                                   | SearchHandle 映射           | 逐项核对 results/state/error/hasMore、setQuery/loadMore/clear 到核心 handle，保留空态与错误差异。                    | 空词、无结果、查询失败、清空、末页；框架状态不能吞掉核心错误。                                        | partial |
-| C2                                                                                                                                                                                                                                                   | 快速输入与 options identity | 核查 debounce 的归属、语义相等选项、scope/branch 切换和异步过期结果。                                                | A→B 快速输入、相同值新对象、换库/branch、并发翻页；不重复创建 handle 或串结果。                       | partial |
-| C3                                                                                                                                                                                                                                                   | 三端类型与依赖闭合          | 对照三端框架 idiom、公开 consumer 与 README 使用；明确必需搜索插件和不支持的 backend。                               | 缺 plugin、typed consumer、同 fixtures parity、卸载；必须依赖能通过 inject 闭合。                     | partial |
-| C4                                                                                                                                                                                                                                                   | React 生命周期与竞态        | 核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。 | StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。                   | partial |
-| C5                                                                                                                                                                                                                                                   | React 类型与 render 边界    | 检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。                                  | typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。 | partial |
-| 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。 |
+## 5. 主控验证请求（本任务不跑重任务）
 
-## 4. 测试证据与联审边界
+以 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/resolved-project.json` 为 resolved targets：lint=`eslint .`，test=`vitest`（happy-dom/V8；依赖 `^build`），typecheck=`tsc --build --emitDeclarationOnly`（依赖 build/`^typecheck`）；不把局部 project.json 当完整配置。配置未单独提供本包 browser target。
 
-按 `.spec / .test / .suite` 的 JS/TS 文件名盘点到 **3** 个受控测试/共享套件文件；该数字不是用例数、通过数或覆盖率。Rust inline tests、生成客户端类型测试和外部 suite 是否运行，需另外核对。
+| 请求 | project / target | 必要面 |
+| --- | --- | --- |
+| search-react-r2-lint | rxdb-plugin-search-react / lint | 新 probe 零警告，不关闭 Hooks lint |
+| search-react-r2-types | rxdb-plugin-search-react / typecheck | 新 probe strict 类型；记录 build/依赖和 spec 实际 include |
+| search-react-r2-hooks | rxdb-plugin-search-react / test | 串行本包 unit、新 13 例、原始失败/JUnit/四指标/输入指纹 |
+| search-react-r2-packed-consumer | 主控 evidence probe，不是 Nx target | 实际 tar 根编译正负与 root import；保留裸 strict 失败，另做显式 Node + @types/ms 对照 |
+| search-react-r2-branch-consumer | 主控 runtime surface，不是 Nx target | 一个已有 supported backend 的真实 RxDB branch checkout + 在途分页；不要用换 source 的控制器代替 |
 
-优先核对以下测试证据入口，随后覆盖项目全部测试与配置：
+必要未验必须补实际日志或由主控按理由裁定分流，不能标成不适用或因为已分流而变绿。确切 args/reason/criticalForC 已提前写入 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/validation-requests.json`。不等无关后端，不自行 build/test/coverage/e2e/server/容器，不 add/commit/reset/stash/unstage。
 
-- [`src/__tests__/use-search.spec.ts`](../../../packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts)
-- [`src/__tests__/index.spec.ts`](../../../packages/rxdb-plugin-search-react/src/__tests__/index.spec.ts)
-- [`src/__tests__/readme-consumer.spec.tsx`](../../../packages/rxdb-plugin-search-react/src/__tests__/readme-consumer.spec.tsx)
+主控已回传实际 tar root import exit 0；首次裸 strict valid exit 2（utils public.d.ts 缺 NodeJS/ms 声明），invalid 有 7 处本 fixture 的真实类型诊断，但混有同样依赖错误。**保留原失败，等待显式 Node + @types/ms 环境对照；不改 source mapping，不弱化 strict/skipLibCheck，不把 invalid 的 exit 2 本身当负对照通过。**
 
-运行配置：[`vite.config.mts`](../../../packages/rxdb-plugin-search-react/vite.config.mts)。核对 include、provider、setup、coverage 与资源回收；文件存在不等于被 target 执行。
+## 6. 原完成条件逐条判定
 
-覆盖率验收：`statements / branches / functions / lines` 四项均 ≥ **80%**；本轮尚未测量。 按 [仓库覆盖率门禁](../../../scripts/audit/coverage-check.mjs) 核对来源、include / exclude 与当轮 summary；不能只报告平均值或把 skipped 当已覆盖。
+- [x] **D1** 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。 — complete。
+- [x] **D2** 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。 — 通过（分类齐全，不代表全部 C 完整）。
+- [ ] **D3** 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。 — partial。
+- [ ] **D4** 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。 — partial。
+- [ ] **D5** 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。 — partial。
+- [ ] **D6** 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。 — partial。
+- [ ] **D7** 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。 — partial。
 
-### 联审边界
+评审完成与修复/发布就绪分开。已确认缺陷可分流，但必要场景缺实测不能核销完整对象。对象结果：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-search-react.md`；机器 closure：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/closure.json`。
 
-Nx 基线图中的直接内部依赖：[`rxdb`](rxdb.md)、[`rxdb-plugin-search`](rxdb-plugin-search.md)。
+## 7. 历史与当前状态分离
 
-Nx 基线图中的直接消费者：[`dev-rxdb-react`](../apps/dev-rxdb-react.md)。
-
-依赖图只用于导航，不能证明动态加载、生成代码、跨进程协议和真实调用方已全覆盖；没有图边不等于没有消费者。
-
-**搜索联审**：[`rxdb-plugin-search`](rxdb-plugin-search.md)、[`rxdb-plugin-search-angular`](rxdb-plugin-search-angular.md)、[`rxdb-plugin-search-vue`](rxdb-plugin-search-vue.md)。对照输入/输出、pending/error、取消、重订阅、并发和释放的语义；保留框架原生表达，不强行同名生命周期实现。
-
-## 5. 执行命令与环境
-
-前置环境：需当前框架的实际 test 配置；模拟 DOM 的组件测试与真实 browser/application 复验分别记录。
-
-所有命令在仓库根目录执行；这是后续评审的命令计划，本轮没有执行这些业务门禁。
-
-### 基线已确认的评审目标
-
-| Nx target   | 用途与证据边界                                                         |
-| ----------- | ---------------------------------------------------------------------- |
-| `lint`      | ESLint 零警告；检查忽略、禁用规则与警告策略，不只看进程退出码。        |
-| `typecheck` | 公开 API 与本项目 TS 类型；注意配置 include / exclude 的真实范围。     |
-| `test`      | 当前 Vitest 配置；核对 Node / DOM / browser project、skip 与依赖任务。 |
-| `build`     | 当前构建产物；检查入口、声明、外部依赖、资源与可重复性。               |
-
-表中只列本轮门禁/专项目标，不包含 serve、发布、更新或推断出的逐 spec shard。执行前重新获取 resolved config，确认目标、`dependsOn`、缓存输入及外部副作用；以当前配置为准。
-
-### 常规初筛
-
-```bash
-NX_DAEMON=false pnpm nx show project rxdb-plugin-search-react --json
-CI=true NX_DAEMON=false pnpm nx run rxdb-plugin-search-react:lint --max-warnings=0 --skipRemoteCache
-CI=true NX_DAEMON=false pnpm nx run-many -t typecheck test build --projects=rxdb-plugin-search-react --parallel=1 --skipRemoteCache
-```
-
-初筛允许读取本地缓存，但不能据此称本轮真实复现。用于缺陷复现/最终动态结论时，对下列任务使用 `--skipNxCache` 禁用本地缓存，并留存 SHA、命令、运行环境、通过/失败/skip 与日志。
-
-### 专项与当轮动态证据（满足上述隔离前提后）
-
-```bash
-CI=true NX_DAEMON=false pnpm nx run rxdb-plugin-search-react:test --coverage --skipRemoteCache --skipNxCache
-pnpm audit:coverage --projects=rxdb-plugin-search-react
-```
-
-- 普通 `test` 自身可能已经是 browser project；没有单独 `test-browser` 不表示缺少浏览器测试。EPIPE、worker 崩溃或 service stopped 先串行隔离复跑，不直接归因为业务缺陷。
-
-## 6. 完成条件
-
-- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。
-- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。
-- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。
-- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。
-- [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。
-- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。
-- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。
-
-正式结论按总计划的证据与严重度规则登记；证据不足时保留“未验证”，不能因看过源码、跑过 lint 或存在测试文件就给全绿。
-
-## 7. 本轮实际执行记录
-
-[已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-plugin-search-react.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
-
-## 2026-10-05 frameworks 本轮完成条件与实际核查
-
-本轮 `main/worktree@44de1138b4d396fc45d6e76ab60476c40fef2223`，日期 2026-10-05。不是新泛计划，而是对原 C 的实际结论：**0/5 个完整 C、execution 保持 in-progress；结果记录保持 partial；本对象不是全对象完成候选。**
-
-全部 13 个受控文件的范围/摘要已核对，正文片段 4、outline 0、仅导航 0、未人工检查 9；不能将 scope 盘点称为全读。
-
-| 原 C                           | 本轮结论          | 原场景中仍缺的必要证据                                                                                                              |
-| ------------------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| C1 SearchHandle 映射           | partial；局部通过 | 三端同序列空词→无结果→失败→重试→末页→清空的真实 core handle 新探针已写，主控尚未补跑；因此不把 C1 提前核销。                        |
-| C2 快速输入与 options identity | partial；局部通过 | 缺 A→B 真正异步查询代次与 branch 变化并发翻页的三端同 fixture；既有桩 emission 隔离不等价于完整搜索后端时序。                       |
-| C3 三端类型与依赖闭合          | partial；局部通过 | pack 证据未执行声明编译/runtime import；缺插件、backend 不支持、typed root consumer 及同 fixtures parity 的完整消费链路未全部覆盖。 |
-| C4 React 生命周期与竞态        | partial；局部通过 | 缺多个独立 root、真实异步查询快速 props 与卸载后的 core 结果组合。                                                                  |
-| C5 React 类型与 render 边界    | partial；局部通过 | 错误 props 的独立 strict consumer 与 render/异常边界未完整取证；新 spec 类型门禁需补跑。                                            |
-
-本轮完成条件：
-
-- [x] 全受控 inventory / 摘要核对，未排除配置/资源/fixture。
-- [ ] 全部受控内容阅读及全部原 C 场景核销（缺口见表，保持 partial）。
-- [x] 每 C 已有明确的已证/未证结论及角色明确的源码、测试锚点。
-- [x] 当前 baseline 的 unit / 四指标 / 零警告 lint / typecheck / 真 pack 来源已读取登记。
-- [ ] 晚加探针补跑、独立 typed/runtime consumer、真实完整 UI/生命周期等必要缺口全部关闭。
-- [ ] 全对象证据完成与最终评级（不要求零缺陷，但不能缺验证）；尚未完成。
-
-本对象四指标（statements/branches/functions/lines）：**96.66% / 81.81% / 100% / 100%**；阈值各项 ≥ 80%。其余18包的绿不能抹掉 rxdb-angular 的16个失败；新探针不继承基线通过。
-发布 pack 根是 `packages/rxdb-plugin-search-react`，实际 tarball 目标文件存在、独立根 ESM 解析通过；**不包含 typed consumer 编译/runtime import**。Angular 不能按源 manifest 缺 exports 报错。
-
-逐 C 原场景、函数/测试证据与完成条件详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-search-react.md`；机器证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`。
+2026-10-03 入口批及 2026-10-05 第一轮 frameworks 的“13 文件、4 文件正文/9 未读、C1 探针未跑”是历史状态，不能沿用为本轮事实：本轮 scope 为14文件全部正文已读，C1 的主控晚测日志已存在。本轮没有删除历史日志/旧 RV；也没有把它们改造成新 HEAD 的执行。

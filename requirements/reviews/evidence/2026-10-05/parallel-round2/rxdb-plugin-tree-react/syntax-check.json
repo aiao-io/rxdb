@@ -1,0 +1,22 @@
+{
+  "compilerVersion": "6.0.3",
+  "typecheckExecuted": false,
+  "testsExecuted": false,
+  "results": [
+    {
+      "path": "packages/rxdb-plugin-tree-react/src/__tests__/review-round2-lifecycle.spec.ts",
+      "syntaxOnly": true,
+      "diagnostics": []
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-valid.mts",
+      "syntaxOnly": true,
+      "diagnostics": []
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/consumer-invalid.mts",
+      "syntaxOnly": true,
+      "diagnostics": []
+    }
+  ]
+}

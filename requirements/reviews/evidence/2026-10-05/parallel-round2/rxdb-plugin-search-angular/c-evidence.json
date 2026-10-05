@@ -1,0 +1,310 @@
+{
+  "object": "rxdb-plugin-search-angular",
+  "task": "R2-04",
+  "scopeTask": "R2-05",
+  "recordedAt": "2026-10-05T11:07:10.962597+08:00",
+  "headAtInspection": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "originalCCount": 5,
+  "fullCCount": 0,
+  "partialCCount": 5,
+  "allOriginalScenariosRetained": true,
+  "items": [
+    {
+      "id": "C1",
+      "title": "SearchHandle 映射",
+      "action": "逐项核对 results/state/error/hasMore、setQuery/loadMore/clear 到核心 handle，保留空态与错误差异。",
+      "minimumScenarios": "空词、无结果、查询失败、清空、末页；框架状态不能吞掉核心错误。",
+      "status": "partial",
+      "fullC": false,
+      "productionAnchors": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/inject-search.ts:48-65",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/inject-search.ts:94-98,125-163,178-211"
+      ],
+      "proved": [
+        "四流映射保持core的五态/错误对象；query是唯一WritableSignal，四输出使用asReadonly。",
+        "loadMore/clear/retry通过active路由最新handle；loadMore不catch，结构source拒绝不被转成成功。",
+        "历史22测试与四项100%来源已实读且已测源码/核心子集无漂移；真实core C1旧探针1 passed，但探针本身hash后来变化。"
+      ],
+      "testAnchors": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts:78-163,221-297",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/review-parallel-real-handle.spec.ts:43-88",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/review-round2-lifecycle.spec.ts:367-374"
+      ],
+      "remaining": [
+        "以当前88行review-parallel-real-handle版本重跑空词→无结果→错误identity→retry→末页→clear完整序列；09:34日志不能自动继承。",
+        "运行新loadMore拒绝探针，确认来自外部SearchSourceLike的命令Promise不被吞；不同于core可恢复查询错误。"
+      ],
+      "requestIds": [
+        "search-angular-round2-test"
+      ],
+      "scenarioCoverage": [
+        {
+          "scenario": "空词",
+          "state": "defined-but-current-probe-rerun-required",
+          "probe": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/review-parallel-real-handle.spec.ts:43-88"
+        },
+        {
+          "scenario": "无结果",
+          "state": "defined-but-current-probe-rerun-required",
+          "probe": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/review-parallel-real-handle.spec.ts:43-88"
+        },
+        {
+          "scenario": "查询失败/错误identity",
+          "state": "defined-but-current-probe-rerun-required",
+          "probe": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/review-parallel-real-handle.spec.ts:43-88"
+        },
+        {
+          "scenario": "清空",
+          "state": "defined-but-current-probe-rerun-required",
+          "probe": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/review-parallel-real-handle.spec.ts:43-88"
+        },
+        {
+          "scenario": "末页/no-op",
+          "state": "defined-but-current-probe-rerun-required",
+          "probe": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/review-parallel-real-handle.spec.ts:43-88"
+        }
+      ],
+      "newDynamicEvidenceStatus": "defined-not-run-by-agent"
+    },
+    {
+      "id": "C2",
+      "title": "快速输入与 options identity",
+      "action": "核查 debounce 的归属、语义相等选项、scope/branch 切换和异步过期结果。",
+      "minimumScenarios": "A→B 快速输入、相同值新对象、换库/branch、并发翻页；不重复创建 handle 或串结果。",
+      "status": "partial",
+      "fullC": false,
+      "productionAnchors": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/inject-search.ts:91-94,113-132,168-182,203-211",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search/src/core/options-equality.ts:17-32,53-62",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search/src/core/search-handle.ts:108-169,173-185,240-269"
+      ],
+      "proved": [
+        "绑定没有另加debounce；防抖属于core，query effect只按last去重。",
+        "options共用core equality；initialQuery只初始种子，semantic等价对象不install，source identity或四个比较字段变化才重建；重建seed为当前query。",
+        "旧四订阅在nextSource.search之前unsubscribe/destroy，最新命令不捕获旧handle；stock桩测试的同值新对象/换源/旧emission隔离已在历史运行。"
+      ],
+      "testAnchors": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts:306-455",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/review-round2-lifecycle.spec.ts:177-259"
+      ],
+      "remaining": [
+        "执行fake-timer A→B debounce、真实core在途查询换源/分页late完成新探针，核对订阅计数与AbortSignal；新源名字source-new不是RxDB branch证据。",
+        "原场景中的真实同一RxDB branch与分页交错、同fixture三端结果需要主控补证/映射；A已经执行时B排队的中间输出尚未由本探针逐帧断言，不用最终快照假称强latest-only时序。"
+      ],
+      "requestIds": [
+        "search-angular-round2-test",
+        "search-angular-round2-browser"
+      ],
+      "scenarioCoverage": [
+        {
+          "scenario": "A→B快速输入",
+          "state": "probe-defined-not-run",
+          "probe": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/review-round2-lifecycle.spec.ts:177-196"
+        },
+        {
+          "scenario": "相同值新对象/initialQuery-only",
+          "state": "historical-stock-test-passed-current-source-matches",
+          "probe": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts:347-385"
+        },
+        {
+          "scenario": "换库/source + 在途分页",
+          "state": "probe-defined-not-run",
+          "probe": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/review-round2-lifecycle.spec.ts:198-259"
+        },
+        {
+          "scenario": "真实branch + 并发分页",
+          "state": "unverified-controller-action-required"
+        }
+      ],
+      "newDynamicEvidenceStatus": "defined-not-run-by-agent"
+    },
+    {
+      "id": "C3",
+      "title": "三端类型与依赖闭合",
+      "action": "对照三端框架 idiom、公开 consumer 与 README 使用；明确必需搜索插件和不支持的 backend。",
+      "minimumScenarios": "缺 plugin、typed consumer、同 fixtures parity、卸载；必须依赖能通过 inject 闭合。",
+      "status": "partial",
+      "fullC": false,
+      "productionAnchors": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/index.ts:13-16",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/package.json:24-41",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/README.md:8-59,61-78",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search/src/plugin.ts:196,239-247,299-310,648-652",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search/src/backend/backend-registry.ts:64-91,125-137"
+      ],
+      "proved": [
+        "三端实际入口均useSearch；core错误class保留值导出，SearchHandle/Options/Result/State及SourceLike为同一type透传，容器差异是框架idiom。",
+        "安装和backend拒绝由core控制：inject=adapter:local、constructor resolve backend、search前assertInstalled；Angular直接调用source.search不设catch/fallback。",
+        "APF发布根为resolved release的dist目录；六文件tar与独立root ESM resolve历史通过，generated d.ts与当前签名/source-map已读；不是运行import/typed消费。",
+        "2026-10-05 11:04主控真实tar、无workspace alias、strict/skipLibCheck=false：正例exit0，负例exit2且五个TS2322/TS2345均落在consumer call/handle/return行；fixture摘要与当前文件一致。root import出口SearchExecutionError/useSearch已实际通过，Node侧显式预载Angular compiler。"
+      ],
+      "testAnchors": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/index.spec.ts:14-35",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/release-config.spec.ts:13-19",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts:210-219",
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/consumer-valid.mts",
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/consumer-invalid.mts"
+      ],
+      "remaining": [
+        "主控裁定无补充Node+@types/ms时utils公开声明消费风险；当前tar严格消费者与根import已在显式ambient对照闭环，不扩写utils。",
+        "缺plugin/未连接与backend不支持需真实RxDB路径动态证据；原stock throwing source仅证明wrapper透传，不当成已跑真实插件。",
+        "同fixture三端卸载/状态序列的当前指纹需主控映射；README required input疑点待主控实际NG0950复验。"
+      ],
+      "requestIds": [
+        "search-angular-round2-test",
+        "search-angular-round2-build-consumer",
+        "search-angular-round2-browser"
+      ],
+      "scenarioCoverage": [
+        {
+          "scenario": "缺plugin与backend拒绝",
+          "state": "static-contract-read-dynamic-real-db-unverified"
+        },
+        {
+          "scenario": "typed consumer/runtime import",
+          "state": "qualified-packed-consumer-and-runtime-passed-bare-risk-retained"
+        },
+        {
+          "scenario": "同fixtures parity",
+          "state": "root-parity-read-historical-probe-hash-drift-rerun-required"
+        },
+        {
+          "scenario": "卸载",
+          "state": "historical-injector-proved-component-probe-not-run"
+        }
+      ],
+      "newDynamicEvidenceStatus": "defined-not-run-by-agent",
+      "consumerQualification": "通过仅限显式Node ambient与@types/ms 2.1.0对照环境。bare正例/负例均有utils NodeJS/ms公开声明错误；不声称普通消费声明自闭合。",
+      "dynamicConsumerEvidence": [
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json",
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation-bare.json",
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-ambient-types.json"
+      ]
+    },
+    {
+      "id": "C4",
+      "title": "Angular 生命周期与注入",
+      "action": "核查注入上下文、DestroyRef/effect cleanup、provider scope 和框架原生 Signal 更新；按仓库约定检查 standalone/OnPush，避免为风格改写已稳定 API。",
+      "minimumScenarios": "切换 inputs、销毁中异步完成、子 provider 覆盖、同组件多实例；无订阅泄漏或跨库状态。",
+      "status": "partial",
+      "fullC": false,
+      "productionAnchors": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/inject-search.ts:89-98,125-163,165-192",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/test-setup.ts:1-25"
+      ],
+      "proved": [
+        "DestroyRef与ErrorHandler来自注入上下文；host destroy主动停止两effect、四Subscription和最新handle，并先清空active。",
+        "root EnvironmentInjector销毁/桩晚到emission/销毁后commands/no-op已在历史stock测试通过，证据只限该层。",
+        "结构source协议error不伪装成可恢复搜索error$：ErrorHandler唯一出口先关闭nextSubs；四路错误与真实component释放新增判别探针。"
+      ],
+      "testAnchors": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts:166-218,278-297,438-455",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/review-round2-lifecycle.spec.ts:198-232,260-365,405-412"
+      ],
+      "remaining": [
+        "主控运行@Input setter→signals的真实JIT组件inputs、子provider、三个同组件实例、在途销毁late完成和四流error observer归零；不是仅以stub DestroyRef callback或return对象冒充组件证据。",
+        "README required input字段构造同步read候选若失败要单独归因NG0950；不把缺Angular编译元数据的setInput错报成产品bug。",
+        "真实route反复卸载不由TestBed重挂代替；相关C5 browser补证仍需。"
+      ],
+      "requestIds": [
+        "search-angular-round2-test",
+        "search-angular-round2-build-consumer",
+        "search-angular-round2-browser"
+      ],
+      "scenarioCoverage": [
+        {
+          "scenario": "切换inputs",
+          "state": "JIT-component-probe-defined-not-run"
+        },
+        {
+          "scenario": "销毁中异步完成",
+          "state": "real-handle-probe-defined-not-run"
+        },
+        {
+          "scenario": "子provider覆盖/同组件多实例",
+          "state": "three-instance-probe-defined-not-run"
+        },
+        {
+          "scenario": "无四流订阅或跨库状态泄漏",
+          "state": "historical-wrapper-isolation-plus-new-observer-count-probe-not-run"
+        }
+      ],
+      "newDynamicEvidenceStatus": "defined-not-run-by-agent"
+    },
+    {
+      "id": "C5",
+      "title": "Angular 类型与运行证据",
+      "action": "核查模板类型、泛型推导和真实组件 fixture；区分纯函数、模拟组件与浏览器/实际应用证据。",
+      "minimumScenarios": "typed consumer 编译、模板事件/输入错误、错误与空态；真实 route 挂载/卸载，不用类型断言掩盖错误。",
+      "status": "partial",
+      "fullC": false,
+      "productionAnchors": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/inject-search.ts:48-65,85-88",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/tsconfig.json:2-6,18-24",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/tsconfig.lib.json:10-19",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/tsconfig.spec.json:8-14",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/vite.config.mts:20-34",
+        "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/pages/search/search.page.ts:129-137"
+      ],
+      "proved": [
+        "useSearch/UseSearchReturn本身不是实体泛型API；SearchSourceLike为structural search契约，结果是跨collection SearchResult元数据，不能发明RxDocument<T>推导要求。",
+        "静态返回类型为WritableSignal<string>、四个Signal及Promise<void>/void；APF声明已读且与source签名一致。",
+        "Vite仅JIT+happy-dom，tsc/spec typecheck不检查inline模板；原build排除spec；strictTemplates开关存在不等于新fixture经过ngc。",
+        "2026-10-05 11:04主控真实tar、无workspace alias、strict/skipLibCheck=false：正例exit0，负例exit2且五个TS2322/TS2345均落在consumer call/handle/return行；fixture摘要与当前文件一致。root import出口SearchExecutionError/useSearch已实际通过，Node侧显式预载Angular compiler。"
+      ],
+      "testAnchors": [
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/consumer-valid.mts",
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/consumer-invalid.mts",
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/template-valid.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-angular/template-invalid.ts",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/review-round2-lifecycle.spec.ts:376-403",
+        "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular-e2e/src/search.spec.ts:32-94"
+      ],
+      "remaining": [
+        "严格tar正负consumer已在显式Node+@types/ms环境验证；保留bare声明闭合风险，不当成零附加类型依赖的browser consumer绿。",
+        "独立ngc strictTemplates编译template-valid.ts exit0/invalid真实模板输入与事件错误；不能拿consumer tsc通过替代ngc。",
+        "主控执行真实/search挂卸与空态/错误/分页；已有search.spec只一例a11y且错误为simulateError，不覆盖真实query失败、branch+分页或route卸载。"
+      ],
+      "requestIds": [
+        "search-angular-round2-typecheck",
+        "search-angular-round2-build-consumer",
+        "search-angular-round2-browser",
+        "search-angular-round2-test"
+      ],
+      "scenarioCoverage": [
+        {
+          "scenario": "typed consumer编译",
+          "state": "qualified-strict-tar-positive-negative-passed-bare-risk-retained"
+        },
+        {
+          "scenario": "模板事件/输入错误",
+          "state": "ngc-positive-negative-fixtures-ready-not-run"
+        },
+        {
+          "scenario": "错误与空态",
+          "state": "JIT-DOM-real-core-fixture-defined-not-run"
+        },
+        {
+          "scenario": "真实route挂卸",
+          "state": "unverified-existing-E2E-shard-insufficient"
+        }
+      ],
+      "newDynamicEvidenceStatus": "defined-not-run-by-agent",
+      "consumerQualification": "通过仅限显式Node ambient与@types/ms 2.1.0对照环境。bare正例/负例均有utils NodeJS/ms公开声明错误；不声称普通消费声明自闭合。",
+      "dynamicConsumerEvidence": [
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json",
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation-bare.json",
+        "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-ambient-types.json"
+      ]
+    }
+  ],
+  "registeredIssueReferenceOnly": [
+    {
+      "id": "RV-062",
+      "file": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/RV-062-parallel-search-cancel.md",
+      "statusFromRegistry": "confirmed-open",
+      "rootCauseOwner": "rxdb-plugin-search/core",
+      "qualification": "clear/destroy丢pending waiters，Angular await loadMore不能替core保证所有取消结算；只引用，不重复登记或修改。"
+    }
+  ]
+}

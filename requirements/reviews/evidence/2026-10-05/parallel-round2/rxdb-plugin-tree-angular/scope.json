@@ -1,0 +1,77 @@
+{
+  "task": "R2-02",
+  "object": "rxdb-plugin-tree-angular",
+  "sourceRoot": "packages/rxdb-plugin-tree-angular",
+  "trackedFiles": [
+    {
+      "path": "packages/rxdb-plugin-tree-angular/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-angular/README.md",
+      "sha256": "b5e277f3373f80684211a9dd333134d8c20c44e3cc42dad62397bc849a5a4643"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-angular/ng-package.json",
+      "sha256": "a077726530691e59c3c66b0f57e4a8acb6dd828b5dcb34f8bd0bd6e919da862e"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-angular/package.json",
+      "sha256": "2d9205ce5f6f66aa4a774c67f3ef1ae917a8e28400d2c0d59caa2b6db2fe9f22"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-angular/project.json",
+      "sha256": "c6c9a5829c7cfdc79b82329793453df81225a9e416585e8acad76719e5486530"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-angular/src/__tests__/index.spec.ts",
+      "sha256": "810b61524df7deca709c1ad4dbccece8bf029e808da0c2883785cc558208fb9b"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-angular/src/__tests__/tri-framework-generics.spec.ts",
+      "sha256": "17eba8518f5e892ce126a1acb88eeeb0cb910e384a253ecccebb5347759fd85d"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-angular/src/__tests__/use-tree.spec.ts",
+      "sha256": "9ee06597be41c8638df9d256065f84ecbc64fc45a978a397ec77d55724173dcd"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-angular/src/index.ts",
+      "sha256": "8caca19e174c964ff8f8016eb6933d9249129c10e2a6d838a3b16431168c8f35"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-angular/src/test-setup.ts",
+      "sha256": "1576379410b4dd466bcbddbec1875b6c88e1e70ddc74b652e805fbbc6a0ed6ac"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-angular/src/use-tree.ts",
+      "sha256": "eccc5a9fbfe95f06fea471ddc75747972f5497c6c18fcaa80543232e02dd4731"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-angular/tsconfig.json",
+      "sha256": "39485b026f99d20bbf2ef186c576dfbb65e80a3936e2abf44958b4c93ded4f84"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-angular/tsconfig.lib.json",
+      "sha256": "a345e8c3d8012b1932d6da1e04865003e0ca51d553dc6199d0cd94fa554f2bf3"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-angular/tsconfig.lib.prod.json",
+      "sha256": "848772818d2f1f11e5815d1d163f94e63c9bb758ce888c5491e314d608c836b9"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-angular/tsconfig.spec.json",
+      "sha256": "71732472f5200d3d58b71466a995e8570372c64b6459ad20a77a3f8075e1c2cb"
+    },
+    {
+      "path": "packages/rxdb-plugin-tree-angular/vite.config.mts",
+      "sha256": "0e812ec2199bff852b837f96ef77e449cdc1148b70e8dfb0ff3dade4d51252fc"
+    }
+  ],
+  "writeScope": [
+    "requirements/reviews/packages/rxdb-plugin-tree-angular.md",
+    "requirements/reviews/results/packages/rxdb-plugin-tree-angular.md",
+    "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular"
+  ],
+  "status": "queued"
+}

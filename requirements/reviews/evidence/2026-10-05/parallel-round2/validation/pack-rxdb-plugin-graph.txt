@@ -1,0 +1,240 @@
+CWD: /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph
+COMMAND: pnpm pack --json --out /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-graph.tgz
+{
+  "name": "@aiao/rxdb-plugin-graph",
+  "version": "0.0.26",
+  "filename": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-plugin-graph.tgz",
+  "files": [
+    {
+      "path": "dist/@GraphEntity.d.ts"
+    },
+    {
+      "path": "dist/@GraphEntity.d.ts.map"
+    },
+    {
+      "path": "dist/constants-B4SMHnz9.js"
+    },
+    {
+      "path": "dist/constants.d.ts"
+    },
+    {
+      "path": "dist/constants.d.ts.map"
+    },
+    {
+      "path": "dist/generator.js"
+    },
+    {
+      "path": "dist/generator/GraphRepositoryGenerator.d.ts"
+    },
+    {
+      "path": "dist/generator/GraphRepositoryGenerator.d.ts.map"
+    },
+    {
+      "path": "dist/generator/index.d.ts"
+    },
+    {
+      "path": "dist/generator/index.d.ts.map"
+    },
+    {
+      "path": "dist/graph_edge_entity.d.ts"
+    },
+    {
+      "path": "dist/graph_edge_entity.d.ts.map"
+    },
+    {
+      "path": "dist/graph-edge-entity.factory.d.ts"
+    },
+    {
+      "path": "dist/graph-edge-entity.factory.d.ts.map"
+    },
+    {
+      "path": "dist/graph-metadata.interface.d.ts"
+    },
+    {
+      "path": "dist/graph-metadata.interface.d.ts.map"
+    },
+    {
+      "path": "dist/graph-query-result.d.ts"
+    },
+    {
+      "path": "dist/graph-query-result.d.ts.map"
+    },
+    {
+      "path": "dist/graph-query.interface.d.ts"
+    },
+    {
+      "path": "dist/graph-query.interface.d.ts.map"
+    },
+    {
+      "path": "dist/graph-repository.interface.d.ts"
+    },
+    {
+      "path": "dist/graph-repository.interface.d.ts.map"
+    },
+    {
+      "path": "dist/graph.interface.d.ts"
+    },
+    {
+      "path": "dist/graph.interface.d.ts.map"
+    },
+    {
+      "path": "dist/GraphEntityBase.d.ts"
+    },
+    {
+      "path": "dist/GraphEntityBase.d.ts.map"
+    },
+    {
+      "path": "dist/GraphRepository.d.ts"
+    },
+    {
+      "path": "dist/GraphRepository.d.ts.map"
+    },
+    {
+      "path": "dist/index.d.ts"
+    },
+    {
+      "path": "dist/index.d.ts.map"
+    },
+    {
+      "path": "dist/index.js"
+    },
+    {
+      "path": "dist/plugin.d.ts"
+    },
+    {
+      "path": "dist/plugin.d.ts.map"
+    },
+    {
+      "path": "dist/query/merge_create.d.ts"
+    },
+    {
+      "path": "dist/query/merge_create.d.ts.map"
+    },
+    {
+      "path": "dist/query/merge_remove.d.ts"
+    },
+    {
+      "path": "dist/query/merge_remove.d.ts.map"
+    },
+    {
+      "path": "dist/query/merge_update.d.ts"
+    },
+    {
+      "path": "dist/query/merge_update.d.ts.map"
+    },
+    {
+      "path": "dist/query/touches_edge_table.d.ts"
+    },
+    {
+      "path": "dist/query/touches_edge_table.d.ts.map"
+    },
+    {
+      "path": "dist/sqlite.d.ts"
+    },
+    {
+      "path": "dist/sqlite.d.ts.map"
+    },
+    {
+      "path": "dist/sqlite.js"
+    },
+    {
+      "path": "dist/sqlite/query_graph_sql.d.ts"
+    },
+    {
+      "path": "dist/sqlite/query_graph_sql.d.ts.map"
+    },
+    {
+      "path": "dist/sqlite/SqliteGraphRepository.d.ts"
+    },
+    {
+      "path": "dist/sqlite/SqliteGraphRepository.d.ts.map"
+    },
+    {
+      "path": "dist/utils-C-MB12oP.js"
+    },
+    {
+      "path": "dist/utils.d.ts"
+    },
+    {
+      "path": "dist/utils.d.ts.map"
+    },
+    {
+      "path": "LICENSE"
+    },
+    {
+      "path": "package.json"
+    },
+    {
+      "path": "README.md"
+    },
+    {
+      "path": "src/@GraphEntity.ts"
+    },
+    {
+      "path": "src/constants.ts"
+    },
+    {
+      "path": "src/generator/GraphRepositoryGenerator.ts"
+    },
+    {
+      "path": "src/generator/index.ts"
+    },
+    {
+      "path": "src/graph_edge_entity.ts"
+    },
+    {
+      "path": "src/graph-edge-entity.factory.ts"
+    },
+    {
+      "path": "src/graph-metadata.interface.ts"
+    },
+    {
+      "path": "src/graph-query-result.ts"
+    },
+    {
+      "path": "src/graph-query.interface.ts"
+    },
+    {
+      "path": "src/graph-repository.interface.ts"
+    },
+    {
+      "path": "src/graph.interface.ts"
+    },
+    {
+      "path": "src/GraphEntityBase.ts"
+    },
+    {
+      "path": "src/GraphRepository.ts"
+    },
+    {
+      "path": "src/index.ts"
+    },
+    {
+      "path": "src/plugin.ts"
+    },
+    {
+      "path": "src/query/merge_create.ts"
+    },
+    {
+      "path": "src/query/merge_remove.ts"
+    },
+    {
+      "path": "src/query/merge_update.ts"
+    },
+    {
+      "path": "src/query/touches_edge_table.ts"
+    },
+    {
+      "path": "src/sqlite.ts"
+    },
+    {
+      "path": "src/sqlite/query_graph_sql.ts"
+    },
+    {
+      "path": "src/sqlite/SqliteGraphRepository.ts"
+    },
+    {
+      "path": "src/utils.ts"
+    }
+  ]
+}

@@ -1,0 +1,252 @@
+{
+  "task": "R2-03",
+  "object": "rxdb-plugin-tree-react",
+  "observedAt": "2026-10-05T11:01:00+08:00",
+  "currentHead": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "workerExecutedBusinessTargets": [],
+  "heavyTaskCount": 0,
+  "historicalUnit": {
+    "producerHead": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+    "date": "2026-10-05",
+    "startAtLocal": "09:06:15+08:00",
+    "environment": "Vitest 4.1.11 + happy-dom + v8",
+    "ownTestFiles": 3,
+    "ownTestsPassed": 6,
+    "ownTestsFailed": 0,
+    "skipPrintedInOwnSegment": false,
+    "allBatchExitCode": 1,
+    "allBatchExitCodeDoesNotDescribeOwnResult": true,
+    "localAndRemoteCacheDisabled": true,
+    "sourceLog": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage.txt",
+    "lineRange": [
+      9192,
+      9222
+    ],
+    "measurementExcludesNewSpec": true
+  },
+  "historicalCoverage": {
+    "source": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-tree-react/coverage-summary.json",
+    "gateSource": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/coverage-gate.json",
+    "thresholdEach": 80,
+    "metrics": {
+      "statements": 100,
+      "branches": 100,
+      "functions": 100,
+      "lines": 100
+    },
+    "denominators": {
+      "statements": 9,
+      "branches": 0,
+      "functions": 4,
+      "lines": 9
+    },
+    "branchCoverageIsZeroOverZero": true,
+    "scope": [
+      "src/index.ts",
+      "src/use-tree.ts"
+    ],
+    "notWholeConsumerOrTreeRepositoryCoverage": true
+  },
+  "historicalStrictLint": {
+    "source": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint-status.json",
+    "exitCode": 0,
+    "head": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+    "cacheDisabled": true,
+    "zeroWarningsFlag": "--max-warnings=0",
+    "newSpecIncluded": false
+  },
+  "historicalTypecheck": {
+    "source": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck-status.json",
+    "exitCode": 0,
+    "head": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+    "cacheDisabled": true,
+    "newSpecIncluded": false,
+    "newConsumersIncluded": false
+  },
+  "historicalPackedRoot": {
+    "source": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/packed-consumer-entry-check.json",
+    "packageEvidence": {
+      "project": "rxdb-plugin-tree-react",
+      "resolvedPublishedPackageRoot": "packages/rxdb-plugin-tree-react",
+      "rootManifestIsNotAlwaysPublishManifest": true,
+      "publicationExecuted": false,
+      "temporaryArtifactsOutsideWorkspace": true,
+      "exitCode": 0,
+      "status": "passed-static-packed-entries",
+      "packedName": "@aiao/rxdb-plugin-tree-react",
+      "packedVersion": "0.0.26",
+      "packedFileCount": 10,
+      "declaredEntries": [
+        "./package.json",
+        "./dist/index.d.ts",
+        "./dist/index.js",
+        "./dist/index.js",
+        "./dist/index.js",
+        "./dist/index.js",
+        "./dist/index.d.ts"
+      ],
+      "missingDeclaredEntries": [],
+      "tarballSha256": "c2de47ad8fc10c3ccd2f6e89bb3197954bea0962b4076b2a1c94a6af02367a0d",
+      "publishedManifestSha256": "fe1c38d3c9412de40740ff07eb68eeb07d3a280a2486d74d61c83f8327f69c16",
+      "files": [
+        "package/LICENSE",
+        "package/README.md",
+        "package/dist/index.d.ts",
+        "package/dist/index.d.ts.map",
+        "package/dist/index.js",
+        "package/dist/use-tree.d.ts",
+        "package/dist/use-tree.d.ts.map",
+        "package/package.json",
+        "package/src/index.ts",
+        "package/src/use-tree.ts"
+      ]
+    },
+    "runtimeImportExecuted": false,
+    "declarationCompilationExecuted": false,
+    "onlyRootEsmResolutionPassed": true
+  },
+  "sourceMatchChecks": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/package.json",
+      "measuredSha256": "fe1c38d3c9412de40740ff07eb68eeb07d3a280a2486d74d61c83f8327f69c16",
+      "currentSha256": "fe1c38d3c9412de40740ff07eb68eeb07d3a280a2486d74d61c83f8327f69c16",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/project.json",
+      "measuredSha256": "fcaa8eddeb691af2d6d334c09daea77971b8c1b63134137e779193c548287c4b",
+      "currentSha256": "fcaa8eddeb691af2d6d334c09daea77971b8c1b63134137e779193c548287c4b",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/index.spec.ts",
+      "measuredSha256": "76dcbfef9ee1c38dc9a2d42e1a62794d5452781a53d3228233ebc85e98f7d3ec",
+      "currentSha256": "76dcbfef9ee1c38dc9a2d42e1a62794d5452781a53d3228233ebc85e98f7d3ec",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/tri-framework-generics.spec.ts",
+      "measuredSha256": "6d84c01a924a9e9631bfb0a9ae60f89fc14e7ba59fa3acd6e2f334c0d2b03bba",
+      "currentSha256": "6d84c01a924a9e9631bfb0a9ae60f89fc14e7ba59fa3acd6e2f334c0d2b03bba",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/use-tree.spec.ts",
+      "measuredSha256": "c5959cee5d1ada1d45e8d57daa45869be33b7b601f5263d5f84a1275c609fb15",
+      "currentSha256": "c5959cee5d1ada1d45e8d57daa45869be33b7b601f5263d5f84a1275c609fb15",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/index.ts",
+      "measuredSha256": "9163971666e43f5f5f8493798e383cb07a9e5e9a46ebc5c4b6d4cf3b042126db",
+      "currentSha256": "9163971666e43f5f5f8493798e383cb07a9e5e9a46ebc5c4b6d4cf3b042126db",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/use-tree.ts",
+      "measuredSha256": "0f02c001d36953d8df494c48d3ca77bb891135311ffe768aec921804a2a269e8",
+      "currentSha256": "0f02c001d36953d8df494c48d3ca77bb891135311ffe768aec921804a2a269e8",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/tsconfig.json",
+      "measuredSha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "currentSha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/tsconfig.lib.json",
+      "measuredSha256": "5110d28459ebf149a64f219ed27826fd59840a18deba39b2d897e718bfb91009",
+      "currentSha256": "5110d28459ebf149a64f219ed27826fd59840a18deba39b2d897e718bfb91009",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/tsconfig.spec.json",
+      "measuredSha256": "28ae7c8b6b9de02abba8aaf41d0fde25b185fde4cb5ce5744d083087cf778b5d",
+      "currentSha256": "28ae7c8b6b9de02abba8aaf41d0fde25b185fde4cb5ce5744d083087cf778b5d",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/vite.config.mts",
+      "measuredSha256": "7795ba6908f8c78dd3a0830b9963d27c94843fee91d1e5d01f01b8e74f364a78",
+      "currentSha256": "7795ba6908f8c78dd3a0830b9963d27c94843fee91d1e5d01f01b8e74f364a78",
+      "matches": true
+    }
+  ],
+  "selectedDependencyMatchChecks": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/hooks.ts",
+      "measuredSha256": "aa1156408f19c3af3dd5946ae1a73fa4804ddbe96378de20a45230e5a4c08f7f",
+      "currentSha256": "aa1156408f19c3af3dd5946ae1a73fa4804ddbe96378de20a45230e5a4c08f7f",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/query-options.ts",
+      "measuredSha256": "753d0fd6beac8bf1a0d6dd128a98937d55d23666af54ce2fec537897cc53e952",
+      "currentSha256": "753d0fd6beac8bf1a0d6dd128a98937d55d23666af54ce2fec537897cc53e952",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/rxdb-react.tsx",
+      "measuredSha256": "532180786002483723d8c85a17589ce2efdf706f86b284ca511a71b93602860e",
+      "currentSha256": "532180786002483723d8c85a17589ce2efdf706f86b284ca511a71b93602860e",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb/src/entity/entity.interface.ts",
+      "measuredSha256": "9bb7a9294e82f38188dbeac3fc19e6dfd739ad21b301698603e673476c864d8a",
+      "currentSha256": "9bb7a9294e82f38188dbeac3fc19e6dfd739ad21b301698603e673476c864d8a",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/entity/tree-entity.interface.ts",
+      "measuredSha256": "947d4324278de2239165bb7aab012ca28ab5940a42828439387511038728b44a",
+      "currentSha256": "947d4324278de2239165bb7aab012ca28ab5940a42828439387511038728b44a",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/repository/tree-repository.interface.ts",
+      "measuredSha256": "ef31692f2fc08b4d5f61d5bcbe05a15895d938187c178fe8ce5b5ee810f30a28",
+      "currentSha256": "ef31692f2fc08b4d5f61d5bcbe05a15895d938187c178fe8ce5b5ee810f30a28",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/generator/TreeRepositoryGenerator.ts",
+      "measuredSha256": "3bb48ea760f887f500d7bcc55d79bf5f8c3507049ea8b753cd98e204d70ceb71",
+      "currentSha256": "3bb48ea760f887f500d7bcc55d79bf5f8c3507049ea8b753cd98e204d70ceb71",
+      "matches": true
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/utils/src/types/repository-query.ts",
+      "measuredSha256": "989b55e2327d2b3830a6313b09ff9a955a57460695723aa9f2a8028f3f678eef",
+      "currentSha256": "989b55e2327d2b3830a6313b09ff9a955a57460695723aa9f2a8028f3f678eef",
+      "matches": true
+    }
+  ],
+  "unverifiedInputs": {
+    "rootCompilerConfigAndLockfileNotInCoverageSnapshot": true,
+    "completeDependencyTreeCompared": false,
+    "packageJsonChangedSinceOriginalPlan": "原计划 react ^19.2.8；当前 scope/current manifest 已为 ^19.3.0，此任务未改依赖。"
+  },
+  "currentRound2": {
+    "spec": "prepared-not-run",
+    "consumerValid": "prepared-not-compiled",
+    "consumerInvalid": "prepared-not-compiled",
+    "buildDeterminism": "not-run",
+    "controllerLogDirectory": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation"
+  },
+  "readOnlyDiscovery": {
+    "nxCommand": "NX_DAEMON=false NX_ISOLATE_PLUGINS=false pnpm nx show project rxdb-plugin-tree-react --json",
+    "exitCode": 0,
+    "output": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/nx-project.json",
+    "businessTargetsExecuted": false,
+    "angularToolWorkspaceContainsOwnPackage": false,
+    "angularListProjects": "only examples/angular-todo Angular 21 workspaces; not the Nx package",
+    "angularBestPractices": "get_best_practices returned Unexpected response type; read-only interface comparison not blocked"
+  },
+  "lightQa": {
+    "syntaxOnly": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-react/syntax-check.json",
+    "formattingOnly": "pnpm exec prettier --write on the one new spec and two consumer files",
+    "notTypecheckOrTest": true
+  }
+}

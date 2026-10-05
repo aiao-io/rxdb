@@ -1,0 +1,619 @@
+{
+  "object": "rxdb-plugin-search-react",
+  "taskRequested": "R2-05",
+  "taskInScope": "R2-06",
+  "taskMismatchResolution": "按用户指定 object 与 scope 写范围执行，不扩读任务、不改 dispatch/scope。",
+  "environmentDate": "2026-10-05",
+  "inspectedAt": "2026-10-05T10:57:38.788529+08:00",
+  "headAtStart": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "headAtSnapshot": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "trackedSourceFiles": 14,
+  "fullContentRead": 14,
+  "navigationOnly": 0,
+  "unread": 0,
+  "scopeHashMatchCount": 14,
+  "files": [
+    {
+      "path": "packages/rxdb-plugin-search-react/LICENSE",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/LICENSE",
+      "lineCount": 21,
+      "readRanges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "readStatus": "full-content-read",
+      "readMethod": "numbered source content through exec; clipped sections explicitly re-read",
+      "focus": [
+        "授权、版权及发布包含范围；原文完整阅读，不作法律意见"
+      ],
+      "sha256AtInspection": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "scopeSha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "scopeHashMatches": true,
+      "generated": false,
+      "c": [
+        "completion"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-search-react/README.md",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/README.md",
+      "lineCount": 79,
+      "readRanges": [
+        [
+          1,
+          79
+        ]
+      ],
+      "readStatus": "full-content-read",
+      "readMethod": "numbered source content through exec; clipped sections explicitly re-read",
+      "focus": [
+        "安装 peer 与插件 ready/连接纪元",
+        "useSearch 示例、输入与错误/重试/分页/clear",
+        "所有权、初次 initialQuery、source/options 重建",
+        "三端命名与 comparator 文字对照，发现两处过期说法"
+      ],
+      "sha256AtInspection": "edee0d4daf3d58464b1ebea1989f131bd012bff223eaaa6876e026c11d94e627",
+      "scopeSha256": "edee0d4daf3d58464b1ebea1989f131bd012bff223eaaa6876e026c11d94e627",
+      "scopeHashMatches": true,
+      "generated": false,
+      "c": [
+        "completion"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-search-react/package.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/package.json",
+      "lineCount": 56,
+      "readRanges": [
+        [
+          1,
+          56
+        ]
+      ],
+      "readStatus": "full-content-read",
+      "readMethod": "numbered source content through exec; clipped sections explicitly re-read",
+      "focus": [
+        "root exports 的 types/import/default 指向 dist",
+        "files 包含 dist/src、排除 specs 与 __tests__、MIT",
+        "peer React ^19.3.0、rxjs ^7.8.2、core search/rxdb",
+        "ESM、sideEffects:false、公开发布标记"
+      ],
+      "sha256AtInspection": "cbc2d23bdbfd36c257fb7fcb2910ee705d7392f9b0b28ce2a9bd3dd2421fdc19",
+      "scopeSha256": "cbc2d23bdbfd36c257fb7fcb2910ee705d7392f9b0b28ce2a9bd3dd2421fdc19",
+      "scopeHashMatches": true,
+      "generated": false,
+      "c": [
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-search-react/project.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/project.json",
+      "lineCount": 12,
+      "readRanges": [
+        [
+          1,
+          12
+        ]
+      ],
+      "readStatus": "full-content-read",
+      "readMethod": "numbered source content through exec; clipped sections explicitly re-read",
+      "focus": [
+        "仅显式 typecheck dependsOn；以 resolved Nx 配置核对推导 targets，不据此猜命令"
+      ],
+      "sha256AtInspection": "8a6d3fbe7f375764bdc3c0f0e96776b86362e4123a314645abe38556bc05c844",
+      "scopeSha256": "8a6d3fbe7f375764bdc3c0f0e96776b86362e4123a314645abe38556bc05c844",
+      "scopeHashMatches": true,
+      "generated": false,
+      "c": [
+        "completion"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-search-react/src/__tests__/index.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/index.spec.ts",
+      "lineCount": 35,
+      "readRanges": [
+        [
+          1,
+          35
+        ]
+      ],
+      "readStatus": "full-content-read",
+      "readMethod": "numbered source content through exec; clipped sections explicitly re-read",
+      "focus": [
+        "类型与运行时入口分别断言",
+        "SearchExecutionError 的值导出/class 身份",
+        "第一个类型占位单测本身不是 strict tar consumer"
+      ],
+      "sha256AtInspection": "af56bcebf4c6aa7ddda38d5137d2f8e2cc5d257e9a3160f0836f91a4384043f2",
+      "scopeSha256": "af56bcebf4c6aa7ddda38d5137d2f8e2cc5d257e9a3160f0836f91a4384043f2",
+      "scopeHashMatches": true,
+      "generated": false,
+      "c": [
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-search-react/src/__tests__/readme-consumer.spec.tsx",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/readme-consumer.spec.tsx",
+      "lineCount": 42,
+      "readRanges": [
+        [
+          1,
+          42
+        ]
+      ],
+      "readStatus": "full-content-read",
+      "readMethod": "numbered source content through exec; clipped sections explicitly re-read",
+      "focus": [
+        "真实 RxDB bootstrap 签名、ready 与 React JSX 返回字段",
+        "仅 workspace 源型检查/函数存在性测试，未执行 bootstrap，也不是独立 tar 编译"
+      ],
+      "sha256AtInspection": "b748749420d479a19c4448fa4667672ae6f365ce0c020891b77bb864f1fa530b",
+      "scopeSha256": "b748749420d479a19c4448fa4667672ae6f365ce0c020891b77bb864f1fa530b",
+      "scopeHashMatches": true,
+      "generated": false,
+      "c": [
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-search-react/src/__tests__/review-parallel-real-handle.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/review-parallel-real-handle.spec.ts",
+      "lineCount": 84,
+      "readRanges": [
+        [
+          1,
+          84
+        ]
+      ],
+      "readStatus": "full-content-read",
+      "readMethod": "numbered source content through exec; clipped sections explicitly re-read",
+      "focus": [
+        "StrictMode harness + 真实 createSearchHandle",
+        "空词/无结果/error 同一对象/重试/分页末页/clear",
+        "原 generator 与本文件对照：仅 import 排序和格式化；历史执行可限定复用"
+      ],
+      "sha256AtInspection": "46273f898b443419de3465454405224a00a5444d6aac4ca5f2491686194c3105",
+      "scopeSha256": "46273f898b443419de3465454405224a00a5444d6aac4ca5f2491686194c3105",
+      "scopeHashMatches": true,
+      "generated": false,
+      "c": [
+        "completion"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts",
+      "lineCount": 400,
+      "readRanges": [
+        [
+          1,
+          400
+        ]
+      ],
+      "readStatus": "full-content-read",
+      "readMethod": "numbered source content through exec; clipped sections explicitly re-read",
+      "focus": [
+        "20 个测试全文与工厂均已读；测试主体多为四个 BehaviorSubject 桩",
+        "首个消费者 layout effect、StrictMode 双 effect、destroy",
+        "source/options identity/query 保留/旧命令路由/late emission",
+        "options 出现消失的既有测试不覆盖 undefined↔{}"
+      ],
+      "sha256AtInspection": "4df352b784f8e62a90d6f99753fd8d96fbb0b907e8558ab10e8a476b18e38cdd",
+      "scopeSha256": "4df352b784f8e62a90d6f99753fd8d96fbb0b907e8558ab10e8a476b18e38cdd",
+      "scopeHashMatches": true,
+      "generated": false,
+      "c": [
+        "completion"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-search-react/src/index.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/index.ts",
+      "lineCount": 17,
+      "readRanges": [
+        [
+          1,
+          17
+        ]
+      ],
+      "readStatus": "full-content-read",
+      "readMethod": "numbered source content through exec; clipped sections explicitly re-read",
+      "focus": [
+        "use client、值导出 SearchExecutionError/useSearch、全部共享类型透传",
+        "SearchSourceLike/UseSearchReturn 同 public root 导出"
+      ],
+      "sha256AtInspection": "e637edcc8c3d95af9ef58a06228042288718bed95b423849d2f5fb844655a80a",
+      "scopeSha256": "e637edcc8c3d95af9ef58a06228042288718bed95b423849d2f5fb844655a80a",
+      "scopeHashMatches": true,
+      "generated": false,
+      "c": [
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-search-react/src/use-search.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts",
+      "lineCount": 145,
+      "readRanges": [
+        [
+          1,
+          145
+        ]
+      ],
+      "readStatus": "full-content-read",
+      "readMethod": "numbered source content through exec; clipped sections explicitly re-read",
+      "focus": [
+        "UseSearchReturn 的九项输出/命令类型",
+        "useStableSearchOptions 快照、四个语义依赖及 initialQuery 排除",
+        "layout effect 后 source.search；四订阅 cleanup unsubscribe→destroy→清 ref",
+        "queryRef 种子、稳定四回调、return memo、无 render 期搜索",
+        "options 存在性缺失相对 core comparator 是待主控复验候选"
+      ],
+      "sha256AtInspection": "b108d77f90c92436926a3e25151d108662ba2a34bd32fd3b8011cce969d068c2",
+      "scopeSha256": "b108d77f90c92436926a3e25151d108662ba2a34bd32fd3b8011cce969d068c2",
+      "scopeHashMatches": true,
+      "generated": false,
+      "c": [
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-search-react/tsconfig.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/tsconfig.json",
+      "lineCount": 16,
+      "readRanges": [
+        [
+          1,
+          16
+        ]
+      ],
+      "readStatus": "full-content-read",
+      "readMethod": "numbered source content through exec; clipped sections explicitly re-read",
+      "focus": [
+        "继承 strict 基础设置与 lib/spec references",
+        "ignoreDeprecations:6.0 不等于禁用错误"
+      ],
+      "sha256AtInspection": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "scopeSha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "scopeHashMatches": true,
+      "generated": false,
+      "c": [
+        "completion"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-search-react/tsconfig.lib.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/tsconfig.lib.json",
+      "lineCount": 36,
+      "readRanges": [
+        [
+          1,
+          36
+        ]
+      ],
+      "readStatus": "full-content-read",
+      "readMethod": "numbered source content through exec; clipped sections explicitly re-read",
+      "focus": [
+        "src TS/TSX include、spec 排除",
+        "ESNext/bundler/JSX、dts/sourceRoot",
+        "search/rxdb project references"
+      ],
+      "sha256AtInspection": "e7c6f20d8421d41d9d31f1aa0a6418557691f7eee144b9ee259501a159e8ef69",
+      "scopeSha256": "e7c6f20d8421d41d9d31f1aa0a6418557691f7eee144b9ee259501a159e8ef69",
+      "scopeHashMatches": true,
+      "generated": false,
+      "c": [
+        "completion"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-search-react/tsconfig.spec.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/tsconfig.spec.json",
+      "lineCount": 27,
+      "readRanges": [
+        [
+          1,
+          27
+        ]
+      ],
+      "readStatus": "full-content-read",
+      "readMethod": "numbered source content through exec; clipped sections explicitly re-read",
+      "focus": [
+        "所有 spec 包含（含 round2 新探针）",
+        "happy-dom 测试所需 types、lib references",
+        "生产 typecheck 与独立 tar strict 编译的测量面分开"
+      ],
+      "sha256AtInspection": "28ae7c8b6b9de02abba8aaf41d0fde25b185fde4cb5ce5744d083087cf778b5d",
+      "scopeSha256": "28ae7c8b6b9de02abba8aaf41d0fde25b185fde4cb5ce5744d083087cf778b5d",
+      "scopeHashMatches": true,
+      "generated": false,
+      "c": [
+        "completion"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-search-react/vite.config.mts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/vite.config.mts",
+      "lineCount": 63,
+      "readRanges": [
+        [
+          1,
+          63
+        ]
+      ],
+      "readStatus": "full-content-read",
+      "readMethod": "numbered source content through exec; clipped sections explicitly re-read",
+      "focus": [
+        "React 插件和 vite-plugin-dts 生成来源",
+        "ES lib、external peer、保留 use client 的现存 dist",
+        "CODECOV 条件只影响 CI artifact 上传",
+        "happy-dom、测试 include、V8 include src/**/*、四指标输出；未使用真实 browser"
+      ],
+      "sha256AtInspection": "e5795e6ea0991d70b7006f76be618804b929639221034703e1cfdf8c471d7c6d",
+      "scopeSha256": "e5795e6ea0991d70b7006f76be618804b929639221034703e1cfdf8c471d7c6d",
+      "scopeHashMatches": true,
+      "generated": false,
+      "c": [
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C5"
+      ]
+    }
+  ],
+  "addedProbe": {
+    "path": "packages/rxdb-plugin-search-react/src/__tests__/review-round2-lifecycle.spec.ts",
+    "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/review-round2-lifecycle.spec.ts",
+    "lineCount": 291,
+    "readRanges": [
+      [
+        1,
+        291
+      ]
+    ],
+    "readStatus": "full-content-authored-and-read",
+    "sha256AtInspection": "fed2e5879558928d53d1daca9410f3e32dcab1d10ce5651c46221a203e56e3d5",
+    "execution": "not-run-by-this-task",
+    "testCasesAuthored": 13,
+    "productionCodeChanged": false,
+    "focus": [
+      "可控 Promise + 真实 SearchHandle，而非仅 Observable 桩",
+      "真实 React mount/unmount/StrictMode/两个独立 root/SSR",
+      "A→B debounce/串行查询/source+scope 替换/并发 loadMore/取消迟到结果",
+      "真实 RxDB 缺插件/未安装经 error boundary 显式暴露",
+      "undefined↔{} 预期红只作为候选，不当成实际失败"
+    ]
+  },
+  "controlledGeneratedFiles": [],
+  "reviewProbeGenerationEvidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/historical-reuse.json",
+  "ignoredGeneratedOutputs": [
+    {
+      "path": "packages/rxdb-plugin-search-react/dist/index.js",
+      "source": "vite.config.mts:29-46; src/index.ts + src/use-search.ts",
+      "readRanges": [
+        [
+          1,
+          58
+        ]
+      ],
+      "sha256": "8f506ba4c99f0e0075c2c3456e3faa6598c1847d737b01476dce08fb9a43ed93",
+      "controlled": false,
+      "status": "existing-output-read-not-regenerated",
+      "boundary": "读取了当前输出的对应结果；没有重跑构建/确定性检查；以历史实际 tar 及主控当轮 tar 独立 consumer 为发布证据，不冒充新生成。"
+    },
+    {
+      "path": "packages/rxdb-plugin-search-react/dist/index.d.ts",
+      "source": "vite-plugin-dts; src/index.ts",
+      "readRanges": [
+        [
+          1,
+          12
+        ]
+      ],
+      "sha256": "9411881c910b8d411417fe6bb6e40d5e02f959f396b810ce80d88250c8feaf1d",
+      "controlled": false,
+      "status": "existing-output-read-not-regenerated",
+      "boundary": "读取了当前输出的对应结果；没有重跑构建/确定性检查；以历史实际 tar 及主控当轮 tar 独立 consumer 为发布证据，不冒充新生成。"
+    },
+    {
+      "path": "packages/rxdb-plugin-search-react/dist/use-search.d.ts",
+      "source": "vite-plugin-dts; src/use-search.ts",
+      "readRanges": [
+        [
+          1,
+          50
+        ]
+      ],
+      "sha256": "06bb5435901976606cba6bc2e3b1fc2141a7c7bf905bb8eeb44a05788a73256e",
+      "controlled": false,
+      "status": "existing-output-read-not-regenerated",
+      "boundary": "读取了当前输出的对应结果；没有重跑构建/确定性检查；以历史实际 tar 及主控当轮 tar 独立 consumer 为发布证据，不冒充新生成。"
+    }
+  ],
+  "readOnlyDependencyAnchors": [
+    {
+      "path": "packages/rxdb-plugin-search/src/types.ts",
+      "ranges": [
+        [
+          1,
+          114
+        ]
+      ],
+      "purpose": "SearchOptions/Result/Handle/SourceLike/State 真正的契约来源"
+    },
+    {
+      "path": "packages/rxdb-plugin-search/src/core/search-handle.ts",
+      "ranges": [
+        [
+          1,
+          274
+        ]
+      ],
+      "purpose": "generation、AbortController、serialized pump、pendingQuery 与 RV-062 精确边界"
+    },
+    {
+      "path": "packages/rxdb-plugin-search/src/core/search-state.ts",
+      "ranges": [
+        [
+          55,
+          145
+        ]
+      ],
+      "purpose": "success/empty/error/idle、loading 保留既有结果，不混同为空态"
+    },
+    {
+      "path": "packages/rxdb-plugin-search/src/core/debounce.ts",
+      "ranges": [
+        [
+          1,
+          25
+        ]
+      ],
+      "purpose": "防抖属于 core，不属于 React render"
+    },
+    {
+      "path": "packages/rxdb-plugin-search/src/core/options-equality.ts",
+      "ranges": [
+        [
+          1,
+          62
+        ]
+      ],
+      "purpose": "三端判据基准，undefined/{} 和 initialQuery 的语义"
+    },
+    {
+      "path": "packages/rxdb-plugin-search/src/plugin.ts",
+      "ranges": [
+        [
+          189,
+          196
+        ],
+        [
+          636,
+          653
+        ],
+        [
+          728,
+          776
+        ]
+      ],
+      "purpose": "inject:adapter:local、fail-fast 安装与 RxDB 类型/运行时 augmentation"
+    },
+    {
+      "path": "packages/rxdb-plugin-search/src/backend/backend-registry.ts",
+      "ranges": [
+        [
+          53,
+          101
+        ],
+        [
+          117,
+          138
+        ]
+      ],
+      "purpose": "声明 supported/unverified 与未登记拒绝，不假称真实设备放行"
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/src/index.ts",
+      "ranges": [
+        [
+          1,
+          16
+        ]
+      ],
+      "purpose": "只读 public root parity"
+    },
+    {
+      "path": "packages/rxdb-plugin-search-vue/src/index.ts",
+      "ranges": [
+        [
+          1,
+          16
+        ]
+      ],
+      "purpose": "只读 public root parity"
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/src/inject-search.ts",
+      "ranges": [
+        [
+          23,
+          171
+        ]
+      ],
+      "purpose": "只读 signal/DestroyRef、cleanup 与 snapshot；不声称已完整审其他包"
+    },
+    {
+      "path": "packages/rxdb-plugin-search-vue/src/use-search.ts",
+      "ranges": [
+        [
+          60,
+          178
+        ],
+        [
+          204,
+          234
+        ]
+      ],
+      "purpose": "只读 refs/scope 和 cleanup；不声称已完整审其他包"
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/src/__tests__/review-parallel-real-handle.spec.ts",
+      "ranges": [
+        [
+          1,
+          88
+        ]
+      ],
+      "purpose": "同 fixture C1 动态历史证据对照"
+    },
+    {
+      "path": "packages/rxdb-plugin-search-vue/src/__tests__/review-parallel-real-handle.spec.ts",
+      "ranges": [
+        [
+          1,
+          93
+        ]
+      ],
+      "purpose": "同 fixture C1 动态历史证据对照"
+    },
+    {
+      "path": "apps/dev-rxdb-react/src/app/pages/search/SearchPage.tsx",
+      "ranges": [
+        [
+          59,
+          116
+        ]
+      ],
+      "purpose": "直接真实 UI 消费 source/options/queryRef 归属；不是 app 全读或 E2E 通过"
+    }
+  ],
+  "inheritedCompilerBoundary": {
+    "strict": true,
+    "skipLibCheck": true,
+    "paths": "workspace has source paths; therefore README consumer/test typechecks are not independent package consumer evidence"
+  },
+  "angularToolBoundary": {
+    "listProjects": "only examples/angular-todo/angular.json and tmp mirror, Angular 21; not target Nx package",
+    "getBestPractices": {
+      "workspacePath": "/Users/jimmy/Documents/aiao/rxdb",
+      "status": "failed",
+      "error": "Unexpected response type"
+    },
+    "action": "只读同族接口；不改 Angular、不以 examples 工具结果当包验证。"
+  }
+}

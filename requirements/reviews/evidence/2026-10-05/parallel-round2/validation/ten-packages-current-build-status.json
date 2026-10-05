@@ -1,0 +1,35 @@
+{
+  "projects": [
+    "code-editor",
+    "rxdb-plugin-tree-angular",
+    "rxdb-plugin-tree-react",
+    "rxdb-plugin-tree-vue",
+    "rxdb-plugin-search-angular",
+    "rxdb-plugin-search-react",
+    "rxdb-plugin-search-vue",
+    "rxdb-plugin-working-tree-angular",
+    "rxdb-plugin-working-tree-vue",
+    "rxdb-plugin-replay-angular"
+  ],
+  "command": [
+    "pnpm",
+    "nx",
+    "run-many",
+    "--projects=code-editor,rxdb-plugin-tree-angular,rxdb-plugin-tree-react,rxdb-plugin-tree-vue,rxdb-plugin-search-angular,rxdb-plugin-search-react,rxdb-plugin-search-vue,rxdb-plugin-working-tree-angular,rxdb-plugin-working-tree-vue,rxdb-plugin-replay-angular",
+    "--parallel=1",
+    "--skipRemoteCache",
+    "--skipNxCache",
+    "--output-style=static",
+    "-t",
+    "build"
+  ],
+  "startedAt": "2026-10-05T11:04:54.769726+08:00",
+  "elapsedSeconds": 60.966,
+  "exitCode": 0,
+  "headAtFinish": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "freshArtifacts": [],
+  "reviewedProjectAndDependencyInputCount": 2149,
+  "changedInputsDuringMeasurement": [],
+  "cacheDisabled": true,
+  "heavyTaskConcurrency": 1
+}

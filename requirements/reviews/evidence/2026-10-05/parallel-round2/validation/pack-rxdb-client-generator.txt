@@ -1,0 +1,288 @@
+CWD: /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-client-generator
+COMMAND: pnpm pack --json --out /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-client-generator.tgz
+{
+  "name": "@aiao/rxdb-client-generator",
+  "version": "0.0.26",
+  "filename": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/tarballs/rxdb-client-generator.tgz",
+  "files": [
+    {
+      "path": "dist/__tests__/fixtures/geo-repository-generator.d.ts"
+    },
+    {
+      "path": "dist/__tests__/fixtures/geo-repository-generator.d.ts.map"
+    },
+    {
+      "path": "dist/__tests__/helpers/fixture-repository-generator.d.ts"
+    },
+    {
+      "path": "dist/__tests__/helpers/fixture-repository-generator.d.ts.map"
+    },
+    {
+      "path": "dist/__tests__/helpers/generated-runtime.d.ts"
+    },
+    {
+      "path": "dist/__tests__/helpers/generated-runtime.d.ts.map"
+    },
+    {
+      "path": "dist/cli.js"
+    },
+    {
+      "path": "dist/cli/analyze-file.d.ts"
+    },
+    {
+      "path": "dist/cli/analyze-file.d.ts.map"
+    },
+    {
+      "path": "dist/cli/build-client-lib.d.ts"
+    },
+    {
+      "path": "dist/cli/build-client-lib.d.ts.map"
+    },
+    {
+      "path": "dist/cli/cli.d.ts"
+    },
+    {
+      "path": "dist/cli/cli.d.ts.map"
+    },
+    {
+      "path": "dist/cli/cli.interface.d.ts"
+    },
+    {
+      "path": "dist/cli/cli.interface.d.ts.map"
+    },
+    {
+      "path": "dist/cli/find-files.d.ts"
+    },
+    {
+      "path": "dist/cli/find-files.d.ts.map"
+    },
+    {
+      "path": "dist/cli/out-dir.d.ts"
+    },
+    {
+      "path": "dist/cli/out-dir.d.ts.map"
+    },
+    {
+      "path": "dist/cli/repository-generators.d.ts"
+    },
+    {
+      "path": "dist/cli/repository-generators.d.ts.map"
+    },
+    {
+      "path": "dist/core/generated-symbols.d.ts"
+    },
+    {
+      "path": "dist/core/generated-symbols.d.ts.map"
+    },
+    {
+      "path": "dist/core/known-repository-generators.d.ts"
+    },
+    {
+      "path": "dist/core/known-repository-generators.d.ts.map"
+    },
+    {
+      "path": "dist/core/metadata.utils.d.ts"
+    },
+    {
+      "path": "dist/core/metadata.utils.d.ts.map"
+    },
+    {
+      "path": "dist/core/RxDBClientGenerator.d.ts"
+    },
+    {
+      "path": "dist/core/RxDBClientGenerator.d.ts.map"
+    },
+    {
+      "path": "dist/core/RxDBClientGenerator.utils.d.ts"
+    },
+    {
+      "path": "dist/core/RxDBClientGenerator.utils.d.ts.map"
+    },
+    {
+      "path": "dist/core/ts-morph-browser.d.ts"
+    },
+    {
+      "path": "dist/core/ts-morph-browser.d.ts.map"
+    },
+    {
+      "path": "dist/generators/entity-definition.d.ts"
+    },
+    {
+      "path": "dist/generators/entity-definition.d.ts.map"
+    },
+    {
+      "path": "dist/generators/entity-properties.d.ts"
+    },
+    {
+      "path": "dist/generators/entity-properties.d.ts.map"
+    },
+    {
+      "path": "dist/generators/entity-relations.d.ts"
+    },
+    {
+      "path": "dist/generators/entity-relations.d.ts.map"
+    },
+    {
+      "path": "dist/generators/entity-rules.d.ts"
+    },
+    {
+      "path": "dist/generators/entity-rules.d.ts.map"
+    },
+    {
+      "path": "dist/generators/RepositoryGenerator.interface.d.ts"
+    },
+    {
+      "path": "dist/generators/RepositoryGenerator.interface.d.ts.map"
+    },
+    {
+      "path": "dist/generators/RepositoryGeneratorBase.d.ts"
+    },
+    {
+      "path": "dist/generators/RepositoryGeneratorBase.d.ts.map"
+    },
+    {
+      "path": "dist/generators/utils.d.ts"
+    },
+    {
+      "path": "dist/generators/utils.d.ts.map"
+    },
+    {
+      "path": "dist/index.d.ts"
+    },
+    {
+      "path": "dist/index.d.ts.map"
+    },
+    {
+      "path": "dist/index.js"
+    },
+    {
+      "path": "dist/out-dir-DQ8c-UU4.js"
+    },
+    {
+      "path": "dist/plugins/cli-shebang.d.ts"
+    },
+    {
+      "path": "dist/plugins/cli-shebang.d.ts.map"
+    },
+    {
+      "path": "dist/plugins/vite.d.ts"
+    },
+    {
+      "path": "dist/plugins/vite.d.ts.map"
+    },
+    {
+      "path": "dist/RxDBClientGenerator-AqTIKI4P.js"
+    },
+    {
+      "path": "dist/testing.js"
+    },
+    {
+      "path": "dist/testing/generated-consumer.d.ts"
+    },
+    {
+      "path": "dist/testing/generated-consumer.d.ts.map"
+    },
+    {
+      "path": "dist/testing/index.d.ts"
+    },
+    {
+      "path": "dist/testing/index.d.ts.map"
+    },
+    {
+      "path": "dist/testing/typescript-compiler.d.ts"
+    },
+    {
+      "path": "dist/testing/typescript-compiler.d.ts.map"
+    },
+    {
+      "path": "dist/vite.js"
+    },
+    {
+      "path": "LICENSE"
+    },
+    {
+      "path": "package.json"
+    },
+    {
+      "path": "README.md"
+    },
+    {
+      "path": "src/cli/analyze-file.ts"
+    },
+    {
+      "path": "src/cli/build-client-lib.ts"
+    },
+    {
+      "path": "src/cli/cli.interface.ts"
+    },
+    {
+      "path": "src/cli/cli.ts"
+    },
+    {
+      "path": "src/cli/find-files.ts"
+    },
+    {
+      "path": "src/cli/out-dir.ts"
+    },
+    {
+      "path": "src/cli/repository-generators.ts"
+    },
+    {
+      "path": "src/core/generated-symbols.ts"
+    },
+    {
+      "path": "src/core/known-repository-generators.ts"
+    },
+    {
+      "path": "src/core/metadata.utils.ts"
+    },
+    {
+      "path": "src/core/RxDBClientGenerator.ts"
+    },
+    {
+      "path": "src/core/RxDBClientGenerator.utils.ts"
+    },
+    {
+      "path": "src/core/ts-morph-browser.ts"
+    },
+    {
+      "path": "src/generators/entity-definition.ts"
+    },
+    {
+      "path": "src/generators/entity-properties.ts"
+    },
+    {
+      "path": "src/generators/entity-relations.ts"
+    },
+    {
+      "path": "src/generators/entity-rules.ts"
+    },
+    {
+      "path": "src/generators/RepositoryGenerator.interface.ts"
+    },
+    {
+      "path": "src/generators/RepositoryGeneratorBase.ts"
+    },
+    {
+      "path": "src/generators/utils.ts"
+    },
+    {
+      "path": "src/index.ts"
+    },
+    {
+      "path": "src/plugins/cli-shebang.ts"
+    },
+    {
+      "path": "src/plugins/vite.ts"
+    },
+    {
+      "path": "src/testing/generated-consumer.ts"
+    },
+    {
+      "path": "src/testing/index.ts"
+    },
+    {
+      "path": "src/testing/typescript-compiler.ts"
+    }
+  ]
+}

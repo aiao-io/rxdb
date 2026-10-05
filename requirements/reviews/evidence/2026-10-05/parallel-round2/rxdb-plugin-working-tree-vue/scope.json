@@ -1,0 +1,69 @@
+{
+  "task": "R2-09",
+  "object": "rxdb-plugin-working-tree-vue",
+  "sourceRoot": "packages/rxdb-plugin-working-tree-vue",
+  "trackedFiles": [
+    {
+      "path": "packages/rxdb-plugin-working-tree-vue/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-vue/README.md",
+      "sha256": "7c6eedda91cdfffe13f06c20f8501ea9455d8e694f082f77251213a548f0b43a"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-vue/package.json",
+      "sha256": "8597a3aa51a398536a71dc48231b93ca5a5e6f490f5249a48325addf4d9e41b5"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-vue/project.json",
+      "sha256": "2daa110072da035415136d8e51419f60bee662eb778bf07cff0b1d0f8b1c96c3"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-vue/src/__tests__/index.spec.ts",
+      "sha256": "0325389380d8f755cb9f8089ac582ceb65059f553d7b65f369a4c6ea0292a2f3"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-vue/src/__tests__/rxdb-provider-harness.ts",
+      "sha256": "14a12010068b58c54681eee4b774204007929a22d4e2c4a566c45c8fb82099c2"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-vue/src/__tests__/setup-harness.ts",
+      "sha256": "c748cb9704ab61c684dd983940c44baf7a0505920457b30fcaadbe335b768b05"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-vue/src/__tests__/use-working-tree.spec.ts",
+      "sha256": "600f993fd52d0657a3238d7386a274be140565587f720d7984ad357e50f41bfb"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-vue/src/index.ts",
+      "sha256": "16ff00ab8ca489f33e127d668aea888ac597f94c5ac2d97dfae71deeb8f8e0ea"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts",
+      "sha256": "42b15923b583e48e2db67202fb022a34ba910d899d86cd4dbaef224a3f5cdd5f"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-vue/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-vue/tsconfig.lib.json",
+      "sha256": "ebe4e6d885279bc5d9e70900ce9a95214bc11a780b343177b7eb54b1b91b5a91"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-vue/tsconfig.spec.json",
+      "sha256": "4b23b52c0b4607ef2ba16e07d087a22d9575c805c1d6b64be04649ccd609687f"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-vue/vite.config.mts",
+      "sha256": "c3a5fbaa71fd1c358e6f254649cb7b9f37e3fc99a26042ad19a35aede36e2acd"
+    }
+  ],
+  "writeScope": [
+    "requirements/reviews/packages/rxdb-plugin-working-tree-vue.md",
+    "requirements/reviews/results/packages/rxdb-plugin-working-tree-vue.md",
+    "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-working-tree-vue"
+  ],
+  "status": "queued"
+}

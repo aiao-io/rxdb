@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": [
+      "ES2022",
+      "DOM"
+    ],
+    "strict": true,
+    "skipLibCheck": false,
+    "verbatimModuleSyntax": true,
+    "noEmit": true,
+    "types": [],
+    "noImplicitReturns": true
+  },
+  "files": [
+    "consumer-valid.mts"
+  ]
+}

@@ -1,0 +1,135 @@
+[
+  {
+    "id": "search-react-r2-lint",
+    "project": "rxdb-plugin-search-react",
+    "target": "lint",
+    "args": [
+      "--skipRemoteCache",
+      "--skipNxCache",
+      "--max-warnings=0"
+    ],
+    "reason": "第二轮只读收尾新增 review-round2-*.spec.ts 后，串行核查新增测试与现有 hooks 的零警告门禁；不要将第一轮 lint 记录当作新增探针通过。",
+    "criticalForC": [
+      "C2",
+      "C4",
+      "C5"
+    ],
+    "status": "requested",
+    "executionOwner": "coordinator",
+    "evidenceDestination": "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/"
+  },
+  {
+    "id": "search-react-r2-types",
+    "project": "rxdb-plugin-search-react",
+    "target": "typecheck",
+    "args": [
+      "--skipRemoteCache",
+      "--skipNxCache"
+    ],
+    "reason": "记录实际解析目标并对新增 review-round2-*.spec.ts 做 strict 类型验证；若该 target 仅覆盖 lib，另补 tsconfig.spec 只读 noEmit 编译，保留命令与测量面。",
+    "criticalForC": [
+      "C2",
+      "C4",
+      "C5"
+    ],
+    "status": "requested",
+    "executionOwner": "coordinator",
+    "evidenceDestination": "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/"
+  },
+  {
+    "id": "search-react-r2-hooks",
+    "project": "rxdb-plugin-search-react",
+    "target": "test",
+    "args": [
+      "--skipRemoteCache",
+      "--skipNxCache",
+      "--args=--run --maxWorkers=1"
+    ],
+    "reason": "只针对本包串行跑现有真实 SearchHandle C1 与已新增的异步 A→B、source/scope 更换、并发分页、StrictMode、多 root、卸载迟到结果/错误、错误 source 探针。保留 JUnit、四指标、cache/skip、运行环境及 14 文件指纹；RV-062 仅引用，不要求重跑已登记 core 红用例。",
+    "criticalForC": [
+      "C1",
+      "C2",
+      "C4",
+      "C5"
+    ],
+    "status": "requested",
+    "executionOwner": "coordinator",
+    "probe": "packages/rxdb-plugin-search-react/src/__tests__/review-round2-lifecycle.spec.ts",
+    "expectedRedCandidate": "undefined↔空 options 的 core 比较判据：静态看到 memo 缺 options 存在性依赖，未经本代理执行，不预判主控结果。其余断言期望通过。",
+    "knownIssue": "RV-062 仅引用：新增 clear/unmount 仅覆盖已执行分页的等待者，不覆盖已登记的 success 订阅重入 pendingQuery 丢失等待者。",
+    "evidenceDestination": "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/",
+    "probeSha256": "fed2e5879558928d53d1daca9410f3e32dcab1d10ce5651c46221a203e56e3d5",
+    "authoredTestCases": 13,
+    "capture": [
+      "resolved target/dependency policy",
+      "raw command/exit/cache/skip/worker/environment",
+      "JUnit",
+      "coverage-summary four metrics",
+      "before/after scope and probe sha256"
+    ]
+  },
+  {
+    "id": "search-react-r2-packed-consumer",
+    "project": "rxdb-plugin-search-react",
+    "target": "independent-packed-consumer",
+    "kind": "coordinator-validation-not-nx-target",
+    "args": [],
+    "reason": "主控离线安装所有内部包的真实 tar 后，在仓库外、无 paths/alias 的消费根严格编译 consumer-valid.mts（应 exit 0）和 consumer-invalid.mts（应 exit 非 0；核对无效 SearchSourceLike、options、setQuery、results、SearchState、loadMore 诊断）。所有 hook 调用只在未执行函数体内，编译不顶层执行 React hook；不使用 any/ts-expect-error，不以入口 resolve 代替声明编译。runtime import 若另行验证只读公开导出，不调用 hook。",
+    "criticalForC": [
+      "C3",
+      "C5"
+    ],
+    "status": "executed-awaiting-diagnostic-audit",
+    "executionOwner": "coordinator",
+    "fixtures": [
+      "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/consumer-valid.mts",
+      "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/consumer-invalid.mts"
+    ],
+    "expectedValidExitCode": 0,
+    "expectedInvalidDiagnostics": [
+      "SearchSourceLike.search 返回 Promise 而非 SearchHandle",
+      "SearchOptions.debounce 必须为 number",
+      "SearchOptions.collections 元素必须为 string",
+      "setQuery 参数必须为 string",
+      "results 为 readonly SearchResult[] 而非 string[]",
+      "SearchState 不含 cancelled",
+      "loadMore 返回 Promise<void> 而非 Promise<string>"
+    ],
+    "evidenceDestination": "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/",
+    "fixtureSha256": {
+      "consumer-valid.mts": "f203f3c4e0d5aa04e04507cada7f5f44999c7d63d897d172c1369284f02a8654",
+      "consumer-invalid.mts": "c8a69ebe99814022590dc7b93c0f12cd21415ff2433e4468ccd41ba55f704733"
+    },
+    "resultSource": "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/isolated-consumer-validation.json",
+    "observedValidExitCode": 0,
+    "observedInvalidExitCode": 2,
+    "followupReason": "保留主控初测裸 strict 的 valid/invalid 原始失败；另补显式 Node + @types/ms 的真实环境对照，strict=true/skipLibCheck=false、不加 paths/source mapping/any ambient shim，再严格编译同一 fixture。补 NodeJS 命名空间与 ms 声明仅发生在隔离 consumer，不改本包/其他包。如果对照仍失败则准确分流，不将 invalid 的非零退出本身当负测试通过。",
+    "followupControl": {
+      "environment": "explicit Node + @types/ms",
+      "strict": true,
+      "skipLibCheck": false,
+      "types": [
+        "node"
+      ],
+      "workspacePathsOrSourceMapping": false,
+      "ambientAnyShim": false,
+      "preserveBareFailure": true,
+      "executionOwner": "coordinator"
+    }
+  },
+  {
+    "id": "search-react-r2-branch-consumer",
+    "project": "rxdb-plugin-search-react",
+    "target": "supported-backend-branch-runtime",
+    "kind": "coordinator-validation-not-nx-target",
+    "args": [],
+    "reason": "原 C2 包含换库/branch。新增探针覆盖显式 source 与 collections 切换、真实 core 异步分页，不等于同一真实 RxDB 的 branch checkout：主控选一个已有 supported backend 的 React 公共 consumer，验证 branch checkout 与在途分页时结果/error/query 归属及卸载；可引用已有匹配源摘要的实际日志，无需等待全部无关后端/容器。若不能执行，保留原场景未验，由主控裁定分流，不标不适用。",
+    "criticalForC": [
+      "C2",
+      "C3"
+    ],
+    "status": "requested",
+    "executionOwner": "coordinator",
+    "evidenceDestination": "requirements/reviews/evidence/2026-10-05/parallel-round2/validation/"
+  }
+]

@@ -1,0 +1,531 @@
+{
+  "object": "rxdb-plugin-search-react",
+  "taskRequested": "R2-05",
+  "taskInScope": "R2-06",
+  "reviewDate": "2026-10-05",
+  "headAtReadStart": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "headAtSnapshot": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "completeC": [
+    "C1"
+  ],
+  "completeCCount": 1,
+  "originalCCount": 5,
+  "partialC": [
+    "C2",
+    "C3",
+    "C4",
+    "C5"
+  ],
+  "c": [
+    {
+      "id": "C1",
+      "title": "SearchHandle 映射",
+      "action": "逐项核对 results/state/error/hasMore、setQuery/loadMore/clear 到核心 handle，保留空态与错误差异。",
+      "minimum": "空词、无结果、查询失败、清空、末页；框架状态不能吞掉核心错误。",
+      "status": "complete-with-referenced-upstream-risk",
+      "fullC": true,
+      "conclusion": "原空词、无结果、执行失败/相同 error、重试、末页、清空已由真实 SearchHandle 完整序列实测，框架四输出与命令逐项映射。历史 C1 晚探针已在 09:34:20 通过；本轮通过 generator hash/token 与 core 80 输入未变对照限定复用，不伪装新 HEAD。RV-062 为另一个已确认的 pending 分页取消边界，仅引用。",
+      "production": [
+        {
+          "path": "packages/rxdb-plugin-search-react/src/use-search.ts",
+          "ranges": [
+            [
+              31,
+              50
+            ],
+            [
+              81,
+              145
+            ]
+          ],
+          "role": "read-implementation"
+        },
+        {
+          "path": "packages/rxdb-plugin-search/src/core/search-state.ts",
+          "ranges": [
+            [
+              96,
+              136
+            ]
+          ],
+          "role": "upstream-state-contract"
+        }
+      ],
+      "scenarios": [
+        {
+          "name": "空词",
+          "evidence": [
+            "src/__tests__/review-parallel-real-handle.spec.ts:52-54",
+            "new-parallel-probes.txt:652-666"
+          ],
+          "status": "historical-measured-reusable"
+        },
+        {
+          "name": "无结果",
+          "evidence": [
+            "src/__tests__/review-parallel-real-handle.spec.ts:56-59"
+          ],
+          "status": "historical-measured-reusable"
+        },
+        {
+          "name": "查询失败/重试/error 身份",
+          "evidence": [
+            "src/__tests__/review-parallel-real-handle.spec.ts:61-69"
+          ],
+          "status": "historical-measured-reusable"
+        },
+        {
+          "name": "末页/无更多 no-op",
+          "evidence": [
+            "src/__tests__/review-parallel-real-handle.spec.ts:71-76"
+          ],
+          "status": "historical-measured-reusable"
+        },
+        {
+          "name": "清空",
+          "evidence": [
+            "src/__tests__/review-parallel-real-handle.spec.ts:78-79"
+          ],
+          "status": "historical-measured-reusable"
+        },
+        {
+          "name": "取消待执行分页",
+          "evidence": [
+            "requirements/reviews/RV-062-parallel-search-cancel.md"
+          ],
+          "status": "known-confirmed-upstream-issue-not-duplicated"
+        }
+      ],
+      "reuseProof": "requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react/historical-reuse.json",
+      "remainingActions": []
+    },
+    {
+      "id": "C2",
+      "title": "快速输入与 options identity",
+      "action": "核查 debounce 的归属、语义相等选项、scope/branch 切换和异步过期结果。",
+      "minimum": "A→B 快速输入、相同值新对象、换库/branch、并发翻页；不重复创建 handle 或串结果。",
+      "status": "partial",
+      "fullC": false,
+      "conclusion": "防抖/执行代次和 AbortController 归 core；React 只持 queryRef/稳定 options/active handle。已有相同对象值、collections/source 更换保词、稳定四命令动态证据；presence 判据静态发现候选，13 个新 probe 中覆盖 A→B、异步 source/scope、并发分页但尚未运行。同一 RxDB 真实 branch checkout 没有用换 source 桩替代。",
+      "production": [
+        {
+          "path": "packages/rxdb-plugin-search-react/src/use-search.ts",
+          "ranges": [
+            [
+              54,
+              65
+            ],
+            [
+              104,
+              139
+            ]
+          ],
+          "role": "read-implementation"
+        },
+        {
+          "path": "packages/rxdb-plugin-search/src/core/search-handle.ts",
+          "ranges": [
+            [
+              108,
+              171
+            ],
+            [
+              237,
+              269
+            ]
+          ],
+          "role": "upstream-generation-and-pump"
+        },
+        {
+          "path": "packages/rxdb-plugin-search/src/core/options-equality.ts",
+          "ranges": [
+            [
+              34,
+              62
+            ]
+          ],
+          "role": "public-comparator"
+        }
+      ],
+      "scenarios": [
+        {
+          "name": "A→B 快速输入及已执行 A 的串行 B",
+          "evidence": [
+            "src/__tests__/review-round2-lifecycle.spec.ts:87-124"
+          ],
+          "status": "authored-not-run"
+        },
+        {
+          "name": "相同值新对象",
+          "evidence": [
+            "src/__tests__/use-search.spec.ts:211-233",
+            "framework-editor-coverage.txt:9088-9119"
+          ],
+          "status": "historical-measured-reusable"
+        },
+        {
+          "name": "换库/source + collections scope",
+          "evidence": [
+            "src/__tests__/use-search.spec.ts:191-209,243-279",
+            "src/__tests__/review-round2-lifecycle.spec.ts:126-153"
+          ],
+          "status": "partial-historical-stub-and-new-real-core-unrun"
+        },
+        {
+          "name": "同一 RxDB branch 变化 + 在途分页",
+          "evidence": [],
+          "status": "unverified-controller-runtime-request"
+        },
+        {
+          "name": "并发翻页",
+          "evidence": [
+            "src/__tests__/review-round2-lifecycle.spec.ts:189-208"
+          ],
+          "status": "authored-not-run"
+        },
+        {
+          "name": "undefined↔{}",
+          "evidence": [
+            "src/__tests__/review-round2-lifecycle.spec.ts:175-187",
+            "findings.pending.md"
+          ],
+          "status": "pending-candidate-not-executed"
+        }
+      ],
+      "remainingActions": [
+        "search-react-r2-hooks",
+        "search-react-r2-lint",
+        "search-react-r2-types",
+        "search-react-r2-branch-consumer",
+        "主控对 options-presence 候选去重/复验/分流"
+      ],
+      "boundary": "串行 A→B 只证明最终 B 第一页不拼入 A，不声称任意中间 loading 都删除旧结果；core 明确保留已有结果以平滑 UI。"
+    },
+    {
+      "id": "C3",
+      "title": "三端类型与依赖闭合",
+      "action": "对照三端框架 idiom、公开 consumer 与 README 使用；明确必需搜索插件和不支持的 backend。",
+      "minimum": "缺 plugin、typed consumer、同 fixtures parity、卸载；必须依赖能通过 inject 闭合。",
+      "status": "partial",
+      "fullC": false,
+      "conclusion": "实际三端 public root 都用 useSearch，Shared types 与 SearchExecutionError 值透传对齐；Signal/Ref/React value 为框架 idiom。缺插件/ready 是真实 RxDB 运行时约束，不由类型 augmentation 保证。core inject adapter:local 与 unsupported/unverified 拒绝已有明确来源；workspace README 编译不替代 tar。主控已真实 root import；初次正向 strict tar 编译受 NodeJS/ms 外部声明错误阻断，负向出现7处真实诊断但不能单靠 exit2核销。",
+      "production": [
+        {
+          "path": "packages/rxdb-plugin-search-react/src/index.ts",
+          "ranges": [
+            [
+              14,
+              17
+            ]
+          ],
+          "role": "public-exports"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-react/README.md",
+          "ranges": [
+            [
+              13,
+              70
+            ]
+          ],
+          "role": "documented-consumer-contract"
+        },
+        {
+          "path": "packages/rxdb-plugin-search/src/plugin.ts",
+          "ranges": [
+            [
+              189,
+              196
+            ],
+            [
+              636,
+              653
+            ],
+            [
+              728,
+              775
+            ]
+          ],
+          "role": "upstream-injection-and-runtime-augmentation"
+        },
+        {
+          "path": "packages/rxdb-plugin-search/src/backend/backend-registry.ts",
+          "ranges": [
+            [
+              64,
+              90
+            ],
+            [
+              125,
+              138
+            ]
+          ],
+          "role": "backend-admission-policy"
+        }
+      ],
+      "scenarios": [
+        {
+          "name": "缺 plugin/未安装",
+          "evidence": [
+            "src/__tests__/review-round2-lifecycle.spec.ts:274-290"
+          ],
+          "status": "authored-real-RxDB-boundary-not-run"
+        },
+        {
+          "name": "typed consumer",
+          "evidence": [
+            "consumer-valid.mts",
+            "consumer-invalid.mts",
+            "parallel-round2/validation/isolated-consumer-validation.json"
+          ],
+          "status": "executed-positive-blocked-negative-partial"
+        },
+        {
+          "name": "同 fixtures parity",
+          "evidence": [
+            "review-parallel-real-handle 三端同 body",
+            "new-parallel-probes.txt:622-666",
+            "historical-reuse.json"
+          ],
+          "status": "historical-measured-reusable-for-C1-only"
+        },
+        {
+          "name": "卸载/依赖 inject 闭合",
+          "evidence": [
+            "src/use-search.ts:106-124",
+            "core plugin.ts:196",
+            "core-plugins-small-adapters-coverage.txt:2302-2320",
+            "src/__tests__/review-round2-lifecycle.spec.ts:237-290"
+          ],
+          "status": "partial-static-and-historical-upstream-new-real-roots-unrun"
+        },
+        {
+          "name": "不支持的 backend",
+          "evidence": [
+            "core backend-registry.ts:64-90,125-138",
+            "core backend-registry.spec.ts 历史9用例通过"
+          ],
+          "status": "historical-policy-test-not-all-hosts-validated"
+        }
+      ],
+      "remainingActions": [
+        "search-react-r2-packed-consumer followup",
+        "search-react-r2-hooks",
+        "search-react-r2-branch-consumer",
+        "主控处理 README 同族命名/判据文字候选"
+      ],
+      "boundary": "不写其他框架/README，不把第一轮 source-root 的 Angular manifest 当实际发布 manifest，不称 unverified adapter 真机已通过。"
+    },
+    {
+      "id": "C4",
+      "title": "React 生命周期与竞态",
+      "action": "核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。",
+      "minimum": "StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。",
+      "status": "partial",
+      "fullC": false,
+      "conclusion": "handle 创建仅在同构 layout effect；依赖为 source/stableOptions；清理顺序 unsubscribe→destroy→仅清同一 ref。四回调稳定且查询 ref 保种子；本 hook 无全局 provider/context 单例。既有 StrictMode 双 effect/消费者首个 layout effect 先绑定已测，完整新异步多 root 与晚到成功/错误仍等主控运行。",
+      "production": [
+        {
+          "path": "packages/rxdb-plugin-search-react/src/use-search.ts",
+          "ranges": [
+            [
+              52,
+              65
+            ],
+            [
+              81,
+              145
+            ]
+          ],
+          "role": "effect-cleanup-command-ownership"
+        }
+      ],
+      "scenarios": [
+        {
+          "name": "StrictMode 双挂载",
+          "evidence": [
+            "src/__tests__/use-search.spec.ts:120-147",
+            "framework-editor-coverage.txt:9096",
+            "src/__tests__/review-round2-lifecycle.spec.ts:237-262"
+          ],
+          "status": "historical-basics-measured-new-real-roots-unrun"
+        },
+        {
+          "name": "快速 props 变化/最新命令",
+          "evidence": [
+            "src/__tests__/use-search.spec.ts:305-368",
+            "src/__tests__/review-round2-lifecycle.spec.ts:126-173"
+          ],
+          "status": "partial-historical-stub-and-new-real-core-unrun"
+        },
+        {
+          "name": "卸载后晚到结果/error",
+          "evidence": [
+            "src/__tests__/review-round2-lifecycle.spec.ts:126-153,211-235"
+          ],
+          "status": "authored-not-run"
+        },
+        {
+          "name": "多个独立 root/状态不回流",
+          "evidence": [
+            "src/__tests__/review-round2-lifecycle.spec.ts:237-262"
+          ],
+          "status": "authored-not-run"
+        }
+      ],
+      "remainingActions": [
+        "search-react-r2-hooks",
+        "search-react-r2-lint",
+        "search-react-r2-types"
+      ]
+    },
+    {
+      "id": "C5",
+      "title": "React 类型与 render 边界",
+      "action": "检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。",
+      "minimum": "typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。",
+      "status": "partial",
+      "fullC": false,
+      "conclusion": "实际 API 为结构化 SearchSourceLike/SearchOptions→UseSearchReturn（不是需凭空提供实体泛型的接口），九字段逐项对照。source.search 在 commit effect 内，render 仅纯 memo/snapshot。新增错误 source/SSR/相同值重渲染探针，以及包名正负 typed fixtures；未执行 hooks，初次 tar 正向编译失败原因在依赖声明，不宣告本包类型绿。",
+      "production": [
+        {
+          "path": "packages/rxdb-plugin-search-react/src/use-search.ts",
+          "ranges": [
+            [
+              31,
+              65
+            ],
+            [
+              81,
+              145
+            ]
+          ],
+          "role": "public-shape-and-render-boundary"
+        },
+        {
+          "path": "packages/rxdb-plugin-search-react/src/index.ts",
+          "ranges": [
+            [
+              14,
+              17
+            ]
+          ],
+          "role": "public-consumer-entry"
+        }
+      ],
+      "scenarios": [
+        {
+          "name": "typed consumer 编译/错误 inputs",
+          "evidence": [
+            "consumer-valid.mts:1-39",
+            "consumer-invalid.mts:1-19",
+            "parallel-round2/validation/consumer-rxdb-plugin-search-react-invalid.txt"
+          ],
+          "status": "expected-seven-real-diagnostics-observed-but-positive-blocked"
+        },
+        {
+          "name": "相同值不同引用/返回对象/重渲染",
+          "evidence": [
+            "src/__tests__/use-search.spec.ts:211-233,325-368",
+            "src/__tests__/review-round2-lifecycle.spec.ts:155-173"
+          ],
+          "status": "partial-historical-and-new-exact-identity-unrun"
+        },
+        {
+          "name": "错误 props 与 runtime source",
+          "evidence": [
+            "consumer-invalid.mts:10-16",
+            "src/__tests__/review-round2-lifecycle.spec.ts:274-290"
+          ],
+          "status": "type-negatives-partial-runtime-unrun"
+        },
+        {
+          "name": "render/SSR 没有搜索 IO",
+          "evidence": [
+            "src/use-search.ts:106-124",
+            "src/__tests__/review-round2-lifecycle.spec.ts:264-272"
+          ],
+          "status": "static-established-dynamic-authored-not-run"
+        }
+      ],
+      "remainingActions": [
+        "search-react-r2-packed-consumer followup",
+        "search-react-r2-hooks",
+        "search-react-r2-lint",
+        "search-react-r2-types"
+      ],
+      "boundary": "consumer .mts 只有未执行的函数内 hook 类型调用；main runtime root import 不运行 hook。没有 any/ts-expect-error、没有关闭 Hooks lint 或吞异常的测试策略。"
+    }
+  ],
+  "completionConditions": [
+    {
+      "id": "D1",
+      "requirement": "全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。",
+      "status": "complete",
+      "evidence": [
+        "file-inspection.json:14/14 full-content-read, 14 scope hashes match",
+        "existing dist/codegen sources explicitly read, no regeneration claim"
+      ]
+    },
+    {
+      "id": "D2",
+      "requirement": "每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。",
+      "status": "complete-for-classification-not-full-C-closure",
+      "evidence": [
+        "c-evidence.json:5 entries, original action/minimum preserved, C1 complete + C2-C5 partial",
+        "validation-requests.json:explicit criticalForC and reasons"
+      ]
+    },
+    {
+      "id": "D3",
+      "requirement": "不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。",
+      "status": "partial",
+      "evidence": [
+        "c-evidence.json production ranges",
+        "validation-observations.json history and new tar initial command/environment",
+        "new 13 probes not executed; main request pending"
+      ]
+    },
+    {
+      "id": "D4",
+      "requirement": "实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。",
+      "status": "partial",
+      "evidence": [
+        "validation-observations.json historical commands, cache off, maxWorkers1, 24 passed and four metrics",
+        "initial tar consumer failure retained, root import separated",
+        "new target executions/JUnit/coverage pending, old coverage not inherited"
+      ]
+    },
+    {
+      "id": "D5",
+      "requirement": "上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。",
+      "status": "partial",
+      "evidence": [
+        "three public roots and matching C1 fixture recorded",
+        "RxDB inject/backend admission policy/UI source caller read only",
+        "true branch checkout/paging and complete independent typed consumer still required"
+      ]
+    },
+    {
+      "id": "D6",
+      "requirement": "确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。",
+      "status": "partial",
+      "evidence": [
+        "RV-062 reference only, registry confirmed-open unchanged",
+        "findings.pending.md contains one dynamic-pending options candidate and one documentation-only candidate; no duplicate RV",
+        "main classification/numbering pending"
+      ]
+    },
+    {
+      "id": "D7",
+      "requirement": "形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。",
+      "status": "partial",
+      "evidence": [
+        "🟡 bounded static assessment with exact unresolved gates",
+        "full object candidate=false, releaseReady=false; no blanket rating of unvalidated surfaces"
+      ]
+    }
+  ],
+  "historicalC1ReuseBoundary": "C1 最低功能序列已有主控实际运行；current wrapper hash 与 measured hash 一致，probe body/import set 等价，core 已记录80输入无漂移。没有声称全工作树同 HEAD，或本轮新增 probe 已运行。",
+  "evidenceRoot": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-search-react"
+}

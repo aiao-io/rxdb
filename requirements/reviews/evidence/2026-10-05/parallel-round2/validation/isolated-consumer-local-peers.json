@@ -1,0 +1,1897 @@
+{
+  "clientDate": "2026-10-05",
+  "reason": "Offline mirror lacks Angular metadata; instead of downloading/changing versions, tar actual installed exact third-party peers/transitive deps and install real files. No scripts, aliases, or workspace node_modules links. Installed patches, if any, are part of this explicitly measured local environment, not a clean registry baseline.",
+  "peerPackages": [
+    {
+      "name": "@angular/compiler",
+      "version": "22.2.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+compiler@22.2.1/node_modules/@angular/compiler",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/angular__compiler.tgz",
+      "tarballSha256": "4fa96882fba759fe95f5d679f90b205285b9d029e5bb180a177221bf7554425c",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "tslib",
+      "version": "2.8.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/tslib@2.8.1/node_modules/tslib",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/tslib.tgz",
+      "tarballSha256": "10236b620d697f6899a396479761a28d83eeb18cbd39a6850802265c7adab2bf",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@types/react-dom",
+      "version": "19.3.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@types+react-dom@19.3.0_@types+react@19.3.0/node_modules/@types/react-dom",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/types__react-dom.tgz",
+      "tarballSha256": "3e804ba86c2f70fb20b8e3aa485bfbb39c344cd4425f6eafe8fe6f0d1b68e139",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@types/react",
+      "version": "19.3.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@types+react@19.3.0/node_modules/@types/react",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/types__react.tgz",
+      "tarballSha256": "30d95a6017e63c197e72d461c9cdba73b00264788a4a933eb0728c9db6dcc60c",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "csstype",
+      "version": "3.2.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/csstype@3.2.3/node_modules/csstype",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/csstype.tgz",
+      "tarballSha256": "b7ebd8316058c9207f098e57ee4709737ebbb29fe14bbbe9b9771f0ea496ff8c",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@types/node",
+      "version": "26.6.4",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@types+node@26.6.4/node_modules/@types/node",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/types__node.tgz",
+      "tarballSha256": "fd14c8ccb37643eff2919698508a60821ee3a2cec77e75e27402b2a2b26570e0",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "undici-types",
+      "version": "8.9.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/undici-types@8.9.0/node_modules/undici-types",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/undici-types.tgz",
+      "tarballSha256": "863dd4ea187f176f77aa99e8983189a3f1d455bf508da753a566ce3709705820",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "typescript",
+      "version": "6.0.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/typescript.tgz",
+      "tarballSha256": "708c0b381fecfb680fda040f2ded163f60cd4ba384c72321704818bd288ad387",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/language-data",
+      "version": "6.5.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+language-data@6.5.2/node_modules/@codemirror/language-data",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__language-data.tgz",
+      "tarballSha256": "a68a4ccd407f128ada1ffa935c577eb582fe0429b4afff605c7d799670403801",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/legacy-modes",
+      "version": "6.5.4",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+legacy-modes@6.5.4/node_modules/@codemirror/legacy-modes",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__legacy-modes.tgz",
+      "tarballSha256": "667de986eb1aab076ff3b2026cef7de2f567fec15cb23b20110ff14ee030c38f",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/language",
+      "version": "6.12.4",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+language@6.12.4/node_modules/@codemirror/language",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__language.tgz",
+      "tarballSha256": "691664c5f868ff5bf506a21f1b46fbd1e375347ce5efb3cb60ca4e009fedac79",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "style-mod",
+      "version": "4.1.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/style-mod@4.1.3/node_modules/style-mod",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/style-mod.tgz",
+      "tarballSha256": "93b61ce8cf0056d4f9335da905c6e8ce5a149e8a3b2fb4c92b24be87605619f8",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/lr",
+      "version": "1.4.10",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__lr.tgz",
+      "tarballSha256": "0cdaefa492b4e1f04d1739551c97daf45fb40d0ec4fc4c143f53bb3945d5c63a",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/common",
+      "version": "1.5.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+common@1.5.2/node_modules/@lezer/common",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__common.tgz",
+      "tarballSha256": "a2297a9462258ed30661612ac7af005e7ddfdbcfafa71bad3a287b0bd3ce48b0",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/highlight",
+      "version": "1.2.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__highlight.tgz",
+      "tarballSha256": "5b19ec3bdf0928cc3900715651b0489cfa60ec4551a6fdc4b3ea374ce7fdad8f",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/view",
+      "version": "6.43.13",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+view@6.43.13/node_modules/@codemirror/view",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__view.tgz",
+      "tarballSha256": "a9b5f5599bccf106356378fd2bf0dfee0597f08d28e59ba9d6759fc59b511d42",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "w3c-keyname",
+      "version": "2.2.8",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/w3c-keyname@2.2.8/node_modules/w3c-keyname",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/w3c-keyname.tgz",
+      "tarballSha256": "850cf3a4cbe6a553500b21ccfb3696596567589ec80dfed62abd5b6315f1f7c8",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "crelt",
+      "version": "1.0.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/crelt@1.0.7/node_modules/crelt",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/crelt.tgz",
+      "tarballSha256": "a595359611156bd75992534b6838ec1ee703672d28889a60b5cb925b541258cd",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/state",
+      "version": "6.7.6",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+state@6.7.6/node_modules/@codemirror/state",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__state.tgz",
+      "tarballSha256": "5d726078a4f4d8121113ec55a240a6ef207a85f3ac8065745e6755a0c8027274",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@marijn/find-cluster-break",
+      "version": "1.0.4",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@marijn+find-cluster-break@1.0.4/node_modules/@marijn/find-cluster-break",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/marijn__find-cluster-break.tgz",
+      "tarballSha256": "d6a99efe29486ffc8f5182946505399d29ce7d961bd4e40f22572e7880558cbf",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-yaml",
+      "version": "6.1.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-yaml@6.1.3/node_modules/@codemirror/lang-yaml",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-yaml.tgz",
+      "tarballSha256": "b9b7f621aadc10a415caaf263a8621b4fc1975cf112112dc3211e903348d6906",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/yaml",
+      "version": "1.0.4",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+yaml@1.0.4/node_modules/@lezer/yaml",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__yaml.tgz",
+      "tarballSha256": "cd23f7d3f331b2265f1bdea0ed66468923642849435d3af1c8a164ea8122e38c",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/autocomplete",
+      "version": "6.20.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+autocomplete@6.20.3/node_modules/@codemirror/autocomplete",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__autocomplete.tgz",
+      "tarballSha256": "0eb072a7235cbf930e318e57b1bda9ff626b1029921a90c7c94b4de4ca95607b",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-xml",
+      "version": "6.1.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-xml@6.1.0/node_modules/@codemirror/lang-xml",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-xml.tgz",
+      "tarballSha256": "9797d62efde72ee95a8640da67c9ec7cd13dd49a5e7fb5144c348524287692ed",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/xml",
+      "version": "1.0.6",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+xml@1.0.6/node_modules/@lezer/xml",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__xml.tgz",
+      "tarballSha256": "fdaa4ed711f5966aac4455c09e27f7ee8476e1bbf71eb28e6465abeea4a1f6c0",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-wast",
+      "version": "6.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-wast@6.0.2/node_modules/@codemirror/lang-wast",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-wast.tgz",
+      "tarballSha256": "a45307304b8fd6743e9e8b6df896da8b1039e37071e9154ae265704e7eaf8f49",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-vue",
+      "version": "0.1.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-vue@0.1.3/node_modules/@codemirror/lang-vue",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-vue.tgz",
+      "tarballSha256": "1e3bc7b477f3e9693ea1c944561c790a22a0a597b9286ba1773c4f81a2ba082f",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-javascript",
+      "version": "6.2.5",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-javascript@6.2.5/node_modules/@codemirror/lang-javascript",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-javascript.tgz",
+      "tarballSha256": "9c9145dbb2a4bb35cf00fe8dbba4b5d4fcb578a45914ea705a140a7ed653c9cd",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/javascript",
+      "version": "1.5.4",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+javascript@1.5.4/node_modules/@lezer/javascript",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__javascript.tgz",
+      "tarballSha256": "9737f032cbd84a61c8e5dd5247e548ce615cfe8edd575d26030316593b3225bd",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lint",
+      "version": "6.9.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lint@6.9.7/node_modules/@codemirror/lint",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lint.tgz",
+      "tarballSha256": "f692ed3efbdac7c5775fb518478705539cadb074337e78c96ea5566d84761443",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-html",
+      "version": "6.4.12",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-html@6.4.12/node_modules/@codemirror/lang-html",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-html.tgz",
+      "tarballSha256": "7235f148513be12fe8e5132680e823a6c54cf95224d20bd3b5cd51823ee3b409",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/css",
+      "version": "1.3.6",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+css@1.3.6/node_modules/@lezer/css",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__css.tgz",
+      "tarballSha256": "d1fc1e786aea03b567a854c2085a33c73aa4bed17cda289533a2cd3c1ec1daf3",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/html",
+      "version": "1.3.13",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+html@1.3.13/node_modules/@lezer/html",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__html.tgz",
+      "tarballSha256": "4fc539d9f244439804ced2fe043ba2965926d634566fef0bcfdf2fe18a126feb",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-css",
+      "version": "6.3.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-css@6.3.1/node_modules/@codemirror/lang-css",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-css.tgz",
+      "tarballSha256": "9565a9710dc0a316073157abc5e693f702b5c7d97c89795ef25d0801d3e45c31",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-sql",
+      "version": "6.10.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-sql@6.10.0/node_modules/@codemirror/lang-sql",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-sql.tgz",
+      "tarballSha256": "60da38100576d85965890784c0ca1d6051f56cb0aa9d6c34eed5f583387e6833",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-sass",
+      "version": "6.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-sass@6.0.2/node_modules/@codemirror/lang-sass",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-sass.tgz",
+      "tarballSha256": "779d1454cc653dcb229271762d2af898c7808412014e2a5dc9bf99eb573c8251",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/sass",
+      "version": "1.1.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+sass@1.1.0/node_modules/@lezer/sass",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__sass.tgz",
+      "tarballSha256": "146aec8fa98bcccd23f7c516247b1c2a23884d8edc97692e76f402cf08b332f0",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-rust",
+      "version": "6.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-rust@6.0.2/node_modules/@codemirror/lang-rust",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-rust.tgz",
+      "tarballSha256": "7bec94ce5d581ca2860c61c8d5da838a75d5a68078521ddcc856257c0ac882c2",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/rust",
+      "version": "1.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+rust@1.0.2/node_modules/@lezer/rust",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__rust.tgz",
+      "tarballSha256": "0cc6e39aa694ed0387e7fd887d18c9d3310521fc2d8d2e41bae67e768818aa10",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-python",
+      "version": "6.2.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-python@6.2.1/node_modules/@codemirror/lang-python",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-python.tgz",
+      "tarballSha256": "d699a11a8c1209ec19898ec2803f7497accb924ea60690613f15363ab8f3a211",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/python",
+      "version": "1.1.19",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+python@1.1.19/node_modules/@lezer/python",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__python.tgz",
+      "tarballSha256": "4929b0b1b0e8cea6b36d280f534455ca115965aabfda6c55aa87c1b486cfabb0",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-php",
+      "version": "6.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-php@6.0.2/node_modules/@codemirror/lang-php",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-php.tgz",
+      "tarballSha256": "f6cb1be0393a4bf78fa9ae0ba27e0b44c2cb2d3ea9976420909d8bb4d5c91629",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/php",
+      "version": "1.0.6",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+php@1.0.6/node_modules/@lezer/php",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__php.tgz",
+      "tarballSha256": "c5810c9567ef19fbc106251e22e9b4f4a50cd8a87073e620bad503bee0710c82",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-markdown",
+      "version": "6.5.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-markdown@6.5.2/node_modules/@codemirror/lang-markdown",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-markdown.tgz",
+      "tarballSha256": "c54bcda57252222bf1165cb912b7142b6f64ad06677056d5399d96facbf6e239",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/markdown",
+      "version": "1.7.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+markdown@1.7.2/node_modules/@lezer/markdown",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__markdown.tgz",
+      "tarballSha256": "48d98db2948ba95736720786d5d44a849e16f4dc3a9e501f0eba2e956d07aca4",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-less",
+      "version": "6.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-less@6.0.2/node_modules/@codemirror/lang-less",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-less.tgz",
+      "tarballSha256": "0b9c188aaf8fedfbf03185550696b71d6d686f906319eb9e836a564dee5e1c1a",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-liquid",
+      "version": "6.3.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-liquid@6.3.2/node_modules/@codemirror/lang-liquid",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-liquid.tgz",
+      "tarballSha256": "d8c5285f95f66cf10c651b83c35dddce14c5436a01e82a8ccf4f48c977524dbb",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-json",
+      "version": "6.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-json@6.0.2/node_modules/@codemirror/lang-json",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-json.tgz",
+      "tarballSha256": "3b979ea3635eb1812a60db303b5e7a0d9b58910b8c4cbc5e955a513855b97b71",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/json",
+      "version": "1.0.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+json@1.0.3/node_modules/@lezer/json",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__json.tgz",
+      "tarballSha256": "951c54fba3468dbaf1ff8918023ed42d94ba4e411d2714b3040c5d5506b5867a",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-jinja",
+      "version": "6.0.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-jinja@6.0.1/node_modules/@codemirror/lang-jinja",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-jinja.tgz",
+      "tarballSha256": "695c03e5cae6075d2a4496aaf55ef52ee22a23feb5e4c65bd2d0d3eee53161a2",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-java",
+      "version": "6.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-java@6.0.2/node_modules/@codemirror/lang-java",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-java.tgz",
+      "tarballSha256": "9c375778b9db2010d6224905f074cb3e0342682f7a02d476d4ea954ee8b0ba77",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/java",
+      "version": "1.1.4",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+java@1.1.4/node_modules/@lezer/java",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__java.tgz",
+      "tarballSha256": "2f6b60bfa2c6159f433830f7e603d5d26f1882ccf8c50e3d829d704c0ed40dcb",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-go",
+      "version": "6.0.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-go@6.0.1/node_modules/@codemirror/lang-go",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-go.tgz",
+      "tarballSha256": "512bbc6b1fe0a6118a5265be9b8c6719df9e8fd382f3e924303a0e4c2bc77134",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/go",
+      "version": "1.0.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+go@1.0.1/node_modules/@lezer/go",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__go.tgz",
+      "tarballSha256": "401e425bdc8dc34fd3fcd4568e6d526ff14c73511b453c0cf161fc26d8331b91",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-cpp",
+      "version": "6.0.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-cpp@6.0.3/node_modules/@codemirror/lang-cpp",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-cpp.tgz",
+      "tarballSha256": "3fc25e0d113e38a0972d931dd2ccdb8275b6a52e3ab336245b336eded8d27fba",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@lezer/cpp",
+      "version": "1.1.6",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@lezer+cpp@1.1.6/node_modules/@lezer/cpp",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lezer__cpp.tgz",
+      "tarballSha256": "7e3c1da374c0a128982831ac1c893910edbc962c0d7e6dcc989841a529bdf0fe",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@codemirror/lang-angular",
+      "version": "0.1.4",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@codemirror+lang-angular@0.1.4/node_modules/@codemirror/lang-angular",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/codemirror__lang-angular.tgz",
+      "tarballSha256": "64d41489523c6c2c4a236907d4a637267ebad171feaa5a41a4411351ae083036",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "react-dom",
+      "version": "19.3.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/react-dom@19.3.0_react@19.3.0/node_modules/react-dom",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/react-dom.tgz",
+      "tarballSha256": "d74619e3c4802931ddc8ac0705da27fa3fd36cc156a392003b75123d242051e9",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "react",
+      "version": "19.3.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/react@19.3.0/node_modules/react",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/react.tgz",
+      "tarballSha256": "ad8e16578e95afc4f1729ecc812ca587f7566cf3fecb2c75d35314233f2975de",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "scheduler",
+      "version": "0.28.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/scheduler@0.28.0/node_modules/scheduler",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/scheduler.tgz",
+      "tarballSha256": "519f2fafed6b44d0f28dbddf03dc0950b1622c0e5c5cc3be1615e4fb8e40ff38",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@electric-sql/pglite",
+      "version": "0.5.8",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@electric-sql+pglite@0.5.8/node_modules/@electric-sql/pglite",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/electric-sql__pglite.tgz",
+      "tarballSha256": "424d9c1bd7983e1e00d86574a4ff38a4eadfb5f6befb60a6d7cb2d4a2a5f858a",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@subframe7536/sqlite-wasm",
+      "version": "1.4.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@subframe7536+sqlite-wasm@1.4.0/node_modules/@subframe7536/sqlite-wasm",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/subframe7536__sqlite-wasm.tgz",
+      "tarballSha256": "eb7952db3bb87b3bd55b8c22d7277e93a46e2ff83309c9119251131d67262fdb",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "ngxtension",
+      "version": "7.3.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/ngxtension@7.3.1_@angular+common@22.2.1_@angular+core@22.2.1_@angular+compiler@22.2.1_r_a1f72d86c942f8e85914dbc96467a175/node_modules/ngxtension",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/ngxtension.tgz",
+      "tarballSha256": "07e474947e8edafe588326c17b5396a8903b339b9bfbcb8e8f92d06fc4c65b43",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "rxjs",
+      "version": "7.8.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rxjs@7.8.2/node_modules/rxjs",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/rxjs.tgz",
+      "tarballSha256": "d78cfa99437fcdd8798a8ee56cd6074726a269109a345663966d5d2fed005ba5",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@angular/core",
+      "version": "22.2.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2/node_modules/@angular/core",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/angular__core.tgz",
+      "tarballSha256": "d8d3b1636ac4dd6e6227325252156c710ca6a21bdf904794c001f06ae744809a",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@angular/common",
+      "version": "22.2.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+common@22.2.1_@angular+core@22.2.1_@angular+compiler@22.2.1_rxjs@7.8.2__rxjs@7.8.2/node_modules/@angular/common",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/angular__common.tgz",
+      "tarballSha256": "53989bb4943b2ca703f876139b8d6491cca97bbda46ca43c0ca5962613631408",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@angular/platform-browser",
+      "version": "22.2.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@angular+platform-browser@22.2.1_@angular+common@22.2.1_@angular+core@22.2.1_@angular+c_29fc8fb89ccf5cf9f7fde60b3e6d1c3e/node_modules/@angular/platform-browser",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/angular__platform-browser.tgz",
+      "tarballSha256": "7b373f7e5b25800b9d0d66bdf1873f4f567a9ec18b08523ce207db42b9c56c73",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "comlink",
+      "version": "4.4.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/comlink@4.4.2/node_modules/comlink",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/comlink.tgz",
+      "tarballSha256": "e83c012c84189688d5abebb2f33c9cbeefead0e244cdedd9803b3d8606a46891",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "ts-morph",
+      "version": "28.0.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/ts-morph@28.0.0/node_modules/ts-morph",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/ts-morph.tgz",
+      "tarballSha256": "76285f6335f48fb5064978b47706087b1d36cdb9d02561b1a9996c0923661a49",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "code-block-writer",
+      "version": "13.0.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/code-block-writer@13.0.3/node_modules/code-block-writer",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/code-block-writer.tgz",
+      "tarballSha256": "53e50840b4f7f3b52a479c5034a1d81e5e075fd2d9a6f381397f404b13888bb6",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@ts-morph/common",
+      "version": "0.29.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@ts-morph+common@0.29.0/node_modules/@ts-morph/common",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/ts-morph__common.tgz",
+      "tarballSha256": "b672adf8f2f9e90197c171487a68b8a1cf61ae9625fc1071534d1e7de00d8a88",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "tinyglobby",
+      "version": "0.2.17",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/tinyglobby@0.2.17/node_modules/tinyglobby",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/tinyglobby.tgz",
+      "tarballSha256": "9ea32266d00d8beb7a30d58c660c811a2321c9f30b7567e3eba376c582dd9e77",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "picomatch",
+      "version": "4.0.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/picomatch@4.0.7/node_modules/picomatch",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/picomatch.tgz",
+      "tarballSha256": "350a2ceea3751d7efd44379f8e220b07a403f8e05ab57643007ec928a55525b3",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "fdir",
+      "version": "6.5.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/fdir@6.5.0_picomatch@4.0.7/node_modules/fdir",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/fdir.tgz",
+      "tarballSha256": "fcd3e5e6fdb70e10bc314edde730752baab325be3065349f89dba428475e51ea",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "path-browserify",
+      "version": "1.0.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/path-browserify@1.0.1/node_modules/path-browserify",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/path-browserify.tgz",
+      "tarballSha256": "d9c6fb119fb0a7ab04321b4904475f66c49598a3b5dba4910cf8e1cf76da7ac2",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "minimatch",
+      "version": "10.2.6",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/minimatch@10.2.6/node_modules/minimatch",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/minimatch.tgz",
+      "tarballSha256": "16194d8ecb66b7775781260abc01b7a9d95da052dd70b2765a8a0b806b06a193",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "brace-expansion",
+      "version": "5.0.12",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/brace-expansion@5.0.12/node_modules/brace-expansion",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/brace-expansion.tgz",
+      "tarballSha256": "cea07ecb80ab1c43ca988cce64e5dab48804ff2bb8142749ac89dccfc6654186",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "balanced-match",
+      "version": "4.0.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/balanced-match@4.0.3/node_modules/balanced-match",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/balanced-match.tgz",
+      "tarballSha256": "96432d0e53885a1ed8cb673726ba2c88c78eb37028a455431b22428cef674d7c",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "jiti",
+      "version": "2.7.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/jiti@2.7.0/node_modules/jiti",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/jiti.tgz",
+      "tarballSha256": "24dc5e4846d2d776b814d185aec3f24d11ea5b1b287a986d8c708e9d51f41a1a",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "glob",
+      "version": "13.0.6",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/glob@13.0.6/node_modules/glob",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/glob.tgz",
+      "tarballSha256": "2866eee6fc87be99fa45d9976566cb0855a77461e6f9288e7ae0441f7db71ed3",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "path-scurry",
+      "version": "2.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/path-scurry@2.0.2/node_modules/path-scurry",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/path-scurry.tgz",
+      "tarballSha256": "a3fdd64f969fac8f89067c316397179b67911be31fce5cc000ebf52b885a60d2",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "minipass",
+      "version": "7.1.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/minipass@7.1.3/node_modules/minipass",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/minipass.tgz",
+      "tarballSha256": "03b9625aee7fcfba335c67a2312bc86b22d4bc061760226bb02db33803144bda",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "lru-cache",
+      "version": "11.5.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/lru-cache@11.5.2/node_modules/lru-cache",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lru-cache.tgz",
+      "tarballSha256": "d4f7db16599d4d5adad49bb9708026f79969dcf34553e7affea1223a61306708",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "vue",
+      "version": "3.5.43",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vue@3.5.43_typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb_/node_modules/vue",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vue.tgz",
+      "tarballSha256": "71746fb37fc4151c69a6d8816dc5090502dd6b2917253fe3d20e9611d4298388",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vue/server-renderer",
+      "version": "3.5.43",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+server-renderer@3.5.43/node_modules/@vue/server-renderer",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vue__server-renderer.tgz",
+      "tarballSha256": "ac010cddc929d50d0941adf4e90057568237b4390fe86531b26a65f3e70a9291",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vue/runtime-dom",
+      "version": "3.5.43",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+runtime-dom@3.5.43/node_modules/@vue/runtime-dom",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vue__runtime-dom.tgz",
+      "tarballSha256": "d223e86272bcdb30e06aa59bb7bb5606f8c9a11de45123b0f978865d79473caa",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vue/reactivity",
+      "version": "3.5.43",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+reactivity@3.5.43/node_modules/@vue/reactivity",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vue__reactivity.tgz",
+      "tarballSha256": "18364a1d288605d7998bfeec3ca4d10ed12ed112d3746c6f8621260fd0b9ebce",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vue/shared",
+      "version": "3.5.43",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+shared@3.5.43/node_modules/@vue/shared",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vue__shared.tgz",
+      "tarballSha256": "873d7a621d2dfdc0e56d76b98fc5afdfd8399c097faf467689281ad45c2fa683",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vue/runtime-core",
+      "version": "3.5.43",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+runtime-core@3.5.43/node_modules/@vue/runtime-core",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vue__runtime-core.tgz",
+      "tarballSha256": "f9a7fdbfd49ad5d2dc45e60eb63ebce8573c7708b6efa097071b292b1667551b",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vue/compiler-ssr",
+      "version": "3.5.43",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+compiler-ssr@3.5.43/node_modules/@vue/compiler-ssr",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vue__compiler-ssr.tgz",
+      "tarballSha256": "9619e66c5b3f128d2cd857f8c77b0b9bc77a0bd264ec5556ab82a5f05a885385",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vue/compiler-dom",
+      "version": "3.5.43",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+compiler-dom@3.5.43/node_modules/@vue/compiler-dom",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vue__compiler-dom.tgz",
+      "tarballSha256": "c00d2a9dc6fc90c8b34a52dc6dd5031eaa7ab3ef85b1f59905056ee0be94eb9d",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vue/compiler-core",
+      "version": "3.5.43",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+compiler-core@3.5.43/node_modules/@vue/compiler-core",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vue__compiler-core.tgz",
+      "tarballSha256": "ac3d3d08278548eaff6f8f274d7c6177a9ccbb21b901985bcdcbf73ea2a9790d",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "source-map-js",
+      "version": "1.2.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/source-map-js@1.2.1/node_modules/source-map-js",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/source-map-js.tgz",
+      "tarballSha256": "d0b368ce99b4c40c9d3d16f9caa2671774f9526880a951b27a6bfcc959afb5e1",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "estree-walker",
+      "version": "2.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/estree-walker@2.0.2/node_modules/estree-walker",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/estree-walker.tgz",
+      "tarballSha256": "3df59a31bf7682cf2ebbe5f54b1a0760fcfedf2e3051c391bd8ac432edcf0bb1",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "entities",
+      "version": "7.0.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/entities@7.0.1/node_modules/entities",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/entities.tgz",
+      "tarballSha256": "97ef2200ac4ff5ce1d5ce31dee7edb332c12bf611c221252c7b2eb9869f667a2",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@babel/parser",
+      "version": "7.29.8",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+parser@7.29.8/node_modules/@babel/parser",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/babel__parser.tgz",
+      "tarballSha256": "36c7e17bdee4e376d2ee3f74ea1995877cfb7ce13ef96d58028b04cf3410407f",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@babel/types",
+      "version": "7.29.8",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+types@7.29.8/node_modules/@babel/types",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/babel__types.tgz",
+      "tarballSha256": "23da00fc47dcf785f5b42b7776d373c5a1f8a662a61dc7488897ba4697188b91",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@babel/helper-validator-identifier",
+      "version": "7.29.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+helper-validator-identifier@7.29.7/node_modules/@babel/helper-validator-identifier",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/babel__helper-validator-identifier.tgz",
+      "tarballSha256": "c0d3f399968047e33eecc68a76b3cae078053dd13254c3505322a96195320447",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@babel/helper-string-parser",
+      "version": "7.29.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+helper-string-parser@7.29.7/node_modules/@babel/helper-string-parser",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/babel__helper-string-parser.tgz",
+      "tarballSha256": "c16289bec997784b2dab331a6427414585c40640790b15aa2624d5705f0fa09c",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vue/compiler-sfc",
+      "version": "3.5.43",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vue+compiler-sfc@3.5.43/node_modules/@vue/compiler-sfc",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vue__compiler-sfc.tgz",
+      "tarballSha256": "827640f760363a43108e04dd0b98b6b7727a513918f82147db80df25631297ab",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "postcss",
+      "version": "8.5.28",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/postcss@8.5.28/node_modules/postcss",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/postcss.tgz",
+      "tarballSha256": "425e30bcb250cafa3d8806996b26b540c8641b5d3b33f18f862481c96d3aa6f8",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "picocolors",
+      "version": "1.1.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/picocolors@1.1.1/node_modules/picocolors",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/picocolors.tgz",
+      "tarballSha256": "e4ff99eb41b3d1e3e1f9670b6b2492261fd741d244fb71d2b729939cc69d352f",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "nanoid",
+      "version": "3.3.18",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/nanoid@3.3.18/node_modules/nanoid",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/nanoid.tgz",
+      "tarballSha256": "ed211c15953c4538a718bef79efb16cfab05185e282e70f613a522f001ebe7f6",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "magic-string",
+      "version": "0.30.21",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/magic-string@0.30.21/node_modules/magic-string",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/magic-string.tgz",
+      "tarballSha256": "7fc466558fe8d077453c0aa63a0f93287206676844e1f7dcba521405113a086d",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@jridgewell/sourcemap-codec",
+      "version": "1.6.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@jridgewell+sourcemap-codec@1.6.0/node_modules/@jridgewell/sourcemap-codec",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/jridgewell__sourcemap-codec.tgz",
+      "tarballSha256": "28fb626b8cc4cb6d21f2f6e6a2fea59b4b17ddec1a8192a0026da685fd2a7f27",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "uuid",
+      "version": "14.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/uuid@14.0.2/node_modules/uuid",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/uuid.tgz",
+      "tarballSha256": "0a48eefb881a1776c55b8eea2a2eb93f6e40d3a22bf62c53e3804c71e0353dac",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "type-fest",
+      "version": "5.10.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/type-fest@5.10.0/node_modules/type-fest",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/type-fest.tgz",
+      "tarballSha256": "61d11fc4e4d156c13e2dc592608805d62d36f127949c2800d02e72cc90412048",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "tagged-tag",
+      "version": "1.0.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/tagged-tag@1.0.0/node_modules/tagged-tag",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/tagged-tag.tgz",
+      "tarballSha256": "ce7ab2f8803c6cd2a10d93e81cbd4c444f38df12a38bd4b6c8d796c943619c2e",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "ts-xor",
+      "version": "1.3.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/ts-xor@1.3.0/node_modules/ts-xor",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/ts-xor.tgz",
+      "tarballSha256": "6dd16cf0ed294a4dacf4b21f4b959b03ad9a63e24e9f05a561f545c8cfd9ea0e",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "ms",
+      "version": "2.1.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/ms@2.1.3/node_modules/ms",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/ms.tgz",
+      "tarballSha256": "7ca98147fac548a336ca179c92e206ef95aa24db1e0dac0c6d9704edce5bb1ae",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "fastest-levenshtein",
+      "version": "1.0.16",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/fastest-levenshtein@1.0.16/node_modules/fastest-levenshtein",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/fastest-levenshtein.tgz",
+      "tarballSha256": "57208bfab66845a7d1b3c0d7d2f6fb8e49c036cc5b4bc7b41c24e3c2c484f51f",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "vitest",
+      "version": "4.1.11",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vitest@4.1.11_@types+node@26.6.4_@vitest+browser-playwright@4.1.11_@vitest+coverage-ist_95a8396b3cd95b2bf950418eb2c0b4db/node_modules/vitest",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vitest.tgz",
+      "tarballSha256": "fb82a659d3a94da9160e730cf7b368593f868b39e96f440af267121b823f48de",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vitest/ui",
+      "version": "4.1.11",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+ui@4.1.11_vitest@4.1.11/node_modules/@vitest/ui",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vitest__ui.tgz",
+      "tarballSha256": "e524729b4fa6817eda802031367455e5aa5f66d03c5bd0b0ffc5afa2e05db6c7",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vitest/utils",
+      "version": "4.1.11",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+utils@4.1.11/node_modules/@vitest/utils",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vitest__utils.tgz",
+      "tarballSha256": "8cd6aa350d9fca5d847ec128476c3fb960e29c3826b5edb576534c43df2782e1",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vitest/pretty-format",
+      "version": "4.1.11",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+pretty-format@4.1.11/node_modules/@vitest/pretty-format",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vitest__pretty-format.tgz",
+      "tarballSha256": "c29b095b95a9a512df15693c2324eae8924d12923e6dc92e1082d911f473be72",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "tinyrainbow",
+      "version": "3.1.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/tinyrainbow@3.1.1/node_modules/tinyrainbow",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/tinyrainbow.tgz",
+      "tarballSha256": "a928b20929a65895d38ae9d03ed5803a9e8ac62b8b10234a567fe20e42ba2b1d",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "convert-source-map",
+      "version": "2.0.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/convert-source-map@2.0.0/node_modules/convert-source-map",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/convert-source-map.tgz",
+      "tarballSha256": "78a7d0ff0ab71292f25a366bbbb703966b0887454e5705a3c9b16e400223f7f3",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "sirv",
+      "version": "3.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/sirv@3.0.2/node_modules/sirv",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/sirv.tgz",
+      "tarballSha256": "3d0a5ed7deda89fb49ec819d44032d90b0e9bb2de0a3263347e044463cc887f7",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "totalist",
+      "version": "3.0.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/totalist@3.0.1/node_modules/totalist",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/totalist.tgz",
+      "tarballSha256": "ffd9c6a45211a4a83472967c9c82e6070cbeb5f4b91543e19131bcc995ed0c79",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "mrmime",
+      "version": "2.0.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/mrmime@2.0.1/node_modules/mrmime",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/mrmime.tgz",
+      "tarballSha256": "f5c933fb03f4bbcd36652d5da5073ad82a78c85a90e1022ab608206920526735",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@polka/url",
+      "version": "1.0.0-next.29",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@polka+url@1.0.0-next.29/node_modules/@polka/url",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/polka__url.tgz",
+      "tarballSha256": "e4253af91c9a27979a2b7322868f3a5115317dd274480f234b1e7287e4b0b183",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "pathe",
+      "version": "2.0.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/pathe@2.0.3/node_modules/pathe",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/pathe.tgz",
+      "tarballSha256": "a8f5898ae155382a1e7eba22fb8e207cf06fb148a0e778f9d5d4904db4f99fe6",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "flatted",
+      "version": "3.4.4",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/flatted@3.4.4/node_modules/flatted",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/flatted.tgz",
+      "tarballSha256": "b384922466196ad72b55e12fa57e8ec0d1e2ecfe90a0b47cbeabbe2d34820a97",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "fflate",
+      "version": "0.8.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/fflate@0.8.3/node_modules/fflate",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/fflate.tgz",
+      "tarballSha256": "1a46cc83a6b14b57f5f0fd4c5a2b18fff20f4b44f977417ab77852e57e939513",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vitest/coverage-istanbul",
+      "version": "4.1.11",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+coverage-istanbul@4.1.11_vitest@4.1.11/node_modules/@vitest/coverage-istanbul",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vitest__coverage-istanbul.tgz",
+      "tarballSha256": "fae7b8636b5007f85d7f1560609e11b34eb5d488b5e36354ef7a50ab7788b475",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "obug",
+      "version": "2.2.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/obug@2.2.1/node_modules/obug",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/obug.tgz",
+      "tarballSha256": "12f7ce9960a7cba58ffb7a3faac7d4f16e5142eb5abb2d913ba19f481ab145c5",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "magicast",
+      "version": "0.5.4",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/magicast@0.5.4/node_modules/magicast",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/magicast.tgz",
+      "tarballSha256": "09af58a431ad98c3ad739dfd93635d10b807b6640e42ef6a43721b67b1d4072b",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "istanbul-reports",
+      "version": "3.2.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/istanbul-reports@3.2.0/node_modules/istanbul-reports",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/istanbul-reports.tgz",
+      "tarballSha256": "22e413b8b76a4fef6770750dc018447f6cf44175b8c7f6a717bf1ac302b552b8",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "istanbul-lib-report",
+      "version": "3.0.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/istanbul-lib-report@3.0.1/node_modules/istanbul-lib-report",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/istanbul-lib-report.tgz",
+      "tarballSha256": "05a6beb323b1427051e119084b44621f79aaee31c6709f7fdc9fe6d8412bba14",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "supports-color",
+      "version": "7.2.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/supports-color@7.2.0/node_modules/supports-color",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/supports-color.tgz",
+      "tarballSha256": "3795247bafb323b86afe990a338c8b869d0261d9a70e6495e2dbc8ef21fd40eb",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "has-flag",
+      "version": "4.0.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/has-flag@4.0.0/node_modules/has-flag",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/has-flag.tgz",
+      "tarballSha256": "f8ba46c471d85371b225a16954b32bbc1c562b235079b74cb7bba14cfdad4c66",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "make-dir",
+      "version": "4.0.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/make-dir@4.0.0/node_modules/make-dir",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/make-dir.tgz",
+      "tarballSha256": "e60395b051de2e3bb1ea7b2a131719b78ed5bc3779f2487f98c963cfc60d1757",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "semver",
+      "version": "7.8.5",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/semver@7.8.5/node_modules/semver",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/semver.tgz",
+      "tarballSha256": "246b195c3db0f3ca538521bbce47f3d759f67d4e5f6ab3c5461f37a4debe31f5",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "istanbul-lib-coverage",
+      "version": "3.2.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/istanbul-lib-coverage@3.2.2/node_modules/istanbul-lib-coverage",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/istanbul-lib-coverage.tgz",
+      "tarballSha256": "6e6d912f0197438263708b1eb5655b91245acfa13bc408aac0da7b6fac3d31e0",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "html-escaper",
+      "version": "2.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/html-escaper@2.0.2/node_modules/html-escaper",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/html-escaper.tgz",
+      "tarballSha256": "2c9ef794682eff94842549502af4b4a9890f5e3568acbcada41c1fa8713ae267",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@jridgewell/trace-mapping",
+      "version": "0.3.31",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@jridgewell+trace-mapping@0.3.31/node_modules/@jridgewell/trace-mapping",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/jridgewell__trace-mapping.tgz",
+      "tarballSha256": "e927a20f48c7b1e6b5e27e86f3edbc1d9155a57575b0d207a3d56a49cf740ce6",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@jridgewell/resolve-uri",
+      "version": "3.1.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@jridgewell+resolve-uri@3.1.2/node_modules/@jridgewell/resolve-uri",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/jridgewell__resolve-uri.tgz",
+      "tarballSha256": "9892d1df2f20237467a170833395be16b5b72cb43fa88f5d631d1a7479b7d80f",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@jridgewell/gen-mapping",
+      "version": "0.3.13",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@jridgewell+gen-mapping@0.3.13/node_modules/@jridgewell/gen-mapping",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/jridgewell__gen-mapping.tgz",
+      "tarballSha256": "c6b65657eb64b6962dd4c5f00b3c5f555957a187ef465f0cd484f146719a93ad",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@istanbuljs/schema",
+      "version": "0.1.6",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@istanbuljs+schema@0.1.6/node_modules/@istanbuljs/schema",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/istanbuljs__schema.tgz",
+      "tarballSha256": "0d917f328030d23be1250145f91cae7c17516b026938573d981cb3a6c45d3466",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@babel/core",
+      "version": "7.29.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+core@7.29.7/node_modules/@babel/core",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/babel__core.tgz",
+      "tarballSha256": "f3094836842ff941bbc2b9141244ecaea98887d98a6550331b211c84ed97bdc6",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "json5",
+      "version": "2.2.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/json5@2.2.3/node_modules/json5",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/json5.tgz",
+      "tarballSha256": "a97d0e5895661d4dcb72babba05eccb3f4abe3646e3761417573741127c348f6",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "gensync",
+      "version": "1.0.0-beta.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/gensync@1.0.0-beta.2/node_modules/gensync",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/gensync.tgz",
+      "tarballSha256": "c7a6305eb036ee590141a74030bc3f73b9724fcefd88494e429f9cbc328c8956",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "debug",
+      "version": "4.4.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/debug@4.4.3_supports-color@7.2.0/node_modules/debug",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/debug.tgz",
+      "tarballSha256": "e73b9e7f606bfe1551bd17b0c174563a5284d4ccde9e45e26fd3a5be07875309",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@jridgewell/remapping",
+      "version": "2.3.5",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@jridgewell+remapping@2.3.5/node_modules/@jridgewell/remapping",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/jridgewell__remapping.tgz",
+      "tarballSha256": "4dd598cbfca1a9379f14c621006c73fca32dcc6ef5e28837561b8deff1b6f2c2",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@babel/traverse",
+      "version": "7.29.8",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+traverse@7.29.8/node_modules/@babel/traverse",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/babel__traverse.tgz",
+      "tarballSha256": "743963b4e5f66540402dab9fdd64c6d0f5f504b4fd8c6058243c3102952cdea7",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@babel/template",
+      "version": "7.29.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+template@7.29.7/node_modules/@babel/template",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/babel__template.tgz",
+      "tarballSha256": "0b03878ba0b4fc0f112b7834ddbdc00c17bf6f6806a9192aa56a3331239529e8",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@babel/code-frame",
+      "version": "7.29.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+code-frame@7.29.7/node_modules/@babel/code-frame",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/babel__code-frame.tgz",
+      "tarballSha256": "fd9561faafd8287f7f19b272f660531b57a1c7def3bcd52cd49c99ef06792a11",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "js-tokens",
+      "version": "4.0.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/js-tokens@4.0.0/node_modules/js-tokens",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/js-tokens.tgz",
+      "tarballSha256": "f1ae1aba7395e7dafa3e93737147289f0c65f9e5981a7b9f7f9e6b17678c1616",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@babel/helper-globals",
+      "version": "7.29.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+helper-globals@7.29.7/node_modules/@babel/helper-globals",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/babel__helper-globals.tgz",
+      "tarballSha256": "896a1e035a77df7d3deac238e966af7b59e73b7e7b59eea23acc1251aea7617d",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@babel/generator",
+      "version": "7.29.8",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+generator@7.29.8/node_modules/@babel/generator",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/babel__generator.tgz",
+      "tarballSha256": "db98a8494da01aa2aabba26b1c0142f8293cb0f5fcb775e39d4e683988175297",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "jsesc",
+      "version": "3.1.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/jsesc@3.1.0/node_modules/jsesc",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/jsesc.tgz",
+      "tarballSha256": "29198b1588132cda823c6aabf9ef6e00fa9aebd4fe28d824c7eb79dfbdd0c081",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@babel/helpers",
+      "version": "7.29.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+helpers@7.29.7/node_modules/@babel/helpers",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/babel__helpers.tgz",
+      "tarballSha256": "6282eff42bbb058a4c57c2bf04ad4a83bdfdaa0b034874ab82d45799fcc6b060",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@babel/helper-module-transforms",
+      "version": "7.29.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+helper-module-transforms@7.29.7_@babel+core@7.29.7/node_modules/@babel/helper-module-transforms",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/babel__helper-module-transforms.tgz",
+      "tarballSha256": "e52c11def6c43f38267cd4c6e8209b1100e6648d9ab8436d7d3d8aac323f6043",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@babel/helper-module-imports",
+      "version": "7.29.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+helper-module-imports@7.29.7/node_modules/@babel/helper-module-imports",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/babel__helper-module-imports.tgz",
+      "tarballSha256": "4278cb45b9c155898f76b3d2de0e7cd39445b79853d0a217887e4b4835fcdad1",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@babel/helper-compilation-targets",
+      "version": "7.29.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+helper-compilation-targets@7.29.7/node_modules/@babel/helper-compilation-targets",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/babel__helper-compilation-targets.tgz",
+      "tarballSha256": "1727083298c930676f72f94f3a0c3c948a391fc8b39bb13fb459e0cda355df11",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "browserslist",
+      "version": "4.28.9",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/browserslist@4.28.9/node_modules/browserslist",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/browserslist.tgz",
+      "tarballSha256": "c7ac3f82726ecc137308808f29fcbc7fa1aef599a2e3c002d1f0882e840d5b01",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "update-browserslist-db",
+      "version": "1.3.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/update-browserslist-db@1.3.2_browserslist@4.28.9/node_modules/update-browserslist-db",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/update-browserslist-db.tgz",
+      "tarballSha256": "b7bf318184e3d81f977703166b304fbd66a7bd4323f9fa99c74bff7bbf45132c",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "escalade",
+      "version": "3.2.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/escalade@3.2.0/node_modules/escalade",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/escalade.tgz",
+      "tarballSha256": "0cdf0cc5f1a0b610c815f90907bc35c71140c04fd299bc293a2176e967edf884",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "node-releases",
+      "version": "2.0.55",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/node-releases@2.0.55/node_modules/node-releases",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/node-releases.tgz",
+      "tarballSha256": "5bbd95b64d4484f7f4d925c1a1874e9a5c6ae12249c3da5d0f77c45df327490c",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "electron-to-chromium",
+      "version": "1.5.426",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/electron-to-chromium@1.5.426/node_modules/electron-to-chromium",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/electron-to-chromium.tgz",
+      "tarballSha256": "beeb8413679f0268b7df456a23a424b78973757d6e09211453e7a28cf61e104a",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "caniuse-lite",
+      "version": "1.0.30001810",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/caniuse-lite@1.0.30001810/node_modules/caniuse-lite",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/caniuse-lite.tgz",
+      "tarballSha256": "8451c365b755f188fdf07e3a92c3042cf85e75ecea4604b21c1f1f5104856091",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "baseline-browser-mapping",
+      "version": "2.11.21",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/baseline-browser-mapping@2.11.21/node_modules/baseline-browser-mapping",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/baseline-browser-mapping.tgz",
+      "tarballSha256": "fd2b7b5ba383d00f8ae73ae3c2da1f6a9ab0e0635fb8759a07e2f3c86cae8e3c",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@babel/helper-validator-option",
+      "version": "7.29.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+helper-validator-option@7.29.7/node_modules/@babel/helper-validator-option",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/babel__helper-validator-option.tgz",
+      "tarballSha256": "36d3a574c6fc3e746a63067ca72524b1fd209d893abe666201de3ab5df692931",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@babel/compat-data",
+      "version": "7.29.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@babel+compat-data@7.29.7/node_modules/@babel/compat-data",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/babel__compat-data.tgz",
+      "tarballSha256": "e18edeb06cf7b848f58914a1c93e61c8fec5fa53b9ac3f0668f439767ea08c6e",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vitest/coverage-v8",
+      "version": "4.1.11",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+coverage-v8@4.1.11_@vitest+browser@4.1.11_vitest@4.1.11/node_modules/@vitest/coverage-v8",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vitest__coverage-v8.tgz",
+      "tarballSha256": "636c8e15d9d30d36a1c56800db25adfd12162154a2ffe1efacf126bd563d329c",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vitest/browser",
+      "version": "4.1.11",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+browser@4.1.11_vite@8.3.2_@types+node@26.6.4_esbuild@0.28.2_jiti@2.7.0_less@4.9_12e8572fed38efafbee9fcb42bea0b22/node_modules/@vitest/browser",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vitest__browser.tgz",
+      "tarballSha256": "e11a894697e6ca127b25433541614e18fb2effeb137fed531c2db01eec82d149",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vitest/mocker",
+      "version": "4.1.11",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+mocker@4.1.11_vite@8.3.2_@types+node@26.6.4_esbuild@0.28.2_jiti@2.7.0_less@4.9._7bb2037cca5d9f359821668dec0ca918/node_modules/@vitest/mocker",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vitest__mocker.tgz",
+      "tarballSha256": "09db73e181681ab98d1cf80c3166dc9a5611d58a27024fcbd70feaa1f9ee937c",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "vite",
+      "version": "8.3.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/vite@8.3.2_@types+node@26.6.4_esbuild@0.28.2_jiti@2.7.0_less@4.9.1_sass-embedded@1.104._ce9e48061e9f2892ec96cba9aef7544b/node_modules/vite",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vite.tgz",
+      "tarballSha256": "aecc763d8eddcd00723e4f785eee37ad4197728652c8bbae65946d0ec51f1503",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "yaml",
+      "version": "2.9.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/yaml@2.9.0/node_modules/yaml",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/yaml.tgz",
+      "tarballSha256": "126c982d5dc22b4d725d37436dc88cb73c0b68e802ae6783e11398ef4e3cd8c9",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "terser",
+      "version": "5.51.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/terser@5.51.2/node_modules/terser",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/terser.tgz",
+      "tarballSha256": "f6442620ce4ba09d39a5dcb7b38a254b34a01a2ef8ecc519f748bb17887e74d6",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "source-map-support",
+      "version": "0.5.21",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/source-map-support@0.5.21/node_modules/source-map-support",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/source-map-support.tgz",
+      "tarballSha256": "f27314f420624db6f5c9fa8d2ae9691646abde0eed43966e464c008060892881",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "source-map",
+      "version": "0.6.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/source-map@0.6.1/node_modules/source-map",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/source-map.tgz",
+      "tarballSha256": "625b58f5a6a6f63efcea68735681bf47a0fae394de952f57be8e75cef4103bd3",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "buffer-from",
+      "version": "1.1.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/buffer-from@1.1.2/node_modules/buffer-from",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/buffer-from.tgz",
+      "tarballSha256": "03b27c982a35802db6e713646511de5c5e40737991dc7477ca009a16759dab76",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "commander",
+      "version": "2.20.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/commander@2.20.3/node_modules/commander",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/commander.tgz",
+      "tarballSha256": "f0a16b932275bab9d78b0da4dd01dcaab4ee9ad27a5ab581541299daf2b63b25",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "acorn",
+      "version": "8.18.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/acorn@8.18.0/node_modules/acorn",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/acorn.tgz",
+      "tarballSha256": "3103a6181bff35d2a3c7918a69b7690dee91ddee4ab23a765491efcae18406d6",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@jridgewell/source-map",
+      "version": "0.3.11",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@jridgewell+source-map@0.3.11/node_modules/@jridgewell/source-map",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/jridgewell__source-map.tgz",
+      "tarballSha256": "d43fc4d8f7bc84773624f54343c602815722835e7c530be79fe61872d0fd8de1",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "sass-embedded",
+      "version": "1.104.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/sass-embedded@1.104.1/node_modules/sass-embedded",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/sass-embedded.tgz",
+      "tarballSha256": "5a8ec8ea22d2bc3025a6b16ea5acf5eae517359a860619311f228152eaed337e",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "varint",
+      "version": "6.0.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/varint@6.0.0/node_modules/varint",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/varint.tgz",
+      "tarballSha256": "3096d9fae78cdb505bdf759477bb1dde8593756b4fdc3cef63d81f4e2e7e0b30",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "sync-child-process",
+      "version": "1.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/sync-child-process@1.0.2/node_modules/sync-child-process",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/sync-child-process.tgz",
+      "tarballSha256": "7a10a1d4a1fbe97e7cb6e5bd9532d3c0ec0200d89b0033fbb368327348a4d1c4",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "sync-message-port",
+      "version": "1.2.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/sync-message-port@1.2.0/node_modules/sync-message-port",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/sync-message-port.tgz",
+      "tarballSha256": "e42032db82f6da050bad8cc3e601d053cb0e21e1b4e860c06f5f9dc42b1e09d8",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "immutable",
+      "version": "5.1.9",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/immutable@5.1.9/node_modules/immutable",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/immutable.tgz",
+      "tarballSha256": "5c6cc1ab285b7e3e77e90ea9e1ebdc4635c5eeb08ee6755d860d09d3082da2ed",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "colorjs.io",
+      "version": "0.7.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/colorjs.io@0.7.1/node_modules/colorjs.io",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/colorjs.io.tgz",
+      "tarballSha256": "645d125e7de73ec5c034da112e8bbe2f041517a50a786123f7ee126e823a0925",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@bufbuild/protobuf",
+      "version": "2.15.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@bufbuild+protobuf@2.15.0/node_modules/@bufbuild/protobuf",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/bufbuild__protobuf.tgz",
+      "tarballSha256": "06aa6afd37b32826e03699a66084a41f9bf814a6e9de649a00566724d36f0430",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "sass",
+      "version": "1.105.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/sass@1.105.1/node_modules/sass",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/sass.tgz",
+      "tarballSha256": "fc416d63f9bc7ed9733855dedf72c7734f2dadc4ee273a76e973d890092c495a",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "chokidar",
+      "version": "5.0.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/chokidar@5.0.0/node_modules/chokidar",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/chokidar.tgz",
+      "tarballSha256": "c1cf372579aafb366fff7432dbb70a9c093a880cf17cea5b536fdc0aebb6abfc",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "readdirp",
+      "version": "5.1.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/readdirp@5.1.1/node_modules/readdirp",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/readdirp.tgz",
+      "tarballSha256": "2fbe34950bc2e04aa23ee0abc757ec56216656614749f65eb96f36a9ff959488",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "less",
+      "version": "4.9.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/less@4.9.1/node_modules/less",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/less.tgz",
+      "tarballSha256": "6727c4ba2b751ab7504103cc0fbf872ba9b3f687243202eb897b2c8d8aab726f",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "parse-node-version",
+      "version": "1.0.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/parse-node-version@1.0.1/node_modules/parse-node-version",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/parse-node-version.tgz",
+      "tarballSha256": "f9b4db0261233d786c7a169b169413f2adea79814908af1672a7703d5b23f0c8",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "copy-anything",
+      "version": "3.0.5",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/copy-anything@3.0.5/node_modules/copy-anything",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/copy-anything.tgz",
+      "tarballSha256": "957630ebb38ae7abeab00a88f58c4a6449fc6c8af139b266b4ebff4fb9a804d3",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "is-what",
+      "version": "4.1.16",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/is-what@4.1.16/node_modules/is-what",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/is-what.tgz",
+      "tarballSha256": "e8a0e6ed7c26c72fd136415e39f0e004b47ea85d878de52e88d85b0f596afdb6",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "esbuild",
+      "version": "0.28.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/esbuild@0.28.2/node_modules/esbuild",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/esbuild.tgz",
+      "tarballSha256": "e6fe9cfe7f25e5026d5d043da241e581e7f8eda0a9c9d55d73accefcaabbdd9d",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "rolldown",
+      "version": "1.2.12",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rolldown@1.2.12/node_modules/rolldown",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/rolldown.tgz",
+      "tarballSha256": "277df20cff5434b76732472d4ac69feb55ed5d9db846a8de625d7cc439e935a6",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@rolldown/pluginutils",
+      "version": "1.0.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@rolldown+pluginutils@1.0.1/node_modules/@rolldown/pluginutils",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/rolldown__pluginutils.tgz",
+      "tarballSha256": "fbae78e818f0b9e3831a0520f837e2f0e38e9a4e47217bb03d246c995279fbe1",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@oxc-project/types",
+      "version": "0.152.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@oxc-project+types@0.152.0/node_modules/@oxc-project/types",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/oxc-project__types.tgz",
+      "tarballSha256": "fe24c6663e290b786b7e74794fe3af62ed0e8b60eb52e9c46aebd334ba01165c",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "lightningcss",
+      "version": "1.33.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/lightningcss@1.33.0/node_modules/lightningcss",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/lightningcss.tgz",
+      "tarballSha256": "7ccd4f80d732b999898b20abbd66762a6d20529d79eefe2480119b8438f9a32a",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "detect-libc",
+      "version": "2.1.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/detect-libc@2.1.2/node_modules/detect-libc",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/detect-libc.tgz",
+      "tarballSha256": "cb2892356a020d48f7892e2f169e244f57d256e384d29c4da31cd4a9b857253e",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vitest/spy",
+      "version": "4.1.11",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+spy@4.1.11/node_modules/@vitest/spy",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vitest__spy.tgz",
+      "tarballSha256": "d826fb939036d8c0d85416f8a88e7958aba44bdc6f6be1deeb08af054e2ea6d3",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "ws",
+      "version": "8.21.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/ws@8.21.3/node_modules/ws",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/ws.tgz",
+      "tarballSha256": "4106b139c72d616aa68576a0250a28e509294672af54633e3b37134b496ee54f",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "pngjs",
+      "version": "7.0.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/pngjs@7.0.0/node_modules/pngjs",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/pngjs.tgz",
+      "tarballSha256": "a601ba3a62f8741732df219a43cb99983b6655b9c55e94d5bb0e00752f9a5b7c",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@blazediff/core",
+      "version": "1.9.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@blazediff+core@1.9.1/node_modules/@blazediff/core",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/blazediff__core.tgz",
+      "tarballSha256": "e42c5246e9a7869d0906cf154e9484a48cd013de47bf07889db1bc388cfd9e98",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "std-env",
+      "version": "4.2.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/std-env@4.2.0/node_modules/std-env",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/std-env.tgz",
+      "tarballSha256": "97b2243e9c7ed5f130619f1d2717dea6ed02c908dc4606a724faf2abb0ad987a",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "ast-v8-to-istanbul",
+      "version": "1.0.6",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/ast-v8-to-istanbul@1.0.6/node_modules/ast-v8-to-istanbul",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/ast-v8-to-istanbul.tgz",
+      "tarballSha256": "919ef32939579bf68a80b752bc6bae14b074cbd3683ae810a26b177fe7286364",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@bcoe/v8-coverage",
+      "version": "1.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@bcoe+v8-coverage@1.0.2/node_modules/@bcoe/v8-coverage",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/bcoe__v8-coverage.tgz",
+      "tarballSha256": "801fe88f436ee51e1f924527b56271a66f976ad26980a679f9a0ec0274cff514",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vitest/browser-playwright",
+      "version": "4.1.11",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+browser-playwright@4.1.11_playwright@1.63.0_vite@8.3.2_@types+node@26.6.4_esbui_a096bc90af3e398b61bf5a5b9b7bf099/node_modules/@vitest/browser-playwright",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vitest__browser-playwright.tgz",
+      "tarballSha256": "cf4cadf65fb13edc232027e6c9b4f6554dfe954b1f71d814647eb4a84c65f575",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "playwright",
+      "version": "1.63.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/playwright@1.63.0/node_modules/playwright",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/playwright.tgz",
+      "tarballSha256": "b507cabed476821287246eef89d9ca5469cd29e977beb6da07d57b039912d301",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "playwright-core",
+      "version": "1.63.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/playwright-core@1.63.0/node_modules/playwright-core",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/playwright-core.tgz",
+      "tarballSha256": "b98c971bad3bf57302d1e457ac69a63e9a5f3f0c3d8fdf1cad4e60c88aa490af",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "happy-dom",
+      "version": "20.14.5",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/happy-dom@20.14.5/node_modules/happy-dom",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/happy-dom.tgz",
+      "tarballSha256": "182de4a43268396dfab244768203229b85e56252e6f842f55e3076fc21bd9288",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "buffer-image-size",
+      "version": "0.6.4",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/buffer-image-size@0.6.4/node_modules/buffer-image-size",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/buffer-image-size.tgz",
+      "tarballSha256": "97b3b24800a1618f18ff1b25bfd1532c2f2c0c4140cb2215d3c7388fbbae4829",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "whatwg-mimetype",
+      "version": "3.0.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/whatwg-mimetype@3.0.0/node_modules/whatwg-mimetype",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/whatwg-mimetype.tgz",
+      "tarballSha256": "6744dc6630f3c875974eebc211c13def7d1fb086d107770e9e4165c881f8ec19",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@types/ws",
+      "version": "8.18.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@types+ws@8.18.1/node_modules/@types/ws",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/types__ws.tgz",
+      "tarballSha256": "6ccf9c2a4a9d5229e40f0159b25f8052a49d16e4b5fea335002c892088cee3e3",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@types/whatwg-mimetype",
+      "version": "3.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@types+whatwg-mimetype@3.0.2/node_modules/@types/whatwg-mimetype",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/types__whatwg-mimetype.tgz",
+      "tarballSha256": "d21d11a1c6f4e863e6b84d0990c9646e4fce6657f0bcac6a4439eb2fe5d92e60",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vitest/snapshot",
+      "version": "4.1.11",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+snapshot@4.1.11/node_modules/@vitest/snapshot",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vitest__snapshot.tgz",
+      "tarballSha256": "0b3d42993e8baf9e8ba752c9448dd27ce20a4dbad60450e1bc89ad5eb5b9ab4c",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vitest/runner",
+      "version": "4.1.11",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+runner@4.1.11/node_modules/@vitest/runner",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vitest__runner.tgz",
+      "tarballSha256": "474b0275480606f71f0727a4222a08874d4a0d73714f0f3e4aed9feff76c84b6",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@vitest/expect",
+      "version": "4.1.11",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@vitest+expect@4.1.11/node_modules/@vitest/expect",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/vitest__expect.tgz",
+      "tarballSha256": "148d9e7debed3b90991b9d4375df810021ee90071026fe3771dd5cd1df5e18d4",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "chai",
+      "version": "6.2.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/chai@6.2.2/node_modules/chai",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/chai.tgz",
+      "tarballSha256": "f8908d926f9716a8bf1170afeb91957bc86f5e353e653644c2c6bc743d5b6170",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@types/chai",
+      "version": "5.2.3",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@types+chai@5.2.3/node_modules/@types/chai",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/types__chai.tgz",
+      "tarballSha256": "f334b8649df705fe08ae7a058dd7dd43200e425049d79114f93c5cd6993cb85b",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "assertion-error",
+      "version": "2.0.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/assertion-error@2.0.1/node_modules/assertion-error",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/assertion-error.tgz",
+      "tarballSha256": "1ab908493fdb664742ed5f4dfbbcc217dab4d6af66b47cfd1b8a85e3bd81f4a7",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@types/deep-eql",
+      "version": "4.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@types+deep-eql@4.0.2/node_modules/@types/deep-eql",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/types__deep-eql.tgz",
+      "tarballSha256": "043a6f41774cc9f4767aab045ffcdc666ffa69b057b84b4ce486ed0c9df6fac9",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@standard-schema/spec",
+      "version": "1.1.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@standard-schema+spec@1.1.0/node_modules/@standard-schema/spec",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/standard-schema__spec.tgz",
+      "tarballSha256": "30b5bb0c442ce21d3e618f5c698193f56ca98a6641cf1647079af050a5ebdc63",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "why-is-node-running",
+      "version": "2.3.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/why-is-node-running@2.3.0/node_modules/why-is-node-running",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/why-is-node-running.tgz",
+      "tarballSha256": "3e1d4376c50b1ddb36c9c381736f6e825bb896af7ce5449bb5fd3e092cb2891b",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "stackback",
+      "version": "0.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/stackback@0.0.2/node_modules/stackback",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/stackback.tgz",
+      "tarballSha256": "52ec82f1cd15efe17f5c47eb9a8cd4510258f64a00d2820fcde8eebe8c5c3638",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "siginfo",
+      "version": "2.0.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/siginfo@2.0.0/node_modules/siginfo",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/siginfo.tgz",
+      "tarballSha256": "363ddb3f0aae05a3248609a98dfdc8f0936867b2d8e5a49706a3b1e0b61bd3a8",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "tinyexec",
+      "version": "1.3.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/tinyexec@1.3.1/node_modules/tinyexec",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/tinyexec.tgz",
+      "tarballSha256": "719a4d9c077b1470220e4a7ccc14314258de3838b24345c3d285945654527127",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "tinybench",
+      "version": "2.9.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/tinybench@2.9.0/node_modules/tinybench",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/tinybench.tgz",
+      "tarballSha256": "244c223dfd9dd77988b691cb500f5ebce1d6ed8e675f66dd86bf06ba738f8b1c",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "expect-type",
+      "version": "1.4.0",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/expect-type@1.4.0/node_modules/expect-type",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/expect-type.tgz",
+      "tarballSha256": "0df64ddb0591d268922d1c1d648c3ac37d10428df48a9692afe9e092cbf63506",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "es-module-lexer",
+      "version": "2.3.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/es-module-lexer@2.3.2/node_modules/es-module-lexer",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/es-module-lexer.tgz",
+      "tarballSha256": "9c4e929496a1a12935e000127c222212f67065d5d108ea5a77d50225e25d9c0e",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "rrweb",
+      "version": "2.1.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrweb@2.1.7/node_modules/rrweb",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/rrweb.tgz",
+      "tarballSha256": "7c2a1be336908c553d2eda69cbf417acfee1a00fef92e2ee2626103a4132db21",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "rrweb-snapshot",
+      "version": "2.1.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrweb-snapshot@2.1.7/node_modules/rrweb-snapshot",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/rrweb-snapshot.tgz",
+      "tarballSha256": "12c2911c912e9ae3c095177b5e6757d1009d98641e446064ba55d08054cef4ab",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "rrdom",
+      "version": "2.1.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrdom@2.1.7/node_modules/rrdom",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/rrdom.tgz",
+      "tarballSha256": "f79f6c65b2814793a29ac28a786b651b7da24f3ebc9f45298a35f810beaefc4c",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "mitt",
+      "version": "3.0.1",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/mitt@3.0.1/node_modules/mitt",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/mitt.tgz",
+      "tarballSha256": "48f323d8a2aa11fe6160a6fa54cbbfbf7873a7ceabc19349455b88e28e403716",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "base64-arraybuffer",
+      "version": "1.0.2",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/base64-arraybuffer@1.0.2/node_modules/base64-arraybuffer",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/base64-arraybuffer.tgz",
+      "tarballSha256": "7daceb2ace25eebc9c178daa5094e8c03ebbca5267c47d1bb25208a54fcbe8cf",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@xstate/fsm",
+      "version": "1.6.5",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@xstate+fsm@1.6.5/node_modules/@xstate/fsm",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/xstate__fsm.tgz",
+      "tarballSha256": "7ee76536bc0898b3728b0ce2594a4f391c5d0a4e5aeda5a2fd54c47dbe3b0482",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@types/css-font-loading-module",
+      "version": "0.0.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@types+css-font-loading-module@0.0.7/node_modules/@types/css-font-loading-module",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/types__css-font-loading-module.tgz",
+      "tarballSha256": "756d35fd2aeeee16718192cea9471ced665a4a57c6009cdbd6f45ac8f70b5862",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@rrweb/utils",
+      "version": "2.1.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@rrweb+utils@2.1.7/node_modules/@rrweb/utils",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/rrweb__utils.tgz",
+      "tarballSha256": "aaac528725ac14dc94fb94869ffaf306542c87b4f1243a84ddf04af91c1d03a6",
+      "lifecycleScriptsRun": false
+    },
+    {
+      "name": "@rrweb/types",
+      "version": "2.1.7",
+      "installedSource": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/@rrweb+types@2.1.7/node_modules/@rrweb/types",
+      "tarball": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/third-party-tarballs/rrweb__types.tgz",
+      "tarballSha256": "7b5253fa601ad0ad74da6860dfe5a52f9dfc7dc671538eb10f716532044160d0",
+      "lifecycleScriptsRun": false
+    }
+  ],
+  "unresolvedPeers": [],
+  "exitCode": 1,
+  "consumerDirectory": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer",
+  "command": [
+    "pnpm",
+    "install",
+    "--offline",
+    "--ignore-scripts",
+    "--no-frozen-lockfile",
+    "--config.auto-install-peers=false"
+  ]
+}

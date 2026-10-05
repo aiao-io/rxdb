@@ -1,0 +1,212 @@
+{
+  "task": "R2-02",
+  "object": "rxdb-plugin-tree-angular",
+  "observedAt": "2026-10-05T10:59:37.740643+08:00",
+  "headAtRead": "465f9078e9844af2cbef9936c7321a5576333a01",
+  "agentExecutedHeavyValidation": false,
+  "historicalUnit": {
+    "head": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+    "testFiles": 3,
+    "tests": 7,
+    "failed": 0,
+    "skipped": 0,
+    "log": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage.txt",
+    "logLines": [
+      9120,
+      9162
+    ],
+    "wrapperAndConfigInputHashesMatchedNow": [
+      "packages/rxdb-plugin-tree-angular/ng-package.json",
+      "packages/rxdb-plugin-tree-angular/package.json",
+      "packages/rxdb-plugin-tree-angular/project.json",
+      "packages/rxdb-plugin-tree-angular/src/__tests__/index.spec.ts",
+      "packages/rxdb-plugin-tree-angular/src/__tests__/tri-framework-generics.spec.ts",
+      "packages/rxdb-plugin-tree-angular/src/__tests__/use-tree.spec.ts",
+      "packages/rxdb-plugin-tree-angular/src/index.ts",
+      "packages/rxdb-plugin-tree-angular/src/test-setup.ts",
+      "packages/rxdb-plugin-tree-angular/src/use-tree.ts",
+      "packages/rxdb-plugin-tree-angular/tsconfig.json",
+      "packages/rxdb-plugin-tree-angular/tsconfig.lib.json",
+      "packages/rxdb-plugin-tree-angular/tsconfig.lib.prod.json",
+      "packages/rxdb-plugin-tree-angular/tsconfig.spec.json",
+      "packages/rxdb-plugin-tree-angular/vite.config.mts"
+    ],
+    "newSpecIncluded": false,
+    "typescriptProgramWarnings": {
+      "present": true,
+      "ownSetupAndExternalAngularDecorators": true,
+      "note": "旧日志包含analog装饰器不在TS program的warning；unit通过不是零构建警告。新组件probe需证明未被转换为空。"
+    },
+    "junit": "本包历史目录没有junit.xml；实际单包用例来源是读取的文本日志，不假造JUnit。"
+  },
+  "historicalCoverage": {
+    "source": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-tree-angular/coverage-summary.json",
+    "total": {
+      "lines": {
+        "total": 8,
+        "covered": 8,
+        "skipped": 0,
+        "pct": 100
+      },
+      "statements": {
+        "total": 8,
+        "covered": 8,
+        "skipped": 0,
+        "pct": 100
+      },
+      "functions": {
+        "total": 4,
+        "covered": 4,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branches": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": 100
+      },
+      "branchesTrue": {
+        "total": 0,
+        "covered": 0,
+        "skipped": 0,
+        "pct": "Unknown"
+      }
+    },
+    "thresholdEachMetric": 80,
+    "allFourPass": true,
+    "measurementSurface": "8 statements / 8 lines / 4 functions / 0 branches；不是core、SQL或组件生命周期覆盖率"
+  },
+  "historicalGates": [
+    {
+      "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint-status.json",
+      "projectIncluded": true,
+      "headAtFinish": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+      "exitCode": 0,
+      "startedAt": "2026-10-05T09:06:37.871805+08:00",
+      "cacheDisabled": true,
+      "inputDriftCount": 0,
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "lint",
+        "--projects=rxdb,utils,rxdb-test,rxdb-client-generator,rxdb-plugin-history,rxdb-adapter-sqlite-core,rxdb-adapter-pglite,rxdb-adapter-encrypted,rxdb-adapter-sqlite,rxdb-adapter-sqlite-wasm,rxdb-adapter-wa-sqlite,rxdb-adapter-sqliteai,rxdb-adapter-miniprogram,rxdb-adapter-electron,rxdb-adapter-tauri,rxdb-adapter-http,rxdb-adapter-supabase,dev-rxdb-electron,dev-rxdb-electron-e2e,dev-rxdb-tauri,dev-rxdb-tauri-e2e,dev-rxdb-http,dev-rxdb-http-e2e,dev-rxdb-http-server,dev-rxdb-supabase,dev-rxdb-supabase-e2e,rxdb-plugin-graph,rxdb-plugin-querycache,rxdb-plugin-sync,rxdb-plugin-tree,rxdb-plugin-working-tree,rxdb-plugin-workspace,rxdb-plugin-storage,rxdb-plugin-replay,rxdb-plugin-search,rxdb-angular,rxdb-react,rxdb-vue,rxdb-model,rxdb-model-angular,rxdb-model-react,rxdb-model-vue,rxdb-plugin-replay-angular,rxdb-plugin-replay-react,rxdb-plugin-replay-vue,rxdb-plugin-tree-angular,rxdb-plugin-tree-react,rxdb-plugin-tree-vue,rxdb-plugin-working-tree-angular,rxdb-plugin-working-tree-react,rxdb-plugin-working-tree-vue,rxdb-plugin-search-angular,rxdb-plugin-search-react,rxdb-plugin-search-vue,code-editor,code-editor-angular,code-editor-react,code-editor-vue,rxdb-devtools,dev-rxdb-angular,dev-rxdb-angular-e2e,dev-rxdb-react,dev-rxdb-react-e2e,dev-rxdb-vue,dev-rxdb-vue-e2e,dev-rxdb-miniprogram,dev-rxdb-miniprogram-e2e,rxdb-devtools-extension,rxdb-devtools-extension-e2e",
+        "--parallel=1",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static",
+        "--max-warnings=0"
+      ],
+      "role": "historical measurement, not new-spec execution"
+    },
+    {
+      "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck-status.json",
+      "projectIncluded": true,
+      "headAtFinish": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+      "exitCode": 0,
+      "startedAt": "2026-10-05T09:08:24.790015+08:00",
+      "cacheDisabled": true,
+      "inputDriftCount": 0,
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "typecheck",
+        "--projects=rxdb,utils,rxdb-test,rxdb-client-generator,rxdb-plugin-history,rxdb-adapter-sqlite-core,rxdb-adapter-pglite,rxdb-adapter-encrypted,rxdb-adapter-sqlite,rxdb-adapter-sqlite-wasm,rxdb-adapter-wa-sqlite,rxdb-adapter-sqliteai,rxdb-adapter-miniprogram,rxdb-adapter-electron,rxdb-adapter-tauri,rxdb-adapter-http,rxdb-adapter-supabase,dev-rxdb-electron,dev-rxdb-electron-e2e,dev-rxdb-tauri,dev-rxdb-tauri-e2e,dev-rxdb-http,dev-rxdb-http-e2e,dev-rxdb-http-server,dev-rxdb-supabase,dev-rxdb-supabase-e2e,rxdb-plugin-graph,rxdb-plugin-querycache,rxdb-plugin-sync,rxdb-plugin-tree,rxdb-plugin-working-tree,rxdb-plugin-workspace,rxdb-plugin-storage,rxdb-plugin-replay,rxdb-plugin-search,rxdb-angular,rxdb-react,rxdb-vue,rxdb-model,rxdb-model-angular,rxdb-model-react,rxdb-model-vue,rxdb-plugin-replay-angular,rxdb-plugin-replay-react,rxdb-plugin-replay-vue,rxdb-plugin-tree-angular,rxdb-plugin-tree-react,rxdb-plugin-tree-vue,rxdb-plugin-working-tree-angular,rxdb-plugin-working-tree-react,rxdb-plugin-working-tree-vue,rxdb-plugin-search-angular,rxdb-plugin-search-react,rxdb-plugin-search-vue,code-editor,code-editor-angular,code-editor-react,code-editor-vue,rxdb-devtools,dev-rxdb-angular,dev-rxdb-angular-e2e,dev-rxdb-react,dev-rxdb-react-e2e,dev-rxdb-vue,dev-rxdb-vue-e2e,dev-rxdb-miniprogram,dev-rxdb-miniprogram-e2e,rxdb-devtools-extension,rxdb-devtools-extension-e2e",
+        "--parallel=1",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static"
+      ],
+      "role": "historical measurement, not new-spec execution"
+    },
+    {
+      "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage-status.json",
+      "projectIncluded": true,
+      "headAtFinish": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+      "exitCode": 1,
+      "startedAt": "2026-10-05T09:02:58.412105+08:00",
+      "cacheDisabled": true,
+      "inputDriftCount": 0,
+      "command": [
+        "pnpm",
+        "nx",
+        "run-many",
+        "-t",
+        "test",
+        "--projects=rxdb-angular,rxdb-react,rxdb-vue,rxdb-model,rxdb-model-angular,rxdb-model-react,rxdb-model-vue,rxdb-plugin-replay-angular,rxdb-plugin-replay-react,rxdb-plugin-replay-vue,rxdb-plugin-tree-angular,rxdb-plugin-tree-react,rxdb-plugin-tree-vue,rxdb-plugin-working-tree-angular,rxdb-plugin-working-tree-react,rxdb-plugin-working-tree-vue,rxdb-plugin-search-angular,rxdb-plugin-search-react,rxdb-plugin-search-vue,code-editor,code-editor-angular,code-editor-react,code-editor-vue",
+        "--parallel=1",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static",
+        "--args=--run --maxWorkers=1 --coverage.enabled=true --coverage.reporter=text --coverage.reporter=json-summary --coverage.reporter=json"
+      ],
+      "role": "historical measurement, not new-spec execution"
+    }
+  ],
+  "packagedArtifact": {
+    "evidence": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/packed-consumer-entry-check.json",
+    "packageRecord": {
+      "project": "rxdb-plugin-tree-angular",
+      "resolvedPublishedPackageRoot": "dist/packages/rxdb-plugin-tree-angular",
+      "rootManifestIsNotAlwaysPublishManifest": true,
+      "publicationExecuted": false,
+      "temporaryArtifactsOutsideWorkspace": true,
+      "exitCode": 0,
+      "status": "passed-static-packed-entries",
+      "packedName": "@aiao/rxdb-plugin-tree-angular",
+      "packedVersion": "0.0.26",
+      "packedFileCount": 6,
+      "declaredEntries": [
+        "./package.json",
+        "./types/aiao-rxdb-plugin-tree-angular.d.ts",
+        "./fesm2022/aiao-rxdb-plugin-tree-angular.mjs",
+        "fesm2022/aiao-rxdb-plugin-tree-angular.mjs",
+        "types/aiao-rxdb-plugin-tree-angular.d.ts"
+      ],
+      "missingDeclaredEntries": [],
+      "tarballSha256": "a0b9e4b51356c90182ec56d4e9062a3f98bfdaa6dd0f03f716f7026e165be54d",
+      "publishedManifestSha256": "5ddb505492ee81c1a6af2bf68e8c2803c3a7a6108dc43829c44c00f809034515",
+      "files": [
+        "package/LICENSE",
+        "package/README.md",
+        "package/fesm2022/aiao-rxdb-plugin-tree-angular.mjs",
+        "package/fesm2022/aiao-rxdb-plugin-tree-angular.mjs.map",
+        "package/package.json",
+        "package/types/aiao-rxdb-plugin-tree-angular.d.ts"
+      ]
+    },
+    "compiledTypedConsumer": false,
+    "runtimeImportExecuted": false,
+    "resolvedPublicationRoot": "/Users/jimmy/Documents/aiao/rxdb/dist/packages/rxdb-plugin-tree-angular",
+    "generatedBy": "@nx/angular:package -> ng-packagr, ng-package entryFile=src/index.ts",
+    "sourceMapMatchesCurrentWrapper": true,
+    "readArtifacts": [
+      "/Users/jimmy/Documents/aiao/rxdb/dist/packages/rxdb-plugin-tree-angular/package.json",
+      "/Users/jimmy/Documents/aiao/rxdb/dist/packages/rxdb-plugin-tree-angular/types/aiao-rxdb-plugin-tree-angular.d.ts",
+      "/Users/jimmy/Documents/aiao/rxdb/dist/packages/rxdb-plugin-tree-angular/fesm2022/aiao-rxdb-plugin-tree-angular.mjs",
+      "/Users/jimmy/Documents/aiao/rxdb/dist/packages/rxdb-plugin-tree-angular/fesm2022/aiao-rxdb-plugin-tree-angular.mjs.map"
+    ],
+    "readmeAndLicenseMatchCurrentSource": true,
+    "sourceAngularPeer": "22.2.1",
+    "generatedAngularPeer": "^22.1.6",
+    "freshBuildNotClaimed": true,
+    "boundary": "现有dist的peer ^22.1.6与源精确22.2.1不同；仅记录产物时代边界，不能按源exports为空登记发布入口缺失。"
+  },
+  "round2": {
+    "probeReady": true,
+    "unit": "pending-controller",
+    "lint": "pending-controller",
+    "typecheck": "pending-controller",
+    "build": "pending-controller",
+    "typedConsumer": "ready/pending-controller",
+    "runtimeConsumer": "pending-controller",
+    "templateNegative": "pending-controller",
+    "realRoute": "pending-controller",
+    "sameFixtureThreeFrameworks": "pending-controller"
+  },
+  "requests": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-requests.json"
+}

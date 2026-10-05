@@ -133,7 +133,7 @@ pnpm audit:coverage --projects=rxdb-plugin-tree-angular
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-plugin-tree-angular.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
 
-## 2026-10-05 frameworks 本轮完成条件与实际核查
+## 2026-10-05 frameworks 第一轮历史记录（最新结论见 R2-02）
 
 本轮 `main/worktree@44de1138b4d396fc45d6e76ab60476c40fef2223`，日期 2026-10-05。不是新泛计划，而是对原 C 的实际结论：**0/5 个完整 C、execution 保持 in-progress；结果记录保持 partial；本对象不是全对象完成候选。**
 
@@ -160,3 +160,28 @@ pnpm audit:coverage --projects=rxdb-plugin-tree-angular
 发布 pack 根是 `dist/packages/rxdb-plugin-tree-angular`，实际 tarball 目标文件存在、独立根 ESM 解析通过；**不包含 typed consumer 编译/runtime import**。Angular 不能按源 manifest 缺 exports 报错。
 
 逐 C 原场景、函数/测试证据与完成条件详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-tree-angular.md`；机器证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`。
+
+## 2026-10-05 R2-02：本包有界收尾（最新）
+
+当前实读基线 `465f9078e9844af2cbef9936c7321a5576333a01`；唯一对象 `rxdb-plugin-tree-angular`。原 C1–C5 及第6节完成条件均保留，**不缩最低场景、不把未测改成不适用**。
+
+- [x] 原16受控文件全内容实读；配置、README、LICENSE、3个原spec、setup均计入；全部与scope摘要一致。
+- [x] 生产边界追到 `EntityStaticType` / `TreeRepository` / `useRepositoryQuery` / `QueryManager`；三端根导出与泛型正文只读对照。
+- [x] Angular `list_projects` / `get_best_practices` 已按要求调用；只发现examples，指南/文档工具失败已记录；未跑错误workspace。新fixture使用standalone/OnPush/signals/control flow。
+- [x] 新增一个8例 `review-round2-core-lifecycle.spec.ts`，只控制adapter Promise边界、保留真实core；独立consumer正负fixture已交主控。
+- [x] 每个原C按场景记录已证/待验/生产符号/测试定义/必要动作；无新业务缺陷，去重范围限定本包。
+- [ ] 新spec unit/coverage、零警告lint、typecheck、build实际回写；独立tar typed/runtime consumer。
+- [ ] SQL深树、跨父移动/父删除live-vs-full、同一fixture三端动态、strictTemplates输入/事件反例、真实route挂卸。
+- [ ] 原完整C及全对象完成核销；本次仍 **0/5、execution=in-progress、完整对象候选=false、发布就绪=false**。主控裁定合理分流，代理不自行豁免。
+
+| 原C | 本轮补齐 | 不能核销的必要原因 |
+| --- | --- | --- |
+| C1 | 全读numeric/static slots/生成器options；真实注册/非法level/ID=0 probe；numeric/string typed consumer | 新probe与consumer未执行，SQL深树最低场景未验 |
+| C2 | 真实组件快速input切换、旧结果晚到、空态、销毁probe；core observer清理锚点 | 跨父移动/父删除与全量树查询对比未验 |
+| C3 | 四导出/泛型/原生返回字段静态对称，consumer正负例与多实例probe | 同一fixture三端动态及独立消费执行缺口 |
+| C4 | standalone/OnPush组件input、context、父子provider、多资源、异步销毁probe | 8例未运行，不能由定义算通过 |
+| C5 | strict配置实读、实际组件正例定义、79行valid/10行invalid consumer | tar编译/runtime、ngc模板负例与真实route缺口 |
+
+历史100/100/100/100是8语句/4函数/0分支的wrapper测量，原7例只证mock派发与原string类型fixture；不含新增probe。源peer为22.2.1，旧dist为^22.1.6；发布根是resolved `dist/packages/rxdb-plugin-tree-angular`，其exports存在。旧根resolve不等于typed/runtime消费。
+
+机器核销：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/closure.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/c-evidence.json`；逐文件实读：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/file-inspection.json`；主控请求：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/validation-requests.json`；绝对改动清单：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/changed-files.json`。

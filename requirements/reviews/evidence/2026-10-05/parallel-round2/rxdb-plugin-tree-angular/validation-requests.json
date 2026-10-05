@@ -1,0 +1,134 @@
+{
+  "task": "R2-02",
+  "object": "rxdb-plugin-tree-angular",
+  "requestedAt": "2026-10-05T10:42:00+08:00",
+  "executor": "主控",
+  "agentMayRunValidation": false,
+  "requests": [
+    {
+      "id": "R2-02-V1",
+      "project": "rxdb-plugin-tree-angular",
+      "target": "test",
+      "args": [
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--maxWorkers=1",
+        "--coverage",
+        "--reporter=default",
+        "--reporter=junit"
+      ],
+      "reason": "请在本包新增 review-round2 探针落盘后串行验证：真实 core/TreeRepository 契约、数值/string id、错误透明、Signal 生命周期/input 切换/多实例；保留 JUnit、coverage-summary 四指标、日志与实际输入摘要，旧7用例只可作历史局部证据。",
+      "criticalForC": [
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C5"
+      ],
+      "status": "ready-requested",
+      "boundary": "真实 RxDB/plugin/EntityManager/TreeRepository/QueryManager，只有适配器 primary$ 为可控 Promise 边界；不是 SQL/深树持久化复验。"
+    },
+    {
+      "id": "R2-02-V2L",
+      "project": "rxdb-plugin-tree-angular",
+      "target": "lint",
+      "args": [
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--max-warnings=0"
+      ],
+      "reason": "新增 spec 后请求 lint 零警告、typecheck(含 numeric 泛型正反断言)、生产 ng-packagr build；由主控串行安排，记录前后输入摘要/缓存/skip/失败分类。",
+      "criticalForC": [
+        "C1",
+        "C3",
+        "C5"
+      ],
+      "status": "requested"
+    },
+    {
+      "id": "R2-02-V2T",
+      "project": "rxdb-plugin-tree-angular",
+      "target": "typecheck",
+      "args": [
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--max-warnings=0"
+      ],
+      "reason": "新增 spec 后请求 lint 零警告、typecheck(含 numeric 泛型正反断言)、生产 ng-packagr build；由主控串行安排，记录前后输入摘要/缓存/skip/失败分类。",
+      "criticalForC": [
+        "C1",
+        "C3",
+        "C5"
+      ],
+      "status": "requested"
+    },
+    {
+      "id": "R2-02-V2B",
+      "project": "rxdb-plugin-tree-angular",
+      "target": "build",
+      "args": [
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--max-warnings=0"
+      ],
+      "reason": "新增 spec 后请求 lint 零警告、typecheck(含 numeric 泛型正反断言)、生产 ng-packagr build；由主控串行安排，记录前后输入摘要/缓存/skip/失败分类。",
+      "criticalForC": [
+        "C1",
+        "C3",
+        "C5"
+      ],
+      "status": "requested"
+    },
+    {
+      "id": "R2-02-V3",
+      "project": "rxdb-plugin-tree-angular",
+      "target": "独立 packed typed/runtime consumer + strictTemplates + 真实 route fixture",
+      "args": [],
+      "reason": "只从 dist/packages/rxdb-plugin-tree-angular 的实际 tar 包根消费，无仓库 paths；编译四个入口与 numeric/string 类型正反例及输入/事件/模板错误，运行空态/错误态/路由挂卸；root ESM resolve 和 happy-dom 单元测试不能替代。主控补独立 consumer/动态验证。",
+      "criticalForC": [
+        "C3",
+        "C5"
+      ],
+      "status": "requested"
+    },
+    {
+      "id": "R2-02-V4",
+      "project": "rxdb-plugin-tree-{angular,react,vue}",
+      "target": "同一 tree fixture 三端状态/多实例对照",
+      "args": [],
+      "reason": "本代理只读同族源码，不写 React/Vue；请主控协调同族代理复用同一输入/状态序列，对照 loading/error/empty/销毁和多实例，不以同名 mock/三端导出静态一致代替原C3。",
+      "criticalForC": [
+        "C3"
+      ],
+      "status": "requested"
+    },
+    {
+      "id": "R2-02-V5",
+      "project": "rxdb-plugin-tree-angular",
+      "target": "controller-owned packed runtime tree integration",
+      "executionKind": "custom-consumer-not-an-Nx-target",
+      "args": [],
+      "reason": "原C1/C2仍需真实支持树SQL的adapter对同一numeric/string fixture复验：深树level省略/0/1、跨父移动、父删除；live资源与全量查询一致。新增spec只有适配器Promise边界，不能假冒这些场景。只收尾本包委托契约，不要求重开所有后端审计。",
+      "criticalForC": [
+        "C1",
+        "C2"
+      ],
+      "status": "requested"
+    }
+  ],
+  "evidenceDestination": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/validation",
+  "notes": [
+    "未执行 build/test/coverage/e2e/server/容器；本文件为尽早申请，不是执行记录。",
+    "CLI 参数最终由主控按 resolved target 与 --help 校准；不创建依赖/不改原测试或实现。"
+  ],
+  "consumerFixturesStatus": "ready",
+  "consumerFixtures": [
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-valid.mts",
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round2/rxdb-plugin-tree-angular/consumer-invalid.mts"
+  ],
+  "updatedAt": "2026-10-05T10:59:37.740643+08:00",
+  "probesStatus": "ready",
+  "probes": [
+    "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/review-round2-core-lifecycle.spec.ts"
+  ]
+}
