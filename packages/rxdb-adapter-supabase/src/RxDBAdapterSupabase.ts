@@ -17,6 +17,7 @@ import type {
   QueryCacheEntityMetadata,
   RemoteBranchInfo,
   RemoteChange,
+  RemoteEntityRef,
   RemoteMergeResult,
   RepositoryInstance,
   RuleGroup,
@@ -448,6 +449,18 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       resolveTableKey
     );
 
+    // 把回执 dependsOn 的表引用（schema.table）换算成本地实体引用；反查不到时没有 fallback，
+    // 直接当数据错误抛出——父表若没注册同步实体，本地也没有地方承接这条 dependsOn
+    const resolveDependsOnEntity = (ref: { schema: string; table: string; entityId: string }): RemoteEntityRef => {
+      const metadata = this.rxdb.schemaManager.getEntityMetadataByTableName(ref.table, ref.schema);
+      if (!metadata) {
+        throw new SupabaseDataError(
+          `Merge response dependsOn references an unregistered table: ${ref.schema}.${ref.table}`
+        );
+      }
+      return { namespace: metadata.namespace, entity: metadata.name, entityId: ref.entityId };
+    };
+
     // 调用 RPC（单一事务，跳过触发器；p_receipts 开启逐实体回执，一条被拒不拖垮整批；瞬时网络错误自动重试）
     return this.executeRetryableWrite(
       'merge changes',
@@ -462,7 +475,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
         });
         return { data, error, status };
       },
-      data => validateMergeResponse(data, changes)
+      data => validateMergeResponse(data, changes, resolveDependsOnEntity)
     );
   }
 

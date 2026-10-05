@@ -11,6 +11,7 @@ import {
   PropertyType,
   RemoteChangeRejection,
   RemoteChangeResult,
+  RemoteEntityRef,
   RemoteMergeResult,
   RuleGroup
 } from '@aiao/rxdb';
@@ -244,21 +245,33 @@ function parseEntityResults(data: Record<string, unknown>): RawEntityResult[] {
  *   （[contracts/remote-merge-result.md §3](../../../specs/007-us218-rls-push-integrity/contracts/remote-merge-result.md)）——
  *   能匹配到这条回执本身已经证明两者是同一实体，不需要反查表名
  * @param entityResult - 该实体在 `entity_results` 中被拒绝的那一条
- *
- * @remarks
- * `entityResult.dependsOn` 的换算（表引用 → 本地实体引用）留给 T054，这里暂不组装 `rejection.dependsOn`。
+ * @param resolveDependsOnEntity - 把 `dependsOn` 的表引用换算成本地实体引用
  */
-function buildRejection(change: IRxDBChange, entityResult: RejectedEntityResult): RemoteChangeRejection {
-  return {
+function buildRejection(
+  change: IRxDBChange,
+  entityResult: RejectedEntityResult,
+  resolveDependsOnEntity: (ref: DependsOnTableRef) => RemoteEntityRef
+): RemoteChangeRejection {
+  const rejection: RemoteChangeRejection = {
     code: entityResult.code,
     reason: entityResult.reason,
     message: entityResult.message,
     entity: { namespace: change.namespace || 'public', entity: change.entity, entityId: String(change.entityId) }
   };
+  if (entityResult.dependsOn) {
+    rejection.dependsOn =
+      isDependsOnConstraintRef(entityResult.dependsOn) ?
+        entityResult.dependsOn
+      : resolveDependsOnEntity(entityResult.dependsOn);
+  }
+  return rejection;
 }
 
 /**
  * 校验 `rxdb_mutations`（`p_receipts = true`）的响应，并按本批源变更构造 {@link RemoteMergeResult}
+ *
+ * @param resolveDependsOnEntity - 把回执 `dependsOn` 里的表引用（`{schema,table,entityId}`）换算成
+ *   本地实体引用；查不到对应实体时应抛错（无 fallback 兜底）
  *
  * @remarks
  * 对本批每条源变更 `c`：`c.localId` 在 `change_id_mapping` 中 → `applied`；否则 `c.localId` 在某个
@@ -266,7 +279,11 @@ function buildRejection(change: IRxDBChange, entityResult: RejectedEntityResult)
  * → {@link SupabaseDataError}（远端回执与本批不一致），不满足「每条源变更恰好一条结果」
  * （US-218 FR-016，[contracts/remote-merge-result.md §3](../../../specs/007-us218-rls-push-integrity/contracts/remote-merge-result.md)）。
  */
-export function validateMergeResponse(data: unknown, changes: IRxDBChange[] | undefined): RemoteMergeResult {
+export function validateMergeResponse(
+  data: unknown,
+  changes: IRxDBChange[] | undefined,
+  resolveDependsOnEntity: (ref: DependsOnTableRef) => RemoteEntityRef
+): RemoteMergeResult {
   if (!isRecord(data) || !Array.isArray(data['change_id_mapping'])) invalidWriteResponse('merge changes');
 
   const maxChangeId = data['max_change_id'];
@@ -316,7 +333,7 @@ export function validateMergeResponse(data: unknown, changes: IRxDBChange[] | un
       return {
         localId: change.id,
         status: 'rejected',
-        rejection: buildRejection(change, rejectedResult)
+        rejection: buildRejection(change, rejectedResult, resolveDependsOnEntity)
       };
     }
     throw new SupabaseDataError(`Merge response missing mapping for local change: ${change.id}`);
