@@ -1,0 +1,51 @@
+{
+  "clientDate": "2026-10-05",
+  "normalized": [
+    {
+      "object": "code-editor",
+      "C": "C2",
+      "reason": "Subtopic/static design/untested scope closure is not full original C verification."
+    },
+    {
+      "object": "code-editor",
+      "C": "C3",
+      "reason": "Subtopic/static design/untested scope closure is not full original C verification."
+    },
+    {
+      "object": "code-editor-angular",
+      "C": "C2",
+      "reason": "Subtopic/static design/untested scope closure is not full original C verification."
+    },
+    {
+      "object": "code-editor-angular",
+      "C": "C4",
+      "reason": "Subtopic/static design/untested scope closure is not full original C verification."
+    },
+    {
+      "object": "code-editor-react",
+      "C": "C2",
+      "reason": "Subtopic/static design/untested scope closure is not full original C verification."
+    },
+    {
+      "object": "code-editor-vue",
+      "C": "C2",
+      "reason": "Subtopic/static design/untested scope closure is not full original C verification."
+    },
+    {
+      "object": "code-editor-vue",
+      "C": "C4",
+      "reason": "Subtopic/static design/untested scope closure is not full original C verification."
+    },
+    {
+      "object": "rxdb-devtools-extension-e2e",
+      "C": "C1",
+      "reason": "Subtopic/static design/untested scope closure is not full original C verification."
+    },
+    {
+      "object": "rxdb-devtools-extension-e2e",
+      "C": "C5",
+      "reason": "Subtopic/static design/untested scope closure is not full original C verification."
+    }
+  ],
+  "policy": "Do not add partial semantic/static subtopic checks to whole-original-C completion metric. Frontend source c-closure file retains detailed evidence/candidates; final metric is conservative."
+}

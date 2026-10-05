@@ -19,11 +19,10 @@ const createApp = async (): Promise<RxDB> => {
 };
 
 const createAndCommit = async (db: RxDB, title: string): Promise<{ commitId: string; noteId: string }> => {
-  const adapter = await firstValueFrom(db.localAdapter$);
-  const note = new ConformanceNote();
+  const note = db.entityManager.instantiate(ConformanceNote);
   note.title = title;
   note.body = null;
-  await adapter.transaction(executor => executor.getRepository(ConformanceNote).create(note));
+  await note.save();
   const status = await db.workingTree.status();
   const committed = await db.workingTree.commit(title, {
     expectedBranch: { branchId: status.branchId, activationRevision: status.activationRevision },
@@ -54,14 +53,14 @@ describe('并行评审：replay 恢复走真实 PGlite 工作树事务', () => {
     const first = await createAndCommit(db, 'first');
     const second = await createAndCommit(db, 'second');
     const adapter = await firstValueFrom(db.localAdapter$);
-    await adapter.transaction(async executor => {
-      const repository = executor.getRepository(ConformanceNote);
-      const [note] = await repository.find({
+    const [note] = await firstValueFrom(
+      db.entityManager.getRepository(ConformanceNote).find({
         where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: first.noteId }] }
-      });
-      if (!note) throw new Error('复验夹具首条 note 缺失');
-      await repository.update(note, { title: 'changed' });
-    });
+      })
+    );
+    if (!note) throw new Error('复验夹具首条 note 缺失');
+    note.title = 'changed';
+    await note.save();
     const changed = await db.workingTree.status();
     const committed = await db.workingTree.commit('changed', {
       expectedBranch: { branchId: changed.branchId, activationRevision: changed.activationRevision },

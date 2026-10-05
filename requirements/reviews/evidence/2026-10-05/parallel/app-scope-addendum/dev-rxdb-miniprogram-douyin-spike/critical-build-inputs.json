@@ -1,0 +1,15 @@
+{
+  "attemptedRead": "nl -ba scripts/build/subframe-realm.mjs -> No such file or directory",
+  "buildScript": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/scripts/build.mjs",
+  "conclusion": "读取当时缺少该helper，属于当时静态构建闭合缺口；未动态跑build，外部修复和配置变化后不得据旧读直接报当前bug。当前build/VM smoke/资产闭合仍须另证。",
+  "date": "2026-10-05",
+  "existsAtCloseout": false,
+  "existsAtInspection": false,
+  "gitTrackedAtInspection": false,
+  "head": "a23a2948f5cc8e94519b9898e38d906df8624df8",
+  "importLine": 17,
+  "noBusinessRepair": true,
+  "object": "dev-rxdb-miniprogram-douyin-spike",
+  "relativeImport": "../../../scripts/build/subframe-realm.mjs",
+  "resolvedFilesystemPath": "/Users/jimmy/Documents/aiao/rxdb/scripts/build/subframe-realm.mjs"
+}

@@ -1,12 +1,10 @@
 {
-  "extends": "./tsconfig.spec.json",
   "compilerOptions": {
     "composite": false,
     "incremental": false
   },
-  "include": [
-    "src/devtools/services/review-parallel-access-navigation.spec.ts"
-  ],
+  "extends": "./tsconfig.spec.json",
+  "include": ["src/devtools/services/review-parallel-access-navigation.spec.ts"],
   "references": [
     {
       "path": "../../packages/rxdb-devtools/tsconfig.lib.json"

@@ -1,0 +1,43 @@
+{
+  "build": "本子任务未执行，当轮构建与VM产物smoke未验证",
+  "date": "2026-10-05",
+  "device": "未运行GUI/DevTools/iOS/Android；不继承README设备报告为本轮证据",
+  "executor": "主控串行；本子任务不执行任务/GUI",
+  "initialTypecheck": "初版MJS跨rootDir/并发外部修改project导致失败，旧日志保留为历史，不报告当前仍失败",
+  "object": "dev-rxdb-miniprogram-alipay-probe",
+  "sdkRepair": "主控明确确认base factory/oo1/WASM外部修复及2+27案例通过；历史资源指纹问题已清理。不链接已删除RV066/067/068文件，不继续作为当前缺陷。",
+  "strictLint": {
+    "exitCode": 0,
+    "evidence": "主控2026-10-05最新明确结算，3应用strict lint=0",
+    "notInheritedFromOld69ObjectRun": true
+  },
+  "test": "未取得本应用当轮独立test/coverage结算；SDK聚焦用例不是应用全套",
+  "typecheck": {
+    "exitCode": 0,
+    "currentLog": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/added-apps-typecheck-current.txt",
+    "currentLogSha256": "644364b0ef398a0e1534406c410d37ad48f3acfe0663e9fc66073a39de55f5bb",
+    "currentLogRelevantLines": [
+      {
+        "line": 1,
+        "text": "COMMAND: pnpm nx run-many -t typecheck --projects=dev-rxdb-miniprogram-alipay-probe,dev-rxdb-miniprogram-douyin-spike,dev-rxdb-miniprogram-alipay-probe-e2e --parallel=1 --skipRemoteCache --skipNxCache --output-style=static"
+      },
+      {
+        "line": 341,
+        "text": "> nx run dev-rxdb-miniprogram-alipay-probe:typecheck"
+      },
+      {
+        "line": 346,
+        "text": "> nx run dev-rxdb-miniprogram-douyin-spike:typecheck"
+      },
+      {
+        "line": 351,
+        "text": "> nx run dev-rxdb-miniprogram-alipay-probe-e2e:typecheck"
+      },
+      {
+        "line": 358,
+        "text": " NX   Successfully ran target typecheck for 3 projects and 26 tasks they depend on"
+      }
+    ],
+    "supersedesInitialRun": true
+  }
+}

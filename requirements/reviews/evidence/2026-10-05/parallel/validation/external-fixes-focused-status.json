@@ -1,8 +1,6 @@
 {
-  "projects": [
-    "rxdb-adapter-miniprogram",
-    "rxdb-adapter-sqlite-core"
-  ],
+  "cacheDisabled": true,
+  "changedInputsDuringMeasurement": [],
   "command": [
     "pnpm",
     "nx",
@@ -16,15 +14,14 @@
     "--output-style=static",
     "--args=alipay-wasm alipay-host review-parallel-init-disconnect review-parallel-oo1-init-close --run --maxWorkers=1 --coverage.enabled=false"
   ],
-  "startedAt": "2026-10-05T10:06:46.063333+08:00",
   "elapsedSeconds": 34.8,
   "exitCode": 0,
-  "headAtFinish": "1e8336cdd08a1e58826323d5a8a0e03c36b4c2bf",
   "freshArtifacts": [
     "requirements/reviews/evidence/2026-10-05/parallel/validation/external-fixes-focused/rxdb-adapter-sqlite-core/junit.xml"
   ],
+  "headAtFinish": "1e8336cdd08a1e58826323d5a8a0e03c36b4c2bf",
+  "heavyTaskConcurrency": 1,
+  "projects": ["rxdb-adapter-miniprogram", "rxdb-adapter-sqlite-core"],
   "reviewedProjectAndDependencyInputCount": 1456,
-  "changedInputsDuringMeasurement": [],
-  "cacheDisabled": true,
-  "heavyTaskConcurrency": 1
+  "startedAt": "2026-10-05T10:06:46.063333+08:00"
 }

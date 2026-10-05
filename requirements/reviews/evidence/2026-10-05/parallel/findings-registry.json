@@ -185,7 +185,6 @@
       "status": "confirmed-open"
     }
   ],
-  "otherCandidates": "Not registered until dynamic assertions and public contracts are checked; replay interim fixture mistakes remain explicit.",
   "notRegistered": [
     {
       "candidate": "transaction teardown",
@@ -199,5 +198,6 @@
       "candidate": "Supabase E2E cleanup",
       "reason": "仅静态现存缺口；失败/删除确认尚无本轮动态验证，不新建确认RV。"
     }
-  ]
+  ],
+  "otherCandidates": "Not registered until dynamic assertions and public contracts are checked; replay interim fixture mistakes remain explicit."
 }

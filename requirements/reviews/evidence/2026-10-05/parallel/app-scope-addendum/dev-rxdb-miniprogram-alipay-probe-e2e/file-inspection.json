@@ -1,6 +1,5 @@
 {
   "clientDate": "2026-10-05",
-  "method": "Main read all 9 tracked config/source files, long simulator/endpoint/spec split into line ranges. No GUI/CDP connection executed.",
   "files": [
     {
       "file": "apps/dev-rxdb-miniprogram-alipay-probe-e2e/eslint.config.mjs",
@@ -47,5 +46,6 @@
       "sha256": "91b203fba7cce5407930afcb87269a1d829e09db48139ecb404a72279edbb251",
       "lines": 17
     }
-  ]
+  ],
+  "method": "Main read all 9 tracked config/source files, long simulator/endpoint/spec split into line ranges. No GUI/CDP connection executed."
 }

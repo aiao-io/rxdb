@@ -1,1 +1,79 @@
-{"root":"apps/dev-rxdb-miniprogram-alipay-probe","targets":{"typecheck":{"dependsOn":["^typecheck"],"cache":true,"inputs":["default","^production","{workspaceRoot}/scripts/esbuild/subframe-realm.d.mts"],"outputs":["{projectRoot}/tsconfig.tsbuildinfo","{workspaceRoot}/dist/out-tsc/apps/dev-rxdb-miniprogram-alipay-probe/app/**/*.{d.ts,d.cts,d.mts}","{workspaceRoot}/dist/out-tsc/apps/dev-rxdb-miniprogram-alipay-probe/app/**/*.{d.ts,d.cts,d.mts}.map","{workspaceRoot}/dist/out-tsc/apps/dev-rxdb-miniprogram-alipay-probe/app/tsconfig.app.tsbuildinfo","{workspaceRoot}/dist/out-tsc/dev-rxdb-miniprogram-alipay-probe-test/**/*.{d.ts,d.cts,d.mts}","{workspaceRoot}/dist/out-tsc/dev-rxdb-miniprogram-alipay-probe-test/**/*.{d.ts,d.cts,d.mts}.map","{workspaceRoot}/dist/out-tsc/dev-rxdb-miniprogram-alipay-probe-test.tsbuildinfo"],"syncGenerators":["@nx/js:typescript-sync"],"metadata":{"technologies":["typescript"],"description":"Runs type-checking for the project.","help":{"command":"pnpm exec tsc --build --help","example":{"args":["--force"]}}},"executor":"nx:run-commands","options":{"cwd":"apps/dev-rxdb-miniprogram-alipay-probe","command":"tsc --build tsconfig.json --emitDeclarationOnly"},"configurations":{},"parallelism":true},"lint":{"cache":true,"inputs":["default","^production"],"outputs":["{options.outputFile}"],"metadata":{"technologies":["eslint"],"description":"Runs ESLint on project","help":{"command":"pnpm exec eslint --help","example":{"options":{"max-warnings":0}}}},"executor":"nx:run-commands","options":{"cwd":"apps/dev-rxdb-miniprogram-alipay-probe","command":"eslint ."},"configurations":{},"parallelism":true},"test":{"cache":true,"inputs":["default","^production","{workspaceRoot}/scripts/esbuild/subframe-realm.mjs"],"outputs":["{workspaceRoot}/coverage/apps/dev-rxdb-miniprogram-alipay-probe"],"metadata":{"technologies":["vitest"],"description":"Run Vitest tests","help":{"command":"pnpm exec vitest --help","example":{"options":{"bail":1,"coverage":true}}}},"executor":"nx:run-commands","dependsOn":["^build"],"options":{"cwd":"apps/dev-rxdb-miniprogram-alipay-probe","command":"vitest"},"configurations":{},"parallelism":true},"build":{"cache":true,"dependsOn":[],"inputs":["production","^production","{workspaceRoot}/scripts/esbuild/subframe-realm.mjs"],"executor":"nx:run-commands","outputs":["{projectRoot}/dist"],"options":{"command":"node scripts/build.mjs","cwd":"apps/dev-rxdb-miniprogram-alipay-probe"},"configurations":{},"parallelism":true}},"metadata":{},"name":"dev-rxdb-miniprogram-alipay-probe","$schema":"../../node_modules/nx/schemas/project-schema.json","// build":"US-211 阶段 C 的支付宝可行性实验工程，不发布；支付宝 2026-10-04 凭本探针 v7 改判 supported 并登记 alipay。结构与 dev-rxdb-miniprogram-douyin-spike 同构：esbuild 从源码打两个包——页面包（/runtime 引导 + 不依赖核心的实验）、核心包（adapter 主入口 + 持久化 / 配额实验，由页面在 prepare 之后懒 require）；Worker 包是 adapter 包里预编译的 ES5 随机数 Worker（alipay-random-worker.js）原样拷贝。交给 adapter 的是正式支付宝 host（createAlipayMiniProgramHost）。直接打源码，所以不依赖上游 build。","projectType":"application","sourceRoot":"apps/dev-rxdb-miniprogram-alipay-probe/src","tags":["miniprogram-app"],"implicitDependencies":[]}
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// build": "US-211 阶段 C 的支付宝可行性实验工程，不发布；支付宝 2026-10-04 凭本探针 v7 改判 supported 并登记 alipay。结构与 dev-rxdb-miniprogram-douyin-spike 同构：esbuild 从源码打两个包——页面包（/runtime 引导 + 不依赖核心的实验）、核心包（adapter 主入口 + 持久化 / 配额实验，由页面在 prepare 之后懒 require）；Worker 包是 adapter 包里预编译的 ES5 随机数 Worker（alipay-random-worker.js）原样拷贝。交给 adapter 的是正式支付宝 host（createAlipayMiniProgramHost）。直接打源码，所以不依赖上游 build。",
+  "implicitDependencies": [],
+  "metadata": {},
+  "name": "dev-rxdb-miniprogram-alipay-probe",
+  "projectType": "application",
+  "root": "apps/dev-rxdb-miniprogram-alipay-probe",
+  "sourceRoot": "apps/dev-rxdb-miniprogram-alipay-probe/src",
+  "tags": ["miniprogram-app"],
+  "targets": {
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "cache": true,
+      "inputs": ["default", "^production", "{workspaceRoot}/scripts/esbuild/subframe-realm.d.mts"],
+      "outputs": [
+        "{projectRoot}/tsconfig.tsbuildinfo",
+        "{workspaceRoot}/dist/out-tsc/apps/dev-rxdb-miniprogram-alipay-probe/app/**/*.{d.ts,d.cts,d.mts}",
+        "{workspaceRoot}/dist/out-tsc/apps/dev-rxdb-miniprogram-alipay-probe/app/**/*.{d.ts,d.cts,d.mts}.map",
+        "{workspaceRoot}/dist/out-tsc/apps/dev-rxdb-miniprogram-alipay-probe/app/tsconfig.app.tsbuildinfo",
+        "{workspaceRoot}/dist/out-tsc/dev-rxdb-miniprogram-alipay-probe-test/**/*.{d.ts,d.cts,d.mts}",
+        "{workspaceRoot}/dist/out-tsc/dev-rxdb-miniprogram-alipay-probe-test/**/*.{d.ts,d.cts,d.mts}.map",
+        "{workspaceRoot}/dist/out-tsc/dev-rxdb-miniprogram-alipay-probe-test.tsbuildinfo"
+      ],
+      "syncGenerators": ["@nx/js:typescript-sync"],
+      "metadata": {
+        "technologies": ["typescript"],
+        "description": "Runs type-checking for the project.",
+        "help": { "command": "pnpm exec tsc --build --help", "example": { "args": ["--force"] } }
+      },
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-miniprogram-alipay-probe",
+        "command": "tsc --build tsconfig.json --emitDeclarationOnly"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "lint": {
+      "cache": true,
+      "inputs": ["default", "^production"],
+      "outputs": ["{options.outputFile}"],
+      "metadata": {
+        "technologies": ["eslint"],
+        "description": "Runs ESLint on project",
+        "help": { "command": "pnpm exec eslint --help", "example": { "options": { "max-warnings": 0 } } }
+      },
+      "executor": "nx:run-commands",
+      "options": { "cwd": "apps/dev-rxdb-miniprogram-alipay-probe", "command": "eslint ." },
+      "configurations": {},
+      "parallelism": true
+    },
+    "test": {
+      "cache": true,
+      "inputs": ["default", "^production", "{workspaceRoot}/scripts/esbuild/subframe-realm.mjs"],
+      "outputs": ["{workspaceRoot}/coverage/apps/dev-rxdb-miniprogram-alipay-probe"],
+      "metadata": {
+        "technologies": ["vitest"],
+        "description": "Run Vitest tests",
+        "help": { "command": "pnpm exec vitest --help", "example": { "options": { "bail": 1, "coverage": true } } }
+      },
+      "executor": "nx:run-commands",
+      "dependsOn": ["^build"],
+      "options": { "cwd": "apps/dev-rxdb-miniprogram-alipay-probe", "command": "vitest" },
+      "configurations": {},
+      "parallelism": true
+    },
+    "build": {
+      "cache": true,
+      "dependsOn": [],
+      "inputs": ["production", "^production", "{workspaceRoot}/scripts/esbuild/subframe-realm.mjs"],
+      "executor": "nx:run-commands",
+      "outputs": ["{projectRoot}/dist"],
+      "options": { "command": "node scripts/build.mjs", "cwd": "apps/dev-rxdb-miniprogram-alipay-probe" },
+      "configurations": {},
+      "parallelism": true
+    }
+  }
+}

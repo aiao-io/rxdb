@@ -1,9 +1,9 @@
 {
-  "extends": "./tsconfig.spec.json",
   "compilerOptions": {
     "composite": false,
     "incremental": false
   },
+  "extends": "./tsconfig.spec.json",
   "include": [
     "src/__tests__/review-parallel-oo1-init-close.spec.ts",
     "src/__tests__/review-parallel-init-disconnect.spec.ts"

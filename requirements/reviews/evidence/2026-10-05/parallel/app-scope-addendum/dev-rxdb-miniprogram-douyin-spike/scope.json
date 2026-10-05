@@ -1,8 +1,7 @@
 {
   "date": "2026-10-05",
-  "object": "dev-rxdb-miniprogram-douyin-spike",
+  "inventoryIsReadEvidence": false,
   "kind": "apps",
-  "reason": "resolved Nx node existed before this task; original review coverage omitted it",
   "node": {
     "name": "dev-rxdb-miniprogram-douyin-spike",
     "type": "app",
@@ -10,9 +9,7 @@
       "root": "apps/dev-rxdb-miniprogram-douyin-spike",
       "targets": {
         "typecheck": {
-          "dependsOn": [
-            "^typecheck"
-          ],
+          "dependsOn": ["^typecheck"],
           "cache": true,
           "inputs": [
             "{workspaceRoot}/tsconfig.base.json",
@@ -41,20 +38,14 @@
             "{workspaceRoot}/dist/out-tsc/dev-rxdb-miniprogram-douyin-spike-test/**/*.{d.ts,d.cts,d.mts}.map",
             "{workspaceRoot}/dist/out-tsc/dev-rxdb-miniprogram-douyin-spike-test.tsbuildinfo"
           ],
-          "syncGenerators": [
-            "@nx/js:typescript-sync"
-          ],
+          "syncGenerators": ["@nx/js:typescript-sync"],
           "metadata": {
-            "technologies": [
-              "typescript"
-            ],
+            "technologies": ["typescript"],
             "description": "Runs type-checking for the project.",
             "help": {
               "command": "pnpm exec tsc --build --help",
               "example": {
-                "args": [
-                  "--force"
-                ]
+                "args": ["--force"]
               }
             }
           },
@@ -68,17 +59,10 @@
         },
         "lint": {
           "cache": true,
-          "inputs": [
-            "default",
-            "^production"
-          ],
-          "outputs": [
-            "{options.outputFile}"
-          ],
+          "inputs": ["default", "^production"],
+          "outputs": ["{options.outputFile}"],
           "metadata": {
-            "technologies": [
-              "eslint"
-            ],
+            "technologies": ["eslint"],
             "description": "Runs ESLint on project",
             "help": {
               "command": "pnpm exec eslint --help",
@@ -99,17 +83,10 @@
         },
         "test": {
           "cache": true,
-          "inputs": [
-            "default",
-            "^production"
-          ],
-          "outputs": [
-            "{workspaceRoot}/coverage/apps/dev-rxdb-miniprogram-douyin-spike"
-          ],
+          "inputs": ["default", "^production"],
+          "outputs": ["{workspaceRoot}/coverage/apps/dev-rxdb-miniprogram-douyin-spike"],
           "metadata": {
-            "technologies": [
-              "vitest"
-            ],
+            "technologies": ["vitest"],
             "description": "Run Vitest tests",
             "help": {
               "command": "pnpm exec vitest --help",
@@ -122,9 +99,7 @@
             }
           },
           "executor": "nx:run-commands",
-          "dependsOn": [
-            "^build"
-          ],
+          "dependsOn": ["^build"],
           "options": {
             "cwd": "apps/dev-rxdb-miniprogram-douyin-spike",
             "command": "vitest"
@@ -135,14 +110,9 @@
         "build": {
           "cache": true,
           "dependsOn": [],
-          "inputs": [
-            "production",
-            "^production"
-          ],
+          "inputs": ["production", "^production"],
           "executor": "nx:run-commands",
-          "outputs": [
-            "{projectRoot}/dist"
-          ],
+          "outputs": ["{projectRoot}/dist"],
           "options": {
             "command": "node scripts/build.mjs",
             "cwd": "apps/dev-rxdb-miniprogram-douyin-spike"
@@ -157,12 +127,12 @@
       "// build": "US-211 阶段 B 前的抖音实验工程，不发布、不进 MINI_PROGRAM_PLATFORM_IDS。esbuild 从源码打两个 CommonJS 包：页面包只含 /runtime 引导与不依赖核心的实验；核心包（adapter 主入口 + 持久化 / 配额实验）由页面在 prepare 之后懒 require。拆开是为了让核心包模块顶层的副作用落在 polyfill 之后，加载失败也只记进报告而不是整页白屏。直接打源码，所以不依赖上游 build。",
       "projectType": "application",
       "sourceRoot": "apps/dev-rxdb-miniprogram-douyin-spike/src",
-      "tags": [
-        "miniprogram-app"
-      ],
+      "tags": ["miniprogram-app"],
       "implicitDependencies": []
     }
   },
+  "object": "dev-rxdb-miniprogram-douyin-spike",
+  "reason": "resolved Nx node existed before this task; original review coverage omitted it",
   "trackedFiles": [
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/README.md",
@@ -359,6 +329,5 @@
       "sha256": "b06714b14cb8281ac10286c8a0ed8c76a61cf04f4e66e54d212a520fa1ee2973",
       "lines": 27
     }
-  ],
-  "inventoryIsReadEvidence": false
+  ]
 }

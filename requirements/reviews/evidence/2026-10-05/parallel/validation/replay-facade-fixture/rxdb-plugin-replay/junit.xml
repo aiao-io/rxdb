@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="2" failures="1" errors="0" time="240.760192125">
+    <testsuite name="src/__tests__/review-parallel-restore.spec.ts" timestamp="2026-10-05T02:19:56.175Z" hostname="liuleideMacBook-Pro-4.local" tests="2" failures="1" errors="0" skipped="0" time="240.760192125">
+        <testcase classname="src/__tests__/review-parallel-restore.spec.ts" name="并行评审：replay 恢复走真实 PGlite 工作树事务 &gt; 恢复旧提交形成未提交变更，HEAD 不动，重复恢复以 dirty 拒绝" time="240.011858792">
+            <failure message="Test timed out in 120000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with &quot;testTimeout&quot;." type="Error">
+Error: Test timed out in 120000ms.
+If this is a long-running test, pass a timeout value as the last argument or configure it globally with &quot;testTimeout&quot;.
+ ❯ src/__tests__/review-parallel-restore.spec.ts:51:3
+            </failure>
+            <failure message="Hook timed out in 120000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with &quot;hookTimeout&quot;." type="Error">
+Error: Hook timed out in 120000ms.
+If this is a long-running hook, pass a timeout value as the last argument or configure it globally with &quot;hookTimeout&quot;.
+ ❯ src/__tests__/review-parallel-restore.spec.ts:46:1
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/review-parallel-restore.spec.ts" name="并行评审：replay 恢复走真实 PGlite 工作树事务 &gt; 不可达目标拒绝不改数据/HEAD，断开后公开入口明确拒绝" time="0.747397958">
+        </testcase>
+    </testsuite>
+</testsuites>

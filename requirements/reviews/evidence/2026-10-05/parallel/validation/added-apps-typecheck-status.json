@@ -1,8 +1,8 @@
 {
-  "projects": [
-    "dev-rxdb-miniprogram-alipay-probe",
-    "dev-rxdb-miniprogram-douyin-spike",
-    "dev-rxdb-miniprogram-alipay-probe-e2e"
+  "cacheDisabled": true,
+  "changedInputsDuringMeasurement": [
+    "apps/dev-rxdb-miniprogram-alipay-probe/project.json",
+    "apps/dev-rxdb-miniprogram-douyin-spike/project.json"
   ],
   "command": [
     "pnpm",
@@ -16,16 +16,16 @@
     "--skipNxCache",
     "--output-style=static"
   ],
-  "startedAt": "2026-10-05T10:02:19.384299+08:00",
   "elapsedSeconds": 102.26,
   "exitCode": 130,
-  "headAtFinish": "1e8336cdd08a1e58826323d5a8a0e03c36b4c2bf",
   "freshArtifacts": [],
-  "reviewedProjectAndDependencyInputCount": 1544,
-  "changedInputsDuringMeasurement": [
-    "apps/dev-rxdb-miniprogram-alipay-probe/project.json",
-    "apps/dev-rxdb-miniprogram-douyin-spike/project.json"
+  "headAtFinish": "1e8336cdd08a1e58826323d5a8a0e03c36b4c2bf",
+  "heavyTaskConcurrency": 1,
+  "projects": [
+    "dev-rxdb-miniprogram-alipay-probe",
+    "dev-rxdb-miniprogram-douyin-spike",
+    "dev-rxdb-miniprogram-alipay-probe-e2e"
   ],
-  "cacheDisabled": true,
-  "heavyTaskConcurrency": 1
+  "reviewedProjectAndDependencyInputCount": 1544,
+  "startedAt": "2026-10-05T10:02:19.384299+08:00"
 }

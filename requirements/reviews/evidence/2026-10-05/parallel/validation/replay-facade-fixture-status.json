@@ -1,0 +1,28 @@
+{
+  "cacheDisabled": true,
+  "changedInputsDuringMeasurement": ["packages/rxdb-plugin-replay/src/__tests__/review-parallel-restore.spec.ts"],
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-plugin-replay:test",
+    "review-parallel-restore",
+    "--run",
+    "--maxWorkers=1",
+    "--coverage.enabled=false",
+    "--skipRemoteCache",
+    "--skipNxCache",
+    "--parallel=1",
+    "--output-style=static"
+  ],
+  "elapsedSeconds": 271.881,
+  "exitCode": 1,
+  "freshArtifacts": [
+    "requirements/reviews/evidence/2026-10-05/parallel/validation/replay-facade-fixture/rxdb-plugin-replay/junit.xml"
+  ],
+  "headAtFinish": "a23a2948f5cc8e94519b9898e38d906df8624df8",
+  "heavyTaskConcurrency": 1,
+  "projects": ["rxdb-plugin-replay"],
+  "reviewedProjectAndDependencyInputCount": 1448,
+  "startedAt": "2026-10-05T10:15:24.619428+08:00"
+}

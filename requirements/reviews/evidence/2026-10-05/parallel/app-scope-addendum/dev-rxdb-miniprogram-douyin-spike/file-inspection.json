@@ -1,346 +1,284 @@
 {
   "date": "2026-10-05",
-  "object": "dev-rxdb-miniprogram-douyin-spike",
   "files": [
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/README.md",
       "sha256": "f61bc7293a0ad51776866478c6218c54c2de4809c69e240af54c3d8bc3014a7c",
-      "readRange": [
-        1,
-        63
-      ],
       "totalLines": 63,
       "focus": "C1/C6 私有spike范围、SDK vs raw边界、平台设备限制",
-      "wholeFileRead": true,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 63],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/scripts/build.mjs",
       "sha256": "2349e61706b97d84729fb93dc40c589740c2783971d4658d129cd776f57c7ec3",
-      "readRange": [
-        1,
-        83
-      ],
       "totalLines": 159,
       "focus": "C2 同一sqlite-wasm公开资源路径、正式抖音host桥接",
-      "wholeFileRead": false,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 83],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/scripts/build.mjs",
       "sha256": "3bdd71bfe5f6b19115da9ce19f749b9ee6eb5cc4f862e32d3e551eb4b2ba75d4",
-      "readRange": [
-        84,
-        159
-      ],
       "totalLines": 159,
       "focus": "C2 来源打包、absolute wasm路径内容copy 主/核心realm banner",
-      "wholeFileRead": false,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [84, 159],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/page.ts",
       "sha256": "1ed399b1da0911613b82847b1821889a332a2c9c59c43b2bbca0bb46ebf38684",
-      "readRange": [
-        1,
-        90
-      ],
       "totalLines": 90,
       "focus": "C1/C3/C5 页面入口正式host runtime prepare 报告串行/异常",
-      "wholeFileRead": true,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 90],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/run-spike.ts",
       "sha256": "76874594382bf05d54fbee5178f85647a32614a2d481a37ce49b1e2e65c51dcf",
-      "readRange": [
-        1,
-        114
-      ],
       "totalLines": 210,
       "focus": "C1/C3 runner contract 报告版本 默认realm/平台host identity",
-      "wholeFileRead": false,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 114],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/run-spike.ts",
       "sha256": "76874594382bf05d54fbee5178f85647a32614a2d481a37ce49b1e2e65c51dcf",
-      "readRange": [
-        115,
-        210
-      ],
       "totalLines": 210,
       "focus": "C1/C3/C4 正式host注入、核心加载门、cleanup报错与UI结果区分",
-      "wholeFileRead": false,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [115, 210],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/core.ts",
       "sha256": "71f5cc5070235cdb0f516c8b4fd708393d82a1fb93dfe7fa6dbfcb4aa6812af6",
-      "readRange": [
-        1,
-        240
-      ],
       "totalLines": 240,
       "method": "complete source diff against already fully read alipay core.ts; common code plus all deltas inspected",
       "comparisonBase": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/src/core.ts",
-      "wholeFileRead": true,
       "focus": "C4 实际SQLite client而非RxDB仓库；quota/persistence共享契约与抖音stat路径差异",
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 240],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/findings.ts",
       "sha256": "6b0a6a51ad021c45a932f10c651ed1f87ef6a4e908d70acca33779c74e39249c",
-      "readRange": [
-        1,
-        94
-      ],
       "totalLines": 227,
       "focus": "C5 判定矩阵正式SDK、WASM path探测成功≠adapter持久化成功",
-      "wholeFileRead": false,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 94],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/findings.ts",
       "sha256": "6b0a6a51ad021c45a932f10c651ed1f87ef6a4e908d70acca33779c74e39249c",
-      "readRange": [
-        92,
-        227
-      ],
       "totalLines": 227,
       "focus": "C5 抖音随机/配额cause/30MiB阈值 与矩阵未知保留",
-      "wholeFileRead": false,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [92, 227],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/experiments/wasm-path.ts",
       "sha256": "d529d4f9665666af8042dda52519fcb72d04e2fecc30e484abc8085f9a315b52",
-      "readRange": [
-        1,
-        40
-      ],
       "totalLines": 40,
       "focus": "C2/C3 页面相对路径候选仅诊断，不替代host默认绝对路径",
-      "wholeFileRead": true,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 40],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/experiments/random.ts",
       "sha256": "b518ade267130d41e7d484b4b1cbc6d837d2ecd688bf583310bb97766a83e37d",
-      "readRange": [
-        1,
-        61
-      ],
       "totalLines": 61,
       "focus": "C3 native getRandomValues次数/返回长度、不用Math.random fallback",
-      "wholeFileRead": true,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 61],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/probe.ts",
       "sha256": "2d7b657cf25dfbee2cbc930a9b0884e2965ea0669f1b390742ac9c366502ed4c",
-      "readRange": [
-        1,
-        39
-      ],
       "totalLines": 39,
       "focus": "C5 ok/error/skip与timeout本体",
-      "wholeFileRead": true,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 39],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/experiments/quota-accounting.ts",
       "sha256": "ceeda1b2b382a43fa1341e2e4d626627fe482432b1d8f6c469f7274233dcbe8e",
-      "readRange": [
-        1,
-        75
-      ],
       "totalLines": 129,
       "focus": "C4 文案分类而非单错误码，临界覆盖写是否计旧占用",
-      "wholeFileRead": false,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 75],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/experiments/quota-accounting.ts",
       "sha256": "ceeda1b2b382a43fa1341e2e4d626627fe482432b1d8f6c469f7274233dcbe8e",
-      "readRange": [
-        75,
-        129
-      ],
       "totalLines": 129,
       "focus": "C4 覆盖写失败记录旧大小/cleanup，不把失败错误码伪装配额",
-      "wholeFileRead": false,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [75, 129],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/vitest.config.mts",
       "sha256": "b06714b14cb8281ac10286c8a0ed8c76a61cf04f4e66e54d212a520fa1ee2973",
-      "readRange": [
-        1,
-        27
-      ],
       "totalLines": 27,
       "focus": "C6 Node/v8与fixture测量面",
-      "wholeFileRead": true,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 27],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/dist-smoke.spec.ts",
       "sha256": "8844850c82a90e9061b463d4d6bb9a9e80f9a797d29d9a9cb0b24414eaaecd4d",
-      "readRange": [
-        1,
-        65
-      ],
       "totalLines": 262,
       "focus": "C2/C6 同构建wrapper/sandbox，并非真TT运行宿主",
-      "wholeFileRead": false,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 65],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/tsconfig.json",
       "sha256": "210c59c2969b329e8f397cd4b7a3d383c3b83b9a8117bafcfbcf0a3ff6820acb",
-      "readRange": [
-        1,
-        24
-      ],
       "totalLines": 24,
       "focus": "C1/C6 同realm app配置source condition与引用",
-      "wholeFileRead": true,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 24],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/static/project.config.json",
       "sha256": "f6b4eff67d85151aeb1b619e027c417ac488c76f5ae3fa45bfd53574e314315c",
-      "readRange": [
-        1,
-        11
-      ],
       "totalLines": 11,
       "focus": "C1 平台appid/compile路径不是发布权限凭据",
-      "wholeFileRead": true,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 11],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/static/app.json",
       "sha256": "5bad1e4ee09d030a88f95fb5ceadbcf584f97603c73d131d926ceaf4e395e771",
-      "readRange": [
-        1,
-        6
-      ],
       "totalLines": 6,
       "focus": "C1 入口页面配置",
-      "wholeFileRead": true,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 6],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/static/pages/index/index.ttml",
       "sha256": "3cf9db1ad653655ce0cb34a8ef0e7e29c8a13f1fefb79ba3c606faa1c6b0124a",
-      "readRange": [
-        1,
-        8
-      ],
       "totalLines": 8,
       "focus": "C5 页面按钮与JSON report展示；无自动网络上传",
-      "wholeFileRead": true,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 8],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/__tests__/fake-douyin.ts",
       "sha256": "786d5c12e25d4a5e49adb8a7382b2a2729ed41ba12838727a4dbecb8459cf447",
-      "readRange": [
-        1,
-        75
-      ],
       "totalLines": 229,
       "focus": "C6 Node FS配额模拟及SDK WASM初始化不是TT设备能力",
-      "wholeFileRead": false,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 75],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/core-contract.ts",
       "sha256": "08b2ee8d9058ca0dea89fa87a0889ddc079c9d3635a8867c00fa374d848d49d9",
-      "readRange": [
-        1,
-        47
-      ],
       "totalLines": 112,
       "focus": "C1/C4 相同SQL client契约/默认数量，不误读为后端feature全验证",
-      "wholeFileRead": false,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 47],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/run-spike.spec.ts",
       "sha256": "d508015d5fe1d50b0231040abd4ea7c8694eb2b8a86656705ab0f809b751a2fe",
-      "readRange": [
-        1,
-        45
-      ],
       "totalLines": 302,
       "focus": "C6 source test小配额/真实WASM+fake平台组合",
-      "wholeFileRead": false,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 45],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/realm-probe.ts",
       "sha256": "c86fc95bad5ebdb459dce4742ffd5b70f5f63c4b542ffcdfb9e3951110d9a7c9",
-      "readRange": [
-        1,
-        51
-      ],
       "totalLines": 51,
       "focus": "C3 banner记录与runtimeGlobal注入读取直接源码边界",
-      "wholeFileRead": true,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 51],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/static/app.js",
       "sha256": "1ab645c73bcea61604f9cc4805a752ab9ba8fb66813d8c57cad34328c0ce4109",
-      "readRange": [
-        1,
-        1
-      ],
       "totalLines": 1,
       "focus": "C1 平台App入口",
-      "wholeFileRead": true,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 1],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/eslint.config.mjs",
       "sha256": "82f8259605be05936c454fa97563935042a07dfdfcb33e260889563f975f14d9",
-      "readRange": [
-        1,
-        3
-      ],
       "totalLines": 3,
       "focus": "C6 基础lint配置未默认忽略私有应用",
-      "wholeFileRead": true,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 3],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/tsconfig.app.json",
       "sha256": "82521bb0ee436c14835906c23f7df3e0ce90b932caac1220e1ae152d1e813e85",
-      "readRange": [
-        1,
-        15
-      ],
       "totalLines": 15,
       "focus": "C6 app测量面明确排除spec，不代表全部受控源验证",
-      "wholeFileRead": true,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 15],
+      "wholeFileReviewComplete": false
     },
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/tsconfig.spec.json",
       "sha256": "a1ed838e47f4fc7aff46d8c507f84a083809d2ce7db66c08e0f358d10c709b52",
-      "readRange": [
-        1,
-        28
-      ],
       "totalLines": 28,
       "focus": "C6 spec与build.mjs列入类型目标，runtime/bundle另证",
-      "wholeFileRead": true,
-      "dynamicallyExecuted": false
+      "dynamicallyExecuted": false,
+      "requestedSourceRange": [1, 28],
+      "wholeFileReviewComplete": false
     }
   ],
+  "head": "a23a2948f5cc8e94519b9898e38d906df8624df8",
   "method": "numbered visible source; ranges recorded only per bounded output; inventory not reading evidence",
-  "noTaskOrGUIExecuted": true
+  "noTaskOrGUIExecuted": true,
+  "notReadFiles": [
+    "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/project.json",
+    "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/describe-error.spec.ts",
+    "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/describe-error.ts",
+    "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/douyin-api.ts",
+    "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/experiments/environment.ts",
+    "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/experiments/fs-errors.ts",
+    "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/experiments/quota-accounting.spec.ts",
+    "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/findings.spec.ts",
+    "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/free-globals.spec.ts",
+    "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/free-globals.ts",
+    "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/realm-probe.spec.ts",
+    "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/vfs-classifiers.spec.ts",
+    "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/src/vfs-classifiers.ts",
+    "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/static/pages/index/index.json",
+    "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-douyin-spike/static/pages/index/index.ttss"
+  ],
+  "note": "记录至少实际查看过的文件及关注点；多文件输出部分段落曾截断，range仅代表工具请求范围，不据其自动声明整文件/整个C已完成。source diff条目注明对照已读base。未读清单明确保留，inventory不是阅读证据。",
+  "object": "dev-rxdb-miniprogram-douyin-spike",
+  "readFileCount": 24,
+  "readSegmentCount": 28,
+  "trackedFileCount": 39
 }

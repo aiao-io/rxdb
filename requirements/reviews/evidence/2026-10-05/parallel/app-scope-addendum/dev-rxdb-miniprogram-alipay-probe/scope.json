@@ -1,8 +1,7 @@
 {
   "date": "2026-10-05",
-  "object": "dev-rxdb-miniprogram-alipay-probe",
+  "inventoryIsReadEvidence": false,
   "kind": "apps",
-  "reason": "resolved Nx node existed before this task; original review coverage omitted it",
   "node": {
     "name": "dev-rxdb-miniprogram-alipay-probe",
     "type": "app",
@@ -10,9 +9,7 @@
       "root": "apps/dev-rxdb-miniprogram-alipay-probe",
       "targets": {
         "typecheck": {
-          "dependsOn": [
-            "^typecheck"
-          ],
+          "dependsOn": ["^typecheck"],
           "cache": true,
           "inputs": [
             "{workspaceRoot}/tsconfig.base.json",
@@ -41,20 +38,14 @@
             "{workspaceRoot}/dist/out-tsc/dev-rxdb-miniprogram-alipay-probe-test/**/*.{d.ts,d.cts,d.mts}.map",
             "{workspaceRoot}/dist/out-tsc/dev-rxdb-miniprogram-alipay-probe-test.tsbuildinfo"
           ],
-          "syncGenerators": [
-            "@nx/js:typescript-sync"
-          ],
+          "syncGenerators": ["@nx/js:typescript-sync"],
           "metadata": {
-            "technologies": [
-              "typescript"
-            ],
+            "technologies": ["typescript"],
             "description": "Runs type-checking for the project.",
             "help": {
               "command": "pnpm exec tsc --build --help",
               "example": {
-                "args": [
-                  "--force"
-                ]
+                "args": ["--force"]
               }
             }
           },
@@ -68,17 +59,10 @@
         },
         "lint": {
           "cache": true,
-          "inputs": [
-            "default",
-            "^production"
-          ],
-          "outputs": [
-            "{options.outputFile}"
-          ],
+          "inputs": ["default", "^production"],
+          "outputs": ["{options.outputFile}"],
           "metadata": {
-            "technologies": [
-              "eslint"
-            ],
+            "technologies": ["eslint"],
             "description": "Runs ESLint on project",
             "help": {
               "command": "pnpm exec eslint --help",
@@ -99,17 +83,10 @@
         },
         "test": {
           "cache": true,
-          "inputs": [
-            "default",
-            "^production"
-          ],
-          "outputs": [
-            "{workspaceRoot}/coverage/apps/dev-rxdb-miniprogram-alipay-probe"
-          ],
+          "inputs": ["default", "^production"],
+          "outputs": ["{workspaceRoot}/coverage/apps/dev-rxdb-miniprogram-alipay-probe"],
           "metadata": {
-            "technologies": [
-              "vitest"
-            ],
+            "technologies": ["vitest"],
             "description": "Run Vitest tests",
             "help": {
               "command": "pnpm exec vitest --help",
@@ -122,9 +99,7 @@
             }
           },
           "executor": "nx:run-commands",
-          "dependsOn": [
-            "^build"
-          ],
+          "dependsOn": ["^build"],
           "options": {
             "cwd": "apps/dev-rxdb-miniprogram-alipay-probe",
             "command": "vitest"
@@ -135,14 +110,9 @@
         "build": {
           "cache": true,
           "dependsOn": [],
-          "inputs": [
-            "production",
-            "^production"
-          ],
+          "inputs": ["production", "^production"],
           "executor": "nx:run-commands",
-          "outputs": [
-            "{projectRoot}/dist"
-          ],
+          "outputs": ["{projectRoot}/dist"],
           "options": {
             "command": "node scripts/build.mjs",
             "cwd": "apps/dev-rxdb-miniprogram-alipay-probe"
@@ -157,12 +127,12 @@
       "// build": "US-211 阶段 C 的支付宝可行性实验工程，不发布；支付宝 2026-10-04 凭本探针 v7 改判 supported 并登记 alipay。结构与 dev-rxdb-miniprogram-douyin-spike 同构：esbuild 从源码打两个包——页面包（/runtime 引导 + 不依赖核心的实验）、核心包（adapter 主入口 + 持久化 / 配额实验，由页面在 prepare 之后懒 require）；Worker 包是 adapter 包里预编译的 ES5 随机数 Worker（alipay-random-worker.js）原样拷贝。交给 adapter 的是正式支付宝 host（createAlipayMiniProgramHost）。直接打源码，所以不依赖上游 build。",
       "projectType": "application",
       "sourceRoot": "apps/dev-rxdb-miniprogram-alipay-probe/src",
-      "tags": [
-        "miniprogram-app"
-      ],
+      "tags": ["miniprogram-app"],
       "implicitDependencies": []
     }
   },
+  "object": "dev-rxdb-miniprogram-alipay-probe",
+  "reason": "resolved Nx node existed before this task; original review coverage omitted it",
   "trackedFiles": [
     {
       "path": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-alipay-probe/README.md",
@@ -394,6 +364,5 @@
       "sha256": "99d2c2ecfdf9bb9e9b5987454be86d0242ce79122a9da123fe26413b5ddbeec0",
       "lines": 27
     }
-  ],
-  "inventoryIsReadEvidence": false
+  ]
 }
