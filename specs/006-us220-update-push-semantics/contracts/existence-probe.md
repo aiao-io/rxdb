@@ -44,7 +44,7 @@ GRANT EXECUTE ON FUNCTION public.rxdb_existing_ids(text, text, text[]) TO anon, 
 v_array_type := public.rxdb_id_array_type(p_table, p_schema);   -- 内部 helper，见 §4
 EXECUTE pg_catalog.format(
   'SELECT pg_catalog.array_agg(p.raw)
-     FROM pg_catalog.unnest($1, $1::%s) AS p(raw, typed)
+     FROM ROWS FROM (pg_catalog.unnest($1), pg_catalog.unnest($1::%s)) AS p(raw, typed)
     WHERE EXISTS (SELECT 1 FROM %I.%I AS t WHERE t.id = p.typed)',
   v_array_type, p_schema, p_table
 ) INTO result USING p_ids;
@@ -53,6 +53,7 @@ RETURN COALESCE(result, '{}');
 
 - `id` 列按真实类型比较，能用主键索引；
 - 返回的是调用方传入的**原样**元素，不是 `t.id::text`：`uuid` 大小写、`varchar` 尾随空格等写法差异不会让调用方的「是否包含」判断出错；
+- 多参 `unnest(a, b)` 是 FROM 子句的特殊写法，加 `pg_catalog.` 限定后不成立（报 `function pg_catalog.unnest(text[], text[]) does not exist`），故写成等价的 `ROWS FROM (unnest(a), unnest(b))`；
 - 某个元素转不成 `id` 的类型（如非法 uuid 文本）→ PostgreSQL 类型转换错误，显式失败。
 
 ## 4. 内部 helper `rxdb_id_array_type`

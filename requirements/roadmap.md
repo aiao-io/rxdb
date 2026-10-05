@@ -16,7 +16,7 @@
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **28** |
 
-仓库还剩 **28 条**未关闭故事（2 In Progress + 0 In Review + 26 Backlog + 0 Blocked）。
+仓库还剩 **28 条**未关闭故事（2 In Progress + 1 In Review + 25 Backlog + 0 Blocked）。
 
 > 口径与 [status-overview 状态汇总](status-overview.md#状态汇总) 一致：YAML `status` 字段 `grep` 推导。
 > rxdb-model 实体模型库与三框架 UI 组件集没有故事文件，三框架代码已随 #62 合入；剩下的跨框架对拍、三端对称复核与文档
@@ -34,7 +34,7 @@
 | Story                                                                                                | 状态           | 剩什么                                                                                                                                                                                                                                                                                                                                                                                                                   | 排期位置 |
 | ---------------------------------------------------------------------------------------------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
 | [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)                       | 🚧 In Progress | 阶段 A 已交付（宿主契约 + [可行性矩阵](stories/adapter/miniprogram-platform-feasibility.md)）；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 开发者工具走查已通过、iOS 真机走查通过，剩 Android 真机；支付宝 / 百度 / QQ 已判 `unsupported`，阶段 C 支付宝拒绝路径已交（探针在模拟器与 iOS 真机调试复核，判定不变），剩百度 / QQ 的拒绝路径与文档口径                                             | 批次 3   |
-| [US-220 Supabase 推送 UPDATE 的落库语义](stories/adapter/US-220-supabase-update-push-semantics.md)   | 📝 Backlog     | 未开工；推送把 UPDATE 当 INSERT … ON CONFLICT 落库，拟插入行要过 NOT NULL、INSERT 与 SELECT 策略：只改部分列在 NOT NULL 列上报 23502（参考 demo 勾选 Todo 即中招），owner 型 RLS 下改自己的行、INSERT 比 UPDATE 窄的表上改别人的行都误报 42501，整批卡住。改走普通 UPDATE，单个 PR，是 US-218 阶段 B 的前置                                                                                                              | 批次 3   |
+| [US-220 Supabase 推送 UPDATE 的落库语义](stories/adapter/US-220-supabase-update-push-semantics.md)   | 👀 In Review   | 实现完成、PR 审核中（[specs/006](../specs/006-us220-update-push-semantics/tasks.md)）；原症状：推送把 UPDATE 当 INSERT … ON CONFLICT 落库，拟插入行要过 NOT NULL、INSERT 与 SELECT 策略：只改部分列在 NOT NULL 列上报 23502（参考 demo 勾选 Todo 即中招），owner 型 RLS 下改自己的行、INSERT 比 UPDATE 窄的表上改别人的行都误报 42501，整批卡住。改走普通 UPDATE，单个 PR，是 US-218 阶段 B 的前置                       | 批次 3   |
 | [US-218 Supabase 远端启用 RLS 时的推送完整性](stories/adapter/US-218-supabase-rls-push-integrity.md) | 📝 Backlog     | 未开工；业务表开 RLS 后被策略过滤的删除仍写日志，其它端拉到幽灵 DELETE（SQL 回归 `rls-filtered-delete` 红；连 SELECT 也看不到的行同样中招），`rxdb_mutations` 也不校验日志与业务写是否配对。A 不写幽灵日志 + 配对校验 → B 逐实体回执、被拒实体本地对齐（破坏性契约变更，前置 US-220）→ C 日志表收口与部署指引                                                                                                            | 批次 3   |
 | [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)           | 📝 Backlog     | 未开工；npm 用户今天只能照抄未发布的 demo 构建插件（wasm 拷贝、glue `import.meta.url`、抖音 realm）。A 构建插件 → B 运行时入口 → C webpack5（价值待证）                                                                                                                                                                                                                                                                  | 批次 3   |
 | [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md)          | 📝 Backlog     | 未立项；**价值待证**（[RV-022](reviews/RV-022-us-029-readiness-review.md)：已去掉多租户，仍无具名使用方）。阶段 A / B / D 依赖 US-027 阶段 A / B / C，阶段 C 依赖 US-218                                                                                                                                                                                                                                                 | 立项池   |
@@ -177,6 +177,14 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
    线 A 的 PR 上重跑才过。修法是让场景时钟由测试显式推进，而不是赌事件循环顺序。
 7. **`ci / benchmarks` 缺 Xeon 8370C 的参考档**。该 CPU 上报 `benchmark_environment_mismatch`，线 A 的 PR 上重跑两次才落到
    有档的机型；按 epic-006 的规则，同一机型再出现就冻结一份新档（`benchmarks/reports/working-tree-reference/`）。
+8. **待评估：`mutations()` 直写路径的 UPDATE 语义**。[US-220](stories/adapter/US-220-supabase-update-push-semantics.md)
+   只改推送路径（`mergeChanges`），`RxDBAdapterSupabase.mutations()`（仓库 `save()` 直写）仍把 `options.update` 的整实体放进
+   `p_upserts`，走 `INSERT … ON CONFLICT`。**推断**：owner 型与共享编辑型 RLS 上同样会误拒（US-220 症状 2、3）；
+   先在这两种策略上各写一条复现，再决定是否立项。
+9. **待评估：SQL 安全回归接入 nx target / CI**。`packages/rxdb-adapter-supabase/src/__tests__/run-supabase-sql-security-regressions.sh`
+   今天只能手跑（需要本机 `supabase-db` 容器），CI 不跑，参考 SQL 的回归只靠 PR 作者自觉。US-220 新增的 `update-*` 与
+   `existence-probe` 用例同样如此；`rls-filtered-delete` 按设计红到 US-218 阶段 A，接入时须先定「已知红」的登记方式，
+   不能让整个 target 恒红。来源：[US-220 quickstart](../specs/006-us220-update-push-semantics/quickstart.md) 末注。
 
 第 5～7 条是线 A 执行时发现的后续项。第 2～4 条的原任务清单见 `git show 41ce2181:specs/002-rxdb-model-port/tasks.md`（T049～T051）。
 

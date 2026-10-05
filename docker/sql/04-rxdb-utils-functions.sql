@@ -51,27 +51,28 @@ END;
 $$;
 
 /**
- * rxdb_batch_delete - 批量删除操作
+ * rxdb_id_array_type - 取业务表 id 列对应的数组类型
+ *
+ * 只读系统目录，不读业务表；供 rxdb_batch_delete 与 rxdb_existing_ids 按 id 真实类型比较。
+ *
+ * @param p_table 表名
+ * @param p_schema schema 名称
+ * @returns id 列类型的数组 regtype
  */
-CREATE OR REPLACE FUNCTION public.rxdb_batch_delete(
+CREATE OR REPLACE FUNCTION public.rxdb_id_array_type(
   p_table text,
-  p_schema text DEFAULT 'public',
-  p_ids text[] DEFAULT '{}'::text[]
+  p_schema text
 )
-RETURNS int
+RETURNS pg_catalog.regtype
 LANGUAGE plpgsql
+STABLE
 SECURITY INVOKER
 SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE
-  affected int;
   v_id_type pg_catalog.regtype;
   v_id_array_type pg_catalog.regtype;
 BEGIN
-  IF p_table !~ '^[a-zA-Z_][a-zA-Z0-9_]*$' THEN
-    RAISE EXCEPTION 'Invalid table name: %', p_table;
-  END IF;
-
   SELECT
     a.atttypid::pg_catalog.regtype,
     CASE
@@ -98,6 +99,121 @@ BEGIN
     RAISE EXCEPTION 'Unsupported id type without array regtype: %', v_id_type;
   END IF;
 
+  RETURN v_id_array_type;
+END;
+$$;
+
+/**
+ * rxdb_batch_update - 批量部分列更新
+ *
+ * 逐行执行普通 UPDATE，只 SET 该行出现的非 id 列；未出现的列保持原值。
+ * 只受调用方 UPDATE / SELECT 策略约束，不受 INSERT 策略约束。
+ * 某行更新零行时抛错：行仍存在 → 42501（reason=denied），行已不存在 → RX001（reason=gone）。
+ *
+ * @param p_table 表名
+ * @param p_schema schema 名称
+ * @param p_data JSONB 数组，每个元素: {id, ...本次修改的列}
+ * @returns 实际更新的行数
+ */
+CREATE OR REPLACE FUNCTION public.rxdb_batch_update(
+  p_table text,
+  p_schema text DEFAULT 'public',
+  p_data jsonb DEFAULT '[]'::jsonb
+)
+RETURNS int
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+  item jsonb;
+  set_clause text;
+  v_id text;
+  v_reason text;
+  rc int;
+  affected int := 0;
+BEGIN
+  IF p_table !~ '^[a-zA-Z_][a-zA-Z0-9_]*$' THEN
+    RAISE EXCEPTION 'Invalid table name: %', p_table;
+  END IF;
+
+  FOR item IN SELECT * FROM pg_catalog.jsonb_array_elements(p_data)
+  LOOP
+    -- 只有 id 时退化为 SET id = t.id：仍走一次 UPDATE，让 RLS 与零行判定照常生效
+    SELECT COALESCE(
+      pg_catalog.string_agg(
+        pg_catalog.format(
+          '%I = (pg_catalog.jsonb_populate_record(null::%I.%I, $1)).%I',
+          key, p_schema, p_table, key
+        ),
+        ', '
+      ),
+      'id = t.id'
+    )
+    INTO set_clause
+    FROM pg_catalog.jsonb_object_keys(item) AS keys(key)
+    WHERE key != 'id';
+
+    EXECUTE pg_catalog.format(
+      'UPDATE %I.%I AS t SET %s WHERE t.id = (pg_catalog.jsonb_populate_record(null::%I.%I, $1)).id',
+      p_schema, p_table, set_clause, p_schema, p_table
+    ) USING item;
+
+    GET DIAGNOSTICS rc = ROW_COUNT;
+    affected := affected + rc;
+    CONTINUE WHEN rc > 0;
+
+    -- 零行：探针区分「被行级权限拒绝」与「行已不存在」，两者都显式失败、整批回滚
+    v_id := item->>'id';
+    v_reason := CASE
+      WHEN v_id = ANY(public.rxdb_existing_ids(p_table, p_schema, ARRAY[v_id])) THEN 'denied'
+      ELSE 'gone'
+    END;
+
+    IF v_reason = 'denied' THEN
+      RAISE EXCEPTION USING
+        ERRCODE = 'insufficient_privilege',
+        MESSAGE = pg_catalog.format('rxdb: UPDATE denied by row-level security: %I.%I id=%s', p_schema, p_table, v_id),
+        DETAIL = pg_catalog.jsonb_build_object(
+          'op', 'UPDATE', 'schema', p_schema, 'table', p_table, 'entityId', v_id, 'reason', v_reason
+        )::text;
+    END IF;
+
+    RAISE EXCEPTION USING
+      ERRCODE = 'RX001',
+      MESSAGE = pg_catalog.format('rxdb: UPDATE target row is gone: %I.%I id=%s', p_schema, p_table, v_id),
+      DETAIL = pg_catalog.jsonb_build_object(
+        'op', 'UPDATE', 'schema', p_schema, 'table', p_table, 'entityId', v_id, 'reason', v_reason
+      )::text;
+  END LOOP;
+
+  RETURN affected;
+END;
+$$;
+
+/**
+ * rxdb_batch_delete - 批量删除操作
+ */
+CREATE OR REPLACE FUNCTION public.rxdb_batch_delete(
+  p_table text,
+  p_schema text DEFAULT 'public',
+  p_ids text[] DEFAULT '{}'::text[]
+)
+RETURNS int
+LANGUAGE plpgsql
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+  affected int;
+  v_id_array_type pg_catalog.regtype;
+BEGIN
+  IF p_table !~ '^[a-zA-Z_][a-zA-Z0-9_]*$' THEN
+    RAISE EXCEPTION 'Invalid table name: %', p_table;
+  END IF;
+
+  v_id_array_type := public.rxdb_id_array_type(p_table, p_schema);
+
   EXECUTE pg_catalog.format(
     'DELETE FROM %I.%I WHERE id = ANY($1::%s)',
     p_schema, p_table, v_id_array_type
@@ -105,6 +221,68 @@ BEGIN
 
   GET DIAGNOSTICS affected = ROW_COUNT;
   RETURN affected;
+END;
+$$;
+
+/**
+ * rxdb_existing_ids - 同步表的存在性探针
+ *
+ * 只回答「这些 id 在同步表里是否存在」，不返回列值；判定不受调用方 RLS 影响，
+ * 供写路径在零行时区分「被行级权限拒绝」与「行已不存在」。
+ * 只接受挂了 RxDB 同步日志触发器的表，其余一律 22023，不可探测。
+ *
+ * @param p_table 表名
+ * @param p_schema schema 名称
+ * @param p_ids 待判定的 id（文本形式）
+ * @returns p_ids 中存在的元素（原样返回，顺序不保证）
+ */
+CREATE OR REPLACE FUNCTION public.rxdb_existing_ids(
+  p_table text,
+  p_schema text,
+  p_ids text[]
+)
+RETURNS text[]
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+SET row_security = off
+AS $$
+DECLARE
+  v_array_type pg_catalog.regtype;
+  result text[];
+BEGIN
+  IF p_table !~ '^[a-zA-Z_][a-zA-Z0-9_]*$' THEN
+    RAISE EXCEPTION 'Invalid table name: %', p_table;
+  END IF;
+
+  -- 只看触发器名不够：任何人都能在自己的表上起同名触发器，必须同时核对触发函数
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_trigger AS tg
+    JOIN pg_catalog.pg_class AS c ON c.oid = tg.tgrelid
+    JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+    WHERE n.nspname = p_schema
+      AND c.relname = p_table
+      AND c.relkind IN ('r', 'p')
+      AND tg.tgname = 'rxdb_sync_trigger'
+      AND tg.tgfoid = 'public.rxdb_log_change_trigger'::pg_catalog.regproc
+  ) THEN
+    RAISE EXCEPTION 'rxdb: existence probe only accepts rxdb sync tables: %.%', p_schema, p_table
+      USING ERRCODE = 'invalid_parameter_value';
+  END IF;
+
+  v_array_type := public.rxdb_id_array_type(p_table, p_schema);
+
+  -- 按 id 真实类型比较（走主键索引），返回调用方传入的原样元素
+  EXECUTE pg_catalog.format(
+    'SELECT pg_catalog.array_agg(p.raw)
+       FROM ROWS FROM (pg_catalog.unnest($1), pg_catalog.unnest($1::%s)) AS p(raw, typed)
+      WHERE EXISTS (SELECT 1 FROM %I.%I AS t WHERE t.id = p.typed)',
+    v_array_type, p_schema, p_table
+  ) INTO result USING p_ids;
+
+  RETURN COALESCE(result, '{}'::text[]);
 END;
 $$;
 
@@ -177,7 +355,7 @@ $$;
  *
  * 在单个数据库事务中执行所有操作：
  * 1. 写入 rxdb_change 表（可选，用于同步）
- * 2. 执行 upsert 和 delete 操作
+ * 2. 依次执行 upsert、部分列 update 与 delete 操作
  *
  * 任何操作失败都会导致整个事务回滚
  *
@@ -185,16 +363,19 @@ $$;
  * @param p_deletes JSONB 数组，每个元素: {table, schema?, ids: [...]}
  * @param p_changes JSONB 数组，RxDBChange 记录（可选，用于同步场景）
  * @param p_skip_sync 是否跳过同步触发器 (默认 false)
+ * @param p_updates JSONB 数组，每个元素: {table, schema?, data: [{id, ...本次修改的列}]}
  * @returns 操作结果
  */
 DROP FUNCTION IF EXISTS public.rxdb_mutations(jsonb, jsonb);
 DROP FUNCTION IF EXISTS public.rxdb_mutations(jsonb, jsonb, boolean);
+DROP FUNCTION IF EXISTS public.rxdb_mutations(jsonb, jsonb, jsonb, boolean);
 
 CREATE OR REPLACE FUNCTION public.rxdb_mutations(
   p_upserts jsonb DEFAULT '[]'::jsonb,
   p_deletes jsonb DEFAULT '[]'::jsonb,
   p_changes jsonb DEFAULT '[]'::jsonb,
-  p_skip_sync boolean DEFAULT false
+  p_skip_sync boolean DEFAULT false,
+  p_updates jsonb DEFAULT '[]'::jsonb
 )
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -204,6 +385,7 @@ AS $$
 DECLARE
   op jsonb;
   upsert_results jsonb := '[]'::jsonb;
+  update_count int := 0;
   delete_count int := 0;
   changes_count int := 0;
   max_change_id bigint := NULL;
@@ -374,7 +556,17 @@ BEGIN
       upsert_results := upsert_results || batch_result;
     END LOOP;
 
-    -- 3. 处理所有 delete 操作
+    -- 3. 处理所有部分列 update 操作
+    FOR op IN SELECT * FROM pg_catalog.jsonb_array_elements(p_updates)
+    LOOP
+      SELECT update_count + public.rxdb_batch_update(
+        op->>'table',
+        COALESCE(op->>'schema', 'public'),
+        op->'data'
+      ) INTO update_count;
+    END LOOP;
+
+    -- 4. 处理所有 delete 操作
     FOR op IN SELECT * FROM pg_catalog.jsonb_array_elements(p_deletes)
     LOOP
       SELECT pg_catalog.array_agg(value) INTO ids_array
@@ -390,6 +582,7 @@ BEGIN
 
   RETURN pg_catalog.jsonb_build_object(
     'upserted', upsert_results,
+    'updated', update_count,
     'deleted', delete_count,
     'changes', changes_count,
     'max_change_id', max_change_id,
@@ -400,9 +593,12 @@ $$;
 
 -- 授权
 GRANT EXECUTE ON FUNCTION public.rxdb_batch_upsert(text, text, jsonb) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_batch_update(text, text, jsonb) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_batch_delete(text, text, text[]) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_id_array_type(text, text) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_existing_ids(text, text, text[]) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_check_rls(jsonb) TO anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.rxdb_mutations(jsonb, jsonb, jsonb, boolean) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.rxdb_server_version()
 RETURNS text

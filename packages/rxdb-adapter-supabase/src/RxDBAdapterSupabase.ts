@@ -429,7 +429,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       return `${ns}.${tableName}`;
     };
 
-    const { p_upserts, p_deletes, p_changes } = build_merge_changes_payload(
+    const { p_upserts, p_updates, p_deletes, p_changes } = build_merge_changes_payload(
       actions,
       branchId,
       changes,
@@ -444,6 +444,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       async () => {
         const { data, error, status } = await this.#client.rpc('rxdb_mutations', {
           p_upserts,
+          p_updates,
           p_deletes,
           p_changes,
           p_skip_sync: true

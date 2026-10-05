@@ -16,6 +16,12 @@ CASES=(
   rls-filtered-delete
   branch-search-path
   trigger-schema
+  existence-probe
+  update-partial-columns
+  update-owner-rls
+  update-shared-edit
+  update-denied
+  update-gone
 )
 failed=0
 

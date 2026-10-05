@@ -167,18 +167,37 @@ await rxdb.disconnect('supabase');
 // 内部调用示意
 const { data } = await client.rpc('rxdb_mutations', {
   p_upserts: [{ table: 'todos', schema: 'public', data: [...] }],
+  p_updates: [{ table: 'todos', schema: 'public', data: [{ id, completed: true }] }],
   p_deletes: [{ table: 'todos', schema: 'public', ids: [...] }],
   p_changes: [...],        // RxDBChange 记录
   p_skip_sync: true         // 跳过服务端同步触发器
 });
 ```
 
-| 参数          | 类型      | 说明                           |
-| ------------- | --------- | ------------------------------ |
-| `p_upserts`   | `json[]`  | 按表分组的 upsert 数据         |
-| `p_deletes`   | `json[]`  | 按表分组的删除 ID              |
-| `p_changes`   | `json[]`  | 变更记录（写入 RxDBChange 表） |
-| `p_skip_sync` | `boolean` | 是否跳过同步触发器（避免循环） |
+| 参数          | 类型      | 说明                                                           |
+| ------------- | --------- | -------------------------------------------------------------- |
+| `p_upserts`   | `json[]`  | 按表分组的新增实体（全部列），`INSERT … ON CONFLICT DO UPDATE` |
+| `p_updates`   | `json[]`  | 按表分组的修改实体（`id` + 修改的列），普通 `UPDATE`           |
+| `p_deletes`   | `json[]`  | 按表分组的删除 ID                                              |
+| `p_changes`   | `json[]`  | 变更记录（写入 RxDBChange 表）                                 |
+| `p_skip_sync` | `boolean` | 是否跳过同步触发器（避免循环）                                 |
+
+实体表按 `p_upserts` → `p_updates` → `p_deletes` 的顺序执行，返回对象含 `upserted` / `updated` / `deleted` 计数。
+
+#### 修改的语义
+
+本地修改推送为普通 `UPDATE`：只改载荷里出现的列，未出现的列保持远端原值；只受目标表的 UPDATE 与 SELECT 策略约束，不受 INSERT 策略约束。因此 owner 型策略下推送不必携带 `owner` 列，开放共享编辑的表上可以修改他人创建的行。
+
+某条修改更新到 0 行时，整批回滚并抛错，不会静默跳过，也不会插入残缺行：
+
+| SQLSTATE | `details.reason` | 含义                                   |
+| -------- | ---------------- | -------------------------------------- |
+| `42501`  | `denied`         | 行仍存在，但调用方的行级权限不允许修改 |
+| `RX001`  | `gone`           | 行已不存在（被删除）                   |
+
+两种错误的 `details` 都是 JSON 文本，键为 `op` / `schema` / `table` / `entityId` / `reason`；`message` 以 `rxdb:` 开头。客户端今天把两种失败都包装为 `SupabaseDataError`，推送失败、水位线不推进，本地变更仍待推送。
+
+区分「被拒」与「已不存在」依赖存在性探针 `rxdb_existing_ids`（`SECURITY DEFINER`，只接受挂了 RxDB 同步触发器的表），它绕过行级权限回答「这些 id 是否存在」，不返回任何列值。从旧版本升级见 [Supabase 修改推送语义迁移](../migration/supabase-update-push.md)。
 
 本地 push 的每条 `p_changes` 都携带 `clientId` 和 `localId`，两者组成远端幂等键。数据库必须安装 `docker/sql/01-rxdb-system-tables.sql` 中的部分唯一索引，并使用同版本的 `rxdb_mutations`：RPC 收到纯重试批次时返回首次提交的 remoteId，同时跳过重复的实体 upsert/delete。升级脚本会先为每个重复键保留最早 change、删除后续重复记录，再创建唯一索引。
 
@@ -311,6 +330,8 @@ ERROR: function rxdb_mutations does not exist
 
 确保已在 Supabase 数据库中创建所需的 RPC 函数（`rxdb_mutations`、`get_descendants` 等）。
 
+新客户端连旧版 SQL 时，推送报 `Could not find the function public.rxdb_mutations(p_changes, p_deletes, p_skip_sync, p_updates, p_upserts)`：先执行新版 `docker/sql/04-rxdb-utils-functions.sql`，见 [迁移说明](../migration/supabase-update-push.md)。
+
 ### Realtime 未收到变更
 
 1. 确认 Supabase 项目已启用 Realtime
@@ -322,3 +343,7 @@ ERROR: function rxdb_mutations does not exist
 ### clientId 冲突
 
 如果多个标签页使用相同的 `clientId`，会导致变更被错误过滤。确保每个客户端实例具有唯一的 `clientId`。
+
+## 已知限制
+
+- **存在性探针**：`rxdb_existing_ids` 绕过行级权限，回答同步表里某些 id 是否存在。参考部署里 `rxdb_change` 本身对 `anon` 可读，探针泄露的严格少于此；但若你自行收紧了 `rxdb_change` 的读权限，探针就是剩余的存在性通道。id 不应承载敏感信息：UUID 主键不可枚举，自增或业务主键可被逐个探测。非同步表（如 `auth.users`）一律拒绝探测。

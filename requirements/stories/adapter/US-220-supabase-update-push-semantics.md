@@ -1,7 +1,7 @@
 ---
 id: US-220
 title: Supabase 推送 UPDATE 的落库语义
-status: Backlog
+status: In Review
 priority: High
 epic: epic-004-future-features
 created: 2026-10-05
@@ -99,21 +99,27 @@ SELECT `USING (true)`、INSERT `WITH CHECK (owner = uid)`、UPDATE `USING (true)
 - INSERT 路径：本地 INSERT 的 patch 是整行，仍走 `rxdb_batch_upsert`
 - `SupabaseRepository.update` 的 PostgREST 直写路径
 - 远端行已删、本地仍在更新这类并发冲突的解决策略：本故事只保证它被明确报错，不保证它被自动解决
+- `RxDBAdapterSupabase.mutations()`（仓库 `save()` 直写，`options.update` 整实体进 `p_upserts`）不改。**推断**：它在 owner 型与共享编辑型 RLS 上同样命中症状 2、3；登记为[零散收尾项](../../roadmap.md#零散收尾项不成故事随手可带)第 8 条待评估
 
 ## 验收标准
 
 | #   | 前置条件                                                                                                                      | 操作                                                                           | 预期结果                                                                                                                           | 状态 |
 | --- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 参考 schema，远端已有一条 todo                                                                                                | `rxdb_mutations` 推送只含 `completed`（及 `updatedAt` / `updatedBy`）的 UPDATE | 成功；`completed` 已更新，`title` 等未下发的列不变；日志写入一条 UPDATE                                                            | ⬜   |
-| 2   | 业务表策略 `FOR ALL USING (owner = uid) WITH CHECK (owner = uid)`，目标行属于调用方                                           | 推送不含 `owner` 列的 UPDATE                                                   | 成功，`owner` 不变                                                                                                                 | ⬜   |
-| 3   | 业务表策略：SELECT `USING (true)`、INSERT `WITH CHECK (owner = uid)`、UPDATE `USING (true) WITH CHECK (true)`，目标行属于他人 | 推送不含 `owner` 列的 UPDATE                                                   | 成功，`owner` 不变；INSERT 策略不参与 UPDATE 的判定                                                                                | ⬜   |
-| 4   | 目标行存在，但 UPDATE 的 `USING` 或 SELECT 策略不放行                                                                         | 推送 UPDATE                                                                    | 抛 42501；行未变；无新日志。普通 `UPDATE` 被策略过滤时是静默零行，不得因此退化为成功                                               | ⬜   |
-| 5   | 目标行在远端已不存在（对任何角色都不存在）                                                                                    | 推送 UPDATE                                                                    | 抛错，SQLSTATE 与 42501 不同（取值 plan 阶段定）；不插入任何行；无新日志                                                           | ⬜   |
-| 6   | 两个客户端连同一个真实 Supabase                                                                                               | 客户端 A 只改一条 todo 的 `completed` 并推送，客户端 B 拉取                    | A 推送成功、水位线推进；B 看到 `completed` 已变、`title` 不变。spec 经 `mergePushBatch` 推送路径，不走 `SupabaseRepository.update` | ⬜   |
-| 7   | 参考 demo 连本地 Supabase                                                                                                     | 新建一条 Todo 并推送，再勾选完成并推送，另一浏览器上下文拉取                   | 两次推送都成功；另一上下文看到该 Todo 已完成（`remote-sync.spec.ts` 新增用例）                                                     | ⬜   |
-| 8   | 既有 SQL 回归 9 条 + 本故事新增用例                                                                                           | `run-supabase-sql-security-regressions.sh`                                     | 全部 PASS（`rls-filtered-delete` 属 US-218，状态不因本故事变化）                                                                   | ⬜   |
+| 1   | 参考 schema，远端已有一条 todo                                                                                                | `rxdb_mutations` 推送只含 `completed`（及 `updatedAt` / `updatedBy`）的 UPDATE | 成功；`completed` 已更新，`title` 等未下发的列不变；日志写入一条 UPDATE                                                            | ✅   |
+| 2   | 业务表策略 `FOR ALL USING (owner = uid) WITH CHECK (owner = uid)`，目标行属于调用方                                           | 推送不含 `owner` 列的 UPDATE                                                   | 成功，`owner` 不变                                                                                                                 | ✅   |
+| 3   | 业务表策略：SELECT `USING (true)`、INSERT `WITH CHECK (owner = uid)`、UPDATE `USING (true) WITH CHECK (true)`，目标行属于他人 | 推送不含 `owner` 列的 UPDATE                                                   | 成功，`owner` 不变；INSERT 策略不参与 UPDATE 的判定                                                                                | ✅   |
+| 4   | 目标行存在，但 UPDATE 的 `USING` 或 SELECT 策略不放行                                                                         | 推送 UPDATE                                                                    | 抛 42501；行未变；无新日志。普通 `UPDATE` 被策略过滤时是静默零行，不得因此退化为成功                                               | ✅   |
+| 5   | 目标行在远端已不存在（对任何角色都不存在）                                                                                    | 推送 UPDATE                                                                    | 抛错，SQLSTATE 与 42501 不同（plan 冻结为 `RX001`）；不插入任何行；无新日志                                                        | ✅   |
+| 6   | 两个客户端连同一个真实 Supabase                                                                                               | 客户端 A 只改一条 todo 的 `completed` 并推送，客户端 B 拉取                    | A 推送成功、水位线推进；B 看到 `completed` 已变、`title` 不变。spec 经 `mergePushBatch` 推送路径，不走 `SupabaseRepository.update` | ✅   |
+| 7   | 参考 demo 连本地 Supabase                                                                                                     | 新建一条 Todo 并推送，再勾选完成并推送，另一浏览器上下文拉取                   | 两次推送都成功；另一上下文看到该 Todo 已完成（`remote-sync.spec.ts` 新增用例）                                                     | ✅   |
+| 8   | 既有 SQL 回归 9 条 + 本故事新增用例                                                                                           | `run-supabase-sql-security-regressions.sh`                                     | 全部 PASS（`rls-filtered-delete` 属 US-218，状态不因本故事变化）                                                                   | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
+
+验证（[specs/006 tasks](../../../specs/006-us220-update-push-semantics/tasks.md)）：AC#1～5、8 由 SQL 回归
+`update-partial-columns` / `update-owner-rls` / `update-shared-edit` / `update-denied` / `update-gone` 等用例覆盖，
+全量 15 PASS、`rls-filtered-delete` FAIL 与基线一致（属 US-218）；AC#6 由 `update-push-semantics.spec.ts` 覆盖；
+AC#7 由 `remote-sync.spec.ts`「pushes a completion toggle as an UPDATE …」覆盖。
 
 ## 技术笔记
 
@@ -144,16 +150,18 @@ SELECT `USING (true)`、INSERT `WITH CHECK (owner = uid)`、UPDATE `USING (true)
 
 ## 实现文件
 
-| 路径                                                                                    | 说明                                                                                      |
-| --------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `docker/sql/04-rxdb-utils-functions.sql`                                                | `rxdb_mutations` 的 UPDATE 分支（或新增 UPDATE 专用批量函数）；存在性判定（按 plan 分工） |
-| `packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts`                          | 把 UPDATE 与 INSERT 分开下发                                                              |
-| `packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql`    | AC#1～5 的 SQL 用例                                                                       |
-| `packages/rxdb-adapter-supabase/src/__tests__/run-supabase-sql-security-regressions.sh` | 新用例登记进 `CASES`                                                                      |
-| `packages/rxdb-adapter-supabase/src/__tests__/`                                         | AC#6 连真实数据库的推送 spec；`review-regressions.spec.ts` 中的载荷断言随形状更新         |
-| `apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts`                                    | AC#7 勾选推送用例                                                                         |
-| `packages/rxdb-adapter-supabase/README.md`、`website/docs/adapters/supabase.md`         | `rxdb_mutations` 参数与 UPDATE 语义说明同步                                               |
-| `website/docs/migration/`                                                               | 远端 SQL 升级顺序（若载荷形状不向后兼容）                                                 |
+| 路径                                                                                    | 说明                                                                                                                                     |
+| --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `docker/sql/04-rxdb-utils-functions.sql`                                                | `rxdb_mutations` 新增 `p_updates`（5 参，DROP 旧 4 参）；新增 `rxdb_batch_update`、探针 `rxdb_existing_ids`、helper `rxdb_id_array_type` |
+| `packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts`                          | UPDATE 单独分组为 `p_updates`，只带 `id` 与修改的列                                                                                      |
+| `packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts`                             | `mergeChanges()` 下发 `p_updates`                                                                                                        |
+| `packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql`    | AC#1～5 与探针的 SQL 用例                                                                                                                |
+| `packages/rxdb-adapter-supabase/src/__tests__/run-supabase-sql-security-regressions.sh` | 新用例登记进 `CASES`                                                                                                                     |
+| `packages/rxdb-adapter-supabase/src/__tests__/update-push-semantics.spec.ts`            | AC#6 连真实数据库的推送 spec                                                                                                             |
+| `packages/rxdb-adapter-supabase/src/__tests__/review-regressions.spec.ts`               | 载荷形状断言随 `p_updates` 更新                                                                                                          |
+| `apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts`                                    | AC#7 勾选推送用例                                                                                                                        |
+| `packages/rxdb-adapter-supabase/README.md`、`website/docs/adapters/supabase.md`         | `rxdb_mutations` 参数、UPDATE 语义、错误码与探针已知限制                                                                                 |
+| `website/docs/migration/supabase-update-push.md`                                        | 先升级远端 SQL 再升级客户端；新旧组合与报错特征                                                                                          |
 
 ## References
 

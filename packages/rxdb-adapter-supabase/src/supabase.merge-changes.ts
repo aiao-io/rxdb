@@ -2,12 +2,22 @@
  * @fileoverview Supabase `mergeChanges` 的 RPC 参数构建
  *
  * 从 {@link RxDBAdapterSupabase} 抽出的纯函数：把 SwitchVersionActions / 原始变更
- * 翻译为 `rxdb_mutations` RPC 所需的 `p_upserts` / `p_deletes` / `p_changes` 载荷。
+ * 翻译为 `rxdb_mutations` RPC 所需的 `p_upserts` / `p_updates` / `p_deletes` / `p_changes` 载荷。
  */
 
 import { MAIN_BRANCH_ID, parseRxDBChangeKey, type IRxDBChange, type SwitchVersionActions } from '@aiao/rxdb';
 
 export interface MergeChangesUpsertPayload {
+  table: string;
+  schema: string;
+  data: Record<string, unknown>[];
+}
+
+/**
+ * 部分列更新载荷，与 {@link MergeChangesUpsertPayload} 同形；
+ * data 每行只含 id + 本次修改的列 + updatedBy，服务端按普通 UPDATE 落库。
+ */
+export interface MergeChangesUpdatePayload {
   table: string;
   schema: string;
   data: Record<string, unknown>[];
@@ -21,17 +31,31 @@ export interface MergeChangesDeletePayload {
 
 export interface MergeChangesPayload {
   p_upserts: MergeChangesUpsertPayload[];
+  p_updates: MergeChangesUpdatePayload[];
   p_deletes: MergeChangesDeletePayload[];
   p_changes: Record<string, unknown>[];
 }
 
 /**
+ * 把 `${schema}.${table}` 分组的 Map 展开为 RPC 载荷数组。
+ */
+function to_table_payloads<T>(grouped: Map<string, T>): Array<{ table: string; schema: string; items: T }> {
+  return Array.from(grouped.entries()).map(([table, items]) => {
+    const [schema, tableName] = table.includes('.') ? table.split('.') : ['public', table];
+    return { table: tableName, schema, items };
+  });
+}
+
+/**
  * 构建 `rxdb_mutations` RPC 的载荷。
+ *
+ * 新增实体进 `p_upserts`（带 `createdBy` / `updatedBy`），修改进 `p_updates`（只含 id + 修改的列 +
+ * `updatedBy`，不带 `createdBy`），删除进 `p_deletes`；非 main 分支三个写数组都为空。
  *
  * @param actions 待合并的版本切换动作（inserts / updates / deletes）
  * @param branchId 目标分支 ID，缺省为 `main`
  * @param changes 原始变更记录（优先于 actions 保留完整历史）
- * @param userId 当前用户 ID（写入 `createdBy` / `updatedBy`）
+ * @param userId 当前用户 ID（新增写入 `createdBy` / `updatedBy`，修改只写 `updatedBy`）
  * @param clientId 当前客户端 ID（写入变更的 `clientId`）
  * @param resolveTableKey 将 namespace + entity 解析为 `${schema}.${table}` 的回调
  */
@@ -126,8 +150,9 @@ export function build_merge_changes_payload(
     }
   }
 
-  // 2. 构建 upserts 和 deletes（始终从 actions 构建，用于实体表操作）
+  // 2. 构建 upserts、updates 和 deletes（始终从 actions 构建，用于实体表操作）
   const upsertsByTable = new Map<string, Record<string, unknown>[]>();
+  const updatesByTable = new Map<string, Record<string, unknown>[]>();
   const deletesByTable = new Map<string, Array<string | number | bigint>>();
 
   for (const [entityKey] of actions.deletes) {
@@ -141,11 +166,11 @@ export function build_merge_changes_payload(
   for (const [entityKey, { patch }] of actions.updates) {
     const [namespace, entity, entityId] = parseRxDBChangeKey(entityKey);
     const table = resolveTableKey(namespace, entity);
-    const data = upsertsByTable.get(table) ?? [];
+    const data = updatesByTable.get(table) ?? [];
     const updateData: Record<string, unknown> = { id: entityId, ...patch };
     if (userId) updateData['updatedBy'] = userId;
     data.push(updateData);
-    upsertsByTable.set(table, data);
+    updatesByTable.set(table, data);
   }
 
   for (const [entityKey, { patch }] of actions.inserts) {
@@ -168,21 +193,25 @@ export function build_merge_changes_payload(
   // requirements/roadmap.md「epic-006 评审顺延的架构项」。
   const isMainBranch = effectiveBranchId === MAIN_BRANCH_ID;
 
-  const p_upserts =
-    isMainBranch ?
-      Array.from(upsertsByTable.entries()).map(([table, data]) => {
-        const [schema, tableName] = table.includes('.') ? table.split('.') : ['public', table];
-        return { table: tableName, schema, data };
-      })
-    : [];
+  if (!isMainBranch) {
+    return { p_upserts: [], p_updates: [], p_deletes: [], p_changes };
+  }
 
-  const p_deletes =
-    isMainBranch ?
-      Array.from(deletesByTable.entries()).map(([table, ids]) => {
-        const [schema, tableName] = table.includes('.') ? table.split('.') : ['public', table];
-        return { table: tableName, schema, ids };
-      })
-    : [];
+  const p_upserts = to_table_payloads(upsertsByTable).map(({ table, schema, items }) => ({
+    table,
+    schema,
+    data: items
+  }));
+  const p_updates = to_table_payloads(updatesByTable).map(({ table, schema, items }) => ({
+    table,
+    schema,
+    data: items
+  }));
+  const p_deletes = to_table_payloads(deletesByTable).map(({ table, schema, items }) => ({
+    table,
+    schema,
+    ids: items
+  }));
 
-  return { p_upserts, p_deletes, p_changes };
+  return { p_upserts, p_updates, p_deletes, p_changes };
 }

@@ -425,17 +425,56 @@ describe('supabase review regressions', () => {
           expect.objectContaining({ entityId: updateId, type: 'UPDATE' }),
           expect.objectContaining({ entityId: deleteId, type: 'DELETE' })
         ]),
+        // US-220：新建只走 p_upserts，修改只走 p_updates（只含 id + 改动列 + updatedBy，不带 createdBy）
         p_upserts: [
-          expect.objectContaining({
-            data: expect.arrayContaining([
-              expect.objectContaining({ id: insertId }),
-              expect.objectContaining({ id: updateId })
-            ])
-          })
+          {
+            schema: 'public',
+            table: 'todos',
+            data: [{ id: insertId, title: 'inserted', createdBy: 'test-user', updatedBy: 'test-user' }]
+          }
         ],
-        p_deletes: [expect.objectContaining({ ids: [deleteId] })]
+        p_updates: [
+          { schema: 'public', table: 'todos', data: [{ id: updateId, title: 'updated', updatedBy: 'test-user' }] }
+        ],
+        p_deletes: [expect.objectContaining({ ids: [deleteId] })],
+        p_skip_sync: true
       })
     );
+  });
+
+  it('mergeChanges leaves every entity write array empty on a non-main branch', async () => {
+    const rpc = vi.fn(async () => ({ data: { max_change_id: 3, change_id_mapping: [] }, error: null }));
+    const adapter = createAdapter({ rpc }, {}, [Todo]);
+    const key = (id: string) => `public:Todo:${getRxDBEntityIdentityKey(id)}`;
+
+    await adapter.mergeChanges(
+      {
+        inserts: new Map([
+          [key('11111111-1111-4111-8111-111111111111'), { patch: { title: 'i' }, inversePatch: null }]
+        ]),
+        updates: new Map([
+          [key('22222222-2222-4222-8222-222222222222'), { patch: { title: 'u' }, inversePatch: null }]
+        ]),
+        deletes: new Map([[key('33333333-3333-4333-8333-333333333333'), { patch: null, inversePatch: { title: 'd' } }]])
+      },
+      'feature-branch'
+    );
+
+    expect(rpc).toHaveBeenCalledWith(
+      'rxdb_mutations',
+      expect.objectContaining({ p_upserts: [], p_updates: [], p_deletes: [], p_skip_sync: true })
+    );
+  });
+
+  it('mutations keeps its direct-write RPC shape without p_updates', async () => {
+    const rpc = vi.fn(async () => ({ data: { upserted: [] }, error: null }));
+    const adapter = createAdapter({ rpc }, {}, [Todo]);
+    const remove = new Map([[Todo, new Set([{ id: 't1' } as unknown as Todo])]]);
+
+    await adapter.mutations({ create: new Map(), update: new Map(), remove });
+
+    expect(rpc).toHaveBeenCalledOnce();
+    expect(rpc.mock.calls[0]?.[1]).not.toHaveProperty('p_updates');
   });
 
   it('query-cache operations handle null data without inventing rows', async () => {
