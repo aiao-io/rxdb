@@ -8,6 +8,8 @@ F3 [existence-probe](contracts/existence-probe.md)，均已冻结）、[quicksta
 
 **交付**: 一个 PR，先于 US-218 任何阶段合入（roadmap 约束 16）。PR 描述贴 SQL 回归实跑输出（T028）。
 
+> **2026-10-05**：原 PR #89 应 owner 要求与 US-218 阶段 A～C 合并为 [#99](https://github.com/aiao-io/rxdb/pull/99) 一起评审，提交仍独立在前；一次合入，约束 16 的先后自然满足。
+
 **Organization**: 按 spec 的用户故事分阶段。US1～US3 的 SQL 用例都在同一个回归文件里，先红的时点见「Dependencies」。
 
 ## Format: `[ID] [P?] [Story] Description`

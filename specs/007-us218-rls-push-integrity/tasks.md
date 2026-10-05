@@ -10,6 +10,9 @@
 **交付**: 三个 PR，一个阶段一个 PR，按 A → B → C 顺序合入；US-220（[006 tasks](../006-us220-update-push-semantics/tasks.md)）之上叠分支开发（stacked PR：PR-A 以 US-220 分支为 base，B 以 A 为 base，C 以 B 为 base），
 合入顺序 US-220 → A → B → C（roadmap 约束 16）。阶段 A 不单独发版，与阶段 B 同一版本发布（research D4）。
 
+> **2026-10-05 交付方式变更**：三个阶段实现完成后，应 owner 要求把 US-220 的 #89 与 PR-A / B / C（#90 / #97 / #98）合并为一个 PR [#99](https://github.com/aiao-io/rxdb/pull/99)
+> 评审，原四个 PR 关闭。提交仍按阶段拆分，下文的「PR-A / B / C」指阶段边界；合入顺序约束随之自然满足（一次合入），A、B 同版本发布不变。
+
 | PR   | 阶段 | 故事                                                    | 任务             |
 | ---- | ---- | ------------------------------------------------------- | ---------------- |
 | PR-A | A    | US1、US2、US7                                           | T001～T019       |
@@ -488,9 +491,10 @@
 
 ## Phase 11: Polish & Cross-Cutting
 
-- [ ] T088 [P] 在 `requirements/roadmap.md`「零散收尾项」登记 research D20 的后续项：23505 / 23502 / 23514 是否归类为被拒；撤销 / 重做与被拒变更的交互；
+- [x] T088 [P] 在 `requirements/roadmap.md`「零散收尾项」登记 research D20 的后续项：23505 / 23502 / 23514 是否归类为被拒；撤销 / 重做与被拒变更的交互；
       `ON DELETE CASCADE` 级联删除不写日志；测试清理改用 `service_role`（之后开发默认也可收紧日志表权限）
-- [ ] T089 PR-C 合入后把 US-218 故事状态改为完成，`requirements/status-overview.md` 同步；若 006 T033 登记的「SQL 安全回归接入 nx target / CI」仍未做，在该条目下补充用例数已到 29
+- [ ] T089 #99 合入后把 US-218 故事状态改为完成、交付阶段表 A～C 改 ✅，`requirements/status-overview.md` 与 `requirements/roadmap.md` 同步（US-220 一并改 Done）；
+      「SQL 安全回归接入 nx target / CI」条目的用例数（29）已在 T088 时补上
 
 ---
 
@@ -512,7 +516,7 @@
     demo e2e（T063）依赖 T045、T068 与 RX001 归类（T043）
   - PR-B 收尾（T071～T076、T090）：依赖 US3～US5 全部完成
 - **PR-C**（PR-B 合入后开始）：T077～T078 先红；T079～T081 实现；T082～T087 验证与收尾
-- **Polish**：T088 可在 PR-A 期间完成；T089 在 PR-C 合入后
+- **Polish**：T088 可在 PR-A 期间完成（实际在合并为 #99 后完成）；T089 在 #99 合入后
 
 ### 先红的推荐顺序
 

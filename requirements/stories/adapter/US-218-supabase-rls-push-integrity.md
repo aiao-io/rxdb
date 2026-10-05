@@ -1,7 +1,7 @@
 ---
 id: US-218
 title: Supabase 远端启用 RLS 时的推送完整性
-status: In Progress
+status: In Review
 priority: High
 epic: epic-004-future-features
 created: 2026-10-02
@@ -75,6 +75,9 @@ INVEST 检查清单:
 | C    | ⚠️   | 生产部署指引与 `rxdb_change` 写入收口：客户端角色不能直接写日志表，非 main 分支变更保留显式写日志的路径        | AC#17～19 | 用 `authenticated` 角色直写 `rxdb_change` 被拒；分支推送回归不回退        |
 
 一个 PR 只交付一个阶段。A 不改任何 TypeScript 契约；B 是破坏性变更，必须单独走 API 基线与迁移文档。
+
+> 2026-10-05：A～C 三阶段已实现，应 owner 要求与 US-220 合并为一个 PR #99 评审（原 #89 / #90 / #97 / #98 关闭）。
+> 提交仍按阶段拆分，B 的 API 基线与迁移说明照常附带；三个阶段的状态在 #99 合入后再改 ✅。
 
 **前置**：阶段 B 以 [US-220](./US-220-supabase-update-push-semantics.md) 为前置。在 US-220 之前，UPDATE 推送按 INSERT 语义落库：
 只改部分列的 UPDATE 在 NOT NULL 列上报 23502、owner 型 RLS 下改自己的行误报 42501，INSERT 策略比 UPDATE 窄的表上改别人的行也误报 42501。
