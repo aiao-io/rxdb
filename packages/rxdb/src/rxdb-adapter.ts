@@ -47,6 +47,22 @@ export interface RemoteMergeResult {
 }
 
 /**
+ * 远端回执里的实体引用
+ *
+ * @remarks
+ * `entity` 是本地实体名（远端回执给的是表名，由适配器经元数据换算），
+ * 拿它可以直接回到本地仓库定位那一行。
+ */
+export interface RemoteEntityRef {
+  /** 实体命名空间 */
+  namespace: string;
+  /** 实体名 */
+  entity: string;
+  /** 实体主键 */
+  entityId: string;
+}
+
+/**
  * 仓库构造函数类型 —— 必须可实例化（具体类），不能是抽象类；支持带额外泛型参数的仓库
  */
 export interface RepositoryInstance<T extends EntityType = EntityType> {
