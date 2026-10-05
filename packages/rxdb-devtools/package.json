@@ -75,6 +75,6 @@
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-adapter-encrypted": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",
-    "vitest": "4.1.11"
+    "vitest": "5.0.3"
   }
 }
