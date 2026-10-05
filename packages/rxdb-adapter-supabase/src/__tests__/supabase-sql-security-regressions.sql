@@ -2569,6 +2569,103 @@ BEGIN
 END;
 $$;
 
+-- US-218 阶段 C：生产权限脚本生效后（客户端无 rxdb_change 写权限），同步写路径仍可用
+CREATE FUNCTION rxdb_sql_regression.test_production_change_grants()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  direct_insert_denied boolean := false;
+  helper_denied_message text;
+  before_count integer;
+  after_count integer;
+  trigger_definer boolean;
+  helper_definer boolean;
+  helper_search_path_pinned boolean;
+BEGIN
+  -- 1. 客户端直接 INSERT 日志表 → 42501（AC#17）
+  BEGIN
+    INSERT INTO public.rxdb_change (namespace, entity, "entityId", type, "branchId")
+    VALUES ('rxdb_sql_regression', 'PushOpen', 'prod-grants-forged', 'INSERT', 'main');
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      direct_insert_denied := true;
+  END;
+  PERFORM rxdb_sql_regression.assert_true(direct_insert_denied, 'production-change-grants: direct INSERT into rxdb_change must raise 42501');
+
+  -- 2. 客户端直调 rxdb_insert_changes → 42501（守卫未开）
+  BEGIN
+    PERFORM public.rxdb_insert_changes('[]'::jsonb);
+  EXCEPTION
+    WHEN insufficient_privilege THEN
+      GET STACKED DIAGNOSTICS helper_denied_message = MESSAGE_TEXT;
+  END;
+  PERFORM rxdb_sql_regression.assert_true(
+    helper_denied_message = 'rxdb: rxdb_insert_changes may only be called by rxdb_mutations',
+    pg_catalog.format('production-change-grants: direct rxdb_insert_changes call must raise the guard 42501: %s', helper_denied_message)
+  );
+
+  -- 3. 推送非 main 分支日志 → 成功，日志 +1（AC#18）
+  SELECT pg_catalog.count(*)::integer INTO before_count FROM public.rxdb_change WHERE "clientId" = 'sql-prod-grants-client';
+  PERFORM public.rxdb_mutations(
+    p_changes => '[{"namespace":"rxdb_sql_regression","entity":"PushOpen","schema":"rxdb_sql_regression","table":"push_open_ids",
+      "entityId":"prod-grants-branch-1","type":"INSERT","patch":{"id":"prod-grants-branch-1","value":"branch"},
+      "branchId":"sql-prod-grants-branch","clientId":"sql-prod-grants-client","localId":870001}]'::jsonb,
+    p_skip_sync => true
+  );
+  SELECT pg_catalog.count(*)::integer INTO after_count FROM public.rxdb_change WHERE "clientId" = 'sql-prod-grants-client';
+  PERFORM rxdb_sql_regression.assert_true(
+    after_count = before_count + 1,
+    pg_catalog.format('production-change-grants: a non-main branch log must be written: %s -> %s', before_count, after_count)
+  );
+
+  -- 4. 推送 main 新建（显式日志）→ 成功，日志 +1
+  PERFORM public.rxdb_mutations(
+    p_upserts => '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"prod-grants-main-1","value":"new"}]}]'::jsonb,
+    p_changes => '[{"namespace":"rxdb_sql_regression","entity":"PushOpen","schema":"rxdb_sql_regression","table":"push_open_ids",
+      "entityId":"prod-grants-main-1","type":"INSERT","patch":{"id":"prod-grants-main-1","value":"new"},
+      "branchId":"main","clientId":"sql-prod-grants-client","localId":870002}]'::jsonb,
+    p_skip_sync => true,
+    p_receipts => true
+  );
+  SELECT pg_catalog.count(*)::integer INTO before_count FROM public.rxdb_change WHERE "clientId" = 'sql-prod-grants-client';
+  PERFORM rxdb_sql_regression.assert_true(
+    before_count = after_count + 1,
+    pg_catalog.format('production-change-grants: a main push must log via the helper: %s -> %s', after_count, before_count)
+  );
+
+  -- 5. 触发器模式（p_skip_sync = false）新建 → 成功，触发器写日志 1 条
+  PERFORM public.rxdb_mutations(
+    p_upserts => '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"prod-grants-trigger-1","value":"new"}]}]'::jsonb,
+    p_skip_sync => false
+  );
+  SELECT pg_catalog.count(*)::integer INTO after_count FROM public.rxdb_change WHERE "entityId" = 'prod-grants-trigger-1';
+  PERFORM rxdb_sql_regression.assert_true(
+    after_count = 1,
+    pg_catalog.format('production-change-grants: the sync trigger must log the write: %s', after_count)
+  );
+
+  -- 6. SELECT 日志表仍可用（rxdb_pull_changes 与 realtime 以调用方身份读）
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM public.rxdb_change WHERE "clientId" = 'sql-prod-grants-client') = 2,
+    'production-change-grants: SELECT on rxdb_change must remain granted'
+  );
+
+  -- 函数属性：两个写日志的函数都是 DEFINER，helper 固定 search_path
+  SELECT p.prosecdef INTO trigger_definer
+  FROM pg_catalog.pg_proc AS p
+  WHERE p.oid = pg_catalog.to_regprocedure('public.rxdb_log_change_trigger()');
+  SELECT p.prosecdef, 'search_path=pg_catalog, pg_temp' = ANY(p.proconfig)
+  INTO helper_definer, helper_search_path_pinned
+  FROM pg_catalog.pg_proc AS p
+  WHERE p.oid = pg_catalog.to_regprocedure('public.rxdb_insert_changes(jsonb)');
+  PERFORM rxdb_sql_regression.assert_true(trigger_definer, 'production-change-grants: rxdb_log_change_trigger must be SECURITY DEFINER');
+  PERFORM rxdb_sql_regression.assert_true(helper_definer, 'production-change-grants: rxdb_insert_changes must be SECURITY DEFINER');
+  PERFORM rxdb_sql_regression.assert_true(helper_search_path_pinned, 'production-change-grants: rxdb_insert_changes must pin search_path');
+END;
+$$;
+
 GRANT USAGE ON SCHEMA rxdb_sql_regression TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA rxdb_sql_regression TO anon;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA rxdb_sql_regression TO anon;
@@ -2636,5 +2733,22 @@ WHERE :'test_case' IN ('all', 'delete-hidden-row');
 
 SELECT rxdb_sql_regression.test_trigger_schema()
 WHERE :'test_case' IN ('all', 'trigger-schema');
+
+-- US-218 阶段 C：以属主身份执行生产权限脚本（随外层 ROLLBACK 撤销），再以 authenticated 验证写路径。
+-- 必须放在最后：REVOKE 之后前面以 anon 跑的用例会失去日志表写权限。
+SELECT :'test_case' IN ('all', 'production-change-grants') AS run_production_change_grants \gset
+\if :run_production_change_grants
+\if :{?production_grants_sql}
+:production_grants_sql
+\else
+DO $$ BEGIN RAISE EXCEPTION 'production-change-grants: missing -v production_grants_sql (run via run-supabase-sql-security-regressions.sh)'; END $$;
+\endif
+GRANT USAGE ON SCHEMA rxdb_sql_regression TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA rxdb_sql_regression TO authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA rxdb_sql_regression TO authenticated;
+SET LOCAL ROLE authenticated;
+SELECT rxdb_sql_regression.test_production_change_grants();
+RESET ROLE;
+\endif
 
 ROLLBACK;
