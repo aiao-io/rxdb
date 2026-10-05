@@ -202,6 +202,124 @@ describe('mergeChanges: 回执与本批不一致 → SupabaseDataError', () => {
   });
 });
 
+/** 一条被拒实体回执；`overrides` 覆盖实体身份或 `localIds` */
+function rejectedEntityResult(overrides: Record<string, unknown> = {}) {
+  return {
+    schema: 'public',
+    table: 'todos',
+    entityId: 'todo-1',
+    op: 'INSERT',
+    status: 'rejected',
+    code: '42501',
+    reason: 'denied',
+    message: 'denied',
+    localIds: [1],
+    ...overrides
+  };
+}
+
+/**
+ * R5（007 评审）：违规必须在**原始响应**上判，不能等 Map 去重、按本批过滤之后再判——
+ * 那时未知条目已被丢掉、重复条目已被「最后一个赢」悄悄合并，覆盖检查无从发现。
+ *
+ * 抛错即整批失败：推送仓库拿不到 results，回执事务一条都不跑，本地水位线原地不动
+ * （见 `rxdb-plugin-sync` 的 `pushPlanEntries` → `commitRepositoryPush`）。
+ */
+describe('mergeChanges: 原始回执的成员资格与唯一性（R5）', () => {
+  it.each([
+    [
+      'change_id_mapping 含本批没有的 localId',
+      {
+        change_id_mapping: [
+          { localId: 1, remoteId: 10 },
+          { localId: 999, remoteId: 11 }
+        ],
+        entity_results: []
+      }
+    ],
+    [
+      'change_id_mapping 同一 localId 出现两次且 remoteId 冲突',
+      {
+        change_id_mapping: [
+          { localId: 1, remoteId: 10 },
+          { localId: 1, remoteId: 11 }
+        ],
+        entity_results: []
+      }
+    ],
+    [
+      'change_id_mapping 同一 localId 出现两次（remoteId 相同）',
+      {
+        change_id_mapping: [
+          { localId: 1, remoteId: 10 },
+          { localId: 1, remoteId: 10 }
+        ],
+        entity_results: []
+      }
+    ],
+    [
+      '被拒 localIds 含本批没有的 localId',
+      { change_id_mapping: [], entity_results: [rejectedEntityResult({ localIds: [1, 999] })] }
+    ],
+    [
+      '同一 localId 在两条被拒实体回执里各出现一次',
+      { change_id_mapping: [], entity_results: [rejectedEntityResult(), rejectedEntityResult()] }
+    ],
+    [
+      '同一 localId 在一条被拒实体回执的 localIds 里重复',
+      { change_id_mapping: [], entity_results: [rejectedEntityResult({ localIds: [1, 1] })] }
+    ],
+    [
+      '被拒实体的 entityId 与源变更不符',
+      { change_id_mapping: [], entity_results: [rejectedEntityResult({ entityId: 'todo-other' })] }
+    ],
+    [
+      '被拒实体的表与源变更不符',
+      { change_id_mapping: [], entity_results: [rejectedEntityResult({ table: 'projects' })] }
+    ]
+  ])('%s → 抛 SupabaseDataError', async (_label, payload) => {
+    const { adapter, rpc } = createAdapter();
+    rpc.mockResolvedValueOnce({ data: { max_change_id: 100, ...payload }, error: null, status: 200 });
+
+    await expect(
+      callMergeChanges(adapter, [makeChange({ id: 1, entity: 'Todo', entityId: 'todo-1' })])
+    ).rejects.toThrow(SupabaseDataError);
+  });
+
+  it('applied 实体回执里的 localIds 不参与拒绝判定（与 change_id_mapping 同一条源变更不算冲突）', async () => {
+    const { adapter, rpc } = createAdapter();
+    rpc.mockResolvedValueOnce({
+      data: {
+        max_change_id: 100,
+        change_id_mapping: [{ localId: 1, remoteId: 100 }],
+        entity_results: [
+          { schema: 'public', table: 'todos', entityId: 'todo-1', op: 'INSERT', status: 'applied', localIds: [1] }
+        ]
+      },
+      error: null,
+      status: 200
+    });
+
+    const result = await callMergeChanges(adapter, [makeChange({ id: 1 })]);
+
+    expect(result.results).toEqual([{ localId: 1, status: 'applied', remoteId: 100 }]);
+  });
+
+  it('不带源 changes 的调用不按本批判成员资格：合成日志的 localId 不误报', async () => {
+    const { adapter, rpc } = createAdapter();
+    rpc.mockResolvedValueOnce({
+      data: { max_change_id: 100, change_id_mapping: [{ localId: 0, remoteId: 100 }], entity_results: [] },
+      error: null,
+      status: 200
+    });
+
+    const change = makeChange({ id: 1 });
+    const result = await adapter.mergeChanges(compactChanges([change]), 'main');
+
+    expect(result).toEqual({ maxChangeId: 100, results: [] });
+  });
+});
+
 describe('mergeChanges: entity_results 形状校验', () => {
   it.each([
     ['缺 entity_results 字段', { max_change_id: 1, change_id_mapping: [] }],

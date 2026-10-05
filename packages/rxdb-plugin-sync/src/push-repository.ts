@@ -6,8 +6,10 @@
  */
 
 import {
+  assertSingleActiveBranch,
   compactChanges,
   declareTrustedWrite,
+  type EntityType,
   getEntityMetadata,
   getOrCreateSyncRecord,
   getRxDBChangeEntityIdQueryValues,
@@ -147,7 +149,14 @@ function throwPushFailure(result: PushRepositoryResult): never {
  * @param namespace - 实体命名空间
  * @param entity - 实体名称
  * @param options - 推送选项
+ * @param rejectionSink - 被拒清单收集器。传入时本次调用只往里追加、不上报，由调用方在整次操作结束时
+ *   统一上报（`push()` / `bulkSync` 一轮多仓）；不传时本次调用结束即自行上报。
  * @returns 推送结果
+ *
+ * @remarks
+ * `reportRejections` 是整体替换语义：一轮操作里多次 `pushRepository` 各自上报会互相覆盖，
+ * 只剩最后一个仓库的清单，所以上报边界必须由整次操作的发起者持有。
+ * 无论成功、部分失败还是抛错，已落库的被拒都会交出去（追加进收集器或自行上报）。
  *
  * @example
  * ```ts
@@ -166,7 +175,8 @@ export async function pushRepository(
   sm: SyncManager,
   namespace: string,
   entity: string,
-  options?: PushRepositoryOptions
+  options?: PushRepositoryOptions,
+  rejectionSink?: SyncRejection[]
 ): Promise<PushRepositoryResult> {
   const opts: Required<PushRepositoryOptions> = {
     batchSize: options?.batchSize === undefined ? DEFAULT_PUSH_REPOSITORY_OPTIONS.batchSize : options.batchSize,
@@ -181,10 +191,21 @@ export async function pushRepository(
   // 本轮 push 认领的「在飞」区间；undo 据此把还在往返途中的变更当成已推。
   // 从哪条路径提前返回都会经下面那个 finally，认领不会泄漏。
   const inFlight = sm.pushInFlight.session();
+  // 本次调用已落库的被拒；先于完成/错误事件交出去，监听者看到事件时清单已是最新
+  const rejections: SyncRejection[] = [];
+  const settleRejections = (): void => {
+    if (rejectionSink) rejectionSink.push(...rejections);
+    else reportPushRejections(sm, rejections);
+  };
 
   try {
     assertBatchSize(opts.batchSize);
-    const result = await _pushRepositoryImpl(sm, namespace, entity, opts, inFlight);
+    let result: PushRepositoryResult;
+    try {
+      result = await _pushRepositoryImpl(sm, namespace, entity, opts, inFlight, rejections);
+    } finally {
+      settleRejections();
+    }
 
     // 触发完成事件
     rxdb.dispatchEvent(
@@ -213,7 +234,8 @@ async function _pushRepositoryImpl(
   namespace: string,
   entity: string,
   opts: Required<PushRepositoryOptions>,
-  inFlight: PushInFlightSession
+  inFlight: PushInFlightSession,
+  rejections: SyncRejection[]
 ): Promise<PushRepositoryResult> {
   // 验证仓库是否存在
   const EntityType = sm.rxdb.config.entities.find(e => {
@@ -243,11 +265,11 @@ async function _pushRepositoryImpl(
 
   // 处理级联推送
   if (opts.includeRelated) {
-    return await pushWithCascade(sm, namespace, entity, opts, inFlight);
+    return await pushWithCascade(sm, namespace, entity, opts, inFlight, rejections);
   }
 
   // 单仓库推送
-  return await pushSingleRepository(sm, namespace, entity, opts, inFlight);
+  return await pushSingleRepository(sm, namespace, entity, opts, inFlight, rejections);
 }
 
 /**
@@ -260,7 +282,7 @@ async function _pushRepositoryImpl(
  *
  * 每个仓库的「查变更 + 压缩」只做一次（{@link planRepositoryPush}），两个相位共用同一份
  * 计划；落库（写 `remoteId` + 推进水位线）也只做一次，在全部相位跑完后统一提交
- * （{@link commitRepositoryPush}）。否则 `originalCount` / `compacted` 会被算两遍，
+ * （{@link commitPushPlans}）。否则 `originalCount` / `compacted` 会被算两遍，
  * 且第一个相位就把水位线推到最大 change id，第二个相位的变更会被整批吞掉。
  *
  * @internal
@@ -270,7 +292,8 @@ async function pushWithCascade(
   namespace: string,
   entity: string,
   options: Required<PushRepositoryOptions>,
-  inFlight: PushInFlightSession
+  inFlight: PushInFlightSession,
+  rejections: SyncRejection[]
 ): Promise<PushRepositoryResult> {
   // 构建依赖图
   const entities = sm.rxdb.config.entities.map(e => getEntityMetadata(e));
@@ -314,17 +337,25 @@ async function pushWithCascade(
   }
 
   // 相位全部跑完才落库：水位线必须一次推到位，中途推进会吞掉后一个相位的变更
-  const results: PushRepositoryResult[] = [];
-  const failures: SyncFailure[] = [];
-  // 各仓的被拒清单汇总后只报一次：`reportRejections` 整体替换，逐仓报会互相覆盖
-  const rejections: SyncRejection[] = [];
-
-  for (const repo of orderRepos('INSERT')) {
+  const insertOrder = orderRepos('INSERT').map(repo => {
     const node = nodes.get(repositoryKey(repo));
     // 每个相位都会遍历全部仓库，节点必然已建好
     if (!node) throw new RxDBError(`Internal error: cascade node missing for ${repositoryKey(repo)}`);
+    return node;
+  });
+  // 未定案的仓库一起提交：被拒对齐的删除要子先父后、恢复要父先子后，逐仓各开一个事务做不到
+  const committed = await commitPushPlans(
+    sm,
+    insertOrder.flatMap(node => (node.result ? [] : [node.plan!])),
+    rejections
+  );
 
-    const result = node.result ?? (await commitRepositoryPush(node.plan!, rejections));
+  const results: PushRepositoryResult[] = [];
+  const failures: SyncFailure[] = [];
+  for (const node of insertOrder) {
+    const repo = node.repo;
+    const result = node.result ?? committed.get(node.plan!);
+    if (!result) throw new RxDBError(`Internal error: push result missing for ${repositoryKey(repo)}`);
     results.push(result);
 
     // 按策略跳过（`skipped` 且 `success`）不算失败，不进失败清单
@@ -332,9 +363,6 @@ async function pushWithCascade(
       failures.push({ repository: repo, error: result.error });
     }
   }
-
-  // 已落库的被拒是事实，目标仓失败也照报
-  reportPushRejections(sm, rejections);
 
   // 返回目标仓库结果，并附带相关仓库的结果
   const targetResult = results.find(r => r.repository.namespace === namespace && r.repository.entity === entity);
@@ -444,8 +472,8 @@ async function runCascadePhase(
 
   // 本相位推失败：立刻定案，后续相位不再推，并把失败传导给依赖它的仓库
   if (node.plan.error) {
-    // 有条目没拿到回执时提交只组装结果、不落库，收集器不会被写入
-    node.result = await commitRepositoryPush(node.plan, []);
+    // 有条目没拿到回执：什么都不落，被拒也不算，下一轮整批重推
+    node.result = pushRepositoryResult(node.plan, node.plan.pushed, 0, node.plan.error);
     failedRepos.set(repoKey, node.plan.error);
   }
 }
@@ -492,7 +520,7 @@ function emptyPushProgress(): Omit<PushRepositoryResult, 'repository'> {
  * 于是「远端确实收到了几条，结果里记作 0」—— 而水位线又因为本轮失败不会推进，
  * 调用方从计数上完全看不出发生过部分推送，回头对账「远端为什么多出几条」时无从查起。
  *
- * `failed` 与 {@link commitRepositoryPush} 同一个算式（`effectiveCount - pushed`），
+ * `failed` 与 {@link pushRepositoryResult} 同一个算式（`effectiveCount - pushed`），
  * 保证「阻断」和「提交失败」两条路径交出的计数可以直接相加。
  *
  * 第一个相位就被阻断时没有 `plan`，各计数本就该是 0。
@@ -519,6 +547,8 @@ function blockedPushProgress(plan: RepositoryPushPlan | undefined): Omit<PushRep
 type CompactedActionKind = 'deletes' | 'updates' | 'inserts';
 
 interface CompactedPushEntry {
+  /** 源变更所属分支，也是这一条推送时的目标分支，见 {@link compactPushEntriesByBranch} */
+  branchId: string;
   actionKind: CompactedActionKind;
   key: string;
   action: SwitchVersionChange;
@@ -555,7 +585,63 @@ const ALL_ACTION_KINDS: ReadonlySet<CompactedActionKind> = new Set<CompactedActi
   'inserts'
 ]);
 
-function buildCompactedPushEntries(localChanges: RxDBChange[], actions: SwitchVersionActions): CompactedPushEntry[] {
+/**
+ * 按源变更**自己的**分支分组压缩，祖先在前（main 最先）。
+ *
+ * @remarks
+ * 不能把祖先分支上未推送的变更与当前分支的并在一起压缩、再以当前分支为目标推送：
+ * 远端只在目标为 main 时写业务表，其余分支只写日志；而 main 的配对校验要求每条 main 变更
+ * 都有对应的业务写入（RX002 `unpaired_change`）。以 feature 为目标会丢掉 main 变更的业务写入，
+ * 以 main 为目标又会把 feature 的改动写进 main，还要改写变更的 branchId——两条路都不对。
+ * 各自成组、按各自分支推送，两边才都成立。
+ *
+ * 祖先在前：后代分支的变更建立在祖先状态之上，远端也应先见到祖先那一段。
+ * 同一实体在不同分支上的变更因此各成一条，`effectiveCount` 按条累计。
+ *
+ * @param localChanges - 待推变更，`branchId` 都在 `branchIds` 内（查询时已按它过滤）
+ * @param branchIds - 当前分支及其祖先，自身在前（{@link getAncestorBranchIds} 的顺序）
+ *
+ * @internal
+ */
+function compactPushEntriesByBranch(localChanges: RxDBChange[], branchIds: readonly string[]): CompactedPushEntry[] {
+  const changesByBranch = new Map<string, RxDBChange[]>();
+  for (const change of localChanges) {
+    const group = changesByBranch.get(change.branchId) ?? [];
+    group.push(change);
+    changesByBranch.set(change.branchId, group);
+  }
+  return [...branchIds].reverse().flatMap(branchId => {
+    const changes = changesByBranch.get(branchId);
+    return changes ? compactBranchChanges(branchId, changes) : [];
+  });
+}
+
+/** 单个分支内的压缩：与分组前的逻辑相同，只是范围限定在这一个分支的变更上。 */
+function compactBranchChanges(branchId: string, changes: RxDBChange[]): CompactedPushEntry[] {
+  const actions: SwitchVersionActions = { deletes: new Map(), updates: new Map(), inserts: new Map() };
+  compactChanges(
+    changes.map(c => ({
+      id: c.id,
+      namespace: c.namespace,
+      entity: c.entity,
+      entityId: c.entityId,
+      type: c.type as 'INSERT' | 'UPDATE' | 'DELETE',
+      branchId: c.branchId,
+      patch: c.patch,
+      inversePatch: c.inversePatch,
+      createdAt: c.createdAt,
+      updatedAt: c.updatedAt
+    })),
+    actions
+  );
+  return buildCompactedPushEntries(branchId, changes, actions);
+}
+
+function buildCompactedPushEntries(
+  branchId: string,
+  localChanges: RxDBChange[],
+  actions: SwitchVersionActions
+): CompactedPushEntry[] {
   const changesByKey = new Map<string, RxDBChange[]>();
   for (const change of localChanges) {
     const key = getRxDBChangeKey(change);
@@ -573,6 +659,7 @@ function buildCompactedPushEntries(localChanges: RxDBChange[], actions: SwitchVe
       }
 
       pushEntries.push({
+        branchId,
         actionKind,
         key,
         action,
@@ -726,12 +813,15 @@ async function mergePushBatch(
  */
 interface RepositoryPushPlan {
   readonly repository: RepositoryIdentifier;
+  readonly entityType: EntityType;
   readonly entries: CompactedPushEntry[];
   readonly localChanges: RxDBChange[];
   readonly repoSync: RxDBSync;
   readonly localAdapter: Awaited<ReturnType<SyncManager['getLocalRepositories']>>['adapter'];
   readonly remoteAdapter: RxDBAdapterRemoteBase;
   readonly branchId: string;
+  /** 规划时的 {@link SyncManager.branchSwitchGeneration}；提交时据此识别远端往返期间的分支切换。 */
+  readonly branchGeneration: number;
   readonly originalCount: number;
   readonly effectiveCount: number;
   readonly compacted: number;
@@ -769,6 +859,8 @@ async function planRepositoryPush(
   await sm.getRemoteRepositories(); // 确保远端已配置
   const { adapter: localAdapter } = await sm.getLocalRepositories();
 
+  // 代际先于分支读取：两者之间若插进一次切换，提交时代际对不上，宁可多拒一轮也不错配
+  const branchGeneration = sm.branchSwitchGeneration;
   // 获取当前分支
   const branch = await sm.getCurrentBranch();
 
@@ -779,7 +871,9 @@ async function planRepositoryPush(
     const meta = getEntityMetadata(e);
     return meta.namespace === namespace && meta.name === entity;
   });
-  const metadata = getEntityMetadata(EntityType!);
+  // 调用方（单仓入口 / 级联资格闸门）已按同一条件确认过实体存在
+  if (!EntityType) throw new RxDBError(`Entity not found: ${namespace}:${entity}`);
+  const metadata = getEntityMetadata(EntityType);
   const syncType = getSyncType(metadata, sm.rxdb.entitySync);
 
   const repoSync = await getOrCreateSyncRecord(
@@ -831,30 +925,9 @@ async function planRepositoryPush(
     return { emptyResult: { ...emptyPushProgress(), repository: { namespace, entity } } };
   }
 
-  // 压缩变更
-  const localActions: SwitchVersionActions = {
-    deletes: new Map(),
-    updates: new Map(),
-    inserts: new Map()
-  };
-
-  compactChanges(
-    localChanges.map(c => ({
-      id: c.id,
-      namespace: c.namespace,
-      entity: c.entity,
-      entityId: c.entityId,
-      type: c.type as 'INSERT' | 'UPDATE' | 'DELETE',
-      branchId: c.branchId,
-      patch: c.patch,
-      inversePatch: c.inversePatch,
-      createdAt: c.createdAt,
-      updatedAt: c.updatedAt
-    })),
-    localActions
-  );
-
-  const effectiveCount = localActions.inserts.size + localActions.updates.size + localActions.deletes.size;
+  // 压缩变更：按变更自己的分支分组，见 compactPushEntriesByBranch
+  const entries = compactPushEntriesByBranch(localChanges, branchIds);
+  const effectiveCount = entries.length;
   const compacted = originalCount - effectiveCount;
 
   // 无有效变更：整批被本地压缩抵消（如 INSERT → DELETE 且服务器从未见过这条数据）。
@@ -892,12 +965,14 @@ async function planRepositoryPush(
 
   return {
     repository: { namespace, entity },
-    entries: buildCompactedPushEntries(localChanges, localActions),
+    entityType: EntityType,
+    entries,
     localChanges,
     repoSync,
     localAdapter,
     remoteAdapter,
     branchId: branch.id,
+    branchGeneration,
     originalCount,
     effectiveCount,
     compacted,
@@ -911,7 +986,7 @@ async function planRepositoryPush(
  * 阶段二：把计划里属于本相位的条目发给远端，**不落库**。
  *
  * applied 的条目累加进 `plan.pushed`，拿到的远端 id 累加进 `plan.remoteIdsByChange`，
- * 被拒的条目累加进 `plan.rejectedEntries`，都留给 {@link commitRepositoryPush} 一次性提交。
+ * 被拒的条目累加进 `plan.rejectedEntries`，都留给 {@link commitPushPlans} 一次性提交。
  *
  * 前一个相位已失败时直接返回：继续推只会在一个已知不会落库的批次上白跑一趟远端。
  *
@@ -929,11 +1004,9 @@ async function pushPlanEntries(
 
   const { namespace, entity } = plan.repository;
 
-  for (let offset = 0; offset < entries.length; offset += batchSize) {
-    const batchEntries = entries.slice(offset, offset + batchSize);
-
+  for (const { branchId, entries: batchEntries } of splitPushBatches(entries, batchSize)) {
     try {
-      const classified = await mergePushBatch(plan.remoteAdapter, plan.branchId, batchEntries);
+      const classified = await mergePushBatch(plan.remoteAdapter, branchId, batchEntries);
       for (const { change, remoteId } of classified.applied) {
         plan.remoteIdsByChange.set(change, remoteId);
       }
@@ -948,40 +1021,88 @@ async function pushPlanEntries(
 }
 
 /**
- * 阶段三：全部相位跑完后，把回执（远端 id + 被拒标记）、被拒实体的本地对齐和水位线一次性落库。
- *
- * @remarks
- * 只有每个条目都拿到了回执才落库：部分成功就推进水位线会让没推上去的那些永远丢失。
- * 被拒是回执的一种，不是失败——被拒条目照样越过水位线，标记为终态，不再重发（data-model §7）。
- *
- * 落库成功后把本仓的被拒清单追加进 `rejections`，由调用方在整次推送结束时统一上报：
- * `reportRejections` 是整体替换语义，级联里逐仓上报只会留下最后一个仓库的清单。
- *
- * @param plan - 已跑完全部相位的推送计划
- * @param rejections - 落库成功后追加本仓被拒清单的收集器
- * @returns 本仓的推送结果
+ * 一次 `mergeChanges` 的条目：同属一个目标分支。
  *
  * @internal
  */
-async function commitRepositoryPush(
-  plan: RepositoryPushPlan,
-  rejections: SyncRejection[]
-): Promise<PushRepositoryResult> {
-  const { namespace, entity } = plan.repository;
+interface PushBatchSlice {
+  readonly branchId: string;
+  readonly entries: CompactedPushEntry[];
+}
 
-  // 还有条目没拿到回执（某批失败）：什么都不落，被拒也不算，下一轮整批重推
-  if (plan.effectiveCount - plan.pushed - plan.rejectedEntries.length > 0) {
-    return pushRepositoryResult(plan, plan.pushed, 0, plan.error);
+/**
+ * 切批：一批只含一个分支的条目（一次 `mergeChanges` 只有一个目标分支），且不超过 `batchSize`。
+ *
+ * @remarks
+ * 依赖条目已按分支成段排列（{@link compactPushEntriesByBranch} 的输出，按动作类型过滤后仍成段），
+ * 因此只需在分支变化处断开，批次顺序即祖先在前。
+ *
+ * @internal
+ */
+function splitPushBatches(entries: readonly CompactedPushEntry[], batchSize: number): PushBatchSlice[] {
+  const batches: PushBatchSlice[] = [];
+  for (const entry of entries) {
+    const last = batches.at(-1);
+    if (last?.branchId === entry.branchId && last.entries.length < batchSize) {
+      last.entries.push(entry);
+    } else {
+      batches.push({ branchId: entry.branchId, entries: [entry] });
+    }
   }
+  return batches;
+}
+
+/**
+ * 阶段三：全部相位跑完后，把一组仓库的回执（远端 id + 被拒标记）、被拒实体的本地对齐和水位线一次性落库。
+ *
+ * @remarks
+ * 只有每个条目都拿到了回执的仓库才落库：部分成功就推进水位线会让没推上去的那些永远丢失。
+ * 被拒是回执的一种，不是失败——被拒条目照样越过水位线，标记为终态，不再重发（data-model §7）。
+ *
+ * 可落库的仓库**共用一个本地事务**，全有或全无：被拒新建要在本地删除（子先父后），被拒删除要在本地
+ * 恢复（父先子后），两个方向相反，逐仓各开一个事务必然有一个方向先撞上本地外键。代价是同批任一仓库
+ * 落库失败，其他仓库也一起不落库、下一轮重推。
+ *
+ * 落库成功后把被拒清单追加进 `rejections`，由调用方在整次推送结束时统一上报：
+ * `reportRejections` 是整体替换语义，逐仓上报只会留下最后一个仓库的清单。
+ *
+ * @param sm - SyncManager 实例
+ * @param plans - 已跑完全部相位的推送计划，按 INSERT 拓扑序（父先子后）
+ * @param rejections - 落库成功后追加被拒清单的收集器
+ * @returns 每个计划的推送结果
+ *
+ * @internal
+ */
+async function commitPushPlans(
+  sm: SyncManager,
+  plans: readonly RepositoryPushPlan[],
+  rejections: SyncRejection[]
+): Promise<Map<RepositoryPushPlan, PushRepositoryResult>> {
+  const results = new Map<RepositoryPushPlan, PushRepositoryResult>();
+  const ready: RepositoryPushPlan[] = [];
+  for (const plan of plans) {
+    // 还有条目没拿到回执（某批失败）：什么都不落，被拒也不算，下一轮整批重推
+    if (plan.effectiveCount - plan.pushed - plan.rejectedEntries.length > 0) {
+      results.set(plan, pushRepositoryResult(plan, plan.pushed, 0, plan.error));
+    } else {
+      ready.push(plan);
+    }
+  }
+  if (ready.length === 0) return results;
 
   try {
-    const committed = await persistPushReceipts(plan);
+    const committed = await persistPushReceipts(sm, ready);
     for (const rejection of committed) rejections.push(rejection);
-    return pushRepositoryResult(plan, plan.pushed, plan.rejectedEntries.length, undefined);
+    for (const plan of ready) {
+      results.set(plan, pushRepositoryResult(plan, plan.pushed, plan.rejectedEntries.length, undefined));
+    }
   } catch (error) {
-    console.error(`Error saving push state for repository [${namespace}/${entity}]:`, error);
-    return pushRepositoryResult(plan, 0, 0, error instanceof Error ? error : new Error(String(error)));
+    const repositories = ready.map(plan => repositoryKey(plan.repository)).join(', ');
+    console.error(`Error saving push state for repositories [${repositories}]:`, error);
+    const normalized = error instanceof Error ? error : new Error(String(error));
+    for (const plan of ready) results.set(plan, pushRepositoryResult(plan, 0, 0, normalized));
   }
+  return results;
 }
 
 /**
@@ -1017,20 +1138,77 @@ function pushRepositoryResult(
  * 被拒实体的远端当前行在**事务外**先取齐（远端往返不能夹在本地事务里）；取不到就整轮不提交，
  * 与提交失败同一个出口：内存里的标记回滚，水位线不动，下一轮重推会再拿一次回执。
  *
- * @returns 落库成功后本仓的被拒清单
+ * 对齐分两段：本地删除按计划逆序（子先父后），本地恢复按计划顺序（父先子后）。父行先删会撞上
+ * RESTRICT，或经 CASCADE 带走子行、让子仓的删除拿不到前像（删除事件的前像取自删除时返回的本地行）。
+ * 同一仓库内的自引用外键不在此列，仍按单次 `mergeChanges` 的顺序执行。
+ *
+ * @param sm - SyncManager 实例
+ * @param plans - 回执齐全的推送计划，按 INSERT 拓扑序（父先子后）
+ * @returns 落库成功后的被拒清单
  *
  * @internal
  */
-async function persistPushReceipts(plan: RepositoryPushPlan): Promise<SyncRejection[]> {
-  const { localChanges, repoSync, localAdapter, remoteIdsByChange, rejectedEntries } = plan;
-  const remoteRows = await fetchRejectedRemoteRows(plan);
+async function persistPushReceipts(sm: SyncManager, plans: readonly RepositoryPushPlan[]): Promise<SyncRejection[]> {
+  const prepared: { plan: RepositoryPushPlan; remoteRows: Map<string, Record<string, unknown>> }[] = [];
+  for (const plan of plans) prepared.push({ plan, remoteRows: await fetchRejectedRemoteRows(plan) });
 
-  // 使用 reduce 求最大值，避免 Math.max(...arr) 在超大数组上触发调用栈溢出
-  const maxChangeId = localChanges.reduce((max, c) => (c.id > max ? c.id : max), localChanges[0].id);
   const pushedAt = new Date();
+  const restorers = plans.map(snapshotPushState);
 
-  const touched = [...remoteIdsByChange.keys(), ...rejectedEntries.flatMap(({ entry }) => entry.sourceChanges)];
-  const previousChanges = touched.map(change => ({
+  try {
+    // 计划里的本地适配器都来自同一个 `sm.getLocalRepositories()`
+    await plans[0].localAdapter.transaction(async executor => {
+      await assertPlansOnActiveBranch(sm, executor, plans);
+      const alignments: RejectionAlignment[] = [];
+      for (const { plan, remoteRows } of prepared) {
+        await writePushReceipts(executor, plan, pushedAt);
+        alignments.push(await collectRejectionAlignment(executor, plan, remoteRows));
+      }
+      for (const { removals } of [...alignments].reverse()) await alignRejectedEntities(executor, removals);
+      for (const { restores } of alignments) await alignRejectedEntities(executor, restores);
+      for (const plan of plans) {
+        await executor.getRepository(RxDBSync).update(plan.repoSync, {
+          lastPushedChangeId: maxPlanChangeId(plan),
+          lastPushedAt: pushedAt,
+          updatedAt: pushedAt
+        });
+      }
+    });
+  } catch (error) {
+    for (const restore of restorers) restore();
+    throw error;
+  }
+
+  return plans.flatMap(plan => toSyncRejections(plan.rejectedEntries, pushedAt));
+}
+
+/**
+ * 本轮落库要动的变更：拿到远端 id 的，以及被拒条目的全部源变更。
+ *
+ * @internal
+ */
+function pushTouchedChanges(plan: RepositoryPushPlan): RxDBChange[] {
+  return [...plan.remoteIdsByChange.keys(), ...plan.rejectedEntries.flatMap(({ entry }) => entry.sourceChanges)];
+}
+
+/**
+ * 本计划全部源变更里最大的 change id，即落库后的水位线。
+ *
+ * @internal
+ */
+function maxPlanChangeId(plan: RepositoryPushPlan): number {
+  // 使用 reduce 求最大值，避免 Math.max(...arr) 在超大数组上触发调用栈溢出
+  return plan.localChanges.reduce((max, c) => (c.id > max ? c.id : max), plan.localChanges[0].id);
+}
+
+/**
+ * 记下落库会改动的内存状态（变更的回执字段、同步记录的水位线），返回把它们还原的函数。
+ *
+ * @internal
+ */
+function snapshotPushState(plan: RepositoryPushPlan): () => void {
+  const { repoSync } = plan;
+  const previousChanges = pushTouchedChanges(plan).map(change => ({
     change,
     remoteId: change.remoteId,
     rejectedAt: change.rejectedAt,
@@ -1041,35 +1219,64 @@ async function persistPushReceipts(plan: RepositoryPushPlan): Promise<SyncReject
     lastPushedAt: repoSync.lastPushedAt,
     updatedAt: repoSync.updatedAt
   };
-
-  try {
-    await localAdapter.transaction(async executor => {
-      for (const [change, remoteId] of remoteIdsByChange) change.remoteId = remoteId;
-      for (const { entry, rejection } of rejectedEntries) {
-        for (const change of entry.sourceChanges) {
-          change.rejectedAt = pushedAt;
-          change.rejection = rejection;
-        }
-      }
-      if (touched.length > 0) await executor.saveMany(touched);
-      await alignRejectedEntities(executor, plan, remoteRows, maxChangeId);
-      await executor.getRepository(RxDBSync).update(repoSync, {
-        lastPushedChangeId: maxChangeId,
-        lastPushedAt: pushedAt,
-        updatedAt: pushedAt
-      });
-    });
-  } catch (error) {
+  return () => {
     for (const previous of previousChanges) {
       previous.change.remoteId = previous.remoteId;
       previous.change.rejectedAt = previous.rejectedAt;
       previous.change.rejection = previous.rejection;
     }
     Object.assign(repoSync, previousSyncState);
-    throw error;
-  }
+  };
+}
 
-  return toSyncRejections(rejectedEntries, pushedAt);
+/**
+ * 在事务内写回执：applied 写 `remoteId`，被拒的源变更写 `rejectedAt` / `rejection`。
+ *
+ * @internal
+ */
+async function writePushReceipts(executor: TransactionExecutor, plan: RepositoryPushPlan, at: Date): Promise<void> {
+  for (const [change, remoteId] of plan.remoteIdsByChange) change.remoteId = remoteId;
+  for (const { entry, rejection } of plan.rejectedEntries) {
+    for (const change of entry.sourceChanges) {
+      change.rejectedAt = at;
+      change.rejection = rejection;
+    }
+  }
+  const touched = pushTouchedChanges(plan);
+  if (touched.length > 0) await executor.saveMany(touched);
+}
+
+/**
+ * 被拒对齐改写的是**当前 active 分支**的业务投影，提交前必须确认它仍是规划时的那个分支。
+ *
+ * @remarks
+ * 远端往返期间切过分支时，把旧分支的被拒对齐写下去会覆盖另一个分支的投影（切到 feature），
+ * 或改写一份被切走又重建过的投影（main→feature→main：分支 id 对得上，激活代际对不上）。
+ * 此时在任何本地写入之前让整轮提交失败：内存标记回滚、水位线不动，回到该分支后的下一轮推送会再拿一次回执。
+ *
+ * active 分支经**本事务**读：走 `sm.getCurrentBranch()` 会排在已持有的事务后面。
+ * 激活代际只覆盖本实例内的切换；跨标签页的切换只由持久化的 active 分支兜住，A→B→A 不可见。
+ *
+ * 没有被拒时不校验：只写回执与水位线、不碰业务投影，不值得为一次分支切换让正常推送整轮重推。
+ *
+ * @internal
+ */
+async function assertPlansOnActiveBranch(
+  sm: SyncManager,
+  executor: TransactionExecutor,
+  plans: readonly RepositoryPushPlan[]
+): Promise<void> {
+  if (!plans.some(plan => plan.rejectedEntries.length > 0)) return;
+
+  const active = await assertSingleActiveBranch(executor);
+  const generation = sm.branchSwitchGeneration;
+  const stale = plans.find(plan => plan.branchId !== active.id || plan.branchGeneration !== generation);
+  if (stale) {
+    throw new RxDBError(
+      `Branch switched while pushing ${repositoryKey(stale.repository)} from branch ${stale.branchId}; ` +
+        `rejected receipts are not applied to active branch ${active.id}.`
+    );
+  }
 }
 
 /**
@@ -1109,25 +1316,36 @@ function rejectedRowKey(rejection: RemoteChangeRejection): string {
 }
 
 /**
- * 把被拒实体的本地行对齐成远端当前值：远端有行就覆盖（被拒的删除即恢复），远端无行就移除。
+ * 一个仓库被拒实体的本地对齐动作，按方向拆开：移除与恢复要分处两段执行，见 {@link persistPushReceipts}。
+ *
+ * @internal
+ */
+interface RejectionAlignment {
+  /** 远端无行：本地行移除（被拒的新建 / 更新） */
+  readonly removals: SwitchVersionActions;
+  /** 远端有行：本地行覆盖成远端值，被拒的删除即重建 */
+  readonly restores: SwitchVersionActions;
+}
+
+const emptyActions = (): SwitchVersionActions => ({ deletes: new Map(), updates: new Map(), inserts: new Map() });
+
+/**
+ * 算出被拒实体的本地对齐动作：远端有行就覆盖（被拒的删除即恢复），远端无行就移除。
  *
  * @remarks
- * 走 `executor.mergeChanges(…, true)` 关触发器写入：对齐是「把远端投影抄回本地」，不是一次用户改动，
- * 不能产生 `RxDBChange`，否则下一轮会把远端拒绝过的值又推一次。
- *
  * 被拒实体在本批之外还有更新的待推变更（远端往返期间用户又改过）时**不对齐它**：
  * 覆盖掉会吞掉用户那次还没推的改动；它的下一轮推送会拿到自己的回执。这里不按分支过滤，
  * 任一分支上有更新的待推变更都算——宁可少对齐一次，也不覆盖用户改动。
  *
  * @internal
  */
-async function alignRejectedEntities(
+async function collectRejectionAlignment(
   executor: TransactionExecutor,
   plan: RepositoryPushPlan,
-  remoteRows: ReadonlyMap<string, Record<string, unknown>>,
-  maxChangeId: number
-): Promise<void> {
-  if (plan.rejectedEntries.length === 0) return;
+  remoteRows: ReadonlyMap<string, Record<string, unknown>>
+): Promise<RejectionAlignment> {
+  const alignment: RejectionAlignment = { removals: emptyActions(), restores: emptyActions() };
+  if (plan.rejectedEntries.length === 0) return alignment;
 
   const { namespace, entity } = plan.repository;
   const newerPending = await executor.getRepository(RxDBChange).find({
@@ -1143,7 +1361,7 @@ async function alignRejectedEntities(
             plan.rejectedEntries.map(({ rejection }) => rejection.entity.entityId)
           )
         },
-        { field: 'id', operator: '>', value: maxChangeId },
+        { field: 'id', operator: '>', value: maxPlanChangeId(plan) },
         { field: 'revertChangeId', operator: '=', value: null },
         { field: 'remoteId', operator: '=', value: null },
         { field: 'rejectedAt', operator: '=', value: null }
@@ -1152,10 +1370,23 @@ async function alignRejectedEntities(
   });
   const skipped = new Set(newerPending.map(change => getRxDBChangeKey(change)));
 
-  const actions: SwitchVersionActions = { deletes: new Map(), updates: new Map(), inserts: new Map() };
   for (const { entry, rejection } of plan.rejectedEntries) {
-    if (!skipped.has(entry.key)) addAlignmentAction(actions, entry, remoteRows.get(rejectedRowKey(rejection)));
+    if (!skipped.has(entry.key)) addAlignmentAction(alignment, entry, remoteRows.get(rejectedRowKey(rejection)));
   }
+  return alignment;
+}
+
+/**
+ * 把一段对齐动作写进本地业务表。
+ *
+ * @remarks
+ * 走 `executor.mergeChanges(…, true)` 关触发器写入：对齐是「把远端投影抄回本地」，不是一次用户改动，
+ * 不能产生 `RxDBChange`，否则下一轮会把远端拒绝过的值又推一次。
+ * 受信写入声明是一次性的，每次 `mergeChanges` 前都要重新声明。
+ *
+ * @internal
+ */
+async function alignRejectedEntities(executor: TransactionExecutor, actions: SwitchVersionActions): Promise<void> {
   if (actions.inserts.size + actions.updates.size + actions.deletes.size === 0) return;
 
   declareTrustedWrite(executor, {
@@ -1169,21 +1400,28 @@ async function alignRejectedEntities(
 /**
  * 一个被拒条目对应的对齐动作：本地行要变成远端行（或在远端无行时消失）。
  *
+ * @remarks
+ * 移除动作不带前像：本地行此刻还在（删除子先父后保证它不会先被父行的 CASCADE 带走），
+ * 前像由适配器在删除时从本地行取得，不在这里伪造。
+ *
  * @internal
  */
 function addAlignmentAction(
-  actions: SwitchVersionActions,
+  alignment: RejectionAlignment,
   entry: CompactedPushEntry,
   remoteRow: Record<string, unknown> | undefined
 ): void {
   if (remoteRow) {
     // 被拒的删除：本地行已经没了，按远端值重建；其余：本地行还在，覆盖成远端值
-    const target = entry.actionKind === 'deletes' ? actions.inserts : actions.updates;
+    const { restores } = alignment;
+    const target = entry.actionKind === 'deletes' ? restores.inserts : restores.updates;
     target.set(entry.key, { patch: remoteRow, inversePatch: null });
     return;
   }
   // 远端无行且被拒的就是删除：两边都没有，无事可做
-  if (entry.actionKind !== 'deletes') actions.deletes.set(entry.key, { patch: null, inversePatch: null });
+  if (entry.actionKind !== 'deletes') {
+    alignment.removals.deletes.set(entry.key, { patch: null, inversePatch: null });
+  }
 }
 
 const ACTION_KIND_OP = {
@@ -1215,9 +1453,12 @@ function toSyncRejections(rejectedEntries: readonly RejectedPushEntry[], at: Dat
 /**
  * 整次推送结束后把收集到的被拒清单上报一次；没有被拒就不报（不清掉上一轮的清单）。
  *
+ * @param sm - SyncManager 实例
+ * @param rejections - 整次操作已落库的被拒清单
+ *
  * @internal
  */
-function reportPushRejections(sm: SyncManager, rejections: readonly SyncRejection[]): void {
+export function reportPushRejections(sm: SyncManager, rejections: readonly SyncRejection[]): void {
   if (rejections.length > 0) sm.rxdb.syncState.reportRejections(rejections);
 }
 
@@ -1233,15 +1474,15 @@ async function pushSingleRepository(
   namespace: string,
   entity: string,
   options: Required<PushRepositoryOptions>,
-  inFlight: PushInFlightSession
+  inFlight: PushInFlightSession,
+  rejections: SyncRejection[]
 ): Promise<PushRepositoryResult> {
   const planned = await planRepositoryPush(sm, namespace, entity, inFlight);
   if ('emptyResult' in planned) return planned.emptyResult;
 
   await pushPlanEntries(planned, ALL_ACTION_KINDS, options.batchSize);
-  const rejections: SyncRejection[] = [];
-  const result = await commitRepositoryPush(planned, rejections);
-  reportPushRejections(sm, rejections);
+  const result = (await commitPushPlans(sm, [planned], rejections)).get(planned);
+  if (!result) throw new RxDBError(`Internal error: push result missing for ${namespace}:${entity}`);
   // 与级联路径同一个失败出口，见 throwPushFailure 的 @remarks
   if (!result.success) throwPushFailure(result);
   return result;

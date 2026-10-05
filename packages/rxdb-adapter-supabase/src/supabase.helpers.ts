@@ -268,6 +268,76 @@ function buildRejection(
 }
 
 /**
+ * 在**原始**回执上判它与本批源变更是否逐条对得上（R5，007 评审）
+ *
+ * @param mapping - 原样的 `change_id_mapping`（已过形状校验）
+ * @param rejectedResults - 原样的 `status = 'rejected'` 实体回执（已过形状校验）
+ * @param changes - 本批源变更
+ * @param resolveTableRef - 把回执的表引用换算成本地实体引用；查不到时抛 {@link SupabaseDataError}
+ * @throws {@link SupabaseDataError} localId 不属于本批、在 mapping 或被拒列表里重复、
+ *   或被拒实体与该 localId 的源变更不是同一实体时
+ *
+ * @remarks
+ * 必须排在建 Map **之前**：Map 会让重复的 localId「最后一个赢」、让未知 localId 在按本批取值时
+ * 悄悄消失，之后的「每条源变更恰好一条结果」检查看到的已经是修剪过的结果，违规无从发现。
+ * applied/rejected 互斥由调用方逐条判（那一步要同时看两张表）。
+ */
+function assertResponseMatchesBatch(
+  mapping: ReadonlyArray<{ localId: number }>,
+  rejectedResults: readonly RejectedEntityResult[],
+  changes: readonly IRxDBChange[],
+  resolveTableRef: (ref: DependsOnTableRef) => RemoteEntityRef
+): void {
+  const changeById = new Map(changes.map(change => [change.id, change]));
+
+  const mappedIds = new Set<number>();
+  for (const { localId } of mapping) {
+    if (!changeById.has(localId)) {
+      throw new SupabaseDataError(`Merge response maps a local change outside this batch: ${localId}`);
+    }
+    if (mappedIds.has(localId)) {
+      throw new SupabaseDataError(`Merge response maps local change ${localId} more than once`);
+    }
+    mappedIds.add(localId);
+  }
+
+  const rejectedIds = new Set<number>();
+  for (const entityResult of rejectedResults) {
+    const rejectedEntity = resolveTableRef(entityResult);
+    for (const localId of entityResult.localIds) {
+      assertRejectedLocalId(localId, rejectedEntity, changeById, rejectedIds);
+      rejectedIds.add(localId);
+    }
+  }
+}
+
+/** {@link assertResponseMatchesBatch} 对单个被拒 localId 的三条判定：属于本批、不重复、实体一致 */
+function assertRejectedLocalId(
+  localId: number,
+  rejectedEntity: RemoteEntityRef,
+  changeById: ReadonlyMap<number, IRxDBChange>,
+  rejectedIds: ReadonlySet<number>
+): void {
+  const change = changeById.get(localId);
+  if (!change) {
+    throw new SupabaseDataError(`Merge response rejects a local change outside this batch: ${localId}`);
+  }
+  if (rejectedIds.has(localId)) {
+    throw new SupabaseDataError(`Merge response rejects local change ${localId} more than once`);
+  }
+  const sameEntity =
+    rejectedEntity.namespace === (change.namespace || 'public') &&
+    rejectedEntity.entity === change.entity &&
+    rejectedEntity.entityId === String(change.entityId);
+  if (!sameEntity) {
+    throw new SupabaseDataError(
+      `Merge response rejects local change ${localId} under a different entity: ` +
+        `${rejectedEntity.namespace}.${rejectedEntity.entity}#${rejectedEntity.entityId}`
+    );
+  }
+}
+
+/**
  * 校验 `rxdb_mutations`（`p_receipts = true`）的响应，并按本批源变更构造 {@link RemoteMergeResult}
  *
  * @param resolveDependsOnEntity - 把回执 `dependsOn` 里的表引用（`{schema,table,entityId}`）换算成
@@ -278,6 +348,8 @@ function buildRejection(
  * `status = 'rejected'` 的 `entity_results[i].localIds` 中 → `rejected`；两者都不在、或同时在
  * → {@link SupabaseDataError}（远端回执与本批不一致），不满足「每条源变更恰好一条结果」
  * （US-218 FR-016，[contracts/remote-merge-result.md §3](../../../specs/007-us218-rls-push-integrity/contracts/remote-merge-result.md)）。
+ * 回执里本批之外的、重复的 localId，以及与源变更实体不符的拒绝，在建 Map 之前就判掉
+ * （见 {@link assertResponseMatchesBatch}）。
  */
 export function validateMergeResponse(
   data: unknown,
@@ -302,16 +374,16 @@ export function validateMergeResponse(
   );
   if (hasInvalidMapping) invalidWriteResponse('merge changes');
 
-  const remoteIdByLocalId = new Map(
-    (changeIdMapping as Array<{ localId: number; remoteId: number }>).map(({ localId, remoteId }) => [
-      localId,
-      remoteId
-    ])
+  const mapping = changeIdMapping as Array<{ localId: number; remoteId: number }>;
+  const rejectedResults = parseEntityResults(data).filter(
+    (entityResult): entityResult is RejectedEntityResult => entityResult.status === 'rejected'
   );
+  // 不带源 changes 的调用没有「本批」可比：远端为合成日志分配的 localId 不对应任何本地变更
+  if (changes) assertResponseMatchesBatch(mapping, rejectedResults, changes, resolveDependsOnEntity);
 
+  const remoteIdByLocalId = new Map(mapping.map(({ localId, remoteId }) => [localId, remoteId]));
   const rejectionByLocalId = new Map<number, RejectedEntityResult>();
-  for (const entityResult of parseEntityResults(data)) {
-    if (entityResult.status !== 'rejected') continue;
+  for (const entityResult of rejectedResults) {
     for (const localId of entityResult.localIds) {
       rejectionByLocalId.set(localId, entityResult);
     }

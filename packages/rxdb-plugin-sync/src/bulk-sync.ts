@@ -12,11 +12,12 @@ import {
   isRepositorySyncEnabled,
   type RxDB,
   RxDBError,
-  RxDBPartialSyncError
+  RxDBPartialSyncError,
+  type SyncRejection
 } from '@aiao/rxdb';
 import type { RepositoryIdentifier } from './dependency-graph.js';
 import type { PullRepositoryOptions } from './pull-repository.js';
-import type { PushRepositoryOptions } from './push-repository.js';
+import { type PushRepositoryOptions, reportPushRejections } from './push-repository.js';
 import { syncRepository, type SyncRepositoryOptions, type SyncRepositoryResult } from './sync-repository.js';
 import type { SyncManager } from './SyncManager.js';
 /**
@@ -145,12 +146,14 @@ export async function getRepositoriesToSync(rxdb: RxDB, options: BulkSyncOptions
  * @param sm - 调用方持有的同步管理器实例
  * @param repo - 要同步的仓库
  * @param syncOptions - 同步选项
+ * @param rejections - 本轮被拒清单收集器，由 {@link bulkSync} 统一上报
  * @returns 带有成功标志的结果对象
  */
 async function syncSingleRepository(
   sm: SyncManager,
   repo: RepositoryIdentifier,
-  syncOptions: SyncRepositoryOptions
+  syncOptions: SyncRepositoryOptions,
+  rejections: SyncRejection[]
 ): Promise<{
   repository: RepositoryIdentifier;
   success: boolean;
@@ -158,7 +161,7 @@ async function syncSingleRepository(
   error?: Error;
 }> {
   try {
-    const result = await syncRepository(sm, repo.namespace, repo.entity, syncOptions);
+    const result = await syncRepository(sm, repo.namespace, repo.entity, syncOptions, rejections);
 
     return {
       repository: repo,
@@ -184,12 +187,14 @@ async function syncSingleRepository(
  * @param sm - 调用方持有的同步管理器实例
  * @param repositories - 仓库列表
  * @param syncOptions - 同步选项
+ * @param rejections - 本轮被拒清单收集器
  * @returns 结果数组
  */
 async function executeSyncSequentially(
   sm: SyncManager,
   repositories: RepositoryIdentifier[],
-  syncOptions: SyncRepositoryOptions
+  syncOptions: SyncRepositoryOptions,
+  rejections: SyncRejection[]
 ): Promise<
   Array<{
     repository: RepositoryIdentifier;
@@ -206,7 +211,7 @@ async function executeSyncSequentially(
   }> = [];
 
   for (const repo of repositories) {
-    const result = await syncSingleRepository(sm, repo, syncOptions);
+    const result = await syncSingleRepository(sm, repo, syncOptions, rejections);
     results.push(result);
   }
 
@@ -220,13 +225,15 @@ async function executeSyncSequentially(
  * @param repositories - 仓库列表
  * @param syncOptions - 同步选项
  * @param concurrency - 最大并发操作数
+ * @param rejections - 本轮被拒清单收集器
  * @returns 结果数组
  */
 async function executeSyncConcurrently(
   sm: SyncManager,
   repositories: RepositoryIdentifier[],
   syncOptions: SyncRepositoryOptions,
-  concurrency: number
+  concurrency: number,
+  rejections: SyncRejection[]
 ): Promise<
   Array<{
     repository: RepositoryIdentifier;
@@ -245,7 +252,7 @@ async function executeSyncConcurrently(
   // 按并发限制分批处理
   for (let i = 0; i < repositories.length; i += concurrency) {
     const batch = repositories.slice(i, i + concurrency);
-    const batchPromises = batch.map(repo => syncSingleRepository(sm, repo, syncOptions));
+    const batchPromises = batch.map(repo => syncSingleRepository(sm, repo, syncOptions, rejections));
     const batchResults = await Promise.all(batchPromises);
     results.push(...batchResults);
   }
@@ -318,11 +325,15 @@ export async function bulkSync(rxdb: RxDB, options: BulkSyncOptions = {}): Promi
     error?: Error;
   }>;
 
+  // 本轮各仓已落库的被拒汇总后只报一次：`reportRejections` 整体替换，逐仓报会互相覆盖。
+  // 逐仓的失败都被 syncSingleRepository 收成结果，不会越过这里，前仓已落库的被拒照报
+  const rejections: SyncRejection[] = [];
   if (concurrent) {
-    results = await executeSyncConcurrently(sm, repositories, syncOptions, concurrency);
+    results = await executeSyncConcurrently(sm, repositories, syncOptions, concurrency, rejections);
   } else {
-    results = await executeSyncSequentially(sm, repositories, syncOptions);
+    results = await executeSyncSequentially(sm, repositories, syncOptions, rejections);
   }
+  reportPushRejections(sm, rejections);
 
   // 4. 计算统计信息
   const succeeded = results.filter(r => r.success).length;
