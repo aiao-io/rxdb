@@ -437,9 +437,11 @@ export function createQueryCachePrimary<T extends EntityType>(
   pendingWriteIds: QueryCachePendingWriteIds
 ): QueryCachePrimaryRepository<T> {
   assertQueryCacheCapabilities(entityName, localAdapter, remoteAdapter);
+  const metadata = getEntityMetadata(EntityType);
+  const identifier = metadata.namespace === 'public' ? entityName : `${metadata.namespace}:${entityName}`;
   return new QueryCachePrimaryRepository<T>(
-    entityName,
-    getEntityMetadata(EntityType),
+    identifier,
+    metadata,
     localAdapter.getRepository(EntityType),
     remoteAdapter,
     localAdapter,

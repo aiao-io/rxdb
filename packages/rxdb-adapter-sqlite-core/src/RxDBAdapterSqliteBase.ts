@@ -603,6 +603,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     // 留在 #cached_client 里，重连时 #client() 直接复用它而不是走工厂重建，
     // 后续每次 disconnect 重试也会对同一个实例反复调用（SQLC-020）
     try {
+      await this.#client_promise?.catch(() => undefined);
       await this.#waitForChangeTasks();
       await this.#queue.waitForAll();
       if (this.#cached_client) {
@@ -1435,7 +1436,10 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    * （`ONE_TO_ONE` / `MANY_TO_ONE`），逻辑名与物理列名都收进来 —— 远端两种口径都可能发。
    */
   #resolveQueryCacheTarget(entityName: string): QueryCacheTarget {
-    const metadata = this.rxdb.schemaManager.getEntityMetadata(entityName, 'public');
+    const separator = entityName.indexOf(':');
+    const namespace = separator < 0 ? 'public' : entityName.slice(0, separator);
+    const name = separator < 0 ? entityName : entityName.slice(separator + 1);
+    const metadata = this.rxdb.schemaManager.getEntityMetadata(name, namespace);
     if (!metadata) {
       return {
         tableName: entityName,
@@ -1652,8 +1656,9 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       }
 
       const beginSql = (await client.beginTransactionSql?.()) ?? 'BEGIN;';
+      await client.execute(beginSql);
       transactionMayBeActive = true;
-      await client.execute(`${beginSql}\nPRAGMA defer_foreign_keys = ON;`);
+      await client.execute('PRAGMA defer_foreign_keys = ON;');
       if (log_begin) await client.execute(log_begin);
 
       // 传 executor 而非裸 client：持有它才算「在本事务内」。executor 保留 execute() 透传，

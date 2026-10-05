@@ -57,6 +57,10 @@ function createRxdb(entities: EntityType[] = []): RxDB {
     context: { userId: 'test-user', clientId: 'local-client' },
     config: { entities },
     schemaManager: {
+      getEntityType: vi.fn(
+        (name: string, namespace: string) =>
+          entities[metadata.findIndex(item => item.name === name && (!namespace || item.namespace === namespace))]
+      ),
       getEntityMetadata: vi.fn((name: string, namespace: string) =>
         metadata.find(item => item.name === name && (!namespace || item.namespace === namespace))
       )

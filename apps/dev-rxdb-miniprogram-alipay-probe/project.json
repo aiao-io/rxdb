@@ -14,7 +14,14 @@
       "options": {
         "cwd": "apps/dev-rxdb-miniprogram-alipay-probe",
         "command": "node scripts/build.mjs"
-      }
+      },
+      "inputs": ["production", "^production", "{workspaceRoot}/scripts/esbuild/subframe-realm.mjs"]
+    },
+    "test": {
+      "inputs": ["default", "^production", "{workspaceRoot}/scripts/esbuild/subframe-realm.mjs"]
+    },
+    "typecheck": {
+      "inputs": ["default", "^production", "{workspaceRoot}/scripts/esbuild/subframe-realm.d.mts"]
     }
   }
 }

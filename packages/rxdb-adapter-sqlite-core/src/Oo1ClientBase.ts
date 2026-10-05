@@ -179,6 +179,8 @@ export abstract class Oo1ClientBase<TLoadOptions extends Oo1ClientLoadOptions = 
 
   async disconnect(): Promise<void> {
     this.#state = 'disconnected';
+    await this.#init_promise?.catch(() => undefined);
+    this.#state = 'disconnected';
     this.#init_promise = undefined;
     this.#clear_batch_timers();
     // 断开前同步派发已收集但未 flush 的变更事件，避免静默丢失最后一批。
