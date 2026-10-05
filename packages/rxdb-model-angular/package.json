@@ -52,7 +52,7 @@
     "@aiao/rxdb-model": "workspace:*",
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
-    "@angular/compiler": "22.1.6",
+    "@angular/compiler": "22.2.1",
     "vitest": "4.1.11"
   },
   "publishConfig": {

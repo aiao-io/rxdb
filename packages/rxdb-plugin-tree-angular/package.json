@@ -25,17 +25,17 @@
     "@aiao/rxdb": "*",
     "@aiao/rxdb-plugin-tree": "*",
     "@aiao/rxdb-angular": "*",
-    "@angular/core": "22.1.6",
+    "@angular/core": "22.2.1",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-angular": "workspace:*",
     "@aiao/rxdb-plugin-tree": "workspace:*",
-    "@angular/common": "22.1.6",
-    "@angular/compiler": "22.1.6",
-    "@angular/core": "22.1.6",
-    "@angular/platform-browser": "22.1.6",
+    "@angular/common": "22.2.1",
+    "@angular/compiler": "22.2.1",
+    "@angular/core": "22.2.1",
+    "@angular/platform-browser": "22.2.1",
     "vitest": "4.1.11"
   },
   "publishConfig": {
