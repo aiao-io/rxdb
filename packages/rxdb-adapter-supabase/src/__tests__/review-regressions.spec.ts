@@ -397,7 +397,7 @@ describe('supabase review regressions', () => {
 
     await expect(
       adapter.mergeChanges({ inserts: new Map(), updates: new Map(), deletes: new Map() })
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({ results: [] });
     await expect(adapter.pullChangesBatch([], 10)).resolves.toEqual([]);
     await expect(firstValueFrom(adapter.findByIds('Todo', []))).resolves.toEqual([]);
 
@@ -448,8 +448,13 @@ describe('supabase review regressions', () => {
   // US-218 阶段 A：远端配对校验（RX002）要求每个 main 日志键恰好对应一次业务写，且最后一条为 DELETE 的键才进 p_deletes。
   // 这里按推送路径（compactChanges → mergeChanges）锁住客户端载荷满足这一点，保证正常推送不会被配对校验拒绝（SC-003）
   it('mergeChanges pairs every main change key with exactly one entity write', async () => {
+    // 覆盖检查（US-218 FR-017）要求 change_id_mapping 覆盖传入的每个 localId，
+    // 这里本批源变更的 id 固定是 1-5。
     const rpc = vi.fn(async (_name: string, _params: MergeChangesPayload) => ({
-      data: { max_change_id: 5, change_id_mapping: [] },
+      data: {
+        max_change_id: 5,
+        change_id_mapping: [1, 2, 3, 4, 5].map(localId => ({ localId, remoteId: localId + 100 }))
+      },
       error: null
     }));
     const adapter = createAdapter({ rpc }, {}, [Todo]);
