@@ -1,0 +1,227 @@
+{
+  "date": "2026-10-05",
+  "reviewReadingAndPerCOpinions": "completed-per-controller: 十包 153 文件全文阅读及逐 C 意见交付已完成",
+  "topicEvidence": "partial-frozen-at-user-request",
+  "releaseValidation": "pending-separate-from-reading-and-opinion-delivery",
+  "frozenSpecSha256": "aa62d9cf16d8c66c49e7a5a9f126c8c222915fe499de22051b87c8146efb06fd",
+  "finalIndependent": {
+    "name": "28-final-independent",
+    "kind": "focused-test",
+    "exitCode": 1,
+    "tests": {
+      "total": 19,
+      "passed": 18,
+      "failed": 1,
+      "skipped": 0
+    },
+    "command": [
+      "pnpm",
+      "nx",
+      "run",
+      "rxdb-plugin-replay-angular:test",
+      "review-round2-player-lifecycle.spec.ts",
+      "--run",
+      "--maxWorkers=1",
+      "--fileParallelism=false",
+      "--coverage.enabled=false",
+      "--excludeTaskDependencies",
+      "--skipSync",
+      "--skipRemoteCache",
+      "--skipNxCache",
+      "--output-style=static"
+    ],
+    "headAtStart": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+    "headAtFinish": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+    "changedInputsDuringMeasurement": [],
+    "status": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/28-final-independent/20261005T153621267684.status.json",
+    "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/28-final-independent/20261005T153621267684.txt",
+    "inputs": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/28-final-independent/20261005T153621267684.inputs.json",
+    "inputSpecSha256": "aa62d9cf16d8c66c49e7a5a9f126c8c222915fe499de22051b87c8146efb06fd"
+  },
+  "finalCombined": {
+    "name": "29-frozen-minimal-pair",
+    "kind": "focused-test",
+    "exitCode": 1,
+    "tests": {
+      "total": 28,
+      "passed": 27,
+      "failed": 1,
+      "skipped": 0
+    },
+    "command": [
+      "pnpm",
+      "nx",
+      "run",
+      "rxdb-plugin-replay-angular:test",
+      "replayer.component.spec.ts",
+      "review-round2-player-lifecycle.spec.ts",
+      "--run",
+      "--maxWorkers=1",
+      "--fileParallelism=false",
+      "--isolate=false",
+      "--coverage.enabled=false",
+      "--excludeTaskDependencies",
+      "--skipSync",
+      "--skipRemoteCache",
+      "--skipNxCache",
+      "--output-style=static"
+    ],
+    "headAtStart": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+    "headAtFinish": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+    "changedInputsDuringMeasurement": [],
+    "status": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/29-frozen-minimal-pair/20261005T153739704095.status.json",
+    "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/29-frozen-minimal-pair/20261005T153739704095.txt",
+    "inputs": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/29-frozen-minimal-pair/20261005T153739704095.inputs.json",
+    "inputSpecSha256": "aa62d9cf16d8c66c49e7a5a9f126c8c222915fe499de22051b87c8146efb06fd"
+  },
+  "intermediateGreenControl": [
+    {
+      "name": "26-fresh-query-r2",
+      "kind": "focused-test",
+      "exitCode": 0,
+      "tests": {
+        "total": 15,
+        "passed": 15,
+        "failed": 0,
+        "skipped": 0
+      },
+      "command": [
+        "pnpm",
+        "nx",
+        "run",
+        "rxdb-plugin-replay-angular:test",
+        "review-round2-player-lifecycle.spec.ts",
+        "--run",
+        "--maxWorkers=1",
+        "--fileParallelism=false",
+        "--coverage.enabled=false",
+        "--excludeTaskDependencies",
+        "--skipSync",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static"
+      ],
+      "headAtStart": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "headAtFinish": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "changedInputsDuringMeasurement": [],
+      "status": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/26-fresh-query-r2/20261005T153054992045.status.json",
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/26-fresh-query-r2/20261005T153054992045.txt",
+      "inputs": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/26-fresh-query-r2/20261005T153054992045.inputs.json",
+      "inputSpecSha256": "51d8cbdad9c95964b6b9cb14f0892c78f59b69953dab4dca2af39468afb07476"
+    },
+    {
+      "name": "27-fresh-query-pair-no-isolate",
+      "kind": "focused-test",
+      "exitCode": 0,
+      "tests": {
+        "total": 24,
+        "passed": 24,
+        "failed": 0,
+        "skipped": 0
+      },
+      "command": [
+        "pnpm",
+        "nx",
+        "run",
+        "rxdb-plugin-replay-angular:test",
+        "replayer.component.spec.ts",
+        "review-round2-player-lifecycle.spec.ts",
+        "--run",
+        "--maxWorkers=1",
+        "--fileParallelism=false",
+        "--isolate=false",
+        "--coverage.enabled=false",
+        "--excludeTaskDependencies",
+        "--skipSync",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static"
+      ],
+      "headAtStart": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "headAtFinish": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "changedInputsDuringMeasurement": [],
+      "status": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/27-fresh-query-pair-no-isolate/20261005T153108699714.status.json",
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/27-fresh-query-pair-no-isolate/20261005T153108699714.txt",
+      "inputs": "requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/27-fresh-query-pair-no-isolate/20261005T153108699714.inputs.json",
+      "inputSpecSha256": "51d8cbdad9c95964b6b9cb14f0892c78f59b69953dab4dca2af39468afb07476"
+    }
+  ],
+  "validProductBoundaryResults": [
+    "loading/empty/error/ready 状态和不启动 recording",
+    "挂载后 pending seek 最后值、夹紧、rrweb 偏移 +1、initialTime 输出",
+    "session/replay 切换和同轮输入合并、组件实例不重建、旧 load 代际取消",
+    "播放暂停/finish 控件与时刻输出（仅受控 rrweb）",
+    "销毁后的旧 load/restore 不输出、不复建、播放器 destroy 一次",
+    "恢复成功/拒绝/错误与两个在途受控恢复结果转发，不证明真实 working-tree CAS",
+    "父子 provider 分轮加载、同时存活、独立读取销毁"
+  ],
+  "unattributedPending": [
+    {
+      "id": "R3-03-FIXTURE-RAF",
+      "failure": "最终两次均在 frames.size 期望 0 实得 1；位于真实 destroy 一次与无晚输出断言之后",
+      "ownership": "pending，不登记为产品缺陷",
+      "reason": "Map 拦截的是 globalThis.requestAnimationFrame，包括 Angular/TestBed 调度；尚未证明剩余帧属于 Replay core",
+      "action": "冻结交主控裁定，不改断言、不 skip、不继续追测"
+    },
+    {
+      "id": "R3-03-FIXTURE-CONCURRENT-LOADER",
+      "failure": "同轮父子装载漏出真实 rrweb 在 happy-dom 的未保护文档 rebuild 错误",
+      "ownership": "fixture/host boundary pending，不登记产品缺陷",
+      "action": "仅把分轮 provider 验证计为有效，真实 rrweb 同轮装载未核销"
+    }
+  ],
+  "newConfirmedProductFindings": [],
+  "newProductRiskCandidates": [],
+  "strictTypeStatus": "失败证据保留：15 个 rrweb/rrdom 声明错误；另有探针 rootDir 错误和双 lib 冲突，不能冒充产品错误或最终 spec 严格编译结论",
+  "lintStatus": "本 R3 未执行；不得继承旧 lint 绿",
+  "coverageStatus": "本 R3 聚焦运行关闭 coverage，未改阈值，未核销覆盖门禁",
+  "testCounts": {
+    "commands": 29,
+    "focusedTestExecutions": 21,
+    "strictTypeProbeExecutions": 2,
+    "discoveryHelpExecutions": 6,
+    "exitCounts": {
+      "0": 9,
+      "1": 20
+    },
+    "reportedCaseExecutionCountsIncludingRepeatsAndHookFailures": {
+      "total": 385,
+      "passed": 247,
+      "failed": 138,
+      "skipped": 0
+    }
+  },
+  "consumerReadOnlyProof": {
+    "measuredFiles": 152,
+    "changedFiles": []
+  },
+  "externalSharedCheckoutDrift": {
+    "heads": [
+      "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "76a3848e2086f4617b80f7b1a1b896ef76e5719c"
+    ],
+    "packageInputDeltaSinceStart": [
+      "packages/rxdb-plugin-replay/src/__tests__/review-parallel-restore.spec.ts"
+    ],
+    "note": "仅其他 core 新增 review-parallel-restore.spec.ts 有外部变化；本任务未写此文件，生产/原 spec/配置 hash 不变。按每次 inputs SHA 而非单一 HEAD 对照。"
+  },
+  "expandedInputMeasurementDrift": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/28-final-independent/20261005T153621201461.expanded-inputs.json",
+      "changedInputs": []
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/29-frozen-minimal-pair/20261005T153739659909.expanded-inputs.json",
+      "changedInputs": []
+    }
+  ],
+  "noGitWriteCommands": true,
+  "noBusinessOrDependencyOrOriginalSpecEdits": true,
+  "noSkipAnyIgnore": true,
+  "unusedSequencerConfigsWereNotExecuted": true,
+  "toolLimitations": [
+    "Angular get_best_practices: Unexpected response type；已尝试 mandatory guide",
+    "Nx docs: HTTP500；Nx 参数由已安装 shared-options.js/target help 校验",
+    "web 官方文档读取未返回内容；本结论只基于本地源码与日志"
+  ]
+}

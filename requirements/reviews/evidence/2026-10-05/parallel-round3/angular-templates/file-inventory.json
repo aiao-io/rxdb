@@ -1,0 +1,858 @@
+{
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-search-field-options-aot-final.json": {
+    "bytes": 4789,
+    "sha256": "490d0714ddd99366ed69871cf06a262eed17ff823f163780a47c0b66dc9c150e"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/13-ngc-tree-event-wrapper-output.txt": {
+    "bytes": 1373,
+    "sha256": "575a87c8255ae07324cbb55a0d99183287b878fc9d0a393133aef435ff96776f"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/ngc-templates.mjs": {
+    "bytes": 4588,
+    "sha256": "f08a404569000929d4948ba4f90e470112eab2331a32e6f281b51107c525c534"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-tree-input-esm-ngc.json": {
+    "bytes": 112699,
+    "sha256": "9b10355aaa97eb8a31afd7692672956a6024cf0cace81f957e979fb17c0b7c4b"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/consumer-inputs.json": {
+    "bytes": 2457436,
+    "sha256": "0070d89b4b7954f6b5ed816d9105ae574787fdbe1f51327b62d8a3e4720eaab5"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-search-missing-esm-ngc.json": {
+    "bytes": 119384,
+    "sha256": "d34d3489eeb7270a2efcb77f268e2afec9de07c1310f87d54b33da2827dc0279"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/30-search-lifecycle-aot-wrapper-output.txt": {
+    "bytes": 5012,
+    "sha256": "d2d19c7c8d3a0af66572deea4f046367c572f99e41c45f884936d918fae656fa"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-consumer-ngc.json": {
+    "bytes": 111721,
+    "sha256": "3d254008de0d0f1606cd4922114cc0c00f6f9863222d48aa28f9948d58ea5e07"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-tree-jit-unbound-ts-final.json": {
+    "bytes": 4526,
+    "sha256": "457b20f678f1029dd747d8cd2594636887dda296246f453ac29f9f9932220eb6"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/tsconfig-consumer.json": {
+    "bytes": 1030,
+    "sha256": "4a0d75bdaadc480d95f52d0f66963cf38f020ab49d215ca422e32a3454af61c9"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/tsconfig-consumer-esm.json": {
+    "bytes": 1035,
+    "sha256": "a0a4cd2809575d7fe147554bfcf0eeb4081a35f0bbdd8e5e01d297adbb3f1c25"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-consumer-ngc-final.json": {
+    "bytes": 112981,
+    "sha256": "1ce2dc732014991ac1d28c2fbb65d4a472b30793b61de88c0d09ad83ff6d846d"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/21-ngc-tree-input-wrapper-output.txt": {
+    "bytes": 1908,
+    "sha256": "b407209de75454219ce3c5a81eb8b5dbd1440591bf241fdd6757e6e957909aca"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-parent-binding-before-ts-final.mjs.txt": {
+    "bytes": 13539,
+    "sha256": "01a2f0eb5da3dec6972bb6a6820d121a57ce152a6373659ff40142abddb86fa4"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-tree-aot.json": {
+    "bytes": 2994,
+    "sha256": "4eb206062b7adedfeb27d9e6be98691b629c8bc6fa667807103b8847442134ba"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/write-scope-audit.json": {
+    "bytes": 1543,
+    "sha256": "a36a11003277b125f9ff38e066d99ae1d96500ca4556e053600fca6b2808968c"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/20-ngc-tree-missing-wrapper-output.txt": {
+    "bytes": 1908,
+    "sha256": "896c7847265b8f5666ba953c9f0f015cf960330226497c6891cb2f24f4287d14"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-consumer-esm-tsc.json": {
+    "bytes": 112531,
+    "sha256": "c386c06f30cd5dfaf930e59c20aa188a955afd960cfb519fdfca5a33ee3d5724"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/official-tools-cli-template-typecheck.txt": {
+    "bytes": 150126,
+    "sha256": "15f62b0afd72c5c27b4ae37849527319d0b22f8d1b34f163aeecc3b487bf22f6"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/official-guide-testing-components-scenarios.html": {
+    "bytes": 722275,
+    "sha256": "9f2e21b04861da3c57135f2a5d058c658496e28b9c8903be362e0d9640db9a72"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/official-tools-cli-template-typecheck.html": {
+    "bytes": 238428,
+    "sha256": "0b38f64ce267f879264e80eab3d15be80b48c60fa014f6c10b2e6f5f1d7b6e3c"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-consumer-tsc-final.json": {
+    "bytes": 112981,
+    "sha256": "8744f1497f753a8d700a130e1f0aa2044d51fc3aa8a99d7f3af5b869abc1699c"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/24-ngc-search-input-wrapper-output.txt": {
+    "bytes": 2579,
+    "sha256": "e56eaf6083a329c5eead3433e034f2488b07756730d0bce17eaf2dde5c5d5db7"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-tree-event-ngc-final.json": {
+    "bytes": 112726,
+    "sha256": "3c437e873a92c8119b9757d2ab340d0fabebd7e41329d13e43bf8f43fca7e25a"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-search-lifecycle-aot-initial.json": {
+    "bytes": 2365,
+    "sha256": "fde1a41f1dd60b008235c3c57562fac88fed1918d5828e20678d5e080955b40b"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/report.md": {
+    "bytes": 22738,
+    "sha256": "d27168800c87133fdce310e935ba16e7e54cebae88469a85b0348cdb2bb95e22"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-search-event-esm-ngc.json": {
+    "bytes": 108321,
+    "sha256": "2e84a53ac1581a59c34fd6b993f6581324844df31cabcb78c8349df135361f48"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/official-guide-components-inputs.html": {
+    "bytes": 287382,
+    "sha256": "03df08956b7832b9f40445d2006c1fd9e7790ed0ff72c8ffb07a734f53cf395b"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-tree-input-ngc.json": {
+    "bytes": 112681,
+    "sha256": "4228e105073544b7f603a31385f18e4277b8e8d35314035cd4a739eff6e3a409"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-search-missing-ngc-final.json": {
+    "bytes": 112757,
+    "sha256": "1a6b296c55ec3bdc5932c27a39676a3fe82f8f3649293a0c9c74ea427e934379"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/28-search-field-source-aot-wrapper-output.txt": {
+    "bytes": 7682,
+    "sha256": "5d26f070563b1a5788accdba7a7806ab86d66257ee75ace47b09c588e4cbc905"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-search-input-ngc-final.json": {
+    "bytes": 113057,
+    "sha256": "bf9e4133fc66147cf56dec5f1e4ac7ad95679fc167ee7050a0d951a9dbcdac0b"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/tsconfig-search-event-esm.json": {
+    "bytes": 1043,
+    "sha256": "3df389f97f7c107e587aa4b3793385d55a0cec807d2d10bf6bbe94c0052517a8"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/tsconfig-tree-input-esm.json": {
+    "bytes": 1039,
+    "sha256": "50d87cbb97f67a38507727fb4d8b29aaf59214159b7b2fe254629fb368692def"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/artifact-verification.json": {
+    "bytes": 1684,
+    "sha256": "d7520277f78b63d7649d123882af165986b5b66603c6c5bb1950a6f2db7517d7"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-search-field-options-aot-ts-final.json": {
+    "bytes": 4777,
+    "sha256": "2466fffd09b9662f86b31379773490ffa0af03eaa04ac22df45de6b59ce59fae"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/resolved-rxdb-angular.json": {
+    "bytes": 2747,
+    "sha256": "9c0d5354aa58bc38bf7ae80171a905aa883d15673a414b613836ce86d258ec81"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/rxdb-plugin-search-angular-r3-append.md": {
+    "bytes": 4009,
+    "sha256": "027ee6415ce039163d7a007425e479ef703bfdcb9e53da24f51d563f3c848ba4"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/26-tree-aot-wrapper-output.txt": {
+    "bytes": 5090,
+    "sha256": "692b22aadb418f0a432fbfa542ef9a2df33ca95a879f4b0624ee14c851695952"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/11-ngc-tree-missing-wrapper-output.txt": {
+    "bytes": 118243,
+    "sha256": "864a5af025b621d227c4e42ca8a7c10ddbd0858d9d7f692218dbac2e5ce1ccb7"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/25-ngc-search-event-wrapper-output.txt": {
+    "bytes": 2470,
+    "sha256": "f350d00b64e64fa45fa64a6dda2c25c593fc576d3410650539aa655362ee32ea"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-search-field-source-aot-final.json": {
+    "bytes": 4784,
+    "sha256": "5aa7de932a9c7f05be41239c7b60c3e2d2d1757ebf43e2b02ae3a994658dd30b"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/official-errors-NG0950.html": {
+    "bytes": 129536,
+    "sha256": "c4a2ffc9e758af1100b25d8d4472060694db224a03cf4d27eae1ae1bb45ca00c"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/rxdb-plugin-tree-angular-r3-append.md": {
+    "bytes": 4013,
+    "sha256": "6c6aba56ad043724ec3dfbdc36b6856107f42f9eb5a4d04cc0d3beceff2b6d4a"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/15-ngc-search-input-wrapper-output.txt": {
+    "bytes": 1382,
+    "sha256": "541cfb4d9c7b0553be9ea7d53f5ad8d9de4f8cf521429798a04d8475f099f8db"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-resolution.json": {
+    "bytes": 4842,
+    "sha256": "b8fb4d932d07eacbc1404d7020cde9a0aa480615c6ac6fbe304b1cbf4ba36dd6"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/16-ngc-search-event-wrapper-output.txt": {
+    "bytes": 1382,
+    "sha256": "9740a8703c994cdea8a50fadd0b359aa83b3ed2428b11981a4fb9d5c9d6582b7"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-tree-aot-ts-final.json": {
+    "bytes": 3255,
+    "sha256": "c0ccbdf09d0e3a831f2ca716a333fac82103702371344ba3d46051fa0c20824f"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/22-ngc-tree-event-wrapper-output.txt": {
+    "bytes": 1982,
+    "sha256": "b5707422deee3a441ae3a3bf04027c020347935ce5831704c9f0bfd092158c18"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/official-guide-testing-components-scenarios.txt": {
+    "bytes": 449521,
+    "sha256": "f22f4db54964d099da0fa921cad2d3418bf024efd405b9c71cbb88d54f69c59a"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-tree-event-esm-ngc.json": {
+    "bytes": 112699,
+    "sha256": "3d56200cf0710a5bc0aac4081e8fa2361a8889e8577141aaab72b9f73306d966"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/tsconfig-tree-missing-esm.json": {
+    "bytes": 1043,
+    "sha256": "0304771575220dcd20729def57baaed9689c0a39692545674bc5ae8b99f980c3"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/tsconfig-search-missing-esm.json": {
+    "bytes": 1047,
+    "sha256": "70cb343e7d680e79139ac0c6e79a8b02b7c3cb08299f4141bc7a4c734d3602c4"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-tree-aot-final.json": {
+    "bytes": 3259,
+    "sha256": "29cfbba7948fa2055546db4ab704c27fe695ddf75e8bbe57bb3e70d865c998fe"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/14-ngc-search-missing-wrapper-output.txt": {
+    "bytes": 118252,
+    "sha256": "24435ddd9d8a0a740e846ddf3f0518664fdcdada5632388a881e09d0d9005347"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-tree-input-ngc-final.json": {
+    "bytes": 112701,
+    "sha256": "a2cd892b2c2045c376744f6be548317636fa1eb0b3a77959861280515acc1d1c"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/23-ngc-search-missing-wrapper-output.txt": {
+    "bytes": 1975,
+    "sha256": "880ec8126907a395d6e24e031a26fa61eea21fb25c945de6e718f19bfa4e1194"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/tsconfig-search-event.json": {
+    "bytes": 1038,
+    "sha256": "28275f81dfee36da51e0aa6913aba2778898591e56ba6456ec606ee5a8e2762f"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/tsconfig-tree-missing.json": {
+    "bytes": 1038,
+    "sha256": "8aa679ffb896fa63e86e22980978a744e04a6cb71cb427e1b63d67d7d74d76d6"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/12-ngc-tree-input-wrapper-output.txt": {
+    "bytes": 1374,
+    "sha256": "d16f54671a5fb48f0332e044c85cba20fe930ba3d0fd307a56de2d072843113c"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-consumer-esm-ngc.json": {
+    "bytes": 112544,
+    "sha256": "a1be27383b56e035e14b0cba0039a4f4ecc71a16b069ac0b8fa23b5430774be0"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/official-docs-summary.md": {
+    "bytes": 1429,
+    "sha256": "ad2d1e1be34d50d6e792d9930fa2c42275642677c7a0c2ad8fff9920223e3d8f"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/tsconfig-search-input.json": {
+    "bytes": 1038,
+    "sha256": "3850e169df3b709c232a61f51e6ace19064f0ae1e603afb26091378dff548182"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-tree-jit-unbound-final.json": {
+    "bytes": 4517,
+    "sha256": "2e6f9db4f423485a6d74f5a0c8bd785e1721a6f81396b571c04b4d2b06968707"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-parent-binding.mjs": {
+    "bytes": 13544,
+    "sha256": "abdea7aff53c8c2bf09a709318caf3d611522d8c84485381e4f27c126c10ab0a"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/official-errors-NG0950.txt": {
+    "bytes": 69291,
+    "sha256": "182503174912dce3a6a200aa3c551c83bed7334d7a01bd12cb310abaca9d2667"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/ngc-templates-before-ts-final.mjs.txt": {
+    "bytes": 4199,
+    "sha256": "eb3a624d89d7e9a99aaa4ea2d3d31e76fc86439a9452e6e11699d1be12359a4c"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/consumer-tools.mjs": {
+    "bytes": 2672,
+    "sha256": "21e9989fd948c57c26c5e3000ceb58f62face06149a99c47588abebb91cd5546"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/tsconfig-search-missing.json": {
+    "bytes": 1042,
+    "sha256": "c760300869925a78f247766a3dbd373196ce33e4755e8900dda667bf4890d128"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/29-search-field-options-aot-wrapper-output.txt": {
+    "bytes": 7689,
+    "sha256": "7f9c65f919ef6c9b7bd2a198ec8246e47362a50e3cc4812a5c67fda7216d19ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/external-versions.json": {
+    "bytes": 2921,
+    "sha256": "6d56b90f228b7babf3af8bf8e6aab131f6bce64934955708016505e8e9168e4f"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-tree-missing-esm-ngc.json": {
+    "bytes": 119378,
+    "sha256": "2c463321bab18af67d938ce3e51fbf751acb180c176c36caed70d98bd8326d6b"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-search-input-esm-ngc.json": {
+    "bytes": 112709,
+    "sha256": "cbd040256dd9301884c8b26328f0830c250f43fc55abcb1f15e9161023db5e6b"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/tsconfig-tree-event.json": {
+    "bytes": 1034,
+    "sha256": "19e6aea3e6f7e90ca0c2feead144742646e750206f83fcbf1863b829c88a2321"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/official-docs.json": {
+    "bytes": 1382,
+    "sha256": "9958f3c84a41c6eb02ff95069d9761e32445c3aceca5e138d5d46de254055d05"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/official-guide-components-inputs.txt": {
+    "bytes": 174695,
+    "sha256": "1173662a8467a80e0aba40d04bc8abcc8380d54dca6579e96f37d66496fc1ff0"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/resolved-rxdb-plugin-tree-angular.json": {
+    "bytes": 3208,
+    "sha256": "5236e59dd80fc0ed0d8a5b23a65fca1380e7d99fcffd17472fd13c41929ac1fc"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-search-lifecycle-aot-ts-final.json": {
+    "bytes": 2361,
+    "sha256": "e21877b307c52ca239212d8ff5bd489c2c85abd259c562f8990a14efc48c25fa"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/resolved-rxdb-plugin-search-angular.json": {
+    "bytes": 3252,
+    "sha256": "f19555e2f60aa649a8fff6ae4699f5211d7d9c186129a8d958b30e9ef7bef38e"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/settle-results.py": {
+    "bytes": 22057,
+    "sha256": "a146e486f4fbee041dae594f2549753cbeb9c3fe7d975aa7c595dc2777905fdb"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-tree-missing-ngc-final.json": {
+    "bytes": 112728,
+    "sha256": "f4b09bf24b7c41684f2a81b7a7e8bfc62c26105401209d446dccde3d16ba9e6a"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/environment.json": {
+    "bytes": 7213,
+    "sha256": "6d130278701908641913ed60d28e28b0700b1ea2b0e2fa23e675a3fae6518307"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/tsconfig-tree-event-esm.json": {
+    "bytes": 1039,
+    "sha256": "e839e89dd02dca7e160676eecf34f26574c604f67c0c9fae0867ea7dd886008d"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/onsite-package-declarations.json": {
+    "bytes": 5929,
+    "sha256": "d52808920f26ea150547247cd7a269966dc50c44f92fbff1430a632434853c22"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-parent-binding-initial.mjs.txt": {
+    "bytes": 13292,
+    "sha256": "03e3641f23916eb0e296e606dabda0bcc31f018c705bcd2af5d7d6594d3f1704"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/tsconfig-search-input-esm.json": {
+    "bytes": 1043,
+    "sha256": "ffa867b5924fa6d1ded2ef4c57488e3e8dbc28142c4b5fdb51af57c0b4872460"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/settlement.json": {
+    "bytes": 66634,
+    "sha256": "f5cfd5b8ea53668ba870a4dc121e7c1c375494bab97664727715a1cc37e840e1"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/ngc-templates-initial.mjs.txt": {
+    "bytes": 4039,
+    "sha256": "14571fe729b6ee07cb243e7cedaf4efb2e8a04da845ffdd094612e7c736b2230"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/verify-settlement.mjs": {
+    "bytes": 5504,
+    "sha256": "eb980ecf0e18ec6b847d1302e3c1ff7b9235176263f96793ce8b0a75724dfe34"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/tsconfig-tree-input.json": {
+    "bytes": 1034,
+    "sha256": "e8990e9aa0ff99db9e5ea22a085b6970855afce6bfe4bd63ffed25a06f13189b"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/27-tree-jit-unbound-wrapper-output.txt": {
+    "bytes": 7389,
+    "sha256": "3a8385ad360d4633d39be21fad206f2560fd9a221d709fbf028e5a5a0ebbba2a"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/runtime-search-field-source-aot-ts-final.json": {
+    "bytes": 4772,
+    "sha256": "a2b4ae64aa42ae7eff3e52ca5b722c75b0ec31defff1c808bb43168dca1447e5"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/compiler-search-event-ngc-final.json": {
+    "bytes": 108834,
+    "sha256": "6b77df28d86998d5c9de078665a2f1b942b076e5dc6a1346346f07d8d32646e1"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/protocol.md": {
+    "bytes": 2636,
+    "sha256": "f8a4da355fe0eb899cbd5b2b967b810c8b4e6503d0235ba0e21649d1936a41bb"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/11-ngc-tree-missing-red/20261005T152344757638.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/11-ngc-tree-missing-red/20261005T152344757638.txt": {
+    "bytes": 117555,
+    "sha256": "c941724d358f7bab08b5516d4b57087f1c21df04336341ff25d2997d0e90a989"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/11-ngc-tree-missing-red/20261005T152344757638.status.json": {
+    "bytes": 688,
+    "sha256": "a9d0bc7ccd4fad30482308e82923dd6c367460979be5b9c8ea0cf3810de11d74"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/31-artifact-verification/20261005T153440774200.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/31-artifact-verification/20261005T153440774200.status.json": {
+    "bytes": 669,
+    "sha256": "6d14bc9541c97a6393d209019c301c6ff9d18d2091856b13ca4908eb3c52f4f8"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/31-artifact-verification/20261005T153440774200.txt": {
+    "bytes": 1676,
+    "sha256": "d10d25f872c874e5a1bd9f091afb3cda1d023c7b2857ebd393c9d0966fdbabab"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/14-ngc-search-missing-red/20261005T152401024151.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/14-ngc-search-missing-red/20261005T152401024151.status.json": {
+    "bytes": 691,
+    "sha256": "f2daf0de321c1f4bee96408df44dfcfe66cb6decbf9f59be9c5a7437c3f1729f"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/14-ngc-search-missing-red/20261005T152401024151.txt": {
+    "bytes": 117561,
+    "sha256": "f75c8376656b71cee8419fa6ae102cdab6f19ef8a7cbd100972b01d528c417c0"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/05-tsc-jit-emission/20261005T152108913036.status.json": {
+    "bytes": 691,
+    "sha256": "df5a748d20482bac5ccf61c0a34d0b89a4cf0139fab3ca3226c65032c367dc15"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/05-tsc-jit-emission/20261005T152108913036.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/05-tsc-jit-emission/20261005T152108913036.txt": {
+    "bytes": 693,
+    "sha256": "974e07369f23040f7d106cbe665b7421c662e50694b664d3b91a8a4951ef4460"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/01-resolved-projects/20261005T150739798193.status.json": {
+    "bytes": 1161,
+    "sha256": "5f75d0c11580eec42522e8540883adf376a81352d5243e501300f839a159daef"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/01-resolved-projects/20261005T150739798193.txt": {
+    "bytes": 749,
+    "sha256": "27f14e271739cf2a5a7da23feb27fb898ecc9c204597b66bc8fe542d5bc243cd"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/01-resolved-projects/20261005T150739798193.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/22-ngc-tree-event-ts-final/20261005T152836416261.txt": {
+    "bytes": 1273,
+    "sha256": "765cd50e4b10c2b211922cae975270197f23fb626014e58dc2b8b5f2befe51d0"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/22-ngc-tree-event-ts-final/20261005T152836416261.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/22-ngc-tree-event-ts-final/20261005T152836416261.status.json": {
+    "bytes": 709,
+    "sha256": "06af61dabd22a252d11f3025e02cf7315a8654a073466d1d4ae81697c2871a24"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/18-ngc-valid-ts-final/20261005T152755180237.txt": {
+    "bytes": 694,
+    "sha256": "5da53ece778f9846a1b2b2482d677a881350a9e4228d80b7d5a77c55bcf7d5c3"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/18-ngc-valid-ts-final/20261005T152755180237.status.json": {
+    "bytes": 702,
+    "sha256": "b71c32e0b4cd23413466cfbf3fe40c93ad123e3456840a62ac68f40e55312a7b"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/18-ngc-valid-ts-final/20261005T152755180237.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/30-search-lifecycle-aot-ts-final/20261005T153212365700.txt": {
+    "bytes": 6135,
+    "sha256": "9895f909ec069aa6bda354a214d18eae6ab20520af4c3e8875f3932da56ecc98"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/30-search-lifecycle-aot-ts-final/20261005T153212365700.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/30-search-lifecycle-aot-ts-final/20261005T153212365700.status.json": {
+    "bytes": 726,
+    "sha256": "5a5b6f355142e600cc85ac1ad38199e9ec588b3ef9923714a6681c43e5869dc7"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/19-tsc-jit-ts-final/20261005T152803291098.status.json": {
+    "bytes": 700,
+    "sha256": "89fa336a691ea13378c4ba65319511ece3dcdcf151a64236db4d6bcb1edd2b68"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/19-tsc-jit-ts-final/20261005T152803291098.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/19-tsc-jit-ts-final/20261005T152803291098.txt": {
+    "bytes": 694,
+    "sha256": "dcd8e6fc376d3967e55c504f5ba4df8d5be1bd92c4f9cca92fe0a42d3f9e2fd3"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/10-search-lifecycle-initial/20261005T152237692497.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/10-search-lifecycle-initial/20261005T152237692497.txt": {
+    "bytes": 6133,
+    "sha256": "0aa4ae06b7c5475aa73fbe64b39e2173d52f5c85fac2bd024df031dd82f8e4ca"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/10-search-lifecycle-initial/20261005T152237692497.status.json": {
+    "bytes": 720,
+    "sha256": "41fad75ac3e60492cf1c3b00128dddca8f21fc668861f108f3b946f216a663df"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/27-tree-jit-unbound-ts-final/20261005T153133990263.txt": {
+    "bytes": 8918,
+    "sha256": "f99756116938e74deb447bedea563e2737eb935a4477a25628f5118fd3dee774"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/27-tree-jit-unbound-ts-final/20261005T153133990263.status.json": {
+    "bytes": 718,
+    "sha256": "f83303043ae3751e5745ae33e62d8565cc5c3c2ef1cb42e53fd3779599a7a44a"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/27-tree-jit-unbound-ts-final/20261005T153133990263.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/23-ngc-search-missing-ts-final/20261005T152845065821.txt": {
+    "bytes": 1258,
+    "sha256": "2aa553bda65dd541b539259369683fd5a7fb65b80eca5da6f37661928316b23e"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/23-ngc-search-missing-ts-final/20261005T152845065821.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/23-ngc-search-missing-ts-final/20261005T152845065821.status.json": {
+    "bytes": 717,
+    "sha256": "11b756602e5ae2b6036846c379bcfbefbbb219f3cb9b3db30683197ca0ae3944"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/20-ngc-tree-missing-ts-final/20261005T152810585562.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/20-ngc-tree-missing-ts-final/20261005T152810585562.status.json": {
+    "bytes": 713,
+    "sha256": "78e0be1dd2ec31beb942791678082e0a2e605f80ce2a90e00b41d9cb246d533f"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/20-ngc-tree-missing-ts-final/20261005T152810585562.txt": {
+    "bytes": 1195,
+    "sha256": "f293751ca5cc29309a5507e3a94ccde5b6c10295b0648f427f59030ca0ab15e4"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/28-search-field-source-aot-ts-final/20261005T153149749624.status.json": {
+    "bytes": 732,
+    "sha256": "d6d8e1b8fae21fa5d71c3bdfbfd1c4ad8ad6355b3eb79acc08ad0831652dca2c"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/28-search-field-source-aot-ts-final/20261005T153149749624.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/28-search-field-source-aot-ts-final/20261005T153149749624.txt": {
+    "bytes": 8817,
+    "sha256": "c56d92db05b5bb13691c7fa0f7e73ac2c20c48464be05e26fac085af120de2f6"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/24-ngc-search-input-ts-final/20261005T152854286610.txt": {
+    "bytes": 1866,
+    "sha256": "c5ba31136902a76cfc97fe0d7980e3a684e367184609c24cc84cdb1f2e09f6e6"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/24-ngc-search-input-ts-final/20261005T152854286610.status.json": {
+    "bytes": 713,
+    "sha256": "ca4d18936f29e7f9f2417bc34f738e618b3908b7d5a9d6f0d1a6b115f2a6812f"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/24-ngc-search-input-ts-final/20261005T152854286610.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/16-ngc-search-event-red/20261005T152409602913.txt": {
+    "bytes": 694,
+    "sha256": "2958981d847fed7f2e4c30c8292ccdda0c9f437171408ac5cb81cfefd85dffe5"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/16-ngc-search-event-red/20261005T152409602913.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/16-ngc-search-event-red/20261005T152409602913.status.json": {
+    "bytes": 688,
+    "sha256": "9d41c16d392769103309ddae021f80be17f390b2bb083cfea2c10f5d35afca1b"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/12-ngc-tree-input-red/20261005T152350597447.txt": {
+    "bytes": 690,
+    "sha256": "2657c6196ecd549db3da874737b39895312a170c65301943c8d22b1e4d450298"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/12-ngc-tree-input-red/20261005T152350597447.status.json": {
+    "bytes": 684,
+    "sha256": "b5004f6b5031f773bb16ddbe91f2d7c1b893ca92722832aaa2eff284ee90df92"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/12-ngc-tree-input-red/20261005T152350597447.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/jit/consumer.mjs": {
+    "bytes": 6942,
+    "sha256": "2eb1e64efddeaf99fb9887c3f092783b14b998b3b957d2863150c8fc5de18701"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/13-ngc-tree-event-red/20261005T152355383381.status.json": {
+    "bytes": 683,
+    "sha256": "035c55f31b4308978855c3af8d9f1b0a0f6d28d9ac2ffc6c108c470bba0a4276"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/13-ngc-tree-event-red/20261005T152355383381.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/13-ngc-tree-event-red/20261005T152355383381.txt": {
+    "bytes": 690,
+    "sha256": "5299123921a378cc52a87472667bf4c013902455348c4995a1fe1371e168530a"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/09-search-field-options-red/20261005T152236232064.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/09-search-field-options-red/20261005T152236232064.status.json": {
+    "bytes": 722,
+    "sha256": "e5961f0ee093dd0e4b93c9ac109582fdfc1c0672df2be3b8341b19302cc187af"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/09-search-field-options-red/20261005T152236232064.txt": {
+    "bytes": 8825,
+    "sha256": "1a2a8ebc620689741e4959db116199754630c263b7f6820505b6bdb55198bfd0"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/07-tree-jit-unbound-red/20261005T152221056149.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/07-tree-jit-unbound-red/20261005T152221056149.txt": {
+    "bytes": 8912,
+    "sha256": "d0f46cd9b2874e7111639e8b7a63cff086368de9c6f6a54f4e11dd2da5d6fb4b"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/07-tree-jit-unbound-red/20261005T152221056149.status.json": {
+    "bytes": 710,
+    "sha256": "31cb6c62fd6a44c3869030c4397f9493474d7ce14d403e72dba36526b8f127ae"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/08-search-field-source-red/20261005T152233915209.txt": {
+    "bytes": 8819,
+    "sha256": "3ee8456d851d7cf3bde2dced75b5899fb677e0a36ed1d0c986576078f0bc846c"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/08-search-field-source-red/20261005T152233915209.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/08-search-field-source-red/20261005T152233915209.status.json": {
+    "bytes": 720,
+    "sha256": "6d40b21150c737fe148b8f9c29169aef14138321463703d0be59988cc3981a5a"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/15-ngc-search-input-red/20261005T152405263741.status.json": {
+    "bytes": 688,
+    "sha256": "bef52cc671d8f9f559c89a30ad370e19a1810f9d86e45f75278b674818f2583a"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/15-ngc-search-input-red/20261005T152405263741.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/15-ngc-search-input-red/20261005T152405263741.txt": {
+    "bytes": 694,
+    "sha256": "2258004fe57fdb8c3dc702236ff6054bb4eb4bf191f33618420f75bcb16a3aa5"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/26-tree-aot-ts-final/20261005T153130677866.txt": {
+    "bytes": 6289,
+    "sha256": "a32a2a5b438d8bda41667f8d6d59961cb09eac03d468a4d757173a9185bcd9b9"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/26-tree-aot-ts-final/20261005T153130677866.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/26-tree-aot-ts-final/20261005T153130677866.status.json": {
+    "bytes": 701,
+    "sha256": "b0cd45ce945bfc53f5c8adaf8d48ebf66cfb22fa68f0c28c732efb7e474d9c73"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/17-ngc-tree-input-ts-control/20261005T152552115378.status.json": {
+    "bytes": 687,
+    "sha256": "ed7d4fb488fff6b44c73a0e7ca8227e91a567998b010419e938f9eaa8116734e"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/17-ngc-tree-input-ts-control/20261005T152552115378.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/17-ngc-tree-input-ts-control/20261005T152552115378.txt": {
+    "bytes": 1182,
+    "sha256": "3e77cba723b19a3a8ae9bdb53a2957d77ff65f6973253fefdb2963d52bfa906d"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/fixtures/consumer.mts": {
+    "bytes": 5582,
+    "sha256": "559f270c206eee0aa935e72cdd4087e9e663bce63590fa49f26584b526e72c04"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/fixtures/search-event.ts": {
+    "bytes": 362,
+    "sha256": "4dd342ca421807eb9427dd13429fc338cb3216b511453f1ff0986bce93491581"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/fixtures/tree-missing.ts": {
+    "bytes": 204,
+    "sha256": "e13081d879e705bd05797554895b8bc02679695a6cd73ee8487689b5ae0fc9f3"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/fixtures/search-input.mts": {
+    "bytes": 310,
+    "sha256": "24f6f1d9ce99e1af88322df37f76918b3c64d8fd74996712229c7400d541e852"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/fixtures/search-missing.mts": {
+    "bytes": 233,
+    "sha256": "0a4b951f242c0f4bea7c861a65d766fe5a085a681ac37bfc02c0893c66df75ea"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/fixtures/search-missing.ts": {
+    "bytes": 232,
+    "sha256": "1f86ba8a41e498024b1a26d3ed670c4ca608683b003c43ce539fe8c81bd8d11d"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/fixtures/tree-event.ts": {
+    "bytes": 286,
+    "sha256": "0523769aa0157db36def692887bf4f4992bf94b8ed4792d6027a7396bae81a3f"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/fixtures/consumer.ts": {
+    "bytes": 5582,
+    "sha256": "559f270c206eee0aa935e72cdd4087e9e663bce63590fa49f26584b526e72c04"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/fixtures/tree-input.mts": {
+    "bytes": 258,
+    "sha256": "b0757e2bbc521a7e5edfe9b8db92582473dcbdbf988751f7b28b19cf4c4aae7d"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/fixtures/tree-event.mts": {
+    "bytes": 287,
+    "sha256": "d07e2eb2a2dc84b86b876153fe6dbcb2f4048e5ac0f89986f2bd19309d425075"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/fixtures/search-input.ts": {
+    "bytes": 309,
+    "sha256": "7da4bbe47b3889882898e3cc166747b8acdf46d9dc0859fe7728aa39dc06c4ea"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/fixtures/search-event.mts": {
+    "bytes": 362,
+    "sha256": "4dd342ca421807eb9427dd13429fc338cb3216b511453f1ff0986bce93491581"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/fixtures/tree-missing.mts": {
+    "bytes": 205,
+    "sha256": "2df80ffe83708a93783d963bfd1c614f9bab41611c7ffcbdd28bc8a46ed7f974"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/fixtures/tree-input.ts": {
+    "bytes": 257,
+    "sha256": "8e1b4a0df9608f0ee0f22d34f62ade0cbd93e25778a5e56695c2cc75f7fac7f2"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/03-tree-aot-initial/20261005T151906536076.txt": {
+    "bytes": 6792,
+    "sha256": "f66c8f064b31d7df7f21854c3b8afccc863d7dfec2074ac4c25999e6f302911e"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/03-tree-aot-initial/20261005T151906536076.status.json": {
+    "bytes": 684,
+    "sha256": "38bde6b2201eb595e6dba3a2a0e96d2d4aa556a878a9c1d9c5ba58f08de91092"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/03-tree-aot-initial/20261005T151906536076.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/06-tree-aot-final/20261005T152209863857.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/06-tree-aot-final/20261005T152209863857.txt": {
+    "bytes": 6283,
+    "sha256": "65e67011c08c0e9bfb598a629501895d1aafa5e2b14939dd2da5895e534c0692"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/06-tree-aot-final/20261005T152209863857.status.json": {
+    "bytes": 696,
+    "sha256": "0a634e18dd82e910101ac11b02e50d57ac7e40304fc2d4e0e9a392a99c53f358"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/02-ngc-valid-initial/20261005T151542792056.status.json": {
+    "bytes": 677,
+    "sha256": "b6017b0cb0cdbd5b8256aba9e7fbbcbc1eabf2c2b6c16066a90eca3806ba5b2f"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/02-ngc-valid-initial/20261005T151542792056.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/02-ngc-valid-initial/20261005T151542792056.txt": {
+    "bytes": 678,
+    "sha256": "71226250ec3b07c1c8ed68800ad35d84dd33ed1244c03441792f0e8be6158128"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/25-ngc-search-event-ts-final/20261005T152906995689.status.json": {
+    "bytes": 713,
+    "sha256": "8aa6fa967c8aa3192d4c3ef420afdd0901413c7563a01f026f39d09fcec1a916"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/25-ngc-search-event-ts-final/20261005T152906995689.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/25-ngc-search-event-ts-final/20261005T152906995689.txt": {
+    "bytes": 1757,
+    "sha256": "9677491a424997304e6333fd07c36d5fb134169aec825b2801df0205ea77f5b3"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/29-search-field-options-aot-ts-final/20261005T153209687202.txt": {
+    "bytes": 8823,
+    "sha256": "9f1f2d9f34459c17dc5ba42d7a555c9bc384d8806767952c539d0f214ba5151f"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/29-search-field-options-aot-ts-final/20261005T153209687202.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/29-search-field-options-aot-ts-final/20261005T153209687202.status.json": {
+    "bytes": 734,
+    "sha256": "a4d716bd6393e628f09c05923368961dd3ffe566861d6a42dd3d3561c9d0f6af"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/21-ngc-tree-input-ts-final/20261005T152817996888.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/21-ngc-tree-input-ts-final/20261005T152817996888.status.json": {
+    "bytes": 710,
+    "sha256": "ba50419aa278d546c714e435885734b748fdf22fdd1d658eb045566bde00222e"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/21-ngc-tree-input-ts-final/20261005T152817996888.txt": {
+    "bytes": 1198,
+    "sha256": "f3037142b62a00760d09dd8e8e0c856659b0137a681bf5c6a50c463389518990"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/04-ngc-valid-esm/20261005T152101955835.txt": {
+    "bytes": 686,
+    "sha256": "d0eafa2a10863c4036b1401bacbdd05f2ddd89c2d1c3d20c5f54ddeb1d84d103"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/04-ngc-valid-esm/20261005T152101955835.status.json": {
+    "bytes": 677,
+    "sha256": "ba2d682057776d542dab92bacf1e418d1bd0b2efe9e9d2153b754c1093a933e5"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/04-ngc-valid-esm/20261005T152101955835.inputs.json": {
+    "bytes": 8912,
+    "sha256": "ee29d28c72ced0ab5725b5e36e8e5625ce94eb871a2dc5445cadf8807d4279ec"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/aot/tree-event-esm/tree-event.mjs": {
+    "bytes": 1383,
+    "sha256": "e5c4d0958fa1a5da383f2cfbe162ef6ea1c8382ff9a786ab2c367d5aa641c00b"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/aot/tree-event-esm/consumer.mjs": {
+    "bytes": 19969,
+    "sha256": "047bde5c6bce7a7f9b793e82f4d2bbdd05a0a618d8501eacc3919327322c8d70"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/aot/search-event-esm/search-event.mjs": {
+    "bytes": 1893,
+    "sha256": "f6a99f6a6164a8008aafe58e2b8a754064487d9d38558d3916d4b3ba8607e880"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/aot/search-input-esm/consumer.mjs": {
+    "bytes": 19969,
+    "sha256": "047bde5c6bce7a7f9b793e82f4d2bbdd05a0a618d8501eacc3919327322c8d70"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/aot/search-input-esm/search-input.mjs": {
+    "bytes": 1315,
+    "sha256": "5bcc7a8b098691c711960cebfc572893357a0008bc28acdd2ef71180c96418b4"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/aot/consumer-esm/consumer.mjs": {
+    "bytes": 19969,
+    "sha256": "047bde5c6bce7a7f9b793e82f4d2bbdd05a0a618d8501eacc3919327322c8d70"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/aot/consumer/consumer.mjs": {
+    "bytes": 19961,
+    "sha256": "421f120a470510e18f207242ce211b7ddfb633899e13cb75cdfaaa8dbedcc9df"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/aot/consumer/consumer.js": {
+    "bytes": 19961,
+    "sha256": "421f120a470510e18f207242ce211b7ddfb633899e13cb75cdfaaa8dbedcc9df"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/aot/tree-input-esm/consumer.mjs": {
+    "bytes": 19969,
+    "sha256": "047bde5c6bce7a7f9b793e82f4d2bbdd05a0a618d8501eacc3919327322c8d70"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/aot/tree-input-esm/tree-input.mjs": {
+    "bytes": 1213,
+    "sha256": "23462d6d10cf8c6794818fc367b5327327cdd58a3f24fed55c3778fe99b5a150"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/jit/consumer/consumer.mjs": {
+    "bytes": 6942,
+    "sha256": "2eb1e64efddeaf99fb9887c3f092783b14b998b3b957d2863150c8fc5de18701"
+  },
+  "requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates/jit/consumer/consumer.js": {
+    "bytes": 6942,
+    "sha256": "2eb1e64efddeaf99fb9887c3f092783b14b998b3b957d2863150c8fc5de18701"
+  }
+}

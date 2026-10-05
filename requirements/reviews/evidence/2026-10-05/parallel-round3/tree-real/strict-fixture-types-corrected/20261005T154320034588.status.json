@@ -1,0 +1,19 @@
+{
+  "clientDate": "2026-10-05",
+  "startedAt": "2026-10-05T15:43:20.170972+08:00",
+  "headAtStart": "fe69a25d2b2f0994d7c9e35fe61757e04b7da995",
+  "headAtFinish": "fe69a25d2b2f0994d7c9e35fe61757e04b7da995",
+  "command": [
+    "node",
+    "../../node_modules/typescript/bin/tsc",
+    "-p",
+    "tsconfig.json"
+  ],
+  "cwd": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/framework-tests/round3-tree-real",
+  "exitCode": 2,
+  "elapsedSeconds": 5.526,
+  "scopedInputCount": 586,
+  "changedInputsDuringMeasurement": [],
+  "serialHeavyTaskLock": true,
+  "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/tree-real/strict-fixture-types-corrected/20261005T154320034588.txt"
+}

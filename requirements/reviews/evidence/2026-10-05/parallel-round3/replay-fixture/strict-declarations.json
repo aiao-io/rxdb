@@ -1,0 +1,496 @@
+{
+  "measurements": [
+    {
+      "measurement": "22-strict-consumer",
+      "compiler": "6.0.3",
+      "strict": true,
+      "skipLibCheck": false,
+      "skipDefaultLibCheck": false,
+      "exitCode": 1,
+      "diagnosticCount": 16,
+      "diagnostics": [
+        {
+          "code": 6059,
+          "category": "Error",
+          "message": "File '/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/cases/rxdb-plugin-replay-angular/consumer-valid.mts' is not under 'rootDir' '/Users/jimmy/Documents/aiao/rxdb'. 'rootDir' is expected to contain all source files.\n  The file is in the program because:\n    Root file specified for compilation"
+        },
+        {
+          "file": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts",
+          "code": 2663,
+          "category": "Error",
+          "line": 15,
+          "message": "Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?"
+        },
+        {
+          "file": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts",
+          "code": 1254,
+          "category": "Error",
+          "line": 15,
+          "message": "A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference."
+        },
+        {
+          "file": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts",
+          "code": 2663,
+          "category": "Error",
+          "line": 26,
+          "message": "Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?"
+        },
+        {
+          "file": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts",
+          "code": 1254,
+          "category": "Error",
+          "line": 26,
+          "message": "A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference."
+        },
+        {
+          "file": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts",
+          "code": 2663,
+          "category": "Error",
+          "line": 48,
+          "message": "Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?"
+        },
+        {
+          "file": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts",
+          "code": 1254,
+          "category": "Error",
+          "line": 48,
+          "message": "A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference."
+        },
+        {
+          "file": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts",
+          "code": 2663,
+          "category": "Error",
+          "line": 74,
+          "message": "Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?"
+        },
+        {
+          "file": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts",
+          "code": 1254,
+          "category": "Error",
+          "line": 74,
+          "message": "A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference."
+        },
+        {
+          "file": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts",
+          "code": 2663,
+          "category": "Error",
+          "line": 86,
+          "message": "Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?"
+        },
+        {
+          "file": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts",
+          "code": 1254,
+          "category": "Error",
+          "line": 86,
+          "message": "A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference."
+        },
+        {
+          "file": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts",
+          "code": 2663,
+          "category": "Error",
+          "line": 152,
+          "message": "Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?"
+        },
+        {
+          "file": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rrdom@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_6e5140083ae6b0b812d8f7c5f03226c4/node_modules/rrdom/dist/index.d.ts",
+          "code": 1254,
+          "category": "Error",
+          "line": 152,
+          "message": "A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference."
+        },
+        {
+          "file": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rrweb@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_3863d37780c1a6b6ed32b46c26987f09/node_modules/rrweb/dist/rrweb.d.ts",
+          "code": 2395,
+          "category": "Error",
+          "line": 211,
+          "message": "Individual declarations in merged declaration 'record' must be all exported or all local."
+        },
+        {
+          "file": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rrweb@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_3863d37780c1a6b6ed32b46c26987f09/node_modules/rrweb/dist/rrweb.d.ts",
+          "code": 2395,
+          "category": "Error",
+          "line": 213,
+          "message": "Individual declarations in merged declaration 'record' must be all exported or all local."
+        },
+        {
+          "file": "/private/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-r2-isolated-me20tptu/consumer/node_modules/.pnpm/rrweb@file+..+..+..+..+..+..+..+..+var+folders+1s+1sk5kvms7jj4z6glj40__v300000gn+T+rxdb_3863d37780c1a6b6ed32b46c26987f09/node_modules/rrweb/dist/rrweb.d.ts",
+          "code": 2395,
+          "category": "Error",
+          "line": 464,
+          "message": "Individual declarations in merged declaration 'record' must be all exported or all local."
+        }
+      ],
+      "scope": "中间夹具版本，不冒充最终冻结 spec 严格编译通过",
+      "probeLimitation": "consumer 的 rootDir 被 runner 错设为仓库，额外 TS6059 是本探针配置错误"
+    },
+    {
+      "measurement": "23-strict-spec",
+      "compiler": "6.0.3",
+      "strict": true,
+      "skipLibCheck": false,
+      "skipDefaultLibCheck": false,
+      "exitCode": 1,
+      "diagnosticCount": 49,
+      "diagnostics": [
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrdom@2.1.7/node_modules/rrdom/dist/index.d.ts",
+          "code": 2663,
+          "category": "Error",
+          "line": 15,
+          "message": "Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?"
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrdom@2.1.7/node_modules/rrdom/dist/index.d.ts",
+          "code": 1254,
+          "category": "Error",
+          "line": 15,
+          "message": "A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrdom@2.1.7/node_modules/rrdom/dist/index.d.ts",
+          "code": 2663,
+          "category": "Error",
+          "line": 26,
+          "message": "Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?"
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrdom@2.1.7/node_modules/rrdom/dist/index.d.ts",
+          "code": 1254,
+          "category": "Error",
+          "line": 26,
+          "message": "A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrdom@2.1.7/node_modules/rrdom/dist/index.d.ts",
+          "code": 2663,
+          "category": "Error",
+          "line": 48,
+          "message": "Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?"
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrdom@2.1.7/node_modules/rrdom/dist/index.d.ts",
+          "code": 1254,
+          "category": "Error",
+          "line": 48,
+          "message": "A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrdom@2.1.7/node_modules/rrdom/dist/index.d.ts",
+          "code": 2663,
+          "category": "Error",
+          "line": 74,
+          "message": "Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?"
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrdom@2.1.7/node_modules/rrdom/dist/index.d.ts",
+          "code": 1254,
+          "category": "Error",
+          "line": 74,
+          "message": "A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrdom@2.1.7/node_modules/rrdom/dist/index.d.ts",
+          "code": 2663,
+          "category": "Error",
+          "line": 86,
+          "message": "Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?"
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrdom@2.1.7/node_modules/rrdom/dist/index.d.ts",
+          "code": 1254,
+          "category": "Error",
+          "line": 86,
+          "message": "A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrdom@2.1.7/node_modules/rrdom/dist/index.d.ts",
+          "code": 2663,
+          "category": "Error",
+          "line": 152,
+          "message": "Cannot find name 'RRNodeType'. Did you mean the instance member 'this.RRNodeType'?"
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrdom@2.1.7/node_modules/rrdom/dist/index.d.ts",
+          "code": 1254,
+          "category": "Error",
+          "line": 152,
+          "message": "A 'const' initializer in an ambient context must be a string or numeric literal or literal enum reference."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrweb@2.1.7/node_modules/rrweb/dist/rrweb.d.ts",
+          "code": 2395,
+          "category": "Error",
+          "line": 211,
+          "message": "Individual declarations in merged declaration 'record' must be all exported or all local."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrweb@2.1.7/node_modules/rrweb/dist/rrweb.d.ts",
+          "code": 2395,
+          "category": "Error",
+          "line": 213,
+          "message": "Individual declarations in merged declaration 'record' must be all exported or all local."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/rrweb@2.1.7/node_modules/rrweb/dist/rrweb.d.ts",
+          "code": 2395,
+          "category": "Error",
+          "line": 464,
+          "message": "Individual declarations in merged declaration 'record' must be all exported or all local."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.dom.d.ts",
+          "code": 6200,
+          "category": "Error",
+          "line": 24,
+          "message": "Definitions of the following identifiers conflict with those in another file: AddressType, ImportExportKind, TableKind, AddressValue, ExportValue, Exports, ImportValue, Imports, ModuleImports, ValueType, name, AlgorithmIdentifier, AllowSharedBufferSource, BigInteger, BlobPart, BodyInit, BufferSource, CSSKeywordish, CSSNumberish, CSSPerspectiveValue, CSSUnparsedSegment, CanvasImageSource, CookieList, DOMHighResTimeStamp, EpochTimeStamp, EventListenerOrEventListenerObject, FileSystemWriteChunkType, Float32List, FormDataEntryValue, GLbitfield, GLboolean, GLclampf, GLenum, GLfloat, GLint, GLint64, GLintptr, GLsizei, GLsizeiptr, GLuint, GLuint64, GPUBindingResource, GPUBufferDynamicOffset, GPUBufferUsageFlags, GPUColor, GPUColorWriteFlags, GPUCopyExternalImageSource, GPUDepthBias, GPUExtent3D, GPUFlagsConstant, GPUIndex32, GPUIntegerCoordinate, GPUIntegerCoordinateOut, GPUMapModeFlags, GPUOrigin2D, GPUOrigin3D, GPUPipelineConstantValue, GPUSampleMask, GPUShaderStageFlags, GPUSignedOffset32, GPUSize32, GPUSize32Out, GPUSize64, GPUSize64Out, GPUStencilValue, GPUTextureUsageFlags, HashAlgorithmIdentifier, HeadersInit, IDBValidKey, ImageBitmapSource, ImageBufferSource, ImageDataArray, Int32List, MessageEventSource, NamedCurve, OffscreenRenderingContext, OnErrorEventHandler, PerformanceEntryList, ReadableStreamController, ReadableStreamReadResult, ReadableStreamReader, ReportList, RequestInfo, TexImageSource, TimerHandler, Transferable, URLPatternInput, Uint32List, XMLHttpRequestBodyInit, AacBitstreamFormat, AlphaOption, AudioSampleFormat, AvcBitstreamFormat, BinaryType, BitrateMode, CSSMathOperator, CSSNumericBaseType, CanvasDirection, CanvasFillRule, CanvasFontKerning, CanvasFontStretch, CanvasFontVariantCaps, CanvasLineCap, CanvasLineJoin, CanvasTextAlign, CanvasTextBaseline, CanvasTextRendering, ClientTypes, CodecState, ColorGamut, ColorSpaceConversion, CompressionFormat, CookieSameSite, DocumentVisibilityState, EncodedAudioChunkType, EncodedVideoChunkType, EndingType, FileSystemHandleKind, FontDisplay, FontFaceLoadStatus, FontFaceSetLoadStatus, GPUAddressMode, GPUAutoLayoutMode, GPUBlendFactor, GPUBlendOperation, GPUBufferBindingType, GPUBufferMapState, GPUCanvasAlphaMode, GPUCanvasToneMappingMode, GPUCompareFunction, GPUCompilationMessageType, GPUCullMode, GPUDeviceLostReason, GPUErrorFilter, GPUFeatureName, GPUFilterMode, GPUFrontFace, GPUIndexFormat, GPULoadOp, GPUMipmapFilterMode, GPUPipelineErrorReason, GPUPowerPreference, GPUPrimitiveTopology, GPUQueryType, GPUSamplerBindingType, GPUStencilOperation, GPUStorageTextureAccess, GPUStoreOp, GPUTextureAspect, GPUTextureDimension, GPUTextureFormat, GPUTextureSampleType, GPUTextureViewDimension, GPUVertexFormat, GPUVertexStepMode, GlobalCompositeOperation, HardwareAcceleration, HdrMetadataType, IDBCursorDirection, IDBRequestReadyState, IDBTransactionDurability, IDBTransactionMode, ImageDataPixelFormat, ImageOrientation, ImageSmoothingQuality, KeyFormat, KeyType, KeyUsage, LatencyMode, LockMode, MediaDecodingType, MediaEncodingType, MediaKeysRequirement, NotificationDirection, NotificationPermission, OffscreenRenderingContextId, OpusBitstreamFormat, PermissionName, PermissionState, PredefinedColorSpace, PremultiplyAlpha, PushEncryptionKeyName, RTCDataChannelState, ReadableStreamReaderMode, ReadableStreamType, ReferrerPolicy, RequestCache, RequestCredentials, RequestDestination, RequestMode, RequestPriority, RequestRedirect, ResizeQuality, ResponseType, SecurityPolicyViolationEventDisposition, ServiceWorkerState, ServiceWorkerUpdateViaCache, TaskPriority, TransferFunction, VideoColorPrimaries, VideoEncoderBitrateMode, VideoMatrixCoefficients, VideoPixelFormat, VideoTransferCharacteristics, WebGLPowerPreference, WebTransportCongestionControl, WebTransportErrorSource, WorkerType, WriteCommandType, XMLHttpRequestResponseType"
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.dom.d.ts",
+          "code": 2374,
+          "category": "Error",
+          "line": 5894,
+          "message": "Duplicate index signature for type 'number'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.dom.d.ts",
+          "code": 2374,
+          "category": "Error",
+          "line": 9985,
+          "message": "Duplicate index signature for type 'number'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.dom.d.ts",
+          "code": 2374,
+          "category": "Error",
+          "line": 10085,
+          "message": "Duplicate index signature for type 'number'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.dom.d.ts",
+          "code": 2374,
+          "category": "Error",
+          "line": 12119,
+          "message": "Duplicate index signature for type 'number'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.dom.d.ts",
+          "code": 2374,
+          "category": "Error",
+          "line": 14463,
+          "message": "Duplicate index signature for type 'number'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.dom.d.ts",
+          "code": 2374,
+          "category": "Error",
+          "line": 22948,
+          "message": "Duplicate index signature for type 'number'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 6200,
+          "category": "Error",
+          "line": 24,
+          "message": "Definitions of the following identifiers conflict with those in another file: AddressType, ImportExportKind, TableKind, AddressValue, ExportValue, Exports, ImportValue, Imports, ModuleImports, ValueType, name, AlgorithmIdentifier, AllowSharedBufferSource, BigInteger, BlobPart, BodyInit, BufferSource, CSSKeywordish, CSSNumberish, CSSPerspectiveValue, CSSUnparsedSegment, CanvasImageSource, CookieList, DOMHighResTimeStamp, EpochTimeStamp, EventListenerOrEventListenerObject, FileSystemWriteChunkType, Float32List, FormDataEntryValue, GLbitfield, GLboolean, GLclampf, GLenum, GLfloat, GLint, GLint64, GLintptr, GLsizei, GLsizeiptr, GLuint, GLuint64, GPUBindingResource, GPUBufferDynamicOffset, GPUBufferUsageFlags, GPUColor, GPUColorWriteFlags, GPUCopyExternalImageSource, GPUDepthBias, GPUExtent3D, GPUFlagsConstant, GPUIndex32, GPUIntegerCoordinate, GPUIntegerCoordinateOut, GPUMapModeFlags, GPUOrigin2D, GPUOrigin3D, GPUPipelineConstantValue, GPUSampleMask, GPUShaderStageFlags, GPUSignedOffset32, GPUSize32, GPUSize32Out, GPUSize64, GPUSize64Out, GPUStencilValue, GPUTextureUsageFlags, HashAlgorithmIdentifier, HeadersInit, IDBValidKey, ImageBitmapSource, ImageBufferSource, ImageDataArray, Int32List, MessageEventSource, NamedCurve, OffscreenRenderingContext, OnErrorEventHandler, PerformanceEntryList, ReadableStreamController, ReadableStreamReadResult, ReadableStreamReader, ReportList, RequestInfo, TexImageSource, TimerHandler, Transferable, URLPatternInput, Uint32List, XMLHttpRequestBodyInit, AacBitstreamFormat, AlphaOption, AudioSampleFormat, AvcBitstreamFormat, BinaryType, BitrateMode, CSSMathOperator, CSSNumericBaseType, CanvasDirection, CanvasFillRule, CanvasFontKerning, CanvasFontStretch, CanvasFontVariantCaps, CanvasLineCap, CanvasLineJoin, CanvasTextAlign, CanvasTextBaseline, CanvasTextRendering, ClientTypes, CodecState, ColorGamut, ColorSpaceConversion, CompressionFormat, CookieSameSite, DocumentVisibilityState, EncodedAudioChunkType, EncodedVideoChunkType, EndingType, FileSystemHandleKind, FontDisplay, FontFaceLoadStatus, FontFaceSetLoadStatus, GPUAddressMode, GPUAutoLayoutMode, GPUBlendFactor, GPUBlendOperation, GPUBufferBindingType, GPUBufferMapState, GPUCanvasAlphaMode, GPUCanvasToneMappingMode, GPUCompareFunction, GPUCompilationMessageType, GPUCullMode, GPUDeviceLostReason, GPUErrorFilter, GPUFeatureName, GPUFilterMode, GPUFrontFace, GPUIndexFormat, GPULoadOp, GPUMipmapFilterMode, GPUPipelineErrorReason, GPUPowerPreference, GPUPrimitiveTopology, GPUQueryType, GPUSamplerBindingType, GPUStencilOperation, GPUStorageTextureAccess, GPUStoreOp, GPUTextureAspect, GPUTextureDimension, GPUTextureFormat, GPUTextureSampleType, GPUTextureViewDimension, GPUVertexFormat, GPUVertexStepMode, GlobalCompositeOperation, HardwareAcceleration, HdrMetadataType, IDBCursorDirection, IDBRequestReadyState, IDBTransactionDurability, IDBTransactionMode, ImageDataPixelFormat, ImageOrientation, ImageSmoothingQuality, KeyFormat, KeyType, KeyUsage, LatencyMode, LockMode, MediaDecodingType, MediaEncodingType, MediaKeysRequirement, NotificationDirection, NotificationPermission, OffscreenRenderingContextId, OpusBitstreamFormat, PermissionName, PermissionState, PredefinedColorSpace, PremultiplyAlpha, PushEncryptionKeyName, RTCDataChannelState, ReadableStreamReaderMode, ReadableStreamType, ReferrerPolicy, RequestCache, RequestCredentials, RequestDestination, RequestMode, RequestPriority, RequestRedirect, ResizeQuality, ResponseType, SecurityPolicyViolationEventDisposition, ServiceWorkerState, ServiceWorkerUpdateViaCache, TaskPriority, TransferFunction, VideoColorPrimaries, VideoEncoderBitrateMode, VideoMatrixCoefficients, VideoPixelFormat, VideoTransferCharacteristics, WebGLPowerPreference, WebTransportCongestionControl, WebTransportErrorSource, WorkerType, WriteCommandType, XMLHttpRequestResponseType"
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2717,
+          "category": "Error",
+          "line": 522,
+          "message": "Subsequent property declarations must have the same type.  Property 'source' must be of type 'HTMLVideoElement | VideoFrame', but here has type 'VideoFrame'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2374,
+          "category": "Error",
+          "line": 2206,
+          "message": "Duplicate index signature for type 'number'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2403,
+          "category": "Error",
+          "line": 2282,
+          "message": "Subsequent variable declarations must have the same type.  Variable 'CSSNumericValue' must be of type '{ new (): CSSNumericValue; prototype: CSSNumericValue; parse(cssText: string): CSSNumericValue; }', but here has type '{ new (): CSSNumericValue; prototype: CSSNumericValue; }'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2403,
+          "category": "Error",
+          "line": 2447,
+          "message": "Subsequent variable declarations must have the same type.  Variable 'CSSStyleValue' must be of type '{ new (): CSSStyleValue; prototype: CSSStyleValue; parse(property: string, cssText: string): CSSStyleValue; parseAll(property: string, cssText: string): CSSStyleValue[]; }', but here has type '{ new (): CSSStyleValue; prototype: CSSStyleValue; }'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2374,
+          "category": "Error",
+          "line": 2503,
+          "message": "Duplicate index signature for type 'number'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2374,
+          "category": "Error",
+          "line": 2580,
+          "message": "Duplicate index signature for type 'number'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2374,
+          "category": "Error",
+          "line": 3972,
+          "message": "Duplicate index signature for type 'number'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2374,
+          "category": "Error",
+          "line": 4704,
+          "message": "Duplicate index signature for type 'number'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2403,
+          "category": "Error",
+          "line": 5253,
+          "message": "Subsequent variable declarations must have the same type.  Variable 'FormData' must be of type '{ new (form?: HTMLFormElement | undefined, submitter?: HTMLElement | null | undefined): FormData; prototype: FormData; }', but here has type '{ new (): FormData; prototype: FormData; }'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2717,
+          "category": "Error",
+          "line": 5486,
+          "message": "Subsequent property declarations must have the same type.  Property 'canvas' must be of type 'HTMLCanvasElement | OffscreenCanvas', but here has type 'OffscreenCanvas'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2374,
+          "category": "Error",
+          "line": 7417,
+          "message": "Duplicate index signature for type 'number'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2403,
+          "category": "Error",
+          "line": 7862,
+          "message": "Subsequent variable declarations must have the same type.  Variable 'Notification' must be of type '{ new (title: string, options?: NotificationOptions | undefined): Notification; prototype: Notification; readonly permission: NotificationPermission; requestPermission(deprecatedCallback?: NotificationPermissionCallback | undefined): Promise<...>; }', but here has type '{ new (title: string, options?: NotificationOptions | undefined): Notification; prototype: Notification; readonly permission: NotificationPermission; }'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2717,
+          "category": "Error",
+          "line": 8875,
+          "message": "Subsequent property declarations must have the same type.  Property '\"error\"' must be of type 'RTCErrorEvent', but here has type 'Event'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2717,
+          "category": "Error",
+          "line": 8941,
+          "message": "Subsequent property declarations must have the same type.  Property 'onerror' must be of type '((this: RTCDataChannel, ev: RTCErrorEvent) => any) | null', but here has type '((this: RTCDataChannel, ev: Event) => any) | null'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2403,
+          "category": "Error",
+          "line": 10551,
+          "message": "Subsequent variable declarations must have the same type.  Variable 'URL' must be of type '{ new (url: string | URL, base?: string | URL | undefined): URL; prototype: URL; canParse(url: string | URL, base?: string | URL | undefined): boolean; createObjectURL(obj: Blob | MediaSource): string; parse(url: string | URL, base?: string | ... 1 more ... | undefined): URL | null; revokeObjectURL(url: string): voi...', but here has type '{ new (url: string | URL, base?: string | URL | undefined): URL; prototype: URL; canParse(url: string | URL, base?: string | URL | undefined): boolean; createObjectURL(obj: Blob): string; parse(url: string | URL, base?: string | ... 1 more ... | undefined): URL | null; revokeObjectURL(url: string): void; }'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2403,
+          "category": "Error",
+          "line": 14894,
+          "message": "Subsequent variable declarations must have the same type.  Variable 'location' must be of type 'Location', but here has type 'WorkerLocation'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2403,
+          "category": "Error",
+          "line": 14900,
+          "message": "Subsequent variable declarations must have the same type.  Variable 'navigator' must be of type 'Navigator', but here has type 'WorkerNavigator'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2403,
+          "category": "Error",
+          "line": 14902,
+          "message": "Subsequent variable declarations must have the same type.  Variable 'onerror' must be of type 'OnErrorEventHandler', but here has type '((this: DedicatedWorkerGlobalScope, ev: ErrorEvent) => any) | null'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2403,
+          "category": "Error",
+          "line": 14904,
+          "message": "Subsequent variable declarations must have the same type.  Variable 'onlanguagechange' must be of type '((this: Window, ev: Event) => any) | null', but here has type '((this: DedicatedWorkerGlobalScope, ev: Event) => any) | null'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2403,
+          "category": "Error",
+          "line": 14906,
+          "message": "Subsequent variable declarations must have the same type.  Variable 'onoffline' must be of type '((this: Window, ev: Event) => any) | null', but here has type '((this: DedicatedWorkerGlobalScope, ev: Event) => any) | null'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2403,
+          "category": "Error",
+          "line": 14908,
+          "message": "Subsequent variable declarations must have the same type.  Variable 'ononline' must be of type '((this: Window, ev: Event) => any) | null', but here has type '((this: DedicatedWorkerGlobalScope, ev: Event) => any) | null'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2403,
+          "category": "Error",
+          "line": 14910,
+          "message": "Subsequent variable declarations must have the same type.  Variable 'onrejectionhandled' must be of type '((this: Window, ev: PromiseRejectionEvent) => any) | null', but here has type '((this: DedicatedWorkerGlobalScope, ev: PromiseRejectionEvent) => any) | null'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2403,
+          "category": "Error",
+          "line": 14912,
+          "message": "Subsequent variable declarations must have the same type.  Variable 'onunhandledrejection' must be of type '((this: Window, ev: PromiseRejectionEvent) => any) | null', but here has type '((this: DedicatedWorkerGlobalScope, ev: PromiseRejectionEvent) => any) | null'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2403,
+          "category": "Error",
+          "line": 14918,
+          "message": "Subsequent variable declarations must have the same type.  Variable 'self' must be of type 'Window & typeof globalThis', but here has type 'WorkerGlobalScope & typeof globalThis'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2403,
+          "category": "Error",
+          "line": 14981,
+          "message": "Subsequent variable declarations must have the same type.  Variable 'onmessage' must be of type '((this: Window, ev: MessageEvent<any>) => any) | null', but here has type '((this: DedicatedWorkerGlobalScope, ev: MessageEvent<any>) => any) | null'."
+        },
+        {
+          "file": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/typescript@6.0.3_patch_hash=ef3c2292deb88eb14130359d5acc1febc0226af46b7b945db6c7250c6cb4efbb/node_modules/typescript/lib/lib.webworker.d.ts",
+          "code": 2403,
+          "category": "Error",
+          "line": 14983,
+          "message": "Subsequent variable declarations must have the same type.  Variable 'onmessageerror' must be of type '((this: Window, ev: MessageEvent<any>) => any) | null', but here has type '((this: DedicatedWorkerGlobalScope, ev: MessageEvent<any>) => any) | null'."
+        }
+      ],
+      "scope": "中间夹具版本，不冒充最终冻结 spec 严格编译通过",
+      "probeLimitation": "继承的 DOM + WebWorker 双 lib 在 skipDefaultLibCheck=false 下另有 34 个冲突诊断"
+    }
+  ],
+  "upstreamDeclarationDiagnostics": {
+    "rrdom": {
+      "TS2663": 6,
+      "TS1254": 6
+    },
+    "rrweb": {
+      "TS2395": 3
+    }
+  },
+  "consumerFilesUnchanged": true,
+  "currentCorrectedStrictHelperWasNotReexecuted": true,
+  "noStrictOrSkipLibCheckRelaxation": true,
+  "noStubOrDependencyInstall": true
+}

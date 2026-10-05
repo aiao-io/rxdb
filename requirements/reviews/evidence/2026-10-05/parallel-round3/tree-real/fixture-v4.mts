@@ -1,5 +1,5 @@
 import '@angular/compiler';
-import { ENTITY_STATIC_TYPES, PropertyType, RxDB, SyncType, type RxDBEntityId } from '@aiao/rxdb';
+import { PropertyType, RxDB, SyncType, type RxDBEntityId } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { TreeEntity, TreeAdjacencyListEntityBase, rxDBPluginTree, type FindTreeOptions, type ITreeRepository } from '@aiao/rxdb-plugin-tree';
 import * as angularTree from '@aiao/rxdb-plugin-tree-angular';
@@ -18,20 +18,11 @@ const ids = (nodes: readonly { readonly id: RxDBEntityId }[]) => nodes.map(node 
 const idFor = (kind: 'number' | 'string', number: number): RxDBEntityId => kind === 'number' ? number : `00000000-0000-4000-8000-${String(number).padStart(12, '0')}`;
 
 const createNode = (kind: 'number' | 'string') => {
-  @TreeEntity({name: kind === 'number' ? 'ReviewNumberTree' : 'ReviewStringTree', properties: [
+  @TreeEntity({name: `ReviewTree${kind}`, properties: [
     {name: 'id', type: kind === 'number' ? PropertyType.integer : PropertyType.uuid, primary: true},
     {name: 'name', type: PropertyType.string}
   ]})
-  class Node extends TreeAdjacencyListEntityBase<RxDBEntityId> {
-    declare name: string;
-    declare static [ENTITY_STATIC_TYPES]: {
-      idType: RxDBEntityId;
-      findDescendantsOptions: FindTreeOptions<typeof Node>;
-      countDescendantsOptions: FindTreeOptions<typeof Node>;
-      findAncestorsOptions: FindTreeOptions<typeof Node>;
-      countAncestorsOptions: FindTreeOptions<typeof Node>;
-    };
-  }
+  class Node extends TreeAdjacencyListEntityBase<RxDBEntityId> { declare name: string; }
   return Node;
 };
 
@@ -87,9 +78,8 @@ const instrument = (Node: NodeType) => {
   return counts;
 };
 
-const createDatabase = (Node: NodeType, syncType: SyncType.None | SyncType.QueryCache = SyncType.None, withPlugin = true) => {
-  const sync = syncType === SyncType.None ? {local: {adapter: 'pglite'}, type: SyncType.None as const} : {local: {adapter: 'pglite'}, remote: {adapter: 'unused-remote'}, type: SyncType.QueryCache as const};
-  const db = new RxDB({dbName: 'r3-real-tree', context: {userId: 'review'}, entities: [Node], sync});
+const createDatabase = (Node: NodeType, syncType: SyncType = SyncType.None, withPlugin = true) => {
+  const db = new RxDB({dbName: 'r3-real-tree', context: {userId: 'review'}, entities: [Node], sync: {local: {adapter: 'pglite'}, type: syncType}});
   if (withPlugin) db.use(rxDBPluginTree);
   db.adapter('pglite', database => new RxDBAdapterPGlite(database, {store: 'memory'}));
   return db;

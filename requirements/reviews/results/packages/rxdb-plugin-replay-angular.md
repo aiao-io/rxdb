@@ -223,3 +223,27 @@ component props/signals 是输入，core mountReplayer 拥有真实播放器/res
 消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
 
 主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。
+
+
+## R3-03：Replay Angular 夹具 / mock / 缓存因果补证（2026-10-05 冻结）
+
+**源码阅读及逐 C 意见交付：完成（按主控十包 153 文件统计）；本专题证据：partial-frozen；发布验证：独立 pending。** 不因平台/验证红灯把已完成评审一律算成未评审。按最新用户要求冻结，不再扩 rrweb 或测试矩阵。
+
+本轮仅改新增 R2 spec 夹具，不改生产代码/依赖/既有 spec/配置；接手旧源 SHA `47478ce39514355ef208742835603a1e6ef1296eabb499290ef83ceb54edc6fd`、失败日志和输入 SHA 留存。[完整有界说明](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/README.md)、[执行清单](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/executions.json)、[闭环与归属](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/closure.json)。
+
+| 对照 | 真实结果 | exit | 结论 |
+| --- | --- | --- | --- |
+| 接手旧组件单文件 | 9/9 pass | 0 | 历史旧套 10/10 含另一 release-config 用例，不能冒充单文件 10 条 |
+| 接手原 R2 独立 | 3 pass / 11 fail，21 个未处理错误 | 1 | rrweb 边界没命中；不登记产品 bug |
+| 接手原 R2 + 旧组件，不隔离 | 3 pass / 20 fail | 1 | 旧 spy 输入被缓存真实 core 带红，属夹具/cache 对照 |
+| 中间最小有效夹具独立 / 合跑 | 15/15、24/24 pass | 0 / 0 | 独立组件模块键 + 真 core 源函数转发 + 可解析 rrweb 边界，旧 9 条恢复 |
+| 最终冻结独立 | 18 pass / 1 fail（19） | 1 | 唯一红为全局 RAF 队列残 1 条，未归属 pending |
+| 同最终 SHA 合跑、不隔离 | 27 pass / 1 fail（28），旧文件 9/9 | 1 | 同一 RAF 断言红，旧 spec 未再被污染 |
+
+最终 spec SHA `aa62d9cf16d8c66c49e7a5a9f126c8c222915fe499de22051b87c8146efb06fd`；独立和合跑 raw/status/inputSHA 一致追溯：[独立](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/28-final-independent/20261005T153621267684.txt)、[合跑](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/29-frozen-minimal-pair/20261005T153739704095.txt)。新确认产品问题 0、新产品风险候选 0；不把 pending 红包装成缺陷，也不把 exit 1 写成全绿。
+
+有效产品边界：真实 Angular + core 的四态、不启动 recording、挂载后 pending seek/initialTime、夹紧与 rrweb +1 偏移、控制/finish 输出、replay/session 输入更新与代际取消、销毁一次及晚 load/restore 不输出。恢复成功/四拒绝/错误及双 pending restore 只是受控转发，不证明真实 working-tree CAS。父子 provider 仅证明分轮加载、同时存活；同轮 loader 漏出真实 rrweb 的中间失败及真实 iframe/浏览器链未核销。最终 RAF Map 拦截全局 requestAnimationFrame，未证明余帧属于 Replay core；该断言红冻结交主控判归属，不删断言、不 skip。
+
+严格 tar consumer 只读：strict=true、skipLibCheck=false、skipDefaultLibCheck=false；15 个 rrdom/rrweb 声明诊断原样保留（TS2663×6、TS1254×6、TS2395×3）。另 TS6059 是 runner rootDir 错设引出的探针错误；spec 双 DOM/WebWorker lib 冲突也不计产品错误。修正 helper 未再执行，最终严格类型/lint/覆盖/真实平台发布验证仍 pending；不继承旧绿、不用 skipLibCheck 掩盖。152 个 consumer 输入 hash 无漂移，未改消费包/工具/他人用例。
+
+真实执行：共享锁下 29 个 Nx 命令＝21 次聚焦测试＋2 次严格类型 probe＋6 次 discovery/help；总 exit 0×9、exit 1×20。Vitest 报告 385 case 执行（含重复/hook 失败）＝247 pass＋138 fail＋0 skip，不能按独特场景或全对象覆盖计。未执行大 build、全套、GUI 或 Git 写操作。

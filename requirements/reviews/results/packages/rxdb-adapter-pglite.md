@@ -148,3 +148,9 @@ C2 与加密生命周期联审：Chromium 的原 PGlite memory adapter/storage/e
 - 全对象源码/配置/全部测试及打包面尚未全部实审；跨宿主/适用三框架的真实用户链路、持久化刷新、发布 consumer 与各 skip 原因尚未闭环。**0 个整对象完成**，不能以局部通过声明发布就绪。
 - 已发送请求：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/validation-requests.json`；已观察结果：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/validation-observed.json`。不再新增探针或第五个候选。主控后续 late probes/全矩阵结果统一追加；本段不预测在途目标成功，也不把未来补证算入核销。
 - 评审结论只限上述证据：有明确问题的局部是 🔴；没有新增问题不代表 🟢。本轮保留 partial，完整评级须原完成条件都满足后再给。
+
+## 2026-10-05 R3：真实空树计数复验
+
+**🟡 已确认P2 [RV-079](../../RV-079-round3-pglite-empty-tree-count.md)。** 对不存在/已删除锚点，真实PGlite仓储countDescendants/countAncestors均返回-1，行查询为空；存在锚点对照各1正确。生成器非根分支count(*)-1无条件减锚点，SQLite同契约已处理空集，仅作源码对照。numeric0/string三端各六公开资源也发布成功的-1，归适配器SQL，不在三个wrapper重复登记。
+
+[最小SQL原日志](../../evidence/2026-10-05/parallel-round3/tree-real/independent-count-anchor/20261005T153041127937.txt) · [本轮判定与tar来源](../../evidence/2026-10-05/parallel-round3/tree-real/settlement.json)。没有修改业务、没有宣布整包已审完/发布就绪。

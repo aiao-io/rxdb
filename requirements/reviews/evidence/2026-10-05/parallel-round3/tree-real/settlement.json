@@ -1,0 +1,62 @@
+{
+  "clientDate": "2026-10-05",
+  "headAtAdjudication": "fe69a25d2b2f0994d7c9e35fe61757e04b7da995",
+  "confirmedIssue": "RV-079",
+  "severity": "P2",
+  "standaloneSqlFixtureExit": 1,
+  "frameworkProbeCounts": {
+    "passed": 1,
+    "failed": 2,
+    "skipped": 0
+  },
+  "failureInterpretation": "Missing/deleted anchor negative count is confirmed in uncached PGlite repository and all six runtime public resource views for numeric/string fixtures.",
+  "wholeObjectOrOriginalCNotAutoClosed": true,
+  "publicationProvenance": {
+    "rxdb": {
+      "version": "0.0.26",
+      "packageManifestSha256": "358675c07f49988c8e56d1ee83fd5ecbcf239ee1b108b69bcb735ceb2ed672fd"
+    },
+    "rxdb-plugin-tree": {
+      "version": "0.0.26",
+      "packageManifestSha256": "b48076e311e200a21a3de86b823598c6e5f2c043abdb9bb82e9b9518eb6ad56e",
+      "buildAndInstalledTarMatch": {
+        "index.js": true,
+        "index.d.ts": true
+      }
+    },
+    "rxdb-adapter-pglite": {
+      "version": "0.0.26",
+      "packageManifestSha256": "ad66f8c52978a2f92f3b824fe9c1cafd1fe6576c181c0102bd930c3ba4f123c9",
+      "buildAndInstalledTarMatch": {
+        "index.js": true,
+        "index.d.ts": true
+      }
+    },
+    "rxdb-plugin-tree-angular": {
+      "version": "0.0.26",
+      "packageManifestSha256": "6eb8c38b2c6fbd0658f5947ffcb994ccd0aca1ebca299029d0a122e0e758b1ef"
+    },
+    "rxdb-plugin-tree-react": {
+      "version": "0.0.26",
+      "packageManifestSha256": "9173b150c18601cf4155c9352bf1749fe2bcf3ff0fd68c22885b6ea2d27a9582"
+    },
+    "rxdb-plugin-tree-vue": {
+      "version": "0.0.26",
+      "packageManifestSha256": "768d2d5e2781eb84414cec7c75507aeb964e15f0be8af93678bc3f98b6d0a347"
+    },
+    "rxdb-angular": {
+      "version": "0.0.27",
+      "packageManifestSha256": "1ec57ebaadfad0288f622aad17805be45e0e77df718452a4c9f412df9ebeafdb"
+    },
+    "rxdb-react": {
+      "version": "0.0.26",
+      "packageManifestSha256": "2248def7bdd11ac2e93cd545ce32c8359ef11f12d098a40ec43402d4a2a6ad91"
+    },
+    "rxdb-vue": {
+      "version": "0.0.26",
+      "packageManifestSha256": "620d7b06e3d6fe870d0b17c4ce77cf290f0cfa213ef46206f0d52a05ad8e3865"
+    }
+  },
+  "productionFilesEdited": false,
+  "strictProbeTypesNotClaimedGreen": true
+}

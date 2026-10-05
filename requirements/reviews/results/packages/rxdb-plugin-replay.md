@@ -93,3 +93,24 @@ C1 按现有包级契约/上述不适用边界核销；C2 配额与全录制库�
 仅改本对象计划/执行记录，以及本组 evidence；没有修改业务、依赖或已有测试，没有 Git 暂存/提交/重置，没有嵌套 agent。新增独立 probes 只在 search/replay/storage 自己的 sourceRoot，后续执行均归主控。
 
 最小请求保存在 `requirements/reviews/evidence/2026-10-05/parallel/plugins/validation-requests.json`；候选在同目录 `findings.pending.md`。RV-060/061 不重复登记；RV-059 是其它对象公开接缝，不在本组扩 scope。
+
+
+## 2026-10-05：R3-06 有界补证结算（源码审阅 / 意见已交付）
+
+**本专项源码审阅及归属意见已完成，不将专题验证 / 发布门禁未全量执行算作“评审没做”。** 主控编号 R3-06；[归属证据与最小调用序列](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/README.md)、[执行 / 指纹账本](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/execution-ledger.json)、[主控结算](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/closure.json)。
+
+- 保存旧源码与 SHA（`ad5d98db3470`）后，旧 probe fresh 复现 1 pass / 1 fail，仍在 title 断言红；最后那条红不是非法 disconnect / 嵌套事务造成。历史红日志未覆盖。
+- 合法序列：普通 save/commit 至 clean（公开调用在 adapter.transaction 外）→ Replay 现取 status 后 restore → 读 diff/session → dirty 拒绝 → fresh credentials discard 退场。真实 PGlite 同库正向对照为直接 WorkingTree restore；反向为 dirty / unreachable / disconnectAll 后 not_installed。
+- **Replay core 候选不成立**：恢复出的公开 diff 与目标 ChangeSet 的实体身份、操作、patch（title=first）、inversePatch、origin 完整相等；raw SQL / adapter repository 投影仍为 changed，直接门面也相同。HEAD、分支、历史不动；active 会话与 revision 完整；discard 清空条目 / 会话、回到 clean。旧 title 断言混了投影层与工作树内容层，不能据此登记 Replay 产品缺陷。
+- **不伪造全局假红结论**：not-checkout 不等于所有业务字段不得变。WorkingTree 的查询可见泛化描述与 restore 的业务投影自动物化责任仍 **pending**；若主控要求更强用户投影契约，应另立该专题。本次不新增确认产品问题 / RV 编号，不继续多后端或回放矩阵。
+- 有效执行 **6 条 Nx**：3 条聚焦真 PGlite（6 次用例执行：5 pass / 1 基线 fail / 0 skip），1 条聚焦 lint 0 警告，2 条 strict（原夹具把 UUID 拓宽为 string 的红保留；只收窄 `ConformanceNote['id']` 后通过）。绿对照两次都是 2 passed；最后类型修订与绿版本 emitted JS 完全一致。当前 probe SHA `a7fc95c42a69`。不是全包/发布门禁。
+- test target 先解析；所有真实执行走指定共享锁、单 worker、CI=true / NX_DAEMON=false、skipRemoteCache / skipNxCache，并 excludeTaskDependencies / skipSync，无依赖 build、全量 test 或 GUI。每次 582 项输入，锁内无漂移；旧源码/红日志与实际调用日志齐全。共享 HEAD/index 外部推进单独入账，本线程未执行 Git 暂存/提交/重置。
+
+### R3-06 C 核销口径
+
+| 项目 | 源码审阅 / 意见交付 | 本次专题核销与未覆盖边界 |
+| --- | --- | --- |
+| C4 restore 子面 | **已交付**：Replay 委托、WorkingTree 状态/记录、PGlite executor 复用合同及投影层归属已读 | **子面已核销**：合法最小调用、真实目标→diff、HEAD/历史保持、dirty/unreachable、断连拒绝与可执行 discard 退场；原完整 C4 仍 partial，CAS 竞争 / 不兼容 / 中断重试 / resume 未代验。 |
+| C1 / C2 / C3 / C5 | 原已交付意见保留 | C1 原限定闭合保持，其余原状态不变；完整原 C 新闭合数 **+0**，不改变完整对象或发布评级。 |
+
+改动限原评审新增 probe 的夹具/观测合同与 UUID 返回类型、独占 evidence、本结算追加段。普通原 tests、业务、依赖及 index 均未由本线程修改。停止后续扩展。

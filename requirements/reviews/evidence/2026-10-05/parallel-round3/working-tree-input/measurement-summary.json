@@ -1,0 +1,458 @@
+{
+  "task": "R3-04",
+  "frozenAt": "2026-10-05T15:41:19.770613+08:00",
+  "axes": {
+    "source-review": "complete",
+    "assessment-delivery": "complete",
+    "scenario-validation": "partial",
+    "execution": "partial"
+  },
+  "sourceReviewBasis": "继承 R2 原 scope 15/15 正文阅读和 5/5 逐 C 意见交付，不宣称本轮重读全部对象",
+  "fullCClosed": 0,
+  "originalCCount": 5,
+  "releaseReady": false,
+  "actualR2Probe": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/__tests__/review-round2-lifecycle.spec.ts",
+  "requestedOwnerComponentFilenameExists": false,
+  "R2PreservedSha256": "051cf96152675639982e5df911ec5872f30426e1b19d18f26aa41e6e4c9b72d0",
+  "R3ProbeSha256": "0080a508628820624be01c08395e1ae09abb61363e81c1bb21d2a2e721f035b8",
+  "baselineTests": {
+    "passed": 11,
+    "failed": 1,
+    "total": 12,
+    "failure": "NG0303 后 branch DOM main != feature",
+    "statusFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r2-baseline-20261005-a/20261005T151214635767.status.json"
+  },
+  "finalTests": {
+    "passed": 8,
+    "failed": 0,
+    "skipped": 0,
+    "runtimeAssertions": 67,
+    "assertionsByTest": [
+      {
+        "currentTestName": "R3-04 required signal 输入与真实父模板归属 > '纯 Angular 组件' 未经 Angular 输入变换时复现 NG0303 与旧 DOM",
+        "assertionCalls": 7
+      },
+      {
+        "currentTestName": "R3-04 required signal 输入与真实父模板归属 > '真实 useWorkingTree 组件' 未经 Angular 输入变换时复现 NG0303 与旧 DOM",
+        "assertionCalls": 7
+      },
+      {
+        "currentTestName": "R3-04 required signal 输入与真实父模板归属 > 真实编译的 required 输入未绑定时抛 NG0950，不伪造默认分支",
+        "assertionCalls": 4
+      },
+      {
+        "currentTestName": "R3-04 required signal 输入与真实父模板归属 > 输入元数据真实编译后，同一个 setInput API 能更新 signal 与 OnPush DOM",
+        "assertionCalls": 6
+      },
+      {
+        "currentTestName": "R3-04 required signal 输入与真实父模板归属 > 父模板首帧绑定 required signal，真实 provider 与 hook 创建都不发 IO",
+        "assertionCalls": 11
+      },
+      {
+        "currentTestName": "R3-04 required signal 输入与真实父模板归属 > 父 signal 来回更新真实输入和 DOM，不切库、不切分支、不重算旧 diff",
+        "assertionCalls": 11
+      },
+      {
+        "currentTestName": "R3-04 required signal 输入与真实父模板归属 > 真实模板点击把当前 required 输入送给命令，pending 与成功后的 status 自动刷新 DOM",
+        "assertionCalls": 12
+      },
+      {
+        "currentTestName": "R3-04 required signal 输入与真实父模板归属 > 真实事件中的拒绝仍归调用方，错误 signal 刷新 DOM 且不假装已切分支",
+        "assertionCalls": 9
+      }
+    ],
+    "statusFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r3-focused-20261005-c/20261005T153427292364.status.json",
+    "resultsFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r3-vitest-results-final.json"
+  },
+  "strictTemplateMatrix": {
+    "positive": 0,
+    "missingRequiredInput": {
+      "exit": 1,
+      "diagnostic": "NG8008"
+    },
+    "wrongInputType": {
+      "exit": 1,
+      "diagnostic": "TS2322"
+    },
+    "skipLibCheck": false,
+    "strictTemplates": true
+  },
+  "measurementCount": 14,
+  "measurements": [
+    {
+      "clientDate": "2026-10-05",
+      "startedAt": "2026-10-05T15:28:41.570616+08:00",
+      "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "command": [
+        "pnpm",
+        "nx",
+        "run",
+        "rxdb-plugin-working-tree-angular:lint",
+        "--command=eslint src/__tests__/review-round3-input-component.spec.ts --max-warnings=0",
+        "--parallel=1",
+        "--excludeTaskDependencies",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static"
+      ],
+      "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+      "exitCode": 1,
+      "elapsedSeconds": 3.494,
+      "scopedInputCount": 204,
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/lint-probe-20261005-a/20261005T152841504739.txt",
+      "statusFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/lint-probe-20261005-a/20261005T152841504739.status.json"
+    },
+    {
+      "clientDate": "2026-10-05",
+      "startedAt": "2026-10-05T15:34:20.204050+08:00",
+      "headAtStart": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "headAtFinish": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "command": [
+        "pnpm",
+        "nx",
+        "run",
+        "rxdb-plugin-working-tree-angular:lint",
+        "--command=eslint src/__tests__/review-round3-input-component.spec.ts --max-warnings=0",
+        "--parallel=1",
+        "--excludeTaskDependencies",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static"
+      ],
+      "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+      "exitCode": 0,
+      "elapsedSeconds": 7.038,
+      "scopedInputCount": 205,
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/lint-probe-20261005-b/20261005T153420143454.txt",
+      "statusFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/lint-probe-20261005-b/20261005T153420143454.status.json"
+    },
+    {
+      "clientDate": "2026-10-05",
+      "startedAt": "2026-10-05T15:25:57.629148+08:00",
+      "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "command": [
+        "pnpm",
+        "exec",
+        "ngc",
+        "-p",
+        "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsconfig.fixture-missing-required-input.json"
+      ],
+      "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+      "exitCode": 1,
+      "elapsedSeconds": 5.321,
+      "scopedInputCount": 204,
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/ngc-missing-required-input-20261005-c/20261005T152557575462.txt",
+      "statusFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/ngc-missing-required-input-20261005-c/20261005T152557575462.status.json"
+    },
+    {
+      "clientDate": "2026-10-05",
+      "startedAt": "2026-10-05T15:17:53.570848+08:00",
+      "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "command": [
+        "pnpm",
+        "exec",
+        "ngc",
+        "-p",
+        "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsconfig.fixture-positive.json"
+      ],
+      "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+      "exitCode": 0,
+      "elapsedSeconds": 4.718,
+      "scopedInputCount": 204,
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/ngc-positive-20261005-a/20261005T151753509771.txt",
+      "statusFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/ngc-positive-20261005-a/20261005T151753509771.status.json"
+    },
+    {
+      "clientDate": "2026-10-05",
+      "startedAt": "2026-10-05T15:23:22.243815+08:00",
+      "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "command": [
+        "pnpm",
+        "exec",
+        "ngc",
+        "-p",
+        "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsconfig.fixture-positive.json"
+      ],
+      "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+      "exitCode": 0,
+      "elapsedSeconds": 4.12,
+      "scopedInputCount": 204,
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/ngc-positive-20261005-b/20261005T152322206105.txt",
+      "statusFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/ngc-positive-20261005-b/20261005T152322206105.status.json"
+    },
+    {
+      "clientDate": "2026-10-05",
+      "startedAt": "2026-10-05T15:25:47.391404+08:00",
+      "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "command": [
+        "pnpm",
+        "exec",
+        "ngc",
+        "-p",
+        "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsconfig.fixture-positive.json"
+      ],
+      "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+      "exitCode": 0,
+      "elapsedSeconds": 4.723,
+      "scopedInputCount": 204,
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/ngc-positive-20261005-c/20261005T152547351452.txt",
+      "statusFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/ngc-positive-20261005-c/20261005T152547351452.status.json"
+    },
+    {
+      "clientDate": "2026-10-05",
+      "startedAt": "2026-10-05T15:26:15.911101+08:00",
+      "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "command": [
+        "pnpm",
+        "exec",
+        "ngc",
+        "-p",
+        "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsconfig.fixture-wrong-input-type.json"
+      ],
+      "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+      "exitCode": 1,
+      "elapsedSeconds": 4.087,
+      "scopedInputCount": 204,
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/ngc-wrong-input-type-20261005-c/20261005T152615872914.txt",
+      "statusFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/ngc-wrong-input-type-20261005-c/20261005T152615872914.status.json"
+    },
+    {
+      "clientDate": "2026-10-05",
+      "startedAt": "2026-10-05T15:12:14.688651+08:00",
+      "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "command": [
+        "pnpm",
+        "nx",
+        "run",
+        "rxdb-plugin-working-tree-angular:test",
+        "review-round2-lifecycle",
+        "--run",
+        "--maxWorkers=1",
+        "--coverage.enabled=false",
+        "--parallel=1",
+        "--excludeTaskDependencies",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static"
+      ],
+      "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+      "exitCode": 1,
+      "elapsedSeconds": 4.165,
+      "scopedInputCount": 204,
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r2-baseline-20261005-a/20261005T151214635767.txt",
+      "statusFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r2-baseline-20261005-a/20261005T151214635767.status.json"
+    },
+    {
+      "clientDate": "2026-10-05",
+      "startedAt": "2026-10-05T15:20:04.422096+08:00",
+      "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "command": [
+        "pnpm",
+        "nx",
+        "run",
+        "rxdb-plugin-working-tree-angular:test",
+        "review-round3-input-component",
+        "--run",
+        "--maxWorkers=1",
+        "--coverage.enabled=false",
+        "--parallel=1",
+        "--excludeTaskDependencies",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static"
+      ],
+      "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+      "exitCode": 1,
+      "elapsedSeconds": 6.053,
+      "scopedInputCount": 204,
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r3-focused-20261005-a/20261005T152004340535.txt",
+      "statusFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r3-focused-20261005-a/20261005T152004340535.status.json"
+    },
+    {
+      "clientDate": "2026-10-05",
+      "startedAt": "2026-10-05T15:28:49.826161+08:00",
+      "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "command": [
+        "pnpm",
+        "nx",
+        "run",
+        "rxdb-plugin-working-tree-angular:test",
+        "review-round3-input-component",
+        "--run",
+        "--maxWorkers=1",
+        "--coverage.enabled=false",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r3-vitest-results.json",
+        "--parallel=1",
+        "--excludeTaskDependencies",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static"
+      ],
+      "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+      "exitCode": 0,
+      "elapsedSeconds": 4.46,
+      "scopedInputCount": 204,
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r3-focused-20261005-b/20261005T152849749970.txt",
+      "statusFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r3-focused-20261005-b/20261005T152849749970.status.json"
+    },
+    {
+      "clientDate": "2026-10-05",
+      "startedAt": "2026-10-05T15:34:27.331781+08:00",
+      "headAtStart": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "headAtFinish": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "command": [
+        "pnpm",
+        "nx",
+        "run",
+        "rxdb-plugin-working-tree-angular:test",
+        "review-round3-input-component",
+        "--run",
+        "--maxWorkers=1",
+        "--coverage.enabled=false",
+        "--reporter=default",
+        "--reporter=json",
+        "--outputFile=/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r3-vitest-results-final.json",
+        "--parallel=1",
+        "--excludeTaskDependencies",
+        "--skipRemoteCache",
+        "--skipNxCache",
+        "--output-style=static"
+      ],
+      "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+      "exitCode": 0,
+      "elapsedSeconds": 9.207,
+      "scopedInputCount": 205,
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r3-focused-20261005-c/20261005T153427292364.txt",
+      "statusFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r3-focused-20261005-c/20261005T153427292364.status.json"
+    },
+    {
+      "clientDate": "2026-10-05",
+      "startedAt": "2026-10-05T15:26:20.085260+08:00",
+      "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsconfig.probe-strict.json"
+      ],
+      "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+      "exitCode": 0,
+      "elapsedSeconds": 3.519,
+      "scopedInputCount": 204,
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsc-probe-strict-20261005-a/20261005T152620048332.txt",
+      "statusFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsc-probe-strict-20261005-a/20261005T152620048332.status.json"
+    },
+    {
+      "clientDate": "2026-10-05",
+      "startedAt": "2026-10-05T15:28:29.275420+08:00",
+      "headAtStart": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "headAtFinish": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsconfig.probe-strict.json"
+      ],
+      "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+      "exitCode": 0,
+      "elapsedSeconds": 7.14,
+      "scopedInputCount": 204,
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsc-probe-strict-20261005-b/20261005T152829157588.txt",
+      "statusFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsc-probe-strict-20261005-b/20261005T152829157588.status.json"
+    },
+    {
+      "clientDate": "2026-10-05",
+      "startedAt": "2026-10-05T15:34:09.917380+08:00",
+      "headAtStart": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "headAtFinish": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+      "command": [
+        "pnpm",
+        "exec",
+        "tsc",
+        "-p",
+        "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsconfig.probe-strict.json"
+      ],
+      "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+      "exitCode": 0,
+      "elapsedSeconds": 10.134,
+      "scopedInputCount": 205,
+      "changedInputsDuringMeasurement": [],
+      "serialHeavyTaskLock": true,
+      "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsc-probe-strict-20261005-c/20261005T153409717710.txt",
+      "statusFile": "requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/tsc-probe-strict-20261005-c/20261005T153409717710.status.json"
+    }
+  ],
+  "sourceHashDrift": {
+    "perMeasurementTrackedInputs": 0,
+    "supplementalFinalInputCount": 610,
+    "supplementalFinalInputsAndCompiledOutputsDrift": 0,
+    "sharedBaselineToFinalTrackedInputsChanged": [],
+    "addedTrackedPaths": [
+      "packages/rxdb-plugin-working-tree-angular/src/__tests__/review-round3-input-component.spec.ts"
+    ],
+    "headAtOriginalBaseline": "76a3848e2086f4617b80f7b1a1b896ef76e5719c",
+    "headAtFinalTest": "72d3bde0303f819b2c88e7fe18130fa231806f1b",
+    "headChangeBetweenBatches": true,
+    "indexStableDuringFinalMeasurements": true,
+    "wholeIndexAtStart": "481630184878db8c7dd8e169a9f515def2ae774a74903c301f5043151c809ccd",
+    "wholeIndexNow": "f3bdd193ea4f779ea0d9a52878e773b8c42ed9d17803374a1865b6a2538e1862",
+    "gitWriteCommandsExecutedByThisTask": false
+  },
+  "disposition": {
+    "attribution": "R2 输入 DOM 失败归未经过 Angular signal-input 元数据变换的 JIT probe；纯 Angular 对照同失败，真实 ngc 输入 + 原 setInput API 和父模板成功",
+    "C4": "仅 required 输入注册、父 signal 绑定、OnPush 状态 DOM 子面建议核销；完整 C4 不核销",
+    "C5": "仅源 fixture strict 输入模板正反、probe strict 类型子面建议核销；完整 C5 不核销",
+    "C1-C3": "不新增完整核销"
+  },
+  "notExecuted": [
+    "真实连接数据库、创建/切换分支与 activation/head/workingTreeRevision 链路",
+    "真实 CAS/dirty/unreachable 数据安全与写入回滚",
+    "浏览器/route/真实应用挂卸矩阵",
+    "发布根 tar consumer 和原 README 全模板复验",
+    "完整包全部测试、覆盖率、全量 build"
+  ],
+  "intermediateFailuresPreserved": [
+    "R3 a：compiled fixture 位于 evidence，不在消费包导入上下文，收集失败，0 个测试执行；未称产品故障",
+    "R3 lint a：静态跨项目 asset 导入产生 1 warning；最终改用有真实生成声明类型的 vi.importActual 加载资产，未关规则/改依赖/改生产 index"
+  ]
+}

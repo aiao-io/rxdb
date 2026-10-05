@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-05",
+  "writeRoots": [
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/angular-templates"
+  ],
+  "onlyExistingFilesAppended": {
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-tree-angular.md": {
+      "bytesBefore": 39031,
+      "bytesAfter": 43044,
+      "sha256Before": "7d9f33fb395c78068fdfe7ddaf1cdd6201cf4ef657854d9f8f3e4c0783052901",
+      "sha256After": "f30bbb651d9c7a7c65f6e4af47c74341f826a62ee8112e39b5459fc41cd3fb14",
+      "appendixSha256": "6c6aba56ad043724ec3dfbdc36b6856107f42f9eb5a4d04cc0d3beceff2b6d4a",
+      "allCurrentPreexistingBytesPreserved": true,
+      "initialReadPrefixStillMatches": true
+    },
+    "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-search-angular.md": {
+      "bytesBefore": 28957,
+      "bytesAfter": 32966,
+      "sha256Before": "0366be3b5f34e647eb553dc7e85825d672031760b708963b180ae6db4efbcff9",
+      "sha256After": "c5ed7d4fdc91aa7a9ea0534a868211d14ac9fda07317728623ef9c4df75336a0",
+      "appendixSha256": "027ee6415ce039163d7a007425e479ef703bfdcb9e53da24f51d563f3c848ba4",
+      "allCurrentPreexistingBytesPreserved": true,
+      "initialReadPrefixStillMatches": true
+    }
+  },
+  "businessOriginalTestsR2ProbesManifestLockDepsIndexNotEditedByThisAgent": true,
+  "optionalTreeSpecCreated": false,
+  "noGitWriteCommands": true,
+  "readOnlyConsumerVirtualDirectoryNotCreated": true,
+  "generatedNxDiscoveryCachesRemovedOnlyWithinOwnEvidence": true
+}

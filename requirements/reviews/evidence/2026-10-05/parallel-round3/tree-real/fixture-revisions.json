@@ -29,5 +29,13 @@
       "Register all scope teardown immediately after mounting; failures still clean scopes.",
       "Log all six public resource snapshots and uncached adapter repository full SQL on failure; expectations remain unchanged."
     ]
+  },
+  "v5": {
+    "sha256": "d12720c34d377b6ba3d2c23c2ef62f0be44cbbf21e90d48c19579123ceea56d4",
+    "changes": [
+      "Declare entity static type axis in audit fixture rather than infer it from decorators.",
+      "Preserve metadata names as literal-capitalized strings and use the actual SyncOptions discriminated union; QueryCache remote declaration explicit."
+    ],
+    "remainingTypeEnvironmentIssue": "Pinned PGlite d.ts refers to undeclared Emscripten/FS ambient types. No @types/emscripten installed, no skipLibCheck or hand-written fake globals."
   }
 }

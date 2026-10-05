@@ -260,7 +260,7 @@ NX_DAEMON=false pnpm nx graph --print
 
 ## 7. 全计划完成条件
 
-- [ ] 50 个有效包、22 个应用和 1 个残留对象都有独立文档并与当前 inventory 一一对应，未遗漏 E2E/server/extension。
+- [x] 50 个有效包、22 个应用和 1 个残留对象都有独立文档并与当前 inventory 一一对应；2026-10-05 resolved graph 72个有效对象与73计划/结果无漏项（另1残留无Nx节点）。
 - [ ] 每对象全部受控文件及 C 项都有证据结论，未验证/不适用有理由与补证/范围说明。
 - [ ] 三框架、SQLite 多宿主、HTTP/Supabase、DevTools 与 storage 等跨对象链路已双向核对。
 - [ ] 动态任务、隔离副作用、skip、失败/串行复跑、当轮覆盖率和发布产物来源可追踪，没有缓存/mocks/旧 dist 假绿。

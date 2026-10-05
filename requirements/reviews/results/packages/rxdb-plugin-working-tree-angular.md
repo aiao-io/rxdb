@@ -4,6 +4,9 @@ object: rxdb-plugin-working-tree-angular
 created: 2026-10-03
 baseline: 3b3e449e10c6a587056a2ae947eddfd161834f97
 execution: partial
+scenario-validation: partial
+assessment-delivery: complete
+source-review: complete
 ---
 
 # rxdb-plugin-working-tree-angular：实际评审执行记录
@@ -217,3 +220,27 @@ Angular：working-tree status/diff/commit/discard/restore 的框架状态与动�
 消费环境：在工作区外安装真实发布根tar；NodeNext/strict/skipLibCheck=false，显式Node＋@types/ms对照，裸上游声明缺口保留。原工作区搜索三个包曾解析registry core0.0.25，和当前0.0.26 API不一致，主控独立全0.0.26 tar消费区分环境/产品/夹具；不通过源路径alias或手工软链“修”解析。第三方rrweb/rrdom声明、Vue NodeNext声明/模板、required输入和播放器边界尚未全部核销。
 
 主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。
+
+## 2026-10-05 R3-04：required input / OnPush 夹具归属（冻结）
+
+**三轴不混账：source-review complete、assessment-delivery complete；scenario-validation partial；execution partial（旧全验证口径）。** R2 原 scope 15/15 全文阅读、5/5 逐 C 意见/风险交付保留完成，不误计为“没做评审”。原最低场景整项闭合仍 **0/5**，releaseReady=false；不计入完整对象完成。主控完整账仍仅 desktop 残留 1/73，其余 72 有效对象未整包闭合。
+
+### 红/绿因果与真实断言
+
+- `ls` 确认实际 R2 新增文件为 `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/__tests__/review-round2-lifecycle.spec.ts`；没有 owner-component 文件。原 R2 文件、旧失败、source snapshot 都保留未改。按共享锁聚焦复跑仍 12 例、11 pass/1 fail：先 NG0303，后 branchText main ≠ feature。
+- 真实 API `useWorkingTree()` 无输入；branchId 是消费组件 UI input。两个未做 Angular 输入变换的 JIT 反例（纯 Angular / 真实 hook）同样 inputs=[]、NG0303、DOM main，证明不需要产品 hook 就能重现旧红。
+- 正例由真实 ngc 编译 `input.required<string>()` + standalone/OnPush + 父模板 `[branchId]="branchId()"`，没有手填 signal 元数据。保留原 setInput API 后 DOM 可到 feature；父 signal 来回变化自动更新子 input/DOM，且不切库/切分支或改旧 diff。真实模板按钮透传当前输入，pending/成功后的 status 和拒绝错误自动刷新 DOM。
+- 新 probe `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/__tests__/review-round3-input-component.spec.ts` 最终 **8/8、0 fail/skip，67 次运行时断言**（7+7+4+6+11+11+12+9）。strict tsc 通过；聚焦 Nx lint 零警告；strictTemplates 正例 exit 0，缺 required 输入负例 NG8008、number→string 负例 TS2322。失败的早期 asset 收集（0 tests）与 lint 警告原记录/源快照仍保留，没有改期望或关规则。
+
+**归属结论：旧 branchText 失败属于未注册 signal-input 元数据的 JIT probe；本次不确认产品 DOM 故障，也不宣称全产品正确。** provider/hook/core command 为真实源码；两个测试 token 转交真实函数并断言同一引用；DB、workingTree/versionManager 仍为原共享 facade stubs。真实 DB/branch/revision/CAS 数据正确性未执行，明确不核销。
+
+### 指纹与核销建议
+
+所有实际测试/编译/lint 均走指定 shared-lock 三 scope；Nx 禁本地/远程缓存、单 worker、排除 ^build。各次测量内漂移 0；最终额外 610 个源/配置/声明输入及两个编译资产前后 hash 不变。共享 HEAD 批次间 `76a3848e2086f4617b80f7b1a1b896ef76e5719c` → `72d3bde0303f819b2c88e7fe18130fa231806f1b`，共有 204 个受控输入不变，新增受控路径仅 R3 probe（204→205）；本任务无暂存/提交操作，外部共享提交已在证据中单独记录。
+
+- R2 SHA-256 `051cf96152675639982e5df911ec5872f30426e1b19d18f26aa41e6e4c9b72d0`；R3 SHA-256 `0080a508628820624be01c08395e1ae09abb61363e81c1bb21d2a2e721f035b8`。
+- C4 仅建议核销 required input / 父模板 / OnPush 状态通知子面；完整生命周期、cleanup、真实 route 未闭合。
+- C5 仅建议核销本次源 fixture 的严格输入模板正反及 probe 类型子面；发布 consumer、README 全模板、事件负例、真实 browser/route 未重验。
+- C1-C3 不新增整项核销；不扩浏览器 route、服务或全量 build 矩阵，不把 facade stub 结果当数据安全。
+
+冻结证据：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/README.md`；全部命令/红绿/逐例断言：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/measurement-summary.json`；最终机器报告：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/working-tree-input/r3-vitest-results-final.json`。官方规范抓取与工具失败/精确版本边界均在本目录 official 中如实登记。

@@ -1,0 +1,26 @@
+{
+  "notes": {
+    "06-baseline-original-only": "既有组件文件 9/9；历史旧套 10/10 还含 release-config，本次没有把该用例计入单文件。",
+    "07-baseline-r2-only": "原 R2 rrweb mock 未命中：11 fail、3 pass、21 个未处理错误，不能登记产品 bug。",
+    "08-baseline-pair-no-isolate": "不隔离合跑旧文件也红；其 parity 输入不是完整 ReplayManager，真实 core 被组件缓存带入旧 spy 测试。",
+    "09-bridge-only-r2": "仅将入口转发真实 core 源码仍 11 fail；证明只有源入口转发不够。",
+    "11-canonical-rrweb-r2": "rrweb 改用核心依赖可解析路径后单组件断言命中；父子同轮 load 仍一个真实 rrweb 漏出。",
+    "12-canonical-rrweb-pair-no-isolate": "旧文件仍 9 fail；core/source 转发本身不能清除既有组件模块绑定。",
+    "13-cache-host-r2": "全局 resetModules 打破 Angular 已初始化环境，ngModule null；本夹具失败，不是产品失败。",
+    "15-owned-environment-r2": "重新初始化环境而未销毁 platform 引出 NG0400；中间夹具失效。",
+    "18-owned-platform-pair-no-isolate": "旧 9 条恢复通过；父子同轮 loader 仍漏出一个真实 rrweb。",
+    "24-dual-rrweb-r2": "补裸 rrweb mock 仍不能证明同轮动态装载；并发 loader mock 因果细节 pending，不归属产品。",
+    "25-serial-host-r2": "分轮加载、两实例同时存活 15/15；全局 cache reset 路线另有 NG0912 runtime warning，未用于最终方案。",
+    "26-fresh-query-r2": "真实组件用独立模块键，保留共享 TestBed/平台；15/15，无未处理错误/NG0912。",
+    "27-fresh-query-pair-no-isolate": "相同中间 SHA 下单 worker/isolate=false 合跑 24/24，旧 9 条恢复；缓存污染因果闭合。",
+    "28-final-independent": "最终冻结 SHA：18 pass/1 fail；唯一红在 RAF 测试末尾全局 frames.size=1，归属 pending。",
+    "29-frozen-minimal-pair": "同最终 SHA 合跑：27 pass/1 fail；旧文件 9/9，唯一红与独立相同，未再次污染旧用例。"
+  },
+  "minimumEffectiveBoundary": {
+    "component": "原生产组件字节不改，用 vi.importActual 的 ?review-r3-real-core 独立模块键避免旧 mock 组件缓存；不 reset 全局 Angular 模块/平台",
+    "core": "仅包入口转发真实 src/replayer/mount-replayer.ts 和 restore.ts 的原函数，guard 检查函数恒等及非 mock",
+    "rrweb": "核心自身 node_modules/rrweb/dist/rrweb.js 的可解析身份受控；构造参数/metadata/play/pause/getCurrentTime/destroy/finish 为局部契约；不假装完整 rrweb",
+    "manager": "类型完整 ReplayManager，只控制 readEvents/listCommitMarkers/restoreToCommit 等返回值",
+    "providerBoundary": "父子分轮加载且同时存活；不能核销同轮动态装载或真实 iframe"
+  }
+}
