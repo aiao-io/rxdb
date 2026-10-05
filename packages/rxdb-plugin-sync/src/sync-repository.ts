@@ -89,6 +89,7 @@ function emptyPushResult(namespace: string, entity: string): PushRepositoryResul
   return {
     repository: { namespace, entity },
     pushed: 0,
+    rejected: 0,
     failed: 0,
     compacted: 0,
     originalCount: 0,

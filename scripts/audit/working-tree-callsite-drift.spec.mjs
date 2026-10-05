@@ -79,11 +79,11 @@ const writeSourceFile = async (root, relPath, source) => {
 // 登记表的词法解析
 // ---------------------------------------------------------------------------
 
-test('parseRegistry 从真实源码解析出 11 行登记与 7 个意图', async () => {
+test('parseRegistry 从真实源码解析出 12 行登记与 7 个意图', async () => {
   const { intents, rows } = parseRegistry(await readFile(join(PACKAGES_ROOT, REGISTRY_SOURCE_FILE), 'utf8'));
-  assert.equal(rows.length, 11);
+  assert.equal(rows.length, 12);
   assert.equal(intents.length, 7);
-  assert.equal(new Set(rows.map(registryKeyOf)).size, 11, '11 行必须是 11 个不同的登记键');
+  assert.equal(new Set(rows.map(registryKeyOf)).size, 12, '12 行必须是 12 个不同的登记键');
   assert.ok(
     rows.every(row => Number.isInteger(row.verifiedAtLine) && row.verifiedAtLine > 0),
     '每一行都要解析出存档行号——解析不到就退化成「没有行号所以没有漂移」'
@@ -703,7 +703,7 @@ test('collectSourceFiles 按同一套规则过滤真实目录树', async () => {
 // 真实仓库
 // ---------------------------------------------------------------------------
 
-test('真实仓库当前没有漂移，11 行登记全部找得到', async () => {
+test('真实仓库当前没有漂移，12 行登记全部找得到', async () => {
   const result = await auditRepository({ packagesRoot: PACKAGES_ROOT });
   assert.deepEqual(result.offenders, [], result.offenders.join('\n'));
   assert.equal(result.seenKeys.size, result.registry.rows.length);

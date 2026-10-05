@@ -189,14 +189,14 @@
 
 ### Tests（先红）
 
-- [X] T020 [P] 在 `packages/rxdb/src/__tests__/system/migration.spec.ts` 把
+- [x] T020 [P] 在 `packages/rxdb/src/__tests__/system/migration.spec.ts` 把
       `expect(RXDB_SYSTEM_SCHEMA_VERSION).toBe(6)` 改为 `7`；在 `packages/rxdb-adapter-sqlite-core/src/__tests__/system-schema-migration.spec.ts` 与
       `packages/rxdb-adapter-pglite/src/__tests__/system-schema-migration.spec.ts` 各加：模式 6 的库升级后 `RxDBChange` 多出 `rejectedAt`、`rejection`
       两列，可空，旧行两列均为空；重复执行迁移不报错（FR-021）。确认红
-- [X] T021 [P] 在 `packages/rxdb-adapter-supabase/src/__tests__/errors.spec.ts` 与 `transient-write-retry.spec.ts` 加断言：PostgREST 错误体
+- [x] T021 [P] 在 `packages/rxdb-adapter-supabase/src/__tests__/errors.spec.ts` 与 `transient-write-retry.spec.ts` 加断言：PostgREST 错误体
       `{code, message, details, hint}` 经 `executeRetryableWrite` / `classify_postgrest_error` 后，抛出的 `SupabaseDataError` 带只读 `code`、`details`；
       网络错误与 5xx 仍按既有重试语义处理、不变成 `SupabaseDataError`（FR-016、AC#13）。确认红
-- [X] T022 [P] 在推送仓库测试加覆盖检查用例（FR-017、AC#14，[remote-merge-result §2](contracts/remote-merge-result.md)）：远端结果对本批 `sourceChanges`
+- [x] T022 [P] 在推送仓库测试加覆盖检查用例（FR-017、AC#14，[remote-merge-result §2](contracts/remote-merge-result.md)）：远端结果对本批 `sourceChanges`
       缺项 / 重复 / 多出未知 `localId` 各一例 → 本轮抛错、`lastPushedChangeId` 不动、本地无任何 `remoteId` 写入；把既有用例
       「远端返回非映射结果时仍推进水位线，但不保存本地变更」改写为「回执缺项时整轮失败、水位线不动」；再加一例：一批含已抵消的
       INSERT→DELETE 对与一条正常 UPDATE，远端只回那条 UPDATE 的结果 → 覆盖检查通过、水位线越过整批（抵消的变更不在 `sourceChanges`）；
@@ -204,29 +204,29 @@
 
 ### Implementation
 
-- [X] T023 在 `packages/rxdb/src/system/change.ts` 的 `RxDBChange` 加两列，带 TSDoc：`rejectedAt`——「时间戳，可空」，默认 `null`；
+- [x] T023 在 `packages/rxdb/src/system/change.ts` 的 `RxDBChange` 加两列，带 TSDoc：`rejectedAt`——「时间戳，可空」，默认 `null`；
       `rejection`——「JSON，可空（RemoteChangeRejection）」，默认 `null`；与 `remoteId` 互斥（同一行最多其一非空，data-model §5）
-- [X] T024 系统模式迁移：`packages/rxdb/src/system/migration.ts` 的 `RXDB_SYSTEM_SCHEMA_VERSION` 6 → 7；
+- [x] T024 系统模式迁移：`packages/rxdb/src/system/migration.ts` 的 `RXDB_SYSTEM_SCHEMA_VERSION` 6 → 7；
       `packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts` 的 `migrateSystemSchema` 照 `ensureBranchActiveKey` 的写法
       （`pragma_table_info` 判存在 + `ALTER TABLE ADD COLUMN`）补两列；`packages/rxdb-adapter-pglite/src/system/migrate_system_schema.ts` 同样补齐
       （`ADD COLUMN IF NOT EXISTS`）。T020 转绿
-- [X] T025 在 `packages/rxdb/src/rxdb-adapter.ts` 按 [remote-merge-result §1](contracts/remote-merge-result.md) 定义并导出 `RemoteMergeResult`、
+- [x] T025 在 `packages/rxdb/src/rxdb-adapter.ts` 按 [remote-merge-result §1](contracts/remote-merge-result.md) 定义并导出 `RemoteMergeResult`、
       `RemoteChangeResult`、`RemoteChangeRejection`、`RemoteEntityRef`（TSDoc 照契约），删除 `changeIdMapping`；文件中两处 `abstract mergeChanges`
       的返回类型都改为 `Promise<RemoteMergeResult>`；不传 `changes` 时约定 `results` 为空数组。确认 `packages/rxdb/src/index.ts` 导出新类型
-- [X] T026 [P] `packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts` 的 `mergeChanges` 只把返回类型改为 `Promise<RemoteMergeResult>`，仍抛 `HttpChangelogUnsupportedError`
-- [X] T027 [P] 在 `packages/rxdb-adapter-supabase/src/errors.ts` 给 `SupabaseDataError` 加只读 `code?: string`、`details?: string`（TSDoc）；
+- [x] T026 [P] `packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts` 的 `mergeChanges` 只把返回类型改为 `Promise<RemoteMergeResult>`，仍抛 `HttpChangelogUnsupportedError`
+- [x] T027 [P] 在 `packages/rxdb-adapter-supabase/src/errors.ts` 给 `SupabaseDataError` 加只读 `code?: string`、`details?: string`（TSDoc）；
       `packages/rxdb-adapter-supabase/src/postgrest-error.ts` 的 `classify_postgrest_error` 与适配器的 `executeRetryableWrite` 保留 `code` / `details` / `hint`。T021 转绿
-- [X] T028 改推送仓库：删除 `getChangeIdMapping`；`mapRemoteIds` 只读 `status = 'applied'` 的结果；在写本地之前对本批 `sourceChanges` 做覆盖检查
+- [x] T028 改推送仓库：删除 `getChangeIdMapping`；`mapRemoteIds` 只读 `status = 'applied'` 的结果；在写本地之前对本批 `sourceChanges` 做覆盖检查
       （缺项 / 重复 / 多余 → 抛错，不写本地、不推进水位线）；`sourceChangesByLocalId` 不再用于扇出（无其它使用则删除）。`rejected` 结果的提交在 US3 实现。T022 转绿
-- [X] T029 适配器的 `mergeChanges` 改为返回 `RemoteMergeResult`：本批每个源变更 `localId` 在 `change_id_mapping` 中 → `{localId, status: 'applied', remoteId}`；
+- [x] T029 适配器的 `mergeChanges` 改为返回 `RemoteMergeResult`：本批每个源变更 `localId` 在 `change_id_mapping` 中 → `{localId, status: 'applied', remoteId}`；
       不在 → 抛 `SupabaseDataError`（不再返回 `number | void`）。此时仍调 5 参 `rxdb_mutations`
-- [X] T030 [P] 测试夹具按新契约迁移（[remote-merge-result §5](contracts/remote-merge-result.md)），每个文件的 mock 都返回 `{results: [...]}`：
+- [x] T030 [P] 测试夹具按新契约迁移（[remote-merge-result §5](contracts/remote-merge-result.md)），每个文件的 mock 都返回 `{results: [...]}`：
       `packages/rxdb-plugin-sync/src/__tests__/{push-repository,push-protocol,push-pull-protocol.integration}.spec.ts`、
       `packages/rxdb-plugin-sync/src/__tests__/contracts/push-repository.spec.ts`
-- [X] T031 [P] 同上：`packages/rxdb-adapter-sqlite-wasm` 下的 `branch-materialization-sync.spec.ts`、`querycache-identity.spec.ts`
-- [X] T032 [P] 同上：`packages/rxdb-adapter-supabase/src/__tests__/` 下 `transient-write-retry`、`review-regressions`、`pull-push-changes`、
+- [x] T031 [P] 同上：`packages/rxdb-adapter-sqlite-wasm` 下的 `branch-materialization-sync.spec.ts`、`querycache-identity.spec.ts`
+- [x] T032 [P] 同上：`packages/rxdb-adapter-supabase/src/__tests__/` 下 `transient-write-retry`、`review-regressions`、`pull-push-changes`、
       `filter-sync-snapshots`、`utils`、`repository-sync` 六个 spec；迁移完 `grep -rn changeIdMapping packages apps` 应只剩 SQL 返回字段 `change_id_mapping`
-- [X] T033 检查点：`pnpm nx run-many -t test typecheck --projects=rxdb,rxdb-plugin-sync,rxdb-adapter-supabase,rxdb-adapter-http,rxdb-adapter-sqlite-core,rxdb-adapter-sqlite-wasm,rxdb-adapter-pglite` 全绿
+- [x] T033 检查点：`pnpm nx run-many -t test typecheck --projects=rxdb,rxdb-plugin-sync,rxdb-adapter-supabase,rxdb-adapter-http,rxdb-adapter-sqlite-core,rxdb-adapter-sqlite-wasm,rxdb-adapter-pglite` 全绿
 
 **Checkpoint**: 新契约就位，行为与 PR-A 相同（全部 applied 或整批失败）
 
@@ -257,9 +257,9 @@
       `mergeChanges` 传 `p_receipts: true`，`mutations()` 不传；`localId` 在 mapping → applied；在被拒实体 `localIds` → rejected，`rejection` 的
       `code` / `reason` / `message` / `entity` 照回执；两者都不在或都在 → `SupabaseDataError`；响应缺 `entity_results` 或形状不对 → `validateMergeResponse`
       抛 `SupabaseDataError`；RPC 返回 `PGRST202`（旧 SQL）→ `SupabaseDataError` 且 `code = 'PGRST202'`。确认红
-- [ ] T039 [P] [US3] 在推送仓库测试加（AC#8、9、10，[data-model §7](data-model.md)）：部分被拒 → applied 的源变更拿到 `remoteId`，被拒实体的
+- [x] T039 [P] [US3] 在推送仓库测试加（AC#8、9、10，[data-model §7](data-model.md)）：部分被拒 → applied 的源变更拿到 `remoteId`，被拒实体的
       全部源变更写入 `rejectedAt` 与 `rejection`、`remoteId` 仍为空；`lastPushedChangeId` 越过两者；第二轮推送 `mergeChanges` 收到的 `changes`
-      不含被拒变更；`PushRepositoryResult.pushed` 只数 applied、`rejected` 等于被拒源变更数；本地提交事务失败 → 两种标记都不写、水位线不动。确认红
+      不含被拒变更；`PushRepositoryResult.pushed` 只数 applied、`rejected` 等于被拒的压缩后条目数（实现定稿，口径见 [sync-rejections-api §2](contracts/sync-rejections-api.md)）；本地提交事务失败 → 两种标记都不写、水位线不动。确认红
 - [ ] T040 [P] [US3] 「待推」口径测试（research D13）：每个查询各一条「被拒变更不计入」断言——推送仓库测试（`queryUnpushedChanges`）、
       `get-repository-sync-status.spec.ts`、`pull-conflict-resolution.spec.ts`（`queryPendingLocalChanges`）、`pull-round.spec.ts`
       （`backfillOwnChangeRemoteIds`）、`query-cache-outbox.spec.ts`（两处查询各一条）、`cleanup-expired.spec.ts`，均在
@@ -291,7 +291,7 @@
 - [ ] T045 [US3] 适配器：`mergeChanges` 传 `p_receipts: true`；`validateMergeResponse` 校验 `entity_results`；按回执构造 `RemoteChangeResult`
       （T029 的 applied 分支 + rejected 分支）；`rejection.entity` 由 `SchemaManager.getEntityMetadataByTableName(tableName, namespace)` 反查实体名；
       `mutations()` 不传 `p_receipts`。T038 转绿
-- [ ] T046 [US3] 推送仓库提交（data-model §7 的步骤 1、3 中的标记部分）：同一本地事务内 applied → `remoteId`，被拒实体的全部源变更 →
+- [x] T046 [US3] 推送仓库提交（data-model §7 的步骤 1、3 中的标记部分）：同一本地事务内 applied → `remoteId`，被拒实体的全部源变更 →
       `rejectedAt` / `rejection`，再写 `lastPushedChangeId`；`packages/rxdb/src/sync-contract/VersionManager.interface.ts` 的 `PushRepositoryResult`
       加必填 `rejected: number`（TSDoc），`pushed` 只数 applied；关联仓库按各自结果计。T039 转绿
 - [ ] T047 [US3] 「待推」口径加 `rejectedAt = null`（research D13）：推送仓库 `queryUnpushedChanges`、`packages/rxdb-plugin-sync/src/get-repository-sync-status.ts`、
@@ -314,7 +314,7 @@
 - [x] T049 [US4] 在回归 SQL 新增用例 `receipts-dependency`（AC#12）：夹具区建父子两张同步表（子表单列外键引用父表 `id`），父表 INSERT 策略不放行；
       一次 `p_receipts = true` 调用含父新建、引用它的子新建、一条无关新建 → 调用成功；父 `denied`；子 `rejected`、`code = '23503'`、
       `reason = 'dependency'`、`dependsOn = {schema, table, entityId}` 指向父；无关新建 applied。再加一例多列外键 → `dependsOn = {constraint}`。确认红
-- [ ] T050 [P] [US4] 在推送仓库测试加（AC#11，[data-model §7](data-model.md)）：被拒实体远端有行 → 本地被覆盖为远端值（逐列相等）；远端无行 → 本地移除；
+- [x] T050 [P] [US4] 在推送仓库测试加（AC#11，[data-model §7](data-model.md)）：被拒实体远端有行 → 本地被覆盖为远端值（逐列相等）；远端无行 → 本地移除；
       对齐不生成 `RxDBChange`、不进撤销栈；被拒实体在本批之外还有更新的待推变更 → 不对齐；对被拒实体调远端 `findByIds` 失败 → 本轮不提交
       （无 `remoteId`、无被拒标记、水位线不动）。确认红
 - [ ] T051 [P] [US4] 在 `push-receipts-mapping.spec.ts` 加：回执 `dependsOn` 为表引用 → `RemoteEntityRef {namespace, entity, entityId}`（实体名经
@@ -327,11 +327,14 @@
       `pg_constraint`：单列外键（`conkey` 长度 1）→ 由 `confrelid` 与子行该列值给出 `dependsOn {schema, table, entityId}`；否则 `{constraint}`
       （[rxdb-mutations-receipts §3](contracts/rxdb-mutations-receipts.md)、research D9）。重载 SQL，`receipts-dependency` 转绿，`bash 回归脚本` 28 条全绿
 - [ ] T054 [US4] 适配器构造 `rejection.dependsOn`（T051 转绿）
-- [ ] T055 [US4] 推送仓库按 data-model §7 补齐提交：覆盖检查之后、本地事务之外对被拒实体调远端 `findByIds`（失败 → 不提交）；本地事务内在写被拒标记之后对齐：
+- [x] T055 [US4] 推送仓库按 data-model §7 补齐提交：覆盖检查之后、本地事务之外对被拒实体调远端 `findByIds`（失败 → 不提交）；本地事务内在写被拒标记之后对齐：
       远端有行 → `upsertMany`，无行 → `deleteByIds`；关触发器、不写 `RxDBChange`、不进撤销栈；跳过本批之外有更新待推变更的实体。
       对齐写入用 `declareTrustedWrite(…, { intent: TrustedWriteIntent.remote_sync })`，并在 `packages/rxdb/src/trusted-write/trusted-write-intent.ts`
       登记 `{file, symbol, writePrimitive, intent, entrance: 'remote_entity_apply', verifiedAtLine}`。T050、T052 转绿
-- [ ] T056 [US4] 跑 `pnpm audit:callsite-drift` 与 `pnpm audit:suite-callsites`，确认新登记的可信写入口无漂移
+      **实现偏离（2026-10-05）**：`TransactionExecutor` 没有 `upsertMany` / `deleteByIds`，对齐改走 `executor.mergeChanges(actions, undefined, true)`
+      （同一事务、不写 `RxDBChange`）；登记为 #12 `{file: 'push-repository.ts', symbol: 'alignRejectedEntities', writePrimitive: 'executor.mergeChanges', …}`。
+      T052 依赖真实链路，随 T048 一起验证
+- [x] T056 [US4] 跑 `pnpm audit:callsite-drift` 与 `pnpm audit:suite-callsites`，确认新登记的可信写入口无漂移
 
 **Checkpoint**: 被拒实体本地与远端一致（SC-005）；外键依赖不再卡整批
 
@@ -345,34 +348,34 @@
 
 ### Tests（先红）
 
-- [X] T057 [P] [US5] 新建共享夹具 `packages/rxdb-test/src/cross-framework-fixtures/sync-rejections.ts`（一份含 `denied` 与 `dependency` 两条的
+- [x] T057 [P] [US5] 新建共享夹具 `packages/rxdb-test/src/cross-framework-fixtures/sync-rejections.ts`（一份含 `denied` 与 `dependency` 两条的
       `readonly SyncRejection[]`，`dependency` 那条带 `dependsOn`），在 `packages/rxdb-test/src/cross-framework-fixtures/index.ts` 导出
-- [X] T058 [P] [US5] `packages/rxdb/src/__tests__/sync-state.spec.ts`：初始 `lastRejections` 是冻结空数组且引用稳定；`reportRejections([])` 不改状态、不发事件；
+- [x] T058 [P] [US5] `packages/rxdb/src/__tests__/sync-state.spec.ts`：初始 `lastRejections` 是冻结空数组且引用稳定；`reportRejections([])` 不改状态、不发事件；
       非空时整体替换；之后一轮成功推送仍保留；下一次非空上报整体替换；`sameState` 按引用比较
-- [X] T059 [P] [US5] 三框架绑定 spec 各加一条（用 T057 夹具）：hub 上报 → 绑定读到同一引用；成功一轮 → 仍保留；再上报 → 替换。文件：
+- [x] T059 [P] [US5] 三框架绑定 spec 各加一条（用 T057 夹具）：hub 上报 → 绑定读到同一引用；成功一轮 → 仍保留；再上报 → 替换。文件：
       `packages/rxdb-angular/src/__tests__/use-sync-state.spec.ts`（`Signal`）、`packages/rxdb-vue/src/__tests__/use-sync-state.spec.ts`（`ComputedRef`）、
       `packages/rxdb-react/src/__tests__/use-sync-state.spec.tsx`（透传字段）
-- [ ] T060 [P] [US5] 推送仓库测试：本地提交成功且本轮有被拒 → 调一次 `sm.rxdb.syncState.reportRejections`，每条 `SyncRejection` 字段为
+- [x] T060 [P] [US5] 推送仓库测试：本地提交成功且本轮有被拒 → 调一次 `sm.rxdb.syncState.reportRejections`，每条 `SyncRejection` 字段为
       `namespace`、`entity`、`entityId`、`op`（取回执的合并后操作，不是源变更类型）、`code`、`reason`、`message`、`dependsOn?`、`at`、`changeIds`；
       本轮无被拒 → 不调用；提交失败 → 不调用（sync-rejections-api §2）
-- [X] T061 [P] [US5] Angular demo 面板 spec `apps/dev-rxdb-supabase/src/app/sync-rejections-panel.spec.ts`：hub 上报 T057 夹具后，面板以语义列表
+- [x] T061 [P] [US5] Angular demo 面板 spec `apps/dev-rxdb-supabase/src/app/sync-rejections-panel.spec.ts`：hub 上报 T057 夹具后，面板以语义列表
       （`ul` / `li`）列出实体、操作、原因、消息；空列表时显示空态文字
-- [X] T062 [P] [US5] React 面板 spec `apps/dev-rxdb-react/src/app/components/SyncRejectionsPanel.spec.tsx` 与 Vue 面板 spec
+- [x] T062 [P] [US5] React 面板 spec `apps/dev-rxdb-react/src/app/components/SyncRejectionsPanel.spec.tsx` 与 Vue 面板 spec
       `apps/dev-rxdb-vue/src/app/components/SyncRejectionsPanel.spec.ts`：同 T061，经 hub 渲染共享夹具（React 参照 `LoadingBar.spec.tsx`，
       Vue 用 `apps/dev-rxdb-vue/vitest.config.ts`）
 - [ ] T063 [US5] Supabase demo e2e：在 `apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts` 加场景——上下文 A 新建待办并推送；上下文 B 拉取；
       A 删除并推送；B 勾选完成（走 `p_updates`）并推送 → B 的面板出现一条 `gone`（`RX001`）被拒。用 `gone` 而非 `denied` 的原因：参考 `todos`
       表关闭 RLS、demo 无登录（spec US5 已登记为批准的偏离）
-- [X] T064 [P] [US5] React / Vue e2e：新建 `apps/dev-rxdb-react-e2e/src/sync-rejections.a11y.spec.ts` 与 `apps/dev-rxdb-vue-e2e/src/sync-rejections.a11y.spec.ts`，
+- [x] T064 [P] [US5] React / Vue e2e：新建 `apps/dev-rxdb-react-e2e/src/sync-rejections.a11y.spec.ts` 与 `apps/dev-rxdb-vue-e2e/src/sync-rejections.a11y.spec.ts`，
       照 `working-tree.a11y.spec.ts` 的写法：打开待办页，被拒面板空态可见，a11y 扫描无新增违规
 
 ### Implementation
 
-- [X] T065 [US5] 在 `packages/rxdb/src/sync-state.ts` 按 [sync-rejections-api §1](contracts/sync-rejections-api.md) 定义并导出 `SyncRejectionReport`、
+- [x] T065 [US5] 在 `packages/rxdb/src/sync-state.ts` 按 [sync-rejections-api §1](contracts/sync-rejections-api.md) 定义并导出 `SyncRejectionReport`、
       `SyncRejection`（TSDoc 照契约），`SyncState` 加只读 `lastRejections`，`INITIAL_STATE.lastRejections` 为冻结空数组，`sameState` 按引用比较
       （照 `lastConflict` 的写法）；`SyncStateHub.reportRejections(rejections)`：空数组不改状态，非空整体替换。T058 转绿
-- [ ] T066 [US5] 推送仓库在本地提交成功后、本轮被拒非空时调用 `reportRejections`（data-model §7 步骤 4）。T060 转绿
-- [X] T067 [US5] 三框架绑定：`packages/rxdb-angular` 的 `useSyncState()` 加 `lastRejections: Signal<readonly SyncRejection[]>`（`computed`）；
+- [x] T066 [US5] 推送仓库在本地提交成功后、本轮被拒非空时调用 `reportRejections`（data-model §7 步骤 4）。T060 转绿
+- [x] T067 [US5] 三框架绑定：`packages/rxdb-angular` 的 `useSyncState()` 加 `lastRejections: Signal<readonly SyncRejection[]>`（`computed`）；
       `packages/rxdb-vue` 加 `lastRejections: ComputedRef<readonly SyncRejection[]>`；`packages/rxdb-react` 透传，在 `useSyncState` 的 TSDoc 里提及
       `lastRejections`。不新增函数。T059 转绿
 - [ ] T068 [US5] Demo 面板：Angular 新建 `apps/dev-rxdb-supabase/src/app/sync-rejections-panel.ts`，挂到 `todo/todo.page.html`；React 新建
@@ -381,7 +384,7 @@
       T061～T064 转绿（`pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`、`pnpm nx run dev-rxdb-react-e2e:e2e`、`pnpm nx run dev-rxdb-vue-e2e:e2e`）
 - [ ] T069 [P] [US5] 核对 demo 范围与已批准偏离一致：`spec.md` US5「批准的偏离」、`contracts/sync-rejections-api.md` §4、`quickstart.md` B4、
       `research.md` D16、`plan.md`「偏离与澄清」3 与 T061～T068 的实际实现相符；不符则修实现，不改批准内容
-- [X] T070 [P] [US5] `website/docs/plugins/rxdb-plugin-sync/README.md` 的同步状态部分加 `lastRejections`（语义：不被后续成功清空、下一轮有被拒整体替换），
+- [x] T070 [P] [US5] `website/docs/plugins/rxdb-plugin-sync/README.md` 的同步状态部分加 `lastRejections`（语义：不被后续成功清空、下一轮有被拒整体替换），
       附跨重启查询示例：查询 `RxDBChange` 中 `rejectedAt` 不为空的行
 
 **Checkpoint**: 三框架 API 对称（SC-007）

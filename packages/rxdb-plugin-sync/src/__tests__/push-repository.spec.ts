@@ -392,6 +392,7 @@ describe('pushRepository', () => {
     expect(result).toEqual({
       repository: { namespace: 'public', entity: 'User' },
       pushed: 0,
+      rejected: 0,
       failed: 0,
       compacted: 0,
       originalCount: 0,
@@ -491,6 +492,7 @@ describe('pushRepository', () => {
     expect(result).toEqual({
       repository: { namespace: 'public', entity: 'User' },
       pushed: 0,
+      rejected: 0,
       failed: 0,
       compacted: 2,
       originalCount: 2,
@@ -1601,7 +1603,10 @@ describe('pushRepository 上报被拒', () => {
 
   it('上报的 dependsOn 缺省时不出现该字段', async () => {
     const changes = [createChange({ id: 1, entityId: ENTITY_B, type: 'DELETE', patch: null })];
-    const harness = createHarness({ changes, mergeChanges: mergeWithRejections([1], { code: 'RX001', reason: 'gone' }) });
+    const harness = createHarness({
+      changes,
+      mergeChanges: mergeWithRejections([1], { code: 'RX001', reason: 'gone' })
+    });
 
     await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
 

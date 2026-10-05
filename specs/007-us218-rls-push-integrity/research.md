@@ -269,6 +269,9 @@ type RemoteChangeResult =
 - 被拒实体在远端存在但调用方 SELECT 不到：`findByIds` 拿不到，本地按「远端不存在」移除（**推断**可接受：调用方本来就无权看到该行）。
 
 **理由**：FR-013 要求对齐不产生待推变更、不进撤销栈，现有的 `upsertMany` / `deleteByIds` 关触发器写入正好满足，拉取应用走的也是这条路。
+
+**实现修订（2026-10-05）**：推送提交的事务里拿到的是 `TransactionExecutor`，它没有 `upsertMany` / `deleteByIds`；改用同一事务内的
+`executor.mergeChanges(actions, undefined, true)`（第三参让本批不写 `RxDBChange`），效果与上述决定相同。
 远端读放在本地事务之外，避免持事务做网络 IO。
 
 **备选**：靠下一轮拉取覆盖——拉取只带日志，被拒实体在远端没有新日志，永远不会被拉回。否决。

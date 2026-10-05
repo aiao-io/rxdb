@@ -114,7 +114,7 @@
 本地单事务：
   applied → remoteId
   rejected → rejectedAt / rejection
-  被拒实体（无更新的本地待推变更）：远端有 → upsertMany；远端无 → deleteByIds   （关触发器，可信写入 remote_sync）
+  被拒实体（无更新的本地待推变更）：远端有 → 覆盖；远端无 → 移除   （executor.mergeChanges(…, true)：不写 RxDBChange，可信写入 remote_sync，登记 #12）
   lastPushedChangeId → 本轮最大本地 id
         │
         ▼

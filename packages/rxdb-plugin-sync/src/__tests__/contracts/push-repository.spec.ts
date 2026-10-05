@@ -162,6 +162,7 @@ describe('pushRepository contract', () => {
     expect(result).toEqual({
       repository: { namespace: 'public', entity: 'User' },
       pushed: 0,
+      rejected: 0,
       failed: 0,
       compacted: 0,
       originalCount: 0,

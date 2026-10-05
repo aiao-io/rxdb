@@ -51,9 +51,19 @@ export interface SyncState {
 changelog 推送由 `SyncManager.push` 显式触发（`sync-listeners.ts` 的回推轮只管 QueryCache），所以上报点在
 `pushRepository` 的提交事务成功之后：本轮被拒非空 → `sm.rxdb.syncState.reportRejections(...)`。提交失败不上报。
 
-`PushRepositoryResult` 增加必填 `rejected: number`（本轮被拒的源变更数）：
+实现定稿（2026-10-05，阶段 B）：
 
-- `pushed` 只数 `applied`；`failed` 语义不变（整批失败）；
+- **一次推送只上报一次**：目标仓库与关联仓库（级联）的被拒先汇总，`pushRepository` 末尾统一调一次 `reportRejections`；
+  汇总为空 → 不调用。
+- **级联路径先报后抛**：关联仓库已提交、目标仓库随后失败时，已提交部分的被拒照样上报，再抛目标仓库的错误——
+  已经落盘的被拒标记不能因为后面失败而对用户不可见。
+- 未提交的仓库不贡献被拒条目。
+
+`PushRepositoryResult` 增加必填 `rejected: number`：
+
+- 单位是**压缩后的条目**（与 `pushed`、`failed`、`compacted` 同口径），不是源变更数；不变式
+  `originalCount = pushed + failed + rejected + compacted`；
+- `pushed` 只数 `applied`；`failed` 语义不变（整批失败）；本轮未提交 → `rejected = 0`；提交前远端 `findByIds` 失败 → `pushed = 0`；
 - 关联仓库按各自结果计；
 - 必填理由同 `failures`：「字段缺失」与「没有被拒」是两件事。
 

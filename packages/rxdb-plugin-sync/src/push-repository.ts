@@ -7,12 +7,15 @@
 
 import {
   compactChanges,
+  declareTrustedWrite,
   getEntityMetadata,
   getOrCreateSyncRecord,
+  getRxDBChangeEntityIdQueryValues,
   getRxDBChangeKey,
   getSyncType,
   IRepository,
   type PushRepositoryResult,
+  type RemoteChangeRejection,
   type RemoteChangeResult,
   repositoryKey,
   RepositorySyncBeginEvent,
@@ -28,9 +31,13 @@ import {
   RxDBSync,
   type SwitchVersionActions,
   type SwitchVersionChange,
-  type SyncFailure
+  type SyncFailure,
+  type SyncRejection,
+  type TransactionExecutor,
+  TrustedWriteIntent
 } from '@aiao/rxdb';
 import type { PushInFlightSession } from '@aiao/rxdb-plugin-history';
+import { firstValueFrom } from 'rxjs';
 import { getAncestorBranchIds } from './branch-utils.js';
 import { findBlockingDependency } from './cascade-blocking.js';
 import { buildDependencyGraph, type DependencyGraph, type RepositoryIdentifier } from './dependency-graph.js';
@@ -309,13 +316,15 @@ async function pushWithCascade(
   // 相位全部跑完才落库：水位线必须一次推到位，中途推进会吞掉后一个相位的变更
   const results: PushRepositoryResult[] = [];
   const failures: SyncFailure[] = [];
+  // 各仓的被拒清单汇总后只报一次：`reportRejections` 整体替换，逐仓报会互相覆盖
+  const rejections: SyncRejection[] = [];
 
   for (const repo of orderRepos('INSERT')) {
     const node = nodes.get(repositoryKey(repo));
     // 每个相位都会遍历全部仓库，节点必然已建好
     if (!node) throw new RxDBError(`Internal error: cascade node missing for ${repositoryKey(repo)}`);
 
-    const result = node.result ?? (await commitRepositoryPush(node.plan!));
+    const result = node.result ?? (await commitRepositoryPush(node.plan!, rejections));
     results.push(result);
 
     // 按策略跳过（`skipped` 且 `success`）不算失败，不进失败清单
@@ -323,6 +332,9 @@ async function pushWithCascade(
       failures.push({ repository: repo, error: result.error });
     }
   }
+
+  // 已落库的被拒是事实，目标仓失败也照报
+  reportPushRejections(sm, rejections);
 
   // 返回目标仓库结果，并附带相关仓库的结果
   const targetResult = results.find(r => r.repository.namespace === namespace && r.repository.entity === entity);
@@ -432,7 +444,8 @@ async function runCascadePhase(
 
   // 本相位推失败：立刻定案，后续相位不再推，并把失败传导给依赖它的仓库
   if (node.plan.error) {
-    node.result = await commitRepositoryPush(node.plan);
+    // 有条目没拿到回执时提交只组装结果、不落库，收集器不会被写入
+    node.result = await commitRepositoryPush(node.plan, []);
     failedRepos.set(repoKey, node.plan.error);
   }
 }
@@ -468,7 +481,7 @@ async function cascadeNodeIneligibility(sm: SyncManager, repo: RepositoryIdentif
  * @internal
  */
 function emptyPushProgress(): Omit<PushRepositoryResult, 'repository'> {
-  return { pushed: 0, failed: 0, compacted: 0, originalCount: 0, failures: [] };
+  return { pushed: 0, rejected: 0, failed: 0, compacted: 0, originalCount: 0, failures: [] };
 }
 
 /**
@@ -494,6 +507,8 @@ function blockedPushProgress(plan: RepositoryPushPlan | undefined): Omit<PushRep
 
   return {
     pushed: plan.pushed,
+    // 没落库的被拒不算被拒：标记没写、对齐没做，下一轮会原样重推
+    rejected: 0,
     failed: plan.effectiveCount - plan.pushed,
     compacted: plan.compacted,
     originalCount: plan.originalCount,
@@ -624,40 +639,80 @@ function assertMergeResultCoversBatch(results: RemoteChangeResult[], sourceChang
 }
 
 /**
- * 从覆盖检查通过的结果中取出 `applied` 项，解析回对应的本地变更。
+ * 被远端拒绝的一个压缩后条目：实体的全部源变更一起标记，共用同一份拒绝原因。
+ *
+ * @internal
+ */
+interface RejectedPushEntry {
+  readonly entry: CompactedPushEntry;
+  readonly rejection: RemoteChangeRejection;
+}
+
+/**
+ * 一批回执按条目归类后的结果
+ *
+ * @internal
+ */
+interface ClassifiedPushBatch {
+  readonly applied: Array<{ change: RxDBChange; remoteId: number }>;
+  readonly rejected: RejectedPushEntry[];
+}
+
+/**
+ * 判定一个条目是否被远端拒绝。
  *
  * @remarks
- * `rejected` 项在这里被跳过——它们的本地落库（`rejectedAt` / `rejection` 对齐）属于 US3，
- * 阶段 B 只保证覆盖检查通过、`applied` 项正确写回 `remoteId`。
+ * 被拒以实体为单位（data-model §7）：同一条目的源变更必须同进同退。一部分 applied、一部分被拒
+ * 说明远端把一次合并后的写拆开处理了——本地无论按哪一半落库都会和远端对不上，只能整轮失败。
+ * 这一步与覆盖检查一样先于任何本地写入。
+ *
+ * @returns 被拒时返回拒绝原因，全部 applied 时返回 `undefined`
  */
-function mapRemoteIds(
-  results: RemoteChangeResult[],
-  sourceChanges: RxDBChange[]
-): Array<{ change: RxDBChange; remoteId: number }> {
-  const changeByLocalId = new Map(sourceChanges.map(change => [change.id, change]));
-  const mapped: Array<{ change: RxDBChange; remoteId: number }> = [];
-
-  for (const result of results) {
-    if (result.status !== 'applied') continue;
-    const change = changeByLocalId.get(result.localId);
-    if (!change) {
-      // 覆盖检查已确保 result.localId ∈ expectedLocalIds = changeByLocalId 的 key 集合
-      throw new RxDBError(`Remote merge result references unknown local change: ${result.localId}`);
-    }
-    mapped.push({ change, remoteId: result.remoteId });
+function entryRejection(
+  entry: CompactedPushEntry,
+  resultByLocalId: ReadonlyMap<number, RemoteChangeResult>
+): RemoteChangeRejection | undefined {
+  const statuses = entry.sourceChanges.map(change => {
+    const result = resultByLocalId.get(change.id);
+    // 覆盖检查已确保本批每条源变更都恰有一项回执
+    if (!result) throw new RxDBError(`Remote merge result missing local changes: ${change.id}`);
+    return result;
+  });
+  const rejected = statuses.find(
+    (result): result is Extract<RemoteChangeResult, { status: 'rejected' }> => result.status === 'rejected'
+  );
+  if (!rejected) return undefined;
+  if (statuses.some(result => result.status === 'applied')) {
+    throw new RxDBError(`Remote merge result splits entity ${entry.key}: some source changes applied, some rejected`);
   }
-
-  return mapped;
+  return rejected.rejection;
 }
 
 async function mergePushBatch(
   remoteAdapter: RxDBAdapterRemoteBase,
   branchId: string,
-  batch: CompactedPushBatch
-): Promise<Array<{ change: RxDBChange; remoteId: number }>> {
+  entries: CompactedPushEntry[]
+): Promise<ClassifiedPushBatch> {
+  const batch = createCompactedPushBatch(entries);
   const mergeResult = await remoteAdapter.mergeChanges(batch.actions, branchId, batch.sourceChanges);
   assertMergeResultCoversBatch(mergeResult.results, batch.sourceChanges);
-  return mapRemoteIds(mergeResult.results, batch.sourceChanges);
+
+  const resultByLocalId = new Map(mergeResult.results.map(result => [result.localId, result]));
+  const changeByLocalId = new Map(batch.sourceChanges.map(change => [change.id, change]));
+  const classified: ClassifiedPushBatch = { applied: [], rejected: [] };
+  for (const entry of entries) {
+    const rejection = entryRejection(entry, resultByLocalId);
+    if (rejection) classified.rejected.push({ entry, rejection });
+  }
+  // applied 按回执顺序收集：被拒条目整体不会出现 applied（上面已拒绝拆分），这里只需按状态过滤
+  for (const result of mergeResult.results) {
+    if (result.status !== 'applied') continue;
+    const change = changeByLocalId.get(result.localId);
+    // 覆盖检查已确保 result.localId ∈ 本批源变更
+    if (!change) throw new RxDBError(`Remote merge result references unknown local change: ${result.localId}`);
+    classified.applied.push({ change, remoteId: result.remoteId });
+  }
+  return classified;
 }
 
 /**
@@ -680,10 +735,12 @@ interface RepositoryPushPlan {
   readonly originalCount: number;
   readonly effectiveCount: number;
   readonly compacted: number;
-  /** 各相位累积推送成功的条目数。 */
+  /** 各相位累积被远端接受（applied）的条目数；被拒的不算。 */
   pushed: number;
   /** 各相位累积拿到的远端 id，最终一并落库。 */
   readonly remoteIdsByChange: Map<RxDBChange, number>;
+  /** 各相位累积被远端拒绝的条目，最终与远端 id 同一个事务落库。 */
+  readonly rejectedEntries: RejectedPushEntry[];
   error?: Error;
 }
 
@@ -845,15 +902,16 @@ async function planRepositoryPush(
     effectiveCount,
     compacted,
     pushed: 0,
-    remoteIdsByChange: new Map<RxDBChange, number>()
+    remoteIdsByChange: new Map<RxDBChange, number>(),
+    rejectedEntries: []
   };
 }
 
 /**
  * 阶段二：把计划里属于本相位的条目发给远端，**不落库**。
  *
- * 成功推送的条目累加进 `plan.pushed`，拿到的远端 id 累加进 `plan.remoteIdsByChange`，
- * 都留给 {@link commitRepositoryPush} 一次性提交。
+ * applied 的条目累加进 `plan.pushed`，拿到的远端 id 累加进 `plan.remoteIdsByChange`，
+ * 被拒的条目累加进 `plan.rejectedEntries`，都留给 {@link commitRepositoryPush} 一次性提交。
  *
  * 前一个相位已失败时直接返回：继续推只会在一个已知不会落库的批次上白跑一趟远端。
  *
@@ -873,14 +931,14 @@ async function pushPlanEntries(
 
   for (let offset = 0; offset < entries.length; offset += batchSize) {
     const batchEntries = entries.slice(offset, offset + batchSize);
-    const batch = createCompactedPushBatch(batchEntries);
 
     try {
-      const mappedChanges = await mergePushBatch(plan.remoteAdapter, plan.branchId, batch);
-      for (const { change, remoteId } of mappedChanges) {
+      const classified = await mergePushBatch(plan.remoteAdapter, plan.branchId, batchEntries);
+      for (const { change, remoteId } of classified.applied) {
         plan.remoteIdsByChange.set(change, remoteId);
       }
-      plan.pushed += batchEntries.length;
+      for (const rejected of classified.rejected) plan.rejectedEntries.push(rejected);
+      plan.pushed += batchEntries.length - classified.rejected.length;
     } catch (error) {
       console.error(`Error pushing changes to remote for repository [${namespace}/${entity}]:`, error);
       plan.error = error instanceof Error ? error : new Error(String(error));
@@ -890,68 +948,277 @@ async function pushPlanEntries(
 }
 
 /**
- * 阶段三：全部相位跑完后，把远端 id 和水位线一次性落库。
+ * 阶段三：全部相位跑完后，把回执（远端 id + 被拒标记）、被拒实体的本地对齐和水位线一次性落库。
  *
- * 只有一条变更都没失败才落库：部分成功就推进水位线会让没推上去的那些永远丢失。
+ * @remarks
+ * 只有每个条目都拿到了回执才落库：部分成功就推进水位线会让没推上去的那些永远丢失。
+ * 被拒是回执的一种，不是失败——被拒条目照样越过水位线，标记为终态，不再重发（data-model §7）。
+ *
+ * 落库成功后把本仓的被拒清单追加进 `rejections`，由调用方在整次推送结束时统一上报：
+ * `reportRejections` 是整体替换语义，级联里逐仓上报只会留下最后一个仓库的清单。
+ *
+ * @param plan - 已跑完全部相位的推送计划
+ * @param rejections - 落库成功后追加本仓被拒清单的收集器
+ * @returns 本仓的推送结果
  *
  * @internal
  */
-async function commitRepositoryPush(plan: RepositoryPushPlan): Promise<PushRepositoryResult> {
-  const { repository, localChanges, repoSync, localAdapter, remoteIdsByChange, effectiveCount } = plan;
-  const { namespace, entity } = repository;
-  let pushed = plan.pushed;
-  let pushError = plan.error;
-  let failed = effectiveCount - pushed;
+async function commitRepositoryPush(
+  plan: RepositoryPushPlan,
+  rejections: SyncRejection[]
+): Promise<PushRepositoryResult> {
+  const { namespace, entity } = plan.repository;
 
-  if (failed === 0) {
-    // 使用 reduce 求最大值，避免 Math.max(...arr) 在超大数组上触发调用栈溢出
-    const maxChangeId = localChanges.reduce((max, c) => (c.id > max ? c.id : max), localChanges[0].id);
-
-    const previousRemoteIds = new Map([...remoteIdsByChange].map(([change]) => [change, change.remoteId]));
-    const previousSyncState = {
-      lastPushedChangeId: repoSync.lastPushedChangeId,
-      lastPushedAt: repoSync.lastPushedAt,
-      updatedAt: repoSync.updatedAt
-    };
-    const pushedAt = new Date();
-
-    try {
-      await localAdapter.transaction(async executor => {
-        const changesToSave = [...remoteIdsByChange].map(([change, remoteId]) => {
-          change.remoteId = remoteId;
-          return change;
-        });
-        if (changesToSave.length > 0) {
-          await executor.saveMany(changesToSave);
-        }
-        await executor.getRepository(RxDBSync).update(repoSync, {
-          lastPushedChangeId: maxChangeId,
-          lastPushedAt: pushedAt,
-          updatedAt: pushedAt
-        });
-      });
-    } catch (error) {
-      for (const [change, remoteId] of previousRemoteIds) {
-        change.remoteId = remoteId;
-      }
-      Object.assign(repoSync, previousSyncState);
-      console.error(`Error saving push state for repository [${namespace}/${entity}]:`, error);
-      pushError = error instanceof Error ? error : new Error(String(error));
-      pushed = 0;
-      failed = effectiveCount;
-    }
+  // 还有条目没拿到回执（某批失败）：什么都不落，被拒也不算，下一轮整批重推
+  if (plan.effectiveCount - plan.pushed - plan.rejectedEntries.length > 0) {
+    return pushRepositoryResult(plan, plan.pushed, 0, plan.error);
   }
 
+  try {
+    const committed = await persistPushReceipts(plan);
+    for (const rejection of committed) rejections.push(rejection);
+    return pushRepositoryResult(plan, plan.pushed, plan.rejectedEntries.length, undefined);
+  } catch (error) {
+    console.error(`Error saving push state for repository [${namespace}/${entity}]:`, error);
+    return pushRepositoryResult(plan, 0, 0, error instanceof Error ? error : new Error(String(error)));
+  }
+}
+
+/**
+ * 按计数组装仓库结果；`failed` 由不变式 `effectiveCount = pushed + failed + rejected` 反推。
+ *
+ * @internal
+ */
+function pushRepositoryResult(
+  plan: RepositoryPushPlan,
+  pushed: number,
+  rejected: number,
+  error: Error | undefined
+): PushRepositoryResult {
+  const { repository } = plan;
+  const failed = plan.effectiveCount - pushed - rejected;
   return {
     repository,
     success: failed === 0,
-    error: pushError,
+    error,
     pushed,
+    rejected,
     failed,
     compacted: plan.compacted,
     originalCount: plan.originalCount,
-    failures: pushError ? [{ repository, error: pushError }] : []
+    failures: error ? [{ repository, error }] : []
   };
+}
+
+/**
+ * 回执落库：applied 写 `remoteId`，被拒写 `rejectedAt` / `rejection`，对齐被拒实体，推进水位线——同一个本地事务。
+ *
+ * @remarks
+ * 被拒实体的远端当前行在**事务外**先取齐（远端往返不能夹在本地事务里）；取不到就整轮不提交，
+ * 与提交失败同一个出口：内存里的标记回滚，水位线不动，下一轮重推会再拿一次回执。
+ *
+ * @returns 落库成功后本仓的被拒清单
+ *
+ * @internal
+ */
+async function persistPushReceipts(plan: RepositoryPushPlan): Promise<SyncRejection[]> {
+  const { localChanges, repoSync, localAdapter, remoteIdsByChange, rejectedEntries } = plan;
+  const remoteRows = await fetchRejectedRemoteRows(plan);
+
+  // 使用 reduce 求最大值，避免 Math.max(...arr) 在超大数组上触发调用栈溢出
+  const maxChangeId = localChanges.reduce((max, c) => (c.id > max ? c.id : max), localChanges[0].id);
+  const pushedAt = new Date();
+
+  const touched = [...remoteIdsByChange.keys(), ...rejectedEntries.flatMap(({ entry }) => entry.sourceChanges)];
+  const previousChanges = touched.map(change => ({
+    change,
+    remoteId: change.remoteId,
+    rejectedAt: change.rejectedAt,
+    rejection: change.rejection
+  }));
+  const previousSyncState = {
+    lastPushedChangeId: repoSync.lastPushedChangeId,
+    lastPushedAt: repoSync.lastPushedAt,
+    updatedAt: repoSync.updatedAt
+  };
+
+  try {
+    await localAdapter.transaction(async executor => {
+      for (const [change, remoteId] of remoteIdsByChange) change.remoteId = remoteId;
+      for (const { entry, rejection } of rejectedEntries) {
+        for (const change of entry.sourceChanges) {
+          change.rejectedAt = pushedAt;
+          change.rejection = rejection;
+        }
+      }
+      if (touched.length > 0) await executor.saveMany(touched);
+      await alignRejectedEntities(executor, plan, remoteRows, maxChangeId);
+      await executor.getRepository(RxDBSync).update(repoSync, {
+        lastPushedChangeId: maxChangeId,
+        lastPushedAt: pushedAt,
+        updatedAt: pushedAt
+      });
+    });
+  } catch (error) {
+    for (const previous of previousChanges) {
+      previous.change.remoteId = previous.remoteId;
+      previous.change.rejectedAt = previous.rejectedAt;
+      previous.change.rejection = previous.rejection;
+    }
+    Object.assign(repoSync, previousSyncState);
+    throw error;
+  }
+
+  return toSyncRejections(rejectedEntries, pushedAt);
+}
+
+/**
+ * 向远端取被拒实体的当前行，按 {@link rejectedRowKey} 索引；远端没有的行不出现在结果里。
+ *
+ * @remarks
+ * 按回执里的实体引用分组查（`namespace:entity` 作为 `findByIds` 的实体名），不假设被拒实体都属于本仓。
+ * 本轮无被拒时不查远端。
+ *
+ * @internal
+ */
+async function fetchRejectedRemoteRows(plan: RepositoryPushPlan): Promise<Map<string, Record<string, unknown>>> {
+  const rows = new Map<string, Record<string, unknown>>();
+  const idsByScope = new Map<string, string[]>();
+  for (const { rejection } of plan.rejectedEntries) {
+    const scope = `${rejection.entity.namespace}:${rejection.entity.entity}`;
+    const ids = idsByScope.get(scope) ?? [];
+    ids.push(rejection.entity.entityId);
+    idsByScope.set(scope, ids);
+  }
+
+  for (const [scope, ids] of idsByScope) {
+    const found = await firstValueFrom(plan.remoteAdapter.findByIds<Record<string, unknown>>(scope, ids));
+    for (const row of found) rows.set(`${scope}:${String(row['id'])}`, row);
+  }
+  return rows;
+}
+
+/**
+ * 被拒实体在 {@link fetchRejectedRemoteRows} 结果里的键：回执的实体引用，`entityId` 已是字符串形式。
+ *
+ * @internal
+ */
+function rejectedRowKey(rejection: RemoteChangeRejection): string {
+  const { namespace, entity, entityId } = rejection.entity;
+  return `${namespace}:${entity}:${entityId}`;
+}
+
+/**
+ * 把被拒实体的本地行对齐成远端当前值：远端有行就覆盖（被拒的删除即恢复），远端无行就移除。
+ *
+ * @remarks
+ * 走 `executor.mergeChanges(…, true)` 关触发器写入：对齐是「把远端投影抄回本地」，不是一次用户改动，
+ * 不能产生 `RxDBChange`，否则下一轮会把远端拒绝过的值又推一次。
+ *
+ * 被拒实体在本批之外还有更新的待推变更（远端往返期间用户又改过）时**不对齐它**：
+ * 覆盖掉会吞掉用户那次还没推的改动；它的下一轮推送会拿到自己的回执。这里不按分支过滤，
+ * 任一分支上有更新的待推变更都算——宁可少对齐一次，也不覆盖用户改动。
+ *
+ * @internal
+ */
+async function alignRejectedEntities(
+  executor: TransactionExecutor,
+  plan: RepositoryPushPlan,
+  remoteRows: ReadonlyMap<string, Record<string, unknown>>,
+  maxChangeId: number
+): Promise<void> {
+  if (plan.rejectedEntries.length === 0) return;
+
+  const { namespace, entity } = plan.repository;
+  const newerPending = await executor.getRepository(RxDBChange).find({
+    where: {
+      combinator: 'and',
+      rules: [
+        { field: 'namespace', operator: '=', value: namespace },
+        { field: 'entity', operator: '=', value: entity },
+        {
+          field: 'entityId',
+          operator: 'in',
+          value: getRxDBChangeEntityIdQueryValues(
+            plan.rejectedEntries.map(({ rejection }) => rejection.entity.entityId)
+          )
+        },
+        { field: 'id', operator: '>', value: maxChangeId },
+        { field: 'revertChangeId', operator: '=', value: null },
+        { field: 'remoteId', operator: '=', value: null },
+        { field: 'rejectedAt', operator: '=', value: null }
+      ]
+    } as never
+  });
+  const skipped = new Set(newerPending.map(change => getRxDBChangeKey(change)));
+
+  const actions: SwitchVersionActions = { deletes: new Map(), updates: new Map(), inserts: new Map() };
+  for (const { entry, rejection } of plan.rejectedEntries) {
+    if (!skipped.has(entry.key)) addAlignmentAction(actions, entry, remoteRows.get(rejectedRowKey(rejection)));
+  }
+  if (actions.inserts.size + actions.updates.size + actions.deletes.size === 0) return;
+
+  declareTrustedWrite(executor, {
+    file: 'push-repository.ts',
+    symbol: 'alignRejectedEntities',
+    intent: TrustedWriteIntent.remote_sync
+  });
+  await executor.mergeChanges(actions, undefined, true);
+}
+
+/**
+ * 一个被拒条目对应的对齐动作：本地行要变成远端行（或在远端无行时消失）。
+ *
+ * @internal
+ */
+function addAlignmentAction(
+  actions: SwitchVersionActions,
+  entry: CompactedPushEntry,
+  remoteRow: Record<string, unknown> | undefined
+): void {
+  if (remoteRow) {
+    // 被拒的删除：本地行已经没了，按远端值重建；其余：本地行还在，覆盖成远端值
+    const target = entry.actionKind === 'deletes' ? actions.inserts : actions.updates;
+    target.set(entry.key, { patch: remoteRow, inversePatch: null });
+    return;
+  }
+  // 远端无行且被拒的就是删除：两边都没有，无事可做
+  if (entry.actionKind !== 'deletes') actions.deletes.set(entry.key, { patch: null, inversePatch: null });
+}
+
+const ACTION_KIND_OP = {
+  deletes: 'DELETE',
+  updates: 'UPDATE',
+  inserts: 'INSERT'
+} as const satisfies Record<CompactedActionKind, SyncRejection['op']>;
+
+/**
+ * 被拒条目 → 上报给 `SyncStateHub` 的清单项；`op` 取压缩后真正发给远端的那个操作。
+ *
+ * @internal
+ */
+function toSyncRejections(rejectedEntries: readonly RejectedPushEntry[], at: Date): SyncRejection[] {
+  return rejectedEntries.map(({ entry, rejection }) => ({
+    namespace: rejection.entity.namespace,
+    entity: rejection.entity.entity,
+    entityId: rejection.entity.entityId,
+    op: ACTION_KIND_OP[entry.actionKind],
+    code: rejection.code,
+    reason: rejection.reason,
+    message: rejection.message,
+    ...(rejection.dependsOn ? { dependsOn: rejection.dependsOn } : {}),
+    at,
+    changeIds: entry.sourceChanges.map(change => change.id)
+  }));
+}
+
+/**
+ * 整次推送结束后把收集到的被拒清单上报一次；没有被拒就不报（不清掉上一轮的清单）。
+ *
+ * @internal
+ */
+function reportPushRejections(sm: SyncManager, rejections: readonly SyncRejection[]): void {
+  if (rejections.length > 0) sm.rxdb.syncState.reportRejections(rejections);
 }
 
 /**
@@ -972,7 +1239,9 @@ async function pushSingleRepository(
   if ('emptyResult' in planned) return planned.emptyResult;
 
   await pushPlanEntries(planned, ALL_ACTION_KINDS, options.batchSize);
-  const result = await commitRepositoryPush(planned);
+  const rejections: SyncRejection[] = [];
+  const result = await commitRepositoryPush(planned, rejections);
+  reportPushRejections(sm, rejections);
   // 与级联路径同一个失败出口，见 throwPushFailure 的 @remarks
   if (!result.success) throwPushFailure(result);
   return result;
