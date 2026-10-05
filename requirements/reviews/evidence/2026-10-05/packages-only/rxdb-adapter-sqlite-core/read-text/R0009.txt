@@ -1,0 +1,128 @@
+packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts SHA256 052824127109070a4013c72429389c0e689bb356ad85165149e2287cb4f65a38 [799,925]
+ 799 |           throw new RxDBSystemMigrationLockError(cause);
+ 800 |         }
+ 801 | 
+ 802 |         const migrationMetadata = getEntityMetadata(RxDBMigration);
+ 803 |         const migrationTable = quote_sql_identifier(get_table_name_by_metadata(migrationMetadata));
+ 804 |         const watermarkResult = await client.execute(
+ 805 |           `SELECT "name" FROM ${migrationTable}
+ 806 |            WHERE substr("name", 1, ?) = ? OR substr("name", 1, ?) = ?`,
+ 807 |           [
+ 808 |             RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX.length,
+ 809 |             RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX,
+ 810 |             RXDB_CHANGE_CODEC_WATERMARK_PREFIX.length,
+ 811 |             RXDB_CHANGE_CODEC_WATERMARK_PREFIX
+ 812 |           ]
+ 813 |         );
+ 814 |         const watermarkNames = watermarkResult.results
+ 815 |           .flatMap(result => result.rows)
+ 816 |           .map(row => row[0])
+ 817 |           .filter((name): name is string => typeof name === 'string');
+ 818 |         const state = getRxDBSystemVersionState(watermarkNames);
+ 819 |         assertSupportedRxDBSystemVersions(state);
+ 820 | 
+ 821 |         if (!isCurrentRxDBSystemVersion(state)) {
+ 822 |           const existingLoggedMetadata: EntityMetadata[] = [];
+ 823 |           for (const EntityType of this.rxdb.config.entities) {
+ 824 |             const metadata = getEntityMetadata(EntityType);
+ 825 |             if (metadata.log === false) continue;
+ 826 |             const tableName = get_table_name_by_metadata(metadata);
+ 827 |             const tableResult = await client.execute(
+ 828 |               `SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`,
+ 829 |               [tableName]
+ 830 |             );
+ 831 |             if (tableResult.results.some(result => result.rows.length > 0)) {
+ 832 |               existingLoggedMetadata.push(metadata);
+ 833 |             }
+ 834 |           }
+ 835 | 
+ 836 |           // 重建的触发器必须按库此刻停在的分支写。自愈只能兜住一部分：下一个默认事务 COMMIT 时
+ 837 |           // `#run_transaction` → `switch_transaction_id` 会按真实分支重建全部触发器，但在那之前，
+ 838 |           // 迁移刚结束这段窗口里的裸写（不经 `transaction()`）会被永久记到错误的分支名下，且不报错。
+ 839 |           const migrationBranchId = await readActiveBranchIdOrMain(client);
+ 840 |           const removeTriggersSql = remove_all_triggers_sql(this);
+ 841 |           if (removeTriggersSql) await client.execute(removeTriggersSql);
+ 842 |           for (const metadata of existingLoggedMetadata) {
+ 843 |             await client.execute(
+ 844 |               generate_table_trigger_sql(metadata, {
+ 845 |                 branchId: migrationBranchId,
+ 846 |                 resolveEntityMetadata: this.encryptionContext.resolveEntityMetadata
+ 847 |               })
+ 848 |             );
+ 849 |           }
+ 850 | 
+ 851 |           // RXD-036：给 rxdb_migration."name" 补唯一索引 —— 它是「同一条迁移只跑一次」的仲裁者。
+ 852 |           // 老库在旧实现下可能已经存了重名行（并发实例各写一条），不先去重，建索引这一步会直接失败
+ 853 |           // 并把整个升级卡死。保留最小 id 的那条：它是最先落库的，`executedAt` 也最接近真实执行时刻。
+ 854 |           const nameProperty = migrationMetadata.properties.find(property => property.name === 'name');
+ 855 |           if (!nameProperty) {
+ 856 |             throw new RxDBAdapterSqliteError('RxDBMigration metadata is missing the "name" property.');
+ 857 |           }
+ 858 |           await client.execute(
+ 859 |             `DELETE FROM ${migrationTable}
+ 860 |              WHERE "id" NOT IN (SELECT MIN("id") FROM ${migrationTable} GROUP BY "name")`
+ 861 |           );
+ 862 |           await client.execute(
+ 863 |             `CREATE UNIQUE INDEX IF NOT EXISTS ${quote_sql_identifier(
+ 864 |               getTableColumnIndexName(migrationMetadata, nameProperty)
+ 865 |             )} ON ${migrationTable}("name")`
+ 866 |           );
+ 867 | 
+ 868 |           await ensureBranchActiveKey(client);
+ 869 | 
+ 870 |           for (const watermark of [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATERMARK]) {
+ 871 |             await client.execute(
+ 872 |               `INSERT INTO ${migrationTable} ("name", "executedAt")
+ 873 |                SELECT ?, CURRENT_TIMESTAMP
+ 874 |                WHERE NOT EXISTS (SELECT 1 FROM ${migrationTable} WHERE "name" = ?)`,
+ 875 |               [watermark, watermark]
+ 876 |             );
+ 877 |           }
+ 878 |         }
+ 879 | 
+ 880 |         await client.execute('COMMIT;');
+ 881 |         committed = true;
+ 882 |       } catch (error) {
+ 883 |         if (transactionStarted && !committed) {
+ 884 |           try {
+ 885 |             await client.execute('ROLLBACK;');
+ 886 |           } catch (rollbackError) {
+ 887 |             console.error('[rxdb-adapter-sqlite-core] system migration ROLLBACK failed:', rollbackError);
+ 888 |             await this.#invalidateClient(client).catch(disconnectError => {
+ 889 |               console.error('[rxdb-adapter-sqlite-core] failed to discard system migration client:', disconnectError);
+ 890 |             });
+ 891 |           }
+ 892 |         }
+ 893 |         throw error;
+ 894 |       }
+ 895 |     });
+ 896 |   }
+ 897 | 
+ 898 |   /**
+ 899 |    * SQLite 家族把命名空间折进表名：`public$todos`。
+ 900 |    *
+ 901 |    * @param metadata - 实体元数据
+ 902 |    * @returns 逻辑名（基类那一份）加上本家族真正建出来的那个名字
+ 903 |    *
+ 904 |    * @remarks
+ 905 |    * 覆写的全部意义是**让规则只有一份**：名字由 {@link get_table_name_by_metadata} 给出，
+ 906 |    * 与建表、查询、触发器用的是同一个函数。在它之前，`@aiao/rxdb-plugin-working-tree` 的
+ 907 |    * 版本化域按 `'$'` 自己拼了一份；拼法一改，那份不会报错，只会开始认不出这张表，于是
+ 908 |    * raw 写门禁对它静默放行。
+ 909 |    *
+ 910 |    * 保留基类给的逻辑名而不是只交折叠名：raw 判定宁可**多认**一个名字——多认只是多挡下
+ 911 |    * 一条在本后端本来也跑不通的语句；少认的那一个恰好是绕过捕获的写会用的名字。
+ 912 |    */
+ 913 |   override physicalTableNames(metadata: EntityMetadata): readonly string[] {
+ 914 |     return [...super.physicalTableNames(metadata), get_table_name_by_metadata(metadata)];
+ 915 |   }
+ 916 | 
+ 917 |   async switchBranch(options: SwitchBranchOptions): Promise<void> {
+ 918 |     return switch_branch(this, options);
+ 919 |   }
+ 920 | 
+ 921 |   async mergeChanges(
+ 922 |     actions: SwitchVersionActions,
+ 923 |     localChanges?: Omit<RxDBChange, 'id'>[],
+ 924 |     disableTriggers = false
+ 925 |   ): Promise<void> {

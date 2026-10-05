@@ -1,0 +1,100 @@
+packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts SHA256 052824127109070a4013c72429389c0e689bb356ad85165149e2287cb4f65a38 [146,244]
+ 146 |  * {@link ensureBranchActiveKey} 的同名分支是同一个判断。
+ 147 |  *
+ 148 |  * 多行 active 不在这里判：迁移路径上紧随其后的 {@link ensureBranchActiveKey} 会抛
+ 149 |  * `AmbiguousActiveBranchError`，按 `LIMIT 1` 取到的那一行重建的触发器随整段迁移一起回滚；
+ 150 |  * 迁移完成之后，`activeKey` 那条唯一索引按写点约定把 active 行压到至多一行（改由 schema 表达
+ 151 |  * 是 roadmap 顺延项，判据见 `RxDBBranch` 的 `@remarks`）。PGlite 建表侧的
+ 152 |  * `readBranchIdForNewTables` 同样 `LIMIT 1` 取一行。
+ 153 |  *
+ 154 |  * 没有直接用 {@link read_current_branch_id}：那一份读不到激活分支、也没有 `main` 行时会抛错
+ 155 |  * （见其 TSDoc），语义是「事务内必须要有答案」；这里的两处调用方都可能撞见「分支表还不存在」这种
+ 156 |  * 更早的库状态（全新库建表、旧库迁移中途），读不到是合法结果，要回退根分支而不是抛错中断整条
+ 157 |  * 引导链路。
+ 158 |  */
+ 159 | const readActiveBranchIdOrMain = async (tx: SqlExecutor): Promise<string> => {
+ 160 |   const branchTableName = get_table_name_by_metadata(getEntityMetadata(RxDBBranch));
+ 161 |   const tableResult = await tx.execute(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`, [
+ 162 |     branchTableName
+ 163 |   ]);
+ 164 |   if (!tableResult.results.some(result => result.rows.length > 0)) return MAIN_BRANCH_ID;
+ 165 | 
+ 166 |   const activeResult = await tx.execute(
+ 167 |     `SELECT "id" FROM ${quote_sql_identifier(branchTableName)} WHERE "activated" = 1 LIMIT 1`
+ 168 |   );
+ 169 |   const activeBranchId = activeResult.results.flatMap(result => result.rows)[0]?.[0];
+ 170 |   return typeof activeBranchId === 'string' ? activeBranchId : MAIN_BRANCH_ID;
+ 171 | };
+ 172 | 
+ 173 | /**
+ 174 |  * 在既有库上补出 `rxdb_branch.activeKey` 与它那条唯一索引，并把基数收敛到「至多一个 active」。
+ 175 |  *
+ 176 |  * @param client - 迁移事务所在的客户端（调用方已 `BEGIN`）
+ 177 |  * @throws {@link AmbiguousActiveBranchError} 库里有多行 `activated` 时；一行都不改，由调用方回滚整条迁移
+ 178 |  *
+ 179 |  * @remarks
+ 180 |  * 与 PGlite 侧 `system/migrate_system_schema.ts` 的同名步骤逐语义对齐——两端形状必须一致，
+ 181 |  * 否则同一个库换个后端打开就是另一套约束。**两份没有合一的判据写在那一端的 @remarks 里**
+ 182 |  * （客户端协议与 DDL 方言都不同，抽完只剩骨架）；在合一之前，这里的任何改动都必须两端同改。
+ 183 |  * 顺序同样是**先建索引、后回填**：
+ 184 |  * Postgres 在关系上有未触发的 AFTER 触发器事件时会拒绝 `CREATE INDEX`，SQLite 虽无此限制，
+ 185 |  * 但两端走不同顺序等于给自己留两条要分别验证的路径。
+ 186 |  *
+ 187 |  * 探列在 SQLite 这边是**必需的而非优化**：`ALTER TABLE ... ADD COLUMN` 没有 `IF NOT EXISTS`，
+ 188 |  * 重复执行会直接报错。
+ 189 |  *
+ 190 |  * 回填写成「先全清、再点亮」两条语句，而不是一条 `CASE`：唯一索引是**逐行立即**检查的，
+ 191 |  * 把哨兵值从一行搬到另一行会按行处理顺序瞬时自撞。
+ 192 |  *
+ 193 |  * 两条语句都必须在库态已经正确时**一行都不写**。本步骤不只跑在旧库上：水位线是
+ 194 |  * `migrateSystemSchema()` 最后才写的，所以新库第一次 connect() 同样会走完这里。把同一个值
+ 195 |  * 原样写回去仍然是一次 UPDATE，会沿变更派发链路冒出一条谁都没做过的 `RxDBBranch` 更新，
+ 196 |  * 而且没有任何东西会报错。
+ 197 |  *
+ 198 |  * **零 active 且库里连 `main` 行都没有时，这里什么都不建。** 迁移 0004 的不变量是「新库与
+ 199 |  * 升级库逐字段相同」——一个分支行必须连带 `rxdb_commit_branch_ref` 与 `rxdb_working_tree_state`
+ 200 |  * 两行（见 `commit/branch-commit-rows.ts`），而这里是裸 SQL，造不出那两行。凭空插一行
+ 201 |  * `main` 等于亲手制造一个原本不存在的不一致；这种库交给实体层的 `resolve_current_branch`
+ 202 |  * 去建，它走的是能连带写全的那条路。空表本身不违反「至多一个」，索引照建不误。
+ 203 |  */
+ 204 | const ensureBranchActiveKey = async (client: SqliteClientLike): Promise<void> => {
+ 205 |   const branchMetadata = getEntityMetadata(RxDBBranch);
+ 206 |   const branchTableName = get_table_name_by_metadata(branchMetadata);
+ 207 |   const tableResult = await client.execute(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ? LIMIT 1`, [
+ 208 |     branchTableName
+ 209 |   ]);
+ 210 |   if (!tableResult.results.some(result => result.rows.length > 0)) return;
+ 211 | 
+ 212 |   const activeKeyProperty = branchMetadata.properties.find(property => property.name === 'activeKey');
+ 213 |   if (!activeKeyProperty) {
+ 214 |     throw new RxDBAdapterSqliteError('RxDBBranch metadata is missing the "activeKey" property.');
+ 215 |   }
+ 216 |   const branchTable = quote_sql_identifier(branchTableName);
+ 217 |   const activeKeyColumn = quote_sql_identifier(activeKeyProperty.columnName);
+ 218 | 
+ 219 |   const columnResult = await client.execute(`SELECT 1 FROM pragma_table_info(?) WHERE "name" = ? LIMIT 1`, [
+ 220 |     branchTableName,
+ 221 |     activeKeyProperty.columnName
+ 222 |   ]);
+ 223 |   if (!columnResult.results.some(result => result.rows.length > 0)) {
+ 224 |     // 列类型走与建表同一个 helper：新库与升级库的形状必须逐字节一致，各写一份字面量
+ 225 |     // 不会有编译错误，只会让两条路径悄悄分叉。
+ 226 |     await client.execute(
+ 227 |       `ALTER TABLE ${branchTable} ADD COLUMN ${activeKeyColumn} ${rxDBColumnTypeToSqliteType(activeKeyProperty)}`
+ 228 |     );
+ 229 |   }
+ 230 | 
+ 231 |   const activeResult = await client.execute(`SELECT "id" FROM ${branchTable} WHERE "activated" = 1 ORDER BY "id"`);
+ 232 |   const activeBranchIds = activeResult.results.flatMap(result => result.rows).map(row => String(row[0]));
+ 233 |   if (activeBranchIds.length > 1) throw new AmbiguousActiveBranchError(activeBranchIds);
+ 234 | 
+ 235 |   await client.execute(
+ 236 |     `CREATE UNIQUE INDEX IF NOT EXISTS ${quote_sql_identifier(
+ 237 |       getTableColumnIndexName(branchMetadata, activeKeyProperty)
+ 238 |     )} ON ${branchTable}(${activeKeyColumn})`
+ 239 |   );
+ 240 | 
+ 241 |   const activeBranchId = activeBranchIds[0];
+ 242 |   // 两条 UPDATE 都带着「已经对了就别碰」的谓词。清空那条顺便把目标行排除在外——它本来就要被
+ 243 |   // 点亮，先清再写等于凭空重写一次。排除它不会削弱两条语句拆开的初衷：哨兵值从 A 行搬到 B 行时
+ 244 |   // A 仍在清空范围内，索引照样不会瞬时自撞。

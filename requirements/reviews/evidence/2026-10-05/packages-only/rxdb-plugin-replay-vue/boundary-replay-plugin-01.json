@@ -1,0 +1,13 @@
+{
+  "path": "packages/rxdb-plugin-replay/src/plugin.ts",
+  "sha256": "96653657585add8f0408404be92eb533d7c046fb1579ef385a44bfb509e6d8be",
+  "lineCount": 130,
+  "readRanges": [
+    [
+      1,
+      75
+    ]
+  ],
+  "transcript": "boundary-replay-plugin-01.txt",
+  "tableSpacingNormalized": false
+}

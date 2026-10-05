@@ -1,0 +1,56 @@
+{
+  "object": "rxdb-adapter-sqlite-core",
+  "at": "2026-10-05T16:44:35.757351+08:00",
+  "confirmedIssues": [
+    {
+      "id": "SC-PKG-001",
+      "severity": "P1",
+      "C": [
+        "C3"
+      ],
+      "status": "confirmed",
+      "requiresControllerRVDedup": true
+    },
+    {
+      "id": "SC-PKG-002",
+      "severity": "P2",
+      "C": [
+        "C1",
+        "C2"
+      ],
+      "status": "confirmed",
+      "requiresControllerRVDedup": true
+    }
+  ],
+  "candidates": [
+    {
+      "id": "SC-PKG-C01",
+      "severity": "P2-pending",
+      "C": [
+        "C1",
+        "C2",
+        "C6",
+        "C7"
+      ],
+      "status": "candidate-unverified"
+    }
+  ],
+  "existingIssues": [
+    {
+      "id": "RV-061",
+      "status": "existing-root-report-covered",
+      "newDuplicateCreated": false
+    }
+  ],
+  "fixedNotRepeated": [
+    "RV-066",
+    "RV-067",
+    "RV-028",
+    "RV-029",
+    "RV-046",
+    "RV-055"
+  ],
+  "newRVIssuesCreated": false,
+  "businessCodeModified": false,
+  "fullMatrixExecuted": false
+}

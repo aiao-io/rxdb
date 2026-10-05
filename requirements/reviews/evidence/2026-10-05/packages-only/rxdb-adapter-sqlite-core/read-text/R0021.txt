@@ -1,0 +1,142 @@
+packages/rxdb-adapter-sqlite-core/src/__tests__/transaction/SqliteTransactionExecutor.spec.ts SHA256 5e8f98e030d1de5b3b8465d5c41b376067fa06b63a3811474745469b1b1104aa [1,141]
+   1 | import type { IRepository, SwitchVersionActions } from '@aiao/rxdb';
+   2 | import { describe, expect, it, vi } from 'vitest';
+   3 | import type { RxDBAdapterSqliteBase, SqliteClientLike } from '../../RxDBAdapterSqliteBase.js';
+   4 | import type { SqliteResult } from '../../sqlite-core.interface.js';
+   5 | import { SqliteTransactionExecutor } from '../../transaction/SqliteTransactionExecutor.js';
+   6 | import { Todo } from '../fixtures/Todo.js';
+   7 | 
+   8 | /**
+   9 |  * SqliteTransactionExecutor —— 事务作用域内的适配器门面。
+  10 |  *
+  11 |  * 覆盖两条绑定契约（见实现文件注释）：
+  12 |  * - `query` / `writeQuery` / `getRepository` / `runInTransaction` / `mergeChanges`
+  13 |  *   五个成员被特判改写，其余成员一律绑定真实适配器；
+  14 |  * - 事务进入终态（settle）后一切入口都拒绝，报错点名 operation 与事务 id。
+  15 |  */
+  16 | 
+  17 | const createAdapterFake = () => {
+  18 |   const repository = { id: 'repo-1' } as unknown as IRepository<Todo>;
+  19 |   const adapter = {
+  20 |     createUncachedRepository: vi.fn(() => repository),
+  21 |     mergeChanges: vi.fn(async () => undefined),
+  22 |     statusInfo: vi.fn(function (this: unknown) {
+  23 |       return this;
+  24 |     }),
+  25 |     marker: 'plain-value'
+  26 |   } as unknown as RxDBAdapterSqliteBase;
+  27 |   return { adapter, repository };
+  28 | };
+  29 | 
+  30 | const createClientFake = () =>
+  31 |   ({
+  32 |     execute: vi.fn(async () => ({ sql: '', rowsAffected: 0, elapsed: 0, results: [] }) as SqliteResult),
+  33 |     disconnect: vi.fn(async () => undefined),
+  34 |     version: vi.fn(async () => '3.49.0'),
+  35 |     addEventListener: vi.fn()
+  36 |   }) as unknown as SqliteClientLike;
+  37 | 
+  38 | describe('SqliteTransactionExecutor', () => {
+  39 |   it('execute 直接落在事务连接上；query 拆出 rows/columns，结果为空时兜底空数组', async () => {
+  40 |     const { adapter } = createAdapterFake();
+  41 |     const client = createClientFake();
+  42 |     const executor = new SqliteTransactionExecutor(adapter, client, 'tx-1');
+  43 | 
+  44 |     client.execute.mockResolvedValueOnce({
+  45 |       sql: 'SELECT 1',
+  46 |       rowsAffected: 1,
+  47 |       elapsed: 0,
+  48 |       results: [{ columns: ['a'], rows: [[1]] }]
+  49 |     });
+  50 |     await expect(executor.query('SELECT 1')).resolves.toEqual({
+  51 |       rowsAffected: 1,
+  52 |       rows: [[1]],
+  53 |       columns: ['a']
+  54 |     });
+  55 |     expect(client.execute).toHaveBeenCalledWith('SELECT 1', undefined);
+  56 | 
+  57 |     client.execute.mockResolvedValueOnce({ sql: 'SELECT 2', rowsAffected: 0, elapsed: 0, results: [] });
+  58 |     await expect(executor.query('SELECT 2')).resolves.toEqual({ rowsAffected: 0, rows: [], columns: [] });
+  59 |   });
+  60 | 
+  61 |   it('facade 特判五个成员：query/writeQuery 落事务、仓库绑门面、runInTransaction 复用本事务', async () => {
+  62 |     const { adapter, repository } = createAdapterFake();
+  63 |     const client = createClientFake();
+  64 |     const executor = new SqliteTransactionExecutor(adapter, client, 'tx-1');
+  65 |     const facade = executor.adapter;
+  66 | 
+  67 |     expect(facade).not.toBe(adapter);
+  68 | 
+  69 |     await facade.query('SELECT 1', ['x']);
+  70 |     expect(client.execute).toHaveBeenCalledWith('SELECT 1', ['x']);
+  71 |     await facade.writeQuery('INSERT INTO t VALUES (?)', [1]);
+  72 |     expect(client.execute).toHaveBeenCalledWith('INSERT INTO t VALUES (?)', [1]);
+  73 | 
+  74 |     const repo = facade.getRepository(Todo);
+  75 |     expect(repo).toBe(repository);
+  76 |     expect(adapter.createUncachedRepository).toHaveBeenCalledWith(Todo, facade);
+  77 | 
+  78 |     await expect(facade.runInTransaction(async inner => inner.id)).resolves.toBe('tx-1');
+  79 |   });
+  80 | 
+  81 |   it('facade 的 mergeChanges 把 this 绑到门面；普通成员与普通方法绑定真实适配器', async () => {
+  82 |     const { adapter } = createAdapterFake();
+  83 |     const client = createClientFake();
+  84 |     const executor = new SqliteTransactionExecutor(adapter, client, 'tx-1');
+  85 |     const facade = executor.adapter;
+  86 | 
+  87 |     const capturedThis: unknown[] = [];
+  88 |     adapter.mergeChanges.mockImplementationOnce(async function (this: unknown) {
+  89 |       capturedThis.push(this);
+  90 |     });
+  91 |     const actions = {} as SwitchVersionActions;
+  92 |     await facade.mergeChanges(actions);
+  93 |     expect(capturedThis[0]).toBe(facade);
+  94 | 
+  95 |     // 非特判成员：值直接透传，方法绑定真实适配器（#private 访问不走 Proxy 陷阱）
+  96 |     expect((facade as unknown as { marker: string }).marker).toBe('plain-value');
+  97 |     expect((facade as unknown as { statusInfo(): unknown }).statusInfo()).toBe(adapter);
+  98 |   });
+  99 | 
+ 100 |   it('executor.mergeChanges 委派适配器自身实现并原样转发参数与禁用标志', async () => {
+ 101 |     const { adapter } = createAdapterFake();
+ 102 |     const client = createClientFake();
+ 103 |     const executor = new SqliteTransactionExecutor(adapter, client, 'tx-1');
+ 104 | 
+ 105 |     const actions = {} as SwitchVersionActions;
+ 106 |     await executor.mergeChanges(actions, undefined, true);
+ 107 |     expect(adapter.mergeChanges).toHaveBeenCalledWith(actions, undefined, true);
+ 108 | 
+ 109 |     const facade = executor.adapter;
+ 110 |     const capturedThis: unknown[] = [];
+ 111 |     adapter.mergeChanges.mockImplementationOnce(async function (this: unknown) {
+ 112 |       capturedThis.push(this);
+ 113 |     });
+ 114 |     await executor.mergeChanges(actions);
+ 115 |     expect(capturedThis[0]).toBe(facade);
+ 116 |   });
+ 117 | 
+ 118 |   it('getRepository 每个实体类型只建一次并缓存', () => {
+ 119 |     const { adapter, repository } = createAdapterFake();
+ 120 |     const client = createClientFake();
+ 121 |     const executor = new SqliteTransactionExecutor(adapter, client, 'tx-1');
+ 122 | 
+ 123 |     const first = executor.getRepository(Todo);
+ 124 |     const second = executor.getRepository(Todo);
+ 125 | 
+ 126 |     expect(first).toBe(repository);
+ 127 |     expect(second).toBe(first);
+ 128 |     expect(adapter.createUncachedRepository).toHaveBeenCalledTimes(1);
+ 129 |   });
+ 130 | 
+ 131 |   it('tableRef 与建表路径同拼法（namespace 作前缀、标识符带引号）', () => {
+ 132 |     const { adapter } = createAdapterFake();
+ 133 |     const client = createClientFake();
+ 134 |     const executor = new SqliteTransactionExecutor(adapter, client, 'tx-1');
+ 135 | 
+ 136 |     expect(executor.tableRef(Todo)).toBe('"public$todos"');
+ 137 |   });
+ 138 | 
+ 139 |   it('run 把 executor 自身交给回调', async () => {
+ 140 |     const { adapter } = createAdapterFake();
+ 141 |     const client = createClientFake();

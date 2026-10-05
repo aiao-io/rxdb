@@ -1,0 +1,29 @@
+8923: > nx run rxdb-plugin-working-tree-react:test --args=--run --maxWorkers=1 --coverage.enabled=true --coverage.reporter=text --coverage.reporter=json-summary --coverage.reporter=json
+8924: 
+8925: > vitest --run --maxWorkers=1 --coverage.enabled=true --coverage.reporter=text --coverage.reporter=json-summary --coverage.reporter=json
+8926: 
+8927: 
+8928:  RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react
+8929:       Coverage enabled with v8
+8930: 
+8931:  ✓ |rxdb-plugin-working-tree-react| src/__tests__/use-working-tree.spec.tsx (46 tests) 48ms
+8932:  ✓ |rxdb-plugin-working-tree-react| src/__tests__/index.spec.ts (3 tests) 2ms
+8933: 
+8934:  Test Files  2 passed (2)
+8935:       Tests  49 passed (49)
+8936:    Start at  09:05:59
+8937:    Duration  1.10s (transform 292ms, setup 0ms, import 544ms, tests 50ms, environment 257ms)
+8938: 
+8939:  % Coverage report from v8
+8940: -------------------|---------|----------|---------|---------|-------------------
+8941: File               | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+8942: -------------------|---------|----------|---------|---------|-------------------
+8943: -------------------|---------|----------|---------|---------|-------------------
+8944: 
+8945: =============================== Coverage summary ===============================
+8946: Statements   : 100% ( 11/11 )
+8947: Branches     : 100% ( 0/0 )
+8948: Functions    : 100% ( 5/5 )
+8949: Lines        : 100% ( 8/8 )
+8950: ================================================================================
+8951: 

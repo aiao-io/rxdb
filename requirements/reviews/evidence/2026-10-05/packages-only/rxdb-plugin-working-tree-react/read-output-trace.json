@@ -1,0 +1,197 @@
+{
+  "meaning": "Executed body output ranges; reviewer must separately attest actual inspection and conclusions.",
+  "parts": {
+    "1": {
+      "outputAt": "2026-10-05T16:36:32.162364+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/LICENSE",
+          "range": [
+            1,
+            21
+          ],
+          "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/README.md",
+          "range": [
+            1,
+            91
+          ],
+          "sha256": "3ee7003da0df974f245e47c2614989b5ceb2c181357633660d9da7a054712d7b"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/package.json",
+          "range": [
+            1,
+            32
+          ],
+          "sha256": "76a03ad4210c14937d7a5c7679854c54a6264ffc8f11b60c5bc0af74abf64008"
+        }
+      ]
+    },
+    "2": {
+      "outputAt": "2026-10-05T16:36:57.399902+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/package.json",
+          "range": [
+            33,
+            60
+          ],
+          "sha256": "76a03ad4210c14937d7a5c7679854c54a6264ffc8f11b60c5bc0af74abf64008"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/project.json",
+          "range": [
+            1,
+            12
+          ],
+          "sha256": "6556ee4178591564e554de60bee298b7c391f945b08dbffe8f2c01b54bebc5e9"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/src/__tests__/index.spec.ts",
+          "range": [
+            1,
+            30
+          ],
+          "sha256": "0325389380d8f755cb9f8089ac582ceb65059f553d7b65f369a4c6ea0292a2f3"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/src/__tests__/review-parallel-provider-switch.spec.ts",
+          "range": [
+            1,
+            58
+          ],
+          "sha256": "baa20716a8648d77db6331393e535e89a14a7d53dd18250f035bee8d6f5bbd52"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx",
+          "range": [
+            1,
+            11
+          ],
+          "sha256": "d602e8dee8c308d03245ffbf5b173056b4fecf9be9712b5af78fcf3c5b866f1b"
+        }
+      ]
+    },
+    "3": {
+      "outputAt": "2026-10-05T16:37:14.327746+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx",
+          "range": [
+            12,
+            153
+          ],
+          "sha256": "d602e8dee8c308d03245ffbf5b173056b4fecf9be9712b5af78fcf3c5b866f1b"
+        }
+      ]
+    },
+    "4": {
+      "outputAt": "2026-10-05T16:37:24.971034+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx",
+          "range": [
+            154,
+            297
+          ],
+          "sha256": "d602e8dee8c308d03245ffbf5b173056b4fecf9be9712b5af78fcf3c5b866f1b"
+        }
+      ]
+    },
+    "5": {
+      "outputAt": "2026-10-05T16:37:32.624001+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx",
+          "range": [
+            298,
+            432
+          ],
+          "sha256": "d602e8dee8c308d03245ffbf5b173056b4fecf9be9712b5af78fcf3c5b866f1b"
+        }
+      ]
+    },
+    "6": {
+      "outputAt": "2026-10-05T16:37:40.853503+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx",
+          "range": [
+            433,
+            556
+          ],
+          "sha256": "d602e8dee8c308d03245ffbf5b173056b4fecf9be9712b5af78fcf3c5b866f1b"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/src/index.ts",
+          "range": [
+            1,
+            19
+          ],
+          "sha256": "7363461c414bad9a4271e7be118040ee3002c3e5f069675a58b5e8319bb46af0"
+        }
+      ]
+    },
+    "7": {
+      "outputAt": "2026-10-05T16:37:49.019723+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts",
+          "range": [
+            1,
+            96
+          ],
+          "sha256": "b8df3cc14193a2e17d0f3a0946a0423f85043408977c4fa6c838341b4214e86e"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/tsconfig.json",
+          "range": [
+            1,
+            16
+          ],
+          "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/tsconfig.lib.json",
+          "range": [
+            1,
+            39
+          ],
+          "sha256": "47de9cc299af321d130cd3e3be19f54b0b9f113e5a16708ebd67f6b2df8605dc"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/tsconfig.spec.json",
+          "range": [
+            1,
+            15
+          ],
+          "sha256": "28ae7c8b6b9de02abba8aaf41d0fde25b185fde4cb5ce5744d083087cf778b5d"
+        }
+      ]
+    },
+    "8": {
+      "outputAt": "2026-10-05T16:37:57.257409+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/tsconfig.spec.json",
+          "range": [
+            16,
+            27
+          ],
+          "sha256": "28ae7c8b6b9de02abba8aaf41d0fde25b185fde4cb5ce5744d083087cf778b5d"
+        },
+        {
+          "path": "packages/rxdb-plugin-working-tree-react/vite.config.mts",
+          "range": [
+            1,
+            63
+          ],
+          "sha256": "a24860e8befedc58e2d154849751425d2d440f2339f32656d12491fb434f1c3b"
+        }
+      ]
+    }
+  }
+}

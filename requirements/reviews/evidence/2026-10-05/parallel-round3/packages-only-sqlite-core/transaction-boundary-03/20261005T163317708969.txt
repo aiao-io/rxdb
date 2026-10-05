@@ -1,0 +1,86 @@
+COMMAND: ["pnpm", "nx", "run", "rxdb-adapter-sqlite-core:test", "--excludeTaskDependencies", "--skipRemoteCache", "--skipNxCache", "--", "--run", "--config", "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.config.mts", "--maxWorkers=1", "--fileParallelism=false"]
+CWD: /Users/jimmy/Documents/aiao/rxdb
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-adapter-sqlite-core:test --run --config /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.config.mts --maxWorkers=1 --fileParallelism=false
+
+> vitest --run --config /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.config.mts --maxWorkers=1 --fileParallelism=false
+
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core
+
+stdout | ../../requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.spec.ts > review-packages-20261005 transaction terminal boundary > COMMIT listener sees committed executor and cannot write outside the committed transaction
+BOUNDARY_OBSERVATION {"phase":"commit","stateAtEvent":"active","accepted":true,"rows":[{"value":"escaped"},{"value":"owned"}],"sqlLog":["CREATE TABLE boundary (value TEXT NOT NULL)","BEGIN;","PRAGMA defer_foreign_keys = ON;","INSERT INTO boundary VALUES ('owned')","\nCOMMIT;","INSERT INTO boundary VALUES ('escaped')"],"finalState":"committed"}
+
+stdout | ../../requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.spec.ts > review-packages-20261005 transaction terminal boundary > ROLLBACK listener sees rolled-back executor and cannot create autocommit rows after rollback
+BOUNDARY_OBSERVATION {"phase":"rollback","stateAtEvent":"active","accepted":true,"rows":[{"value":"escaped"}],"sqlLog":["CREATE TABLE boundary (value TEXT NOT NULL)","BEGIN;","PRAGMA defer_foreign_keys = ON;","INSERT INTO boundary VALUES ('owned')","ROLLBACK","INSERT INTO boundary VALUES ('escaped')"],"finalState":"rolled-back"}
+
+ ❯ ../../requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.spec.ts (2 tests | 2 failed) 8ms
+     × COMMIT listener sees committed executor and cannot write outside the committed transaction 6ms
+     × ROLLBACK listener sees rolled-back executor and cannot create autocommit rows after rollback 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  ../../requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.spec.ts > review-packages-20261005 transaction terminal boundary > COMMIT listener sees committed executor and cannot write outside the committed transaction
+AssertionError: expected 'active' to be 'committed' // Object.is equality
+
+Expected: "committed"
+Received: "active"
+
+ ❯ ../../requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.spec.ts:67:35
+     65|   it('COMMIT listener sees committed executor and cannot write outside…
+     66|     const observed = await observeBoundary('commit');
+     67|     expect(observed.stateAtEvent).toBe('committed');
+       |                                   ^
+     68|     expect(observed.accepted).toBe(false);
+     69|     expect(observed.rows).toEqual([{ value: 'owned' }]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  ../../requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.spec.ts > review-packages-20261005 transaction terminal boundary > ROLLBACK listener sees rolled-back executor and cannot create autocommit rows after rollback
+AssertionError: expected 'active' to be 'rolled-back' // Object.is equality
+
+Expected: "rolled-back"
+Received: "active"
+
+ ❯ ../../requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.spec.ts:73:35
+     71|   it('ROLLBACK listener sees rolled-back executor and cannot create au…
+     72|     const observed = await observeBoundary('rollback');
+     73|     expect(observed.stateAtEvent).toBe('rolled-back');
+       |                                   ^
+     74|     expect(observed.accepted).toBe(false);
+     75|     expect(observed.rows).toEqual([]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  2 failed (2)
+   Start at  16:33:21
+   Duration  1.33s (transform 952ms, setup 0ms, import 1.21s, tests 8ms, environment 0ms)
+
+JSON report written to /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.report.json
+Warning: command "vitest --run --config /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.config.mts --maxWorkers=1 --fileParallelism=false" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-adapter-sqlite-core failed
+
+Failed tasks:
+
+- rxdb-adapter-sqlite-core:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      1.6s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1.6s (1 task)
+  Recoverable time:  <1ms

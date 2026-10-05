@@ -1,0 +1,33 @@
+--- node_modules/.pnpm/@vue+runtime-core@3.5.43/node_modules/@vue/runtime-core/dist/runtime-core.cjs.js SHA256=22b0d8044eddf5034fd2ab8dc5649c126cdcf264b4ca8cdea7de2f2eee083f7f lines=8914 read=1751-1782 ---
+1751 function setRef(rawRef, oldRawRef, parentSuspense, vnode, isUnmount = false) {
+1752   if (shared.isArray(rawRef)) {
+1753     rawRef.forEach(
+1754       (r, i) => setRef(
+1755         r,
+1756         oldRawRef && (shared.isArray(oldRawRef) ? oldRawRef[i] : oldRawRef),
+1757         parentSuspense,
+1758         vnode,
+1759         isUnmount
+1760       )
+1761     );
+1762     return;
+1763   }
+1764   if (isAsyncWrapper(vnode) && !isUnmount) {
+1765     if (vnode.shapeFlag & 512 && vnode.type.__asyncResolved && vnode.component.subTree.component) {
+1766       setRef(rawRef, oldRawRef, parentSuspense, vnode.component.subTree);
+1767     }
+1768     return;
+1769   }
+1770   const refValue = vnode.shapeFlag & 4 ? getComponentPublicInstance(vnode.component) : vnode.el;
+1771   const value = isUnmount ? null : refValue;
+1772   const { i: owner, r: ref } = rawRef;
+1773   if (!owner) {
+1774     warn$1(
+1775       `Missing ref owner context. ref cannot be used on hoisted vnodes. A vnode with ref must be created inside the render function.`
+1776     );
+1777     return;
+1778   }
+1779   const oldRef = oldRawRef && oldRawRef.r;
+1780   const refs = owner.refs === shared.EMPTY_OBJ ? owner.refs = {} : owner.refs;
+1781   const setupState = owner.setupState;
+1782   const rawSetupState = reactivity.toRaw(setupState);

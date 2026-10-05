@@ -1,0 +1,26 @@
+[
+  {
+    "path": "packages/rxdb-plugin-replay-vue/src/__tests__/replayer.spec.ts",
+    "sha256": "809c2a3b7f3933a2a7c6b04d95d12cd4a2c6883c34cf1809bdb93820f07434c4",
+    "lineCount": 95,
+    "readRanges": [
+      [
+        1,
+        95
+      ]
+    ],
+    "transcript": "source-read-02.txt"
+  },
+  {
+    "path": "packages/rxdb-plugin-replay-vue/README.md",
+    "sha256": "ae649c4ea05be7679263cf626fbc30c18eec7d978229b6295c295a677bfda7dd",
+    "lineCount": 74,
+    "readRanges": [
+      [
+        1,
+        74
+      ]
+    ],
+    "transcript": "source-read-02.txt"
+  }
+]

@@ -1,0 +1,25 @@
+{
+  "object": "rxdb-plugin-replay-vue",
+  "worker": "PKG-replay-vue",
+  "frozenAt": "2026-10-05T16:17:05.053320+08:00",
+  "packageRoot": "packages/rxdb-plugin-replay-vue",
+  "scopeReused": true,
+  "scopeSha256": "dbf772de9d475794de4321413039a1b7aafc861c3f060131b0f4d4a872cc794c",
+  "baselineFiles": [
+    "baseline/plan.original.md",
+    "baseline/results.original.md",
+    "baseline/resolved-project.original.json"
+  ],
+  "controlledFileCount": 13,
+  "lineCount": 572,
+  "allCurrentSourceHashesMatchScope": true,
+  "readingProof": "全文分片读正文；清单/SHA不作为已阅读证据。当前包13文件将重新实读，不复用清单。",
+  "writeAllowlist": [
+    "requirements/reviews/packages/rxdb-plugin-replay-vue.md",
+    "requirements/reviews/results/packages/rxdb-plugin-replay-vue.md",
+    "requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-vue/**"
+  ],
+  "noBusinessChanges": true,
+  "noDelegation": true,
+  "validationBoundary": "仅重要新疑点最小Nx复验；不跑全量、不扩iframe/真设备/发布矩阵。"
+}

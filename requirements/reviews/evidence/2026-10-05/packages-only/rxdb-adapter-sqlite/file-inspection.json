@@ -1,0 +1,635 @@
+{
+  "object": "rxdb-adapter-sqlite",
+  "readCompletedAt": "2026-10-05T16:31:01.987076+08:00",
+  "method": "14 bounded actual body-output parts, all scope lines read; first oversized clipped configuration output was re-read; inventory not counted.",
+  "files": [
+    {
+      "path": "packages/rxdb-adapter-sqlite/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "lineCount": 21,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "notes": "MIT正文、版权和再分发保留条件；不是源码/API运行证据。",
+      "C": [
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/README.md",
+      "sha256": "0b118c1b0ae2a8ae1531d46c639568f763c2ad36af780bf4e8da27719b02e67c",
+      "lineCount": 46,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          46
+        ]
+      ],
+      "notes": "公开命名/别名与源码相符；memory/OPFS/fallback备份能力与caller-owned Worker释放规则明列；没有把文档表格当真实恢复证据。",
+      "C": [
+        "C1",
+        "C4",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/eslint.config.mjs",
+      "sha256": "9f05539d2fcadcf85301b8ec617ae0c88687cb064577c81a6826c4e444a82c83",
+      "lineCount": 23,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          23
+        ]
+      ],
+      "notes": "继承根ESLint；JSON dependency checker忽略测试/打包配置及列出的边，不证明这些包可在裸consumer解析。",
+      "C": [
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/package.json",
+      "sha256": "a084d6fe3595b7e06945782f7e2abe9d3e7f764da6431fa00ddc2dc78c3750d1",
+      "lineCount": 75,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          65
+        ],
+        [
+          66,
+          75
+        ]
+      ],
+      "notes": "0.0.26、ESM/sideEffects=false；根及testing两runtime/types路径齐；仅testing有@aiao/source条件；src排除tests，运行deps和测试devdeps已核对。",
+      "C": [
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/project.json",
+      "sha256": "dadb6d4f7eb80795d7d03eb09435701b0f20106c852df9045bb9112c57306bdf",
+      "lineCount": 20,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          20
+        ]
+      ],
+      "notes": "只用作文件内容；实际targets另读resolved配置。typecheck依赖build及上游，build跑vite和API-docs审计，lint零警告。",
+      "C": [
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/RxDBAdapterSqliteOfficial.ts",
+      "sha256": "65cd839cb0c8d0139ff6b57fa10564428d619857a81523273c0edd95d6407e2a",
+      "lineCount": 47,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          47
+        ]
+      ],
+      "notes": "唯一适配器派生类保存RxDB dbName；client创建委托工厂；memory/OPFS明确，显式memory fallback拒绝backup。",
+      "C": [
+        "C1",
+        "C3",
+        "C4"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/SqliteOfficialClient.ts",
+      "sha256": "fbc1fd612b0ddd97e6fa3aa232700f1d485da3f347816b1df7f6c50c536f91fa",
+      "lineCount": 21,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "notes": "仅clientName和loadModule桥接，共享oo1生命周期/事务/statement/批处理责任不复制。",
+      "C": [
+        "C1",
+        "C2",
+        "C3"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/RxDBAdapterSqliteOfficial.spec.ts",
+      "sha256": "c784d39e03b086078d77ba2e6fb97ba768c4ba552c32db1a8d6a1abc0b9d4bdd",
+      "lineCount": 37,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          37
+        ]
+      ],
+      "notes": "factory受控mock验证options引用/dbName/name转发；不证明真实WASM/OPFS启动。",
+      "C": [
+        "C1",
+        "C3"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/SqliteOfficialClient.spec.ts",
+      "sha256": "fb97d17cc76d158adba048da77cd73fc67b4c4780e486d70dc27d5ef3691e43b",
+      "lineCount": 142,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          23
+        ],
+        [
+          24,
+          142
+        ]
+      ],
+      "notes": "模拟oo1 DB/OpfsDb/update_hook；SQL调用和init失败后重试实际断言；版本3.51.2是fixture，不是当前引擎版本证明。",
+      "C": [
+        "C1",
+        "C2"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/backup/backup-interrupt.worker.ts",
+      "sha256": "bb7badc24ce906f97d387cd8d5f381e4e1c74dd66173792945cc7e615810d1aa",
+      "lineCount": 10,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          10
+        ]
+      ],
+      "notes": "真实worker入口委托共享interruptedRestore，嵌套Worker/terminate交给harness；本轮只读不运行强杀。",
+      "C": [
+        "C4"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/backup/sqlite-official-backup-harness.ts",
+      "sha256": "557b16be0421d28b8f19b73de01e1c11ed994cf80bd6916cf2ea37ee27957e39",
+      "lineCount": 46,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          30
+        ],
+        [
+          31,
+          46
+        ]
+      ],
+      "notes": "memory当前线程，persistent独立Worker/throw fallback；storage/journal mode/foreign/channel不适用说明；release负责终止caller worker。",
+      "C": [
+        "C4"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/backup/sqlite-official-backup.spec.ts",
+      "sha256": "755469d5cba43338cc4d9c1d8410a27caa14f70ddc1b8e0b15460059a255949c",
+      "lineCount": 17,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          17
+        ]
+      ],
+      "notes": "5套共享backup roundtrip/concurrency/encryption/failure/interrupt原样注册；入口不是已执行或覆盖率证明。",
+      "C": [
+        "C4"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/create_sqlite_client.options.spec.ts",
+      "sha256": "54691652a1afd7c3bd3582afe73de7f91d84db14960903e4eabc6ac784b540eb",
+      "lineCount": 147,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          105
+        ],
+        [
+          106,
+          147
+        ]
+      ],
+      "notes": "真实MessageChannel/Comlink而非兄弟core mock；函数选项拒绝、loadOptions选择、失败归还、成功不误释放、同Worker排他/重连有断言。",
+      "C": [
+        "C1",
+        "C2"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/create_sqlite_client.spec.ts",
+      "sha256": "2deb2182cac28271abd35f244c2ad1f3b3762cb74792ad64735cac11f6c90f1a",
+      "lineCount": 114,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          114
+        ]
+      ],
+      "notes": "上游Module受控，默认/throw OPFS失败拒绝，显式memory fallback单独允许且disconnect；恢复禁fallback不能反推普通connect不支持。",
+      "C": [
+        "C1",
+        "C4"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/encrypted-bigint-binary.spec.ts",
+      "sha256": "f453908a7a9248bef49ea3cd855305f5072020ef281215cb294c05e23a7b36dc",
+      "lineCount": 5,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          5
+        ]
+      ],
+      "notes": "仅共享加密BigInt/binary套件接线；底层断言与执行归encrypted/core联审，不作为本轮真实数据结果。",
+      "C": [
+        "C3",
+        "C4"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/execute_helper.spec.ts",
+      "sha256": "e6e6766ca248016cdcf3416f10774fee182fde4538dcc1995002572afcb032b2",
+      "lineCount": 64,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          64
+        ]
+      ],
+      "notes": "prepare/exec失败归RxDBAdapterSqliteError；bind失败仍finalize一次；bindings as never减弱编译期判别力，真实step/finalize失败未本轮补验。",
+      "C": [
+        "C2",
+        "C3"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/index.spec.ts",
+      "sha256": "6136cc51978e49cacbb1de91ec68c0732b5fe7ab65765d3c4577cf5e055b9f3f",
+      "lineCount": 49,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          49
+        ]
+      ],
+      "notes": "官方别名与shared-core运行时成员同一身份，type equality两项；未覆盖全部normal custom Repository消费。",
+      "C": [
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/public-api.spec.ts",
+      "sha256": "64e72e4e916a7e8843609ed5a85da45390ca859ec42212de1590285f52bacee9",
+      "lineCount": 18,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          18
+        ]
+      ],
+      "notes": "BALANCED=16与Options object形态；RepositoryConstructor<never>仅退化型检查，不替代正常实体构造器正反消费。",
+      "C": [
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/review-tree-filter-incremental.spec.ts",
+      "sha256": "c5be72e22a92aa2d1b0705a5de5b40168ae65be1ccff1b9429a7853577b6a77a",
+      "lineCount": 68,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          5
+        ],
+        [
+          6,
+          68
+        ]
+      ],
+      "notes": "真实factory/tree插件注册、hidden/visible父链、活查询与直接适配器SQL集合对照，指纹去重时不要求额外emission；finally退订/destroy/清理。",
+      "C": [
+        "C3"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/setup.spec.ts",
+      "sha256": "c86b368850cafb7aa0f7859071da818973382a4aa2001bee589df80e587e434c",
+      "lineCount": 50,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          50
+        ]
+      ],
+      "notes": "22个共享suite原样注册，包括BigInt binary/CRUD/事务/分支树/undoRedo；没有恢复已删除rowsAffected套件。",
+      "C": [
+        "C2",
+        "C3"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/sqlite-official-factory.ts",
+      "sha256": "886e7db7671fa561de06b273aaa439970b078204cb37a162c72c040e49c780af",
+      "lineCount": 118,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          20
+        ],
+        [
+          21,
+          118
+        ]
+      ],
+      "notes": "随机dbName隔离、history工厂责任、按需插件早于connect；Worker WeakMap及失败terminate，encryption计数绑定；testing打包只静态依赖真正被导入者。",
+      "C": [
+        "C1",
+        "C3",
+        "C4",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/sqlite-official-load.utils.spec.ts",
+      "sha256": "dd5c4f687690b2b9ef21e0b784fff293a4814e76a9edfe9358c9b75785262735",
+      "lineCount": 228,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          57
+        ],
+        [
+          58,
+          213
+        ],
+        [
+          214,
+          228
+        ]
+      ],
+      "notes": "默认/并发/顺序cache、失败重试、shape拒绝、OPFS URL patch恢复、不同资源/locateFile重载、相同配置复用；模拟模块不能证明部署资源实际存在。",
+      "C": [
+        "C1",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/sqlite-official-test.worker.ts",
+      "sha256": "057a6245d6ba0850e0c684aeba3d7e86b7df3d291d2abaddca98f41618774104",
+      "lineCount": 6,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          6
+        ]
+      ],
+      "notes": "Comlink expose真正SqliteClient，caller Worker终止由测试factory/harness负责。",
+      "C": [
+        "C1",
+        "C2"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/working-tree-capture-conformance.spec.ts",
+      "sha256": "a6138c32b9bf14d43dd0115073ec6e6cf1397d182b75c55a2d917c43c61563ea",
+      "lineCount": 79,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          79
+        ]
+      ],
+      "notes": "捕获全实体清单、三插件和惰性remote接线；每例新库，afterEach先disconnectAll再cleanup，关闭拒绝时后者不会执行，作为测试清理局部风险归共享判别力。",
+      "C": [
+        "C3",
+        "C4"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/__tests__/working-tree-commit-conformance.spec.ts",
+      "sha256": "9b179eeade3c242d10d7e96989dacf81e22470c3043479b70a27f2ac510ac615",
+      "lineCount": 63,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          27
+        ],
+        [
+          28,
+          63
+        ]
+      ],
+      "notes": "提交只注册ConformanceNote/history/working-tree；每例新库+enable，和捕获不要擅自统一不同前提；关闭失败后的finally清理待判。",
+      "C": [
+        "C3",
+        "C4"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/create_sqlite_client.ts",
+      "sha256": "fedb8a371187dc112ea2f24bddf2e7075d20f3241cab496e0daadb51644fef2f",
+      "lineCount": 53,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          53
+        ]
+      ],
+      "notes": "只选择loadOptions、不传repository/worker flags；可转移校验在transport前；返回SqliteClientLike而非误报同步客户端；init拒绝释放lease并重抛。",
+      "C": [
+        "C1",
+        "C2",
+        "C3"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/index.ts",
+      "sha256": "5763176b9236aaabeb834d1454429d018d58e57585753d7b6855d420a704220a",
+      "lineCount": 28,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          28
+        ]
+      ],
+      "notes": "旧Official aliases与core公共types/runtime统一透传，test-only入口不从根导出，无新的框架差异。",
+      "C": [
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/sqlite-official-load.utils.ts",
+      "sha256": "a74f44b9f4245750160c3f7ed2e09ef2d50bef6360bc5728fcfa5a5c1c59fc8c",
+      "lineCount": 78,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          35
+        ],
+        [
+          36,
+          78
+        ]
+      ],
+      "notes": "资源fingerprint cache double-check位于global load lock内，成功shape校验后缓存；global Worker/API config patch由core归还；reset仅测试，不重复报告已修RV066/067。",
+      "C": [
+        "C1",
+        "C2",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/sqlite-official.interface.ts",
+      "sha256": "9b83845f46b30962a95bdabcc11af90e263cdcf4c01888aa2da4ea43139c5862",
+      "lineCount": 63,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          63
+        ]
+      ],
+      "notes": "IRxDBAdapterOptions继承、OPFS/URL/函数日志/worker ownership可见；Pick分离load与transport/repository；普通Repository typed consumer仍必要未验。",
+      "C": [
+        "C1",
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/src/testing.ts",
+      "sha256": "1da25810e742a4c27dde7f8979db30945ac089121641b8edf61d6c95c153cdc4",
+      "lineCount": 23,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          23
+        ]
+      ],
+      "notes": "test-only eager glob绕开lib测试import边，产物entry另配；仅泛型AdapterFactory形态不是fixture全型检；@aiao/source在发布src排除__tests__后的行为未承诺、不作为发布正例。",
+      "C": [
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "lineCount": 16,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          16
+        ]
+      ],
+      "notes": "Solution references lib+spec，strict由根继承；ignoreDeprecations6.0不是忽略类型错误。",
+      "C": [
+        "C3"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/tsconfig.lib.json",
+      "sha256": "2a6c73d9b6451481f8c88356a540460cb3d49ec9aa35884a25ad570b9c8e6b02",
+      "lineCount": 55,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          9
+        ],
+        [
+          10,
+          55
+        ]
+      ],
+      "notes": "src root/声明输出、lib排除所有tests/worker fixtures；类型引用上游含testing所需插件，ignored rxdb-test需结合glob不能假称测试全覆盖。",
+      "C": [
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/tsconfig.spec.json",
+      "sha256": "d15c452ff19beab2fb13810b42c38379132a49924e31c6aba6b1047fb49f2f7e",
+      "lineCount": 36,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          36
+        ]
+      ],
+      "notes": "测试包含src/__tests__全部TS与worker辅助、根strict继承，lib/core/test project references；旧probe类型错误不能按lib通过消失。",
+      "C": [
+        "C3"
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite/vite.config.mts",
+      "sha256": "06d52b5ebabfb88cb68fd88983902afbe5d3b16f4510451d2a9d0b82ce78d190",
+      "lineCount": 114,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          105
+        ],
+        [
+          106,
+          114
+        ]
+      ],
+      "notes": "index/testing双entry、dts不生成alias、WASM/core/comlink外部化；browser Chromium/COOP-COEP、单file、真实coverage include及test排除；plugin timing抑制不等于门禁绿。",
+      "C": [
+        "C1",
+        "C3",
+        "C5"
+      ]
+    }
+  ]
+}

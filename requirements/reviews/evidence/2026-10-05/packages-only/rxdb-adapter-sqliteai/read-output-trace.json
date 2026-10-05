@@ -1,0 +1,459 @@
+{
+  "meaning": "Executed body output ranges; reviewer must separately attest actual inspection and conclusions.",
+  "parts": {
+    "1": {
+      "outputAt": "2026-10-05T16:34:47.456588+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-adapter-sqliteai/LICENSE",
+          "range": [
+            1,
+            21
+          ],
+          "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/README.md",
+          "range": [
+            1,
+            49
+          ],
+          "sha256": "270fcf6bc6d86da155d7abd300bc38def0c7dd93d894a5e15972b2da06f99534"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/eslint.config.mjs",
+          "range": [
+            1,
+            22
+          ],
+          "sha256": "8076559dc3bc94d44eb1aafe0317314d0beee5ca0cb014f7e3848cf3a3e91520"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/package.json",
+          "range": [
+            1,
+            61
+          ],
+          "sha256": "6a0683a5c8782166762f86c9f7a1f73060e3af94504d1633d0e425b0a0369035"
+        }
+      ]
+    },
+    "2": {
+      "outputAt": "2026-10-05T16:35:03.407837+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-adapter-sqliteai/package.json",
+          "range": [
+            62,
+            73
+          ],
+          "sha256": "6a0683a5c8782166762f86c9f7a1f73060e3af94504d1633d0e425b0a0369035"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/project.json",
+          "range": [
+            1,
+            20
+          ],
+          "sha256": "ae60dc2fbc9b9302cfec9da451b2ac1fe9297ff6bc97bffb57ce8cd0049f0e07"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/public-contract/consumer.mjs",
+          "range": [
+            1,
+            11
+          ],
+          "sha256": "ab50e5525f231c160d63f83c19c3f53ae6bc51c805122dc2888efd19da521ee2"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/scripts/verify-public-contract.mjs",
+          "range": [
+            1,
+            64
+          ],
+          "sha256": "a6abd9e8ffff9157d18f070ddb3684a3ebce6837cb6bf30e73b2b71d3ebec29d"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/RxDBAdapterSqliteai.ts",
+          "range": [
+            1,
+            30
+          ],
+          "sha256": "8c8bc52a41d063d7d03e904a4b66db508e0a7ecea65ec36ef6153818f70de4db"
+        }
+      ]
+    },
+    "3": {
+      "outputAt": "2026-10-05T16:36:29.654022+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/RxDBAdapterSqliteai.ts",
+          "range": [
+            31,
+            44
+          ],
+          "sha256": "8c8bc52a41d063d7d03e904a4b66db508e0a7ecea65ec36ef6153818f70de4db"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/SqliteaiClient.ts",
+          "range": [
+            1,
+            21
+          ],
+          "sha256": "4b01a3ec4e127690fdf82a42adfe577e7ff56350783d10d08b503b8b32e4bc46"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/SqliteaiClient.spec.ts",
+          "range": [
+            1,
+            139
+          ],
+          "sha256": "ea7d0c063d3be9fbf75965bc994b5f51c0eff4e53b5156aa93da54611927abc1"
+        }
+      ]
+    },
+    "4": {
+      "outputAt": "2026-10-05T16:37:00.980338+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/SqliteaiClient.spec.ts",
+          "range": [
+            140,
+            234
+          ],
+          "sha256": "ea7d0c063d3be9fbf75965bc994b5f51c0eff4e53b5156aa93da54611927abc1"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/adapter-construction.spec.ts",
+          "range": [
+            1,
+            4
+          ],
+          "sha256": "94f75dc2fc143149f023557de6e4935963bdef08d3767e7f0d8b276ec3982f48"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/backup/backup-interrupt.worker.ts",
+          "range": [
+            1,
+            10
+          ],
+          "sha256": "86872c61c4d6c4524ccabd0e000dd9f7bf4ab6a7cc01ca7e6912d86114cac9e7"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/backup/sqliteai-backup-harness.ts",
+          "range": [
+            1,
+            27
+          ],
+          "sha256": "cb5547ba32c0e0ba97652e5eaa7df2c7e1dab555baa7fc09f5d577d96112ae79"
+        }
+      ]
+    },
+    "5": {
+      "outputAt": "2026-10-05T16:37:42.824769+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/backup/sqliteai-backup-harness.ts",
+          "range": [
+            28,
+            57
+          ],
+          "sha256": "cb5547ba32c0e0ba97652e5eaa7df2c7e1dab555baa7fc09f5d577d96112ae79"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/backup/sqliteai-backup.spec.ts",
+          "range": [
+            1,
+            17
+          ],
+          "sha256": "2fab37c96565a03e6a487c70ecce127cd1f99b54ead2af862d67c60f4132f80f"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/create_sqlite_client.options.spec.ts",
+          "range": [
+            1,
+            86
+          ],
+          "sha256": "6300a5c4dc849546a3ad4c96af6324209b094c696e7c8c46459928d2905c6a93"
+        }
+      ]
+    },
+    "6": {
+      "outputAt": "2026-10-05T16:38:16.290342+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/create_sqlite_client.options.spec.ts",
+          "range": [
+            87,
+            136
+          ],
+          "sha256": "6300a5c4dc849546a3ad4c96af6324209b094c696e7c8c46459928d2905c6a93"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/encrypted-bigint-binary.spec.ts",
+          "range": [
+            1,
+            5
+          ],
+          "sha256": "0c46f7e1ea141713ecf183989ba865d12aa55b64ab82bdfc2595a303adf0eb66"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/execute_helper.spec.ts",
+          "range": [
+            1,
+            70
+          ],
+          "sha256": "eb8ad6fe005569560337a9826ebbfaae1048c6361e8874a727b112bd15574d35"
+        }
+      ]
+    },
+    "7": {
+      "outputAt": "2026-10-05T16:38:52.914277+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/execute_helper.spec.ts",
+          "range": [
+            71,
+            136
+          ],
+          "sha256": "eb8ad6fe005569560337a9826ebbfaae1048c6361e8874a727b112bd15574d35"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/public-api.spec.ts",
+          "range": [
+            1,
+            18
+          ],
+          "sha256": "7ca1d9850c23fd799dcd99960d2068739f4bd7fd79e4ba5cf4350afd8766d40b"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/setup.spec.ts",
+          "range": [
+            1,
+            1
+          ],
+          "sha256": "2a0df6f36e028d69e51d24fa6b25782ebe5b04411a7bbb8ce9a2863bcc98fcc4"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/setup.ts",
+          "range": [
+            1,
+            57
+          ],
+          "sha256": "e240ff9d58c1f4d9b68c75773cac06766ec0ecba2d92e9ba53b74fd35481bd70"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/sqliteai-factory.ts",
+          "range": [
+            1,
+            3
+          ],
+          "sha256": "709a716f7e5c3334b801cc22132e1cee95c5b2ea497100025c46af76e2a588ed"
+        }
+      ]
+    },
+    "8": {
+      "outputAt": "2026-10-05T16:39:22.827469+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/sqliteai-factory.ts",
+          "range": [
+            4,
+            123
+          ],
+          "sha256": "709a716f7e5c3334b801cc22132e1cee95c5b2ea497100025c46af76e2a588ed"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/sqliteai-load.utils.spec.ts",
+          "range": [
+            1,
+            38
+          ],
+          "sha256": "1a5b298987db8ba63e2efefa81bff674a26976256f9e261e8cfbdeb1c8ff3a9e"
+        }
+      ]
+    },
+    "9": {
+      "outputAt": "2026-10-05T16:40:09.326267+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/sqliteai-load.utils.spec.ts",
+          "range": [
+            39,
+            187
+          ],
+          "sha256": "1a5b298987db8ba63e2efefa81bff674a26976256f9e261e8cfbdeb1c8ff3a9e"
+        }
+      ]
+    },
+    "10": {
+      "outputAt": "2026-10-05T16:41:06.455130+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/sqliteai-load.utils.spec.ts",
+          "range": [
+            188,
+            282
+          ],
+          "sha256": "1a5b298987db8ba63e2efefa81bff674a26976256f9e261e8cfbdeb1c8ff3a9e"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/sqliteai-test.worker.ts",
+          "range": [
+            1,
+            6
+          ],
+          "sha256": "a7ccf47a6cc8824f8ae7629ed8a70a0e14e4e07d8b97e6da4d94133b9c09f1e1"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/working-tree-capture-conformance.spec.ts",
+          "range": [
+            1,
+            30
+          ],
+          "sha256": "b8c93fa2d73ea0a3e820034f581b74dc6eaac1856e59eb58ac1de07f79ffb023"
+        }
+      ]
+    },
+    "11": {
+      "outputAt": "2026-10-05T16:47:01.720277+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/working-tree-capture-conformance.spec.ts",
+          "range": [
+            31,
+            79
+          ],
+          "sha256": "b8c93fa2d73ea0a3e820034f581b74dc6eaac1856e59eb58ac1de07f79ffb023"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/__tests__/working-tree-commit-conformance.spec.ts",
+          "range": [
+            1,
+            63
+          ],
+          "sha256": "3435880d80517721edfb0815fe2211642dbae39a1b97a4769799dd9839684c99"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/create_sqlite_client.ts",
+          "range": [
+            1,
+            23
+          ],
+          "sha256": "ffde6d7c1ff8c57c2bb05387bfe221bd37f63db5d394759a05bf2a5e8fe6fe5b"
+        }
+      ]
+    },
+    "12": {
+      "outputAt": "2026-10-05T16:47:43.415586+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/create_sqlite_client.ts",
+          "range": [
+            24,
+            51
+          ],
+          "sha256": "ffde6d7c1ff8c57c2bb05387bfe221bd37f63db5d394759a05bf2a5e8fe6fe5b"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/index.ts",
+          "range": [
+            1,
+            18
+          ],
+          "sha256": "0afd9add0f37a5fab0780879d951984562a3ee9bbaa4a843edbb391c0493c918"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/sqliteai-load.utils.ts",
+          "range": [
+            1,
+            80
+          ],
+          "sha256": "c5931c18b6a3668dcb16699e9f00be9efd22f892418aceb8805c4129090ddfad"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/sqliteai.interface.ts",
+          "range": [
+            1,
+            28
+          ],
+          "sha256": "3928e58b2952c5c2ae05549bb87b8b9053cce8830ef20a74b0e0d139cd5744c8"
+        }
+      ]
+    },
+    "13": {
+      "outputAt": "2026-10-05T16:48:57.500098+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/sqliteai.interface.ts",
+          "range": [
+            29,
+            60
+          ],
+          "sha256": "3928e58b2952c5c2ae05549bb87b8b9053cce8830ef20a74b0e0d139cd5744c8"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/src/testing.ts",
+          "range": [
+            1,
+            21
+          ],
+          "sha256": "e43507b985f51e4c3f4665e38179c17b5111dc246d9c894b964e6ec70d71b138"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/tsconfig.json",
+          "range": [
+            1,
+            16
+          ],
+          "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/tsconfig.lib.json",
+          "range": [
+            1,
+            52
+          ],
+          "sha256": "6a1c08f50cda3593d94f13ef398f82c5f6ceaa2400277084ccb2580dbab44a14"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/tsconfig.publish.json",
+          "range": [
+            1,
+            19
+          ],
+          "sha256": "dc458cadf3a52ec88392d06a84b05f26816c89952fc345d06ac8ee5052d050f8"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/tsconfig.spec.json",
+          "range": [
+            1,
+            33
+          ],
+          "sha256": "9c77a2dcc4640be65dcc568a8e8199657c72b95014dd5f881a44f0f988f47225"
+        },
+        {
+          "path": "packages/rxdb-adapter-sqliteai/vite.config.mts",
+          "range": [
+            1,
+            9
+          ],
+          "sha256": "f344a11cfd50704fac938db69bf127af66c766ccf5b32a07703adede43bf5572"
+        }
+      ]
+    },
+    "14": {
+      "outputAt": "2026-10-05T16:49:09.933593+08:00",
+      "ranges": [
+        {
+          "path": "packages/rxdb-adapter-sqliteai/vite.config.mts",
+          "range": [
+            10,
+            114
+          ],
+          "sha256": "f344a11cfd50704fac938db69bf127af66c766ccf5b32a07703adede43bf5572"
+        }
+      ]
+    }
+  }
+}

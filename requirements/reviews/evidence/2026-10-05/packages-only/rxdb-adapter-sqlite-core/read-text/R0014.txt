@@ -1,0 +1,146 @@
+packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts SHA256 052824127109070a4013c72429389c0e689bb356ad85165149e2287cb4f65a38 [1401,1545]
+1401 |    * 多查一遍纯属浪费（首次同步的冷路径正是全部未缓存，此时一条 SQL 都不发）。
+1402 |    * 合并语义用 `mergeExternalChanges`：本地有未保存改动时保留改动、只更新 origin，
+1403 |    * 与 `findByRowIds(forceRefresh)` 的外部变更合并保持一致。
+1404 |    */
+1405 |   async #refreshQueryCacheEntities(entityName: string, ids: string[]): Promise<void> {
+1406 |     const EntityType = this.rxdb.schemaManager.getEntityType(entityName, 'public');
+1407 |     if (!EntityType) return;
+1408 |     const cachedIds = ids.filter(id => this.rxdb.entityManager.hasEntityRef(EntityType, id));
+1409 |     if (cachedIds.length === 0) return;
+1410 | 
+1411 |     const metadata = getEntityMetadata(EntityType);
+1412 |     const idColumn = quote_sql_identifier(get_primary_key_column(metadata));
+1413 |     for (const idsChunk of chunkBySqliteBindLimit(cachedIds)) {
+1414 |       const sql = generate_sql({
+1415 |         tableName: get_table_name_by_metadata(metadata),
+1416 |         where: `${idColumn} IN (${idsChunk.map(() => '?').join(', ')})`,
+1417 |         metadata
+1418 |       });
+1419 |       await transaction_sqlite_result(this, EntityType, await this.query(sql, idsChunk), false, true, true);
+1420 |     }
+1421 |   }
+1422 | 
+1423 |   /**
+1424 |    * 把 QueryCache 传入的**逻辑实体名**解析为物理表名与 `updatedAt` 的实际列名。
+1425 |    *
+1426 |    * @remarks
+1427 |    * 本包所有物理表名都由 `get_table_name(name, namespace) => \`${namespace}$${name}\`` 生成，
+1428 |    * 而 `QueryCacheEngine` 传进来的是逻辑实体名（如 `'Todo'`）。直接把它当表名用，
+1429 |    * 真机执行必然 `no such table: Todo`。`updatedAt` 同理要经 `propertyMap` 映射，
+1430 |    * 否则自定义 `columnName` 的实体会再次失败。与 PGlite 适配器的同名方法保持一致。
+1431 |    *
+1432 |    * metadata 查不到时按原名回退（调用方可能直接传物理表名），不擅自拼 namespace 前缀。
+1433 |    *
+1434 |    * `columnNames` 是「这张表认得的列」的全集，兼作 `upsertMany` 的白名单，因此它的
+1435 |    * 键集必须与 `create_table_sql` 建出来的列一一对应：属性列 + 有物理列的关系列
+1436 |    * （`ONE_TO_ONE` / `MANY_TO_ONE`），逻辑名与物理列名都收进来 —— 远端两种口径都可能发。
+1437 |    */
+1438 |   #resolveQueryCacheTarget(entityName: string): QueryCacheTarget {
+1439 |     const separator = entityName.indexOf(':');
+1440 |     const namespace = separator < 0 ? 'public' : entityName.slice(0, separator);
+1441 |     const name = separator < 0 ? entityName : entityName.slice(separator + 1);
+1442 |     const metadata = this.rxdb.schemaManager.getEntityMetadata(name, namespace);
+1443 |     if (!metadata) {
+1444 |       return {
+1445 |         tableName: entityName,
+1446 |         idColumn: 'id',
+1447 |         updatedAtColumn: 'updatedAt',
+1448 |         columnNames: new Map(),
+1449 |         metadata: undefined
+1450 |       };
+1451 |     }
+1452 |     const idColumn = metadata.propertyMap?.get('id')?.columnName ?? 'id';
+1453 |     const updatedAtColumn = metadata.propertyMap?.get('updatedAt')?.columnName ?? 'updatedAt';
+1454 |     return {
+1455 |       metadata,
+1456 |       idColumn,
+1457 |       updatedAtColumn,
+1458 |       tableName: get_table_name_by_metadata(metadata),
+1459 |       columnNames: query_cache_column_names(metadata, idColumn, updatedAtColumn)
+1460 |     };
+1461 |   }
+1462 | 
+1463 |   #initEncryption(): void {
+1464 |     let hasEncryptedColumns = false;
+1465 |     const entities = this.rxdb.config.entities ?? [];
+1466 |     for (const EntityType of entities) {
+1467 |       const metadata = getEntityMetadata(EntityType);
+1468 |       validateEncryptedPropertyMetadata(metadata);
+1469 |       if (metadata.encryptedPropertyMap && metadata.encryptedPropertyMap.size > 0) {
+1470 |         hasEncryptedColumns = true;
+1471 |       }
+1472 |     }
+1473 |     if (hasEncryptedColumns && !this.#keyring) {
+1474 |       this.#keyring = createKeyring({
+1475 |         namespace: this.rxdb.config.dbName,
+1476 |         storage: new SqliteCoreKeyringStorage(this)
+1477 |       });
+1478 |     }
+1479 |   }
+1480 | 
+1481 |   #noEncryptedColumnsError(method: string): EncryptedConfigurationError {
+1482 |     return new EncryptedConfigurationError({
+1483 |       code: 'no_encrypted_columns',
+1484 |       message: `adapter.encryption.${method} called but no entity declares an encrypted column`
+1485 |     });
+1486 |   }
+1487 | 
+1488 |   #client(): Promise<SqliteClientLike> {
+1489 |     if (!this.#client_promise) {
+1490 |       this.#client_promise = (async () => {
+1491 |         let client: SqliteClientLike | undefined;
+1492 |         try {
+1493 |           await this.#acquireStorageLock();
+1494 |           client = this.#adopted_client ?? (await this.createClient());
+1495 |           this.#adopted_client = undefined;
+1496 |           await this.#assertNoRestoreMarker(client);
+1497 |           await this.#ensureClientEventListeners(client);
+1498 |           this.#cached_client = client;
+1499 |           return client;
+1500 |         } catch (err) {
+1501 |           this.#cached_client = undefined;
+1502 |           this.#listeners_registered = false;
+1503 |           await this.#releaseStorageLock();
+1504 |           if (client) {
+1505 |             try {
+1506 |               await client.disconnect();
+1507 |             } catch {
+1508 |               // 忽略清理错误，保留原始失败信息
+1509 |             }
+1510 |           }
+1511 |           this.#client_promise = undefined;
+1512 |           throw err;
+1513 |         }
+1514 |       })();
+1515 |     }
+1516 |     return this.#client_promise;
+1517 |   }
+1518 | 
+1519 |   #supportedBackupStorage(operation: string): SqliteSupportedBackupStorage {
+1520 |     const storage = this.backupStorage();
+1521 |     if (storage.kind !== 'unsupported') return storage;
+1522 |     throw new RxDBBackupError(
+1523 |       'unsupported_combination',
+1524 |       `SQLite ${operation} is not supported by "${this.name}" with ${storage.field} = ${storage.actual}`,
+1525 |       { details: { field: storage.field, actual: storage.actual } }
+1526 |     );
+1527 |   }
+1528 | 
+1529 |   #assertRestoreIdle(): void {
+1530 |     if (!this.#restoring && !this.#client_promise && !this.#adopted_client) return;
+1531 |     throw new RxDBBackupError('target_busy', `Adapter "${this.name}" is already connected or restoring`, {
+1532 |       details: { field: 'adapter', actual: this.name }
+1533 |     });
+1534 |   }
+1535 | 
+1536 |   #restoreInput(storage: SqliteSupportedBackupStorage): SqliteRestoreInput {
+1537 |     return {
+1538 |       rxdb: this.rxdb,
+1539 |       adapterName: this.name,
+1540 |       storage,
+1541 |       createClient: () => this.createRestoreTargetClient(),
+1542 |       shadowTablesWritable: this.shadowTablesWritable()
+1543 |     };
+1544 |   }
+1545 | 

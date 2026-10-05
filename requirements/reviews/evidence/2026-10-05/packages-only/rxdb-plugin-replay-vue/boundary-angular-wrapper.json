@@ -1,0 +1,13 @@
+{
+  "path": "packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+  "sha256": "babd32ee9320a477a919fc5e6ee965beab42b6c6add391d718edcd15340f4cf0",
+  "lineCount": 117,
+  "readRanges": [
+    [
+      1,
+      117
+    ]
+  ],
+  "transcript": "boundary-angular-wrapper.txt",
+  "tableSpacingNormalized": false
+}

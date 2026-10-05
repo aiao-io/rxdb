@@ -1,0 +1,118 @@
+--- packages/rxdb-plugin-replay-angular/src/replayer.component.ts SHA256=babd32ee9320a477a919fc5e6ee965beab42b6c6add391d718edcd15340f4cf0 lines=117 read=1-117 ---
+   1 import {
+   2   mountReplayer,
+   3   type ReplayerCommitRestoreEvent,
+   4   type ReplayerHandle,
+   5   type ReplayerOptions
+   6 } from '@aiao/rxdb-plugin-replay';
+   7 import {
+   8   afterNextRender,
+   9   ChangeDetectionStrategy,
+  10   Component,
+  11   DestroyRef,
+  12   effect,
+  13   type ElementRef,
+  14   inject,
+  15   input,
+  16   output,
+  17   signal,
+  18   viewChild
+  19 } from '@angular/core';
+  20 
+  21 type ReplayerInputs = Pick<ReplayerOptions, 'replay' | 'sessionId' | 'initialTime'>;
+  22 
+  23 /** 只挑出变化了的输入；都没变返回 `undefined`。 */
+  24 const changedInputs = (previous: ReplayerInputs, next: ReplayerInputs): Partial<ReplayerInputs> | undefined => {
+  25   const changes: { -readonly [K in keyof ReplayerInputs]?: ReplayerInputs[K] } = {};
+  26   if (next.replay !== previous.replay) changes.replay = next.replay;
+  27   if (next.sessionId !== previous.sessionId) changes.sessionId = next.sessionId;
+  28   if (next.initialTime !== previous.initialTime) changes.initialTime = next.initialTime;
+  29   return Object.keys(changes).length > 0 ? changes : undefined;
+  30 };
+  31 
+  32 /**
+  33  * 会话回放组件：在组件内的一个 `div` 上挂核心的 `mountReplayer`，输入变化走 `update()`，销毁时 `destroy()`。
+  34  *
+  35  * @remarks
+  36  * 与 React / Vue 的 `Replayer` 同一组输入 / 输出 / 命令（contracts/replayer-component.md §3），由 parity 用例保证。
+  37  * 只在浏览器渲染后挂载（`afterNextRender`），SSR 下不碰 DOM；`rrweb` 在核心视图里按需 `import()`，挂载之前不进包。
+  38  *
+  39  * @example
+  40  * ```html
+  41  * <ao-replayer #replayer [replay]="rxdb.replay" [sessionId]="sessionId" (aoCommitRestore)="onRestore($event)" />
+  42  * <button (click)="replayer.play()">播放</button>
+  43  * ```
+  44  */
+  45 @Component({
+  46   selector: 'ao-replayer',
+  47   template: '<div #host></div>',
+  48   changeDetection: ChangeDetectionStrategy.OnPush
+  49 })
+  50 export class ReplayerComponent {
+  51   readonly #mounted = signal(false);
+  52   #handle: ReplayerHandle | undefined;
+  53   #applied: ReplayerInputs | undefined;
+  54   // viewChild 不能用在 ES 私有字段上
+  55   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('host');
+  56 
+  57   /** 录制门面（`rxdb.replay`）。换实例会重新加载。 */
+  58   readonly replay = input.required<ReplayerOptions['replay']>();
+  59   /** 要回放的会话。换会话会重新加载，不重建组件。 */
+  60   readonly sessionId = input.required<string>();
+  61   /** 加载完成后落到的时刻（相对会话起点的 ms，默认 0）；之后再改等价于 `seek()`。 */
+  62   readonly initialTime = input<number>();
+  63 
+  64   /** 播放 / 跳转导致回放时刻变化（ms）。 */
+  65   readonly aoTimeChange = output<number>();
+  66   /** 点 commit 标记后的恢复结果（成功、四种拒绝或抛错）。 */
+  67   readonly aoCommitRestore = output<ReplayerCommitRestoreEvent>();
+  68 
+  69   constructor() {
+  70     afterNextRender(() => {
+  71       this.#applied = this.#readInputs();
+  72       this.#handle = mountReplayer(this.host().nativeElement, {
+  73         ...this.#applied,
+  74         onTimeChange: timeMs => this.aoTimeChange.emit(timeMs),
+  75         onCommitRestore: event => this.aoCommitRestore.emit(event)
+  76       });
+  77       this.#mounted.set(true);
+  78     });
+  79 
+  80     effect(() => {
+  81       // 挂载前不读输入（必填输入可能尚未赋值）；挂载后这一轮登记依赖，之后的变化才会再触发
+  82       if (!this.#mounted()) return;
+  83       const next = this.#readInputs();
+  84       if (!this.#handle || !this.#applied) return;
+  85       const changes = changedInputs(this.#applied, next);
+  86       if (!changes) return;
+  87       this.#applied = next;
+  88       this.#handle.update(changes);
+  89     });
+  90 
+  91     inject(DestroyRef).onDestroy(() => {
+  92       this.#handle?.destroy();
+  93       this.#handle = undefined;
+  94       this.#mounted.set(false);
+  95       this.#applied = undefined;
+  96     });
+  97   }
+  98 
+  99   /** 播放；加载完成前调用是空操作。 */
+ 100   play(): void {
+ 101     this.#handle?.play();
+ 102   }
+ 103 
+ 104   /** 暂停；加载完成前调用是空操作。 */
+ 105   pause(): void {
+ 106     this.#handle?.pause();
+ 107   }
+ 108 
+ 109   /** 跳到相对会话起点的 `timeMs`；加载完成前调用会记下目标时刻。 */
+ 110   seek(timeMs: number): void {
+ 111     this.#handle?.seek(timeMs);
+ 112   }
+ 113 
+ 114   #readInputs(): ReplayerInputs {
+ 115     return { replay: this.replay(), sessionId: this.sessionId(), initialTime: this.initialTime() };
+ 116   }
+ 117 }

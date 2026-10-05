@@ -1,0 +1,17 @@
+--- packages/rxdb-plugin-replay/src/options.ts SHA256=b975a0632d8b912423de85e587694f0bbe44c689aaf6efab11758008a72a5a8c lines=117 read=1-16 ---
+   1 import type { EntityType, RxDB } from '@aiao/rxdb';
+   2 import type { eventWithTime } from '@rrweb/types';
+   3 import type { recordOptions } from 'rrweb';
+   4 
+   5 /**
+   6  * 永远并入 `record.blockSelector` 的选择器：给元素加上 `data-rxdb-replay-block` 属性，
+   7  * 它在录像里就只剩一个同尺寸的占位块。应用不需要懂 rrweb 也能标出敏感区块。
+   8  */
+   9 export const REPLAY_BLOCK_SELECTOR = '[data-rxdb-replay-block]';
+  10 
+  11 /** 透传给 rrweb `record()` 的脱敏 / 屏蔽选项子集；含义照 rrweb 文档。 */
+  12 export type RxDBReplayRecordOptions = Pick<
+  13   recordOptions<eventWithTime>,
+  14   | 'maskAllInputs'
+  15   | 'maskInputOptions'
+  16   | 'maskTextSelector'

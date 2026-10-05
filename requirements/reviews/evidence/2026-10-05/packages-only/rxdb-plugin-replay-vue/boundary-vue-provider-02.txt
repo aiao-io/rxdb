@@ -1,0 +1,90 @@
+--- packages/rxdb-vue/src/rxdb-vue.ts SHA256=af0da2a424c19a2ac3cbaa0e831eb1f9433c5ea913764084d9c2257876e324c9 lines=251 read=87-175 ---
+  87   void database.destroy().catch(error => console.error('RxDB shutdown failed', error));
+  88 };
+  89 
+  90 /**
+  91  * 建一个数据库引用。
+  92  *
+  93  * @remarks
+  94  * 不走 `shallowRef(initial)` 的带参重载：它的返回类型是条件类型（`Ref extends T ? … : …`），
+  95  * 在泛型 `T` 下无法求值，tsc 只能退回到两个分支的并集，其中一支是按约束实例化的
+  96  * `ShallowRef<RxDB>` —— 与 `Ref<T | undefined>` 不兼容。无参重载
+  97  * `shallowRef<T>(): ShallowRef<T | undefined>` 没有条件类型，先建后填即可。
+  98  */
+  99 const createDatabaseRef = <T extends RxDB>(initial: T | undefined): Ref<T | undefined> => {
+ 100   const database = shallowRef<T>();
+ 101   database.value = initial;
+ 102   return database;
+ 103 };
+ 104 
+ 105 /**
+ 106  * 把入参解析成注入载荷，并按所有权决定要不要在作用域销毁时断开。
+ 107  *
+ 108  * @remarks
+ 109  * **所有权规则：provider 只销毁自己造的东西。** 传进来的是工厂或 Promise，实例就是本
+ 110  * provider 造/等来的，作用域销毁时负责 `destroy()`；传进来的是已就绪实例或调用方
+ 111  * 自己的 `Ref`，它归调用方所有，本 provider 不碰 —— 否则一个模块级单例会被某个子组件的
+ 112  * 卸载顺手断掉，而没有人会去重连。这条规则三端逐字相同。
+ 113  */
+ 114 const createSlot = <T extends RxDB>(db: RxDBInput<T>): RxDBSlot<T> => {
+ 115   const failure = shallowRef<unknown>(undefined);
+ 116 
+ 117   if (isRef(db)) return { db, failure };
+ 118   if (!isDeferred(db)) return { db: createDatabaseRef<T>(db), failure };
+ 119 
+ 120   const databaseRef = createDatabaseRef<T>(undefined);
+ 121   let disposed = false;
+ 122   let owned: T | undefined;
+ 123 
+ 124   // 工厂在 `then` 回调**里**求值，同步抛出因此也变成一次 reject，落进 failure 而不是从 setup
+ 125   // 里逃出去掀掉整棵子树 —— `useRxDBOptional` 承诺的是 loading/error 态。Angular / React 侧同理。
+ 126   void Promise.resolve()
+ 127     .then(() => (typeof db === 'function' ? db() : db))
+ 128     .then(
+ 129       database => {
+ 130         owned = database;
+ 131         // 作用域已销毁才 resolve：实例仍然是本 provider 造的，仍要负责断开。
+ 132         if (disposed) shutdown(database);
+ 133         else databaseRef.value = database;
+ 134       },
+ 135       error => (failure.value = error)
+ 136     );
+ 137 
+ 138   // provideRxDB 在 setup 里调用，作用域必定存在；failSilently 只是为了在无作用域环境
+ 139   // （比如直接在测试里调用）复用时不发多余警告。
+ 140   onScopeDispose(() => {
+ 141     disposed = true;
+ 142     if (owned !== undefined) shutdown(owned);
+ 143   }, true);
+ 144 
+ 145   return { db: databaseRef, failure };
+ 146 };
+ 147 
+ 148 /** 内部注入器：比公开的 {@link RxDBDependencyInjection} 多两个读 slot 的入口。 */
+ 149 interface InternalInjection<T extends RxDB> extends RxDBDependencyInjection<T> {
+ 150   /** 读注入载荷；缺 provider 时 Vue 在 dev 下告警。 */
+ 151   readonly injectSlot: () => RxDBSlot<T> | undefined;
+ 152   /** 读注入载荷；缺 provider 时不告警，供 `useRxDBOptional` 使用。 */
+ 153   readonly injectSlotQuietly: () => RxDBSlot<T> | undefined;
+ 154 }
+ 155 
+ 156 const createInjection = <T extends RxDB>(): InternalInjection<T> => {
+ 157   const RxDBKey: InjectionKey<RxDBSlot<T>> = Symbol('RxDBProvider');
+ 158 
+ 159   const provideRxDB = (db: RxDBInput<T>): void => provide(RxDBKey, createSlot(db));
+ 160 
+ 161   // 不传默认值：缺 provider 时 Vue 会在 dev 下发出 injection 未找到的警告
+ 162   const injectSlot = (): RxDBSlot<T> | undefined => inject(RxDBKey);
+ 163   // 传默认值：可选读取本就允许缺 provider，不该顺带告警
+ 164   const injectSlotQuietly = (): RxDBSlot<T> | undefined => inject(RxDBKey, undefined);
+ 165   const injectRxDBRef = (): RxDBRef<T> | undefined => injectSlot()?.db;
+ 166   const injectRxDB = (): T | undefined => injectRxDBRef()?.value;
+ 167 
+ 168   return { provideRxDB, injectRxDB, injectRxDBRef, injectSlot, injectSlotQuietly };
+ 169 };
+ 170 
+ 171 /**
+ 172  * 创建一组类型安全的 RxDB Vue 依赖注入函数。
+ 173  *
+ 174  * @returns RxDB provider 与同步、响应式 injector。
+ 175  *

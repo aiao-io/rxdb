@@ -1,0 +1,13 @@
+--- packages/rxdb-plugin-replay-react/src/index.ts SHA256=2d25962dd739f90836bc3203fbf5c30a034901b7b3cdcd7f21b61faeb2be8b97 lines=12 read=1-12 ---
+   1 /**
+   2  * rxdb-plugin-replay-react - React 会话回放组件
+   3  *
+   4  * 提供 {@link Replayer}，把 `@aiao/rxdb-plugin-replay` 的 `mountReplayer` 包成 props / `ref` 句柄的组件。
+   5  * 与 Angular `ao-replayer`、Vue `Replayer` 同一组输入 / 输出 / 命令（contracts/replayer-component.md §3）。
+   6  *
+   7  * @packageDocumentation
+   8  */
+   9 
+  10 // 只再导出组件事件类型与恢复提示文案，其余 core 成员从 `@aiao/rxdb-plugin-replay`（peer）直接 import
+  11 export { replayRestoreHint, type ReplayerCommitRestoreEvent } from '@aiao/rxdb-plugin-replay';
+  12 export { Replayer, type ReplayerProps, type ReplayerRef } from './replayer.js';

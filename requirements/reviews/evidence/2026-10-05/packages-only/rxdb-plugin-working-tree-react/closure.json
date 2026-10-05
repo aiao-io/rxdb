@@ -1,0 +1,167 @@
+{
+  "object": "rxdb-plugin-working-tree-react",
+  "worker": "PKG-working-tree-react",
+  "completedAt": "2026-10-05T16:49:25.043040+08:00",
+  "sourceReviewComplete": true,
+  "opinionDeliveryComplete": true,
+  "source-review": "complete-original-scope",
+  "assessment-delivery": "complete-original-scope",
+  "CConclusionIds": [
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5"
+  ],
+  "controlledFileCount": 13,
+  "lineCount": 1088,
+  "rating": "🔴",
+  "ratingLabel": "状态ownership不合格：RV-069/P1 Open使数据库身份切换后仍显示并接收旧库状态",
+  "ratingReason": "同SHA已证P1跨库状态残留及迟到覆盖，比单纯文档或未测风险严重；100%薄封装覆盖不能抵消P1。另有局部P3文档漂移，不影响主评级依据。",
+  "scenarioValidationComplete": false,
+  "releaseValidationComplete": false,
+  "releaseReady": false,
+  "remainingValidation": [
+    {
+      "id": "SV-01",
+      "C": [
+        "C1",
+        "C2",
+        "C4"
+      ],
+      "owner": "React working-tree维护者",
+      "scenario": "RV-069修复后A→B立即十二格初态、旧A查询/动作/status刷新晚到不能写B；原A Promise语义不改变",
+      "reason": "同SHA两条provider回归已红，本轮只复用确认，不改业务或反复复现；旧命令的作用域归属需由wrapper状态/sink identity修复，不靠消费者key或停止原Promise掩盖。"
+    },
+    {
+      "id": "SV-02",
+      "C": [
+        "C1",
+        "C2"
+      ],
+      "owner": "React工作树集成QA；核心working-tree维护者提供既有验收证据",
+      "scenario": "未enable、缺插件、真实分支/多实例、CAS落败、dirty tree、不可达commit、并发点击及动作中换scope的数据不损坏",
+      "reason": "本包测试只控制IO返回；并未持有真正数据库、事务或CAS锁。核心已由其他agent全审，本轮只读必要契约，不重新跑核心/真UI大验收，也不把其全审等同本包集成已运行。"
+    },
+    {
+      "id": "SV-03",
+      "C": [
+        "C2",
+        "C5"
+      ],
+      "owner": "React工作树组件测试维护者",
+      "scenario": "enableIfEmpty、commitChanges动作的loading/empty或success/error、参数与结果透传；错误typed consumer正反例",
+      "reason": "现有两个方法仅被状态/成员及方法数量守卫覆盖，没有在本包执行对应IO动作的断言；presence不等于行为通过。该缺口不是生产缺陷确认。"
+    },
+    {
+      "id": "SV-04",
+      "C": [
+        "C3"
+      ],
+      "owner": "三端工作树UI/隐私QA；核心数据治理维护者",
+      "scenario": "同拒绝序列三端真实应用同语义、关闭清理、敏感字段摘要与多实例diff展示",
+      "reason": "wrapper没有UI/摘要/日志逻辑；必要core类型表明diff条目携带patch/inversePatch，不能称自动脱敏摘要。fixture payload和根入口对照不证明真实UI日志/字段治理安全；RV-069可能让旧diff残留是同根因源码影响，不是另一个实测泄露。"
+    },
+    {
+      "id": "SV-05",
+      "C": [
+        "C4",
+        "C5"
+      ],
+      "owner": "React working-tree生命周期测试维护者",
+      "scenario": "StrictMode、快速provider/source变化、卸载后晚到结果、多个root、同库相同值/不同引用重渲染",
+      "reason": "正常spec验证同一库跨render的方法稳定，新增探针验证provider换库失败；没有StrictMode/多root/异步source完整生命周期动态证据。无Observable订阅可取消，不虚构unsubscribe通过。"
+    },
+    {
+      "id": "REL-01",
+      "C": [
+        "C5"
+      ],
+      "owner": "working-tree React包发布与类型消费维护者",
+      "scenario": "独立tarball TS strict typed consumer、根ESM runtime import、React/core peer边界及打包use client/RSC消费",
+      "reason": "只读历史10文件pack，未执行新build/pack/发布大矩阵；source的use client不证明产物保留指令。根既有skipLibCheck:true不作为不跳过库检查的独立strict消费通过依据。"
+    }
+  ],
+  "ownerAssignmentNote": "owner为责任角色，实名由主控指定；不派agent，核心其他agent全审不在本包重复。",
+  "confirmedIssues": [
+    {
+      "id": "RV-069",
+      "severity": "P1",
+      "status": "Open",
+      "disposition": "reused-existing-confirmed-issue",
+      "newIssue": false,
+      "C": [
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C5"
+      ],
+      "source": "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts",
+      "lines": [
+        [
+          84,
+          95
+        ]
+      ],
+      "owner": "React working-tree维护者",
+      "rootCause": "commands因database换新，states与稳定patch未按database identity重置/作废旧写回；A/B独立核心generation不能隔离共用sink。",
+      "actualEvidence": "同SHA历史2失败；旧A状态留在B且迟到A true覆盖B false。",
+      "impactBoundary": "未证明向错误数据库落写；旧diff含patch/inversePatch的影响是同根因源码推导，不是另一个实测泄露。"
+    },
+    {
+      "id": "PKG-WTR-DOC-01",
+      "severity": "P3",
+      "status": "Open",
+      "disposition": "package-local-source-confirmed-documentation-opinion",
+      "newIssue": true,
+      "newBusinessBug": false,
+      "C": [
+        "C3",
+        "C5"
+      ],
+      "source": "packages/rxdb-plugin-working-tree-react/README.md",
+      "lines": [
+        [
+          52,
+          54
+        ],
+        [
+          66,
+          68
+        ]
+      ],
+      "owner": "React working-tree文档维护者",
+      "rootCause": "README仍称十个状态/十个方法/十格，当前公开类型与spec数量断言已是十二；源码1–3旧注记与20–21新TSDoc亦不一致。",
+      "actualEvidence": "src/use-working-tree.ts:20–42与use-working-tree.spec.tsx:484–526，以及已读核心十二签名/十二初值声明。",
+      "minimalCorrection": "移除硬编码旧数量或同步成当前十二项；不改公开API，不需要运行大门禁。",
+      "globalRvCreated": false
+    }
+  ],
+  "candidates": [],
+  "newConfirmedIssueCount": 1,
+  "newConfirmedBusinessBugCount": 0,
+  "newConfirmedDocumentationIssueCount": 1,
+  "reusedConfirmedIssueCount": 1,
+  "globalRvCreated": false,
+  "businessFilesModified": false,
+  "originalTestsModified": false,
+  "dependenciesModified": false,
+  "manualGitCommandsExecuted": false,
+  "newNxValidationCommands": [],
+  "previousReplayReactWriteCommands": [],
+  "originalDocumentsPreservedIn": "baseline/",
+  "evidence": [
+    "scope.json",
+    "resolved-project.json",
+    "scope-freeze.json",
+    "read-output-trace.json",
+    "file-inspection.json",
+    "dependency-inspection.json",
+    "c-evidence.json",
+    "reused-evidence.json",
+    "rv069-log-excerpt.txt",
+    "historical-unit-coverage-excerpt.txt"
+  ],
+  "validationNarrative": "真实React/renderHook/RxDBProvider与共享createWorkingTreeCommands/async-state在测试里运行，只有workingTree/versionManager IO为官方vi.fn桩；不是整个core状态机mock，也没有真实SQL/CAS或错库落写。历史普通2文件49通过（46+3），四指标100%，实际仅11 statements/5 functions/8 lines，branches为0/0；薄包统计不证明竞态安全，且不含后来2条provider红探针。当前三个spec都被happy-dom glob纳入；它不是真实browser project。历史pack10文件只证明当时清单，不含新typed/runtime消费。源码use client不保证打包后RSC边界；React peer当前^19.3.0。根strict:true但skipLibCheck/skipDefaultLibCheck:true是既有，未降低设置也不包装独立不跳库检查消费已通过。构建pluginTimings:false为既有耗时诊断开关，不是ESLint零警告证据。缺插件守卫显式抛错；无自动status/diff订阅是公开约定。diff.entries含patch/inversePatch，wrapper不自动摘要/脱敏或打印历史。RV-069修法是绑定database identity重置状态并撤销旧sink写回，保留原Promise语义，不要求用户key、不新增fallback。"
+}

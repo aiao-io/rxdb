@@ -1,0 +1,10 @@
+{
+  "object": "rxdb",
+  "checkedAt": "2026-10-05T08:46:24.167Z",
+  "controlledFileCount": 292,
+  "shaMismatch": [],
+  "sourceReviewComplete": false,
+  "readFiles": 50,
+  "readLines": 14513,
+  "originalLines": 76673
+}

@@ -1,0 +1,222 @@
+{
+  "object": "rxdb-plugin-replay-react",
+  "worker": "PKG-replay-react",
+  "readingMethod": "正文按source、test/index、doc/license/manifest、config四组带SHA逐行输出；四组均无截断。旧plan/results分段全文读取；第一次历史全仓指纹输出截断后仅重取相关键，不声称全仓manifest全文读过。",
+  "files": [
+    {
+      "path": "packages/rxdb-plugin-replay-react/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "lineCount": 21,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "notes": "全文MIT许可及署名；package.json:17声明MIT，历史pack包含LICENSE。未做许可法律意见。",
+      "C": [
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/README.md",
+      "sha256": "07ec1d11c59e5a28ad047149c30425a296eb3164c2bb3bcd19cdb25c4273ab60",
+      "lineCount": 78,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          78
+        ]
+      ],
+      "notes": "输入/回调/ref示例及安装纪元说明完整；56说明not_installed，65承诺加载前seek保存目标，与replayer.tsx:91–99首次layout阶段不一致，归并RV-070；67按需rrweb由核心负责，69三框架语义不能由stub覆盖率保证。",
+      "C": [
+        "C1",
+        "C2",
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/package.json",
+      "sha256": "cf74db9c432160cf379aca9429f3873cd9b6c94249e34c5ad462f01666370d31",
+      "lineCount": 54,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          54
+        ]
+      ],
+      "notes": "根exports的types/import/default均指dist；files排除两类spec、__tests__及tsbuildinfo；peer为core:*及react:^19.3.0，不沿用旧计划^19.2.8；只声明根入口，无CJS承诺。历史pack存在不等于本轮独立消费通过。",
+      "C": [
+        "C1",
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/project.json",
+      "sha256": "000cd36d19ca8d568c57b92f7fe7dda933e5eb492f6230c68c8aa04d63dd3f6b",
+      "lineCount": 12,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          12
+        ]
+      ],
+      "notes": "本包原始配置只覆盖typecheck依赖build及^typecheck；已经先读取完整冻结resolved，未把12行局部配置误认为只有typecheck目标；无本轮Nx执行。",
+      "C": [
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/src/__tests__/replayer.spec.tsx",
+      "sha256": "c5a983ef570ee57e591b54fe4e7b016a1c6fbc2b53198c0469250f7778ae08ef",
+      "lineCount": 98,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          98
+        ]
+      ],
+      "notes": "完整98行：vi.mock将core mount替换为同步记录型MountReplayerSpy；7条共享parity加StrictMode、最新time回调、replay身份变化3条局部用例。真实React/happy-dom执行，但{}断言门面不是ReplayManager实例；不验证rrweb、恢复权限、异步代次或真实iframe；恢复callback换新未被本文件单独断言。",
+      "C": [
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/src/__tests__/review-parallel-layout-seek.spec.ts",
+      "sha256": "539945d3680b4b654a91671cc51a16274b3b0e8afe81221d43b0d645efdfc4fa",
+      "lineCount": 29,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          29
+        ]
+      ],
+      "notes": "完整29行：真实useLayoutEffect首次调用ref.seek(500)，在stub核心边界期待[[500]]；现存历史复验实际[]且关键源/测试/spy/config SHA相同。该红测试属于RV-070，不删/skip、不新编号；不冒充真实rrweb seek失败。",
+      "C": [
+        "C1",
+        "C4",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/src/index.ts",
+      "sha256": "2d25962dd739f90836bc3203fbf5c30a034901b7b3cdcd7f21b61faeb2be8b97",
+      "lineCount": 12,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          12
+        ]
+      ],
+      "notes": "全文12行：共享replayRestoreHint及ReplayerCommitRestoreEvent来自core根；导出Replayer/Props/Ref，无非公开深路径或额外录制能力。与API baseline五符号相符；Angular/Vue根的共享透传相同，仅限入口级对照。",
+      "C": [
+        "C1",
+        "C2",
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/src/replayer.tsx",
+      "sha256": "92cd0f38449351c99198bf6fa6f331a28e48c3677c0cb94cbf40b01e5167bdb5",
+      "lineCount": 102,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          102
+        ]
+      ],
+      "notes": "全文102行：三个输入按身份/值delta update，副作用只在effect，useEffectEvent转发最新回调，实例内refs与cleanup销毁句柄；无Provider、HEAD写入或录制启动。91–99在layout提供公开ref，62–78才在passive effect建立core handle，96可选调用无pending seek，证实RV-070根因。真实异步取消由core代次承担，不能用wrapper spy声称全链路安全。",
+      "C": [
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "lineCount": 16,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          16
+        ]
+      ],
+      "notes": "完整16行：继承根base且引用lib/spec两工程；ignoreDeprecations仅既有TS6兼容声明，不是本轮新增抑制；根strict:true，但skipLibCheck/skipDefaultLibCheck亦为既有true，未降低或用其证明独立strict消费。",
+      "C": [
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/tsconfig.lib.json",
+      "sha256": "6a261b17356f873ff24a2e87f19ed3449b7d23046dd0d00059e5dd5bf37e8542",
+      "lineCount": 33,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          33
+        ]
+      ],
+      "notes": "完整33行：生产include含ts/tsx，排除spec/test、配置及生成目录；jsx react-jsx、bundler声明输出dist，显式引用核心lib。不会把两个红/绿spec打进声明生产面；未借此代表spec编译通过。",
+      "C": [
+        "C3",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/tsconfig.spec.json",
+      "sha256": "28ae7c8b6b9de02abba8aaf41d0fde25b185fde4cb5ce5744d083087cf778b5d",
+      "lineCount": 27,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          27
+        ]
+      ],
+      "notes": "完整27行：src下ts/tsx spec/test与vite.config.mts都在include，引用本包lib；新增layout探针未被排除。无本轮编译；旧compiler.txt只有命令不能单独证实exitCode。",
+      "C": [
+        "C4",
+        "C5"
+      ]
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/vite.config.mts",
+      "sha256": "583cec16718f407825d5698df56ed31ece019ef257cd2246da8f26b7304663bb",
+      "lineCount": 63,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          63
+        ]
+      ],
+      "notes": "完整63行：React+dts插件、ES库入口、core/react/React JSX外置；CI且CODECOV_TOKEN存在才有上传插件，本轮未build。happy-dom并非browser project；include覆盖两个spec，coverage v8含src。43–44仅关闭构建插件耗时诊断，不等于ESLint零警告、亦非本轮新增忽略。",
+      "C": [
+        "C1",
+        "C3",
+        "C4",
+        "C5"
+      ]
+    }
+  ]
+}

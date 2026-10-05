@@ -1,0 +1,86 @@
+COMMAND: ["pnpm", "nx", "run", "rxdb-plugin-working-tree:test", "--excludeTaskDependencies", "--skipNxCache", "--skipRemoteCache", "--args=--run src/__tests__/review-packages-20261005-working-tree-quoted-table-PKG.spec.ts --browser.enabled=false --coverage.enabled=false --maxWorkers=1 --reporter=verbose"]
+CWD: /Users/jimmy/Documents/aiao/rxdb
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-plugin-working-tree:test --args=--run src/__tests__/review-packages-20261005-working-tree-quoted-table-PKG.spec.ts --browser.enabled=false --coverage.enabled=false --maxWorkers=1 --reporter=verbose
+
+> vitest --run src/__tests__/review-packages-20261005-working-tree-quoted-table-PKG.spec.ts --browser.enabled=false --coverage.enabled=false --maxWorkers=1 --reporter=verbose
+
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree
+
+ ✓ |rxdb-plugin-working-tree| src/__tests__/review-packages-20261005-working-tree-quoted-table-PKG.spec.ts > PKG-working-tree：合法引号表名不得绕过 raw 写门禁 > ASCII 普通表名的对照确实在执行前拒绝 4ms
+ × |rxdb-plugin-working-tree| src/__tests__/review-packages-20261005-working-tree-quoted-table-PKG.spec.ts > PKG-working-tree：合法引号表名不得绕过 raw 写门禁 > tracked 表 post-name 的合法 UPDATE 必须在执行前拒绝 5ms
+   → expected { …(4) } to match object { judgment: { kind: 'reject' }, …(3) }
+(2 matching properties omitted from actual)
+ × |rxdb-plugin-working-tree| src/__tests__/review-packages-20261005-working-tree-quoted-table-PKG.spec.ts > PKG-working-tree：合法引号表名不得绕过 raw 写门禁 > tracked 表 post name 的合法 UPDATE 必须在执行前拒绝 1ms
+   → expected { …(4) } to match object { judgment: { kind: 'reject' }, …(3) }
+(2 matching properties omitted from actual)
+ × |rxdb-plugin-working-tree| src/__tests__/review-packages-20261005-working-tree-quoted-table-PKG.spec.ts > PKG-working-tree：合法引号表名不得绕过 raw 写门禁 > tracked 表 café 的合法 UPDATE 必须在执行前拒绝 1ms
+   → expected { …(4) } to match object { judgment: { kind: 'reject' }, …(3) }
+(2 matching properties omitted from actual)
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |rxdb-plugin-working-tree| src/__tests__/review-packages-20261005-working-tree-quoted-table-PKG.spec.ts > PKG-working-tree：合法引号表名不得绕过 raw 写门禁 > tracked 表 post-name 的合法 UPDATE 必须在执行前拒绝
+ FAIL  |rxdb-plugin-working-tree| src/__tests__/review-packages-20261005-working-tree-quoted-table-PKG.spec.ts > PKG-working-tree：合法引号表名不得绕过 raw 写门禁 > tracked 表 post name 的合法 UPDATE 必须在执行前拒绝
+ FAIL  |rxdb-plugin-working-tree| src/__tests__/review-packages-20261005-working-tree-quoted-table-PKG.spec.ts > PKG-working-tree：合法引号表名不得绕过 raw 写门禁 > tracked 表 café 的合法 UPDATE 必须在执行前拒绝
+AssertionError: expected { …(4) } to match object { judgment: { kind: 'reject' }, …(3) }
+(2 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "executed": false,
++   "executed": true,
+    "judgment": {
+-     "kind": "reject",
++     "kind": "allow",
+    },
+-   "outcome": "rejected",
+-   "title": "before",
++   "outcome": "fulfilled",
++   "title": "changed",
+  }
+
+ ❯ src/__tests__/review-packages-20261005-working-tree-quoted-table-PKG.spec.ts:39:52
+     37|
+     38|   it.each(['post-name', 'post name', 'café'])('tracked 表 %s 的合法 UPDATE…
+     39|     expect(await inspectGuardedWrite(logicalName)).toMatchObject({
+       |                                                    ^
+     40|       judgment: { kind: 'reject' }, outcome: 'rejected', executed: fal…
+     41|     });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed | 1 passed (4)
+   Start at  16:42:42
+   Duration  802ms (transform 270ms, setup 0ms, import 474ms, tests 11ms, environment 0ms)
+
+Warning: command "vitest --run src/__tests__/review-packages-20261005-working-tree-quoted-table-PKG.spec.ts --browser.enabled=false --coverage.enabled=false --maxWorkers=1 --reporter=verbose" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-plugin-working-tree failed
+
+Failed tasks:
+
+- rxdb-plugin-working-tree:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      1.7s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1.7s (1 task)
+  Recoverable time:  <1ms

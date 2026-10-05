@@ -1,0 +1,56 @@
+COMMAND: ["pnpm", "nx", "run", "rxdb-adapter-sqlite-core:test", "--excludeTaskDependencies", "--skipRemoteCache", "--skipNxCache", "--", "--run", "--config", "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.config.mts", "--maxWorkers=1", "--fileParallelism=false"]
+CWD: /Users/jimmy/Documents/aiao/rxdb
+
+ NX   --skip-nx-cache disables the connection to Nx Cloud for the current run.
+
+The remote cache will not be read from or written to during this run.
+
+
+ NX   Remote Cache Disabled
+
+Nx will continue running, but nothing will be written or read from the remote cache.
+
+
+> nx run rxdb-adapter-sqlite-core:test --run --config /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.config.mts --maxWorkers=1 --fileParallelism=false
+
+> vitest --run --config /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.config.mts --maxWorkers=1 --fileParallelism=false
+
+
+ RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core
+
+ ❯ ../../requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.spec.ts (0 test)
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  ../../requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.spec.ts [ ../../requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.spec.ts ]
+Error: Cannot find package '@aiao/rxdb' imported from /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.spec.ts
+ ❯ ../../requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.spec.ts:1:1
+      1| import { RxDB, TransactionCommitEvent, TransactionRollbackEvent } from…
+       | ^
+      2| import { DatabaseSync } from 'node:sqlite';
+      3| import { describe, expect, it } from 'vitest';
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  no tests
+   Start at  16:28:29
+   Duration  386ms (transform 81ms, setup 0ms, import 0ms, tests 0ms, environment 0ms)
+
+JSON report written to /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.report.json
+Warning: command "vitest --run --config /Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.config.mts --maxWorkers=1 --fileParallelism=false" exited with non-zero status code
+
+
+ NX   Running target test for project rxdb-adapter-sqlite-core failed
+
+Failed tasks:
+
+- rxdb-adapter-sqlite-core:test
+
+Hint: run the command with --verbose for more details.
+
+  Run duration:      1.2s
+  Cache:             Skipped (--skip-nx-cache)
+  Critical path:     1.2s (1 task)
+  Recoverable time:  <1ms

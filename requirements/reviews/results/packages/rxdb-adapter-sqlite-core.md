@@ -4,11 +4,16 @@ object: rxdb-adapter-sqlite-core
 created: 2026-10-03
 baseline: 58b4bbb61efa71d4591cafab6a4c92955a7760dd
 execution: partial
+source-review: in-progress-original-scope
+assessment-delivery: partial-checkpoint
+scene-validation: focused-red-probes-only
+release-validation: not-in-this-task
+packages-only-evidence: requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core
 ---
 
 # rxdb-adapter-sqlite-core：实际代码评审记录
 
-> **2026-10-05 基线说明**：下面早期批次的“本轮”指该节自己的历史日期，不指本次并行实审。当前结论以文末「local-adapters 并行实审收束」为准；历史已修 RV 不复报。
+> **2026-10-05 基线说明**：下面早期批次的“本轮”指该节自己的历史日期，不指本次并行实审。当前源码阅读进度及新意见以文末「PKG-sqlite-core packages-only checkpoint」为准；local-adapters 与更早批次只作历史，不复报已修 RV。
 
 **状态：部分执行。** 已确认问题见下文；未穷举全部受控文件，未完成本对象全部 C 项，不给全包 🟢。
 
@@ -154,3 +159,12 @@ C2/C4 与加密 storage 生命周期联审：原 SqliteCoreKeyringStorage 的 en
 - 全对象源码/配置/全部测试及打包面尚未全部实审；跨宿主/适用三框架的真实用户链路、持久化刷新、发布 consumer 与各 skip 原因尚未闭环。**0 个整对象完成**，不能以局部通过声明发布就绪。
 - 已发送请求：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/validation-requests.json`；已观察结果：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/validation-observed.json`。不再新增探针或第五个候选。主控后续 late probes/全矩阵结果统一追加；本段不预测在途目标成功，也不把未来补证算入核销。
 - 评审结论只限上述证据：有明确问题的局部是 🔴；没有新增问题不代表 🟢。本轮保留 partial，完整评级须原完成条件都满足后再给。
+
+
+## PKG-sqlite-core packages-only checkpoint（2026-10-05，非完成）
+
+- 冻结原范围179文件 / 54,621行，包含全部测试/fixture/config/docs；`scope.json` 与 `resolved-project.json` 已存在并核对。旧盘点174文件为历史。
+- 只审本包；新增 probe 仅在独占 evidence 内，没有改业务、原测试、index 或依赖，没有 Git 改写或派 agent。
+- 当前实读进度见本包 `file-inspection.json`；明确旧 requested/truncated ranges 不作为已实读复用。哈希/目录盘点不是阅读。
+- 新确认意见 SC-PKG-001（P1，加密 Id 后缀明文旁路）、SC-PKG-002（P2，事务终结事件内 executor 仍 active）见本包 `findings.md`；候选与未测分列，由主控最终去重 RV。RV066/067 已修不复报；非 public QueryCache 刷新/删除归已有 RV061。
+- **source-review 仍 in-progress-original-scope；assessment-delivery 为 partial-checkpoint。** 不能据上述局部证据把179文件或原C1–C8记完成。场景/发布验证另列，不把后端全矩阵、真设备或发布门禁作为交付局部源码意见的先决条件。

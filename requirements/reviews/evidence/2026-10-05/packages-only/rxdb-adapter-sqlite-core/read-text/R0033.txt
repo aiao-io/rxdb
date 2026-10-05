@@ -1,0 +1,150 @@
+packages/rxdb-adapter-sqlite-core/src/sqlite-core.utils.ts SHA256 c1389dfb5fdc0851365b5563819bbfde1a8a5c237eb7b12e02fa056044dd7f60 [340,488]
+ 340 |   constructor(message: string, options?: ErrorOptions & { code?: 'adapter_disconnected' }) {
+ 341 |     super(message, options);
+ 342 |     this.name = 'RxDBAdapterSqliteError';
+ 343 |     this.code = options?.code;
+ 344 |     Object.setPrototypeOf(this, RxDBAdapterSqliteError.prototype);
+ 345 |   }
+ 346 | }
+ 347 | 
+ 348 | import { deserializeFromEnvelope, serializeForEnvelope } from '@aiao/rxdb-adapter-encrypted';
+ 349 | 
+ 350 | /**
+ 351 |  * 将实体值转换为 SQLite 格式
+ 352 |  * @param metadata 实体元数据
+ 353 |  * @param entity 实体对象
+ 354 |  * @param opts 可选加密上下文；当包含 keyring 时，会自动加密 `property.encrypted === true` 的列
+ 355 |  * @returns 转换后的实体对象，键为数据库列名
+ 356 |  */
+ 357 | export const transformEntityValueToSql = async (
+ 358 |   metadata: EntityMetadata,
+ 359 |   entity: EntityData,
+ 360 |   opts?: EncryptionContext & { primaryKey?: RxDBEntityId }
+ 361 | ): Promise<SQLiteEntityData> => {
+ 362 |   const needSave: SQLiteEntityData = {};
+ 363 |   const keys = Object.keys(entity);
+ 364 | 
+ 365 |   // 兼容没有 foreignKeyNames 的情况
+ 366 |   const foreignKeyNames = metadata.foreignKeyNames || [];
+ 367 |   const foreignKeyColumnNames = metadata.foreignKeyColumnNames || foreignKeyNames;
+ 368 |   const { propertyMap, columnNameToPropertyName, encryptedPropertyMap } = metadata;
+ 369 |   const hasForeignKeys = foreignKeyNames.length > 0;
+ 370 |   const hasEncryption = encryptedPropertyMap && encryptedPropertyMap.size > 0;
+ 371 |   const primaryKeyValue = opts?.primaryKey ?? (entity['id'] as RxDBEntityId | null | undefined) ?? '';
+ 372 |   const transformForeignKey = (foreignKeyName: string, value: unknown): SQLiteCompatibleType | undefined => {
+ 373 |     const relation = metadata.foreignKeyRelationMap?.get(foreignKeyName);
+ 374 |     if (!relation || !opts?.resolveEntityMetadata) return toSQLiteCompatibleValue(value, foreignKeyName);
+ 375 |     const mappedMetadata = opts.resolveEntityMetadata(relation.mappedEntity, relation.mappedNamespace);
+ 376 |     const primaryProperty = Array.from(mappedMetadata?.propertyMap.values() ?? []).find(
+ 377 |       property => Reflect.get(property, 'primary') === true
+ 378 |     );
+ 379 |     return primaryProperty ?
+ 380 |         transformValueJsToSqlite(value, primaryProperty)
+ 381 |       : toSQLiteCompatibleValue(value, foreignKeyName);
+ 382 |   };
+ 383 | 
+ 384 |   for (let i = 0; i < keys.length; i++) {
+ 385 |     const key = keys[i];
+ 386 | 
+ 387 |     // 检查是否是外键 JS 属性名（如 departmentId）
+ 388 |     const fkIndex = foreignKeyNames.indexOf(key);
+ 389 |     if (fkIndex !== -1) {
+ 390 |       needSave[foreignKeyColumnNames[fkIndex]] = transformForeignKey(key, entity[key]);
+ 391 |       continue;
+ 392 |     }
+ 393 | 
+ 394 |     // 检查是否是外键的数据库列名（如 dept_id）
+ 395 |     const fkColIndex = foreignKeyColumnNames.indexOf(key);
+ 396 |     if (fkColIndex !== -1) {
+ 397 |       needSave[key] = transformForeignKey(foreignKeyNames[fkColIndex], entity[key]);
+ 398 |       continue;
+ 399 |     }
+ 400 | 
+ 401 |     if (!hasForeignKeys && key.endsWith('Id')) {
+ 402 |       needSave[key] = toSQLiteCompatibleValue(entity[key], key);
+ 403 |       continue;
+ 404 |     }
+ 405 | 
+ 406 |     // JS 属性名查找
+ 407 |     const property = propertyMap.get(key);
+ 408 |     if (property) {
+ 409 |       if (hasEncryption && property.encrypted === true) {
+ 410 |         const raw = entity[key];
+ 411 |         if (raw === null || raw === undefined) {
+ 412 |           needSave[property.columnName] = raw === null ? null : undefined;
+ 413 |           continue;
+ 414 |         }
+ 415 |         if (!opts?.keyring || opts.keyring.isLocked) {
+ 416 |           throw new EncryptedLockedError({
+ 417 |             message: `keyring is locked while writing encrypted column ${metadata.tableName}.${property.columnName}`
+ 418 |           });
+ 419 |         }
+ 420 |         const plaintext = serializeForEnvelope(raw, property);
+ 421 |         needSave[property.columnName] = await opts.keyring.encrypt({
+ 422 |           plaintext,
+ 423 |           entityNamespace: metadata.namespace,
+ 424 |           tableName: metadata.tableName,
+ 425 |           columnName: property.columnName,
+ 426 |           primaryKey: primaryKeyValue
+ 427 |         });
+ 428 |         continue;
+ 429 |       }
+ 430 |       needSave[property.columnName] = transformValueJsToSqlite(entity[key], property);
+ 431 |       continue;
+ 432 |     }
+ 433 | 
+ 434 |     // columnName 查找
+ 435 |     const propertyName = columnNameToPropertyName?.get(key);
+ 436 |     if (propertyName) {
+ 437 |       const prop = propertyMap.get(propertyName);
+ 438 |       if (prop) {
+ 439 |         if (hasEncryption && prop.encrypted === true) {
+ 440 |           const raw = entity[key];
+ 441 |           if (raw === null || raw === undefined) {
+ 442 |             needSave[key] = raw === null ? null : undefined;
+ 443 |             continue;
+ 444 |           }
+ 445 |           if (!opts?.keyring || opts.keyring.isLocked) {
+ 446 |             throw new EncryptedLockedError({
+ 447 |               message: `keyring is locked while writing encrypted column ${metadata.tableName}.${prop.columnName}`
+ 448 |             });
+ 449 |           }
+ 450 |           const plaintext = serializeForEnvelope(raw, prop);
+ 451 |           needSave[key] = await opts.keyring.encrypt({
+ 452 |             plaintext,
+ 453 |             entityNamespace: metadata.namespace,
+ 454 |             tableName: metadata.tableName,
+ 455 |             columnName: prop.columnName,
+ 456 |             primaryKey: primaryKeyValue
+ 457 |           });
+ 458 |           continue;
+ 459 |         }
+ 460 |         needSave[key] = transformValueJsToSqlite(entity[key], prop);
+ 461 |       }
+ 462 |     }
+ 463 |   }
+ 464 | 
+ 465 |   return needSave;
+ 466 | };
+ 467 | 
+ 468 | /** 把 Date / ISO 字符串 / 毫秒数归一成时间戳；无法解析时返回 undefined。 */
+ 469 | const toTimestamp = (value: unknown): number | undefined => {
+ 470 |   const date =
+ 471 |     value instanceof Date ? value
+ 472 |     : typeof value === 'string' || typeof value === 'number' ? new Date(value)
+ 473 |     : undefined;
+ 474 |   if (!date || Number.isNaN(date.getTime())) return undefined;
+ 475 |   return date.getTime();
+ 476 | };
+ 477 | 
+ 478 | /**
+ 479 |  * 计算单调递增的 updatedAt：返回 max(preferred ?? now, current + 1ms)，
+ 480 |  * 保证同一实体连续更新时 updatedAt 严格递增。
+ 481 |  * @param entity 含 updatedAt 字段的实体
+ 482 |  * @param preferred 期望的更新时间，缺省为当前时间
+ 483 |  */
+ 484 | export const getMonotonicUpdatedAt = (entity: { updatedAt?: unknown }, preferred?: Date): Date => {
+ 485 |   const candidate = preferred ? new Date(preferred) : new Date();
+ 486 |   const current = toTimestamp(entity.updatedAt);
+ 487 | 
+ 488 |   if (current === undefined || candidate.getTime() > current) {

@@ -1,0 +1,13 @@
+{
+  "path": "packages/rxdb-plugin-replay-react/src/index.ts",
+  "sha256": "2d25962dd739f90836bc3203fbf5c30a034901b7b3cdcd7f21b61faeb2be8b97",
+  "lineCount": 12,
+  "readRanges": [
+    [
+      1,
+      12
+    ]
+  ],
+  "transcript": "boundary-react-index.txt",
+  "tableSpacingNormalized": false
+}

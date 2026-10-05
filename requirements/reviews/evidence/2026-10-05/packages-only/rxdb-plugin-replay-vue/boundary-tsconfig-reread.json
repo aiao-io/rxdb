@@ -1,0 +1,13 @@
+{
+  "path": "tsconfig.base.json",
+  "sha256": "8d5028a97a8d71342a2796b1a4900349004ef778ba04e07917b1a094e18f01ab",
+  "lineCount": 125,
+  "readRanges": [
+    [
+      45,
+      64
+    ]
+  ],
+  "transcript": "boundary-tsconfig-reread.txt",
+  "tableSpacingNormalized": false
+}

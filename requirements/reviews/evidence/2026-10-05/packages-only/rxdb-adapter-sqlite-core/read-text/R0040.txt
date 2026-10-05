@@ -1,0 +1,17 @@
+packages/rxdb-adapter-sqlite-core/tsconfig.json SHA256 771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd [1,16]
+   1 | {
+   2 |   "compilerOptions": {
+   3 |     "ignoreDeprecations": "6.0"
+   4 |   },
+   5 |   "extends": "../../tsconfig.base.json",
+   6 |   "files": [],
+   7 |   "include": [],
+   8 |   "references": [
+   9 |     {
+  10 |       "path": "./tsconfig.lib.json"
+  11 |     },
+  12 |     {
+  13 |       "path": "./tsconfig.spec.json"
+  14 |     }
+  15 |   ]
+  16 | }

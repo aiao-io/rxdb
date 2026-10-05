@@ -1,0 +1,123 @@
+--- packages/rxdb-plugin-replay-vue/package.json SHA256=4f1b8a965313ac19fbe19200c6f72d30ce59c2dd005ce251d7765314443321af lines=60 FULL TEXT ---
+   1 {
+   2   "name": "@aiao/rxdb-plugin-replay-vue",
+   3   "version": "0.0.26",
+   4   "description": "Vue replayer component for the Aiao RxDB session replay plugin.",
+   5   "homepage": "https://rxdb.netlify.app/docs/plugins",
+   6   "bugs": {
+   7     "url": "https://github.com/aiao-io/rxdb/issues"
+   8   },
+   9   "keywords": [
+  10     "aiao",
+  11     "rxdb",
+  12     "vue",
+  13     "rrweb",
+  14     "session-replay",
+  15     "component"
+  16   ],
+  17   "license": "MIT",
+  18   "repository": {
+  19     "type": "git",
+  20     "url": "git+https://github.com/aiao-io/rxdb.git",
+  21     "directory": "packages/rxdb-plugin-replay-vue"
+  22   },
+  23   "files": [
+  24     "dist",
+  25     "src",
+  26     "!src/**/*.spec.*",
+  27     "!src/**/*.test.*",
+  28     "!src/**/__tests__/**",
+  29     "!**/*.tsbuildinfo"
+  30   ],
+  31   "type": "module",
+  32   "sideEffects": false,
+  33   "main": "./dist/index.js",
+  34   "module": "./dist/index.js",
+  35   "types": "./dist/index.d.ts",
+  36   "exports": {
+  37     "./package.json": "./package.json",
+  38     ".": {
+  39       "types": "./dist/index.d.ts",
+  40       "import": "./dist/index.js",
+  41       "default": "./dist/index.js"
+  42     }
+  43   },
+  44   "publishConfig": {
+  45     "access": "public"
+  46   },
+  47   "nx": {
+  48     "name": "rxdb-plugin-replay-vue",
+  49     "tags": [
+  50       "vue-lib"
+  51     ]
+  52   },
+  53   "peerDependencies": {
+  54     "@aiao/rxdb-plugin-replay": "*",
+  55     "vue": "^3.5.43"
+  56   },
+  57   "devDependencies": {
+  58     "@aiao/rxdb-plugin-replay": "workspace:*"
+  59   }
+  60 }
+--- packages/rxdb-plugin-replay-vue/project.json SHA256=a9780fa6c9d75a9a9ce06ef9e0365b9be18b84474c29f810b38c17f6a6fd70ca lines=17 FULL TEXT ---
+   1 {
+   2   "$schema": "../../node_modules/nx/schemas/project-schema.json",
+   3   "name": "rxdb-plugin-replay-vue",
+   4   "tags": ["vue-lib"],
+   5   "targets": {
+   6     "typecheck": {
+   7       "dependsOn": ["build", "^typecheck"]
+   8     },
+   9     "lint": {
+  10       "executor": "nx:run-commands",
+  11       "options": {
+  12         "cwd": "packages/rxdb-plugin-replay-vue",
+  13         "command": "eslint . --max-warnings=0"
+  14       }
+  15     }
+  16   }
+  17 }
+--- packages/rxdb-plugin-replay-vue/eslint.config.mjs SHA256=0965e587d6980e6a5392c9902eeeec0f2c92c7ef78b18393680d2532f71d2f19 lines=21 FULL TEXT ---
+   1 import vue from 'eslint-plugin-vue';
+   2 import baseConfig from '../../eslint.config.mjs';
+   3 
+   4 export default [
+   5   ...baseConfig,
+   6   ...vue.configs['flat/recommended'],
+   7   {
+   8     files: ['**/*.vue'],
+   9     languageOptions: {
+  10       parserOptions: {
+  11         parser: await import('@typescript-eslint/parser')
+  12       }
+  13     }
+  14   },
+  15   {
+  16     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.vue'],
+  17     rules: {
+  18       'vue/multi-word-component-names': 'off'
+  19     }
+  20   }
+  21 ];
+--- packages/rxdb-plugin-replay-vue/LICENSE SHA256=61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b lines=21 FULL TEXT ---
+   1 MIT License
+   2 
+   3 Copyright (c) 2025 Aiao Team
+   4 
+   5 Permission is hereby granted, free of charge, to any person obtaining a copy
+   6 of this software and associated documentation files (the "Software"), to deal
+   7 in the Software without restriction, including without limitation the rights
+   8 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+   9 copies of the Software, and to permit persons to whom the Software is
+  10 furnished to do so, subject to the following conditions:
+  11 
+  12 The above copyright notice and this permission notice shall be included in all
+  13 copies or substantial portions of the Software.
+  14 
+  15 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  16 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  17 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  18 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  19 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  20 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  21 SOFTWARE.

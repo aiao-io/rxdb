@@ -1,0 +1,74 @@
+packages/rxdb-adapter-sqlite-core/src/transaction/SqliteTransactionExecutor.ts SHA256 c06210021572fd764e6f19e6214bc17f8af38e6e97334faa4a5264406c5a6a8d [131,203]
+ 131 |    * SQLite 家族的物理表引用：`namespace` 是表名前缀，拼成 `"rxdb$rxdb_change"`。
+ 132 |    *
+ 133 |    * @remarks
+ 134 |    * 与建表路径（`table/create_table_sql.ts`）取同一对 {@link get_table_name_by_metadata}
+ 135 |    * 与 {@link quote_sql_identifier}，不另写一份拼法 —— 两份拼法一旦分叉，CAS 会打在一张
+ 136 |    * 不存在的表上。`$` 在未加引号的标识符里不是合法字符，引号不能省。
+ 137 |    */
+ 138 |   tableRef(EntityType: EntityType): string {
+ 139 |     return quote_sql_identifier(get_table_name_by_metadata(getEntityMetadata(EntityType)));
+ 140 |   }
+ 141 | 
+ 142 |   async mutations<T extends EntityType>(options: RxDBMutationsMap<T>): Promise<InstanceType<T>[]> {
+ 143 |     this.#assertActive('mutations');
+ 144 |     return rxdb_adapter_mutations(this.#facade, options);
+ 145 |   }
+ 146 | 
+ 147 |   getRepository<T extends EntityType>(EntityType: T): IRepository<T> {
+ 148 |     this.#assertActive('getRepository');
+ 149 |     const cached = this.#repositories.get(EntityType);
+ 150 |     if (cached) return cached as IRepository<T>;
+ 151 |     // 绑定到门面而非真实适配器：该仓库的每次读写都属于本事务
+ 152 |     const repository = this.#adapter.createUncachedRepository<T>(EntityType, this.#facade);
+ 153 |     this.#repositories.set(EntityType, repository);
+ 154 |     return repository;
+ 155 |   }
+ 156 | 
+ 157 |   async saveMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
+ 158 |     this.#assertActive('saveMany');
+ 159 |     return this.mutations(getEntityMutations({ needSaveEntities: entities, needRemoveEntities: [] }));
+ 160 |   }
+ 161 | 
+ 162 |   async removeMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
+ 163 |     this.#assertActive('removeMany');
+ 164 |     return this.mutations(getEntityMutations({ needSaveEntities: [], needRemoveEntities: entities }));
+ 165 |   }
+ 166 | 
+ 167 |   async mergeChanges(
+ 168 |     actions: SwitchVersionActions,
+ 169 |     localChanges?: Omit<RxDBChange, 'id'>[],
+ 170 |     disableTriggers = false
+ 171 |   ): Promise<void> {
+ 172 |     this.#assertActive('mergeChanges');
+ 173 |     // 委派到适配器自身的 mergeChanges，但把 `this` 绑到门面：
+ 174 |     //  - 门面作为 adapter 传给内部 helper → 它们发出的每条 query 都落在本事务里；
+ 175 |     //  - **保留**子类与测试对 `adapter.mergeChanges` 的覆写 —— 在这里重实现那两步会让
+ 176 |     //    `vi.spyOn(adapter, 'mergeChanges')` 注入的失败点失效（实测抓到过：
+ 177 |     //    「normal 合并中途失败」用例本该 reject 却变成 resolve）。
+ 178 |     await this.#adapter.mergeChanges.call(this.#facade, actions, localChanges, disableTriggers);
+ 179 |   }
+ 180 | 
+ 181 |   async run<T>(fun: (executor: TransactionExecutor) => Promise<T>): Promise<T> {
+ 182 |     this.#assertActive('run');
+ 183 |     return fun(this);
+ 184 |   }
+ 185 | 
+ 186 |   /**
+ 187 |    * 把 executor 推入终态。只允许适配器的事务执行体调用。
+ 188 |    *
+ 189 |    * @internal
+ 190 |    */
+ 191 |   settle(state: Exclude<TransactionExecutorState, 'active'>): void {
+ 192 |     this.#state = state;
+ 193 |     this.#repositories.clear();
+ 194 |   }
+ 195 | 
+ 196 |   #assertActive(operation: string): void {
+ 197 |     if (this.#state === 'active') return;
+ 198 |     throw new RxDBAdapterSqliteError(
+ 199 |       `TransactionExecutor(${this.id}).${operation}() called after the transaction was ${this.#state}. ` +
+ 200 |         `事务结束后 executor 不得再使用——需要新的写入请重新发起 transaction()。`
+ 201 |     );
+ 202 |   }
+ 203 | }

@@ -1,0 +1,83 @@
+{
+  "activeScope": "packages-only",
+  "mode": "Six independent workers, each serially finishes one package and records progress before starting its next; not a multi-object partial review.",
+  "currentInFlightPackages": [
+    "rxdb",
+    "rxdb-adapter-pglite",
+    "rxdb-adapter-sqlite-core",
+    "rxdb-adapter-sqliteai",
+    "rxdb-plugin-replay-vue",
+    "rxdb-plugin-working-tree",
+    "rxdb-plugin-working-tree-react"
+  ],
+  "coordinatorPackage": "rxdb-adapter-sqliteai",
+  "followupQueues": [
+    {
+      "agentId": "01a10b1e-1eac-7412-a3d6-fae27360ece2",
+      "packages": [
+        "utils",
+        "rxdb-plugin-replay"
+      ],
+      "estimatedWeightedUnits": 167391
+    },
+    {
+      "agentId": "01a10b1e-a1bf-7901-ae2c-73e1326cfd9b",
+      "packages": [
+        "rxdb-plugin-sync",
+        "rxdb-client-generator",
+        "rxdb-model-react"
+      ],
+      "estimatedWeightedUnits": 156576
+    },
+    {
+      "agentId": "01a10b1f-275d-7af3-a3ad-92787d3f51b8",
+      "packages": [
+        "rxdb-devtools",
+        "rxdb-adapter-electron",
+        "rxdb-model-vue"
+      ],
+      "estimatedWeightedUnits": 175531
+    },
+    {
+      "agentId": "01a10b1f-a5db-7e72-b819-4262dba5967e",
+      "packages": [
+        "rxdb-model",
+        "rxdb-adapter-tauri",
+        "rxdb-adapter-supabase",
+        "rxdb-model-angular"
+      ],
+      "estimatedWeightedUnits": 215310
+    },
+    {
+      "agentId": "01a10b20-14c9-79a2-b268-d7abff04d451",
+      "packages": [
+        "code-editor-react",
+        "rxdb-react",
+        "rxdb-plugin-storage",
+        "rxdb-adapter-http",
+        "rxdb-plugin-tree",
+        "rxdb-plugin-graph",
+        "rxdb-plugin-history",
+        "rxdb-plugin-search",
+        "rxdb-plugin-workspace"
+      ],
+      "estimatedWeightedUnits": 289079
+    },
+    {
+      "agentId": "01a10b20-8e3f-7542-904a-fddc681d17d4",
+      "packages": [
+        "code-editor-vue",
+        "rxdb-vue",
+        "code-editor-angular",
+        "rxdb-angular",
+        "rxdb-adapter-sqlite-wasm",
+        "rxdb-adapter-wa-sqlite",
+        "rxdb-adapter-encrypted",
+        "rxdb-adapter-miniprogram",
+        "rxdb-test",
+        "rxdb-plugin-querycache"
+      ],
+      "estimatedWeightedUnits": 308697
+    }
+  ]
+}

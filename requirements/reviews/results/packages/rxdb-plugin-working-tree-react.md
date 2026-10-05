@@ -1,164 +1,172 @@
 ---
 kind: review-execution
 object: rxdb-plugin-working-tree-react
-created: 2026-10-03
-baseline: 3b3e449e10c6a587056a2ae947eddfd161834f97
-execution: partial
+source_root: packages/rxdb-plugin-working-tree-react
+updated: 2026-10-05
+worker: PKG-working-tree-react
+execution: complete-original-scope
+source-review: complete-original-scope
+assessment-delivery: complete-original-scope
+scenario-validation: remaining-owners-listed
+release-validation: not-complete
+rating: "🔴"
 ---
 
-# rxdb-plugin-working-tree-react：实际评审执行记录
+# rxdb-plugin-working-tree-react：全文评审与逐 C 意见
+**🔴 状态ownership不合格：RV-069/P1 Open使数据库身份切换后仍显示并接收旧库状态。源码全文 / 原 C 意见：complete-original-scope；专项运行与发布验收另列。**
 
-**部分执行，暂不作全对象评级。** 已开始入口与门禁阶段；专项语义/真实环境没有全部完成。
+同SHA已证P1跨库状态残留及迟到覆盖，比单纯文档或未测风险严重；100%薄封装覆盖不能抵消P1。另有局部P3文档漂移，不影响主评级依据。
 
-## 全范围启动批：入口与实际门禁
+- 全文：**13/13 文件，1088/1088 行**；原 C **5/5 意见交付**，不是原场景全部测试通过。
+- 确认意见：既有复用 1；新增 1（新增业务 0，局部文档 1）；candidates 0。
+- releaseReady=false；专项/发布未验归属独立登记；不修改原业务/测试/依赖/index，不派agent。
 
-本对象已进入全仓执行范围；本节是**入口自动核查＋实际门禁**，不是全部 C 项已经人工深审。
+## 1. 范围与阅读证据
 
-React：working-tree status/diff/commit/discard/restore 的框架状态与动作封装。
+- 唯一对象：`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react`；13 文件 / 1088 行，源码/config/tests/docs/license 全范围。
+- 沿用冻结scope标识 `943c50cc85b4be3b0635f736a35a9659c3fe209a`；实际阅读以当前文件SHA及真实区间为准，不自行执行Git操作。
+- [scope](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/scope.json) / [resolved](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/resolved-project.json) / [冻结核对](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/scope-freeze.json)；没有把project.json局部targets当完整配置。
+- 旧文档先读并保留：[旧plan](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/baseline/original-plan.md) / [旧results](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/baseline/original-results.md)；旧partial不能继续冒充本次源码状态，原场景仍保留。
+- [全文台账](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/file-inspection.json)记录实际SHA、N、真实readRanges、具体notes/C；输出trace与hash盘点不自动等于阅读。
 
-本批基线 `3b3e449e10c6a587056a2ae947eddfd161834f97`；源码/入口路径与摘要来自 [本轮内容指纹清单](../../evidence/2026-10-03/full-run/entry-inspection.json)。
+支撑依赖只读必要契约，不交付另一个包：[dependency-inspection.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/dependency-inspection.json)。
 
-入口/配置已读取并核对：
+## 2. 确认问题 / 去重 / 影响边界
 
-- [`packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts`](../../../../packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts)
-- [`packages/rxdb-plugin-working-tree-react/src/index.ts`](../../../../packages/rxdb-plugin-working-tree-react/src/index.ts)
-- [`packages/rxdb-plugin-working-tree-react/package.json`](../../../../packages/rxdb-plugin-working-tree-react/package.json)
-- [`packages/rxdb-plugin-working-tree-react/project.json`](../../../../packages/rxdb-plugin-working-tree-react/project.json)
+### RV-069 — P1 / Open
+责任角色：React working-tree维护者；处置：reused-existing-confirmed-issue。
+commands因database换新，states与稳定patch未按database identity重置/作废旧写回；A/B独立核心generation不能隔离共用sink。
+源码：`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts`，实际区间 `[[84, 95]]`。
+证据：同SHA历史2失败；旧A状态留在B且迟到A true覆盖B false。
+未证明向错误数据库落写；旧diff含patch/inversePatch的影响是同根因源码推导，不是另一个实测泄露。
 
-| target      | 当前证据                      | 日志                                                         |
-| ----------- | ----------------------------- | ------------------------------------------------------------ |
-| `lint`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/lint.txt)      |
-| `typecheck` | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/typecheck.txt) |
-| `test`      | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/test.txt)      |
-| `build`     | 本轮通过（限定当前配置/平台） | [执行日志](../../evidence/2026-10-03/full-run/build.txt)     |
 
-当前确认意见：本轮基线阶段尚无新增确认问题；不能据此给全对象通过结论。
+### PKG-WTR-DOC-01 — P3 / Open
+责任角色：React working-tree文档维护者；处置：package-local-source-confirmed-documentation-opinion。
+README仍称十个状态/十个方法/十格，当前公开类型与spec数量断言已是十二；源码1–3旧注记与20–21新TSDoc亦不一致。
+源码：`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/README.md`，实际区间 `[[52, 54], [66, 68]]`。
+证据：src/use-working-tree.ts:20–42与use-working-tree.spec.tsx:484–526，以及已读核心十二签名/十二初值声明。
 
-### 尚未完成的专项
+移除硬编码旧数量或同步成当前十二项；不改公开API，不需要运行大门禁。
 
-以下为原计划 C 项，状态保持待核销；门禁通过不自动勾选：
+历史输入指纹、原日志/测量分母/复用限制：[reused-evidence.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/reused-evidence.json)。旧红探针不删、不skip；不重复创建同根因RV。
 
-- [ ] C1 状态与作用域：核查 activation/branch/能力状态如何进入 hook，status/diff 订阅必须归属当前数据库。
-- [ ] C2 动作结果与并发：逐项对照 commit/discard/restore 的返回值拒绝和 switchBranch 的异常，不能一律当异常或成功。
-- [ ] C3 三端与敏感数据：核查更新触发、错误显示、diff 摘要和类型消费，并与 shared fixtures / 应用工作树场景对应。
-- [ ] C4 React 生命周期与竞态：核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。
-- [ ] C5 React 类型与 render 边界：检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。
+## 3. 每个原 C 的结论 / 锚点 / 未验归属
 
-覆盖率/外部宿主/跨框架真实用户链路需独立证据；普通测试日志中的 skip 逐项登记，不折算为通过。
+### C1 状态与作用域 — 原源码意见已交付
+**原动作**：核查 activation/branch/能力状态如何进入 hook，status/diff 订阅必须归属当前数据库。
+**原最低场景**：未 enable、插件缺失、切分支、换库、多实例；不显示旧库 diff 或偷偷启用数据库能力。
+**结论**：确认RV-069/P1：provider换库状态不归新库；其余初始化/显式命令边界已审。
+hook没有自动status/diff订阅，不把“没有变更流”作为新bug。创建只构造core命令，不偷偷enable；缺provider抛错已由普通测试验证，缺插件守卫在core契约。换库则commands换新但十二格与稳定patch没有换归属，RV-069失败覆盖状态残留与迟到写回。
 
-## 2026-10-05 frameworks 并行评审：逐 C 实际交付
+源码锚点：
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:64-77`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:81-96`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/README.md:19-20`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/README.md:66-79`
 
-基线 `44de1138b4d396fc45d6e76ab60476c40fef2223`；唯一范围 `packages/rxdb-plugin-working-tree-react` 的 12 个受控文件，摘要与 scope.json 全部相符。**execution: partial；完整 C 核销 0/5，本对象不是完整完成候选。** 不把已证局部场景当作原完整 C。
+已读测试定义锚点（不自动表示本轮新运行）：
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:74-97`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:169-227`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/review-parallel-provider-switch.spec.ts:11-58`
 
-阅读登记：4 个文件有正文片段、0 个仅测试 outline、0 个仅导航锚点、8 个未人工检查。正文登记不等价于全文件阅读；截断/函数范围及测试覆盖差别详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`。
+未验归属：SV-01, SV-02，见§5。
 
-### 当前动态证据（限定真实测量面）
+### C2 动作结果与并发 — 原源码意见已交付
+**原动作**：逐项对照 commit/discard/restore 的返回值拒绝和 switchBranch 的异常，不能一律当异常或成功。
+**原最低场景**：CAS 落败、dirty tree、不可达 commit、并发点击、动作中换 scope；原有数据不损坏。
+**结论**：同库IO接缝上的结果/异常/刷新语义已证；动作中换scope存在RV-069同根因风险，真实数据库不损坏未验。
+使用真实shared commands/async-state而非整个core状态机mock。CAS冲突与四种restore拒绝保留success/value；switchBranch dirty拒绝保留error并原样抛出。刷新失败只落statusState，不推翻已完成commit；这些断言的IO结果是手工mock，不证明真实CAS/恢复权限或数据完整性。
 
-| 门禁                     | 2026-10-05 已读取结果                                                                 | 证据 / 边界                                                                                                                                                                                                                                                                                      |
-| ------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| unit                     | Test Files 2 passed (2)；Tests 49 passed (49)                                         | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage.txt` 行 8923–8951；新增 review-parallel 不在此基线                                                                                                                      |
-| 四项覆盖率               | statements / branches / functions / lines = 100% / 100% / 100% / 100%；要求各项 ≥ 80% | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/coverage-gate.json`；原 include/exclude、禁缓存、maxWorkers=1；达标但不代替 C 语义                                                                                                                |
-| lint / typecheck         | 全 69 对象分别 exitCode=0；typecheck 含 51 依赖任务，输入无漂移                       | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint-status.json`、`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck-status.json`；新 spec 仍待 focused rerun |
-| 实际 pack / root resolve | 10 个包内文件，declared entries 缺失 0；root 解析通过                                 | `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/packed-consumer-entry-check.json`；发布根 `packages/rxdb-plugin-working-tree-react`；未执行 typed consumer/runtime import                                                                         |
+源码锚点：
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:31-38`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:42-42`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:89-95`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/README.md:70-79`
 
-全局框架/editor 队列是 22/23 通过，**本子任务范围为 18/19 通过**；唯 rxdb-angular 的 16 个 directive fixture/mock 边界失败。这里不借另外 4 个 editor 包的数据补足自身对象。
+已读测试定义锚点（不自动表示本轮新运行）：
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:99-165`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:229-448`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:532-541`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/review-parallel-provider-switch.spec.ts:38-58`
 
-### 功能族、订阅生命周期与双向事件所有权
+未验归属：SV-01, SV-02, SV-03，见§5。
 
-十二格状态 + 十二个 core commands；没有 Observable 自动变更流，只有本入口执行动作才 patch。查询 empty 与命令 success/reject 的区别保留 core contract，CAS/restore 返回值不是 throw。React state/patch 稳定闭包跨库 ownership 有待复验；另外两端不未经复验归为同一根因。
+### C3 三端与敏感数据 — 原源码意见已交付
+**原动作**：核查更新触发、错误显示、diff 摘要和类型消费，并与 shared fixtures / 应用工作树场景对应。
+**原最低场景**：相同拒绝序列三端同语义、关闭清理、敏感字段摘要；不能为调试直接输出完整历史。
+**结论**：入口/共享类型及无隐式日志边界已审；敏感diff不是自动脱敏摘要，真实应用场景未验；有P3文档数量漂移。
+三端根只导出useWorkingTree/WorkingTreeResource，核心类型/错误不转出是契约，不报缺失。React Resource直接复用core十二状态/十二命令；没有console、日志串行化或UI输出。core diff类型含patch/inversePatch，暴露为明确API而非摘要；RV-069使旧库此类状态可能残留是同根因风险推导，实测仅status/isEnabled。README仍称十，与真实声明/数量断言不符。
 
-### 逐 C 结论（原场景没有缩小）
+源码锚点：
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/index.ts:1-19`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:20-42`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:69-74`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/README.md:52-82`
 
-#### C1 状态与作用域 — partial
+已读测试定义锚点（不自动表示本轮新运行）：
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/index.spec.ts:6-30`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:458-556`
 
-原动作：核查 activation/branch/能力状态如何进入 hook，status/diff 订阅必须归属当前数据库。
-原最低场景：未 enable、插件缺失、切分支、换库、多实例；不显示旧库 diff 或偷偷启用数据库能力。
+未验归属：SV-04，见§5。
 
-**已证结论**：初始十二格 idle、创建入口不发 IO；读取 provider 后只创建共享 core commands。；status/diff 是显式方法状态，不是自动订阅；三端 README 明确 entity.save/其他标签页不会自动更新，不把这个已声明行为当 bug。
+### C4 React 生命周期与竞态 — 原源码意见已交付
+**原动作**：核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。
+**原最低场景**：StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。
+**结论**：确认RV-069：同一React实例跨provider仍保留旧状态/写回sink；不泛化三框架或误归核心请求代次。
+该hook只用useState/useCallback/useMemo，没有effect或Observable cleanup。core每commands实例的latest-only map能拦同一实例同一格的旧请求，但A/B各自map不撤销A共用patch的权限。函数式setState防跨格丢更新，不防跨库混入。正常spec没有StrictMode/多root；换库两条实际失败不是未跑候选。
 
-**源码 / 类型锚点**：
+源码锚点：
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:73-95`
 
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:81–96`（read-implementation）
-  **实际读取的测试定义/新增探针**：
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:77–165`（read-implementation）
+已读测试定义锚点（不自动表示本轮新运行）：
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:53-72`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:511-527`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/review-parallel-provider-switch.spec.ts:11-58`
 
-**必要缺口 / 不能核销原因**：未 enable、缺插件、真实 branch/数据库切换和多实例状态 ownership 未全证；React provider 切 A→B 候选的两条新回归等待主控，不提前算红/绿。
+未验归属：SV-01, SV-05，见§5。
 
-#### C2 动作结果与并发 — partial
+### C5 React 类型与 render 边界 — 原源码意见已交付
+**原动作**：检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。
+**原最低场景**：typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。
+**结论**：类型与render纯度/同库稳定引用成立；返回快照有RV-069归属错误，独立消费未验；P3文档误称十方法。
+非泛型Resource由Readonly<WorkingTreeAsyncStates>&WorkingTreeCommands组合，签名/结果用核心类型；render不发IO，只读provider并构造命令。引用稳定仅同一db跨render承诺，换库更换commands正确，错在旧states与新commands被拼成同一快照。无any/禁Hooks/原测试skip的新过关手段。spec类型消费不代替真正打包独立typed/runtime消费。
 
-原动作：逐项对照 commit/discard/restore 的返回值拒绝和 switchBranch 的异常，不能一律当异常或成功。
-原最低场景：CAS 落败、dirty tree、不可达 commit、并发点击、动作中换 scope；原有数据不损坏。
+源码锚点：
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:20-42`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:81-96`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/index.ts:18-19`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/package.json:24-50`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/tsconfig.lib.json:11-39`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/tsconfig.spec.json:10-27`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/vite.config.mts:29-62`
 
-**已证结论**：共享 REJECTED_RESTORES 的四种拒绝与 CAS conflict 原样作为 success/value，switchBranch dirty 拒绝是 error + 原样抛出；状态刷新失败不改变已完成 commit 返回值。；credentials/options 只由共享 commands 透传；wrapper 不自行提交/改 HEAD。
+已读测试定义锚点（不自动表示本轮新运行）：
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/index.spec.ts:6-30`
+- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:511-556`
 
-**源码 / 类型锚点**：
+未验归属：SV-03, SV-05, REL-01，见§5。
 
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:81–96`（read-implementation）
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts:125–137`（read-dependency-implementation）
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts:231–299`（read-dependency-implementation）
-  **实际读取的测试定义/新增探针**：
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:229–332`（read-implementation）
+## 4. 动态证据 / 测试桩 / 配置限制
 
-**必要缺口 / 不能核销原因**：缺真实数据层并发点击/CAS 落败不损坏数据以及动作中换 scope；现有 IO fixture 不拥有真正数据库。React 旧 commands 回写新 scope 候选待补跑。
+真实React/renderHook/RxDBProvider与共享createWorkingTreeCommands/async-state在测试里运行，只有workingTree/versionManager IO为官方vi.fn桩；不是整个core状态机mock，也没有真实SQL/CAS或错库落写。历史普通2文件49通过（46+3），四指标100%，实际仅11 statements/5 functions/8 lines，branches为0/0；薄包统计不证明竞态安全，且不含后来2条provider红探针。当前三个spec都被happy-dom glob纳入；它不是真实browser project。历史pack10文件只证明当时清单，不含新typed/runtime消费。源码use client不保证打包后RSC边界；React peer当前^19.3.0。根strict:true但skipLibCheck/skipDefaultLibCheck:true是既有，未降低设置也不包装独立不跳库检查消费已通过。构建pluginTimings:false为既有耗时诊断开关，不是ESLint零警告证据。缺插件守卫显式抛错；无自动status/diff订阅是公开约定。diff.entries含patch/inversePatch，wrapper不自动摘要/脱敏或打印历史。RV-069修法是绑定database identity重置状态并撤销旧sink写回，保留原Promise语义，不要求用户key、不新增fallback。
 
-#### C3 三端与敏感数据 — partial
+新增Nx命令：`[]`。旧coverage、lint/typecheck、pack不能称作本轮fresh通过，也不能代替真实场景。
 
-原动作：核查更新触发、错误显示、diff 摘要和类型消费，并与 shared fixtures / 应用工作树场景对应。
-原最低场景：相同拒绝序列三端同语义、关闭清理、敏感字段摘要；不能为调试直接输出完整历史。
+## 5. 必要未验场景与发布owner
 
-**已证结论**：十二个方法与十二格状态实际对齐；类型不重定义/不再导出 core 错误类，这是三端一致的既定 contract，不误报缺失透传。；三端用同官方测试 fixture，但 enableIfEmpty/commitChanges 的 presence guard 不等于执行了这些命令。
+| ID / 原 C | owner（责任角色，实名由主控指定） | 场景 | 未验原因 |
+| --- | --- | --- | --- |
+| SV-01 / C1, C2, C4 | React working-tree维护者 | RV-069修复后A→B立即十二格初态、旧A查询/动作/status刷新晚到不能写B；原A Promise语义不改变 | 同SHA两条provider回归已红，本轮只复用确认，不改业务或反复复现；旧命令的作用域归属需由wrapper状态/sink identity修复，不靠消费者key或停止原Promise掩盖。 |
+| SV-02 / C1, C2 | React工作树集成QA；核心working-tree维护者提供既有验收证据 | 未enable、缺插件、真实分支/多实例、CAS落败、dirty tree、不可达commit、并发点击及动作中换scope的数据不损坏 | 本包测试只控制IO返回；并未持有真正数据库、事务或CAS锁。核心已由其他agent全审，本轮只读必要契约，不重新跑核心/真UI大验收，也不把其全审等同本包集成已运行。 |
+| SV-03 / C2, C5 | React工作树组件测试维护者 | enableIfEmpty、commitChanges动作的loading/empty或success/error、参数与结果透传；错误typed consumer正反例 | 现有两个方法仅被状态/成员及方法数量守卫覆盖，没有在本包执行对应IO动作的断言；presence不等于行为通过。该缺口不是生产缺陷确认。 |
+| SV-04 / C3 | 三端工作树UI/隐私QA；核心数据治理维护者 | 同拒绝序列三端真实应用同语义、关闭清理、敏感字段摘要与多实例diff展示 | wrapper没有UI/摘要/日志逻辑；必要core类型表明diff条目携带patch/inversePatch，不能称自动脱敏摘要。fixture payload和根入口对照不证明真实UI日志/字段治理安全；RV-069可能让旧diff残留是同根因源码影响，不是另一个实测泄露。 |
+| SV-05 / C4, C5 | React working-tree生命周期测试维护者 | StrictMode、快速provider/source变化、卸载后晚到结果、多个root、同库相同值/不同引用重渲染 | 正常spec验证同一库跨render的方法稳定，新增探针验证provider换库失败；没有StrictMode/多root/异步source完整生命周期动态证据。无Observable订阅可取消，不虚构unsubscribe通过。 |
+| REL-01 / C5 | working-tree React包发布与类型消费维护者 | 独立tarball TS strict typed consumer、根ESM runtime import、React/core peer边界及打包use client/RSC消费 | 只读历史10文件pack，未执行新build/pack/发布大矩阵；source的use client不证明产物保留指令。根既有skipLibCheck:true不作为不跳过库检查的独立strict消费通过依据。 |
 
-**源码 / 类型锚点**：
+## 6. 最终收口
 
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:81–96`（read-implementation）
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/index.ts:18–19`（read-implementation）
-  **实际读取的测试定义/新增探针**：
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:458–556`（read-implementation）
-
-**必要缺口 / 不能核销原因**：缺真实应用拒绝序列、关闭期间晚到状态、多实例敏感 diff 摘要/清理以及独立 typed 消费；不能用 100% wrapper coverage 证明 core 历史数据安全。
-
-#### C4 React 生命周期与竞态 — partial
-
-原动作：核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。
-原最低场景：StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。
-
-**已证结论**：Angular TestBed 注入、React 真 renderHook/provider、Vue 真 mount/provider harness 已辨别；核心 IO 仍是测试桩。；resource 没有独立 Observable 订阅；不能虚构 unsub 测试代替实际 pending command 生命周期。
-
-**源码 / 类型锚点**：
-
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:81–96`（read-implementation）
-  **实际读取的测试定义/新增探针**：
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:53–72`（read-implementation）
-
-**必要缺口 / 不能核销原因**：Angular 实际组件销毁/子 provider、多实例；React StrictMode/多 root/旧库 pending（新 probe 未跑）；Vue provider ref 替换与 SFC scope/晚到命令，均未完整证明。
-
-#### C5 React 类型与 render 边界 — partial
-
-原动作：检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。
-原最低场景：typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。
-
-**已证结论**：Signal / render snapshot / ComputedRef 只改变状态容器；commands 返回 Promise 与 core 结果保持同结构；基线类型和 lint 已过。
-
-**源码 / 类型锚点**：
-
-- `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:42–95`（read-implementation）
-
-**必要缺口 / 不能核销原因**：Angular 模板/route、React 独立 typed consumer + StrictMode 错误 props、Vue vue-tsc/SFC readonly/emits pack consumer 未完整验证；root resolve 是路径证据而非声明/运行证明。
-
-### 全对象完成条件逐条判定
-
-1. **全部受控文件清点：通过；全部内容阅读：partial。** 12 个全范围文件已登记，8 个仍未人工检查；不从 scope 默默删配置、fixture、README、资源。
-2. **逐 C 明确结论与原场景登记：通过；原完整 C 核销：未完成。** 每条保留原动作/场景和局部证据，缺必要验证不是完成。
-3. **源码不变量 / 动态主张分离：通过（已登记范围）。** read-implementation 与 navigation-only 标注分离；新增探针不引用预期红当实际失败。
-4. **当轮门禁、缓存、skip、四指标：基线已登记。** 当前报告原测量面不变；晚加 spec 没有被老 baseline 自动覆盖。
-5. **上游 / 三端 / 消费链路：partial。** 已作公开根入口、类型/容器、delegation/所有权局部对照；pack 不等于独立 typed/runtime consumer，完整 UI 链路见各 C 缺口。
-6. **问题去重 / 正式结论：partial。** 仅 React working-tree/provider 和 replay/early-seek 两个候选在 findings.pending.md 待主控复验/去重编号；不生成 RV，不扩新问题。
-7. **全对象评级与完成：不核销。** 没有把“后续可审”“测试很多”“100% thin wrapper coverage”当作完成；评审完成不要求零缺陷，但仍要求原场景/全范围有证据。
-
-### 交付附件
-
-- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json`：原场景、结论、源码/测试角色、具体缺口。
-- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`：完整受控 inventory、真实正文/outline/导航的区别与摘要。
-- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/validation-observations.json`：已读取的主控测量与 pack 消费来源。
-- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/findings.pending.md`：只保留两个候选及 Angular 门禁边界。
-- `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/validation-requests.json`：已请求的 late spec focused 验证；本交付不等待更大队列。
+🔴：同SHA已证P1跨库状态残留及迟到覆盖，比单纯文档或未测风险严重；100%薄封装覆盖不能抵消P1。另有局部P3文档漂移，不影响主评级依据。
+sourceReviewComplete=true / opinionDeliveryComplete=true；所有原C意见完成，scenario/release不冒充完成。
+[plan](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/packages/rxdb-plugin-working-tree-react.md) / [file-inspection.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/file-inspection.json) / [c-evidence.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/c-evidence.json) / [closure.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/closure.json)。
+校验后使用指定进度脚本--complete；在完成事件与总进度/ETA原子更新之前不启动下一包。

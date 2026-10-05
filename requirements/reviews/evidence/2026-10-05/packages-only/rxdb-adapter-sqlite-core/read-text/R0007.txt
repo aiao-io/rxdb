@@ -1,0 +1,143 @@
+packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts SHA256 052824127109070a4013c72429389c0e689bb356ad85165149e2287cb4f65a38 [537,678]
+ 537 |     }
+ 538 |   }
+ 539 | 
+ 540 |   getRepository<T extends EntityType, RT = SqliteRepository<T>>(EntityType: T): RT {
+ 541 |     if (!this.repository_cache.has(EntityType)) {
+ 542 |       const meta = getEntityMetadata(EntityType);
+ 543 |       const RepositoryClass = this.repository_map.get(meta.repository);
+ 544 |       if (!RepositoryClass) {
+ 545 |         throw new RxDBAdapterSqliteError(`Repository '${meta.repository}' not found`);
+ 546 |       }
+ 547 |       const repository = new RepositoryClass(this, EntityType);
+ 548 |       this.repository_cache.set(EntityType, repository);
+ 549 |       return repository as RT;
+ 550 |     }
+ 551 |     return this.repository_cache.get(EntityType) as RT;
+ 552 |   }
+ 553 | 
+ 554 |   /**
+ 555 |    * 新建一个绑定到 `host` 的仓库，**不写入** `repository_cache`。
+ 556 |    *
+ 557 |    * @param EntityType - 实体类型
+ 558 |    * @param host - 仓库要绑定到的适配器（事务场景下是 executor 的门面）
+ 559 |    *
+ 560 |    * @remarks
+ 561 |    * 供 {@link SqliteTransactionExecutor.getRepository} 使用。之所以必须绕开缓存：缓存里的仓库
+ 562 |    * 生命周期与适配器一样长，若把事务作用域的仓库写进去，事务结束后它仍留在缓存里指向一个
+ 563 |    * 已提交/已回滚的事务上下文，之后的**外部**写会打到那上面。
+ 564 |    *
+ 565 |    * @internal
+ 566 |    */
+ 567 |   createUncachedRepository<T extends EntityType>(EntityType: T, host: RxDBAdapterSqliteBase): IRepository<T> {
+ 568 |     const meta = getEntityMetadata(EntityType);
+ 569 |     const RepositoryClass = this.repository_map.get(meta.repository);
+ 570 |     if (!RepositoryClass) {
+ 571 |       throw new RxDBAdapterSqliteError(`Repository '${meta.repository}' not found`);
+ 572 |     }
+ 573 |     // RepositoryClass 的形参声明是 `this`，这里要传的是事务门面（结构等价但不是同一标称类型）
+ 574 |     const construct = RepositoryClass as unknown as new (
+ 575 |       adapter: RxDBAdapterSqliteBase,
+ 576 |       EntityType: EntityType
+ 577 |     ) => unknown;
+ 578 |     return new construct(host, EntityType) as IRepository<T>;
+ 579 |   }
+ 580 | 
+ 581 |   public async connect() {
+ 582 |     if (this.#lifecycle_state === 'closed') this.#lifecycle_state = 'bootstrap';
+ 583 |     this.#is_disconnected = false;
+ 584 |     try {
+ 585 |       this.#initEncryption();
+ 586 |       await this.#client();
+ 587 |     } catch (err) {
+ 588 |       // 初始化失败时恢复 disconnected 状态，避免后续操作误判为已连接
+ 589 |       this.#is_disconnected = true;
+ 590 |       throw err;
+ 591 |     }
+ 592 |     return this as IRxDBAdapter;
+ 593 |   }
+ 594 | 
+ 595 |   override completeBootstrap(): void {
+ 596 |     if (this.#lifecycle_state === 'bootstrap') this.#lifecycle_state = 'ready';
+ 597 |   }
+ 598 | 
+ 599 |   public async disconnect() {
+ 600 |     this.#lifecycle_state = 'closing';
+ 601 |     this.#is_disconnected = true;
+ 602 |     // client.disconnect() 失败也必须清掉缓存：不清的话这个（可能已部分拆卸的）死实例会一直
+ 603 |     // 留在 #cached_client 里，重连时 #client() 直接复用它而不是走工厂重建，
+ 604 |     // 后续每次 disconnect 重试也会对同一个实例反复调用（SQLC-020）
+ 605 |     try {
+ 606 |       await this.#client_promise?.catch(() => undefined);
+ 607 |       await this.#waitForChangeTasks();
+ 608 |       await this.#queue.waitForAll();
+ 609 |       if (this.#cached_client) {
+ 610 |         await this.#cached_client.disconnect();
+ 611 |       }
+ 612 |     } finally {
+ 613 |       await this.#releaseAdoptedClient();
+ 614 |       await this.#releaseStorageLock();
+ 615 |       // client 是 Comlink 远端代理时必须显式释放根代理的 MessagePort：
+ 616 |       // 不释放则每轮断开/重连都留下一个活端口和 Worker 侧引用（SQLC-041）。
+ 617 |       // 排在 client.disconnect() 之后 —— 先释放代理，后续 RPC 会直接 reject。
+ 618 |       releaseComlinkProxy(this.#cached_client);
+ 619 |       this.#cached_client = undefined;
+ 620 |       this.#client_promise = undefined;
+ 621 |       this.#listeners_registered = false;
+ 622 |       this.#lifecycle_state = 'closed';
+ 623 |     }
+ 624 |   }
+ 625 | 
+ 626 |   public async version(): Promise<string> {
+ 627 |     const client = await this.#client();
+ 628 |     return await client.version();
+ 629 |   }
+ 630 | 
+ 631 |   /**
+ 632 |    * 把整个数据库写成一份可恢复的归档。
+ 633 |    *
+ 634 |    * @remarks
+ 635 |    * 归档是逻辑转储：全部结构语句与行字面量，在 adapter 的串行队列里、同一个读事务中取得，所以与某一次
+ 636 |    * 事务提交边界一致，WAL 里已提交的数据都在其中。**整个写出过程都占着数据库**：输出流有背压时，
+ 637 |    * 这段时间内的读写都会排队。在本 adapter 的事务回调里调用会等待自己，直到 `lockTimeoutMs` 后报 `lock_timeout`。
+ 638 |    *
+ 639 |    * 归档包含业务表、系统表、变更历史与 keyring 的密文，加密列保持密文，不需要解锁；
+ 640 |    * 外置文件不在其中（`scope.externalFiles === 'excluded'`）。支持的存储见各 adapter 的 README。
+ 641 |    *
+ 642 |    * @param sink - 输出流；成功时被 close，失败时被 abort
+ 643 |    * @param options - 取消信号与排队时限
+ 644 |    * @returns 结束标记（条目数、字节数、SHA-256）与 manifest；输出流 close 已完成
+ 645 |    * @throws RxDBBackupError `unsupported_combination` / `lock_timeout` / `aborted` / `io_error` / `storage_full`
+ 646 |    *
+ 647 |    * @example
+ 648 |    * ```typescript
+ 649 |    * const handle = await showSaveFilePicker({ suggestedName: 'notes.rxdb-backup' });
+ 650 |    * const result = await adapter.backup(await handle.createWritable());
+ 651 |    * console.log(result.sha256);
+ 652 |    * ```
+ 653 |    */
+ 654 |   async backup(sink: WritableStream<Uint8Array>, options: RxDBBackupOptions = {}): Promise<RxDBBackupResult> {
+ 655 |     const storage = this.#supportedBackupStorage('backup');
+ 656 |     if (options.signal?.aborted) {
+ 657 |       throw new RxDBBackupError('aborted', 'SQLite backup was aborted', { cause: options.signal.reason });
+ 658 |     }
+ 659 |     if (this.#is_disconnected) {
+ 660 |       throw new RxDBAdapterSqliteError('Adapter is disconnected', { code: 'adapter_disconnected' });
+ 661 |     }
+ 662 |     await this.ready();
+ 663 |     const client = await this.#client();
+ 664 |     return writeSqliteBackup(
+ 665 |       {
+ 666 |         rxdb: this.rxdb,
+ 667 |         adapterName: this.name,
+ 668 |         client,
+ 669 |         storage,
+ 670 |         queue: this.#queue,
+ 671 |         shadowTablesWritable: this.shadowTablesWritable()
+ 672 |       },
+ 673 |       sink,
+ 674 |       options
+ 675 |     );
+ 676 |   }
+ 677 | 
+ 678 |   /**

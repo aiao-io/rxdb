@@ -4,6 +4,10 @@ object: rxdb-adapter-sqliteai
 created: 2026-10-03
 baseline: 3b3e449e10c6a587056a2ae947eddfd161834f97
 execution: partial
+source-review: complete-original-scope
+assessment-delivery: complete-original-scope
+scenario-validation: partial
+release-readiness: not-claimed
 ---
 
 # rxdb-adapter-sqliteai：实际评审执行记录
@@ -80,3 +84,17 @@ SQLiteAI 运行时的 adapter、client 和资源装载，复用 SQLite 数据层
 - 全对象源码/配置/全部测试及打包面尚未全部实审；跨宿主/适用三框架的真实用户链路、持久化刷新、发布 consumer 与各 skip 原因尚未闭环。**0 个整对象完成**，不能以局部通过声明发布就绪。
 - 已发送请求：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/validation-requests.json`；已观察结果：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/validation-observed.json`。不再新增探针或第五个候选。主控后续 late probes/全矩阵结果统一追加；本段不预测在途目标成功，也不把未来补证算入核销。
 - 评审结论只限上述证据：有明确问题的局部是 🔴；没有新增问题不代表 🟢。本轮保留 partial，完整评级须原完成条件都满足后再给。
+
+## 2026-10-05 packages-only：源码评审交付完成
+
+**🟡，35/35原受控文件、2017行全文已审，原C1–C5逐项结论齐全。** [阅读台账](../../evidence/2026-10-05/packages-only/rxdb-adapter-sqliteai/file-inspection.json) · [意见](../../evidence/2026-10-05/packages-only/rxdb-adapter-sqliteai/findings.md) · [closure及必要未验](../../evidence/2026-10-05/packages-only/rxdb-adapter-sqliteai/closure.json)。
+
+| C | 已完成的评审结论 | 验证/发布未验归属 |
+| --- | --- | --- |
+| C1 | 长版本pin、URL/loadOptions/fingerprint及global lock内cache二次检查，临时worker/config归还与oo1形态拒绝，没有失败切换别的引擎 | 真实网络/资源配对/OPFS/关闭窗source以外证据另列；已修共享关闭bug不重报 |
+| C2 | root没有专门vector/memory/AI函数方法承诺，通用SQL交由引擎；engine seed对象及FTS shadow明列，不能把无表作为blank | 未声明扩展调用/缺扩展/版本capability真实探针归owner，不把mock constructor或harness常量当可用 |
+| C3 | Oo1ClientBase统一参数/结果/事务/队列；真实Comlink检查remote loadOptions/拒绝函数/lease排他与重连入口；prepared多语句/RETURNING/SELECT rowsAffected0测试可见 | normal typed repo、完整step/finalize失败和跨backend数据复验未新跑；as never/never型测试缺口不隐瞒 |
+| C4 | encrypted BigInt/binary与backup五suite接线，memory/OPFS分档且恢复禁止memory fallback；vector/dbmem seed及用户数据blank/归档条件正确分流 | tamper/log bytes/FTS/corrupt restore/native强杀与VFS实际模式另验；WAL字符串mock不是delete真实模式证明 |
+| C5 | 根/testing双entry与声明/exports静态一致；严格NodeNext/checkJs/paths={} consumer和reachable bundle审计已审 | 仍是workspace内contract，不称新HEAD冷pack/type/runtime/外部依赖部署通过；apps页面按用户要求本轮暂停 |
+
+改进意见还包括loader TSDoc补齐URL/locateFile指纹变化重载条件。**新增确认产品缺陷0，必要未验/发布仍partial；原最低场景不删除，源码/意见已完成不归零。** 没有修改业务、原tests、依赖、暂存，没有把历史743pass/10skip或覆盖率值当本轮结果。

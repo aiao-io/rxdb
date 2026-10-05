@@ -1,0 +1,42 @@
+packages/rxdb-adapter-sqlite-core/src/query/count_sql.ts SHA256 b8a2078314fe416d65d199a015cd599f0e4c072a95c9b89644b3bb8a6556f817 [1,41]
+   1 | import { CountOptions, EntityMetadata, EntityType, isRuleGroup } from '@aiao/rxdb';
+   2 | import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
+   3 | import type { SQLiteCompatibleType } from '../sqlite-core.interface.js';
+   4 | import { RxDBAdapterSqliteError, get_table_name_by_metadata, quote_sql_identifier } from '../sqlite-core.utils.js';
+   5 | import { build_rule_group_join } from './join_sql.js';
+   6 | import { GenerateSqlResult, buildRuleGroup } from './query_sql.js';
+   7 | import { MAIN_TABLE_ALIAS } from './sql_alias.utils.js';
+   8 | import { validateEncryptedQuery } from './validate-encrypted-query.js';
+   9 | 
+  10 | /**
+  11 |  * 生成 count 查询
+  12 |  */
+  13 | export const count_sql = (
+  14 |   adapter: RxDBAdapterSqliteBase,
+  15 |   metadata: EntityMetadata,
+  16 |   options: CountOptions<EntityType, object>
+  17 | ): GenerateSqlResult => {
+  18 |   if (!isRuleGroup(options.where)) {
+  19 |     throw new RxDBAdapterSqliteError('Invalid count query rule group');
+  20 |   }
+  21 |   const whereOptions = options.where;
+  22 |   if (options.groupBy) {
+  23 |     throw new RxDBAdapterSqliteError('groupBy not supported yet');
+  24 |   }
+  25 |   validateEncryptedQuery(metadata, { where: whereOptions, groupBy: options.groupBy }, (name, namespace) =>
+  26 |     adapter.rxdb.schemaManager.getEntityMetadata(name, namespace ?? metadata.namespace)
+  27 |   );
+  28 |   const { joinSQL, fieldAliasMap } = build_rule_group_join(adapter, metadata, whereOptions);
+  29 |   const tableName = get_table_name_by_metadata(metadata);
+  30 |   const params: SQLiteCompatibleType[] = [];
+  31 |   const where = buildRuleGroup(whereOptions, fieldAliasMap, metadata, adapter, params);
+  32 |   // 有 JOIN 时必须 COUNT(DISTINCT ...)：一个父实体匹配 N 条关联行会被 JOIN 展开成 N 行，
+  33 |   // 裸 COUNT 会把它计 N 次。find_sql 在 hasJoin 时已经加 DISTINCT（见 generate_sql），
+  34 |   // count 不同口径就会与 find(...).length 对不上（SQLC-009）
+  35 |   const countExpr = joinSQL ? `COUNT(DISTINCT ${MAIN_TABLE_ALIAS}.rowid)` : `COUNT(${MAIN_TABLE_ALIAS}.rowid)`;
+  36 |   const parts = [`SELECT ${countExpr} AS count FROM ${quote_sql_identifier(tableName)} ${MAIN_TABLE_ALIAS}`];
+  37 |   if (joinSQL) parts.push(joinSQL);
+  38 |   if (where) parts.push(` WHERE ${where}`);
+  39 |   const sql = parts.join('');
+  40 |   return params.length ? { sql, params } : { sql };
+  41 | };

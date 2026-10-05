@@ -1,0 +1,13 @@
+{
+  "path": "specs/005-us-909-session-replay/contracts/replayer-component.md",
+  "sha256": "e92175646ec508d71581bf847e253f393ca58a542e900d6746e6a31b0d72a7db",
+  "lineCount": 77,
+  "readRanges": [
+    [
+      1,
+      77
+    ]
+  ],
+  "transcript": "boundary-contract.txt",
+  "tableSpacingNormalized": false
+}

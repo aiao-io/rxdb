@@ -1,0 +1,50 @@
+[
+  {
+    "path": "packages/rxdb-plugin-replay-vue/package.json",
+    "sha256": "4f1b8a965313ac19fbe19200c6f72d30ce59c2dd005ce251d7765314443321af",
+    "lineCount": 60,
+    "readRanges": [
+      [
+        1,
+        60
+      ]
+    ],
+    "transcript": "source-read-03.txt"
+  },
+  {
+    "path": "packages/rxdb-plugin-replay-vue/project.json",
+    "sha256": "a9780fa6c9d75a9a9ce06ef9e0365b9be18b84474c29f810b38c17f6a6fd70ca",
+    "lineCount": 17,
+    "readRanges": [
+      [
+        1,
+        17
+      ]
+    ],
+    "transcript": "source-read-03.txt"
+  },
+  {
+    "path": "packages/rxdb-plugin-replay-vue/eslint.config.mjs",
+    "sha256": "0965e587d6980e6a5392c9902eeeec0f2c92c7ef78b18393680d2532f71d2f19",
+    "lineCount": 21,
+    "readRanges": [
+      [
+        1,
+        21
+      ]
+    ],
+    "transcript": "source-read-03.txt"
+  },
+  {
+    "path": "packages/rxdb-plugin-replay-vue/LICENSE",
+    "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+    "lineCount": 21,
+    "readRanges": [
+      [
+        1,
+        21
+      ]
+    ],
+    "transcript": "source-read-03.txt"
+  }
+]

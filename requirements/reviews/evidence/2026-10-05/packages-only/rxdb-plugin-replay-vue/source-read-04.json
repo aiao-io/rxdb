@@ -1,0 +1,50 @@
+[
+  {
+    "path": "packages/rxdb-plugin-replay-vue/tsconfig.json",
+    "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+    "lineCount": 16,
+    "readRanges": [
+      [
+        1,
+        16
+      ]
+    ],
+    "transcript": "source-read-04.txt"
+  },
+  {
+    "path": "packages/rxdb-plugin-replay-vue/tsconfig.lib.json",
+    "sha256": "5e7762ac709effb1e66efc9ff31733ccbc3605500b63e74663bf41a9f73339b6",
+    "lineCount": 41,
+    "readRanges": [
+      [
+        1,
+        41
+      ]
+    ],
+    "transcript": "source-read-04.txt"
+  },
+  {
+    "path": "packages/rxdb-plugin-replay-vue/tsconfig.spec.json",
+    "sha256": "25992d66c728fbb5ac92e0f99dc4b68aa5cc8a014ca4edfdea3ec28a9c664284",
+    "lineCount": 32,
+    "readRanges": [
+      [
+        1,
+        32
+      ]
+    ],
+    "transcript": "source-read-04.txt"
+  },
+  {
+    "path": "packages/rxdb-plugin-replay-vue/vite.config.mts",
+    "sha256": "f00583dee5c66ea0390a5bf217854a6f11cccfdb3ec3a5c378feca3b2f433852",
+    "lineCount": 83,
+    "readRanges": [
+      [
+        1,
+        83
+      ]
+    ],
+    "transcript": "source-read-04.txt"
+  }
+]

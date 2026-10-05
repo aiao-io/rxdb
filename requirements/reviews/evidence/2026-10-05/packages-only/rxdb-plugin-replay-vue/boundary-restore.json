@@ -1,0 +1,13 @@
+{
+  "path": "packages/rxdb-plugin-replay/src/restore.ts",
+  "sha256": "56164c35fbde3027500d1401ff9dc9a7039dcfe37412b7a37fcea7ef48477c91",
+  "lineCount": 57,
+  "readRanges": [
+    [
+      1,
+      57
+    ]
+  ],
+  "transcript": "boundary-restore.txt",
+  "tableSpacingNormalized": false
+}

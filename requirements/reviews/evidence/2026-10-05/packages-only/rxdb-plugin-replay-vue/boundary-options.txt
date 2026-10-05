@@ -1,0 +1,118 @@
+--- packages/rxdb-plugin-replay/src/options.ts SHA256=b975a0632d8b912423de85e587694f0bbe44c689aaf6efab11758008a72a5a8c lines=117 read=1-117 ---
+   1 import type { EntityType, RxDB } from '@aiao/rxdb';
+   2 import type { eventWithTime } from '@rrweb/types';
+   3 import type { recordOptions } from 'rrweb';
+   4 
+   5 /**
+   6  * 永远并入 `record.blockSelector` 的选择器：给元素加上 `data-rxdb-replay-block` 属性，
+   7  * 它在录像里就只剩一个同尺寸的占位块。应用不需要懂 rrweb 也能标出敏感区块。
+   8  */
+   9 export const REPLAY_BLOCK_SELECTOR = '[data-rxdb-replay-block]';
+  10 
+  11 /** 透传给 rrweb `record()` 的脱敏 / 屏蔽选项子集；含义照 rrweb 文档。 */
+  12 export type RxDBReplayRecordOptions = Pick<
+  13   recordOptions<eventWithTime>,
+  14   | 'maskAllInputs'
+  15   | 'maskInputOptions'
+  16   | 'maskTextSelector'
+  17   | 'maskTextClass'
+  18   | 'blockSelector'
+  19   | 'blockClass'
+  20   | 'ignoreSelector'
+  21 >;
+  22 
+  23 /**
+  24  * 录制库工厂：收到本插件的实体清单，返回一个**独立**的 `RxDB`（不要是被录的应用库）。
+  25  *
+  26  * @remarks
+  27  * 每个连接纪元只在第一次需要存储时调用一次。返回的库若尚未 `init()`，插件替它 `init()` 后再 `connect()`。
+  28  */
+  29 export type ReplayRecordingDbFactory = (entities: readonly EntityType[]) => RxDB | Promise<RxDB>;
+  30 
+  31 /** `rxdb.use(rxDBPluginReplay, options)` 的选项。 */
+  32 export interface RxDBReplayOptions {
+  33   /** 录制库工厂，必填。见 {@link ReplayRecordingDbFactory}。 */
+  34   readonly createRecordingDb: ReplayRecordingDbFactory;
+  35   /** 体积上限，按 `JSON.stringify` 后的 UTF-8 字节计。超限绝不自动删除旧数据。 */
+  36   readonly limits?: {
+  37     /** 单会话上限；超出时该会话停止录制并标为 `truncated`。@defaultValue 16 MiB */
+  38     readonly sessionBytes?: number;
+  39     /** 录制库总量上限；达到后拒绝开始新会话。必须 ≥ `sessionBytes`。@defaultValue 128 MiB */
+  40     readonly storeBytes?: number;
+  41   };
+  42   /** 事件落库节奏：先到哪个条件就冲刷一次。 */
+  43   readonly flush?: {
+  44     /** 最长缓冲时间。@defaultValue 1000 */
+  45     readonly intervalMs?: number;
+  46     /** 最多缓冲条数。@defaultValue 200 */
+  47     readonly maxEvents?: number;
+  48   };
+  49   /** 脱敏 / 屏蔽选项，`maskAllInputs` 默认 `true`。 */
+  50   readonly record?: RxDBReplayRecordOptions;
+  51 }
+  52 
+  53 /** 补齐默认值、校验过的选项。 */
+  54 export interface ResolvedReplayOptions {
+  55   readonly createRecordingDb: ReplayRecordingDbFactory;
+  56   readonly limits: { readonly sessionBytes: number; readonly storeBytes: number };
+  57   readonly flush: { readonly intervalMs: number; readonly maxEvents: number };
+  58   readonly record: RxDBReplayRecordOptions;
+  59 }
+  60 
+  61 const MIB = 1024 * 1024;
+  62 
+  63 /** 子集里的键；只有这些会从 `options.record` 里拷出来。 */
+  64 const RECORD_KEYS = [
+  65   'maskAllInputs',
+  66   'maskInputOptions',
+  67   'maskTextSelector',
+  68   'maskTextClass',
+  69   'blockSelector',
+  70   'blockClass',
+  71   'ignoreSelector'
+  72 ] as const satisfies readonly (keyof RxDBReplayRecordOptions)[];
+  73 
+  74 const positiveSafeInteger = (field: string, value: number): number => {
+  75   if (Number.isSafeInteger(value) && value > 0) return value;
+  76   throw new RangeError(`[rxdb-plugin-replay] ${field} must be a positive safe integer, got ${String(value)}`);
+  77 };
+  78 
+  79 const resolveRecordOptions = (record: RxDBReplayRecordOptions = {}): RxDBReplayRecordOptions => {
+  80   const picked: Record<string, unknown> = {};
+  81   for (const key of RECORD_KEYS) {
+  82     if (record[key] !== undefined) picked[key] = record[key];
+  83   }
+  84   return {
+  85     ...picked,
+  86     maskAllInputs: record.maskAllInputs ?? true,
+  87     blockSelector: record.blockSelector ? `${record.blockSelector}, ${REPLAY_BLOCK_SELECTOR}` : REPLAY_BLOCK_SELECTOR
+  88   };
+  89 };
+  90 
+  91 /**
+  92  * 补齐默认值并校验 {@link RxDBReplayOptions}。
+  93  *
+  94  * @throws TypeError 没给选项，或 `createRecordingDb` 不是函数
+  95  * @throws RangeError 上限 / 冲刷参数不是正的安全整数，或 `sessionBytes > storeBytes`
+  96  */
+  97 export const resolveReplayOptions = (options: RxDBReplayOptions | undefined): ResolvedReplayOptions => {
+  98   if (typeof options?.createRecordingDb !== 'function') {
+  99     throw new TypeError('[rxdb-plugin-replay] options.createRecordingDb must be a function');
+ 100   }
+ 101   const sessionBytes = positiveSafeInteger('limits.sessionBytes', options.limits?.sessionBytes ?? 16 * MIB);
+ 102   const storeBytes = positiveSafeInteger('limits.storeBytes', options.limits?.storeBytes ?? 128 * MIB);
+ 103   if (sessionBytes > storeBytes) {
+ 104     throw new RangeError(
+ 105       `[rxdb-plugin-replay] limits.sessionBytes (${sessionBytes}) must not exceed limits.storeBytes (${storeBytes})`
+ 106     );
+ 107   }
+ 108   return {
+ 109     createRecordingDb: options.createRecordingDb,
+ 110     limits: { sessionBytes, storeBytes },
+ 111     flush: {
+ 112       intervalMs: positiveSafeInteger('flush.intervalMs', options.flush?.intervalMs ?? 1000),
+ 113       maxEvents: positiveSafeInteger('flush.maxEvents', options.flush?.maxEvents ?? 200)
+ 114     },
+ 115     record: resolveRecordOptions(options.record)
+ 116   };
+ 117 };

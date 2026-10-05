@@ -1,0 +1,88 @@
+packages/rxdb-adapter-sqlite-core/README.md SHA256 a56e9b81a655720ab05c4d4952c3057b609530888bc06fd585465855faacb082 [1,87]
+   1 | # @aiao/rxdb-adapter-sqlite-core
+   2 | 
+   3 | `@aiao/rxdb` 的 SQLite 适配器共享内核。它把「实体 → SQL」的映射、表名解析、规则组构建、基础 Repository 与变更事件等能力抽象为后端无关的基类，供各具体 SQLite 适配器复用。
+   4 | 
+   5 | > 本包一般不直接安装，而是作为 `@aiao/rxdb-adapter-sqlite`、`@aiao/rxdb-adapter-sqlite-wasm`、`@aiao/rxdb-adapter-sqliteai` 等适配器的依赖被间接引入。
+   6 | 
+   7 | ## 提供的能力
+   8 | 
+   9 | - `RxDBAdapterSqliteBase`：SQLite 适配器基类，封装事务、建表与变更钩子
+  10 | - `SqliteTransactionExecutor`：`TransactionExecutor` 在 SQLite 侧的实现；`transaction()` 回调收到的就是它
+  11 | - `SqliteRepository`：基于 SQLite 的类型安全 Repository 实现
+  12 | - `buildRuleGroup`：将查询规则编译为 SQL 条件
+  13 | - `sqliteGetTableName` / `sqliteGetTableNameByMetadata`：实体 → 表名解析
+  14 | - 后端契约类型：`SqliteBackend`、`SqliteChangeEvent`、`SQLiteChangeType` 等
+  15 | 
+  16 | 具体后端只需实现 `SqliteBackend` 契约即可接入。
+  17 | 
+  18 | ## 事务 API（C2 已落地第一步）
+  19 | 
+  20 | `RxDBAdapterSqliteBase.transaction()` / `runInTransaction()` 的回调签名已收紧为接收 `SqliteTransactionExecutor`：
+  21 | 
+  22 | ```typescript
+  23 | import type { TransactionFun } from '@aiao/rxdb-adapter-sqlite-core';
+  24 | 
+  25 | const fun: TransactionFun = async executor => {
+  26 |   // 持有 executor 才算「在本事务内」
+  27 |   const repo = executor.getRepository(Todo);
+  28 |   await repo.create({ title: 'inside tx' });
+  29 | 
+  30 |   // executor.execute(sql, bindings) 透传底层 client.execute，
+  31 |   // 既有的 `transaction(async tx => tx.execute(sql))` 写法不受影响
+  32 |   await executor.execute('SELECT 1');
+  33 | 
+  34 |   // 嵌套内层工作
+  35 |   await executor.run(async inner => inner.getRepository(Todo).count());
+  36 | 
+  37 |   // 合并远端变更
+  38 |   await executor.mergeChanges(actions, localChanges, /* disableTriggers */ false);
+  39 | };
+  40 | ```
+  41 | 
+  42 | > 零参回调仍然兼容（TS 允许形参更少）。`SqliteTransactionExecutor` 不直接导出 —— 它是 `RxDBAdapterSqliteBase` 的内部产物，外部代码只通过 `@aiao/rxdb` 的 `TransactionExecutor` 接口与之交互。
+  43 | 
+  44 | ## 备份与恢复
+  45 | 
+  46 | 六个 SQLite 适配器（四个浏览器端，加上桌面的 `sqlite-electron` 与 `sqlite-tauri`）共用这里的实现：`adapter.backup(sink)` 把整个数据库写成一个 `.rxdb-backup` 归档流，
+  47 | `adapter.restore(source)` 把归档恢复进该 adapter 配置的**空**存储。两端都逐块流式处理，不会把整个库读进内存。
+  48 | 
+  49 | > **外部文件不在备份范围内。** 归档只包含数据库本身（`scope: { database: 'included', externalFiles: 'excluded' }`）。`rxdb-plugin-storage` 等插件存放在数据库之外的文件需要另行备份。
+  50 | 
+  51 | ```typescript
+  52 | // 备份：写入任意 WritableStream（例如 File System Access 的文件句柄）
+  53 | const handle = await showSaveFilePicker({ suggestedName: 'notes.rxdb-backup' });
+  54 | const result = await adapter.backup(await handle.createWritable());
+  55 | 
+  56 | // 恢复：目标 RxDB 实例已注册 adapter，但尚未 connect
+  57 | const target = await rxdb.getAdapter('wa-sqlite');
+  58 | await target.restore(file.stream());
+  59 | await rxdb.connect('wa-sqlite');
+  60 | ```
+  61 | 
+  62 | 要点：
+  63 | 
+  64 | - **逻辑转储**：归档是全部结构语句（表 / 索引 / 视图 / 触发器 / 虚表、`user_version`、`application_id`、`sqlite_sequence`）
+  65 |   加上 `quote()` 生成的行字面量，在 adapter 串行队列里的同一个读事务中取得，因此落在一个已提交事务边界上，
+  66 |   也不存在「只复制主文件、漏掉 WAL」的问题。**写出期间数据库被占用**：输出流有背压时读写都会排队；
+  67 |   锁等待上限由 `lockTimeoutMs`（默认 30s）控制，超时抛 `lock_timeout`。
+  68 | - **兼容性**：adapter 名、SQLite 大版本、归档用到的虚表模块（例如 `fts5`）、系统表 / 变更编码版本、实体结构指纹、
+  69 |   加密认证域全部在写入第一条语句之前判定；不兼容报 `incompatible_archive` / `auth_domain_mismatch`。
+  70 |   完整性（SHA-256）读到末尾才能确认，失败时已写的内容在同一事务里回滚（`corrupt_archive` / `truncated_archive`）。
+  71 | - **空目标**：目标只能是引擎新建空库本来的样子。引擎在每条连接上自动建的对象（例如 sqliteai 内置扩展的表）
+  72 |   由客户端的 `describeBlankDatabase()` 在一条临时 `:memory:` 连接上描述，只有对象清单与内容都与之完全一致才算空；
+  73 |   已有业务数据、只有 RxDB 系统表、或引擎表里写过数据的目标都报 `target_not_empty`。
+  74 | - **中断**：持久化目标先提交一张「恢复进行中」标记表，再在一个事务里写入结构与数据。页面在恢复中途被关后，
+  75 |   连接与再次恢复都会报 `restore_incomplete`，调用 `adapter.cleanupIncompleteRestore()` 清理后即可重新恢复；
+  76 |   清理失败时报 `cleanup_pending`。内存目标没有残留，恢复出来的库由下一次 `connect()` 接管。
+  77 | - **独占**：持久化目标由 Web Lock `rxdb-sqlite-storage:<storageKey>` 保护；同一目标上并发的恢复只有一个能赢（`target_busy`），
+  78 |   恢复期间的连接尝试报 `restore_in_progress`。桌面的库文件还可能被别的窗口、别的进程打开，Web Lock 挡不住它们：
+  79 |   恢复与清理先让自己那条连接拿到 SQLite 的文件级独占锁（`locking_mode = EXCLUSIVE`），库文件开在别处时报 `target_busy`
+  80 |   （`details.field` 为 `storage`）。
+  81 | - **加密库**：归档里只有密文和 keyring 元数据，不含口令与密钥；恢复后的库保持锁定，用原口令 `unlock()`。
+  82 | - 恢复写入的行不产生变更历史。
+  83 | 
+  84 | ### 能力矩阵
+  85 | 
+  86 | | adapter                                            | 内存存储                       | 持久化存储                   | 其余配置                                            | 持久化 `journal_mode` | FTS5 | 引擎自建对象             |
+  87 | | -------------------------------------------------- | ------------------------------ | ---------------------------- | --------------------------------------------------- | --------------------- | :--: | ------------------------ |

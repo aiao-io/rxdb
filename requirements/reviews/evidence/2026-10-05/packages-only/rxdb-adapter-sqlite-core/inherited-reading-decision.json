@@ -1,0 +1,9 @@
+{
+  "object": "rxdb-adapter-sqlite-core",
+  "priorInspection": "requirements/reviews/evidence/2026-10-05/parallel/local-adapters/file-inspection.json",
+  "priorInspectionSha256": "424d8862503175e9bccf7c02e026b894e83eb38ce8d5558bc2826bdc597a8a32",
+  "entriesReviewed": 26,
+  "adoptedReadingRanges": [],
+  "reason": "旧台账明确 requestedSourceRange 是工具请求、部分多文件输出截断；不是可直接复用的已实读区间。此次一律重新有界输出并确认。RV066/067为resolved-removed不复报。",
+  "dedupRegistry": "requirements/reviews/evidence/2026-10-05/parallel/findings-registry.json"
+}

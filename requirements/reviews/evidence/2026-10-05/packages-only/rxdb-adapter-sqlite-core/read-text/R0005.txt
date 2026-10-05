@@ -1,0 +1,136 @@
+packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts SHA256 052824127109070a4013c72429389c0e689bb356ad85165149e2287cb4f65a38 [245,379]
+ 245 |   await client.execute(
+ 246 |     `UPDATE ${branchTable} SET ${activeKeyColumn} = NULL
+ 247 |      WHERE ${activeKeyColumn} IS NOT NULL AND "id" != ?`,
+ 248 |     [activeBranchId ?? MAIN_BRANCH_ID]
+ 249 |   );
+ 250 | 
+ 251 |   if (activeBranchId !== undefined) {
+ 252 |     // `IS NOT` 在 SQLite 里是 null 安全的比较，列为 NULL 时照样成立。
+ 253 |     await client.execute(
+ 254 |       `UPDATE ${branchTable} SET ${activeKeyColumn} = ? WHERE "id" = ? AND ${activeKeyColumn} IS NOT ?`,
+ 255 |       [ACTIVE_BRANCH_KEY, activeBranchId, ACTIVE_BRANCH_KEY]
+ 256 |     );
+ 257 |     return;
+ 258 |   }
+ 259 |   // 零 active 这一支不需要守卫：`activated` 此刻必然为假（否则不会走到这里），这条 UPDATE
+ 260 |   // 一定是真变更。
+ 261 |   await client.execute(`UPDATE ${branchTable} SET "activated" = 1, ${activeKeyColumn} = ? WHERE "id" = ?`, [
+ 262 |     ACTIVE_BRANCH_KEY,
+ 263 |     MAIN_BRANCH_ID
+ 264 |   ]);
+ 265 | };
+ 266 | 
+ 267 | /**
+ 268 |  * 事务回调。
+ 269 |  *
+ 270 |  * @remarks
+ 271 |  * 参数是本次事务的 {@link SqliteTransactionExecutor} —— 持有它才算「在本事务内」。
+ 272 |  * 它保留 `execute()` 透传，因此既有的 `transaction(async tx => tx.execute(sql))` 写法不受影响；
+ 273 |  * 跨适配器可移植的入口是 `tx.query()` / `tx.getRepository()`。
+ 274 |  */
+ 275 | export type TransactionFun = (executor: SqliteTransactionExecutor) => Promise<unknown>;
+ 276 | 
+ 277 | /**
+ 278 |  * QueryCache 写入口解析出的表名 / 列名视图。
+ 279 |  *
+ 280 |  * @remarks
+ 281 |  * `metadata` 为 `undefined` 表示调用方传的是物理表名（元数据里查不到该实体），
+ 282 |  * 此时列名不做任何映射与过滤 —— 没有可对照的元数据，「过滤」只剩下猜。
+ 283 |  */
+ 284 | type QueryCacheTarget = {
+ 285 |   tableName: string;
+ 286 |   idColumn: string;
+ 287 |   updatedAtColumn: string;
+ 288 |   columnNames: ReadonlyMap<string, string>;
+ 289 |   metadata: EntityMetadata | undefined;
+ 290 | };
+ 291 | 
+ 292 | /**
+ 293 |  * 适配器生命周期状态。
+ 294 |  *
+ 295 |  * @remarks
+ 296 |  * `bootstrap` 是**引导窗**：`RxDB.connect()` 自身的 promise 尚未 settle，此窗内的
+ 297 |  * `query()` / `rawQuery()` / `createTables()` 必须跳过 `ready()` 就绪门 —— 等它就是等自己。
+ 298 |  * `RxDB.connect()` 建表完成后调 {@link RxDBAdapterSqliteBase.completeBootstrap} 翻到 `ready`。
+ 299 |  */
+ 300 | type AdapterLifecycleState = 'bootstrap' | 'ready' | 'closing' | 'closed';
+ 301 | 
+ 302 | /**
+ 303 |  * 一张表「认得的列」：字段名（关系名 / 物理列名 / 外键别名三种口径）→ 物理列名。
+ 304 |  *
+ 305 |  * @remarks
+ 306 |  * 与 `create_table_sql` 同源：物理列 = `propertyMap` 的全部属性 + 有外键列的关系
+ 307 |  * （`ONE_TO_ONE` / `MANY_TO_ONE`）；`ONE_TO_MANY` 等没有本表列，不收。
+ 308 |  *
+ 309 |  * 外键列的三种写法直接取自 {@link queryCacheForeignKeyColumns} —— 与契约
+ 310 |  * （`assertQueryCacheRowContract`）判「这一列带没带」用的是同一张表。少收哪一种，
+ 311 |  * 那种写法的远端行就会被契约放行、再被这里静默滤成「未知列」：值不落地、SQL 不报错、
+ 312 |  * 没有任何一处抛异常，正是 US-024 要消灭的失败形态。
+ 313 |  *
+ 314 |  * 外键三种写法最后写入：与 `transformEntityToSql` 同序（那边先查 `foreignKeyNames`
+ 315 |  * 再查 `propertyMap`），属性名与外键写法撞车时以外键为准，两条路径不会翻译到不同的列。
+ 316 |  *
+ 317 |  * `id` / `updatedAt` 无条件收：调用方已按它们解析出 `idColumn` / `updatedAtColumn`
+ 318 |  * 并写进 `ON CONFLICT` 子句，白名单再把它们滤掉就自相矛盾了。
+ 319 |  */
+ 320 | const query_cache_column_names = (
+ 321 |   metadata: EntityMetadata,
+ 322 |   idColumn: string,
+ 323 |   updatedAtColumn: string
+ 324 | ): ReadonlyMap<string, string> => {
+ 325 |   const columnNames = new Map<string, string>([
+ 326 |     ['id', idColumn],
+ 327 |     [idColumn, idColumn],
+ 328 |     ['updatedAt', updatedAtColumn],
+ 329 |     [updatedAtColumn, updatedAtColumn]
+ 330 |   ]);
+ 331 |   for (const [name, property] of metadata.propertyMap.entries()) {
+ 332 |     columnNames.set(name, property.columnName);
+ 333 |     columnNames.set(property.columnName, property.columnName);
+ 334 |   }
+ 335 |   for (const [spelling, column] of queryCacheForeignKeyColumns(metadata)) {
+ 336 |     columnNames.set(spelling, column);
+ 337 |   }
+ 338 |   return columnNames;
+ 339 | };
+ 340 | 
+ 341 | /**
+ 342 |  * 一行里同一个物理列只允许一种写法。
+ 343 |  *
+ 344 |  * @remarks
+ 345 |  * 属性名与物理列名（`nickName` / `nick_name`）、外键的三种写法（`owner` / `ownerId` /
+ 346 |  * `owner_id`）都映到同一个物理列。一行里同时给两种，`#writeQueryCacheRows` 会把那个列
+ 347 |  * 在 INSERT 的列清单里排两遍 —— 而 SQLite **不报重复列**，它默默取第一次出现的那个值，
+ 348 |  * 第二个静默丢弃。库里于是留下一个「写入成功」的错值，没有任何信号（PGlite 侧同款判据在
+ 349 |  * `upsert_many_sql.ts` 的 `assertSingleSpellingPerColumn`，消息骨架一致）。
+ 350 |  *
+ 351 |  * 逐行判，不只判 `data[0]`。列清单确实取自首行，且契约的批内一致判据今天也保证了
+ 352 |  * 同批每行键集相同 —— 但那是**另一个文件里**的一条不变量，靠它就等于把本函数的正确性
+ 353 |  * 押在上游判据的措辞上。全批遍历是 O(行数 × 键数)，与紧接着的写入同量级。
+ 354 |  *
+ 355 |  * 不做「取其一」的兜底（铁律「无 fallback 兜底」）：挑哪个都是猜，猜错的那次会以
+ 356 |  * 「写入成功」的形态留在缓存里。
+ 357 |  *
+ 358 |  * @param entityName - 实体名，用于诊断消息
+ 359 |  * @param rows - 本批全部远端行
+ 360 |  * @param columnNames - {@link query_cache_column_names} 的写法 → 物理列名表
+ 361 |  * @throws {RxDBAdapterSqliteError} 某一行里同一个物理列被两种写法同时占用
+ 362 |  */
+ 363 | const assert_single_spelling_per_column = (
+ 364 |   entityName: string,
+ 365 |   rows: readonly object[],
+ 366 |   columnNames: ReadonlyMap<string, string>
+ 367 | ): void => {
+ 368 |   for (const row of rows) assert_row_single_spelling(entityName, row, columnNames);
+ 369 | };
+ 370 | 
+ 371 | /** {@link assert_single_spelling_per_column} 的单行判定。 */
+ 372 | const assert_row_single_spelling = (
+ 373 |   entityName: string,
+ 374 |   row: object,
+ 375 |   columnNames: ReadonlyMap<string, string>
+ 376 | ): void => {
+ 377 |   const claimedBy = new Map<string, string>();
+ 378 |   for (const key of Object.keys(row)) {
+ 379 |     // 未知键解析成自己：它由 `#writeQueryCacheRows` 的白名单负责滤掉，这里不抢它的话

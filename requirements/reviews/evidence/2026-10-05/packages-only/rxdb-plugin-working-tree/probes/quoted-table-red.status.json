@@ -1,0 +1,23 @@
+{
+  "clientDate": "2026-10-05",
+  "startedAt": "2026-10-05T16:42:36.700540+08:00",
+  "headAtStart": "3802558a47727396581558bbf5c006836f01d30b",
+  "headAtFinish": "3802558a47727396581558bbf5c006836f01d30b",
+  "command": [
+    "pnpm",
+    "nx",
+    "run",
+    "rxdb-plugin-working-tree:test",
+    "--excludeTaskDependencies",
+    "--skipNxCache",
+    "--skipRemoteCache",
+    "--args=--run src/__tests__/review-packages-20261005-working-tree-quoted-table-PKG.spec.ts --browser.enabled=false --coverage.enabled=false --maxWorkers=1 --reporter=verbose"
+  ],
+  "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+  "exitCode": 1,
+  "elapsedSeconds": 6.985,
+  "scopedInputCount": 152,
+  "changedInputsDuringMeasurement": [],
+  "serialHeavyTaskLock": true,
+  "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/packages-only-working-tree/pkg-working-tree-quoted-table-red-20261005-1613a/20261005T164236593794.txt"
+}

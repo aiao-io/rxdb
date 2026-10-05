@@ -1,0 +1,13 @@
+{
+  "path": "requirements/reviews/results/packages/rxdb-plugin-replay.md",
+  "sha256": "d580ef74274802941bc1c88c85cc9753c44a0db5832301d77d15866a673cf151",
+  "lineCount": 115,
+  "readRanges": [
+    [
+      85,
+      89
+    ]
+  ],
+  "transcript": "old-core-results-table.txt",
+  "tableSpacingNormalized": true
+}

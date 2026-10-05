@@ -1,0 +1,3772 @@
+{
+  "parts": {
+    "1": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/LICENSE",
+        "range": [
+          1,
+          21
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/README.md",
+        "range": [
+          1,
+          110
+        ]
+      }
+    ],
+    "2": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/README.md",
+        "range": [
+          111,
+          133
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/eslint.config.mjs",
+        "range": [
+          1,
+          25
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/package.json",
+        "range": [
+          1,
+          76
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/project.json",
+        "range": [
+          1,
+          31
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/capability-identity.spec.ts",
+        "range": [
+          1,
+          12
+        ]
+      }
+    ],
+    "3": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/capability-identity.spec.ts",
+        "range": [
+          13,
+          118
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/active-branch-cardinality.spec.ts",
+        "range": [
+          1,
+          43
+        ]
+      }
+    ],
+    "4": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/active-branch-cardinality.spec.ts",
+        "range": [
+          44,
+          205
+        ]
+      }
+    ],
+    "5": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/active-branch-cardinality.spec.ts",
+        "range": [
+          206,
+          306
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/capability-enable.spec.ts",
+        "range": [
+          1,
+          40
+        ]
+      }
+    ],
+    "6": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/capability-enable.spec.ts",
+        "range": [
+          41,
+          186
+        ]
+      }
+    ],
+    "7": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/capability-enable.spec.ts",
+        "range": [
+          187,
+          317
+        ]
+      }
+    ],
+    "8": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/capability-enable.spec.ts",
+        "range": [
+          318,
+          396
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/change-unit.spec.ts",
+        "range": [
+          1,
+          46
+        ]
+      }
+    ],
+    "9": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/change-unit.spec.ts",
+        "range": [
+          47,
+          177
+        ]
+      }
+    ],
+    "10": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/change-unit.spec.ts",
+        "range": [
+          178,
+          242
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-cas-idempotency.spec.ts",
+        "range": [
+          1,
+          59
+        ]
+      }
+    ],
+    "11": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-cas-idempotency.spec.ts",
+        "range": [
+          60,
+          210
+        ]
+      }
+    ],
+    "12": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-cas-idempotency.spec.ts",
+        "range": [
+          211,
+          336
+        ]
+      }
+    ],
+    "13": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-cas-idempotency.spec.ts",
+        "range": [
+          337,
+          411
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-codec.spec.ts",
+        "range": [
+          1,
+          66
+        ]
+      }
+    ],
+    "14": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-codec.spec.ts",
+        "range": [
+          67,
+          217
+        ]
+      }
+    ],
+    "15": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-codec.spec.ts",
+        "range": [
+          218,
+          345
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-empty-and-baseline.spec.ts",
+        "range": [
+          1,
+          29
+        ]
+      }
+    ],
+    "16": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-empty-and-baseline.spec.ts",
+        "range": [
+          30,
+          164
+        ]
+      }
+    ],
+    "17": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-empty-and-baseline.spec.ts",
+        "range": [
+          165,
+          273
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-encrypted-at-rest-wiring.spec.ts",
+        "range": [
+          1,
+          29
+        ]
+      }
+    ],
+    "18": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-encrypted-at-rest-wiring.spec.ts",
+        "range": [
+          30,
+          167
+        ]
+      }
+    ],
+    "19": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-encrypted-at-rest-wiring.spec.ts",
+        "range": [
+          168,
+          281
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-encryption.spec.ts",
+        "range": [
+          1,
+          24
+        ]
+      }
+    ],
+    "20": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-encryption.spec.ts",
+        "range": [
+          25,
+          150
+        ]
+      }
+    ],
+    "21": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-encryption.spec.ts",
+        "range": [
+          151,
+          314
+        ]
+      }
+    ],
+    "22": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-encryption.spec.ts",
+        "range": [
+          315,
+          394
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-error-codes.spec.ts",
+        "range": [
+          1,
+          58
+        ]
+      }
+    ],
+    "23": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-error-codes.spec.ts",
+        "range": [
+          59,
+          68
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-graph.spec.ts",
+        "range": [
+          1,
+          115
+        ]
+      }
+    ],
+    "24": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-graph.spec.ts",
+        "range": [
+          116,
+          263
+        ]
+      }
+    ],
+    "25": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-graph.spec.ts",
+        "range": [
+          264,
+          406
+        ]
+      }
+    ],
+    "26": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-graph.spec.ts",
+        "range": [
+          407,
+          563
+        ]
+      }
+    ],
+    "27": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-graph.spec.ts",
+        "range": [
+          564,
+          703
+        ]
+      }
+    ],
+    "28": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-graph.spec.ts",
+        "range": [
+          704,
+          725
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/corruption-guard.spec.ts",
+        "range": [
+          1,
+          111
+        ]
+      }
+    ],
+    "29": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/corruption-guard.spec.ts",
+        "range": [
+          112,
+          268
+        ]
+      }
+    ],
+    "30": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/corruption-guard.spec.ts",
+        "range": [
+          269,
+          411
+        ]
+      }
+    ],
+    "31": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/corruption-guard.spec.ts",
+        "range": [
+          412,
+          498
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/enable-migration.spec.ts",
+        "range": [
+          1,
+          58
+        ]
+      }
+    ],
+    "32": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/enable-migration.spec.ts",
+        "range": [
+          59,
+          209
+        ]
+      }
+    ],
+    "33": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/enable-migration.spec.ts",
+        "range": [
+          210,
+          376
+        ]
+      }
+    ],
+    "34": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/enable-migration.spec.ts",
+        "range": [
+          377,
+          498
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/fixtures/commit-graph-probe.ts",
+        "range": [
+          1,
+          21
+        ]
+      }
+    ],
+    "35": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/fixtures/commit-graph-probe.ts",
+        "range": [
+          22,
+          168
+        ]
+      }
+    ],
+    "36": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/fixtures/commit-graph-probe.ts",
+        "range": [
+          169,
+          293
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/fixtures/commit-write-context.ts",
+        "range": [
+          1,
+          16
+        ]
+      }
+    ],
+    "37": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/fixtures/commit-write-context.ts",
+        "range": [
+          17,
+          49
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/fixtures/encrypted-entities.ts",
+        "range": [
+          1,
+          103
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/legacy-compat.spec.ts",
+        "range": [
+          1,
+          2
+        ]
+      }
+    ],
+    "38": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/legacy-compat.spec.ts",
+        "range": [
+          3,
+          125
+        ]
+      }
+    ],
+    "39": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/legacy-compat.spec.ts",
+        "range": [
+          126,
+          277
+        ]
+      }
+    ],
+    "40": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/commit/legacy-compat.spec.ts",
+        "range": [
+          278,
+          300
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/fixtures/fake-table-ref.ts",
+        "range": [
+          1,
+          22
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/fixtures/test-db-setup.ts",
+        "range": [
+          1,
+          97
+        ]
+      }
+    ],
+    "41": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/fixtures/test-db-setup.ts",
+        "range": [
+          98,
+          217
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/module-load-without-encoding.spec.ts",
+        "range": [
+          1,
+          17
+        ]
+      }
+    ],
+    "42": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/module-load-without-encoding.spec.ts",
+        "range": [
+          18,
+          27
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/system/bootstrap-existing.spec.ts",
+        "range": [
+          1,
+          149
+        ]
+      }
+    ],
+    "43": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/system/bootstrap-existing.spec.ts",
+        "range": [
+          150,
+          172
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/system/capability-enabled-listener.spec.ts",
+        "range": [
+          1,
+          118
+        ]
+      }
+    ],
+    "44": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/system/capability-enabled-listener.spec.ts",
+        "range": [
+          119,
+          171
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/system/storage-contract.spec.ts",
+        "range": [
+          1,
+          71
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/system/system-entity-registration.spec.ts",
+        "range": [
+          1,
+          8
+        ]
+      }
+    ],
+    "45": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/system/system-entity-registration.spec.ts",
+        "range": [
+          9,
+          129
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/system/working-tree-commits-migration.spec.ts",
+        "range": [
+          1,
+          4
+        ]
+      }
+    ],
+    "46": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/system/working-tree-commits-migration.spec.ts",
+        "range": [
+          5,
+          134
+        ]
+      }
+    ],
+    "47": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/system/working-tree-commits-migration.spec.ts",
+        "range": [
+          135,
+          257
+        ]
+      }
+    ],
+    "48": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/system/working-tree-commits-migration.spec.ts",
+        "range": [
+          258,
+          292
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/system/write-branch-rows.spec.ts",
+        "range": [
+          1,
+          89
+        ]
+      }
+    ],
+    "49": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/system/write-branch-rows.spec.ts",
+        "range": [
+          90,
+          178
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/materialization-barrier.spec.ts",
+        "range": [
+          1,
+          34
+        ]
+      }
+    ],
+    "50": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/materialization-barrier.spec.ts",
+        "range": [
+          35,
+          176
+        ]
+      }
+    ],
+    "51": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/materialization-barrier.spec.ts",
+        "range": [
+          177,
+          316
+        ]
+      }
+    ],
+    "52": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/materialization-barrier.spec.ts",
+        "range": [
+          317,
+          444
+        ]
+      }
+    ],
+    "53": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/materialization-barrier.spec.ts",
+        "range": [
+          445,
+          586
+        ]
+      }
+    ],
+    "54": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/materialization-barrier.spec.ts",
+        "range": [
+          587,
+          727
+        ]
+      }
+    ],
+    "55": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/materialization-barrier.spec.ts",
+        "range": [
+          728,
+          746
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/materialize-branch-takeover.spec.ts",
+        "range": [
+          1,
+          105
+        ]
+      }
+    ],
+    "56": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/materialize-branch-takeover.spec.ts",
+        "range": [
+          106,
+          248
+        ]
+      }
+    ],
+    "57": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/materialize-branch-takeover.spec.ts",
+        "range": [
+          249,
+          399
+        ]
+      }
+    ],
+    "58": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/materialize-branch-takeover.spec.ts",
+        "range": [
+          400,
+          527
+        ]
+      }
+    ],
+    "59": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/materialize-branch-takeover.spec.ts",
+        "range": [
+          528,
+          659
+        ]
+      }
+    ],
+    "60": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/materialize-branch-takeover.spec.ts",
+        "range": [
+          660,
+          763
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/metadata-only-branch-switch.spec.ts",
+        "range": [
+          1,
+          21
+        ]
+      }
+    ],
+    "61": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/metadata-only-branch-switch.spec.ts",
+        "range": [
+          22,
+          158
+        ]
+      }
+    ],
+    "62": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/metadata-only-branch-switch.spec.ts",
+        "range": [
+          159,
+          306
+        ]
+      }
+    ],
+    "63": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/metadata-only-branch-switch.spec.ts",
+        "range": [
+          307,
+          433
+        ]
+      }
+    ],
+    "64": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/metadata-only-branch-switch.spec.ts",
+        "range": [
+          434,
+          573
+        ]
+      }
+    ],
+    "65": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/metadata-only-branch-switch.spec.ts",
+        "range": [
+          574,
+          717
+        ]
+      }
+    ],
+    "66": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/metadata-only-branch-switch.spec.ts",
+        "range": [
+          718,
+          722
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/switch-branch-options.spec.ts",
+        "range": [
+          1,
+          130
+        ]
+      }
+    ],
+    "67": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/switch-branch-options.spec.ts",
+        "range": [
+          131,
+          254
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/switch-branch-working-tree.spec.ts",
+        "range": [
+          1,
+          8
+        ]
+      }
+    ],
+    "68": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/switch-branch-working-tree.spec.ts",
+        "range": [
+          9,
+          147
+        ]
+      }
+    ],
+    "69": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/switch-branch-working-tree.spec.ts",
+        "range": [
+          148,
+          289
+        ]
+      }
+    ],
+    "70": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/switch-branch-working-tree.spec.ts",
+        "range": [
+          290,
+          430
+        ]
+      }
+    ],
+    "71": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/version/switch-branch-working-tree.spec.ts",
+        "range": [
+          431,
+          497
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/activation-cas.spec.ts",
+        "range": [
+          1,
+          76
+        ]
+      }
+    ],
+    "72": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/activation-cas.spec.ts",
+        "range": [
+          77,
+          222
+        ]
+      }
+    ],
+    "73": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/activation-cas.spec.ts",
+        "range": [
+          223,
+          371
+        ]
+      }
+    ],
+    "74": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/activation-cas.spec.ts",
+        "range": [
+          372,
+          408
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/activation-state.spec.ts",
+        "range": [
+          1,
+          105
+        ]
+      }
+    ],
+    "75": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/activation-state.spec.ts",
+        "range": [
+          106,
+          238
+        ]
+      }
+    ],
+    "76": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/activation-state.spec.ts",
+        "range": [
+          239,
+          353
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/async-state.spec.ts",
+        "range": [
+          1,
+          18
+        ]
+      }
+    ],
+    "77": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/async-state.spec.ts",
+        "range": [
+          19,
+          169
+        ]
+      }
+    ],
+    "78": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/async-state.spec.ts",
+        "range": [
+          170,
+          311
+        ]
+      }
+    ],
+    "79": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/async-state.spec.ts",
+        "range": [
+          312,
+          365
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/capture-batch-queries.spec.ts",
+        "range": [
+          1,
+          92
+        ]
+      }
+    ],
+    "80": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/capture-batch-queries.spec.ts",
+        "range": [
+          93,
+          174
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/capture-entry-identity.spec.ts",
+        "range": [
+          1,
+          59
+        ]
+      }
+    ],
+    "81": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/capture-entry-identity.spec.ts",
+        "range": [
+          60,
+          140
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/capture-mount-points.spec.ts",
+        "range": [
+          1,
+          48
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/capture-runtime-mount-points.spec.ts",
+        "range": [
+          1,
+          17
+        ]
+      }
+    ],
+    "82": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/capture-runtime-mount-points.spec.ts",
+        "range": [
+          18,
+          161
+        ]
+      }
+    ],
+    "83": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/capture-runtime-mount-points.spec.ts",
+        "range": [
+          162,
+          317
+        ]
+      }
+    ],
+    "84": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/capture-runtime-mount-points.spec.ts",
+        "range": [
+          318,
+          467
+        ]
+      }
+    ],
+    "85": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/capture-runtime-mount-points.spec.ts",
+        "range": [
+          468,
+          609
+        ]
+      }
+    ],
+    "86": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/capture-runtime-mount-points.spec.ts",
+        "range": [
+          610,
+          775
+        ]
+      }
+    ],
+    "87": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/capture-runtime-mount-points.spec.ts",
+        "range": [
+          776,
+          923
+        ]
+      }
+    ],
+    "88": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/capture-runtime-mount-points.spec.ts",
+        "range": [
+          924,
+          937
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/cold-replay.spec.ts",
+        "range": [
+          1,
+          135
+        ]
+      }
+    ],
+    "89": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/cold-replay.spec.ts",
+        "range": [
+          136,
+          284
+        ]
+      }
+    ],
+    "90": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/cold-replay.spec.ts",
+        "range": [
+          285,
+          445
+        ]
+      }
+    ],
+    "91": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/cold-replay.spec.ts",
+        "range": [
+          446,
+          510
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/commit-atomicity.spec.ts",
+        "range": [
+          1,
+          87
+        ]
+      }
+    ],
+    "92": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/commit-atomicity.spec.ts",
+        "range": [
+          88,
+          238
+        ]
+      }
+    ],
+    "93": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/commit-atomicity.spec.ts",
+        "range": [
+          239,
+          338
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/commit-cas-captured.spec.ts",
+        "range": [
+          1,
+          47
+        ]
+      }
+    ],
+    "94": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/commit-cas-captured.spec.ts",
+        "range": [
+          48,
+          189
+        ]
+      }
+    ],
+    "95": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/commit-cas-captured.spec.ts",
+        "range": [
+          190,
+          275
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/commit-corruption-entry.spec.ts",
+        "range": [
+          1,
+          57
+        ]
+      }
+    ],
+    "96": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/commit-corruption-entry.spec.ts",
+        "range": [
+          58,
+          217
+        ]
+      }
+    ],
+    "97": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/commit-corruption-entry.spec.ts",
+        "range": [
+          218,
+          371
+        ]
+      }
+    ],
+    "98": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/commit-corruption-entry.spec.ts",
+        "range": [
+          372,
+          374
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/commit-full-scope.spec.ts",
+        "range": [
+          1,
+          132
+        ]
+      }
+    ],
+    "99": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/commit-full-scope.spec.ts",
+        "range": [
+          133,
+          211
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/commit-log.spec.ts",
+        "range": [
+          1,
+          62
+        ]
+      }
+    ],
+    "100": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/commit-log.spec.ts",
+        "range": [
+          63,
+          162
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/crud-not-captured-cas.spec.ts",
+        "range": [
+          1,
+          55
+        ]
+      }
+    ],
+    "101": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/crud-not-captured-cas.spec.ts",
+        "range": [
+          56,
+          185
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/crud-transaction.spec.ts",
+        "range": [
+          1,
+          11
+        ]
+      }
+    ],
+    "102": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/crud-transaction.spec.ts",
+        "range": [
+          12,
+          179
+        ]
+      }
+    ],
+    "103": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/crud-transaction.spec.ts",
+        "range": [
+          180,
+          323
+        ]
+      }
+    ],
+    "104": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/crud-transaction.spec.ts",
+        "range": [
+          324,
+          409
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/diff.spec.ts",
+        "range": [
+          1,
+          58
+        ]
+      }
+    ],
+    "105": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/diff.spec.ts",
+        "range": [
+          59,
+          206
+        ]
+      }
+    ],
+    "106": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/diff.spec.ts",
+        "range": [
+          207,
+          302
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/discard.spec.ts",
+        "range": [
+          1,
+          36
+        ]
+      }
+    ],
+    "107": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/discard.spec.ts",
+        "range": [
+          37,
+          180
+        ]
+      }
+    ],
+    "108": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/discard.spec.ts",
+        "range": [
+          181,
+          332
+        ]
+      }
+    ],
+    "109": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/discard.spec.ts",
+        "range": [
+          333,
+          459
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/entry-encryption.spec.ts",
+        "range": [
+          1,
+          14
+        ]
+      }
+    ],
+    "110": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/entry-encryption.spec.ts",
+        "range": [
+          15,
+          153
+        ]
+      }
+    ],
+    "111": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/entry-encryption.spec.ts",
+        "range": [
+          154,
+          320
+        ]
+      }
+    ],
+    "112": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/entry-encryption.spec.ts",
+        "range": [
+          321,
+          455
+        ]
+      }
+    ],
+    "113": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/entry-encryption.spec.ts",
+        "range": [
+          456,
+          489
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/entry-fold.spec.ts",
+        "range": [
+          1,
+          119
+        ]
+      }
+    ],
+    "114": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/entry-fold.spec.ts",
+        "range": [
+          120,
+          261
+        ]
+      }
+    ],
+    "115": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/entry-fold.spec.ts",
+        "range": [
+          262,
+          393
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/external-notify-gate.spec.ts",
+        "range": [
+          1,
+          19
+        ]
+      }
+    ],
+    "116": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/external-notify-gate.spec.ts",
+        "range": [
+          20,
+          66
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/facade-capability-gate.spec.ts",
+        "range": [
+          1,
+          101
+        ]
+      }
+    ],
+    "117": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/facade-capability-gate.spec.ts",
+        "range": [
+          102,
+          244
+        ]
+      }
+    ],
+    "118": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/facade-capability-gate.spec.ts",
+        "range": [
+          245,
+          372
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/facade-commits.spec.ts",
+        "range": [
+          1,
+          4
+        ]
+      }
+    ],
+    "119": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/facade-commits.spec.ts",
+        "range": [
+          5,
+          145
+        ]
+      }
+    ],
+    "120": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/facade-commits.spec.ts",
+        "range": [
+          146,
+          180
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/fixtures/activation-sql.ts",
+        "range": [
+          1,
+          115
+        ]
+      }
+    ],
+    "121": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/fixtures/activation-sql.ts",
+        "range": [
+          116,
+          207
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/fixtures/working-tree-scene.ts",
+        "range": [
+          1,
+          45
+        ]
+      }
+    ],
+    "122": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/fixtures/working-tree-scene.ts",
+        "range": [
+          46,
+          190
+        ]
+      }
+    ],
+    "123": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/fixtures/working-tree-scene.ts",
+        "range": [
+          191,
+          327
+        ]
+      }
+    ],
+    "124": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/fixtures/working-tree-scene.ts",
+        "range": [
+          328,
+          400
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/observable-gate.spec.ts",
+        "range": [
+          1,
+          73
+        ]
+      }
+    ],
+    "125": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/observable-gate.spec.ts",
+        "range": [
+          74,
+          234
+        ]
+      }
+    ],
+    "126": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/observable-gate.spec.ts",
+        "range": [
+          235,
+          269
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/physical-table-names-wiring.spec.ts",
+        "range": [
+          1,
+          65
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/raw-bypass-judgment.spec.ts",
+        "range": [
+          1,
+          32
+        ]
+      }
+    ],
+    "127": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/raw-bypass-judgment.spec.ts",
+        "range": [
+          33,
+          178
+        ]
+      }
+    ],
+    "128": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/raw-bypass-judgment.spec.ts",
+        "range": [
+          179,
+          319
+        ]
+      }
+    ],
+    "129": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/raw-bypass-judgment.spec.ts",
+        "range": [
+          320,
+          468
+        ]
+      }
+    ],
+    "130": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/raw-bypass-judgment.spec.ts",
+        "range": [
+          469,
+          593
+        ]
+      }
+    ],
+    "131": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/raw-bypass-judgment.spec.ts",
+        "range": [
+          594,
+          642
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/raw-write-gate-wiring.spec.ts",
+        "range": [
+          1,
+          64
+        ]
+      }
+    ],
+    "132": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/raw-write-gate-wiring.spec.ts",
+        "range": [
+          65,
+          208
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/remove-branch-aba.spec.ts",
+        "range": [
+          1,
+          8
+        ]
+      }
+    ],
+    "133": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/remove-branch-aba.spec.ts",
+        "range": [
+          9,
+          142
+        ]
+      }
+    ],
+    "134": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/remove-branch-aba.spec.ts",
+        "range": [
+          143,
+          287
+        ]
+      }
+    ],
+    "135": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/remove-branch-aba.spec.ts",
+        "range": [
+          288,
+          428
+        ]
+      }
+    ],
+    "136": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/remove-branch-aba.spec.ts",
+        "range": [
+          429,
+          512
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-basic.spec.ts",
+        "range": [
+          1,
+          65
+        ]
+      }
+    ],
+    "137": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-basic.spec.ts",
+        "range": [
+          66,
+          215
+        ]
+      }
+    ],
+    "138": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-basic.spec.ts",
+        "range": [
+          216,
+          302
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-compat-precheck.spec.ts",
+        "range": [
+          1,
+          49
+        ]
+      }
+    ],
+    "139": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-compat-precheck.spec.ts",
+        "range": [
+          50,
+          195
+        ]
+      }
+    ],
+    "140": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-compat-precheck.spec.ts",
+        "range": [
+          196,
+          343
+        ]
+      }
+    ],
+    "141": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-compat-precheck.spec.ts",
+        "range": [
+          344,
+          346
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-dirty-guard.spec.ts",
+        "range": [
+          1,
+          146
+        ]
+      }
+    ],
+    "142": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-dirty-guard.spec.ts",
+        "range": [
+          147,
+          184
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-encryption.spec.ts",
+        "range": [
+          1,
+          108
+        ]
+      }
+    ],
+    "143": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-encryption.spec.ts",
+        "range": [
+          109,
+          256
+        ]
+      }
+    ],
+    "144": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-encryption.spec.ts",
+        "range": [
+          257,
+          407
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-entry-shape.spec.ts",
+        "range": [
+          1,
+          11
+        ]
+      }
+    ],
+    "145": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-entry-shape.spec.ts",
+        "range": [
+          12,
+          161
+        ]
+      }
+    ],
+    "146": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-entry-shape.spec.ts",
+        "range": [
+          162,
+          175
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-noop.spec.ts",
+        "range": [
+          1,
+          133
+        ]
+      }
+    ],
+    "147": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-noop.spec.ts",
+        "range": [
+          134,
+          184
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-session-cas.spec.ts",
+        "range": [
+          1,
+          88
+        ]
+      }
+    ],
+    "148": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-session-cas.spec.ts",
+        "range": [
+          89,
+          235
+        ]
+      }
+    ],
+    "149": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-session-cas.spec.ts",
+        "range": [
+          236,
+          239
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-session-transitions.spec.ts",
+        "range": [
+          1,
+          130
+        ]
+      }
+    ],
+    "150": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-session-transitions.spec.ts",
+        "range": [
+          131,
+          272
+        ]
+      }
+    ],
+    "151": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/restore-session-transitions.spec.ts",
+        "range": [
+          273,
+          370
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/status.spec.ts",
+        "range": [
+          1,
+          49
+        ]
+      }
+    ],
+    "152": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/status.spec.ts",
+        "range": [
+          50,
+          211
+        ]
+      }
+    ],
+    "153": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/status.spec.ts",
+        "range": [
+          212,
+          323
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/switch-to-corruption.spec.ts",
+        "range": [
+          1,
+          27
+        ]
+      }
+    ],
+    "154": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/switch-to-corruption.spec.ts",
+        "range": [
+          28,
+          176
+        ]
+      }
+    ],
+    "155": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/switch-to-corruption.spec.ts",
+        "range": [
+          177,
+          331
+        ]
+      }
+    ],
+    "156": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/switch-to-corruption.spec.ts",
+        "range": [
+          332,
+          405
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/trusted-callsite-capture.spec.ts",
+        "range": [
+          1,
+          62
+        ]
+      }
+    ],
+    "157": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/trusted-callsite-capture.spec.ts",
+        "range": [
+          63,
+          81
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/untracked-domain.spec.ts",
+        "range": [
+          1,
+          115
+        ]
+      }
+    ],
+    "158": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/untracked-domain.spec.ts",
+        "range": [
+          116,
+          279
+        ]
+      }
+    ],
+    "159": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/untracked-domain.spec.ts",
+        "range": [
+          280,
+          353
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/working-tree-commands.spec.ts",
+        "range": [
+          1,
+          53
+        ]
+      }
+    ],
+    "160": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/working-tree-commands.spec.ts",
+        "range": [
+          54,
+          211
+        ]
+      }
+    ],
+    "161": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/working-tree-commands.spec.ts",
+        "range": [
+          212,
+          347
+        ]
+      }
+    ],
+    "162": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/working-tree-commands.spec.ts",
+        "range": [
+          348,
+          491
+        ]
+      }
+    ],
+    "163": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/working-tree-commands.spec.ts",
+        "range": [
+          492,
+          628
+        ]
+      }
+    ],
+    "164": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/working-tree-commands.spec.ts",
+        "range": [
+          629,
+          766
+        ]
+      }
+    ],
+    "165": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/working-tree-commands.spec.ts",
+        "range": [
+          767,
+          892
+        ]
+      }
+    ],
+    "166": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/working-tree-commands.spec.ts",
+        "range": [
+          893,
+          1019
+        ]
+      }
+    ],
+    "167": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/working-tree-commands.spec.ts",
+        "range": [
+          1020,
+          1069
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/working-tree-patch-codec.spec.ts",
+        "range": [
+          1,
+          81
+        ]
+      }
+    ],
+    "168": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/working-tree-patch-codec.spec.ts",
+        "range": [
+          82,
+          138
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/write-entry-matrix.spec.ts",
+        "range": [
+          1,
+          57
+        ]
+      }
+    ],
+    "169": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/write-entry-matrix.spec.ts",
+        "range": [
+          58,
+          192
+        ]
+      }
+    ],
+    "170": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/write-entry-matrix.spec.ts",
+        "range": [
+          193,
+          331
+        ]
+      }
+    ],
+    "171": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/write-entry-matrix.spec.ts",
+        "range": [
+          332,
+          472
+        ]
+      }
+    ],
+    "172": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/write-entry-matrix.spec.ts",
+        "range": [
+          473,
+          542
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/writer-identity-neutral.spec.ts",
+        "range": [
+          1,
+          80
+        ]
+      }
+    ],
+    "173": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/writer-identity-neutral.spec.ts",
+        "range": [
+          81,
+          228
+        ]
+      }
+    ],
+    "174": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/__tests__/working-tree/writer-identity-neutral.spec.ts",
+        "range": [
+          229,
+          272
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/capability-identity.ts",
+        "range": [
+          1,
+          21
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/branch-commit-rows.ts",
+        "range": [
+          1,
+          68
+        ]
+      }
+    ],
+    "175": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/branch-commit-rows.ts",
+        "range": [
+          69,
+          232
+        ]
+      }
+    ],
+    "176": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/branch-commit-rows.ts",
+        "range": [
+          233,
+          389
+        ]
+      }
+    ],
+    "177": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/branch-commit-rows.ts",
+        "range": [
+          390,
+          437
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/change-unit.ts",
+        "range": [
+          1,
+          77
+        ]
+      }
+    ],
+    "178": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/change-unit.ts",
+        "range": [
+          78,
+          218
+        ]
+      }
+    ],
+    "179": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/change-unit.ts",
+        "range": [
+          219,
+          268
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-branch-ref.entity.ts",
+        "range": [
+          1,
+          126
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-capability-state.entity.ts",
+        "range": [
+          1,
+          14
+        ]
+      }
+    ],
+    "180": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-capability-state.entity.ts",
+        "range": [
+          15,
+          123
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-capability.ts",
+        "range": [
+          1,
+          91
+        ]
+      }
+    ],
+    "181": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-capability.ts",
+        "range": [
+          92,
+          232
+        ]
+      }
+    ],
+    "182": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-capability.ts",
+        "range": [
+          233,
+          236
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-change-set.entity.ts",
+        "range": [
+          1,
+          163
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-changes.ts",
+        "range": [
+          1,
+          44
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts",
+        "range": [
+          1,
+          1
+        ]
+      }
+    ],
+    "183": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts",
+        "range": [
+          2,
+          153
+        ]
+      }
+    ],
+    "184": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts",
+        "range": [
+          154,
+          290
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-context.ts",
+        "range": [
+          1,
+          14
+        ]
+      }
+    ],
+    "185": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-context.ts",
+        "range": [
+          15,
+          86
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-error-codes.ts",
+        "range": [
+          1,
+          78
+        ]
+      }
+    ],
+    "186": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-error-codes.ts",
+        "range": [
+          79,
+          211
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts",
+        "range": [
+          1,
+          26
+        ]
+      }
+    ],
+    "187": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts",
+        "range": [
+          27,
+          175
+        ]
+      }
+    ],
+    "188": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts",
+        "range": [
+          176,
+          319
+        ]
+      }
+    ],
+    "189": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts",
+        "range": [
+          320,
+          340
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-idempotency.ts",
+        "range": [
+          1,
+          135
+        ]
+      }
+    ],
+    "190": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-idempotency.ts",
+        "range": [
+          136,
+          138
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit-log.ts",
+        "range": [
+          1,
+          139
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit.entity.ts",
+        "range": [
+          1,
+          35
+        ]
+      }
+    ],
+    "191": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/commit.entity.ts",
+        "range": [
+          36,
+          167
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/enable-migration.ts",
+        "range": [
+          1,
+          65
+        ]
+      }
+    ],
+    "192": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/enable-migration.ts",
+        "range": [
+          66,
+          233
+        ]
+      }
+    ],
+    "193": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/enable-migration.ts",
+        "range": [
+          234,
+          345
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/index.ts",
+        "range": [
+          1,
+          19
+        ]
+      }
+    ],
+    "194": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/index.ts",
+        "range": [
+          20,
+          31
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/list-commits.ts",
+        "range": [
+          1,
+          142
+        ]
+      }
+    ],
+    "195": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/list-commits.ts",
+        "range": [
+          143,
+          293
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/write-commit.ts",
+        "range": [
+          1,
+          4
+        ]
+      }
+    ],
+    "196": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/write-commit.ts",
+        "range": [
+          5,
+          161
+        ]
+      }
+    ],
+    "197": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/write-commit.ts",
+        "range": [
+          162,
+          304
+        ]
+      }
+    ],
+    "198": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/commit/write-commit.ts",
+        "range": [
+          305,
+          425
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/entity-column.ts",
+        "range": [
+          1,
+          28
+        ]
+      }
+    ],
+    "199": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/entity-column.ts",
+        "range": [
+          29,
+          34
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/index.ts",
+        "range": [
+          1,
+          13
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/migrations/0004-working-tree-commits.ts",
+        "range": [
+          1,
+          120
+        ]
+      }
+    ],
+    "200": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/migrations/0004-working-tree-commits.ts",
+        "range": [
+          121,
+          137
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/plugin.ts",
+        "range": [
+          1,
+          115
+        ]
+      }
+    ],
+    "201": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/plugin.ts",
+        "range": [
+          116,
+          248
+        ]
+      }
+    ],
+    "202": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/plugin.ts",
+        "range": [
+          249,
+          289
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/activation-cas.ts",
+        "range": [
+          1,
+          99
+        ]
+      }
+    ],
+    "203": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/activation-cas.ts",
+        "range": [
+          100,
+          159
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/activation-state.ts",
+        "range": [
+          1,
+          89
+        ]
+      }
+    ],
+    "204": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/activation-state.ts",
+        "range": [
+          90,
+          247
+        ]
+      }
+    ],
+    "205": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/activation-state.ts",
+        "range": [
+          248,
+          254
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts",
+        "range": [
+          1,
+          141
+        ]
+      }
+    ],
+    "206": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts",
+        "range": [
+          142,
+          289
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts",
+        "range": [
+          1,
+          8
+        ]
+      }
+    ],
+    "207": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts",
+        "range": [
+          9,
+          136
+        ]
+      }
+    ],
+    "208": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts",
+        "range": [
+          137,
+          294
+        ]
+      }
+    ],
+    "209": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts",
+        "range": [
+          295,
+          450
+        ]
+      }
+    ],
+    "210": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts",
+        "range": [
+          451,
+          603
+        ]
+      }
+    ],
+    "211": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts",
+        "range": [
+          604,
+          748
+        ]
+      }
+    ],
+    "212": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts",
+        "range": [
+          749,
+          891
+        ]
+      }
+    ],
+    "213": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts",
+        "range": [
+          892,
+          994
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/bulk-write-gate.ts",
+        "range": [
+          1,
+          57
+        ]
+      }
+    ],
+    "214": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/bulk-write-gate.ts",
+        "range": [
+          58,
+          128
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts",
+        "range": [
+          1,
+          90
+        ]
+      }
+    ],
+    "215": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts",
+        "range": [
+          91,
+          236
+        ]
+      }
+    ],
+    "216": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts",
+        "range": [
+          237,
+          386
+        ]
+      }
+    ],
+    "217": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts",
+        "range": [
+          387,
+          541
+        ]
+      }
+    ],
+    "218": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts",
+        "range": [
+          542,
+          680
+        ]
+      }
+    ],
+    "219": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts",
+        "range": [
+          681,
+          708
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/capture-install.ts",
+        "range": [
+          1,
+          39
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/capture-mount-points.ts",
+        "range": [
+          1,
+          23
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts",
+        "range": [
+          1,
+          57
+        ]
+      }
+    ],
+    "220": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts",
+        "range": [
+          58,
+          223
+        ]
+      }
+    ],
+    "221": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts",
+        "range": [
+          224,
+          395
+        ]
+      }
+    ],
+    "222": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts",
+        "range": [
+          396,
+          549
+        ]
+      }
+    ],
+    "223": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts",
+        "range": [
+          550,
+          568
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts",
+        "range": [
+          1,
+          151
+        ]
+      }
+    ],
+    "224": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts",
+        "range": [
+          152,
+          302
+        ]
+      }
+    ],
+    "225": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts",
+        "range": [
+          303,
+          368
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts",
+        "range": [
+          1,
+          67
+        ]
+      }
+    ],
+    "226": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts",
+        "range": [
+          68,
+          222
+        ]
+      }
+    ],
+    "227": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts",
+        "range": [
+          223,
+          339
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/commit-conflict.ts",
+        "range": [
+          1,
+          22
+        ]
+      }
+    ],
+    "228": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/commit-conflict.ts",
+        "range": [
+          23,
+          158
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/diff.ts",
+        "range": [
+          1,
+          30
+        ]
+      }
+    ],
+    "229": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/diff.ts",
+        "range": [
+          31,
+          202
+        ]
+      }
+    ],
+    "230": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/diff.ts",
+        "range": [
+          203,
+          292
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/discard-command.ts",
+        "range": [
+          1,
+          44
+        ]
+      }
+    ],
+    "231": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/discard-command.ts",
+        "range": [
+          45,
+          142
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/external-notify-gate.ts",
+        "range": [
+          1,
+          61
+        ]
+      }
+    ],
+    "232": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/external-notify-gate.ts",
+        "range": [
+          62,
+          90
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/index.ts",
+        "range": [
+          1,
+          69
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/materialize-branch.ts",
+        "range": [
+          1,
+          24
+        ]
+      }
+    ],
+    "233": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/materialize-branch.ts",
+        "range": [
+          25,
+          183
+        ]
+      }
+    ],
+    "234": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/materialize-branch.ts",
+        "range": [
+          184,
+          358
+        ]
+      }
+    ],
+    "235": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/materialize-branch.ts",
+        "range": [
+          359,
+          452
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts",
+        "range": [
+          1,
+          30
+        ]
+      }
+    ],
+    "236": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts",
+        "range": [
+          31,
+          212
+        ]
+      }
+    ],
+    "237": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts",
+        "range": [
+          213,
+          385
+        ]
+      }
+    ],
+    "238": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts",
+        "range": [
+          386,
+          538
+        ]
+      }
+    ],
+    "239": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts",
+        "range": [
+          539,
+          692
+        ]
+      }
+    ],
+    "240": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts",
+        "range": [
+          693,
+          722
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts",
+        "range": [
+          1,
+          105
+        ]
+      }
+    ],
+    "241": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts",
+        "range": [
+          106,
+          260
+        ]
+      }
+    ],
+    "242": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts",
+        "range": [
+          261,
+          411
+        ]
+      }
+    ],
+    "243": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts",
+        "range": [
+          412,
+          483
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts",
+        "range": [
+          1,
+          83
+        ]
+      }
+    ],
+    "244": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts",
+        "range": [
+          84,
+          254
+        ]
+      }
+    ],
+    "245": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts",
+        "range": [
+          255,
+          314
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/restore-session-transitions.ts",
+        "range": [
+          1,
+          77
+        ]
+      }
+    ],
+    "246": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/restore-session-transitions.ts",
+        "range": [
+          78,
+          151
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/status.ts",
+        "range": [
+          1,
+          87
+        ]
+      }
+    ],
+    "247": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/status.ts",
+        "range": [
+          88,
+          244
+        ]
+      }
+    ],
+    "248": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/status.ts",
+        "range": [
+          245,
+          267
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/switch-branch-options.ts",
+        "range": [
+          1,
+          117
+        ]
+      }
+    ],
+    "249": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/switch-branch-options.ts",
+        "range": [
+          118,
+          154
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/capture.suite.ts",
+        "range": [
+          1,
+          97
+        ]
+      }
+    ],
+    "250": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/capture.suite.ts",
+        "range": [
+          98,
+          257
+        ]
+      }
+    ],
+    "251": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/capture.suite.ts",
+        "range": [
+          258,
+          407
+        ]
+      }
+    ],
+    "252": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/capture.suite.ts",
+        "range": [
+          408,
+          553
+        ]
+      }
+    ],
+    "253": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/capture.suite.ts",
+        "range": [
+          554,
+          702
+        ]
+      }
+    ],
+    "254": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/capture.suite.ts",
+        "range": [
+          703,
+          816
+        ]
+      }
+    ],
+    "255": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/capture.suite.ts",
+        "range": [
+          817,
+          934
+        ]
+      }
+    ],
+    "256": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/capture.suite.ts",
+        "range": [
+          935,
+          1049
+        ]
+      }
+    ],
+    "257": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/capture.suite.ts",
+        "range": [
+          1050,
+          1173
+        ]
+      }
+    ],
+    "258": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/capture.suite.ts",
+        "range": [
+          1174,
+          1300
+        ]
+      }
+    ],
+    "259": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/capture.suite.ts",
+        "range": [
+          1301,
+          1417
+        ]
+      }
+    ],
+    "260": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/capture.suite.ts",
+        "range": [
+          1418,
+          1526
+        ]
+      }
+    ],
+    "261": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/capture.suite.ts",
+        "range": [
+          1527,
+          1623
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          1,
+          12
+        ]
+      }
+    ],
+    "262": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          13,
+          131
+        ]
+      }
+    ],
+    "263": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          132,
+          284
+        ]
+      }
+    ],
+    "264": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          285,
+          434
+        ]
+      }
+    ],
+    "265": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          435,
+          573
+        ]
+      }
+    ],
+    "266": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          574,
+          733
+        ]
+      }
+    ],
+    "267": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          734,
+          872
+        ]
+      }
+    ],
+    "268": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          873,
+          989
+        ]
+      }
+    ],
+    "269": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          990,
+          1101
+        ]
+      }
+    ],
+    "270": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          1102,
+          1215
+        ]
+      }
+    ],
+    "271": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          1216,
+          1325
+        ]
+      }
+    ],
+    "272": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          1326,
+          1431
+        ]
+      }
+    ],
+    "273": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          1432,
+          1549
+        ]
+      }
+    ],
+    "274": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          1550,
+          1671
+        ]
+      }
+    ],
+    "275": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          1672,
+          1787
+        ]
+      }
+    ],
+    "276": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          1788,
+          1898
+        ]
+      }
+    ],
+    "277": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          1899,
+          2006
+        ]
+      }
+    ],
+    "278": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          2007,
+          2114
+        ]
+      }
+    ],
+    "279": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.ts",
+        "range": [
+          2115,
+          2117
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/conformance-entities.ts",
+        "range": [
+          1,
+          134
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/index.ts",
+        "range": [
+          1,
+          29
+        ]
+      }
+    ],
+    "280": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/suite-context.ts",
+        "range": [
+          1,
+          36
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/use-working-tree-fixtures.ts",
+        "range": [
+          1,
+          131
+        ]
+      }
+    ],
+    "281": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/use-working-tree-fixtures.ts",
+        "range": [
+          132,
+          292
+        ]
+      }
+    ],
+    "282": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/use-working-tree-fixtures.ts",
+        "range": [
+          293,
+          303
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/trusted-callsite-capture.ts",
+        "range": [
+          1,
+          34
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts",
+        "range": [
+          1,
+          119
+        ]
+      }
+    ],
+    "283": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts",
+        "range": [
+          120,
+          284
+        ]
+      }
+    ],
+    "284": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts",
+        "range": [
+          285,
+          424
+        ]
+      }
+    ],
+    "285": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts",
+        "range": [
+          425,
+          467
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-activation-state.entity.ts",
+        "range": [
+          1,
+          69
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+        "range": [
+          1,
+          46
+        ]
+      }
+    ],
+    "286": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+        "range": [
+          47,
+          188
+        ]
+      }
+    ],
+    "287": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+        "range": [
+          189,
+          301
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commit-event.ts",
+        "range": [
+          1,
+          19
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-entry.entity.ts",
+        "range": [
+          1,
+          6
+        ]
+      }
+    ],
+    "288": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-entry.entity.ts",
+        "range": [
+          7,
+          208
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts",
+        "range": [
+          1,
+          19
+        ]
+      }
+    ],
+    "289": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts",
+        "range": [
+          20,
+          166
+        ]
+      }
+    ],
+    "290": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts",
+        "range": [
+          167,
+          303
+        ]
+      }
+    ],
+    "291": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts",
+        "range": [
+          304,
+          442
+        ]
+      }
+    ],
+    "292": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts",
+        "range": [
+          443,
+          563
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-materialization-page.entity.ts",
+        "range": [
+          1,
+          21
+        ]
+      }
+    ],
+    "293": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-materialization-page.entity.ts",
+        "range": [
+          22,
+          105
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-materialization-stage.entity.ts",
+        "range": [
+          1,
+          118
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-patch-codec.ts",
+        "range": [
+          1,
+          7
+        ]
+      }
+    ],
+    "294": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-patch-codec.ts",
+        "range": [
+          8,
+          155
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-restore-session.entity.ts",
+        "range": [
+          1,
+          3
+        ]
+      }
+    ],
+    "295": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-restore-session.entity.ts",
+        "range": [
+          4,
+          137
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-state-sql.ts",
+        "range": [
+          1,
+          58
+        ]
+      }
+    ],
+    "296": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-state-sql.ts",
+        "range": [
+          59,
+          156
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-state.entity.ts",
+        "range": [
+          1,
+          83
+        ]
+      }
+    ],
+    "297": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-state.entity.ts",
+        "range": [
+          84,
+          108
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts",
+        "range": [
+          1,
+          164
+        ]
+      }
+    ],
+    "298": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts",
+        "range": [
+          165,
+          309
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts",
+        "range": [
+          1,
+          15
+        ]
+      }
+    ],
+    "299": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts",
+        "range": [
+          16,
+          213
+        ]
+      }
+    ],
+    "300": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts",
+        "range": [
+          214,
+          381
+        ]
+      }
+    ],
+    "301": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts",
+        "range": [
+          382,
+          461
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/tsconfig.json",
+        "range": [
+          1,
+          16
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/tsconfig.lib.json",
+        "range": [
+          1,
+          36
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/tsconfig.spec.json",
+        "range": [
+          1,
+          29
+        ]
+      },
+      {
+        "path": "packages/rxdb-plugin-working-tree/vite.config.mts",
+        "range": [
+          1,
+          7
+        ]
+      }
+    ],
+    "302": [
+      {
+        "path": "packages/rxdb-plugin-working-tree/vite.config.mts",
+        "range": [
+          8,
+          119
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,18 @@
+--- node_modules/.pnpm/@vue+runtime-core@3.5.43/node_modules/@vue/runtime-core/dist/runtime-core.cjs.js SHA256=22b0d8044eddf5034fd2ab8dc5649c126cdcf264b4ca8cdea7de2f2eee083f7f lines=8914 read=5598-5614 ---
+5598             namespace,
+5599             slotScopeIds,
+5600             optimized,
+5601             internals
+5602           );
+5603         } else {
+5604           warn$1("Invalid VNode type:", type, `(${typeof type})`);
+5605         }
+5606     }
+5607     if (ref != null && parentComponent) {
+5608       setRef(ref, n1 && n1.ref, parentSuspense, n2 || n1, !n2);
+5609     } else if (ref == null && n1 && n1.ref != null) {
+5610       setRef(n1.ref, null, parentSuspense, n1, true);
+5611     }
+5612   };
+5613   const processText = (n1, n2, container, anchor) => {
+5614     if (n1 == null) {

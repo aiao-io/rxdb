@@ -1,0 +1,18 @@
+{
+  "clientDate": "2026-10-05",
+  "startedAt": "2026-10-05T16:39:23.160865+08:00",
+  "headAtStart": "3802558a47727396581558bbf5c006836f01d30b",
+  "headAtFinish": "3802558a47727396581558bbf5c006836f01d30b",
+  "command": [
+    "zsh",
+    "-c",
+    "pnpm nx run --help; pnpm exec vitest --help"
+  ],
+  "cwd": "/Users/jimmy/Documents/aiao/rxdb",
+  "exitCode": 0,
+  "elapsedSeconds": 3.367,
+  "scopedInputCount": 152,
+  "changedInputsDuringMeasurement": [],
+  "serialHeavyTaskLock": true,
+  "rawLog": "requirements/reviews/evidence/2026-10-05/parallel-round3/packages-only-working-tree/pkg-working-tree-raw-ident-help-20261005-1613a/20261005T163923059166.txt"
+}

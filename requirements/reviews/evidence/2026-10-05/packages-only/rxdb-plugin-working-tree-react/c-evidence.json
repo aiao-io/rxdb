@@ -1,0 +1,222 @@
+{
+  "object": "rxdb-plugin-working-tree-react",
+  "originalCIds": [
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5"
+  ],
+  "allOriginalCOpinionsDelivered": true,
+  "allOriginalScenariosExecuted": false,
+  "conclusions": [
+    {
+      "id": "C1",
+      "original": {
+        "topic": "状态与作用域",
+        "action": "核查 activation/branch/能力状态如何进入 hook，status/diff 订阅必须归属当前数据库。",
+        "minimumScenarios": "未 enable、插件缺失、切分支、换库、多实例；不显示旧库 diff 或偷偷启用数据库能力。"
+      },
+      "sourceAssessmentStatus": "complete-original-scope",
+      "conclusion": "确认RV-069/P1：provider换库状态不归新库；其余初始化/显式命令边界已审。",
+      "detail": "hook没有自动status/diff订阅，不把“没有变更流”作为新bug。创建只构造core命令，不偷偷enable；缺provider抛错已由普通测试验证，缺插件守卫在core契约。换库则commands换新但十二格与稳定patch没有换归属，RV-069失败覆盖状态残留与迟到写回。",
+      "sourceAnchors": [
+        "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:64-77",
+        "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:81-96",
+        "packages/rxdb-plugin-working-tree-react/README.md:19-20",
+        "packages/rxdb-plugin-working-tree-react/README.md:66-79"
+      ],
+      "testDefinitionAnchors": [
+        "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:74-97",
+        "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:169-227",
+        "packages/rxdb-plugin-working-tree-react/src/__tests__/review-parallel-provider-switch.spec.ts:11-58"
+      ],
+      "confirmedIssues": [
+        "RV-069"
+      ],
+      "remainingValidationIds": [
+        "SV-01",
+        "SV-02"
+      ]
+    },
+    {
+      "id": "C2",
+      "original": {
+        "topic": "动作结果与并发",
+        "action": "逐项对照 commit/discard/restore 的返回值拒绝和 switchBranch 的异常，不能一律当异常或成功。",
+        "minimumScenarios": "CAS 落败、dirty tree、不可达 commit、并发点击、动作中换 scope；原有数据不损坏。"
+      },
+      "sourceAssessmentStatus": "complete-original-scope",
+      "conclusion": "同库IO接缝上的结果/异常/刷新语义已证；动作中换scope存在RV-069同根因风险，真实数据库不损坏未验。",
+      "detail": "使用真实shared commands/async-state而非整个core状态机mock。CAS冲突与四种restore拒绝保留success/value；switchBranch dirty拒绝保留error并原样抛出。刷新失败只落statusState，不推翻已完成commit；这些断言的IO结果是手工mock，不证明真实CAS/恢复权限或数据完整性。",
+      "sourceAnchors": [
+        "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:31-38",
+        "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:42-42",
+        "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:89-95",
+        "packages/rxdb-plugin-working-tree-react/README.md:70-79"
+      ],
+      "testDefinitionAnchors": [
+        "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:99-165",
+        "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:229-448",
+        "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:532-541",
+        "packages/rxdb-plugin-working-tree-react/src/__tests__/review-parallel-provider-switch.spec.ts:38-58"
+      ],
+      "confirmedIssues": [
+        "RV-069"
+      ],
+      "remainingValidationIds": [
+        "SV-01",
+        "SV-02",
+        "SV-03"
+      ]
+    },
+    {
+      "id": "C3",
+      "original": {
+        "topic": "三端与敏感数据",
+        "action": "核查更新触发、错误显示、diff 摘要和类型消费，并与 shared fixtures / 应用工作树场景对应。",
+        "minimumScenarios": "相同拒绝序列三端同语义、关闭清理、敏感字段摘要；不能为调试直接输出完整历史。"
+      },
+      "sourceAssessmentStatus": "complete-original-scope",
+      "conclusion": "入口/共享类型及无隐式日志边界已审；敏感diff不是自动脱敏摘要，真实应用场景未验；有P3文档数量漂移。",
+      "detail": "三端根只导出useWorkingTree/WorkingTreeResource，核心类型/错误不转出是契约，不报缺失。React Resource直接复用core十二状态/十二命令；没有console、日志串行化或UI输出。core diff类型含patch/inversePatch，暴露为明确API而非摘要；RV-069使旧库此类状态可能残留是同根因风险推导，实测仅status/isEnabled。README仍称十，与真实声明/数量断言不符。",
+      "sourceAnchors": [
+        "packages/rxdb-plugin-working-tree-react/src/index.ts:1-19",
+        "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:20-42",
+        "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:69-74",
+        "packages/rxdb-plugin-working-tree-react/README.md:52-82"
+      ],
+      "testDefinitionAnchors": [
+        "packages/rxdb-plugin-working-tree-react/src/__tests__/index.spec.ts:6-30",
+        "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:458-556"
+      ],
+      "confirmedIssues": [
+        "RV-069",
+        "PKG-WTR-DOC-01"
+      ],
+      "remainingValidationIds": [
+        "SV-04"
+      ]
+    },
+    {
+      "id": "C4",
+      "original": {
+        "topic": "React 生命周期与竞态",
+        "action": "核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。",
+        "minimumScenarios": "StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。"
+      },
+      "sourceAssessmentStatus": "complete-original-scope",
+      "conclusion": "确认RV-069：同一React实例跨provider仍保留旧状态/写回sink；不泛化三框架或误归核心请求代次。",
+      "detail": "该hook只用useState/useCallback/useMemo，没有effect或Observable cleanup。core每commands实例的latest-only map能拦同一实例同一格的旧请求，但A/B各自map不撤销A共用patch的权限。函数式setState防跨格丢更新，不防跨库混入。正常spec没有StrictMode/多root；换库两条实际失败不是未跑候选。",
+      "sourceAnchors": [
+        "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:73-95"
+      ],
+      "testDefinitionAnchors": [
+        "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:53-72",
+        "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:511-527",
+        "packages/rxdb-plugin-working-tree-react/src/__tests__/review-parallel-provider-switch.spec.ts:11-58"
+      ],
+      "confirmedIssues": [
+        "RV-069"
+      ],
+      "remainingValidationIds": [
+        "SV-01",
+        "SV-05"
+      ]
+    },
+    {
+      "id": "C5",
+      "original": {
+        "topic": "React 类型与 render 边界",
+        "action": "检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。",
+        "minimumScenarios": "typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。"
+      },
+      "sourceAssessmentStatus": "complete-original-scope",
+      "conclusion": "类型与render纯度/同库稳定引用成立；返回快照有RV-069归属错误，独立消费未验；P3文档误称十方法。",
+      "detail": "非泛型Resource由Readonly<WorkingTreeAsyncStates>&WorkingTreeCommands组合，签名/结果用核心类型；render不发IO，只读provider并构造命令。引用稳定仅同一db跨render承诺，换库更换commands正确，错在旧states与新commands被拼成同一快照。无any/禁Hooks/原测试skip的新过关手段。spec类型消费不代替真正打包独立typed/runtime消费。",
+      "sourceAnchors": [
+        "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:20-42",
+        "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts:81-96",
+        "packages/rxdb-plugin-working-tree-react/src/index.ts:18-19",
+        "packages/rxdb-plugin-working-tree-react/package.json:24-50",
+        "packages/rxdb-plugin-working-tree-react/tsconfig.lib.json:11-39",
+        "packages/rxdb-plugin-working-tree-react/tsconfig.spec.json:10-27",
+        "packages/rxdb-plugin-working-tree-react/vite.config.mts:29-62"
+      ],
+      "testDefinitionAnchors": [
+        "packages/rxdb-plugin-working-tree-react/src/__tests__/index.spec.ts:6-30",
+        "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx:511-556"
+      ],
+      "confirmedIssues": [
+        "RV-069",
+        "PKG-WTR-DOC-01"
+      ],
+      "remainingValidationIds": [
+        "SV-03",
+        "SV-05",
+        "REL-01"
+      ]
+    }
+  ],
+  "remainingValidation": [
+    {
+      "id": "SV-01",
+      "C": [
+        "C1",
+        "C2",
+        "C4"
+      ],
+      "owner": "React working-tree维护者",
+      "scenario": "RV-069修复后A→B立即十二格初态、旧A查询/动作/status刷新晚到不能写B；原A Promise语义不改变",
+      "reason": "同SHA两条provider回归已红，本轮只复用确认，不改业务或反复复现；旧命令的作用域归属需由wrapper状态/sink identity修复，不靠消费者key或停止原Promise掩盖。"
+    },
+    {
+      "id": "SV-02",
+      "C": [
+        "C1",
+        "C2"
+      ],
+      "owner": "React工作树集成QA；核心working-tree维护者提供既有验收证据",
+      "scenario": "未enable、缺插件、真实分支/多实例、CAS落败、dirty tree、不可达commit、并发点击及动作中换scope的数据不损坏",
+      "reason": "本包测试只控制IO返回；并未持有真正数据库、事务或CAS锁。核心已由其他agent全审，本轮只读必要契约，不重新跑核心/真UI大验收，也不把其全审等同本包集成已运行。"
+    },
+    {
+      "id": "SV-03",
+      "C": [
+        "C2",
+        "C5"
+      ],
+      "owner": "React工作树组件测试维护者",
+      "scenario": "enableIfEmpty、commitChanges动作的loading/empty或success/error、参数与结果透传；错误typed consumer正反例",
+      "reason": "现有两个方法仅被状态/成员及方法数量守卫覆盖，没有在本包执行对应IO动作的断言；presence不等于行为通过。该缺口不是生产缺陷确认。"
+    },
+    {
+      "id": "SV-04",
+      "C": [
+        "C3"
+      ],
+      "owner": "三端工作树UI/隐私QA；核心数据治理维护者",
+      "scenario": "同拒绝序列三端真实应用同语义、关闭清理、敏感字段摘要与多实例diff展示",
+      "reason": "wrapper没有UI/摘要/日志逻辑；必要core类型表明diff条目携带patch/inversePatch，不能称自动脱敏摘要。fixture payload和根入口对照不证明真实UI日志/字段治理安全；RV-069可能让旧diff残留是同根因源码影响，不是另一个实测泄露。"
+    },
+    {
+      "id": "SV-05",
+      "C": [
+        "C4",
+        "C5"
+      ],
+      "owner": "React working-tree生命周期测试维护者",
+      "scenario": "StrictMode、快速provider/source变化、卸载后晚到结果、多个root、同库相同值/不同引用重渲染",
+      "reason": "正常spec验证同一库跨render的方法稳定，新增探针验证provider换库失败；没有StrictMode/多root/异步source完整生命周期动态证据。无Observable订阅可取消，不虚构unsubscribe通过。"
+    },
+    {
+      "id": "REL-01",
+      "C": [
+        "C5"
+      ],
+      "owner": "working-tree React包发布与类型消费维护者",
+      "scenario": "独立tarball TS strict typed consumer、根ESM runtime import、React/core peer边界及打包use client/RSC消费",
+      "reason": "只读历史10文件pack，未执行新build/pack/发布大矩阵；source的use client不证明产物保留指令。根既有skipLibCheck:true不作为不跳过库检查的独立strict消费通过依据。"
+    }
+  ]
+}

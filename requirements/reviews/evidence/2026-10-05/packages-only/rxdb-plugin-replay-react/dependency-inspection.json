@@ -1,0 +1,95 @@
+{
+  "object": "rxdb-plugin-replay-react",
+  "notAdditionalPackageDeliveries": true,
+  "files": [
+    {
+      "path": "packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+      "sha256": "fe1c362d41e5c2f3583a009f7cd04286d755731032246b35ca25ca557443da0e",
+      "readRanges": [
+        [
+          1,
+          110
+        ],
+        [
+          111,
+          213
+        ]
+      ],
+      "role": "read-dependency-test-definition",
+      "notes": "同步MountReplayerSpy及七条case；restore手动注入、replay为类型断言。"
+    },
+    {
+      "path": "packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts",
+      "sha256": "6a2bf9514b5eb323487d17d1bc88cb5872f326814d392915ca61a44fe1102f3d",
+      "readRanges": [
+        [
+          1,
+          42
+        ],
+        [
+          90,
+          199
+        ],
+        [
+          249,
+          265
+        ]
+      ],
+      "role": "read-dependency-source-ranges",
+      "notes": "pending seek位置保存、generation取消、动态rrweb、恢复归属；仅源码锚点，不是本轮core动态验收。"
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-angular/src/index.ts",
+      "sha256": "a068548ea8d47f74f161d8c4f6a393791aa24237ef2d69a87640b381000d9a3f",
+      "readRanges": [
+        [
+          1,
+          12
+        ]
+      ],
+      "role": "read-dependency-entry",
+      "notes": "只读根共享类型/提示函数；不完成Angular包评审。"
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-vue/src/index.ts",
+      "sha256": "54aae52d501e2c89277496b1e57ed33b9213711374252aebb0e7c116eaf5056f",
+      "readRanges": [
+        [
+          1,
+          12
+        ]
+      ],
+      "role": "read-dependency-entry",
+      "notes": "只读根共享类型/提示函数；不完成Vue包评审。"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "sha256": "8d5028a97a8d71342a2796b1a4900349004ef778ba04e07917b1a094e18f01ab",
+      "readRanges": [
+        [
+          1,
+          49
+        ],
+        [
+          105,
+          125
+        ]
+      ],
+      "role": "read-inherited-config-ranges",
+      "notes": "strict:true且既有skipLibCheck/skipDefaultLibCheck:true；未修改、不用于证明全发布strict消费。"
+    },
+    {
+      "path": "requirements/api-baseline/rxdb-plugin-replay-react.json",
+      "sha256": "16090b80b8c64f412b8baf268fc007423e952163f82c5c030d971af52d11bf7e",
+      "readRanges": [
+        [
+          1,
+          26
+        ]
+      ],
+      "role": "read-api-baseline",
+      "notes": "根五符号与src/index.ts一致。"
+    }
+  ],
+  "triFrameworkBoundary": "仅共享根导出对照及React driver/parity定义审阅；未承诺另外两包的全文完成或实际UI通过。"
+}

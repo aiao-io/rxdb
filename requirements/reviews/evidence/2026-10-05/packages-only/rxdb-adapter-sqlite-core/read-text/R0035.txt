@@ -1,0 +1,151 @@
+packages/rxdb-adapter-sqlite-core/src/sqlite-core.utils.ts SHA256 c1389dfb5fdc0851365b5563819bbfde1a8a5c237eb7b12e02fa056044dd7f60 [638,787]
+ 638 |       obj[fkPropName] = value;
+ 639 |       continue;
+ 640 |     }
+ 641 | 
+ 642 |     const propertyName = columnNameToPropertyName?.get(columnName);
+ 643 |     if (propertyName) {
+ 644 |       const property = propertyMap.get(propertyName);
+ 645 |       if (property) {
+ 646 |         if (hasEncryption && property.encrypted === true) {
+ 647 |           if (value === null || value === undefined) {
+ 648 |             obj[propertyName] = null;
+ 649 |             continue;
+ 650 |           }
+ 651 |           if (!opts?.keyring || opts.keyring.isLocked) {
+ 652 |             throw new EncryptedLockedError({
+ 653 |               message: `keyring is locked while reading encrypted column ${metadata.tableName}.${property.columnName}`
+ 654 |             });
+ 655 |           }
+ 656 |           if (!isString(value)) {
+ 657 |             throw new EncryptedDecryptError({
+ 658 |               code: 'malformed_envelope',
+ 659 |               message: `column ${metadata.tableName}.${property.columnName} is not a string envelope`
+ 660 |             });
+ 661 |           }
+ 662 |           decryptJobs.push({ propertyName, property, rawCell: value });
+ 663 |           continue;
+ 664 |         }
+ 665 |         obj[propertyName] = transformValueSqliteToJs(value, property);
+ 666 |       } else {
+ 667 |         console.warn(`Property ${propertyName} not found in metadata ${metaName}`);
+ 668 |       }
+ 669 |       continue;
+ 670 |     }
+ 671 | 
+ 672 |     const computedProperty = computedPropertyMap?.get(columnName);
+ 673 |     if (computedProperty) {
+ 674 |       obj[columnName] = transformValueSqliteToJs(value, computedProperty);
+ 675 |       continue;
+ 676 |     }
+ 677 | 
+ 678 |     if (!columnNameToPropertyName) {
+ 679 |       const property = propertyMap.get(columnName);
+ 680 |       if (property) {
+ 681 |         obj[columnName] = transformValueSqliteToJs(value, property);
+ 682 |         continue;
+ 683 |       }
+ 684 |     }
+ 685 | 
+ 686 |     console.warn(`Column ${columnName}=${value} not found in metadata ${metaName}`);
+ 687 |   }
+ 688 | 
+ 689 |   if (decryptJobs.length === 0) return obj as T;
+ 690 | 
+ 691 |   const primaryKeyValue = (obj['id'] as RxDBEntityId | null | undefined) ?? '';
+ 692 |   const keyring = opts?.keyring;
+ 693 |   if (!keyring) {
+ 694 |     throw new EncryptedLockedError({ message: `keyring is locked while reading ${metadata.tableName}` });
+ 695 |   }
+ 696 |   const results = await Promise.allSettled(
+ 697 |     decryptJobs.map(async job => {
+ 698 |       const plain = await keyring.decrypt({
+ 699 |         envelope: job.rawCell,
+ 700 |         entityNamespace: metadata.namespace,
+ 701 |         tableName: metadata.tableName,
+ 702 |         columnName: job.property.columnName,
+ 703 |         primaryKey: primaryKeyValue
+ 704 |       });
+ 705 |       return { propertyName: job.propertyName, property: job.property, plaintext: plain };
+ 706 |     })
+ 707 |   );
+ 708 |   // 部分失败策略：任一失败 → 整行明文全部作废，整行拒绝。
+ 709 |   const hasRejection = results.some(r => r.status === 'rejected');
+ 710 |   if (hasRejection) {
+ 711 |     for (const r of results) {
+ 712 |       if (r.status === 'fulfilled') r.value.plaintext.fill(0);
+ 713 |     }
+ 714 |     for (const r of results) {
+ 715 |       if (r.status === 'rejected') throw r.reason;
+ 716 |     }
+ 717 |   }
+ 718 |   // 全部成功 → 反序列化后尽力清理明文。
+ 719 |   for (let i = 0; i < results.length; i++) {
+ 720 |     const r = results[i];
+ 721 |     if (r.status === 'fulfilled') {
+ 722 |       obj[r.value.propertyName] = deserializeFromEnvelope(r.value.plaintext, r.value.property);
+ 723 |       r.value.plaintext.fill(0);
+ 724 |     }
+ 725 |   }
+ 726 |   return obj as T;
+ 727 | };
+ 728 | 
+ 729 | /**
+ 730 |  * 将 SQLite 实体值转换为 JS 对象值
+ 731 |  * @param metadata 实体元数据
+ 732 |  * @param entity 实体对象，键为数据库列名
+ 733 |  * @returns 转换后的实体对象，键为 JS 属性名
+ 734 |  */
+ 735 | export const transformEntityValueSqliteToJs = <T extends object = EntityData>(
+ 736 |   metadata: EntityMetadata,
+ 737 |   entity: EntityData
+ 738 | ): T => {
+ 739 |   const result: EntityData = {};
+ 740 | 
+ 741 |   // 检查是否已有缓存的 FK 映射
+ 742 |   let cached = metadataFkCache.get(metadata);
+ 743 |   if (!cached) {
+ 744 |     const fkMap = new Map<string, string>();
+ 745 |     const foreignKeyNames = metadata.foreignKeyNames || [];
+ 746 |     const foreignKeyColumnNames = metadata.foreignKeyColumnNames || foreignKeyNames;
+ 747 |     for (let i = 0; i < foreignKeyColumnNames.length; i++) {
+ 748 |       fkMap.set(foreignKeyColumnNames[i], foreignKeyNames[i]);
+ 749 |     }
+ 750 |     cached = { fkMap };
+ 751 |     metadataFkCache.set(metadata, cached);
+ 752 |   }
+ 753 | 
+ 754 |   const { propertyMap, columnNameToPropertyName, computedPropertyMap } = metadata;
+ 755 | 
+ 756 |   const columnNames = Object.keys(entity);
+ 757 |   for (let i = 0; i < columnNames.length; i++) {
+ 758 |     const columnName = columnNames[i];
+ 759 |     const value = entity[columnName];
+ 760 | 
+ 761 |     // 查找是否是外键列名 (从 O(N) 的 indexOf 优化为 O(1) 的 Map 检索)
+ 762 |     const fkPropName = cached.fkMap.get(columnName);
+ 763 |     if (fkPropName !== undefined) {
+ 764 |       result[fkPropName] = value;
+ 765 |       continue;
+ 766 |     }
+ 767 | 
+ 768 |     // 查找是否是属性列名
+ 769 |     const propertyName = columnNameToPropertyName?.get(columnName);
+ 770 |     if (propertyName) {
+ 771 |       const property = propertyMap.get(propertyName);
+ 772 |       if (property) {
+ 773 |         result[propertyName] = transformValueSqliteToJs(value, property);
+ 774 |       }
+ 775 |       continue;
+ 776 |     }
+ 777 | 
+ 778 |     // 检查是否是计算属性
+ 779 |     const computedProperty = computedPropertyMap.get(columnName);
+ 780 |     if (computedProperty) {
+ 781 |       result[columnName] = transformValueSqliteToJs(value, computedProperty);
+ 782 |       continue;
+ 783 |     }
+ 784 |   }
+ 785 | 
+ 786 |   return result as T;
+ 787 | };

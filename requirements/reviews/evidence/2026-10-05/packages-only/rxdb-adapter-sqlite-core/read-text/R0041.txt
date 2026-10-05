@@ -1,0 +1,50 @@
+packages/rxdb-adapter-sqlite-core/tsconfig.lib.json SHA256 f783f229ffaf1c4609334d10f0d59695d19c944f48edfbbd6ea5394a5dd77bb8 [1,49]
+   1 | {
+   2 |   "compilerOptions": {
+   3 |     "rootDir": "src",
+   4 |     "outDir": "dist",
+   5 |     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+   6 |     "emitDeclarationOnly": true,
+   7 |     "forceConsistentCasingInFileNames": true,
+   8 |     "types": ["node", "vite/client"]
+   9 |   },
+  10 |   "exclude": [
+  11 |     "vite.config.ts",
+  12 |     "vite.config.mts",
+  13 |     "vitest.config.ts",
+  14 |     "vitest.config.mts",
+  15 |     "src/**/__tests__/**",
+  16 |     "src/**/*.test.ts",
+  17 |     "src/**/*.spec.ts",
+  18 |     "src/**/*.test.tsx",
+  19 |     "src/**/*.spec.tsx",
+  20 |     "src/**/*.test.js",
+  21 |     "src/**/*.spec.js",
+  22 |     "src/**/*.test.jsx",
+  23 |     "src/**/*.spec.jsx"
+  24 |   ],
+  25 |   "extends": "../../tsconfig.base.json",
+  26 |   "include": ["src/**/*.ts", "src/types.d.ts"],
+  27 |   "nx": {
+  28 |     "sync": {
+  29 |       "ignoredDependencies": ["rxdb-test"]
+  30 |     }
+  31 |   },
+  32 |   "references": [
+  33 |     {
+  34 |       "path": "../utils/tsconfig.lib.json"
+  35 |     },
+  36 |     {
+  37 |       "path": "../rxdb-plugin-tree/tsconfig.lib.json"
+  38 |     },
+  39 |     {
+  40 |       "path": "../rxdb-adapter-encrypted/tsconfig.lib.json"
+  41 |     },
+  42 |     {
+  43 |       "path": "../rxdb/tsconfig.lib.json"
+  44 |     },
+  45 |     {
+  46 |       "path": "../rxdb-plugin-history/tsconfig.lib.json"
+  47 |     }
+  48 |   ]
+  49 | }

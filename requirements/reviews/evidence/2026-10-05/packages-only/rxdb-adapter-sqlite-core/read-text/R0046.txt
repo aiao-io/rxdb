@@ -1,0 +1,27 @@
+packages/rxdb-adapter-sqlite-core/README.md SHA256 a56e9b81a655720ab05c4d4952c3057b609530888bc06fd585465855faacb082 [88,113]
+  88 | | `@aiao/rxdb-adapter-wa-sqlite`                     | `MemoryVFS` / `MemoryAsyncVFS` | `IDBBatchAtomicVFS`（`idb`） | 其余 VFS：`unsupported_combination`（`vfs`）        | `delete`              |  ❌  | 无                       |
+  89 | | `@aiao/rxdb-adapter-sqlite-wasm`                   | `vfs: 'memory'`                | `vfs: 'idb'`                 | 其余 VFS：`unsupported_combination`（`vfs`）        | `delete`              |  ✅  | 无                       |
+  90 | | `@aiao/rxdb-adapter-sqlite`                        | 不开 `opfs`                    | `opfs: true`（`opfs`）       | `opfsFallback: 'memory'`：`unsupported_combination` | `delete`              |  ✅  | 无                       |
+  91 | | `@aiao/rxdb-adapter-sqliteai`                      | 不开 `opfs`                    | `opfs: true`（`opfs`）       | `opfsFallback: 'memory'`：`unsupported_combination` | `delete`              |  ✅  | vector / memory 扩展的表 |
+  92 | | `@aiao/rxdb-adapter-electron`（`sqlite-electron`） | 无                             | 库文件（`file`）             | 全部选项都在矩阵内                                  | `wal`                 |  ❌  | 无                       |
+  93 | | `@aiao/rxdb-adapter-tauri`（`sqlite-tauri`）       | 无                             | 库文件（`file`）             | 全部选项都在矩阵内                                  | `wal`                 |  ✅  | 无                       |
+  94 | 
+  95 | - 同一 adapter 的内存与持久化存储互为源 / 目标；跨 adapter 的归档报 `incompatible_archive`。
+  96 | - **WAL**：连接初始化会请求 WAL。四个浏览器 adapter 的持久化 VFS 都不提供 WAL 需要的共享内存，SQLite 静默保留 `delete`；
+  97 |   两个桌面 adapter 开的是真实库文件，WAL 生效。备份本身是 SQL 层的读事务，与日志模式无关；WAL 专属用例
+  98 |   （关掉自动 checkpoint，已提交、只在 WAL 里的帧也要进快照）在两个桌面后端上跑。
+  99 | - **FTS5**：`sqlite-electron` 的 SQLite 编进了 FTS5，但 host 以 defensive 模式运行，写不回虚表的影子表，
+ 100 |   含 FTS5 的库备份与恢复都报 `unsupported_combination`（`details.field` 为 `adapter.extensions`）；`sqlite-tauri` 的 Rust 宿主不开 defensive，FTS5 可用。
+ 101 | - 所有错误都是 `RxDBBackupError`，按 `error.code` 分支处理（`isRxDBBackupError()` 可做类型收窄）。
+ 102 | - 自定义后端要支持恢复，客户端需实现 `setChangeEventsMuted()` 与 `describeBlankDatabase()`（可用本包导出的
+ 103 |   `describeSqliteDatabase()`）；缺少时恢复报 `unsupported_combination`（`details.field` 为 `client.<方法名>`）。
+ 104 |   这两个方法调用失败（例如请求被宿主应用的 kind 守卫挡下）报 `io_error`，原始错误在 `cause`，此时目标还没被写过。
+ 105 | 
+ 106 | ## 文档
+ 107 | 
+ 108 | - 仓库主页：[https://github.com/aiao-io/rxdb](https://github.com/aiao-io/rxdb)
+ 109 | - 适配器指南见项目文档站
+ 110 | 
+ 111 | ## License
+ 112 | 
+ 113 | [MIT](https://github.com/aiao-io/rxdb/blob/main/LICENSE)

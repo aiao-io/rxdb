@@ -3,158 +3,85 @@ kind: review-plan
 object: rxdb-plugin-replay-react
 source_root: packages/rxdb-plugin-replay-react
 created: 2026-10-03
-baseline: 2e820521187cbfcd1fe76fb705659fea0a548f0e
-execution: in-progress
+updated: 2026-10-05
+worker: PKG-replay-react
+execution: complete-original-scope
+source-review: complete-original-scope
+assessment-delivery: complete-original-scope
+scenario-validation: remaining-owners-listed
+release-validation: not-performed-this-pass
+rating: "🟡"
 ---
 
-# rxdb-plugin-replay-react：深度评审计划
+# rxdb-plugin-replay-react：原范围全文评审收口计划
 
-> 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
+**源码全文评审与原 C 意见交付均为 complete-original-scope；专项运行与发布验收另列，不冒充已完成。** 本包单独交付，不批带其他包，不派 agent。
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+## 1. 冻结范围与去重基线
 
-## 1. 范围与基线
+- 根：`/Users/jimmy/Documents/aiao/rxdb`；唯一全文对象：`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react`。
+- 冻结受控范围：**12 文件 / 545 行**，含源码、两个测试、文档、许可与所有包内配置。旧计划的 11 文件已由现有 scope 补进 layout 探针；忽略产物 dist/out-tsc 不冒充源码。
+- scope 记载 head：`943c50cc85b4be3b0635f736a35a9659c3fe209a`。只沿用快照标识，实际阅读以当前逐文件 SHA 锁定，不自行执行 git 命令。
+- [scope](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/scope.json) 与 [resolved Nx 配置](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/resolved-project.json) 保持原冻结内容；[冻结核对](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/scope-freeze.json)确认当前 12 文件 SHA、行数与其一致。resolved 全文先于包内 project.json 阅读，未将局部 targets 当完整配置。
+- 已全文先读旧 plan/results，原文分别保存在 [原计划](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/baseline/original-plan.md)、[原结果](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/baseline/original-results.md)。历史 partial 不删除，但不能继续冒充本次源码交付状态。
+- 已先读 [RV-070](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/RV-070-parallel-react-replayer-layout-seek.md)并核对关键输入同 SHA；旧 early-seek 候选归并此既有 P2，不重复编号或再跑真实 iframe。
 
-React：回放播放器挂载、资源装载和 commit 恢复交互的框架封装。
+## 2. 全文阅读登记
 
-| 项目                | 基线事实                                                                          |
-| ------------------- | --------------------------------------------------------------------------------- |
-| 对象类型            | 包                                                                                |
-| 源码范围            | [`packages/rxdb-plugin-replay-react`](../../../packages/rxdb-plugin-replay-react) |
-| Nx 项目             | `rxdb-plugin-replay-react`                                                        |
-| npm 名称            | `@aiao/rxdb-plugin-replay-react`                                                  |
-| 计划基线            | `main@2e820521187cbfcd1fe76fb705659fea0a548f0e`，2026-10-03（Asia/Shanghai）      |
-| 建议波次 / 优先风险 | W4 / 中（排期依据，不是缺陷结论）                                                 |
-| 受控文件盘点        | 11 个；测试/共享套件入口 1 个（按文件名，不代表覆盖率）                           |
-| 执行状态            | 执行中：已进入全范围基线/入口阶段；专项及覆盖率未全部完成                         |
+正文按实现、测试/入口、文档/许可/manifest、配置四组逐行输出，全部无截断；不是 hash 盘点。旧 plan/results 分片补齐。第一次历史全仓指纹输出截断后，已选择性补读本问题相关键，不声称全仓 manifest 全文阅读。
 
-范围是此对象的**全部 Git 受控源码、配置、测试、fixture、构建/打包文件与资源声明**，不是只看下面的导航入口。受控生成代码需验证生成来源与确定性；忽略的旧产物不作为当前源码证据。基线变化后先复盘 inventory / Nx targets / API，再开始评审。
+| 文件（全文） | 行数 | 具体关注 |
+| --- | ---: | --- |
+| [LICENSE](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/LICENSE) | 21 | 许可文本/manifest/历史pack对应 |
+| [README.md](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/README.md) | 78 | 用例与加载前seek契约；RV-070 |
+| [package.json](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/package.json) | 54 | 根exports、files排除及当前peer |
+| [project.json](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/project.json) | 12 | 原始覆盖与完整resolved的区别 |
+| [src/__tests__/replayer.spec.tsx](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/__tests__/replayer.spec.tsx) | 98 | 7条parity + 3条React用例；core整体mock |
+| [src/__tests__/review-parallel-layout-seek.spec.ts](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/__tests__/review-parallel-layout-seek.spec.ts) | 29 | 真实layout调用；既有同hash红证据 |
+| [src/index.ts](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/index.ts) | 12 | 五符号及三端共享透传 |
+| [src/replayer.tsx](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/replayer.tsx) | 102 | 输入delta、最新回调、cleanup、ref早于core |
+| [tsconfig.json](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/tsconfig.json) | 16 | base继承/lib与spec引用 |
+| [tsconfig.lib.json](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/tsconfig.lib.json) | 33 | 生产声明include/exclude/核心引用 |
+| [tsconfig.spec.json](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/tsconfig.spec.json) | 27 | 两个spec实际入类型检查范围 |
+| [vite.config.mts](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/vite.config.mts) | 63 | ES external/dts、happy-dom、测试glob、coverage/条件上传 |
 
-## 2. 阅读入口（导航，不是全部范围）
+逐文件实际 SHA、全文 readRanges、具体结论及 C 归属：[file-inspection.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/file-inspection.json)。依赖局部锚点单列 [dependency-inspection.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/dependency-inspection.json)，不把它们计为第二个包评审。
 
-- [`src/replayer.tsx`](../../../packages/rxdb-plugin-replay-react/src/replayer.tsx)
-- [`src/index.ts`](../../../packages/rxdb-plugin-replay-react/src/index.ts)
-- [`README.md`](../../../packages/rxdb-plugin-replay-react/README.md)
-- [`package.json`](../../../packages/rxdb-plugin-replay-react/package.json)
-- [`project.json`](../../../packages/rxdb-plugin-replay-react/project.json)
-- [`tsconfig.lib.json`](../../../packages/rxdb-plugin-replay-react/tsconfig.lib.json)
-- [`tsconfig.json`](../../../packages/rxdb-plugin-replay-react/tsconfig.json)
+## 3. 原 C 动作与原最低场景不缩减
 
-公共边界：
+| 原 C | 原核查动作 | 原最低复验场景 | 本次意见 |
+| --- | --- | --- | --- |
+| **C1 播放器挂载与按需依赖** | 核查 wrapper 委托 mount-replayer 的输入、容器和 rrweb 懒加载；组件出现不等于授权录制。 | 空 recording、加载失败、切 recording、双播放器、卸载；无多重 mount 或后台录制。 | 源码意见已交付；确认既有RV-070；其余wrapper委托在源码/已读stub测试边界成立。 |
+| **C2 恢复交互与状态** | 跟踪时间轴 marker 点击、restore callback、拒绝和 loading 状态，不私自改 HEAD。 | 不可达 commit、dirty tree、并发恢复、恢复中卸载；与 replay/working-tree 原 API 一致。 | 源码意见已交付；源码层通过：只转发事件，无HEAD写入；真实恢复场景未测。 |
+| **C3 三端可访问性与类型** | 对照 replayer-parity fixture、公开 options/events、控件键盘与错误提示。 | 同 recording/marker 序列三端同结果、尺寸变化、键盘操作；不靠三份 demo 手动截图证明对称。 | 源码意见已交付；入口/共享类型与React adapter契约已对照；真实三端UI和可访问性未测。 |
+| **C4 React 生命周期与竞态** | 核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。 | StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。 | 源码意见已交付；确认RV-070时序缺陷；cleanup/refs/最新time回调在有限测试范围成立。 |
+| **C5 React 类型与 render 边界** | 检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。 | typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。 | 源码意见已交付；公开声明/输入diff/render纯度已审；加载前seek文档契约由RV-070证实违背，独立消费仍未验证。 |
 
-- 源 `package.json` 的 `exports` 键：`./package.json`、`.`；逐一核查 types / import / default 与发布文件对应关系。
-- API 对照：[当前 API baseline](../../api-baseline/rxdb-plugin-replay-react.json)；符号存在不等于归属、语义和兼容性已验证。
-- `peerDependencies` 边界：`@aiao/rxdb-plugin-replay: *`、`react: ^19.2.8`；验证消费端配置，不用内部路径绕过缺失依赖。
+每 C 的实际源码/测试锚点、证明边界与未测原因见 [本包结果](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-replay-react.md) 和 [c-evidence.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/c-evidence.json)。原场景仍在上表；有 owner 的未验场景不改写成“不适用/通过”。本组件没有 Provider/context，provider 实现审查仅在此局部不适用。
 
-## 3. 专项核查与最低复验场景
+## 4. 完成条件拆账
 
-| 编号                                                                                                                                                                                                                                                 | 专项                     | 核查动作                                                                                                             | 最低复验场景 / 证据要求                                                                               | 状态    |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------- |
-| C1                                                                                                                                                                                                                                                   | 播放器挂载与按需依赖     | 核查 wrapper 委托 mount-replayer 的输入、容器和 rrweb 懒加载；组件出现不等于授权录制。                               | 空 recording、加载失败、切 recording、双播放器、卸载；无多重 mount 或后台录制。                       | partial |
-| C2                                                                                                                                                                                                                                                   | 恢复交互与状态           | 跟踪时间轴 marker 点击、restore callback、拒绝和 loading 状态，不私自改 HEAD。                                       | 不可达 commit、dirty tree、并发恢复、恢复中卸载；与 replay/working-tree 原 API 一致。                 | partial |
-| C3                                                                                                                                                                                                                                                   | 三端可访问性与类型       | 对照 replayer-parity fixture、公开 options/events、控件键盘与错误提示。                                              | 同 recording/marker 序列三端同结果、尺寸变化、键盘操作；不靠三份 demo 手动截图证明对称。              | partial |
-| C4                                                                                                                                                                                                                                                   | React 生命周期与竞态     | 核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。 | StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。                   | partial |
-| C5                                                                                                                                                                                                                                                   | React 类型与 render 边界 | 检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。                                  | typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。 | partial |
-| 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。 |
+- [x] 全部原范围源码、配置、测试、doc/license 全文读完；12/12、545/545，不以目录/摘要替代正文。
+- [x] 原 C1–C5 逐项意见、真实源码锚点及 stub/核心/真实 browser 的证明边界交付。
+- [x] 确认问题与候选去重：复用 RV-070；0 新增确认、0 未收口候选。
+- [x] 当前阅读 SHA 与冻结输入核对；历史动态证据和本次运行分离登记。
+- [x] 🟡有真实 P2 风险依据；评审交付不等于修复或发布就绪。
+- [ ] 原场景专项验收全部运行；责任角色/原因见下表。
+- [ ] 修复 RV-070 后回归与独立 strict typed/runtime 消费、发布验收。
 
-## 4. 测试证据与联审边界
+## 5. 专项 / 发布未验与 owner
 
-按 `.spec / .test / .suite` 的 JS/TS 文件名盘点到 **1** 个受控测试/共享套件文件；该数字不是用例数、通过数或覆盖率。Rust inline tests、生成客户端类型测试和外部 suite 是否运行，需另外核对。
+| ID / 原 C | 责任角色（待主控指定实名） | 场景 | 未验原因 |
+| --- | --- | --- | --- |
+| SV-01 / C1, C4 | 核心Replay/rrweb视图维护者；React Replay维护者协作 | 空recording、readEvents/listCommitMarkers/rrweb加载失败、切session/replay、双播放器、卸载后的旧加载与无后台录制 | 本包tests把mountReplayer整体替换为同步spy；这里只能证明输入/update/destroy委托，不能证明真实读取、rrweb加载和异步取消。按用户要求不重复追真实iframe。 |
+| SV-02 / C2 | 核心Replay与working-tree恢复维护者；React Replay维护者协作 | 真实marker点击、不可达commit、dirty tree、并发恢复、恢复中卸载及loading/拒绝/错误提示 | 共享parity手工注入dirty_working_tree事件，仅验证同对象转发；core.restoreToCommit与UI实际交互未在本轮执行。 |
+| SV-03 / C3 | 核心播放器UI维护者与Angular/React/Vue可访问性QA | 同recording/marker序列三端同结果、尺寸变化、键盘控制与错误提示 | 仅核对三端根共享导出及React驱动使用同一7条spy parity；没有实际rrweb DOM或三端UI/键盘运行，入口对称不等于完整可访问性。 |
+| SV-04 / C1, C4, C5 | React Replay维护者 | RV-070修复后：首次layout多次seek保留最新值；StrictMode、SSR/hydration、快速props变化、卸载后晚到结果与多个root | RV-070已证但未修，不需要重复复现；现有StrictMode仅证明stub活句柄计数，未运行真实异步及多root。修复不能改变加载前play/pause空操作。 |
+| SV-05 / C4, C5 | React Replay组件测试维护者 | 恢复回调换新、相同原始输入重渲染无update、新身份replay仅update、错误props的正反类型用例 | 源码delta比较及Effect Event说明委托方向；已读现有time回调换新/replay身份spy断言，不把未包含的恢复回调/相同值/错误类型场景包装成已测。 |
+| REL-01 / C5 | Replay React包发布与消费类型维护者 | 独立tarball根ESM runtime import、TS strict typed consumer、peer React/core兼容边界及SSR消费 | 历史pack仅有10文件记录和旧入口解析结论，本轮不重build/pack或跑发布大矩阵；根既有skipLibCheck:true不能作为关闭库检查后独立消费通过的证据。 |
 
-优先核对以下测试证据入口，随后覆盖项目全部测试与配置：
+## 6. 本轮执行纪律与交付
 
-- [`src/__tests__/replayer.spec.tsx`](../../../packages/rxdb-plugin-replay-react/src/__tests__/replayer.spec.tsx)
-
-运行配置：[`vite.config.mts`](../../../packages/rxdb-plugin-replay-react/vite.config.mts)。核对 include、provider、setup、coverage 与资源回收；文件存在不等于被 target 执行。
-
-覆盖率验收：`statements / branches / functions / lines` 四项均 ≥ **80%**；本轮尚未测量。 按 [仓库覆盖率门禁](../../../scripts/audit/coverage-check.mjs) 核对来源、include / exclude 与当轮 summary；不能只报告平均值或把 skipped 当已覆盖。
-
-### 联审边界
-
-Nx 基线图中的直接内部依赖：[`rxdb-plugin-replay`](rxdb-plugin-replay.md)。
-
-Nx 基线图中的直接消费者：未记录。
-
-依赖图只用于导航，不能证明动态加载、生成代码、跨进程协议和真实调用方已全覆盖；没有图边不等于没有消费者。
-
-**回放联审**：[`rxdb-plugin-replay`](rxdb-plugin-replay.md)、[`rxdb-plugin-replay-angular`](rxdb-plugin-replay-angular.md)、[`rxdb-plugin-replay-vue`](rxdb-plugin-replay-vue.md)。对照输入/输出、pending/error、取消、重订阅、并发和释放的语义；保留框架原生表达，不强行同名生命周期实现。
-
-## 5. 执行命令与环境
-
-前置环境：需当前框架的实际 test 配置；模拟 DOM 的组件测试与真实 browser/application 复验分别记录。
-
-所有命令在仓库根目录执行；这是后续评审的命令计划，本轮没有执行这些业务门禁。
-
-### 基线已确认的评审目标
-
-| Nx target   | 用途与证据边界                                                         |
-| ----------- | ---------------------------------------------------------------------- |
-| `lint`      | ESLint 零警告；检查忽略、禁用规则与警告策略，不只看进程退出码。        |
-| `typecheck` | 公开 API 与本项目 TS 类型；注意配置 include / exclude 的真实范围。     |
-| `test`      | 当前 Vitest 配置；核对 Node / DOM / browser project、skip 与依赖任务。 |
-| `build`     | 当前构建产物；检查入口、声明、外部依赖、资源与可重复性。               |
-
-表中只列本轮门禁/专项目标，不包含 serve、发布、更新或推断出的逐 spec shard。执行前重新获取 resolved config，确认目标、`dependsOn`、缓存输入及外部副作用；以当前配置为准。
-
-### 常规初筛
-
-```bash
-NX_DAEMON=false pnpm nx show project rxdb-plugin-replay-react --json
-CI=true NX_DAEMON=false pnpm nx run rxdb-plugin-replay-react:lint --max-warnings=0 --skipRemoteCache
-CI=true NX_DAEMON=false pnpm nx run-many -t typecheck test build --projects=rxdb-plugin-replay-react --parallel=1 --skipRemoteCache
-```
-
-初筛允许读取本地缓存，但不能据此称本轮真实复现。用于缺陷复现/最终动态结论时，对下列任务使用 `--skipNxCache` 禁用本地缓存，并留存 SHA、命令、运行环境、通过/失败/skip 与日志。
-
-### 专项与当轮动态证据（满足上述隔离前提后）
-
-```bash
-CI=true NX_DAEMON=false pnpm nx run rxdb-plugin-replay-react:test --coverage --skipRemoteCache --skipNxCache
-pnpm audit:coverage --projects=rxdb-plugin-replay-react
-```
-
-- 普通 `test` 自身可能已经是 browser project；没有单独 `test-browser` 不表示缺少浏览器测试。EPIPE、worker 崩溃或 service stopped 先串行隔离复跑，不直接归因为业务缺陷。
-
-## 6. 完成条件
-
-- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。
-- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。
-- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。
-- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。
-- [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。
-- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。
-- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。
-
-正式结论按总计划的证据与严重度规则登记；证据不足时保留“未验证”，不能因看过源码、跑过 lint 或存在测试文件就给全绿。
-
-## 7. 本轮实际执行记录
-
-[已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-plugin-replay-react.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
-
-## 2026-10-05 frameworks 本轮完成条件与实际核查
-
-本轮 `main/worktree@44de1138b4d396fc45d6e76ab60476c40fef2223`，日期 2026-10-05。不是新泛计划，而是对原 C 的实际结论：**0/5 个完整 C、execution 保持 in-progress；结果记录保持 partial；本对象不是全对象完成候选。**
-
-全部 11 个受控文件的范围/摘要已核对，正文片段 5、outline 0、仅导航 0、未人工检查 6；不能将 scope 盘点称为全读。
-
-| 原 C                        | 本轮结论          | 原场景中仍缺的必要证据                                                                                                                                      |
-| --------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| C1 播放器挂载与按需依赖     | partial；局部通过 | 空 recording、加载失败、切 recording、双播放器和无后台录制的实际核心/浏览器链路尚缺；React early-seek 候选待主控复验。                                      |
-| C2 恢复交互与状态           | partial；局部通过 | parity 只有手动触发 restore callback；缺实际 marker 点击、不可达/dirty/并发 restore 与恢复中卸载的加载/拒绝序列。                                           |
-| C3 三端可访问性与类型       | partial；局部通过 | 缺同 recording/marker 序列的真实 UI、尺寸变化、键盘与错误提示；七条边界桩 parity 不覆盖控件可访问性。                                                       |
-| C4 React 生命周期与竞态     | partial；局部通过 | 缺销毁中真实 async 完成、同组件多实例/多个 root；Angular 缺 provider/route；Vue 缺 ref/computed/getter 真实父子链路。React first layout seek 另有未跑回归。 |
-| C5 React 类型与 render 边界 | partial；局部通过 | 独立 typed consumer 未执行；Angular 模板负例/真实 route，React 首次 layout 命令及错误 props，Vue SFC emits/readonly/模板消费仍未完整验证。                  |
-
-本轮完成条件：
-
-- [x] 全受控 inventory / 摘要核对，未排除配置/资源/fixture。
-- [ ] 全部受控内容阅读及全部原 C 场景核销（缺口见表，保持 partial）。
-- [x] 每 C 已有明确的已证/未证结论及角色明确的源码、测试锚点。
-- [x] 当前 baseline 的 unit / 四指标 / 零警告 lint / typecheck / 真 pack 来源已读取登记。
-- [ ] 晚加探针补跑、独立 typed/runtime consumer、真实完整 UI/生命周期等必要缺口全部关闭。
-- [ ] 全对象证据完成与最终评级（不要求零缺陷，但不能缺验证）；尚未完成。
-
-本对象四指标（statements/branches/functions/lines）：**96% / 87.5% / 100% / 100%**；阈值各项 ≥ 80%。其余18包的绿不能抹掉 rxdb-angular 的16个失败；新探针不继承基线通过。
-发布 pack 根是 `packages/rxdb-plugin-replay-react`，实际 tarball 目标文件存在、独立根 ESM 解析通过；**不包含 typed consumer 编译/runtime import**。Angular 不能按源 manifest 缺 exports 报错。
-
-逐 C 原场景、函数/测试证据与完成条件详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-replay-react.md`；机器证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`。
+本轮**没有新增 Nx 验证命令**，没有重要新疑点需要另跑。只读并复用同 hash 的 RV-070 失败证据及历史 wrapper coverage/pack；没有全量 test/build、发布大矩阵、原测试/业务修改、降 strict、新增 skipLibCheck、any 或 skip。
+本包 typecheck 依赖 build/^typecheck，test 依赖 ^build；因此不以“顺手跑门禁”为由扩展执行范围。未来若主控认定重要新疑点，必须走 `/tmp/rxdb-review-round3-locked.py --name packages-only-replay-react/<唯一名> --scope packages/rxdb-plugin-replay-react -- <单worker skipRemoteCache/skipNxCache命令>`，不直接启动任务。
+结果：[results](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-replay-react.md)；机器收口：[closure.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-react/closure.json)。本包完成后使用指定进度脚本校验并原子更新 50 包总进度/ETA。

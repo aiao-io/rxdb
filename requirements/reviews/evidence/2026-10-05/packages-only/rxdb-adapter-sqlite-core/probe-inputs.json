@@ -1,0 +1,24 @@
+{
+  "object": "rxdb-adapter-sqlite-core",
+  "probeOnly": true,
+  "scopeFilesCounted": false,
+  "dependencies": "createRequire从实际consumer package.json按既有exports解析已链接@aiao/rxdb；未改workspace依赖、package.json、tsconfig paths或原测试。第一轮0tests为evidence目录解析路径错误，不是业务失败。",
+  "files": [
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.spec.ts",
+      "sha256": "e4459f19517dbfd6681373dd76223cbe8c52219e37d1ed0172e04e53ba9fba1e"
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core/review-packages-20261005-transaction-boundary.config.mts",
+      "sha256": "24603ca23f65c99ed8e0ce5f246518f2113e45ae4b2a2fdd8be69e76efa163e5"
+    },
+    {
+      "path": "packages/rxdb/dist/index.js",
+      "sha256": "6c796aab0083c424cbb42a3abc70cc2c000860ceba87f4551025a8d16c50e47f"
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/dist/index.js",
+      "sha256": "351dc327c5cffdcaaa72c573134d2b44081b272fa82e0c420c47bee1b3358232"
+    }
+  ]
+}

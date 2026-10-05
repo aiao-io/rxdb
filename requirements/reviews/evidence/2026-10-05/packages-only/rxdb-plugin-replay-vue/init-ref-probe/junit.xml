@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="2" failures="1" errors="0" time="0.01941275">
+    <testsuite name="requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-vue/init-ref-probe/init-ref.spec.ts" timestamp="2026-10-05T08:36:45.552Z" hostname="liuleideMacBook-Pro-4.local" tests="2" failures="1" errors="0" skipped="0" time="0.01941275">
+        <testcase classname="requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-vue/init-ref-probe/init-ref.spec.ts" name="Vue 公开 ReplayerRef 的首次 seek 初始化边界 &gt; 首次函数 ref 回调调用 seek(500)，加载后应保留意图" time="0.016415209">
+            <system-out>
+INIT_OBSERVATION {&quot;scenario&quot;:&quot;function-ref&quot;,&quot;mounts&quot;:1,&quot;seeks&quot;:[],&quot;trace&quot;:[&quot;function-ref:seek&quot;,&quot;mountReplayer&quot;]}
+
+            </system-out>
+            <failure message="expected [] to deeply equal [ 500 ]" type="AssertionError">
+AssertionError: expected [] to deeply equal [ 500 ]
+
+- Expected
++ Received
+
+- [
+-   500,
+- ]
++ []
+
+ ❯ requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-vue/init-ref-probe/init-ref.spec.ts:53:25
+            </failure>
+        </testcase>
+        <testcase classname="requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-vue/init-ref-probe/init-ref.spec.ts" name="Vue 公开 ReplayerRef 的首次 seek 初始化边界 &gt; 正向对照：父 onMounted 经模板 ref 调用 seek(500)" time="0.001460125">
+            <system-out>
+INIT_OBSERVATION {&quot;scenario&quot;:&quot;parent-onMounted&quot;,&quot;mounts&quot;:1,&quot;seeks&quot;:[500],&quot;trace&quot;:[&quot;mountReplayer&quot;,&quot;parent-onMounted:seek&quot;,&quot;handle.seek:500&quot;]}
+
+            </system-out>
+        </testcase>
+    </testsuite>
+</testsuites>

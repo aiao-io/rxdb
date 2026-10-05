@@ -1,0 +1,145 @@
+packages/rxdb-adapter-sqlite-core/src/handle_rxdb_change.ts SHA256 3341e7b0725c5641bfde888cb19806eb8663178c7bf779b16a04c099d07c0610 [1,144]
+   1 | import {
+   2 |   EntityLocalCreatedEvent,
+   3 |   EntityLocalRemovedEvent,
+   4 |   EntityLocalUpdatedEvent,
+   5 |   EntityType,
+   6 |   getEntityMetadata,
+   7 |   getEntityStatus,
+   8 |   RxDBChange,
+   9 |   RxDBEntityLocalCreatedEventData,
+  10 |   RxDBEntityLocalEventData,
+  11 |   RxDBEntityLocalRemovedEventData,
+  12 |   RxDBEntityLocalUpdatedEventData
+  13 | } from '@aiao/rxdb';
+  14 | import { SqliteRepository } from './repository/SqliteRepository.js';
+  15 | import type { RxDBAdapterSqliteBase } from './RxDBAdapterSqliteBase.js';
+  16 | import { SQLiteChangeType } from './sqlite-backend.interface.js';
+  17 | import { getRxDBChangeEventType, SqliteChangeEvent } from './sqlite-core.interface.js';
+  18 | import { get_table_name_info, RxDBAdapterSqliteError } from './sqlite-core.utils.js';
+  19 | import { unenvelopePlaintextPatches } from './system/encrypt-patch.js';
+  20 | 
+  21 | type EntityMetadata = ReturnType<typeof getEntityMetadata>;
+  22 | type EntityPatch<T extends EntityType> = Readonly<Partial<InstanceType<T>>>;
+  23 | type EntityFull<T extends EntityType> = Readonly<InstanceType<T>>;
+  24 | 
+  25 | /** 一条变更行，以及解回明文后的 patch / inversePatch */
+  26 | interface DecryptedChange {
+  27 |   change: RxDBChange;
+  28 |   patch: Record<string, unknown> | null;
+  29 |   inversePatch: Record<string, unknown> | null;
+  30 | }
+  31 | 
+  32 | /**
+  33 |  * 把变更行里的加密列解回明文。
+  34 |  *
+  35 |  * @remarks
+  36 |  * 触发器写进 change 行的是物理列的原值，而加密列在库里是 TEXT 信封 —— 不解 envelope
+  37 |  * 就直接派发，等于把密文交给 QueryManager/UI（SQLC-011）。
+  38 |  *
+  39 |  * 解密结果只存在于返回值里，**不回写变更行**：change 表自身的元事件仍要携带原始信封。
+  40 |  *
+  41 |  * `unenvelopePlaintextPatches` 只处理字符串值，因此 SQLC-011 修复前写下的加密 boolean
+  42 |  * 历史行（触发器把信封压成了数字 0/1）会原样透传，而不是在解密处炸掉整条变更流。
+  43 |  */
+  44 | const decrypt_change_patches = async (adapter: RxDBAdapterSqliteBase, change: RxDBChange): Promise<DecryptedChange> => {
+  45 |   const patch = (change.patch ?? null) as Record<string, unknown> | null;
+  46 |   const inversePatch = (change.inversePatch ?? null) as Record<string, unknown> | null;
+  47 |   const { keyring } = adapter.encryptionContext;
+  48 |   if (!keyring) return { change, patch, inversePatch };
+  49 |   const entity = adapter.rxdb.schemaManager.getEntityMetadata(change.entity, change.namespace);
+  50 |   if (!entity?.encryptedPropertyMap?.size) return { change, patch, inversePatch };
+  51 | 
+  52 |   const primaryKeyString = change.entityId;
+  53 |   const unenvelope = (target: Record<string, unknown>): Promise<Record<string, unknown>> =>
+  54 |     unenvelopePlaintextPatches({ entity, primaryKeyString, patch: target, keyring });
+  55 |   return {
+  56 |     change,
+  57 |     patch: patch === null ? null : await unenvelope(patch),
+  58 |     inversePatch: inversePatch === null ? null : await unenvelope(inversePatch)
+  59 |   };
+  60 | };
+  61 | 
+  62 | const emit_change_event = async (adapter: RxDBAdapterSqliteBase, eventData: RxDBChange[]): Promise<void> => {
+  63 |   const decrypted = await Promise.all(eventData.map(change => decrypt_change_patches(adapter, change)));
+  64 |   const group = new Map<RxDBChange['type'], DecryptedChange[]>();
+  65 |   for (const item of decrypted) {
+  66 |     const items = group.get(item.change.type);
+  67 |     if (items) items.push(item);
+  68 |     else group.set(item.change.type, [item]);
+  69 |   }
+  70 | 
+  71 |   const inserts = group.get('INSERT');
+  72 |   if (inserts?.length) {
+  73 |     const events = inserts.map(({ change, patch }): RxDBEntityLocalCreatedEventData => ({
+  74 |       namespace: change.namespace!,
+  75 |       entity: change.entity,
+  76 |       type: change.type,
+  77 |       id: change.entityId,
+  78 |       patch: patch as unknown as EntityFull<EntityType>,
+  79 |       inversePatch: null,
+  80 |       recordAt: change.createdAt
+  81 |     }));
+  82 |     adapter.rxdb.dispatchEvent(new EntityLocalCreatedEvent(events));
+  83 |   }
+  84 | 
+  85 |   const updates = group.get('UPDATE');
+  86 |   if (updates?.length) {
+  87 |     const events = updates.map(({ change, patch, inversePatch }): RxDBEntityLocalUpdatedEventData => ({
+  88 |       namespace: change.namespace!,
+  89 |       entity: change.entity,
+  90 |       type: change.type,
+  91 |       id: change.entityId,
+  92 |       patch: patch as unknown as EntityPatch<EntityType>,
+  93 |       inversePatch: inversePatch as unknown as EntityPatch<EntityType>,
+  94 |       recordAt: change.createdAt
+  95 |     }));
+  96 |     adapter.rxdb.dispatchEvent(new EntityLocalUpdatedEvent(events));
+  97 |   }
+  98 | 
+  99 |   const deletes = group.get('DELETE');
+ 100 |   if (deletes?.length) {
+ 101 |     const events = deletes.map(({ change, inversePatch }): RxDBEntityLocalRemovedEventData => ({
+ 102 |       namespace: change.namespace!,
+ 103 |       entity: change.entity,
+ 104 |       type: change.type,
+ 105 |       id: change.entityId,
+ 106 |       patch: null,
+ 107 |       inversePatch: inversePatch as unknown as EntityPatch<EntityType>,
+ 108 |       recordAt: change.createdAt
+ 109 |     }));
+ 110 |     adapter.rxdb.dispatchEvent(new EntityLocalRemovedEvent(events));
+ 111 |   }
+ 112 | };
+ 113 | 
+ 114 | const build_rxdb_change_meta_event = <T extends EntityType>(
+ 115 |   entity: InstanceType<T>,
+ 116 |   metadata: EntityMetadata
+ 117 | ): RxDBEntityLocalCreatedEventData => ({
+ 118 |   namespace: metadata.namespace,
+ 119 |   entity: metadata.name,
+ 120 |   type: (entity as unknown as RxDBChange).type,
+ 121 |   id: entity.id,
+ 122 |   patch: { ...entity } as EntityFull<EntityType>,
+ 123 |   inversePatch: null,
+ 124 |   recordAt: entity.createdAt
+ 125 | });
+ 126 | 
+ 127 | const handle_rxdb_change_table = async <T extends EntityType>(
+ 128 |   adapter: RxDBAdapterSqliteBase,
+ 129 |   result: InstanceType<T>[],
+ 130 |   event: SqliteChangeEvent,
+ 131 |   metadata: EntityMetadata
+ 132 | ): Promise<void> => {
+ 133 |   const entities = result as unknown as RxDBChange[];
+ 134 |   for (const change of entities) {
+ 135 |     if (!adapter.rxdb.schemaManager.getEntityMetadata(change.entity, change.namespace)) {
+ 136 |       console.warn(`Entity metadata not found for ${change.namespace}.${change.entity}`);
+ 137 |     }
+ 138 |   }
+ 139 | 
+ 140 |   if (event.type === SQLiteChangeType.SQLITE_INSERT) {
+ 141 |     // 必须等解密完成再派发元事件：两者的先后顺序是既有契约（实体事件在前）
+ 142 |     await emit_change_event(adapter, entities);
+ 143 |     const rxDBChangeEvent = entities.map(d => build_rxdb_change_meta_event(d as unknown as InstanceType<T>, metadata));
+ 144 |     adapter.rxdb.dispatchEvent(new EntityLocalCreatedEvent(rxDBChangeEvent));

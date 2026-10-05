@@ -1,0 +1,15 @@
+{
+  "packages/rxdb-plugin-replay-vue/LICENSE": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+  "packages/rxdb-plugin-replay-vue/README.md": "ae649c4ea05be7679263cf626fbc30c18eec7d978229b6295c295a677bfda7dd",
+  "packages/rxdb-plugin-replay-vue/eslint.config.mjs": "0965e587d6980e6a5392c9902eeeec0f2c92c7ef78b18393680d2532f71d2f19",
+  "packages/rxdb-plugin-replay-vue/package.json": "4f1b8a965313ac19fbe19200c6f72d30ce59c2dd005ce251d7765314443321af",
+  "packages/rxdb-plugin-replay-vue/project.json": "a9780fa6c9d75a9a9ce06ef9e0365b9be18b84474c29f810b38c17f6a6fd70ca",
+  "packages/rxdb-plugin-replay-vue/src/__tests__/replayer.spec.ts": "809c2a3b7f3933a2a7c6b04d95d12cd4a2c6883c34cf1809bdb93820f07434c4",
+  "packages/rxdb-plugin-replay-vue/src/index.ts": "54aae52d501e2c89277496b1e57ed33b9213711374252aebb0e7c116eaf5056f",
+  "packages/rxdb-plugin-replay-vue/src/replayer.ts": "31986e289db990112b9588e540c141a8dc9ae6046ab2e21c10b5779276bb2b84",
+  "packages/rxdb-plugin-replay-vue/src/vue-shims.d.ts": "9ad9de35bf115106578cc6de3415bca1e87238645997cce9697bf8ec716ac2b4",
+  "packages/rxdb-plugin-replay-vue/tsconfig.json": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+  "packages/rxdb-plugin-replay-vue/tsconfig.lib.json": "5e7762ac709effb1e66efc9ff31733ccbc3605500b63e74663bf41a9f73339b6",
+  "packages/rxdb-plugin-replay-vue/tsconfig.spec.json": "25992d66c728fbb5ac92e0f99dc4b68aa5cc8a014ca4edfdea3ec28a9c664284",
+  "packages/rxdb-plugin-replay-vue/vite.config.mts": "f00583dee5c66ea0390a5bf217854a6f11cccfdb3ec3a5c378feca3b2f433852"
+}

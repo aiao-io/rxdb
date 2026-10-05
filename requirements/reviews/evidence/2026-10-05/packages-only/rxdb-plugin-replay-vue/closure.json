@@ -1,0 +1,157 @@
+{
+  "object": "rxdb-plugin-replay-vue",
+  "worker": "PKG-replay-vue",
+  "date": "2026-10-05",
+  "completedAt": "2026-10-05T16:50:04.205821+08:00",
+  "sourceReviewComplete": true,
+  "opinionDeliveryComplete": true,
+  "sourceReviewStatus": "complete-original-scope",
+  "assessmentDeliveryStatus": "complete-original-scope",
+  "CConclusionIds": [
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5"
+  ],
+  "controlledFileCount": 13,
+  "lineCount": 572,
+  "rating": "🟡 凑合",
+  "ratingReason": "委托、清理和所有权边界清楚；首次函数ref seek存在已复现P2风险候选，且原场景/发布消费证据未全部核销。评审完成不等于修复/发布就绪。",
+  "scenarioValidationStatus": "partial-original-scope",
+  "releaseValidationStatus": "not-revalidated",
+  "remainingValidation": [
+    {
+      "id": "V1",
+      "C": [
+        "C1",
+        "C3",
+        "C4"
+      ],
+      "kind": "fix-and-regression",
+      "owner": "主控编号/去重；Vue Replay维护者修复",
+      "reason": "首次函数ref seek已有红/绿对照，尚未修复和正式编号。",
+      "scenarios": [
+        "首次函数ref seek(500)保持意图",
+        "多个初始化seek仅最后值生效",
+        "父onMounted调用保持正向行为",
+        "卸载后旧句柄不留下可重放意图"
+      ],
+      "evidence": "requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-vue/validation-observations.json"
+    },
+    {
+      "id": "V2",
+      "C": [
+        "C1",
+        "C4"
+      ],
+      "kind": "scenario",
+      "owner": "Vue Replay与Replay core维护者",
+      "reason": "原包10用例为mount spy；核心浏览器用例正文已读，但本轮未运行真实Vue到rrweb完整链路。",
+      "scenarios": [
+        "空recording/加载失败/切recording",
+        "双播放器独立宿主与卸载",
+        "ref/computed/readonly父子输入替换",
+        "加载中卸载和晚到结果、多root"
+      ],
+      "notRequired": [
+        "新增iframe支持",
+        "真设备矩阵",
+        "把深改门面内部状态当自动reload契约"
+      ]
+    },
+    {
+      "id": "V3",
+      "C": [
+        "C2"
+      ],
+      "kind": "scenario",
+      "owner": "Replay core与WorkingTree维护者；Vue层负责结果转发",
+      "reason": "源码已对照generation、当前凭据与restore委托；R3-06只核销合法真实PGlite恢复子面，未代验完整点击/并发矩阵。卸载不等于取消已开始的数据库restore。",
+      "scenarios": [
+        "Vue实际marker点击的dirty/unreachable/并发恢复序列",
+        "恢复中卸载不向旧UI回写；底层CAS/操作结果按原core合同",
+        "拒绝与reason=error提示正确转发"
+      ]
+    },
+    {
+      "id": "V4",
+      "C": [
+        "C3"
+      ],
+      "kind": "scenario",
+      "owner": "Vue Replay可访问性/组件维护者，核心控件维护者协同",
+      "reason": "公共API与共同DOM合同已源码对照；parity与本轮初始化spy不是真实键盘/尺寸/三端recording输出验收。",
+      "scenarios": [
+        "同recording/marker序列三端同语义结果",
+        "原生按钮/时间轴键盘操作及错误提示",
+        "宿主尺寸变化下控件与回放显示"
+      ],
+      "boundary": "只检原支持能力；Vue ref/expose、React ref与Angular实例不要求字面相同。"
+    },
+    {
+      "id": "V5",
+      "C": [
+        "C5"
+      ],
+      "kind": "release",
+      "owner": "本包发布/公开类型维护者",
+      "reason": "源manifest/Vite/dts/exports已读；旧真pack/root resolve不等于typed/runtime消费。原共享tsconfig已skipLibCheck=true，旧绿也不能覆盖探针或独立SFC负例。",
+      "scenarios": [
+        "最小独立Vue SFC consumer：ReplayerRef、props/emits正例与错误输入负例",
+        "readonly/computed模板来源消费",
+        "当前产物根ESM运行import与声明编译、peer实际版本对照"
+      ],
+      "boundary": "不扩为全框架/真设备/发布大矩阵；本轮不跑全量build/test/coverage，不改strict/依赖。"
+    }
+  ],
+  "confirmedIssues": [],
+  "confirmedIssuesDefinition": "仅列已经由主控正式去重编号的本包问题；本次复现事实见candidates。",
+  "candidates": [
+    {
+      "localKey": "PKG-replay-vue-init-seek",
+      "formalId": null,
+      "status": "reproduced-awaiting-controller-dedup-and-number",
+      "proposedSeverity": "P2",
+      "owner": "Vue Replay维护者；正式编号/与RV-070去重由主控",
+      "title": "首次函数ref回调的seek意图在core handle初始化前丢失",
+      "reproductionConfirmed": true,
+      "confirmationBoundary": "真实Vue 3.5.43 + happy-dom，组件到core边界spy；非真实rrweb/存储/发布运行",
+      "sourceAnchors": [
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue/src/replayer.ts:9-10",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue/src/replayer.ts:61-70",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue/src/replayer.ts:86-91",
+        "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue/README.md:61"
+      ],
+      "freshEvidence": "requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-vue/validation-observations.json",
+      "relatedExistingIssue": "RV-070仅确认React layout effect；本次Vue函数ref是独立复验场景，不直接移植编号",
+      "minimalFix": "只保留无handle期最后一次seek，建立handle后交给core；销毁时清意图，play/pause仍空操作。先留失败回归，不改用户API。"
+    }
+  ],
+  "findingsFile": "requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-vue/findings.md",
+  "fileInspection": "requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-vue/file-inspection.json",
+  "CConclusionsFile": "requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-vue/c-evidence.json",
+  "validationEvidence": "requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-replay-vue/validation-observations.json",
+  "freshExecutions": {
+    "nxTests": 1,
+    "uniqueCases": 2,
+    "passed": 1,
+    "failed": 1,
+    "skipped": 0,
+    "freshFullBuildTestCoverage": false,
+    "freshStrictTypecheck": false,
+    "freshReleaseValidation": false
+  },
+  "sourceUnchanged": true,
+  "originalTestsUnchanged": true,
+  "dependenciesOrIndexEdited": false,
+  "manualGitCommandsExecuted": false,
+  "gitWriteOperations": false,
+  "prescribedHelperGitInventory": "指定锁/进度脚本内建的只读SHA/受控清单检查；未手动执行Git或更改index/commit。",
+  "delegationUsed": false,
+  "nextPackageStarted": false,
+  "stopAfterCompletion": false,
+  "nextAuthorizedPackage": "code-editor-vue",
+  "singlePackageBoundaryEnforced": true,
+  "outputRoutingNote": "共享锁runner的绝对name末段为packages-only-replay-vue/init-ref-20261005-01，确保日志也只写本包evidence。"
+}

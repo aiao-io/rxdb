@@ -1,0 +1,158 @@
+packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts SHA256 052824127109070a4013c72429389c0e689bb356ad85165149e2287cb4f65a38 [380,536]
+ 380 |     const column = columnNames.get(key) ?? key;
+ 381 |     const claimer = claimedBy.get(column);
+ 382 |     if (claimer !== undefined) {
+ 383 |       throw new RxDBAdapterSqliteError(
+ 384 |         `QueryCache: entity "${entityName}" row gives column "${column}" twice, as "${claimer}" and "${key}"; use exactly one spelling per column`
+ 385 |       );
+ 386 |     }
+ 387 |     claimedBy.set(column, key);
+ 388 |   }
+ 389 | };
+ 390 | 
+ 391 | /**
+ 392 |  * 与后端无关的 SQLite adapter 基类。
+ 393 |  *
+ 394 |  * 子类负责实现 `createClient()` 与 `adapterName`。
+ 395 |  */
+ 396 | export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase implements IRxDBAdapter {
+ 397 |   #cached_client?: SqliteClientLike;
+ 398 |   /** 恢复到内存目标得到的连接，下一次建连时代替 `createClient()` 被接管。 */
+ 399 |   #adopted_client?: SqliteClientLike;
+ 400 |   #restoring = false;
+ 401 |   /** 持久化存储的共享锁：挡住连接期间的恢复与清理。 */
+ 402 |   #storage_lock?: RxDBBackupHeldLock;
+ 403 |   #row_id_map = new Map<EntityType, Map<RowId, InstanceType<EntityType>>>();
+ 404 |   #entity_row_id_map = new WeakMap<InstanceType<EntityType>, RowId>();
+ 405 |   #queue = new AsyncQueueExecutor(1);
+ 406 |   #client_promise?: Promise<SqliteClientLike>;
+ 407 |   #is_disconnected = false;
+ 408 |   #listeners_registered = false;
+ 409 |   #keyring: Keyring | null = null;
+ 410 |   #encryption_facade?: AdapterEncryptionFacade;
+ 411 |   #lifecycle_state: AdapterLifecycleState = 'bootstrap';
+ 412 |   #change_error_listeners = new Set<SqliteChangeErrorListener>();
+ 413 |   readonly #change_tasks = new Set<Promise<void>>();
+ 414 |   #sqlite_change_handler = proxy((event: SqliteChangeEvent) => {
+ 415 |     if (this.#is_disconnected) return;
+ 416 |     const task = handle_rxdb_change(this, event);
+ 417 |     this.#change_tasks.add(task);
+ 418 |     void task.then(
+ 419 |       () => this.#change_tasks.delete(task),
+ 420 |       error => {
+ 421 |         this.#change_tasks.delete(task);
+ 422 |         this.emitChangeError({ error, tableName: event.tableName, rowIds: event.rowIds, phase: 'process' });
+ 423 |       }
+ 424 |     );
+ 425 |   });
+ 426 | 
+ 427 |   abstract readonly name: string;
+ 428 | 
+ 429 |   /**
+ 430 |    * 创建或获取 SQLite 客户端。
+ 431 |    * 具体 adapter 用各自后端的逻辑实现此方法。
+ 432 |    */
+ 433 |   protected abstract createClient(): Promise<SqliteClientLike>;
+ 434 | 
+ 435 |   get encryptionContext(): EncryptionContext {
+ 436 |     return {
+ 437 |       keyring: this.#keyring,
+ 438 |       namespace: this.rxdb.config.dbName,
+ 439 |       resolveEntityMetadata: (entity, namespace) => this.rxdb.schemaManager.getEntityMetadata(entity, namespace)
+ 440 |     };
+ 441 |   }
+ 442 | 
+ 443 |   get encryption(): AdapterEncryptionFacade {
+ 444 |     if (this.#encryption_facade) return this.#encryption_facade;
+ 445 |     const getKeyring = (operation: string): Keyring => {
+ 446 |       if (!this.#keyring) throw this.#noEncryptedColumnsError(operation);
+ 447 |       return this.#keyring;
+ 448 |     };
+ 449 |     const facade: AdapterEncryptionFacade = {
+ 450 |       unlock: async (opts: UnlockOptions): Promise<void> => getKeyring('unlock').unlock(opts),
+ 451 |       lock: (): void => getKeyring('lock').lock(),
+ 452 |       isInitialized: (): Promise<boolean> => getKeyring('isInitialized').isInitialized(),
+ 453 |       get isLocked(): boolean {
+ 454 |         return getKeyring('isLocked').isLocked;
+ 455 |       },
+ 456 |       get lockChange$(): Observable<boolean> {
+ 457 |         return getKeyring('lockChange$').lockChange$;
+ 458 |       }
+ 459 |     };
+ 460 |     this.#encryption_facade = facade;
+ 461 |     return facade;
+ 462 |   }
+ 463 | 
+ 464 |   constructor(rxdb: RxDB, options?: SqliteBaseOptions) {
+ 465 |     super(rxdb);
+ 466 |     if (options?.repositories) {
+ 467 |       Object.keys(options.repositories).forEach(name => {
+ 468 |         this.repository(name, options.repositories![name]);
+ 469 |       });
+ 470 |     }
+ 471 |     this.repository('Repository', SqliteRepository);
+ 472 |     this.repository('TreeRepository', SqliteTreeRepository);
+ 473 |   }
+ 474 | 
+ 475 |   /**
+ 476 |    * 判定一个落库值是否已处于加密后的 at-rest 形态（FR-038）。
+ 477 |    *
+ 478 |    * @param value - 落库列里的值
+ 479 |    * @returns 是信封串时为 `true`
+ 480 |    *
+ 481 |    * @remarks
+ 482 |    * 权威判定器只有一份，就是 `@aiao/rxdb-adapter-encrypted` 的 `isEnvelope`——本方法是
+ 483 |    * 核心那个可选槽位（{@link RxDBAdapterLocalBase.isEncryptedAtRest}）到它的一句转发，
+ 484 |    * 不在这里另认一套形状。`@aiao/rxdb` 不能依赖加密包（依赖方向是反的），所以这一句
+ 485 |    * 只能落在适配器侧。
+ 486 |    */
+ 487 |   override isEncryptedAtRest(value: unknown): boolean {
+ 488 |     return isEnvelope(value);
+ 489 |   }
+ 490 | 
+ 491 |   /**
+ 492 |    * 订阅变更处理失败。
+ 493 |    *
+ 494 |    * @param listener - 收到 {@link SqliteChangeErrorEvent} 的回调，异常会被隔离
+ 495 |    *
+ 496 |    * @remarks
+ 497 |    * 只要注册了监听器，默认的 `console.error` 降级就交给监听器接管（SQLC-012）。
+ 498 |    */
+ 499 |   addChangeErrorListener(listener: SqliteChangeErrorListener): void {
+ 500 |     this.#change_error_listeners.add(listener);
+ 501 |   }
+ 502 | 
+ 503 |   /**
+ 504 |    * 取消 {@link addChangeErrorListener} 的订阅。
+ 505 |    *
+ 506 |    * @param listener - 注册时传入的同一个函数引用
+ 507 |    */
+ 508 |   removeChangeErrorListener(listener: SqliteChangeErrorListener): void {
+ 509 |     this.#change_error_listeners.delete(listener);
+ 510 |   }
+ 511 | 
+ 512 |   /**
+ 513 |    * 报告一次变更处理失败。
+ 514 |    *
+ 515 |    * @param event - 失败详情
+ 516 |    *
+ 517 |    * @remarks
+ 518 |    * 由变更处理管线（`handle_rxdb_change`）调用，不面向应用代码。本方法**永不抛出**：
+ 519 |    * 它所在的路径没有调用方能接住异常，抛出只会变成 unhandled rejection。
+ 520 |    */
+ 521 |   emitChangeError(event: SqliteChangeErrorEvent): void {
+ 522 |     if (this.#change_error_listeners.size === 0) {
+ 523 |       const reason =
+ 524 |         event.phase === 'query' ?
+ 525 |           `Failed to query ${event.tableName} change (rowIds: ${event.rowIds})`
+ 526 |         : `Error processing ${event.tableName} change event`;
+ 527 |       console.error(`[rxdb-adapter-sqlite-core] ${reason}:`, event.error);
+ 528 |       return;
+ 529 |     }
+ 530 |     // 快照迭代：监听器里增删监听器不影响本次派发
+ 531 |     for (const listener of Array.from(this.#change_error_listeners)) {
+ 532 |       try {
+ 533 |         listener(event);
+ 534 |       } catch (listenerError) {
+ 535 |         console.error('[rxdb-adapter-sqlite-core] change-error listener threw:', listenerError);
+ 536 |       }

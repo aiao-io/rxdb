@@ -1,0 +1,176 @@
+--- packages/rxdb-plugin-replay-vue/tsconfig.json SHA256=771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd lines=16 FULL TEXT ---
+   1 {
+   2   "compilerOptions": {
+   3     "ignoreDeprecations": "6.0"
+   4   },
+   5   "extends": "../../tsconfig.base.json",
+   6   "files": [],
+   7   "include": [],
+   8   "references": [
+   9     {
+  10       "path": "./tsconfig.lib.json"
+  11     },
+  12     {
+  13       "path": "./tsconfig.spec.json"
+  14     }
+  15   ]
+  16 }
+--- packages/rxdb-plugin-replay-vue/tsconfig.lib.json SHA256=5e7762ac709effb1e66efc9ff31733ccbc3605500b63e74663bf41a9f73339b6 lines=41 FULL TEXT ---
+   1 {
+   2   "compilerOptions": {
+   3     "outDir": "dist",
+   4     "types": ["vite/client"],
+   5     "rootDir": "src",
+   6     "jsx": "preserve",
+   7     "jsxImportSource": "vue",
+   8     "module": "esnext",
+   9     "moduleResolution": "bundler",
+  10     "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo"
+  11   },
+  12   "exclude": [
+  13     "out-tsc",
+  14     "dist",
+  15     "src/**/__tests__/*",
+  16     "src/**/*.spec.vue",
+  17     "src/**/*.test.vue",
+  18     "vite.config.ts",
+  19     "vite.config.mts",
+  20     "vitest.config.ts",
+  21     "vitest.config.mts",
+  22     "src/**/*.test.ts",
+  23     "src/**/*.spec.ts",
+  24     "src/**/*.test.tsx",
+  25     "src/**/*.spec.tsx",
+  26     "src/**/*.test.js",
+  27     "src/**/*.spec.js",
+  28     "src/**/*.test.jsx",
+  29     "src/**/*.spec.jsx",
+  30     "eslint.config.js",
+  31     "eslint.config.cjs",
+  32     "eslint.config.mjs"
+  33   ],
+  34   "extends": "../../tsconfig.base.json",
+  35   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx", "src/**/*.vue"],
+  36   "references": [
+  37     {
+  38       "path": "../rxdb-plugin-replay/tsconfig.lib.json"
+  39     }
+  40   ]
+  41 }
+--- packages/rxdb-plugin-replay-vue/tsconfig.spec.json SHA256=25992d66c728fbb5ac92e0f99dc4b68aa5cc8a014ca4edfdea3ec28a9c664284 lines=32 FULL TEXT ---
+   1 {
+   2   "compilerOptions": {
+   3     "outDir": "./out-tsc/vitest",
+   4     "types": ["vitest/globals", "vitest/importMeta", "vite/client", "node", "vitest"],
+   5     "jsx": "preserve",
+   6     "jsxImportSource": "vue",
+   7     "module": "esnext",
+   8     "moduleResolution": "bundler",
+   9     "rootDir": "."
+  10   },
+  11   "extends": "../../tsconfig.base.json",
+  12   "include": [
+  13     "vite.config.ts",
+  14     "vite.config.mts",
+  15     "vitest.config.ts",
+  16     "vitest.config.mts",
+  17     "src/**/*.test.ts",
+  18     "src/**/*.spec.ts",
+  19     "src/**/*.test.tsx",
+  20     "src/**/*.spec.tsx",
+  21     "src/**/*.test.js",
+  22     "src/**/*.spec.js",
+  23     "src/**/*.test.jsx",
+  24     "src/**/*.spec.jsx",
+  25     "src/**/*.d.ts"
+  26   ],
+  27   "references": [
+  28     {
+  29       "path": "./tsconfig.lib.json"
+  30     }
+  31   ]
+  32 }
+--- packages/rxdb-plugin-replay-vue/vite.config.mts SHA256=f00583dee5c66ea0390a5bf217854a6f11cccfdb3ec3a5c378feca3b2f433852 lines=83 FULL TEXT ---
+   1 /// <reference types='vitest' />
+   2 import { codecovVitePlugin } from '@codecov/vite-plugin';
+   3 import vue from '@vitejs/plugin-vue';
+   4 import path from 'node:path';
+   5 import { defineConfig } from 'vite';
+   6 import dts from 'vite-plugin-dts';
+   7 
+   8 export default defineConfig(({ mode }) => ({
+   9   root: import.meta.dirname,
+  10   cacheDir: './node_modules/.vite',
+  11   ...(mode === 'test' ?
+  12     {
+  13       resolve: {
+  14         alias: {
+  15           vue: path.resolve(import.meta.dirname, '../../node_modules/vue')
+  16         },
+  17         dedupe: ['vue']
+  18       }
+  19     }
+  20   : {}),
+  21   plugins: [
+  22     vue(),
+  23     dts({
+  24       aliasesExclude: [/^@aiao\//],
+  25       compilerOptions: { composite: false },
+  26       entryRoot: 'src',
+  27       pathsToAliases: false,
+  28       tsconfigPath: path.join(import.meta.dirname, 'tsconfig.lib.json')
+  29     }),
+  30     // Codecov Bundle Analysis - 仅在 CI 环境中启用
+  31     ...(process.env.CI === 'true' && process.env.CODECOV_TOKEN ?
+  32       [
+  33         codecovVitePlugin({
+  34           enableBundleAnalysis: true,
+  35           telemetry: false,
+  36           bundleName: 'rxdb-plugin-replay-vue',
+  37           uploadToken: process.env.CODECOV_TOKEN
+  38         })
+  39       ]
+  40     : [])
+  41   ],
+  42   // 库构建配置。
+  43   // See: https://vite.dev/guide/build.html#library-mode
+  44   build: {
+  45     outDir: './dist',
+  46     emptyOutDir: true,
+  47     reportCompressedSize: true,
+  48     sourcemap: false,
+  49     commonjsOptions: {
+  50       transformMixedEsModules: true
+  51     },
+  52     lib: {
+  53       entry: 'src/index.ts',
+  54       name: '@aiao/rxdb-plugin-replay-vue',
+  55       fileName: 'index',
+  56       formats: ['es' as const]
+  57     },
+  58     rolldownOptions: {
+  59       // dts 插件生成声明文件天然比 Rolldown 原生链接阶段慢，抑制误报的 PLUGIN_TIMINGS 警告
+  60       checks: { pluginTimings: false },
+  61       // 不打进库里的外部依赖。
+  62       external: ['vue', /^@aiao\//]
+  63     }
+  64   },
+  65   test: {
+  66     name: 'rxdb-plugin-replay-vue',
+  67     watch: false,
+  68     globals: true,
+  69     environment: 'happy-dom',
+  70     include: ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+  71     reporters: ['default', 'junit'],
+  72     outputFile: {
+  73       junit: '../../coverage/packages/rxdb-plugin-replay-vue/junit.xml'
+  74     },
+  75     coverage: {
+  76       enabled: true,
+  77       reportsDirectory: '../../coverage/packages/rxdb-plugin-replay-vue',
+  78       provider: 'v8' as const,
+  79       reporter: ['text', 'json', 'json-summary', 'clover', 'lcovonly', 'html'],
+  80       include: ['src/**/*']
+  81     }
+  82   }
+  83 }));

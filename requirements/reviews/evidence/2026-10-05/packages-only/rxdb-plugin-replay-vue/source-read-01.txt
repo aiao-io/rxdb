@@ -1,0 +1,115 @@
+--- packages/rxdb-plugin-replay-vue/src/replayer.ts SHA256=31986e289db990112b9588e540c141a8dc9ae6046ab2e21c10b5779276bb2b84 lines=95 FULL TEXT ---
+   1 import {
+   2   mountReplayer,
+   3   type ReplayerCommitRestoreEvent,
+   4   type ReplayerHandle,
+   5   type ReplayerOptions
+   6 } from '@aiao/rxdb-plugin-replay';
+   7 import { defineComponent, h, onBeforeUnmount, onMounted, toRaw, useTemplateRef, watch, type PropType } from 'vue';
+   8 
+   9 /** 经模板 `ref` 拿到的命令（`expose`）；加载完成前调用是空操作（`seek` 会记下目标时刻）。 */
+  10 export type ReplayerRef = Pick<ReplayerHandle, 'play' | 'pause' | 'seek'>;
+  11 
+  12 type ReplayerInputs = Pick<ReplayerOptions, 'replay' | 'sessionId' | 'initialTime'>;
+  13 
+  14 /** 只挑出变化了的输入；都没变返回 `undefined`。 */
+  15 const changedInputs = (previous: ReplayerInputs, next: ReplayerInputs): Partial<ReplayerInputs> | undefined => {
+  16   const changes: { -readonly [K in keyof ReplayerInputs]?: ReplayerInputs[K] } = {};
+  17   if (next.replay !== previous.replay) changes.replay = next.replay;
+  18   if (next.sessionId !== previous.sessionId) changes.sessionId = next.sessionId;
+  19   if (next.initialTime !== previous.initialTime) changes.initialTime = next.initialTime;
+  20   return Object.keys(changes).length > 0 ? changes : undefined;
+  21 };
+  22 
+  23 /**
+  24  * 会话回放组件：在根 `div` 上挂核心的 `mountReplayer`，props 变化走 `update()`，卸载前 `destroy()`。
+  25  *
+  26  * @remarks
+  27  * 与 Angular `ao-replayer`、React `Replayer` 同一组输入 / 输出 / 命令（contracts/replayer-component.md §3），由 parity 用例保证。
+  28  * 事件：`time-change`（回放时刻，ms）、`commit-restore`（{@link ReplayerCommitRestoreEvent}）。
+  29  * `rrweb` 在核心视图里按需 `import()`，挂载这个组件之前不进包。
+  30  *
+  31  * @example
+  32  * ```vue
+  33  * <Replayer ref="replayer" :replay="rxdb.replay" :session-id="sessionId" @commit-restore="event => log(event.result)" />
+  34  * ```
+  35  */
+  36 export const Replayer = defineComponent({
+  37   name: 'Replayer',
+  38   props: {
+  39     /** 录制门面（`rxdb.replay`）。换实例会重新加载。 */
+  40     replay: { type: Object as PropType<ReplayerOptions['replay']>, required: true },
+  41     /** 要回放的会话。换会话会重新加载，不重建组件。 */
+  42     sessionId: { type: String, required: true },
+  43     /** 加载完成后落到的时刻（相对会话起点的 ms，默认 0）；之后再改等价于 `seek()`。 */
+  44     initialTime: { type: Number, default: undefined }
+  45   },
+  46   emits: {
+  47     'time-change': (timeMs: number) => Number.isFinite(timeMs),
+  48     'commit-restore': (event: ReplayerCommitRestoreEvent) => event.marker !== undefined
+  49   },
+  50   setup(props, { emit, expose }) {
+  51     const host = useTemplateRef<HTMLDivElement>('host');
+  52     let handle: ReplayerHandle | undefined;
+  53     let applied: ReplayerInputs | undefined;
+  54     // 父组件把门面放进 ref() / reactive() 时拿到的是代理；核心视图要原对象（门面有私有字段，也按引用比较是否换了实例）
+  55     const readInputs = (): ReplayerInputs => ({
+  56       replay: toRaw(props.replay),
+  57       sessionId: props.sessionId,
+  58       initialTime: props.initialTime
+  59     });
+  60 
+  61     onMounted(() => {
+  62       const element = host.value;
+  63       if (!element) return;
+  64       applied = readInputs();
+  65       handle = mountReplayer(element, {
+  66         ...applied,
+  67         onTimeChange: timeMs => emit('time-change', timeMs),
+  68         onCommitRestore: event => emit('commit-restore', event)
+  69       });
+  70     });
+  71 
+  72     watch(readInputs, next => {
+  73       if (!handle || !applied) return;
+  74       const changes = changedInputs(applied, next);
+  75       if (!changes) return;
+  76       applied = next;
+  77       handle.update(changes);
+  78     });
+  79 
+  80     onBeforeUnmount(() => {
+  81       handle?.destroy();
+  82       handle = undefined;
+  83       applied = undefined;
+  84     });
+  85 
+  86     const exposed: ReplayerRef = {
+  87       play: () => handle?.play(),
+  88       pause: () => handle?.pause(),
+  89       seek: timeMs => handle?.seek(timeMs)
+  90     };
+  91     expose(exposed);
+  92 
+  93     return () => h('div', { ref: 'host' });
+  94   }
+  95 });
+--- packages/rxdb-plugin-replay-vue/src/index.ts SHA256=54aae52d501e2c89277496b1e57ed33b9213711374252aebb0e7c116eaf5056f lines=12 FULL TEXT ---
+   1 /**
+   2  * rxdb-plugin-replay-vue - Vue 会话回放组件
+   3  *
+   4  * 提供 {@link Replayer}，把 `@aiao/rxdb-plugin-replay` 的 `mountReplayer` 包成 props / emits / `expose` 的组件。
+   5  * 与 Angular `ao-replayer`、React `Replayer` 同一组输入 / 输出 / 命令（contracts/replayer-component.md §3）。
+   6  *
+   7  * @packageDocumentation
+   8  */
+   9 
+  10 // 只再导出组件事件类型与恢复提示文案，其余 core 成员从 `@aiao/rxdb-plugin-replay`（peer）直接 import
+  11 export { replayRestoreHint, type ReplayerCommitRestoreEvent } from '@aiao/rxdb-plugin-replay';
+  12 export { Replayer, type ReplayerRef } from './replayer.js';
+--- packages/rxdb-plugin-replay-vue/src/vue-shims.d.ts SHA256=9ad9de35bf115106578cc6de3415bca1e87238645997cce9697bf8ec716ac2b4 lines=5 FULL TEXT ---
+   1 declare module '*.vue' {
+   2   import { defineComponent } from 'vue';
+   3   const component: ReturnType<typeof defineComponent>;
+   4   export default component;
+   5 }

@@ -5,6 +5,11 @@ source_root: packages/rxdb-adapter-sqlite-core
 created: 2026-10-03
 baseline: 2e820521187cbfcd1fe76fb705659fea0a548f0e
 execution: in-progress
+source-review: in-progress-original-scope
+assessment-delivery: partial-checkpoint
+scene-validation: focused-red-probes-only
+release-validation: not-in-this-task
+packages-only-evidence: requirements/reviews/evidence/2026-10-05/packages-only/rxdb-adapter-sqlite-core
 ---
 
 # rxdb-adapter-sqlite-core：深度评审计划
@@ -195,3 +200,12 @@ pnpm audit:coverage --projects=rxdb-adapter-sqlite-core
 | C8  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/scripts/run-coverage-acceptance.mjs:15–27,52–69`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/__tests__/encrypted-bigint-binary.spec.ts:1–5`                                                                               | 验收脚本列 core/wa-sqlite/sqlite/sqlite-wasm/sqliteai 五套、四浏览器 suite、四指标 80% 门槛；普通 test 不等于 acceptance 的 blob/合并验收。未重建 writer lease 或 rowsAffectedConformanceSuite。 | 未核销    | coverage-acceptance 未执行；合并/测量面完整重读与所有 conformance 调用点（含 Tauri）未穷举；不能用库存旧 coverage 过门槛。 |
 
 请求/动态日志与阅读记录均由 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters` 保留。三个新增回归的 late lint/typecheck、完整测量面/宿主/持久化及发布闭合按实际待证留阻断；主控统一追加后续结果，不在这里预支通过。
+
+
+## PKG-sqlite-core packages-only checkpoint（2026-10-05，非完成）
+
+- 冻结原范围179文件 / 54,621行，包含全部测试/fixture/config/docs；`scope.json` 与 `resolved-project.json` 已存在并核对。旧盘点174文件为历史。
+- 只审本包；新增 probe 仅在独占 evidence 内，没有改业务、原测试、index 或依赖，没有 Git 改写或派 agent。
+- 当前实读进度见本包 `file-inspection.json`；明确旧 requested/truncated ranges 不作为已实读复用。哈希/目录盘点不是阅读。
+- 新确认意见 SC-PKG-001（P1，加密 Id 后缀明文旁路）、SC-PKG-002（P2，事务终结事件内 executor 仍 active）见本包 `findings.md`；候选与未测分列，由主控最终去重 RV。RV066/067 已修不复报；非 public QueryCache 刷新/删除归已有 RV061。
+- **source-review 仍 in-progress-original-scope；assessment-delivery 为 partial-checkpoint。** 不能据上述局部证据把179文件或原C1–C8记完成。场景/发布验证另列，不把后端全矩阵、真设备或发布门禁作为交付局部源码意见的先决条件。

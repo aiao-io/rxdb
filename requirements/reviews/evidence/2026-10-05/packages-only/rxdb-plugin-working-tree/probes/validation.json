@@ -1,0 +1,22 @@
+{
+  "object": "rxdb-plugin-working-tree",
+  "owner": "PKG-working-tree",
+  "exclusiveProbe": "packages/rxdb-plugin-working-tree/src/__tests__/review-packages-20261005-working-tree-quoted-table-PKG.spec.ts",
+  "probeSha256": "79d2eddb8bc6fb00a6aad0ab08f23375e0c710dd7d58e9f05b41c99676892946",
+  "snapshot": "probes/quoted-table-red.spec.ts.snapshot",
+  "red": {
+    "passed": 1,
+    "failed": 3,
+    "errorKind": "assertion failures: tracked quoted-name writes actually executed; not setup/collection failure",
+    "coverageAcceptance": false,
+    "backendBound": "node:sqlite in-memory SQL executability behind public plugin gate, not a full adapter/RxDB conformance suite"
+  },
+  "lint": {
+    "exitCode": 0,
+    "maxWarnings": 0,
+    "scope": "exclusive probe only"
+  },
+  "strictTypecheck": "not executed; not inferred from Vitest transform",
+  "nodeVersion": "v26.7.0",
+  "originalControlledScopeChangedDuringValidation": false
+}

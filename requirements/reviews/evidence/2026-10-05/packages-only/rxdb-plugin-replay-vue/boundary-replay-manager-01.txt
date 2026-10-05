@@ -1,0 +1,116 @@
+--- packages/rxdb-plugin-replay/src/manager.ts SHA256=24bc1d582819f78ac3db4d14d50868164dd0e8c4f438f44772c040f059cd762f lines=337 read=1-115 ---
+   1 import type { RxDB } from '@aiao/rxdb';
+   2 import type { LifecycleScope } from '@aiao/utils';
+   3 import type { eventWithTime } from '@rrweb/types';
+   4 import type { BehaviorSubject, Subscription } from 'rxjs';
+   5 import { RxDBReplayError } from './errors.js';
+   6 import { createReplayMarkerEvent, parseReplayMarker, REPLAY_MARKER_TAGS } from './markers.js';
+   7 import type { ResolvedReplayOptions } from './options.js';
+   8 import { ReplayRecorder, type ReplayRecorderEnd, type ReplayRecordFn } from './recorder.js';
+   9 import { hasWorkingTree, restoreToCommit } from './restore.js';
+  10 import {
+  11   claimReplayStash,
+  12   replayStashKey,
+  13   unwrittenStashEvents,
+  14   writeReplayStash,
+  15   type ReplayStash
+  16 } from './resume.js';
+  17 import { ReplayStore, toInfo, type ReplayEventEntry } from './store.js';
+  18 import type {
+  19   ReplayCommitMarker,
+  20   ReplayEventRange,
+  21   ReplayRestoreResult,
+  22   ReplaySessionExport,
+  23   ReplaySessionInfo,
+  24   ReplayState,
+  25   ReplayUsage
+  26 } from './types.js';
+  27 
+  28 /** 按需加载 rrweb 的 `record`：录制开关关着的应用不该为它多下载一个字节。 */
+  29 export const loadRrwebRecord = async (): Promise<ReplayRecordFn> => (await import('rrweb')).record;
+  30 
+  31 /** {@link ReplayRuntime} 的构造参数。 */
+  32 export interface ReplayRuntimeOptions {
+  33   readonly rxdb: RxDB;
+  34   readonly options: ResolvedReplayOptions;
+  35   /** 门面持有的状态流；运行时只往里推值，完成它是门面的事。 */
+  36   readonly state: BehaviorSubject<ReplayState>;
+  37 }
+  38 
+  39 /** 页面级全局：浏览器主线程里就是 `window`。 */
+  40 type PageGlobal = typeof globalThis &
+  41   Partial<Pick<Window, 'sessionStorage' | 'addEventListener' | 'removeEventListener'>>;
+  42 
+  43 /**
+  44  * `sessionStorage`，拿不到时为 `null`。
+  45  *
+  46  * @remarks
+  47  * 经 `globalThis` 而不是 `window` 取：浏览器里两者是同一个对象，而 Worker / Node 里没有 `window`。
+  48  * 沙箱 iframe 与关了存储的浏览器里，**读** `sessionStorage` 这个属性本身就会抛 `SecurityError`。
+  49  * 那时只是没有刷新续录，录制本身照常。
+  50  */
+  51 const pageStorage = (): Storage | null => {
+  52   const page = globalThis as PageGlobal;
+  53   if (typeof page.addEventListener !== 'function') return null;
+  54   try {
+  55     return page.sessionStorage ?? null;
+  56   } catch {
+  57     return null;
+  58   }
+  59 };
+  60 
+  61 /**
+  62  * 一个连接纪元里的 `rxdb.replay`：录制库、录制器、刷新续录与页面生命周期都挂在这里。
+  63  *
+  64  * @remarks
+  65  * 纪元释放时由作用域的拆卸调用 {@link ReplayRuntime.release}：停录制 → 冲刷 → 销毁录制库。
+  66  * 下一个纪元新建一个运行时，旧的不复用——录制库与录制器都跟着纪元走。
+  67  */
+  68 export class ReplayRuntime {
+  69   readonly #rxdb: RxDB;
+  70   readonly #options: ResolvedReplayOptions;
+  71   readonly #state: BehaviorSubject<ReplayState>;
+  72   readonly #store: ReplayStore;
+  73   readonly #storage: Storage | null = pageStorage();
+  74   readonly #stashKey: string;
+  75   #recorder: ReplayRecorder | null = null;
+  76   #commits: Subscription | null = null;
+  77   /** 进行中的 `start()`；`stop()` 与释放都要等它落定。 */
+  78   #starting: Promise<unknown> | null = null;
+  79   #stopping: Promise<void> | null = null;
+  80   /** 安装时认领到暂存后在后台跑的续录。 */
+  81   #resuming: Promise<void> = Promise.resolve();
+  82   #released = false;
+  83 
+  84   constructor(options: ReplayRuntimeOptions) {
+  85     this.#rxdb = options.rxdb;
+  86     this.#options = options.options;
+  87     this.#state = options.state;
+  88     this.#store = new ReplayStore({
+  89       createRecordingDb: options.options.createRecordingDb,
+  90       limits: options.options.limits
+  91     });
+  92     this.#stashKey = replayStashKey(options.rxdb.config.dbName);
+  93   }
+  94 
+  95   /**
+  96    * 挂页面生命周期，认领刷新暂存（有就在后台续录）。
+  97    *
+  98    * @remarks
+  99    * 认领是同步的：键必须在本页第一次 `pagehide` 之前删掉，否则这一页的暂存会和上一页的混在同一个键里。
+ 100    */
+ 101   install(scope: LifecycleScope): void {
+ 102     const storage = this.#storage;
+ 103     if (storage === null) return;
+ 104     scope.acquire(() => this.#watchPage(storage), 'replay:page-lifecycle');
+ 105     const claim = claimReplayStash(storage, this.#stashKey);
+ 106     if (claim.kind === 'invalid') {
+ 107       this.#state.next({ kind: 'error', sessionId: claim.sessionId, error: claim.error });
+ 108       return;
+ 109     }
+ 110     if (claim.kind === 'stash') this.#resuming = this.#resumeOrReport(claim.stash);
+ 111   }
+ 112 
+ 113   /**
+ 114    * 开始录一个新会话。
+ 115    *

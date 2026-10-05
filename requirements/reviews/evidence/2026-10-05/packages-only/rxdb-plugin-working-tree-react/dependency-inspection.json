@@ -1,0 +1,117 @@
+{
+  "object": "rxdb-plugin-working-tree-react",
+  "coreAlreadyReviewedByAnotherAgent": true,
+  "notAdditionalPackageDeliveries": true,
+  "files": [
+    {
+      "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+      "sha256": "cd685b7781f81e1aa4d68eabd5be2b0d44f4b430a8b23d8dd2e47157ae6edbca",
+      "readRanges": [
+        [
+          56,
+          109
+        ],
+        [
+          125,
+          137
+        ],
+        [
+          161,
+          175
+        ],
+        [
+          205,
+          229
+        ]
+      ],
+      "role": "read-dependency-contract-ranges",
+      "notes": "十二签名、缺插件显式守卫、每commands实例独立sink generation与status刷新语义；不重审核心全包。"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts",
+      "sha256": "8919cb6f169de97a1cd060a8cf337aabbb6f2f3574abfdf227f4e146d46eb16a",
+      "readRanges": [
+        [
+          134,
+          186
+        ]
+      ],
+      "role": "read-dependency-type-contract",
+      "notes": "十二状态与冻结初值，Resource共享该类型。"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree/src/working-tree/diff.ts",
+      "sha256": "75b0b87ffcb59cd25c75ec22504f4ee8cde20c2ca82fc8437edc86c41b5555d0",
+      "readRanges": [
+        [
+          70,
+          137
+        ]
+      ],
+      "role": "read-dependency-type-contract",
+      "notes": "diff entries含patch/inversePatch；不将完整值接口误称脱敏摘要，不审数据层实现。"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree/src/working-tree/testing/use-working-tree-fixtures.ts",
+      "sha256": "0fde51350dbe2100f288b639cab50167cc2c6627b1f6117705805af97dc81345",
+      "readRanges": [
+        [
+          276,
+          303
+        ]
+      ],
+      "role": "read-dependency-test-boundary",
+      "notes": "IO方法vi.fn且假的rxdb对象类型断言；不拥有事务/SQL/CAS数据库。"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-angular/src/index.ts",
+      "sha256": "621fad7bc03e7b8077d49c66017e8ef7340d4ed2365968f011ad727541d3b020",
+      "readRanges": [
+        [
+          1,
+          17
+        ]
+      ],
+      "role": "read-dependency-entry",
+      "notes": "根共享hook/type同名对照，不是Angular全文评审。"
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-vue/src/index.ts",
+      "sha256": "16ff00ab8ca489f33e127d668aea888ac597f94c5ac2d97dfae71deeb8f8e0ea",
+      "readRanges": [
+        [
+          1,
+          17
+        ]
+      ],
+      "role": "read-dependency-entry",
+      "notes": "根共享hook/type同名对照，不是Vue全文评审。"
+    },
+    {
+      "path": "tsconfig.base.json",
+      "sha256": "8d5028a97a8d71342a2796b1a4900349004ef778ba04e07917b1a094e18f01ab",
+      "readRanges": [
+        [
+          117,
+          125
+        ]
+      ],
+      "role": "read-inherited-config-ranges",
+      "notes": "strict:true且原有skipLibCheck/skipDefaultLibCheck:true，未降低选项。"
+    },
+    {
+      "path": "requirements/api-baseline/rxdb-plugin-working-tree-react.json",
+      "sha256": "ca9745cfd969deb55bce9c834ecceb9c2f2fadcd239dffeb256d3763afe35204",
+      "readRanges": [
+        [
+          1,
+          14
+        ]
+      ],
+      "role": "read-api-baseline",
+      "notes": "hook value与resource type两符号一致。"
+    }
+  ],
+  "triFrameworkBoundary": "只对照根入口与React借用核心类型；未宣称另外两端真实状态/拒绝序列验收通过。",
+  "providerFingerprintOnly": "packages/rxdb-react/src/rxdb-react.tsx仅核对历史失败输入SHA，未作源码全文审阅。"
+}

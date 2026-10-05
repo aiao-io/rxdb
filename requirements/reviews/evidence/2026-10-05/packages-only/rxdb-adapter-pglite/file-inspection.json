@@ -1,0 +1,2208 @@
+{
+  "object": "rxdb-adapter-pglite",
+  "worker": "PKG-pglite",
+  "status": "in-progress",
+  "method": "分片编号正文输出后人工核对接收；hash/清单不作全文证据",
+  "files": [
+    {
+      "path": "packages/rxdb-adapter-pglite/.gitignore",
+      "sha256": "03aa0aa73ee6331cf17331e7ff16263da7285c7fee793154a64fd264b0aef086",
+      "lineCount": 1,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          1
+        ]
+      ],
+      "notes": "仅忽略截图，不排除原测试或产物输入；全文1行，无新增风险。",
+      "C": [
+        "C7"
+      ],
+      "acceptedParts": [
+        1
+      ],
+      "lastReviewedAt": "2026-10-05T16:20:57.188447+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "lineCount": 21,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          21
+        ]
+      ],
+      "notes": "MIT授权/版权/免责全文21行；发布须带版权许可，manifest已声明MIT；不把同字节hash当功能验证。",
+      "C": [
+        "C6"
+      ],
+      "acceptedParts": [
+        1
+      ],
+      "lastReviewedAt": "2026-10-05T16:20:57.188719+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/README.md",
+      "sha256": "9120111a65cb216923b430c678e4da4d264292b029e5dd606cfc68b8f44d7892",
+      "lineCount": 125,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          125
+        ]
+      ],
+      "notes": "已读125行安装/事务/backup/restore；memory示例明确非持久化，idb独占世代、marker、auth域和unsupported档位有文档。备份底层两锁/FS兼容性须沿实现核对；体积和所有错误声明不是本轮动态验收。",
+      "C": [
+        "C4",
+        "C5",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        1,
+        2
+      ],
+      "lastReviewedAt": "2026-10-05T16:20:57.189067+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/eslint.config.mjs",
+      "sha256": "bb1ddf067ce062d486bcbd6a7590727376bf9900bcfe433040b6f3f9dc5498ce",
+      "lineCount": 23,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          23
+        ]
+      ],
+      "notes": "JSON依赖检查只忽略工具config/rxdb-test，不关闭业务规则；继承根ESLint，规则全文核对，不据此声称零警告已跑。",
+      "C": [
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        2
+      ],
+      "lastReviewedAt": "2026-10-05T16:20:57.189266+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/package.json",
+      "sha256": "94eb1d1828c3625b1707680cf1570406ffb5b6b63446ca026a5d90c4120320cc",
+      "lineCount": 94,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          94
+        ]
+      ],
+      "notes": "exports根/testing/fts的声明与ESM配对；排除原__tests__，Tree为optional peer且dev提供，worker资源须构建核对；test parallelism=false。源码发布dist+src，不修改manifest。",
+      "C": [
+        "C4",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        2
+      ],
+      "lastReviewedAt": "2026-10-05T16:20:57.189322+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/project.json",
+      "sha256": "b9c2845874b7bc2902555bda74df27c0d417e79e3d76cde13f184e167a372881",
+      "lineCount": 23,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          23
+        ]
+      ],
+      "notes": "test依赖^build及test-node且params ignore；test-node仅migration spec在Node中，无browser/full coverage代证；typecheck前置build及依赖检查，必要聚焦复验须显式排除不必要依赖矩阵。",
+      "C": [
+        "C3",
+        "C7"
+      ],
+      "acceptedParts": [
+        2
+      ],
+      "lastReviewedAt": "2026-10-05T16:20:57.189365+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/PGliteClient.ts",
+      "sha256": "2c00dd0f24da3a55ca8a696d8ea4adf17e12e85f739e26a9a2afda18ac9629f5",
+      "lineCount": 688,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          688
+        ]
+      ],
+      "notes": "全文688行已读：memory/idb与OPFS-Worker分路，restoredDatabase一次领取；init/close用lifecycle队列及世代串行，listen失败force清理，flush失败仍close并DURABILITY_LOST，解绑监听/终止worker/释放存储锁。backup同线程能力+两内部锁+CHECKPOINT+IDB持有数/打开世代防陈旧视图；Worker快照明确拒绝。#getRuntime只查实例不查closing，直接client关闭中调用边界列C4待对现有生命周期测试核对；不把能力结构判定或旧RV079归为新问题。",
+      "C": [
+        "C2",
+        "C4",
+        "C5",
+        "C6"
+      ],
+      "acceptedParts": [
+        2,
+        3,
+        4,
+        5,
+        6,
+        7
+      ],
+      "lastReviewedAt": "2026-10-05T16:22:11.973825+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts",
+      "sha256": "402182ba86c691b84e99162faf1572de4b76704a863497b630ef9eec44027887",
+      "lineCount": 941,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          941
+        ]
+      ],
+      "notes": "全文941行已读：QueryCache三原语统一resolveTarget；upsert先校验再事务，save/remove按类型分组；交易Executor自持settle避免driver逃逸，raw写由gate保护。bootstrap建表用tx门面读取分支/重挂，避免单槽自锁；ready在入队前。disconnect解绑通知并drain/close，重连恢复bootstrap；#changeErrors在close永久complete且#pipelineHost持旧Subject，重连错误通道候选须对tests核对。keyring在disconnect不lock/清除，跨重连密钥生命周期待证。backup先能力/取消/ready再排队，公开liveQuery未绕能力。restoreEntity显式未实现，不作隐藏成功。",
+      "C": [
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C5",
+        "C6"
+      ],
+      "lastReviewedAt": "2026-10-05T16:23:31.432922+08:00",
+      "acceptedParts": [
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/PGliteClient.notify-backpressure.spec.ts",
+      "sha256": "dbe6b4e2df1acb86c865ec91ae5b9eb4931bb8090092591531eadd11fdad8cb0",
+      "lineCount": 84,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          84
+        ]
+      ],
+      "notes": "全文84行：真实memory、持续写300ms不饿死，同id去重与不同id完整集合；它验证窗口不是慢消费者pendingHandlers上界，当前未运行不称通过。",
+      "C": [
+        "C2",
+        "C7"
+      ],
+      "acceptedParts": [
+        13,
+        14
+      ],
+      "lastReviewedAt": "2026-10-05T16:24:34.707136+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/PGliteClient.spec.ts",
+      "sha256": "a79a637314701c8abf5a4dceb33558210938f509029837acd9bbf7fb0609fed5",
+      "lineCount": 187,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          187
+        ]
+      ],
+      "notes": "全文187行：参数/模板、多语句、tx、版本/describe、invalid payload、close后拒绝、dataDir优先与durability/live选项；flush residual首条只断typeof boolean不证已发送，原测试无需改。覆盖率目标注释不是当轮四指标。",
+      "C": [
+        "C1",
+        "C2",
+        "C4",
+        "C7"
+      ],
+      "acceptedParts": [
+        14,
+        15
+      ],
+      "lastReviewedAt": "2026-10-05T16:24:34.707296+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/PGliteClient.worker-residual.spec.ts",
+      "sha256": "e14bbc428148f838e47632bdf14bf04cebcfc90a89cd49415afecfddea342cbd",
+      "lineCount": 301,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          301
+        ]
+      ],
+      "notes": "全文301行：OPFS主要mock Worker/PGliteWorker而非真实RPC，覆盖创建失败terminate、partial listen清理、durability/force/unsubscribe/close失败、重复init旧peer移除、并发init及close排队重建；尾部memory真实live/flush。没验证关闭中外部query、worker崩溃的真实RPC或OPFS持久化。",
+      "C": [
+        "C2",
+        "C4",
+        "C7"
+      ],
+      "acceptedParts": [
+        15,
+        16,
+        17
+      ],
+      "lastReviewedAt": "2026-10-05T16:24:34.707515+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.change-queue.spec.ts",
+      "sha256": "a1c3a501f79ea2d1456a2e2ea66fa41622226509e40a789af2184c7726354c23",
+      "lineCount": 183,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          183
+        ]
+      ],
+      "notes": "全文183行：可阻塞mock处理器验证同表串行/异表并发，以及初次连接错误流原Error且队列继续。afterEach先resolve再disconnect；没有disconnect后reconnect错误流，不替PG commit证明。",
+      "C": [
+        "C2",
+        "C4",
+        "C7"
+      ],
+      "acceptedParts": [
+        17,
+        18
+      ],
+      "lastReviewedAt": "2026-10-05T16:25:43.461126+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.client-factory.unit.spec.ts",
+      "sha256": "ed3f6b16467fb957bc9a17d69bd633237394e137a15f6eee4b2556401bd52890",
+      "lineCount": 167,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          167
+        ]
+      ],
+      "notes": "全文167行：Proxy实现最小IPGliteClient而非instanceof，内层真实memory；覆写createClient只一次、rawQuery真实返回、变更监听三种挂摘。代理为同realm转发，不代IPC真实host崩溃，query capability和订阅分开合理。",
+      "C": [
+        "C2",
+        "C4",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        18,
+        19
+      ],
+      "lastReviewedAt": "2026-10-05T16:25:43.461504+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.liveQuery.spec.ts",
+      "sha256": "9d1e54a6c7969017f92d0a6050fa1f166cf12f92fb76a798c9854b91a59a3af7",
+      "lineCount": 61,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          61
+        ]
+      ],
+      "notes": "全文61行：真实memory+Todo，PG count参数过滤，两次create后末快照initial+2，主动unsubscribe与disconnectAll；固定100ms只覆盖正常通知，不覆盖中断/慢消费者。",
+      "C": [
+        "C2",
+        "C4",
+        "C7"
+      ],
+      "acceptedParts": [
+        19,
+        20
+      ],
+      "lastReviewedAt": "2026-10-05T16:25:43.461771+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.mock-residual.spec.ts",
+      "sha256": "ffd661d002db5f183dba906b4dedf15ba43bbf9356f6bef666068f84de4d793b",
+      "lineCount": 209,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          209
+        ]
+      ],
+      "notes": "全文209行：switch_branch整体mock且空actions只证入口flush/suppression；能力缺失live快速失败，string错误规范化、同表finally ownership竞争可观察。cleanup catch不是业务fallback；未证真实分支SQL/错误流重连。",
+      "C": [
+        "C2",
+        "C4",
+        "C7"
+      ],
+      "acceptedParts": [
+        20,
+        21
+      ],
+      "lastReviewedAt": "2026-10-05T16:25:43.462094+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.querycache.spec.ts",
+      "sha256": "5d7ef744fec2bbad5626a965523098ba9a843c220ff7f7f79c0b5d76919e5e4d",
+      "lineCount": 193,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          193
+        ]
+      ],
+      "notes": "全文193行：public Todo真实metadata存在/缺失/批量及空输入；upsert新/旧/批次、delete存在/缺失/批次的物理SQL对照。updatedAt仅defined，未校验返回Date/string规范；nonpublic/同名namespace由专门测试另审，不从此宣称RV061已跨后端。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        21,
+        22
+      ],
+      "lastReviewedAt": "2026-10-05T16:26:37.287243+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.rawQuery.spec.ts",
+      "sha256": "4e060a80829f4c7404bd2cba9ba5e73ed16e03ab64b1245329524fd74937c49e",
+      "lineCount": 68,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          68
+        ]
+      ],
+      "notes": "全文68行：真实memory验证columns/rows数组、DML rowsAffected=1、空集合仍columns；本例不开working-tree，不代证raw gate授权/提交截获。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        22,
+        23
+      ],
+      "lastReviewedAt": "2026-10-05T16:26:37.287661+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.residual.unit.spec.ts",
+      "sha256": "13481eb33a7229067fedc13de6c2ab22ca44b217a763536b5baef54e396b8051",
+      "lineCount": 205,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          205
+        ]
+      ],
+      "notes": "全文205行：真实memory覆盖save/remove空/null、unsupported repo、restoreEntity同步未实现、无encrypted列门面失败；UPSERT重复id最后实体、创建审计不改、异类型分组原子回滚/实体status不误改，65536删除参数边界但全重复同一todo且未真实先插入；physicalTableNames交逻辑名有解释。",
+      "C": [
+        "C1",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        23,
+        24
+      ],
+      "lastReviewedAt": "2026-10-05T16:26:37.288078+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.sequence-residual.spec.ts",
+      "sha256": "d05b37a0418fbe9749bdbfcde102b9432bcd31c963d24a9b6c28fb759a8eb927",
+      "lineCount": 103,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          103
+        ]
+      ],
+      "notes": "全文103行：mock序列无行、string/number last_value、is_called=false减1；init失败传播，但标题称清promise没有后续retry断言。真实序列语义由sequence.spec另核，不把mock当PG序列证据。",
+      "C": [
+        "C1",
+        "C4",
+        "C7"
+      ],
+      "acceptedParts": [
+        24,
+        25
+      ],
+      "lastReviewedAt": "2026-10-05T16:26:37.288422+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.sequence.spec.ts",
+      "sha256": "ae05a23d8a57e4c35244b6217bbfbc0c47071244b2d3695b31e6d6ba2bcbb91d",
+      "lineCount": 103,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          103
+        ]
+      ],
+      "notes": "全文103行：真实PG set1000/5000/1等读回，初始非负；创建后只>=不严格nextval101/102，可能漏触发器未增。setval非事务回滚语义须单独场景，不把sequence变更当实体事务原子保证。",
+      "C": [
+        "C1",
+        "C3",
+        "C7"
+      ],
+      "acceptedParts": [
+        25,
+        26
+      ],
+      "lastReviewedAt": "2026-10-05T16:27:39.241042+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.spec.ts",
+      "sha256": "dba0400b38a3129abe51d81d1a954bf2fdac41edd77875d3c59166c573638446",
+      "lineCount": 130,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          130
+        ]
+      ],
+      "notes": "全文130行：shop ENTITIES真实memory建表、PG18.3版本、tx create/主键冲突回滚、disconnect/reconnect version与回滚后普通save可用；同adapter重连明确支持，是PKG-PGLITE-001适用契约。版本字符串硬锁会对依赖升级敏感但非业务bug。",
+      "C": [
+        "C1",
+        "C3",
+        "C4",
+        "C7"
+      ],
+      "acceptedParts": [
+        26,
+        27
+      ],
+      "lastReviewedAt": "2026-10-05T16:27:39.241500+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/backup-concurrency.spec.ts",
+      "sha256": "87e235c84d37b4e9a600d3f7ffc2e3696f8469de9be735ceb0248c6d14e0f8ab",
+      "lineCount": 286,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          286
+        ]
+      ],
+      "notes": "全文286行：真实memory快照commit-prefix/tx成对/回滚排除；idb源peer当前/历史/打开已有peer均拒且零输出，独占自身多次提交及顺序writer重开对照；navigator.locks.query缺失明确unsupported。跨tab仅人工共享锁模拟，不是跨标签真实引擎并写；同target双restore一胜、四stage连接拒绝、marker恢复不初始化、cleanup连接忙。",
+      "C": [
+        "C2",
+        "C4",
+        "C5",
+        "C7"
+      ],
+      "acceptedParts": [
+        27,
+        28,
+        29
+      ],
+      "lastReviewedAt": "2026-10-05T16:27:39.242170+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/backup-encryption.spec.ts",
+      "sha256": "63f87aa14327eada90effb3358dbf856316303ef2b156937178bc0513b020ad3",
+      "lineCount": 149,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          149
+        ]
+      ],
+      "notes": "全文149行：memory加密库locked/unlocked归档无哨兵/口令，明文对照可扫描；memory/idb新实例恢复keyring一致、初始锁定、错口令拒绝再正确解密；不同dbName认证域先拒/少读/空目标，改为非加密schema拒。没验证原adapter持keyring重连，归档扫描不是密码学所有泄露证明。",
+      "C": [
+        "C5",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        29,
+        30
+      ],
+      "lastReviewedAt": "2026-10-05T16:28:39.702126+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/backup-failure.spec.ts",
+      "sha256": "461fadad8410e1dfd2717a5e2d004dac28e3dcbcaefd5e27a57f928662518436",
+      "lineCount": 393,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          393
+        ]
+      ],
+      "notes": "全文393行：schema/extension不兼容先拒、截断/翻字节末尾校验后清target、非空旧库保留/连接忙零读；memory句柄绑定实例/schema/encryption/extensions且拒不consume。unsupported档位零sink/读；已取消/中途取消、quota/network分类、事务内backup超时排队永不落后执行；restore验证后取消/idb commit配额/blocked删库cleanup_pending marker显式重试。所有IDB原型修改finally恢复，当前仅源码审未再跑50历史绿。",
+      "C": [
+        "C4",
+        "C5",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        30,
+        31,
+        32,
+        33
+      ],
+      "lastReviewedAt": "2026-10-05T16:28:39.702734+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/backup-interrupt.spec.ts",
+      "sha256": "b3a3127eca9d9cc164197dd949e8cae5f96572395fc7c92f1fd7398ae2afa452",
+      "lineCount": 168,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          168
+        ]
+      ],
+      "notes": "全文168行：module Worker streaming/marker/files/verified/persisted/returned各暂停后terminate，等待Web独占锁回收再查IDB/marker；未提交stage空且marker，已persist非空marker，完成returned无marker。刷盘中途用人工FILE_DATA半库不是精准真实kill，明确边界；cleanup后二次restore数据一致。",
+      "C": [
+        "C4",
+        "C5",
+        "C7"
+      ],
+      "acceptedParts": [
+        33,
+        34,
+        35
+      ],
+      "lastReviewedAt": "2026-10-05T16:29:31.572450+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/backup-interrupt.worker.ts",
+      "sha256": "1abe950d534f578e5d144bba5f201660a91dcae472574fb0e298039dafab5764",
+      "lineCount": 61,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          61
+        ]
+      ],
+      "notes": "全文61行：owner message origin/shape guard、half stream和stage永不resolve让主线程真terminate，不走正常失败清理；returned也hold，错误回报String。专用测试worker非产品worker或完整攻击输入协议。",
+      "C": [
+        "C4",
+        "C5",
+        "C7"
+      ],
+      "acceptedParts": [
+        35
+      ],
+      "lastReviewedAt": "2026-10-05T16:29:31.574869+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/backup-memory.spec.ts",
+      "sha256": "364ae7274641819d86250e0ce84efd20b86e4f8e7e83fc116a12b1cff1ac9ff0",
+      "lineCount": 150,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          150
+        ]
+      ],
+      "notes": "全文150行：虚拟FS即时生成4/32MB数据，真实archive pipeline/TransformStream对照逐字节/总量和2chunk maxLead恒定；它证明新增管道缓存上界，不是PGlite WASM进程峰值内存，也不证实际IDB容量。",
+      "C": [
+        "C5",
+        "C7"
+      ],
+      "acceptedParts": [
+        35,
+        36
+      ],
+      "lastReviewedAt": "2026-10-05T16:29:31.575907+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/backup-roundtrip.spec.ts",
+      "sha256": "fd05a85108730fd95ca95c621faa0f6d4b1a86847ffb26f059c849f9b006ba2f",
+      "lineCount": 192,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          192
+        ]
+      ],
+      "notes": "全文192行：memory/idb四组合源关闭后restore hash/bytes/scope、完整数据/历史/数据库objects一致；恢复后唯一/FK/新变更续序列，idb新实例重开；独立memory互不污染、4093任意分帧、句柄close consumed、OPFS拒。Sync.None不代远端push/pull，本轮未重跑。",
+      "C": [
+        "C1",
+        "C3",
+        "C5",
+        "C7"
+      ],
+      "acceptedParts": [
+        36,
+        37,
+        38
+      ],
+      "lastReviewedAt": "2026-10-05T16:30:25.685083+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/backup-test-fixture.ts",
+      "sha256": "21fd003ce2170253fb66d0a4182eeb9a609299e63979b8d9c0cd9d85c346e5d0",
+      "lineCount": 417,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          417
+        ]
+      ],
+      "notes": "全文417行：每实例clone实体隔离RxDB metadata，source/target同指纹；BIGINT±2^63、70k binary、Date/JSON/null/FK真实seed/read；collectingSink故意全量留内存仅夹具，chunkedSource HWM0背压且可注入取消；错误helper不吞非typed异常，idb查询布局对齐产品解析。",
+      "C": [
+        "C1",
+        "C4",
+        "C5",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        38,
+        39,
+        40
+      ],
+      "lastReviewedAt": "2026-10-05T16:30:25.685608+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/pglite-exclusive.spec.ts",
+      "sha256": "5fe8ea83609defe7a6b7abcaf96b678dc3dcb8dd7dd88a48064b89aa230b5005",
+      "lineCount": 45,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          45
+        ]
+      ],
+      "notes": "全文45行：实际依赖PGlite waitReady接受+三内部能力缺失逐一typed unsupported且field明示；mock仅证明探测错误码，未测锁互斥时序。",
+      "C": [
+        "C5",
+        "C7"
+      ],
+      "acceptedParts": [
+        40
+      ],
+      "lastReviewedAt": "2026-10-05T16:30:25.685857+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/bigint-binary.spec.ts",
+      "sha256": "a3dced7bf12868fe56563c58ebaa09f74ec7e0fcaf09cf1c8b96813b70aa8429",
+      "lineCount": 706,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          706
+        ]
+      ],
+      "notes": "全文706行：schema bigint/bytea与operator classes、factory/default不可DDL执行、64bit边界/复制binary view、非法binary范围/排序拒；真实memory逐类型往返、安全/超53bit FK和1:1/M2M cascade、bigint双键cursor前后无丢精、变更codec entityId/patch/inverse历史undo/redo。sequential共享fixture明确依赖首例状态；本轮读源码不代当前浏览器动态执行/覆盖率。",
+      "C": [
+        "C1",
+        "C2",
+        "C3",
+        "C7"
+      ],
+      "acceptedParts": [
+        40,
+        41,
+        42,
+        43,
+        44,
+        45
+      ],
+      "lastReviewedAt": "2026-10-05T16:31:33.078675+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/change-pipeline.spec.ts",
+      "sha256": "1d86429adfb1a10b20666d7e2557af900e0f4c45d620ead10cfff4249dbcfd52",
+      "lineCount": 132,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          132
+        ]
+      ],
+      "notes": "全文132行：generation变化再idle一轮、6次busy后第7轮不硬截断、Date/fakeTimer deadline结构化诊断及永不flush可打断；只mock驱动不是真实NOTIFY，pendingHandlers增长与disconnect无deadline场景未覆盖。",
+      "C": [
+        "C2",
+        "C7"
+      ],
+      "acceptedParts": [
+        45,
+        46
+      ],
+      "lastReviewedAt": "2026-10-05T16:32:18.170874+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/encrypted-bigint-binary.spec.ts",
+      "sha256": "5d7698e5b36b894bffbfd5170be9b40d184f9915bd99382ff6e1877052f77b8e",
+      "lineCount": 8,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          8
+        ]
+      ],
+      "notes": "全文8行：共享bigint/binary加密suite经pgliteFactory及PG schema-qualified定位注册；本文件只入口，不声称共享suite已运行。",
+      "C": [
+        "C1",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        46
+      ],
+      "lastReviewedAt": "2026-10-05T16:32:18.171119+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/encrypted-change-log.spec.ts",
+      "sha256": "6be7bb2d85899509d715da5d401487b4564426cbe889ed946ee9b5cdc3821b26",
+      "lineCount": 9,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          9
+        ]
+      ],
+      "notes": "全文9行：runChangeLogSuite使用真实factory、逻辑dump及schema限定；dump测数据序列化不等于数据库磁盘/WAL全部字节。",
+      "C": [
+        "C2",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        46
+      ],
+      "lastReviewedAt": "2026-10-05T16:32:18.171305+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/encrypted-crud.spec.ts",
+      "sha256": "09a7075a72cc8cbd8bc2171639afadac7dabaaf7da378130e377b86fa4078c35",
+      "lineCount": 11,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          11
+        ]
+      ],
+      "notes": "全文11行：加密CRUD与QueryValidation双suite注册、读库dump helper；查询加密拒绝要沿共享validator，不靠本入口存在称通过。",
+      "C": [
+        "C1",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        46
+      ],
+      "lastReviewedAt": "2026-10-05T16:32:18.171503+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/encrypted-lifecycle.spec.ts",
+      "sha256": "7de93f6ffc257793e443ca320cd037444a0568058bab619ba05aa4e76324d8bd",
+      "lineCount": 9,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          9
+        ]
+      ],
+      "notes": "全文9行：加密lifecycle共享suite绑定memory工厂/dump；不是PGlite IDB/OPFS断开重连生命周期或真实磁盘验收。",
+      "C": [
+        "C4",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        46
+      ],
+      "lastReviewedAt": "2026-10-05T16:32:18.171598+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/encrypted-schema-validation.spec.ts",
+      "sha256": "51be75151b7f460a92a40638379f08ba458af12af00fc24eefc27f0e19dcd562",
+      "lineCount": 30,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          30
+        ]
+      ],
+      "notes": "全文30行：connect前加密PK invalid metadata typed encrypted_pk_forbidden，finally disconnect；不打开隐藏兼容fallback。",
+      "C": [
+        "C3",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        46,
+        47
+      ],
+      "lastReviewedAt": "2026-10-05T16:32:18.171764+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/encrypted-tamper.spec.ts",
+      "sha256": "622b26dc95f71abff8f9578dfd8578c04c114da612133b10a4601774466b6690",
+      "lineCount": 9,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          9
+        ]
+      ],
+      "notes": "全文9行：篡改suite通过factory/dump/PG物理名注册；认证篡改场景真正内容在依赖suite，不审外包为本包工作量。",
+      "C": [
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        47
+      ],
+      "lastReviewedAt": "2026-10-05T16:32:18.171857+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/encrypted-test-fixture.ts",
+      "sha256": "0c1bb4c825fc10c49cb2abb4c32627fd5ffd47db9a705c7d9b7f4bc5a2a49028",
+      "lineCount": 80,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          80
+        ]
+      ],
+      "notes": "全文80行：每例随机memory DB、history注册必须connect前；Counting adapter包装shape并按交付proxy登记query计数，dumpUserTables仅用户行含keyring而非FS。entities.slice不clone，各suite串行/多实例归属需由测试调用约束。",
+      "C": [
+        "C4",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        47
+      ],
+      "lastReviewedAt": "2026-10-05T16:32:18.172069+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/entity-permissions.spec.ts",
+      "sha256": "a3917e6c896809d0629f19137dd78c618de068f2d80d74722f274e47130a95a0",
+      "lineCount": 273,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          273
+        ]
+      ],
+      "notes": "全文273行：公开Repository/EntityManager/entity save/create/update/remove逐条权限typed拒且实际PG行原样；批次/关联改过只读实体整批拒，未改关联可写；底层adapter/executor系统原语有意不判权限。SQL直接检查防缓存误证，符合上游single judgment；不是远端RLS安全证明。",
+      "C": [
+        "C1",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        47,
+        48,
+        49
+      ],
+      "lastReviewedAt": "2026-10-05T16:33:03.869596+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/entity/delete_sql.spec.ts",
+      "sha256": "bc71e91816adf4adf61db694aef7bd71f7f75a2be39ce60c11717b9051daa7a1",
+      "lineCount": 141,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          141
+        ]
+      ],
+      "notes": "全文141行：参数化id含注入字符串/bigint/异构值，namespace/table引用、空批、65536按65535分片；断言硬编码id，尚未证自定义primary列。生成器测试非真实外键/删除反馈。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        49,
+        50
+      ],
+      "lastReviewedAt": "2026-10-05T16:33:03.869928+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/entity/insert_sql.spec.ts",
+      "sha256": "b774978790b3a559ac4d17861797011390517ebe216b06e31b2f5d9ebf8bfacf",
+      "lineCount": 216,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          216
+        ]
+      ],
+      "notes": "全文216行：parameter/RETURNING/creator更新context、JSON与FK、未知列忽略、占位计数/注入值隔离、undefined整列省略DB default而null显式写；纯生成器形状不代实际DB/default约束，别名列由专测补证。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        50,
+        51
+      ],
+      "lastReviewedAt": "2026-10-05T16:33:58.836800+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/entity/inserts_sql.residual.spec.ts",
+      "sha256": "cea87e152d3aca0e779ef745906b197b33a943151685a77522c6058fd413dff9",
+      "lineCount": 124,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          124
+        ]
+      ],
+      "notes": "全文124行：multi literal DEFAULT缺列、null sequence id省略/mixed DEFAULT、UPSERT不更新PK/created audit但可update mutable；生成literal注入/类型由sql_dialect负责，当前只静态断言。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        51,
+        52
+      ],
+      "lastReviewedAt": "2026-10-05T16:33:58.837153+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/entity/update_sql.spec.ts",
+      "sha256": "e141723e1238ca5f7d747b04d1e7fcd947a0d1497b5a3a0851ced9814335b139",
+      "lineCount": 99,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          99
+        ]
+      ],
+      "notes": "全文99行：单/批ANY参数化和RETURNING/context；加密patch批次显式拒防不同row AAD混用，未改encrypted列允许普通patch。WHERE假设id、自定义PK尚未覆盖。",
+      "C": [
+        "C1",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        52,
+        53
+      ],
+      "lastReviewedAt": "2026-10-05T16:33:58.837436+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/find_by_row_ids_sql.spec.ts",
+      "sha256": "47f4b03800efb9e84977967dc79c5cdfc6690e0114c6e884cb4f022c124e2d75",
+      "lineCount": 77,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          77
+        ]
+      ],
+      "notes": "全文77行：NOTIFY rowId多/单/混合number string和schema-qualified占位；metadata最小mock的primary为id，缺空ID及别名列测试由产品检查判定，不夸SQL注入全面安全。",
+      "C": [
+        "C1",
+        "C2",
+        "C7"
+      ],
+      "acceptedParts": [
+        53,
+        54
+      ],
+      "lastReviewedAt": "2026-10-05T16:33:58.837698+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/fts/build-fts-triggers.spec.ts",
+      "sha256": "21cdf6ea81e14302c4be6d4d46a010f390d81f6eebc520cb1df77c55f16a18b9",
+      "lineCount": 126,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          126
+        ]
+      ],
+      "notes": "全文126行：scalar/text[]/optinJSONB合成、NULL避免、schema函数与表共同限定防同名覆盖、重装trigger幂等；非法quote/semicolon/backslash/space regconfig拒，合法schema.config通过。只SQL字符串，不实际中英文相等契约。",
+      "C": [
+        "C1",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        54,
+        55
+      ],
+      "lastReviewedAt": "2026-10-05T16:34:48.047033+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/fts/create-fts-table.spec.ts",
+      "sha256": "921ae6a20b71a127d6571a7da18bba14870993c8aa5d1de2d36a84d53abfa020",
+      "lineCount": 52,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          52
+        ]
+      ],
+      "notes": "全文52行：ALTER _fts与GIN、reserved/embedded quote escape、schema表限定索引裸名随表schema、分号statement；regconfig由trigger消费，没运行DDL不冒称真实索引使用。",
+      "C": [
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        55
+      ],
+      "lastReviewedAt": "2026-10-05T16:34:48.047316+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/fts/fts-integration.spec.ts",
+      "sha256": "11517efac0f2ccac120a0bf75f6cfd0515f231d33296aa410926f90590c7f429",
+      "lineCount": 115,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          115
+        ]
+      ],
+      "notes": "全文115行：真实memory自建JSONB tags opt-in trigger insert/update/搜索/null/空数组；查pg_indexes存在不等于查询planner实际用GIN（标题过度），顺序共享docs数据。不代适配器原生text[]。",
+      "C": [
+        "C1",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        55,
+        56
+      ],
+      "lastReviewedAt": "2026-10-05T16:34:48.047686+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/fts/fts-real-schema.spec.ts",
+      "sha256": "b625b94be433a0e8167d3613a64891016c33759c362fd1d6202f9c3c5359aa2a",
+      "lineCount": 89,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          89
+        ]
+      ],
+      "notes": "全文89行：列类型来自产品mapping text[]，真实trigger写/更新tags、null/空数组；语词仅英文hello/rust/zig，中文分词及跨schema两个同名表真实冲突不在本例。旧PGL007已有修复不新报。",
+      "C": [
+        "C1",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        56,
+        57
+      ],
+      "lastReviewedAt": "2026-10-05T16:34:48.048018+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/generate_query_sql.spec.ts",
+      "sha256": "22d70ea7c1883d91f2e885d3a900a370914ec5aa21ece3bb4d930c03375c4eda",
+      "lineCount": 313,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          313
+        ]
+      ],
+      "notes": "全文313行：RuleGroupPG标量占位、Date/bool、dot alias、in空FALSE/notIn空TRUE和NULL IS语义已明确修旧RV029。快照未证LIKE含%/_字面契约或关系SQL真实执行，保留实际PG场景归属。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        57,
+        58
+      ],
+      "lastReviewedAt": "2026-10-05T16:35:33.741328+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/generate_trigger_sql.spec.ts",
+      "sha256": "99094c46e0da085bda223f1970902d2cfcf7ddad592b4d86aedf2352e2643809",
+      "lineCount": 300,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          300
+        ]
+      ],
+      "notes": "全文300行：trigger function schema/branch/tx/INSERT-UPDATE-DELETE patch保留NULL、IS DISTINCT no-op，bigint/binary codec与FKalias、encrypted envelope保text、非法标识符拒、branch必填不fallback。包含语法token不等于真实PG语法正确；主键字段仍专门假设id，需与元数据契约核对。",
+      "C": [
+        "C1",
+        "C2",
+        "C3",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        58,
+        59,
+        60
+      ],
+      "lastReviewedAt": "2026-10-05T16:35:33.741778+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/handle_rxdb_change.spec.ts",
+      "sha256": "520741fb4d976f958b8838f6cc545c3f59b6eec0970b9414edc273ebd7787d1c",
+      "lineCount": 868,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          868
+        ]
+      ],
+      "notes": "全文868行：mock INSERT/UPDATE/DELETE到typed事件、namespace$table解析、RxDBChange business+self双事件、number/string changeID去重、错误原样与closing静默、450分200/200/50。后段缺metadata/invalid row/id/patch警告主要只断warn+dispatch被调用，未断完整丢行边界；普通实体DELETE mock仍find到row不等于真实删除路径。无真实inactive-branch/commit timing证据。",
+      "C": [
+        "C2",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        60,
+        61,
+        62,
+        63,
+        64,
+        65
+      ],
+      "lastReviewedAt": "2026-10-05T16:36:45.474625+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/keyring/pglite-keyring-storage.residual.spec.ts",
+      "sha256": "0b327717d887b0274173fe62ffec72cc56fb148ee7e84602bd149e1e99b89e4b",
+      "lineCount": 74,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          74
+        ]
+      ],
+      "notes": "全文74行：read空/null与singleton冲突23505 typed包装、其他连接错原样，worker丢code时PG文本duplicate-key映射。mock非真实并发first-unlock、取消原表或磁盘重开证据。",
+      "C": [
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        65,
+        66
+      ],
+      "lastReviewedAt": "2026-10-05T16:37:40.894549+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/manual-order-contract.spec.ts",
+      "sha256": "353cca235c8cf0548231915a328dddba2838fc3ed670a7ac6ca5b5743e71f066",
+      "lineCount": 34,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          34
+        ]
+      ],
+      "notes": "全文34行：manualOrder共享runner memory、sortOrder COLLATE C与SQLite BINARY期望意图清楚；dispose吞disconnect只夹具且可能掩资源泄露，动态另归runner真实执行。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        66
+      ],
+      "lastReviewedAt": "2026-10-05T16:37:40.894839+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/pglite.utils.chunk.spec.ts",
+      "sha256": "ad4211f555db467cd65891296476e075f245b6dd69aff37491fb5792e49931fe",
+      "lineCount": 33,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          33
+        ]
+      ],
+      "notes": "全文33行：空/小/零params退单片及params10超过65535分片保持顺序；paramsPerRow超过limit或非整数未覆盖，实际调用列数可达边界须看产品限定。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        66
+      ],
+      "lastReviewedAt": "2026-10-05T16:37:40.895149+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/pglite.utils.monotonic.spec.ts",
+      "sha256": "1a0d92772ef81688d46517f72aa575044b1ae71497843aec5b38e7dcba61aec6",
+      "lineCount": 75,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          75
+        ]
+      ],
+      "notes": "全文75行：updatedAt字符串/无效/候选早等晚；switch进程水位历史领先2999+1、非法忽略和redo同ms严格增。顺序依赖watermark无reset有明确注释，跨进程/重启时钟未测。",
+      "C": [
+        "C1",
+        "C3",
+        "C7"
+      ],
+      "acceptedParts": [
+        66,
+        67
+      ],
+      "lastReviewedAt": "2026-10-05T16:37:40.895610+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/pglite.utils.residual.spec.ts",
+      "sha256": "f06eed3d10ebbad8201721f004ec118bf73de9966c6ce31060076d5a82593654",
+      "lineCount": 126,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          126
+        ]
+      ],
+      "notes": "全文126行：真实keyring memory keyBytes、prop/column别名加密/null/undefined、locked非空拒、FK prop/column映射；函数级非PG/WAL，idleTimeout0未cleanup keyring只测试生命周期残留需单列。",
+      "C": [
+        "C1",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        67,
+        68
+      ],
+      "lastReviewedAt": "2026-10-05T16:37:40.896001+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/pglite.utils.spec.ts",
+      "sha256": "5b735634135bc8bc3674ad2aee49f86a3c9c2d0692df1b027c97869d2193e6c6",
+      "lineCount": 587,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          587
+        ]
+      ],
+      "notes": "全文587行：PG类型/index映射、array/Date/bool/number转换、keyed FK归一化消除平行数组错配、readonly过滤；真keyring解密错误不吞，NULL/未知列保留。SQL E-string/backslash/NUL、UUID形状不猜类型、empty array literal合法及占位越界；getSqlWithParams仅普通SQL未测literal/comment $n，须产品parser核对。",
+      "C": [
+        "C1",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        68,
+        69,
+        70,
+        71,
+        72
+      ],
+      "lastReviewedAt": "2026-10-05T16:38:49.146476+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/pglite.utils.sql-value-type.spec.ts",
+      "sha256": "6c2d326dcfec2f8f1ce38cb80c9bb4bc9cbd37ee41e2bdc860c270a90c3705f1",
+      "lineCount": 54,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          54
+        ]
+      ],
+      "notes": "全文54行：同UUID形string在真实varchar和uuid insert/比较，类型由列推导；原PGL011已修，不重复报。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        72,
+        73
+      ],
+      "lastReviewedAt": "2026-10-05T16:38:49.146850+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query-cache/query-cache-metadata.spec.ts",
+      "sha256": "aa03f88e779bb6d53316e1ba3e9f304d2c912e63e59cfc30b104b8c35dc98241",
+      "lineCount": 339,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          339
+        ]
+      ],
+      "notes": "全文339行：三个原语裸QcShopItem在单唯一shop scope定位正确，physical aliases/类型/heterogeneous列保留，US024缺required整批拒且无BEGIN/旧行不动；未知/注入键及未配实体fail-fast，加密缓存列只密文。未测两个同名namespace/公开Engine身份分发，不借此抵RV061的SQLite证据。",
+      "C": [
+        "C1",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        73,
+        74,
+        75
+      ],
+      "lastReviewedAt": "2026-10-05T16:40:10.786198+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query-cache/query-cache-row-contract.spec.ts",
+      "sha256": "04ce5131aa465140bd67d2040bf3fb40b235f7f963e1c235148b6e56912c2ef8",
+      "lineCount": 241,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          241
+        ]
+      ],
+      "notes": "全文241行：共享contract+PG uuid无default required/serial豁免、SET NULL NOT NULL矛盾如实判、NULL默认非豁免、1:1 literal未进DDL、collections不物理；诊断上限5/剩余数量、pk alias及非id属性，错误继承本包族。合约反映DDL不是修DDL，SET NULL行为仍真实场景待证。",
+      "C": [
+        "C1",
+        "C3",
+        "C7"
+      ],
+      "acceptedParts": [
+        75,
+        76,
+        77
+      ],
+      "lastReviewedAt": "2026-10-05T16:40:10.786452+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query-cache/upsert-many-sql.spec.ts",
+      "sha256": "433997d86cf3dc633f9e645c0e14624ca2becd31ac9ad2b1099616a419fc0561",
+      "lineCount": 236,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          236
+        ]
+      ],
+      "notes": "全文236行：physical prop/FK映射参数化、heterogeneous分列组、id-only DO NOTHING、未知/注入键/required null拒、diagnostic带qualified身份；FK三种等价拼写接受、同列双拼写fail而非后者覆盖。未覆盖跨分组相同pk重复导致输入顺序重排、batch参数极限由产品后审。",
+      "C": [
+        "C1",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        77,
+        78
+      ],
+      "lastReviewedAt": "2026-10-05T16:40:10.786613+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query-queue.spec.ts",
+      "sha256": "b8b1967d4d14862565ac7e0af3c75693bf65e5c271bddfce43c6eaf9d7e3d008",
+      "lineCount": 33,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          33
+        ]
+      ],
+      "notes": "全文33行：真实memory并发完全相同INSERT各执行一次count2，防queue去重；只计重复执行不证query/transaction/close全序或内部绕queue。",
+      "C": [
+        "C1",
+        "C2",
+        "C4",
+        "C7"
+      ],
+      "acceptedParts": [
+        78,
+        79
+      ],
+      "lastReviewedAt": "2026-10-05T16:41:00.683520+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/encrypted-query-wiring.spec.ts",
+      "sha256": "7242db2d062addd2435e77773cb30787ad7b629dc16c6508663e038b51e1f3c4",
+      "lineCount": 45,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          45
+        ]
+      ],
+      "notes": "全文45行：schemaManager已init的关系encrypted字段在SQL生成前where_on_encrypted；无client查询，是接线单测不是PG解密/全encrypted query矩阵。",
+      "C": [
+        "C1",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        79
+      ],
+      "lastReviewedAt": "2026-10-05T16:41:00.683590+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/join_sql.residual.spec.ts",
+      "sha256": "1637d2826d985e13507946ef7b1f12855dad1419c3aee923da8a607112f3e502",
+      "lineCount": 94,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          94
+        ]
+      ],
+      "notes": "全文94行：metadata真实connect后纯builder测非法JSON path、单/多段text/jsonb两accessor、未知关系fallthrough与relation.keyValue；不实际执行这些JOIN/WHERE。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        79,
+        80
+      ],
+      "lastReviewedAt": "2026-10-05T16:41:00.683703+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/join_sql.spec.ts",
+      "sha256": "f793f293e95426a39d5357afdcf17e3e40dbf8026c08dcddc2eb18f04c0e338e",
+      "lineCount": 252,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          252
+        ]
+      ],
+      "notes": "全文252行：真实schema context但生成器级关系path有效/无效/flat keyValue/M2M join；所谓避免重复JOIN只断LEFT JOIN存在没有数量，可能漏duplicate alias；真实基数/多scope关系并未测。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        80,
+        81
+      ],
+      "lastReviewedAt": "2026-10-05T16:41:00.683838+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/json-numeric-compare.spec.ts",
+      "sha256": "36840fb9762f157423954e500573ea6451d72fdd9f8ff95a4970e003579983db",
+      "lineCount": 86,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          86
+        ]
+      ],
+      "notes": "全文86行：JSON数/bool用JSONB而string/pattern用text、null IS不变；SQL/params快照无真实异型JSON比较，不从jsonb ordering推跨SQLite数值完全一致。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        81,
+        82
+      ],
+      "lastReviewedAt": "2026-10-05T16:41:45.775576+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/manual-order-collate.spec.ts",
+      "sha256": "0c91ad5778b9af7948a656e197f80df0952bc2d5243ac8093a2bea103a097080",
+      "lineCount": 246,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          246
+        ]
+      ],
+      "notes": "全文246行：manual sortOrder/group string enum及文本FK显式COLLATE C、非text不加、可空NULLS FIRST、range/BETWEEN与ORDER同口径；缺metadata resolver显式拒不猜。生成器测试无实际non-C locale库，动态同序另归manual suite。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        82,
+        83
+      ],
+      "lastReviewedAt": "2026-10-05T16:41:45.775736+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/query-error-code.spec.ts",
+      "sha256": "2e292f4deefa3701cb8915d894ad7809a6f8caab2e5a4c5aee5a343c10d0611c",
+      "lineCount": 164,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          164
+        ]
+      ],
+      "notes": "全文164行：非法RuleGroup/字段/JSONpath/operator/null/value/array/binary/bigint/order/groupCount逐类INVALID_QUERY，本包内部Unsupported repo不带query码，防内部错误错归4xx；pure builder不验证异常真实DB SQLSTATE传播。",
+      "C": [
+        "C1",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        83,
+        84
+      ],
+      "lastReviewedAt": "2026-10-05T16:41:45.775863+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/query-safety.spec.ts",
+      "sha256": "261af2a4af8df44445b1a5c0048d3af4102ba42d83555da545567f60efb9e48d",
+      "lineCount": 250,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          250
+        ]
+      ],
+      "notes": "全文250行：非法group/rule/combinator/operator/sort/field/path、missing/null/value fail-fast，保留字列引号、JSON contains object参数化、array overlap旧RV034、嵌套JSON和不mutate原where、groupCount拒。只编译器断言；数值array cast与DB兼容由真实类型suite另证。",
+      "C": [
+        "C1",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        84,
+        85,
+        86
+      ],
+      "lastReviewedAt": "2026-10-05T16:42:59.281281+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/query_sql.residual.spec.ts",
+      "sha256": "39e8e418ec451b7a8befb8e5fb8da901bce06ca6e377bbcc1ab7e77ab0c1f29c",
+      "lineCount": 244,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          244
+        ]
+      ],
+      "notes": "全文244行：FK映射与缺metadata非法字段、JSON单/深路径与uuid列cast、无metadata dot、array overlaps/notContains keyValue旧RV027策略、find order/limit/offset和count缺where；不得把missing query option形态as never当全部公开类型支持。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        86,
+        87,
+        88
+      ],
+      "lastReviewedAt": "2026-10-05T16:42:59.281697+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/query_sql.utils.spec.ts",
+      "sha256": "ac5ffffc3bc5f168ad8b74785d95c1abf39011e303d6738d67e4bf618c0617cd",
+      "lineCount": 334,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          334
+        ]
+      ],
+      "notes": "全文334行：组/alias/NULL/空集合/全部标量LIKE-BETWEEN、param连续；keyValue逐键LIKE修RV027、array&&交集修RV034有明确回归快照。单测不代wildcard/异型JSON/真实array跨后端运行。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        88,
+        89,
+        90
+      ],
+      "lastReviewedAt": "2026-10-05T16:43:54.084422+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/query_tree_sql.residual.spec.ts",
+      "sha256": "60a8a21ae468340b2772e583fc778af9f91886cd64acafaf2de7a2b96ad367ea",
+      "lineCount": 73,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          73
+        ]
+      ],
+      "notes": "全文73行：invalid rule收集后允许SQL或异常二择断言，不能证明完整合法查询；真实connect只供metadata，尚未执行递归SQL。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        90
+      ],
+      "lastReviewedAt": "2026-10-05T16:43:54.084653+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/query_tree_sql.unit.spec.ts",
+      "sha256": "7fcda99a1c4c1d87eea35c21fe03ac287a2171a89f7b7f72ce752f933a36e188",
+      "lineCount": 147,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          147
+        ]
+      ],
+      "notes": "全文147行：root/nonroot/count/children筛选/depth0契约numeric0、hasChildren、非法level及encrypted child拒；非root快照明确要求count(*)-1是RV079缺回归根因，标既有问题不新报；递归1000上限是脏环保护，不代树图实际深度/环检测。",
+      "C": [
+        "C1",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        90,
+        91
+      ],
+      "lastReviewedAt": "2026-10-05T16:43:54.085153+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/repository/PGliteRepository.spec.ts",
+      "sha256": "6fe01efa41c88e93b435639f0b76cacc8885192baf86193578072f3d7e0bc634",
+      "lineCount": 114,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          114
+        ]
+      ],
+      "notes": "全文114行：真实create/update/delete三change，repo get missing typed/findOne undefined/remove unsaved拒，count/findAll/update后读；顺序共享数据故前三change依赖首例，本轮不冒称runtime已绿。",
+      "C": [
+        "C1",
+        "C2",
+        "C7"
+      ],
+      "acceptedParts": [
+        91,
+        92
+      ],
+      "lastReviewedAt": "2026-10-05T16:45:07.509912+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/repository/PGliteRepositoryBase.unit.spec.ts",
+      "sha256": "bb2faacf8de6dd71b8bfcd9471ff51b2777d74bb5ee38b59563d3c6548cfbb4a",
+      "lineCount": 179,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          179
+        ]
+      ],
+      "notes": "全文179行：rowIds空不query、缓存ref复用/新建、forcedUpdate=false保内存字段；RxDBChange codec主键超53bit与binary解码而encrypted envelope不二次解密。纯mock query结果非事务反压，namespace缓存身份需与entity类型关联。",
+      "C": [
+        "C1",
+        "C2",
+        "C7"
+      ],
+      "acceptedParts": [
+        92,
+        93
+      ],
+      "lastReviewedAt": "2026-10-05T16:45:07.510182+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/repository/PGliteTreeRepository.unit.spec.ts",
+      "sha256": "29cef6eca7853a0a922ff9ea77eb20ae036165fec507f1b2ce900699784b8f7b",
+      "lineCount": 63,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          63
+        ]
+      ],
+      "notes": "全文63行：count safe整数/缺列/非法/超安全拒；49–58明确认为-1合法并锁快照，属于RV079既有缺陷回归遗漏，不重复wrapper/engine新编号。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        93,
+        94
+      ],
+      "lastReviewedAt": "2026-10-05T16:45:07.510404+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/review-aborted-initial-unlock.spec.ts",
+      "sha256": "4461e3b01a521da200768189a7d454a9497798d1446f130d895081eefb1ee67c",
+      "lineCount": 116,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          116
+        ]
+      ],
+      "notes": "全文116行：原memory facade实际keyring表count判初始化，provider A取消无凭据、B不被废verifier拦、正常A保留B拒对照；destroy前显式lock。RV058已修只源码核对不重跑旧红，不能推磁盘/host矩阵。",
+      "C": [
+        "C4",
+        "C6",
+        "C7"
+      ],
+      "acceptedParts": [
+        94,
+        95
+      ],
+      "lastReviewedAt": "2026-10-05T16:45:07.511944+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/review-array-membership.spec.ts",
+      "sha256": "d5b473097b9b3eaca43273a1438502095043fff9bce54ca2d0c0494697352cc4",
+      "lineCount": 27,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          27
+        ]
+      ],
+      "notes": "全文27行：真实PGlite text[]与核心JS任一交集in/notIn逐一对照，旧RV034最小回归；本轮未运行且只stringArray一个元素。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        95
+      ],
+      "lastReviewedAt": "2026-10-05T16:45:07.512798+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/review-query-audit.spec.ts",
+      "sha256": "6ee075dd700d4f7ce3b9839dca5aba1c7d2070e0646e8f5033f011090f84b26b",
+      "lineCount": 58,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          58
+        ]
+      ],
+      "notes": "全文58行：真实JSONB keyValue子串/多键OR和空notIn nullable与JS对照；RV027/029已修不借历史红复报，未扩非法JSON/wildcard。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        95
+      ],
+      "lastReviewedAt": "2026-10-05T16:45:07.513028+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/review-tree-filter-incremental.spec.ts",
+      "sha256": "ffd9c3bbcaf6a453673e0ed9069ba9bb200a116d20f81539471d298dd1fc8c45",
+      "lineCount": 61,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          61
+        ]
+      ],
+      "notes": "全文61行：真实树四方法title contains无42702与两个无过滤对照；数组含锚点2/count排锚点1一致。实际直接await非subscription（文件名incremental不作证），RV045已修不新报，RV079空/删除锚点不在此例。",
+      "C": [
+        "C1",
+        "C2",
+        "C7"
+      ],
+      "acceptedParts": [
+        95,
+        96
+      ],
+      "lastReviewedAt": "2026-10-05T16:46:29.925278+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/rxdb_adapter_create_branch.spec.ts",
+      "sha256": "8609f6ea117463f9c31e3e13fdf8e74a553994f4893719d12f4a0e540006d7ad",
+      "lineCount": 131,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          131
+        ]
+      ],
+      "notes": "全文131行：history plugin真实PG有数据/空main建inactive分支、重复名拒、指定实际change点；清change没有reset序列却首例固定fromChangeId1有顺序敏感，未证跨实例分支active约束。",
+      "C": [
+        "C2",
+        "C3",
+        "C7"
+      ],
+      "acceptedParts": [
+        96,
+        97
+      ],
+      "lastReviewedAt": "2026-10-05T16:46:29.925600+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/rxdb_adapter_mutations.spec.ts",
+      "sha256": "b3efb31869b881eed07e598add34e5501f4ef3df1b3e256966da233bc7812e9b",
+      "lineCount": 238,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          238
+        ]
+      ],
+      "notes": "全文238行：real memory create批量/混类型、update不同patch分组、remove与mixed/create-update-delete、empty集合；多数只检查返回对象/status而非SQL最终行与rollback，不能替事务事件原子性。历史coverage目标注释不算本轮门禁。",
+      "C": [
+        "C1",
+        "C2",
+        "C7"
+      ],
+      "acceptedParts": [
+        97,
+        98
+      ],
+      "lastReviewedAt": "2026-10-05T16:46:29.925896+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/rxdb_adapter_mutations.unit.spec.ts",
+      "sha256": "5489a3f55af4210cdb2c231cff0bd92b87b77d2e566d20c7cea2c88e0519a034",
+      "lineCount": 128,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          128
+        ]
+      ],
+      "notes": "全文128行：真实DB但hydrate可mock，invalid id typed、entityRef absent跳cache、empty remove、finite number接受；ghost返回未匹配对象只缓存边界，不证DB已回滚/NOTIFY一致。",
+      "C": [
+        "C1",
+        "C2",
+        "C7"
+      ],
+      "acceptedParts": [
+        98,
+        99
+      ],
+      "lastReviewedAt": "2026-10-05T16:46:29.926123+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/rxdb_adapter_switch_transaction_id.spec.ts",
+      "sha256": "f78f6c99511a7f97337e34c91f9a237f2f3cfdb4a94b0ec4333adfade47e5a5d",
+      "lineCount": 70,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          70
+        ]
+      ],
+      "notes": "全文70行：set_config参数transaction-local不重DDL，real feature branch交易executor id写入change且分支不变；未测log=false遗留setting/transactionId回滚后清理，由契约套件另审。",
+      "C": [
+        "C2",
+        "C3",
+        "C7"
+      ],
+      "acceptedParts": [
+        99
+      ],
+      "lastReviewedAt": "2026-10-05T16:46:29.926304+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/sku-attribute-unique.spec.ts",
+      "sha256": "34ba0d4603b052daaa0728cd37e04f9052314c65a77c2871fe3c6f982b2aac91",
+      "lineCount": 154,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          154
+        ]
+      ],
+      "notes": "全文154行：shop real PK/FK/业务compound unique拒错误值所属属性、同SKU重复属性但合法跨SKU/不同属性、双用户双卡交叉FK拒；throws宽断需实际SQLState/数据对照，不把实体特定约束推所有生成DDL。",
+      "C": [
+        "C1",
+        "C3",
+        "C7"
+      ],
+      "acceptedParts": [
+        99,
+        100
+      ],
+      "lastReviewedAt": "2026-10-05T16:46:29.926505+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/sql_dialect.executable.spec.ts",
+      "sha256": "7550ba54c2d2ad99e33464fc21fccc500e2c66d234f5371f238e7684c2ea42dd",
+      "lineCount": 71,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          71
+        ]
+      ],
+      "notes": "全文71行：real PG batchUpdate文本/typed int单多行和参数/alias quoting、非法columnType注入拒，旧PGL014已修；带schema表、自定义id类型/冲突行重复及零列尚未验证。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        100
+      ],
+      "lastReviewedAt": "2026-10-05T16:46:29.926638+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/sql_dialect.spec.ts",
+      "sha256": "cbc1767cd4e3d8adf70b05b72d93ed121edd27884569df86b77246cc6b71b912",
+      "lineCount": 121,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          121
+        ]
+      ],
+      "notes": "全文121行：RETURNING/$placeholder/escape quotes/JSON/concat，batch insert/update rowCount/value维度一致、空更新或非法rowcount拒、singleton；纯SQL快照需executable spec实际对照，不推schema-qualified与非text键安全。",
+      "C": [
+        "C1",
+        "C7"
+      ],
+      "acceptedParts": [
+        100,
+        101
+      ],
+      "lastReviewedAt": "2026-10-05T16:47:51.776518+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/system-schema-migration.spec.ts",
+      "sha256": "f70d04079622940223965c9637aa0d406e3c54494434f41a0ec929587a1c815a",
+      "lineCount": 559,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          559
+        ]
+      ],
+      "notes": "全文559行：Node real memory与disk tempdir，旧UUID→text和watermark幂等/注入DDL回滚/typedNOWAIT writer锁；disk RxDB connect自动升级并history撤销、旧trigger transaction-local setting且feature branch保留；v4 activeKey补列index真正冲突/zero main激活/multi active整tx回滚/xmin零重写/high watermark先拒。Node import决定只test-node执行；10历史pass不代浏览器Worker/IDB host全场景。",
+      "C": [
+        "C1",
+        "C2",
+        "C3",
+        "C4",
+        "C7"
+      ],
+      "acceptedParts": [
+        101,
+        102,
+        103,
+        104,
+        105
+      ],
+      "lastReviewedAt": "2026-10-05T16:47:51.777449+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/create-tables-current-branch.spec.ts",
+      "sha256": "c4119e08360749f14dd6748781019e8f73af23d37a7854eff60e6774240d9ba3",
+      "lineCount": 139,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          139
+        ]
+      ],
+      "notes": "全文139行：real late table停feature写change仍feature、main对照、legacy无branch表补建明确MAIN；trigger记录实际值不只DDL。依赖必要table列表抑制外配置，核心任务是引导tx内重挂，不测用户动态实体增删全生命周期。",
+      "C": [
+        "C2",
+        "C3",
+        "C7"
+      ],
+      "acceptedParts": [
+        106
+      ],
+      "lastReviewedAt": "2026-10-05T16:49:03.279985+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/create_table_defaults_indexes.executable.spec.ts",
+      "sha256": "75a7a6120bf44da06ed6730284c9ee0e32a1b9cfa4b27fe6c9f72f4780aa05b9",
+      "lineCount": 143,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          143
+        ]
+      ],
+      "notes": "全文143行：real PG JSON/keyValue/array/empty defaults应用、继承indexMap物理列且不重复PK、既有表drop再reconcile两次只一索引；cleanup set跟踪都有disconnect，无扩scope。",
+      "C": [
+        "C1",
+        "C3",
+        "C7"
+      ],
+      "acceptedParts": [
+        106,
+        107
+      ],
+      "lastReviewedAt": "2026-10-05T16:49:03.280335+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/create_table_index.spec.ts",
+      "sha256": "794f3711bcffc5faa0d8984ceaa8c846793591a99c17ce20bc45af97b72d7403",
+      "lineCount": 51,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          51
+        ]
+      ],
+      "notes": "全文51行：真实connect后纯SQL断单列索引名，未disconnect/afterAll会留runtime；不是指数约束真实DML验收。",
+      "C": [
+        "C3",
+        "C7"
+      ],
+      "acceptedParts": [
+        108
+      ],
+      "lastReviewedAt": "2026-10-05T16:49:03.280510+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/create_table_index_composite.spec.ts",
+      "sha256": "90176e98694d545e83d00bcc749d388d90a8747ef017631345fe33d0b3759b8a",
+      "lineCount": 52,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          52
+        ]
+      ],
+      "notes": "全文52行：真实connect后纯SQL断组合parent-sort成员，不断列顺序完整字符串，且无disconnect；资源清理归本包测试维护owner。",
+      "C": [
+        "C3",
+        "C7"
+      ],
+      "acceptedParts": [
+        108
+      ],
+      "lastReviewedAt": "2026-10-05T16:49:03.280737+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/create_table_index_multi.spec.ts",
+      "sha256": "f1dab1feaa345c582bd99b1f31adc9b48a14b0283d45761f96b7dfb522ae1b53",
+      "lineCount": 60,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          60
+        ]
+      ],
+      "notes": "全文60行：普通/unique多个index SQL包含校验、runtime无回收；不推真实冲突DML已绿。",
+      "C": [
+        "C3",
+        "C7"
+      ],
+      "acceptedParts": [
+        108
+      ],
+      "lastReviewedAt": "2026-10-05T16:49:03.280944+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/create_table_index_unique.spec.ts",
+      "sha256": "91e24765dc86f2f29085bf268c699956dab6e1a5a69eeaadf622f657e6655bc2",
+      "lineCount": 109,
+      "fullTextRead": true,
+      "readRanges": [
+        [
+          1,
+          109
+        ]
+      ],
+      "notes": "全文109行：普通unique裸列和normalized lower(coalesce(cast))三列快照，真实connect但没有最终写入NULL/大小写冲突；两DB都没disconnect，有测试资源释放遗漏。",
+      "C": [
+        "C1",
+        "C3",
+        "C7"
+      ],
+      "acceptedParts": [
+        109
+      ],
+      "lastReviewedAt": "2026-10-05T16:49:03.281146+08:00"
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/create_table_sql.unit.spec.ts",
+      "sha256": "0b28fbad85969540df7979e9e2025822d9ae16ebc4b43aae4f7ebba96051ba9d",
+      "lineCount": 207,
+      "fullTextRead": false,
+      "readRanges": [
+        [
+          1,
+          53
+        ]
+      ],
+      "notes": "已读1–53：column/default/enum/FK各种类型metadata fixture，后续DDL与异常判据待读。",
+      "C": [
+        "C1",
+        "C3",
+        "C7"
+      ],
+      "acceptedParts": [
+        109
+      ],
+      "lastReviewedAt": "2026-10-05T16:49:03.281350+08:00"
+    }
+  ],
+  "lastCheckpointAt": "2026-10-05T16:49:03.281382+08:00"
+}

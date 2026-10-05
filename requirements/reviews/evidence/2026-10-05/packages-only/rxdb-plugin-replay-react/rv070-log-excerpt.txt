@@ -1,0 +1,42 @@
+710: > nx run rxdb-plugin-replay-react:test --args=review-parallel --run --maxWorkers=1 --coverage.enabled=false
+711: 
+712: > vitest review-parallel --run --maxWorkers=1 --coverage.enabled=false
+713: 
+714: 
+715:  RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react
+716: 
+717:  ❯ |rxdb-plugin-replay-react| src/__tests__/review-parallel-layout-seek.spec.ts (1 test | 1 failed) 13ms
+718:      × 首个 consumer layout effect 的 seek 在句柄建立后仍送达核心 12ms
+719: 
+720: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+721: 
+722:  FAIL  |rxdb-plugin-replay-react| src/__tests__/review-parallel-layout-seek.spec.ts > 并行评审：播放器加载前命令的公开契约 > 首个 consumer layout effect 的 seek 在句柄建立后仍送达核心
+723: AssertionError: expected [] to deeply equal [ [ 500 ] ]
+724: 
+725: - Expected
+726: + Received
+727: 
+728: - [
+729: -   [
+730: -     500,
+731: -   ],
+732: - ]
+733: + []
+734: 
+735:  ❯ src/__tests__/review-parallel-layout-seek.spec.ts:27:43
+736:      25|     render(createElement(PlayerWithInitialSeek));
+737:      26|     expect(state.current?.mounts).toHaveLength(1);
+738:      27|     expect(state.current?.argsOf('seek')).toEqual([[500]]);
+739:        |                                           ^
+740:      28|   });
+741:      29| });
+742: 
+743: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+744: 
+745: 
+746:  Test Files  1 failed (1)
+747:       Tests  1 failed (1)
+748:    Start at  09:34:22
+749:    Duration  327ms (transform 35ms, setup 0ms, import 94ms, tests 13ms, environment 129ms)
+750: 
+751: Warning: command "vitest review-parallel --run --maxWorkers=1 --coverage.enabled=false" exited with non-zero status code

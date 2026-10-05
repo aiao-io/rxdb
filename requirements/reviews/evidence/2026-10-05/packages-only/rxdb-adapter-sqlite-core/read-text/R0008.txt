@@ -1,0 +1,121 @@
+packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts SHA256 052824127109070a4013c72429389c0e689bb356ad85165149e2287cb4f65a38 [679,798]
+ 679 |    * 把 {@link backup} 产出的归档恢复进本 adapter 配置的空存储。
+ 680 |    *
+ 681 |    * @remarks
+ 682 |    * 必须在 `rxdb.connect()` 之前调用（经 `rxdb.getAdapter(name)` 拿到尚未连接的实例）：已连接或正在恢复时
+ 683 |    * 报 `target_busy`。只写入**空**目标，兼容性（adapter、引擎大版本、虚表模块、系统表 / 变更编码版本、
+ 684 |    * 实体结构指纹、加密认证域）在写入第一条语句之前判定，全部核对通过后才提交。
+ 685 |    *
+ 686 |    * - 持久化存储：恢复完成后正常 `rxdb.connect()` 即可；恢复中途页面被关，之后的连接报 `restore_incomplete`，
+ 687 |    *   需先 {@link cleanupIncompleteRestore}。
+ 688 |    * - 内存存储：恢复出来的库只活在本实例里，由下一次 `rxdb.connect()` 接管；不连接时 {@link disconnect} 释放它。
+ 689 |    *
+ 690 |    * 恢复出来的行不产生变更历史；加密库保持锁定。输入流在失败时被取消，成功时只释放读锁。
+ 691 |    *
+ 692 |    * @param source - 归档字节流
+ 693 |    * @param options - 取消信号与阶段回调
+ 694 |    * @returns 结束标记与 manifest
+ 695 |    * @throws RxDBBackupError 见 {@link RxDBBackupErrorCode}；`cleanup_pending` 表示失败后连清理也没做完
+ 696 |    *
+ 697 |    * @example
+ 698 |    * ```typescript
+ 699 |    * rxdb.adapter('wa-sqlite', db => new RxDBAdapterWaSqlite(db, { vfs: 'IDBBatchAtomicVFS' }));
+ 700 |    * const adapter = await rxdb.getAdapter('wa-sqlite');
+ 701 |    * await adapter.restore(file.stream());
+ 702 |    * await rxdb.connect('wa-sqlite');
+ 703 |    * ```
+ 704 |    */
+ 705 |   async restore(source: ReadableStream<Uint8Array>, options: SqliteRestoreOptions = {}): Promise<RxDBRestoreResult> {
+ 706 |     let storage: SqliteSupportedBackupStorage;
+ 707 |     try {
+ 708 |       storage = this.#supportedBackupStorage('restore');
+ 709 |       this.#assertRestoreIdle();
+ 710 |     } catch (error) {
+ 711 |       await source.cancel(error).catch(() => undefined);
+ 712 |       throw error;
+ 713 |     }
+ 714 |     this.#restoring = true;
+ 715 |     try {
+ 716 |       const outcome = await restoreSqliteDatabase(source, this.#restoreInput(storage), options);
+ 717 |       this.#adopted_client = outcome.client;
+ 718 |       return outcome.result;
+ 719 |     } finally {
+ 720 |       this.#restoring = false;
+ 721 |     }
+ 722 |   }
+ 723 | 
+ 724 |   /**
+ 725 |    * 清理一次没做完的恢复（页面在恢复中途关闭、或恢复失败后清理本身也失败）。
+ 726 |    *
+ 727 |    * @remarks
+ 728 |    * 必须在连接之前调用。拿不到独占锁说明目标正被连接或正在恢复，报 `target_busy`；
+ 729 |    * 没有未完成标记时什么都不做。内存存储没有残留可言，恒为 `false`。
+ 730 |    *
+ 731 |    * @returns 确实清理了残留时为 `true`
+ 732 |    * @throws RxDBBackupError `target_busy` / `unsupported_combination` / `cleanup_pending`
+ 733 |    */
+ 734 |   async cleanupIncompleteRestore(): Promise<boolean> {
+ 735 |     return cleanupIncompleteSqliteRestore(this.#restoreInput(this.#supportedBackupStorage('restore cleanup')));
+ 736 |   }
+ 737 | 
+ 738 |   async saveMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
+ 739 |     const options = getEntityMutations({
+ 740 |       needSaveEntities: entities,
+ 741 |       needRemoveEntities: []
+ 742 |     });
+ 743 |     return this.mutations(options);
+ 744 |   }
+ 745 | 
+ 746 |   async removeMany<T extends EntityType>(entities: InstanceType<T>[]): Promise<InstanceType<T>[]> {
+ 747 |     const options = getEntityMutations({
+ 748 |       needSaveEntities: [],
+ 749 |       needRemoveEntities: entities
+ 750 |     });
+ 751 |     return this.mutations(options);
+ 752 |   }
+ 753 | 
+ 754 |   async mutations<T extends EntityType>(options: RxDBMutationsMap<T>): Promise<InstanceType<T>[]> {
+ 755 |     // C2：不再按环境态分流。外部调用一律开自己的事务并重新排队 —— 事务窗口内的外部写
+ 756 |     // 被卷进他人事务、跟着 ROLLBACK 一起消失，正是 `SQLC-001`。
+ 757 |     // 事务体内的嵌套写要走 `executor.mutations()`（持有 executor 才算在本事务内）。
+ 758 |     return this.transaction(executor => executor.mutations(options)) as Promise<InstanceType<T>[]>;
+ 759 |   }
+ 760 | 
+ 761 |   public async isTableExisted<T extends EntityType>(EntityType: T): Promise<boolean> {
+ 762 |     const metadata = getEntityMetadata(EntityType);
+ 763 |     const tableName = get_table_name_by_metadata(metadata);
+ 764 |     const { sql, params } = isTableExistedSql(tableName);
+ 765 |     const result = await this.#internal_exec(sql, params);
+ 766 |     return isSqlResultEmpty(result) === false;
+ 767 |   }
+ 768 | 
+ 769 |   async createTables<T extends EntityType>(EntityTypes: T[], entities?: InstanceType<T>[]): Promise<boolean> {
+ 770 |     // 建表也在引导链路上（RxDB.#ensureEntityTables 补建缺失的实体表），同样不能等就绪门；
+ 771 |     // 何况「表就绪」正是本方法要建立的前提，让它反过来等就绪是循环依赖。
+ 772 |     await this.bootstrapTransaction(async executor => {
+ 773 |       // 建表前先读一次真实活动分支，把结果直接传给 create_tables_sql 去拼「建表 + 建触发器」——
+ 774 |       // 库创建新表时可能已经停在非 main 分支上（RxDB.#ensureEntityTables 补建缺失表时尤其常见），
+ 775 |       // 触发器要从一开始就烙对分支，而不是先写占位分支、指望别的机制回头纠正：不经
+ 776 |       // transaction() 的裸写根本等不到「下一个默认事务重建全部触发器」的自愈时机。
+ 777 |       //
+ 778 |       // 触发器只在这里烙一次：先读分支再拼 SQL，不走「先按占位分支建、建完在同一事务里
+ 779 |       // 对刚建出的同一批表再做一遍 DROP+CREATE 重建」的两阶段写法——省掉一次重复 DDL，
+ 780 |       // 也不会让触发器在事务内出现过写着错误分支的中间状态（哪怕最终会被覆盖）。
+ 781 |       const branchId = await readActiveBranchIdOrMain(executor);
+ 782 |       const sql = await create_tables_sql(this, EntityTypes, branchId, entities);
+ 783 |       await executor.execute(sql);
+ 784 |     }, false);
+ 785 |     return true;
+ 786 |   }
+ 787 | 
+ 788 |   override async migrateSystemSchema(): Promise<void> {
+ 789 |     const client = await this.#client();
+ 790 |     await this.#queue.addTask(async () => {
+ 791 |       let transactionStarted = false;
+ 792 |       let committed = false;
+ 793 |       try {
+ 794 |         const beginSql = (await client.beginSystemMigrationTransactionSql?.()) ?? 'BEGIN EXCLUSIVE;';
+ 795 |         try {
+ 796 |           await client.execute(beginSql);
+ 797 |           transactionStarted = true;
+ 798 |         } catch (cause) {

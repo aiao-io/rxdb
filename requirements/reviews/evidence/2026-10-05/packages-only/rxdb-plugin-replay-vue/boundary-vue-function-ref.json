@@ -1,0 +1,13 @@
+{
+  "path": "node_modules/.pnpm/@vue+runtime-core@3.5.43/node_modules/@vue/runtime-core/dist/runtime-core.cjs.js",
+  "sha256": "22b0d8044eddf5034fd2ab8dc5649c126cdcf264b4ca8cdea7de2f2eee083f7f",
+  "lineCount": 8914,
+  "readRanges": [
+    [
+      1751,
+      1782
+    ]
+  ],
+  "transcript": "boundary-vue-function-ref.txt",
+  "tableSpacingNormalized": false
+}

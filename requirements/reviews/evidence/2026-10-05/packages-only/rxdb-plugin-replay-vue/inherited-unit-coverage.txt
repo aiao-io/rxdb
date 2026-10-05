@@ -1,0 +1,32 @@
+--- requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage.txt SHA256=c4cfa5351ee70493edf3d6e655177e8c904ab6d79d7ad2da41adaceac3c16695 lines=9298 read=9222-9252 ---
+9222 > nx run rxdb-plugin-replay-vue:test --args=--run --maxWorkers=1 --coverage.enabled=true --coverage.reporter=text --coverage.reporter=json-summary --coverage.reporter=json
+9223 
+9224 > vitest --run --maxWorkers=1 --coverage.enabled=true --coverage.reporter=text --coverage.reporter=json-summary --coverage.reporter=json
+9225 
+9226 
+9227  RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue
+9228       Coverage enabled with v8
+9229 
+9230  ✓ |rxdb-plugin-replay-vue| src/__tests__/replayer.spec.ts (10 tests) 19ms
+9231 
+9232  Test Files  1 passed (1)
+9233       Tests  10 passed (10)
+9234    Start at  09:06:17
+9235    Duration  434ms (transform 38ms, setup 0ms, import 87ms, tests 19ms, environment 148ms)
+9236 
+9237 JUNIT report written to /Users/jimmy/Documents/aiao/rxdb/coverage/packages/rxdb-plugin-replay-vue/junit.xml
+9238  % Coverage report from v8
+9239 ----------------|---------|----------|---------|---------|-------------------
+9240 File            | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s 
+9241 ----------------|---------|----------|---------|---------|-------------------
+9242 All files       |   95.23 |     87.5 |     100 |     100 |                   
+9243  replayer.ts    |   95.23 |     87.5 |     100 |     100 | 63-73             
+9244 ----------------|---------|----------|---------|---------|-------------------
+9245 
+9246 =============================== Coverage summary ===============================
+9247 Statements   : 95.23% ( 40/42 )
+9248 Branches     : 87.5% ( 14/16 )
+9249 Functions    : 100% ( 14/14 )
+9250 Lines        : 100% ( 34/34 )
+9251 ================================================================================
+9252 

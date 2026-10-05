@@ -1,0 +1,157 @@
+packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts SHA256 7448af6262914c2bfb63761a65b1fee1e354486cf954a241547f23313b32cc5c [1,156]
+   1 | import { AsyncQueueExecutor, EventDispatcher, get } from '@aiao/utils';
+   2 | import { describeSqliteDatabase } from './backup/sqlite-blank-database.js';
+   3 | import { executeOo1Helper } from './execute_oo1_helper.js';
+   4 | import { FTS_BIGRAM_SQL_FUNCTION, indexTextForFts } from './fts5/cjk-bigram.js';
+   5 | import type { Oo1Database, Oo1Static } from './oo1-types.js';
+   6 | import type { SqliteClientLike } from './RxDBAdapterSqliteBase.js';
+   7 | import { SQLiteChangeType } from './sqlite-backend.interface.js';
+   8 | import {
+   9 |   type ChangeRecordEvent,
+  10 |   DEFAULT_BATCH_TIMEOUT,
+  11 |   DEFAULT_CACHE_SIZE_KB,
+  12 |   get_cached_regexp,
+  13 |   get_init_sql,
+  14 |   get_persistent_db_file_name,
+  15 |   MAX_BATCH_WAIT_MS,
+  16 |   validateSqliteNumericOption,
+  17 |   WATCH_TABLES
+  18 | } from './sqlite-client.utils.js';
+  19 | import type { SqliteChangeEvent, SQLiteCompatibleType, SqliteResult } from './sqlite-core.interface.js';
+  20 | import type { SqliteBlankDatabase } from './sqlite-core.types.js';
+  21 | import { RxDBAdapterSqliteError } from './sqlite-core.utils.js';
+  22 | 
+  23 | /**
+  24 |  * `Oo1ClientBase` 派发的事件签名表，供 EventDispatcher 类型推断。
+  25 |  */
+  26 | export interface Oo1ClientEvents {
+  27 |   [SQLiteChangeType.SQLITE_DELETE]: SqliteChangeEvent;
+  28 |   [SQLiteChangeType.SQLITE_INSERT]: SqliteChangeEvent;
+  29 |   [SQLiteChangeType.SQLITE_UPDATE]: SqliteChangeEvent;
+  30 | }
+  31 | 
+  32 | /**
+  33 |  * {@link Oo1ClientBase} 的连接生命周期状态。
+  34 |  *
+  35 |  * @remarks
+  36 |  * 早先用 `#is_init` / `#is_disconnected` / `#init_promise` 三个字段各自表达一部分状态，
+  37 |  * 组合出的 8 种取值里只有 4 种合法，`execute()` 也因此只检查得了「已断开」，
+  38 |  * 未初始化时会一路走到 `#queue.addTask` 抛 `TypeError: ... reading 'addTask'`。
+  39 |  * 收敛成单一状态字段后每条转移都是显式的。
+  40 |  *
+  41 |  * - `idle`：尚未 `init`，或 init 失败后已清理完毕（可重新 init）
+  42 |  * - `initializing`：`init` 进行中，`#queue` 与 `#db` 尚未全部就绪
+  43 |  * - `ready`：可执行 SQL
+  44 |  * - `disconnected`：已 `disconnect`，重新 `init` 可回到 `ready`
+  45 |  */
+  46 | export type Oo1ClientState = 'idle' | 'initializing' | 'ready' | 'disconnected';
+  47 | 
+  48 | /**
+  49 |  * 当 OPFS 后端数据库无法打开时的行为（例如浏览器不支持 `Atomics.wait`、
+  50 |  * 缺少 `crossOriginIsolated` 等）。
+  51 |  *
+  52 |  * - `'memory'`：打印 warning 并显式回退到 `:memory:`。
+  53 |  * - `'throw'`（默认）：把原始错误重新抛出，由调用方负责处理。
+  54 |  */
+  55 | export type OpfsFallback = 'memory' | 'throw';
+  56 | 
+  57 | /**
+  58 |  * `Oo1ClientBase.init` 接受的运行期选项。
+  59 |  * 子类可通过泛型扩展（如 `WaSqliteLoadOptions extends Oo1ClientLoadOptions`）。
+  60 |  */
+  61 | export interface Oo1ClientLoadOptions {
+  62 |   opfs?: boolean;
+  63 |   cacheSizeKb?: number;
+  64 |   batchTimeout?: number;
+  65 |   /** @default 'throw' */
+  66 |   opfsFallback?: OpfsFallback;
+  67 | }
+  68 | 
+  69 | /**
+  70 |  * 包装 `oo1.DB` 风格运行时（`@sqlite.org/sqlite-wasm`、`@sqliteai/sqlite-wasm` 等）的
+  71 |  * SQLite 客户端基类。
+  72 |  *
+  73 |  * ## 为什么叫 Oo1
+  74 |  *
+  75 |  * `oo1` 是上游官方 SQLite WASM 的 **Object Oriented API v1** 命名
+  76 |  * （`sqlite3.oo1.DB` / `OpfsDb`），不是本仓库自创缩写。
+  77 |  * 凡走这层面的适配器（sqlite / sqliteai）都继承本基类；
+  78 |  * wa-sqlite 走 C API，**不**复用这里。
+  79 |  *
+  80 |  * 子类只需实现 {@link loadModule} 与 {@link clientName}；
+  81 |  * 其余部分（队列管理、init/disconnect 生命周期、变更事件批处理、
+  82 |  * 自定义函数注册、OPFS fallback）都在这里。
+  83 |  *
+  84 |  * @see {@link Oo1Static} — `oo1` 运行时最小契约
+  85 |  */
+  86 | export abstract class Oo1ClientBase<TLoadOptions extends Oo1ClientLoadOptions = Oo1ClientLoadOptions>
+  87 |   extends EventDispatcher<Oo1ClientEvents>
+  88 |   implements SqliteClientLike
+  89 | {
+  90 |   #state: Oo1ClientState = 'idle';
+  91 |   /** `initializing` 期间的在途 init，供并发调用共享同一次初始化。 */
+  92 |   #init_promise?: Promise<void>;
+  93 |   #queue?: AsyncQueueExecutor;
+  94 |   #pending_events: ChangeRecordEvent[] = [];
+  95 |   #batch_timer?: ReturnType<typeof setTimeout>;
+  96 |   #max_wait_timer?: ReturnType<typeof setTimeout>;
+  97 |   #batch_timeout: number = DEFAULT_BATCH_TIMEOUT;
+  98 |   #change_events_muted = false;
+  99 |   protected sqlite3!: Oo1Static;
+ 100 |   protected db!: Oo1Database;
+ 101 | 
+ 102 |   /** 错误信息中使用的简短标识（例如 `'sqliteai'`）。 */
+ 103 |   protected abstract get clientName(): string;
+ 104 | 
+ 105 |   /**
+ 106 |    * 对外覆盖，与 {@link SqliteClientLike} 签名保持一致。
+ 107 |    * 委托给 {@link EventDispatcher} 中的泛型实现。
+ 108 |    */
+ 109 |   override addEventListener(type: SQLiteChangeType, handler: (event: SqliteChangeEvent) => void): void {
+ 110 |     super.addEventListener(type, handler);
+ 111 |   }
+ 112 | 
+ 113 |   async init(dbName: string, options?: TLoadOptions): Promise<void> {
+ 114 |     if (this.#state === 'ready') return;
+ 115 |     if (this.#init_promise) {
+ 116 |       await this.#init_promise;
+ 117 |       return;
+ 118 |     }
+ 119 | 
+ 120 |     this.#init_promise = (async () => {
+ 121 |       this.#queue = new AsyncQueueExecutor(1);
+ 122 |       this.#state = 'initializing';
+ 123 |       this.#batch_timeout = validateSqliteNumericOption('batchTimeout', options?.batchTimeout, DEFAULT_BATCH_TIMEOUT, {
+ 124 |         allowZero: true
+ 125 |       });
+ 126 |       const cacheSize = validateSqliteNumericOption('cacheSizeKb', options?.cacheSizeKb, DEFAULT_CACHE_SIZE_KB);
+ 127 | 
+ 128 |       await this.#init_sqlite(dbName, options, cacheSize);
+ 129 |       this.#state = 'ready';
+ 130 |     })();
+ 131 | 
+ 132 |     try {
+ 133 |       await this.#init_promise;
+ 134 |       this.#init_promise = undefined;
+ 135 |     } catch (error) {
+ 136 |       // 失败路径由 #cleanup_after_init_failure 复位状态，调用方可带合法参数重试。
+ 137 |       await this.#cleanup_after_init_failure();
+ 138 |       throw error;
+ 139 |     }
+ 140 |   }
+ 141 | 
+ 142 |   async version(): Promise<string> {
+ 143 |     const version = await this.execute('SELECT sqlite_version()');
+ 144 |     return get(version, 'results[0].rows[0][0]');
+ 145 |   }
+ 146 | 
+ 147 |   beginTransactionSql(): string {
+ 148 |     return 'BEGIN;';
+ 149 |   }
+ 150 | 
+ 151 |   /**
+ 152 |    * 暂停 / 恢复变更事件采集。
+ 153 |    *
+ 154 |    * @param muted - `true` 时 update hook 直接忽略写入，不入批也不派发
+ 155 |    */
+ 156 |   setChangeEventsMuted(muted: boolean): void {

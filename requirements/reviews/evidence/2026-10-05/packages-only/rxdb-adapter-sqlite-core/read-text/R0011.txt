@@ -1,0 +1,115 @@
+packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts SHA256 052824127109070a4013c72429389c0e689bb356ad85165149e2287cb4f65a38 [1039,1152]
+1039 |   ): Promise<Awaited<ReturnType<T>>> {
+1040 |     if (this.#is_disconnected) {
+1041 |       throw new RxDBAdapterSqliteError('Adapter is disconnected', { code: 'adapter_disconnected' });
+1042 |     }
+1043 |     return this.#queue.addTask(() => this.#run_transaction(transactionFun, transactionLog));
+1044 |   }
+1045 | 
+1046 |   /**
+1047 |    * 执行事务工作。
+1048 |    *
+1049 |    * @param transactionFun - 事务工作，参数是当前事务 executor
+1050 |    * @returns 事务工作的返回值
+1051 |    *
+1052 |    * @remarks
+1053 |    * 真实适配器入口总是新开事务；executor 门面会把事务内的 `runInTransaction()` 映射为
+1054 |    * `executor.run()`，复用当前事务且不重新入队。
+1055 |    */
+1056 |   public override async runInTransaction<T extends TransactionFun>(
+1057 |     transactionFun: T,
+1058 |     transactionLog: boolean = true
+1059 |   ): Promise<Awaited<ReturnType<T>>> {
+1060 |     if (this.#is_disconnected) {
+1061 |       throw new RxDBAdapterSqliteError('Adapter is disconnected', { code: 'adapter_disconnected' });
+1062 |     }
+1063 |     // C2：真实适配器上的 runInTransaction 一律新开事务。「已在事务中就复用」由
+1064 |     // executor 门面接管（见 SqliteTransactionExecutor 的 facade：runInTransaction → executor.run），
+1065 |     // 因此事务体内的调用方拿到的是门面，永远走不到这里。
+1066 |     return this.transaction(transactionFun, transactionLog);
+1067 |   }
+1068 | 
+1069 |   internalQuery(sql: string, bindings?: SQLiteCompatibleType[]): Promise<SqliteResult> {
+1070 |     return this.#internal_exec(sql, bindings);
+1071 |   }
+1072 | 
+1073 |   async getRxDBChangeSequence() {
+1074 |     const tableName = get_table_name_by_entity_type(RxDBChange);
+1075 |     const result = await this.#internal_exec(`SELECT seq FROM sqlite_sequence WHERE name = ?`, [tableName]);
+1076 |     return (result.results[0]?.rows?.[0]?.[0] ?? 0) as number;
+1077 |   }
+1078 | 
+1079 |   async setRxDBChangeSequence(sequence: number) {
+1080 |     const tableName = get_table_name_by_entity_type(RxDBChange);
+1081 |     await this.transaction(async executor => {
+1082 |       for (const stmt of build_set_sequence_statements(tableName, sequence)) {
+1083 |         await executor.execute(stmt.sql, stmt.params);
+1084 |       }
+1085 |     }, false);
+1086 |   }
+1087 | 
+1088 |   // QueryCache 方法
+1089 |   //
+1090 |   // 三个方法一律走 query() 而非 internalQuery()：它们是 QueryCacheEngine 的真实数据
+1091 |   // 读写路径，由 RxJS Observable 驱动、落地时机不可控。internalQuery 旁路队列并复用同一连接，
+1092 |   // 落在事务窗口内会被该事务的 ROLLBACK 一并回滚，或反向污染尚未提交的事务。
+1093 |   // query() 通过 #queue 串行化，事务体内则由 executor 门面直接使用当前连接。
+1094 |   // internalQuery 仅保留给真正的内部建表/探测路径（它们本就运行在 connect 内）。
+1095 |   //
+1096 |   // 两个写方法都裹在 withTriggersDisabled 里：它们抄的是**远端副本**，不是本地变更。
+1097 |   // 表上的 AFTER INSERT/UPDATE/DELETE 触发器不区分写入来源，不摘掉的话每次拉取回填都会
+1098 |   // 往 rxdb_change 里堆一批伪本地改动 —— 一旦离线写把那张表当出站队列用，
+1099 |   // 这些行就会被当成待推变更再发回远端，形成 pull → log → push → pull 的回声环。
+1100 |   //
+1101 |   // 但变更行同时也是实时查询**唯一**的通知来源（触发器 → rxdb_change →
+1102 |   // handle_rxdb_change → EntityLocal*Event → QueryManager 增量合并）。只摘触发器不补通知，
+1103 |   // 缓存写就成了静默写：库里对了，屏幕不动 —— 删掉的行还挂在列表里直到刷新页面。
+1104 |   // 因此两个方法都在同事务内先预读旧行，写完再照触发器的形状把实体级事件补发出去
+1105 |   // （见 query-cache-events.ts）。
+1106 | 
+1107 |   getMetadataByIds(entityName: string, ids: string[]): Observable<Map<string, string>> {
+1108 |     return defer(() => {
+1109 |       if (ids.length === 0) {
+1110 |         return of(new Map<string, string>());
+1111 |       }
+1112 |       return from(
+1113 |         (async () => {
+1114 |           const metadataMap = new Map<string, string>();
+1115 |           const { tableName, idColumn, updatedAtColumn } = this.#resolveQueryCacheTarget(entityName);
+1116 |           // 主键列名与 updatedAt 同样要经 propertyMap 解析：`@Property({ columnName: 'todo_id' }) id`
+1117 |           // 的实体上，写死的字面量 `id` 换到的是一条 `no such column: id`，该实体从此拉不动（SQLC-014）。
+1118 |           const idColumnSql = quote_sql_identifier(idColumn);
+1119 | 
+1120 |           for (const idsChunk of chunkBySqliteBindLimit(ids)) {
+1121 |             const placeholders = idsChunk.map(() => '?').join(', ');
+1122 |             const sql = `SELECT ${idColumnSql}, ${quote_sql_identifier(updatedAtColumn)} FROM ${quote_sql_identifier(tableName)} WHERE ${idColumnSql} IN (${placeholders})`;
+1123 |             const result = await this.query(sql, idsChunk);
+1124 |             if (result.results?.[0]?.rows) {
+1125 |               for (const row of result.results[0].rows) {
+1126 |                 metadataMap.set(row[0] as string, row[1] as string);
+1127 |               }
+1128 |             }
+1129 |           }
+1130 | 
+1131 |           return metadataMap;
+1132 |         })()
+1133 |       );
+1134 |     });
+1135 |   }
+1136 | 
+1137 |   upsertMany<T>(entityName: string, data: T[]): Observable<void> {
+1138 |     return defer(() => {
+1139 |       if (data.length === 0) {
+1140 |         return of(undefined);
+1141 |       }
+1142 |       // 判在事务之前，不是在事务里 —— 事务体里抛错要靠 ROLLBACK 才回到干净状态，
+1143 |       // 而这一批本来一行都不该被尝试写入。判据只需要元数据与行的键集，是同步的。
+1144 |       const target = this.#resolveQueryCacheTarget(entityName);
+1145 |       assertQueryCacheRowContract(entityName, data as object[], target.metadata);
+1146 |       assert_single_spelling_per_column(entityName, data as object[], target.columnNames);
+1147 |       // 契约显式放行「行以物理列名为键」（`#writeQueryCacheRows` 的 columnNames 映射正为此存在），
+1148 |       // 所以取 id 不能只认 JS 属性名：认错了拿到的是字符串 "undefined"，两次回读全落空，
+1149 |       // 于是**写进去了但一个事件都不发** —— 库是新值、界面停在旧值，正是下面那段注释要防的静默写。
+1150 |       const ids = data.map(item => String(readQueryCacheRowId(item as object, target.idColumn)));
+1151 |       return from(
+1152 |         this.transaction(async executor => {

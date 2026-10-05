@@ -1,0 +1,80 @@
+{
+  "object": "rxdb-plugin-replay-react",
+  "worker": "PKG-replay-react",
+  "frozenAt": "2026-10-05T16:17:21.829681+08:00",
+  "scopeSource": "scope.json",
+  "scopeSha256": "5847ec047ca72c5a307e6c9dbb7ba6473b6d2620471d0dcd03fc1c9fe79dc4c7",
+  "resolvedSource": "resolved-project.json",
+  "resolvedSha256": "b78dd98981e6f65437e47848b91d70050833ae1c118a9dfeaef190553fa27b21",
+  "controlledFileCount": 12,
+  "lineCount": 545,
+  "currentMatchesFrozenScope": true,
+  "manualGitCommandsExecuted": false,
+  "excludedGeneratedDirectories": [
+    "packages/rxdb-plugin-replay-react/dist",
+    "packages/rxdb-plugin-replay-react/out-tsc"
+  ],
+  "inspectionStatus": "fingerprints only; full text reading follows",
+  "files": [
+    {
+      "path": "packages/rxdb-plugin-replay-react/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "lineCount": 21
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/README.md",
+      "sha256": "07ec1d11c59e5a28ad047149c30425a296eb3164c2bb3bcd19cdb25c4273ab60",
+      "lineCount": 78
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/package.json",
+      "sha256": "cf74db9c432160cf379aca9429f3873cd9b6c94249e34c5ad462f01666370d31",
+      "lineCount": 54
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/project.json",
+      "sha256": "000cd36d19ca8d568c57b92f7fe7dda933e5eb492f6230c68c8aa04d63dd3f6b",
+      "lineCount": 12
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/src/__tests__/replayer.spec.tsx",
+      "sha256": "c5a983ef570ee57e591b54fe4e7b016a1c6fbc2b53198c0469250f7778ae08ef",
+      "lineCount": 98
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/src/__tests__/review-parallel-layout-seek.spec.ts",
+      "sha256": "539945d3680b4b654a91671cc51a16274b3b0e8afe81221d43b0d645efdfc4fa",
+      "lineCount": 29
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/src/index.ts",
+      "sha256": "2d25962dd739f90836bc3203fbf5c30a034901b7b3cdcd7f21b61faeb2be8b97",
+      "lineCount": 12
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/src/replayer.tsx",
+      "sha256": "92cd0f38449351c99198bf6fa6f331a28e48c3677c0cb94cbf40b01e5167bdb5",
+      "lineCount": 102
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "lineCount": 16
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/tsconfig.lib.json",
+      "sha256": "6a261b17356f873ff24a2e87f19ed3449b7d23046dd0d00059e5dd5bf37e8542",
+      "lineCount": 33
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/tsconfig.spec.json",
+      "sha256": "28ae7c8b6b9de02abba8aaf41d0fde25b185fde4cb5ce5744d083087cf778b5d",
+      "lineCount": 27
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-react/vite.config.mts",
+      "sha256": "583cec16718f407825d5698df56ed31ece019ef257cd2246da8f26b7304663bb",
+      "lineCount": 63
+    }
+  ]
+}

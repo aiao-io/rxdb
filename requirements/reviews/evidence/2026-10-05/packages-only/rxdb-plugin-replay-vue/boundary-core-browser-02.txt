@@ -1,0 +1,126 @@
+--- packages/rxdb-plugin-replay/src/__tests__/replayer.browser.spec.ts SHA256=0a8326db0f44fddf9089613ac071821d53c4918291a6b5e019a9e42c7e4e7d49 lines=372 read=126-250 ---
+ 126   });
+ 127 
+ 128   it('就绪：播放键、时间轴（max = 总时长）、回放根', async () => {
+ 129     mount();
+ 130     await ready();
+ 131 
+ 132     const total = (recording.events.at(-1)?.timestamp ?? 0) - (recording.events[0]?.timestamp ?? 0);
+ 133     expect(toggle()?.textContent).toBe('Play');
+ 134     expect(toggle()?.getAttribute('aria-pressed')).toBe('false');
+ 135     expect(Number(timeline()?.max)).toBe(total);
+ 136     expect(timeline()?.getAttribute('aria-valuetext')).toBe('00:00');
+ 137     expect(host.querySelector('.rxdb-replayer__stage .replayer-wrapper iframe')).not.toBeNull();
+ 138     expect(statusRegion()).not.toBeNull();
+ 139   });
+ 140 });
+ 141 
+ 142 describe('跳转与播放', () => {
+ 143   it('seek 到某一时刻，回放 iframe 的 DOM 就是那一刻的样子；onTimeChange 收到该时刻', async () => {
+ 144     const onTimeChange = vi.fn();
+ 145     const { b, c } = recording.offsets;
+ 146     mount({ onTimeChange });
+ 147     await ready();
+ 148     expect(probeText()).toBe('A');
+ 149 
+ 150     const middle = Math.round((b + c) / 2);
+ 151     handle?.seek(middle);
+ 152     expect(probeText()).toBe('B');
+ 153     expect(Number(timeline()?.value)).toBe(middle);
+ 154     expect(onTimeChange).toHaveBeenLastCalledWith(middle);
+ 155 
+ 156     // c 是最后一条事件，也就是总时长：落在末尾必须看到它
+ 157     handle?.seek(c + 1);
+ 158     expect(probeText()).toBe('C');
+ 159     expect(Number(timeline()?.value)).toBe(c);
+ 160     handle?.seek(0);
+ 161     expect(probeText()).toBe('A');
+ 162   });
+ 163 
+ 164   it('initialTime：就绪后落在该时刻；加载中调 seek 以最后一次为准', async () => {
+ 165     const { b, c } = recording.offsets;
+ 166     mount({ initialTime: c + 1 });
+ 167     handle?.seek(b + 1);
+ 168     await ready();
+ 169 
+ 170     expect(probeText()).toBe('B');
+ 171   });
+ 172 
+ 173   it('拖时间轴等价于 seek', async () => {
+ 174     const { c } = recording.offsets;
+ 175     mount();
+ 176     await ready();
+ 177 
+ 178     const slider = timeline();
+ 179     if (slider === null) throw new Error('no timeline');
+ 180     slider.value = String(c + 1);
+ 181     slider.dispatchEvent(new Event('input', { bubbles: true }));
+ 182 
+ 183     expect(probeText()).toBe('C');
+ 184     expect(slider.getAttribute('aria-valuetext')).toBe('00:00');
+ 185   });
+ 186 
+ 187   it('play → Pause / aria-pressed=true，时刻前进；播完回到 Play', async () => {
+ 188     const onTimeChange = vi.fn();
+ 189     mount({ onTimeChange });
+ 190     await ready();
+ 191 
+ 192     handle?.play();
+ 193     expect(toggle()?.textContent).toBe('Pause');
+ 194     expect(toggle()?.getAttribute('aria-pressed')).toBe('true');
+ 195 
+ 196     await vi.waitFor(() => expect(toggle()?.textContent).toBe('Play'), { timeout: 5_000 });
+ 197     expect(probeText()).toBe('C');
+ 198     const times = onTimeChange.mock.calls.map(([time]) => time as number);
+ 199     expect(times.length).toBeGreaterThan(1);
+ 200     expect(times).toEqual([...times].sort((x, y) => x - y));
+ 201   });
+ 202 
+ 203   it('播放中跳转、暂停后再跳转都落到目标时刻（回归：播放起点也要按同一偏移换算）', async () => {
+ 204     const { b, c } = recording.offsets;
+ 205     const middle = Math.round((b + c) / 2);
+ 206     mount();
+ 207     await ready();
+ 208 
+ 209     handle?.play();
+ 210     handle?.seek(middle);
+ 211     expect(probeText()).toBe('B');
+ 212 
+ 213     handle?.pause();
+ 214     handle?.seek(0);
+ 215     expect(probeText()).toBe('A');
+ 216     handle?.seek(middle);
+ 217     expect(probeText()).toBe('B');
+ 218   });
+ 219 
+ 220   it('pause 停在当前时刻；非就绪态 play / pause 是空操作', async () => {
+ 221     mount({ replay: fakeReplay({ readEvents: () => new Promise(() => undefined) }) });
+ 222     handle?.play();
+ 223     handle?.pause();
+ 224     expect(root()?.dataset['state']).toBe('loading');
+ 225     handle?.destroy();
+ 226 
+ 227     mount();
+ 228     await ready();
+ 229     handle?.play();
+ 230     handle?.pause();
+ 231     expect(toggle()?.textContent).toBe('Play');
+ 232     expect(toggle()?.getAttribute('aria-pressed')).toBe('false');
+ 233   });
+ 234 });
+ 235 
+ 236 describe('键盘', () => {
+ 237   it('Tab 到播放键按空格开始播放；时间轴可聚焦，方向键前进', async () => {
+ 238     mount();
+ 239     await ready();
+ 240 
+ 241     toggle()?.focus();
+ 242     await userEvent.keyboard(' ');
+ 243     expect(toggle()?.textContent).toBe('Pause');
+ 244     await userEvent.keyboard(' ');
+ 245     expect(toggle()?.textContent).toBe('Play');
+ 246 
+ 247     handle?.seek(0);
+ 248     timeline()?.focus();
+ 249     await userEvent.keyboard('{ArrowRight}');
+ 250     expect(Number(timeline()?.value)).toBeGreaterThan(0);

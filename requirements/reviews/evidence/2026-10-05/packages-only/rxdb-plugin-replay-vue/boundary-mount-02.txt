@@ -1,0 +1,115 @@
+--- packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts SHA256=6a2bf9514b5eb323487d17d1bc88cb5872f326814d392915ca61a44fe1102f3d lines=345 read=115-228 ---
+ 115     if (reload) {
+ 116       this.#position = this.#options.initialTime ?? 0;
+ 117       this.#load();
+ 118       return;
+ 119     }
+ 120     if (options.initialTime !== undefined) this.seek(options.initialTime);
+ 121   }
+ 122 
+ 123   play(): void {
+ 124     const view = this.#view;
+ 125     if (view === null || this.#playing) return;
+ 126     if (this.#position >= view.total) this.#position = 0;
+ 127     this.#playing = true;
+ 128     view.replayer.play(rrwebOffset(view, this.#position));
+ 129     this.#renderToggle(view);
+ 130     this.#tick();
+ 131   }
+ 132 
+ 133   pause(): void {
+ 134     const view = this.#view;
+ 135     if (view === null || !this.#playing) return;
+ 136     this.#stopTicking();
+ 137     this.#playing = false;
+ 138     view.replayer.pause();
+ 139     this.#setPosition(view, view.replayer.getCurrentTime());
+ 140     this.#renderToggle(view);
+ 141   }
+ 142 
+ 143   seek(timeMs: number): void {
+ 144     if (this.#destroyed) return;
+ 145     const view = this.#view;
+ 146     if (view === null) {
+ 147       this.#position = timeMs;
+ 148       return;
+ 149     }
+ 150     const time = Math.min(Math.max(timeMs, 0), view.total);
+ 151     if (this.#playing) view.replayer.play(rrwebOffset(view, time));
+ 152     else view.replayer.pause(rrwebOffset(view, time));
+ 153     this.#setPosition(view, time);
+ 154   }
+ 155 
+ 156   destroy(): void {
+ 157     if (this.#destroyed) return;
+ 158     this.#destroyed = true;
+ 159     this.#teardown();
+ 160     this.#host.replaceChildren();
+ 161   }
+ 162 
+ 163   /** 停播、销毁旧 `Replayer`，让在途的加载与恢复作废。 */
+ 164   #teardown(): void {
+ 165     this.#generation++;
+ 166     this.#stopTicking();
+ 167     this.#playing = false;
+ 168     this.#view?.replayer.destroy();
+ 169     this.#view = null;
+ 170   }
+ 171 
+ 172   #load(): void {
+ 173     this.#teardown();
+ 174     const generation = this.#generation;
+ 175     const { replay, sessionId } = this.#options;
+ 176     this.#render('loading');
+ 177     Promise.all([replay.readEvents(sessionId), replay.listCommitMarkers(sessionId), import('rrweb')]).then(
+ 178       ([events, markers, rrweb]) => {
+ 179         if (generation !== this.#generation) return;
+ 180         const snapshot = firstSnapshot(events);
+ 181         if (snapshot === undefined) {
+ 182           this.#render(
+ 183             'empty',
+ 184             element('p', { className: 'rxdb-replayer__empty', textContent: 'No events to replay' })
+ 185           );
+ 186           return;
+ 187         }
+ 188         this.#mount(events, snapshot, markers, rrweb.Replayer);
+ 189       },
+ 190       (error: unknown) => {
+ 191         if (generation !== this.#generation) return;
+ 192         this.#renderError(toError(error));
+ 193       }
+ 194     );
+ 195   }
+ 196 
+ 197   #mount(
+ 198     events: eventWithTime[],
+ 199     snapshot: eventWithTime,
+ 200     markers: readonly ReplayCommitMarker[],
+ 201     ReplayerClass: typeof Replayer
+ 202   ): void {
+ 203     const stage = element('div', { className: 'rxdb-replayer__stage' });
+ 204     const toggle = element('button', { type: 'button', className: 'rxdb-replayer__toggle' });
+ 205     const timeline = element('input', { type: 'range', className: 'rxdb-replayer__timeline', min: '0' });
+ 206     timeline.setAttribute('aria-label', 'Timeline');
+ 207     const status = element('div', { className: 'rxdb-replayer__status' }, { role: 'status', 'aria-live': 'polite' });
+ 208     const controls = element('div', { className: 'rxdb-replayer__controls' });
+ 209     controls.append(toggle, timeline);
+ 210     this.#render('ready', stage, controls, status);
+ 211 
+ 212     let replayer: Replayer;
+ 213     try {
+ 214       replayer = new ReplayerClass(events, { root: stage, mouseTail: false, showWarning: false });
+ 215     } catch (error) {
+ 216       this.#renderError(toError(error));
+ 217       return;
+ 218     }
+ 219     const { startTime, totalTime } = replayer.getMetaData();
+ 220     const snapshotOffset = snapshot.timestamp - startTime;
+ 221     const view: ReadyView = { replayer, total: totalTime, startTime, snapshotOffset, toggle, timeline, status };
+ 222     this.#view = view;
+ 223     timeline.max = String(totalTime);
+ 224     toggle.addEventListener('click', () => (this.#playing ? this.pause() : this.play()));
+ 225     timeline.addEventListener('input', () => this.seek(Number(timeline.value)));
+ 226     replayer.on('finish', () => this.#finish(view));
+ 227     if (markers.length > 0) status.before(this.#renderMarkers(view, markers));
+ 228     this.#renderToggle(view);

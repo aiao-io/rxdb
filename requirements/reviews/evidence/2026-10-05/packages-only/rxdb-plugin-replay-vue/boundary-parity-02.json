@@ -1,0 +1,13 @@
+{
+  "path": "packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+  "sha256": "fe1c362d41e5c2f3583a009f7cd04286d755731032246b35ca25ca557443da0e",
+  "lineCount": 213,
+  "readRanges": [
+    [
+      113,
+      213
+    ]
+  ],
+  "transcript": "boundary-parity-02.txt",
+  "tableSpacingNormalized": false
+}

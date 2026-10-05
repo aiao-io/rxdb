@@ -1,0 +1,13 @@
+{
+  "path": "packages/rxdb-plugin-replay/src/replayer/mount-replayer.ts",
+  "sha256": "6a2bf9514b5eb323487d17d1bc88cb5872f326814d392915ca61a44fe1102f3d",
+  "lineCount": 345,
+  "readRanges": [
+    [
+      229,
+      345
+    ]
+  ],
+  "transcript": "boundary-mount-03.txt",
+  "tableSpacingNormalized": false
+}

@@ -1,0 +1,23 @@
+{
+  "object": "rxdb-plugin-replay-react",
+  "checkedAt": "2026-10-05T16:31:58.715100+08:00",
+  "validated": true,
+  "controlledFiles": 12,
+  "lines": 545,
+  "sourceFilesUnmodified": true,
+  "allReadRangesFull": true,
+  "sourceAndResolvedFreezeUnchanged": true,
+  "originalCConclusionIds": [
+    "C1",
+    "C2",
+    "C3",
+    "C4",
+    "C5"
+  ],
+  "mdHeadersCompleteOriginalScope": true,
+  "remainingValidationOwnerScenarioReasonComplete": true,
+  "rv070KeyInputsMatch": true,
+  "rating": "🟡",
+  "newNxValidationCommands": [],
+  "progressCompletionNext": true
+}

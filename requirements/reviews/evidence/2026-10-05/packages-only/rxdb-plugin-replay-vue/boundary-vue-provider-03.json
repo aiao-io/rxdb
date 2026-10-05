@@ -1,0 +1,13 @@
+{
+  "path": "packages/rxdb-vue/src/rxdb-vue.ts",
+  "sha256": "af0da2a424c19a2ac3cbaa0e831eb1f9433c5ea913764084d9c2257876e324c9",
+  "lineCount": 251,
+  "readRanges": [
+    [
+      176,
+      251
+    ]
+  ],
+  "transcript": "boundary-vue-provider-03.txt",
+  "tableSpacingNormalized": false
+}

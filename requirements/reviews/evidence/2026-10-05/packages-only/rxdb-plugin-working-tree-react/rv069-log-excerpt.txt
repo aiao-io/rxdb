@@ -1,0 +1,77 @@
+545: > nx run rxdb-plugin-working-tree-react:test --args=review-parallel --run --maxWorkers=1 --coverage.enabled=false
+546: 
+547: > vitest review-parallel --run --maxWorkers=1 --coverage.enabled=false
+548: 
+549: 
+550:  RUN  v4.1.11 /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react
+551: 
+552:  ❯ |rxdb-plugin-working-tree-react| src/__tests__/review-parallel-provider-switch.spec.ts (2 tests | 2 failed) 15ms
+553:      × 换库后不向新库展示旧库的查询状态 12ms
+554:      × 旧库晚到响应不能覆盖新库已完成的状态 2ms
+555: 
+556: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+557: 
+558:  FAIL  |rxdb-plugin-working-tree-react| src/__tests__/review-parallel-provider-switch.spec.ts > 并行评审：工作树状态归属当前 provider > 换库后不向新库展示旧库的查询状态
+559: AssertionError: expected { phase: 'success', value: { …(9) } } to deeply equal { phase: 'idle' }
+560: 
+561: - Expected
+562: + Received
+563: 
+564:   {
+565: -   "phase": "idle",
+566: +   "phase": "success",
+567: +   "value": {
+568: +     "activationRevision": 1,
+569: +     "branchId": "main",
+570: +     "byOrigin": {
+571: +       "local": 7,
+572: +       "remote_sync": 0,
+573: +     },
+574: +     "clean": false,
+575: +     "conflicted": false,
+576: +     "entryCount": 7,
+577: +     "headRevision": 2,
+578: +     "restoring": false,
+579: +     "workingTreeRevision": 3,
+580: +   },
+581:   }
+582: 
+583:  ❯ src/__tests__/review-parallel-provider-switch.spec.ts:34:49
+584:      32|     rendered.replace(second.rxdb);
+585:      33|
+586:      34|     expect(rendered.result.current.statusState).toEqual({ phase: 'idle…
+587:        |                                                 ^
+588:      35|     expect(second.workingTree.status).not.toHaveBeenCalled();
+589:      36|   });
+590: 
+591: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+592: 
+593:  FAIL  |rxdb-plugin-working-tree-react| src/__tests__/review-parallel-provider-switch.spec.ts > 并行评审：工作树状态归属当前 provider > 旧库晚到响应不能覆盖新库已完成的状态
+594: AssertionError: expected { phase: 'success', value: true } to deeply equal { phase: 'success', value: false }
+595: 
+596: - Expected
+597: + Received
+598: 
+599:   {
+600:     "phase": "success",
+601: -   "value": false,
+602: +   "value": true,
+603:   }
+604: 
+605:  ❯ src/__tests__/review-parallel-provider-switch.spec.ts:56:52
+606:      54|     });
+607:      55|
+608:      56|     expect(rendered.result.current.isEnabledState).toEqual({ phase: 's…
+609:        |                                                    ^
+610:      57|   });
+611:      58| });
+612: 
+613: ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+614: 
+615: 
+616:  Test Files  1 failed (1)
+617:       Tests  2 failed (2)
+618:    Start at  09:34:16
+619:    Duration  681ms (transform 291ms, setup 0ms, import 442ms, tests 15ms, environment 132ms)
+620: 
+621: Warning: command "vitest review-parallel --run --maxWorkers=1 --coverage.enabled=false" exited with non-zero status code

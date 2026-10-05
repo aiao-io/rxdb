@@ -1,0 +1,131 @@
+packages/rxdb-adapter-sqlite-core/src/handle_rxdb_change.ts SHA256 3341e7b0725c5641bfde888cb19806eb8663178c7bf779b16a04c099d07c0610 [145,274]
+ 145 |     return;
+ 146 |   }
+ 147 | 
+ 148 |   if (event.type === SQLiteChangeType.SQLITE_UPDATE) {
+ 149 |     // 跨 Tab 同步 undo/redo 状态（如 revertChangeId 变更）
+ 150 |     const rxDBChangeEvent: RxDBEntityLocalUpdatedEventData[] = entities.map(d => ({
+ 151 |       namespace: metadata.namespace,
+ 152 |       entity: metadata.name,
+ 153 |       type: d.type,
+ 154 |       id: d.id,
+ 155 |       patch: { ...getEntityStatus(d).origin } as unknown as EntityPatch<EntityType>,
+ 156 |       inversePatch: {} as EntityPatch<EntityType>,
+ 157 |       recordAt: d.createdAt
+ 158 |     }));
+ 159 |     adapter.rxdb.dispatchEvent(new EntityLocalUpdatedEvent(rxDBChangeEvent));
+ 160 |   }
+ 161 |   // DELETE 操作不发出任何事件
+ 162 | };
+ 163 | 
+ 164 | const build_system_event_data = <T extends EntityType>(
+ 165 |   entity: InstanceType<T>,
+ 166 |   metadata: EntityMetadata,
+ 167 |   eventType: SQLiteChangeType
+ 168 | ): RxDBEntityLocalEventData => {
+ 169 |   const id = entity.id;
+ 170 |   const recordAt = entity.createdAt || new Date();
+ 171 |   const namespace = metadata.namespace;
+ 172 |   const entityName = metadata.name;
+ 173 |   switch (eventType) {
+ 174 |     case SQLiteChangeType.SQLITE_INSERT:
+ 175 |       return {
+ 176 |         namespace,
+ 177 |         entity: entityName,
+ 178 |         type: 'INSERT',
+ 179 |         id,
+ 180 |         patch: { ...entity } as unknown as EntityFull<EntityType>,
+ 181 |         inversePatch: null,
+ 182 |         recordAt
+ 183 |       };
+ 184 |     case SQLiteChangeType.SQLITE_DELETE:
+ 185 |       return {
+ 186 |         namespace,
+ 187 |         entity: entityName,
+ 188 |         type: 'DELETE',
+ 189 |         id,
+ 190 |         patch: null,
+ 191 |         inversePatch: { ...entity } as unknown as EntityPatch<EntityType>,
+ 192 |         recordAt
+ 193 |       };
+ 194 |     case SQLiteChangeType.SQLITE_UPDATE:
+ 195 |       return {
+ 196 |         namespace,
+ 197 |         entity: entityName,
+ 198 |         type: 'UPDATE',
+ 199 |         id,
+ 200 |         patch: { ...getEntityStatus(entity).origin } as unknown as EntityPatch<EntityType>,
+ 201 |         inversePatch: {} as EntityPatch<EntityType>,
+ 202 |         recordAt
+ 203 |       };
+ 204 |   }
+ 205 | };
+ 206 | 
+ 207 | const dispatch_system_event = (
+ 208 |   adapter: RxDBAdapterSqliteBase,
+ 209 |   type: ReturnType<typeof getRxDBChangeEventType>,
+ 210 |   events: RxDBEntityLocalEventData[]
+ 211 | ): void => {
+ 212 |   switch (type) {
+ 213 |     case 'UPDATE':
+ 214 |       adapter.rxdb.dispatchEvent(new EntityLocalUpdatedEvent(events as RxDBEntityLocalUpdatedEventData[]));
+ 215 |       return;
+ 216 |     case 'DELETE':
+ 217 |       adapter.rxdb.dispatchEvent(new EntityLocalRemovedEvent(events as RxDBEntityLocalRemovedEventData[]));
+ 218 |       return;
+ 219 |     case 'INSERT':
+ 220 |       adapter.rxdb.dispatchEvent(new EntityLocalCreatedEvent(events as RxDBEntityLocalCreatedEventData[]));
+ 221 |       return;
+ 222 |   }
+ 223 | };
+ 224 | 
+ 225 | const handle_system_table = <T extends EntityType>(
+ 226 |   adapter: RxDBAdapterSqliteBase,
+ 227 |   result: InstanceType<T>[],
+ 228 |   event: SqliteChangeEvent,
+ 229 |   metadata: EntityMetadata
+ 230 | ): void => {
+ 231 |   const events = result.map(entity => build_system_event_data(entity, metadata, event.type));
+ 232 |   dispatch_system_event(adapter, getRxDBChangeEventType(event.type), events);
+ 233 | };
+ 234 | 
+ 235 | /**
+ 236 |  * 处理 SQLite 变更事件，将 update_hook 触发的行变更转换为 RxDB 实体事件。
+ 237 |  *
+ 238 |  * 设计为 fire-and-forget：由 update_hook 同步调用，内部异步查询不阻塞调用方。
+ 239 |  * 失败通过 {@link RxDBAdapterSqliteBase.emitChangeError} 上报（无监听器时降级为
+ 240 |  * `console.error`）；这条路径没有调用方，抛出只会变成 unhandled rejection（SQLC-012）。
+ 241 |  * 高频场景下事件处理可能堆积，但由于 SqliteClient 内部队列保证串行执行，不会产生并发问题。
+ 242 |  */
+ 243 | export const handle_rxdb_change = <T extends EntityType>(
+ 244 |   adapter: RxDBAdapterSqliteBase,
+ 245 |   event: SqliteChangeEvent
+ 246 | ): Promise<void> => {
+ 247 |   const { tableName } = event;
+ 248 |   const [namespace, table_name] = get_table_name_info(tableName);
+ 249 |   const EntityType = adapter.rxdb.schemaManager.getEntityTypeByTableName<T>(table_name, namespace);
+ 250 |   if (!EntityType) return Promise.resolve();
+ 251 |   const repository = adapter.getRepository<T, SqliteRepository<T>>(EntityType);
+ 252 |   const metadata = getEntityMetadata(EntityType);
+ 253 |   const rxdb_change_meta = getEntityMetadata(RxDBChange);
+ 254 | 
+ 255 |   const { rowIds } = event;
+ 256 |   return repository
+ 257 |     .findByRowIds(rowIds, event.type === SQLiteChangeType.SQLITE_UPDATE)
+ 258 |     .then(async result => {
+ 259 |       try {
+ 260 |         if (metadata === rxdb_change_meta) {
+ 261 |           await handle_rxdb_change_table(adapter, result, event, metadata);
+ 262 |         } else {
+ 263 |           handle_system_table(adapter, result, event, metadata);
+ 264 |         }
+ 265 |       } catch (error) {
+ 266 |         adapter.emitChangeError({ error, tableName, rowIds, phase: 'process' });
+ 267 |       }
+ 268 |     })
+ 269 |     .catch(error => {
+ 270 |       // 断开期间被取消的查询不是失败：没有变更丢失，只是这个 adapter 不再服务
+ 271 |       if (error instanceof RxDBAdapterSqliteError && error.code === 'adapter_disconnected') return;
+ 272 |       adapter.emitChangeError({ error, tableName, rowIds, phase: 'query' });
+ 273 |     });
+ 274 | };

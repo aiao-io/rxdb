@@ -1,0 +1,171 @@
+packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts SHA256 7448af6262914c2bfb63761a65b1fee1e354486cf954a241547f23313b32cc5c [157,326]
+ 157 |     this.#change_events_muted = muted;
+ 158 |   }
+ 159 | 
+ 160 |   beginSystemMigrationTransactionSql(): string {
+ 161 |     return 'BEGIN EXCLUSIVE;';
+ 162 |   }
+ 163 | 
+ 164 |   /**
+ 165 |    * 在同一个模块上开一条临时 `:memory:` 连接，描述引擎新建空库本来的样子。
+ 166 |    *
+ 167 |    * @returns 空库的对象列表与描述
+ 168 |    */
+ 169 |   async describeBlankDatabase(): Promise<SqliteBlankDatabase> {
+ 170 |     const blank = new this.sqlite3.oo1.DB(':memory:');
+ 171 |     try {
+ 172 |       return await describeSqliteDatabase({
+ 173 |         execute: async (sql, bindings) => executeOo1Helper(this.clientName, blank, sql, bindings)
+ 174 |       });
+ 175 |     } finally {
+ 176 |       blank.close();
+ 177 |     }
+ 178 |   }
+ 179 | 
+ 180 |   async disconnect(): Promise<void> {
+ 181 |     this.#state = 'disconnected';
+ 182 |     await this.#init_promise?.catch(() => undefined);
+ 183 |     this.#state = 'disconnected';
+ 184 |     this.#init_promise = undefined;
+ 185 |     this.#clear_batch_timers();
+ 186 |     // 断开前同步派发已收集但未 flush 的变更事件，避免静默丢失最后一批。
+ 187 |     // 契约：监听器异常仅 log，不得中断 close/句柄释放（有意降级，测试锁定）——
+ 188 |     // 异常隔离在 #flush_pending_events 内部逐监听器完成。
+ 189 |     this.#flush_pending_events();
+ 190 |     // 必须排在 flush 之后：先清空就会连最后一批事件一起丢掉。
+ 191 |     // 适配器重连时会重新注册一组监听器（跨 Comlink 是全新代理，远端按引用去重认不出旧的），
+ 192 |     // 不在这里清空则旧监听器永久累积，同一条变更被重复派发 N 次。
+ 193 |     this.removeAllEventListeners();
+ 194 | 
+ 195 |     const sqlite3 = this.sqlite3 as Oo1Static | undefined;
+ 196 |     const db = this.db as Oo1Database | undefined;
+ 197 |     const queue = this.#queue;
+ 198 | 
+ 199 |     if (sqlite3?.capi?.sqlite3_update_hook && db) {
+ 200 |       sqlite3.capi.sqlite3_update_hook(
+ 201 |         db,
+ 202 |         () => {
+ 203 |           /* 无操作 */
+ 204 |         },
+ 205 |         0
+ 206 |       );
+ 207 |     }
+ 208 |     try {
+ 209 |       if (queue) {
+ 210 |         await queue.waitForAll();
+ 211 |       }
+ 212 |     } finally {
+ 213 |       // 即使 waitForAll 抛错也必须关闭连接，避免句柄泄漏
+ 214 |       if (db) {
+ 215 |         db.close();
+ 216 |       }
+ 217 |     }
+ 218 |   }
+ 219 | 
+ 220 |   /**
+ 221 |    * 执行 SQL。
+ 222 |    *
+ 223 |    * @param sql - SQL 语句
+ 224 |    * @param bindings - 绑定参数
+ 225 |    * @returns 执行结果
+ 226 |    * @throws {RxDBAdapterSqliteError} 客户端已断开，或尚未 `init` 完成
+ 227 |    */
+ 228 |   async execute(sql: string, bindings?: SQLiteCompatibleType[]): Promise<SqliteResult> {
+ 229 |     if (this.#state === 'disconnected') {
+ 230 |       throw new RxDBAdapterSqliteError(`${this.clientName} client has been disconnected`);
+ 231 |     }
+ 232 |     if (this.#state !== 'ready') {
+ 233 |       throw new RxDBAdapterSqliteError(
+ 234 |         `${this.clientName} client has not been initialized; call init(dbName) and await it before execute()`
+ 235 |       );
+ 236 |     }
+ 237 |     return this.#enqueue(sql, bindings);
+ 238 |   }
+ 239 | 
+ 240 |   /** 加载并初始化底层的 sqlite-wasm 模块。 */
+ 241 |   protected abstract loadModule(options?: TLoadOptions): Promise<Oo1Static>;
+ 242 | 
+ 243 |   /**
+ 244 |    * 把 `sqlite3_update_hook` 输出的 rowId 统一成 bigint。
+ 245 |    *
+ 246 |    * `@sqlite.org/sqlite-wasm` 在 rowId 较小时可能给出普通 `number`，
+ 247 |    * 官方客户端会覆盖本方法强制转成 `bigint`；运行时本身总输出 `bigint` 的子类可以保留默认。
+ 248 |    */
+ 249 |   protected normalizeRowId(rowId: number | bigint): bigint {
+ 250 |     return typeof rowId === 'bigint' ? rowId : BigInt(rowId);
+ 251 |   }
+ 252 | 
+ 253 |   /**
+ 254 |    * 把一条 SQL 排进串行队列执行，不做状态检查。
+ 255 |    *
+ 256 |    * `init` 阶段的 PRAGMA 走这里而不是 {@link execute}：此刻状态是 `initializing`，
+ 257 |    * 公开的 `execute()` 会拒绝，而队列与连接对内部路径已经就绪。
+ 258 |    */
+ 259 |   #enqueue(sql: string, bindings?: SQLiteCompatibleType[]): Promise<SqliteResult> {
+ 260 |     const queue = this.#queue;
+ 261 |     if (!queue) {
+ 262 |       throw new RxDBAdapterSqliteError(`${this.clientName} client task queue is unavailable`);
+ 263 |     }
+ 264 |     return queue.addTask(() => executeOo1Helper(this.clientName, this.db, sql, bindings));
+ 265 |   }
+ 266 | 
+ 267 |   async #init_sqlite(dbName: string, options: TLoadOptions | undefined, cacheSize: number): Promise<void> {
+ 268 |     this.sqlite3 = await this.loadModule(options);
+ 269 | 
+ 270 |     if (options?.opfs) {
+ 271 |       try {
+ 272 |         const OpfsDb = this.sqlite3.oo1.OpfsDb;
+ 273 |         if (!OpfsDb) {
+ 274 |           throw new RxDBAdapterSqliteError(`${this.clientName} runtime does not provide an OPFS database constructor`);
+ 275 |         }
+ 276 |         this.db = new OpfsDb(get_persistent_db_file_name(dbName));
+ 277 |       } catch (e) {
+ 278 |         if ((options.opfsFallback ?? 'throw') === 'throw') {
+ 279 |           throw e;
+ 280 |         }
+ 281 |         console.warn(`[${this.clientName}] OPFS database creation failed, falling back to in-memory database:`, e);
+ 282 |         this.db = new this.sqlite3.oo1.DB(':memory:');
+ 283 |       }
+ 284 |     } else {
+ 285 |       this.db = new this.sqlite3.oo1.DB(':memory:');
+ 286 |     }
+ 287 | 
+ 288 |     this.#register_custom_functions();
+ 289 | 
+ 290 |     await this.#enqueue(get_init_sql(cacheSize, !!options?.opfs));
+ 291 | 
+ 292 |     this.sqlite3.capi.sqlite3_update_hook(
+ 293 |       this.db,
+ 294 |       (_userCtx, op, dbName, tableName, rowId) => {
+ 295 |         if (this.#change_events_muted || !dbName || !tableName || !WATCH_TABLES.has(tableName)) return;
+ 296 | 
+ 297 |         this.#pending_events.push({
+ 298 |           type: op as SQLiteChangeType,
+ 299 |           dbName,
+ 300 |           tableName,
+ 301 |           rowId: this.normalizeRowId(rowId)
+ 302 |         });
+ 303 |         this.#schedule_batch_send();
+ 304 |       },
+ 305 |       0
+ 306 |     );
+ 307 |   }
+ 308 | 
+ 309 |   async #cleanup_after_init_failure(): Promise<void> {
+ 310 |     this.#clear_batch_timers();
+ 311 |     this.#pending_events.length = 0;
+ 312 | 
+ 313 |     const sqlite3 = this.sqlite3 as Oo1Static | undefined;
+ 314 |     const db = this.db as Oo1Database | undefined;
+ 315 |     const queue = this.#queue;
+ 316 | 
+ 317 |     if (sqlite3?.capi?.sqlite3_update_hook && db) {
+ 318 |       try {
+ 319 |         sqlite3.capi.sqlite3_update_hook(
+ 320 |           db,
+ 321 |           () => {
+ 322 |             /* 无操作 */
+ 323 |           },
+ 324 |           0
+ 325 |         );
+ 326 |       } catch {

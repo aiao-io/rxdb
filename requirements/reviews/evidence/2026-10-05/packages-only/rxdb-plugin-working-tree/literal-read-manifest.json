@@ -1,0 +1,62 @@
+[
+  {
+    "id": "packages/rxdb-plugin-working-tree/README.md:1-94:0fce844bcd1e",
+    "path": "packages/rxdb-plugin-working-tree/README.md",
+    "sha256": "0fce844bcd1e03679fe01b80eea2dd1bca78899065eb949875d3a1228a658a05",
+    "lineCount": 133,
+    "range": [
+      1,
+      94
+    ],
+    "literalUtf8Bytes": 6741,
+    "acknowledged": true
+  },
+  {
+    "id": "packages/rxdb-plugin-working-tree/LICENSE:1-21:61d86f888dcd",
+    "path": "packages/rxdb-plugin-working-tree/LICENSE",
+    "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+    "lineCount": 21,
+    "range": [
+      1,
+      21
+    ],
+    "literalUtf8Bytes": 1141,
+    "acknowledged": true
+  },
+  {
+    "id": "packages/rxdb-plugin-working-tree/README.md:95-110:0fce844bcd1e",
+    "path": "packages/rxdb-plugin-working-tree/README.md",
+    "sha256": "0fce844bcd1e03679fe01b80eea2dd1bca78899065eb949875d3a1228a658a05",
+    "lineCount": 133,
+    "range": [
+      95,
+      110
+    ],
+    "literalUtf8Bytes": 872,
+    "acknowledged": true
+  },
+  {
+    "id": "packages/rxdb-plugin-working-tree/src/working-tree/switch-branch-options.ts:118-154:10770cbc7c9e",
+    "path": "packages/rxdb-plugin-working-tree/src/working-tree/switch-branch-options.ts",
+    "sha256": "10770cbc7c9e50337236b26a2ac134ec28ae97836253d951bc252e260df38d21",
+    "lineCount": 154,
+    "range": [
+      118,
+      154
+    ],
+    "literalUtf8Bytes": 2529,
+    "acknowledged": true
+  },
+  {
+    "id": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-entry.entity.ts:1-6:efd09b7f4155",
+    "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-entry.entity.ts",
+    "sha256": "efd09b7f41555c226421a848a8849e1f1da998ad17864c98e685260a380606ec",
+    "lineCount": 208,
+    "range": [
+      1,
+      6
+    ],
+    "literalUtf8Bytes": 218,
+    "acknowledged": true
+  }
+]

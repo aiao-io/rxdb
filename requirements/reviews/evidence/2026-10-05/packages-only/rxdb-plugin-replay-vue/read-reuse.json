@@ -1,0 +1,10 @@
+{
+  "object": "rxdb-plugin-replay-vue",
+  "policy": "旧实读且同SHA的真实行区间可以复用；清单、requestedReadRanges或截断输出不升级为全文。",
+  "oldSameShaFiles": 13,
+  "oldPartialVisibleFiles": 5,
+  "oldNotManuallyInspectedFiles": 8,
+  "newFreshFullTextFiles": 13,
+  "sourceReadingReuseCount": 0,
+  "historicalDynamicPolicy": "已测量的11个本包源码/config/test及核心mount/parity SHA相同；README/LICENSE未纳入旧动态输入清单，不叫漂移。旧宿主/根配置/产物并非全部复核，旧门禁仅继承历史测量面，非本轮新执行。"
+}

@@ -1,0 +1,31 @@
+packages/rxdb-adapter-sqlite-core/eslint.config.mjs SHA256 215b420826b8711bd952451153340cea71ec0732fb0721ff91164829b74950c7 [1,30]
+   1 | import baseConfig from '../../eslint.config.mjs';
+   2 | 
+   3 | export default [
+   4 |   ...baseConfig,
+   5 |   {
+   6 |     files: ['**/*.json'],
+   7 |     rules: {
+   8 |       '@nx/dependency-checks': [
+   9 |         'error',
+  10 |         {
+  11 |           ignoredFiles: [
+  12 |             '{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}',
+  13 |             '{projectRoot}/vite.config.{js,ts,mjs,mts}',
+  14 |             // coverage-acceptance 的配置与 runner 是**只在本地/CI 跑门禁时执行**的开发工具，
+  15 |             // 既不进 dist 也不进 npm 包（package.json 的 files 只发 dist + src）。
+  16 |             // 它们引的 @vitest/browser-playwright / playwright 归工作区根 devDependencies 管，
+  17 |             // 与 vite.config.mts 同类，所以走同一条 ignoredFiles 而不是塞进本包 dependencies。
+  18 |             '{projectRoot}/vitest.coverage-acceptance.config.{js,ts,mjs,mts}',
+  19 |             '{projectRoot}/scripts/*.{js,cjs,mjs,ts,cts,mts}'
+  20 |           ],
+  21 |           // @sqlite.org/sqlite-wasm 只被测试专用的 memdb 备份 harness 加载，装在 devDependencies
+  22 |           ignoredDependencies: ['type-fest', '@aiao/rxdb-test', '@sqlite.org/sqlite-wasm']
+  23 |         }
+  24 |       ]
+  25 |     },
+  26 |     languageOptions: {
+  27 |       parser: await import('jsonc-eslint-parser')
+  28 |     }
+  29 |   }
+  30 | ];

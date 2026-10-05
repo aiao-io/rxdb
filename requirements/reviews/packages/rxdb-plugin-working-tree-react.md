@@ -2,160 +2,79 @@
 kind: review-plan
 object: rxdb-plugin-working-tree-react
 source_root: packages/rxdb-plugin-working-tree-react
-created: 2026-10-03
-baseline: 2e820521187cbfcd1fe76fb705659fea0a548f0e
-execution: in-progress
+updated: 2026-10-05
+worker: PKG-working-tree-react
+execution: complete-original-scope
+source-review: complete-original-scope
+assessment-delivery: complete-original-scope
+scenario-validation: remaining-owners-listed
+release-validation: not-complete
+rating: "🔴"
 ---
 
-# rxdb-plugin-working-tree-react：深度评审计划
+# rxdb-plugin-working-tree-react：原范围全文评审收口
+**🔴 状态ownership不合格：RV-069/P1 Open使数据库身份切换后仍显示并接收旧库状态。源码全文 / 原 C 意见：complete-original-scope；专项运行与发布验收另列。**
 
-> 本文件是评审计划，不是问题报告。以下是待核查任务，不代表已发现缺陷、测试已通过或覆盖率已达标。
+## 1. 独占范围 / 冻结 / 历史
 
-导航：[全仓总计划](../deep-review-plan.md) · [文档证据约定](../../CONVENTIONS.md) · [确认问题记录模板](../review.template.md)
+- 唯一对象：`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react`；13 文件 / 1088 行，源码/config/tests/docs/license 全范围。
+- 沿用冻结scope标识 `943c50cc85b4be3b0635f736a35a9659c3fe209a`；实际阅读以当前文件SHA及真实区间为准，不自行执行Git操作。
+- [scope](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/scope.json) / [resolved](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/resolved-project.json) / [冻结核对](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/scope-freeze.json)；没有把project.json局部targets当完整配置。
+- 旧文档先读并保留：[旧plan](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/baseline/original-plan.md) / [旧results](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/baseline/original-results.md)；旧partial不能继续冒充本次源码状态，原场景仍保留。
+- [全文台账](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/file-inspection.json)记录实际SHA、N、真实readRanges、具体notes/C；输出trace与hash盘点不自动等于阅读。
 
-## 1. 范围与基线
+## 2. 全文阅读与具体关注
 
-React：working-tree status/diff/commit/discard/restore 的框架状态与动作封装。
+| 文件 | 行数 | 已审具体关注 |
+| --- | ---: | --- |
+| [LICENSE](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/LICENSE) | 21 | MIT许可全文及署名；package.json:18声明MIT，历史pack含LICENSE。只核对声明对应，不作法律意见。 |
+| [README.md](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/README.md) | 91 | 全文91行：core插件装载必须先于connect；无自动变更流、显式status刷新、CAS/restore返回值与switchBranch异常有说明。52–54及66仍称十个状态/十个方法/十格，与当前十二字段及十二命令不符，记本地P3文档意见；不新增RV号。没有真实consumer或UI验收。 |
+| [package.json](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/package.json) | 60 | 全文60行：root types/import/default均在dist，files排除spec/test/__tests__/tsbuildinfo；core/rxdb/react绑定peer齐，React当前^19.3.0而非旧计划^19.2.8，rxjs^7.8.2。只承诺ESM，无本轮pack或独立消费。 |
+| [project.json](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/project.json) | 12 | 全文12行：只覆盖typecheck对build/^typecheck依赖；已先读冻结resolved完整310行，不能把局部targets当完整配置；未执行Nx。 |
+| [src/__tests__/index.spec.ts](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/index.spec.ts) | 30 | 全文30行：3条用例实际namespace import入口，确认运行时仅useWorkingTree；WorkingTreeResource类型可具名而非运行时符号。核心类型/错误不再导出是明确契约，不报成缺失。 |
+| [src/__tests__/review-parallel-provider-switch.spec.ts](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/review-parallel-provider-switch.spec.ts) | 58 | 全文58行：真实renderHook/RxDBProvider，官方testing IO桩；两条A→B回归分别要求B初态idle、A迟到true不覆盖B false。历史日志两条均失败，关键输入同SHA，归并RV-069/P1/Open；不重复报号，不声称向错库落写。 |
+| [src/__tests__/use-working-tree.spec.tsx](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx) | 556 | 全文556行五个实际区间：真实hook/provider/共享createWorkingTreeCommands与async-state，只把workingTree/versionManager IO打桩。覆盖loading、查询empty、CAS/四种restore拒绝作为success、switchBranch抛错与选项透传、显式status刷新、刷新失败不翻转成功commit、无provider抛错及十二格/十二方法稳定引用。enableIfEmpty/commitChanges只在状态/成员面出现，没有对应动作执行断言；不把presence guard当动作通过。无StrictMode/多root/真实SQL CAS验收。 |
+| [src/index.ts](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/index.ts) | 19 | 全文19行：use client源指令，运行时只导出useWorkingTree、类型只导出WorkingTreeResource；核心错误/类型让用户从peer核心根取。与API baseline及另外两端根入口一致；不检查忽略dist或凭source指令保证打包RSC边界。 |
+| [src/use-working-tree.ts](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts) | 96 | 全文96行：Resource是Readonly<core states>&core commands，无重复签名；创建不发IO、无自动Observable订阅、同库useMemo命令稳定。84–95命令因database变而重建，85的useState与89–92稳定patch却跨database复用，形成旧状态+新命令混合快照且旧命令晚到仍写当前状态，根因复用RV-069。1–3旧十格注记与20–21十二格/十二命令有文档漂移；不把核心每commands实例请求代次当数据库ownership屏障。 |
+| [tsconfig.json](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/tsconfig.json) | 16 | 全文16行：继承base，lib/spec两引用；ignoreDeprecations:6.0既有兼容项。本轮未改严格选项；根strict:true且既有skipLibCheck/skipDefaultLibCheck:true，不能当独立不跳库检查的消费验证。 |
+| [tsconfig.lib.json](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/tsconfig.lib.json) | 39 | 全文39行：ts/tsx生产声明，排除所有spec/test及构建配置和生成目录；引用core/rxdb-react/rxdb三个lib。lib入口通过不等于三个spec或独立consumer通过。 |
+| [tsconfig.spec.json](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/tsconfig.spec.json) | 27 | 全文27行两个实际区间：ts/tsx测试与vite配置都在include，引用本包lib；provider-switch探针未被排除。无本轮spec编译，旧compiler.txt仅命令文本。 |
+| [vite.config.mts](/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/vite.config.mts) | 63 | 全文63行：ES入口+dts及aiao/react/jsx-runtime/rxjs外置，CI/token条件上传插件；happy-dom而非browser，glob含三个spec，v8/include src。既有pluginTimings:false只抑制构建耗时诊断，不是ESLint零警告证据。本轮不build、不关闭检查。 |
 
-| 项目                | 基线事实                                                                                      |
-| ------------------- | --------------------------------------------------------------------------------------------- |
-| 对象类型            | 包                                                                                            |
-| 源码范围            | [`packages/rxdb-plugin-working-tree-react`](../../../packages/rxdb-plugin-working-tree-react) |
-| Nx 项目             | `rxdb-plugin-working-tree-react`                                                              |
-| npm 名称            | `@aiao/rxdb-plugin-working-tree-react`                                                        |
-| 计划基线            | `main@2e820521187cbfcd1fe76fb705659fea0a548f0e`，2026-10-03（Asia/Shanghai）                  |
-| 建议波次 / 优先风险 | W4 / 高（排期依据，不是缺陷结论）                                                             |
-| 受控文件盘点        | 12 个；测试/共享套件入口 2 个（按文件名，不代表覆盖率）                                       |
-| 执行状态            | 执行中：已进入全范围基线/入口阶段；专项及覆盖率未全部完成                                     |
+## 3. 原 C 全部意见
 
-范围是此对象的**全部 Git 受控源码、配置、测试、fixture、构建/打包文件与资源声明**，不是只看下面的导航入口。受控生成代码需验证生成来源与确定性；忽略的旧产物不作为当前源码证据。基线变化后先复盘 inventory / Nx targets / API，再开始评审。
+| 原 C / 专项 | 原动作 | 原最低场景（不缩减） | 当前源码意见 |
+| --- | --- | --- | --- |
+| **C1 状态与作用域** | 核查 activation/branch/能力状态如何进入 hook，status/diff 订阅必须归属当前数据库。 | 未 enable、插件缺失、切分支、换库、多实例；不显示旧库 diff 或偷偷启用数据库能力。 | 确认RV-069/P1：provider换库状态不归新库；其余初始化/显式命令边界已审。 |
+| **C2 动作结果与并发** | 逐项对照 commit/discard/restore 的返回值拒绝和 switchBranch 的异常，不能一律当异常或成功。 | CAS 落败、dirty tree、不可达 commit、并发点击、动作中换 scope；原有数据不损坏。 | 同库IO接缝上的结果/异常/刷新语义已证；动作中换scope存在RV-069同根因风险，真实数据库不损坏未验。 |
+| **C3 三端与敏感数据** | 核查更新触发、错误显示、diff 摘要和类型消费，并与 shared fixtures / 应用工作树场景对应。 | 相同拒绝序列三端同语义、关闭清理、敏感字段摘要；不能为调试直接输出完整历史。 | 入口/共享类型及无隐式日志边界已审；敏感diff不是自动脱敏摘要，真实应用场景未验；有P3文档数量漂移。 |
+| **C4 React 生命周期与竞态** | 核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。 | StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。 | 确认RV-069：同一React实例跨provider仍保留旧状态/写回sink；不泛化三框架或误归核心请求代次。 |
+| **C5 React 类型与 render 边界** | 检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。 | typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。 | 类型与render纯度/同库稳定引用成立；返回快照有RV-069归属错误，独立消费未验；P3文档误称十方法。 |
 
-## 2. 阅读入口（导航，不是全部范围）
+逐项源码/测试角色及未验归属：[results](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-working-tree-react.md) / [c-evidence.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/c-evidence.json)。
 
-- [`src/use-working-tree.ts`](../../../packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts)
-- [`src/index.ts`](../../../packages/rxdb-plugin-working-tree-react/src/index.ts)
-- [`README.md`](../../../packages/rxdb-plugin-working-tree-react/README.md)
-- [`package.json`](../../../packages/rxdb-plugin-working-tree-react/package.json)
-- [`project.json`](../../../packages/rxdb-plugin-working-tree-react/project.json)
-- [`tsconfig.lib.json`](../../../packages/rxdb-plugin-working-tree-react/tsconfig.lib.json)
-- [`tsconfig.json`](../../../packages/rxdb-plugin-working-tree-react/tsconfig.json)
+## 4. 完成条件拆账
 
-公共边界：
+- [x] 原受控全范围正文与所有原 C 意见交付，非目录/摘要检查。
+- [x] 确认问题去重、当前指纹/原失败证据与未测边界分离。
+- [x] 有证据的评级；源码评审完成不等于修复或发布就绪。
+- [x] 全部必要未验场景的owner/场景/原因登记。
+- [ ] 专项场景全部运行通过。
+- [ ] 修复回归、独立consumer与发布验收。
 
-- 源 `package.json` 的 `exports` 键：`./package.json`、`.`；逐一核查 types / import / default 与发布文件对应关系。
-- API 对照：[当前 API baseline](../../api-baseline/rxdb-plugin-working-tree-react.json)；符号存在不等于归属、语义和兼容性已验证。
-- `peerDependencies` 边界：`@aiao/rxdb: *`、`@aiao/rxdb-plugin-working-tree: *`、`@aiao/rxdb-react: *`、`react: ^19.2.8`、`rxjs: ^7.8.2`；验证消费端配置，不用内部路径绕过缺失依赖。
+## 5. 专项 / 发布剩余验证
 
-## 3. 专项核查与最低复验场景
+| ID / 原 C | owner（责任角色，实名由主控指定） | 场景 | 未验原因 |
+| --- | --- | --- | --- |
+| SV-01 / C1, C2, C4 | React working-tree维护者 | RV-069修复后A→B立即十二格初态、旧A查询/动作/status刷新晚到不能写B；原A Promise语义不改变 | 同SHA两条provider回归已红，本轮只复用确认，不改业务或反复复现；旧命令的作用域归属需由wrapper状态/sink identity修复，不靠消费者key或停止原Promise掩盖。 |
+| SV-02 / C1, C2 | React工作树集成QA；核心working-tree维护者提供既有验收证据 | 未enable、缺插件、真实分支/多实例、CAS落败、dirty tree、不可达commit、并发点击及动作中换scope的数据不损坏 | 本包测试只控制IO返回；并未持有真正数据库、事务或CAS锁。核心已由其他agent全审，本轮只读必要契约，不重新跑核心/真UI大验收，也不把其全审等同本包集成已运行。 |
+| SV-03 / C2, C5 | React工作树组件测试维护者 | enableIfEmpty、commitChanges动作的loading/empty或success/error、参数与结果透传；错误typed consumer正反例 | 现有两个方法仅被状态/成员及方法数量守卫覆盖，没有在本包执行对应IO动作的断言；presence不等于行为通过。该缺口不是生产缺陷确认。 |
+| SV-04 / C3 | 三端工作树UI/隐私QA；核心数据治理维护者 | 同拒绝序列三端真实应用同语义、关闭清理、敏感字段摘要与多实例diff展示 | wrapper没有UI/摘要/日志逻辑；必要core类型表明diff条目携带patch/inversePatch，不能称自动脱敏摘要。fixture payload和根入口对照不证明真实UI日志/字段治理安全；RV-069可能让旧diff残留是同根因源码影响，不是另一个实测泄露。 |
+| SV-05 / C4, C5 | React working-tree生命周期测试维护者 | StrictMode、快速provider/source变化、卸载后晚到结果、多个root、同库相同值/不同引用重渲染 | 正常spec验证同一库跨render的方法稳定，新增探针验证provider换库失败；没有StrictMode/多root/异步source完整生命周期动态证据。无Observable订阅可取消，不虚构unsubscribe通过。 |
+| REL-01 / C5 | working-tree React包发布与类型消费维护者 | 独立tarball TS strict typed consumer、根ESM runtime import、React/core peer边界及打包use client/RSC消费 | 只读历史10文件pack，未执行新build/pack/发布大矩阵；source的use client不证明产物保留指令。根既有skipLibCheck:true不作为不跳过库检查的独立strict消费通过依据。 |
 
-| 编号                                                                                                                                                                                                                                                 | 专项                     | 核查动作                                                                                                             | 最低复验场景 / 证据要求                                                                               | 状态    |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------- |
-| C1                                                                                                                                                                                                                                                   | 状态与作用域             | 核查 activation/branch/能力状态如何进入 hook，status/diff 订阅必须归属当前数据库。                                   | 未 enable、插件缺失、切分支、换库、多实例；不显示旧库 diff 或偷偷启用数据库能力。                     | partial |
-| C2                                                                                                                                                                                                                                                   | 动作结果与并发           | 逐项对照 commit/discard/restore 的返回值拒绝和 switchBranch 的异常，不能一律当异常或成功。                           | CAS 落败、dirty tree、不可达 commit、并发点击、动作中换 scope；原有数据不损坏。                       | partial |
-| C3                                                                                                                                                                                                                                                   | 三端与敏感数据           | 核查更新触发、错误显示、diff 摘要和类型消费，并与 shared fixtures / 应用工作树场景对应。                             | 相同拒绝序列三端同语义、关闭清理、敏感字段摘要；不能为调试直接输出完整历史。                          | partial |
-| C4                                                                                                                                                                                                                                                   | React 生命周期与竞态     | 核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。 | StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。                   | partial |
-| C5                                                                                                                                                                                                                                                   | React 类型与 render 边界 | 检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。                                  | typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。 | partial |
-| 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。 |
+## 6. 执行纪律 / 交付
 
-## 4. 测试证据与联审边界
-
-按 `.spec / .test / .suite` 的 JS/TS 文件名盘点到 **2** 个受控测试/共享套件文件；该数字不是用例数、通过数或覆盖率。Rust inline tests、生成客户端类型测试和外部 suite 是否运行，需另外核对。
-
-优先核对以下测试证据入口，随后覆盖项目全部测试与配置：
-
-- [`src/__tests__/use-working-tree.spec.tsx`](../../../packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx)
-- [`src/__tests__/index.spec.ts`](../../../packages/rxdb-plugin-working-tree-react/src/__tests__/index.spec.ts)
-
-运行配置：[`vite.config.mts`](../../../packages/rxdb-plugin-working-tree-react/vite.config.mts)。核对 include、provider、setup、coverage 与资源回收；文件存在不等于被 target 执行。
-
-覆盖率验收：`statements / branches / functions / lines` 四项均 ≥ **80%**；本轮尚未测量。 按 [仓库覆盖率门禁](../../../scripts/audit/coverage-check.mjs) 核对来源、include / exclude 与当轮 summary；不能只报告平均值或把 skipped 当已覆盖。
-
-### 联审边界
-
-Nx 基线图中的直接内部依赖：[`rxdb`](rxdb.md)、[`rxdb-plugin-working-tree`](rxdb-plugin-working-tree.md)、[`rxdb-react`](rxdb-react.md)。
-
-Nx 基线图中的直接消费者：[`dev-rxdb-react`](../apps/dev-rxdb-react.md)。
-
-依赖图只用于导航，不能证明动态加载、生成代码、跨进程协议和真实调用方已全覆盖；没有图边不等于没有消费者。
-
-**工作树联审**：[`rxdb-plugin-working-tree`](rxdb-plugin-working-tree.md)、[`rxdb-plugin-working-tree-angular`](rxdb-plugin-working-tree-angular.md)、[`rxdb-plugin-working-tree-vue`](rxdb-plugin-working-tree-vue.md)。对照输入/输出、pending/error、取消、重订阅、并发和释放的语义；保留框架原生表达，不强行同名生命周期实现。
-
-## 5. 执行命令与环境
-
-前置环境：需当前框架的实际 test 配置；模拟 DOM 的组件测试与真实 browser/application 复验分别记录。
-
-所有命令在仓库根目录执行；这是后续评审的命令计划，本轮没有执行这些业务门禁。
-
-### 基线已确认的评审目标
-
-| Nx target   | 用途与证据边界                                                         |
-| ----------- | ---------------------------------------------------------------------- |
-| `lint`      | ESLint 零警告；检查忽略、禁用规则与警告策略，不只看进程退出码。        |
-| `typecheck` | 公开 API 与本项目 TS 类型；注意配置 include / exclude 的真实范围。     |
-| `test`      | 当前 Vitest 配置；核对 Node / DOM / browser project、skip 与依赖任务。 |
-| `build`     | 当前构建产物；检查入口、声明、外部依赖、资源与可重复性。               |
-
-表中只列本轮门禁/专项目标，不包含 serve、发布、更新或推断出的逐 spec shard。执行前重新获取 resolved config，确认目标、`dependsOn`、缓存输入及外部副作用；以当前配置为准。
-
-### 常规初筛
-
-```bash
-NX_DAEMON=false pnpm nx show project rxdb-plugin-working-tree-react --json
-CI=true NX_DAEMON=false pnpm nx run rxdb-plugin-working-tree-react:lint --max-warnings=0 --skipRemoteCache
-CI=true NX_DAEMON=false pnpm nx run-many -t typecheck test build --projects=rxdb-plugin-working-tree-react --parallel=1 --skipRemoteCache
-```
-
-初筛允许读取本地缓存，但不能据此称本轮真实复现。用于缺陷复现/最终动态结论时，对下列任务使用 `--skipNxCache` 禁用本地缓存，并留存 SHA、命令、运行环境、通过/失败/skip 与日志。
-
-### 专项与当轮动态证据（满足上述隔离前提后）
-
-```bash
-CI=true NX_DAEMON=false pnpm nx run rxdb-plugin-working-tree-react:test --coverage --skipRemoteCache --skipNxCache
-pnpm audit:coverage --projects=rxdb-plugin-working-tree-react
-```
-
-- 普通 `test` 自身可能已经是 browser project；没有单独 `test-browser` 不表示缺少浏览器测试。EPIPE、worker 崩溃或 service stopped 先串行隔离复跑，不直接归因为业务缺陷。
-
-## 6. 完成条件
-
-- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。
-- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。
-- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。
-- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。
-- [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。
-- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。
-- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。
-
-正式结论按总计划的证据与严重度规则登记；证据不足时保留“未验证”，不能因看过源码、跑过 lint 或存在测试文件就给全绿。
-
-## 7. 本轮实际执行记录
-
-[已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-plugin-working-tree-react.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
-
-## 2026-10-05 frameworks 本轮完成条件与实际核查
-
-本轮 `main/worktree@44de1138b4d396fc45d6e76ab60476c40fef2223`，日期 2026-10-05。不是新泛计划，而是对原 C 的实际结论：**0/5 个完整 C、execution 保持 in-progress；结果记录保持 partial；本对象不是全对象完成候选。**
-
-全部 12 个受控文件的范围/摘要已核对，正文片段 4、outline 0、仅导航 0、未人工检查 8；不能将 scope 盘点称为全读。
-
-| 原 C                        | 本轮结论          | 原场景中仍缺的必要证据                                                                                                                                                     |
-| --------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| C1 状态与作用域             | partial；局部通过 | 未 enable、缺插件、真实 branch/数据库切换和多实例状态 ownership 未全证；React provider 切 A→B 候选的两条新回归等待主控，不提前算红/绿。                                    |
-| C2 动作结果与并发           | partial；局部通过 | 缺真实数据层并发点击/CAS 落败不损坏数据以及动作中换 scope；现有 IO fixture 不拥有真正数据库。React 旧 commands 回写新 scope 候选待补跑。                                   |
-| C3 三端与敏感数据           | partial；局部通过 | 缺真实应用拒绝序列、关闭期间晚到状态、多实例敏感 diff 摘要/清理以及独立 typed 消费；不能用 100% wrapper coverage 证明 core 历史数据安全。                                  |
-| C4 React 生命周期与竞态     | partial；局部通过 | Angular 实际组件销毁/子 provider、多实例；React StrictMode/多 root/旧库 pending（新 probe 未跑）；Vue provider ref 替换与 SFC scope/晚到命令，均未完整证明。               |
-| C5 React 类型与 render 边界 | partial；局部通过 | Angular 模板/route、React 独立 typed consumer + StrictMode 错误 props、Vue vue-tsc/SFC readonly/emits pack consumer 未完整验证；root resolve 是路径证据而非声明/运行证明。 |
-
-本轮完成条件：
-
-- [x] 全受控 inventory / 摘要核对，未排除配置/资源/fixture。
-- [ ] 全部受控内容阅读及全部原 C 场景核销（缺口见表，保持 partial）。
-- [x] 每 C 已有明确的已证/未证结论及角色明确的源码、测试锚点。
-- [x] 当前 baseline 的 unit / 四指标 / 零警告 lint / typecheck / 真 pack 来源已读取登记。
-- [ ] 晚加探针补跑、独立 typed/runtime consumer、真实完整 UI/生命周期等必要缺口全部关闭。
-- [ ] 全对象证据完成与最终评级（不要求零缺陷，但不能缺验证）；尚未完成。
-
-本对象四指标（statements/branches/functions/lines）：**100% / 100% / 100% / 100%**；阈值各项 ≥ 80%。其余18包的绿不能抹掉 rxdb-angular 的16个失败；新探针不继承基线通过。
-发布 pack 根是 `packages/rxdb-plugin-working-tree-react`，实际 tarball 目标文件存在、独立根 ESM 解析通过；**不包含 typed consumer 编译/runtime import**。Angular 不能按源 manifest 缺 exports 报错。
-
-逐 C 原场景、函数/测试证据与完成条件详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-working-tree-react.md`；机器证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`。
+本轮新增Nx命令：`[]`。不业务/原tests/deps/index/Git操作，不派agent，不apps或扩全矩阵。旧明确同SHA证据只按其真实证明面复用。
+重要新动态疑点才经指定locked脚本执行唯一包、单worker、skipRemoteCache/skipNxCache复验；不降strict、不新增skipLibCheck/any/skip，不以全量门禁拖住源码意见收口。
+机器收口：[closure.json](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/packages-only/rxdb-plugin-working-tree-react/closure.json)；校验后执行指定--complete原子更新50包总进度/ETA。

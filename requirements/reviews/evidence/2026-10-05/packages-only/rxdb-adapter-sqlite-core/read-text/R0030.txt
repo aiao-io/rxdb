@@ -1,0 +1,99 @@
+packages/rxdb-adapter-sqlite-core/src/create_sqlite_client.ts SHA256 beb649d2018e4bdf093649c4add3d42566ff11357abd3789d8049497406bda66 [145,242]
+ 145 |  * 为一次客户端连接创建独立的 Comlink 子端口。
+ 146 |  *
+ 147 |  * @remarks
+ 148 |  * 直接对 Worker 调用 `wrap()` 得到的是根代理；释放它会让 Worker 侧 `expose()`
+ 149 |  * 永久移除消息监听，之后同一 Worker 无法重连。这里缓存根控制代理，只通过
+ 150 |  * `createEndpoint` 为每次连接创建可独立释放的 MessagePort。Worker 内仍可继续使用
+ 151 |  * 既有的 `expose(new SqliteClient())`，无需切换公开协议。
+ 152 |  *
+ 153 |  * 同一个 Worker 暴露的是同一个客户端实例，不允许并发租用；上一连接释放后才能重连。
+ 154 |  *
+ 155 |  * @param directClient - 主线程客户端实例，未配置 transport 时原样返回
+ 156 |  * @param options - transport 与所有权配置
+ 157 |  * @returns 主线程客户端或独立子端口上的 Comlink 远端代理
+ 158 |  */
+ 159 | export async function wrapWithComlinkEndpoint<T extends SqliteClientLike>(
+ 160 |   directClient: T,
+ 161 |   options: CreateSqliteClientOptions
+ 162 | ): Promise<T | Remote<T>> {
+ 163 |   validateComlinkTransportOptions(options);
+ 164 | 
+ 165 |   const key = options.workerInstance ?? options.sharedWorkerInstance;
+ 166 |   if (!key) return directClient;
+ 167 | 
+ 168 |   const ownership = options.workerOwnership ?? 'caller';
+ 169 |   let root = transportRoots.get(key);
+ 170 |   if (!root) {
+ 171 |     const proxy =
+ 172 |       options.workerInstance ?
+ 173 |         wrap<SqliteClientLike>(options.workerInstance)
+ 174 |       : wrap<SqliteClientLike>(options.sharedWorkerInstance!.port);
+ 175 |     root = {
+ 176 |       key,
+ 177 |       proxy,
+ 178 |       ownership,
+ 179 |       worker: options.workerInstance,
+ 180 |       activeClients: 0
+ 181 |     };
+ 182 |     transportRoots.set(key, root);
+ 183 |   }
+ 184 | 
+ 185 |   if (root.ownership !== ownership) {
+ 186 |     throw new RxDBAdapterSqliteError('Worker ownership cannot change while the transport is active');
+ 187 |   }
+ 188 |   if (root.activeClients !== 0) {
+ 189 |     throw new RxDBAdapterSqliteError('Worker transport already has an active SQLite client');
+ 190 |   }
+ 191 | 
+ 192 |   root.activeClients = 1;
+ 193 |   try {
+ 194 |     const endpoint = await root.proxy[createEndpoint]();
+ 195 |     const client = wrap<T>(endpoint);
+ 196 |     clientEndpoints.set(client, { root });
+ 197 |     return client;
+ 198 |   } catch (error) {
+ 199 |     root.activeClients = 0;
+ 200 |     if (root.ownership === 'client') disposeTransportRoot(root);
+ 201 |     throw error;
+ 202 |   }
+ 203 | }
+ 204 | 
+ 205 | const releaseProxyReference = (proxy: object): boolean => {
+ 206 |   if (releasedProxies.has(proxy)) return false;
+ 207 |   const release = (proxy as Partial<Record<typeof releaseProxy, unknown>>)[releaseProxy];
+ 208 |   if (typeof release !== 'function') return false;
+ 209 |   release.call(proxy);
+ 210 |   releasedProxies.add(proxy);
+ 211 |   return true;
+ 212 | };
+ 213 | 
+ 214 | const disposeTransportRoot = (root: ComlinkTransportRoot): void => {
+ 215 |   transportRoots.delete(root.key);
+ 216 |   releaseProxyReference(root.proxy);
+ 217 |   root.worker?.terminate();
+ 218 | };
+ 219 | 
+ 220 | /**
+ 221 |  * 释放 Comlink 代理占用的 MessagePort。
+ 222 |  *
+ 223 |  * @remarks
+ 224 |  * `wrap()` 出来的每个代理都持有一个 MessageChannel，回调参数还会各自再建一个。
+ 225 |  * 不释放则断开/重连循环里端口只增不减，Worker 侧的引用也一直活着
+ 226 |  * （实测 `disconnect()` 之后远端方法仍可调用）。
+ 227 |  * 本地客户端没有 `releaseProxy`，此时是无操作 —— 由返回值区分，不静默吞掉差异。
+ 228 |  *
+ 229 |  * @param client - {@link wrapWithComlink} / {@link wrapWithComlinkEndpoint} 的返回值，或 `undefined`
+ 230 |  * @returns 是否真的释放了远端代理
+ 231 |  */
+ 232 | export function releaseComlinkProxy(client: unknown): boolean {
+ 233 |   if (!isReference(client)) return false;
+ 234 |   const endpoint = clientEndpoints.get(client);
+ 235 |   const released = releaseProxyReference(client);
+ 236 |   if (!released || !endpoint) return released;
+ 237 | 
+ 238 |   clientEndpoints.delete(client);
+ 239 |   endpoint.root.activeClients = 0;
+ 240 |   if (endpoint.root.ownership === 'client') disposeTransportRoot(endpoint.root);
+ 241 |   return true;
+ 242 | }

@@ -1,0 +1,28 @@
+packages/rxdb-adapter-sqlite-core/src/__tests__/transaction/SqliteTransactionExecutor.spec.ts SHA256 5e8f98e030d1de5b3b8465d5c41b376067fa06b63a3811474745469b1b1104aa [142,168]
+ 142 |     const executor = new SqliteTransactionExecutor(adapter, client, 'tx-1');
+ 143 | 
+ 144 |     await expect(
+ 145 |       executor.run(async inner => {
+ 146 |         expect(inner).toBe(executor);
+ 147 |         return 42;
+ 148 |       })
+ 149 |     ).resolves.toBe(42);
+ 150 |   });
+ 151 | 
+ 152 |   it('settle 进入终态后一切入口都拒绝，报错点名 operation 与事务 id', async () => {
+ 153 |     const { adapter } = createAdapterFake();
+ 154 |     const client = createClientFake();
+ 155 |     const executor = new SqliteTransactionExecutor(adapter, client, 'tx-9');
+ 156 | 
+ 157 |     executor.settle('committed');
+ 158 |     expect(executor.state).toBe('committed');
+ 159 | 
+ 160 |     await expect(executor.execute('SELECT 1')).rejects.toThrow('TransactionExecutor(tx-9).execute()');
+ 161 |     await expect(executor.run(async () => 1)).rejects.toThrow('TransactionExecutor(tx-9).run()');
+ 162 |     expect(() => executor.getRepository(Todo)).toThrow('TransactionExecutor(tx-9).getRepository()');
+ 163 |     await expect(executor.adapter.query('SELECT 1')).rejects.toThrow('TransactionExecutor(tx-9).execute()');
+ 164 |     await expect(executor.mergeChanges({} as SwitchVersionActions)).rejects.toThrow(
+ 165 |       'TransactionExecutor(tx-9).mergeChanges()'
+ 166 |     );
+ 167 |   });
+ 168 | });
