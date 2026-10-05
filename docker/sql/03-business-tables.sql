@@ -592,6 +592,27 @@ END $$;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.rls_todos TO anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.rls_todos TO authenticated;
 
+-- ============================================
+-- 10. US-218 阶段 B 不可归类错误夹具表（rls_unique_probe）
+-- ============================================
+-- 仅用于 T042 真实链路验证 23505（唯一键冲突）在 rxdb_mutations 的「不可归类，整批
+-- 失败」路径下原样传播（contracts/rxdb-mutations-receipts.md §5-6）。不能复用
+-- rls_todos/todos：INSERT/UPDATE 都委托给 rxdb_batch_upsert，它对主键 id 走
+-- `ON CONFLICT (id) DO UPDATE`，同 id 重复插入天然幂等（这正是 AC#15 需要的行为），
+-- 永远不会因为 id 冲突抛 23505；必须有一列独立于 id 的 UNIQUE 约束才能真正制造
+-- 不可归类的唯一键冲突。不开 RLS（与 todos/type_demo 一致），按文件末尾的
+-- `GRANT ALL ON ALL TABLES IN SCHEMA public` 统一授权。
+-- `createdBy`/`updatedBy` 两列必须有：`build_merge_changes_payload`（见
+-- supabase.merge-changes.ts）对所有走 mergeChanges 的 INSERT 载荷无条件写入这两个
+-- 字段，列不存在会在 `rxdb_batch_upsert` 的 `ON CONFLICT ... DO UPDATE SET` 里报
+-- 42703（undefined column），而不是本夹具要制造的 23505。
+CREATE TABLE IF NOT EXISTS public.rls_unique_probe (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    "uniqueSlug" varchar NOT NULL UNIQUE,
+    "createdBy" varchar,
+    "updatedBy" varchar
+);
+
 GRANT USAGE ON SCHEMA public TO anon;
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT USAGE ON SCHEMA shop TO anon;
