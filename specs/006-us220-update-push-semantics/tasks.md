@@ -87,12 +87,12 @@ F3 [existence-probe](contracts/existence-probe.md)，均已冻结）、[quicksta
 
 - [ ] T009 [P] [US1] 在回归 SQL 新增用例 `update-partial-columns`（`test_update_partial_columns`，以 `anon` 执行）：在 `public.todos` 预置一行（`title` 等 NOT NULL 列有值），以 `p_skip_sync = false`（触发器写日志）调用 `public.rxdb_mutations(p_updates => '[{"table":"todos","data":[{"id":…,"completed":true,"updatedBy":…}]}]')`，断言：`completed` 已变；`title` 及其他未下发列与调用前逐列相同；`rxdb_change` 新增恰好 1 条该 id 的 `UPDATE`；返回值 `updated = 1`；另含子断言「可空列显式 `null` → 该列被置 NULL」「只有 `id` 的行 → 成功、行值不变、日志新增 1 条 UPDATE」（[rxdb-mutations §2](contracts/rxdb-mutations.md)）。按「固定写法」登记，确认红（实现前报 `rxdb_mutations` 不接受 `p_updates`）
 - [ ] T010 [P] [US1] 改写 `packages/rxdb-adapter-supabase/src/__tests__/review-regressions.spec.ts` 中 `mergeChanges decodes typed action keys before sending entity IDs to Supabase` 的载荷断言（改写不删除，FR-013）：新建只在 `p_upserts`、修改只在 `p_updates`；修改行为 `{ id, ...patch, updatedBy }`，不含 `createdBy`；新增用例：非 main 分支时 `p_upserts` / `p_updates` / `p_deletes` 均为 `[]`；`mergeChanges()` 的 `rpc('rxdb_mutations', …)` 参数含 `p_updates` 且 `p_skip_sync: true`；`mutations()` 的 RPC 参数**不含** `p_updates`。`pnpm nx test rxdb-adapter-supabase -- review-regressions` 确认红
-- [ ] T011 [P] [US1] 新建 `packages/rxdb-adapter-supabase/src/__tests__/update-push-semantics.spec.ts`（AC#6）：门控与夹具沿用 `sync-data-integrity.spec.ts`（`VITE_SUPABASE_URL` / `VITE_SUPABASE_KEY` 缺失则 skip）；客户端 A 新建 todo 并推送 → 客户端 B 拉取、只改 `completed` 并经常规推送路径（`mergeChanges`）推送 → A 拉取：`completed` 为新值、`title` 不变、B 的水位线已推进；用 `performance.now()` 记录 B 那一批推送耗时并 `console.info` 输出（SC-006 验证数据，不做阈值断言）。确认红（23502）
+- [ ] T011 [P] [US1] 新建 `packages/rxdb-adapter-supabase/src/__tests__/update-push-semantics.spec.ts`（AC#6）：门控与夹具沿用 `sync-data-integrity.spec.ts`（`VITE_SUPABASE_URL` / `VITE_SUPABASE_KEY` 缺失则 skip）；客户端 A 新建 todo 并推送 → 客户端 B 拉取、只改 `completed` 并经常规推送路径（`mergeChanges`）推送 → A 拉取：`completed` 为新值、`title` 不变、B 的水位线已推进；用 `performance.now()` 记录 B 那一批推送耗时并 `console.info` 输出，同时断言 `< 100`（SC-006，宪法 IV 数据库操作预算）。确认红（23502）
 - [ ] T012 [P] [US1] 在 `apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts` 的 `Supabase remote sync` 下新增用例（AC#7）：新建待办 → 推送 → 勾选完成 → 推送 → 另开浏览器上下文拉取后显示已完成；拦截 `rxdb_mutations` 请求，断言勾选那次的实体出现在请求体 `p_updates` 而非 `p_upserts`。`pnpm nx run dev-rxdb-supabase-e2e:e2e-remote` 确认红
 
 ### Implementation
 
-- [ ] T013 [US1] 在参考 SQL 新增 `public.rxdb_batch_update(p_table text, p_schema text DEFAULT 'public', p_data jsonb DEFAULT '[]'::jsonb) RETURNS int`（`LANGUAGE plpgsql SECURITY INVOKER SET search_path = pg_catalog, pg_temp`）：表名校验同 `rxdb_batch_upsert`；逐行执行 [rxdb-mutations §4](contracts/rxdb-mutations.md) 的 `UPDATE … SET <k> = (pg_catalog.jsonb_populate_record(null::<schema>.<table>, $1)).<k>, … WHERE t.id = (…).id`，只 `SET` 该行出现的非 `id` 键（`%I` 引用），只有 `id` 时 `SET id = t.id`；不带 `RETURNING`；累加 `ROW_COUNT` 并返回。零行分支留到 US3（T024）实现，本任务先不处理零行。GRANT 区加 `GRANT EXECUTE ON FUNCTION public.rxdb_batch_update(text, text, jsonb) TO anon, authenticated;`
+- [ ] T013 [US1] 在参考 SQL 新增 `public.rxdb_batch_update(p_table text, p_schema text DEFAULT 'public', p_data jsonb DEFAULT '[]'::jsonb) RETURNS int`（`LANGUAGE plpgsql SECURITY INVOKER SET search_path = pg_catalog, pg_temp`）：表名校验同 `rxdb_batch_upsert`；逐行执行 [rxdb-mutations §4](contracts/rxdb-mutations.md) 的 `UPDATE … SET <k> = (pg_catalog.jsonb_populate_record(null::<schema>.<table>, $1)).<k>, … WHERE t.id = (…).id`，只 `SET` 该行出现的非 `id` 键（`%I` 引用），只有 `id` 时 `SET id = t.id`；不带 `RETURNING`；累加 `ROW_COUNT` 并返回。零行分支留到 US3（T025）实现，本任务先不处理零行。GRANT 区加 `GRANT EXECUTE ON FUNCTION public.rxdb_batch_update(text, text, jsonb) TO anon, authenticated;`
 - [ ] T014 [US1] 在参考 SQL 改 `public.rxdb_mutations`（[rxdb-mutations §1、§3、§5](contracts/rxdb-mutations.md)）：在既有两条 DROP 后追加 `DROP FUNCTION IF EXISTS public.rxdb_mutations(jsonb, jsonb, jsonb, boolean);`；签名追加第 5 个参数 `p_updates jsonb DEFAULT '[]'::jsonb`；`apply_entity_operations` 分支内按 `p_upserts` → `p_updates`（逐组调 `rxdb_batch_update`，`schema` 缺省 `public`）→ `p_deletes` 执行；返回对象新增 `"updated"`（跳过实体操作时为 0）；GRANT 行改为 `public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb)`
 - [ ] T015 [US1] 在回归 SQL 的 `test_rls_write_boundary` 中，把 `to_regprocedure('public.rxdb_mutations(jsonb,jsonb,jsonb,boolean)')` 改为 5 参签名，并把 `public.rxdb_batch_update(text,text,jsonb)` 加进「写 RPC 必须是 INVOKER」的检查列表；另加断言这几个 `to_regprocedure` 都不为 NULL（防止签名改了检查静默失效）
 - [ ] T016 [US1] 重载 SQL，单跑 `update-partial-columns`、`rls-write-boundary`、`idempotent-retry` 转绿 / 保持绿
@@ -148,12 +148,12 @@ F3 [existence-probe](contracts/existence-probe.md)，均已冻结）、[quicksta
 
 ## Phase 6: User Story 4 — 既有安全回归持续通过（P3）
 
-**Goal**: 16 个用例全部 PASS，PR 贴实跑输出（AC#8）。
+**Goal**: 16 个用例中 15 个 PASS、`rls-filtered-delete` 保持基线（红，US-218 修），PR 贴实跑输出（AC#8）。
 
 **Independent Test**: quickstart §1 全量。
 
-- [ ] T027 [US4] 核对回归脚本 `CASES` 恰为 16 项（既有 10 + `existence-probe`、`update-partial-columns`、`update-owner-rls`、`update-shared-edit`、`update-denied`、`update-gone`），回归 SQL 分发区每个用例恰有一行
-- [ ] T028 [US4] 重载 SQL 后执行 `bash 回归脚本`，16 个用例全部 `🟢 PASS`；`rls-filtered-delete` 的结果与 T001 基线一致；完整输出贴进 PR 描述
+- [ ] T027 [US4] 核对回归脚本 `CASES` 恰为 16 项（既有 10 = 9 条 + `rls-filtered-delete`（属于 US-218）；加 `existence-probe`、`update-partial-columns`、`update-owner-rls`、`update-shared-edit`、`update-denied`、`update-gone`），回归 SQL 分发区每个用例恰有一行
+- [ ] T028 [US4] 重载 SQL 后执行 `bash 回归脚本`，15 个用例 `🟢 PASS`，`rls-filtered-delete` 保持红且结果与 T001 基线一致（属 US-218 阶段 A 修复）；完整输出贴进 PR 描述
 
 **Checkpoint**: AC#1～8 全部有实跑证据。
 

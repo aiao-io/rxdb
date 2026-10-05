@@ -7,15 +7,15 @@
 
 **Tests**: 必需。TDD：每个用例先写、先跑红，红的原因记进 PR 描述，再写实现。今天就绿的护栏用例在描述里注明「护栏，今天即绿」。
 
-**交付**: 三个 PR，一个阶段一个 PR，按 A → B → C 顺序合入；US-220（[006 tasks](../006-us220-update-push-semantics/tasks.md)）合入后才开始 PR-A
-（roadmap 约束 16）。阶段 A 不单独发版，与阶段 B 同一版本发布（research D4）。
+**交付**: 三个 PR，一个阶段一个 PR，按 A → B → C 顺序合入；US-220（[006 tasks](../006-us220-update-push-semantics/tasks.md)）之上叠分支开发（stacked PR：PR-A 以 US-220 分支为 base，B 以 A 为 base，C 以 B 为 base），
+合入顺序 US-220 → A → B → C（roadmap 约束 16）。阶段 A 不单独发版，与阶段 B 同一版本发布（research D4）。
 
-| PR   | 阶段 | 故事                                                    | 任务       |
-| ---- | ---- | ------------------------------------------------------- | ---------- |
-| PR-A | A    | US1、US2、US7                                           | T001～T019 |
-| PR-B | B    | Foundational-B、US3、US4、US5、PR-B 收尾                | T020～T076 |
-| PR-C | C    | US6                                                     | T077～T087 |
-| —    | —    | Polish（每个 PR 各自收尾的状态同步 + 合入后的范围登记） | T088～T089 |
+| PR   | 阶段 | 故事                                                    | 任务             |
+| ---- | ---- | ------------------------------------------------------- | ---------------- |
+| PR-A | A    | US1、US2、US7                                           | T001～T019       |
+| PR-B | B    | Foundational-B、US3、US4、US5、PR-B 收尾                | T020～T076、T090 |
+| PR-C | C    | US6                                                     | T077～T087       |
+| —    | —    | Polish（每个 PR 各自收尾的状态同步 + 合入后的范围登记） | T088～T089       |
 
 **Organization**: 按 spec 的用户故事分阶段，阶段内的故事按 PR 归组。阶段 B 的类型与系统表迁移阻塞 US3～US5，单列为 Foundational-B。
 
@@ -61,7 +61,7 @@
 
 **Purpose**: 拿到基线，确认夹具约束，验证配对规则依赖的客户端压缩不变量（research D3 的**推断**）
 
-- [ ] T001 确认 US-220 已合入 `main`，把 `007-us218-rls-push-integrity` rebase 到 `main`；`pnpm nx run rxdb-adapter-supabase:test-env` 起环境，
+- [ ] T001 确认 PR-A 分支基于 US-220 分支最新提交（US-220 合入 `main` 后改 rebase 到 `main`）；`pnpm nx run rxdb-adapter-supabase:test-env` 起环境，
       重载 SQL 后执行 `bash 回归脚本`，记录 16 个用例基线：15 条 `🟢 PASS`，`rls-filtered-delete` 红（期望 42501，今天成功且写了日志）。贴进 PR-A 描述草稿
 - [ ] T002 读 006 tasks T004 的「验证记录」，决定本阶段夹具表 `rls_owned_ids` 与新建夹具表是否保留 `FORCE ROW LEVEL SECURITY`：
       探针在 `FORCE` 表上正确返回 → 保留 `FORCE`；抛「query would be affected by row-level security policy」→ 本阶段走到探针的夹具表一律只
@@ -164,8 +164,7 @@
 - [ ] T014 [US7] 在回归 SQL 的 `test_update_denied`（006 T023）加一条断言：`p_skip_sync = true` 推送被拒修改后，该 `clientId` 无新日志；
       在函数头加注释「同时覆盖 US-218 AC#3」。护栏，今天即绿
 - [ ] T015 [US7] 重载 SQL 后执行 `bash 回归脚本`，20 个用例全部 `🟢 PASS`；完整输出贴进 PR-A 描述（FR-027）
-- [ ] T016 [P] [US7] 文档口径同步：`contracts/push-integrity.md` §4 删去 `update-denied-guard` 行，改为注明「AC#3 由 US-220 `update-denied` 覆盖（T014）」；
-      `quickstart.md` A1 把「本阶段新增 5 条」改为「4 条」，并把「`update-denied-guard` 与 `delete-gone` 今天即绿」改为「`delete-gone` 的 ①② 今天即绿」
+- [ ] T016 [P] [US7] 文档口径核对：`contracts/push-integrity.md` §4、`quickstart.md` A1、`plan.md` Project Structure 的用例数均为「新增 4 条、共 20 条」，AC#3 注明由 US-220 `update-denied` 覆盖（T014）；与实跑结果不符则同步修正
 
 ### PR-A 收尾
 
@@ -362,7 +361,7 @@
       Vue 用 `apps/dev-rxdb-vue/vitest.config.ts`）
 - [ ] T063 [US5] Supabase demo e2e：在 `apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts` 加场景——上下文 A 新建待办并推送；上下文 B 拉取；
       A 删除并推送；B 勾选完成（走 `p_updates`）并推送 → B 的面板出现一条 `gone`（`RX001`）被拒。用 `gone` 而非 `denied` 的原因：参考 `todos`
-      表关闭 RLS、demo 无登录（偏离由 T069 回写文档）
+      表关闭 RLS、demo 无登录（spec US5 已登记为批准的偏离）
 - [ ] T064 [P] [US5] React / Vue e2e：新建 `apps/dev-rxdb-react-e2e/src/sync-rejections.a11y.spec.ts` 与 `apps/dev-rxdb-vue-e2e/src/sync-rejections.a11y.spec.ts`，
       照 `working-tree.a11y.spec.ts` 的写法：打开待办页，被拒面板空态可见，a11y 扫描无新增违规
 
@@ -379,9 +378,8 @@
       `apps/dev-rxdb-react/src/app/components/SyncRejectionsPanel.tsx`，挂到 `apps/dev-rxdb-react/src/app/pages/todo.tsx`；Vue 新建
       `apps/dev-rxdb-vue/src/app/components/SyncRejectionsPanel.vue`，挂到 `apps/dev-rxdb-vue/src/pages/TodoPage.vue`。三端字段与文案一致。
       T061～T064 转绿（`pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`、`pnpm nx run dev-rxdb-react-e2e:e2e`、`pnpm nx run dev-rxdb-vue-e2e:e2e`）
-- [ ] T069 [P] [US5] 回写 demo 范围的偏离：`contracts/sync-rejections-api.md` §4 把 Angular 触发方式改为「两个上下文，A 删除后 B 修改同一待办 → `gone`」，
-      React / Vue 行改为「面板组件 spec 经 hub 渲染共享夹具 + e2e 空态与 a11y」；`quickstart.md` B4 同步；`research.md` D16 改为当前结论；
-      `spec.md` US5 的 Independent Test「在三个 demo 里各触发一次 AC#8」改为与之一致的表述；`plan.md`「偏离与澄清」3 写明已选方案
+- [ ] T069 [P] [US5] 核对 demo 范围与已批准偏离一致：`spec.md` US5「批准的偏离」、`contracts/sync-rejections-api.md` §4、`quickstart.md` B4、
+      `research.md` D16、`plan.md`「偏离与澄清」3 与 T061～T068 的实际实现相符；不符则修实现，不改批准内容
 - [ ] T070 [P] [US5] `website/docs/plugins/rxdb-plugin-sync/README.md` 的同步状态部分加 `lastRejections`（语义：不被后续成功清空、下一轮有被拒整体替换），
       附跨重启查询示例：查询 `RxDBChange` 中 `rejectedAt` 不为空的行
 
@@ -400,9 +398,13 @@
 - [ ] T074 [P] 核对 T018 的 `requirements/release-plan.md` 标注仍成立（A+B 同版本、`kind=migration`、须先有 `kind=bridge`）；`pnpm check-migration-release-gate`
       通过（门禁脚本不需要改）
 - [ ] T075 PR-B 门禁：`pnpm nx run-many -t lint test build typecheck --projects=tag:js-lib`、`pnpm audit:callsite-drift`、`pnpm audit:suite-callsites`、
-      `pnpm check-migration-release-gate`、`pnpm audit:api-surface`；改动包覆盖率 ≥ 80%（`pnpm nx test <project> --coverage`）；`bash 回归脚本` 28 条全部
+      `pnpm check-migration-release-gate`、`pnpm audit:api-surface`；改动包覆盖率 `rxdb` 与三框架绑定 ≥ 90%、其余 ≥ 80%（`pnpm nx test <project> --coverage`，口径同 `scripts/audit/coverage-check.mjs`）；`bash 回归脚本` 28 条全部
       `🟢 PASS`，输出贴进 PR-B 描述
-- [ ] T076 更新 US-218 故事文件验收表 AC#8～16 与「实现文件」，同步 `requirements/status-overview.md`；PR-B 描述汇总 T048 耗时、T071 版本组合、T075 门禁输出
+- [ ] T090 [P] 推送路径基准（宪法 IV「`benchmarks/` 覆盖关键路径」）：新建 `benchmarks/push-receipts.bench.ts`，照 `non-encrypted-hot-path.bench.ts` 的写法
+      （PGlite memory + `bench-stats.ts`），远端用返回逐条 `results` 的替身：基线批（100 条全部 applied）与含被拒批（100 条中 10 条 rejected，
+      触发本地对齐）各测 `pushRepository` 本地提交耗时；在 `benchmarks/project.json` 加 `bench-push-receipts` target，README「Node 端回归 benchmark」登记。
+      编号为追加（不重排既有编号），执行顺序在 T075 之前
+- [ ] T076 更新 US-218 故事文件验收表 AC#8～16 与「实现文件」，同步 `requirements/status-overview.md`；PR-B 描述汇总 T048 耗时、T071 版本组合、T075 门禁输出、T090 基准结果
 
 **Checkpoint（PR-B 可合入，A+B 可发版）**
 
@@ -477,14 +479,14 @@
   - US4（T049～T056）：依赖 US3 的 T043、T045、T046
   - US5（T057～T070）：核心与绑定（T057～T059、T065、T067）只依赖 Foundational-B，可与 US3 并行；T060、T066 依赖 T046；
     demo e2e（T063）依赖 T045、T068 与 RX001 归类（T043）
-  - PR-B 收尾（T071～T076）：依赖 US3～US5 全部完成
+  - PR-B 收尾（T071～T076、T090）：依赖 US3～US5 全部完成
 - **PR-C**（PR-B 合入后开始）：T077～T078 先红；T079～T081 实现；T082～T087 验证与收尾
 - **Polish**：T088 可在 PR-A 期间完成；T089 在 PR-C 合入后
 
 ### 先红的推荐顺序
 
 - PR-A：T001、T003、T004 → T002 → T005～T008、T011（红，记录原因）→ T009 → T010 → T012 → T013 → T014～T019
-- PR-B：T020～T022（红）→ T023～T033 → T034～T042、T049～T052、T057～T064（红）→ T043～T048 → T053～T056 → T065～T070 → T071～T076
+- PR-B：T020～T022（红）→ T023～T033 → T034～T042、T049～T052、T057～T064（红）→ T043～T048 → T053～T056 → T065～T070 → T071～T074、T090 → T075～T076
 - PR-C：T077、T078（红）→ T079～T082 → T083～T087
 
 ### Within Each User Story

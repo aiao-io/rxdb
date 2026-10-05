@@ -15,11 +15,11 @@
 bash packages/rxdb-adapter-supabase/src/__tests__/run-supabase-sql-security-regressions.sh
 ```
 
-期望：全部 `🟢 PASS`——既有 9 条 + US-220 的 6 条 + 改写的 `rls-filtered-delete` + 本阶段新增 5 条。用例与期望见
+期望：全部 `🟢 PASS`——既有 9 条 + US-220 的 6 条 + 改写的 `rls-filtered-delete` + 本阶段新增 4 条，共 20 条。用例与期望见
 [push-integrity §4](contracts/push-integrity.md)。
 
 **先红**：实现之前跑，`rls-filtered-delete`（改写后）与 `delete-hidden-row` 期望 42501 但今天成功且写了幽灵日志；`mixed-batch-rollback`
-今天新建那条会落库；`push-integrity` 的五种不配对今天全部成功。`update-denied-guard` 与 `delete-gone` 今天即绿（护栏）。
+今天新建那条会落库；`push-integrity` 的五种不配对今天全部成功。`delete-gone` 的 ①② 今天即绿（护栏）；AC#3 由 US-220 的 `update-denied` 覆盖。
 
 PR 描述贴脚本实跑输出（FR-027）。
 
@@ -79,8 +79,8 @@ pnpm nx run dev-rxdb-react-e2e:e2e
 pnpm nx run dev-rxdb-vue-e2e:e2e
 ```
 
-期望：Supabase demo 触发真实 RLS 拒绝后面板列出被拒实体、操作与原因；React / Vue demo 按 tasks 选定的方式（plan「偏离与澄清」3）展示同一份
-被拒列表。三端字段名一致。
+期望：Supabase demo 触发真实 RLS 拒绝后面板列出被拒实体、操作与原因；React / Vue demo 面板空态可见、a11y 无新增违规；
+三端面板组件 spec 用同一份夹具渲染出相同字段（spec US5「批准的偏离」）。
 
 ### B5. 版本组合（FR-022）
 

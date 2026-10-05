@@ -103,7 +103,7 @@ specs/006-us220-update-push-semantics/
 │   └── sqlstate-registry.md   # RX 类登记 + 42501 / RX001 的 DETAIL 形状（F2）
 ├── quickstart.md      # AC#1～8 验证步骤
 ├── checklists/requirements.md
-└── tasks.md           # Phase 2（/speckit-tasks，约束 16 解除前不生成）
+└── tasks.md           # Phase 2（/speckit-tasks 输出）
 ```
 
 ### Source Code (repository root)

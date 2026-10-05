@@ -74,16 +74,16 @@ React / Vue demo e2e）
 
 _GATE: Phase 0 前必须通过，Phase 1 设计后复查。_ 依据宪法 v2.0.2。
 
-| 原则        | 检查项                                                                                                                                                   | 结论 |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | :--: |
-| I. 代码质量 | 涉及包的 `lint` + `typecheck` 零警告；嵌套 ≤ 3；新导出类型（`RemoteChangeResult`、`RemoteChangeRejection`、`RemoteEntityRef`、`SyncRejection*`）带 TSDoc |  ✅  |
-| I. 代码质量 | 无 fallback：回执缺项整轮失败（D10）；`p_receipts = false` 原样抛首个错误（D5）；未列明 SQLSTATE 不捕获（D7）；对齐所需的远端读失败则不提交（D14）       |  ✅  |
-| I. 代码质量 | SQL 护栏沿用：`search_path = pg_catalog, pg_temp`、`%I` 引用；DEFINER 只用于探针（已有白名单）、触发器函数与 `rxdb_insert_changes`（GUC 守卫）（D18）    |  ✅  |
-| II. 测试    | TDD：阶段 A 的 SQL 用例先红（quickstart A1）；阶段 B 改写 `push-repository.spec.ts`「远端返回非映射结果时仍推进水位线」为反向断言而非删除（D10）         |  ✅  |
-| II. 测试    | 覆盖率：`rxdb` 与三框架绑定 ≥ 90%，其余 ≥ 80%（`coverage-check.mjs`）；新分支（回执校验、对齐、迁移）都有单测                                            |  ✅  |
-| III. 三框架 | `lastRejections` 经三端已有 `useSyncState()` 暴露，字段名与语义一致；三端各一条绑定 spec；三个 demo 各一处展示（D15、D16）                               |  ✅  |
-| IV. 性能    | 成功路径增量有界（D19）；连真实 Supabase 的 spec 记录单批耗时；包体积增量为类型与少量提交逻辑，仍 < 50 KB gz                                             |  ✅  |
-| 工程护栏    | 破坏性变更过 API 基线 + 迁移文档；系统模式迁移过 `check-migration-release-gate`；可信写入新调用点过 `audit:callsite-drift`；一个 PR 一个阶段             |  ✅  |
+| 原则        | 检查项                                                                                                                                                      | 结论 |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | :--: |
+| I. 代码质量 | 涉及包的 `lint` + `typecheck` 零警告；嵌套 ≤ 3；新导出类型（`RemoteChangeResult`、`RemoteChangeRejection`、`RemoteEntityRef`、`SyncRejection*`）带 TSDoc    |  ✅  |
+| I. 代码质量 | 无 fallback：回执缺项整轮失败（D10）；`p_receipts = false` 原样抛首个错误（D5）；未列明 SQLSTATE 不捕获（D7）；对齐所需的远端读失败则不提交（D14）          |  ✅  |
+| I. 代码质量 | SQL 护栏沿用：`search_path = pg_catalog, pg_temp`、`%I` 引用；DEFINER 只用于探针（已有白名单）、触发器函数与 `rxdb_insert_changes`（GUC 守卫）（D18）       |  ✅  |
+| II. 测试    | TDD：阶段 A 的 SQL 用例先红（quickstart A1）；阶段 B 改写 `push-repository.spec.ts`「远端返回非映射结果时仍推进水位线」为反向断言而非删除（D10）            |  ✅  |
+| II. 测试    | 覆盖率：`rxdb` 与三框架绑定 ≥ 90%，其余 ≥ 80%（`coverage-check.mjs`）；新分支（回执校验、对齐、迁移）都有单测                                               |  ✅  |
+| III. 三框架 | `lastRejections` 经三端已有 `useSyncState()` 暴露，字段名与语义一致；三端各一条绑定 spec；三个 demo 各一处展示（D15、D16）                                  |  ✅  |
+| IV. 性能    | 成功路径增量有界（D19）；连真实 Supabase 的 spec 断言单批 < 100 ms；`benchmarks/push-receipts.bench.ts` 覆盖推送提交路径（tasks T090）；包体积仍 < 50 KB gz |  ✅  |
+| 工程护栏    | 破坏性变更过 API 基线 + 迁移文档；系统模式迁移过 `check-migration-release-gate`；可信写入新调用点过 `audit:callsite-drift`；一个 PR 一个阶段                |  ✅  |
 
 **设计后复查**：Phase 1 新增的抽象见 Complexity Tracking，每项都有被否决的更简方案；结论不变。
 
@@ -105,7 +105,7 @@ specs/007-us218-rls-push-integrity/
 │   └── rxdb-change-permissions.md   # 阶段 C：DEFINER 收口、生产脚本、回归、文档
 ├── quickstart.md      # 分阶段验证步骤
 ├── checklists/requirements.md
-└── tasks.md           # Phase 2（/speckit-tasks，约束 16 解除前不生成）
+└── tasks.md           # Phase 2（/speckit-tasks 输出）
 ```
 
 ### Source Code (repository root)
@@ -114,7 +114,7 @@ specs/007-us218-rls-push-integrity/
 # 阶段 A
 docker/sql/04-rxdb-utils-functions.sql                 # rxdb_mutations：配对校验（RX002）、DELETE 零行判定
 packages/rxdb-adapter-supabase/src/__tests__/
-├── supabase-sql-security-regressions.sql             # 改写 rls-filtered-delete；新增 5 个用例
+├── supabase-sql-security-regressions.sql             # 改写 rls-filtered-delete；新增 4 个用例
 └── run-supabase-sql-security-regressions.sh          # CASES 登记
 
 # 阶段 B：服务端与适配器
@@ -169,9 +169,9 @@ Supabase 适配器（唯一实现）；被拒状态复用 `RxDBChange` 与 `Sync
    [remote-merge-result §5](contracts/remote-merge-result.md) 列出的远端替身（分属 `rxdb-plugin-sync`、`rxdb-adapter-sqlite-wasm`、
    `rxdb-adapter-supabase`）。
 2. **AC#7「既有 9 条」**：runner 今天登记 10 个用例，其中 `rls-filtered-delete` 断言的正是要修的行为，本故事改写它（AC#1）；其余 9 条
-   不变并全部 PASS。与 006 quickstart 同口径。
-3. **AC#16 的 React / Vue demo**：两个 demo 今天不连远端、也不用 `useSyncState()`。本 plan 定为各加一个被拒列表面板；e2e 的触发方式
-   在 tasks 阶段二选一：只在 e2e 构建启用的会拒绝的远端替身，或在三框架绑定单测里断言同一份 `SyncRejection` 输入（D16）。
+   不变并全部 PASS。US-220 合入后基线为 16 条（15 PASS + `rls-filtered-delete` 红），本故事阶段 A 交付时 20 条全部 PASS（tasks T001、T015）。
+3. **AC#16 的 React / Vue demo**：两个 demo 今天不连远端、也不用 `useSyncState()`。本 plan 定为各加一个被拒列表面板；三端面板组件 spec 用同一份
+   `SyncRejection` 夹具断言相同字段，React / Vue e2e 只验空态与 a11y（D16，spec US5「批准的偏离」）。
 4. **探针只接受同步表**：DELETE 判定只在 `p_skip_sync = true`（推送路径）执行，推送路径只作用于已启用同步的表（**推断**，与 US-220
    `rxdb_batch_update` 同一前提）；非同步表上少删以 22023 显式失败（[push-integrity §2](contracts/push-integrity.md)）。
 5. **开发默认权限不收紧**：10 个 Supabase 测试文件以 `anon` 清理 `rxdb_change`；生产权限进单独脚本，回归在事务内执行后回滚（D18）。

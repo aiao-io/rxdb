@@ -21,7 +21,7 @@ docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < doc
 bash packages/rxdb-adapter-supabase/src/__tests__/run-supabase-sql-security-regressions.sh
 ```
 
-期望：16 个用例全部 `🟢 PASS`（既有 10 个 + 新增 6 个）。只跑一个用例：
+期望：16 个用例（既有 10 个 + 新增 6 个）中 15 个 `🟢 PASS`；`rls-filtered-delete` 保持红（它断言的是 US-218 阶段 A 要修的行为，本故事不改）。只跑一个用例：
 
 ```bash
 docker exec -i supabase-db psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 \

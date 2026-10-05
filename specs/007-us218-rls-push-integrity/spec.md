@@ -107,7 +107,12 @@ UPDATE 下发形状）、F2（SQLSTATE 登记：42501 / RX001，新码自 RX002 
 
 **Why this priority**: 被拒不再阻塞同步后，若开发者看不到它，用户的修改就会「无声消失」；三框架对称是项目铁律。
 
-**Independent Test**: 在三个 demo 里各触发一次 AC#8，检查界面上都出现被拒变更及原因，三端调用的 API 名称与形状一致。
+**Independent Test**: 三框架绑定 spec 断言同一份被拒输入得到同名同形状的 `lastRejections`；三个 demo 的面板组件 spec 用同一份夹具渲染出相同字段；
+Supabase demo（Angular，连真实远端）e2e 触发一次真实被拒并在面板看到原因；React / Vue demo 不连远端，e2e 只验证面板空态与 a11y。
+
+**批准的偏离（宪法 III）**: React / Vue demo 不连远端，无法在 e2e 中触发真实被拒；三端视觉一致性改由「同一夹具 + 三端面板组件 spec 断言相同字段与文案」保证，
+跨框架 e2e 只覆盖空态与 a11y。Angular e2e 用 `gone`（`RX001`）而非 `denied`：参考 `todos` 表未开 RLS、demo 无登录。
+面板状态：数据来自同步状态的同步快照，没有异步加载，故无加载态；上报失败不会进入面板（提交失败不调用上报），故无错误态；空列表显示空态文字。
 
 **Acceptance Scenarios**:
 
@@ -145,7 +150,7 @@ UPDATE 下发形状）、F2（SQLSTATE 登记：42501 / RX001，新码自 RX002 
 
 1. **Given** 目标行对调用方可见，修改规则不放行，**When** 推送对该行的修改，**Then** 以 42501 失败；行未变；无新日志（AC#3；US-220 合入后由其
    AC#4 继续保证）。
-2. **Given** 既有 SQL 回归 9 条，**When** 执行 SQL 安全回归脚本，**Then** 全部 PASS（AC#7）。
+2. **Given** 阶段 A 交付时 runner 登记的全部 SQL 回归用例（含 US-220 新增与改写后的 `rls-filtered-delete`），**When** 执行 SQL 安全回归脚本，**Then** 全部 PASS（AC#7）。
 
 ---
 
@@ -210,7 +215,7 @@ UPDATE 下发形状）、F2（SQLSTATE 登记：42501 / RX001，新码自 RX002 
 
 - **FR-026**: 每条 AC MUST 有对应的自动化或脚本化验证：AC#1～7 为 SQL 回归用例；AC#8～15 为单元测试与连真实远端的 spec；AC#16 为三框架
   demo e2e；AC#17、18 为 SQL 回归或连真实远端的 spec；AC#19 为文档评审。
-- **FR-027**: 既有 SQL 回归 9 条与 `rls-filtered-delete` MUST 在阶段 A 交付时全部 PASS；PR 描述贴实跑输出。
+- **FR-027**: 阶段 A 交付时 runner 登记的全部 SQL 回归用例（含故事里的「既有 9 条」、US-220 新增用例与改写后的 `rls-filtered-delete`）MUST 全部 PASS；PR 描述贴实跑输出。
 
 ### Key Entities
 
