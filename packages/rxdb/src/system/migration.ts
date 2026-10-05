@@ -34,6 +34,10 @@ import { RxDBMigrationOrderByField, RxDBMigrationRuleGroup, RxDBMigrationStaticT
  * 水位号是升级路径唯一的触发条件，把 4 重新定义成别的意思会让已经标成 4 的那批库被静默误读，
  * 而误读不产生任何编译错误。
  *
+ * 7：`RxDBChange` 补可空列 `rejectedAt`、`rejection`（US-218 阶段 B，推送回执落库）。两个适配器的
+ * `migrateSystemSchema()` 先探列再 `ADD COLUMN`，列已在就跳过，所以「列已在、水位线仍停在 6」的库
+ * 重跑一趟也不报错；旧行两列都是 `null`，不回填——它们要么已推送成功、要么还在待推，都不是被拒的。
+ *
  * 有一种库它**接不住**，要写进发布说明：抽包**之前**就启用过提交能力的库停在 4/5，十张表
  * 带着真实数据物理还在，却没有能力水位行（那是抽包之后才有的形态）。于是新客户端即便不装插件
  * 也照常打开它，写入不再经过捕获——`capability-watermark.ts` 的守卫只认得水位行，够不到这一种。
@@ -48,7 +52,7 @@ import { RxDBMigrationOrderByField, RxDBMigrationRuleGroup, RxDBMigrationStaticT
  * 与水位行停在当前值」把它钉死就是为了这个——那是同一节里唯一写死版本号的一条，
  * 不要顺手改成取常量。
  */
-export const RXDB_SYSTEM_SCHEMA_VERSION = 6 as const;
+export const RXDB_SYSTEM_SCHEMA_VERSION = 7 as const;
 
 /**
  * 系统表结构水位行的名字前缀

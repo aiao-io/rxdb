@@ -1414,8 +1414,20 @@
         "kind": "type"
       },
       {
+        "name": "RemoteChangeRejection",
+        "kind": "type"
+      },
+      {
+        "name": "RemoteChangeResult",
+        "kind": "type"
+      },
+      {
         "name": "RemoteEntityInvalidatedEvent",
         "kind": "both"
+      },
+      {
+        "name": "RemoteEntityRef",
+        "kind": "type"
       },
       {
         "name": "RemoteMergeResult",
@@ -2167,6 +2179,14 @@
       },
       {
         "name": "SyncProgress",
+        "kind": "type"
+      },
+      {
+        "name": "SyncRejection",
+        "kind": "type"
+      },
+      {
+        "name": "SyncRejectionReport",
         "kind": "type"
       },
       {

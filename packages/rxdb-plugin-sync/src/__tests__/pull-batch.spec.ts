@@ -263,6 +263,7 @@ function createLocalChange(id: number, entity: string, entityId: string, created
   change.patch = { value: 'local' };
   change.inversePatch = { value: 'base' };
   change.remoteId = null;
+  change.rejectedAt = null;
   change.revertChangeId = null;
   change.createdAt = createdAt;
   change.updatedAt = createdAt;

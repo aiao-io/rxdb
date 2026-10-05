@@ -21,7 +21,7 @@
  */
 
 import { NetworkOfflineError, type ReachabilityMonitor } from '@aiao/rxdb';
-import { SupabaseDataError } from './errors.js';
+import { SupabaseDataError, type SupabaseDataErrorOptions } from './errors.js';
 
 /**
  * PostgREST 响应中与错误分类相关的部分。
@@ -32,9 +32,27 @@ import { SupabaseDataError } from './errors.js';
  */
 export interface PostgrestFailure {
   /** PostgREST 返回的错误体；`null` 表示成功 */
-  error: { message?: string | null } | null;
+  error: PostgrestErrorBody | null;
   /** HTTP 状态码；postgrest-js 用 `0` 表示请求根本没发出去 */
   status?: number;
+}
+
+/**
+ * PostgREST 错误体里本包会读的字段
+ *
+ * @remarks
+ * `code` / `details` / `hint` 是 PostgREST 从 Postgres 错误原样转来的 SQLSTATE、`DETAIL`、`HINT`
+ * （US-218 FR-016：分类与原因展示都要用到，不能在适配器里丢掉）。
+ */
+export interface PostgrestErrorBody {
+  /** 错误消息 */
+  message?: string | null;
+  /** SQLSTATE，或 PostgREST 自己的 `PGRST*` 码 */
+  code?: string | null;
+  /** Postgres 的 `DETAIL` */
+  details?: string | null;
+  /** Postgres 的 `HINT` */
+  hint?: string | null;
 }
 
 /** postgrest-js 用来表示「连接没建起来」的哨兵状态码 */
@@ -76,9 +94,19 @@ export function is_transport_failure(response: PostgrestFailure): boolean {
  */
 export function classify_postgrest_error(response: PostgrestFailure, errorMessage: string): Error {
   const detail = response.error?.message || 'unknown error';
-  const message = `${errorMessage}: ${detail}`;
+  const hint = response.error?.hint;
+  const message = hint ? `${errorMessage}: ${detail} (hint: ${hint})` : `${errorMessage}: ${detail}`;
 
-  return is_transport_failure(response) ? new NetworkOfflineError(new Error(message)) : new SupabaseDataError(message);
+  return is_transport_failure(response) ?
+      new NetworkOfflineError(new Error(message))
+    : new SupabaseDataError(message, data_error_options(response.error));
+}
+
+/**
+ * 从错误体里挑出 {@link SupabaseDataError} 要保留的字段；空串与 `null` 都视为远端没给
+ */
+function data_error_options(error: PostgrestErrorBody | null): SupabaseDataErrorOptions {
+  return { code: error?.code || undefined, details: error?.details || undefined };
 }
 
 /**

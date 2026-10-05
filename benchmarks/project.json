@@ -58,6 +58,14 @@
         "cwd": "benchmarks",
         "command": "node --experimental-strip-types working-tree.bench.ts"
       }
+    },
+    "bench-push-receipts": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["typecheck", "^build"],
+      "options": {
+        "cwd": "benchmarks",
+        "command": "node --experimental-strip-types push-receipts.bench.ts"
+      }
     }
   }
 }

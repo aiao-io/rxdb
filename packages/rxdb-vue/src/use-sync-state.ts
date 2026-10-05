@@ -1,4 +1,4 @@
-import type { SyncConflict, SyncState } from '@aiao/rxdb';
+import type { SyncConflict, SyncRejection, SyncState } from '@aiao/rxdb';
 import type { Subscription } from 'rxjs';
 import { computed, onScopeDispose, shallowRef, type ComputedRef } from 'vue';
 import { useRxDB } from './rxdb-vue';
@@ -26,6 +26,8 @@ export interface SyncStateResource {
   readonly lastError: ComputedRef<Error | null>;
   /** 上一次冲突判定；**不会**被后续成功清空，它是历史事实。 */
   readonly lastConflict: ComputedRef<SyncConflict | null>;
+  /** 最近一轮有被拒的推送产生的被拒列表；**不会**被后续成功清空，下一轮有被拒时整体替换。 */
+  readonly lastRejections: ComputedRef<readonly SyncRejection[]>;
 }
 
 /**
@@ -74,6 +76,7 @@ export const useSyncState = (): SyncStateResource => {
     pendingCount: computed(() => state.value.pendingCount),
     syncing: computed(() => state.value.syncing),
     lastError: computed(() => state.value.lastError),
-    lastConflict: computed(() => state.value.lastConflict)
+    lastConflict: computed(() => state.value.lastConflict),
+    lastRejections: computed(() => state.value.lastRejections)
   };
 };

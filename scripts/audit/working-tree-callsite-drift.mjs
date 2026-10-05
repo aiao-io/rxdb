@@ -33,7 +33,7 @@
  * **US-025 抽包之后，「登记表每一行在真实代码里找不找得到」整半边只剩这一份在守。** #1~#9 的声明
  * 搬进了 `rxdb-plugin-history`（#1~#6）与 `rxdb-plugin-sync`（#7~#9），8 处 QueryCache 批量写搬进了
  * `rxdb-plugin-querycache` 与 `rxdb-plugin-sync`——核心那份的 `import.meta.glob` 一处都看不见了。
- * 后来补登的 #10 / #11 在 `rxdb-plugin-working-tree` 里，同样只有这一份看得见。
+ * 后来补登的 #10 / #11 在 `rxdb-plugin-working-tree` 里、#12 在 `rxdb-plugin-sync` 里，同样只有这一份看得见。
  * 连同搬过来的还有 `verifiedAtLine` 的核对（{@link LINE_DRIFT_TOLERANCE}）：那是原先核心独有的一条，
  * 落在这里之前它已经在抽包里漂了 471 行而无人报警。
  *

@@ -508,7 +508,17 @@ const NAMING = {
     'SORT_ORDER_FIELD',
     'SortOrderError',
     'SortOrderErrorReason',
-    'SortOrderKey'
+    'SortOrderKey',
+    // US-218 阶段 B 推送回执与被拒上报。`RemoteChangeResult` / `RemoteChangeRejection` / `RemoteEntityRef`
+    // 是 `RemoteMergeResult` 逐实体回执的形状，适配器实现 `mergeChanges` 时必须能命名；
+    // `SyncRejectionReport` / `SyncRejection` 是 `SyncState.lastRejections` 的元素类型，三端绑定与
+    // 调用方按 `reason` 分支时必须能命名。它们是同步契约，与工作树、提交能力都无关，
+    // 叫 `Commit*` / `WorkingTree*` 等于宣称推送回执是提交能力的一部分。
+    'RemoteChangeRejection',
+    'RemoteChangeResult',
+    'RemoteEntityRef',
+    'SyncRejection',
+    'SyncRejectionReport'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

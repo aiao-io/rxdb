@@ -7,6 +7,10 @@
   "tags": [],
   "targets": {
     "lint": {},
+    "typecheck": {
+      "//dependsOn": "typecheck 是 package.json 里的 `tsc`，它按 workspace 包的 exports 读依赖的 dist 声明（@aiao/code-editor-react、@aiao/rxdb-adapter-wa-sqlite 等）。不声明 ^build 时 Nx 会让它和这些包的 build 并行，抢在 dist 落盘前跑就是 TS2307（PR #89 的 lint + typecheck job）。",
+      "dependsOn": ["^build"]
+    },
     "test": {
       "executor": "nx:run-commands",
       "options": {

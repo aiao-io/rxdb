@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { getRxDBChangeKey } from '../../sync-contract/VersionManager.utils.js';
+import { getRxDBChangeKey, parseRxDBChangeKey } from '../../sync-contract/VersionManager.utils.js';
 import { compactChanges } from '../../sync-contract/compact-changes.js';
 import { RxDBChange } from '../../system/change.js';
 /**
@@ -379,6 +379,67 @@ describe('compactChanges', () => {
       expect(actions.inserts.get(key)?.patch).toEqual({ name: 'AliceReborn' });
       // 同一个 key 不能同时挂在 deletes 里，否则下游 push 批次会把同一批原始变更算两次
       expect(actions.deletes.has(key)).toBe(false);
+    });
+  });
+
+  // US-218 阶段 A：远端配对校验（RX002）按「最后一条 main 日志是否为 DELETE」判断键该在哪个写数组里，
+  // 这里锁住它依赖的客户端压缩不变量（research D3）
+  describe('push pairing invariants (US-218)', () => {
+    type ChangeType = 'INSERT' | 'UPDATE' | 'DELETE';
+    const remoteRow = { name: 'Remote' };
+
+    function buildSequence(types: ChangeType[], firstInversePatch: Record<string, unknown> | null): RxDBChange[] {
+      return types.map((type, index) => {
+        const inversePatch =
+          index === 0 ? firstInversePatch
+          : type === 'INSERT' ? null
+          : remoteRow;
+        const patch = type === 'DELETE' ? null : { name: `v${index}` };
+        return createChange(type, '1', patch, new Date(), inversePatch);
+      });
+    }
+
+    function actionKindsOf(changes: RxDBChange[]): string[] {
+      const actions = compactChanges(changes);
+      const key = getRxDBChangeKey(changes[0]);
+      return (['inserts', 'updates', 'deletes'] as const).filter(kind => actions[kind].has(key));
+    }
+
+    it.each<[string, ChangeType[], Record<string, unknown> | null]>([
+      ['INSERT → UPDATE', ['INSERT', 'UPDATE'], null],
+      ['UPDATE → DELETE', ['UPDATE', 'DELETE'], remoteRow],
+      ['UPDATE → UPDATE', ['UPDATE', 'UPDATE'], remoteRow],
+      ['remote INSERT → UPDATE → DELETE', ['INSERT', 'UPDATE', 'DELETE'], remoteRow],
+      ['DELETE → INSERT', ['DELETE', 'INSERT'], remoteRow],
+      ['DELETE → INSERT → DELETE', ['DELETE', 'INSERT', 'DELETE'], remoteRow],
+      ['local INSERT → DELETE → INSERT', ['INSERT', 'DELETE', 'INSERT'], null]
+    ])('%s: one action, DELETE exactly when the last change is DELETE', (_label, types, firstInversePatch) => {
+      const changes = buildSequence(types, firstInversePatch);
+      const kinds = actionKindsOf(changes);
+      const lastIsDelete = types[types.length - 1] === 'DELETE';
+
+      expect(kinds).toHaveLength(1);
+      expect(kinds[0] === 'deletes').toBe(lastIsDelete);
+    });
+
+    it.each<[string, ChangeType[]]>([
+      ['local INSERT → DELETE', ['INSERT', 'DELETE']],
+      ['local INSERT → UPDATE → DELETE', ['INSERT', 'UPDATE', 'DELETE']]
+    ])('%s cancels out and produces no action', (_label, types) => {
+      expect(actionKindsOf(buildSequence(types, null))).toEqual([]);
+    });
+
+    it.each<[string, string | number]>([
+      ['uuid text', '0b9d6f1e-6c1a-4a8e-9a57-2f4b1c3d5e6f'],
+      ['text with colons', 'tenant:a:1'],
+      ['number', 42]
+    ])('keeps the %s entity id verbatim through the action key', (_label, entityId) => {
+      const change = createChange('UPDATE', '1', { name: 'Bob' }, new Date(), remoteRow);
+      change.entityId = entityId;
+      const actions = compactChanges([change]);
+      const [key] = actions.updates.keys();
+
+      expect(parseRxDBChangeKey(key)[2]).toBe(entityId);
     });
   });
 });

@@ -202,6 +202,7 @@ declare type RxDBChangeRule =
   | UUIDRules<RxDBChange, 'entityId', RxDBEntityId>
   | DateRules<RxDBChange, 'createdAt'>
   | DateRules<RxDBChange, 'updatedAt'>
+  | DateRules<RxDBChange, 'rejectedAt'>
   | DateRules<RxDBChange, 'revertChangedAt'>
   | NumberRules<RxDBChange, 'revertChangeId'>
   | DateRules<RxDBChange, 'redoInvalidatedAt'>
@@ -259,6 +260,7 @@ export declare type RxDBChangeRuleGroup = RuleGroupBase<
   | 'entityId'
   | 'createdAt'
   | 'updatedAt'
+  | 'rejectedAt'
   | 'revertChangedAt'
   | 'revertChangeId'
   | 'redoInvalidatedAt'

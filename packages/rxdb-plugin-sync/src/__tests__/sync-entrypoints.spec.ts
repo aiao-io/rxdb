@@ -42,6 +42,7 @@ function createPushResult(overrides: Partial<PushRepositoryResult> = {}): PushRe
   return {
     repository,
     pushed: 0,
+    rejected: 0,
     failed: 0,
     compacted: 0,
     originalCount: 0,
@@ -200,9 +201,10 @@ describe('pull / push 入口的聚合与事件派发', () => {
     );
 
     // failed 的单位是**变更条数**，不是仓库数：把失败仓库折算成 failed += 1 会让
-    // `originalCount = pushed + failed + compacted` 这条恒等式失真。失败改为结构化保留。
+    // `originalCount = pushed + failed + rejected + compacted` 这条恒等式失真。失败改为结构化保留。
     await expect(push(vm, { batchSize: 50 })).resolves.toEqual({
       pushed: 7,
+      rejected: 0,
       failed: 2,
       compacted: 3,
       originalCount: 12,

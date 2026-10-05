@@ -95,9 +95,17 @@ export interface PullResult extends SyncProgress {
  */
 export interface PushResult {
   /**
-   * 成功推送到远程的变更数量（压缩后）
+   * 被远端接受（applied）的变更数量（压缩后）
    */
   pushed: number;
+
+  /**
+   * 被远端拒绝并已在本地落标记的变更数量（压缩后，与 `pushed` 同口径）
+   *
+   * @remarks
+   * 被拒是终态：这些变更越过了水位线，不会再推；详情见 `SyncState.lastRejections`。
+   */
+  rejected: number;
 
   /**
    * 推送失败的变更数量
@@ -112,7 +120,7 @@ export interface PushResult {
 
   /**
    * 压缩前的原始变更数量
-   * 关系：originalCount = pushed + failed + compacted
+   * 关系：originalCount = pushed + failed + rejected + compacted
    */
   originalCount: number;
 
@@ -121,7 +129,7 @@ export interface PushResult {
    *
    * 与 {@link PullResult.failures} 同口径：多仓库聚合时不能只留第一个错误，
    * 也不能把「一个仓库失败」折算成 `failed += 1` —— `failed` 的单位是**变更条数**，
-   * 混进仓库计数会直接破坏 `originalCount = pushed + failed + compacted`。
+   * 混进仓库计数会直接破坏 `originalCount = pushed + failed + rejected + compacted`。
    */
   failures: SyncFailure[];
 }
@@ -550,9 +558,18 @@ export interface PushRepositoryResult {
   skipped?: string;
 
   /**
-   * 成功推送到远程的变更数量（压缩后）
+   * 被远端接受（applied）的变更数量（压缩后）
    */
   pushed: number;
+
+  /**
+   * 被远端拒绝并已在本地落标记的变更数量（压缩后，与 `pushed` 同口径）
+   *
+   * @remarks
+   * 只在回执与水位线一起落库成功时计入；未落库（某批失败、本地提交失败、被依赖阻断）时为 0，
+   * 那些条目算进 `failed`，下一轮会原样重推。
+   */
+  rejected: number;
 
   /**
    * 推送失败的变更数量
@@ -566,6 +583,7 @@ export interface PushRepositoryResult {
 
   /**
    * 原始未推送变更数量（压缩前）
+   * 关系：originalCount = pushed + failed + rejected + compacted
    */
   originalCount: number;
 

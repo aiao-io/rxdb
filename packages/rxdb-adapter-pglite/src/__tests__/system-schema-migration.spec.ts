@@ -93,6 +93,33 @@ const getWatermarks = async (adapter: RxDBAdapterPGlite): Promise<Array<{ id: nu
   return result.rows;
 };
 
+const getChangeRejectionColumns = async (
+  adapter: RxDBAdapterPGlite
+): Promise<Array<{ column_name: string; is_nullable: string; column_default: string | null }>> => {
+  const result = await adapter.internalQuery<{
+    column_name: string;
+    is_nullable: string;
+    column_default: string | null;
+  }>(`
+    SELECT column_name, is_nullable, column_default FROM information_schema.columns
+    WHERE table_schema = 'rxdb' AND table_name = 'rxdb_change' AND column_name IN ('rejectedAt', 'rejection')
+    ORDER BY column_name
+  `);
+  return result.rows;
+};
+
+/**
+ * 把库标成「停在模式 6」：写上模式 6 与当前 codec 的水位线。
+ *
+ * @param adapter - 目标适配器
+ */
+const markSystemSchemaVersion6 = async (adapter: RxDBAdapterPGlite): Promise<void> => {
+  await adapter.internalQuery(`INSERT INTO "rxdb"."rxdb_migration" ("name") VALUES ($1::text), ($2::text)`, [
+    `${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}6`,
+    RXDB_CHANGE_CODEC_WATERMARK
+  ]);
+};
+
 /**
  * 造一张 v4 形态的 `rxdb_branch`：有 `activated`，没有 `activeKey`，也没有那条唯一索引。
  *
@@ -544,6 +571,39 @@ describe('PGlite system schema migration', () => {
       { id: 'feature-x', activated: false, activeKey: null },
       { id: 'main', activated: true, activeKey: ACTIVE_BRANCH_KEY }
     ]);
+  });
+
+  // US-218 FR-021：模式 7 给 RxDBChange 加 rejectedAt / rejection 两列。既有库按表粒度补建、从不看列，
+  // 不在迁移里补，那批库第一次收到拒绝回执时写本地就会因列不存在而失败。
+  it('模式 6 的库升级后 RxDBChange 多出可空的 rejectedAt、rejection，旧行两列为空', async () => {
+    const adapter = await createLegacyDatabase();
+    await markSystemSchemaVersion6(adapter);
+
+    await adapter.migrateSystemSchema();
+
+    expect(await getChangeRejectionColumns(adapter)).toEqual([
+      { column_name: 'rejectedAt', is_nullable: 'YES', column_default: null },
+      { column_name: 'rejection', is_nullable: 'YES', column_default: null }
+    ]);
+    const rows = await adapter.internalQuery<{ rejectedAt: Date | null; rejection: unknown }>(
+      `SELECT "rejectedAt", "rejection" FROM "rxdb"."rxdb_change"`
+    );
+    expect(rows.rows).toEqual([{ rejectedAt: null, rejection: null }]);
+    expect((await getWatermarks(adapter)).map(watermark => watermark.name)).toContain(RXDB_SYSTEM_SCHEMA_WATERMARK);
+  });
+
+  it('两列已在、水位线仍停在模式 6 时重复迁移不报错', async () => {
+    const adapter = await createLegacyDatabase();
+    await markSystemSchemaVersion6(adapter);
+    await adapter.migrateSystemSchema();
+    // 退回模式 6 的水位线，模拟「列已补上、水位线未写」的库再走一遍升级。
+    await adapter.internalQuery(`DELETE FROM "rxdb"."rxdb_migration" WHERE "name" = $1::text`, [
+      RXDB_SYSTEM_SCHEMA_WATERMARK
+    ]);
+
+    await expect(adapter.migrateSystemSchema()).resolves.toBeUndefined();
+
+    expect(await getChangeRejectionColumns(adapter)).toHaveLength(2);
   });
 
   it('高版本水位在 ALTER 或业务写入前 fail-fast', async () => {
