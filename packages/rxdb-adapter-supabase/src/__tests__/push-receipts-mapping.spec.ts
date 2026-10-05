@@ -9,20 +9,17 @@
  * 全程 mock `client.rpc`，不连远端。
  */
 
-import { Entity, EntityBase, compactChanges, type IRxDBChange, type RxDB } from '@aiao/rxdb';
+import { compactChanges, type IRxDBChange, type RxDB } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { describe, expect, it, vi } from 'vitest';
 import { SupabaseDataError } from '../errors.js';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
 
-/** dependsOn 反查目标：与 Todo 同命名空间（`public`）的另一张表，用于验证跨实体反查 */
-@Entity({
-  name: 'Project',
-  tableName: 'projects',
-  properties: []
-})
-class Project extends EntityBase {}
-
+/**
+ * `dependsOn` 反查目标夹具：与 Todo 同命名空间（`public`）的另一张表，用于验证跨实体反查。
+ * 本文件的 `schemaManager` 是手搭的替身（见 {@link createRxdb}），只认 {@link EntityMetadataFixture}
+ * 数组，不读真实的 `@Entity` 注册表，所以这里不需要、也不声明一个真正的实体类。
+ */
 interface EntityMetadataFixture {
   namespace: string;
   name: string;
