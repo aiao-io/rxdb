@@ -18,27 +18,10 @@
  * UPDATE`，同 id 重复插入天然幂等，造不出真正的 23505；`rls_unique_probe.uniqueSlug` 带独立
  * 于 `id` 的 UNIQUE 约束，才能撞出 `ON CONFLICT (id)` 盖不住的唯一键冲突。
  *
- * @remarks 已知红（T046 推送仓库未落地，详见各用例内注释）
- * 本 spec 在阶段 B 只保证 `mergeChanges` 自身（T038/T045/T051/T054 范围）与
- * `rxdb_mutations` SQL（T043/T044/T049/T053 范围）之间的契约，**不**实现推送仓库侧的
- * `rejectedAt` / `rejection` 本地落库与 `PushRepositoryResult.rejected` 计数——那是
- * data-model.md §7 的 T046（US3）与 T055（US4），由另一条并行工作线负责，本次改动完全
- * 不触碰 `push-repository.ts` 的提交逻辑。因此：
- *
- * - AC#8/AC#10（源变更标记为被拒）：红——本地 `RxDBChange.rejectedAt` 永远是 `null`，
- *   因为 `commitRepositoryPush` 目前只在 `remoteIdsByChange`（仅 applied 项）上写回 `remoteId`，
- *   被拒项完全不落库任何标记。
- * - AC#9（被拒变更不再被重推）：**这条反而已经转绿**——不是因为被拒标记生效，而是
- *   `pushPlanEntries` 把「覆盖检查通过」（含被拒项）一律计入 `plan.pushed`，导致
- *   `failed = effectiveCount - pushed` 恒为 0，水位线照样推进到本批最大 `id`，被拒的变更
- *   自然被 `queryUnpushedChanges` 的 `id > lastPushedChangeId` 条件挡在外面。这是现有实现的
- *   副作用而非按 AC#9 本意实现，T046 落地后仍应保持这个结果不变，故此断言保留。
- * - `result.pushed` 计数：红——按 data-model §7 / T046，`pushed` 未来应只数 applied 项；
- *   当前实现把被拒项也算进 `pushed`，断言按未来契约写（只数 applied），现状不符。
- * - AC#15（同批重试幂等）、AC#13（不可归类 SQLSTATE 整批失败）：绿——这两条只依赖
- *   `mergeChanges` 与参考 SQL（T038/T043～T045/T051/T054 阶段 B 范围内已完成的部分），
- *   不经过推送仓库，直接调 `adapter.mergeChanges` 验证。
- * - AC#11（T052，被拒删除对齐本地）：红——本地回滚/对齐属于 T055（US4），尚未实现。
+ * @remarks 覆盖范围
+ * 推送仓库侧（data-model.md §7）：被拒源变更写 `rejectedAt` / `rejection`、`pushed` 只数 applied（AC#8、10）、
+ * 被拒变更不再重推（AC#9）、被拒删除在本地对齐回远端值（AC#11）。适配器与参考 SQL 侧：同批重试幂等（AC#15）、
+ * 不可归类 SQLSTATE 整批失败（AC#13），这两条直接调 `adapter.mergeChanges`，不经推送仓库。
  * - SC-009：记录单批 `mergeChanges` 耗时，无论 applied/rejected 混合批次都应 < 100 ms。
  */
 import {
@@ -229,7 +212,7 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('推送提交：真实 RLS 被�
       await userA.client.from('rls_todos').delete().eq('createdBy', userA.userId);
       await userB.client.from('rls_todos').delete().eq('createdBy', userB.userId);
     } catch (error) {
-      console.warn('rls_todos 清理失败（不影响已记录的红/绿结果）:', error);
+      console.warn('rls_todos 清理失败（不影响断言结果）:', error);
     }
     await rxdb.disconnectAll();
   });
@@ -283,16 +266,13 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('推送提交：真实 RLS 被�
       expect(b1Change?.remoteId).not.toBeNull();
       expect(b1Change?.rejectedAt).toBeNull();
 
-      // 按 data-model §7 / T046 的未来契约，pushed 应只数 applied 项（这里是 1）。
-      // 当前实现（T046 尚未落地）把覆盖检查通过的被拒项也计入 pushed，断言按未来契约写、预期红。
+      // pushed 只数 applied 项（data-model §7），被拒的两组实体不算
       expect(result.pushed).toBe(1);
     });
 
     it('删除 A 的行被拒 42501/denied，本地变更标为被拒（AC#8、10）', async () => {
       const [deleteChange] = await findLocalChangesFor(localAdapter, rowA1.id, 'DELETE');
       expect(deleteChange).toBeDefined();
-      // 红：commitRepositoryPush 目前只在 remoteIdsByChange（仅 applied 项）上写回，
-      // 被拒项的 rejectedAt / rejection 完全不落库——T046（US3）尚未实现。
       expect(deleteChange?.rejectedAt).not.toBeNull();
       expect(deleteChange?.rejection).toMatchObject({ code: '42501', reason: 'denied' });
     });
@@ -301,7 +281,6 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('推送提交：真实 RLS 被�
       const updateChanges = await findLocalChangesFor(localAdapter, rowA2.id, 'UPDATE');
       expect(updateChanges.length).toBe(2);
       for (const change of updateChanges) {
-        // 红：原因同上——T046 未实现，这两条源变更的 rejectedAt 都还是 null。
         expect(change.rejectedAt).not.toBeNull();
         expect(change.rejection).toMatchObject({ code: '42501', reason: 'denied' });
       }
@@ -311,9 +290,7 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('推送提交：真实 RLS 被�
       mergeDurations.length = 0;
       const result = await rxdb.syncManager.pushRepository('public', 'RlsTodo');
 
-      // 绿：不是因为被拒标记生效，而是 pushPlanEntries 把被拒项也计入 pushed，
-      // 水位线在上一轮已经越过了它们，本轮 queryUnpushedChanges 查不到，entries 为空，
-      // 干脆不会再调一次 mergeChanges（mergeDurations 应保持空）。
+      // 被拒变更已有 rejectedAt、水位线也越过了它们，本轮查不到待推变更，不再调 mergeChanges
       expect(result.originalCount).toBe(0);
       expect(result.pushed).toBe(0);
       expect(result.failed).toBe(0);
@@ -321,8 +298,7 @@ describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('推送提交：真实 RLS 被�
     });
 
     it('B 本地被删的 A1 行恢复为远端值，待推变更数扣除被拒部分后与推送前一致（AC#11，T052）', async () => {
-      // 红：本地对齐（把被拒的删除回滚成远端当前值）属于 T055（US4），本次改动未触碰
-      // push-repository.ts 的提交逻辑，localRowA1 在本地仍然是「已删除」状态。
+      // 被拒的删除在本地对齐回远端当前值（data-model §7 步骤 3）
       const localRowA1 = await firstValueFrom(RlsTodo.get(rowA1.id));
       expect(localRowA1).toBeDefined();
       expect(localRowA1?.title).toBe(rowA1.title);

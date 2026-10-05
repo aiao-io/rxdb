@@ -269,7 +269,7 @@
       UPDATE / DELETE `USING ("createdBy" = auth.uid()::text)`；`rxdb_enable_sync_for_table('rls_todos', 'public', 'RlsTodo')`；
       `GRANT SELECT, INSERT, UPDATE, DELETE … TO anon, authenticated`；确认第 8 节「禁用 RLS」循环不会关掉它（必要时在循环里排除该表）。
       重建容器后 `\d+ public.rls_todos` 与 `pg_policies` 核对
-- [ ] T042 [US3] 新建真实链路测试 `push-receipts.spec.ts`，门控与其它连远端 spec 相同（缺 `VITE_SUPABASE_URL` / `VITE_SUPABASE_KEY` 时 skip）：
+- [x] T042 [US3] 新建真实链路测试 `push-receipts.spec.ts`，门控与其它连远端 spec 相同（缺 `VITE_SUPABASE_URL` / `VITE_SUPABASE_KEY` 时 skip）：
       用 `createClient(url, key).auth.signUp` 注册两个随机用户（容器已开 autoconfirm），各自以 `client` 选项构造适配器；在 spec 内声明
       `@Entity({ name: 'RlsTodo', namespace: 'public', tableName: 'rls_todos', … })`。场景：A 新建一行并推送；B 拉取后删除 A 的行、修改自己的行、
       并对 A 的另一行做两次修改 → 推送：自己的修改 applied 并拿到远端 id，删除被拒 `42501`、`denied`，两次修改的源变更都标被拒（AC#8、10）；
@@ -297,7 +297,7 @@
 - [x] T047 [US3] 「待推」口径加 `rejectedAt = null`（research D13）：推送仓库 `queryUnpushedChanges`、`packages/rxdb-plugin-sync/src/get-repository-sync-status.ts`、
       `pull-conflict-utils.ts` 的 `queryPendingLocalChanges`、`pull-round.ts` 的 `backfillOwnChangeRemoteIds`、`query-cache-outbox.ts`（两处）、
       `cleanup-expired.ts`、`packages/rxdb-plugin-history/src/HistoryManager.ts` 中按 `remoteId` 为空的查询；**不改** `undo-redo-apply.ts`。T040 转绿
-- [ ] T048 [US3] `pnpm nx test rxdb-adapter-supabase -- push-receipts` 中 AC#8～10、13、15 与 SC-009 断言转绿（AC#11 的本地对齐断言在 US4 补）；耗时记进 PR-B 描述
+- [x] T048 [US3] `pnpm nx test rxdb-adapter-supabase -- push-receipts` 中 AC#8～10、13、15 与 SC-009 断言转绿（AC#11 的本地对齐断言在 US4 补）；耗时记进 PR-B 描述
 
 **Checkpoint**: 部分成功可用；被拒变更不再卡住同步（SC-004、SC-006）
 
@@ -319,7 +319,7 @@
       （无 `remoteId`、无被拒标记、水位线不动）。确认红
 - [x] T051 [P] [US4] 在 `push-receipts-mapping.spec.ts` 加：回执 `dependsOn` 为表引用 → `RemoteEntityRef {namespace, entity, entityId}`（实体名经
       `getEntityMetadataByTableName` 反查）；为 `{constraint}` → 原样透传。确认红
-- [ ] T052 [US4] 在 `push-receipts.spec.ts` 的被拒删除场景后补 AC#11 断言：B 本地被删的那行恢复为远端值，B 的待推变更数与推送前被拒部分扣除后一致（对齐未产生新变更）。确认红
+- [x] T052 [US4] 在 `push-receipts.spec.ts` 的被拒删除场景后补 AC#11 断言：B 本地被删的那行恢复为远端值，B 的待推变更数与推送前被拒部分扣除后一致（对齐未产生新变更）。确认红
 
 ### Implementation
 
@@ -363,7 +363,7 @@
 - [x] T062 [P] [US5] React 面板 spec `apps/dev-rxdb-react/src/app/components/SyncRejectionsPanel.spec.tsx` 与 Vue 面板 spec
       `apps/dev-rxdb-vue/src/app/components/SyncRejectionsPanel.spec.ts`：同 T061，经 hub 渲染共享夹具（React 参照 `LoadingBar.spec.tsx`，
       Vue 用 `apps/dev-rxdb-vue/vitest.config.ts`）
-- [ ] T063 [US5] Supabase demo e2e：在 `apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts` 加场景——上下文 A 新建待办并推送；上下文 B 拉取；
+- [x] T063 [US5] Supabase demo e2e：在 `apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts` 加场景——上下文 A 新建待办并推送；上下文 B 拉取；
       A 删除并推送；B 勾选完成（走 `p_updates`）并推送 → B 的面板出现一条 `gone`（`RX001`）被拒。用 `gone` 而非 `denied` 的原因：参考 `todos`
       表关闭 RLS、demo 无登录（spec US5 已登记为批准的偏离）
 - [x] T064 [P] [US5] React / Vue e2e：新建 `apps/dev-rxdb-react-e2e/src/sync-rejections.a11y.spec.ts` 与 `apps/dev-rxdb-vue-e2e/src/sync-rejections.a11y.spec.ts`，
@@ -378,7 +378,7 @@
 - [x] T067 [US5] 三框架绑定：`packages/rxdb-angular` 的 `useSyncState()` 加 `lastRejections: Signal<readonly SyncRejection[]>`（`computed`）；
       `packages/rxdb-vue` 加 `lastRejections: ComputedRef<readonly SyncRejection[]>`；`packages/rxdb-react` 透传，在 `useSyncState` 的 TSDoc 里提及
       `lastRejections`。不新增函数。T059 转绿
-- [ ] T068 [US5] Demo 面板：Angular 新建 `apps/dev-rxdb-supabase/src/app/sync-rejections-panel.ts`，挂到 `todo/todo.page.html`；React 新建
+- [x] T068 [US5] Demo 面板：Angular 新建 `apps/dev-rxdb-supabase/src/app/sync-rejections-panel.ts`，挂到 `todo/todo.page.html`；React 新建
       `apps/dev-rxdb-react/src/app/components/SyncRejectionsPanel.tsx`，挂到 `apps/dev-rxdb-react/src/app/pages/todo.tsx`；Vue 新建
       `apps/dev-rxdb-vue/src/app/components/SyncRejectionsPanel.vue`，挂到 `apps/dev-rxdb-vue/src/pages/TodoPage.vue`。三端字段与文案一致。
       T061～T064 转绿（`pnpm nx run dev-rxdb-supabase-e2e:e2e-remote`、`pnpm nx run dev-rxdb-react-e2e:e2e`、`pnpm nx run dev-rxdb-vue-e2e:e2e`）
@@ -395,8 +395,11 @@
 
 - [ ] T071 版本组合（FR-022，quickstart B5）：`receipts-legacy` 已覆盖「旧客户端 + 新 SQL」；另加载 US-220 版参考 SQL（`git show main:docker/sql/04-rxdb-utils-functions.sql`）
       后跑 `pnpm nx test rxdb-adapter-supabase -- push-receipts`，确认得到含 `PGRST202` 的 `SupabaseDataError`、本地变更仍待推；记录后重载新版 SQL
-- [ ] T072 [P] API 基线：`pnpm audit:api-surface`，确认差异只有契约列出的新增 / 删除导出，然后 `pnpm audit:api-surface:update`；涉及
+- [x] T072 [P] API 基线：`pnpm audit:api-surface`，确认差异只有契约列出的新增 / 删除导出，然后 `pnpm audit:api-surface:update`；涉及
       `requirements/api-baseline/{rxdb,rxdb-plugin-sync,rxdb-adapter-supabase,rxdb-angular,rxdb-vue}.json`
+      **执行记录（2026-10-05）**：差异只在 `rxdb.json`，新增 `RemoteChangeRejection`、`RemoteChangeResult`、`RemoteEntityRef`、
+      `SyncRejection`、`SyncRejectionReport`；绑定侧 `lastRejections` 是既有导出类型上的字段，不产生导出差异。五个名字不是
+      `Commit*` / `WorkingTree*` 前缀，按既有做法在 `scripts/audit/api-surface.mjs` 的 `NAMING` 逐名例外里登记并写明理由，再更新基线
 - [x] T073 [P] 迁移文档 `website/docs/migration/supabase-push-receipts.md`：`changeIdMapping` → `results` 的改法、`PushRepositoryResult.rejected`、
       系统模式 7、先升级 SQL 再升级客户端（research D17）；在 `website/docs/migration/README.md` 与 `website/sidebars.ts` 登记（FR-020）
 - [x] T074 [P] 核对 T018 的 `requirements/release-plan.md` 标注仍成立（A+B 同版本、`kind=migration`、须先有 `kind=bridge`）；`pnpm check-migration-release-gate`
