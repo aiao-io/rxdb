@@ -439,8 +439,8 @@
 
 ### Tests（先红）
 
-- [ ] T077 [US6] 回归脚本：`psql` 调用加 `-v production_grants_sql="$(cat docker/sql/production/rxdb-change-grants.sql)"`
-- [ ] T078 [US6] 在回归 SQL 新增用例 `production-change-grants`（AC#17、18，[rxdb-change-permissions §5](contracts/rxdb-change-permissions.md)），放在文件末尾
+- [x] T077 [US6] 回归脚本：`psql` 调用加 `-v production_grants_sql="$(cat docker/sql/production/rxdb-change-grants.sql)"`
+- [x] T078 [US6] 在回归 SQL 新增用例 `production-change-grants`（AC#17、18，[rxdb-change-permissions §5](contracts/rxdb-change-permissions.md)），放在文件末尾
       `ROLLBACK` 之前：用 `\if :{?production_grants_sql}` 门控，变量缺失时显式失败（`\echo` 后 `\quit 3`）；通过 `SELECT … AS run_prod \gset` 判定本次
       `test_case` 是否包含该用例，包含时执行 `:production_grants_sql`；然后 `SET LOCAL ROLE authenticated`（夹具对 `authenticated` 补授权）依次断言：
       ① 直接 `INSERT INTO public.rxdb_change` → 42501；② 直调 `public.rxdb_insert_changes` → 42501，消息为 `rxdb: rxdb_insert_changes may only be called by rxdb_mutations`；
@@ -450,25 +450,37 @@
 
 ### Implementation
 
-- [ ] T079 [US6] 同步函数 SQL：`rxdb_log_change_trigger()` 加 `SECURITY DEFINER`，其余不变
-- [ ] T080 [US6] 参考 SQL：新增 `public.rxdb_insert_changes(jsonb)`——`SECURITY DEFINER`、`SET search_path = pg_catalog, pg_temp`；入口守卫
+- [x] T079 [US6] 同步函数 SQL：`rxdb_log_change_trigger()` 加 `SECURITY DEFINER`，其余不变
+- [x] T080 [US6] 参考 SQL：新增 `public.rxdb_insert_changes(jsonb)`——`SECURITY DEFINER`、`SET search_path = pg_catalog, pg_temp`；入口守卫
       `current_setting('rxdb.insert_changes', true) IS DISTINCT FROM 'on'` → 42501（消息见 T078 ②），随即把守卫置 `''` 消费；
       `INSERT … ON CONFLICT ("clientId", "localId") DO NOTHING`，返回 `{localId, remoteId}` 映射与新写条数；`GRANT EXECUTE … TO anon, authenticated`。
       `rxdb_mutations` 写日志段改调它，调用前 `set_config('rxdb.insert_changes', 'on', true)`、调用后置 `''`（contract §2）
-- [ ] T081 [US6] 新建 `docker/sql/production/rxdb-change-grants.sql`，内容照 contract §3（`REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.rxdb_change FROM anon, authenticated;`
+- [x] T081 [US6] 新建 `docker/sql/production/rxdb-change-grants.sql`，内容照 contract §3（`REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.rxdb_change FROM anon, authenticated;`
       `REVOKE USAGE, UPDATE ON SEQUENCE public.rxdb_change_id_seq FROM anon, authenticated;`，保留 `SELECT`），可重复执行；`docker/init-db.sh` 不加载它
-- [ ] T082 [US6] 重载同步函数 SQL 与参考 SQL；单跑 `production-change-grants` 转绿；`bash 回归脚本` 29 条全部 `🟢 PASS`（`rls-write-boundary` 若检查
+- [x] T082 [US6] 重载同步函数 SQL 与参考 SQL；单跑 `production-change-grants` 转绿；`bash 回归脚本` 29 条全部 `🟢 PASS`（`rls-write-boundary` 若检查
       「写 RPC 必须是 INVOKER」，确认 `rxdb_insert_changes` 不在其列表内或按 DEFINER 例外处理）
-- [ ] T083 [US6] AC#18 真实链路：对容器执行生产脚本（`docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < docker/sql/production/rxdb-change-grants.sql`），
+- [x] T083 [US6] AC#18 真实链路：对容器执行生产脚本（`docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < docker/sql/production/rxdb-change-grants.sql`），
       跑 `pnpm nx test rxdb-adapter-supabase -- branch-contracts` 全绿，结果贴进 PR-C 描述；跑完重建容器恢复开发默认（测试清理依赖 `anon` 删日志）
-- [ ] T084 [P] [US6] `website/docs/adapters/supabase.md` 新增「生产部署」节（AC#19，contract §6）：执行生产权限脚本的步骤；业务表 RLS 推荐策略；
+- [x] T084 [P] [US6] `website/docs/adapters/supabase.md` 新增「生产部署」节（AC#19，contract §6）：执行生产权限脚本的步骤；业务表 RLS 推荐策略；
       已知限制——非 main 分支日志仍可写、`rxdb_branch` 未收紧、存在性探针的剩余探测面（id 不应承载敏感信息）、测试环境 `service_role` 清理为后续项
 
 ### PR-C 收尾
 
-- [ ] T085 PR-C 门禁：`pnpm nx run-many -t lint test --projects=rxdb-adapter-supabase`；SQL 回归 29 条输出贴进 PR-C 描述
-- [ ] T086 [P] 文档评审：按 quickstart C3 逐项核对 T084
-- [ ] T087 更新 US-218 故事文件验收表 AC#17～19，同步 `requirements/status-overview.md`
+- [x] T085 PR-C 门禁：`pnpm nx run-many -t lint test --projects=rxdb-adapter-supabase`；SQL 回归 29 条输出贴进 PR-C 描述
+- [x] T086 [P] 文档评审：按 quickstart C3 逐项核对 T084
+- [x] T087 更新 US-218 故事文件验收表 AC#17～19，同步 `requirements/status-overview.md`
+
+**阶段 C 实现记录**（2026-10-05）：
+
+- T078 偏离：psql 的 `\quit` 不接受退出码，变量缺失时改为 `DO $$ BEGIN RAISE EXCEPTION … END $$`，在 `ON_ERROR_STOP` 下 psql 以 3 退出，效果等同。
+- T078 夹具：同一事务里前面的 `p_skip_sync => true` 推送把 `rxdb.sync_enabled` 设为事务级 `'false'` 且不恢复，⑤ 之前须显式
+  `set_config('rxdb.sync_enabled', 'true', true)`，否则触发器不写日志。真实请求一个 RPC 一个事务，不受影响。
+- T083：`branch-contracts.spec.ts` 是 mock 单测（代理客户端），单跑全绿但不经过真实链路。改为在生产权限下直接跑整套 vitest
+  （绕过 `nx test`，因为它会重跑 `init-db.sh` 把权限放宽回去）：37 个文件、583 条中 573 条通过；失败的 10 条全部出自测试夹具以
+  `anon` 直写或清理 `rxdb_change`（`repository-sync` 1、`sync-data-integrity` 4、`sync-multi-operations` 4、`sync-remoteid-debug` 1），
+  与 contract §3 预期一致。经 `rxdb_mutations` 的推送链路（`sync`、`push-receipts`、`update-push-semantics`、`sync-boundary`、
+  `review-regressions`、`pagination-truncation`）全绿。vitest 里没有推送非 main 分支的真实链路用例，AC#18 的非 main 推送由 SQL 用例
+  `production-change-grants` ③ 覆盖。跑完已执行 `docker/init-db.sh` 恢复开发默认。
 
 **Checkpoint（PR-C 可合入）**: 三阶段全部完成
 

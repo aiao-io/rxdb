@@ -323,6 +323,76 @@ local-only 并使用 SQLite family 或 PGlite；不要用 string/base64 fallback
 3. **事务性双写**：`mutations()` 通过单次 RPC 调用完成所有操作，保证原子性
 4. **游标同步**：基于自增 ID 而非时间戳，避免重复拉取
 
+## 生产部署
+
+### 收紧变更日志表的写权限
+
+仓库的开发初始化脚本（`docker/init-db.sh`）对 `anon` / `authenticated` 开放了变更日志表 `public.rxdb_change` 的全部权限，方便测试直接造数据、清理日志。生产环境在执行完基础 SQL 之后，再执行一次生产权限脚本：
+
+```bash
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-grants.sql
+```
+
+脚本做三件事：
+
+- 收回 `anon` / `authenticated` 对 `rxdb_change` 的 `INSERT` / `UPDATE` / `DELETE` / `TRUNCATE`；
+- 收回序列 `rxdb_change_id_seq` 的 `USAGE` / `UPDATE`；
+- 保留 `SELECT`。拉取函数 `rxdb_pull_changes` 是 `SECURITY INVOKER`，以调用方身份读日志；Realtime 也按调用方身份投递日志的 `INSERT` 事件。收回 `SELECT` 会让拉取和实时同步一起失效。
+
+脚本可以重复执行。`init-db.sh` 不加载它。任何含 `GRANT ALL ON ALL TABLES IN SCHEMA public` 的脚本（如 `docker/sql/01-rxdb-system-tables.sql`）重跑后会把权限放宽回去，之后要再执行一次本脚本。
+
+收紧后，日志只剩两条写入路径：
+
+| 写入路径                                             | 怎么写日志                                                                                                      |
+| ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 推送 `rxdb_mutations`                                | 经内部函数 `rxdb_insert_changes`（`SECURITY DEFINER`）写入；main 分支的日志必须与同批实体写入配对，否则 `RX002` |
+| 直接写业务表（`mutations()`，`p_skip_sync = false`） | 同步触发器函数 `rxdb_log_change_trigger`（`SECURITY DEFINER`）写入                                              |
+
+客户端经 PostgREST 直接写 `rxdb_change`，得到 `42501 permission denied for table rxdb_change`。直接调用 `rxdb_insert_changes` 也得到 `42501`（`rxdb: rxdb_insert_changes may only be called by rxdb_mutations`）：它只认 `rxdb_mutations` 在同一事务里设置的守卫，客户端无法预置这个守卫。
+
+### 业务表 RLS 推荐策略
+
+`rxdb_mutations` 是 `SECURITY INVOKER`，推送以调用方身份落库，业务表的行级安全策略直接决定哪些变更能写进去。建议对每个操作单独写一条策略，不要用一条 `FOR ALL` 覆盖全部操作：
+
+```sql
+ALTER TABLE public.todos ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY todos_select ON public.todos
+  FOR SELECT USING (true);
+
+CREATE POLICY todos_insert ON public.todos
+  FOR INSERT WITH CHECK ("createdBy" = auth.uid()::text);
+
+CREATE POLICY todos_update ON public.todos
+  FOR UPDATE USING ("createdBy" = auth.uid()::text);
+
+CREATE POLICY todos_delete ON public.todos
+  FOR DELETE USING ("createdBy" = auth.uid()::text);
+```
+
+分开写的原因：
+
+- 修改推送是普通 `UPDATE`，只受 UPDATE 与 SELECT 策略约束（见[修改的语义](#修改的语义)）。`FOR ALL` 的 `WITH CHECK` 同时约束新建行和修改后的行，没法单独放宽修改。
+- 「只读不改」「能改不能删」这类组合只有分开写才表达得出来。
+
+`connect()` 默认会检查业务表是否启用了 RLS，见 [RLS 自检](#rls-自检)。
+
+推送被策略拒绝时的表现取决于数据库与客户端的版本：
+
+| 版本                                    | 表现                                                                                                                                                                                                      |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 客户端不传 `p_receipts`（推送回执之前） | 整批回滚：抛 `SupabaseDataError`，`code` 为 `42501`（被拒）或 `RX001`（行已不存在），水位线不推进，整批变更仍待推送                                                                                       |
+| 客户端与数据库都支持推送回执            | 逐实体处理：被拒的实体写上 `rejectedAt` 与 `rejection`，不再重推；同一批里其它实体照常落库；被拒列表经 `syncState.lastRejections` 暴露，见 [被拒的推送](../plugins/rxdb-plugin-sync/README.md#被拒的推送) |
+
+两种版本的组合与升级顺序见 [Supabase 推送回执迁移](../migration/supabase-push-receipts.md)。
+
+### 生产部署的已知限制
+
+- **非 main 分支的日志仍可写**：推送非 main 分支时，`rxdb_mutations` 只写日志、不写实体，也就没有可配对的实体写入。这类日志不会进入 main 分支的拉取，但调用方仍可以往任意非 main 分支写日志。
+- **`rxdb_branch` 未收紧**：分支表仍对客户端开放读写，生产权限脚本不处理它。
+- **存在性探针**：`rxdb_existing_ids` 的剩余探测面见下文[已知限制](#已知限制)。id 不应承载敏感信息。
+- **开发环境的默认权限没有收紧**：仓库的 Supabase 测试以 `anon` 身份清理和预置 `rxdb_change`。测试清理改用 `service_role` 之后，开发默认权限才能一并收紧（后续项）。
+
 ## 故障排查
 
 ### RPC 函数不存在
