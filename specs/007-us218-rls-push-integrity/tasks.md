@@ -193,7 +193,7 @@
       `expect(RXDB_SYSTEM_SCHEMA_VERSION).toBe(6)` 改为 `7`；在 `packages/rxdb-adapter-sqlite-core/src/__tests__/system-schema-migration.spec.ts` 与
       `packages/rxdb-adapter-pglite/src/__tests__/system-schema-migration.spec.ts` 各加：模式 6 的库升级后 `RxDBChange` 多出 `rejectedAt`、`rejection`
       两列，可空，旧行两列均为空；重复执行迁移不报错（FR-021）。确认红
-- [ ] T021 [P] 在 `packages/rxdb-adapter-supabase/src/__tests__/errors.spec.ts` 与 `transient-write-retry.spec.ts` 加断言：PostgREST 错误体
+- [X] T021 [P] 在 `packages/rxdb-adapter-supabase/src/__tests__/errors.spec.ts` 与 `transient-write-retry.spec.ts` 加断言：PostgREST 错误体
       `{code, message, details, hint}` 经 `executeRetryableWrite` / `classify_postgrest_error` 后，抛出的 `SupabaseDataError` 带只读 `code`、`details`；
       网络错误与 5xx 仍按既有重试语义处理、不变成 `SupabaseDataError`（FR-016、AC#13）。确认红
 - [ ] T022 [P] 在推送仓库测试加覆盖检查用例（FR-017、AC#14，[remote-merge-result §2](contracts/remote-merge-result.md)）：远端结果对本批 `sourceChanges`
@@ -214,7 +214,7 @@
       `RemoteChangeResult`、`RemoteChangeRejection`、`RemoteEntityRef`（TSDoc 照契约），删除 `changeIdMapping`；文件中两处 `abstract mergeChanges`
       的返回类型都改为 `Promise<RemoteMergeResult>`；不传 `changes` 时约定 `results` 为空数组。确认 `packages/rxdb/src/index.ts` 导出新类型
 - [ ] T026 [P] `packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts` 的 `mergeChanges` 只把返回类型改为 `Promise<RemoteMergeResult>`，仍抛 `HttpChangelogUnsupportedError`
-- [ ] T027 [P] 在 `packages/rxdb-adapter-supabase/src/errors.ts` 给 `SupabaseDataError` 加只读 `code?: string`、`details?: string`（TSDoc）；
+- [X] T027 [P] 在 `packages/rxdb-adapter-supabase/src/errors.ts` 给 `SupabaseDataError` 加只读 `code?: string`、`details?: string`（TSDoc）；
       `packages/rxdb-adapter-supabase/src/postgrest-error.ts` 的 `classify_postgrest_error` 与适配器的 `executeRetryableWrite` 保留 `code` / `details` / `hint`。T021 转绿
 - [ ] T028 改推送仓库：删除 `getChangeIdMapping`；`mapRemoteIds` 只读 `status = 'applied'` 的结果；在写本地之前对本批 `sourceChanges` 做覆盖检查
       （缺项 / 重复 / 多余 → 抛错，不写本地、不推进水位线）；`sourceChangesByLocalId` 不再用于扇出（无其它使用则删除）。`rejected` 结果的提交在 US3 实现。T022 转绿

@@ -7,6 +7,7 @@
 
 import { EntityMetadata, PropertyType, RemoteMergeResult, RuleGroup } from '@aiao/rxdb';
 import { SupabaseConfigError, SupabaseDataError } from './errors.js';
+import type { PostgrestErrorBody } from './postgrest-error.js';
 
 export const ADAPTER_NAME = 'supabase';
 
@@ -114,7 +115,8 @@ export interface SupabaseRlsCheckResult {
 
 export type RetryableWriteResponse = {
   data: unknown;
-  error: { message?: string | null } | null;
+  /** PostgREST 错误体；`code` / `details` / `hint` 原样带到抛出的错误上（US-218 FR-016） */
+  error: PostgrestErrorBody | null;
   /** HTTP 状态码；`0` 表示传输失败，用于错误分类（RV-001） */
   status?: number;
 };

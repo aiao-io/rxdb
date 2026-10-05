@@ -293,11 +293,14 @@ try {
 }
 ```
 
-| 错误类型               | code            | 场景             |
-| ---------------------- | --------------- | ---------------- |
-| `SupabaseConfigError`  | `CONFIG_ERROR`  | URL/Key 配置无效 |
-| `SupabaseNetworkError` | `NETWORK_ERROR` | 网络连接失败     |
-| `SupabaseDataError`    | `DATA_ERROR`    | 数据类型转换错误 |
+| 错误类型               | code                          | 场景                                            |
+| ---------------------- | ----------------------------- | ----------------------------------------------- |
+| `SupabaseConfigError`  | `CONFIG_ERROR`                | URL/Key 配置无效                                |
+| `SupabaseNetworkError` | `NETWORK_ERROR`               | 网络连接失败                                    |
+| `SupabaseDataError`    | 数据库错误码，或 `DATA_ERROR` | 远端拒绝（RLS、约束、行已不存在等）、响应不合规 |
+
+远端返回了数据库错误时，`SupabaseDataError.code` 是那个错误码（SQLSTATE，如 `42501`、`RX001`；或 PostgREST 的 `PGRST*`），
+`details` 是数据库的 `DETAIL`，`HINT` 会拼进 `message`；没有错误码的数据错误（响应形状不对、类型转换失败）`code` 为 `DATA_ERROR`。
 
 ## 数据类型转换
 

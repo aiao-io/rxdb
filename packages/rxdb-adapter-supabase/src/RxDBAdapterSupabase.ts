@@ -30,7 +30,12 @@ import { resolveEntityScope, type EntityScope } from './entity_scope.js';
 import { SupabaseConfigError, SupabaseDataError, SupabaseUnsupportedPropertyTypeError } from './errors.js';
 import { handleSupabaseChange } from './handle_supabase_change.js';
 import { chunk_values, select_all_pages, SUPABASE_IN_CHUNK_SIZE } from './pagination.js';
-import { assert_postgrest_ok, is_transport_failure, settle_postgrest_failure } from './postgrest-error.js';
+import {
+  assert_postgrest_ok,
+  is_transport_failure,
+  settle_postgrest_failure,
+  type PostgrestErrorBody
+} from './postgrest-error.js';
 import { apply_rule_group } from './rule_group_builder.js';
 import { build_delete_params, build_upsert_params, group_by_type } from './RxDBAdapterSupabase.utils.js';
 import { resolve_supabase_schema } from './schema.utils.js';
@@ -641,7 +646,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     operation: () => PromiseLike<RetryableWriteResponse>,
     validate: (data: unknown) => TResult
   ): Promise<TResult> {
-    let lastMessage = 'Unknown error';
+    let lastError: PostgrestErrorBody = { message: 'Unknown error' };
     let lastStatus: number | undefined;
 
     for (let attempt = 1; attempt <= RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS; attempt++) {
@@ -652,10 +657,12 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
         return validate(data);
       }
 
-      lastMessage = error.message || 'Unknown error';
+      // 整个错误体留着而不是只留 message：code / details / hint 是推送方分类拒绝原因的输入（US-218 FR-016）
+      const message = error.message || 'Unknown error';
+      lastError = { ...error, message };
       lastStatus = status;
 
-      if (!isRetryableSupabaseWriteError(lastMessage) || attempt === RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS) {
+      if (!isRetryableSupabaseWriteError(message) || attempt === RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS) {
         break;
       }
 
@@ -668,7 +675,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     // 在一次写入里反复翻转，面板跟着抖。
     throw settle_postgrest_failure(
       this.rxdb.reachability,
-      { error: { message: lastMessage }, status: lastStatus },
+      { error: lastError, status: lastStatus },
       `Failed to ${operationName}`
     );
   }
