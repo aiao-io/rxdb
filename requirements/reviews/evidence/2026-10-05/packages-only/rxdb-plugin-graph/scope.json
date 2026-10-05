@@ -1,0 +1,330 @@
+{
+  "object": "rxdb-plugin-graph",
+  "headAtScope": "943c50cc85b4be3b0635f736a35a9659c3fe209a",
+  "clientDate": "2026-10-05",
+  "files": [
+    {
+      "path": "packages/rxdb-plugin-graph/.gitignore",
+      "sha256": "03aa0aa73ee6331cf17331e7ff16263da7285c7fee793154a64fd264b0aef086",
+      "lineCount": 1,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/README.md",
+      "sha256": "96c66ff9cec1ec07463b03856e203e37ac9a834074007cbbc6ad8e07f2c59e40",
+      "lineCount": 71,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/eslint.config.mjs",
+      "sha256": "a57f53cfa9fd8f4c7395cd2bc14f9cf89d1639d82a2babbb1d6e722fd2dc999c",
+      "lineCount": 25,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/package.json",
+      "sha256": "29711d95c811a175a22939755b3a5e001f2473fabfb60577066b43af6b9f3479",
+      "lineCount": 73,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/project.json",
+      "sha256": "c4cdf717c8e8724bf5aee91c06ce25b97987cd21c06e7a0d7f146fa90ee1b0d7",
+      "lineCount": 10,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/@GraphEntity.ts",
+      "sha256": "a4e426e992655a70a1334f9f7638dc8db9d37afa27f82a6f6a9c4a40c87f872c",
+      "lineCount": 26,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/GraphEntityBase.ts",
+      "sha256": "b49f8374e7eeca33c26566f077c7451dbba451f2e7842f3768906d54364d1552",
+      "lineCount": 144,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/GraphRepository.ts",
+      "sha256": "0a597eeba1d577413ba18f9453fa6071fa8d3b3b87c204f744e08731210fd885",
+      "lineCount": 202,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/GraphRepository.spec.ts",
+      "sha256": "e0d5b3db4932c2c4bb16e50149282f10a47bb8c4c4f964b867fe94ff7b973ad4",
+      "lineCount": 1046,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/GraphRepository.unit.spec.ts",
+      "sha256": "454fe01f3f4f7bb41e3b0e57299843109194e30c55edbcea9b73b2a37cc4bf73",
+      "lineCount": 200,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/add-edge-feature-guard.spec.ts",
+      "sha256": "fbad5dd33aec5805ab7d56e816466ec0a87af37011b4939a6465ea779dcf022a",
+      "lineCount": 199,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/directed-unweighted.spec.ts",
+      "sha256": "1fa406196b9d345014ffc750de296797745c1cd61fe508f417d3154aa36d9d7e",
+      "lineCount": 461,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/directed-weighted.spec.ts",
+      "sha256": "28f18c4e3a395a765917c0c33a9036183f2929af2075572224d347dce1f00941",
+      "lineCount": 483,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/edge-filter-types.spec.ts",
+      "sha256": "c4d65249c6ce22a0bf4aa98f345f86692bccf5ec0ff5fd04dab341f4a1216598",
+      "lineCount": 63,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/find-paths-backfill.spec.ts",
+      "sha256": "00ecae1781398ad328a0f63120621381878f311f12c1daac510c69a41375ffcf",
+      "lineCount": 118,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/generator/GraphRepositoryGenerator.spec.ts",
+      "sha256": "d71b05d062f7ef74ecbce1a30cba91f83a338e862f9a75753e6b78a2525bbb0a",
+      "lineCount": 534,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/graph-reactive-api.spec.ts",
+      "sha256": "34a18635b6ed3bb134af0d25ff796d066e3059a13d09a50824c8bb81821eb4f9",
+      "lineCount": 147,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/graph-resource-limits.spec.ts",
+      "sha256": "6a02454d23b868298633af46b21575d19412b84113694b3f40854f64d75f2a8e",
+      "lineCount": 123,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/graph-semantics.spec.ts",
+      "sha256": "2324d9211b09a98ea63eca86f811b0829e0a665c0b43fb6628681a3223f3d2b1",
+      "lineCount": 623,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/merge-query.spec.ts",
+      "sha256": "12117d7985889160c177d9a32d60ff9401d704d471b25061ea6440cc50fa64ad",
+      "lineCount": 214,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/neighbor-row-guard.spec.ts",
+      "sha256": "bac509f9a135b40a5c9fa00b92fbf7b4cd13ed82f3e960d2074351da52babb83",
+      "lineCount": 114,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/repository-registry-contract.spec.ts",
+      "sha256": "222d77e5b63af4fb4cfdd7a0bf73deb6ae49ba4b337e2a85e23ffeaca753004a",
+      "lineCount": 35,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/review-query-nan-depth.spec.ts",
+      "sha256": "e742c1d5252b491032ce0e5c2ce437bd8239150511faacc5bb4f8384498e3965",
+      "lineCount": 75,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/test-utils.ts",
+      "sha256": "08f14e9e9a424d0e7328ea56d7510e77e14d2e7596f2ca59c254b35e4cb37893",
+      "lineCount": 47,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/undirected-direction-collapse.spec.ts",
+      "sha256": "2aabc05a29ba6f9c3c3dfcf2c7de1e0450133d01472c757fcdaee9c6216136aa",
+      "lineCount": 142,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/undirected-unweighted.spec.ts",
+      "sha256": "ad5b900e77e4aeed147bd63c43fefc28f004a9909660414e867f788ed920601e",
+      "lineCount": 340,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/undirected-weighted.spec.ts",
+      "sha256": "66807e6d32f9d2cde305b9211e7c70d00b87030478572db88e44646a019ea6a7",
+      "lineCount": 390,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/__tests__/wa-sqlite-wasm.ts",
+      "sha256": "7db971dd4a380684ceabdd83a2b324f300428e255e918ca188d5c835a6b10b02",
+      "lineCount": 3,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/constants.ts",
+      "sha256": "94a46ebd0593dfcf402cc6f5ab5e36d5ef01eba36857129c78e8403879af4efe",
+      "lineCount": 49,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/generator/GraphRepositoryGenerator.ts",
+      "sha256": "04cebc597b7a29daff7b3517cd18255b5b4fef845c47578d291c58c33f7cda67",
+      "lineCount": 319,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/generator/index.ts",
+      "sha256": "b014e9241d4f16e13938758f64c2282d4d5f8c20ab2571d077d9c977a5ea2fe1",
+      "lineCount": 1,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/graph-edge-entity.factory.ts",
+      "sha256": "5db95004c0c0414843e7c5aaa99e7ca86f141ddb9909ef2991fcd5d7a59d6532",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/graph-metadata.interface.ts",
+      "sha256": "0b221d7f93f02dad6b465fa9c7e8b0b08884fb7a793cdf7964d3959b8fd6f47e",
+      "lineCount": 111,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/graph-query-result.ts",
+      "sha256": "cb225e5438f481114d627a377e663ebdea9f6454d9efed484507c90a909a62e0",
+      "lineCount": 12,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/graph-query.interface.ts",
+      "sha256": "87395afea3361adc17829d83d4bc625207a1fd304aa259aa16c5cdc3f01bbda0",
+      "lineCount": 29,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/graph-repository.interface.ts",
+      "sha256": "70fc93095bb9562daf927023854c025a8db8660c3604d957b1ebacb047d77604",
+      "lineCount": 477,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/graph.interface.ts",
+      "sha256": "0e18b3fd43f1a5deaecf343a55981470502eedfc77801c85f77138ba09ebdb8f",
+      "lineCount": 20,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/graph_edge_entity.ts",
+      "sha256": "8f67ccd5e7b0e047193284bca2fe5a2f90c50017cabd8c3cdd39b9e582c0d099",
+      "lineCount": 61,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/index.ts",
+      "sha256": "c31ba3c1abfd19800892d1f93d38db4718ec322e8123fe16d143c8a9b9b4ac9a",
+      "lineCount": 26,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/plugin.ts",
+      "sha256": "e0cbb891a39fe51c4c373029f876cfa5893ae130544082712ba43f684b5ebbf7",
+      "lineCount": 61,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/query/merge_create.ts",
+      "sha256": "da9d02fc8512cd72089e0356c661ca96edb95f7ea76d817f74ce0ca2cc5dd13a",
+      "lineCount": 36,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/query/merge_remove.ts",
+      "sha256": "3ddaa5c7d1de10f590a51ebfa66a8f42343d4c4f95d41f27b54b1741e0f7b71d",
+      "lineCount": 34,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/query/merge_update.ts",
+      "sha256": "bf4e30fef67ced0caa68063cea700393af04b5b11a5e673e48e2ad4b38bcea19",
+      "lineCount": 36,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/query/touches_edge_table.ts",
+      "sha256": "4279e7df376a17ad77b8c2186aea6d563b8eca5d152304c46ca8245d093f6acb",
+      "lineCount": 43,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/sqlite.ts",
+      "sha256": "fead42fed052902c4e504786996030161fc96f946069abc8c1fd5b4d364addd1",
+      "lineCount": 1,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/sqlite/SqliteGraphRepository.ts",
+      "sha256": "faeb567b1e4ebccd4b53bdd96beda80d30308ab485301d2672fab245e10dede4",
+      "lineCount": 422,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/sqlite/query_graph_sql.ts",
+      "sha256": "06e2ae3731495bc512b3b4798a0530a484ba0e083bc13b0da50a1147151260c9",
+      "lineCount": 579,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/src/utils.ts",
+      "sha256": "5c52a9d7d5806719a70033702f5cf9d3fe9743af229ecd9fcecf32c1e3fc88f0",
+      "lineCount": 69,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/tsconfig.lib.json",
+      "sha256": "c28d9ff95706727cd2114833eab491ca237e7aae1279d1f2b4d2c5b7b3ad7802",
+      "lineCount": 44,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/tsconfig.spec.json",
+      "sha256": "a29b7bb5aa78327416ef7f3d19a87e8155a5fb54348449bf46696433682a1eed",
+      "lineCount": 29,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-graph/vite.config.mts",
+      "sha256": "729841e2b66a9250a601b4f46136e5d6b676e5e408c8f2abfd1b4046bec2bfd7",
+      "lineCount": 144,
+      "isText": true
+    }
+  ],
+  "controlledFileCount": 53,
+  "lineCount": 8565,
+  "allFilesRequired": true,
+  "hashIsNotReadingProof": true,
+  "scopeIncludesTestsConfigDocs": true
+}

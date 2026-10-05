@@ -1,0 +1,114 @@
+{
+  "object": "rxdb-plugin-workspace",
+  "headAtScope": "943c50cc85b4be3b0635f736a35a9659c3fe209a",
+  "clientDate": "2026-10-05",
+  "files": [
+    {
+      "path": "packages/rxdb-plugin-workspace/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/README.md",
+      "sha256": "2440d391762ca01aa9b1ef62b68e69d40a5be55f455cc0a38459ae4f285252e4",
+      "lineCount": 97,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/eslint.config.mjs",
+      "sha256": "a57f53cfa9fd8f4c7395cd2bc14f9cf89d1639d82a2babbb1d6e722fd2dc999c",
+      "lineCount": 25,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/package.json",
+      "sha256": "3f67f065f530de5b276f0835e8a14df2f5f5486ee86777f4e762220acfa28e34",
+      "lineCount": 62,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/project.json",
+      "sha256": "ea4d71b9fd1dc33132a93e2acbf15cc8785524262a0a8af60f0b657478d5e235",
+      "lineCount": 26,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts",
+      "sha256": "6b70f540784a32d789c1a3e09d953d3af3f10eea82d83250bd9e4d5627e49be8",
+      "lineCount": 983,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/src/__tests__/RxDBPluginWorkspace.spec.ts",
+      "sha256": "ad4a636aae96d5a44bb5282c510e73ba4fe4915822543b9f4b94dcc4cf4f53e3",
+      "lineCount": 1489,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/src/__tests__/public-api-docs.spec.ts",
+      "sha256": "75fdb89ab4033de4cbbce0a3b77a93546de7f91a034f21ed1e2c0fa491fe7e9c",
+      "lineCount": 126,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/src/__tests__/workspace-store.spec.ts",
+      "sha256": "894d2c2a006c546509f975cb6b4306dbf89faf665513a3823169a2f07106b4e7",
+      "lineCount": 345,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/src/__tests__/workspace.browser.spec.ts",
+      "sha256": "14891a1216a16ece66b5075086d859075dc60a052f713365866a160396f04f3c",
+      "lineCount": 712,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/src/index.ts",
+      "sha256": "9772254ae513dbc8038e77253fecefdfb551aa523908dfb390d4f42e399da097",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/src/workspace-entry.ts",
+      "sha256": "8d25fc8478beff2552dafe640be1a7cd6fe6aa06ea299019b984820a8d841ea0",
+      "lineCount": 101,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/src/workspace-store.ts",
+      "sha256": "d30ad5e0777e2124ae9fea9cad97569eb294c09ed3a4cbc814c2e131e7e280f9",
+      "lineCount": 158,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/tsconfig.lib.json",
+      "sha256": "d8b46fea73bd50e7bc9e2906f608b943ed1fb7ca8e592da42e51eca9f59f34b4",
+      "lineCount": 38,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/tsconfig.spec.json",
+      "sha256": "520a105790b3d7abe19a3b5e40333f71f95634fb25e87ef7c47c1ced1eec00db",
+      "lineCount": 31,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-workspace/vite.config.mts",
+      "sha256": "ef22d4a5d7535818b80a62e0f4733c71795c0429c2ea10d6a3504753ba73d82e",
+      "lineCount": 137,
+      "isText": true
+    }
+  ],
+  "controlledFileCount": 17,
+  "lineCount": 4388,
+  "allFilesRequired": true,
+  "hashIsNotReadingProof": true,
+  "scopeIncludesTestsConfigDocs": true
+}

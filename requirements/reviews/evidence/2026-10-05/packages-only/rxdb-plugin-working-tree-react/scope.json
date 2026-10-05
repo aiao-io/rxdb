@@ -1,0 +1,90 @@
+{
+  "object": "rxdb-plugin-working-tree-react",
+  "headAtScope": "943c50cc85b4be3b0635f736a35a9659c3fe209a",
+  "clientDate": "2026-10-05",
+  "files": [
+    {
+      "path": "packages/rxdb-plugin-working-tree-react/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-react/README.md",
+      "sha256": "3ee7003da0df974f245e47c2614989b5ceb2c181357633660d9da7a054712d7b",
+      "lineCount": 91,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-react/package.json",
+      "sha256": "76a03ad4210c14937d7a5c7679854c54a6264ffc8f11b60c5bc0af74abf64008",
+      "lineCount": 60,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-react/project.json",
+      "sha256": "6556ee4178591564e554de60bee298b7c391f945b08dbffe8f2c01b54bebc5e9",
+      "lineCount": 12,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-react/src/__tests__/index.spec.ts",
+      "sha256": "0325389380d8f755cb9f8089ac582ceb65059f553d7b65f369a4c6ea0292a2f3",
+      "lineCount": 30,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-react/src/__tests__/review-parallel-provider-switch.spec.ts",
+      "sha256": "baa20716a8648d77db6331393e535e89a14a7d53dd18250f035bee8d6f5bbd52",
+      "lineCount": 58,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx",
+      "sha256": "d602e8dee8c308d03245ffbf5b173056b4fecf9be9712b5af78fcf3c5b866f1b",
+      "lineCount": 556,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-react/src/index.ts",
+      "sha256": "7363461c414bad9a4271e7be118040ee3002c3e5f069675a58b5e8319bb46af0",
+      "lineCount": 19,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts",
+      "sha256": "b8df3cc14193a2e17d0f3a0946a0423f85043408977c4fa6c838341b4214e86e",
+      "lineCount": 96,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-react/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-react/tsconfig.lib.json",
+      "sha256": "47de9cc299af321d130cd3e3be19f54b0b9f113e5a16708ebd67f6b2df8605dc",
+      "lineCount": 39,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-react/tsconfig.spec.json",
+      "sha256": "28ae7c8b6b9de02abba8aaf41d0fde25b185fde4cb5ce5744d083087cf778b5d",
+      "lineCount": 27,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-working-tree-react/vite.config.mts",
+      "sha256": "a24860e8befedc58e2d154849751425d2d440f2339f32656d12491fb434f1c3b",
+      "lineCount": 63,
+      "isText": true
+    }
+  ],
+  "controlledFileCount": 13,
+  "lineCount": 1088,
+  "allFilesRequired": true,
+  "hashIsNotReadingProof": true,
+  "scopeIncludesTestsConfigDocs": true
+}

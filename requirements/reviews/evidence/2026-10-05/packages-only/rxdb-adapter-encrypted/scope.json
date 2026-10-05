@@ -1,0 +1,246 @@
+{
+  "object": "rxdb-adapter-encrypted",
+  "headAtScope": "943c50cc85b4be3b0635f736a35a9659c3fe209a",
+  "clientDate": "2026-10-05",
+  "files": [
+    {
+      "path": "packages/rxdb-adapter-encrypted/.gitignore",
+      "sha256": "b2c52aaee20d92160662687263b1f005d3e369593e91576513b93bc2215c360d",
+      "lineCount": 2,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/README.md",
+      "sha256": "b4afd129e7f11ed477ed9b10919ee5668fb40430c9bab67e000aa8dd17999dae",
+      "lineCount": 177,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/eslint.config.mjs",
+      "sha256": "8076559dc3bc94d44eb1aafe0317314d0beee5ca0cb014f7e3848cf3a3e91520",
+      "lineCount": 22,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/package.json",
+      "sha256": "b41fb52ce172b6a75aac9c82061ac4e2cb24c2a4f63ad930154aff6c873f998a",
+      "lineCount": 63,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/project.json",
+      "sha256": "990b56ee7d2a27ee71e044bafe617cde46807d683fbc91971ebde589c1a5bd15",
+      "lineCount": 20,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/__bench__/aes-gcm.bench.test.ts",
+      "sha256": "48f8fa01e2723ba684078d510ce45a2bc8f5b274e405ead26e732a358424d4d0",
+      "lineCount": 88,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/__tests__/crypto.spec.ts",
+      "sha256": "b2cb300ab30ae0ba2201dd4c50d13f57192b0c57f640d9be4a1cb7c4c7d97435",
+      "lineCount": 103,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/__tests__/encrypt-patch.spec.ts",
+      "sha256": "895df323893f26948765ec45715188ff721e5277e38127913ae9ca47ef7fd4e9",
+      "lineCount": 171,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/__tests__/envelope.spec.ts",
+      "sha256": "fef809f879174f8aa478bc1857a180a7c4524e46fd83bc7911fc6bbf9be7532c",
+      "lineCount": 248,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/__tests__/errors.spec.ts",
+      "sha256": "39576ccbd4f300e8cc3e5a937b0c3bbedd87e859e8a8ad9328ca432b98b2581f",
+      "lineCount": 102,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/__tests__/index.spec.ts",
+      "sha256": "51f1f56f4b636e102a26fc6727a3b7ab4b7b5e8b9ca78eb6483241080c00672d",
+      "lineCount": 50,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/__tests__/keyring-aad-v2.spec.ts",
+      "sha256": "97e177d7da9f5ad313e7029f35aef613d9a0b768ab60352ed0fa3f3b17156489",
+      "lineCount": 93,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/__tests__/keyring-verifier.spec.ts",
+      "sha256": "e3507c02b333fc4a61dcdce1115099cffab82a5125f592429a79048bd060c22a",
+      "lineCount": 138,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/__tests__/keyring.spec.ts",
+      "sha256": "87485aaf1c1ced995fbc3fe93e220ff93ed22bfda8c9f174758b82329cf5ffab",
+      "lineCount": 590,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/__tests__/metadata-validation.boundaries.spec.ts",
+      "sha256": "743ae5f7969eb52316a649ce8daba100e37b1507f9d915abdfcb40fc47096399",
+      "lineCount": 116,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/__tests__/metadata-validation.spec.ts",
+      "sha256": "aa03cdd05321f2540e3a794fe384e2a8a68126f4591d767c4c5aa5354f62eb1a",
+      "lineCount": 408,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/__tests__/module-load-without-encoding.spec.ts",
+      "sha256": "cdcc6a3dfdc178c9cfa5a6a9e2f424a564e5f729d878355734d98179ec6e73f7",
+      "lineCount": 27,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/__tests__/review-aborted-initial-unlock.spec.ts",
+      "sha256": "feaf46cc9ad3ff47ac225458b89321a212b132f2abf5d7e4e099619d898224d0",
+      "lineCount": 123,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/__tests__/serialize.spec.ts",
+      "sha256": "fbd9ab7537549be6e63145359d7f9da1dd1f9a6fc17800ef9913033a729c135f",
+      "lineCount": 145,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/__tests__/test-helpers.spec.ts",
+      "sha256": "584d2b2dd7f7ee4bcc81afe0552e5392a839a84a5ff2c9d7a902078d57582fbb",
+      "lineCount": 159,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/__tests__/validate-encrypted-query.spec.ts",
+      "sha256": "35631eaceea8caca9b3e3f91eea52c3e048d2e2464f3b873eeaaf40f6bbedbbf",
+      "lineCount": 78,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/base64url.ts",
+      "sha256": "f38047742194b292483332d2da8d4cf52e277f2df48c960e9295fb6b71ac0887",
+      "lineCount": 28,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/crypto.ts",
+      "sha256": "d83035ab6f2af5b5ac5e08bf2e1e811a5fbe973e5b1e18c0dc2f782c02faf23f",
+      "lineCount": 145,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/encrypt-patch.ts",
+      "sha256": "97d71f8d0d832b8a1c189e822f56760c223048fafe9cec18b61ea40a37141d48",
+      "lineCount": 73,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/envelope.ts",
+      "sha256": "1c5371339fce4e16dd10ce58f5e386579707b65398cfc5faead444a3dec580bc",
+      "lineCount": 234,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/errors.ts",
+      "sha256": "d649850684085368defe0cd073662c88ac354360c3e016a573218dde744af39e",
+      "lineCount": 162,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/index.ts",
+      "sha256": "d0ea59ab8b41dad059de26be5a1b56aded4286db780972585276592fe3f38e06",
+      "lineCount": 98,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/keyring-storage.ts",
+      "sha256": "da48d5f7e9d193f09c5fcbb013b04cf6f61b61ccbc9c31ea5ffa8fd15ff442ca",
+      "lineCount": 34,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/keyring.ts",
+      "sha256": "aa6a6913b4e8b5af265a545a836e409c786d3423aac7631ff6326e0b7d1f9ad6",
+      "lineCount": 606,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/metadata-validation.ts",
+      "sha256": "55e08941a10834220ea0ed69f3ad50a8ef94e04d295deae8108ffb205fe15935",
+      "lineCount": 347,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/serialize.ts",
+      "sha256": "970c3c7b4176b7b657544d05ea0a91ebaadd298aa692dfe46be3ee595f7db64a",
+      "lineCount": 169,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/test-helpers.ts",
+      "sha256": "60f5b60c122f1c916d2b7e480f7175ddbb6ec10c81f4b0b64ccdf8c0dd7bd642",
+      "lineCount": 110,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/testing.ts",
+      "sha256": "dc0cd37f5a5f079dc56d27dfd8172bd8c6a46eef90113a3a4494d03663b13f4e",
+      "lineCount": 2,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/src/validate-encrypted-query.ts",
+      "sha256": "2e4ec2fab4c91a10593f23a5d40d4de58b2bbdec9ac8a58c46cb18cdaa49bbec",
+      "lineCount": 37,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/tsconfig.lib.json",
+      "sha256": "7ff36bb65cee22448e25d93b04e53035039def7851c94dcd9e61345206570557",
+      "lineCount": 26,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/tsconfig.spec.json",
+      "sha256": "c27dad618d5b80e0d760ac49f0d166344139274fd1b500a7e26880de396ca55a",
+      "lineCount": 24,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-encrypted/vite.config.mts",
+      "sha256": "06b1a6a93bd20ea31c958eedb6b571ff3a7c3dda13c7c545af08bd1db16ce427",
+      "lineCount": 70,
+      "isText": true
+    }
+  ],
+  "controlledFileCount": 39,
+  "lineCount": 5125,
+  "allFilesRequired": true,
+  "hashIsNotReadingProof": true,
+  "scopeIncludesTestsConfigDocs": true
+}

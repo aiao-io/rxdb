@@ -1,0 +1,438 @@
+{
+  "object": "rxdb-adapter-miniprogram",
+  "headAtScope": "943c50cc85b4be3b0635f736a35a9659c3fe209a",
+  "clientDate": "2026-10-05",
+  "files": [
+    {
+      "path": "packages/rxdb-adapter-miniprogram/README.md",
+      "sha256": "f01a174fb57a8be4879c7288fd69ec342e2efb0f0ec607c170fb76caae342dde",
+      "lineCount": 269,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/eslint.config.mjs",
+      "sha256": "1219c5e55039e34e604e269c7b0b9b7a00f9b097e7647be103944b42a14d2ef4",
+      "lineCount": 38,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/package.json",
+      "sha256": "8945435afa30e3e309e4167c564c7b71e941ea84cedaab03b2a675a50c7fef49",
+      "lineCount": 71,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/project.json",
+      "sha256": "921becc765dd44443908b608a7945a2b9ba4729382b943aafc758529f600932f",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/RxDBAdapterWaSqliteMiniProgram.ts",
+      "sha256": "6c1720f02ca3c3547541d83cb286b047f57c05167b123760834ac3b75afe4390",
+      "lineCount": 28,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/adapter.integration.spec.ts",
+      "sha256": "d8c02823c027361d8f5343789d6e46a8c96b8a5e565cb78cdbdbd4bda0e630a1",
+      "lineCount": 195,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/alipay-file-system.spec.ts",
+      "sha256": "2e38f2e76c2d9de0823f173f5a9589cdf52686c5e9ddf3b63e2ea25f9fe5a31a",
+      "lineCount": 207,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/alipay-host.spec.ts",
+      "sha256": "00d72d2129a9a2f78afeeeb34433c568e7b85c988d3b2a144f1a7ea897671995",
+      "lineCount": 279,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/alipay-random-worker.spec.ts",
+      "sha256": "ffd8784e63b5b8258ecb4ccd2413c7880e0f35eb739dab9f5f25ef3e55c96fbd",
+      "lineCount": 85,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/alipay-random.spec.ts",
+      "sha256": "cf0242f96b9439b6df8aa6416786c6e0a3cbbf09a65bd1ca71c32618ad8caeb8",
+      "lineCount": 255,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/alipay-runtime.spec.ts",
+      "sha256": "3748370426ba1df87822631157ce6261b9f51ffe049afdd79de0e82a3b584a03",
+      "lineCount": 228,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/alipay-wasm.spec.ts",
+      "sha256": "e1d27029bb9d2e28255f8277509828e2a223f451095a36f9ba933290c56bd1c6",
+      "lineCount": 134,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/chunked-file-layout.integration.spec.ts",
+      "sha256": "1d5fe0c7b8f461e5f08ac8f2eaf621eb99fe46dd2e9c88f823c4278632033314",
+      "lineCount": 119,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/chunked-file-layout.spec.ts",
+      "sha256": "c4fb3117802164efbc55642848b59a6bca25b5879be8b69514026b6f6012abb2",
+      "lineCount": 505,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/create-client-errors.spec.ts",
+      "sha256": "b4d74454168e18e2bae79d3c0a62f161c1aa390d947fda34a56f6d417610f2eb",
+      "lineCount": 137,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/douyin-host.spec.ts",
+      "sha256": "5a9bec1e7ec2214651946c57c16178c1809dc857a62ea510ec5edf8058fb0337",
+      "lineCount": 253,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/fake-alipay.ts",
+      "sha256": "6443fe375605f8246b09addfb03faeda255488c5660b55af36a9e6b4c8d19d2d",
+      "lineCount": 205,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/fake-douyin.ts",
+      "sha256": "cb58766bd2ae539651886c1590d7c098eb70e76651ed5ec065c7108abf4ea47f",
+      "lineCount": 51,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/fts5.integration.spec.ts",
+      "sha256": "19a3e4a9bd2b774a888c074855aba4f5b5f9225de2620e2f0f794be63754f6a3",
+      "lineCount": 104,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/host.spec.ts",
+      "sha256": "7c2f1dd5bd6987a47e422f44b00fa7bad0043962529bf1f8d529465f6f0e7318",
+      "lineCount": 487,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/loader.spec.ts",
+      "sha256": "42f8a92f4af0efa898d201d9dff3c6ade0251df360db8c4f931611cf0a15084c",
+      "lineCount": 162,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/quota-file-system.ts",
+      "sha256": "727678d2e29348cccd7ee3be8f0e20cac494269ec17d1e25af64d04f962aaf5e",
+      "lineCount": 69,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/random-pool-endurance.spec.ts",
+      "sha256": "64c8a666e54733b80ceddad531df39129f88bf8f173a45de0646acbe54b8f20b",
+      "lineCount": 129,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/real-wasm.integration.spec.ts",
+      "sha256": "21dc7cbc91062239115a745c4f2fe86a78b93122938e57b1bfeb0c84f981ce84",
+      "lineCount": 122,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/runtime-capabilities.spec.ts",
+      "sha256": "a7cc7dd0c096e1e2aa5ae560ab51b8f2f43883cc4091653b8ac57baa627ff5fa",
+      "lineCount": 124,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/runtime-global.spec.ts",
+      "sha256": "f337dac24bcdd43ea68dba37864f343eb88c9284ec2000e6027468f78ed95b38",
+      "lineCount": 200,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/runtime-polyfills-errors.spec.ts",
+      "sha256": "a60ea6b530b43014f4edd5e3bb43184cbfd8f8869d78ada4d6a30c22f397f1f0",
+      "lineCount": 327,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/runtime-polyfills.spec.ts",
+      "sha256": "bc5559684683860eaeb73192a25392015c050c23a07b12b53cc63783562c6b13",
+      "lineCount": 113,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/statement-cleanup.spec.ts",
+      "sha256": "f6de8557bcd12c0ad421d1aa0271217ecf88c0165e70d59b4ce62826f74cc0cb",
+      "lineCount": 96,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/structured-clone-polyfill.spec.ts",
+      "sha256": "cb93b7f148e012aa4ee387a2b91862aeb519df4f4728672f54aec9be7c34ba69",
+      "lineCount": 103,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/subframe-wasm-factory.ts",
+      "sha256": "1ce8f0cdcc46adf1bf6df93a50e1924bd42692aac4758ca00b6ed44e25caf282",
+      "lineCount": 26,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/synchronous-callbacks.spec.ts",
+      "sha256": "ece55a57acdd0f2ebc798d1bbff01e5d665c88bec3e76b94a6335ad278615729",
+      "lineCount": 110,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/text-encoding-polyfills.spec.ts",
+      "sha256": "44e0fb5089e4af53a981964c390214023a18fc9b51f02e79d77c79988483fb51",
+      "lineCount": 145,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/unsupported-platform.spec.ts",
+      "sha256": "24c5fb727e9d76c46b9702aabbc181eadea0d629007dfbb2f6e6384d5632c396",
+      "lineCount": 434,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/vfs-error-cause.spec.ts",
+      "sha256": "0b130561e8db34fda4289b5a70c6fa26f296c6cecd47daf6460338ce1048f5dc",
+      "lineCount": 159,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/wechat-file-vfs-errors.spec.ts",
+      "sha256": "9f10ccee82817447ebe7091d1c8f0f78908b0b2b749a392f88fc932f2d537392",
+      "lineCount": 658,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/__tests__/wechat-file-vfs.spec.ts",
+      "sha256": "cc4302c2a26f8ef7c152b3cb063e1cdaa2b010320ed6e95ec40ae0a094805bf1",
+      "lineCount": 269,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/create-client.ts",
+      "sha256": "55c9de95d4fbd3992aa65d7cd37647e9ae50f088ae0700bcf8cccd864f7cda4d",
+      "lineCount": 100,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/error-message.ts",
+      "sha256": "03e19fe85860b866f883e5f113c6c0e5d64e04dd9922a7cc8c2e5f4576c298e1",
+      "lineCount": 13,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/host.ts",
+      "sha256": "c501efe80f68e87b69e88c2754eb2531324e750a8bce826d976e2d4d401122a1",
+      "lineCount": 207,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/hosts/alipay-api.ts",
+      "sha256": "0fbe66741c54b9f3c064455175b4cd97aa45404d84d33bda2f170c4673799b22",
+      "lineCount": 61,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/hosts/alipay-capability.ts",
+      "sha256": "4c150c60b34f72506d6e057db64976d032e09d4436c4d723a38bf90bdebb84f0",
+      "lineCount": 51,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/hosts/alipay-file-system.ts",
+      "sha256": "a09e4b2285a274a7b25b52271a1df4a3b07fb5e3442ed3626bb2d10ebe75be51",
+      "lineCount": 154,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/hosts/alipay-random.ts",
+      "sha256": "70b6786f1c2adfb8d4e18c0e8efb16e863350f9315489cb64aae755eb8de3808",
+      "lineCount": 144,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/hosts/alipay-runtime.ts",
+      "sha256": "b17194cb644b3615cc9dddfc0dd24edfa635edde1d2b0f16e69ccd8031ab6099",
+      "lineCount": 146,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/hosts/alipay-wasm.ts",
+      "sha256": "24e27e1eaa3ea3e0154b706b96b22290c7e241c95b43cd20229a92a1369286d9",
+      "lineCount": 120,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/hosts/alipay.ts",
+      "sha256": "70ffbba28cefe3563c60bc05edf04c7855b221a56b9fdc2b38093aa1d3f3a0f2",
+      "lineCount": 96,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/hosts/douyin.ts",
+      "sha256": "a3260865563da3e2ee637b6425a6c217206bf3d16a806fc04f67ed7eab7f7559",
+      "lineCount": 69,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/index.ts",
+      "sha256": "8b438849dd3f7e9926fe91dcf571c6b7c64fdc7816420dcf28ca3ce2fd804b48",
+      "lineCount": 73,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/loader.ts",
+      "sha256": "c8aec480ea8468d8f6ef34f4495c6bf9f531550b2c88a5a2c0b0462a01416957",
+      "lineCount": 71,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/mini-program.interface.ts",
+      "sha256": "2d6a166e4e56ed00409190fa66ed81eae7cdf96f22649d44a88683f370256cc1",
+      "lineCount": 252,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/runtime-capabilities.ts",
+      "sha256": "28e2ccf78284eac20c3a481ee42e3659c3eaa52d181291c54db408b11c48a1d8",
+      "lineCount": 112,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/runtime-global.ts",
+      "sha256": "7c0ecdf1fb16fd71ccf8647d5ca35ac6d0b19371915a3502d23108c7f16f2bef",
+      "lineCount": 80,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/runtime-polyfills.ts",
+      "sha256": "9ed7813dd0af9280f30b96191d6decfe2d996a948bd8be8a9d788fd09a40371e",
+      "lineCount": 273,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/runtime-source.ts",
+      "sha256": "b90a157421d166117fbb15167a2f13f76f63b98f645e4dbadd5f989cb17fdcbc",
+      "lineCount": 64,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/runtime.ts",
+      "sha256": "e5a2b9abf5e16691ef35bdb6f9ee1c5d5cb0cc8c1e89f0a76f7778c2190940ad",
+      "lineCount": 49,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/statement-cleanup.ts",
+      "sha256": "dc0b888d48e12c1813c9022bf0b5df092198ea845b1df43d1ea2fc5a3d77aa45",
+      "lineCount": 47,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/structured-clone-polyfill.ts",
+      "sha256": "4b5044fea8d691eea6bc601e23c4b1b9715c8cfe84740a42491a321144d1c010",
+      "lineCount": 161,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/subframe-glue.ts",
+      "sha256": "54cc218d79880494c59f16c2580a91ba5eb40feba5fb6a057c6fae1ce5f77387",
+      "lineCount": 26,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/subframe-sqlite-wasm.d.ts",
+      "sha256": "e0867d7bdb222bc36c65989cabfa2b49247c58a86694d50313456baecba42f6a",
+      "lineCount": 9,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/synchronous-callbacks.ts",
+      "sha256": "298f9d10779719a54441317c2565dd77dd1bb4829152528461960ca0f582b238",
+      "lineCount": 37,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/text-encoding-polyfills.ts",
+      "sha256": "e1e6c67bc0f3d5090bfd819424efeff41d7977f1781d04a8beabefd1a8864941",
+      "lineCount": 235,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/ungap-structured-clone.d.ts",
+      "sha256": "ecc0680919f316dd384d15e973137c6415f1df1238796fdc0e6f3a064556280c",
+      "lineCount": 6,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/vfs-error-cause.ts",
+      "sha256": "5469b3b0725b145654b4b6802430ba1ac064ab2635cf3b9942a00cc678cda67a",
+      "lineCount": 93,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/wa-sqlite.interface.ts",
+      "sha256": "b05adffeaf4bdbdad5a289a3079fc461edf325a2a424be9c5fb1ba0e0ad7fe02",
+      "lineCount": 7,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts",
+      "sha256": "69b0151f07b6f0e45b9cb1c4fa75152bf942dd2dc7549f2c4de783dc1de266d4",
+      "lineCount": 891,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/src/workers/alipay-random-worker.js",
+      "sha256": "c3ab6428795e225d6fb5091b56fdee634643ad7c548c322e0dd5827f89d7409f",
+      "lineCount": 54,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/tsconfig.json",
+      "sha256": "edaa6080829e6c133300aba9d42cdf5ff488cccf8399c461e6828c4458c76083",
+      "lineCount": 13,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/tsconfig.lib.json",
+      "sha256": "811191c2212189ae807e7134189f4f9b87a28d7b8913b112d1f7fce900536020",
+      "lineCount": 37,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/tsconfig.spec.json",
+      "sha256": "84d74f05ed524b88cb04ec1d0a5adbec5e8a856affd7e6bf14b8544feab7cf23",
+      "lineCount": 31,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-miniprogram/vite.config.mts",
+      "sha256": "9985dd1c0a319291072e3c7a1e9a1bbaa2e7898cdb61055422fb842d84ecac7f",
+      "lineCount": 76,
+      "isText": true
+    }
+  ],
+  "controlledFileCount": 71,
+  "lineCount": 10775,
+  "allFilesRequired": true,
+  "hashIsNotReadingProof": true,
+  "scopeIncludesTestsConfigDocs": true
+}

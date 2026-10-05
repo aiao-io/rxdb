@@ -230,21 +230,20 @@ component props/signals 是输入，core mountReplayer 拥有真实播放器/res
 
 主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。
 
-
 ## R3-03：Replay Angular 夹具 / mock / 缓存因果补证（2026-10-05 冻结）
 
 **源码阅读及逐 C 意见交付：完成（按主控十包 153 文件统计）；本专题证据：partial-frozen；发布验证：独立 pending。** 不因平台/验证红灯把已完成评审一律算成未评审。按最新用户要求冻结，不再扩 rrweb 或测试矩阵。
 
 本轮仅改新增 R2 spec 夹具，不改生产代码/依赖/既有 spec/配置；接手旧源 SHA `47478ce39514355ef208742835603a1e6ef1296eabb499290ef83ceb54edc6fd`、失败日志和输入 SHA 留存。[完整有界说明](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/README.md)、[执行清单](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/executions.json)、[闭环与归属](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/closure.json)。
 
-| 对照 | 真实结果 | exit | 结论 |
-| --- | --- | --- | --- |
-| 接手旧组件单文件 | 9/9 pass | 0 | 历史旧套 10/10 含另一 release-config 用例，不能冒充单文件 10 条 |
-| 接手原 R2 独立 | 3 pass / 11 fail，21 个未处理错误 | 1 | rrweb 边界没命中；不登记产品 bug |
-| 接手原 R2 + 旧组件，不隔离 | 3 pass / 20 fail | 1 | 旧 spy 输入被缓存真实 core 带红，属夹具/cache 对照 |
-| 中间最小有效夹具独立 / 合跑 | 15/15、24/24 pass | 0 / 0 | 独立组件模块键 + 真 core 源函数转发 + 可解析 rrweb 边界，旧 9 条恢复 |
-| 最终冻结独立 | 18 pass / 1 fail（19） | 1 | 唯一红为全局 RAF 队列残 1 条，未归属 pending |
-| 同最终 SHA 合跑、不隔离 | 27 pass / 1 fail（28），旧文件 9/9 | 1 | 同一 RAF 断言红，旧 spec 未再被污染 |
+| 对照                        | 真实结果                           | exit  | 结论                                                                 |
+| --------------------------- | ---------------------------------- | ----- | -------------------------------------------------------------------- |
+| 接手旧组件单文件            | 9/9 pass                           | 0     | 历史旧套 10/10 含另一 release-config 用例，不能冒充单文件 10 条      |
+| 接手原 R2 独立              | 3 pass / 11 fail，21 个未处理错误  | 1     | rrweb 边界没命中；不登记产品 bug                                     |
+| 接手原 R2 + 旧组件，不隔离  | 3 pass / 20 fail                   | 1     | 旧 spy 输入被缓存真实 core 带红，属夹具/cache 对照                   |
+| 中间最小有效夹具独立 / 合跑 | 15/15、24/24 pass                  | 0 / 0 | 独立组件模块键 + 真 core 源函数转发 + 可解析 rrweb 边界，旧 9 条恢复 |
+| 最终冻结独立                | 18 pass / 1 fail（19）             | 1     | 唯一红为全局 RAF 队列残 1 条，未归属 pending                         |
+| 同最终 SHA 合跑、不隔离     | 27 pass / 1 fail（28），旧文件 9/9 | 1     | 同一 RAF 断言红，旧 spec 未再被污染                                  |
 
 最终 spec SHA `aa62d9cf16d8c66c49e7a5a9f126c8c222915fe499de22051b87c8146efb06fd`；独立和合跑 raw/status/inputSHA 一致追溯：[独立](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/28-final-independent/20261005T153621267684.txt)、[合跑](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-fixture/29-frozen-minimal-pair/20261005T153739704095.txt)。新确认产品问题 0、新产品风险候选 0；不把 pending 红包装成缺陷，也不把 exit 1 写成全绿。
 

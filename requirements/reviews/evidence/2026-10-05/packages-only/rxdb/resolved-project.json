@@ -1,0 +1,302 @@
+{
+  "root": "packages/rxdb",
+  "targets": {
+    "typecheck": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        {
+          "externalDependencies": [
+            "typescript"
+          ]
+        }
+      ],
+      "metadata": {
+        "technologies": [
+          "typescript",
+          "typescript"
+        ],
+        "description": "Runs type-checking for the project.",
+        "help": {
+          "command": "pnpm exec tsc --build --help",
+          "example": {
+            "args": [
+              "--force"
+            ]
+          }
+        }
+      },
+      "dependsOn": [
+        "build",
+        "^typecheck"
+      ],
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "executor": "nx:run-commands",
+      "// inputs": "@nx/js/typescript 推断出的 inputs 是 production，把 spec 全排除了——src/__tests__/contracts/ 的编译期契约改一行也命中缓存，等于没有门禁。这里换成 default 把 spec 纳入哈希。",
+      "options": {
+        "cwd": "packages/rxdb",
+        "command": "tsc --build --emitDeclarationOnly"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "build": {
+      "cache": true,
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "production",
+        "^production"
+      ],
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "metadata": {
+        "technologies": [
+          "typescript",
+          "vite"
+        ],
+        "description": "Run Vite build",
+        "help": {
+          "command": "pnpm exec vite build --help",
+          "example": {
+            "options": {
+              "sourcemap": true,
+              "manifest": "manifest.json"
+            }
+          }
+        }
+      },
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb",
+        "command": "vite build"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "build-deps": {
+      "dependsOn": [
+        "^build"
+      ],
+      "configurations": {},
+      "options": {},
+      "parallelism": true,
+      "executor": "nx:noop"
+    },
+    "watch-deps": {
+      "continuous": true,
+      "dependsOn": [
+        "build-deps"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec nx watch --projects rxdb --includeDependencies -- pnpm exec nx build-deps rxdb"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "serve": {
+      "continuous": true,
+      "metadata": {
+        "technologies": [
+          "vite"
+        ],
+        "description": "Starts Vite dev server",
+        "help": {
+          "command": "pnpm exec vite --help",
+          "example": {
+            "options": {
+              "port": 3000
+            }
+          }
+        },
+        "deprecated": "Use devTargetName instead. This option will be removed in Nx 22."
+      },
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb",
+        "command": "vite"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "dev": {
+      "continuous": true,
+      "metadata": {
+        "technologies": [
+          "vite"
+        ],
+        "description": "Starts Vite dev server",
+        "help": {
+          "command": "pnpm exec vite --help",
+          "example": {
+            "options": {
+              "port": 3000
+            }
+          }
+        }
+      },
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb",
+        "command": "vite"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "preview": {
+      "continuous": true,
+      "dependsOn": [
+        "build"
+      ],
+      "metadata": {
+        "technologies": [
+          "vite"
+        ],
+        "description": "Locally preview Vite production build",
+        "help": {
+          "command": "pnpm exec vite preview --help",
+          "example": {
+            "options": {
+              "port": 3000
+            }
+          }
+        }
+      },
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb",
+        "command": "vite preview"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "options": {
+        "buildTarget": "build",
+        "spa": true
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "lint": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "eslint . --max-warnings=0",
+        "cwd": "packages/rxdb"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "test": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/requirements/epics/epic-006-working-tree-commits.md"
+      ],
+      "outputs": [
+        "{workspaceRoot}/coverage/packages/rxdb"
+      ],
+      "metadata": {
+        "technologies": [
+          "vitest"
+        ],
+        "description": "Run Vitest tests",
+        "help": {
+          "command": "pnpm exec vitest --help",
+          "example": {
+            "options": {
+              "bail": 1,
+              "coverage": true
+            }
+          }
+        }
+      },
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "^build"
+      ],
+      "// inputs": "trusted-callsite-registry.spec.ts 用 `?raw` 当场解析 epic-006 的「受信调用点登记表」。那个文件不在 {projectRoot} 里，默认 inputs 看不见它——改表格措辞会命中旧缓存报绿，而这条测试存在的意义正是让改措辞变红。",
+      "options": {
+        "cwd": "packages/rxdb",
+        "command": "vitest"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "nx-release-publish": {
+      "executor": "@nx/js:release-publish",
+      "dependsOn": [
+        "^nx-release-publish"
+      ],
+      "options": {},
+      "configurations": {},
+      "parallelism": true
+    }
+  },
+  "projectType": "library",
+  "metadata": {
+    "targetGroups": {},
+    "description": "TypeScript local-first data layer with reactive queries and SQLite adapters.",
+    "js": {
+      "packageName": "@aiao/rxdb",
+      "packageVersion": "0.0.26",
+      "packageExports": {
+        "./package.json": "./package.json",
+        ".": {
+          "types": "./dist/index.d.ts",
+          "import": "./dist/index.js",
+          "default": "./dist/index.js"
+        },
+        "./testing": {
+          "@aiao/source": "./src/testing.ts",
+          "types": "./dist/testing.d.ts",
+          "import": "./dist/testing.js",
+          "default": "./dist/testing.js"
+        }
+      },
+      "packageMain": "./dist/index.js",
+      "isInPackageManagerWorkspaces": true
+    }
+  },
+  "name": "rxdb",
+  "tags": [
+    "npm:public",
+    "npm:aiao",
+    "npm:rxdb",
+    "npm:local-first",
+    "npm:offline-first",
+    "npm:reactive-database",
+    "npm:rxjs",
+    "npm:sqlite",
+    "js-lib"
+  ],
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/rxdb/src",
+  "implicitDependencies": []
+}

@@ -1,0 +1,108 @@
+{
+  "object": "rxdb-plugin-replay-angular",
+  "headAtScope": "943c50cc85b4be3b0635f736a35a9659c3fe209a",
+  "clientDate": "2026-10-05",
+  "files": [
+    {
+      "path": "packages/rxdb-plugin-replay-angular/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-angular/README.md",
+      "sha256": "b0751f9538cf6c853e4813f1af2637ffd0f65eb6eefb3fa5d319ee8354e8c7ff",
+      "lineCount": 77,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-angular/ng-package.json",
+      "sha256": "ecde736d40e65a227cd5ba3ecef8dafcbb73c409375e922fee9c724a53be5e07",
+      "lineCount": 7,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-angular/package.json",
+      "sha256": "68b1f80ddad750ede3bf0cfeae4306cac8b73c104c2eb157ab691db474b1f116",
+      "lineCount": 40,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-angular/project.json",
+      "sha256": "b84122ae50765eb8c2d8179d51c7d4403c98c620075627144acc493f38d8bc80",
+      "lineCount": 36,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-angular/src/__tests__/release-config.spec.ts",
+      "sha256": "4f59db6620e0ec27aad16269c4621ab4cbeb5be40780221b99fbd335c68dd982",
+      "lineCount": 20,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+      "sha256": "de067950e5e185549e662128e8ed20d895c2764a3590c57b3c6b6fbacb2a9843",
+      "lineCount": 91,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts",
+      "sha256": "aa62d9cf16d8c66c49e7a5a9f126c8c222915fe499de22051b87c8146efb06fd",
+      "lineCount": 518,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-angular/src/index.ts",
+      "sha256": "a068548ea8d47f74f161d8c4f6a393791aa24237ef2d69a87640b381000d9a3f",
+      "lineCount": 12,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+      "sha256": "babd32ee9320a477a919fc5e6ee965beab42b6c6add391d718edcd15340f4cf0",
+      "lineCount": 117,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-angular/src/test-setup.ts",
+      "sha256": "1576379410b4dd466bcbddbec1875b6c88e1e70ddc74b652e805fbbc6a0ed6ac",
+      "lineCount": 25,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-angular/tsconfig.json",
+      "sha256": "39485b026f99d20bbf2ef186c576dfbb65e80a3936e2abf44958b4c93ded4f84",
+      "lineCount": 26,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-angular/tsconfig.lib.json",
+      "sha256": "c40f1fac0e0b26a577540f2eef3ee32374004d277e9500effc8fc0e15d7a55d9",
+      "lineCount": 18,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-angular/tsconfig.lib.prod.json",
+      "sha256": "848772818d2f1f11e5815d1d163f94e63c9bb758ce888c5491e314d608c836b9",
+      "lineCount": 10,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-angular/tsconfig.spec.json",
+      "sha256": "312b7d0b62665dedb15dd6afc96b46ec0df2df22b6e6aea12ec4288a196f1b16",
+      "lineCount": 17,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-replay-angular/vite.config.mts",
+      "sha256": "8937d358b6eb02abee5a49d797d6d23c4ff65fc82688948b1d70ec93aa9f683f",
+      "lineCount": 39,
+      "isText": true
+    }
+  ],
+  "controlledFileCount": 16,
+  "lineCount": 1074,
+  "allFilesRequired": true,
+  "hashIsNotReadingProof": true,
+  "scopeIncludesTestsConfigDocs": true
+}

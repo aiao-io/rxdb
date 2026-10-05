@@ -1,16 +1,14 @@
 {
   "clientDate": "2026-10-05",
-  "headAtAdjudication": "fe69a25d2b2f0994d7c9e35fe61757e04b7da995",
   "confirmedIssue": "RV-079",
-  "severity": "P2",
-  "standaloneSqlFixtureExit": 1,
+  "failureInterpretation": "Missing/deleted anchor negative count is confirmed in uncached PGlite repository and all six runtime public resource views for numeric/string fixtures.",
   "frameworkProbeCounts": {
     "passed": 1,
     "failed": 2,
     "skipped": 0
   },
-  "failureInterpretation": "Missing/deleted anchor negative count is confirmed in uncached PGlite repository and all six runtime public resource views for numeric/string fixtures.",
-  "wholeObjectOrOriginalCNotAutoClosed": true,
+  "headAtAdjudication": "fe69a25d2b2f0994d7c9e35fe61757e04b7da995",
+  "productionFilesEdited": false,
   "publicationProvenance": {
     "rxdb": {
       "version": "0.0.26",
@@ -57,6 +55,8 @@
       "packageManifestSha256": "620d7b06e3d6fe870d0b17c4ce77cf290f0cfa213ef46206f0d52a05ad8e3865"
     }
   },
-  "productionFilesEdited": false,
-  "strictProbeTypesNotClaimedGreen": true
+  "severity": "P2",
+  "standaloneSqlFixtureExit": 1,
+  "strictProbeTypesNotClaimedGreen": true,
+  "wholeObjectOrOriginalCNotAutoClosed": true
 }

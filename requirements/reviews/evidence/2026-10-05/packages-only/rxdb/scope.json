@@ -1,0 +1,1764 @@
+{
+  "object": "rxdb",
+  "headAtScope": "943c50cc85b4be3b0635f736a35a9659c3fe209a",
+  "clientDate": "2026-10-05",
+  "files": [
+    {
+      "path": "packages/rxdb/.gitignore",
+      "sha256": "03aa0aa73ee6331cf17331e7ff16263da7285c7fee793154a64fd264b0aef086",
+      "lineCount": 1,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/README.md",
+      "sha256": "b9c6a0a6fa7a63ac7944b90635949b2515898006bd8c7ee89bcb4ebda145a276",
+      "lineCount": 152,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/eslint.config.mjs",
+      "sha256": "973c03cb4d915d020812a7e0a65d4dbadf3ac98f3d08fbfb94c7b7454d96204d",
+      "lineCount": 28,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/package.json",
+      "sha256": "06e6024ce917bd37dc1dc728c12dcb21e233581d5884b3e01c2ee8d6dce8280c",
+      "lineCount": 77,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/project.json",
+      "sha256": "8e0944780f89574dc8bc102f67baa7982274972a5eb37c4b1704d867a38cd4b7",
+      "lineCount": 26,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/RxDB.ts",
+      "sha256": "1d33507321f58543b03b96bafbf3eaae18509026906040021d9ef13f74f08d33",
+      "lineCount": 2024,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/RxDBError.ts",
+      "sha256": "52b7ee1cbed6277938a620537abd22e42d76fd8231bea7344a49d7edb1c1ae86",
+      "lineCount": 289,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/RxDB.config-freeze.spec.ts",
+      "sha256": "dae5e2be63616fc7727f4b62f93072d2fe050bc66fab6038e3925bd84e7872ec",
+      "lineCount": 151,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/RxDB.connect-lifecycle.spec.ts",
+      "sha256": "076f552c41bd35c23aa253ececdfb93418df958c04da7103e463edec04da6a38",
+      "lineCount": 671,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/RxDB.disconnect-race.spec.ts",
+      "sha256": "ef1f7541fd56f3f28bf8e7af701240e7422f25c747a6a08477be2101687f139f",
+      "lineCount": 158,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/RxDB.gateway-scope.spec.ts",
+      "sha256": "cb562e98eb56fbf3910de9121860cb2cf90b8a872866d26d47edf0f6b7c216af",
+      "lineCount": 118,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/RxDB.migration-watermark.spec.ts",
+      "sha256": "bdf8f59063b9f98f4e01ee716818097281257a2761af453ac8772a03f24c385a",
+      "lineCount": 451,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/RxDB.plugin-inject.spec.ts",
+      "sha256": "ef52beb936baefc0e0966f009d1c6acf7ba805a5ac77a349d8a2f2156b3f9921",
+      "lineCount": 723,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/RxDB.plugin-install.spec.ts",
+      "sha256": "f03c085b16912cde649dac256233cd088952c74c31c3dded1e2a7dca17e291bb",
+      "lineCount": 151,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/RxDB.plugin-scope.spec.ts",
+      "sha256": "24a2af9bafa430a33deb6dd49cffe8beac247ed31713aca7ae11ba5c08437c3e",
+      "lineCount": 771,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/RxDB.reconnect.spec.ts",
+      "sha256": "b3e6ccb31d89638de4f539f52587477ff216e09e95824015fcc83266fc07f661",
+      "lineCount": 119,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/RxDB.spec.ts",
+      "sha256": "f80f425883f5ddc76fb309dc35aa75338564304be26448f35d9ad5cb4c91ea0c",
+      "lineCount": 1155,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/backup/backup-archive.spec.ts",
+      "sha256": "04740183414dd4ee753c7d9563fe075c57191b549ae79f9aa805b2de7a7c42a9",
+      "lineCount": 544,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/backup/backup-error.spec.ts",
+      "sha256": "6cc79b8568e101afd7fa913f144c0ded55fd8b4ef287ab145fb4b68f1f4441b7",
+      "lineCount": 38,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/backup/backup-lock.spec.ts",
+      "sha256": "e49966d4c8e4a082eef3d73b05f6d8a63912d0666d23baf37a52f5783c645261",
+      "lineCount": 41,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/backup/backup-manifest.spec.ts",
+      "sha256": "34c8b5a59d6e7b1050bae71847cf025a1a8ebc04fef8df0469719df5a93ad3d0",
+      "lineCount": 171,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/backup/backup-queue.spec.ts",
+      "sha256": "e52d85d6f57697f6b823a6772f40b2f1d75e81d4f4359fdf79b00ac90a8374b0",
+      "lineCount": 123,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/backup/backup-target.spec.ts",
+      "sha256": "b3680f26f36ae0aaaa26d644657ca0fa0028c0d1c72d05d19969ea55c9c4be2e",
+      "lineCount": 45,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/backup/fixtures/archive.ts",
+      "sha256": "dbb3407598dc6fd05789d656a6fe41a9f8e1aef09a047242ef7f9c893609410e",
+      "lineCount": 113,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/backup/review-queue-sync-throw.spec.ts",
+      "sha256": "936dc98cf4c390afb6bd7bde3afaea456e63c51d4e6e59158a839f6186abad31",
+      "lineCount": 40,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/backup/schema-fingerprint.spec.ts",
+      "sha256": "548eee487d95de32d9ec5f33550136a06ac8d95b9b30a85dd69d01c50f8cc1bd",
+      "lineCount": 157,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/capture/capture-mount-points.spec.ts",
+      "sha256": "ae17df7361cc1e70f0ff51dbc5ab071d167f12eadb5e440850899e719eefaac1",
+      "lineCount": 312,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/contracts/bigint-binary.spec.ts",
+      "sha256": "a6fb829d9b1e9892862532debf4fd8e34d2808a24845e7a09b37b0508e567da6",
+      "lineCount": 152,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/contracts/entry-type-honesty.spec.ts",
+      "sha256": "ea5e0c418b98149ab5f2d58d83e56db51780184452fc0f7e954c168c61275b87",
+      "lineCount": 100,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/contracts/incremental-merge-surface.spec.ts",
+      "sha256": "eed45fb8f717e02f85f372c7b4cb75de7f56dd80ec08cb6ad4daea41aac2b6e3",
+      "lineCount": 122,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/contracts/physical-table-names.spec.ts",
+      "sha256": "78ddc20a34df8d9522e34e5ef83b358f9cacff57300337fdf892acc6785fbacf",
+      "lineCount": 44,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/contracts/plugin-inject-contract.spec.ts",
+      "sha256": "633714fae19f4612b998ab6f897d92bc3198fd2dfef40603481b2c1af59c2db2",
+      "lineCount": 90,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/contracts/plugin-scope-contract.spec.ts",
+      "sha256": "e1486bf8f285eb45ab0eee5fb1c9c8b92a4d28d72756c054773011ef22de0807",
+      "lineCount": 82,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/contracts/public-type-compatibility.spec.ts",
+      "sha256": "a307d2d3331c7a348775e608a62c928c6977780c16f15f055220cee4f2629616",
+      "lineCount": 226,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/contracts/querycache-surface.spec.ts",
+      "sha256": "eb6340c69d477319864450d07b1e896d303cb1632d836dc24b32f5d3874fa21b",
+      "lineCount": 73,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/contracts/repository-registry-contract.spec.ts",
+      "sha256": "32b341a52d8b736b8446579d8678795c0cd972d3768f2b12e2d833441320ac10",
+      "lineCount": 75,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/contracts/switch-branch-prepare.spec.ts",
+      "sha256": "8c58d11d28f2480c3ac4c9459d46648e0ed476addfb4e5b52871ed292b67f808",
+      "lineCount": 78,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/contracts/system-rule-union-fields.spec.ts",
+      "sha256": "23ef3929dfffee1d07435ecc40a51785c16afaeb3e84102d71adee2e934d52cc",
+      "lineCount": 87,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/__snapshots__/entity-field.utils.baseline.json",
+      "sha256": "7007c34914409e591bbe8ebcd0ec82b18ea8a94cafde7bd42fc49577c12d7f5c",
+      "lineCount": 192,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/entity-field.utils.baseline.spec.ts",
+      "sha256": "abf04ad4f88ff60e49db0701855208afa05db73165da7790a2a8d1ea422289df",
+      "lineCount": 61,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/entity-field.utils.descriptor.spec.ts",
+      "sha256": "411d1bd59814b226e9059a539783e79315ae0f4e16951a2f4a47bd720005c59a",
+      "lineCount": 824,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/entity-field.utils.spec.ts",
+      "sha256": "59ad7acf32dee972f9b6eb98113e84d8e756cf193a4f2f1f0a7599e1f94acc54",
+      "lineCount": 266,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/entity-identity-cache.spec.ts",
+      "sha256": "3d166f4bf481b2edb68440fb186ce168f02ae607c393f41987386c72104f0759",
+      "lineCount": 153,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/entity-manager.querycache.spec.ts",
+      "sha256": "d13c8f4485153692dcd726ec05604ae5dc2bd12ecc3ab38434144d8fcb33acdf",
+      "lineCount": 353,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/entity-manager.spec.ts",
+      "sha256": "75f3d5adf090aef6decdb000c36f2a25f0fbe6b401e768344af2977100be38ed",
+      "lineCount": 677,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/entity-permissions-enforcement.spec.ts",
+      "sha256": "3fd029d8002a74c96357486fe07a3f5f824a429d404eff46beb955015446f192",
+      "lineCount": 397,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/entity-permissions.spec.ts",
+      "sha256": "1c53bf30d51aa9b444cf217eb0bce7f02f7f4758ac4840a917eb67fc1f458743",
+      "lineCount": 205,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/entity-status.spec.ts",
+      "sha256": "41aad80a41153c49e811cf8833a8debaf9a165f9c6046b66c806e5efeff064bd",
+      "lineCount": 1190,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/entity-value.utils.field-value.spec.ts",
+      "sha256": "15dfa400941df1e9a67f729f33da3305f9b0588e2f9693f8732537b8a70a0294",
+      "lineCount": 716,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/entity-value.utils.frozen.spec.ts",
+      "sha256": "cb890f67e38440783d6a080e318ffb89e4fc2ac683ad9d05fd4a476915391845",
+      "lineCount": 189,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/entity-value.utils.spec.ts",
+      "sha256": "eee451c57b3dd49b92ab4d95c15de8c8a3e76a565f4253390c638c94b61e1275",
+      "lineCount": 276,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/entity.decorator.spec.ts",
+      "sha256": "1fb114b1093e95ecfbf13e801b7883b5ce1e21bcc8a55e453bbe51e2ef210f1d",
+      "lineCount": 152,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/entity.utils.spec.ts",
+      "sha256": "8e316fa3e496695ed62f8e879bcc3f86f41c62423ef25113521a5dc07fdc27fe",
+      "lineCount": 739,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/format-rules.shared.spec.ts",
+      "sha256": "9e3f32f003f1fefed947af9cb311bb616fbab16d821875ad773276d8e06880e0",
+      "lineCount": 95,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/metadata-cascade-default.spec.ts",
+      "sha256": "48a9e2b4f609efabaa065a3686437009fe0e6ffd82901c099b3d655126cb27d9",
+      "lineCount": 403,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/metadata-format-registration.spec.ts",
+      "sha256": "f8b8c1702c3b88a9fa8986fb23ac4df9cf07bbbc8a9574c9845fc8d0ba47e0be",
+      "lineCount": 177,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/metadata-format-types.spec.ts",
+      "sha256": "14323508e221c366302b01bd60cd544a5ade4ead10facb59983bc19c2f5680f6",
+      "lineCount": 240,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/metadata-transition-column-name.spec.ts",
+      "sha256": "5bbca3d238dd76d4dce10dcde0b32bfc4914d18fc4d4eb9a7c1a559ab6e4d033",
+      "lineCount": 260,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/metadata-transition.spec.ts",
+      "sha256": "c662461f88bb91b9064cd38ae6ae219c551fdac11c9cee89c7310b5036fba75a",
+      "lineCount": 409,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/metadata-validate.spec.ts",
+      "sha256": "8c15a5d2c2aa356d739ca72ba52606b0d5173845b85d578108364291ca21c1ea",
+      "lineCount": 597,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/metadata-validate.sync-restriction.spec.ts",
+      "sha256": "5d54c300440208f0390fed7b9266dd866b915d109febd8116c98f8bda434a8c5",
+      "lineCount": 111,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/notify-external-update-gate.spec.ts",
+      "sha256": "767d3872d4f97f9fd195969d700e28665431c60a2db7832380cb13d907108f23",
+      "lineCount": 165,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/primary-adapter.spec.ts",
+      "sha256": "6e487b91e2873f785aeb10a03c680b77b3955ac44e6695d795450f1a0e20b798",
+      "lineCount": 164,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/proxy.spec.ts",
+      "sha256": "21e5f712403c774a90359a9fd6e353b0d269df2caad5390087029887a19172cb",
+      "lineCount": 242,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/querycache-missing-plugin.spec.ts",
+      "sha256": "ddf0fb8ce51752b5e251f28474db788305e1d1dba1f5257dac0dfb3c58dde909",
+      "lineCount": 234,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/relation-cache.spec.ts",
+      "sha256": "7bf933e90421bfc27d837a7b199b0ba432344c85523b1e141c783cf44e516c03",
+      "lineCount": 361,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/relation-helper.relation-access.spec.ts",
+      "sha256": "eb877a8e2477a0dcc56ac306772c43b92360ec076c5309315b7de526cce21155",
+      "lineCount": 488,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/relation-helper.spec.ts",
+      "sha256": "38077fab6da13342f4beb7156b56abbfc0ae9b34f5292f6b858af1da0105a924",
+      "lineCount": 520,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/review-entity.audit.spec.ts",
+      "sha256": "6aaa1141c3bfaba275eb25e7c0a3c295156379b87ead24d569d3ee93271f9e2f",
+      "lineCount": 199,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/entity/sync-override.spec.ts",
+      "sha256": "cb35fa795acbbadea92d8decf289dc0255c84bfb667e6cdd77362a5effcc8168",
+      "lineCount": 725,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/fixtures/fake-table-ref.ts",
+      "sha256": "1b896d350ad030dcfd4e9734fa73d42101b703701f23731f1e8cd2a757233d90",
+      "lineCount": 20,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/fixtures/field-descriptor-entities.ts",
+      "sha256": "d85cb8e367731a36423631cac247fb4f36277e2b6eed5b2dc3f8fde878e3cc87",
+      "lineCount": 355,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/fixtures/field-format-cases.ts",
+      "sha256": "8b6102fe3aeedcdf00f13f17b0bc92fbc60d578f07c4bee601fa15cdef1b76ad",
+      "lineCount": 247,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/fixtures/gc.ts",
+      "sha256": "2c8524a7c517dc58046cccf5c2835ca51df36b24e5261fbda3eb04db659ef191",
+      "lineCount": 35,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/fixtures/index.ts",
+      "sha256": "60722cc28186effead46335888a445908c64bc40aadefe1033a7da19c6dec472",
+      "lineCount": 12,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/fixtures/mock-remote-server.ts",
+      "sha256": "688e9b019716e713a85878d06db3dc5e4b49950afd5207f60140b03183c31a1f",
+      "lineCount": 309,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/fixtures/pending-writes.ts",
+      "sha256": "e5047006c804281e1614cffe14bd1da11ef9ba16d654b69ff28d1e8cfc214ee2",
+      "lineCount": 19,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/fixtures/reachability.ts",
+      "sha256": "4f7bce29416a7ded6aff54380639133f71bd59489032c35977237795d4f92639",
+      "lineCount": 24,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/fixtures/rxdb-lifecycle.ts",
+      "sha256": "8a3d5ba9bdcc8cf138213eacf27577f2e95fbfad998479bbbc038fd48a1d57d7",
+      "lineCount": 69,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/fixtures/test-db-setup.ts",
+      "sha256": "5e3719de46d28c5a526c9237931b7d51837f35955c4050aff195c3bc950ee59c",
+      "lineCount": 356,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/fixtures/test-entities.ts",
+      "sha256": "a09aa485c65ed98f74a469b02ff688d7460201284ed41ece83ba3bce38d2a6a9",
+      "lineCount": 99,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/fixtures/test-fixtures.ts",
+      "sha256": "4ec1f49ec839ce42ed11f53df12b63e8c579a0e4db5d4687cdfe1c9a63061e8a",
+      "lineCount": 185,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/gateway/RxDBTabsGateway.spec.ts",
+      "sha256": "2c59821da8bd78ca71e2c594e54f8af90ea1c3efd473b43d1816dc2d678ab56c",
+      "lineCount": 514,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/gateway/capability-propagation.spec.ts",
+      "sha256": "c4d19999a42bb0c7b6b5d1abce0b92ac43fb2ab53148a5e6a736247f225be52e",
+      "lineCount": 201,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/module-load-without-encoding.spec.ts",
+      "sha256": "cdcc6a3dfdc178c9cfa5a6a9e2f424a564e5f729d878355734d98179ec6e73f7",
+      "lineCount": 27,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/network/reachability.spec.ts",
+      "sha256": "d4787ebe9b1ab43d3a239461b51050f102a9992212cd809a69f01993dc8f1f06",
+      "lineCount": 327,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/query/entity_type_dependencies.spec.ts",
+      "sha256": "918847df8bd20961177c985f2d2b376f2b30bda30f05fc920350934882f9d95b",
+      "lineCount": 568,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/query/merge-update-basic.spec.ts",
+      "sha256": "2ed669735fdd0c69163a549fa898e0e50adbfc3ecf2b12216ec6a46b6981ee25",
+      "lineCount": 190,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/query/merge-update.utils.spec.ts",
+      "sha256": "bae037bb4247bc39490afbc7638342f0048eeca6084a2756c19f974397cad2b7",
+      "lineCount": 173,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/query/merge_create.spec.ts",
+      "sha256": "62d09d6d759c1debd4a457c804380e8a5e8b971fba4e32fb92a1119be0e65651",
+      "lineCount": 1836,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/query/merge_remove.spec.ts",
+      "sha256": "83b66925935976209ff0bbb7aa15cfca55183f0ae0a372d8fa0359e2913832ea",
+      "lineCount": 1048,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/query/merge_update.spec.ts",
+      "sha256": "e8e9e2bcf6d2c8518518db541499c4c6229905cb55e948ce5e8da37635d2012d",
+      "lineCount": 992,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/query/numeric-id-merge.spec.ts",
+      "sha256": "4a31a1ef789d0945e22e72c590f840a8c43584210fc2b0c4fed7af63ca97b009",
+      "lineCount": 233,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/query/query-matching.utils.spec.ts",
+      "sha256": "9f2e0aebd05badab4cf6bc3d954fcf413441882d0fa9b8a3ea530ac5c9f8d46c",
+      "lineCount": 826,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/query/query-relation.utils.spec.ts",
+      "sha256": "e4e38021e2c279a4024c0f84793bd206e72083ca0a8ae3e68bcb69915d488f91",
+      "lineCount": 314,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/query/query-rules-builder.spec.ts",
+      "sha256": "3de91f877acc56a8213c2b9b57a3a936f167dbac0bc043123567ba0b47414969",
+      "lineCount": 322,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/query/query-type-guards.spec.ts",
+      "sha256": "c24092e9dac9957a7354d1469ea62d404c383f99c17de72d2bb20e7e190389ad",
+      "lineCount": 59,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/query/review-query-matching.regression.spec.ts",
+      "sha256": "4a75f8ceb049922c1127249d12513f8ca07060ad9a2bc979284a43a682c6208f",
+      "lineCount": 27,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/query/review-query.regression.spec.ts",
+      "sha256": "1de3be7dc15239a46e491263f6bb08774f6eae2abb908e2502a92d64515359aa",
+      "lineCount": 267,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/query/stale-event.utils.spec.ts",
+      "sha256": "ae602696838a2d8726e031c6e01bffb8984752f282b4fe52e0b845f234feccaf",
+      "lineCount": 181,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/repository/QueryManager.spec.ts",
+      "sha256": "46dabbbece782bb256d50328fc7a072dba092ff4fcf2aa65bfdb60cd08e576ea",
+      "lineCount": 571,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/repository/QueryTask.spec.ts",
+      "sha256": "00bf7874f1d7bcfbd99a4ceadeeb24634f428f186f4e533632609dd2d250d7d2",
+      "lineCount": 267,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/repository/Repository.spec.ts",
+      "sha256": "e98fd54b64a40306d6661263fb6511737f7b741296b63bbdfaa12bf3c9847ed8",
+      "lineCount": 705,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/repository/RepositoryBase.spec.ts",
+      "sha256": "93bf93b00fff0455fd788f980f79d8291ab87becd1b1f56f0c1cc06bdad2b34a",
+      "lineCount": 219,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/repository/diff-metadata.spec.ts",
+      "sha256": "285cbb1353c446bdeea5e3e8a588a62dee3af65a0da0ec14a1764081964cd835",
+      "lineCount": 159,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/repository/fingerprint.utils.spec.ts",
+      "sha256": "2eb1b929d454e959c8d1c4394f5caf8a53fb88f131607fd6dbd864295741db03",
+      "lineCount": 203,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/repository/network-error.spec.ts",
+      "sha256": "f768fc9d257c8e138d46e15140b5fa814b201279588372b3286d2e28b5f3eeda",
+      "lineCount": 84,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/repository/number-validation.utils.spec.ts",
+      "sha256": "4fc8b1fbfe6e3f36e7b36802ed62ea10ad0fa49630eadd8ecef75b49c62ec72e",
+      "lineCount": 27,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/repository/query-manager-stale-event.spec.ts",
+      "sha256": "06ef17774fc02ae3513610b9867c9a66b6672fea77eca385e1c9d638bdbcbdc5",
+      "lineCount": 307,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/repository/query-task-lifecycle.integration.spec.ts",
+      "sha256": "7ea1db71232ff85b738f6be7f520c0575d65ecde0dccb7ce27e631120d96a14e",
+      "lineCount": 297,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/repository/review-repository-repro.spec.ts",
+      "sha256": "93a5964904d6b5f8c51dad6674d7881634ab51af3c0a937384788436d865dccb",
+      "lineCount": 163,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/review-lifecycle.audit.spec.ts",
+      "sha256": "36f0961ac0667310bc3c3e880ff792c40bea9cee63b58f33c35452bd1ba10fb1",
+      "lineCount": 78,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/review-repository-teardown.spec.ts",
+      "sha256": "17dd47079c4834c43997e2cda96a4e01d2ee85e4bb82b8c214d76772769a6c4a",
+      "lineCount": 96,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/rxdb-events.spec.ts",
+      "sha256": "37a31182989bc05714f2468716b1c6ffbc8c887f40289b1bbb2991cb59c754d2",
+      "lineCount": 582,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/rxdb-plugin.spec.ts",
+      "sha256": "d9fca72bd0ab3cd867fa62c12a4d5eb2de3483bd68354db07e1a6a4326a3e3d1",
+      "lineCount": 480,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/rxdb-utils-honest-types.spec.ts",
+      "sha256": "706aeee52ee090bbfa371d2eec557857901e050493b1440db61c0f4c18627ebb",
+      "lineCount": 149,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/rxdb-utils.spec.ts",
+      "sha256": "54f8b692e03af47b30c9c105689755844e3819ff7a17d6ffaf3bdf4872a654bc",
+      "lineCount": 441,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/rxdb.private.spec.ts",
+      "sha256": "e180f93a231a99b6845facfa92f52dbc6b354ab90318666f1fc80ae29712e550",
+      "lineCount": 48,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/rxdb.transaction.spec.ts",
+      "sha256": "a8128973146f746d9ae1c78d3bb81a79e53d0ea1695fe589ae6e2372108b5371",
+      "lineCount": 130,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/schema/SchemaManager.registration.spec.ts",
+      "sha256": "aad59bc16463df401027ef3afaa63cf4b5ad3d28cd835d95f4a8c23f6070a7b6",
+      "lineCount": 706,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/schema/SchemaManager.spec.ts",
+      "sha256": "92573adb766992932f58b9d7b1ad5bd1eb3e8afba6399e95bec273d1c7fc7198",
+      "lineCount": 525,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/sortable/fixtures/sortable-test-utils.ts",
+      "sha256": "6c7fbd9d9e66b1303d84d69fa5539069103494090caba4cc12509f42c15c9c9a",
+      "lineCount": 79,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/sortable/manual-order-group-metadata.spec.ts",
+      "sha256": "24456e2be5967d9860b25f81f2c5a5ec89096515386ad05d04d018221abbcca3",
+      "lineCount": 151,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/sortable/manual-order-group.spec.ts",
+      "sha256": "faf3c070602eaa4475a5027df592aae858e2879963bd2906924e8868aefdea74",
+      "lineCount": 444,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/sortable/manual-order-metadata.spec.ts",
+      "sha256": "5de4e018acf441f26097ac3cb085ac91f838d4d959dc8c46ce026d2e4317cfdd",
+      "lineCount": 118,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/sortable/manual-order-move.spec.ts",
+      "sha256": "9d1f0c34a88f9a402e9a3812cf375fcb2fbe78354b0dc5759c4bc54e2a3a4f43",
+      "lineCount": 36,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/sortable/manual-order-primary.spec.ts",
+      "sha256": "1a056651c30cfe28dccf47b1613344c98ab4ab76d280d8c687adae90b92052a8",
+      "lineCount": 197,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/sortable/manual-order-repository.spec.ts",
+      "sha256": "a1ac1355bbd42edbfeeaa3eb398c81259151728e3e7c7580466c54dee5727076",
+      "lineCount": 407,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/sync-contract/VersionManager.utils.spec.ts",
+      "sha256": "7a2ee5935215116549ff8aebd4e126891b81170e335a547d6063994d486bf6d0",
+      "lineCount": 63,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/sync-contract/branch-materialization-source.spec.ts",
+      "sha256": "cfa9199f543d73f2b5e52dcb184d754e6afe2da051392c87131ee775a7e3ad4a",
+      "lineCount": 182,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/sync-contract/compact-changes.spec.ts",
+      "sha256": "4aa2102c7c4833e5131733e1234a4de8c8cb3ddc3a6dd027e7fce5f61d5f00ca",
+      "lineCount": 384,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/sync-contract/conflict.spec.ts",
+      "sha256": "caaad7b8ad7e1f3e3a80967dd10b0816f97676e0d13090c506d35f5dce9290ca",
+      "lineCount": 183,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/sync-contract/pushable-repository-rules.spec.ts",
+      "sha256": "0b7ef89695b5f1f72cda14242e580ec12e4b7131a3041413953c94766a74fe8b",
+      "lineCount": 179,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/sync-contract/sync-eligibility.spec.ts",
+      "sha256": "d760ca8280aebee6df15a99532f2bc41bb1c4993d0b184916a695c88ce26a5c4",
+      "lineCount": 157,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/sync-contract/sync-record-utils.spec.ts",
+      "sha256": "44a906e60e249c4ff0de9c5505a11927622dd311960cefce9aa2961de7cfa119",
+      "lineCount": 151,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/sync-contract/sync-type-utils.spec.ts",
+      "sha256": "728d9f6b3bbaf399edd3885dd44abc9d8903bf9624c4f667300049b5c4565feb",
+      "lineCount": 588,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/sync-state.spec.ts",
+      "sha256": "8fb6433c219ad771c35a1160277bdd56e1dd0b3952adc79afc6297030ed5d0f8",
+      "lineCount": 246,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/system/active-branch-guard.spec.ts",
+      "sha256": "d17733b0cd8356014f98cb80686ac133f1aef4db4c2426b27dab9cc833154838",
+      "lineCount": 199,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/system/active-key-dual-write.spec.ts",
+      "sha256": "bb5fa81ab7aae4f5d4bbec484a5a6870b888cf787db64385c53b75aed1b5fb6f",
+      "lineCount": 72,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/system/branch.spec.ts",
+      "sha256": "3d81d53a5e4543d55b7694e532d9f080b3db4b89fe44ea1ccc8656b4a2d4f36a",
+      "lineCount": 132,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/system/capability-watermark.spec.ts",
+      "sha256": "38dcfce7e8615572edba6bd01c202dff25083b9fbf43066536e413fdee9b82e7",
+      "lineCount": 101,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/system/change-codec.spec.ts",
+      "sha256": "e02c638ead3312e8d42ac978615fb38a81e63a8b985c9b872d2e481965492585",
+      "lineCount": 246,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/system/change-codec.throw-paths.spec.ts",
+      "sha256": "c610b56e7c15683fa374deef13fa4e01c2abb395fc9d40472b2d388b491c60b1",
+      "lineCount": 273,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/system/migration.spec.ts",
+      "sha256": "ed9e0ade2a07bfe6493c5a34870323a49989e91072536a8775d63a90a5926522",
+      "lineCount": 182,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/system/plugin-system-contribution.spec.ts",
+      "sha256": "8040d3f31c5cb8c2a14b7b733e7109ad6199ed557391f452deede9659115ac30",
+      "lineCount": 404,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/system/sha256.incremental.spec.ts",
+      "sha256": "15b9d924c785803a4706c660b6a1d32b09ff4d8e27015815d64a10d0bb4955af",
+      "lineCount": 73,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/system/sha256.spec.ts",
+      "sha256": "14991c8e15a9c0041755fb8f4cfd6b0db5f3132b5f0ec3e4687d240a0d1744a0",
+      "lineCount": 94,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/system/sql-literal.spec.ts",
+      "sha256": "0d291fccec053bbf62a5684aa4054754b2656794fb8a0504392b187ae4169afa",
+      "lineCount": 114,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/system/sync.spec.ts",
+      "sha256": "58af63f11307532231febb5e1ce8503a7de9a53e766ffba95f5bff03280f6444",
+      "lineCount": 174,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/system/system-relation-fields.spec.ts",
+      "sha256": "e9626f1f7ca0f921c197b60928b6d04c13cd83aa3d7eee0fe745c647820c3f6e",
+      "lineCount": 29,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/system/system-repositories.spec.ts",
+      "sha256": "579d87de1afd20e04cb6fbc56ba9d6b9c715da76fadd2e877be99eb32c9057d8",
+      "lineCount": 207,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/testing/clone-entity-classes.spec.ts",
+      "sha256": "d8689d46f314314340260fc895aacb7786f8991fc81e742176ecd8d0f09b40bd",
+      "lineCount": 112,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/trusted-write/trusted-callsite-registry.spec.ts",
+      "sha256": "cb5fc0c8b0a72ebd33d3f12f4e7f9d9136d5832d2fbe05461d8b3ebf3a370e6d",
+      "lineCount": 727,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/trusted-write/trusted-write-scope.spec.ts",
+      "sha256": "b97993ee34150db2a3f3b1daa3458ace21f229ba243eeb75b4f5ff198fb9f0b2",
+      "lineCount": 145,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/__tests__/version.spec.ts",
+      "sha256": "e8dd547722e1eff71133fc79ea94e244c5747e66b78e96766c3768af2bb42782",
+      "lineCount": 39,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/backup/backup-archive.ts",
+      "sha256": "863e0b0c375b527303faef02c358a2c64b3ec07cf562e4de983fdf914422045f",
+      "lineCount": 458,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/backup/backup-error.ts",
+      "sha256": "626c03053c8b38d556f5494b5f4392583ba1f9549e3de5e93cc3aded8c435cd5",
+      "lineCount": 96,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/backup/backup-lock.ts",
+      "sha256": "c50d420f81c5cc3d60f017d54facd8e369fe2a9a255369d01bad6d6628069fd7",
+      "lineCount": 51,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/backup/backup-manifest.ts",
+      "sha256": "cfac1f8f9fca5909fba3e3e1ff1d049094fefcd5470b75dae8ea26de5013fd32",
+      "lineCount": 145,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/backup/backup-queue.ts",
+      "sha256": "b7da8d388b3c60be24ba183de69d4f323027f62524ad3d50c72e0788ff3de467",
+      "lineCount": 76,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/backup/backup-target.ts",
+      "sha256": "d07fabbbf931845cd6f211f2938858cc990c0d6fb26ba035a06b2d54d1ddde02",
+      "lineCount": 32,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/backup/backup.interface.ts",
+      "sha256": "4ab74c7dcc68e241e8b74240190eaa130a04fe351f1d76fe331eee98f94b9b82",
+      "lineCount": 139,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/backup/schema-fingerprint.ts",
+      "sha256": "36ef6335059d3c49a0084f9f2383b09e2306e1ab657740ef6540618fc7cba22d",
+      "lineCount": 129,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/capture/capture-interceptor.ts",
+      "sha256": "0f1a49c6543647f9b369e89a31988d3a771a93bd8a5a3e04b138ec0ca6565cee",
+      "lineCount": 363,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/capture/capture-mount-points.ts",
+      "sha256": "44a5f35e5b5fb8559eadf494deb678efc0302c01dbeb9df4fa04da13808310f2",
+      "lineCount": 172,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/capture/index.ts",
+      "sha256": "96e15e94f390a6890a600c110d17c18935e3437b0a9042fa0b69a0caec97b67f",
+      "lineCount": 19,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/capture/raw-write-gate.ts",
+      "sha256": "797a5747cd6ef0d1ebea1fa8e6a21599ab75ad02345b207c6a29c495a2e20eda",
+      "lineCount": 86,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/cascade-options.interface.ts",
+      "sha256": "6e3bc0e9a43c96c56e6588845ca3f556bbdbe6f478d8d6a96b3c25e788e926e6",
+      "lineCount": 177,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/entity-base.ts",
+      "sha256": "78448b4167d08472deea9b822c7c2d52af032fd47247853e21836de9d4936910",
+      "lineCount": 220,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/entity-field.utils.ts",
+      "sha256": "71ad6b37315d292d75345ba81bd6a0ebd6a1d0605c8f64fd9c2480022afd760a",
+      "lineCount": 990,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/entity-identity-cache.ts",
+      "sha256": "502e2b76bb36fc448f27b9bb19088be09cc51a17d801041e41139f99de2fab2a",
+      "lineCount": 126,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/entity-manager.ts",
+      "sha256": "62501d22e70739fc86eb68502f5756753993f2bbf9264b3e0ba02926aba4df3f",
+      "lineCount": 792,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/entity-options.interface.ts",
+      "sha256": "965bf552c86d456a5e240d71739b8c24200161680ae6b7f71ae64b9c5a8bb99b",
+      "lineCount": 280,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/entity-permissions.ts",
+      "sha256": "6442a73b0f4f3f593da8cb9d7fd70c61ed7ce1ee66e9b59fb95511a5e98fb812",
+      "lineCount": 192,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/entity-status.interface.ts",
+      "sha256": "d31216e58b7e1c7067f904e55b20fd84cc9cfe2dc785ef9ec123f5e76a4d305b",
+      "lineCount": 73,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/entity-status.ts",
+      "sha256": "b071fcf8bec020aef087f93731657a6f6be42f0d21bab6953687019456112168",
+      "lineCount": 627,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/entity-value.utils.ts",
+      "sha256": "f148a852b63a198968018a8ee37187a06567a2cdff9003554e0f2ef880d648d5",
+      "lineCount": 669,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/entity.decorator.ts",
+      "sha256": "209e0a600194a81e309431e1bef1a2e38724a297a84f3f835b21899a82bf2c73",
+      "lineCount": 88,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/entity.interface.ts",
+      "sha256": "9bb7a9294e82f38188dbeac3fc19e6dfd739ad21b301698603e673476c864d8a",
+      "lineCount": 248,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/entity.utils.ts",
+      "sha256": "d5f5acfe3211d6fe2b2dd95078d284ab6d015ccded068fb5383a984a942ff2c6",
+      "lineCount": 508,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/format-rules.ts",
+      "sha256": "c9e546925d2504677e8dd650e1d5eced13ff20443c5ab9563e1273cb25ee81ee",
+      "lineCount": 93,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/json-safe.ts",
+      "sha256": "d0e4c2480cb40fb1427723cc459765f0f791ed898f17a87d0b3e7bd202330498",
+      "lineCount": 46,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/many-to-many-entity.ts",
+      "sha256": "406cb81bb0be047b0f3770f58d98f41bc8f3df8915db21ad85025aa08f682e63",
+      "lineCount": 107,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/metadata-cascade-default.ts",
+      "sha256": "55d42bea1e95289b6f5f484c61afbc1f74810ddc15decdcfa204b1eb95e9b853",
+      "lineCount": 121,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/metadata-options.interface.ts",
+      "sha256": "d253842efb25c70a227d68f37cd601fc3d9fc75aac9f02be264dc7ea2d309c14",
+      "lineCount": 23,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/metadata-transition.ts",
+      "sha256": "5fab3267dfaebd61321bfee28cd0d798087e5ac697ed036a71ddc2bb9b9d9f5e",
+      "lineCount": 340,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/metadata-validate.ts",
+      "sha256": "80a65e61a8804b58e82db7660ff43551445218bd00d134cf8c70c29e7eaacf66",
+      "lineCount": 731,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/metadata.interface.ts",
+      "sha256": "e3412f0662543144eb4b3a991016aea51b784ca148e9afb6d876b2490d397e3a",
+      "lineCount": 118,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/primary-adapter.ts",
+      "sha256": "08fe4e9f344ce4daf430e7eb60e4c7ddc1a9661e732d4c1bf5d84a48ff66bd00",
+      "lineCount": 215,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/property-types.interface.ts",
+      "sha256": "540e4d9daf5fcf08e83af2f1ec8b631c8c249cf8e51be2a9bffb7fb24d3032e7",
+      "lineCount": 562,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/proxy.ts",
+      "sha256": "02f9f0eb50aadb3c775aef7c2959d160a656a215a3f96d18f411632a211501be",
+      "lineCount": 108,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/relation-cache.ts",
+      "sha256": "8347ec1383b09df73ddee436f1640c08d9ace3461f7265bd69a75294d5b68e5e",
+      "lineCount": 365,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/relation-helper.ts",
+      "sha256": "a8787df320ef0a16e748a9f462f3dbe3b5b9aeb9e88ba1b5e51a7a55d3128635",
+      "lineCount": 303,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/relation-types.interface.ts",
+      "sha256": "5176f9e992edbdd59d38b411d8be7c068c87b2c4c9882d224d0ab4e515aec5a0",
+      "lineCount": 496,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/sync-options.interface.ts",
+      "sha256": "3b32436cef999777291da1881ec495f1193ade841316f7cde30432745960f807",
+      "lineCount": 184,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/entity/sync-override.ts",
+      "sha256": "bda19d3d2b335f37b375a6c675c4b331bfdfa04894165509a3a3b903cb5f78cc",
+      "lineCount": 252,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/gateway/RxDBTabsGateway.ts",
+      "sha256": "a23f85b47b0d4838af54d0cbacd3d3904f0dbd0b3a13bd4ce5b97e6daaee4639",
+      "lineCount": 379,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/gateway/gateway.interface.ts",
+      "sha256": "78d308449da34ee4c34fcf7e1b0281013b4f79f2426efd6aeed0e650522f8bd0",
+      "lineCount": 92,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/index.ts",
+      "sha256": "2070b4830f03d02778e4e2b84287b8cc1b2d9dff35b289a153f7347d187ac100",
+      "lineCount": 279,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/network/reachability.ts",
+      "sha256": "d9b78b23115b69127f4e9e04bc6708de25671191bd96a5d0b7d8e86722b6540a",
+      "lineCount": 320,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/plugin/__tests__/dependency-graph.spec.ts",
+      "sha256": "5f73f2a7c6b9ca5e81bb41035ae83e5c14e6ac3736b573b18fc4f1b88636f56b",
+      "lineCount": 237,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/plugin/__tests__/dependency-scheduler.spec.ts",
+      "sha256": "01e9fee83011b067cc11a7a0514f1e4042c7612c1a30f76867fda019ebaf7f4c",
+      "lineCount": 671,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/plugin/dependency-graph.ts",
+      "sha256": "faa50d6db25a01bf8e5c2cc5c33b04fecf0f37890558ddc4d4d37fb6c010764e",
+      "lineCount": 244,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/plugin/dependency-scheduler.ts",
+      "sha256": "427652a54e673c39e111f1600b372008410f25c63cd8373bcb2cdf0033cf27c8",
+      "lineCount": 526,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/query/entity_type_dependencies.ts",
+      "sha256": "63f93bec1c8fffd8874554ce3502e706525e47647e43892ac3e1e25219f4f7a0",
+      "lineCount": 244,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/query/merge-update-basic.ts",
+      "sha256": "e7cacba45828b42111cdf4ecd5aee3edb09f4938aee44473e0dcbdd815dac691",
+      "lineCount": 118,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/query/merge-update.utils.ts",
+      "sha256": "3766cc5c42fae4f0fcc4574c5f3d6e185ce2e5499b9bf1802499adb4d5b9b144",
+      "lineCount": 224,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/query/merge_create.ts",
+      "sha256": "06e026199e0707ae4ed26269a280d8e363667b226567e01f7c91ec885369e85c",
+      "lineCount": 303,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/query/merge_remove.ts",
+      "sha256": "92f5ae12e3f0c61aa4a85c9bcce1119fd5da24037f604394379408c1f1a67305",
+      "lineCount": 115,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/query/merge_update.ts",
+      "sha256": "5298b8d54942664713dd2705b858c9a7bd6ffe147b2f32e1cbb15db562ea93cd",
+      "lineCount": 217,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/query/need_refresh_create.ts",
+      "sha256": "51f0aa6bda05e64a9f15dad6bae1e7f294507ced064f1ab8de081722eb3aa23c",
+      "lineCount": 53,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/query/need_refresh_remove.ts",
+      "sha256": "7fdd0649db65a479efae3a719392435203fc5e2a88d873071272508f94d6772d",
+      "lineCount": 54,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/query/need_refresh_update.ts",
+      "sha256": "e97975dbb25f3f4cbc837f38410d51ee18857816b342bf10ead6fcdd65035a84",
+      "lineCount": 128,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/query/query-matching.utils.ts",
+      "sha256": "8dbaa2cc24c43b9949b92c5ecea59113d79a247b481bfa6b523af847a3af5177",
+      "lineCount": 502,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/query/query-relation.utils.ts",
+      "sha256": "25a3a82ace1bcaf7a5998edeb3ae888d39eb6ed602d5c6082c53634a5fc25978",
+      "lineCount": 182,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/query/query-rules-builder.ts",
+      "sha256": "7a0aef43e52c1838108eb2f140120cd4729bab198b450d5e17ad7741e732bfdd",
+      "lineCount": 276,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/query/stale-event.utils.ts",
+      "sha256": "49e63a493100aea391a4aff668524f1c633667de7aa12ea935da98b1eb86b49e",
+      "lineCount": 92,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/QueryManager.interface.ts",
+      "sha256": "e06afac39d097fcda0c94fbfdaa633c18f30c12e6bb908213f74d420d075a7c5",
+      "lineCount": 123,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/QueryManager.ts",
+      "sha256": "f3cfc7e6108a404833357f4229f516c327099b21c1e5c114fe859f31bfc1379a",
+      "lineCount": 491,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/QueryTask.ts",
+      "sha256": "12e20b1814b4a5fb3260280cd2c098cbf84dd3b56fe5bf86f559fc6694de3257",
+      "lineCount": 419,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/Repository.ts",
+      "sha256": "e00ba7c8649ca15ac77aa6da54261e13b64015199c5dfac4d25e3f5a2f10cec3",
+      "lineCount": 837,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/RepositoryBase.ts",
+      "sha256": "a68ea811503b81ac67a584e149dfe02b7cd7dc13a6c8e9233a4dbcf1351efaf3",
+      "lineCount": 100,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/diff-metadata.ts",
+      "sha256": "556cf15c8a3b19b2ab6434966a1c457ff26f88e934320c0446d87699c359ab9a",
+      "lineCount": 107,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/fingerprint.utils.ts",
+      "sha256": "8ef024644809de0478fe250df296ac4895cb4bcd34cb02620e0c4f46f9d24026",
+      "lineCount": 48,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/network-error.ts",
+      "sha256": "4d083e55540493ae8de25a915f6a19f183006ec6a9b8ba1db92fab1ffa7153b7",
+      "lineCount": 105,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/number-validation.utils.ts",
+      "sha256": "dd998cabf8dab6a7ac331414c3713e8c96e69cc6eb1ee36658ea157a979d714a",
+      "lineCount": 20,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/query-cache-engine.interface.ts",
+      "sha256": "5fd6684bfe2ffee06a96b13844badf1e5748501c714e82a6dd6da3c13503cb04",
+      "lineCount": 153,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/query-cache-outbox.interface.ts",
+      "sha256": "6ef93c19ab7805f65845c13fbaf8f182c76b25d0812efa730776f3bdfe1781b8",
+      "lineCount": 62,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/query-cache.interface.ts",
+      "sha256": "5f422c070dc6def481904c1ce8792b914424f4f1ce846805b9a1daf39bb68746",
+      "lineCount": 177,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/query-options.interface.ts",
+      "sha256": "b13bfe35f857dd2c2d1618a4831d1c5181e6c27e0127591ab3f9ed1d807d5c7a",
+      "lineCount": 214,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/query.interface.ts",
+      "sha256": "6e86b98a29dc927c4f76a8fc0f88d4486b3aba65830971e916b19a8a7ee5598a",
+      "lineCount": 272,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/relation-query.interface.ts",
+      "sha256": "7beef2cfc4d2922c6807941538ee3abd4770ebd746fac6e3a3e1aef505d93fe7",
+      "lineCount": 102,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/repository.interface.ts",
+      "sha256": "705e60f46d780119cdda789dc57ab89820913f4fef280edcc56873cc1a37ff44",
+      "lineCount": 88,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/repository/updated-at.utils.ts",
+      "sha256": "2fce3af83fbcea9b7d7659cfdd6951fe9c8b9650e3ac37958a3c587e8fbab32b",
+      "lineCount": 48,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/rxdb-adapter.ts",
+      "sha256": "145ff4b2b264845772247c9b5da5c8659a519f45073254b9e0f6748d7bd2c8eb",
+      "lineCount": 914,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/rxdb-events.ts",
+      "sha256": "9b734d6e5f162ec81e3841c3826cad0222b3088f8bbb81ce2b28800d10a1bcb5",
+      "lineCount": 726,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/rxdb-plugin-system.ts",
+      "sha256": "8d95da7a8e78802ad174fadab9bcda8a25b7392a87d7e8f8b8e4908c30ad6280",
+      "lineCount": 441,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/rxdb-plugin.ts",
+      "sha256": "c275beb23b6e6c3e447497478171f0afc0e1e45dd6fb4e9fa8b2735fc3f6fae6",
+      "lineCount": 150,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/rxdb-utils.ts",
+      "sha256": "debe1f7bba68fcd8a8e4963d15e2a183e73bbecc3b3badd39b2f1635bd98c4de",
+      "lineCount": 296,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/rxdb.interface.ts",
+      "sha256": "d8236e35a42bbafc23cf12fa317757c3eb420cf022fbb229239091b2ce78cbfc",
+      "lineCount": 151,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/rxdb.plugin-lifecycle.ts",
+      "sha256": "f9cc009bc103f2a0323bce382d1745a35ad7ab5037bcabfe213df0bc98fc6847",
+      "lineCount": 225,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/rxdb.private.ts",
+      "sha256": "78827483cbe5231c01b2dbee1112514d141da3a969c0289cdad8164266ee4a23",
+      "lineCount": 162,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/rxdb.transaction.ts",
+      "sha256": "1dc8e3a35e708ee61c00067d82552bdc47239090b28076df078e632bdb69b19a",
+      "lineCount": 143,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/rxdb.types.ts",
+      "sha256": "c10a89a8c1ef48ba8a5cb13c6e70a8bdb16963cf5f28b2622719e1aa6d90a27c",
+      "lineCount": 81,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/schema/SchemaManager.ts",
+      "sha256": "97da7991daceebfb77920092cfe7df62203aa7907b52a64c6e9310273c068505",
+      "lineCount": 352,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/sortable/sortable-error.ts",
+      "sha256": "8137d28e23ab06fb353fd6c6ca298d8ca28c5933269f6bb3bdfe40f44dba07db",
+      "lineCount": 56,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/sortable/sortable-mutations.ts",
+      "sha256": "33d91874b32c064a9b42e869e367b529739554e792cc5337649d72802333aa3c",
+      "lineCount": 115,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/sortable/sortable.interface.ts",
+      "sha256": "de2341aeed36bde397ffa2272eca6a1c036ff21b4e21ec5e5c47be8446912a08",
+      "lineCount": 99,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/sortable/sortable.utils.ts",
+      "sha256": "93b13c79cf11eb9e18f6aef1ef765dcaaa64acf438692f31f8a1794349ac8a91",
+      "lineCount": 585,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/sync-contract/LWWConflictResolver.ts",
+      "sha256": "602820dfabb84b2289318056ebb3de54cd80e3ab3ca14ef79868c5808cbe09df",
+      "lineCount": 70,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/sync-contract/VersionManager.interface.ts",
+      "sha256": "0765f3fdde58d0058a3681baaa4993b03382a1ac5d72ca97fa8f4843ddf2e987",
+      "lineCount": 656,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/sync-contract/VersionManager.utils.ts",
+      "sha256": "5c84426e49918313729251aef56414bbe4a2e9eccaae8a64c49780ebe33fd92d",
+      "lineCount": 26,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/sync-contract/branch-materialization-source.ts",
+      "sha256": "8ae7eb758d35c72bf6f6e1f77ea0de9f3146a9950f87dd114e4cafeb51bd36a3",
+      "lineCount": 235,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/sync-contract/cascade-contract.ts",
+      "sha256": "11a982f530b0ed7ae0ad47e3e192cdf3c271c7760b06b6b048d6bc36424d60e8",
+      "lineCount": 143,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/sync-contract/compact-changes.ts",
+      "sha256": "4a88c8ea6e4fe62595ea33ca9f66f1deb86775226d4b8a76d7004958d8061e1d",
+      "lineCount": 154,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/sync-contract/conflict.ts",
+      "sha256": "b159e309c85f496d66c0e9f84599cfeedf2cf2ac4b3c91321d25a8fcd42f5392",
+      "lineCount": 90,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/sync-contract/entity-sync-resolver.ts",
+      "sha256": "91e19791c595819155bdd98fab91e9c90094064c6726e9da2ab1b754ab06bf36",
+      "lineCount": 181,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/sync-contract/pushable-repository-rules.ts",
+      "sha256": "d782693e85f6a05374c4c66c25d7b3c616767e19e346e1ecb76873811245f164",
+      "lineCount": 89,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/sync-contract/sync-record-utils.ts",
+      "sha256": "89728cd1de851f666b6f5798586c2be963a39dee9b9d4d4dc988442b31964f46",
+      "lineCount": 156,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/sync-contract/sync-type-utils.ts",
+      "sha256": "dc5f347b78851d9c86d1b65e3e169f7fa0b2ccc493b549e18faf1b4dd1c1539d",
+      "lineCount": 395,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/sync-state.ts",
+      "sha256": "98b1ad6a193e730c0e5c02c6f088ba513e10db53c2aba4cf1f50162ad070cc9b",
+      "lineCount": 275,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/active-branch-guard.ts",
+      "sha256": "d34237c19121c1e6cdf4dfd14d97739e8adda7f091276beed2accc26bf84c0d3",
+      "lineCount": 296,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/branch.ts",
+      "sha256": "db835ccd8d290d43ef7bb2b34e476da3163556798e3491a038e41bcfc58796e0",
+      "lineCount": 267,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/capability-watermark.ts",
+      "sha256": "b34d374c5f9fa3387363240ce0edefeed1ff5c98c89cc60786816e39a2cfb2ad",
+      "lineCount": 142,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/change-codec.ts",
+      "sha256": "11c71d6e6cbc2ba80a5778db62d7f888201a063013bcc0cc244f7b4f92c39f5f",
+      "lineCount": 487,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/change.ts",
+      "sha256": "8b008d95e4d0e9a455dbd693180bf20ed5739af6597321d65ca1e780695383ec",
+      "lineCount": 797,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/migration-runner.ts",
+      "sha256": "bcfd20eb9f084af4aa7220deb637089df518261c5c3b1a7c827d4bc3887a4ceb",
+      "lineCount": 119,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/migration.ts",
+      "sha256": "fc8b25a0674b60897a0d57c17b8381d6046aa401ef1fe3cd13bc359713f1c7b7",
+      "lineCount": 445,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/migrations/index.ts",
+      "sha256": "3a9c8c1a25bdead9bbc312735eb3a92551b590a43a68631db06ebc9c2184b018",
+      "lineCount": 71,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/sha256.ts",
+      "sha256": "aa75752367f952144a7843ef9c4b36381ffeb65319299d6d4cdbfaff593dc646",
+      "lineCount": 231,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/sql-literal.ts",
+      "sha256": "2d77dd5a244222b4fff63917d468656f2955b62f33e47bad6958450f63612ab6",
+      "lineCount": 121,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/sync.ts",
+      "sha256": "f400135492658f27ebc2c1e141cc4d4d08ad9005995bb98bf94b9efb888863b0",
+      "lineCount": 231,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/system-entities.ts",
+      "sha256": "9bde9fdda65f74cd5dae8a903bba6f6889623d9e7446e7cabd8e7cf1fe5f821f",
+      "lineCount": 145,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/system-repositories.ts",
+      "sha256": "f5346460e2222f80e172f5a85da45b27a6d7f280ed925dce9e1fe24163058453",
+      "lineCount": 139,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/system.interface.ts",
+      "sha256": "157cc3c768d3a55ef9763a31418a7685d0ba09857ac94b6887820357abaa12a5",
+      "lineCount": 27,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/types.local.ts",
+      "sha256": "78a9064f6bf89b7e2b81528eceff6bab887dc19c78de28d003471e6c93ac498e",
+      "lineCount": 109,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/types.remote.ts",
+      "sha256": "1f65ddf7771d5cc250d832d000724b26fe03b325fca738a7a40b3d327bdc9307",
+      "lineCount": 107,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/system/types.ts",
+      "sha256": "8962044839e52827c88cc96a7421dd2c62a477be37ea2771913a37ee789e826f",
+      "lineCount": 779,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/testing.ts",
+      "sha256": "a3990544b35099aa8b73b0520d7a7370387fa8dd12305d11379884f3b5444211",
+      "lineCount": 37,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/testing/clone-entity-classes.ts",
+      "sha256": "9591626ce0b62269cd1b91c5da561ccd93231c21317750cfc4bfc7c92349b55d",
+      "lineCount": 123,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/testing/query-task-harness.ts",
+      "sha256": "ce8c159138b2695c29e051f4443fa77c6ab84b9931e4e3c3e73ac5a25c100114",
+      "lineCount": 209,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/transaction/transaction-executor.interface.ts",
+      "sha256": "624a18b4496753ac35c0e67a38d1e4beb6bd458ed540060a11452fb477252dd5",
+      "lineCount": 165,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/trusted-write/index.ts",
+      "sha256": "9365379c2af6fe7c2cf297f9c69242b3c5c80f8a3fb3d009210ced8bb8617a02",
+      "lineCount": 20,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/trusted-write/trusted-write-intent.ts",
+      "sha256": "141cfc07c68b1d3713fd1a08d5beb63ba6290f8ea5b1732fa7b9b41f1ea223bb",
+      "lineCount": 259,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/trusted-write/trusted-write-scope.ts",
+      "sha256": "113f02a9e6b1f7df895ff471fdbbfe29ba93ae27a3ab514e25d53107e0173a26",
+      "lineCount": 119,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/trusted-write/write-entrance.ts",
+      "sha256": "7a64917617e7c294924db3c6bd24e3db58b2a4f0cc2dee12984c52d8ca6fc205",
+      "lineCount": 43,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/src/version.ts",
+      "sha256": "360a152c90ccc705bd2954d2ac54cc45df73cc4e3375cab86c9b86c764bb25d3",
+      "lineCount": 31,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/tsconfig.lib.json",
+      "sha256": "0bc3b92fd0f74416bacc180942ea8a6bf1acacd3d1166c67eebc1ae6a134f024",
+      "lineCount": 32,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/tsconfig.spec.json",
+      "sha256": "834cc3d741d863990601d48d7f677a052b626a38d386e218d60ad07f8e691876",
+      "lineCount": 31,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb/vite.config.mts",
+      "sha256": "c4abae3d8f1d44c1ae595ac6ba4066bb50fb747e72466580be27521d01965e0d",
+      "lineCount": 128,
+      "isText": true
+    }
+  ],
+  "controlledFileCount": 292,
+  "lineCount": 76673,
+  "allFilesRequired": true,
+  "hashIsNotReadingProof": true,
+  "scopeIncludesTestsConfigDocs": true
+}

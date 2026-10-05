@@ -1,0 +1,321 @@
+{
+  "root": "packages/rxdb-adapter-miniprogram",
+  "targets": {
+    "typecheck": {
+      "cache": true,
+      "inputs": [
+        "production",
+        "^production",
+        {
+          "externalDependencies": [
+            "typescript"
+          ]
+        }
+      ],
+      "metadata": {
+        "technologies": [
+          "typescript",
+          "typescript"
+        ],
+        "description": "Runs type-checking for the project.",
+        "help": {
+          "command": "pnpm exec tsc --build --help",
+          "example": {
+            "args": [
+              "--force"
+            ]
+          }
+        }
+      },
+      "dependsOn": [
+        "build",
+        "^typecheck"
+      ],
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-adapter-miniprogram",
+        "command": "tsc --build --emitDeclarationOnly"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "build": {
+      "cache": true,
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "production",
+        "^production"
+      ],
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "metadata": {
+        "technologies": [
+          "typescript",
+          "vite"
+        ],
+        "description": "Run Vite build",
+        "help": {
+          "command": "pnpm exec vite build --help",
+          "example": {
+            "options": {
+              "sourcemap": true,
+              "manifest": "manifest.json"
+            }
+          }
+        }
+      },
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-adapter-miniprogram",
+        "command": "vite build"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "build-deps": {
+      "dependsOn": [
+        "^build"
+      ],
+      "configurations": {},
+      "options": {},
+      "parallelism": true,
+      "executor": "nx:noop"
+    },
+    "watch-deps": {
+      "continuous": true,
+      "dependsOn": [
+        "build-deps"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec nx watch --projects rxdb-adapter-miniprogram --includeDependencies -- pnpm exec nx build-deps rxdb-adapter-miniprogram"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "serve": {
+      "continuous": true,
+      "metadata": {
+        "technologies": [
+          "vite"
+        ],
+        "description": "Starts Vite dev server",
+        "help": {
+          "command": "pnpm exec vite --help",
+          "example": {
+            "options": {
+              "port": 3000
+            }
+          }
+        },
+        "deprecated": "Use devTargetName instead. This option will be removed in Nx 22."
+      },
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-adapter-miniprogram",
+        "command": "vite"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "dev": {
+      "continuous": true,
+      "metadata": {
+        "technologies": [
+          "vite"
+        ],
+        "description": "Starts Vite dev server",
+        "help": {
+          "command": "pnpm exec vite --help",
+          "example": {
+            "options": {
+              "port": 3000
+            }
+          }
+        }
+      },
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-adapter-miniprogram",
+        "command": "vite"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "preview": {
+      "continuous": true,
+      "dependsOn": [
+        "build"
+      ],
+      "metadata": {
+        "technologies": [
+          "vite"
+        ],
+        "description": "Locally preview Vite production build",
+        "help": {
+          "command": "pnpm exec vite preview --help",
+          "example": {
+            "options": {
+              "port": 3000
+            }
+          }
+        }
+      },
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-adapter-miniprogram",
+        "command": "vite preview"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "options": {
+        "buildTarget": "build",
+        "spa": true
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "lint": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production"
+      ],
+      "outputs": [
+        "{options.outputFile}"
+      ],
+      "metadata": {
+        "technologies": [
+          "eslint"
+        ],
+        "description": "Runs ESLint on project",
+        "help": {
+          "command": "pnpm exec eslint --help",
+          "example": {
+            "options": {
+              "max-warnings": 0
+            }
+          }
+        }
+      },
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-adapter-miniprogram",
+        "command": "eslint ."
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "test": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/requirements/stories/adapter/miniprogram-platform-feasibility.md"
+      ],
+      "outputs": [
+        "{workspaceRoot}/coverage/packages/rxdb-adapter-miniprogram"
+      ],
+      "metadata": {
+        "technologies": [
+          "vitest"
+        ],
+        "description": "Run Vitest tests",
+        "help": {
+          "command": "pnpm exec vitest --help",
+          "example": {
+            "options": {
+              "bail": 1,
+              "coverage": true
+            }
+          }
+        }
+      },
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "^build"
+      ],
+      "// inputs": "unsupported-platform.spec.ts 用 `?raw` 当场解析可行性矩阵，核对平台登记表与拒绝表。那个文件不在 {projectRoot} 里，默认 inputs 看不见它。",
+      "options": {
+        "cwd": "packages/rxdb-adapter-miniprogram",
+        "command": "vitest"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "nx-release-publish": {
+      "executor": "@nx/js:release-publish",
+      "dependsOn": [
+        "^nx-release-publish"
+      ],
+      "options": {},
+      "configurations": {},
+      "parallelism": true
+    }
+  },
+  "projectType": "library",
+  "metadata": {
+    "targetGroups": {},
+    "description": "Experimental WeChat, Douyin and Alipay Mini Program adapter for local SQLite storage.",
+    "js": {
+      "packageName": "@aiao/rxdb-adapter-miniprogram",
+      "packageVersion": "0.0.26",
+      "packageExports": {
+        "./package.json": "./package.json",
+        "./alipay-random-worker.js": "./src/workers/alipay-random-worker.js",
+        "./runtime": {
+          "@aiao/source": "./src/runtime.ts",
+          "types": "./dist/runtime.d.ts",
+          "import": "./dist/runtime.js",
+          "default": "./dist/runtime.js"
+        },
+        ".": {
+          "@aiao/source": "./src/index.ts",
+          "types": "./dist/index.d.ts",
+          "import": "./dist/index.js",
+          "default": "./dist/index.js"
+        }
+      },
+      "packageMain": "./dist/index.js",
+      "isInPackageManagerWorkspaces": true
+    }
+  },
+  "name": "rxdb-adapter-miniprogram",
+  "tags": [
+    "npm:public",
+    "npm:aiao",
+    "npm:rxdb",
+    "npm:wechat",
+    "npm:douyin",
+    "npm:alipay",
+    "npm:mini-program",
+    "npm:sqlite",
+    "npm:wasm",
+    "js-lib"
+  ],
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/rxdb-adapter-miniprogram/src",
+  "implicitDependencies": []
+}

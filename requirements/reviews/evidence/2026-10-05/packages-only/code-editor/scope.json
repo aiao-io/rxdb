@@ -1,0 +1,138 @@
+{
+  "object": "code-editor",
+  "headAtScope": "943c50cc85b4be3b0635f736a35a9659c3fe209a",
+  "clientDate": "2026-10-05",
+  "files": [
+    {
+      "path": "packages/code-editor/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/README.md",
+      "sha256": "18f42e1201ff98566527d85f01a416073dc86f1504ef08bbd834fd678e112d94",
+      "lineCount": 72,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/eslint.config.mjs",
+      "sha256": "8076559dc3bc94d44eb1aafe0317314d0beee5ca0cb014f7e3848cf3a3e91520",
+      "lineCount": 22,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/package.json",
+      "sha256": "931ed586f55e71b4be1ceaeb9d472f211b4a21e9e439592d14fdb3be7083b799",
+      "lineCount": 60,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/project.json",
+      "sha256": "9a78598b29c6a14fa774b6bc28920ecfa6f36d1b8bd3c83834d127b837813749",
+      "lineCount": 10,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/accessibility.spec.ts",
+      "sha256": "c6286f2871e4cf0f3d6c3e8b549a649301da888232b28487b32d871bc46fbdbe",
+      "lineCount": 53,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/document-sync.spec.ts",
+      "sha256": "965ec48df13dc37df4251fbf2b1d496ba505008c0e6dd9bc8f9a01ad80a2d325",
+      "lineCount": 62,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/index.spec.ts",
+      "sha256": "0b2e7617c760799593c4676457e4f10c28b95427c6084326c6adf779cc50ed2b",
+      "lineCount": 330,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/language-error.spec.ts",
+      "sha256": "dc2360c0ccc5f1768b5fce5cf29dc84e72d17a64ae132c5df13f59964bb2dec7",
+      "lineCount": 42,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/language-resolution.spec.ts",
+      "sha256": "4b018b374e890fb6087a9c08076a62becd531fc809431305fc8e4c90d4039386",
+      "lineCount": 85,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/review-document-change-properties.spec.ts",
+      "sha256": "5e6d632053331fbe85855e35cc943a2379b62040d30b129c5864a57aeed9bf6f",
+      "lineCount": 44,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/src/accessibility.ts",
+      "sha256": "b5baea5111a527837a527641e68d86a7d54db26710c07d69623110a213671537",
+      "lineCount": 85,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/src/document-sync.ts",
+      "sha256": "f65d69873b8b8918bd7753f6469f7d3fa820d229156b22d15142adac30970879",
+      "lineCount": 69,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/src/index.ts",
+      "sha256": "599c40d8647442d55a6f7735e07e27dca3413d754875cecb75f331c3d5c975ea",
+      "lineCount": 20,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/src/language-error.ts",
+      "sha256": "823bfa1016e56088d59c4c21ca482e307ed5c379b8fdb33074568faa754ea114",
+      "lineCount": 70,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/src/language-resolution.ts",
+      "sha256": "df7ae741adbdcbae8955ea5df7f19599e6744788b5a24b1e7d6d34362f8b84bb",
+      "lineCount": 109,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/src/languages.ts",
+      "sha256": "6add6ff1a70b04db71bb10028a82dfd16d66ac8fdf56d839fc789b9621474a99",
+      "lineCount": 232,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/tsconfig.lib.json",
+      "sha256": "9c8d4f409a8b273b59ceb8a2e43686cb4a9527feabda1db6f5cacf3ff93aba8d",
+      "lineCount": 26,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/tsconfig.spec.json",
+      "sha256": "547550007c92b83502269468e38b5b6c9101a61af1823d67af4e44f2ea81be71",
+      "lineCount": 28,
+      "isText": true
+    },
+    {
+      "path": "packages/code-editor/vite.config.mts",
+      "sha256": "50346926e4c83716b12d736eb2b90f7b10998ef3619a948a56e2206133c56964",
+      "lineCount": 105,
+      "isText": true
+    }
+  ],
+  "controlledFileCount": 21,
+  "lineCount": 1561,
+  "allFilesRequired": true,
+  "hashIsNotReadingProof": true,
+  "scopeIncludesTestsConfigDocs": true
+}

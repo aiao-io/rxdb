@@ -1,0 +1,1488 @@
+{
+  "object": "rxdb-adapter-pglite",
+  "headAtScope": "943c50cc85b4be3b0635f736a35a9659c3fe209a",
+  "clientDate": "2026-10-05",
+  "files": [
+    {
+      "path": "packages/rxdb-adapter-pglite/.gitignore",
+      "sha256": "03aa0aa73ee6331cf17331e7ff16263da7285c7fee793154a64fd264b0aef086",
+      "lineCount": 1,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/README.md",
+      "sha256": "9120111a65cb216923b430c678e4da4d264292b029e5dd606cfc68b8f44d7892",
+      "lineCount": 125,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/eslint.config.mjs",
+      "sha256": "bb1ddf067ce062d486bcbd6a7590727376bf9900bcfe433040b6f3f9dc5498ce",
+      "lineCount": 23,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/package.json",
+      "sha256": "94eb1d1828c3625b1707680cf1570406ffb5b6b63446ca026a5d90c4120320cc",
+      "lineCount": 94,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/project.json",
+      "sha256": "b9c2845874b7bc2902555bda74df27c0d417e79e3d76cde13f184e167a372881",
+      "lineCount": 23,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/PGliteClient.ts",
+      "sha256": "2c00dd0f24da3a55ca8a696d8ea4adf17e12e85f739e26a9a2afda18ac9629f5",
+      "lineCount": 688,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts",
+      "sha256": "402182ba86c691b84e99162faf1572de4b76704a863497b630ef9eec44027887",
+      "lineCount": 941,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/PGliteClient.notify-backpressure.spec.ts",
+      "sha256": "dbe6b4e2df1acb86c865ec91ae5b9eb4931bb8090092591531eadd11fdad8cb0",
+      "lineCount": 84,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/PGliteClient.spec.ts",
+      "sha256": "a79a637314701c8abf5a4dceb33558210938f509029837acd9bbf7fb0609fed5",
+      "lineCount": 187,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/PGliteClient.worker-residual.spec.ts",
+      "sha256": "e14bbc428148f838e47632bdf14bf04cebcfc90a89cd49415afecfddea342cbd",
+      "lineCount": 301,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.change-queue.spec.ts",
+      "sha256": "a1c3a501f79ea2d1456a2e2ea66fa41622226509e40a789af2184c7726354c23",
+      "lineCount": 183,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.client-factory.unit.spec.ts",
+      "sha256": "ed3f6b16467fb957bc9a17d69bd633237394e137a15f6eee4b2556401bd52890",
+      "lineCount": 167,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.liveQuery.spec.ts",
+      "sha256": "9d1e54a6c7969017f92d0a6050fa1f166cf12f92fb76a798c9854b91a59a3af7",
+      "lineCount": 61,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.mock-residual.spec.ts",
+      "sha256": "ffd661d002db5f183dba906b4dedf15ba43bbf9356f6bef666068f84de4d793b",
+      "lineCount": 209,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.querycache.spec.ts",
+      "sha256": "5d7ef744fec2bbad5626a965523098ba9a843c220ff7f7f79c0b5d76919e5e4d",
+      "lineCount": 193,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.rawQuery.spec.ts",
+      "sha256": "4e060a80829f4c7404bd2cba9ba5e73ed16e03ab64b1245329524fd74937c49e",
+      "lineCount": 68,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.residual.unit.spec.ts",
+      "sha256": "13481eb33a7229067fedc13de6c2ab22ca44b217a763536b5baef54e396b8051",
+      "lineCount": 205,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.sequence-residual.spec.ts",
+      "sha256": "d05b37a0418fbe9749bdbfcde102b9432bcd31c963d24a9b6c28fb759a8eb927",
+      "lineCount": 103,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.sequence.spec.ts",
+      "sha256": "ae05a23d8a57e4c35244b6217bbfbc0c47071244b2d3695b31e6d6ba2bcbb91d",
+      "lineCount": 103,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/RxDBAdapterPGlite.spec.ts",
+      "sha256": "dba0400b38a3129abe51d81d1a954bf2fdac41edd77875d3c59166c573638446",
+      "lineCount": 130,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/backup-concurrency.spec.ts",
+      "sha256": "87e235c84d37b4e9a600d3f7ffc2e3696f8469de9be735ceb0248c6d14e0f8ab",
+      "lineCount": 286,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/backup-encryption.spec.ts",
+      "sha256": "63f87aa14327eada90effb3358dbf856316303ef2b156937178bc0513b020ad3",
+      "lineCount": 149,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/backup-failure.spec.ts",
+      "sha256": "461fadad8410e1dfd2717a5e2d004dac28e3dcbcaefd5e27a57f928662518436",
+      "lineCount": 393,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/backup-interrupt.spec.ts",
+      "sha256": "b3a3127eca9d9cc164197dd949e8cae5f96572395fc7c92f1fd7398ae2afa452",
+      "lineCount": 168,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/backup-interrupt.worker.ts",
+      "sha256": "1abe950d534f578e5d144bba5f201660a91dcae472574fb0e298039dafab5764",
+      "lineCount": 61,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/backup-memory.spec.ts",
+      "sha256": "364ae7274641819d86250e0ce84efd20b86e4f8e7e83fc116a12b1cff1ac9ff0",
+      "lineCount": 150,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/backup-roundtrip.spec.ts",
+      "sha256": "fd05a85108730fd95ca95c621faa0f6d4b1a86847ffb26f059c849f9b006ba2f",
+      "lineCount": 192,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/backup-test-fixture.ts",
+      "sha256": "21fd003ce2170253fb66d0a4182eeb9a609299e63979b8d9c0cd9d85c346e5d0",
+      "lineCount": 417,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/backup/pglite-exclusive.spec.ts",
+      "sha256": "5fe8ea83609defe7a6b7abcaf96b678dc3dcb8dd7dd88a48064b89aa230b5005",
+      "lineCount": 45,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/bigint-binary.spec.ts",
+      "sha256": "a3dced7bf12868fe56563c58ebaa09f74ec7e0fcaf09cf1c8b96813b70aa8429",
+      "lineCount": 706,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/change-pipeline.spec.ts",
+      "sha256": "1d86429adfb1a10b20666d7e2557af900e0f4c45d620ead10cfff4249dbcfd52",
+      "lineCount": 132,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/encrypted-bigint-binary.spec.ts",
+      "sha256": "5d7698e5b36b894bffbfd5170be9b40d184f9915bd99382ff6e1877052f77b8e",
+      "lineCount": 8,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/encrypted-change-log.spec.ts",
+      "sha256": "6be7bb2d85899509d715da5d401487b4564426cbe889ed946ee9b5cdc3821b26",
+      "lineCount": 9,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/encrypted-crud.spec.ts",
+      "sha256": "09a7075a72cc8cbd8bc2171639afadac7dabaaf7da378130e377b86fa4078c35",
+      "lineCount": 11,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/encrypted-lifecycle.spec.ts",
+      "sha256": "7de93f6ffc257793e443ca320cd037444a0568058bab619ba05aa4e76324d8bd",
+      "lineCount": 9,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/encrypted-schema-validation.spec.ts",
+      "sha256": "51be75151b7f460a92a40638379f08ba458af12af00fc24eefc27f0e19dcd562",
+      "lineCount": 30,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/encrypted-tamper.spec.ts",
+      "sha256": "622b26dc95f71abff8f9578dfd8578c04c114da612133b10a4601774466b6690",
+      "lineCount": 9,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/encrypted-test-fixture.ts",
+      "sha256": "0c1bb4c825fc10c49cb2abb4c32627fd5ffd47db9a705c7d9b7f4bc5a2a49028",
+      "lineCount": 80,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/entity-permissions.spec.ts",
+      "sha256": "a3917e6c896809d0629f19137dd78c618de068f2d80d74722f274e47130a95a0",
+      "lineCount": 273,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/entity/delete_sql.spec.ts",
+      "sha256": "bc71e91816adf4adf61db694aef7bd71f7f75a2be39ce60c11717b9051daa7a1",
+      "lineCount": 141,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/entity/insert_sql.spec.ts",
+      "sha256": "b774978790b3a559ac4d17861797011390517ebe216b06e31b2f5d9ebf8bfacf",
+      "lineCount": 216,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/entity/inserts_sql.residual.spec.ts",
+      "sha256": "cea87e152d3aca0e779ef745906b197b33a943151685a77522c6058fd413dff9",
+      "lineCount": 124,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/entity/update_sql.spec.ts",
+      "sha256": "e141723e1238ca5f7d747b04d1e7fcd947a0d1497b5a3a0851ced9814335b139",
+      "lineCount": 99,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/find_by_row_ids_sql.spec.ts",
+      "sha256": "47f4b03800efb9e84977967dc79c5cdfc6690e0114c6e884cb4f022c124e2d75",
+      "lineCount": 77,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/fts/build-fts-triggers.spec.ts",
+      "sha256": "21cdf6ea81e14302c4be6d4d46a010f390d81f6eebc520cb1df77c55f16a18b9",
+      "lineCount": 126,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/fts/create-fts-table.spec.ts",
+      "sha256": "921ae6a20b71a127d6571a7da18bba14870993c8aa5d1de2d36a84d53abfa020",
+      "lineCount": 52,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/fts/fts-integration.spec.ts",
+      "sha256": "11517efac0f2ccac120a0bf75f6cfd0515f231d33296aa410926f90590c7f429",
+      "lineCount": 115,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/fts/fts-real-schema.spec.ts",
+      "sha256": "b625b94be433a0e8167d3613a64891016c33759c362fd1d6202f9c3c5359aa2a",
+      "lineCount": 89,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/generate_query_sql.spec.ts",
+      "sha256": "22d70ea7c1883d91f2e885d3a900a370914ec5aa21ece3bb4d930c03375c4eda",
+      "lineCount": 313,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/generate_trigger_sql.spec.ts",
+      "sha256": "99094c46e0da085bda223f1970902d2cfcf7ddad592b4d86aedf2352e2643809",
+      "lineCount": 300,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/handle_rxdb_change.spec.ts",
+      "sha256": "520741fb4d976f958b8838f6cc545c3f59b6eec0970b9414edc273ebd7787d1c",
+      "lineCount": 868,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/keyring/pglite-keyring-storage.residual.spec.ts",
+      "sha256": "0b327717d887b0274173fe62ffec72cc56fb148ee7e84602bd149e1e99b89e4b",
+      "lineCount": 74,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/manual-order-contract.spec.ts",
+      "sha256": "353cca235c8cf0548231915a328dddba2838fc3ed670a7ac6ca5b5743e71f066",
+      "lineCount": 34,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/pglite.utils.chunk.spec.ts",
+      "sha256": "ad4211f555db467cd65891296476e075f245b6dd69aff37491fb5792e49931fe",
+      "lineCount": 33,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/pglite.utils.monotonic.spec.ts",
+      "sha256": "1a0d92772ef81688d46517f72aa575044b1ae71497843aec5b38e7dcba61aec6",
+      "lineCount": 75,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/pglite.utils.residual.spec.ts",
+      "sha256": "f06eed3d10ebbad8201721f004ec118bf73de9966c6ce31060076d5a82593654",
+      "lineCount": 126,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/pglite.utils.spec.ts",
+      "sha256": "5b735634135bc8bc3674ad2aee49f86a3c9c2d0692df1b027c97869d2193e6c6",
+      "lineCount": 587,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/pglite.utils.sql-value-type.spec.ts",
+      "sha256": "6c2d326dcfec2f8f1ce38cb80c9bb4bc9cbd37ee41e2bdc860c270a90c3705f1",
+      "lineCount": 54,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query-cache/query-cache-metadata.spec.ts",
+      "sha256": "aa03f88e779bb6d53316e1ba3e9f304d2c912e63e59cfc30b104b8c35dc98241",
+      "lineCount": 339,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query-cache/query-cache-row-contract.spec.ts",
+      "sha256": "04ce5131aa465140bd67d2040bf3fb40b235f7f963e1c235148b6e56912c2ef8",
+      "lineCount": 241,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query-cache/upsert-many-sql.spec.ts",
+      "sha256": "433997d86cf3dc633f9e645c0e14624ca2becd31ac9ad2b1099616a419fc0561",
+      "lineCount": 236,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query-queue.spec.ts",
+      "sha256": "b8b1967d4d14862565ac7e0af3c75693bf65e5c271bddfce43c6eaf9d7e3d008",
+      "lineCount": 33,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/encrypted-query-wiring.spec.ts",
+      "sha256": "7242db2d062addd2435e77773cb30787ad7b629dc16c6508663e038b51e1f3c4",
+      "lineCount": 45,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/join_sql.residual.spec.ts",
+      "sha256": "1637d2826d985e13507946ef7b1f12855dad1419c3aee923da8a607112f3e502",
+      "lineCount": 94,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/join_sql.spec.ts",
+      "sha256": "f793f293e95426a39d5357afdcf17e3e40dbf8026c08dcddc2eb18f04c0e338e",
+      "lineCount": 252,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/json-numeric-compare.spec.ts",
+      "sha256": "36840fb9762f157423954e500573ea6451d72fdd9f8ff95a4970e003579983db",
+      "lineCount": 86,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/manual-order-collate.spec.ts",
+      "sha256": "0c91ad5778b9af7948a656e197f80df0952bc2d5243ac8093a2bea103a097080",
+      "lineCount": 246,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/query-error-code.spec.ts",
+      "sha256": "2e292f4deefa3701cb8915d894ad7809a6f8caab2e5a4c5aee5a343c10d0611c",
+      "lineCount": 164,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/query-safety.spec.ts",
+      "sha256": "261af2a4af8df44445b1a5c0048d3af4102ba42d83555da545567f60efb9e48d",
+      "lineCount": 250,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/query_sql.residual.spec.ts",
+      "sha256": "39e8e418ec451b7a8befb8e5fb8da901bce06ca6e377bbcc1ab7e77ab0c1f29c",
+      "lineCount": 244,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/query_sql.utils.spec.ts",
+      "sha256": "ac5ffffc3bc5f168ad8b74785d95c1abf39011e303d6738d67e4bf618c0617cd",
+      "lineCount": 334,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/query_tree_sql.residual.spec.ts",
+      "sha256": "60a8a21ae468340b2772e583fc778af9f91886cd64acafaf2de7a2b96ad367ea",
+      "lineCount": 73,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/query/query_tree_sql.unit.spec.ts",
+      "sha256": "7fcda99a1c4c1d87eea35c21fe03ac287a2171a89f7b7f72ce752f933a36e188",
+      "lineCount": 147,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/repository/PGliteRepository.spec.ts",
+      "sha256": "6fe01efa41c88e93b435639f0b76cacc8885192baf86193578072f3d7e0bc634",
+      "lineCount": 114,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/repository/PGliteRepositoryBase.unit.spec.ts",
+      "sha256": "bb2faacf8de6dd71b8bfcd9471ff51b2777d74bb5ee38b59563d3c6548cfbb4a",
+      "lineCount": 179,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/repository/PGliteTreeRepository.unit.spec.ts",
+      "sha256": "29cef6eca7853a0a922ff9ea77eb20ae036165fec507f1b2ce900699784b8f7b",
+      "lineCount": 63,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/review-aborted-initial-unlock.spec.ts",
+      "sha256": "4461e3b01a521da200768189a7d454a9497798d1446f130d895081eefb1ee67c",
+      "lineCount": 116,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/review-array-membership.spec.ts",
+      "sha256": "d5b473097b9b3eaca43273a1438502095043fff9bce54ca2d0c0494697352cc4",
+      "lineCount": 27,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/review-query-audit.spec.ts",
+      "sha256": "6ee075dd700d4f7ce3b9839dca5aba1c7d2070e0646e8f5033f011090f84b26b",
+      "lineCount": 58,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/review-tree-filter-incremental.spec.ts",
+      "sha256": "ffd9c3bbcaf6a453673e0ed9069ba9bb200a116d20f81539471d298dd1fc8c45",
+      "lineCount": 61,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/rxdb_adapter_create_branch.spec.ts",
+      "sha256": "8609f6ea117463f9c31e3e13fdf8e74a553994f4893719d12f4a0e540006d7ad",
+      "lineCount": 131,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/rxdb_adapter_mutations.spec.ts",
+      "sha256": "b3efb31869b881eed07e598add34e5501f4ef3df1b3e256966da233bc7812e9b",
+      "lineCount": 238,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/rxdb_adapter_mutations.unit.spec.ts",
+      "sha256": "5489a3f55af4210cdb2c231cff0bd92b87b77d2e566d20c7cea2c88e0519a034",
+      "lineCount": 128,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/rxdb_adapter_switch_transaction_id.spec.ts",
+      "sha256": "f78f6c99511a7f97337e34c91f9a237f2f3cfdb4a94b0ec4333adfade47e5a5d",
+      "lineCount": 70,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/sku-attribute-unique.spec.ts",
+      "sha256": "34ba0d4603b052daaa0728cd37e04f9052314c65a77c2871fe3c6f982b2aac91",
+      "lineCount": 154,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/sql_dialect.executable.spec.ts",
+      "sha256": "7550ba54c2d2ad99e33464fc21fccc500e2c66d234f5371f238e7684c2ea42dd",
+      "lineCount": 71,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/sql_dialect.spec.ts",
+      "sha256": "cbc1767cd4e3d8adf70b05b72d93ed121edd27884569df86b77246cc6b71b912",
+      "lineCount": 121,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/system-schema-migration.spec.ts",
+      "sha256": "f70d04079622940223965c9637aa0d406e3c54494434f41a0ec929587a1c815a",
+      "lineCount": 559,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/create-tables-current-branch.spec.ts",
+      "sha256": "c4119e08360749f14dd6748781019e8f73af23d37a7854eff60e6774240d9ba3",
+      "lineCount": 139,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/create_table_defaults_indexes.executable.spec.ts",
+      "sha256": "75a7a6120bf44da06ed6730284c9ee0e32a1b9cfa4b27fe6c9f72f4780aa05b9",
+      "lineCount": 143,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/create_table_index.spec.ts",
+      "sha256": "794f3711bcffc5faa0d8984ceaa8c846793591a99c17ce20bc45af97b72d7403",
+      "lineCount": 51,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/create_table_index_composite.spec.ts",
+      "sha256": "90176e98694d545e83d00bcc749d388d90a8747ef017631345fe33d0b3759b8a",
+      "lineCount": 52,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/create_table_index_multi.spec.ts",
+      "sha256": "f1dab1feaa345c582bd99b1f31adc9b48a14b0283d45761f96b7dfb522ae1b53",
+      "lineCount": 60,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/create_table_index_unique.spec.ts",
+      "sha256": "91e24765dc86f2f29085bf268c699956dab6e1a5a69eeaadf622f657e6655bc2",
+      "lineCount": 109,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/create_table_sql.unit.spec.ts",
+      "sha256": "0b28fbad85969540df7979e9e2025822d9ae16ebc4b43aae4f7ebba96051ba9d",
+      "lineCount": 207,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/create_tables_sql.executable.spec.ts",
+      "sha256": "5666ee681d17fe7510df1fa71f50380497baaefa81967fbd9f7d321f013fa26a",
+      "lineCount": 68,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/create_tables_sql.spec.ts",
+      "sha256": "b627cb5617dbb57e3d3707e2e67c129812ae57c24f90fc241b0d2c4013c80728",
+      "lineCount": 214,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/notify_function_sql.spec.ts",
+      "sha256": "ba8ea74bef841ffd441600395adb2828d5467af39c5c2da2d721f5f15664f5c6",
+      "lineCount": 43,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/table/remove_trigger_sql.spec.ts",
+      "sha256": "65985c839f0a2f75cb9d98d389cf2c43dee4ed26bce9ccd88e1aad92293841f3",
+      "lineCount": 148,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-cascade-delete-pglite.spec.ts",
+      "sha256": "41f2951d15907777c3fd2616b573aa7c40808691b14f4671f5b850805f1cb333",
+      "lineCount": 326,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-column-name.spec.ts",
+      "sha256": "933cd5315f1776f98bfb8d0ff91fe1efbb2fc662e3bafe92b263795d67bef3b9",
+      "lineCount": 361,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-cursor-incremental.spec.ts",
+      "sha256": "3917b622a24cda015d7340e96e7b204d5334964fc6e0236759860832fd01c252",
+      "lineCount": 718,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-cursor-null.spec.ts",
+      "sha256": "89b435e03b74622c3e84b8e92610a1004e84aadca524109d6f9c0b68aadc3a09",
+      "lineCount": 69,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-entity-id-change.spec.ts",
+      "sha256": "f2f13b366506a5b031d849f83c1a91ff446b1248af542051b6d71a9f48e97b62",
+      "lineCount": 77,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-many-to-many.spec.ts",
+      "sha256": "fc15c1a9a4e81c29a6f69d5756d3dd175db64121d3cc37a22f78afe4dbe5a1df",
+      "lineCount": 340,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-menu-adapter.spec.ts",
+      "sha256": "0b00bcadf059bf6cf99b32af515936c6e656f4326c4777eb4a16655c6fa33efe",
+      "lineCount": 548,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-menu-cascade-delete.spec.ts",
+      "sha256": "b563f1c61f5afa9e7a82e4acd69aa47d29f570599689c5d600006c7ee3c5e80b",
+      "lineCount": 411,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-menu.spec.ts",
+      "sha256": "b2d7f25654eab3f5e1b8af744ba49b03c4f7d2dbfb8b0de26d0c47c37230fd36",
+      "lineCount": 235,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-multiple-relations.spec.ts",
+      "sha256": "a7d124d64720ee608a542e62669dcac673a63a46acaccfb65f018b8d3ce3a0ad",
+      "lineCount": 112,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-mutations-batch-update.spec.ts",
+      "sha256": "7cada5504df87974ddb14ffabc95bb98abea7b464c13ba49faa41392024feaf2",
+      "lineCount": 171,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-relation-cache.spec.ts",
+      "sha256": "ed3c57a9baddc71bd4c16263d05252a3d437d2694d4b4447bdfe570ade63835a",
+      "lineCount": 227,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-relation-id-null.spec.ts",
+      "sha256": "f19756e9266e140acab7b83a66942a64eec6a9fb96876d7c331df7e6745c4760",
+      "lineCount": 126,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-shop-sort.spec.ts",
+      "sha256": "e80fce1b3f2917c915127f943919d645c34b494be3ca8554cb000231e1c3a3c8",
+      "lineCount": 104,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-shop.spec.ts",
+      "sha256": "6a9d7feb76a6eb7fffe1ce04e69d2239ff66c3fc54bf2b574fb47551a7ee40ce",
+      "lineCount": 877,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-todo.spec.ts",
+      "sha256": "3032da1bcbfeee023d712c526436f145d937894017a1c4bcf7e74764b2365611",
+      "lineCount": 513,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-tree-incremental-ancestors-count.spec.ts",
+      "sha256": "0de7958862cc440fc34ea9b2a0d688885a423fb9874a43607197e9404003fbd6",
+      "lineCount": 150,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-tree-incremental-remove.spec.ts",
+      "sha256": "e9697e256890b14c07c75ac9b69c673af2a1c069ad051f12c21857857000b676",
+      "lineCount": 356,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-tree-incremental-update.spec.ts",
+      "sha256": "f3da8e53046090671a56fbcdedfbe016ed738a142e7cf3a06042804962ac182e",
+      "lineCount": 543,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-tree-incremental.spec.ts",
+      "sha256": "31ce98779623c8268dd5d2f74d056029748ea72033b4177c897217932ff0f814",
+      "lineCount": 457,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-type-demo.spec.ts",
+      "sha256": "5e733462d4b2dc22f8e374f551cba8902a4a1bc57ae87d3b475657b8cca1676f",
+      "lineCount": 492,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-types.spec.ts",
+      "sha256": "2d3271f7086258d190f745250b161dc6ea57f4159431913157102a04c2f015dc",
+      "lineCount": 573,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/test-utils.ts",
+      "sha256": "512426365d08b9ed2f8d21c431a5d119ffa9186a174233f7b41dd2abae6e7b2d",
+      "lineCount": 1,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/testing.cleanup.spec.ts",
+      "sha256": "1aff548b1583ffb49b3471f69a37cea258603a7d4dd32cff9c5e7acb42bec57a",
+      "lineCount": 104,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/testing.residual.spec.ts",
+      "sha256": "ebef9abf07735c674de563bd3081e9add168d228042fa3f95c06d775bfa03604",
+      "lineCount": 119,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/testing.spec.ts",
+      "sha256": "333bbca96a2c856a91c54bb00cbceb916495d06158e1be8e7a4f4d3cfe4ab0d5",
+      "lineCount": 34,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/transaction-contract.spec.ts",
+      "sha256": "b00d62e5eff1af36fe96be6d30aaf2e55873fcb6a328373902d8973fd9dabad2",
+      "lineCount": 68,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/transaction-executor.spec.ts",
+      "sha256": "e2dfd5164623b52f35a92c2342963a83b3d76437c4d86793c80a81e896e8c4ac",
+      "lineCount": 128,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/transaction_pglite_result.change-row.spec.ts",
+      "sha256": "5757ba37fa2f60e6ea81ab9930de8e7202565a96a9eda11a20d2471e3c22c60e",
+      "lineCount": 116,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/transaction_pglite_result.residual.spec.ts",
+      "sha256": "b229f06e9efe4952bcbf38dee27638857a011972ca13a6ba843284bc04f1d461",
+      "lineCount": 55,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/transaction_pglite_result.spec.ts",
+      "sha256": "5addc6efdf005ba05262e19b3ed7bd3841d0c5722934bd85fb43a0f183442783",
+      "lineCount": 254,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/tree-unique-contract.spec.ts",
+      "sha256": "ce5b43fe0c9187bd1a6c0fb2ad37dc8256462af238462265cae86e52ef14d664",
+      "lineCount": 51,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/create_branch.spec.ts",
+      "sha256": "48c979dc6e552027ebc43731a16a68b345964e5c8d0a5697856897835b97c74a",
+      "lineCount": 72,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/execute_switch_actions.spec.ts",
+      "sha256": "082cd11e72a5cd15789b3a34f1097a37deb1d82c2453938e4fa4d3203ac331c2",
+      "lineCount": 239,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/execute_switch_actions.unit.spec.ts",
+      "sha256": "2e2b30c58ab4a88ea20eb592616f699cfaab00cefa7875c4f1d9e3457a1ef4f9",
+      "lineCount": 390,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/execute_switch_statements.spec.ts",
+      "sha256": "96afcbc888f089d25b48d3784827cfe48011ba040fe0d2f78404d75525d2a9ad",
+      "lineCount": 44,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/merge-changes.spec.ts",
+      "sha256": "8c607b31d0861f1515b0b7547c24ad01abc2b4885ab02a790ac5fba31d88392c",
+      "lineCount": 266,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/merge_branch.spec.ts",
+      "sha256": "063588d14f075415997e2ab014f85c5a1ea439de5e71dd5aac365e4b11004db6",
+      "lineCount": 422,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/notify-debug.spec.ts",
+      "sha256": "2dd78bafcb1577948237161dc21c5ddcc0fcc5393ce4d04da704fbb0c7ca4670",
+      "lineCount": 60,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/read_current_branch_id.unit.spec.ts",
+      "sha256": "c24b27ba98f4c415b365df909fb844c7532c802f6b51f0bbf4abe4314ad5dbde",
+      "lineCount": 77,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/remove_branch.spec.ts",
+      "sha256": "14da528a4e5525a05b669659c713fdd6e25060413a9818c1e09aade2fb9724a6",
+      "lineCount": 66,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/simple-undo.spec.ts",
+      "sha256": "5e1a080a6145a69f2c7af53735506342f55a2196692e550f19fd3d65a273a595",
+      "lineCount": 55,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/switch-result.on-conflict.spec.ts",
+      "sha256": "3264edd201aff12ffa780fba33289b2c50c70433cfc82a0d3d6a6d7a1c48d069",
+      "lineCount": 129,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/switch-result.utils.residual.spec.ts",
+      "sha256": "66fd98798cb801b3f179c0ba07fb9a4e219b80b67d224895e93f72b00c94f007",
+      "lineCount": 129,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/switch-result.utils.spec.ts",
+      "sha256": "e76b1e734895a464955afa81cb52ce16ba899e3428efa040d3a7d754e6888479",
+      "lineCount": 379,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/switch-version.spec.ts",
+      "sha256": "3a82c87c1e7e56171f298e39dcb438f895364b06fba291495b38a562f3e35538",
+      "lineCount": 282,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/switch_branch.spec.ts",
+      "sha256": "4c74734bd6c2a5ed72b782608c91dc93f632d8b13a8425b76bbf4b72b9b36a26",
+      "lineCount": 208,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/switch_branch.unit.spec.ts",
+      "sha256": "6ef0b2e9ff7c70c86f89f7fb1d89c1971693eafbd70c4c858512bc1724ad70ce",
+      "lineCount": 277,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-batch.spec.ts",
+      "sha256": "55fb6c6ac46fb597522073809bab2516a23cff338cf95857e8a39e668dd2a177",
+      "lineCount": 74,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-delete-batch.spec.ts",
+      "sha256": "b1990480a1fadb0aca2942eabb897c44ae2e1008172a43f3278b21962cc3a56f",
+      "lineCount": 80,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-delete-multi.spec.ts",
+      "sha256": "fae435f74c6264b394e368147d829f8c3128055168b1e13a255a8ede03d0001d",
+      "lineCount": 75,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-delete.spec.ts",
+      "sha256": "cf22c7f043479602a3905a6178c713d3b3393e744d194cfa5a37e55c0a3b3898",
+      "lineCount": 74,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-foreign-key.spec.ts",
+      "sha256": "d79e517b3c51b4ab3aca21c30e42a54c34b98af7d8754f9bab6085245cce1628",
+      "lineCount": 90,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-invalidate-2.spec.ts",
+      "sha256": "4380c7c21071c1faa932e862025431d6298090700b6aaa799b923f61427de49a",
+      "lineCount": 93,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-invalidate-3.spec.ts",
+      "sha256": "f3076f5724f4e272d0aed5d2e7fcfc02a39e020586cc6418ce1828eb9fcbbe9a",
+      "lineCount": 75,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-invalidate-4.spec.ts",
+      "sha256": "9498990c597411a2638da21be2944c3f80de3691cce5a912cbe54d33f9449cd9",
+      "lineCount": 80,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-invalidate.spec.ts",
+      "sha256": "73df3d73871b6ba053d7eed7f1a0ea0e753e63413bde17607b7da0932079a712",
+      "lineCount": 106,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-json-types.spec.ts",
+      "sha256": "b03136d75d705f07841813bbf26934a73278839f51d1e5299fefd091abebf6ee",
+      "lineCount": 243,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-mixed-crud-batch.spec.ts",
+      "sha256": "b70ce020a8a0448e96c82280cf56eabf84830e3cba8d5a3828cd0408834a73b9",
+      "lineCount": 86,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-mixed-crud-complex.spec.ts",
+      "sha256": "1b83a6a0a9e8c4c9d9e71ad107cb49d9404be34c28b8ef677f460214ae4f96c6",
+      "lineCount": 81,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-mixed-crud.spec.ts",
+      "sha256": "a5c5c1ddf224fbc1cfce198a9e8055b644cc2d99ef5b971b5ed225116d02dd3e",
+      "lineCount": 102,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-mixed.spec.ts",
+      "sha256": "f379d28081657a80c3bbf0456023c093116397ff910ba7f75f52cdd949eac36d",
+      "lineCount": 76,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-multi-step.spec.ts",
+      "sha256": "90d57116eb084e9eec5bb61a3f56308c56c115370f3e2bb7f050ce20830f3e6f",
+      "lineCount": 78,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-observable-completed.spec.ts",
+      "sha256": "58b9cfd4ebd5a0a5f1df63b10af6efb701f98d542bf855b0c5e9bfc923c8cc70",
+      "lineCount": 93,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-observable-count.spec.ts",
+      "sha256": "d29a2bc3b236ac0e766520586b3a4e1fad9151fbff94ec4b9ff4943edfbfd503",
+      "lineCount": 79,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-observable-delete.spec.ts",
+      "sha256": "e947319d0d4696c5c82b2c7ae45e376a4f1416d2cdf053615abe4fe04f2cd2c1",
+      "lineCount": 71,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-observable-multi.spec.ts",
+      "sha256": "7ba3c153c10b6cd81b12a7f73fbbf34bf8238f8ac75efed6e839326d45310ed5",
+      "lineCount": 105,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-observable-title.spec.ts",
+      "sha256": "6327078c112966608efd0edddb08b13c133968ccfd0cdbf47843fc10a8fab8c0",
+      "lineCount": 79,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-observable.spec.ts",
+      "sha256": "59137167dc5d3c43b4da7ca041d5921351b7ddbd37995a1220ffcd0e7b009f77",
+      "lineCount": 145,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-redo-multi.spec.ts",
+      "sha256": "2fb53037b49082e30f1586f12dbb1e10b6943710415041b53bbd1c96905e302a",
+      "lineCount": 74,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-savemany.spec.ts",
+      "sha256": "a2dc5ff0bb884f50c147a0f93b8562465823a8578cebd51df787a2d43eb7ab2e",
+      "lineCount": 84,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-single-step.spec.ts",
+      "sha256": "a7913923dc753e126afb65768ad8fad5e4b11c2da778c470fbe2eba89f67ece1",
+      "lineCount": 62,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-single.spec.ts",
+      "sha256": "b49076f8c5a65672e3eb90283602ab3ed6682718423eaab5c4e43d61c109a65e",
+      "lineCount": 64,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-toggle-completed-2.spec.ts",
+      "sha256": "11458068702fec48b897ed37ea892a8e4a77068f0119cad82e6c75cca4e77bef",
+      "lineCount": 87,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-toggle-completed-3.spec.ts",
+      "sha256": "ec01edb0dab0928c3830a12abfaa2b7fb4744707cc1a60607efaf6fa91191c54",
+      "lineCount": 114,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-toggle-completed-4.spec.ts",
+      "sha256": "8aa60f6d53111e99f9e0ac3a75389d30a136d30b5b90c32c0a960d247988131a",
+      "lineCount": 96,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-update-batch.spec.ts",
+      "sha256": "a8fafbd365f85c0cc96495bba63d728d7b2fbd2c0705ec0ab7c49a0ed64a52dd",
+      "lineCount": 84,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-update-multi.spec.ts",
+      "sha256": "86846ebcf5470268f65ec1f0b8b4ea875badb44e307f234ecdc72edfea5dd8ed",
+      "lineCount": 78,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/version/undo-redo-update.spec.ts",
+      "sha256": "7b03249b3058c6f54e0b5aeda267343c8f73b9e4fa2815cb6dcc5c776af3ac72",
+      "lineCount": 73,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/working-tree-capture-conformance.spec.ts",
+      "sha256": "a860503b3bca54157117f13f236286864447f4b6ca9f5f1bf430ebfbf60f6b0e",
+      "lineCount": 79,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/working-tree-commit-conformance.spec.ts",
+      "sha256": "d97eac05c68e793ac7ae8305a2178f9aa5cef43ee12ce4e56e73859ec917413a",
+      "lineCount": 60,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/__tests__/zz-scratch-review.spec.ts",
+      "sha256": "138ea9966062c37c94e4d43182cb81e7558c95ea260c9c60a4ccc6ba74b1bb09",
+      "lineCount": 93,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/backup/pglite-backup-compat.ts",
+      "sha256": "54bd18e6c7afd79e96b5ead486caa01f5835b7251b7593dcef023347a8411f33",
+      "lineCount": 173,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/backup/pglite-backup.ts",
+      "sha256": "735d3bd2abdcc1db295e78bf0eb56c06a59d461908af94887328318e7eb112b8",
+      "lineCount": 108,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/backup/pglite-data-dir.ts",
+      "sha256": "c367060fed1ce70ec427b43f1272702bd323570d638bf187494f38a0fd95a97d",
+      "lineCount": 204,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/backup/pglite-exclusive.ts",
+      "sha256": "816eec778d1286f82a3f7f7eb2c4d428d04b0994613ff0d727a6d2eb72e231cf",
+      "lineCount": 39,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/backup/pglite-restore-fs.ts",
+      "sha256": "a38574eba1efc82d4ec1e3d50986a4f0162c3e1a5e59b9420757cfb437aed232",
+      "lineCount": 114,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/backup/pglite-restore-lock.ts",
+      "sha256": "c1530dba8c6d5d192878c7610937721db94fdb52c3cbb25fc5c90382ad855b95",
+      "lineCount": 245,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/backup/pglite-restored-database.ts",
+      "sha256": "25e970b236c8d844ae46f969830b0d771e8d5e004b4cf84813a9b4d7e9528abc",
+      "lineCount": 98,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/backup/restore-pglite-database.ts",
+      "sha256": "2375e8ab13c6afeff864d1825da7f7205a68b2d49c73accfa136585d662096a8",
+      "lineCount": 455,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/change-pipeline.ts",
+      "sha256": "07468e61b47f7c3cb937204c3fc213b658404a4c539cf149d3b4e8cdfa5cdf7b",
+      "lineCount": 128,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/change-pipeline.types.ts",
+      "sha256": "28195cd4872281ca97c6c50b99bbb2c3d91adf7f1d8f8f7bc1876669621e182a",
+      "lineCount": 33,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/entity/delete_sql.ts",
+      "sha256": "c17107fb8194e03c45011d0778cd9b547a8db3df35c52c459197f6bf18044dd3",
+      "lineCount": 17,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/entity/deletes_sql.ts",
+      "sha256": "ee81b1fea7a9aca0812a112c8e1d3edcf8c5b27bb3b8caac0b7ef93d54481274",
+      "lineCount": 24,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/entity/insert_sql.ts",
+      "sha256": "d1ef6b285b61bb90a4914ab49e47940c39483ffaa75041552972deaf9cb4fd5b",
+      "lineCount": 69,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/entity/inserts_sql.ts",
+      "sha256": "f7a1a88b585572fcb70a43e097f4ebf78d440f8c9ff0972429f90d6d4b2846eb",
+      "lineCount": 94,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/entity/update_sql.ts",
+      "sha256": "56379619cbe6a8fe3fa31c751a575dd0925d5d84b64b804108d225a0d60671de",
+      "lineCount": 89,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/fts/build-fts-triggers.ts",
+      "sha256": "742df8ab67631fe3f66b9305fa1a75f1d0946b755eac1a05da0b3c3ad7bb0eda",
+      "lineCount": 116,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/fts/create-fts-table.ts",
+      "sha256": "fe8ba54488a6c83160c2e147acac2956108722a293617861e551ec7dfdc8a728",
+      "lineCount": 39,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/fts/index.ts",
+      "sha256": "783bf4daf99c19c443d3a0f630b8cc3b4e2607cbb9b672d31a23a89bec4e2bab",
+      "lineCount": 13,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/fts/qualify.ts",
+      "sha256": "16727c34516158be9264860fa6d1c3ea8a2136c13767ba04408c37c4efeeb990",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/fts/types.ts",
+      "sha256": "ee5b3442b62ebe93025cc9b191f03560efcd50a51680785a365585059f60c4ad",
+      "lineCount": 86,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/handle_rxdb_change.ts",
+      "sha256": "3474e143e98eb88ce6aaab6a80ae671b820c19c7f091bbe57827fcf6dc711b61",
+      "lineCount": 275,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/index.ts",
+      "sha256": "e0b2678df60499fe1c2fc0a79256ad14df1b5284d773327d4494f1cc737407a2",
+      "lineCount": 55,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/keyring/pglite-keyring-storage.ts",
+      "sha256": "2b0590830ab40d92541def13e02871d4564284b96daa558e170febdee74e7598",
+      "lineCount": 76,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/notify/notification-batcher.spec.ts",
+      "sha256": "b69cbb18eea1556577668ab5707682ade47458e577e6b6911111a4a1435f49d1",
+      "lineCount": 115,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/notify/notification-batcher.ts",
+      "sha256": "531fb32b73a9d77a142396f251418ebd7b0f0f9049ed461818d6d735bdadf6ac",
+      "lineCount": 182,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/pglite.browser.worker.ts",
+      "sha256": "b7124eff46f7ea69088dd758c3ce119fe7adec860bb95ae466a7d19b683d9108",
+      "lineCount": 6,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/pglite.interface.ts",
+      "sha256": "e1c60756bf1d53b92f4d7660a107ae5fe42f6096067370405b1c120e5c7d6ca2",
+      "lineCount": 191,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/pglite.utils.ts",
+      "sha256": "f937fc9dc9c9e6831452b616ac55656079967714d3443b1cf65dc71595ebe20d",
+      "lineCount": 816,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/query-cache/query_cache_row_contract.ts",
+      "sha256": "a4c2cf0e55ca8aa9d4a37ddc4efbe838c6153dcce2faea7fa8632521f5650c43",
+      "lineCount": 408,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/query-cache/query_cache_target.ts",
+      "sha256": "95369ccdf639064d390e40b3a1928fe138adaac9650f42711f97dc5a6cdab0d0",
+      "lineCount": 132,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/query-cache/upsert_many_sql.ts",
+      "sha256": "fff6d9fc93d104c31be9ff1226b7af23ff3a693c4aa26670bc53e74daa9a2c84",
+      "lineCount": 245,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/query/find_by_row_ids_sql.ts",
+      "sha256": "8af9ae791b6b6f62d87351b12fa5076beaad2828f16c7652b00105113d5e98d5",
+      "lineCount": 35,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/query/join_sql.ts",
+      "sha256": "94143984c242c76472c51fc13606176148a851926c6c092249b6f0371041c258",
+      "lineCount": 417,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/query/json_accessor.ts",
+      "sha256": "5c9023dd01841169e785c84892e3c250fd327b0a9555b2395efd276f21955dbb",
+      "lineCount": 53,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/query/query_sql.ts",
+      "sha256": "9ce65756ab1695a01a2e65e03e5957b191f5a04c3b72fd5d717ad694ad48e28f",
+      "lineCount": 583,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/query/query_tree_sql.ts",
+      "sha256": "6f72f40bf441545624bace0ee05005969adf05b1129703963a39f37bf119ac8f",
+      "lineCount": 203,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/query/validate-encrypted-query.ts",
+      "sha256": "418319a16bd00f5bac9786142494bf82ef1e04659a42e671fd0791b28a0d347f",
+      "lineCount": 1,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/repository/PGliteRepository.ts",
+      "sha256": "2d2d9a155d11741977b4910f4969425d95acb0c08cc9a126e31d9a450ad9c85c",
+      "lineCount": 93,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/repository/PGliteRepositoryBase.ts",
+      "sha256": "2d9318172c47147b460f81ed57dea8f9206dc6f0a703af664a82ba9a64139af2",
+      "lineCount": 71,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/repository/PGliteTreeRepository.ts",
+      "sha256": "1ad9a41d953a6b43dda4d489e2f097441a8ccf69e89f911495550f8c5434e651",
+      "lineCount": 53,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/rxdb_adapter_mutations.ts",
+      "sha256": "031df90303a338a7b368cbbbef0d020bfc0f4a43c95f212f9adbdec15dd17daa",
+      "lineCount": 184,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/sql_dialect.ts",
+      "sha256": "87501372b12ee4bcb14e5ab3b00337582dc9c55eaa2126bd1417087ecca3c69d",
+      "lineCount": 171,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/system/change-row.ts",
+      "sha256": "e7d6c6502b12e556ace452551e305b54584561ab47ad534e7035eae96e9d7b05",
+      "lineCount": 81,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/system/encrypt-patch.ts",
+      "sha256": "d2c830b00fa4eb395ab2186c81454185d6ccd55399c83684c2212c6d988189c2",
+      "lineCount": 2,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/system/migrate_system_schema.ts",
+      "sha256": "824c5fb957d0cc40f29e07019f4dca1e5be78ab7b4cd69c287a7047a0d735065",
+      "lineCount": 294,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/table/create_table_sql.ts",
+      "sha256": "51a2344801363e0194c993a8f826f8db88d6177ce7d580eb58c30018d4ffee64",
+      "lineCount": 287,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/table/create_tables_sql.ts",
+      "sha256": "d189b38c495521da362e0735e97e80d5ebaab202f7d070a92f73ada2f3d4a7bd",
+      "lineCount": 196,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/table/notify_function_sql.ts",
+      "sha256": "5fd172e7e4f7989c37d0dcea6b0380de5714f6d67ff4128a01f54a4d655812b7",
+      "lineCount": 134,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/table/remove_trigger_sql.ts",
+      "sha256": "eb82329a5bcaee2e9a5d4e15ad63f61c793c460b218a25eb06effac018bd8724",
+      "lineCount": 78,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/table/trigger_sql.ts",
+      "sha256": "32065346501cc62b7e1931a5fc225d0797ff263515760f42b1465b5e692823fe",
+      "lineCount": 279,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/testing.ts",
+      "sha256": "7a77f2d24c200c86c9b0ff5d4b8600a815b3efe05f4944a275e876a50d868b77",
+      "lineCount": 232,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/transaction/PGliteTransactionExecutor.ts",
+      "sha256": "3af2d80f951fa12efe86b01d33c1010b5fe00999aa978c10f7bd1220917beeee",
+      "lineCount": 191,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/transaction_pglite_result.ts",
+      "sha256": "854fb2d398c15488da167a6453340edf2d9e4b044d665139a3ce06c6542b6221",
+      "lineCount": 171,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/version/execute_switch_actions.ts",
+      "sha256": "efce4064490cc9ff2cdb8cd7824b4fbd584a562f63f5f9a9781d45b16f9f54ff",
+      "lineCount": 183,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/version/execute_switch_statements.ts",
+      "sha256": "516de9d568dce6b6b1f76359b336a8adfc9791caa95068cc59f3387dc61df826",
+      "lineCount": 36,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/version/read_current_branch_id.ts",
+      "sha256": "8da7093f8d95a5afd198808fcb7c1da9ab6c7d60c57a94d81961ca4fe62aa1ff",
+      "lineCount": 152,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/version/switch-result.interface.ts",
+      "sha256": "575ff7a858dd5c25c7d678b749ecd01eb45aee9081e2ef84ef34be1e3c440456",
+      "lineCount": 47,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/version/switch-result.utils.ts",
+      "sha256": "5db6d5c071f0452c6dbc211e4ba856b85080d2b41c19eb5283a07a46d963a0c7",
+      "lineCount": 384,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/version/switch_branch.ts",
+      "sha256": "e826f04b9b9a6f275d5efb065ea406e66726d42bd596bf093a20c96c3161a368",
+      "lineCount": 268,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/src/version/switch_transaction_id.ts",
+      "sha256": "63106e10c574e7e77fc65740bff86d57096e32e9a7c6775af9291692d52722e6",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/tsconfig.lib.json",
+      "sha256": "222db238bc986209f599813536e2f397a209b8d128116aba4db00e873f4ee826",
+      "lineCount": 94,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/tsconfig.spec.json",
+      "sha256": "e5fcebc3551a5cbee9276bae4b99a8dbb9bcf7e9224ff188aa681b08e2db0504",
+      "lineCount": 36,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-pglite/vite.config.mts",
+      "sha256": "65aa3548daae3785e2798e9ee21d8287717dcbffb89d97da0ebc0362046e404e",
+      "lineCount": 234,
+      "isText": true
+    }
+  ],
+  "controlledFileCount": 246,
+  "lineCount": 41439,
+  "allFilesRequired": true,
+  "hashIsNotReadingProof": true,
+  "scopeIncludesTestsConfigDocs": true
+}

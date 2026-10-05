@@ -1,0 +1,714 @@
+{
+  "object": "rxdb-model",
+  "headAtScope": "943c50cc85b4be3b0635f736a35a9659c3fe209a",
+  "clientDate": "2026-10-05",
+  "files": [
+    {
+      "path": "packages/rxdb-model/README.md",
+      "sha256": "b06b8a14d525f0af10373a1742f250ecba9835c05432cbbaf797eff8996d895b",
+      "lineCount": 48,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/package.json",
+      "sha256": "d9da9717238af1b7b56bdd665922db59f0185586589f095cb5ab596fb16a4192",
+      "lineCount": 57,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/project.json",
+      "sha256": "725c4c53845042fb24a6ca470630365c3f8395b3645a43307ebbaf0b32a7e689",
+      "lineCount": 28,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/cn.spec.ts",
+      "sha256": "63356a2458a98f114d0f0ce272d345a241ffb26d67306bfa290e4058a1bb78ae",
+      "lineCount": 37,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-capabilities.spec.ts",
+      "sha256": "8125bbf38de25512f35fa9113da9f65e7de881235b3363a20070b82389c74166",
+      "lineCount": 48,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-detail/detail-tabs.spec.ts",
+      "sha256": "94373ef7353cf116490e80bcb2fbe8e3ee420dbb7746c46219cbf6aa68df7f99",
+      "lineCount": 164,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-field.utils.spec.ts",
+      "sha256": "675ab351414a94db991123ccbaf15d0f117ee064c7bc50946d74619452df2ce8",
+      "lineCount": 345,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-form/form-data.spec.ts",
+      "sha256": "141b6233ba2c1f11c52558dc33212c8398be4f4f24623bdb48ad31f752bce5a4",
+      "lineCount": 84,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-form/form.spec.ts",
+      "sha256": "8159ec6655caae2ff68111db39857a9697d7b69d6111049361991cad9b5babae",
+      "lineCount": 187,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-list/manual-order-list.spec.ts",
+      "sha256": "fdaf093a20e505bf8a798e463acc728a0988b07ea9e2c9b3c1d876f6193d64a0",
+      "lineCount": 183,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/columns/build-editable-columns.spec.ts",
+      "sha256": "8771d51a9eeecdb68f45c9c862354b645b5ef78a520fffeea3433a1e3cad4d18",
+      "lineCount": 457,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/columns/column-utils.spec.ts",
+      "sha256": "9d934c67b7a2824cccd2c1b3ade213c162a48dd86eab9971d0c38880bc45b93a",
+      "lineCount": 802,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/editors/color-editor.spec.ts",
+      "sha256": "34cf33f598a3877f0894dadff431108960b3e4ccf2da2d62d653ee17bebaba07",
+      "lineCount": 214,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/editors/date-editor.spec.ts",
+      "sha256": "b2a92afad5c8cbc32f24546939cfec46eea13b30e744489940230d4b5967f270",
+      "lineCount": 287,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/editors/enum-editor.spec.ts",
+      "sha256": "3e2ca63cb37f3ba82bdf9c9dbba27fb8d1ce03adb1a233a2ff859cd74676d584",
+      "lineCount": 374,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/editors/global-overlay-editor.spec.ts",
+      "sha256": "99ef9d5f45164ea68fa481b8ca31820d340fc06977193228a50ad065a44a2663",
+      "lineCount": 510,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/editors/json-editor.spec.ts",
+      "sha256": "f32b0d230227dad172ad6d55d8c3338ab6502ddca3c883bfa1501ae441c693b8",
+      "lineCount": 373,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/editors/key-value-editor.spec.ts",
+      "sha256": "762b37d057b5b8a8d11b8ee2460fffcebb81adfc17d83d87f99687ebb03ded13",
+      "lineCount": 564,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/editors/lucide-svg.spec.ts",
+      "sha256": "309957639e995c7ed072a34806c47b1d3d7631f904302e7290a9c1c5c82e8c76",
+      "lineCount": 106,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/editors/multiselect-editor.spec.ts",
+      "sha256": "118503b8889233b9775d92433cc1fdd5d8b1dfcd615601ae5eefff58a43ef122",
+      "lineCount": 157,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/editors/number-editor.spec.ts",
+      "sha256": "4f57858e94df1e4aba06f7571c6c9cfeecfe6160708c11a9d183892aa5d861c6",
+      "lineCount": 603,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/editors/relation-editor.spec.ts",
+      "sha256": "cdef38e08a9390eed7584201619d39047b3afe1cde902126f8133ef2533ab301",
+      "lineCount": 415,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/editors/safe-list-editor.spec.ts",
+      "sha256": "fe76874aa27b8b435c42a3bd92323764f0b9e1f95993eef81d04f38481379787",
+      "lineCount": 20,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/editors/tags-editor.spec.ts",
+      "sha256": "64c6e6b4a3d964cef3411e51d4b26e006c6f00dd37151c585c7093d76e3ad7d4",
+      "lineCount": 376,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/editors/text-format-editor.spec.ts",
+      "sha256": "eded3334984ca209f79fd242c5554b2287df4e8de5cfe3f6f11c6b62ae9df642",
+      "lineCount": 171,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/editors/uuid-editor.spec.ts",
+      "sha256": "6c9e615afbcc4406d52fefa2e53949f1e233e365976f05968f0f0ea52d9b052d",
+      "lineCount": 351,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/vtable/table-clipboard-delete.spec.ts",
+      "sha256": "3c601aade72aa9b984b8550284a8c31d1de81a3f746fbe4e033315fa4be596c6",
+      "lineCount": 118,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/vtable/table-clipboard.spec.ts",
+      "sha256": "8bb6480cd3b20b6e9bd87ff2f06aa9286f64a79927633f19eb48424a68256ab6",
+      "lineCount": 596,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/vtable/table-factory.spec.ts",
+      "sha256": "015c7dd1afa7c768f8810401b71878b514003de3ead9138398be8b6decb7d96b",
+      "lineCount": 74,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/vtable/table-keyboard.spec.ts",
+      "sha256": "81eb41486b42f3a1768ee7bbd7ddef675c179abc8a32ea074517146b720f61a6",
+      "lineCount": 198,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/vtable/table-operations.spec.ts",
+      "sha256": "b1d2fd7294c7566d6c93ce7b360b53a4ffd92f46da38c2d8ccead46e94a270da",
+      "lineCount": 188,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/vtable/table-row-move.spec.ts",
+      "sha256": "a98e1dab680f3562cbe99a57ac7317a8311c8c1c7e0ab9ebd588849de20ae343",
+      "lineCount": 97,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/vtable/table-theme.spec.ts",
+      "sha256": "6be76b068bcb7ec4792499b367a3d585a7429b78f6d97f6812d7307a21b1f79b",
+      "lineCount": 149,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/vtable/table-tooltip.spec.ts",
+      "sha256": "358392b18fb1ed1121da06a110b151c51d2c8aad289980f98242aeb63e34821e",
+      "lineCount": 166,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-table/vtable/vtable-compat.spec.ts",
+      "sha256": "401cfa452895fa991ff9eaad4e38450eb28372cd3508af66c7943e084b010449",
+      "lineCount": 114,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/entity-value.utils.spec.ts",
+      "sha256": "c7dc0997604c690c355f5cbc5654397222a755b773ce9d454fc84e5e6c2a18b9",
+      "lineCount": 313,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/query-builder/models/operator.interface.spec.ts",
+      "sha256": "d1bb05b0047393ddec01f399ad3958a54747df600d2181fa97bf52b1773837a1",
+      "lineCount": 106,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/query-builder/models/query-builder-state.spec.ts",
+      "sha256": "8860917eca1cadb8dd63f7376fc60ae8312dd5bea2cffe12e8403ac3e1e56d42",
+      "lineCount": 71,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/query-builder/models/validation.interface.spec.ts",
+      "sha256": "dc5ed8657bb9e9fca3466b105d1c3db30a049b014d9002518c9d93ed4aa2bddc",
+      "lineCount": 141,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/query-builder/services/operator-registry.service.spec.ts",
+      "sha256": "93cb4cf6878653b0ca51839a432437ab56acd0048d450624a879a7d7935a915d",
+      "lineCount": 258,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/query-builder/services/query-builder.service.spec.ts",
+      "sha256": "f19856b6f95580b51b16fc89c11779aec89d7e0743e7ed475847e4294593e064",
+      "lineCount": 325,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/query-builder/services/query-converter.service.spec.ts",
+      "sha256": "67c12caac76e88f86cd456d5da59c58880f8b1b5a582f77765aa17ce9e14447c",
+      "lineCount": 209,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/query-builder/services/schema-parser.service.spec.ts",
+      "sha256": "869103389e676ac7d537d425dc7b2c2fdaf2512a65f6beb0839693fab8b76c14",
+      "lineCount": 552,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/query-builder/services/validation.service.spec.ts",
+      "sha256": "f7a4a740f952868a65445779e0e0cce6afc3905e7a9da0f368b1a8830b8546a5",
+      "lineCount": 611,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/query-builder/utils/date.spec.ts",
+      "sha256": "91810719cd4e153a585a4351a67029e464fa201e757426a65bf31b04094b308f",
+      "lineCount": 65,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/query-builder/utils/field-tree.spec.ts",
+      "sha256": "12efc6dd73233e664c629c8bed4485e1281a74ecdb14e550e8b03785139c2bc0",
+      "lineCount": 371,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/query-builder/utils/metadata-field-extractor.spec.ts",
+      "sha256": "facc19ddd1d57651ea6e71addb1a4f9ddf5a51fd64a9fc072a2ef94a7b17edc1",
+      "lineCount": 896,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/query-builder/utils/popover-position.spec.ts",
+      "sha256": "cd86948165a038a53379825ae982ffee45db4c10a3ec93914750abfca7a69f5c",
+      "lineCount": 76,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/query-builder/utils/schema-factory.spec.ts",
+      "sha256": "05c8f2034da775d7bbeec8b6cd479371693cb5ca28266bf59eeb14f9ad5291f7",
+      "lineCount": 159,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/query-builder/utils/structural-equal.spec.ts",
+      "sha256": "a13e13ec0860a3ba06c159fee9c7307ef25811e91e6cad324b2efd26ea0fda84",
+      "lineCount": 121,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/__tests__/query-builder/utils/value-input.spec.ts",
+      "sha256": "7b689df951b5f0c7d80e35057bfd7a649fd2eb150d36bfbd599cdc63fde5bd6a",
+      "lineCount": 119,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/cn.ts",
+      "sha256": "66650d3290234dda6364ebf177cefd708923a5a61628a55e11c15e7a35f54e14",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-capabilities.ts",
+      "sha256": "47d4aca0b17e41bd9a6704904c387ec3ea0a0f736765101cb08f8668e7bd15de",
+      "lineCount": 37,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-detail/detail-tabs.ts",
+      "sha256": "2aa9e3d3227724dd83d2e073d9f71e2ea8fb8f4b57b73b29ce2b8a6bffc9fba9",
+      "lineCount": 48,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-detail/index.ts",
+      "sha256": "a55d746129c9d41eb1bd1bb14773390e077480c2c4500b65b043b55e2b3bbe8b",
+      "lineCount": 7,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-detail/interfaces.ts",
+      "sha256": "8eee9967693ccb2f30522d617d7d7025c65f0b6df3030a650b4fffdd760fa815",
+      "lineCount": 55,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-field.utils.ts",
+      "sha256": "a17ae0bc3d9ac8ad64a4300885f780dd43d18789fd7adba307625784bab3b6d3",
+      "lineCount": 205,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-form/form-data.ts",
+      "sha256": "c0defe28164c7f9356467477388821321444469645d0ff158c35b9e0779154b1",
+      "lineCount": 83,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-form/form-fields.ts",
+      "sha256": "15ba1e2eae3a879682a01c409fee18394c1830d8e2309fbe36840ab80a8aa28c",
+      "lineCount": 48,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-form/form-validation.ts",
+      "sha256": "8997b36edd5935dd9ca5b842d89e03999bc9c9497a01c7e80aead5fa85f057eb",
+      "lineCount": 34,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-form/index.ts",
+      "sha256": "d78b042d3c8e012ea1fed7f59ba2d5f1679311ca9e5cd57d7949177320a2ae69",
+      "lineCount": 9,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-form/interfaces.ts",
+      "sha256": "043d1dbf05bcc01d0fc9875c9205415cb478b7a53aa71a1ca5f54ca4f71844e5",
+      "lineCount": 116,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-list/manual-order-list.ts",
+      "sha256": "81d57040b5a045e4427b897b3e684d3025764a02bc57481ccefd300bd204fcce",
+      "lineCount": 159,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/columns/build-editable-columns.ts",
+      "sha256": "5e7e0f2d10d3c737c61594a8e726e13480ff3ebb86923efada35c00830391332",
+      "lineCount": 184,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/columns/column-utils.ts",
+      "sha256": "0aa6814d885a1fae92a6fbec30a26eb6de82f8bfc2dd2b76dc93eb821aea842a",
+      "lineCount": 657,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/editors/color-editor.ts",
+      "sha256": "cf7b9327f553048ce1c360e0818a3921ae774d6ca41cf2d7e31980d85100ccb7",
+      "lineCount": 239,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/editors/date-editor.ts",
+      "sha256": "a3813c7d8b5fbc99a1f23bf38a5d16cf25c5931516ce170869d9791728a6bdd0",
+      "lineCount": 169,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/editors/enum-editor.ts",
+      "sha256": "6710c8ec1434b0efb22265cc86c609afb66d573ebd192afbaa68bbb0247f6749",
+      "lineCount": 167,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/editors/global-overlay-editor.ts",
+      "sha256": "786c35104b933d2ffd66cc1d275a1beb87dbcec014e5854cc082672cb25028a9",
+      "lineCount": 277,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/editors/icon-list-editor.ts",
+      "sha256": "d50f314fe23d2545cc88edcda6b2b8e48f977f04ad8625e82c0e4df94c43a040",
+      "lineCount": 130,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/editors/json-editor.ts",
+      "sha256": "63f3b55534234bbb2cb3be8e503e09bd248d0b3d9112511574fe57bd3d859c8d",
+      "lineCount": 212,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/editors/key-value-editor.ts",
+      "sha256": "6a597d1c5c5f828ddcb39579b0baaf8ef04e19d35d2ff37d699b0405fdd92755",
+      "lineCount": 595,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/editors/lucide-svg.ts",
+      "sha256": "8bb888d538892ecbde13af574bdfc904d8294e601509d27f2e43b98ed717ecff",
+      "lineCount": 78,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/editors/multiselect-editor.ts",
+      "sha256": "bad00b88b60ec915f8f3f6cb2e01641ac0dc9750e598890127d8104a6080e391",
+      "lineCount": 171,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/editors/number-editor.ts",
+      "sha256": "9033acc8944ebe7438afc318ee9e2d83cafc402d3d96329c158e372412ad085d",
+      "lineCount": 322,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/editors/relation-editor.ts",
+      "sha256": "8fcc76c67be0acab4116dd08dabc460739c3d18de2622644839476da8c1f2aef",
+      "lineCount": 316,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/editors/safe-list-editor.ts",
+      "sha256": "7ce3766fa9258881c027e4982166c9a1ec5043b93cbe1140fbbf1953f21158f9",
+      "lineCount": 17,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/editors/tags-editor.ts",
+      "sha256": "bd09aa7f55cb4799d362b01b33cf1937fcf1552c36f8d8d1b2e3cc1b04580008",
+      "lineCount": 239,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/editors/text-format-editor.ts",
+      "sha256": "db7402609e021f3648d27bf95ce3a9da9b6f72509b6be3a38617b8b989bbd304",
+      "lineCount": 220,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/editors/uuid-editor.ts",
+      "sha256": "bc182ef0bb441f0fa88db8240bb5c2ee49a3cd4a5b8b331b748a2b0eb5a38858",
+      "lineCount": 198,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/index.ts",
+      "sha256": "9c8945b503b5a7c780d1e480d5cbf8828a95721343b6ed0d3aeaa6f5c4657b0e",
+      "lineCount": 96,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/interfaces.ts",
+      "sha256": "ccff35e5dc051e69aebd0fb11be71c907b4cf5ae63dc06983f5ca1fffc982437",
+      "lineCount": 72,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/vtable/table-clipboard.ts",
+      "sha256": "aca10b973c9aa192d13def88ae2d504a075678bf831da59eb692d31c9159e05d",
+      "lineCount": 419,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/vtable/table-factory.ts",
+      "sha256": "11e554a67e6c481debc0e552bc6853b5eb95fd5ccf98387ddaa11e0d8c3225a5",
+      "lineCount": 117,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/vtable/table-keyboard.ts",
+      "sha256": "152f8d28887d73cf59978e7288ff8b6b9b5f43fd34a34746ca194016a55adff3",
+      "lineCount": 89,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/vtable/table-operations.ts",
+      "sha256": "78c6c3ec12c69f152fe3151f77434dbac222ff98e790be42473b60cdb0a7eaf9",
+      "lineCount": 123,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/vtable/table-row-move.ts",
+      "sha256": "0a41c11f85d3eb8994f9bc896b0f81ffdad22dc0c2df9843241bf488a6e9ebd9",
+      "lineCount": 122,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/vtable/table-theme.ts",
+      "sha256": "4625ba6f4aaef63520c8a213dcbe1092e4f0b20511c2c7a8dee285506c073ffe",
+      "lineCount": 181,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/vtable/table-tooltip.ts",
+      "sha256": "76f9254eeb31efd4bc452bef12b749af85c08bbfd98842e25b103867933188a9",
+      "lineCount": 70,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-table/vtable/vtable-compat.ts",
+      "sha256": "bc4bcd598ee4e3deed2cc6c0a5c4e13acafb49159bbe7cd53971e12bed7002d4",
+      "lineCount": 84,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/entity-value.utils.ts",
+      "sha256": "0b4087ee3b9bf2ba32bc2d8ba511e581f6760a36fb7981208e208545b3c84151",
+      "lineCount": 456,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/index.ts",
+      "sha256": "48095badfde57a85184b852dd6029afc6819734b77d1b4f83254700374733cd0",
+      "lineCount": 57,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/models/config.interface.ts",
+      "sha256": "753d058cabcd4c2bac4be4f0a78f1b600c150646c5ec2144d0131b00d2fb7aa3",
+      "lineCount": 31,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/models/index.ts",
+      "sha256": "b43c1e604e114bf823ded448747de3552434084e8a4aa8ce47afab4ec169f568",
+      "lineCount": 8,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/models/operator.interface.ts",
+      "sha256": "2bcd4811f1b1e5d6137ddb3cb9bf4a56f1df45384f22b0b76445724452c3c1d7",
+      "lineCount": 191,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/models/query-builder-state.ts",
+      "sha256": "5b3c748a01fa5b4e52957a72c23f4e9ab9aee49ad389b88e0f0c1db886cea611",
+      "lineCount": 222,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/models/validation.interface.ts",
+      "sha256": "52f2e47601fdd322609d842d9a9d49d6c7334b4662ef58504e28ff38f91b04e0",
+      "lineCount": 184,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/services/index.ts",
+      "sha256": "d50adffd88cc9e039f9db7cb9d05967eafbe89908c00a21ee42d0a7b1c784a09",
+      "lineCount": 9,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/services/operator-registry.service.ts",
+      "sha256": "74caaaa74711d7878db6456b341246e2dedde28d98807f3dfdb17231af631ffc",
+      "lineCount": 243,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/services/query-builder.service.ts",
+      "sha256": "5bf8b884bcbf1435d79265b74c940d816abe80cf9886331b358a2de40051ef13",
+      "lineCount": 568,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/services/query-converter.service.ts",
+      "sha256": "dd208c55abcf153210e945dae491df60b800d8cbd8fd21b74739cf16bac66462",
+      "lineCount": 153,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/services/schema-parser.service.ts",
+      "sha256": "294eca9f4c149063fd82e6a8aecd2c587076f093f5e01e1681c8d53548c66f4d",
+      "lineCount": 309,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/services/validation.service.ts",
+      "sha256": "65a887af6a281adc271c6f6f0fbcce409810bf8abb073ff7ecd3e0e198cb7706",
+      "lineCount": 390,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/utils/date.ts",
+      "sha256": "5abff35ef6640d90c5d0f30e9f6f6e02f90e3cf67dcd67fa5cbee3af81233a5c",
+      "lineCount": 35,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/utils/field-tree.ts",
+      "sha256": "e486be388a50602962eff1e1a9778be08d6373ef86d971fce0d4183f17e8566f",
+      "lineCount": 400,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/utils/id.ts",
+      "sha256": "569937803aa653bebbd628e615f4e200f8b39f36651ac85c8ad3ae95760b026e",
+      "lineCount": 15,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/utils/index.ts",
+      "sha256": "e581e426e19cc020c8ea81388523d7ae077b1d56c3d878418d7e189ea2542151",
+      "lineCount": 12,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/utils/metadata-field-extractor.ts",
+      "sha256": "ec809d1c51d14f7646f76ca47fae165f22ff95d9e8bb21a3541713df93d19c12",
+      "lineCount": 460,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/utils/popover-position.ts",
+      "sha256": "c172bbf3e8f94119b4095df1aac826094a94d3b06832a78c2a79008634cb434e",
+      "lineCount": 59,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/utils/schema-factory.ts",
+      "sha256": "878e9e95fd6a250737e7dfe063f9e80fd1ea031247abe72435d356d302b15dd8",
+      "lineCount": 75,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/utils/structural-equal.ts",
+      "sha256": "bccd11f4c980cf37ac37d0137b2b3b2383d470fb018912c791acac7682b0f928",
+      "lineCount": 5,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/query-builder/utils/value-input.ts",
+      "sha256": "fc41f871683d56bbc1f5c6de2edac184e51090c92d7d8072e4b0470858db6bd2",
+      "lineCount": 105,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/src/structural-equal.ts",
+      "sha256": "bff4a601bb64db27f90332583f7c06b8be881a65bb9b3411e8ee5a285bc44edb",
+      "lineCount": 49,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/tsconfig.lib.json",
+      "sha256": "fcbb8377801597f455a68ea82738aff62680404459d1795ba6ef72fb22d0eb1e",
+      "lineCount": 28,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/tsconfig.spec.json",
+      "sha256": "305f81895d28df5a782cdc42258abd14a403c828526827eef632bb655e8dc882",
+      "lineCount": 25,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model/vite.config.mts",
+      "sha256": "f6382ae1684627d2d5acfd951a1e33ad581832738e53964487bf9ef68415b266",
+      "lineCount": 105,
+      "isText": true
+    }
+  ],
+  "controlledFileCount": 117,
+  "lineCount": 23650,
+  "allFilesRequired": true,
+  "hashIsNotReadingProof": true,
+  "scopeIncludesTestsConfigDocs": true
+}

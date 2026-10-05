@@ -1,0 +1,318 @@
+{
+  "root": "packages/rxdb-plugin-graph",
+  "targets": {
+    "typecheck": {
+      "cache": true,
+      "inputs": [
+        "production",
+        "^production",
+        {
+          "externalDependencies": [
+            "typescript"
+          ]
+        }
+      ],
+      "metadata": {
+        "technologies": [
+          "typescript",
+          "typescript"
+        ],
+        "description": "Runs type-checking for the project.",
+        "help": {
+          "command": "pnpm exec tsc --build --help",
+          "example": {
+            "args": [
+              "--force"
+            ]
+          }
+        }
+      },
+      "dependsOn": [
+        "build",
+        "^typecheck"
+      ],
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-plugin-graph",
+        "command": "tsc --build --emitDeclarationOnly"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "build": {
+      "cache": true,
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "production",
+        "^production"
+      ],
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "metadata": {
+        "technologies": [
+          "typescript",
+          "vite"
+        ],
+        "description": "Run Vite build",
+        "help": {
+          "command": "pnpm exec vite build --help",
+          "example": {
+            "options": {
+              "sourcemap": true,
+              "manifest": "manifest.json"
+            }
+          }
+        }
+      },
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-plugin-graph",
+        "command": "vite build"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "build-deps": {
+      "dependsOn": [
+        "^build"
+      ],
+      "configurations": {},
+      "options": {},
+      "parallelism": true,
+      "executor": "nx:noop"
+    },
+    "watch-deps": {
+      "continuous": true,
+      "dependsOn": [
+        "build-deps"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec nx watch --projects rxdb-plugin-graph --includeDependencies -- pnpm exec nx build-deps rxdb-plugin-graph"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "serve": {
+      "continuous": true,
+      "metadata": {
+        "technologies": [
+          "vite"
+        ],
+        "description": "Starts Vite dev server",
+        "help": {
+          "command": "pnpm exec vite --help",
+          "example": {
+            "options": {
+              "port": 3000
+            }
+          }
+        },
+        "deprecated": "Use devTargetName instead. This option will be removed in Nx 22."
+      },
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-plugin-graph",
+        "command": "vite"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "dev": {
+      "continuous": true,
+      "metadata": {
+        "technologies": [
+          "vite"
+        ],
+        "description": "Starts Vite dev server",
+        "help": {
+          "command": "pnpm exec vite --help",
+          "example": {
+            "options": {
+              "port": 3000
+            }
+          }
+        }
+      },
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-plugin-graph",
+        "command": "vite"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "preview": {
+      "continuous": true,
+      "dependsOn": [
+        "build"
+      ],
+      "metadata": {
+        "technologies": [
+          "vite"
+        ],
+        "description": "Locally preview Vite production build",
+        "help": {
+          "command": "pnpm exec vite preview --help",
+          "example": {
+            "options": {
+              "port": 3000
+            }
+          }
+        }
+      },
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-plugin-graph",
+        "command": "vite preview"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "options": {
+        "buildTarget": "build",
+        "spa": true
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "lint": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production"
+      ],
+      "outputs": [
+        "{options.outputFile}"
+      ],
+      "metadata": {
+        "technologies": [
+          "eslint"
+        ],
+        "description": "Runs ESLint on project",
+        "help": {
+          "command": "pnpm exec eslint --help",
+          "example": {
+            "options": {
+              "max-warnings": 0
+            }
+          }
+        }
+      },
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-plugin-graph",
+        "command": "eslint ."
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "test": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production"
+      ],
+      "outputs": [
+        "{workspaceRoot}/coverage/packages/rxdb-plugin-graph"
+      ],
+      "metadata": {
+        "technologies": [
+          "vitest"
+        ],
+        "description": "Run Vitest tests",
+        "help": {
+          "command": "pnpm exec vitest --help",
+          "example": {
+            "options": {
+              "bail": 1,
+              "coverage": true
+            }
+          }
+        }
+      },
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "^build"
+      ],
+      "options": {
+        "cwd": "packages/rxdb-plugin-graph",
+        "command": "vitest"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "nx-release-publish": {
+      "executor": "@nx/js:release-publish",
+      "dependsOn": [
+        "^nx-release-publish"
+      ],
+      "options": {},
+      "configurations": {},
+      "parallelism": true
+    }
+  },
+  "projectType": "library",
+  "metadata": {
+    "targetGroups": {},
+    "description": "Graph entities and traversal queries for Aiao RxDB.",
+    "js": {
+      "packageName": "@aiao/rxdb-plugin-graph",
+      "packageVersion": "0.0.26",
+      "packageExports": {
+        "./package.json": "./package.json",
+        ".": {
+          "types": "./dist/index.d.ts",
+          "import": "./dist/index.js",
+          "default": "./dist/index.js"
+        },
+        "./sqlite": {
+          "@aiao/source": "./src/sqlite.ts",
+          "import": "./dist/sqlite.js",
+          "types": "./dist/sqlite.d.ts"
+        },
+        "./generator": {
+          "@aiao/source": "./src/generator/index.ts",
+          "import": "./dist/generator.js",
+          "types": "./dist/generator/index.d.ts"
+        }
+      },
+      "packageMain": "./dist/index.js",
+      "isInPackageManagerWorkspaces": true
+    }
+  },
+  "name": "rxdb-plugin-graph",
+  "tags": [
+    "npm:public",
+    "npm:aiao",
+    "npm:rxdb",
+    "npm:graph",
+    "npm:graph-database",
+    "npm:query",
+    "npm:typescript",
+    "js-lib"
+  ],
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": []
+}

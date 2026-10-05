@@ -1,0 +1,176 @@
+{
+  "root": "packages/rxdb-angular",
+  "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "^build"
+      ],
+      "options": {
+        "cwd": "packages/rxdb-angular",
+        "command": "tsc -p tsconfig.spec.json --noEmit --pretty false"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "build": {
+      "cache": true,
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "production",
+        "^production"
+      ],
+      "executor": "@nx/angular:package",
+      "outputs": [
+        "{workspaceRoot}/dist/{projectRoot}"
+      ],
+      "defaultConfiguration": "production",
+      "options": {
+        "project": "packages/rxdb-angular/ng-package.json",
+        "tsConfig": "packages/rxdb-angular/tsconfig.lib.json"
+      },
+      "configurations": {
+        "production": {
+          "tsConfig": "packages/rxdb-angular/tsconfig.lib.prod.json"
+        },
+        "development": {}
+      },
+      "parallelism": true
+    },
+    "build-deps": {
+      "dependsOn": [
+        "^build"
+      ],
+      "configurations": {},
+      "options": {},
+      "parallelism": true,
+      "executor": "nx:noop"
+    },
+    "watch-deps": {
+      "continuous": true,
+      "dependsOn": [
+        "build-deps"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec nx watch --projects rxdb-angular --includeDependencies -- pnpm exec nx build-deps rxdb-angular"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "lint": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production"
+      ],
+      "outputs": [
+        "{options.outputFile}"
+      ],
+      "metadata": {
+        "technologies": [
+          "eslint"
+        ],
+        "description": "Runs ESLint on project",
+        "help": {
+          "command": "pnpm exec eslint --help",
+          "example": {
+            "options": {
+              "max-warnings": 0
+            }
+          }
+        }
+      },
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-angular",
+        "command": "eslint ."
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "test": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production"
+      ],
+      "outputs": [
+        "{workspaceRoot}/coverage/packages/rxdb-angular"
+      ],
+      "metadata": {
+        "technologies": [
+          "vitest"
+        ],
+        "description": "Run Vitest tests",
+        "help": {
+          "command": "pnpm exec vitest --help",
+          "example": {
+            "options": {
+              "bail": 1,
+              "coverage": true
+            }
+          }
+        }
+      },
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "^build"
+      ],
+      "options": {
+        "cwd": "packages/rxdb-angular",
+        "command": "vitest"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "nx-release-publish": {
+      "executor": "@nx/js:release-publish",
+      "dependsOn": [
+        "^nx-release-publish"
+      ],
+      "options": {
+        "packageRoot": "dist/packages/rxdb-angular"
+      },
+      "configurations": {},
+      "parallelism": true
+    }
+  },
+  "metadata": {
+    "targetGroups": {},
+    "description": "Angular integration for Aiao RxDB reactive data.",
+    "js": {
+      "packageName": "@aiao/rxdb-angular",
+      "packageVersion": "0.0.27",
+      "isInPackageManagerWorkspaces": true
+    }
+  },
+  "name": "rxdb-angular",
+  "tags": [
+    "npm:public",
+    "npm:aiao",
+    "npm:rxdb",
+    "npm:angular",
+    "npm:rxjs",
+    "npm:signals",
+    "npm:local-first",
+    "angular-lib"
+  ],
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "prefix": "rxdb",
+  "projectType": "library",
+  "release": {
+    "version": {
+      "manifestRootsToUpdate": [
+        "{projectRoot}",
+        "dist/{projectRoot}"
+      ],
+      "currentVersionResolver": "git-tag",
+      "fallbackCurrentVersionResolver": "disk"
+    }
+  },
+  "sourceRoot": "packages/rxdb-angular/src",
+  "implicitDependencies": []
+}

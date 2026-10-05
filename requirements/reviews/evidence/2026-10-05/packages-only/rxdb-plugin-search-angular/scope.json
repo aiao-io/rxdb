@@ -1,0 +1,120 @@
+{
+  "object": "rxdb-plugin-search-angular",
+  "headAtScope": "943c50cc85b4be3b0635f736a35a9659c3fe209a",
+  "clientDate": "2026-10-05",
+  "files": [
+    {
+      "path": "packages/rxdb-plugin-search-angular/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/README.md",
+      "sha256": "686556b78fc4cafdedad5c0fa96bbf165dc2dcab25e80411fd792bc49e6b8e09",
+      "lineCount": 87,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/ng-package.json",
+      "sha256": "7b81fad0c14e04fe3a1c76da8c512fad27c814510da9b88d83032d4caa98f4f6",
+      "lineCount": 7,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/package.json",
+      "sha256": "4bc0877216a98750837edd95e4987d812cdca836720435c18b0bded710890f60",
+      "lineCount": 42,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/project.json",
+      "sha256": "2265bfdad13979fbfdc090a86a6002e2513e544ef5f5021e4cc5454d00854686",
+      "lineCount": 36,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/src/__tests__/index.spec.ts",
+      "sha256": "8fd5a4221ce821084a8823f6c507431d3cf02d993e78e2dc5d84f9c213412027",
+      "lineCount": 36,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts",
+      "sha256": "545f613b63f007862102045263bc331921ce7f9e4500c3a02c96b8b61ed42540",
+      "lineCount": 457,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/src/__tests__/release-config.spec.ts",
+      "sha256": "4f59db6620e0ec27aad16269c4621ab4cbeb5be40780221b99fbd335c68dd982",
+      "lineCount": 20,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/src/__tests__/review-parallel-real-handle.spec.ts",
+      "sha256": "d99876680e1dcf4bd5eb152309aeb22cc47be9bbed99bb11d04055cb2c636595",
+      "lineCount": 88,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/src/__tests__/review-round2-lifecycle.spec.ts",
+      "sha256": "90c2d6b43112042b007bbe467d5c5a90139550e97a4cf58357d303ba1530bf4c",
+      "lineCount": 414,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/src/index.ts",
+      "sha256": "a39817258c007f623dcbf31ab517b225e2631360b66eaa90da0bf8f5b99b7fa3",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/src/inject-search.ts",
+      "sha256": "e45d9042ae69f33256c415d0df59c118c81e52e38fa35fc519bc3949469401c9",
+      "lineCount": 213,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/src/test-setup.ts",
+      "sha256": "1576379410b4dd466bcbddbec1875b6c88e1e70ddc74b652e805fbbc6a0ed6ac",
+      "lineCount": 25,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/tsconfig.json",
+      "sha256": "39485b026f99d20bbf2ef186c576dfbb65e80a3936e2abf44958b4c93ded4f84",
+      "lineCount": 26,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/tsconfig.lib.json",
+      "sha256": "72e1ff3cdbe0eaaebd2b568ca938a5400d92133305e04b14096be846a2feb075",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/tsconfig.lib.prod.json",
+      "sha256": "848772818d2f1f11e5815d1d163f94e63c9bb758ce888c5491e314d608c836b9",
+      "lineCount": 10,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/tsconfig.spec.json",
+      "sha256": "e24144258a064afb1381cabbd1fe27a252f0453a890e780e15ca09a383a6661c",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-plugin-search-angular/vite.config.mts",
+      "sha256": "a38027aabeb2fb14817d45e04f1332a286886739eb5f74b2cca588e10906870a",
+      "lineCount": 36,
+      "isText": true
+    }
+  ],
+  "controlledFileCount": 18,
+  "lineCount": 1571,
+  "allFilesRequired": true,
+  "hashIsNotReadingProof": true,
+  "scopeIncludesTestsConfigDocs": true
+}

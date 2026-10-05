@@ -1,0 +1,390 @@
+{
+  "object": "rxdb-model-angular",
+  "headAtScope": "943c50cc85b4be3b0635f736a35a9659c3fe209a",
+  "clientDate": "2026-10-05",
+  "files": [
+    {
+      "path": "packages/rxdb-model-angular/README.md",
+      "sha256": "7d1eea180b6ba9ac24bbd4bd457926c243fdda1631bd05c0d2796a2998590066",
+      "lineCount": 52,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/ng-package.json",
+      "sha256": "5dc033b16686cab221a33a2cf6984c8b4797c11de122a1bc7706a1ade9a21f56",
+      "lineCount": 8,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/package.json",
+      "sha256": "d7afa13ed1efec2b29f9ec04ffa2425a94671149f41891ffc407ca9f85419b3e",
+      "lineCount": 55,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/project.json",
+      "sha256": "6338570f973fe48b2dc4794127724b9ddf4547f9d0c324c457c7ac1a5d1f82d3",
+      "lineCount": 46,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/entity-detail/entity-detail.real.spec.ts",
+      "sha256": "383356010ad8b55110b85c44601fcd5712015f4e308aea3a19ac780176206d3e",
+      "lineCount": 446,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/entity-dialog/entity-dialog.real.spec.ts",
+      "sha256": "80fe51ab2d5de5315686ef8f412de7594efbc0a81ef4481812ae331dd11145b2",
+      "lineCount": 216,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/entity-form/rxdb-entity-form-angular.real.spec.ts",
+      "sha256": "08b3f851b27e984d010a39ebd3f341a0c955b31dd3686224b08e628fba49a862",
+      "lineCount": 522,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/entity-list/entity-list.real.spec.ts",
+      "sha256": "a538f775397d1b72adc52873b87a36a978d7df551f562b20d5b254fc2936e23e",
+      "lineCount": 1366,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts",
+      "sha256": "03a22b8e123832f6e536b28dbdc4efed70291a560bafdf6560c930658a60546b",
+      "lineCount": 409,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/entity-table/query-table/query-table.component.real.spec.ts",
+      "sha256": "1c22ef0ba1b132212d67f4b91964760fa7ed42a6b8597c79618d41e48d6b9f35",
+      "lineCount": 246,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/query-builder/operator-selector/operator-selector.component.spec.ts",
+      "sha256": "77c6e96bd4cbb7e6a107956a533b503a6c4edb83aa4793b18a2206802b9bea40",
+      "lineCount": 86,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/query-builder/popover-select/popover-select.real.spec.ts",
+      "sha256": "6d8827e48d7ac581c6f1fc583bfe5b7a03044dff518f8a66980ba0b8634988ce",
+      "lineCount": 321,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/query-builder/query-builder/query-builder.real.spec.ts",
+      "sha256": "89c269868be6eb532ff94f13136bc0650fae2669d38b4d957739e96e197ac591",
+      "lineCount": 177,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/query-builder/query-group/query-group.real.spec.ts",
+      "sha256": "def5f53de40cb038dd5b1aeee1d1d69028b5804015aee7896e5ee4b8aa7f22a6",
+      "lineCount": 721,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/query-builder/query-rule/query-rule.real.spec.ts",
+      "sha256": "1eb2c48df88d312d8a4907b243df617539549fee5e853251bd201371050358f2",
+      "lineCount": 511,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/query-builder/tree-select/tree-select.real.spec.ts",
+      "sha256": "ed041c738e685f444b02cb5af1ff796b8e36a5772901f2a5f9fcb9fc71e40d4f",
+      "lineCount": 211,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/query-builder/value-input/value-input.real.spec.ts",
+      "sha256": "b4af5553b11204496003c9ec1ec9f5c68ec6aa865ed176851e044da7b249bfa9",
+      "lineCount": 261,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/testing/fake-vtable-editors.ts",
+      "sha256": "ffcb413ad110903a8b7758e0a5197b9cabb8fde0ffa24b4a033bb5096b539c79",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/testing/fake-vtable.ts",
+      "sha256": "e0a653186a002239f8a0eb5e9e9dfe3960690ce0ab9717fb5824cf922d809b6e",
+      "lineCount": 199,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/__tests__/testing/in-memory-rxdb.ts",
+      "sha256": "1b7b2e63cd29a0ee4894de522e2fb5adb468c99488f20647bf5ca6f130366ac4",
+      "lineCount": 725,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-detail/entity-detail.html",
+      "sha256": "e74e4fb872d631e1249140b0d28560436b68c4598e1145a33a373bd3d65747f7",
+      "lineCount": 59,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-detail/entity-detail.scss",
+      "sha256": "e618582c61afca5e5ddf93fd941e5d833a7a18e6326fd4afb5de50e4144e4922",
+      "lineCount": 6,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-detail/entity-detail.ts",
+      "sha256": "d13c23f5f509ff4e5e85004dff747707d99d3c49d43f2548cae94eed5957f66d",
+      "lineCount": 398,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-detail/index.ts",
+      "sha256": "e809cedc6919bb27a04ed3a9a785104df16c49efe8707e26c9ee87f93e4a0bd2",
+      "lineCount": 1,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-dialog/entity-dialog.component.html",
+      "sha256": "de685e0de610eb2a0e6f6189e2d1ef6b6440a494c2cb93cde01a01c71216a8e4",
+      "lineCount": 48,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-dialog/entity-dialog.component.scss",
+      "sha256": "1d9a5237993c98778970e6b020ce7d8762b0af9eb421de94d7283ba200ce708d",
+      "lineCount": 69,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-dialog/entity-dialog.component.ts",
+      "sha256": "f6dcc5eb735991f69f6202a9827e848bcd0560311d9a2b549fae60c16b6ccf7a",
+      "lineCount": 150,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-dialog/index.ts",
+      "sha256": "fd6859273faedf639c71295e80e47a0cb3c30a29a405c097ca0551e5b859c3e0",
+      "lineCount": 1,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-form/index.ts",
+      "sha256": "f2e113c224e447859d5a94f1af291d554f080d816d213b733ffcda27b01ae8de",
+      "lineCount": 1,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.html",
+      "sha256": "b1e20fcb4c35acfe3f2f2e2da98c2df3cc602ae77edc5d4e02bba0b5f937a875",
+      "lineCount": 145,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.scss",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "lineCount": 0,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts",
+      "sha256": "d686747e73c6dbd68ee717d1b4a08b93e4df249ab2f6acd4722c05df2d694f99",
+      "lineCount": 480,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-list/entity-list.component.html",
+      "sha256": "c96a129661e824b79c565b6ef938cedb703b596887a4cb9fd1e3b5c4a378375d",
+      "lineCount": 169,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-list/entity-list.component.ts",
+      "sha256": "e09fac69fe3c48aff03c8457b47a6cb2e92a9a81f62dce70e0cef607bfe00f90",
+      "lineCount": 953,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-table/config.ts",
+      "sha256": "806689d904c7e3d23c0b9fec96a4548d1f88fec0fc36cf8fbb8600a63a811524",
+      "lineCount": 8,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.html",
+      "sha256": "bcbe87fea0282078d59d66fe1e6cacae0434e3c109f7f091068258b54cdf4d0e",
+      "lineCount": 57,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.scss",
+      "sha256": "4df52c018aa82938aa9bc8aca2bff4873490e7c7d98922be0c62f6576f002856",
+      "lineCount": 10,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts",
+      "sha256": "f436b3592aaee72e42786838893ea7d94d1a6c9f8b8aff4be199fc1d883eb250",
+      "lineCount": 412,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-table/index.ts",
+      "sha256": "34709c39150e761391e99bfdfd7df6330d9301607eadcce5aabfc9ff62bb98ad",
+      "lineCount": 15,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.html",
+      "sha256": "db92651756d229a53cff7d7d23eaa4570f42a2f63985502a860de82d49daf7c4",
+      "lineCount": 39,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.scss",
+      "sha256": "8fd4a09d1b0a26cb948de25ae48448456441c8cdfd63352912f6e09531da3abb",
+      "lineCount": 5,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts",
+      "sha256": "9d4584423e33752f0793aeac39b280375d74323f2ef5b74d8fc4883cf25a55fb",
+      "lineCount": 95,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/index.ts",
+      "sha256": "ed635a677c829f25b8a44bc34437346d32f5d35cc866d34a33a087255e9ba1b9",
+      "lineCount": 25,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/query-builder/field-selector/field-selector.component.ts",
+      "sha256": "a612fd941d6beab301621d0a3c456461880a12b5db545a837bf4cf839887b1a1",
+      "lineCount": 49,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/query-builder/index.ts",
+      "sha256": "f015b3fb061407ba7001e9ba20cac43121c8e6a430b9fc4168e0a0866b4997bf",
+      "lineCount": 57,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/query-builder/operator-selector/operator-selector.component.ts",
+      "sha256": "1f137d6cbd361980d26214bd7cd487ea2adabc5f8b47e52dd5504431be8d89a3",
+      "lineCount": 56,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/query-builder/popover-select/popover-select.component.ts",
+      "sha256": "161a5c0593fd53e33c2ed162ad598fb1f342ff147cba417ae6117321ae94a404",
+      "lineCount": 211,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/query-builder/query-builder/query-builder.component.ts",
+      "sha256": "72eda53da7f4e6008a77ed48665335206439ee1c62d839e6f73c8374f2915857",
+      "lineCount": 337,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/query-builder/query-group/query-group.component.ts",
+      "sha256": "158a7f2feb8d9eebded5715500b340a15dc819e2384fcacb72b1cc5bb479086d",
+      "lineCount": 488,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/query-builder/query-rule/query-rule.component.ts",
+      "sha256": "7577c23721b730f863b4a53c7d821d0bdf971a1c96fd7a21b2caaf05cc5e6c0c",
+      "lineCount": 256,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/query-builder/subquery-builder/subquery-builder.component.ts",
+      "sha256": "4d4860251d3462926c38daf4edd2bc989599a967e8ed6d5bf305ac7b7ba9344f",
+      "lineCount": 208,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/query-builder/theme/default-query-builder-theme.ts",
+      "sha256": "8c0426fb879d45275ea9468aafce164e1185745861fff66352e951574a567ebe",
+      "lineCount": 23,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/query-builder/theme/index.ts",
+      "sha256": "db236d595d9a0c0cb502833018bcdffe346612d60245820374f4fc0507167dfc",
+      "lineCount": 2,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/query-builder/theme/query-builder-theme.token.ts",
+      "sha256": "97956cb44e23a56c09a55b199beea8329adb498016677a51151d66f90c667bd3",
+      "lineCount": 38,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/query-builder/tree-select/tree-select.component.ts",
+      "sha256": "991f7905a80bc5c0e027cdd620c6b3c916214cbd534272ba48e81d76b8d5a87e",
+      "lineCount": 439,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/query-builder/value-input/value-input.component.ts",
+      "sha256": "744bbb58c55fca5db1bf7d4a77ecefd15fe76ac0ef1f1cea57f78cfae9898d11",
+      "lineCount": 471,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/src/test-setup.ts",
+      "sha256": "82ed4e5dee184216644ba390134b466988aa39eadeb00a46d669bdf8ba2fd816",
+      "lineCount": 18,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/tailwind.css",
+      "sha256": "3efce924137f03786acd871878ee779ce1afa0536a0ff2a34ede306cfa1093ef",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/tsconfig.json",
+      "sha256": "39485b026f99d20bbf2ef186c576dfbb65e80a3936e2abf44958b4c93ded4f84",
+      "lineCount": 26,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/tsconfig.lib.json",
+      "sha256": "317fc5bea15cfa169e84380f5bb8e0cab80032e3e4bbd49584a35fb18e83f51e",
+      "lineCount": 30,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/tsconfig.lib.prod.json",
+      "sha256": "848772818d2f1f11e5815d1d163f94e63c9bb758ce888c5491e314d608c836b9",
+      "lineCount": 10,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/tsconfig.spec.json",
+      "sha256": "91d2ea00dc60375953e72fdef33b24ea14662cdae50978a0bf6920ce067cef11",
+      "lineCount": 24,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-angular/vite.config.mts",
+      "sha256": "9b38ff8f5184833195fc484d8626a66fb8c12792765245e421b29b6e1470b8dc",
+      "lineCount": 54,
+      "isText": true
+    }
+  ],
+  "controlledFileCount": 63,
+  "lineCount": 12558,
+  "allFilesRequired": true,
+  "hashIsNotReadingProof": true,
+  "scopeIncludesTestsConfigDocs": true
+}

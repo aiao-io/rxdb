@@ -86,7 +86,6 @@ execution: partial
 
 候选问题及最小修法/回归见 [4个待主控去重编号候选](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/core/findings.pending.md)；不自分RV、不改现有报告。请求与已完成/待补测边界见 [原验证请求](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/core/validation-requests.json)、[当前验证核对](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/core/validation-reconciliation.json)。
 
-
 ## R3-05 · 2026-10-05 · cleanup verdict 有界补证结算
 
 - **补证冻结，不扩事务 suite/harness 组。** 最小成功 connect/query body 使用同一工厂：直接 afterEach await dispose 拒绝→失败；原 readiness 对应 body 成功、adapter.disconnect 与 factory.dispose 明确拒绝→仍通过。真实共享 runner exit 0，已补上旧 connect 故意失败 harness 无法证明的缺口。

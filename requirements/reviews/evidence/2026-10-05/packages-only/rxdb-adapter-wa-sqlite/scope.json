@@ -1,0 +1,306 @@
+{
+  "object": "rxdb-adapter-wa-sqlite",
+  "headAtScope": "943c50cc85b4be3b0635f736a35a9659c3fe209a",
+  "clientDate": "2026-10-05",
+  "files": [
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/.gitignore",
+      "sha256": "03aa0aa73ee6331cf17331e7ff16263da7285c7fee793154a64fd264b0aef086",
+      "lineCount": 1,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/README.md",
+      "sha256": "e86421872483f0a83696b761c20e92bbc9be752f3450d653221659c8614e1c18",
+      "lineCount": 125,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/eslint.config.mjs",
+      "sha256": "2964c6fd50b2ca4ad774393799099fa777859ff79f73a11e7553f060fcca0a02",
+      "lineCount": 23,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/package.json",
+      "sha256": "c904fb19e9d14bae9bac2ce77bfd695a27caed871b31ad6e871cb4abef4c721b",
+      "lineCount": 79,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/project.json",
+      "sha256": "605ec4146b69d7de4abdf2d329b98feac81edd425d1a7046aa70dd7e395da6e3",
+      "lineCount": 15,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/RxDBAdapterSqlite.ts",
+      "sha256": "4d2b25276e40ce426b8a9308aba134a034532705fa4e66dd1022d19f34ae3043",
+      "lineCount": 57,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/SqliteClient.ts",
+      "sha256": "0079ef5122dd139e2556bdf848b57f45166896c17adc23510db4336a2a2abb1d",
+      "lineCount": 73,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/WaSqliteClientBase.ts",
+      "sha256": "a2ad4046b69be2bdc52c390b95b1f800f24838ec8847f3f84df7094da47a0f44",
+      "lineCount": 385,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/adapter-construction.spec.ts",
+      "sha256": "94df80166676fd4436a7e5a980f8524c4b6aa65d884b96dfb73bb5654de8578e",
+      "lineCount": 4,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/backup/backup-interrupt.worker.ts",
+      "sha256": "549d2faaebff5456075d5f323cb7eacc27561e0b9a0b36d645c325517c0068be",
+      "lineCount": 9,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/backup/wa-sqlite-backup-harness.ts",
+      "sha256": "ea75155802b5e793e3c4a4c88f2db3d29cc109f758984052910a70062024f450",
+      "lineCount": 37,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/backup/wa-sqlite-backup-transport.spec.ts",
+      "sha256": "e87d31fd7d86016c0296710f754cdb72dc8483ced64268a543e43d801c9d7900",
+      "lineCount": 49,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/backup/wa-sqlite-backup.spec.ts",
+      "sha256": "d244cca5bfed1915b991bb5db0c2dab3918ac95456ce365a55f3addabd555e65",
+      "lineCount": 17,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/create_sqlite_client.remote.spec.ts",
+      "sha256": "a43e3eb8815d28df14dafb44ee54c41cdd2b0a3f4240caed4cafa3eaba960aa9",
+      "lineCount": 82,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/create_sqlite_client.spec.ts",
+      "sha256": "ad7564813e8609c1042879edf932df0d1a3cf4c77b1ca9c675ad8e653a96c1d8",
+      "lineCount": 111,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/encrypted-bigint-binary.spec.ts",
+      "sha256": "db161901ede7feaff13c4dec8329c22138b8a08afd6723a58756fe457726fec7",
+      "lineCount": 5,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/encrypted-change-log.spec.ts",
+      "sha256": "50bd38745c1a6fd1abc3979f2764ad9d9dd65010e6d2187f29d12b91e1cc2ad2",
+      "lineCount": 9,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/encrypted-crud.spec.ts",
+      "sha256": "4f89e32baefb444e19bd4e1c9c4ce6cda66ee8de90ce728622d26185f2cb97e5",
+      "lineCount": 18,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/encrypted-lifecycle.spec.ts",
+      "sha256": "ac1bf5806233cd072702f1c517a81b8e77f62a931140266db198a59628a8d412",
+      "lineCount": 12,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/encrypted-tamper.spec.ts",
+      "sha256": "139ebf132a1d308a5f82c20b0cb4eed1e127baf95cd5dc0e6de5c20e35f37805",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/execute_helper.spec.ts",
+      "sha256": "a43b9a449826c2f0a1655b8816e9f66bce511fc33a577a841835073bd5a7707f",
+      "lineCount": 250,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/public-api.spec.ts",
+      "sha256": "176f8ce8350529c95b947bd8fcaef5413d8f0ecc28660ea3c13a0a72948a4ac4",
+      "lineCount": 20,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/setup.spec.ts",
+      "sha256": "2a0df6f36e028d69e51d24fa6b25782ebe5b04411a7bbb8ce9a2863bcc98fcc4",
+      "lineCount": 1,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/setup.ts",
+      "sha256": "372c1e0ac111a62d970dfef859d7751c1c6d4b593c48b29b7396b754d9435e76",
+      "lineCount": 57,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/sqlite-client-lifecycle.spec.ts",
+      "sha256": "55ab59dc61430f1cdd06872c07d2c01f15f473b32de3957fec4d6046031cc2db",
+      "lineCount": 440,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/sqlite-client-multi-connection.spec.ts",
+      "sha256": "45a30ba5536ebb96eb0016924dadfea866db2cf75908bcc6e1364d680a78313c",
+      "lineCount": 56,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/sqlite-client-regressions.spec.ts",
+      "sha256": "5dd1c3ce5149e365df2f3303e58a5b4336d27575d20744afa7784005089841ab",
+      "lineCount": 93,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/sqlite-load.utils.spec.ts",
+      "sha256": "55e5ab920adb2915f7529c207c14eb46a1d4ebf85c0f0c539c903956b8239383",
+      "lineCount": 373,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/wa-sqlite-db-dump.spec.ts",
+      "sha256": "8ef3bd2212ccc377db19b223e24d370fe5ffbe6a074a681ec175dce94ab8b5ab",
+      "lineCount": 34,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/wa-sqlite-db-dump.ts",
+      "sha256": "b1da3af9d4d0d27357baed59b766226f779af452091254a8b047af75af7ec3a5",
+      "lineCount": 99,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/wa-sqlite-factory.ts",
+      "sha256": "360e52f22e10518ed4a0d52bf068cd4b5b69181ebc7d7a70de73e7b7dfb12699",
+      "lineCount": 121,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/wa-sqlite-wasm.ts",
+      "sha256": "51c7e08a9d7b9cae650cf68c9b9ead256de56bd476ccb6c0a03e6a6a796a33ca",
+      "lineCount": 4,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/working-tree-capture-conformance.spec.ts",
+      "sha256": "fb0d47bc26ae7320f0c00311531915cbbe272568d32105c848218d1e2bf9446a",
+      "lineCount": 79,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/working-tree-commit-conformance.spec.ts",
+      "sha256": "984aff59bb6ea7fd15516aaad7629457b4589b443b2ffd1f4d084ccbc5403ad3",
+      "lineCount": 63,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/__tests__/working-tree-cross-connection.spec.ts",
+      "sha256": "78208882290e448bcf6d81c1801e675d993f7d2da11945833de5aeea8cb2b7fc",
+      "lineCount": 218,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/create_sqlite_client.ts",
+      "sha256": "bd8c3ecbeb3b6ccc339ae8fe0c3f6a200abb40cdd897cb1bd654dddf5fe92d04",
+      "lineCount": 79,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/execute_helper.ts",
+      "sha256": "e9c22226c132e0c3ab151b56e7dbbdfb5d000f79bf0534b429023db3981cace2",
+      "lineCount": 172,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/index.ts",
+      "sha256": "7911624c568eeee3e051678c12426751a6f7e959714200c398e9fe9cab1a7713",
+      "lineCount": 47,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/sqlite-load.utils.ts",
+      "sha256": "6e52b4da6c86ed3188479d2fe63f8053e57824439c323ea5f7f68ce380fa6909",
+      "lineCount": 298,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/sqlite.interface.ts",
+      "sha256": "0fb247f1452c593897762ff9a53e86a7cc0b08ee95b49f23e75f801c8a3c7510",
+      "lineCount": 88,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/testing.ts",
+      "sha256": "b342294082ba806fa3777d4f80d3c78844b4417432d3432ff3da41bdd4e2c858",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/vfs-modules.d.ts",
+      "sha256": "1b17eb278578504154b6f6eeb49fa280033aa8af958a90e260c9aa67516f5451",
+      "lineCount": 17,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/vfs-modules.js",
+      "sha256": "426226b8b8291b930f1ad0ae742beff124e9eb9100dcc9680ba29089d4164655",
+      "lineCount": 11,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/src/wa-sqlite.interface.ts",
+      "sha256": "7dd7bdf7cff061e7322bdf4b117ddd71bbcaae60b19f4564dff9832c0f124ba9",
+      "lineCount": 7,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/tsconfig.lib.json",
+      "sha256": "a93b54f3084771c928a1bf0de74a07f5914df79bfe8e88f301406474660aad5f",
+      "lineCount": 55,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/tsconfig.spec.json",
+      "sha256": "d15c452ff19beab2fb13810b42c38379132a49924e31c6aba6b1047fb49f2f7e",
+      "lineCount": 36,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-adapter-wa-sqlite/vite.config.mts",
+      "sha256": "5c0d8b6d348efc1c4fb44efcdbc98bafce7808b815faa97725a74f26818f7722",
+      "lineCount": 165,
+      "isText": true
+    }
+  ],
+  "controlledFileCount": 49,
+  "lineCount": 4068,
+  "allFilesRequired": true,
+  "hashIsNotReadingProof": true,
+  "scopeIncludesTestsConfigDocs": true
+}

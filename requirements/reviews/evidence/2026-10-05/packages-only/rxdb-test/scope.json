@@ -1,0 +1,708 @@
+{
+  "object": "rxdb-test",
+  "headAtScope": "943c50cc85b4be3b0635f736a35a9659c3fe209a",
+  "clientDate": "2026-10-05",
+  "files": [
+    {
+      "path": "packages/rxdb-test/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/README.md",
+      "sha256": "b36e1d22227b64ead2a064701a80855229014112db9d529f8963ea213fa2a7df",
+      "lineCount": 72,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/entities/Account.ts",
+      "sha256": "918de4009525aeda46af6166721c8ce725f4e62ac901f9a392fd5176b3b80091",
+      "lineCount": 33,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/entities/Article.ts",
+      "sha256": "6ece3083cab7eeba241e0e3b7e7f3300278d7507969decc49169ba79948c7243",
+      "lineCount": 38,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/entities/AuditLog.ts",
+      "sha256": "df5d489ca060376939053463245b3e776a26b063177b0f380096dea9beb2e2d3",
+      "lineCount": 17,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/entities/Comment.ts",
+      "sha256": "7ba53e96725d3a4b824a13cea08ae6d068b094df36d18fe0e9e2ac8e56b2f9e0",
+      "lineCount": 20,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/entities/Contract.ts",
+      "sha256": "0f61eba3387f9136b5ad01e815742243e2e06becd8514b6f01a18eef620c0aa2",
+      "lineCount": 28,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/entities/FileLarge.ts",
+      "sha256": "1bcada6ba88cfd6bfdffc3c0ccadd0ebec9d3489797a7259de866aedad59fee8",
+      "lineCount": 105,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/entities/FileNode.ts",
+      "sha256": "08ae22c442af5a663613d2c20b5f27253a67f4bce4a95a208a9edca801cb913b",
+      "lineCount": 113,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/entities/Invoice.ts",
+      "sha256": "0fcf104b64b3aa393b2b3a0c6b6a00704e648548572e90fbbcce2fb9b8e882d0",
+      "lineCount": 28,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/entities/MenuLarge.ts",
+      "sha256": "c66a654af1ee610810c593dc2bef6dc933fa2f0d68943fd0a72159ceda5fd47c",
+      "lineCount": 52,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/entities/MenuSimple.ts",
+      "sha256": "3143efb4bf6419cd9b2d3e7407970465390a0990af3fb182b5e93b4c0c65d070",
+      "lineCount": 47,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/entities/Task.ts",
+      "sha256": "11887604b714b8cc49c805460c70d967d195a8a8b8b5627701c30e61e253e0b3",
+      "lineCount": 22,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/entities/Todo.ts",
+      "sha256": "680e9640cc7f5b86e3de2c4761e44b6f55e857d5d04a6792b4bc3ad065931cee",
+      "lineCount": 11,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/entities/TypeDemo.ts",
+      "sha256": "250381d2972e3e7c9f38914e8560709bfb720fd306c3a34e9007f9be95d8353a",
+      "lineCount": 160,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/entities/TypeDemoNative.ts",
+      "sha256": "806a90a4d0f4a6c866dfe31d952b4fde1cb9f7b6bf9fbd5c8dd1b6ea6f1a72c4",
+      "lineCount": 31,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/entities/index.ts",
+      "sha256": "7f577de7b254e5fd8f1a8922d7f39ecc7db1ebfa6d61ee395ae968569e464ce9",
+      "lineCount": 46,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/eslint.config.mjs",
+      "sha256": "263c0ca427e8d0d9359679e82c6e8d7923decc6e8f28f93003c47ee8b22a656f",
+      "lineCount": 44,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/package.json",
+      "sha256": "a7ecd338c47961478f31e69552608518c2c860797762c7a5b93464609d327301",
+      "lineCount": 96,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/project.json",
+      "sha256": "2b1a0534f9979c0ede835f9b9fb767dbef929a3a5dfed94605ce04bf106d54f6",
+      "lineCount": 38,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/public-contract/baseline.json",
+      "sha256": "40555112b49b4dd916626a1f04c98d75f079878030efb4e3cadc0875901aee9a",
+      "lineCount": 115,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/public-contract/consumer.ts",
+      "sha256": "f5561426746bbb901dfcab794c8d2402b1c8af941a2290edb6e7ac017e8b8f47",
+      "lineCount": 301,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/rxdb.config.ts",
+      "sha256": "a3571f1d81b25ed9904218a92d7daf3be5fdddf1d84cec20a7874277da7d1e63",
+      "lineCount": 24,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/scripts/run-coverage-acceptance.mjs",
+      "sha256": "7ea9bfc55559817e2652fbc18fadc0bdc7db1bde43ad46024975be408f6fd75e",
+      "lineCount": 166,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/scripts/verify-public-contract.mjs",
+      "sha256": "a84904d660ef572665ea100b3684a03d26de8bb83fc41eb9c67feffb9d9fb5f1",
+      "lineCount": 89,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/shop/Attribute.ts",
+      "sha256": "160053febfcb1aad581c2181526f8e542113e50e57f0d60390bb1c0f4a332ca0",
+      "lineCount": 34,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/shop/AttributeValue.ts",
+      "sha256": "bbcd46e863ce4e7b025a445f3a855af3d6e4e4e5476c8d67d7112834f8458a00",
+      "lineCount": 42,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/shop/Category.ts",
+      "sha256": "289c76679e1407cd6539aab2bef652350c61bf0281fe68b9041aa5783b13441f",
+      "lineCount": 28,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/shop/IdCard.ts",
+      "sha256": "27753fc01718229a5832c5aa8733b3027c67b87c7499c5820c986b5c1203cc66",
+      "lineCount": 37,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/shop/Order.ts",
+      "sha256": "d53f96c0587ba1956f345e41c37881d6d75790bcb73bea868acf3305f30eb915",
+      "lineCount": 35,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/shop/OrderItem.ts",
+      "sha256": "e3ee653f6e75f987b233c55cf5aad82d3556c0d888e1c407f835f6c5ac1de7ac",
+      "lineCount": 44,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/shop/Product.ts",
+      "sha256": "8bda825fbcf92fefc58f59e1514c913fafe3d23c7d1ab5aa0e626cc49196945f",
+      "lineCount": 41,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/shop/SKU.ts",
+      "sha256": "727b7f5b33026a3af2e6c54cdad4c668645407109d8ab5526d39d45a4341cd01",
+      "lineCount": 55,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/shop/SKUAttributes.ts",
+      "sha256": "3f3e37da5bd5a108b0b2f0bef7c127704f10ad789a9d09d3d68fed435b33eab7",
+      "lineCount": 58,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/shop/User.ts",
+      "sha256": "be74aa8957827cce8fdb086cd278e4ece3a96567afb4651baff0c730b2a5b077",
+      "lineCount": 66,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/shop/index.ts",
+      "sha256": "0fa1464971e423985b7fe9703cd6ae6783b18fc300de2bf9afed3867f3d043e9",
+      "lineCount": 39,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/cross-framework-fixtures/entity-fields-descriptor.spec.ts",
+      "sha256": "bc1bc0df80e955b46d5e615f635411a5393b53267c6596f2a736f815ccc68945",
+      "lineCount": 122,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/cross-framework-fixtures/live-cursor-boundary.spec.ts",
+      "sha256": "0d127319993ea30b99d5964320e019f19c13739d107927cece94b7aa3b929794",
+      "lineCount": 26,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/cross-framework-fixtures/search-parity.spec.ts",
+      "sha256": "2a46c3db5bcc761d6852f32bf53d72417fb9e36baeefdfb6762abfe1d4efb5a5",
+      "lineCount": 99,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/cross-framework-fixtures/sync-override.spec.ts",
+      "sha256": "7da6613a5934c93c39b8ba02f3d092691dbb29ab91a35d8f540cd609085e6584",
+      "lineCount": 117,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/dependency-direction.spec.ts",
+      "sha256": "ed6a6f2c3271f6ff85c32d4b5689fae550235065cc6892592d06e7adf17ef5d0",
+      "lineCount": 54,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/encrypted/error-contract.spec.ts",
+      "sha256": "7703d9a72856e7a6b2d15987cef32d78bfdfec21e7ebb752defa6f8d8bf9e794",
+      "lineCount": 69,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/encrypted/options.spec.ts",
+      "sha256": "ed05315b65fb65536c791d33dd016adbe37a92cf41183c415b1a36e458d16c39",
+      "lineCount": 57,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/encrypted/query-count.spec.ts",
+      "sha256": "4724348513833599482d7ef6a9425fb4a6075038a3c68187beb8201e14dbf3b4",
+      "lineCount": 33,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/encrypted/temporary-value.spec.ts",
+      "sha256": "59c1ef0948598b0e7bf9f7ba730421bca27ba3d6687ebb4f7f05ccc3613c1bae",
+      "lineCount": 113,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/entity-model-contract.spec.ts",
+      "sha256": "23d81dedfd045011da783f38bbe8182958abe97c11b6f507e1de9de33560809a",
+      "lineCount": 126,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/index.spec.ts",
+      "sha256": "337c78a1c1f61cf1505805539c62272b87b0822aa067af768421395824a14342",
+      "lineCount": 75,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/published-entity-behavior.spec.ts",
+      "sha256": "f414ef5a805786f95f88443a563e8d21ddadbeb66db5f4c24138ab6255c9bd1e",
+      "lineCount": 93,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/published-model-invariants.spec.ts",
+      "sha256": "e2399c33f0c9f5200fb20988ab477444fc0b822c20e610a89641a4c409048657",
+      "lineCount": 141,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/review-round3-cleanup-verdict.spec.ts",
+      "sha256": "f8a8e3d431c112793ec19650e8cbaa5e3ccf57e7c7dd0dd46f396b9af8001eb3",
+      "lineCount": 228,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/task-model.spec.ts",
+      "sha256": "62f9d2568d938dfe9fc8521cd3aa02d3e151c5520bc6d7c01bd6c449329f6008",
+      "lineCount": 37,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/testing/clear-entity-records.spec.ts",
+      "sha256": "59cf19d8882d3f65740c91695d3afcd4ae1aa15858815625232e90b613218886",
+      "lineCount": 41,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/testing/e2e-db-name.spec.ts",
+      "sha256": "59a63c36f1530fe0f51e2e2e571d73db83d913dd5c60fe69f3afd71a6a909c2c",
+      "lineCount": 85,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/testing/generate-test-db-name.spec.ts",
+      "sha256": "b445768b978810ae43d3b3514555745a271e9902250ee402647d2dd2f1e9960d",
+      "lineCount": 17,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/testing/observable-sequence.spec.ts",
+      "sha256": "45254b64422234054ae57806bdf7744af6a488e1bb3a912358e2eaadc04048e3",
+      "lineCount": 272,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/testing/search-demo-api.spec.ts",
+      "sha256": "2cc66fa5ee704fab0a22678ca8879c6941e6814cd9aa9cbaf24ae0f11cb6fe23",
+      "lineCount": 350,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/testing/seed-lock.spec.ts",
+      "sha256": "d4798e6708855f108db2cea588b0a00fe7517b18be3569d426a63c06d64f0daa",
+      "lineCount": 118,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/testing/sqlite.spec.ts",
+      "sha256": "82836074ad37fd92f17fdd4cfe26d1f16c5db86e8fcd74f93f6e3567bc9e8bd2",
+      "lineCount": 464,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/transaction/review-parallel-teardown-rejection.spec.ts",
+      "sha256": "0ab82285ac5611c65ac8e81090f54730b621dffc3e112058fffae641779f47b9",
+      "lineCount": 80,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/cross-framework-fixtures/entity-fields-descriptor.ts",
+      "sha256": "fdf7a026992fa8056e4a5d121baf0a91e5b4327eb1bbd64fbaf8eed7f3631b5d",
+      "lineCount": 341,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/cross-framework-fixtures/index.ts",
+      "sha256": "664a4ee9dffacca80c3aae33ce869de8c759322a664847d84fac8d3776b2804e",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/cross-framework-fixtures/live-cursor-boundary.ts",
+      "sha256": "47def2847ecaa64708f97f76df9ce6d0886ae4cf58244390bc9ebc1b6193afa5",
+      "lineCount": 100,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/cross-framework-fixtures/search-parity.ts",
+      "sha256": "11df00c7287cee2885ad33f63a56582f7a8cd892baf3d36fddb149d95f3d8378",
+      "lineCount": 111,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/cross-framework-fixtures/sync-override.ts",
+      "sha256": "ee0297c95d37666ca96406b11a37c4e92c5811ce81f2e400ea7cb8eb78a872cf",
+      "lineCount": 399,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/encrypted/bigint-binary.suite.ts",
+      "sha256": "9ee3831899fc515c61d2b0b4a559f40528e7588b5b6b5c9e2c6d0f5dd436eb14",
+      "lineCount": 276,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/encrypted/change-log.suite.ts",
+      "sha256": "e10e77558caf46449e4fbfa7f2c682db611ad522af464ee5a804c781d98e19c1",
+      "lineCount": 154,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/encrypted/crud.suite.ts",
+      "sha256": "fe393d7c75a17225e326513889a2bcc22b1276284b840cc0ceea734f63195a8e",
+      "lineCount": 454,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/encrypted/error-contract.ts",
+      "sha256": "0bb04b4a8042dc22863063851d648b7433d63caef13c84d0232aab9d05fbc740",
+      "lineCount": 91,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/encrypted/fixtures.ts",
+      "sha256": "9460ddf4731831cdcb169b2a145aff2ca90e463966866a900b18f6ca53d89b6f",
+      "lineCount": 116,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/encrypted/index.ts",
+      "sha256": "8c5068d939b2a1cf5b818d8e54622c041483318f2d4bca2d0123b6e6aade4480",
+      "lineCount": 15,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/encrypted/lifecycle.suite.ts",
+      "sha256": "bc34b5ec76ec32f3a86cb6d13616fb0474e84d73916d23e59e676c2b9ab1eae8",
+      "lineCount": 399,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/encrypted/query-count.ts",
+      "sha256": "13e46a2ca4c0c5e316a124b36909271fe0383232e29c6b97fd6370f2863aba92",
+      "lineCount": 74,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/encrypted/tamper.suite.ts",
+      "sha256": "c53d70f7580ca8cf585f654f1a8fc0425ff2ef1f4273c9b236978a1150745ec3",
+      "lineCount": 346,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/encrypted/temporary-value.ts",
+      "sha256": "65b6e6a50821eb83631650bc41e88977248b32e4eee5d3634f568d9c85262e7b",
+      "lineCount": 51,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/encrypted/types.ts",
+      "sha256": "2e7d7215b5bb62046b00e9128dbca8e69929aed565a6e1ad2f7745f6274e6971",
+      "lineCount": 169,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/index.ts",
+      "sha256": "8d5966ecb06b2d307f0d58ce31d220cd98a45b759f8ce4d15bcb911fda1e1f3d",
+      "lineCount": 26,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/query-cache-contract/fixtures.ts",
+      "sha256": "b5470cb2a509d53bb91686161ecfc72ef6514affac046f2b828f9235f6f751ec",
+      "lineCount": 111,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/query-cache-contract/index.ts",
+      "sha256": "7bcc27bfa2e906d1df076dff7620d9bdafa773fdd17c18359fcb69f555929dc8",
+      "lineCount": 25,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/query-cache-contract/row-contract.suite.ts",
+      "sha256": "e54b3cd3c90124bf823cba60829498012dffc4c2d31f97556c35a10e4822cdda",
+      "lineCount": 288,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/query-cache-contract/types.ts",
+      "sha256": "525f07fe70bc361a15c2fb5d475724b1b148eba26e1b378fa3b0ba71249b3c6b",
+      "lineCount": 23,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/sortable/fixtures.ts",
+      "sha256": "a011d6455c37d45a40b8e2955e69a912160874b254ca6c87daf56078da03a380",
+      "lineCount": 123,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/sortable/index.ts",
+      "sha256": "a52d3049372bbcb353476f3f32ac495f673a279f5d41b3faa79193cc7a77f46c",
+      "lineCount": 20,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/sortable/manual-order-edits.suite.ts",
+      "sha256": "79679a2cdbb44b191858d428b4ec411e46ec7d247814578b64c72f9c0ffc2df8",
+      "lineCount": 275,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/sortable/manual-order-group.suite.ts",
+      "sha256": "22dfc6ead9b468a705b6b6f082fb383790b213a3805fd6171a2f373327bf1aea",
+      "lineCount": 335,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/sortable/manual-order.suite.ts",
+      "sha256": "6dc4e34056d42e7f6992547db1393302792d3fec1ade9654bee3630641363332",
+      "lineCount": 283,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/sortable/transaction-barrier.ts",
+      "sha256": "34e5d02129dca05f47b53f02c7187babee7f032991f54bfea512caeffe4d00b4",
+      "lineCount": 36,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/sortable/types.ts",
+      "sha256": "1ad03b9d4c447cb395b6765d4b3418ab7f8ead4522abad733b7a99d26b5a508b",
+      "lineCount": 35,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/testing/clear-entity-records.ts",
+      "sha256": "712036e135f4da262a795cf971ffa4d4eb358f1cd84ea077a68458810098aaf8",
+      "lineCount": 23,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/testing/e2e-db-name.ts",
+      "sha256": "8adaf885c4c0d2e2d7d6de60ae8959bc7898b56d96270c5d2eb384f3d676be34",
+      "lineCount": 61,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/testing/generate-test-db-name.ts",
+      "sha256": "54f1c4220dad253eb3b949cb1a4d4713cafb070c8e35426d9416526eadcabf15",
+      "lineCount": 5,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/testing/index.ts",
+      "sha256": "072205039624b186cf4780e591fe49c8975b3f44fdd218ed3ab7bad72724d79c",
+      "lineCount": 49,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/testing/observable-sequence.ts",
+      "sha256": "497ed914e40e3d5862382e43d735af17f81890fd63eabadc6191fb68b9675830",
+      "lineCount": 135,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/testing/search-demo-api.ts",
+      "sha256": "13e763a401b1403d5aa5eb83111d46f22916c191276c94105672b200889d6ea8",
+      "lineCount": 234,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/testing/seed-lock.ts",
+      "sha256": "baa5ed066ba065b3750311cca85040753479d817c5a90d49ad3cc8932ec5a6da",
+      "lineCount": 37,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/testing/sqlite.ts",
+      "sha256": "20f14e675565ed91510c17b5098dda64ace42123d5c3446ade767d589d217dd9",
+      "lineCount": 238,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/transaction/bootstrap.suite.ts",
+      "sha256": "7dfaec8bbc730e5b1a2329178aa934279a86db6acfb4eeeb30ebd212cf393580",
+      "lineCount": 94,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/transaction/fixtures.ts",
+      "sha256": "fbfbd53e2499bf04ef73d8fce8230762340068e1eeacee933d64ad84693f6bb9",
+      "lineCount": 60,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/transaction/index.ts",
+      "sha256": "88178d68e70beddd76849dbbfdc9221bfca2e70570a8ea866d37870c8c6cb7ac",
+      "lineCount": 29,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/transaction/isolation.suite.ts",
+      "sha256": "b8ed9de717b6511944de5aed1b01a5200f76b5ccfabe77ccde37b1bebd879ccc",
+      "lineCount": 143,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/transaction/readiness.suite.ts",
+      "sha256": "e8a3ecaa643c9f2f4ee76b617572a14e9e30566273a34b15ffb3ea993cfb3a1b",
+      "lineCount": 74,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/transaction/types.ts",
+      "sha256": "5632a203ab1ed470ebc42e89cac478db2a980dd1828591e0eccb938c2219f460",
+      "lineCount": 102,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/tree-unique/fixtures.ts",
+      "sha256": "eea5d196337063f3497f4f3525d0bfe574f73776f7705271203607290902b3ec",
+      "lineCount": 75,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/tree-unique/index.ts",
+      "sha256": "6d2adba2165b5eba6634092226f635a19d881f376df636943f0a1967fcde7586",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/tree-unique/sibling-unique.suite.ts",
+      "sha256": "484b62adc22ef442bc02b9e0b07e9d6b5a993382052b434a9db9e66c0c49b746",
+      "lineCount": 152,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/src/tree-unique/types.ts",
+      "sha256": "d9b05f016bddacedddbba15d6650f5a6752e2c08e124798776f16ac9ee65aeeb",
+      "lineCount": 46,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/tsconfig.check.json",
+      "sha256": "62173b1f036ae69176ee10a68445ea605fe1b4e705d6eab89a441882428ed668",
+      "lineCount": 20,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/tsconfig.lib.json",
+      "sha256": "64893024c4044bae85cd206a707714dcb4d8ed7ba5c205af8137e21e70a11513",
+      "lineCount": 40,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/tsconfig.publish.json",
+      "sha256": "d024117bec6cf8c57c46d214e0649128c27f019fec7c67a446e7c7e3f1d91b0b",
+      "lineCount": 17,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/tsconfig.shop.json",
+      "sha256": "06d101fe94cfc3ec402e51af5ed44b5ee42bf1ea507c23d7d5aa25349c888169",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/tsconfig.spec.json",
+      "sha256": "f56d7f9edb48fa6e50fea6b7c35bdc0cf5aeef09470a3e53f87ba77c8940e201",
+      "lineCount": 31,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/vite.config.mts",
+      "sha256": "a16a0500659764045f7cc5110d583e2c9063466411372d67157630a01290249c",
+      "lineCount": 108,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/vitest.acceptance-root.mts",
+      "sha256": "df2803cd0eba2877af556c487c5e9b0130dedb641c2887f0eb42eb8bd7d8d590",
+      "lineCount": 37,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/vitest.coverage-acceptance.merge.config.mts",
+      "sha256": "d1f2a5d6c62daac5bbb99949bbbb7f9a78fade7cbfd618f9f8bec8457c641c27",
+      "lineCount": 115,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/vitest.coverage-acceptance.pglite.config.mts",
+      "sha256": "3c5411e7e3537fc850f45af5533e5a0441a32af736f45e75845f61dd19d70d9c",
+      "lineCount": 142,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-test/vitest.coverage-acceptance.unit.config.mts",
+      "sha256": "20b3f9bc74de6de73ac4033266bd647f49f4dafd9c659044f9fc6a66f169b71e",
+      "lineCount": 50,
+      "isText": true
+    }
+  ],
+  "controlledFileCount": 116,
+  "lineCount": 11885,
+  "allFilesRequired": true,
+  "hashIsNotReadingProof": true,
+  "scopeIncludesTestsConfigDocs": true
+}

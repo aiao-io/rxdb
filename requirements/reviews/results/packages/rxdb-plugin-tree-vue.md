@@ -252,16 +252,15 @@ release-readiness: not-claimed
 
 主控只修本轮新增probe的声明推导、审计时间接缝与根StrictMode假设，原失败快照保留；未改业务、原tests、依赖或用户暂存区。
 
-
 ## R3-02：Vue tree SFC / readonly strict 消费结算（2026-10-05）
 
 **R3-02 有界 SFC 补证已交付，不新增问题编号、不扩矩阵、不修改 plan 或原 C 状态；主控最后统一核销。** 本对象 R2 的 13/13 全文阅读与 C1–C5 逐项意见交付已经完成，不能因为必要验证尚未全绿倒记为“未评审”。本轮核实真正 `.vue`、模板与跨 SFC props/emits；不把类型编译当作实际仓储/identity/lifecycle 验证。
 
-| 统计维度 | 本对象结算 |
-| --- | --- |
-| 全文阅读 / 逐 C 意见交付 | R2 原 13/13 受控文件全文阅读、C1–C5 意见与证据锚点已交付；R3 有界补证意见已交付。必要验证未绿不倒扣这项进度。 |
-| 专题证据核销 | 现有 9 项 SFC 正反/归属对照结算，26/26 目标诊断命中；给主控核销建议，不代改 plan/C 状态。 |
-| 发布验证 | 不标全绿：NodeNext 仍受上游 rxdb-vue 声明阻断；主控另通报真实 PGlite 同 fixture 三端删除锚点后 count=-1，上游问题待确认 RV079。 |
+| 统计维度                 | 本对象结算                                                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| 全文阅读 / 逐 C 意见交付 | R2 原 13/13 受控文件全文阅读、C1–C5 意见与证据锚点已交付；R3 有界补证意见已交付。必要验证未绿不倒扣这项进度。                   |
+| 专题证据核销             | 现有 9 项 SFC 正反/归属对照结算，26/26 目标诊断命中；给主控核销建议，不代改 plan/C 状态。                                       |
+| 发布验证                 | 不标全绿：NodeNext 仍受上游 rxdb-vue 声明阻断；主控另通报真实 PGlite 同 fixture 三端删除锚点后 count=-1，上游问题待确认 RV079。 |
 
 ### R3 被测来源与执行边界
 
@@ -272,17 +271,17 @@ release-readiness: not-claimed
 
 ### R3 具体正反例与退出状态
 
-| 测量 | 场景 | 退出状态 | 精确诊断 |
-| --- | --- | --- | --- |
-| invalid-template-bundler | 模板 emit 参数 / 不存在字段 / number 方法错误 | 2 | TS2339×2、TS2345×1 |
-| invalid-inputs-bundler | 四 hooks 错误 id / 非树实体 / readonly 写入 / 错误结果与 level | 2 | TS2322×7、TS2345×4、TS2540×1 |
-| invalid-parent-bundler | 父组件 rootId 与 selected handler 参数错误 | 2 | TS2322×2 |
-| readonly-rules-bundler | core / tree / Vue UseOptions / 四 wrapper 默认 deep readonly 规则拒绝 | 2 | TS2322×3、TS2345×5 |
-| doc-depth-bundler | 照发布 TSDoc 传 depth | 2 | TS2353×1 |
-| valid-bundler | 真实 SFC 正例 + 正确 props/emit 父组件 | 0 | 0 诊断 |
-| upstream-only-bundler | 仅引入 rxdb-vue 的 SFC，Bundler 对照 | 0 | 0 诊断 |
-| upstream-only-nodenext | 仅引入 rxdb-vue 的 SFC，NodeNext | 2 | TS2834×7 |
-| valid-nodenext | 同一有效 wrapper SFC，NodeNext | 2 | TS2305×4、TS2834×7 |
+| 测量                     | 场景                                                                  | 退出状态 | 精确诊断                     |
+| ------------------------ | --------------------------------------------------------------------- | -------- | ---------------------------- |
+| invalid-template-bundler | 模板 emit 参数 / 不存在字段 / number 方法错误                         | 2        | TS2339×2、TS2345×1           |
+| invalid-inputs-bundler   | 四 hooks 错误 id / 非树实体 / readonly 写入 / 错误结果与 level        | 2        | TS2322×7、TS2345×4、TS2540×1 |
+| invalid-parent-bundler   | 父组件 rootId 与 selected handler 参数错误                            | 2        | TS2322×2                     |
+| readonly-rules-bundler   | core / tree / Vue UseOptions / 四 wrapper 默认 deep readonly 规则拒绝 | 2        | TS2322×3、TS2345×5           |
+| doc-depth-bundler        | 照发布 TSDoc 传 depth                                                 | 2        | TS2353×1                     |
+| valid-bundler            | 真实 SFC 正例 + 正确 props/emit 父组件                                | 0        | 0 诊断                       |
+| upstream-only-bundler    | 仅引入 rxdb-vue 的 SFC，Bundler 对照                                  | 0        | 0 诊断                       |
+| upstream-only-nodenext   | 仅引入 rxdb-vue 的 SFC，NodeNext                                      | 2        | TS2834×7                     |
+| valid-nodenext           | 同一有效 wrapper SFC，NodeNext                                        | 2        | TS2305×4、TS2834×7           |
 
 **消费错误 17 个 + 默认 readonly 契约拒绝 8 个 + 文档错配 1 个，共 26/26 个预置目标诊断全部命中；Bundler 负例无额外模块/ambient 错误。** 正例验证四 hooks、numeric/string id、mutable nested rules、Ref/computed/getter/plain/reactive、浅 readonly 与窄标量深 readonly；返回实体/计数类型没有靠宽化绕过。完整目标行号/错误码/原始日志/status/输入 SHA 在 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/diagnostic-matrix.json`，代码在 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/vue-consumer/consumer/`。
 

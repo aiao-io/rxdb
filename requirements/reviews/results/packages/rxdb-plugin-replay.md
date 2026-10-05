@@ -94,7 +94,6 @@ C1 按现有包级契约/上述不适用边界核销；C2 配额与全录制库�
 
 最小请求保存在 `requirements/reviews/evidence/2026-10-05/parallel/plugins/validation-requests.json`；候选在同目录 `findings.pending.md`。RV-060/061 不重复登记；RV-059 是其它对象公开接缝，不在本组扩 scope。
 
-
 ## 2026-10-05：R3-06 有界补证结算（源码审阅 / 意见已交付）
 
 **本专项源码审阅及归属意见已完成，不将专题验证 / 发布门禁未全量执行算作“评审没做”。** 主控编号 R3-06；[归属证据与最小调用序列](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/README.md)、[执行 / 指纹账本](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/execution-ledger.json)、[主控结算](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel-round3/replay-restore/closure.json)。
@@ -108,9 +107,9 @@ C1 按现有包级契约/上述不适用边界核销；C2 配额与全录制库�
 
 ### R3-06 C 核销口径
 
-| 项目 | 源码审阅 / 意见交付 | 本次专题核销与未覆盖边界 |
-| --- | --- | --- |
-| C4 restore 子面 | **已交付**：Replay 委托、WorkingTree 状态/记录、PGlite executor 复用合同及投影层归属已读 | **子面已核销**：合法最小调用、真实目标→diff、HEAD/历史保持、dirty/unreachable、断连拒绝与可执行 discard 退场；原完整 C4 仍 partial，CAS 竞争 / 不兼容 / 中断重试 / resume 未代验。 |
-| C1 / C2 / C3 / C5 | 原已交付意见保留 | C1 原限定闭合保持，其余原状态不变；完整原 C 新闭合数 **+0**，不改变完整对象或发布评级。 |
+| 项目              | 源码审阅 / 意见交付                                                                      | 本次专题核销与未覆盖边界                                                                                                                                                           |
+| ----------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C4 restore 子面   | **已交付**：Replay 委托、WorkingTree 状态/记录、PGlite executor 复用合同及投影层归属已读 | **子面已核销**：合法最小调用、真实目标→diff、HEAD/历史保持、dirty/unreachable、断连拒绝与可执行 discard 退场；原完整 C4 仍 partial，CAS 竞争 / 不兼容 / 中断重试 / resume 未代验。 |
+| C1 / C2 / C3 / C5 | 原已交付意见保留                                                                         | C1 原限定闭合保持，其余原状态不变；完整原 C 新闭合数 **+0**，不改变完整对象或发布评级。                                                                                            |
 
 改动限原评审新增 probe 的夹具/观测合同与 UUID 返回类型、独占 evidence、本结算追加段。普通原 tests、业务、依赖及 index 均未由本线程修改。停止后续扩展。

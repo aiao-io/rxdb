@@ -1,0 +1,372 @@
+{
+  "object": "rxdb-model-vue",
+  "headAtScope": "943c50cc85b4be3b0635f736a35a9659c3fe209a",
+  "clientDate": "2026-10-05",
+  "files": [
+    {
+      "path": "packages/rxdb-model-vue/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/README.md",
+      "sha256": "7770f7f799c3a672fc57366e2be53e089cf60bf81155b6ebea711c7c7f3de7cd",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/eslint.config.mjs",
+      "sha256": "662a703f2ea8ba7bdfac825ae9a804c5674062fb50974f4e420274a8c9a9529f",
+      "lineCount": 34,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/package.json",
+      "sha256": "3200f2f7f0e5211aab660e4909d443432e91b4699197a43fc34a1616ce4082af",
+      "lineCount": 68,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/project.json",
+      "sha256": "586398e53d051e0ff78841c39ba28dcb20c58abcc0c59f38363a04cb7e1bc155",
+      "lineCount": 12,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/entity-detail/entity-detail.real.spec.ts",
+      "sha256": "b1df905f036b1ffdeeddb8d24e3a26866077037d2e8200c784374dec6b4998f6",
+      "lineCount": 481,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/entity-dialog/entity-dialog.real.spec.ts",
+      "sha256": "3c02a0f5d2f59cc625645cfe71498c46776fc78702334dfdad0c01e3d38578e4",
+      "lineCount": 229,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/entity-form/entity-form.real.spec.ts",
+      "sha256": "fc3bb1266f9c9a368c7110dcc6f7600f32290f155cd779d279cdc8894e4c14d8",
+      "lineCount": 536,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/entity-list/entity-list.real.spec.ts",
+      "sha256": "bb4737b006d732c068d6d7c60e22f12a223d9e55ab9f4b94eb8eda0683ff03b4",
+      "lineCount": 1397,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/entity-table/entity-table.real.spec.ts",
+      "sha256": "0550aaf22c5ad3c8bb1d46ff2a0f63bbe9ae6030b2e407145794847a29b1cb29",
+      "lineCount": 397,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/entity-table/query-table.real.spec.ts",
+      "sha256": "5eb57e25a121cdfffddec2cea50f97218f38c53595e6cff7011716af8157e509",
+      "lineCount": 240,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/query-builder/operator-selector/operator-selector.real.spec.ts",
+      "sha256": "ac553dfad21a2bb0dd42d3bef84a67edfcaabb49f9daacf6235502919c0bbd8d",
+      "lineCount": 85,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/query-builder/popover-select/popover-select.real.spec.ts",
+      "sha256": "6e57328b6464dcd2f69dd9da3ed2cbc2500a543228e08b6328ab306f38a4ab2f",
+      "lineCount": 328,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/query-builder/query-builder/query-builder.real.spec.ts",
+      "sha256": "f8cf56d615a053af2bc741543beeb329b90f7db78e60fb8ffebeb43b8e20e316",
+      "lineCount": 205,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/query-builder/query-group/query-group.real.spec.ts",
+      "sha256": "888be5b6aebe2ba433b0df98ef02cdfb1d4cf07f5ee2f84e2e08e92c1d75f02f",
+      "lineCount": 723,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/query-builder/query-rule/query-rule.real.spec.ts",
+      "sha256": "3310b8cbe9f743450756297b3b27c37bac43fd73275ee0c37bdee4e0175dc597",
+      "lineCount": 535,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/query-builder/subquery-builder/subquery-builder.real.spec.ts",
+      "sha256": "62a7cb02f979c472278b74fd7184a781cac224bf945b97d4b6a1daf3f71b8c5f",
+      "lineCount": 260,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/query-builder/tree-select/tree-select.real.spec.ts",
+      "sha256": "1982b7250a11fee31911a96f20a31028b378915b9eeb15f52f99c733e8c4595a",
+      "lineCount": 234,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/query-builder/value-input/value-input.real.spec.ts",
+      "sha256": "5e1feb8e24c48a34586c2b15c785a2c4646f839340786969c42566e10b9b78c2",
+      "lineCount": 285,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/testing/fake-vtable-editors.ts",
+      "sha256": "ffcb413ad110903a8b7758e0a5197b9cabb8fde0ffa24b4a033bb5096b539c79",
+      "lineCount": 21,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/testing/fake-vtable.ts",
+      "sha256": "ddb6fbe823628d755af6197a978fcf94582983b52e5e24e6a41ca0c081481d74",
+      "lineCount": 199,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/testing/in-memory-rxdb.ts",
+      "sha256": "fe2b6a871059a2edf8128fabe5ec2ebc5690b3a6c1ed8d1811faaa48457810bc",
+      "lineCount": 725,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/__tests__/testing/mount-utils.ts",
+      "sha256": "7d62a8eb5591041ecc87c537cbf7e09019ff47d2933143609b8850e70bb6e910",
+      "lineCount": 62,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/entity-detail/EntityDetail.vue",
+      "sha256": "24456e2a335fd6c1910e460dc0996fcd9829c4bf45c0e561fd9a5f83fcdda50f",
+      "lineCount": 539,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/entity-detail/entity-detail-types.ts",
+      "sha256": "d47720fcb1f26bca213a65a8864e0e83dcf2158afaecf2a38146c317c188d41d",
+      "lineCount": 30,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/entity-detail/index.ts",
+      "sha256": "7d3f371acb876f7e75b67b28b0229f0c7063d29e545fdddfbd7cf4e320553552",
+      "lineCount": 6,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/entity-dialog/DialogPortal.vue",
+      "sha256": "ef46c20743f384efc01ef906029765c11bce90f38e34ad8834399feaf850a13c",
+      "lineCount": 127,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/entity-dialog/EntityDialog.vue",
+      "sha256": "c422858e2e33154ee482f8415a5ef0428da0a186375c0d5aeb3bf9043ec34ea5",
+      "lineCount": 360,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/entity-dialog/dialog-context.ts",
+      "sha256": "85f8f0bc37999885f608ee5c5ce1a8682ffdae518b100e1ea70948bb1f7c7e52",
+      "lineCount": 23,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/entity-dialog/index.ts",
+      "sha256": "3360681ded4564b238f6ed2491dbfaedc034100961ead77f9cda1b3b3c563d18",
+      "lineCount": 9,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/entity-form/EntityForm.vue",
+      "sha256": "36ff226602607ff874e8c7091eb5c3cdb8364d5742f31fe139c4dfc7dcaef9b5",
+      "lineCount": 592,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/entity-form/index.ts",
+      "sha256": "1394c13389d4e532bbf4e70b2eef17bc7d3dfcd28eb54dc5fe998685cb326c99",
+      "lineCount": 4,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/entity-list/EntityList.vue",
+      "sha256": "30bada05bb6ac61e421cb86c60c4b30348cddc8edae25eaed069a5d08a744b9b",
+      "lineCount": 1259,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/entity-list/index.ts",
+      "sha256": "a8a2a57034d01613b155fdfa45b7b6f0c08d1c033842b655d2e3d88e57a62c95",
+      "lineCount": 5,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/entity-table/EntityTable.vue",
+      "sha256": "e75a8124ef533562674c965839425c7d2b94092a954b449c3dce0ed4579cbfa8",
+      "lineCount": 480,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/entity-table/QueryTable.vue",
+      "sha256": "cf0da73a8bfaafb351fa30f1e922ce730ae5f01629cbca892948e24c7091eb6d",
+      "lineCount": 171,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/entity-table/config.ts",
+      "sha256": "b9d5905bee4a4726b5e7a7f74a1807bc11e2bb3793749f6abd27179730c12f6a",
+      "lineCount": 10,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/entity-table/index.ts",
+      "sha256": "f9620a7ed60bccca6b4def80e00eb7b9367a165b0e84ada69468f6008e9421d8",
+      "lineCount": 14,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/index.ts",
+      "sha256": "410c38da55391744485a8bc6687230e6a088d0909b7cfbc9b5fb4d09f8747ca8",
+      "lineCount": 27,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/query-builder/field-selector/FieldSelector.vue",
+      "sha256": "071fbdaf5c287fc7ffb0e59a1be1b92750b2b4dbd0b5528edd6762da2b7b5dbc",
+      "lineCount": 53,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/query-builder/index.ts",
+      "sha256": "5ea1ff406dfd911a9cdd7f9683f8068efd10556343077248ab518ecdfc185518",
+      "lineCount": 39,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/query-builder/operator-selector/OperatorSelector.vue",
+      "sha256": "b92746a2df81abe3f0f68f39916314b06efda343d0c8f588c7171a22b57b1902",
+      "lineCount": 60,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/query-builder/popover-select/PopoverSelect.vue",
+      "sha256": "6d07e70197f58a5cea9e0f2e489bbcd2799e547a4ad3e09bad7fb9fd8899288e",
+      "lineCount": 228,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/query-builder/query-builder/QueryBuilder.vue",
+      "sha256": "b9759fe37035b8dbde73415bdd73beb8d4a806d926ee625e47099b7395672207",
+      "lineCount": 320,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/query-builder/query-builder/query-builder-types.ts",
+      "sha256": "ef183c40149631d2ac59fb32ec440e7be2caf715b0b26a9bd14c59f494aaee03",
+      "lineCount": 7,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/query-builder/query-group/QueryGroup.vue",
+      "sha256": "08be9cec63ef2cd84e3a3a87ea3305b4c73cb3a69153639f82652b46900d6780",
+      "lineCount": 456,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/query-builder/query-group/query-drag-drop.ts",
+      "sha256": "3bc90e1ac39814e40c912135c45f7a32e981daf47f5a87b14ebb6e44da56a2eb",
+      "lineCount": 91,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/query-builder/query-rule/QueryRule.vue",
+      "sha256": "98cee7d8eb862547e791a8672fafe5f073eb92ac7ca529fd3a994b7fb682862e",
+      "lineCount": 267,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/query-builder/subquery-builder/SubqueryBuilder.vue",
+      "sha256": "885559d99a4e7e09b3ab9f5cab8eb27022d4ae31c7b51afcb33b36d14836d9ab",
+      "lineCount": 221,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/query-builder/theme/default-query-builder-theme.ts",
+      "sha256": "fe9fc7f12e1d8fee0fd51bc47368dacfa8d6ff38a954dfa78ee3e7f0d16b0603",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/query-builder/theme/index.ts",
+      "sha256": "89949bca2da2ab3655615985b68385b65064f9d62c8347916aaa2525c14c40ee",
+      "lineCount": 2,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/query-builder/theme/query-builder-theme.ts",
+      "sha256": "f60d659025504f9b1fab6ba642b21e997ed18fc408a387e223b308129df3f3ec",
+      "lineCount": 43,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/query-builder/tree-select/TreeSelect.vue",
+      "sha256": "d2d539c506337153223115a7c81e7602de9fe470b0abf22eb8fb8bc5188ad1f1",
+      "lineCount": 447,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/query-builder/value-input/ValueInput.vue",
+      "sha256": "953c540fb9ef9bef8eeaf6d20aed91d0f0a8f4f40095fdae838300e94bb701b9",
+      "lineCount": 451,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/src/vue-shims.d.ts",
+      "sha256": "9ad9de35bf115106578cc6de3415bca1e87238645997cce9697bf8ec716ac2b4",
+      "lineCount": 5,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/tailwind.css",
+      "sha256": "f923518178dfbfe5c7412e2bd42eed31c2db0f74acf16a7d4422efbbd37dc566",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "lineCount": 16,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/tsconfig.lib.json",
+      "sha256": "743fa57afaf897ff94c72f1591d61a8fdc083348de7f26e1587a30892f6f88a6",
+      "lineCount": 44,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/tsconfig.spec.json",
+      "sha256": "487e4a66f94644b546df27dc35cdeaee68c789b5adc6542ec4650a1662c58ddf",
+      "lineCount": 26,
+      "isText": true
+    },
+    {
+      "path": "packages/rxdb-model-vue/vite.config.mts",
+      "sha256": "bc5c8cdae1a40af78933eaca1a01098a98468d044a0a11261d38198eea3de94c",
+      "lineCount": 66,
+      "isText": true
+    }
+  ],
+  "controlledFileCount": 60,
+  "lineCount": 13628,
+  "allFilesRequired": true,
+  "hashIsNotReadingProof": true,
+  "scopeIncludesTestsConfigDocs": true
+}

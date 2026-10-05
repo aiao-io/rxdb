@@ -1,0 +1,341 @@
+{
+  "root": "packages/rxdb-adapter-pglite",
+  "targets": {
+    "typecheck": {
+      "cache": true,
+      "inputs": [
+        "production",
+        "^production",
+        {
+          "externalDependencies": [
+            "typescript"
+          ]
+        }
+      ],
+      "metadata": {
+        "technologies": [
+          "typescript",
+          "typescript"
+        ],
+        "description": "Runs type-checking for the project.",
+        "help": {
+          "command": "pnpm exec tsc --build --help",
+          "example": {
+            "args": [
+              "--force"
+            ]
+          }
+        }
+      },
+      "dependsOn": [
+        "build",
+        "^typecheck"
+      ],
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-adapter-pglite",
+        "command": "tsc --build --emitDeclarationOnly"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "build": {
+      "cache": true,
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "production",
+        "^production"
+      ],
+      "outputs": [
+        "{projectRoot}/dist"
+      ],
+      "metadata": {
+        "technologies": [
+          "typescript",
+          "vite"
+        ],
+        "description": "Run Vite build",
+        "help": {
+          "command": "pnpm exec vite build --help",
+          "example": {
+            "options": {
+              "sourcemap": true,
+              "manifest": "manifest.json"
+            }
+          }
+        }
+      },
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-adapter-pglite",
+        "command": "vite build"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "build-deps": {
+      "dependsOn": [
+        "^build"
+      ],
+      "configurations": {},
+      "options": {},
+      "parallelism": true,
+      "executor": "nx:noop"
+    },
+    "watch-deps": {
+      "continuous": true,
+      "dependsOn": [
+        "build-deps"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "pnpm exec nx watch --projects rxdb-adapter-pglite --includeDependencies -- pnpm exec nx build-deps rxdb-adapter-pglite"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "serve": {
+      "continuous": true,
+      "metadata": {
+        "technologies": [
+          "vite"
+        ],
+        "description": "Starts Vite dev server",
+        "help": {
+          "command": "pnpm exec vite --help",
+          "example": {
+            "options": {
+              "port": 3000
+            }
+          }
+        },
+        "deprecated": "Use devTargetName instead. This option will be removed in Nx 22."
+      },
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-adapter-pglite",
+        "command": "vite"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "dev": {
+      "continuous": true,
+      "metadata": {
+        "technologies": [
+          "vite"
+        ],
+        "description": "Starts Vite dev server",
+        "help": {
+          "command": "pnpm exec vite --help",
+          "example": {
+            "options": {
+              "port": 3000
+            }
+          }
+        }
+      },
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-adapter-pglite",
+        "command": "vite"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "preview": {
+      "continuous": true,
+      "dependsOn": [
+        "build"
+      ],
+      "metadata": {
+        "technologies": [
+          "vite"
+        ],
+        "description": "Locally preview Vite production build",
+        "help": {
+          "command": "pnpm exec vite preview --help",
+          "example": {
+            "options": {
+              "port": 3000
+            }
+          }
+        }
+      },
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-adapter-pglite",
+        "command": "vite preview"
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "syncGenerators": [
+        "@nx/js:typescript-sync"
+      ],
+      "options": {
+        "buildTarget": "build",
+        "spa": true
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "lint": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production"
+      ],
+      "outputs": [
+        "{options.outputFile}"
+      ],
+      "metadata": {
+        "technologies": [
+          "eslint"
+        ],
+        "description": "Runs ESLint on project",
+        "help": {
+          "command": "pnpm exec eslint --help",
+          "example": {
+            "options": {
+              "max-warnings": 0
+            }
+          }
+        }
+      },
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb-adapter-pglite",
+        "command": "eslint ."
+      },
+      "configurations": {},
+      "parallelism": true
+    },
+    "test": {
+      "cache": true,
+      "inputs": [
+        "default",
+        "^production"
+      ],
+      "outputs": [
+        "{workspaceRoot}/coverage/packages/rxdb-adapter-pglite"
+      ],
+      "metadata": {
+        "technologies": [
+          "vitest"
+        ],
+        "description": "Run Vitest tests",
+        "help": {
+          "command": "pnpm exec vitest --help",
+          "example": {
+            "options": {
+              "bail": 1,
+              "coverage": true
+            }
+          }
+        }
+      },
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "^build",
+        {
+          "target": "test-node",
+          "params": "ignore"
+        }
+      ],
+      "parallelism": false,
+      "options": {
+        "cwd": "packages/rxdb-adapter-pglite",
+        "command": "vitest"
+      },
+      "configurations": {}
+    },
+    "nx-release-publish": {
+      "executor": "@nx/js:release-publish",
+      "dependsOn": [
+        "^nx-release-publish"
+      ],
+      "options": {},
+      "configurations": {},
+      "parallelism": true
+    },
+    "test-node": {
+      "cache": true,
+      "dependsOn": [
+        "^build"
+      ],
+      "executor": "nx:run-commands",
+      "inputs": [
+        "default",
+        "^production"
+      ],
+      "options": {
+        "command": "vitest src/__tests__/system-schema-migration.spec.ts --browser.enabled=false --reporter=default",
+        "cwd": "packages/rxdb-adapter-pglite"
+      },
+      "configurations": {},
+      "parallelism": true
+    }
+  },
+  "projectType": "library",
+  "metadata": {
+    "targetGroups": {},
+    "description": "PGlite adapter for running PostgreSQL locally in the browser.",
+    "js": {
+      "packageName": "@aiao/rxdb-adapter-pglite",
+      "packageVersion": "0.0.26",
+      "packageExports": {
+        "./package.json": "./package.json",
+        ".": {
+          "types": "./dist/index.d.ts",
+          "import": "./dist/index.js",
+          "default": "./dist/index.js"
+        },
+        "./testing": {
+          "@aiao/source": "./src/testing.ts",
+          "types": "./dist/testing.d.ts",
+          "import": "./dist/testing.js",
+          "default": "./dist/testing.js"
+        },
+        "./fts": {
+          "@aiao/source": "./src/fts/index.ts",
+          "types": "./dist/fts/index.d.ts",
+          "import": "./dist/fts/index.js",
+          "default": "./dist/fts/index.js"
+        }
+      },
+      "packageMain": "./dist/index.js",
+      "isInPackageManagerWorkspaces": true
+    }
+  },
+  "name": "rxdb-adapter-pglite",
+  "tags": [
+    "npm:public",
+    "npm:aiao",
+    "npm:rxdb",
+    "npm:pglite",
+    "npm:postgresql",
+    "npm:local-first",
+    "npm:wasm",
+    "js-lib"
+  ],
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "implicitDependencies": []
+}
