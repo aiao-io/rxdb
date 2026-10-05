@@ -50,9 +50,15 @@ pnpm nx bench-encryption benchmarks
 
 # 非加密热路径回归（注册加密插件不应拖慢 Todo 路径）
 pnpm nx bench-hot-path benchmarks
+
+# 推送回执路径（US-218 阶段 B）：基线批（全 applied）vs 含被拒批（10/100 rejected，触发本地对齐）
+pnpm nx bench-push-receipts benchmarks
 ```
 
 > 类型检查（`pnpm nx typecheck benchmarks`）覆盖整个 `src/` 与根目录的 `*.bench.ts`。
+>
+> `bench-push-receipts` 没有自动门禁（新基准，无历史基线可比，见该文件头 TSDoc），
+> 只打印 avg/p50/p95 与两场景差值，不接入下方「自动门禁」清单。
 
 ### 浏览器内搜索 benchmark（CI）
 

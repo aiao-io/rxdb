@@ -404,7 +404,7 @@
 - [ ] T075 PR-B 门禁：`pnpm nx run-many -t lint test build typecheck --projects=tag:js-lib`、`pnpm audit:callsite-drift`、`pnpm audit:suite-callsites`、
       `pnpm check-migration-release-gate`、`pnpm audit:api-surface`；改动包覆盖率 `rxdb` 与三框架绑定 ≥ 90%、其余 ≥ 80%（`pnpm nx test <project> --coverage`，口径同 `scripts/audit/coverage-check.mjs`）；`bash 回归脚本` 28 条全部
       `🟢 PASS`，输出贴进 PR-B 描述
-- [ ] T090 [P] 推送路径基准（宪法 IV「`benchmarks/` 覆盖关键路径」）：新建 `benchmarks/push-receipts.bench.ts`，照 `non-encrypted-hot-path.bench.ts` 的写法
+- [x] T090 [P] 推送路径基准（宪法 IV「`benchmarks/` 覆盖关键路径」）：新建 `benchmarks/push-receipts.bench.ts`，照 `non-encrypted-hot-path.bench.ts` 的写法
       （PGlite memory + `bench-stats.ts`），远端用返回逐条 `results` 的替身：基线批（100 条全部 applied）与含被拒批（100 条中 10 条 rejected，
       触发本地对齐）各测 `pushRepository` 本地提交耗时；在 `benchmarks/project.json` 加 `bench-push-receipts` target，README「Node 端回归 benchmark」登记。
       编号为追加（不重排既有编号），执行顺序在 T075 之前
