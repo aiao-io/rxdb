@@ -28,7 +28,7 @@ type LegacyMergeChanges = (
   actions: SwitchVersionActions,
   branchId?: string,
   changes?: IRxDBChange[]
-) => Promise<RemoteMergeResult | number | void>;
+) => Promise<RemoteMergeResult>;
 interface RemoteAdapterStub {
   mergeChanges: LegacyMergeChanges;
 }
@@ -156,9 +156,9 @@ describe('pushRepository sync protocol', () => {
     const update = createChange(2, 'UPDATE', { name: 'after' }, { name: 'before' });
     const mergeChanges = vi.fn<LegacyMergeChanges>(async () => ({
       maxChangeId: 102,
-      changeIdMapping: [
-        { localId: 1, remoteId: 101 },
-        { localId: 2, remoteId: 102 }
+      results: [
+        { localId: 1, status: 'applied', remoteId: 101 },
+        { localId: 2, status: 'applied', remoteId: 102 }
       ]
     }));
     const { vm, saveMany, syncRecord } = createSyncManager([insert, update], { mergeChanges });
@@ -191,7 +191,11 @@ describe('pushRepository sync protocol', () => {
     const mergeChanges = vi.fn<LegacyMergeChanges>(async (_actions, _branchId, sourceChanges) => {
       if (sourceChanges === undefined) throw new Error('Expected source changes');
       return {
-        changeIdMapping: sourceChanges.map(change => ({ localId: change.id, remoteId: 100 + change.id }))
+        results: sourceChanges.map(change => ({
+          localId: change.id,
+          status: 'applied' as const,
+          remoteId: 100 + change.id
+        }))
       };
     });
     const { vm, syncRecord } = createSyncManager(changes, { mergeChanges });
