@@ -351,11 +351,129 @@ END;
 $$;
 
 /**
+ * rxdb_assert_push_integrity - 推送载荷的日志与业务写配对校验（US-218 阶段 A）
+ *
+ * 只读四个载荷参数，不碰任何表；rxdb_mutations 在快照与写 rxdb_change 之前调用，失败时什么都没写。
+ * 键 = (COALESCE(schema, 'public'), table, id 文本)；main 日志 = COALESCE(branchId, 'main') = 'main'。
+ * 按序检查，报第一处违规（ERRCODE RX002，DETAIL 为 JSON {op, schema, table, entityId, reason}）：
+ * 1. explicit_log_in_trigger_mode：p_skip_sync = false 却带了 main 日志
+ * 2. duplicate_write：同一键在 p_upserts ∪ p_updates ∪ p_deletes 出现多于一次
+ * 3. unpaired_change：main 日志的键没有业务写
+ * 4. unpaired_write：p_skip_sync = true 时业务写的键没有 main 日志
+ * 5. op_mismatch：键的最后一条 main 日志为 DELETE ⇔ 键不在 p_deletes
+ *
+ * 内部函数，不授权给客户端角色。
+ */
+CREATE OR REPLACE FUNCTION public.rxdb_assert_push_integrity(
+  p_upserts jsonb,
+  p_deletes jsonb,
+  p_changes jsonb,
+  p_skip_sync boolean,
+  p_updates jsonb
+)
+RETURNS void
+LANGUAGE plpgsql
+STABLE
+SECURITY INVOKER
+SET search_path = pg_catalog, pg_temp
+AS $$
+DECLARE
+  v_violation record;
+BEGIN
+  WITH writes AS (
+    SELECT w.*, pg_catalog.row_number() OVER (ORDER BY w.arr, w.grp, w.elem) AS ord
+    FROM (
+      SELECT 1 AS arr, g.grp, e.elem, 'INSERT' AS op,
+        COALESCE(g.value->>'schema', 'public') AS schema_name, g.value->>'table' AS table_name, e.value->>'id' AS entity_id
+      FROM pg_catalog.jsonb_array_elements(p_upserts) WITH ORDINALITY AS g(value, grp),
+        pg_catalog.jsonb_array_elements(g.value->'data') WITH ORDINALITY AS e(value, elem)
+      UNION ALL
+      SELECT 2, g.grp, e.elem, 'UPDATE',
+        COALESCE(g.value->>'schema', 'public'), g.value->>'table', e.value->>'id'
+      FROM pg_catalog.jsonb_array_elements(p_updates) WITH ORDINALITY AS g(value, grp),
+        pg_catalog.jsonb_array_elements(g.value->'data') WITH ORDINALITY AS e(value, elem)
+      UNION ALL
+      SELECT 3, g.grp, e.elem, 'DELETE',
+        COALESCE(g.value->>'schema', 'public'), g.value->>'table', e.value
+      FROM pg_catalog.jsonb_array_elements(p_deletes) WITH ORDINALITY AS g(value, grp),
+        pg_catalog.jsonb_array_elements_text(g.value->'ids') WITH ORDINALITY AS e(value, elem)
+    ) AS w
+  ),
+  logs AS (
+    SELECT c.ord, c.value->>'type' AS op,
+      COALESCE(c.value->>'schema', 'public') AS schema_name, c.value->>'table' AS table_name, c.value->>'entityId' AS entity_id
+    FROM pg_catalog.jsonb_array_elements(p_changes) WITH ORDINALITY AS c(value, ord)
+    WHERE COALESCE(c.value->>'branchId', 'main') = 'main'
+  ),
+  last_logs AS (
+    SELECT DISTINCT ON (schema_name, table_name, entity_id) *
+    FROM logs
+    ORDER BY schema_name, table_name, entity_id, ord DESC
+  ),
+  violations AS (
+    SELECT 1 AS rule, l.ord, 'explicit_log_in_trigger_mode' AS reason, l.op, l.schema_name, l.table_name, l.entity_id
+    FROM logs AS l
+    WHERE NOT p_skip_sync
+    UNION ALL
+    SELECT 2, d.ord, 'duplicate_write', d.op, d.schema_name, d.table_name, d.entity_id
+    FROM (
+      SELECT w.*, pg_catalog.row_number() OVER (PARTITION BY w.schema_name, w.table_name, w.entity_id ORDER BY w.ord) AS seen
+      FROM writes AS w
+    ) AS d
+    WHERE d.seen = 2
+    UNION ALL
+    SELECT 3, l.ord, 'unpaired_change', l.op, l.schema_name, l.table_name, l.entity_id
+    FROM logs AS l
+    WHERE NOT EXISTS (
+      SELECT 1 FROM writes AS w
+      WHERE (w.schema_name, w.table_name, w.entity_id) = (l.schema_name, l.table_name, l.entity_id)
+    )
+    UNION ALL
+    SELECT 4, w.ord, 'unpaired_write', w.op, w.schema_name, w.table_name, w.entity_id
+    FROM writes AS w
+    WHERE p_skip_sync AND NOT EXISTS (
+      SELECT 1 FROM logs AS l
+      WHERE (l.schema_name, l.table_name, l.entity_id) = (w.schema_name, w.table_name, w.entity_id)
+    )
+    UNION ALL
+    SELECT 5, l.ord, 'op_mismatch', l.op, l.schema_name, l.table_name, l.entity_id
+    FROM last_logs AS l
+    WHERE (l.op = 'DELETE') <> EXISTS (
+      SELECT 1 FROM writes AS w
+      WHERE w.op = 'DELETE'
+        AND (w.schema_name, w.table_name, w.entity_id) = (l.schema_name, l.table_name, l.entity_id)
+    )
+  )
+  SELECT * INTO v_violation
+  FROM violations
+  ORDER BY rule, ord
+  LIMIT 1;
+
+  IF v_violation.rule IS NULL THEN
+    RETURN;
+  END IF;
+
+  RAISE EXCEPTION USING
+    ERRCODE = 'RX002',
+    MESSAGE = pg_catalog.format(
+      'rxdb: push integrity violation (%s): %I.%I id=%s',
+      v_violation.reason, v_violation.schema_name, v_violation.table_name, v_violation.entity_id
+    ),
+    DETAIL = pg_catalog.jsonb_build_object(
+      'op', v_violation.op, 'schema', v_violation.schema_name, 'table', v_violation.table_name,
+      'entityId', v_violation.entity_id, 'reason', v_violation.reason
+    )::text;
+END;
+$$;
+
+/**
  * rxdb_mutations - 事务性批量修改函数
  *
  * 在单个数据库事务中执行所有操作：
+ * 0. 校验日志与业务写一一配对（rxdb_assert_push_integrity），不配对抛 RX002，什么都没写
  * 1. 写入 rxdb_change 表（可选，用于同步）
- * 2. 依次执行 upsert、部分列 update 与 delete 操作
+ * 2. 依次执行 upsert、部分列 update 与 delete 操作；p_skip_sync = true 时少删的行经探针区分：
+ *    仍存在（被行级权限拒绝）→ 42501，整批回滚；已不存在 → 幂等成功
  *
  * 任何操作失败都会导致整个事务回滚
  *
@@ -408,7 +526,12 @@ DECLARE
   before_data jsonb;
   after_data jsonb;
   snapshot_complete boolean;
+  deleted_rows int;
+  denied_ids text[];
 BEGIN
+  -- 0. 只读载荷校验配对，失败时快照、日志与业务表都还没动
+  PERFORM public.rxdb_assert_push_integrity(p_upserts, p_deletes, p_changes, p_skip_sync, p_updates);
+
   -- 如果请求跳过同步，设置会话变量禁用触发器
   IF p_skip_sync THEN
     PERFORM pg_catalog.set_config('rxdb.sync_enabled', 'false', true);
@@ -572,11 +695,25 @@ BEGIN
       SELECT pg_catalog.array_agg(value) INTO ids_array
       FROM pg_catalog.jsonb_array_elements_text(op->'ids') AS ids(value);
 
-      SELECT delete_count + public.rxdb_batch_delete(
-        op->>'table',
-        COALESCE(op->>'schema', 'public'),
-        ids_array
-      ) INTO delete_count;
+      schema_name := COALESCE(op->>'schema', 'public');
+      table_name := op->>'table';
+      deleted_rows := public.rxdb_batch_delete(table_name, schema_name, ids_array);
+      delete_count := delete_count + deleted_rows;
+
+      -- 推送路径：少删的行若对探针仍存在，就是被行级权限拒绝，不能当成功记日志（US-218 AC#1、AC#2）；
+      -- 已不存在的行按幂等成功处理。直写路径零行删除不触发日志触发器，不需要判定
+      IF p_skip_sync AND deleted_rows < pg_catalog.cardinality(ids_array) THEN
+        denied_ids := public.rxdb_existing_ids(table_name, schema_name, ids_array);
+        IF pg_catalog.cardinality(denied_ids) > 0 THEN
+          RAISE EXCEPTION USING
+            ERRCODE = 'insufficient_privilege',
+            MESSAGE = pg_catalog.format('rxdb: DELETE denied by row-level security: %I.%I id=%s', schema_name, table_name, denied_ids[1]),
+            DETAIL = pg_catalog.jsonb_build_object(
+              'op', 'DELETE', 'schema', schema_name, 'table', table_name,
+              'entityId', denied_ids[1], 'reason', 'denied'
+            )::text;
+        END IF;
+      END IF;
     END LOOP;
   END IF;
 
