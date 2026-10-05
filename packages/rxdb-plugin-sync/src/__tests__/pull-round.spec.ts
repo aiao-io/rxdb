@@ -16,17 +16,29 @@ const remoteChange = (over: Partial<RemoteChange>): RemoteChange =>
 interface ChangeRow {
   id: number;
   remoteId: number | null;
+  rejectedAt?: Date | null;
 }
 
-/** 只实现 `pull-round` 用到的两个成员：按 `id in (...) and remoteId is null` 查、按行 patch。 */
+/**
+ * 只实现 `pull-round` 用到的两个成员：按 `id in (...) and remoteId is null [and rejectedAt is null]` 查、按行 patch。
+ *
+ * `rejectedAt` 规则是否参与过滤取决于生产查询是否带了这条规则——T040 阶段生产代码还没加，
+ * 这里必须照样能跑；T047 加上之后同一份 stub 逻辑要能把被拒行筛掉。
+ */
 const createChangeRepoStub = (rows: ChangeRow[]) => {
   const updates: Array<{ id: number; remoteId: number }> = [];
   const repo = {
     find: vi.fn(async (options: { where: { rules: Array<{ field: string; operator: string; value: unknown }> } }) => {
       const idRule = options.where.rules.find(r => r.field === 'id')!;
       const nullRule = options.where.rules.find(r => r.field === 'remoteId');
+      const rejectedRule = options.where.rules.find(r => r.field === 'rejectedAt');
       const ids = idRule.value as number[];
-      return rows.filter(row => ids.includes(row.id) && (!nullRule || row.remoteId === null));
+      return rows.filter(
+        row =>
+          ids.includes(row.id) &&
+          (!nullRule || row.remoteId === null) &&
+          (!rejectedRule || (row.rejectedAt ?? null) === null)
+      );
     }),
     update: vi.fn(async (row: ChangeRow, patch: { remoteId: number }) => {
       updates.push({ id: row.id, remoteId: patch.remoteId });
@@ -80,5 +92,16 @@ describe('backfillOwnChangeRemoteIds', () => {
 
     expect(updates).toEqual([]);
     expect((repo as unknown as { find: ReturnType<typeof vi.fn> }).find).not.toHaveBeenCalled();
+  });
+
+  it('已被拒绝（rejectedAt 非空）的本地行不会被回填', async () => {
+    // 红：生产查询目前只按 `remoteId is null` 过滤，被拒变更的 remoteId 也一直是 null，
+    // 所以这一行此刻仍会被 stub 判定为「待回填」而写入 updates —— T047 给查询加上
+    // `rejectedAt is null` 之后，这一行才会被排除，断言才会通过。
+    const { repo, updates } = createChangeRepoStub([{ id: 10, remoteId: null, rejectedAt: new Date('2026-01-01') }]);
+
+    await backfillOwnChangeRemoteIds(repo, [remoteChange({ id: 501, localId: 10 })]);
+
+    expect(updates).toEqual([]);
   });
 });

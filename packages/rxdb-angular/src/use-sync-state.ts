@@ -1,10 +1,10 @@
 /**
  * @packageDocumentation
  * useSyncState Hook - 同步状态面板
- * 把库的「网通不通、还有多少没推上去、这会儿在不在推、上一次错在哪、上一次谁判负」
- * 五件事接成 Angular signal，供 local-first 应用直接绑到模板上
+ * 把库的「网通不通、还有多少没推上去、这会儿在不在推、上一次错在哪、上一次谁判负、
+ * 上一轮哪些变更被远端拒了」六件事接成 Angular signal，供 local-first 应用直接绑到模板上
  */
-import type { SyncConflict } from '@aiao/rxdb';
+import type { SyncConflict, SyncRejection } from '@aiao/rxdb';
 import { computed, Signal } from '@angular/core';
 import { toLazySignal } from 'ngxtension/to-lazy-signal';
 import { useRxDB } from './rxdb.provider';
@@ -32,6 +32,8 @@ export interface SyncStateResource {
   readonly lastError: Signal<Error | null>;
   /** 上一次冲突判定；**不会**被后续成功清空，它是历史事实。 */
   readonly lastConflict: Signal<SyncConflict | null>;
+  /** 最近一轮有被拒的推送产生的被拒列表；**不会**被后续成功清空，下一轮有被拒时整体替换。 */
+  readonly lastRejections: Signal<readonly SyncRejection[]>;
 }
 
 /**
@@ -75,6 +77,7 @@ export const useSyncState = (): SyncStateResource => {
     pendingCount: computed(() => state().pendingCount),
     syncing: computed(() => state().syncing),
     lastError: computed(() => state().lastError),
-    lastConflict: computed(() => state().lastConflict)
+    lastConflict: computed(() => state().lastConflict),
+    lastRejections: computed(() => state().lastRejections)
   };
 };

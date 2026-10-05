@@ -30,6 +30,9 @@ interface CleanupHarnessOptions {
 
 type FindExpired = (options: { where: RuleGroup }) => Promise<CleanupRecord[]>;
 type MergeChanges = (actions: SwitchVersionActions, localChanges?: unknown, disableTriggers?: boolean) => Promise<void>;
+// 带上查询参数类型，使 `changeFind.mock.calls[0]?.[0]` 能在不转 unknown 的情况下
+// 取回 `{ where: RuleGroup }`，供「待推」查询条件的红用例做结构断言
+type ChangeFind = (options: { where: RuleGroup }) => Promise<{ entityId: RxDBEntityId }[]>;
 
 const createFilterSync = (filter: () => RuleGroup): SyncOptions => ({
   type: SyncType.Filter,
@@ -58,7 +61,7 @@ const createHarness = (options: CleanupHarnessOptions = {}) => {
   });
   const repository = { find };
   // RxDBChange 仓库单列：cleanup 必须先确认候选实体没有未推送变更
-  const changeFind = vi.fn(async () => options.unpushedChanges ?? []);
+  const changeFind = vi.fn<ChangeFind>(async () => options.unpushedChanges ?? []);
   const changeRepository = { find: changeFind };
   const getRepository = vi.fn((EntityType: unknown) => (EntityType === RxDBChange ? changeRepository : repository));
   const mergeChanges = vi.fn<MergeChanges>(async () => undefined);
@@ -365,6 +368,23 @@ describe('cleanupExpired 数据安全', () => {
     expect(deletedKeys).toEqual([`public:Order:${getRxDBEntityIdentityKey('b')}`]);
     expect(result.removed).toBe(1);
     expect(result.removedIds).toEqual(['b']);
+  });
+
+  it('未推送变更候选查询需排除已被拒绝的变更（rejectedAt 非空）', async () => {
+    // 红：`rejectUnpushed` 目前只按 `remoteId = null` 过滤「还没推送」，被拒变更的
+    // remoteId 也一直是 null（且永远不会再被推送），会被误判成「还占着没推完」而继续
+    // 保护对应实体不被清理——查询条件里还没有 `rejectedAt = null` 这条规则，
+    // 所以此刻断言会在数组里找不到它而失败。
+    const harness = createHarness({
+      records: [{ id: 'a' }],
+      sync: createFilterSync(filter),
+      unpushedChanges: []
+    });
+
+    await cleanupExpired(harness.vm, 'public', 'Order');
+
+    const findOptions = harness.changeFind.mock.calls[0]?.[0];
+    expect(findOptions?.where.rules).toContainEqual({ field: 'rejectedAt', operator: '=', value: null });
   });
 
   it('按主键运行时类型区分未推送变更', async () => {

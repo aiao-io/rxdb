@@ -28,7 +28,7 @@ type LegacyMergeChanges = (
   actions: SwitchVersionActions,
   branchId?: string,
   changes?: IRxDBChange[]
-) => Promise<RemoteMergeResult | number | void>;
+) => Promise<RemoteMergeResult>;
 type LocalMergeChanges = (
   actions: SwitchVersionActions,
   localChanges?: Omit<RxDBChange, 'id'>[],
@@ -192,7 +192,12 @@ function createProtocolHarness() {
     });
 
     const maxChangeId = changeIdMapping.reduce((max, mapping) => (mapping.remoteId > max ? mapping.remoteId : max), 0);
-    return { maxChangeId, changeIdMapping };
+    const results = changeIdMapping.map(({ localId, remoteId }) => ({
+      localId,
+      status: 'applied' as const,
+      remoteId
+    }));
+    return { maxChangeId, results };
   });
 
   const pullChanges = vi.fn<PullChanges>(async (sinceId, limit = 1000, repositoryFilter, _filter, branchId) =>
@@ -244,6 +249,7 @@ function createProtocolHarness() {
     change.patch = { id: entityId, name };
     change.inversePatch = null;
     change.remoteId = null;
+    change.rejectedAt = null;
     change.revertChangeId = null;
     change.createdAt = new Date(`2026-01-01T00:00:${String(id).padStart(2, '0')}.000Z`);
     change.updatedAt = new Date(`2026-01-01T00:00:${String(id).padStart(2, '0')}.000Z`);

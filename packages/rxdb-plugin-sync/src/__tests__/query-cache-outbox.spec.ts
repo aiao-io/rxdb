@@ -267,6 +267,17 @@ describe('flushQueryCacheOutbox', () => {
       expect(ctx.syncRepo.update).not.toHaveBeenCalled();
       expect(result).toMatchObject({ replayed: 0, watermark: null });
     });
+
+    it('待推行查询需排除已被拒绝的变更（rejectedAt 非空）', async () => {
+      // 红：`queryOutboxChanges` 目前只按 `remoteId = null` 过滤，被拒变更的 remoteId
+      // 也一直是 null、永远不会再被推送——查询条件里还没有 `rejectedAt = null` 这条
+      // 规则，所以此刻断言会在数组里找不到它而失败。
+      const ctx = setup({ changes: [], sync: { lastPushedChangeId: 7 } });
+
+      await flush(ctx);
+
+      expect(rulesOf(ctx.changeQueries[0])).toContainEqual({ field: 'rejectedAt', operator: '=', value: null });
+    });
   });
 
   describe('取远端适配器', () => {
@@ -785,6 +796,7 @@ describe('countQueryCacheOutbox', () => {
       { field: 'branchId', operator: '=', value: BRANCH },
       { field: 'revertChangeId', operator: '=', value: null },
       { field: 'remoteId', operator: '=', value: null },
+      { field: 'rejectedAt', operator: '=', value: null },
       {
         combinator: 'or',
         rules: [
@@ -806,5 +818,16 @@ describe('countQueryCacheOutbox', () => {
 
     await expect(countQueryCacheOutbox(ctx.rxdb)).resolves.toBe(0);
     expect(ctx.countChanges).not.toHaveBeenCalled();
+  });
+
+  it('积压计数查询需排除已被拒绝的变更（rejectedAt 非空）', async () => {
+    // 红：`countQueryCacheOutbox` 目前只按 `remoteId = null` 过滤，被拒变更的 remoteId
+    // 也一直是 null、永远不会再被推送——查询条件里还没有 `rejectedAt = null` 这条规则，
+    // 所以此刻断言会在数组里找不到它而失败。
+    const ctx = setup({ sync: { lastPushedChangeId: 7 } });
+
+    await countQueryCacheOutbox(ctx.rxdb);
+
+    expect(countRulesOf(ctx.countQueries[0])).toContainEqual({ field: 'rejectedAt', operator: '=', value: null });
   });
 });

@@ -484,7 +484,7 @@ export class RxDBAdapterHttp extends RxDBAdapterRemoteBase implements IRxDBAdapt
   }
 
   /** @throws HttpChangelogUnsupportedError 总是 */
-  async mergeChanges(): Promise<RemoteMergeResult | number | void> {
+  async mergeChanges(): Promise<RemoteMergeResult> {
     throw new HttpChangelogUnsupportedError('mergeChanges');
   }
 

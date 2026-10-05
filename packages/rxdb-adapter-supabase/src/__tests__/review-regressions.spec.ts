@@ -3,11 +3,13 @@ import {
   EntityBase,
   PropertyType,
   SyncStateHub,
+  compactChanges,
   getEntityMetadata,
   getRxDBEntityIdentityKey,
   type EntityMetadata,
   type EntityPropertyMetadata,
   type EntityType,
+  type IRxDBChange,
   type RuleGroup,
   type RxDB,
   type RxDBMutationsMap
@@ -21,6 +23,7 @@ import { handleSupabaseChange } from '../handle_supabase_change.js';
 import { apply_rule_group } from '../rule_group_builder.js';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
 import type { SupabaseAdapterOptions } from '../supabase.interface.js';
+import type { MergeChangesPayload, MergeChangesUpsertPayload } from '../supabase.merge-changes.js';
 import { SupabaseRepository } from '../SupabaseRepository.js';
 import { SupabaseTreeRepository } from '../SupabaseTreeRepository.js';
 
@@ -396,9 +399,9 @@ describe('supabase review regressions', () => {
     const rpc = vi.fn();
     const adapter = createAdapter({ from, schema, rpc }, {}, [Todo]);
 
-    await expect(
-      adapter.mergeChanges({ inserts: new Map(), updates: new Map(), deletes: new Map() })
-    ).resolves.toBeUndefined();
+    await expect(adapter.mergeChanges({ inserts: new Map(), updates: new Map(), deletes: new Map() })).resolves.toEqual(
+      { results: [] }
+    );
     await expect(adapter.pullChangesBatch([], 10)).resolves.toEqual([]);
     await expect(firstValueFrom(adapter.findByIds('Todo', []))).resolves.toEqual([]);
 
@@ -408,7 +411,10 @@ describe('supabase review regressions', () => {
   });
 
   it('mergeChanges decodes typed action keys before sending entity IDs to Supabase', async () => {
-    const rpc = vi.fn(async () => ({ data: { max_change_id: 3, change_id_mapping: [] }, error: null }));
+    const rpc = vi.fn(async () => ({
+      data: { max_change_id: 3, change_id_mapping: [], entity_results: [] },
+      error: null
+    }));
     const adapter = createAdapter({ rpc }, {}, [Todo]);
     const insertId = '11111111-1111-4111-8111-111111111111';
     const updateId = '22222222-2222-4222-8222-222222222222';
@@ -429,17 +435,124 @@ describe('supabase review regressions', () => {
           expect.objectContaining({ entityId: updateId, type: 'UPDATE' }),
           expect.objectContaining({ entityId: deleteId, type: 'DELETE' })
         ]),
+        // US-220：新建只走 p_upserts，修改只走 p_updates（只含 id + 改动列 + updatedBy，不带 createdBy）
         p_upserts: [
-          expect.objectContaining({
-            data: expect.arrayContaining([
-              expect.objectContaining({ id: insertId }),
-              expect.objectContaining({ id: updateId })
-            ])
-          })
+          {
+            schema: 'public',
+            table: 'todos',
+            data: [{ id: insertId, title: 'inserted', createdBy: 'test-user', updatedBy: 'test-user' }]
+          }
         ],
-        p_deletes: [expect.objectContaining({ ids: [deleteId] })]
+        p_updates: [
+          { schema: 'public', table: 'todos', data: [{ id: updateId, title: 'updated', updatedBy: 'test-user' }] }
+        ],
+        p_deletes: [expect.objectContaining({ ids: [deleteId] })],
+        p_skip_sync: true
       })
     );
+  });
+
+  // US-218 阶段 A：远端配对校验（RX002）要求每个 main 日志键恰好对应一次业务写，且最后一条为 DELETE 的键才进 p_deletes。
+  // 这里按推送路径（compactChanges → mergeChanges）锁住客户端载荷满足这一点，保证正常推送不会被配对校验拒绝（SC-003）
+  it('mergeChanges pairs every main change key with exactly one entity write', async () => {
+    // 覆盖检查（US-218 FR-017）要求 change_id_mapping 覆盖传入的每个 localId，
+    // 这里本批源变更的 id 固定是 1-5。
+    const rpc = vi.fn<(name: string, params: MergeChangesPayload) => Promise<unknown>>(async () => ({
+      data: {
+        max_change_id: 5,
+        change_id_mapping: [1, 2, 3, 4, 5].map(localId => ({ localId, remoteId: localId + 100 })),
+        entity_results: []
+      },
+      error: null
+    }));
+    const adapter = createAdapter({ rpc }, {}, [Todo]);
+    const [x, y, z] = [
+      '44444444-4444-4444-8444-444444444444',
+      '55555555-5555-4555-8555-555555555555',
+      '66666666-6666-4666-8666-666666666666'
+    ];
+    const change = (
+      id: number,
+      type: IRxDBChange['type'],
+      entityId: string,
+      inversePatch: Record<string, unknown> | null
+    ) =>
+      ({
+        id,
+        namespace: 'public',
+        entity: 'Todo',
+        entityId,
+        type,
+        branchId: 'main',
+        patch: type === 'DELETE' ? null : { title: `v${id}` },
+        inversePatch
+      }) as IRxDBChange;
+    const changes = [
+      change(1, 'UPDATE', x, { title: 'remote-x' }),
+      change(2, 'INSERT', y, null),
+      change(3, 'INSERT', z, null),
+      change(4, 'DELETE', x, { title: 'v1' }),
+      change(5, 'UPDATE', z, { title: 'v3' })
+    ];
+
+    await adapter.mergeChanges(compactChanges(changes), undefined, changes);
+
+    const payload = rpc.mock.calls[0]?.[1];
+    if (!payload) throw new Error('rxdb_mutations was not called');
+    const keyOf = (schema: unknown, table: unknown, id: unknown) => `${String(schema)}.${String(table)}.${String(id)}`;
+    const rowKeys = (groups: MergeChangesUpsertPayload[]) =>
+      groups.flatMap(group => group.data.map(row => keyOf(group.schema, group.table, row['id'])));
+    const deleteKeys = payload.p_deletes.flatMap(group => group.ids.map(id => keyOf(group.schema, group.table, id)));
+    const writeKeys = [...rowKeys(payload.p_upserts), ...rowKeys(payload.p_updates), ...deleteKeys];
+
+    const lastTypeByKey = new Map<string, unknown>();
+    for (const log of payload.p_changes.filter(log => log['branchId'] === 'main')) {
+      lastTypeByKey.set(keyOf(log['schema'], log['table'], log['entityId']), log['type']);
+    }
+    const lastDeleteKeys = [...lastTypeByKey].filter(([, type]) => type === 'DELETE').map(([key]) => key);
+
+    expect(new Set(writeKeys).size).toBe(writeKeys.length);
+    expect(new Set(writeKeys)).toEqual(new Set(lastTypeByKey.keys()));
+    expect(deleteKeys).toEqual(lastDeleteKeys);
+    expect(deleteKeys).toEqual([`public.todos.${x}`]);
+  });
+
+  it('mergeChanges leaves every entity write array empty on a non-main branch', async () => {
+    const rpc = vi.fn(async () => ({
+      data: { max_change_id: 3, change_id_mapping: [], entity_results: [] },
+      error: null
+    }));
+    const adapter = createAdapter({ rpc }, {}, [Todo]);
+    const key = (id: string) => `public:Todo:${getRxDBEntityIdentityKey(id)}`;
+
+    await adapter.mergeChanges(
+      {
+        inserts: new Map([
+          [key('11111111-1111-4111-8111-111111111111'), { patch: { title: 'i' }, inversePatch: null }]
+        ]),
+        updates: new Map([
+          [key('22222222-2222-4222-8222-222222222222'), { patch: { title: 'u' }, inversePatch: null }]
+        ]),
+        deletes: new Map([[key('33333333-3333-4333-8333-333333333333'), { patch: null, inversePatch: { title: 'd' } }]])
+      },
+      'feature-branch'
+    );
+
+    expect(rpc).toHaveBeenCalledWith(
+      'rxdb_mutations',
+      expect.objectContaining({ p_upserts: [], p_updates: [], p_deletes: [], p_skip_sync: true })
+    );
+  });
+
+  it('mutations keeps its direct-write RPC shape without p_updates', async () => {
+    const rpc = vi.fn(async () => ({ data: { upserted: [] }, error: null }));
+    const adapter = createAdapter({ rpc }, {}, [Todo]);
+    const remove = new Map([[Todo, new Set([{ id: 't1' } as unknown as Todo])]]);
+
+    await adapter.mutations({ create: new Map(), update: new Map(), remove });
+
+    expect(rpc).toHaveBeenCalledOnce();
+    expect(rpc.mock.calls[0]?.[1]).not.toHaveProperty('p_updates');
   });
 
   it('query-cache operations handle null data without inventing rows', async () => {

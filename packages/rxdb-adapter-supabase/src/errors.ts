@@ -63,11 +63,30 @@ export class SupabaseNetworkError extends SupabaseSyncError {
 }
 
 /**
+ * {@link SupabaseDataError} 从数据库错误体里保留下来的字段
+ */
+export interface SupabaseDataErrorOptions {
+  /** 数据库 / PostgREST 返回的错误码，例如 SQLSTATE `42501`、`RX001`，或 PostgREST 的 `PGRST202` */
+  readonly code?: string;
+  /** 数据库错误的 `DETAIL`；rxdb 自己抛的错误（如 `RX001`）在这里放 JSON 形式的定位信息 */
+  readonly details?: string;
+}
+
+/**
  * 数据错误
+ *
+ * @remarks
+ * 远端给出了数据库错误码时，`code` 就是那个码（SQLSTATE 或 PostgREST 的 `PGRST*`），
+ * 推送方据此区分 RLS 拒绝（`42501`）、行已不存在（`RX001`）等原因；没有错误码的数据错误
+ * （响应形状不对、类型转换失败等）`code` 仍为 `'DATA_ERROR'`。
  */
 export class SupabaseDataError extends SupabaseSyncError {
-  constructor(message: string) {
-    super(message, 'DATA_ERROR');
+  /** 数据库错误的 `DETAIL`，远端没给时为 `undefined` */
+  readonly details?: string;
+
+  constructor(message: string, options?: SupabaseDataErrorOptions) {
+    super(message, options?.code ?? 'DATA_ERROR');
     this.name = 'SupabaseDataError';
+    this.details = options?.details;
   }
 }

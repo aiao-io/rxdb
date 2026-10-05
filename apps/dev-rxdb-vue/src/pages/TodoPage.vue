@@ -8,6 +8,7 @@ import { ArrowDown, ArrowUp, GripVertical, History, Pen, Plus, Redo2, Undo2, X }
 import { Subscription } from 'rxjs';
 import { computed, nextTick, onMounted, onUnmounted, ref, type ComponentPublicInstance } from 'vue';
 import HistorySidebar from '../app/components/HistorySidebar.vue';
+import SyncRejectionsPanel from '../app/components/SyncRejectionsPanel.vue';
 import { pairVirtualRows } from '../app/utils/virtual-rows';
 
 const ITEM_SIZE = 48;
@@ -630,6 +631,9 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
       >
         <span>排序保存失败：{{ reorderError }}</span>
       </div>
+
+      <!-- US-218 AC#16：最近一轮被远端拒绝的推送 -->
+      <SyncRejectionsPanel />
 
       <!-- Todo List -->
       <div class="mx-auto min-h-60 max-w-4xl">

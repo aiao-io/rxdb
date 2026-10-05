@@ -160,7 +160,7 @@ const adapter = new RxDBAdapterSupabase(rxdb, {
 
 严格模式下，目标表不存在、RLS 未启用、RPC 响应遗漏目标表、检查 RPC 缺失或检查请求失败都会拒绝 `connect()`，且不会启动 Realtime；后续重试会重新执行检查。该检查只确认目标表已启用 RLS，不验证 policy 内容、认证 claims、tenant ownership 或表级 grants，这些仍需在服务端独立审计。
 
-`rxdb_mutations`、`rxdb_batch_upsert` 和 `rxdb_batch_delete` 均以 `SECURITY INVOKER` 执行。调用角色必须拥有目标 schema 的 `USAGE`、目标表所需的 DML 权限及相关 sequence 权限；所有写入同时受该角色的 RLS policy 约束。仅授予 RPC 的 `EXECUTE` 权限不会绕过目标表权限或 RLS，也不要求目标表设置 `FORCE ROW LEVEL SECURITY`。
+`rxdb_mutations`、`rxdb_batch_upsert`、`rxdb_batch_update` 和 `rxdb_batch_delete` 均以 `SECURITY INVOKER` 执行。调用角色必须拥有目标 schema 的 `USAGE`、目标表所需的 DML 权限及相关 sequence 权限；所有写入同时受该角色的 RLS policy 约束。仅授予 RPC 的 `EXECUTE` 权限不会绕过目标表权限或 RLS，也不要求目标表设置 `FORCE ROW LEVEL SECURITY`。
 
 ## 数据库 Schema
 
@@ -209,7 +209,7 @@ CREATE TABLE public.rxdb_branch (
 ```
 
 > Realtime 需把 `rxdb_change` 加入 `supabase_realtime` publication；系统表初始化脚本已处理。
-> 同步事务依赖 RPC：`rxdb_mutations`、`rxdb_check_rls`、`rxdb_enable_sync_for_branch`。
+> 同步事务依赖 RPC：`rxdb_mutations`（内部调用 `rxdb_batch_upsert`、`rxdb_batch_update`、`rxdb_batch_delete`、`rxdb_existing_ids`）、`rxdb_check_rls`、`rxdb_enable_sync_for_branch`。
 > 树查询**不依赖任何数据库函数**：`SupabaseTreeRepository` 按层发 `select`（每层一次 `in('parentId', ...)`）逐级展开，
 > 因此深树会产生与深度成正比的往返次数。
 
@@ -302,10 +302,31 @@ class SupabaseTreeRepository<T> extends SupabaseRepository<T> {
 
 1. 收集本地未推送变更（`remoteId = null`）
 2. 变更压缩：`INSERT→UPDATE*` → `INSERT`；`INSERT→DELETE` → 丢弃；`UPDATE*→DELETE` → `DELETE`
-3. 调用 RPC `rxdb_mutations`，在单事务内写 `rxdb_change` + 实体表（`p_skip_sync=true` 跳过触发器）
+3. 调用 RPC `rxdb_mutations`，在单事务内写 `rxdb_change` + 实体表（`p_skip_sync=true` 跳过触发器），参数见下表
 4. 返回 `maxChangeId` 与 `changeIdMapping`（localId → remoteId）
 5. 相同 `(clientId, localId)` 重试时返回首次提交的 remoteId，不重复写 change，也不重复执行实体副作用
 6. 全部远端批次成功后，在一个本地事务内同时保存 mapping 和推送水位；本地事务失败时可重试整个未确认批次
+
+`rxdb_mutations` 参数（实体表按 `p_upserts` → `p_updates` → `p_deletes` 顺序执行；非 main 分支三个写数组为空，只写变更记录）：
+
+| 参数          | 形状                                               | 落库方式                                                         |
+| ------------- | -------------------------------------------------- | ---------------------------------------------------------------- |
+| `p_upserts`   | `[{ table, schema, data: [{ id, ...全部列 }] }]`   | 新增实体：`INSERT … ON CONFLICT (id) DO UPDATE`                  |
+| `p_updates`   | `[{ table, schema, data: [{ id, ...修改的列 }] }]` | 修改实体：普通 `UPDATE`，只改出现的列，未出现的列保持原值        |
+| `p_deletes`   | `[{ table, schema, ids: [...] }]`                  | 删除实体                                                         |
+| `p_changes`   | `RxDBChange[]`                                     | 写入 `rxdb_change`；`(clientId, localId)` 重复时整批实体操作跳过 |
+| `p_skip_sync` | `boolean`                                          | `true` 时本事务内不触发同步日志触发器                            |
+
+返回对象含 `upserted` / `updated` / `deleted` / `changes` / `max_change_id` / `change_id_mapping`。
+
+修改只受目标表的 UPDATE 与 SELECT 策略约束，不受 INSERT 策略约束：owner 型策略下推送不必携带 `owner` 列，共享编辑表上可以改他人创建的行。某条修改更新到 0 行时整批回滚并报错，两类错误的 `DETAIL` 都是 JSON `{"op","schema","table","entityId","reason"}`：
+
+| SQLSTATE | `reason` | 含义                                         |
+| -------- | -------- | -------------------------------------------- |
+| `42501`  | `denied` | 行仍存在，但调用方的行级权限不允许修改       |
+| `RX001`  | `gone`   | 行已不存在（被删除），不会插入残缺行把它复活 |
+
+错误码口径见 [US-220 sqlstate-registry](https://github.com/aiao-io/rxdb/blob/main/specs/006-us220-update-push-semantics/contracts/sqlstate-registry.md)。从旧版本升级须先执行新版 SQL 再升级客户端，见 [迁移说明](https://rxdb.netlify.app/docs/migration/supabase-update-push)。
 
 ### Pull（`pullChanges` / `pullChangesBatch`）
 

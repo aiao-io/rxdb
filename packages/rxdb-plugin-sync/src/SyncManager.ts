@@ -9,6 +9,8 @@ import {
   PushResult,
   RxDB,
   RxDBPartialSyncError,
+  SWITCH_BRANCH_BEGIN,
+  SWITCH_BRANCH_COMMIT,
   SyncResult
 } from '@aiao/rxdb';
 import type { PushInFlightRegistry, SyncHistoryBridge } from '@aiao/rxdb-plugin-history';
@@ -50,6 +52,7 @@ import { topologicalSort, type SortDirection } from './topological-sort.js';
 export class SyncManager {
   #event_removers: Array<() => void> = [];
   #subscriptions: Subscription[] = [];
+  #branch_switch_generation = 0;
 
   /**
    * 「哪些变更此刻正在飞往远端」的登记处。
@@ -66,6 +69,23 @@ export class SyncManager {
   }
 
   /**
+   * 本地分支激活代际：每次分支切换开始与提交各加一。
+   *
+   * @remarks
+   * 推送在规划时记下它，回执提交事务里再比一次。只比分支 id 不够：远端往返期间
+   * main→feature→main 之后 id 又对上了，但 main 的业务投影已经被切走又切回重建过。
+   * 开始与提交都加一，是为了让「规划时恰好撞上一次进行中的切换」也被识别出来。
+   *
+   * 只覆盖本实例内的切换；跨标签页的切换由提交事务里读到的持久化 active 分支兜住
+   * （A→B→A 在跨标签页时不可见，属已知限制）。
+   *
+   * @internal
+   */
+  get branchSwitchGeneration(): number {
+    return this.#branch_switch_generation;
+  }
+
+  /**
    * @param rxdb - 宿主实例
    * @param history - 历史侧借来的那一小块面，由 `rxdb.versionManager.syncBridge` 提供
    */
@@ -79,6 +99,14 @@ export class SyncManager {
     const { subscriptions, removers } = setupSyncListeners(this);
     this.#subscriptions.push(...subscriptions);
     this.#event_removers.push(...removers);
+
+    const bumpBranchSwitchGeneration = (): void => {
+      this.#branch_switch_generation += 1;
+    };
+    for (const type of [SWITCH_BRANCH_BEGIN, SWITCH_BRANCH_COMMIT] as const) {
+      this.rxdb.addEventListener(type, bumpBranchSwitchGeneration);
+      this.#event_removers.push(() => this.rxdb.removeEventListener(type, bumpBranchSwitchGeneration));
+    }
   }
 
   /** 拆掉 {@link init} 装上的全部监听与订阅 */

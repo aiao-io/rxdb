@@ -79,6 +79,7 @@ const createPullResult = (): PullRepositoryResult => ({
 const createPushResult = (): PushRepositoryResult => ({
   repository,
   pushed: 3,
+  rejected: 0,
   failed: 0,
   compacted: 2,
   originalCount: 5,

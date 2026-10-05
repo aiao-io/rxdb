@@ -6,6 +6,20 @@ function uniqueTitle(): string {
   return `remote-e2e-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+interface MutationTableOps {
+  data?: Record<string, unknown>[];
+}
+
+interface MutationRequestBody {
+  p_upserts?: MutationTableOps[];
+  p_updates?: MutationTableOps[];
+}
+
+/** 取请求体某个写数组里所有实体行 */
+function rowsOf(ops: MutationTableOps[] | undefined): Record<string, unknown>[] {
+  return (ops ?? []).flatMap(op => op.data ?? []);
+}
+
 if (isRemoteE2E) {
   test.describe('Supabase remote sync', () => {
     test('pushes a Todo through Supabase and pulls it into another browser context', async ({ browser, page }) => {
@@ -56,6 +70,138 @@ if (isRemoteE2E) {
       await expect(push).toBeEnabled();
       await push.click();
       await expect.poll(() => mutationRequests.length, { timeout: 30_000 }).toBeGreaterThan(1);
+    });
+
+    test('pushes a completion toggle as an UPDATE and another context pulls it as completed', async ({
+      browser,
+      page
+    }) => {
+      const mutationBodies: MutationRequestBody[] = [];
+      page.on('request', request => {
+        if (request.method() === 'POST' && request.url().includes('/rest/v1/rpc/rxdb_mutations')) {
+          mutationBodies.push(request.postDataJSON() as MutationRequestBody);
+        }
+      });
+
+      await page.goto('/todo', { timeout: 60_000, waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('alert')).toContainText('未启用身份认证', { timeout: 60_000 });
+
+      const title = uniqueTitle();
+      await page.getByRole('textbox', { name: '添加新任务' }).fill(title);
+      await page.getByRole('button', { name: '添加', exact: true }).click();
+
+      const item = page.getByTestId('todo-item').filter({ hasText: title });
+      await expect(item).toBeVisible();
+      const push = page.getByRole('button', { name: 'Push' });
+      await expect(push).toBeEnabled();
+      await push.click();
+      await expect.poll(() => mutationBodies.length, { timeout: 30_000 }).toBeGreaterThan(0);
+      await expect(page.locator('.alert-error')).toHaveCount(0);
+
+      const inserted = rowsOf(mutationBodies[0]?.p_upserts).find(row => row['title'] === title);
+      expect(inserted).toBeDefined();
+      const todoId = inserted?.['id'];
+
+      await item.getByRole('checkbox').check();
+      await expect(item.getByRole('checkbox')).toBeChecked();
+      await expect(push).toBeEnabled();
+      await push.click();
+      await expect.poll(() => mutationBodies.length, { timeout: 30_000 }).toBeGreaterThan(1);
+      await expect(page.locator('.alert-error')).toHaveCount(0);
+
+      // 勾选只改了 completed，必须走 p_updates；p_upserts 里不能再出现这个实体
+      const toggle = mutationBodies[1];
+      expect(rowsOf(toggle?.p_updates).map(row => row['id'])).toContain(todoId);
+      expect(rowsOf(toggle?.p_upserts).map(row => row['id'])).not.toContain(todoId);
+
+      const secondContext = await browser.newContext();
+      try {
+        const secondPage = await secondContext.newPage();
+        await secondPage.goto(new URL('/todo', page.url()).href, {
+          timeout: 60_000,
+          waitUntil: 'domcontentloaded'
+        });
+        const pull = secondPage.getByRole('button', { name: 'Pull' });
+        await expect(pull).toBeEnabled({ timeout: 60_000 });
+        await pull.click();
+
+        const pulledItem = secondPage.getByTestId('todo-item').filter({ hasText: title });
+        await expect(pulledItem).toBeVisible({ timeout: 30_000 });
+        await expect(pulledItem.getByRole('checkbox')).toBeChecked();
+        await expect(secondPage.locator('.alert-error')).toHaveCount(0);
+      } finally {
+        await secondContext.close();
+      }
+
+      await item.getByRole('button', { name: '删除' }).click();
+      await expect(item).toHaveCount(0);
+      await expect(push).toBeEnabled();
+      await push.click();
+      await expect.poll(() => mutationBodies.length, { timeout: 30_000 }).toBeGreaterThan(2);
+    });
+
+    // US-218 AC#16：用 `gone`（RX001）而非 `denied`——参考 `todos` 表未开 RLS、demo 无登录（spec US5 批准的偏离）
+    test('lists a gone rejection in the panel when updating a Todo another context deleted', async ({
+      browser,
+      page
+    }) => {
+      const mutationRequests: string[] = [];
+      page.on('request', request => {
+        if (request.method() === 'POST' && request.url().includes('/rest/v1/rpc/rxdb_mutations')) {
+          mutationRequests.push(request.url());
+        }
+      });
+
+      await page.goto('/todo', { timeout: 60_000, waitUntil: 'domcontentloaded' });
+      await expect(page.getByRole('alert')).toContainText('未启用身份认证', { timeout: 60_000 });
+
+      const title = uniqueTitle();
+      await page.getByRole('textbox', { name: '添加新任务' }).fill(title);
+      await page.getByRole('button', { name: '添加', exact: true }).click();
+      const item = page.getByTestId('todo-item').filter({ hasText: title });
+      await expect(item).toBeVisible();
+      const push = page.getByRole('button', { name: 'Push' });
+      await expect(push).toBeEnabled();
+      await push.click();
+      await expect.poll(() => mutationRequests.length, { timeout: 30_000 }).toBeGreaterThan(0);
+
+      const secondContext = await browser.newContext();
+      try {
+        const secondPage = await secondContext.newPage();
+        await secondPage.goto(new URL('/todo', page.url()).href, {
+          timeout: 60_000,
+          waitUntil: 'domcontentloaded'
+        });
+        const pull = secondPage.getByRole('button', { name: 'Pull' });
+        await expect(pull).toBeEnabled({ timeout: 60_000 });
+        await pull.click();
+        const pulledItem = secondPage.getByTestId('todo-item').filter({ hasText: title });
+        await expect(pulledItem).toBeVisible({ timeout: 30_000 });
+
+        // A 删除并推送：远端行没了
+        await item.getByRole('button', { name: '删除' }).click();
+        await expect(item).toHaveCount(0);
+        await expect(push).toBeEnabled();
+        await push.click();
+        await expect.poll(() => mutationRequests.length, { timeout: 30_000 }).toBeGreaterThan(1);
+
+        // B 不拉取，直接勾选完成并推送：UPDATE 打到已不存在的行
+        await pulledItem.getByRole('checkbox').check();
+        const secondPush = secondPage.getByRole('button', { name: 'Push' });
+        await expect(secondPush).toBeEnabled();
+        await secondPush.click();
+
+        // 被拒不让整轮失败：没有错误提示，面板列出一条 gone
+        const panel = secondPage.getByTestId('sync-rejections-panel');
+        const rejection = panel.getByRole('listitem');
+        await expect(rejection).toHaveCount(1, { timeout: 30_000 });
+        await expect(rejection).toContainText('UPDATE');
+        await expect(rejection).toContainText('已被删除（RX001）');
+        await expect(panel).not.toContainText('最近没有被远端拒绝的推送');
+        await expect(secondPage.locator('.alert-error')).toHaveCount(0);
+      } finally {
+        await secondContext.close();
+      }
     });
 
     test('does not pull a locally created Todo that was never pushed', async ({ browser, page }) => {

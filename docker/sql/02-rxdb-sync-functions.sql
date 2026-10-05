@@ -22,9 +22,12 @@ $$;
 -- ============================================
 -- 通用变更追踪触发器函数
 -- ============================================
+-- SECURITY DEFINER（US-218 阶段 C）：生产权限脚本撤销了客户端对 rxdb_change 的写权限，
+-- 触发器以属主身份写日志；触发器函数不能被直接调用，客户端无法借它写任意日志
 CREATE OR REPLACE FUNCTION public.rxdb_log_change_trigger()
 RETURNS trigger
 LANGUAGE plpgsql
+SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
 AS $$
 DECLARE

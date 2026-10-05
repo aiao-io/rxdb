@@ -7,7 +7,8 @@ import {
   RepositorySyncErrorEvent,
   RxDBError,
   RxDBPartialSyncError,
-  type SyncProgress
+  type SyncProgress,
+  type SyncRejection
 } from '@aiao/rxdb';
 import type { SyncManager } from './SyncManager.js';
 import {
@@ -89,6 +90,7 @@ function emptyPushResult(namespace: string, entity: string): PushRepositoryResul
   return {
     repository: { namespace, entity },
     pushed: 0,
+    rejected: 0,
     failed: 0,
     compacted: 0,
     originalCount: 0,
@@ -167,6 +169,7 @@ function rewrapPushFailure(
  * @param namespace - 实体命名空间
  * @param entity - 实体名称
  * @param options - 同步选项
+ * @param rejectionSink - 推送被拒清单收集器，语义同 {@link pushRepository} 的同名参数
  * @returns 同步结果
  *
  * @example
@@ -185,7 +188,8 @@ export async function syncRepository(
   sm: SyncManager,
   namespace: string,
   entity: string,
-  options?: SyncRepositoryOptions
+  options?: SyncRepositoryOptions,
+  rejectionSink?: SyncRejection[]
 ): Promise<SyncRepositoryResult> {
   const rxdb = sm.rxdb;
 
@@ -194,7 +198,7 @@ export async function syncRepository(
   rxdb.dispatchEvent(new RepositorySyncBeginEvent('sync', namespace, entity, includeRelated));
 
   try {
-    const result = await _syncRepositoryImpl(sm, namespace, entity, options);
+    const result = await _syncRepositoryImpl(sm, namespace, entity, options, rejectionSink);
 
     // 触发完成事件
     // 两个子结果在 SyncRepositoryResult 上都是必填：跳过的方向由 emptyPullResult /
@@ -226,7 +230,8 @@ async function _syncRepositoryImpl(
   sm: SyncManager,
   namespace: string,
   entity: string,
-  options?: SyncRepositoryOptions
+  options?: SyncRepositoryOptions,
+  rejectionSink?: SyncRejection[]
 ): Promise<SyncRepositoryResult> {
   // 验证仓库是否存在
   const EntityType = sm.rxdb.config.entities.find(e => {
@@ -283,7 +288,7 @@ async function _syncRepositoryImpl(
 
   if (shouldPush) {
     try {
-      pushResult = await pushRepository(sm, namespace, entity, options?.push);
+      pushResult = await pushRepository(sm, namespace, entity, options?.push, rejectionSink);
     } catch (error) {
       // pull 已落库的进度、push 已发到远端的进度，都不能因为这次抛错就消失
       throw rewrapPushFailure(error, pullResult, namespace, entity);

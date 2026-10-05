@@ -2,8 +2,8 @@
  * @fileoverview T055：受信调用点登记表与核心侧的批量写门禁（SC-010、epic-006「受信调用点登记表」）。
  *
  * @remarks
- * 这个文件守的是**两张表之间的距离**：epic-006「受信调用点登记表」的 11 行表格，与
- * `TRUSTED_CALLSITE_REGISTRY` 的 11 个字面量。两处对不上，`declareTrustedWrite` 的运行时抛错就会
+ * 这个文件守的是**两张表之间的距离**：epic-006「受信调用点登记表」的 12 行表格，与
+ * `TRUSTED_CALLSITE_REGISTRY` 的 12 个字面量。两处对不上，`declareTrustedWrite` 的运行时抛错就会
  * 在**跑到那条路径时**才发现——而受信路径里有一半（切分支、redo 失效、cleanup）平时根本不跑。
  *
  * **US-025 抽包挪走了第三张表。** 9 处真实的 `declareTrustedWrite()` 原本就在
@@ -11,7 +11,7 @@
  * #1~#6 去了 `@aiao/rxdb-plugin-history`、#7~#9 去了 `@aiao/rxdb-plugin-sync`，8 处 QueryCache
  * 批量写去了 `@aiao/rxdb-plugin-querycache` 与 `@aiao/rxdb-plugin-sync`。vitest 的 `import.meta.glob`
  * 进不了兄弟包，于是这份测试对那两半是**结构性失明**——不是少看了几行，是一行都看不见。
- * 后来补登的 #10 / #11 从一开始就在 `@aiao/rxdb-plugin-working-tree` 里，同样看不见。
+ * 后来补登的 #10 / #11 从一开始就在 `@aiao/rxdb-plugin-working-tree` 里，#12 在 `@aiao/rxdb-plugin-sync` 里，同样看不见。
  *
  * 失明的那两半整个交给 `scripts/audit/working-tree-callsite-drift.mjs`（T066，
  * `pnpm audit:callsite-drift`）：它跑在 node 里，扫整个 `packages/`，双向比对登记键、自报符号、
@@ -68,7 +68,7 @@ import {
 import { WRITE_ENTRANCES } from '../../trusted-write/write-entrance.js';
 
 // ---------------------------------------------------------------------------
-// 源码快照：`src/**` 下的全部核心源码。11 处受信写声明与 8 处 QueryCache 批量写都不在这棵树里
+// 源码快照：`src/**` 下的全部核心源码。12 处受信写声明与 8 处 QueryCache 批量写都不在这棵树里
 // （文件头），所以这份快照如今只用来证明**核心自己一处都没有**。
 // 负向 glob 与 {@link isScannedSourcePath} 一一对应，下面有一条用例把两者钉在一起。
 // ---------------------------------------------------------------------------
@@ -305,7 +305,7 @@ const backticked = (cell: string): string => {
   return matched[1];
 };
 
-/** 那张表的 11 行，现场从 epic-006 原文解析。 */
+/** 那张表的 12 行，现场从 epic-006 原文解析。 */
 const CONTRACT_ROWS: readonly ContractRow[] = sectionOf(EPIC_MARKDOWN, '#### 受信调用点登记表', '\n### ')
   .split('\n')
   .filter(line => line.trimStart().startsWith('|'))
@@ -471,10 +471,10 @@ const isScannedSourcePath = (path: string): boolean => {
 // ---------------------------------------------------------------------------
 
 describe('登记表与 epic-006「受信调用点登记表」的表格逐行一致', () => {
-  it('契约表格解析出 11 行，与登记表长度一致', () => {
-    expect(CONTRACT_ROWS).toHaveLength(11);
+  it('契约表格解析出 12 行，与登记表长度一致', () => {
+    expect(CONTRACT_ROWS).toHaveLength(12);
     expect(TRUSTED_CALLSITE_REGISTRY).toHaveLength(CONTRACT_ROWS.length);
-    expect(CONTRACT_ROWS.map(row => row.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+    expect(CONTRACT_ROWS.map(row => row.index)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   });
 
   it('文件、符号、写原语、存档行号逐格相同，顺序也相同', () => {
@@ -534,7 +534,7 @@ describe('登记表与 epic-006「受信调用点登记表」的表格逐行一�
 
 describe('核心自身既不受信写，也不批量写', () => {
   it('核心源码里一处 declareTrustedWrite 都没有', () => {
-    // 11 处声明全在 history / sync / working-tree 三个插件里（文件头）。核心留的是门禁本身，不是调用点：
+    // 12 处声明全在 history / sync / working-tree 三个插件里（文件头）。核心留的是门禁本身，不是调用点：
     // 这里冒出一处，要么是有人把受信路径搬回了核心，要么是新加了一条——两种都必须先在 epic-006 那张表里登记。
     expect(DECLARED_CALLSITES.map(declared => `${declared.path}:${declared.line}`)).toEqual([]);
   });
@@ -587,7 +587,7 @@ describe('核心自身既不受信写，也不批量写', () => {
 });
 
 describe('登记键：文件 + 符号 + 意图', () => {
-  it('11 行 11 个键，#5 逐条合并与 #6 压缩合并不重合', () => {
+  it('12 行 12 个键，#5 逐条合并与 #6 压缩合并不重合', () => {
     const keys = TRUSTED_CALLSITE_REGISTRY.map(trustedCallsiteKey);
     expect(new Set(keys).size).toBe(keys.length);
     expect(keys[4]).not.toBe(keys[5]);

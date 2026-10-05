@@ -33,6 +33,8 @@ class MigrationTestAdapter extends RxDBAdapterSqliteBase {
 interface MigrationClientState {
   readonly committedWatermarks: Set<string>;
   readonly sql: string[];
+  /** 已存在的列，键为 `表名.列名`；`pragma_table_info` 按它回答，`ALTER TABLE … ADD COLUMN` 往里加 */
+  readonly columns: Set<string>;
   failLock: boolean;
   failCodecWatermarkOnce: boolean;
 }
@@ -44,12 +46,16 @@ const result = (sql: string, rows: SQLiteCompatibleType[][] = [], rowsAffected =
   results: rows.length > 0 ? [{ columns: ['name'], rows }] : []
 });
 
+const ADD_COLUMN_PATTERN = /^ALTER TABLE "([^"]+)" ADD COLUMN "([^"]+)"/;
+
 const createMigrationClient = (
-  initialWatermarks: Iterable<string> = []
+  initialWatermarks: Iterable<string> = [],
+  initialColumns: Iterable<string> = []
 ): { client: SqliteClientLike; state: MigrationClientState } => {
   const state: MigrationClientState = {
     committedWatermarks: new Set(initialWatermarks),
     sql: [],
+    columns: new Set(initialColumns),
     failLock: false,
     failCodecWatermarkOnce: false
   };
@@ -72,6 +78,14 @@ const createMigrationClient = (
       );
     }
     if (sql.includes('sqlite_master')) return result(sql, [[1]]);
+    if (sql.includes('pragma_table_info')) {
+      return result(sql, state.columns.has(`${String(bindings[0])}.${String(bindings[1])}`) ? [[1]] : []);
+    }
+    const addColumn = ADD_COLUMN_PATTERN.exec(sql);
+    if (addColumn) {
+      state.columns.add(`${addColumn[1]}.${addColumn[2]}`);
+      return result(sql);
+    }
     if (sql.includes('INSERT INTO') && typeof bindings[0] === 'string') {
       if (bindings[0] === RXDB_CHANGE_CODEC_WATERMARK && state.failCodecWatermarkOnce) {
         state.failCodecWatermarkOnce = false;
@@ -195,5 +209,37 @@ describe('SQLite system schema migration', () => {
     expect(state.sql.some(sql => sql.includes('CREATE TRIGGER') || sql.includes(RXDB_SYSTEM_SCHEMA_WATERMARK))).toBe(
       false
     );
+  });
+  // US-218 FR-021：模式 7 给 RxDBChange 加 rejectedAt / rejection 两列（可空、无默认值，旧行自然为 NULL）。
+  it('模式 6 的库升级后给 RxDBChange 补上可空的 rejectedAt、rejection', async () => {
+    const { client, state } = createMigrationClient([
+      `${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}6`,
+      RXDB_CHANGE_CODEC_WATERMARK
+    ]);
+    const adapter = trackAdapter(new MigrationTestAdapter(createRxdb(), client));
+    await adapter.connect();
+
+    await adapter.migrateSystemSchema();
+
+    const addColumns = state.sql.filter(sql =>
+      /^ALTER TABLE "rxdb\$rxdb_change" ADD COLUMN "(rejectedAt|rejection)"/.test(sql)
+    );
+    expect(addColumns).toHaveLength(2);
+    for (const sql of addColumns) expect(sql).not.toMatch(/NOT NULL|DEFAULT/i);
+    expect(state.committedWatermarks).toContain(RXDB_SYSTEM_SCHEMA_WATERMARK);
+  });
+
+  it('两列已在、水位线仍停在模式 6 时重复迁移不报错也不重复加列', async () => {
+    const { client, state } = createMigrationClient(
+      [`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}6`, RXDB_CHANGE_CODEC_WATERMARK],
+      ['rxdb$rxdb_change.rejectedAt', 'rxdb$rxdb_change.rejection']
+    );
+    const adapter = trackAdapter(new MigrationTestAdapter(createRxdb(), client));
+    await adapter.connect();
+
+    await expect(adapter.migrateSystemSchema()).resolves.toBeUndefined();
+
+    expect(state.sql.some(sql => sql.startsWith('ALTER TABLE "rxdb$rxdb_change"'))).toBe(false);
+    expect(state.committedWatermarks).toContain(RXDB_SYSTEM_SCHEMA_WATERMARK);
   });
 });

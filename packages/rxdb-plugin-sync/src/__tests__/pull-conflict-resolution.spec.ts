@@ -119,6 +119,7 @@ function createLocalChange(entityId: string, createdAt: string): RxDBChange {
   change.patch = { name: 'local' };
   change.inversePatch = { name: 'base' };
   change.remoteId = null;
+  change.rejectedAt = null;
   change.revertChangeId = null;
   change.createdAt = new Date(createdAt);
   change.updatedAt = new Date(createdAt);
@@ -432,5 +433,28 @@ describe('pull conflict resolution', () => {
     expect(result.applied).toBe(0);
     expect(localChange.remoteId).toBe(107);
     expect(mergeChanges).not.toHaveBeenCalled();
+  });
+
+  it('pullRepository should not treat a rejected local change as a pending conflict', async () => {
+    // 红：被拒的本地变更 remoteId 也一直是 null（且永远不会再被推送），
+    // `queryPendingLocalChanges` 目前只按 `remoteId = null` 过滤，会把它当成「待推的
+    // 本地变更」，和同一 entityId 上的远端变更撞上就会误判出一次冲突。T047 给查询
+    // 加上 `rejectedAt = null` 之后，这条本地行会被查询排除，远端变更改走直接应用
+    // 路径，不再产生 conflict —— 此刻 conflictsResolved 仍是 1，断言为 0 会失败。
+    const localChange = createLocalChange(entityId, '2026-01-01T10:00:00.000Z');
+    localChange.rejectedAt = new Date('2026-01-02T00:00:00.000Z');
+    const remoteChange = createRemoteChange(entityId, '2026-01-01T10:01:00.000Z', 108);
+    const { vm, mergeChanges, dispatchEvent } = createSyncManager([remoteChange], [localChange]);
+
+    const result = await pullRepository(vm, 'public', 'PullConflictUser', {
+      includeRelated: false,
+      conflictResolver: new LWWConflictResolver()
+    });
+
+    expect(result.applied).toBe(1);
+    expect(result.conflictsResolved).toBe(0);
+    expect(mergeChanges).toHaveBeenCalledTimes(1);
+    const conflictEvent = dispatchEvent.mock.calls.find(call => call[0] instanceof ConflictDetectedEvent)?.[0];
+    expect(conflictEvent).toBeUndefined();
   });
 });

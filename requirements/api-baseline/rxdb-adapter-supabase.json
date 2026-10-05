@@ -26,6 +26,10 @@
         "kind": "both"
       },
       {
+        "name": "SupabaseDataErrorOptions",
+        "kind": "type"
+      },
+      {
         "name": "SupabaseNetworkError",
         "kind": "both"
       },

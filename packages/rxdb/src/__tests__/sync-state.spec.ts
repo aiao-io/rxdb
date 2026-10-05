@@ -1,7 +1,7 @@
 import { BehaviorSubject, firstValueFrom, Subject } from 'rxjs';
 import { take, toArray } from 'rxjs/operators';
 import { describe, expect, it, vi } from 'vitest';
-import { SyncStateHub, type SyncState } from '../sync-state.js';
+import { SyncStateHub, type SyncRejection, type SyncState } from '../sync-state.js';
 
 type Sources = {
   online$: BehaviorSubject<boolean>;
@@ -27,8 +27,21 @@ const createHub = (
 
 const snapshot = (hub: SyncStateHub): Promise<SyncState> => firstValueFrom(hub.state$);
 
+const rejection = (entityId: string, overrides: Partial<SyncRejection> = {}): SyncRejection => ({
+  namespace: 'public',
+  entity: 'Todo',
+  entityId,
+  op: 'UPDATE',
+  code: '42501',
+  reason: 'denied',
+  message: `rls denied ${entityId}`,
+  at: new Date('2026-10-05T00:00:00.000Z'),
+  changeIds: [1],
+  ...overrides
+});
+
 describe('SyncStateHub', () => {
-  it('把五个字段汇总成一份快照', async () => {
+  it('把六个字段汇总成一份快照', async () => {
     const { hub } = createHub({ online: false, pushable: 2, outbox: 3 });
 
     await expect(snapshot(hub)).resolves.toEqual({
@@ -36,7 +49,8 @@ describe('SyncStateHub', () => {
       pendingCount: 5,
       syncing: false,
       lastError: null,
-      lastConflict: null
+      lastConflict: null,
+      lastRejections: []
     });
 
     hub.destroy();
@@ -226,6 +240,83 @@ describe('SyncStateHub', () => {
     });
   });
 
+  // US-218 AC#16：被拒列表是历史事实，与 lastConflict 同理不被后续成功清空；下一轮有被拒时整体替换
+  describe('lastRejections', () => {
+    it('初始是冻结的空数组，且各快照间引用稳定', async () => {
+      const { hub, sources } = createHub();
+      const initial = (await snapshot(hub)).lastRejections;
+
+      sources.pushableCount$.next(3);
+
+      expect(initial).toEqual([]);
+      expect(Object.isFrozen(initial)).toBe(true);
+      expect((await snapshot(hub)).lastRejections).toBe(initial);
+      hub.destroy();
+    });
+
+    it('上报空数组不改状态、不发新快照', async () => {
+      const { hub } = createHub();
+      const before = await snapshot(hub);
+      const emitted = vi.fn();
+      const subscription = hub.state$.subscribe(emitted);
+
+      hub.reportRejections([]);
+
+      expect(emitted).toHaveBeenCalledTimes(1);
+      expect(hub.snapshot).toBe(before);
+      subscription.unsubscribe();
+      hub.destroy();
+    });
+
+    it('非空上报整体替换，原样保留调用方给的数组引用', async () => {
+      const { hub } = createHub();
+      const first = [rejection('t-1'), rejection('t-2', { reason: 'dependency', code: '23503' })];
+
+      hub.reportRejections(first);
+
+      expect((await snapshot(hub)).lastRejections).toBe(first);
+      hub.destroy();
+    });
+
+    it('之后一轮成功推送仍保留上一轮的被拒列表', async () => {
+      const { hub } = createHub();
+      const first = [rejection('t-1')];
+      hub.reportRejections(first);
+
+      hub.beginRound();
+      hub.reportSuccess();
+      hub.endRound();
+
+      expect((await snapshot(hub)).lastRejections).toBe(first);
+      hub.destroy();
+    });
+
+    it('下一次非空上报整体替换，不与上一轮合并', async () => {
+      const { hub } = createHub();
+      hub.reportRejections([rejection('t-1'), rejection('t-2')]);
+      const second = [rejection('t-3', { op: 'DELETE', reason: 'gone', code: 'RX001' })];
+
+      hub.reportRejections(second);
+
+      expect((await snapshot(hub)).lastRejections).toBe(second);
+      hub.destroy();
+    });
+
+    // sameState 按引用比较：内容相同的新数组也是一次新上报，要发新快照
+    it('内容相同的新数组也发新快照', async () => {
+      const { hub } = createHub();
+      hub.reportRejections([rejection('t-1')]);
+      const emitted = vi.fn();
+      const subscription = hub.state$.subscribe(emitted);
+
+      hub.reportRejections([rejection('t-1')]);
+
+      expect(emitted).toHaveBeenCalledTimes(2);
+      subscription.unsubscribe();
+      hub.destroy();
+    });
+  });
+
   // 上游是冷流时（非 BehaviorSubject），快照必须仍然可读
   it('上游还没发过值时给出零值快照', async () => {
     const online$ = new Subject<boolean>();
@@ -238,7 +329,8 @@ describe('SyncStateHub', () => {
       pendingCount: 0,
       syncing: false,
       lastError: null,
-      lastConflict: null
+      lastConflict: null,
+      lastRejections: []
     });
 
     hub.destroy();
