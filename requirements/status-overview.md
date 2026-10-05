@@ -11,14 +11,14 @@
 | ✅ Done        | 70   |
 | 🚧 In Progress | 2    |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 24   |
+| 📝 Backlog     | 25   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 96   |
+| **合计**       | 97   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
-> 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked = 0` 只统计 YAML 显式 `status: Blocked`，不代表没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
+> 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **24 条 Backlog 里只有 2 条是可开工的**：另外 22 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md) + [US-029](stories/core/US-029-rbac-owner-role-permission.md) + [US-031](stories/core/US-031-tree-sortable-migration.md)）
+> **25 条 Backlog 里只有 3 条是可开工的**：另外 22 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md) + [US-029](stories/core/US-029-rbac-owner-role-permission.md) + [US-031](stories/core/US-031-tree-sortable-migration.md)）
 > 标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次。
 > 两者在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
@@ -26,14 +26,18 @@
 
 ## 进行中（2 条）
 
-| Story                                                                                      | 当前进度                                                                                                                              |
-| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)             | 阶段 A 已交付（宿主契约 + 可行性矩阵）；B/C 阻塞于开发者工具实验，第一档暂无 `supported`                                              |
-| [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) | 阶段 A 已交付（trace 留失败尝试，开销上限经裁决改为 +33%）；B 实现中（第二连接 spike 已过），C 实现中（独立录制库 + 门面 `commits$`） |
+| Story                                                                                      | 进展                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)             | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过，剩 Android 真机；百度 / QQ 已判 `unsupported`，待做 |
+| [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) | 阶段 A 已交付（trace 留失败尝试，开销上限经裁决改为 +33%）；B 实现中（第二连接 spike 已过），C 实现中（独立录制库 + 门面 `commits$`）                                                                                                                                                                                                                                                                |
 
 ## 待评审（0 条）
 
 当前没有待评审的故事。
+
+## 阻塞（0 条）
+
+当前没有阻塞的故事。
 
 ## 按 Epic 索引
 
@@ -84,7 +88,7 @@
 
 - ✅ [US-702 全文搜索](stories/future/US-702-full-text-search.md)
 - ✅ [US-209 微信小程序 wa-sqlite 适配器](stories/adapter/US-209-miniprogram-adapter.md) — 实验性，仅微信逻辑层
-- 🚧 [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) — 阶段 A 已交付（宿主契约 + 可行性矩阵）；B/C 阻塞于开发者工具实验，第一档暂无 `supported`
+- 🚧 [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) — 阶段 A 已交付；阶段 B 已登记抖音（实验性，Android 未验证）；阶段 C 支付宝已登记（实验性，依赖未文档化能力，Android 未验证，demo 已过开发者工具），百度 / QQ 判 `unsupported`、待做
 - ✅ [US-504 Electron 本地文件存储](stories/plugin/US-504-electron-local-file-storage.md)
 - ✅ [US-207 Electron 连接本地 SQLite 文件](stories/adapter/US-207-desktop-local-database.md)
 - ✅ [US-210 Tauri 连接应用作用域 SQLite 文件](stories/adapter/US-210-tauri-sqlite-local-database.md)
@@ -108,6 +112,7 @@
 - ⬜ [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) — **价值待证**：`EntityMetadataOptions` 无 CHECK 落点、`EntityIndexMetadataOptions` 只有 `properties` / `unique` / `normalized`；四阶段（CHECK → 条件唯一与表达式索引 → 区间排他双后端等价 → 生成列与索引方法）；当前消费方全在 epic-009，但解锁条件不限 BOM
 - ⬜ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md) — 树兄弟域按 `parentId` 分组改走 US-028 排序模块：`rxdb-test` 四个树实体 `sortOrder` 改非空并按父节点回填，三端 demo 树菜单 / 文件管理的新建追加与拖放改用 core API，删掉 22 个文件里的算键与比较器副本；前置 US-028 阶段 A + D；**价值待证**，`priority: Low`，不新增抽象、今天无可复现症状
 - ✅ [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) — PGlite、SQLite 共享层与桌面 host（Electron SQLite / PGlite、Tauri SQLite）三阶段交付；只承诺同 adapter 恢复，外置文件不在归档内
+- ⬜ [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md) — `@aiao/rxdb-taro`：把 demo 里的 wasm 拷贝、glue `import.meta.url` 改写、抖音 realm 绑定搬进可发布的 Taro 插件（只经被 await 的 `modifyRunnerOpts`；build target 跟随 Taro，不碰）；只放行 `weapp` / `tt` + vite，其余构建期报错；三阶段（构建插件 → 运行时入口 → webpack5 **价值待证**）
 - ⬜ [US-218 Supabase 远端启用 RLS 时的推送完整性](stories/adapter/US-218-supabase-rls-push-integrity.md) — 出自 RV-022：被 RLS 过滤的删除仍写进 `rxdb_change`，其它端拉到幽灵 DELETE；三阶段（不写幽灵日志 → 逐操作回执 → 日志表收口与部署指引）
 - 🚧 [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做，B / C 的价值门禁豁免。阶段 A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`（`screenshots: false`），已交付，开销实测 +32.7%，上限经 owner 裁决由 +10% 改为 +33%；阶段 B 失败现场数据原样归档与导入；demo 的 Worker / SharedWorker 连接备份被拒（US-217 只交付主线程连接），Angular 走的 IDB 档经同库名的主线程第二连接绕开（spike 2026-10-02 通过，实现中）；阶段 C 应用内 rrweb 录制插件与三框架组件实现中（owner 2026-10-02 冻结：独立录制库、单会话 16 MiB + 总量 128 MiB、门面 `commits$` 挂点）
 - ✅ [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体分五阶段外移为插件包，A～E 全部交付；破坏性变更逐阶段记在故事里：`QueryCacheRepository`（B）、`VersionManager` 等 12 条（C）、出站 5 条与 `rxdb.versionManager.<syncMethod>` 改挂 `rxdb.syncManager`（D）、四个树 hook 从三框架绑定包迁往 `@aiao/rxdb-plugin-tree-{angular,react,vue}`（E）

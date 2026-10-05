@@ -592,7 +592,11 @@ export async function runSelfCheck(options: SelfCheckOptions): Promise<SelfCheck
   );
 
   const diagnostics = (): string =>
-    [`stdout：${result.stdout || '(空)'}`, `stderr：${result.stderr || '(空)'}`].join('\n');
+    [
+      `退出码：${result.exitCode ?? '(无，被信号终止)'}`,
+      `stdout：${result.stdout || '(空)'}`,
+      `stderr：${result.stderr || '(空)'}`
+    ].join('\n');
 
   return { ...result, report: readReport(options.reportPath, diagnostics) };
 }

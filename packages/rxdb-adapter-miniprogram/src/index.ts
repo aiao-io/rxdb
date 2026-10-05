@@ -1,5 +1,5 @@
 /**
- * 小程序 wa-sqlite adapter（当前仅微信，实验性）。
+ * 小程序 wa-sqlite adapter（微信、抖音与支付宝，实验性）。
  *
  * 提供小程序运行 RxDB 所需的全套基础设施：WASM 加载、同步文件 VFS、
  * 运行时 polyfill（TextEncoder/TextDecoder/structuredClone/crypto）、
@@ -11,18 +11,37 @@ export { WaSqliteMiniProgramClient, createWaSqliteMiniProgramClient } from './cr
 export {
   MINI_PROGRAM_PLATFORM_IDS,
   MiniProgramUnknownPlatformError,
+  MiniProgramUnsupportedPlatformError,
+  assertMiniProgramPlatformId,
   createWechatMiniProgramHost,
   isMiniProgramPlatformId,
   resolveMiniProgramHost
 } from './host.js';
-export { loadWaSqliteMiniProgramModule } from './loader.js';
+export type {
+  AlipayRandomWorker,
+  AlipayStandardWasmApi,
+  MiniProgramAlipayApi,
+  MiniProgramAlipayRawFileSystem
+} from './hosts/alipay-api.js';
+export {
+  ALIPAY_UNDOCUMENTED_CAPABILITIES,
+  AlipayUndocumentedCapabilityError,
+  type AlipayUndocumentedCapability
+} from './hosts/alipay-capability.js';
+export { ALIPAY_WASM_TEXT_COPY_SUFFIX, createAlipayWasmRuntime } from './hosts/alipay-wasm.js';
+export { createAlipayMiniProgramHost, type AlipayMiniProgramHostOptions } from './hosts/alipay.js';
+export { createDouyinMiniProgramHost, type DouyinMiniProgramHostOptions } from './hosts/douyin.js';
+export { loadWaSqliteMiniProgramModule, type MiniProgramWasmHost } from './loader.js';
 export { ADAPTER_NAME, DEFAULT_WASM_PATH } from './mini-program.interface.js';
 export type {
+  MiniProgramDouyinApi,
+  MiniProgramFileLayout,
   MiniProgramFileSystemManager,
   MiniProgramHost,
   MiniProgramHostCapabilityNames,
   MiniProgramHostSelection,
   MiniProgramPlatformId,
+  MiniProgramRuntimeGlobal,
   MiniProgramWasmInstance,
   MiniProgramWasmRuntime,
   MiniProgramWechatApi,
@@ -39,6 +58,7 @@ export type {
 } from './mini-program.interface.js';
 export { assertMiniProgramRuntimeCapabilities, checkMiniProgramRuntimeCapabilities } from './runtime-capabilities.js';
 export type { MiniProgramRuntimeCapability, MiniProgramRuntimeCapabilityOptions } from './runtime-capabilities.js';
+export { resolveMiniProgramRuntimeGlobal } from './runtime-global.js';
 export {
   RxDBAdapterWaSqliteMiniProgram,
   RxDBAdapterWaSqliteMiniProgram as RxDBAdapterWaSqliteMiniprogram

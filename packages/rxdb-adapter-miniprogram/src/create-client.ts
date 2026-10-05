@@ -10,13 +10,13 @@ import {
 } from '@aiao/rxdb-adapter-wa-sqlite/client';
 import { Factory, SQLITE_OK } from 'wa-sqlite';
 import { resolveMiniProgramHost } from './host.js';
-import { loadWaSqliteMiniProgramModule } from './loader.js';
+import { loadWaSqliteMiniProgramModule, resolveMiniProgramWasmPath } from './loader.js';
 import type { WaSqliteMiniProgramAdapterOptions } from './mini-program.interface.js';
-import { DEFAULT_WASM_PATH } from './mini-program.interface.js';
 import { assertMiniProgramHostCapabilities } from './runtime-capabilities.js';
 import { finalizeWaSqliteOpenStatements } from './statement-cleanup.js';
 import { hardenWaSqliteSynchronousCallbacks } from './synchronous-callbacks.js';
-import { createMiniProgramFileVFS } from './wechat-file-vfs.js';
+import { attachVfsErrorCauses } from './vfs-error-cause.js';
+import { createMiniProgramFileVFS, describeFileLayout } from './wechat-file-vfs.js';
 
 function resolveClientOptions(
   dbName: string,
@@ -33,12 +33,14 @@ function resolveClientOptions(
       databaseRoot: options.databaseRoot,
       dbName,
       moduleFactory: options.moduleFactory,
-      wasmPath: options.wasmPath ?? DEFAULT_WASM_PATH,
+      wasmPath: resolveMiniProgramWasmPath(options, host),
       wasmRuntime: options.wasmRuntime,
       wechat: options.wechat,
       // 宿主按平台与用户目录比较：文档示范的写法每次 init 都现构造 host，引用比较会误报冲突
       platform: host.platform,
-      userDataPath: host.userDataPath
+      userDataPath: host.userDataPath,
+      // 同理按值比较：布局不同的两个 init 指向不兼容的文件
+      fileLayout: describeFileLayout(host.fileLayout)
     }
   };
 }
@@ -54,15 +56,13 @@ const MINI_PROGRAM_RUNTIME: WaSqliteClientRuntime<WaSqliteMiniProgramAdapterOpti
   `,
   async load(dbName, options) {
     const host = resolveMiniProgramHost(options);
-    const module = hardenWaSqliteSynchronousCallbacks(
-      await loadWaSqliteMiniProgramModule(options, host.wasmRuntimeName)
-    );
-    const sqlite3 = hardenWaSqliteSynchronousCallbacks(Factory(module));
+    const module = hardenWaSqliteSynchronousCallbacks(await loadWaSqliteMiniProgramModule(options, host));
     const vfsHandle = createMiniProgramFileVFS(module, {
       databaseName: `${dbName}.sqlite`,
       root: options.databaseRoot,
       host
     });
+    const sqlite3 = attachVfsErrorCauses(hardenWaSqliteSynchronousCallbacks(Factory(module)), vfsHandle);
     try {
       const result = sqlite3.vfs_register(vfsHandle.vfs, true);
       if (result !== SQLITE_OK) throw new Error(`wa-sqlite ${host.shortName} VFS 注册失败: ${result}`);

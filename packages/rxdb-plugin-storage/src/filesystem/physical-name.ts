@@ -42,7 +42,8 @@ const RESERVED_BASE_NAMES = new Set([
   ...Array.from({ length: 9 }, (_, index) => `LPT${index + 1}`)
 ]);
 
-const UTF8_ENCODER = new TextEncoder();
+/** 抖音 iOS 没有原生编码器、polyfill 在 import 之后才装，模块顶层不能构造：第一次用到再建。 */
+let utf8Encoder: TextEncoder | undefined;
 
 /** 把单个 ASCII 字符转成 `%XX` 形式。 */
 const escapeCharacter = (character: string): string =>
@@ -85,7 +86,7 @@ export const encodePhysicalName = (logicalName: string): string => {
     encoded = escapeCharacter(encoded[0]) + encoded.slice(1);
   }
 
-  const byteLength = UTF8_ENCODER.encode(encoded).byteLength;
+  const byteLength = (utf8Encoder ??= new TextEncoder()).encode(encoded).byteLength;
   if (byteLength > MAX_PHYSICAL_NAME_BYTES) {
     throw new StorageBackendError(
       'name_too_long',

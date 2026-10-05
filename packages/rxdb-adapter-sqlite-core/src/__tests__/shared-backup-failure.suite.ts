@@ -44,11 +44,12 @@ class BackupFailureTag extends EntityBase {
   label!: string;
 }
 
-const encoder = new TextEncoder();
+/** 随 `testing` 入口发布：import 时不构造编码器，与库代码同一条规矩（抖音 iOS 没有原生编码器）。 */
+let encoder: TextEncoder | undefined;
 
 /** `text` 在字节里第一次出现的位置。 */
 const indexOfBytes = (haystack: Uint8Array, text: string): number => {
-  const needle = encoder.encode(text);
+  const needle = (encoder ??= new TextEncoder()).encode(text);
   for (let index = haystack.indexOf(needle[0]); index !== -1; index = haystack.indexOf(needle[0], index + 1)) {
     if (needle.every((byte, offset) => haystack[index + offset] === byte)) return index;
   }

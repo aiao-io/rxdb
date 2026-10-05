@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "emitDeclarationOnly": false,
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    // tsconfig.base.json 只登记了 adapter 主入口，没有 `/runtime` 子路径。这里的 paths 会整张替换
+    // base 的 paths；adapter 源码里对 `@aiao/rxdb` 等的引用由它自己目录下的 tsconfig 解析。
+    "paths": {
+      "@aiao/rxdb-adapter-miniprogram": ["../../packages/rxdb-adapter-miniprogram/src/index.ts"],
+      "@aiao/rxdb-adapter-miniprogram/runtime": ["../../packages/rxdb-adapter-miniprogram/src/runtime.ts"]
+    }
+  },
+  "extends": "../../tsconfig.base.json",
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.spec.json"
+    }
+  ]
+}

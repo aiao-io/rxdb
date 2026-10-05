@@ -1,5 +1,6 @@
 import {
   DEVTOOLS_PROTOCOL_VERSION_V2,
+  isDevToolsMessage,
   RXDB_DEVTOOLS_MESSAGE,
   type DevToolsConnectorTransport
 } from '@aiao/rxdb-devtools';
@@ -15,10 +16,15 @@ import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
  * `devtools:message` 事件），只是这里在**被检查页**（`main` 窗口）这一端：connector 发帧 →
  * Rust 按窗口 label 转发给 `rxdb-devtools` 窗口；面板发帧 → Rust 转发回这里。
  *
- * 无私有端口：Tauri 没有 `MessageChannel`，握手不随附端口。隔离由 Rust 按窗口 label 路由
- * 提供——`createSessionPort` 恒返 `undefined`，`closeSessionPort` 是空操作。代价是 v1 的
- * 握手后命令（`QUERY_ENTITY` 等）没有私有信道可走；阶段 1 走 v2 数据面不受影响，v1 facade
- * 的这条限制随「是否要为 Tauri 补 v1 命令面」另行决策。
+ * 无私有端口：Tauri 没有 `MessageChannel`，握手不随附端口（`createSessionPort` 恒返
+ * `undefined`）。隔离由 Rust 中继按窗口 label 路由提供——只有白名单里的调试窗口发得进来，
+ * 入站信道本身就是点对点的，等价于浏览器的 MessageChannel。
+ *
+ * 所以「私有端口」在这里落成一次**入站分流**：`createSessionPort` 交来的回调登记为本次会话的
+ * v1 命令面，端口开着时入站的 v1 帧（`isDevToolsMessage` 判真）交给它，v2 帧照旧走
+ * `subscribe` 的回调；`closeSessionPort` 摘掉回调，v1 帧回到总线、由 connector 的白名单裁决。
+ * 不做这次分流的话，面板握手后发的 `GET_BRANCHES` / `QUERY_ENTITY` 等全部落在总线上，
+ * 被 connector 当成旧扩展的命令丢弃并告警。
  */
 export function createTauriConnectorTransport(): DevToolsConnectorTransport {
   let unlisten: UnlistenFn | null = null;
@@ -30,6 +36,8 @@ export function createTauriConnectorTransport(): DevToolsConnectorTransport {
   // 出站闸门：入站监听登记完成之前，一帧都不出门。未 `subscribe` 时是一个已 settle 的
   // promise，行为与直接发出去只差一个微任务。理由见 `send`。
   let inboundReady: Promise<unknown> = Promise.resolve();
+  // 本次会话的 v1 命令面；`null` 即「端口没开」。分流理由见文件头注。
+  let sessionPort: ((message: unknown) => void) | null = null;
 
   return {
     /**
@@ -81,7 +89,11 @@ export function createTauriConnectorTransport(): DevToolsConnectorTransport {
       // 每一帧都收得到，包括本窗口自己刚发出去的那些。Rust 侧的 `emit_to` 只解决了一半，
       // 另一半在这里：监听必须绑定到本窗口 label 上，定向投递才真的成立。
       const frames = getCurrentWebviewWindow()
-        .listen<string>('devtools:message', event => callback(JSON.parse(event.payload)))
+        .listen<string>('devtools:message', event => {
+          const message: unknown = JSON.parse(event.payload);
+          if (sessionPort !== null && isDevToolsMessage(message)) sessionPort(message);
+          else callback(message);
+        })
         .then(fn => {
           if (disposed) {
             fn();
@@ -135,12 +147,13 @@ export function createTauriConnectorTransport(): DevToolsConnectorTransport {
       };
     },
 
-    createSessionPort() {
+    createSessionPort(onMessage) {
+      sessionPort = onMessage;
       return undefined;
     },
 
     closeSessionPort() {
-      // 无端口可关。
+      sessionPort = null;
     }
   };
 }

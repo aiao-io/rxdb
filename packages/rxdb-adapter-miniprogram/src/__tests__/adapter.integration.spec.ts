@@ -21,7 +21,7 @@ import type {
   WaSqliteMiniProgramHostOptions,
   WaSqliteMiniProgramOptions
 } from '../mini-program.interface.js';
-import { ADAPTER_NAME } from '../mini-program.interface.js';
+import { ADAPTER_NAME, DEFAULT_WASM_PATH } from '../mini-program.interface.js';
 import { RxDBAdapterWaSqliteMiniProgram } from '../RxDBAdapterWaSqliteMiniProgram.js';
 import { moduleFactory, wasmRuntime } from './subframe-wasm-factory.js';
 
@@ -160,6 +160,36 @@ describe('RxDBAdapterWaSqliteMiniProgram', () => {
     await expect(
       client.init('client-identity', { host: createHost(`${userDataPath}/other`), moduleFactory, wasmRuntime })
     ).rejects.toThrow('rxdb-adapter-miniprogram conflicting initialization: userDataPath');
+    // 布局按值比较：显式 single 等同缺省，换成分块则指向不兼容的文件
+    await expect(
+      client.init('client-identity', {
+        host: { ...createHost(userDataPath), fileLayout: { kind: 'single' } },
+        moduleFactory,
+        wasmRuntime
+      })
+    ).resolves.toBeUndefined();
+    await expect(
+      client.init('client-identity', {
+        host: { ...createHost(userDataPath), fileLayout: { kind: 'chunked', chunkBytes: 4096 } },
+        moduleFactory,
+        wasmRuntime
+      })
+    ).rejects.toThrow('rxdb-adapter-miniprogram conflicting initialization: fileLayout');
+    // wasm 路径按解析后的值比较：宿主默认路径与显式传入的同一路径等价
+    await expect(
+      client.init('client-identity', {
+        host: { ...createHost(userDataPath), defaultWasmPath: DEFAULT_WASM_PATH },
+        moduleFactory,
+        wasmRuntime
+      })
+    ).resolves.toBeUndefined();
+    await expect(
+      client.init('client-identity', {
+        host: { ...createHost(userDataPath), defaultWasmPath: '/wa-sqlite/wa-sqlite.wasm' },
+        moduleFactory,
+        wasmRuntime
+      })
+    ).rejects.toThrow('rxdb-adapter-miniprogram conflicting initialization: wasmPath');
     await client.disconnect();
   });
 });

@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "outDir": "../../dist/out-tsc/apps/dev-rxdb-miniprogram-douyin-spike/app",
+    "types": []
+  },
+  "exclude": ["src/**/*.spec.ts", "src/__tests__/**"],
+  "extends": "./tsconfig.json",
+  "include": ["src/**/*.ts"],
+  // adapter 源码经 paths 进来，不声明成 project reference 会报 TS6059/TS6307
+  "references": [
+    {
+      "path": "../../packages/rxdb-adapter-miniprogram/tsconfig.lib.json"
+    }
+  ]
+}

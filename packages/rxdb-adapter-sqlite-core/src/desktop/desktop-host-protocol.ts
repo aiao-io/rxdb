@@ -563,7 +563,8 @@ export function parseDesktopHostRequest(value: unknown): DesktopHostRequest {
   return { kind: kind as 'version' | 'close', sessionId: readSessionId(record) };
 }
 
-const UTF8_ENCODER = new TextEncoder();
+/** 抖音 iOS 没有原生编码器、polyfill 在 import 之后才装，模块顶层不能构造：第一次用到再建。 */
+let utf8Encoder: TextEncoder | undefined;
 
 /**
  * 分段里绝不允许出现的字符。
@@ -617,7 +618,7 @@ const assertPathSegment = (segment: string, path: string): void => {
   if (RESERVED_SEGMENT_BASE_NAMES.has(segment.split('.')[0].toUpperCase())) {
     throw violation(`path segment is a reserved device name: ${path}`);
   }
-  if (UTF8_ENCODER.encode(segment).byteLength > DESKTOP_HOST_MAX_PATH_SEGMENT_BYTES) {
+  if ((utf8Encoder ??= new TextEncoder()).encode(segment).byteLength > DESKTOP_HOST_MAX_PATH_SEGMENT_BYTES) {
     throw violation(`path segment exceeds ${DESKTOP_HOST_MAX_PATH_SEGMENT_BYTES} bytes: ${path}`);
   }
 };

@@ -1,5 +1,10 @@
 import type { EntityType, RxDB } from '@aiao/rxdb';
 import type { RxDBAdapterWaSqliteMiniProgram } from '@aiao/rxdb-adapter-miniprogram';
+import { defineBenchmarkEntities, RxdbBenchmarkWorkload } from './benchmark/rxdb-workload';
+import { runBenchmarkSuites, type BenchmarkResult, type BenchmarkSuiteInfo } from './benchmark/scenarios';
+import { formatBenchmarkValue } from './benchmark/stats';
+import { logStep } from './debug-log';
+import { firstValue } from './first-value';
 import type { MiniProgramRuntimeReferences, RuntimeCapability } from './runtime-preflight';
 
 type RxdbModule = typeof import('@aiao/rxdb');
@@ -29,12 +34,10 @@ export interface DemoVerificationResult {
   readonly reconnect: DemoCheck;
 }
 
-interface SubscriptionLike {
-  unsubscribe(): void;
-}
-
-interface ObservableLike<T> {
-  subscribe(observer: { next(value: T): void; error(reason: unknown): void; complete(): void }): SubscriptionLike;
+/** 性能测试的进度回调。 */
+export interface BenchmarkListener {
+  readonly onSuiteStart?: (suite: BenchmarkSuiteInfo) => void;
+  readonly onResult?: (suiteId: string, result: BenchmarkResult) => void;
 }
 
 const EMPTY_RULE_GROUP = { combinator: 'and' as const, rules: [] };
@@ -62,35 +65,6 @@ let pendingDispose: Promise<void> = Promise.resolve();
 async function releaseActiveDemo(): Promise<void> {
   await pendingDispose;
   await activeDemo?.dispose();
-}
-
-function firstValue<T>(source: ObservableLike<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    let settled = false;
-    // 同步 observable 会在 `subscribe()` 返回之前就触发 `next`，那一刻订阅句柄还没交回来，
-    // 所以取消订阅延到微任务，句柄也只能放进可变容器里（先声明后赋值的 `let` 过不了 prefer-const）。
-    const handle: { subscription?: SubscriptionLike } = {};
-    const unsubscribe = () => Promise.resolve().then(() => handle.subscription?.unsubscribe());
-
-    handle.subscription = source.subscribe({
-      next(value) {
-        if (settled) return;
-        settled = true;
-        resolve(value);
-        unsubscribe();
-      },
-      error(reason) {
-        if (settled) return;
-        settled = true;
-        reject(reason);
-      },
-      complete() {
-        if (settled) return;
-        settled = true;
-        reject(new Error('RxDB 查询没有返回结果'));
-      }
-    });
-  });
 }
 
 function defineEntities(rxdb: RxdbModule) {
@@ -126,7 +100,8 @@ function defineEntities(rxdb: RxdbModule) {
     ]
   })(RuntimeProbeModel);
 
-  return { Todo, RuntimeProbe };
+  // 性能测试的表与演示 Todo 分开，跑测不动演示数据；已装的库会在 connect 时补建缺失的表
+  return { Todo, RuntimeProbe, ...defineBenchmarkEntities(rxdb) };
 }
 
 type DemoEntities = ReturnType<typeof defineEntities>;
@@ -138,6 +113,9 @@ export class MiniProgramRxdbDemo {
 
   /** 在飞的重连验证；它中途会 disconnect 再 connect，`dispose()` 必须等它收场。 */
   private pendingReconnect: Promise<unknown> = Promise.resolve();
+
+  /** 在飞的性能测试；`dispose()` 置位后它在下一个采样点停下，断开前必须等它收场。 */
+  private pendingBenchmark: Promise<unknown> = Promise.resolve();
 
   /** `dispose()` 已经开始。 */
   private disposed = false;
@@ -203,6 +181,22 @@ export class MiniProgramRxdbDemo {
     return running;
   }
 
+  /**
+   * 跑一遍性能测试（吞吐量 / 延迟分布 / 扩展性 / 并发），每条结果同时打到控制台，方便从开发者工具复制。
+   *
+   * 数据写在独立的 `benchmark_todo` 表，开始前和每组结束时清空。
+   *
+   * @param listener - 进度回调
+   * @throws `BenchmarkCancelledError` 跑的过程中页面卸载
+   */
+  async runBenchmark(listener: BenchmarkListener = {}): Promise<void> {
+    if (this.disposed) throw new Error('演示实例已释放，无法再运行性能测试');
+    const running = this.runBenchmarkSuites(listener);
+    // 失败原因由本次调用抛出；`dispose()` 只需要知道这一轮已经收场，不该被它一起拖红
+    this.pendingBenchmark = running.catch(() => undefined);
+    return running;
+  }
+
   async dispose(): Promise<void> {
     this.disposed = true;
     if (activeDemo === this) activeDemo = undefined;
@@ -225,6 +219,23 @@ export class MiniProgramRxdbDemo {
     probe.value = new Date().toISOString();
     await probe.save();
     return { status: 'pending', detail: '已写入探针；结束并重新启动小程序后验证' };
+  }
+
+  private async runBenchmarkSuites(listener: BenchmarkListener): Promise<void> {
+    logStep('[性能] 开始');
+    await runBenchmarkSuites(new RxdbBenchmarkWorkload(this.rxdb, this.entities), {
+      now: () => globalThis.performance.now(),
+      isCancelled: () => this.disposed,
+      onSuiteStart: suite => {
+        logStep(`[性能] ${suite.title}`);
+        listener.onSuiteStart?.(suite);
+      },
+      onResult: (suiteId, result) => {
+        logStep(`[性能] ${suiteId} · ${result.name}: ${formatBenchmarkValue(result)} | ${result.detail}`);
+        listener.onResult?.(suiteId, result);
+      }
+    });
+    logStep('[性能] 完成');
   }
 
   private async runReconnectVerification(): Promise<DemoVerificationResult> {
@@ -266,14 +277,15 @@ export class MiniProgramRxdbDemo {
   }
 
   /**
-   * 先等在飞的重连验证结束，再断开。
+   * 先等在飞的重连验证与性能测试结束，再断开。
    *
    * 反过来的话，`verifyReconnect()` 中途那次 `connect()` 会排在 `disconnectAll()` 之后醒来，
    * 把这个实例重新登记进 `wechat-file-vfs.ts` 的 `ACTIVE_DATABASES`，
-   * 下一个页面引导时就会撞上「不支持同一数据库的并发连接」。
+   * 下一个页面引导时就会撞上「不支持同一数据库的并发连接」。性能测试则是还在往一个已断开的库里写。
    */
   private async closeAfterPendingWork(): Promise<void> {
     await this.pendingReconnect;
+    await this.pendingBenchmark;
     await this.rxdb.disconnectAll();
   }
 
@@ -302,29 +314,37 @@ export class MiniProgramRxdbDemo {
 }
 
 export async function openMiniProgramRxdbDemo(runtime: MiniProgramRuntimeReferences): Promise<DemoOpenResult> {
+  logStep('释放上一个 demo');
   await releaseActiveDemo();
+  logStep('引导运行时（补 TextEncoder / TextDecoder / queueMicrotask 等）');
   const runtimePackage = await import('@aiao/rxdb-adapter-miniprogram/runtime');
-  await runtimePackage.prepareMiniProgramRuntime(runtime.wechat);
+  await runtimePackage.prepareMiniProgramHostRuntime(runtime.host);
 
+  logStep('加载 RxDB 与 adapter');
   const [rxdb, adapterPackage] = await Promise.all([import('@aiao/rxdb'), import('@aiao/rxdb-adapter-miniprogram')]);
   // glue 与 wasm 都来自 `@subframe7536/sqlite-wasm`（编入 FTS5），adapter 负责定位 glue，
-  // wasm 由 `config/index.ts` 的 copy 规则放到 `DEFAULT_WASM_PATH`。
+  // wasm 由 `config/assets-vite-plugin.ts` 放到产物根的 `wa-sqlite/`，三个平台的宿主都指向它（支付宝另有 base64 副本）。
+  logStep('加载 wa-sqlite glue');
   const moduleFactory = await adapterPackage.loadSubframeModuleFactory();
+  logStep('检测运行时能力');
   const capabilities = adapterPackage.checkMiniProgramRuntimeCapabilities({
     moduleFactory,
-    wechat: runtime.wechat,
+    host: runtime.host,
     wasmRuntime: runtime.wasmRuntime
   });
   const missing = capabilities.filter(capability => !capability.available);
   if (missing.length > 0) {
-    throw new Error(`微信运行时缺少 RxDB 必需能力: ${missing.map(capability => capability.name).join(', ')}`);
+    throw new Error(
+      `${runtime.host.displayName}运行时缺少 RxDB 必需能力: ${missing.map(capability => capability.name).join(', ')}`
+    );
   }
 
+  logStep('创建 RxDB 实例');
   const entities = defineEntities(rxdb);
   const database = new rxdb.RxDB({
     dbName: 'dev-rxdb-miniprogram',
     context: { userId: 'mini-program-user' },
-    entities: [entities.Todo, entities.RuntimeProbe],
+    entities: [entities.Todo, entities.RuntimeProbe, entities.BenchmarkTodo],
     multiInstance: false,
     sync: {
       local: { adapter: adapterPackage.ADAPTER_NAME },
@@ -336,13 +356,14 @@ export async function openMiniProgramRxdbDemo(runtime: MiniProgramRuntimeReferen
     currentDatabase =>
       new adapterPackage.RxDBAdapterWaSqliteMiniProgram(currentDatabase, {
         moduleFactory,
-        wechat: runtime.wechat,
-        wasmRuntime: runtime.wasmRuntime,
-        wasmPath: adapterPackage.DEFAULT_WASM_PATH
+        host: runtime.host,
+        wasmRuntime: runtime.wasmRuntime
       })
   );
 
+  logStep('连接数据库');
   const adapter = await database.connect(adapterPackage.ADAPTER_NAME);
+  logStep('读取 SQLite 版本与跨启动持久化记录');
   const demo = new MiniProgramRxdbDemo(database, entities, adapterPackage.ADAPTER_NAME);
   activeDemo = demo;
   return {

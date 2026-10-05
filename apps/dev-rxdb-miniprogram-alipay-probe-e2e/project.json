@@ -1,0 +1,28 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "// dependsOn": "被测对象是 dev-rxdb-miniprogram-alipay-probe 的 dist/：支付宝小程序开发者工具打开的就是这份产物，「普通编译」从磁盘重读它。没有产物时必须红在构建上。",
+  "// e2e-devtools": "与 dev-rxdb-miniprogram-e2e 同一个理由不叫 `e2e`：它驱动 GUI 版支付宝小程序开发者工具（只有 macOS / Windows），叫 `e2e` 会被 ci-template.yml 的 `nx show projects --withTarget=e2e` 拉进 ubuntu 矩阵并必然红。本地显式跑：`nx e2e-devtools dev-rxdb-miniprogram-alipay-probe-e2e`。",
+  "implicitDependencies": ["dev-rxdb-miniprogram-alipay-probe"],
+  "name": "dev-rxdb-miniprogram-alipay-probe-e2e",
+  "projectType": "application",
+  "sourceRoot": "apps/dev-rxdb-miniprogram-alipay-probe-e2e/src",
+  "tags": ["miniprogram-app"],
+  "targets": {
+    "e2e-devtools": {
+      "// executor": "nx.json 已把本项目从 @nx/playwright/plugin 排除（推断出来的名字正好是要躲开的 e2e），命令在这里显式写死。",
+      "dependsOn": ["dev-rxdb-miniprogram-alipay-probe:build"],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-miniprogram-alipay-probe-e2e",
+        "command": "node ../../node_modules/@playwright/test/cli.js test"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/dev-rxdb-miniprogram-alipay-probe-e2e",
+        "command": "node ../../node_modules/eslint/bin/eslint.js ."
+      }
+    }
+  }
+}
