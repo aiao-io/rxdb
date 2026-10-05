@@ -1260,9 +1260,30 @@ AS $$
 DECLARE
   mutation_result jsonb;
   todo_id constant text := '22000000-0000-4000-8000-0000000000a1';
+  helper_oid oid := pg_catalog.to_regprocedure('public.rxdb_assert_push_integrity(jsonb,jsonb,jsonb,boolean,jsonb)');
 BEGIN
   DELETE FROM public.rxdb_change
   WHERE "clientId" = 'sql-push-integrity-client';
+
+  -- ⓪ 校验 helper：INVOKER、只读、固定 search_path；rxdb_mutations 是 INVOKER，客户端角色须显式持有 EXECUTE
+  PERFORM rxdb_sql_regression.assert_true(
+    EXISTS (
+      SELECT 1 FROM pg_catalog.pg_proc AS p
+      WHERE p.oid = helper_oid AND NOT p.prosecdef AND p.provolatile = 's'
+        AND 'search_path=pg_catalog, pg_temp' = ANY(p.proconfig)
+    ),
+    'rxdb_assert_push_integrity must be SECURITY INVOKER, STABLE and pin search_path'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (
+      SELECT pg_catalog.count(*) = 2
+      FROM pg_catalog.pg_proc AS p, pg_catalog.aclexplode(p.proacl) AS acl
+      WHERE p.oid = helper_oid
+        AND acl.privilege_type = 'EXECUTE'
+        AND acl.grantee IN ('anon'::regrole, 'authenticated'::regrole)
+    ),
+    'rxdb_assert_push_integrity must be explicitly granted to anon and authenticated like the other rxdb_mutations helpers'
+  );
 
   -- ① 五种不配对各一例
   PERFORM rxdb_sql_regression.assert_integrity_violation(

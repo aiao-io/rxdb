@@ -362,7 +362,9 @@ $$;
  * 4. unpaired_write：p_skip_sync = true 时业务写的键没有 main 日志
  * 5. op_mismatch：键的最后一条 main 日志为 DELETE ⇔ 键不在 p_deletes
  *
- * 内部函数，不授权给客户端角色。
+ * 授权给 anon / authenticated（见文末 GRANT）：rxdb_mutations 是 SECURITY INVOKER，以调用者身份调它，
+ * 撤销客户端的 EXECUTE 会让所有推送失败。客户端直接调用它不获得任何额外能力——INVOKER、STABLE、
+ * 只校验传入的参数、不读不写任何表。
  */
 CREATE OR REPLACE FUNCTION public.rxdb_assert_push_integrity(
   p_upserts jsonb,
@@ -735,6 +737,7 @@ GRANT EXECUTE ON FUNCTION public.rxdb_batch_delete(text, text, text[]) TO anon, 
 GRANT EXECUTE ON FUNCTION public.rxdb_id_array_type(text, text) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_existing_ids(text, text, text[]) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_check_rls(jsonb) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rxdb_assert_push_integrity(jsonb, jsonb, jsonb, boolean, jsonb) TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rxdb_mutations(jsonb, jsonb, jsonb, boolean, jsonb) TO anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.rxdb_server_version()
