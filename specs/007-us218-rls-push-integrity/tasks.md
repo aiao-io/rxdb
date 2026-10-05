@@ -260,7 +260,7 @@
 - [x] T039 [P] [US3] 在推送仓库测试加（AC#8、9、10，[data-model §7](data-model.md)）：部分被拒 → applied 的源变更拿到 `remoteId`，被拒实体的
       全部源变更写入 `rejectedAt` 与 `rejection`、`remoteId` 仍为空；`lastPushedChangeId` 越过两者；第二轮推送 `mergeChanges` 收到的 `changes`
       不含被拒变更；`PushRepositoryResult.pushed` 只数 applied、`rejected` 等于被拒的压缩后条目数（实现定稿，口径见 [sync-rejections-api §2](contracts/sync-rejections-api.md)）；本地提交事务失败 → 两种标记都不写、水位线不动。确认红
-- [ ] T040 [P] [US3] 「待推」口径测试（research D13）：每个查询各一条「被拒变更不计入」断言——推送仓库测试（`queryUnpushedChanges`）、
+- [x] T040 [P] [US3] 「待推」口径测试（research D13）：每个查询各一条「被拒变更不计入」断言——推送仓库测试（`queryUnpushedChanges`）、
       `get-repository-sync-status.spec.ts`、`pull-conflict-resolution.spec.ts`（`queryPendingLocalChanges`）、`pull-round.spec.ts`
       （`backfillOwnChangeRemoteIds`）、`query-cache-outbox.spec.ts`（两处查询各一条）、`cleanup-expired.spec.ts`，均在
       `packages/rxdb-plugin-sync/src/__tests__/`；`packages/rxdb-plugin-history/src/__tests__/HistoryManager.spec.ts` 对「`remoteId` 为空」的查询一条。确认红
@@ -294,7 +294,7 @@
 - [x] T046 [US3] 推送仓库提交（data-model §7 的步骤 1、3 中的标记部分）：同一本地事务内 applied → `remoteId`，被拒实体的全部源变更 →
       `rejectedAt` / `rejection`，再写 `lastPushedChangeId`；`packages/rxdb/src/sync-contract/VersionManager.interface.ts` 的 `PushRepositoryResult`
       加必填 `rejected: number`（TSDoc），`pushed` 只数 applied；关联仓库按各自结果计。T039 转绿
-- [ ] T047 [US3] 「待推」口径加 `rejectedAt = null`（research D13）：推送仓库 `queryUnpushedChanges`、`packages/rxdb-plugin-sync/src/get-repository-sync-status.ts`、
+- [x] T047 [US3] 「待推」口径加 `rejectedAt = null`（research D13）：推送仓库 `queryUnpushedChanges`、`packages/rxdb-plugin-sync/src/get-repository-sync-status.ts`、
       `pull-conflict-utils.ts` 的 `queryPendingLocalChanges`、`pull-round.ts` 的 `backfillOwnChangeRemoteIds`、`query-cache-outbox.ts`（两处）、
       `cleanup-expired.ts`、`packages/rxdb-plugin-history/src/HistoryManager.ts` 中按 `remoteId` 为空的查询；**不改** `undo-redo-apply.ts`。T040 转绿
 - [ ] T048 [US3] `pnpm nx test rxdb-adapter-supabase -- push-receipts` 中 AC#8～10、13、15 与 SC-009 断言转绿（AC#11 的本地对齐断言在 US4 补）；耗时记进 PR-B 描述
