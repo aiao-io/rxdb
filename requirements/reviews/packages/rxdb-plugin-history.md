@@ -52,13 +52,13 @@ execution: in-progress
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                        | 核查动作                                                                             | 最低复验场景 / 证据要求                                                                | 状态   |
-| ---- | --------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | ------ |
-| C1   | undo / redo 状态机          | 核查撤销会话、scope selection、redo stack 与后续新写入的相互影响。                   | 撤销到空、redo 后新写、同实体批操作、嵌套 scope、异常中断；事件与数据严格对应。        | 待核查 |
-| C2   | 分支拓扑原子性              | 追踪创建/删除/合并/切换分支及工作树可选前置，区分返回值与异常契约。                  | 重复创建、删除 active 分支、切换时 requireClean/CAS 拒绝、分支 ABA；拒绝时不变更拓扑。 | 待核查 |
-| C3   | 恢复与级联                  | 检查 restore entity、外键与派生实体、history item 编码和操作顺序。                   | 删除后恢复关联、加密字段、批操作失败、不可达历史；原子回滚且不泄露明文。               | 待核查 |
-| C4   | 与 sync / working-tree 协作 | 核查 sync-history-bridge、push inflight 和工作树挂载，不让远端应用被当作本地撤销项。 | 同步中 undo、跨分支事件、捕获开启/关闭、detached event；协议边界和 skip 原因可见。     | 待核查 |
-| C5   | 销毁与类型兼容              | 检查 plugin 销毁、监听清理、公开 VersionManager/HistoryManager 类型与现有 consumer。 | 关闭重连、插件安装失败、旧 consumer 编译；不把历史 scope 与提交 scope 混用。           | 待核查 |
+| 编号 | 专项                        | 核查动作                                                                             | 最低复验场景 / 证据要求                                                                | 状态                         |
+| ---- | --------------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | ---------------------------- |
+| C1   | undo / redo 状态机          | 核查撤销会话、scope selection、redo stack 与后续新写入的相互影响。                   | 撤销到空、redo 后新写、同实体批操作、嵌套 scope、异常中断；事件与数据严格对应。        | 部分核销；见2026-10-05证据表 |
+| C2   | 分支拓扑原子性              | 追踪创建/删除/合并/切换分支及工作树可选前置，区分返回值与异常契约。                  | 重复创建、删除 active 分支、切换时 requireClean/CAS 拒绝、分支 ABA；拒绝时不变更拓扑。 | 部分核销；见2026-10-05证据表 |
+| C3   | 恢复与级联                  | 检查 restore entity、外键与派生实体、history item 编码和操作顺序。                   | 删除后恢复关联、加密字段、批操作失败、不可达历史；原子回滚且不泄露明文。               | 部分核销；见2026-10-05证据表 |
+| C4   | 与 sync / working-tree 协作 | 核查 sync-history-bridge、push inflight 和工作树挂载，不让远端应用被当作本地撤销项。 | 同步中 undo、跨分支事件、捕获开启/关闭、detached event；协议边界和 skip 原因可见。     | 部分核销；见2026-10-05证据表 |
+| C5   | 销毁与类型兼容              | 检查 plugin 销毁、监听清理、公开 VersionManager/HistoryManager 类型与现有 consumer。 | 关闭重连、插件安装失败、旧 consumer 编译；不把历史 scope 与提交 scope 混用。           | 部分核销；见2026-10-05证据表 |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -138,3 +138,17 @@ pnpm audit:coverage --projects=rxdb-plugin-history
 ## 7. 本轮实际执行记录
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-plugin-history.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
+
+## 2026-10-05：parallel/core 核销对照
+
+本轮已实际审查与验证，未改原最低复验标准。**原完整C核销0，原完成条件不勾；execution保持in-progress，执行记录保持partial。** “部分核销”仅表示下表中有证据的子面，不把单测红等同未评审，也不把发现一个问题等同完整C。
+
+| C   | 本轮实际审查所得 / 源码锚点                                                                                                                                                                                               | 验证面                                                                                               | 核销结论                                         | 必要待证 / 下一批动作                                                                                          |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| C1  | `packages/rxdb-plugin-history/src/redo-stack.ts:47-70`：按fingerprint移除已应用项，不按数量错误截栈顶；1000项上限避免无界增长。undo-redo-apply仅读导入，不声称完整撤销会话已审。                                          | 本轮25 files/349 passed，redo/scopes普通测试实际执行；正文判别力未全读。                             | 部分核销：作用域redo栈身份子面。                 | HistoryManager/undo-redo-apply完整状态机、嵌套scope/异常后新写事件-数据对应尚未审完。                          |
+| C2  | `packages/rxdb-plugin-history/src/create-branch.ts`、`packages/rxdb-plugin-history/src/remove-branch.ts`、`packages/rxdb-plugin-history/src/merge-branch.ts`：本轮仅清点，正文未审，不写成已读。                          | 现有branch-topology-atomicity等本轮通过，只提供当前配置下回归结果。                                  | partial：未核销分支拓扑专题。                    | CAS/requireClean/ABA拒绝位置及拒绝不改拓扑尚未人工追到实现；下一批从拓扑原子性spec与对应函数成对核查。         |
+| C3  | `packages/rxdb-plugin-history/src/restore-entity.ts:45-76,98-124`：先拒非DELETE/无逆补丁/错实体namespace/错分支，再把TrustedWriteIntent绑定独立事务executor；恢复后必须查到行否则显式报错。不是switchBranch关触发器路径。 | restore实现全文已读；本轮restore-entity/trusted-write-concurrency等已执行，真实加密+FK级联链未补证。 | 部分核销：恢复身份、写意图作用域和非空返回边界。 | 批操作回滚、加密字段不泄露和外键/派生实体真实恢复仍缺；不能以restore mock全部绿完整核销 C3。                   |
+| C4  | `packages/rxdb-plugin-history/src/plugin.ts:25-35,62-64`：pushableCount绑定属于连接scope，pullable刷新明确归sync插件；没有同步时不制造假计数fallback。                                                                    | 已审插件所有权；sync-history-bridge/push-inflight仅清点，正文与detached/capture事件未人工追完。      | 部分：同步计数资源归属已核对。                   | 远端应用不成为本地undo项、跨分支/working-tree真实协作、inflight竞态尚待审，349绿不覆盖全部宿主协议。           |
+| C5  | `packages/rxdb-plugin-history/src/plugin.ts:41-77`：slot最先登记最后撤；manager destroy登记早于init，pushableCount解绑先于manager销毁；scoped插件没有inject而是在首条change前初始化。公开槽位不提供空壳fallback。         | 插件实现全文已读，统一typecheck与本轮349普通测试通过；声明与实际可选安装的差别明确。                 | 部分核销：插件slot/监听所有权与公开形状。        | VersionManager/HistoryManager完整destroy、安装失败/断开重连测试正文和旧consumer实际消费未逐条审；不勾完整 C5。 |
+
+本轮验证的日期/基线、测试红绿、coverage测量面与晚加spec边界见 [本对象实际执行记录](/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-history.md)。继续动作只限上表的必要缺口；本次不新增探针/发现，不等待主控重队列，supplement最终结果由主控追加。

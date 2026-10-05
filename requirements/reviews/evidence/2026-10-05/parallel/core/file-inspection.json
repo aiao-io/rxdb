@@ -1,0 +1,544 @@
+{
+  "files": {
+    "requirements/reviews/packages/utils.md": {
+      "sha256": "fafc38778d5d0a4b5e6c2538e3fa220931f99bf43503c368e8670df323f31f90",
+      "lineCount": 140,
+      "ranges": [[53, 63]],
+      "fullTextRead": false,
+      "readAt": "2026-10-05T09:03:49.189327+08:00"
+    },
+    "requirements/reviews/packages/rxdb.md": {
+      "sha256": "f74878601b2eb3169abadf38b79c9505e9f16df10a2cb7fe89a614e664e7a660",
+      "lineCount": 154,
+      "ranges": [[55, 65]],
+      "fullTextRead": false,
+      "readAt": "2026-10-05T09:03:49.189750+08:00"
+    },
+    "requirements/reviews/packages/rxdb-client-generator.md": {
+      "sha256": "164e3925e6cc80ed9cbac89c71c95e17725ceee1eaf2c97cd06dc966f65a1c7c",
+      "lineCount": 145,
+      "ranges": [[55, 62]],
+      "fullTextRead": false,
+      "readAt": "2026-10-05T09:03:49.189890+08:00"
+    },
+    "requirements/reviews/packages/rxdb-plugin-history.md": {
+      "sha256": "04c7ec32f345815d42b8c63c62ae4a36d7b52f735dfed85c867b2a2b22fd3d3b",
+      "lineCount": 140,
+      "ranges": [[55, 61]],
+      "fullTextRead": false,
+      "readAt": "2026-10-05T09:03:49.190011+08:00"
+    },
+    "requirements/reviews/packages/rxdb-test.md": {
+      "sha256": "7209c027b45156d01ba2664dd9eb91bdcb9b8d29447f9c3fca300b9c6b1a83d2",
+      "lineCount": 138,
+      "ranges": [[52, 59]],
+      "fullTextRead": false,
+      "readAt": "2026-10-05T09:03:49.190143+08:00"
+    },
+    "packages/rxdb-test/scripts/run-coverage-acceptance.mjs": {
+      "sha256": "7ea9bfc55559817e2652fbc18fadc0bdc7db1bde43ad46024975be408f6fd75e",
+      "lineCount": 166,
+      "ranges": [[1, 166]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:04:35.532331+08:00"
+    },
+    "packages/rxdb-test/vitest.coverage-acceptance.merge.config.mts": {
+      "sha256": "d1f2a5d6c62daac5bbb99949bbbb7f9a78fade7cbfd618f9f8bec8457c641c27",
+      "lineCount": 115,
+      "ranges": [[1, 115]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:05:01.169698+08:00"
+    },
+    "packages/rxdb-test/vitest.coverage-acceptance.unit.config.mts": {
+      "sha256": "20b3f9bc74de6de73ac4033266bd647f49f4dafd9c659044f9fc6a66f169b71e",
+      "lineCount": 50,
+      "ranges": [[1, 50]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:05:19.719285+08:00"
+    },
+    "packages/rxdb-test/vitest.acceptance-root.mts": {
+      "sha256": "df2803cd0eba2877af556c487c5e9b0130dedb641c2887f0eb42eb8bd7d8d590",
+      "lineCount": 37,
+      "ranges": [[1, 37]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:05:19.719923+08:00"
+    },
+    "packages/rxdb-test/src/testing/seed-lock.ts": {
+      "sha256": "baa5ed066ba065b3750311cca85040753479d817c5a90d49ad3cc8932ec5a6da",
+      "lineCount": 37,
+      "ranges": [[1, 37]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:05:19.720355+08:00"
+    },
+    "packages/rxdb-test/src/testing/clear-entity-records.ts": {
+      "sha256": "712036e135f4da262a795cf971ffa4d4eb358f1cd84ea077a68458810098aaf8",
+      "lineCount": 23,
+      "ranges": [[1, 23]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:07:23.122394+08:00"
+    },
+    "packages/utils/src/async/AsyncQueueExecutor.ts": {
+      "sha256": "2559540770f20cd884e3db89d7d52d551ea9b41958f3a6215bd1db8c7791a13c",
+      "lineCount": 193,
+      "ranges": [[1, 193]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:05:37.826675+08:00"
+    },
+    "packages/utils/src/lifecycle/lifecycle-scope.ts": {
+      "sha256": "9c8e402e94c12093b4405a9a4596a59f2287534e9ac8e2fc9ea16472acc9386d",
+      "lineCount": 260,
+      "ranges": [[1, 260]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:06:12.745006+08:00"
+    },
+    "packages/utils/src/object/createQueryOptionsKey.ts": {
+      "sha256": "4fb2c851e744d000b54cb4a60c2f6454bd1627db8428a6484034ffb45928d751",
+      "lineCount": 105,
+      "ranges": [[1, 105]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:06:29.087466+08:00"
+    },
+    "packages/utils/src/object/createStableKey.ts": {
+      "sha256": "92a4c28c0ce9594d02fa7c98e77e3ec4f38a23218534b796578263c2d08da5a4",
+      "lineCount": 76,
+      "ranges": [[1, 76]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:07:00.736818+08:00"
+    },
+    "packages/utils/src/object/set.ts": {
+      "sha256": "fbb4a58b6fc08bc0cad5ed7c3c2c3f55076d05713f1b931ab25bfd2d05c70481",
+      "lineCount": 65,
+      "ranges": [[1, 65]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:17:09.079977+08:00"
+    },
+    "packages/rxdb-test/src/testing/observable-sequence.ts": {
+      "sha256": "497ed914e40e3d5862382e43d735af17f81890fd63eabadc6191fb68b9675830",
+      "lineCount": 135,
+      "ranges": [[1, 135]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:07:31.532188+08:00"
+    },
+    "packages/rxdb-test/src/testing/e2e-db-name.ts": {
+      "sha256": "8adaf885c4c0d2e2d7d6de60ae8959bc7898b56d96270c5d2eb384f3d676be34",
+      "lineCount": 61,
+      "ranges": [[1, 58]],
+      "fullTextRead": false,
+      "readAt": "2026-10-05T09:07:31.533615+08:00"
+    },
+    "packages/rxdb-test/package.json": {
+      "sha256": "a7ecd338c47961478f31e69552608518c2c860797762c7a5b93464609d327301",
+      "lineCount": 96,
+      "ranges": [[1, 96]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:07:50.515194+08:00"
+    },
+    "packages/rxdb-test/src/index.ts": {
+      "sha256": "8d5966ecb06b2d307f0d58ce31d220cd98a45b759f8ce4d15bcb911fda1e1f3d",
+      "lineCount": 26,
+      "ranges": [[1, 26]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:07:59.324197+08:00"
+    },
+    "packages/rxdb-test/src/testing/index.ts": {
+      "sha256": "072205039624b186cf4780e591fe49c8975b3f44fdd218ed3ab7bad72724d79c",
+      "lineCount": 49,
+      "ranges": [[1, 49]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:07:59.324620+08:00"
+    },
+    "packages/rxdb-test/scripts/verify-public-contract.mjs": {
+      "sha256": "a84904d660ef572665ea100b3684a03d26de8bb83fc41eb9c67feffb9d9fb5f1",
+      "lineCount": 89,
+      "ranges": [[1, 89]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:08:09.221986+08:00"
+    },
+    "packages/rxdb-test/src/transaction/fixtures.ts": {
+      "sha256": "fbfbd53e2499bf04ef73d8fce8230762340068e1eeacee933d64ad84693f6bb9",
+      "lineCount": 60,
+      "ranges": [[1, 60]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:12:46.120378+08:00"
+    },
+    "packages/rxdb-client-generator/src/cli/build-client-lib.ts": {
+      "sha256": "74176651c100015c0847d6f9ce136ddbf3a68327276549fe8bfec350bf9337ea",
+      "lineCount": 309,
+      "ranges": [[1, 309]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:09:09.322866+08:00"
+    },
+    "packages/rxdb-client-generator/src/plugins/vite.ts": {
+      "sha256": "d3dea4949b6e282a46640b9af3c17d6abda7ab4c1303c8b982a63931b9e60917",
+      "lineCount": 143,
+      "ranges": [[1, 143]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:09:28.754464+08:00"
+    },
+    "packages/rxdb-client-generator/src/cli/find-files.ts": {
+      "sha256": "4969f6335dfca8f00bfe0c6dab6a6f464f9f1d219de4bac12a5e34cd43850697",
+      "lineCount": 59,
+      "ranges": [[1, 59]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:09:28.755327+08:00"
+    },
+    "packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts": {
+      "sha256": "e8e1ffd3f0ee33b03b14c08867d73a76c302f966d928f275046c0acfeeb25c21",
+      "lineCount": 761,
+      "ranges": [[1, 761]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:22:57.697795+08:00"
+    },
+    "packages/rxdb-client-generator/src/__tests__/cli/find-files.spec.ts": {
+      "sha256": "9da19393e487bb70eed350aa83456dcabd324304774433d1f7a9265bcddc366e",
+      "lineCount": 54,
+      "ranges": [[1, 54]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:09:46.689312+08:00"
+    },
+    "packages/utils/src/index.ts": {
+      "sha256": "d31a99d19d53ac32a075275925ff093faac30f9ccff2c0eadafd077c0a511341",
+      "lineCount": 206,
+      "ranges": [[1, 206]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:11:47.134821+08:00"
+    },
+    "packages/utils/src/@browser/index.ts": {
+      "sha256": "510aff91a89ef45612edb24a476dc1e8e26522378aebbdb4b2de9a8535b91e43",
+      "lineCount": 52,
+      "ranges": [[1, 52]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:11:47.135436+08:00"
+    },
+    "packages/utils/src/@browser/requestIdleCallbackPolyfill.ts": {
+      "sha256": "27787f89f7d3f935414614ebb1bcdd2a25e7d39215a66fcb5bb6fcfc3305be05",
+      "lineCount": 14,
+      "ranges": [[1, 14]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:11:47.135802+08:00"
+    },
+    "packages/utils/src/platform/is-browser.ts": {
+      "sha256": "2943582f010dfd53420611629ecb2e84b4e00388a993a4a248a17d424c0eaf38",
+      "lineCount": 17,
+      "ranges": [[1, 17]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:11:59.609174+08:00"
+    },
+    "packages/utils/src/@browser/broadcast-channel-pool.ts": {
+      "sha256": "7aac7719eb7b4dda08b50c278a43a608d3174de3cf0de494b61df7bf4267ba9c",
+      "lineCount": 132,
+      "ranges": [[1, 132]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:12:11.787152+08:00"
+    },
+    "packages/utils/src/@browser/opfs-route-sync.ts": {
+      "sha256": "a3e642e10abb470d67e332200a86bcc7c87fcd091f8c6c3d2bf60e05adab192d",
+      "lineCount": 67,
+      "ranges": [[1, 67]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:12:24.641584+08:00"
+    },
+    "packages/utils/src/@browser/opfs-rename.ts": {
+      "sha256": "9bf2c5e58a604ca31649c54b66f7fe59cd417324c90cff72077922f724a1e4fa",
+      "lineCount": 53,
+      "ranges": [[1, 53]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:12:24.642167+08:00"
+    },
+    "packages/utils/src/crypto/getWebCrypto.ts": {
+      "sha256": "4957da5c2ffb2807aaefba4609f86d8edb23d20ff3dfeba12796d60d983bab2a",
+      "lineCount": 7,
+      "ranges": [[1, 7]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:12:24.642400+08:00"
+    },
+    "packages/utils/src/random/randomString.ts": {
+      "sha256": "fa89aaa898e99783ee995d50d04eb67e16c292cdfcd3dd1eb98a1bc9cda23a25",
+      "lineCount": 51,
+      "ranges": [[1, 51]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:18:17.771903+08:00"
+    },
+    "packages/rxdb-test/src/transaction/bootstrap.suite.ts": {
+      "sha256": "7dfaec8bbc730e5b1a2329178aa934279a86db6acfb4eeeb30ebd212cf393580",
+      "lineCount": 94,
+      "ranges": [[1, 94]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:12:57.799943+08:00"
+    },
+    "packages/rxdb-test/src/transaction/readiness.suite.ts": {
+      "sha256": "e8a3ecaa643c9f2f4ee76b617572a14e9e30566273a34b15ffb3ea993cfb3a1b",
+      "lineCount": 74,
+      "ranges": [[1, 74]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:13:50.329532+08:00"
+    },
+    "packages/rxdb-test/src/transaction/types.ts": {
+      "sha256": "5632a203ab1ed470ebc42e89cac478db2a980dd1828591e0eccb938c2219f460",
+      "lineCount": 102,
+      "ranges": [[1, 102]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:14:22.352097+08:00"
+    },
+    "packages/rxdb/src/RxDB.ts": {
+      "sha256": "1d33507321f58543b03b96bafbf3eaae18509026906040021d9ef13f74f08d33",
+      "lineCount": 2024,
+      "ranges": [
+        [1, 74],
+        [570, 620]
+      ],
+      "fullTextRead": false,
+      "readAt": "2026-10-05T09:15:13.695111+08:00"
+    },
+    "packages/rxdb-test/src/testing/sqlite.ts": {
+      "sha256": "20f14e675565ed91510c17b5098dda64ace42123d5c3446ade767d589d217dd9",
+      "lineCount": 238,
+      "ranges": [[1, 238]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:14:43.122479+08:00"
+    },
+    "packages/rxdb/src/rxdb.interface.ts": {
+      "sha256": "d8236e35a42bbafc23cf12fa317757c3eb420cf022fbb229239091b2ce78cbfc",
+      "lineCount": 151,
+      "ranges": [[1, 58]],
+      "fullTextRead": false,
+      "readAt": "2026-10-05T09:15:13.695530+08:00"
+    },
+    "packages/rxdb-test/src/transaction/isolation.suite.ts": {
+      "sha256": "b8ed9de717b6511944de5aed1b01a5200f76b5ccfabe77ccde37b1bebd879ccc",
+      "lineCount": 143,
+      "ranges": [[1, 88]],
+      "fullTextRead": false,
+      "readAt": "2026-10-05T09:15:26.876579+08:00"
+    },
+    "packages/utils/src/object/setWith.ts": {
+      "sha256": "0d1e2e244e606420e0234ed1e5d9c9a45d56e58d8f8d4dd7179ccdc87b89b981",
+      "lineCount": 21,
+      "ranges": [[1, 21]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:17:09.080674+08:00"
+    },
+    "packages/utils/src/object/cloneDeep.ts": {
+      "sha256": "20b5ac68a6dfb2eb9e6956ded58aab56224a184c847eeefd6de6bca249bb134e",
+      "lineCount": 141,
+      "ranges": [[1, 141]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:17:21.507992+08:00"
+    },
+    "packages/utils/src/crypto/base64Encode.ts": {
+      "sha256": "3fc21b7daf0d88c6455fd7d4b1d69ce8aef113eb5c70aee628dd9070d5887d93",
+      "lineCount": 41,
+      "ranges": [[1, 41]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:18:17.772440+08:00"
+    },
+    "packages/utils/src/crypto/aesEncrypt.ts": {
+      "sha256": "4ec0b369e1ab0d1bdf49f821d5ad9c4c2b87c9fde6c04746bc1ceaf904051185",
+      "lineCount": 45,
+      "ranges": [[1, 27]],
+      "fullTextRead": false,
+      "readAt": "2026-10-05T09:18:17.772829+08:00"
+    },
+    "packages/utils/src/async/withTimeWindows.ts": {
+      "sha256": "166f0601dffc42d4665d63ca9bfae22fc9fbde673c6ced179eaa145b7f949469",
+      "lineCount": 46,
+      "ranges": [[1, 46]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:19:26.312531+08:00"
+    },
+    "packages/utils/src/function/debounce.ts": {
+      "sha256": "37887723f079f6c2dfb6783556720033e0231231f4a100a523de33b93e8724ea",
+      "lineCount": 44,
+      "ranges": [[1, 44]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:19:26.312990+08:00"
+    },
+    "packages/utils/src/function/throttle.ts": {
+      "sha256": "e82e8248fa823ba4858c0579cb93d0443ac6bee7d64fd3b1a7d39a493fea330a",
+      "lineCount": 40,
+      "ranges": [[1, 40]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:19:26.313118+08:00"
+    },
+    "packages/utils/src/@browser/perform-chunk.ts": {
+      "sha256": "5e45771c0f3f1a57c03b58e397b604c82ae87d163d9c3beea8c175d7b7297943",
+      "lineCount": 100,
+      "ranges": [[1, 100]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:19:36.931597+08:00"
+    },
+    "packages/utils/src/__tests__/async/AsyncQueueExecutor.spec.ts": {
+      "sha256": "5384538aac48806c9a4b95bb2665805b7bc48922fa1f9c78ee284f3b2b4cd2b6",
+      "lineCount": 338,
+      "ranges": [[1, 115]],
+      "fullTextRead": false,
+      "readAt": "2026-10-05T09:19:36.932501+08:00"
+    },
+    "packages/utils/src/number/tryToNumber.ts": {
+      "sha256": "d1ef3b501d3a8886245c0e683e66043ec8ad147b9483402c8fe31a132962c2f2",
+      "lineCount": 40,
+      "ranges": [[1, 40]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:19:52.364408+08:00"
+    },
+    "packages/utils/src/number/toInt.ts": {
+      "sha256": "084911c5bdaa0f203f1cbb86b930f8e2032544a514f4303650b4571f5904ef97",
+      "lineCount": 27,
+      "ranges": [[1, 27]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:19:52.365206+08:00"
+    },
+    "packages/utils/src/date/msTimeToMilliseconds.ts": {
+      "sha256": "3cccc77469b9b9a714d46995d4a4b36af4152c91cab18f9ee0f7065000778ab7",
+      "lineCount": 46,
+      "ranges": [[1, 46]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:19:52.365503+08:00"
+    },
+    "packages/utils/src/date/parseTime.ts": {
+      "sha256": "7014ded9c4428b2237ffe50173af689900cda2489a0130e810dce6bb54f34c16",
+      "lineCount": 48,
+      "ranges": [[1, 48]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:19:52.365885+08:00"
+    },
+    "packages/utils/src/string/stringToArrayBuffer.ts": {
+      "sha256": "7e86fe8b43fba9127c0e217563f55aa1ece7137fea21555be877588c1007f191",
+      "lineCount": 12,
+      "ranges": [[1, 12]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:19:52.366079+08:00"
+    },
+    "packages/rxdb-client-generator/src/__tests__/cli.spec.ts": {
+      "sha256": "7f6300ee18709fe9fb65fa0be5008d2a0fc744b99775188daa536f9998b12d6e",
+      "lineCount": 276,
+      "ranges": [[1, 276]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:20:39.074924+08:00"
+    },
+    "packages/rxdb-client-generator/src/__tests__/plugins/vite.integration.spec.ts": {
+      "sha256": "12c121b8c809b9add0ede1016be8e689cfe377cdb4d98696d4da1a1233ab9043",
+      "lineCount": 163,
+      "ranges": [[1, 163]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:20:49.944749+08:00"
+    },
+    "packages/rxdb-client-generator/src/cli/cli.interface.ts": {
+      "sha256": "e63869677893ac82f0af30b18c0438c7c7e5ecd6355beb5a4ffa7ca8512dc3af",
+      "lineCount": 70,
+      "ranges": [[1, 39]],
+      "fullTextRead": false,
+      "readAt": "2026-10-05T09:20:49.946115+08:00"
+    },
+    "requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint-status.json": {
+      "sha256": "a9c9f2e1926dbc37b4c1a44061c9749827c5d929e1352dcf9ddfbaf291933530",
+      "lineCount": 95,
+      "ranges": [[1, 95]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:21:07.680558+08:00"
+    },
+    "requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck-status.json": {
+      "sha256": "3919a3146684df1ef20186b46ad2b48f9f9276904e19c532b35a4dad14d75b0e",
+      "lineCount": 94,
+      "ranges": [[1, 78]],
+      "fullTextRead": false,
+      "readAt": "2026-10-05T09:21:07.681218+08:00"
+    },
+    "packages/rxdb-client-generator/src/generators/entity-properties.ts": {
+      "sha256": "808dea9fbfe6e3d8c874d5f498ce927253ba71ca9a123d2dc5128ad0aa8f4dd4",
+      "lineCount": 123,
+      "ranges": [[1, 123]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:22:57.698460+08:00"
+    },
+    "packages/rxdb-client-generator/src/cli/cli.ts": {
+      "sha256": "6978b2b383ba7cedc9badf8e5c6d0e23c2aa540eec7e92675bedcbb5ab2948fb",
+      "lineCount": 157,
+      "ranges": [[1, 157]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:23:32.324307+08:00"
+    },
+    "packages/rxdb-client-generator/src/cli/out-dir.ts": {
+      "sha256": "2f443500913612c79998978ebdf485a5bf428960423d1b93eee0bcaecb77c52d",
+      "lineCount": 22,
+      "ranges": [[1, 22]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:23:44.327588+08:00"
+    },
+    "packages/rxdb-client-generator/src/cli/repository-generators.ts": {
+      "sha256": "5238fedd02201a891acce96f25477322f43964fa78d98d299af2f7954364621e",
+      "lineCount": 157,
+      "ranges": [[1, 127]],
+      "fullTextRead": false,
+      "readAt": "2026-10-05T09:23:44.328204+08:00"
+    },
+    "packages/rxdb-plugin-history/src/plugin.ts": {
+      "sha256": "c3bb64a0902f3964e0e704a91d66eae8e62c670fffde9a1bf46fddfacbc961bb",
+      "lineCount": 93,
+      "ranges": [[1, 93]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:25:06.302129+08:00"
+    },
+    "packages/rxdb-plugin-history/src/restore-entity.ts": {
+      "sha256": "4e8d4b51288708297a0c4db16cc40d50b67d5de28ad6d8c004baad2c542eb72e",
+      "lineCount": 124,
+      "ranges": [[1, 124]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:26:24.121423+08:00"
+    },
+    "packages/rxdb-plugin-history/src/redo-stack.ts": {
+      "sha256": "0131b354d57841624a553d043378a7ef86db3d5ff42c3de99e3432e3971895b3",
+      "lineCount": 79,
+      "ranges": [[1, 79]],
+      "fullTextRead": true,
+      "readAt": "2026-10-05T09:26:24.121779+08:00"
+    },
+    "packages/rxdb-plugin-history/src/undo-redo-apply.ts": {
+      "sha256": "027a087d633d3d25f4f00b84ddde43e5f08ccfec4cffeed1028aa8a2437f0da5",
+      "lineCount": 270,
+      "ranges": [[1, 24]],
+      "fullTextRead": false,
+      "readAt": "2026-10-05T09:26:24.121889+08:00"
+    }
+  },
+  "generatedValidation": [
+    {
+      "path": "packages/utils/src/__tests__/lifecycle/review-parallel-acquire-close.spec.ts",
+      "status": "controller-validated-2026-10-05-1-failed-1-passed",
+      "scenarios": ["close-during-setup", "idempotent-dispose"]
+    },
+    {
+      "path": "packages/rxdb-client-generator/src/__tests__/cli/review-parallel-glob-patterns.spec.ts",
+      "status": "controller-validated-2026-10-05-2-failed-1-passed",
+      "scenarios": ["character-class-glob", "brace-glob", "star-control"]
+    },
+    {
+      "path": "packages/rxdb-test/src/__tests__/transaction/review-parallel-teardown-rejection.spec.ts",
+      "status": "late-generated-await-controller-supplement",
+      "scenarios": [
+        "bootstrap-broken-dispose",
+        "isolation-broken-dispose",
+        "readiness-broken-dispose",
+        "three-cleanup-controls"
+      ]
+    },
+    {
+      "path": "packages/utils/src/__tests__/object/review-parallel-clone-array-shape.spec.ts",
+      "status": "late-generated-await-controller-supplement",
+      "scenarios": ["sparse-array-shape", "dense-shared-reference-control", "self-cycle-control"]
+    }
+  ],
+  "head": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+  "method": "逐文件/逐区间输出正文人工审读。sha 仅标识读取版本，inventory 不计已读；全文读取也不等于动态验证。单次正文限制 6500 字符，防止工具截断导致虚报已读；此前工具截断的输出全部不计已读，重新分段。",
+  "reviewDate": "2026-10-05",
+  "validationEvidence": {
+    "parsedStatusAndSummaryFiles": [
+      "requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint-status.json",
+      "requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck-status.json",
+      "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage-status.json",
+      "requirements/reviews/evidence/2026-10-05/parallel/validation/coverage-gate.json"
+    ],
+    "logReadMode": "仅摘要/命中片段与行号，不把整2800行日志标全文读",
+    "reconciliation": "requirements/reviews/evidence/2026-10-05/parallel/core/validation-reconciliation.json"
+  }
+}

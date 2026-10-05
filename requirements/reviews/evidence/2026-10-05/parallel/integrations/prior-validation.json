@@ -1,0 +1,26 @@
+{
+  "httpDesktop": "2026-10-04及10-05前段已有真实HTTP/SQLite与取消加密取证，保留在各对象旧执行段；401/SWR与RV-058已修复，不重开。进程内host≠真实GUI/IPC。",
+  "policy": "先前执行，绝不折算本轮门禁；来自已读旧status/counts与独立执行记录。",
+  "supabase": {
+    "baselineHead": "b7edef590051c8842d4914e30e31475977dea6ac",
+    "appTestsStartedAt": "2026-10-05T07:48:48.996243+08:00",
+    "appTestsPassed": 47,
+    "localE2EStartedAt": "2026-10-05T08:04:41.716989+08:00",
+    "localE2EPassed": 4,
+    "remoteE2EStartedAt": "2026-10-05T08:05:52.957660+08:00",
+    "remoteE2EPassed": 2,
+    "finalPackage": {
+      "passed": 557,
+      "failed": 5,
+      "skipped": 0,
+      "original553AllPassed": true
+    },
+    "knownOpen": ["RV-059", "RV-060", "RV-061"],
+    "sources": [
+      "../../supabase/e2e-local-status.json",
+      "../../supabase/e2e-remote-status.json",
+      "../../supabase/app-all-tests-status.json",
+      "../../supabase/final-counts.json"
+    ]
+  }
+}

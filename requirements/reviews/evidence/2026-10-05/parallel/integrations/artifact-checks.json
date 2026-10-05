@@ -1,0 +1,117 @@
+{
+  "allCriticalForCValid": true,
+  "allRequestTargetsExist": true,
+  "criteriaClosed": 3,
+  "criteriaPartial": 74,
+  "criteriaTotal": 77,
+  "date": "2026-10-05",
+  "diffCheck": {
+    "command": "git diff --check -- <仅本任务写入路径>",
+    "exitCode": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "forbiddenActionsPerformed": false,
+  "kind": "仅文档/清单一致性校验，非业务门禁",
+  "objects": [
+    {
+      "object": "rxdb-adapter-electron",
+      "criteria": 6,
+      "execution": "partial",
+      "documents": "written",
+      "dynamicResults": "master to append"
+    },
+    {
+      "object": "rxdb-adapter-tauri",
+      "criteria": 6,
+      "execution": "partial",
+      "documents": "written",
+      "dynamicResults": "master to append"
+    },
+    {
+      "object": "rxdb-adapter-desktop",
+      "criteria": 3,
+      "execution": "complete",
+      "documents": "written",
+      "dynamicResults": "residue commands closed"
+    },
+    {
+      "object": "rxdb-adapter-http",
+      "criteria": 6,
+      "execution": "partial",
+      "documents": "written",
+      "dynamicResults": "master to append"
+    },
+    {
+      "object": "rxdb-adapter-supabase",
+      "criteria": 6,
+      "execution": "partial",
+      "documents": "written",
+      "dynamicResults": "master to append"
+    },
+    {
+      "object": "dev-rxdb-electron",
+      "criteria": 6,
+      "execution": "partial",
+      "documents": "written",
+      "dynamicResults": "master to append"
+    },
+    {
+      "object": "dev-rxdb-electron-e2e",
+      "criteria": 6,
+      "execution": "partial",
+      "documents": "written",
+      "dynamicResults": "master to append"
+    },
+    {
+      "object": "dev-rxdb-tauri",
+      "criteria": 6,
+      "execution": "partial",
+      "documents": "written",
+      "dynamicResults": "master to append"
+    },
+    {
+      "object": "dev-rxdb-tauri-e2e",
+      "criteria": 6,
+      "execution": "partial",
+      "documents": "written",
+      "dynamicResults": "master to append"
+    },
+    {
+      "object": "dev-rxdb-http",
+      "criteria": 5,
+      "execution": "partial",
+      "documents": "written",
+      "dynamicResults": "master to append"
+    },
+    {
+      "object": "dev-rxdb-http-e2e",
+      "criteria": 5,
+      "execution": "partial",
+      "documents": "written",
+      "dynamicResults": "master to append"
+    },
+    {
+      "object": "dev-rxdb-http-server",
+      "criteria": 6,
+      "execution": "partial",
+      "documents": "written",
+      "dynamicResults": "master to append"
+    },
+    {
+      "object": "dev-rxdb-supabase",
+      "criteria": 5,
+      "execution": "partial",
+      "documents": "written",
+      "dynamicResults": "master to append"
+    },
+    {
+      "object": "dev-rxdb-supabase-e2e",
+      "criteria": 5,
+      "execution": "partial",
+      "documents": "written",
+      "dynamicResults": "master to append"
+    }
+  ],
+  "validationRequests": 23
+}

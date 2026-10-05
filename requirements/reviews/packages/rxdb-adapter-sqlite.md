@@ -145,3 +145,22 @@ pnpm audit:coverage --projects=rxdb-adapter-sqlite
 ## 2026-10-04：树查询与 DevTools 第三批深审
 
 [本对象实际意见与源码/运行证据](../results/packages/rxdb-adapter-sqlite.md) · [本批台账](../execution-2026-10-04-tree-devtools.md)。未核销项不由生成器、mock 或其它后端门禁代证。
+
+## 2026-10-05：local-adapters 并行实审收束
+
+这部分是**实际执行回填**，不是新增泛计划。原专项表及其旧 RV/旧测试数字属于早期执行快照；当前源与当轮结果见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-adapter-sqlite.md`。用户已修历史问题不重新标红。
+
+- execution: in-progress / partial；**原 C 全边界核销 0/5，整对象未 closed**。原第 6 节完成条件保持原文，未满足项不打勾。
+- 当轮已结算：Tests 734 passed | 13 skipped (747)（/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/local-adapters-tests.txt:1231）。
+- 未取得该对象当轮同代 summary/final，不引用库存或历史覆盖率。覆盖率只对应原配置 include/exclude、该次执行宿主与已执行项；skip 不折算通过，源码语义与真实持久化需另证。
+- 本轮明确意见：共享core LA-02/LA-03；不是本包suite红。
+
+| C   | 实读源码/实际证据锚点                                                                                                                                                                                                            | 当前结论/可证反证                                                                                                                                                            | 原 C 核销 | 剩余必要验证                                                                                                       |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------ |
+| C1  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite/src/sqlite-official-load.utils.ts:43–76`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite/src/create_sqlite_client.ts:26–51`                       | 加载资源fingerprint一致才复用，global load lock二次检查；factory init失败释放Comlink proxy，不静默忽略函数型远程选项。LA-03 是共享oo1初始化关闭窗口，不能用工厂catch来反证。 | 未核销    | 下载失败/能力不足/并发init/重复关闭完整生命周期；late oo1回归与真实 OPFS；错误资源和fallback配置全边界。           |
+| C2  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts:113–139,180–235,265–305`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/execute_oo1_helper.ts:72–127`         | 同步oo1通过Promise入口执行；prepare读路径和exec路径责任不同。LA-03轻量回归确认在途load关闭后仍开库/ready。                                                                   | 未核销    | prepare/step/finalize失败、关闭中调用、无行返回与完整Promise错误归属；不同dbName重复init的契约与真实模块生命周期。 |
+| C3  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/entity/insert_sql.ts:66–79`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts:1654–1712`                 | 类型/事务不是本包复制实现，而委托共享core；当前734 pass/13 skip只按配置宿主记账。旧树问题修复状态不反转。                                                                    | 未核销    | BigInt/binary/null/批写/分支过滤/提交事件同 fixture跨后端；13 skip逐项说明，提交时点与rollback完整边界。           |
+| C4  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/backup/restore-sqlite-database.ts:93–105,142–172`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/sqlite-core.utils.ts:646–724` | 实际行拒绝坏信封；恢复要求同引擎blank描述与断开/独占锁。共享逻辑有守卫不等于官方OPFS恢复已经实测。                                                                           | 未核销    | 坏envelope/备份失败/非空目标/失败原库/页面刷新/持久化恢复；各transport的实际支持档位和版本资源。                   |
+| C5  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite/src/sqlite-official-load.utils.ts:62–76`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite/src/create_sqlite_client.ts:27–39`                       | WASM/proxy URL配置被传入实际模块加载并参与缓存identity。未读取全部打包文件/pack consumer，所以不宣称exports与资源闭合。                                                      | 未核销    | 发布后消费、独立类型、浏览器导入、离线与错资源部署；pack/部署与共享worker构建链路未当前执行。                      |
+
+请求/动态日志与阅读记录均由 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters` 保留。三个新增回归的 late lint/typecheck、完整测量面/宿主/持久化及发布闭合按实际待证留阻断；主控统一追加后续结果，不在这里预支通过。

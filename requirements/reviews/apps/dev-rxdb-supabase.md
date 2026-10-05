@@ -45,13 +45,13 @@ Angular wa-sqlite + Supabase 本地优先同步演示，区分本地/远端部�
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项            | 核查动作                                                                                              | 最低复验场景 / 证据要求                                                                          | 状态                                 |
-| ---- | --------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------ |
-| C1   | 构建 / 运行配置 | 核查 runtime config、build env 固化、local/remote 模式和服务地址；不要用复用旧 server 掩盖错 bundle。 | 缺 URL/key、错环境、生产与本地 build、远端不可达；失败明确且配置不会串档。                       | 部分执行；local/remote 实际运行      |
-| C2   | 凭证与 RLS 边界 | 审查客户端允许的 key、audit-secrets 和安全提示；与 adapter 和 SQL/RPC 部署联审。                      | 生产 bundle 不含 privileged key、跨身份读写拒绝、日志无凭证；audit-secrets 在当前 build 后执行。 | 部分执行；当前 build 后审计          |
-| C3   | 离线同步状态    | 追踪 todo 交互、sync task、Realtime 与 remote-sync-state，错误不只做状态提示。                        | 离线写后重连、重复 sync、冲突/拒绝、切 branch、重开 app；pending 与已确认状态准确。              | 部分执行；真实远端跨 context 推/拉   |
-| C4   | 本地库与分支    | 核查 wa-sqlite Worker/SharedWorker、命名、branch manager 和两种 Todo 分页。                           | 多标签页、可空/同值游标、关闭重连、分支限制；对照 roadmap 已知边界，不扩承诺。                   | 部分执行；当前刷新/游标 E2E          |
-| C5   | 真实场景与隔离  | 将组件单测、默认 E2E 和 e2e-remote 证据分开，不把 remote skip 当远端通过。                            | 隔离 Supabase 帐号/schema、真实 remote-sync、错误提示与键盘操作；不向生产表写测试数据。          | 部分执行；47 单测 /4 local /2 remote |
+| 编号 | 专项            | 核查动作                                                                                              | 最低复验场景 / 证据要求                                                                          | 状态                          |
+| ---- | --------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ----------------------------- |
+| C1   | 构建 / 运行配置 | 核查 runtime config、build env 固化、local/remote 模式和服务地址；不要用复用旧 server 掩盖错 bundle。 | 缺 URL/key、错环境、生产与本地 build、远端不可达；失败明确且配置不会串档。                       | 部分核查；见2026-10-05逐C结论 |
+| C2   | 凭证与 RLS 边界 | 审查客户端允许的 key、audit-secrets 和安全提示；与 adapter 和 SQL/RPC 部署联审。                      | 生产 bundle 不含 privileged key、跨身份读写拒绝、日志无凭证；audit-secrets 在当前 build 后执行。 | 部分核查；见2026-10-05逐C结论 |
+| C3   | 离线同步状态    | 追踪 todo 交互、sync task、Realtime 与 remote-sync-state，错误不只做状态提示。                        | 离线写后重连、重复 sync、冲突/拒绝、切 branch、重开 app；pending 与已确认状态准确。              | 部分核查；见2026-10-05逐C结论 |
+| C4   | 本地库与分支    | 核查 wa-sqlite Worker/SharedWorker、命名、branch manager 和两种 Todo 分页。                           | 多标签页、可空/同值游标、关闭重连、分支限制；对照 roadmap 已知边界，不扩承诺。                   | 部分核查；见2026-10-05逐C结论 |
+| C5   | 真实场景与隔离  | 将组件单测、默认 E2E 和 e2e-remote 证据分开，不把 remote skip 当远端通过。                            | 隔离 Supabase 帐号/schema、真实 remote-sync、错误提示与键盘操作；不向生产表写测试数据。          | 部分核查；见2026-10-05逐C结论 |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -124,7 +124,7 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-supabase:audit-secrets --skipRemote
 ## 6. 完成条件
 
 - [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。
-- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。
+- [x] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。
 - [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。
 - [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。
 - [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。
@@ -146,3 +146,25 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-supabase:audit-secrets --skipRemote
 尚需核销原 C 项中的未覆盖边界，尤其认证/RLS、Realtime、跨宿主、覆盖率与打包消费；本轮没有新增完整 C 核销。助手未修改业务源码，不操作用户暂存区。
 
 本轮当前 production build 留有 initial 1.33 MB > 1.00 MB 的预算警告；构建/凭证审计退出 0，不记成无警告构建。详见同批审计原日志，未擅自调高预算。
+
+## 2026-10-05：parallel integrations 逐 C 交付
+
+⚠️ **原完成条件未满足，execution维持in-progress，不能标complete。** 已完成逐C的源码结论/证据/未验证动作登记；这一个完成条件已核销，动态语义与全范围深审/覆盖率未完成。
+
+主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
+
+日志：[strict lint](../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+
+Supabase历史基线：`b7edef590051c8842d4914e30e31475977dea6ac`，2026-10-05 07:48 app:test 47、08:04 local4、08:05 remote2；package交付557pass/5fail/0skip，原553全过。**不是这次parallel门禁**。RV-059/060/061仍Open，只引用不重复登记。
+
+| C / 专项           | 已核查源码符号 / 行与结论                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | 证据 / 核销                                                          | 具体未验证与补证动作                                                                                        |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| C1 构建 / 运行配置 | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/src/app/runtime-config.ts:51-63 readSupabaseConfig`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/src/app/supabase-sync.ts:21-56 connectSupabase/resolveRemoteSync`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/src/app/setup_rxdb_wa-sqlite.ts:15-66 local/remote配置`<br>URL/key都缺时本地模式；半配置或非公开key显式失败；resolver失败标未连接并抛错，不假装remote成功。app本轮strict lint/typecheck过，构建/运行语义仍需补。                          | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控当前冷local/remote build与运行，错URL/key/端口/旧dist/远端不可达逐项验证；不使用未知生产env。           |
+| C2 凭证与 RLS 边界 | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/src/app/runtime-config.ts:26-63 public key判断`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/src/app/remote-security-notice.ts:9-16 未认证/RLS警告`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/scripts/audit-build-credentials.mjs:22-35,54-85 scanBuildArtifacts`<br>警告直接声明createdBy/updatedBy不是身份；public key检查与bundle审计是凭证边界，不等同RLS身份隔离。先前build后审计仅历史证据。                                                     | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 本轮冷build后audit-secrets和跨受限身份读写拒绝；认证/RLS缺失不写不适用，service-role成功不算隔离。          |
+| C3 离线同步状态    | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/src/app/todo/todo.page.ts:193-225 CRUD错误、327-345 #sync`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/src/app/remote-sync-state.ts:20-28 markConnected`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/src/app/todo-interactions.ts:31-65 乐观值恢复`<br>CRUD失败重置/保留错误；Push/Pull pending在finally清理并显示错误。RemoteSyncState是resolver连接状态，不是逐条远端确认；UI不只成功灯，E2E跨context验证push/pull但无离线失败矩阵。                  | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控离线写后重连、重复Push/Pull、拒绝/冲突、切branch和重开；逐操作远端确认/pending与真实数据一致性仍未证。  |
+| C4 本地库与分支    | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/src/app/setup_rxdb_wa-sqlite.ts:17-66 dbName/Worker/SharedWorker`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/src/app/branch-manager.ts:182-209 create/switch finally`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase/src/app/todo-cursor/todo-cursor.page.ts:74-118 completed/id游标`<br>本地库名和worker作用域明确；branch操作防重复、失败有alert、finally复位；Todo排序用completed后id打破同值。仅看到普通同值游标配置，不证明所有nullable与跨tab行为。 | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控多标签共享库、初始化退出/关闭重连、nullable/同值翻页、分支切换限制；核心/框架依赖问题不在本对象擅自修。 |
+| C5 真实场景与隔离  | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase-e2e/src/home.spec.ts:103-154 reload/跨页断言`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts:11-59 跨contextPush/Pull`<br>历史2026-10-05 07:48 app:test 47例、08:04 local4、08:05 remote2均先前运行；remote跨context有实际数据判别力，且明确未认证。不能冒充parallel当前门禁或身份隔离。                                                                                                                                                       | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控后补当轮app:test、本地/远端E2E与隔离资源回收；默认remote未运行/skip按未测记，故全对象partial。          |
+
+证据：[逐C矩阵](../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+
+未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

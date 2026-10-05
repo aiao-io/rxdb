@@ -1,0 +1,417 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="189" failures="0" errors="0" time="7.8661750003">
+    <testsuite name="src/__tests__/GraphRepository.spec.ts" timestamp="2026-10-05T01:17:26.853Z" hostname="liuleideMacBook-Pro-4.local" tests="46" failures="0" errors="0" skipped="0" time="0.260335">
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 基础功能测试 &gt; 应创建用户节点" time="0.00296">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 基础功能测试 &gt; 应使用 addEdge 创建关注关系" time="0.00455">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 基础功能测试 &gt; 应使用 removeEdge 删除关系" time="0.00441">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 邻居节点查询 (findNeighbors) &gt; 应查询直接邻居 (level=1, direction=out)" time="0.005985">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 邻居节点查询 (findNeighbors) &gt; 应查询反向邻居 (direction=in)" time="0.004745">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 邻居节点查询 (findNeighbors) &gt; 应查询双向邻居 (direction=both)" time="0.00521">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 邻居节点查询 (findNeighbors) &gt; 应查询多跳邻居 (level=2)" time="0.005905">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 邻居节点查询 (findNeighbors) &gt; 应带条件查询邻居 (where)" time="0.005505">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 邻居节点查询 (findNeighbors) &gt; level=0 应返回空数组（不查询邻居）" time="0.00381">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 邻居数量统计 (countNeighbors) &gt; 应统计直接邻居数量" time="0.004785">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 邻居数量统计 (countNeighbors) &gt; level=0 时应返回 0（不包含起始节点）" time="0.001465">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 邻居数量统计 (countNeighbors) &gt; 应统计带条件的邻居数量" time="0.0051">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 邻居数量统计 (countNeighbors) &gt; level=0 应返回空数组，where 条件不影响结果" time="0.003875">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 路径查询 (findPaths) &gt; 应查找直接路径" time="0.005">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 路径查询 (findPaths) &gt; 应查找多跳路径" time="0.00539">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 路径查询 (findPaths) &gt; 应查找多条路径" time="0.006935">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 路径查询 (findPaths) &gt; 不存在路径时应返回空数组" time="0.00434">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 路径查询 (findPaths) &gt; 应避免循环路径" time="0.00789">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 边界条件和错误处理 &gt; 空结果集处理：查询不存在的节点" time="0.001285">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 边界条件和错误处理 &gt; addEdge 不提供 weight 参数" time="0.00377">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 边界条件和错误处理 &gt; addEdge 替换现有边（INSERT OR REPLACE）" time="0.004155">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 边界条件和错误处理 &gt; findPaths 带 where 条件过滤中间节点" time="0.005335">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 边界条件和错误处理 &gt; findPaths 的 where 不应过滤终点（GRAPH-005）" time="0.005455">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 边界条件和错误处理 &gt; findPaths 的 where 不应过滤起点（GRAPH-005）" time="0.005475">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 边界条件和错误处理 &gt; findPaths 直连路径无中间节点时 where 不应生效（GRAPH-005）" time="0.00503">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 边界条件和错误处理 &gt; findPaths direction=in 反向查询" time="0.0054">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 边界条件和错误处理 &gt; findPaths direction=both 双向查询" time="0.00491">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 边界条件和错误处理 &gt; findPaths 无权重的边处理" time="0.00445">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 复杂场景测试 &gt; 社交网络场景：创建用户和关注关系" time="0.00662">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 复杂场景测试 &gt; 应处理权重查询" time="0.005275">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; edgeWhere 条件过滤测试 &gt; findNeighbors 应支持 edgeWhere 权重范围过滤 (min)" time="0.006215">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; edgeWhere 条件过滤测试 &gt; findNeighbors 应支持 edgeWhere 权重范围过滤 (max)" time="0.00591">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; edgeWhere 条件过滤测试 &gt; findNeighbors 应支持 edgeWhere 权重范围过滤 (min &amp; max)" time="0.005715">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; edgeWhere 条件过滤测试 &gt; countNeighbors 应支持 edgeWhere 权重过滤" time="0.00447">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; edgeWhere 条件过滤测试 &gt; findPaths 应支持 edgeWhere 权重过滤" time="0.00652">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; edgeWhere 条件过滤测试 &gt; edgeWhere 空条件应返回所有边" time="0.006775">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; edgeWhere 条件过滤测试 &gt; edgeWhere 无匹配边应返回空结果" time="0.0052">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 参数规范化测试 &gt; findNeighbors level 负数应规范化为 1（返回 1 跳邻居）" time="0.004955">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 参数规范化测试 &gt; findNeighbors level 超大值应限制为 100" time="0.00493">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 参数规范化测试 &gt; findNeighbors 不提供 level 应默认为 1" time="0.005155">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 参数规范化测试 &gt; findNeighbors 不提供 direction 应默认为 both" time="0.004585">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 参数规范化测试 &gt; findPaths maxDepth 负数应规范化为 1（无法找到路径）" time="0.00478">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 参数规范化测试 &gt; findPaths maxDepth 零值应规范化为 1（无法找到路径）" time="0.00479">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 参数规范化测试 &gt; findPaths maxDepth 超大值应限制为 100" time="0.005305">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 参数规范化测试 &gt; findPaths 不提供 maxDepth 应默认为 10" time="0.00475">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.spec.ts" name="Graph Demo - Social Network &gt; 参数规范化测试 &gt; findPaths 不提供 direction 应默认为 both" time="0.004855">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/GraphRepository.unit.spec.ts" timestamp="2026-10-05T01:17:26.858Z" hostname="liuleideMacBook-Pro-4.local" tests="6" failures="0" errors="0" skipped="0" time="0.10586">
+        <testcase classname="src/__tests__/GraphRepository.unit.spec.ts" name="GraphRepository &gt; level=0 时不访问本地仓库" time="0.001065">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.unit.spec.ts" name="GraphRepository &gt; 规范化邻居参数并把原始节点转换为实体引用" time="0.00078">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.unit.spec.ts" name="GraphRepository &gt; 数组内容不变但 truncated 翻转时仍发射新结果" time="0.1027">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.unit.spec.ts" name="GraphRepository &gt; 规范化邻居计数参数并委托本地仓库" time="0.000505">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.unit.spec.ts" name="GraphRepository &gt; 规范化路径参数并转换路径中的全部节点引用" time="0.00043">
+        </testcase>
+        <testcase classname="src/__tests__/GraphRepository.unit.spec.ts" name="GraphRepository &gt; 完整转发边写入与删除参数" time="0.00019">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/add-edge-feature-guard.spec.ts" timestamp="2026-10-05T01:17:26.859Z" hostname="liuleideMacBook-Pro-4.local" tests="7" failures="0" errors="0" skipped="0" time="0.11408">
+        <testcase classname="src/__tests__/add-edge-feature-guard.spec.ts" name="addEdge 特性守卫（GRAPH-004） &gt; 图未启用 weight 时传 weight 应抛错，而不是静默丢弃" time="0.010465">
+        </testcase>
+        <testcase classname="src/__tests__/add-edge-feature-guard.spec.ts" name="addEdge 特性守卫（GRAPH-004） &gt; 图未定义 properties 时传 properties 应抛错" time="0.010045">
+        </testcase>
+        <testcase classname="src/__tests__/add-edge-feature-guard.spec.ts" name="addEdge 特性守卫（GRAPH-004） &gt; properties-only 图上把属性对象误传进 weight 槽应抛错（生成器签名错位的实际触发路径）" time="0.00952">
+        </testcase>
+        <testcase classname="src/__tests__/add-edge-feature-guard.spec.ts" name="addEdge 特性守卫（GRAPH-004） &gt; properties-only 图按真实 ABI 传第四参时应正常落库" time="0.01021">
+        </testcase>
+        <testcase classname="src/__tests__/add-edge-feature-guard.spec.ts" name="addEdge 特性守卫（GRAPH-004） &gt; 不传可选参数时应正常落库" time="0.00971">
+        </testcase>
+        <testcase classname="src/__tests__/add-edge-feature-guard.spec.ts" name="addEdge 特性守卫（GRAPH-004） &gt; 四种特性组合只暴露已启用字段，启用字段的空值稳定返回 null" time="0.0159450001">
+        </testcase>
+        <testcase classname="src/__tests__/add-edge-feature-guard.spec.ts" name="addEdge 特性守卫（GRAPH-004） &gt; UPSERT 省略字段时保留旧值，显式 null 时清空" time="0.013085">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/directed-unweighted.spec.ts" timestamp="2026-10-05T01:17:26.860Z" hostname="liuleideMacBook-Pro-4.local" tests="16" failures="0" errors="0" skipped="0" time="0.11002">
+        <testcase classname="src/__tests__/directed-unweighted.spec.ts" name="无权有向图 - 关注关系网络 &gt; 有向图特性 &gt; 关注是单向的（A 关注 B ≠ B 关注 A）" time="0.00749">
+        </testcase>
+        <testcase classname="src/__tests__/directed-unweighted.spec.ts" name="无权有向图 - 关注关系网络 &gt; 有向图特性 &gt; direction=both 返回关注和粉丝的并集" time="0.005865">
+        </testcase>
+        <testcase classname="src/__tests__/directed-unweighted.spec.ts" name="无权有向图 - 关注关系网络 &gt; 有向图特性 &gt; 删除边只影响单向关系" time="0.00605">
+        </testcase>
+        <testcase classname="src/__tests__/directed-unweighted.spec.ts" name="无权有向图 - 关注关系网络 &gt; 无权图特性 &gt; addEdge 不接受 weight 参数" time="0.003965">
+        </testcase>
+        <testcase classname="src/__tests__/directed-unweighted.spec.ts" name="无权有向图 - 关注关系网络 &gt; 无权图特性 &gt; 查询结果不包含 weight 信息" time="0.00477">
+        </testcase>
+        <testcase classname="src/__tests__/directed-unweighted.spec.ts" name="无权有向图 - 关注关系网络 &gt; 关注网络场景 &gt; 查询关注列表（我关注的人）" time="0.005245">
+        </testcase>
+        <testcase classname="src/__tests__/directed-unweighted.spec.ts" name="无权有向图 - 关注关系网络 &gt; 关注网络场景 &gt; 查询粉丝列表（关注我的人）" time="0.005055">
+        </testcase>
+        <testcase classname="src/__tests__/directed-unweighted.spec.ts" name="无权有向图 - 关注关系网络 &gt; 关注网络场景 &gt; 统计关注数和粉丝数" time="0.005155">
+        </testcase>
+        <testcase classname="src/__tests__/directed-unweighted.spec.ts" name="无权有向图 - 关注关系网络 &gt; 关注网络场景 &gt; 查找互相关注的关系" time="0.006165">
+        </testcase>
+        <testcase classname="src/__tests__/directed-unweighted.spec.ts" name="无权有向图 - 关注关系网络 &gt; 关注网络场景 &gt; 查找二度关注（可能认识的人）" time="0.005605">
+        </testcase>
+        <testcase classname="src/__tests__/directed-unweighted.spec.ts" name="无权有向图 - 关注关系网络 &gt; 关注网络场景 &gt; 查询认证账号的粉丝" time="0.005305">
+        </testcase>
+        <testcase classname="src/__tests__/directed-unweighted.spec.ts" name="无权有向图 - 关注关系网络 &gt; 关注网络场景 &gt; 计算影响力传播路径" time="0.00656">
+        </testcase>
+        <testcase classname="src/__tests__/directed-unweighted.spec.ts" name="无权有向图 - 关注关系网络 &gt; 边界情况 &gt; 自环边场景（当前实现允许）" time="0.002375">
+        </testcase>
+        <testcase classname="src/__tests__/directed-unweighted.spec.ts" name="无权有向图 - 关注关系网络 &gt; 边界情况 &gt; 重复关注应该幂等" time="0.00506">
+        </testcase>
+        <testcase classname="src/__tests__/directed-unweighted.spec.ts" name="无权有向图 - 关注关系网络 &gt; 边界情况 &gt; 孤立账号没有关注也没有粉丝" time="0.00231">
+        </testcase>
+        <testcase classname="src/__tests__/directed-unweighted.spec.ts" name="无权有向图 - 关注关系网络 &gt; 边界情况 &gt; 取消关注后粉丝数减少" time="0.004955">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/directed-weighted.spec.ts" timestamp="2026-10-05T01:17:26.862Z" hostname="liuleideMacBook-Pro-4.local" tests="18" failures="0" errors="0" skipped="0" time="0.12269">
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 有向图特性 &gt; 资金流向是单向的（A 转账给 B ≠ B 转账给 A）" time="0.006805">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 有向图特性 &gt; 双向转账需要两条边" time="0.005885">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 加权图特性 &gt; 权重表示转账金额" time="0.00467">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 加权图特性 &gt; 权重可以是小数（精确金额）" time="0.00488">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 加权图特性 &gt; 可以按金额范围过滤交易" time="0.006285">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 资金流向场景 &gt; 统计转出总金额" time="0.00505">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 资金流向场景 &gt; 统计转入总金额" time="0.00488">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 资金流向场景 &gt; 追踪资金流向链路" time="0.00586">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 资金流向场景 &gt; 识别大额异常交易" time="0.00583">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 资金流向场景 &gt; 分析资金集中度（入度权重）" time="0.006145">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 资金流向场景 &gt; 查找循环交易（洗钱检测）" time="0.00563">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 资金流向场景 &gt; 按账户类型过滤交易对手" time="0.00506">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 资金流向场景 &gt; 计算二度转账关系总金额" time="0.00492">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 边界情况 &gt; 权重为 0 应该有效（免费转账/测试交易）" time="0.00435">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 边界情况 &gt; 负权重场景（当前实现允许）" time="0.005885">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 边界情况 &gt; 自环边可写入，但起点不作为自己的邻居返回" time="0.003105">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 边界情况 &gt; 删除交易记录（撤销转账）" time="0.005035">
+        </testcase>
+        <testcase classname="src/__tests__/directed-weighted.spec.ts" name="有权有向图 - 资金流向网络 &gt; 边界情况 &gt; 极大金额应该有效" time="0.00404">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/edge-filter-types.spec.ts" timestamp="2026-10-05T01:17:26.864Z" hostname="liuleideMacBook-Pro-4.local" tests="4" failures="0" errors="0" skipped="0" time="0.000595">
+        <testcase classname="src/__tests__/edge-filter-types.spec.ts" name="边过滤条件的条件类型判别 &gt; GraphEdgeInfoType 按 weight/properties 的有无精确判别" time="0.000245">
+        </testcase>
+        <testcase classname="src/__tests__/edge-filter-types.spec.ts" name="边过滤条件的条件类型判别 &gt; 启用的边字段在合法空值写入后以 null 暴露" time="0.00005">
+        </testcase>
+        <testcase classname="src/__tests__/edge-filter-types.spec.ts" name="边过滤条件的条件类型判别 &gt; GraphEdgeProperties 在无属性过滤上求值为 never" time="0.00007">
+        </testcase>
+        <testcase classname="src/__tests__/edge-filter-types.spec.ts" name="边过滤条件的条件类型判别 &gt; 自定义属性类型在两个条件类型里都被保留" time="0.00003">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/find-paths-backfill.spec.ts" timestamp="2026-10-05T01:17:26.864Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.04573">
+        <testcase classname="src/__tests__/find-paths-backfill.spec.ts" name="findPaths 节点回填一致性（GRAPH-008） &gt; 返回的每条路径都满足 nodes.length === length + 1" time="0.00688">
+        </testcase>
+        <testcase classname="src/__tests__/find-paths-backfill.spec.ts" name="findPaths 节点回填一致性（GRAPH-008） &gt; 路径 CTE 与节点回填必须落在同一个事务 executor 上" time="0.00564">
+        </testcase>
+        <testcase classname="src/__tests__/find-paths-backfill.spec.ts" name="findPaths 节点回填一致性（GRAPH-008） &gt; 节点回填缺行时应抛错，而不是返回缺节点的破损路径" time="0.005505">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/graph-reactive-api.spec.ts" timestamp="2026-10-05T01:17:26.865Z" hostname="liuleideMacBook-Pro-4.local" tests="4" failures="0" errors="0" skipped="0" time="0.639805">
+        <testcase classname="src/__tests__/graph-reactive-api.spec.ts" name="图查询公开 API（GRAPH-002） &gt; 保留 Promise 查询，同时提供接入 QueryManager 的 $ 查询" time="0.114465">
+        </testcase>
+        <testcase classname="src/__tests__/graph-reactive-api.spec.ts" name="图查询公开 API（GRAPH-002） &gt; 同一 Observable 退订后重订阅仍追踪边表，退订者不再收到值" time="0.161995">
+        </testcase>
+        <testcase classname="src/__tests__/graph-reactive-api.spec.ts" name="图查询公开 API（GRAPH-002） &gt; countNeighbors$ 与 findPaths$ 响应边的新增和删除" time="0.216285">
+        </testcase>
+        <testcase classname="src/__tests__/graph-reactive-api.spec.ts" name="图查询公开 API（GRAPH-002） &gt; 节点属性更新会刷新带 where 的邻居查询" time="0.10957">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/graph-resource-limits.spec.ts" timestamp="2026-10-05T01:17:26.865Z" hostname="liuleideMacBook-Pro-4.local" tests="5" failures="0" errors="0" skipped="0" time="5.94">
+        <testcase classname="src/__tests__/graph-resource-limits.spec.ts" name="图查询资源上限（GRAPH-007） &gt; 邻居遍历按层去重，不携带每条简单路径" time="0.00352">
+        </testcase>
+        <testcase classname="src/__tests__/graph-resource-limits.spec.ts" name="图查询资源上限（GRAPH-007） &gt; 路径遍历同时限制递归展开数和返回结果数" time="0.002005">
+        </testcase>
+        <testcase classname="src/__tests__/graph-resource-limits.spec.ts" name="图查询资源上限（GRAPH-007） &gt; 邻居结果达到调用方上限时返回可观察的截断标志" time="0.01577">
+        </testcase>
+        <testcase classname="src/__tests__/graph-resource-limits.spec.ts" name="图查询资源上限（GRAPH-007） &gt; 路径结果达到调用方上限时返回可观察的截断标志" time="0.015395">
+        </testcase>
+        <testcase classname="src/__tests__/graph-resource-limits.spec.ts" name="图查询资源上限（GRAPH-007） &gt; 路径递归达到展开上限但尚未命中目标时仍返回截断标志" time="5.774385">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/graph-semantics.spec.ts" timestamp="2026-10-05T01:17:26.866Z" hostname="liuleideMacBook-Pro-4.local" tests="21" failures="0" errors="0" skipped="0" time="0.2300700001">
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; 起点排除（findNeighbors 不返回起始节点） &gt; 无向图 A-B 查 2 跳不返回起点 A" time="0.010325">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; 起点排除（findNeighbors 不返回起始节点） &gt; 无向图三角形查 3 跳不返回起点，每个邻居只出现一次" time="0.0113150001">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; 起点排除（findNeighbors 不返回起始节点） &gt; 有向图环 A-&gt;B-&gt;A 查 2 跳不返回起点 A" time="0.010105">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; 起点排除（findNeighbors 不返回起始节点） &gt; countNeighbors 同样不计入起点" time="0.010515">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; 有向图去重与最短层级 &gt; A-&gt;B 与 A-&gt;C-&gt;B 只返回一个 B 且 level=1" time="0.010225">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; 有向图去重与最短层级 &gt; findNeighbors 数量与 countNeighbors 一致" time="0.01052">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; 排序（level 升序、同层 weight 升序） &gt; 同层邻居按 weight 升序返回" time="0.009995">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; findPaths 边属性 &gt; 启用 properties 后路径边包含 properties" time="0.00936">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; edgeWhere 属性过滤（Date / boolean） &gt; Date 属性按 ISO 字符串匹配" time="0.01058">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; edgeWhere 属性过滤（Date / boolean） &gt; boolean 属性可过滤" time="0.00938">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; 损坏边属性 &gt; findNeighbors 遇到非法 JSON 时直接失败" time="0.003585">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; 自定义 tableName &gt; findPaths 节点回填使用自定义表名" time="0.008795">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; 自环边 &gt; 无向图自环只写入一条边，且起点不作为自己的邻居返回" time="0.003615">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; 自环边 &gt; fromId === toId 时不返回 0 长度的退化路径" time="0.009455">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; 自环边 &gt; fromId === toId 时仍返回真实环路" time="0.008995">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; 无向边事务原子性 &gt; 反向写入失败时回滚正向边" time="0.00995">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; 无向边事务原子性 &gt; 反向删除失败时回滚正向删除" time="0.010345">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; addEdge 更新语义（S3：UPSERT 保持行身份稳定） &gt; 重复 addEdge 更新权重时边行 id/createdAt 不变，变更日志记为 INSERT+UPDATE 而非重复 INSERT" time="0.01007">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; edgeWhere 未启用特性校验（S6） &gt; 无权无属性图上使用 edgeWhere.weight 应抛出可读错误而非底层 SQL 报错" time="0.009225">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; edgeWhere 未启用特性校验（S6） &gt; 无属性图上使用 edgeWhere.properties 应抛出可读错误而非底层 SQL 报错" time="0.007975">
+        </testcase>
+        <testcase classname="src/__tests__/graph-semantics.spec.ts" name="图语义锁定（起点排除 / 去重 / 边属性 / 表名） &gt; edgeWhere 未启用特性校验（S6） &gt; 有权有属性图上正常使用 edgeWhere.weight/properties 不受影响" time="0.00864">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/merge-query.spec.ts" timestamp="2026-10-05T01:17:26.868Z" hostname="liuleideMacBook-Pro-4.local" tests="8" failures="0" errors="0" skipped="0" time="0.002375">
+        <testcase classname="src/__tests__/merge-query.spec.ts" name="graph query merge hooks &gt; create 对图查询保守刷新，普通查询不刷新" time="0.001105">
+        </testcase>
+        <testcase classname="src/__tests__/merge-query.spec.ts" name="graph query merge hooks &gt; update 只刷新受更新事件影响的图查询" time="0.0004899999">
+        </testcase>
+        <testcase classname="src/__tests__/merge-query.spec.ts" name="graph query merge hooks &gt; 边表事件驱动刷新 &gt; 带 where 的图查询在边新增时必须刷新" time="0.00007">
+        </testcase>
+        <testcase classname="src/__tests__/merge-query.spec.ts" name="graph query merge hooks &gt; 边表事件驱动刷新 &gt; 带 where 的图查询在边更新时必须刷新" time="0.00006">
+        </testcase>
+        <testcase classname="src/__tests__/merge-query.spec.ts" name="graph query merge hooks &gt; 边表事件驱动刷新 &gt; 带 where 的图查询在边删除时必须刷新" time="0.000055">
+        </testcase>
+        <testcase classname="src/__tests__/merge-query.spec.ts" name="graph query merge hooks &gt; 边表事件驱动刷新 &gt; 非图查询即使收到边事件也不刷新" time="0.00005">
+        </testcase>
+        <testcase classname="src/__tests__/merge-query.spec.ts" name="graph query merge hooks &gt; 边表事件驱动刷新 &gt; 其他实体的同名后缀表不会误触发刷新" time="0.0001">
+        </testcase>
+        <testcase classname="src/__tests__/merge-query.spec.ts" name="graph query merge hooks &gt; remove 只刷新受删除事件影响的图查询" time="0.000215">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/neighbor-row-guard.spec.ts" timestamp="2026-10-05T01:17:26.870Z" hostname="liuleideMacBook-Pro-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.03358">
+        <testcase classname="src/__tests__/neighbor-row-guard.spec.ts" name="findNeighbors 结果行守卫（GRAPH-009） &gt; 内部边列缺失时应抛错，而不是伪造空 ID" time="0.00134">
+        </testcase>
+        <testcase classname="src/__tests__/neighbor-row-guard.spec.ts" name="findNeighbors 结果行守卫（GRAPH-009） &gt; direction 取值不合法时应抛错" time="0.000955">
+        </testcase>
+        <testcase classname="src/__tests__/neighbor-row-guard.spec.ts" name="findNeighbors 结果行守卫（GRAPH-009） &gt; sourceId 不是字符串时应抛错" time="0.000845">
+        </testcase>
+        <testcase classname="src/__tests__/neighbor-row-guard.spec.ts" name="findNeighbors 结果行守卫（GRAPH-009） &gt; level 不是数字时应抛错" time="0.000965">
+        </testcase>
+        <testcase classname="src/__tests__/neighbor-row-guard.spec.ts" name="findNeighbors 结果行守卫（GRAPH-009） &gt; 结果行完整时应正常解析" time="0.00093">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/repository-registry-contract.spec.ts" timestamp="2026-10-05T01:17:26.885Z" hostname="liuleideMacBook-Pro-4.local" tests="2" failures="0" errors="0" skipped="0" time="0.000645">
+        <testcase classname="src/__tests__/repository-registry-contract.spec.ts" name="GraphRepository 门面轴注册 &gt; A1 `GraphRepository` 经 declare module 进注册表，与核心两个门面同级" time="0.000375">
+        </testcase>
+        <testcase classname="src/__tests__/repository-registry-contract.spec.ts" name="GraphRepository 门面轴注册 &gt; A1 `@Entity({ repository })` 收得下这个名字" time="0.00007">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/review-query-nan-depth.spec.ts" timestamp="2026-10-05T01:17:26.885Z" hostname="liuleideMacBook-Pro-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.034985">
+        <testcase classname="src/__tests__/review-query-nan-depth.spec.ts" name="评审：NaN 图深度不能被当作成功的空结果 &gt; findNeighbors level=NaN 应明确拒绝" time="0.000395">
+        </testcase>
+        <testcase classname="src/__tests__/review-query-nan-depth.spec.ts" name="评审：NaN 图深度不能被当作成功的空结果 &gt; countNeighbors level=NaN 应明确拒绝" time="0.00011">
+        </testcase>
+        <testcase classname="src/__tests__/review-query-nan-depth.spec.ts" name="评审：NaN 图深度不能被当作成功的空结果 &gt; findPaths maxDepth=NaN 应明确拒绝" time="0.0001">
+        </testcase>
+        <testcase classname="src/__tests__/review-query-nan-depth.spec.ts" name="评审：NaN 图深度不能被当作成功的空结果 &gt; 对照：level=2 的实际图有两个邻居" time="0.000465">
+        </testcase>
+        <testcase classname="src/__tests__/review-query-nan-depth.spec.ts" name="评审：NaN 图深度不能被当作成功的空结果 &gt; 对照：maxDepth=2 的实际图存在一条路径" time="0.00118">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/undirected-direction-collapse.spec.ts" timestamp="2026-10-05T01:17:26.888Z" hostname="liuleideMacBook-Pro-4.local" tests="7" failures="0" errors="0" skipped="0" time="0.00096">
+        <testcase classname="src/__tests__/undirected-direction-collapse.spec.ts" name="无向图方向折叠 &gt; findNeighbors &gt; 无向图默认 direction 只生成单个遍历分支" time="0.000305">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-direction-collapse.spec.ts" name="无向图方向折叠 &gt; findNeighbors &gt; 无向图显式传 both / in 同样折叠为单分支" time="0.00009">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-direction-collapse.spec.ts" name="无向图方向折叠 &gt; findNeighbors &gt; 有向图的 both 仍然保留双分支" time="0.000055">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-direction-collapse.spec.ts" name="无向图方向折叠 &gt; findNeighbors &gt; 有向图的 in / out 各自只有单分支" time="0.000045">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-direction-collapse.spec.ts" name="无向图方向折叠 &gt; countNeighbors &gt; 无向图折叠为单分支，有向图保留双分支" time="0.000075">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-direction-collapse.spec.ts" name="无向图方向折叠 &gt; findPaths &gt; 无向图折叠为单向 JOIN，有向图保留双向 OR" time="0.00009">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-direction-collapse.spec.ts" name="无向图方向折叠 &gt; 折叠后参数不再被重复追加" time="0.00007">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/undirected-unweighted.spec.ts" timestamp="2026-10-05T01:17:26.900Z" hostname="liuleideMacBook-Pro-4.local" tests="12" failures="0" errors="0" skipped="0" time="0.09047">
+        <testcase classname="src/__tests__/undirected-unweighted.spec.ts" name="无权无向图 - 社交好友关系 &gt; 无向图特性 &gt; 添加边后双向都可访问" time="0.00688">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-unweighted.spec.ts" name="无权无向图 - 社交好友关系 &gt; 无向图特性 &gt; direction=both 不重复返回邻居" time="0.004915">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-unweighted.spec.ts" name="无权无向图 - 社交好友关系 &gt; 无向图特性 &gt; 删除边后双向都不可访问" time="0.005445">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-unweighted.spec.ts" name="无权无向图 - 社交好友关系 &gt; 无权图特性 &gt; addEdge 不接受 weight 参数" time="0.003805">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-unweighted.spec.ts" name="无权无向图 - 社交好友关系 &gt; 无权图特性 &gt; 查询邻居结果不包含 weight 信息" time="0.005625">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-unweighted.spec.ts" name="无权无向图 - 社交好友关系 &gt; 好友网络场景 &gt; 查找共同好友" time="0.008345">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-unweighted.spec.ts" name="无权无向图 - 社交好友关系 &gt; 好友网络场景 &gt; 统计好友数量（度中心性）" time="0.00573">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-unweighted.spec.ts" name="无权无向图 - 社交好友关系 &gt; 好友网络场景 &gt; 查找二度好友（朋友的朋友）" time="0.005515">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-unweighted.spec.ts" name="无权无向图 - 社交好友关系 &gt; 好友网络场景 &gt; 检查是否为好友关系" time="0.005445">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-unweighted.spec.ts" name="无权无向图 - 社交好友关系 &gt; 边界情况 &gt; 孤立节点应该没有邻居" time="0.0017">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-unweighted.spec.ts" name="无权无向图 - 社交好友关系 &gt; 边界情况 &gt; 自环边场景（当前实现允许）" time="0.00203">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-unweighted.spec.ts" name="无权无向图 - 社交好友关系 &gt; 边界情况 &gt; 重复添加边应该幂等" time="0.0053">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/undirected-weighted.spec.ts" timestamp="2026-10-05T01:17:26.907Z" hostname="liuleideMacBook-Pro-4.local" tests="14" failures="0" errors="0" skipped="0" time="0.11684">
+        <testcase classname="src/__tests__/undirected-weighted.spec.ts" name="有权无向图 - 城市距离网络 &gt; 无向图特性 &gt; 添加带权重的边后双向都可访问且权重相同" time="0.00683">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-weighted.spec.ts" name="有权无向图 - 城市距离网络 &gt; 无向图特性 &gt; 删除边后双向都不可访问" time="0.006605">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-weighted.spec.ts" name="有权无向图 - 城市距离网络 &gt; 加权图特性 &gt; 必须提供 weight 参数" time="0.005365">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-weighted.spec.ts" name="有权无向图 - 城市距离网络 &gt; 加权图特性 &gt; 权重可以是小数（精确距离）" time="0.005145">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-weighted.spec.ts" name="有权无向图 - 城市距离网络 &gt; 加权图特性 &gt; 可以通过权重范围过滤边" time="0.0074">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-weighted.spec.ts" name="有权无向图 - 城市距离网络 &gt; 加权图特性 &gt; 查询最短距离邻居（按权重排序）" time="0.006135">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-weighted.spec.ts" name="有权无向图 - 城市距离网络 &gt; 交通网络场景 &gt; 查找指定距离范围内的所有城市" time="0.00714">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-weighted.spec.ts" name="有权无向图 - 城市距离网络 &gt; 交通网络场景 &gt; 计算城市间的最短路径" time="0.006975">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-weighted.spec.ts" name="有权无向图 - 城市距离网络 &gt; 交通网络场景 &gt; 查找指定人口范围内的邻近城市" time="0.006395">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-weighted.spec.ts" name="有权无向图 - 城市距离网络 &gt; 交通网络场景 &gt; 统计指定距离内的城市数量" time="0.006595">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-weighted.spec.ts" name="有权无向图 - 城市距离网络 &gt; 边界情况 &gt; 权重为 0 应该有效（邻近城市）" time="0.004585">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-weighted.spec.ts" name="有权无向图 - 城市距离网络 &gt; 边界情况 &gt; 负权重场景（当前实现允许）" time="0.00453">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-weighted.spec.ts" name="有权无向图 - 城市距离网络 &gt; 边界情况 &gt; 极大权重应该有效（国际航线）" time="0.004975">
+        </testcase>
+        <testcase classname="src/__tests__/undirected-weighted.spec.ts" name="有权无向图 - 城市距离网络 &gt; 边界情况 &gt; 更新边权重（修路导致距离变化）" time="0.00656">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator/GraphRepositoryGenerator.spec.ts" timestamp="2026-10-05T01:17:26.914Z" hostname="liuleideMacBook-Pro-4.local" tests="6" failures="0" errors="0" skipped="0" time="0.017135">
+        <testcase classname="src/__tests__/generator/GraphRepositoryGenerator.spec.ts" name="graph &gt; Person" time="0.014175">
+        </testcase>
+        <testcase classname="src/__tests__/generator/GraphRepositoryGenerator.spec.ts" name="graph &gt; Workflow（properties-only 图的 addEdge 参数位置必须与运行时 ABI 一致，GRAPH-004）" time="0.000695">
+        </testcase>
+        <testcase classname="src/__tests__/generator/GraphRepositoryGenerator.spec.ts" name="graph &gt; 为 &apos;basic&apos; 图生成可编译的插件类型与双查询 API" time="0.000605">
+        </testcase>
+        <testcase classname="src/__tests__/generator/GraphRepositoryGenerator.spec.ts" name="graph &gt; 为 &apos;weight&apos; 图生成可编译的插件类型与双查询 API" time="0.000505">
+        </testcase>
+        <testcase classname="src/__tests__/generator/GraphRepositoryGenerator.spec.ts" name="graph &gt; 为 &apos;properties&apos; 图生成可编译的插件类型与双查询 API" time="0.000455">
+        </testcase>
+        <testcase classname="src/__tests__/generator/GraphRepositoryGenerator.spec.ts" name="graph &gt; 为 &apos;full&apos; 图生成可编译的插件类型与双查询 API" time="0.000455">
+        </testcase>
+    </testsuite>
+</testsuites>

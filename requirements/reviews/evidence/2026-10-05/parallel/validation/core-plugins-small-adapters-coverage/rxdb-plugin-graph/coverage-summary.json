@@ -1,0 +1,147 @@
+{
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/@GraphEntity.ts": {
+    "lines": { "total": 3, "covered": 3, "skipped": 0, "pct": 100 },
+    "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "statements": { "total": 3, "covered": 3, "skipped": 0, "pct": 100 },
+    "branches": { "total": 8, "covered": 8, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/GraphEntityBase.ts": {
+    "lines": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/GraphRepository.ts": {
+    "lines": { "total": 35, "covered": 35, "skipped": 0, "pct": 100 },
+    "functions": { "total": 26, "covered": 26, "skipped": 0, "pct": 100 },
+    "statements": { "total": 40, "covered": 40, "skipped": 0, "pct": 100 },
+    "branches": { "total": 8, "covered": 8, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/constants.ts": {
+    "lines": { "total": 8, "covered": 8, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 8, "covered": 8, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/generator/GraphRepositoryGenerator.ts": {
+    "lines": { "total": 67, "covered": 67, "skipped": 0, "pct": 100 },
+    "functions": { "total": 7, "covered": 7, "skipped": 0, "pct": 100 },
+    "statements": { "total": 67, "covered": 67, "skipped": 0, "pct": 100 },
+    "branches": { "total": 28, "covered": 25, "skipped": 0, "pct": 89.28 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/generator/index.ts": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/graph-edge-entity.factory.ts": {
+    "lines": { "total": 4, "covered": 4, "skipped": 0, "pct": 100 },
+    "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "statements": { "total": 5, "covered": 5, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/graph-metadata.interface.ts": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/graph-query-result.ts": {
+    "lines": { "total": 3, "covered": 3, "skipped": 0, "pct": 100 },
+    "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "statements": { "total": 3, "covered": 3, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/graph-query.interface.ts": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/graph-repository.interface.ts": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/graph.interface.ts": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/graph_edge_entity.ts": {
+    "lines": { "total": 9, "covered": 9, "skipped": 0, "pct": 100 },
+    "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "statements": { "total": 9, "covered": 9, "skipped": 0, "pct": 100 },
+    "branches": { "total": 10, "covered": 9, "skipped": 0, "pct": 90 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/index.ts": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/plugin.ts": {
+    "lines": { "total": 4, "covered": 4, "skipped": 0, "pct": 100 },
+    "functions": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "statements": { "total": 5, "covered": 5, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/query/merge_create.ts": {
+    "lines": { "total": 9, "covered": 9, "skipped": 0, "pct": 100 },
+    "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "statements": { "total": 10, "covered": 10, "skipped": 0, "pct": 100 },
+    "branches": { "total": 11, "covered": 11, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/query/merge_remove.ts": {
+    "lines": { "total": 9, "covered": 9, "skipped": 0, "pct": 100 },
+    "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "statements": { "total": 10, "covered": 10, "skipped": 0, "pct": 100 },
+    "branches": { "total": 11, "covered": 11, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/query/merge_update.ts": {
+    "lines": { "total": 9, "covered": 9, "skipped": 0, "pct": 100 },
+    "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "statements": { "total": 10, "covered": 10, "skipped": 0, "pct": 100 },
+    "branches": { "total": 11, "covered": 11, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/query/touches_edge_table.ts": {
+    "lines": { "total": 12, "covered": 12, "skipped": 0, "pct": 100 },
+    "functions": { "total": 5, "covered": 5, "skipped": 0, "pct": 100 },
+    "statements": { "total": 15, "covered": 15, "skipped": 0, "pct": 100 },
+    "branches": { "total": 11, "covered": 11, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/sqlite.ts": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/sqlite/SqliteGraphRepository.ts": {
+    "lines": { "total": 162, "covered": 160, "skipped": 0, "pct": 98.76 },
+    "functions": { "total": 22, "covered": 22, "skipped": 0, "pct": 100 },
+    "statements": { "total": 175, "covered": 172, "skipped": 0, "pct": 98.28 },
+    "branches": { "total": 90, "covered": 85, "skipped": 0, "pct": 94.44 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/sqlite/query_graph_sql.ts": {
+    "lines": { "total": 130, "covered": 123, "skipped": 0, "pct": 94.61 },
+    "functions": { "total": 19, "covered": 19, "skipped": 0, "pct": 100 },
+    "statements": { "total": 141, "covered": 132, "skipped": 0, "pct": 93.61 },
+    "branches": { "total": 117, "covered": 106, "skipped": 0, "pct": 90.59 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-graph/src/utils.ts": {
+    "lines": { "total": 14, "covered": 13, "skipped": 0, "pct": 92.85 },
+    "functions": { "total": 5, "covered": 5, "skipped": 0, "pct": 100 },
+    "statements": { "total": 14, "covered": 13, "skipped": 0, "pct": 92.85 },
+    "branches": { "total": 25, "covered": 24, "skipped": 0, "pct": 96 }
+  },
+  "total": {
+    "lines": { "total": 480, "covered": 470, "skipped": 0, "pct": 97.91 },
+    "statements": { "total": 517, "covered": 504, "skipped": 0, "pct": 97.48 },
+    "functions": { "total": 93, "covered": 93, "skipped": 0, "pct": 100 },
+    "branches": { "total": 330, "covered": 309, "skipped": 0, "pct": 93.63 },
+    "branchesTrue": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  }
+}

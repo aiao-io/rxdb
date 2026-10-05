@@ -48,15 +48,14 @@ React：working-tree status/diff/commit/discard/restore 的框架状态与动作
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                     | 核查动作                                                                                                             | 最低复验场景 / 证据要求                                                                               | 状态   |
-| ---- | ------------------------ | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------ |
-| C1   | 状态与作用域             | 核查 activation/branch/能力状态如何进入 hook，status/diff 订阅必须归属当前数据库。                                   | 未 enable、插件缺失、切分支、换库、多实例；不显示旧库 diff 或偷偷启用数据库能力。                     | 待核查 |
-| C2   | 动作结果与并发           | 逐项对照 commit/discard/restore 的返回值拒绝和 switchBranch 的异常，不能一律当异常或成功。                           | CAS 落败、dirty tree、不可达 commit、并发点击、动作中换 scope；原有数据不损坏。                       | 待核查 |
-| C3   | 三端与敏感数据           | 核查更新触发、错误显示、diff 摘要和类型消费，并与 shared fixtures / 应用工作树场景对应。                             | 相同拒绝序列三端同语义、关闭清理、敏感字段摘要；不能为调试直接输出完整历史。                          | 待核查 |
-| C4   | React 生命周期与竞态     | 核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。 | StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。                   | 待核查 |
-| C5   | React 类型与 render 边界 | 检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。                                  | typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。 | 待核查 |
-
-共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
+| 编号                                                                                                                                                                                                                                                 | 专项                     | 核查动作                                                                                                             | 最低复验场景 / 证据要求                                                                               | 状态    |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ------- |
+| C1                                                                                                                                                                                                                                                   | 状态与作用域             | 核查 activation/branch/能力状态如何进入 hook，status/diff 订阅必须归属当前数据库。                                   | 未 enable、插件缺失、切分支、换库、多实例；不显示旧库 diff 或偷偷启用数据库能力。                     | partial |
+| C2                                                                                                                                                                                                                                                   | 动作结果与并发           | 逐项对照 commit/discard/restore 的返回值拒绝和 switchBranch 的异常，不能一律当异常或成功。                           | CAS 落败、dirty tree、不可达 commit、并发点击、动作中换 scope；原有数据不损坏。                       | partial |
+| C3                                                                                                                                                                                                                                                   | 三端与敏感数据           | 核查更新触发、错误显示、diff 摘要和类型消费，并与 shared fixtures / 应用工作树场景对应。                             | 相同拒绝序列三端同语义、关闭清理、敏感字段摘要；不能为调试直接输出完整历史。                          | partial |
+| C4                                                                                                                                                                                                                                                   | React 生命周期与竞态     | 核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。 | StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。                   | partial |
+| C5                                                                                                                                                                                                                                                   | React 类型与 render 边界 | 检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。                                  | typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。 | partial |
+| 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。 |
 
 ## 4. 测试证据与联审边界
 
@@ -132,3 +131,31 @@ pnpm audit:coverage --projects=rxdb-plugin-working-tree-react
 ## 7. 本轮实际执行记录
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-plugin-working-tree-react.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
+
+## 2026-10-05 frameworks 本轮完成条件与实际核查
+
+本轮 `main/worktree@44de1138b4d396fc45d6e76ab60476c40fef2223`，日期 2026-10-05。不是新泛计划，而是对原 C 的实际结论：**0/5 个完整 C、execution 保持 in-progress；结果记录保持 partial；本对象不是全对象完成候选。**
+
+全部 12 个受控文件的范围/摘要已核对，正文片段 4、outline 0、仅导航 0、未人工检查 8；不能将 scope 盘点称为全读。
+
+| 原 C                        | 本轮结论          | 原场景中仍缺的必要证据                                                                                                                                                     |
+| --------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1 状态与作用域             | partial；局部通过 | 未 enable、缺插件、真实 branch/数据库切换和多实例状态 ownership 未全证；React provider 切 A→B 候选的两条新回归等待主控，不提前算红/绿。                                    |
+| C2 动作结果与并发           | partial；局部通过 | 缺真实数据层并发点击/CAS 落败不损坏数据以及动作中换 scope；现有 IO fixture 不拥有真正数据库。React 旧 commands 回写新 scope 候选待补跑。                                   |
+| C3 三端与敏感数据           | partial；局部通过 | 缺真实应用拒绝序列、关闭期间晚到状态、多实例敏感 diff 摘要/清理以及独立 typed 消费；不能用 100% wrapper coverage 证明 core 历史数据安全。                                  |
+| C4 React 生命周期与竞态     | partial；局部通过 | Angular 实际组件销毁/子 provider、多实例；React StrictMode/多 root/旧库 pending（新 probe 未跑）；Vue provider ref 替换与 SFC scope/晚到命令，均未完整证明。               |
+| C5 React 类型与 render 边界 | partial；局部通过 | Angular 模板/route、React 独立 typed consumer + StrictMode 错误 props、Vue vue-tsc/SFC readonly/emits pack consumer 未完整验证；root resolve 是路径证据而非声明/运行证明。 |
+
+本轮完成条件：
+
+- [x] 全受控 inventory / 摘要核对，未排除配置/资源/fixture。
+- [ ] 全部受控内容阅读及全部原 C 场景核销（缺口见表，保持 partial）。
+- [x] 每 C 已有明确的已证/未证结论及角色明确的源码、测试锚点。
+- [x] 当前 baseline 的 unit / 四指标 / 零警告 lint / typecheck / 真 pack 来源已读取登记。
+- [ ] 晚加探针补跑、独立 typed/runtime consumer、真实完整 UI/生命周期等必要缺口全部关闭。
+- [ ] 全对象证据完成与最终评级（不要求零缺陷，但不能缺验证）；尚未完成。
+
+本对象四指标（statements/branches/functions/lines）：**100% / 100% / 100% / 100%**；阈值各项 ≥ 80%。其余18包的绿不能抹掉 rxdb-angular 的16个失败；新探针不继承基线通过。
+发布 pack 根是 `packages/rxdb-plugin-working-tree-react`，实际 tarball 目标文件存在、独立根 ESM 解析通过；**不包含 typed consumer 编译/runtime import**。Angular 不能按源 manifest 缺 exports 报错。
+
+逐 C 原场景、函数/测试证据与完成条件详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-working-tree-react.md`；机器证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`。

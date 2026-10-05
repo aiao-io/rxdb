@@ -1,0 +1,587 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="267" failures="0" errors="0" time="2.145506748">
+    <testsuite name="src/__tests__/backend-parity.spec.ts" timestamp="2026-10-05T01:19:20.547Z" hostname="liuleideMacBook-Pro-4.local" tests="40" failures="0" errors="0" skipped="0" time="0.512189833">
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; 上传后可按 ID 读回，删除后 metadata 与内容一并消失" time="0.005578542">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; 同路径重复上传未开 overwrite 即冲突，且旧内容与临时文件都不受影响" time="0.001821541">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; overwrite 保留原 ID 并递增 contentVersion" time="0.000619791">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; list 按「整库 / 直属 / 递归」三种作用域返回 metadata" time="0.00902725">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; listEntries 目录在前、名称升序，且孤立文件不暴露给调用方" time="0.000880791">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; createDirectory 建出可枚举的空目录" time="0.000252375">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; rename 在原目录内改名，ID 与内容保持不变" time="0.001323583">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; rename 冲突时按 overwrite 决定拒绝还是整体替换" time="0.000897125">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; renameDirectory 整棵子树跟着改名，内容仍可读" time="0.001120958">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; clear 按作用域清理：带路径只清子树，不带路径清空整库" time="0.00075775">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; watch 先发当前值，改名与删除后各发一次" time="0.053423958">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; preview 与 createObjectUrl 由服务持有 URL，revoke 后归还" time="0.000797291">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; download 在没有文件选择器时走锚点回退，并释放临时 URL" time="0.002779667">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; fetch 首次落盘、二次命中缓存不再发请求" time="0.0014035">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; 存在性判断在路径被另一种条目占用时回 false，而不是抛错" time="0.000311667">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; 删除存储根被显式拒绝，而不是各后端各干各的" time="0.000231">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; 删除撞上另一种条目时拒绝，且不把它删掉" time="0.000304541">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; 删除不存在的目标仍静默成功，不被类型判据带成抛错" time="0.000179292">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; 读文件撞上目录时拒绝，而不是各平台各报各的" time="0.000200458">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（opfs 后端） &gt; 含空格、非 ASCII 与保留字符的名字往返一致" time="0.000455">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; 上传后可按 ID 读回，删除后 metadata 与内容一并消失" time="0.033140042">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; 同路径重复上传未开 overwrite 即冲突，且旧内容与临时文件都不受影响" time="0.02781475">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; overwrite 保留原 ID 并递增 contentVersion" time="0.044353292">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; list 按「整库 / 直属 / 递归」三种作用域返回 metadata" time="0.036237542">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; listEntries 目录在前、名称升序，且孤立文件不暴露给调用方" time="0.025072292">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; createDirectory 建出可枚举的空目录" time="0.002253083">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; rename 在原目录内改名，ID 与内容保持不变" time="0.015034292">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; rename 冲突时按 overwrite 决定拒绝还是整体替换" time="0.0369475">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; renameDirectory 整棵子树跟着改名，内容仍可读" time="0.015697">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; clear 按作用域清理：带路径只清子树，不带路径清空整库" time="0.024561125">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; watch 先发当前值，改名与删除后各发一次" time="0.066124584">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; preview 与 createObjectUrl 由服务持有 URL，revoke 后归还" time="0.01566825">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; download 在没有文件选择器时走锚点回退，并释放临时 URL" time="0.0144185">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; fetch 首次落盘、二次命中缓存不再发请求" time="0.025273458">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; 存在性判断在路径被另一种条目占用时回 false，而不是抛错" time="0.013320375">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; 删除存储根被显式拒绝，而不是各后端各干各的" time="0.001479667">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; 删除撞上另一种条目时拒绝，且不把它删掉" time="0.014168583">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; 删除不存在的目标仍静默成功，不被类型判据带成抛错" time="0.001650875">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; 读文件撞上目录时拒绝，而不是各平台各报各的" time="0.001798666">
+        </testcase>
+        <testcase classname="src/__tests__/backend-parity.spec.ts" name="storage 行为一致性（desktop 后端） &gt; 含空格、非 ASCII 与保留字符的名字往返一致" time="0.013425">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/database-backup-scope.spec.ts" timestamp="2026-10-05T01:19:20.551Z" hostname="liuleideMacBook-Pro-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.073749208">
+        <testcase classname="src/__tests__/database-backup-scope.spec.ts" name="database backup scope with external files (US-217 AC#14) &gt; backs up only the database and leaves referenced external files to a separate backup" time="0.072767541">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/desktop-failure.spec.ts" timestamp="2026-10-05T01:19:20.551Z" hostname="liuleideMacBook-Pro-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.051710541">
+        <testcase classname="src/__tests__/desktop-failure.spec.ts" name="host 失败时的服务层语义（AC#6） &gt; 提交阶段磁盘满：以 disk_full 拒绝，不建 metadata，不留半写文件" time="0.012888083">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-failure.spec.ts" name="host 失败时的服务层语义（AC#6） &gt; 覆盖写失败：旧内容、旧 metadata 与 contentVersion 一并保持不变" time="0.020784666">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-failure.spec.ts" name="host 失败时的服务层语义（AC#6） &gt; 权限不足：原样透出 permission_denied 与 host 的原始描述，不降级成通用错误" time="0.002138625">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-failure.spec.ts" name="host 失败时的服务层语义（AC#6） &gt; 删除时文件删不掉：metadata 补偿回来，不留「meta 没了文件还在」" time="0.014220208">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-failure.spec.ts" name="host 失败时的服务层语义（AC#6） &gt; host 整体不可用：init 即失败，不静默退回浏览器存储" time="0.000662041">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/desktop-filesystem.spec.ts" timestamp="2026-10-05T01:19:20.552Z" hostname="liuleideMacBook-Pro-4.local" tests="40" failures="0" errors="0" skipped="0" time="0.767468208">
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 启用前校验 &gt; 本地适配器不是桌面适配器时拒绝启用（AC#9）" time="0.003161459">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 启用前校验 &gt; 未配置本地适配器时同样拒绝启用" time="0.000580292">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 目录与文件 &gt; ensureRoot 在存储根下建出根目录" time="0.0033575">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 目录与文件 &gt; 写入的内容以原生文件落在存储根下" time="0.017213125">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 目录与文件 &gt; 读回的字节与写入一致" time="0.017242625">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 目录与文件 &gt; 分帧写入超过单帧上限的内容" time="0.137616583">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 目录与文件 &gt; 分帧读取超过单帧上限的内容" time="0.151247542">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 目录与文件 &gt; 接受 Blob 分片" time="0.029732042">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 目录与文件 &gt; abort 后目标保持写入前的内容" time="0.025478625">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 目录与文件 &gt; abort 不抛出，即使 host 已经不认这个写入令牌" time="0.019940375">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 目录与文件 &gt; list 返回条目与类型" time="0.022037042">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 目录与文件 &gt; exists 系列如实反映存在性" time="0.026192917">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 目录与文件 &gt; 删除不存在的目标静默成功" time="0.00707425">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 目录与文件 &gt; removeDirectory 递归删除" time="0.025786584">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 目录与文件 &gt; 移动文件与目录" time="0.02344025">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 错误语义 &gt; 读不存在的文件抛 NotFoundError（服务层的补偿分支依赖它）" time="0.005288917">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 错误语义 &gt; host 报权限失败时抛带稳定 code 的后端错误，不降级" time="0.000736208">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 错误语义 &gt; host 报磁盘满时透出 disk_full 与原始描述" time="0.000939584">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 错误语义 &gt; 应答形状不合协议时抛后端错误，而不是把半个应答当成功" time="0.00048475">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 错误语义 &gt; 目录条目缺少名称时抛后端错误，而不是把 undefined 当成文件名" time="0.000616084">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 错误语义 &gt; host 反复返回空的非结束帧时以后端错误收场，而不是原地空转" time="0.0016355">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 错误语义 &gt; host 协议版本不一致时拒绝连接，不静默降级" time="0.001227">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 物理名编码 &gt; 把原生文件系统不接受的字符编码后落盘，并原样解码回来" time="0.01682125">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 物理名编码 &gt; Windows 保留名同样可用" time="0.014842667">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 物理名编码 &gt; 编码后超长的名字以稳定错误码拒绝，不做哈希截断" time="0.002435583">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 跨上下文锁（AC#7） &gt; 提供 host 仲裁的锁实现" time="0.00053775">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 跨上下文锁（AC#7） &gt; 同名独占锁在两个后端实例之间串行执行" time="0.022472042">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 跨上下文锁（AC#7） &gt; 共享锁之间不互斥" time="0.012088">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 跨上下文锁（AC#7） &gt; 临界区抛错也会释放锁" time="0.001202458">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 跨上下文锁（AC#7） &gt; 释放锁失败不会盖住临界区的原始错误" time="0.000811667">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 跨上下文锁（AC#7） &gt; 临界区成功而释放锁失败时仍然报错，不假装一切正常" time="0.00083575">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 跨上下文锁（AC#7） &gt; 拒绝不支持的锁选项，而不是静默忽略" time="0.000665542">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 跨上下文锁（AC#7） &gt; 带未中止 signal 的请求照常执行" time="0.000857">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 跨上下文锁（AC#7） &gt; signal 已中止时以 signal.reason 拒绝，且不请求 host 锁" time="0.001503791">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 跨上下文锁（AC#7） &gt; 等锁期间中止：授予到达后立即释放，回调不执行" time="0.052875875">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 跨上下文锁（AC#7） &gt; session 建立失败时中止监听器照常摘除，不留泄漏" time="0.002694083">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 跨上下文锁（AC#7） &gt; 已中止且 acquire 传输失败时按契约拒绝 signal.reason，而不是传输错误" time="0.052699917">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 生命周期 &gt; dispose 关闭 host 会话" time="0.054771167">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 生命周期 &gt; dispose 后再次使用会重新开会话" time="0.004593125">
+        </testcase>
+        <testcase classname="src/__tests__/desktop-filesystem.spec.ts" name="createDesktopStorageFilesystem &gt; 生命周期 &gt; 并发的首次调用只开一个会话" time="0.002013833">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/devtools-desktop-filesystem.spec.ts" timestamp="2026-10-05T01:19:20.554Z" hostname="liuleideMacBook-Pro-4.local" tests="11" failures="0" errors="0" skipped="0" time="0.138817917">
+        <testcase classname="src/__tests__/devtools-desktop-filesystem.spec.ts" name="createDevToolsDesktopFilesystem — 列表与元信息 &gt; 列出插件专用根（空段序列）" time="0.023328333">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-filesystem.spec.ts" name="createDevToolsDesktopFilesystem — 列表与元信息 &gt; 只列一层，不返回子树" time="0.023239541">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-filesystem.spec.ts" name="createDevToolsDesktopFilesystem — 列表与元信息 &gt; stat 返回大小与类型；目标不存在时为 undefined" time="0.01250375">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-filesystem.spec.ts" name="createDevToolsDesktopFilesystem — 写与读 &gt; commit 落盘字节与写入一致" time="0.012550792">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-filesystem.spec.ts" name="createDevToolsDesktopFilesystem — 写与读 &gt; discard 不留半写文件" time="0.001955375">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-filesystem.spec.ts" name="createDevToolsDesktopFilesystem — 写与读 &gt; 零字节文件可以 commit 并读回空内容" time="0.011693083">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-filesystem.spec.ts" name="createDevToolsDesktopFilesystem — 目录与删除 &gt; createDirectory 建目录，stat 可见" time="0.00185725">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-filesystem.spec.ts" name="createDevToolsDesktopFilesystem — 目录与删除 &gt; remove 按类型删除文件或递归删除目录" time="0.023260875">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-filesystem.spec.ts" name="createDevToolsDesktopFilesystem — 会话与错误 &gt; 读一个不存在的文件抛出的错误带 Node errno" time="0.000885209">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-filesystem.spec.ts" name="createDevToolsDesktopFilesystem — 会话与错误 &gt; 会话开不起来时 dispose 不留下未处理的拒绝" time="0.012205">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-filesystem.spec.ts" name="createDevToolsDesktopFilesystem — 会话与错误 &gt; dispose 关闭 host 会话" time="0.01408875">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/devtools-desktop-snapshot.spec.ts" timestamp="2026-10-05T01:19:20.555Z" hostname="liuleideMacBook-Pro-4.local" tests="12" failures="0" errors="0" skipped="0" time="0.107308584">
+        <testcase classname="src/__tests__/devtools-desktop-snapshot.spec.ts" name="createDevToolsStorageSnapshotPorts — 已提交文件 &gt; 递归枚举全部文件，目录不产出条目" time="0.042481459">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-snapshot.spec.ts" name="createDevToolsStorageSnapshotPorts — 已提交文件 &gt; 在途上传留在盘上的临时产物不算已提交文件" time="0.0150725">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-snapshot.spec.ts" name="createDevToolsStorageSnapshotPorts — 已提交文件 &gt; 用户自己以该后缀命名的文件照常出现在快照里" time="0.01544025">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-snapshot.spec.ts" name="createDevToolsStorageSnapshotPorts — 已提交文件 &gt; signal 已中止时不触碰文件系统" time="0.009375">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-snapshot.spec.ts" name="createDevToolsStorageSnapshotPorts — metadata 与 epoch &gt; 把 metadata 行映射成带 id / size / contentVersion 的条目" time="0.001885458">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-snapshot.spec.ts" name="createDevToolsStorageSnapshotPorts — metadata 与 epoch &gt; signal 已中止时不读取 metadata" time="0.004377958">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-snapshot.spec.ts" name="createDevToolsStorageSnapshotPorts — metadata 与 epoch &gt; epoch 返回 storage 捕获纪元的字符串" time="0.003350333">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-snapshot.spec.ts" name="createDevToolsStorageSnapshotPorts — 独占锁 &gt; 在独占锁内执行任务并返回 held" time="0.004031125">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-snapshot.spec.ts" name="createDevToolsStorageSnapshotPorts — 独占锁 &gt; signal 已中止时返回 aborted，不执行任务" time="0.002950542">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-snapshot.spec.ts" name="createDevToolsStorageSnapshotPorts — 独占锁 &gt; 任务中途 signal 中止时返回 aborted" time="0.000986167">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-snapshot.spec.ts" name="createDevToolsStorageSnapshotPorts — 独占锁 &gt; 等锁期间 signal 中止：立刻返回 aborted，任务永不执行" time="0.003683042">
+        </testcase>
+        <testcase classname="src/__tests__/devtools-desktop-snapshot.spec.ts" name="createDevToolsStorageSnapshotPorts — 独占锁 &gt; 未中止的等待者在持锁者释放后照常执行" time="0.002253792">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/module-load-without-encoding.spec.ts" timestamp="2026-10-05T01:19:20.556Z" hostname="liuleideMacBook-Pro-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.116570375">
+        <testcase classname="src/__tests__/module-load-without-encoding.spec.ts" name="没有 TextEncoder / TextDecoder 时 ../index.js 照样能加载" time="0.084665666">
+        </testcase>
+        <testcase classname="src/__tests__/module-load-without-encoding.spec.ts" name="没有 TextEncoder / TextDecoder 时 ../desktop.js 照样能加载" time="0.008384917">
+        </testcase>
+        <testcase classname="src/__tests__/module-load-without-encoding.spec.ts" name="没有 TextEncoder / TextDecoder 时 ../testing.js 照样能加载" time="0.009177542">
+        </testcase>
+        <testcase classname="src/__tests__/module-load-without-encoding.spec.ts" name="没有 TextEncoder / TextDecoder 时 ../devtools-desktop-filesystem.js 照样能加载" time="0.007228792">
+        </testcase>
+        <testcase classname="src/__tests__/module-load-without-encoding.spec.ts" name="没有 TextEncoder / TextDecoder 时 ../devtools-desktop-snapshot.js 照样能加载" time="0.00617275">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/object-url.spec.ts" timestamp="2026-10-05T01:19:20.556Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.004186041">
+        <testcase classname="src/__tests__/object-url.spec.ts" name="ObjectUrlRegistry &gt; should track and revoke object urls" time="0.002534875">
+        </testcase>
+        <testcase classname="src/__tests__/object-url.spec.ts" name="ObjectUrlRegistry &gt; should create disposable previews" time="0.000279917">
+        </testcase>
+        <testcase classname="src/__tests__/object-url.spec.ts" name="ObjectUrlRegistry &gt; should use platform URL defaults, fallback MIME type, and ignore unknown urls" time="0.000306833">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/path-lock.spec.ts" timestamp="2026-10-05T01:19:20.557Z" hostname="liuleideMacBook-Pro-4.local" tests="15" failures="0" errors="0" skipped="0" time="0.021782875">
+        <testcase classname="src/__tests__/path-lock.spec.ts" name="PathLockManager &gt; serializes operations that share a path" time="0.0028375">
+        </testcase>
+        <testcase classname="src/__tests__/path-lock.spec.ts" name="PathLockManager &gt; runs operations on disjoint paths concurrently" time="0.001306167">
+        </testcase>
+        <testcase classname="src/__tests__/path-lock.spec.ts" name="PathLockManager &gt; waits for every requested path before entering" time="0.001300541">
+        </testcase>
+        <testcase classname="src/__tests__/path-lock.spec.ts" name="PathLockManager &gt; does not deadlock on crossed multi-path requests" time="0.000525833">
+        </testcase>
+        <testcase classname="src/__tests__/path-lock.spec.ts" name="PathLockManager &gt; does not let a failed operation reject the queued successor" time="0.000673083">
+        </testcase>
+        <testcase classname="src/__tests__/path-lock.spec.ts" name="PathLockManager &gt; excludes path operations while an exclusive operation runs" time="0.002680541">
+        </testcase>
+        <testcase classname="src/__tests__/path-lock.spec.ts" name="PathLockManager &gt; releases the exclusive gate even when the operation throws" time="0.000152792">
+        </testcase>
+        <testcase classname="src/__tests__/path-lock.spec.ts" name="PathLockManager &gt; reuses a drained path without carrying over its previous tail" time="0.001282709">
+        </testcase>
+        <testcase classname="src/__tests__/path-lock.spec.ts" name="PathLockManager &gt; rejects an exclusive waiter on abort and never runs it" time="0.00301875">
+        </testcase>
+        <testcase classname="src/__tests__/path-lock.spec.ts" name="PathLockManager &gt; reopens the gate after an aborted exclusive waiter" time="0.000180875">
+        </testcase>
+        <testcase classname="src/__tests__/path-lock.spec.ts" name="PathLockManager &gt; rejects immediately when the signal is already aborted" time="0.000167041">
+        </testcase>
+        <testcase classname="src/__tests__/path-lock.spec.ts" name="PathLockManager &gt; runs a non-aborted exclusive waiter once the holder releases" time="0.001328791">
+        </testcase>
+        <testcase classname="src/__tests__/path-lock.spec.ts" name="PathLockManager &gt; serializes the same path across manager instances through Web Locks" time="0.001476959">
+        </testcase>
+        <testcase classname="src/__tests__/path-lock.spec.ts" name="PathLockManager &gt; keeps disjoint paths concurrent across manager instances" time="0.001361959">
+        </testcase>
+        <testcase classname="src/__tests__/path-lock.spec.ts" name="PathLockManager &gt; uses the Web Locks gate to exclude every other manager during directory operations" time="0.002339791">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/physical-name.spec.ts" timestamp="2026-10-05T01:19:20.558Z" hostname="liuleideMacBook-Pro-4.local" tests="12" failures="0" errors="0" skipped="0" time="0.004591916">
+        <testcase classname="src/__tests__/physical-name.spec.ts" name="physical name encoding &gt; leaves names that are already filesystem-safe untouched" time="0.001349333">
+        </testcase>
+        <testcase classname="src/__tests__/physical-name.spec.ts" name="physical name encoding &gt; escapes characters that Windows and macOS reject in file names" time="0.000246833">
+        </testcase>
+        <testcase classname="src/__tests__/physical-name.spec.ts" name="physical name encoding &gt; escapes the escape character itself so encoding stays injective" time="0.000555167">
+        </testcase>
+        <testcase classname="src/__tests__/physical-name.spec.ts" name="physical name encoding &gt; escapes trailing dots and spaces that Windows silently strips" time="0.000104208">
+        </testcase>
+        <testcase classname="src/__tests__/physical-name.spec.ts" name="physical name encoding &gt; escapes Windows reserved device names, including the extension form" time="0.000154583">
+        </testcase>
+        <testcase classname="src/__tests__/physical-name.spec.ts" name="physical name encoding &gt; round-trips every name through encode → decode" time="0.000262041">
+        </testcase>
+        <testcase classname="src/__tests__/physical-name.spec.ts" name="physical name encoding &gt; keeps encoding injective across the sample set" time="0.000094792">
+        </testcase>
+        <testcase classname="src/__tests__/physical-name.spec.ts" name="physical name encoding &gt; rejects an empty name" time="0.000320083">
+        </testcase>
+        <testcase classname="src/__tests__/physical-name.spec.ts" name="physical name encoding &gt; rejects names whose encoded form exceeds the single-component byte limit" time="0.000141667">
+        </testcase>
+        <testcase classname="src/__tests__/physical-name.spec.ts" name="physical name encoding &gt; measures the limit in UTF-8 bytes, not UTF-16 code units" time="0.000124292">
+        </testcase>
+        <testcase classname="src/__tests__/physical-name.spec.ts" name="physical name encoding &gt; rejects physical names carrying a malformed escape" time="0.000126458">
+        </testcase>
+        <testcase classname="src/__tests__/physical-name.spec.ts" name="physical name encoding &gt; rejects escapes that would decode to a non-ASCII byte" time="0.000064125">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/plugin.spec.ts" timestamp="2026-10-05T01:19:20.559Z" hostname="liuleideMacBook-Pro-4.local" tests="10" failures="0" errors="0" skipped="0" time="0.005528417">
+        <testcase classname="src/__tests__/plugin.spec.ts" name="RxDBPluginStorage &gt; should attach storage service to rxdb instance" time="0.001605125">
+        </testcase>
+        <testcase classname="src/__tests__/plugin.spec.ts" name="RxDBPluginStorage &gt; should register StorageFileMeta entity once per rxdb instance" time="0.000533166">
+        </testcase>
+        <testcase classname="src/__tests__/plugin.spec.ts" name="RxDBPluginStorage &gt; should not attach storage twice on the same rxdb instance" time="0.000122792">
+        </testcase>
+        <testcase classname="src/__tests__/plugin.spec.ts" name="RxDBPluginStorage &gt; should not destroy shared storage from a duplicate plugin instance" time="0.000799625">
+        </testcase>
+        <testcase classname="src/__tests__/plugin.spec.ts" name="RxDBPluginStorage &gt; should be no-op install when no local adapter" time="0.000287083">
+        </testcase>
+        <testcase classname="src/__tests__/plugin.spec.ts" name="RxDBPluginStorage &gt; should release service, property and entity on scope dispose" time="0.000201458">
+        </testcase>
+        <testcase classname="src/__tests__/plugin.spec.ts" name="RxDBPluginStorage &gt; should leave a pre-registered StorageFileMeta in place on dispose" time="0.000122">
+        </testcase>
+        <testcase classname="src/__tests__/plugin.spec.ts" name="RxDBPluginStorage &gt; should not mutate shared entity metadata across rxdb instances" time="0.0001135">
+        </testcase>
+        <testcase classname="src/__tests__/plugin.spec.ts" name="RxDBPluginStorage &gt; should detach owned storage so the rxdb instance can install a fresh service" time="0.000614916">
+        </testcase>
+        <testcase classname="src/__tests__/plugin.spec.ts" name="RxDBPluginStorage &gt; should work as a plugin factory function" time="0.000139458">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/public-api.spec.ts" timestamp="2026-10-05T01:19:20.560Z" hostname="liuleideMacBook-Pro-4.local" tests="6" failures="0" errors="0" skipped="0" time="0.005108625">
+        <testcase classname="src/__tests__/public-api.spec.ts" name="主入口 &gt; 导出插件、后端接缝与错误载体" time="0.001312167">
+        </testcase>
+        <testcase classname="src/__tests__/public-api.spec.ts" name="主入口 &gt; 依赖图不触及桌面适配器" time="0.001572208">
+        </testcase>
+        <testcase classname="src/__tests__/public-api.spec.ts" name="主入口 &gt; 不从主入口再导出桌面后端" time="0.000516083">
+        </testcase>
+        <testcase classname="src/__tests__/public-api.spec.ts" name="./desktop 子入口 &gt; 导出桌面后端工厂" time="0.000078959">
+        </testcase>
+        <testcase classname="src/__tests__/public-api.spec.ts" name="./desktop 子入口 &gt; 依赖图不触及 Node 内建" time="0.00034425">
+        </testcase>
+        <testcase classname="src/__tests__/public-api.spec.ts" name="./desktop 子入口 &gt; 只依赖共享协议层" time="0.000304042">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/review-desktop-path-alias.spec.ts" timestamp="2026-10-05T01:19:20.560Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.163892208">
+        <testcase classname="src/__tests__/review-desktop-path-alias.spec.ts" name="评审：桌面物理路径不能让不同逻辑名覆盖同一个文件 &gt; ASCII 大小写：overwrite 只允许替换目标逻辑路径，不能修改另一记录" time="0.092220417">
+            <system-out>
+REVIEW_NATIVE_ALIAS {&quot;scenario&quot;:&quot;ASCII 大小写&quot;,&quot;firstName&quot;:&quot;a.txt&quot;,&quot;secondName&quot;:&quot;A.txt&quot;,&quot;firstBytes&quot;:&quot;first-original&quot;,&quot;secondBytes&quot;:&quot;second-replacement&quot;,&quot;metadataRows&quot;:2,&quot;diskNames&quot;:[&quot;A.txt.alias-93fd28a5e80d5fab&quot;,&quot;a.txt&quot;]}
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/review-desktop-path-alias.spec.ts" name="评审：桌面物理路径不能让不同逻辑名覆盖同一个文件 &gt; Unicode 规范等价：overwrite 只允许替换目标逻辑路径，不能修改另一记录" time="0.041261958">
+            <system-out>
+REVIEW_NATIVE_ALIAS {&quot;scenario&quot;:&quot;Unicode 规范等价&quot;,&quot;firstName&quot;:&quot;café.txt&quot;,&quot;secondName&quot;:&quot;café.txt&quot;,&quot;firstBytes&quot;:&quot;first-original&quot;,&quot;secondBytes&quot;:&quot;second-replacement&quot;,&quot;metadataRows&quot;:2,&quot;diskNames&quot;:[&quot;café.txt.alias-e0199062f1c8981a&quot;,&quot;café.txt&quot;]}
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/review-desktop-path-alias.spec.ts" name="评审：桌面物理路径不能让不同逻辑名覆盖同一个文件 &gt; 正常不同文件名对照：overwrite 只允许替换目标逻辑路径，不能修改另一记录" time="0.029347166">
+            <system-out>
+REVIEW_NATIVE_ALIAS {&quot;scenario&quot;:&quot;正常不同文件名对照&quot;,&quot;firstName&quot;:&quot;alpha.txt&quot;,&quot;secondName&quot;:&quot;beta.txt&quot;,&quot;firstBytes&quot;:&quot;first-original&quot;,&quot;secondBytes&quot;:&quot;second-replacement&quot;,&quot;metadataRows&quot;:2,&quot;diskNames&quot;:[&quot;alpha.txt&quot;,&quot;beta.txt&quot;]}
+
+            </system-out>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/review-fetch-response-cleanup.spec.ts" timestamp="2026-10-05T01:19:20.561Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.056841375">
+        <testcase classname="src/__tests__/review-fetch-response-cleanup.spec.ts" name="评审：fetch 在响应头阶段拒绝时必须关闭响应体 &gt; HTTP 404 / MIME true 的早期拒绝不能留下后台下载" time="0.03643925">
+            <system-out>
+REVIEW_FETCH_BODY {&quot;status&quot;:404,&quot;contentType&quot;:true,&quot;observedResponses&quot;:1,&quot;bodyLocked&quot;:false,&quot;closed&quot;:true,&quot;chunks&quot;:1}
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/review-fetch-response-cleanup.spec.ts" name="评审：fetch 在响应头阶段拒绝时必须关闭响应体 &gt; HTTP 200 / MIME false 的早期拒绝不能留下后台下载" time="0.01480875">
+            <system-out>
+REVIEW_FETCH_BODY {&quot;status&quot;:200,&quot;contentType&quot;:false,&quot;observedResponses&quot;:1,&quot;bodyLocked&quot;:false,&quot;closed&quot;:true,&quot;chunks&quot;:0}
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/review-fetch-response-cleanup.spec.ts" name="评审：fetch 在响应头阶段拒绝时必须关闭响应体 &gt; 对照：正常响应消费完毕后关闭，并写入正确文件内容" time="0.004667917">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/storage.service.spec.ts" timestamp="2026-10-05T01:19:20.562Z" hostname="liuleideMacBook-Pro-4.local" tests="101" failures="0" errors="0" skipped="0" time="0.115760625">
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; changeEpoch 随写操作递增，读操作不递增" time="0.003427625">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; runExclusive 把 signal 穿到独占锁：等锁期间中止即拒绝，任务不执行" time="0.004214625">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should upload, read and delete files with metadata" time="0.000713417">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should create disposable previews" time="0.000757">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should throw on upload conflict without overwrite" time="0.002099166">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should overwrite on upload with overwrite: true" time="0.000571084">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; 元数据写入失败时，能用覆写前的内容真正回滚（快照必须脱离磁盘）" time="0.001049375">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should stream every rollback chunk and remove the temporary journal" time="0.001029167">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; 同路径并发上传：失败的一方不得删除另一方已成功落盘的文件" time="0.000723625">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; clear() 必须删光所有根条目（不得因边迭代边删而漏删）" time="0.008702708">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; download() 不得把写入阶段的 AbortError 当成用户取消而静默假成功" time="0.000572667">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; download() 在用户取消选择器时仍静默返回" time="0.000326459">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should use the binary MIME fallback when the uploaded File has no type" time="0.000235875">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should return the existing metadata when renaming a file to the same name" time="0.000400084">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should reject renaming the root directory" time="0.000360083">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should omit orphan OPFS files and sort directories before files" time="0.000434125">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should preserve the write error and remove a new file when upload write and close both fail" time="0.000344333">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should keep the original file and metadata when rename metadata update fails" time="0.0006815">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should keep the file when delete metadata removal fails" time="0.000284292">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should throw on read when file meta not found" time="0.000183583">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should return null from getMeta for non-existent id" time="0.000095875">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should throw on preview when file exceeds limit" time="0.000249167">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should list files filtered by path" time="0.000415459">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should treat an empty path string as the root directory" time="0.000264334">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should list a subtree when recursive is set" time="0.000396917">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should create directories and list browser entries" time="0.000340625">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should rename a file without changing its contents" time="0.000416291">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should use OPFS move() for a supported file handle" time="0.000472125">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should roll back OPFS move() and the overwritten target when metadata update fails" time="0.000737083">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should replace the target file and metadata when rename overwrite is enabled" time="0.000617042">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; never leaves a meta without its file when rename and upload race on one path" time="0.002349292">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; relocks on the current path when the file is renamed while delete is queued" time="0.002091458">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; rejects reads that outlive destroy instead of rebuilding the backend" time="0.000585417">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; serializes createDirectory against a concurrent directory rename" time="0.001881792">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should rename a directory with nested files and empty directories" time="0.001152084">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should use OPFS move() to replace a supported directory tree" time="0.000772458">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should roll back copied files and metadata when directory rename metadata update fails" time="0.0008655">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should replace the complete target tree when directory rename overwrite is enabled" time="0.000691542">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should clear all files when no path given" time="0.000278209">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should clear only files in a specific path" time="0.000263542">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should remove empty directories via clear(path)" time="0.000185834">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should clean up object urls and root handle on destroy" time="0.000241875">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should wait for an in-flight write and reject all work after destroy" time="0.000385083">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should revoke object URLs through the service API" time="0.000192458">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should throw when directory handle entries() is unavailable" time="0.000172583">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should treat duck-typed NotFoundError objects as missing files during read" time="0.000250375">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should ignore AbortError from showSaveFilePicker download path" time="0.00026425">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should download via showSaveFilePicker when available" time="0.000414541">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should throw StorageUnavailableError when local adapter is missing" time="0.000129458">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should download using fallback anchor when showSaveFilePicker is undefined" time="0.002186417">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; download() 在 click 之后让出一个宏任务再回收 URL" time="0.001521208">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should clean up fallback anchor when click throws" time="0.000376084">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should abort the picker writable and preserve the write error" time="0.000344">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage &gt; should emit meta changes through watch" time="0.052437041">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; rejects invalid target path &quot;&quot; before starting a request" time="0.000515833">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; rejects invalid target path &quot;/&quot; before starting a request" time="0.000170833">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; rejects invalid target path &quot;images/&quot; before starting a request" time="0.000135916">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; rejects invalid target path &quot;../image.png&quot; before starting a request" time="0.000149042">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; rejects invalid target path &quot;images/../image.png&quot; before starting a request" time="0.000166041">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; rejects invalid target path &quot;images\\image.png&quot; before starting a request" time="0.000406833">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; AC #11: returns cached Blob from OPFS without network call when meta exists" time="0.000625917">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; AC #12: downloads remote and writes OPFS + StorageFileMeta on miss + online" time="0.001595458">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; streams a remote response without materializing it through response.blob()" time="0.000461583">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; preserves every chunk from a streamed remote response" time="0.000409792">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; AC #13: throws StorageOfflineError when miss and navigator.onLine is false" time="0.000295042">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; AC #13: maps fetch TypeError (network failure) to StorageOfflineError" time="0.0002115">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; AC #14: throws StorageFetchError on non-2xx response and skips OPFS write" time="0.00027525">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; AC #15: re-fetches from remote after delete" time="0.000581041">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; applies explicit mimeType option to returned Blob and meta" time="0.000291625">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; dedupes concurrent fetches against the same opfsPath" time="0.000419667">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; rejects a concurrent fetch for the same path with a different url" time="0.0004575">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; aborts only the waiting caller, leaving the shared download intact" time="0.000509166">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; throws immediately when the provided AbortSignal is already aborted" time="0.000228">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; propagates AbortError from fetch and does not write OPFS or meta" time="0.000284334">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; removes a partially streamed temporary file when the response body aborts" time="0.000583166">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; clears the in-flight slot after a failed download so retries can proceed" time="0.000556416">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; throws StorageMimeTypeMissingError when 200 OK lacks Content-Type and no options.mimeType" time="0.000366542">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; strips parameters from Content-Type header (image/jpeg; charset=binary → image/jpeg)" time="0.000331167">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; re-fetches when an in-flight blob has a different mimeType than requested" time="0.000389875">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; rethrows non-TypeError/non-AbortError fetch failures as-is" time="0.000174417">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="RxdbFileStorage.fetch (remote cache) &gt; updates existing meta contentVersion when fetch overwrites an OPFS path" time="0.00038475">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should normalize root and directory paths" time="0.000112">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should join directory path and filename" time="0.000064">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should reject invalid file name &quot;a/b.txt&quot;" time="0.000101708">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should reject invalid file name &quot;a\\b.txt&quot;" time="0.000051292">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should reject invalid file name &quot;.&quot;" time="0.000046">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should reject invalid file name &quot;..&quot;" time="0.00004825">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should reject invalid file name &quot; &quot;" time="0.000041167">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should reject invalid file name &quot; padded.txt &quot;" time="0.000040291">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should reject invalid directory path &quot;/avatars/../secret&quot;" time="0.000063875">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should reject invalid directory path &quot;/avatars/./photo&quot;" time="0.000043041">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should reject invalid directory path &quot;/avatars\\photo&quot;" time="0.000040584">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should reject invalid directory path &quot;/avatars//photo&quot;" time="0.000047167">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should reject invalid relative OPFS path &quot;../photo.png&quot;" time="0.00007325">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should reject invalid relative OPFS path &quot;avatars/../photo.png&quot;" time="0.000042417">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should reject invalid relative OPFS path &quot;avatars\\photo.png&quot;" time="0.000039084">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should reject invalid relative OPFS path &quot;avatars//photo.png&quot;" time="0.000040208">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should derive directory path from opfs path" time="0.000056917">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; should match exact, nested, and root directory checks" time="0.000085541">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; 回滚快照与临时命名 &gt; copyDirectory 对每个目标只取一次回滚快照" time="0.000523208">
+        </testcase>
+        <testcase classname="src/__tests__/storage.service.spec.ts" name="storage path helpers &gt; 回滚快照与临时命名 &gt; 临时文件名带随机段，同一毫秒内的两个上下文不会撞名" time="0.000518208">
+        </testcase>
+    </testsuite>
+</testsuites>

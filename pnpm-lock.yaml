@@ -1606,11 +1606,11 @@ importers:
   packages/rxdb-angular:
     dependencies:
       '@aiao/rxdb':
-        specifier: '*'
-        version: 0.0.25
+        specifier: ^0.0.26
+        version: 0.0.26
       '@aiao/utils':
-        specifier: '*'
-        version: 0.0.25
+        specifier: ^0.0.26
+        version: 0.0.26
       '@angular/core':
         specifier: 22.2.1
         version: 22.2.1(@angular/compiler@22.2.1)(rxjs@7.8.2)
@@ -2495,8 +2495,14 @@ packages:
   '@aiao/rxdb@0.0.25':
     resolution: {integrity: sha512-eyCqAVszjocw1yVzzaHJhLumgLZjL9TuC1EtyJPGM5H9x6CkCTYFRHy56/VbiGYJeFXyznIs5tVL5wAtuLF9Vw==}
 
+  '@aiao/rxdb@0.0.26':
+    resolution: {integrity: sha512-FFaqexc+ocuooZSFC1Bqi8hPkDn5jQkY9CgzqMQAcubwdD86a0QFt2roCoe88bbeD4asp9xwjpaFUXBaXskRvA==}
+
   '@aiao/utils@0.0.25':
     resolution: {integrity: sha512-Aucja8xwEarscq5ChK6m2J3e94S9eILLbY65tLGhMgScB4q6bCrnOMCl5X9gLzc1WsFbYySeHnQLXd7HTapYhw==}
+
+  '@aiao/utils@0.0.26':
+    resolution: {integrity: sha512-+caVJwHWPTTux+o5teMziktFMEY+PLiFGBA9ndbhCxZ4VfImjHK/myYcIZIKbAYj0cQQM5Eq2NPwbL/3gXvNzA==}
 
   '@algolia/abtesting@1.25.0':
     resolution: {integrity: sha512-rSTin9Uta23uaewYVQEp8XI9T3iA/zrg0/1G2vhf8oFFDxFL5vybnZ5IQwsVAg4JpKxPX4/WYNKdcfWrZymk7w==}
@@ -20375,7 +20381,21 @@ snapshots:
       type-fest: 5.10.0
       uuid: 14.0.2
 
+  '@aiao/rxdb@0.0.26':
+    dependencies:
+      '@aiao/utils': 0.0.26
+      rxjs: 7.8.2
+      type-fest: 5.10.0
+      uuid: 14.0.2
+
   '@aiao/utils@0.0.25':
+    dependencies:
+      fastest-levenshtein: 1.0.16
+      ms: 2.1.3
+      rxjs: 7.8.2
+      ts-xor: 1.3.0
+
+  '@aiao/utils@0.0.26':
     dependencies:
       fastest-levenshtein: 1.0.16
       ms: 2.1.3

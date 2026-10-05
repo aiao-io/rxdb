@@ -24,19 +24,13 @@
   "type": "module",
   "sideEffects": false,
   "exports": {
-    "./package.json": "./package.json",
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./dist/index.js"
-    },
     "./tailwind.css": "./tailwind.css"
   },
   "peerDependencies": {
-    "@aiao/rxdb": "*",
-    "@aiao/rxdb-angular": "*",
-    "@aiao/rxdb-model": "*",
-    "@aiao/rxdb-plugin-history": "*",
+    "@aiao/rxdb": "^0.0.26",
+    "@aiao/rxdb-angular": "^0.0.27",
+    "@aiao/rxdb-model": "^0.0.26",
+    "@aiao/rxdb-plugin-history": "^0.0.26",
     "@angular/cdk": "^22.1.6",
     "@angular/common": "22.2.1",
     "@angular/core": "22.2.1",

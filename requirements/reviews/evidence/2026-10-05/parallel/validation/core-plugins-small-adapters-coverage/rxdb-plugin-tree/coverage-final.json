@@ -1,0 +1,154 @@
+{
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/generator/TreeRepositoryGenerator.ts": {
+    "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/generator/TreeRepositoryGenerator.ts",
+    "statementMap": {
+      "0": { "start": { "line": 23, "column": 27 }, "end": { "line": 23, "column": null } },
+      "1": { "start": { "line": 32, "column": 48 }, "end": { "line": 32, "column": null } },
+      "2": { "start": { "line": 43, "column": 91 }, "end": { "line": 46, "column": null } },
+      "3": { "start": { "line": 56, "column": 4 }, "end": { "line": 60, "column": null } },
+      "4": { "start": { "line": 65, "column": 103 }, "end": { "line": 65, "column": null } },
+      "5": { "start": { "line": 66, "column": 32 }, "end": { "line": 66, "column": null } },
+      "6": { "start": { "line": 69, "column": 24 }, "end": { "line": 71, "column": null } },
+      "7": { "start": { "line": 70, "column": 11 }, "end": { "line": 70, "column": null } },
+      "8": { "start": { "line": 72, "column": 4 }, "end": { "line": 74, "column": null } },
+      "9": { "start": { "line": 73, "column": 6 }, "end": { "line": 73, "column": null } },
+      "10": { "start": { "line": 75, "column": 18 }, "end": { "line": 75, "column": null } },
+      "11": { "start": { "line": 76, "column": 18 }, "end": { "line": 76, "column": null } },
+      "12": { "start": { "line": 76, "column": 39 }, "end": { "line": 76, "column": 51 } },
+      "13": { "start": { "line": 78, "column": 4 }, "end": { "line": 83, "column": null } },
+      "14": { "start": { "line": 84, "column": 4 }, "end": { "line": 90, "column": null } },
+      "15": { "start": { "line": 93, "column": 4 }, "end": { "line": 97, "column": null } },
+      "16": { "start": { "line": 99, "column": 24 }, "end": { "line": 99, "column": null } },
+      "17": { "start": { "line": 101, "column": 4 }, "end": { "line": 112, "column": null } },
+      "18": { "start": { "line": 114, "column": 4 }, "end": { "line": 125, "column": null } },
+      "19": { "start": { "line": 127, "column": 4 }, "end": { "line": 138, "column": null } },
+      "20": { "start": { "line": 140, "column": 4 }, "end": { "line": 151, "column": null } }
+    },
+    "fnMap": {
+      "0": {
+        "name": "declareSymbols",
+        "decl": { "start": { "line": 55, "column": 2 }, "end": { "line": 55, "column": 11 } },
+        "loc": { "start": { "line": 55, "column": 80 }, "end": { "line": 61, "column": null } },
+        "line": 55
+      },
+      "1": {
+        "name": "generateMethods",
+        "decl": { "start": { "line": 63, "column": 2 }, "end": { "line": 63, "column": 21 } },
+        "loc": { "start": { "line": 63, "column": 70 }, "end": { "line": 152, "column": null } },
+        "line": 63
+      },
+      "2": {
+        "name": "(anonymous_2)",
+        "decl": { "start": { "line": 69, "column": 65 }, "end": { "line": 69, "column": null } },
+        "loc": { "start": { "line": 70, "column": 11 }, "end": { "line": 70, "column": null } },
+        "line": 70
+      },
+      "3": {
+        "name": "(anonymous_3)",
+        "decl": { "start": { "line": 76, "column": 30 }, "end": { "line": 76, "column": 34 } },
+        "loc": { "start": { "line": 76, "column": 39 }, "end": { "line": 76, "column": 51 } },
+        "line": 76
+      }
+    },
+    "branchMap": {
+      "0": {
+        "loc": { "start": { "line": 58, "column": 24 }, "end": { "line": 58, "column": null } },
+        "type": "cond-expr",
+        "locations": [
+          { "start": { "line": 58, "column": 87 }, "end": { "line": 58, "column": 105 } },
+          { "start": { "line": 58, "column": 105 }, "end": { "line": 58, "column": null } }
+        ],
+        "line": 58
+      },
+      "1": {
+        "loc": { "start": { "line": 70, "column": 11 }, "end": { "line": 70, "column": null } },
+        "type": "binary-expr",
+        "locations": [
+          { "start": { "line": 70, "column": 11 }, "end": { "line": 70, "column": 44 } },
+          { "start": { "line": 70, "column": 44 }, "end": { "line": 70, "column": null } }
+        ],
+        "line": 70
+      },
+      "2": {
+        "loc": { "start": { "line": 72, "column": 4 }, "end": { "line": 74, "column": null } },
+        "type": "if",
+        "locations": [
+          { "start": { "line": 72, "column": 4 }, "end": { "line": 74, "column": null } },
+          { "start": {}, "end": {} }
+        ],
+        "line": 72
+      }
+    },
+    "s": {
+      "0": 4,
+      "1": 4,
+      "2": 4,
+      "3": 16,
+      "4": 4,
+      "5": 4,
+      "6": 4,
+      "7": 70,
+      "8": 4,
+      "9": 1,
+      "10": 3,
+      "11": 3,
+      "12": 18,
+      "13": 3,
+      "14": 3,
+      "15": 3,
+      "16": 3,
+      "17": 3,
+      "18": 3,
+      "19": 3,
+      "20": 3
+    },
+    "f": { "0": 16, "1": 4, "2": 70, "3": 18 },
+    "b": { "0": [12, 4], "1": [70, 21], "2": [1, 3] },
+    "meta": {
+      "lastBranch": 3,
+      "lastFunction": 4,
+      "lastStatement": 21,
+      "seen": {
+        "s:23:27:23:Infinity": 0,
+        "s:32:48:32:Infinity": 1,
+        "s:43:91:46:Infinity": 2,
+        "f:55:2:55:11": 0,
+        "s:56:4:60:Infinity": 3,
+        "b:58:87:58:105:58:105:58:Infinity": 0,
+        "f:63:2:63:21": 1,
+        "s:65:103:65:Infinity": 4,
+        "s:66:32:66:Infinity": 5,
+        "s:69:24:71:Infinity": 6,
+        "f:69:65:69:Infinity": 2,
+        "s:70:11:70:Infinity": 7,
+        "b:70:11:70:44:70:44:70:Infinity": 1,
+        "b:72:4:74:Infinity:undefined:undefined:undefined:undefined": 2,
+        "s:72:4:74:Infinity": 8,
+        "s:73:6:73:Infinity": 9,
+        "s:75:18:75:Infinity": 10,
+        "s:76:18:76:Infinity": 11,
+        "f:76:30:76:34": 3,
+        "s:76:39:76:51": 12,
+        "s:78:4:83:Infinity": 13,
+        "s:84:4:90:Infinity": 14,
+        "s:93:4:97:Infinity": 15,
+        "s:99:24:99:Infinity": 16,
+        "s:101:4:112:Infinity": 17,
+        "s:114:4:125:Infinity": 18,
+        "s:127:4:138:Infinity": 19,
+        "s:140:4:151:Infinity": 20
+      },
+      "fnNames": {}
+    }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/generator/index.ts": {
+    "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree/src/generator/index.ts",
+    "statementMap": {},
+    "fnMap": {},
+    "branchMap": {},
+    "s": {},
+    "f": {},
+    "b": {},
+    "meta": { "lastBranch": 0, "lastFunction": 0, "lastStatement": 0, "seen": {}, "fnNames": {} }
+  }
+}

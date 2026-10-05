@@ -1,0 +1,767 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="265" failures="16" errors="0" time="0.683818749">
+    <testsuite name="src/__tests__/InfiniteScrollingList.spec.ts" timestamp="2026-10-05T01:03:59.571Z" hostname="liuleideMacBook-Pro-4.local" tests="55" failures="0" errors="0" skipped="0" time="0.187656209">
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; initialization &gt; should create instance with default state" time="0.010090083">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; initialization &gt; should support signal options for reactive queries" time="0.002002291">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; loadMore &gt; should load first page on initialization" time="0.005287667">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; loadMore &gt; uses 100 as the default page limit" time="0.008135917">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; loadMore &gt; should append data to list on subsequent loadMore" time="0.004630875">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; loadMore &gt; should not loadMore when isLoading is true" time="0.0034355">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; loadMore &gt; should not loadMore when hasMore is false" time="0.003432875">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; loadMore &gt; should treat an explicit zero limit as no further pages" time="0.003258292">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; loadMore &gt; should set hasMore to false when results less than limit" time="0.003029958">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; loadMore &gt; should restore hasMore to true when a live re-emit fills the page" time="0.005681">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; loadMore &gt; should keep hasMore true when a full page completes, and allow next loadMore" time="0.003361459">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; loadMore &gt; keeps loaded page subscriptions active while loading later pages" time="0.003355791">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; loadMore &gt; keeps the current page loading when an earlier page completes" time="0.002660375">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; loadMore &gt; keeps the current page loading when an earlier page errors" time="0.00313125">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; loadMore &gt; should pass after cursor for subsequent pages" time="0.00372">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; live cursor boundary (RAN-001) &gt; keeps the boundary entity when a refreshing head insert shifts the first page" time="0.004582959">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; live cursor boundary (RAN-001) &gt; keeps the tail anchored when an incremental head insert grows the first page" time="0.00503925">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; live cursor boundary (RAN-001) &gt; does not repeat an entity when a deletion pulls the next page into the first" time="0.004865666">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; live cursor boundary (RAN-001) &gt; keeps every entity when a reorder moves an entity across the page boundary" time="0.004976084">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; live cursor boundary (RAN-001) &gt; drops trailing pages when the first page loses every entity" time="0.00539525">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; error handling &gt; should set error on fetch failure" time="0.001618791">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; error handling &gt; should reset error on subsequent loadMore" time="0.003742667">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; synchronous failure boundary (RAN-004) &gt; getRepository 同步抛出：自动首屏不产生逃逸异常，失败可见于 error" time="0.002760208">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; synchronous failure boundary (RAN-004) &gt; findByCursor 同步抛出：loadMore 不向调用方抛出" time="0.002216209">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; synchronous failure boundary (RAN-004) &gt; subscribe 同步抛出：loadMore 不向调用方抛出" time="0.002596334">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; error normalization (RAN-008) &gt; error 通道载荷为字符串时归一化成 Error" time="0.00236325">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; error normalization (RAN-008) &gt; error 通道载荷为普通对象时归一化成 Error" time="0.001179125">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; error normalization (RAN-008) &gt; error 通道载荷为null时归一化成 Error" time="0.002248167">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; error normalization (RAN-008) &gt; error 通道载荷为undefined时归一化成 Error" time="0.002377292">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; error normalization (RAN-008) &gt; Error 实例原样透传，保留 identity、子类与 cause" time="0.001554291">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; error normalization (RAN-008) &gt; 同步抛出的非 Error 载荷同样归一化" time="0.002434458">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; complete without next (RAN-007) &gt; 无首值完成时收敛 hasMore" time="0.002743666">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; complete without next (RAN-007) &gt; 无首值完成后 loadMore 不再重发同一游标" time="0.003770042">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; complete without next (RAN-007) &gt; emit 过满页再 complete 时 hasMore 保持 true" time="0.002612417">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; refresh &gt; should reset all state on refresh" time="0.003744417">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; refresh &gt; should not let a slow stale request pollute the list after refresh" time="0.003886292">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; refresh &gt; should reload data from beginning on refresh" time="0.005594084">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; consumer effect isolation (RAN-002) &gt; loadMore 不把内部状态登记进调用方 effect 的依赖" time="0.007895292">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; consumer effect isolation (RAN-002) &gt; refresh 不把内部状态登记进调用方 effect 的依赖" time="0.004309125">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; computed properties &gt; should compute value as flat array of all pages" time="0.001648917">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; computed properties &gt; should compute hasValue based on value length" time="0.002115">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; computed properties &gt; should compute isEmpty correctly" time="0.001826334">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; computed properties &gt; should not report isEmpty while an error is set" time="0.002511542">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; computed properties &gt; should not report isEmpty before the first load settles" time="0.0011685">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; options reactivity &gt; should reset when signal options change" time="0.0028275">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; read-only state contract (RAN-009) &gt; 状态机对外只读，消费者无法越过 loadMore/refresh 改写" time="0.00162325">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; read-only state contract (RAN-009) &gt; 公开的 InfiniteScrollResource 契约不暴露写入 API" time="0.000218458">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; cleanup &gt; does not start the deferred initial load after destruction" time="0.002500792">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; cleanup &gt; should cancel in-flight subscription when the injector is destroyed" time="0.002507125">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; destroyed guard on refresh (RAN-012) &gt; 注入器销毁后 refresh 不清空已加载数据" time="0.003046542">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; destroyed guard on refresh (RAN-012) &gt; 注入器销毁后 refresh 不重新发起查询" time="0.004546042">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList &gt; 三端共享状态序列（RAN-013） &gt; 初始加载 → 下一页失败 → refresh 恢复：结算态与 React/Vue 逐帧一致" time="0.006349709">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList injection context requirement (RAN-012) &gt; 在注入上下文之外构造时 fail-fast 抛 NG0203" time="0.0005445">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="InfiniteScrollingList injection context requirement (RAN-012) &gt; 在注入上下文之内构造正常" time="0.001351041">
+        </testcase>
+        <testcase classname="src/__tests__/InfiniteScrollingList.spec.ts" name="useInfiniteScroll &gt; creates a list from the injected RxDB instance" time="0.000954916">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/hooks.spec.ts" timestamp="2026-10-05T01:03:59.576Z" hostname="liuleideMacBook-Pro-4.local" tests="38" failures="0" errors="0" skipped="0" time="0.059936917">
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; should return RxDBResource with all signals" time="0.001762958">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; does not start a repository query before any signal is read" time="0.001050792">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; starts the repository query when only isLoading is read" time="0.00092375">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; starts the repository query when only hasValue is read" time="0.000823542">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; starts the repository query when only isEmpty is read" time="0.000872458">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; starts the repository query when only error is read" time="0.000961958">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; reports isLoading as true before the first emission, matching React and Vue" time="0.000880375">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; should set isLoading to true when fetching" time="0.000959916">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; should set hasValue to true when data is received" time="0.000995083">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; should set isEmpty to true for empty array" time="0.001157541">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; should set isEmpty to false for non-empty array" time="0.002322625">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; should set isEmpty to true for null/undefined value" time="0.010965666">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; should set error when observable errors" time="0.002354416">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; should support function options for reactive queries" time="0.001446583">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; should update value when observable emits new data" time="0.001376">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; re-subscribes with reactive options and resets request state" time="0.003883084">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; reports a missing repository method in resource state" time="0.001175708">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; reports synchronous repository failures in resource state" time="0.001133417">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; normalizes non-Error observable failures" time="0.001194167">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useRepositoryQuery &gt; clears loading when a query completes without a value" time="0.00105325">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useGet &gt; should call get method on entity" time="0.001358375">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useGet &gt; should return undefined as default value" time="0.001212">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useFindOne &gt; should call findOne method on entity" time="0.001175917">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useFindOne &gt; should return undefined when not found" time="0.001182792">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useFindOneOrFail &gt; should call findOneOrFail method on entity" time="0.001081709">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useFind &gt; should call find method on entity" time="0.001224584">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useFind &gt; should return empty array as default value" time="0.00103525">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useFind &gt; should handle multiple results" time="0.00102125">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useFindByCursor &gt; should call findByCursor method on entity" time="0.001039583">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useFindAll &gt; should call findAll method on entity" time="0.000957541">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useCount &gt; should call count method on entity" time="0.001018416">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useCount &gt; should return number value" time="0.002941417">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useGraphNeighbors &gt; should call findNeighbors$ method on entity" time="0.001383042">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useCountNeighbors &gt; should call countNeighbors$ method on entity" time="0.001160084">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useCountNeighbors &gt; should return 0 as default value" time="0.001104375">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useGraphPaths &gt; should call findPaths$ method on entity" time="0.001209458">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; useGraphPaths &gt; should return empty array as default value" time="0.000896667">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="hooks &gt; concurrent hook usage &gt; should handle multiple hooks simultaneously" time="0.001058083">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/rxdb-change-detector.directive.spec.ts" timestamp="2026-10-05T01:03:59.579Z" hostname="liuleideMacBook-Pro-4.local" tests="16" failures="16" errors="0" skipped="0" time="0.032205833">
+        <testcase classname="src/__tests__/rxdb-change-detector.directive.spec.ts" name="RxDBEntityChangeDirective &gt; subscribes to the current entity patches" time="0.011032958">
+            <failure message="Target has no entity status: it is not an attached RxDB entity" type="RxDBError">
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:340:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:231:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:273:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:541:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:489:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:474:4
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-change-detector.directive.spec.ts" name="RxDBEntityChangeDirective &gt; marks the view for check when the entity emits a patch" time="0.00201075">
+            <failure message="Target has no entity status: it is not an attached RxDB entity" type="RxDBError">
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:340:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:231:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:273:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:541:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:489:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:474:4
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-change-detector.directive.spec.ts" name="RxDBEntityChangeDirective &gt; debounces patch notifications" time="0.001784167">
+            <failure message="Target has no entity status: it is not an attached RxDB entity" type="RxDBError">
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:340:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:231:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:273:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:541:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:489:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:474:4
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-change-detector.directive.spec.ts" name="RxDBEntityChangeDirective &gt; audits patch notifications" time="0.001538958">
+            <failure message="Target has no entity status: it is not an attached RxDB entity" type="RxDBError">
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:340:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:231:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:273:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:541:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:489:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:474:4
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-change-detector.directive.spec.ts" name="RxDBEntityChangeDirective &gt; 时间窗为非正/非有限值时不挂入管道（RAN-011） &gt; debounceTime 为 0 时 patch 在当前变更周期内同步触发变更检测" time="0.001400542">
+            <failure message="Target has no entity status: it is not an attached RxDB entity" type="RxDBError">
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:340:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:231:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:273:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:541:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:489:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:474:4
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-change-detector.directive.spec.ts" name="RxDBEntityChangeDirective &gt; 时间窗为非正/非有限值时不挂入管道（RAN-011） &gt; auditTime 为 0 时 patch 在当前变更周期内同步触发变更检测" time="0.001282084">
+            <failure message="Target has no entity status: it is not an attached RxDB entity" type="RxDBError">
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:340:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:231:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:273:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:541:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:489:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:474:4
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-change-detector.directive.spec.ts" name="RxDBEntityChangeDirective &gt; 时间窗为非正/非有限值时不挂入管道（RAN-011） &gt; debounceTime 为负 时 patch 在当前变更周期内同步触发变更检测" time="0.001307125">
+            <failure message="Target has no entity status: it is not an attached RxDB entity" type="RxDBError">
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:340:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:231:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:273:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:541:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:489:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:474:4
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-change-detector.directive.spec.ts" name="RxDBEntityChangeDirective &gt; 时间窗为非正/非有限值时不挂入管道（RAN-011） &gt; auditTime 为负 时 patch 在当前变更周期内同步触发变更检测" time="0.001272541">
+            <failure message="Target has no entity status: it is not an attached RxDB entity" type="RxDBError">
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:340:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:231:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:273:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:541:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:489:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:474:4
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-change-detector.directive.spec.ts" name="RxDBEntityChangeDirective &gt; 时间窗为非正/非有限值时不挂入管道（RAN-011） &gt; debounceTime 为 NaN 时 patch 在当前变更周期内同步触发变更检测" time="0.001255083">
+            <failure message="Target has no entity status: it is not an attached RxDB entity" type="RxDBError">
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:340:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:231:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:273:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:541:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:489:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:474:4
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-change-detector.directive.spec.ts" name="RxDBEntityChangeDirective &gt; 时间窗为非正/非有限值时不挂入管道（RAN-011） &gt; auditTime 为 NaN 时 patch 在当前变更周期内同步触发变更检测" time="0.001248625">
+            <failure message="Target has no entity status: it is not an attached RxDB entity" type="RxDBError">
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:340:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:231:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:273:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:541:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:489:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:474:4
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-change-detector.directive.spec.ts" name="RxDBEntityChangeDirective &gt; 时间窗为非正/非有限值时不挂入管道（RAN-011） &gt; debounceTime 为 Infinity 时 patch 在当前变更周期内同步触发变更检测" time="0.001320042">
+            <failure message="Target has no entity status: it is not an attached RxDB entity" type="RxDBError">
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:340:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:231:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:273:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:541:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:489:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:474:4
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-change-detector.directive.spec.ts" name="RxDBEntityChangeDirective &gt; 时间窗为非正/非有限值时不挂入管道（RAN-011） &gt; auditTime 为 Infinity 时 patch 在当前变更周期内同步触发变更检测" time="0.001351542">
+            <failure message="Target has no entity status: it is not an attached RxDB entity" type="RxDBError">
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:340:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:231:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:273:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:541:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:489:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:474:4
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-change-detector.directive.spec.ts" name="RxDBEntityChangeDirective &gt; 时间窗为非正/非有限值时不挂入管道（RAN-011） &gt; 两者同时为正值时串联生效，顺序为 debounceTime → auditTime" time="0.001254959">
+            <failure message="Target has no entity status: it is not an attached RxDB entity" type="RxDBError">
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:340:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:231:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:273:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:541:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:489:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:474:4
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-change-detector.directive.spec.ts" name="RxDBEntityChangeDirective &gt; forwards patch stream errors to Angular ErrorHandler" time="0.001258625">
+            <failure message="Target has no entity status: it is not an attached RxDB entity" type="RxDBError">
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:340:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:231:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:273:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:541:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:489:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:474:4
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-change-detector.directive.spec.ts" name="RxDBEntityChangeDirective &gt; unsubscribes when the entity input is cleared" time="0.001443667">
+            <failure message="Target has no entity status: it is not an attached RxDB entity" type="RxDBError">
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:340:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:231:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:273:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:541:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:489:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:474:4
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-change-detector.directive.spec.ts" name="RxDBEntityChangeDirective &gt; unsubscribes when the host is destroyed" time="0.001278167">
+            <failure message="Target has no entity status: it is not an attached RxDB entity" type="RxDBError">
+RxDBError: Target has no entity status: it is not an attached RxDB entity
+ ❯ getEntityStatus ../rxdb/src/rxdb-utils.ts:101:22
+ ❯ src/rxdb-change-detector.directive.ts:99:44
+ ❯ Object.fn ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:340:4
+ ❯ runEffect ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/primitives/signals/src/effect.ts:54:9
+ ❯ Object.run ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/effect.ts:231:8
+ ❯ runEffectsInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/reactivity/view_effect_runner.ts:31:15
+ ❯ refreshView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:273:4
+ ❯ detectChangesInView ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:541:4
+ ❯ detectChangesInViewIfAttached ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:489:2
+ ❯ detectChangesInComponent ../../node_modules/.pnpm/darwin_arm64-fastbuild-ST-fdfa778d11ba/bin/packages/core/src/render3/instructions/change_detection.ts:474:4
+            </failure>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/rxdb.provider.spec.ts" timestamp="2026-10-05T01:03:59.585Z" hostname="liuleideMacBook-Pro-4.local" tests="21" failures="0" errors="0" skipped="0" time="0.149478708">
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; provideRxDB &gt; accepts the tri-framework RxDBSource union in its public signature" time="0.000238334">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; provideRxDB &gt; should provide RxDB instance using factory function" time="0.001379334">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; provideRxDB &gt; should return environment providers" time="0.000165292">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; provideRxDB &gt; should allow injecting RxDB in components" time="0.018648166">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; provideRxDB &gt; should throw error when RxDB is not provided" time="0.003342417">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; provideRxDB &gt; should provide same instance across multiple injections" time="0.001155583">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; provideRxDB &gt; disconnects the provided database when its environment injector is destroyed" time="0.051737208">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; provideRxDB &gt; should support async initialization in factory" time="0.001616708">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; 异步 source &gt; accepts a ready instance without wrapping it in a factory" time="0.001110958">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; 异步 source &gt; awaits an async source in the app initializer so inject(RxDB) stays synchronous" time="0.000997042">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; 异步 source &gt; accepts a bare promise" time="0.000944625">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; 异步 source &gt; separates &quot;not ready&quot; from &quot;no provider&quot; before an async source settles" time="0.001265541">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; 异步 source &gt; returns undefined from useRxDBOptional when no provider exists" time="0.000969042">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; 异步 source &gt; never rejects the app initializer, and rethrows the original error on read" time="0.001303958">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; 异步 source &gt; routes a synchronously thrown factory error to the same failure slot" time="0.001487083">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; 生命周期所有权 &gt; leaves a caller-supplied instance alone when its injector is destroyed" time="0.003260208">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; 生命周期所有权 &gt; disconnects an async source that settles after the injector is destroyed" time="0.051768208">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; injectRxDB (via inject) &gt; should inject RxDB instance in injection context" time="0.001451542">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; injectRxDB (via inject) &gt; should access entityManager from injected RxDB" time="0.00104375">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; component usage &gt; should allow using RxDB in component constructor" time="0.004014459">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb.provider.spec.ts" name="rxdb.provider &gt; component usage &gt; should allow using RxDB in services" time="0.001187">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/tri-framework-field-descriptor.spec.ts" timestamp="2026-10-05T01:03:59.587Z" hostname="liuleideMacBook-Pro-4.local" tests="64" failures="0" errors="0" skipped="0" time="0.010246959">
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; fields 顺序为 propertyMap → computedPropertyMap → relationMap（INV-6）" time="0.000209125">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 线格式经严格解析器往返后与本端直接生成的描述完全一致" time="0.001756625">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;id&apos; 的字段形状与三端共享期望一致" time="0.000241417">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;createdAt&apos; 的字段形状与三端共享期望一致" time="0.00012375">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;updatedAt&apos; 的字段形状与三端共享期望一致" time="0.0001235">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;createdBy&apos; 的字段形状与三端共享期望一致" time="0.000115291">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;updatedBy&apos; 的字段形状与三端共享期望一致" time="0.000110833">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;title&apos; 的字段形状与三端共享期望一致" time="0.000108416">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;homepage&apos; 的字段形状与三端共享期望一致" time="0.000117291">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;contactEmail&apos; 的字段形状与三端共享期望一致" time="0.000109333">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;status&apos; 的字段形状与三端共享期望一致" time="0.000131084">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;labels&apos; 的字段形状与三端共享期望一致" time="0.000129792">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;rating&apos; 的字段形状与三端共享期望一致" time="0.000128708">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;views&apos; 的字段形状与三端共享期望一致" time="0.000115833">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;secret&apos; 的字段形状与三端共享期望一致" time="0.000127125">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;meta&apos; 的字段形状与三端共享期望一致" time="0.000142416">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;excerpt&apos; 的字段形状与三端共享期望一致" time="0.00011475">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;draftRevision&apos; 的字段形状与三端共享期望一致" time="0.000127334">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;author&apos; 的字段形状与三端共享期望一致" time="0.000107542">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;comments&apos; 的字段形状与三端共享期望一致" time="0.0001135">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;tags&apos; 的字段形状与三端共享期望一致" time="0.000116709">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;draftRevision&apos; 的关系块与三端共享期望一致" time="0.000072042">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;author&apos; 的关系块与三端共享期望一致" time="0.000054458">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;comments&apos; 的关系块与三端共享期望一致" time="0.00005625">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;tags&apos; 的关系块与三端共享期望一致" time="0.00005475">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;未知 dtoVersion&apos;" time="0.000354583">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;fields 不是数组&apos;" time="0.000177334">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;未知 source&apos;" time="0.000246375">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;关系字段缺 relation&apos;" time="0.000289834">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;多值关系带上 nullable&apos;" time="0.000282542">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;布尔标志被写成字符串&apos;" time="0.000223375">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;format 判别键非法&apos;" time="0.000216292">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;enum 成员不是字符串&apos;" time="0.000230792">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;format 缺必填配置键&apos;" time="0.00025625">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;required 缺失&apos;" time="0.000175625">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;required 满足&apos;" time="0.000106209">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;url 协议大小写无关地通过&apos;" time="0.00016125">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;url 协议不在白名单&apos;" time="0.00006775">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;url 形状非法&apos;" time="0.000079833">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;email 合法&apos;" time="0.000075667">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;email 域名缺点号&apos;" time="0.000083167">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;enum 命中&apos;" time="0.000075208">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;enum 命中 disabled 选项仍合法&apos;" time="0.000039542">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;enum 未命中&apos;" time="0.000063583">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;stringArray 成员全合法&apos;" time="0.000062167">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;stringArray 含非法成员&apos;" time="0.000128875">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;stringArray 传了标量&apos;" time="0.00005775">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;range 命中刻度&apos;" time="0.000132708">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;range 未命中刻度&apos;" time="0.000062833">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;range 超出上界&apos;" time="0.000059667">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;number 类型不符&apos;" time="0.000100292">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;integer 传了小数&apos;" time="0.000093292">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;keyValue 传了标量&apos;" time="0.0000855">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;encrypted 字段不回显值&apos;" time="0.00008575">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;单值关系接受主键&apos;" time="0.000174417">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;单值关系拒绝非主键形状&apos;" time="0.000119958">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;多值关系接受主键数组&apos;" time="0.000051416">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;多值关系拒绝标量&apos;" time="0.000063042">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;多值关系拒绝非法成员&apos;" time="0.000067791">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;date 接受原生 Date 实例&apos;" time="0.000181334">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;date 拒绝 ISO 字符串（只认原生类型）&apos;" time="0.000185292">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;date 拒绝毫秒时间戳&apos;" time="0.00007225">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;date 拒绝布尔值&apos;" time="0.000093334">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 公开入口没有本端专属的字段语义 API" time="0.000293208">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/tri-framework-generics.spec.ts" timestamp="2026-10-05T01:03:59.592Z" hostname="liuleideMacBook-Pro-4.local" tests="4" failures="0" errors="0" skipped="0" time="0.0004965">
+        <testcase classname="src/__tests__/tri-framework-generics.spec.ts" name="三端泛型契约（RAN-014） &gt; 图 hooks 只接受图实体 &gt; 非图实体被编译期拒绝" time="0.000158583">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-generics.spec.ts" name="三端泛型契约（RAN-014） &gt; 图 hooks 只接受图实体 &gt; 图实体被接受" time="0.000064292">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-generics.spec.ts" name="三端泛型契约（RAN-014） &gt; 无限滚动选项遵循实体声明的 findByCursorOptions &gt; 通用 FindByCursorOptions 形状被编译期拒绝" time="0.000066166">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-generics.spec.ts" name="三端泛型契约（RAN-014） &gt; 无限滚动选项遵循实体声明的 findByCursorOptions &gt; 实体声明的形状被接受" time="0.000122333">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/tri-framework-provider.spec.ts" timestamp="2026-10-05T01:03:59.592Z" hostname="liuleideMacBook-Pro-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.00060625">
+        <testcase classname="src/__tests__/tri-framework-provider.spec.ts" name="三端 provider 契约 &gt; RxDBSource 接受四种数据库形态 &gt; 实例 / Promise / 同步工厂 / 异步工厂都被接受" time="0.000247375">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-provider.spec.ts" name="三端 provider 契约 &gt; RxDBSource 接受四种数据库形态 &gt; null 被编译期拒绝" time="0.000061833">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-provider.spec.ts" name="三端 provider 契约 &gt; 读取分严格与可选两条 &gt; useRxDB 返回非空实例" time="0.000071875">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-provider.spec.ts" name="三端 provider 契约 &gt; 读取分严格与可选两条 &gt; useRxDBOptional 可能为 undefined，不能直接当 RxDB 用" time="0.000080583">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-provider.spec.ts" name="三端 provider 契约 &gt; provider 入口接受同一个联合类型 &gt; provideRxDB 收 RxDBSource" time="0.000048833">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/tri-framework-sync-override.spec.ts" timestamp="2026-10-05T01:03:59.592Z" hostname="liuleideMacBook-Pro-4.local" tests="4" failures="0" errors="0" skipped="0" time="0.172741708">
+        <testcase classname="src/__tests__/tri-framework-sync-override.spec.ts" name="三端实例级同步覆盖（US-026 AC#12） &gt; 查询入口读到本地种子，远端适配器从未被实例化" time="0.062157375">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-sync-override.spec.ts" name="三端实例级同步覆盖（US-026 AC#12） &gt; 写入入口落到本地适配器，活查询随之刷新" time="0.105406084">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-sync-override.spec.ts" name="三端实例级同步覆盖（US-026 AC#12） &gt; 对照组：没有覆盖时 connect() 以缺 QueryCache 插件拒绝并点名实体" time="0.001943875">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-sync-override.spec.ts" name="三端实例级同步覆盖（US-026 AC#12） &gt; 类型：查询与写入入口的类型只由实体决定，覆盖不引入任何本端配置" time="0.002482666">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/use-action.spec.ts" timestamp="2026-10-05T01:03:59.593Z" hostname="liuleideMacBook-Pro-4.local" tests="7" failures="0" errors="0" skipped="0" time="0.00904225">
+        <testcase classname="src/__tests__/use-action.spec.ts" name="useAction &gt; should create an action with isPending signal" time="0.001127875">
+        </testcase>
+        <testcase classname="src/__tests__/use-action.spec.ts" name="useAction &gt; should set isPending to true during execution" time="0.00077075">
+        </testcase>
+        <testcase classname="src/__tests__/use-action.spec.ts" name="useAction &gt; should execute the promise function with options" time="0.000999625">
+        </testcase>
+        <testcase classname="src/__tests__/use-action.spec.ts" name="useAction &gt; should reset isPending to false after success" time="0.000793459">
+        </testcase>
+        <testcase classname="src/__tests__/use-action.spec.ts" name="useAction &gt; should reset isPending to false after error" time="0.00096675">
+        </testcase>
+        <testcase classname="src/__tests__/use-action.spec.ts" name="useAction &gt; should keep isPending true until all concurrent executions settle" time="0.003033917">
+        </testcase>
+        <testcase classname="src/__tests__/use-action.spec.ts" name="useAction &gt; should return the result from promise function" time="0.001115458">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/use-persisted-state.spec.ts" timestamp="2026-10-05T01:03:59.593Z" hostname="liuleideMacBook-Pro-4.local" tests="10" failures="0" errors="0" skipped="0" time="0.010192416">
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; 首次读取使用 initialValue" time="0.001258958">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; 盘上已有值时以盘上值为准" time="0.000975292">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; 写入 signal 会落盘" time="0.001098833">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; 与 useState 同 key 时共享同一个 signal" time="0.000730166">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; 同 key 的两次调用返回同一个 signal" time="0.000678583">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; 同 key 换值类型时 fail-fast" time="0.000820542">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; namespace 与 name 各自转义，不会互相串号" time="0.000987583">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; persistError &gt; 初始为 undefined" time="0.001196125">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; persistError &gt; 写盘失败进入 persistError，且 signal 值照常更新" time="0.00117975">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; persistError &gt; 与 useState 通路共享同一个 persistError" time="0.0011055">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/use-state.spec.ts" timestamp="2026-10-05T01:03:59.594Z" hostname="liuleideMacBook-Pro-4.local" tests="28" failures="0" errors="0" skipped="0" time="0.030627583">
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; should create a signal with initial value" time="0.002238">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; should load value from localStorage if exists" time="0.000997417">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; should save value to localStorage on change" time="0.00100125">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; should use namespace and name to construct storage key" time="0.000860458">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; should handle objects and arrays" time="0.000815667">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; reports malformed stored state through Angular ErrorHandler" time="0.000759917">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; reports persistence failures through Angular ErrorHandler" time="0.000874833">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; returns the same signal for the same namespace:name" time="0.000772041">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; propagates writes between call sites sharing a key" time="0.000691458">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; keeps different keys independent" time="0.000754667">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; does not let a stale duplicate overwrite persisted state" time="0.001372125">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; should respect CreateSignalOptions" time="0.000904459">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; key 隔离（RAN-005） &gt; 冒号在 namespace 与 name 之间的位置不同即为两份独立状态" time="0.000985542">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; key 隔离（RAN-005） &gt; 两份状态写入 localStorage 的键互不覆盖" time="0.001068083">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; key 隔离（RAN-005） &gt; 空 namespace 组合不与其他组合串号" time="0.000933916">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; key 隔离（RAN-005） &gt; 空 name 组合不与其他组合串号" time="0.000897583">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; key 隔离（RAN-005） &gt; 相邻分隔 组合不与其他组合串号" time="0.000787958">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; key 隔离（RAN-005） &gt; Unicode 组合不与其他组合串号" time="0.000755208">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; key 隔离（RAN-005） &gt; 不含特殊字符的键沿用旧格式，不产生迁移" time="0.000913084">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; key 隔离（RAN-005） &gt; 含特殊字符的旧键一次性迁移到新键" time="0.001022041">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; 持久化 effect 归属（RAN-006） &gt; 首个调用点的 child injector 销毁后仍继续持久化" time="0.000983917">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; 持久化 effect 归属（RAN-006） &gt; child injector 销毁后从 root 复用同一 signal 且写盘不中断" time="0.000945125">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; 类型与持久化契约（RAN-010） &gt; 同 key 换值类型时 fail-fast，而不是静默断言" time="0.000904375">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; 类型与持久化契约（RAN-010） &gt; 同 key 同类型仍复用，不受类型校验影响" time="0.00074925">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; 类型与持久化契约（RAN-010） &gt; undefined 不写成字面文本 undefined，而是移除该键" time="0.000830084">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; 类型与持久化契约（RAN-010） &gt; 盘上遗留的字面文本 undefined 按「没存过」处理并清理" time="0.000754125">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; 类型与持久化契约（RAN-010） &gt; 持久化失败进入可观察状态，成功后自动清空" time="0.000865792">
+        </testcase>
+        <testcase classname="src/__tests__/use-state.spec.ts" name="useState &gt; 类型与持久化契约（RAN-010） &gt; 循环引用无法序列化时同样进入可观察状态" time="0.004948584">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/use-sync-state.spec.ts" timestamp="2026-10-05T01:03:59.595Z" hostname="liuleideMacBook-Pro-4.local" tests="7" failures="0" errors="0" skipped="0" time="0.006803166">
+        <testcase classname="src/__tests__/use-sync-state.spec.ts" name="useSyncState &gt; 初值就是库当前的同步快照" time="0.001735">
+        </testcase>
+        <testcase classname="src/__tests__/use-sync-state.spec.ts" name="useSyncState &gt; 离线写入队后待推数跟着涨" time="0.000886083">
+        </testcase>
+        <testcase classname="src/__tests__/use-sync-state.spec.ts" name="useSyncState &gt; 一轮回推期间 syncing 为真，收尾后复位" time="0.000816208">
+        </testcase>
+        <testcase classname="src/__tests__/use-sync-state.spec.ts" name="useSyncState &gt; 回推失败落在 lastError，成功一轮后清空" time="0.000939791">
+        </testcase>
+        <testcase classname="src/__tests__/use-sync-state.spec.ts" name="useSyncState &gt; 冲突判定留在 lastConflict，不被后续成功清空" time="0.000805083">
+        </testcase>
+        <testcase classname="src/__tests__/use-sync-state.spec.ts" name="useSyncState &gt; 注入器销毁时退订上游" time="0.000760625">
+        </testcase>
+        <testcase classname="src/__tests__/use-sync-state.spec.ts" name="useSyncState &gt; 没有 provider 时抛错，不返回伪造的正常态" time="0.00075275">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/zz-verify.spec.ts" timestamp="2026-10-05T01:03:59.596Z" hostname="liuleideMacBook-Pro-4.local" tests="6" failures="0" errors="0" skipped="0" time="0.01378425">
+        <testcase classname="src/__tests__/zz-verify.spec.ts" name="VERIFY &gt; S1b: reading value() does start the query" time="0.002200667">
+        </testcase>
+        <testcase classname="src/__tests__/zz-verify.spec.ts" name="VERIFY &gt; S2b: hasMore one-way (correct ctor arg order)" time="0.005185625">
+        </testcase>
+        <testcase classname="src/__tests__/zz-verify.spec.ts" name="VERIFY &gt; S3: isEmpty() is false while error is set" time="0.001418458">
+        </testcase>
+        <testcase classname="src/__tests__/zz-verify.spec.ts" name="VERIFY &gt; S3b: non-Error thrown by repository is normalized into a real Error" time="0.0022065">
+        </testcase>
+        <testcase classname="src/__tests__/zz-verify.spec.ts" name="VERIFY &gt; S4: same namespace:name returns the same signal" time="0.001084417">
+        </testcase>
+        <testcase classname="src/__tests__/zz-verify.spec.ts" name="VERIFY &gt; S4b: signal created AFTER a write picks up the persisted value" time="0.001551542">
+        </testcase>
+    </testsuite>
+</testsuites>

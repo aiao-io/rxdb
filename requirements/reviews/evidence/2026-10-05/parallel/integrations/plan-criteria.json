@@ -1,0 +1,879 @@
+[
+  {
+    "object": "rxdb-adapter-electron",
+    "plan": "requirements/reviews/packages/rxdb-adapter-electron.md",
+    "criteria": [
+      {
+        "id": "C1",
+        "line": 58,
+        "text": "| C1   | renderer / host 边界   | 逐个对照 sqlite-core 协议、TS host 和应用 preload；请求必须归属到正确会话与数据库。               | 过期会话、未知操作、畸形参数、跨窗口请求、巨大消息；host 拒绝后无副作用。                       | 部分执行；真实 host/SQLite，非 GUI |"
+      },
+      {
+        "id": "C2",
+        "line": 59,
+        "text": "| C2   | SQLite 多窗口与事务    | 审查 node:sqlite engine、事务请求队列、关闭/崩溃时资源收束。                                      | 双窗口同库、事务中另一路写入、窗口关闭、host 异常；隔离和错误码可复验。                         | 部分执行；联审 RV-053/055，单文件  |"
+      },
+      {
+        "id": "C3",
+        "line": 60,
+        "text": "| C3   | PGlite 独占与可选 peer | 检查 PGlite data-dir lock/runtime 与 optional peer 的按需装载；不套用 SQLite 多窗口假设。         | 重复打开同目录、worker 退出、缺 PGlite peer、只用 SQLite 的发布消费；不静态拉入可选后端。       | 待核查                             |"
+      },
+      {
+        "id": "C4",
+        "line": 61,
+        "text": "| C4   | 文件与路径安全         | 追踪 storage 根路径、logical path、符号链接和请求边界；与插件 storage 和 DevTools provider 联审。 | 路径穿越、越界 restore target、锁冲突、文件同名、目录失败；不得访问用户配置之外的路径。         | 部分执行，联审 RV-044              |"
+      },
+      {
+        "id": "C5",
+        "line": 62,
+        "text": "| C5   | 加密与备份恢复         | 审查 SQLite/PGlite 各自备份锁、restore 事务和 keyring；按不同后端分别记录证据。                   | 恢复并发、失败后重试、二进制与 BigInt、加密归档/tamper；原库可继续打开。                        | 待核查                             |"
+      },
+      {
+        "id": "C6",
+        "line": 63,
+        "text": "| C6   | host 与应用集成        | 将 adapter 单测、应用 electron-conformance 与 packaged E2E 接起来；单纯浏览器 demo 不算桌面证据。 | contextIsolation/sandbox 模式、应用重启持久化、生产打包后的依赖解析；typecheck 抖动先单独复跑。 | 部分执行；HTTP/SQLite，非 packaged |"
+      }
+    ],
+    "completion": [
+      {
+        "line": 132,
+        "text": "- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。"
+      },
+      {
+        "line": 133,
+        "text": "- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。"
+      },
+      {
+        "line": 134,
+        "text": "- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。"
+      },
+      {
+        "line": 135,
+        "text": "- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。"
+      },
+      {
+        "line": 136,
+        "text": "- [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。"
+      },
+      {
+        "line": 137,
+        "text": "- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。"
+      },
+      {
+        "line": 138,
+        "text": "- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。"
+      }
+    ]
+  },
+  {
+    "object": "rxdb-adapter-tauri",
+    "plan": "requirements/reviews/packages/rxdb-adapter-tauri.md",
+    "criteria": [
+      {
+        "id": "C1",
+        "line": 58,
+        "text": "| C1   | TS / Rust 协议对齐    | 逐字段对照共用协议、codec、Rust protocol/router/value，核查版本协商、类型范围与错误码。  | 未知 operation、协议版本错、BigInt/binary/null、过大数值、坏 JSON；两端给出一致拒绝。       | 待核查 |"
+      },
+      {
+        "id": "C2",
+        "line": 59,
+        "text": "| C2   | 会话、事务与 engine   | 追踪 session、engine、script 的串行化、所有权与 cleanup，检查请求失败后的事务状态。      | 多 session 同库、断线、事务中抛错、脚本中多个语句、重复 close；不把局部失败解释成整体成功。 | 待核查 |"
+      },
+      {
+        "id": "C3",
+        "line": 60,
+        "text": "| C3   | Rust 文件边界         | 审查 paths/file/locks 和恢复目标，检查目录边界、逻辑路径、链接和锁释放。                 | 路径穿越、符号链接、跨根路径、恢复冲突、文件失败；限制在声明 capability 内。                | 待核查 |"
+      },
+      {
+        "id": "C4",
+        "line": 61,
+        "text": "| C4   | 真实 Rust conformance | 检查 conformance factory/transport 和 build-test-host 的依赖，再跑真实宿主而非 TS mock。 | TS unit、cargo test 与 test-conformance 三份独立证据；共享套件移除同步清调用点。            | 待核查 |"
+      },
+      {
+        "id": "C5",
+        "line": 62,
+        "text": "| C5   | 加密与备份            | 核查 TS codec、Rust value 与 encrypted/backup harness 的数据来回，不泄露历史敏感值。     | 加密 CRUD、变化日志、坏 envelope、恢复中断、二进制/BigInt 往返；原库与锁状态可复验。        | 待核查 |"
+      },
+      {
+        "id": "C6",
+        "line": 63,
+        "text": "| C6   | 发布与应用权限        | 对照 crate、JS exports、Tauri 应用 commands/capabilities；区分适配器允许与应用授权。     | 独立包 consumer、打包桌面 app、未授权 WebView invoke；生产不能暴露调试能力。                | 待核查 |"
+      }
+    ],
+    "completion": [
+      {
+        "line": 139,
+        "text": "- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。"
+      },
+      {
+        "line": 140,
+        "text": "- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。"
+      },
+      {
+        "line": 141,
+        "text": "- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。"
+      },
+      {
+        "line": 142,
+        "text": "- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。"
+      },
+      {
+        "line": 143,
+        "text": "- [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。"
+      },
+      {
+        "line": 144,
+        "text": "- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。"
+      },
+      {
+        "line": 145,
+        "text": "- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。"
+      }
+    ]
+  },
+  {
+    "object": "rxdb-adapter-desktop",
+    "plan": "requirements/reviews/packages/rxdb-adapter-desktop.md",
+    "criteria": [
+      {
+        "id": "C1",
+        "line": 41,
+        "text": "| C1   | 有效范围确认       | 核对 git ls-files、Nx nodes 与目录文件，确认此目录没有 package.json/受版本控制源码。                        | 全新 checkout 不要求存在本地 dist；残留不能算第 51 个有效包，也不能产生虚构 Nx 目标。    | 已核销；见本轮证据 |"
+      },
+      {
+        "id": "C2",
+        "line": 42,
+        "text": "| C2   | 旧引用核查         | 全仓搜索旧包名、旧入口与迁移说明，将有效源码职责对应到 Electron、Tauri 和 sqlite-core。                     | 生产 import/exports、共享套件调用、文档迁移命令不意外指向旧 dist；仅历史描述出现要区分。 | 已核销；见本轮证据 |"
+      },
+      {
+        "id": "C3",
+        "line": 43,
+        "text": "| C3   | 残留不执行、不复活 | 核查 dist/node_modules/out-tsc 是否影响本地解析或测试；不导入旧产物评审，不恢复 writer lease/已删除 suite。 | 有效包的 consumer/构建不依赖旧目录；清理前确认是可重建产物，本轮不擅自删除。             | 已核销；见本轮证据 |"
+      }
+    ],
+    "completion": [
+      {
+        "line": 78,
+        "text": "- [x] Git / Nx / 本机目录三份范围证据一致，明确这是残留而非有效源码包。"
+      },
+      {
+        "line": 79,
+        "text": "- [x] C1–C3 均有源码/配置或命令证据，生产旧引用与历史文字已分开判定。"
+      },
+      {
+        "line": 80,
+        "text": "- [x] Electron / Tauri / sqlite-core 的迁移边界已联审，不执行旧产物、不恢复已删除能力。"
+      },
+      {
+        "line": 81,
+        "text": "- [x] 若发现残留影响解析，按既有问题模板登记复现与影响；没有擅自清理用户文件。"
+      }
+    ]
+  },
+  {
+    "object": "rxdb-adapter-http",
+    "plan": "requirements/reviews/packages/rxdb-adapter-http.md",
+    "criteria": [
+      {
+        "id": "C1",
+        "line": 59,
+        "text": "| C1   | 端到端线契约           | 逐项对照 adapter、handler-contract、reference-server 与 HTTP 应用服务端；核查 RuleGroup 和错误映射。 | 未知字段/操作、注入型条件、错误 content-type、畸形 JSON、4xx/5xx；不把失败解码为空数据。   | 部分执行；真实应用 wire /401       |"
+      },
+      {
+        "id": "C2",
+        "line": 60,
+        "text": "| C2   | 分页与条件请求         | 检查 opaque page token、ETag/304、过滤排序与 cache identity 的一致性。                               | 筛选改变后旧 token、分页中更新/删除、304 无缓存、错 entity/scope token；不混用缓存或漏页。 | 待核查                             |"
+      },
+      {
+        "id": "C3",
+        "line": 61,
+        "text": "| C3   | 变更流生命周期         | 核查 reconnect、cursor、取消、订阅者清理和失效范围，不让断流被视为已同步。                           | 断线重连、重复/乱序消息、最后订阅离开、历史 cursor 失效；明确可恢复状态。                  | 待核查                             |"
+      },
+      {
+        "id": "C4",
+        "line": 62,
+        "text": "| C4   | 写入与 outbox 衔接     | 追踪 bulk/chunking、条件失败和 QueryCache offline write 到 sync outbox，检查幂等和重试归属。         | 超时但服务端已写、批次部分失败、离线后联网、删除重试；不丢写、不重复副作用。               | 部分执行；联审 RV-052/055          |"
+      },
+      {
+        "id": "C5",
+        "line": 63,
+        "text": "| C5   | 取消与不可信响应       | 检查 AbortSignal、晚到响应、响应体大小与类型转换。                                                   | 请求参数变化、卸载取消、超大 body、错误数字/二进制；过期响应不能覆盖新状态。               | 部分执行；联审 RV-053，origin-down |"
+      },
+      {
+        "id": "C6",
+        "line": 64,
+        "text": "| C6   | CORS / 凭证 / 生产消费 | 审查 transport 凭证和日志边界，核查 server 配合而非只看 client 配置。                                | 未授权 origin、错误 credentials、跨 scope 请求、pack 后消费；诊断中无 token 或敏感 body。  | 待核查                             |"
+      }
+    ],
+    "completion": [
+      {
+        "line": 133,
+        "text": "- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。"
+      },
+      {
+        "line": 134,
+        "text": "- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。"
+      },
+      {
+        "line": 135,
+        "text": "- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。"
+      },
+      {
+        "line": 136,
+        "text": "- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。"
+      },
+      {
+        "line": 137,
+        "text": "- [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。"
+      },
+      {
+        "line": 138,
+        "text": "- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。"
+      },
+      {
+        "line": 139,
+        "text": "- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。"
+      }
+    ]
+  },
+  {
+    "object": "rxdb-adapter-supabase",
+    "plan": "requirements/reviews/packages/rxdb-adapter-supabase.md",
+    "criteria": [
+      {
+        "id": "C1",
+        "line": 58,
+        "text": "| C1   | 身份与 RLS           | 对照 entity_scope、RLS helpers、SQL/RPC、应用配置与 public/privileged key 边界。    | 匿名与受限用户、跨身份读写、scope 参数篡改、RPC 权限；不能用 service-role 绕过策略后称隔离通过。         | 待核查                            |"
+      },
+      {
+        "id": "C2",
+        "line": 59,
+        "text": "| C2   | PostgREST 与类型映射 | 审查规则嵌套、escaping、关系、transform 和 error mapping。                          | 特殊标识符、嵌套 AND/OR、null、BigInt/binary、未知列、PostgREST 错误；本地与远端语义可对照。             | 部分执行；RV-060 关系元数据对照   |"
+      },
+      {
+        "id": "C3",
+        "line": 60,
+        "text": "| C3   | 批写、分支与 RPC     | 核查 mutations/merge changes 的原子性、幂等、主分支/其它分支的现有边界。            | 批次中途失败、重复调用、分支同步、main 之外变更；把已知限制对照 roadmap，不暗中扩承诺。                  | 部分执行；RV-059 真实大批删除     |"
+      },
+      {
+        "id": "C4",
+        "line": 61,
+        "text": "| C4   | 分页与实时失效       | 审查分页 token、Realtime 订阅建立/销毁和过期消息对 repository 的影响。              | 可空列、排序相同、断线重订阅、频道泄露、错 scope 通知；分页不丢行，状态不假绿。                          | 待核查                            |"
+      },
+      {
+        "id": "C5",
+        "line": 62,
+        "text": "| C5   | 真实环境测试         | 核查 test-env/Docker 的建表、权限、reset/seed 与测试帐号；mock 只能证明局部映射。   | 隔离 Supabase 全套 CRUD/query/branch/Realtimes；记录实际配置与跳过项，不使用生产帐号。                   | 部分执行；隔离 CI /真实 REST 复验 |"
+      },
+      {
+        "id": "C6",
+        "line": 63,
+        "text": "| C6   | 依赖与客户端安全     | 对照 peer exports、前端 bundle、日志和错误提示；核查凭证审计在应用 build 之后运行。 | 没有 privileged key 的生产包、独立 consumer、远端失败诊断；不把 npm 包 API 存在等同于服务端 RPC 已部署。 | 待核查                            |"
+      }
+    ],
+    "completion": [
+      {
+        "line": 135,
+        "text": "- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。"
+      },
+      {
+        "line": 136,
+        "text": "- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。"
+      },
+      {
+        "line": 137,
+        "text": "- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。"
+      },
+      {
+        "line": 138,
+        "text": "- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。"
+      },
+      {
+        "line": 139,
+        "text": "- [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。"
+      },
+      {
+        "line": 140,
+        "text": "- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。"
+      },
+      {
+        "line": 141,
+        "text": "- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。"
+      }
+    ]
+  },
+  {
+    "object": "dev-rxdb-electron",
+    "plan": "requirements/reviews/apps/dev-rxdb-electron.md",
+    "criteria": [
+      {
+        "id": "C1",
+        "line": 51,
+        "text": "| C1   | backend 选择与资源生命周期 | 逐档审查 local backend、DB 路径、连接初始化/关闭与不支持配置的明确拒绝。                                      | 首次启动、错误路径、关窗/重开、多窗口、初始化中退出；不静默回退到 memory/OPFS。                     | 待核查 |"
+      },
+      {
+        "id": "C2",
+        "line": 52,
+        "text": "| C2   | 桌面安全边界               | 从页面到 bridge/invoke/host 核查 session、sender、frame、allowlist 和 privilege；与 adapter 协议双端对照。    | 未知消息、跨窗口、旧 session、越权 SQL/file、过大 payload；拒绝发生在副作用之前。                   | 待核查 |"
+      },
+      {
+        "id": "C3",
+        "line": 53,
+        "text": "| C3   | 业务、存储与备份           | 核查真实 Todo/文件操作、backup-probe、restore 和应用重启，区分 DB 与文件备份范围。                            | 写后重启、恢复中断、目标冲突、文件失败、BigInt/binary；原库可重新打开。                             | 待核查 |"
+      },
+      {
+        "id": "C4",
+        "line": 54,
+        "text": "| C4   | DevTools 隔离              | 检查 fake-provider/probe、调试窗口、relay、settings/files mutation 与开发/生产 gating。                       | 生产 bundle、调试窗口导航/关闭、provider capability 缺失；调试功能不变成普通 WebView 的特权入口。   | 待核查 |"
+      },
+      {
+        "id": "C5",
+        "line": 55,
+        "text": "| C5   | 打包资源与延迟后端         | 核查 native 库/WASM/Worker/插件资源、build-devtools 与 audit-lazy-backend；开发 server 通过不代表安装包可用。 | 离线安装包冷启动、资源缺失、无可选后端依赖、生产调试隔离；记录实际应用版本/平台。                   | 待核查 |"
+      },
+      {
+        "id": "C6",
+        "line": 56,
+        "text": "| C6   | Electron 专项              | 核查 contextIsolation/sandbox、navigation、IPC frame ownership、PGlite worker 和 electron-builder 产物。      | 不可信导航、隐藏 iframe、renderer 崩溃、worker 退出、两种 native 后端持久化；在 packaged E2E 复验。 | 待核查 |"
+      }
+    ],
+    "completion": [
+      {
+        "line": 128,
+        "text": "- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。"
+      },
+      {
+        "line": 129,
+        "text": "- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。"
+      },
+      {
+        "line": 130,
+        "text": "- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。"
+      },
+      {
+        "line": 131,
+        "text": "- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。"
+      },
+      {
+        "line": 132,
+        "text": "- [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。"
+      },
+      {
+        "line": 133,
+        "text": "- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。"
+      },
+      {
+        "line": 134,
+        "text": "- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。"
+      }
+    ]
+  },
+  {
+    "object": "dev-rxdb-electron-e2e",
+    "plan": "requirements/reviews/apps/dev-rxdb-electron-e2e.md",
+    "criteria": [
+      {
+        "id": "C1",
+        "line": 49,
+        "text": "| C1   | 打包应用可信来源    | 核查 packaged-app 启动、版本、临时 userData、进程和目录 cleanup，不偷换成 renderer 浏览器。 | 冷打包、应用退出/崩溃、第二轮执行、资源缺失；真实 binary/版本/SHA 可证明。                      | 待核查 |"
+      },
+      {
+        "id": "C2",
+        "line": 50,
+        "text": "| C2   | 两种 backend 持久化 | 对照 SQLite 与 PGlite 各自 specs 的多窗口/独占前置和 DB 路径。                              | 写后完整退出重启、错误路径、并发窗口、worker 故障；两种 backend 不能互相代证。                  | 待核查 |"
+      },
+      {
+        "id": "C3",
+        "line": 51,
+        "text": "| C3   | 备份与文件 mutation | 审查真实 DB/file 操作、恢复中断、目标冲突和 restart persistence。                           | 坏归档、并发 restore、文件写失败、关闭重开；验证旧库仍可用而非只看到 toast。                    | 待核查 |"
+      },
+      {
+        "id": "C4",
+        "line": 52,
+        "text": "| C4   | DevTools 安全与会话 | 对照 wire tap、capability、session rotation、unsupported scheme 与 refusals 的正反向断言。  | 错 session/frame、导航、只读 setting、越权 native file、巨型消息；拒绝无副作用。                | 待核查 |"
+      },
+      {
+        "id": "C5",
+        "line": 53,
+        "text": "| C5   | 扩展与生产隔离      | 检查扩展加载、MV3 档位、dev/prod build 与 packaged-app 参数。                               | 生产包无调试授权、dev 可显式启用、窗口关开/relay reconnect；mock feasibility 不冒充打包兼容性。 | 待核查 |"
+      },
+      {
+        "id": "C6",
+        "line": 54,
+        "text": "| C6   | 稳定性与清理        | 审查 timeout、重试与 orphan process，以及 skip 对最终结论的影响。                           | 单 spec/全套/失败后重复运行；重试暴露 flaky，不以重跑一次绿掩盖确定性竞态。                     | 待核查 |"
+      }
+    ],
+    "completion": [
+      {
+        "line": 121,
+        "text": "- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。"
+      },
+      {
+        "line": 122,
+        "text": "- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。"
+      },
+      {
+        "line": 123,
+        "text": "- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。"
+      },
+      {
+        "line": 124,
+        "text": "- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。"
+      },
+      {
+        "line": 125,
+        "text": "- [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。"
+      },
+      {
+        "line": 126,
+        "text": "- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。"
+      },
+      {
+        "line": 127,
+        "text": "- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。"
+      }
+    ]
+  },
+  {
+    "object": "dev-rxdb-tauri",
+    "plan": "requirements/reviews/apps/dev-rxdb-tauri.md",
+    "criteria": [
+      {
+        "id": "C1",
+        "line": 50,
+        "text": "| C1   | backend 选择与资源生命周期 | 逐档审查 local backend、DB 路径、连接初始化/关闭与不支持配置的明确拒绝。                                      | 首次启动、错误路径、关窗/重开、多窗口、初始化中退出；不静默回退到 memory/OPFS。                                                   | 待核查 |"
+      },
+      {
+        "id": "C2",
+        "line": 51,
+        "text": "| C2   | 桌面安全边界               | 从页面到 bridge/invoke/host 核查 session、sender、frame、allowlist 和 privilege；与 adapter 协议双端对照。    | 未知消息、跨窗口、旧 session、越权 SQL/file、过大 payload；拒绝发生在副作用之前。                                                 | 待核查 |"
+      },
+      {
+        "id": "C3",
+        "line": 52,
+        "text": "| C3   | 业务、存储与备份           | 核查真实 Todo/文件操作、backup-probe、restore 和应用重启，区分 DB 与文件备份范围。                            | 写后重启、恢复中断、目标冲突、文件失败、BigInt/binary；原库可重新打开。                                                           | 待核查 |"
+      },
+      {
+        "id": "C4",
+        "line": 53,
+        "text": "| C4   | DevTools 隔离              | 检查 fake-provider/probe、调试窗口、relay、settings/files mutation 与开发/生产 gating。                       | 生产 bundle、调试窗口导航/关闭、provider capability 缺失；调试功能不变成普通 WebView 的特权入口。                                 | 待核查 |"
+      },
+      {
+        "id": "C5",
+        "line": 54,
+        "text": "| C5   | 打包资源与延迟后端         | 核查 native 库/WASM/Worker/插件资源、build-devtools 与 audit-lazy-backend；开发 server 通过不代表安装包可用。 | 离线安装包冷启动、资源缺失、无可选后端依赖、生产调试隔离；记录实际应用版本/平台。                                                 | 待核查 |"
+      },
+      {
+        "id": "C6",
+        "line": 55,
+        "text": "| C6   | Tauri 专项                 | 核查 Rust command 注册、每个 window capability、WebView origin、CSP、selfcheck 与面板资源打包。               | 普通窗口调用 devtools command、窗口关闭后的 transport、开发/生产 build、native file 操作；cargo 与真实 desktop-smoke 分别留证据。 | 待核查 |"
+      }
+    ],
+    "completion": [
+      {
+        "line": 133,
+        "text": "- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。"
+      },
+      {
+        "line": 134,
+        "text": "- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。"
+      },
+      {
+        "line": 135,
+        "text": "- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。"
+      },
+      {
+        "line": 136,
+        "text": "- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。"
+      },
+      {
+        "line": 137,
+        "text": "- [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。"
+      },
+      {
+        "line": 138,
+        "text": "- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。"
+      },
+      {
+        "line": 139,
+        "text": "- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。"
+      }
+    ]
+  },
+  {
+    "object": "dev-rxdb-tauri-e2e",
+    "plan": "requirements/reviews/apps/dev-rxdb-tauri-e2e.md",
+    "criteria": [
+      {
+        "id": "C1",
+        "line": 49,
+        "text": "| C1   | 真实宿主与 runner   | 核查 packaged-app/frontend-server/warm-up 和两套 smoke 配置；区分 frontend 替身与真实 invoke/WebView。 | 实际 Tauri binary 启动、冷资源、失败 cleanup；只跑浏览器页面不算桌面证据。                        | 待核查 |"
+      },
+      {
+        "id": "C2",
+        "line": 50,
+        "text": "| C2   | SQLite 与文件持久化 | 审查 DB/file 路径、stored-files、退出重开与原子失败断言。                                              | 写后重启、部分文件失败、同路径冲突、越界路径；实际 filesystem/DB 状态可查。                       | 待核查 |"
+      },
+      {
+        "id": "C3",
+        "line": 51,
+        "text": "| C3   | 备份恢复            | 核查 restore 目标锁、坏归档、native 拒绝与应用恢复后的完整数据。                                       | 恢复中断、目标在用、坏 manifest、重复 restore；旧库能继续打开。                                   | 待核查 |"
+      },
+      {
+        "id": "C4",
+        "line": 52,
+        "text": "| C4   | WebView / 窗口权限  | 审查 desktop-webview-capability 与 devtools-window-transport 的身份/授权验证。                         | 普通窗口 invoke 特权命令、session 过期、窗口导航/关闭；Rust 层拒绝而非 UI 层隐藏。                | 待核查 |"
+      },
+      {
+        "id": "C5",
+        "line": 53,
+        "text": "| C5   | 调试与生产隔离      | 对照 provider gear、release-isolation、dev/prod binary 资源。                                          | 生产包不含未授权调试入口、dev 显式开关、capability 缺失、native provider 文件操作；两档独立复验。 | 待核查 |"
+      },
+      {
+        "id": "C6",
+        "line": 54,
+        "text": "| C6   | 结论与环境限定      | 审查仅 desktop-smoke/devtools-smoke 的真实覆盖、skip 和平台信息，避免编造常规 e2e 目标。               | 两套 Nx 目标各留日志；未运行平台/权限场景明确未验证，不能从 cargo test 代证 WebView。             | 待核查 |"
+      }
+    ],
+    "completion": [
+      {
+        "line": 123,
+        "text": "- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。"
+      },
+      {
+        "line": 124,
+        "text": "- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。"
+      },
+      {
+        "line": 125,
+        "text": "- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。"
+      },
+      {
+        "line": 126,
+        "text": "- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。"
+      },
+      {
+        "line": 127,
+        "text": "- [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。"
+      },
+      {
+        "line": 128,
+        "text": "- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。"
+      },
+      {
+        "line": 129,
+        "text": "- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。"
+      }
+    ]
+  },
+  {
+    "object": "dev-rxdb-http",
+    "plan": "requirements/reviews/apps/dev-rxdb-http.md",
+    "criteria": [
+      {
+        "id": "C1",
+        "line": 50,
+        "text": "| C1   | 初始化与依赖模式  | 核查 HTTP remote、wa-sqlite local、QueryCache/history/sync 插件和 recipes-domain 的配置归属。 | 服务不可达、WASM 不可用、重复初始化、换实体/scope；明确拒绝，不默默切演示数据。           | 待核查 |"
+      },
+      {
+        "id": "C2",
+        "line": 51,
+        "text": "| C2   | 离线写与缓存质量  | 追踪 UI 到 outbox 与确认，诊断必须区分 pending、错误、缓存部分数据和远端完整结果。            | 离线增删改、重连、部分失败、重开页面；界面不把缓存/排队称为服务端已成功。                 | 待核查 |"
+      },
+      {
+        "id": "C3",
+        "line": 52,
+        "text": "| C3   | 筛选、页码与 ETag | 核查 filter rules、paging 和 ETag diagnostics 的身份，参数改变必须处理旧 token/旧页。         | 筛选改变、相同排序值、304 无缓存、条件失败、快速切页；结果不串页。                        | 待核查 |"
+      },
+      {
+        "id": "C4",
+        "line": 53,
+        "text": "| C4   | 流量与变更流安全  | 检查 recorder/diagnostics 的容量、敏感 body、取消和 subscriber cleanup。                      | 大量请求、凭证字段、断流、离开页面、错误响应；诊断不泄露数据或拖垮内存。                  | 待核查 |"
+      },
+      {
+        "id": "C5",
+        "line": 54,
+        "text": "| C5   | 端到端对照        | 对照 server 与 HTTP E2E，使用真实请求和数据库状态证明；UI 控制接口仅属于隔离 demo。           | CORS 拒绝、orphan cleanup、page-token 篡改、offline fallback 契约；无需手改 UI 才能复验。 | 待核查 |"
+      }
+    ],
+    "completion": [
+      {
+        "line": 122,
+        "text": "- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。"
+      },
+      {
+        "line": 123,
+        "text": "- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。"
+      },
+      {
+        "line": 124,
+        "text": "- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。"
+      },
+      {
+        "line": 125,
+        "text": "- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。"
+      },
+      {
+        "line": 126,
+        "text": "- [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。"
+      },
+      {
+        "line": 127,
+        "text": "- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。"
+      },
+      {
+        "line": 128,
+        "text": "- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。"
+      }
+    ]
+  },
+  {
+    "object": "dev-rxdb-http-e2e",
+    "plan": "requirements/reviews/apps/dev-rxdb-http-e2e.md",
+    "criteria": [
+      {
+        "id": "C1",
+        "line": 49,
+        "text": "| C1   | 双服务来源与隔离 | 核查 Playwright 启动 server/frontend 的配置、端口、build 与 DB/reset 范围，拒绝旧进程假绿。              | 冷 build、端口冲突、失败 teardown、两轮全套；前后端 SHA 和测试库明确。                 | 待核查 |"
+      },
+      {
+        "id": "C2",
+        "line": 50,
+        "text": "| C2   | 离线写→联网闭环  | 检查 local-first-writes 与 offline-fallback 是否真实切断请求并验证 outbox/远端状态。                     | 离线增删改、响应丢失后重试、刷新、重新联网；不丢写不重复副作用，不只看 optimistic UI。 | 待核查 |"
+      },
+      {
+        "id": "C3",
+        "line": 51,
+        "text": "| C3   | 分页与条件请求   | 审查 token/ETag/304/412 的抓包与结果断言。                                                               | 筛选改变后旧 token、篡改/跨 scope token、分页中增删、无缓存的 304；完整结果不漏行。    | 待核查 |"
+      },
+      {
+        "id": "C4",
+        "line": 52,
+        "text": "| C4   | 流与 CORS 安全   | 核查真实 SSE/变更流断线、订阅清理与 origin/credentials 拒绝，不仅 mock 响应。                            | 重连 cursor、乱序/重复事件、关闭页面、非法 origin；拒绝无写入。                        | 待核查 |"
+      },
+      {
+        "id": "C5",
+        "line": 53,
+        "text": "| C5   | 清理与错误断言   | 检查 clear-and-paging/orphan-cleanup 是否独立验证数据库和订阅收束，审查 skip 与 console/network errors。 | 用例失败后资源回收、服务停止、孤儿数据、异常 body；每条错误均有预期/实测。             | 待核查 |"
+      }
+    ],
+    "completion": [
+      {
+        "line": 120,
+        "text": "- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。"
+      },
+      {
+        "line": 121,
+        "text": "- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。"
+      },
+      {
+        "line": 122,
+        "text": "- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。"
+      },
+      {
+        "line": 123,
+        "text": "- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。"
+      },
+      {
+        "line": 124,
+        "text": "- [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。"
+      },
+      {
+        "line": 125,
+        "text": "- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。"
+      },
+      {
+        "line": 126,
+        "text": "- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。"
+      }
+    ]
+  },
+  {
+    "object": "dev-rxdb-http-server",
+    "plan": "requirements/reviews/apps/dev-rxdb-http-server.md",
+    "criteria": [
+      {
+        "id": "C1",
+        "line": 51,
+        "text": "| C1   | 请求与数据边界            | 从路由解析到 repository 审查请求 schema、方法、字段白名单、规则与 SQL 参数化。                         | 畸形 JSON、未知实体/字段、超大 body、注入条件、4xx/5xx；失败不写库。                      | 部分执行，确认问题见执行记录        |"
+      },
+      {
+        "id": "C2",
+        "line": 52,
+        "text": "| C2   | 鉴权、CORS 与控制接口     | 核查 demo control/seed/reset、origin/credentials、监听地址和部署假设，明确演示服务不等于生产安全模板。 | 未经授权 origin、公开 reset/control、跨 scope、日志凭证；危险入口受已声明边界约束。       | 部分执行；真实 401，非生产鉴权/CORS |"
+      },
+      {
+        "id": "C3",
+        "line": 53,
+        "text": "| C3   | ETag / token 完整性       | 检查 token 的作用域、过滤/排序绑定、有效期与条件请求缓存语义。                                         | 篡改 token、旧筛选 token、跨 entity token、304/412、分页中更新；不接受错 scope 的继续页。 | 待核查                              |"
+      },
+      {
+        "id": "C4",
+        "line": 54,
+        "text": "| C4   | 变更流与资源              | 审查 broadcaster/subscribers、重连 cursor、慢消费者和断开清理。                                        | 长连接退出、突发事件、慢客户端、未知 cursor、服务停止；有限缓冲，无孤儿订阅。             | 待核查                              |"
+      },
+      {
+        "id": "C5",
+        "line": 55,
+        "text": "| C5   | 数据事务与进程生命周期    | 核查 rxdb-store、批写、seed/reset 的隔离、关库和错误映射。                                             | 中途失败、服务重启、并发写、重复操作、磁盘错误；旧数据不被意外清空。                      | 部分执行，确认问题见执行记录        |"
+      },
+      {
+        "id": "C6",
+        "line": 56,
+        "text": "| C6   | client-server conformance | 与 rxdb-adapter-http/reference server 和配套 E2E 逐请求对照；不能两边共用同一个错误假设。              | 真实客户端离线/在线链路、条件请求、分页、变更流、部分失败；抓包与 DB 状态共同证明。       | 部分执行；实际 Node 客户端联审      |"
+      }
+    ],
+    "completion": [
+      {
+        "line": 123,
+        "text": "- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。"
+      },
+      {
+        "line": 124,
+        "text": "- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。"
+      },
+      {
+        "line": 125,
+        "text": "- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。"
+      },
+      {
+        "line": 126,
+        "text": "- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。"
+      },
+      {
+        "line": 127,
+        "text": "- [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。"
+      },
+      {
+        "line": 128,
+        "text": "- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。"
+      },
+      {
+        "line": 129,
+        "text": "- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。"
+      }
+    ]
+  },
+  {
+    "object": "dev-rxdb-supabase",
+    "plan": "requirements/reviews/apps/dev-rxdb-supabase.md",
+    "criteria": [
+      {
+        "id": "C1",
+        "line": 50,
+        "text": "| C1   | 构建 / 运行配置 | 核查 runtime config、build env 固化、local/remote 模式和服务地址；不要用复用旧 server 掩盖错 bundle。 | 缺 URL/key、错环境、生产与本地 build、远端不可达；失败明确且配置不会串档。                       | 部分执行；local/remote 实际运行      |"
+      },
+      {
+        "id": "C2",
+        "line": 51,
+        "text": "| C2   | 凭证与 RLS 边界 | 审查客户端允许的 key、audit-secrets 和安全提示；与 adapter 和 SQL/RPC 部署联审。                      | 生产 bundle 不含 privileged key、跨身份读写拒绝、日志无凭证；audit-secrets 在当前 build 后执行。 | 部分执行；当前 build 后审计          |"
+      },
+      {
+        "id": "C3",
+        "line": 52,
+        "text": "| C3   | 离线同步状态    | 追踪 todo 交互、sync task、Realtime 与 remote-sync-state，错误不只做状态提示。                        | 离线写后重连、重复 sync、冲突/拒绝、切 branch、重开 app；pending 与已确认状态准确。              | 部分执行；真实远端跨 context 推/拉   |"
+      },
+      {
+        "id": "C4",
+        "line": 53,
+        "text": "| C4   | 本地库与分支    | 核查 wa-sqlite Worker/SharedWorker、命名、branch manager 和两种 Todo 分页。                           | 多标签页、可空/同值游标、关闭重连、分支限制；对照 roadmap 已知边界，不扩承诺。                   | 部分执行；当前刷新/游标 E2E          |"
+      },
+      {
+        "id": "C5",
+        "line": 54,
+        "text": "| C5   | 真实场景与隔离  | 将组件单测、默认 E2E 和 e2e-remote 证据分开，不把 remote skip 当远端通过。                            | 隔离 Supabase 帐号/schema、真实 remote-sync、错误提示与键盘操作；不向生产表写测试数据。          | 部分执行；47 单测 /4 local /2 remote |"
+      }
+    ],
+    "completion": [
+      {
+        "line": 126,
+        "text": "- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。"
+      },
+      {
+        "line": 127,
+        "text": "- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。"
+      },
+      {
+        "line": 128,
+        "text": "- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。"
+      },
+      {
+        "line": 129,
+        "text": "- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。"
+      },
+      {
+        "line": 130,
+        "text": "- [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。"
+      },
+      {
+        "line": 131,
+        "text": "- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。"
+      },
+      {
+        "line": 132,
+        "text": "- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。"
+      }
+    ]
+  },
+  {
+    "object": "dev-rxdb-supabase-e2e",
+    "plan": "requirements/reviews/apps/dev-rxdb-supabase-e2e.md",
+    "criteria": [
+      {
+        "id": "C1",
+        "line": 47,
+        "text": "| C1   | local / remote 证据分离 | 对照默认 e2e、REMOTE_E2E/e2e-remote、deployedURL 与 skip 条件。       | 默认模式和显式 remote 模式分别运行；remote 未跑/被 skip 标未验证，不能合并成全部通过。 | 部分执行；local 4 /remote 2 实测    |"
+      },
+      {
+        "id": "C2",
+        "line": 48,
+        "text": "| C2   | build 固化配置与端口    | 审查 dependsOn build、serve-e2e、环境变量和拒绝复用旧 server 的策略。 | 冷 build、错 key/url、旧产物、端口冲突；真实页面使用的是本轮配置。                     | 部分执行；冷 build /禁止复用 server |"
+      },
+      {
+        "id": "C3",
+        "line": 49,
+        "text": "| C3   | 同步与持久化闭环        | 检查跨客户端/刷新/离线恢复的真实远端确认，不能只看连接指示灯。        | 本地写、远端可读、第二客户端可见、断线重连、失败/冲突；pending 与成功有实证。          | 部分执行；跨 context 真远端确认     |"
+      },
+      {
+        "id": "C4",
+        "line": 50,
+        "text": "| C4   | 身份与 RLS              | 核查专用 Supabase 测试帐号、权限/RPC 和跨身份失败场景。               | 受限用户读写、越权拒绝、privileged key 不进页面；service-role bypass 不算隔离证据。    | 待核查                              |"
+      },
+      {
+        "id": "C5",
+        "line": 51,
+        "text": "| C5   | 外部资源与清理          | 检查数据标记、teardown、配额和失败时清理，禁止真实项目污染。          | 唯一测试 scope、重复执行、失败中断、环境不齐；资源缺失明确阻断动态评审但继续静态核查。 | 部分执行；cleanup 确认仍待加强      |"
+      }
+    ],
+    "completion": [
+      {
+        "line": 121,
+        "text": "- [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。"
+      },
+      {
+        "line": 122,
+        "text": "- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。"
+      },
+      {
+        "line": 123,
+        "text": "- [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。"
+      },
+      {
+        "line": 124,
+        "text": "- [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。"
+      },
+      {
+        "line": 125,
+        "text": "- [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。"
+      },
+      {
+        "line": 126,
+        "text": "- [ ] 确认问题按 P0–P3 去重、登记根因/最小修法/回归场景；未验证项不能包装成已通过。"
+      },
+      {
+        "line": 127,
+        "text": "- [ ] 形成 🟢 / 🟡 / 🔴 的有证据结论，并区分“评审完成”和“修复/发布就绪”；本计划勾选完成不代表缺陷已经修复。"
+      }
+    ]
+  }
+]

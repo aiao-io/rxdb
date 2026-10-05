@@ -1,0 +1,2115 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="872" failures="0" errors="0" time="31.204665">
+    <testsuite name="src/__tests__/adapter-construction.spec.ts" timestamp="2026-10-05T01:22:56.728Z" hostname="liuleideMacBook-Pro-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.0273">
+        <testcase classname="src/__tests__/adapter-construction.spec.ts" name="RxDB SQLite 适配器构造阶段 [wa-sqlite] &gt; 不应在子类状态完成初始化前访问 SQLite client 配置" time="0.027185">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/create_sqlite_client.remote.spec.ts" timestamp="2026-10-05T01:22:56.728Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.001055">
+        <testcase classname="src/__tests__/create_sqlite_client.remote.spec.ts" name="createSqliteClient 远端契约 &gt; 公开返回类型只承诺远端安全的 SqliteClientLike" time="0.00022">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.remote.spec.ts" name="createSqliteClient 远端契约 &gt; 向共享 transport 转发客户端所有权并等待远端 init" time="0.000475">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.remote.spec.ts" name="createSqliteClient 远端契约 &gt; 远端 init 失败时释放客户端与 transport" time="0.000225">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/create_sqlite_client.spec.ts" timestamp="2026-10-05T01:22:56.729Z" hostname="liuleideMacBook-Pro-4.local" tests="17" failures="0" errors="0" skipped="0" time="0.002995">
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; 拒绝不完整或冲突的 transport 配置 0" time="0.000515">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; 拒绝不完整或冲突的 transport 配置 1" time="0.00014">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; 拒绝不完整或冲突的 transport 配置 2" time="0.000095">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; 拒绝不完整或冲突的 transport 配置 3" time="0.00009">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; 拒绝不完整或冲突的 transport 配置 4" time="0.00009">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; 把 cacheSizeKb 与 batchTimeout 传给 client.init" time="0.000345">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; 拒绝非法数值选项 0" time="0.000175">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; 拒绝非法数值选项 1" time="0.00011">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; 拒绝非法数值选项 2" time="0.000145">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; 拒绝非法数值选项 3" time="0.000115">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; 拒绝非法数值选项 4" time="0.0001">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; 拒绝非法数值选项 5" time="0.000095">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; 拒绝非法数值选项 6" time="0.0001">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; 拒绝非法数值选项 7" time="0.000095">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; 拒绝非法数值选项 8" time="0.00009">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; worker 模式下 locateFile 应该显式抛错，而不是留到 Comlink 抛 DataCloneError" time="0.00015">
+        </testcase>
+        <testcase classname="src/__tests__/create_sqlite_client.spec.ts" name="createSqliteClient &gt; 允许 batchTimeout 为 0" time="0.000365">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/encrypted-bigint-binary.spec.ts" timestamp="2026-10-05T01:22:56.730Z" hostname="liuleideMacBook-Pro-4.local" tests="8" failures="0" errors="0" skipped="0" time="0.25581">
+        <testcase classname="src/__tests__/encrypted-bigint-binary.spec.ts" name="Encrypted bigint/binary [wa-sqlite] &gt; CRUD codec &gt; round-trips signed 64-bit boundaries and copies the current binary view" time="0.00302">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-bigint-binary.spec.ts" name="Encrypted bigint/binary [wa-sqlite] &gt; CRUD codec &gt; round-trips bulk inserts with bigint primary keys bound into AAD" time="0.00152">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-bigint-binary.spec.ts" name="Encrypted bigint/binary [wa-sqlite] &gt; CRUD codec &gt; rejects encrypted bigint below minimum before persistence" time="0.00042">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-bigint-binary.spec.ts" name="Encrypted bigint/binary [wa-sqlite] &gt; CRUD codec &gt; rejects encrypted bigint above maximum before persistence" time="0.000175">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-bigint-binary.spec.ts" name="Encrypted bigint/binary [wa-sqlite] &gt; CRUD codec &gt; rejects encrypted bigint number instead of bigint before persistence" time="0.000155">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-bigint-binary.spec.ts" name="Encrypted bigint/binary [wa-sqlite] &gt; history codec &gt; restores bigint and binary runtime types through undo and redo" time="0.006075">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-bigint-binary.spec.ts" name="Encrypted bigint/binary [wa-sqlite] &gt; history codec &gt; ignores in-place binary mutation until a new view is assigned" time="0.00351">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-bigint-binary.spec.ts" name="Encrypted bigint/binary [wa-sqlite] &gt; branch codec &gt; preserves encrypted types across branch switches and merge" time="0.00844">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/encrypted-change-log.spec.ts" timestamp="2026-10-05T01:22:56.731Z" hostname="liuleideMacBook-Pro-4.local" tests="2" failures="0" errors="0" skipped="0" time="0.19906">
+        <testcase classname="src/__tests__/encrypted-change-log.spec.ts" name="Encrypted change log [wa-sqlite-idb] &gt; the audited fixture actually produces change log rows (RXT-018 前提)" time="0.003475">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-change-log.spec.ts" name="Encrypted change log [wa-sqlite-idb] &gt; leaks zero JSON/array plaintext through save / update / undo / redo / delete (RAE-006)" time="0.0746849999">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/encrypted-crud.spec.ts" timestamp="2026-10-05T01:22:56.731Z" hostname="liuleideMacBook-Pro-4.local" tests="15" failures="0" errors="0" skipped="0" time="0.366145">
+        <testcase classname="src/__tests__/encrypted-crud.spec.ts" name="Encrypted CRUD round-trip [wa-sqlite-idb] &gt; round-trips mixed JS types through the envelope" time="0.0043699999">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-crud.spec.ts" name="Encrypted CRUD round-trip [wa-sqlite-idb] &gt; stores encrypted columns as v2 AES-GCM-256 envelope strings on disk" time="0.00286">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-crud.spec.ts" name="Encrypted CRUD round-trip [wa-sqlite-idb] &gt; leaks zero plaintext sentinels across entity tables + change log + caches" time="0.006485">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-crud.spec.ts" name="Encrypted CRUD round-trip [wa-sqlite-idb] &gt; keeps a large encrypted JSON value out of live overflow records and physical pages" time="0.013415">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-crud.spec.ts" name="Encrypted CRUD round-trip [wa-sqlite-idb] &gt; round-trips NULL encrypted columns without enveloping them" time="0.00547">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-crud.spec.ts" name="Encrypted CRUD round-trip [wa-sqlite-idb] &gt; round-trips falsy non-null encrypted values (RXT-025)" time="0.00405">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-crud.spec.ts" name="Encrypted CRUD round-trip [wa-sqlite-idb] &gt; does not swallow negative zero on encrypted integer columns (RXT-025)" time="0.00367">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-crud.spec.ts" name="Encrypted CRUD round-trip [wa-sqlite-idb] &gt; envelopes falsy encrypted cells instead of writing NULL (RXT-025)" time="0.00425">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-crud.spec.ts" name="Encrypted CRUD round-trip [wa-sqlite-idb] &gt; rebuilds the envelope on update so only the targeted cell rotates" time="0.0095100001">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-crud.spec.ts" name="Encrypted CRUD round-trip [wa-sqlite-idb] &gt; saveMany(1000 × 1 encrypted col) succeeds within SQLite 999-bind chunking" time="0.115965">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-crud.spec.ts" name="Encrypted query validation [wa-sqlite] &gt; observes SQL executed by the repository path" time="0.00052">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-crud.spec.ts" name="Encrypted query validation [wa-sqlite] &gt; rejects where on encrypted column (code: where_on_encrypted)" time="0.000635">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-crud.spec.ts" name="Encrypted query validation [wa-sqlite] &gt; rejects order on encrypted column (code: order_on_encrypted)" time="0.000245">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-crud.spec.ts" name="Encrypted query validation [wa-sqlite] &gt; rejects group on encrypted column (code: group_on_encrypted)" time="0.00019">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-crud.spec.ts" name="Encrypted query validation [wa-sqlite] &gt; rejects projection on encrypted column (code: projection_on_encrypted)" time="0.00021">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/encrypted-lifecycle.spec.ts" timestamp="2026-10-05T01:22:56.732Z" hostname="liuleideMacBook-Pro-4.local" tests="15" failures="0" errors="0" skipped="0" time="2.38198">
+        <testcase classname="src/__tests__/encrypted-lifecycle.spec.ts" name="Encrypted lifecycle [wa-sqlite] &gt; locked-state rejection &gt; isLocked is true after lock()" time="0.000145">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-lifecycle.spec.ts" name="Encrypted lifecycle [wa-sqlite] &gt; locked-state rejection &gt; read while locked rejects with EncryptedLockedError" time="0.0005549999">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-lifecycle.spec.ts" name="Encrypted lifecycle [wa-sqlite] &gt; locked-state rejection &gt; write while locked rejects with EncryptedLockedError" time="0.000745">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-lifecycle.spec.ts" name="Encrypted lifecycle [wa-sqlite] &gt; relock / unlock cycle (FR-008) &gt; lock then unlock restores read &amp; write capability" time="0.05808">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-lifecycle.spec.ts" name="Encrypted lifecycle [wa-sqlite] &gt; idle timeout lifecycle (FR-005) &gt; auto-locks after the configured idle timeout" time="0.12239">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-lifecycle.spec.ts" name="Encrypted lifecycle [wa-sqlite] &gt; idle timeout lifecycle (FR-005) &gt; re-arms the idle timeout after successful encrypted activity" time="1.3274">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-lifecycle.spec.ts" name="Encrypted lifecycle [wa-sqlite] &gt; idle timeout lifecycle (FR-005) &gt; keeps the keyring unlocked when idleTimeoutMs is zero" time="0.182015">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-lifecycle.spec.ts" name="Encrypted lifecycle [wa-sqlite] &gt; wrong-passphrase lifecycle (FR-005) &gt; wrong passphrase rejects with verifier_mismatch and leaves the keyring locked" time="0.05594">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-lifecycle.spec.ts" name="Encrypted lifecycle [wa-sqlite] &gt; wrong-passphrase lifecycle (FR-005) &gt; read still rejects with locked after the failed unlock" time="0.086115">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-lifecycle.spec.ts" name="Encrypted lifecycle [wa-sqlite] &gt; wrong-passphrase lifecycle (FR-005) &gt; the correct passphrase still recovers after a failed attempt" time="0.12091">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-lifecycle.spec.ts" name="Encrypted lifecycle [wa-sqlite] &gt; undo/redo on encrypted columns (FR-006 / FR-008) &gt; undo restores original plaintext and redo re-applies the rotated value" time="0.005845">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-lifecycle.spec.ts" name="Encrypted lifecycle [wa-sqlite] &gt; undo/redo on encrypted columns (FR-006 / FR-008) &gt; undo while locked rejects with EncryptedLockedError" time="0.057695">
+            <system-err>
+[rxdb-adapter-sqlite-core] Error processing rxdb$rxdb_change change event: [EncryptedLockedError: keyring is locked]
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-lifecycle.spec.ts" name="Encrypted lifecycle [wa-sqlite] &gt; facade on DB with no encrypted columns &gt; unlock throws EncryptedConfigurationError(no_encrypted_columns)" time="0.00036">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-lifecycle.spec.ts" name="Encrypted lifecycle [wa-sqlite] &gt; facade on DB with no encrypted columns &gt; lock throws EncryptedConfigurationError(no_encrypted_columns)" time="0.000135">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-lifecycle.spec.ts" name="Encrypted lifecycle [wa-sqlite] &gt; facade on DB with no encrypted columns &gt; isLocked throws EncryptedConfigurationError(no_encrypted_columns)" time="0.000265">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/encrypted-tamper.spec.ts" timestamp="2026-10-05T01:22:56.733Z" hostname="liuleideMacBook-Pro-4.local" tests="12" failures="0" errors="0" skipped="0" time="0.096705">
+        <testcase classname="src/__tests__/encrypted-tamper.spec.ts" name="Encrypted tamper resistance [wa-sqlite] &gt; cross-row swap fails with auth_failure" time="0.00135">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-tamper.spec.ts" name="Encrypted tamper resistance [wa-sqlite] &gt; cross-column swap fails with auth_failure" time="0.00084">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-tamper.spec.ts" name="Encrypted tamper resistance [wa-sqlite] &gt; cross-table swap fails with auth_failure (RXT-020)" time="0.001825">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-tamper.spec.ts" name="Encrypted tamper resistance [wa-sqlite] &gt; cross-namespace swap fails with auth_failure (RXT-020)" time="0.002735">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-tamper.spec.ts" name="Encrypted tamper resistance [wa-sqlite] &gt; byte-flip in ciphertext segment fails with auth_failure" time="0.00067">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-tamper.spec.ts" name="Encrypted tamper resistance [wa-sqlite] &gt; byte-flip in tag segment fails with auth_failure" time="0.00061">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-tamper.spec.ts" name="Encrypted tamper resistance [wa-sqlite] &gt; byte-flip in iv segment fails with auth_failure" time="0.000645">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-tamper.spec.ts" name="Encrypted tamper resistance [wa-sqlite] &gt; unknown envelope version fails with unsupported_version" time="0.00066">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-tamper.spec.ts" name="Encrypted tamper resistance [wa-sqlite] &gt; unknown algorithm fails with unsupported_algorithm" time="0.00058">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-tamper.spec.ts" name="Encrypted tamper resistance [wa-sqlite] &gt; mismatched kid fails with unknown_kid" time="0.00058">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-tamper.spec.ts" name="Encrypted tamper resistance [wa-sqlite] &gt; malformed envelope (wrong segment count) fails with malformed_envelope" time="0.000475">
+        </testcase>
+        <testcase classname="src/__tests__/encrypted-tamper.spec.ts" name="Encrypted tamper resistance [wa-sqlite] &gt; partial-failure: findMany batch with one tampered row rejects entire batch (no partial rows)" time="0.0022">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/execute_helper.spec.ts" timestamp="2026-10-05T01:22:56.734Z" hostname="liuleideMacBook-Pro-4.local" tests="13" failures="0" errors="0" skipped="0" time="0.09727">
+        <testcase classname="src/__tests__/execute_helper.spec.ts" name="executeHelper &gt; 返回 SELECT 行但不把上一次 DML 的 changes 计入 rowsAffected" time="0.00052">
+        </testcase>
+        <testcase classname="src/__tests__/execute_helper.spec.ts" name="executeHelper &gt; 绑定参数并统计 INSERT 影响行数" time="0.000345">
+        </testcase>
+        <testcase classname="src/__tests__/execute_helper.spec.ts" name="executeHelper &gt; 先等 reset 落地再 bind_collection" time="0.000165">
+        </testcase>
+        <testcase classname="src/__tests__/execute_helper.spec.ts" name="executeHelper &gt; 在执行前拒绝带 bindings 的多语句 SQL" time="0.00026">
+        </testcase>
+        <testcase classname="src/__tests__/execute_helper.spec.ts" name="executeHelper &gt; 保留返回列但无数据行的结果集" time="0.00013">
+        </testcase>
+        <testcase classname="src/__tests__/execute_helper.spec.ts" name="executeHelper &gt; 累计多条 DML 的 rowsAffected" time="0.00008">
+        </testcase>
+        <testcase classname="src/__tests__/execute_helper.spec.ts" name="executeHelper &gt; DDL 不会重复累计上一条 DML 的 rowsAffected" time="0.000075">
+        </testcase>
+        <testcase classname="src/__tests__/execute_helper.spec.ts" name="executeHelper &gt; 不会让 SELECT 或 PRAGMA 重复累计最近一次 DML" time="0.00008">
+        </testcase>
+        <testcase classname="src/__tests__/execute_helper.spec.ts" name="executeHelper &gt; 包装执行阶段的底层错误并保留 SQL" time="0.000255">
+        </testcase>
+        <testcase classname="src/__tests__/execute_helper.spec.ts" name="executeHelper &gt; 无绑定参数也接管 statement 生命周期并等待 finalize" time="0.000125">
+        </testcase>
+        <testcase classname="src/__tests__/execute_helper.spec.ts" name="executeHelper &gt; SQLITE_BUSY 会在有限次数内重试后成功" time="0.03225">
+        </testcase>
+        <testcase classname="src/__tests__/execute_helper.spec.ts" name="executeHelper &gt; SQLITE_BUSY 超过重试上限后仍然抛出并保留 SQL" time="0.06262">
+        </testcase>
+        <testcase classname="src/__tests__/execute_helper.spec.ts" name="executeHelper &gt; 非 SQLITE_BUSY 错误不会重试，直接抛出" time="0.000205">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/public-api.spec.ts" timestamp="2026-10-05T01:22:56.735Z" hostname="liuleideMacBook-Pro-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.00038">
+        <testcase classname="src/__tests__/public-api.spec.ts" name="wa-sqlite public API &gt; 从包根导出公开配置与加载结果类型" time="0.000275">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/setup.spec.ts" timestamp="2026-10-05T01:22:56.735Z" hostname="liuleideMacBook-Pro-4.local" tests="534" failures="0" errors="0" skipped="0" time="13.50999">
+        <testcase classname="src/__tests__/setup.spec.ts" name="bigint/binary client contract [wa-sqlite] &gt; round-trips signed 64-bit bounds and the current Uint8Array view" time="0.0239450001">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="bigint/binary client contract [wa-sqlite] &gt; paginates bigint cursors without gaps or duplicates" time="0.01775">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="bigint/binary client contract [wa-sqlite] &gt; keeps bigint foreign keys through joins and cascades" time="0.018175">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="bigint/binary entity contract [wa-sqlite] &gt; round-trips entity values and paginates bigint ids without gaps" time="0.009635">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="bigint/binary entity contract [wa-sqlite] &gt; isolates binary defaults, applies bigint database defaults and creates typed indexes" time="0.010775">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="bigint/binary entity contract [wa-sqlite] &gt; hydrates bigint foreign keys and preserves cascade delete" time="0.017025">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="bigint/binary entity contract [wa-sqlite] &gt; reads and replays unsafe bigint foreign-key change patches" time="0.018085">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="bigint/binary entity contract [wa-sqlite] &gt; keeps bigint keys through one-to-one and many-to-many entity APIs" time="0.00416">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="bigint/binary entity contract [wa-sqlite] &gt; records typed INSERT/UPDATE/DELETE changes through SQLite JSON1" time="0.003145">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="bigint/binary entity contract [wa-sqlite] &gt; keeps binary history snapshots isolated from later input mutations" time="0.007595">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="bigint/binary entity contract [wa-sqlite] &gt; ignores in-place binary mutation until the property is reassigned" time="0.00901">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="bigint/binary entity contract [wa-sqlite] &gt; preserves bigint and binary values when switching and merging a branch" time="0.017525">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="RxDB SQLite 适配器 [wa-sqlite] &gt; adapter.version() 能返回数据库版本" time="0.00036">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="RxDB SQLite 适配器 [wa-sqlite] &gt; getRxDBChangeSequence() 应该返回当前最大的 sequence 值" time="0.001275">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="RxDB SQLite 适配器 [wa-sqlite] &gt; removeCacheEntity() 应该能安全处理不在缓存中的实体" time="0.000125">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="RxDB SQLite 适配器 [wa-sqlite] &gt; saveMany() 应该能处理空数组" time="0.0009299999">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="RxDB SQLite 适配器 [wa-sqlite] &gt; saveMany() 应该能在事务中处理单个实体" time="0.00117">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="RxDB SQLite 适配器 [wa-sqlite] &gt; removeMany() 应该能处理空数组" time="0.00087">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="RxDB SQLite 适配器 [wa-sqlite] &gt; removeMany() 应该能在事务中处理单个实体" time="0.001355">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="RxDB SQLite 适配器 [wa-sqlite] &gt; transaction() 应该在发生错误时回滚并抛出 RxDBAdapterSqliteError" time="0.00147">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="RxDB SQLite 适配器 [wa-sqlite] &gt; 并发 transaction() 应串行执行而非抛“事务内开事务”" time="0.00414">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="RxDB SQLite 适配器 [wa-sqlite] &gt; 并发 saveMany() 不应死锁且全部落库" time="0.00315">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="SqliteRepository [wa-sqlite] &gt; RxDBChange should be created" time="0.15898">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="SqliteRepository [wa-sqlite] &gt; findByRowIds should use rowId cache for live entities" time="0.05337">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="SqliteRepository [wa-sqlite] &gt; findByRowIds should only query rowIds missing from cache" time="0.05507">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="SqliteRepository [wa-sqlite] &gt; findByRowIds should still return a removed entity kept in the rowId cache (DELETE event relies on this)" time="0.108945">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="SqliteRepository [wa-sqlite] &gt; findByRowIds should re-query a removed cache entry instead of trusting it as a live hit" time="0.10853">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="system schema migration [wa-sqlite] &gt; 升级旧 UUID/plain JSON change，重复执行不改写历史" time="0.134125">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="system schema migration [wa-sqlite] &gt; 迁移失败完整回滚，重新打开后自动重试且不改写 change" time="0.050845">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="system schema migration [wa-sqlite] &gt; 给既有库补 activeKey 列与唯一索引；多 active 时整体回滚" time="0.02294">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="system schema migration [wa-sqlite] &gt; 库已是目标形态时一行都不写" time="0.01517">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="system schema migration [wa-sqlite] &gt; 迁移重建的变更触发器按活动分支写，而不是固定 main" time="0.020365">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="system schema migration [wa-sqlite] &gt; 高版本水位 fail-fast" time="0.00935">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="SqliteClient [wa-sqlite] &gt; execute() 应该在断开连接后抛出错误" time="0.01613">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="SqliteClient - Batch Timeout Configuration [wa-sqlite] &gt; 应该支持自定义 batchTimeout 配置" time="0.01594">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="SqliteClient - Batch Timeout Configuration [wa-sqlite] &gt; 持续写入下仍会在硬上限内强制 flush，不会被无限防抖饿死" time="0.603715">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="create_sqlite_client [wa-sqlite] &gt; should validate options for worker clients" time="0.00078">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="join_sql 关系处理 [wa-sqlite] &gt; try_resolve_relation_path &gt; 应该处理无效的关系路径" time="0.000225">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="join_sql 关系处理 [wa-sqlite] &gt; try_resolve_relation_path &gt; 应该正确解析有效的关系路径" time="0.00008">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="join_sql 关系处理 [wa-sqlite] &gt; try_process_relation_flatmap &gt; 应该处理关系上的 keyValue 字段" time="0.000285">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="join_sql 关系处理 [wa-sqlite] &gt; try_process_relation_flatmap &gt; 应该在没有 keyValue 字段时返回 false" time="0.00007">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="join_sql 关系处理 [wa-sqlite] &gt; MANY_TO_MANY 关系 &gt; 应该正确处理多对多关系查询" time="0.000235">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="join_sql 关系处理 [wa-sqlite] &gt; MANY_TO_MANY 关系 &gt; 应该避免重复添加相同的中间表 JOIN" time="0.0001300001">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="join_sql 关系处理 [wa-sqlite] &gt; MANY_TO_MANY 关系 &gt; 应该为首次访问的实体创建 JOIN 数组缓存" time="0.00009">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="join_sql 关系处理 [wa-sqlite] &gt; orderBy 关系路径的真实执行（SQLC-025） &gt; 按关系字段排序应被 SQLite 接受，且真的按关系字段排序" time="0.00065">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="join_sql 关系处理 [wa-sqlite] &gt; orderBy 关系路径的真实执行（SQLC-025） &gt; desc 方向同样生效" time="0.000305">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="join_sql 关系处理 [wa-sqlite] &gt; orderBy 关系路径的真实执行（SQLC-025） &gt; where 与 orderBy 引用同一关系时结果不重复" time="0.00045">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 规则构建 &gt; 字符串条件 &gt; 生成 in 条件" time="0.000095">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 规则构建 &gt; 字符串条件 &gt; 生成 notIn 条件" time="0.00004">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 规则构建 &gt; 字符串条件 &gt; 生成 between 条件" time="0.000065">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 规则构建 &gt; 字符串条件 &gt; 生成 notBetween 条件" time="0.00003">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 规则构建 &gt; 字符串条件 &gt; 生成等号条件" time="0.000025">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 规则构建 &gt; 字符串条件 &gt; 生成不等号条件" time="0.00003">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 规则构建 &gt; 字符串条件 &gt; 生成 contains 条件" time="0.00008">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 规则构建 &gt; 字符串条件 &gt; 生成 notContains 条件" time="0.00003">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 规则构建 &gt; 字符串条件 &gt; 生成 startsWith 条件" time="0.00003">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 规则构建 &gt; 字符串条件 &gt; 生成 endsWith 条件" time="0.00003">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 规则构建 &gt; 日期条件 &gt; 生成大于日期条件" time="0.00004">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 规则构建 &gt; 关系字段条件 &gt; 生成关联字段等值条件" time="0.000035">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 特殊情况 &gt; 空数组 in 匹配空集 → 恒假 1 = 0" time="0.000025">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 特殊情况 &gt; 空数组 notIn 匹配空集 → 恒真 1 = 1" time="0.00004">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 特殊情况 &gt; 等于 null 转换为 is null" time="0.000025">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 特殊情况 &gt; 不等于 null 转换为 is not null" time="0.00002">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 特殊情况 &gt; null 操作符（不需要 value）" time="0.00003">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 特殊情况 &gt; notNull 操作符（不需要 value）" time="0.000025">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 特殊情况 &gt; null 和 notNull 操作符组合使用" time="0.00003">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 特殊情况 &gt; 日期 between 转换为 ISO 字符串" time="0.00004">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; buildRuleGroup 特殊情况 &gt; 布尔 true 转换为 1" time="0.00002">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; 生成 SQL 端到端 &gt; keyValue contains 对象生成 json_extract OR 条件" time="0.000255">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; 生成 SQL 端到端 &gt; keyValue notContains 对象生成 AND + instr = 0 条件" time="0.00017">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; 生成 SQL 端到端 &gt; stringArray in 生成 json_each 子查询" time="0.000205">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; 生成 SQL 端到端 &gt; 生成 idCard 关联 JOIN" time="0.000155">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; 生成 SQL 端到端 &gt; count 配合 groupBy 抛出异常" time="0.00037">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; 生成 SQL 端到端 &gt; keyValue 字段点号访问生成 json_extract" time="0.00047">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; 生成 SQL 端到端 &gt; keyValue 嵌套字段路径生成正确的 json_extract" time="0.000125">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; nullable 数组列负操作符的 SQL/内存对称（SQLC-008） &gt; stringArray 为 NULL 的行：订阅期间的每一次推送与 SQL 首次查询都不得包含它" time="0.10599">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; nullable 数组列负操作符的 SQL/内存对称（SQLC-008） &gt; numberArray 为 NULL 的行同样被 notIn 排除" time="0.001695">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; nullable 数组列负操作符的 SQL/内存对称（SQLC-008） &gt; in 操作符对 NULL 行的排除语义不受影响" time="0.001435">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; 字符串匹配的 SQL/内存语义矩阵（SQLC-007） &gt; contains 里的 `_` 是字面量而不是单字符通配符" time="0.00052">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; 字符串匹配的 SQL/内存语义矩阵（SQLC-007） &gt; contains 里的 `%` 是字面量而不是任意串通配符" time="0.000235">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; 字符串匹配的 SQL/内存语义矩阵（SQLC-007） &gt; contains 大小写敏感" time="0.0002">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; 字符串匹配的 SQL/内存语义矩阵（SQLC-007） &gt; startsWith 同时受通配符与大小写约束" time="0.000395">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; 字符串匹配的 SQL/内存语义矩阵（SQLC-007） &gt; endsWith 同时受通配符与大小写约束" time="0.00046">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; 字符串匹配的 SQL/内存语义矩阵（SQLC-007） &gt; 取反算子与正向算子互补" time="0.00052">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; 字符串匹配的 SQL/内存语义矩阵（SQLC-007） &gt; 空串子串匹配与 JS 的 includes(&quot;&quot;) 一致：命中所有非 NULL 行" time="0.0005">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; 字符串匹配的 SQL/内存语义矩阵（SQLC-007） &gt; JS 增量匹配与 SQL 首次查询对同一批数据结论一致" time="0.10571">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; EXISTS 子查询与树递归成员的关系路径（SQLC-010） &gt; EXISTS 子查询的 where 支持关系路径" time="0.000745">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; EXISTS 子查询与树递归成员的关系路径（SQLC-010） &gt; NOT EXISTS 子查询的 where 支持关系路径" time="0.000305">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; EXISTS 子查询与树递归成员的关系路径（SQLC-010） &gt; EXISTS 子查询的 where 里外键路径绑定到子查询根表" time="0.00029">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; EXISTS 子查询与树递归成员的关系路径（SQLC-010） &gt; MANY_TO_MANY EXISTS 子查询的 where 支持关系路径" time="0.0004450001">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; EXISTS 子查询与树递归成员的关系路径（SQLC-010） &gt; 递归 CTE 的递归成员 where 支持关系路径" time="0.001535">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; EXISTS 子查询与树递归成员的关系路径（SQLC-010） &gt; 递归成员 where 的 children.&lt;字段&gt; 仍是自身列而非关系路径" time="0.00047">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="query_sql [wa-sqlite] &gt; EXISTS 子查询与树递归成员的关系路径（SQLC-010） &gt; 递归成员 where 的关系路径与自身列可以组合" time="0.000405">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="create_table_sql - 索引 [wa-sqlite] &gt; 单列索引 &gt; 应该为单列索引生成正确的 SQL" time="0.00019">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="create_table_sql - 索引 [wa-sqlite] &gt; 组合索引 &gt; 应该为组合索引生成正确的 SQL" time="0.0002">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="create_table_sql - 索引 [wa-sqlite] &gt; 多个索引 &gt; 应该为多个索引生成正确的 SQL" time="0.00012">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="create_table_sql - 索引 [wa-sqlite] &gt; 唯一索引 &gt; 应该为唯一索引生成正确的 SQL" time="0.000085">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="create_table_sql - 索引 [wa-sqlite] &gt; 归一化唯一索引 &gt; 每一列都包成 lower(COALESCE(CAST(… AS TEXT), &apos;&apos;))" time="0.000105">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="create_table_sql - 索引 [wa-sqlite] &gt; 归一化唯一索引 &gt; 未声明 normalized 的索引保持裸列，不被顺带改写" time="0.0000599999">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="transaction_sqlite_result [wa-sqlite] &gt; transaction_sqlite_result &gt; 应该从 SQLite 结果创建新实体" time="0.00035">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="transaction_sqlite_result [wa-sqlite] &gt; transaction_sqlite_result &gt; 应该处理多行结果" time="0.000125">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="transaction_sqlite_result [wa-sqlite] &gt; transaction_sqlite_result &gt; 应该重用已存在的实体引用" time="0.000085">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="transaction_sqlite_result [wa-sqlite] &gt; transaction_sqlite_result &gt; 当 forcedUpdate=true 时应该更新已存在的实体" time="0.00015">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="transaction_sqlite_result [wa-sqlite] &gt; transaction_sqlite_result &gt; 当 forcedUpdate=false 时不应该更新已存在的实体" time="0.000135">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="transaction_sqlite_result [wa-sqlite] &gt; transaction_sqlite_result &gt; 应该缓存带有 rowId 的实体" time="0.00013">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="transaction_sqlite_result [wa-sqlite] &gt; transaction_sqlite_result &gt; 应该处理空结果" time="0.00006">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="transaction_sqlite_result [wa-sqlite] &gt; update_entity_from_sqlite_result &gt; 应该更新已存在的实体" time="0.000105">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="transaction_sqlite_result [wa-sqlite] &gt; update_entity_from_sqlite_result &gt; 不应该创建新实体" time="0.000055">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="transaction_sqlite_result [wa-sqlite] &gt; update_entity_from_sqlite_result &gt; 应该更新实体的 origin 状态" time="0.000075">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="transaction_sqlite_result [wa-sqlite] &gt; update_entity_from_sqlite_result &gt; 应该处理空结果" time="0.00011">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="transaction_sqlite_result [wa-sqlite] &gt; remove_entity_ids_from_cache &gt; 应该将实体标记为已删除" time="0.000065">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="transaction_sqlite_result [wa-sqlite] &gt; remove_entity_ids_from_cache &gt; 应该处理多个实体 ID" time="0.000065">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="transaction_sqlite_result [wa-sqlite] &gt; remove_entity_ids_from_cache &gt; 不应该抛出错误当实体不存在时" time="0.00006">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="transaction_sqlite_result [wa-sqlite] &gt; remove_entity_ids_from_cache &gt; 应该处理空 ID 数组" time="0.000045">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="transaction_sqlite_result [wa-sqlite] &gt; remove_entity_ids_from_cache &gt; 只应该标记存在的实体" time="0.000045">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; get() 能查询到指定 Todo" time="0.000345">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; findOneOrFail() 能找到指定 Todo" time="0.00029">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; findOneOrFail() 未找到数据时抛出异常" time="0.0003">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; find() 按 id 查询返回指定 Todo" time="0.00021">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; find(completed=false) 返回未完成 Todo" time="0.000155">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; find() 规则为空时返回全部 Todo" time="0.000165">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; findOne() 能返回匹配项" time="0.00015">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; findOne() 未命中时返回 undefined" time="0.00012">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; findByCursor() 支持分页" time="0.00731">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; findAll() 返回符合条件的 Todo" time="0.000225">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; save() 能保存新的 Todo 实体" time="0.000415">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; save() 能更新已存在的 Todo" time="0.00053">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; remove() 会标记 Todo 为已删除" time="0.00158">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; count() 返回正确数量" time="0.00029">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; orderBy desc 实现 Todo 降序排序" time="0.00847">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; orderBy asc 实现 Todo 升序排序" time="0.000735">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; save() 能更新 completed 状态" time="0.001105">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; saveMany() 支持批量保存" time="0.001685">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; saveMany() 在超过 SQLite 变量上限时会自动分批" time="0.011155">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; removeMany() 支持批量删除" time="0.00276">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Todo 实体 CRUD [wa-sqlite] &gt; saveMany() 支持批量更新" time="0.00348">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 一对一关系查询 &gt; count() 统计绑定身份证的用户" time="0.000545">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 一对一关系查询 &gt; find() 查询关联身份证的用户" time="0.00034">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 一对一关系查询 &gt; findAll() 查询所有关联身份证的用户" time="0.0002">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 一对一关系查询 &gt; findOne() 查询单个关联身份证的用户" time="0.00018">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 一对一关系查询 &gt; findOneOrFail() 查询关联身份证的用户" time="0.000165">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 一对一关系查询 &gt; 查询身份证号码为空的用户" time="0.000565">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 一对一关系查询 &gt; find() 支持 contains 模糊匹配" time="0.00021">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 一对多关系查询 &gt; find() 查询拥有指定订单的用户" time="0.000405">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 一对多关系查询 &gt; find() 支持 orders.number in 多值匹配" time="0.00035">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 一对多关系查询 &gt; find() 支持 orders.amount 大于条件" time="0.00029">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 一对多关系查询 &gt; find() 支持多订单号组合查询" time="0.00025">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 多对一关系查询 &gt; find() 查询拥有指定用户的订单" time="0.000525">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 多对一关系查询 &gt; find() 支持金额大于条件" time="0.00028">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 多对一关系查询 &gt; find() 支持组合条件查询" time="0.000235">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 多对多关系查询 &gt; find() 查询属于指定分类的订单项" time="0.00057">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 多对多关系查询 &gt; find() 查询包含指定分类订单项的订单" time="0.000275">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 多对多关系查询 &gt; find() 查询购买特定分类商品的用户" time="0.00031">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 多对多关系查询 &gt; find() 查询用户购买的分类" time="0.00028">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 多对多关系查询 &gt; find() 支持分类 in 查询" time="0.000235">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 多对多关系查询 &gt; find() 支持价格大于条件" time="0.00018">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 多对多关系查询 &gt; find() 支持分类与价格组合条件" time="0.000215">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 复杂查询条件测试 &gt; find() 支持 AND/OR 组合器" time="0.00062">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 复杂查询条件测试 &gt; find() 支持嵌套关联字段查询" time="0.000385">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 复杂查询条件测试 &gt; 使用LIKE操作符查询" time="0.000195">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 复杂查询条件测试 &gt; find() 支持 between 区间查询" time="0.000285">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 边界情况测试 &gt; find() 查询不存在的用户返回空数组" time="0.00015">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 边界情况测试 &gt; find() 条件为空时返回全部用户" time="0.0002">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 边界情况测试 &gt; find() IN 条件为空时返回空数组" time="0.00013">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; 分组查询示例 &gt; 查询商品 SKU 结构成功" time="0.000425">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; ONE_TO_ONE 关系 &gt; 应该查询有 IdCard 的 User (exists)" time="0.000535">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; ONE_TO_ONE 关系 &gt; 应该查询没有 IdCard 的 User (notExists)" time="0.000355">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; ONE_TO_MANY 关系 &gt; 应该查询有订单的 User (exists)" time="0.000265">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; ONE_TO_MANY 关系 &gt; 应该查询没有订单的 User (notExists)" time="0.00029">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; 带条件的 EXISTS 查询 &gt; 应该支持在 EXISTS 子查询中使用 where 条件" time="0.01152">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; 带条件的 EXISTS 查询 &gt; 应该支持在 NOT EXISTS 子查询中使用 where 条件" time="0.000355">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; 带条件的 EXISTS 查询 &gt; 应该支持复杂的 where 条件组合" time="0.00139">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; COUNT 查询 &gt; 应该正确统计满足 EXISTS 条件的记录数" time="0.000215">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; COUNT 查询 &gt; 应该正确统计满足 NOT EXISTS 条件的记录数" time="0.000165">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; MANY_TO_MANY 关系 (Category-OrderItem) &gt; 应该查询有订单项的分类 (MANY_TO_MANY exists)" time="0.000265">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; MANY_TO_MANY 关系 (Category-OrderItem) &gt; 应该查询没有订单项的分类 (MANY_TO_MANY notExists)" time="0.00019">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; MANY_TO_MANY 关系 (Category-OrderItem) &gt; 应该查询有特定产品名称的分类 (WHERE 条件)" time="0.00024">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; MANY_TO_MANY 关系 (Category-OrderItem) &gt; 应该支持复杂 WHERE 条件 (AND)" time="0.000195">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; MANY_TO_MANY 关系 (Category-OrderItem) &gt; 应该支持 NOT EXISTS 带 WHERE" time="0.000215">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; MANY_TO_MANY 关系 (Category-OrderItem) &gt; 应该支持 COUNT 查询 (MANY_TO_MANY)" time="0.000155">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; MANY_TO_MANY 关系 (Category-OrderItem) &gt; 应该支持反向关系查询 (OrderItem.categories exists)" time="0.000215">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 实体 CRUD [wa-sqlite] &gt; EXISTS 查询操作符 &gt; MANY_TO_MANY 关系 (Category-OrderItem) &gt; 应该支持反向关系 NOT EXISTS" time="0.0002">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 排序 CRUD [wa-sqlite] &gt; 按年龄排序查询用户" time="0.002035">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 排序 CRUD [wa-sqlite] &gt; 按姓名降序排序查询用户" time="0.00136">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Shop 排序 CRUD [wa-sqlite] &gt; 复合排序查询" time="0.001185">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="findByCursor 跨过 NULL 键 [wa-sqlite] &gt; asc：正反两个方向逐行翻完与一次查全量逐行一致" time="0.00779">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="findByCursor 跨过 NULL 键 [wa-sqlite] &gt; desc：正反两个方向逐行翻完与一次查全量逐行一致" time="0.00173">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; 创建并保存 TypeDemo 实体" time="0.00074">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; get() 能查询到指定 TypeDemo" time="0.000255">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; string 属性能正确保存和查询" time="0.00034">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; number 属性能正确保存和查询" time="0.000355">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; integer 属性能正确保存和查询" time="0.0003">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; boolean 属性能正确保存和查询" time="0.0003">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; date 属性能正确保存和查询" time="0.000345">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; stringArray 属性能正确保存和查询" time="0.000185">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; numberArray 属性能正确保存和查询" time="0.000185">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; keyValue 属性能正确保存和查询" time="0.0002">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; json 属性能正确保存和查询" time="0.00019">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; enum 属性能正确保存和查询" time="0.00274">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; enum 类型查询 &gt; = 等于查询" time="0.00024">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; enum 类型查询 &gt; != 不等于查询" time="0.00025">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; enum 类型查询 &gt; null 为空查询" time="0.00022">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; enum 类型查询 &gt; notNull 不为空查询" time="0.000215">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; enum 类型查询 &gt; in 在列表中查询" time="0.00024">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; enum 类型查询 &gt; notIn 不在列表中查询" time="0.00022">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; 更新各种类型属性" time="0.001985">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; findAll() 返回所有 TypeDemo" time="0.00044">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; count() 返回正确数量" time="0.00021">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; remove() 标记 TypeDemo 为已删除" time="0.00121">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; 批量保存不同类型的数据" time="0.004835">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; 字符串操作符 startsWith 查询" time="0.00073">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; 数字操作符 &gt; 和 &lt; 查询" time="0.000895">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="类型测试 CRUD [wa-sqlite] &gt; orderBy 按不同字段排序" time="0.001">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="columnName 支持 CRUD [wa-sqlite] &gt; CREATE TABLE SQL 生成 &gt; 属性 columnName 应出现在 CREATE TABLE 中" time="0.00023">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="columnName 支持 CRUD [wa-sqlite] &gt; CREATE TABLE SQL 生成 &gt; 关系 columnName 应出现在外键列定义中" time="0.000075">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="columnName 支持 CRUD [wa-sqlite] &gt; CREATE TABLE SQL 生成 &gt; ONE_TO_ONE 关系自定义 columnName" time="0.00019">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="columnName 支持 CRUD [wa-sqlite] &gt; CREATE TABLE SQL 生成 &gt; 唯一索引应使用 columnName" time="0.0001">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="columnName 支持 CRUD [wa-sqlite] &gt; transformEntityValueToSql - JS→SQL 转换 &gt; 属性应映射到 columnName" time="0.00047">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="columnName 支持 CRUD [wa-sqlite] &gt; transformEntityValueToSql - JS→SQL 转换 &gt; 外键应映射到 relation.columnName" time="0.000125">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="columnName 支持 CRUD [wa-sqlite] &gt; normalizeCreateEntity &gt; 创建数据应使用 columnName 作为键" time="0.00009">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="columnName 支持 CRUD [wa-sqlite] &gt; normalizeUpdateEntity &gt; 更新数据应使用 columnName 作为键" time="0.000065">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="columnName 支持 CRUD [wa-sqlite] &gt; getEntityObjectFromResult - SQL→JS 反转换 &gt; 应将 columnName 映射回 JS 属性名" time="0.000105">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="columnName 支持 CRUD [wa-sqlite] &gt; 端到端 CRUD &gt; 创建实体应正确使用 columnName" time="0.00062">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="columnName 支持 CRUD [wa-sqlite] &gt; 端到端 CRUD &gt; 带关系的实体创建" time="0.00064">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="columnName 支持 CRUD [wa-sqlite] &gt; 端到端 CRUD &gt; 更新实体应正确使用 columnName" time="0.001245">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="columnName 支持 CRUD [wa-sqlite] &gt; 端到端 CRUD &gt; 查询应支持通过自定义 columnName 字段过滤" time="0.000255">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="columnName 支持 CRUD [wa-sqlite] &gt; 端到端 CRUD &gt; count 查询应支持自定义 columnName 字段" time="0.00015">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="columnName 支持 CRUD [wa-sqlite] &gt; 端到端 CRUD &gt; ONE_TO_ONE 关系 CRUD" time="0.00091">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="entity id 变更行为 [wa-sqlite] &gt; new 出来的 entity 可以改 id" time="0.00025">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="entity id 变更行为 [wa-sqlite] &gt; 改了 id 再 save，数据库里存的是改后的 id" time="0.00084">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="entity id 变更行为 [wa-sqlite] &gt; save 后再改 id，实体 id 在内存里变了但 UPDATE 因 WHERE id = 新id 匹配不到行而无效" time="0.00112">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="SKU 属性唯一性 [wa-sqlite] &gt; 属性值不属于声明属性时会被数据库拒绝" time="0.000695">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="SKU 属性唯一性 [wa-sqlite] &gt; 同一 SKU 上同一属性再挂一个值会被数据库拒绝" time="0.000835">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="SKU 属性唯一性 [wa-sqlite] &gt; 同一 SKU 上不同属性、以及不同 SKU 复用同一属性都仍然合法" time="0.000745">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="自定义主键列 [wa-sqlite] &gt; 建表：主键落到自定义物理列上" time="0.002605">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="自定义主键列 [wa-sqlite] &gt; CRUD：insert / find / update / remove 全部走自定义主键列" time="0.0038699999">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="自定义主键列 [wa-sqlite] &gt; CRUD：批量更新与批量删除按自定义主键列定位" time="0.0102399999">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="自定义主键列 [wa-sqlite] &gt; 关系：MANY_TO_ONE / ONE_TO_MANY 的 JOIN 与 EXISTS 用自定义主键列" time="0.0035599999">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="自定义主键列 [wa-sqlite] &gt; 关系：MANY_TO_MANY 的中间表 JOIN 用自定义主键列" time="0.00358">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="自定义主键列 [wa-sqlite] &gt; 事件：change 表按自定义主键列记录 entityId" time="0.00267">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="自定义主键列 [wa-sqlite] &gt; 版本切换：切回旧分支时按自定义主键列回滚" time="0.011505">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="关系集成测试 [wa-sqlite] &gt; MANY_TO_MANY 关系测试 &gt; 基础关系操作 &gt; 应该创建并保存多对多关系" time="0.01127">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="关系集成测试 [wa-sqlite] &gt; MANY_TO_MANY 关系测试 &gt; 基础关系操作 &gt; 应该从两个方向建立关系" time="0.024135">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="关系集成测试 [wa-sqlite] &gt; MANY_TO_MANY 关系测试 &gt; 删除关系操作 - 待实现 &gt; 应该正确删除通过 add 创建的关系" time="0.021385">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="关系集成测试 [wa-sqlite] &gt; MANY_TO_MANY 关系测试 &gt; 删除关系操作 - 待实现 &gt; 应该正确处理多次添加和删除" time="0.0419">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="关系集成测试 [wa-sqlite] &gt; MANY_TO_MANY 关系测试 &gt; 关系缓存验证 &gt; 应该在 EntityStatus 中正确维护关系缓存" time="0.0009">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="关系集成测试 [wa-sqlite] &gt; MANY_TO_MANY 关系测试 &gt; 关系缓存验证 &gt; 应该在删除关系后更新缓存" time="0.021055">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="关系集成测试 [wa-sqlite] &gt; MANY_TO_MANY 关系测试 &gt; 批量关系操作 &gt; 应该处理一个 OrderItem 关联多个 Category" time="0.02085">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="关系集成测试 [wa-sqlite] &gt; MANY_TO_MANY 关系测试 &gt; 批量关系操作 &gt; 应该处理一个 Category 关联多个 OrderItem" time="0.021275">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="关系集成测试 [wa-sqlite] &gt; MANY_TO_MANY 关系测试 &gt; 字段映射一致性验证 &gt; 应该验证 nameA 和 nameB 的映射一致性" time="0.03039">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="关系集成测试 [wa-sqlite] &gt; 多个同类型关系的缓存清理测试 &gt; 设置 idCardId = null 不应该影响其他关系数据" time="0.508545">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="关系集成测试 [wa-sqlite] &gt; 多个同类型关系的缓存清理测试 &gt; EntityStatus 的 getRelationCache 使用相同 relation 对象应返回相同缓存" time="0.0054">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="关系集成测试 [wa-sqlite] &gt; 多个同类型关系的缓存清理测试 &gt; EntityStatus 的 getRelationCache 使用不同 relation 对象应返回不同缓存" time="0.00185">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="关系集成测试 [wa-sqlite] &gt; 关系外键设置为 null 时自动清理缓存 &gt; 设置 xxxId = null 后，通过关系字段的查询应该正确更新" time="0.81031">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="关系集成测试 [wa-sqlite] &gt; 关系外键设置为 null 时自动清理缓存 &gt; 直接设置 xxxId = null 而不通过 xxx$.remove()" time="0.0030549999">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="关系集成测试 [wa-sqlite] &gt; 两用户两卡交叉赋值会被数据库拒绝" time="0.002045">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; findDescendants() level=0 或 undefined 返回当前节点" time="0.000595">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; findDescendants() 无参数默认返回所有根节点" time="0.00039">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; findDescendants() 支持按层级限制" time="0.00071">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; findDescendants() 支持条件过滤" time="0.000325">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; findDescendants() 无匹配时仅返回当前节点" time="0.000235">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; countDescendants() level=0 统计所有根节点（不包含后代）" time="0.00042">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; countDescendants() 支持按层级统计" time="0.000395">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; countAncestors() 统计全部祖先（不包含当前节点）" time="0.000285">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; countAncestors() 指定层级统计祖先（不包含当前节点）" time="0.000195">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; countDescendants() level=1 只统计直接子节点（不包含当前节点）" time="0.000175">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; countDescendants() level=0 统计直接后代（不包含当前节点）" time="0.000165">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; findAncestors() 支持层级限制" time="0.000645">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; hasChildren 属性正确反映节点是否有子节点" time="0.00114">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; hasChildren 属性类型验证" time="0.00086">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; hasChildren 反映子节点变化（通过 findDescendants 查询）" time="0.000765">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; hasChildren 在普通 find() 查询中正确返回" time="0.00032">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; hasChildren 在 get() 单个实体查询中正确返回" time="0.00029">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; hasChildren 在动态添加子节点后更新" time="0.05331">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; hasChildren 在删除所有子节点后更新" time="0.1067600001">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树形操作 &gt; hasChildren 在批量查询中对所有节点正确计算" time="0.000575">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 不传 entityId 的场景 &gt; findDescendants() 不传 entityId 也不传 level 应返回所有树的全部节点" time="0.00496">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 不传 entityId 的场景 &gt; findDescendants() 不传 entityId + level=1 应只返回根节点和直接子节点" time="0.005365">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 不传 entityId 的场景 &gt; findDescendants() 主表关联子表查询时，多条子记录不应导致主表记录重复" time="0.00633">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 不传 entityId 的场景 &gt; findDescendants() 不传 entityId + where 条件应过滤所有树" time="0.0048850001">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 不传 entityId 的场景 &gt; findDescendants() 不传 entityId 结果按 sortOrder 排序" time="0.00455">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 不传 entityId 的场景 &gt; countDescendants() 不传 entityId 应统计所有根节点及其后代" time="0.004195">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 不传 entityId 的场景 &gt; countDescendants() 不传 entityId + level=1 应只统计根节点和直接子节点" time="0.004175">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 边界情况和错误处理 &gt; findDescendants() 传入不存在的 entityId 应只返回该节点或空数组" time="0.000385">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 边界情况和错误处理 &gt; countDescendants() 传入不存在的 entityId 应返回 0（SQLC-026）" time="0.00029">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 边界情况和错误处理 &gt; findAncestors() 传入不存在的 entityId 应返回空数组" time="0.0002399999">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 边界情况和错误处理 &gt; countAncestors() 传入不存在的 entityId 应返回 0（SQLC-026）" time="0.000205">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 边界情况和错误处理 &gt; findDescendants() level 为负数应同步抛错，不裁剪成 0" time="0.000195">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 边界情况和错误处理 &gt; findDescendants() level 为极大值应正常工作" time="0.000335">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 边界情况和错误处理 &gt; countDescendants() 不传 level 应比 level=0 多算出后代" time="0.00036">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 边界情况和错误处理 &gt; findAncestors() 查询根节点应只返回根节点本身" time="0.00025">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 边界情况和错误处理 &gt; countAncestors() 查询根节点应返回 0（不包含自身）" time="0.00019">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; findAncestors 完整测试 &gt; findAncestors() level=0 应返回当前节点" time="0.000385">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; findAncestors 完整测试 &gt; findAncestors() 支持 where 条件过滤" time="0.00036">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; findAncestors 完整测试 &gt; findAncestors() 结果应按从近到远排序" time="0.00032">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; findAncestors 完整测试 &gt; findAncestors() 不传 level 应返回所有祖先" time="0.000285">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; findAncestors 完整测试 &gt; findAncestors() 应返回 hasChildren 属性，所有祖先节点（除叶子节点）都应有子节点" time="0.000355">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; findAncestors 完整测试 &gt; findAncestors() hasChildren 属性应准确反映实时状态" time="0.053885">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 复杂 where 条件测试 &gt; findDescendants() 支持多条件 AND 组合" time="0.000455">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 复杂 where 条件测试 &gt; findDescendants() 支持 OR combinator" time="0.00036">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 复杂 where 条件测试 &gt; findDescendants() 支持 contains operator" time="0.00033">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 复杂 where 条件测试 &gt; countDescendants() 支持复杂 where 条件" time="0.00029">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 动态更新场景测试 &gt; 添加子节点后 countDescendants 应增加" time="0.001325">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 动态更新场景测试 &gt; 删除子节点后 countDescendants 应减少" time="0.000765">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 动态更新场景测试 &gt; 移动节点后 findDescendants 应反映新的树结构" time="0.003235">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 动态更新场景测试 &gt; 删除最后一个子节点后 countDescendants 应变为 0" time="0.00223">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; countAncestors 完整测试 &gt; countAncestors() level=0 应返回 0（只查当前节点，count 不包含自身）" time="0.00034">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; countAncestors 完整测试 &gt; countAncestors() 根节点应返回 0" time="0.00024">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; countAncestors 完整测试 &gt; countAncestors() 传 level=100 应统计所有祖先" time="0.00019">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 排序和顺序测试 &gt; findDescendants() 同层级结果顺序可能不固定" time="0.00047">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 排序和顺序测试 &gt; findAncestors() 结果应按距离排序（从近到远）" time="0.001895">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 排序和顺序测试 &gt; findDescendants() sortOrder 为 null 的节点应排在最后" time="0.001725">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 关系查询去重测试 &gt; findDescendants() 通过子表字段过滤时，主表记录不应重复" time="0.00068">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 关系查询去重测试 &gt; findDescendants() 指定 entityId 通过子表字段过滤时，主表记录不应重复" time="0.00039">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 关系查询去重测试 &gt; findDescendants() 使用 OR combinator 时，主表记录不应重复" time="0.001835">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 关系查询去重测试 &gt; countDescendants() 通过子表字段过滤时应正确统计（不重复计数）" time="0.00078">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 关系查询去重测试 &gt; findAncestors() 通过父表字段过滤时，结果不应重复" time="0.00186">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; find() 关联字段查询 &gt; 支持通过 children 条件查询且不重复返回主表记录" time="0.000385">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 自引用关系查询 &gt; 支持通过 children.title contains 查询" time="0.00196">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 自引用关系查询 &gt; 支持通过 parent.title 查询（反向关系）" time="0.001895">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 自引用关系查询 &gt; 支持组合条件查询（自身字段 + 子节点字段）" time="0.003115">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 自引用关系查询 &gt; 空结果查询不应报错" time="0.0003049999">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 自引用关系查询 &gt; 支持 limit 和 offset" time="0.007">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 自引用关系查询 &gt; 支持 orderBy 排序" time="0.00286">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 自引用关系查询 &gt; 支持 in 操作符查询多个值" time="0.00433">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 自引用关系查询 &gt; 支持 startsWith 和 endsWith 操作符" time="0.00333">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 自引用关系查询 &gt; 支持 notContains 操作符" time="0.00349">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 自引用关系查询 &gt; 支持 != null 操作符查询" time="0.002865">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 自引用关系查询 &gt; 支持嵌套 RuleGroup (AND 包含 OR)" time="0.004215">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 自引用关系查询 &gt; 支持 count() 查询使用关系字段" time="0.001625">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 自引用关系查询 &gt; 支持 findOne() 查询使用关系字段" time="0.00188">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 自引用关系查询 &gt; 根节点查询 parent 字段应返回空结果" time="0.000555">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 自引用关系查询 &gt; 同时使用 parent 和 children 字段查询" time="0.00171">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 自引用关系查询 &gt; 比较操作符测试 (sortOrder 字段)" time="0.002955">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 基础级联删除 &gt; 删除父节点应自动删除所有子节点" time="0.00534">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 基础级联删除 &gt; 删除父节点应级联删除多层子孙节点" time="0.00422">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 基础级联删除 &gt; 删除中间节点应级联删除其下所有后代，但保留祖先" time="0.00425">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 复杂树结构级联删除 &gt; 删除拥有多个子树的父节点应删除所有子树" time="0.005075">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 复杂树结构级联删除 &gt; 删除其中一个分支不应影响其他分支" time="0.004065">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 复杂树结构级联删除 &gt; 深层嵌套结构级联删除应完全清理" time="0.004575">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 级联删除与计数查询 &gt; 删除后 countDescendants 应返回正确的数量" time="0.003775">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 级联删除与计数查询 &gt; 删除根节点后 countDescendants 应返回 0（SQLC-026）" time="0.00433">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 级联删除与计数查询 &gt; 删除后 findDescendants 应返回正确的剩余节点" time="0.00517">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 级联删除与 hasChildren 属性 &gt; 删除所有子节点后 hasChildren 应变为 false" time="0.003815">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 级联删除与 hasChildren 属性 &gt; 级联删除后父节点的 hasChildren 应正确更新" time="0.00293">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 边界情况和错误处理 &gt; 删除叶子节点（无子节点）不应产生错误" time="0.001975">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 边界情况和错误处理 &gt; 删除已删除的节点应抛出错误或返回正确状态" time="0.001885">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 边界情况和错误处理 &gt; 同时删除父节点和子节点不应产生冲突" time="0.00325">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 多根树级联删除 &gt; 删除一棵树不应影响其他独立的树" time="0.00521">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 多根树级联删除 &gt; 批量删除多个根节点应正确级联" time="0.01007">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 级联删除与条件查询 &gt; 删除后 where 条件查询应排除已删除节点" time="0.003275">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构 [wa-sqlite] &gt; 树结构 - 级联删除场景 &gt; 级联删除与排序 &gt; 删除节点后剩余节点的排序应保持一致" time="0.003155">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; 级联操作默认行为测试 &gt; 场景1: ONE_TO_ONE 关系默认 CASCADE delete &gt; 删除用户时应该级联删除用户资料（仅当外键在 UserProfile 上）" time="0.00198">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; 级联操作默认行为测试 &gt; 场景2: ONE_TO_MANY 关系默认 CASCADE delete &gt; 删除订单时应该级联删除所有订单项（如果外键 onDelete=CASCADE）" time="0.001285">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; 级联操作默认行为测试 &gt; 场景2: ONE_TO_MANY 关系默认 CASCADE delete &gt; 订单项的外键应该阻止删除有订单项的订单（默认 RESTRICT）" time="0.00075">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; 级联操作默认行为测试 &gt; 场景3: MANY_TO_ONE nullable 关系默认 SET_NULL &gt; 删除分类时应该将产品的 categoryId 设置为 NULL" time="0.000995">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; 级联操作默认行为测试 &gt; 场景4: 用户覆盖默认级联操作 &gt; QueryCache upsert 不得级联删除现有子记录" time="0.005615">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; 级联操作默认行为测试 &gt; 场景4: 用户覆盖默认级联操作 &gt; QueryCache upsert 的非主键 UNIQUE 冲突不得删除另一条记录" time="0.01267">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; 级联操作默认行为测试 &gt; 场景4: 用户覆盖默认级联操作 &gt; 显式设置 CASCADE delete 应该生效" time="0.001435">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; 级联操作默认行为测试 &gt; 验证生成的 SQL 包含级联配置 &gt; 应该能够查询 SQLite schema 验证外键约束" time="0.000145">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; 级联操作默认行为测试 &gt; 验证生成的 SQL 包含级联配置 &gt; 应该能够查询外键约束列表" time="0.00009">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; 级联操作默认行为测试 &gt; 性能和边界测试 &gt; 级联删除应该在合理时间内完成" time="0.00267">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; 级联操作默认行为测试 &gt; 性能和边界测试 &gt; 循环引用不应该导致无限递归" time="0.000035">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; mutations 批量更新不同值 &gt; 相同字段不同值：每个实体应保留各自的更新值" time="0.02229">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; mutations 批量更新不同值 &gt; 模拟画布位置批量更新：多字段不同值" time="0.02166">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; mutations 批量更新不同值 &gt; 混合场景：部分相同值 + 部分不同值" time="0.02201">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; findByCursor 增量算法测试 &gt; 布尔排序字段的 after 游标不应重复边界实体" time="0.00231">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; findByCursor 增量算法测试 &gt; 场景1: after 游标 + 创建新实体 - 新实体应该出现在结果集中" time="0.15978">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; findByCursor 增量算法测试 &gt; 场景2: before 游标 + 创建新实体 - 新实体应该出现在结果集中" time="0.16042">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; findByCursor 增量算法测试 &gt; 场景3: 无游标 + 创建新实体 - 新实体应该按排序插入" time="0.16271">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; findByCursor 增量算法测试 &gt; 场景4: 创建不匹配 where 条件的实体 - 不应该出现在结果中" time="0.414265">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; findByCursor 增量算法测试 &gt; 场景5: 批量创建多个实体 - 应该全部正确插入" time="0.176595">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; findByCursor 增量算法测试 &gt; 场景6: after 游标外的新实体 - 不应该出现在结果中" time="0.41746">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; findByCursor 增量算法测试 &gt; 场景7: 降序排序 + after 游标 + 创建新实体" time="0.159975">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; findByCursor 增量算法测试 &gt; 调试1: 降序排序 - 验证基础排序是否正确" time="0.107785">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; findByCursor 增量算法测试 &gt; 调试2: 降序 + after 游标 - 验证游标是否正确定位" time="0.11055">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; findByCursor 增量算法测试 &gt; 调试3: 降序 + after 游标 - 创建新实体(不在订阅中)" time="0.210825">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="级联与批量操作 [wa-sqlite] &gt; findByCursor 增量算法测试 &gt; 调试4: 降序 + after 游标 + 订阅中创建新实体 - 单次回调" time="0.11637">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - CREATE 事件 &gt; findDescendants - CREATE 事件增量更新 &gt; 应该在创建新子节点时自动更新查询结果" time="0.057295">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - CREATE 事件 &gt; findDescendants - CREATE 事件增量更新 &gt; 应该在创建孙子节点时自动更新查询结果" time="0.056015">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - CREATE 事件 &gt; findDescendants - CREATE 事件增量更新 &gt; 不应该在创建不相关节点时触发更新" time="0.15618">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - CREATE 事件 &gt; findDescendants - CREATE 事件增量更新 &gt; 应该支持 level=1 时只增量更新直接子节点" time="0.16085">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - CREATE 事件 &gt; findDescendants - CREATE 事件增量更新 &gt; 应该支持批量创建多个后代节点" time="0.062665">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - CREATE 事件 &gt; findDescendants - CREATE 事件增量更新 &gt; 应该在查询根节点时增量添加新的根节点" time="0.061535">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - CREATE 事件 &gt; level 深度契约 &gt; 不传 level：findDescendants 返回整棵子树（默认不限深度）" time="0.00251">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - CREATE 事件 &gt; level 深度契约 &gt; 不传 level：findAncestors 返回整条祖先链（默认不限深度）" time="0.001755">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - CREATE 事件 &gt; level 深度契约 &gt; 显式 level=1：仍然只返回当前节点 + 直接子节点" time="0.00175">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - CREATE 事件 &gt; level 深度契约 &gt; level 非法：同步抛错，不进入 SQL 生成" time="0.00053">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - CREATE 事件 &gt; 边界情况测试 &gt; 应该处理空初始结果的情况" time="0.054945">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - CREATE 事件 &gt; 边界情况测试 &gt; 应该处理深层嵌套的情况" time="0.05663">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - Ancestors 与 Count &gt; findAncestors 订阅：父级变更应触发增量更新（包含当前节点）" time="0.060815">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - Ancestors 与 Count &gt; countDescendants 订阅：新增/删除应更新计数" time="0.066395">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - REMOVE 事件 &gt; findDescendants - 删除增量更新 &gt; 删除叶子节点应从结果中移除" time="0.06773">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - REMOVE 事件 &gt; findDescendants - 删除增量更新 &gt; 删除中间节点应连带移除其所有后代" time="0.06959">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - REMOVE 事件 &gt; findDescendants - 删除增量更新 &gt; 删除非后代不应触发更新" time="0.290775">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - REMOVE 事件 &gt; findDescendants - 删除增量更新 &gt; level=1：删除直接子节点应更新结果" time="0.067475">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - REMOVE 事件 &gt; findDescendants - 删除增量更新 &gt; 不传 entityId：删除根节点应从结果中移除" time="0.062265">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - REMOVE 事件 &gt; findDescendants - 删除增量更新 &gt; 不传 entityId：删除子节点应触发更新（从结果中移除）" time="0.059315">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - REMOVE 事件 &gt; findDescendants - 删除增量更新 &gt; entityId 为 null：删除根节点应从结果中移除" time="0.057295">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - UPDATE 事件 &gt; findDescendants - UPDATE 增量更新 &gt; 更新实体字段值（不改变层级）应推送增量结果" time="0.07766">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - UPDATE 事件 &gt; findDescendants - UPDATE 增量更新 &gt; 当节点脱离后代树时应从结果中移除" time="0.078865">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - UPDATE 事件 &gt; findDescendants - UPDATE 增量更新 &gt; 当节点成为后代时应被增量添加" time="0.079555">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - UPDATE 事件 &gt; findDescendants - UPDATE 增量更新 &gt; level=1 时，移动到第二层的节点不应出现在结果中" time="0.08118">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - UPDATE 事件 &gt; findDescendants - UPDATE 增量更新 &gt; where 条件：字段更新使实体从不匹配变为匹配应被添加" time="0.07974">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - UPDATE 事件 &gt; findDescendants - UPDATE 增量更新 &gt; where 条件：裸字段（无 children. 前缀）过滤递归成员应正确工作" time="0.077965">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - UPDATE 事件 &gt; findDescendants - UPDATE 增量更新 &gt; 不传 entityId：更新根节点字段应触发增量更新" time="0.078665">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - UPDATE 事件 &gt; findDescendants - UPDATE 增量更新 &gt; 不传 entityId：更新子节点字段应触发增量更新" time="0.087085">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - UPDATE 事件 &gt; findDescendants - UPDATE 增量更新 &gt; 不传 entityId：子节点层级变化应触发更新" time="0.07914">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - UPDATE 事件 &gt; findDescendants - UPDATE 增量更新 &gt; 不传 entityId：根节点变为子节点应保持在结果中" time="0.077375">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="树结构增量算法测试 [wa-sqlite] &gt; 树结构增量算法测试 - UPDATE 事件 &gt; findDescendants - UPDATE 增量更新 &gt; entityId 为 null：更新根节点应触发增量更新" time="0.0777399999">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支创建 (createBranch) &gt; 从有数据的主分支创建新分支" time="0.00462">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支创建 (createBranch) &gt; 从空的主分支创建新分支" time="0.003115">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; execute_switch_actions 单元测试 &gt; execute_switch_actions &gt; 应处理空操作" time="0.001375">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; execute_switch_actions 单元测试 &gt; execute_switch_actions &gt; 应正确执行删除操作" time="0.0021">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; execute_switch_actions 单元测试 &gt; execute_switch_actions &gt; 应正确执行插入操作" time="0.00239">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; execute_switch_actions 单元测试 &gt; execute_switch_actions &gt; 应正确执行更新操作" time="0.002775">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; execute_switch_actions 单元测试 &gt; dispatch_switch_events &gt; 应在有操作时派发事件" time="0.002275">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; mergeChanges &gt; 基础功能 &gt; 空 actions 不会出错" time="0.001365">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; mergeChanges &gt; 基础功能 &gt; 能正确插入数据" time="0.002955">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; mergeChanges &gt; 基础功能 &gt; 能正确更新数据" time="0.00326">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; mergeChanges &gt; 基础功能 &gt; 能正确删除数据" time="0.002435">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; mergeChanges &gt; 触发器控制 &gt; 默认会生成 RxDBChange 记录" time="0.00276">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; mergeChanges &gt; 触发器控制 &gt; disableTriggers=true 不会生成 RxDBChange 记录" time="0.00405">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; mergeChanges &gt; 混合操作 &gt; 能同时处理插入、更新和删除" time="0.00344">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; mergeChanges &gt; 批量操作 &gt; 能批量插入多条数据" time="0.00253">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; mergeChanges &gt; 批量操作 &gt; 能批量删除多条数据" time="0.00263">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; 空分支合并，merged=0" time="0.003475">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; 合并分支中新创建的数据到 main" time="0.00992">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; 合并分支中修改的数据到 main" time="0.00853">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; 合并分支中删除的数据到 main" time="0.007475">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; squash 合并压缩 INSERT + UPDATE 为一次 INSERT" time="0.009125">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; normal 合并产生相同的数据结果" time="0.009795">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; normal 合并中途失败时，目标分支不留下任何半截数据" time="0.01114">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; normal 合并全部成功时按条数落库" time="0.011495">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; 合并后删除源分支" time="0.00952">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; 合并后默认不删除源分支" time="0.003265">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; 合并不存在的分支抛错" time="0.001625">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; 合并自身抛错" time="0.001415">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; 合并产生的变更记录属于目标分支" time="0.007655">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; 混合 INSERT + UPDATE + DELETE 合并" time="0.009775">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; squash 合并过滤幽灵删除：feature 内 INSERT+DELETE 对 main 无影响" time="0.00665">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; normal 合并 INSERT+DELETE 两条变更都应用到 main" time="0.008815">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 分支合并 (mergeBranch) &gt; 合并后可以继续在 main 分支正常操作" time="0.00722">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; removeBranch &gt; should throw error when trying to remove non-existent branch" time="0.002385">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; removeBranch &gt; should throw error when trying to remove main branch" time="0.001105">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; removeBranch &gt; 003" time="0.004265">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch-result.utils &gt; convertSwitchResultToSql &gt; 应该处理空的 actions" time="0.000155">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch-result.utils &gt; convertSwitchResultToSql &gt; 应该生成删除 SQL（字符串 ID）" time="0.000235">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch-result.utils &gt; convertSwitchResultToSql &gt; 应该生成插入 SQL" time="0.00013">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch-result.utils &gt; convertSwitchResultToSql &gt; 应该在插入时应用默认值" time="0.00008">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch-result.utils &gt; convertSwitchResultToSql &gt; 应该处理带有函数的默认值" time="0.0000700001">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch-result.utils &gt; convertSwitchResultToSql &gt; 应该生成更新 SQL" time="0.000125">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch-result.utils &gt; convertSwitchResultToSql &gt; 应该同时处理删除、插入和更新" time="0.000095">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch-result.utils &gt; convertSwitchResultToSql &gt; 应该按命名空间和实体名称分组操作" time="0.00005">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch-result.utils &gt; convertSwitchResultToSql &gt; 应该处理包含 updatedAt 的更新" time="0.000065">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch-result.utils &gt; convertSwitchResultToSql &gt; 应该处理不包含 updatedAt 的更新" time="0.000065">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch-result.utils &gt; convertSwitchResultToSql &gt; 应该返回包含 metadata 的结果" time="0.000075">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch-result.utils &gt; convertSwitchResultToSql &gt; 应该在结果中包含实体 IDs 集合" time="0.00006">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch-result.utils &gt; convertSwitchResultToSql &gt; 应该为相同实体类型的多个操作生成正确的 SQL" time="0.0001">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch-result.utils &gt; convertSwitchResultToSql &gt; 应该为多个更新生成正确的 SQL" time="0.00007">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 分支没变化，直接切换" time="0.006495">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 两个空分支随便切" time="0.0056">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 正确清空测试缓存 &gt; A" time="0.004105">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 正确清空测试缓存 &gt; B" time="0.00252">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 会清空数据" time="0.008235">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; test_004" time="0.008205">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 父子分支切换 &gt; 从空数据父分支切换到子分支" time="0.008115">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 父子分支切换 &gt; 父分支前进后再切换到子分支" time="0.00809">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 父子分支切换 &gt; 子分支回退到父分支的起点" time="0.009095">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 兄弟分支切换 &gt; 通过共同父节点切换兄弟分支" time="0.01088">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 兄弟分支切换 &gt; 兄弟分支有不同的 fromChangeId" time="0.00719">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 多代分支切换 &gt; 孙子分支回退到祖父分支" time="0.01037">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 多代分支切换 &gt; 祖父分支前进到孙子分支" time="0.011405">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 多代分支切换 &gt; 堂兄弟分支切换" time="0.014805">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 叔侄关系 &gt; 从叔叔切换到侄子" time="0.014595">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 叔侄关系 &gt; 从侄子切换到叔叔" time="0.01434">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 从 main 创建的兄弟分支 &gt; 在有数据的 main 上创建新分支并切换" time="0.006975">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 从 main 创建的兄弟分支 &gt; 多个从 main 派生的分支之间切换" time="0.01646">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 同一分支内数据变化 &gt; 分支内连续添加多个数据" time="0.002765">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 同一分支内数据变化 &gt; 分支切换后验证数据变化" time="0.007305">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 数据完整性验证 &gt; 切换分支后验证 change 记录的 branchId 正确" time="0.00599">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 数据完整性验证 &gt; 验证分支的 activated 状态正确更新" time="0.007195">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 数据完整性验证 &gt; 多次切换后数据一致性" time="0.01234">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 边界情况 &gt; 切换到相同的分支时会直接返回（避免不必要操作）" time="0.002845">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 边界情况 &gt; 空父分支到子分支（fromChangeId=0）" time="0.005">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 边界情况 &gt; 子分支回退到空父分支" time="0.006055">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; 版本切换 (switchVersion) &gt; 边界情况 &gt; 三个兄弟分支：从第一个切换到第三个" time="0.009765">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch_branch 单元测试 &gt; generateSwitchBranchSql &gt; 应生成包含触发器重建SQL的语句" time="0.00097">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch_branch 单元测试 &gt; generateSwitchBranchSql &gt; 应正确转义分支ID中的单引号" time="0.000855">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch_branch 单元测试 &gt; generateSwitchBranchSql &gt; 应使用SQLite语法 (1/0)" time="0.00097">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch_branch 单元测试 &gt; switch_branch 集成功能 &gt; switchBranch方法应正确切换分支" time="0.00357">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; switch_branch 单元测试 &gt; switch_branch 集成功能 &gt; switchBranch 省略 branchId 时作用于当前分支且不改变激活分支" time="0.004375">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Version Branch [wa-sqlite] &gt; createTables 补建的表，变更触发器挂在哪条分支上 &gt; 库停在非 main 分支时，补建的表要把变更记在当前分支名下" time="0.00466">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; 单个 save &gt; 创建 → 撤销 → 重做" time="0.007995">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; 撤销一步 &gt; 多次操作中只撤销最后一次" time="0.00325">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; 批量创建 &gt; Promise.all 批量保存 → 撤销 → 重做" time="0.028485">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; 批量创建 &gt; saveMany 批量保存撤销后只保留 redo 入口" time="0.02835">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; 撤销多步 &gt; 连续撤销多次操作" time="0.108405">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; 重做多步 &gt; 连续重做多次操作" time="0.0056">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; UPDATE 操作 &gt; 单个 update → undo → redo" time="0.003905">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; updatedAt 单调性（P1-011） &gt; undo / redo 写出的 updatedAt 不得旧于被它替换掉的行" time="0.003725">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; CREATE + UPDATE 多步 &gt; create → update → undo(2) → redo(2)" time="0.00417">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; 批量 UPDATE &gt; 批量 update → undo → redo" time="0.00578">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; DELETE 操作 &gt; create → delete → undo → redo" time="0.003725">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; CREATE + DELETE 多步 &gt; create → delete → undo(2) → redo(1)" time="0.0044899999">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; 批量 DELETE &gt; 批量 delete → undo → redo" time="0.007005">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; 混合操作 &gt; 单个 + 批量保存 → 撤销 → 重做" time="0.004745">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; 混合 CRUD &gt; create → update → delete → undo(3)" time="0.003215">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; 批量混合 CRUD &gt; 批量混合操作 → 全部 undo → 全部 redo" time="0.01108">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; 复杂混合 CRUD &gt; create×2 → update×2 → delete×1 → 部分 undo/redo" time="0.004785">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; saveMany &gt; 单个 save + saveMany → undo → redo" time="0.0095700001">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; JSON 类型字段 (stringArray, numberArray, json, keyValue) &gt; stringArray: 创建 → 更新 → undo → 值恢复为数组" time="0.004365">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; JSON 类型字段 (stringArray, numberArray, json, keyValue) &gt; numberArray: 创建 → 更新 → undo → 值恢复为数组" time="0.003945">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; JSON 类型字段 (stringArray, numberArray, json, keyValue) &gt; json: 创建 → 更新 → undo → 值恢复为对象" time="0.003705">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; JSON 类型字段 (stringArray, numberArray, json, keyValue) &gt; stringArray: 连续多次更新 → 多次 undo → 逐步恢复" time="0.00647">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; JSON 类型字段 (stringArray, numberArray, json, keyValue) &gt; stringArray: 更新 → undo → redo → 值正确" time="0.005155">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; JSON 类型字段 (stringArray, numberArray, json, keyValue) &gt; DELETE 含 stringArray 的实体 → undo → 值恢复为数组" time="0.00343">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; redo 栈失效 - 创建新数据 &gt; undo 后创建新数据，之前 undo 的数据不可 redo" time="0.103875">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; redo 栈失效 - 多次 undo 后创建新数据 &gt; undo 多次后创建新数据，所有 undo 的数据都不可 redo" time="0.10637">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; redo 栈失效 - undo 后更新数据 &gt; undo 后更新数据，redo 栈失效" time="0.103995">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; redo 栈失效 - undo 后删除数据 &gt; undo 后删除数据，redo 栈失效" time="0.10485">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; Observable 增量计算观察 &gt; 观察 completed 状态变化：创建 → 标记完成 → undo" time="0.08152">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; Observable 增量计算观察 &gt; 观察完成计数：多次操作 → 多次 undo" time="0.10307">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; Observable 增量计算观察 &gt; 观察总数变化：创建 → undo → redo" time="0.235105">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; Observable 增量计算观察 &gt; 观察 title 值变化：更新 → undo → redo" time="0.18249">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; Observable 增量计算观察 &gt; 观察删除操作：创建 → 删除 → undo 恢复" time="0.13199">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; Observable 观察 completed 状态 &gt; 观察 completed 状态变化：创建 → 标记完成 → undo" time="0.06645">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; Undo/Redo Observable Count &gt; 观察总数变化：创建 → undo → redo" time="0.181275">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; Observable 观察删除操作 &gt; 观察删除操作：创建 → 删除 → undo 恢复" time="0.109945">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; Observable 观察多次操作 &gt; 观察完成计数:多次操作 → 多次 undo" time="0.109145">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; Observable 观察 title 变化 &gt; 观察 title 值变化：更新 → undo → redo" time="0.189215">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; 来回切换 completed 状态 - Test 2 &gt; 应该通过 Observable 正确观察 completed 状态的变化" time="0.21008">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; 来回切换 completed 状态 - Test 3 &gt; 应该正确处理多个 todo 的 completed 状态切换" time="0.39107">
+        </testcase>
+        <testcase classname="src/__tests__/setup.spec.ts" name="Undo-Redo [wa-sqlite] &gt; 来回切换 completed 状态 - Test 4 &gt; 应该在批量更新 completed 后正确 undo/redo" time="0.279065">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/sqlite-client-lifecycle.spec.ts" timestamp="2026-10-05T01:22:56.766Z" hostname="liuleideMacBook-Pro-4.local" tests="24" failures="0" errors="0" skipped="0" time="0.00661">
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 返回 SQLite 版本号" time="0.000545">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 允许 UTF-8 编码后恰好达到公开数据库名上限" time="0.000425">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 超出数据库名上限时在加载 VFS 前给出可诊断错误" time="0.000325">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 数据库名限制按 UTF-8 字节数而不是 JavaScript 字符数计算" time="0.00016">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; open_v2 失败时必须关闭已加载的 VFS" time="0.000255">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 清理过程中 sqlite.close 抛错不得阻断 vfs.close，且保留原始错误" time="0.000565">
+            <system-err>
+[rxdb-adapter-wa-sqlite] 连接建立失败后的清理步骤出错： [Error: close also failed]
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 初始化加载失败后允许重试" time="0.00024">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 并发 init 都等待同一次初始化完成" time="0.000195">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; ready 后仅允许等价配置幂等 init，拒绝切换数据库" time="0.000225">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; init 进行中立即拒绝不同配置，不把第二个调用路由到第一库" time="0.00018">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 数据库打开后初始化失败会关闭连接与 VFS" time="0.0002">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 初始化 SQL prepare 失败时先清理未 yield 的 statement 再关闭连接" time="0.0003">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; init 期间被 disconnect 打断后会关闭连接与 VFS" time="0.0002">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 未初始化 disconnect 安全且之后拒绝 init" time="0.000085">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 重复 disconnect 只关闭一次连接与 VFS" time="0.00011">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 断开时 statement 清理失败仍必须关闭 VFS" time="0.00018">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 监听器抛错时不重放旧批次，也不阻断其他分组" time="0.001425">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; disconnect 在关闭连接前同步刷新已提交的待派发变更" time="0.00027">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; disconnect 会释放 VFS 持有的 IndexedDB/OPFS 句柄" time="0.0001">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 未初始化时 beginTransactionSql 返回默认 BEGIN" time="0.000035">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 非 shared+hint 锁策略时 beginTransactionSql 返回默认 BEGIN" time="0.000085">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; shared+hint 锁策略时 beginTransactionSql 改用 write_hint + BEGIN IMMEDIATE" time="0.00007">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 初始化前 execute 给出明确错误" time="0.00009">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-lifecycle.spec.ts" name="WaSqliteClient lifecycle &gt; 断开后 execute 给出明确错误" time="0.00011">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/sqlite-client-multi-connection.spec.ts" timestamp="2026-10-05T01:22:56.767Z" hostname="liuleideMacBook-Pro-4.local" tests="2" failures="0" errors="0" skipped="0" time="0.149585">
+        <testcase classname="src/__tests__/sqlite-client-multi-connection.spec.ts" name="WaSqliteClient 多连接并发写入（IDBBatchAtomicVFS） &gt; 两个连接共享同一持久化数据库时都会选用 write_hint + BEGIN IMMEDIATE" time="0.067235">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-multi-connection.spec.ts" name="WaSqliteClient 多连接并发写入（IDBBatchAtomicVFS） &gt; 两个连接并发写事务都不会丢数据，也不会无限期挂起" time="0.082195">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/sqlite-client-regressions.spec.ts" timestamp="2026-10-05T01:22:56.767Z" hostname="liuleideMacBook-Pro-4.local" tests="8" failures="0" errors="0" skipped="0" time="0.155265">
+        <testcase classname="src/__tests__/sqlite-client-regressions.spec.ts" name="WaSqliteClient regressions &gt; SELECT 与 PRAGMA 不重复累计最近一次 DML 的 changes" time="0.02234">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-regressions.spec.ts" name="WaSqliteClient regressions &gt; DROP TABLE 不重复累计上一条 INSERT 的 changes" time="0.01753">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-regressions.spec.ts" name="WaSqliteClient regressions &gt; 带 bindings 的多语句在首条写入前失败" time="0.016995">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-regressions.spec.ts" name="WaSqliteClient regressions &gt; 识别 WITH 开头的 DML 并累计真实影响行数" time="0.016905">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-regressions.spec.ts" name="WaSqliteClient regressions &gt; 非法 regexp pattern 必须让 SQL 失败" time="0.021585">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-regressions.spec.ts" name="WaSqliteClient regressions &gt; 非法 regexp_replace flags 必须让 SQL 失败" time="0.01769">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-regressions.spec.ts" name="WaSqliteClient regressions &gt; regexp_replace 参数不足必须让 SQL 失败" time="0.023335">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-client-regressions.spec.ts" name="WaSqliteClient regressions &gt; 合法 regexp 与 regexp_replace 保持原行为" time="0.01867">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/sqlite-load.utils.spec.ts" timestamp="2026-10-05T01:22:56.768Z" hostname="liuleideMacBook-Pro-4.local" tests="38" failures="0" errors="0" skipped="0" time="0.237345">
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; WA_SQLITE_VFS_LIST &gt; 应该包含 README 中列出的 9 个 VFS 支持项" time="0.000455">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; WA_SQLITE_VFS_LIST &gt; 公开注册表及条目在运行时不可变" time="0.000075">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; WA_SQLITE_VFS_LIST &gt; 应该包含 MemoryVFS" time="0.000095">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; WA_SQLITE_VFS_LIST &gt; 应该包含 MemoryAsyncVFS" time="0.00005">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; WA_SQLITE_VFS_LIST &gt; 所有 VFS 都应该有必需的属性" time="0.00146">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; WA_SQLITE_VFS_LIST &gt; 应该正确标记 sharedWorker 支持" time="0.00009">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; WA_SQLITE_VFS_LIST &gt; 支持主线程加载的 VFS 的 vfsModule 都应该能动态加载出带 create 的工厂" time="0.01457">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; WA_SQLITE_VFS_LIST &gt; 应该正确标记多连接支持" time="0.0001199999">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 缺省 vfs 使用明确的生产默认值" time="0.00007">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 应该验证有效的 VFS 配置" time="0.000285">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 不传 async 时按 VFS 能力解析，而非硬编码 async" time="0.00005">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 显式传入的 async 优先于 VFS 默认能力" time="0.00011">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 解析后的模式与 VFS 能力冲突时抛错" time="0.000205">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 当 VFS 不存在时应该抛出错误" time="0.000295">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 当 VFS 不支持 sync 但要求 async: false 时应该抛出错误" time="0.000115">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 当 VFS 同时支持 sync 和 async 时应该允许两种模式" time="0.00012">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 当在 worker 中使用支持 worker 的 VFS 时应该通过验证" time="0.000055">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 当在非 worker 环境使用仅支持 worker 的 VFS 时应该抛出错误" time="0.00009">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 当在 sharedWorker 环境使用支持 sharedWorker 的 VFS 时应该通过验证" time="0.00005">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; OPFSAnyContextVFS 在 SharedWorker 中通过能力校验" time="0.000045">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 当在 sharedWorker 环境使用不支持 sharedWorker 的 VFS 时应该抛出错误" time="0.000085">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 当 async 参数未定义时应该通过验证" time="0.00005">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 当 worker 为 false 且 VFS 支持 jsContext 时应该通过验证" time="0.00004">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 应该返回正确的 vfsOptions" time="0.00007">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; shared+hint 锁策略必须带有限的 lockTimeout，避免锁竞争下无限期挂起" time="0.000135">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 当 VFS 没有 vfsOptions 时应该返回 undefined" time="0.00003">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; checkVFSConfig &gt; 当同时支持 sync 和 async 的 VFS 应该通过验证" time="0.000045">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; sqliteLoad &gt; 应该加载 async SQLite 模块" time="0.02248">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; sqliteLoad &gt; 应该加载 sync SQLite 模块" time="0.040515">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; sqliteLoad &gt; 当 async 未定义时按 VFS 能力解析" time="0.01729">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; sqliteLoad &gt; wasmPath 指向对面那个构建时立即抛出可操作的错误" time="0.01485">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; sqliteLoad &gt; data URI / 自定义文件名不受命名约定限制" time="0.01746">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; sqliteLoad &gt; 当 VFS 配置无效时应该抛出错误" time="0.00024">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; sqliteLoad &gt; 应该正确加载不同的内存 VFS" time="0.03329">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; sqliteLoad &gt; 持久化 VFS 配置应该保留特定参数" time="0.000115">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; sqliteLoad &gt; 返回已注册的 vfs 实例，供调用方在 disconnect 时关闭" time="0.017485">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; sqliteLoad &gt; 不需要写提示的 VFS 返回 undefined lockPolicy" time="0.019955">
+        </testcase>
+        <testcase classname="src/__tests__/sqlite-load.utils.spec.ts" name="sqlite-load.utils &gt; sqliteLoad &gt; shared+hint 锁策略的 VFS 会带回 lockPolicy 供客户端选择 BEGIN 语句" time="0.034065">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/wa-sqlite-db-dump.spec.ts" timestamp="2026-10-05T01:22:56.770Z" hostname="liuleideMacBook-Pro-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.04014">
+        <testcase classname="src/__tests__/wa-sqlite-db-dump.spec.ts" name="wa-sqlite physical database dump &gt; 读取 SQLite 物理页而不是重新编码可见行" time="0.039995">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/working-tree-capture-conformance.spec.ts" timestamp="2026-10-05T01:22:56.770Z" hostname="liuleideMacBook-Pro-4.local" tests="44" failures="0" errors="0" skipped="0" time="1.697545">
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.1 捕获完备性 —— transaction 挂载点 &gt; 普通 CRUD 落 origin=local 的单元，冷重放与业务表逐字段相等" time="0.05896">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.1 捕获完备性 —— transaction 挂载点 &gt; 显式事务里的多次写入共享同一 unitId，冷重放与业务表逐字段相等" time="0.040515">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.1 捕获完备性 —— 本地 mergeChanges 挂载点 &gt; restore 落 origin=local 的单元，冷重放与业务表逐字段相等" time="0.03851">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.1 捕获完备性 —— 本地 mergeChanges 挂载点 &gt; merge 落 origin=local 的单元，冷重放与业务表逐字段相等" time="0.03653">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.1 捕获完备性 —— 本地 mergeChanges 挂载点 &gt; 同步应用落 origin=remote_sync 的单元，冷重放与业务表逐字段相等" time="0.03876">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.1 捕获完备性 —— 本地 mergeChanges 挂载点 &gt; 未声明受信意图的 mergeChanges 被拒，业务表零变化" time="0.038665">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.1 捕获完备性 —— switchBranch 挂载点 &gt; 分支物化不产生单元，冷重放以物化结果为 HEAD 成立" time="0.046845">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.1 捕获完备性 —— switchBranch 挂载点 &gt; 切到 metadata-only 分支时屏障里的物化不产生单元：走真实 switchBranch，切完每条分支 entryCount 仍为 0" time="0.058635">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.1 捕获完备性 —— switchBranch 挂载点 &gt; redo 失效不产生单元，冷重放以物化结果为 HEAD 成立" time="0.04794">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.1 捕获完备性 —— switchBranch 挂载点 &gt; undo/redo 产生 origin=local 的单元，冷重放与业务表逐字段相等" time="0.046905">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.1 捕获完备性 —— switchBranch 挂载点 &gt; 未声明受信意图的 switchBranch 被拒，业务表零变化" time="0.03566">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.1 捕获完备性 —— upsertMany / deleteByIds 挂载点 &gt; 版本化实体的 upsertMany 在返回 Observable 之前同步拒绝" time="0.0379">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.1 捕获完备性 —— upsertMany / deleteByIds 挂载点 &gt; 版本化实体的 deleteByIds 在返回 Observable 之前同步拒绝" time="0.032615">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.1 捕获完备性 —— upsertMany / deleteByIds 挂载点 &gt; QueryCache 实体的 upsertMany / deleteByIds 照常放行，且不进工作树" time="0.0431300001">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.2 写入口语义矩阵 &gt; 行 1 crud：落 origin=local 的单元，修订号前进、entryCount 跟上" time="0.04388">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.2 写入口语义矩阵 &gt; 行 2 domain_recompute：两次独立重算各落一个 origin=local 的单元" time="0.042685">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.2 写入口语义矩阵 &gt; 行 3 remote_entity_apply：落 origin=remote_sync 的单元，且不写变更日志" time="0.043195">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.2 写入口语义矩阵 &gt; 行 4 只写簿记列的同步应用：不产生单元，修订号一步不动" time="0.0430599999">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.2 写入口语义矩阵 &gt; 行 5 cleanup_expired：落 origin=remote_sync 的删除单元，修订号前进" time="0.044445">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.2 写入口语义矩阵 &gt; 行 6 projection_rewrite：投影重写不产生单元，修订号一步不动" time="0.042485">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.2 写入口语义矩阵 &gt; 行 7 metadata_only_prefetch：矩阵对版本化目标判拒绝" time="0.03315">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.2 写入口语义矩阵 &gt; 行 8 query_cache_maintenance：缓存表照常读写，工作树一个字不动" time="0.038095">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.2 写入口语义矩阵 &gt; 行 9 raw_write：在语句执行之前拒绝，业务表零变化" time="0.036015">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.2 写入口语义矩阵 &gt; 行 10 bulk_write：裸批量写版本化实体被拒，带矩阵的稳定错误码" time="0.0298">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.2 写入口语义矩阵 &gt; 行 11 notify_external_update：版本化实体无条件拒绝，QueryCache 实体照常放行" time="0.032645">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.2 写入口语义矩阵 &gt; 未登记的入口默认拒绝：版本化目标上的放行集恰好是矩阵写明的那 5 行" time="0.028745">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.3 raw 通道 bypass 四步判定 &gt; 第 1 步 提交能力未启用：原样放行，零行为差异" time="0.031865">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.3 raw 通道 bypass 四步判定 &gt; 第 2 步 不是写语句：放行" time="0.03199">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.3 raw 通道 bypass 四步判定 &gt; 第 3 步 打在 tracked 列上：语句执行之前被拒，业务表零变化" time="0.038245">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.3 raw 通道 bypass 四步判定 &gt; 第 3 步 语句批里的第二条也要拦住整批" time="0.038015">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.3 raw 通道 bypass 四步判定 &gt; 第 3 步 列集解析不出：fail-closed，同样在执行前拒绝" time="0.037345">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.3 raw 通道 bypass 四步判定 &gt; 第 3 步 dollar-quote 字面量里的假 WHERE：拦在执行之前，不被当成子句" time="0.04056">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.3 raw 通道 bypass 四步判定 &gt; 第 4 步 只改簿记字段：放行，理由是 untracked_only" time="0.03319">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.3 raw 通道 bypass 四步判定 &gt; 第 4 步 写域外目标：放行，理由是 out_of_domain" time="0.030025">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.4 untracked 域 &gt; 第 1 类 untracked —— QueryCache 实体：整体不进版本化域，写它不动工作树" time="0.04063">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.4 untracked 域 &gt; 第 2 类 untracked —— 全局簿记字段：每个可寻址表名上都豁免，只动它们不产生单元" time="0.04419">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.4 untracked 域 &gt; 第 3 类 untracked —— 逐表派生索引列：这个库一列都没登记，豁免集因此恰好等于全局簿记列" time="0.02852">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.4 untracked 域 &gt; 清单外的实体默认 tracked —— 第四类 untracked 必须先改 epic-006" time="0.032795">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.4 untracked 域 &gt; tracked 与 untracked 混进同一事务：报 mixed_versioned_cache_transaction 且整事务回滚" time="0.03926">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.4 untracked 域 &gt; origin=&apos;remote_sync&apos; 不是 untracked：同步应用照常产生单元" time="0.03945">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.4 untracked 域 &gt; untracked 判定是静态属性：同一实体不会在一条入口 tracked、另一条 untracked" time="0.04609">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.5 存储契约静态断言 &gt; 全部 epic-006 系统表都登记在 SYSTEM_ENTITIES 里，且 isSystemEntity() 为真" time="0.02806">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.5 存储契约静态断言 &gt; 全部 epic-006 系统表 log === false：库自己的簿记不进变更日志" time="0.028725">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-capture-conformance.spec.ts" name="[wa-sqlite] 工作树捕获一致性 &gt; §1.5 存储契约静态断言 &gt; WorkingTreeEntry 与 CommitChangeSet 的 relations 不引用 RxDBChange（静态断言）" time="0.028155">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/working-tree-commit-conformance.spec.ts" timestamp="2026-10-05T01:22:56.775Z" hostname="liuleideMacBook-Pro-4.local" tests="58" failures="0" errors="0" skipped="0" time="2.108025">
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; FR-038 at-rest 判定器槽位 &gt; 本地适配器实现了槽位：六个后端一个都不许缺" time="0.1278">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; FR-038 at-rest 判定器槽位 &gt; 提交上下文接到的就是那个判定器：信封串认、明文与裸密文都不认" time="0.03167">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.1 commit 图与 HEAD（US-305） &gt; 提交只追加：既有 commit 行一个字节都不动" time="0.04195">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.1 commit 图与 HEAD（US-305） &gt; 评审：公开 commit 原请求重试返回已提交节点，不被过期凭据挡住" time="0.05127">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.1 commit 图与 HEAD（US-305） &gt; 评审：过期凭据先被拒绝，拿正确凭据重试能正常提交，不被误判成重放" time="0.04734">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.1 commit 图与 HEAD（US-305） &gt; 评审：同一个 operationId 但消息或作者变了，不认作重放，仍按冲突处理" time="0.039915">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.1 commit 图与 HEAD（US-305） &gt; 评审：重放命中后不清空重试前新产生的草稿" time="0.03692">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.1 commit 图与 HEAD（US-305） &gt; 评审：分支删后同名重建，旧 operationId 不被当成新分支上的重放" time="0.05718">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.1 commit 图与 HEAD（US-305） &gt; 同一个 operationId 重复提交幂等命中现有节点，不产生第二个" time="0.03496">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.1 commit 图与 HEAD（US-305） &gt; 重启：另开一个事务冷读，HEAD 与整条父链逐字不变" time="0.03061">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.1 commit 图与 HEAD（US-305） &gt; 崩溃：事务体抛出之后零残留，HEAD 不动" time="0.035515">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.1 commit 图与 HEAD（US-305） &gt; 删光 rxdb_change 之后，历史仍然完整可重放" time="0.039495">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.1 commit 图与 HEAD（US-305） &gt; CommitChangeSet 结构上不引用 rxdb_change（静态断言）" time="0.023685">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.1 commit 图与 HEAD（US-305） &gt; firstParentId 恒等于 parentIds[0] ?? null" time="0.029805">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.2 一次性启用迁移（US-305） &gt; 每个既存分支都有 ref / state 初始行，且 generation 互不相同" time="0.02537">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.2 一次性启用迁移（US-305） &gt; enable() 之后每条本地分支都有一个 baseline 根节点" time="0.02763">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.2 一次性启用迁移（US-305） &gt; 重复 enable() 幂等：不产生第二个根，HEAD 不动" time="0.031695">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.2 一次性启用迁移（US-305） &gt; enable() 之后新建的分支自带 ref / state，且代际不与既有分支撞号" time="0.031145">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.2 一次性启用迁移（US-305） &gt; 新建分支后再 enable() 一次，新分支拿到自己的 baseline" time="0.029175">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.2 一次性启用迁移（US-305） &gt; 全有或全无：任一分支不可物化时整体回滚，健康分支零变化" time="0.032455">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.3 两类 CAS 分开（FR-031/FR-032、SC-008） &gt; 调用方捕获型：status() 与 commit() 之间插进一次写，提交被拒且一个字节都没落地" time="0.03407">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.3 两类 CAS 分开（FR-031/FR-032、SC-008） &gt; 冲突不入库：重读一次 status() 再提一次就过，中间没有「清除冲突」这一步" time="0.035075">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.3 两类 CAS 分开（FR-031/FR-032、SC-008） &gt; 事务内读改写型：并发普通写一笔都不因并发失败（FR-032 回归）" time="0.046535">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.4 commit 原子性（FR-011、SC-007） &gt; 写完 changeSet 之后崩溃：要么全有要么全无，工作树不会被清掉一半" time="0.03916">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.4 commit 原子性（FR-011、SC-007） &gt; entryCount 与实际行数在任何时刻一致：捕获后、被拒后、提交后各校一遍" time="0.043195">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; assertCommitGraphIntact（三条入口共用的那一份）：健康分支放行" time="0.028565">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; assertCommitGraphIntact（三条入口共用的那一份）：HEAD 被篡改时拒绝，且不改指针、不删记录" time="0.032">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; assertCommitGraphIntact（三条入口共用的那一份）：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处" time="0.029265">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; assertCommitGraphIntact（三条入口共用的那一份）：孤立损坏只被隔离，不影响健康分支" time="0.029215">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; commit()：健康分支放行" time="0.03028">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; commit()：HEAD 被篡改时拒绝，且不改指针、不删记录" time="0.03318">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; commit()：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处" time="0.02986">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; commit()：孤立损坏只被隔离，不影响健康分支" time="0.029675">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; restore()：健康分支放行" time="0.028435">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; restore()：HEAD 被篡改时拒绝，且不改指针、不删记录" time="0.032345">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; restore()：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处" time="0.03">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; restore()：孤立损坏只被隔离，不影响健康分支" time="0.02878">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; switch-to：健康分支放行" time="0.031785">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; switch-to：HEAD 被篡改时拒绝，且不改指针、不删记录" time="0.0325700001">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; switch-to：已标记 corrupted_read_only 的分支继续拒绝，HEAD 仍在原处" time="0.028925">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; switch-to：孤立损坏只被隔离，不影响健康分支" time="0.0281799999">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.5 损坏守卫（三入口同一份） &gt; 不依赖重放的读取不受影响：损坏分支上 listCommits / getCommitDetail 照常返回" time="0.029805">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.6 restore（US-307） &gt; 恢复写回的是新的未提交变更：HEAD 不动、历史一条都不改" time="0.038745">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.6 restore（US-307） &gt; 公开面上没有 checkout()，也没有 detached HEAD 那类符号" time="0.022705">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.6 restore（US-307） &gt; CommitConflict 不会让 status().conflicted 变真" time="0.030225">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.6 restore（US-307） &gt; 会话捕获的 revision 分叉之后，restoring 灭、conflicted 亮" time="0.035465">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.6 restore（US-307） &gt; 一分支至多一个未结束会话：唯一索引拒绝第二行" time="0.033975">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.6 restore（US-307） &gt; commit() 把会话推进 committed 并让出 activeKey，新节点挂在原 HEAD 之后" time="0.040825">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.6 restore（US-307） &gt; discard() 把会话整行删掉，工作树回到干净" time="0.04187">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.7 分支隔离与跨 realm 冲突（US-308） &gt; 分支各自独立的工作树：切过去看不见来源分支的未提交改动，切回来它还在" time="0.042845">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.7 分支隔离与跨 realm 冲突（US-308） &gt; switchBranch(branchId) 不带 options 时行为与今天一致：工作树非空也照切" time="0.03869">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.7 分支隔离与跨 realm 冲突（US-308） &gt; 每一次真正发生的切换都推进激活代际：A → B → A 走完之后，走之前捕获的 token 被拒" time="0.0390700001">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.7 分支隔离与跨 realm 冲突（US-308） &gt; 前置校验拒掉的切换一格都不动：代际不推进，走之前捕获的 token 仍然写得进去" time="0.03804">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.7 分支隔离与跨 realm 冲突（US-308） &gt; 物化 staging 只写它自己那两张表：当前投影、来源分支与激活位一格不动" time="0.040575">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.7 分支隔离与跨 realm 冲突（US-308） &gt; 屏障成功一次：目标分支拿到 baseline、激活代际前进一格，本次 staging 整体删除" time="0.040745">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.7 分支隔离与跨 realm 冲突（US-308） &gt; 半份 payload 不得被当作完整快照：一页都不交给宿主，来源分支保持 active" time="0.03866">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.7 分支隔离与跨 realm 冲突（US-308） &gt; 两路续同一份 staging 发出同一个页号：后到的那一页拒成 page_conflict，staging 照样可续" time="0.032685">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-commit-conformance.spec.ts" name="[wa-sqlite] 提交图与工作树提交一致性 &gt; §2.7 分支隔离与跨 realm 冲突（US-308） &gt; 删分支后同名重建拿到新 generation：持旧 (branchId, headRevision) 的 CAS 必须失败" time="0.035015">
+            <system-err>
+plugin already installed
+            </system-err>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/working-tree-cross-connection.spec.ts" timestamp="2026-10-05T01:22:56.780Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.75546">
+        <testcase classname="src/__tests__/working-tree-cross-connection.spec.ts" name="能力启用跨连接接通捕获（顺延 1 / FR-037，两个真实实例共享持久库） &gt; B 先连上、A 后启用——通知送达后 B 的写入照样进工作树" time="0.15599">
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-cross-connection.spec.ts" name="能力启用跨连接接通捕获（顺延 1 / FR-037，两个真实实例共享持久库） &gt; 发起启用的那一端自己不受影响——它在 enable() 里已经同步装好了" time="0.15597">
+        </testcase>
+        <testcase classname="src/__tests__/working-tree-cross-connection.spec.ts" name="能力启用跨连接接通捕获（顺延 1 / FR-037，两个真实实例共享持久库） &gt; 收不到广播的连接（multiInstance: false）靠一次工作树调用自愈" time="0.44334">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/backup/wa-sqlite-backup-transport.spec.ts" timestamp="2026-10-05T01:22:56.781Z" hostname="liuleideMacBook-Pro-4.local" tests="2" failures="0" errors="0" skipped="0" time="0.00115">
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup-transport.spec.ts" name="wa-sqlite backup over worker transports &gt; rejects backup, restore and cleanup with the worker transport" time="0.000805">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup-transport.spec.ts" name="wa-sqlite backup over worker transports &gt; rejects backup, restore and cleanup with the sharedWorker transport" time="0.000215">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/backup/wa-sqlite-backup.spec.ts" timestamp="2026-10-05T01:22:56.781Z" hostname="liuleideMacBook-Pro-4.local" tests="71" failures="0" errors="0" skipped="14" time="9.11485">
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup → restore round-trip &gt; restores a memory backup into an empty memory target" time="0.160355">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup → restore round-trip &gt; restores a memory backup into an empty persistent target" time="0.28292">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup → restore round-trip &gt; restores a persistent backup into an empty memory target" time="0.16927">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup → restore round-trip &gt; restores a persistent backup into an empty persistent target" time="0.2993649999">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup → restore round-trip &gt; carries user data in engine-created tables into a memory target" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup → restore round-trip &gt; carries user data in engine-created tables into a persistent target" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup → restore round-trip &gt; restores the same archive into independent memory instances" time="0.15445">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup → restore round-trip &gt; keeps the source usable and unchanged after backing it up" time="0.154755">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup → restore round-trip &gt; does not depend on how the source stream is chunked" time="0.128825">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; contains every earlier commit, a commit-order prefix of concurrent ones, and no rolled-back work" time="0.05615">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; runs persistent storage in &quot;delete&quot; journal mode" time="0.0416849999">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; keeps WAL frames that were committed but never checkpointed (AC#16)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; lets exactly one of two concurrent restores into the same target win" time="0.12491">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; refuses a second restore on the same adapter while the first is running" time="0.060625">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; rejects a connection attempted at &quot;marker-written&quot; with restore_in_progress" time="0.12434">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; rejects a connection attempted at &quot;rows-written&quot; with restore_in_progress" time="0.124405">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; rejects a connection attempted at &quot;verified&quot; with restore_in_progress" time="0.152425">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; rejects a connection attempted at &quot;persisted&quot; with restore_in_progress" time="0.128185">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; refuses to open a target whose restore never finished, until it is cleaned up" time="0.24492">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; refuses cleanup while the target is connected" time="0.0403">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; against another process — not applicable: 浏览器后端同属一个 origin、共享 Web Locks，同页第二个实例已覆盖并发 &gt; refuses a restore while another process has the target open, leaving it untouched (AC#12)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; against another process — not applicable: 浏览器后端同属一个 origin、共享 Web Locks，同页第二个实例已覆盖并发 &gt; keeps another process out of the target for the whole restore, then lets it in (AC#12)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; against another process — not applicable: 浏览器后端同属一个 origin、共享 Web Locks，同页第二个实例已覆盖并发 &gt; refuses cleanup while another process has the target open, keeping the marker (AC#12)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; against another process — not applicable: 浏览器后端同属一个 origin、共享 Web Locks，同页第二个实例已覆盖并发 &gt; snapshots another process&apos;s committed WAL writes but not its open transaction (AC#16 / AC#19)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; against another process — not applicable: 浏览器后端同属一个 origin、共享 Web Locks，同页第二个实例已覆盖并发 &gt; leaves no read transaction behind once a backup has succeeded (AC#19)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; against another process — not applicable: 浏览器后端同属一个 origin、共享 Web Locks，同页第二个实例已覆盖并发 &gt; leaves no read transaction behind once a backup has failed (AC#19)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup concurrency &gt; against another process — not applicable: 浏览器后端同属一个 origin、共享 Web Locks，同页第二个实例已覆盖并发 &gt; leaves no read transaction behind once a backup has cancelled (AC#19)" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup encryption &gt; omits the sentinel and passphrase when backed up locked" time="0.08075">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup encryption &gt; omits the sentinel and passphrase when backed up unlocked" time="0.07754">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup encryption &gt; detects the sentinel in a control archive that stores it as plaintext" time="0.023705">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup encryption &gt; restores into a new memory location locked, with the keyring metadata unchanged" time="0.207865">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup encryption &gt; restores into a new persistent location locked, with the keyring metadata unchanged" time="0.26531">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup encryption &gt; rejects a target with a different authentication domain before writing" time="0.13564">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup encryption &gt; rejects restoring an encrypted archive into an unencrypted memory schema" time="0.09421">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup encryption &gt; rejects restoring an encrypted archive into an unencrypted persistent schema" time="0.13894">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; rejects incompatible archives before writing (AC#5) &gt; rejects a different entity schema" time="0.09471">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; rejects incompatible archives before writing (AC#5) &gt; rejects an archive from another adapter" time="0.06133">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; rejects incompatible archives before writing (AC#5) &gt; rejects an archive that needs a virtual-table module the target lacks" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; rejects databases with shadow tables it cannot write (AC#8) — not applicable: the backend writes shadow tables &gt; refuses the backup before writing any bytes and keeps the source usable" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; rejects databases with shadow tables it cannot write (AC#8) — not applicable: the backend writes shadow tables &gt; refuses such an archive before touching the target" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; detects damaged archives and cleans up (AC#6) &gt; reports a truncated archive" time="0.07605">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; detects damaged archives and cleans up (AC#6) &gt; reports a changed value only after reading to the end, then discards the written rows" time="0.07872">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; detects damaged archives and cleans up (AC#6) &gt; keeps archived row values out of the error when SQLite rejects a row" time="0.10026">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; detects damaged archives and cleans up (AC#6) &gt; reports a damaged frame for a memory target without handing out a database" time="0.04841">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; only writes into empty, idle targets (AC#7) &gt; refuses a target that already holds a database and leaves it intact" time="0.228595">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; only writes into empty, idle targets (AC#7) &gt; refuses a target that only holds RxDB system tables" time="0.13412">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; only writes into empty, idle targets (AC#7) &gt; refuses a target whose engine-created tables hold user data" time="0">
+            <skipped/>
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; only writes into empty, idle targets (AC#7) &gt; refuses a connected memory adapter" time="0.022495">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; only writes into empty, idle targets (AC#7) &gt; refuses a connected persistent adapter" time="0.04963">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; only writes into empty, idle targets (AC#7) &gt; refuses storage that another instance has open" time="0.04164">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; rejects vfs configurations outside the matrix (AC#8) &gt; does not touch the sink when backing up" time="0.00044">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; rejects vfs configurations outside the matrix (AC#8) &gt; does not read the source when restoring or cleaning up" time="0.00015">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; backup cancellation and output failures (AC#10) &gt; rejects an already aborted signal without touching the sink" time="0.0001">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; backup cancellation and output failures (AC#10) &gt; aborts mid-write, aborts the sink and keeps the source usable" time="0.06962">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; backup cancellation and output failures (AC#10) &gt; reports a full destination as storage_full" time="0.0686">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; backup cancellation and output failures (AC#10) &gt; reports other destination failures as io_error" time="0.001845">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; backup cancellation and output failures (AC#10) &gt; gives up with lock_timeout while a transaction holds the database, and never runs later" time="0.12261">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; restore cancellation and input failures (AC#10) &gt; aborts mid-stream and cleans up a persistent target" time="0.073985">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; restore cancellation and input failures (AC#10) &gt; aborts at &quot;marker-written&quot;, before the commit point" time="0.06746">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; restore cancellation and input failures (AC#10) &gt; aborts at &quot;rows-written&quot;, before the commit point" time="0.07598">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; restore cancellation and input failures (AC#10) &gt; aborts at &quot;verified&quot;, before the commit point" time="0.084755">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; restore cancellation and input failures (AC#10) &gt; aborts a memory target mid-stream" time="0.021265">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; restore cancellation and input failures (AC#10) &gt; reports a failing source as io_error" time="0.073725">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; restore cancellation and input failures (AC#10) &gt; reports a full disk during the commit as storage_full and cleans up" time="0.0737">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite backup / restore failures &gt; restore cancellation and input failures (AC#10) &gt; reports cleanup_pending when the partial data cannot be removed, and recovers after cleanup" time="0.34581">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite restore survives being killed mid-way (AC#11) &gt; reports restore_incomplete after a kill at &quot;streaming&quot;, then cleans up and restores again" time="0.65431">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite restore survives being killed mid-way (AC#11) &gt; reports restore_incomplete after a kill at &quot;marker-written&quot;, then cleans up and restores again" time="0.599595">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite restore survives being killed mid-way (AC#11) &gt; reports restore_incomplete after a kill at &quot;rows-written&quot;, then cleans up and restores again" time="0.661155">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite restore survives being killed mid-way (AC#11) &gt; reports restore_incomplete after a kill at &quot;verified&quot;, then cleans up and restores again" time="0.603895">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite restore survives being killed mid-way (AC#11) &gt; reports restore_incomplete after a kill at &quot;persisted&quot;, then cleans up and restores again" time="0.6429349999">
+        </testcase>
+        <testcase classname="src/__tests__/backup/wa-sqlite-backup.spec.ts" name="wa-sqlite restore survives being killed mid-way (AC#11) &gt; keeps a finished restore when the worker is killed right after it returns" time="0.463465">
+        </testcase>
+    </testsuite>
+</testsuites>

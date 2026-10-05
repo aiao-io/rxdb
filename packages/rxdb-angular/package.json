@@ -1,6 +1,6 @@
 {
   "name": "@aiao/rxdb-angular",
-  "version": "0.0.26",
+  "version": "0.0.27",
   "description": "Angular integration for Aiao RxDB reactive data.",
   "homepage": "https://rxdb.netlify.app/docs/frameworks/angular",
   "bugs": {
@@ -22,9 +22,9 @@
   },
   "type": "module",
   "peerDependencies": {
-    "@aiao/rxdb": "*",
-    "@aiao/rxdb-plugin-graph": "*",
-    "@aiao/utils": "*",
+    "@aiao/rxdb": "^0.0.26",
+    "@aiao/rxdb-plugin-graph": "^0.0.26",
+    "@aiao/utils": "^0.0.26",
     "@angular/core": "22.2.1",
     "@angular/platform-browser": "22.2.1",
     "ngxtension": "^7.0.1",

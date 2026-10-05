@@ -52,15 +52,14 @@ Angular：核心查询资源、provider、状态/action/同步与无限滚动的
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                   | 核查动作                                                                                                                                       | 最低复验场景 / 证据要求                                                                          | 状态   |
-| ---- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------ |
-| C1   | 查询资源状态机         | 逐个公开 useGet/useFind/useFindOne 等入口核对 value/error/isLoading/isEmpty/hasValue、默认值与查询键切换；与核心 repository 事件对照。         | 首次加载、空结果、失败后重试、参数快速变化、过期响应；五项资源状态三端一致。                     | 待核查 |
-| C2   | 写操作、实体与同步     | 追踪 action 防重入、entity change、sync state/persisted state 到核心实现；错误不只 console 输出。                                              | 连续点击、写入拒绝、换库、离线重连、组件销毁；错误/返回值按既有 API 传达。                       | 待核查 |
-| C3   | 无限滚动与类型对称     | 核查分页边界、并发 loadMore、滚动 observer 清理和实体泛型；使用同一 shared fixtures 对照另外两端。                                             | 末页、排序同值、可空列、删除/更新跨页、多个列表；不重复加载或丢行，consumer 类型保真。           | 待核查 |
-| C4   | Angular 生命周期与注入 | 核查注入上下文、DestroyRef/effect cleanup、provider scope 和框架原生 Signal 更新；按仓库约定检查 standalone/OnPush，避免为风格改写已稳定 API。 | 切换 inputs、销毁中异步完成、子 provider 覆盖、同组件多实例；无订阅泄漏或跨库状态。              | 待核查 |
-| C5   | Angular 类型与运行证据 | 核查模板类型、泛型推导和真实组件 fixture；区分纯函数、模拟组件与浏览器/实际应用证据。                                                          | typed consumer 编译、模板事件/输入错误、错误与空态；真实 route 挂载/卸载，不用类型断言掩盖错误。 | 待核查 |
-
-共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
+| 编号                                                                                                                                                                                                                                                 | 专项                   | 核查动作                                                                                                                                       | 最低复验场景 / 证据要求                                                                          | 状态    |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ------- |
+| C1                                                                                                                                                                                                                                                   | 查询资源状态机         | 逐个公开 useGet/useFind/useFindOne 等入口核对 value/error/isLoading/isEmpty/hasValue、默认值与查询键切换；与核心 repository 事件对照。         | 首次加载、空结果、失败后重试、参数快速变化、过期响应；五项资源状态三端一致。                     | partial |
+| C2                                                                                                                                                                                                                                                   | 写操作、实体与同步     | 追踪 action 防重入、entity change、sync state/persisted state 到核心实现；错误不只 console 输出。                                              | 连续点击、写入拒绝、换库、离线重连、组件销毁；错误/返回值按既有 API 传达。                       | partial |
+| C3                                                                                                                                                                                                                                                   | 无限滚动与类型对称     | 核查分页边界、并发 loadMore、滚动 observer 清理和实体泛型；使用同一 shared fixtures 对照另外两端。                                             | 末页、排序同值、可空列、删除/更新跨页、多个列表；不重复加载或丢行，consumer 类型保真。           | partial |
+| C4                                                                                                                                                                                                                                                   | Angular 生命周期与注入 | 核查注入上下文、DestroyRef/effect cleanup、provider scope 和框架原生 Signal 更新；按仓库约定检查 standalone/OnPush，避免为风格改写已稳定 API。 | 切换 inputs、销毁中异步完成、子 provider 覆盖、同组件多实例；无订阅泄漏或跨库状态。              | partial |
+| C5                                                                                                                                                                                                                                                   | Angular 类型与运行证据 | 核查模板类型、泛型推导和真实组件 fixture；区分纯函数、模拟组件与浏览器/实际应用证据。                                                          | typed consumer 编译、模板事件/输入错误、错误与空态；真实 route 挂载/卸载，不用类型断言掩盖错误。 | partial |
+| 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。 |
 
 ## 4. 测试证据与联审边界
 
@@ -144,3 +143,31 @@ pnpm audit:coverage --projects=rxdb-angular
 ## 续执行：2026-10-03 边界取证
 
 本批实际源码专题、确认意见和复验结果见 [此对象执行记录](../results/packages/rxdb-angular.md) 与 [续执行汇总](../follow-up-2026-10-03.md)。只核销记录中明确覆盖的 C 项，不把全量门禁或单用例通过当作全对象评审完成。
+
+## 2026-10-05 frameworks 本轮完成条件与实际核查
+
+本轮 `main/worktree@44de1138b4d396fc45d6e76ab60476c40fef2223`，日期 2026-10-05。不是新泛计划，而是对原 C 的实际结论：**0/5 个完整 C、execution 保持 in-progress；结果记录保持 partial；本对象不是全对象完成候选。**
+
+全部 36 个受控文件的范围/摘要已核对，正文片段 10、outline 0、仅导航 1、未人工检查 25；不能将 scope 盘点称为全读。
+
+| 原 C                      | 本轮结论          | 原场景中仍缺的必要证据                                                                                                                                      |
+| ------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1 查询资源状态机         | partial；局部通过 | 尚未人工逐个公开查询入口与所有原场景映射；快速参数变化/失败重试/晚到真实仓储还缺完整三端共同 fixture。React browser target 不在普通基线 test 中执行。       |
+| C2 写操作、实体与同步     | partial；局部通过 | 连续点击/写入拒绝/换库/离线重连/销毁的完整链路未逐项映射；Angular directive 当前 16 个 fixture/mock 边界失败，不归因生产实现。                              |
+| C3 无限滚动与类型对称     | partial；未验证   | 分页实现和其大量测试未深读；末页、同值排序、NULL、跨页删除/更新与多列表的原场景全部不能因 unit/coverage 绿自动核销。                                        |
+| C4 Angular 生命周期与注入 | partial；局部通过 | 真实多个 root/provider override/route/输入快速切换未逐项映射；React browser 现有 target 尚待主控；Angular 基线失败需先查 mock/Analog 编译后的 import 边界。 |
+| C5 Angular 类型与运行证据 | partial；局部通过 | 本对象所有受控源码/测试未读完；独立 typed consumer/runtime import/模板/SFC 的真实消费链路不在 pack 证据范围。                                               |
+
+本轮完成条件：
+
+- [x] 全受控 inventory / 摘要核对，未排除配置/资源/fixture。
+- [ ] 全部受控内容阅读及全部原 C 场景核销（缺口见表，保持 partial）。
+- [x] 每 C 已有明确的已证/未证结论及角色明确的源码、测试锚点。
+- [x] 当前 baseline 的 unit / 四指标 / 零警告 lint / typecheck / 真 pack 来源已读取登记。
+- [ ] 晚加探针补跑、独立 typed/runtime consumer、真实完整 UI/生命周期等必要缺口全部关闭。
+- [ ] 全对象证据完成与最终评级（不要求零缺陷，但不能缺验证）；尚未完成。
+
+本对象四指标（statements/branches/functions/lines）：**无本轮 fresh coverage-summary（unit 失败）**；阈值各项 ≥ 90%。其余18包的绿不能抹掉 rxdb-angular 的16个失败；新探针不继承基线通过。
+发布 pack 根是 `dist/packages/rxdb-angular`，实际 tarball 目标文件存在、独立根 ESM 解析通过；**不包含 typed consumer 编译/runtime import**。Angular 不能按源 manifest 缺 exports 报错。
+
+逐 C 原场景、函数/测试证据与完成条件详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-angular.md`；机器证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`。

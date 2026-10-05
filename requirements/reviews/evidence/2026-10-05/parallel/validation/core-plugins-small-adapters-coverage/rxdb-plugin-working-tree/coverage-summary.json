@@ -1,0 +1,345 @@
+{
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/capability-identity.ts": {
+    "lines": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/branch-commit-rows.ts": {
+    "lines": { "total": 92, "covered": 89, "skipped": 0, "pct": 96.73 },
+    "functions": { "total": 15, "covered": 14, "skipped": 0, "pct": 93.33 },
+    "statements": { "total": 97, "covered": 93, "skipped": 0, "pct": 95.87 },
+    "branches": { "total": 22, "covered": 15, "skipped": 0, "pct": 68.18 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/change-unit.ts": {
+    "lines": { "total": 44, "covered": 44, "skipped": 0, "pct": 100 },
+    "functions": { "total": 14, "covered": 14, "skipped": 0, "pct": 100 },
+    "statements": { "total": 59, "covered": 59, "skipped": 0, "pct": 100 },
+    "branches": { "total": 38, "covered": 36, "skipped": 0, "pct": 94.73 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/commit-branch-ref.entity.ts": {
+    "lines": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/commit-capability-state.entity.ts": {
+    "lines": { "total": 5, "covered": 5, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 5, "covered": 5, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/commit-capability.ts": {
+    "lines": { "total": 31, "covered": 30, "skipped": 0, "pct": 96.77 },
+    "functions": { "total": 5, "covered": 5, "skipped": 0, "pct": 100 },
+    "statements": { "total": 34, "covered": 33, "skipped": 0, "pct": 97.05 },
+    "branches": { "total": 12, "covered": 11, "skipped": 0, "pct": 91.66 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/commit-change-set.entity.ts": {
+    "lines": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/commit-changes.ts": {
+    "lines": { "total": 4, "covered": 4, "skipped": 0, "pct": 100 },
+    "functions": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "statements": { "total": 5, "covered": 5, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/commit-codec.ts": {
+    "lines": { "total": 29, "covered": 29, "skipped": 0, "pct": 100 },
+    "functions": { "total": 6, "covered": 6, "skipped": 0, "pct": 100 },
+    "statements": { "total": 33, "covered": 33, "skipped": 0, "pct": 100 },
+    "branches": { "total": 17, "covered": 17, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/commit-context.ts": {
+    "lines": { "total": 4, "covered": 4, "skipped": 0, "pct": 100 },
+    "functions": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "statements": { "total": 5, "covered": 5, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/commit-error-codes.ts": {
+    "lines": { "total": 5, "covered": 5, "skipped": 0, "pct": 100 },
+    "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "statements": { "total": 5, "covered": 5, "skipped": 0, "pct": 100 },
+    "branches": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/commit-graph-guard.ts": {
+    "lines": { "total": 52, "covered": 51, "skipped": 0, "pct": 98.07 },
+    "functions": { "total": 15, "covered": 14, "skipped": 0, "pct": 93.33 },
+    "statements": { "total": 64, "covered": 62, "skipped": 0, "pct": 96.87 },
+    "branches": { "total": 20, "covered": 17, "skipped": 0, "pct": 85 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/commit-idempotency.ts": {
+    "lines": { "total": 14, "covered": 14, "skipped": 0, "pct": 100 },
+    "functions": { "total": 3, "covered": 3, "skipped": 0, "pct": 100 },
+    "statements": { "total": 14, "covered": 14, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/commit-log.ts": {
+    "lines": { "total": 5, "covered": 5, "skipped": 0, "pct": 100 },
+    "functions": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "statements": { "total": 6, "covered": 6, "skipped": 0, "pct": 100 },
+    "branches": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/commit.entity.ts": {
+    "lines": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/enable-migration.ts": {
+    "lines": { "total": 58, "covered": 55, "skipped": 0, "pct": 94.82 },
+    "functions": { "total": 13, "covered": 13, "skipped": 0, "pct": 100 },
+    "statements": { "total": 70, "covered": 66, "skipped": 0, "pct": 94.28 },
+    "branches": { "total": 20, "covered": 13, "skipped": 0, "pct": 65 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/list-commits.ts": {
+    "lines": { "total": 54, "covered": 53, "skipped": 0, "pct": 98.14 },
+    "functions": { "total": 17, "covered": 17, "skipped": 0, "pct": 100 },
+    "statements": { "total": 68, "covered": 67, "skipped": 0, "pct": 98.52 },
+    "branches": { "total": 31, "covered": 30, "skipped": 0, "pct": 96.77 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/commit/write-commit.ts": {
+    "lines": { "total": 76, "covered": 76, "skipped": 0, "pct": 100 },
+    "functions": { "total": 10, "covered": 10, "skipped": 0, "pct": 100 },
+    "statements": { "total": 82, "covered": 82, "skipped": 0, "pct": 100 },
+    "branches": { "total": 40, "covered": 38, "skipped": 0, "pct": 95 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/entity-column.ts": {
+    "lines": { "total": 5, "covered": 5, "skipped": 0, "pct": 100 },
+    "functions": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "statements": { "total": 6, "covered": 5, "skipped": 0, "pct": 83.33 },
+    "branches": { "total": 2, "covered": 1, "skipped": 0, "pct": 50 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/migrations/0004-working-tree-commits.ts": {
+    "lines": { "total": 21, "covered": 20, "skipped": 0, "pct": 95.23 },
+    "functions": { "total": 5, "covered": 4, "skipped": 0, "pct": 80 },
+    "statements": { "total": 21, "covered": 20, "skipped": 0, "pct": 95.23 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/plugin.ts": {
+    "lines": { "total": 36, "covered": 32, "skipped": 0, "pct": 88.88 },
+    "functions": { "total": 16, "covered": 15, "skipped": 0, "pct": 93.75 },
+    "statements": { "total": 46, "covered": 40, "skipped": 0, "pct": 86.95 },
+    "branches": { "total": 14, "covered": 11, "skipped": 0, "pct": 78.57 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/activation-cas.ts": {
+    "lines": { "total": 18, "covered": 18, "skipped": 0, "pct": 100 },
+    "functions": { "total": 4, "covered": 4, "skipped": 0, "pct": 100 },
+    "statements": { "total": 20, "covered": 20, "skipped": 0, "pct": 100 },
+    "branches": { "total": 4, "covered": 4, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/activation-state.ts": {
+    "lines": { "total": 33, "covered": 33, "skipped": 0, "pct": 100 },
+    "functions": { "total": 8, "covered": 8, "skipped": 0, "pct": 100 },
+    "statements": { "total": 37, "covered": 37, "skipped": 0, "pct": 100 },
+    "branches": { "total": 8, "covered": 8, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/async-state.ts": {
+    "lines": { "total": 24, "covered": 24, "skipped": 0, "pct": 100 },
+    "functions": { "total": 7, "covered": 7, "skipped": 0, "pct": 100 },
+    "statements": { "total": 27, "covered": 27, "skipped": 0, "pct": 100 },
+    "branches": { "total": 6, "covered": 6, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts": {
+    "lines": { "total": 156, "covered": 151, "skipped": 0, "pct": 96.79 },
+    "functions": { "total": 27, "covered": 27, "skipped": 0, "pct": 100 },
+    "statements": { "total": 172, "covered": 166, "skipped": 0, "pct": 96.51 },
+    "branches": { "total": 68, "covered": 58, "skipped": 0, "pct": 85.29 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/bulk-write-gate.ts": {
+    "lines": { "total": 8, "covered": 8, "skipped": 0, "pct": 100 },
+    "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "statements": { "total": 8, "covered": 8, "skipped": 0, "pct": 100 },
+    "branches": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/capture-hook.ts": {
+    "lines": { "total": 107, "covered": 104, "skipped": 0, "pct": 97.19 },
+    "functions": { "total": 33, "covered": 32, "skipped": 0, "pct": 96.96 },
+    "statements": { "total": 123, "covered": 120, "skipped": 0, "pct": 97.56 },
+    "branches": { "total": 54, "covered": 50, "skipped": 0, "pct": 92.59 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/capture-install.ts": {
+    "lines": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "statements": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/capture-runtime.ts": {
+    "lines": { "total": 103, "covered": 100, "skipped": 0, "pct": 97.08 },
+    "functions": { "total": 27, "covered": 27, "skipped": 0, "pct": 100 },
+    "statements": { "total": 113, "covered": 107, "skipped": 0, "pct": 94.69 },
+    "branches": { "total": 24, "covered": 18, "skipped": 0, "pct": 75 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/cold-replay.ts": {
+    "lines": { "total": 71, "covered": 71, "skipped": 0, "pct": 100 },
+    "functions": { "total": 23, "covered": 23, "skipped": 0, "pct": 100 },
+    "statements": { "total": 89, "covered": 86, "skipped": 0, "pct": 96.62 },
+    "branches": { "total": 56, "covered": 53, "skipped": 0, "pct": 94.64 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/commit-command.ts": {
+    "lines": { "total": 47, "covered": 44, "skipped": 0, "pct": 93.61 },
+    "functions": { "total": 7, "covered": 7, "skipped": 0, "pct": 100 },
+    "statements": { "total": 51, "covered": 47, "skipped": 0, "pct": 92.15 },
+    "branches": { "total": 18, "covered": 12, "skipped": 0, "pct": 66.66 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/commit-conflict.ts": {
+    "lines": { "total": 10, "covered": 10, "skipped": 0, "pct": 100 },
+    "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "statements": { "total": 10, "covered": 10, "skipped": 0, "pct": 100 },
+    "branches": { "total": 8, "covered": 8, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/diff.ts": {
+    "lines": { "total": 37, "covered": 37, "skipped": 0, "pct": 100 },
+    "functions": { "total": 6, "covered": 6, "skipped": 0, "pct": 100 },
+    "statements": { "total": 45, "covered": 45, "skipped": 0, "pct": 100 },
+    "branches": { "total": 31, "covered": 31, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/discard-command.ts": {
+    "lines": { "total": 19, "covered": 19, "skipped": 0, "pct": 100 },
+    "functions": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "statements": { "total": 20, "covered": 20, "skipped": 0, "pct": 100 },
+    "branches": { "total": 4, "covered": 4, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/external-notify-gate.ts": {
+    "lines": { "total": 4, "covered": 4, "skipped": 0, "pct": 100 },
+    "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "statements": { "total": 4, "covered": 4, "skipped": 0, "pct": 100 },
+    "branches": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/materialize-branch.ts": {
+    "lines": { "total": 79, "covered": 79, "skipped": 0, "pct": 100 },
+    "functions": { "total": 18, "covered": 18, "skipped": 0, "pct": 100 },
+    "statements": { "total": 89, "covered": 88, "skipped": 0, "pct": 98.87 },
+    "branches": { "total": 24, "covered": 23, "skipped": 0, "pct": 95.83 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts": {
+    "lines": { "total": 146, "covered": 144, "skipped": 0, "pct": 98.63 },
+    "functions": { "total": 34, "covered": 34, "skipped": 0, "pct": 100 },
+    "statements": { "total": 191, "covered": 183, "skipped": 0, "pct": 95.81 },
+    "branches": { "total": 113, "covered": 100, "skipped": 0, "pct": 88.49 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts": {
+    "lines": { "total": 78, "covered": 74, "skipped": 0, "pct": 94.87 },
+    "functions": { "total": 14, "covered": 11, "skipped": 0, "pct": 78.57 },
+    "statements": { "total": 90, "covered": 83, "skipped": 0, "pct": 92.22 },
+    "branches": { "total": 18, "covered": 15, "skipped": 0, "pct": 83.33 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/restore-precheck.ts": {
+    "lines": { "total": 41, "covered": 40, "skipped": 0, "pct": 97.56 },
+    "functions": { "total": 9, "covered": 8, "skipped": 0, "pct": 88.88 },
+    "statements": { "total": 48, "covered": 45, "skipped": 0, "pct": 93.75 },
+    "branches": { "total": 12, "covered": 10, "skipped": 0, "pct": 83.33 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/restore-session-transitions.ts": {
+    "lines": { "total": 19, "covered": 19, "skipped": 0, "pct": 100 },
+    "functions": { "total": 4, "covered": 4, "skipped": 0, "pct": 100 },
+    "statements": { "total": 21, "covered": 21, "skipped": 0, "pct": 100 },
+    "branches": { "total": 6, "covered": 6, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/status.ts": {
+    "lines": { "total": 33, "covered": 33, "skipped": 0, "pct": 100 },
+    "functions": { "total": 7, "covered": 7, "skipped": 0, "pct": 100 },
+    "statements": { "total": 36, "covered": 36, "skipped": 0, "pct": 100 },
+    "branches": { "total": 8, "covered": 8, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/switch-branch-options.ts": {
+    "lines": { "total": 22, "covered": 21, "skipped": 0, "pct": 95.45 },
+    "functions": { "total": 3, "covered": 3, "skipped": 0, "pct": 100 },
+    "statements": { "total": 25, "covered": 24, "skipped": 0, "pct": 96 },
+    "branches": { "total": 14, "covered": 13, "skipped": 0, "pct": 92.85 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/trusted-callsite-capture.ts": {
+    "lines": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "statements": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts": {
+    "lines": { "total": 56, "covered": 56, "skipped": 0, "pct": 100 },
+    "functions": { "total": 22, "covered": 22, "skipped": 0, "pct": 100 },
+    "statements": { "total": 69, "covered": 69, "skipped": 0, "pct": 100 },
+    "branches": { "total": 34, "covered": 33, "skipped": 0, "pct": 97.05 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-activation-state.entity.ts": {
+    "lines": { "total": 3, "covered": 3, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 3, "covered": 3, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts": {
+    "lines": { "total": 49, "covered": 49, "skipped": 0, "pct": 100 },
+    "functions": { "total": 33, "covered": 33, "skipped": 0, "pct": 100 },
+    "statements": { "total": 60, "covered": 60, "skipped": 0, "pct": 100 },
+    "branches": { "total": 6, "covered": 6, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-entry.entity.ts": {
+    "lines": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts": {
+    "lines": { "total": 63, "covered": 62, "skipped": 0, "pct": 98.41 },
+    "functions": { "total": 27, "covered": 26, "skipped": 0, "pct": 96.29 },
+    "statements": { "total": 74, "covered": 73, "skipped": 0, "pct": 98.64 },
+    "branches": { "total": 16, "covered": 16, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-materialization-page.entity.ts": {
+    "lines": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-materialization-stage.entity.ts": {
+    "lines": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-patch-codec.ts": {
+    "lines": { "total": 17, "covered": 17, "skipped": 0, "pct": 100 },
+    "functions": { "total": 4, "covered": 4, "skipped": 0, "pct": 100 },
+    "statements": { "total": 21, "covered": 21, "skipped": 0, "pct": 100 },
+    "branches": { "total": 13, "covered": 13, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-restore-session.entity.ts": {
+    "lines": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-state-sql.ts": {
+    "lines": { "total": 14, "covered": 14, "skipped": 0, "pct": 100 },
+    "functions": { "total": 5, "covered": 5, "skipped": 0, "pct": 100 },
+    "statements": { "total": 14, "covered": 14, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-state.entity.ts": {
+    "lines": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/write-entry-matrix.ts": {
+    "lines": { "total": 25, "covered": 25, "skipped": 0, "pct": 100 },
+    "functions": { "total": 6, "covered": 6, "skipped": 0, "pct": 100 },
+    "statements": { "total": 35, "covered": 35, "skipped": 0, "pct": 100 },
+    "branches": { "total": 20, "covered": 20, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts": {
+    "lines": { "total": 28, "covered": 28, "skipped": 0, "pct": 100 },
+    "functions": { "total": 8, "covered": 8, "skipped": 0, "pct": 100 },
+    "statements": { "total": 35, "covered": 35, "skipped": 0, "pct": 100 },
+    "branches": { "total": 26, "covered": 26, "skipped": 0, "pct": 100 }
+  },
+  "total": {
+    "lines": { "total": 1866, "covered": 1829, "skipped": 0, "pct": 98.01 },
+    "statements": { "total": 2171, "covered": 2108, "skipped": 0, "pct": 97.09 },
+    "functions": { "total": 471, "covered": 461, "skipped": 0, "pct": 97.87 },
+    "branches": { "total": 814, "covered": 737, "skipped": 0, "pct": 90.54 },
+    "branchesTrue": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  }
+}

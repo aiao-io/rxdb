@@ -1,0 +1,210 @@
+{
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/index.ts": {
+    "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/index.ts",
+    "statementMap": {},
+    "fnMap": {},
+    "branchMap": {},
+    "s": {},
+    "f": {},
+    "b": {},
+    "meta": { "lastBranch": 0, "lastFunction": 0, "lastStatement": 0, "seen": {}, "fnNames": {} }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/use-working-tree.ts": {
+    "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/use-working-tree.ts",
+    "statementMap": {
+      "0": { "start": { "line": 166, "column": 13 }, "end": { "line": 190, "column": null } },
+      "1": { "start": { "line": 169, "column": 19 }, "end": { "line": 169, "column": 27 } },
+      "2": { "start": { "line": 170, "column": 17 }, "end": { "line": 170, "column": null } },
+      "3": { "start": { "line": 171, "column": 19 }, "end": { "line": 173, "column": null } },
+      "4": { "start": { "line": 172, "column": 4 }, "end": { "line": 172, "column": null } },
+      "5": { "start": { "line": 172, "column": 30 }, "end": { "line": 172, "column": 59 } },
+      "6": { "start": { "line": 175, "column": 2 }, "end": { "line": 189, "column": null } },
+      "7": { "start": { "line": 176, "column": 35 }, "end": { "line": 176, "column": 58 } },
+      "8": { "start": { "line": 177, "column": 32 }, "end": { "line": 177, "column": 52 } },
+      "9": { "start": { "line": 178, "column": 39 }, "end": { "line": 178, "column": 66 } },
+      "10": { "start": { "line": 179, "column": 32 }, "end": { "line": 179, "column": 52 } },
+      "11": { "start": { "line": 180, "column": 30 }, "end": { "line": 180, "column": 48 } },
+      "12": { "start": { "line": 181, "column": 37 }, "end": { "line": 181, "column": 62 } },
+      "13": { "start": { "line": 182, "column": 39 }, "end": { "line": 182, "column": 66 } },
+      "14": { "start": { "line": 183, "column": 32 }, "end": { "line": 183, "column": 52 } },
+      "15": { "start": { "line": 184, "column": 33 }, "end": { "line": 184, "column": 54 } },
+      "16": { "start": { "line": 185, "column": 33 }, "end": { "line": 185, "column": 54 } },
+      "17": { "start": { "line": 186, "column": 40 }, "end": { "line": 186, "column": 68 } },
+      "18": { "start": { "line": 187, "column": 38 }, "end": { "line": 187, "column": 64 } }
+    },
+    "fnMap": {
+      "0": {
+        "name": "(anonymous_0)",
+        "decl": { "start": { "line": 166, "column": 13 }, "end": { "line": 166, "column": 57 } },
+        "loc": { "start": { "line": 166, "column": 57 }, "end": { "line": 190, "column": null } },
+        "line": 166
+      },
+      "1": {
+        "name": "(anonymous_1)",
+        "decl": { "start": { "line": 171, "column": 45 }, "end": { "line": 171, "column": 56 } },
+        "loc": { "start": { "line": 172, "column": 4 }, "end": { "line": 172, "column": null } },
+        "line": 172
+      },
+      "2": {
+        "name": "(anonymous_2)",
+        "decl": { "start": { "line": 172, "column": 11 }, "end": { "line": 172, "column": 18 } },
+        "loc": { "start": { "line": 172, "column": 30 }, "end": { "line": 172, "column": 59 } },
+        "line": 172
+      },
+      "3": {
+        "name": "(anonymous_3)",
+        "decl": { "start": { "line": 176, "column": 20 }, "end": { "line": 176, "column": 35 } },
+        "loc": { "start": { "line": 176, "column": 35 }, "end": { "line": 176, "column": 58 } },
+        "line": 176
+      },
+      "4": {
+        "name": "(anonymous_4)",
+        "decl": { "start": { "line": 177, "column": 17 }, "end": { "line": 177, "column": 32 } },
+        "loc": { "start": { "line": 177, "column": 32 }, "end": { "line": 177, "column": 52 } },
+        "line": 177
+      },
+      "5": {
+        "name": "(anonymous_5)",
+        "decl": { "start": { "line": 178, "column": 24 }, "end": { "line": 178, "column": 39 } },
+        "loc": { "start": { "line": 178, "column": 39 }, "end": { "line": 178, "column": 66 } },
+        "line": 178
+      },
+      "6": {
+        "name": "(anonymous_6)",
+        "decl": { "start": { "line": 179, "column": 17 }, "end": { "line": 179, "column": 32 } },
+        "loc": { "start": { "line": 179, "column": 32 }, "end": { "line": 179, "column": 52 } },
+        "line": 179
+      },
+      "7": {
+        "name": "(anonymous_7)",
+        "decl": { "start": { "line": 180, "column": 15 }, "end": { "line": 180, "column": 30 } },
+        "loc": { "start": { "line": 180, "column": 30 }, "end": { "line": 180, "column": 48 } },
+        "line": 180
+      },
+      "8": {
+        "name": "(anonymous_8)",
+        "decl": { "start": { "line": 181, "column": 22 }, "end": { "line": 181, "column": 37 } },
+        "loc": { "start": { "line": 181, "column": 37 }, "end": { "line": 181, "column": 62 } },
+        "line": 181
+      },
+      "9": {
+        "name": "(anonymous_9)",
+        "decl": { "start": { "line": 182, "column": 24 }, "end": { "line": 182, "column": 39 } },
+        "loc": { "start": { "line": 182, "column": 39 }, "end": { "line": 182, "column": 66 } },
+        "line": 182
+      },
+      "10": {
+        "name": "(anonymous_10)",
+        "decl": { "start": { "line": 183, "column": 17 }, "end": { "line": 183, "column": 32 } },
+        "loc": { "start": { "line": 183, "column": 32 }, "end": { "line": 183, "column": 52 } },
+        "line": 183
+      },
+      "11": {
+        "name": "(anonymous_11)",
+        "decl": { "start": { "line": 184, "column": 18 }, "end": { "line": 184, "column": 33 } },
+        "loc": { "start": { "line": 184, "column": 33 }, "end": { "line": 184, "column": 54 } },
+        "line": 184
+      },
+      "12": {
+        "name": "(anonymous_12)",
+        "decl": { "start": { "line": 185, "column": 18 }, "end": { "line": 185, "column": 33 } },
+        "loc": { "start": { "line": 185, "column": 33 }, "end": { "line": 185, "column": 54 } },
+        "line": 185
+      },
+      "13": {
+        "name": "(anonymous_13)",
+        "decl": { "start": { "line": 186, "column": 25 }, "end": { "line": 186, "column": 40 } },
+        "loc": { "start": { "line": 186, "column": 40 }, "end": { "line": 186, "column": 68 } },
+        "line": 186
+      },
+      "14": {
+        "name": "(anonymous_14)",
+        "decl": { "start": { "line": 187, "column": 23 }, "end": { "line": 187, "column": 38 } },
+        "loc": { "start": { "line": 187, "column": 38 }, "end": { "line": 187, "column": 64 } },
+        "line": 187
+      }
+    },
+    "branchMap": {},
+    "s": {
+      "0": 2,
+      "1": 45,
+      "2": 45,
+      "3": 45,
+      "4": 108,
+      "5": 108,
+      "6": 45,
+      "7": 3,
+      "8": 1,
+      "9": 1,
+      "10": 12,
+      "11": 3,
+      "12": 2,
+      "13": 1,
+      "14": 6,
+      "15": 2,
+      "16": 8,
+      "17": 4,
+      "18": 5
+    },
+    "f": {
+      "0": 45,
+      "1": 108,
+      "2": 108,
+      "3": 3,
+      "4": 1,
+      "5": 1,
+      "6": 12,
+      "7": 3,
+      "8": 2,
+      "9": 1,
+      "10": 6,
+      "11": 2,
+      "12": 8,
+      "13": 4,
+      "14": 5
+    },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 15,
+      "lastStatement": 19,
+      "seen": {
+        "s:166:13:190:Infinity": 0,
+        "f:166:13:166:57": 0,
+        "s:169:19:169:27": 1,
+        "s:170:17:170:Infinity": 2,
+        "s:171:19:173:Infinity": 3,
+        "f:171:45:171:56": 1,
+        "s:172:4:172:Infinity": 4,
+        "f:172:11:172:18": 2,
+        "s:172:30:172:59": 5,
+        "s:175:2:189:Infinity": 6,
+        "f:176:20:176:35": 3,
+        "s:176:35:176:58": 7,
+        "f:177:17:177:32": 4,
+        "s:177:32:177:52": 8,
+        "f:178:24:178:39": 5,
+        "s:178:39:178:66": 9,
+        "f:179:17:179:32": 6,
+        "s:179:32:179:52": 10,
+        "f:180:15:180:30": 7,
+        "s:180:30:180:48": 11,
+        "f:181:22:181:37": 8,
+        "s:181:37:181:62": 12,
+        "f:182:24:182:39": 9,
+        "s:182:39:182:66": 13,
+        "f:183:17:183:32": 10,
+        "s:183:32:183:52": 14,
+        "f:184:18:184:33": 11,
+        "s:184:33:184:54": 15,
+        "f:185:18:185:33": 12,
+        "s:185:33:185:54": 16,
+        "f:186:25:186:40": 13,
+        "s:186:40:186:68": 17,
+        "f:187:23:187:38": 14,
+        "s:187:38:187:64": 18
+      },
+      "fnNames": {}
+    }
+  }
+}

@@ -49,13 +49,13 @@ execution: in-progress
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                   | 核查动作                                                                          | 最低复验场景 / 证据要求                                                                 | 状态                             |
-| ---- | ---------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------- |
-| C1   | NEW 草稿边界           | 对照 README 与事件监听，核查仅 NEW 草稿、不承诺 UPDATE buffer/DELETE 撤销的语义。 | NEW 顶层修改、save(CREATE)、REMOVE/discard、已有实体修改；主表不因缓存操作被写入。      | 待核查                           |
-| C2   | install / ready 状态机 | 检查 IndexedDB 首次载入、未注册实体恢复、失败后的显式重试。                       | 读取失败、未知 EntityType、重复 install、关闭中 ready；reject 可见，不后台无限重试。    | 部分执行，确认 RV-042            |
-| C3   | flush 写屏障           | 审查待写/待删集合、失败后恢复与 WorkspaceFlushError 点名。                        | 部分不可克隆值、写失败、并发修改/flush、再次显式重试；可克隆项与失败项正确区分。        | 已核查（本轮测量面，见执行记录） |
-| C4   | 快照与跨标签页         | 核查 structuredClone、BroadcastChannel 身份、重复/乱序与同步错误清理。            | 改 list 快照不改内部草稿、同源双页、不同库、损坏记录；corruptedEntries 只反映当前问题。 | 待核查                           |
-| C5   | 生命周期与持久化证明   | 检查 listener/IDB/broadcast 销毁与 package 子入口，不用内存测试代替重开恢复。     | 浏览器 test-browser 刷新/重开、close/reinstall、无法打开 IDB；边界与使用说明一致。      | 待核查                           |
+| 编号 | 专项                   | 核查动作                                                                          | 最低复验场景 / 证据要求                                                                 | 状态                                         |
+| ---- | ---------------------- | --------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------- |
+| C1   | NEW 草稿边界           | 对照 README 与事件监听，核查仅 NEW 草稿、不承诺 UPDATE buffer/DELETE 撤销的语义。 | NEW 顶层修改、save(CREATE)、REMOVE/discard、已有实体修改；主表不因缓存操作被写入。      | partial / 待证（2026-10-05；见第 8 节）      |
+| C2   | install / ready 状态机 | 检查 IndexedDB 首次载入、未注册实体恢复、失败后的显式重试。                       | 读取失败、未知 EntityType、重复 install、关闭中 ready；reject 可见，不后台无限重试。    | closed / 本轮核销（2026-10-05；见第 8 节）   |
+| C3   | flush 写屏障           | 审查待写/待删集合、失败后恢复与 WorkspaceFlushError 点名。                        | 部分不可克隆值、写失败、并发修改/flush、再次显式重试；可克隆项与失败项正确区分。        | closed / 保留原限定（2026-10-05；见第 8 节） |
+| C4   | 快照与跨标签页         | 核查 structuredClone、BroadcastChannel 身份、重复/乱序与同步错误清理。            | 改 list 快照不改内部草稿、同源双页、不同库、损坏记录；corruptedEntries 只反映当前问题。 | partial / 待证（2026-10-05；见第 8 节）      |
+| C5   | 生命周期与持久化证明   | 检查 listener/IDB/broadcast 销毁与 package 子入口，不用内存测试代替重开恢复。     | 浏览器 test-browser 刷新/重开、close/reinstall、无法打开 IDB；边界与使用说明一致。      | partial / 待证（2026-10-05；见第 8 节）      |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -147,3 +147,29 @@ CI=true NX_DAEMON=false pnpm nx run rxdb-plugin-workspace:test-browser --skipRem
 ## 2026-10-04：第二批实际深审
 
 [本对象实际结论与证据](../results/packages/rxdb-plugin-workspace.md) · [2026-10-04 执行台账](../execution-2026-10-04.md)。只核销明确标识的包级专题；不把平台 skip、历史绿色门禁或不适用授权边界当成应用已通过。
+
+## 8. 2026-10-05：plugins 实际逐 C 交付
+
+**执行状态：partial；评审完成不等于无缺陷，但必要证据缺失不能核销。** 本组不执行 Nx build/test/e2e/coverage/server，动态证据来自主控串行队列。下面覆盖原计划全部 C 编号，不修改原验收口径。
+
+本轮只读了实际登记的源码/测试行区间与若干测试入口；不是全受控文件已经读完。九包 scope 共 **554** 个文件；本组读取范围见 `requirements/reviews/evidence/2026-10-05/parallel/plugins/file-inspection.json`，指纹盘点与阅读分开。当前源判断优先于已删除 RV 的历史状态。
+
+当前 Node：**100 passed /0 failed /0 skip**。日志：`requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage.txt`；报告按 `rxdb-plugin-workspace` 分目录保存。主控 69 项 strict lint/typecheck 已过，但不是全部 spec 类型或后来修订/晚到 probe 已过的证明。
+
+当前 fresh **Node** 四指标（S/B/F/L）：**90.92% / 83.26% / 95.45% / 94.64%**。来源：`requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-plugin-workspace/coverage-summary.json`。tree 的 100% 只涉及 Node 面；browser 合并/宿主 skip 另审。覆盖率达标不自动核销 C。
+
+### 实际逐 C 核销矩阵
+
+| C   | 核销状态            | 当前真实源码锚点（相对本包 src；注明联审者除外）                                                          | 不变量、正向与反证                                                                                                                                                                                                            | 已有/本轮测试证据                                                                                                                                                                             | 必要缺口或核销边界                                                                                                              |
+| --- | ------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| C1  | partial / 待证      | RxDBPluginWorkspace.ts:49、633–685、751–775；workspace-entry.ts:54–100                                    | 只监听 NEW/CREATE/REMOVE；NEW 与 patches$ 维护活草稿，CREATE 只在无更新的草稿上清理，REMOVE/discard 删除缓存。没有 UPDATE buffer 或 DELETE 撤销承诺，系统实体身份精确排除。                                                   | RxDBPluginWorkspace.spec.ts:280–361；workspace.browser.spec.ts:214–335 等真实 NEW/修改入口；当前 Node 100/100，通过的是现有状态机面。                                                         | 浏览器真实 save(CREATE)、既有实体 UPDATE 不进入草稿与主表不被缓存操作写入的完整当前链路尚需 browser/应用对照；不扩大 NEW 契约。 |
+| C2  | closed / 本轮核销   | RxDBPluginWorkspace.ts:323–349、538–631；workspace-store.ts:75–143                                        | 完整 install/ready 状态机：成功重复 install 复用 Promise；失败 ready 仍 reject，仅显式 install 重试；未知 EntityType 保留草稿；回填及 catch/finally 同用 store 身份，旧纪元不得清新删除意图或标新失败；水合失败回滚半份发布。 | 当前 Node 100/100、0 skip。spec.ts:695–769（未知类型/读失败/水合回滚）、841 起（关闭中 ready）、1408–1489（四顺序）；workspace-store.spec.ts 的 open/blocked/close 故障面全部在当前套件通过。 | 本轮按原 C2 的全部最低场景核销；故障注入为 IDB/实体管理接缝，不宣称浏览器跨页或所有平台持久化通过，后者仍归 C4/C5。             |
+| C3  | closed / 保留原限定 | RxDBPluginWorkspace.ts:295–308、816–948                                                                   | 保留 10 月 3 日原核销范围。当前重查：clone 逐项预检，可克隆 setMany 后 delMany；失败较新 save/delete 优先；晚批用 store 身份 guard；unclonable 点名 cacheIds，waiter 只在无 pending/queue 结算。                              | 历史限定单元 96/browser20 证据保留；当前 Node 100/100 复过 delete 阶段失败、新值保护、释放中的 waiter 与晚写入。                                                                              | 不把历史 Chromium 证据伪写成今日通过，不扩大到所有平台/长期故障；当前 browser fresh 由主控后补。                                |
+| C4  | partial / 待证      | RxDBPluginWorkspace.ts:358–367、457–465、688–730、801–813；workspace-entry.ts:54–100                      | list structuredClone 深隔离；同 dbName channel、clientId 去自回灌；入站 shape/cacheId/data.id 守卫；sync_errors 在成功发送/删除时清。协议没有全序版本，不能凭两个按序消息称多写者乱序已验证。                                 | spec.ts:364–381、973–1002、1226–1305；browser:465–544 是同页两 channel 的正向/坏消息对照。当前 Node 全套过。                                                                                  | 同源真实双页面、不同库隔离、重复/乱序/多写者冲突的所有原最低场景未完全动态取证，C4 不核销。                                     |
+| C5  | partial / 待证      | RxDBPluginWorkspace.ts:429–535；workspace-store.ts:58–71、125–158；package.json:28–42；src/index.ts:14–21 | scope 逆序摘事件/task pump/channel/store；保留实例级 changes$ 而不 complete，重装获得新纪元；IDB versionchange close 后忘记连接可重开；exports 与入口类型核对。构造只发布身份，不偷取资源。                                   | 当前 Node 100/100；browser:389–459、550 起真实重开/versionchange/写失败入口已读，主控 browser 尚待。                                                                                          | 当前真实 Chromium 刷新/重开和 close/reinstall 完整日志及发布消费仍缺；无法打开 IDB 的单元拒绝已证，不代替真实浏览器持久化证明。 |
+
+### 本组改动与复验责任
+
+仅改本对象计划/执行记录，以及本组 evidence；没有修改业务、依赖或已有测试，没有 Git 暂存/提交/重置，没有嵌套 agent。新增独立 probes 只在 search/replay/storage 自己的 sourceRoot，后续执行均归主控。
+
+最小请求保存在 `requirements/reviews/evidence/2026-10-05/parallel/plugins/validation-requests.json`；候选在同目录 `findings.pending.md`。RV-060/061 不重复登记；RV-059 是其它对象公开接缝，不在本组扩 scope。

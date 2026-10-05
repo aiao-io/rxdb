@@ -1,0 +1,46 @@
+{
+  "date": "2026-10-05",
+  "inventoryIsNotReadEvidence": true,
+  "objects": [
+    {
+      "object": "rxdb-adapter-sqlite-core",
+      "scopeTrackedFileCount": 177,
+      "changedFromScope": []
+    },
+    {
+      "object": "rxdb-adapter-pglite",
+      "scopeTrackedFileCount": 246,
+      "changedFromScope": []
+    },
+    {
+      "object": "rxdb-adapter-encrypted",
+      "scopeTrackedFileCount": 39,
+      "changedFromScope": []
+    },
+    {
+      "object": "rxdb-adapter-sqlite",
+      "scopeTrackedFileCount": 34,
+      "changedFromScope": []
+    },
+    {
+      "object": "rxdb-adapter-sqlite-wasm",
+      "scopeTrackedFileCount": 51,
+      "changedFromScope": []
+    },
+    {
+      "object": "rxdb-adapter-wa-sqlite",
+      "scopeTrackedFileCount": 49,
+      "changedFromScope": []
+    },
+    {
+      "object": "rxdb-adapter-sqliteai",
+      "scopeTrackedFileCount": 35,
+      "changedFromScope": []
+    },
+    {
+      "object": "rxdb-adapter-miniprogram",
+      "scopeTrackedFileCount": 71,
+      "changedFromScope": []
+    }
+  ]
+}

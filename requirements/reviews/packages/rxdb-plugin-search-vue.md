@@ -48,15 +48,14 @@ Vue：SearchHandle 的框架响应式输入、结果、状态与清理封装。
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                        | 核查动作                                                                                                                  | 最低复验场景 / 证据要求                                                                                  | 状态   |
-| ---- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------ |
-| C1   | SearchHandle 映射           | 逐项核对 results/state/error/hasMore、setQuery/loadMore/clear 到核心 handle，保留空态与错误差异。                         | 空词、无结果、查询失败、清空、末页；框架状态不能吞掉核心错误。                                           | 待核查 |
-| C2   | 快速输入与 options identity | 核查 debounce 的归属、语义相等选项、scope/branch 切换和异步过期结果。                                                     | A→B 快速输入、相同值新对象、换库/branch、并发翻页；不重复创建 handle 或串结果。                          | 待核查 |
-| C3   | 三端类型与依赖闭合          | 对照三端框架 idiom、公开 consumer 与 README 使用；明确必需搜索插件和不支持的 backend。                                    | 缺 plugin、typed consumer、同 fixtures parity、卸载；必须依赖能通过 inject 闭合。                        | 待核查 |
-| C4   | Vue 生命周期与响应式来源    | 核查 ref/computed/getter 输入解包、watch 依赖、onScopeDispose/onUnmounted 与 provider scope，避免把首次取值变成永久快照。 | 替换与深改输入、scope 销毁、卸载后晚到结果、多实例；旧订阅释放，新输入生效。                             | 待核查 |
-| C5   | Vue 类型与 SFC 消费         | 核查泛型 composable、SFC props/emits 与声明输出；响应式代理不能改变实体身份或隐藏错误。                                   | vue-tsc consumer、模板输入错误、readonly/computed 来源、独立 pack 消费；没有宽化 any 或丢失 emits 契约。 | 待核查 |
-
-共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
+| 编号                                                                                                                                                                                                                                                 | 专项                        | 核查动作                                                                                                                  | 最低复验场景 / 证据要求                                                                                  | 状态    |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------- |
+| C1                                                                                                                                                                                                                                                   | SearchHandle 映射           | 逐项核对 results/state/error/hasMore、setQuery/loadMore/clear 到核心 handle，保留空态与错误差异。                         | 空词、无结果、查询失败、清空、末页；框架状态不能吞掉核心错误。                                           | partial |
+| C2                                                                                                                                                                                                                                                   | 快速输入与 options identity | 核查 debounce 的归属、语义相等选项、scope/branch 切换和异步过期结果。                                                     | A→B 快速输入、相同值新对象、换库/branch、并发翻页；不重复创建 handle 或串结果。                          | partial |
+| C3                                                                                                                                                                                                                                                   | 三端类型与依赖闭合          | 对照三端框架 idiom、公开 consumer 与 README 使用；明确必需搜索插件和不支持的 backend。                                    | 缺 plugin、typed consumer、同 fixtures parity、卸载；必须依赖能通过 inject 闭合。                        | partial |
+| C4                                                                                                                                                                                                                                                   | Vue 生命周期与响应式来源    | 核查 ref/computed/getter 输入解包、watch 依赖、onScopeDispose/onUnmounted 与 provider scope，避免把首次取值变成永久快照。 | 替换与深改输入、scope 销毁、卸载后晚到结果、多实例；旧订阅释放，新输入生效。                             | partial |
+| C5                                                                                                                                                                                                                                                   | Vue 类型与 SFC 消费         | 核查泛型 composable、SFC props/emits 与声明输出；响应式代理不能改变实体身份或隐藏错误。                                   | vue-tsc consumer、模板输入错误、readonly/computed 来源、独立 pack 消费；没有宽化 any 或丢失 emits 契约。 | partial |
+| 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。 |
 
 ## 4. 测试证据与联审边界
 
@@ -133,3 +132,31 @@ pnpm audit:coverage --projects=rxdb-plugin-search-vue
 ## 7. 本轮实际执行记录
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-plugin-search-vue.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
+
+## 2026-10-05 frameworks 本轮完成条件与实际核查
+
+本轮 `main/worktree@44de1138b4d396fc45d6e76ab60476c40fef2223`，日期 2026-10-05。不是新泛计划，而是对原 C 的实际结论：**0/5 个完整 C、execution 保持 in-progress；结果记录保持 partial；本对象不是全对象完成候选。**
+
+全部 14 个受控文件的范围/摘要已核对，正文片段 4、outline 0、仅导航 0、未人工检查 10；不能将 scope 盘点称为全读。
+
+| 原 C                           | 本轮结论          | 原场景中仍缺的必要证据                                                                                                              |
+| ------------------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| C1 SearchHandle 映射           | partial；局部通过 | 三端同序列空词→无结果→失败→重试→末页→清空的真实 core handle 新探针已写，主控尚未补跑；因此不把 C1 提前核销。                        |
+| C2 快速输入与 options identity | partial；局部通过 | 缺 A→B 真正异步查询代次与 branch 变化并发翻页的三端同 fixture；既有桩 emission 隔离不等价于完整搜索后端时序。                       |
+| C3 三端类型与依赖闭合          | partial；局部通过 | pack 证据未执行声明编译/runtime import；缺插件、backend 不支持、typed root consumer 及同 fixtures parity 的完整消费链路未全部覆盖。 |
+| C4 Vue 生命周期与响应式来源    | partial；局部通过 | 缺真实 SFC 多实例挂卸与旧 core 查询晚到的完整组合；scope 测试不冒充完整 UI。                                                        |
+| C5 Vue 类型与 SFC 消费         | partial；局部通过 | vue-tsc SFC consumer、模板错误、readonly/computed 来源和独立 pack 声明消费尚缺。                                                    |
+
+本轮完成条件：
+
+- [x] 全受控 inventory / 摘要核对，未排除配置/资源/fixture。
+- [ ] 全部受控内容阅读及全部原 C 场景核销（缺口见表，保持 partial）。
+- [x] 每 C 已有明确的已证/未证结论及角色明确的源码、测试锚点。
+- [x] 当前 baseline 的 unit / 四指标 / 零警告 lint / typecheck / 真 pack 来源已读取登记。
+- [ ] 晚加探针补跑、独立 typed/runtime consumer、真实完整 UI/生命周期等必要缺口全部关闭。
+- [ ] 全对象证据完成与最终评级（不要求零缺陷，但不能缺验证）；尚未完成。
+
+本对象四指标（statements/branches/functions/lines）：**98.57% / 96.42% / 100% / 100%**；阈值各项 ≥ 80%。其余18包的绿不能抹掉 rxdb-angular 的16个失败；新探针不继承基线通过。
+发布 pack 根是 `packages/rxdb-plugin-search-vue`，实际 tarball 目标文件存在、独立根 ESM 解析通过；**不包含 typed consumer 编译/runtime import**。Angular 不能按源 manifest 缺 exports 报错。
+
+逐 C 原场景、函数/测试证据与完成条件详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-plugin-search-vue.md`；机器证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`。

@@ -1,0 +1,114 @@
+[
+  {
+    "project": "rxdb-react",
+    "target": "test-browser",
+    "args": ["--skipRemoteCache", "--skipNxCache"],
+    "reason": "resolved target 已存在；基线普通 test 明确 exclude *.browser.*，C4/RRE-009 layout→passive 真实仓储竞态不能用 happy-dom 覆盖率代替。请主控串行复跑现有浏览器套件。",
+    "criticalForC": ["C1", "C3", "C4"]
+  },
+  {
+    "project": "rxdb-plugin-replay-react",
+    "target": "lint",
+    "args": ["--skipRemoteCache", "--skipNxCache"],
+    "reason": "新增 packages/rxdb-plugin-replay-react/src/__tests__/review-parallel-layout-seek.spec.ts；真实 React 消费方 layout effect 在播放器 passive effect 安装前调用公开 seek；与 README/replayerRef 加载前记住目标时刻契约对照，预期红。",
+    "criticalForC": ["C1", "C4", "C5"]
+  },
+  {
+    "project": "rxdb-plugin-replay-react",
+    "target": "typecheck",
+    "args": ["--skipRemoteCache", "--skipNxCache"],
+    "reason": "新增 packages/rxdb-plugin-replay-react/src/__tests__/review-parallel-layout-seek.spec.ts；真实 React 消费方 layout effect 在播放器 passive effect 安装前调用公开 seek；与 README/replayerRef 加载前记住目标时刻契约对照，预期红。",
+    "criticalForC": ["C1", "C4", "C5"]
+  },
+  {
+    "project": "rxdb-plugin-replay-react",
+    "target": "test",
+    "args": ["--skipRemoteCache", "--skipNxCache", "--coverage"],
+    "reason": "新增 packages/rxdb-plugin-replay-react/src/__tests__/review-parallel-layout-seek.spec.ts；真实 React 消费方 layout effect 在播放器 passive effect 安装前调用公开 seek；与 README/replayerRef 加载前记住目标时刻契约对照，预期红。",
+    "criticalForC": ["C1", "C4", "C5"]
+  },
+  {
+    "project": "rxdb-plugin-search-vue",
+    "target": "lint",
+    "args": ["--skipRemoteCache", "--skipNxCache"],
+    "reason": "基线验证之后新增 review-parallel spec：需补做该新增测试的类型/零警告验证。",
+    "criticalForC": ["C1", "C5"]
+  },
+  {
+    "project": "rxdb-plugin-search-vue",
+    "target": "typecheck",
+    "args": ["--skipRemoteCache", "--skipNxCache"],
+    "reason": "基线验证之后新增 review-parallel spec：需补做该新增测试的类型/零警告验证。",
+    "criticalForC": ["C1", "C5"]
+  },
+  {
+    "project": "rxdb-plugin-search-react",
+    "target": "lint",
+    "args": ["--skipRemoteCache", "--skipNxCache"],
+    "reason": "基线验证之后新增 review-parallel spec：需补做该新增测试的类型/零警告验证。",
+    "criticalForC": ["C1", "C5"]
+  },
+  {
+    "project": "rxdb-plugin-search-react",
+    "target": "typecheck",
+    "args": ["--skipRemoteCache", "--skipNxCache"],
+    "reason": "基线验证之后新增 review-parallel spec：需补做该新增测试的类型/零警告验证。",
+    "criticalForC": ["C1", "C5"]
+  },
+  {
+    "project": "rxdb-plugin-search-angular",
+    "target": "lint",
+    "args": ["--skipRemoteCache", "--skipNxCache"],
+    "reason": "基线验证之后新增 review-parallel spec：需补做该新增测试的类型/零警告验证。",
+    "criticalForC": ["C1", "C5"]
+  },
+  {
+    "project": "rxdb-plugin-search-angular",
+    "target": "typecheck",
+    "args": ["--skipRemoteCache", "--skipNxCache"],
+    "reason": "基线验证之后新增 review-parallel spec：需补做该新增测试的类型/零警告验证。",
+    "criticalForC": ["C1", "C5"]
+  },
+  {
+    "project": "rxdb-plugin-working-tree-react",
+    "target": "lint",
+    "args": ["--skipRemoteCache", "--skipNxCache"],
+    "reason": "基线验证之后新增 review-parallel spec：需补做该新增测试的类型/零警告验证。",
+    "criticalForC": ["C1", "C5"]
+  },
+  {
+    "project": "rxdb-plugin-working-tree-react",
+    "target": "typecheck",
+    "args": ["--skipRemoteCache", "--skipNxCache"],
+    "reason": "基线验证之后新增 review-parallel spec：需补做该新增测试的类型/零警告验证。",
+    "criticalForC": ["C1", "C5"]
+  },
+  {
+    "project": "rxdb-plugin-search-vue",
+    "target": "test",
+    "args": ["--skipRemoteCache", "--skipNxCache", "--coverage"],
+    "reason": "新增 packages/rxdb-plugin-search-vue/src/__tests__/review-parallel-real-handle.spec.ts：同一完整 C1 场景三端，直接创建真实 createSearchHandle，非五个 BehaviorSubject 模拟；需主控串行补跑。React harness 包含 StrictMode。",
+    "criticalForC": ["C1"]
+  },
+  {
+    "project": "rxdb-plugin-search-react",
+    "target": "test",
+    "args": ["--skipRemoteCache", "--skipNxCache", "--coverage"],
+    "reason": "新增 packages/rxdb-plugin-search-react/src/__tests__/review-parallel-real-handle.spec.ts：同一完整 C1 场景三端，直接创建真实 createSearchHandle，非五个 BehaviorSubject 模拟；需主控串行补跑。React harness 包含 StrictMode。",
+    "criticalForC": ["C1"]
+  },
+  {
+    "project": "rxdb-plugin-search-angular",
+    "target": "test",
+    "args": ["--skipRemoteCache", "--skipNxCache", "--coverage"],
+    "reason": "新增 packages/rxdb-plugin-search-angular/src/__tests__/review-parallel-real-handle.spec.ts：同一完整 C1 场景三端，直接创建真实 createSearchHandle，非五个 BehaviorSubject 模拟；需主控串行补跑。React harness 包含 StrictMode。",
+    "criticalForC": ["C1"]
+  },
+  {
+    "project": "rxdb-plugin-working-tree-react",
+    "target": "test",
+    "args": ["--skipRemoteCache", "--skipNxCache", "--coverage"],
+    "reason": "新增 packages/rxdb-plugin-working-tree-react/src/__tests__/review-parallel-provider-switch.spec.ts，在 09:06 基线 coverage 之后添加。两条公开 provider A→B 状态归属回归，预计红；主控串行补跑保存精确 assertion/JUnit，不以红探针冒充既有 baseline 失败。",
+    "criticalForC": ["C1", "C2", "C4"]
+  }
+]

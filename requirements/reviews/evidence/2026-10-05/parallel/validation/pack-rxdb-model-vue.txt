@@ -1,0 +1,333 @@
+CWD: /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-vue
+COMMAND: pnpm pack --json --out /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-review-pack-qunrcwin/rxdb-model-vue.tgz
+{
+  "name": "@aiao/rxdb-model-vue",
+  "version": "0.0.26",
+  "filename": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-review-pack-qunrcwin/rxdb-model-vue.tgz",
+  "files": [
+    {
+      "path": "dist/__tests__/testing/fake-vtable-editors.d.ts"
+    },
+    {
+      "path": "dist/__tests__/testing/fake-vtable-editors.d.ts.map"
+    },
+    {
+      "path": "dist/__tests__/testing/fake-vtable.d.ts"
+    },
+    {
+      "path": "dist/__tests__/testing/fake-vtable.d.ts.map"
+    },
+    {
+      "path": "dist/__tests__/testing/in-memory-rxdb.d.ts"
+    },
+    {
+      "path": "dist/__tests__/testing/in-memory-rxdb.d.ts.map"
+    },
+    {
+      "path": "dist/__tests__/testing/mount-utils.d.ts"
+    },
+    {
+      "path": "dist/__tests__/testing/mount-utils.d.ts.map"
+    },
+    {
+      "path": "dist/entity-detail/entity-detail-types.d.ts"
+    },
+    {
+      "path": "dist/entity-detail/entity-detail-types.d.ts.map"
+    },
+    {
+      "path": "dist/entity-detail/EntityDetail.vue.d.ts"
+    },
+    {
+      "path": "dist/entity-detail/EntityDetail.vue.d.ts.map"
+    },
+    {
+      "path": "dist/entity-detail/index.d.ts"
+    },
+    {
+      "path": "dist/entity-detail/index.d.ts.map"
+    },
+    {
+      "path": "dist/entity-dialog/dialog-context.d.ts"
+    },
+    {
+      "path": "dist/entity-dialog/dialog-context.d.ts.map"
+    },
+    {
+      "path": "dist/entity-dialog/DialogPortal.vue.d.ts"
+    },
+    {
+      "path": "dist/entity-dialog/DialogPortal.vue.d.ts.map"
+    },
+    {
+      "path": "dist/entity-dialog/EntityDialog.vue.d.ts"
+    },
+    {
+      "path": "dist/entity-dialog/EntityDialog.vue.d.ts.map"
+    },
+    {
+      "path": "dist/entity-dialog/index.d.ts"
+    },
+    {
+      "path": "dist/entity-dialog/index.d.ts.map"
+    },
+    {
+      "path": "dist/entity-form/EntityForm.vue.d.ts"
+    },
+    {
+      "path": "dist/entity-form/EntityForm.vue.d.ts.map"
+    },
+    {
+      "path": "dist/entity-form/index.d.ts"
+    },
+    {
+      "path": "dist/entity-form/index.d.ts.map"
+    },
+    {
+      "path": "dist/entity-list/EntityList.vue.d.ts"
+    },
+    {
+      "path": "dist/entity-list/EntityList.vue.d.ts.map"
+    },
+    {
+      "path": "dist/entity-list/index.d.ts"
+    },
+    {
+      "path": "dist/entity-list/index.d.ts.map"
+    },
+    {
+      "path": "dist/entity-table/config.d.ts"
+    },
+    {
+      "path": "dist/entity-table/config.d.ts.map"
+    },
+    {
+      "path": "dist/entity-table/EntityTable.vue.d.ts"
+    },
+    {
+      "path": "dist/entity-table/EntityTable.vue.d.ts.map"
+    },
+    {
+      "path": "dist/entity-table/index.d.ts"
+    },
+    {
+      "path": "dist/entity-table/index.d.ts.map"
+    },
+    {
+      "path": "dist/entity-table/QueryTable.vue.d.ts"
+    },
+    {
+      "path": "dist/entity-table/QueryTable.vue.d.ts.map"
+    },
+    {
+      "path": "dist/index.css"
+    },
+    {
+      "path": "dist/index.d.ts"
+    },
+    {
+      "path": "dist/index.d.ts.map"
+    },
+    {
+      "path": "dist/index.js"
+    },
+    {
+      "path": "dist/query-builder/field-selector/FieldSelector.vue.d.ts"
+    },
+    {
+      "path": "dist/query-builder/field-selector/FieldSelector.vue.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/index.d.ts"
+    },
+    {
+      "path": "dist/query-builder/index.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/operator-selector/OperatorSelector.vue.d.ts"
+    },
+    {
+      "path": "dist/query-builder/operator-selector/OperatorSelector.vue.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/popover-select/PopoverSelect.vue.d.ts"
+    },
+    {
+      "path": "dist/query-builder/popover-select/PopoverSelect.vue.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/query-builder/query-builder-types.d.ts"
+    },
+    {
+      "path": "dist/query-builder/query-builder/query-builder-types.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/query-builder/QueryBuilder.vue.d.ts"
+    },
+    {
+      "path": "dist/query-builder/query-builder/QueryBuilder.vue.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/query-group/query-drag-drop.d.ts"
+    },
+    {
+      "path": "dist/query-builder/query-group/query-drag-drop.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/query-group/QueryGroup.vue.d.ts"
+    },
+    {
+      "path": "dist/query-builder/query-group/QueryGroup.vue.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/query-rule/QueryRule.vue.d.ts"
+    },
+    {
+      "path": "dist/query-builder/query-rule/QueryRule.vue.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/subquery-builder/SubqueryBuilder.vue.d.ts"
+    },
+    {
+      "path": "dist/query-builder/subquery-builder/SubqueryBuilder.vue.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/theme/default-query-builder-theme.d.ts"
+    },
+    {
+      "path": "dist/query-builder/theme/default-query-builder-theme.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/theme/index.d.ts"
+    },
+    {
+      "path": "dist/query-builder/theme/index.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/theme/query-builder-theme.d.ts"
+    },
+    {
+      "path": "dist/query-builder/theme/query-builder-theme.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/tree-select/TreeSelect.vue.d.ts"
+    },
+    {
+      "path": "dist/query-builder/tree-select/TreeSelect.vue.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/value-input/ValueInput.vue.d.ts"
+    },
+    {
+      "path": "dist/query-builder/value-input/ValueInput.vue.d.ts.map"
+    },
+    {
+      "path": "LICENSE"
+    },
+    {
+      "path": "package.json"
+    },
+    {
+      "path": "README.md"
+    },
+    {
+      "path": "src/entity-detail/entity-detail-types.ts"
+    },
+    {
+      "path": "src/entity-detail/EntityDetail.vue"
+    },
+    {
+      "path": "src/entity-detail/index.ts"
+    },
+    {
+      "path": "src/entity-dialog/dialog-context.ts"
+    },
+    {
+      "path": "src/entity-dialog/DialogPortal.vue"
+    },
+    {
+      "path": "src/entity-dialog/EntityDialog.vue"
+    },
+    {
+      "path": "src/entity-dialog/index.ts"
+    },
+    {
+      "path": "src/entity-form/EntityForm.vue"
+    },
+    {
+      "path": "src/entity-form/index.ts"
+    },
+    {
+      "path": "src/entity-list/EntityList.vue"
+    },
+    {
+      "path": "src/entity-list/index.ts"
+    },
+    {
+      "path": "src/entity-table/config.ts"
+    },
+    {
+      "path": "src/entity-table/EntityTable.vue"
+    },
+    {
+      "path": "src/entity-table/index.ts"
+    },
+    {
+      "path": "src/entity-table/QueryTable.vue"
+    },
+    {
+      "path": "src/index.ts"
+    },
+    {
+      "path": "src/query-builder/field-selector/FieldSelector.vue"
+    },
+    {
+      "path": "src/query-builder/index.ts"
+    },
+    {
+      "path": "src/query-builder/operator-selector/OperatorSelector.vue"
+    },
+    {
+      "path": "src/query-builder/popover-select/PopoverSelect.vue"
+    },
+    {
+      "path": "src/query-builder/query-builder/query-builder-types.ts"
+    },
+    {
+      "path": "src/query-builder/query-builder/QueryBuilder.vue"
+    },
+    {
+      "path": "src/query-builder/query-group/query-drag-drop.ts"
+    },
+    {
+      "path": "src/query-builder/query-group/QueryGroup.vue"
+    },
+    {
+      "path": "src/query-builder/query-rule/QueryRule.vue"
+    },
+    {
+      "path": "src/query-builder/subquery-builder/SubqueryBuilder.vue"
+    },
+    {
+      "path": "src/query-builder/theme/default-query-builder-theme.ts"
+    },
+    {
+      "path": "src/query-builder/theme/index.ts"
+    },
+    {
+      "path": "src/query-builder/theme/query-builder-theme.ts"
+    },
+    {
+      "path": "src/query-builder/tree-select/TreeSelect.vue"
+    },
+    {
+      "path": "src/query-builder/value-input/ValueInput.vue"
+    },
+    {
+      "path": "src/vue-shims.d.ts"
+    },
+    {
+      "path": "tailwind.css"
+    }
+  ]
+}

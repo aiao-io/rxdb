@@ -42,13 +42,13 @@ execution: in-progress
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                        | 核查动作                                                                                    | 最低复验场景 / 证据要求                                                                   | 状态   |
-| ---- | --------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ------ |
-| C1   | 准备产物与 Chromium context | 审查 prepare、extension fixture、持久 context/临时 profile 与扩展路径，确认加载当前 build。 | 冷 prepare/build、陈旧产物、缺 manifest、失败退出；extension id、SHA 和资源路径可查。     | 待核查 |
-| C2   | relay 正反向身份            | 从页面 through content/background/devtools 核查真实消息与拒绝；不能只检查 port 建立。       | 错 tab/frame/session、页面伪造、导航后文档变化、旧响应；错误消息无法触发 mutation。       | 待核查 |
-| C3   | 请求关联与资源              | 审查 timeout、断开、乱序、并发请求和队列清理。                                              | 扩展 reload、tab 关闭、DevTools 关开、慢页面、巨大消息；无悬挂 Promise/port。             | 待核查 |
-| C4   | 实际 provider 用户路径      | 对照 rxdb-devtools 与 modules 面板能力，把 relay 测试与 DB/files/settings 的可见效果关联。  | 只读/禁用能力、失败响应、snapshot 缺口、敏感值脱敏；按钮成功不等于权限验证成功。          | 待核查 |
-| C5   | 结论边界与补证              | 检查单一 relay spec 内实际场景和 skip；浏览器证据不代替 Electron/Tauri integration。        | 配置的 Chromium 全套、生产权限与资源、孤儿 profile 清理；未覆盖宿主登记补证而非宣称通过。 | 待核查 |
+| 编号 | 专项                        | 核查动作                                                                                    | 最低复验场景 / 证据要求                                                                   | 状态                                                      |
+| ---- | --------------------------- | ------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| C1   | 准备产物与 Chromium context | 审查 prepare、extension fixture、持久 context/临时 profile 与扩展路径，确认加载当前 build。 | 冷 prepare/build、陈旧产物、缺 manifest、失败退出；extension id、SHA 和资源路径可查。     | 已核销：准备/fixture设计；动态产物待证（详本轮逐C表）     |
+| C2   | relay 正反向身份            | 从页面 through content/background/devtools 核查真实消息与拒绝；不能只检查 port 建立。       | 错 tab/frame/session、页面伪造、导航后文档变化、旧响应；错误消息无法触发 mutation。       | 部分核销：只证明正向协商设计（详本轮逐C表）               |
+| C3   | 请求关联与资源              | 审查 timeout、断开、乱序、并发请求和队列清理。                                              | 扩展 reload、tab 关闭、DevTools 关开、慢页面、巨大消息；无悬挂 Promise/port。             | 未核销：请求/资源压力专题（详本轮逐C表）                  |
+| C4   | 实际 provider 用户路径      | 对照 rxdb-devtools 与 modules 面板能力，把 relay 测试与 DB/files/settings 的可见效果关联。  | 只读/禁用能力、失败响应、snapshot 缺口、敏感值脱敏；按钮成功不等于权限验证成功。          | 部分核销：none 零业务帧；实际 provider未验（详本轮逐C表） |
+| C5   | 结论边界与补证              | 检查单一 relay spec 内实际场景和 skip；浏览器证据不代替 Electron/Tauri integration。        | 配置的 Chromium 全套、生产权限与资源、孤儿 profile 清理；未覆盖宿主登记补证而非宣称通过。 | 已核销：适用范围/未验清单（不等运行通过）（详本轮逐C表）  |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -126,3 +126,22 @@ CI=true NX_DAEMON=false pnpm nx run rxdb-devtools-extension-e2e:e2e --skipRemote
 ## 7. 本轮实际执行记录
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/apps/rxdb-devtools-extension-e2e.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
+
+## 2026-10-05 frontends 并行评审收束
+
+- 唯一对象：`rxdb-devtools-extension-e2e`，日期 **2026-10-05**；🟡 完整范围源码/测试设计评审候选；运行未验面已明确留账。
+- scope 是范围，不是阅读证明：9/9 个 tracked 有实际展示行，9 个全文已展示；未读 0 个，其余为分段。精确路径/行段/当前 hash 在 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frontends/file-inspection.json`。不把约84文件阶段快照或本轮增加的分段读数说成939文件全部已读。
+- 本子任务没有执行 Nx test/build/e2e/coverage/server/browser，没有改业务/依赖/原测试、没有操作 Git 索引、没有派嵌套 agent。源码推导、主控动态结果、未验证项分开。
+- 历史 RV-056/057、存储/Node 引导红报告不是本轮状态；当前已修代码按当前符号审查。未修 bug 不自动阻止评审收口，未读与未验则必须明确处理。
+
+### 逐 C 证据、事件顺序、断言与必要待证
+
+| C / 专题                       | 本轮结论                                   | 实际生产路径 / 符号行                                                                                                                                                                                                                                                    | 事件时序 / 不变量                                                                                                             | 测试判别力 / 已用证据                                                                                                           | 必要未验与补证动作                                                                                                           |
+| ------------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| C1 准备产物与 Chromium context | 已核销：准备/fixture设计；动态产物待证     | `/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/tools/prepare.mjs:32-58 rm out / cp builds / variance`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/extension.fixture.ts:82-102 persistent context/worker id`              | 先清 staging，再复制真实两个 dist；缺 manifest/read失败显式抛；Chromium 临时 profile，真实 worker URL 取 id；teardown close。 | 9/9 tracked 全文读；resolved graph e2e depends prepare、prepare depends extension+devtools build；本轮尚未执行。                | 必须冷准备 SHA/manifest 与当前源码对应、browser版本/真实 profile 清理；复制成功不证明源 dist 不陈旧。                        |
+| C2 relay 正反向身份            | 部分核销：只证明正向协商设计               | `/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/relay.spec.ts:116-175 handshakeThroughRelay / session identity / ACK`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/extension.fixture.ts:39-79 mock devtools API only`  | 开panel→reload→手工 emit onNavigated；要求 HELLO 经四段、offers 同 session、仅一个v2 ACK且无legacy ACK。                      | 不按消息条数误判多 HELLO；身份判据有判别力，但当前文件没有错 tab/frame/session、页面伪造、旧 document 的反向 mutation 断言。    | 本轮 Chrome 执行待主控；正向 ACK 不核销身份攻击全矩阵，DevTools 真宿主是 variance。                                          |
+| C3 请求关联与资源              | 未核销：请求/资源压力专题                  | `/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/extension.fixture.ts:89-102 context ownership`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/relay.spec.ts:134-199 只有两条 relay tests`                                | context use 后 close 是已读归属；现套件没有并发 request/timeout/乱序/tab关闭/extension reload/巨大消息断言。                  | 测试存在不等这些路径已测；不存在的断言明确列缺口，不写假通过。                                                                  | 需专门并发/取消/timeout/port重开与句柄计数，用 endpoint unit 不能替真实 reload。                                             |
+| C4 实际 provider 用户路径      | 部分核销：none 零业务帧；实际 provider未验 | `/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/fixture/index.html:30-75 RxDB event substitute / throwing manager getters`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/relay.spec.ts:177-197 none before/after handshake` | 同tick init事件→握手→再发事件；四车道录制；none 下 EVENT/DB_INFO/BRANCHES 都零，避免“尚未连接”假阴性。                        | fixture 是最小事件 RxDB 替身、真实发布 connector；没有实际 DB/files/settings mutation、readonly拒绝/snapshot/脱敏可见结果断言。 | 本轮执行未验；none 特例不能推广 full+omit/readonly provider全权限。补真实 provider 用户路径。                                |
+| C5 结论边界与补证              | 已核销：适用范围/未验清单（不等运行通过）  | `/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/playwright.config.ts:16-32 one worker / trace / fresh server`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/extension.fixture.ts:20-31,82-102 DevTools shim / real relay`   | 两个variance：prepare 加 localhost 静态 host 权限；普通扩展panel shim devtools.*；其余四段真实；配置无Electron/Tauri矩阵。    | 源码全部9文件已读，设计结论可提交收口候选；主控 lint/typecheck通过，但 E2E runtime仍待请求。                                    | trace设置不是当前trace；skip/browser失败/临时profile/产物SHA必须主控报告；不能称真实DevTools宿主或生产optional权限验收完成。 |
+
+完整当轮门禁、完成条件逐项证据：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/apps/rxdb-devtools-extension-e2e.md`；本对象独立证据副本：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frontends/objects/rxdb-devtools-extension-e2e.md`。

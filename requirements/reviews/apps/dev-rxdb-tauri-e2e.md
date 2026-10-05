@@ -44,14 +44,14 @@ Vitest 驱动的真实 Tauri desktop/devtools smoke；不是普通 Playwright e2
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                | 核查动作                                                                                               | 最低复验场景 / 证据要求                                                                           | 状态   |
-| ---- | ------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- | ------ |
-| C1   | 真实宿主与 runner   | 核查 packaged-app/frontend-server/warm-up 和两套 smoke 配置；区分 frontend 替身与真实 invoke/WebView。 | 实际 Tauri binary 启动、冷资源、失败 cleanup；只跑浏览器页面不算桌面证据。                        | 待核查 |
-| C2   | SQLite 与文件持久化 | 审查 DB/file 路径、stored-files、退出重开与原子失败断言。                                              | 写后重启、部分文件失败、同路径冲突、越界路径；实际 filesystem/DB 状态可查。                       | 待核查 |
-| C3   | 备份恢复            | 核查 restore 目标锁、坏归档、native 拒绝与应用恢复后的完整数据。                                       | 恢复中断、目标在用、坏 manifest、重复 restore；旧库能继续打开。                                   | 待核查 |
-| C4   | WebView / 窗口权限  | 审查 desktop-webview-capability 与 devtools-window-transport 的身份/授权验证。                         | 普通窗口 invoke 特权命令、session 过期、窗口导航/关闭；Rust 层拒绝而非 UI 层隐藏。                | 待核查 |
-| C5   | 调试与生产隔离      | 对照 provider gear、release-isolation、dev/prod binary 资源。                                          | 生产包不含未授权调试入口、dev 显式开关、capability 缺失、native provider 文件操作；两档独立复验。 | 待核查 |
-| C6   | 结论与环境限定      | 审查仅 desktop-smoke/devtools-smoke 的真实覆盖、skip 和平台信息，避免编造常规 e2e 目标。               | 两套 Nx 目标各留日志；未运行平台/权限场景明确未验证，不能从 cargo test 代证 WebView。             | 待核查 |
+| 编号 | 专项                | 核查动作                                                                                               | 最低复验场景 / 证据要求                                                                           | 状态                          |
+| ---- | ------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- | ----------------------------- |
+| C1   | 真实宿主与 runner   | 核查 packaged-app/frontend-server/warm-up 和两套 smoke 配置；区分 frontend 替身与真实 invoke/WebView。 | 实际 Tauri binary 启动、冷资源、失败 cleanup；只跑浏览器页面不算桌面证据。                        | 部分核查；见2026-10-05逐C结论 |
+| C2   | SQLite 与文件持久化 | 审查 DB/file 路径、stored-files、退出重开与原子失败断言。                                              | 写后重启、部分文件失败、同路径冲突、越界路径；实际 filesystem/DB 状态可查。                       | 部分核查；见2026-10-05逐C结论 |
+| C3   | 备份恢复            | 核查 restore 目标锁、坏归档、native 拒绝与应用恢复后的完整数据。                                       | 恢复中断、目标在用、坏 manifest、重复 restore；旧库能继续打开。                                   | 部分核查；见2026-10-05逐C结论 |
+| C4   | WebView / 窗口权限  | 审查 desktop-webview-capability 与 devtools-window-transport 的身份/授权验证。                         | 普通窗口 invoke 特权命令、session 过期、窗口导航/关闭；Rust 层拒绝而非 UI 层隐藏。                | 部分核查；见2026-10-05逐C结论 |
+| C5   | 调试与生产隔离      | 对照 provider gear、release-isolation、dev/prod binary 资源。                                          | 生产包不含未授权调试入口、dev 显式开关、capability 缺失、native provider 文件操作；两档独立复验。 | 部分核查；见2026-10-05逐C结论 |
+| C6   | 结论与环境限定      | 审查仅 desktop-smoke/devtools-smoke 的真实覆盖、skip 和平台信息，避免编造常规 e2e 目标。               | 两套 Nx 目标各留日志；未运行平台/权限场景明确未验证，不能从 cargo test 代证 WebView。             | 部分核查；见2026-10-05逐C结论 |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -121,7 +121,7 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-tauri-e2e:devtools-smoke --skipRemo
 ## 6. 完成条件
 
 - [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。
-- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。
+- [x] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。
 - [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。
 - [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。
 - [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。
@@ -133,3 +133,26 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-tauri-e2e:devtools-smoke --skipRemo
 ## 7. 本轮实际执行记录
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/apps/dev-rxdb-tauri-e2e.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
+
+## 2026-10-05：parallel integrations 逐 C 交付
+
+⚠️ **原完成条件未满足，execution维持in-progress，不能标complete。** 已完成逐C的源码结论/证据/未验证动作登记；这一个完成条件已核销，动态语义与全范围深审/覆盖率未完成。
+
+主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
+
+日志：[strict lint](../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+
+已有2026-10-04/05前段HTTP/SQLite/进程内host证据仅保留历史；历史401/SWR/outbox修复不重新登记，RV-058已Resolved。进程内host不是GUI/真实IPC。
+
+| C / 专项               | 已核查源码符号 / 行与结论                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | 证据 / 核销                                                          | 具体未验证与补证动作                                                                                                         |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| C1 真实宿主与 runner   | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/src/packaged-app.ts:479-495 resolveExecutable、524-566 spawn/timeout、576-601 report校验`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/vitest.smoke.mts:26-37 include/exclude/globalSetup`<br>runner spawn release/debug真实Tauri binary，不用纯浏览器替身；缺binary/报告/schemaVersion错误显式失败，超时SIGKILL。frontend-server是probe辅助，不是GUI替代。                                                                                                  | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控desktop-smoke和devtools-smoke各自真实启动来源/平台日志；不从存在报告文件或TS编译判断native通过。                         |
+| C2 SQLite 与文件持久化 | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/src/desktop-persistence.spec.ts:35-69 真文件/真实appDataDir/重启`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/src/stored-files.ts collectStoredFiles/sha256OfFile（清单，未全文）`<br>持久化用native退出码、report的实际host appDataDir、文件存在和第二次count交叉。stored-files入口只盘点，未声称全部file mutation断言已人工/动态完成。                                                                                                                    | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控native SQLite/file两路径、部分文件失败/越界/同路径冲突与实际bytes/hash；本轮未跑真实filesystem，不能给完整C2通过。       |
+| C3 备份恢复            | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/src/desktop-backup-restore.spec.ts:115-170 备份/删源/restore/配置拒绝、174-197 跨OSskipIf`<br>备份同时看归档size/manifest scope与源文件，删源后target恢复；已有归档拒绝且不改stale bytes。跨OS依IMPORT_DIR缺失明确skip，不能计入本轮通过。                                                                                                                                                                                                                                   | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控当前backup/restore、中断/坏归档/target在用与旧库可继续开；跨OS归档未供应则记录未验证，不标平台不适用。                   |
+| C4 WebView / 窗口权限  | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/src/desktop-webview-capability.spec.ts:77-120 real probe server、155-168 platform期望`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-tauri/rust/src/commands.rs:142-149 授权实现`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/src-tauri/src/lib.rs:170-191 relay guard`<br>WebView probe服务器有allowed/denied对照和platform差异，不从WebView API可用推导SQL/window权限。权限真正实现是Rustwindow guard；所读片段不覆盖全部session/relay攻击。 | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控普通/冒名窗口特权command、旧session/导航/关窗、真实Rust拒绝及副作用检查；mac/linux/win行为须分别实际证据，未跑仍未验证。 |
+| C5 调试与生产隔离      | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/src/devtools-release-isolation.spec.ts:53-117 capability/cfg regex与cargo-check`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/vitest.devtools.mts:26 include devtools-window/provider`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/src-tauri/src/lib.rs:388-395 编译期隔离`<br>release-isolation部分是结构/regex和cargo-check，不是release WebView授权实测；devtools smoke是另一个debug binary目标，provider真/假档需独立确认。             | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控dev/release双binary、production无入口/资源/command、capability缺失与native provider；cargo成功不能代GUI。                |
+| C6 结论与环境限定      | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/vitest.smoke.mts:26-45 全spec排除两dev例、vitest.devtools.mts:26-32 仅两dev例`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-tauri-e2e/src/desktop-backup-restore.spec.ts:174-197 crossOS skipIf`<br>两target覆盖边界已区分，default smoke与devtools不是普通e2e目标；跨OSskip/env限定必须逐项报告。当前strict lint/typecheck过，不预先写cargo/native smoke已过。                                                                                                        | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控后补两target实际logs/skip/失败/重跑/platform；未覆盖原完成条件维持partial。                                              |
+
+证据：[逐C矩阵](../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+
+未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

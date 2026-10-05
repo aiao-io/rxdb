@@ -53,13 +53,13 @@ execution: in-progress
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                   | 核查动作                                                                    | 最低复验场景 / 证据要求                                                                  | 状态                             |
-| ---- | ---------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------- |
-| C1   | 录制同意与隐私         | 核查默认不录、显式开始/停止、脱敏配置与持久化内容，确认不是仅 UI 隐藏记录。 | 首次安装、敏感输入、停止后继续操作、未授权页面；禁录时没有事件进入录制库。               | 已核查（包级契约，应用授权另审） |
-| C2   | 录制库隔离与配额       | 追踪独立库、写队列、chunk/时间戳、清理与限额；不能污染业务 DB。             | 存储失败、长会话、重复事件、重开恢复、配额满；失败可见且业务库不多录制行。               | 待核查                           |
-| C3   | 时间轴与 commit marker | 审查 marker 的分支/commit 身份和回放顺序，不把时间近似当作同一提交。        | 跨分支、同时间点多 marker、丢事件、不可达 commit；恢复目标可验证。                       | 待核查                           |
-| C4   | 恢复 / resume 状态机   | 追踪回放点击到 working-tree restore 的拒绝/成功，确保不偷偷移动 HEAD。      | dirty tree、CAS 失效、重复恢复、恢复中取消、断开 DB；语义与工作树公开接口一致。          | 待核查                           |
-| C5   | 动态 rrweb 与卸载      | 检查精确版本资源、懒加载、mount/unmount、错误恢复与三端 parity suite。      | 未打开回放无回放依赖加载、加载失败、重复 mount/unmount、停止录制后卸载；无后台录制残留。 | 待核查                           |
+| 编号 | 专项                   | 核查动作                                                                    | 最低复验场景 / 证据要求                                                                  | 状态                                         |
+| ---- | ---------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------- |
+| C1   | 录制同意与隐私         | 核查默认不录、显式开始/停止、脱敏配置与持久化内容，确认不是仅 UI 隐藏记录。 | 首次安装、敏感输入、停止后继续操作、未授权页面；禁录时没有事件进入录制库。               | closed / 保留原限定（2026-10-05；见第 8 节） |
+| C2   | 录制库隔离与配额       | 追踪独立库、写队列、chunk/时间戳、清理与限额；不能污染业务 DB。             | 存储失败、长会话、重复事件、重开恢复、配额满；失败可见且业务库不多录制行。               | partial / 待证（2026-10-05；见第 8 节）      |
+| C3   | 时间轴与 commit marker | 审查 marker 的分支/commit 身份和回放顺序，不把时间近似当作同一提交。        | 跨分支、同时间点多 marker、丢事件、不可达 commit；恢复目标可验证。                       | partial / 待证（2026-10-05；见第 8 节）      |
+| C4   | 恢复 / resume 状态机   | 追踪回放点击到 working-tree restore 的拒绝/成功，确保不偷偷移动 HEAD。      | dirty tree、CAS 失效、重复恢复、恢复中取消、断开 DB；语义与工作树公开接口一致。          | partial / 待证（2026-10-05；见第 8 节）      |
+| C5   | 动态 rrweb 与卸载      | 检查精确版本资源、懒加载、mount/unmount、错误恢复与三端 parity suite。      | 未打开回放无回放依赖加载、加载失败、重复 mount/unmount、停止录制后卸载；无后台录制残留。 | partial / 待证（2026-10-05；见第 8 节）      |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -152,3 +152,29 @@ pnpm audit:coverage --projects=rxdb-plugin-replay
 ## 2026-10-04：第二批实际深审
 
 [本对象实际结论与证据](../results/packages/rxdb-plugin-replay.md) · [2026-10-04 执行台账](../execution-2026-10-04.md)。只核销明确标识的包级专题；不把平台 skip、历史绿色门禁或不适用授权边界当成应用已通过。
+
+## 8. 2026-10-05：plugins 实际逐 C 交付
+
+**执行状态：partial；评审完成不等于无缺陷，但必要证据缺失不能核销。** 本组不执行 Nx build/test/e2e/coverage/server，动态证据来自主控串行队列。下面覆盖原计划全部 C 编号，不修改原验收口径。
+
+本轮只读了实际登记的源码/测试行区间与若干测试入口；不是全受控文件已经读完。九包 scope 共 **554** 个文件；本组读取范围见 `requirements/reviews/evidence/2026-10-05/parallel/plugins/file-inspection.json`，指纹盘点与阅读分开。当前源判断优先于已删除 RV 的历史状态。
+
+当前 Node：**147 passed /2 failed /1 skip（两红为已修订的本组误用）**。日志：`requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage.txt`；报告按 `rxdb-plugin-replay` 分目录保存。主控 69 项 strict lint/typecheck 已过，但不是全部 spec 类型或后来修订/晚到 probe 已过的证明。
+
+本批红 suite **没有新的 coverage summary**；不读取旧 coverage 目录冒充 fresh。后续 focused/late probe 与 browser 由主控续跑。
+
+### 实际逐 C 核销矩阵
+
+| C   | 核销状态            | 当前真实源码锚点（相对本包 src；注明联审者除外）                                                                        | 不变量、正向与反证                                                                                                                                                                                                | 已有/本轮测试证据                                                                                                                                                                                    | 必要缺口或核销边界                                                                                                                            |
+| --- | ------------------- | ----------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1  | closed / 保留原限定 | options.ts:79–88；manager.ts:118–134、216–244；recorder.ts:82–100、111–141                                              | 保留历史包级同意/脱敏核销：首次无 stash 默认不录，start 显式、stop 停采集并冲刷；maskAllInputs 默认 true 与强制 blockSelector。合法 recording stash 是延续原会话，不是首次自动授权。                              | 历史真实 rrweb/PGlite consent browser 6 passed 原范围保留；当前原 Node147 passed（整包另有本组误用测试两红），options/manager/recorder 正向仍过。                                                    | 应用页面授权对包不适用，必须 apps 自行审；任意正文/URL 不承诺自动脱敏。今日 masking/browser 尚未回收，不冒充 fresh。                          |
+| C2  | partial / 待证      | store.ts:103–159、236–301、316–347；recorder.ts:125–178；manager.ts:281–315                                             | 独立工厂懒开 recording DB；事件+计数同 transaction；seq主键拒重复；单 in-flight 队列，stop drain 后标 stopped；session/store bytes 满写 truncated marker并停，不自动删会话。stash 以已写 nextSeq 去重，失败可见。 | store/limits/recorder/resume/manager 当前原用例通过；resume 与 manager 用真实 PGlite 临时磁盘重开，rrweb/page为接缝。store.bench 1 skip 如实保留。                                                   | 全录制库与业务库字节隔离/长会话压力、不同持久化宿主配额/失败矩阵没有全部证明；临时文件 PGlite 不等于浏览器永久存储或所有 factory 都自动隔离。 |
+| C3  | partial / 待证      | markers.ts:27–31、65–73；store.ts:194–228；manager.ts:158–164、228–230；replayer/mount-replayer.ts:232–262              | marker 带 commitId/branchId，存储按 seq排序，不以 timestamp近似合并；malformed 自有 marker显式报错；恢复仍走当前 branch status 与 workingTree reachability，UI generation只阻止迟到画面。                         | commit-markers.spec.ts:72–110 有真实 PGlite commit链；markers/store/resume gap用例当前原套件通过。                                                                                                   | 跨分支、同 timestamp 多 marker、丢事件/不可达 commit 的完整实际录制→点击→恢复链路未全齐，不能由 marker字段存在核销。                          |
+| C4  | partial / 待证      | restore.ts:41–56；manager.ts:187–200、265–295；replayer/mount-replayer.ts:249–262；working-tree/restore-command.ts:1–34 | 先 status 捕获 activation/head/workingTree revisions，再 restore；不偷偷移动 HEAD。resume 与 restore不同状态机；UI卸载只屏蔽迟到展示，没有取消数据库 restore 的公开能力，不假造 cancel API。                      | 原 restore.spec.ts 8例是 fakeDb，不代表真实CAS。新增 review-parallel-restore.spec.ts 首轮两红系本组误当checkout、误用无参数disconnect；已改目标实体内容重放与disconnectAll，旧日志保存，待精确复跑。 | 修订实测未回；dirty/CAS竞争、恢复中断/重试、断连的全真实矩阵仍不足。首轮误用不登记产品缺陷，也不改业务去迁就断言。                            |
+| C5  | partial / 待证      | manager.ts:29、197–244；plugin.ts:48–64；replayer/mount-replayer.ts:164–194、249–288                                    | record/replayer动态import，epoch release先stop再destroy录制库；view reload/destroy 推 generation，销毁rrweb实例并 cancel RAF；迟到加载与restore结果不回写已卸载UI。                                               | replayer-parity.spec.ts/recorder/manager当前原用例通过；replayer.browser.spec.ts真实 rrweb 及三 wrappers parity由主控其它对象联审。                                                                  | 加载失败/重复mount-unmount完整浏览器＋三端用户序列、精确版本资源冷加载与停止后无残留的全部原最低场景仍需fresh证据。                           |
+
+### 本组改动与复验责任
+
+仅改本对象计划/执行记录，以及本组 evidence；没有修改业务、依赖或已有测试，没有 Git 暂存/提交/重置，没有嵌套 agent。新增独立 probes 只在 search/replay/storage 自己的 sourceRoot，后续执行均归主控。
+
+最小请求保存在 `requirements/reviews/evidence/2026-10-05/parallel/plugins/validation-requests.json`；候选在同目录 `findings.pending.md`。RV-060/061 不重复登记；RV-059 是其它对象公开接缝，不在本组扩 scope。

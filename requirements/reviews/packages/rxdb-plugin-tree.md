@@ -51,13 +51,13 @@ execution: in-progress
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项               | 核查动作                                                                               | 最低复验场景 / 证据要求                                                            | 状态                           |
-| ---- | ------------------ | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------ |
-| C1   | 树结构不变量       | 核查根、父子关系、层级与移动/删除的原子性，追踪 numeric/string id 路径。               | 自父、祖先移动到子孙、孤儿、重复路径、深树、批次失败；不得留下半棵树。             | 待核查                         |
-| C2   | 树查询与增量       | 逐项比较 ancestors/descendants、懒加载与 merge-create/update/remove 同全量查询的结果。 | 移动跨查询边界、父删除、排序相同、未加载节点更新；增量结果可全量复验。             | 部分执行，真实 SQL 漂移 RV-046 |
-| C3   | 能力限制与插件依赖 | 核查必须插件、querycache-ban、SQLite/PGlite backend 能力，明确不支持的组合。           | 未装 Tree 插件、QueryCache 模式、不支持的后端；明确错误而非扁平查询 fallback。     | 待核查                         |
-| C4   | 生成类型与三框架   | 对照 TreeRepositoryGenerator、公开泛型及三端 use-tree，不能让树 API 被宽化为 any。     | numeric id、嵌套 filter、consumer 类型错误、同场景三端状态；生成器与运行入口闭合。 | 待核查                         |
-| C5   | 浏览器真实证据     | 区分普通 test 与 test-browser；不能只跑 generator 单测就宣称树运行时通过。             | 完整 browser suite 与真实 SQLite/PGlite conformance；记录缺少环境导致的未验证项。  | 待核查                         |
+| 编号 | 专项               | 核查动作                                                                               | 最低复验场景 / 证据要求                                                            | 状态                                    |
+| ---- | ------------------ | -------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------------------------- |
+| C1   | 树结构不变量       | 核查根、父子关系、层级与移动/删除的原子性，追踪 numeric/string id 路径。               | 自父、祖先移动到子孙、孤儿、重复路径、深树、批次失败；不得留下半棵树。             | partial / 待证（2026-10-05；见第 8 节） |
+| C2   | 树查询与增量       | 逐项比较 ancestors/descendants、懒加载与 merge-create/update/remove 同全量查询的结果。 | 移动跨查询边界、父删除、排序相同、未加载节点更新；增量结果可全量复验。             | partial / 待证（2026-10-05；见第 8 节） |
+| C3   | 能力限制与插件依赖 | 核查必须插件、querycache-ban、SQLite/PGlite backend 能力，明确不支持的组合。           | 未装 Tree 插件、QueryCache 模式、不支持的后端；明确错误而非扁平查询 fallback。     | partial / 待证（2026-10-05；见第 8 节） |
+| C4   | 生成类型与三框架   | 对照 TreeRepositoryGenerator、公开泛型及三端 use-tree，不能让树 API 被宽化为 any。     | numeric id、嵌套 filter、consumer 类型错误、同场景三端状态；生成器与运行入口闭合。 | partial / 待证（2026-10-05；见第 8 节） |
+| C5   | 浏览器真实证据     | 区分普通 test 与 test-browser；不能只跑 generator 单测就宣称树运行时通过。             | 完整 browser suite 与真实 SQLite/PGlite conformance；记录缺少环境导致的未验证项。  | partial / 待证（2026-10-05；见第 8 节） |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -148,3 +148,29 @@ pnpm audit:coverage --projects=rxdb-plugin-tree
 ## 2026-10-04：树查询与 DevTools 第三批深审
 
 [本对象实际意见与源码/运行证据](../results/packages/rxdb-plugin-tree.md) · [本批台账](../execution-2026-10-04-tree-devtools.md)。未核销项不由生成器、mock 或其它后端门禁代证。
+
+## 8. 2026-10-05：plugins 实际逐 C 交付
+
+**执行状态：partial；评审完成不等于无缺陷，但必要证据缺失不能核销。** 本组不执行 Nx build/test/e2e/coverage/server，动态证据来自主控串行队列。下面覆盖原计划全部 C 编号，不修改原验收口径。
+
+本轮只读了实际登记的源码/测试行区间与若干测试入口；不是全受控文件已经读完。九包 scope 共 **554** 个文件；本组读取范围见 `requirements/reviews/evidence/2026-10-05/parallel/plugins/file-inspection.json`，指纹盘点与阅读分开。当前源判断优先于已删除 RV 的历史状态。
+
+当前 Node：**7 passed /0 failed /0 skip（仅 Node generator/静态面）**。日志：`requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage.txt`；报告按 `rxdb-plugin-tree` 分目录保存。主控 69 项 strict lint/typecheck 已过，但不是全部 spec 类型或后来修订/晚到 probe 已过的证明。
+
+当前 fresh **Node** 四指标（S/B/F/L）：**100% / 100% / 100% / 100%**。来源：`requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-plugin-tree/coverage-summary.json`。tree 的 100% 只涉及 Node 面；browser 合并/宿主 skip 另审。覆盖率达标不自动核销 C。
+
+### 实际逐 C 核销矩阵
+
+| C   | 核销状态       | 当前真实源码锚点（相对本包 src；注明联审者除外）                                                     | 不变量、正向与反证                                                                                                                                               | 已有/本轮测试证据                                                                                                                                            | 必要缺口或核销边界                                                                                                |
+| --- | -------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| C1  | partial / 待证 | entity/tree-entity-base.ts:46–100；repository/tree-level.utils.ts:10–14；query/tree-helper.ts:94–198 | parentId 保持 Id 泛型，level 是非负安全整数；增量 helper visited 防环/缺父停止。读遍历终止不等于写入禁止自父或保证移动/删除整棵原子。                            | entity/tree-entity-numeric-id.browser.spec.ts、tree-helper.browser.spec.ts、merge-tree browser 入口已定位；当前 Node 仅 7/7。                                | 原自父/祖先移到子孙/孤儿/重复路径/深树/批写失败的真实 SQL 写入与回滚证据尚缺，不能拿 generator 的 Node 七例代替。 |
+| C2  | partial / 待证 | query/merge-update-tree.ts:273–376、397–558；repository/TreeRepository.ts:65–119                     | where 翻转/改父会失去可达性信息，ancestors 与 counts 交 SQL refresh；纯字段变化才本地 applyExternalEntityUpdate。当前 RV-046 修法不是继续错误的局部 +1/-1 计数。 | query/review-query-tree.regression.browser.spec.ts、merge-update-tree.handlers.browser.spec.ts、numeric-id-tree-merge.browser.spec.ts；当前 browser 待主控。 | 边界移动、父删、未载节点、相同排序与全量 SQLite/PGlite 结果逐场景对照未完整核销。                                 |
+| C3  | partial / 待证 | plugin.ts:48–64；repository/TreeRepository.ts:65–119                                                 | registry 按 SyncType.QueryCache 明确禁止，原因是 where 局部缓存不保证祖先链；四 API 走注册的 primary，不为缺插件补扁平查询。                                     | contracts/missing-plugin-error.browser.spec.ts、querycache-ban.browser.spec.ts；Node 不包含这两项，browser 排队。                                            | 缺插件/不支持 backend 的实际公开调用与当前 browser 拒绝结果未收齐。                                               |
+| C4  | partial / 待证 | generator/TreeRepositoryGenerator.ts:69–151；entity/tree-entity-base.ts:46–98                        | children 规则收窄，RuleGroup 与 numeric/string Id 贯通；find 包含自身/count 不包含自身，声明返回 Observable，未宽化成 any。                                      | generator 及 contracts/public-type-compatibility、tree-query-type-parity browser 入口；当前 Node 7/7，主控 lib typecheck 通过。                              | 真实生成消费与三个框架相同输入返回状态/错误未独立映射到本 C；框架整体门禁不可自动替代三端用户链路。               |
+| C5  | partial / 待证 | vite 配置/已解析 target 将 Node 与 browser 分开；repository/TreeRepository.ts:65–119                 | 当前 Node fresh summary 仅 20 lines/21 statements，是 generator 测量面，100% 绝不代表树运行时。已核对 browser 入口不是当前 Node include。                        | 主控 Node 7/7、coverage 100/100/100/100（仅 Node 面）；5 包 browser 由主控统一续跑。                                                                         | 完整 browser 与真实 SQLite/PGlite conformance 合并四指标、skip/宿主范围尚未收齐，原 C5 不核销。                   |
+
+### 本组改动与复验责任
+
+仅改本对象计划/执行记录，以及本组 evidence；没有修改业务、依赖或已有测试，没有 Git 暂存/提交/重置，没有嵌套 agent。新增独立 probes 只在 search/replay/storage 自己的 sourceRoot，后续执行均归主控。
+
+最小请求保存在 `requirements/reviews/evidence/2026-10-05/parallel/plugins/validation-requests.json`；候选在同目录 `findings.pending.md`。RV-060/061 不重复登记；RV-059 是其它对象公开接缝，不在本组扩 scope。

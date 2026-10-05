@@ -1,0 +1,130 @@
+[
+  {
+    "project": "rxdb-adapter-sqlite-wasm",
+    "target": "test",
+    "args": ["src/__tests__/review-parallel-statement-cleanup.spec.ts", "--run"],
+    "reason": "当轮已红：主控 core-plugins-small-adapters-coverage.txt:2182–2207。无需重复全矩阵；主控去重编号与late probes统一补证。",
+    "criticalForC": ["C3"]
+  },
+  {
+    "project": "rxdb-adapter-sqlite-core",
+    "target": "test",
+    "args": ["src/__tests__/review-parallel-init-disconnect.spec.ts", "--run"],
+    "reason": "当轮已红：主控 local-adapters-tests.txt:406–443。轻量可控Promise模拟，不冒充实际Worker/OPFS；主控late probes统一补证。",
+    "criticalForC": ["C1", "C6"]
+  },
+  {
+    "project": "rxdb-adapter-sqlite-core",
+    "target": "test",
+    "args": ["src/__tests__/review-parallel-oo1-init-close.spec.ts", "--run"],
+    "reason": "当轮已红：主控 local-adapters-tests.txt:406–443。轻量可控Promise模拟，不冒充实际Worker/OPFS；主控late probes统一补证。",
+    "criticalForC": ["C1"]
+  },
+  {
+    "project": "rxdb-adapter-encrypted",
+    "target": "test",
+    "args": ["src/__tests__/review-aborted-initial-unlock.spec.ts", "--run"],
+    "reason": "当前keyring源码已确认RV-058修复，两道epoch屏障；encrypted279pass已结算。旧红不得复报，完整C3其他边界仍未核销。",
+    "criticalForC": ["C3"]
+  },
+  {
+    "project": "rxdb-adapter-miniprogram",
+    "target": "test",
+    "args": [
+      "src/__tests__/runtime-capabilities.spec.ts",
+      "src/__tests__/runtime-polyfills-errors.spec.ts",
+      "src/__tests__/runtime-polyfills.spec.ts",
+      "src/__tests__/statement-cleanup.spec.ts",
+      "src/__tests__/unsupported-platform.spec.ts",
+      "src/__tests__/wechat-file-vfs-errors.spec.ts",
+      "--run"
+    ],
+    "reason": "优先小适配器聚焦验证；不跑 conformance/完整 WASM 档位矩阵。既有 coverage 开关按实际输出登记。完整对象的全套/持久化补证另列未完成。",
+    "criticalForC": ["C1", "C2", "C3", "C4", "C5"]
+  },
+  {
+    "project": "rxdb-adapter-sqlite",
+    "target": "test",
+    "args": [
+      "src/__tests__/create_sqlite_client.options.spec.ts",
+      "src/__tests__/sqlite-official-load.utils.spec.ts",
+      "src/__tests__/SqliteOfficialClient.spec.ts",
+      "--run"
+    ],
+    "reason": "优先小适配器聚焦验证；不跑 conformance/完整 WASM 档位矩阵。既有 coverage 开关按实际输出登记。完整对象的全套/持久化补证另列未完成。",
+    "criticalForC": ["C1", "C2", "C3", "C4", "C5"]
+  },
+  {
+    "project": "rxdb-adapter-sqlite-wasm",
+    "target": "test",
+    "args": [
+      "src/__tests__/execute_helper.spec.ts",
+      "src/__tests__/sqlite-client-init.spec.ts",
+      "src/__tests__/sqlite-client-lifecycle.spec.ts",
+      "src/__tests__/sqlite-load.utils.spec.ts",
+      "src/__tests__/worker-lifecycle.spec.ts",
+      "--run"
+    ],
+    "reason": "优先小适配器聚焦验证；不跑 conformance/完整 WASM 档位矩阵。既有 coverage 开关按实际输出登记。完整对象的全套/持久化补证另列未完成。",
+    "criticalForC": ["C1", "C2", "C3", "C4", "C5"]
+  },
+  {
+    "project": "rxdb-adapter-sqliteai",
+    "target": "test",
+    "args": [
+      "src/__tests__/create_sqlite_client.options.spec.ts",
+      "src/__tests__/sqliteai-load.utils.spec.ts",
+      "--run"
+    ],
+    "reason": "优先小适配器聚焦验证；不跑 conformance/完整 WASM 档位矩阵。既有 coverage 开关按实际输出登记。完整对象的全套/持久化补证另列未完成。",
+    "criticalForC": ["C1", "C2", "C3", "C4", "C5"]
+  },
+  {
+    "project": "rxdb-adapter-wa-sqlite",
+    "target": "test",
+    "args": [
+      "src/__tests__/execute_helper.spec.ts",
+      "src/__tests__/sqlite-client-lifecycle.spec.ts",
+      "src/__tests__/sqlite-load.utils.spec.ts",
+      "src/__tests__/sqlite-client-regressions.spec.ts",
+      "--run"
+    ],
+    "reason": "优先小适配器聚焦验证；不跑 conformance/完整 WASM 档位矩阵。既有 coverage 开关按实际输出登记。完整对象的全套/持久化补证另列未完成。",
+    "criticalForC": ["C1", "C2", "C3", "C4", "C5"]
+  },
+  {
+    "project": "rxdb-adapter-encrypted",
+    "target": "test",
+    "args": ["--run", "--coverage"],
+    "reason": "后置全对象完成门禁（非优先聚焦）：2026-10-05 当前指纹：完整测试＋四指标覆盖率；分列浏览器/Node、skip、cache 与真实持久化，不继承历史绿。",
+    "criticalForC": ["C1", "C2", "C3", "C4", "C5", "C6"]
+  },
+  {
+    "project": "rxdb-adapter-pglite",
+    "target": "test",
+    "args": ["--run", "--coverage"],
+    "reason": "后置全对象完成门禁（非优先聚焦）：2026-10-05 当前指纹：完整测试＋四指标覆盖率；分列浏览器/Node、skip、cache 与真实持久化，不继承历史绿。",
+    "criticalForC": ["C1", "C2", "C3", "C4", "C5", "C6", "C7"]
+  },
+  {
+    "project": "rxdb-adapter-pglite",
+    "target": "test-node",
+    "args": [],
+    "reason": "后置全对象完成门禁（非优先聚焦）：C3/C7 系统迁移独立 Node 档位；浏览器 test 配置主动排除本文件。",
+    "criticalForC": ["C3", "C7"]
+  },
+  {
+    "project": "rxdb-adapter-sqlite-core",
+    "target": "test",
+    "args": ["--run", "--coverage"],
+    "reason": "后置全对象完成门禁（非优先聚焦）：2026-10-05 当前指纹：完整测试＋四指标覆盖率；分列浏览器/Node、skip、cache 与真实持久化，不继承历史绿。",
+    "criticalForC": ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"]
+  },
+  {
+    "project": "rxdb-adapter-sqlite-core",
+    "target": "coverage-acceptance",
+    "args": [],
+    "reason": "后置全对象完成门禁（非优先聚焦）：核对共享套件接线和 coverage 合并；必须登记 skip/测量面，test --coverage 不能替代验收目标。",
+    "criticalForC": ["C8"]
+  }
+]

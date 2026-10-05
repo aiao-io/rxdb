@@ -1,0 +1,213 @@
+{
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/dialog/dialog.css": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/dialog/dialog.tsx": {
+    "lines": { "total": 50, "covered": 50, "skipped": 0, "pct": 100 },
+    "functions": { "total": 11, "covered": 10, "skipped": 0, "pct": 90.9 },
+    "statements": { "total": 55, "covered": 54, "skipped": 0, "pct": 98.18 },
+    "branches": { "total": 16, "covered": 11, "skipped": 0, "pct": 68.75 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-detail/entity-detail.css": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-detail/entity-detail.tsx": {
+    "lines": { "total": 172, "covered": 158, "skipped": 0, "pct": 91.86 },
+    "functions": { "total": 38, "covered": 35, "skipped": 0, "pct": 92.1 },
+    "statements": { "total": 197, "covered": 175, "skipped": 0, "pct": 88.83 },
+    "branches": { "total": 160, "covered": 122, "skipped": 0, "pct": 76.25 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-detail/index.ts": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-dialog/entity-dialog.css": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-dialog/entity-dialog.tsx": {
+    "lines": { "total": 89, "covered": 85, "skipped": 0, "pct": 95.5 },
+    "functions": { "total": 18, "covered": 14, "skipped": 0, "pct": 77.77 },
+    "statements": { "total": 94, "covered": 89, "skipped": 0, "pct": 94.68 },
+    "branches": { "total": 39, "covered": 33, "skipped": 0, "pct": 84.61 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-dialog/index.ts": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-form/entity-form.tsx": {
+    "lines": { "total": 148, "covered": 140, "skipped": 0, "pct": 94.59 },
+    "functions": { "total": 51, "covered": 43, "skipped": 0, "pct": 84.31 },
+    "statements": { "total": 169, "covered": 158, "skipped": 0, "pct": 93.49 },
+    "branches": { "total": 210, "covered": 190, "skipped": 0, "pct": 90.47 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-form/index.ts": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-list/entity-list.css": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-list/entity-list.tsx": {
+    "lines": { "total": 438, "covered": 404, "skipped": 0, "pct": 92.23 },
+    "functions": { "total": 120, "covered": 105, "skipped": 0, "pct": 87.5 },
+    "statements": { "total": 507, "covered": 447, "skipped": 0, "pct": 88.16 },
+    "branches": { "total": 318, "covered": 245, "skipped": 0, "pct": 77.04 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-table/config.tsx": {
+    "lines": { "total": 3, "covered": 1, "skipped": 0, "pct": 33.33 },
+    "functions": { "total": 1, "covered": 0, "skipped": 0, "pct": 0 },
+    "statements": { "total": 3, "covered": 1, "skipped": 0, "pct": 33.33 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-table/entity-table.css": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-table/entity-table.tsx": {
+    "lines": { "total": 198, "covered": 188, "skipped": 0, "pct": 94.94 },
+    "functions": { "total": 48, "covered": 40, "skipped": 0, "pct": 83.33 },
+    "statements": { "total": 227, "covered": 206, "skipped": 0, "pct": 90.74 },
+    "branches": { "total": 114, "covered": 88, "skipped": 0, "pct": 77.19 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-table/index.ts": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-table/query-table.css": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-table/query-table.tsx": {
+    "lines": { "total": 10, "covered": 10, "skipped": 0, "pct": 100 },
+    "functions": { "total": 6, "covered": 6, "skipped": 0, "pct": 100 },
+    "statements": { "total": 10, "covered": 10, "skipped": 0, "pct": 100 },
+    "branches": { "total": 17, "covered": 16, "skipped": 0, "pct": 94.11 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/index.ts": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/field-selector/field-selector.tsx": {
+    "lines": { "total": 3, "covered": 3, "skipped": 0, "pct": 100 },
+    "functions": { "total": 3, "covered": 3, "skipped": 0, "pct": 100 },
+    "statements": { "total": 4, "covered": 4, "skipped": 0, "pct": 100 },
+    "branches": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/index.ts": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/operator-selector/operator-selector.tsx": {
+    "lines": { "total": 6, "covered": 6, "skipped": 0, "pct": 100 },
+    "functions": { "total": 5, "covered": 5, "skipped": 0, "pct": 100 },
+    "statements": { "total": 8, "covered": 8, "skipped": 0, "pct": 100 },
+    "branches": { "total": 4, "covered": 4, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/popover-select/popover-select.tsx": {
+    "lines": { "total": 63, "covered": 63, "skipped": 0, "pct": 100 },
+    "functions": { "total": 12, "covered": 12, "skipped": 0, "pct": 100 },
+    "statements": { "total": 68, "covered": 67, "skipped": 0, "pct": 98.52 },
+    "branches": { "total": 38, "covered": 37, "skipped": 0, "pct": 97.36 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/query-builder/query-builder.tsx": {
+    "lines": { "total": 68, "covered": 66, "skipped": 0, "pct": 97.05 },
+    "functions": { "total": 23, "covered": 21, "skipped": 0, "pct": 91.3 },
+    "statements": { "total": 72, "covered": 68, "skipped": 0, "pct": 94.44 },
+    "branches": { "total": 43, "covered": 38, "skipped": 0, "pct": 88.37 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/query-group/query-group.css": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/query-group/query-group.tsx": {
+    "lines": { "total": 124, "covered": 118, "skipped": 0, "pct": 95.16 },
+    "functions": { "total": 43, "covered": 40, "skipped": 0, "pct": 93.02 },
+    "statements": { "total": 145, "covered": 133, "skipped": 0, "pct": 91.72 },
+    "branches": { "total": 123, "covered": 110, "skipped": 0, "pct": 89.43 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/query-rule/query-rule.tsx": {
+    "lines": { "total": 49, "covered": 46, "skipped": 0, "pct": 93.87 },
+    "functions": { "total": 12, "covered": 12, "skipped": 0, "pct": 100 },
+    "statements": { "total": 56, "covered": 52, "skipped": 0, "pct": 92.85 },
+    "branches": { "total": 53, "covered": 45, "skipped": 0, "pct": 84.9 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/subquery-builder/subquery-builder.css": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/subquery-builder/subquery-builder.tsx": {
+    "lines": { "total": 54, "covered": 54, "skipped": 0, "pct": 100 },
+    "functions": { "total": 17, "covered": 17, "skipped": 0, "pct": 100 },
+    "statements": { "total": 54, "covered": 54, "skipped": 0, "pct": 100 },
+    "branches": { "total": 28, "covered": 28, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/theme/default-query-builder-theme.ts": {
+    "lines": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/theme/index.ts": {
+    "lines": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "functions": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "statements": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/theme/query-builder-theme.tsx": {
+    "lines": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "functions": { "total": 1, "covered": 1, "skipped": 0, "pct": 100 },
+    "statements": { "total": 2, "covered": 2, "skipped": 0, "pct": 100 },
+    "branches": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/tree-select/tree-select.tsx": {
+    "lines": { "total": 113, "covered": 109, "skipped": 0, "pct": 96.46 },
+    "functions": { "total": 23, "covered": 20, "skipped": 0, "pct": 86.95 },
+    "statements": { "total": 119, "covered": 114, "skipped": 0, "pct": 95.79 },
+    "branches": { "total": 104, "covered": 92, "skipped": 0, "pct": 88.46 }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/value-input/value-input.tsx": {
+    "lines": { "total": 103, "covered": 102, "skipped": 0, "pct": 99.02 },
+    "functions": { "total": 38, "covered": 37, "skipped": 0, "pct": 97.36 },
+    "statements": { "total": 114, "covered": 113, "skipped": 0, "pct": 99.12 },
+    "branches": { "total": 146, "covered": 125, "skipped": 0, "pct": 85.61 }
+  },
+  "total": {
+    "lines": { "total": 1694, "covered": 1606, "skipped": 0, "pct": 94.8 },
+    "statements": { "total": 1905, "covered": 1756, "skipped": 0, "pct": 92.17 },
+    "functions": { "total": 470, "covered": 421, "skipped": 0, "pct": 89.57 },
+    "branches": { "total": 1415, "covered": 1186, "skipped": 0, "pct": 83.81 },
+    "branchesTrue": { "total": 0, "covered": 0, "skipped": 0, "pct": 100 }
+  }
+}

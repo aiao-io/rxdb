@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="10" failures="0" errors="0" time="0.018803417">
+    <testsuite name="src/__tests__/replayer.spec.ts" timestamp="2026-10-05T01:06:17.719Z" hostname="liuleideMacBook-Pro-4.local" tests="10" failures="0" errors="0" skipped="0" time="0.018803417">
+        <testcase classname="src/__tests__/replayer.spec.ts" name="Replayer（Vue）parity &gt; 1. 挂载 → mountReplayer 一次，宿主在组件内，输入原样传入" time="0.009217458">
+        </testcase>
+        <testcase classname="src/__tests__/replayer.spec.ts" name="Replayer（Vue）parity &gt; 2. 改 sessionId → update({ sessionId }) 一次，不重新挂载" time="0.001784084">
+        </testcase>
+        <testcase classname="src/__tests__/replayer.spec.ts" name="Replayer（Vue）parity &gt; 3. 改 initialTime → update({ initialTime })" time="0.000678291">
+        </testcase>
+        <testcase classname="src/__tests__/replayer.spec.ts" name="Replayer（Vue）parity &gt; 4. onTimeChange(1234) → 时刻输出收到 1234" time="0.000641042">
+        </testcase>
+        <testcase classname="src/__tests__/replayer.spec.ts" name="Replayer（Vue）parity &gt; 5. onCommitRestore(e) → 恢复输出收到同一个 e" time="0.000473208">
+        </testcase>
+        <testcase classname="src/__tests__/replayer.spec.ts" name="Replayer（Vue）parity &gt; 6. play / pause / seek(500) → 句柄同名方法各一次" time="0.000524416">
+        </testcase>
+        <testcase classname="src/__tests__/replayer.spec.ts" name="Replayer（Vue）parity &gt; 7. 卸载 → destroy() 一次" time="0.001129792">
+        </testcase>
+        <testcase classname="src/__tests__/replayer.spec.ts" name="Replayer（Vue） &gt; 换 replay 实例 → update({ replay })；同时改两项合成一次 update" time="0.001719875">
+        </testcase>
+        <testcase classname="src/__tests__/replayer.spec.ts" name="Replayer（Vue） &gt; 门面换成同一对象的 reactive 代理 → 按原对象比较，不 update" time="0.001054042">
+        </testcase>
+        <testcase classname="src/__tests__/replayer.spec.ts" name="Replayer（Vue） &gt; 宿主是组件根元素自身" time="0.000432792">
+        </testcase>
+    </testsuite>
+</testsuites>

@@ -54,14 +54,14 @@ QueryCache 的 HTTP remote adapter：规则查询、条件缓存、分页、变�
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                   | 核查动作                                                                                             | 最低复验场景 / 证据要求                                                                    | 状态                               |
-| ---- | ---------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------- |
-| C1   | 端到端线契约           | 逐项对照 adapter、handler-contract、reference-server 与 HTTP 应用服务端；核查 RuleGroup 和错误映射。 | 未知字段/操作、注入型条件、错误 content-type、畸形 JSON、4xx/5xx；不把失败解码为空数据。   | 部分执行；真实应用 wire /401       |
-| C2   | 分页与条件请求         | 检查 opaque page token、ETag/304、过滤排序与 cache identity 的一致性。                               | 筛选改变后旧 token、分页中更新/删除、304 无缓存、错 entity/scope token；不混用缓存或漏页。 | 待核查                             |
-| C3   | 变更流生命周期         | 核查 reconnect、cursor、取消、订阅者清理和失效范围，不让断流被视为已同步。                           | 断线重连、重复/乱序消息、最后订阅离开、历史 cursor 失效；明确可恢复状态。                  | 待核查                             |
-| C4   | 写入与 outbox 衔接     | 追踪 bulk/chunking、条件失败和 QueryCache offline write 到 sync outbox，检查幂等和重试归属。         | 超时但服务端已写、批次部分失败、离线后联网、删除重试；不丢写、不重复副作用。               | 部分执行；联审 RV-052/055          |
-| C5   | 取消与不可信响应       | 检查 AbortSignal、晚到响应、响应体大小与类型转换。                                                   | 请求参数变化、卸载取消、超大 body、错误数字/二进制；过期响应不能覆盖新状态。               | 部分执行；联审 RV-053，origin-down |
-| C6   | CORS / 凭证 / 生产消费 | 审查 transport 凭证和日志边界，核查 server 配合而非只看 client 配置。                                | 未授权 origin、错误 credentials、跨 scope 请求、pack 后消费；诊断中无 token 或敏感 body。  | 待核查                             |
+| 编号 | 专项                   | 核查动作                                                                                             | 最低复验场景 / 证据要求                                                                    | 状态                          |
+| ---- | ---------------------- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ----------------------------- |
+| C1   | 端到端线契约           | 逐项对照 adapter、handler-contract、reference-server 与 HTTP 应用服务端；核查 RuleGroup 和错误映射。 | 未知字段/操作、注入型条件、错误 content-type、畸形 JSON、4xx/5xx；不把失败解码为空数据。   | 部分核查；见2026-10-05逐C结论 |
+| C2   | 分页与条件请求         | 检查 opaque page token、ETag/304、过滤排序与 cache identity 的一致性。                               | 筛选改变后旧 token、分页中更新/删除、304 无缓存、错 entity/scope token；不混用缓存或漏页。 | 部分核查；见2026-10-05逐C结论 |
+| C3   | 变更流生命周期         | 核查 reconnect、cursor、取消、订阅者清理和失效范围，不让断流被视为已同步。                           | 断线重连、重复/乱序消息、最后订阅离开、历史 cursor 失效；明确可恢复状态。                  | 部分核查；见2026-10-05逐C结论 |
+| C4   | 写入与 outbox 衔接     | 追踪 bulk/chunking、条件失败和 QueryCache offline write 到 sync outbox，检查幂等和重试归属。         | 超时但服务端已写、批次部分失败、离线后联网、删除重试；不丢写、不重复副作用。               | 部分核查；见2026-10-05逐C结论 |
+| C5   | 取消与不可信响应       | 检查 AbortSignal、晚到响应、响应体大小与类型转换。                                                   | 请求参数变化、卸载取消、超大 body、错误数字/二进制；过期响应不能覆盖新状态。               | 部分核查；见2026-10-05逐C结论 |
+| C6   | CORS / 凭证 / 生产消费 | 审查 transport 凭证和日志边界，核查 server 配合而非只看 client 配置。                                | 未授权 origin、错误 credentials、跨 scope 请求、pack 后消费；诊断中无 token 或敏感 body。  | 部分核查；见2026-10-05逐C结论 |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -131,7 +131,7 @@ pnpm audit:coverage --projects=rxdb-adapter-http
 ## 6. 完成条件
 
 - [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。
-- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。
+- [x] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。
 - [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。
 - [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。
 - [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。
@@ -151,3 +151,26 @@ pnpm audit:coverage --projects=rxdb-adapter-http
 ### 2026-10-04 第六批：真实后端联审
 
 [原应用/PGlite + HTTP + 文件 SQLite 的实际取证](../execution-2026-10-04-sync-http-sqlite.md)。新增 RV-055，RV-052/053/054 补真实后端证据；scope、缓存收敛和配置适用性已分别写入独立执行记录，不给未测 GUI/CORS/Supabase/发布消费通过结论。
+
+## 2026-10-05：parallel integrations 逐 C 交付
+
+⚠️ **原完成条件未满足，execution维持in-progress，不能标complete。** 已完成逐C的源码结论/证据/未验证动作登记；这一个完成条件已核销，动态语义与全范围深审/覆盖率未完成。
+
+主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
+
+日志：[strict lint](../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+
+已有2026-10-04/05前段HTTP/SQLite/进程内host证据仅保留历史；历史401/SWR/outbox修复不重新登记，RV-058已Resolved。进程内host不是GUI/真实IPC。
+
+| C / 专项                  | 已核查源码符号 / 行与结论                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | 证据 / 核销                                                          | 具体未验证与补证动作                                                                                                                                                    |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1 端到端线契约           | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/handler-contract.ts:42-76 assertHandlerRow/assertHandlerVersion`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/metadata.ts:39-94 canonicalizeMetadata`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/transport.ts:190-195 assertOk、311-318 decodeJson`<br>persisted row/version/metadata 有显式类型校验；非2xx不解码为空集合，非法JSON明确报错。线契约不是仅入口导出核对。当前 strict lint/typecheck与依赖build有实测，协议测试尚未由本子任务重跑。 | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控运行本包test与HTTP server真实wire：未知字段/操作、注入条件、content-type、畸形JSON、4xx/5xx；确认无副作用并保留错误码。生产消费与body所有类型还未覆盖。             |
+| C2 分页与条件请求         | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/pagination.ts:103-153 fetchAllMetadataPages`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/conditional-cache.ts:103-108 requestFingerprint`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/transport.ts:385-393 sendJson、622-639 #sendJsonConditional`<br>页形状锁定；token不推进、空页与总页数上限fail-fast，不以截断数据成功返回。条件缓存用method/url/序列化body/handler headers分键，304复用原值。auth不进键是公开前置条件，不另报缺陷。         | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 本轮test/E2E未收结果；补筛选改变后旧token、更新/删除中分页、无缓存304、跨scope以及按README disconnect/connect换身份。当前server token仅a/w游标，非签名或scope绑定证据。 |
+| C3 变更流生命周期         | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/change-feed.ts:155-169 start/stop、172-284 #connect/#fail/#close、316-343 #handleOpen/#handleMessage`<br>重连接通时全实体失效弥补断流；停止会清timer/close EventSource并解绑回调。不是带历史cursor的durable replay流；同clientId通知被抑制。与server合批来源候选A关联，未动态确认。                                                                                                                                                                                                              | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控真实SSE断线重连、重复/乱序、最后订阅退出；候选A需实际PGlite batch与双客户端验证。不要把没有实现的历史cursor replay当已测能力。                                      |
+| C4 写入与 outbox 衔接     | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/chunking.ts:46-67 findByIdsInChunks`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts:446-487 saveMany/removeMany/mutations拒绝路径`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-e2e/src/local-first-writes.spec.ts:68-108 远端持久化断言`<br>findByIds分块后统一返回，非数组响应拒绝；bulk/sync原语的边界与QueryCache/outbox归属分开。已有真实HTTP/SQLite旧取证不作为这次test通过；历史outbox修复不重开RV。                                   | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控本轮原包test+local-first-writes，超时但服务端已写、部分批失败、离线重连/删除重试需真实wire/outbox对照；不能仅UI pending变0代证。                                    |
+| C5 取消与不可信响应       | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/transport.ts:501-517 classify、529-548 #prepare、569-597 #send、311-318 decodeJson`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts:209-268 connect/disconnect`<br>断开信号与timeout分开分类，fetch和body消费同处try/finally，timer被清理；connect/disconnect换transport并终止旧请求。响应text读取没有在所读路径证明body字节上限。                                                                                                                        | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控慢body/晚到响应、auth await期间断开、卸载、快速参数变化和超大/非法数字二进制响应；本轮无这些动态证据，不把未见容量限制直接包装成已复现OOM。                         |
+| C6 CORS / 凭证 / 生产消费 | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/src/transport.ts:477-486 buildHeaders、535-546 #prepare`<br>`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-http/README.md:227-231 换身份前置条件`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/cors.ts:52-74 applyCorsHeaders`<br>auth在每次发请求前求值且覆盖静态header；handler变体入缓存键。换身份必须disconnect/connect，直接换token并非支持路径。demo回显origin/假Bearer不构成生产鉴权证明。                                                                     | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 受控server真实未授权origin/credentials与跨scope拒绝、日志无token敏感body、pack后consumer仍待证；当前依赖build不是独立发布消费。                                         |
+
+证据：[逐C矩阵](../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+
+未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

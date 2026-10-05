@@ -53,16 +53,15 @@ execution: in-progress
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                 | 核查动作                                                                         | 最低复验场景 / 证据要求                                                                  | 状态   |
-| ---- | -------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------ |
-| C1   | metadata 到 UI 契约  | 逐字段核对 nullable/readonly/enum/format/relation 与默认值、可编辑性和能力显示。 | 隐藏系统字段、只读字段、不可用操作、未注册关系；UI 不能承诺核心不允许的写入。            | 待核查 |
-| C2   | 表单提交与验证       | 核查数据转换、错误归属、NEW/UPDATE 与字段级约束，避免保存时静默丢输入。          | 空值、BigInt/binary/日期、非法 JSON、关系改变、异步保存拒绝；用户输入可恢复。            | 待核查 |
-| C3   | 表格、查询与游标     | 审查 editable columns、query builder、分页/排序和 callback 生命周期。            | 相同排序值、可空列、字段切换、保存期间数据刷新、选择跨页；以 repository 结果复验。       | 待核查 |
-| C4   | DOM / clipboard 安全 | 核查 overlay editor、图标/SVG、文本格式和剪贴板的注入边界。                      | 恶意 HTML/SVG、粘贴公式/超大数据、portal 卸载、焦点恢复；无注入与悬挂全局 DOM。          | 待核查 |
-| C5   | 框架无关与消费       | 对照三端组件调用，检查共享内核是否夹带具体框架依赖、单例或 theme 特例。          | Angular/React/Vue 同 metadata fixtures、独立打包导入、同一编辑器多实例；类型与行为对称。 | 待核查 |
-| C6   | 可访问性与性能       | 核查编辑器键盘、弹层 aria、长列表/大表格与对象引用稳定性。                       | 键盘进入/退出、错误提示、1000+ 行滚动、快速切页；先量化耗时/内存，再决定优化。           | 待核查 |
-
-共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
+| 编号                                                                                                                                                                                                                                                 | 专项                 | 核查动作                                                                         | 最低复验场景 / 证据要求                                                                  | 状态    |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------- |
+| C1                                                                                                                                                                                                                                                   | metadata 到 UI 契约  | 逐字段核对 nullable/readonly/enum/format/relation 与默认值、可编辑性和能力显示。 | 隐藏系统字段、只读字段、不可用操作、未注册关系；UI 不能承诺核心不允许的写入。            | partial |
+| C2                                                                                                                                                                                                                                                   | 表单提交与验证       | 核查数据转换、错误归属、NEW/UPDATE 与字段级约束，避免保存时静默丢输入。          | 空值、BigInt/binary/日期、非法 JSON、关系改变、异步保存拒绝；用户输入可恢复。            | partial |
+| C3                                                                                                                                                                                                                                                   | 表格、查询与游标     | 审查 editable columns、query builder、分页/排序和 callback 生命周期。            | 相同排序值、可空列、字段切换、保存期间数据刷新、选择跨页；以 repository 结果复验。       | partial |
+| C4                                                                                                                                                                                                                                                   | DOM / clipboard 安全 | 核查 overlay editor、图标/SVG、文本格式和剪贴板的注入边界。                      | 恶意 HTML/SVG、粘贴公式/超大数据、portal 卸载、焦点恢复；无注入与悬挂全局 DOM。          | partial |
+| C5                                                                                                                                                                                                                                                   | 框架无关与消费       | 对照三端组件调用，检查共享内核是否夹带具体框架依赖、单例或 theme 特例。          | Angular/React/Vue 同 metadata fixtures、独立打包导入、同一编辑器多实例；类型与行为对称。 | partial |
+| C6                                                                                                                                                                                                                                                   | 可访问性与性能       | 核查编辑器键盘、弹层 aria、长列表/大表格与对象引用稳定性。                       | 键盘进入/退出、错误提示、1000+ 行滚动、快速切页；先量化耗时/内存，再决定优化。           | partial |
+| 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。 |
 
 ## 4. 测试证据与联审边界
 
@@ -143,3 +142,32 @@ pnpm audit:coverage --projects=rxdb-model
 ## 7. 本轮实际执行记录
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-model.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
+
+## 2026-10-05 frameworks 本轮完成条件与实际核查
+
+本轮 `main/worktree@44de1138b4d396fc45d6e76ab60476c40fef2223`，日期 2026-10-05。不是新泛计划，而是对原 C 的实际结论：**0/6 个完整 C、execution 保持 in-progress；结果记录保持 partial；本对象不是全对象完成候选。**
+
+全部 117 个受控文件的范围/摘要已核对，正文片段 7、outline 0、仅导航 3、未人工检查 107；不能将 scope 盘点称为全读。
+
+| 原 C                    | 本轮结论          | 原场景中仍缺的必要证据                                                                                                         |
+| ----------------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| C1 metadata 到 UI 契约  | partial；局部通过 | extractEntityFields 的完整 metadata/未注册关系规则及每项对应 UI 验证未读完，不能承诺全部写入能力已正确显示。                   |
+| C2 表单提交与验证       | partial；局部通过 | parse/format 严格边界、BigInt/binary/date/非法 JSON/关系改变/保存失败的全部测试体与三端 UI 未读完；原输入恢复缺完整证据。      |
+| C3 表格、查询与游标     | partial；未验证   | 表格 columns/query/cursor/保存中 refresh/跨页选择未深审；测试 993 passed 与 coverage 不能替代此 C 的真实 repository 场景映射。 |
+| C4 DOM / clipboard 安全 | partial；未验证   | overlay/图标/SVG/剪贴板相关实现与恶意 HTML/SVG、公式/大数据粘贴、portal 卸载、焦点恢复场景未读完/未动态复验。                  |
+| C5 框架无关与消费       | partial；局部通过 | 全部共享内核（117 文件）、theme/singleton、同 metadata 三端 fixture、独立 typed/runtime pack 导入与同编辑器多实例未完整证明。  |
+| C6 可访问性与性能       | partial；未验证   | 没有当前 1000+ 行耗时/内存测量和真实键盘/aria/弹层焦点证据；不以单元覆盖率或“可进一步审查”替代性能结论。                       |
+
+本轮完成条件：
+
+- [x] 全受控 inventory / 摘要核对，未排除配置/资源/fixture。
+- [ ] 全部受控内容阅读及全部原 C 场景核销（缺口见表，保持 partial）。
+- [x] 每 C 已有明确的已证/未证结论及角色明确的源码、测试锚点。
+- [x] 当前 baseline 的 unit / 四指标 / 零警告 lint / typecheck / 真 pack 来源已读取登记。
+- [ ] 晚加探针补跑、独立 typed/runtime consumer、真实完整 UI/生命周期等必要缺口全部关闭。
+- [ ] 全对象证据完成与最终评级（不要求零缺陷，但不能缺验证）；尚未完成。
+
+本对象四指标（statements/branches/functions/lines）：**94.31% / 86.73% / 94.36% / 95.71%**；阈值各项 ≥ 80%。其余18包的绿不能抹掉 rxdb-angular 的16个失败；新探针不继承基线通过。
+发布 pack 根是 `packages/rxdb-model`，实际 tarball 目标文件存在、独立根 ESM 解析通过；**不包含 typed consumer 编译/runtime import**。Angular 不能按源 manifest 缺 exports 报错。
+
+逐 C 原场景、函数/测试证据与完成条件详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-model.md`；机器证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`。

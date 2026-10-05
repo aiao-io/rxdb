@@ -1,0 +1,90 @@
+{
+  "clientDate": "2026-10-05",
+  "findings": [
+    {
+      "id": "RV-062",
+      "key": "search-cancel",
+      "severity": "P2",
+      "title": "search 取消清空待执行请求却未结算 loadMore",
+      "file": "requirements/reviews/RV-062-parallel-search-cancel.md",
+      "group": "plugins",
+      "source": "packages/rxdb-plugin-search/src/core/search-handle.ts",
+      "test": "packages/rxdb-plugin-search/src/__tests__/review-parallel-loadmore-settlement.spec.ts",
+      "validation": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage.txt",
+      "status": "confirmed-open"
+    },
+    {
+      "id": "RV-063",
+      "key": "scope-acquire",
+      "severity": "P2",
+      "title": "LifecycleScope 在 setup 内关闭后遗失新资源 disposer",
+      "file": "requirements/reviews/RV-063-parallel-scope-acquire.md",
+      "group": "core",
+      "source": "packages/utils/src/lifecycle/lifecycle-scope.ts",
+      "test": "packages/utils/src/__tests__/lifecycle/review-parallel-acquire-close.spec.ts",
+      "validation": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage.txt",
+      "status": "confirmed-open"
+    },
+    {
+      "id": "RV-064",
+      "key": "generator-glob",
+      "severity": "P2",
+      "title": "实体生成器把字符类与花括号 glob 当成字面路径",
+      "file": "requirements/reviews/RV-064-parallel-generator-glob.md",
+      "group": "core",
+      "source": "packages/rxdb-client-generator/src/cli/find-files.ts",
+      "test": "packages/rxdb-client-generator/src/__tests__/cli/review-parallel-glob-patterns.spec.ts",
+      "validation": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage.txt",
+      "status": "confirmed-open"
+    },
+    {
+      "id": "RV-065",
+      "key": "wasm-prepare",
+      "severity": "P2",
+      "title": "sqlite-wasm prepare 后续语句失败时漏 finalize 已得句柄",
+      "file": "requirements/reviews/RV-065-parallel-wasm-prepare.md",
+      "group": "local-adapters",
+      "source": "packages/rxdb-adapter-sqlite-wasm/src/execute_helper.ts",
+      "test": "packages/rxdb-adapter-sqlite-wasm/src/__tests__/review-parallel-statement-cleanup.spec.ts",
+      "validation": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage.txt",
+      "status": "confirmed-open"
+    },
+    {
+      "id": "RV-066",
+      "key": "adapter-factory-close",
+      "severity": "P2",
+      "title": "SQLite core disconnect 未接管在途 client factory",
+      "file": "requirements/reviews/RV-066-parallel-adapter-factory-close.md",
+      "group": "local-adapters",
+      "source": "packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts",
+      "test": "packages/rxdb-adapter-sqlite-core/src/__tests__/review-parallel-init-disconnect.spec.ts",
+      "validation": "requirements/reviews/evidence/2026-10-05/parallel/validation/local-adapters-tests.txt",
+      "status": "confirmed-open"
+    },
+    {
+      "id": "RV-067",
+      "key": "oo1-load-close",
+      "severity": "P2",
+      "title": "oo1 客户端模块迟到后重新激活已关闭连接",
+      "file": "requirements/reviews/RV-067-parallel-oo1-load-close.md",
+      "group": "local-adapters",
+      "source": "packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts",
+      "test": "packages/rxdb-adapter-sqlite-core/src/__tests__/review-parallel-oo1-init-close.spec.ts",
+      "validation": "requirements/reviews/evidence/2026-10-05/parallel/validation/local-adapters-tests.txt",
+      "status": "confirmed-open"
+    },
+    {
+      "id": "RV-068",
+      "key": "alipay-wasm-pin",
+      "severity": "P1",
+      "title": "支付宝 WASM 指纹仍对应旧版本，当前精确依赖启动被拒绝",
+      "file": "requirements/reviews/RV-068-parallel-alipay-wasm-pin.md",
+      "group": "local-adapters",
+      "source": "packages/rxdb-adapter-miniprogram/src/hosts/alipay-wasm.ts",
+      "test": "packages/rxdb-adapter-miniprogram/src/__tests__/alipay-wasm.spec.ts",
+      "validation": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage.txt",
+      "status": "confirmed-open"
+    }
+  ],
+  "otherCandidates": "Not registered until dynamic assertions and public contracts are checked; replay interim fixture mistakes remain explicit."
+}

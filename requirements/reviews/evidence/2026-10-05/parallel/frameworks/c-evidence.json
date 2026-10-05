@@ -1,0 +1,3298 @@
+{
+  "baseline": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+  "completeCCount": 0,
+  "completeObjectCandidates": [],
+  "date": "2026-10-05",
+  "interpretation": "局部场景通过与完整原 C 核销严格区分；新增探针尚未在本轮已有基线日志内。",
+  "objects": {
+    "rxdb-angular": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-angular/src/hooks.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular/src/hooks.ts",
+            "start": 45,
+            "end": 124,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "五项资源状态、空值判断和 errors 转 Error 已读；Angular lazy signal、React layout 代次 + passive 订阅、Vue options key watch + scope invalidation 已逐段追溯。"
+        ],
+        "gaps": [
+          "尚未人工逐个公开查询入口与所有原场景映射；快速参数变化/失败重试/晚到真实仓储还缺完整三端共同 fixture。React browser target 不在普通基线 test 中执行。"
+        ],
+        "title": "查询资源状态机",
+        "action": "逐个公开 useGet/useFind/useFindOne 等入口核对 value/error/isLoading/isEmpty/hasValue、默认值与查询键切换；与核心 repository 事件对照。",
+        "originalScenario": "首次加载、空结果、失败后重试、参数快速变化、过期响应；五项资源状态三端一致。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-angular/src/use-action.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular/src/use-action.ts",
+            "start": 23,
+            "end": 65,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-angular/src/use-sync-state.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular/src/use-sync-state.ts",
+            "start": 69,
+            "end": 80,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-angular/src/use-persisted-state.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular/src/use-persisted-state.ts",
+            "start": 69,
+            "end": 77,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "三端 action 计数追踪所有并发 promise、finally 归还计数，错误原样 reject，不把 isPending 当实际防重入锁。",
+          "syncState 归属 core；persistError 有公开状态，registry 所有权不同（Angular root DI，React/Vue module registry）。"
+        ],
+        "gaps": [
+          "连续点击/写入拒绝/换库/离线重连/销毁的完整链路未逐项映射；Angular directive 当前 16 个 fixture/mock 边界失败，不归因生产实现。"
+        ],
+        "title": "写操作、实体与同步",
+        "action": "追踪 action 防重入、entity change、sync state/persisted state 到核心实现；错误不只 console 输出。",
+        "originalScenario": "连续点击、写入拒绝、换库、离线重连、组件销毁；错误/返回值按既有 API 传达。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "未验证，保持 partial",
+        "anchors": [
+          {
+            "path": "packages/rxdb-angular/src/InfiniteScrollingList.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular/src/InfiniteScrollingList.ts",
+            "start": 90,
+            "end": 90,
+            "role": "navigation-only-not-deep-read"
+          },
+          {
+            "path": "packages/rxdb-angular/src/use-infinite-scroll.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular/src/use-infinite-scroll.ts",
+            "start": 50,
+            "end": 55,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [],
+        "gaps": [
+          "分页实现和其大量测试未深读；末页、同值排序、NULL、跨页删除/更新与多列表的原场景全部不能因 unit/coverage 绿自动核销。"
+        ],
+        "title": "无限滚动与类型对称",
+        "action": "核查分页边界、并发 loadMore、滚动 observer 清理和实体泛型；使用同一 shared fixtures 对照另外两端。",
+        "originalScenario": "末页、排序同值、可空列、删除/更新跨页、多个列表；不重复加载或丢行，consumer 类型保真。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-angular/src/rxdb.provider.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular/src/rxdb.provider.ts",
+            "start": 56,
+            "end": 145,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-angular/src/hooks.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular/src/hooks.ts",
+            "start": 45,
+            "end": 124,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "provider owned/source 生命周期已追踪：直接实例借用，promise/factory 按 scope 销毁；React lease 的 microtask 避开 StrictMode 探测性 cleanup；Vue disposed 后晚到 owned instance 销毁。"
+        ],
+        "gaps": [
+          "真实多个 root/provider override/route/输入快速切换未逐项映射；React browser 现有 target 尚待主控；Angular 基线失败需先查 mock/Analog 编译后的 import 边界。"
+        ],
+        "title": "Angular 生命周期与注入",
+        "action": "核查注入上下文、DestroyRef/effect cleanup、provider scope 和框架原生 Signal 更新；按仓库约定检查 standalone/OnPush，避免为风格改写已稳定 API。",
+        "originalScenario": "切换 inputs、销毁中异步完成、子 provider 覆盖、同组件多实例；无订阅泄漏或跨库状态。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-angular/src/hooks.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular/src/hooks.ts",
+            "start": 45,
+            "end": 124,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-angular/src/rxdb.provider.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular/src/rxdb.provider.ts",
+            "start": 56,
+            "end": 145,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": ["本轮 workspace 类型/零警告门禁及真正 tarball root resolve 已实读，不引用旧日期全仓日志。"],
+        "gaps": [
+          "本对象所有受控源码/测试未读完；独立 typed consumer/runtime import/模板/SFC 的真实消费链路不在 pack 证据范围。"
+        ],
+        "title": "Angular 类型与运行证据",
+        "action": "核查模板类型、泛型推导和真实组件 fixture；区分纯函数、模拟组件与浏览器/实际应用证据。",
+        "originalScenario": "typed consumer 编译、模板事件/输入错误、错误与空态；真实 route 挂载/卸载，不用类型断言掩盖错误。"
+      }
+    ],
+    "rxdb-react": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-react/src/hooks.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/hooks.ts",
+            "start": 71,
+            "end": 159,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "五项资源状态、空值判断和 errors 转 Error 已读；Angular lazy signal、React layout 代次 + passive 订阅、Vue options key watch + scope invalidation 已逐段追溯。"
+        ],
+        "gaps": [
+          "尚未人工逐个公开查询入口与所有原场景映射；快速参数变化/失败重试/晚到真实仓储还缺完整三端共同 fixture。React browser target 不在普通基线 test 中执行。"
+        ],
+        "title": "查询资源状态机",
+        "action": "逐个公开 useGet/useFind/useFindOne 等入口核对 value/error/isLoading/isEmpty/hasValue、默认值与查询键切换；与核心 repository 事件对照。",
+        "originalScenario": "首次加载、空结果、失败后重试、参数快速变化、过期响应；五项资源状态三端一致。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-react/src/use-action.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/use-action.ts",
+            "start": 56,
+            "end": 78,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-react/src/use-sync-state.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/use-sync-state.ts",
+            "start": 49,
+            "end": 62,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-react/src/use-persisted-state.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/use-persisted-state.ts",
+            "start": 90,
+            "end": 98,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "三端 action 计数追踪所有并发 promise、finally 归还计数，错误原样 reject，不把 isPending 当实际防重入锁。",
+          "syncState 归属 core；persistError 有公开状态，registry 所有权不同（Angular root DI，React/Vue module registry）。"
+        ],
+        "gaps": [
+          "连续点击/写入拒绝/换库/离线重连/销毁的完整链路未逐项映射；Angular directive 当前 16 个 fixture/mock 边界失败，不归因生产实现。"
+        ],
+        "title": "写操作、实体与同步",
+        "action": "追踪 action 防重入、entity change、sync state/persisted state 到核心实现；错误不只 console 输出。",
+        "originalScenario": "连续点击、写入拒绝、换库、离线重连、组件销毁；错误/返回值按既有 API 传达。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "未验证，保持 partial",
+        "anchors": [
+          {
+            "path": "packages/rxdb-react/src/useInfiniteScroll.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/useInfiniteScroll.ts",
+            "start": 83,
+            "end": 83,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": [],
+        "gaps": [
+          "分页实现和其大量测试未深读；末页、同值排序、NULL、跨页删除/更新与多列表的原场景全部不能因 unit/coverage 绿自动核销。"
+        ],
+        "title": "无限滚动与类型对称",
+        "action": "核查分页边界、并发 loadMore、滚动 observer 清理和实体泛型；使用同一 shared fixtures 对照另外两端。",
+        "originalScenario": "末页、排序同值、可空列、删除/更新跨页、多个列表；不重复加载或丢行，consumer 类型保真。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-react/src/rxdb-react.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/rxdb-react.tsx",
+            "start": 129,
+            "end": 248,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-react/src/hooks.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/hooks.ts",
+            "start": 71,
+            "end": 159,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "provider owned/source 生命周期已追踪：直接实例借用，promise/factory 按 scope 销毁；React lease 的 microtask 避开 StrictMode 探测性 cleanup；Vue disposed 后晚到 owned instance 销毁。"
+        ],
+        "gaps": [
+          "真实多个 root/provider override/route/输入快速切换未逐项映射；React browser 现有 target 尚待主控；Angular 基线失败需先查 mock/Analog 编译后的 import 边界。"
+        ],
+        "title": "React 生命周期与竞态",
+        "action": "核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。",
+        "originalScenario": "StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-react/src/hooks.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/hooks.ts",
+            "start": 71,
+            "end": 159,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-react/src/rxdb-react.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/rxdb-react.tsx",
+            "start": 129,
+            "end": 248,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": ["本轮 workspace 类型/零警告门禁及真正 tarball root resolve 已实读，不引用旧日期全仓日志。"],
+        "gaps": [
+          "本对象所有受控源码/测试未读完；独立 typed consumer/runtime import/模板/SFC 的真实消费链路不在 pack 证据范围。"
+        ],
+        "title": "React 类型与 render 边界",
+        "action": "检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。",
+        "originalScenario": "typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。"
+      }
+    ],
+    "rxdb-vue": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-vue/src/hooks.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-vue/src/hooks.ts",
+            "start": 124,
+            "end": 257,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "五项资源状态、空值判断和 errors 转 Error 已读；Angular lazy signal、React layout 代次 + passive 订阅、Vue options key watch + scope invalidation 已逐段追溯。"
+        ],
+        "gaps": [
+          "尚未人工逐个公开查询入口与所有原场景映射；快速参数变化/失败重试/晚到真实仓储还缺完整三端共同 fixture。React browser target 不在普通基线 test 中执行。"
+        ],
+        "title": "查询资源状态机",
+        "action": "逐个公开 useGet/useFind/useFindOne 等入口核对 value/error/isLoading/isEmpty/hasValue、默认值与查询键切换；与核心 repository 事件对照。",
+        "originalScenario": "首次加载、空结果、失败后重试、参数快速变化、过期响应；五项资源状态三端一致。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-vue/src/use-action.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-vue/src/use-action.ts",
+            "start": 54,
+            "end": 71,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-vue/src/use-sync-state.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-vue/src/use-sync-state.ts",
+            "start": 63,
+            "end": 79,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-vue/src/use-persisted-state.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-vue/src/use-persisted-state.ts",
+            "start": 54,
+            "end": 117,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "三端 action 计数追踪所有并发 promise、finally 归还计数，错误原样 reject，不把 isPending 当实际防重入锁。",
+          "syncState 归属 core；persistError 有公开状态，registry 所有权不同（Angular root DI，React/Vue module registry）。"
+        ],
+        "gaps": [
+          "连续点击/写入拒绝/换库/离线重连/销毁的完整链路未逐项映射；Angular directive 当前 16 个 fixture/mock 边界失败，不归因生产实现。"
+        ],
+        "title": "写操作、实体与同步",
+        "action": "追踪 action 防重入、entity change、sync state/persisted state 到核心实现；错误不只 console 输出。",
+        "originalScenario": "连续点击、写入拒绝、换库、离线重连、组件销毁；错误/返回值按既有 API 传达。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "未验证，保持 partial",
+        "anchors": [
+          {
+            "path": "packages/rxdb-vue/src/useInfiniteScroll.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-vue/src/useInfiniteScroll.ts",
+            "start": 129,
+            "end": 129,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": [],
+        "gaps": [
+          "分页实现和其大量测试未深读；末页、同值排序、NULL、跨页删除/更新与多列表的原场景全部不能因 unit/coverage 绿自动核销。"
+        ],
+        "title": "无限滚动与类型对称",
+        "action": "核查分页边界、并发 loadMore、滚动 observer 清理和实体泛型；使用同一 shared fixtures 对照另外两端。",
+        "originalScenario": "末页、排序同值、可空列、删除/更新跨页、多个列表；不重复加载或丢行，consumer 类型保真。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-vue/src/rxdb-vue.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-vue/src/rxdb-vue.ts",
+            "start": 114,
+            "end": 236,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-vue/src/hooks.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-vue/src/hooks.ts",
+            "start": 124,
+            "end": 257,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "provider owned/source 生命周期已追踪：直接实例借用，promise/factory 按 scope 销毁；React lease 的 microtask 避开 StrictMode 探测性 cleanup；Vue disposed 后晚到 owned instance 销毁。"
+        ],
+        "gaps": [
+          "真实多个 root/provider override/route/输入快速切换未逐项映射；React browser 现有 target 尚待主控；Angular 基线失败需先查 mock/Analog 编译后的 import 边界。"
+        ],
+        "title": "Vue 生命周期与响应式来源",
+        "action": "核查 ref/computed/getter 输入解包、watch 依赖、onScopeDispose/onUnmounted 与 provider scope，避免把首次取值变成永久快照。",
+        "originalScenario": "替换与深改输入、scope 销毁、卸载后晚到结果、多实例；旧订阅释放，新输入生效。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-vue/src/hooks.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-vue/src/hooks.ts",
+            "start": 124,
+            "end": 257,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-vue/src/rxdb-vue.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-vue/src/rxdb-vue.ts",
+            "start": 114,
+            "end": 236,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": ["本轮 workspace 类型/零警告门禁及真正 tarball root resolve 已实读，不引用旧日期全仓日志。"],
+        "gaps": [
+          "本对象所有受控源码/测试未读完；独立 typed consumer/runtime import/模板/SFC 的真实消费链路不在 pack 证据范围。"
+        ],
+        "title": "Vue 类型与 SFC 消费",
+        "action": "核查泛型 composable、SFC props/emits 与声明输出；响应式代理不能改变实体身份或隐藏错误。",
+        "originalScenario": "vue-tsc consumer、模板输入错误、readonly/computed 来源、独立 pack 消费；没有宽化 any 或丢失 emits 契约。"
+      }
+    ],
+    "rxdb-model": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model/src/entity-form/form-fields.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model/src/entity-form/form-fields.ts",
+            "start": 17,
+            "end": 47,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-model/src/entity-capabilities.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model/src/entity-capabilities.ts",
+            "start": 33,
+            "end": 37,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-model/src/entity-form/interfaces.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model/src/entity-form/interfaces.ts",
+            "start": 16,
+            "end": 55,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "create 排除 computed、view 标 readonly、visibility 单独过滤；能力派生依 getEntityPermission 的 both；nullable/enum/relation 等字段属性在共享接口可见。"
+        ],
+        "gaps": [
+          "extractEntityFields 的完整 metadata/未注册关系规则及每项对应 UI 验证未读完，不能承诺全部写入能力已正确显示。"
+        ],
+        "title": "metadata 到 UI 契约",
+        "action": "逐字段核对 nullable/readonly/enum/format/relation 与默认值、可编辑性和能力显示。",
+        "originalScenario": "隐藏系统字段、只读字段、不可用操作、未注册关系；UI 不能承诺核心不允许的写入。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model/src/entity-form/form-data.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model/src/entity-form/form-data.ts",
+            "start": 17,
+            "end": 83,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-model/src/entity-form/form-validation.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model/src/entity-form/form-validation.ts",
+            "start": 15,
+            "end": 34,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "提交差异跳过 readonly，解析字段值后 structuralEqual 比较；validateForm 跳过 hidden/readonly；默认 data 按字段 type 创建。"
+        ],
+        "gaps": [
+          "parse/format 严格边界、BigInt/binary/date/非法 JSON/关系改变/保存失败的全部测试体与三端 UI 未读完；原输入恢复缺完整证据。"
+        ],
+        "title": "表单提交与验证",
+        "action": "核查数据转换、错误归属、NEW/UPDATE 与字段级约束，避免保存时静默丢输入。",
+        "originalScenario": "空值、BigInt/binary/日期、非法 JSON、关系改变、异步保存拒绝；用户输入可恢复。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "未验证，保持 partial",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model/src/entity-table/columns/build-editable-columns.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model/src/entity-table/columns/build-editable-columns.ts",
+            "start": 27,
+            "end": 27,
+            "role": "navigation-only-not-deep-read"
+          },
+          {
+            "path": "packages/rxdb-model/src/entity-table/vtable/table-clipboard.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model/src/entity-table/vtable/table-clipboard.ts",
+            "start": 181,
+            "end": 181,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": [],
+        "gaps": [
+          "表格 columns/query/cursor/保存中 refresh/跨页选择未深审；测试 993 passed 与 coverage 不能替代此 C 的真实 repository 场景映射。"
+        ],
+        "title": "表格、查询与游标",
+        "action": "审查 editable columns、query builder、分页/排序和 callback 生命周期。",
+        "originalScenario": "相同排序值、可空列、字段切换、保存期间数据刷新、选择跨页；以 repository 结果复验。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "未验证，保持 partial",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model/src/entity-table/editors/global-overlay-editor.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model/src/entity-table/editors/global-overlay-editor.ts",
+            "start": 25,
+            "end": 47,
+            "role": "navigation-only-not-deep-read"
+          },
+          {
+            "path": "packages/rxdb-model/src/entity-table/vtable/table-clipboard.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model/src/entity-table/vtable/table-clipboard.ts",
+            "start": 119,
+            "end": 133,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": [],
+        "gaps": [
+          "overlay/图标/SVG/剪贴板相关实现与恶意 HTML/SVG、公式/大数据粘贴、portal 卸载、焦点恢复场景未读完/未动态复验。"
+        ],
+        "title": "DOM / clipboard 安全",
+        "action": "核查 overlay editor、图标/SVG、文本格式和剪贴板的注入边界。",
+        "originalScenario": "恶意 HTML/SVG、粘贴公式/超大数据、portal 卸载、焦点恢复；无注入与悬挂全局 DOM。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model/src/index.ts",
+            "start": 6,
+            "end": 57,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-model/src/entity-form/interfaces.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model/src/entity-form/interfaces.ts",
+            "start": 16,
+            "end": 116,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-model/src/entity-form/form-data.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model/src/entity-form/form-data.ts",
+            "start": 17,
+            "end": 83,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "已读取的共享 form helpers 没有具体框架 import；三端根入口皆依赖共享 model，form data 与事件结构可追溯。"
+        ],
+        "gaps": [
+          "全部共享内核（117 文件）、theme/singleton、同 metadata 三端 fixture、独立 typed/runtime pack 导入与同编辑器多实例未完整证明。"
+        ],
+        "title": "框架无关与消费",
+        "action": "对照三端组件调用，检查共享内核是否夹带具体框架依赖、单例或 theme 特例。",
+        "originalScenario": "Angular/React/Vue 同 metadata fixtures、独立打包导入、同一编辑器多实例；类型与行为对称。"
+      },
+      {
+        "C": "C6",
+        "status": "partial",
+        "verdict": "未验证，保持 partial",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model/src/entity-table/editors/global-overlay-editor.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model/src/entity-table/editors/global-overlay-editor.ts",
+            "start": 34,
+            "end": 47,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": [],
+        "gaps": [
+          "没有当前 1000+ 行耗时/内存测量和真实键盘/aria/弹层焦点证据；不以单元覆盖率或“可进一步审查”替代性能结论。"
+        ],
+        "title": "可访问性与性能",
+        "action": "核查编辑器键盘、弹层 aria、长列表/大表格与对象引用稳定性。",
+        "originalScenario": "键盘进入/退出、错误提示、1000+ 行滚动、快速切页；先量化耗时/内存，再决定优化。"
+      }
+    ],
+    "rxdb-model-angular": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts",
+            "start": 251,
+            "end": 337,
+            "role": "navigation-only-body-not-fully-read"
+          },
+          {
+            "path": "packages/rxdb-model-angular/src/entity-detail/entity-detail.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-angular/src/entity-detail/entity-detail.ts",
+            "start": 74,
+            "end": 74,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": ["Angular Form 的输入/output/linkedSignal 位置已定位，但主要函数体、父详情保存链路未全部读取。"],
+        "gaps": [
+          "完整字段/关系/readonly/format/NEW-UPDATE 与父组件保存失败/输入恢复未逐项完成；不能把 form 本地事件等价成持久化成功。"
+        ],
+        "title": "表单/详情与字段契约",
+        "action": "按 shared model 的所有字段/关系/readonly/format 规则核对三端 UI，检查 defaults、NEW/UPDATE、验证和显示。",
+        "originalScenario": "非法输入、relation 改变、只读/隐藏字段、提交失败；保留输入并展示核心错误。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "未验证，保持 partial",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model-angular/src/entity-list/entity-list.component.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-angular/src/entity-list/entity-list.component.ts",
+            "start": 189,
+            "end": 189,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": [],
+        "gaps": [
+          "实例 remove / mutations 两类真实写入口、权限拒绝/并发保存/跨页选择/NULL 同值排序/删除失败未深读。已有 *.real.spec 命名不证明真 SQLite/PG：测试 fixture 和 fake VTable 的来源未完成内容审查。"
+        ],
+        "title": "列表/表格的真实写入口",
+        "action": "追踪行删除、批量写、单元格编辑、筛选排序和游标；实例 remove 与 mutations 不能只审一条。",
+        "originalScenario": "操作权限拒绝、并发保存、跨页选择、NULL/同值排序、删除失败；UI 不假成功，结果与 repository 一致。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "未验证，保持 partial",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model-angular/src/entity-dialog/entity-dialog.component.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-angular/src/entity-dialog/entity-dialog.component.ts",
+            "start": 26,
+            "end": 26,
+            "role": "navigation-only-not-deep-read"
+          },
+          {
+            "path": "packages/rxdb-model-angular/src/query-builder/query-builder/query-builder.component.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-angular/src/query-builder/query-builder/query-builder.component.ts",
+            "start": 130,
+            "end": 130,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": [],
+        "gaps": [
+          "Dialog/QueryBuilder/portal 的焦点/ESC/aria、保存中关闭、恶意文本与卸载未完成内容及真实浏览器复验；不借 300+ passed 抹平未知。"
+        ],
+        "title": "弹窗、portal 与可访问性",
+        "action": "检查 EntityDialog/QueryBuilder/editor 的焦点、键盘、aria、portal cleanup 和不可信文本渲染。",
+        "originalScenario": "多弹窗、ESC/焦点返回、保存中关闭、恶意 snippet、卸载；三端具备同功能，不强改原生表达。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts",
+            "start": 251,
+            "end": 337,
+            "role": "navigation-only-body-not-fully-read"
+          },
+          {
+            "path": "packages/rxdb-model-angular/src/query-builder/query-builder/query-builder.component.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-angular/src/query-builder/query-builder/query-builder.component.ts",
+            "start": 130,
+            "end": 130,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": ["输入/事件根入口与共享表单契约已定位；此 C 的完整生命周期暂不下通过结论。"],
+        "gaps": [
+          "Angular route/子 provider/销毁中保存，React StrictMode/多 root/async 旧 props，Vue deep props/readonly/computed/真实 SFC scope 均未全证；大量源码和测试尚未深读。"
+        ],
+        "title": "Angular 生命周期与注入",
+        "action": "核查注入上下文、DestroyRef/effect cleanup、provider scope 和框架原生 Signal 更新；按仓库约定检查 standalone/OnPush，避免为风格改写已稳定 API。",
+        "originalScenario": "切换 inputs、销毁中异步完成、子 provider 覆盖、同组件多实例；无订阅泄漏或跨库状态。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model-angular/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-angular/src/index.ts",
+            "start": 7,
+            "end": 25,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-angular/src/entity-form/rxdb-entity-form-angular.ts",
+            "start": 251,
+            "end": 337,
+            "role": "navigation-only-body-not-fully-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "根导出的表单/详情/列表/表格/QueryBuilder 家族与共享 model 依赖已经定位；真正包内入口及 root ESM resolve 通过。"
+        ],
+        "gaps": [
+          "尚缺独立 typed consumer/runtime import、模板或 SFC 负例及完整 UI 链路；TS/Vue 生成声明不由 root resolve 自动证明；本对象非全范围阅读完成。"
+        ],
+        "title": "Angular 类型与运行证据",
+        "action": "核查模板类型、泛型推导和真实组件 fixture；区分纯函数、模拟组件与浏览器/实际应用证据。",
+        "originalScenario": "typed consumer 编译、模板事件/输入错误、错误与空态；真实 route 挂载/卸载，不用类型断言掩盖错误。"
+      }
+    ],
+    "rxdb-model-react": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model-react/src/entity-form/entity-form.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-form/entity-form.tsx",
+            "start": 157,
+            "end": 245,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-model-react/src/entity-detail/entity-detail.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-detail/entity-detail.tsx",
+            "start": 81,
+            "end": 81,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "React/Vue Form 由输入 data 初始化局部 draft；字段严格解析失败只发 validationErrors、不发 fieldChanged；提交验证后只发 formSubmitted，核心保存归属父详情/consumer。"
+        ],
+        "gaps": [
+          "完整字段/关系/readonly/format/NEW-UPDATE 与父组件保存失败/输入恢复未逐项完成；不能把 form 本地事件等价成持久化成功。"
+        ],
+        "title": "表单/详情与字段契约",
+        "action": "按 shared model 的所有字段/关系/readonly/format 规则核对三端 UI，检查 defaults、NEW/UPDATE、验证和显示。",
+        "originalScenario": "非法输入、relation 改变、只读/隐藏字段、提交失败；保留输入并展示核心错误。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "未验证，保持 partial",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model-react/src/entity-list/entity-list.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-list/entity-list.tsx",
+            "start": 197,
+            "end": 197,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": [],
+        "gaps": [
+          "实例 remove / mutations 两类真实写入口、权限拒绝/并发保存/跨页选择/NULL 同值排序/删除失败未深读。已有 *.real.spec 命名不证明真 SQLite/PG：测试 fixture 和 fake VTable 的来源未完成内容审查。"
+        ],
+        "title": "列表/表格的真实写入口",
+        "action": "追踪行删除、批量写、单元格编辑、筛选排序和游标；实例 remove 与 mutations 不能只审一条。",
+        "originalScenario": "操作权限拒绝、并发保存、跨页选择、NULL/同值排序、删除失败；UI 不假成功，结果与 repository 一致。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "未验证，保持 partial",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model-react/src/entity-dialog/entity-dialog.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-dialog/entity-dialog.tsx",
+            "start": 40,
+            "end": 40,
+            "role": "navigation-only-not-deep-read"
+          },
+          {
+            "path": "packages/rxdb-model-react/src/query-builder/query-builder/query-builder.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/query-builder/query-builder.tsx",
+            "start": 56,
+            "end": 56,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": [],
+        "gaps": [
+          "Dialog/QueryBuilder/portal 的焦点/ESC/aria、保存中关闭、恶意文本与卸载未完成内容及真实浏览器复验；不借 300+ passed 抹平未知。"
+        ],
+        "title": "弹窗、portal 与可访问性",
+        "action": "检查 EntityDialog/QueryBuilder/editor 的焦点、键盘、aria、portal cleanup 和不可信文本渲染。",
+        "originalScenario": "多弹窗、ESC/焦点返回、保存中关闭、恶意 snippet、卸载；三端具备同功能，不强改原生表达。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model-react/src/entity-form/entity-form.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-form/entity-form.tsx",
+            "start": 157,
+            "end": 245,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-model-react/src/query-builder/query-builder/query-builder.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/query-builder/query-builder/query-builder.tsx",
+            "start": 56,
+            "end": 56,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "只对已读取的 React/Vue Form 回传所有权做了局部对照；data 替换会同步/重置局部 draft，fieldChanged/formSubmitted 分别归属不同动作。"
+        ],
+        "gaps": [
+          "Angular route/子 provider/销毁中保存，React StrictMode/多 root/async 旧 props，Vue deep props/readonly/computed/真实 SFC scope 均未全证；大量源码和测试尚未深读。"
+        ],
+        "title": "React 生命周期与竞态",
+        "action": "核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。",
+        "originalScenario": "StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model-react/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/index.ts",
+            "start": 7,
+            "end": 25,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-model-react/src/entity-form/entity-form.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react/src/entity-form/entity-form.tsx",
+            "start": 157,
+            "end": 245,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "根导出的表单/详情/列表/表格/QueryBuilder 家族与共享 model 依赖已经定位；真正包内入口及 root ESM resolve 通过。"
+        ],
+        "gaps": [
+          "尚缺独立 typed consumer/runtime import、模板或 SFC 负例及完整 UI 链路；TS/Vue 生成声明不由 root resolve 自动证明；本对象非全范围阅读完成。"
+        ],
+        "title": "React 类型与 render 边界",
+        "action": "检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。",
+        "originalScenario": "typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。"
+      }
+    ],
+    "rxdb-model-vue": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model-vue/src/entity-form/EntityForm.vue",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-vue/src/entity-form/EntityForm.vue",
+            "start": 23,
+            "end": 145,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-model-vue/src/entity-detail/EntityDetail.vue",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-vue/src/entity-detail/EntityDetail.vue",
+            "start": 42,
+            "end": 42,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "React/Vue Form 由输入 data 初始化局部 draft；字段严格解析失败只发 validationErrors、不发 fieldChanged；提交验证后只发 formSubmitted，核心保存归属父详情/consumer。"
+        ],
+        "gaps": [
+          "完整字段/关系/readonly/format/NEW-UPDATE 与父组件保存失败/输入恢复未逐项完成；不能把 form 本地事件等价成持久化成功。"
+        ],
+        "title": "表单/详情与字段契约",
+        "action": "按 shared model 的所有字段/关系/readonly/format 规则核对三端 UI，检查 defaults、NEW/UPDATE、验证和显示。",
+        "originalScenario": "非法输入、relation 改变、只读/隐藏字段、提交失败；保留输入并展示核心错误。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "未验证，保持 partial",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model-vue/src/entity-list/EntityList.vue",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-vue/src/entity-list/EntityList.vue",
+            "start": 154,
+            "end": 154,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": [],
+        "gaps": [
+          "实例 remove / mutations 两类真实写入口、权限拒绝/并发保存/跨页选择/NULL 同值排序/删除失败未深读。已有 *.real.spec 命名不证明真 SQLite/PG：测试 fixture 和 fake VTable 的来源未完成内容审查。"
+        ],
+        "title": "列表/表格的真实写入口",
+        "action": "追踪行删除、批量写、单元格编辑、筛选排序和游标；实例 remove 与 mutations 不能只审一条。",
+        "originalScenario": "操作权限拒绝、并发保存、跨页选择、NULL/同值排序、删除失败；UI 不假成功，结果与 repository 一致。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "未验证，保持 partial",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model-vue/src/entity-dialog/EntityDialog.vue",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-vue/src/entity-dialog/EntityDialog.vue",
+            "start": 14,
+            "end": 14,
+            "role": "navigation-only-not-deep-read"
+          },
+          {
+            "path": "packages/rxdb-model-vue/src/query-builder/query-builder/QueryBuilder.vue",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-vue/src/query-builder/query-builder/QueryBuilder.vue",
+            "start": 25,
+            "end": 25,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": [],
+        "gaps": [
+          "Dialog/QueryBuilder/portal 的焦点/ESC/aria、保存中关闭、恶意文本与卸载未完成内容及真实浏览器复验；不借 300+ passed 抹平未知。"
+        ],
+        "title": "弹窗、portal 与可访问性",
+        "action": "检查 EntityDialog/QueryBuilder/editor 的焦点、键盘、aria、portal cleanup 和不可信文本渲染。",
+        "originalScenario": "多弹窗、ESC/焦点返回、保存中关闭、恶意 snippet、卸载；三端具备同功能，不强改原生表达。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model-vue/src/entity-form/EntityForm.vue",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-vue/src/entity-form/EntityForm.vue",
+            "start": 23,
+            "end": 145,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-model-vue/src/query-builder/query-builder/QueryBuilder.vue",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-vue/src/query-builder/query-builder/QueryBuilder.vue",
+            "start": 25,
+            "end": 25,
+            "role": "navigation-only-not-deep-read"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "只对已读取的 React/Vue Form 回传所有权做了局部对照；data 替换会同步/重置局部 draft，fieldChanged/formSubmitted 分别归属不同动作。"
+        ],
+        "gaps": [
+          "Angular route/子 provider/销毁中保存，React StrictMode/多 root/async 旧 props，Vue deep props/readonly/computed/真实 SFC scope 均未全证；大量源码和测试尚未深读。"
+        ],
+        "title": "Vue 生命周期与响应式来源",
+        "action": "核查 ref/computed/getter 输入解包、watch 依赖、onScopeDispose/onUnmounted 与 provider scope，避免把首次取值变成永久快照。",
+        "originalScenario": "替换与深改输入、scope 销毁、卸载后晚到结果、多实例；旧订阅释放，新输入生效。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-model-vue/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-vue/src/index.ts",
+            "start": 9,
+            "end": 27,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-model-vue/src/entity-form/EntityForm.vue",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-vue/src/entity-form/EntityForm.vue",
+            "start": 23,
+            "end": 145,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "根导出的表单/详情/列表/表格/QueryBuilder 家族与共享 model 依赖已经定位；真正包内入口及 root ESM resolve 通过。"
+        ],
+        "gaps": [
+          "尚缺独立 typed consumer/runtime import、模板或 SFC 负例及完整 UI 链路；TS/Vue 生成声明不由 root resolve 自动证明；本对象非全范围阅读完成。"
+        ],
+        "title": "Vue 类型与 SFC 消费",
+        "action": "核查泛型 composable、SFC props/emits 与声明输出；响应式代理不能改变实体身份或隐藏错误。",
+        "originalScenario": "vue-tsc consumer、模板输入错误、readonly/computed 来源、独立 pack 消费；没有宽化 any 或丢失 emits 契约。"
+      }
+    ],
+    "rxdb-plugin-replay-angular": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+            "start": 50,
+            "end": 117,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+            "start": 18,
+            "end": 60,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "真实框架组件运行 shared parity：输入原样送 mountReplayer，输入变化仅 update，commands 委托，销毁调用 destroy；React 另有 StrictMode 活视图数守恒。",
+          "shared MountReplayerSpy 只观察核心边界，没有加载 rrweb 或真实 recording。"
+        ],
+        "gaps": ["空 recording、加载失败、切 recording、双播放器和无后台录制的实际核心/浏览器链路尚缺。"],
+        "title": "播放器挂载与按需依赖",
+        "action": "核查 wrapper 委托 mount-replayer 的输入、容器和 rrweb 懒加载；组件出现不等于授权录制。",
+        "originalScenario": "空 recording、加载失败、切 recording、双播放器、卸载；无多重 mount 或后台录制。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+            "start": 64,
+            "end": 76,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+            "start": 174,
+            "end": 184,
+            "role": "read-dependency-test-definition"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+            "start": 54,
+            "end": 59,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "同一个 dirty_working_tree restore event 在 parity 中保持对象身份；组件仅转发核心事件，不直接更新 HEAD。"
+        ],
+        "gaps": [
+          "parity 只有手动触发 restore callback；缺实际 marker 点击、不可达/dirty/并发 restore 与恢复中卸载的加载/拒绝序列。"
+        ],
+        "title": "恢复交互与状态",
+        "action": "跟踪时间轴 marker 点击、restore callback、拒绝和 loading 状态，不私自改 HEAD。",
+        "originalScenario": "不可达 commit、dirty tree、并发恢复、恢复中卸载；与 replay/working-tree 原 API 一致。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-angular/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/index.ts",
+            "start": 10,
+            "end": 12,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+            "start": 50,
+            "end": 117,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+            "start": 54,
+            "end": 59,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+            "start": 129,
+            "end": 213,
+            "role": "read-dependency-test-definition"
+          }
+        ],
+        "established": [
+          "公开 replay/sessionId/initialTime、两个输出和 play/pause/seek 已按框架 idiom 对齐；core 的事件类型及 replayRestoreHint 三端同样透传。",
+          "共用七条 parity 不是三份 demo 截图；Vue toRaw 额外保护门面原始对象。"
+        ],
+        "gaps": [
+          "缺同 recording/marker 序列的真实 UI、尺寸变化、键盘与错误提示；七条边界桩 parity 不覆盖控件可访问性。"
+        ],
+        "title": "三端可访问性与类型",
+        "action": "对照 replayer-parity fixture、公开 options/events、控件键盘与错误提示。",
+        "originalScenario": "同 recording/marker 序列三端同结果、尺寸变化、键盘操作；不靠三份 demo 手动截图证明对称。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+            "start": 50,
+            "end": 117,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+            "start": 63,
+            "end": 77,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "Angular 是 OnPush、afterNextRender 安装 + DestroyRef cleanup；React effect cleanup 对应 mount，useEffectEvent 更新回调；Vue onMounted/onBeforeUnmount 与 watch 按输入引用 delta update。",
+          "React StrictMode 已实际测试，不列为完全未测；但测试仅证明 mount/destroy 计数。"
+        ],
+        "gaps": [
+          "缺销毁中真实 async 完成、同组件多实例/多个 root；Angular 缺 provider/route；Vue 缺 ref/computed/getter 真实父子链路。React first layout seek 另有未跑回归。"
+        ],
+        "title": "Angular 生命周期与注入",
+        "action": "核查注入上下文、DestroyRef/effect cleanup、provider scope 和框架原生 Signal 更新；按仓库约定检查 standalone/OnPush，避免为风格改写已稳定 API。",
+        "originalScenario": "切换 inputs、销毁中异步完成、子 provider 覆盖、同组件多实例；无订阅泄漏或跨库状态。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/replayer.component.ts",
+            "start": 50,
+            "end": 117,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-replay-angular/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/index.ts",
+            "start": 10,
+            "end": 12,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-angular/src/__tests__/replayer.component.spec.ts",
+            "start": 1,
+            "end": 16,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "基线 typed source 与 lint/typecheck 通过，pack 发布入口/目标文件已在真正 tarball 核对；组件的 imperative/output 容器差异是框架表达。"
+        ],
+        "gaps": [
+          "独立 typed consumer 未执行；Angular 模板负例/真实 route，React 首次 layout 命令及错误 props，Vue SFC emits/readonly/模板消费仍未完整验证。"
+        ],
+        "title": "Angular 类型与运行证据",
+        "action": "核查模板类型、泛型推导和真实组件 fixture；区分纯函数、模拟组件与浏览器/实际应用证据。",
+        "originalScenario": "typed consumer 编译、模板事件/输入错误、错误与空态；真实 route 挂载/卸载，不用类型断言掩盖错误。"
+      }
+    ],
+    "rxdb-plugin-replay-react": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-react/src/replayer.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/replayer.tsx",
+            "start": 50,
+            "end": 102,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-react/src/__tests__/replayer.spec.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/__tests__/replayer.spec.tsx",
+            "start": 19,
+            "end": 58,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "真实框架组件运行 shared parity：输入原样送 mountReplayer，输入变化仅 update，commands 委托，销毁调用 destroy；React 另有 StrictMode 活视图数守恒。",
+          "shared MountReplayerSpy 只观察核心边界，没有加载 rrweb 或真实 recording。"
+        ],
+        "gaps": [
+          "空 recording、加载失败、切 recording、双播放器和无后台录制的实际核心/浏览器链路尚缺；React early-seek 候选待主控复验。"
+        ],
+        "title": "播放器挂载与按需依赖",
+        "action": "核查 wrapper 委托 mount-replayer 的输入、容器和 rrweb 懒加载；组件出现不等于授权录制。",
+        "originalScenario": "空 recording、加载失败、切 recording、双播放器、卸载；无多重 mount 或后台录制。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-react/src/replayer.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/replayer.tsx",
+            "start": 58,
+            "end": 70,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+            "start": 174,
+            "end": 184,
+            "role": "read-dependency-test-definition"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-react/src/__tests__/replayer.spec.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/__tests__/replayer.spec.tsx",
+            "start": 52,
+            "end": 57,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "同一个 dirty_working_tree restore event 在 parity 中保持对象身份；组件仅转发核心事件，不直接更新 HEAD。"
+        ],
+        "gaps": [
+          "parity 只有手动触发 restore callback；缺实际 marker 点击、不可达/dirty/并发 restore 与恢复中卸载的加载/拒绝序列。"
+        ],
+        "title": "恢复交互与状态",
+        "action": "跟踪时间轴 marker 点击、restore callback、拒绝和 loading 状态，不私自改 HEAD。",
+        "originalScenario": "不可达 commit、dirty tree、并发恢复、恢复中卸载；与 replay/working-tree 原 API 一致。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-react/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/index.ts",
+            "start": 10,
+            "end": 12,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-replay-react/src/replayer.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/replayer.tsx",
+            "start": 50,
+            "end": 102,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-react/src/__tests__/replayer.spec.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/__tests__/replayer.spec.tsx",
+            "start": 52,
+            "end": 57,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+            "start": 129,
+            "end": 213,
+            "role": "read-dependency-test-definition"
+          }
+        ],
+        "established": [
+          "公开 replay/sessionId/initialTime、两个输出和 play/pause/seek 已按框架 idiom 对齐；core 的事件类型及 replayRestoreHint 三端同样透传。",
+          "共用七条 parity 不是三份 demo 截图；Vue toRaw 额外保护门面原始对象。"
+        ],
+        "gaps": [
+          "缺同 recording/marker 序列的真实 UI、尺寸变化、键盘与错误提示；七条边界桩 parity 不覆盖控件可访问性。"
+        ],
+        "title": "三端可访问性与类型",
+        "action": "对照 replayer-parity fixture、公开 options/events、控件键盘与错误提示。",
+        "originalScenario": "同 recording/marker 序列三端同结果、尺寸变化、键盘操作；不靠三份 demo 手动截图证明对称。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-react/src/replayer.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/replayer.tsx",
+            "start": 50,
+            "end": 102,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-react/src/__tests__/replayer.spec.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/__tests__/replayer.spec.tsx",
+            "start": 61,
+            "end": 87,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "Angular 是 OnPush、afterNextRender 安装 + DestroyRef cleanup；React effect cleanup 对应 mount，useEffectEvent 更新回调；Vue onMounted/onBeforeUnmount 与 watch 按输入引用 delta update。",
+          "React StrictMode 已实际测试，不列为完全未测；但测试仅证明 mount/destroy 计数。"
+        ],
+        "gaps": [
+          "缺销毁中真实 async 完成、同组件多实例/多个 root；Angular 缺 provider/route；Vue 缺 ref/computed/getter 真实父子链路。React first layout seek 另有未跑回归。"
+        ],
+        "title": "React 生命周期与竞态",
+        "action": "核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。",
+        "originalScenario": "StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-react/src/replayer.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/replayer.tsx",
+            "start": 50,
+            "end": 102,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-replay-react/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/index.ts",
+            "start": 10,
+            "end": 12,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-react/src/__tests__/replayer.spec.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-react/src/__tests__/replayer.spec.tsx",
+            "start": 1,
+            "end": 16,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "基线 typed source 与 lint/typecheck 通过，pack 发布入口/目标文件已在真正 tarball 核对；组件的 imperative/output 容器差异是框架表达。"
+        ],
+        "gaps": [
+          "独立 typed consumer 未执行；Angular 模板负例/真实 route，React 首次 layout 命令及错误 props，Vue SFC emits/readonly/模板消费仍未完整验证。"
+        ],
+        "title": "React 类型与 render 边界",
+        "action": "检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。",
+        "originalScenario": "typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。"
+      }
+    ],
+    "rxdb-plugin-replay-vue": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-vue/src/replayer.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue/src/replayer.ts",
+            "start": 36,
+            "end": 95,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-vue/src/__tests__/replayer.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue/src/__tests__/replayer.spec.ts",
+            "start": 21,
+            "end": 60,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "真实框架组件运行 shared parity：输入原样送 mountReplayer，输入变化仅 update，commands 委托，销毁调用 destroy；React 另有 StrictMode 活视图数守恒。",
+          "shared MountReplayerSpy 只观察核心边界，没有加载 rrweb 或真实 recording。"
+        ],
+        "gaps": ["空 recording、加载失败、切 recording、双播放器和无后台录制的实际核心/浏览器链路尚缺。"],
+        "title": "播放器挂载与按需依赖",
+        "action": "核查 wrapper 委托 mount-replayer 的输入、容器和 rrweb 懒加载；组件出现不等于授权录制。",
+        "originalScenario": "空 recording、加载失败、切 recording、双播放器、卸载；无多重 mount 或后台录制。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-vue/src/replayer.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue/src/replayer.ts",
+            "start": 65,
+            "end": 69,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+            "start": 174,
+            "end": 184,
+            "role": "read-dependency-test-definition"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-vue/src/__tests__/replayer.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue/src/__tests__/replayer.spec.ts",
+            "start": 55,
+            "end": 60,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "同一个 dirty_working_tree restore event 在 parity 中保持对象身份；组件仅转发核心事件，不直接更新 HEAD。"
+        ],
+        "gaps": [
+          "parity 只有手动触发 restore callback；缺实际 marker 点击、不可达/dirty/并发 restore 与恢复中卸载的加载/拒绝序列。"
+        ],
+        "title": "恢复交互与状态",
+        "action": "跟踪时间轴 marker 点击、restore callback、拒绝和 loading 状态，不私自改 HEAD。",
+        "originalScenario": "不可达 commit、dirty tree、并发恢复、恢复中卸载；与 replay/working-tree 原 API 一致。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-vue/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue/src/index.ts",
+            "start": 10,
+            "end": 12,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-replay-vue/src/replayer.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue/src/replayer.ts",
+            "start": 36,
+            "end": 95,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-vue/src/__tests__/replayer.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue/src/__tests__/replayer.spec.ts",
+            "start": 55,
+            "end": 60,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay/src/testing/replayer-parity.ts",
+            "start": 129,
+            "end": 213,
+            "role": "read-dependency-test-definition"
+          }
+        ],
+        "established": [
+          "公开 replay/sessionId/initialTime、两个输出和 play/pause/seek 已按框架 idiom 对齐；core 的事件类型及 replayRestoreHint 三端同样透传。",
+          "共用七条 parity 不是三份 demo 截图；Vue toRaw 额外保护门面原始对象。"
+        ],
+        "gaps": [
+          "缺同 recording/marker 序列的真实 UI、尺寸变化、键盘与错误提示；七条边界桩 parity 不覆盖控件可访问性。"
+        ],
+        "title": "三端可访问性与类型",
+        "action": "对照 replayer-parity fixture、公开 options/events、控件键盘与错误提示。",
+        "originalScenario": "同 recording/marker 序列三端同结果、尺寸变化、键盘操作；不靠三份 demo 手动截图证明对称。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-vue/src/replayer.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue/src/replayer.ts",
+            "start": 36,
+            "end": 95,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-vue/src/__tests__/replayer.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue/src/__tests__/replayer.spec.ts",
+            "start": 64,
+            "end": 87,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "Angular 是 OnPush、afterNextRender 安装 + DestroyRef cleanup；React effect cleanup 对应 mount，useEffectEvent 更新回调；Vue onMounted/onBeforeUnmount 与 watch 按输入引用 delta update。",
+          "React StrictMode 已实际测试，不列为完全未测；但测试仅证明 mount/destroy 计数。"
+        ],
+        "gaps": [
+          "缺销毁中真实 async 完成、同组件多实例/多个 root；Angular 缺 provider/route；Vue 缺 ref/computed/getter 真实父子链路。React first layout seek 另有未跑回归。"
+        ],
+        "title": "Vue 生命周期与响应式来源",
+        "action": "核查 ref/computed/getter 输入解包、watch 依赖、onScopeDispose/onUnmounted 与 provider scope，避免把首次取值变成永久快照。",
+        "originalScenario": "替换与深改输入、scope 销毁、卸载后晚到结果、多实例；旧订阅释放，新输入生效。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-vue/src/replayer.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue/src/replayer.ts",
+            "start": 36,
+            "end": 95,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-replay-vue/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue/src/index.ts",
+            "start": 10,
+            "end": 12,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-replay-vue/src/__tests__/replayer.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-replay-vue/src/__tests__/replayer.spec.ts",
+            "start": 1,
+            "end": 16,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "基线 typed source 与 lint/typecheck 通过，pack 发布入口/目标文件已在真正 tarball 核对；组件的 imperative/output 容器差异是框架表达。"
+        ],
+        "gaps": [
+          "独立 typed consumer 未执行；Angular 模板负例/真实 route，React 首次 layout 命令及错误 props，Vue SFC emits/readonly/模板消费仍未完整验证。"
+        ],
+        "title": "Vue 类型与 SFC 消费",
+        "action": "核查泛型 composable、SFC props/emits 与声明输出；响应式代理不能改变实体身份或隐藏错误。",
+        "originalScenario": "vue-tsc consumer、模板输入错误、readonly/computed 来源、独立 pack 消费；没有宽化 any 或丢失 emits 契约。"
+      }
+    ],
+    "rxdb-plugin-tree-angular": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-angular/src/use-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/use-tree.ts",
+            "start": 23,
+            "end": 81,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-angular/src/__tests__/use-tree.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/use-tree.spec.ts",
+            "start": 53,
+            "end": 110,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-tree-angular/src/__tests__/tri-framework-generics.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/tri-framework-generics.spec.ts",
+            "start": 21,
+            "end": 77,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "四个入口逐个对齐方法名/defaultValue（数组 []、计数 0）与 EntityStaticType 参数；只委托本框架 useRepositoryQuery，不存在扁平查询 fallback。",
+          "泛型 fixture 有 PlainEntity 编译期拒绝及树实体接受，但 id 实际都是 string，不能拿它证明 numeric id。"
+        ],
+        "gaps": [
+          "缺 numeric id 实际查询、无 Tree 插件、QueryCache 禁止组合及深树真实仓储链路；四个同名 mock method 不能替代这些原场景。"
+        ],
+        "title": "树查询与输入类型",
+        "action": "对照 Tree repository 和生成泛型，核查 tree options、numeric id、懒查询/层级语义与禁用组合。",
+        "originalScenario": "numeric/string id、缺 Tree 插件、QueryCache 禁止、深树；错误透明，不 fallback 到扁平查询。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-angular/src/use-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/use-tree.ts",
+            "start": 23,
+            "end": 81,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-angular/src/hooks.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular/src/hooks.ts",
+            "start": 45,
+            "end": 124,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-angular/src/__tests__/use-tree.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/use-tree.spec.ts",
+            "start": 53,
+            "end": 110,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "wrapper 没有自己的 query state/订阅；订阅切换和错误全部由已读 useRepositoryQuery 承担，React/Vue 有代次屏障，Angular effect cleanup 释放旧订阅。"
+        ],
+        "gaps": [
+          "没有在树 wrapper 上运行跨父移动、父删除、快速改 query、空树与销毁同 fixture；状态模型源码相同不等于真实树增量结果已复验。"
+        ],
+        "title": "增量结果与参数切换",
+        "action": "核查树更新/移动的订阅与请求代次，确保新父节点/过滤条件不沿用旧节点结果。",
+        "originalScenario": "跨父移动、父删除、快速改 query、空树、销毁；与全量树查询一致。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-angular/src/use-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/use-tree.ts",
+            "start": 23,
+            "end": 81,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-tree-angular/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/index.ts",
+            "start": 14,
+            "end": 14,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-angular/src/__tests__/tri-framework-generics.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/tri-framework-generics.spec.ts",
+            "start": 21,
+            "end": 77,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "三端四个运行时根导出、输入泛型/资源返回结构一致，类型参数均收紧为 TreeEntityType；计数默认值已动态断言。",
+          "已实际读取三端 README 的调用形式、原生成/控制来源是 scope 中的手写 class fixture，不是后台生成的 consumer。"
+        ],
+        "gaps": [
+          "缺同一真实 tree fixture 的三端状态/多实例泄漏对照及独立 typed consumer；pack root resolve 不证明声明可消费。"
+        ],
+        "title": "三端 contract 与泄漏",
+        "action": "逐项对照公共返回类型、加载/错误/空态及 tri-framework-generics fixtures。",
+        "originalScenario": "同一 tree fixtures 三端运行、consumer 编译、多实例；无需读取 UI 实现细节即可消费。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-angular/src/use-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/use-tree.ts",
+            "start": 23,
+            "end": 81,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-angular/src/hooks.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-angular/src/hooks.ts",
+            "start": 45,
+            "end": 124,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": ["已追溯到框架核心的 cleanup/代次实现，不在 thin wrapper 另建订阅。"],
+        "gaps": [
+          "Angular 缺真实组件 input/provider override/route；React wrapper 套件没有 StrictMode 与多 root；Vue 套件仅 effectScope，没有真实 SFC props 深改/挂卸/晚到组合。"
+        ],
+        "title": "Angular 生命周期与注入",
+        "action": "核查注入上下文、DestroyRef/effect cleanup、provider scope 和框架原生 Signal 更新；按仓库约定检查 standalone/OnPush，避免为风格改写已稳定 API。",
+        "originalScenario": "切换 inputs、销毁中异步完成、子 provider 覆盖、同组件多实例；无订阅泄漏或跨库状态。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-angular/src/use-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/use-tree.ts",
+            "start": 23,
+            "end": 81,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-tree-angular/src/__tests__/tri-framework-generics.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-angular/src/__tests__/tri-framework-generics.spec.ts",
+            "start": 21,
+            "end": 77,
+            "role": "read-test-definition"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "现有 workspace typecheck 编译正反泛型 fixture，基线 lint 无警告；没有因为 inject/use 命名差异误报。"
+        ],
+        "gaps": [
+          "现有 fixture 不是独立声明 consumer；Angular 模板错误/route、React 同值新引用和错误 props 渲染、Vue vue-tsc/readonly/SFC pack 消费不能由 root resolve 和类型 fixture 自动补齐。"
+        ],
+        "title": "Angular 类型与运行证据",
+        "action": "核查模板类型、泛型推导和真实组件 fixture；区分纯函数、模拟组件与浏览器/实际应用证据。",
+        "originalScenario": "typed consumer 编译、模板事件/输入错误、错误与空态；真实 route 挂载/卸载，不用类型断言掩盖错误。"
+      }
+    ],
+    "rxdb-plugin-tree-react": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-react/src/use-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/use-tree.ts",
+            "start": 23,
+            "end": 81,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-react/src/__tests__/use-tree.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/use-tree.spec.ts",
+            "start": 81,
+            "end": 128,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-tree-react/src/__tests__/tri-framework-generics.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/tri-framework-generics.spec.ts",
+            "start": 21,
+            "end": 77,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "四个入口逐个对齐方法名/defaultValue（数组 []、计数 0）与 EntityStaticType 参数；只委托本框架 useRepositoryQuery，不存在扁平查询 fallback。",
+          "泛型 fixture 有 PlainEntity 编译期拒绝及树实体接受，但 id 实际都是 string，不能拿它证明 numeric id。"
+        ],
+        "gaps": [
+          "缺 numeric id 实际查询、无 Tree 插件、QueryCache 禁止组合及深树真实仓储链路；四个同名 mock method 不能替代这些原场景。"
+        ],
+        "title": "树查询与输入类型",
+        "action": "对照 Tree repository 和生成泛型，核查 tree options、numeric id、懒查询/层级语义与禁用组合。",
+        "originalScenario": "numeric/string id、缺 Tree 插件、QueryCache 禁止、深树；错误透明，不 fallback 到扁平查询。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-react/src/use-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/use-tree.ts",
+            "start": 23,
+            "end": 81,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-react/src/hooks.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/hooks.ts",
+            "start": 71,
+            "end": 159,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-react/src/__tests__/use-tree.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/use-tree.spec.ts",
+            "start": 99,
+            "end": 127,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "wrapper 没有自己的 query state/订阅；订阅切换和错误全部由已读 useRepositoryQuery 承担，React/Vue 有代次屏障，Angular effect cleanup 释放旧订阅。"
+        ],
+        "gaps": [
+          "没有在树 wrapper 上运行跨父移动、父删除、快速改 query、空树与销毁同 fixture；状态模型源码相同不等于真实树增量结果已复验。"
+        ],
+        "title": "增量结果与参数切换",
+        "action": "核查树更新/移动的订阅与请求代次，确保新父节点/过滤条件不沿用旧节点结果。",
+        "originalScenario": "跨父移动、父删除、快速改 query、空树、销毁；与全量树查询一致。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-react/src/use-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/use-tree.ts",
+            "start": 23,
+            "end": 81,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-tree-react/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/index.ts",
+            "start": 15,
+            "end": 15,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-react/src/__tests__/tri-framework-generics.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/tri-framework-generics.spec.ts",
+            "start": 21,
+            "end": 77,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "三端四个运行时根导出、输入泛型/资源返回结构一致，类型参数均收紧为 TreeEntityType；计数默认值已动态断言。",
+          "已实际读取三端 README 的调用形式、原生成/控制来源是 scope 中的手写 class fixture，不是后台生成的 consumer。"
+        ],
+        "gaps": [
+          "缺同一真实 tree fixture 的三端状态/多实例泄漏对照及独立 typed consumer；pack root resolve 不证明声明可消费。"
+        ],
+        "title": "三端 contract 与泄漏",
+        "action": "逐项对照公共返回类型、加载/错误/空态及 tri-framework-generics fixtures。",
+        "originalScenario": "同一 tree fixtures 三端运行、consumer 编译、多实例；无需读取 UI 实现细节即可消费。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-react/src/use-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/use-tree.ts",
+            "start": 23,
+            "end": 81,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-react/src/hooks.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-react/src/hooks.ts",
+            "start": 71,
+            "end": 159,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": ["已追溯到框架核心的 cleanup/代次实现，不在 thin wrapper 另建订阅。"],
+        "gaps": [
+          "Angular 缺真实组件 input/provider override/route；React wrapper 套件没有 StrictMode 与多 root；Vue 套件仅 effectScope，没有真实 SFC props 深改/挂卸/晚到组合。"
+        ],
+        "title": "React 生命周期与竞态",
+        "action": "核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。",
+        "originalScenario": "StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-react/src/use-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/use-tree.ts",
+            "start": 23,
+            "end": 81,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-tree-react/src/__tests__/tri-framework-generics.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-react/src/__tests__/tri-framework-generics.spec.ts",
+            "start": 21,
+            "end": 77,
+            "role": "read-test-definition"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "现有 workspace typecheck 编译正反泛型 fixture，基线 lint 无警告；没有因为 inject/use 命名差异误报。"
+        ],
+        "gaps": [
+          "现有 fixture 不是独立声明 consumer；Angular 模板错误/route、React 同值新引用和错误 props 渲染、Vue vue-tsc/readonly/SFC pack 消费不能由 root resolve 和类型 fixture 自动补齐。"
+        ],
+        "title": "React 类型与 render 边界",
+        "action": "检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。",
+        "originalScenario": "typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。"
+      }
+    ],
+    "rxdb-plugin-tree-vue": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-vue/src/use-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/use-tree.ts",
+            "start": 23,
+            "end": 81,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-vue/src/__tests__/use-tree.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/__tests__/use-tree.spec.ts",
+            "start": 96,
+            "end": 129,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-tree-vue/src/__tests__/tri-framework-generics.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/__tests__/tri-framework-generics.spec.ts",
+            "start": 21,
+            "end": 77,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "四个入口逐个对齐方法名/defaultValue（数组 []、计数 0）与 EntityStaticType 参数；只委托本框架 useRepositoryQuery，不存在扁平查询 fallback。",
+          "泛型 fixture 有 PlainEntity 编译期拒绝及树实体接受，但 id 实际都是 string，不能拿它证明 numeric id。"
+        ],
+        "gaps": [
+          "缺 numeric id 实际查询、无 Tree 插件、QueryCache 禁止组合及深树真实仓储链路；四个同名 mock method 不能替代这些原场景。"
+        ],
+        "title": "树查询与输入类型",
+        "action": "对照 Tree repository 和生成泛型，核查 tree options、numeric id、懒查询/层级语义与禁用组合。",
+        "originalScenario": "numeric/string id、缺 Tree 插件、QueryCache 禁止、深树；错误透明，不 fallback 到扁平查询。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-vue/src/use-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/use-tree.ts",
+            "start": 23,
+            "end": 81,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-vue/src/hooks.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-vue/src/hooks.ts",
+            "start": 124,
+            "end": 257,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-vue/src/__tests__/use-tree.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/__tests__/use-tree.spec.ts",
+            "start": 96,
+            "end": 128,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "wrapper 没有自己的 query state/订阅；订阅切换和错误全部由已读 useRepositoryQuery 承担，React/Vue 有代次屏障，Angular effect cleanup 释放旧订阅。"
+        ],
+        "gaps": [
+          "没有在树 wrapper 上运行跨父移动、父删除、快速改 query、空树与销毁同 fixture；状态模型源码相同不等于真实树增量结果已复验。"
+        ],
+        "title": "增量结果与参数切换",
+        "action": "核查树更新/移动的订阅与请求代次，确保新父节点/过滤条件不沿用旧节点结果。",
+        "originalScenario": "跨父移动、父删除、快速改 query、空树、销毁；与全量树查询一致。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-vue/src/use-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/use-tree.ts",
+            "start": 23,
+            "end": 81,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-tree-vue/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/index.ts",
+            "start": 13,
+            "end": 13,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-vue/src/__tests__/tri-framework-generics.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/__tests__/tri-framework-generics.spec.ts",
+            "start": 21,
+            "end": 77,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "三端四个运行时根导出、输入泛型/资源返回结构一致，类型参数均收紧为 TreeEntityType；计数默认值已动态断言。",
+          "已实际读取三端 README 的调用形式、原生成/控制来源是 scope 中的手写 class fixture，不是后台生成的 consumer。"
+        ],
+        "gaps": [
+          "缺同一真实 tree fixture 的三端状态/多实例泄漏对照及独立 typed consumer；pack root resolve 不证明声明可消费。"
+        ],
+        "title": "三端 contract 与泄漏",
+        "action": "逐项对照公共返回类型、加载/错误/空态及 tri-framework-generics fixtures。",
+        "originalScenario": "同一 tree fixtures 三端运行、consumer 编译、多实例；无需读取 UI 实现细节即可消费。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-vue/src/use-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/use-tree.ts",
+            "start": 23,
+            "end": 81,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-vue/src/hooks.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-vue/src/hooks.ts",
+            "start": 124,
+            "end": 257,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": ["已追溯到框架核心的 cleanup/代次实现，不在 thin wrapper 另建订阅。"],
+        "gaps": [
+          "Angular 缺真实组件 input/provider override/route；React wrapper 套件没有 StrictMode 与多 root；Vue 套件仅 effectScope，没有真实 SFC props 深改/挂卸/晚到组合。"
+        ],
+        "title": "Vue 生命周期与响应式来源",
+        "action": "核查 ref/computed/getter 输入解包、watch 依赖、onScopeDispose/onUnmounted 与 provider scope，避免把首次取值变成永久快照。",
+        "originalScenario": "替换与深改输入、scope 销毁、卸载后晚到结果、多实例；旧订阅释放，新输入生效。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-tree-vue/src/use-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/use-tree.ts",
+            "start": 23,
+            "end": 81,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-tree-vue/src/__tests__/tri-framework-generics.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-tree-vue/src/__tests__/tri-framework-generics.spec.ts",
+            "start": 21,
+            "end": 77,
+            "role": "read-test-definition"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "现有 workspace typecheck 编译正反泛型 fixture，基线 lint 无警告；没有因为 inject/use 命名差异误报。"
+        ],
+        "gaps": [
+          "现有 fixture 不是独立声明 consumer；Angular 模板错误/route、React 同值新引用和错误 props 渲染、Vue vue-tsc/readonly/SFC pack 消费不能由 root resolve 和类型 fixture 自动补齐。"
+        ],
+        "title": "Vue 类型与 SFC 消费",
+        "action": "核查泛型 composable、SFC props/emits 与声明输出；响应式代理不能改变实体身份或隐藏错误。",
+        "originalScenario": "vue-tsc consumer、模板输入错误、readonly/computed 来源、独立 pack 消费；没有宽化 any 或丢失 emits 契约。"
+      }
+    ],
+    "rxdb-plugin-working-tree-angular": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-angular/src/use-working-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/use-working-tree.ts",
+            "start": 166,
+            "end": 190,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-angular/src/__tests__/use-working-tree.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/__tests__/use-working-tree.spec.ts",
+            "start": 69,
+            "end": 145,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "初始十二格 idle、创建入口不发 IO；读取 provider 后只创建共享 core commands。",
+          "status/diff 是显式方法状态，不是自动订阅；三端 README 明确 entity.save/其他标签页不会自动更新，不把这个已声明行为当 bug。"
+        ],
+        "gaps": [
+          "未 enable、缺插件、真实 branch/数据库切换和多实例状态 ownership 未全证；React provider 切 A→B 候选的两条新回归等待主控，不提前算红/绿。"
+        ],
+        "title": "状态与作用域",
+        "action": "核查 activation/branch/能力状态如何进入 hook，status/diff 订阅必须归属当前数据库。",
+        "originalScenario": "未 enable、插件缺失、切分支、换库、多实例；不显示旧库 diff 或偷偷启用数据库能力。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-angular/src/use-working-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/use-working-tree.ts",
+            "start": 166,
+            "end": 190,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+            "start": 125,
+            "end": 137,
+            "role": "read-dependency-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+            "start": 231,
+            "end": 299,
+            "role": "read-dependency-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-angular/src/__tests__/use-working-tree.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/__tests__/use-working-tree.spec.ts",
+            "start": 205,
+            "end": 305,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "共享 REJECTED_RESTORES 的四种拒绝与 CAS conflict 原样作为 success/value，switchBranch dirty 拒绝是 error + 原样抛出；状态刷新失败不改变已完成 commit 返回值。",
+          "credentials/options 只由共享 commands 透传；wrapper 不自行提交/改 HEAD。"
+        ],
+        "gaps": [
+          "缺真实数据层并发点击/CAS 落败不损坏数据以及动作中换 scope；现有 IO fixture 不拥有真正数据库。React 旧 commands 回写新 scope 候选待补跑。"
+        ],
+        "title": "动作结果与并发",
+        "action": "逐项对照 commit/discard/restore 的返回值拒绝和 switchBranch 的异常，不能一律当异常或成功。",
+        "originalScenario": "CAS 落败、dirty tree、不可达 commit、并发点击、动作中换 scope；原有数据不损坏。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-angular/src/use-working-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/use-working-tree.ts",
+            "start": 166,
+            "end": 190,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-working-tree-angular/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/index.ts",
+            "start": 16,
+            "end": 17,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-angular/src/__tests__/use-working-tree.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/__tests__/use-working-tree.spec.ts",
+            "start": 424,
+            "end": 497,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "十二个方法与十二格状态实际对齐；类型不重定义/不再导出 core 错误类，这是三端一致的既定 contract，不误报缺失透传。",
+          "三端用同官方测试 fixture，但 enableIfEmpty/commitChanges 的 presence guard 不等于执行了这些命令。"
+        ],
+        "gaps": [
+          "缺真实应用拒绝序列、关闭期间晚到状态、多实例敏感 diff 摘要/清理以及独立 typed 消费；不能用 100% wrapper coverage 证明 core 历史数据安全。"
+        ],
+        "title": "三端与敏感数据",
+        "action": "核查更新触发、错误显示、diff 摘要和类型消费，并与 shared fixtures / 应用工作树场景对应。",
+        "originalScenario": "相同拒绝序列三端同语义、关闭清理、敏感字段摘要；不能为调试直接输出完整历史。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-angular/src/use-working-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/use-working-tree.ts",
+            "start": 166,
+            "end": 190,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-angular/src/__tests__/use-working-tree.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/__tests__/use-working-tree.spec.ts",
+            "start": 53,
+            "end": 72,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "Angular TestBed 注入、React 真 renderHook/provider、Vue 真 mount/provider harness 已辨别；核心 IO 仍是测试桩。",
+          "resource 没有独立 Observable 订阅；不能虚构 unsub 测试代替实际 pending command 生命周期。"
+        ],
+        "gaps": [
+          "Angular 实际组件销毁/子 provider、多实例；React StrictMode/多 root/旧库 pending（新 probe 未跑）；Vue provider ref 替换与 SFC scope/晚到命令，均未完整证明。"
+        ],
+        "title": "Angular 生命周期与注入",
+        "action": "核查注入上下文、DestroyRef/effect cleanup、provider scope 和框架原生 Signal 更新；按仓库约定检查 standalone/OnPush，避免为风格改写已稳定 API。",
+        "originalScenario": "切换 inputs、销毁中异步完成、子 provider 覆盖、同组件多实例；无订阅泄漏或跨库状态。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-angular/src/use-working-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-angular/src/use-working-tree.ts",
+            "start": 58,
+            "end": 111,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "Signal / render snapshot / ComputedRef 只改变状态容器；commands 返回 Promise 与 core 结果保持同结构；基线类型和 lint 已过。"
+        ],
+        "gaps": [
+          "Angular 模板/route、React 独立 typed consumer + StrictMode 错误 props、Vue vue-tsc/SFC readonly/emits pack consumer 未完整验证；root resolve 是路径证据而非声明/运行证明。"
+        ],
+        "title": "Angular 类型与运行证据",
+        "action": "核查模板类型、泛型推导和真实组件 fixture；区分纯函数、模拟组件与浏览器/实际应用证据。",
+        "originalScenario": "typed consumer 编译、模板事件/输入错误、错误与空态；真实 route 挂载/卸载，不用类型断言掩盖错误。"
+      }
+    ],
+    "rxdb-plugin-working-tree-react": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts",
+            "start": 81,
+            "end": 96,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx",
+            "start": 77,
+            "end": 165,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "初始十二格 idle、创建入口不发 IO；读取 provider 后只创建共享 core commands。",
+          "status/diff 是显式方法状态，不是自动订阅；三端 README 明确 entity.save/其他标签页不会自动更新，不把这个已声明行为当 bug。"
+        ],
+        "gaps": [
+          "未 enable、缺插件、真实 branch/数据库切换和多实例状态 ownership 未全证；React provider 切 A→B 候选的两条新回归等待主控，不提前算红/绿。"
+        ],
+        "title": "状态与作用域",
+        "action": "核查 activation/branch/能力状态如何进入 hook，status/diff 订阅必须归属当前数据库。",
+        "originalScenario": "未 enable、插件缺失、切分支、换库、多实例；不显示旧库 diff 或偷偷启用数据库能力。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts",
+            "start": 81,
+            "end": 96,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+            "start": 125,
+            "end": 137,
+            "role": "read-dependency-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+            "start": 231,
+            "end": 299,
+            "role": "read-dependency-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx",
+            "start": 229,
+            "end": 332,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "共享 REJECTED_RESTORES 的四种拒绝与 CAS conflict 原样作为 success/value，switchBranch dirty 拒绝是 error + 原样抛出；状态刷新失败不改变已完成 commit 返回值。",
+          "credentials/options 只由共享 commands 透传；wrapper 不自行提交/改 HEAD。"
+        ],
+        "gaps": [
+          "缺真实数据层并发点击/CAS 落败不损坏数据以及动作中换 scope；现有 IO fixture 不拥有真正数据库。React 旧 commands 回写新 scope 候选待补跑。"
+        ],
+        "title": "动作结果与并发",
+        "action": "逐项对照 commit/discard/restore 的返回值拒绝和 switchBranch 的异常，不能一律当异常或成功。",
+        "originalScenario": "CAS 落败、dirty tree、不可达 commit、并发点击、动作中换 scope；原有数据不损坏。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts",
+            "start": 81,
+            "end": 96,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-working-tree-react/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/index.ts",
+            "start": 18,
+            "end": 19,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx",
+            "start": 458,
+            "end": 556,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "十二个方法与十二格状态实际对齐；类型不重定义/不再导出 core 错误类，这是三端一致的既定 contract，不误报缺失透传。",
+          "三端用同官方测试 fixture，但 enableIfEmpty/commitChanges 的 presence guard 不等于执行了这些命令。"
+        ],
+        "gaps": [
+          "缺真实应用拒绝序列、关闭期间晚到状态、多实例敏感 diff 摘要/清理以及独立 typed 消费；不能用 100% wrapper coverage 证明 core 历史数据安全。"
+        ],
+        "title": "三端与敏感数据",
+        "action": "核查更新触发、错误显示、diff 摘要和类型消费，并与 shared fixtures / 应用工作树场景对应。",
+        "originalScenario": "相同拒绝序列三端同语义、关闭清理、敏感字段摘要；不能为调试直接输出完整历史。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts",
+            "start": 81,
+            "end": 96,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx",
+            "start": 53,
+            "end": 72,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "Angular TestBed 注入、React 真 renderHook/provider、Vue 真 mount/provider harness 已辨别；核心 IO 仍是测试桩。",
+          "resource 没有独立 Observable 订阅；不能虚构 unsub 测试代替实际 pending command 生命周期。"
+        ],
+        "gaps": [
+          "Angular 实际组件销毁/子 provider、多实例；React StrictMode/多 root/旧库 pending（新 probe 未跑）；Vue provider ref 替换与 SFC scope/晚到命令，均未完整证明。"
+        ],
+        "title": "React 生命周期与竞态",
+        "action": "核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。",
+        "originalScenario": "StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts",
+            "start": 42,
+            "end": 95,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "Signal / render snapshot / ComputedRef 只改变状态容器；commands 返回 Promise 与 core 结果保持同结构；基线类型和 lint 已过。"
+        ],
+        "gaps": [
+          "Angular 模板/route、React 独立 typed consumer + StrictMode 错误 props、Vue vue-tsc/SFC readonly/emits pack consumer 未完整验证；root resolve 是路径证据而非声明/运行证明。"
+        ],
+        "title": "React 类型与 render 边界",
+        "action": "检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。",
+        "originalScenario": "typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。"
+      }
+    ],
+    "rxdb-plugin-working-tree-vue": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts",
+            "start": 150,
+            "end": 174,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-vue/src/__tests__/use-working-tree.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/__tests__/use-working-tree.spec.ts",
+            "start": 94,
+            "end": 171,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "初始十二格 idle、创建入口不发 IO；读取 provider 后只创建共享 core commands。",
+          "status/diff 是显式方法状态，不是自动订阅；三端 README 明确 entity.save/其他标签页不会自动更新，不把这个已声明行为当 bug。"
+        ],
+        "gaps": [
+          "未 enable、缺插件、真实 branch/数据库切换和多实例状态 ownership 未全证；React provider 切 A→B 候选的两条新回归等待主控，不提前算红/绿。"
+        ],
+        "title": "状态与作用域",
+        "action": "核查 activation/branch/能力状态如何进入 hook，status/diff 订阅必须归属当前数据库。",
+        "originalScenario": "未 enable、插件缺失、切分支、换库、多实例；不显示旧库 diff 或偷偷启用数据库能力。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts",
+            "start": 150,
+            "end": 174,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+            "start": 125,
+            "end": 137,
+            "role": "read-dependency-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree/src/working-tree/working-tree-commands.ts",
+            "start": 231,
+            "end": 299,
+            "role": "read-dependency-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-vue/src/__tests__/use-working-tree.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/__tests__/use-working-tree.spec.ts",
+            "start": 234,
+            "end": 328,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "共享 REJECTED_RESTORES 的四种拒绝与 CAS conflict 原样作为 success/value，switchBranch dirty 拒绝是 error + 原样抛出；状态刷新失败不改变已完成 commit 返回值。",
+          "credentials/options 只由共享 commands 透传；wrapper 不自行提交/改 HEAD。"
+        ],
+        "gaps": [
+          "缺真实数据层并发点击/CAS 落败不损坏数据以及动作中换 scope；现有 IO fixture 不拥有真正数据库。React 旧 commands 回写新 scope 候选待补跑。"
+        ],
+        "title": "动作结果与并发",
+        "action": "逐项对照 commit/discard/restore 的返回值拒绝和 switchBranch 的异常，不能一律当异常或成功。",
+        "originalScenario": "CAS 落败、dirty tree、不可达 commit、并发点击、动作中换 scope；原有数据不损坏。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts",
+            "start": 150,
+            "end": 174,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-working-tree-vue/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/index.ts",
+            "start": 16,
+            "end": 17,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-vue/src/__tests__/use-working-tree.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/__tests__/use-working-tree.spec.ts",
+            "start": 447,
+            "end": 520,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "十二个方法与十二格状态实际对齐；类型不重定义/不再导出 core 错误类，这是三端一致的既定 contract，不误报缺失透传。",
+          "三端用同官方测试 fixture，但 enableIfEmpty/commitChanges 的 presence guard 不等于执行了这些命令。"
+        ],
+        "gaps": [
+          "缺真实应用拒绝序列、关闭期间晚到状态、多实例敏感 diff 摘要/清理以及独立 typed 消费；不能用 100% wrapper coverage 证明 core 历史数据安全。"
+        ],
+        "title": "三端与敏感数据",
+        "action": "核查更新触发、错误显示、diff 摘要和类型消费，并与 shared fixtures / 应用工作树场景对应。",
+        "originalScenario": "相同拒绝序列三端同语义、关闭清理、敏感字段摘要；不能为调试直接输出完整历史。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts",
+            "start": 150,
+            "end": 174,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-vue/src/__tests__/rxdb-provider-harness.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/__tests__/rxdb-provider-harness.ts",
+            "start": 1,
+            "end": 11,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-working-tree-vue/src/__tests__/setup-harness.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/__tests__/setup-harness.ts",
+            "start": 1,
+            "end": 9,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "Angular TestBed 注入、React 真 renderHook/provider、Vue 真 mount/provider harness 已辨别；核心 IO 仍是测试桩。",
+          "resource 没有独立 Observable 订阅；不能虚构 unsub 测试代替实际 pending command 生命周期。"
+        ],
+        "gaps": [
+          "Angular 实际组件销毁/子 provider、多实例；React StrictMode/多 root/旧库 pending（新 probe 未跑）；Vue provider ref 替换与 SFC scope/晚到命令，均未完整证明。"
+        ],
+        "title": "Vue 生命周期与响应式来源",
+        "action": "核查 ref/computed/getter 输入解包、watch 依赖、onScopeDispose/onUnmounted 与 provider scope，避免把首次取值变成永久快照。",
+        "originalScenario": "替换与深改输入、scope 销毁、卸载后晚到结果、多实例；旧订阅释放，新输入生效。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts",
+            "start": 52,
+            "end": 105,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "Signal / render snapshot / ComputedRef 只改变状态容器；commands 返回 Promise 与 core 结果保持同结构；基线类型和 lint 已过。"
+        ],
+        "gaps": [
+          "Angular 模板/route、React 独立 typed consumer + StrictMode 错误 props、Vue vue-tsc/SFC readonly/emits pack consumer 未完整验证；root resolve 是路径证据而非声明/运行证明。"
+        ],
+        "title": "Vue 类型与 SFC 消费",
+        "action": "核查泛型 composable、SFC props/emits 与声明输出；响应式代理不能改变实体身份或隐藏错误。",
+        "originalScenario": "vue-tsc consumer、模板输入错误、readonly/computed 来源、独立 pack 消费；没有宽化 any 或丢失 emits 契约。"
+      }
+    ],
+    "rxdb-plugin-search-angular": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-search-angular/src/inject-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/inject-search.ts",
+            "start": 85,
+            "end": 213,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts",
+            "start": 78,
+            "end": 164,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-search-angular/src/__tests__/review-parallel-real-handle.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/review-parallel-real-handle.spec.ts",
+            "start": 1,
+            "end": 69,
+            "role": "owned-new-test-not-yet-run"
+          }
+        ],
+        "established": [
+          "已逐项核对 query/results/state/error/hasMore 及 loadMore/clear/retry 路由；旧套件通过。",
+          "Angular 既有 221–255 用真实 core handle 验证两页及末页；React/Vue 既有主体是 BehaviorSubject 句柄桩，不能算同一真实 core 场景。"
+        ],
+        "gaps": [
+          "三端同序列空词→无结果→失败→重试→末页→清空的真实 core handle 新探针已写，主控尚未补跑；因此不把 C1 提前核销。"
+        ],
+        "title": "SearchHandle 映射",
+        "action": "逐项核对 results/state/error/hasMore、setQuery/loadMore/clear 到核心 handle，保留空态与错误差异。",
+        "originalScenario": "空词、无结果、查询失败、清空、末页；框架状态不能吞掉核心错误。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-search-angular/src/inject-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/inject-search.ts",
+            "start": 91,
+            "end": 183,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-search-angular/src/inject-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/inject-search.ts",
+            "start": 85,
+            "end": 213,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts",
+            "start": 306,
+            "end": 456,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "source/options identity 的重建与当前 query 保留已有断言；initialQuery 只播种、不当作受控输入；语义等价对象不重建。",
+          "Vue 已实际读取并核对 options 深修改回归（pageSize/collections）；React snapshot 复制 collections；Angular 接受 Signal。"
+        ],
+        "gaps": [
+          "缺 A→B 真正异步查询代次与 branch 变化并发翻页的三端同 fixture；既有桩 emission 隔离不等价于完整搜索后端时序。"
+        ],
+        "title": "快速输入与 options identity",
+        "action": "核查 debounce 的归属、语义相等选项、scope/branch 切换和异步过期结果。",
+        "originalScenario": "A→B 快速输入、相同值新对象、换库/branch、并发翻页；不重复创建 handle 或串结果。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-search-angular/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/index.ts",
+            "start": 13,
+            "end": 16,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-search-angular/src/inject-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/inject-search.ts",
+            "start": 85,
+            "end": 213,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts",
+            "start": 210,
+            "end": 219,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "三端根入口同样透传 SearchExecutionError（运行时）、SearchHandle/SearchOptions/SearchResult/SearchState（类型）和 SearchSourceLike/UseSearchReturn。",
+          "已读取真实 pack 的发布根/入口清单及独立 root ESM resolve；没有拿 Angular 源 manifest 缺 exports 误报。",
+          "React README consumer 只定义函数、由本轮 workspace typecheck 编译；它没有启动数据库或挂载页面。"
+        ],
+        "gaps": [
+          "pack 证据未执行声明编译/runtime import；缺插件、backend 不支持、typed root consumer 及同 fixtures parity 的完整消费链路未全部覆盖。"
+        ],
+        "title": "三端类型与依赖闭合",
+        "action": "对照三端框架 idiom、公开 consumer 与 README 使用；明确必需搜索插件和不支持的 backend。",
+        "originalScenario": "缺 plugin、typed consumer、同 fixtures parity、卸载；必须依赖能通过 inject 闭合。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-search-angular/src/inject-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/inject-search.ts",
+            "start": 85,
+            "end": 213,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts",
+            "start": 166,
+            "end": 207,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/__tests__/inject-search.spec.ts",
+            "start": 438,
+            "end": 455,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "EnvironmentInjector destroy 确实切断订阅、晚到桩结果不回写；Signal source/options 重建及最新 handle 销毁已有断言。"
+        ],
+        "gaps": ["缺真实组件 input/子 provider 覆盖、组件多实例与 route 反复挂卸。"],
+        "title": "Angular 生命周期与注入",
+        "action": "核查注入上下文、DestroyRef/effect cleanup、provider scope 和框架原生 Signal 更新；按仓库约定检查 standalone/OnPush，避免为风格改写已稳定 API。",
+        "originalScenario": "切换 inputs、销毁中异步完成、子 provider 覆盖、同组件多实例；无订阅泄漏或跨库状态。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-search-angular/src/inject-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/inject-search.ts",
+            "start": 48,
+            "end": 65,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-search-angular/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-angular/src/index.ts",
+            "start": 1,
+            "end": 16,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": ["公开返回字段与基线 lint/typecheck 已核对。"],
+        "gaps": ["Angular 模板输入/事件错误与真实 route 尚缺。"],
+        "title": "Angular 类型与运行证据",
+        "action": "核查模板类型、泛型推导和真实组件 fixture；区分纯函数、模拟组件与浏览器/实际应用证据。",
+        "originalScenario": "typed consumer 编译、模板事件/输入错误、错误与空态；真实 route 挂载/卸载，不用类型断言掩盖错误。"
+      }
+    ],
+    "rxdb-plugin-search-react": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-search-react/src/use-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts",
+            "start": 81,
+            "end": 145,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts",
+            "start": 59,
+            "end": 182,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-search-react/src/__tests__/review-parallel-real-handle.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/review-parallel-real-handle.spec.ts",
+            "start": 1,
+            "end": 70,
+            "role": "owned-new-test-not-yet-run"
+          }
+        ],
+        "established": [
+          "已逐项核对 query/results/state/error/hasMore 及 loadMore/clear/retry 路由；旧套件通过。",
+          "Angular 既有 221–255 用真实 core handle 验证两页及末页；React/Vue 既有主体是 BehaviorSubject 句柄桩，不能算同一真实 core 场景。"
+        ],
+        "gaps": [
+          "三端同序列空词→无结果→失败→重试→末页→清空的真实 core handle 新探针已写，主控尚未补跑；因此不把 C1 提前核销。"
+        ],
+        "title": "SearchHandle 映射",
+        "action": "逐项核对 results/state/error/hasMore、setQuery/loadMore/clear 到核心 handle，保留空态与错误差异。",
+        "originalScenario": "空词、无结果、查询失败、清空、末页；框架状态不能吞掉核心错误。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-search-react/src/use-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts",
+            "start": 54,
+            "end": 124,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-search-react/src/use-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts",
+            "start": 81,
+            "end": 145,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts",
+            "start": 191,
+            "end": 368,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "source/options identity 的重建与当前 query 保留已有断言；initialQuery 只播种、不当作受控输入；语义等价对象不重建。",
+          "Vue 已实际读取并核对 options 深修改回归（pageSize/collections）；React snapshot 复制 collections；Angular 接受 Signal。"
+        ],
+        "gaps": [
+          "缺 A→B 真正异步查询代次与 branch 变化并发翻页的三端同 fixture；既有桩 emission 隔离不等价于完整搜索后端时序。"
+        ],
+        "title": "快速输入与 options identity",
+        "action": "核查 debounce 的归属、语义相等选项、scope/branch 切换和异步过期结果。",
+        "originalScenario": "A→B 快速输入、相同值新对象、换库/branch、并发翻页；不重复创建 handle 或串结果。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-search-react/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/index.ts",
+            "start": 14,
+            "end": 17,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-search-react/src/use-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts",
+            "start": 81,
+            "end": 145,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-search-react/src/__tests__/readme-consumer.spec.tsx",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/readme-consumer.spec.tsx",
+            "start": 6,
+            "end": 42,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "三端根入口同样透传 SearchExecutionError（运行时）、SearchHandle/SearchOptions/SearchResult/SearchState（类型）和 SearchSourceLike/UseSearchReturn。",
+          "已读取真实 pack 的发布根/入口清单及独立 root ESM resolve；没有拿 Angular 源 manifest 缺 exports 误报。",
+          "React README consumer 只定义函数、由本轮 workspace typecheck 编译；它没有启动数据库或挂载页面。"
+        ],
+        "gaps": [
+          "pack 证据未执行声明编译/runtime import；缺插件、backend 不支持、typed root consumer 及同 fixtures parity 的完整消费链路未全部覆盖。"
+        ],
+        "title": "三端类型与依赖闭合",
+        "action": "对照三端框架 idiom、公开 consumer 与 README 使用；明确必需搜索插件和不支持的 backend。",
+        "originalScenario": "缺 plugin、typed consumer、同 fixtures parity、卸载；必须依赖能通过 inject 闭合。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-search-react/src/use-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts",
+            "start": 81,
+            "end": 145,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts",
+            "start": 120,
+            "end": 146,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/__tests__/use-search.spec.ts",
+            "start": 371,
+            "end": 399,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "旧 cleanup 先 unsubscribe/destroy，新 layout effect 建 handle；已有真实 StrictMode 两 handle 与 captured callback 指向新 handle 的断言。"
+        ],
+        "gaps": ["缺多个独立 root、真实异步查询快速 props 与卸载后的 core 结果组合。"],
+        "title": "React 生命周期与竞态",
+        "action": "核查 effect 的依赖/cleanup、稳定回调、闭包和请求代次；检查 StrictMode mount→cleanup→mount 与 provider/context 隔离。",
+        "originalScenario": "StrictMode 双挂载、快速 props 变化、卸载后晚到结果、多个 root；状态不回流到旧实例。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-search-react/src/use-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/use-search.ts",
+            "start": 31,
+            "end": 65,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-search-react/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-react/src/index.ts",
+            "start": 1,
+            "end": 17,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "公开返回字段的 framework idiom 已核对，基线 lint/typecheck 通过；source 与方法执行不在 React render 中发 IO。"
+        ],
+        "gaps": ["错误 props 的独立 strict consumer 与 render/异常边界未完整取证；新 spec 类型门禁需补跑。"],
+        "title": "React 类型与 render 边界",
+        "action": "检查泛型 props/返回值、render 中副作用与对象稳定性，错误必须通过公开状态/回调传递。",
+        "originalScenario": "typed consumer 编译、相同值不同引用、错误 props、重渲染；不通过 any、禁用 Hooks lint 或吞异常来过关。"
+      }
+    ],
+    "rxdb-plugin-search-vue": [
+      {
+        "C": "C1",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-search-vue/src/use-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/use-search.ts",
+            "start": 112,
+            "end": 234,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-search-vue/src/__tests__/use-search.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/use-search.spec.ts",
+            "start": 49,
+            "end": 122,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-search-vue/src/__tests__/review-parallel-real-handle.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/review-parallel-real-handle.spec.ts",
+            "start": 1,
+            "end": 71,
+            "role": "owned-new-test-not-yet-run"
+          }
+        ],
+        "established": [
+          "已逐项核对 query/results/state/error/hasMore 及 loadMore/clear/retry 路由；旧套件通过。",
+          "Angular 既有 221–255 用真实 core handle 验证两页及末页；React/Vue 既有主体是 BehaviorSubject 句柄桩，不能算同一真实 core 场景。"
+        ],
+        "gaps": [
+          "三端同序列空词→无结果→失败→重试→末页→清空的真实 core handle 新探针已写，主控尚未补跑；因此不把 C1 提前核销。"
+        ],
+        "title": "SearchHandle 映射",
+        "action": "逐项核对 results/state/error/hasMore、setQuery/loadMore/clear 到核心 handle，保留空态与错误差异。",
+        "originalScenario": "空词、无结果、查询失败、清空、末页；框架状态不能吞掉核心错误。"
+      },
+      {
+        "C": "C2",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-search-vue/src/use-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/use-search.ts",
+            "start": 53,
+            "end": 61,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-search-vue/src/use-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/use-search.ts",
+            "start": 156,
+            "end": 204,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-search-vue/src/__tests__/use-search.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/use-search.spec.ts",
+            "start": 270,
+            "end": 407,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "source/options identity 的重建与当前 query 保留已有断言；initialQuery 只播种、不当作受控输入；语义等价对象不重建。",
+          "Vue 已实际读取并核对 options 深修改回归（pageSize/collections）；React snapshot 复制 collections；Angular 接受 Signal。"
+        ],
+        "gaps": [
+          "缺 A→B 真正异步查询代次与 branch 变化并发翻页的三端同 fixture；既有桩 emission 隔离不等价于完整搜索后端时序。"
+        ],
+        "title": "快速输入与 options identity",
+        "action": "核查 debounce 的归属、语义相等选项、scope/branch 切换和异步过期结果。",
+        "originalScenario": "A→B 快速输入、相同值新对象、换库/branch、并发翻页；不重复创建 handle 或串结果。"
+      },
+      {
+        "C": "C3",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-search-vue/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/index.ts",
+            "start": 13,
+            "end": 16,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-search-vue/src/use-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/use-search.ts",
+            "start": 112,
+            "end": 234,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": [
+          "三端根入口同样透传 SearchExecutionError（运行时）、SearchHandle/SearchOptions/SearchResult/SearchState（类型）和 SearchSourceLike/UseSearchReturn。",
+          "已读取真实 pack 的发布根/入口清单及独立 root ESM resolve；没有拿 Angular 源 manifest 缺 exports 误报。",
+          "React README consumer 只定义函数、由本轮 workspace typecheck 编译；它没有启动数据库或挂载页面。"
+        ],
+        "gaps": [
+          "pack 证据未执行声明编译/runtime import；缺插件、backend 不支持、typed root consumer 及同 fixtures parity 的完整消费链路未全部覆盖。"
+        ],
+        "title": "三端类型与依赖闭合",
+        "action": "对照三端框架 idiom、公开 consumer 与 README 使用；明确必需搜索插件和不支持的 backend。",
+        "originalScenario": "缺 plugin、typed consumer、同 fixtures parity、卸载；必须依赖能通过 inject 闭合。"
+      },
+      {
+        "C": "C4",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-search-vue/src/use-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/use-search.ts",
+            "start": 112,
+            "end": 234,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [
+          {
+            "path": "packages/rxdb-plugin-search-vue/src/__tests__/use-search.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/use-search.spec.ts",
+            "start": 124,
+            "end": 202,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-search-vue/src/__tests__/use-search.spec.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/__tests__/use-search.spec.ts",
+            "start": 345,
+            "end": 405,
+            "role": "read-implementation"
+          }
+        ],
+        "established": [
+          "真实 effectScope 停止后释放 latest handle，SSR 不激活 handle，getter/ref 及深 options 更改已验证局部。"
+        ],
+        "gaps": ["缺真实 SFC 多实例挂卸与旧 core 查询晚到的完整组合；scope 测试不冒充完整 UI。"],
+        "title": "Vue 生命周期与响应式来源",
+        "action": "核查 ref/computed/getter 输入解包、watch 依赖、onScopeDispose/onUnmounted 与 provider scope，避免把首次取值变成永久快照。",
+        "originalScenario": "替换与深改输入、scope 销毁、卸载后晚到结果、多实例；旧订阅释放，新输入生效。"
+      },
+      {
+        "C": "C5",
+        "status": "partial",
+        "verdict": "局部通过，原 C 尚未完整核销",
+        "anchors": [
+          {
+            "path": "packages/rxdb-plugin-search-vue/src/use-search.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/use-search.ts",
+            "start": 69,
+            "end": 93,
+            "role": "read-implementation"
+          },
+          {
+            "path": "packages/rxdb-plugin-search-vue/src/index.ts",
+            "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-search-vue/src/index.ts",
+            "start": 1,
+            "end": 16,
+            "role": "read-implementation"
+          }
+        ],
+        "testAnchors": [],
+        "established": ["公开返回字段与基线 lint/typecheck 已核对。"],
+        "gaps": ["vue-tsc SFC consumer、模板错误、readonly/computed 来源和独立 pack 声明消费尚缺。"],
+        "title": "Vue 类型与 SFC 消费",
+        "action": "核查泛型 composable、SFC props/emits 与声明输出；响应式代理不能改变实体身份或隐藏错误。",
+        "originalScenario": "vue-tsc consumer、模板输入错误、readonly/computed 来源、独立 pack 消费；没有宽化 any 或丢失 emits 契约。"
+      }
+    ]
+  },
+  "partialCCount": 96
+}

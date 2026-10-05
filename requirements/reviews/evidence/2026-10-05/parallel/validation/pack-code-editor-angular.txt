@@ -1,0 +1,27 @@
+CWD: /Users/jimmy/Documents/aiao/rxdb/dist/packages/code-editor-angular
+COMMAND: pnpm pack --json --out /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-review-pack-qunrcwin/code-editor-angular.tgz
+{
+  "name": "@aiao/code-editor-angular",
+  "version": "0.0.26",
+  "filename": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-review-pack-qunrcwin/code-editor-angular.tgz",
+  "files": [
+    {
+      "path": "fesm2022/aiao-code-editor-angular.mjs"
+    },
+    {
+      "path": "fesm2022/aiao-code-editor-angular.mjs.map"
+    },
+    {
+      "path": "LICENSE"
+    },
+    {
+      "path": "package.json"
+    },
+    {
+      "path": "README.md"
+    },
+    {
+      "path": "types/aiao-code-editor-angular.d.ts"
+    }
+  ]
+}

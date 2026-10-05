@@ -1,0 +1,106 @@
+{
+  "countSource": "Original per-project stdout Tests lines, each is separate target; nested dependency targets skipped after verifying production fingerprints.",
+  "projects": [
+    {
+      "project": "utils",
+      "passed": 3,
+      "failed": 2,
+      "skipped": 0
+    },
+    {
+      "project": "rxdb-client-generator",
+      "passed": 1,
+      "failed": 2,
+      "skipped": 0
+    },
+    {
+      "project": "rxdb-test",
+      "passed": 3,
+      "failed": 3,
+      "skipped": 0
+    },
+    {
+      "project": "rxdb-adapter-sqlite-core",
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0
+    },
+    {
+      "project": "rxdb-adapter-sqlite-wasm",
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0
+    },
+    {
+      "project": "rxdb-plugin-storage",
+      "passed": 1,
+      "failed": 2,
+      "skipped": 0
+    },
+    {
+      "project": "rxdb-plugin-search",
+      "passed": 1,
+      "failed": 2,
+      "skipped": 0
+    },
+    {
+      "project": "rxdb-plugin-replay",
+      "passed": 1,
+      "failed": 1,
+      "skipped": 0
+    },
+    {
+      "project": "rxdb-devtools-extension",
+      "passed": 1,
+      "failed": 2,
+      "skipped": 0
+    },
+    {
+      "project": "code-editor-angular",
+      "passed": 1,
+      "failed": 2,
+      "skipped": 0
+    },
+    {
+      "project": "rxdb-plugin-working-tree-react",
+      "passed": 0,
+      "failed": 2,
+      "skipped": 0
+    },
+    {
+      "project": "rxdb-plugin-search-vue",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "project": "rxdb-plugin-search-angular",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "project": "rxdb-plugin-search-react",
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0
+    },
+    {
+      "project": "dev-rxdb-http-server",
+      "passed": 1,
+      "failed": 1,
+      "skipped": 0
+    },
+    {
+      "project": "rxdb-plugin-replay-react",
+      "passed": 0,
+      "failed": 1,
+      "skipped": 0
+    }
+  ],
+  "total": {
+    "passed": 16,
+    "failed": 23,
+    "skipped": 0
+  }
+}

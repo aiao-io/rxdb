@@ -1,0 +1,1110 @@
+{
+  "agent": "local-adapters",
+  "closedCCount": 0,
+  "date": "2026-10-05",
+  "dynamicValidationExecutedByThisAgent": false,
+  "entriesAreReadSegmentsNotCompleteFiles": true,
+  "files": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/sqlite-load.utils.ts",
+      "sha256": "4f7e701697a6bd3813886cb9f5b075a5c2fa816b7400012d64359f91e181379a",
+      "totalLines": 178,
+      "focus": "C1/C2/C4 loader 档位、Comlink、Worker 错误与资源清理",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 178],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/vfs-storage-loaders.ts",
+      "sha256": "934484d3a2a0571f9a5c87f650975b1d1b5a93e7d8e25b778f712c0c3197e1de",
+      "totalLines": 38,
+      "focus": "C1 VFS 按需导入",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 38],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/create_sqlite_client.ts",
+      "sha256": "4dc83cea009ac03bc820e09de35af734c81da92beeb639fa33895e1e8a9b456a",
+      "totalLines": 81,
+      "focus": "C1/C3 工厂生命周期、初始化释放",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 81],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/sqlite.interface.ts",
+      "sha256": "91bd663c7d23dc13eb3ccd1cd399d6cd3c7902dcfc045dda7b4d817310b73a13",
+      "totalLines": 104,
+      "focus": "C1/C2 公开档位/远端类型",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 104],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/RxDBAdapterSqlite.ts",
+      "sha256": "89dbba106ce4cfc5b6a1fc04a2b34741e12c8fa903427a72f450a0faf18d7466",
+      "totalLines": 56,
+      "focus": "C1/C4 adapter、资源公开路径",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 56],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/sqlite-load.utils.ts",
+      "sha256": "4f7e701697a6bd3813886cb9f5b075a5c2fa816b7400012d64359f91e181379a",
+      "totalLines": 178,
+      "focus": "C1 运行宿主、公开冻结配置、VFS初始化 options",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [120, 178],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/create_sqlite_client.ts",
+      "sha256": "4dc83cea009ac03bc820e09de35af734c81da92beeb639fa33895e1e8a9b456a",
+      "totalLines": 81,
+      "focus": "C1/C2 单实例锁、加载失败解除 factory registration",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 81],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/vfs-storage-loaders.ts",
+      "sha256": "934484d3a2a0571f9a5c87f650975b1d1b5a93e7d8e25b778f712c0c3197e1de",
+      "totalLines": 38,
+      "focus": "C1 仅按所选档位 dynamic import",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 38],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/SqliteClient.ts",
+      "sha256": "fd13bf5d8141b449aec80748b9123b9819a474a405eab88135fc56b4ac8dbb8c",
+      "totalLines": 414,
+      "focus": "C2/C3 init 事件安装、query/execute、notify、并发串行",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 215],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/SqliteClient.ts",
+      "sha256": "fd13bf5d8141b449aec80748b9123b9819a474a405eab88135fc56b4ac8dbb8c",
+      "totalLines": 414,
+      "focus": "C3/C4 hooks 在 transaction 内通知与 cleanup 所有失败路径",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [215, 414],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/execute_helper.ts",
+      "sha256": "98fd23ae3be8ccc9dde3a276b5af5995bbbb19736e8dcf77274712a3f4587184",
+      "totalLines": 147,
+      "focus": "C3 statements finalization 与 Bind result 映射",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 147],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/execute_helper.ts",
+      "sha256": "98fd23ae3be8ccc9dde3a276b5af5995bbbb19736e8dcf77274712a3f4587184",
+      "totalLines": 147,
+      "focus": "C3 绑定多语句枚举失败时是否 finalize unscoped stmt",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [95, 147],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/vite.config.mts",
+      "sha256": "89be6690f72d2a85e30f3ee12353cac34734f05fe50278de2da18ac52b35b0c5",
+      "totalLines": 130,
+      "focus": "coverage 测量面/browser skip 和 engine资源依赖",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 130],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/package.json",
+      "sha256": "4f3767f22d4b32115ecb19242a23aca64a1ac0c87ebf618610fa62da23dbd940",
+      "totalLines": 82,
+      "focus": "C5 exports dependencies 和资源版本",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 82],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/execute_helper.ts",
+      "sha256": "e9c22226c132e0c3ab151b56e7dbbdfb5d000f79bf0534b429023db3981cace2",
+      "totalLines": 172,
+      "focus": "C2 reset/finalize 错误保留与 prepare 枚举 unscoped 释放",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [55, 172],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/sqlite-load.utils.ts",
+      "sha256": "6e52b4da6c86ed3188479d2fe63f8053e57824439c323ea5f7f68ce380fa6909",
+      "totalLines": 298,
+      "focus": "C1 模块/vfs 支持矩阵 冻结 实际宿主检测",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 165],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/sqlite-load.utils.ts",
+      "sha256": "6e52b4da6c86ed3188479d2fe63f8053e57824439c323ea5f7f68ce380fa6909",
+      "totalLines": 298,
+      "focus": "C1 实际 worker 运行环境/config 和 init option、没有降级",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [165, 298],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/SqliteClient.ts",
+      "sha256": "0079ef5122dd139e2556bdf848b57f45166896c17adc23510db4336a2a2abb1d",
+      "totalLines": 73,
+      "focus": "C1 初始化 vfs 后 on-open 故障/连接清理",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 73],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/WaSqliteClientBase.ts",
+      "sha256": "a2ad4046b69be2bdc52c390b95b1f800f24838ec8847f3f84df7094da47a0f44",
+      "totalLines": 385,
+      "focus": "C2/C3 同 client 身份并发 init、execute/disconnect guard",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 190],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/WaSqliteClientBase.ts",
+      "sha256": "a2ad4046b69be2bdc52c390b95b1f800f24838ec8847f3f84df7094da47a0f44",
+      "totalLines": 385,
+      "focus": "C2/C3 初始化 closeVFS aggregate、disconnect 异常与事件 flush",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [190, 320],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/create_sqlite_client.ts",
+      "sha256": "bd8c3ecbeb3b6ccc339ae8fe0c3f6a200abb40cdd897cb1bd654dddf5fe92d04",
+      "totalLines": 79,
+      "focus": "C3 remote ownership 传递 + failure proxy release",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [25, 79],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/RxDBAdapterSqlite.ts",
+      "sha256": "4d2b25276e40ce426b8a9308aba134a034532705fa4e66dd1022d19f34ae3043",
+      "totalLines": 57,
+      "focus": "C4/C5 backup 档位明示拒绝",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [25, 57],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/WaSqliteClientBase.ts",
+      "sha256": "a2ad4046b69be2bdc52c390b95b1f800f24838ec8847f3f84df7094da47a0f44",
+      "totalLines": 385,
+      "focus": "C2/C3 close failure 清理与 retry 状态归属; 客户端身份",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [319, 385],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/__tests__/sqlite-client-lifecycle.spec.ts",
+      "sha256": "55ab59dc61430f1cdd06872c07d2c01f15f473b32de3957fec4d6046031cc2db",
+      "totalLines": 440,
+      "focus": "C3 用例覆盖是否验证 close失败后重复调用",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 145],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/runtime-capabilities.ts",
+      "sha256": "28e2ccf78284eac20c3a481ee42e3659c3eaa52d181291c54db408b11c48a1d8",
+      "totalLines": 112,
+      "focus": "C1 真实支持平台/能力拒绝",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 112],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/create-client.ts",
+      "sha256": "55c9de95d4fbd3992aa65d7cd37647e9ae50f088ae0700bcf8cccd864f7cda4d",
+      "totalLines": 100,
+      "focus": "C1/C4 单连接 ownership WAL 拒绝与 load清理",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 100],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/node_modules/.pnpm/wa-sqlite@https+++codeload.github.com+rhashimoto+wa-sqlite+tar.gz+2bf1c59d89eb6497535a4217bc62fec68a0bb994/node_modules/wa-sqlite/src/sqlite-api.js",
+      "sha256": "6a18bc86fa5a2ef300c7a7a84bfc762caff396ec56af17fcc4885d20189fe54c",
+      "totalLines": 924,
+      "focus": "C2/C3 pinned upstream statements unscoped 与异常 finalization 行为",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [650, 698],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/__tests__/execute_helper.spec.ts",
+      "sha256": "ba8ddab096f9e195b408d7ffd6f6e71319ae2d8c509aefa27b9788c75362401b",
+      "totalLines": 261,
+      "focus": "C3 existing mock fixture 没有 generator 第二 prepare 故障",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 62],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/__tests__/execute_helper.spec.ts",
+      "sha256": "ba8ddab096f9e195b408d7ffd6f6e71319ae2d8c509aefa27b9788c75362401b",
+      "totalLines": 261,
+      "focus": "C3 当前真实 WASM 绑定多语句回归入口",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [220, 261],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/host.ts",
+      "sha256": "c501efe80f68e87b69e88c2754eb2531324e750a8bce826d976e2d4d401122a1",
+      "totalLines": 207,
+      "focus": "C1/C3 host contract 微信随机同步返回要求",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 107],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/README.md",
+      "sha256": "f01a174fb57a8be4879c7288fd69ec342e2efb0f0ec607c170fb76caae342dde",
+      "totalLines": 269,
+      "focus": "C1/C5 宿主限制/新版三平台而不是原计划单微信",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 24],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/host.ts",
+      "sha256": "c501efe80f68e87b69e88c2754eb2531324e750a8bce826d976e2d4d401122a1",
+      "totalLines": 207,
+      "focus": "C1 微信封装随机/file接口与 host 注册/互斥",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [107, 207],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/runtime-polyfills.ts",
+      "sha256": "9ed7813dd0af9280f30b96191d6decfe2d996a948bd8be8a9d788fd09a40371e",
+      "totalLines": 273,
+      "focus": "C3 random entropy 池耗尽补给失败 不使用弱随机",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 133],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/runtime-polyfills.ts",
+      "sha256": "9ed7813dd0af9280f30b96191d6decfe2d996a948bd8be8a9d788fd09a40371e",
+      "totalLines": 273,
+      "focus": "C3 getRandomValues 视图字节、消耗擦除、原生源检测与引导",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [134, 273],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/hosts/alipay-random.ts",
+      "sha256": "70b6786f1c2adfb8d4e18c0e8efb16e863350f9315489cb64aae755eb8de3808",
+      "totalLines": 144,
+      "focus": "C3 Worker 请求身份/超时/熵来源 生命周期",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 144],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/loader.ts",
+      "sha256": "c8aec480ea8468d8f6ef34f4495c6bf9f531550b2c88a5a2c0b0462a01416957",
+      "totalLines": 71,
+      "focus": "C2 同步 WASM 拒绝 asyncify magic 校验 host路径",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 71],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/synchronous-callbacks.ts",
+      "sha256": "298f9d10779719a54441317c2565dd77dd1bb4829152528461960ca0f582b238",
+      "totalLines": 37,
+      "focus": "C2 禁止异步SQLite回调",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 37],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/subframe-glue.ts",
+      "sha256": "54cc218d79880494c59f16c2580a91ba5eb40feba5fb6a057c6fae1ce5f77387",
+      "totalLines": 26,
+      "focus": "C2 固定glue依赖公开子入口",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 26],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/statement-cleanup.ts",
+      "sha256": "dc0b888d48e12c1813c9022bf0b5df092198ea845b1df43d1ea2fc5a3d77aa45",
+      "totalLines": 47,
+      "focus": "C4 next_stmt 扫尾聚合close失败",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 47],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts",
+      "sha256": "69b0151f07b6f0e45b9cb1c4fa75152bf942dd2dc7549f2c4de783dc1de266d4",
+      "totalLines": 891,
+      "focus": "C1/C4 VFS root path filename 范围与单realm 连接 ownership",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 132],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts",
+      "sha256": "69b0151f07b6f0e45b9cb1c4fa75152bf942dd2dc7549f2c4de783dc1de266d4",
+      "totalLines": 891,
+      "focus": "C4 I/O 错误码映射 防路径穿越 幂等删除",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [140, 269],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts",
+      "sha256": "69b0151f07b6f0e45b9cb1c4fa75152bf942dd2dc7549f2c4de783dc1de266d4",
+      "totalLines": 891,
+      "focus": "C4 单文件 flush 实际持久化故障保留 dirty标记",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [301, 401],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts",
+      "sha256": "69b0151f07b6f0e45b9cb1c4fa75152bf942dd2dc7549f2c4de783dc1de266d4",
+      "totalLines": 891,
+      "focus": "C4 chunked 文件截断/增长/Quota失败重试记账",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [401, 479],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts",
+      "sha256": "69b0151f07b6f0e45b9cb1c4fa75152bf942dd2dc7549f2c4de783dc1de266d4",
+      "totalLines": 891,
+      "focus": "C4 offset范围零填充、dirty边界、root/layout校验、连接定义",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [480, 610],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts",
+      "sha256": "69b0151f07b6f0e45b9cb1c4fa75152bf942dd2dc7549f2c4de783dc1de266d4",
+      "totalLines": 891,
+      "focus": "C1/C4 VFS second connection journal capability OPEN flags、close错误",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [611, 756],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/wechat-file-vfs.ts",
+      "sha256": "69b0151f07b6f0e45b9cb1c4fa75152bf942dd2dc7549f2c4de783dc1de266d4",
+      "totalLines": 891,
+      "focus": "C4 短读 zero-fill truncate 同步flush 锁/持久化不承诺",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [747, 891],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite/src/sqlite-official-load.utils.ts",
+      "sha256": "a74f44b9f4245750160c3f7ed2e09ef2d50bef6360bc5728fcfa5a5c1c59fc8c",
+      "totalLines": 78,
+      "focus": "C1 WASM载入 options与真实 vfs拒绝",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 78],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite/src/create_sqlite_client.ts",
+      "sha256": "fedb8a371187dc112ea2f24bddf2e7075d20f3241cab496e0daadb51644fef2f",
+      "totalLines": 53,
+      "focus": "C1 PRAGMA/function失败的 cleanup 错误",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 53],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqliteai/src/sqliteai-load.utils.ts",
+      "sha256": "c5931c18b6a3668dcb16699e9f00be9efd22f892418aceb8805c4129090ddfad",
+      "totalLines": 80,
+      "focus": "C1/C2 当前模块只 oo1 runtime结构检查 AI capability 不推断",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 80],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqliteai/src/create_sqlite_client.ts",
+      "sha256": "ffde6d7c1ff8c57c2bb05387bfe221bd37f63db5d394759a05bf2a5e8fe6fe5b",
+      "totalLines": 51,
+      "focus": "C1/C3 复用核心 oo1 与远程释放 公共Promise类型",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 51],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqliteai/src/index.ts",
+      "sha256": "0afd9add0f37a5fab0780879d951984562a3ee9bbaa4a843edbb391c0493c918",
+      "totalLines": 18,
+      "focus": "C2/C5 公开AI API实际边界",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 18],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqliteai/src/SqliteaiClient.ts",
+      "sha256": "4b01a3ec4e127690fdf82a42adfe577e7ff56350783d10d08b503b8b32e4bc46",
+      "totalLines": 21,
+      "focus": "C3 复用类 选项泛型",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 21],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-encrypted/src/keyring.ts",
+      "sha256": "aa6a6913b4e8b5af265a545a836e409c786d3423aac7631ff6326e0b7d1f9ad6",
+      "totalLines": 606,
+      "focus": "C3 keyring状态/epoch/首次写不撤销 helper、load storage保证",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 154],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-encrypted/src/keyring.ts",
+      "sha256": "aa6a6913b4e8b5af265a545a836e409c786d3423aac7631ff6326e0b7d1f9ad6",
+      "totalLines": 606,
+      "focus": "C3 修复RV-058边界；singleton并发首次初始化 验证与发布",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [190, 351],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-encrypted/src/keyring.ts",
+      "sha256": "aa6a6913b4e8b5af265a545a836e409c786d3423aac7631ff6326e0b7d1f9ad6",
+      "totalLines": 606,
+      "focus": "C3 当前首次创建先 epoch检查再不可撤销写入 与concurrent verifier",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [350, 474],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-encrypted/src/keyring.ts",
+      "sha256": "aa6a6913b4e8b5af265a545a836e409c786d3423aac7631ff6326e0b7d1f9ad6",
+      "totalLines": 606,
+      "focus": "C3 RV-058修复在writeSingleton前同步检查lockEpoch；after write 内存屏障",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [474, 606],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-encrypted/src/crypto.ts",
+      "sha256": "d83035ab6f2af5b5ac5e08bf2e1e811a5fbe973e5b1e18c0dc2f782c02faf23f",
+      "totalLines": 145,
+      "focus": "C2 AES-GCM 参数、安全随机 WebCrypto、KDF/IV明示",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 145],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-encrypted/src/validate-encrypted-query.ts",
+      "sha256": "2e4ec2fab4c91a10593f23a5d40d4de58b2bbdec9ac8a58c46cb18cdaa49bbec",
+      "totalLines": 37,
+      "focus": "C5 query 拒绝入口与metadata",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 37],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-encrypted/src/envelope.ts",
+      "sha256": "1c5371339fce4e16dd10ce58f5e386579707b65398cfc5faead444a3dec580bc",
+      "totalLines": 234,
+      "focus": "C2 version/envelope 解码严格 长度kid、AAD identity结构",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 125],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-encrypted/src/envelope.ts",
+      "sha256": "1c5371339fce4e16dd10ce58f5e386579707b65398cfc5faead444a3dec580bc",
+      "totalLines": 234,
+      "focus": "C2 decode strict 包括版本 与 AAD 长度前缀 typedPK防碰撞",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [126, 234],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-encrypted/src/encrypt-patch.ts",
+      "sha256": "97d71f8d0d832b8a1c189e822f56760c223048fafe9cec18b61ea40a37141d48",
+      "totalLines": 73,
+      "focus": "C4 null/undefined 不重复加密与raw SQL参数防旁路",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 73],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-encrypted/src/__tests__/review-aborted-initial-unlock.spec.ts",
+      "sha256": "feaf46cc9ad3ff47ac225458b89321a212b132f2abf5d7e4e099619d898224d0",
+      "totalLines": 123,
+      "focus": "C3 当前RV-058回归已经改为无singleton；NativeSQLite存储真实接口",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 123],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-encrypted/README.md",
+      "sha256": "b4afd129e7f11ed477ed9b10919ee5668fb40430c9bab67e000aa8dd17999dae",
+      "totalLines": 177,
+      "focus": "C1/C2 威胁模型非目标并非磁盘全部字节加密",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [122, 174],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/keyring/sqlite-core-keyring-storage.ts",
+      "sha256": "aa65f64c21ac8b63416662bbc4a6483462399f8a5490b27fd5e9d9ae5e13cc48",
+      "totalLines": 87,
+      "focus": "C3 实际SQLite singleton原子插入与异常冲突",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 87],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/change-pipeline.ts",
+      "sha256": "07468e61b47f7c3cb937204c3fc213b658404a4c539cf149d3b4e8cdfa5cdf7b",
+      "totalLines": 128,
+      "focus": "C2 分支隔离批处理快照/错误与慢消费队列",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 128],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/backup/pglite-exclusive.ts",
+      "sha256": "816eec778d1286f82a3f7f7eb2c4d428d04b0994613ff0d727a6d2eb72e231cf",
+      "totalLines": 39,
+      "focus": "C5 engine exclusive资源生命周期",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 39],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/PGliteClient.ts",
+      "sha256": "2c00dd0f24da3a55ca8a696d8ea4adf17e12e85f739e26a9a2afda18ac9629f5",
+      "totalLines": 688,
+      "focus": "C4 opfs worker桥接失败终止/恢复initializer 真实档位",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [69, 191],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/PGliteClient.ts",
+      "sha256": "2c00dd0f24da3a55ca8a696d8ea4adf17e12e85f739e26a9a2afda18ac9629f5",
+      "totalLines": 688,
+      "focus": "C2/C4 init串行 失败retry/close后的创建公开请求guard",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [360, 508],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/PGliteClient.ts",
+      "sha256": "2c00dd0f24da3a55ca8a696d8ea4adf17e12e85f739e26a9a2afda18ac9629f5",
+      "totalLines": 688,
+      "focus": "C2/C4 flush/disconnect 初始化失败清理/worker和storageLock释放",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [508, 659],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/notify/notification-batcher.ts",
+      "sha256": "531fb32b73a9d77a142396f251418ebd7b0f0f9049ed461818d6d735bdadf6ac",
+      "totalLines": 182,
+      "focus": "C2 grouping branch、dedupe、hard cap/late timers、error rejection",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 182],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/change-pipeline.ts",
+      "sha256": "07468e61b47f7c3cb937204c3fc213b658404a4c539cf149d3b4e8cdfa5cdf7b",
+      "totalLines": 128,
+      "focus": "C2 handler catch与generation/Branch过滤的真实接口",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 66],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/query/query_sql.ts",
+      "sha256": "9ce65756ab1695a01a2e65e03e5957b191f5a04c3b72fd5d717ad694ad48e28f",
+      "totalLines": 583,
+      "focus": "C1 当前RV045 qualify + NULL排序既有修复边界",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [140, 166],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/query/query_tree_sql.ts",
+      "sha256": "6f72f40bf441545624bace0ee05005969adf05b1129703963a39f37bf119ac8f",
+      "totalLines": 203,
+      "focus": "C1 当前树递归作用children where与alias已修",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [53, 145],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/transaction/SqliteTransactionExecutor.ts",
+      "sha256": "c06210021572fd764e6f19e6214bc17f8af38e6e97334faa4a5264406c5a6a8d",
+      "totalLines": 203,
+      "focus": "C2 BEGIN ownership serial per client、rollback aggregate、manuallogs",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 134],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts",
+      "sha256": "f30639fdd9c7b1c242a03492b7250da5cbb7c814abf04efb480558e695d88a16",
+      "totalLines": 1745,
+      "focus": "C1 公共connect/disconnect队列和释放 当前构造/关闭行为",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [580, 624],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts",
+      "sha256": "f30639fdd9c7b1c242a03492b7250da5cbb7c814abf04efb480558e695d88a16",
+      "totalLines": 1745,
+      "focus": "C1/C2 注册update hooks与排队、client创建锁",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1450, 1565],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/__tests__/RxDBAdapterSqliteBase.spec.ts",
+      "sha256": "6620b93e1f864d4a18808e77441948141aa47da14d223a1fcbb5b1029a3b5faa",
+      "totalLines": 2076,
+      "focus": "C1 existing fake adapter/fixture 与 connect验证",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 97],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts",
+      "sha256": "f30639fdd9c7b1c242a03492b7250da5cbb7c814abf04efb480558e695d88a16",
+      "totalLines": 1745,
+      "focus": "C1/C2 client hooks由事件接口安装 条件接口",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1650, 1745],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/__tests__/RxDBAdapterSqliteBase.spec.ts",
+      "sha256": "6620b93e1f864d4a18808e77441948141aa47da14d223a1fcbb5b1029a3b5faa",
+      "totalLines": 2076,
+      "focus": "C1 小范围fake RxDB/Client shape现有测试不覆盖in-flight constructor",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [70, 173],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts",
+      "sha256": "f30639fdd9c7b1c242a03492b7250da5cbb7c814abf04efb480558e695d88a16",
+      "totalLines": 1745,
+      "focus": "C1 抽象SqliteClient契约 event Promise 类型与backup能力",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [95, 137],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/sqlite-core.types.ts",
+      "sha256": "9183b588a734826e3a783362bef3ff04b375e78d7fa085b73a79bf28438510c3",
+      "totalLines": 79,
+      "focus": "C1 SqliteClient event contract/factory 类型-新增回归对照",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 79],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts",
+      "sha256": "f30639fdd9c7b1c242a03492b7250da5cbb7c814abf04efb480558e695d88a16",
+      "totalLines": 1745,
+      "focus": "C2 query/shared serialized queue bootstrap/write入口 ownership",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [965, 1067],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts",
+      "sha256": "2f342495191747b22d02880eff22a17a79869d215e7a55c216481004a46e180d",
+      "totalLines": 489,
+      "focus": "sqlite/sqliteai C1/C2 公共init参数指纹 校验并发",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [89, 201],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts",
+      "sha256": "2f342495191747b22d02880eff22a17a79869d215e7a55c216481004a46e180d",
+      "totalLines": 489,
+      "focus": "C1/C2 disconnect与异步load init后发布是否保护，queue排空",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [194, 336],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/__tests__/Oo1ClientBase.spec.ts",
+      "sha256": "41c8cee045c6d6f47ecb630d2a4381530f9ed9a20f48deef7d248a20f70d04a6",
+      "totalLines": 658,
+      "focus": "C1/C2 oo1 existing fixture 型别与析构 mock",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 103],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/execute_oo1_helper.ts",
+      "sha256": "254bc3b6a14db4f81147d50b7ae0a9dc905212c29580a0f3857d9e3f5a0d90d9",
+      "totalLines": 128,
+      "focus": "C2 oo1 synchronous statement/typed binds 当前异常包装",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [67, 128],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts",
+      "sha256": "f30639fdd9c7b1c242a03492b7250da5cbb7c814abf04efb480558e695d88a16",
+      "totalLines": 1745,
+      "focus": "C4 系统迁移事务 exclusive/version水位/幂等 active branch重挂",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [787, 899],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/system/migrate_system_schema.ts",
+      "sha256": "824c5fb957d0cc40f29e07019f4dca1e5be78ab7b4cd69c287a7047a0d735065",
+      "totalLines": 294,
+      "focus": "C3 水位线 advisory lock/branch index升级机制",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 137],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/system/migrate_system_schema.ts",
+      "sha256": "824c5fb957d0cc40f29e07019f4dca1e5be78ab7b4cd69c287a7047a0d735065",
+      "totalLines": 294,
+      "focus": "C3 PG LOCK/atomic transaction 当前重新挂branch及watermark",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [179, 294],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/PGliteClient.ts",
+      "sha256": "2c00dd0f24da3a55ca8a696d8ea4adf17e12e85f739e26a9a2afda18ac9629f5",
+      "totalLines": 688,
+      "focus": "C4 default store解析明示 idb/memory 自定义dataDir 优先",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [43, 74],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/create_sqlite_client.ts",
+      "sha256": "beb649d2018e4bdf093649c4add3d42566ff11357abd3789d8049497406bda66",
+      "totalLines": 242,
+      "focus": "sqlite-wasm C2/WA C3 remote transport normalizing options/comlink event lifecycle",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 121],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/create_sqlite_client.ts",
+      "sha256": "beb649d2018e4bdf093649c4add3d42566ff11357abd3789d8049497406bda66",
+      "totalLines": 242,
+      "focus": "C2 客户端独立端口租借/release root计数与ownership终止 无worker崩溃取消协议",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [128, 242],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/entity/insert_sql.ts",
+      "sha256": "d59f2a217973ee4fc0befd00d278c30f9ea08e05867ae9ce1861ebf2f7ee5d1c",
+      "totalLines": 86,
+      "focus": "C3/C1 加密入SQL之前、参数绑定null/date/加密Fields",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 86],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/query/find_sql.ts",
+      "sha256": "917f8798829f5e1d297284fce64de54a583ec9ff9cfeae13e73332d630340764",
+      "totalLines": 55,
+      "focus": "C3 where/order/limit 参数与加密query拒绝",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 55],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/sqlite-core.utils.ts",
+      "sha256": "c1389dfb5fdc0851365b5563819bbfde1a8a5c237eb7b12e02fa056044dd7f60",
+      "totalLines": 787,
+      "focus": "encrypted C1/C4 行到SQL 加密列NULL/undefined &绑定identity",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [399, 458],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/sqlite-core.utils.ts",
+      "sha256": "c1389dfb5fdc0851365b5563819bbfde1a8a5c237eb7b12e02fa056044dd7f60",
+      "totalLines": 787,
+      "focus": "encrypted C1/C4 decrypt聚合错误保持映射/锁与原始payload不泄露",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [640, 729],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-encrypted/src/serialize.ts",
+      "sha256": "970c3c7b4176b7b657544d05ea0a91ebaadd298aa692dfe46be3ee595f7db64a",
+      "totalLines": 169,
+      "focus": "C4 schema专用序列化/BigInt binary JSON日期",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [29, 73],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/__tests__/encrypted-bigint-binary.spec.ts",
+      "sha256": "cc41915c4c634aa8351df594296f95f6222f26f3cb92d1e94e0c3281df518770",
+      "totalLines": 5,
+      "focus": "C5 真实memory encrypted类型 suite调用",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 5],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/__tests__/encrypted-change-log.spec.ts",
+      "sha256": "50bd38745c1a6fd1abc3979f2764ad9d9dd65010e6d2187f29d12b91e1cc2ad2",
+      "totalLines": 9,
+      "focus": "C4 真实MemoryAsyncVFS 加密日志套件测量面",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 9],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/__tests__/real-wasm.integration.spec.ts",
+      "sha256": "21dc7cbc91062239115a745c4f2fe86a78b93122938e57b1bfeb0c84f981ce84",
+      "totalLines": 122,
+      "focus": "C2/C4/C5 真实wasm但fs/mock host，不是真微信",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 122],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqliteai/src/__tests__/encrypted-bigint-binary.spec.ts",
+      "sha256": "0c46f7e1ea141713ecf183989ba865d12aa55b64ab82bdfc2595a303adf0eb66",
+      "totalLines": 5,
+      "focus": "C4 真实WebCrypto/Memory sqliteAI实际fixture",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 5],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-miniprogram/src/hosts/alipay-wasm.ts",
+      "sha256": "c5672eab04399bbeb754b0676265aa9c0c51c00b2d28ec14f6c80d13f9e23742",
+      "totalLines": 120,
+      "focus": "C2 当前当轮失败：锁定WASM指纹/类型化文本副本选择不降级",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 120],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/fts5/create-fts-table.ts",
+      "sha256": "726942a64df492a7a7b08ad3f3b5f1208b8f60d420c5ebf3e1794c21d0c4fe76",
+      "totalLines": 34,
+      "focus": "C5 FTS5实体索引真实DDL 无缺能力fallback",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 34],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/fts5/build-fts-triggers.ts",
+      "sha256": "ac4639cef03535464e2bcded66c4b0c43c6042885ce16cfe51aaa49d2d9946dc",
+      "totalLines": 114,
+      "focus": "C5 insert/update/delete索引一致 bigram仅写入侧",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [36, 114],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/fts/create-fts-table.ts",
+      "sha256": "fe8ba54488a6c83160c2e147acac2956108722a293617861e551ec7dfdc8a728",
+      "totalLines": 39,
+      "focus": "C6 PG simple config tsvector扩展 中文语义与FTS5不可强等同",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 39],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/fts/build-fts-triggers.ts",
+      "sha256": "742df8ab67631fe3f66b9305fa1a75f1d0946b755eac1a05da0b3c3ad7bb0eda",
+      "totalLines": 116,
+      "focus": "C6 backfill与每次行变化触发器",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [75, 116],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/backup/restore-sqlite-database.ts",
+      "sha256": "694881729c06d0cc6ed52067d592172b68f24a8840243f44338bb8dcde3c7ddd",
+      "totalLines": 790,
+      "focus": "C6 主restore schema/front约束 确认archive前禁止写入",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [82, 194],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/desktop/desktop-protocol-primitives.ts",
+      "sha256": "68855bb59d32fadd457c202ba41639cc82d4b4d5e83746002b21712eb319d2b1",
+      "totalLines": 127,
+      "focus": "C7 untrusted边界数字/record/额外字段/字符串限制",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 127],
+      "wholeFileReviewComplete": false
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/scripts/run-coverage-acceptance.mjs",
+      "sha256": "9509393c585ccfb2aecec6df7754f7adf9c3c69eba97c6634738960f9db9e804",
+      "totalLines": 308,
+      "focus": "C8 验收不是普通coverage，从多后端conformance聚合正确测量面",
+      "method": "numbered source output / static inspection",
+      "dynamicEvidence": false,
+      "requestedSourceRange": [1, 69],
+      "wholeFileReviewComplete": false
+    }
+  ],
+  "fullFileCompletionClaim": false,
+  "fullObjectCompletionClaim": false,
+  "head": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+  "note": "记录实际阅读的文件及关注点；readRange为工具请求的源码段落。部分多文件输出曾截断，故整文件/完整C均不据这些ranges打勾；正文锚点只使用实际可见的责任边界。inventory、SHA256扫描不计阅读完成。",
+  "readFileCount": 74,
+  "scopeFile": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/scope.json",
+  "selfAddedReviewSpecs": [
+    "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/__tests__/review-parallel-statement-cleanup.spec.ts",
+    "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/__tests__/review-parallel-init-disconnect.spec.ts",
+    "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/__tests__/review-parallel-oo1-init-close.spec.ts"
+  ]
+}

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="3" failures="2" errors="0" time="0.00741475">
+    <testsuite name="src/__tests__/review-parallel-loadmore-settlement.spec.ts" timestamp="2026-10-05T01:33:58.092Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="2" errors="0" skipped="0" time="0.00741475">
+        <testcase classname="src/__tests__/review-parallel-loadmore-settlement.spec.ts" name="并行评审：取消待执行分页必须结算调用方 &gt; clear 不遗失同步订阅中排队的 loadMore Promise" time="0.005710459">
+            <failure message="expected false to be true // Object.is equality" type="AssertionError">
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/__tests__/review-parallel-loadmore-settlement.spec.ts:36:23
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/review-parallel-loadmore-settlement.spec.ts" name="并行评审：取消待执行分页必须结算调用方 &gt; destroy 不遗失同步订阅中排队的 loadMore Promise" time="0.000569959">
+            <failure message="expected false to be true // Object.is equality" type="AssertionError">
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ src/__tests__/review-parallel-loadmore-settlement.spec.ts:36:23
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/review-parallel-loadmore-settlement.spec.ts" name="并行评审：取消待执行分页必须结算调用方 &gt; 未取消时，同一重入位置的分页可以执行并结算" time="0.00039875">
+        </testcase>
+    </testsuite>
+</testsuites>

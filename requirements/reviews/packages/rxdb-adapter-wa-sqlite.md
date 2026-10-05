@@ -146,3 +146,22 @@ pnpm audit:coverage --projects=rxdb-adapter-wa-sqlite
 确认意见：[RV-061](../RV-061-querycache-sqlite-nonpublic-namespace-target.md)。全批门禁、接缝和中间取证错误见 [本轮执行台账](../execution-2026-10-05-supabase.md)；[源码指纹](../evidence/2026-10-05/supabase/runtime-and-sources.json)、[最终计数](../evidence/2026-10-05/supabase/final-counts.json) 与 [交付校验](../evidence/2026-10-05/supabase/delivery-validation.json)。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
 
 尚需核销原 C 项中的未覆盖边界，尤其认证/RLS、Realtime、跨宿主、覆盖率与打包消费；本轮没有新增完整 C 核销。助手未修改业务源码，不操作用户暂存区。
+
+## 2026-10-05：local-adapters 并行实审收束
+
+这部分是**实际执行回填**，不是新增泛计划。原专项表及其旧 RV/旧测试数字属于早期执行快照；当前源与当轮结果见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-adapter-wa-sqlite.md`。用户已修历史问题不重新标红。
+
+- execution: in-progress / partial；**原 C 全边界核销 0/5，整对象未 closed**。原第 6 节完成条件保持原文，未满足项不打勾。
+- 当轮已结算：Tests 858 passed | 14 skipped (872)（/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/local-adapters-tests.txt:826）。
+- 未取得该对象当轮同代 summary/final，不引用库存或历史覆盖率。覆盖率只对应原配置 include/exclude、该次执行宿主与已执行项；skip 不折算通过，源码语义与真实持久化需另证。
+- 本轮明确意见：未新增确认问题；不是整对象通过。
+
+| C   | 实读源码/实际证据锚点                                                                                                                                                                                                                 | 当前结论/可证反证                                                                                                                                  | 原 C 核销 | 剩余必要验证                                                                                                 |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------ |
+| C1  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/sqlite-load.utils.ts:67–68,193–241,257–297`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/create_sqlite_client.ts:25–60`               | 默认IDBBatchAtomicVFS；async模式来自同一次解析，已知sync/asyncify文件名错配加载前拒绝；函数型远程选项拒绝，能力表冻结，不偷偷换存储档位。          | 未核销    | 所有VFS/安全上下文/glue404/WASM版本/真实Worker与SharedWorker组合；vfs_register前后资源失败全部边界。         |
+| C2  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/execute_helper.ts:75–88,104–161`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/WaSqliteClientBase.ts:204–246`                          | 有界SQLITE_BUSY重试；绑定语句的收集/执行被finally覆盖，非绑定也逐条手工finalize，与LA-01形成反证。当前858pass/14skip不能证明每种清理错误都处理完。 | 未核销    | 第一个finalize失败仍清理剩余句柄、原始错误归属、取消/BigInt/binary/空结果与真实VFS statement泄漏验证。       |
+| C3  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/WaSqliteClientBase.ts:89–110,190–201,249–267,335–361`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/create_sqlite_client.ts:153–201` | 客户端identity冲突拒绝；初始化晚到会close迟到connection；关闭尝试数据库和VFS两种资源。Comlink同worker仅一租客，不表示不同realm的同库已证明隔离。   | 未核销    | 同/异数据库双标签、worker重启、关闭中事务和真实锁策略；关闭失败重复调用结果完整性尚未核销。                  |
+| C4  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/__tests__/encrypted-change-log.spec.ts:1–9`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts:1654–1712`        | 复用core事务/变更处理，加密log走persistent suite+readDatabaseFile；没有靠业务后端特例消掉不一致。                                                  | 未核销    | 完整conformance/分支物化/事务回滚/事件/tamper，逐一解释14skip；namespace已修历史状态不自动外推其它全部场景。 |
+| C5  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-wa-sqlite/src/RxDBAdapterSqlite.ts:35–45`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/backup/restore-sqlite-database.ts:93–105,142–173`          | 备份仅主线程MemoryVFS/MemoryAsyncVFS/IDBBatchAtomicVFS；Worker/SharedWorker与其它VFS拒绝。这是声明支持面收缩，不能伪装全部OPFS持久化能力。         | 未核销    | 主线程IDB真实刷新/恢复坏档/失败原库/关闭后独占、二进制传输；Worker拒绝路径与部署资源/发布consumer闭合。      |
+
+请求/动态日志与阅读记录均由 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters` 保留。三个新增回归的 late lint/typecheck、完整测量面/宿主/持久化及发布闭合按实际待证留阻断；主控统一追加后续结果，不在这里预支通过。

@@ -1,0 +1,875 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="376" failures="2" errors="0" time="107.652132165">
+    <testsuite name="src/__tests__/RxDBClientGenerator.utils.spec.ts" timestamp="2026-10-05T01:16:39.271Z" hostname="liuleideMacBook-Pro-4.local" tests="29" failures="0" errors="0" skipped="0" time="0.008554125">
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; getGeneratorEntityConfig &gt; should generate entity path without namespace" time="0.001576375">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; getGeneratorEntityConfig &gt; should generate entity path with namespace" time="0.000395916">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; getGeneratorEntityConfig &gt; should handle multi-word entity names" time="0.000122333">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; getGeneratorEntityDefinitionConfig &gt; should generate definition path without namespace" time="0.000127791">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; getGeneratorEntityDefinitionConfig &gt; should generate definition path with namespace" time="0.000085833">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; transitionMetadata &gt; should transition metadata with properties" time="0.0005665">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; transitionMetadata &gt; should transition metadata with relations" time="0.000148334">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; transitionMetadata &gt; should transition metadata with multiple relation kinds" time="0.000157209">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; transitionMetadata &gt; should handle keys with special characters" time="0.000139209">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; transitionMetadata &gt; __proto__ 键必须渲染成计算属性" time="0.000125458">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; transitionMetadata &gt; should handle metadata without relations" time="0.000108209">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; transitionMetadata &gt; keeps non-identifier feature keys quoted without changing enum tokens" time="0.000544958">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; transitionMetadata &gt; should include PropertyType.enum in output" time="0.000098084">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; getEntityPropertyTsType - enum &gt; should return enum type name for enum property" time="0.000126709">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; getEntityPropertyTsType - enum &gt; should append null for nullable enum" time="0.000059459">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; getPropertyTypeConfig - default 值转义 &gt; string 默认值中的单引号应被转义，避免生成非法 TS 代码" time="0.000145125">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; getPropertyTypeConfig - default 值转义 &gt; string 默认值中的反斜杠应被转义" time="0.000057416">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; getPropertyTypeConfig - default 值转义 &gt; enum 默认值中的单引号应被转义" time="0.000053334">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; getPropertyTypeConfig - default 值转义 &gt; 普通 string 默认值应保持原样" time="0.000047083">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; getEntityPropertyTsType - enum escaping &gt; renders enum members as escaped string literals" time="0.000085917">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; constructor config &gt; keeps defaults when options are omitted" time="0.000425625">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; constructor config &gt; keeps defaults when options are explicitly undefined" time="0.000071125">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; constructor config &gt; applies provided values" time="0.00006325">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; constructor config &gt; rejects non-positive-integer relationQueryDeep 0" time="0.00052625">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; constructor config &gt; rejects non-positive-integer relationQueryDeep -1" time="0.000077542">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; constructor config &gt; rejects non-positive-integer relationQueryDeep 1.5" time="0.000064916">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; constructor config &gt; rejects non-positive-integer relationQueryDeep NaN" time="0.000081083">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; constructor config &gt; rejects non-boolean splitFiles" time="0.000085125">
+        </testcase>
+        <testcase classname="src/__tests__/RxDBClientGenerator.utils.spec.ts" name="RxDBClientGenerator.utils &gt; unregistered repository type &gt; throws instead of emitting a half-generated entity" time="0.001034958">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/api-docs.spec.ts" timestamp="2026-10-05T01:16:39.273Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.003660333">
+        <testcase classname="src/__tests__/api-docs.spec.ts" name="公开生成器 API 文档 &gt; /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-client-generator/src/index.ts 的所有导出均有 TSDoc" time="0.002417166">
+        </testcase>
+        <testcase classname="src/__tests__/api-docs.spec.ts" name="公开生成器 API 文档 &gt; /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-client-generator/src/cli/cli.ts 的所有导出均有 TSDoc" time="0.000186791">
+        </testcase>
+        <testcase classname="src/__tests__/api-docs.spec.ts" name="公开生成器 API 文档 &gt; /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-client-generator/src/plugins/vite.ts 的所有导出均有 TSDoc" time="0.000093208">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/cli.empty-export.spec.ts" timestamp="2026-10-05T01:16:39.274Z" hostname="liuleideMacBook-Pro-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.013757958">
+        <testcase classname="src/__tests__/cli.empty-export.spec.ts" name="cli loadConfig empty module export &gt; throws when jiti returns a module with no usable export" time="0.007885167">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/cli.spec.ts" timestamp="2026-10-05T01:16:39.274Z" hostname="liuleideMacBook-Pro-4.local" tests="12" failures="0" errors="0" skipped="0" time="0.136640042">
+        <testcase classname="src/__tests__/cli.spec.ts" name="rxdb-client-generator cli &gt; loads ts config files and resolves paths relative to the config file" time="0.083315083">
+        </testcase>
+        <testcase classname="src/__tests__/cli.spec.ts" name="rxdb-client-generator cli &gt; throws when config file is missing" time="0.001119">
+        </testcase>
+        <testcase classname="src/__tests__/cli.spec.ts" name="rxdb-client-generator cli &gt; accepts single-object configs and named config exports" time="0.011121667">
+        </testcase>
+        <testcase classname="src/__tests__/cli.spec.ts" name="rxdb-client-generator cli &gt; rejects empty arrays and invalid config shapes" time="0.01020325">
+        </testcase>
+        <testcase classname="src/__tests__/cli.spec.ts" name="rxdb-client-generator cli &gt; rejects configs that resolve to the same outDir" time="0.002977792">
+        </testcase>
+        <testcase classname="src/__tests__/cli.spec.ts" name="rxdb-client-generator cli &gt; rejects normalized and symlinked aliases of an output directory" time="0.006000292">
+        </testcase>
+        <testcase classname="src/__tests__/cli.spec.ts" name="rxdb-client-generator cli &gt; rejects malformed relationQueryDeep and splitFiles in config files" time="0.009628833">
+        </testcase>
+        <testcase classname="src/__tests__/cli.spec.ts" name="rxdb-client-generator cli &gt; recognizes the CLI entry when invoked through a symlink" time="0.0010065">
+        </testcase>
+        <testcase classname="src/__tests__/cli.spec.ts" name="rxdb-client-generator cli &gt; recognizes the CLI entry when import.meta.url only differs by drive-letter case" time="0.000269375">
+        </testcase>
+        <testcase classname="src/__tests__/cli.spec.ts" name="rxdb-client-generator cli &gt; recognizes the CLI entry when the file URL form differs from argv" time="0.00079575">
+        </testcase>
+        <testcase classname="src/__tests__/cli.spec.ts" name="rxdb-client-generator cli &gt; main prints usage and exits when no config path is provided" time="0.001135">
+        </testcase>
+        <testcase classname="src/__tests__/cli.spec.ts" name="rxdb-client-generator cli &gt; main generates clients when a valid config path is provided" time="0.00801125">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_bigint_binary.spec.ts" timestamp="2026-10-05T01:16:39.275Z" hostname="liuleideMacBook-Pro-4.local" tests="4" failures="0" errors="0" skipped="0" time="1.7969935">
+        <testcase classname="src/__tests__/generator_bigint_binary.spec.ts" name="bigint and binary client generation &gt; generates runtime types, id type and legal query rules" time="0.014433625">
+        </testcase>
+        <testcase classname="src/__tests__/generator_bigint_binary.spec.ts" name="bigint and binary client generation &gt; compiles get(1n), bigint rules and binary equality rules" time="0.57004225">
+        </testcase>
+        <testcase classname="src/__tests__/generator_bigint_binary.spec.ts" name="bigint and binary client generation &gt; keeps both many-to-many junction foreign keys as bigint" time="0.594202792">
+        </testcase>
+        <testcase classname="src/__tests__/generator_bigint_binary.spec.ts" name="bigint and binary client generation &gt; rejects string ids for bigint many-to-many junction foreign keys" time="0.617043417">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_declared_symbols.spec.ts" timestamp="2026-10-05T01:16:39.275Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.015566542">
+        <testcase classname="src/__tests__/generator_declared_symbols.spec.ts" name="repository generator declared symbols &gt; reserves plugin declared types in the pre-flight collision table" time="0.002678792">
+        </testcase>
+        <testcase classname="src/__tests__/generator_declared_symbols.spec.ts" name="repository generator declared symbols &gt; reserves plugin declared entity interfaces as declaration imports" time="0.000304917">
+        </testcase>
+        <testcase classname="src/__tests__/generator_declared_symbols.spec.ts" name="repository generator declared symbols &gt; implements plugin declared entity interfaces on the generated class" time="0.011601584">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_default_serialization.spec.ts" timestamp="2026-10-05T01:16:39.275Z" hostname="liuleideMacBook-Pro-4.local" tests="29" failures="0" errors="0" skipped="0" time="0.009599333">
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#1 bigint &gt; 渲染成十进制 bigint 字面量，而不是崩在原生 TypeError 上" time="0.001438042">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#1 bigint &gt; 负数与超出 Number 安全范围的值同样保真" time="0.00014425">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#2 Uint8Array &gt; 渲染成 new Uint8Array([...])，不塌成数字键对象" time="0.000171458">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#2 Uint8Array &gt; 只取当前视图字节，不含底层 buffer 的其余部分" time="0.000117458">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#2 Uint8Array &gt; 空视图渲染成空数组而不是 {}" time="0.000113875">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#2 Uint8Array &gt; Buffer 显式拒绝，不静默降级成 Uint8Array" time="0.000590833">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#3 Date 与 CURRENT_TIMESTAMP &gt; 有效 Date 渲染成 new Date(ISO)，不退化成空对象" time="0.001100375">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#3 Date 与 CURRENT_TIMESTAMP &gt; CURRENT_TIMESTAMP 原样输出字符串字面量，与 Date 在生成代码里可区分" time="0.000124125">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#4 JSON-safe 常量 &gt; 字符串 输出等价字面量" time="0.000122667">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#4 JSON-safe 常量 &gt; 布尔 输出等价字面量" time="0.000064083">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#4 JSON-safe 常量 &gt; 有限数 输出等价字面量" time="0.00006275">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#4 JSON-safe 常量 &gt; 零 输出等价字面量" time="0.000064625">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#4 JSON-safe 常量 &gt; 数组与普通对象保持结构" time="0.000133083">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#5 函数工厂显式失败 &gt; 箭头函数 抛 unsupportedDefaultFactory 且带实体名与字段名" time="0.000284542">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#5 函数工厂显式失败 &gt; 闭包 抛 unsupportedDefaultFactory 且带实体名与字段名" time="0.000168125">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#5 函数工厂显式失败 &gt; 具名函数 抛 unsupportedDefaultFactory 且带实体名与字段名" time="0.000179792">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#5 函数工厂显式失败 &gt; 不得静默丢弃——键必须消失或抛错二选一，这里只允许抛错" time="0.000090916">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#6 其他不支持值显式失败 &gt; 非有限数抛 unsupportedDefaultValue，而不是静默变成 null" time="0.000258125">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#6 其他不支持值显式失败 &gt; 非法 Date 抛 unsupportedDefaultValue" time="0.000116792">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#6 其他不支持值显式失败 &gt; 循环引用抛 unsupportedDefaultValue，不是栈溢出" time="0.000124292">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#6 其他不支持值显式失败 &gt; Map 等非普通对象抛 unsupportedDefaultValue，不塌成 {}" time="0.000110833">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#6 其他不支持值显式失败 &gt; 错误信息带实体名与字段名，不是裸的 Unsupported metadata value" time="0.000270375">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#6 其他不支持值显式失败 &gt; 显式 undefined 的键按原有语义跳过，不抛错" time="0.0001575">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#7 EntityBase 继承 &gt; 继承 EntityBase 的函数 default 不触发失败——序列化源只含自身声明成员（G1）" time="0.000841875">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#7 EntityBase 继承 &gt; 抽象元数据只进 metadataMap、不进 metadataSet，因此不被序列化输出" time="0.000180917">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#8 关系上的 default &gt; 常量 default 按 G2 渲染" time="0.000146958">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#8 关系上的 default &gt; 函数 default 抛 unsupportedDefaultFactory，字段名用关系名" time="0.000142667">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#9 enumerable:false 内部键 &gt; 12 个内部键逐键不出现在生成结果里" time="0.000279333">
+        </testcase>
+        <testcase classname="src/__tests__/generator_default_serialization.spec.ts" name="US-018 生成器 default 序列化 &gt; AC#9 enumerable:false 内部键 &gt; 五个惰性 getter 未被求值——遍历没有改用 Reflect.ownKeys / getOwnPropertyNames" time="0.00065125">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_entity_instance_methods.spec.ts" timestamp="2026-10-05T01:16:39.277Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.602843833">
+        <testcase classname="src/__tests__/generator_entity_instance_methods.spec.ts" name="generated entity instance methods &gt; emits callable properties compatible with EntityBase declarations" time="0.013892833">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_instance_methods.spec.ts" name="generated entity instance methods &gt; compiles generated declarations against the EntityBase member contract" time="0.587201166">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_instance_methods.spec.ts" name="generated entity instance methods &gt; preserves custom repository method generation" time="0.000731791">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_entity_js_file.spec.ts" timestamp="2026-10-05T01:16:39.278Z" hostname="liuleideMacBook-Pro-4.local" tests="9" failures="0" errors="0" skipped="0" time="0.019108708">
+        <testcase classname="src/__tests__/generator_entity_js_file.spec.ts" name="generator_entity_js_file &gt; should generate simple entity without extends or relations" time="0.002295125">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_js_file.spec.ts" name="generator_entity_js_file &gt; should generate entity with extends" time="0.000355959">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_js_file.spec.ts" name="generator_entity_js_file &gt; should generate entity with relations" time="0.000392209">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_js_file.spec.ts" name="generator_entity_js_file &gt; should throw error for unmapped many-to-many relation" time="0.000679875">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_js_file.spec.ts" name="generator_entity_js_file &gt; should handle many-to-many relations correctly" time="0.000421833">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_js_file.spec.ts" name="generator_entity_js_file &gt; should sort imports and exports alphabetically" time="0.000208584">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_js_file.spec.ts" name="generator_entity_js_file &gt; should generate entity with multiple extends (plugin base class)" time="0.008832958">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_js_file.spec.ts" name="generator_entity_js_file &gt; keeps decorator replacement runtime semantics" time="0.003374166">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_js_file.spec.ts" name="generator_entity_js_file &gt; serializes template interpolation payloads as inert metadata strings" time="0.000829208">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_entity_properties.spec.ts" timestamp="2026-10-05T01:16:39.278Z" hostname="liuleideMacBook-Pro-4.local" tests="9" failures="0" errors="0" skipped="0" time="0.004603584">
+        <testcase classname="src/__tests__/generator_entity_properties.spec.ts" name="generator_entity_properties &gt; should generate properties for entity with basic types" time="0.001627958">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_properties.spec.ts" name="generator_entity_properties &gt; should handle property with default value" time="0.00020375">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_properties.spec.ts" name="generator_entity_properties &gt; should handle nullable properties" time="0.000120916">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_properties.spec.ts" name="generator_entity_properties &gt; should not include initializer in class properties" time="0.000115958">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_properties.spec.ts" name="generator_entity_properties &gt; Tree 开启 hasChildren 会生成属性" time="0.000547792">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_properties.spec.ts" name="generator_entity_properties &gt; Tree 不开启 hasChildren 不会生成属性" time="0.000099375">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_properties.spec.ts" name="generator_entity_properties &gt; enum 类型属性 &gt; 属性类型应该为 enum 类型名称" time="0.0001045">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_properties.spec.ts" name="generator_entity_properties &gt; enum 类型属性 &gt; 有默认值的 enum 应该生成 EnumType.member 形式" time="0.000113792">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_properties.spec.ts" name="generator_entity_properties &gt; enum 类型属性 &gt; nullable enum 应该包含 null" time="0.000087625">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_entity_relations.spec.ts" timestamp="2026-10-05T01:16:39.279Z" hostname="liuleideMacBook-Pro-4.local" tests="7" failures="0" errors="0" skipped="0" time="1.804845334">
+        <testcase classname="src/__tests__/generator_entity_relations.spec.ts" name="generator_entity_relations — InitData 关系字段注入 &gt; MANY_TO_ONE：外键 xxxId 应出现在 InitData 中（非 nullable）" time="0.012797125">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_relations.spec.ts" name="generator_entity_relations — InitData 关系字段注入 &gt; MANY_TO_ONE：nullable 时外键类型应为 UUID | null" time="0.0005495">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_relations.spec.ts" name="generator_entity_relations — InitData 关系字段注入 &gt; ONE_TO_ONE（当前实体持有外键）：外键 xxxId 应出现在 InitData 中" time="0.000399959">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_relations.spec.ts" name="generator_entity_relations — InitData 关系字段注入 &gt; ONE_TO_MANY：InitData 中不应出现任何关系字段" time="0.000597291">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_relations.spec.ts" name="generator_entity_relations — generated consumer types &gt; ONE_TO_MANY uses the related entity constructor type" time="0.560826625">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_relations.spec.ts" name="generator_entity_relations — generated consumer types &gt; MANY_TO_MANY uses the related entity constructor type" time="0.564887209">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_relations.spec.ts" name="generator_entity_relations — generated consumer types &gt; escapes multiline relation display names in generated JSDoc" time="0.662657667">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_entity_rules.spec.ts" timestamp="2026-10-05T01:16:39.279Z" hostname="liuleideMacBook-Pro-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.005308917">
+        <testcase classname="src/__tests__/generator_entity_rules.spec.ts" name="generator_entity_rules - KeyValue Support &gt; should generate KeyValueRules for keyValue property" time="0.001513417">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules.spec.ts" name="generator_entity_rules - KeyValue Support &gt; should generate correct types for keyValue with all supported basic types" time="0.000882875">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules.spec.ts" name="generator_entity_rules - KeyValue Support &gt; should handle nullable keyValue nested properties" time="0.000202167">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules.spec.ts" name="generator_entity_rules - KeyValue Support &gt; should generate rules for multiple keyValue properties" time="0.000216917">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules.spec.ts" name="generator_entity_rules - KeyValue Support &gt; should handle empty keyValue properties array" time="0.000876166">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_entity_rules_exists.spec.ts" timestamp="2026-10-05T01:16:39.280Z" hostname="liuleideMacBook-Pro-4.local" tests="17" failures="0" errors="0" skipped="0" time="0.007886875">
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="generator_entity_rules - EXISTS Rules &gt; 应该为顶层关系生成 RelationExistsRules" time="0.002423166">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="generator_entity_rules - EXISTS Rules &gt; 应该同时生成属性规则和 EXISTS 规则" time="0.000305833">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="generator_entity_rules - EXISTS Rules &gt; 应该为嵌套关系属性生成常规规则（不是 EXISTS）" time="0.000208583">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="generator_entity_rules - EXISTS Rules &gt; RuleTypeData 应该包含 subRuleGroup 字段" time="0.000232875">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="generator_entity_rules - EXISTS Rules &gt; 不应该为嵌套关系生成 EXISTS 规则" time="0.000588542">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="generator_entity_rules - 多种关系类型的 EXISTS 规则 &gt; 应该为 MANY_TO_ONE 关系生成 EXISTS 规则" time="0.000286917">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="generator_entity_rules - 多种关系类型的 EXISTS 规则 &gt; 应该为 ONE_TO_ONE 关系生成 EXISTS 规则" time="0.000154458">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="generator_entity_rules - 多种关系类型的 EXISTS 规则 &gt; 应该为 MANY_TO_MANY 关系生成 EXISTS 规则" time="0.000123417">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="generator_entity_rules - 多种关系类型的 EXISTS 规则 &gt; 应该为多个关系生成多个 EXISTS 规则" time="0.00024175">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="build_rules - EXISTS 规则类型生成 &gt; 应该为 EXISTS 规则生成正确的类型字符串" time="0.000245">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="build_rules - EXISTS 规则类型生成 &gt; 应该正确处理混合规则（属性 + 嵌套属性 + EXISTS）" time="0.000190125">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="generator_entity_rules - 边界场景和循环引用 &gt; 应该处理自引用关系（循环引用）" time="0.000254375">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="generator_entity_rules - 边界场景和循环引用 &gt; 应该在达到 relationQueryDeep 限制时停止递归" time="0.000159584">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="generator_entity_rules - 边界场景和循环引用 &gt; 应该为 ONE_TO_MANY 关系生成 EXISTS 规则" time="0.000100083">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="generator_entity_rules - 边界场景和循环引用 &gt; 不应该为空 relationMap 生成 EXISTS 规则" time="0.000126334">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="generator_entity_rules - 边界场景和循环引用 &gt; 应该正确处理同时包含 foreignKey 和非 foreignKey 的关系" time="0.00017275">
+        </testcase>
+        <testcase classname="src/__tests__/generator_entity_rules_exists.spec.ts" name="generator_entity_rules - nested foreign keys &gt; prefixes nested foreign keys and supplies their related id value type" time="0.000398292">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_entity_static_members.spec.ts" timestamp="2026-10-05T01:16:39.281Z" hostname="liuleideMacBook-Pro-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.574447875">
+        <testcase classname="src/__tests__/generator_entity_static_members.spec.ts" name="generated entity static members &gt; compiles the concrete Repository API against EntityBase static members" time="0.573386">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_field_semantics.spec.ts" timestamp="2026-10-05T01:16:39.281Z" hostname="liuleideMacBook-Pro-4.local" tests="11" failures="0" errors="0" skipped="0" time="3.598740416">
+        <testcase classname="src/__tests__/generator_field_semantics.spec.ts" name="AC#34 — 生成器透传 format / enum / options &gt; format 判别对象连同配置项整份落进生成代码" time="0.01277525">
+        </testcase>
+        <testcase classname="src/__tests__/generator_field_semantics.spec.ts" name="AC#34 — 生成器透传 format / enum / options &gt; enum 只读数组保序透传，成员不被合并成单个字符串" time="0.000470208">
+        </testcase>
+        <testcase classname="src/__tests__/generator_field_semantics.spec.ts" name="AC#34 — 生成器透传 format / enum / options &gt; options 展示元数据整份透传，含 disabled 与需要引号的键" time="0.000363041">
+        </testcase>
+        <testcase classname="src/__tests__/generator_field_semantics.spec.ts" name="AC#34 — 生成器透传 format / enum / options &gt; 三个语义键都不被塌缩成字符串或 [object Object]" time="0.000529208">
+        </testcase>
+        <testcase classname="src/__tests__/generator_field_semantics.spec.ts" name="AC#34 — 生成器透传 format / enum / options &gt; 生成的运行时产物在 angular 编译档位下零诊断" time="0.498166167">
+        </testcase>
+        <testcase classname="src/__tests__/generator_field_semantics.spec.ts" name="AC#34 — 生成器透传 format / enum / options &gt; 生成的运行时产物在 react 编译档位下零诊断" time="0.714149583">
+        </testcase>
+        <testcase classname="src/__tests__/generator_field_semantics.spec.ts" name="AC#34 — 生成器透传 format / enum / options &gt; 生成的运行时产物在 vue 编译档位下零诊断" time="0.7185975">
+        </testcase>
+        <testcase classname="src/__tests__/generator_field_semantics.spec.ts" name="AC#34 — 生成器透传 format / enum / options &gt; 同一份产物在三端编译档位下诊断完全一致" time="0.873584459">
+        </testcase>
+        <testcase classname="src/__tests__/generator_field_semantics.spec.ts" name="AC#34 — 生成器透传 format / enum / options &gt; 语义键一旦塌缩成字符串，编译必须失败（防止上面的编译断言变成空转）" time="0.775864333">
+        </testcase>
+        <testcase classname="src/__tests__/generator_field_semantics.spec.ts" name="AC#34 — 生成器透传 format / enum / options &gt; format 与 options 不改变生成的类型声明（INV-2）" time="0.002185542">
+        </testcase>
+        <testcase classname="src/__tests__/generator_field_semantics.spec.ts" name="AC#34 — 生成器透传 format / enum / options &gt; enum 在类型声明层展开为字面量联合而不是 string" time="0.000457209">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_key_value_integration.spec.ts" timestamp="2026-10-05T01:16:39.282Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="1.122399209">
+        <testcase classname="src/__tests__/generator_key_value_integration.spec.ts" name="RxDBClientGenerator - KeyValue Type Generation &gt; should generate JS file with keyValue metadata" time="0.013217958">
+        </testcase>
+        <testcase classname="src/__tests__/generator_key_value_integration.spec.ts" name="RxDBClientGenerator - KeyValue Type Generation &gt; escapes entity, property, and nested keyValue JSDoc" time="0.554059875">
+        </testcase>
+        <testcase classname="src/__tests__/generator_key_value_integration.spec.ts" name="RxDBClientGenerator - KeyValue Type Generation &gt; imports sibling keyValue interfaces referenced by relation rules in split mode" time="0.553805708">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_m2m_validation.spec.ts" timestamp="2026-10-05T01:16:39.283Z" hostname="liuleideMacBook-Pro-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.017149708">
+        <testcase classname="src/__tests__/generator_m2m_validation.spec.ts" name="RCG-007 many-to-many 反向校验 &gt; 两端正确互指时通过" time="0.014106333">
+        </testcase>
+        <testcase classname="src/__tests__/generator_m2m_validation.spec.ts" name="RCG-007 many-to-many 反向校验 &gt; 对端指向第三个实体时必须报错" time="0.0007425">
+        </testcase>
+        <testcase classname="src/__tests__/generator_m2m_validation.spec.ts" name="RCG-007 many-to-many 反向校验 &gt; 实体名跨 namespace 也必须唯一（这条约束让 namespace 错指不可达）" time="0.00018">
+        </testcase>
+        <testcase classname="src/__tests__/generator_m2m_validation.spec.ts" name="RCG-007 many-to-many 反向校验 &gt; 对端 namespace 指向不存在的 namespace 时必须报错" time="0.000402167">
+        </testcase>
+        <testcase classname="src/__tests__/generator_m2m_validation.spec.ts" name="RCG-007 many-to-many 反向校验 &gt; 错误信息必须带上两端 identity" time="0.000576959">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_metadata_key.spec.ts" timestamp="2026-10-05T01:16:39.283Z" hostname="liuleideMacBook-Pro-4.local" tests="4" failures="0" errors="0" skipped="0" time="0.003317708">
+        <testcase classname="src/__tests__/generator_metadata_key.spec.ts" name="RCG-001 metadataMap 键碰撞 &gt; namespace 与实体名里的下划线不得造成互相覆盖" time="0.0019215">
+        </testcase>
+        <testcase classname="src/__tests__/generator_metadata_key.spec.ts" name="RCG-001 metadataMap 键碰撞 &gt; 碰撞的两个实体必须各自解析到自己" time="0.000188166">
+        </testcase>
+        <testcase classname="src/__tests__/generator_metadata_key.spec.ts" name="RCG-001 metadataMap 键碰撞 &gt; 未声明 namespace 的实体可以按 public 读回（写入与读取的兜底必须一致）" time="0.000090333">
+        </testcase>
+        <testcase classname="src/__tests__/generator_metadata_key.spec.ts" name="RCG-001 metadataMap 键碰撞 &gt; 查不到时返回 undefined，而不是命中别的实体" time="0.000126167">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_security.spec.ts" timestamp="2026-10-05T01:16:39.283Z" hostname="liuleideMacBook-Pro-4.local" tests="12" failures="0" errors="0" skipped="0" time="0.58111225">
+        <testcase classname="src/__tests__/generator_security.spec.ts" name="generator security boundaries &gt; rejects unsafe entity name before registration" time="0.001924875">
+        </testcase>
+        <testcase classname="src/__tests__/generator_security.spec.ts" name="generator security boundaries &gt; rejects unsafe namespace before registration" time="0.000444541">
+        </testcase>
+        <testcase classname="src/__tests__/generator_security.spec.ts" name="generator security boundaries &gt; rejects unsafe extends before registration" time="0.000112875">
+        </testcase>
+        <testcase classname="src/__tests__/generator_security.spec.ts" name="generator security boundaries &gt; rejects unsafe property name before registration" time="0.000265458">
+        </testcase>
+        <testcase classname="src/__tests__/generator_security.spec.ts" name="generator security boundaries &gt; rejects unsafe nested keyValue property name before registration" time="0.000183166">
+        </testcase>
+        <testcase classname="src/__tests__/generator_security.spec.ts" name="generator security boundaries &gt; rejects unsafe relation name before registration" time="0.00018475">
+        </testcase>
+        <testcase classname="src/__tests__/generator_security.spec.ts" name="generator security boundaries &gt; rejects unsafe mapped entity before registration" time="0.000159042">
+        </testcase>
+        <testcase classname="src/__tests__/generator_security.spec.ts" name="generator security boundaries &gt; rejects unsafe mapped property before registration" time="0.000118875">
+        </testcase>
+        <testcase classname="src/__tests__/generator_security.spec.ts" name="generator security boundaries &gt; rejects unsafe mapped namespace before registration" time="0.000120208">
+        </testcase>
+        <testcase classname="src/__tests__/generator_security.spec.ts" name="generator security boundaries &gt; rejects duplicate class names across namespaces" time="0.000223625">
+        </testcase>
+        <testcase classname="src/__tests__/generator_security.spec.ts" name="generator security boundaries &gt; revalidates metadata inserted directly before creating source files" time="0.000192209">
+        </testcase>
+        <testcase classname="src/__tests__/generator_security.spec.ts" name="generator security boundaries &gt; quotes a safe hyphenated namespace in module augmentation" time="0.576053792">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_split_files.spec.ts" timestamp="2026-10-05T01:16:39.284Z" hostname="liuleideMacBook-Pro-4.local" tests="21" failures="0" errors="0" skipped="0" time="2.868708666">
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files &gt; generateEntityJsFile with splitFiles: true &gt; should generate one js file per entity" time="0.001631333">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files &gt; generateEntityJsFile with splitFiles: true &gt; each entity file should have its own import and export" time="0.000256375">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files &gt; generateEntityJsFile with splitFiles: true &gt; each entity file should include extends import" time="0.000204375">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files &gt; generateEntityJsFile with splitFiles: true &gt; each entity file should include PropertyType when has properties" time="0.00014475">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files &gt; generateEntityJsFile with splitFiles: true &gt; each entity file should include RelationKind when has relations" time="0.000205">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files &gt; generateEntityJsFile with splitFiles: true &gt; index.js should import from entity files and re-export all" time="0.000166417">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files &gt; generateEntityJsFile with splitFiles: true &gt; index.js entities should be sorted alphabetically" time="0.000160208">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files &gt; generateEntityJsFile with splitFiles: true &gt; should not put all entities in index.js when splitFiles: true" time="0.000145125">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files &gt; generateEntityJsFile with splitFiles: true &gt; should throw for unmapped many-to-many relation in split mode" time="0.000554959">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files &gt; generateAllEntityDefinition split mode (via exec) &gt; should generate one d.ts file per entity" time="0.010596292">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files &gt; generateAllEntityDefinition split mode (via exec) &gt; index.d.ts should re-export from entity files" time="0.000683875">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files &gt; generateAllEntityDefinition split mode (via exec) &gt; index.d.ts should include module augmentation for all entities" time="0.000311417">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files &gt; generateAllEntityDefinition split mode (via exec) &gt; entity d.ts file should declare the entity class" time="0.000591167">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files &gt; generateAllEntityDefinition split mode (via exec) &gt; entity without extends must still produce parseable .d.ts" time="0.601955708">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files &gt; splitFiles: false (default) backward compatibility &gt; should default to single index.js file" time="0.000310917">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files &gt; splitFiles: false (default) backward compatibility &gt; explicit splitFiles: false behaves same as default" time="0.000112667">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files — generated consumer declarations &gt; single-file mode aggregates entities in the same namespace once" time="0.568548958">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files — generated consumer declarations &gt; split-file mode aggregates entities in the same namespace once" time="0.552156834">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files — generated consumer declarations &gt; split-file mode imports sibling entity and RuleGroup types" time="0.559838416">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files — generated consumer declarations &gt; split-file barrel re-exports the class and StaticTypes without local import shadowing" time="0.567050875">
+        </testcase>
+        <testcase classname="src/__tests__/generator_split_files.spec.ts" name="generator_split_files — generated consumer declarations &gt; rebuilds the in-memory source manifest on every exec" time="0.000874833">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_symbol_collisions.spec.ts" timestamp="2026-10-05T01:16:39.286Z" hostname="liuleideMacBook-Pro-4.local" tests="16" failures="0" errors="0" skipped="0" time="0.73738525">
+        <testcase classname="src/__tests__/generator_symbol_collisions.spec.ts" name="generated symbol collisions &gt; rejects an entity property that collides with the fixed save member" time="0.002635">
+        </testcase>
+        <testcase classname="src/__tests__/generator_symbol_collisions.spec.ts" name="generated symbol collisions &gt; rejects property ownerId colliding with relation owner output" time="0.000558333">
+        </testcase>
+        <testcase classname="src/__tests__/generator_symbol_collisions.spec.ts" name="generated symbol collisions &gt; rejects property owner$ colliding with relation owner output" time="0.000258542">
+        </testcase>
+        <testcase classname="src/__tests__/generator_symbol_collisions.spec.ts" name="generated symbol collisions &gt; rejects keyValue properties whose generated interface names collide" time="0.000276958">
+        </testcase>
+        <testcase classname="src/__tests__/generator_symbol_collisions.spec.ts" name="generated symbol collisions &gt; rejects case-insensitive split output file collisions" time="0.000372458">
+        </testcase>
+        <testcase classname="src/__tests__/generator_symbol_collisions.spec.ts" name="generated symbol collisions &gt; rejects exported type collisions across split files" time="0.000182667">
+        </testcase>
+        <testcase classname="src/__tests__/generator_symbol_collisions.spec.ts" name="generated symbol collisions &gt; rejects a public entity and namespace that emit the same RxDB member" time="0.000169958">
+        </testcase>
+        <testcase classname="src/__tests__/generator_symbol_collisions.spec.ts" name="generated symbol collisions &gt; rejects entity EntityType colliding with a fixed declaration import" time="0.000165583">
+        </testcase>
+        <testcase classname="src/__tests__/generator_symbol_collisions.spec.ts" name="generated symbol collisions &gt; rejects entity IEntity colliding with a fixed declaration import" time="0.000148708">
+        </testcase>
+        <testcase classname="src/__tests__/generator_symbol_collisions.spec.ts" name="generated symbol collisions &gt; rejects entity RuleGroupBase colliding with a fixed declaration import" time="0.000114792">
+        </testcase>
+        <testcase classname="src/__tests__/generator_symbol_collisions.spec.ts" name="generated symbol collisions &gt; rejects entity UUID colliding with a fixed declaration import" time="0.000137542">
+        </testcase>
+        <testcase classname="src/__tests__/generator_symbol_collisions.spec.ts" name="generated symbol collisions &gt; rejects entity Observable colliding with a fixed declaration import" time="0.000114709">
+        </testcase>
+        <testcase classname="src/__tests__/generator_symbol_collisions.spec.ts" name="generated symbol collisions &gt; rejects a plugin entity colliding with its declared entity interface import" time="0.000290416">
+        </testcase>
+        <testcase classname="src/__tests__/generator_symbol_collisions.spec.ts" name="generated symbol collisions &gt; allows a plain entity named after a plugin entity interface" time="0.011265417">
+        </testcase>
+        <testcase classname="src/__tests__/generator_symbol_collisions.spec.ts" name="generated symbol collisions &gt; includes repository plugin members in collision validation" time="0.0004855">
+        </testcase>
+        <testcase classname="src/__tests__/generator_symbol_collisions.spec.ts" name="generated symbol collisions &gt; allows legal method overloads emitted by a repository plugin" time="0.718786708">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/generator_utils.spec.ts" timestamp="2026-10-05T01:16:39.286Z" hostname="liuleideMacBook-Pro-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.002882958">
+        <testcase classname="src/__tests__/generator_utils.spec.ts" name="generator_utils &gt; get_id_type &gt; should return UUID for uuid type" time="0.001119667">
+        </testcase>
+        <testcase classname="src/__tests__/generator_utils.spec.ts" name="generator_utils &gt; get_id_type &gt; should return string for string type" time="0.000105542">
+        </testcase>
+        <testcase classname="src/__tests__/generator_utils.spec.ts" name="generator_utils &gt; get_id_type &gt; should return number for integer type" time="0.000077541">
+        </testcase>
+        <testcase classname="src/__tests__/generator_utils.spec.ts" name="generator_utils &gt; get_id_type &gt; should return bigint for bigint type" time="0.000068209">
+        </testcase>
+        <testcase classname="src/__tests__/generator_utils.spec.ts" name="generator_utils &gt; get_id_type &gt; should reject an unsupported id property type" time="0.000493459">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/known_repository_generators.spec.ts" timestamp="2026-10-05T01:16:39.287Z" hostname="liuleideMacBook-Pro-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.00450025">
+        <testcase classname="src/__tests__/known_repository_generators.spec.ts" name="known repository generator hints &gt; names the config entry for a known plugin package" time="0.001023833">
+        </testcase>
+        <testcase classname="src/__tests__/known_repository_generators.spec.ts" name="known repository generator hints &gt; stays silent for packages it does not know" time="0.000193917">
+        </testcase>
+        <testcase classname="src/__tests__/known_repository_generators.spec.ts" name="known repository generator hints &gt; points a missing TreeRepository generator at the plugin subpath" time="0.001932834">
+        </testcase>
+        <testcase classname="src/__tests__/known_repository_generators.spec.ts" name="registerRepositoryGenerator rejects duplicate names &gt; 同一实例重复注册同名生成器时抛错，而不是静默顶替" time="0.000212833">
+        </testcase>
+        <testcase classname="src/__tests__/known_repository_generators.spec.ts" name="registerRepositoryGenerator rejects duplicate names &gt; 重名与内置的 Repository 生成器冲突时同样抛错" time="0.000123209">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/test-type-demo.spec.ts" timestamp="2026-10-05T01:16:39.287Z" hostname="liuleideMacBook-Pro-4.local" tests="1" failures="0" errors="0" skipped="0" time="2.975970833">
+        <testcase classname="src/__tests__/test-type-demo.spec.ts" name="RxDBClientGenerator &gt; TypeDemo" time="2.974909959">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/ts-morph-browser.spec.ts" timestamp="2026-10-05T01:16:39.287Z" hostname="liuleideMacBook-Pro-4.local" tests="80" failures="0" errors="0" skipped="0" time="0.034227834">
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; Project &gt; should create a new source file" time="0.000885375">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; Project &gt; should create source file with content" time="0.00011575">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; Project &gt; should add source file at path" time="0.000089291">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; Project &gt; should get all source files" time="0.000462834">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Class Declaration &gt; should add a simple class" time="0.000529375">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Class Declaration &gt; should add class with extends" time="0.000128958">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Class Declaration &gt; should add class with implements" time="0.000095042">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Class Declaration &gt; should add class with properties" time="0.000147917">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Class Declaration &gt; should add class with static property" time="0.000086417">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Class Declaration &gt; should add class with constructor" time="0.000150625">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Class Declaration &gt; should add class with methods" time="0.000149791">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Class Declaration &gt; should add class with static method" time="0.000062584">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Class Declaration &gt; should add JSDoc to class" time="0.000100791">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Interface Declaration &gt; should add a simple interface" time="0.000129792">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Interface Declaration &gt; should add interface with extends" time="0.000054041">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Interface Declaration &gt; should add interface with properties" time="0.000072375">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Interface Declaration &gt; should add property to existing interface" time="0.0000835">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Interface Declaration &gt; should keep identical duplicate properties idempotent" time="0.000107291">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Interface Declaration &gt; should add interface with docs" time="0.000064167">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Interface Declaration &gt; 同名接口再次添加时复用既有 helper" time="0.000049209">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Type Alias &gt; should add a type alias" time="0.000074084">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Type Alias &gt; should add type alias with declare keyword" time="0.000043042">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Type Alias &gt; should add type alias with docs" time="0.000059125">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Import Declaration &gt; should add named imports" time="0.000070959">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Import Declaration &gt; should render type-only named imports" time="0.000048083">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Import Declaration &gt; should add multiple import declarations" time="0.000055791">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Import Declaration &gt; 无命名导入的 import 声明不渲染任何内容" time="0.000040792">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Enum Declaration &gt; renders exported const enums with string and numeric members" time="0.000154083">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Enum Declaration &gt; renders plain enums without export when not requested" time="0.000082542">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Enum Declaration &gt; renders enum without members" time="0.000041">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Enum Declaration &gt; 带值的最后一个成员不带尾逗号" time="0.000048833">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Variable Statement &gt; should add const variable" time="0.000108834">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Variable Statement &gt; should add let variable" time="0.000049625">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Variable Statement &gt; should add variable with declare keyword" time="0.000047458">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Variable Statement &gt; should add multiple variable declarations" time="0.000051875">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Variable Statement &gt; should render variable without type annotation" time="0.000044584">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Variable Statement &gt; declarations 为空时声明列表返回空串" time="0.000041667">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Module Declaration &gt; should add a module" time="0.000082458">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Module Declaration &gt; should add module with interface" time="0.000076875">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Module Declaration &gt; should add module with interface and properties" time="0.000073125">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Module Declaration &gt; should add module with docs" time="0.000050083">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; InterfaceHelper &gt; should create interface helper" time="0.000397417">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; InterfaceHelper &gt; should add properties" time="0.000069875">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; InterfaceHelper &gt; should keep identical duplicate properties idempotent" time="0.000067917">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; InterfaceHelper &gt; should reject incompatible duplicate property signatures" time="0.0004425">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; InterfaceHelper &gt; 无类型声明的重复属性以 unknown 兜底报错" time="0.000129125">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; InterfaceHelper &gt; should preserve existing properties" time="0.000097542">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; Node utilities &gt; should check if node is decoratable" time="0.00008425">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; Node utilities &gt; should check if node is call expression" time="0.000070791">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Complex scenarios &gt; should generate complete file with all features" time="0.000168709">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Complex scenarios &gt; should handle empty source file" time="0.000041709">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Complex scenarios &gt; should preserve custom content" time="0.000064709">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Complex scenarios &gt; should handle property with all modifiers" time="0.000073">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Complex scenarios &gt; should handle method with all features" time="0.000075333">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Save operations &gt; rejects asynchronous filesystem save" time="0.000453375">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Save operations &gt; rejects synchronous filesystem save" time="0.000075833">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Public structure contract &gt; renders supported member modifiers and rest parameters into valid TypeScript" time="0.022029375">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Public structure contract &gt; rejects unsupported parameter initializer instead of ignoring it" time="0.000249458">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Public structure contract &gt; rejects unsupported async method instead of ignoring it" time="0.000104458">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Public structure contract &gt; rejects unsupported method statements instead of ignoring it" time="0.000082833">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Public structure contract &gt; rejects unsupported property initializer instead of ignoring it" time="0.000104541">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Public structure contract &gt; rejects unsupported definite assignment instead of ignoring it" time="0.000089958">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Public structure contract &gt; rejects unsupported class decorators instead of ignoring it" time="0.000111167">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Public structure contract &gt; rejects unsupported class non-exported class instead of ignoring it" time="0.0000745">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Public structure contract &gt; rejects unsupported class non-declare class instead of ignoring it" time="0.000146167">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Public structure contract &gt; rejects unsupported interface property scope" time="0.000408458">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; SourceFile - Public structure contract &gt; rejects unsupported interface property static" time="0.000081459">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; ClassDeclaration API &gt; should get class name" time="0.000102042">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; ClassDeclaration API &gt; should get base class" time="0.00008725">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; ClassDeclaration API &gt; should return undefined for no base class" time="0.000070375">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; ClassDeclaration API &gt; should get implements list" time="0.000113209">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; ClassDeclaration API &gt; should get empty implements list" time="0.000056042">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; ClassDeclaration API &gt; should get decorators" time="0.000063542">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; ClassDeclaration API &gt; should get text" time="0.000057875">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; ClassDeclaration API &gt; 带装饰器的类：装饰器表达式与参数包装器回显结构" time="0.000397667">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; ClassDeclaration API &gt; 带 extends 的类：基类包装器回显名称，无继承时返回 undefined" time="0.000139625">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; ClassDeclaration API &gt; implements 包装器的全部回显方法" time="0.000192709">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; ClassDeclaration API &gt; 类级 docs 经 addJsDoc 累积并渲染为 JSDoc；getClasses 回显全部类" time="0.000174125">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; ClassDeclaration API &gt; renders nothing for class without name" time="0.0000495">
+        </testcase>
+        <testcase classname="src/__tests__/ts-morph-browser.spec.ts" name="ts_morph_browser &gt; ClassDeclaration API &gt; renders method without docs" time="0.000061709">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/cli/analyze-file.edges.spec.ts" timestamp="2026-10-05T01:16:39.295Z" hostname="liuleideMacBook-Pro-4.local" tests="14" failures="0" errors="0" skipped="0" time="8.480735458">
+        <testcase classname="src/__tests__/cli/analyze-file.edges.spec.ts" name="analyzeFile edge branches &gt; supports TreeEntity and GraphEntity repository assignment" time="3.118506208">
+        </testcase>
+        <testcase classname="src/__tests__/cli/analyze-file.edges.spec.ts" name="analyzeFile edge branches &gt; rejects multiple entity decorators on one class" time="0.175689792">
+        </testcase>
+        <testcase classname="src/__tests__/cli/analyze-file.edges.spec.ts" name="analyzeFile edge branches &gt; rejects non-call entity decorator and wrong arg count" time="0.319223375">
+        </testcase>
+        <testcase classname="src/__tests__/cli/analyze-file.edges.spec.ts" name="analyzeFile edge branches &gt; evaluates unary plus/minus and parenthesized/as expressions" time="0.161123584">
+        </testcase>
+        <testcase classname="src/__tests__/cli/analyze-file.edges.spec.ts" name="analyzeFile edge branches &gt; rejects computed property names and non-object metadata" time="0.524434333">
+        </testcase>
+        <testcase classname="src/__tests__/cli/analyze-file.edges.spec.ts" name="analyzeFile edge branches &gt; collects parent metadata from decorated base class in same file" time="0.162893875">
+        </testcase>
+        <testcase classname="src/__tests__/cli/analyze-file.edges.spec.ts" name="analyzeFile edge branches &gt; does not treat a local class named EntityBase as the RxDB built-in base" time="0.158157375">
+        </testcase>
+        <testcase classname="src/__tests__/cli/analyze-file.edges.spec.ts" name="analyzeFile edge branches &gt; collects a three-level decorated inheritance chain across files regardless of input order" time="0.175355792">
+        </testcase>
+        <testcase classname="src/__tests__/cli/analyze-file.edges.spec.ts" name="analyzeFile edge branches &gt; resolves named, namespace, and re-export aliases to the original entity decorator symbol" time="0.217272208">
+        </testcase>
+        <testcase classname="src/__tests__/cli/analyze-file.edges.spec.ts" name="analyzeFile edge branches &gt; fails closed when an entity decorator behind a re-export cannot resolve its source package" time="0.706767125">
+        </testcase>
+        <testcase classname="src/__tests__/cli/analyze-file.edges.spec.ts" name="analyzeFile edge branches &gt; fails closed when a decorated class extends an unresolved base class" time="0.217528291">
+        </testcase>
+        <testcase classname="src/__tests__/cli/analyze-file.edges.spec.ts" name="analyzeFile edge branches &gt; rejects a local decorator that only reuses the Entity name" time="0.221269375">
+        </testcase>
+        <testcase classname="src/__tests__/cli/analyze-file.edges.spec.ts" name="analyzeFile edge branches &gt; clears cached decorator package ownership together with the global project" time="0.619724834">
+        </testcase>
+        <testcase classname="src/__tests__/cli/analyze-file.edges.spec.ts" name="analyzeFile edge branches &gt; clearGlobalProject allows reusing global project path" time="1.701385833">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/cli/analyze-file.security.spec.ts" timestamp="2026-10-05T01:16:39.296Z" hostname="liuleideMacBook-Pro-4.local" tests="4" failures="0" errors="0" skipped="0" time="3.493654791">
+        <testcase classname="src/__tests__/cli/analyze-file.security.spec.ts" name="analyzeFile metadata safety &gt; never executes decorator metadata expressions" time="3.020348333">
+        </testcase>
+        <testcase classname="src/__tests__/cli/analyze-file.security.spec.ts" name="analyzeFile metadata safety &gt; fails with source location when metadata references a local value" time="0.168762291">
+        </testcase>
+        <testcase classname="src/__tests__/cli/analyze-file.security.spec.ts" name="analyzeFile metadata safety &gt; fails explicitly when metadata contains a dynamic expression" time="0.152953958">
+        </testcase>
+        <testcase classname="src/__tests__/cli/analyze-file.security.spec.ts" name="analyzeFile metadata safety &gt; statically evaluates literal metadata and approved enum members" time="0.150119875">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/cli/build-client-lib.atomic.spec.ts" timestamp="2026-10-05T01:16:39.296Z" hostname="liuleideMacBook-Pro-4.local" tests="5" failures="0" errors="0" skipped="0" time="13.669255">
+        <testcase classname="src/__tests__/cli/build-client-lib.atomic.spec.ts" name="RCG-005 输出写入必须是全有或全无 &gt; 大小写碰撞被拒绝时，输出目录必须零变化" time="3.970144917">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.atomic.spec.ts" name="RCG-005 输出写入必须是全有或全无 &gt; 首次构建碰撞被拒绝时，不得留下半套文件" time="1.882345584">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.atomic.spec.ts" name="RCG-005 输出写入必须是全有或全无 &gt; 写入中途失败时，既有产物与 manifest 都不变" time="4.163406541">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.atomic.spec.ts" name="RCG-005 输出写入必须是全有或全无 &gt; 失败后不残留 staging 目录" time="1.8672395">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.atomic.spec.ts" name="RCG-005 输出写入必须是全有或全无 &gt; 成功构建后不残留 staging 目录，manifest 也不含它" time="1.784806583">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/cli/build-client-lib.edges.spec.ts" timestamp="2026-10-05T01:16:39.296Z" hostname="liuleideMacBook-Pro-4.local" tests="7" failures="0" errors="0" skipped="0" time="14.228263792">
+        <testcase classname="src/__tests__/cli/build-client-lib.edges.spec.ts" name="buildClientLibrary edge guards &gt; rejects invalid JSON manifest" time="1.7968865">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.edges.spec.ts" name="buildClientLibrary edge guards &gt; rejects manifest with wrong shape or duplicates" time="3.03616925">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.edges.spec.ts" name="buildClientLibrary edge guards &gt; rejects manifest paths that escape the output directory" time="1.688682125">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.edges.spec.ts" name="buildClientLibrary edge guards &gt; rejects an entity named index that would collide with the barrel" time="1.520147875">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.edges.spec.ts" name="buildClientLibrary edge guards &gt; rejects an entity whose file name collides case-insensitively with the barrel" time="1.481468666">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.edges.spec.ts" name="buildClientLibrary edge guards &gt; rejects two entities whose output files differ only by case" time="1.475726042">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.edges.spec.ts" name="buildClientLibrary edge guards &gt; serializes concurrent builds for the same outDir" time="3.228050708">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/cli/build-client-lib.fail-closed.spec.ts" timestamp="2026-10-05T01:16:39.297Z" hostname="liuleideMacBook-Pro-4.local" tests="6" failures="0" errors="0" skipped="0" time="4.878419333">
+        <testcase classname="src/__tests__/cli/build-client-lib.fail-closed.spec.ts" name="RCG-003 空结果必须 fail-closed &gt; 实体全部失去装饰器时拒绝，并且不删除上次生成物" time="2.593902125">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.fail-closed.spec.ts" name="RCG-003 空结果必须 fail-closed &gt; entities 为空数组时拒绝" time="0.001420167">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.fail-closed.spec.ts" name="RCG-003 空结果必须 fail-closed &gt; glob 零匹配时拒绝，并指出是哪个 pattern" time="0.005164792">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.fail-closed.spec.ts" name="RCG-003 空结果必须 fail-closed &gt; 非 glob 路径不存在时拒绝，并指出是哪个路径" time="0.016579917">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.fail-closed.spec.ts" name="RCG-003 空结果必须 fail-closed &gt; allowEmpty 显式开启时才允许生成空客户端" time="2.254300833">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.fail-closed.spec.ts" name="RCG-003 空结果必须 fail-closed &gt; allowEmpty 同样放行空 entities 与零匹配 glob" time="0.005972083">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/cli/build-client-lib.spec.ts" timestamp="2026-10-05T01:16:39.297Z" hostname="liuleideMacBook-Pro-4.local" tests="5" failures="0" errors="0" skipped="0" time="12.809063416">
+        <testcase classname="src/__tests__/cli/build-client-lib.spec.ts" name="buildClientLibrary output lifecycle &gt; removes only stale manifest-owned files when output shape changes" time="3.784146417">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.spec.ts" name="buildClientLibrary output lifecycle &gt; preserves handwritten getters in runtime and declaration outputs" time="1.875017041">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.spec.ts" name="buildClientLibrary output lifecycle &gt; rejects handwritten getters that collide with generated entity members" time="1.750783125">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.spec.ts" name="buildClientLibrary output lifecycle &gt; preserves cross-file inheritance metadata regardless of entity input order" time="1.656287">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.spec.ts" name="buildClientLibrary output lifecycle &gt; keeps every generated entity when only part of the source switches to an import alias" time="3.741654333">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/cli/build-client-lib.symlink.spec.ts" timestamp="2026-10-05T01:16:39.298Z" hostname="liuleideMacBook-Pro-4.local" tests="4" failures="0" errors="0" skipped="0" time="7.9677335">
+        <testcase classname="src/__tests__/cli/build-client-lib.symlink.spec.ts" name="RCG-004 输出目录里的软链不得被跟随 &gt; 生成文件位置是软链时，不得写穿到链接目标" time="1.749204708">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.symlink.spec.ts" name="RCG-004 输出目录里的软链不得被跟随 &gt; manifest 是软链时，不得写穿到链接目标" time="1.544014042">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.symlink.spec.ts" name="RCG-004 输出目录里的软链不得被跟随 &gt; 陈旧文件清理不得穿过软链目录删掉外部文件" time="1.617206958">
+        </testcase>
+        <testcase classname="src/__tests__/cli/build-client-lib.symlink.spec.ts" name="RCG-004 输出目录里的软链不得被跟随 &gt; 软链别名指向同一物理目录时，并发构建必须串行化" time="3.056181875">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/cli/find-files.spec.ts" timestamp="2026-10-05T01:16:39.298Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.006755917">
+        <testcase classname="src/__tests__/cli/find-files.spec.ts" name="find-files &gt; resolves non-glob paths to absolute normalized paths" time="0.001770041">
+        </testcase>
+        <testcase classname="src/__tests__/cli/find-files.spec.ts" name="find-files &gt; expands glob patterns and deduplicates" time="0.002809083">
+        </testcase>
+        <testcase classname="src/__tests__/cli/find-files.spec.ts" name="find-files &gt; rethrows when glob processing fails" time="0.001192917">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/cli/package-exports.spec.ts" timestamp="2026-10-05T01:16:39.298Z" hostname="liuleideMacBook-Pro-4.local" tests="2" failures="0" errors="0" skipped="0" time="0.003243583">
+        <testcase classname="src/__tests__/cli/package-exports.spec.ts" name="package subpath declarations &gt; maps ./cli types to the source-preserving declaration path" time="0.001916292">
+        </testcase>
+        <testcase classname="src/__tests__/cli/package-exports.spec.ts" name="package subpath declarations &gt; maps ./vite types to the source-preserving declaration path" time="0.000378041">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/cli/repository-generators.spec.ts" timestamp="2026-10-05T01:16:39.298Z" hostname="liuleideMacBook-Pro-4.local" tests="15" failures="0" errors="0" skipped="0" time="9.530104334">
+        <testcase classname="src/__tests__/cli/repository-generators.spec.ts" name="parseRepositoryGeneratorSpec &gt; 按 `&lt;模块&gt;#&lt;导出名&gt;` 拆分" time="0.001315958">
+        </testcase>
+        <testcase classname="src/__tests__/cli/repository-generators.spec.ts" name="parseRepositoryGeneratorSpec &gt; 从最后一个 # 拆分，Node 的 imports 子路径（#internal/...）才不会被切坏" time="0.000109542">
+        </testcase>
+        <testcase classname="src/__tests__/cli/repository-generators.spec.ts" name="parseRepositoryGeneratorSpec &gt; 拒绝畸形规格 @aiao/rxdb-plugin-graph/generator（缺导出名）" time="0.000511375">
+        </testcase>
+        <testcase classname="src/__tests__/cli/repository-generators.spec.ts" name="parseRepositoryGeneratorSpec &gt; 拒绝畸形规格 @aiao/rxdb-plugin-graph/generator#（导出名为空）" time="0.000086791">
+        </testcase>
+        <testcase classname="src/__tests__/cli/repository-generators.spec.ts" name="parseRepositoryGeneratorSpec &gt; 拒绝畸形规格 #GraphRepositoryGenerator（模块为空）" time="0.000074208">
+        </testcase>
+        <testcase classname="src/__tests__/cli/repository-generators.spec.ts" name="CLI 装载配置声明的 Repository 生成器 &gt; 声明生成器后，产物带上插件方法，基类元数据也由生成器补齐" time="1.90704375">
+        </testcase>
+        <testcase classname="src/__tests__/cli/repository-generators.spec.ts" name="CLI 装载配置声明的 Repository 生成器 &gt; 不声明生成器时，插件基类的元数据无人提供，分析阶段就拒绝" time="1.498241166">
+        </testcase>
+        <testcase classname="src/__tests__/cli/repository-generators.spec.ts" name="CLI 装载配置声明的 Repository 生成器 &gt; 不声明生成器时，即便实体不继承插件基类也 fail-closed，而不是产出缺方法的半成品" time="3.043250708">
+        </testcase>
+        <testcase classname="src/__tests__/cli/repository-generators.spec.ts" name="CLI 装载配置声明的 Repository 生成器 &gt; 规格指向不存在的导出时报出模块与导出名" time="0.015400625">
+        </testcase>
+        <testcase classname="src/__tests__/cli/repository-generators.spec.ts" name="CLI 装载配置声明的 Repository 生成器 &gt; 导出不是生成器类时拒绝装载" time="0.009503958">
+        </testcase>
+        <testcase classname="src/__tests__/cli/repository-generators.spec.ts" name="CLI 装载配置声明的 Repository 生成器 &gt; 与已注册生成器重名时拒绝，而不是静默顶替" time="1.32375425">
+        </testcase>
+        <testcase classname="src/__tests__/cli/repository-generators.spec.ts" name="loadConfig 归一化 repositoryGenerators &gt; 相对模块按配置文件目录解析，包名规格原样保留" time="0.004620458">
+        </testcase>
+        <testcase classname="src/__tests__/cli/repository-generators.spec.ts" name="loadConfig 归一化 repositoryGenerators &gt; repositoryGenerators 必须是字符串数组" time="0.002895333">
+        </testcase>
+        <testcase classname="src/__tests__/cli/repository-generators.spec.ts" name="CLI 在配置目录之外的 cwd 装载 repositoryGenerators（跨 cwd 集成测试） &gt; 裸包、包子路径、相对路径三种规格，在 cwd 不是配置目录时都能装载" time="1.70848375">
+            <system-out>
+✅ Generated 1 client(s) from /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-client-generator-outside-cwd-nGq4Rt/rxdb.config.ts
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/cli/repository-generators.spec.ts" name="CLI 在配置目录之外的 cwd 装载 repositoryGenerators（跨 cwd 集成测试） &gt; 缺包时的错误信息同时包含原始 spec 字符串与配置文件路径" time="0.013400917">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/cli/review-new-output-alias-queue.spec.ts" timestamp="2026-10-05T01:16:39.299Z" hostname="liuleideMacBook-Pro-4.local" tests="2" failures="0" errors="0" skipped="0" time="8.372148083">
+        <testcase classname="src/__tests__/cli/review-new-output-alias-queue.spec.ts" name="评审：首次输出目录的父软链别名必须共用构建队列 &gt; 输出目录已存在=false 时，最后调用的构建必须最后发布" time="3.807243666">
+            <system-out>
+REVIEW_GENERATOR_ALIAS {&quot;existing&quot;:false,&quot;completionOrder&quot;:[&quot;A&quot;,&quot;B&quot;],&quot;hasAlpha&quot;:false,&quot;hasBeta&quot;:true}
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/cli/review-new-output-alias-queue.spec.ts" name="评审：首次输出目录的父软链别名必须共用构建队列 &gt; 输出目录已存在=true 时，最后调用的构建必须最后发布" time="4.563772917">
+            <system-out>
+REVIEW_GENERATOR_ALIAS {&quot;existing&quot;:true,&quot;completionOrder&quot;:[&quot;A&quot;,&quot;B&quot;],&quot;hasAlpha&quot;:false,&quot;hasBeta&quot;:true}
+
+            </system-out>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/cli/review-parallel-glob-patterns.spec.ts" timestamp="2026-10-05T01:16:39.300Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="2" errors="0" skipped="0" time="0.015875042">
+        <testcase classname="src/__tests__/cli/review-parallel-glob-patterns.spec.ts" name="实体模式使用完整 glob 语法 &gt; 展开不含星号或问号的 [AB].ts" time="0.007349459">
+            <failure message="expected [ Array(1) ] to deeply equal [ …(2) ]" type="AssertionError">
+AssertionError: expected [ Array(1) ] to deeply equal [ …(2) ]
+
+- Expected
++ Received
+
+  [
+-   &quot;/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/review-parallel-glob-9ngoE2/A.ts&quot;,
+-   &quot;/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/review-parallel-glob-9ngoE2/B.ts&quot;,
++   &quot;/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/review-parallel-glob-9ngoE2/[AB].ts&quot;,
+  ]
+
+ ❯ src/__tests__/cli/review-parallel-glob-patterns.spec.ts:21:27
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/cli/review-parallel-glob-patterns.spec.ts" name="实体模式使用完整 glob 语法 &gt; 展开不含星号或问号的 {A,B}.ts" time="0.001203541">
+            <failure message="expected [ Array(1) ] to deeply equal [ …(2) ]" type="AssertionError">
+AssertionError: expected [ Array(1) ] to deeply equal [ …(2) ]
+
+- Expected
++ Received
+
+  [
+-   &quot;/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/review-parallel-glob-vcBYjH/A.ts&quot;,
+-   &quot;/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/review-parallel-glob-vcBYjH/B.ts&quot;,
++   &quot;/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/review-parallel-glob-vcBYjH/{A,B}.ts&quot;,
+  ]
+
+ ❯ src/__tests__/cli/review-parallel-glob-patterns.spec.ts:21:27
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/cli/review-parallel-glob-patterns.spec.ts" name="实体模式使用完整 glob 语法 &gt; 普通星号模式仍展开为实际文件" time="0.006218125">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/plugins/cli-shebang.spec.ts" timestamp="2026-10-05T01:16:39.301Z" hostname="liuleideMacBook-Pro-4.local" tests="4" failures="0" errors="0" skipped="0" time="0.003144375">
+        <testcase classname="src/__tests__/plugins/cli-shebang.spec.ts" name="rxdbClientGeneratorCliShebangPlugin &gt; recognizes POSIX, Windows, query, and file URL module ids" time="0.001142959">
+        </testcase>
+        <testcase classname="src/__tests__/plugins/cli-shebang.spec.ts" name="rxdbClientGeneratorCliShebangPlugin &gt; strips LF and CRLF shebang lines" time="0.000221542">
+        </testcase>
+        <testcase classname="src/__tests__/plugins/cli-shebang.spec.ts" name="rxdbClientGeneratorCliShebangPlugin &gt; strips the CLI shebang when Vite reports a Windows-style module id" time="0.000197">
+        </testcase>
+        <testcase classname="src/__tests__/plugins/cli-shebang.spec.ts" name="rxdbClientGeneratorCliShebangPlugin &gt; keeps a shebang on the emitted cli.js chunk" time="0.0004865">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/plugins/vite.integration.spec.ts" timestamp="2026-10-05T01:16:39.301Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="7.239235667">
+        <testcase classname="src/__tests__/plugins/vite.integration.spec.ts" name="rxdbClientGeneratorVitePlugin integration &gt; generates before a first build resolves generated imports" time="1.928008125">
+        </testcase>
+        <testcase classname="src/__tests__/plugins/vite.integration.spec.ts" name="rxdbClientGeneratorVitePlugin integration &gt; rebuilds serially on consecutive entity changes and triggers full reload" time="4.754940125">
+        </testcase>
+        <testcase classname="src/__tests__/plugins/vite.integration.spec.ts" name="rxdbClientGeneratorVitePlugin integration &gt; propagates initial generation failures from the Vite build" time="0.555080541">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/plugins/vite.spec.ts" timestamp="2026-10-05T01:16:39.301Z" hostname="liuleideMacBook-Pro-4.local" tests="4" failures="0" errors="0" skipped="0" time="0.004287833">
+        <testcase classname="src/__tests__/plugins/vite.spec.ts" name="rxdbClientGeneratorVitePlugin &gt; accepts one generator config" time="0.002381917">
+        </testcase>
+        <testcase classname="src/__tests__/plugins/vite.spec.ts" name="rxdbClientGeneratorVitePlugin &gt; keeps array input support" time="0.0002425">
+        </testcase>
+        <testcase classname="src/__tests__/plugins/vite.spec.ts" name="rxdbClientGeneratorVitePlugin &gt; does not defer generation to closeBundle" time="0.000104625">
+        </testcase>
+        <testcase classname="src/__tests__/plugins/vite.spec.ts" name="rxdbClientGeneratorVitePlugin &gt; rejects configs that share an output directory" time="0.000542583">
+        </testcase>
+    </testsuite>
+</testsuites>

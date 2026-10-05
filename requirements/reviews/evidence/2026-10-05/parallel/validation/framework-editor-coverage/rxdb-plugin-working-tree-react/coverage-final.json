@@ -1,0 +1,86 @@
+{
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/index.ts": {
+    "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/index.ts",
+    "statementMap": { "0": { "start": { "line": 1, "column": 0 }, "end": { "line": 1, "column": null } } },
+    "fnMap": {},
+    "branchMap": {},
+    "s": { "0": 1 },
+    "f": {},
+    "b": {},
+    "meta": { "lastBranch": 0, "lastFunction": 0, "lastStatement": 1, "seen": { "s:1:0:1:Infinity": 0 }, "fnNames": {} }
+  },
+  "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts": {
+    "path": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts",
+    "statementMap": {
+      "0": { "start": { "line": 81, "column": 13 }, "end": { "line": 96, "column": null } },
+      "1": { "start": { "line": 84, "column": 19 }, "end": { "line": 84, "column": 27 } },
+      "2": { "start": { "line": 85, "column": 30 }, "end": { "line": 85, "column": null } },
+      "3": { "start": { "line": 89, "column": 16 }, "end": { "line": 92, "column": null } },
+      "4": { "start": { "line": 90, "column": 20 }, "end": { "line": 90, "column": null } },
+      "5": { "start": { "line": 90, "column": 42 }, "end": { "line": 90, "column": 71 } },
+      "6": { "start": { "line": 93, "column": 19 }, "end": { "line": 93, "column": null } },
+      "7": { "start": { "line": 93, "column": 33 }, "end": { "line": 93, "column": 77 } },
+      "8": { "start": { "line": 95, "column": 2 }, "end": { "line": 95, "column": null } },
+      "9": { "start": { "line": 95, "column": 24 }, "end": { "line": 95, "column": 53 } }
+    },
+    "fnMap": {
+      "0": {
+        "name": "(anonymous_0)",
+        "decl": { "start": { "line": 81, "column": 13 }, "end": { "line": 81, "column": 57 } },
+        "loc": { "start": { "line": 81, "column": 57 }, "end": { "line": 96, "column": null } },
+        "line": 81
+      },
+      "1": {
+        "name": "(anonymous_1)",
+        "decl": { "start": { "line": 89, "column": 16 }, "end": { "line": 89, "column": null } },
+        "loc": { "start": { "line": 90, "column": 20 }, "end": { "line": 90, "column": null } },
+        "line": 90
+      },
+      "2": {
+        "name": "(anonymous_2)",
+        "decl": { "start": { "line": 90, "column": 20 }, "end": { "line": 90, "column": 30 } },
+        "loc": { "start": { "line": 90, "column": 42 }, "end": { "line": 90, "column": 71 } },
+        "line": 90
+      },
+      "3": {
+        "name": "(anonymous_3)",
+        "decl": { "start": { "line": 93, "column": 19 }, "end": { "line": 93, "column": 33 } },
+        "loc": { "start": { "line": 93, "column": 33 }, "end": { "line": 93, "column": 77 } },
+        "line": 93
+      },
+      "4": {
+        "name": "(anonymous_4)",
+        "decl": { "start": { "line": 95, "column": 9 }, "end": { "line": 95, "column": 24 } },
+        "loc": { "start": { "line": 95, "column": 24 }, "end": { "line": 95, "column": 53 } },
+        "line": 95
+      }
+    },
+    "branchMap": {},
+    "s": { "0": 2, "1": 86, "2": 86, "3": 86, "4": 110, "5": 110, "6": 86, "7": 45, "8": 86, "9": 84 },
+    "f": { "0": 86, "1": 110, "2": 110, "3": 45, "4": 84 },
+    "b": {},
+    "meta": {
+      "lastBranch": 0,
+      "lastFunction": 5,
+      "lastStatement": 10,
+      "seen": {
+        "s:81:13:96:Infinity": 0,
+        "f:81:13:81:57": 0,
+        "s:84:19:84:27": 1,
+        "s:85:30:85:Infinity": 2,
+        "s:89:16:92:Infinity": 3,
+        "f:89:16:89:Infinity": 1,
+        "s:90:20:90:Infinity": 4,
+        "f:90:20:90:30": 2,
+        "s:90:42:90:71": 5,
+        "s:93:19:93:Infinity": 6,
+        "f:93:19:93:33": 3,
+        "s:93:33:93:77": 7,
+        "s:95:2:95:Infinity": 8,
+        "f:95:9:95:24": 4,
+        "s:95:24:95:53": 9
+      },
+      "fnNames": {}
+    }
+  }
+}

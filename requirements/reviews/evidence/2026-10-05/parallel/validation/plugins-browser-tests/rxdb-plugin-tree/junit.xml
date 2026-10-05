@@ -1,0 +1,561 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="260" failures="0" errors="0" time="0.675481958">
+<testsuite name="src/__tests__/contracts/sortable-type-source.spec.ts" timestamp="2026-10-05T01:30:00.182Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.004738125">
+        <testcase classname="src/__tests__/contracts/sortable-type-source.spec.ts" name="US-028 阶段 C 树的排序类型来源 &gt; ISortableTreeEntity 的 sortOrder 由核心 SortOrderKey 组合，保持可空可缺省" time="0.002330375">
+        </testcase>
+        <testcase classname="src/__tests__/contracts/sortable-type-source.spec.ts" name="US-028 阶段 C 树的排序类型来源 &gt; 核心排序模块不 import 树插件（依赖方向 tree → sortable）" time="0.00132425">
+        </testcase>
+        <testcase classname="src/__tests__/contracts/sortable-type-source.spec.ts" name="US-028 阶段 C 树的排序类型来源 &gt; 树实体不因实现 ISortableTreeEntity 而获得手动排序声明" time="0.000166833">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/generator/TreeRepositoryGenerator.spec.ts" timestamp="2026-10-05T01:30:00.183Z" hostname="liuleideMacBook-Pro-4.local" tests="4" failures="0" errors="0" skipped="0" time="0.602073833">
+        <testcase classname="src/__tests__/generator/TreeRepositoryGenerator.spec.ts" name="TreeRepositoryGenerator &gt; emits tree base class and query methods from the plugin package" time="0.014584">
+        </testcase>
+        <testcase classname="src/__tests__/generator/TreeRepositoryGenerator.spec.ts" name="TreeRepositoryGenerator &gt; compiles concrete tree queries against TreeAdjacencyListEntityBase static members" time="0.584615208">
+        </testcase>
+        <testcase classname="src/__tests__/generator/TreeRepositoryGenerator.spec.ts" name="TreeRepositoryGenerator &gt; resolves the hand-written TreeEntityBase alias to the adjacency-list base" time="0.000904375">
+        </testcase>
+        <testcase classname="src/__tests__/generator/TreeRepositoryGenerator.spec.ts" name="TreeRepositoryGenerator &gt; rejects a TreeRepository entity without children query rules" time="0.00076775">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/entity/tree-entity-base.browser.spec.ts" timestamp="2026-10-05T01:30:54.038Z" hostname="liuleideMacBook-Pro-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.00041">
+        <testcase classname="src/__tests__/entity/tree-entity-base.browser.spec.ts" name="TreeAdjacencyListEntityBase 的 @Entity 子类（TSDoc 示例） &gt; 继承到 TreeRepository 与 features.tree" time="0.000255">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/entity/tree-entity-numeric-id.browser.spec.ts" timestamp="2026-10-05T01:30:54.039Z" hostname="liuleideMacBook-Pro-4.local" tests="6" failures="0" errors="0" skipped="0" time="0.00074">
+        <testcase classname="src/__tests__/entity/tree-entity-numeric-id.browser.spec.ts" name="树形实体的数值 ID 公开契约（RXD-069） &gt; ITreeEntity.parentId 与 IEntity.id 用同一个 ID 域" time="0.00024">
+        </testcase>
+        <testcase classname="src/__tests__/entity/tree-entity-numeric-id.browser.spec.ts" name="树形实体的数值 ID 公开契约（RXD-069） &gt; TreeAdjacencyListEntityBase 的 parentId 跟随 ID 泛型收窄" time="0.000055">
+        </testcase>
+        <testcase classname="src/__tests__/entity/tree-entity-numeric-id.browser.spec.ts" name="树形实体的数值 ID 公开契约（RXD-069） &gt; 数值 ID 树实体的 idType 推导为 number" time="0.000025">
+        </testcase>
+        <testcase classname="src/__tests__/entity/tree-entity-numeric-id.browser.spec.ts" name="树形实体的数值 ID 公开契约（RXD-069） &gt; 数值 ID 树实体仍然是 ITreeEntity / EntityBase 的子类型" time="0.000025">
+        </testcase>
+        <testcase classname="src/__tests__/entity/tree-entity-numeric-id.browser.spec.ts" name="树形实体的数值 ID 公开契约（RXD-069） &gt; parentId 可以直接写入数值（含边界值 0），无需 cast" time="0.000105">
+        </testcase>
+        <testcase classname="src/__tests__/entity/tree-entity-numeric-id.browser.spec.ts" name="树形实体的数值 ID 公开契约（RXD-069） &gt; 数值主键覆盖基类的 uuid 主键元数据，并保留邻接表树形特征" time="0.00011">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/entity/tree-entity.decorator.browser.spec.ts" timestamp="2026-10-05T01:30:54.040Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.01178">
+        <testcase classname="src/__tests__/entity/tree-entity.decorator.browser.spec.ts" name="@TreeEntity &gt; 通过类获取 metadata 正确" time="0.00391">
+        </testcase>
+        <testcase classname="src/__tests__/entity/tree-entity.decorator.browser.spec.ts" name="@TreeEntity &gt; 通过实例获取 metadata 正确" time="0.00176">
+        </testcase>
+        <testcase classname="src/__tests__/entity/tree-entity.decorator.browser.spec.ts" name="@TreeEntity &gt; new Todo()" time="0.000175">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/contracts/missing-plugin-error.browser.spec.ts" timestamp="2026-10-05T01:30:54.041Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="0" errors="0" skipped="0" time="0.002505">
+        <testcase classname="src/__tests__/contracts/missing-plugin-error.browser.spec.ts" name="未装 @aiao/rxdb-plugin-tree 时声明 @TreeEntity &gt; init() 抛错，且消息列出当前已注册的仓储名" time="0.001345">
+        </testcase>
+        <testcase classname="src/__tests__/contracts/missing-plugin-error.browser.spec.ts" name="未装 @aiao/rxdb-plugin-tree 时声明 @TreeEntity &gt; 错误消息不点名任何插件包——核心不认识插件" time="0.000225">
+        </testcase>
+        <testcase classname="src/__tests__/contracts/missing-plugin-error.browser.spec.ts" name="未装 @aiao/rxdb-plugin-tree 时声明 @TreeEntity &gt; 装上插件后同一份实体注册通过" time="0.000785">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/contracts/public-type-compatibility.browser.spec.ts" timestamp="2026-10-05T01:30:54.041Z" hostname="liuleideMacBook-Pro-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.00033">
+        <testcase classname="src/__tests__/contracts/public-type-compatibility.browser.spec.ts" name="@aiao/rxdb-plugin-tree 的公开类型必须可具名 &gt; exposes every type reachable from a public signature" time="0.000205">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/contracts/querycache-ban.browser.spec.ts" timestamp="2026-10-05T01:30:54.041Z" hostname="liuleideMacBook-Pro-4.local" tests="6" failures="0" errors="0" skipped="0" time="0.004595">
+        <testcase classname="src/__tests__/contracts/querycache-ban.browser.spec.ts" name="TreeRepository 不支持 SyncType.QueryCache &gt; 实体级 QueryCache：init() 抛错，消息点名实体、仓储与策略" time="0.00248">
+        </testcase>
+        <testcase classname="src/__tests__/contracts/querycache-ban.browser.spec.ts" name="TreeRepository 不支持 SyncType.QueryCache &gt; 库级 QueryCache：实体不写 sync 时同样拦下" time="0.000315">
+        </testcase>
+        <testcase classname="src/__tests__/contracts/querycache-ban.browser.spec.ts" name="TreeRepository 不支持 SyncType.QueryCache &gt; SyncType.Full 放行——拦的是 QueryCache，不是「树 + 同步」" time="0.0005">
+        </testcase>
+        <testcase classname="src/__tests__/contracts/querycache-ban.browser.spec.ts" name="TreeRepository 不支持 SyncType.QueryCache &gt; 限制由插件声明——不装插件时核心不认识这条规则" time="0.000275">
+        </testcase>
+        <testcase classname="src/__tests__/contracts/querycache-ban.browser.spec.ts" name="TreeRepository 按实例覆盖后的生效策略校验 &gt; 原声明合法、覆盖成 QueryCache：init() 拒绝" time="0.00046">
+        </testcase>
+        <testcase classname="src/__tests__/contracts/querycache-ban.browser.spec.ts" name="TreeRepository 按实例覆盖后的生效策略校验 &gt; 原声明 QueryCache、覆盖成 Full：init() 放行" time="0.000335">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/contracts/tree-query-type-parity.browser.spec.ts" timestamp="2026-10-05T01:30:54.042Z" hostname="liuleideMacBook-Pro-4.local" tests="2" failures="0" errors="0" skipped="0" time="0.000485">
+        <testcase classname="src/__tests__/contracts/tree-query-type-parity.browser.spec.ts" name="树查询任务类型的单一来源 &gt; keeps the query union and the runtime name list in lockstep" time="0.00018">
+        </testcase>
+        <testcase classname="src/__tests__/contracts/tree-query-type-parity.browser.spec.ts" name="树查询任务类型的单一来源 &gt; derives the runtime set from the same list" time="0.000125">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/repository/TreeRepository.browser.spec.ts" timestamp="2026-10-05T01:30:54.042Z" hostname="liuleideMacBook-Pro-4.local" tests="15" failures="0" errors="0" skipped="0" time="0.004025">
+        <testcase classname="src/__tests__/repository/TreeRepository.browser.spec.ts" name="TreeRepository &gt; 查找后代 &gt; 应使用规范化选项查询后代（包含当前节点）" time="0.00156">
+        </testcase>
+        <testcase classname="src/__tests__/repository/TreeRepository.browser.spec.ts" name="TreeRepository &gt; 查找后代 &gt; 未提供 level 时保持 undefined（不限深度）" time="0.000255">
+        </testcase>
+        <testcase classname="src/__tests__/repository/TreeRepository.browser.spec.ts" name="TreeRepository &gt; 查找后代 &gt; 超大 level 原样透传，不裁剪" time="0.000175">
+        </testcase>
+        <testcase classname="src/__tests__/repository/TreeRepository.browser.spec.ts" name="TreeRepository &gt; 查找后代 &gt; 应允许有效的 level 值" time="0.00013">
+        </testcase>
+        <testcase classname="src/__tests__/repository/TreeRepository.browser.spec.ts" name="TreeRepository &gt; 查找后代 &gt; 应在未提供时将 entityId 设置为 null" time="0.000155">
+        </testcase>
+        <testcase classname="src/__tests__/repository/TreeRepository.browser.spec.ts" name="TreeRepository &gt; 计数后代 &gt; 应使用规范化选项计数后代（不包含当前节点）" time="0.000245">
+        </testcase>
+        <testcase classname="src/__tests__/repository/TreeRepository.browser.spec.ts" name="TreeRepository &gt; 计数后代 &gt; 应与 findDescendants 相同规范化选项" time="0.000135">
+        </testcase>
+        <testcase classname="src/__tests__/repository/TreeRepository.browser.spec.ts" name="TreeRepository &gt; 查找祖先 &gt; 应使用规范化选项查询祖先（包含当前节点）" time="0.0001900001">
+        </testcase>
+        <testcase classname="src/__tests__/repository/TreeRepository.browser.spec.ts" name="TreeRepository &gt; 查找祖先 &gt; 未提供 level 时保持 undefined（不限深度）" time="0.000135">
+        </testcase>
+        <testcase classname="src/__tests__/repository/TreeRepository.browser.spec.ts" name="TreeRepository &gt; 查找祖先 &gt; 显式 level: 0 原样透传（仅当前节点）" time="0.000125">
+        </testcase>
+        <testcase classname="src/__tests__/repository/TreeRepository.browser.spec.ts" name="TreeRepository &gt; 计数祖先 &gt; 应使用规范化选项计数祖先（不包含当前节点）" time="0.00016">
+        </testcase>
+        <testcase classname="src/__tests__/repository/TreeRepository.browser.spec.ts" name="TreeRepository &gt; 计数祖先 &gt; 应与 findAncestors 相同规范化选项" time="0.000115">
+        </testcase>
+        <testcase classname="src/__tests__/repository/TreeRepository.browser.spec.ts" name="TreeRepository &gt; 选项规范化 &gt; 应保留原始选项对象" time="0.000105">
+        </testcase>
+        <testcase classname="src/__tests__/repository/TreeRepository.browser.spec.ts" name="TreeRepository &gt; 选项规范化 &gt; 应处理带有附加属性的选项" time="0.00011">
+        </testcase>
+        <testcase classname="src/__tests__/repository/TreeRepository.browser.spec.ts" name="TreeRepository &gt; 选项规范化 &gt; 负的 level 值同步抛错，不裁剪" time="0.00018">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/repository/tree-level.utils.browser.spec.ts" timestamp="2026-10-05T01:30:54.043Z" hostname="liuleideMacBook-Pro-4.local" tests="8" failures="0" errors="0" skipped="0" time="0.00096">
+        <testcase classname="src/__tests__/repository/tree-level.utils.browser.spec.ts" name="assertTreeLevel &gt; 保留树查询的错误文案" time="0.00028">
+        </testcase>
+        <testcase classname="src/__tests__/repository/tree-level.utils.browser.spec.ts" name="assertTreeLevel &gt; 未提供时返回 undefined，表示不限深度" time="0.000055">
+        </testcase>
+        <testcase classname="src/__tests__/repository/tree-level.utils.browser.spec.ts" name="assertTreeLevel &gt; 非负整数原样返回" time="0.00006">
+        </testcase>
+        <testcase classname="src/__tests__/repository/tree-level.utils.browser.spec.ts" name="assertTreeLevel &gt; 不设上界：超大层级原样透传，深度由调用方决定" time="0.00005">
+        </testcase>
+        <testcase classname="src/__tests__/repository/tree-level.utils.browser.spec.ts" name="assertTreeLevel &gt; 负数抛错，不裁剪" time="0.000075">
+        </testcase>
+        <testcase classname="src/__tests__/repository/tree-level.utils.browser.spec.ts" name="assertTreeLevel &gt; 非整数抛错" time="0.000125">
+        </testcase>
+        <testcase classname="src/__tests__/repository/tree-level.utils.browser.spec.ts" name="assertTreeLevel &gt; 非数字（来自无类型调用方）抛错，杜绝 SQL 注入" time="0.000075">
+        </testcase>
+        <testcase classname="src/__tests__/repository/tree-level.utils.browser.spec.ts" name="assertTreeLevel &gt; 错误信息带上收到的值，便于定位注入来源" time="0.00008">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" timestamp="2026-10-05T01:30:54.044Z" hostname="liuleideMacBook-Pro-4.local" tests="53" failures="0" errors="0" skipped="0" time="0.0079">
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; keeps untouched and id-less results without notifying" time="0.000835">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; ignores a stale classification id that is absent from the update batch" time="0.000155">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; refreshes a moved result when its updated serialization is unavailable" time="0.00022">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; judges level by the serialized parentId when the event patch is stale" time="0.000205">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; removes newly unmatched entities and patches retained descendants" time="0.00044">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; removes a moved branch while conservatively retaining unresolved and cyclic nodes" time="0.000165">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; removes descendants that move beyond the requested level" time="0.0001">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; retains and patches a moved descendant that remains within the level" time="0.000135">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; RXD-022: refreshes instead of locally patching when a matching entity moves into scope" time="0.00012">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; RV-046: refreshes for a newly matching descendant instead of adding it alone" time="0.0001">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; RV-046: ignores a newly matching entity whose parent was cut off by where" time="0.000085">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; RV-046: drops the subtree of a descendant that stops matching where" time="0.0001149999">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; does not duplicate a newly matching entity already retained in the result" time="0.000085">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; ignores non-descendants and descendants beyond the level when considering additions" time="0.000075">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; RXD-022: skips a candidate with no serialized snapshot, then refreshes on the next moved-in candidate" time="0.000075">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; RXD-022: refreshes for a newly matched entity even in &quot;all trees&quot; mode (undefined target)" time="0.0000700001">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; skips a newly matched entity when serialization fails" time="0.00007">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; does not add newly matched entities outside the tree or level" time="0.00007">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; keeps the anchor when the anchor itself is re-parented" time="0.0001">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; keeps the anchor when the anchor stops matching where" time="0.0001">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindDescendantsUpdate &gt; drops a node whose new parent left the subtree in the same batch" time="0.000095">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindAncestorsUpdate &gt; returns without notifying when the target cannot be resolved" time="0.000095">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindAncestorsUpdate &gt; uses the old target snapshot and keeps id-less results without changes" time="0.00009">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindAncestorsUpdate &gt; ignores a stale ancestor classification id that has no event data" time="0.00008">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindAncestorsUpdate &gt; RV-046: refreshes when an ancestor on the chain stops matching where" time="0.000105">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindAncestorsUpdate &gt; RXD-022: refreshes instead of locally rechecking every old result when the target moves" time="0.000085">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindAncestorsUpdate &gt; RXD-022: refreshes when an already-tracked candidate moves, even if the target snapshot is unavailable" time="0.000075">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindAncestorsUpdate &gt; RXD-022: applies a renamed identifier in place when the candidate parentId is unchanged" time="0.000075">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindAncestorsUpdate &gt; retains and patches a candidate when its updated serialization is unavailable" time="0.000075">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindAncestorsUpdate &gt; RXD-022: refreshes when the target itself is updated with a genuinely changed parentId" time="0.00008">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindAncestorsUpdate &gt; does not restore a target serialization without an identifier" time="0.00007">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindAncestorsUpdate &gt; does not add a newly matching ancestor beyond the requested level" time="0.00012">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleFindAncestorsUpdate &gt; RV-046: refreshes when a direct parent within the level starts matching where" time="0.00008">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountDescendantsUpdate &gt; RXD-022: refreshes instead of a naive +1 when an entity moves into the target subtree" time="0.00042">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountDescendantsUpdate &gt; RXD-022: refreshes instead of a naive -1 when an entity leaves the subtree" time="0.000145">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountDescendantsUpdate &gt; RV-046: refreshes instead of +1 when a descendant starts matching where" time="0.000105">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountDescendantsUpdate &gt; RV-046: refreshes instead of -1 when a descendant stops matching where" time="0.00008">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountDescendantsUpdate &gt; RV-046: ignores a where flip beyond the requested level" time="0.000145">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountDescendantsUpdate &gt; does not notify when membership and matching stay unchanged" time="0.00093">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountDescendantsUpdate &gt; refreshes when the parent chain of a where flip cannot be resolved" time="0.000175">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountDescendantsUpdate &gt; refreshes when only the updated parent chain is unresolved" time="0.000085">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountDescendantsUpdate &gt; RV-046: refreshes all-tree counts with an undefined target on a where flip" time="0.00009">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountDescendantsUpdate &gt; keeps a root node counted in all-tree mode when it stops matching where" time="0.000075">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountAncestorsUpdate &gt; refreshes when the target identifier is absent" time="0.00008">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountAncestorsUpdate &gt; refreshes when the target is not part of the update batch" time="0.00005">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountAncestorsUpdate &gt; refreshes when the target serialization is unavailable" time="0.000055">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountAncestorsUpdate &gt; refreshes when the target parent changes" time="0.00007">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountAncestorsUpdate &gt; RV-046: refreshes instead of +1 when a direct ancestor starts matching where" time="0.0001">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountAncestorsUpdate &gt; RV-046: refreshes instead of -1 when a direct ancestor stops matching where" time="0.00008">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountAncestorsUpdate &gt; reuses one ancestor set across duplicate updates and emits no unchanged count" time="0.00007">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountAncestorsUpdate &gt; does not notify for a determinable non-ancestor" time="0.000085">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountAncestorsUpdate &gt; refreshes when the ancestor chain behind a where flip cannot be resolved" time="0.00008">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge-update-tree.handlers.browser.spec.ts" name="树形更新合并处理器 &gt; handleCountAncestorsUpdate &gt; refreshes when only the updated serialization of a flipped candidate lacks an identifier" time="0.00007">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/query/merge_tree_create.browser.spec.ts" timestamp="2026-10-05T01:30:54.048Z" hostname="liuleideMacBook-Pro-4.local" tests="34" failures="0" errors="0" skipped="0" time="0.007165">
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; 应该查询根节点（entityId 为 null）的所有后代" time="0.001165">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; 应该查询所有根节点（不传 entityId）" time="0.000325">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; 不传 entityId 且 level=0 时不应该添加非根节点" time="0.000215">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; 不传 entityId 且 level=1 时应该添加直接子节点" time="0.00021">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; 应该使用 JS 增量添加新的后代实体" time="0.000245">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; 应该使用 JS 增量添加新的孙子节点" time="0.000185">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; 不应该添加不是后代的实体" time="0.00014">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; 应该支持批量添加多个后代" time="0.00019">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; 高优先级场景 - 循环引用保护 &gt; 应该处理创建时的循环引用保护（不应死循环）" time="0.000165">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; 高优先级场景 - 循环引用保护 &gt; 应该处理深层嵌套不会超时（性能边界）" time="0.000215">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; level 参数 &gt; 应该只返回 level=1 的直接子节点" time="0.00017">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; level 参数 &gt; level=1 时不应该添加孙子节点" time="0.00011">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; level 参数 &gt; 应该支持 level=2 查询到孙子节点" time="0.000175">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; level 参数 &gt; level=2 时不应该添加曾孙节点" time="0.00012">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; level 参数 &gt; level=0 时不应该添加子节点" time="0.000125">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; level 参数 &gt; 不传 level 参数应该查询所有后代（无限层级）" time="0.00017">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; where 条件过滤 &gt; 应该只添加满足 where 条件的后代" time="0.00024">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; where 条件过滤 &gt; 不应该添加不满足 where 条件的后代" time="0.00013">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; where 条件过滤 &gt; where 条件和 level 参数应该同时生效" time="0.000115">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; 边界情况 &gt; 应该处理空的初始结果集" time="0.00015">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; 边界情况 &gt; 应该处理创建目标节点本身的情况" time="0.000135">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findDescendants - 查找后代 &gt; 边界情况 &gt; 应该处理多个新实体但只有部分是后代的情况" time="0.000165">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findAncestors - 查找祖先 &gt; 高优先级场景 - 创建目标实体 &gt; 应该在创建目标实体时将其添加到结果中" time="0.00016">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findAncestors - 查找祖先 &gt; 高优先级场景 - 创建目标实体 &gt; 应该在创建目标实体时，如果已有祖先也一起添加" time="0.00014">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findAncestors - 查找祖先 &gt; 高优先级场景 - 创建目标实体 &gt; 应该创建目标实体为根节点（parentId 为 null）" time="0.000135">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findAncestors - 查找祖先 &gt; 高优先级场景 - 创建目标实体 &gt; 应该支持创建目标实体的同时创建新的祖先" time="0.000205">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findAncestors - 查找祖先 &gt; 高优先级场景 - 创建目标实体 &gt; 应该支持 where 条件过滤创建的目标实体" time="0.000105">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findAncestors - 查找祖先 &gt; 其他场景 &gt; 不应该添加不是祖先的实体" time="0.00013">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findAncestors - 查找祖先 &gt; 其他场景 &gt; 应该支持批量创建多个祖先" time="0.00019">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findAncestors - 查找祖先 &gt; 其他场景 &gt; 应该创建深层祖先链路" time="0.000195">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findAncestors - 查找祖先 &gt; 其他场景 &gt; level 限制不应接纳范围外的延迟祖先 CREATE" time="0.00012">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findAncestors - 查找祖先 &gt; 其他场景 &gt; 应该支持 where 条件过滤新祖先" time="0.00012">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findAncestors - 查找祖先 &gt; 其他场景 &gt; 应该处理批量创建部分是祖先部分不是" time="0.000255">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_create.browser.spec.ts" name="query_merge_tree_create_cache - CREATE 事件的树形查询 &gt; findAncestors - 查找祖先 &gt; 其他场景 &gt; 应该处理循环引用保护（不应死循环）" time="0.00015">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/query/merge_tree_remove.browser.spec.ts" timestamp="2026-10-05T01:30:54.050Z" hostname="liuleideMacBook-Pro-4.local" tests="27" failures="0" errors="0" skipped="0" time="0.00538">
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findDescendants - 删除后代查询 &gt; 应该删除根节点（entityId 为 null）" time="0.001">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findDescendants - 删除后代查询 &gt; 应该删除所有根节点（不传 entityId）" time="0.0003">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findDescendants - 删除后代查询 &gt; 不传 entityId 时，不应该删除非根节点" time="0.000175">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findDescendants - 删除后代查询 &gt; 应该使用 JS 增量删除单个后代实体" time="0.000245">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findDescendants - 删除后代查询 &gt; 应该删除中间节点及其所有失去连接的后代" time="0.000195">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findDescendants - 删除后代查询 &gt; 应该删除中间节点但保留其他分支" time="0.000195">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findDescendants - 删除后代查询 &gt; 应该删除叶子节点而不影响其他节点" time="0.00017">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findDescendants - 删除后代查询 &gt; 不应该触发更新如果删除的不是后代" time="0.00011">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findDescendants - 删除后代查询 &gt; 应该支持批量删除多个后代" time="0.000175">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findDescendants - 删除后代查询 &gt; 应该支持 level 参数：level=1 时删除直接子节点" time="0.000185">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findDescendants - 删除后代查询 &gt; 应该支持 level 参数：level=2 时删除孙节点" time="0.00015">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findDescendants - 删除后代查询 &gt; 应该支持 where 条件：删除后正确过滤结果" time="0.00018">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findDescendants - 删除后代查询 &gt; 高优先级场景 - 删除目标实体本身 &gt; 应该删除目标实体本身，所有后代都应被移除" time="0.000155">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findDescendants - 删除后代查询 &gt; 高优先级场景 - 删除目标实体本身 &gt; 应该删除目标实体但不包括它的子树（如果子树不在结果中）" time="0.00013">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findDescendants - 删除后代查询 &gt; 高优先级场景 - 删除目标实体本身 &gt; 应该删除目标实体及其深层后代" time="0.0001350001">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findDescendants - 删除后代查询 &gt; 高优先级场景 - 删除目标实体本身 &gt; 应该删除目标实体时考虑 where 条件" time="0.00013">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findAncestors - 删除祖先查询 &gt; 应该使用 JS 增量删除单个祖先实体" time="0.000155">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findAncestors - 删除祖先查询 &gt; 应该删除根节点祖先" time="0.000135">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findAncestors - 删除祖先查询 &gt; 不应该触发更新如果删除的不是祖先" time="0.0001">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findAncestors - 删除祖先查询 &gt; 应该支持批量删除多个祖先" time="0.000145">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findAncestors - 删除祖先查询 &gt; 应该支持 level 参数：level=1 时删除直接父级" time="0.00013">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findAncestors - 删除祖先查询 &gt; 应该支持 where 条件：删除后正确过滤祖先" time="0.000145">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findAncestors - 删除祖先查询 &gt; 高优先级场景 - 删除目标实体本身 &gt; 应该删除目标实体本身，结果应该清空" time="0.000135">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findAncestors - 删除祖先查询 &gt; 高优先级场景 - 删除目标实体本身 &gt; 应该删除目标实体（根节点）" time="0.000125">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findAncestors - 删除祖先查询 &gt; 高优先级场景 - 删除目标实体本身 &gt; 应该删除目标实体时考虑 where 条件" time="0.00014">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; findAncestors - 删除祖先查询 &gt; 高优先级场景 - 删除目标实体本身 &gt; 应该删除目标实体时支持 level 参数" time="0.00011">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_remove.browser.spec.ts" name="query_merge_tree_remove_cache - REMOVE 事件的树形查询 &gt; 假值主键 &gt; 删除 id 为 0 的中间节点时，其子树应一并移除" time="0.000135">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/query/merge_tree_update.browser.spec.ts" timestamp="2026-10-05T01:30:54.052Z" hostname="liuleideMacBook-Pro-4.local" tests="43" failures="0" errors="0" skipped="0" time="0.01541">
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 应该更新根节点（entityId 为 null）" time="0.004065">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 应该更新所有根节点（不传 entityId）" time="0.000435">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 不传 entityId 时，应该更新子节点字段（不改变 parentId）" time="0.0003">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 应该使用 JS 增量更新实体字段值(不改变树结构)" time="0.000265">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 应该移除不再是后代的实体(parentId 改变)" time="0.000345">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 应该添加新成为后代的实体(parentId 改变)" time="0.0004">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 应该处理多层级的父级变更" time="0.000235">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 不应该添加仍然不是后代的实体" time="0.000205">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 应该支持批量更新" time="0.00025">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 🐛 BUG: patch 中没有 parentId 时不应该移除实体（父级未改变）" time="0.000205">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 🐛 BUG: patch 中没有 parentId 时不应该添加不在树中的实体" time="0.00016">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 🐛 BUG: patch 中 parentId 显式为当前父级时应该只更新字段" time="0.00021">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; BUG修复: patch 中没有 parentId 时不应该移除节点" time="0.000195">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; BUG修复: patch 中没有 parentId 时不应该错误添加节点" time="0.00013">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; BUG修复: patch 中 parentId 为 undefined 和明确改变 parentId 的区别" time="0.000915">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 应该支持 level 参数：实体在不同层级间移动" time="0.000255">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 应该支持 where 条件：更新字段使实体从匹配变为不匹配" time="0.00049">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 应该支持 where 条件：更新字段使实体从不匹配变为匹配" time="0.00023">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 应该支持 where 条件与 parentId 变更结合" time="0.000205">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 高优先级场景 - 树内移动 &gt; 应该支持节点在树内移动（从一个分支移到另一个分支，仍是后代）" time="0.000205">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 高优先级场景 - 树内移动 &gt; 应该支持节点在树内深层移动" time="0.00021">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 高优先级场景 - 树内移动 &gt; 应该支持带 where 条件的树内移动" time="0.000215">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 高优先级场景 - 树内移动 &gt; 应该支持带 level 参数的树内移动" time="0.00017">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; RXD-022 review 场景 - 三层子树跨父移动 &gt; 子树根跨父移动时应通过刷新拿到完整的多层后代，而非只移动根节点" time="0.00036">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; RXD-022 review 场景 - 三层子树跨父移动 &gt; countDescendants 应通过刷新反映整棵子树的数量变化，而非只加减 1" time="0.0003">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 高优先级场景 - 循环引用保护 &gt; 应该处理更新导致的循环引用（不应死循环）" time="0.00025">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 高优先级场景 - 循环引用保护 &gt; 应该处理深层嵌套更新不会超时" time="0.0002">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findDescendants - 更新后代查询 &gt; 高优先级场景 - 循环引用保护 &gt; 应该处理祖先链中断（visited Set 保护）" time="0.000175">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findAncestors - 更新祖先查询 &gt; 目标换父级时应刷新查询，避免发送缺少新父级的中间结果" time="0.000145">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findAncestors - 更新祖先查询 &gt; RXD-022：中间祖先节点(非 target 自身)换父级时也应刷新，而非只摘除旧链路" time="0.00014">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findAncestors - 更新祖先查询 &gt; 应该使用 JS 增量更新实体字段值" time="0.00028">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findAncestors - 更新祖先查询 &gt; 不应该触发更新如果更新的实体不是祖先" time="0.00015">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findAncestors - 更新祖先查询 &gt; 🐛 BUG: patch 中没有 parentId 时不应该影响祖先查询结果" time="0.00067">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findAncestors - 更新祖先查询 &gt; 应该支持 where 条件：更新字段使祖先从匹配变为不匹配" time="0.000215">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findAncestors - 更新祖先查询 &gt; BUG修复: patch 中没有 parentId 时不应该移除祖先节点" time="0.000145">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; findAncestors - 更新祖先查询 &gt; BUG修复: patch 中没有 parentId 时不应该错误添加祖先节点" time="0.000115">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; countDescendants - 统计后代数量 &gt; 应该在后代数量增加时增量更新计数" time="0.000095">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; countDescendants - 统计后代数量 &gt; 应该在后代数量减少时增量更新计数" time="0.000085">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; countDescendants - 统计后代数量 &gt; 应该在 where 条件匹配状态变化时更新计数" time="0.000085">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; countAncestors - 统计祖先数量 &gt; 应该在祖先数量变化时触发刷新或更新计数" time="0.000125">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; countAncestors - 统计祖先数量 &gt; 应该在目标实体不在更新中时触发 SQL 刷新" time="0.000085">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; countAncestors - 统计祖先数量 &gt; 应该在 where 条件匹配状态变化时处理计数" time="0.00017">
+        </testcase>
+        <testcase classname="src/__tests__/query/merge_tree_update.browser.spec.ts" name="query_merge_tree_update_cache - UPDATE 事件的树形查询 &gt; countAncestors - 统计祖先数量 &gt; RXD-022：中间祖先节点换父级时应刷新，而非按 ±1 局部计数" time="0.000105">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/query/numeric-id-tree-merge.browser.spec.ts" timestamp="2026-10-05T01:30:54.055Z" hostname="liuleideMacBook-Pro-4.local" tests="4" failures="0" errors="0" skipped="0" time="0.001775">
+        <testcase classname="src/__tests__/query/numeric-id-tree-merge.browser.spec.ts" name="数值主键树实体的查询缓存合并（RXD-069） &gt; INSERT &gt; entityId=0 的 findAncestors 不会被当成「无 entityId」" time="0.000745">
+        </testcase>
+        <testcase classname="src/__tests__/query/numeric-id-tree-merge.browser.spec.ts" name="数值主键树实体的查询缓存合并（RXD-069） &gt; INSERT &gt; parentId=0 的子节点能挂到 id=0 的父节点下" time="0.000265">
+        </testcase>
+        <testcase classname="src/__tests__/query/numeric-id-tree-merge.browser.spec.ts" name="数值主键树实体的查询缓存合并（RXD-069） &gt; UPDATE &gt; entityId=0 的 findDescendants 就地更新 parentId=0 的子节点" time="0.000355">
+        </testcase>
+        <testcase classname="src/__tests__/query/numeric-id-tree-merge.browser.spec.ts" name="数值主键树实体的查询缓存合并（RXD-069） &gt; DELETE &gt; 删除数值 id 的祖先会同时移除它在 findAncestors 结果中的位置" time="0.00022">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/query/query-tree.utils.browser.spec.ts" timestamp="2026-10-05T01:30:54.055Z" hostname="liuleideMacBook-Pro-4.local" tests="32" failures="0" errors="0" skipped="0" time="0.00224">
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; get_tree_parent_id &gt; should return parentId when it exists" time="0.000195">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; get_tree_parent_id &gt; should return null when parentId is null" time="0.000065">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; get_tree_parent_id &gt; should return null when entity is null" time="0.000045">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; get_tree_parent_id &gt; should return 0 when parentId is numeric zero, not treat it as null" time="0.000035">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; buildEntityMap &gt; should build map from entities" time="0.000085">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; buildEntityMap &gt; should skip entities with null id" time="0.00006">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; buildEntityMap &gt; should handle empty array" time="0.00003">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; buildEntityMap &gt; should include entities with numeric id 0, not treat it as absent" time="0.000045">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; traverseAncestors &gt; should traverse up the parent chain" time="0.000325">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; traverseAncestors &gt; should respect maxLevel option" time="0.00008">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; traverseAncestors &gt; should return no ancestors when maxLevel is zero" time="0.000055">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; traverseAncestors &gt; should stop when parent not found in map" time="0.000055">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; traverseAncestors &gt; should detect circular references" time="0.000045">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; traverseAncestors &gt; should respect maxDepth to prevent infinite loops" time="0.000055">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; traverseAncestors &gt; should return empty for root node" time="0.00006">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; traverseAncestors &gt; should traverse through an intermediate parent with numeric id 0" time="0.000055">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; isDescendantOf &gt; should return true for direct child" time="0.000035">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; isDescendantOf &gt; should return true for deep descendant" time="0.000055">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; isDescendantOf &gt; should return false for non-descendant" time="0.00004">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; isDescendantOf &gt; should return true for root node when targetId is null" time="0.000045">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; isDescendantOf &gt; should return true for a rooted descendant when maxLevel is omitted" time="0.00003">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; isDescendantOf &gt; should respect maxLevel option" time="0.00005">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; isDescendantOf &gt; should apply maxLevel from every root when targetId is null" time="0.00006">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; isDescendantOf &gt; should reject unresolved and cyclic root chains" time="0.00005">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; isDescendantOf &gt; should return true when an intermediate parent has numeric id 0" time="0.00004">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; isAncestorOf &gt; should return true for direct parent" time="0.00004">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; isAncestorOf &gt; should return true for deep ancestor" time="0.000045">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; isAncestorOf &gt; should respect maxLevel option" time="0.00005">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; isAncestorOf &gt; should return false for non-ancestor" time="0.000035">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; isAncestorOf &gt; should return false when target not found" time="0.000035">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; isAncestorOf &gt; should return false for self" time="0.00003">
+        </testcase>
+        <testcase classname="src/__tests__/query/query-tree.utils.browser.spec.ts" name="query-tree.utils &gt; isAncestorOf &gt; should return true when targetId is numeric 0" time="0.000025">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/query/review-query-tree.regression.browser.spec.ts" timestamp="2026-10-05T01:30:54.057Z" hostname="liuleideMacBook-Pro-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.000905">
+        <testcase classname="src/__tests__/query/review-query-tree.regression.browser.spec.ts" name="review query regression probes - 树查询 &gt; Q4 countDescendants level 0 should ignore direct-child where transitions" time="0.00072">
+        </testcase>
+    </testsuite>
+<testsuite name="src/__tests__/query/tree-helper.browser.spec.ts" timestamp="2026-10-05T01:30:54.058Z" hostname="liuleideMacBook-Pro-4.local" tests="14" failures="0" errors="0" skipped="0" time="0.002065">
+        <testcase classname="src/__tests__/query/tree-helper.browser.spec.ts" name="TreeHelper &gt; resolveParentEntity &gt; prefers the batch update over a stale old-result entry with the same id" time="0.00044">
+        </testcase>
+        <testcase classname="src/__tests__/query/tree-helper.browser.spec.ts" name="TreeHelper &gt; resolveParentEntity &gt; promotes a serialized update into the old result map and leaves misses uncached" time="0.0001350001">
+        </testcase>
+        <testcase classname="src/__tests__/query/tree-helper.browser.spec.ts" name="TreeHelper &gt; isEntityDescendant &gt; accepts null and undefined targets while calculating distance to the root" time="0.00011">
+        </testcase>
+        <testcase classname="src/__tests__/query/tree-helper.browser.spec.ts" name="TreeHelper &gt; isEntityDescendant &gt; counts the unresolved parent edge and then stops an all-tree traversal" time="0.000045">
+        </testcase>
+        <testcase classname="src/__tests__/query/tree-helper.browser.spec.ts" name="TreeHelper &gt; isEntityDescendant &gt; returns the real ancestor distance and rejects roots, self, and missing chains" time="0.000095">
+        </testcase>
+        <testcase classname="src/__tests__/query/tree-helper.browser.spec.ts" name="TreeHelper &gt; isEntityAncestor &gt; rejects a candidate without an id and an entity itself" time="0.00005">
+        </testcase>
+        <testcase classname="src/__tests__/query/tree-helper.browser.spec.ts" name="TreeHelper &gt; isEntityAncestor &gt; finds a real ancestor and stops at a root or missing parent" time="0.00005">
+        </testcase>
+        <testcase classname="src/__tests__/query/tree-helper.browser.spec.ts" name="TreeHelper &gt; count variants &gt; handles null, undefined, and id-less inputs without guessing" time="0.00009">
+        </testcase>
+        <testcase classname="src/__tests__/query/tree-helper.browser.spec.ts" name="TreeHelper &gt; count variants &gt; reuses serialized update cache entries for determinate relationships" time="0.000085">
+        </testcase>
+        <testcase classname="src/__tests__/query/tree-helper.browser.spec.ts" name="TreeHelper &gt; count variants &gt; returns false at roots and does not treat a root as its own relation" time="0.000045">
+        </testcase>
+        <testcase classname="src/__tests__/query/tree-helper.browser.spec.ts" name="TreeHelper &gt; count variants &gt; returns undefined when an updated parent chain is incomplete" time="0.000045">
+        </testcase>
+        <testcase classname="src/__tests__/query/tree-helper.browser.spec.ts" name="TreeHelper &gt; terminates every traversal when a parent cycle repeats" time="0.000085">
+        </testcase>
+        <testcase classname="src/__tests__/query/tree-helper.browser.spec.ts" name="TreeHelper &gt; keeps every traversal variant consistent past 100 edges" time="0.00042">
+        </testcase>
+        <testcase classname="src/__tests__/query/tree-helper.browser.spec.ts" name="TreeHelper &gt; still honours an explicit maxLevel" time="0.000115">
+        </testcase>
+    </testsuite>
+</testsuites>

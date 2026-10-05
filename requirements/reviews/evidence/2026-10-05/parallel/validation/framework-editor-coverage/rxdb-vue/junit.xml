@@ -1,0 +1,503 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="226" failures="0" errors="0" time="0.36187471">
+    <testsuite name="src/__tests__/hooks.spec.ts" timestamp="2026-10-05T01:04:30.346Z" hostname="liuleideMacBook-Pro-4.local" tests="28" failures="0" errors="0" skipped="0" time="0.027868042">
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; uses the real Vue effect scope and exposes a successful single-value resource" time="0.004898833">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; reacts to ref options and reports an empty array consistently" time="0.001166875">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; tracks dependencies read by function options" time="0.000368959">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; invalidates stale value metadata when an observable errors" time="0.000800833">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; normalizes synchronous query failures and resets stale metadata" time="0.000368167">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; finishes loading when a query completes without emitting" time="0.000190458">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; reports a missing repository method without fabricating a value" time="0.000221166">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; cancels the previous query when reactive options change" time="0.000669708">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; ignores late callbacks from superseded queries" time="0.000702833">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; unsubscribes an active query when its Vue scope is disposed" time="0.0002955">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; treats an undefined single result as an empty value that was received" time="0.000200042">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; delegates every public query wrapper to its matching static repository method" time="0.000585">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; 保留图结果结构与 truncated 状态" time="0.000276083">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; 选项按内容而非引用触发重查（RVU-002） &gt; reactive 选项原地改字段会重查" time="0.000285375">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; 选项按内容而非引用触发重查（RVU-002） &gt; ref 内层字段原地改动会重查" time="0.000204041">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; 选项按内容而非引用触发重查（RVU-002） &gt; computed 选项的内容变化会重查" time="0.000369333">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; 选项按内容而非引用触发重查（RVU-002） &gt; 结构等价的新引用不重订阅" time="0.000194166">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; 选项按内容而非引用触发重查（RVU-002） &gt; Date 字段的内容变化会重查" time="0.000368042">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; 选项按内容而非引用触发重查（RVU-002） &gt; Set 字段的内容变化会重查" time="0.0002945">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; 选项按内容而非引用触发重查（RVU-002） &gt; 游标实体做 after 时按游标身份重查" time="0.000306792">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; 选项按内容而非引用触发重查（RVU-002） &gt; 选项含不可序列化字段时报错，而不是静默算出同一个 key" time="0.001149708">
+            <system-err>
+[Vue warn]: Unhandled error during execution of watcher getter
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; 新请求入口复位元数据（RVU-003） &gt; 重查询无 next 就 complete 时，不再宣称旧值属于新条件" time="0.000392625">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; 新请求入口复位元数据（RVU-003） &gt; 等待期间保持 loading 且不再自称有值" time="0.000296625">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; 新请求入口复位元数据（RVU-003） &gt; 连续重查询的状态序列不残留上一轮结论" time="0.000508875">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; reactive 资源的解构契约（RVU-008） &gt; 整体持有时模板会随后续 emission 重渲染" time="0.007843584">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; reactive 资源的解构契约（RVU-008） &gt; toRefs 解构后模板同样会重渲染" time="0.001063334">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; reactive 资源的解构契约（RVU-008） &gt; 直接解构只拿到一次性快照，模板不再更新" time="0.000720542">
+        </testcase>
+        <testcase classname="src/__tests__/hooks.spec.ts" name="RxDB Vue repository hooks &gt; MUST NOT subscribe during SSR (no window) and MUST leave isLoading true" time="0.0018765">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/public-types.spec.ts" timestamp="2026-10-05T01:04:30.350Z" hostname="liuleideMacBook-Pro-4.local" tests="7" failures="0" errors="0" skipped="0" time="0.003884667">
+        <testcase classname="src/__tests__/public-types.spec.ts" name="公开类型可具名消费（RVU-011） &gt; UseOptions 覆盖常量 / getter / Ref / ComputedRef 四种入参形态" time="0.0018675">
+        </testcase>
+        <testcase classname="src/__tests__/public-types.spec.ts" name="公开类型可具名消费（RVU-011） &gt; 调用方可以写出具名的包装函数签名" time="0.000489167">
+        </testcase>
+        <testcase classname="src/__tests__/public-types.spec.ts" name="公开类型可具名消费（RVU-011） &gt; RxDBInput 覆盖 Ref 与 undefined 两种「尚未就绪」形态" time="0.000127208">
+        </testcase>
+        <testcase classname="src/__tests__/public-types.spec.ts" name="公开类型可具名消费（RVU-011） &gt; RxDBRef 是只读引用，不允许调用方改写数据库" time="0.000097042">
+        </testcase>
+        <testcase classname="src/__tests__/public-types.spec.ts" name="公开类型可具名消费（RVU-011） &gt; RxDBDependencyInjection 可标注 makeRxDBDependencyInjector 的返回值" time="0.000116625">
+        </testcase>
+        <testcase classname="src/__tests__/public-types.spec.ts" name="公开类型可具名消费（RVU-011） &gt; RxDBResource 与 InfiniteScrollResource 可标注 hook 的返回值" time="0.00014325">
+        </testcase>
+        <testcase classname="src/__tests__/public-types.spec.ts" name="公开类型可具名消费（RVU-011） &gt; RxDBResource 的字段是快照值而非 Ref（解构契约的类型侧证据）" time="0.000050334">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/rxdb-vue.spec.ts" timestamp="2026-10-05T01:04:30.351Z" hostname="liuleideMacBook-Pro-4.local" tests="17" failures="0" errors="0" skipped="0" time="0.024723334">
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="rxdb-vue dependency injection &gt; provides and consumes a synchronous RxDB instance through real Vue injection" time="0.010929125">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="rxdb-vue dependency injection &gt; returns undefined when no provider exists" time="0.00167725">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="rxdb-vue dependency injection &gt; keeps useRxDB strict when the provided ref has no current value" time="0.001097875">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="rxdb-vue dependency injection &gt; exposes an observable ref API for asynchronous database initialization" time="0.000619666">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="rxdb-vue dependency injection &gt; throws from useRxDBRef when no provider exists" time="0.000546083">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="rxdb-vue dependency injection &gt; isolates each dependency injector created by the factory" time="0.000499583">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="rxdb-vue dependency injection &gt; publishes the documented API from the package entry point" time="0.000512666">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="异步 source &gt; resolves a factory returning a promise" time="0.000696458">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="异步 source &gt; resolves a bare promise" time="0.000513833">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="异步 source &gt; returns undefined from useRxDBOptional without warning while pending" time="0.000503167">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="异步 source &gt; does not warn from useRxDBOptional when no provider exists" time="0.00037525">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="异步 source &gt; rethrows the original creation error from useRxDB" time="0.001819917">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="异步 source &gt; routes a synchronously thrown factory error to the same failure slot" time="0.000533125">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="生命周期所有权 &gt; disconnects a database it created itself" time="0.00053225">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="生命周期所有权 &gt; leaves a caller-supplied instance alone" time="0.000442208">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="生命周期所有权 &gt; leaves a caller-supplied ref alone" time="0.00039">
+        </testcase>
+        <testcase classname="src/__tests__/rxdb-vue.spec.ts" name="生命周期所有权 &gt; disconnects a database that settles after unmount" time="0.001807375">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/tri-framework-field-descriptor.spec.ts" timestamp="2026-10-05T01:04:30.358Z" hostname="liuleideMacBook-Pro-4.local" tests="64" failures="0" errors="0" skipped="0" time="0.010980958">
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; fields 顺序为 propertyMap → computedPropertyMap → relationMap（INV-6）" time="0.001203833">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 线格式经严格解析器往返后与本端直接生成的描述完全一致" time="0.001677042">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;id&apos; 的字段形状与三端共享期望一致" time="0.000359">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;createdAt&apos; 的字段形状与三端共享期望一致" time="0.000170459">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;updatedAt&apos; 的字段形状与三端共享期望一致" time="0.000124834">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;createdBy&apos; 的字段形状与三端共享期望一致" time="0.00011875">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;updatedBy&apos; 的字段形状与三端共享期望一致" time="0.000115">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;title&apos; 的字段形状与三端共享期望一致" time="0.000088292">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;homepage&apos; 的字段形状与三端共享期望一致" time="0.000102334">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;contactEmail&apos; 的字段形状与三端共享期望一致" time="0.0000865">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;status&apos; 的字段形状与三端共享期望一致" time="0.000115625">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;labels&apos; 的字段形状与三端共享期望一致" time="0.0000945">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;rating&apos; 的字段形状与三端共享期望一致" time="0.000097209">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;views&apos; 的字段形状与三端共享期望一致" time="0.000111084">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;secret&apos; 的字段形状与三端共享期望一致" time="0.000084334">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;meta&apos; 的字段形状与三端共享期望一致" time="0.000088625">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;excerpt&apos; 的字段形状与三端共享期望一致" time="0.000083">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;draftRevision&apos; 的字段形状与三端共享期望一致" time="0.000118">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;author&apos; 的字段形状与三端共享期望一致" time="0.00007425">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;comments&apos; 的字段形状与三端共享期望一致" time="0.000073791">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;tags&apos; 的字段形状与三端共享期望一致" time="0.000090958">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;draftRevision&apos; 的关系块与三端共享期望一致" time="0.000061375">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;author&apos; 的关系块与三端共享期望一致" time="0.000044625">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;comments&apos; 的关系块与三端共享期望一致" time="0.000041333">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; &apos;tags&apos; 的关系块与三端共享期望一致" time="0.000042667">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;未知 dtoVersion&apos;" time="0.000774334">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;fields 不是数组&apos;" time="0.000168666">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;未知 source&apos;" time="0.000239833">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;关系字段缺 relation&apos;" time="0.000338625">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;多值关系带上 nullable&apos;" time="0.000262375">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;布尔标志被写成字符串&apos;" time="0.000206167">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;format 判别键非法&apos;" time="0.000205666">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;enum 成员不是字符串&apos;" time="0.000195416">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 严格解析器拒绝：&apos;format 缺必填配置键&apos;" time="0.000259625">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;required 缺失&apos;" time="0.000162167">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;required 满足&apos;" time="0.000102458">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;url 协议大小写无关地通过&apos;" time="0.000103375">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;url 协议不在白名单&apos;" time="0.000060791">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;url 形状非法&apos;" time="0.000065709">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;email 合法&apos;" time="0.000070208">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;email 域名缺点号&apos;" time="0.000079083">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;enum 命中&apos;" time="0.000056959">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;enum 命中 disabled 选项仍合法&apos;" time="0.000027042">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;enum 未命中&apos;" time="0.000046167">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;stringArray 成员全合法&apos;" time="0.000057875">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;stringArray 含非法成员&apos;" time="0.0001095">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;stringArray 传了标量&apos;" time="0.000042166">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;range 命中刻度&apos;" time="0.000123542">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;range 未命中刻度&apos;" time="0.000062042">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;range 超出上界&apos;" time="0.000039834">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;number 类型不符&apos;" time="0.000037375">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;integer 传了小数&apos;" time="0.000044625">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;keyValue 传了标量&apos;" time="0.000050416">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;encrypted 字段不回显值&apos;" time="0.000041084">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;单值关系接受主键&apos;" time="0.000088958">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;单值关系拒绝非主键形状&apos;" time="0.000071375">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;多值关系接受主键数组&apos;" time="0.000028333">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;多值关系拒绝标量&apos;" time="0.000038">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;多值关系拒绝非法成员&apos;" time="0.000041542">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;date 接受原生 Date 实例&apos;" time="0.000026875">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;date 拒绝 ISO 字符串（只认原生类型）&apos;" time="0.000036916">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;date 拒绝毫秒时间戳&apos;" time="0.000036334">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 值校验：&apos;date 拒绝布尔值&apos;" time="0.000042292">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-field-descriptor.spec.ts" name="三端字段描述契约（US-012 AC#36） &gt; 公开入口没有本端专属的字段语义 API" time="0.000162708">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/tri-framework-generics.spec.ts" timestamp="2026-10-05T01:04:30.379Z" hostname="liuleideMacBook-Pro-4.local" tests="6" failures="0" errors="0" skipped="0" time="0.003624334">
+        <testcase classname="src/__tests__/tri-framework-generics.spec.ts" name="三端泛型契约（RAN-014） &gt; 图 hooks 只接受图实体 &gt; 非图实体被编译期拒绝" time="0.000925167">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-generics.spec.ts" name="三端泛型契约（RAN-014） &gt; 图 hooks 只接受图实体 &gt; 图实体被接受" time="0.000085458">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-generics.spec.ts" name="三端泛型契约（RAN-014） &gt; 无限滚动选项遵循实体声明的 findByCursorOptions &gt; 通用 FindByCursorOptions 形状被编译期拒绝" time="0.000092417">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-generics.spec.ts" name="三端泛型契约（RAN-014） &gt; 无限滚动选项遵循实体声明的 findByCursorOptions &gt; 实体声明的形状被接受" time="0.001303667">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-generics.spec.ts" name="三端泛型契约（RAN-014） &gt; 无限滚动状态对外只读 &gt; isLoading / error / hasMore 不可写" time="0.000125875">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-generics.spec.ts" name="三端泛型契约（RAN-014） &gt; 无限滚动状态对外只读 &gt; 声明为 ComputedRef 而不是可写 ref()" time="0.000085583">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/tri-framework-provider.spec.ts" timestamp="2026-10-05T01:04:30.383Z" hostname="liuleideMacBook-Pro-4.local" tests="5" failures="0" errors="0" skipped="0" time="0.002637708">
+        <testcase classname="src/__tests__/tri-framework-provider.spec.ts" name="三端 provider 契约 &gt; RxDBSource 接受四种数据库形态 &gt; 实例 / Promise / 同步工厂 / 异步工厂都被接受" time="0.001303334">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-provider.spec.ts" name="三端 provider 契约 &gt; RxDBSource 接受四种数据库形态 &gt; null 被编译期拒绝" time="0.000089917">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-provider.spec.ts" name="三端 provider 契约 &gt; 读取分严格与可选两条 &gt; useRxDB 返回非空实例" time="0.000076167">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-provider.spec.ts" name="三端 provider 契约 &gt; 读取分严格与可选两条 &gt; useRxDBOptional 可能为 undefined，不能直接当 RxDB 用" time="0.000107334">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-provider.spec.ts" name="三端 provider 契约 &gt; provider 入口接受同一个联合类型 &gt; provideRxDB 收 RxDBSource" time="0.000082833">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/tri-framework-sync-override.spec.ts" timestamp="2026-10-05T01:04:30.384Z" hostname="liuleideMacBook-Pro-4.local" tests="4" failures="0" errors="0" skipped="0" time="0.181557667">
+        <testcase classname="src/__tests__/tri-framework-sync-override.spec.ts" name="三端实例级同步覆盖（US-026 AC#12） &gt; 查询入口读到本地种子，远端适配器从未被实例化" time="0.070156292">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-sync-override.spec.ts" name="三端实例级同步覆盖（US-026 AC#12） &gt; 写入入口落到本地适配器，活查询随之刷新" time="0.105258292">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-sync-override.spec.ts" name="三端实例级同步覆盖（US-026 AC#12） &gt; 对照组：没有覆盖时 connect() 以缺 QueryCache 插件拒绝并点名实体" time="0.002126">
+        </testcase>
+        <testcase classname="src/__tests__/tri-framework-sync-override.spec.ts" name="三端实例级同步覆盖（US-026 AC#12） &gt; 类型：查询与写入入口的类型只由实体决定，覆盖不引入任何本端配置" time="0.002086583">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/use-action.spec.ts" timestamp="2026-10-05T01:04:30.388Z" hostname="liuleideMacBook-Pro-4.local" tests="7" failures="0" errors="0" skipped="0" time="0.005062792">
+        <testcase classname="src/__tests__/use-action.spec.ts" name="useAction（RVU-010） &gt; 返回 isPending 与 execute，初始不在途" time="0.001311541">
+        </testcase>
+        <testcase classname="src/__tests__/use-action.spec.ts" name="useAction（RVU-010） &gt; 执行期间 isPending 为 true，完成后归零" time="0.000251375">
+        </testcase>
+        <testcase classname="src/__tests__/use-action.spec.ts" name="useAction（RVU-010） &gt; 参数原样透传，返回值原样返回" time="0.001264333">
+        </testcase>
+        <testcase classname="src/__tests__/use-action.spec.ts" name="useAction（RVU-010） &gt; 被包装函数抛出的错误原样冒泡，isPending 仍归零" time="0.000464084">
+        </testcase>
+        <testcase classname="src/__tests__/use-action.spec.ts" name="useAction（RVU-010） &gt; 并发调用时 isPending 保持到最后一个完成" time="0.000120625">
+        </testcase>
+        <testcase classname="src/__tests__/use-action.spec.ts" name="useAction（RVU-010） &gt; 并发中有一个失败也不影响其余的计数恢复" time="0.000550125">
+        </testcase>
+        <testcase classname="src/__tests__/use-action.spec.ts" name="useAction（RVU-010） &gt; 不做去重也不取消在途调用：每次 execute 都真的调用一次" time="0.000138833">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/use-entity-change.spec.ts" timestamp="2026-10-05T01:04:30.390Z" hostname="liuleideMacBook-Pro-4.local" tests="25" failures="0" errors="0" skipped="0" time="0.023412666">
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 订阅当前实体的 patch 流" time="0.011131041">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; patch 到达后模板读到原地修改的新字段" time="0.001299875">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 没有 patch 时原地修改不会重渲染（证明重渲染确实来自 patch 流）" time="0.000679583">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; revision 按 patch 次数递增" time="0.000338416">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; value 就是入参那个实例，不是副本" time="0.000191917">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 时间窗 &gt; 默认配置下 patch 同步透传" time="0.000171959">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 时间窗 &gt; debounceTime 生效" time="0.001154875">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 时间窗 &gt; auditTime 生效" time="0.001885375">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 时间窗 &gt; 两者同时为正值时串联，顺序为 debounceTime → auditTime" time="0.000888834">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 时间窗 &gt; debounceTime 为 0 时 patch 同步透传" time="0.000281417">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 时间窗 &gt; auditTime 为 0 时 patch 同步透传" time="0.000144209">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 时间窗 &gt; debounceTime 为负 时 patch 同步透传" time="0.000180833">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 时间窗 &gt; auditTime 为负 时 patch 同步透传" time="0.00019225">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 时间窗 &gt; debounceTime 为 NaN 时 patch 同步透传" time="0.000178083">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 时间窗 &gt; auditTime 为 NaN 时 patch 同步透传" time="0.000151958">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 时间窗 &gt; debounceTime 为 Infinity 时 patch 同步透传" time="0.00013175">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 时间窗 &gt; auditTime 为 Infinity 时 patch 同步透传" time="0.000119375">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 时间窗 &gt; 时间窗是响应式的：改成正值后立即改按窗口放行" time="0.00048675">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 实体切换与清理 &gt; 实体换成 undefined 时退订" time="0.000276416">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 实体切换与清理 &gt; 实体为 undefined 时不建立订阅" time="0.000253833">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 实体切换与清理 &gt; 换实体时先退订旧的再订阅新的" time="0.000234125">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 实体切换与清理 &gt; 组件卸载时退订" time="0.000646125">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 错误 &gt; patch 流的错误进入 error，并归一化成 Error" time="0.000389125">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 错误 &gt; Error 实例原样透传，保留 identity" time="0.000386541">
+        </testcase>
+        <testcase classname="src/__tests__/use-entity-change.spec.ts" name="useEntityChange（RVU-010） &gt; 错误 &gt; 切换实体后 error 复位" time="0.000371542">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/use-persisted-state.spec.ts" timestamp="2026-10-05T01:04:30.410Z" hostname="liuleideMacBook-Pro-4.local" tests="12" failures="0" errors="0" skipped="0" time="0.017160709">
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; 首次读取使用 initialValue" time="0.001943041">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; 盘上已有值时以盘上值为准" time="0.000180875">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; 写入 ref 会同步落盘" time="0.000912375">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; 同 key 的两个调用点拿到同一个 ref" time="0.000141709">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; 同 key 换值类型时 fail-fast" time="0.000527125">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; 另一处写入会让持有同 key 的组件重渲染" time="0.007430042">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; 组件内直接写 ref 也会重渲染" time="0.001859333">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; 组件卸载后同 key 的状态与订阅仍然有效" time="0.000891917">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; persistError &gt; 写盘失败进入 persistError，且内存值照常更新" time="0.000519542">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; persistError &gt; 后续写盘成功后 persistError 自动清空" time="0.000190583">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; persistError &gt; persistError 是响应式的：失败会让模板重渲染" time="0.000679542">
+        </testcase>
+        <testcase classname="src/__tests__/use-persisted-state.spec.ts" name="usePersistedState（RVU-010） &gt; persistError &gt; persistError 只读，不接受外部写入" time="0.000825083">
+            <system-err>
+[Vue warn] Write operation failed: computed value is readonly
+
+            </system-err>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/use-sync-state.spec.ts" timestamp="2026-10-05T01:04:30.428Z" hostname="liuleideMacBook-Pro-4.local" tests="7" failures="0" errors="0" skipped="0" time="0.020533541">
+        <testcase classname="src/__tests__/use-sync-state.spec.ts" name="useSyncState &gt; 初值就是库当前的同步快照" time="0.013038416">
+        </testcase>
+        <testcase classname="src/__tests__/use-sync-state.spec.ts" name="useSyncState &gt; 离线写入队后待推数跟着涨" time="0.000856958">
+        </testcase>
+        <testcase classname="src/__tests__/use-sync-state.spec.ts" name="useSyncState &gt; 一轮回推期间 syncing 为真，收尾后复位" time="0.000682375">
+        </testcase>
+        <testcase classname="src/__tests__/use-sync-state.spec.ts" name="useSyncState &gt; 回推失败落在 lastError，成功一轮后清空" time="0.000572208">
+        </testcase>
+        <testcase classname="src/__tests__/use-sync-state.spec.ts" name="useSyncState &gt; 冲突判定留在 lastConflict，不被后续成功清空" time="0.000549875">
+        </testcase>
+        <testcase classname="src/__tests__/use-sync-state.spec.ts" name="useSyncState &gt; 作用域销毁时退订上游" time="0.001578">
+        </testcase>
+        <testcase classname="src/__tests__/use-sync-state.spec.ts" name="useSyncState &gt; 没有 provider 时抛错，不返回伪造的正常态" time="0.001919084">
+            <system-err>
+[Vue warn]: injection &quot;Symbol(RxDBProvider)&quot; not found. 
+  at &lt;Anonymous ref=&quot;VTU_COMPONENT&quot; &gt; 
+  at &lt;VTUROOT&gt;
+[Vue warn]: Component is missing template or render function:  { setup: [Function: setup], components: {} } 
+  at &lt;Anonymous ref=&quot;VTU_COMPONENT&quot; &gt; 
+  at &lt;VTUROOT&gt;
+
+            </system-err>
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/useInfiniteScroll.spec.ts" timestamp="2026-10-05T01:04:30.436Z" hostname="liuleideMacBook-Pro-4.local" tests="44" failures="0" errors="0" skipped="0" time="0.040428292">
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; gates manual setup calls until the real Vue mounted lifecycle runs" time="0.01100425">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; loads the first page, marks entities raw, and derives empty and has-more state" time="0.001541417">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; appends cursor pages and sends the last entity as the next after cursor" time="0.000821833">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; does not overlap requests while the current page is still loading" time="0.000894209">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; keeps the newest page loading and authoritative while an earlier live page re-emits" time="0.000943833">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; stops requesting after a short page and reports a loaded empty result" time="0.000622667">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; refreshes from page one and cancels live subscriptions from previous pages" time="0.000781292">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; keeps each active page live until it completes or the component is destroyed" time="0.000542875">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; reloads on the first semantic ref-options change and ignores key-order-only changes" time="0.000893958">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; reloads when only a Date inside the options changes" time="0.000821375">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; tracks reactive dependencies inside function options" time="0.000568708">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; waits for an asynchronously provided database and loads when it becomes available" time="0.000595584">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; resets subscriptions and pages when the provided database changes or becomes pending" time="0.000888458">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; throws the established integration error when no provider exists" time="0.001516166">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; keeps an error distinct from an empty successful result and preserves the cause" time="0.000666292">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; normalizes synchronous repository failures into the public error state" time="0.000508584">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; wraps a non-Error 字符串 payload into a real Error" time="0.000502459">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; wraps a non-Error 普通对象 payload into a real Error" time="0.000431375">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; wraps a non-Error null payload into a real Error" time="0.001823833">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; settles hasMore when the stream completes without ever emitting" time="0.00059275">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; settles hasMore when the stream completes asynchronously without emitting" time="0.000465875">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; settles hasMore when a later page completes without emitting and keeps the loaded pages" time="0.000494958">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; settles hasMore when the stream completes without emitting after a refresh" time="0.000453667">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; does not retain a subscription that completes synchronously" time="0.000404791">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; removes an active subscription when it completes asynchronously" time="0.000370459">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; removes an active subscription when it errors asynchronously" time="0.000523167">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; ignores late emissions and public commands after unmount" time="0.00051825">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; uses the default page limit when callers omit limit" time="0.000388583">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; treats an explicit zero limit as no further pages" time="0.000409417">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; treats a non-positive 负数 limit as no further pages" time="0.000394792">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; treats a non-positive NaN limit as no further pages" time="0.000339542">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; accepts the public entity constructor type without widening it" time="0.000049375">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; 初始游标实体（RVU-001） &gt; 裸实体 当初始 after 时正常发起查询" time="0.000515917">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; 初始游标实体（RVU-001） &gt; Proxy 包装的实体 当初始 after 时正常发起查询" time="0.000385792">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; 初始游标实体（RVU-001） &gt; before 游标同样可用" time="0.000383292">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; 初始游标实体（RVU-001） &gt; 同 identity 的新实例不重查，orderBy 字段变了才重查" time="0.000512875">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; 初始游标实体（RVU-001） &gt; 选项其余部分的变化照常触发重查" time="0.000438542">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; 初始游标实体（RVU-001） &gt; 游标身份字段不可序列化时仍然报错，不静默出 key" time="0.001013667">
+            <system-err>
+[Vue warn]: Component is missing template or render function:  { setup: [Function: setup] } 
+  at &lt;Anonymous&gt; 
+  at &lt;Anonymous ref=&quot;VTU_COMPONENT&quot; &gt; 
+  at &lt;VTUROOT&gt;
+
+            </system-err>
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; live cursor boundary (RVU-004) &gt; keeps the boundary entity when a refreshing head insert shifts the first page" time="0.001220917">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; live cursor boundary (RVU-004) &gt; keeps the tail anchored when an incremental head insert grows the first page" time="0.000920416">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; live cursor boundary (RVU-004) &gt; does not repeat an entity when a deletion pulls the next page into the first" time="0.000528542">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; live cursor boundary (RVU-004) &gt; keeps every entity when a reorder moves an entity across the page boundary" time="0.000484125">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; live cursor boundary (RVU-004) &gt; drops trailing pages when the first page loses every entity" time="0.000424208">
+        </testcase>
+        <testcase classname="src/__tests__/useInfiniteScroll.spec.ts" name="useInfiniteScroll &gt; 三端共享状态序列（RAN-013） &gt; 初始加载 → 下一页失败 → refresh 恢复：结算态与 Angular/React 逐帧一致" time="0.000573">
+        </testcase>
+    </testsuite>
+</testsuites>

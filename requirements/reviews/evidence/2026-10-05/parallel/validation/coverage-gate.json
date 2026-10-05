@@ -1,0 +1,628 @@
+{
+  "clientDate": "2026-10-05",
+  "failingMeasurements": 0,
+  "globalPassNotClaimed": true,
+  "measurements": [
+    {
+      "project": "rxdb",
+      "run": "core-plugins-small-adapters-coverage",
+      "threshold": 90,
+      "metrics": {
+        "statements": 95.55,
+        "branches": 93.16,
+        "functions": 95.38,
+        "lines": 96.11
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-test",
+      "run": "core-plugins-small-adapters-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 91.12,
+        "branches": 91.92,
+        "functions": 83.22,
+        "lines": 92.27
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-test/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-history",
+      "run": "core-plugins-small-adapters-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 98.29,
+        "branches": 93.42,
+        "functions": 98.31,
+        "lines": 98.87
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 349,
+        "passed": 349,
+        "failed": 0,
+        "skipped": 0
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-plugin-history/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-graph",
+      "run": "core-plugins-small-adapters-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 97.48,
+        "branches": 93.63,
+        "functions": 100,
+        "lines": 97.91
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 189,
+        "passed": 189,
+        "failed": 0,
+        "skipped": 0
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-plugin-graph/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-querycache",
+      "run": "core-plugins-small-adapters-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 97.46,
+        "branches": 88,
+        "functions": 99.09,
+        "lines": 97.57
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 203,
+        "passed": 203,
+        "failed": 0,
+        "skipped": 0
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-plugin-querycache/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-sync",
+      "run": "core-plugins-small-adapters-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 93.07,
+        "branches": 86.08,
+        "functions": 94.88,
+        "lines": 94.06
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 452,
+        "passed": 452,
+        "failed": 0,
+        "skipped": 0
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-plugin-sync/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-tree",
+      "run": "core-plugins-small-adapters-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 7,
+        "passed": 7,
+        "failed": 0,
+        "skipped": 0
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-plugin-tree/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-working-tree",
+      "run": "core-plugins-small-adapters-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 97.09,
+        "branches": 90.54,
+        "functions": 97.87,
+        "lines": 98.01
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-plugin-working-tree/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-workspace",
+      "run": "core-plugins-small-adapters-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 90.92,
+        "branches": 83.26,
+        "functions": 95.45,
+        "lines": 94.64
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 100,
+        "passed": 100,
+        "failed": 0,
+        "skipped": 0
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-plugin-workspace/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-storage",
+      "run": "core-plugins-small-adapters-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 93.4,
+        "branches": 86.23,
+        "functions": 95.59,
+        "lines": 94.69
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 267,
+        "passed": 267,
+        "failed": 0,
+        "skipped": 0
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-plugin-storage/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-adapter-sqliteai",
+      "run": "core-plugins-small-adapters-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 95.65,
+        "branches": 100,
+        "functions": 100,
+        "lines": 95.45
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 753,
+        "passed": 743,
+        "failed": 0,
+        "skipped": 10
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-adapter-sqliteai/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-react",
+      "run": "framework-editor-coverage",
+      "threshold": 90,
+      "metrics": {
+        "statements": 99.35,
+        "branches": 96.29,
+        "functions": 98.93,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-react/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-vue",
+      "run": "framework-editor-coverage",
+      "threshold": 90,
+      "metrics": {
+        "statements": 98.6,
+        "branches": 93.28,
+        "functions": 99,
+        "lines": 98.78
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 226,
+        "passed": 226,
+        "failed": 0,
+        "skipped": 0
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-vue/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-model",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 94.31,
+        "branches": 86.73,
+        "functions": 94.36,
+        "lines": 95.71
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 993,
+        "passed": 993,
+        "failed": 0,
+        "skipped": 0
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-model/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-model-angular",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 92.78,
+        "branches": 84.63,
+        "functions": 90.79,
+        "lines": 94.56
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 295,
+        "passed": 295,
+        "failed": 0,
+        "skipped": 0
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-model-angular/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-model-react",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 92.17,
+        "branches": 83.81,
+        "functions": 89.57,
+        "lines": 94.8
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-model-react/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-model-vue",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 90.34,
+        "branches": 85.58,
+        "functions": 83.1,
+        "lines": 91.83
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-model-vue/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-replay-angular",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 97.72,
+        "branches": 93.75,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-replay-angular/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-replay-react",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 96,
+        "branches": 87.5,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-replay-react/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-replay-vue",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 95.23,
+        "branches": 87.5,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 10,
+        "passed": 10,
+        "failed": 0,
+        "skipped": 0
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-replay-vue/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-tree-angular",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-tree-angular/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-tree-react",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-tree-react/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-tree-vue",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-tree-vue/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-working-tree-angular",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-working-tree-angular/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-working-tree-react",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-working-tree-react/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-working-tree-vue",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-working-tree-vue/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-search-angular",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 100,
+        "branches": 100,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-search-angular/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-search-react",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 96.66,
+        "branches": 81.81,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-search-react/coverage-summary.json"
+    },
+    {
+      "project": "rxdb-plugin-search-vue",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 98.57,
+        "branches": 96.42,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {},
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-search-vue/coverage-summary.json"
+    },
+    {
+      "project": "code-editor",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 99.13,
+        "branches": 97.95,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 107,
+        "passed": 107,
+        "failed": 0,
+        "skipped": 0
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor/coverage-summary.json"
+    },
+    {
+      "project": "code-editor-angular",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 98.23,
+        "branches": 94.01,
+        "functions": 96.66,
+        "lines": 99.35
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 76,
+        "passed": 76,
+        "failed": 0,
+        "skipped": 0
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor-angular/coverage-summary.json"
+    },
+    {
+      "project": "code-editor-react",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 97.45,
+        "branches": 94.66,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 34,
+        "passed": 34,
+        "failed": 0,
+        "skipped": 0
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor-react/coverage-summary.json"
+    },
+    {
+      "project": "code-editor-vue",
+      "run": "framework-editor-coverage",
+      "threshold": 80,
+      "metrics": {
+        "statements": 96.26,
+        "branches": 88.88,
+        "functions": 100,
+        "lines": 100
+      },
+      "coveragePass": true,
+      "belowThreshold": [],
+      "tests": {
+        "total": 68,
+        "passed": 68,
+        "failed": 0,
+        "skipped": 0
+      },
+      "measurementInputDrift": [],
+      "source": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor-vue/coverage-summary.json"
+    }
+  ],
+  "missingFreshCoverage": {
+    "framework-editor-coverage": ["rxdb-angular"],
+    "core-plugins-small-adapters-coverage": [
+      "utils",
+      "rxdb-client-generator",
+      "rxdb-plugin-replay",
+      "rxdb-plugin-search",
+      "rxdb-adapter-sqlite-wasm",
+      "rxdb-adapter-miniprogram"
+    ]
+  },
+  "passingMeasurements": 33,
+  "thresholdPolicy": "core rxdb/angular/react/vue each >=90%; other packages each >=80%; all four metrics required, original coverage include/exclude unchanged"
+}

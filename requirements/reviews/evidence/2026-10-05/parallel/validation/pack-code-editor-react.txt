@@ -1,0 +1,39 @@
+CWD: /Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react
+COMMAND: pnpm pack --json --out /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-review-pack-qunrcwin/code-editor-react.tgz
+{
+  "name": "@aiao/code-editor-react",
+  "version": "0.0.26",
+  "filename": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-review-pack-qunrcwin/code-editor-react.tgz",
+  "files": [
+    {
+      "path": "dist/CodeEditor.d.ts"
+    },
+    {
+      "path": "dist/CodeEditor.d.ts.map"
+    },
+    {
+      "path": "dist/index.d.ts"
+    },
+    {
+      "path": "dist/index.d.ts.map"
+    },
+    {
+      "path": "dist/index.js"
+    },
+    {
+      "path": "LICENSE"
+    },
+    {
+      "path": "package.json"
+    },
+    {
+      "path": "README.md"
+    },
+    {
+      "path": "src/CodeEditor.tsx"
+    },
+    {
+      "path": "src/index.ts"
+    }
+  ]
+}

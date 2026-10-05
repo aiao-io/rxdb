@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="5" failures="2" errors="0" time="0.009883083">
+    <testsuite name="src/__tests__/lifecycle/review-parallel-acquire-close.spec.ts" timestamp="2026-10-05T01:33:51.743Z" hostname="liuleideMacBook-Pro-4.local" tests="2" failures="1" errors="0" skipped="0" time="0.004068458">
+        <testcase classname="src/__tests__/lifecycle/review-parallel-acquire-close.spec.ts" name="LifecycleScope 获取过程关闭的资源归属 &gt; setup 同步关闭 scope 后仍释放刚取得的资源" time="0.002956333">
+            <failure message="expected &quot;vi.fn()&quot; to be called 1 times, but got 0 times" type="AssertionError">
+AssertionError: expected &quot;vi.fn()&quot; to be called 1 times, but got 0 times
+ ❯ src/__tests__/lifecycle/review-parallel-acquire-close.spec.ts:23:21
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/lifecycle/review-parallel-acquire-close.spec.ts" name="LifecycleScope 获取过程关闭的资源归属 &gt; 普通获取后重复 dispose 不重复释放" time="0.000278708">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/object/review-parallel-clone-array-shape.spec.ts" timestamp="2026-10-05T01:33:51.744Z" hostname="liuleideMacBook-Pro-4.local" tests="3" failures="1" errors="0" skipped="0" time="0.005814625">
+        <testcase classname="src/__tests__/object/review-parallel-clone-array-shape.spec.ts" name="cloneDeep 保留数组索引结构 &gt; 稀疏数组保留长度、空洞和元素索引" time="0.004623584">
+            <failure message="expected [ &apos;tail&apos; ] to have a length of 3 but got 1" type="AssertionError">
+AssertionError: expected [ &apos;tail&apos; ] to have a length of 3 but got 1
+
+- Expected
++ Received
+
+- 3
++ 1
+
+ ❯ src/__tests__/object/review-parallel-clone-array-shape.spec.ts:11:20
+            </failure>
+        </testcase>
+        <testcase classname="src/__tests__/object/review-parallel-clone-array-shape.spec.ts" name="cloneDeep 保留数组索引结构 &gt; 密集数组仍深拷贝元素并保留重复引用" time="0.000294834">
+        </testcase>
+        <testcase classname="src/__tests__/object/review-parallel-clone-array-shape.spec.ts" name="cloneDeep 保留数组索引结构 &gt; 数组自引用仍收敛到克隆后的数组" time="0.000126417">
+        </testcase>
+    </testsuite>
+</testsuites>

@@ -1,0 +1,2869 @@
+{
+  "angularTools": {
+    "list_projects": "仅发现 examples/angular-todo 和 tmp/baseline examples；不是本次 Nx 项目",
+    "get_best_practices": "2026-10-05 调用失败 Unexpected response type；不阻断只读，不伪造版本适配指南"
+  },
+  "conclusions": {
+    "code-editor": {
+      "object": "code-editor",
+      "trackedFiles": 21,
+      "inspectedTrackedFiles": 21,
+      "fullyDisplayedTrackedFiles": 21,
+      "unreadFiles": [],
+      "partiallyReadFiles": [],
+      "wholeObjectCandidate": true,
+      "status": "🟡 完整范围源码/测试设计评审候选；运行未验面已明确留账",
+      "criteria": [
+        {
+          "C": "C1",
+          "title": "共享文档同步",
+          "status": "部分核销：字符串差量已核销",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/document-sync.ts:54-69 computeMinimalDocumentChange`",
+          "sequence": "相同内容返回 null；公共前缀/后缀确定单一 UTF-16 替换段；三端用 External + addToHistory(false) dispatch。",
+          "tests": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/document-sync.spec.ts:5-62 边界回放`；`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/review-document-change-properties.spec.ts:13-43 4096 对固定种子回放；空串/代理项/组合字符`",
+          "gap": "字符串回放与合法坐标可独立核销；真实 composing 中外部回写、DOM selection、撤销/滚动仍由绑定/browser 补证，不能算该单测已证明。"
+        },
+        {
+          "C": "C2",
+          "title": "语言异步竞态",
+          "status": "已核销：解析/loader 与竞态子项",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/language-resolution.ts:71-109 resolveCodeEditorLanguage / isSameResolvedLanguage`；`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/languages.ts:28-31,58-69,72-232 loader/元数据`",
+          "sequence": "none / not-found / found 分离；description identity 等价才跳过；各绑定请求号递增，A 后到不能盖 B；同步 throw 现已归一化成 rejection。",
+          "tests": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/index.spec.ts:192-205,246-294 真实 Rust/15 loader/parser/严格 JSON5 反例`；三端现有慢成功/慢失败/销毁断言与本轮绿色 JUnit 对照。",
+          "gap": "不复制 RV-056 红报告；未知语言不等于加载故障。按需代码分包体积由 C5 补证，不影响已核销的纯解析/竞态。"
+        },
+        {
+          "C": "C3",
+          "title": "配置与跨框架语义",
+          "status": "已核销：共享契约及三端基础对照",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/index.ts:11-20 公开 exports / CodeEditorTheme`；`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/language-error.ts:28-70 冻结错误联合/原 cause`",
+          "sequence": "主题 light/dark；默认 sql/basic/两空格；宿主同步不触发用户 change；三端 error 通道不同但 kind/language/message/cause 相同。",
+          "tests": "共享 language-error/resolution 测试有 not-found、非 Error rejection、none 正对照；三端实际实现逐项对照见下文。",
+          "gap": "Angular 独有 CVA / setExtensions / setLanguage 不伪装成共享能力；同绑表单的 FE-PENDING-001 归 Angular，不将其推成共享包失败。"
+        },
+        {
+          "C": "C4",
+          "title": "可访问性与资源",
+          "status": "部分核销：纯 a11y helper / 不拥有 view 已核销",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/accessibility.ts:61-85 buildCodeEditorContentAttributes / shouldAutoFocusCodeEditor`",
+          "sequence": "属性只给真正 contentDOM textbox；清空名称不产空 aria；disabled/readonly 抑制初始化 autofocus。共享模块没有 EditorView 构造/隐藏全局实例。",
+          "tests": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/accessibility.spec.ts:5-53 四属性/清空/焦点正反对照`；Node 环境真实共享单测。",
+          "gap": "helper 行为与不创建 view 可独立核销；Tab 逃逸、屏幕阅读器、大文档性能及真实 IME 未核销，见 browser-required.md。"
+        },
+        {
+          "C": "C5",
+          "title": "打包与依赖",
+          "status": "部分核销：打包条目/root 解析已核销",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/package.json:24-58 sideEffects/exports/files/dependencies`；`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/vite.config.mts:16-20,39-74 dts / external / lazy parser imports`",
+          "sequence": "语言声明顶层导出；parser 动态 import；external 清单与 dependencies 对照；pack 排除 spec。",
+          "tests": "主控 packed-consumer-entry-check.json：本包实际 pack、条目无缺失、新 consumer root resolve 成功；不是仅工作区 alias。",
+          "gap": "declarationCompilationExecuted=false、runtimeImportExecuted=false；独立 typed consumer、缺语言 chunk、仅 SQL bundle 实测体积仍需补证。未把可解析说成可运行。"
+        }
+      ]
+    },
+    "code-editor-angular": {
+      "object": "code-editor-angular",
+      "trackedFiles": 18,
+      "inspectedTrackedFiles": 4,
+      "fullyDisplayedTrackedFiles": 3,
+      "unreadFiles": [
+        "packages/code-editor-angular/LICENSE",
+        "packages/code-editor-angular/README.md",
+        "packages/code-editor-angular/eslint.config.mjs",
+        "packages/code-editor-angular/ng-package.json",
+        "packages/code-editor-angular/package.json",
+        "packages/code-editor-angular/project.json",
+        "packages/code-editor-angular/src/__tests__/index.spec.ts",
+        "packages/code-editor-angular/src/code-editor.scss",
+        "packages/code-editor-angular/src/index.ts",
+        "packages/code-editor-angular/src/test-setup.ts",
+        "packages/code-editor-angular/tsconfig.lib.json",
+        "packages/code-editor-angular/tsconfig.lib.prod.json",
+        "packages/code-editor-angular/tsconfig.spec.json",
+        "packages/code-editor-angular/vite.config.mts"
+      ],
+      "partiallyReadFiles": [
+        {
+          "path": "packages/code-editor-angular/src/__tests__/code-editor.spec.ts",
+          "readRanges": [
+            [1, 207],
+            [371, 406],
+            [491, 510],
+            [995, 1022]
+          ]
+        }
+      ],
+      "wholeObjectCandidate": false,
+      "status": "🟡 partial；不升格为全对象完成",
+      "criteria": [
+        {
+          "C": "C1",
+          "title": "EditorView 所有权与同步",
+          "status": "部分核销；同绑优先级待证",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/code-editor.ts:297-342,386-420 ngOnInit / ngOnChanges / writeValue / ngOnDestroy`",
+          "sequence": "实例创建 view；CVA 初始化 pendingValue 优先；value 后续差量事务；External 抑制回调，用户编辑同时调用 CVA onChange 和 aoChange。",
+          "tests": "本轮 76/76 通过；既有光标/undo 前几条经测试 helper dispatch，不能单独证明 OnChanges；新增真实 ngModel/FormControl/value 正对照 3 用例待主控。",
+          "gap": "FE-PENDING-001 未 confirm；真实 IME/DOM selection 未核销。通过 unit 不抵消未运行新 probe。"
+        },
+        {
+          "C": "C2",
+          "title": "动态配置竞态",
+          "status": "已核销：语言竞态与局部配置",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/code-editor.ts:331-383,470-517,554-559 OnChanges / setLanguage / syncLanguage`",
+          "sequence": "等价 description 跳过；真正切换递增 request；同步 throw 归一化；成功/失败均同时检查 request 与 view；主题/setup/userExtensions 各自 compartment。",
+          "tests": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/__tests__/code-editor.spec.ts:371-406,491-502,995-1019 快 B/慢 A、plaintext、销毁成功/失败`；`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/__tests__/review-language-sync-throw.spec.ts:13-55 同步异常/rejection 正反对照`；当轮 JUnit 绿色。",
+          "gap": "该 C 不等全应用/IME；RV-056 已修复，不重新登记。请求号是逻辑取消，不宣称已中止网络下载。"
+        },
+        {
+          "C": "C3",
+          "title": "三端 API / a11y",
+          "status": "部分核销：基础 API / contentDOM a11y",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/code-editor.ts:173-188,209-265,272-295,568-595 disabled OR / inputs / outputs / handle / a11y`",
+          "sequence": "表单与 input 禁用取 OR；readonly/editable/aria 同次 dispatch；aoFocus/aoBlur 与 touched 在 view observers；共同 view/host/focus/blur 面一致。",
+          "tests": "共享 a11y 计算、三端实际源码对照；本轮 DOM fixture 对照绿色。",
+          "gap": "真实屏幕阅读器/Tab、全部输入组合未核销；setExtensions/setLanguage 为 Angular 额外面，原生事件形式允许不同。"
+        },
+        {
+          "C": "C4",
+          "title": "Angular 生命周期与注入",
+          "status": "已核销：已读生命周期/注入子项",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/code-editor.ts:81-112,297-329,386-391,507-514 OnPush / inject / browser gate / Destroy`",
+          "sequence": "SSR guard 先于构造；销毁先推进请求号并置空 view，再 destroy；晚成功与晚失败不 dispatch / emit。",
+          "tests": "既有真实 TestBed 销毁成功/失败用例本轮通过；不是 mock EditorView。",
+          "gap": "Angular CLI 只发现 examples，get_best_practices 调用失败已如实记录；真实 SSR 渲染/ShadowRoot、多 provider consumer 属单独未验证面，不将 guide 缺失当源码阻断。"
+        },
+        {
+          "C": "C5",
+          "title": "Angular 类型与运行证据",
+          "status": "部分核销：strict / package entry",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/tsconfig.json:1-26 strictTemplates / lib+spec references`；`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/code-editor.ts:406-420,611-619 unknown CVA 值校验`",
+          "sequence": "模板/表单入口不以 any 声称安全；null/undefined 归空，错误类型在边界拒绝。",
+          "tests": "主控69 lint/typecheck 绿色；76 个旧输入面测试绿色；实际发布 root 为 dist/packages/code-editor-angular，条目/root resolve 成功。",
+          "gap": "新 probe 与后续零警告复验待主控；独立 typed Angular consumer/真实 route mount-unmount/SSR 未完成。typecheck/pack 不是模板消费运行证明。"
+        }
+      ]
+    },
+    "code-editor-react": {
+      "object": "code-editor-react",
+      "trackedFiles": 14,
+      "inspectedTrackedFiles": 2,
+      "fullyDisplayedTrackedFiles": 1,
+      "unreadFiles": [
+        "packages/code-editor-react/LICENSE",
+        "packages/code-editor-react/README.md",
+        "packages/code-editor-react/eslint.config.mjs",
+        "packages/code-editor-react/package.json",
+        "packages/code-editor-react/project.json",
+        "packages/code-editor-react/src/__tests__/index.spec.ts",
+        "packages/code-editor-react/src/__tests__/review-language-sync-throw.spec.tsx",
+        "packages/code-editor-react/src/index.ts",
+        "packages/code-editor-react/tsconfig.json",
+        "packages/code-editor-react/tsconfig.lib.json",
+        "packages/code-editor-react/tsconfig.spec.json",
+        "packages/code-editor-react/vite.config.mts"
+      ],
+      "partiallyReadFiles": [
+        {
+          "path": "packages/code-editor-react/src/__tests__/CodeEditor.spec.tsx",
+          "readRanges": [
+            [1, 55],
+            [385, 429],
+            [480, 577],
+            [603, 682]
+          ]
+        }
+      ],
+      "wholeObjectCandidate": false,
+      "status": "🟡 partial；不升格为全对象完成",
+      "criteria": [
+        {
+          "C": "C1",
+          "title": "EditorView 所有权与同步",
+          "status": "部分核销：事务/所有权",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/CodeEditor.tsx:227-235,333-377,514-519 syncDocument / view effect / value effect`",
+          "sequence": "首次创建；用户 docChanged 才 onChange；宿主差量标 External + 不进 history；cleanup 先清 viewRef 再 destroy。",
+          "tests": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/__tests__/CodeEditor.spec.tsx:117-209 外部追加/中间变化/undo/范围 selection`；本轮 34/34 绿色。",
+          "gap": "上述部分用例仅作索引，全文未读；真实 DOM selection/IME、输入同时受控回写、大文档滚动未核销。"
+        },
+        {
+          "C": "C2",
+          "title": "动态配置竞态",
+          "status": "已核销：语言竞态/等价性",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/CodeEditor.tsx:308-321,461-512 appliedLanguageRef / stableLanguages / request+view`",
+          "sequence": "列表元素等价保留稳定引用；selected description 不变不装载；A→B 后 A 返回被 request+view 丢弃；同步 loader throw 已进入错误通道。",
+          "tests": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/__tests__/CodeEditor.spec.tsx:385-427,622-662 迟到成功/失败、空列表/未知语言、callback identity`；本轮对应用例绿色。",
+          "gap": "逻辑取消不等物理取消；不复制历史 RV-056。本专题不等待其他 app。"
+        },
+        {
+          "C": "C3",
+          "title": "三端 API / a11y",
+          "status": "部分核销：props / DOM a11y / handle",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/CodeEditor.tsx:55-193,404-421,523-532 props / access / contentAttributes / host`",
+          "sequence": "共同默认值/错误载荷同语义；内部 textbox 属性经 compartment；宿主透传与内部名称分离；disabled 避免 autofocus。",
+          "tests": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/__tests__/CodeEditor.spec.tsx:480-533 清空属性/disabled/焦点正反/imperative handle`；三端源码互照。",
+          "gap": "readonly 可选择/复制需 browser 验证；原生 FocusEvent 不要求与 Angular void 同类型；真实辅助技术和标签消费未核销。"
+        },
+        {
+          "C": "C4",
+          "title": "React 生命周期与竞态",
+          "status": "部分核销：普通卸载已核销，StrictMode 待证",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/CodeEditor.tsx:323-331,333-377,465-471 callback refs / cleanup / view identity`",
+          "sequence": "闭包用 ref 获取最新回调；cleanup 清 ref；applied 同时绑定 view，避免 effect replay 误认新 view 已装语言。",
+          "tests": "卸载 handle 归 null 与慢请求用例绿色；现有测试文件未发现 StrictMode 包装断言，不能用源码注释充当该动态证据。",
+          "gap": "需真实 StrictMode mount→cleanup→mount + 首次 loader 晚到/新 view 成功的有界对照；本轮不继续新增 probe。"
+        },
+        {
+          "C": "C5",
+          "title": "React 类型与 render 边界",
+          "status": "部分核销：类型与发布 metadata",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/CodeEditor.tsx:202-206,318-321,379-392 list compare / render state adjustment / imperative handle`",
+          "sequence": "render 中只在语言列表元素真变化时调整 stableLanguages；所有 view 副作用在 effect；ref 公共面明确 null。",
+          "tests": "主控69 lint/typecheck 绿色；34 个本轮用例绿色；实际 pack 条目、新 consumer root 可解析。",
+          "gap": "render replay/concurrent 时序及独立 React typed/runtime consumer 未核销；声明文件存在不是 consumer 编译通过。"
+        }
+      ]
+    },
+    "code-editor-vue": {
+      "object": "code-editor-vue",
+      "trackedFiles": 21,
+      "inspectedTrackedFiles": 5,
+      "fullyDisplayedTrackedFiles": 3,
+      "unreadFiles": [
+        "packages/code-editor-vue/LICENSE",
+        "packages/code-editor-vue/README.md",
+        "packages/code-editor-vue/eslint.config.mjs",
+        "packages/code-editor-vue/package.json",
+        "packages/code-editor-vue/project.json",
+        "packages/code-editor-vue/src/__tests__/CodeEditor.highlight.spec.ts",
+        "packages/code-editor-vue/src/__tests__/CodeEditor.reconfigure.spec.ts",
+        "packages/code-editor-vue/src/__tests__/CodeEditor.spec.ts",
+        "packages/code-editor-vue/src/__tests__/index.spec.ts",
+        "packages/code-editor-vue/src/__tests__/review-language-sync-throw.spec.ts",
+        "packages/code-editor-vue/src/index.ts",
+        "packages/code-editor-vue/src/vue-shims.d.ts",
+        "packages/code-editor-vue/tsconfig.json",
+        "packages/code-editor-vue/tsconfig.lib.json",
+        "packages/code-editor-vue/tsconfig.spec.json",
+        "packages/code-editor-vue/vite.config.mts"
+      ],
+      "partiallyReadFiles": [
+        {
+          "path": "packages/code-editor-vue/src/__tests__/CodeEditor.language.spec.ts",
+          "readRanges": [
+            [1, 55],
+            [145, 232]
+          ]
+        },
+        {
+          "path": "packages/code-editor-vue/src/code-editor.types.ts",
+          "readRanges": [[123, 177]]
+        }
+      ],
+      "wholeObjectCandidate": false,
+      "status": "🟡 partial；不升格为全对象完成",
+      "criteria": [
+        {
+          "C": "C1",
+          "title": "EditorView 所有权与同步",
+          "status": "部分核销：真实 CM 事务已核销",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/CodeEditor.vue:81-162 mounted / updateListener / value watch / unmounted`",
+          "sequence": "用户编辑发 update:value+change；外部 watch 最小差量，不回发事件/不入 undo；卸载递增代次、清 ref、destroy。",
+          "tests": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/__tests__/CodeEditor.document-sync.spec.ts:21-101 真实 CodeMirror 光标/range/history/差量`；本轮该套件 5/5。",
+          "gap": "真实 IME/浏览器 selection 未核销；同目录整套 mock 的 CodeEditor.spec.ts 不替代这些 real-CM 断言。"
+        },
+        {
+          "C": "C2",
+          "title": "动态配置竞态",
+          "status": "已核销：当前语言身份/错误竞态",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/CodeEditor.vue:198-260 syncLanguage / updateLanguage / isCurrentLanguageRequest`",
+          "sequence": "watch 触发后按 description 比较；真正加载才增 request；同步 throw 转 rejection；晚到成功/错误均 request+view 守卫。",
+          "tests": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/__tests__/CodeEditor.language.spec.ts:166-230 missing/拒绝/none/过期拒绝/卸载`；本轮 9 个语言用例+同步 throw 对照绿色。",
+          "gap": "已读源码与错误测试；等价列表成功测试中段尚未逐行读，具体未读范围见 inspection。不把 mock spec 或旧红当当轮结论。"
+        },
+        {
+          "C": "C3",
+          "title": "三端 API / a11y",
+          "status": "部分核销：共同 API / 真 textbox 属性",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/CodeEditor.vue:28-45,262-285,314-333 defaults / access / a11y / expose`；`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/code-editor.types.ts:126-175 value/emits/handle`",
+          "sequence": "非严格受控 value；错误/用户事件通道明确；label/labelledBy/describedBy 写 contentDOM；disabled 抑制初始 focus。",
+          "tests": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/__tests__/CodeEditor.a11y.spec.ts:41-87 真实 role/清空/disabled/焦点正反`；本轮 6/6。",
+          "gap": "可见 DOM 属性已核销；真实键盘/屏幕阅读器未核销，ShadowRoot consumer 未运行。"
+        },
+        {
+          "C": "C4",
+          "title": "Vue 生命周期与响应式来源",
+          "status": "已核销：组件卸载/逻辑取消子项",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/CodeEditor.vue:138-143,145-172,258-260,314-324 watch / unmounted / current-request / expose`",
+          "sequence": "所有 watch 在 setup scope；卸载先推进 request、清 viewRef，再销毁；保留旧 expose 的 host getter 也跟 view 置空。",
+          "tests": "真实语言卸载拒绝用例 222-230 绿色；真实文档与 a11y 套件 teardown unmount。",
+          "gap": "loader 网络 Promise 不被 AbortController 物理取消；不是泄漏确认。页面 provider 与大规模实例尚属 app/宿主验证。"
+        },
+        {
+          "C": "C5",
+          "title": "Vue 类型与 SFC 消费",
+          "status": "部分核销：SFC 类型/发布条目",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/code-editor.types.ts:136-177 typed emits/expose/theme`；`/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/CodeEditor.vue:314-333 defineExpose / template`",
+          "sequence": "公开事件 tuple 与 expose null 语义对齐三端；模板只持有宿主，CM DOM 不靠字符串 HTML 注入。",
+          "tests": "主控69 lint/typecheck 绿色；68/68 当轮测试；实际 pack 条目/root resolve 成功。",
+          "gap": "独立 SFC consumer 的 vue-tsc 编译/runtime import、SSR hydration 未核销；pack root 可解析不补这两项。"
+        }
+      ]
+    },
+    "rxdb-devtools": {
+      "object": "rxdb-devtools",
+      "trackedFiles": 114,
+      "inspectedTrackedFiles": 12,
+      "fullyDisplayedTrackedFiles": 10,
+      "unreadFiles": [
+        "packages/rxdb-devtools/LICENSE",
+        "packages/rxdb-devtools/README.md",
+        "packages/rxdb-devtools/eslint.config.mjs",
+        "packages/rxdb-devtools/package.json",
+        "packages/rxdb-devtools/project.json",
+        "packages/rxdb-devtools/src/__tests__/browser/fake-opfs.ts",
+        "packages/rxdb-devtools/src/__tests__/browser/opfs-files-provider.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/browser/opfs-upload-wire.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/browser/settings-provider.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/buffer.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/connector-entity-info.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/connector-providers.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/connector.boundaries.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/connector.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/connector.v2-negotiation.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/fixtures/devtools-channel.ts",
+        "packages/rxdb-devtools/src/__tests__/fixtures/mock-rxdb.ts",
+        "packages/rxdb-devtools/src/__tests__/native/fake-native-filesystem.ts",
+        "packages/rxdb-devtools/src/__tests__/native/native-files-provider.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/native/native-files-snapshot.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/native/native-snapshot-source.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/native/settings-provider.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/provider/logical-path.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/rxdb-contract.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/rxdb/database-provider.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/sequence.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/serializer.envelope-contract.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/serializer.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/testing/conformance.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/testing/error-fixtures.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/testing/fake-providers-snapshot.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/testing/fake-providers.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/testing/json-driver.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/types.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/authorization.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/base64.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/capability.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/clock.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/descriptor.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/download.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/endpoint.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/error-mapping.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/errors.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/guards.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/ids.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/limits.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/negotiation-connector.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/negotiation-panel.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/panel-endpoint.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/session.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/snapshot.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/transfer.spec.ts",
+        "packages/rxdb-devtools/src/__tests__/v2/wire.spec.ts",
+        "packages/rxdb-devtools/src/browser/opfs-files-provider.ts",
+        "packages/rxdb-devtools/src/browser/settings-provider.ts",
+        "packages/rxdb-devtools/src/connector-entity-info.ts",
+        "packages/rxdb-devtools/src/connector-events.ts",
+        "packages/rxdb-devtools/src/connector-providers.ts",
+        "packages/rxdb-devtools/src/connector-transport.ts",
+        "packages/rxdb-devtools/src/connector-types.ts",
+        "packages/rxdb-devtools/src/index.ts",
+        "packages/rxdb-devtools/src/internal/guards.ts",
+        "packages/rxdb-devtools/src/native/native-files-provider.ts",
+        "packages/rxdb-devtools/src/native/native-snapshot-source.ts",
+        "packages/rxdb-devtools/src/native/settings-provider.ts",
+        "packages/rxdb-devtools/src/provider/descriptor.ts",
+        "packages/rxdb-devtools/src/provider/snapshot.ts",
+        "packages/rxdb-devtools/src/provider/types.ts",
+        "packages/rxdb-devtools/src/rxdb/database-provider.ts",
+        "packages/rxdb-devtools/src/testing-providers.ts",
+        "packages/rxdb-devtools/src/testing.ts",
+        "packages/rxdb-devtools/src/testing/control-plane.suite.ts",
+        "packages/rxdb-devtools/src/testing/data-plane.suite.ts",
+        "packages/rxdb-devtools/src/testing/driver.ts",
+        "packages/rxdb-devtools/src/testing/error-fixtures.ts",
+        "packages/rxdb-devtools/src/testing/fake-clock.ts",
+        "packages/rxdb-devtools/src/testing/fake-endpoints.ts",
+        "packages/rxdb-devtools/src/testing/fake-providers.ts",
+        "packages/rxdb-devtools/src/testing/fake-relay.ts",
+        "packages/rxdb-devtools/src/testing/frames.ts",
+        "packages/rxdb-devtools/src/testing/json-driver.ts",
+        "packages/rxdb-devtools/src/testing/suite-support.ts",
+        "packages/rxdb-devtools/src/testing/wire-hygiene.suite.ts",
+        "packages/rxdb-devtools/src/types.ts",
+        "packages/rxdb-devtools/src/v2/base64.ts",
+        "packages/rxdb-devtools/src/v2/capability.ts",
+        "packages/rxdb-devtools/src/v2/clock.ts",
+        "packages/rxdb-devtools/src/v2/constants.ts",
+        "packages/rxdb-devtools/src/v2/error-mapping.ts",
+        "packages/rxdb-devtools/src/v2/errors.ts",
+        "packages/rxdb-devtools/src/v2/guards.ts",
+        "packages/rxdb-devtools/src/v2/ids.ts",
+        "packages/rxdb-devtools/src/v2/negotiation-connector.ts",
+        "packages/rxdb-devtools/src/v2/negotiation-panel.ts",
+        "packages/rxdb-devtools/src/v2/panel-endpoint.ts",
+        "packages/rxdb-devtools/src/v2/session.ts",
+        "packages/rxdb-devtools/src/v2/transfer.ts",
+        "packages/rxdb-devtools/src/v2/wire.ts",
+        "packages/rxdb-devtools/tsconfig.json",
+        "packages/rxdb-devtools/tsconfig.lib.json",
+        "packages/rxdb-devtools/tsconfig.spec.json",
+        "packages/rxdb-devtools/vite.config.mts"
+      ],
+      "partiallyReadFiles": [
+        {
+          "path": "packages/rxdb-devtools/src/connector.ts",
+          "readRanges": [[204, 297]]
+        },
+        {
+          "path": "packages/rxdb-devtools/src/v2/endpoint.ts",
+          "readRanges": [
+            [249, 377],
+            [379, 422]
+          ]
+        }
+      ],
+      "wholeObjectCandidate": false,
+      "status": "🟡 partial；不升格为全对象完成",
+      "criteria": [
+        {
+          "C": "C1",
+          "title": "协议与信任边界",
+          "status": "部分核销：已读身份/授权顺序",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/v2/endpoint.ts:249-377 receive / route / malformed / onRequest`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/v2/authorization.ts:172-182 authorizeOperation`",
+          "sequence": "negotiation 所有权帧先排除；session open+身份 → capability → 本地 descriptor → mutationPolicy → 登记请求 → provider；不会从对端握手提权。",
+          "tests": "未运行/未读取当轮完整 conformance 报告；源码顺序已核查，不能据此宣称所有伪造/旧 session 都动态通过。",
+          "gap": "需要本轮 endpoint/authorization/session/wire 的拒绝与零 provider 调用断言；v1 全路径、transfer 路由全文仍未审。"
+        },
+        {
+          "C": "C2",
+          "title": "数据脱敏与序列化",
+          "status": "部分核销：当前环引用修复/序列化面",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector-mask.ts:89-129 WeakMap identity before recursion`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/serializer.ts:61-218 maskEncryptedFields / safeSerialize / Error / Map / Set`",
+          "sequence": "先按 namespace/metadata mask；环对象先登记输出，serializer 按当前递归路径判环；BigInt/binary 版本信封；Error/cause 进入同路径。",
+          "tests": "确认现代码已含 RV-047 环引用修复；未读本轮完整 serializer/边界测试结果，不复制旧红。",
+          "gap": "metadata 缺省不保证字段 mask；深对象/超大事件、错误 message/stack 敏感值、snapshot 有界需补真实 provider 与主控测试；不宣布全脱敏通过。"
+        },
+        {
+          "C": "C3",
+          "title": "缓冲、序号与反压",
+          "status": "部分核销：有限 buffer/一次订阅结构",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/buffer.ts:36-60 EventBuffer`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/sequence.ts:6-20 SequenceGenerator`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector-subscribe-once.ts:26-99 subscribeOnce`",
+          "sequence": "正整数容量；满 FIFO 丢最旧；flush 清空；首 next/error/timeout 结算并清 timer；同步 next 用后置退订守卫。",
+          "tests": "已读实现；当轮突发、gap detection、慢消费者、sequence 重置/overflow 断言未补，不将 max count 说成 max bytes。",
+          "gap": "字节级反压、gap 的可见诊断、重连序列边界需验证；一个巨大事件仍不同于无限事件数量。"
+        },
+        {
+          "C": "C4",
+          "title": "provider 权限与文件",
+          "status": "部分核销：本地权限与路径子项",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/v2/authorization.ts:70-93,172-182 操作目录/三层授权`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/provider/logical-path.ts:29-77 段校验/根拒绝`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/provider/limits.ts:22-56 三方 min limit`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/provider/read-only-settings.ts:30-38 只读零 host 动作`",
+          "sequence": "拒绝 .. 与反斜杠；操作根需末段；传输限额各方合法再取 min；settings export 恒拒绝，不先读 host。",
+          "tests": "不靠 UI disabled；实际 browser/native invoke、upload/snapshot/取消全文与本轮测试尚未核销。",
+          "gap": "必要：路径穿越零物理访问、大小/配额/取消时句柄关闭、失败批处理结果与 provider descriptor 一致。"
+        },
+        {
+          "C": "C5",
+          "title": "环境与生产隔离",
+          "status": "部分核销：初始化 gate / extension 接线",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector.ts:227-245,288-297 enabled/browser/opaque-origin gate`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/devtools/main.ts:26-45 宿主 token wiring`",
+          "sequence": "enabled=false/非 window 先返回；opaque origin 要显式 opt-in；面板 token 换宿主，不将 Chrome 权限 API 拖到共享 provider。",
+          "tests": "实际 main 三端 demo 明确 init connector；本轮不跑生产 build/打包 Electron/Tauri，未宣称攻击面全闭合。",
+          "gap": "普通同 origin 脚本是否可伪造 v2 命令须按协议威胁模型验证；不能把 source/session 当密码学身份。生产消费者 gating/隔离未完成。"
+        },
+        {
+          "C": "C6",
+          "title": "生命周期与 conformance",
+          "status": "部分核销：connector detach 路径",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector.ts:259-280 disconnect`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/v2/endpoint.ts:267-269,402-416 dispose / settle before response`",
+          "sequence": "告别先发再关 port；退订 RxDB/listeners/待查询；dispose endpoint + providers；清 helper/buffer/sequence；晚结果必须 settle 成功才回帧。",
+          "tests": "Chrome relay conformance 源入口未全文审；需要当轮真实 hosts + provider unregister/close 报告。",
+          "gap": "无完整对象候选：114 tracked 中只读指定路径；registry/openSession/transfer 实现仍需逐段审，不以一处 dispose 推全资源安全。"
+        }
+      ]
+    },
+    "dev-rxdb-angular": {
+      "object": "dev-rxdb-angular",
+      "trackedFiles": 213,
+      "inspectedTrackedFiles": 6,
+      "fullyDisplayedTrackedFiles": 6,
+      "unreadFiles": [
+        "apps/dev-rxdb-angular/.postcssrc.json",
+        "apps/dev-rxdb-angular/eslint.config.mjs",
+        "apps/dev-rxdb-angular/ngsw-config.json",
+        "apps/dev-rxdb-angular/project.json",
+        "apps/dev-rxdb-angular/public/angular.svg",
+        "apps/dev-rxdb-angular/public/favicon.ico",
+        "apps/dev-rxdb-angular/public/icons/icon-128x128.png",
+        "apps/dev-rxdb-angular/public/icons/icon-144x144.png",
+        "apps/dev-rxdb-angular/public/icons/icon-152x152.png",
+        "apps/dev-rxdb-angular/public/icons/icon-192x192.png",
+        "apps/dev-rxdb-angular/public/icons/icon-384x384.png",
+        "apps/dev-rxdb-angular/public/icons/icon-512x512.png",
+        "apps/dev-rxdb-angular/public/icons/icon-72x72.png",
+        "apps/dev-rxdb-angular/public/icons/icon-96x96.png",
+        "apps/dev-rxdb-angular/public/manifest.webmanifest",
+        "apps/dev-rxdb-angular/public/robots.txt",
+        "apps/dev-rxdb-angular/src/app/app.service.ts",
+        "apps/dev-rxdb-angular/src/app/app.ts",
+        "apps/dev-rxdb-angular/src/app/components/app-header.ts",
+        "apps/dev-rxdb-angular/src/app/components/app-menu.ts",
+        "apps/dev-rxdb-angular/src/app/components/app-sidebar.ts",
+        "apps/dev-rxdb-angular/src/app/components/branch-manager.ts",
+        "apps/dev-rxdb-angular/src/app/components/imported-db-banner.ts",
+        "apps/dev-rxdb-angular/src/app/pages/ag-grid/ag-grid.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/ag-grid/ag-grid.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/ag-grid/buildColDefs.ts",
+        "apps/dev-rxdb-angular/src/app/pages/ag-grid/grid-data.util.ts",
+        "apps/dev-rxdb-angular/src/app/pages/encrypted/encrypted.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/encrypted/encrypted.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/entity/entity-detail.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/entity/entity-list.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/entity/entity-pages-construction.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/entity/entity.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/entity/entity.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/failure-archive/failure-archive.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/failure-archive/failure-archive.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/file-manager-construction.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/file-manager-lazy/file-manager-lazy.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/file-manager-lazy/file-manager-lazy.page.scss",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/file-manager-lazy/file-manager-lazy.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/file-manager-lazy/file-manager-lazy.store.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/file-manager-lazy/file-manager-lazy.store.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/file-manager-simple/file-manager-simple.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/file-manager-simple/file-manager-simple.page.scss",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/file-manager-simple/file-manager-simple.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/file-manager-virtual/file-manager-virtual.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/file-manager-virtual/file-manager-virtual.page.scss",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/file-manager-virtual/file-manager-virtual.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/models/drag-drop-types.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/models/file-node.interface.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/models/file-types.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/services/file-drag-drop.service.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/services/file-drag-drop.service.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/services/file-path-validator.service.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/services/file-path-validator.service.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/services/file-search.service.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/services/file-search.service.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/utils/file-sorters.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/utils/file-utils.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/utils/tree-file-drag-drop.base.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/utils/tree-file.base.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/utils/tree-file.store.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/utils/tree-file.store.ts",
+        "apps/dev-rxdb-angular/src/app/pages/file-manager/utils/tree-utils.ts",
+        "apps/dev-rxdb-angular/src/app/pages/generator/generator.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/generator/generator.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/home/home.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/home/home.page.scss",
+        "apps/dev-rxdb-angular/src/app/pages/home/home.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/models/drag-drop-types.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/models/menu-operation.types.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/models/tree-node.interface.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/services/menu-drag-drop.service.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/services/menu-search.service.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/services/menu-search.service.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/tree-menu-lazy/tree-menu-lazy.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/menu/tree-menu-lazy/tree-menu-lazy.page.scss",
+        "apps/dev-rxdb-angular/src/app/pages/menu/tree-menu-lazy/tree-menu-lazy.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/tree-menu-lazy/tree-menu-lazy.store.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/tree-menu-lazy/tree-menu-lazy.store.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/tree-menu-simple/tree-menu-simple.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/menu/tree-menu-simple/tree-menu-simple.page.scss",
+        "apps/dev-rxdb-angular/src/app/pages/menu/tree-menu-simple/tree-menu-simple.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/tree-menu-virtual/tree-menu-virtual.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/menu/tree-menu-virtual/tree-menu-virtual.page.scss",
+        "apps/dev-rxdb-angular/src/app/pages/menu/tree-menu-virtual/tree-menu-virtual.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/utils/path-validator.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/utils/tree-menu.base.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/utils/tree-menu.basic.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/utils/tree-menu.drag-drop.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/utils/tree-menu.store.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/utils/tree-menu.store.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/utils/tree-utils.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/menu/utils/tree-utils.ts",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/components/opfs-file-grid.component.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/components/opfs-file-grid.component.ts",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/components/opfs-file-list.component.ts",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/components/opfs-file-preview.component.ts",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/components/review-preview-text-epoch.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/opfs.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/opfs.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/services/opfs.service.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/services/opfs.service.ts",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/utils/opfs-preview-type.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/utils/opfs-preview-type.ts",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/utils/opfs-utils.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/utils/opfs-utils.ts",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/utils/opfs-zip.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/utils/opfs-zip.ts",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/utils/resettable-timer.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/opfs/utils/resettable-timer.ts",
+        "apps/dev-rxdb-angular/src/app/pages/remote-cache/remote-cache.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/remote-cache/remote-cache.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/replay/replay.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/replay/replay.page.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/replay/replay.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/search/search-records.service.ts",
+        "apps/dev-rxdb-angular/src/app/pages/search/search-seed-refresh.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/search/search-seed-refresh.ts",
+        "apps/dev-rxdb-angular/src/app/pages/search/search-seed.service.ts",
+        "apps/dev-rxdb-angular/src/app/pages/search/search.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/search/search.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/storage/components/storage-file-grid.component.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/storage/components/storage-file-grid.component.ts",
+        "apps/dev-rxdb-angular/src/app/pages/storage/components/storage-file-list.component.ts",
+        "apps/dev-rxdb-angular/src/app/pages/storage/components/storage-file-preview.component.ts",
+        "apps/dev-rxdb-angular/src/app/pages/storage/storage-page.browser.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/storage/storage-page.browser.ts",
+        "apps/dev-rxdb-angular/src/app/pages/storage/storage-page.helpers.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/storage/storage-page.helpers.ts",
+        "apps/dev-rxdb-angular/src/app/pages/storage/storage-page.selection.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/storage/storage-page.selection.ts",
+        "apps/dev-rxdb-angular/src/app/pages/storage/storage-page.transfer.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/storage/storage-page.transfer.ts",
+        "apps/dev-rxdb-angular/src/app/pages/storage/storage-page.zip.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/storage/storage-page.zip.ts",
+        "apps/dev-rxdb-angular/src/app/pages/storage/storage.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/storage/storage.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/storage/utils/storage-utils.ts",
+        "apps/dev-rxdb-angular/src/app/pages/tree-pages-construction.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/components/branch-menu.component.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/components/changes-list.component.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/components/commit-box.component.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/components/commit-detail.component.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/components/context-menu.component.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/components/diff-viewer.component.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/components/history-list.component.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/components/merge-dialog.component.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/working-tree.diff-format.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/working-tree.diff-format.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/working-tree.drag.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/working-tree.drag.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/working-tree.gd.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/working-tree.gd.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/working-tree.keep-last-good.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/working-tree.keep-last-good.ts",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/working-tree.page.html",
+        "apps/dev-rxdb-angular/src/app/pages/working-tree/working-tree.page.ts",
+        "apps/dev-rxdb-angular/src/app/pages/workspace/workspace.page.ts",
+        "apps/dev-rxdb-angular/src/app/pipes/base-src.pipe.spec.ts",
+        "apps/dev-rxdb-angular/src/app/pipes/base-src.pipe.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/demo-rxdb-config.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/failure-archive-api.spec.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/failure-archive-api.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/failure-archive-import.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/failure-archive.spec.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/failure-archive.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/imported-db.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/replay-recording.spec.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/replay-recording.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/replay-toggle.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/setup_rxdb.spec.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/setup_rxdb_sqlite_official.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/setup_rxdb_sqliteai.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/setup_rxdb_wa-sqlite.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/sqlite-repositories.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/sqlite-wasm-repositories.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/sqlite-wasm-shared.worker.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/sqlite-wasm.worker.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/sqlite.worker.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/sqliteai.worker.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/wa-sqlite-shared.worker.ts",
+        "apps/dev-rxdb-angular/src/app/rxdb/wa-sqlite.worker.ts",
+        "apps/dev-rxdb-angular/src/app/shared/accessible-overlays.spec.ts",
+        "apps/dev-rxdb-angular/src/app/shared/event-listener.spec.ts",
+        "apps/dev-rxdb-angular/src/app/shared/event-listener.ts",
+        "apps/dev-rxdb-angular/src/app/shared/read-directory-entries.spec.ts",
+        "apps/dev-rxdb-angular/src/app/shared/read-directory-entries.ts",
+        "apps/dev-rxdb-angular/src/app/shared/traverse-file-tree.spec.ts",
+        "apps/dev-rxdb-angular/src/app/shared/traverse-file-tree.ts",
+        "apps/dev-rxdb-angular/src/app/shared/view-transition.spec.ts",
+        "apps/dev-rxdb-angular/src/app/shared/view-transition.ts",
+        "apps/dev-rxdb-angular/src/app/theme.service.spec.ts",
+        "apps/dev-rxdb-angular/src/environments/environment.interface.ts",
+        "apps/dev-rxdb-angular/src/environments/environment.prod.ts",
+        "apps/dev-rxdb-angular/src/environments/environment.ts",
+        "apps/dev-rxdb-angular/src/index.html",
+        "apps/dev-rxdb-angular/src/styles.scss",
+        "apps/dev-rxdb-angular/src/styles/_tree-drag.scss",
+        "apps/dev-rxdb-angular/src/styles/_view-transitions.scss",
+        "apps/dev-rxdb-angular/src/test-setup.ts",
+        "apps/dev-rxdb-angular/src/types/asset-url.d.ts",
+        "apps/dev-rxdb-angular/tsconfig.app.json",
+        "apps/dev-rxdb-angular/tsconfig.json",
+        "apps/dev-rxdb-angular/tsconfig.spec.json",
+        "apps/dev-rxdb-angular/tsconfig.worker.json",
+        "apps/dev-rxdb-angular/vite.config.mts"
+      ],
+      "partiallyReadFiles": [],
+      "wholeObjectCandidate": false,
+      "status": "🟡 partial；不升格为全对象完成",
+      "criteria": [
+        {
+          "C": "C1",
+          "title": "业务路由与依赖接线",
+          "status": "部分核销：route/bootstrap 静态对照",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/app.config.ts:49-65 router/provideRxDB`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/app.routes.ts:16-21,54-170 connectLocalAdapter / lazy routes`",
+          "sequence": "search/working-tree 先 connect 再 lazy 页面；CodeEditor 真实包挂载；Angular 专有 failure-archive/replay 不要求另外两端复制。",
+          "tests": "三端路由文件全文已读；本轮只有 editor packages 动态通过，不冒充所有路由 E2E 已执行。",
+          "gap": "未逐页追踪所有实体/插件/backend 与 close；route 清点不是整个应用完成。"
+        },
+        {
+          "C": "C2",
+          "title": "数据库启动与持久化",
+          "status": "部分核销：默认 sqlite-wasm 初始化",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/rxdb/setup_rxdb_sqlite-wasm.ts:44-103 setup / plugins / init / test API / connector`",
+          "sequence": "模块单例；先 plugins/adapter factory，再 init、test API 与 connector；OPFS 能力探测决定 Worker/SharedWorker，DB 名进入接线。",
+          "tests": "主控应用基础 test 结果尚待补；初始化实际源码已读，没重跑历史 storage/Node 红。",
+          "gap": "所有替代 backend、连接失败/刷新同库/provider destroy/worker 关闭需补；Angular e2e 8200 强制 IDB，React/Vue 能力探测，不能叫三端同档位。"
+        },
+        {
+          "C": "C3",
+          "title": "业务写入与一致性",
+          "status": "未核销：业务写入专项尚未读完",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/app.config.ts:49-65 router/provideRxDB`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/app.routes.ts:16-21,54-170 connectLocalAdapter / lazy routes`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/rxdb/setup_rxdb_sqlite-wasm.ts:44-103 setup / plugins / init / test API / connector`",
+          "sequence": "已读 setup 的 search seed 串行创建，仅是启动测试数据，不是拖拽/批量添加/undo/working-tree 用户写入。",
+          "tests": "不能用 editor 单测或 seed 成功核销本 C；file-manager/tree/storage/working-tree 的实际 mutation/取消路径需后续逐页对照。",
+          "gap": "必要：批量部分失败、拖拽冲突、undo/redo 恢复数据、草稿跨路由；本轮不新增 scope 或业务探针。"
+        },
+        {
+          "C": "C4",
+          "title": "输入安全与可访问性",
+          "status": "部分核销：editor 输入路径，其余页未核销",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/pages/code-editor/code-editor.page.ts:12-25 code signal/theme`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/pages/code-editor/code-editor.page.html:1 value-only CodeEditor`",
+          "sequence": "React onChange→state、Vue update:value→ref；Angular demo 是 value-only，内部保留编辑不回写 code signal；三者不是完全同一受控演示。",
+          "tests": "现有 editor E2E 只挂载/初值；Angular 另断言高亮颜色；无键入/IME/selection 证据。",
+          "gap": "JSON/snippet/文件剪贴板/ObjectURL/预览取消及页面 a11y 尚未逐页审；editor demo 未传 label，不把 role 可见当可访问名称已验。"
+        },
+        {
+          "C": "C5",
+          "title": "演示 API 与发布边界",
+          "status": "部分核销：demo test API 边界已识别",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/rxdb/setup_rxdb_sqlite-wasm.ts:44-103 setup / plugins / init / test API / connector`",
+          "sequence": "setup 调 installSearchDemoTestApi/getE2eDbName 与 DevTools；应用自身是 demo，不据此要求包发布生产用户自动暴露同样入口。",
+          "tests": "主控69 lint/typecheck 当轮绿色仅为配置门禁；没有 production artifact 全局对象/fixture 排除的独立检查。",
+          "gap": "审上游 install 函数 gating 与当前 app production bundle 中调试面；已读调用不等 gating 已验证，不把 private demo 与发布包混为一谈。"
+        },
+        {
+          "C": "C6",
+          "title": "Angular 特有边界",
+          "status": "部分核销：框架特有 boot/editor；复杂页面未核销",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/app.config.ts:49-65 router/provideRxDB`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/app.routes.ts:16-21,54-170 connectLocalAdapter / lazy routes`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/pages/code-editor/code-editor.page.ts:12-25 code signal/theme`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/pages/code-editor/code-editor.page.html:1 value-only CodeEditor`",
+          "sequence": "Angular OnPush/zoneless；React 主入口 StrictMode+模块级 DB；Vue setup provide+route hooks；均按框架原生 provider 面对照。",
+          "tests": "包级 lifecycle 不替代应用路由销毁；Angular failure-archive/replay，React 闭包/StrictMode，Vue composable 参数切换没有当轮完整用户证据。",
+          "gap": "必要：路由快速离开重入、错误状态、provider 关闭/异步晚到；应用数量大，清点文件不足全对象结论。"
+        }
+      ]
+    },
+    "dev-rxdb-angular-e2e": {
+      "object": "dev-rxdb-angular-e2e",
+      "trackedFiles": 42,
+      "inspectedTrackedFiles": 3,
+      "fullyDisplayedTrackedFiles": 2,
+      "unreadFiles": [
+        "apps/dev-rxdb-angular-e2e/README.md",
+        "apps/dev-rxdb-angular-e2e/eslint.config.mjs",
+        "apps/dev-rxdb-angular-e2e/package.json",
+        "apps/dev-rxdb-angular-e2e/project.json",
+        "apps/dev-rxdb-angular-e2e/src/ag-grid.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/e2e-utils.ts",
+        "apps/dev-rxdb-angular-e2e/src/encrypted.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/entity-list-sort.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/entity-model.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/failure-archive-import.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/failure-archive.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/file-manager-batch-undo.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/file-manager-lazy-batch-add.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/file-manager-lazy.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/file-manager.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/generator.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/home.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/menu-drag-sort.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/opfs.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/remote-cache.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/replay.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/route-smoke.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/search-parity.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/search-refresh.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/search-scope.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/search-test-api.ts",
+        "apps/dev-rxdb-angular-e2e/src/search.a11y.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/search.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/state-isolation.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/storage.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/todo-cursor.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/todo-sort.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/todo.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/tree-menu-batch-add.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/tree-menu-lazy.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/working-tree-utils.ts",
+        "apps/dev-rxdb-angular-e2e/src/working-tree.a11y.spec.ts",
+        "apps/dev-rxdb-angular-e2e/src/working-tree.spec.ts",
+        "apps/dev-rxdb-angular-e2e/tsconfig.json"
+      ],
+      "partiallyReadFiles": [
+        {
+          "path": "apps/dev-rxdb-angular-e2e/src/fixtures.ts",
+          "readRanges": [
+            [1, 10],
+            [214, 269]
+          ]
+        }
+      ],
+      "wholeObjectCandidate": false,
+      "status": "🟡 partial；不升格为全对象完成",
+      "criteria": [
+        {
+          "C": "C1",
+          "title": "route / 能力到用例映射",
+          "status": "部分核销：editor route→测试映射",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular-e2e/src/code-editor.spec.ts:18-49 现有 editor 用户入口断言`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/app.config.ts:49-65 router/provideRxDB`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/app.routes.ts:16-21,54-170 connectLocalAdapter / lazy routes`",
+          "sequence": "goto /code-editor → textbox/初值；Angular 加关键字彩色 token；其他 route/spec 清单未逐条核对。",
+          "tests": "已读真实断言，不按 spec 名假设覆盖；code-editor 请求留主控串行执行。",
+          "gap": "全路由/业务/backend/模式映射仍必需；单 editor spec 不代表42/39个tracked已审。"
+        },
+        {
+          "C": "C2",
+          "title": "fixtures 隔离与真实性",
+          "status": "未核销：隔离/清库专项",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular-e2e/playwright.config.ts:102-113 当前产物 webServer / Chromium`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular-e2e/src/fixtures.ts:251-269 unexpected-failure auto archive`",
+          "sequence": "server 明确不复用；Angular failureArchive 在 unexpected failed/timedOut 后执行；fixture 中段尚未读完，不能宣称有界传输/清库通过。",
+          "tests": "editor 文件不创建 DB 数据；共享 RxDB test fixtures、DB 清理、失败 teardown 未全部审。",
+          "gap": "必要：每用例库名/跨 tab/Worker scope、与实际 UI 不共用错误转换；主控结果仅按执行用例收口。"
+        },
+        {
+          "C": "C3",
+          "title": "断言强度与异步等待",
+          "status": "部分核销：已读断言判别力",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular-e2e/src/code-editor.spec.ts:18-49 现有 editor 用户入口断言`",
+          "sequence": "visible host 不足，textbox+CREATE TABLE 能检出未挂载；Angular token 多色额外检出 highlight 装饰失效；React/Vue 静态初值更弱。",
+          "tests": "现有 editor 无 fill/type、composition、selection、readonly toggle、语言切换断言；不把测试名字/通过包装成这些行为。",
+          "gap": "其他业务异常/零副作用、条件等待、任意 sleep 尚待逐条审；新增测试动作由后续主控专题负责。"
+        },
+        {
+          "C": "C4",
+          "title": "三框架语义对照",
+          "status": "部分核销：editor 三端差异已落账",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular-e2e/src/code-editor.spec.ts:18-49 现有 editor 用户入口断言`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/pages/code-editor/code-editor.page.ts:12-25 code signal/theme`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/pages/code-editor/code-editor.page.html:1 value-only CodeEditor`",
+          "sequence": "三端默认 SQL 文档一致；Angular value-only 与 React/Vue 双向状态不同；只有 Angular editor E2E 验高亮颜色。",
+          "tests": "源码/断言实际对照完成这条子项；不强行复制 Angular 专有回放/归档页面。",
+          "gap": "search-parity/working-tree/model/file 操作全矩阵未核销；跨端 shared imports 尚需追到真正 suite。"
+        },
+        {
+          "C": "C5",
+          "title": "平台与安全边界",
+          "status": "未核销：worker/权限/加密专项",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular-e2e/playwright.config.ts:102-113 当前产物 webServer / Chromium`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/rxdb/setup_rxdb_sqlite-wasm.ts:44-103 setup / plugins / init / test API / connector`",
+          "sequence": "Angular 8200 IDB，React/Vue 默认能力选择；浏览器运行并不自动证明实际后端、加密或者测试 hook 安全。",
+          "tests": "无当轮完整 storage/encrypted/worker/OPFS 报告；不复制已修存储旧问题。",
+          "gap": "必要：实际 backend 明示、拒绝前零副作用、当前 fixture/test API gating；unsupported 不可当 passed。"
+        },
+        {
+          "C": "C6",
+          "title": "可访问性与产物来源",
+          "status": "部分核销：产物/配置；a11y 不足",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular-e2e/playwright.config.ts:102-113 当前产物 webServer / Chromium`",
+          "sequence": "webServer false 避免借用旧 server；Angular 静态 build，React/Vue vite preview；配置只启用 Chromium，Firefox/WebKit 注释不算覆盖。",
+          "tests": "main69 lint/typecheck 绿色；本子任务未运行 browser/server；trace 配置不是 trace 已产生。",
+          "gap": "search/working-tree a11y、focus/keyboard、console/network、当前 build SHA 与截图/trace需主控实际结果；IMEs 另列必需。"
+        },
+        {
+          "C": "C7",
+          "title": "Angular 专项断言",
+          "status": "未核销：框架专项用户链路",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/app.config.ts:49-65 router/provideRxDB`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/app.routes.ts:16-21,54-170 connectLocalAdapter / lazy routes`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular-e2e/src/code-editor.spec.ts:18-49 现有 editor 用户入口断言`",
+          "sequence": "只读到框架 bootstrap 与 editor spec；未把 package TestBed/RTL/Vue mount 证明升格成应用 E2E。",
+          "tests": "Angular failure-archive 专项中段、React 特有 render/权限/remote-cache、Vue composable 参数/选择/展开路径尚需具体用例证据。",
+          "gap": "须按路由、宿主、运行参数补本轮结果；无需等待外部宿主才核销已完成 editor 小专题。"
+        }
+      ]
+    },
+    "dev-rxdb-react": {
+      "object": "dev-rxdb-react",
+      "trackedFiles": 174,
+      "inspectedTrackedFiles": 5,
+      "fullyDisplayedTrackedFiles": 5,
+      "unreadFiles": [
+        "apps/dev-rxdb-react/eslint.config.mjs",
+        "apps/dev-rxdb-react/index.html",
+        "apps/dev-rxdb-react/package.json",
+        "apps/dev-rxdb-react/project.json",
+        "apps/dev-rxdb-react/public/favicon.ico",
+        "apps/dev-rxdb-react/public/favicon.svg",
+        "apps/dev-rxdb-react/public/pwa-192x192.png",
+        "apps/dev-rxdb-react/public/pwa-512x512.png",
+        "apps/dev-rxdb-react/public/react.svg",
+        "apps/dev-rxdb-react/public/robots.txt",
+        "apps/dev-rxdb-react/src/app/ag-grid/buildColDefs.ts",
+        "apps/dev-rxdb-react/src/app/ag-grid/grid-data.util.ts",
+        "apps/dev-rxdb-react/src/app/components/AppBranchManager.spec.tsx",
+        "apps/dev-rxdb-react/src/app/components/AppBranchManager.tsx",
+        "apps/dev-rxdb-react/src/app/components/AppHeader.tsx",
+        "apps/dev-rxdb-react/src/app/components/AppMenu.tsx",
+        "apps/dev-rxdb-react/src/app/components/AppSidebar.tsx",
+        "apps/dev-rxdb-react/src/app/components/AppThemeBtn.tsx",
+        "apps/dev-rxdb-react/src/app/components/HistorySidebar.tsx",
+        "apps/dev-rxdb-react/src/app/components/LoadingBar.spec.tsx",
+        "apps/dev-rxdb-react/src/app/components/LoadingBar.tsx",
+        "apps/dev-rxdb-react/src/app/components/OperationErrorAlert.tsx",
+        "apps/dev-rxdb-react/src/app/components/PathConflictWarning.tsx",
+        "apps/dev-rxdb-react/src/app/constants/file-extensions.ts",
+        "apps/dev-rxdb-react/src/app/contexts/AppServiceContext.tsx",
+        "apps/dev-rxdb-react/src/app/hooks/drag-drop-types.ts",
+        "apps/dev-rxdb-react/src/app/hooks/loadObjectUrlMap.spec.ts",
+        "apps/dev-rxdb-react/src/app/hooks/loadObjectUrlMap.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useAppService.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useDragDrop.spec.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useDragDrop.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useDragDropService.spec.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useDragDropService.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useFileManagerLazyStore.spec.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useFileManagerLazyStore.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useFileManagerStore.spec.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useFileManagerStore.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useFilePathValidator.spec.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useFilePathValidator.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useGlobalDismiss.spec.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useGlobalDismiss.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useMenuPathValidator.spec.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useMenuPathValidator.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useRenamePathGuard.spec.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useRenamePathGuard.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useResettableTimeout.spec.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useResettableTimeout.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useTheme.spec.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useTheme.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useTreeMenuLazyStore.spec.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useTreeMenuLazyStore.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useTreeMenuStore.spec.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useTreeMenuStore.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useTreeMenuVirtualStore.spec.ts",
+        "apps/dev-rxdb-react/src/app/hooks/useTreeMenuVirtualStore.ts",
+        "apps/dev-rxdb-react/src/app/pages/ag-grid.tsx",
+        "apps/dev-rxdb-react/src/app/pages/encrypted-lifecycle.spec.ts",
+        "apps/dev-rxdb-react/src/app/pages/encrypted-lifecycle.ts",
+        "apps/dev-rxdb-react/src/app/pages/encrypted.tsx",
+        "apps/dev-rxdb-react/src/app/pages/entities/entity-detail-page.tsx",
+        "apps/dev-rxdb-react/src/app/pages/entities/entity-list-page.tsx",
+        "apps/dev-rxdb-react/src/app/pages/entities/entity-pages-construction.spec.tsx",
+        "apps/dev-rxdb-react/src/app/pages/entities/entity-shell.tsx",
+        "apps/dev-rxdb-react/src/app/pages/file-manager/file-manager-lazy.tsx",
+        "apps/dev-rxdb-react/src/app/pages/file-manager/file-manager-simple.tsx",
+        "apps/dev-rxdb-react/src/app/pages/file-manager/file-manager-virtual.tsx",
+        "apps/dev-rxdb-react/src/app/pages/file-manager/utils/file-name.spec.ts",
+        "apps/dev-rxdb-react/src/app/pages/file-manager/utils/file-name.ts",
+        "apps/dev-rxdb-react/src/app/pages/generator.spec.ts",
+        "apps/dev-rxdb-react/src/app/pages/generator.tsx",
+        "apps/dev-rxdb-react/src/app/pages/home.tsx",
+        "apps/dev-rxdb-react/src/app/pages/menu/tree-menu-lazy.tsx",
+        "apps/dev-rxdb-react/src/app/pages/menu/tree-menu-simple.tsx",
+        "apps/dev-rxdb-react/src/app/pages/menu/tree-menu-virtual.tsx",
+        "apps/dev-rxdb-react/src/app/pages/opfs/components/OpfsContextMenu.spec.tsx",
+        "apps/dev-rxdb-react/src/app/pages/opfs/components/OpfsContextMenu.tsx",
+        "apps/dev-rxdb-react/src/app/pages/opfs/components/OpfsFileGrid.tsx",
+        "apps/dev-rxdb-react/src/app/pages/opfs/components/OpfsFileList.tsx",
+        "apps/dev-rxdb-react/src/app/pages/opfs/components/OpfsFilePreview.tsx",
+        "apps/dev-rxdb-react/src/app/pages/opfs/components/review-preview-text-epoch.spec.tsx",
+        "apps/dev-rxdb-react/src/app/pages/opfs/hooks/useOpfsRouteSync.spec.ts",
+        "apps/dev-rxdb-react/src/app/pages/opfs/hooks/useOpfsRouteSync.ts",
+        "apps/dev-rxdb-react/src/app/pages/opfs/hooks/useOpfsService.ts",
+        "apps/dev-rxdb-react/src/app/pages/opfs/opfs.tsx",
+        "apps/dev-rxdb-react/src/app/pages/opfs/utils/find-path-conflicts.spec.ts",
+        "apps/dev-rxdb-react/src/app/pages/opfs/utils/find-path-conflicts.ts",
+        "apps/dev-rxdb-react/src/app/pages/opfs/utils/opfs-utils.ts",
+        "apps/dev-rxdb-react/src/app/pages/remote-cache-preview.spec.ts",
+        "apps/dev-rxdb-react/src/app/pages/remote-cache-preview.ts",
+        "apps/dev-rxdb-react/src/app/pages/remote-cache.tsx",
+        "apps/dev-rxdb-react/src/app/pages/search-lifecycle.spec.ts",
+        "apps/dev-rxdb-react/src/app/pages/search-lifecycle.ts",
+        "apps/dev-rxdb-react/src/app/pages/search.tsx",
+        "apps/dev-rxdb-react/src/app/pages/search/SearchPage.tsx",
+        "apps/dev-rxdb-react/src/app/pages/search/components/SearchCreateModal.tsx",
+        "apps/dev-rxdb-react/src/app/pages/search/components/SearchRecordsPanel.tsx",
+        "apps/dev-rxdb-react/src/app/pages/search/components/SearchResultsList.tsx",
+        "apps/dev-rxdb-react/src/app/pages/search/types.ts",
+        "apps/dev-rxdb-react/src/app/pages/storage.tsx",
+        "apps/dev-rxdb-react/src/app/pages/storage/StoragePage.tsx",
+        "apps/dev-rxdb-react/src/app/pages/storage/components/StorageConfirmDialog.tsx",
+        "apps/dev-rxdb-react/src/app/pages/storage/components/StorageContextMenu.tsx",
+        "apps/dev-rxdb-react/src/app/pages/storage/components/StorageDeleteDialog.tsx",
+        "apps/dev-rxdb-react/src/app/pages/storage/components/StorageFileGrid.tsx",
+        "apps/dev-rxdb-react/src/app/pages/storage/components/StorageFileList.tsx",
+        "apps/dev-rxdb-react/src/app/pages/storage/components/StorageFilePreview.tsx",
+        "apps/dev-rxdb-react/src/app/pages/storage/components/StorageNewFolderDialog.tsx",
+        "apps/dev-rxdb-react/src/app/pages/storage/components/StorageOverwriteDialog.tsx",
+        "apps/dev-rxdb-react/src/app/pages/storage/components/StorageRenameDialog.tsx",
+        "apps/dev-rxdb-react/src/app/pages/storage/components/StorageToast.tsx",
+        "apps/dev-rxdb-react/src/app/pages/storage/components/StorageToolbar.tsx",
+        "apps/dev-rxdb-react/src/app/pages/storage/hooks/useStorageBrowser.spec.ts",
+        "apps/dev-rxdb-react/src/app/pages/storage/hooks/useStorageBrowser.ts",
+        "apps/dev-rxdb-react/src/app/pages/storage/hooks/useStorageSelection.spec.ts",
+        "apps/dev-rxdb-react/src/app/pages/storage/hooks/useStorageSelection.ts",
+        "apps/dev-rxdb-react/src/app/pages/storage/hooks/useStorageTransfer.spec.ts",
+        "apps/dev-rxdb-react/src/app/pages/storage/hooks/useStorageTransfer.ts",
+        "apps/dev-rxdb-react/src/app/pages/storage/types.ts",
+        "apps/dev-rxdb-react/src/app/pages/storage/utils/storage-utils.ts",
+        "apps/dev-rxdb-react/src/app/pages/todo-cursor.tsx",
+        "apps/dev-rxdb-react/src/app/pages/todo.tsx",
+        "apps/dev-rxdb-react/src/app/pages/working-tree.tsx",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/components/BranchMenu.tsx",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/components/ChangesList.tsx",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/components/CommitBox.tsx",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/components/CommitDetail.tsx",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/components/ContextMenu.tsx",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/components/DiffViewer.tsx",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/components/HistoryList.tsx",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/components/MergeDialog.tsx",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/index.tsx",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/utils/diff-format.spec.ts",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/utils/diff-format.ts",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/utils/drag.spec.ts",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/utils/drag.ts",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/utils/gd.spec.ts",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/utils/gd.ts",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/utils/keep-last-good.spec.ts",
+        "apps/dev-rxdb-react/src/app/pages/working-tree/utils/keep-last-good.ts",
+        "apps/dev-rxdb-react/src/app/pages/workspace.tsx",
+        "apps/dev-rxdb-react/src/app/rxdb/search-parity-seed.ts",
+        "apps/dev-rxdb-react/src/app/rxdb/setup_rxdb_wa-sqlite.ts",
+        "apps/dev-rxdb-react/src/app/rxdb/sqlite-wasm-shared.worker.ts",
+        "apps/dev-rxdb-react/src/app/rxdb/sqlite-wasm.worker.ts",
+        "apps/dev-rxdb-react/src/app/rxdb/wa-sqlite-shared.worker.ts",
+        "apps/dev-rxdb-react/src/app/rxdb/wa-sqlite.worker.ts",
+        "apps/dev-rxdb-react/src/app/utils/error.ts",
+        "apps/dev-rxdb-react/src/app/utils/file-icons.ts",
+        "apps/dev-rxdb-react/src/app/utils/file-sorters.spec.ts",
+        "apps/dev-rxdb-react/src/app/utils/file-sorters.ts",
+        "apps/dev-rxdb-react/src/app/utils/file-utils.ts",
+        "apps/dev-rxdb-react/src/app/utils/menu-utils.spec.ts",
+        "apps/dev-rxdb-react/src/app/utils/menu-utils.ts",
+        "apps/dev-rxdb-react/src/app/utils/read-directory-entries.spec.ts",
+        "apps/dev-rxdb-react/src/app/utils/read-directory-entries.ts",
+        "apps/dev-rxdb-react/src/app/utils/sort-order.spec.ts",
+        "apps/dev-rxdb-react/src/app/utils/sort-order.ts",
+        "apps/dev-rxdb-react/src/app/utils/tree-scope.spec.ts",
+        "apps/dev-rxdb-react/src/app/utils/tree-scope.ts",
+        "apps/dev-rxdb-react/src/main-root.spec.ts",
+        "apps/dev-rxdb-react/src/main-root.ts",
+        "apps/dev-rxdb-react/src/styles.css",
+        "apps/dev-rxdb-react/src/types/dom-extensions.d.ts",
+        "apps/dev-rxdb-react/src/vite-env.d.ts",
+        "apps/dev-rxdb-react/tsconfig.app.json",
+        "apps/dev-rxdb-react/tsconfig.json",
+        "apps/dev-rxdb-react/tsconfig.spec.json",
+        "apps/dev-rxdb-react/vite.config.mts",
+        "apps/dev-rxdb-react/vitest.config.mts"
+      ],
+      "partiallyReadFiles": [],
+      "wholeObjectCandidate": false,
+      "status": "🟡 partial；不升格为全对象完成",
+      "criteria": [
+        {
+          "C": "C1",
+          "title": "业务路由与依赖接线",
+          "status": "部分核销：route/bootstrap 静态对照",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/app.tsx:11,59-67 singleton / RxDBProvider`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/router.tsx:28-34,36-147 connectLocalAdapter / routes`",
+          "sequence": "search/working-tree 先 connect 再 lazy 页面；CodeEditor 真实包挂载；Angular 专有 failure-archive/replay 不要求另外两端复制。",
+          "tests": "三端路由文件全文已读；本轮只有 editor packages 动态通过，不冒充所有路由 E2E 已执行。",
+          "gap": "未逐页追踪所有实体/插件/backend 与 close；route 清点不是整个应用完成。"
+        },
+        {
+          "C": "C2",
+          "title": "数据库启动与持久化",
+          "status": "部分核销：默认 sqlite-wasm 初始化",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/rxdb/setup_rxdb_sqlite-wasm.ts:25-88 setup / plugins / init / test API / connector`",
+          "sequence": "模块单例；先 plugins/adapter factory，再 init、test API 与 connector；OPFS 能力探测决定 Worker/SharedWorker，DB 名进入接线。",
+          "tests": "主控应用基础 test 结果尚待补；初始化实际源码已读，没重跑历史 storage/Node 红。",
+          "gap": "所有替代 backend、连接失败/刷新同库/provider destroy/worker 关闭需补；Angular e2e 8200 强制 IDB，React/Vue 能力探测，不能叫三端同档位。"
+        },
+        {
+          "C": "C3",
+          "title": "业务写入与一致性",
+          "status": "未核销：业务写入专项尚未读完",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/app.tsx:11,59-67 singleton / RxDBProvider`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/router.tsx:28-34,36-147 connectLocalAdapter / routes`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/rxdb/setup_rxdb_sqlite-wasm.ts:25-88 setup / plugins / init / test API / connector`",
+          "sequence": "已读 setup 的 search seed 串行创建，仅是启动测试数据，不是拖拽/批量添加/undo/working-tree 用户写入。",
+          "tests": "不能用 editor 单测或 seed 成功核销本 C；file-manager/tree/storage/working-tree 的实际 mutation/取消路径需后续逐页对照。",
+          "gap": "必要：批量部分失败、拖拽冲突、undo/redo 恢复数据、草稿跨路由；本轮不新增 scope 或业务探针。"
+        },
+        {
+          "C": "C4",
+          "title": "输入安全与可访问性",
+          "status": "部分核销：editor 输入路径，其余页未核销",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/pages/code-editor.tsx:15-22 useState/onChange`",
+          "sequence": "React onChange→state、Vue update:value→ref；Angular demo 是 value-only，内部保留编辑不回写 code signal；三者不是完全同一受控演示。",
+          "tests": "现有 editor E2E 只挂载/初值；Angular 另断言高亮颜色；无键入/IME/selection 证据。",
+          "gap": "JSON/snippet/文件剪贴板/ObjectURL/预览取消及页面 a11y 尚未逐页审；editor demo 未传 label，不把 role 可见当可访问名称已验。"
+        },
+        {
+          "C": "C5",
+          "title": "演示 API 与发布边界",
+          "status": "部分核销：demo test API 边界已识别",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/rxdb/setup_rxdb_sqlite-wasm.ts:25-88 setup / plugins / init / test API / connector`",
+          "sequence": "setup 调 installSearchDemoTestApi/getE2eDbName 与 DevTools；应用自身是 demo，不据此要求包发布生产用户自动暴露同样入口。",
+          "tests": "主控69 lint/typecheck 当轮绿色仅为配置门禁；没有 production artifact 全局对象/fixture 排除的独立检查。",
+          "gap": "审上游 install 函数 gating 与当前 app production bundle 中调试面；已读调用不等 gating 已验证，不把 private demo 与发布包混为一谈。"
+        },
+        {
+          "C": "C6",
+          "title": "React 特有边界",
+          "status": "部分核销：框架特有 boot/editor；复杂页面未核销",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/app.tsx:11,59-67 singleton / RxDBProvider`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/router.tsx:28-34,36-147 connectLocalAdapter / routes`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/pages/code-editor.tsx:15-22 useState/onChange`",
+          "sequence": "Angular OnPush/zoneless；React 主入口 StrictMode+模块级 DB；Vue setup provide+route hooks；均按框架原生 provider 面对照。",
+          "tests": "包级 lifecycle 不替代应用路由销毁；Angular failure-archive/replay，React 闭包/StrictMode，Vue composable 参数切换没有当轮完整用户证据。",
+          "gap": "必要：路由快速离开重入、错误状态、provider 关闭/异步晚到；应用数量大，清点文件不足全对象结论。"
+        }
+      ]
+    },
+    "dev-rxdb-react-e2e": {
+      "object": "dev-rxdb-react-e2e",
+      "trackedFiles": 39,
+      "inspectedTrackedFiles": 2,
+      "fullyDisplayedTrackedFiles": 2,
+      "unreadFiles": [
+        "apps/dev-rxdb-react-e2e/eslint.config.mjs",
+        "apps/dev-rxdb-react-e2e/package.json",
+        "apps/dev-rxdb-react-e2e/project.json",
+        "apps/dev-rxdb-react-e2e/src/ag-grid.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/e2e-utils.ts",
+        "apps/dev-rxdb-react-e2e/src/encrypted.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/entity-list-sort.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/entity-model.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/file-manager-batch-undo.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/file-manager-drag-drop.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/file-manager-lazy.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/file-manager-simple.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/file-manager-virtual.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/generator.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/home.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/opfs.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/remote-cache.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/review-opfs-navigation.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/route-smoke.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/search-parity.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/search-refresh.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/search-scope.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/search-test-api.ts",
+        "apps/dev-rxdb-react-e2e/src/search.a11y.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/search.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/storage.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/todo-cursor.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/todo-sort.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/todo.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/tree-menu-batch-add.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/tree-menu-drag-drop.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/tree-menu-lazy.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/tree-menu-simple.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/tree-menu-virtual.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/working-tree.a11y.spec.ts",
+        "apps/dev-rxdb-react-e2e/src/working-tree.spec.ts",
+        "apps/dev-rxdb-react-e2e/tsconfig.json"
+      ],
+      "partiallyReadFiles": [],
+      "wholeObjectCandidate": false,
+      "status": "🟡 partial；不升格为全对象完成",
+      "criteria": [
+        {
+          "C": "C1",
+          "title": "route / 能力到用例映射",
+          "status": "部分核销：editor route→测试映射",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react-e2e/src/code-editor.spec.ts:3-18 现有 editor 用户入口断言`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/app.tsx:11,59-67 singleton / RxDBProvider`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/router.tsx:28-34,36-147 connectLocalAdapter / routes`",
+          "sequence": "goto /code-editor → textbox/初值；Angular 加关键字彩色 token；其他 route/spec 清单未逐条核对。",
+          "tests": "已读真实断言，不按 spec 名假设覆盖；code-editor 请求留主控串行执行。",
+          "gap": "全路由/业务/backend/模式映射仍必需；单 editor spec 不代表42/39个tracked已审。"
+        },
+        {
+          "C": "C2",
+          "title": "fixtures 隔离与真实性",
+          "status": "未核销：隔离/清库专项",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react-e2e/playwright.config.ts:70-81 当前产物 webServer / Chromium`",
+          "sequence": "server 明确不复用；Angular failureArchive 在 unexpected failed/timedOut 后执行；fixture 中段尚未读完，不能宣称有界传输/清库通过。",
+          "tests": "editor 文件不创建 DB 数据；共享 RxDB test fixtures、DB 清理、失败 teardown 未全部审。",
+          "gap": "必要：每用例库名/跨 tab/Worker scope、与实际 UI 不共用错误转换；主控结果仅按执行用例收口。"
+        },
+        {
+          "C": "C3",
+          "title": "断言强度与异步等待",
+          "status": "部分核销：已读断言判别力",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react-e2e/src/code-editor.spec.ts:3-18 现有 editor 用户入口断言`",
+          "sequence": "visible host 不足，textbox+CREATE TABLE 能检出未挂载；Angular token 多色额外检出 highlight 装饰失效；React/Vue 静态初值更弱。",
+          "tests": "现有 editor 无 fill/type、composition、selection、readonly toggle、语言切换断言；不把测试名字/通过包装成这些行为。",
+          "gap": "其他业务异常/零副作用、条件等待、任意 sleep 尚待逐条审；新增测试动作由后续主控专题负责。"
+        },
+        {
+          "C": "C4",
+          "title": "三框架语义对照",
+          "status": "部分核销：editor 三端差异已落账",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react-e2e/src/code-editor.spec.ts:3-18 现有 editor 用户入口断言`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/pages/code-editor.tsx:15-22 useState/onChange`",
+          "sequence": "三端默认 SQL 文档一致；Angular value-only 与 React/Vue 双向状态不同；只有 Angular editor E2E 验高亮颜色。",
+          "tests": "源码/断言实际对照完成这条子项；不强行复制 Angular 专有回放/归档页面。",
+          "gap": "search-parity/working-tree/model/file 操作全矩阵未核销；跨端 shared imports 尚需追到真正 suite。"
+        },
+        {
+          "C": "C5",
+          "title": "平台与安全边界",
+          "status": "未核销：worker/权限/加密专项",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react-e2e/playwright.config.ts:70-81 当前产物 webServer / Chromium`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/rxdb/setup_rxdb_sqlite-wasm.ts:25-88 setup / plugins / init / test API / connector`",
+          "sequence": "Angular 8200 IDB，React/Vue 默认能力选择；浏览器运行并不自动证明实际后端、加密或者测试 hook 安全。",
+          "tests": "无当轮完整 storage/encrypted/worker/OPFS 报告；不复制已修存储旧问题。",
+          "gap": "必要：实际 backend 明示、拒绝前零副作用、当前 fixture/test API gating；unsupported 不可当 passed。"
+        },
+        {
+          "C": "C6",
+          "title": "可访问性与产物来源",
+          "status": "部分核销：产物/配置；a11y 不足",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react-e2e/playwright.config.ts:70-81 当前产物 webServer / Chromium`",
+          "sequence": "webServer false 避免借用旧 server；Angular 静态 build，React/Vue vite preview；配置只启用 Chromium，Firefox/WebKit 注释不算覆盖。",
+          "tests": "main69 lint/typecheck 绿色；本子任务未运行 browser/server；trace 配置不是 trace 已产生。",
+          "gap": "search/working-tree a11y、focus/keyboard、console/network、当前 build SHA 与截图/trace需主控实际结果；IMEs 另列必需。"
+        },
+        {
+          "C": "C7",
+          "title": "React 专项断言",
+          "status": "未核销：框架专项用户链路",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/app.tsx:11,59-67 singleton / RxDBProvider`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/router.tsx:28-34,36-147 connectLocalAdapter / routes`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react-e2e/src/code-editor.spec.ts:3-18 现有 editor 用户入口断言`",
+          "sequence": "只读到框架 bootstrap 与 editor spec；未把 package TestBed/RTL/Vue mount 证明升格成应用 E2E。",
+          "tests": "Angular failure-archive 专项中段、React 特有 render/权限/remote-cache、Vue composable 参数/选择/展开路径尚需具体用例证据。",
+          "gap": "须按路由、宿主、运行参数补本轮结果；无需等待外部宿主才核销已完成 editor 小专题。"
+        }
+      ]
+    },
+    "dev-rxdb-vue": {
+      "object": "dev-rxdb-vue",
+      "trackedFiles": 142,
+      "inspectedTrackedFiles": 5,
+      "fullyDisplayedTrackedFiles": 4,
+      "unreadFiles": [
+        "apps/dev-rxdb-vue/eslint.config.mjs",
+        "apps/dev-rxdb-vue/index.html",
+        "apps/dev-rxdb-vue/package.json",
+        "apps/dev-rxdb-vue/project.json",
+        "apps/dev-rxdb-vue/public/favicon.svg",
+        "apps/dev-rxdb-vue/public/pwa-192x192.png",
+        "apps/dev-rxdb-vue/public/pwa-512x512.png",
+        "apps/dev-rxdb-vue/public/robots.txt",
+        "apps/dev-rxdb-vue/public/vue.svg",
+        "apps/dev-rxdb-vue/src/app/components/AppBranchManager.vue",
+        "apps/dev-rxdb-vue/src/app/components/AppHeader.vue",
+        "apps/dev-rxdb-vue/src/app/components/AppSidebar.vue",
+        "apps/dev-rxdb-vue/src/app/components/AppThemeBtn.vue",
+        "apps/dev-rxdb-vue/src/app/components/AppToast.vue",
+        "apps/dev-rxdb-vue/src/app/components/HistorySidebar.vue",
+        "apps/dev-rxdb-vue/src/app/components/LoadingBar.vue",
+        "apps/dev-rxdb-vue/src/app/composables/drag-drop-types.ts",
+        "apps/dev-rxdb-vue/src/app/composables/file-manager-contract.spec.ts",
+        "apps/dev-rxdb-vue/src/app/composables/search-expanded-path.spec.ts",
+        "apps/dev-rxdb-vue/src/app/composables/tree-menu-contract.spec.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useAgGridTheme.spec.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useAgGridTheme.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useAppService.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useDragDrop.spec.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useDragDrop.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useDragDropService.spec.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useDragDropService.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useFileManagerLazyStore.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useFileManagerStore.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useFilePathValidator.spec.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useFilePathValidator.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useMenuPathValidator.spec.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useMenuPathValidator.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useTheme.spec.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useTheme.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useToast.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useTreeMenuLazyStore.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useTreeMenuStore.ts",
+        "apps/dev-rxdb-vue/src/app/composables/useTreeMenuVirtualStore.ts",
+        "apps/dev-rxdb-vue/src/app/rxdb/rxdb-setup-inventory.spec.ts",
+        "apps/dev-rxdb-vue/src/app/rxdb/sqlite-wasm-shared.worker.ts",
+        "apps/dev-rxdb-vue/src/app/rxdb/sqlite-wasm.worker.ts",
+        "apps/dev-rxdb-vue/src/app/utils/file-icons.ts",
+        "apps/dev-rxdb-vue/src/app/utils/file-sorters.ts",
+        "apps/dev-rxdb-vue/src/app/utils/file-utils.ts",
+        "apps/dev-rxdb-vue/src/app/utils/menu-utils.spec.ts",
+        "apps/dev-rxdb-vue/src/app/utils/menu-utils.ts",
+        "apps/dev-rxdb-vue/src/app/utils/read-directory-entries.spec.ts",
+        "apps/dev-rxdb-vue/src/app/utils/read-directory-entries.ts",
+        "apps/dev-rxdb-vue/src/app/utils/sort-order.spec.ts",
+        "apps/dev-rxdb-vue/src/app/utils/sort-order.ts",
+        "apps/dev-rxdb-vue/src/app/utils/tree-menu.ts",
+        "apps/dev-rxdb-vue/src/app/utils/virtual-rows.spec.ts",
+        "apps/dev-rxdb-vue/src/app/utils/virtual-rows.ts",
+        "apps/dev-rxdb-vue/src/config/vite-resolve.spec.ts",
+        "apps/dev-rxdb-vue/src/config/vite-resolve.ts",
+        "apps/dev-rxdb-vue/src/pages/AgGridPage.vue",
+        "apps/dev-rxdb-vue/src/pages/EncryptedPage.vue",
+        "apps/dev-rxdb-vue/src/pages/GeneratorPage.vue",
+        "apps/dev-rxdb-vue/src/pages/HomePage.vue",
+        "apps/dev-rxdb-vue/src/pages/RemoteCachePage.vue",
+        "apps/dev-rxdb-vue/src/pages/SearchPage.vue",
+        "apps/dev-rxdb-vue/src/pages/StoragePage.vue",
+        "apps/dev-rxdb-vue/src/pages/TodoCursorPage.vue",
+        "apps/dev-rxdb-vue/src/pages/TodoPage.vue",
+        "apps/dev-rxdb-vue/src/pages/WorkingTreePage.vue",
+        "apps/dev-rxdb-vue/src/pages/WorkspacePage.vue",
+        "apps/dev-rxdb-vue/src/pages/entities/EntityDetailPage.vue",
+        "apps/dev-rxdb-vue/src/pages/entities/EntityEmptyView.vue",
+        "apps/dev-rxdb-vue/src/pages/entities/EntityListPage.vue",
+        "apps/dev-rxdb-vue/src/pages/entities/EntityShellPage.vue",
+        "apps/dev-rxdb-vue/src/pages/entities/entity-pages-construction.spec.ts",
+        "apps/dev-rxdb-vue/src/pages/file-manager/FileManagerLazyPage.vue",
+        "apps/dev-rxdb-vue/src/pages/file-manager/FileManagerSimplePage.vue",
+        "apps/dev-rxdb-vue/src/pages/file-manager/FileManagerVirtualPage.vue",
+        "apps/dev-rxdb-vue/src/pages/generator-state.spec.ts",
+        "apps/dev-rxdb-vue/src/pages/generator-state.ts",
+        "apps/dev-rxdb-vue/src/pages/menu/TreeMenuLazyPage.vue",
+        "apps/dev-rxdb-vue/src/pages/menu/TreeMenuSimplePage.vue",
+        "apps/dev-rxdb-vue/src/pages/menu/TreeMenuVirtualPage.vue",
+        "apps/dev-rxdb-vue/src/pages/opfs/OpfsPage.vue",
+        "apps/dev-rxdb-vue/src/pages/opfs/components/OpfsFileGrid.vue",
+        "apps/dev-rxdb-vue/src/pages/opfs/components/OpfsFileList.vue",
+        "apps/dev-rxdb-vue/src/pages/opfs/components/OpfsFilePreview.vue",
+        "apps/dev-rxdb-vue/src/pages/opfs/components/review-preview-text-epoch.spec.ts",
+        "apps/dev-rxdb-vue/src/pages/opfs/composables/useOpfsService.spec.ts",
+        "apps/dev-rxdb-vue/src/pages/opfs/composables/useOpfsService.ts",
+        "apps/dev-rxdb-vue/src/pages/opfs/utils/opfs-utils.ts",
+        "apps/dev-rxdb-vue/src/pages/remote-cache-preview.spec.ts",
+        "apps/dev-rxdb-vue/src/pages/remote-cache-preview.ts",
+        "apps/dev-rxdb-vue/src/pages/search/components/SearchCreateModal.vue",
+        "apps/dev-rxdb-vue/src/pages/search/components/SearchRecordsPanel.vue",
+        "apps/dev-rxdb-vue/src/pages/search/components/SearchResultsList.vue",
+        "apps/dev-rxdb-vue/src/pages/search/types.ts",
+        "apps/dev-rxdb-vue/src/pages/storage/components/StorageConfirmDialog.vue",
+        "apps/dev-rxdb-vue/src/pages/storage/components/StorageContextMenu.vue",
+        "apps/dev-rxdb-vue/src/pages/storage/components/StorageDeleteDialog.vue",
+        "apps/dev-rxdb-vue/src/pages/storage/components/StorageFileGrid.vue",
+        "apps/dev-rxdb-vue/src/pages/storage/components/StorageFileList.vue",
+        "apps/dev-rxdb-vue/src/pages/storage/components/StorageFilePreview.vue",
+        "apps/dev-rxdb-vue/src/pages/storage/components/StorageNewFolderDialog.vue",
+        "apps/dev-rxdb-vue/src/pages/storage/components/StorageOverwriteDialog.vue",
+        "apps/dev-rxdb-vue/src/pages/storage/components/StorageRenameDialog.vue",
+        "apps/dev-rxdb-vue/src/pages/storage/components/StorageToolbar.vue",
+        "apps/dev-rxdb-vue/src/pages/storage/composables/useStorageBrowser.spec.ts",
+        "apps/dev-rxdb-vue/src/pages/storage/composables/useStorageBrowser.ts",
+        "apps/dev-rxdb-vue/src/pages/storage/composables/useStorageInitialization.spec.ts",
+        "apps/dev-rxdb-vue/src/pages/storage/composables/useStorageInitialization.ts",
+        "apps/dev-rxdb-vue/src/pages/storage/composables/useStorageSelection.ts",
+        "apps/dev-rxdb-vue/src/pages/storage/composables/useStorageTransfer.ts",
+        "apps/dev-rxdb-vue/src/pages/storage/utils/storage-utils.ts",
+        "apps/dev-rxdb-vue/src/pages/theme-pages.spec.ts",
+        "apps/dev-rxdb-vue/src/pages/working-tree/components/BranchMenu.vue",
+        "apps/dev-rxdb-vue/src/pages/working-tree/components/ChangesList.vue",
+        "apps/dev-rxdb-vue/src/pages/working-tree/components/CommitBox.vue",
+        "apps/dev-rxdb-vue/src/pages/working-tree/components/CommitDetail.vue",
+        "apps/dev-rxdb-vue/src/pages/working-tree/components/ContextMenu.vue",
+        "apps/dev-rxdb-vue/src/pages/working-tree/components/DiffViewer.vue",
+        "apps/dev-rxdb-vue/src/pages/working-tree/components/HistoryList.vue",
+        "apps/dev-rxdb-vue/src/pages/working-tree/components/MergeDialog.vue",
+        "apps/dev-rxdb-vue/src/pages/working-tree/utils/context-menu.ts",
+        "apps/dev-rxdb-vue/src/pages/working-tree/utils/diff-format.spec.ts",
+        "apps/dev-rxdb-vue/src/pages/working-tree/utils/diff-format.ts",
+        "apps/dev-rxdb-vue/src/pages/working-tree/utils/diff-viewer-preferences.ts",
+        "apps/dev-rxdb-vue/src/pages/working-tree/utils/drag.spec.ts",
+        "apps/dev-rxdb-vue/src/pages/working-tree/utils/drag.ts",
+        "apps/dev-rxdb-vue/src/pages/working-tree/utils/gd.spec.ts",
+        "apps/dev-rxdb-vue/src/pages/working-tree/utils/gd.ts",
+        "apps/dev-rxdb-vue/src/styles.css",
+        "apps/dev-rxdb-vue/src/types/dom-extensions.d.ts",
+        "apps/dev-rxdb-vue/src/utils/ag-grid.ts",
+        "apps/dev-rxdb-vue/src/vue-shims.d.ts",
+        "apps/dev-rxdb-vue/tsconfig.app.json",
+        "apps/dev-rxdb-vue/tsconfig.json",
+        "apps/dev-rxdb-vue/tsconfig.spec.json",
+        "apps/dev-rxdb-vue/vite.config.mts",
+        "apps/dev-rxdb-vue/vitest.config.ts"
+      ],
+      "partiallyReadFiles": [
+        {
+          "path": "apps/dev-rxdb-vue/src/app/App.vue",
+          "readRanges": [[1, 30]]
+        }
+      ],
+      "wholeObjectCandidate": false,
+      "status": "🟡 partial；不升格为全对象完成",
+      "criteria": [
+        {
+          "C": "C1",
+          "title": "业务路由与依赖接线",
+          "status": "部分核销：route/bootstrap 静态对照",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/app/App.vue:13-14 setup / provideRxDB`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/router/index.ts:14-19,22-163 connectLocalAdapter / routes`",
+          "sequence": "search/working-tree 先 connect 再 lazy 页面；CodeEditor 真实包挂载；Angular 专有 failure-archive/replay 不要求另外两端复制。",
+          "tests": "三端路由文件全文已读；本轮只有 editor packages 动态通过，不冒充所有路由 E2E 已执行。",
+          "gap": "未逐页追踪所有实体/插件/backend 与 close；route 清点不是整个应用完成。"
+        },
+        {
+          "C": "C2",
+          "title": "数据库启动与持久化",
+          "status": "部分核销：默认 sqlite-wasm 初始化",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/app/rxdb/setup_rxdb_sqlite-wasm.ts:40-106 setup / plugins / init / test API / connector`",
+          "sequence": "模块单例；先 plugins/adapter factory，再 init、test API 与 connector；OPFS 能力探测决定 Worker/SharedWorker，DB 名进入接线。",
+          "tests": "主控应用基础 test 结果尚待补；初始化实际源码已读，没重跑历史 storage/Node 红。",
+          "gap": "所有替代 backend、连接失败/刷新同库/provider destroy/worker 关闭需补；Angular e2e 8200 强制 IDB，React/Vue 能力探测，不能叫三端同档位。"
+        },
+        {
+          "C": "C3",
+          "title": "业务写入与一致性",
+          "status": "未核销：业务写入专项尚未读完",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/app/App.vue:13-14 setup / provideRxDB`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/router/index.ts:14-19,22-163 connectLocalAdapter / routes`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/app/rxdb/setup_rxdb_sqlite-wasm.ts:40-106 setup / plugins / init / test API / connector`",
+          "sequence": "已读 setup 的 search seed 串行创建，仅是启动测试数据，不是拖拽/批量添加/undo/working-tree 用户写入。",
+          "tests": "不能用 editor 单测或 seed 成功核销本 C；file-manager/tree/storage/working-tree 的实际 mutation/取消路径需后续逐页对照。",
+          "gap": "必要：批量部分失败、拖拽冲突、undo/redo 恢复数据、草稿跨路由；本轮不新增 scope 或业务探针。"
+        },
+        {
+          "C": "C4",
+          "title": "输入安全与可访问性",
+          "status": "部分核销：editor 输入路径，其余页未核销",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/pages/CodeEditorPage.vue:18-28 ref/v-model:value`",
+          "sequence": "React onChange→state、Vue update:value→ref；Angular demo 是 value-only，内部保留编辑不回写 code signal；三者不是完全同一受控演示。",
+          "tests": "现有 editor E2E 只挂载/初值；Angular 另断言高亮颜色；无键入/IME/selection 证据。",
+          "gap": "JSON/snippet/文件剪贴板/ObjectURL/预览取消及页面 a11y 尚未逐页审；editor demo 未传 label，不把 role 可见当可访问名称已验。"
+        },
+        {
+          "C": "C5",
+          "title": "演示 API 与发布边界",
+          "status": "部分核销：demo test API 边界已识别",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/app/rxdb/setup_rxdb_sqlite-wasm.ts:40-106 setup / plugins / init / test API / connector`",
+          "sequence": "setup 调 installSearchDemoTestApi/getE2eDbName 与 DevTools；应用自身是 demo，不据此要求包发布生产用户自动暴露同样入口。",
+          "tests": "主控69 lint/typecheck 当轮绿色仅为配置门禁；没有 production artifact 全局对象/fixture 排除的独立检查。",
+          "gap": "审上游 install 函数 gating 与当前 app production bundle 中调试面；已读调用不等 gating 已验证，不把 private demo 与发布包混为一谈。"
+        },
+        {
+          "C": "C6",
+          "title": "Vue 特有边界",
+          "status": "部分核销：框架特有 boot/editor；复杂页面未核销",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/app/App.vue:13-14 setup / provideRxDB`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/router/index.ts:14-19,22-163 connectLocalAdapter / routes`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/pages/CodeEditorPage.vue:18-28 ref/v-model:value`",
+          "sequence": "Angular OnPush/zoneless；React 主入口 StrictMode+模块级 DB；Vue setup provide+route hooks；均按框架原生 provider 面对照。",
+          "tests": "包级 lifecycle 不替代应用路由销毁；Angular failure-archive/replay，React 闭包/StrictMode，Vue composable 参数切换没有当轮完整用户证据。",
+          "gap": "必要：路由快速离开重入、错误状态、provider 关闭/异步晚到；应用数量大，清点文件不足全对象结论。"
+        }
+      ]
+    },
+    "dev-rxdb-vue-e2e": {
+      "object": "dev-rxdb-vue-e2e",
+      "trackedFiles": 39,
+      "inspectedTrackedFiles": 2,
+      "fullyDisplayedTrackedFiles": 2,
+      "unreadFiles": [
+        "apps/dev-rxdb-vue-e2e/eslint.config.mjs",
+        "apps/dev-rxdb-vue-e2e/package.json",
+        "apps/dev-rxdb-vue-e2e/project.json",
+        "apps/dev-rxdb-vue-e2e/src/ag-grid.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/e2e-utils.ts",
+        "apps/dev-rxdb-vue-e2e/src/encrypted.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/entity-list-sort.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/entity-model.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/file-manager-batch-undo.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/file-manager-lazy.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/file-manager-virtual.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/file-manager.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/generator.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/home.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/opfs.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/remote-cache.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/review-opfs-navigation.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/route-smoke.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/search-parity.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/search-refresh.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/search-scope.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/search-test-api.ts",
+        "apps/dev-rxdb-vue-e2e/src/search.a11y.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/search.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/shared-page-tests.ts",
+        "apps/dev-rxdb-vue-e2e/src/storage.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/todo-cursor.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/todo-sort.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/todo.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/tree-menu-batch-add.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/tree-menu-drag-drop.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/tree-menu-lazy.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/tree-menu-simple.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/tree-menu-virtual.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/working-tree.a11y.spec.ts",
+        "apps/dev-rxdb-vue-e2e/src/working-tree.spec.ts",
+        "apps/dev-rxdb-vue-e2e/tsconfig.json"
+      ],
+      "partiallyReadFiles": [],
+      "wholeObjectCandidate": false,
+      "status": "🟡 partial；不升格为全对象完成",
+      "criteria": [
+        {
+          "C": "C1",
+          "title": "route / 能力到用例映射",
+          "status": "部分核销：editor route→测试映射",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue-e2e/src/code-editor.spec.ts:3-19 现有 editor 用户入口断言`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/app/App.vue:13-14 setup / provideRxDB`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/router/index.ts:14-19,22-163 connectLocalAdapter / routes`",
+          "sequence": "goto /code-editor → textbox/初值；Angular 加关键字彩色 token；其他 route/spec 清单未逐条核对。",
+          "tests": "已读真实断言，不按 spec 名假设覆盖；code-editor 请求留主控串行执行。",
+          "gap": "全路由/业务/backend/模式映射仍必需；单 editor spec 不代表42/39个tracked已审。"
+        },
+        {
+          "C": "C2",
+          "title": "fixtures 隔离与真实性",
+          "status": "未核销：隔离/清库专项",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue-e2e/playwright.config.ts:60-70 当前产物 webServer / Chromium`",
+          "sequence": "server 明确不复用；Angular failureArchive 在 unexpected failed/timedOut 后执行；fixture 中段尚未读完，不能宣称有界传输/清库通过。",
+          "tests": "editor 文件不创建 DB 数据；共享 RxDB test fixtures、DB 清理、失败 teardown 未全部审。",
+          "gap": "必要：每用例库名/跨 tab/Worker scope、与实际 UI 不共用错误转换；主控结果仅按执行用例收口。"
+        },
+        {
+          "C": "C3",
+          "title": "断言强度与异步等待",
+          "status": "部分核销：已读断言判别力",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue-e2e/src/code-editor.spec.ts:3-19 现有 editor 用户入口断言`",
+          "sequence": "visible host 不足，textbox+CREATE TABLE 能检出未挂载；Angular token 多色额外检出 highlight 装饰失效；React/Vue 静态初值更弱。",
+          "tests": "现有 editor 无 fill/type、composition、selection、readonly toggle、语言切换断言；不把测试名字/通过包装成这些行为。",
+          "gap": "其他业务异常/零副作用、条件等待、任意 sleep 尚待逐条审；新增测试动作由后续主控专题负责。"
+        },
+        {
+          "C": "C4",
+          "title": "三框架语义对照",
+          "status": "部分核销：editor 三端差异已落账",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue-e2e/src/code-editor.spec.ts:3-19 现有 editor 用户入口断言`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/pages/CodeEditorPage.vue:18-28 ref/v-model:value`",
+          "sequence": "三端默认 SQL 文档一致；Angular value-only 与 React/Vue 双向状态不同；只有 Angular editor E2E 验高亮颜色。",
+          "tests": "源码/断言实际对照完成这条子项；不强行复制 Angular 专有回放/归档页面。",
+          "gap": "search-parity/working-tree/model/file 操作全矩阵未核销；跨端 shared imports 尚需追到真正 suite。"
+        },
+        {
+          "C": "C5",
+          "title": "平台与安全边界",
+          "status": "未核销：worker/权限/加密专项",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue-e2e/playwright.config.ts:60-70 当前产物 webServer / Chromium`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/app/rxdb/setup_rxdb_sqlite-wasm.ts:40-106 setup / plugins / init / test API / connector`",
+          "sequence": "Angular 8200 IDB，React/Vue 默认能力选择；浏览器运行并不自动证明实际后端、加密或者测试 hook 安全。",
+          "tests": "无当轮完整 storage/encrypted/worker/OPFS 报告；不复制已修存储旧问题。",
+          "gap": "必要：实际 backend 明示、拒绝前零副作用、当前 fixture/test API gating；unsupported 不可当 passed。"
+        },
+        {
+          "C": "C6",
+          "title": "可访问性与产物来源",
+          "status": "部分核销：产物/配置；a11y 不足",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue-e2e/playwright.config.ts:60-70 当前产物 webServer / Chromium`",
+          "sequence": "webServer false 避免借用旧 server；Angular 静态 build，React/Vue vite preview；配置只启用 Chromium，Firefox/WebKit 注释不算覆盖。",
+          "tests": "main69 lint/typecheck 绿色；本子任务未运行 browser/server；trace 配置不是 trace 已产生。",
+          "gap": "search/working-tree a11y、focus/keyboard、console/network、当前 build SHA 与截图/trace需主控实际结果；IMEs 另列必需。"
+        },
+        {
+          "C": "C7",
+          "title": "Vue 专项断言",
+          "status": "未核销：框架专项用户链路",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/app/App.vue:13-14 setup / provideRxDB`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/router/index.ts:14-19,22-163 connectLocalAdapter / routes`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue-e2e/src/code-editor.spec.ts:3-19 现有 editor 用户入口断言`",
+          "sequence": "只读到框架 bootstrap 与 editor spec；未把 package TestBed/RTL/Vue mount 证明升格成应用 E2E。",
+          "tests": "Angular failure-archive 专项中段、React 特有 render/权限/remote-cache、Vue composable 参数/选择/展开路径尚需具体用例证据。",
+          "gap": "须按路由、宿主、运行参数补本轮结果；无需等待外部宿主才核销已完成 editor 小专题。"
+        }
+      ]
+    },
+    "dev-rxdb-miniprogram": {
+      "object": "dev-rxdb-miniprogram",
+      "trackedFiles": 40,
+      "inspectedTrackedFiles": 5,
+      "fullyDisplayedTrackedFiles": 3,
+      "unreadFiles": [
+        "apps/dev-rxdb-miniprogram/.gitignore",
+        "apps/dev-rxdb-miniprogram/babel.config.js",
+        "apps/dev-rxdb-miniprogram/config/__tests__/assets-vite-plugin.spec.ts",
+        "apps/dev-rxdb-miniprogram/config/__tests__/labeled-var-hoist-vite-plugin.spec.ts",
+        "apps/dev-rxdb-miniprogram/config/__tests__/lazy-chunk-vite-plugin.spec.ts",
+        "apps/dev-rxdb-miniprogram/config/__tests__/realm-vite-plugin.spec.ts",
+        "apps/dev-rxdb-miniprogram/config/assets-vite-plugin.ts",
+        "apps/dev-rxdb-miniprogram/config/dev.ts",
+        "apps/dev-rxdb-miniprogram/config/index.ts",
+        "apps/dev-rxdb-miniprogram/config/labeled-var-hoist-vite-plugin.ts",
+        "apps/dev-rxdb-miniprogram/config/lazy-chunk-vite-plugin.ts",
+        "apps/dev-rxdb-miniprogram/config/prod.ts",
+        "apps/dev-rxdb-miniprogram/config/realm-vite-plugin.ts",
+        "apps/dev-rxdb-miniprogram/config/rxdb-packages-vite-plugin.ts",
+        "apps/dev-rxdb-miniprogram/eslint.config.mjs",
+        "apps/dev-rxdb-miniprogram/project.alipay.json",
+        "apps/dev-rxdb-miniprogram/project.config.json",
+        "apps/dev-rxdb-miniprogram/project.json",
+        "apps/dev-rxdb-miniprogram/project.private.config.json",
+        "apps/dev-rxdb-miniprogram/project.tt.json",
+        "apps/dev-rxdb-miniprogram/src/__tests__/benchmark-scenarios.spec.ts",
+        "apps/dev-rxdb-miniprogram/src/__tests__/benchmark-stats.spec.ts",
+        "apps/dev-rxdb-miniprogram/src/__tests__/debug-log.spec.ts",
+        "apps/dev-rxdb-miniprogram/src/app.config.ts",
+        "apps/dev-rxdb-miniprogram/src/benchmark/rxdb-workload.ts",
+        "apps/dev-rxdb-miniprogram/src/benchmark/scenarios.ts",
+        "apps/dev-rxdb-miniprogram/src/benchmark/stats.ts",
+        "apps/dev-rxdb-miniprogram/src/debug-log.ts",
+        "apps/dev-rxdb-miniprogram/src/first-value.ts",
+        "apps/dev-rxdb-miniprogram/src/index.html",
+        "apps/dev-rxdb-miniprogram/src/pages/index/index.config.ts",
+        "apps/dev-rxdb-miniprogram/src/pages/index/index.scss",
+        "apps/dev-rxdb-miniprogram/tsconfig.json",
+        "apps/dev-rxdb-miniprogram/types/global.d.ts",
+        "apps/dev-rxdb-miniprogram/vitest.config.mts"
+      ],
+      "partiallyReadFiles": [
+        {
+          "path": "apps/dev-rxdb-miniprogram/src/pages/index/index.tsx",
+          "readRanges": [[144, 216]]
+        },
+        {
+          "path": "apps/dev-rxdb-miniprogram/src/rxdb-demo.ts",
+          "readRanges": [
+            [1, 70],
+            [131, 161],
+            [200, 214],
+            [271, 375]
+          ]
+        }
+      ],
+      "wholeObjectCandidate": false,
+      "status": "🟡 partial；不升格为全对象完成",
+      "criteria": [
+        {
+          "C": "C1",
+          "title": "真实发布档位",
+          "status": "部分核销：发布档位声明",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram/package.json:12-32,39-60 Taro scripts / React18 private demo`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram/src/runtime-preflight.ts:81-85 currentDemoRuntime`",
+          "sequence": "只接 weapp/tt/alipay；其余 Taro build 脚本存在不代表 adapter 支持；private demo 与 React18/Taro 隔离。",
+          "tests": "主控69 lint/typecheck 绿色；实际三平台 build/代码包资源不在本子任务执行。",
+          "gap": "需 current build 的平台/大小/wasm SHA；没有所有 Taro 平台已支持的结论。"
+        },
+        {
+          "C": "C2",
+          "title": "前置能力与安全随机",
+          "status": "部分核销：轻量预检先于开库",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram/src/runtime-preflight.ts:96-163 random/capability/references`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram/src/rxdb-demo.ts:316-340 prepareRuntime before heavy imports`",
+          "sequence": "硬依赖缺失先 blocked/throw；polyfillable 明示；先 runtime.prepare，再重包/glue，再 adapter capability；安全随机来源不靠 Math.random。",
+          "tests": "源码已追；real host 缺能力/随机池耗尽/补给失败当轮未测；mock 能力 presence 不是熵质量。",
+          "gap": "必要：真实逻辑层 reject 先于 connect、weapp/tt/alipay runtime 来源/错误；由主控选择专用宿主验证。"
+        },
+        {
+          "C": "C3",
+          "title": "单连接与启动生命周期",
+          "status": "部分核销：旧页面资源释放路径",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram/src/rxdb-demo.ts:65-68,200-209,286-289,316-318 releaseActiveDemo / pendingDispose / closeAfterPendingWork`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram/src/pages/index/index.tsx:151-213 start / unload / late demo release`",
+          "sequence": "启动等旧 dispose/reconnect/benchmark；unload 清 demoRef；迟到 open 在 unloaded 后释放，不继续自检。",
+          "tests": "现代码已包含旧 RV-051 释放修复，不复制 Node/卸载旧红；主控 app test/new lifecycle probe 待补。",
+          "gap": "并发 open 尚非完整动态验证；初始化失败中间资源、失败 disconnect、反复重进平台真实测试必需。"
+        },
+        {
+          "C": "C4",
+          "title": "Todo / 持久化 / 限制",
+          "status": "部分核销：Todo repository/重连路径",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram/src/rxdb-demo.ts:138-158,241-275,307-313,365-374 CRUD / reopen / SQL probe`",
+          "sequence": "save/remove 后重查；重连验证通过 adapter SQL 独立读探针，非只读 UI 徽标；demo DB 名固定。",
+          "tests": "小程序 E2E suite 的真实 UI mutation 与 reLaunch 案例已读；没有本轮真实 DevTools执行结果。",
+          "gap": "reLaunch 不是应用进程/设备 crash；VFS 错误、完整重开、crash-safe 能力不得超额承诺。"
+        },
+        {
+          "C": "C5",
+          "title": "资源与测试缺口确认",
+          "status": "部分核销：测试缺口已更正，资源构建未审全",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram/package.json:39-80 精确依赖/Taro隔离`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram/src/rxdb-demo.ts:324-328 glue/wasm引用`",
+          "sequence": "manifest 实际有 src/__tests__ 与 config/__tests__，原计划“未发现测试”只是旧导航不能当当前事实；WASM 引用需与 assets 插件产物对应。",
+          "tests": "本轮未读完 config/plugins/benchmark tests，不能凭 tracked 文件名认定通过。",
+          "gap": "必要：assets/lazy-chunk/realm 插件生产输出/尺寸与 config unit 结果；40 tracked 中只读指定内容，仍 partial。"
+        }
+      ]
+    },
+    "dev-rxdb-miniprogram-e2e": {
+      "object": "dev-rxdb-miniprogram-e2e",
+      "trackedFiles": 15,
+      "inspectedTrackedFiles": 8,
+      "fullyDisplayedTrackedFiles": 8,
+      "unreadFiles": [
+        "apps/dev-rxdb-miniprogram-e2e/README.md",
+        "apps/dev-rxdb-miniprogram-e2e/eslint.config.mjs",
+        "apps/dev-rxdb-miniprogram-e2e/package.json",
+        "apps/dev-rxdb-miniprogram-e2e/project.json",
+        "apps/dev-rxdb-miniprogram-e2e/src/demo-page.ts",
+        "apps/dev-rxdb-miniprogram-e2e/src/review-page-bootstrap-lifecycle.spec.ts",
+        "apps/dev-rxdb-miniprogram-e2e/tsconfig.json"
+      ],
+      "partiallyReadFiles": [],
+      "wholeObjectCandidate": false,
+      "status": "🟡 partial；不升格为全对象完成",
+      "criteria": [
+        {
+          "C": "C1",
+          "title": "真实 DevTools 与前置条件",
+          "status": "部分核销：真实宿主前置与归属",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/devtools-environment.ts:37-79,96-117 CLI/project/build/service-port fail-fast`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/fixtures.ts:16-27,61-78 owned / connect / launch`",
+          "sequence": "CLI/project/dist 缺失抛错非 skip；自 launch owned 才 close；接用户既有 ws 非 owned，不擅关 GUI。",
+          "tests": "本轮未启动 DevTools；不会以浏览器 mock 代替。请求已限定专用 project/USER_DATA_PATH。",
+          "gap": "必要：真实 CLI/基础库/平台及测试专用目录；当前环境可用性未测，不能根据源路径判断已安装。"
+        },
+        {
+          "C": "C2",
+          "title": "runtime bootstrap",
+          "status": "部分核销：自包含逻辑层探针设计",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/runtime-probes.ts:27-75 readRandomSource/drawRandomValues explicit args`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/runtime-bootstrap.spec.ts:18-44 runtime source / SQLite version`",
+          "sequence": "toString 探针参数自包含，无 Node imports/闭包；UI 与随机实现来源两条读数；sqlite_version 证明实际 SQL，不只 presence。",
+          "tests": "已读源码，旧 Node 引导回调问题不重报；runtime self-check 徽标仍依赖被测程序，不叫独立 CRUD证明。",
+          "gap": "还须实际 automator 逻辑层运行与缺 glue/runtime 负例；Node/happy-dom单测不能核销。"
+        },
+        {
+          "C": "C3",
+          "title": "安全随机耐久性",
+          "status": "部分核销：随机耐久断言边界",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/secure-random.spec.ts:5-28,38-82 pool / refill / overdraw`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/runtime-probes.ts:42-74 cross-evaluate registry`",
+          "sequence": "跨批次 Set 检重复/零；批间250ms明确让位；超池同 tick 必须耗尽拒绝，不用随机不同证明密码学安全。",
+          "tests": "设计有正/负对照，统计表象只能证明池行为；真实来源与耗尽当轮未运行。",
+          "gap": "必需实际桥接/补给失败、池来源证据；250ms 不是性能/补给 SLA，通过不能推广真机所有调度。"
+        },
+        {
+          "C": "C4",
+          "title": "Todo 与启动持久化",
+          "status": "部分核销：CRUD 与持久化测试设计",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/todo-crud.spec.ts:13-54 真实 UI / reLaunch`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/launch-persistence.spec.ts:16-38 serial reset→pending→pass→reset`",
+          "sequence": "独立标题；UI add/remove 与数量；清探针后 pending→reLaunch passed→再清回 pending，避免恒真。",
+          "tests": "toggle 用例只检条目未消失，不检 completed 状态；reLaunch 仅页面重进，不等完整应用进程重启。",
+          "gap": "必须补 completed 状态、完整 close/launch、落盘/错误路径实际报告；不能把注释“跨启动”扩大成 crash recovery。"
+        },
+        {
+          "C": "C5",
+          "title": "隔离与设备矩阵",
+          "status": "部分核销：单 worker/归属；设备隔离缺口",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/playwright.config.ts:25-38 one worker / no browser`；`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/fixtures.ts:61-78 owned teardown / reLaunch`",
+          "sequence": "一个 DevTools worker；reset 作用于固定 demo 库，需专用测试 project；non-owned session 不关闭。",
+          "tests": "8/15 tracked 已读完，README/demo-page/lifecycle spec/配置尚未全文读；无当前真机执行记录。",
+          "gap": "设备矩阵 weapp/tt/alipay、失败 teardown、重复两轮与测试目录清理未核销；不能擅接个人 GUI 清数据。"
+        }
+      ]
+    },
+    "rxdb-devtools-extension": {
+      "object": "rxdb-devtools-extension",
+      "trackedFiles": 38,
+      "inspectedTrackedFiles": 11,
+      "fullyDisplayedTrackedFiles": 11,
+      "unreadFiles": [
+        "apps/rxdb-devtools-extension/.gitignore",
+        "apps/rxdb-devtools-extension/README.md",
+        "apps/rxdb-devtools-extension/devtools.html",
+        "apps/rxdb-devtools-extension/eslint.config.mjs",
+        "apps/rxdb-devtools-extension/package.json",
+        "apps/rxdb-devtools-extension/panel.html",
+        "apps/rxdb-devtools-extension/project.json",
+        "apps/rxdb-devtools-extension/public/icon-128.png",
+        "apps/rxdb-devtools-extension/public/icon-16.png",
+        "apps/rxdb-devtools-extension/public/icon-32.png",
+        "apps/rxdb-devtools-extension/public/icon-48.png",
+        "apps/rxdb-devtools-extension/public/logo.png",
+        "apps/rxdb-devtools-extension/public/logo.svg",
+        "apps/rxdb-devtools-extension/src/background/background-core.spec.ts",
+        "apps/rxdb-devtools-extension/src/content/bridge.spec.ts",
+        "apps/rxdb-devtools-extension/src/devtools/devtools-init.ts",
+        "apps/rxdb-devtools-extension/src/devtools/services/port.service.spec.ts",
+        "apps/rxdb-devtools-extension/src/manifest.config.spec.ts",
+        "apps/rxdb-devtools-extension/src/public-contracts.spec.ts",
+        "apps/rxdb-devtools-extension/src/style.css",
+        "apps/rxdb-devtools-extension/src/test-setup.ts",
+        "apps/rxdb-devtools-extension/src/testing/chrome-conformance.spec.ts",
+        "apps/rxdb-devtools-extension/src/testing/chrome-relay-nodes.ts",
+        "apps/rxdb-devtools-extension/src/vite-env.d.ts",
+        "apps/rxdb-devtools-extension/tsconfig.json",
+        "apps/rxdb-devtools-extension/vite.config.ts",
+        "apps/rxdb-devtools-extension/vitest.config.ts"
+      ],
+      "partiallyReadFiles": [],
+      "wholeObjectCandidate": false,
+      "status": "🟡 partial；不升格为全对象完成",
+      "criteria": [
+        {
+          "C": "C1",
+          "title": "跨边界消息身份",
+          "status": "部分核销：已读四段路由/导航身份",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/background/index.ts:19-28 sender id/frame gate`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/background/background-core.ts:142-214 INIT-owned tab / old-map release`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/content/bridge-core.ts:34-84 source/origin/direction`",
+          "sequence": "panel INIT 绑定 tab；content 上行必须自己扩展+主帧；同 port 换 tab 已删旧映射；导航推进 epoch；bridge 先校验再 adopt 私有 port。",
+          "tests": "现有 RV-048 map 修复可见，不报旧红；unit/真实错误 frame/session/document 结果等待主控。",
+          "gap": "端点才做 payload/session 严校验；relay 不凭 source 常量保证同 origin 脚本可信，document 导航与旧响应实际拒绝尚需证明。"
+        },
+        {
+          "C": "C2",
+          "title": "manifest / CSP / 权限",
+          "status": "部分核销：发布权限/CSP；授权晚到待证",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/manifest.config.ts:38-70 optional-only / desktop-dev`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/devtools/services/inspected-page-access.service.ts:26-34,66-83,100-121 scheme / requestAccess / revision refresh`",
+          "sequence": "发布只有 scripting + optional hosts；desktop-dev 单独 localhost 静态权限；unsupported scheme 明示；refresh revision 守卫，但 requestAccess await 后没有同守卫。",
+          "tests": "新增 FE-PENDING-002 deferred grant 正对照/导航/销毁三个用例交主控，未 confirm；不说成 Chrome 权限绕过。",
+          "gap": "production CSP/资源暴露/实际授权 UI 未核销；E2E 副本静态授权 variance 不能代替 optional grant。"
+        },
+        {
+          "C": "C3",
+          "title": "port 队列与生命周期",
+          "status": "部分核销：port cleanup/退避，授权取消待证",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/devtools/services/port.service.ts:55-86,120-124,148-203 subscribe / epoch / reconnect / disconnect`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/content/bridge.ts:27-45 adoptPort close old`",
+          "sequence": "重连1s指数到30s；销毁停 timer、清 listeners/disconnect；导航取消 activation 并推进 epoch；旧私有 port 先摘 handler 再 close。",
+          "tests": "requestAccess 晚到是否重新 activate 待 probe；完整队列/巨大帧/worker reload/断开 request 关联未执行。",
+          "gap": "PortService 本身没有 byte queue/请求表，反压/超时属于端点，不能仅看到 reconnect 就核销这些子项。"
+        },
+        {
+          "C": "C4",
+          "title": "面板与 provider capability",
+          "status": "部分核销：provider token 接线",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/devtools/main.ts:26-45 environment initializer / transport / host / lazy endpoint file channel`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/v2/authorization.ts:172-182 本地三层授权`",
+          "sequence": "bootstrap 先实例化端点；文件 factory 每次取当前 endpoint，避免新 session 沿用旧实例；真实 permission 必须在 provider 判定，不只 disabled button。",
+          "tests": "modules 面板能力 UI 全文件不属本轮已完成对象；只追已读接口边界，不将 unit disabled 当权限证明。",
+          "gap": "actual DB/files/settings provider、只读 mutation 拒绝、snapshot 脱敏与批失败需真实用户测试。"
+        },
+        {
+          "C": "C5",
+          "title": "浏览器 / Electron 档位",
+          "status": "部分核销：Chrome/Electron 变体边界",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/manifest.config.ts:13-25,61-70 desktop-dev variant`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/devtools/services/inspected-page-access.service.ts:112-134 no permissions host variance`",
+          "sequence": "Electron 无运行时 permissions 的已声明差异；app scheme unsupported；默认发布不能为它增加 all_urls 静态权限。",
+          "tests": "Chrome fixture 真实四段但 DevTools 宿主补 API；本子任务未跑 Chrome/packaged Electron。",
+          "gap": "Electron/Tauri integration 与自定义生产 scheme 未核销；主控既有宿主结果必须注明适用 build，不用 chrome mock 推全宿主。"
+        },
+        {
+          "C": "C6",
+          "title": "测试可信度与产物",
+          "status": "部分核销：测试/产物 provenance",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/tools/prepare.mjs:32-58 current build copy / test-only manifest variance`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/extension.fixture.ts:39-102 host shim / persistent Chromium`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/devtools/services/inspected-page-access.service.spec.ts:106-240 现有 unit 对照`",
+          "sequence": "unit Chrome stubs、conformance、unpacked E2E、packaged Electron 四档不能混称；新增 probe 后旧 lint 输入不覆盖新文件。",
+          "tests": "main69 lint/typecheck 绿只按旧输入面承接；unit 全套/新增 probe/extension E2E 已排验证请求，等待主控补结果。",
+          "gap": "38 tracked 只读11主体/配置与1测试，其他入口/测试/生产dist仍未全文审；不是完整对象候选。"
+        }
+      ]
+    },
+    "rxdb-devtools-extension-e2e": {
+      "object": "rxdb-devtools-extension-e2e",
+      "trackedFiles": 9,
+      "inspectedTrackedFiles": 9,
+      "fullyDisplayedTrackedFiles": 9,
+      "unreadFiles": [],
+      "partiallyReadFiles": [],
+      "wholeObjectCandidate": true,
+      "status": "🟡 完整范围源码/测试设计评审候选；运行未验面已明确留账",
+      "criteria": [
+        {
+          "C": "C1",
+          "title": "准备产物与 Chromium context",
+          "status": "已核销：准备/fixture设计；动态产物待证",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/tools/prepare.mjs:32-58 rm out / cp builds / variance`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/extension.fixture.ts:82-102 persistent context/worker id`",
+          "sequence": "先清 staging，再复制真实两个 dist；缺 manifest/read失败显式抛；Chromium 临时 profile，真实 worker URL 取 id；teardown close。",
+          "tests": "9/9 tracked 全文读；resolved graph e2e depends prepare、prepare depends extension+devtools build；本轮尚未执行。",
+          "gap": "必须冷准备 SHA/manifest 与当前源码对应、browser版本/真实 profile 清理；复制成功不证明源 dist 不陈旧。"
+        },
+        {
+          "C": "C2",
+          "title": "relay 正反向身份",
+          "status": "部分核销：只证明正向协商设计",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/relay.spec.ts:116-175 handshakeThroughRelay / session identity / ACK`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/extension.fixture.ts:39-79 mock devtools API only`",
+          "sequence": "开panel→reload→手工 emit onNavigated；要求 HELLO 经四段、offers 同 session、仅一个v2 ACK且无legacy ACK。",
+          "tests": "不按消息条数误判多 HELLO；身份判据有判别力，但当前文件没有错 tab/frame/session、页面伪造、旧 document 的反向 mutation 断言。",
+          "gap": "本轮 Chrome 执行待主控；正向 ACK 不核销身份攻击全矩阵，DevTools 真宿主是 variance。"
+        },
+        {
+          "C": "C3",
+          "title": "请求关联与资源",
+          "status": "未核销：请求/资源压力专题",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/extension.fixture.ts:89-102 context ownership`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/relay.spec.ts:134-199 只有两条 relay tests`",
+          "sequence": "context use 后 close 是已读归属；现套件没有并发 request/timeout/乱序/tab关闭/extension reload/巨大消息断言。",
+          "tests": "测试存在不等这些路径已测；不存在的断言明确列缺口，不写假通过。",
+          "gap": "需专门并发/取消/timeout/port重开与句柄计数，用 endpoint unit 不能替真实 reload。"
+        },
+        {
+          "C": "C4",
+          "title": "实际 provider 用户路径",
+          "status": "部分核销：none 零业务帧；实际 provider未验",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/fixture/index.html:30-75 RxDB event substitute / throwing manager getters`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/relay.spec.ts:177-197 none before/after handshake`",
+          "sequence": "同tick init事件→握手→再发事件；四车道录制；none 下 EVENT/DB_INFO/BRANCHES 都零，避免“尚未连接”假阴性。",
+          "tests": "fixture 是最小事件 RxDB 替身、真实发布 connector；没有实际 DB/files/settings mutation、readonly拒绝/snapshot/脱敏可见结果断言。",
+          "gap": "本轮执行未验；none 特例不能推广 full+omit/readonly provider全权限。补真实 provider 用户路径。"
+        },
+        {
+          "C": "C5",
+          "title": "结论边界与补证",
+          "status": "已核销：适用范围/未验清单（不等运行通过）",
+          "production": "`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/playwright.config.ts:16-32 one worker / trace / fresh server`；`/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/extension.fixture.ts:20-31,82-102 DevTools shim / real relay`",
+          "sequence": "两个variance：prepare 加 localhost 静态 host 权限；普通扩展panel shim devtools.*；其余四段真实；配置无Electron/Tauri矩阵。",
+          "tests": "源码全部9文件已读，设计结论可提交收口候选；主控 lint/typecheck通过，但 E2E runtime仍待请求。",
+          "gap": "trace设置不是当前trace；skip/browser失败/临时profile/产物SHA必须主控报告；不能称真实DevTools宿主或生产optional权限验收完成。"
+        }
+      ]
+    }
+  },
+  "date": "2026-10-05",
+  "evidenceSources": [
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/packed-consumer-entry-check.json",
+      "sha256": "af621a3a9228392fd95f87bd69a4ed88521038ae42102b283787e9125149042c",
+      "readMode": "结构化主控结果，只按本文具体字段承接"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint-status.json",
+      "sha256": "a9c9f2e1926dbc37b4c1a44061c9749827c5d929e1352dcf9ddfbaf291933530",
+      "readMode": "结构化主控结果，只按本文具体字段承接"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck-status.json",
+      "sha256": "3919a3146684df1ef20186b46ad2b48f9f9276904e19c532b35a4dad14d75b0e",
+      "readMode": "结构化主控结果，只按本文具体字段承接"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage-status.json",
+      "sha256": "d708d8c9f2dafbf1cec172a332ca87d3abe4e2b90c170f791224cde136bef3f5",
+      "readMode": "结构化主控结果，只按本文具体字段承接"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor/coverage-summary.json",
+      "sha256": "fa987dea351ed6e1d43ba6797c166c432c0ad9e5f350f29af5d711a981752131",
+      "readMode": "当轮四指标 total / JUnit suite 计数"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor/junit.xml",
+      "sha256": "60853c416a14f879dda0c12ce43470dbc82a17b9b60064c4e23054e1be4e4f4f",
+      "readMode": "当轮四指标 total / JUnit suite 计数"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor-angular/coverage-summary.json",
+      "sha256": "b3b46bb463afd134d80cfeacd689da92e647024405b547a62d0e850828351641",
+      "readMode": "当轮四指标 total / JUnit suite 计数"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor-angular/junit.xml",
+      "sha256": "9905c5b787e1391100d5c980f0774b4834dee55c6e26626b4b6ace4e28cfc007",
+      "readMode": "当轮四指标 total / JUnit suite 计数"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor-react/coverage-summary.json",
+      "sha256": "b4d336a1268d33edb238b1e2a069dfcd582978258fa9be05d439a207d31e46cd",
+      "readMode": "当轮四指标 total / JUnit suite 计数"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor-react/junit.xml",
+      "sha256": "1cd548d1595a74cc1ff48037552abf8ccac06cd1694efa78a3a6405378434661",
+      "readMode": "当轮四指标 total / JUnit suite 计数"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor-vue/coverage-summary.json",
+      "sha256": "8db7777390ab81723b2be250e4fa17c66fc2a1e806ba14da892f73070a3ddca8",
+      "readMode": "当轮四指标 total / JUnit suite 计数"
+    },
+    {
+      "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/code-editor-vue/junit.xml",
+      "sha256": "b12f5cc673e2d65bf0275f00d7287840ccec9990aa3bc8ace80c9a856c733a9f",
+      "readMode": "当轮四指标 total / JUnit suite 计数"
+    }
+  ],
+  "files": [
+    {
+      "path": "packages/code-editor/src/document-sync.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/document-sync.ts",
+      "sha256": "f65d69873b8b8918bd7753f6469f7d3fa820d229156b22d15142adac30970879",
+      "totalLines": 69,
+      "displayedRanges": [[1, 69]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor/src/language-resolution.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/language-resolution.ts",
+      "sha256": "df7ae741adbdcbae8955ea5df7f19599e6744788b5a24b1e7d6d34362f8b84bb",
+      "totalLines": 109,
+      "displayedRanges": [[1, 109]],
+      "readComplete": true,
+      "note": "初次输出截断；撤销全读标记，后续分段重读。"
+    },
+    {
+      "path": "packages/code-editor/src/accessibility.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/accessibility.ts",
+      "sha256": "b5baea5111a527837a527641e68d86a7d54db26710c07d69623110a213671537",
+      "totalLines": 85,
+      "displayedRanges": [[1, 85]],
+      "readComplete": true,
+      "note": "初次输出截断；撤销全读标记，后续分段重读。"
+    },
+    {
+      "path": "packages/code-editor/src/index.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/index.ts",
+      "sha256": "599c40d8647442d55a6f7735e07e27dca3413d754875cecb75f331c3d5c975ea",
+      "totalLines": 20,
+      "displayedRanges": [[1, 20]],
+      "readComplete": true,
+      "note": "初次输出截断；撤销全读标记，后续分段重读。"
+    },
+    {
+      "path": "packages/code-editor/src/languages.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/languages.ts",
+      "sha256": "6add6ff1a70b04db71bb10028a82dfd16d66ac8fdf56d839fc789b9621474a99",
+      "totalLines": 232,
+      "displayedRanges": [[1, 232]],
+      "readComplete": true,
+      "note": "初次输出截断；撤销全读标记，后续分段重读。"
+    },
+    {
+      "path": "packages/code-editor/src/language-error.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/language-error.ts",
+      "sha256": "823bfa1016e56088d59c4c21ca482e307ed5c379b8fdb33074568faa754ea114",
+      "totalLines": 70,
+      "displayedRanges": [[1, 70]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor-react/src/CodeEditor.tsx",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/CodeEditor.tsx",
+      "sha256": "ffb1618f60ca5f3db94d80deac5c9746cc1aa13c522b738ffa619cfd3764a7da",
+      "totalLines": 534,
+      "displayedRanges": [[1, 534]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor-angular/src/code-editor.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/code-editor.ts",
+      "sha256": "076d5b49ca1b6d0ba078f9340a25911bbb75e3c0861b62a187649c5a36002cdb",
+      "totalLines": 620,
+      "displayedRanges": [[1, 620]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor-vue/src/CodeEditor.vue",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/CodeEditor.vue",
+      "sha256": "b2064e8a2ebf5d9fca553fb7769853bba82a526b0684c3765c33b7f5b96e8391",
+      "totalLines": 333,
+      "displayedRanges": [[1, 333]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor-angular/src/__tests__/code-editor.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/__tests__/code-editor.spec.ts",
+      "sha256": "962bc928d2ed3f2b762838b528ab08d79089b7ec1a51fc0ea4c8c0cdee5dd76e",
+      "totalLines": 1022,
+      "displayedRanges": [
+        [1, 207],
+        [371, 406],
+        [491, 510],
+        [995, 1022]
+      ],
+      "readComplete": false
+    },
+    {
+      "path": "packages/code-editor-react/src/__tests__/CodeEditor.spec.tsx",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-react/src/__tests__/CodeEditor.spec.tsx",
+      "sha256": "d01586eb8ea2eefa2f656b1ed82f78aaadfc5aa2145df92914460da7fa7cc7bc",
+      "totalLines": 682,
+      "displayedRanges": [
+        [1, 55],
+        [385, 429],
+        [480, 577],
+        [603, 682]
+      ],
+      "readComplete": false
+    },
+    {
+      "path": "packages/code-editor-angular/src/__tests__/review-language-sync-throw.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/src/__tests__/review-language-sync-throw.spec.ts",
+      "sha256": "a7dadff5d27c7f4e666566d7550f2c8c153258d1be3dda53843f276f47bfa9b7",
+      "totalLines": 56,
+      "displayedRanges": [[1, 56]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension/src/background/background-core.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/background/background-core.ts",
+      "sha256": "9536e11b31045858bce8aee2ce6eab85adcc8373894cbe1a96b1aa55623f7f31",
+      "totalLines": 217,
+      "displayedRanges": [[1, 217]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension/src/background/index.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/background/index.ts",
+      "sha256": "56a3c302da99cb84f1766b4620569370769367791135f68537a8871e29aa08d4",
+      "totalLines": 29,
+      "displayedRanges": [[1, 29]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension/src/content/bridge-core.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/content/bridge-core.ts",
+      "sha256": "fea879e6b917aa0c0bbc2512dfc96c2f59c92fdc28ed82739496aa43a84ed8c0",
+      "totalLines": 124,
+      "displayedRanges": [[1, 124]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension/src/content/bridge.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/content/bridge.ts",
+      "sha256": "5d60b5604475d0d4821103a2fd6c67f03c15a7727a1bb39923f35d0d27307ec9",
+      "totalLines": 85,
+      "displayedRanges": [[1, 85]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension/src/devtools/services/port.service.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/devtools/services/port.service.ts",
+      "sha256": "e9259a9cb5ef9d6d0c7fd36dc153b8aa89a8d6e9e2c2449dd72427e15d406518",
+      "totalLines": 249,
+      "displayedRanges": [[1, 249]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension/src/devtools/services/inspected-page-access.service.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/devtools/services/inspected-page-access.service.ts",
+      "sha256": "fdcd6a6d120077a53c941401980a41d18ec42ace620a2a4dd6f8e84721a9285e",
+      "totalLines": 144,
+      "displayedRanges": [[1, 144]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension/manifest.config.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/manifest.config.ts",
+      "sha256": "79572a1f810974414cea735a791314955cfe4e2900ff5f62d48b2c2e7c470e0e",
+      "totalLines": 70,
+      "displayedRanges": [[1, 70]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension/src/devtools/main.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/devtools/main.ts",
+      "sha256": "de65b9bd10bc3a9c7024643e81cb7c612597940081d5abccc176ddedfe41db08",
+      "totalLines": 46,
+      "displayedRanges": [[1, 46]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension-e2e/playwright.config.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/playwright.config.ts",
+      "sha256": "32c665651f21fa1f84a69dd9b462993070999c64101b14ed06e60a525007bc09",
+      "totalLines": 33,
+      "displayedRanges": [[1, 33]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension-e2e/tools/prepare.mjs",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/tools/prepare.mjs",
+      "sha256": "dd939c4931fe46ebadbd59f4efcbad66a4d469bcf9406bf5ac3a54bb6115fc7b",
+      "totalLines": 58,
+      "displayedRanges": [[1, 58]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension-e2e/src/extension.fixture.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/extension.fixture.ts",
+      "sha256": "57475134a009e2f4e402c1501f986679fd731be6f973a35e2e16793dd402374e",
+      "totalLines": 105,
+      "displayedRanges": [[1, 105]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension-e2e/src/relay.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/src/relay.spec.ts",
+      "sha256": "900ad003046cbc67d71173176876d69d9ad225d18ce0dd4747062462e920ddd7",
+      "totalLines": 199,
+      "displayedRanges": [[1, 199]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension-e2e/fixture/index.html",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/fixture/index.html",
+      "sha256": "ae9f13696647f84955656397b91f712076d5a754cc890ded9f7114d7af320f6d",
+      "totalLines": 79,
+      "displayedRanges": [[1, 79]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension/src/devtools/services/inspected-page-access.service.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/src/devtools/services/inspected-page-access.service.spec.ts",
+      "sha256": "b09b8bada235547297e1744b3a971c68edbbfb200e44d598237ed5fdd432f8b9",
+      "totalLines": 241,
+      "displayedRanges": [[1, 241]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/document-sync.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/document-sync.spec.ts",
+      "sha256": "965ec48df13dc37df4251fbf2b1d496ba505008c0e6dd9bc8f9a01ad80a2d325",
+      "totalLines": 62,
+      "displayedRanges": [[1, 62]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/review-document-change-properties.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/review-document-change-properties.spec.ts",
+      "sha256": "5e6d632053331fbe85855e35cc943a2379b62040d30b129c5864a57aeed9bf6f",
+      "totalLines": 44,
+      "displayedRanges": [[1, 44]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/accessibility.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/accessibility.spec.ts",
+      "sha256": "c6286f2871e4cf0f3d6c3e8b549a649301da888232b28487b32d871bc46fbdbe",
+      "totalLines": 53,
+      "displayedRanges": [[1, 53]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/language-resolution.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/language-resolution.spec.ts",
+      "sha256": "4b018b374e890fb6087a9c08076a62becd531fc809431305fc8e4c90d4039386",
+      "totalLines": 85,
+      "displayedRanges": [[1, 85]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/index.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/index.spec.ts",
+      "sha256": "0b2e7617c760799593c4676457e4f10c28b95427c6084326c6adf779cc50ed2b",
+      "totalLines": 330,
+      "displayedRanges": [[1, 330]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor/src/__tests__/language-error.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/src/__tests__/language-error.spec.ts",
+      "sha256": "dc2360c0ccc5f1768b5fce5cf29dc84e72d17a64ae132c5df13f59964bb2dec7",
+      "totalLines": 42,
+      "displayedRanges": [[1, 42]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor/package.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/package.json",
+      "sha256": "931ed586f55e71b4be1ceaeb9d472f211b4a21e9e439592d14fdb3be7083b799",
+      "totalLines": 60,
+      "displayedRanges": [[1, 60]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor/vite.config.mts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/vite.config.mts",
+      "sha256": "50346926e4c83716b12d736eb2b90f7b10998ef3619a948a56e2206133c56964",
+      "totalLines": 105,
+      "displayedRanges": [[1, 105]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor/tsconfig.lib.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/tsconfig.lib.json",
+      "sha256": "9c8d4f409a8b273b59ceb8a2e43686cb4a9527feabda1db6f5cacf3ff93aba8d",
+      "totalLines": 26,
+      "displayedRanges": [[1, 26]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor/tsconfig.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/tsconfig.json",
+      "sha256": "771c0a42861198d0c4651695a3b7f3e72221115acc9e3c200fe27d022f7cfcbd",
+      "totalLines": 16,
+      "displayedRanges": [[1, 16]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor/tsconfig.spec.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/tsconfig.spec.json",
+      "sha256": "547550007c92b83502269468e38b5b6c9101a61af1823d67af4e44f2ea81be71",
+      "totalLines": 28,
+      "displayedRanges": [[1, 28]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor/eslint.config.mjs",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/eslint.config.mjs",
+      "sha256": "8076559dc3bc94d44eb1aafe0317314d0beee5ca0cb014f7e3848cf3a3e91520",
+      "totalLines": 22,
+      "displayedRanges": [[1, 22]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor/README.md",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/README.md",
+      "sha256": "18f42e1201ff98566527d85f01a416073dc86f1504ef08bbd834fd678e112d94",
+      "totalLines": 72,
+      "displayedRanges": [[1, 72]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor/LICENSE",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/LICENSE",
+      "sha256": "61d86f888dcdea33f03b9fdbc05aa2520ddadf29e1884b6fa75786f4047ea33b",
+      "totalLines": 21,
+      "displayedRanges": [[1, 21]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/rxdb-devtools/src/v2/authorization.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/v2/authorization.ts",
+      "sha256": "fb5340e4edcaaa5007576574cdad73ff0f6c82306acf4e331a589115634a342c",
+      "totalLines": 183,
+      "displayedRanges": [[1, 183]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/rxdb-devtools/src/buffer.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/buffer.ts",
+      "sha256": "7c7811af5e92f77943d149021199341624a763ce340b008b961aae7b32ade20f",
+      "totalLines": 62,
+      "displayedRanges": [[1, 62]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/rxdb-devtools/src/sequence.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/sequence.ts",
+      "sha256": "fe6bf8ff2ff5aed6a4ab51d6ec6c3622aca814abdd9a3768982b38d35dc5e2e7",
+      "totalLines": 22,
+      "displayedRanges": [[1, 22]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/rxdb-devtools/src/connector-mask.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector-mask.ts",
+      "sha256": "1239b2e566588056de86cb964357efa13480273a75a1e8da4683d89ebbc1771d",
+      "totalLines": 130,
+      "displayedRanges": [[1, 130]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/rxdb-devtools/src/provider/logical-path.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/provider/logical-path.ts",
+      "sha256": "695f3ee61cfcf86b74f9e698aea77fc7d349da059fb118a2d80b0119c9cc63e5",
+      "totalLines": 77,
+      "displayedRanges": [[1, 77]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/rxdb-devtools/src/provider/limits.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/provider/limits.ts",
+      "sha256": "84ff07bff3066d0e0f1e892dcb6cd22644d01e472c72dc921f95a367e325ad60",
+      "totalLines": 57,
+      "displayedRanges": [[1, 57]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/rxdb-devtools/src/v2/endpoint.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/v2/endpoint.ts",
+      "sha256": "66b3efc9edf341eada55f73e1219083c9f34d266ba77384c54db0a92c100c246",
+      "totalLines": 842,
+      "displayedRanges": [
+        [249, 377],
+        [379, 422]
+      ],
+      "readComplete": false
+    },
+    {
+      "path": "packages/rxdb-devtools/src/connector.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector.ts",
+      "sha256": "272d2589c1eba24ec71490fc4bc7a7d812bb3e53de27839e37f282e1cfcb7dbc",
+      "totalLines": 1079,
+      "displayedRanges": [[204, 297]],
+      "readComplete": false
+    },
+    {
+      "path": "packages/rxdb-devtools/src/serializer.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/serializer.ts",
+      "sha256": "0134a1138d283881c32a623769e9aa02c59073434b5d2753e36cb6b1334c5928",
+      "totalLines": 225,
+      "displayedRanges": [[1, 225]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/rxdb-devtools/src/connector-subscribe-once.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector-subscribe-once.ts",
+      "sha256": "f33fba2731db5f9ee23a8216dfd06ae8a1e3cb252b762f247c155cf4060b514f",
+      "totalLines": 99,
+      "displayedRanges": [[1, 99]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/rxdb-devtools/src/connector-runtime.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/connector-runtime.ts",
+      "sha256": "f224a7ed9fbd8ce7d845dac101c0e287bb7175debf349806189e50a9110a9cc3",
+      "totalLines": 117,
+      "displayedRanges": [[1, 117]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/rxdb-devtools/src/provider/read-only-settings.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-devtools/src/provider/read-only-settings.ts",
+      "sha256": "606b795b75d42d7b4df6ab7d643b923d1d7b992ffb75c3a641832ee57984cad1",
+      "totalLines": 39,
+      "displayedRanges": [[1, 39]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-angular/src/main.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/main.ts",
+      "sha256": "c9bf01fb0d6a589ae8ac4cf02edd765c776efe0d7dbdf7f7a7f3d56c6d20b8d5",
+      "totalLines": 35,
+      "displayedRanges": [[1, 35]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-react/src/main.tsx",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/main.tsx",
+      "sha256": "b1b73751578ce0f2bda7262ae4744f967a72a0e067853374fdb5b64de006dde9",
+      "totalLines": 52,
+      "displayedRanges": [[1, 52]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-vue/src/main.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/main.ts",
+      "sha256": "a9d9918f16e0160c36f7985ef3b62c8dc21f9e77584f2213c990af2a49bdee6a",
+      "totalLines": 23,
+      "displayedRanges": [[1, 23]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-angular/src/app/pages/code-editor/code-editor.page.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/pages/code-editor/code-editor.page.ts",
+      "sha256": "dbb3aba3132a9bb45304a1f85938f213613f1527f614ce05ca00030269205e29",
+      "totalLines": 26,
+      "displayedRanges": [[1, 26]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-vue/src/pages/CodeEditorPage.vue",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/pages/CodeEditorPage.vue",
+      "sha256": "86410da1d5acabc26a21077c135c2105f12c24cc27d454f9f32d0a4e5b9bf236",
+      "totalLines": 30,
+      "displayedRanges": [[1, 30]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-angular-e2e/src/code-editor.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular-e2e/src/code-editor.spec.ts",
+      "sha256": "132b7507066b26355fb0723ec8cdfcf991c18ae69343bde548ab56a8c1bcea38",
+      "totalLines": 50,
+      "displayedRanges": [[1, 50]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-react-e2e/src/code-editor.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react-e2e/src/code-editor.spec.ts",
+      "sha256": "19548c5f188caa44867928c7fba5809ebadbffbc1b3fa326eee43fe68de79495",
+      "totalLines": 19,
+      "displayedRanges": [[1, 19]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-vue-e2e/src/code-editor.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue-e2e/src/code-editor.spec.ts",
+      "sha256": "76125d8a75d9a1e8a0d459de156d1549a6229ad5567294dfc7dc66d0fce61baa",
+      "totalLines": 20,
+      "displayedRanges": [[1, 20]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-angular-e2e/src/fixtures.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular-e2e/src/fixtures.ts",
+      "sha256": "f4b5d17f68c0069115d9f4568507902389ec4a156336a5469d115b747ee1d5b8",
+      "totalLines": 269,
+      "displayedRanges": [
+        [1, 10],
+        [214, 269]
+      ],
+      "readComplete": false,
+      "note": "首次工具输出截断，中间未阅读。"
+    },
+    {
+      "path": "apps/dev-rxdb-angular/src/app/app.config.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/app.config.ts",
+      "sha256": "35ffb6f54719cb4e9fef407ac95b8c7d0acf94f74c684defcfda1b2ee85f8434",
+      "totalLines": 74,
+      "displayedRanges": [[1, 74]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-angular/src/app/pages/code-editor/code-editor.page.html",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/pages/code-editor/code-editor.page.html",
+      "sha256": "744ab7469d43218e30c9e921c05666d65991746e2dfeeef51f8cc32c94e4cee2",
+      "totalLines": 1,
+      "displayedRanges": [[1, 1]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-react/src/app/pages/code-editor.tsx",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/pages/code-editor.tsx",
+      "sha256": "b25a6ee0c1a86eef972da68bbde2f0740384abbc71ef98cd36c70225fe4c185e",
+      "totalLines": 26,
+      "displayedRanges": [[1, 26]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-react/src/app/app.tsx",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/app.tsx",
+      "sha256": "3bd23bd211ecaf2adce9ea40c5365937232bc13d5ed17bc53769205f51d296fb",
+      "totalLines": 69,
+      "displayedRanges": [[1, 69]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-vue/src/app/App.vue",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/app/App.vue",
+      "sha256": "5d8c63a9ece4dd6676c9c14f6343508dea7371eaf725ffdda61b0943f7f6277b",
+      "totalLines": 74,
+      "displayedRanges": [[1, 30]],
+      "readComplete": false
+    },
+    {
+      "path": "apps/dev-rxdb-angular/src/app/rxdb/setup_rxdb_sqlite-wasm.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/rxdb/setup_rxdb_sqlite-wasm.ts",
+      "sha256": "00c98613891373e52bfeacb8ae30855780baaa961124b5faf0c41519508cb1d4",
+      "totalLines": 103,
+      "displayedRanges": [[1, 103]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-react/src/app/rxdb/setup_rxdb_sqlite-wasm.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/rxdb/setup_rxdb_sqlite-wasm.ts",
+      "sha256": "e2e15ed0e61f59fd73cdd0345df0f02b3b8ad7d584a020731ef525e9d9a88d89",
+      "totalLines": 88,
+      "displayedRanges": [[1, 88]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-vue/src/app/rxdb/setup_rxdb_sqlite-wasm.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/app/rxdb/setup_rxdb_sqlite-wasm.ts",
+      "sha256": "723ba60c7bb635eede3363c94f8fab5594d2e50c9e8a91453e2decb4f8d29b7b",
+      "totalLines": 106,
+      "displayedRanges": [[1, 106]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-angular/src/app/app.routes.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular/src/app/app.routes.ts",
+      "sha256": "a32078b113dca67b88dfe893477fbfa70eb8775272992cd04a4abb4bc1be982b",
+      "totalLines": 170,
+      "displayedRanges": [[1, 170]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor-vue/src/__tests__/CodeEditor.document-sync.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/__tests__/CodeEditor.document-sync.spec.ts",
+      "sha256": "4ddc9c8c12651eb1d20e5cb1f477a9dd143191f842cfb9e2b18d650985928010",
+      "totalLines": 101,
+      "displayedRanges": [[1, 101]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor-vue/src/__tests__/CodeEditor.a11y.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/__tests__/CodeEditor.a11y.spec.ts",
+      "sha256": "af4afa379d72bc70b56a600714b78e16d045e4e174c3d4df659d5fb5d0b72999",
+      "totalLines": 88,
+      "displayedRanges": [[1, 88]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-miniprogram/src/runtime-preflight.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram/src/runtime-preflight.ts",
+      "sha256": "82e67a0f5d6eecb427290122f752bff672ef76195220ecd4db770b9ca74c7963",
+      "totalLines": 163,
+      "displayedRanges": [[1, 163]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-miniprogram/src/app.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram/src/app.ts",
+      "sha256": "c30c42f8007102783aa7ff7e681871f82ef0cc6251c3fc4db61b096f4de8d7f6",
+      "totalLines": 13,
+      "displayedRanges": [[1, 13]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-miniprogram-e2e/src/fixtures.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/fixtures.ts",
+      "sha256": "99f4f10dd358ef812aed4c43920f82cfef65cf3e89e88e838ed994d02f9dc876",
+      "totalLines": 81,
+      "displayedRanges": [[1, 81]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-miniprogram-e2e/src/runtime-probes.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/runtime-probes.ts",
+      "sha256": "47a355174aaf0d38e0c4b1b9001d41699bfa6ed52856c8be6d0509ec31a4417f",
+      "totalLines": 75,
+      "displayedRanges": [[1, 75]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-miniprogram-e2e/src/secure-random.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/secure-random.spec.ts",
+      "sha256": "b27702f9da6c7b92d3dd5ef3ef605cebe352c1059befcaa6e0c26d08e5cbc222",
+      "totalLines": 83,
+      "displayedRanges": [[1, 83]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-miniprogram-e2e/playwright.config.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/playwright.config.ts",
+      "sha256": "c1191eaf604c52a0da9b0dcbd2e78f7378d5b608688925cbfb188485834e20e4",
+      "totalLines": 38,
+      "displayedRanges": [[1, 38]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-miniprogram/src/rxdb-demo.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram/src/rxdb-demo.ts",
+      "sha256": "f3460880ca394d8757ba6ec64fb054838d3680b6e945e6373495198c3781eb2a",
+      "totalLines": 375,
+      "displayedRanges": [
+        [1, 70],
+        [131, 161],
+        [200, 214],
+        [271, 375]
+      ],
+      "readComplete": false
+    },
+    {
+      "path": "apps/dev-rxdb-miniprogram/src/pages/index/index.tsx",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram/src/pages/index/index.tsx",
+      "sha256": "fbfa061667bc68a88613c57cafa0250eaf97d95332563db03b7f434bb66f9415",
+      "totalLines": 438,
+      "displayedRanges": [[144, 216]],
+      "readComplete": false
+    },
+    {
+      "path": "apps/dev-rxdb-react-e2e/playwright.config.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react-e2e/playwright.config.ts",
+      "sha256": "6e9209d9f41b96bd20875ac1a47e1155d3159bb03b86d1d4d66dcc064ade73a2",
+      "totalLines": 113,
+      "displayedRanges": [[1, 113]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-vue-e2e/playwright.config.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue-e2e/playwright.config.ts",
+      "sha256": "29a9ebdaaf2a79e976c19851767cfabab5fef81a21d43e90410b0c3b8e616cb7",
+      "totalLines": 103,
+      "displayedRanges": [[1, 103]],
+      "readComplete": true,
+      "note": "首次工具输出截断，待分段重读。"
+    },
+    {
+      "path": "apps/dev-rxdb-angular-e2e/playwright.config.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-angular-e2e/playwright.config.ts",
+      "sha256": "84b7148e1948ededf1be475311c1229f195dd3b57c799de504a60d0d3695b1d4",
+      "totalLines": 145,
+      "displayedRanges": [[1, 145]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor-vue/src/__tests__/CodeEditor.language.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/__tests__/CodeEditor.language.spec.ts",
+      "sha256": "45141463abb2724606aa6339e5a6cc5225e0805a0f54da9cb4cf8262a3406b7f",
+      "totalLines": 232,
+      "displayedRanges": [
+        [1, 55],
+        [145, 232]
+      ],
+      "readComplete": false
+    },
+    {
+      "path": "packages/code-editor/project.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor/project.json",
+      "sha256": "9a78598b29c6a14fa774b6bc28920ecfa6f36d1b8bd3c83834d127b837813749",
+      "totalLines": 10,
+      "displayedRanges": [[1, 10]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension-e2e/eslint.config.mjs",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/eslint.config.mjs",
+      "sha256": "063b37a6c41b1472af2ecd50ba951e675b01d7361a2dcf0233c64574d6402f79",
+      "totalLines": 12,
+      "displayedRanges": [[1, 12]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension-e2e/package.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/package.json",
+      "sha256": "9ef993b58e805d0c606d24b4bf997cd617f694cd69b891d22588e124a785e3f7",
+      "totalLines": 5,
+      "displayedRanges": [[1, 5]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension-e2e/tsconfig.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/tsconfig.json",
+      "sha256": "c9f8f32e37095c2678431eb1c957c4aa01218eaeb034a33e41dd3a372d7c4978",
+      "totalLines": 12,
+      "displayedRanges": [[1, 12]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension-e2e/project.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension-e2e/project.json",
+      "sha256": "a8577d24ac0b85a29eb697c26d2c344ab448b923d29cd86ef657aa9c7061399d",
+      "totalLines": 21,
+      "displayedRanges": [[1, 21]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-miniprogram-e2e/src/launch-persistence.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/launch-persistence.spec.ts",
+      "sha256": "628c7ea132cc11dca129f4026e0360319f586945d592578517786016150a972e",
+      "totalLines": 40,
+      "displayedRanges": [[1, 40]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-miniprogram-e2e/src/todo-crud.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/todo-crud.spec.ts",
+      "sha256": "ace6830af564c8aa1fb796877a704ca16cfa7a8e039b89323932eb7eb8134951",
+      "totalLines": 56,
+      "displayedRanges": [[1, 56]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-miniprogram/package.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram/package.json",
+      "sha256": "efc94f3fade77c63714dd7bcb0ca6438066544fa75af2587381c03fdc8054883",
+      "totalLines": 82,
+      "displayedRanges": [[1, 82]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-miniprogram-e2e/src/devtools-environment.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/devtools-environment.ts",
+      "sha256": "8b68d2f8c33e21d93ecf1825d0e3c992776dd3e70ef52c54c841550a87a10676",
+      "totalLines": 117,
+      "displayedRanges": [[1, 117]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-miniprogram-e2e/src/runtime-bootstrap.spec.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-miniprogram-e2e/src/runtime-bootstrap.spec.ts",
+      "sha256": "4f191e897b1954305fe106bc44b4dff2a93d5f3f2e063dfd1d110b729cc3b786",
+      "totalLines": 58,
+      "displayedRanges": [[1, 58]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-react/src/app/router.tsx",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-react/src/app/router.tsx",
+      "sha256": "1f3a3234c3a9e23932b735fe118729548e7148f0e6234e6ba87918cd3cad1af4",
+      "totalLines": 147,
+      "displayedRanges": [[1, 147]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/dev-rxdb-vue/src/router/index.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-vue/src/router/index.ts",
+      "sha256": "2c55fce911668bc6ba0c2a4006e9075b84682f8261892d951e0c12cd869bcef5",
+      "totalLines": 163,
+      "displayedRanges": [[1, 163]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor-angular/tsconfig.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-angular/tsconfig.json",
+      "sha256": "39485b026f99d20bbf2ef186c576dfbb65e80a3936e2abf44958b4c93ded4f84",
+      "totalLines": 26,
+      "displayedRanges": [[1, 26]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension/tsconfig.app.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/tsconfig.app.json",
+      "sha256": "84eff42e3ebe6d5756fa1e48506e326ec78e0c0dea50f3ceab106cafc696d3a3",
+      "totalLines": 45,
+      "displayedRanges": [[1, 45]],
+      "readComplete": true
+    },
+    {
+      "path": "apps/rxdb-devtools-extension/tsconfig.spec.json",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/apps/rxdb-devtools-extension/tsconfig.spec.json",
+      "sha256": "6528775a89d713a666a3cff34fb2eb2dc082439297823b5e3bf5ec8dcefb854a",
+      "totalLines": 20,
+      "displayedRanges": [[1, 20]],
+      "readComplete": true
+    },
+    {
+      "path": "packages/code-editor-vue/src/code-editor.types.ts",
+      "absolutePath": "/Users/jimmy/Documents/aiao/rxdb/packages/code-editor-vue/src/code-editor.types.ts",
+      "sha256": "2164138a133fcdfa37d7ec760c38690b9ef18bd572765fb3e60511035490872d",
+      "totalLines": 177,
+      "displayedRanges": [[123, 177]],
+      "readComplete": false
+    }
+  ],
+  "role": "frontends",
+  "rules": "仅把工具输出实际展示并审阅的行计为阅读；manifest/hash/count 仅作范围。未运行重任务。",
+  "scopeObjects": [
+    "code-editor",
+    "code-editor-angular",
+    "code-editor-react",
+    "code-editor-vue",
+    "rxdb-devtools",
+    "dev-rxdb-angular",
+    "dev-rxdb-angular-e2e",
+    "dev-rxdb-react",
+    "dev-rxdb-react-e2e",
+    "dev-rxdb-vue",
+    "dev-rxdb-vue-e2e",
+    "dev-rxdb-miniprogram",
+    "dev-rxdb-miniprogram-e2e",
+    "rxdb-devtools-extension",
+    "rxdb-devtools-extension-e2e"
+  ],
+  "scopeTotals": {
+    "trackedScopeFiles": 939,
+    "actuallyDisplayedTrackedFiles": 100,
+    "fullyDisplayedTrackedFiles": 90,
+    "objects": 15,
+    "allTrackedManifestIsReadProof": false,
+    "mainEarlier84FileSnapshotIsNotAll939Files": true
+  },
+  "sourceFingerprintAudit": {
+    "code-editor": {
+      "changedSinceScope": [],
+      "note": "hash扫描只是输入清点，不记录为阅读"
+    },
+    "code-editor-angular": {
+      "changedSinceScope": [],
+      "note": "hash扫描只是输入清点，不记录为阅读"
+    },
+    "code-editor-react": {
+      "changedSinceScope": [],
+      "note": "hash扫描只是输入清点，不记录为阅读"
+    },
+    "code-editor-vue": {
+      "changedSinceScope": [],
+      "note": "hash扫描只是输入清点，不记录为阅读"
+    },
+    "rxdb-devtools": {
+      "changedSinceScope": [],
+      "note": "hash扫描只是输入清点，不记录为阅读"
+    },
+    "dev-rxdb-angular": {
+      "changedSinceScope": [],
+      "note": "hash扫描只是输入清点，不记录为阅读"
+    },
+    "dev-rxdb-angular-e2e": {
+      "changedSinceScope": [],
+      "note": "hash扫描只是输入清点，不记录为阅读"
+    },
+    "dev-rxdb-react": {
+      "changedSinceScope": [],
+      "note": "hash扫描只是输入清点，不记录为阅读"
+    },
+    "dev-rxdb-react-e2e": {
+      "changedSinceScope": [],
+      "note": "hash扫描只是输入清点，不记录为阅读"
+    },
+    "dev-rxdb-vue": {
+      "changedSinceScope": [],
+      "note": "hash扫描只是输入清点，不记录为阅读"
+    },
+    "dev-rxdb-vue-e2e": {
+      "changedSinceScope": [],
+      "note": "hash扫描只是输入清点，不记录为阅读"
+    },
+    "dev-rxdb-miniprogram": {
+      "changedSinceScope": [],
+      "note": "hash扫描只是输入清点，不记录为阅读"
+    },
+    "dev-rxdb-miniprogram-e2e": {
+      "changedSinceScope": [],
+      "note": "hash扫描只是输入清点，不记录为阅读"
+    },
+    "rxdb-devtools-extension": {
+      "changedSinceScope": [],
+      "note": "hash扫描只是输入清点，不记录为阅读"
+    },
+    "rxdb-devtools-extension-e2e": {
+      "changedSinceScope": [],
+      "note": "hash扫描只是输入清点，不记录为阅读"
+    }
+  }
+}

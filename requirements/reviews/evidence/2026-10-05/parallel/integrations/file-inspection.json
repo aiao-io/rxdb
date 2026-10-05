@@ -1,0 +1,2607 @@
+{
+  "agent": "integrations",
+  "date": "2026-10-05",
+  "fileEntryCount": 141,
+  "files": [
+    {
+      "path": "requirements/reviews/packages/rxdb-adapter-desktop.md",
+      "sha256": "9b5a4b6815e253f251d0daa8833cb46837da9b93105f0f7630e04b7521bcce7c",
+      "totalLines": 87,
+      "ranges": [[1, 87]]
+    },
+    {
+      "path": "requirements/reviews/results/packages/rxdb-adapter-desktop.md",
+      "sha256": "48875613374ff08b5d855f3f2ceafead028dcd717c73f2aee4ba94d1d445e381",
+      "totalLines": 38,
+      "ranges": [[1, 38]]
+    },
+    {
+      "path": "requirements/reviews/packages/rxdb-adapter-http.md",
+      "sha256": "3b21ffae032cf385b65acbe8a4c91ef16c1b963cd8cbddb269d5d8dfb8ecb91d",
+      "totalLines": 153,
+      "ranges": [
+        [48, 92],
+        [115, 145]
+      ]
+    },
+    {
+      "path": "requirements/reviews/results/packages/rxdb-adapter-http.md",
+      "sha256": "3681f4f77d237a83f98ad2192aa469f7e417c64538266a3d4858e59b86cc9600",
+      "totalLines": 93,
+      "ranges": [[50, 93]]
+    },
+    {
+      "path": "packages/rxdb-adapter-electron/package.json",
+      "sha256": "707788d416f04a1490617d1c75d42f0944b67431845649982e63580b97e539ee",
+      "totalLines": 97,
+      "ranges": [[1, 97]]
+    },
+    {
+      "path": "packages/rxdb-adapter-tauri/package.json",
+      "sha256": "f1cf7c47fa47cdacae0ff2ec3d3711d768692ae9e148c7a507fec0b300f03de2",
+      "totalLines": 48,
+      "ranges": [[1, 48]]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite-core/src/index.ts",
+      "sha256": "ad16237a7638b60b7feff9061e14ad50295b62b6d0d7068c482df349ec412507",
+      "totalLines": 244,
+      "ranges": [
+        [1, 85],
+        [135, 244]
+      ]
+    },
+    {
+      "path": ".github/workflows/ci-template.yml",
+      "sha256": "e42d19657949d24b63a5c2f06bd9d3c89ec9db8de664375774cf04ad4af0acb7",
+      "totalLines": 1293,
+      "ranges": [[315, 345]]
+    },
+    {
+      "path": ".github/workflows/release-desktop.yml",
+      "sha256": "e83553b3200c1b9bd68f5964a27d3aa1f5653222bd53bdd469d466c9294be0b9",
+      "totalLines": 521,
+      "ranges": [[36, 62]]
+    },
+    {
+      "path": "packages/rxdb-adapter-electron/src/index.ts",
+      "sha256": "f7a3c5f30d41e91eb5c46e345da02ded68e633a88269d571acd4ef84bc09d3bd",
+      "totalLines": 71,
+      "ranges": [
+        [1, 71],
+        [19, 71]
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-tauri/src/index.ts",
+      "sha256": "74bc1f0913e8085bce416b1c792777a926037a4a27c4371642995d2c78afd3eb",
+      "totalLines": 94,
+      "ranges": [
+        [1, 80],
+        [1, 94]
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-sqlite-core/src/desktop-host.ts",
+      "sha256": "0388f169dec9c0c9efa1bc5647c4ed6b981dde10bdf9fd8f181f14cad074568c",
+      "totalLines": 147,
+      "ranges": [[1, 100]]
+    },
+    {
+      "path": "requirements/reviews/packages/rxdb-adapter-electron.md",
+      "sha256": "50d44eda4d5691cd3bfb5cf44a70e30af1d9be7c4120da8009b81cfe0d9a2c7e",
+      "totalLines": 156,
+      "parsed": "原C专项表和完成条件（plan-criteria.json），其余不宣称全文审阅",
+      "ranges": [
+        [58, 58],
+        [59, 59],
+        [60, 60],
+        [61, 61],
+        [62, 62],
+        [63, 63]
+      ]
+    },
+    {
+      "path": "requirements/reviews/packages/rxdb-adapter-tauri.md",
+      "sha256": "6172e70d4b7eb20ee96c68830ddc0e4f3cbe9c2dcfcd4e483da250364db02ca7",
+      "totalLines": 151,
+      "parsed": "原C专项表和完成条件（plan-criteria.json），其余不宣称全文审阅",
+      "ranges": [
+        [58, 58],
+        [59, 59],
+        [60, 60],
+        [61, 61],
+        [62, 62],
+        [63, 63]
+      ]
+    },
+    {
+      "path": "requirements/reviews/packages/rxdb-adapter-desktop.md",
+      "sha256": "d11223af14a824e588262e788e8dcae08b6407f7a694a14738986f3194f4e2b8",
+      "totalLines": 91,
+      "parsed": "原C专项表和完成条件（plan-criteria.json），其余不宣称全文审阅",
+      "ranges": [
+        [41, 41],
+        [42, 42],
+        [43, 43]
+      ]
+    },
+    {
+      "path": "requirements/reviews/packages/rxdb-adapter-http.md",
+      "sha256": "3b21ffae032cf385b65acbe8a4c91ef16c1b963cd8cbddb269d5d8dfb8ecb91d",
+      "totalLines": 153,
+      "parsed": "原C专项表和完成条件（plan-criteria.json），其余不宣称全文审阅",
+      "ranges": [
+        [59, 59],
+        [60, 60],
+        [61, 61],
+        [62, 62],
+        [63, 63],
+        [64, 64]
+      ]
+    },
+    {
+      "path": "requirements/reviews/packages/rxdb-adapter-supabase.md",
+      "sha256": "9bd6c5ea4fe7ef83fd28ee441bc1102435589b63cffe0750f8e953ce9e17427e",
+      "totalLines": 155,
+      "parsed": "原C专项表和完成条件（plan-criteria.json），其余不宣称全文审阅",
+      "ranges": [
+        [58, 58],
+        [59, 59],
+        [60, 60],
+        [61, 61],
+        [62, 62],
+        [63, 63]
+      ]
+    },
+    {
+      "path": "requirements/reviews/apps/dev-rxdb-electron.md",
+      "sha256": "52562dcc8de75625fec160e5ea4fb08dd9cd735213740645f12fe840f77cb5c7",
+      "totalLines": 140,
+      "parsed": "原C专项表和完成条件（plan-criteria.json），其余不宣称全文审阅",
+      "ranges": [
+        [51, 51],
+        [52, 52],
+        [53, 53],
+        [54, 54],
+        [55, 55],
+        [56, 56]
+      ]
+    },
+    {
+      "path": "requirements/reviews/apps/dev-rxdb-electron-e2e.md",
+      "sha256": "b523e9753189da3cd2b0eb2e46a237c1371543039b4b1b8c5d97ebe5f555be5b",
+      "totalLines": 133,
+      "parsed": "原C专项表和完成条件（plan-criteria.json），其余不宣称全文审阅",
+      "ranges": [
+        [49, 49],
+        [50, 50],
+        [51, 51],
+        [52, 52],
+        [53, 53],
+        [54, 54]
+      ]
+    },
+    {
+      "path": "requirements/reviews/apps/dev-rxdb-tauri.md",
+      "sha256": "81e84d105877444daae63ade1f5907d6f9c898fc0bc96dc5979eaac4bdd90e5c",
+      "totalLines": 149,
+      "parsed": "原C专项表和完成条件（plan-criteria.json），其余不宣称全文审阅",
+      "ranges": [
+        [50, 50],
+        [51, 51],
+        [52, 52],
+        [53, 53],
+        [54, 54],
+        [55, 55]
+      ]
+    },
+    {
+      "path": "requirements/reviews/apps/dev-rxdb-tauri-e2e.md",
+      "sha256": "ffef7116497364193a49ffa443a8ae2eb3a146fa7dc99a51476949269da8e3d8",
+      "totalLines": 135,
+      "parsed": "原C专项表和完成条件（plan-criteria.json），其余不宣称全文审阅",
+      "ranges": [
+        [49, 49],
+        [50, 50],
+        [51, 51],
+        [52, 52],
+        [53, 53],
+        [54, 54]
+      ]
+    },
+    {
+      "path": "requirements/reviews/apps/dev-rxdb-http.md",
+      "sha256": "5217b447a19fdf6a3bea104b40f5d8234197de7251861b3662c94e2d90f606cb",
+      "totalLines": 134,
+      "parsed": "原C专项表和完成条件（plan-criteria.json），其余不宣称全文审阅",
+      "ranges": [
+        [50, 50],
+        [51, 51],
+        [52, 52],
+        [53, 53],
+        [54, 54]
+      ]
+    },
+    {
+      "path": "requirements/reviews/apps/dev-rxdb-http-e2e.md",
+      "sha256": "f39b96ebe9ee548a6e7be15fd77d7cc874172caa8cb1bf402f854defe565b487",
+      "totalLines": 132,
+      "parsed": "原C专项表和完成条件（plan-criteria.json），其余不宣称全文审阅",
+      "ranges": [
+        [49, 49],
+        [50, 50],
+        [51, 51],
+        [52, 52],
+        [53, 53]
+      ]
+    },
+    {
+      "path": "requirements/reviews/apps/dev-rxdb-http-server.md",
+      "sha256": "2a0fb0b4dfec1778c1474dd1ea6689c315934ef9c0aa918259d38f08931f22b2",
+      "totalLines": 143,
+      "parsed": "原C专项表和完成条件（plan-criteria.json），其余不宣称全文审阅",
+      "ranges": [
+        [51, 51],
+        [52, 52],
+        [53, 53],
+        [54, 54],
+        [55, 55],
+        [56, 56]
+      ]
+    },
+    {
+      "path": "requirements/reviews/apps/dev-rxdb-supabase.md",
+      "sha256": "158c20f24205c7431ea7f756ea0458c15dfb2460f79578d777811956d7df9115",
+      "totalLines": 148,
+      "parsed": "原C专项表和完成条件（plan-criteria.json），其余不宣称全文审阅",
+      "ranges": [
+        [50, 50],
+        [51, 51],
+        [52, 52],
+        [53, 53],
+        [54, 54]
+      ]
+    },
+    {
+      "path": "requirements/reviews/apps/dev-rxdb-supabase-e2e.md",
+      "sha256": "a75a8d7ffd3e037142cc468a9ed64fd9b9dd8b2d5b913240e00771e1e8c30c09",
+      "totalLines": 141,
+      "parsed": "原C专项表和完成条件（plan-criteria.json），其余不宣称全文审阅",
+      "ranges": [
+        [47, 47],
+        [48, 48],
+        [49, 49],
+        [50, 50],
+        [51, 51]
+      ]
+    },
+    {
+      "path": "requirements/reviews/RV-059-supabase-bulk-delete-url-overflow.md",
+      "sha256": "79471cec755ee82c0e20748f41b194e291cafc5c2725b83b882e211aaec75973",
+      "totalLines": 46,
+      "ranges": [[1, 46]]
+    },
+    {
+      "path": "requirements/reviews/RV-060-supabase-querycache-relation-metadata-missing.md",
+      "sha256": "1068b3fb92e0ed8005f7aac17802399a0ad23efb146a629d75abcfc61e6efde6",
+      "totalLines": 46,
+      "ranges": [[1, 46]]
+    },
+    {
+      "path": "apps/dev-rxdb-http-server/src/server.ts",
+      "sha256": "30d916175b168d827f8d14cfd6b2943d673b06783bd6f7ebab782c6f7b472752",
+      "totalLines": 463,
+      "ranges": [
+        [1, 230],
+        [1, 250],
+        [251, 463]
+      ],
+      "projections": [
+        {
+          "range": [1, 250],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [251, 463],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-supabase-e2e/playwright.config.ts",
+      "sha256": "03d397ad0d2ab0eba90f664e30f4b0939fbb09588df2b28ee0138932136e0f9d",
+      "totalLines": 147,
+      "ranges": [
+        [1, 147],
+        [97, 112]
+      ],
+      "projections": [
+        {
+          "range": [97, 112],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts",
+      "sha256": "172c00ec6553a2c47d22bbf1e0b83311b41b88a57854aafd8a089be49c6017af",
+      "totalLines": 98,
+      "ranges": [[1, 98]]
+    },
+    {
+      "path": "apps/dev-rxdb-http-server/src/config.ts",
+      "sha256": "ce061c74627cb4c8bce5adca463c04d7060eda62ab4a28cb5616742de247d7c0",
+      "totalLines": 109,
+      "ranges": [[1, 109]],
+      "projections": [
+        {
+          "range": [1, 109],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-server/src/cors.ts",
+      "sha256": "ec0ad0996c85a37b072f8270f1f4a541a1c3670fc0eaa28167742c52e40e497a",
+      "totalLines": 96,
+      "ranges": [[1, 96]],
+      "projections": [
+        {
+          "range": [1, 96],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-server/src/http-utils.ts",
+      "sha256": "ed034ad96c2b14a549a92edc157d06674ff1a0e8cf9d92553f4588e0f6ce4841",
+      "totalLines": 98,
+      "ranges": [[1, 98]],
+      "projections": [
+        {
+          "range": [1, 98],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-server/src/page-token.ts",
+      "sha256": "afbee2c52feb634e120efc848a0eb85b442e527439a2bc1ba2c2be06964fd786",
+      "totalLines": 109,
+      "ranges": [[1, 109]],
+      "projections": [
+        {
+          "range": [1, 109],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-server/src/change-feed.ts",
+      "sha256": "58e238f5a42880482d198dfca1f1309b512724c9acfd0edf9f0d55e1389cadb7",
+      "totalLines": 78,
+      "ranges": [[1, 78]],
+      "projections": [
+        {
+          "range": [1, 78],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-server/src/change-subscribers.ts",
+      "sha256": "7e102b78d4a7204891570506c7e82f4e37fed9bf9c191aad08651566a32b82ae",
+      "totalLines": 54,
+      "ranges": [[1, 54]],
+      "projections": [
+        {
+          "range": [1, 54],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-server/src/main.ts",
+      "sha256": "696201fac059d1f85040478d37bdb99aa7f90b8f9c45dbaef22ae6c2d29607c1",
+      "totalLines": 77,
+      "ranges": [[1, 77]],
+      "projections": [
+        {
+          "range": [1, 77],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-http/src/transport.ts",
+      "sha256": "41c99cf6774d16eefb4089fcb87b4664c0ea2ea736dbc2658dec94f83351e9e1",
+      "totalLines": 699,
+      "ranges": [
+        [172, 330],
+        [357, 547],
+        [529, 699],
+        [529, 548]
+      ],
+      "projections": [
+        {
+          "range": [172, 330],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [357, 547],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [529, 699],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-http/src/conditional-cache.ts",
+      "sha256": "292ca40c42404556e6f10cd6a8d31e78461409a8ef0fd6e4405bb37f8f448a63",
+      "totalLines": 271,
+      "ranges": [
+        [1, 160],
+        [76, 129]
+      ],
+      "projections": [
+        {
+          "range": [1, 160],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-http/src/__tests__/transport.spec.ts",
+      "sha256": "221748c704f44c34419cb556a838ea10f45449c2d698d574a7995750811aa14b",
+      "totalLines": 1010,
+      "ranges": [
+        [1, 61],
+        [648, 744]
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-e2e/playwright.config.ts",
+      "sha256": "f48a58eb44987c7b851b2b717599673437e464c24173f729de8f1d630f9fedef",
+      "totalLines": 83,
+      "ranges": [[1, 83]],
+      "projections": [
+        {
+          "range": [1, 83],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-e2e/src/offline-fallback.spec.ts",
+      "sha256": "5d851cd17fa7566dd9e8607f47b16f3432465dcf4e31dc820f24c1f895cfc4db",
+      "totalLines": 61,
+      "ranges": [[1, 61]],
+      "projections": [
+        {
+          "range": [1, 61],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-e2e/src/local-first-writes.spec.ts",
+      "sha256": "80114997954b3a98ff06c091821b0e1f8d475e6b097b41e2bcc6307a58503498",
+      "totalLines": 125,
+      "ranges": [[1, 125]],
+      "projections": [
+        {
+          "range": [1, 125],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-e2e/src/conditional-requests.spec.ts",
+      "sha256": "2ca3140ed589c5d11867a0a4d3d44be5ae33e3f9e133c29c4e6b9c14f73cb818",
+      "totalLines": 198,
+      "ranges": [
+        [1, 175],
+        [170, 198]
+      ],
+      "projections": [
+        {
+          "range": [1, 175],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [170, 198],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-e2e/src/page-token.spec.ts",
+      "sha256": "d1547bab26ab99c1adc5650a896dd23aca2b457a376852d942da5487ff1b3a38",
+      "totalLines": 71,
+      "ranges": [[1, 71]],
+      "projections": [
+        {
+          "range": [1, 71],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-e2e/src/change-feed.spec.ts",
+      "sha256": "d38921028cf03c21b77587b3c84ea42302041eaebd2d3d0552b2f4ecd06d93ff",
+      "totalLines": 315,
+      "ranges": [[1, 165]],
+      "projections": [
+        {
+          "range": [1, 165],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-e2e/src/cors.spec.ts",
+      "sha256": "c693c36d513cced28ebe141ddc54bb5f3040748c7e3f8580206de0943867c99c",
+      "totalLines": 109,
+      "ranges": [[1, 109]],
+      "projections": [
+        {
+          "range": [1, 109],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-e2e/src/orphan-cleanup.spec.ts",
+      "sha256": "721ae7bbdfcf63c0615963dfdf2f345d8085a9c9cf38d6b5174cc111bc92d6c0",
+      "totalLines": 51,
+      "ranges": [[1, 51]],
+      "projections": [
+        {
+          "range": [1, 51],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-supabase/src/app/runtime-config.ts",
+      "sha256": "a2e00e435a4c05c71fb2e6e8e75911cbcb7689c9880513249ca8291642232031",
+      "totalLines": 99,
+      "ranges": [[1, 99]],
+      "projections": [
+        {
+          "range": [1, 99],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-supabase/src/app/remote-security-notice.ts",
+      "sha256": "96da4435551f2159dfba2272e7d2c45ab8dc652eba3edeb7263c753af6387973",
+      "totalLines": 25,
+      "ranges": [[1, 25]],
+      "projections": [
+        {
+          "range": [1, 25],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-supabase/src/app/remote-sync-state.ts",
+      "sha256": "13ec942e2cf6c84e076aafe38c1750c97a88c1384bcbcd6599f29e438a9b93ae",
+      "totalLines": 29,
+      "ranges": [[1, 29]],
+      "projections": [
+        {
+          "range": [1, 29],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-supabase/src/app/supabase-sync.ts",
+      "sha256": "c680301d0a5a6fab049f7543f2a419783a468d3be6e41f52010f3cb2baffc302",
+      "totalLines": 62,
+      "ranges": [[1, 62]],
+      "projections": [
+        {
+          "range": [1, 62],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-supabase/src/app/todo/todo.page.ts",
+      "sha256": "cd0cd3be4563f657156bc6338f46c86318aa4845b3e508a8c7dc9ee39b9f2322",
+      "totalLines": 346,
+      "ranges": [
+        [1, 195],
+        [193, 346]
+      ],
+      "projections": [
+        {
+          "range": [1, 195],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [193, 346],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-supabase/src/app/todo-interactions.ts",
+      "sha256": "09afd4ffd447806c0d61e23da7e9e24c56affcd608002179301b54ab744396d4",
+      "totalLines": 67,
+      "ranges": [[1, 67]],
+      "projections": [
+        {
+          "range": [1, 67],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-supabase/src/app/setup_rxdb_wa-sqlite.ts",
+      "sha256": "b9b3c474d38239bcc5f089abe09a85073da61351b33aeebeecd2e7f9d0a60c72",
+      "totalLines": 79,
+      "ranges": [[1, 79]],
+      "projections": [
+        {
+          "range": [1, 79],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-supabase/src/app/branch-manager.ts",
+      "sha256": "e4d966bb2811b03a12eea9390fbcdb01b3a6a42184933b38a97de594ef7cb743",
+      "totalLines": 210,
+      "ranges": [
+        [25, 210],
+        [174, 210]
+      ],
+      "projections": [
+        {
+          "range": [25, 210],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [174, 210],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-supabase/src/app/todo-cursor/todo-cursor.page.ts",
+      "sha256": "3c7494d5d434cc4ef9a2ee4aeb35ad90186df80c0ec2ff2b90b57ff32b080ce2",
+      "totalLines": 239,
+      "ranges": [
+        [35, 190],
+        [42, 134]
+      ],
+      "projections": [
+        {
+          "range": [35, 190],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [42, 134],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-supabase/scripts/audit-build-credentials.mjs",
+      "sha256": "49b3d1810cbf2156e9f71e6123df8c78a2524a230007f81078fa135050dd63f8",
+      "totalLines": 91,
+      "ranges": [[1, 91]],
+      "projections": [
+        {
+          "range": [1, 91],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-supabase-e2e/src/home.spec.ts",
+      "sha256": "2163b39ad48106c91f47323a56f0b807b3fba10b025be188a5536812d9594f97",
+      "totalLines": 156,
+      "ranges": [[1, 156]],
+      "projections": [
+        {
+          "range": [1, 156],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-supabase/src/supabase.rls.ts",
+      "sha256": "4598d8d506f45a9c65fd8cbb917c6892d1f57cce2f8d6717689a73ed0512f66b",
+      "totalLines": 80,
+      "ranges": [[1, 80]],
+      "projections": [
+        {
+          "range": [1, 80],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-supabase/src/entity_scope.ts",
+      "sha256": "7f34dd995e66a7ab567eef56f86add93b44853230282d2398979c65858e8dfcb",
+      "totalLines": 64,
+      "ranges": [[1, 64]],
+      "projections": [
+        {
+          "range": [1, 64],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-supabase/src/postgrest-error.ts",
+      "sha256": "43d09bb05b8783f3fa9da405c3c05a04d7239a8a23ff14eab974bd152d1de9fb",
+      "totalLines": 144,
+      "ranges": [[1, 144]],
+      "projections": [
+        {
+          "range": [1, 144],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-supabase/src/pagination.ts",
+      "sha256": "43679b1eda9eee7ada5d8d1f05b6a4f77a70e08c3b834fbba2225298a2a6c361",
+      "totalLines": 87,
+      "ranges": [[1, 87]],
+      "projections": [
+        {
+          "range": [1, 87],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts",
+      "sha256": "71f1df7fd26fa9bc75e1f969a2e0ce312d0bae313dbd063188889e5ab5be76a3",
+      "totalLines": 977,
+      "ranges": [
+        [120, 300],
+        [79, 124],
+        [585, 654],
+        [744, 887]
+      ],
+      "projections": [
+        {
+          "range": [120, 300],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [79, 124],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [585, 654],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [744, 887],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron/src-electron/desktop-host-bridge.ts",
+      "sha256": "c6af76b242020aa531c1919be6bc15a35656b5bb444d827554f9eb7d216c624c",
+      "totalLines": 174,
+      "ranges": [[1, 174]],
+      "projections": [
+        {
+          "range": [1, 174],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron/src-electron/desktop-file-bridge.ts",
+      "sha256": "8d7cfda4290c076e75c22f3e5efda8d52dade8e7e12c1928ca7b7a27f7f5528e",
+      "totalLines": 205,
+      "ranges": [[1, 170]],
+      "projections": [
+        {
+          "range": [1, 170],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron/src-electron/desktop-session-ownership.ts",
+      "sha256": "2cd068623654df853c10c7fdbf1110c189357773e5c2a2dbab81e229a38db818",
+      "totalLines": 105,
+      "ranges": [[1, 105]],
+      "projections": [
+        {
+          "range": [1, 105],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron/src-electron/desktop-sqlite-bridge.ts",
+      "sha256": "b56af794715aaa308e895db0934e96eecbaf8b3472baae877df98fcd3004ba69",
+      "totalLines": 178,
+      "ranges": [[1, 178]],
+      "projections": [
+        {
+          "range": [1, 178],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron/src-electron/main.ts",
+      "sha256": "57de2edfe6d859a4fc8503bdea97b5732e0a36e4a5c9d4d8250ac580979f9921",
+      "totalLines": 285,
+      "ranges": [[91, 230]],
+      "projections": [
+        {
+          "range": [91, 230],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron/src-electron/preload.ts",
+      "sha256": "57b71a71514c708a4fb397859390a5fdfbf7d525af9ca25c9a234a1fedabfd6f",
+      "totalLines": 162,
+      "ranges": [[80, 135]],
+      "projections": [
+        {
+          "range": [80, 135],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron/src-electron/main.utils.ts",
+      "sha256": "21db2817cffd92aa585a34ff2b796ec975d1a62db89b02764b1598a61f01ced2",
+      "totalLines": 317,
+      "ranges": [[84, 106]],
+      "projections": [
+        {
+          "range": [84, 106],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-electron/src/electron-sqlite-host.ts",
+      "sha256": "338ce05bfce3aea454e6f939cea07da58abeb2dfc942b91350c86ac2e7866f50",
+      "totalLines": 301,
+      "ranges": [[80, 301]],
+      "projections": [
+        {
+          "range": [80, 301],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-electron/src/pglite-host/pglite-host-lock.ts",
+      "sha256": "5c3c96932d4e511b952a5561187ac1670a609195e94af9dfbab157aade9c9ed4",
+      "totalLines": 154,
+      "ranges": [[1, 154]],
+      "projections": [
+        {
+          "range": [1, 154],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-electron/src/node-sqlite-engine.ts",
+      "sha256": "957f05d6809aaa65675bd630ab3053ee0cddf3f4a0fabc0585383e2aecdb55a4",
+      "totalLines": 631,
+      "ranges": [
+        [100, 125],
+        [251, 397]
+      ],
+      "projections": [
+        {
+          "range": [100, 125],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [251, 397],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-electron/src/electron-file-host.ts",
+      "sha256": "38d230bc99f8706f83adf69c5e4db9245a36bf5ada4a40f12be070cb9a74eeb2",
+      "totalLines": 758,
+      "ranges": [
+        [212, 340],
+        [337, 372],
+        [629, 682]
+      ],
+      "projections": [
+        {
+          "range": [212, 340],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [337, 372],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [629, 682],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-electron/src/pglite-host/pglite-host-runtime.ts",
+      "sha256": "bdf19bff4839eb1fd460848b0d22f599bf34457e8400aa6d273dee5cdd27b8b1",
+      "totalLines": 166,
+      "ranges": [[72, 166]],
+      "projections": [
+        {
+          "range": [72, 166],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-electron/src/pglite-host/pglite-host-restore.ts",
+      "sha256": "2759b82020e8cc3757d9b86805def943d46b3c4337563b147b92f7b298e3854c",
+      "totalLines": 460,
+      "ranges": [[88, 195]],
+      "projections": [
+        {
+          "range": [88, 195],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-tauri/src/tauri-host-transport.ts",
+      "sha256": "5453f0310ffc0b838af5ea0e6bef9d357f846b30f4cd3035c0b8b340efd2ba49",
+      "totalLines": 245,
+      "ranges": [[100, 245]],
+      "projections": [
+        {
+          "range": [100, 245],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-tauri/rust/src/commands.rs",
+      "sha256": "3db89d3a4b71ed7bc8c5fd3e09290038f91a9ddd133a37727aa5e94edd5cd7a5",
+      "totalLines": 370,
+      "ranges": [
+        [1, 205],
+        [201, 370]
+      ],
+      "projections": [
+        {
+          "range": [1, 205],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [201, 370],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-tauri/rust/src/paths.rs",
+      "sha256": "11ed781c4105c126a518fea7242c9f195d4e45fbf30849cd54851c6a4caad8cd",
+      "totalLines": 201,
+      "ranges": [
+        [1, 201],
+        [70, 113]
+      ],
+      "projections": [
+        {
+          "range": [1, 201],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-tauri/rust/src/router.rs",
+      "sha256": "1d5ad43abed8957158fdc59604d13edce84a40a4fe0187a5b9eb50178b2e31f8",
+      "totalLines": 566,
+      "ranges": [
+        [67, 157],
+        [137, 251]
+      ],
+      "projections": [
+        {
+          "range": [67, 157],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron-e2e/src/packaged-app.ts",
+      "sha256": "63114487741eeebb5b4af4d761f64bae909d9bcab5677d591658abc74ed7df5f",
+      "totalLines": 275,
+      "ranges": [
+        [95, 275],
+        [1, 98]
+      ],
+      "projections": [
+        {
+          "range": [95, 275],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [1, 98],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron-e2e/playwright.config.ts",
+      "sha256": "12f0a9ec31fc4394638cba1874990616e2694af6c63195c274de44f0c119d613",
+      "totalLines": 33,
+      "ranges": [[1, 33]],
+      "projections": [
+        {
+          "range": [1, 33],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron-e2e/src/desktop-persistence.spec.ts",
+      "sha256": "55e2a99aa1f68ead02341c9f770d1992aad3bf2505e6f08eb4833b0c96865800",
+      "totalLines": 139,
+      "ranges": [[1, 139]],
+      "projections": [
+        {
+          "range": [1, 139],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron-e2e/src/desktop-persistence-pglite.spec.ts",
+      "sha256": "18f9837af7c7aafa245623346e37551e82e04be9f9a7eaf82cbcba66f7af40c4",
+      "totalLines": 124,
+      "ranges": [[1, 120]],
+      "projections": [
+        {
+          "range": [1, 120],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron-e2e/src/devtools-session-rotation.spec.ts",
+      "sha256": "c9bfce45bb02bc5046d79d97117dcdb8ad1da6e1fd5065c176a5feb96fb8ea30",
+      "totalLines": 223,
+      "ranges": [[110, 220]],
+      "projections": [
+        {
+          "range": [110, 220],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron-e2e/src/devtools-extension-loading.spec.ts",
+      "sha256": "bc34dd035131237bb649d1f25235dad1d794406bc6e97692d48b0d36380ad558",
+      "totalLines": 94,
+      "ranges": [[1, 94]],
+      "projections": [
+        {
+          "range": [1, 94],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-tauri/src-tauri/src/lib.rs",
+      "sha256": "3eef1ecd69cff8f0b416bd747b52b8a8f2e384e147ddeb9f623b4698d1dd59ab",
+      "totalLines": 497,
+      "ranges": [
+        [57, 98],
+        [170, 196],
+        [368, 497]
+      ],
+      "projections": [
+        {
+          "range": [57, 98],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [170, 196],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [368, 497],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-tauri/src-tauri/capabilities/default.json",
+      "sha256": "dfd7544a096d7958bce7f0a3774e3e38dba6fd80f5916fbd1d2e7360accb2d17",
+      "totalLines": 13,
+      "ranges": [[1, 13]],
+      "projections": [
+        {
+          "range": [1, 13],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-tauri/src-tauri/capabilities/devtools.json",
+      "sha256": "30d89a902dee761891e06ae1ec99e6cc52b32786a2ec4cf245269e06c3e89414",
+      "totalLines": 7,
+      "ranges": [[1, 7]],
+      "projections": [
+        {
+          "range": [1, 7],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-tauri-e2e/src/desktop-webview-capability.spec.ts",
+      "sha256": "7ff07767278845632812caede884c296e9691de2c9d239d5622b6a27b7787aa4",
+      "totalLines": 326,
+      "ranges": [[1, 326]],
+      "projections": [
+        {
+          "range": [1, 326],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-tauri-e2e/src/devtools-release-isolation.spec.ts",
+      "sha256": "094049699e5aa5148fa078beb7829eeb79280f1e4910345cb73e3ec0496c7cf7",
+      "totalLines": 146,
+      "ranges": [[1, 146]],
+      "projections": [
+        {
+          "range": [1, 146],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-tauri-e2e/vitest.smoke.mts",
+      "sha256": "4ea24d5ee0364961376f426787b0e44eeebfcb06f3d39a6e82ff79caced6741d",
+      "totalLines": 48,
+      "ranges": [[1, 48]],
+      "projections": [
+        {
+          "range": [1, 48],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-tauri-e2e/vitest.devtools.mts",
+      "sha256": "1e020d39d96b815e7511723855bcb27d34a2e1352f53e27ef309238d9a9ff677",
+      "totalLines": 35,
+      "ranges": [[1, 35]],
+      "projections": [
+        {
+          "range": [1, 35],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-tauri-e2e/src/packaged-app.ts",
+      "sha256": "34dc066ca0630b8289310712d678b5450db6d6e52923527651d9a96cf743c6be",
+      "totalLines": 602,
+      "ranges": [[466, 602]],
+      "projections": [
+        {
+          "range": [466, 602],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-tauri-e2e/src/desktop-persistence.spec.ts",
+      "sha256": "e8ca79aaced7ecb990ce2083f14ecf835fc9a359f917f98359d57339d75029f4",
+      "totalLines": 96,
+      "ranges": [[1, 96]],
+      "projections": [
+        {
+          "range": [1, 96],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-tauri-e2e/src/desktop-backup-restore.spec.ts",
+      "sha256": "031d140e7c92faaeeb78aae11ac74998032324db6278ff5392c66d08758a5912",
+      "totalLines": 198,
+      "ranges": [[110, 198]],
+      "projections": [
+        {
+          "range": [110, 198],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-http/src/pagination.ts",
+      "sha256": "5b0843b9bbe033a69643f926bca74b40b1baf7d999911474d2efd8d11adc3a16",
+      "totalLines": 184,
+      "ranges": [[1, 184]],
+      "projections": [
+        {
+          "range": [1, 184],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts",
+      "sha256": "8343cd4dfce313def89d07a194d18bb90a586cabe0373a22430f6b7e35b3e49f",
+      "totalLines": 786,
+      "ranges": [
+        [209, 268],
+        [390, 441]
+      ],
+      "projections": [
+        {
+          "range": [209, 268],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [390, 441],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-http/src/change-feed.ts",
+      "sha256": "60b9e67667dafb44b95df457200948df9fc1c52c483b96ea16f5316475f87134",
+      "totalLines": 470,
+      "ranges": [[150, 326]],
+      "projections": [
+        {
+          "range": [150, 326],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http/src/app/setup_rxdb_http.ts",
+      "sha256": "32dc983a37247caff2c8ba09eb1142d2365056f78c37b4ee7f4460b9999cc4ed",
+      "totalLines": 203,
+      "ranges": [[1, 203]],
+      "projections": [
+        {
+          "range": [1, 203],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http/src/app/traffic-recorder.ts",
+      "sha256": "ca6166b986b40b00e005c3167aff1e1fdda9867f4dee289e8588d704cc2f0695",
+      "totalLines": 177,
+      "ranges": [[80, 177]],
+      "projections": [
+        {
+          "range": [80, 177],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http/src/app/paging.ts",
+      "sha256": "8dc47b43f75a7ac0d525907786d02eb79bb95a70ba6e81625ecdf204ffb304f4",
+      "totalLines": 62,
+      "ranges": [[1, 62]],
+      "projections": [
+        {
+          "range": [1, 62],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http/src/app/app.ts",
+      "sha256": "7ef52a805e202db5bba435c97b8b65b8077292bd787770814fa8744c19c4c804",
+      "totalLines": 705,
+      "ranges": [
+        [139, 240],
+        [450, 545]
+      ],
+      "projections": [
+        {
+          "range": [139, 240],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [450, 545],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http/src/app/filter-rules.ts",
+      "sha256": "53a7f8ed330dfa65c80ac21f912bd73d634571f1d8b42d6065407d510554d1ad",
+      "totalLines": 102,
+      "ranges": [[18, 102]],
+      "projections": [
+        {
+          "range": [18, 102],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-http/README.md",
+      "sha256": "6c4af5c70797b7dfdb9fc510482e6751c3e64463151f3495aab2975c42b21738",
+      "totalLines": 269,
+      "ranges": [[207, 235]],
+      "projections": [
+        {
+          "range": [207, 235],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-http/src/handler-contract.ts",
+      "sha256": "234fcda9a0d30689f14140c2db19203712a86a78641183e77efaf30d6fd34341",
+      "totalLines": 77,
+      "ranges": [[1, 77]],
+      "projections": [
+        {
+          "range": [1, 77],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-http/src/chunking.ts",
+      "sha256": "6bf4ceb301cb96956e9fec9f1567512463bbd77d1bb8b71c09ef43e0db212259",
+      "totalLines": 68,
+      "ranges": [[1, 68]],
+      "projections": [
+        {
+          "range": [1, 68],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-http/src/metadata.ts",
+      "sha256": "d8d3bf0192ef1dbdaaeefa73ad3c772c6697c27ea98aeb6f45ae2d4d116be306",
+      "totalLines": 94,
+      "ranges": [[1, 94]],
+      "projections": [
+        {
+          "range": [1, 94],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-http/src/rest.ts",
+      "sha256": "337223f52768e9d591439cc25c0e1b2adcbd2c172fc22366afd09e79ec32faa0",
+      "totalLines": 476,
+      "ranges": [[304, 406]],
+      "projections": [
+        {
+          "range": [304, 406],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-server/src/recipes-repository.ts",
+      "sha256": "79ea63585d7c7357cad3d3e0b7fa66c10ca4753a6ce59e7529e878203ff8b8a8",
+      "totalLines": 373,
+      "ranges": [
+        [35, 145],
+        [294, 373]
+      ],
+      "projections": [
+        {
+          "range": [35, 145],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [294, 373],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-server/src/rxdb-store.ts",
+      "sha256": "8ecbd9a6f473adb4f84e064c58e8c28391af36807ee2b774c00badc3b247cdd3",
+      "totalLines": 125,
+      "ranges": [[40, 125]],
+      "projections": [
+        {
+          "range": [40, 125],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-http-server/src/change-broadcaster.ts",
+      "sha256": "a84d32d0866b7145eda2e9ae28e27211e5fca79af60f7408b0044a777a7ccefd",
+      "totalLines": 76,
+      "ranges": [
+        [34, 76],
+        [1, 76]
+      ],
+      "projections": [
+        {
+          "range": [34, 76],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron/src/app/local-backend.ts",
+      "sha256": "773b85598290f6f71f538d25a8c9e409c423c54f4552b0ddd5733d6e6537d5c0",
+      "totalLines": 134,
+      "ranges": [[1, 134]],
+      "projections": [
+        {
+          "range": [1, 134],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron/src/app/setup_rxdb.ts",
+      "sha256": "9e37295ba85ed6fc6f39bb0f586ab0b7d2beb09b28da81507349246ba1273fa7",
+      "totalLines": 141,
+      "ranges": [[1, 141]],
+      "projections": [
+        {
+          "range": [1, 141],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron/src/app/setup_rxdb_desktop.ts",
+      "sha256": "d471df7416a95db01ade96b0b93512802fb49b68974b1030ce2c9807a1507604",
+      "totalLines": 224,
+      "ranges": [[114, 224]],
+      "projections": [
+        {
+          "range": [114, 224],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-tauri/rust/src/file/mod.rs",
+      "sha256": "cc1def3840a6e96ad7c512ba057f5afc657f3668819e4b9edd5ca994232c481d",
+      "totalLines": 1556,
+      "ranges": [
+        [220, 281],
+        [775, 825]
+      ],
+      "projections": [
+        {
+          "range": [220, 281],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        },
+        {
+          "range": [775, 825],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-tauri/conformance/rust-host-transport.ts",
+      "sha256": "d2fe481eba6b98a6c0fcad5257eefb3fa09af4a3001d5438cd86c5ab9403fe3a",
+      "totalLines": 280,
+      "ranges": [[1, 120]],
+      "projections": [
+        {
+          "range": [1, 120],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-tauri/src/RxDBAdapterTauri.ts",
+      "sha256": "6493129872fc6c6aa1af0e75d642529ff5c9304e492aff053c226bf077702373",
+      "totalLines": 92,
+      "ranges": [[74, 92]],
+      "projections": [
+        {
+          "range": [74, 92],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ],
+      "additionalReadNotes": ["全文至92行分段阅读（含constructor/createClient/backup/restore）"]
+    },
+    {
+      "path": "packages/rxdb-adapter-tauri/vite.config.mts",
+      "sha256": "0aaae6af989f32232bb46b17e87646ed7c71244d2ac0abe9f13f0b20382f9ee6",
+      "totalLines": 77,
+      "ranges": [[25, 77]],
+      "projections": [
+        {
+          "range": [25, 77],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron/src-electron/devtools-extension.ts",
+      "sha256": "0465ba46899d996df8388b033ec2007cb01536f615a94afb86e09e4feebccd47",
+      "totalLines": 173,
+      "ranges": [[95, 173]],
+      "projections": [
+        {
+          "range": [95, 173],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "packages/rxdb-adapter-tauri/rust/src/session.rs",
+      "sha256": "536f047bc791684b644ea95a97e880ddc58eccdd44e92c0d7269b39bdb44d9db",
+      "totalLines": 567,
+      "ranges": [[200, 264]],
+      "projections": [
+        {
+          "range": [200, 264],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "apps/dev-rxdb-electron-e2e/src/backup-restore.spec.ts",
+      "sha256": "bdc233106d73b730b64b5bb1aa5d420e99adcfbf449a713ff6de474e98853660",
+      "totalLines": 218,
+      "ranges": [[131, 188]],
+      "projections": [
+        {
+          "range": [131, 188],
+          "kind": "code-only",
+          "commentOnlyLinesOmitted": true
+        }
+      ]
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "45c106f7a72e6904f452d352a37bcf5854e640a224535d391703a85e916c5f55",
+      "totalLines": 83,
+      "parsed": "已全文阅读用户/root约束",
+      "ranges": []
+    },
+    {
+      "path": ".agents/skills/nx-workspace/SKILL.md",
+      "sha256": "0f145bc0313ab4454ab730b53db7d7080f65665f260abf17b66be0c9508368fc",
+      "totalLines": 284,
+      "parsed": "已全文分段阅读Nx只读探索技能",
+      "ranges": []
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/integrations/scope.json",
+      "sha256": "3697c825fd067b70650e7e35530cb6cfadb543d1e3f9c1586e12e7a430ae0acc",
+      "totalLines": 974,
+      "parsed": "完整解析14对象/源指纹/文档写范围/targets，不宣称其全部源码已审",
+      "ranges": []
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/resolved-project-graph.json",
+      "sha256": "be02e0cedb0a4a7ebbf5f9e0d4014dd048d8b5dde7c770950eba524ef5e93a4a",
+      "totalLines": 31968,
+      "parsed": "解析14对象node/依赖/已配置target；没有运行nx graph/build",
+      "ranges": []
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt",
+      "sha256": "333f450891dd493b986c3f30d95d9e58f511840e7182f5526146cf5d6177e1e1",
+      "totalLines": 447,
+      "parsed": "读取命令/范围13对象行/成功尾部，无cache69对象严格lint实际通过",
+      "ranges": []
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck.txt",
+      "sha256": "935db86cc46093dc47900f808ad4992309a65006716ae34a19d4f31481475c5f",
+      "totalLines": 1367,
+      "parsed": "读取命令/范围13对象行/依赖adapter build/成功尾部；69对象+51依赖通过",
+      "ranges": []
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/supabase/e2e-local-status.json",
+      "sha256": "9bda1fb9925916277b0eed2907170eed63f14984fc2c9610d6192c2f96d68864",
+      "totalLines": 19,
+      "parsed": "已读旧run时间/head/exit，非当轮验证",
+      "ranges": []
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/supabase/e2e-remote-status.json",
+      "sha256": "77d897331e475c1282bf74ef6b319af6278ba0e0e710b082ab7651b477a54d26",
+      "totalLines": 19,
+      "parsed": "已读旧run时间/head/exit，非当轮验证",
+      "ranges": []
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/supabase/app-all-tests-status.json",
+      "sha256": "b0df90f7f873f6ae5c12b35f98765f3513c139e315f402d9c6e25993ae1e7909",
+      "totalLines": 20,
+      "parsed": "已读旧run时间/head/exit，非当轮验证",
+      "ranges": []
+    },
+    {
+      "path": "requirements/reviews/evidence/2026-10-05/supabase/final-counts.json",
+      "sha256": "b92cf224291cffdc4197560d2f0e32fc7d292b6a537d43960bc14b11d8c19d2c",
+      "totalLines": 52,
+      "parsed": "已读旧553原例/557pass5fail0skip，已知RV不重报",
+      "ranges": []
+    },
+    {
+      "path": "apps/dev-rxdb-tauri/src/app/setup_rxdb.ts",
+      "sha256": "81eb4932227c6d101a67032acf503b5660fb3b8d7da1aa33a3309270b5f96a0b",
+      "totalLines": 117,
+      "parsed": "已阅读54-117；早先inspect命令同批末文件不存在造成ledger未保存，仅补实际读段",
+      "ranges": []
+    },
+    {
+      "path": "apps/dev-rxdb-tauri/src/app/setup_rxdb_desktop.ts",
+      "sha256": "90bc8a3f79022282f6aee6af185d511d9041c1a878b1c1e68634ae31f3b0efc4",
+      "totalLines": 323,
+      "parsed": "已阅读228-323；早先inspect命令末文件不存在，补实际读段",
+      "ranges": []
+    },
+    {
+      "path": "apps/dev-rxdb-tauri/src-tauri/tauri.conf.json",
+      "sha256": "592977ef3b7fff879f78f2da04b4ebc2899aabd0623a54cc4828e6a9dd45cb58",
+      "totalLines": 29,
+      "parsed": "已全文阅读CSP/frontendDist/bundle配置",
+      "ranges": []
+    },
+    {
+      "path": "packages/rxdb/src/rxdb-events.ts",
+      "sha256": "9b734d6e5f162ec81e3841c3826cad0222b3088f8bbb81ce2b28800d10a1bcb5",
+      "totalLines": 726,
+      "parsed": "只读接口/事件constructor锚点（226-252/328-359）供新增接缝，不写core",
+      "ranges": []
+    },
+    {
+      "path": "packages/rxdb/src/RxDB.ts",
+      "sha256": "1d33507321f58543b03b96bafbf3eaae18509026906040021d9ef13f74f08d33",
+      "totalLines": 2024,
+      "parsed": "只读1365-1398实际dispatchEvent，非core全审",
+      "ranges": []
+    },
+    {
+      "path": "packages/rxdb/src/entity/entity-manager.ts",
+      "sha256": "62501d22e70739fc86eb68502f5756753993f2bbf9264b3e0ba02926aba4df3f",
+      "totalLines": 792,
+      "parsed": "只读571-607 notifyExternalUpdate事件形状，非core全审",
+      "ranges": []
+    },
+    {
+      "path": "apps/dev-rxdb-http-server/src/__tests__/review-parallel-change-broadcast-origin.spec.ts",
+      "sha256": "b49c389dbc8869742f9f46c6c0eed69bb720a18308d0d5b431db70083e2024b9",
+      "totalLines": 54,
+      "parsed": "本子任务新增并自查接缝源；未运行/lint，不能继承旧门禁",
+      "ranges": []
+    }
+  ],
+  "limitations": [
+    "阅读为分段/代码投影；code-only略去注释，部分多文件输出曾被工具裁剪，因此ranges不能解读为这些文件逐行全文审完。每C仅对实际所读锚点给局部结论。",
+    "scope全清单已解析，未阅读文件显式列出，不把hash/测试入口存在当源码审完。",
+    "旧指纹与旧status仅历史证据；当轮lint/typecheck由主控日志单独记录；新增接缝晚于门禁。",
+    "Angular best-practices工具尝试返回Unexpected response type；没有修改任何Angular业务代码。"
+  ],
+  "method": "分段实际阅读；ranges为已输出审阅行，parsed为配置/清单解析，不宣称未输出文件已全文审阅",
+  "perObjectCoverage": [
+    {
+      "object": "rxdb-adapter-electron",
+      "trackedFilesAtScope": 77,
+      "filesWithActualReadingEntry": [
+        "packages/rxdb-adapter-electron/package.json",
+        "packages/rxdb-adapter-electron/src/electron-file-host.ts",
+        "packages/rxdb-adapter-electron/src/electron-sqlite-host.ts",
+        "packages/rxdb-adapter-electron/src/index.ts",
+        "packages/rxdb-adapter-electron/src/node-sqlite-engine.ts",
+        "packages/rxdb-adapter-electron/src/pglite-host/pglite-host-lock.ts",
+        "packages/rxdb-adapter-electron/src/pglite-host/pglite-host-restore.ts",
+        "packages/rxdb-adapter-electron/src/pglite-host/pglite-host-runtime.ts"
+      ],
+      "notManuallyReadInThisTurn": [
+        "packages/rxdb-adapter-electron/LICENSE",
+        "packages/rxdb-adapter-electron/README.md",
+        "packages/rxdb-adapter-electron/eslint.config.mjs",
+        "packages/rxdb-adapter-electron/project.json",
+        "packages/rxdb-adapter-electron/src/RxDBAdapterElectron.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/RxDBAdapterElectron.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/desktop-pglite-constants.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/electron-pglite-backup-fixture.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/electron-pglite-backup-memory.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/electron-pglite-backup.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/electron-pglite-encryption.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/electron-pglite-host-process.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/electron-pglite-restore-concurrency.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/electron-pglite-restore-failure.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/electron-pglite-restore-kill.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/electron-pglite-restore.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/electron-pglite-transport.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/electron-sqlite-backup-harness.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/electron-sqlite-backup-memory.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/electron-sqlite-backup.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/electron-sqlite-host-process.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/forked-host-process.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/backup/host-process-wire.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/desktop-pglite-client-backup.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/desktop-pglite-client.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/electron-adapter-factory.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/electron-file-host-faults.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/electron-file-host.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/electron-pglite-adapter-factory.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/electron-pglite-backup-error.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/electron-pglite-host-backup.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/electron-pglite-host.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/electron-sqlite-client.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/electron-sqlite-host.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/encrypted-bigint-binary.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/encrypted-change-log.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/encrypted-crud.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/encrypted-lifecycle.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/encrypted-tamper.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/node-sqlite-engine.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/pglite-data-directory.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/pglite-encrypted.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/pglite-host-data-dir.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/pglite-host-lock.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/pglite-open-failure.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/pglite-transaction-contract.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/public-api.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/review-aborted-initial-unlock.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/setup.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/sqlite-script.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/working-tree-capture-conformance.spec.ts",
+        "packages/rxdb-adapter-electron/src/__tests__/working-tree-commit-conformance.spec.ts",
+        "packages/rxdb-adapter-electron/src/electron-adapter.interface.ts",
+        "packages/rxdb-adapter-electron/src/host.ts",
+        "packages/rxdb-adapter-electron/src/pglite-host.ts",
+        "packages/rxdb-adapter-electron/src/pglite-host/electron-pglite-host.ts",
+        "packages/rxdb-adapter-electron/src/pglite-host/pglite-host-data-dir.ts",
+        "packages/rxdb-adapter-electron/src/pglite.ts",
+        "packages/rxdb-adapter-electron/src/pglite/RxDBAdapterElectronPGlite.ts",
+        "packages/rxdb-adapter-electron/src/pglite/desktop-pglite-client.ts",
+        "packages/rxdb-adapter-electron/src/pglite/desktop-pglite-results.ts",
+        "packages/rxdb-adapter-electron/src/pglite/electron-pglite-backup-error.ts",
+        "packages/rxdb-adapter-electron/src/pglite/pglite-adapter.interface.ts",
+        "packages/rxdb-adapter-electron/src/pglite/restore-electron-pglite-database.ts",
+        "packages/rxdb-adapter-electron/src/sqlite-script.ts",
+        "packages/rxdb-adapter-electron/tsconfig.json",
+        "packages/rxdb-adapter-electron/tsconfig.lib.json",
+        "packages/rxdb-adapter-electron/tsconfig.spec.json",
+        "packages/rxdb-adapter-electron/vite.config.mts"
+      ],
+      "fullScopeReviewClaimed": false
+    },
+    {
+      "object": "rxdb-adapter-tauri",
+      "trackedFilesAtScope": 54,
+      "filesWithActualReadingEntry": [
+        "packages/rxdb-adapter-tauri/conformance/rust-host-transport.ts",
+        "packages/rxdb-adapter-tauri/package.json",
+        "packages/rxdb-adapter-tauri/rust/src/commands.rs",
+        "packages/rxdb-adapter-tauri/rust/src/file/mod.rs",
+        "packages/rxdb-adapter-tauri/rust/src/paths.rs",
+        "packages/rxdb-adapter-tauri/rust/src/router.rs",
+        "packages/rxdb-adapter-tauri/rust/src/session.rs",
+        "packages/rxdb-adapter-tauri/src/RxDBAdapterTauri.ts",
+        "packages/rxdb-adapter-tauri/src/index.ts",
+        "packages/rxdb-adapter-tauri/src/tauri-host-transport.ts",
+        "packages/rxdb-adapter-tauri/vite.config.mts"
+      ],
+      "notManuallyReadInThisTurn": [
+        "packages/rxdb-adapter-tauri/LICENSE",
+        "packages/rxdb-adapter-tauri/README.md",
+        "packages/rxdb-adapter-tauri/conformance/encrypted-bigint-binary.spec.ts",
+        "packages/rxdb-adapter-tauri/conformance/encrypted-change-log.spec.ts",
+        "packages/rxdb-adapter-tauri/conformance/encrypted-crud.spec.ts",
+        "packages/rxdb-adapter-tauri/conformance/encrypted-lifecycle.spec.ts",
+        "packages/rxdb-adapter-tauri/conformance/encrypted-tamper.spec.ts",
+        "packages/rxdb-adapter-tauri/conformance/protocol-handshake.spec.ts",
+        "packages/rxdb-adapter-tauri/conformance/rust-adapter-factory.spec.ts",
+        "packages/rxdb-adapter-tauri/conformance/rust-adapter-factory.ts",
+        "packages/rxdb-adapter-tauri/conformance/setup.spec.ts",
+        "packages/rxdb-adapter-tauri/conformance/storage-disk-full.spec.ts",
+        "packages/rxdb-adapter-tauri/conformance/storage-large-file.spec.ts",
+        "packages/rxdb-adapter-tauri/conformance/storage-parity.spec.ts",
+        "packages/rxdb-adapter-tauri/conformance/storage-persistence.spec.ts",
+        "packages/rxdb-adapter-tauri/conformance/tauri-sqlite-backup-harness.ts",
+        "packages/rxdb-adapter-tauri/conformance/tauri-sqlite-backup-memory.spec.ts",
+        "packages/rxdb-adapter-tauri/conformance/tauri-sqlite-backup.spec.ts",
+        "packages/rxdb-adapter-tauri/conformance/write-lock-contention.spec.ts",
+        "packages/rxdb-adapter-tauri/eslint.config.mjs",
+        "packages/rxdb-adapter-tauri/project.json",
+        "packages/rxdb-adapter-tauri/rust/Cargo.lock",
+        "packages/rxdb-adapter-tauri/rust/Cargo.toml",
+        "packages/rxdb-adapter-tauri/rust/README.md",
+        "packages/rxdb-adapter-tauri/rust/src/bin/rxdb_host_stdio.rs",
+        "packages/rxdb-adapter-tauri/rust/src/engine.rs",
+        "packages/rxdb-adapter-tauri/rust/src/error.rs",
+        "packages/rxdb-adapter-tauri/rust/src/file/locks.rs",
+        "packages/rxdb-adapter-tauri/rust/src/file/protocol.rs",
+        "packages/rxdb-adapter-tauri/rust/src/lib.rs",
+        "packages/rxdb-adapter-tauri/rust/src/protocol.rs",
+        "packages/rxdb-adapter-tauri/rust/src/script.rs",
+        "packages/rxdb-adapter-tauri/rust/src/value.rs",
+        "packages/rxdb-adapter-tauri/src/__tests__/desktop-json-codec.spec.ts",
+        "packages/rxdb-adapter-tauri/src/__tests__/tauri-host-transport.spec.ts",
+        "packages/rxdb-adapter-tauri/src/desktop-json-codec.ts",
+        "packages/rxdb-adapter-tauri/src/tauri-adapter.interface.ts",
+        "packages/rxdb-adapter-tauri/src/tauri-options.interface.ts",
+        "packages/rxdb-adapter-tauri/tsconfig.conformance.json",
+        "packages/rxdb-adapter-tauri/tsconfig.json",
+        "packages/rxdb-adapter-tauri/tsconfig.lib.json",
+        "packages/rxdb-adapter-tauri/tsconfig.spec.json",
+        "packages/rxdb-adapter-tauri/vitest.conformance.mts"
+      ],
+      "fullScopeReviewClaimed": false
+    },
+    {
+      "object": "rxdb-adapter-desktop",
+      "trackedFilesAtScope": 0,
+      "filesWithActualReadingEntry": [],
+      "notManuallyReadInThisTurn": [],
+      "fullScopeReviewClaimed": true
+    },
+    {
+      "object": "rxdb-adapter-http",
+      "trackedFilesAtScope": 37,
+      "filesWithActualReadingEntry": [
+        "packages/rxdb-adapter-http/README.md",
+        "packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts",
+        "packages/rxdb-adapter-http/src/__tests__/transport.spec.ts",
+        "packages/rxdb-adapter-http/src/change-feed.ts",
+        "packages/rxdb-adapter-http/src/chunking.ts",
+        "packages/rxdb-adapter-http/src/conditional-cache.ts",
+        "packages/rxdb-adapter-http/src/handler-contract.ts",
+        "packages/rxdb-adapter-http/src/metadata.ts",
+        "packages/rxdb-adapter-http/src/pagination.ts",
+        "packages/rxdb-adapter-http/src/rest.ts",
+        "packages/rxdb-adapter-http/src/transport.ts"
+      ],
+      "notManuallyReadInThisTurn": [
+        "packages/rxdb-adapter-http/LICENSE",
+        "packages/rxdb-adapter-http/eslint.config.mjs",
+        "packages/rxdb-adapter-http/package.json",
+        "packages/rxdb-adapter-http/project.json",
+        "packages/rxdb-adapter-http/src/__tests__/RxDBAdapterHttp.spec.ts",
+        "packages/rxdb-adapter-http/src/__tests__/change-feed.spec.ts",
+        "packages/rxdb-adapter-http/src/__tests__/chunking.spec.ts",
+        "packages/rxdb-adapter-http/src/__tests__/conditional-cache.spec.ts",
+        "packages/rxdb-adapter-http/src/__tests__/config.spec.ts",
+        "packages/rxdb-adapter-http/src/__tests__/integration.spec.ts",
+        "packages/rxdb-adapter-http/src/__tests__/metadata.spec.ts",
+        "packages/rxdb-adapter-http/src/__tests__/pagination.spec.ts",
+        "packages/rxdb-adapter-http/src/__tests__/public-types.spec.ts",
+        "packages/rxdb-adapter-http/src/__tests__/readme.spec.ts",
+        "packages/rxdb-adapter-http/src/__tests__/rest.spec.ts",
+        "packages/rxdb-adapter-http/src/config.ts",
+        "packages/rxdb-adapter-http/src/errors.ts",
+        "packages/rxdb-adapter-http/src/http.interface.ts",
+        "packages/rxdb-adapter-http/src/index.ts",
+        "packages/rxdb-adapter-http/tests/local-adapter.fixture.ts",
+        "packages/rxdb-adapter-http/tests/reference-server.ts",
+        "packages/rxdb-adapter-http/tests/wire-integration.spec.ts",
+        "packages/rxdb-adapter-http/tsconfig.json",
+        "packages/rxdb-adapter-http/tsconfig.lib.json",
+        "packages/rxdb-adapter-http/tsconfig.spec.json",
+        "packages/rxdb-adapter-http/vite.config.mts"
+      ],
+      "fullScopeReviewClaimed": false
+    },
+    {
+      "object": "rxdb-adapter-supabase",
+      "trackedFilesAtScope": 67,
+      "filesWithActualReadingEntry": [
+        "packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts",
+        "packages/rxdb-adapter-supabase/src/entity_scope.ts",
+        "packages/rxdb-adapter-supabase/src/pagination.ts",
+        "packages/rxdb-adapter-supabase/src/postgrest-error.ts",
+        "packages/rxdb-adapter-supabase/src/supabase.rls.ts"
+      ],
+      "notManuallyReadInThisTurn": [
+        "packages/rxdb-adapter-supabase/.gitignore",
+        "packages/rxdb-adapter-supabase/LICENSE",
+        "packages/rxdb-adapter-supabase/README.md",
+        "packages/rxdb-adapter-supabase/eslint.config.mjs",
+        "packages/rxdb-adapter-supabase/package.json",
+        "packages/rxdb-adapter-supabase/project.json",
+        "packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.utils.ts",
+        "packages/rxdb-adapter-supabase/src/SupabaseRepository.ts",
+        "packages/rxdb-adapter-supabase/src/SupabaseTreeRepository.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/RxDBAdapterSupabase.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/adapter-mutations.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/applyRuleGroup.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/branch-contracts.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/errors.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/filter-sync-snapshots.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/getChangeCount.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/handle-supabase-change.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/not-exists-where.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/pagination-truncation.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/pull-push-changes.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/querycache-error-contract.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/reachability-reporting.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/repository-sync.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/review-large-rest-writes.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/review-querycache-relations.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/review-regressions.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/run-supabase-sql-security-regressions.sh",
+        "packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql",
+        "packages/rxdb-adapter-supabase/src/__tests__/sync-boundary.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/sync-data-integrity.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/sync-multi-operations.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/sync-remoteid-debug.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/sync.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/test-exists.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/test-many-to-many.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/test-menu-tree.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/test-relation-id-null.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/test-shop-sort.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/test-shop.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/test-todo.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/test-types.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/test-utils.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/transform.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/transient-write-retry.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/tree-where.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/unsupported-property-types.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/utils.spec.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/wa-sqlite-wasm.ts",
+        "packages/rxdb-adapter-supabase/src/__tests__/zz-second-pass-probe.spec.ts",
+        "packages/rxdb-adapter-supabase/src/errors.ts",
+        "packages/rxdb-adapter-supabase/src/handle_supabase_change.ts",
+        "packages/rxdb-adapter-supabase/src/index.ts",
+        "packages/rxdb-adapter-supabase/src/rule_group_builder.ts",
+        "packages/rxdb-adapter-supabase/src/schema.utils.ts",
+        "packages/rxdb-adapter-supabase/src/supabase.helpers.ts",
+        "packages/rxdb-adapter-supabase/src/supabase.interface.ts",
+        "packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts",
+        "packages/rxdb-adapter-supabase/src/transform.ts",
+        "packages/rxdb-adapter-supabase/tsconfig.json",
+        "packages/rxdb-adapter-supabase/tsconfig.lib.json",
+        "packages/rxdb-adapter-supabase/tsconfig.spec.json",
+        "packages/rxdb-adapter-supabase/vite.config.mts"
+      ],
+      "fullScopeReviewClaimed": false
+    },
+    {
+      "object": "dev-rxdb-electron",
+      "trackedFilesAtScope": 106,
+      "filesWithActualReadingEntry": [
+        "apps/dev-rxdb-electron/src-electron/desktop-file-bridge.ts",
+        "apps/dev-rxdb-electron/src-electron/desktop-host-bridge.ts",
+        "apps/dev-rxdb-electron/src-electron/desktop-session-ownership.ts",
+        "apps/dev-rxdb-electron/src-electron/desktop-sqlite-bridge.ts",
+        "apps/dev-rxdb-electron/src-electron/devtools-extension.ts",
+        "apps/dev-rxdb-electron/src-electron/main.ts",
+        "apps/dev-rxdb-electron/src-electron/main.utils.ts",
+        "apps/dev-rxdb-electron/src-electron/preload.ts",
+        "apps/dev-rxdb-electron/src/app/local-backend.ts",
+        "apps/dev-rxdb-electron/src/app/setup_rxdb.ts",
+        "apps/dev-rxdb-electron/src/app/setup_rxdb_desktop.ts"
+      ],
+      "notManuallyReadInThisTurn": [
+        "apps/dev-rxdb-electron/.gitignore",
+        "apps/dev-rxdb-electron/.postcssrc.json",
+        "apps/dev-rxdb-electron/README.md",
+        "apps/dev-rxdb-electron/electron-builder.dir.json",
+        "apps/dev-rxdb-electron/electron-builder.json",
+        "apps/dev-rxdb-electron/eslint.config.mjs",
+        "apps/dev-rxdb-electron/package.json",
+        "apps/dev-rxdb-electron/project.json",
+        "apps/dev-rxdb-electron/public/.gitkeep",
+        "apps/dev-rxdb-electron/public/background.jpg",
+        "apps/dev-rxdb-electron/public/icons/electron.bmp",
+        "apps/dev-rxdb-electron/public/icons/favicon.256x256.png",
+        "apps/dev-rxdb-electron/public/icons/favicon.512x512.png",
+        "apps/dev-rxdb-electron/public/icons/favicon.icns",
+        "apps/dev-rxdb-electron/public/icons/favicon.ico",
+        "apps/dev-rxdb-electron/public/icons/favicon.png",
+        "apps/dev-rxdb-electron/src-electron/connect-wa-sqlite-adapter.spec.ts",
+        "apps/dev-rxdb-electron/src-electron/desktop-file-bridge.spec.ts",
+        "apps/dev-rxdb-electron/src-electron/desktop-host-bridge.bundle.d.ts",
+        "apps/dev-rxdb-electron/src-electron/desktop-host-request-guard.spec.ts",
+        "apps/dev-rxdb-electron/src-electron/desktop-host-request-guard.ts",
+        "apps/dev-rxdb-electron/src-electron/desktop-pglite-bridge.spec.ts",
+        "apps/dev-rxdb-electron/src-electron/desktop-pglite-bridge.ts",
+        "apps/dev-rxdb-electron/src-electron/desktop-pglite-worker-protocol.ts",
+        "apps/dev-rxdb-electron/src-electron/desktop-pglite-worker.ts",
+        "apps/dev-rxdb-electron/src-electron/desktop-sqlite-bridge.spec.ts",
+        "apps/dev-rxdb-electron/src-electron/dev-target.spec.ts",
+        "apps/dev-rxdb-electron/src-electron/devtools-extension.bundle.d.ts",
+        "apps/dev-rxdb-electron/src-electron/devtools-extension.spec.ts",
+        "apps/dev-rxdb-electron/src-electron/electron-conformance.spec.ts",
+        "apps/dev-rxdb-electron/src-electron/electron-relay-nodes.ts",
+        "apps/dev-rxdb-electron/src-electron/electron-version.spec.ts",
+        "apps/dev-rxdb-electron/src-electron/ipc-contract.spec.ts",
+        "apps/dev-rxdb-electron/src-electron/ipc-contract.ts",
+        "apps/dev-rxdb-electron/src-electron/locale.spec.ts",
+        "apps/dev-rxdb-electron/src-electron/main.utils.spec.ts",
+        "apps/dev-rxdb-electron/src-electron/renderer-shell.spec.ts",
+        "apps/dev-rxdb-electron/src-electron/rxdb-connection.spec.ts",
+        "apps/dev-rxdb-electron/src-electron/tsconfig-serve.spec.ts",
+        "apps/dev-rxdb-electron/src-electron/tsdoc-coverage.spec.ts",
+        "apps/dev-rxdb-electron/src/app/app.config.ts",
+        "apps/dev-rxdb-electron/src/app/app.routes.ts",
+        "apps/dev-rxdb-electron/src/app/app.service.ts",
+        "apps/dev-rxdb-electron/src/app/app.ts",
+        "apps/dev-rxdb-electron/src/app/backup-probe.spec.ts",
+        "apps/dev-rxdb-electron/src/app/backup-probe.ts",
+        "apps/dev-rxdb-electron/src/app/components/app-header.ts",
+        "apps/dev-rxdb-electron/src/app/components/app-menu.ts",
+        "apps/dev-rxdb-electron/src/app/components/app-sidebar.ts",
+        "apps/dev-rxdb-electron/src/app/connect-wa-sqlite-adapter.ts",
+        "apps/dev-rxdb-electron/src/app/db-names.ts",
+        "apps/dev-rxdb-electron/src/app/desktop-launch.entity.ts",
+        "apps/dev-rxdb-electron/src/app/devtools-event-probe.ts",
+        "apps/dev-rxdb-electron/src/app/local-backend.spec.ts",
+        "apps/dev-rxdb-electron/src/app/locale.ts",
+        "apps/dev-rxdb-electron/src/app/pages/home/home.page.html",
+        "apps/dev-rxdb-electron/src/app/pages/home/home.page.ts",
+        "apps/dev-rxdb-electron/src/app/pages/storage/storage.page.html",
+        "apps/dev-rxdb-electron/src/app/pages/storage/storage.page.ts",
+        "apps/dev-rxdb-electron/src/app/rxdb-connection.ts",
+        "apps/dev-rxdb-electron/src/app/services/desktop-environment.spec.ts",
+        "apps/dev-rxdb-electron/src/app/services/desktop-environment.ts",
+        "apps/dev-rxdb-electron/src/app/services/electron.service.ts",
+        "apps/dev-rxdb-electron/src/app/services/local-database.service.ts",
+        "apps/dev-rxdb-electron/src/app/setup_rxdb.spec.ts",
+        "apps/dev-rxdb-electron/src/app/setup_rxdb_desktop_pglite.ts",
+        "apps/dev-rxdb-electron/src/app/setup_rxdb_devtools.spec.ts",
+        "apps/dev-rxdb-electron/src/app/setup_rxdb_wa-sqlite.ts",
+        "apps/dev-rxdb-electron/src/app/wa-sqlite-shared.worker.ts",
+        "apps/dev-rxdb-electron/src/app/wa-sqlite.worker.ts",
+        "apps/dev-rxdb-electron/src/favicon.ico",
+        "apps/dev-rxdb-electron/src/index.html",
+        "apps/dev-rxdb-electron/src/index.prod.html",
+        "apps/dev-rxdb-electron/src/main.ts",
+        "apps/dev-rxdb-electron/src/styles.scss",
+        "apps/dev-rxdb-electron/src/test-setup.ts",
+        "apps/dev-rxdb-electron/src/typings.d.ts",
+        "apps/dev-rxdb-electron/src/vitest.d.ts",
+        "apps/dev-rxdb-electron/tools/bundle-desktop-host.mjs",
+        "apps/dev-rxdb-electron/tools/copy-app-manifest.mjs",
+        "apps/dev-rxdb-electron/tools/devtools-mv3-probe.mjs",
+        "apps/dev-rxdb-electron/tools/ensure-electron-binary.mjs",
+        "apps/dev-rxdb-electron/tools/pglite-tx-experiment/fixture.html",
+        "apps/dev-rxdb-electron/tools/pglite-tx-experiment/preload.cjs",
+        "apps/dev-rxdb-electron/tools/pglite-tx-experiment/probe.mjs",
+        "apps/dev-rxdb-electron/tools/pglite-tx-experiment/scenarios.mjs",
+        "apps/dev-rxdb-electron/tools/pglite-tx-experiment/variant-a-host.mjs",
+        "apps/dev-rxdb-electron/tools/pglite-tx-experiment/variant-b-host.mjs",
+        "apps/dev-rxdb-electron/tools/stage-external-dependencies.mjs",
+        "apps/dev-rxdb-electron/tsconfig.app.json",
+        "apps/dev-rxdb-electron/tsconfig.json",
+        "apps/dev-rxdb-electron/tsconfig.serve.json",
+        "apps/dev-rxdb-electron/tsconfig.spec.json",
+        "apps/dev-rxdb-electron/tsconfig.worker.json",
+        "apps/dev-rxdb-electron/vitest.config.mts"
+      ],
+      "fullScopeReviewClaimed": false
+    },
+    {
+      "object": "dev-rxdb-electron-e2e",
+      "trackedFilesAtScope": 23,
+      "filesWithActualReadingEntry": [
+        "apps/dev-rxdb-electron-e2e/playwright.config.ts",
+        "apps/dev-rxdb-electron-e2e/src/backup-restore.spec.ts",
+        "apps/dev-rxdb-electron-e2e/src/desktop-persistence-pglite.spec.ts",
+        "apps/dev-rxdb-electron-e2e/src/desktop-persistence.spec.ts",
+        "apps/dev-rxdb-electron-e2e/src/devtools-extension-loading.spec.ts",
+        "apps/dev-rxdb-electron-e2e/src/devtools-session-rotation.spec.ts",
+        "apps/dev-rxdb-electron-e2e/src/packaged-app.ts"
+      ],
+      "notManuallyReadInThisTurn": [
+        "apps/dev-rxdb-electron-e2e/eslint.config.mjs",
+        "apps/dev-rxdb-electron-e2e/package.json",
+        "apps/dev-rxdb-electron-e2e/project.json",
+        "apps/dev-rxdb-electron-e2e/src/devtools-capability-wiring.spec.ts",
+        "apps/dev-rxdb-electron-e2e/src/devtools-database-events-branch.spec.ts",
+        "apps/dev-rxdb-electron-e2e/src/devtools-mv3-feasibility.spec.ts",
+        "apps/dev-rxdb-electron-e2e/src/devtools-native-files-mutation.spec.ts",
+        "apps/dev-rxdb-electron-e2e/src/devtools-panel-driver.ts",
+        "apps/dev-rxdb-electron-e2e/src/devtools-restart-persistence.spec.ts",
+        "apps/dev-rxdb-electron-e2e/src/devtools-settings-refusals.spec.ts",
+        "apps/dev-rxdb-electron-e2e/src/devtools-unsupported-scheme.spec.ts",
+        "apps/dev-rxdb-electron-e2e/src/devtools-wire-tap.ts",
+        "apps/dev-rxdb-electron-e2e/src/electron-smoke.spec.ts",
+        "apps/dev-rxdb-electron-e2e/src/pglite-tx-experiment.spec.ts",
+        "apps/dev-rxdb-electron-e2e/src/storage-persistence.spec.ts",
+        "apps/dev-rxdb-electron-e2e/tsconfig.json"
+      ],
+      "fullScopeReviewClaimed": false
+    },
+    {
+      "object": "dev-rxdb-tauri",
+      "trackedFilesAtScope": 121,
+      "filesWithActualReadingEntry": [
+        "apps/dev-rxdb-tauri/src-tauri/capabilities/default.json",
+        "apps/dev-rxdb-tauri/src-tauri/capabilities/devtools.json",
+        "apps/dev-rxdb-tauri/src-tauri/src/lib.rs",
+        "apps/dev-rxdb-tauri/src-tauri/tauri.conf.json",
+        "apps/dev-rxdb-tauri/src/app/setup_rxdb.ts",
+        "apps/dev-rxdb-tauri/src/app/setup_rxdb_desktop.ts"
+      ],
+      "notManuallyReadInThisTurn": [
+        "apps/dev-rxdb-tauri/.env",
+        "apps/dev-rxdb-tauri/.gitignore",
+        "apps/dev-rxdb-tauri/.postcssrc.json",
+        "apps/dev-rxdb-tauri/README.md",
+        "apps/dev-rxdb-tauri/devtools.html",
+        "apps/dev-rxdb-tauri/project.json",
+        "apps/dev-rxdb-tauri/public/favicon.ico",
+        "apps/dev-rxdb-tauri/public/robots.txt",
+        "apps/dev-rxdb-tauri/src-tauri/.gitignore",
+        "apps/dev-rxdb-tauri/src-tauri/Cargo.lock",
+        "apps/dev-rxdb-tauri/src-tauri/Cargo.toml",
+        "apps/dev-rxdb-tauri/src-tauri/build.rs",
+        "apps/dev-rxdb-tauri/src-tauri/devtools_driver.js",
+        "apps/dev-rxdb-tauri/src-tauri/icons/128x128.png",
+        "apps/dev-rxdb-tauri/src-tauri/icons/128x128@2x.png",
+        "apps/dev-rxdb-tauri/src-tauri/icons/32x32.png",
+        "apps/dev-rxdb-tauri/src-tauri/icons/Square107x107Logo.png",
+        "apps/dev-rxdb-tauri/src-tauri/icons/Square142x142Logo.png",
+        "apps/dev-rxdb-tauri/src-tauri/icons/Square150x150Logo.png",
+        "apps/dev-rxdb-tauri/src-tauri/icons/Square284x284Logo.png",
+        "apps/dev-rxdb-tauri/src-tauri/icons/Square30x30Logo.png",
+        "apps/dev-rxdb-tauri/src-tauri/icons/Square310x310Logo.png",
+        "apps/dev-rxdb-tauri/src-tauri/icons/Square44x44Logo.png",
+        "apps/dev-rxdb-tauri/src-tauri/icons/Square71x71Logo.png",
+        "apps/dev-rxdb-tauri/src-tauri/icons/Square89x89Logo.png",
+        "apps/dev-rxdb-tauri/src-tauri/icons/StoreLogo.png",
+        "apps/dev-rxdb-tauri/src-tauri/icons/icon.icns",
+        "apps/dev-rxdb-tauri/src-tauri/icons/icon.ico",
+        "apps/dev-rxdb-tauri/src-tauri/icons/icon.png",
+        "apps/dev-rxdb-tauri/src-tauri/src/devtools_config.rs",
+        "apps/dev-rxdb-tauri/src-tauri/src/main.rs",
+        "apps/dev-rxdb-tauri/src-tauri/src/selfcheck.rs",
+        "apps/dev-rxdb-tauri/src/app/app-shell.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/app.component.ts",
+        "apps/dev-rxdb-tauri/src/app/app.config.ts",
+        "apps/dev-rxdb-tauri/src/app/app.routes.ts",
+        "apps/dev-rxdb-tauri/src/app/app.service.ts",
+        "apps/dev-rxdb-tauri/src/app/backup-probe.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/backup-probe.ts",
+        "apps/dev-rxdb-tauri/src/app/build-config.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/components/app-header.ts",
+        "apps/dev-rxdb-tauri/src/app/components/app-menu.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/components/app-menu.ts",
+        "apps/dev-rxdb-tauri/src/app/components/app-sidebar.ts",
+        "apps/dev-rxdb-tauri/src/app/db-names.ts",
+        "apps/dev-rxdb-tauri/src/app/desktop-launch.entity.ts",
+        "apps/dev-rxdb-tauri/src/app/desktop-security.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/devtools-probe.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/devtools-probe.ts",
+        "apps/dev-rxdb-tauri/src/app/devtools-runtime-config.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/devtools-runtime-config.ts",
+        "apps/dev-rxdb-tauri/src/app/fake-provider-gear.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/fake-provider-gear.ts",
+        "apps/dev-rxdb-tauri/src/app/local-backend.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/local-backend.ts",
+        "apps/dev-rxdb-tauri/src/app/opfs-storage.worker.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/opfs-storage.worker.ts",
+        "apps/dev-rxdb-tauri/src/app/opfs-worker-filesystem.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/opfs-worker-filesystem.ts",
+        "apps/dev-rxdb-tauri/src/app/opfs-worker-protocol.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/opfs-worker-protocol.ts",
+        "apps/dev-rxdb-tauri/src/app/pages/home/home-status-panel.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/pages/home/home.page.html",
+        "apps/dev-rxdb-tauri/src/app/pages/home/home.page.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/pages/home/home.page.ts",
+        "apps/dev-rxdb-tauri/src/app/pages/storage/storage.page.html",
+        "apps/dev-rxdb-tauri/src/app/pages/storage/storage.page.ts",
+        "apps/dev-rxdb-tauri/src/app/rxdb-connection-state.ts",
+        "apps/dev-rxdb-tauri/src/app/rxdb-initializer.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/rxdb-initializer.ts",
+        "apps/dev-rxdb-tauri/src/app/services/desktop-launch.service.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/services/desktop-launch.service.ts",
+        "apps/dev-rxdb-tauri/src/app/services/selfcheck-reporter.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/services/selfcheck-reporter.ts",
+        "apps/dev-rxdb-tauri/src/app/services/tauri-contracts.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/services/tauri-contracts.ts",
+        "apps/dev-rxdb-tauri/src/app/services/tauri-environment.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/services/tauri-environment.ts",
+        "apps/dev-rxdb-tauri/src/app/services/tauri.service.ts",
+        "apps/dev-rxdb-tauri/src/app/setup_rxdb.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/setup_rxdb_devtools.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/setup_rxdb_storage.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/setup_rxdb_wa-sqlite.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/setup_rxdb_wa-sqlite.ts",
+        "apps/dev-rxdb-tauri/src/app/storage-probe.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/storage-probe.ts",
+        "apps/dev-rxdb-tauri/src/app/wa-sqlite-backend.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/wa-sqlite-backend.ts",
+        "apps/dev-rxdb-tauri/src/app/wa-sqlite-worker-role.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/wa-sqlite-worker-role.ts",
+        "apps/dev-rxdb-tauri/src/app/wa-sqlite.worker.ts",
+        "apps/dev-rxdb-tauri/src/app/webview-probe.spec.ts",
+        "apps/dev-rxdb-tauri/src/app/webview-probe.ts",
+        "apps/dev-rxdb-tauri/src/devtools/devtools.css",
+        "apps/dev-rxdb-tauri/src/devtools/main.ts",
+        "apps/dev-rxdb-tauri/src/devtools/tauri-conformance.spec.ts",
+        "apps/dev-rxdb-tauri/src/devtools/tauri-connector-transport.spec.ts",
+        "apps/dev-rxdb-tauri/src/devtools/tauri-connector-transport.ts",
+        "apps/dev-rxdb-tauri/src/devtools/tauri-host-access.service.spec.ts",
+        "apps/dev-rxdb-tauri/src/devtools/tauri-host-access.service.ts",
+        "apps/dev-rxdb-tauri/src/devtools/tauri-relay-nodes.ts",
+        "apps/dev-rxdb-tauri/src/devtools/tauri-transport.service.spec.ts",
+        "apps/dev-rxdb-tauri/src/devtools/tauri-transport.service.ts",
+        "apps/dev-rxdb-tauri/src/devtools/tauri-vfs-providers.spec.ts",
+        "apps/dev-rxdb-tauri/src/devtools/tauri-vfs-providers.ts",
+        "apps/dev-rxdb-tauri/src/index.html",
+        "apps/dev-rxdb-tauri/src/main.ts",
+        "apps/dev-rxdb-tauri/src/styles.scss",
+        "apps/dev-rxdb-tauri/src/test-setup.ts",
+        "apps/dev-rxdb-tauri/tsconfig.app.json",
+        "apps/dev-rxdb-tauri/tsconfig.json",
+        "apps/dev-rxdb-tauri/tsconfig.spec.json",
+        "apps/dev-rxdb-tauri/tsconfig.worker.json",
+        "apps/dev-rxdb-tauri/vite.config.devtools.mts",
+        "apps/dev-rxdb-tauri/vite.config.mts"
+      ],
+      "fullScopeReviewClaimed": false
+    },
+    {
+      "object": "dev-rxdb-tauri-e2e",
+      "trackedFilesAtScope": 17,
+      "filesWithActualReadingEntry": [
+        "apps/dev-rxdb-tauri-e2e/src/desktop-backup-restore.spec.ts",
+        "apps/dev-rxdb-tauri-e2e/src/desktop-persistence.spec.ts",
+        "apps/dev-rxdb-tauri-e2e/src/desktop-webview-capability.spec.ts",
+        "apps/dev-rxdb-tauri-e2e/src/devtools-release-isolation.spec.ts",
+        "apps/dev-rxdb-tauri-e2e/src/packaged-app.ts",
+        "apps/dev-rxdb-tauri-e2e/vitest.devtools.mts",
+        "apps/dev-rxdb-tauri-e2e/vitest.smoke.mts"
+      ],
+      "notManuallyReadInThisTurn": [
+        "apps/dev-rxdb-tauri-e2e/eslint.config.mjs",
+        "apps/dev-rxdb-tauri-e2e/package.json",
+        "apps/dev-rxdb-tauri-e2e/project.json",
+        "apps/dev-rxdb-tauri-e2e/src/desktop-file-storage.spec.ts",
+        "apps/dev-rxdb-tauri-e2e/src/devtools-provider-gear.spec.ts",
+        "apps/dev-rxdb-tauri-e2e/src/devtools-window-transport.spec.ts",
+        "apps/dev-rxdb-tauri-e2e/src/frontend-server.ts",
+        "apps/dev-rxdb-tauri-e2e/src/stored-files.ts",
+        "apps/dev-rxdb-tauri-e2e/src/warm-up.ts",
+        "apps/dev-rxdb-tauri-e2e/tsconfig.json"
+      ],
+      "fullScopeReviewClaimed": false
+    },
+    {
+      "object": "dev-rxdb-http",
+      "trackedFilesAtScope": 36,
+      "filesWithActualReadingEntry": [
+        "apps/dev-rxdb-http/src/app/app.ts",
+        "apps/dev-rxdb-http/src/app/filter-rules.ts",
+        "apps/dev-rxdb-http/src/app/paging.ts",
+        "apps/dev-rxdb-http/src/app/setup_rxdb_http.ts",
+        "apps/dev-rxdb-http/src/app/traffic-recorder.ts"
+      ],
+      "notManuallyReadInThisTurn": [
+        "apps/dev-rxdb-http/README.md",
+        "apps/dev-rxdb-http/eslint.config.mjs",
+        "apps/dev-rxdb-http/project.json",
+        "apps/dev-rxdb-http/public/favicon.ico",
+        "apps/dev-rxdb-http/public/robots.txt",
+        "apps/dev-rxdb-http/src/app/app.config.ts",
+        "apps/dev-rxdb-http/src/app/app.html",
+        "apps/dev-rxdb-http/src/app/app.scss",
+        "apps/dev-rxdb-http/src/app/change-feed-diagnostics.spec.ts",
+        "apps/dev-rxdb-http/src/app/change-feed-diagnostics.ts",
+        "apps/dev-rxdb-http/src/app/demo-config.spec.ts",
+        "apps/dev-rxdb-http/src/app/demo-config.ts",
+        "apps/dev-rxdb-http/src/app/demo-control.ts",
+        "apps/dev-rxdb-http/src/app/etag-diagnostics.ts",
+        "apps/dev-rxdb-http/src/app/filter-rules.spec.ts",
+        "apps/dev-rxdb-http/src/app/paging.spec.ts",
+        "apps/dev-rxdb-http/src/app/recipe.ts",
+        "apps/dev-rxdb-http/src/app/traffic-recorder.spec.ts",
+        "apps/dev-rxdb-http/src/app/wa-sqlite-options.spec.ts",
+        "apps/dev-rxdb-http/src/app/wa-sqlite-options.ts",
+        "apps/dev-rxdb-http/src/app/wa-sqlite-shared.worker.ts",
+        "apps/dev-rxdb-http/src/app/wa-sqlite.worker.ts",
+        "apps/dev-rxdb-http/src/index.html",
+        "apps/dev-rxdb-http/src/main.ts",
+        "apps/dev-rxdb-http/src/styles.scss",
+        "apps/dev-rxdb-http/src/test-setup.ts",
+        "apps/dev-rxdb-http/tsconfig.app.json",
+        "apps/dev-rxdb-http/tsconfig.json",
+        "apps/dev-rxdb-http/tsconfig.spec.json",
+        "apps/dev-rxdb-http/tsconfig.worker.json",
+        "apps/dev-rxdb-http/vite.config.mts"
+      ],
+      "fullScopeReviewClaimed": false
+    },
+    {
+      "object": "dev-rxdb-http-e2e",
+      "trackedFilesAtScope": 15,
+      "filesWithActualReadingEntry": [
+        "apps/dev-rxdb-http-e2e/playwright.config.ts",
+        "apps/dev-rxdb-http-e2e/src/change-feed.spec.ts",
+        "apps/dev-rxdb-http-e2e/src/conditional-requests.spec.ts",
+        "apps/dev-rxdb-http-e2e/src/cors.spec.ts",
+        "apps/dev-rxdb-http-e2e/src/local-first-writes.spec.ts",
+        "apps/dev-rxdb-http-e2e/src/offline-fallback.spec.ts",
+        "apps/dev-rxdb-http-e2e/src/orphan-cleanup.spec.ts",
+        "apps/dev-rxdb-http-e2e/src/page-token.spec.ts"
+      ],
+      "notManuallyReadInThisTurn": [
+        "apps/dev-rxdb-http-e2e/eslint.config.mjs",
+        "apps/dev-rxdb-http-e2e/package.json",
+        "apps/dev-rxdb-http-e2e/project.json",
+        "apps/dev-rxdb-http-e2e/src/clear-and-paging.spec.ts",
+        "apps/dev-rxdb-http-e2e/src/env.ts",
+        "apps/dev-rxdb-http-e2e/src/support.ts",
+        "apps/dev-rxdb-http-e2e/tsconfig.json"
+      ],
+      "fullScopeReviewClaimed": false
+    },
+    {
+      "object": "dev-rxdb-http-server",
+      "trackedFilesAtScope": 32,
+      "filesWithActualReadingEntry": [
+        "apps/dev-rxdb-http-server/src/change-broadcaster.ts",
+        "apps/dev-rxdb-http-server/src/change-feed.ts",
+        "apps/dev-rxdb-http-server/src/change-subscribers.ts",
+        "apps/dev-rxdb-http-server/src/config.ts",
+        "apps/dev-rxdb-http-server/src/cors.ts",
+        "apps/dev-rxdb-http-server/src/http-utils.ts",
+        "apps/dev-rxdb-http-server/src/main.ts",
+        "apps/dev-rxdb-http-server/src/page-token.ts",
+        "apps/dev-rxdb-http-server/src/recipes-repository.ts",
+        "apps/dev-rxdb-http-server/src/rxdb-store.ts",
+        "apps/dev-rxdb-http-server/src/server.ts"
+      ],
+      "notManuallyReadInThisTurn": [
+        "apps/dev-rxdb-http-server/README.md",
+        "apps/dev-rxdb-http-server/eslint.config.mjs",
+        "apps/dev-rxdb-http-server/package.json",
+        "apps/dev-rxdb-http-server/project.json",
+        "apps/dev-rxdb-http-server/src/__tests__/change-feed.spec.ts",
+        "apps/dev-rxdb-http-server/src/__tests__/error-mapping.spec.ts",
+        "apps/dev-rxdb-http-server/src/__tests__/fixtures/review-http-sqlite-harness.ts",
+        "apps/dev-rxdb-http-server/src/__tests__/review-auto-resume-http-failure.spec.ts",
+        "apps/dev-rxdb-http-server/src/__tests__/review-http-request-target-crash.spec.ts",
+        "apps/dev-rxdb-http-server/src/__tests__/review-metadata-body-shape.spec.ts",
+        "apps/dev-rxdb-http-server/src/__tests__/review-outbox-repair-new-write.spec.ts",
+        "apps/dev-rxdb-http-server/src/__tests__/review-querycache-http-sqlite.spec.ts",
+        "apps/dev-rxdb-http-server/src/__tests__/review-swr-http-failure-memo.spec.ts",
+        "apps/dev-rxdb-http-server/src/__tests__/rxdb-store.spec.ts",
+        "apps/dev-rxdb-http-server/src/__tests__/server.spec.ts",
+        "apps/dev-rxdb-http-server/src/control.ts",
+        "apps/dev-rxdb-http-server/src/seed.ts",
+        "apps/dev-rxdb-http-server/tsconfig.app.json",
+        "apps/dev-rxdb-http-server/tsconfig.json",
+        "apps/dev-rxdb-http-server/tsconfig.spec.json",
+        "apps/dev-rxdb-http-server/vite.config.mts"
+      ],
+      "fullScopeReviewClaimed": false
+    },
+    {
+      "object": "dev-rxdb-supabase",
+      "trackedFilesAtScope": 57,
+      "filesWithActualReadingEntry": [
+        "apps/dev-rxdb-supabase/scripts/audit-build-credentials.mjs",
+        "apps/dev-rxdb-supabase/src/app/branch-manager.ts",
+        "apps/dev-rxdb-supabase/src/app/remote-security-notice.ts",
+        "apps/dev-rxdb-supabase/src/app/remote-sync-state.ts",
+        "apps/dev-rxdb-supabase/src/app/runtime-config.ts",
+        "apps/dev-rxdb-supabase/src/app/setup_rxdb_wa-sqlite.ts",
+        "apps/dev-rxdb-supabase/src/app/supabase-sync.ts",
+        "apps/dev-rxdb-supabase/src/app/todo-cursor/todo-cursor.page.ts",
+        "apps/dev-rxdb-supabase/src/app/todo-interactions.ts",
+        "apps/dev-rxdb-supabase/src/app/todo/todo.page.ts"
+      ],
+      "notManuallyReadInThisTurn": [
+        "apps/dev-rxdb-supabase/.postcssrc.json",
+        "apps/dev-rxdb-supabase/README.md",
+        "apps/dev-rxdb-supabase/eslint.config.mjs",
+        "apps/dev-rxdb-supabase/project.json",
+        "apps/dev-rxdb-supabase/public/favicon.ico",
+        "apps/dev-rxdb-supabase/public/robots.txt",
+        "apps/dev-rxdb-supabase/scripts/serve.mjs",
+        "apps/dev-rxdb-supabase/src/app/app-header.ts",
+        "apps/dev-rxdb-supabase/src/app/app-menu.ts",
+        "apps/dev-rxdb-supabase/src/app/app-sidebar.ts",
+        "apps/dev-rxdb-supabase/src/app/app.config.ts",
+        "apps/dev-rxdb-supabase/src/app/app.routes.ts",
+        "apps/dev-rxdb-supabase/src/app/app.service.ts",
+        "apps/dev-rxdb-supabase/src/app/app.ts",
+        "apps/dev-rxdb-supabase/src/app/branch-manager.spec.ts",
+        "apps/dev-rxdb-supabase/src/app/build-credential-audit.spec.ts",
+        "apps/dev-rxdb-supabase/src/app/error-message.spec.ts",
+        "apps/dev-rxdb-supabase/src/app/error-message.ts",
+        "apps/dev-rxdb-supabase/src/app/home/home.page.html",
+        "apps/dev-rxdb-supabase/src/app/home/home.page.scss",
+        "apps/dev-rxdb-supabase/src/app/home/home.page.ts",
+        "apps/dev-rxdb-supabase/src/app/remote-security-notice.spec.ts",
+        "apps/dev-rxdb-supabase/src/app/runtime-config.spec.ts",
+        "apps/dev-rxdb-supabase/src/app/supabase-sync.spec.ts",
+        "apps/dev-rxdb-supabase/src/app/theme.service.spec.ts",
+        "apps/dev-rxdb-supabase/src/app/theme.service.ts",
+        "apps/dev-rxdb-supabase/src/app/todo-cursor/todo-cursor.page.html",
+        "apps/dev-rxdb-supabase/src/app/todo-cursor/todo-cursor.page.scss",
+        "apps/dev-rxdb-supabase/src/app/todo-interactions.spec.ts",
+        "apps/dev-rxdb-supabase/src/app/todo/todo.page.html",
+        "apps/dev-rxdb-supabase/src/app/todo/todo.page.scss",
+        "apps/dev-rxdb-supabase/src/app/todo/todo.page.spec.ts",
+        "apps/dev-rxdb-supabase/src/app/wa-sqlite-options.spec.ts",
+        "apps/dev-rxdb-supabase/src/app/wa-sqlite-options.ts",
+        "apps/dev-rxdb-supabase/src/app/wa-sqlite-shared.worker.ts",
+        "apps/dev-rxdb-supabase/src/app/wa-sqlite.worker.ts",
+        "apps/dev-rxdb-supabase/src/index.html",
+        "apps/dev-rxdb-supabase/src/main.ts",
+        "apps/dev-rxdb-supabase/src/styles.scss",
+        "apps/dev-rxdb-supabase/src/styles/_view-transitions.scss",
+        "apps/dev-rxdb-supabase/src/test-setup.ts",
+        "apps/dev-rxdb-supabase/src/vite-env.d.ts",
+        "apps/dev-rxdb-supabase/tsconfig.app.json",
+        "apps/dev-rxdb-supabase/tsconfig.json",
+        "apps/dev-rxdb-supabase/tsconfig.spec.json",
+        "apps/dev-rxdb-supabase/tsconfig.worker.json",
+        "apps/dev-rxdb-supabase/vite.config.mts"
+      ],
+      "fullScopeReviewClaimed": false
+    },
+    {
+      "object": "dev-rxdb-supabase-e2e",
+      "trackedFilesAtScope": 8,
+      "filesWithActualReadingEntry": [
+        "apps/dev-rxdb-supabase-e2e/playwright.config.ts",
+        "apps/dev-rxdb-supabase-e2e/src/home.spec.ts",
+        "apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts"
+      ],
+      "notManuallyReadInThisTurn": [
+        "apps/dev-rxdb-supabase-e2e/README.md",
+        "apps/dev-rxdb-supabase-e2e/eslint.config.mjs",
+        "apps/dev-rxdb-supabase-e2e/package.json",
+        "apps/dev-rxdb-supabase-e2e/project.json",
+        "apps/dev-rxdb-supabase-e2e/tsconfig.json"
+      ],
+      "fullScopeReviewClaimed": false
+    }
+  ]
+}

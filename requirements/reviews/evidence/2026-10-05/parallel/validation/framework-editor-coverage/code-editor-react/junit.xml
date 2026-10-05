@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<testsuites name="vitest tests" tests="34" failures="0" errors="0" time="0.544709042">
+    <testsuite name="src/__tests__/CodeEditor.spec.tsx" timestamp="2026-10-05T01:04:32.611Z" hostname="liuleideMacBook-Pro-4.local" tests="31" failures="0" errors="0" skipped="0" time="0.503366709">
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; renders a real editor, emits local changes, syncs external values, and destroys the view" time="0.03493575">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; keeps the caret position when an external value append arrives" time="0.005743375">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; keeps the caret position when an external value edit lands after the caret" time="0.003856166">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; rewrites only the changed span when syncing an external value" time="0.003722333">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; keeps host-driven value sync out of the undo history" time="0.006286625">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; still records the user own edits in the undo history" time="0.003105375">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; keeps a range selection intact across an external sync" time="0.003905709">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; defaults indentUnit to two spaces, matching the Angular and Vue bindings" time="0.003274958">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; reconfigures setup, theme, access, placeholder, indentation, wrapping, and whitespace" time="0.008587667">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; loads no preset setup extensions when setup is null" time="0.001780208">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; loads from a custom language list and reloads when the list changes" time="0.10943325">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; does not reconfigure the language when an equal list arrives in a new array" time="0.057746083">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; does not reconfigure the language when an unselected entry changes" time="0.056435959">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; does not reconfigure the language when the name changes to an alias of the same description" time="0.055946042">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; ignores a stale language load after the language changes" time="0.008231292">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; clears language support for plaintext, empty lists, unknown languages, and load failures" time="0.062378958">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; supports host props, focus events, autofocus, styles, and an explicit CodeMirror root" time="0.007312209">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; writes label, labelledBy, and describedBy onto the element that carries the textbox role" time="0.004662291">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; reports disabled to assistive technology instead of only readonly" time="0.0039265">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; skips autoFocus while disabled" time="0.003285667">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; skips autoFocus while readonly" time="0.003442375">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; exposes an imperative handle with view, host, focus, and blur via the ref prop" time="0.004816958">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; resolves a single @codemirror/view copy so language ViewPlugins stay live" time="0.000184041">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; renders highlighted tokens for SQL keywords" time="0.017060125">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; renders no highlighted tokens for plaintext" time="0.003268333">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; onLanguageError &gt; reports a not-found payload synchronously" time="0.004855875">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; onLanguageError &gt; reports a load-failed payload and passes the rejection value through untouched" time="0.008354958">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; onLanguageError &gt; stays silent for plaintext and for successful loads" time="0.003761292">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; onLanguageError &gt; drops a stale failure so only the newest request can report" time="0.006640125">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; onLanguageError &gt; does not re-run the language effect when only the callback identity changes" time="0.00380675">
+        </testcase>
+        <testcase classname="src/__tests__/CodeEditor.spec.tsx" name="CodeEditor &gt; documents every public prop with TSDoc" time="0.000490625">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/index.spec.ts" timestamp="2026-10-05T01:04:32.615Z" hostname="liuleideMacBook-Pro-4.local" tests="1" failures="0" errors="0" skipped="0" time="0.001767583">
+        <testcase classname="src/__tests__/index.spec.ts" name="exports the component and stable public option types" time="0.001004042">
+        </testcase>
+    </testsuite>
+    <testsuite name="src/__tests__/review-language-sync-throw.spec.tsx" timestamp="2026-10-05T01:04:32.615Z" hostname="liuleideMacBook-Pro-4.local" tests="2" failures="0" errors="0" skipped="0" time="0.03957475">
+        <testcase classname="src/__tests__/review-language-sync-throw.spec.tsx" name="评审复验：原 LanguageDescription 的同步 throw 也须走语言错误通道 &gt; 同步 loader 异常不能让 React 编辑器卸载" time="0.033380417">
+            <system-out>
+REVIEW_EDITOR {&quot;framework&quot;:&quot;react&quot;,&quot;synchronous&quot;:true,&quot;escaped&quot;:&quot;undefined&quot;,&quot;reportCount&quot;:1,&quot;editorAlive&quot;:true}
+
+            </system-out>
+        </testcase>
+        <testcase classname="src/__tests__/review-language-sync-throw.spec.tsx" name="评审复验：原 LanguageDescription 的同步 throw 也须走语言错误通道 &gt; 对照：同一个错误以 Promise rejection 返回时编辑器继续存在" time="0.004386875">
+            <system-out>
+REVIEW_EDITOR {&quot;framework&quot;:&quot;react&quot;,&quot;synchronous&quot;:false,&quot;escaped&quot;:&quot;undefined&quot;,&quot;reportCount&quot;:1,&quot;editorAlive&quot;:true}
+
+            </system-out>
+        </testcase>
+    </testsuite>
+</testsuites>

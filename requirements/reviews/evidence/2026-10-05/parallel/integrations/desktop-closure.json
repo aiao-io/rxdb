@@ -1,0 +1,43 @@
+{
+  "checks": [
+    {
+      "id": "C1",
+      "status": "closed",
+      "symbols": [
+        "packages/rxdb-adapter-electron/package.json:2,28-52,71-75",
+        "packages/rxdb-adapter-tauri/package.json:2,15-22,40-43"
+      ],
+      "evidence": ["desktop-residue-commands.json", "desktop-residue-inventory.json", "../resolved-project-graph.json"],
+      "conclusion": "当前Git受控文件为0；目录仅78个忽略文件，无package.json；resolved graph无旧node或指向旧node的边。全新checkout不要求旧目录存在。"
+    },
+    {
+      "id": "C2",
+      "status": "closed",
+      "symbols": [
+        "packages/rxdb-adapter-electron/src/index.ts:19-71",
+        "packages/rxdb-adapter-tauri/src/index.ts:31-94",
+        "packages/rxdb-adapter-sqlite-core/src/desktop-host.ts:23-93",
+        ".github/workflows/ci-template.yml:320-335",
+        ".github/workflows/release-desktop.yml:44-53"
+      ],
+      "evidence": ["desktop-reference-audit.json"],
+      "conclusion": "全受控仓库旧名61处；packages/apps运行时代码无旧import/exports/调用，scripts为迁移/排除说明；CI仅旧路径过滤，与当前electron/tauri/core并列，不执行旧包。website为旧→新迁移文档，requirements为历史与残留记录，非生产依赖。"
+    },
+    {
+      "id": "C3",
+      "status": "closed",
+      "symbols": [
+        "packages/rxdb-adapter-electron/package.json:28-52,71-75",
+        "packages/rxdb-adapter-tauri/package.json:15-22,40-43",
+        "packages/rxdb-adapter-sqlite-core/src/desktop-host.ts:23-93"
+      ],
+      "evidence": ["desktop-consumer-links.json", "desktop-reference-audit.json", "desktop-residue-commands.json"],
+      "conclusion": "根node_modules与packages/apps消费者均无旧包链接；受控解析/依赖配置无旧名，已删除rowsAffectedConformanceSuite全packages/apps零匹配（grep退出1表示零匹配）。未导入/执行/删除任何旧产物，未复活writer lease。"
+    }
+  ],
+  "date": "2026-10-05",
+  "head": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+  "object": "rxdb-adapter-desktop",
+  "scopeLimit": "仅已拆包残留的原C1-C3与四项完成条件；不是Electron/Tauri/sqlite-core业务通过，未创建全新checkout或执行发布consumer。",
+  "verdict": "complete-residue-only"
+}

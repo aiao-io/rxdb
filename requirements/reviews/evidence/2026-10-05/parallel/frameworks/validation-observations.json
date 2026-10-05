@@ -1,0 +1,980 @@
+{
+  "date": "2026-10-05",
+  "gate": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/coverage-gate.json",
+  "globalFrameworkCoverage": "22/23 unit suites passed and fresh four metrics; own scope 18/19 passed; Angular 16 failed no fresh summary",
+  "head": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+  "lateProbeExecution": "pending main control; not counted in baseline test/coverage/lint/typecheck",
+  "lint": {
+    "status": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint-status.json",
+    "exitCode": 0,
+    "inputDrift": [],
+    "scope": "69 objects, baseline only; late specs require focused rerun"
+  },
+  "log": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage.txt",
+  "logSections": {
+    "rxdb-angular": {
+      "range": [541, 624],
+      "summary": [
+        [579, "⎯⎯⎯⎯⎯⎯ Failed Tests 16 ⎯⎯⎯⎯⎯⎯⎯"],
+        [618, "Test Files  1 failed | 12 passed (13)"],
+        [619, "Tests  16 failed | 249 passed (265)"]
+      ],
+      "files": [
+        [549, "✓ |rxdb-angular| src/__tests__/InfiniteScrollingList.spec.ts (55 tests) 188ms"],
+        [550, "✓ |rxdb-angular| src/__tests__/tri-framework-sync-override.spec.ts (4 tests) 173ms"],
+        [551, "✓ |rxdb-angular| src/__tests__/rxdb.provider.spec.ts (21 tests) 149ms"],
+        [552, "❯ |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts (16 tests | 16 failed) 32ms"],
+        [569, "✓ |rxdb-angular| src/__tests__/hooks.spec.ts (38 tests) 60ms"],
+        [570, "✓ |rxdb-angular| src/__tests__/use-state.spec.ts (28 tests) 31ms"],
+        [571, "✓ |rxdb-angular| src/__tests__/zz-verify.spec.ts (6 tests) 14ms"],
+        [572, "✓ |rxdb-angular| src/__tests__/use-persisted-state.spec.ts (10 tests) 10ms"],
+        [573, "✓ |rxdb-angular| src/__tests__/use-sync-state.spec.ts (7 tests) 7ms"],
+        [574, "✓ |rxdb-angular| src/__tests__/tri-framework-field-descriptor.spec.ts (64 tests) 10ms"],
+        [575, "✓ |rxdb-angular| src/__tests__/use-action.spec.ts (7 tests) 9ms"],
+        [576, "✓ |rxdb-angular| src/__tests__/tri-framework-provider.spec.ts (5 tests) 1ms"],
+        [577, "✓ |rxdb-angular| src/__tests__/tri-framework-generics.spec.ts (4 tests) 0ms"]
+      ],
+      "failures": [
+        [
+          581,
+          "FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > subscribes to the current entity patches"
+        ],
+        [
+          582,
+          "FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > marks the view for check when the entity emits a patch"
+        ],
+        [
+          583,
+          "FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > debounces patch notifications"
+        ],
+        [
+          584,
+          "FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > audits patch notifications"
+        ],
+        [
+          585,
+          "FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > debounceTime 为 0 时 patch 在当前变更周期内同步触发变更检测"
+        ],
+        [
+          586,
+          "FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > auditTime 为 0 时 patch 在当前变更周期内同步触发变更检测"
+        ],
+        [
+          587,
+          "FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > debounceTime 为负 时 patch 在当前变更周期内同步触发变更检测"
+        ],
+        [
+          588,
+          "FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > auditTime 为负 时 patch 在当前变更周期内同步触发变更检测"
+        ],
+        [
+          589,
+          "FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > debounceTime 为 NaN 时 patch 在当前变更周期内同步触发变更检测"
+        ],
+        [
+          590,
+          "FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > auditTime 为 NaN 时 patch 在当前变更周期内同步触发变更检测"
+        ],
+        [
+          591,
+          "FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > debounceTime 为 Infinity 时 patch 在当前变更周期内同步触发变更检测"
+        ],
+        [
+          592,
+          "FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > auditTime 为 Infinity 时 patch 在当前变更周期内同步触发变更检测"
+        ],
+        [
+          593,
+          "FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > 时间窗为非正/非有限值时不挂入管道（RAN-011） > 两者同时为正值时串联生效，顺序为 debounceTime → auditTime"
+        ],
+        [
+          594,
+          "FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > forwards patch stream errors to Angular ErrorHandler"
+        ],
+        [
+          595,
+          "FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > unsubscribes when the entity input is cleared"
+        ],
+        [
+          596,
+          "FAIL  |rxdb-angular| src/__tests__/rxdb-change-detector.directive.spec.ts > RxDBEntityChangeDirective > unsubscribes when the host is destroyed"
+        ]
+      ]
+    },
+    "code-editor": {
+      "range": [625, 660],
+      "summary": [
+        [640, "Test Files  6 passed (6)"],
+        [641, "Tests  107 passed (107)"]
+      ],
+      "files": [
+        [633, "✓ |code-editor| src/__tests__/index.spec.ts (55 tests) 68ms"],
+        [634, "✓ |code-editor| src/__tests__/review-document-change-properties.spec.ts (8 tests) 21ms"],
+        [635, "✓ |code-editor| src/__tests__/accessibility.spec.ts (12 tests) 3ms"],
+        [636, "✓ |code-editor| src/__tests__/document-sync.spec.ts (15 tests) 4ms"],
+        [637, "✓ |code-editor| src/__tests__/language-resolution.spec.ts (11 tests) 3ms"],
+        [638, "✓ |code-editor| src/__tests__/language-error.spec.ts (6 tests) 3ms"]
+      ],
+      "failures": []
+    },
+    "rxdb-model": {
+      "range": [661, 789],
+      "summary": [
+        [725, "Test Files  48 passed (48)"],
+        [726, "Tests  993 passed (993)"]
+      ],
+      "files": [
+        [669, "✓ |rxdb-model| src/__tests__/entity-table/editors/key-value-editor.spec.ts (31 tests) 103ms"],
+        [670, "✓ |rxdb-model| src/__tests__/entity-table/editors/tags-editor.spec.ts (25 tests) 45ms"],
+        [671, "✓ |rxdb-model| src/__tests__/entity-table/editors/number-editor.spec.ts (38 tests) 38ms"],
+        [672, "✓ |rxdb-model| src/__tests__/entity-table/editors/relation-editor.spec.ts (28 tests) 44ms"],
+        [673, "✓ |rxdb-model| src/__tests__/entity-table/editors/enum-editor.spec.ts (26 tests) 36ms"],
+        [674, "✓ |rxdb-model| src/__tests__/entity-table/editors/json-editor.spec.ts (19 tests) 36ms"],
+        [678, "✓ |rxdb-model| src/__tests__/entity-value.utils.spec.ts (51 tests) 21ms"],
+        [679, "✓ |rxdb-model| src/__tests__/entity-table/editors/uuid-editor.spec.ts (20 tests) 25ms"],
+        [680, "✓ |rxdb-model| src/__tests__/entity-table/editors/multiselect-editor.spec.ts (9 tests) 21ms"],
+        [684, "✓ |rxdb-model| src/__tests__/entity-table/columns/column-utils.spec.ts (101 tests) 33ms"],
+        [685, "✓ |rxdb-model| src/__tests__/entity-table/editors/date-editor.spec.ts (16 tests) 32ms"],
+        [687, "✓ |rxdb-model| src/__tests__/entity-table/columns/build-editable-columns.spec.ts (25 tests) 31ms"],
+        [688, "✓ |rxdb-model| src/__tests__/entity-table/editors/global-overlay-editor.spec.ts (34 tests) 30ms"],
+        [689, "✓ |rxdb-model| src/__tests__/entity-table/editors/color-editor.spec.ts (12 tests) 19ms"],
+        [690, "✓ |rxdb-model| src/__tests__/entity-table/editors/text-format-editor.spec.ts (9 tests) 16ms"],
+        [691, "✓ |rxdb-model| src/__tests__/query-builder/utils/metadata-field-extractor.spec.ts (47 tests) 16ms"],
+        [692, "✓ |rxdb-model| src/__tests__/entity-table/vtable/table-clipboard.spec.ts (66 tests) 12ms"],
+        [693, "✓ |rxdb-model| src/__tests__/entity-table/vtable/table-theme.spec.ts (12 tests) 12ms"],
+        [694, "✓ |rxdb-model| src/__tests__/entity-table/editors/lucide-svg.spec.ts (12 tests) 7ms"],
+        [695, "✓ |rxdb-model| src/__tests__/query-builder/services/query-builder.service.spec.ts (27 tests) 9ms"],
+        [696, "✓ |rxdb-model| src/__tests__/query-builder/services/schema-parser.service.spec.ts (22 tests) 5ms"],
+        [697, "✓ |rxdb-model| src/__tests__/entity-table/vtable/table-keyboard.spec.ts (15 tests) 6ms"],
+        [698, "✓ |rxdb-model| src/__tests__/query-builder/services/validation.service.spec.ts (31 tests) 6ms"],
+        [699, "✓ |rxdb-model| src/__tests__/query-builder/utils/popover-position.spec.ts (7 tests) 5ms"],
+        [700, "✓ |rxdb-model| src/__tests__/entity-table/vtable/table-tooltip.spec.ts (14 tests) 7ms"],
+        [701, "✓ |rxdb-model| src/__tests__/entity-list/manual-order-list.spec.ts (20 tests) 6ms"],
+        [702, "✓ |rxdb-model| src/__tests__/query-builder/services/operator-registry.service.spec.ts (28 tests) 5ms"],
+        [703, "✓ |rxdb-model| src/__tests__/entity-table/vtable/table-operations.spec.ts (12 tests) 6ms"],
+        [704, "✓ |rxdb-model| src/__tests__/entity-table/vtable/vtable-compat.spec.ts (13 tests) 6ms"],
+        [705, "✓ |rxdb-model| src/__tests__/query-builder/utils/field-tree.spec.ts (30 tests) 5ms"],
+        [706, "✓ |rxdb-model| src/__tests__/query-builder/utils/structural-equal.spec.ts (17 tests) 4ms"],
+        [707, "✓ |rxdb-model| src/__tests__/entity-form/form.spec.ts (14 tests) 5ms"],
+        [708, "✓ |rxdb-model| src/__tests__/entity-table/vtable/table-clipboard-delete.spec.ts (13 tests) 5ms"],
+        [709, "✓ |rxdb-model| src/__tests__/query-builder/models/validation.interface.spec.ts (16 tests) 4ms"],
+        [710, "✓ |rxdb-model| src/__tests__/entity-detail/detail-tabs.spec.ts (6 tests) 3ms"],
+        [711, "✓ |rxdb-model| src/__tests__/query-builder/models/operator.interface.spec.ts (13 tests) 4ms"],
+        [712, "✓ |rxdb-model| src/__tests__/query-builder/services/query-converter.service.spec.ts (8 tests) 5ms"],
+        [713, "✓ |rxdb-model| src/__tests__/entity-table/vtable/table-factory.spec.ts (9 tests) 5ms"],
+        [714, "✓ |rxdb-model| src/__tests__/entity-field.utils.spec.ts (12 tests) 4ms"],
+        [715, "✓ |rxdb-model| src/__tests__/query-builder/utils/value-input.spec.ts (25 tests) 4ms"],
+        [716, "✓ |rxdb-model| src/__tests__/entity-table/vtable/table-row-move.spec.ts (7 tests) 4ms"],
+        [717, "✓ |rxdb-model| src/__tests__/query-builder/utils/date.spec.ts (13 tests) 3ms"],
+        [718, "✓ |rxdb-model| src/__tests__/entity-form/form-data.spec.ts (12 tests) 3ms"],
+        [719, "✓ |rxdb-model| src/__tests__/query-builder/utils/schema-factory.spec.ts (8 tests) 3ms"],
+        [720, "✓ |rxdb-model| src/__tests__/entity-table/editors/safe-list-editor.spec.ts (2 tests) 3ms"],
+        [721, "✓ |rxdb-model| src/__tests__/query-builder/models/query-builder-state.spec.ts (6 tests) 2ms"],
+        [722, "✓ |rxdb-model| src/__tests__/entity-capabilities.spec.ts (5 tests) 2ms"],
+        [723, "✓ |rxdb-model| src/__tests__/cn.spec.ts (7 tests) 2ms"]
+      ],
+      "failures": []
+    },
+    "rxdb-react": {
+      "range": [790, 845],
+      "summary": [
+        [825, "Test Files  14 passed (14)"],
+        [826, "Tests  204 passed (204)"]
+      ],
+      "files": [
+        [798, "✓ |rxdb-react| src/__tests__/rxdb-react.spec.tsx (18 tests) 612ms"],
+        [811, "✓ |rxdb-react| src/__tests__/tri-framework-sync-override.spec.ts (4 tests) 184ms"],
+        [812, "✓ |rxdb-react| src/__tests__/useInfiniteScroll.spec.ts (20 tests) 63ms"],
+        [813, "✓ |rxdb-react| src/__tests__/hooks.spec.ts (15 tests) 55ms"],
+        [814, "✓ |rxdb-react| src/__tests__/use-entity-change.spec.tsx (26 tests) 31ms"],
+        [815, "✓ |rxdb-react| src/__tests__/use-persisted-state.spec.ts (11 tests) 20ms"],
+        [816, "✓ |rxdb-react| src/__tests__/use-action.spec.ts (9 tests) 20ms"],
+        [817, "✓ |rxdb-react| src/__tests__/use-sync-state.spec.tsx (8 tests) 25ms"],
+        [818, "✓ |rxdb-react| src/__tests__/tri-framework-field-descriptor.spec.ts (64 tests) 12ms"],
+        [819, "✓ |rxdb-react| src/__tests__/query-options.spec.ts (16 tests) 6ms"],
+        [820, "✓ |rxdb-react| src/__tests__/tri-framework-generics.spec.ts (4 tests) 3ms"],
+        [821, "✓ |rxdb-react| src/__tests__/tri-framework-provider.spec.ts (5 tests) 3ms"],
+        [822, "✓ |rxdb-react| src/__tests__/public-types.spec.ts (3 tests) 3ms"],
+        [823, "✓ |rxdb-react| src/__tests__/package.spec.ts (1 test) 2ms"]
+      ],
+      "failures": []
+    },
+    "rxdb-vue": {
+      "range": [846, 909],
+      "summary": [
+        [887, "Test Files  12 passed (12)"],
+        [888, "Tests  226 passed (226)"]
+      ],
+      "files": [
+        [854, "✓ |rxdb-vue| src/__tests__/tri-framework-sync-override.spec.ts (4 tests) 182ms"],
+        [861, "✓ |rxdb-vue| src/__tests__/useInfiniteScroll.spec.ts (44 tests) 40ms"],
+        [862, "✓ |rxdb-vue| src/__tests__/rxdb-vue.spec.ts (17 tests) 25ms"],
+        [871, "✓ |rxdb-vue| src/__tests__/use-sync-state.spec.ts (7 tests) 21ms"],
+        [875, "✓ |rxdb-vue| src/__tests__/hooks.spec.ts (28 tests) 28ms"],
+        [876, "✓ |rxdb-vue| src/__tests__/use-entity-change.spec.ts (25 tests) 23ms"],
+        [877, "✓ |rxdb-vue| src/__tests__/tri-framework-field-descriptor.spec.ts (64 tests) 11ms"],
+        [881, "✓ |rxdb-vue| src/__tests__/use-persisted-state.spec.ts (12 tests) 17ms"],
+        [882, "✓ |rxdb-vue| src/__tests__/use-action.spec.ts (7 tests) 5ms"],
+        [883, "✓ |rxdb-vue| src/__tests__/tri-framework-generics.spec.ts (6 tests) 4ms"],
+        [884, "✓ |rxdb-vue| src/__tests__/public-types.spec.ts (7 tests) 4ms"],
+        [885, "✓ |rxdb-vue| src/__tests__/tri-framework-provider.spec.ts (5 tests) 3ms"]
+      ],
+      "failures": []
+    },
+    "code-editor-react": {
+      "range": [910, 948],
+      "summary": [
+        [928, "Test Files  3 passed (3)"],
+        [929, "Tests  34 passed (34)"]
+      ],
+      "files": [
+        [924, "✓ |code-editor-react| src/__tests__/review-language-sync-throw.spec.tsx (2 tests) 40ms"],
+        [925, "✓ |code-editor-react| src/__tests__/CodeEditor.spec.tsx (31 tests) 503ms"],
+        [926, "✓ |code-editor-react| src/__tests__/index.spec.ts (1 test) 2ms"]
+      ],
+      "failures": []
+    },
+    "rxdb-model-angular": {
+      "range": [949, 1330],
+      "summary": [
+        [1287, "Test Files  13 passed (13)"],
+        [1288, "Tests  295 passed (295)"]
+      ],
+      "files": [
+        [1127, "✓ |rxdb-model-angular| src/__tests__/entity-list/entity-list.real.spec.ts (51 tests) 1596ms"],
+        [
+          1128,
+          "✓ |rxdb-model-angular| src/__tests__/query-builder/query-rule/query-rule.real.spec.ts (34 tests) 560ms"
+        ],
+        [
+          1129,
+          "✓ |rxdb-model-angular| src/__tests__/entity-form/rxdb-entity-form-angular.real.spec.ts (35 tests) 180ms"
+        ],
+        [
+          1130,
+          "✓ |rxdb-model-angular| src/__tests__/query-builder/query-group/query-group.real.spec.ts (43 tests) 278ms"
+        ],
+        [1180, "✓ |rxdb-model-angular| src/__tests__/entity-detail/entity-detail.real.spec.ts (17 tests) 177ms"],
+        [
+          1181,
+          "✓ |rxdb-model-angular| src/__tests__/query-builder/query-builder/query-builder.real.spec.ts (14 tests) 80ms"
+        ],
+        [
+          1182,
+          "✓ |rxdb-model-angular| src/__tests__/query-builder/value-input/value-input.real.spec.ts (19 tests) 45ms"
+        ],
+        [
+          1183,
+          "✓ |rxdb-model-angular| src/__tests__/query-builder/popover-select/popover-select.real.spec.ts (23 tests) 68ms"
+        ],
+        [
+          1247,
+          "✓ |rxdb-model-angular| src/__tests__/entity-table/entity-table/entity-table.component.real.spec.ts (20 tests) 47ms"
+        ],
+        [
+          1248,
+          "✓ |rxdb-model-angular| src/__tests__/query-builder/tree-select/tree-select.real.spec.ts (15 tests) 171ms"
+        ],
+        [
+          1283,
+          "✓ |rxdb-model-angular| src/__tests__/entity-table/query-table/query-table.component.real.spec.ts (9 tests) 62ms"
+        ],
+        [1284, "✓ |rxdb-model-angular| src/__tests__/entity-dialog/entity-dialog.real.spec.ts (9 tests) 43ms"],
+        [
+          1285,
+          "✓ |rxdb-model-angular| src/__tests__/query-builder/operator-selector/operator-selector.component.spec.ts (6 tests) 37ms"
+        ]
+      ],
+      "failures": []
+    },
+    "rxdb-model-react": {
+      "range": [1331, 8324],
+      "summary": [
+        [8280, "Test Files  14 passed (14)"],
+        [8281, "Tests  270 passed (270)"]
+      ],
+      "files": [
+        [6826, "✓ |rxdb-model-react| src/__tests__/entity-list/entity-list.real.spec.tsx (46 tests) 4068ms"],
+        [6912, "✓ |rxdb-model-react| src/__tests__/query-builder/query-rule/query-rule.real.spec.tsx (23 tests) 288ms"],
+        [8171, "✓ |rxdb-model-react| src/__tests__/entity-detail/entity-detail.real.spec.tsx (14 tests) 319ms"],
+        [
+          8172,
+          "✓ |rxdb-model-react| src/__tests__/query-builder/query-group/query-group.real.spec.tsx (31 tests) 243ms"
+        ],
+        [
+          8173,
+          "✓ |rxdb-model-react| src/__tests__/query-builder/query-builder/query-builder.real.spec.tsx (14 tests) 157ms"
+        ],
+        [
+          8174,
+          "✓ |rxdb-model-react| src/__tests__/query-builder/subquery-builder/subquery-builder.real.spec.tsx (14 tests) 149ms"
+        ],
+        [8175, "✓ |rxdb-model-react| src/__tests__/entity-form/entity-form.real.spec.tsx (35 tests) 319ms"],
+        [
+          8176,
+          "✓ |rxdb-model-react| src/__tests__/query-builder/tree-select/tree-select.real.spec.tsx (13 tests) 115ms"
+        ],
+        [
+          8177,
+          "✓ |rxdb-model-react| src/__tests__/query-builder/popover-select/popover-select.real.spec.tsx (21 tests) 67ms"
+        ],
+        [
+          8181,
+          "✓ |rxdb-model-react| src/__tests__/query-builder/value-input/value-input.real.spec.tsx (16 tests) 53ms"
+        ],
+        [8244, "✓ |rxdb-model-react| src/__tests__/entity-table/entity-table.real.spec.tsx (20 tests) 51ms"],
+        [8245, "✓ |rxdb-model-react| src/__tests__/entity-dialog/entity-dialog.real.spec.tsx (10 tests) 51ms"],
+        [8277, "✓ |rxdb-model-react| src/__tests__/entity-table/query-table.real.spec.tsx (8 tests) 46ms"],
+        [
+          8278,
+          "✓ |rxdb-model-react| src/__tests__/query-builder/operator-selector/operator-selector.real.spec.tsx (5 tests) 47ms"
+        ]
+      ],
+      "failures": []
+    },
+    "rxdb-model-vue": {
+      "range": [8325, 8763],
+      "summary": [
+        [8715, "Test Files  14 passed (14)"],
+        [8716, "Tests  312 passed (312)"]
+      ],
+      "files": [
+        [8503, "✓ |rxdb-model-vue| src/__tests__/entity-list/entity-list.real.spec.ts (51 tests) 1409ms"],
+        [8504, "✓ |rxdb-model-vue| src/__tests__/query-builder/query-rule/query-rule.real.spec.ts (34 tests) 306ms"],
+        [8606, "✓ |rxdb-model-vue| src/__tests__/entity-detail/entity-detail.real.spec.ts (17 tests) 296ms"],
+        [8607, "✓ |rxdb-model-vue| src/__tests__/query-builder/query-group/query-group.real.spec.ts (43 tests) 205ms"],
+        [8608, "✓ |rxdb-model-vue| src/__tests__/entity-form/entity-form.real.spec.ts (35 tests) 133ms"],
+        [
+          8609,
+          "✓ |rxdb-model-vue| src/__tests__/query-builder/subquery-builder/subquery-builder.real.spec.ts (17 tests) 126ms"
+        ],
+        [
+          8610,
+          "✓ |rxdb-model-vue| src/__tests__/query-builder/query-builder/query-builder.real.spec.ts (14 tests) 97ms"
+        ],
+        [8611, "✓ |rxdb-model-vue| src/__tests__/query-builder/tree-select/tree-select.real.spec.ts (15 tests) 67ms"],
+        [8612, "✓ |rxdb-model-vue| src/__tests__/entity-dialog/entity-dialog.real.spec.ts (9 tests) 46ms"],
+        [
+          8613,
+          "✓ |rxdb-model-vue| src/__tests__/query-builder/popover-select/popover-select.real.spec.ts (23 tests) 54ms"
+        ],
+        [8648, "✓ |rxdb-model-vue| src/__tests__/entity-table/query-table.real.spec.ts (9 tests) 60ms"],
+        [8711, "✓ |rxdb-model-vue| src/__tests__/entity-table/entity-table.real.spec.ts (20 tests) 52ms"],
+        [8712, "✓ |rxdb-model-vue| src/__tests__/query-builder/value-input/value-input.real.spec.ts (19 tests) 45ms"],
+        [
+          8713,
+          "✓ |rxdb-model-vue| src/__tests__/query-builder/operator-selector/operator-selector.real.spec.ts (6 tests) 37ms"
+        ]
+      ],
+      "failures": []
+    },
+    "rxdb-plugin-replay-angular": {
+      "range": [8764, 8794],
+      "summary": [
+        [8775, "Test Files  2 passed (2)"],
+        [8776, "Tests  10 passed (10)"]
+      ],
+      "files": [
+        [8772, "✓ |rxdb-plugin-replay-angular| src/__tests__/replayer.component.spec.ts (9 tests) 44ms"],
+        [8773, "✓ |rxdb-plugin-replay-angular| src/__tests__/release-config.spec.ts (1 test) 0ms"]
+      ],
+      "failures": []
+    },
+    "rxdb-plugin-working-tree-angular": {
+      "range": [8795, 8823],
+      "summary": [
+        [8806, "Test Files  2 passed (2)"],
+        [8807, "Tests  48 passed (48)"]
+      ],
+      "files": [
+        [8803, "✓ |rxdb-plugin-working-tree-angular| src/__tests__/use-working-tree.spec.ts (45 tests) 44ms"],
+        [8804, "✓ |rxdb-plugin-working-tree-angular| src/__tests__/index.spec.ts (3 tests) 3ms"]
+      ],
+      "failures": []
+    },
+    "code-editor-angular": {
+      "range": [8824, 8878],
+      "summary": [
+        [8858, "Test Files  3 passed (3)"],
+        [8859, "Tests  76 passed (76)"]
+      ],
+      "files": [
+        [8838, "✓ |code-editor-angular| src/__tests__/review-language-sync-throw.spec.ts (2 tests) 47ms"],
+        [8855, "✓ |code-editor-angular| src/__tests__/code-editor.spec.ts (72 tests) 300ms"],
+        [8856, "✓ |code-editor-angular| src/__tests__/index.spec.ts (2 tests) 0ms"]
+      ],
+      "failures": []
+    },
+    "code-editor-vue": {
+      "range": [8879, 8922],
+      "summary": [
+        [8902, "Test Files  8 passed (8)"],
+        [8903, "Tests  68 passed (68)"]
+      ],
+      "files": [
+        [8893, "✓ |code-editor-vue| src/__tests__/review-language-sync-throw.spec.ts (2 tests) 46ms"],
+        [8894, "✓ |code-editor-vue| src/__tests__/CodeEditor.highlight.spec.ts (3 tests) 85ms"],
+        [8895, "✓ |code-editor-vue| src/__tests__/CodeEditor.reconfigure.spec.ts (16 tests) 93ms"],
+        [8896, "✓ |code-editor-vue| src/__tests__/CodeEditor.language.spec.ts (9 tests) 62ms"],
+        [8897, "✓ |code-editor-vue| src/__tests__/CodeEditor.document-sync.spec.ts (5 tests) 61ms"],
+        [8898, "✓ |code-editor-vue| src/__tests__/CodeEditor.a11y.spec.ts (6 tests) 51ms"],
+        [8899, "✓ |code-editor-vue| src/__tests__/CodeEditor.spec.ts (23 tests) 45ms"],
+        [8900, "✓ |code-editor-vue| src/__tests__/index.spec.ts (4 tests) 3ms"]
+      ],
+      "failures": []
+    },
+    "rxdb-plugin-working-tree-react": {
+      "range": [8923, 8951],
+      "summary": [
+        [8934, "Test Files  2 passed (2)"],
+        [8935, "Tests  49 passed (49)"]
+      ],
+      "files": [
+        [8931, "✓ |rxdb-plugin-working-tree-react| src/__tests__/use-working-tree.spec.tsx (46 tests) 48ms"],
+        [8932, "✓ |rxdb-plugin-working-tree-react| src/__tests__/index.spec.ts (3 tests) 2ms"]
+      ],
+      "failures": []
+    },
+    "rxdb-plugin-working-tree-vue": {
+      "range": [8952, 8988],
+      "summary": [
+        [8971, "Test Files  2 passed (2)"],
+        [8972, "Tests  48 passed (48)"]
+      ],
+      "files": [
+        [8968, "✓ |rxdb-plugin-working-tree-vue| src/__tests__/use-working-tree.spec.ts (45 tests) 37ms"],
+        [8969, "✓ |rxdb-plugin-working-tree-vue| src/__tests__/index.spec.ts (3 tests) 2ms"]
+      ],
+      "failures": []
+    },
+    "rxdb-plugin-search-vue": {
+      "range": [8989, 9057],
+      "summary": [
+        [9038, "Test Files  4 passed (4)"],
+        [9039, "Tests  28 passed (28)"]
+      ],
+      "files": [
+        [8997, "✓ |rxdb-plugin-search-vue| src/__tests__/review-options-mutation.spec.ts (3 tests) 6ms"],
+        [9034, "✓ |rxdb-plugin-search-vue| src/__tests__/use-search.spec.ts (21 tests) 23ms"],
+        [9035, "✓ |rxdb-plugin-search-vue| src/__tests__/index.spec.ts (3 tests) 2ms"],
+        [9036, "✓ |rxdb-plugin-search-vue| src/__tests__/package-exports.spec.ts (1 test) 2ms"]
+      ],
+      "failures": []
+    },
+    "rxdb-plugin-search-angular": {
+      "range": [9058, 9087],
+      "summary": [
+        [9070, "Test Files  3 passed (3)"],
+        [9071, "Tests  22 passed (22)"]
+      ],
+      "files": [
+        [9066, "✓ |rxdb-plugin-search-angular| src/__tests__/inject-search.spec.ts (18 tests) 142ms"],
+        [9067, "✓ |rxdb-plugin-search-angular| src/__tests__/release-config.spec.ts (1 test) 3ms"],
+        [9068, "✓ |rxdb-plugin-search-angular| src/__tests__/index.spec.ts (3 tests) 3ms"]
+      ],
+      "failures": []
+    },
+    "rxdb-plugin-search-react": {
+      "range": [9088, 9119],
+      "summary": [
+        [9100, "Test Files  3 passed (3)"],
+        [9101, "Tests  24 passed (24)"]
+      ],
+      "files": [
+        [9096, "✓ |rxdb-plugin-search-react| src/__tests__/use-search.spec.ts (20 tests) 29ms"],
+        [9097, "✓ |rxdb-plugin-search-react| src/__tests__/index.spec.ts (3 tests) 2ms"],
+        [9098, "✓ |rxdb-plugin-search-react| src/__tests__/readme-consumer.spec.tsx (1 test) 2ms"]
+      ],
+      "failures": []
+    },
+    "rxdb-plugin-tree-angular": {
+      "range": [9120, 9161],
+      "summary": [
+        [9144, "Test Files  3 passed (3)"],
+        [9145, "Tests  7 passed (7)"]
+      ],
+      "files": [
+        [9140, "✓ |rxdb-plugin-tree-angular| src/__tests__/use-tree.spec.ts (4 tests) 18ms"],
+        [9141, "✓ |rxdb-plugin-tree-angular| src/__tests__/index.spec.ts (1 test) 0ms"],
+        [9142, "✓ |rxdb-plugin-tree-angular| src/__tests__/tri-framework-generics.spec.ts (2 tests) 0ms"]
+      ],
+      "failures": []
+    },
+    "rxdb-plugin-tree-vue": {
+      "range": [9162, 9191],
+      "summary": [
+        [9174, "Test Files  3 passed (3)"],
+        [9175, "Tests  5 passed (5)"]
+      ],
+      "files": [
+        [9170, "✓ |rxdb-plugin-tree-vue| src/__tests__/use-tree.spec.ts (2 tests) 7ms"],
+        [9171, "✓ |rxdb-plugin-tree-vue| src/__tests__/index.spec.ts (1 test) 2ms"],
+        [9172, "✓ |rxdb-plugin-tree-vue| src/__tests__/tri-framework-generics.spec.ts (2 tests) 2ms"]
+      ],
+      "failures": []
+    },
+    "rxdb-plugin-tree-react": {
+      "range": [9192, 9221],
+      "summary": [
+        [9204, "Test Files  3 passed (3)"],
+        [9205, "Tests  6 passed (6)"]
+      ],
+      "files": [
+        [9200, "✓ |rxdb-plugin-tree-react| src/__tests__/use-tree.spec.ts (3 tests) 21ms"],
+        [9201, "✓ |rxdb-plugin-tree-react| src/__tests__/index.spec.ts (1 test) 2ms"],
+        [9202, "✓ |rxdb-plugin-tree-react| src/__tests__/tri-framework-generics.spec.ts (2 tests) 2ms"]
+      ],
+      "failures": []
+    },
+    "rxdb-plugin-replay-vue": {
+      "range": [9222, 9252],
+      "summary": [
+        [9232, "Test Files  1 passed (1)"],
+        [9233, "Tests  10 passed (10)"]
+      ],
+      "files": [[9230, "✓ |rxdb-plugin-replay-vue| src/__tests__/replayer.spec.ts (10 tests) 19ms"]],
+      "failures": []
+    },
+    "rxdb-plugin-replay-react": {
+      "range": [9253, 9298],
+      "summary": [
+        [9263, "Test Files  1 passed (1)"],
+        [9264, "Tests  10 passed (10)"]
+      ],
+      "files": [[9261, "✓ |rxdb-plugin-replay-react| src/__tests__/replayer.spec.tsx (10 tests) 21ms"]],
+      "failures": []
+    }
+  },
+  "objects": {
+    "rxdb-angular": {
+      "project": "rxdb-angular",
+      "coverage": null,
+      "policyFloor": 90,
+      "policyPass": false,
+      "summaryPath": null,
+      "junit": {
+        "tests": "265",
+        "failures": "16",
+        "errors": "0",
+        "skipped": null
+      },
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": ["packages/rxdb-angular/LICENSE", "packages/rxdb-angular/README.md"],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-react": {
+      "project": "rxdb-react",
+      "coverage": {
+        "lines": 100,
+        "statements": 99.35,
+        "functions": 98.93,
+        "branches": 96.29
+      },
+      "policyFloor": 90,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-react/coverage-summary.json",
+      "junit": {},
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": ["packages/rxdb-react/LICENSE", "packages/rxdb-react/README.md"],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-vue": {
+      "project": "rxdb-vue",
+      "coverage": {
+        "lines": 98.78,
+        "statements": 98.6,
+        "functions": 99,
+        "branches": 93.28
+      },
+      "policyFloor": 90,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-vue/coverage-summary.json",
+      "junit": {
+        "tests": "226",
+        "failures": "0",
+        "errors": "0",
+        "skipped": null
+      },
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": ["packages/rxdb-vue/LICENSE", "packages/rxdb-vue/README.md"],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-model": {
+      "project": "rxdb-model",
+      "coverage": {
+        "lines": 95.71,
+        "statements": 94.31,
+        "functions": 94.36,
+        "branches": 86.73
+      },
+      "policyFloor": 80,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-model/coverage-summary.json",
+      "junit": {
+        "tests": "993",
+        "failures": "0",
+        "errors": "0",
+        "skipped": null
+      },
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": ["packages/rxdb-model/README.md"],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-model-angular": {
+      "project": "rxdb-model-angular",
+      "coverage": {
+        "lines": 94.56,
+        "statements": 92.78,
+        "functions": 90.79,
+        "branches": 84.63
+      },
+      "policyFloor": 80,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-model-angular/coverage-summary.json",
+      "junit": {
+        "tests": "295",
+        "failures": "0",
+        "errors": "0",
+        "skipped": null
+      },
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": [
+        "packages/rxdb-model-angular/README.md",
+        "packages/rxdb-model-angular/tailwind.css"
+      ],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-model-react": {
+      "project": "rxdb-model-react",
+      "coverage": {
+        "lines": 94.8,
+        "statements": 92.17,
+        "functions": 89.57,
+        "branches": 83.81
+      },
+      "policyFloor": 80,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-model-react/coverage-summary.json",
+      "junit": {},
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": [
+        "packages/rxdb-model-react/LICENSE",
+        "packages/rxdb-model-react/README.md",
+        "packages/rxdb-model-react/src/dialog/dialog.css",
+        "packages/rxdb-model-react/src/entity-detail/entity-detail.css",
+        "packages/rxdb-model-react/src/entity-dialog/entity-dialog.css",
+        "packages/rxdb-model-react/src/entity-list/entity-list.css",
+        "packages/rxdb-model-react/src/entity-table/entity-table.css",
+        "packages/rxdb-model-react/src/entity-table/query-table.css",
+        "packages/rxdb-model-react/src/query-builder/query-group/query-group.css",
+        "packages/rxdb-model-react/src/query-builder/subquery-builder/subquery-builder.css",
+        "packages/rxdb-model-react/tailwind.css"
+      ],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-model-vue": {
+      "project": "rxdb-model-vue",
+      "coverage": {
+        "lines": 91.83,
+        "statements": 90.34,
+        "functions": 83.1,
+        "branches": 85.58
+      },
+      "policyFloor": 80,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-model-vue/coverage-summary.json",
+      "junit": {},
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": [
+        "packages/rxdb-model-vue/LICENSE",
+        "packages/rxdb-model-vue/README.md",
+        "packages/rxdb-model-vue/src/entity-detail/EntityDetail.vue",
+        "packages/rxdb-model-vue/src/entity-dialog/DialogPortal.vue",
+        "packages/rxdb-model-vue/src/entity-dialog/EntityDialog.vue",
+        "packages/rxdb-model-vue/src/entity-form/EntityForm.vue",
+        "packages/rxdb-model-vue/src/entity-list/EntityList.vue",
+        "packages/rxdb-model-vue/src/entity-table/EntityTable.vue",
+        "packages/rxdb-model-vue/src/entity-table/QueryTable.vue",
+        "packages/rxdb-model-vue/src/query-builder/field-selector/FieldSelector.vue",
+        "packages/rxdb-model-vue/src/query-builder/operator-selector/OperatorSelector.vue",
+        "packages/rxdb-model-vue/src/query-builder/popover-select/PopoverSelect.vue",
+        "packages/rxdb-model-vue/src/query-builder/query-builder/QueryBuilder.vue",
+        "packages/rxdb-model-vue/src/query-builder/query-group/QueryGroup.vue",
+        "packages/rxdb-model-vue/src/query-builder/query-rule/QueryRule.vue",
+        "packages/rxdb-model-vue/src/query-builder/subquery-builder/SubqueryBuilder.vue",
+        "packages/rxdb-model-vue/src/query-builder/tree-select/TreeSelect.vue",
+        "packages/rxdb-model-vue/src/query-builder/value-input/ValueInput.vue",
+        "packages/rxdb-model-vue/tailwind.css"
+      ],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-plugin-replay-angular": {
+      "project": "rxdb-plugin-replay-angular",
+      "coverage": {
+        "lines": 100,
+        "statements": 97.72,
+        "functions": 100,
+        "branches": 93.75
+      },
+      "policyFloor": 80,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-replay-angular/coverage-summary.json",
+      "junit": {},
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": [
+        "packages/rxdb-plugin-replay-angular/LICENSE",
+        "packages/rxdb-plugin-replay-angular/README.md"
+      ],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-plugin-replay-react": {
+      "project": "rxdb-plugin-replay-react",
+      "coverage": {
+        "lines": 100,
+        "statements": 96,
+        "functions": 100,
+        "branches": 87.5
+      },
+      "policyFloor": 80,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-replay-react/coverage-summary.json",
+      "junit": {},
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": [
+        "packages/rxdb-plugin-replay-react/LICENSE",
+        "packages/rxdb-plugin-replay-react/README.md"
+      ],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-plugin-replay-vue": {
+      "project": "rxdb-plugin-replay-vue",
+      "coverage": {
+        "lines": 100,
+        "statements": 95.23,
+        "functions": 100,
+        "branches": 87.5
+      },
+      "policyFloor": 80,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-replay-vue/coverage-summary.json",
+      "junit": {
+        "tests": "10",
+        "failures": "0",
+        "errors": "0",
+        "skipped": null
+      },
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": [
+        "packages/rxdb-plugin-replay-vue/LICENSE",
+        "packages/rxdb-plugin-replay-vue/README.md"
+      ],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-plugin-tree-angular": {
+      "project": "rxdb-plugin-tree-angular",
+      "coverage": {
+        "lines": 100,
+        "statements": 100,
+        "functions": 100,
+        "branches": 100
+      },
+      "policyFloor": 80,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-tree-angular/coverage-summary.json",
+      "junit": {},
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": [
+        "packages/rxdb-plugin-tree-angular/LICENSE",
+        "packages/rxdb-plugin-tree-angular/README.md"
+      ],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-plugin-tree-react": {
+      "project": "rxdb-plugin-tree-react",
+      "coverage": {
+        "lines": 100,
+        "statements": 100,
+        "functions": 100,
+        "branches": 100
+      },
+      "policyFloor": 80,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-tree-react/coverage-summary.json",
+      "junit": {},
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": [
+        "packages/rxdb-plugin-tree-react/LICENSE",
+        "packages/rxdb-plugin-tree-react/README.md"
+      ],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-plugin-tree-vue": {
+      "project": "rxdb-plugin-tree-vue",
+      "coverage": {
+        "lines": 100,
+        "statements": 100,
+        "functions": 100,
+        "branches": 100
+      },
+      "policyFloor": 80,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-tree-vue/coverage-summary.json",
+      "junit": {},
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": [
+        "packages/rxdb-plugin-tree-vue/LICENSE",
+        "packages/rxdb-plugin-tree-vue/README.md"
+      ],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-plugin-working-tree-angular": {
+      "project": "rxdb-plugin-working-tree-angular",
+      "coverage": {
+        "lines": 100,
+        "statements": 100,
+        "functions": 100,
+        "branches": 100
+      },
+      "policyFloor": 80,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-working-tree-angular/coverage-summary.json",
+      "junit": {},
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": [
+        "packages/rxdb-plugin-working-tree-angular/LICENSE",
+        "packages/rxdb-plugin-working-tree-angular/README.md"
+      ],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-plugin-working-tree-react": {
+      "project": "rxdb-plugin-working-tree-react",
+      "coverage": {
+        "lines": 100,
+        "statements": 100,
+        "functions": 100,
+        "branches": 100
+      },
+      "policyFloor": 80,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-working-tree-react/coverage-summary.json",
+      "junit": {},
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": [
+        "packages/rxdb-plugin-working-tree-react/LICENSE",
+        "packages/rxdb-plugin-working-tree-react/README.md"
+      ],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-plugin-working-tree-vue": {
+      "project": "rxdb-plugin-working-tree-vue",
+      "coverage": {
+        "lines": 100,
+        "statements": 100,
+        "functions": 100,
+        "branches": 100
+      },
+      "policyFloor": 80,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-working-tree-vue/coverage-summary.json",
+      "junit": {},
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": [
+        "packages/rxdb-plugin-working-tree-vue/LICENSE",
+        "packages/rxdb-plugin-working-tree-vue/README.md"
+      ],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-plugin-search-angular": {
+      "project": "rxdb-plugin-search-angular",
+      "coverage": {
+        "lines": 100,
+        "statements": 100,
+        "functions": 100,
+        "branches": 100
+      },
+      "policyFloor": 80,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-search-angular/coverage-summary.json",
+      "junit": {},
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": [
+        "packages/rxdb-plugin-search-angular/LICENSE",
+        "packages/rxdb-plugin-search-angular/README.md"
+      ],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-plugin-search-react": {
+      "project": "rxdb-plugin-search-react",
+      "coverage": {
+        "lines": 100,
+        "statements": 96.66,
+        "functions": 100,
+        "branches": 81.81
+      },
+      "policyFloor": 80,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-search-react/coverage-summary.json",
+      "junit": {},
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": [
+        "packages/rxdb-plugin-search-react/LICENSE",
+        "packages/rxdb-plugin-search-react/README.md"
+      ],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    },
+    "rxdb-plugin-search-vue": {
+      "project": "rxdb-plugin-search-vue",
+      "coverage": {
+        "lines": 100,
+        "statements": 98.57,
+        "functions": 100,
+        "branches": 96.42
+      },
+      "policyFloor": 80,
+      "policyPass": true,
+      "summaryPath": "requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage/rxdb-plugin-search-vue/coverage-summary.json",
+      "junit": {},
+      "inputMatchesCurrent": true,
+      "changedInputs": [],
+      "controlledFilesNotInMeasurementInputs": [
+        "packages/rxdb-plugin-search-vue/LICENSE",
+        "packages/rxdb-plugin-search-vue/README.md"
+      ],
+      "testClaim": "需主日志按项目读取；run-many总 exit 1 不能传递为每包失败或通过"
+    }
+  },
+  "pack": {
+    "path": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/packed-consumer-entry-check.json",
+    "requested": 23,
+    "entriesPassed": 23,
+    "rootResolutionExitCode": 0,
+    "declarationCompilationExecuted": false,
+    "runtimeImportExecuted": false,
+    "source": "real pnpm tarballs from resolved publishedPackageRoot, independent extracted consumer without workspace paths/symlinks"
+  },
+  "status": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/framework-editor-coverage-status.json",
+  "typecheck": {
+    "status": "/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck-status.json",
+    "exitCode": 0,
+    "inputDrift": [],
+    "scope": "69 objects plus 51 dependency tasks, baseline only"
+  }
+}

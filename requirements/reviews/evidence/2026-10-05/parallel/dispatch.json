@@ -1,0 +1,133 @@
+{
+  "baselineHead": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+  "clientDate": "2026-10-05",
+  "groups": {
+    "core": {
+      "objects": ["rxdb", "utils", "rxdb-test", "rxdb-client-generator", "rxdb-plugin-history"],
+      "objectCount": 5,
+      "trackedFiles": 832,
+      "status": "dispatched",
+      "scope": "requirements/reviews/evidence/2026-10-05/parallel/core/scope.json",
+      "agentNickname": "Hilbert",
+      "agentId": "01a10992-7c4a-7153-a7cc-a9e740fac5d8"
+    },
+    "local-adapters": {
+      "objects": [
+        "rxdb-adapter-sqlite-core",
+        "rxdb-adapter-pglite",
+        "rxdb-adapter-encrypted",
+        "rxdb-adapter-sqlite",
+        "rxdb-adapter-sqlite-wasm",
+        "rxdb-adapter-wa-sqlite",
+        "rxdb-adapter-sqliteai",
+        "rxdb-adapter-miniprogram"
+      ],
+      "objectCount": 8,
+      "trackedFiles": 702,
+      "status": "dispatched",
+      "scope": "requirements/reviews/evidence/2026-10-05/parallel/local-adapters/scope.json",
+      "agentNickname": "Banach",
+      "agentId": "01a10992-e8fb-7651-8dca-f59b3a62d6b8"
+    },
+    "integrations": {
+      "objects": [
+        "rxdb-adapter-electron",
+        "rxdb-adapter-tauri",
+        "rxdb-adapter-desktop",
+        "rxdb-adapter-http",
+        "rxdb-adapter-supabase",
+        "dev-rxdb-electron",
+        "dev-rxdb-electron-e2e",
+        "dev-rxdb-tauri",
+        "dev-rxdb-tauri-e2e",
+        "dev-rxdb-http",
+        "dev-rxdb-http-e2e",
+        "dev-rxdb-http-server",
+        "dev-rxdb-supabase",
+        "dev-rxdb-supabase-e2e"
+      ],
+      "objectCount": 14,
+      "trackedFiles": 650,
+      "status": "dispatched",
+      "scope": "requirements/reviews/evidence/2026-10-05/parallel/integrations/scope.json",
+      "agentNickname": "Franklin",
+      "agentId": "01a10993-504b-7be0-86ff-e7d52b6ac31b"
+    },
+    "plugins": {
+      "objects": [
+        "rxdb-plugin-graph",
+        "rxdb-plugin-querycache",
+        "rxdb-plugin-sync",
+        "rxdb-plugin-tree",
+        "rxdb-plugin-working-tree",
+        "rxdb-plugin-workspace",
+        "rxdb-plugin-storage",
+        "rxdb-plugin-replay",
+        "rxdb-plugin-search"
+      ],
+      "objectCount": 9,
+      "trackedFiles": 554,
+      "status": "dispatched",
+      "scope": "requirements/reviews/evidence/2026-10-05/parallel/plugins/scope.json",
+      "agentNickname": "Boyle",
+      "agentId": "01a10993-aea3-7403-adb7-16931f710dde"
+    },
+    "frameworks": {
+      "objects": [
+        "rxdb-angular",
+        "rxdb-react",
+        "rxdb-vue",
+        "rxdb-model",
+        "rxdb-model-angular",
+        "rxdb-model-react",
+        "rxdb-model-vue",
+        "rxdb-plugin-replay-angular",
+        "rxdb-plugin-replay-react",
+        "rxdb-plugin-replay-vue",
+        "rxdb-plugin-tree-angular",
+        "rxdb-plugin-tree-react",
+        "rxdb-plugin-tree-vue",
+        "rxdb-plugin-working-tree-angular",
+        "rxdb-plugin-working-tree-react",
+        "rxdb-plugin-working-tree-vue",
+        "rxdb-plugin-search-angular",
+        "rxdb-plugin-search-react",
+        "rxdb-plugin-search-vue"
+      ],
+      "objectCount": 19,
+      "trackedFiles": 569,
+      "status": "dispatched",
+      "scope": "requirements/reviews/evidence/2026-10-05/parallel/frameworks/scope.json",
+      "agentNickname": "Bernoulli",
+      "agentId": "01a10994-10ff-7f12-be19-0d940f8b7293"
+    },
+    "frontends": {
+      "objects": [
+        "code-editor",
+        "code-editor-angular",
+        "code-editor-react",
+        "code-editor-vue",
+        "rxdb-devtools",
+        "dev-rxdb-angular",
+        "dev-rxdb-angular-e2e",
+        "dev-rxdb-react",
+        "dev-rxdb-react-e2e",
+        "dev-rxdb-vue",
+        "dev-rxdb-vue-e2e",
+        "dev-rxdb-miniprogram",
+        "dev-rxdb-miniprogram-e2e",
+        "rxdb-devtools-extension",
+        "rxdb-devtools-extension-e2e"
+      ],
+      "objectCount": 15,
+      "trackedFiles": 939,
+      "status": "dispatched",
+      "scope": "requirements/reviews/evidence/2026-10-05/parallel/frontends/scope.json",
+      "agentNickname": "Descartes",
+      "agentId": "01a10994-7023-7bb0-a95d-d58f24061ead"
+    }
+  },
+  "initialGitStatus": " M packages/rxdb-model-angular/package.json\n?? requirements/reviews/evidence/2026-10-05/parallel/\n?? scripts/audit/model-package-exports.spec.mjs\n",
+  "objectCount": 70,
+  "validationPolicy": "Agents read and edit disjoint review docs / new regression specs. Main serializes memory-heavy Nx targets and real backend tests. No business changes, index operations or automatic commits."
+}

@@ -59,3 +59,29 @@ execution: partial
 沿 upload→rollback snapshot→metadata create/update→discard，以及 delete 的 metadata 删除→文件删除失败补回，阅读 storage.ops / service / rename-copy、路径校验与锁。六个既有文件共 **137 passed**：[日志](../../evidence/2026-10-04/storage-compensation-controls.txt)。这包括文件/metadata 写失败、显式重试、同路径并发、URL 清理、配额与名字编码的局部对照，不覆盖上述新场景，也不等于双存储已经原子。
 
 C1/C2/C3 仍部分执行。浏览器完整场景、其它原生卷/OS、Tauri/Rust 与 GUI/IPC、rename/copy 的别名并发待补证。未修改业务实现。
+
+## 2026-10-05：plugins 并行源码深审与逐 C 交付
+
+**执行状态：partial；评审完成不等于无缺陷，但必要证据缺失不能核销。** 本组不执行 Nx build/test/e2e/coverage/server，动态证据来自主控串行队列。下面覆盖原计划全部 C 编号，不修改原验收口径。
+
+本轮只读了实际登记的源码/测试行区间与若干测试入口；不是全受控文件已经读完。九包 scope 共 **554** 个文件；本组读取范围见 `requirements/reviews/evidence/2026-10-05/parallel/plugins/file-inspection.json`，指纹盘点与阅读分开。当前源判断优先于已删除 RV 的历史状态。
+
+当前 Node：**267 passed /0 failed /0 skip（不含晚到新 probe）**。日志：`requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage.txt`；报告按 `rxdb-plugin-storage` 分目录保存。主控 69 项 strict lint/typecheck 已过，但不是全部 spec 类型或后来修订/晚到 probe 已过的证明。
+
+当前 fresh **Node** 四指标（S/B/F/L）：**93.4% / 86.23% / 95.59% / 94.69%**。来源：`requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-plugin-storage/coverage-summary.json`。tree 的 100% 只涉及 Node 面；browser 合并/宿主 skip 另审。覆盖率达标不自动核销 C。
+
+### 实际逐 C 核销矩阵
+
+| C   | 核销状态                     | 当前真实源码锚点（相对本包 src；注明联审者除外）                                                         | 不变量、正向与反证                                                                                                                                                                                     | 已有/本轮测试证据                                                                                                                               | 必要缺口或核销边界                                                                                                 |
+| --- | ---------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| C1  | partial / 待证               | storage.ops.ts:123–164、254–321、385–440；storage.rename-copy.ts:93–123                                  | upload/fetch 先快照文件，再写文件/metadata，失败补偿原文件；delete 先删 metadata，文件失败重建 metadata；rename journal 按已完成阶段补偿。两存储不是同事务，补偿失败必须可见。                         | 既有 storage.service/desktop-failure/backend-parity 回归；当前旧测量面 267/267。历史137只作历史，不替代当前。                                   | 取消/重复请求、rename/copy 全部补偿失败窗口、真实 quota/crash 的矩阵未完整证明；不能声称跨存储原子。               |
+| C2  | partial / 待证               | paths.ts:20–52、60–94、121–158；path-lock.ts:82–134、137–169；storage.ops.ts:338–381                     | 拒绝 ..、反斜线、NUL、内部空段，逻辑目录规范化；锁去重排序并 gate exclusive，错误 tail 仍可释放；大小写/NFC alias 单独保存避免覆盖。跨标签锁有 backend/web-lock 条件边界。                             | path-lock/physical-name/review-desktop-path-alias、backend parity 入口；当前 Node 全套通过。                                                    | 不同 OS/卷大小写与 Unicode alias、递归 copy/rename 同源/同目标并发的全真实宿主矩阵未完成，历史 RV-044 不重复造号。 |
+| C3  | partial / 已分流候选、仍待证 | storage.ops.ts:176–208；storage.service.ts:329–346、648–685；object-url.ts:43–68                         | 流写失败 cancel/abort；destroy 等 activeWrites 并 clear URL，但 preview/createObjectUrl 的只读 await 完成后不再核验 lifecycle。已发现销毁后重新登记 URL 的候选，先与历史 RV-043 去重，不能宣称已修复。 | 当前旧测量面267/267不含新晚到 probe；新增 review-parallel-preview-lifecycle.spec.ts 两负向＋正常回收正向，未运行。                              | 候选待主控 late probe/去重；QuotaExceeded、部分流/reader句柄、零字节/超大文件与卸载全验收仍不足。                  |
+| C4  | partial / 待证               | filesystem/opfs-filesystem.ts:224–240；desktop.ts:157–238；plugin.ts:44–77                               | OPFS 错误 kind 不隐藏；desktop response kind 有协议边界；service 的 root/filesystem 注入与 scoped 销毁分开，不能把内存 handle 对照称 Electron/Tauri 文件宿主实测。                                     | storage-backend-parity.suite.ts、backend-parity.spec.ts、desktop-filesystem.spec.ts、storage.browser.spec.ts；当前 Node 267/267，browser 后跑。 | 真实 OPFS 重开/平台拒绝以及 Electron/Tauri 重启持久化、IPC/GUI 对称证据尚缺。                                      |
+| C5  | partial / 待证               | devtools-desktop-snapshot.ts:104–138；devtools-desktop-filesystem.ts:159–220；storage.service.ts:639–640 | snapshot 在 runExclusive barrier 下采 metadata/file、带 changeEpoch，AbortSignal 明确短路；desktop 按 sessionId/path/chunk 上限发送，writer有 commit/discard。备份 DB 与文件的边界分开。               | database-backup-scope、devtools-desktop-snapshot、devtools-desktop-filesystem 入口；当前 Node 全套通过。                                        | provider 权限、批操作真实失败/越界与敏感文件默认不可暴露的应用配置/宿主联审未全面完成。                            |
+
+### 本组改动与复验责任
+
+仅改本对象计划/执行记录，以及本组 evidence；没有修改业务、依赖或已有测试，没有 Git 暂存/提交/重置，没有嵌套 agent。新增独立 probes 只在 search/replay/storage 自己的 sourceRoot，后续执行均归主控。
+
+最小请求保存在 `requirements/reviews/evidence/2026-10-05/parallel/plugins/validation-requests.json`；候选在同目录 `findings.pending.md`。RV-060/061 不重复登记；RV-059 是其它对象公开接缝，不在本组扩 scope。

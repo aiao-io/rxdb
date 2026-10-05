@@ -1,0 +1,309 @@
+CWD: /Users/jimmy/Documents/aiao/rxdb/packages/rxdb-model-react
+COMMAND: pnpm pack --json --out /var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-review-pack-qunrcwin/rxdb-model-react.tgz
+{
+  "name": "@aiao/rxdb-model-react",
+  "version": "0.0.26",
+  "filename": "/var/folders/1s/1sk5kvms7jj4z6glj40__v300000gn/T/rxdb-review-pack-qunrcwin/rxdb-model-react.tgz",
+  "files": [
+    {
+      "path": "dist/__tests__/testing/fake-vtable-editors.d.ts"
+    },
+    {
+      "path": "dist/__tests__/testing/fake-vtable-editors.d.ts.map"
+    },
+    {
+      "path": "dist/__tests__/testing/fake-vtable.d.ts"
+    },
+    {
+      "path": "dist/__tests__/testing/fake-vtable.d.ts.map"
+    },
+    {
+      "path": "dist/__tests__/testing/in-memory-rxdb.d.ts"
+    },
+    {
+      "path": "dist/__tests__/testing/in-memory-rxdb.d.ts.map"
+    },
+    {
+      "path": "dist/__tests__/testing/setup.d.ts"
+    },
+    {
+      "path": "dist/__tests__/testing/setup.d.ts.map"
+    },
+    {
+      "path": "dist/dialog/dialog.d.ts"
+    },
+    {
+      "path": "dist/dialog/dialog.d.ts.map"
+    },
+    {
+      "path": "dist/entity-detail/entity-detail.d.ts"
+    },
+    {
+      "path": "dist/entity-detail/entity-detail.d.ts.map"
+    },
+    {
+      "path": "dist/entity-detail/index.d.ts"
+    },
+    {
+      "path": "dist/entity-detail/index.d.ts.map"
+    },
+    {
+      "path": "dist/entity-dialog/entity-dialog.d.ts"
+    },
+    {
+      "path": "dist/entity-dialog/entity-dialog.d.ts.map"
+    },
+    {
+      "path": "dist/entity-dialog/index.d.ts"
+    },
+    {
+      "path": "dist/entity-dialog/index.d.ts.map"
+    },
+    {
+      "path": "dist/entity-form/entity-form.d.ts"
+    },
+    {
+      "path": "dist/entity-form/entity-form.d.ts.map"
+    },
+    {
+      "path": "dist/entity-form/index.d.ts"
+    },
+    {
+      "path": "dist/entity-form/index.d.ts.map"
+    },
+    {
+      "path": "dist/entity-list/entity-list.d.ts"
+    },
+    {
+      "path": "dist/entity-list/entity-list.d.ts.map"
+    },
+    {
+      "path": "dist/entity-table/config.d.ts"
+    },
+    {
+      "path": "dist/entity-table/config.d.ts.map"
+    },
+    {
+      "path": "dist/entity-table/entity-table.d.ts"
+    },
+    {
+      "path": "dist/entity-table/entity-table.d.ts.map"
+    },
+    {
+      "path": "dist/entity-table/index.d.ts"
+    },
+    {
+      "path": "dist/entity-table/index.d.ts.map"
+    },
+    {
+      "path": "dist/entity-table/query-table.d.ts"
+    },
+    {
+      "path": "dist/entity-table/query-table.d.ts.map"
+    },
+    {
+      "path": "dist/index.css"
+    },
+    {
+      "path": "dist/index.d.ts"
+    },
+    {
+      "path": "dist/index.d.ts.map"
+    },
+    {
+      "path": "dist/index.js"
+    },
+    {
+      "path": "dist/query-builder/field-selector/field-selector.d.ts"
+    },
+    {
+      "path": "dist/query-builder/field-selector/field-selector.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/index.d.ts"
+    },
+    {
+      "path": "dist/query-builder/index.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/operator-selector/operator-selector.d.ts"
+    },
+    {
+      "path": "dist/query-builder/operator-selector/operator-selector.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/popover-select/popover-select.d.ts"
+    },
+    {
+      "path": "dist/query-builder/popover-select/popover-select.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/query-builder/query-builder.d.ts"
+    },
+    {
+      "path": "dist/query-builder/query-builder/query-builder.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/query-group/query-group.d.ts"
+    },
+    {
+      "path": "dist/query-builder/query-group/query-group.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/query-rule/query-rule.d.ts"
+    },
+    {
+      "path": "dist/query-builder/query-rule/query-rule.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/subquery-builder/subquery-builder.d.ts"
+    },
+    {
+      "path": "dist/query-builder/subquery-builder/subquery-builder.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/theme/default-query-builder-theme.d.ts"
+    },
+    {
+      "path": "dist/query-builder/theme/default-query-builder-theme.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/theme/index.d.ts"
+    },
+    {
+      "path": "dist/query-builder/theme/index.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/theme/query-builder-theme.d.ts"
+    },
+    {
+      "path": "dist/query-builder/theme/query-builder-theme.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/tree-select/tree-select.d.ts"
+    },
+    {
+      "path": "dist/query-builder/tree-select/tree-select.d.ts.map"
+    },
+    {
+      "path": "dist/query-builder/value-input/value-input.d.ts"
+    },
+    {
+      "path": "dist/query-builder/value-input/value-input.d.ts.map"
+    },
+    {
+      "path": "LICENSE"
+    },
+    {
+      "path": "package.json"
+    },
+    {
+      "path": "README.md"
+    },
+    {
+      "path": "src/dialog/dialog.css"
+    },
+    {
+      "path": "src/dialog/dialog.tsx"
+    },
+    {
+      "path": "src/entity-detail/entity-detail.css"
+    },
+    {
+      "path": "src/entity-detail/entity-detail.tsx"
+    },
+    {
+      "path": "src/entity-detail/index.ts"
+    },
+    {
+      "path": "src/entity-dialog/entity-dialog.css"
+    },
+    {
+      "path": "src/entity-dialog/entity-dialog.tsx"
+    },
+    {
+      "path": "src/entity-dialog/index.ts"
+    },
+    {
+      "path": "src/entity-form/entity-form.tsx"
+    },
+    {
+      "path": "src/entity-form/index.ts"
+    },
+    {
+      "path": "src/entity-list/entity-list.css"
+    },
+    {
+      "path": "src/entity-list/entity-list.tsx"
+    },
+    {
+      "path": "src/entity-table/config.tsx"
+    },
+    {
+      "path": "src/entity-table/entity-table.css"
+    },
+    {
+      "path": "src/entity-table/entity-table.tsx"
+    },
+    {
+      "path": "src/entity-table/index.ts"
+    },
+    {
+      "path": "src/entity-table/query-table.css"
+    },
+    {
+      "path": "src/entity-table/query-table.tsx"
+    },
+    {
+      "path": "src/index.ts"
+    },
+    {
+      "path": "src/query-builder/field-selector/field-selector.tsx"
+    },
+    {
+      "path": "src/query-builder/index.ts"
+    },
+    {
+      "path": "src/query-builder/operator-selector/operator-selector.tsx"
+    },
+    {
+      "path": "src/query-builder/popover-select/popover-select.tsx"
+    },
+    {
+      "path": "src/query-builder/query-builder/query-builder.tsx"
+    },
+    {
+      "path": "src/query-builder/query-group/query-group.css"
+    },
+    {
+      "path": "src/query-builder/query-group/query-group.tsx"
+    },
+    {
+      "path": "src/query-builder/query-rule/query-rule.tsx"
+    },
+    {
+      "path": "src/query-builder/subquery-builder/subquery-builder.css"
+    },
+    {
+      "path": "src/query-builder/subquery-builder/subquery-builder.tsx"
+    },
+    {
+      "path": "src/query-builder/theme/default-query-builder-theme.ts"
+    },
+    {
+      "path": "src/query-builder/theme/index.ts"
+    },
+    {
+      "path": "src/query-builder/theme/query-builder-theme.tsx"
+    },
+    {
+      "path": "src/query-builder/tree-select/tree-select.tsx"
+    },
+    {
+      "path": "src/query-builder/value-input/value-input.tsx"
+    },
+    {
+      "path": "tailwind.css"
+    }
+  ]
+}

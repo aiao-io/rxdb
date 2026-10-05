@@ -8,6 +8,8 @@ execution: partial
 
 # rxdb-adapter-pglite：实际代码评审记录
 
+> **2026-10-05 基线说明**：下面早期批次的“本轮”指该节自己的历史日期，不指本次并行实审。当前结论以文末「local-adapters 并行实审收束」为准；历史已修 RV 不复报。
+
 **状态：部分执行。** 已确认问题见下文；未穷举全部受控文件，未完成本对象全部 C 项，不给全包 🟢。
 
 ## 1. 实际范围与取证方式
@@ -115,3 +117,34 @@ C5 仍部分核销；其它宿主和完整加密/强杀矩阵继续执行，不�
 C2 与加密生命周期联审：Chromium 的原 PGlite memory adapter/storage/encryption facade 真实执行，keyring 表 COUNT 证实被取消 A 仍初始化，B 被旧 verifier 拦住；**2 failed /1 passed**，统一 RV-058（已修复，见 README 2026-10-05 清理记录）。初版误假设 facade 有 isInitialized，已改原表查询；不为满足复验添加不存在的 API。memory 测量不外推磁盘崩溃/关闭恢复；本包原查询红仍保留。
 
 [本轮源码/命令与未完成项](../../execution-2026-10-05-encrypted.md) · [最终状态观测](../../evidence/2026-10-05/encrypted/final-observations.json)。encrypted/Electron/PGlite 严格 lint/typecheck 通过，业务未改；sqlite-core 没有伪造本轮独立 lint/整包通过。coverage 关闭，不自动核销 C 专题。
+
+## 2026-10-05：local-adapters 并行实审收束
+
+**execution: partial；整对象未 closed。原 C 全边界核销 0/7。** 这不是把“看过入口/有测试文件/覆盖率达标”当完整深审；未阅读和未测的面在下表明确保留。原完成条件不删、不放宽、不自动打勾。
+
+### 本轮基线与实际验证
+
+- 日期：**2026-10-05（Asia/Shanghai）**。源起点以 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/scope.json` 的逐文件 SHA256 为准；收束复核 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/closeout-source-fingerprints.json`。历史 `2026-10-03/04` 结果只作历史，不是本轮基线；用户已修 RV-045/046/050/058 不按旧红复报。
+- 实读文件及关注点：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/file-inspection.json`。段落实读不等于整文件读完；清单盘点不等于阅读。未穷举全部受控配置/测试/fixture/构建资源，所以第一条完成条件未满足。
+- 主控串行执行。69对象 strict lint/typecheck 的 exit=0、cacheDisabled=true、source drift=[]，证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint-status.json` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck-status.json`。本子任务**没有运行 Nx test/build/e2e/coverage、server 或容器**。三个本轮新回归未出现在这两批输入指纹里，不能借旧批次宣称它们已过 late lint/typecheck。
+- 本对象已结算证据：Tests 10 passed (10)（/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/local-adapters-tests.txt:263）。
+- 未取得该对象当轮同代 summary/final，不引用库存或历史覆盖率。覆盖率只对应原配置 include/exclude、该次执行宿主与已执行项；skip 不折算通过，源码语义与真实持久化需另证。
+- 当前范围内意见：**未新增确认问题；不是整对象通过**。候选统一写 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/findings.pending.md`，由主控聚焦、去重、编号；不修改总 RV 台账。
+
+### 逐 C 实际证据与核销表
+
+| C   | 实读源码/实际证据锚点                                                                                                                                                                                                               | 当前结论/可证反证                                                                                                                                                 | 原 C 核销 | 剩余必要验证                                                                                                                             |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| C1  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/query/query_sql.ts:140–153`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/query/query_tree_sql.ts:80–118`                                  | NULL 排序按 SQLite 的最小值口径；树递归 where 已明确 children 表别名，RV-045 旧歧义不再报告。                                                                     | 未核销    | 完整 quoting/类型/JSON/空批次/重复键/关系/cursor 同 fixture 方言比较；本批只见 test-node 10 pass，不能代替浏览器全部查询。               |
+| C2  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/notify/notification-batcher.ts:100–136,140–181`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/change-pipeline.ts:23–63,67–108`             | NOTIFY按 type/table/id 去重，容量和 max-wait 同步判定；handler 同表串行、异表并行，错误走 changeErrors，flush 有 deadline。事件窗口容量不是慢消费者任务总量上界。 | 未核销    | 突发/慢消费/乱序/取消/重连/回滚/不活跃分支完整行为及最后状态验证；本轮不追加新候选。                                                     |
+| C3  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/system/migrate_system_schema.ts:96–128,183–210,213–294`                                                                                                          | 水位/约束/触发器在事务内处理，NOWAIT锁失败 typed error；activeKey补列/唯一约束按 PG 顺序；storage-peer 不冒充已迁移。                                             | 未核销    | 独立 test-node 的 10 pass 只证 Node migration；旧 schema/多 active/失败原子性/切分支后建表还须 browser/current source 全边界。           |
+| C4  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/PGliteClient.ts:60–74,90–133,154–185,403–415,548–647`                                                                                                            | memory 与 idb 默认区分，只有 opfs-ahp 才造 Worker；初始化失败终止 Worker/释放资源；disconnect 先 durability flush，失败仍清理并报 DURABILITY_LOST。               | 未核销    | worker 中断、并发打开/重试/取消与持久化刷新；生命周期公开参数不同而并发共用 init 的完整契约尚未核销。                                    |
+| C5  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/PGliteClient.ts:471–486`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/backup/pglite-exclusive.ts:23–38`                                   | 快照要求同线程真实 runtime 及内部查询/事务锁；独占区检查 sole holder，非支持档位明确拒绝。内部锁仅保护该 runtime，不宣称跨实例一致。                              | 未核销    | restore-lock/marker/数据目录清理全边界未读完；跨实例/标签页恢复冲突、损坏/取消/半途失败与旧库可用性须当前动态证据；历史 50 pass 不继承。 |
+| C6  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/fts/create-fts-table.ts:26–38`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/fts/build-fts-triggers.ts:83–116`                             | PG tsvector/GIN 与 FTS5 机制不同；触发函数按 schema qualify，regconfig先校验。公开 peer/子入口不能从本段 DDL 直接核销。                                           | 未核销    | 中英文搜索同 fixture、索引更新、缺可选 Tree peer、keyring/打包 consumer/全部公开入口与资源审查。                                         |
+| C7  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-pglite/src/PGliteClient.ts:86–87,102–133`；`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/local-adapters-tests.txt:248–263` | 当轮已结算 test-node 10 pass。未把 Node 迁移/mock residual 当 browser conformance；本次快照未汇入 PG 全浏览器目标结算/summary/final。                             | 未核销    | 主控后续 browser 全套与四指标同代性/配置排除/skip/真实 idb/OPFS 独立记录；剩余大包结果不预判。                                           |
+
+### 完成阻断与交接
+
+- 全对象源码/配置/全部测试及打包面尚未全部实审；跨宿主/适用三框架的真实用户链路、持久化刷新、发布 consumer 与各 skip 原因尚未闭环。**0 个整对象完成**，不能以局部通过声明发布就绪。
+- 已发送请求：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/validation-requests.json`；已观察结果：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/validation-observed.json`。不再新增探针或第五个候选。主控后续 late probes/全矩阵结果统一追加；本段不预测在途目标成功，也不把未来补证算入核销。
+- 评审结论只限上述证据：有明确问题的局部是 🔴；没有新增问题不代表 🟢。本轮保留 partial，完整评级须原完成条件都满足后再给。

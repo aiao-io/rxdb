@@ -76,3 +76,30 @@ push/pull、分支同步、冲突处理、依赖排序与 QueryCache outbox orch
 本轮补真实 metadata 401 的 RV-052；新增 RV-055（已修复，见 README 2026-10-05 清理记录）：旧 KEEP_REMOTE repair 覆盖快照后 B，native SQLite 和公开查询均为 R，B 的日志及 pending=1 仍保留。C1/C5 **部分执行，有确认缺陷**，不将水位正确等同投影正确。restore/drop、多实体、branch 及重试继续。
 
 [本轮实际链路与取证限制](../../execution-2026-10-04-sync-http-sqlite.md) · [完整日志](../../evidence/2026-10-04/sync-http-sqlite/final-full-app-tests.txt) · [提交/wire/队列观测](../../evidence/2026-10-04/sync-http-sqlite/final-observations.json)。六对象严格 lint 通过，新增 app/spec typecheck 通过；coverage 关闭，全部 C 专项和全对象完成度保持未核销。
+
+## 2026-10-05：plugins 并行源码深审与逐 C 交付
+
+**执行状态：partial；评审完成不等于无缺陷，但必要证据缺失不能核销。** 本组不执行 Nx build/test/e2e/coverage/server，动态证据来自主控串行队列。下面覆盖原计划全部 C 编号，不修改原验收口径。
+
+本轮只读了实际登记的源码/测试行区间与若干测试入口；不是全受控文件已经读完。九包 scope 共 **554** 个文件；本组读取范围见 `requirements/reviews/evidence/2026-10-05/parallel/plugins/file-inspection.json`，指纹盘点与阅读分开。当前源判断优先于已删除 RV 的历史状态。
+
+当前 Node：**452 passed /0 failed /0 skip**。日志：`requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage.txt`；报告按 `rxdb-plugin-sync` 分目录保存。主控 69 项 strict lint/typecheck 已过，但不是全部 spec 类型或后来修订/晚到 probe 已过的证明。
+
+当前 fresh **Node** 四指标（S/B/F/L）：**93.07% / 86.08% / 94.88% / 94.06%**。来源：`requirements/reviews/evidence/2026-10-05/parallel/validation/core-plugins-small-adapters-coverage/rxdb-plugin-sync/coverage-summary.json`。tree 的 100% 只涉及 Node 面；browser 合并/宿主 skip 另审。覆盖率达标不自动核销 C。
+
+### 实际逐 C 核销矩阵
+
+| C   | 核销状态       | 当前真实源码锚点（相对本包 src；注明联审者除外）                                              | 不变量、正向与反证                                                                                                                                                                                                              | 已有/本轮测试证据                                                                                                | 必要缺口或核销边界                                                                                             |
+| --- | -------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| C1  | partial / 待证 | plugin.ts:55–99；SyncManager.ts:78–94、154–211；sync-listeners.ts:113–145、185–272            | 监听、slot、reachability、outbox bridge 属同一 scope；自动恢复 exhaustMap 抑制同一订阅重入。结构化 failures 逐条 reportError，失败布尔向上聚合，不再把未 throw 当成功（原 RV-052）。卸载摘 listener 不等于在途 Promise 已取消。 | review-resume-outbox-result.spec.ts、SyncManager.orchestration.spec.ts、plugin.spec.ts；当前 452/452 通过。      | push/pull/sync 多入口重入、旧纪元任务迟到、断连/重开与 hub 结算归属仍需实际时序探针。                          |
+| C2  | partial / 待证 | push-repository.ts:675–826；pull-batch.ts:162–299；query-cache-outbox.ts:273–354、696–842     | 按 branch 与 repository 水位筛选、compact 后投递；push 抓取 in-flight 上界；pull 聚合后在 local transaction 应用。outbox 对 DELETE/INSERT/UPDATE 有显式 remote 状态分流，失败不无条件推进最大水位。                             | push-protocol、push-pull-protocol.integration、pull-conflict-resolution、query-cache-outbox 入口；当前全套通过。 | 真实服务已写但响应丢失、重复/乱序批次与两端竞争的幂等副作用证明尚缺；不能只用 mock ack 核销。                  |
+| C3  | partial / 待证 | topological-sort.ts:33–59、82–130、212–245；cascade-blocking.ts:46–61；pull-batch.ts:223–231  | INSERT/UPDATE 父先，DELETE 反向；tempMarked 显式报环，自依赖跳过；子图只保留候选内边。失败沿依赖方向阻塞，不声称只有最后一个错误为空就能继续。                                                                                  | dependency-graph.spec.ts、topological-sort.spec.ts、pull/bulk-sync 套件；当前全套通过。                          | 跨批缺父、拉取/删除竞争及真实 FK backend 的完整异常回滚矩阵未证明。                                            |
+| C4  | partial / 待证 | branch-materialization-source.ts:212–227、254–348；working-tree/materialize-branch.ts:305–392 | 冻结 lineage/syncScope/filter/cutoff；续页按 repository 与 lastId，丢弃 cutoff 之外变化；激活前同 executor 校验漂移、投影并 settle，prepare 缺失显式错误。不能把抓完页等同激活已原子成功。                                      | branch-materialization-source.spec.ts、branch-sync-atomicity.spec.ts；当前全套通过；工作树当前测量面另列。       | 真实续页 crash/CAS 落败/schema 漂移、删除重建同 id 的 ABA 与多宿主激活 barrier 仍待联合验证。                  |
+| C5  | partial / 待证 | query-cache-outbox.ts:233–257、295–354、651–692、903–928；sync-listeners.ts:113–145           | 单 rxdb+namespace/entity 合并在途 flush；部分失败水位停在最低未结算 minChangeId 之前；repair 保护快照后新写，确认与本地投影正确性分开。原 RV-052/055 修复路径可见。                                                             | query-cache-outbox.spec.ts、review-resume-outbox-result.spec.ts 及既有 repair 回归；当前全套通过。               | branch 切换/断连跨纪元的 in-flight key 所有权、多实体 repair 与响应丢失后的重新连接未全证；不复报 RV-060/061。 |
+| C6  | partial / 待证 | cleanup-expired.ts:148–175、191–219、228–280；push-repository.ts:804–811                      | 真实删除与候选/未推保护在同 transaction；namespace/entity/entityId 识别未确认行，声明 trusted remote_sync 避免用户历史污染；不能反转的 operator 显式拒绝。dryRun 与执行事务区分。                                               | cleanup-expired.spec.ts、既有水位与 push 探针；当前全套通过。                                                    | 跨 branch 保留策略、正在 push/并发新写与清理的真实竞争矩阵未完整跑通，不给保留安全全绿。                       |
+
+### 本组改动与复验责任
+
+仅改本对象计划/执行记录，以及本组 evidence；没有修改业务、依赖或已有测试，没有 Git 暂存/提交/重置，没有嵌套 agent。新增独立 probes 只在 search/replay/storage 自己的 sourceRoot，后续执行均归主控。
+
+最小请求保存在 `requirements/reviews/evidence/2026-10-05/parallel/plugins/validation-requests.json`；候选在同目录 `findings.pending.md`。RV-060/061 不重复登记；RV-059 是其它对象公开接缝，不在本组扩 scope。

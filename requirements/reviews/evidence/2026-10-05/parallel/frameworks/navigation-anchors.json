@@ -1,0 +1,606 @@
+[
+  {
+    "path": "packages/rxdb-angular/src/InfiniteScrollingList.ts",
+    "lineCount": 352,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 70,
+        "text": "export type InfiniteScrollOptions<T extends EntityType> ="
+      },
+      {
+        "line": 90,
+        "text": "export class InfiniteScrollingList<T extends EntityType> {"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-react/src/useInfiniteScroll.ts",
+    "lineCount": 273,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 65,
+        "text": "export interface InfiniteScrollResource<T> {"
+      },
+      {
+        "line": 83,
+        "text": "export function useInfiniteScroll<T extends EntityType>("
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-vue/src/useInfiniteScroll.ts",
+    "lineCount": 388,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 79,
+        "text": "export interface InfiniteScrollResource<T> {"
+      },
+      {
+        "line": 129,
+        "text": "export function useInfiniteScroll<T extends EntityType>("
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model/src/entity-detail/detail-tabs.ts",
+    "lineCount": 48,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 16,
+        "text": "export function buildDetailTabs(metadata: EntityMetadata): DetailTab[] {"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model/src/entity-detail/index.ts",
+    "lineCount": 7,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model/src/entity-detail/interfaces.ts",
+    "lineCount": 55,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 10,
+        "text": "export type DetailTabType = 'form' | 'table';"
+      },
+      {
+        "line": 15,
+        "text": "export interface DetailTabBase {"
+      },
+      {
+        "line": 27,
+        "text": "export interface DetailFormTab extends DetailTabBase {"
+      },
+      {
+        "line": 35,
+        "text": "export interface DetailTableTab extends DetailTabBase {"
+      },
+      {
+        "line": 55,
+        "text": "export type DetailTab = DetailFormTab | DetailTableTab;"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model/src/entity-list/manual-order-list.ts",
+    "lineCount": 159,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 19,
+        "text": "export type ManualOrderListMetadata = Pick<EntityMetadata, 'manualOrder' | 'propertyMap'>;"
+      },
+      {
+        "line": 22,
+        "text": "export interface ListFixedQuery {"
+      },
+      {
+        "line": 32,
+        "text": "export interface ListReorderState {"
+      },
+      {
+        "line": 70,
+        "text": "export function pinsSingleOrderDomain(groupFields: readonly string[], fixedQuery: ListFixedQuery | undefined): boolean {"
+      },
+      {
+        "line": 92,
+        "text": "export function canReorderEntityList(state: ListReorderState): boolean {"
+      },
+      {
+        "line": 109,
+        "text": "export function defaultListOrderBy(metadata: Pick<EntityMetadata, 'manualOrder'> | undefined): OrderBy[] {"
+      },
+      {
+        "line": 118,
+        "text": "export interface RowMoveCommitHooks {"
+      },
+      {
+        "line": 142,
+        "text": "export async function commitRowMove(move: RowMoveEvent, hooks: RowMoveCommitHooks): Promise<boolean> {"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model/src/entity-table/columns/build-editable-columns.ts",
+    "lineCount": 184,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 15,
+        "text": "export const DISPLAY_ONLY_FIELDS = new Set(['createdBy', 'updatedBy']);"
+      },
+      {
+        "line": 18,
+        "text": "export const SKIP_FIELDS = new Set(['id', 'createdAt', 'updatedAt']);"
+      },
+      {
+        "line": 21,
+        "text": "export type RelatedItemsProviderFactory = ("
+      },
+      {
+        "line": 27,
+        "text": "export interface BuildEditableColumnsOptions {"
+      },
+      {
+        "line": 76,
+        "text": "export function normalizeKVSchemaEntryType(type: EntityPropertyMetadata['type']): KVSchemaEntry['type'] | undefined {"
+      },
+      {
+        "line": 110,
+        "text": "export function buildEditableColumns("
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model/src/entity-table/editors/global-overlay-editor.ts",
+    "lineCount": 277,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 4,
+        "text": "export const DAISY_COLORS = {"
+      },
+      {
+        "line": 25,
+        "text": "export function scheduleEditorSetup(fn: () => void): void {"
+      },
+      {
+        "line": 34,
+        "text": "export function refocusTable(container: HTMLElement | null | undefined): void {"
+      },
+      {
+        "line": 47,
+        "text": "export function positionOverlayPanel("
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model/src/entity-table/vtable/table-clipboard.ts",
+    "lineCount": 419,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 119,
+        "text": "export interface ClipboardCell {"
+      },
+      {
+        "line": 133,
+        "text": "export type ClipboardContent = ClipboardCell[][];"
+      },
+      {
+        "line": 181,
+        "text": "export function snapshotSelection("
+      },
+      {
+        "line": 222,
+        "text": "export function formatAsTsv(clipboard: ClipboardContent): string {"
+      },
+      {
+        "line": 236,
+        "text": "export function applyClipboard("
+      },
+      {
+        "line": 288,
+        "text": "export function applySystemText("
+      },
+      {
+        "line": 345,
+        "text": "export function collectDeleteWrites("
+      },
+      {
+        "line": 385,
+        "text": "export class TableClipboardManager {"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-angular/src/entity-detail/entity-detail.html",
+    "lineCount": 59,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-angular/src/entity-detail/entity-detail.scss",
+    "lineCount": 6,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-angular/src/entity-detail/entity-detail.ts",
+    "lineCount": 398,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 41,
+        "text": "export interface EntityDetailDialogData {"
+      },
+      {
+        "line": 74,
+        "text": "export class EntityDetailComponent {"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-angular/src/entity-detail/index.ts",
+    "lineCount": 1,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-angular/src/entity-dialog/entity-dialog.component.html",
+    "lineCount": 48,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-angular/src/entity-dialog/entity-dialog.component.scss",
+    "lineCount": 69,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-angular/src/entity-dialog/entity-dialog.component.ts",
+    "lineCount": 150,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 26,
+        "text": "export class EntityDialogComponent implements AfterViewInit {"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-angular/src/entity-dialog/index.ts",
+    "lineCount": 1,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-angular/src/entity-list/entity-list.component.html",
+    "lineCount": 169,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-angular/src/entity-list/entity-list.component.ts",
+    "lineCount": 953,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 189,
+        "text": "export class EntityListComponent {"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.html",
+    "lineCount": 39,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.scss",
+    "lineCount": 5,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-angular/src/entity-table/query-table/query-table.component.ts",
+    "lineCount": 95,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 33,
+        "text": "export class QueryTableComponent {"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-angular/src/query-builder/query-builder/query-builder.component.ts",
+    "lineCount": 337,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 29,
+        "text": "export interface RxDBQueryOutput<T> {"
+      },
+      {
+        "line": 130,
+        "text": "export class QueryBuilderComponent<T extends object> implements OnDestroy {"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-react/src/entity-detail/entity-detail.css",
+    "lineCount": 10,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-react/src/entity-detail/entity-detail.tsx",
+    "lineCount": 468,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 44,
+        "text": "export interface EntityDetailDialogData {"
+      },
+      {
+        "line": 63,
+        "text": "export interface EntityDetailProps extends Partial<EntityDetailDialogData> {"
+      },
+      {
+        "line": 81,
+        "text": "export function EntityDetail({"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-react/src/entity-detail/index.ts",
+    "lineCount": 6,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-react/src/entity-dialog/entity-dialog.css",
+    "lineCount": 81,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-react/src/entity-dialog/entity-dialog.tsx",
+    "lineCount": 202,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 23,
+        "text": "export interface EntityDialogProps {"
+      },
+      {
+        "line": 40,
+        "text": "export function EntityDialog({ title, children, onCloseRequested }: EntityDialogProps): JSX.Element {"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-react/src/entity-dialog/index.ts",
+    "lineCount": 6,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-react/src/entity-list/entity-list.css",
+    "lineCount": 11,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-react/src/entity-list/entity-list.tsx",
+    "lineCount": 1269,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 61,
+        "text": "export type EntityInstance = {"
+      },
+      {
+        "line": 69,
+        "text": "export type FilterQuery = { combinator: 'and' | 'or'; rules: unknown[] };"
+      },
+      {
+        "line": 159,
+        "text": "export interface EntityListProps {"
+      },
+      {
+        "line": 197,
+        "text": "export function EntityList({"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-react/src/entity-table/query-table.css",
+    "lineCount": 9,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-react/src/entity-table/query-table.tsx",
+    "lineCount": 176,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 16,
+        "text": "export interface QueryTableHandle {"
+      },
+      {
+        "line": 28,
+        "text": "export interface QueryTableProps {"
+      },
+      {
+        "line": 84,
+        "text": "export const QueryTable = forwardRef<QueryTableHandle, QueryTableProps>(function QueryTable("
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-react/src/query-builder/query-builder/query-builder.tsx",
+    "lineCount": 264,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 26,
+        "text": "export interface RxDBQueryOutput<T> {"
+      },
+      {
+        "line": 32,
+        "text": "export interface QueryBuilderProps<T extends object = Record<string, unknown>> {"
+      },
+      {
+        "line": 56,
+        "text": "export function QueryBuilder<T extends object = Record<string, unknown>>({"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-vue/src/entity-detail/EntityDetail.vue",
+    "lineCount": 539,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 42,
+        "text": "const props = withDefaults("
+      },
+      {
+        "line": 85,
+        "text": "const emit = defineEmits<{"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-vue/src/entity-detail/entity-detail-types.ts",
+    "lineCount": 30,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 9,
+        "text": "export interface EntityDetailDialogData {"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-vue/src/entity-detail/index.ts",
+    "lineCount": 6,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 5,
+        "text": "export type { EntityDetailDialogData } from './entity-detail-types';"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-vue/src/entity-dialog/DialogPortal.vue",
+    "lineCount": 127,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 16,
+        "text": "const props = withDefaults("
+      },
+      {
+        "line": 32,
+        "text": "const emit = defineEmits<{"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-vue/src/entity-dialog/EntityDialog.vue",
+    "lineCount": 360,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 14,
+        "text": "const props = defineProps<{"
+      },
+      {
+        "line": 19,
+        "text": "const emit = defineEmits<{"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-vue/src/entity-dialog/dialog-context.ts",
+    "lineCount": 23,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 9,
+        "text": "export interface EntityDialogContext {"
+      },
+      {
+        "line": 23,
+        "text": "export const ENTITY_DIALOG_CONTEXT: InjectionKey<EntityDialogContext> = Symbol('ENTITY_DIALOG_CONTEXT');"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-vue/src/entity-dialog/index.ts",
+    "lineCount": 9,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-vue/src/entity-list/EntityList.vue",
+    "lineCount": 1259,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 154,
+        "text": "const props = withDefaults("
+      },
+      {
+        "line": 198,
+        "text": "const emit = defineEmits<{"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-vue/src/entity-list/index.ts",
+    "lineCount": 5,
+    "navigationOnly": true,
+    "symbols": []
+  },
+  {
+    "path": "packages/rxdb-model-vue/src/query-builder/query-builder/QueryBuilder.vue",
+    "lineCount": 320,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 25,
+        "text": "const props = withDefaults("
+      },
+      {
+        "line": 47,
+        "text": "const emit = defineEmits<{"
+      }
+    ]
+  },
+  {
+    "path": "packages/rxdb-model-vue/src/query-builder/query-builder/query-builder-types.ts",
+    "lineCount": 7,
+    "navigationOnly": true,
+    "symbols": [
+      {
+        "line": 4,
+        "text": "export interface RxDBQueryOutput<T> {"
+      }
+    ]
+  }
+]

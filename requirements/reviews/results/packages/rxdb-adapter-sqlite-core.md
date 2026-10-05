@@ -8,6 +8,8 @@ execution: partial
 
 # rxdb-adapter-sqlite-core：实际代码评审记录
 
+> **2026-10-05 基线说明**：下面早期批次的“本轮”指该节自己的历史日期，不指本次并行实审。当前结论以文末「local-adapters 并行实审收束」为准；历史已修 RV 不复报。
+
 **状态：部分执行。** 已确认问题见下文；未穷举全部受控文件，未完成本对象全部 C 项，不给全包 🟢。
 
 ## 1. 实际范围与取证方式
@@ -120,3 +122,35 @@ C2/C4 与加密 storage 生命周期联审：原 SqliteCoreKeyringStorage 的 en
 确认意见：[RV-061](../../RV-061-querycache-sqlite-nonpublic-namespace-target.md)。全批门禁、接缝和中间取证错误见 [本轮执行台账](../../execution-2026-10-05-supabase.md)；[源码指纹](../../evidence/2026-10-05/supabase/runtime-and-sources.json)、[最终计数](../../evidence/2026-10-05/supabase/final-counts.json) 与 [交付校验](../../evidence/2026-10-05/supabase/delivery-validation.json)。原始失败没有移除/skip；coverage 未执行，配置的 lib typecheck 不等于所有 spec 类型通过。
 
 尚需核销原 C 项中的未覆盖边界，尤其认证/RLS、Realtime、跨宿主、覆盖率与打包消费；本轮没有新增完整 C 核销。助手未修改业务源码，不操作用户暂存区。
+
+## 2026-10-05：local-adapters 并行实审收束
+
+**execution: partial；整对象未 closed。原 C 全边界核销 0/8。** 这不是把“看过入口/有测试文件/覆盖率达标”当完整深审；未阅读和未测的面在下表明确保留。原完成条件不删、不放宽、不自动打勾。
+
+### 本轮基线与实际验证
+
+- 日期：**2026-10-05（Asia/Shanghai）**。源起点以 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/scope.json` 的逐文件 SHA256 为准；收束复核 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/closeout-source-fingerprints.json`。历史 `2026-10-03/04` 结果只作历史，不是本轮基线；用户已修 RV-045/046/050/058 不按旧红复报。
+- 实读文件及关注点：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/file-inspection.json`。段落实读不等于整文件读完；清单盘点不等于阅读。未穷举全部受控配置/测试/fixture/构建资源，所以第一条完成条件未满足。
+- 主控串行执行。69对象 strict lint/typecheck 的 exit=0、cacheDisabled=true、source drift=[]，证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-strict-lint-status.json` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/all-object-typecheck-status.json`。本子任务**没有运行 Nx test/build/e2e/coverage、server 或容器**。三个本轮新回归未出现在这两批输入指纹里，不能借旧批次宣称它们已过 late lint/typecheck。
+- 本对象已结算证据：Tests 2 failed | 1465 passed | 21 skipped (1488)（/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/validation/local-adapters-tests.txt:443）。
+- 未取得该对象当轮同代 summary/final，不引用库存或历史覆盖率。覆盖率只对应原配置 include/exclude、该次执行宿主与已执行项；skip 不折算通过，源码语义与真实持久化需另证。
+- 当前范围内意见：**LA-02/LA-03（轻量回归确认）**。候选统一写 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/findings.pending.md`，由主控聚焦、去重、编号；不修改总 RV 台账。
+
+### 逐 C 实际证据与核销表
+
+| C   | 实读源码/实际证据锚点                                                                                                                                                                                                                                                                                                      | 当前结论/可证反证                                                                                                                                                                                | 原 C 核销 | 剩余必要验证                                                                                                               |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| C1  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts:581–621,1484–1512,1716–1728`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/Oo1ClientBase.ts:113–139,180–215,265–305`                                                                           | LA-02/03 两个独立关闭窗口已由主控轻量回归证实：工厂晚到仍缓存，oo1 模块晚到仍 ready。失败重试与普通关闭的已有实现不能反证这两个窗口。                                                            | 未核销    | 关闭并发/失败/reconnect/多个 client 完整边界；新回归的 late strict lint/typecheck；真实 Worker/OPFS 资源回收。             |
+| C2  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts:1007–1065,1654–1712`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/transaction/SqliteTransactionExecutor.ts:38–67,115–127`                                                                     | 真实入口统一入队，executor facade 直发事务连接；COMMIT 后监听异常不误发 ROLLBACK，失败 rollback 会失效 client。这里只核实责任分层，不把 update_hook 的定时批处理等同提交屏障。                   | 未核销    | 触发器安装失败、并发事务、提交/回滚事件及主表/change/working-tree 同一事务的全部契约；当轮 21 skip 单独销项。              |
+| C3  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/entity/insert_sql.ts:21–28,66–79`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/query/find_sql.ts:17–54`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/sqlite-core.utils.ts:409–456,646–724` | 插入值参数绑定，标识符用统一 quoting；加密在 SQL 前执行，结果拒绝非字符串信封、任一列解密失败作废整行。排序/关系 SQL 不由这些入口存在即可推断正确。                                              | 未核销    | RuleGroup/关系 JOIN 全支路、引号标识符/注入、NULL cursor、BigInt/binary/date、空批次与 PG 同 fixture 比较。                |
+| C4  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts:787–894`                                                                                                                                                                                                                  | 独占迁移事务内读水位、按当前 active 分支重挂触发器、补唯一约束及水位；失败回滚不可用则丢弃连接。                                                                                                 | 未核销    | 多 active 行/旧库/重复迁移/迁移失败完整动态场景；远端分支物化和切分支源码全边界尚未读完。                                  |
+| C5  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/fts5/create-fts-table.ts:18–32`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/fts5/build-fts-triggers.ts:49–50,69–86`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/SqliteClient.ts:243–250` | 建表固定 FTS5 external-content/rowid；更新守卫 NULL-safe，valueWrapper 只准裸函数名。引擎 capability 与中文查询端必须另证，不能把生成 DDL 当真实支持。                                           | 未核销    | 全部子后端 FTS 实际探针、CJK 短词、更新/删除/backfill、缺插件/缺 FTS 拒绝；trigger 尾部与查询端全量联审。                  |
+| C6  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/backup/restore-sqlite-database.ts:93–105,114–173,190–194`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts:1515–1560`                                                                             | 恢复前检查断开状态、独占存储锁、恢复 marker、同引擎 blank database 与必须能力；unsupported 明确报错。LA-02 的关闭窗口不能被“理论有锁”盖过去。                                                    | 未核销    | 归档全解析/限额与中途失败清理尚未完整重读；损坏/错目标/旧连接/重试/重连全部持久化门禁。历史 117 pass/21 skip 只属历史。    |
+| C7  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/src/desktop/desktop-protocol-primitives.ts:31–47,65–85,122–126`                                                                                                                                                                                        | 已核对 UUID 与 SQL/blob/bindings 尺寸边界的公共零件；字符串形状校验不等于 host 签发会话存在或路径授权通过。                                                                                      | 未核销    | 915/941 行两协议、真实 TS host 与 Rust host 会话/路径/越界整数/大消息/未知 op 对照未全部阅读及执行，必须保留待证。         |
+| C8  | `/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-core/scripts/run-coverage-acceptance.mjs:15–27,52–69`；`/Users/jimmy/Documents/aiao/rxdb/packages/rxdb-adapter-sqlite-wasm/src/__tests__/encrypted-bigint-binary.spec.ts:1–5`                                                                               | 验收脚本列 core/wa-sqlite/sqlite/sqlite-wasm/sqliteai 五套、四浏览器 suite、四指标 80% 门槛；普通 test 不等于 acceptance 的 blob/合并验收。未重建 writer lease 或 rowsAffectedConformanceSuite。 | 未核销    | coverage-acceptance 未执行；合并/测量面完整重读与所有 conformance 调用点（含 Tauri）未穷举；不能用库存旧 coverage 过门槛。 |
+
+### 完成阻断与交接
+
+- 全对象源码/配置/全部测试及打包面尚未全部实审；跨宿主/适用三框架的真实用户链路、持久化刷新、发布 consumer 与各 skip 原因尚未闭环。**0 个整对象完成**，不能以局部通过声明发布就绪。
+- 已发送请求：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/validation-requests.json`；已观察结果：`/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/local-adapters/validation-observed.json`。不再新增探针或第五个候选。主控后续 late probes/全矩阵结果统一追加；本段不预测在途目标成功，也不把未来补证算入核销。
+- 评审结论只限上述证据：有明确问题的局部是 🔴；没有新增问题不代表 🟢。本轮保留 partial，完整评级须原完成条件都满足后再给。

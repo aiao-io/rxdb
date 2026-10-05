@@ -51,15 +51,14 @@ Vue：metadata 驱动的表单、详情、列表、表格、弹窗与查询构�
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                     | 核查动作                                                                                                                  | 最低复验场景 / 证据要求                                                                                  | 状态   |
-| ---- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------ |
-| C1   | 表单/详情与字段契约      | 按 shared model 的所有字段/关系/readonly/format 规则核对三端 UI，检查 defaults、NEW/UPDATE、验证和显示。                  | 非法输入、relation 改变、只读/隐藏字段、提交失败；保留输入并展示核心错误。                               | 待核查 |
-| C2   | 列表/表格的真实写入口    | 追踪行删除、批量写、单元格编辑、筛选排序和游标；实例 remove 与 mutations 不能只审一条。                                   | 操作权限拒绝、并发保存、跨页选择、NULL/同值排序、删除失败；UI 不假成功，结果与 repository 一致。         | 待核查 |
-| C3   | 弹窗、portal 与可访问性  | 检查 EntityDialog/QueryBuilder/editor 的焦点、键盘、aria、portal cleanup 和不可信文本渲染。                               | 多弹窗、ESC/焦点返回、保存中关闭、恶意 snippet、卸载；三端具备同功能，不强改原生表达。                   | 待核查 |
-| C4   | Vue 生命周期与响应式来源 | 核查 ref/computed/getter 输入解包、watch 依赖、onScopeDispose/onUnmounted 与 provider scope，避免把首次取值变成永久快照。 | 替换与深改输入、scope 销毁、卸载后晚到结果、多实例；旧订阅释放，新输入生效。                             | 待核查 |
-| C5   | Vue 类型与 SFC 消费      | 核查泛型 composable、SFC props/emits 与声明输出；响应式代理不能改变实体身份或隐藏错误。                                   | vue-tsc consumer、模板输入错误、readonly/computed 来源、独立 pack 消费；没有宽化 any 或丢失 emits 契约。 | 待核查 |
-
-共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
+| 编号                                                                                                                                                                                                                                                 | 专项                     | 核查动作                                                                                                                  | 最低复验场景 / 证据要求                                                                                  | 状态    |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------- |
+| C1                                                                                                                                                                                                                                                   | 表单/详情与字段契约      | 按 shared model 的所有字段/关系/readonly/format 规则核对三端 UI，检查 defaults、NEW/UPDATE、验证和显示。                  | 非法输入、relation 改变、只读/隐藏字段、提交失败；保留输入并展示核心错误。                               | partial |
+| C2                                                                                                                                                                                                                                                   | 列表/表格的真实写入口    | 追踪行删除、批量写、单元格编辑、筛选排序和游标；实例 remove 与 mutations 不能只审一条。                                   | 操作权限拒绝、并发保存、跨页选择、NULL/同值排序、删除失败；UI 不假成功，结果与 repository 一致。         | partial |
+| C3                                                                                                                                                                                                                                                   | 弹窗、portal 与可访问性  | 检查 EntityDialog/QueryBuilder/editor 的焦点、键盘、aria、portal cleanup 和不可信文本渲染。                               | 多弹窗、ESC/焦点返回、保存中关闭、恶意 snippet、卸载；三端具备同功能，不强改原生表达。                   | partial |
+| C4                                                                                                                                                                                                                                                   | Vue 生命周期与响应式来源 | 核查 ref/computed/getter 输入解包、watch 依赖、onScopeDispose/onUnmounted 与 provider scope，避免把首次取值变成永久快照。 | 替换与深改输入、scope 销毁、卸载后晚到结果、多实例；旧订阅释放，新输入生效。                             | partial |
+| C5                                                                                                                                                                                                                                                   | Vue 类型与 SFC 消费      | 核查泛型 composable、SFC props/emits 与声明输出；响应式代理不能改变实体身份或隐藏错误。                                   | vue-tsc consumer、模板输入错误、readonly/computed 来源、独立 pack 消费；没有宽化 any 或丢失 emits 契约。 | partial |
+| 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。 |
 
 ## 4. 测试证据与联审边界
 
@@ -139,3 +138,31 @@ pnpm audit:coverage --projects=rxdb-model-vue
 ## 7. 本轮实际执行记录
 
 [已启动的实际入口核查、门禁、确认意见及未完成项](../results/packages/rxdb-model-vue.md)。所有 C 项仍需逐项取证，不能由整体门禁结果自动打勾。
+
+## 2026-10-05 frameworks 本轮完成条件与实际核查
+
+本轮 `main/worktree@44de1138b4d396fc45d6e76ab60476c40fef2223`，日期 2026-10-05。不是新泛计划，而是对原 C 的实际结论：**0/5 个完整 C、execution 保持 in-progress；结果记录保持 partial；本对象不是全对象完成候选。**
+
+全部 60 个受控文件的范围/摘要已核对，正文片段 3、outline 0、仅导航 4、未人工检查 53；不能将 scope 盘点称为全读。
+
+| 原 C                        | 本轮结论          | 原场景中仍缺的必要证据                                                                                                                                                                       |
+| --------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| C1 表单/详情与字段契约      | partial；局部通过 | 完整字段/关系/readonly/format/NEW-UPDATE 与父组件保存失败/输入恢复未逐项完成；不能把 form 本地事件等价成持久化成功。                                                                         |
+| C2 列表/表格的真实写入口    | partial；未验证   | 实例 remove / mutations 两类真实写入口、权限拒绝/并发保存/跨页选择/NULL 同值排序/删除失败未深读。已有 *.real.spec 命名不证明真 SQLite/PG：测试 fixture 和 fake VTable 的来源未完成内容审查。 |
+| C3 弹窗、portal 与可访问性  | partial；未验证   | Dialog/QueryBuilder/portal 的焦点/ESC/aria、保存中关闭、恶意文本与卸载未完成内容及真实浏览器复验；不借 300+ passed 抹平未知。                                                                |
+| C4 Vue 生命周期与响应式来源 | partial；局部通过 | Angular route/子 provider/销毁中保存，React StrictMode/多 root/async 旧 props，Vue deep props/readonly/computed/真实 SFC scope 均未全证；大量源码和测试尚未深读。                            |
+| C5 Vue 类型与 SFC 消费      | partial；局部通过 | 尚缺独立 typed consumer/runtime import、模板或 SFC 负例及完整 UI 链路；TS/Vue 生成声明不由 root resolve 自动证明；本对象非全范围阅读完成。                                                   |
+
+本轮完成条件：
+
+- [x] 全受控 inventory / 摘要核对，未排除配置/资源/fixture。
+- [ ] 全部受控内容阅读及全部原 C 场景核销（缺口见表，保持 partial）。
+- [x] 每 C 已有明确的已证/未证结论及角色明确的源码、测试锚点。
+- [x] 当前 baseline 的 unit / 四指标 / 零警告 lint / typecheck / 真 pack 来源已读取登记。
+- [ ] 晚加探针补跑、独立 typed/runtime consumer、真实完整 UI/生命周期等必要缺口全部关闭。
+- [ ] 全对象证据完成与最终评级（不要求零缺陷，但不能缺验证）；尚未完成。
+
+本对象四指标（statements/branches/functions/lines）：**90.34% / 85.58% / 83.1% / 91.83%**；阈值各项 ≥ 80%。其余18包的绿不能抹掉 rxdb-angular 的16个失败；新探针不继承基线通过。
+发布 pack 根是 `packages/rxdb-model-vue`，实际 tarball 目标文件存在、独立根 ESM 解析通过；**不包含 typed consumer 编译/runtime import**。Angular 不能按源 manifest 缺 exports 报错。
+
+逐 C 原场景、函数/测试证据与完成条件详见 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/results/packages/rxdb-model-vue.md`；机器证据 `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/c-evidence.json` / `/Users/jimmy/Documents/aiao/rxdb/requirements/reviews/evidence/2026-10-05/parallel/frameworks/file-inspection.json`。

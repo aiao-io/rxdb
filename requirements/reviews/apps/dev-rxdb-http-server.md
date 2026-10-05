@@ -46,14 +46,14 @@ execution: in-progress
 
 ## 3. 专项核查与最低复验场景
 
-| 编号 | 专项                      | 核查动作                                                                                               | 最低复验场景 / 证据要求                                                                   | 状态                                |
-| ---- | ------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- | ----------------------------------- |
-| C1   | 请求与数据边界            | 从路由解析到 repository 审查请求 schema、方法、字段白名单、规则与 SQL 参数化。                         | 畸形 JSON、未知实体/字段、超大 body、注入条件、4xx/5xx；失败不写库。                      | 部分执行，确认问题见执行记录        |
-| C2   | 鉴权、CORS 与控制接口     | 核查 demo control/seed/reset、origin/credentials、监听地址和部署假设，明确演示服务不等于生产安全模板。 | 未经授权 origin、公开 reset/control、跨 scope、日志凭证；危险入口受已声明边界约束。       | 部分执行；真实 401，非生产鉴权/CORS |
-| C3   | ETag / token 完整性       | 检查 token 的作用域、过滤/排序绑定、有效期与条件请求缓存语义。                                         | 篡改 token、旧筛选 token、跨 entity token、304/412、分页中更新；不接受错 scope 的继续页。 | 待核查                              |
-| C4   | 变更流与资源              | 审查 broadcaster/subscribers、重连 cursor、慢消费者和断开清理。                                        | 长连接退出、突发事件、慢客户端、未知 cursor、服务停止；有限缓冲，无孤儿订阅。             | 待核查                              |
-| C5   | 数据事务与进程生命周期    | 核查 rxdb-store、批写、seed/reset 的隔离、关库和错误映射。                                             | 中途失败、服务重启、并发写、重复操作、磁盘错误；旧数据不被意外清空。                      | 部分执行，确认问题见执行记录        |
-| C6   | client-server conformance | 与 rxdb-adapter-http/reference server 和配套 E2E 逐请求对照；不能两边共用同一个错误假设。              | 真实客户端离线/在线链路、条件请求、分页、变更流、部分失败；抓包与 DB 状态共同证明。       | 部分执行；实际 Node 客户端联审      |
+| 编号 | 专项                      | 核查动作                                                                                               | 最低复验场景 / 证据要求                                                                   | 状态                          |
+| ---- | ------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- | ----------------------------- |
+| C1   | 请求与数据边界            | 从路由解析到 repository 审查请求 schema、方法、字段白名单、规则与 SQL 参数化。                         | 畸形 JSON、未知实体/字段、超大 body、注入条件、4xx/5xx；失败不写库。                      | 部分核查；见2026-10-05逐C结论 |
+| C2   | 鉴权、CORS 与控制接口     | 核查 demo control/seed/reset、origin/credentials、监听地址和部署假设，明确演示服务不等于生产安全模板。 | 未经授权 origin、公开 reset/control、跨 scope、日志凭证；危险入口受已声明边界约束。       | 部分核查；见2026-10-05逐C结论 |
+| C3   | ETag / token 完整性       | 检查 token 的作用域、过滤/排序绑定、有效期与条件请求缓存语义。                                         | 篡改 token、旧筛选 token、跨 entity token、304/412、分页中更新；不接受错 scope 的继续页。 | 部分核查；见2026-10-05逐C结论 |
+| C4   | 变更流与资源              | 审查 broadcaster/subscribers、重连 cursor、慢消费者和断开清理。                                        | 长连接退出、突发事件、慢客户端、未知 cursor、服务停止；有限缓冲，无孤儿订阅。             | 部分核查；见2026-10-05逐C结论 |
+| C5   | 数据事务与进程生命周期    | 核查 rxdb-store、批写、seed/reset 的隔离、关库和错误映射。                                             | 中途失败、服务重启、并发写、重复操作、磁盘错误；旧数据不被意外清空。                      | 部分核查；见2026-10-05逐C结论 |
+| C6   | client-server conformance | 与 rxdb-adapter-http/reference server 和配套 E2E 逐请求对照；不能两边共用同一个错误假设。              | 真实客户端离线/在线链路、条件请求、分页、变更流、部分失败；抓包与 DB 状态共同证明。       | 部分核查；见2026-10-05逐C结论 |
 
 共同底线：TS strict、禁止 `any` / 隐藏警告、TSDoc 与公开类型一致、简洁且单一职责、避免超过 3 层嵌套；按现有能力核查安全边界、资源释放与显式错误，不增加 fallback 掩盖错误。发现问题后先写失败复验/回归测试，再讨论最小修法，不在本计划中擅自改行为。
 
@@ -121,7 +121,7 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-http-server:test --coverage --skipR
 ## 6. 完成条件
 
 - [ ] 全部受控源码、配置、测试与构建入口完成清点；导航列表之外的文件没有被默认排除。
-- [ ] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。
+- [x] 每个 C 项都有明确结论与证据：通过、确认问题、未验证或不适用；后两者写明原因与补证动作。
 - [ ] 不变量/权限边界由源码符号或短代码引用锚定；动态主张有最小复现、当轮命令与运行环境。
 - [ ] 实际执行目标、缓存来源、skip、失败与串行复跑完整记录；覆盖率四指标/测量面单独登记。
 - [ ] 上下游与适用的三框架/多宿主链路已对照，公开 API 与用户行为变更风险已分类。
@@ -141,3 +141,28 @@ CI=true NX_DAEMON=false pnpm nx run dev-rxdb-http-server:test --coverage --skipR
 ### 2026-10-04 第六批：真实后端联审
 
 [原应用/PGlite + HTTP + 文件 SQLite 的实际取证](../execution-2026-10-04-sync-http-sqlite.md)。新增 RV-055，RV-052/053/054 补真实后端证据；scope、缓存收敛和配置适用性已分别写入独立执行记录，不给未测 GUI/CORS/Supabase/发布消费通过结论。
+
+## 2026-10-05：parallel integrations 逐 C 交付
+
+⚠️ **原完成条件未满足，execution维持in-progress，不能标complete。** 已完成逐C的源码结论/证据/未验证动作登记；这一个完成条件已核销，动态语义与全范围深审/覆盖率未完成。
+
+主控当轮门禁：69个有效Nx对象`lint --max-warnings=0`与`typecheck`实际成功；typecheck含51依赖任务，均跳过本地/远端cache。本范围13个有效对象在内；四个adapter包build出现在typecheck依赖链，**不代替app打包/测试/cargo/真实宿主/认证/coverage**。
+
+日志：[strict lint](../evidence/2026-10-05/parallel/validation/all-object-strict-lint.txt)、[typecheck](../evidence/2026-10-05/parallel/validation/all-object-typecheck.txt)；[当轮门禁限定](../evidence/2026-10-05/parallel/integrations/current-gates.json)。
+
+**晚于门禁快照新增的探针**：`src/__tests__/review-parallel-change-broadcast-origin.spec.ts` 未运行，也未继承上述lint/typecheck；已列验证请求交主控分流。
+
+已有2026-10-04/05前段HTTP/SQLite/进程内host证据仅保留历史；历史401/SWR/outbox修复不重新登记，RV-058已Resolved。进程内host不是GUI/真实IPC。
+
+| C / 专项                     | 已核查源码符号 / 行与结论                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | 证据 / 核销                                                          | 具体未验证与补证动作                                                                                                                       |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| C1 请求与数据边界            | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/http-utils.ts:34-52 readJsonBody`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/server.ts:324-338 URL错误、400-409 decodeSegments`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/recipes-repository.ts:330-373 readObject/readIdList/readWritablePatch`<br>body限制1MiB、对象形状/IDs/可写字段显式检查；非法URL与percent escape返回400，不让异步handler裸崩。规则深度检查后交上游查询编译，未另造fallback。         | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 本轮server:test运行结果由主控后补；需空body/数组/null、畸形target、未知field/RuleGroup注入、巨大body与错误数字，拒绝后数据库不变。         |
+| C2 鉴权、CORS 与控制接口     | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/server.ts:94-100 assertAuthorized、370-380 dispatch、411-434 runControl`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/cors.ts:52-95 origin/preflight`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/main.ts:49 runServe`<br>这是loopback demo：无Authorization放行，有header只验Bearer形状；控制接口在NODE_ENV非production开启且在offline闸门之前；origin回显、OPTIONS在鉴权前。不是生产Auth/CORS拒绝实现。        | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 补production控制接口404、错误Bearer/no-body副作用及可信测试origin对照；未授权origin/真实身份拒绝需要受控生产式server，不可用demo成功核销。 |
+| C3 ETag / token 完整性       | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/server.ts:117-147 sendConditional/handleMetadata`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/http-utils.ts:63 computeEtag、94-98 matchesIfNoneMatch`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/page-token.ts:54-97 encode/decodePageToken`<br>ETag由完整响应JSON的SHA256生成；支持weak/list/*匹配。token校验非空string及a/w tuple结构，载荷base64url并非MAC或filter身份绑定。对token完整性不给越权安全结论。 | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控真实条件请求、内容更新后200、篡改token/旧filter/同值排序/分页删除；只有合法静态250行翻页对照，不能覆盖全部恶意token。                  |
+| C4 变更流与资源              | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/change-feed.ts:34-57 openChangeFeed`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/change-subscribers.ts:29-54 createChangeSubscribers`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/change-broadcaster.ts:47-74 recordWrite/onEntityEvent`<br>SSE response close删订阅、request close清心跳，closeAll收束。广播按实体事件派发，但合批归最后clientId为静态候选A；并非本轮已复现缺陷。                              | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控新增review-parallel-change-broadcast-origin.spec.ts与真实PGlite/双client SSE时序；断线、慢消费者、结束后订阅/timer归零仍需动态。       |
+| C5 数据事务与进程生命周期    | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/rxdb-store.ts:51-73 createRxdbRecipeStore`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/server.ts:253-282 reseed/close`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/main.ts:53-57 信号清理`<br>数据层使用真实RxDB/PGlite文件而非旧node:sqlite demo；reset先destroy再换库，body await后现取store避免已释放句柄；停机先关SSE再server/store。                                                                       | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 主控test中验证并发reset/请求、提交失败、信号退出、重开持久化与clear/reset不同语义；本轮没有启动进程，不判进程收束通过。                    |
+| C6 client-server conformance | `/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/server.ts:170-230 routeProtocol`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-server/src/recipes-repository.ts:111-125 listMetadataByOffset、308-320 deleteRecipes`<br>`/Users/jimmy/Documents/aiao/rxdb/apps/dev-rxdb-http-e2e/playwright.config.ts:61-75 双服务`<br>逐项对照metadata/by-ids/create/update/delete和变更流；应用server与客户端协议路径可追溯，E2E依赖冷前端build及后端build-deps而非旧产物。                                       | 本轮源码分段核查；inspection/current-gates；**部分核销，动态未验证** | 本轮server整包、HTTP adapter wire、本轮E2E由主控后补；协议fixture/mock不能代替真实应用server的响应与数据库状态。                           |
+
+证据：[逐C矩阵](../evidence/2026-10-05/parallel/integrations/review-matrix.json)、[实际阅读](../evidence/2026-10-05/parallel/integrations/file-inspection.json)、[验证请求](../evidence/2026-10-05/parallel/integrations/validation-requests.json)、[待主控去重候选](../evidence/2026-10-05/parallel/integrations/findings.pending.md)、[历史验证分账](../evidence/2026-10-05/parallel/integrations/prior-validation.json)。
+
+未读文件/非全文片段仍在inspection盘点中，没有把导航之外源码默认判已审。coverage四指标无本轮测量；发布consumer、未跑平台、真实认证/外部服务不足按未验证列出，**不标不适用**。不改业务/依赖/既有tests；不写core/插件文档；不等待或自行启动新环境。

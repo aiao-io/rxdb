@@ -1,0 +1,52 @@
+{
+  "cacheDisabled": true,
+  "changedInputsDuringMeasurement": [],
+  "command": [
+    "pnpm",
+    "nx",
+    "run-many",
+    "-t",
+    "test",
+    "--projects=rxdb-plugin-working-tree-react,rxdb-plugin-search-angular,rxdb-adapter-sqlite-core,rxdb-adapter-sqlite-wasm,rxdb-plugin-replay-react,rxdb-plugin-search-react,rxdb-plugin-search-vue,rxdb-client-generator,code-editor-angular,rxdb-devtools-extension,rxdb-plugin-storage,rxdb-plugin-replay,rxdb-plugin-search,dev-rxdb-http-server,rxdb-test,utils",
+    "--parallel=1",
+    "--skipRemoteCache",
+    "--skipNxCache",
+    "--output-style=static",
+    "--excludeTaskDependencies",
+    "--args=review-parallel --run --maxWorkers=1 --coverage.enabled=false"
+  ],
+  "elapsedSeconds": 35.463,
+  "exitCode": 1,
+  "freshArtifacts": [
+    "requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes/rxdb-adapter-sqlite-core/junit.xml",
+    "requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes/rxdb-adapter-sqlite-wasm/junit.xml",
+    "requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes/rxdb-client-generator/junit.xml",
+    "requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes/code-editor-angular/junit.xml",
+    "requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes/rxdb-plugin-storage/junit.xml",
+    "requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes/rxdb-plugin-replay/junit.xml",
+    "requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes/rxdb-plugin-search/junit.xml",
+    "requirements/reviews/evidence/2026-10-05/parallel/validation/new-parallel-probes/utils/junit.xml"
+  ],
+  "headAtFinish": "44de1138b4d396fc45d6e76ab60476c40fef2223",
+  "heavyTaskConcurrency": 1,
+  "projects": [
+    "rxdb-plugin-working-tree-react",
+    "rxdb-plugin-search-angular",
+    "rxdb-adapter-sqlite-core",
+    "rxdb-adapter-sqlite-wasm",
+    "rxdb-plugin-replay-react",
+    "rxdb-plugin-search-react",
+    "rxdb-plugin-search-vue",
+    "rxdb-client-generator",
+    "code-editor-angular",
+    "rxdb-devtools-extension",
+    "rxdb-plugin-storage",
+    "rxdb-plugin-replay",
+    "rxdb-plugin-search",
+    "dev-rxdb-http-server",
+    "rxdb-test",
+    "utils"
+  ],
+  "reviewedProjectAndDependencyInputCount": 2492,
+  "startedAt": "2026-10-05T09:33:47.962760+08:00"
+}
