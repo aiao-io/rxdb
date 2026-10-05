@@ -397,9 +397,9 @@
       后跑 `pnpm nx test rxdb-adapter-supabase -- push-receipts`，确认得到含 `PGRST202` 的 `SupabaseDataError`、本地变更仍待推；记录后重载新版 SQL
 - [ ] T072 [P] API 基线：`pnpm audit:api-surface`，确认差异只有契约列出的新增 / 删除导出，然后 `pnpm audit:api-surface:update`；涉及
       `requirements/api-baseline/{rxdb,rxdb-plugin-sync,rxdb-adapter-supabase,rxdb-angular,rxdb-vue}.json`
-- [ ] T073 [P] 迁移文档 `website/docs/migration/supabase-push-receipts.md`：`changeIdMapping` → `results` 的改法、`PushRepositoryResult.rejected`、
+- [x] T073 [P] 迁移文档 `website/docs/migration/supabase-push-receipts.md`：`changeIdMapping` → `results` 的改法、`PushRepositoryResult.rejected`、
       系统模式 7、先升级 SQL 再升级客户端（research D17）；在 `website/docs/migration/README.md` 与 `website/sidebars.ts` 登记（FR-020）
-- [ ] T074 [P] 核对 T018 的 `requirements/release-plan.md` 标注仍成立（A+B 同版本、`kind=migration`、须先有 `kind=bridge`）；`pnpm check-migration-release-gate`
+- [x] T074 [P] 核对 T018 的 `requirements/release-plan.md` 标注仍成立（A+B 同版本、`kind=migration`、须先有 `kind=bridge`）；`pnpm check-migration-release-gate`
       通过（门禁脚本不需要改）
 - [ ] T075 PR-B 门禁：`pnpm nx run-many -t lint test build typecheck --projects=tag:js-lib`、`pnpm audit:callsite-drift`、`pnpm audit:suite-callsites`、
       `pnpm check-migration-release-gate`、`pnpm audit:api-surface`；改动包覆盖率 `rxdb` 与三框架绑定 ≥ 90%、其余 ≥ 80%（`pnpm nx test <project> --coverage`，口径同 `scripts/audit/coverage-check.mjs`）；`bash 回归脚本` 28 条全部

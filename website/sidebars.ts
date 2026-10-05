@@ -205,6 +205,7 @@ const sidebars: SidebarsConfig = {
         'migration/adapters',
         'migration/supabase-network-errors',
         'migration/supabase-update-push',
+        'migration/supabase-push-receipts',
         'migration/http-page-token',
         'migration/desktop-split',
         'migration/working-tree-split',

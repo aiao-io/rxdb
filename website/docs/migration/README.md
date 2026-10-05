@@ -7,6 +7,7 @@
 - [适配器切换与数据迁移](./adapters.md)：更换存储后端
 - [Supabase 传输失败错误类型迁移](./supabase-network-errors.md)：连不上远端时改抛 core 的 `NetworkOfflineError`，请用 `isNetworkError` 判离线
 - [Supabase 修改推送语义迁移](./supabase-update-push.md)：本地修改改走普通 `UPDATE`（`rxdb_mutations` 新参数 `p_updates`），须先执行新版 SQL 再升级客户端
+- [Supabase 推送回执迁移](./supabase-push-receipts.md)：`mergeChanges` 返回值从 `changeIdMapping` 改为必填的 `results`，自定义远端适配器须跟着改；被拒变更不再拖垮整批，须先执行新版 SQL 再升级客户端
 - [HTTP 适配器翻页键改名](./http-page-token.md)：`ctx.cursor` → `ctx.pageToken`、`nextCursor` → `nextPageToken`，与 core 的 keyset 游标区分开
 - [桌面适配器拆包](./desktop-split.md)：`rxdb-adapter-desktop` 拆成 `-electron` / `-tauri` 两个包
 - [工作树拆包](./working-tree-split.md)：工作树与提交历史从核心拆成 `@aiao/rxdb-plugin-working-tree`，能力守卫取代版本号锁
