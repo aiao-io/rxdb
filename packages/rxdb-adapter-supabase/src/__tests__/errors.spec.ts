@@ -80,8 +80,18 @@ describe('Supabase 错误类', () => {
       expect(new SupabaseDataError('msg').name).toBe('SupabaseDataError');
     });
 
-    it('code 固定为 DATA_ERROR', () => {
-      expect(new SupabaseDataError('msg').code).toBe('DATA_ERROR');
+    it('未给数据库错误码时 code 为 DATA_ERROR、details 为空', () => {
+      const error = new SupabaseDataError('msg');
+      expect(error.code).toBe('DATA_ERROR');
+      expect(error.details).toBeUndefined();
+    });
+
+    // US-218 FR-016 / AC#13：SQLSTATE 与 DETAIL 是拒绝分类与原因展示的输入，不能在适配器里丢掉
+    it('带上数据库返回的 SQLSTATE 与 details', () => {
+      const details = '{"op":"delete","reason":"denied"}';
+      const error = new SupabaseDataError('msg', { code: '42501', details });
+      expect(error.code).toBe('42501');
+      expect(error.details).toBe(details);
     });
 
     it('message 正确传递', () => {
