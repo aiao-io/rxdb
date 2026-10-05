@@ -249,7 +249,7 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     writePrimitive: 'executor.mergeChanges',
     intent: TrustedWriteIntent.remote_sync,
     entrance: 'remote_entity_apply',
-    verifiedAtLine: 1161
+    verifiedAtLine: 1392
   }
 ];
 

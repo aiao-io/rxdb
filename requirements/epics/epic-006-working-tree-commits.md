@@ -345,7 +345,7 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 | 9   | `cleanup-expired.ts`    | `cleanupExpired`            | `executor.mergeChanges(…, true)`  | 208  | `remote_sync` | **必须产生**   |
 | 10  | `materialize-branch.ts` | `switchWithMaterialization` | `adapter.switchBranch`            | 313  | 分支物化      | **不产生**     |
 | 11  | `materialize-branch.ts` | `applyMaterializedActions`  | `executor.mergeChanges(…, true)`  | 360  | 分支物化      | **不产生**     |
-| 12  | `push-repository.ts`    | `alignRejectedEntities`     | `executor.mergeChanges(…, true)`  | 1161 | `remote_sync` | **必须产生**   |
+| 12  | `push-repository.ts`    | `alignRejectedEntities`     | `executor.mergeChanges(…, true)`  | 1392 | `remote_sync` | **必须产生**   |
 
 同一文件里语义不同的两个策略分支（#5 / #6）各占一行，合并成一行会让其中一条策略失去登记；同理
 `pull-batch.ts` 与 `pull-repository.ts` 是两个不同文件里的两个独立调用点，不得合并成一行。
