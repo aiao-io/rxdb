@@ -164,7 +164,7 @@ describe('Supabase transient write retry', () => {
   it('mergeChanges retries transient upstream errors', async () => {
     const { adapter, rpc } = createRpcAdapter([
       { data: null, error: TRANSIENT_ERROR },
-      { data: { max_change_id: 5, change_id_mapping: [] }, error: null }
+      { data: { max_change_id: 5, change_id_mapping: [], entity_results: [] }, error: null }
     ]);
 
     const result = await adapter.mergeChanges(emptyActions());

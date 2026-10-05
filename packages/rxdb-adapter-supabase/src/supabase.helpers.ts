@@ -5,7 +5,15 @@
  * 写响应验证、瞬时错误重试判定、快照过滤校验、属性支持校验、RLS / Realtime 配置常量。
  */
 
-import { EntityMetadata, IRxDBChange, PropertyType, RemoteChangeResult, RemoteMergeResult, RuleGroup } from '@aiao/rxdb';
+import {
+  EntityMetadata,
+  IRxDBChange,
+  PropertyType,
+  RemoteChangeRejection,
+  RemoteChangeResult,
+  RemoteMergeResult,
+  RuleGroup
+} from '@aiao/rxdb';
 import { SupabaseConfigError, SupabaseDataError } from './errors.js';
 import type { PostgrestErrorBody } from './postgrest-error.js';
 
@@ -139,13 +147,124 @@ export function validateMutationsResponse<TResult>(data: unknown): TResult[] {
   return data['upserted'] as TResult[];
 }
 
+/** `entity_results` 单元素里 `dependsOn` 为表引用时的形状，解析自外键约束 */
+interface DependsOnTableRef {
+  schema: string;
+  table: string;
+  entityId: string;
+}
+
+/** `entity_results` 单元素里 `dependsOn` 解析不出父行时退化成的约束描述 */
+interface DependsOnConstraintRef {
+  constraint: string;
+}
+
 /**
- * 校验 `rxdb_mutations`（5 参、不带回执）的响应，并按本批源变更构造 {@link RemoteMergeResult}
+ * `rxdb_mutations`（`p_receipts = true`）回执数组 `entity_results` 的单个元素
  *
  * @remarks
- * 此时远端 SQL 还没有按实体回执（那是 US3 的 T043+），`change_id_mapping` 仍是唯一依据：
- * 本批每条源变更的 `localId` 必须能在其中查到，查不到就是远端回执与本批不一致——
- * 不满足「全有或全无」（US-218 FR-016），整批当数据错误抛出，不返回 `rejected` 结果。
+ * 按 `status` 判别：`applied` 不带拒绝详情；`rejected` 必带 `code` / `reason` / `message`，
+ * `reason = 'dependency'` 时还带 `dependsOn`（[contracts/rxdb-mutations-receipts.md §4](../../../specs/007-us218-rls-push-integrity/contracts/rxdb-mutations-receipts.md)）。
+ */
+type RawEntityResult =
+  | { schema: string; table: string; entityId: string; status: 'applied'; localIds: number[] }
+  | {
+      schema: string;
+      table: string;
+      entityId: string;
+      status: 'rejected';
+      code: string;
+      reason: 'denied' | 'gone' | 'dependency';
+      message: string;
+      dependsOn?: DependsOnTableRef | DependsOnConstraintRef;
+      localIds: number[];
+    };
+
+/** `entity_results` 中已被拒绝的元素 */
+type RejectedEntityResult = Extract<RawEntityResult, { status: 'rejected' }>;
+
+const ENTITY_RESULT_OPS = new Set(['INSERT', 'UPDATE', 'DELETE']);
+const ENTITY_RESULT_REJECTION_REASONS = new Set(['denied', 'gone', 'dependency']);
+
+function isNonNegativeIntArray(value: unknown): value is number[] {
+  return Array.isArray(value) && value.every(item => Number.isSafeInteger(item) && (item as number) >= 0);
+}
+
+function isDependsOnConstraintRef(value: unknown): value is DependsOnConstraintRef {
+  return isRecord(value) && typeof value['constraint'] === 'string';
+}
+
+function isDependsOnTableRef(value: unknown): value is DependsOnTableRef {
+  return (
+    isRecord(value) &&
+    typeof value['schema'] === 'string' &&
+    typeof value['table'] === 'string' &&
+    typeof value['entityId'] === 'string'
+  );
+}
+
+/** 校验单个 `entity_results` 元素的公共字段（`schema` / `table` / `entityId` / `op` / `localIds`） */
+function hasEntityResultCommonShape(item: Record<string, unknown>): boolean {
+  return (
+    typeof item['schema'] === 'string' &&
+    typeof item['table'] === 'string' &&
+    typeof item['entityId'] === 'string' &&
+    typeof item['op'] === 'string' &&
+    ENTITY_RESULT_OPS.has(item['op']) &&
+    isNonNegativeIntArray(item['localIds'])
+  );
+}
+
+/** 校验 `status = 'rejected'` 元素的拒绝详情（`code` / `reason` / `message`，`dependency` 时还有 `dependsOn`） */
+function hasRejectedEntityResultShape(item: Record<string, unknown>): boolean {
+  if (typeof item['code'] !== 'string' || typeof item['message'] !== 'string') return false;
+  if (typeof item['reason'] !== 'string' || !ENTITY_RESULT_REJECTION_REASONS.has(item['reason'])) return false;
+  if (item['reason'] !== 'dependency') return true;
+  return isDependsOnConstraintRef(item['dependsOn']) || isDependsOnTableRef(item['dependsOn']);
+}
+
+function isEntityResultShape(item: unknown): item is RawEntityResult {
+  if (!isRecord(item) || !hasEntityResultCommonShape(item)) return false;
+  if (item['status'] === 'applied') return true;
+  return item['status'] === 'rejected' && hasRejectedEntityResultShape(item);
+}
+
+/** 从响应里取出并校验 `entity_results`；缺项或形状不对一律 {@link SupabaseDataError} */
+function parseEntityResults(data: Record<string, unknown>): RawEntityResult[] {
+  const entityResults = data['entity_results'];
+  if (!Array.isArray(entityResults)) invalidWriteResponse('merge changes');
+  if (!entityResults.every(isEntityResultShape)) invalidWriteResponse('merge changes');
+  return entityResults;
+}
+
+/**
+ * 把回执里某条源变更的拒绝详情组装成 {@link RemoteChangeRejection}
+ *
+ * @param change - 对应的本地源变更，`entity` 字段取它自身的 `namespace` / `entity` / `entityId`
+ *   （[contracts/remote-merge-result.md §3](../../../specs/007-us218-rls-push-integrity/contracts/remote-merge-result.md)）——
+ *   能匹配到这条回执本身已经证明两者是同一实体，不需要反查表名
+ * @param entityResult - 该实体在 `entity_results` 中被拒绝的那一条
+ *
+ * @remarks
+ * `entityResult.dependsOn` 的换算（表引用 → 本地实体引用）留给 T054，这里暂不组装 `rejection.dependsOn`。
+ */
+function buildRejection(change: IRxDBChange, entityResult: RejectedEntityResult): RemoteChangeRejection {
+  return {
+    code: entityResult.code,
+    reason: entityResult.reason,
+    message: entityResult.message,
+    entity: { namespace: change.namespace || 'public', entity: change.entity, entityId: String(change.entityId) }
+  };
+}
+
+/**
+ * 校验 `rxdb_mutations`（`p_receipts = true`）的响应，并按本批源变更构造 {@link RemoteMergeResult}
+ *
+ * @remarks
+ * 对本批每条源变更 `c`：`c.localId` 在 `change_id_mapping` 中 → `applied`；否则 `c.localId` 在某个
+ * `status = 'rejected'` 的 `entity_results[i].localIds` 中 → `rejected`；两者都不在、或同时在
+ * → {@link SupabaseDataError}（远端回执与本批不一致），不满足「每条源变更恰好一条结果」
+ * （US-218 FR-016，[contracts/remote-merge-result.md §3](../../../specs/007-us218-rls-push-integrity/contracts/remote-merge-result.md)）。
  */
 export function validateMergeResponse(data: unknown, changes: IRxDBChange[] | undefined): RemoteMergeResult {
   if (!isRecord(data) || !Array.isArray(data['change_id_mapping'])) invalidWriteResponse('merge changes');
@@ -173,12 +292,34 @@ export function validateMergeResponse(data: unknown, changes: IRxDBChange[] | un
     ])
   );
 
+  const rejectionByLocalId = new Map<number, RejectedEntityResult>();
+  for (const entityResult of parseEntityResults(data)) {
+    if (entityResult.status !== 'rejected') continue;
+    for (const localId of entityResult.localIds) {
+      rejectionByLocalId.set(localId, entityResult);
+    }
+  }
+
   const results: RemoteChangeResult[] = (changes ?? []).map(change => {
     const remoteId = remoteIdByLocalId.get(change.id);
-    if (remoteId === undefined) {
-      throw new SupabaseDataError(`Merge response missing mapping for local change: ${change.id}`);
+    const rejectedResult = rejectionByLocalId.get(change.id);
+
+    if (remoteId !== undefined && rejectedResult !== undefined) {
+      throw new SupabaseDataError(
+        `Merge response inconsistent for local change: ${change.id} (both applied and rejected)`
+      );
     }
-    return { localId: change.id, status: 'applied', remoteId };
+    if (remoteId !== undefined) {
+      return { localId: change.id, status: 'applied', remoteId };
+    }
+    if (rejectedResult !== undefined) {
+      return {
+        localId: change.id,
+        status: 'rejected',
+        rejection: buildRejection(change, rejectedResult)
+      };
+    }
+    throw new SupabaseDataError(`Merge response missing mapping for local change: ${change.id}`);
   });
 
   return {

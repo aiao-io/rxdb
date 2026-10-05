@@ -448,7 +448,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       resolveTableKey
     );
 
-    // 调用 RPC（单一事务，跳过触发器；瞬时网络错误自动重试）
+    // 调用 RPC（单一事务，跳过触发器；p_receipts 开启逐实体回执，一条被拒不拖垮整批；瞬时网络错误自动重试）
     return this.executeRetryableWrite(
       'merge changes',
       async () => {
@@ -457,7 +457,8 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
           p_updates,
           p_deletes,
           p_changes,
-          p_skip_sync: true
+          p_skip_sync: true,
+          p_receipts: true
         });
         return { data, error, status };
       },

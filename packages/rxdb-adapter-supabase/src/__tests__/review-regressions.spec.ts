@@ -407,7 +407,10 @@ describe('supabase review regressions', () => {
   });
 
   it('mergeChanges decodes typed action keys before sending entity IDs to Supabase', async () => {
-    const rpc = vi.fn(async () => ({ data: { max_change_id: 3, change_id_mapping: [] }, error: null }));
+    const rpc = vi.fn(async () => ({
+      data: { max_change_id: 3, change_id_mapping: [], entity_results: [] },
+      error: null
+    }));
     const adapter = createAdapter({ rpc }, {}, [Todo]);
     const insertId = '11111111-1111-4111-8111-111111111111';
     const updateId = '22222222-2222-4222-8222-222222222222';
@@ -453,7 +456,8 @@ describe('supabase review regressions', () => {
     const rpc = vi.fn(async (_name: string, _params: MergeChangesPayload) => ({
       data: {
         max_change_id: 5,
-        change_id_mapping: [1, 2, 3, 4, 5].map(localId => ({ localId, remoteId: localId + 100 }))
+        change_id_mapping: [1, 2, 3, 4, 5].map(localId => ({ localId, remoteId: localId + 100 })),
+        entity_results: []
       },
       error: null
     }));
@@ -510,7 +514,10 @@ describe('supabase review regressions', () => {
   });
 
   it('mergeChanges leaves every entity write array empty on a non-main branch', async () => {
-    const rpc = vi.fn(async () => ({ data: { max_change_id: 3, change_id_mapping: [] }, error: null }));
+    const rpc = vi.fn(async () => ({
+      data: { max_change_id: 3, change_id_mapping: [], entity_results: [] },
+      error: null
+    }));
     const adapter = createAdapter({ rpc }, {}, [Todo]);
     const key = (id: string) => `public:Todo:${getRxDBEntityIdentityKey(id)}`;
 
