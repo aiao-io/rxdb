@@ -17,6 +17,7 @@ import type {
   QueryCacheEntityMetadata,
   RemoteBranchInfo,
   RemoteChange,
+  RemoteMergeResult,
   RepositoryInstance,
   RuleGroup,
   RxDB,
@@ -422,9 +423,13 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * @param branchId - 分支 ID
    * @param changes - 完整的原始变更记录（可选，用于保留完整历史）
    */
-  async mergeChanges(actions: SwitchVersionActions, branchId?: string, changes?: IRxDBChange[]) {
+  async mergeChanges(
+    actions: SwitchVersionActions,
+    branchId?: string,
+    changes?: IRxDBChange[]
+  ): Promise<RemoteMergeResult> {
     if (actions.inserts.size === 0 && actions.updates.size === 0 && actions.deletes.size === 0 && !changes?.length) {
-      return;
+      return { results: [] };
     }
 
     const resolveTableKey = (namespace: string, entityName: string) => {
@@ -456,7 +461,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
         });
         return { data, error, status };
       },
-      validateMergeResponse
+      data => validateMergeResponse(data, changes)
     );
   }
 

@@ -5,7 +5,7 @@
  * 写响应验证、瞬时错误重试判定、快照过滤校验、属性支持校验、RLS / Realtime 配置常量。
  */
 
-import { EntityMetadata, PropertyType, RemoteMergeResult, RuleGroup } from '@aiao/rxdb';
+import { EntityMetadata, IRxDBChange, PropertyType, RemoteChangeResult, RemoteMergeResult, RuleGroup } from '@aiao/rxdb';
 import { SupabaseConfigError, SupabaseDataError } from './errors.js';
 import type { PostgrestErrorBody } from './postgrest-error.js';
 
@@ -139,7 +139,15 @@ export function validateMutationsResponse<TResult>(data: unknown): TResult[] {
   return data['upserted'] as TResult[];
 }
 
-export function validateMergeResponse(data: unknown): RemoteMergeResult {
+/**
+ * 校验 `rxdb_mutations`（5 参、不带回执）的响应，并按本批源变更构造 {@link RemoteMergeResult}
+ *
+ * @remarks
+ * 此时远端 SQL 还没有按实体回执（那是 US3 的 T043+），`change_id_mapping` 仍是唯一依据：
+ * 本批每条源变更的 `localId` 必须能在其中查到，查不到就是远端回执与本批不一致——
+ * 不满足「全有或全无」（US-218 FR-016），整批当数据错误抛出，不返回 `rejected` 结果。
+ */
+export function validateMergeResponse(data: unknown, changes: IRxDBChange[] | undefined): RemoteMergeResult {
   if (!isRecord(data) || !Array.isArray(data['change_id_mapping'])) invalidWriteResponse('merge changes');
 
   const maxChangeId = data['max_change_id'];
@@ -158,9 +166,24 @@ export function validateMergeResponse(data: unknown): RemoteMergeResult {
   );
   if (hasInvalidMapping) invalidWriteResponse('merge changes');
 
+  const remoteIdByLocalId = new Map(
+    (changeIdMapping as Array<{ localId: number; remoteId: number }>).map(({ localId, remoteId }) => [
+      localId,
+      remoteId
+    ])
+  );
+
+  const results: RemoteChangeResult[] = (changes ?? []).map(change => {
+    const remoteId = remoteIdByLocalId.get(change.id);
+    if (remoteId === undefined) {
+      throw new SupabaseDataError(`Merge response missing mapping for local change: ${change.id}`);
+    }
+    return { localId: change.id, status: 'applied', remoteId };
+  });
+
   return {
     maxChangeId: maxChangeId === null ? undefined : (maxChangeId as number),
-    changeIdMapping: changeIdMapping as NonNullable<RemoteMergeResult['changeIdMapping']>
+    results
   };
 }
 
