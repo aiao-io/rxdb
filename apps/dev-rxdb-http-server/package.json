@@ -11,5 +11,12 @@
   },
   "nx": {
     "name": "dev-rxdb-http-server"
+  },
+  "devDependencies": {
+    "@aiao/rxdb-adapter-electron": "workspace:*",
+    "@aiao/rxdb-adapter-http": "workspace:*",
+    "@aiao/rxdb-plugin-history": "workspace:*",
+    "@aiao/rxdb-plugin-querycache": "workspace:*",
+    "@aiao/rxdb-plugin-sync": "workspace:*"
   }
 }

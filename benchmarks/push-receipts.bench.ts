@@ -5,7 +5,7 @@
  *  • `baseline`   — 100 条本地待推变更全部被远端 `applied`；
  *  • `rejected`   — 100 条中 10 条被远端 `rejected`，触发 `persistPushReceipts` 的
  *    「远端 `findByIds` 回查 → 本地单事务对齐被拒实体」路径
- *    （见 `specs/007-us218-rls-push-integrity/data-model.md` §7）。
+ *    （见 `git show 8cc005bb:specs/007-us218-rls-push-integrity/data-model.md` §7）。
  *
  * 计时只包住 `pushRepository()` 本身；每个样本前的 100 条本地变更在计时窗口外建好。
  *
@@ -24,9 +24,9 @@
  *   # 或：
  *   pnpm nx run benchmarks:bench-push-receipts
  *
- * @see specs/007-us218-rls-push-integrity/tasks.md T090
- * @see specs/007-us218-rls-push-integrity/data-model.md §7「推送提交」
- * @see specs/007-us218-rls-push-integrity/contracts/remote-merge-result.md
+ * @see `git show 8cc005bb:specs/007-us218-rls-push-integrity/tasks.md` T090
+ * @see `git show 8cc005bb:specs/007-us218-rls-push-integrity/data-model.md` §7「推送提交」
+ * @see `git show 8cc005bb:specs/007-us218-rls-push-integrity/contracts/remote-merge-result.md`
  */
 
 import { mkdir, writeFile } from 'node:fs/promises';

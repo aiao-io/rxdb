@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-01
+updated: 2026-10-06
 tags: [plugin, bom, graph, integrity]
 ---
 
@@ -70,16 +70,16 @@ tags: [plugin, bom, graph, integrity]
 `directed-unweighted.spec.ts` / `undirected-unweighted.spec.ts`「自环边场景（当前实现允许）」与
 `graph-semantics.spec.ts`「自环边」等用例把它钉住。读侧由
 [`query_graph_sql.ts`](../../../packages/rxdb-plugin-graph/src/sqlite/query_graph_sql.ts) 的 `cycle` 判定与
-`GRAPH_MAX_PATH_EXPANSIONS` 保证终止，`findPaths` 只返回非循环路径。BOM 需要的是在这之上**再加**一条写入期约束。
+`GRAPH_MAX_PATH_EXPANSIONS` 保证终止，`findPaths` 只返回节点不重复的路径（`fromId === toId` 时返回真实环路，如 `A→B→A`）。BOM 需要的是在这之上**再加**一条写入期约束。
 
-**「存储层」不是一个普适的位置，它到哪一层取决于适配器。** 本仓有 10 个适配器
-（`rxdb-adapter-*` 目录共 12 个，其中 `sqlite-core` 是 SQLite 家族的共享层、`encrypted` 是内建加密库，
-都没有 `IRxDBAdapter` 实现），按 DDL 归谁掌控分三档：
+**「存储层」不是一个普适的位置，它到哪一层取决于适配器。** 适配器见 `packages/rxdb-adapter-*`
+（其中 `sqlite-core` 是 SQLite 家族的共享层、`encrypted` 是内建加密库，都没有 `IRxDBAdapter` 实现；
+`electron` 有 SQLite 与 PGlite 两个入口），按 DDL 归谁掌控分三档：
 
 | 档           | 适配器                                                                                                                  | 环约束落在哪  | AC#5 是否成立           |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------------- |
 | DDL 本仓掌控 | `sqlite` / `sqlite-wasm` / `wa-sqlite` / `sqliteai` / `electron` / `tauri` / `miniprogram`（DDL 由 `sqlite-core` 生成） | SQLite 触发器 | ✅                      |
-| DDL 本仓掌控 | `pglite`                                                                                                                | PG 触发器     | ✅                      |
+| DDL 本仓掌控 | `pglite` / `electron` 的 PGlite 入口（`@aiao/rxdb-adapter-electron/pglite`，继承 `RxDBAdapterPGlite`）                  | PG 触发器     | ✅                      |
 | DDL 在远端   | `supabase` / `http`                                                                                                     | 本仓发不出去  | ❌，按 AC#6 / AC#7 降级 |
 
 触发器生成有现成先例：FTS 按方言各有一份生成器，PGlite 的
@@ -132,7 +132,9 @@ ECN 改期、备选切换都会在**没有任何行写入**的情况下改变解
 在其余适配器上，能力缺席被显式声明（AC#6）。多写入端是本故事存在的全部理由——
 只在仓储层校验等于没校验，而声称在每个后端都校验到了，比没校验更坏。
 
-**首轮切片只验收 AC#1 / #3 / #5～#7 / #9～#12**：AC#2 等 US-030 阶段 A 的 CHECK，AC#4 等 US-513 引入 `flow_direction`，
+**首轮切片只验收 AC#1 / #3 / #5～#7 / #9～#12**：AC#2 除了 US-030 阶段 A 的 CHECK，还要求自反边的两端落在同一行——
+按 US-507 的 schema 父件不在发生项行上，单行 CHECK 比不了 `child_item_id` 与 `parent_item_id`，要不要在发生项上冗余存
+`parent_item_id` 留到 Epic 解锁后定；AC#4 等 US-513 引入 `flow_direction`，
 AC#8 等 US-510 阶段 B 的可达性表，AC#13 等真实 PostgreSQL 环境；整条故事在这些前置落地前不置 Done，见
 [epic-009 首轮可开工切片](../../epics/epic-009-bom-domain-model.md#首轮可开工切片)。
 

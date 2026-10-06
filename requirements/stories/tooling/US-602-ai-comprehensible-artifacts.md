@@ -5,17 +5,17 @@ status: Backlog
 priority: Medium
 epic: epic-007-public-api-gates
 created: 2026-09-22
-updated: 2026-10-02
+updated: 2026-10-06
 tags: [tooling, dx, llms-txt, agent-skills, package-graph]
 ---
 
 <!--
 INVEST 检查清单:
 - [x] Independent: A1 / B / C 只动 scripts/audit/、website/、根 package.json 与 CI 接线、主包非运行时文件，以及核心三个入口的 TSDoc；
-      A2 改约 40 个包的 manifest（破坏性），单独关闭。任何阶段都不改运行时行为
+      A2 改各包的 manifest（破坏性），单独关闭。任何阶段都不改运行时行为
 - [x] Negotiable: 语义事实放哪（中心文件 vs 各包字段）、生成时机、样例宿主、Skill exporter 在对应阶段 plan 定案，约束见技术笔记
 - [x] Valuable: 「该装哪几个、哪个槽位、何时 use、事务怎么写」是消费端 AI 今天答错的具体问题，症状见「病灶」
-- [x] Estimable: 包与依赖边已实测枚举（门禁范围 46 个包，投递范围以 v0.0.26 计 34 个），规则按包与边线性扫描，不需要通用推荐引擎
+- [x] Estimable: 包与依赖边已实测枚举（门禁范围与投递范围的包数都由扫描得出，见范围边界），规则按包与边线性扫描，不需要通用推荐引擎
 - [x] Small: 按 A1 / A2 / B / C 切分，各自有关闭条件；A1 可独立合并
 - [x] Testable: 门禁规则用 __fixtures__/ 假包在 node:test 验证；真实仓库、打包消费、站点部署各有独立入口
 -->
@@ -45,14 +45,16 @@ INVEST 检查清单:
      而 `rxdb-adapter-http` 的 `peerDependencies` 只有核心与 RxJS，**沿 npm 依赖边推不出这组运行时前置**。
 
    单个包的 tarball 里没有任何一处描述它与兄弟包的关系，AI 读完 `@aiao/rxdb-plugin-graph@0.0.26`
-   也答不出「还要装哪个 adapter、配到哪个槽位」。反过来，仓库 `main` 上有 12 个包不在 `v0.0.26` tag 树里：
-   tree / working-tree 系 8 个在 npm 上 404，`rxdb-model` 系 4 个停在 0.0.19——只看仓库的 AI 会推荐装不到或装到旧 API 的包。
+   也答不出「还要装哪个 adapter、配到哪个槽位」。反过来，仓库 `main` 上有 16 个包不在 `v0.0.26` tag 树里（`git ls-tree v0.0.26 packages/` 与 `packages/` 求差集）：
+   tree / working-tree / replay 系 12 个在 npm 上 404，`rxdb-model` 系 4 个停在 0.0.19——只看仓库的 AI 会推荐装不到或装到旧 API 的包。
 
 2. **依赖声明写法分裂，消费者无从判断共享宿主约束**。同一种「需要核心包」的关系有多种写法：
 
    ```jsonc
    // packages/rxdb-angular/package.json
-   "peerDependencies": { "@aiao/rxdb": "*", "@aiao/rxdb-plugin-graph": "*", "@aiao/utils": "*" }
+   "peerDependencies": { "@aiao/rxdb": "^0.0.26", "@aiao/rxdb-plugin-graph": "^0.0.26", "@aiao/utils": "^0.0.26" }
+   // packages/rxdb-adapter-http/package.json
+   "peerDependencies": { "@aiao/rxdb": "workspace:*" }
    // packages/rxdb-adapter-wa-sqlite/package.json
    "dependencies":     { "@aiao/rxdb": "workspace:*", "@aiao/rxdb-adapter-sqlite-core": "workspace:*" }
    ```
@@ -60,10 +62,10 @@ INVEST 检查清单:
    `dependencies` 本身不必然装出两份核心，peer 也不必然让用户亲手安装；但对一个靠装饰器元数据注册表的库，
    各包对核心给出互不相同的版本约束，就让「核心是否必须单实例、消费者要不要直接装」无从读出，版本错位时核心被装成两份实例是已知故障模式。
 
-   这不是个别包的笔误。**源码计数**：`packages/` 下 23 个包把 `@aiao/rxdb` 放在 `dependencies`，17 个放在
-   `peerDependencies`，后者内部又混用 `workspace:*`（3 个）与 `*`（14 个）；兄弟边上还有 `>=0.0.26`
+   这不是个别包的笔误。**源码计数**：`packages/` 下 24 个包把 `@aiao/rxdb` 放在 `dependencies`，17 个放在
+   `peerDependencies`，后者内部又混用 `workspace:*`（3 个）、`*`（12 个）与 `^0.0.26`（`rxdb-angular`、`rxdb-model-angular`，尚未发布）；兄弟边上还有 `>=0.0.26`
    （`code-editor-angular`）。**npm 产物计数**见技术笔记「依赖写法」。框架绑定本身就不对称，且已发布：
-   `@aiao/rxdb-angular@0.0.26` 对核心是 peer `*`，`@aiao/rxdb-react@0.0.26` 是 `dependencies` 精确 `0.0.26`，违反三框架对称。
+   `@aiao/rxdb-angular@0.0.26`（已发布产物）对核心是 peer `*`，`@aiao/rxdb-react@0.0.26` 是 `dependencies` 精确 `0.0.26`，违反三框架对称。
    **复验方式**：`node -e` 遍历 `packages/*/package.json`，按 `@aiao/rxdb` 出现在哪个字段分组计数；产物侧 `npm view <pkg>@latest dependencies peerDependencies`。
 
 3. **致命约束不在高频入口的声明旁**。
@@ -71,7 +73,7 @@ INVEST 检查清单:
      [`RxDBPluginGraph.install`](../../../packages/rxdb-plugin-graph/src/plugin.ts) 调 `this.rxdb.repository('GraphRepository', …)`，
      而 [`RxDB.init`](../../../packages/rxdb/src/RxDB.ts) 先 `#install_plugin()`、后 `entityManager.init()`——晚装时实体已按旧注册表初始化。
      `RxDB.connect()` 在异步启动前调 `init()`，所以实际就是第一次 `connect()` 之前。
-     带系统贡献的插件晚装由 `#register_system_contribution()` 直接抛错（今天只有未发布的 `rxdb-plugin-working-tree`；
+     带系统贡献的插件晚装由 `#register_system_contribution()` 直接抛错（例如未发布的 `rxdb-plugin-working-tree`；
      未发布的 `rxdb-plugin-tree` 属于贡献仓储一类，发布后同样适用）。**普通插件晚装合法**——`RxDB.use` 的 TSDoc
      「`init()` 之后注册的插件立即安装」对它们是对的，缺的是对前两类的区分，照着 `.d.ts` 推理会把它推广到所有插件。
    - **事务内 `await entity.save()`**：会落回队列并永久挂起（[rxdb README](../../../packages/rxdb/README.md)）。
@@ -124,7 +126,7 @@ A1 的 TSDoc（AC#12）与事实源、门禁、样例零耦合，可先单独提
 ### In Scope
 
 - **A1 · 发布发现**：一次扫描、三个出口，包数都从扫描得出，不硬编码——
-  - **门禁范围**：`packages/*` 下有 `package.json` 且非 private，不要求 `src/index.ts`，`rxdb-test` 在内（今 46 个）。保证登记完整。
+  - **门禁范围**：`packages/*` 下有 `package.json` 且非 private，不要求 `src/index.ts`，`rxdb-test` 在内（由扫描得出，不硬编码）。保证登记完整。
   - **投递范围**：最近一个 `v*` release tag 树里的包（`git ls-tree <tag> packages/` 离线得出，今 `v0.0.26` 下 34 个）。
     B / C 的选型索引、安装清单只取这个集合，生成物的版本标识就是这个 tag。
   - **API 基线范围**：`listPublicPackages()` 现有过滤，保持不变。
@@ -219,7 +221,7 @@ A1 的 TSDoc（AC#12）与事实源、门禁、样例零耦合，可先单独提
 
 - `@aiao/rxdb-test@0.0.26` 已在 npm 上，也在 `v0.0.26` tag 树里，`nx.json` 的 `release.projects` 是 `packages/*`。消费者装得到的包就会被问到，图里缺它，等于替它回答「不存在」。
 - 投递范围取 tag 树而不是 `npm view`：离线、确定，CI 的 `ci-template.yml` 已 `fetch-depth: 0` + `fetch-tags: true`。
-  今天 tag 外的 12 个包与 [release-plan](../../release-plan.md) 的「只在 `main` 上存在的 12 个包」一致。
+  tag 外的包是 `packages/` 与 tag 树的差集；[release-plan](../../release-plan.md) 的「只在 `main` 上存在的 12 个包」是桥接锚点处的口径。
 - `listPublicPackages()` 排除 `rxdb-test` 是 **API 基线范围**的裁剪（[versioning-policy](../../versioning-policy.md) 把它定为非产品 API），
   不是「是否公开」的判定，保持不变。
 - 边界是 `packages/` 目录，不是 `private` 标记：`apps/dev-rxdb-react`、`apps/dev-rxdb-vue` 的
@@ -241,9 +243,9 @@ backend 之间的单向依赖边真实存在且合法（`rxdb-adapter-miniprogra
 
 **依赖写法**（已定案，A2 执行）：`@aiao/rxdb` 一律进 `peerDependencies`，写 `workspace:^`；`@aiao/*` 之间其余 peer 边同样统一为 `workspace:^`。
 
-- 发布产物今天对核心包给出三种关系（`npm view <pkg>@latest` 逐包核对 0.0.26 产物）：`workspace:*` 不论在 `dependencies` 还是 peer 里都被改写成精确版本
+- 发布产物对核心包给出三种关系（`npm view <pkg>@latest` 逐包核对 0.0.26 产物）：`workspace:*` 不论在 `dependencies` 还是 peer 里都被改写成精确版本
   （20 个包精确依赖 `0.0.26`、3 个包精确 peer），`*` 原样发布（6 个包的 peer 没有任何版本约束，哪个版本的核心都算满足）；
-  另有 `rxdb-model` 系 3 个钉在 `0.0.19`，8 个 404。与病灶 2 的源码计数（23 / 3 / 14）的差额全部落在只在 `main` 上的包。
+  另有 `rxdb-model` 系 3 个钉在 `0.0.19`，12 个 404。源码计数见病灶 2；与它的差额落在只在 `main` 上的包，以及源码里尚未发布的 `^0.0.26` peer 写法。
 - `workspace:^` 发布时改写成 `^<版本>`（pnpm 的改写规则，仅 `pnpm pack` / `pnpm publish` 生效；AC#8 用真实 pack 核对产物，不用 `npm pack --dry-run`）。
   它在 0.0.x 下等于精确版本，从 0.1 起是「同一 minor 内的 patch 都兼容」，与 [versioning-policy](../../versioning-policy.md) 的 0.x 口径（minor 可能含破坏性变更）一致。
 - 发布根以 `options.packageRoot ?? projectConfig.root` 为准：Angular 绑定发 `dist/packages/rxdb-angular`，不是源码目录。AC#8 逐项目解析，不假设都是 `packages/<name>`。
@@ -254,7 +256,7 @@ backend 之间的单向依赖边真实存在且合法（`rxdb-adapter-miniprogra
   是否改成 peer 按「消费者会不会直接 import、是否必须单实例」逐条判，A2 plan 列清。
 - 对外承诺的措辞：声明共享宿主约束、**推荐把直接 import 的核心列为消费者顶层依赖**、用消费测试防止多实例。不写「改为 peer 即保证单实例」。
 - 影响面：消费者需显式安装核心包。提交标注 `BREAKING CHANGE`（0.x 下的级别换算见 versioning-policy §5），
-  并新增 `website/docs/migration/v1.md` 留一条迁移说明。
+  并在 `website/docs/migration/v1.md` 追加一节迁移说明。
   桥接区间已冻结为 `v0.0.24..de70a1a9`（[release-plan 桥接锚点定案](../../release-plan.md#桥接锚点定案)），
   A2 无论何时合入都进不了桥接版本，合入时点不受 [roadmap 排期约束 12](../../roadmap.md#排期约束) 牵制；
   它的 `BREAKING CHANGE` 随其后的迁移发布声明。
@@ -276,7 +278,7 @@ backend 之间的单向依赖边真实存在且合法（`rxdb-adapter-miniprogra
 `npm view @aiao/rxdb-plugin-graph@0.0.26 dist.fileCount dist.unpackedSize` 可复验；测试与 `*.tsbuildinfo` 已由 `files` 负向模式正确排除）。C 只动主包，单份 `SKILL.md` ≤ 8192 字节。
 `llms.txt` / `llms-full.txt` 的上限在 B plan 定案；若另用 token 上限须固定估算方式。超限按模块分片 + 索引链接，不静默截断。
 
-**语料覆盖**：[typedoc.config.cjs](../../../website/typedoc.config.cjs) 的 `entryPoints` 有 37 个包，以下 9 个发布包不在其中：
+**语料覆盖**：[typedoc.config.cjs](../../../website/typedoc.config.cjs) 的 `entryPoints` 有 41 个包，以下 9 个发布包不在其中：
 `rxdb-adapter-electron`、`rxdb-adapter-http`、`rxdb-adapter-miniprogram`、`rxdb-adapter-tauri`、`rxdb-model`、`rxdb-model-angular`、
 `rxdb-model-react`、`rxdb-model-vue`、`rxdb-test`。这是 API 页覆盖差异，不是说站点没有它们的手册——
 「遍历站点」不等于「遍历所有发布包」，所以选型索引按投递范围生成，全文按站点生成，两个口径分开写。
@@ -298,7 +300,7 @@ backend 之间的单向依赖边真实存在且合法（`rxdb-adapter-miniprogra
 | A2   | `packages/*/package.json`                                             | `@aiao/*` peer 统一为 `workspace:^`，optional 保留                                                                                  |
 | A2   | `scripts/audit/tree-adapter-dependencies.spec.mjs`                    | 现断言真实 manifest 的 peer 为 `workspace:*`，统一后必红；optional peer 一半并入 `package-graph` 门禁、类型导入一半保留，A2 plan 定 |
 | A2   | 打包消费脚本（参照 `desktop-adapter-consumer.mjs`）                   | 真实 tgz 解包与 npm / pnpm 隔离消费（AC#8）                                                                                         |
-| A2   | `website/docs/migration/v1.md`                                        | 新增：核心包改 peer 的迁移说明                                                                                                      |
+| A2   | `website/docs/migration/v1.md`                                        | 追加一节：核心包改 peer 的迁移说明                                                                                                  |
 | B    | `website/docusaurus.config.ts` / `website/package.json`               | 接入 llms.txt 插件，链接取站点 `url`                                                                                                |
 | B    | `website/src/`                                                        | `llms.txt` 头部（由事实源生成）                                                                                                     |
 | C    | `packages/rxdb/skills/aiao-rxdb/SKILL.md`                             | 主包单份 Skill，正文生成                                                                                                            |

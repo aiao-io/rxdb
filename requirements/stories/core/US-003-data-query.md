@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [core, query, dsl]
 ---
 
@@ -34,9 +34,9 @@ tags: [core, query, dsl]
 ## 技术笔记
 
 - 查询 DSL：`RuleGroup` + `Rule` 组合器树，支持 20 种操作符
-- 缓存：`QueryManager` 管理 `QueryTask` 池，生成 fingerprint 去重
+- 缓存：`QueryManager` 管理 `QueryTask` 池，以 `deterministicStringify(options)` 为缓存键复用任务；fingerprint 只用于结果去重
 - 分页：offset/limit + 游标分页（`findByCursor`）
-- 观察者引用计数：subscribe 时 +1，unsubscribe 时 -1，归零后延迟销毁
+- 观察者引用计数：subscribe 时 +1，unsubscribe 时 -1，归零后立即销毁任务
 
 ## 实现文件
 

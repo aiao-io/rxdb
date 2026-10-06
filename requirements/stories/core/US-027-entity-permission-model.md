@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-004-future-features
 created: 2026-09-20
-updated: 2026-10-03
+updated: 2026-10-06
 tags: [core, permission, model, rxdb-model]
 ---
 
@@ -52,20 +52,21 @@ tags: [core, permission, model, rxdb-model]
    | 适配器 / 执行器的仓储 API | sync 推送回写（`commitRepositoryPush()` 的 `executor.saveMany()` 与 `executor.getRepository(RxDBSync).update()`）、拉取后的本机 `remoteId` 回填（`backfillOwnChangeRemoteIds()`）、`getOrCreateSyncRecord()`、`remove_branch()` 的 `executor.removeMany()`、`create_branch()` 事务内的 `branchRepository.create()`、`runMigrationsOnce()` 的迁移登记、working-tree 的提交落盘（`write-commit.ts`）、分支贡献行（`branch-commit-rows.ts`）与物化阶段推进、search 插件经 `tx.getRepository(RxDBMigration)` 的登记 | 只有系统表     |
    | 原始 SQL                  | 各实体表的 AFTER 触发器写 `RxDBChange`；undo/redo 经 `adapter.switchBranch()` → `convertSwitchResultToSql()`；拉取应用经 `mergeChanges()`；分支激活的 `UPDATE … RETURNING`；working-tree 的 HEAD CAS、检出物化与合并                                                                                                                                                                                                                                                                                            | 业务表与系统表 |
 
-   受信调用点登记表的 11 个调用点（history 6 / sync 3 / working-tree 2）全部守在第二类的 `switchBranch()` / `mergeChanges()` 上。
+   受信调用点登记表（见 epic-006「受信调用点登记表」，分布在 history / sync / working-tree 三个插件）的全部调用点都守在第二类的 `switchBranch()` / `mergeChanges()` 上。
    迁移脚本自己的 `up(executor)` 写什么由迁移作者决定，同样在执行器层。
 
    反过来，公开写入口上没有系统写：`packages/` 的非测试源码里调用 `EntityManager` 写方法的只有三框架 `EntityList`
-   （批量保存 `entityManager.mutations(...)` 与行删除的实体实例 `remove()`），是用户写；同一次 grep 命中的
+   （批量保存 `entityManager.mutations(...)`、行删除的实体实例 `remove()`，以及 [US-028](US-028-sortable-entity.md)
+   的拖拽重排 `Repository.reorder()`），是用户写；同一次 grep 命中的
    `push-repository.ts`、`commit-graph-guard.ts`、`branch-materialization.ts`、`capture-runtime.ts` 都是
    `executor.getRepository(X).update()`，属执行器层。门面仓储（`RxDB.getRepository()` / `EntityManager.getRepository()`）
-   在 `packages/` 非测试源码里的用法全是读——`HistoryManager`、`undo-redo-apply.ts`、`query-cache-outbox.ts`、
+   在 `packages/` 非测试源码里除 `EntityList` 的 `reorder()` 外用法全是读——`HistoryManager`、`undo-redo-apply.ts`、`query-cache-outbox.ts`、
    `relation-helper.ts`、devtools、`entity-detail.ts`、无限滚动列表（全仓 grep 后逐条读调用点）。
    `apps/` 与 `modules/` 的 demo 经门面写的调用点有 33 个文件，写的全是业务实体（Todo、Menu、File、Article、Comment、
    Recipe），没有一处写系统表（grep 门面写方法后逐条看实体类型）。所以把 `RxDBChange` 声明成用户不可写，
    碰不到 undo/redo、同步与删分支。
 
-4. **公开写入口收敛到 4 个方法。** 读 `Repository.ts` 与 `entity-manager.ts` 核对：
+4. **公开写入口收敛到 5 个方法。** 读 `Repository.ts` 与 `entity-manager.ts` 核对：
    - 门面 `Repository` 的 `create()` / `update()` / `remove()` 经 `primary$` 交给主适配器的仓储，本地、remote-only 与
      QueryCache 都在这之后才选端；
    - `EntityManager.create()` / `update()` / `remove()` 经 `#get_entity_repository()` 委托给门面；实体实例的 `save()` /
@@ -76,8 +77,9 @@ tags: [core, permission, model, rxdb-model]
    - `EntityManager.mutations()` 直达 `adapter.mutations()`；QueryCache 批次例外，`#mutations_query_cache()` 逐条调
      `create` / `update` / `remove`，其 TSDoc 写明「本批不是原子的」。
 
-   所以判定点只要 4 处：门面 3 个写方法加 `mutations()`。`mutations()` 必须在分派前整批预检——QueryCache 批次在第 N 条
-   才拒绝，前 N−1 条已经写出去了。
+   所以判定点是 5 处：门面 3 个写方法、`mutations()`，以及 `Repository.reorder()`（US-028 新增；它的读邻居与写入走执行器，
+   属不判定的那一层，因此在开事务前自己调 `assertEntityOperationAllowed(EntityType, 'update')`）。
+   `mutations()` 必须在分派前整批预检——QueryCache 批次在第 N 条才拒绝，前 N−1 条已经写出去了。
 
    公开 API 之外能直接写库的对象都属于适配器 / 执行器层：`rxdb.getAdapter()`、`localAdapter$` / `remoteAdapter$`
    拿到的适配器及其 `mutations()` / `saveMany()` / `removeMany()` / `transaction()` 执行器 / `rawQuery()`；
@@ -132,7 +134,7 @@ interface EntityPermissionOptions {
 
 执行者按层定义，不靠作用域自报：
 
-- **用户** = 经公开写入口的写：门面 `Repository` 的 `create()` / `update()` / `remove()` 与 `EntityManager.mutations()`，
+- **用户** = 经公开写入口的写：门面 `Repository` 的 `create()` / `update()` / `remove()` / `reorder()` 与 `EntityManager.mutations()`，
   以及委托到它们的 `EntityManager` 方法与实体实例方法（背景第 4 条）。UI 操作、应用代码、插件代码只要走这些入口都算用户。
 - **系统** = 适配器 / 执行器层的写（背景第 3 条）。这一层不判定：`'system'` 的意思是「公开写入口不开放」，
   不是给系统写发放行证。
@@ -250,7 +252,7 @@ AC#1（未配置 `permissions` 的实体零变化）每个阶段都守住；阶�
   不写那张只读实体，放行。
 - **按操作就近继承**：子类没声明的操作沿用最近一个声明了该操作的祖先，都没声明为 `'both'`。
   整键覆盖会让「子类只收紧 delete」悄悄放开父类收紧的 update。`metadata-transition.ts` 的 `nearest_declared()`
-  只处理 `repository` / `sync` / `log` 三个整键，`permissions` 由 `mergeEntityPermissions()` 按操作展开。
+  只处理 `repository` / `sync` / `log` / `manualOrder` 四个整键，`permissions` 由 `mergeEntityPermissions()` 按操作展开。
 - **校验**：`validateEntityMetadata()` 是返回违规列表的纯函数，`permissions` 的非法值与未知键进同一份列表
   （未知键的写法同 `invalidFormatConfig` 的 `unknownKeys`）。`'none'` 与 `'user'` 的报错消息说明不支持的原因（背景第 6 条），
   不只报「非法值」。
@@ -285,34 +287,34 @@ owner 决定不等 US-029 立项，三个阶段一次交付。下游 [US-029](US
 
 ## 实现文件
 
-| 阶段 | 文件                                                                                                                                                       | 说明                                                                                                                                     |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| 0    | `packages/rxdb-model/src/entity-table/columns/column-utils.ts`                                                                                             | `actionsColumn()` 对只读行保留「查看」                                                                                                   |
-| 0    | `packages/rxdb-model-angular/src/entity-list/`、`packages/rxdb-model-react/src/entity-list/`、`packages/rxdb-model-vue/src/entity-list/`                   | `openViewDialog` 对只读行传 `'view'`，三端同交                                                                                           |
-| A    | `packages/rxdb/src/entity/entity-options.interface.ts`、`packages/rxdb/src/entity/metadata.interface.ts`                                                   | `EntityMetadataOptions.permissions` 类型与 TSDoc（定位、判定入口、不判定的路径）；运行期元数据的 `permissions`                           |
-| A    | `packages/rxdb/src/entity/entity-permissions.ts`                                                                                                           | `ENTITY_OPERATIONS`、`SYSTEM_ENTITY_PERMISSIONS`、`getEntityPermission()`、`mergeEntityPermissions()`、`assertSystemEntityPermissions()` |
-| A    | `packages/rxdb/src/entity/metadata-transition.ts`                                                                                                          | `transitionMetadata()` 经 `mergeEntityPermissions()` 按操作就近继承                                                                      |
-| A    | `packages/rxdb/src/entity/metadata-validate.ts`                                                                                                            | `validatePermissions()`：非法值与未知键进 `invalidPermissions` 违规                                                                      |
-| A    | `packages/rxdb/src/system/{change,migration,branch,sync}.ts`                                                                                               | 核心 4 张系统表的声明                                                                                                                    |
-| A    | `packages/rxdb-plugin-working-tree/src/commit/*.entity.ts`、`packages/rxdb-plugin-working-tree/src/working-tree/*.entity.ts`                               | working-tree 贡献的 10 张系统表的声明                                                                                                    |
-| A    | `packages/rxdb/src/RxDB.ts`                                                                                                                                | `init()` 调 `assertSystemEntityPermissions(this.systemEntities)`，与 `assertNoSystemEntityOverride()` 相邻                               |
-| B    | `packages/rxdb/src/entity/entity-permissions.ts`                                                                                                           | `PermissionDeniedError`、`PermissionViolation`、`assertEntityOperationAllowed()`、`assertMutationsAllowed()`                             |
-| B    | `packages/rxdb/src/repository/Repository.ts`                                                                                                               | 门面 `create()` / `update()` / `remove()` 调 `assertEntityOperationAllowed()`，以 rejected Promise 给出                                  |
-| B    | `packages/rxdb/src/entity/entity-manager.ts`                                                                                                               | `mutations()` 分派前调 `assertMutationsAllowed()` 整批预检                                                                               |
-| C    | `packages/rxdb-model/src/entity-capabilities.ts`                                                                                                           | `deriveEntityCapabilities()` 与 `EntityCapabilities`                                                                                     |
-| C    | `packages/rxdb-model/src/entity-table/columns/column-utils.ts`                                                                                             | `actionsColumn()` 的删除谓词 `(record) => boolean`                                                                                       |
-| C    | `packages/rxdb-model/src/entity-table/columns/build-editable-columns.ts`                                                                                   | 删除谓词取 `canDelete`                                                                                                                   |
-| C    | `packages/rxdb-model-angular/src/entity-list/`、`packages/rxdb-model-react/src/entity-list/`、`packages/rxdb-model-vue/src/entity-list/`                   | 「+ 新增」显隐、行 `_readonly`、删除谓词改由能力派生，三端同交                                                                           |
-| C    | `packages/rxdb-test/entities/{AuditLog,Invoice,Contract,Account}.ts`                                                                                       | 权限演示实体（三个 dev app 的 e2e 与三端关系 Tab 用例共用）                                                                              |
-| C    | `apps/dev-rxdb-angular-e2e/src/entity-model.spec.ts`、`apps/dev-rxdb-react-e2e/src/entity-model.spec.ts`、`apps/dev-rxdb-vue-e2e/src/entity-model.spec.ts` | 系统表（AC#16）与三种权限演示实体（AC#10～12）e2e                                                                                        |
+| 阶段 | 文件                                                                                                                                                       | 说明                                                                                                                                            |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0    | `packages/rxdb-model/src/entity-table/columns/column-utils.ts`                                                                                             | `actionsColumn()` 对只读行保留「查看」                                                                                                          |
+| 0    | `packages/rxdb-model-angular/src/entity-list/`、`packages/rxdb-model-react/src/entity-list/`、`packages/rxdb-model-vue/src/entity-list/`                   | `openViewDialog` 对只读行传 `'view'`，三端同交                                                                                                  |
+| A    | `packages/rxdb/src/entity/entity-options.interface.ts`、`packages/rxdb/src/entity/metadata.interface.ts`                                                   | `EntityMetadataOptions.permissions` 类型与 TSDoc（定位、判定入口、不判定的路径）；运行期元数据的 `permissions`                                  |
+| A    | `packages/rxdb/src/entity/entity-permissions.ts`                                                                                                           | `ENTITY_OPERATIONS`、`SYSTEM_ENTITY_PERMISSIONS`、`getEntityPermission()`、`mergeEntityPermissions()`、`assertSystemEntityPermissions()`        |
+| A    | `packages/rxdb/src/entity/metadata-transition.ts`                                                                                                          | `transitionMetadata()` 经 `mergeEntityPermissions()` 按操作就近继承                                                                             |
+| A    | `packages/rxdb/src/entity/metadata-validate.ts`                                                                                                            | `validatePermissions()`：非法值与未知键进 `invalidPermissions` 违规                                                                             |
+| A    | `packages/rxdb/src/system/{change,migration,branch,sync}.ts`                                                                                               | 核心 4 张系统表的声明                                                                                                                           |
+| A    | `packages/rxdb-plugin-working-tree/src/commit/*.entity.ts`、`packages/rxdb-plugin-working-tree/src/working-tree/*.entity.ts`                               | working-tree 贡献的 10 张系统表的声明                                                                                                           |
+| A    | `packages/rxdb/src/RxDB.ts`                                                                                                                                | `init()` 调 `assertSystemEntityPermissions(this.systemEntities)`，与 `assertNoSystemEntityOverride()` 相邻                                      |
+| B    | `packages/rxdb/src/entity/entity-permissions.ts`                                                                                                           | `PermissionDeniedError`、`PermissionViolation`、`assertEntityOperationAllowed()`、`assertMutationsAllowed()`                                    |
+| B    | `packages/rxdb/src/repository/Repository.ts`                                                                                                               | 门面 `create()` / `update()` / `remove()` 调 `assertEntityOperationAllowed()`，以 rejected Promise 给出；`reorder()` 开事务前同样调用（US-028） |
+| B    | `packages/rxdb/src/entity/entity-manager.ts`                                                                                                               | `mutations()` 分派前调 `assertMutationsAllowed()` 整批预检                                                                                      |
+| C    | `packages/rxdb-model/src/entity-capabilities.ts`                                                                                                           | `deriveEntityCapabilities()` 与 `EntityCapabilities`                                                                                            |
+| C    | `packages/rxdb-model/src/entity-table/columns/column-utils.ts`                                                                                             | `actionsColumn()` 的删除谓词 `(record) => boolean`                                                                                              |
+| C    | `packages/rxdb-model/src/entity-table/columns/build-editable-columns.ts`                                                                                   | 删除谓词取 `canDelete`                                                                                                                          |
+| C    | `packages/rxdb-model-angular/src/entity-list/`、`packages/rxdb-model-react/src/entity-list/`、`packages/rxdb-model-vue/src/entity-list/`                   | 「+ 新增」显隐、行 `_readonly`、删除谓词改由能力派生，三端同交                                                                                  |
+| C    | `packages/rxdb-test/entities/{AuditLog,Invoice,Contract,Account}.ts`                                                                                       | 权限演示实体（三个 dev app 的 e2e 与三端关系 Tab 用例共用）                                                                                     |
+| C    | `apps/dev-rxdb-angular-e2e/src/entity-model.spec.ts`、`apps/dev-rxdb-react-e2e/src/entity-model.spec.ts`、`apps/dev-rxdb-vue-e2e/src/entity-model.spec.ts` | 系统表（AC#16）与三种权限演示实体（AC#10～12）e2e                                                                                               |
 
 ## References
 
 - [vision.md](../../vision.md) — 阶段 4「字段级权限、只读规则、条件显示和统一校验」
 - [受信写作用域](../../../packages/rxdb/src/trusted-write/trusted-write-scope.ts) — 「不是防御边界，是一致性契约」：本故事判定的同一定位
 - [受信写并发用例](../../../packages/rxdb-plugin-history/src/__tests__/trusted-write-concurrency.spec.ts) — 挂在适配器上的作用域在并发下互相顶掉，不适合拿来归类执行者
-- [受信调用点登记表](../../../packages/rxdb/src/__tests__/trusted-write/trusted-callsite-registry.spec.ts) — 11 个调用点全部守在 `switchBranch()` / `mergeChanges()` 上
+- [受信调用点登记表](../../../packages/rxdb/src/__tests__/trusted-write/trusted-callsite-registry.spec.ts) — 登记的全部调用点都守在 `switchBranch()` / `mergeChanges()` 上
 - [实体管理器](../../../packages/rxdb/src/entity/entity-manager.ts) — `mutations()` 与「本批不是原子的」`#mutations_query_cache()`
 - [系统表清单](../../../packages/rxdb/src/system/system-entities.ts) — `CORE_SYSTEM_ENTITIES` 与 `isSystemEntity()`
 - [US-029 多用户 RBAC：角色与所有权写权限](US-029-rbac-owner-role-permission.md) — 下游：阶段 A / B / D 分别依赖本故事阶段 A / B / C
-- [US-028 可排序实体](US-028-sortable-entity.md) — 同改三端 `EntityList` 与 `_readonly` 路径，互不依赖
+- [US-028 可排序实体](US-028-sortable-entity.md) — `Repository.reorder()` 接入本故事的判定原语；`update: 'system'` 的可排序实体经 `_readonly` 派生整表不开拖拽手柄

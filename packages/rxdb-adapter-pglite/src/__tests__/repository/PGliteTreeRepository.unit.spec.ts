@@ -46,7 +46,7 @@ describe('PGliteTreeRepository unit edges', () => {
     });
   });
 
-  it('countDescendants 保留合法的负一并拒绝缺行', async () => {
+  it('countDescendants 拒绝负数结果与缺行（RV-079：树计数契约非负，-1 不再合法）', async () => {
     const repo = makeRepo();
     const query = (repo as unknown as { adapter: { query: ReturnType<typeof vi.fn> } }).adapter.query;
     query
@@ -55,7 +55,10 @@ describe('PGliteTreeRepository unit edges', () => {
       .mockResolvedValueOnce({ rows: [], fields: [], affectedRows: 0 });
 
     await expect(repo.countDescendants({ entityId: 'y', level: 1 } as never)).resolves.toBe(9);
-    await expect(repo.countDescendants({ entityId: 'y', level: 1 } as never)).resolves.toBe(-1);
+    // SQL 侧已用 GREATEST 钳在 0，这里的 -1 只会在契约被破坏时出现——必须拒绝，不能当合法值放行。
+    await expect(repo.countDescendants({ entityId: 'y', level: 1 } as never)).rejects.toMatchObject({
+      code: 'invalid_count_result'
+    });
     await expect(repo.countDescendants({ entityId: 'y', level: 1 } as never)).rejects.toMatchObject({
       code: 'invalid_count_result'
     });

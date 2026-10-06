@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [framework, angular]
 ---
 
@@ -27,9 +27,9 @@ tags: [framework, angular]
 | 4   | 组件销毁                                                 | `DestroyRef` 触发                       | 自动取消 RxJS 订阅             | ✅   |
 | 5   | `useGet/useFindOne/useFindOneOrFail/useFindAll/useCount` | 调用                                    | 均可用                         | ✅   |
 | 6   | `useFindByCursor` hook                                   | 游标分页                                | 返回正确的分页数据             | ✅   |
-| 7   | `InfiniteScroll` class                                   | 滚动到底部                              | 自动加载下一页                 | ✅   |
-| 8   | Angular 独有 `useAction` / `useState`                    | 使用                                    | 支持 localStorage 状态管理     | ✅   |
-| 9   | Tree/Graph hooks                                         | 使用树形/图数据实体                     | 提供对应 API                   | ✅   |
+| 7   | `InfiniteScrollingList` class / `useInfiniteScroll`      | 滚动到底部                              | 自动加载下一页                 | ✅   |
+| 8   | `useAction` / `useState` / `usePersistedState`           | 使用                                    | 支持 localStorage 状态管理     | ✅   |
+| 9   | Graph hooks；Tree hooks 在 `rxdb-plugin-tree-angular`    | 使用树形/图数据实体                     | 提供对应 API                   | ✅   |
 | 10  | `ChangeDetector` directive                               | 绑定到组件                              | 优化变更检测性能               | ✅   |
 | 11  | `provideRxDB` 收 `RxDBSource`                            | 传实例 / Promise / 工厂                 | 三端接受同一联合类型           | ✅   |
 | 12  | 数据库尚未就绪                                           | `useRxDB()` / `useRxDBOptional()`       | 前者抛错、后者返回 `undefined` | ✅   |
@@ -44,15 +44,16 @@ tags: [framework, angular]
   创建异常留到 `useRxDB()` 读取时原样抛出
 - 所有权：provider 只销毁自己造的东西 —— 工厂/Promise 归它、已就绪实例归调用方
 - 响应式：`useFind()` 返回 Signal，自动订阅 RxJS Observable
-- 资源管理：`RxDBResource<T>` 提供 `.value` / `.isLoading` / `.error` / `.isFetching`
+- 资源管理：`RxDBResource<T>` 提供 `.value` / `.isLoading` / `.error` / `.isEmpty` / `.hasValue`
 - 生命周期：`DestroyRef` 自动管理订阅清理
-- 状态管理：`useAction` / `useState` 支持 localStorage 持久化
+- 状态管理：`useAction` / `useState` / `usePersistedState` 支持 localStorage 持久化；`useAction` 与 `usePersistedState` 三端同名同义
 
 ## 实现文件
 
 - `packages/rxdb-angular/src/rxdb.provider.ts` — DI Provider
-- `packages/rxdb-angular/src/hooks.ts` — Hooks 核心（含 `useFindDescendants` 等 Tree/Graph hooks，无独立 tree 文件）
-- `packages/rxdb-angular/src/use-infinite-scroll.ts` — 无限滚动
+- `packages/rxdb-angular/src/hooks.ts` — Hooks 核心（含 `useGraphNeighbors` / `useGraphPaths` 等 Graph hooks）
+- `packages/rxdb-plugin-tree-angular/src/use-tree.ts` — Tree hooks（`useFindDescendants` 等，随 tree 插件外移）
+- `packages/rxdb-angular/src/use-infinite-scroll.ts` / `InfiniteScrollingList.ts` — 无限滚动
 - `packages/rxdb-angular/src/rxdb-change-detector.directive.ts` — 变更检测优化
 - `packages/rxdb-angular/src/use-action.ts` / `use-state.ts` / `use-persisted-state.ts` — localStorage 状态管理
 

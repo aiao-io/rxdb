@@ -90,6 +90,7 @@ README、Rust、测试标题、API 标识符和用户可见文案不自动套用
 - 迁移竞争：**占坑**、**抢不到**、**占坑冲突**；统一改为“认领执行权 / 认领失败 / 执行权竞争”。
 - 事务与事件：**顶账**改为说明队列归属；**回呼**改“回调”；**惊动订阅者**改“通知订阅者”；**单趟**按“一次 / 一轮”选择；**他 tab**改“其他 tab”。
 - 纪元、活查询、同步水位线、半成品、半拆、放行保留，但首次出现要有最小定义。
+- 迁移竞争的**占坑**等词目前主要留在迁移水位线的测试标题里（`RxDB.migration-watermark.spec.ts`），改测试标题须与断言保持对应；**钉在一起**同属此类（`trusted-callsite-registry.spec.ts`）。
 
 ### `packages/utils`
 
@@ -131,8 +132,8 @@ README、Rust、测试标题、API 标识符和用户可见文案不自动套用
 
 ### `packages/rxdb-plugin-search`
 
-- 词：**钉在一起**、短路、漂移检测放行
-- 🔴 “钉在一起”改“绑定”或“保持一致”，按两值关系选择。
+- 词：**钉死**（`fts5-runtime.spec.ts` 注释）、短路、漂移检测放行
+- 🔴 “钉死”按语境改“约束 / 卡死”；表示两值关联时改“绑定”或“保持一致”。
 - 🟢 短路、放行 保留
 
 ### `packages/rxdb-plugin-storage`
@@ -142,15 +143,23 @@ README、Rust、测试标题、API 标识符和用户可见文案不自动套用
 
 ### `packages/rxdb-plugin-workspace`
 
-- 词：其他 tab、**占着**旧版本
-- 🔴 “占着旧版本连接”改“占用旧版本连接”；不泛化到非资源语境中的“占着”。
-- 🟢 跨 tab、阻塞保留
+- 词：其他 tab、占用旧版本连接
+- 🟢 “其他 tab 占用旧版本连接”已按本规约改写，跨 tab、阻塞保留
 
 ### `packages/rxdb-plugin-graph`
 
 - 词：已拆掉的纪元、**挂在 rxdb 上**
 - 🔴 “挂在 RxDB 上”按语境改“注册到 RxDB”或“由 RxDB 持有”。
 - 🟢 纪元 保留
+
+### `packages/rxdb-adapter-http`
+
+- 词：**吃掉**（`RxDBAdapterHttp.ts`、`transport.ts`）
+- 🔴 “吃掉”按语境改“丢掉”（用户选择被重连清掉）或“覆盖 / 截断”（URL 拼接丢掉 `/v1`）。
+
+### `packages/rxdb-plugin-working-tree` / `rxdb-plugin-querycache` / `rxdb-plugin-sync` / `rxdb-model*`
+
+- 这些包晚于本表建立，🔴 候选词命中较多；先按上文语义表逐处对线，命中位置用「检索命令」复核，不在此登记静态清单。
 
 ### `packages/rxdb-client-generator`
 
@@ -159,8 +168,8 @@ README、Rust、测试标题、API 标识符和用户可见文案不自动套用
 
 ### `packages/rxdb-devtools`
 
-- 词：**吃掉了**要调试的数据
-- 🔴 “吃掉了”改“替换了”或“抹掉了”，按实际行为选择。
+- 词：**占着** host 的 fd / 并发名额 / 存储配额
+- 🔴 资源语境的“占着”改“占用”（`opfs-files-provider.ts`、`native-files-provider.ts`、`v2/endpoint.ts`）。
 - 🟢 缓冲区、附着、快照 保留
 
 ### `packages/rxdb-test`
@@ -177,15 +186,15 @@ README、Rust、测试标题、API 标识符和用户可见文案不自动套用
 
 ## 首次出现处的解释清单
 
-| 术语         | 锚点                                                           | 最小解释                                                              |
-| ------------ | -------------------------------------------------------------- | --------------------------------------------------------------------- |
-| 纪元         | `RxDB.#connection_scope`                                       | 一次 `init() → #shutdown()` 的完整连接生命周期；作用域不跨纪元复用    |
-| 宿主         | `IRxDBPlugin.install(scope)` 或具体 `host` 类型                | 说明宿主是谁：RxDB 实例、应用、DOM 元素或桌面进程，不使用全局单一定义 |
-| 认领执行权   | `RxDB.#runMigrations` / `MIGRATION_CLAIM_RETRIES`              | 通过唯一键 `INSERT` 竞争迁移执行权；冲突时整批回滚并重试              |
-| 同步水位线   | `IRxDBAdapter.pullChangesBatch` 的 `sinceId`                   | 某个实体已处理到的远程 change ID，不包含该 ID 本身                    |
-| 迁移执行标记 | `rxdb_migration.name`                                          | 已成功执行的迁移名称集合，不等同于同步水位线                          |
-| 系统版本标记 | `RXDB_SYSTEM_SCHEMA_WATERMARK` / `RXDB_CHANGE_CODEC_WATERMARK` | 固定的系统 schema 或 change codec 版本，不等同于远程游标              |
-| 就绪门       | `RxDBAdapterSqliteBase.ready()`                                | `connect()` 完成、表结构就绪后才放行的等待门                          |
+| 术语         | 锚点                                                                          | 最小解释                                                              |
+| ------------ | ----------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 纪元         | `RxDB.#ensure_connection_scope()` / `#release_connection_scope()`             | 一次 `init() → #shutdown()` 的完整连接生命周期；作用域不跨纪元复用    |
+| 宿主         | `IRxDBPlugin.install(scope)` 或具体 `host` 类型                               | 说明宿主是谁：RxDB 实例、应用、DOM 元素或桌面进程，不使用全局单一定义 |
+| 认领执行权   | `runMigrations()` / `MIGRATION_CLAIM_RETRIES`（`system/migration-runner.ts`） | 通过唯一键 `INSERT` 竞争迁移执行权；冲突时整批回滚并重试              |
+| 同步水位线   | `RxDBAdapterRemoteBase.pullChangesBatch` 的 `PullBatchRequest.sinceId`        | 某个实体已处理到的远程 change ID，不包含该 ID 本身                    |
+| 迁移执行标记 | `rxdb_migration.name`                                                         | 已成功执行的迁移名称集合，不等同于同步水位线                          |
+| 系统版本标记 | `RXDB_SYSTEM_SCHEMA_WATERMARK` / `RXDB_CHANGE_CODEC_WATERMARK`                | 固定的系统 schema 或 change codec 版本，不等同于远程游标              |
+| 就绪门       | `RxDBAdapterSqliteBase.ready()`                                               | `connect()` 完成、表结构就绪后才放行的等待门                          |
 
 “首次出现”按模块或 API 符号计算。不要在规范中写易失效的行号；代码移动后只需确认锚点仍存在。
 

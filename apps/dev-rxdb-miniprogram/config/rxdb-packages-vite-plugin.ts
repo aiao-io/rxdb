@@ -1,33 +1,4 @@
-import { transformAsync } from '@babel/core';
 import type { Plugin } from 'vite';
-
-function isLinkedPackageDist(id: string): boolean {
-  const cleanId = id.split('?')[0];
-  return cleanId.includes('/packages/') && cleanId.includes('/dist/') && cleanId.endsWith('.js');
-}
-
-export function rxdbPackagesVitePlugin(): Plugin {
-  return {
-    name: 'dev-rxdb-miniprogram:rxdb-private-members',
-    enforce: 'pre',
-    async transform(code, id) {
-      if (!isLinkedPackageDist(id) || !code.includes('#')) return null;
-      const result = await transformAsync(code, {
-        babelrc: false,
-        configFile: false,
-        filename: id.split('?')[0],
-        plugins: [
-          ['@babel/plugin-transform-class-properties', { loose: true }],
-          ['@babel/plugin-transform-private-methods', { loose: true }]
-        ],
-        sourceMaps: true,
-        sourceType: 'module'
-      });
-      if (!result?.code) return null;
-      return { code: result.code, map: result.map };
-    }
-  };
-}
 
 /** `@subframe7536/sqlite-wasm` 的 Emscripten glue 文件名带内容哈希，只认前缀。 */
 const SUBFRAME_GLUE_PATTERN = /[\\/]@subframe7536[\\/]sqlite-wasm[\\/]dist[\\/]wa-sqlite-[^\\/]+\.js$/;

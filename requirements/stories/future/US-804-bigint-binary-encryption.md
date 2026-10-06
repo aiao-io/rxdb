@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-005-type-system-evolution
 created: 2026-07-31
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [encryption, adapter, bigint, binary]
 ---
 
@@ -37,7 +37,7 @@ INVEST 检查清单:
 - bigint primary 实体上的其他加密字段使用稳定、无歧义的 AAD
 - encrypted primary / unique / sortable / index / query 禁止规则保持不变
 - save/read、undo/redo 和 branch change 中的解密类型一致
-- 五个本地 adapter 通过共享 encrypted fixture
+- 本地 adapter 通过共享 encrypted fixture（调用方见 `runBigIntBinaryEncryptedSuite`：`rxdb-test` 的 `src/encrypted/bigint-binary.suite.ts`）
 
 ### Out of Scope
 

@@ -204,7 +204,7 @@ describe('树结构 - 级联删除场景', () => {
       expect(countAfter).toBe(1);
     });
 
-    it('删除根节点后 countDescendants 应返回 -1', async () => {
+    it('删除根节点后 countDescendants 应返回 0（RV-079：锚点不存在 ≡ 空集，不再是 -1）', async () => {
       const root = new MenuLarge({ title: 'deleted-root' });
       const child = new MenuLarge({ title: 'deleted-child' });
       root.children$.add(child);
@@ -214,7 +214,7 @@ describe('树结构 - 级联删除场景', () => {
       await root.remove();
 
       const count = await firstValueFrom(MenuLarge.countDescendants({ entityId: rootId, level: 100 }));
-      expect(count).toBe(-1);
+      expect(count).toBe(0);
     });
 
     it('删除后 findDescendants 应返回正确的剩余节点', async () => {

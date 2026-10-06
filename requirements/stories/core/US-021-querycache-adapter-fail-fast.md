@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-08-27
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [core, querycache, fail-fast, adapter, dx]
 ---
 
@@ -13,7 +13,7 @@ tags: [core, querycache, fail-fast, adapter, dx]
 INVEST 检查清单:
 - [x] Independent: 只动 `metadata-validate.ts` 一处判定与其测试，不依赖任何未关闭故事
 - [x] Negotiable: 违规文案与规则名可议；「配置期而非运行时」由 US-020 D12 定死，不再重开
-- [x] Valuable: 今天这条配置错误的表现是**页面永远转圈**——无错误、无日志、无超时
+- [x] Valuable: 该配置错误的表现是**页面永远转圈**——无错误、无日志、无超时
 - [x] Estimable: 一条校验规则 + 一个 rule 名 + 三条用例
 - [x] Small: 单次迭代内可完成
 - [x] Testable: 断言 `EntityManager.init()` 抛出的违规集合
@@ -35,7 +35,7 @@ INVEST 检查清单:
 > 这条错误替代的是「永远不 settle 的 Promise」：主端的适配器流永不发射时，
 > `firstValueFrom` 会静默挂起，调用方既没有结果也没有错误可查。
 
-QueryCache 的**读**路径今天仍停在被修之前的状态。
+QueryCache 的**读**路径缺这道护栏：配置漏了会静默挂起，本故事补上。
 
 ### 病灶：实体级声明是死的，但类型系统不这么说
 
@@ -76,18 +76,14 @@ return combineLatest([this.rxdb.localAdapter$, this.rxdb.remoteAdapter$]).pipe(
 
 ### 为什么现有校验接不住
 
-[metadata-validate.ts](../../../packages/rxdb/src/entity/metadata-validate.ts) 里唯一与 QueryCache
-有关的规则是 `validateSyncStrategy`，它只判一件事：
+[metadata-validate.ts](../../../packages/rxdb/src/entity/metadata-validate.ts) 里与 QueryCache
+有关的校验入口是 `validateSyncStrategy`。其中 `unsupportedRepositorySyncType` 只拦「仓储撑不住某种同步策略」
+（例如树仓储 + QueryCache，US-020 AC#8）：哪种仓储不支持哪种策略由仓储自己经
+`IRepositoryConfig.unsupportedSyncTypes` 声明，核心只把声明翻成违规。**适配器在不在**不在它的判据里，
+由本故事新增的 `missingQueryCacheAdapter` 承担。
 
-```ts
-if (sync?.type !== SyncType.QueryCache) return;
-if (metadata.repository !== 'TreeRepository') return;
-```
-
-即只拦 `TreeRepository` + QueryCache（US-020 AC#8）。**适配器在不在**这个问题没人问。
-
-而它的入参里已经有答案所需的一切——`validateSyncStrategy(collector, metadata, databaseSync)`
-的第三个参数就是库级 `sync`。这条判定纯由元数据可得，按 [US-020 D12](./US-020-querycache-repository.md#d12--fail-fast-的时机按能不能在配置期知道划分)
+判定所需的一切都在入参里——`validateSyncStrategy(collector, metadata, resolver, isSyncTypeUnsupported)`
+的 `resolver.databaseSync` 就是库级 `sync`。这条判定纯由元数据可得，按 [US-020 D12](./US-020-querycache-repository.md#d12--fail-fast-的时机按能不能在配置期知道划分)
 第一行，归属**配置期**。
 
 ### 复验方式
@@ -131,7 +127,7 @@ if (metadata.repository !== 'TreeRepository') return;
 这个问题（US-020 D1：QueryCache 跨两侧）。复用它会让这个错误类型同时承担两套语义，
 以后谁也说不清 catch 到它意味着什么。
 
-新增一条 `MetadataValidationRule`，与 `unsupportedTreeQueryCache` 同一条通路
+新增一条 `MetadataValidationRule`，与 `unsupportedRepositorySyncType` 同一条通路
 （`collector.add` → `formatMetadataViolations`），排序与聚合行为自动一致。
 
 ### D3 — 文案必须点破实体级声明是死的
@@ -152,12 +148,12 @@ if (metadata.repository !== 'TreeRepository') return;
 | 4   | QueryCache 实体，库级 `sync` 两侧齐全                                                   | `connect()` + `find()`        | 不报违规；行为与本故事之前逐值一致                                                                           | ✅   |
 | 5   | 对照：`SyncType.Full` / `Filter` / `None` 实体，以及合法的 remote-only、local-only 配置 | `connect()`                   | 一条都不被新规则判违规                                                                                       | ✅   |
 | 6   | 多个实体同时违规                                                                        | `connect()`                   | 违规按 `namespace/entity/field/rule` 稳定排序一次性列出（沿用 `compareViolations`），不是撞见第一条就抛      | ✅   |
-| 7   | [dev-rxdb-http](../../../apps/dev-rxdb-http/) 删掉库级 `sync.remote` 后                 | `pnpm nx serve dev-rxdb-http` | 错误确实抛出且可读（报错落在**控制台**、页面空白），**不再是无限加载态**——这是本故事的现场复验，不是单测替身 | ⚠️   |
+| 7   | [dev-rxdb-http](../../../apps/dev-rxdb-http/) 删掉库级 `sync.remote` 后                 | `pnpm nx serve dev-rxdb-http` | 错误确实抛出且可读（报错落在**控制台**、页面空白），**不再是无限加载态**——这是本故事的现场复验，不是单测替身 | ✅   |
 | 8   | 实现完成                                                                                | 跑核心包门禁                  | `@aiao/rxdb` 覆盖率不回退（≥ 90%）；`MetadataValidationRule` 的 baseline 记录保持一致                        | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-AC#7 记 ⚠️ 而非 ✅：错误确实抛出且可读、无限加载态确实消失，但报错只落在**控制台**、页面空白（`connect()` 挂在 `provideAppInitializer` 上，initializer 抛错中止 Angular bootstrap，根组件没渲染）。这是 demo 怎么呈现初始化失败的问题，不属本故事校验范围。
+AC#7 现场复验已做：错误确实抛出且可读、无限加载态已消失；报错只落在**控制台**、页面空白（`connect()` 挂在 `provideAppInitializer` 上，initializer 抛错中止 Angular bootstrap，根组件没渲染）。这是 demo 怎么呈现初始化失败的问题，不属本故事校验范围。
 
 AC#8 的后半句已按实测改写：`MetadataValidationRule` 是导出联合类型，但 api-baseline 只记 `{ name, kind }`、不记联合成员，故加 `missingQueryCacheAdapter` 无 baseline diff。联合类型加成员仍算公开 API 变更（见[技术笔记](#技术笔记)）。
 
@@ -168,7 +164,7 @@ AC#8 的后半句已按实测改写：`MetadataValidationRule` 是导出联合�
   **接不住这类变更**：它只记 `{ "name", "kind" }`，联合成员一个不记。
   所以本故事没有 baseline diff，也不代表 baseline 替这次变更把过关。
   想让联合成员进门禁得先改 baseline 的采集粒度，那是另一件事。
-- `validateSyncStrategy` 已经拿到 `databaseSync`，不需要给校验器加新入参。
+- `validateSyncStrategy` 经 `resolver.databaseSync` 拿到库级 `sync`，不需要给校验器加新入参。
 - 别在 `Repository` 构造函数里判：那时抛出的错误会落在「第一个订阅该实体查询的组件」上，
   与配置的距离比 `connect()` 远得多，且 `Repository` 是按实体懒建的——没被查过的实体不会报。
   对照 `RxDBQueryCacheCapabilityError`（[sync.md](../../../website/docs/collaboration/sync.md)
@@ -184,8 +180,8 @@ AC#8 的后半句已按实测改写：`MetadataValidationRule` 是导出联合�
 | 文件                                                                                                               | 说明                                                                                             |
 | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
 | [packages/rxdb/src/entity/metadata-validate.ts](../../../packages/rxdb/src/entity/metadata-validate.ts)            | `missingQueryCacheAdapterSides` + `validateSyncStrategy` 增判 + 新 `MetadataValidationRule` 成员 |
-| [metadata-validate.spec.ts](../../../packages/rxdb/src/__tests__/entity/metadata-validate.spec.ts)                 | AC#1～5 的规则级用例（9 条）                                                                     |
-| [entity-manager.querycache.spec.ts](../../../packages/rxdb/src/__tests__/entity/entity-manager.querycache.spec.ts) | AC#1～6 走 `rxdb.init()` 的入口级用例（7 条）                                                    |
+| [metadata-validate.spec.ts](../../../packages/rxdb/src/__tests__/entity/metadata-validate.spec.ts)                 | AC#1～5 的规则级用例                                                                             |
+| [entity-manager.querycache.spec.ts](../../../packages/rxdb/src/__tests__/entity/entity-manager.querycache.spec.ts) | AC#1～6 走 `rxdb.init()` 的入口级用例                                                            |
 | [apps/dev-rxdb-http/src/app/setup_rxdb_http.ts](../../../apps/dev-rxdb-http/src/app/setup_rxdb_http.ts)            | 注释改口径：这条静默悬挂已修，漏配现在是配置期抛错                                               |
 
 ## References

@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-09-26
+updated: 2026-10-06
 tags: [collaboration, working-tree, diff, persistence, concurrency, angular, react, vue, accessibility, benchmark]
 ---
 
@@ -82,9 +82,9 @@ INVEST 检查清单:
 | B    | 改 → 刷新 → commit → status/diff     | 提交状态机、CAS、commit 后工作树清空、discard 与冲突状态口径，含 `WorkingTreeRestoreSession` 建表与 `CommitConflict` | FR-004、FR-005、FR-011、FR-016、FR-031、FR-032、FR-041 | US1-AC1（diff 半边）、US1-AC2、US2-AC1～AC9、US2-AC12～AC13、US2-AC20～22、US3-AC1～AC3                                                     | ✅   |
 | C    | 三端操作 → 刷新 → 同语义读回         | Angular/React/Vue 公开 API、异步状态、a11y、E2E、benchmark 与公开文档                                                | FR-023、FR-026                                         | US5-AC1～AC8                                                                                                                                | ✅   |
 
-阶段 A / B / C ✅：代码与任务侧全部关闭。CI 三种托管 runner 画像与 M1 的 reference 均已签入，读项容差已定（见「性能门禁」节）。
+阶段 A / B / C ✅：代码与任务侧全部关闭。CI 托管 runner 画像与 M1 的 reference 均已签入（`benchmarks/reports/working-tree-reference/`），读项容差已定（见「性能门禁」节）。
 
-阶段 B 依赖阶段 A 的持久工作树；阶段 C 只从 `@aiao/rxdb` 透传阶段 B 冻结的共享类型，不自带业务分支逻辑，
+阶段 B 依赖阶段 A 的持久工作树；阶段 C 只适配 `@aiao/rxdb-plugin-working-tree` 阶段 B 冻结的共享类型与命令，不自带业务分支逻辑，
 A 与 B 都未落地时 C 不可开工。整体固定顺序为
 **US-305 → 阶段 A → 阶段 B → 阶段 C →（US-307 ∥ US-308）**。US-307 / US-308 的核心持久层语义可与阶段 C
 并行开工，但它们的三框架入口必须排在阶段 C 之后；benchmark 追加只涉及 US-307 的 restore 场景，US-308 无 benchmark 交付项（见
@@ -134,7 +134,7 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 - **adapter 公开批量写方法 `upsertMany()` / `deleteByIds()` 的门禁挂载**（阶段 A）：这两个方法不经 `rawQuery`，
   四步判定结构上够不到；按目标实体 `sync.type` 判定，复用同一份版本化实体表清单
 - `WorkingTreeRestoreSession` 的**建表与 schema 迁移**，以及「从已存在 session 派生 conflicted」的读路径
-- 共享 DTO（`WorkingTreeStatus`、`WorkingTreeDiff`、`WorkingTreeCommandError`、`CommitConflict`）的定义、
+- 共享 DTO（`WorkingTreeStatus`、`WorkingTreeDiff`、`WorkingTreeErrorState`、`CommitConflict`）的定义、
   TSDoc 与 api-baseline 登记；`CommitConflict` 由本故事首个使用者落地，
   [US-308](./US-308-branch-isolation-conflict.md) 只做 activation 维度扩展
 - Angular / React / Vue 三端对称 API 与演示
@@ -278,7 +278,7 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
   [epic-006 受信调用点登记表](../../epics/epic-006-working-tree-commits.md#受信调用点登记表)为准，新增调用点
   MUST 先登记再实现，未登记即拒绝。
 - 新增公开类型（`WorkingTreeState`、`WorkingTreeEntry` 及全部共享 DTO 与错误码）
-  MUST 补齐 TSDoc 并登记进 `requirements/api-baseline/rxdb.json`，前缀遵守 epic 术语表（禁止 `Workspace*`）。
+  MUST 补齐 TSDoc 并登记进 `requirements/api-baseline/rxdb-plugin-working-tree.json`，前缀遵守 epic 术语表（禁止 `Workspace*`）。
   **MUST NOT 新增 `Index*` 前缀的导出**：该前缀随暂存区一并裁撤。
 - **阶段 B 的 `commit()` MUST 复用 [US-305 FR-051](./US-305-commit-graph-head.md) 提供的同一份 commit 图损坏守卫**
   （见 [epic-006 横切约束 6](../../epics/epic-006-working-tree-commits.md)）：当前分支处于 `corrupted_read_only`
@@ -321,34 +321,41 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 
 ### 三框架公开契约（阶段 C）
 
-三端都 MUST 导出 `useWorkingTree()`，并从 `@aiao/rxdb` 透传同一组共享类型：
-`WorkingTreeStatus`、`WorkingTreeDiff`、`WorkingTreeCommandError`、`CommitOptions`、`CommitConflict`。
+三端都 MUST 导出 `useWorkingTree()` 与 `WorkingTreeResource` 类型。共享类型（`WorkingTreeStatus`、`WorkingTreeDiff`、
+`WorkingTreeErrorState`、`CommitOptions`、`CommitConflict` 等）由 `@aiao/rxdb-plugin-working-tree` 导出，三端不转出，
+调用方从插件包直接 import。
 
-`useWorkingTree()` 的返回对象在三端保持同一组语义键：
+`useWorkingTree()` 的返回对象 = `WorkingTreeAsyncStates`（每个命令 / 查询一个 `*State`）+ `WorkingTreeCommands`
+（命令方法），三端保持同一组键：
 
-| 键                   | 语义                                                   |
-| -------------------- | ------------------------------------------------------ |
-| `status`             | 当前持久状态；支持 clean/modified/restoring/conflicted |
-| `diff`               | `HEAD ↔ working tree` 的当前差异                       |
-| `refresh`            | 主动读取最新 revision                                  |
-| `discardWorkingTree` | 丢弃全部未提交变更                                     |
-| `commit`             | message + CommitOptions 提交整棵工作树                 |
-| `commandState`       | 当前命令的 idle/loading/success/error 与类型化错误     |
+| 命令                                                | 状态键                                                                |
+| --------------------------------------------------- | --------------------------------------------------------------------- |
+| `status()`                                          | `statusState`：当前持久状态；支持 clean/modified/restoring/conflicted |
+| `diff(options?)`                                    | `diffState`：`HEAD ↔ working tree` 的当前差异                         |
+| `commit(message, options)`                          | `commitState`：提交整棵工作树                                         |
+| `discard(options)`                                  | `discardState`：丢弃全部未提交变更                                    |
+| `isEnabled()` / `enable()` / `enableIfEmpty()`      | `isEnabledState` / `enableState` / `enableIfEmptyState`               |
+| `listCommits(options?)` / `commitChanges(commitId)` | `listCommitsState` / `commitChangesState`                             |
+| `restore(target, options)` / `restoreSession()`     | `restoreState` / `restoreSessionState`（US-307 追加）                 |
+| `switchBranch(branchId, options?)`                  | `switchBranchState`（US-308 追加）                                    |
+
+命令态为 idle/loading/success/error（`WorkingTreeCommandState`），查询态额外有 empty（`WorkingTreeQueryState`），错误由
+`WorkingTreeErrorState` 携带；没有统一的 `commandState` 键，每个命令各占一格。
 
 Angular 使用 signal、React 使用 state/store、Vue 使用 ref 只是容器差异；导出名、参数、返回键、错误 code、
 empty/loading/success/error 判定和恢复建议必须对称。不得让某一端额外拥有业务能力。
 
-#### 扩展点（本故事冻结协议，不冻结键的全集）
+#### 扩展点（本故事冻结协议）
 
-上表是 **v1 基线键集**，对应本故事交付时可用的能力；它**不是**最终全集。后续故事按同一协议向 `useWorkingTree()`
-追加键，本故事负责把「怎么加」定死，避免它们各自另立入口：
+上表是当前键集。其中 `restore*` 与 `switchBranch*` 由后续故事按同一协议追加；新增键同样走这条协议，
+本故事负责把「怎么加」定死，避免各自另立入口：
 
-| 追加者                                          | 新增键                    | 约束                                                                                               |
-| ----------------------------------------------- | ------------------------- | -------------------------------------------------------------------------------------------------- |
-| [US-307](./US-307-restore-session.md)           | `restore`、`restoreState` | 复用同一 `commandState` 形状与错误 code 结构；`status` 的 `restoring` 值在本故事已存在，不得改语义 |
-| [US-308](./US-308-branch-isolation-conflict.md) | 分支切换与冲突提示入口    | 同上；不得在某一端把切换做成组件内部逻辑                                                           |
+| 追加者                                          | 新增键                              | 约束                                                                                     |
+| ----------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------- |
+| [US-307](./US-307-restore-session.md)           | `restore`、`restoreState`           | 复用同一命令态形状与错误 code 结构；`status` 的 `restoring` 值在本故事已存在，不得改语义 |
+| [US-308](./US-308-branch-isolation-conflict.md) | `switchBranch`、`switchBranchState` | 同上；不得在某一端把切换做成组件内部逻辑                                                 |
 
-追加 MUST 满足：三端同名同签名同返回键、共享类型仍从 `@aiao/rxdb` 透传、`tri-framework-check` 与 a11y 门禁
+追加 MUST 满足：三端同名同签名同返回键、共享类型仍只由 `@aiao/rxdb-plugin-working-tree` 导出、`tri-framework-check` 与 a11y 门禁
 对新键同样生效（缺一端整故事失败）。追加者 MUST NOT 重定义已冻结键的语义；确需变更时改本故事并同步三端。
 
 ### 性能门禁（阶段 C）
@@ -361,8 +368,8 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 - 普通 CI 的归一化 ratio 不得超过冻结 reference median × 该项容差（读项 130%，写项 110%）；绝对 p95 只在 profile 匹配的固定 runner 上作为发布门禁
   （status / diff 为 100 ms，commit 的阈值随首个 reference 冻结）。
 - 三端 E2E 记录首次可见状态耗时，但浏览器 OPFS/IDB 不承诺相同绝对数字。
-- **当前结论**：CI 托管 runner 的三种画像（AMD EPYC 7763 / EPYC 9V74 / Intel Xeon 6973P-C）与 Apple M1 Max 均有签入的
-  reference，`ci / benchmarks` 在其上转绿；分到没冻结过的型号判 `benchmark_environment_mismatch`，重跑该 job 一次，
+- **当前结论**：CI 托管 runner 的各 CPU 画像与 Apple M1 Max 均有签入的 reference（见
+  `benchmarks/reports/working-tree-reference/`），`ci / benchmarks` 在其上转绿；分到没冻结过的型号判 `benchmark_environment_mismatch`，重跑该 job 一次，
   同一型号反复出现再补冻。读项 `status` / `diff` 的容差定为 130%，写项保持 110%。M1 那份按「已知带负载的基线复冻」
   重冻，`frozenAbsolute.commit` 为 393.53 ms。冻结与复冻规则见
   [epic-006 reference 的冻结与复冻](../../epics/epic-006-working-tree-commits.md#reference-的冻结与复冻)，执行留证见
@@ -435,12 +442,12 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 - `WorkingTreeRestoreSession` 需独立 fixture：启用后表存在、可直接写入 session 行并派生 `status().conflicted`、
   session 删除后该状态消失；全程不依赖 US-307 的 `restore()` 入口。
 - API baseline 与类型契约覆盖全部核心 DTO、选项和类型化错误（含 `WorkingTreeStatus` / `WorkingTreeDiff` /
-  `WorkingTreeCommandError` / `CommitConflict`，即阶段 C 三端透传的共享类型全集）；
+  `WorkingTreeErrorState` / `CommitConflict`，即阶段 C 三端适配的共享类型全集）；
   同时断言 api-baseline 中**没有** `Index*` 前缀的新导出。
 
 ### 阶段 C — 三框架与性能
 
-- 三端 `src/index.ts` 导出与共享类型透传通过 `tri-framework-check`，缺一端即失败。
+- 三端 `src/index.ts` 导出（`useWorkingTree`、`WorkingTreeResource`）通过 `tri-framework-check`，缺一端即失败。
 - 三端各有等价组件测试，统一 fixture 验证返回键、状态转换、错误 code 和恢复建议。
 - Playwright 覆盖 status → refresh → commit，以及失败、empty、键盘和屏幕阅读器名称。
 - `pnpm nx run benchmarks:bench-working-tree` 按 Epic 固定的 100 个未提交单元 fixture、50 次采样与冻结
@@ -460,12 +467,12 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 | `packages/rxdb-plugin-working-tree/src/__tests__/`            | B    | CAS、幂等与 commit 后工作树清空                                                                           |
 | `packages/rxdb-plugin-working-tree/src/working-tree/testing/` | A/B  | `workingTreeCaptureConformanceSuite` / `workingTreeCommitConformanceSuite`                                |
 | 各 v1 本地 adapter                                            | A    | 事务内 trigger/capability 接入                                                                            |
-| `packages/rxdb-plugin-working-tree-{angular,react,vue}/`      | C    | `useWorkingTree()` 与共享类型透传                                                                         |
+| `packages/rxdb-plugin-working-tree-{angular,react,vue}/`      | C    | `useWorkingTree()` 与 `WorkingTreeResource`                                                               |
 | `apps/dev-rxdb-{angular,react,vue}/`                          | C    | 对称演示与 E2E                                                                                            |
 | `benchmarks/working-tree.bench.ts`                            | C    | FR-026 的判定依据                                                                                         |
 | `benchmarks/reports/`                                         | C    | 冻结 reference 报告                                                                                       |
-| `website/docs/collaboration/`（既有目录，新增页面）           | C    | 发布门禁 9 的公开文档（US5-AC8）                                                                          |
-| `requirements/api-baseline/rxdb.json`                         | A/B  | 新增公开类型登记                                                                                          |
+| `website/docs/plugins/rxdb-plugin-working-tree/README.md`     | C    | 发布门禁 9 的公开文档（US5-AC8）；`website/docs/collaboration/README.md` 只放链接                         |
+| `requirements/api-baseline/rxdb-plugin-working-tree.json`     | A/B  | 新增公开类型登记                                                                                          |
 
 ## 依赖与参考
 

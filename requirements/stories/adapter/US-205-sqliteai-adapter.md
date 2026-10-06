@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2026-04-20
-updated: 2026-05-10
+updated: 2026-10-06
 tags: [adapter, sqlite, ai, vector]
 ---
 
@@ -19,29 +19,29 @@ tags: [adapter, sqlite, ai, vector]
 
 ## 验收标准
 
-| #   | 前置条件                     | 操作                   | 预期结果                                | 状态 |
-| --- | ---------------------------- | ---------------------- | --------------------------------------- | ---- |
-| 1   | `@sqliteai/sqlite-wasm` 安装 | 创建适配器实例         | 初始化连接，加载向量扩展                | ✅   |
-| 2   | RuleGroup 查询               | 编译执行               | 与 wa-sqlite / sqlite-wasm 适配器一致   | ✅   |
-| 3   | 标准适配器测试套件           | 运行                   | 全部通过                                | ✅   |
-| 4   | 向量列                       | 声明 + 写入            | 支持向量类型（fastpath benchmark 验证） | ✅   |
-| 5   | benchmarks 报告              | 单条 / 批量写入 / 查询 | 已落地 baseline                         | ✅   |
+| #   | 前置条件                     | 操作                 | 预期结果                                   | 状态 |
+| --- | ---------------------------- | -------------------- | ------------------------------------------ | ---- |
+| 1   | `@sqliteai/sqlite-wasm` 安装 | 创建适配器实例       | 初始化连接，加载向量扩展                   | ✅   |
+| 2   | RuleGroup 查询               | 编译执行             | 与 wa-sqlite / sqlite-wasm 适配器一致      | ✅   |
+| 3   | 标准适配器测试套件           | 运行                 | 全部通过                                   | ✅   |
+| 4   | 内置 vector 扩展             | 新建连接             | 扩展自带的表随连接建出，备份恢复按空库处理 | ✅   |
+| 5   | `benchmarks/` 应用           | 选择 sqliteai 适配器 | 可跑单条 / 批量写入与查询场景              | ✅   |
 
 ## 技术笔记
 
 - 包：`packages/rxdb-adapter-sqliteai`
 - 复用 `rxdb-adapter-sqlite-core`，仅替换 backend client（`SqliteaiClient`）
-- AI 能力路径：sqliteai 提供的 SQL 函数（向量距离、embedding helper）通过 SQL 直接暴露
+- AI 能力路径：sqliteai 提供的 SQL 函数（向量距离、embedding helper）通过 SQL 直接暴露；`PropertyType` 没有向量类型，适配器不另建向量列抽象
 
 ## 实现文件
 
 - `packages/rxdb-adapter-sqliteai/src/RxDBAdapterSqliteai.ts`
 - `packages/rxdb-adapter-sqliteai/src/SqliteaiClient.ts`
-- `benchmarks/` — 性能报告
+- `benchmarks/src/utils/rxdb-factory.ts` — benchmarks 应用的 sqliteai 接入
 
-## 后续工作
+## 范围外
 
-- 将 sqliteai 暴露的 AI/vector 函数封装为独立的 `@aiao/rxdb-plugin-rag` API（见阶段 3 路线图）
+- 把 AI / vector 函数封装成独立的插件 API：没有对应的包与排期
 
 ## 参考
 

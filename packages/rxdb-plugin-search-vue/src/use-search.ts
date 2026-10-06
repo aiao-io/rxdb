@@ -34,6 +34,34 @@ import type {
 export type { SearchSourceLike };
 
 /**
+ * 克隆一份 {@link SearchOptions} 的不可变快照，仅保留参与重建判据的字段。
+ *
+ * @remarks
+ * SRCHV-006：`watch(() => toValue(options), ..., {deep:false})` 对原地修改
+ * （`ref.value.pageSize = 20`、`ref.value.collections.push(...)`）完全无感——
+ * getter 返回的始终是同一个对象引用，Vue 判定依赖未变，回调根本不会触发；
+ * 即便触发，`lastOptions` 存的也是同一个对象引用，{@link searchOptionsEqual}
+ * 的 `left === right` 快速路径也会直接判定「未变」。
+ *
+ * 修法不是把 `deep` 打开（对任意 `SearchSourceLike` 深度遍历代价高且不精确），
+ * 而是让 watcher 的 getter 本身**读取**这几个字段——Vue 据此建立细粒度依赖，
+ * 原地赋值 / `push` 天然会触发回调；同时每次都产出全新对象，
+ * 让 {@link searchOptionsEqual} 走到真正的逐字段比较，不再被引用相等短路。
+ * 与 React 绑定 `useStableSearchOptions` 同一思路，快照也成为传给
+ * `search()` 的实际参数，避免调用方后续原地修改影响已创建的 handle。
+ */
+function cloneSearchOptions(value: SearchOptions | undefined): SearchOptions | undefined {
+  if (value === undefined) return undefined;
+  const snapshot: SearchOptions = {};
+  if (value.debounce !== undefined) snapshot.debounce = value.debounce;
+  if (value.pageSize !== undefined) snapshot.pageSize = value.pageSize;
+  if (value.snippetLength !== undefined) snapshot.snippetLength = value.snippetLength;
+  if (value.collections !== undefined) snapshot.collections = [...value.collections];
+  if (value.initialQuery !== undefined) snapshot.initialQuery = value.initialQuery;
+  return snapshot;
+}
+
+/**
  * {@link useSearch} 返回值。
  *
  * @public
@@ -155,18 +183,16 @@ export function useSearch(
   let suppressedQuery: string | null = null;
 
   function activate(): void {
-    install(toValue(source), toValue(options));
+    install(toValue(source), cloneSearchOptions(toValue(options)));
 
-    watch(
-      [() => toValue(source), () => toValue(options)],
-      ([nextSource, nextOptions]) => {
-        // 调用方每次重算都会产出新的 options 字面量，引用相等在这里毫无用处；
-        // 判据与 React / Angular 逐字同一份（core 的 searchOptionsEqual）。
-        if (nextSource === lastSource && searchOptionsEqual(lastOptions, nextOptions)) return;
-        install(nextSource, nextOptions);
-      },
-      { deep: false }
-    );
+    watch([() => toValue(source), () => cloneSearchOptions(toValue(options))], ([nextSource, nextOptionsSnapshot]) => {
+      // 第二个 getter 逐字段读取 options，Vue 据此建立细粒度依赖——
+      // 原地赋值 / 数组 push 会命中这些依赖而触发回调，不需要 {deep:true}
+      // 对整棵（可能包含 source 这种非纯对象）树做深度遍历。
+      // 判据与 React / Angular 逐字同一份（core 的 searchOptionsEqual）。
+      if (nextSource === lastSource && searchOptionsEqual(lastOptions, nextOptionsSnapshot)) return;
+      install(nextSource, nextOptionsSnapshot);
+    });
 
     watch(query, q => {
       if (suppressedQuery !== null && q === suppressedQuery) {

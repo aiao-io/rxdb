@@ -12,7 +12,7 @@ Aiao 遵循 [semver 2.0](https://semver.org/lang/zh-CN/)：`主版本.次版本.
 
 ### 0.x 阶段（当前）
 
-项目当前处于 `0.x`（发布版本 `0.0.25`）。按 semver，**0.x 期间次版本即可包含破坏性变更**，公开 API 尚未冻结。1.0 发布即代表进入稳定维护，破坏性变更此后只能随主版本发布。
+项目当前处于 `0.x`（最新发布版本 `0.0.26`）。按 semver，**0.x 期间次版本即可包含破坏性变更**，公开 API 尚未冻结。1.0 发布即代表进入稳定维护，破坏性变更此后只能随主版本发布。
 
 ### 统一版本
 
@@ -59,11 +59,12 @@ export { SQLiteChangeType as SQliteChangeType } from './sqlite-backend.interface
 
 :::note `exports` 里的每个子路径入口都在基线里
 
-目前没有例外：`@aiao/rxdb-adapter-miniprogram` 原先随包分发的 wa-sqlite glue 与 wasm
-（`./assets/*`）已改为直接依赖 `@subframe7536/sqlite-wasm`，不再经本仓库的 `exports` 暴露。
+唯一的例外是无导出表面的资产入口，见下一段。
 
-`api-surface.mjs` 仍保留一份资产入口白名单（`ASSET_SUBPATHS`），留给将来真需要发二进制子路径的包：
-这类入口没有导出表面可扫，只能显式跳过、内容交由供应链审计守护。白名单当前为空，且双向核对——
+`api-surface.mjs` 另有一份资产入口白名单（`ASSET_SUBPATHS`）：这类入口（wasm / CSS / worker 脚本）没有导出表面可扫，
+只能显式跳过、内容交由供应链审计守护。白名单当前登记 4 个包的 5 个入口——
+`@aiao/rxdb-adapter-miniprogram` 的 `./alipay-random-worker.js`，`@aiao/rxdb-model-{angular,vue}` 的 `./tailwind.css`，
+`@aiao/rxdb-model-react` 的 `./index.css` 与 `./tailwind.css`——且双向核对：
 登记了包里已不存在的入口，或登记的包已退出扫描范围，同样门禁红。
 
 :::
@@ -73,17 +74,17 @@ export { SQLiteChangeType as SQliteChangeType } from './sqlite-backend.interface
 ## 版本级别如何决定
 
 - 提交遵循 [Conventional Commits](https://www.conventionalcommits.org/zh-hans/)：`fix:` → 补丁，`feat:` → 次版本，`feat!:` / `BREAKING CHANGE:` → 主版本。
-- 发布由 Nx Release 驱动；版本级别依据提交类型与 API 基线 diff 共同决定。
-- API 基线出现破坏性 diff 但提交未标注 breaking 时，以基线检查为准阻止发布。
+- 发布由维护者手工执行，版本号在 0.x 阶段显式指定（Nx 在 major 为 0 时会把 `feat:` 降为补丁）。
+- API 基线出现破坏性 diff 时 PR 检查失败；破坏性改动须在 changelog 如实声明并附迁移页，不依赖提交是否标注 breaking。
 
 涉及系统 schema 或 change codec 的版本还要通过迁移发布清单和门禁：
-`pnpm nx run @aiao/source:migration-release-gate`。没有已发布桥接 tag 或旧 bundle 隔离策略时，发布直接失败。
+`pnpm nx run @aiao/source:migration-release-gate`（PR CI 每次都会运行）。迁移版本缺少已发布的桥接 tag 或旧 bundle 隔离策略时，门禁失败。
 
 ## 实验性层级
 
 下列能力不在 1.0 的兼容承诺内，破坏性变更只需在 changelog 与迁移指南注明：
 
-- `@aiao/rxdb-adapter-miniprogram` 整包（微信 / 抖音逻辑层，抖音 Android 未验证，不保证崩溃恢复）
+- `@aiao/rxdb-adapter-miniprogram` 整包（微信 / 抖音 / 支付宝逻辑层，抖音与支付宝 Android 真机未验证，不保证崩溃恢复）
 - `@aiao/rxdb-adapter-http` 的 `changeFeed` SSE 变更通知（缺省关闭）
 - `@aiao/rxdb-plugin-search` 在 `wa-sqlite` 与小程序上的全文搜索（`unverified`，当前直接抛 `SearchUnsupportedAdapterError`）
 - `@aiao/rxdb-plugin-querycache` 的 `QueryCacheEngine` 直接实例化（`@experimental`）

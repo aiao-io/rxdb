@@ -276,7 +276,7 @@ describe('query 工具函数 (PGlite)', () => {
       expect(params).toEqual([]);
     });
 
-    it('JSONB contains 操作符应使用 @> 操作符', () => {
+    it('keyValue contains 操作符应逐键使用 ->> text LIKE 比较（RV-027），而非整体 jsonb @> 子集包含', () => {
       const params: unknown[] = [];
       const entityMetadata = {
         propertyMap: new Map([['data', { type: PropertyType.keyValue, columnName: 'data' } as EntityPropertyMetadata]])
@@ -287,12 +287,14 @@ describe('query 工具函数 (PGlite)', () => {
         new Map(),
         entityMetadata
       );
-      expect(result).toContain('@>');
-      expect(result).toContain('::jsonb');
-      expect(params).toEqual([JSON.stringify({ name: 'John' })]);
+      expect(result).toContain(`->> 'name'`);
+      expect(result).toContain('LIKE');
+      expect(result).not.toContain('@>');
+      expect(result).not.toContain('::jsonb');
+      expect(params).toEqual(['%John%']);
     });
 
-    it('stringArray in 操作符应使用 PostgreSQL 数组 @> 操作符', () => {
+    it('stringArray in 操作符应使用 PostgreSQL 数组 && 交集操作符（RV-034），而非 @> 全包含', () => {
       const params: unknown[] = [];
       const entityMetadata = {
         propertyMap: new Map([
@@ -305,8 +307,10 @@ describe('query 工具函数 (PGlite)', () => {
         new Map(),
         entityMetadata
       );
-      // PGlite 使用原生 PostgreSQL 数组 @>，而非 SQLite 的 json_each/EXISTS
-      expect(result).toContain('@>');
+      // PGlite 使用原生 PostgreSQL 数组 &&（重叠/交集），语义与核心 JS 的 `.some(includes)`、
+      // SQLite 的 json_each+IN 一致：候选值里任一命中即可，而非要求全部命中（@>）
+      expect(result).toContain('&&');
+      expect(result).not.toContain('@>');
       expect(result).toContain('text[]');
       expect(params).toEqual([['tag1', 'tag2']]);
     });

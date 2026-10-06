@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [core, reactive, rxjs]
 ---
 
@@ -24,15 +24,15 @@ tags: [core, reactive, rxjs]
 | 1   | 调用 `repository.find(options)` | 返回 Observable           | 推送符合条件的数据                     | ✅   |
 | 2   | 有新数据被创建                  | 符合现有查询条件          | 查询自动推送更新结果                   | ✅   |
 | 3   | 实体 CRUD 事件触发              | `need_refresh_*` 判定通过 | 按需重查或 merge 更新                  | ✅   |
-| 4   | 多个相同查询同时存在            | fingerprint 去重          | 复用同一个 `QueryTask`                 | ✅   |
-| 5   | 查询 Observable 订阅者归零      | 触发引用计数清零          | 延迟销毁 `QueryTask`                   | ✅   |
+| 4   | 多个相同查询同时存在            | 按 options 缓存键去重     | 复用同一个 `QueryTask`                 | ✅   |
+| 5   | 查询 Observable 订阅者归零      | 触发引用计数清零          | 销毁 `QueryTask`                       | ✅   |
 | 6   | `QueryCacheEngine` SWR 策略     | 缓存过期                  | 增量同步（元数据 diff → 最小数据拉取） | ✅   |
 
 ## 技术笔记
 
-- 查询管道：`Repository.find(options)` → `QueryManager.addQuery(hash, options)` → `QueryTask` (RxJS Observable)
+- 查询管道：`Repository.find(options)` → `QueryManager.createTask(...)` → `QueryTask` (RxJS Observable)
 - 自动刷新：监听 `ENTITY_LOCAL_CREATE/UPDATE/REMOVE` 事件 → `need_refresh_*` 判定 → 按需重查
-- 缓存去重：对 `FindOptions` 生成 fingerprint，相同查询复用 `QueryTask`
+- 缓存去重：对归一化后的 `FindOptions` 做 `deterministicStringify` 得到缓存键，相同查询复用 `QueryTask`；fingerprint 只用于结果去重
 - SWR 同步：`QueryCacheEngine` 实现 Stale-While-Revalidate 增量同步
 
 ## 实现文件

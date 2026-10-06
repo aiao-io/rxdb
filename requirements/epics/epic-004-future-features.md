@@ -21,16 +21,16 @@ owner: jimmy
 - [x] `rxdb-plugin-storage` 文件内容落入桌面应用数据目录（Electron 先行，Tauri 随 US-210）
 - [x] 微信小程序逻辑层的实验性 wa-sqlite 路径纳入门禁与公开能力矩阵
 - [ ] 多端小程序宿主：先抽平台无关 host，再按可行性门禁放行支付宝 / 抖音 / 百度 / QQ
-- [x] QueryCache 生产路径：`getRepository` / EntityManager 在 `SyncType.QueryCache` 时走 `QueryCacheRepository`（远端权威 + sqlite 行缓存）
+- [x] QueryCache 生产路径：`getRepository` / EntityManager 在 `SyncType.QueryCache` 时走 `QueryCacheEngine`（`@aiao/rxdb-plugin-querycache`，需同时装 history / sync 两个插件；远端权威 + sqlite 行缓存）
 - [x] HTTP 远程适配器：已有 REST API 可挂 `adapter:remote`，本地 sqlite 独立注册为行缓存
 - [x] HTTP 协议文档的可执行验收：参考后端 + 真实 fetch 证明 `http-protocol.md` 可互通
-- [x] HTTP 协议的浏览器端到端 demo：Angular + 真 sqlite 后端 + 跨源，补齐 CORS 与 `RuleGroup → SQL` 两处空白
+- [x] HTTP 协议的浏览器端到端 demo：Angular + 真实数据库后端 + 跨源，补齐 CORS 与 `RuleGroup → SQL` 两处空白
 - [x] QueryCache 的远端变更实时同步：core 失效上报口 + HTTP 可选变更通知通道，让别的客户端的写自己走到屏幕上
-- [ ] 本地数据库一致性备份与恢复：保留数据库完整状态，按 adapter 能力分阶段支持
-- [ ] 实例级实体同步配置覆盖：同一实体类跨前后端复用，同步策略由实例显式选择
-- [ ] 会话录制回放与失败现场数据还原：e2e 失败留下失败尝试的 trace，需要时导出失败时刻的库供导入调试；应用内会话录制（价值门禁 owner 2026-10-01 豁免）
+- [x] 本地数据库一致性备份与恢复：保留数据库完整状态，按 adapter 能力分阶段支持
+- [x] 实例级实体同步配置覆盖：同一实体类跨前后端复用，同步策略由实例显式选择
+- [x] 会话录制回放与失败现场数据还原：e2e 失败留下失败尝试的 trace，需要时导出失败时刻的库供导入调试；应用内会话录制（价值门禁 owner 2026-10-01 豁免）
 - [ ] 实体元数据能声明 CHECK、条件唯一、区间排他与生成列，业务不变量落在存储层而不只活在仓储方法里
-- [ ] 普通实体可声明手动排序（整表或按分组字段），三端 Todo 列表可拖拽调整先后并落库
+- [x] 普通实体可声明手动排序（整表或按分组字段），三端 Todo 列表可拖拽调整先后并落库
 
 ## 故事
 
@@ -49,7 +49,7 @@ owner: jimmy
 - [US-020 将 QueryCache 接入统一 Repository](../stories/core/US-020-querycache-repository.md) — 让 `SyncType.QueryCache` 从空操作变成生产真；两阶段（接线 → 缓存质量）；不 inherit US-203 AC#6
 - [US-212 HTTP 远程适配器](../stories/adapter/US-212-http-adapter.md) — 远端权威 HTTP + 独立注册 sqlite 行缓存；**零前置**（US-020 已全关，两档发布门禁同时解除）；v1 不实现 Full changelog
 - [US-213 HTTP 适配器 wire 级集成测试](../stories/adapter/US-213-http-wire-integration-test.md) — US-212 的验收补票：零依赖 `node:http` 参考后端 + 真实 fetch 打穿 transport；纯测试资产，**不改 `src/`**
-- [US-214 HTTP 适配器浏览器端到端 demo](../stories/adapter/US-214-http-browser-demo.md) — `apps/` 下三个新 project：Angular 前端 + `node:sqlite` 后端 + playwright，**跨源**；两阶段（可跑通 → 自动化门禁）；唯一允许的产物改动是给协议文档补「跨源（CORS）」一节
+- [US-214 HTTP 适配器浏览器端到端 demo](../stories/adapter/US-214-http-browser-demo.md) — `apps/` 下三个新 project：Angular 前端 + HTTP 参考后端（引擎见 US-216）+ playwright，**跨源**；两阶段（可跑通 → 自动化门禁）；唯一允许的产物改动是给协议文档补「跨源（CORS）」一节
 - [US-021 QueryCache 远端适配器缺席时配置期 fail-fast](../stories/core/US-021-querycache-adapter-fail-fast.md) — 出自 US-214：库级 `sync` 少配 remote 时 QueryCache 查询**静默永挂**；在 `validateSyncStrategy` 里配置期拦下
 - [US-022 QueryCache 远端行的列契约与缺列诊断](../stories/core/US-022-querycache-remote-row-contract.md) — 出自 US-214：`upsertMany` 的裸 SQL 写不过仓储，实体 `default` 不生效；补契约文档 + 落地前列集校验，**不做本地兜底**
 - [US-215 条件请求被静默停用时给出可观测信号](../stories/adapter/US-215-conditional-request-silence.md) — 出自 US-214：跨源读不到 `ETag` 时 transport 静默降级；加可选诊断 hook，**不引入 console**、不改数据路径
@@ -57,15 +57,15 @@ owner: jimmy
 - [US-024 PGlite 侧 QueryCache 远端行的列契约](../stories/core/US-024-pglite-querycache-row-contract.md) — US-022 的 PGlite 半边：`upsert_many_sql.ts` 落地前执行同一份列契约，缺列整批拒绝；共享的是契约语义与消息骨架，必填列判据按各后端 DDL 各自实现（uuid 主键与 `SET NULL` 外键列两处**故意不同**）
 - [US-216 参考后端以 RxDB 引擎实现](../stories/adapter/US-216-server-side-rxdb.md) — 参考后端初始化 RxDB（pglite），七个协议端点改由 Repository / EntityManager 实现、SSE 由 RxDB 事件驱动，前后端共享 schema 模块；wire 逐字不变；单类收敛由 US-026 承接
 - [US-026 实例级实体同步配置覆盖](../stories/core/US-026-instance-sync-override.md) — 按实例与实体整体选择同步配置，不修改共享元数据；前后端 HTTP demo 复用同一个实体类
-- [US-027 实体操作权限模型](../stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete 逐操作声明 `'both' | 'system'`：公开写入口快速失败（不是防御边界，适配器 / 执行器层不判定）+ 14 张系统表显式声明 + rxdb-model 三框架 UI 能力派生；四阶段交付（0 只读行查看 / A 声明与系统表 / B 公开写入口判定 / C UI 能力派生）
+- [US-027 实体操作权限模型](../stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete 逐操作声明 `'both' | 'system'`：公开写入口快速失败（不是防御边界，适配器 / 执行器层不判定）+ 全部系统表显式声明 + rxdb-model 三框架 UI 能力派生；四阶段交付（0 只读行查看 / A 声明与系统表 / B 公开写入口判定 / C UI 能力派生）
 - [US-028 可排序实体](../stories/core/US-028-sortable-entity.md) — sortOrder + fractional indexing 从树形实体解耦到普通实体：core 排序语义 + rxdb-model 拖放持久化；排序域 = 分组字段组合（整表为空组合、NULL 值算一组），A～E 五阶段（D 分组排序域与跨组移动，E 三端 Todo 按 `completed` 分组手动排序）；依赖方向 tree → sortable，可排序字段强制非空；与 US-025 阶段 E 无先后约束
-- [US-029 多用户 RBAC：角色与所有权写权限](../stories/core/US-029-rbac-owner-role-permission.md) — 实体显式声明 `access.owner`（不加基础字段）+ `RxDBContext.roles` 与一实例一身份 + US-027 操作权限扩展为角色 / 所有权谓词 + 测试 RLS fixture + 三框架操作级能力派生；只做写授权，同步实体不限读，多租户已移出；A～D 四阶段交付，阶段 A / B / D 分别依赖 US-027 阶段 A / B / C，阶段 C 依赖 US-218；**价值待证**，解锁条件为出现具名多用户使用方（[RV-022](../reviews/RV-022-us-029-readiness-review.md)）
+- [US-029 多用户 RBAC：角色与所有权写权限](../stories/core/US-029-rbac-owner-role-permission.md) — 实体显式声明 `access.owner`（不加基础字段）+ `RxDBContext.roles` 与一实例一身份 + US-027 操作权限扩展为角色 / 所有权谓词 + 测试 RLS fixture + 三框架操作级能力派生；只做写授权，同步实体不限读，多租户已移出；A～D 四阶段交付，阶段 A / B / D 分别依赖 US-027 阶段 A / B / C，阶段 C 依赖 US-218；**价值待证**，解锁条件为出现具名多用户使用方（`git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`）
 - [US-217 本地数据库一致性备份与恢复](../stories/adapter/US-217-local-database-backup-restore.md) — 对本地数据库生成带完整性校验的快照并恢复到兼容 adapter；不包含跨 adapter 迁移或外置文件本体
-- [US-218 Supabase 远端启用 RLS 时的推送完整性](../stories/adapter/US-218-supabase-rls-push-integrity.md) — 出自 RV-022：业务表开 RLS 后，被策略过滤的删除仍写进 `rxdb_change`，其它端拉到幽灵 DELETE（SQL 回归 `rls-filtered-delete` 已复现，连 SELECT 都看不到的行同样中招）；三阶段（不写幽灵日志 + 日志与业务写配对 → 逐实体回执与被拒实体本地对齐 → 日志表收口与部署指引），阶段 B 以 US-220 为前置，两者 plan 全部完成后再开工，不含租户与角色
-- [US-220 Supabase 推送 UPDATE 的落库语义](../stories/adapter/US-220-supabase-update-push-semantics.md) — 推送把 UPDATE 当 `INSERT … ON CONFLICT DO UPDATE` 落库：只改部分列在 NOT NULL 列上报 23502，owner 型 RLS 下改自己的行、INSERT 比 UPDATE 窄的表上改别人的行都误报 42501；改走普通 UPDATE，单个 PR，US-218 阶段 B 的前置；与 US-218 的 plan 全部完成后再开工
-- [US-909 会话录制回放与失败现场数据还原](../stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做。阶段 A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`；阶段 B 失败现场数据原样归档与导入（价值证据门禁已豁免；传输限制经主线程 IDB 第二连接绕开，spike 不过才阻塞于 🚧 Worker / SharedWorker 传输的备份恢复）；阶段 C 应用内 rrweb 录制插件与三框架组件（价值待证门禁已豁免）
-- [US-025 核心包子系统按插件边界外移](../stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体逐阶段外移为插件包；搬消费者不搬 changelog 原语；阶段 B 起前置 US-015 的 `plugin:*` 依赖解析。**Epic 归属存疑**：属核心重构而非用户可见能力，承诺交付前宜另开 Epic
-- [US-506 website 插件文档补齐（history / sync / querycache）](../stories/plugin/US-506-website-plugin-docs.md) — US-025 拆包三插件的文档站手册页、侧边栏导航与 typedoc 收录，含 flatten 重写坏链修复；`site-build` 已绿，待合并
+- [US-218 Supabase 远端启用 RLS 时的推送完整性](../stories/adapter/US-218-supabase-rls-push-integrity.md) — 出自 RV-022：业务表开 RLS 后，被策略过滤的删除仍写进 `rxdb_change`，其它端拉到幽灵 DELETE（SQL 回归 `rls-filtered-delete` 已复现，连 SELECT 都看不到的行同样中招）；三阶段（不写幽灵日志 + 日志与业务写配对 → 逐实体回执与被拒实体本地对齐 → 日志表收口与部署指引），阶段 B 以 US-220 为前置，不含租户与角色
+- [US-220 Supabase 推送 UPDATE 的落库语义](../stories/adapter/US-220-supabase-update-push-semantics.md) — 推送把 UPDATE 当 `INSERT … ON CONFLICT DO UPDATE` 落库：只改部分列在 NOT NULL 列上报 23502，owner 型 RLS 下改自己的行、INSERT 比 UPDATE 窄的表上改别人的行都误报 42501；改走普通 UPDATE，单个 PR，US-218 阶段 B 的前置
+- [US-909 会话录制回放与失败现场数据还原](../stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做。阶段 A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`；阶段 B 失败现场数据原样归档与导入（价值证据门禁已豁免；传输限制经主线程 IDB 第二连接绕开）；阶段 C 应用内 rrweb 录制插件与三框架组件（价值待证门禁已豁免）
+- [US-025 核心包子系统按插件边界外移](../stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体逐阶段外移为插件包；搬消费者不搬 changelog 原语；阶段 B 起前置 US-015 的 `plugin:*` 依赖解析
+- [US-506 website 插件文档补齐（history / sync / querycache）](../stories/plugin/US-506-website-plugin-docs.md) — US-025 拆包三插件的文档站手册页、侧边栏导航与 typedoc 收录，含 flatten 重写坏链修复；`site-build` 已绿
 - [US-030 实体元数据层的声明式存储约束](../stories/core/US-030-declarative-storage-constraints.md) — `checks` 与索引的 `where` / `expression` / `method`：`EntityMetadataOptions` 今天一项都没有；四阶段（CHECK → 条件唯一与表达式索引 → 区间排他双后端等价 → 生成列与索引方法）；**价值待证**，当前消费方全在 epic-009
 - [US-031 树形实体迁移到排序模块](../stories/core/US-031-tree-sortable-migration.md) — 树兄弟域以 `parentId` 为分组字段迁到 US-028 排序模块：`rxdb-test` 四个树实体 `sortOrder` 改非空并按父节点回填，三端 demo 的新建追加与拖放改用 core API；前置 US-028 阶段 A + D；**价值待证**
 

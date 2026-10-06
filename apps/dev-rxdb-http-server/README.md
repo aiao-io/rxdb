@@ -17,7 +17,7 @@
 | `@modules/recipes-domain`   | Recipe schema + 共享查询函数的单一来源     |
 
 它们都是仓库内 workspace 包，不是外部第三方库。运行时仍是 Node 26 的原生类型剥离直跑；
-引入 workspace 依赖后，`serve` 前需先构建这几个包的 `dist`（Nx `dependsOn` 已接好）。
+引入 workspace 依赖后，`serve` 前需先构建这几个包的 `dist`：`serve` target 没有 `dependsOn`，要手动构建，只有 e2e 会经 `build-deps` 自动先建。
 本项目自身**没有 `build` target**，不产出自己的 `dist/`，也不发 npm——它是给人读的示例，不是可发布产物。
 
 > Node 26 是硬前置。`node --version` 低于 26 时类型剥离不可用。

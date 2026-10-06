@@ -80,7 +80,7 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
     type FindOrder = NonNullable<EntityStaticType<T, 'findOptions'>['orderBy']>[number];
     const where = options.where as unknown as RepositoryRuleGroup;
 
-    const selectFields = this.build_select_fields(where);
+    const selectFields = this.buildSelectFields(where);
 
     const build_query = () => {
       let query = this.get_client().select(selectFields);
@@ -144,7 +144,7 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
     if (options.groupBy) throw new Error('groupBy not supported yet');
     const where = options.where as unknown as RepositoryRuleGroup;
 
-    const selectFields = this.build_select_fields(where);
+    const selectFields = this.buildSelectFields(where);
 
     let query = this.get_client().select(selectFields, { count: 'exact', head: true });
     query = apply_rule_group(query, where, this.metadata, this.adapter.rxdb.schemaManager);
@@ -226,6 +226,24 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
     return entity;
   }
 
+  /**
+   * 构建包含关系条件所需嵌入的 SELECT 字段。
+   *
+   * @param where - 查询条件
+   * @param fields - 根实体需要返回的列
+   * @returns 含关系嵌入的 PostgREST SELECT 表达式
+   */
+  buildSelectFields(where: RepositoryRuleGroup | undefined, fields: string = '*'): string {
+    const relationFields = this.extract_relation_fields(where);
+    if (relationFields.size === 0) return fields;
+
+    const paths = [...relationFields.keys()];
+    const deepestPaths = paths.filter(path => !paths.some(other => other !== path && other.startsWith(`${path}.`)));
+    return `${fields}, ${deepestPaths
+      .map(path => this.build_relation_select(path, relationFields.get(path) ?? true))
+      .join(', ')}`;
+  }
+
   // ============================================
   // 私有方法
   // ============================================
@@ -243,17 +261,6 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
     const property = this.metadata.propertyMap.get(field);
     if (property && !property.nullable) return { ascending };
     return { ascending, nullsFirst: ascending };
-  }
-
-  private build_select_fields(where: RepositoryRuleGroup | undefined): string {
-    const relationFields = this.extract_relation_fields(where);
-    if (relationFields.size === 0) return '*';
-
-    const paths = [...relationFields.keys()];
-    const deepestPaths = paths.filter(path => !paths.some(other => other !== path && other.startsWith(`${path}.`)));
-    return `*, ${deepestPaths
-      .map(path => this.build_relation_select(path, relationFields.get(path) ?? true))
-      .join(', ')}`;
   }
 
   /** 提取查询中的关系字段路径（用于 EXISTS 查询的 INNER JOIN） */

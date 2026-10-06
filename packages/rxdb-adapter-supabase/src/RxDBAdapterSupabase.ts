@@ -610,14 +610,23 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
   fetchMetadata(entityName: string, queryFilter: RuleGroup<unknown>): Observable<QueryCacheEntityMetadata[]> {
     return defer(() => {
       const scope = resolveEntityScope(this.rxdb, entityName);
+      const EntityType = this.rxdb.schemaManager.getEntityType(scope.entity, scope.namespace)!;
+      const metadata = getEntityMetadata(EntityType);
+      const repository = this.getRepository<EntityType, SupabaseRepository<EntityType>>(EntityType);
+      const fields = repository.buildSelectFields(queryFilter as RuleGroup<Record<string, unknown>>, 'id, updatedAt');
 
       // 元数据用于新鲜度比较，被截断掉的那些 id 会被 QueryCache 当成「远端已删除」，
       // 因此这里必须翻页取全，不能依赖服务端的 max-rows。
       const rows = select_all_pages<{ id: unknown; updatedAt: unknown }>(
         this.rxdb.reachability,
         (rangeFrom, rangeTo) => {
-          const query = this.#client.schema(scope.schema).from(scope.tableName).select('id, updatedAt');
-          return apply_rule_group(query, queryFilter).order('id', { ascending: true }).range(rangeFrom, rangeTo);
+          const query = this.#client
+            .schema(scope.schema)
+            .from(scope.tableName)
+            .select<string, { id: unknown; updatedAt: unknown }>(fields);
+          return apply_rule_group(query, queryFilter, metadata, this.rxdb.schemaManager)
+            .order('id', { ascending: true })
+            .range(rangeFrom, rangeTo);
         },
         'Failed to fetch metadata'
       );
@@ -761,15 +770,18 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       const entities = Array.from(entitySet);
       const ids = entities.map(e => e.id);
 
-      const deletedRows = await this.executeRetryableWrite(
-        'delete',
-        async () => {
-          const { data, error, status } = await client.from(metadata.tableName).delete().in('id', ids).select('id');
-          return { data, error, status };
-        },
-        value => validateArrayResponse<{ id: unknown }>(value, 'delete')
-      );
-      const deletedIds = new Set(deletedRows.map(row => String(row.id)));
+      const deletedIds = new Set<string>();
+      for (const chunk of chunk_values(ids)) {
+        const deletedRows = await this.executeRetryableWrite(
+          'delete',
+          async () => {
+            const { data, error, status } = await client.from(metadata.tableName).delete().in('id', chunk).select('id');
+            return { data, error, status };
+          },
+          value => validateArrayResponse<{ id: unknown }>(value, 'delete')
+        );
+        for (const row of deletedRows) deletedIds.add(String(row.id));
+      }
       const missingIds = [...new Set(ids.map(id => String(id)))].filter(id => !deletedIds.has(id));
       if (missingIds.length > 0) {
         throw new SupabaseDataError(`Failed to delete: no row returned for id(s): ${missingIds.join(', ')}`);

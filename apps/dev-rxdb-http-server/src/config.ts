@@ -37,16 +37,6 @@ export const CLIENT_ENTITY_NAME = 'Recipe';
 export const CLIENT_ID_HEADER = 'x-client-id';
 
 /**
- * 列名白名单。
- *
- * @remarks
- * 与 `db.ts` 的建表语句逐字一致。`RuleGroup` 的 `field` 必须命中这个数组才允许进 SQL——
- * 协议文档说 `field` 是「受信任的列名」，但参考实现面向的是公网上任何一个发 JSON 的客户端，
- * 不能把那句话当成前提。
- */
-export const RECIPE_COLUMNS = ['id', 'title', 'status', 'price', 'tag', 'createdAt', 'updatedAt'] as const;
-
-/**
  * 客户端可**改**的列。
  *
  * @remarks

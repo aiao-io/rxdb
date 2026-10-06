@@ -1,0 +1,63 @@
+diff --git a/dist/index.h5.js b/dist/index.h5.js
+index 32eabe7..a19f8a5 100644
+--- a/dist/index.h5.js
++++ b/dist/index.h5.js
+@@ -38,7 +38,7 @@ function default_1(appPath, rawTaroConfig) {
+         // copy-plugin
+         if ((_b = (_a = taroConfig.copy) === null || _a === void 0 ? void 0 : _a.patterns) === null || _b === void 0 ? void 0 : _b.length) {
+             plugins.push(require('vite-plugin-static-copy').viteStaticCopy({
+-                targets: (0, utils_1.convertCopyOptions)(taroConfig)
++                targets: (0, utils_1.convertCopyOptions)(taroConfig), silent: true
+             }));
+         }
+         // custom vite plugins
+diff --git a/dist/index.harmony.js b/dist/index.harmony.js
+index 1221b13..0815b78 100644
+--- a/dist/index.harmony.js
++++ b/dist/index.harmony.js
+@@ -29,7 +29,7 @@ function default_1(appPath, rawTaroConfig) {
+         // copy-plugin
+         if ((_b = (_a = taroConfig.copy) === null || _a === void 0 ? void 0 : _a.patterns) === null || _b === void 0 ? void 0 : _b.length) {
+             plugins.push(require('vite-plugin-static-copy').viteStaticCopy({
+-                targets: (0, utils_1.convertCopyOptions)(taroConfig)
++                targets: (0, utils_1.convertCopyOptions)(taroConfig), silent: true
+             }));
+         }
+         // custom vite plugins
+diff --git a/dist/index.mini.js b/dist/index.mini.js
+index f6117d2..4609762 100644
+--- a/dist/index.mini.js
++++ b/dist/index.mini.js
+@@ -29,7 +29,7 @@ function default_1(appPath, rawTaroConfig) {
+         // copy-plugin
+         if ((_b = (_a = taroConfig.copy) === null || _a === void 0 ? void 0 : _a.patterns) === null || _b === void 0 ? void 0 : _b.length) {
+             plugins.push(require('vite-plugin-static-copy').viteStaticCopy({
+-                targets: (0, utils_1.convertCopyOptions)(taroConfig)
++                targets: (0, utils_1.convertCopyOptions)(taroConfig), silent: true
+             }));
+         }
+         // custom vite plugins
+diff --git a/dist/mini/emit.js b/dist/mini/emit.js
+index d0bf889..885245a 100644
+--- a/dist/mini/emit.js
++++ b/dist/mini/emit.js
+@@ -192,13 +192,18 @@ function default_1(viteCompilerContext) {
+                                     source: () => source
+                                 };
+                             }
++                            const pluginContext = this;
+                             const assetsProxy = new Proxy(assets, {
+                                 set(target, p, newValue) {
+                                     if (!(0, shared_1.isString)(p))
+                                         return false;
+                                     target[p] = newValue;
+                                     const chunk = bundle[p];
+-                                    if (chunk.type === 'asset') {
++                                    // modifyBuildAssets 新增的产物（如支付宝插件的 .browserslistrc）bundle 里没有，走 emitFile
++                                    if (chunk === undefined) {
++                                        pluginContext.emitFile({ type: 'asset', fileName: p, source: newValue.source() });
++                                    }
++                                    else if (chunk.type === 'asset') {
+                                         chunk.source = newValue.source();
+                                     }
+                                     else {

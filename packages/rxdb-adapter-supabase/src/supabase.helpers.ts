@@ -165,7 +165,7 @@ interface DependsOnConstraintRef {
  *
  * @remarks
  * 按 `status` 判别：`applied` 不带拒绝详情；`rejected` 必带 `code` / `reason` / `message`，
- * `reason = 'dependency'` 时还带 `dependsOn`（[contracts/rxdb-mutations-receipts.md §4](../../../specs/007-us218-rls-push-integrity/contracts/rxdb-mutations-receipts.md)）。
+ * `reason = 'dependency'` 时还带 `dependsOn`（`git show 8cc005bb:specs/007-us218-rls-push-integrity/contracts/rxdb-mutations-receipts.md` §4）。
  */
 type RawEntityResult =
   | { schema: string; table: string; entityId: string; status: 'applied'; localIds: number[] }
@@ -242,7 +242,7 @@ function parseEntityResults(data: Record<string, unknown>): RawEntityResult[] {
  * 把回执里某条源变更的拒绝详情组装成 {@link RemoteChangeRejection}
  *
  * @param change - 对应的本地源变更，`entity` 字段取它自身的 `namespace` / `entity` / `entityId`
- *   （[contracts/remote-merge-result.md §3](../../../specs/007-us218-rls-push-integrity/contracts/remote-merge-result.md)）——
+ *   （`git show 8cc005bb:specs/007-us218-rls-push-integrity/contracts/remote-merge-result.md` §3）——
  *   能匹配到这条回执本身已经证明两者是同一实体，不需要反查表名
  * @param entityResult - 该实体在 `entity_results` 中被拒绝的那一条
  * @param resolveDependsOnEntity - 把 `dependsOn` 的表引用换算成本地实体引用
@@ -347,7 +347,7 @@ function assertRejectedLocalId(
  * 对本批每条源变更 `c`：`c.localId` 在 `change_id_mapping` 中 → `applied`；否则 `c.localId` 在某个
  * `status = 'rejected'` 的 `entity_results[i].localIds` 中 → `rejected`；两者都不在、或同时在
  * → {@link SupabaseDataError}（远端回执与本批不一致），不满足「每条源变更恰好一条结果」
- * （US-218 FR-016，[contracts/remote-merge-result.md §3](../../../specs/007-us218-rls-push-integrity/contracts/remote-merge-result.md)）。
+ * （US-218 FR-016，`git show 8cc005bb:specs/007-us218-rls-push-integrity/contracts/remote-merge-result.md` §3）。
  * 回执里本批之外的、重复的 localId，以及与源变更实体不符的拒绝，在建 Map 之前就判掉
  * （见 {@link assertResponseMatchesBatch}）。
  */

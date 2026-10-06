@@ -54,7 +54,9 @@ describe('query_tree_sql unit edges', () => {
         ]
       }
     });
-    expect(withEntity.sql).toContain('(count(*) - 1) AS count');
+    // RV-079：非根计数不再裸减 1，钳在 0 下界（见 generate_tree_sql 注释）
+    expect(withEntity.sql).toContain('GREATEST(count(*) - 1, 0) AS count');
+    expect(withEntity.sql).not.toContain('(count(*) - 1) AS count');
     expect(withEntity.sql).toContain('children.');
     expect(withEntity.params).toContain('e1');
 

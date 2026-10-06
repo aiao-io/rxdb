@@ -23,7 +23,7 @@
 | `adapter/`       | SQLite / PGlite / Supabase / sqliteai / 小程序 / 桌面适配器   | US-201~299 |
 | `collaboration/` | 版本控制、撤销/重做、迁移协作                                 | US-301~399 |
 | `ui/`            | 代码编辑器等跨框架 UI 组件                                    | US-401~499 |
-| `plugin/`        | RxDB plugin 包（workspace / storage / graph）                 | US-501~599 |
+| `plugin/`        | RxDB plugin 包（workspace / storage / graph）与 BOM 领域模型  | US-501~599 |
 | `tooling/`       | 门禁、基线与发布工具链（不是产品能力）                        | US-601~699 |
 | `future/`        | 搜索 / 加密 / DevTools 等扩展能力（按编号段分拣，不按交付期） | US-700~999 |
 
@@ -35,6 +35,8 @@
 - code-scanning：`CS-XXX-*.md`（编号与 GitHub 告警 number 对应）
 
 **不使用** `US-XXXa` / `US-XXXb` 这类字母后缀文件；大故事在文件内分「交付阶段」，见下文「大故事分阶段」。
+
+**辅助文件**（证据留档、可行性矩阵这类挂在某条 story 下的资料）与它所属的 story 同目录，命名 `US-XXX-<说明>.md`（如 `US-904-phase-a-evidence.md`）或不带编号的 `<主题>.md`（如 `miniprogram-platform-feasibility.md`）。辅助文件**没有** story frontmatter，不计入故事数，也不进 `status-overview.md`；统计故事数以带 `status:` frontmatter 的文件为准。
 
 ## 状态定义
 
@@ -87,6 +89,8 @@ inherited_acs:
     ac: N
     note: 简述为什么这条 AC 从源故事迁来
 ```
+
+`ac` 通常是源 story AC 表的序号 `N`；源 story 的 AC 按阶段 / 用户故事分段编号时，可写成分段标签（如 `US1-AC3`、`拆分前-35`）或序号列表（`[25, 27]`）。审计脚本只校验纯数字 `ac` 不超出源 story 的 AC 行数。
 
 接收方 YAML 是唯一的机器可读真相；源 story 不另写注释或反向索引。
 
@@ -167,8 +171,8 @@ try {
 
 ### 价值待证
 
-被其它文档引用、但 `stories/` 下无对应文件的条目标 **🚧**，且**不计入任何统计**
-（它与汇总表的 🚫 Blocked 不同，后者统计 YAML 里显式 `status: Blocked` 的既有故事）。
+被其它文档引用、但 `stories/` 下无对应文件的条目，在引用处文字标注「（无故事文件）」，且**不计入任何统计**
+（它与汇总表的 🚫 Blocked 不同，后者统计 YAML 里显式 `status: Blocked` 的既有故事）。🚧 只表示 `In Progress`，与审计脚本 `STATUS_EMOJI` 一致，不另作他用。
 
 一条故事若无法写出「**今天用户踩得到的具体症状**」，标注**价值待证**并留在 Backlog，
 不得凭 Epic 惯性排期。判据是 **病灶数 ≥ 抽象数**：新增抽象的数量不应超过它实际关闭的已知缺陷数量。

@@ -345,7 +345,11 @@ describe('排序键预算与不变量（US-028 AC#4）', () => {
       const key = generateKeyBetween(sequence[at - 1] ?? null, sequence[at] ?? null);
       expect(isValidOrderKey(key)).toBe(true);
       sequence.splice(at, 0, key);
-      expect(sequence.filter((_, index) => index !== at)).toEqual(before);
+      // 逐项比对而不是每步 `toEqual` 整个数组：后者是 2000 次深比较，单跑就要 ~760ms，
+      // 并行全量时会撞 2s 默认超时。断言不变 —— 仍要求插入点以外每个旧键原位不动，
+      // 失败时报出第一个被改动的下标。
+      const changedAt = before.findIndex((oldKey, index) => sequence[index < at ? index : index + 1] !== oldKey);
+      expect(changedAt, `step ${step} 插入到 ${at} 后旧键被改动`).toBe(-1);
     }
     assertStrictlyIncreasing(sequence);
   });

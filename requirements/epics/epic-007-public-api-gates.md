@@ -16,7 +16,7 @@ owner: jimmy
 
 ## 为什么单列一个 Epic
 
-现有六个 Epic 都以**产品能力**分组（核心引擎、同步、UI、平台扩展、类型系统、工作树）。
+epic-001～006 都以**产品能力**分组（核心引擎、同步、UI、平台扩展、类型系统、工作树）。
 门禁不是产品能力，它是这些能力的发布约束，因此挂进任何一个都会让那个 Epic 的愿景失真——
 [epic-004](epic-004-future-features.md) 的愿景是「全文搜索、桌面原生文件存储等中长期能力」，
 把「扫描器覆盖子路径」塞进去只会让读者以为它是一项用户可见功能。
@@ -28,15 +28,17 @@ owner: jimmy
 ## 目标
 
 - [x] `api-surface.mjs` 覆盖 `exports` 子路径入口的导出表面（[US-601](../stories/tooling/US-601-subpath-api-surface-baseline.md)）——
-      39 个公开包 64 个入口全部进基线；`rxdb-test` 非产品 API 整包不扫；资产入口
-      `rxdb-model-angular/tailwind.css` 无导出表面，由 `ASSET_SUBPATHS` 白名单显式跳过、内容由供应链审计守护。
-      **本 Epic 因此转 `In Progress`**：三条目标关了两条，剩一条仍无故事认领
+      全部公开包的全部入口都进基线（`requirements/api-baseline/`，`node scripts/audit/api-surface.mjs` 复验）；
+      `rxdb-test` 非产品 API 整包不扫；无导出表面的资产入口（小程序 Worker 脚本与 model 绑定包的 CSS）
+      由 `ASSET_SUBPATHS` 白名单显式跳过
 - [x] 迁移发布门禁的四个 git 钩子（`bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` /
       `bridgeTagVersionConstants`）进入 PR CI，而不只在打 tag 时跑——已挂进 `ci-template.yml` 的 `setup` job（不带 `--release-tag`，
       配 `fetch-tags: true` 与按 `GITHUB_REF_TYPE` 解析 tag），未单开故事，落点见
       [release-plan 的执行顺序第 0 步](../release-plan.md#执行顺序)
 - [ ] 手工发布路径的前置校验：`pnpm test-all` 未跑绿即发布，会重演 0.0.25 的版本漂移——**尚无故事认领**，
-      背景见 [release-plan](../release-plan.md) 的「开项：0.0.25 遗留的三条版本漂移」
+      背景见 [release-plan「开项：版本漂移」](../release-plan.md#开项版本漂移)
+- [ ] 发布产物的语义事实源进漂移门禁：公开包的用途与关系有单一事实源，README / 站点 / 包元数据与它不一致即红
+      （[US-602](../stories/tooling/US-602-ai-comprehensible-artifacts.md) 阶段 A1；A2 / B / C 随其后）
 
 新缺口进入本 Epic 的判据只有一条：**它是一道门禁的覆盖面问题**。
 「某个功能还没做」不属于本 Epic，哪怕它会顺带改到门禁配置。

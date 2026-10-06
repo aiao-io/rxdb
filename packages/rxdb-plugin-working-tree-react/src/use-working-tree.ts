@@ -13,6 +13,12 @@ import {
 import { useRxDB } from '@aiao/rxdb-react';
 import { useCallback, useMemo, useState } from 'react';
 
+/** 十二格状态连同产生它的库：换库后旧库的写回凭 `database` 识别并丢弃。 */
+interface WorkingTreeSlot {
+  readonly database: ReturnType<typeof useRxDB>;
+  readonly states: WorkingTreeAsyncStates;
+}
+
 /**
  * {@link useWorkingTree} 在当前 render 返回的工作树入口。
  *
@@ -82,15 +88,23 @@ export const useWorkingTree = (): WorkingTreeResource => {
   // 取整个库而不是解构 `workingTree`：清单第十一项 `switchBranch` 挂在 `versionManager` 上，
   // 两个入口都由命令层去取（见 `createWorkingTreeCommands` 的同名注记）。
   const database = useRxDB();
-  const [states, setStates] = useState<WorkingTreeAsyncStates>(WORKING_TREE_INITIAL_ASYNC_STATES);
+  // RV-069：状态与产生它的库绑在同一份 state 里。库身份变了就在本次 render 收回初态
+  // （React 认可的「渲染期调整状态」写法，不会闪一帧旧库状态）；旧库命令晚到的写回在
+  // updater 里比对归属，不是当前库就原样丢弃。不用 ref 记「最新库」：渲染期写 ref 在
+  // 并发渲染被丢弃时会与已提交的库错位，旧库命令的结果从此全被吞掉。
+  const [slot, setSlot] = useState<WorkingTreeSlot>(() => ({ database, states: WORKING_TREE_INITIAL_ASYNC_STATES }));
+  if (slot.database !== database) setSlot({ database, states: WORKING_TREE_INITIAL_ASYNC_STATES });
 
   // 函数式更新：命令的闭包活得比某一次 render 长，读 `states` 会读到发起那一刻的旧值，
   // 于是两个并发的命令里后写的那个会把先写的那格覆盖回去。
   const patch = useCallback<Parameters<typeof createWorkingTreeCommands>[1]>(
-    (key, state) => setStates(current => ({ ...current, [key]: state })),
-    []
+    (key, state) =>
+      setSlot(current =>
+        current.database === database ? { database, states: { ...current.states, [key]: state } } : current
+      ),
+    [database]
   );
   const commands = useMemo(() => createWorkingTreeCommands(database, patch), [database, patch]);
 
-  return useMemo(() => ({ ...states, ...commands }), [states, commands]);
+  return useMemo(() => ({ ...slot.states, ...commands }), [slot.states, commands]);
 };

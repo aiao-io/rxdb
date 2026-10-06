@@ -157,13 +157,33 @@ export class QueryCacheEngine<T extends EntityBaseType = EntityBaseType> {
   #inflightQueries = new Map<string, Observable<InstanceType<T>[]>>();
 
   /**
-   * 作废代次，每次 {@link QueryCacheEngine.invalidateInflight} 递增（US-023 D13）。
+   * 同一在飞指纹上，各消费者各自的 `onRemoteError` 回调（RV-054）。
+   *
+   * @remarks
+   * `#inflightQueries` 按指纹去重到**同一个**共享 Observable：命中去重的后来者不会重新
+   * 构建查询管线，只拿到第一个调用方那条流的引用。远端失败在管线内部只发生一次，
+   * 若只回调「构建管线那一个」调用方记下的 `onRemoteError`，后来者的 `#runSync`
+   * （见 `query-cache-primary.ts`）永远看不到这次失败，就会把一次被吞掉的远端错误
+   * 误记成「校验成功」写进 sync memo。因此按指纹收集**全部**消费者的回调，
+   * 失败时广播给所有人，而不是只喂给构建管线的那一个（US-020 AC#13 的去重不该连带
+   * 丢失后来者的失败感知）。
+   */
+  #inflightRemoteErrorHandlers = new Map<string, Set<(error: Error) => void>>();
+
+  /**
+   * 作废代次，每次 {@link QueryCacheEngine.invalidateInflight} 递增（US-023 D13 / RV-053）。
    *
    * @remarks
    * 与 `QueryCacheSyncMemo.generation` 是**两个**计数器，不能合用：那一个还被本地写
-   * （`create` / `update` / `remove` 的 `clear()`）推进，而本地写按设计**不**作废在飞查询
-   * ——那条路径上远端已由本仓储自己写过，在飞查询问到的就是写后的状态。拿它当守卫，
-   * 一次并发的 `create` 就会把毫无问题的在飞同步整个判成陈旧、连带丢掉它的落地。
+   * （`create` / `update` / `remove` 的 `clear()`）推进，用途是「翻页复用记忆」的窗口；
+   * 这一个的用途是「迟到的旧查询落地前必须验明自己还属于当前代次」。
+   *
+   * 本地写**必须**推进它（见 `query-cache-primary.ts` 的 `create` / `update` / `remove`）：
+   * 早先的实现假定「本仓储已经写过远端，在飞查询问到的就是写后的状态」，复验推翻了
+   * 这项时序假设 —— 在飞的 `findByIds` 完全可能在写之前就已经把请求发出去，响应里
+   * 装的是写之前的旧快照，只是交付的时间点晚于写确认。不推进代次，`#pull` /
+   * `#evictOrphans` 就无法分辨这份迟到的响应已经过期，会把刚确认的新写盖回旧值，
+   * 或把刚确认的删除复活。
    */
   #invalidationGeneration = 0;
 
@@ -222,26 +242,37 @@ export class QueryCacheEngine<T extends EntityBaseType = EntityBaseType> {
   find(options: QueryCacheFindOptions<T>): Observable<InstanceType<T>[]> {
     const fingerprint = this.#getQueryFingerprint(options);
 
+    // 不论是否命中去重，本次调用方的 onRemoteError 都要登记：命中去重时它不会参与
+    // 构建管线，只有登记进共享的回调集合才有机会在远端失败时被广播到（RV-054）。
+    const errorHandlers = this.#registerRemoteErrorHandler(fingerprint, options.onRemoteError);
+
     // 检查是否有正在进行的相同查询
     const inflight = this.#inflightQueries.get(fingerprint);
     if (inflight) {
       return inflight;
     }
 
+    // 构建管线时不能原样传 options.onRemoteError：那样失败只会回调「第一个调用方」，
+    // 后来命中去重的消费者永远收不到通知。改用广播函数，失败时一次喂给全部已登记的回调。
+    const broadcastOptions: QueryCacheFindOptions<T> = {
+      ...options,
+      onRemoteError: error => errorHandlers.forEach(handler => handler(error))
+    };
+
     // 创建新的查询 Observable
     let query$: Observable<InstanceType<T>[]>;
 
-    if (options.localCacheFirst) {
+    if (broadcastOptions.localCacheFirst) {
       // SWR 模式：先返回缓存，再验证更新
-      query$ = this.#executeSWRQuery(options);
+      query$ = this.#executeSWRQuery(broadcastOptions);
     } else {
       // 标准模式：直接执行远程同步
-      query$ = this.#executeFindQuery(options);
+      query$ = this.#executeFindQuery(broadcastOptions);
     }
 
     // 如果启用离线降级，包装查询以处理网络错误
-    if (options.offlineFallback) {
-      query$ = this.#wrapWithOfflineFallback(query$, options.where);
+    if (broadcastOptions.offlineFallback) {
+      query$ = this.#wrapWithOfflineFallback(query$, broadcastOptions.where);
     }
 
     // finalize 必须在 shareReplay 之前：
@@ -254,6 +285,9 @@ export class QueryCacheEngine<T extends EntityBaseType = EntityBaseType> {
         // `finalize` 只在退订/完结时跑，那时 `cached$` 早已赋值，不存在 TDZ
         if (this.#inflightQueries.get(fingerprint) === cached$) {
           this.#inflightQueries.delete(fingerprint);
+        }
+        if (this.#inflightRemoteErrorHandlers.get(fingerprint) === errorHandlers) {
+          this.#inflightRemoteErrorHandlers.delete(fingerprint);
         }
       }),
       shareReplay({ bufferSize: 1, refCount: true })
@@ -279,11 +313,13 @@ export class QueryCacheEngine<T extends EntityBaseType = EntityBaseType> {
    * 且错误会一直留到 `syncStaleTime` 到期：重跑那次的 `remember` 是成功的，
    * 窗口内不会再有人去校验一遍。
    *
-   * 本地写路径不需要调用它 —— 那条路径上远端已由本仓储自己写过，在飞查询问到的
-   * 就是写后的状态。
+   * 本地写路径**也要**调用它（RV-053）：早先的实现假定「远端已由本仓储自己写过，
+   * 在飞查询问到的就是写后的状态」而跳过了本地写，复验推翻了这项时序假设 ——
+   * 在飞的 `findByIds` 可能在写之前就已经发出，响应交付却晚于写确认，装的是旧快照。
    */
   invalidateInflight(): void {
     this.#inflightQueries.clear();
+    this.#inflightRemoteErrorHandlers.clear();
     this.#invalidationGeneration++;
   }
 
@@ -444,6 +480,33 @@ export class QueryCacheEngine<T extends EntityBaseType = EntityBaseType> {
         return this.localAdapter.deleteByIds(this.entityName, idArray);
       })
     );
+  }
+
+  /**
+   * 登记一次调用方的 `onRemoteError`，返回该指纹当前的完整回调集合。
+   *
+   * @param fingerprint - {@link QueryCacheEngine.#getQueryFingerprint} 的产物
+   * @param handler - 调用方的回调；未提供时只返回/创建集合，不添加任何东西
+   *
+   * @remarks
+   * 集合的生命周期和 `#inflightQueries` 的对应条目一致：{@link QueryCacheEngine.find}
+   * 构建管线时创建，`finalize` 里按身份清掉，{@link QueryCacheEngine.invalidateInflight}
+   * 作废时整表清空。两张表分开是因为键相同、值的生命周期管理方式不同，合并会让
+   * `finalize` 的身份判断失去意义。
+   */
+  #registerRemoteErrorHandler(
+    fingerprint: string,
+    handler: ((error: Error) => void) | undefined
+  ): Set<(error: Error) => void> {
+    let handlers = this.#inflightRemoteErrorHandlers.get(fingerprint);
+    if (!handlers) {
+      handlers = new Set();
+      this.#inflightRemoteErrorHandlers.set(fingerprint, handlers);
+    }
+    if (handler) {
+      handlers.add(handler);
+    }
+    return handlers;
   }
 
   /**

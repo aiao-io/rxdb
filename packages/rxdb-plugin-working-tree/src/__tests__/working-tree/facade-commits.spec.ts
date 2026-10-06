@@ -1,5 +1,5 @@
 /**
- * @fileoverview US-909 阶段 C：门面 `commits$` 的发出时机（`specs/005-us-909-session-replay/contracts/working-tree-commits.md`）。
+ * @fileoverview US-909 阶段 C：门面 `commits$` 的发出时机（`git show 2e820521:specs/005-us-909-session-replay/contracts/working-tree-commits.md`）。
  *
  * @remarks
  * 录制插件靠这条流给回放打 commit 标记。按时间戳反查 commit 充当关联是被明令禁止的形态，

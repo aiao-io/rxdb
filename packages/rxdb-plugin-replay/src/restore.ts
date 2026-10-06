@@ -20,7 +20,7 @@ const RESTORE_HINTS: Readonly<Record<Extract<WorkingTreeRestoreResult, { ok: fal
 };
 
 /**
- * `restoreToCommit()` 被拒时给用户看的一句英文提示（`specs/005-us-909-session-replay/research.md` D8）。
+ * `restoreToCommit()` 被拒时给用户看的一句英文提示（`git show 2e820521:specs/005-us-909-session-replay/research.md` D8）。
  *
  * @param reason - `ReplayRestoreResult` 的 `reason`
  */

@@ -1,9 +1,9 @@
 {
   "firstPhase": "empty",
-  "firstVisibleMs": 315,
+  "firstVisibleMs": 306,
   "framework": "react",
   "metric": "working-tree-panel-first-visible-state",
   "note": "SC-005：浏览器不承诺绝对数字，本指标不进 benchmark JSON 的 measurements，单独归档",
-  "recordedAt": "2026-09-24T13:45:18.848Z",
+  "recordedAt": "2026-10-05T03:33:00.042Z",
   "route": "/working-tree"
 }

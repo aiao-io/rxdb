@@ -38,6 +38,7 @@ import {
   findByIds,
   listMetadataByOffset,
   listMetadataByToken,
+  readObject,
   updateRecipe
 } from './recipes-repository.ts';
 import type { RxdbRecipeStore } from './rxdb-store.ts';
@@ -130,7 +131,7 @@ const handleMetadata = async (
   state: DemoState,
   pageModeParam: string | null
 ): Promise<void> => {
-  const body = (await readJsonBody(request)) as Record<string, unknown>;
+  const body = readObject(await readJsonBody(request), 'metadata');
   const limit = readPositiveInt(body['limit'], 'limit', 1000);
   // 请求体里带了 pageToken 就必然是形态 B——客户端已经锁定了模式，这里没有选择权。
   const tokenMode = body['pageToken'] !== undefined || pageModeParam === 'token' || state.pageMode === 'token';
@@ -261,7 +262,16 @@ export const createDemoServer = async (options: DemoServerOptions): Promise<Demo
   };
 
   const server = createHttpServer((request, response) => {
-    void dispatch(request, response, () => store, state, options.controlEnabled, actions, subscribers, broadcaster);
+    void dispatch(
+      request,
+      response,
+      () => store,
+      state,
+      options.controlEnabled,
+      actions,
+      subscribers,
+      broadcaster
+    ).catch(error => handleUncaughtDispatchError(response, error));
   });
 
   const close = async (): Promise<void> => {
@@ -273,6 +283,25 @@ export const createDemoServer = async (options: DemoServerOptions): Promise<Demo
   };
 
   return { server, state, close };
+};
+
+/**
+ * `dispatch` 整条 Promise 链最后的兜底。
+ *
+ * @remarks
+ * HTTP 回调不是 await 出来的，`void dispatch(...)` 的 reject 若没人接，当前 Node 下
+ * 会把整个进程终止（RV-030）——这不是「某个分支漏了 try/catch」，而是最外层必须有人收口。
+ * 到这里的都是 `runProtocol` / `runControl` / request-target 解析之外的意外错误，
+ * 正常路径永远不该走到。响应已经发出就只能记日志走人；没发出的话尽量给客户端一个 500，
+ * 而不是让连接悬死——留日志供排查，但绝不能让一次意外错误掐断整个服务。
+ */
+const handleUncaughtDispatchError = (response: ServerResponse, error: unknown): void => {
+  console.error('[dev-rxdb-http-server] unhandled dispatch error', error);
+  if (response.headersSent || response.writableEnded) {
+    response.destroy();
+    return;
+  }
+  sendJson(response, 500, JSON_ERROR(500, 'Internal error'));
 };
 
 /** 一次请求的完整生命周期：记日志 → 控制端点 → 离线闸门 → 预检 → 故障注入 → 鉴权 → 路由。 */
@@ -287,9 +316,28 @@ const dispatch = async (
   broadcaster: ChangeBroadcaster
 ): Promise<void> => {
   const started = Date.now();
-  const url = new URL(request.url ?? '/', 'http://127.0.0.1');
-  const path = url.pathname;
   const method = request.method ?? 'GET';
+  const rawTarget = request.url ?? '/';
+
+  let url: URL;
+  try {
+    url = new URL(rawTarget, 'http://127.0.0.1');
+  } catch {
+    // Node HTTP parser 接受、应用 URL parser 不接受的 request-target（例如 `GET http://[`）。
+    // 这条分支必须纳入请求级错误边界——漏在外面就是未接 rejection handler 的 reject，
+    // 当前 Node 下会直接终止整个进程（RV-030），不是单条请求被拒绝那么轻。
+    applyCorsHeaders(request, response, state.exposeEtag);
+    recordRequest(state, {
+      method,
+      path: rawTarget,
+      status: 400,
+      durationMs: Date.now() - started,
+      notModified: false
+    });
+    sendJson(response, 400, JSON_ERROR(400, `Request target '${rawTarget}' is not a valid URL`));
+    return;
+  }
+  const path = url.pathname;
 
   response.on('finish', () => {
     recordRequest(state, {

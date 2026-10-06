@@ -5,7 +5,7 @@ status: Done
 priority: Low
 epic: epic-003-ui-developer-tools
 created: 2025-12-08
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [tooling, devtools]
 ---
 
@@ -29,14 +29,15 @@ tags: [tooling, devtools]
 ## 技术笔记
 
 - 核心包 `@aiao/rxdb-devtools`（版本见 `packages/rxdb-devtools/package.json`）在本仓库 `packages/rxdb-devtools/`，提供 `connector` / `sequence` / `serializer` 等运行时基础设施
-- 浏览器扩展工程在 `apps/rxdb-devtools-extension/`，技术栈：Chrome Extensions API + React/Preact
-- 集成方式：宿主应用调用 `openRxdbDevtools()` 建立 DevTools 通道（参考 React demo）
+- 浏览器扩展工程在 `apps/rxdb-devtools-extension/`，技术栈：Chrome Extensions API（MV3）+ Angular + Tailwind / daisyUI；面板本体在私有源码库 `modules/rxdb-devtools-panel/`（见 [US-904](./US-904-devtools-native-storage-contract.md)）
+- 集成方式：宿主应用在建库后调用 `getDevToolsConnector().init(rxdb, getEntityMetadata)`（参考 `apps/dev-rxdb-react/src/app/rxdb/setup_rxdb_sqlite-wasm.ts`）
 
 ## 实现文件
 
 - `packages/rxdb-devtools/` — DevTools 运行时连接器与序列化层
 - `apps/rxdb-devtools-extension/` — Chrome DevTools 扩展工程
-- `apps/dev-rxdb-react/src/app/contexts/AppServiceContext.tsx` — React 应用集成示例
+- `modules/rxdb-devtools-panel/` — 共享面板（Angular，源码嵌入）
+- `apps/dev-rxdb-react/src/app/rxdb/setup_rxdb_sqlite-wasm.ts` — React 应用集成示例
 
 ## 参考
 

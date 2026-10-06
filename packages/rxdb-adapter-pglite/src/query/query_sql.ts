@@ -225,19 +225,28 @@ const build_order_by = (
     .join(', ');
 };
 
+/**
+ * 本实体列的表限定前缀
+ *
+ * @remarks
+ * 主查询有 JOIN 时为主表别名 `_`；树查询递归成员里为 `children`——递归表 `c` 与 `children`
+ * 列同名，不限定会报 42702 列名歧义（RV-045）。
+ */
+const qualify = (tableAlias: string | undefined, columnSql: string): string =>
+  tableAlias ? `${tableAlias}.${columnSql}` : columnSql;
+
 const get_field_sql = (
   originalField: string,
   aliasField?: string,
   entityMetadata?: EntityMetadata,
-  hasJoin?: boolean,
+  tableAlias?: string,
   kind: JsonAccessorKind = 'text'
 ): string => {
   if (aliasField) return aliasField;
 
   if (!originalField.includes('.')) {
     const columnName = resolve_column_name(originalField, entityMetadata);
-    const prefix = hasJoin ? `${MAIN_TABLE_ALIAS}.` : '';
-    return `${prefix}${formatColumn(columnName)}`;
+    return qualify(tableAlias, formatColumn(columnName));
   }
 
   const parts = originalField.split('.');
@@ -246,7 +255,7 @@ const get_field_sql = (
   if (prop && (prop.type === PropertyType.json || prop.type === PropertyType.keyValue)) {
     const jsonPath = parts.slice(1);
     assertSafeJsonPath(jsonPath);
-    return jsonAccessor(quoteIdentifier(prop.columnName), jsonPath, kind);
+    return jsonAccessor(qualify(tableAlias, quoteIdentifier(prop.columnName)), jsonPath, kind);
   }
 
   if (entityMetadata) {
@@ -289,19 +298,49 @@ const transformQueryValue = (value: unknown, property: ReturnType<typeof getProp
   return transformValueJsToPGlite(value, property);
 };
 
+/**
+ * keyValue 列的 contains/notContains：逐键展开成 `->>` 文本比较后按 LIKE 组合
+ * （contains 是 OR、notContains 是 AND），与核心 JS `get_entity_match_rule`、sqlite-core
+ * `handle_flatmap_contains` 同一套逐键字面子串语义，不落到 `PropertyType.json` 已有的
+ * `@>` JSONB 子集包含上（RV-027）。
+ *
+ * 缺失键/显式 JSON null 时 `->>` 取出 SQL NULL：`LIKE` 对 NULL 的结果是三值逻辑的 UNKNOWN，
+ * 在 OR 组合里天然不贡献命中、在 AND 组合里天然不会被当成"确定不包含"而放行，不需要显式判空
+ * ——与核心 JS 把缺失键视为 UNKNOWN（既不计入 contains 命中也不满足 notContains）殊途同归（RV-028）。
+ */
+const build_keyvalue_contains_pg = (
+  fieldSql: string,
+  operator: 'contains' | 'notContains',
+  value: Record<string, unknown>,
+  params: unknown[]
+): string => {
+  const entries = Object.entries(value).filter(([, v]) => v != null);
+  // 空条件集按 contains/notContains 各自组合算子的空集代数求值：OR 的空集恒假、AND 的空集恒真，
+  // 与「空数组 in/notIn」同一口径（见上面 `in`/`notIn` 的空候选集处理）。
+  if (!entries.length) return operator === 'contains' ? '1=0' : '1=1';
+
+  const conditions = entries.map(([key, v]) => {
+    const text = jsonAccessor(fieldSql, [key], 'text');
+    params.push(`%${escapeLikePattern(`${v}`)}%`);
+    const likeSql = `${text} LIKE $${params.length}`;
+    return operator === 'notContains' ? `NOT (${likeSql})` : likeSql;
+  });
+  return `(${conditions.join(operator === 'contains' ? ' OR ' : ' AND ')})`;
+};
+
 const build_rule_pg = (
   ruleValue: unknown,
   params: unknown[],
   fieldAliasMap: Map<string, FieldAlias>,
   entityMetadata?: EntityMetadata,
-  hasJoin?: boolean,
+  tableAlias?: string,
   resolve?: EntityMetadataResolver
 ): string => {
   const rule = readRule(ruleValue);
   assertOperator(rule.operator);
 
   const alias = fieldAliasMap.get(rule.field);
-  const fieldSql = get_field_sql(rule.field, alias?.text, entityMetadata, hasJoin);
+  const fieldSql = get_field_sql(rule.field, alias?.text, entityMetadata, tableAlias);
   const prop = getProperty(rule.field, entityMetadata);
   const { operator, value } = rule;
   assertPropertyOperator(prop, operator);
@@ -321,6 +360,14 @@ const build_rule_pg = (
     throw new RxdbAdapterPGliteError(`Operator ${operator} requires a value`, INVALID_QUERY_ERROR_CODE);
   }
 
+  // in/notIn 的空候选集是两个 SQL 后端与核心 JS 都已归一化成的恒假/恒真常量
+  // （sqlite-core `build_rule`、核心 `get_entity_match_rule` 的空集合短路），且不区分列类型/是否为
+  // NULL——必须在下面按属性类型分流的数组重叠判断之前处理，否则空候选集会被 `&&` 编译成
+  // "与空数组重叠恒假"，NULL 列上与 notIn 应有的恒真常量不一致。
+  if ((operator === 'in' || operator === 'notIn') && Array.isArray(value) && value.length === 0) {
+    return operator === 'in' ? '1=0' : '1=1';
+  }
+
   if (prop && (prop.type === PropertyType.json || prop.type === PropertyType.keyValue)) {
     if (operator === 'contains' || operator === 'notContains') {
       if (!isRecord(value)) {
@@ -328,6 +375,12 @@ const build_rule_pg = (
           `JSON operator ${operator} requires an object value`,
           INVALID_QUERY_ERROR_CODE
         );
+      }
+      // keyValue 是既有的逐键字面子串谓词（与核心 JS、sqlite-core `handle_flatmap_contains`
+      // 同一套契约：contains 是 OR、notContains 是 AND），不是 PropertyType.json 原生提供的
+      // JSONB 子集包含——两者混进同一个 `@>` 分支会把「字面子串」误判成「对象子集相等」（RV-027）。
+      if (prop.type === PropertyType.keyValue) {
+        return build_keyvalue_contains_pg(fieldSql, operator, value, params);
       }
       params.push(JSON.stringify(value));
       const containsSql = `${fieldSql} @> $${params.length}::jsonb`;
@@ -340,7 +393,8 @@ const build_rule_pg = (
     if (COMPARISON_OPERATORS.has(operator) && wantsJsonbComparison(value)) {
       // join 路径必须用它自己算出的 jsonb 形态：拿 metadata 重算会得到主表列，
       // 与 alias 指向的连接表不是同一个东西。
-      const jsonbField = alias ? alias.jsonb : get_field_sql(rule.field, undefined, entityMetadata, hasJoin, 'jsonb');
+      const jsonbField =
+        alias ? alias.jsonb : get_field_sql(rule.field, undefined, entityMetadata, tableAlias, 'jsonb');
       if (jsonbField) {
         params.push(JSON.stringify(value));
         return `${jsonbField} ${operator} $${params.length}::jsonb`;
@@ -355,8 +409,11 @@ const build_rule_pg = (
       }
       const castType = prop.type === PropertyType.stringArray ? 'text[]' : 'numeric[]';
       params.push(value);
-      const containsSql = `${fieldSql} @> $${params.length}::${castType}`;
-      return operator === 'notIn' ? `NOT ${containsSql}` : containsSql;
+      // 核心 JS（`.some(item => value.includes(item))`）与 sqlite-core（`json_each` + IN）的
+      // in/notIn 都是"数组列与候选值任一元素交集"；`@>` 是全包含（要求数组列包含所有候选值），
+      // 会把交集查询误判成子集查询（RV-034）。`&&` 是数组重叠运算符，语义正是"至少一个公共元素"。
+      const overlapSql = `${fieldSql} && $${params.length}::${castType}`;
+      return operator === 'notIn' ? `NOT (${overlapSql})` : overlapSql;
     }
   }
 
@@ -364,7 +421,6 @@ const build_rule_pg = (
     if (!Array.isArray(value)) {
       throw new RxdbAdapterPGliteError(`Operator ${operator} requires an array value`, INVALID_QUERY_ERROR_CODE);
     }
-    if (value.length === 0) return operator === 'in' ? '1=0' : '1=1';
     params.push(value.map(item => transformQueryValue(item, prop)));
     return `${fieldSql} ${operator === 'in' ? '= ANY' : '!= ALL'}($${params.length})`;
   }
@@ -408,7 +464,7 @@ export const buildRuleGroupPG = <RG extends RuleGroup<EntityData> = RuleGroup<En
   params: unknown[],
   fieldAliasMap: Map<string, FieldAlias> = new Map(),
   entityMetadata?: EntityMetadata,
-  hasJoin?: boolean,
+  tableAlias?: string,
   resolve?: EntityMetadataResolver
 ): string => {
   const runtimeGroup = readRuleGroup(ruleGroup);
@@ -420,8 +476,15 @@ export const buildRuleGroupPG = <RG extends RuleGroup<EntityData> = RuleGroup<En
   const processedRules = runtimeGroup.rules
     .map(ruleOrGroup =>
       isRuleGroup(ruleOrGroup) ?
-        buildRuleGroupPG(ruleOrGroup as RuleGroup<EntityData>, params, fieldAliasMap, entityMetadata, hasJoin, resolve)
-      : build_rule_pg(ruleOrGroup, params, fieldAliasMap, entityMetadata, hasJoin, resolve)
+        buildRuleGroupPG(
+          ruleOrGroup as RuleGroup<EntityData>,
+          params,
+          fieldAliasMap,
+          entityMetadata,
+          tableAlias,
+          resolve
+        )
+      : build_rule_pg(ruleOrGroup, params, fieldAliasMap, entityMetadata, tableAlias, resolve)
     )
     .filter(sql => sql.length > 0);
 
@@ -483,9 +546,9 @@ export const generate_find_sql = (
     options.where ?
       build_rule_group_join_pg(adapter, metadata, options.where)
     : { joinSQL: '', fieldAliasMap: new Map<string, FieldAlias>() };
-  const hasJoin = joinSQL.length > 0;
+  const tableAlias = joinSQL.length > 0 ? MAIN_TABLE_ALIAS : undefined;
   const where =
-    options.where ? buildRuleGroupPG(options.where, params, fieldAliasMap, metadata, hasJoin, resolve) : undefined;
+    options.where ? buildRuleGroupPG(options.where, params, fieldAliasMap, metadata, tableAlias, resolve) : undefined;
   const orderBy = build_order_by(options.orderBy, metadata, resolve);
   const limit = 'limit' in options ? options.limit : undefined;
   const offset = 'offset' in options ? options.offset : undefined;
@@ -511,10 +574,10 @@ export const generate_count_sql = (
     options.where ?
       build_rule_group_join_pg(adapter, metadata, options.where)
     : { joinSQL: '', fieldAliasMap: new Map<string, FieldAlias>() };
-  const hasJoin = joinSQL.length > 0;
+  const tableAlias = joinSQL.length > 0 ? MAIN_TABLE_ALIAS : undefined;
   const where =
     options.where ?
-      buildRuleGroupPG(options.where, params, fieldAliasMap, metadata, hasJoin, metadata_resolver(adapter))
+      buildRuleGroupPG(options.where, params, fieldAliasMap, metadata, tableAlias, metadata_resolver(adapter))
     : undefined;
   return { sql: generate_count_sql_helper({ tableName, where, join: joinSQL }), params };
 };

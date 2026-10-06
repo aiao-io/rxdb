@@ -973,7 +973,11 @@ describe('query_merge_tree_update_cache - UPDATE 事件的树形查询', () => {
         // root (id: 1)
         //   ├─ child1 (id: 2, parentId: 1, isActive: true, 匹配)
         //   └─ child2 (id: 3, parentId: 1, isActive: false, 不匹配，不在结果中)
-
+        //
+        // RV-046：递归 CTE 在递归成员上过 where，child2 此前把遍历截断在它这里，名下
+        // 若有匹配的子孙也从未进过结果，本地无法证明它没有子孙 —— 必须刷新，
+        // 用动态 runner 模拟 SQL 重查后的真相。
+        let databaseResult: TestEntityData[] = [{ id: '2', name: 'child1', parentId: '1', isActive: true }];
         const task = createMockQueryTask({
           type: 'findDescendants',
           options: {
@@ -983,7 +987,7 @@ describe('query_merge_tree_update_cache - UPDATE 事件的树形查询', () => {
               rules: [{ field: 'isActive', operator: '=', value: true }]
             }
           },
-          runner: () => of([{ id: '2', name: 'child1', parentId: '1', isActive: true }])
+          runner: () => of(databaseResult)
         });
 
         const results = [
@@ -1012,6 +1016,7 @@ describe('query_merge_tree_update_cache - UPDATE 事件的树形查询', () => {
         });
 
         // 更新 child2 使其匹配条件
+        databaseResult = results[1];
         const updateEvent = createMockUpdateEvent(
           { id: '3', name: 'child2', parentId: '1', isActive: true },
           { id: '3', name: 'child2', parentId: '1', isActive: false }
@@ -1827,7 +1832,13 @@ describe('query_merge_tree_update_cache - UPDATE 事件的树形查询', () => {
         // root (id: 1, isActive: true)
         //   └─ child1 (id: 2, parentId: 1, isActive: true)
         //        └─ target (id: 3, parentId: 2)
-
+        //
+        // RV-046：递归成员上过 where，child1 不再匹配后遍历在它这里截断，它上方的 root
+        // 也随之退出结果 —— 只摘 child1 会把 root 留成孤儿，与 SQL 重查分叉。必须刷新。
+        let databaseResult: TestEntityData[] = [
+          { id: '1', name: 'root', parentId: null, isActive: true },
+          { id: '2', name: 'child1', parentId: '1', isActive: true }
+        ];
         const task = createMockQueryTask({
           type: 'findAncestors',
           options: {
@@ -1837,20 +1848,16 @@ describe('query_merge_tree_update_cache - UPDATE 事件的树形查询', () => {
               rules: [{ field: 'isActive', operator: '=', value: true }]
             }
           },
-          runner: () =>
-            of([
-              { id: '1', name: 'root', parentId: null, isActive: true },
-              { id: '2', name: 'child1', parentId: '1', isActive: true }
-            ])
+          runner: () => of(databaseResult)
         });
 
-        const results = [
+        const results: TestEntityData[][] = [
           [
             { id: '1', name: 'root', parentId: null, isActive: true },
             { id: '2', name: 'child1', parentId: '1', isActive: true }
           ],
-          // child1 的 isActive 从 true 变为 false,不再匹配
-          [{ id: '1', name: 'root', parentId: null, isActive: true }]
+          // child1 的 isActive 从 true 变为 false,不再匹配；root 在它上方，一并截断
+          []
         ];
         let resultIndex = 0;
 
@@ -1870,6 +1877,7 @@ describe('query_merge_tree_update_cache - UPDATE 事件的树形查询', () => {
         });
 
         // 更新 child1 的 isActive 字段
+        databaseResult = results[1];
         const updateEvent = createMockUpdateEvent(
           { id: '2', name: 'child1', parentId: '1', isActive: false },
           { id: '2', name: 'child1', parentId: '1', isActive: true }

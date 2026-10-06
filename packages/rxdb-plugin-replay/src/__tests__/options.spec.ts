@@ -1,5 +1,5 @@
 /**
- * @fileoverview 选项归一化（`specs/005-us-909-session-replay/contracts/replay-plugin.md` §2）。
+ * @fileoverview 选项归一化（`git show 2e820521:specs/005-us-909-session-replay/contracts/replay-plugin.md` §2）。
  *
  * @remarks
  * 校验都在构造期同步抛：录制库工厂、上限与冲刷节奏任何一个配错，都应该在 `rxdb.use()` 那一行炸，

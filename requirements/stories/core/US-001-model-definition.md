@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [core, model, entity, decorator]
 ---
 
@@ -19,20 +19,20 @@ tags: [core, model, entity, decorator]
 
 ## 验收标准
 
-| #   | 前置条件                     | 操作                 | 预期结果                                                    | 状态 |
-| --- | ---------------------------- | -------------------- | ----------------------------------------------------------- | ---- |
-| 1   | 带 `@Entity()` 装饰器的类    | 注册到 RxDB          | 自动识别所有属性和关系元数据                                | ✅   |
-| 2   | 实体包含 MANY_TO_MANY 关系   | 注册到 SchemaManager | 自动生成中间表实体                                          | ✅   |
-| 3   | 使用 `@TreeEntity()` 装饰器  | 注册                 | 自动添加 parentId 自引用关系                                | ✅   |
-| 4   | 使用 `@GraphEntity()` 装饰器 | 注册                 | 通过插件自动生成 edges 表                                   | ✅   |
-| 5   | 属性设置了 `unique: true`    | 建表                 | 包含唯一约束                                                | ✅   |
-| 6   | 实体继承 `EntityBase`        | 创建实例             | 自动包含 id, createdAt, updatedAt, createdBy, updatedBy     | ✅   |
-| 7   | `PropertyType` 枚举          | 定义属性             | 支持 uuid, string, number, boolean, date, json, enum, array | ✅   |
-| 8   | `RelationKind` 枚举          | 定义关系             | 支持 ONE_TO_ONE, ONE_TO_MANY, MANY_TO_ONE, MANY_TO_MANY     | ✅   |
+| #   | 前置条件                                               | 操作                 | 预期结果                                                                                                          | 状态 |
+| --- | ------------------------------------------------------ | -------------------- | ----------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | 带 `@Entity()` 装饰器的类                              | 注册到 RxDB          | 自动识别所有属性和关系元数据                                                                                      | ✅   |
+| 2   | 实体包含 MANY_TO_MANY 关系                             | 注册到 SchemaManager | 自动生成中间表实体                                                                                                | ✅   |
+| 3   | 使用 `@TreeEntity()`（`@aiao/rxdb-plugin-tree`）装饰器 | 注册                 | 通过 `TreeAdjacencyListEntityBase` 的 parent / children 自引用关系得到 `parentId` 外键                            | ✅   |
+| 4   | 使用 `@GraphEntity()` 装饰器                           | 注册                 | 通过插件自动生成 edges 表                                                                                         | ✅   |
+| 5   | 属性设置了 `unique: true`                              | 建表                 | 包含唯一约束                                                                                                      | ✅   |
+| 6   | 实体继承 `EntityBase`                                  | 创建实例             | 自动包含 id, createdAt, updatedAt, createdBy, updatedBy                                                           | ✅   |
+| 7   | `PropertyType` 枚举                                    | 定义属性             | 支持 uuid, string, enum, number, integer, bigint, boolean, date, binary, stringArray, numberArray, keyValue, json | ✅   |
+| 8   | `RelationKind` 枚举                                    | 定义关系             | 支持 ONE_TO_ONE, ONE_TO_MANY, MANY_TO_ONE, MANY_TO_MANY                                                           | ✅   |
 
 ## 技术笔记
 
-- 装饰器体系：`@Entity()` / `@TreeEntity()` / `@GraphEntity()` + 元数据描述
+- 装饰器体系：`@Entity()` 在核心；`@TreeEntity()` 由 `@aiao/rxdb-plugin-tree`、`@GraphEntity()` 由 `@aiao/rxdb-plugin-graph` 提供，均包装 `@Entity()`
 - 基类：`EntityBase` 提供 5 个标准字段（id, createdAt, updatedAt, createdBy, updatedBy）
 - 元数据选项：`metadata-options.interface.ts` 定义完整的属性/关系/索引配置
 - Schema 初始化链：`RxDB.init()` → `SchemaManager.init()` → 解析元数据 + 生成 M:N 中间表 → 适配器 `createTables()`
@@ -43,6 +43,8 @@ tags: [core, model, entity, decorator]
 - `packages/rxdb/src/entity/entity-manager.ts` — 实体生命周期/缓存/代理
 - `packages/rxdb/src/entity/metadata-options.interface.ts` — 元数据选项定义
 - `packages/rxdb/src/schema/SchemaManager.ts` — Schema 管理
+- `packages/rxdb-plugin-tree/src/entity/tree-entity.decorator.ts` — `@TreeEntity()`
+- `packages/rxdb-plugin-graph/src/@GraphEntity.ts` — `@GraphEntity()`
 
 ## 参考
 

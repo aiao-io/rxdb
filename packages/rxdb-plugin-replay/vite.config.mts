@@ -92,7 +92,13 @@ export default defineConfig(() => ({
     conditions: ['@aiao/source']
   },
   optimizeDeps: {
-    include: ['fastest-levenshtein', 'ms', 'uuid', 'rrweb'],
+    include: [
+      'fastest-levenshtein',
+      'ms',
+      'uuid',
+      'rrweb',
+      ...(isBrowserTest ? ['@electric-sql/pglite', '@electric-sql/pglite/live', '@electric-sql/pglite/worker'] : [])
+    ],
     exclude: ['@aiao/rxdb', '@aiao/rxdb-adapter-pglite', '@aiao/rxdb-plugin-working-tree', '@aiao/utils', 'rxjs']
   },
   test: {

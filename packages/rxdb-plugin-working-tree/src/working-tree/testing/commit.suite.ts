@@ -910,6 +910,191 @@ export const workingTreeCommitConformanceSuite = (context: WorkingTreeConformanc
         expect(after.size).toBe(before.size + 1);
       });
 
+      it('评审：公开 commit 原请求重试返回已提交节点，不被过期凭据挡住', async () => {
+        const note = database.entityManager.instantiate(ConformanceNote);
+        note.title = 'review public commit retry';
+        await note.save();
+        const captured = await database.workingTree.status();
+        const options = {
+          expectedBranch: { branchId: captured.branchId, activationRevision: captured.activationRevision },
+          expectedHeadRevision: captured.headRevision,
+          expectedWorkingTreeRevision: captured.workingTreeRevision,
+          authorId: 'review-author',
+          operationId: uuid()
+        };
+        const seen: string[] = [];
+        const subscription = database.workingTree.commits$.subscribe(event => seen.push(event.commitId));
+        try {
+          const first = await database.workingTree.commit('review public retry', options);
+          expect(first.ok).toBe(true);
+          const afterFirst = await database.workingTree.status();
+          const replay = await database.workingTree.commit('review public retry', options);
+          expect(replay).toEqual(first);
+          expect(await database.workingTree.status()).toEqual(afterFirst);
+          expect(seen).toHaveLength(1);
+        } finally {
+          subscription.unsubscribe();
+        }
+      });
+
+      it('评审：过期凭据先被拒绝，拿正确凭据重试能正常提交，不被误判成重放', async () => {
+        const note = database.entityManager.instantiate(ConformanceNote);
+        note.title = 'retry after real rejection';
+        await note.save();
+        const stale = await database.workingTree.status();
+        // 另一个 Tab 在 status() 与 commit() 之间插了一次写：下面这次提交会因为
+        // workingTreeRevision 对不上被真实拒绝，此时这个 operationId 还没有任何已落库的
+        // commit 可认——`findReplayedCommit` 必须原样交回 `undefined`，而不是凑出一个假阳性。
+        const intruder = database.entityManager.instantiate(ConformanceNote);
+        intruder.title = 'intruder write';
+        await intruder.save();
+        const operationId = uuid();
+        const authorId = 'review-author';
+        const before = await withTransaction(database, snapshotCommits);
+
+        const rejected = await database.workingTree.commit('retry after real rejection', {
+          expectedBranch: { branchId: stale.branchId, activationRevision: stale.activationRevision },
+          expectedHeadRevision: stale.headRevision,
+          expectedWorkingTreeRevision: stale.workingTreeRevision,
+          authorId,
+          operationId
+        });
+        expect(rejected.ok).toBe(false);
+        const afterRejection = await withTransaction(database, snapshotCommits);
+        expect(afterRejection.size).toBe(before.size);
+
+        // 拿重读到的真实凭据、同一个 operationId 再提一次：这是一次真正的重试，不是重放，
+        // 必须正常落库。
+        const fresh = await database.workingTree.status();
+        const retried = await database.workingTree.commit('retry after real rejection', {
+          expectedBranch: { branchId: fresh.branchId, activationRevision: fresh.activationRevision },
+          expectedHeadRevision: fresh.headRevision,
+          expectedWorkingTreeRevision: fresh.workingTreeRevision,
+          authorId,
+          operationId
+        });
+        expect(retried.ok).toBe(true);
+        const after = await withTransaction(database, snapshotCommits);
+        expect(after.size).toBe(before.size + 1);
+      });
+
+      it('评审：同一个 operationId 但消息或作者变了，不认作重放，仍按冲突处理', async () => {
+        const note = database.entityManager.instantiate(ConformanceNote);
+        note.title = 'operationId reuse guard';
+        await note.save();
+        const captured = await database.workingTree.status();
+        const operationId = uuid();
+        const options = {
+          expectedBranch: { branchId: captured.branchId, activationRevision: captured.activationRevision },
+          expectedHeadRevision: captured.headRevision,
+          expectedWorkingTreeRevision: captured.workingTreeRevision,
+          authorId: 'review-author',
+          operationId
+        };
+        const first = await database.workingTree.commit('original message', options);
+        expect(first.ok).toBe(true);
+
+        // 第一次提交之后再来一笔草稿，让第二次调用确实撞上 head/working-tree 的 CAS，
+        // 走到 `findReplayedCommit` 的分支——而不是在更早的比较上就被拦下。
+        const another = database.entityManager.instantiate(ConformanceNote);
+        another.title = 'second draft before mismatched retry';
+        await another.save();
+
+        const differentMessage = await database.workingTree.commit('a different message this time', options);
+        expect(differentMessage.ok).toBe(false);
+        if (differentMessage.ok) throw new Error('断言失败：消息对不上时不应该提交成功');
+        // 不是 `activation_revision`——分支认得对，只是内容对不上，证明确实跑到了
+        // `findReplayedCommit`，而不是被更早的分支身份比较挡住。
+        expect(differentMessage.conflict.kind).not.toBe('activation_revision');
+
+        const differentAuthor = await database.workingTree.commit('original message', {
+          ...options,
+          authorId: 'a-different-author'
+        });
+        expect(differentAuthor.ok).toBe(false);
+        if (differentAuthor.ok) throw new Error('断言失败：作者对不上时不应该提交成功');
+        expect(differentAuthor.conflict.kind).not.toBe('activation_revision');
+
+        // 两次误判都没有：历史里仍然只有第一次提交那一个节点。
+        const history = await withTransaction(database, executor =>
+          listCommits(executor, { branchId: captured.branchId })
+        );
+        expect(history.filter(commit => commit.message === 'original message')).toHaveLength(1);
+      });
+
+      it('评审：重放命中后不清空重试前新产生的草稿', async () => {
+        const note = database.entityManager.instantiate(ConformanceNote);
+        note.title = 'replay must not eat new drafts';
+        await note.save();
+        const captured = await database.workingTree.status();
+        const options = {
+          expectedBranch: { branchId: captured.branchId, activationRevision: captured.activationRevision },
+          expectedHeadRevision: captured.headRevision,
+          expectedWorkingTreeRevision: captured.workingTreeRevision,
+          authorId: 'review-author',
+          operationId: uuid()
+        };
+        const first = await database.workingTree.commit('replay must not eat new drafts', options);
+        expect(first.ok).toBe(true);
+
+        // 第一次提交之后、重试之前，又有一笔新的未提交变更——重放命中必须整条短路，
+        // 不动条目、不动 revision，否则这笔草稿会被一次「什么都没做」的重试悄悄吃掉。
+        const newDraft = database.entityManager.instantiate(ConformanceNote);
+        newDraft.title = 'drafted after first commit';
+        await newDraft.save();
+        const afterDraft = await database.workingTree.status();
+        expect(afterDraft.entryCount).toBe(1);
+
+        const replay = await database.workingTree.commit('replay must not eat new drafts', options);
+        expect(replay).toEqual(first);
+
+        const afterReplay = await database.workingTree.status();
+        expect(afterReplay).toEqual(afterDraft);
+      });
+
+      it('评审：分支删后同名重建，旧 operationId 不被当成新分支上的重放', async () => {
+        const originalBranchId = await readActiveBranchId(database);
+        const recreateBranchId = `review-recreate-${uuid()}`;
+        const operationId = uuid();
+        const authorId = 'review-author';
+        const message = 'recreate branch original';
+
+        await database.versionManager.createBranch(recreateBranchId);
+        await database.versionManager.switchBranch(recreateBranchId);
+        const note = database.entityManager.instantiate(ConformanceNote);
+        note.title = 'first commit on the branch that will be recreated';
+        await note.save();
+        const stale = await database.workingTree.status();
+        const staleOptions = {
+          expectedBranch: { branchId: stale.branchId, activationRevision: stale.activationRevision },
+          expectedHeadRevision: stale.headRevision,
+          expectedWorkingTreeRevision: stale.workingTreeRevision,
+          authorId,
+          operationId
+        };
+        const first = await database.workingTree.commit(message, staleOptions);
+        expect(first.ok).toBe(true);
+        const before = await withTransaction(database, snapshotCommits);
+
+        // 切回原分支、删掉这条分支、再建一条同名分支：分支身份（名字）没变，
+        // 但 generation 变了——`stale` 里那三个捕获位现在全部作废。
+        await database.versionManager.switchBranch(originalBranchId);
+        await database.versionManager.removeBranch(recreateBranchId);
+        await database.versionManager.createBranch(recreateBranchId);
+        await database.versionManager.switchBranch(recreateBranchId);
+
+        // 拿着重建前的旧凭据、同一个 operationId/message/authorId 再提一次：
+        // 分支都认错了（activation_revision 对不上），没有「重试」可言，必须原样落回冲突，
+        // 不能被 `findReplayedCommit` 按 operationId 误配到重建前那条 commit 上。
+        const recreated = await database.workingTree.commit(message, staleOptions);
+        expect(recreated.ok).toBe(false);
+        if (recreated.ok) throw new Error('断言失败：分支重建之后旧凭据不应该被当成合法重放');
+        expect(recreated.conflict.kind).toBe('activation_revision');
+
+        const after = await withTransaction(database, snapshotCommits);
+        expect(after.size).toBe(before.size);
+      });
+
       it('同一个 operationId 重复提交幂等命中现有节点，不产生第二个', async () => {
         const branchId = await readActiveBranchId(database);
         const operationId = uuid();

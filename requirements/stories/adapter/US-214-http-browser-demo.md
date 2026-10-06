@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-26
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [adapter, http, demo, e2e, angular, node, sqlite, cors]
 ---
 
@@ -13,7 +13,7 @@ tags: [adapter, http, demo, e2e, angular, node, sqlite, cors]
 INVEST 检查清单:
 - [x] Independent: 零前置。US-212 已 Done 且按 stable 发布；与 US-213 无先后关系（两条各建各的后端，见「与 US-213 的分工」）
 - [x] Negotiable: 端口号、UI 形态、种子行数、实体字段可调；「浏览器真实 fetch + 真 sqlite 后端 + 真本地行缓存」三条不可协商——去掉任何一条，本故事就退化成 US-213 的重复
-- [x] Valuable: `http-protocol.md` 全篇没有一个字提 CORS，而浏览器接入方 100% 会撞上它；跨源下 `HttpTransport.#cacheAndReturn` 读不到 ETag 会让条件请求静默失效且不报错。今天没有任何用例或 demo 走过浏览器
+- [x] Valuable: `http-protocol.md` 全篇没有一个字提 CORS，而浏览器接入方 100% 会撞上它；跨源下 `HttpTransport.#cacheAndReturn` 读不到 ETag 会让条件请求静默失效且不报错。而这条链路只有浏览器 + 真后端的 demo 才走得到
 - [x] Estimable: 一个 node 后端 app（7 端点 + RuleGroup→SQL + 种子）、一个 Angular app（照 dev-rxdb-supabase 接线）、一个 playwright e2e app
 - [x] Small: 体量确实偏大，因此按 CONVENTIONS「大故事分阶段」切成 A（能手工跑通）/ B（自动化门禁 + 浏览器专属证据）两阶段，不拆子文件
 - [x] Testable: 17 条 AC，阶段 B 的每一条都落成一个 playwright 用例；阶段 A 的每一条都能用一条 curl 或一次页面操作复验
@@ -34,9 +34,9 @@ INVEST 检查清单:
 
 ### In Scope
 
-- **`apps/dev-rxdb-http-server`**：零第三方运行时依赖的 node 后端，`node:http` + `node:sqlite`，
-  按 `http-protocol.md` 实现七个端点，数据**真落盘**到 sqlite 文件
-- **`RuleGroup` → 参数化 SQL** 的翻译模块：协议文档「翻译指南」一节的可执行样板
+- **`apps/dev-rxdb-http-server`**：node 后端，`node:http` 路由，按 `http-protocol.md` 实现七个端点，
+  数据**真落盘**。当前由 RxDB 引擎 + pglite 实现（见 [US-216](./US-216-server-side-rxdb.md)）：`where` 由引擎翻译成
+  参数化 SQL，不再有手写的翻译模块；阶段 A 交付时的形态是 `node:sqlite` + `rule-group-to-sql.ts`，AC#1 / #3 / #6 按那一形态验收
 - **`apps/dev-rxdb-http`**：Angular 前端，`SyncType.QueryCache` + `remote: {adapter:'http'}` +
   `local: {adapter:'wa-sqlite'}`，handlers 走 `createRestHandlers()`
 - **协议流量面板**：页面上按发生顺序列出真实请求（方法 / 路径 / 状态码 / 耗时 / 是否 304）
@@ -154,28 +154,25 @@ demo 后端两处落地定形：`?pageMode=token` 走不了 `createRestHandlers(
 "不进 `dist`"的文件变成 app 的依赖。**两份独立实现本身也是证据**：协议若只有一种实现方式能跑通，
 它就不是协议。
 
-### 后端选型：`node:sqlite` + `node:http`，零第三方依赖
+### 后端选型：`node:http` + RxDB 引擎（pglite），不引入服务端框架
 
-Node 26 内置 `node:sqlite`，仓库已有先例——`packages/rxdb-adapter-electron/src/sqlite-script.ts`
-就是 Electron 主进程侧的 `node:sqlite` 宿主。因此 demo 后端**不引入** express / fastify /
-better-sqlite3 / knex 中的任何一个：
+后端路由用 `node:http`，存储与查询由 RxDB 引擎承担（[US-216](./US-216-server-side-rxdb.md)）：
+`@aiao/rxdb` + `@aiao/rxdb-adapter-pglite` + 共享模块 `@modules/recipes-domain`，三者都是 workspace 包，
+不是外部第三方库。不引入 express / fastify / knex 中的任何一个：
 
-- 与 US-213 参考后端同风格（零依赖），两份实现的对照才有意义；
+- 与 US-213 参考后端同风格（路由手写），两份实现的对照才有意义；
 - `apps/` 下多一个带自己 `node_modules` 的服务端框架，会让 `pnpm test-all` 的 affected 图多出
   一条与被测能力无关的边；
 - 协议本身只有七个端点、两个必选，路由用 `URL` + `switch` 二十行写完。上框架是**给读者增加**
   阅读成本——demo 的读者要看的是协议怎么实现，不是 express 怎么用。
 
-**不为"以后换 PG"预留抽象层。**「先使用 sqlite」应理解为「sqlite 够用且好测」，
-而不是「现在就要能换」。落实方式是：**方言相关的代码只集中在 `rule-group-to-sql.ts` 一个文件**，
-其余端点处理器只碰 `id` / `updatedAt` 这些协议字段。真要加 PG 时，要换的就是那一个文件——
-届时再抽接口，抽象数才不会超过病灶数（AGENTS.md 铁律「无 fallback 兜底」的同一条理由）。
+**不为"以后换数据库"预留抽象层。** `where` 的翻译与参数化由引擎的 pglite 适配器承担，端点处理器只碰
+`id` / `updatedAt` 这些协议字段；真出现多库病灶时再评估（病灶数 ≥ 抽象数，见 US-216 Out of Scope）。
 
 ### 协议文档缺了 CORS 这一节
 
-`http-protocol.md` 的定位是「面向**任何语言后端**的对接规范」，「通用约定」一节列了 URL 拼接、
-`Content-Type`、认证 header、时间戳、`encodeURIComponent` 五条，**没有一条提到跨源**。
-但客户端最主流的运行环境就是浏览器，而协议本身注定触发预检：
+`http-protocol.md` 的定位是「面向**任何语言后端**的对接规范」。客户端最主流的运行环境是浏览器，
+而协议本身注定触发预检，因此文档有独立的「跨源（CORS）」一节：
 
 | 触发点                     | 为什么必然预检                                                           |
 | :------------------------- | :----------------------------------------------------------------------- |
@@ -184,7 +181,7 @@ better-sqlite3 / knex 中的任何一个：
 | 认证 header                | `Authorization` 不是安全列表请求头                                       |
 | 条件请求的 `If-None-Match` | 同上，不是安全列表请求头，且**必须**在 `Access-Control-Allow-Headers` 里 |
 
-AC#12 因此补一节，把这四条 + `Access-Control-Expose-Headers: ETag` 写进协议。
+AC#12 把这四条 + `Access-Control-Expose-Headers: ETag` 写进了协议。
 这是本故事唯一允许的 docs 改动——**不改客户端行为**，只是把一个已经存在的硬前置写下来。
 
 ### 跨源下 ETag 读不到，条件请求静默失效
@@ -197,6 +194,7 @@ const etag = response.headers.get('etag');
 if (etag === null) {
   // 远端停发 ETag：留着旧条目就是拿一个再也换不到 304 的令牌去问
   cache.delete(key);
+  this.#reportEtagUnreadable(cache, key, url, response, ctx); // 仅配了 onEtagUnreadable 才会触发（US-215）
   return value;
 }
 ```
@@ -282,15 +280,15 @@ COEP `require-corp` 会给跨源响应再叠一层策略判定——**推断**�
 | 阶段 | 文件                                                                | 改动                                                                           |
 | :--- | :------------------------------------------------------------------ | :----------------------------------------------------------------------------- |
 | A    | `apps/dev-rxdb-http-server/project.json`                            | 新增：`serve` / `seed` / `reset` / `lint` / `test` / `typecheck` targets       |
-| A    | `apps/dev-rxdb-http-server/package.json`                            | 新增：`dependencies` **为空**（AC#1 的断言对象）                               |
+| A    | `apps/dev-rxdb-http-server/package.json`                            | 新增；现声明 3 个 workspace 依赖（US-216），AC#1 的「依赖为空」是阶段 A 口径   |
 | A    | `apps/dev-rxdb-http-server/src/server.ts`                           | 新增：`node:http` 路由，七端点 + `__control`                                   |
-| A    | `apps/dev-rxdb-http-server/src/db.ts`                               | 新增：`node:sqlite` 连接、`recipes` 建表、只读快照                             |
-| A    | `apps/dev-rxdb-http-server/src/rule-group-to-sql.ts`                | 新增：`RuleGroup` → 参数化 SQL + 列名白名单（**唯一含分支逻辑的模块**）        |
-| A    | `apps/dev-rxdb-http-server/src/__tests__/rule-group-to-sql.spec.ts` | 新增：五类算子 + 白名单拒绝 + 参数绑定（AC#17）                                |
+| A    | `apps/dev-rxdb-http-server/src/db.ts`                               | 已由 US-216 删除；现为 `rxdb-store.ts`（RxDB + pglite 装配）                   |
+| A    | `apps/dev-rxdb-http-server/src/rule-group-to-sql.ts`                | 已由 US-216 删除；翻译职责回到引擎                                             |
+| A    | `apps/dev-rxdb-http-server/src/__tests__/rule-group-to-sql.spec.ts` | 已由 US-216 删除                                                               |
 | A    | `apps/dev-rxdb-http-server/src/seed.ts`                             | 新增：确定性 250 行种子；`reset` 删文件重建                                    |
 | A    | `apps/dev-rxdb-http/`                                               | 新增：Angular app，接线照 `dev-rxdb-supabase`，实体 `Recipe`                   |
-| A    | `apps/dev-rxdb-http/src/app/rxdb/setup_rxdb_http.ts`                | 新增：`SyncType.QueryCache` + `createRestHandlers` + `pageSize:50` 等          |
-| A    | `apps/dev-rxdb-http/src/app/traffic-panel/`                         | 新增：协议流量面板（AC#8）                                                     |
+| A    | `apps/dev-rxdb-http/src/app/setup_rxdb_http.ts`                     | 新增：`SyncType.QueryCache` + `createRestHandlers` + `pageSize:50` 等          |
+| A    | `apps/dev-rxdb-http/src/app/traffic-recorder.ts`                    | 新增：协议流量记录，驱动面板（AC#8）                                           |
 | B    | `apps/dev-rxdb-http-server/src/cors.ts`                             | 新增：预检 + `Access-Control-Expose-Headers`，暴露头可由开关关掉（AC#10 对照） |
 | B    | `apps/dev-rxdb-http-server/src/page-token.ts`                       | 新增：token 形态与读取水位线（AC#15）                                          |
 | B    | `apps/dev-rxdb-http-e2e/`                                           | 新增：playwright，`webServer` 起前后端，AC#9～15 各一条用例                    |
@@ -308,4 +306,4 @@ COEP `require-corp` 会给跨源响应再叠一层策略判定——**推断**�
 - ETag 读取点：[transport.ts](../../../packages/rxdb-adapter-http/src/transport.ts) 的 `HttpTransport.#cacheAndReturn`
 - 默认数值配置：[config.ts](../../../packages/rxdb-adapter-http/src/config.ts) 的 `DEFAULT_HTTP_CONFIG`
 - 接线范例：[apps/dev-rxdb-supabase/src/app/setup_rxdb_wa-sqlite.ts](../../../apps/dev-rxdb-supabase/src/app/setup_rxdb_wa-sqlite.ts)
-- `node:sqlite` 先例：[packages/rxdb-adapter-electron/src/sqlite-script.ts](../../../packages/rxdb-adapter-electron/src/sqlite-script.ts)
+- 后端的存储层：[packages/rxdb-adapter-pglite](../../../packages/rxdb-adapter-pglite/)（见 [US-216](./US-216-server-side-rxdb.md)）

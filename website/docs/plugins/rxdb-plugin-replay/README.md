@@ -14,7 +14,7 @@
 - **commit 标记**：装了 `@aiao/rxdb-plugin-working-tree` 时，录制中的每次提交都会落一条标记，回放时可一键恢复
 - **三框架回放组件**：Angular `ao-replayer` / React `Replayer` / Vue `Replayer`，输入、事件、命令一一对应
 
-rrweb 钉在精确版本 `2.1.6`。录制端随插件加载；回放端在第一次打开回放视图时才按需 `import('rrweb')`。
+rrweb 钉在精确版本 `2.1.7`。录制端随插件加载；回放端在第一次打开回放视图时才按需 `import('rrweb')`。
 
 ## 安装
 

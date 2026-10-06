@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-08-21
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [adapter, http, remote, querycache]
 ---
 
@@ -13,7 +13,7 @@ tags: [adapter, http, remote, querycache]
 INVEST 检查清单:
 - [x] Independent: 零前置。US-020 两阶段已全关，两档发布门禁同时解除
 - [x] Negotiable: handler 的字段名、错误类名与 REST URL 模板细节在 plan 可调整；协议不变量（**transport 归适配器**、RuleGroup JSON、不发 SQL、changelog 方法 throw、翻页终止判据、metadata 时间戳规范化、错误分类口径与判别位）不可协商
-- [x] Valuable: 已有 HTTP/REST API 的开发者今天没有 RemoteBase 可挂，只能 supabase
+- [x] Valuable: 已有 HTTP/REST API 的开发者可直接挂本适配器作为 RemoteBase，不必绑 supabase
 - [x] Estimable: 对标 supabase 的 QueryCache ducks + 分页/分块，范围收敛到一个新包
 - [ ] Small: handlers 注入与 REST mapping 失败模式不同。按「交付阶段」A → B；不拆成 US-212a。Full changelog 传输是另一种 SyncType，另开故事，不是本文件阶段
 - [x] Testable: 翻页终止、分块不吞空、changelog throw、错误分类、不持有 local adapter，均可单测
@@ -28,7 +28,7 @@ INVEST 检查清单:
 | A    | `@aiao/rxdb-adapter-http`：RemoteBase + **适配器持有 transport** + 协议 mapping handler + QueryCache ducks + 翻页/分块 + 发射契约 + 错误分类 + wire 契约 + 结构隔离 | 无       | AC#1～26、#31～34  | ✅   |
 | B    | REST resource URL 模板（AC#27，2026-08-23 交付）；ETag / If-None-Match 条件请求（AC#28，2026-08-24 判定 owner = **本包**并交付）                                    | 阶段 A   | AC#27 ✅、AC#28 ✅ | ✅   |
 
-**前置与发布门禁：已全部解除。** 本故事零前置，直接开工并按 `stable` 发布。
+**前置与发布门禁：无。** 本故事零前置，按 `stable` 发布。
 
 Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另一种 `SyncType`，**不是本文件的阶段 C**。v1 对这些方法必须 throw unsupported。
 
@@ -77,7 +77,7 @@ Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另�
 - Evolu XOR / CRDT
 - 乐观离线写 —— 语义由 [US-020 D5-R](../core/US-020-querycache-repository.md) 定义：
   QueryCache 离线可写、联网后按 REST 动词重放。**落点仍不在本包**：排队与重放在 core
-  （`query-cache-outbox.ts`），本包只多做一件事——把每次远端调用的结果报给
+  （`@aiao/rxdb-plugin-sync` 的 `query-cache-outbox.ts`），本包只多做一件事——把每次远端调用的结果报给
   `rxdb.reachability`，好让 core 分得清「网断了」和「远端拒绝了」
 - OpenAPI codegen、魔法 schema 推断
 - 把 SQL 字符串发到远端
@@ -107,7 +107,7 @@ Full-sync changelog 传输（`pullChanges` / `mergeChanges` 真实现）是另�
 
 handler 字段名在 plan 可调，但**不要取成 `fetchMetadata` / `findByIds`**：`RxDBAdapterRemoteBase` 上已有同名 abstract 方法且签名不同（方法返回 `Observable<QueryCacheEntityMetadata[]>`，handler 返回下面那个请求描述），同一文件里并存会让 review 读错哪一层在翻页。建议 `onFetchMetadata` / `onFindByIds`。
 
-**写入口的命名方向相反，别顺手对称过去。** `create` / `update` / `delete` 在 `RxDBAdapterRemoteBase` 上**没有** abstract 对应物，它们是 [`QueryCacheRemoteAdapter`](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts) 的 optional duck：`QueryCacheRepository` 先 `if (!this.remoteAdapter.create)` 特性探测，再调 `remoteAdapter.create(...)`。因此**适配器类上的方法名必须原样叫 `create` / `update` / `delete`**，只有 handler 字段加 `on` 前缀（`onCreate` / `onUpdate` / `onDelete`）。把类方法也取成 `onCreate` 会让特性探测判 `false`，写入口静默退化成 AC#4 的「不支持 create」——而配置里明明配了 handler。
+**写入口的命名方向相反，别顺手对称过去。** `create` / `update` / `delete` 在 `RxDBAdapterRemoteBase` 上**没有** abstract 对应物，它们是 [`QueryCacheRemoteAdapter`](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts) 的 optional duck：`QueryCacheEngine` 先 `if (!this.remoteAdapter.create)` 特性探测，再调 `remoteAdapter.create(...)`。因此**适配器类上的方法名必须原样叫 `create` / `update` / `delete`**，只有 handler 字段加 `on` 前缀（`onCreate` / `onUpdate` / `onDelete`）。把类方法也取成 `onCreate` 会让特性探测判 `false`，写入口静默退化成 AC#4 的「不支持 create」——而配置里明明配了 handler。
 
 | 名字                                 | 层      | 依据                                                     |
 | ------------------------------------ | ------- | -------------------------------------------------------- |
@@ -118,17 +118,18 @@ handler 字段名在 plan 可调，但**不要取成 `fetchMetadata` / `findById
 
 ### 可配置项与默认值
 
-五个值都必须可覆盖，且**都必须有默认**——留空会让每个接入方各拍一个，而 `pageSize` 与 `maxPages` 的乘积就是单次查询能拉到的 metadata 上限，拍小了就是静默截断，正是本故事要防的东西。
+下表前五个值都必须可覆盖，且**都必须有默认**（第六个 `conditionalCacheSize` 属阶段 B，见表末）——留空会让每个接入方各拍一个，而 `pageSize` 与 `maxPages` 的乘积就是单次查询能拉到的 metadata 上限，拍小了就是静默截断，正是本故事要防的东西。
 
-| 配置               | 默认                                   | 作用                                    | 调整时要知道                                                          |
-| ------------------ | -------------------------------------- | --------------------------------------- | --------------------------------------------------------------------- |
-| `pageSize`         | `1000`（对标 `SUPABASE_PAGE_SIZE`）    | 单页条数，透传为 handler 的 `ctx.limit` | 与 `maxPages` 相乘即单查询 metadata 上限（默认 100 万条）             |
-| `idChunkSize`      | `100`（对标 `SUPABASE_IN_CHUNK_SIZE`） | `findByIds` 单块 id 数                  | 上限来自用户自己的网关 / URL 长度，不是 PostgREST 的 1000             |
-| `maxEmptyPages`    | `3`                                    | token 形态下连续空页容忍上限            | `0` = 不容忍空页；**不得**设为 `Infinity`，那等于放弃空转检测         |
-| `maxPages`         | `1000`                                 | 单次 `fetchMetadata` 总页数上限         | 触顶是抛错不是截断，见下方 fail-fast                                  |
-| `requestTimeoutMs` | `30000`                                | **单个** HTTP 请求的超时上限            | 计时按单请求，不是整个翻页循环；见下方[请求超时](#请求超时不是可选项) |
+| 配置                   | 默认                                   | 作用                                    | 调整时要知道                                                                |
+| ---------------------- | -------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------- |
+| `pageSize`             | `1000`（对标 `SUPABASE_PAGE_SIZE`）    | 单页条数，透传为 handler 的 `ctx.limit` | 与 `maxPages` 相乘即单查询 metadata 上限（默认 100 万条）                   |
+| `idChunkSize`          | `100`（对标 `SUPABASE_IN_CHUNK_SIZE`） | `findByIds` 单块 id 数                  | 上限来自用户自己的网关 / URL 长度，不是 PostgREST 的 1000                   |
+| `maxEmptyPages`        | `3`                                    | token 形态下连续空页容忍上限            | `0` = 不容忍空页；**不得**设为 `Infinity`，那等于放弃空转检测               |
+| `maxPages`             | `1000`                                 | 单次 `fetchMetadata` 总页数上限         | 触顶是抛错不是截断，见下方 fail-fast                                        |
+| `requestTimeoutMs`     | `30000`                                | **单个** HTTP 请求的超时上限            | 计时按单请求，不是整个翻页循环；见下方[请求超时](#请求超时不是可选项)       |
+| `conditionalCacheSize` | `256`                                  | 条件请求响应缓存的条目上限（阶段 B）    | 仅在 `conditionalRequests: true` 时生效；取小了只是白发请求，不产生错误结果 |
 
-五个值都由适配器在**构造期**校验并 fail-fast——不是运行期发现异常再兜底。
+六个值都由适配器在**构造期**校验并 fail-fast——不是运行期发现异常再兜底。
 
 校验判据是 **finite 正整数**，不是 `> 0`：
 
@@ -138,7 +139,7 @@ handler 字段名在 plan 可调，但**不要取成 `fetchMetadata` / `findById
 | `Number.isFinite(v)`                   | `maxPages = Infinity` 等于放弃触顶保护；`NaN` 虽然过不了 `> 0`，但错误信息含糊 |
 | `v > 0`（`maxEmptyPages` 为 `v >= 0`） | 负数、零                                                                       |
 
-`maxEmptyPages` 是唯一允许 `0` 的（语义：不容忍空页），其余四个下界为 `1`。`requestTimeoutMs` 同样**不得**为 `Infinity`——那正是本节要防的挂起。
+`maxEmptyPages` 是唯一允许 `0` 的（语义：不容忍空页），其余五个下界为 `1`。`requestTimeoutMs` 同样**不得**为 `Infinity`——那正是本节要防的挂起。
 
 校验失败抛 `HttpConfigError`（类名判别，名字在 plan 定），错误信息 MUST 含字段名与实际值——构造期报错没有调用栈上下文，不带字段名等于让接入方猜。
 
@@ -150,7 +151,7 @@ handler 字段名在 plan 可调，但**不要取成 `fetchMetadata` / `findById
 
 - **计时粒度是单请求，不是整个 `fetchMetadata`。** 翻 200 页的合法查询不该因为总耗时长被判超时；真正要杀的是卡死在某一页上的那一个请求。
 - **不得依赖 `AbortError` 自动被认成网络错误。** `isNetworkError` 的 [`NETWORK_ERROR_NAMES`](../../../packages/rxdb/src/repository/network-error.ts) 明确**排除** `AbortError`（注释写着：那是调用方主动取消，当成离线会让「取消」静默变成「返回缓存」）。所以裸用 `AbortSignal.timeout()` 让 `AbortError` 上抛会被判 `false`，`offlineFallback` 静默失效——与 AC#13 的坑同源。超时必须由本包显式转成 `NetworkOfflineError`。
-- **与 `disconnect()` 的取消共用一个 `AbortController` 但结论不同**：超时 → `NetworkOfflineError`（可降级到缓存）；`disconnect()` 主动取消 → 原样上抛取消错误（**不**是网络错误，不得降级）。两条路径的错误必须可区分。
+- **与 `disconnect()` 的取消共用一个 `AbortController` 但结论不同**：超时 → `NetworkOfflineError`（可降级到缓存）；`disconnect()` 主动取消 → 抛 `HttpDisconnectedError`（**不**是网络错误，不得降级）。两条路径的错误必须可区分。
 
 ### `fetchMetadata`：对 core 的发射契约
 
@@ -221,15 +222,14 @@ type FetchMetadataHandler<T> = {
 
 #### 键名改名：`cursor` → `pageToken`
 
-本节交付时这两个键叫 `ctx.cursor` / `nextCursor`，与 core `findByCursor` 的「游标」撞名——后者指
+键名是 `ctx.pageToken` / `nextPageToken`，**不叫** `cursor`：core `findByCursor` 的「游标」指
 **实体实例**做的 keyset 锚点，在 Repository 里就被编译成 `where` 规则组，适配器根本看不到；
-这里的是**不透明续页串**，只做相等判断。同名让读者以为它也能拆字段。
+这里的是**不透明续页串**，只做相等判断。同名会让读者以为它也能拆字段。
 
-改名同时把 `HttpPaginationFailure` 的 `'cursor_not_advancing'` 改成 `'page_token_not_advancing'`，
-内部形态标记由 `'array' | 'cursor'` 改成 `'offset' | 'token'`（两个取值统一描述「靠什么推进」），
-REST 预设的请求体键随之由 `cursor` 改成 `pageToken`。
+对应的失败标记是 `HttpPaginationFailure` 的 `'page_token_not_advancing'`，内部形态标记是
+`'offset' | 'token'`（描述「靠什么推进」），REST 预设的请求体键是 `pageToken`。
 
-遗留的 `nextCursor` **不做兼容读取**：`normalizePage` 检测到「有 `nextCursor` 且无 `nextPageToken`」
+`nextCursor` **不做兼容读取**：`normalizePage` 检测到「有 `nextCursor` 且无 `nextPageToken`」
 即抛 `HttpHandlerContractError`。静默读成 `undefined` 会让首页即末页，整表只剩第一页而不报任何错，
 正是本故事通篇在防的那种截断。迁移见 `website/docs/migration/http-page-token.md`。
 
@@ -292,24 +292,24 @@ supabase 满足这条同样属于结构巧合——`findByIds` 是 `from(this.#f
 
 [`IRxDBAdapter`](../../../packages/rxdb/src/rxdb-adapter.ts) 共 9 个必选成员，本包全部要有答案：下表前四个是「HTTP 没有天然概念、必须定义」的（AC#24），后四个是「答案是 throw，但空着同样没法验收」的（AC#32）。不定义就会各实现自定，`isTableExisted` 尤其容易退化成恒 `true`。
 
-| 成员                     | HTTP 语义                                                                                                                                                                                                                                                                                                                                    |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `connect()`              | 不建立长连接。职责是三件事：① 已注册实体的 bigint / binary 扫描并 fail-fast（AC#15）；② 构造期未覆盖的配置交叉校验；③ 返回适配器自身。**不得**在此发探测请求——远端此刻不可达不代表配置错，那是查询期的网络错误，交给 `isNetworkError` 分类                                                                                                   |
-| `disconnect()`           | MUST 取消进行中的请求（`AbortController`），正在跑的翻页循环立即中止。中止必须走 **error 通道**，**不得** complete 一个没发射过的 Observable——那样 core 的 `forkJoin` 会静默产出「远端零条」，全表判成孤儿，比抛错危险得多。**已发出的写请求不回滚**——HTTP 没有事务，假装能回滚比不回滚更危险。断开后再调任何 duck MUST 抛错，不得静默返回空 |
-| `version()`              | 返回**远端服务端版本**，与 sqlite / pglite / supabase 三家口径一致（它们都返回后端引擎版本，不是适配器包版本）。HTTP 没有内建 RPC，因此配一个可选 `onVersion` handler；**未配置则抛 unsupported**，不得回落到本包 `package.json` 的版本号——那是拿适配器版本冒充后端版本。core 目前不调用 `version()`，抛错不影响连接流程                     |
-| `isTableExisted(entity)` | 按**远端资源可达性**回答，**不得**恒 `true` 蒙混。语义是「该实体对应的远端资源存在且可访问」：2xx → `true`，404 → `false`，其余状态码与传输失败 → 抛错（不是返回 `false`，「不知道」和「不存在」必须区分）。判定用哪个请求由 handler 给，缺省可复用 `onFetchMetadata` 的 `limit: 1` 探测                                                     |
+| 成员                     | HTTP 语义                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `connect()`              | 除配置了 `changeFeed`（[US-023](../core/US-023-querycache-remote-invalidation.md)）时开通知通道外，不建立长连接。职责是三件事：① 已注册实体的 bigint / binary 扫描并 fail-fast（AC#15）；② 构造期未覆盖的配置交叉校验；③ 返回适配器自身。**不得**在此发探测请求——远端此刻不可达不代表配置错，那是查询期的网络错误，交给 `isNetworkError` 分类 |
+| `disconnect()`           | MUST 取消进行中的请求（`AbortController`），正在跑的翻页循环立即中止。中止必须走 **error 通道**，**不得** complete 一个没发射过的 Observable——那样 core 的 `forkJoin` 会静默产出「远端零条」，全表判成孤儿，比抛错危险得多。**已发出的写请求不回滚**——HTTP 没有事务，假装能回滚比不回滚更危险。断开后再调任何 duck MUST 抛错，不得静默返回空  |
+| `version()`              | 返回**远端服务端版本**，与 sqlite / pglite / supabase 三家口径一致（它们都返回后端引擎版本，不是适配器包版本）。HTTP 没有内建 RPC，因此配一个可选 `onVersion` handler；**未配置则抛 unsupported**，不得回落到本包 `package.json` 的版本号——那是拿适配器版本冒充后端版本。core 目前不调用 `version()`，抛错不影响连接流程                      |
+| `isTableExisted(entity)` | 按**远端资源可达性**回答，**不得**恒 `true` 蒙混。语义是「该实体对应的远端资源存在且可访问」：2xx → `true`，404 → `false`，其余状态码与传输失败 → 抛错（不是返回 `false`，「不知道」和「不存在」必须区分）。判定用哪个请求由 handler 给，缺省可复用 `onFetchMetadata` 的 `limit: 1` 探测                                                      |
 
-> **`isTableExisted` 不在连接流程上，它是给调用方用的公开 API。** core 只有两处调用它，且都收窄在 local 一侧：[`RxDB.connect()`](../../../packages/rxdb/src/RxDB.ts) 的 `if (isLocalAdapter(...))` 分支内，与 `#ensureEntityTables(adapter: RxDBAdapterLocalBase)` 内。remote 适配器的这个方法**不会被 core 的连接流程调用**——所以「恒 `true` 会让连不上的远端跑到首次查询才暴露」不成立，恒 `true` 的真实代价是「调用方问一个可达性问题，拿到一个恒真的假答案」。
+> **`isTableExisted` 不在连接流程上，它是给调用方用的公开 API。** core 调用它的地方都收窄在 local 一侧：[`RxDB.connect()`](../../../packages/rxdb/src/RxDB.ts) 的 `if (isLocalAdapter(...))` 分支内，与 `#ensureSystemTables` / `#ensureEntityTables`（形参都是 `RxDBAdapterLocalBase`）内。remote 适配器的这个方法**不会被 core 的连接流程调用**——所以「恒 `true` 会让连不上的远端跑到首次查询才暴露」不成立，恒 `true` 的真实代价是「调用方问一个可达性问题，拿到一个恒真的假答案」。
 >
 > 也因此**连接期不做可达性探测**：`connect()` 那一行「不得发探测请求」是本故事的决定，`isTableExisted` 不承担兜底职责，两者不冲突。想在启动时确认远端可达的应用自己调 `isTableExisted`，这是显式选择，不是框架行为。
 
 后四个成员在 v1 下**一律 throw `HttpUnsupportedOperationError`**（类名判别，见[新错误的判别口径](#新错误的判别口径)），**不得**静默返回空数组、`undefined` 或假成功——那会让调用方以为写成功了：
 
-| 成员                      | v1 语义                                                                                                                                                                                                                                                                                 |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `getRepository(E)`        | throw。它是 `RxDBAdapterBase` 的 abstract，本包必须有实现体，但 v1 没有可返回的东西：QueryCache 的主仓储由 core 的 `query-cache-primary` 用 **local** 适配器的 `getRepository` 组装，本包这一侧只在 `SyncType.None` + remote-only 配置下才会被订阅，而 v1 不支持那种配置                |
-| `saveMany` / `removeMany` | throw。二者是 Full/Filter 的写路径入口，v1 无 Full-sync（与 changelog 方法同口径）                                                                                                                                                                                                      |
-| `mutations`               | throw。QueryCache 的批量写**不经过它**：`EntityManager.mutations` 判定为 QueryCache 批后走 `#mutations_query_cache` 的 remote-then-local（见 [`primary-adapter.ts`](../../../packages/rxdb/src/entity/primary-adapter.ts) 的 `isQueryCacheBatch`）。因此这里 throw 不影响 AC#3 的写路径 |
+| 成员                      | v1 语义                                                                                                                                                                                                                                                                                            |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getRepository(E)`        | throw。它是 `RxDBAdapterBase` 的 abstract，本包必须有实现体，但 v1 没有可返回的东西：QueryCache 的主仓储由 `@aiao/rxdb-plugin-querycache` 的 `query-cache-primary` 用 **local** 适配器的 `getRepository` 组装，本包这一侧只在 `SyncType.None` + remote-only 配置下才会被订阅，而 v1 不支持那种配置 |
+| `saveMany` / `removeMany` | throw。二者是 Full/Filter 的写路径入口，v1 无 Full-sync（与 changelog 方法同口径）                                                                                                                                                                                                                 |
+| `mutations`               | throw。QueryCache 的批量写**不经过它**：`EntityManager.mutations` 判定为 QueryCache 批后走 `#mutations_query_cache` 的 remote-then-local（见 [`primary-adapter.ts`](../../../packages/rxdb/src/entity/primary-adapter.ts) 的 `isQueryCacheBatch`）。因此这里 throw 不影响 AC#3 的写路径            |
 
 QueryCache 的写入口是 `create` / `update` / `delete` 三个 optional duck（见[命名方向表](#责任划分适配器持有-transport)），与这四个成员是两条互不相干的路径——把写委托给 `mutations` 是错的方向。
 
@@ -322,7 +322,7 @@ QueryCache 的写入口是 `create` / `update` / `delete` 三个 optional duck�
 | 1   | workspace 可解析新包                                   | `new RxDB({ sync: { local: { adapter: 'sqlite' }, remote: { adapter: 'http' } } })`，再 `rxdb.adapter('http', db => new RxDBAdapterHttp(db, options))` | 适配器解析为 remote 槽位实例；`ADAPTER_NAME === 'http'`；`declare module` 使 `'http'` 出现在 `keyof RxDBAdapters`。未注册工厂即 `connect()` 时 fail-fast（core 已有「Adapter not found」语义），不静默降级                                                                                                                                                                                                             | ✅   |
 | 2   | HTTP remote + 独立 sqlite local，`SyncType.QueryCache` | `getRepository(E).find({ where })`                                                                                                                     | **适配器发出的**请求体是 JSON `RuleGroup`，**不含 SQL**（断言主体是本包的 transport，不是 handler）；行缓存由 core 经 `localAdapter.upsertMany` 落到独立 sqlite                                                                                                                                                                                                                                                        | ✅   |
 | 3   | 同上                                                   | `create` / `update` / `delete`                                                                                                                         | 走 US-020 的 remote-then-local；HTTP 适配器自身不 `new` sqlite、不打开 OPFS/IDB                                                                                                                                                                                                                                                                                                                                        | ✅   |
-| 4   | handlers 未提供 `create`                               | `repo.create(...)`                                                                                                                                     | fail-fast（`QueryCacheRepository` 已有的「Remote adapter does not support create」语义），不写本地                                                                                                                                                                                                                                                                                                                     | ✅   |
+| 4   | handlers 未提供 `create`                               | `repo.create(...)`                                                                                                                                     | fail-fast（`QueryCacheEngine` 已有的「Remote adapter does not support create」语义），不写本地                                                                                                                                                                                                                                                                                                                         | ✅   |
 | 5   | handler 返回**数组**，结果集 > `pageSize`              | `fetchMetadata`                                                                                                                                        | 翻页至 `rows.length < limit` 为止；语义同 supabase `select_all_pages`；截断的 id **不得**被当成远端已删除                                                                                                                                                                                                                                                                                                              | ✅   |
 | 6   | handler 返回 `{ rows, nextPageToken }`                 | `fetchMetadata`                                                                                                                                        | 翻页至 `nextPageToken === undefined` 为止；空 `rows` 但有 `nextPageToken` 时继续翻                                                                                                                                                                                                                                                                                                                                     | ✅   |
 | 7   | 退化的 handler                                         | `fetchMetadata`                                                                                                                                        | [fail-fast 四条](#fetchmetadata判别式返回)各**一条独立用例**（换形态 / token 不推进 / 连续空页触顶 / 总页数触顶），各自抛可区分的错误；四条都**不得**返回已拿到的部分结果，不得进死循环。合并成一条「退化则抛错」的用例不算通过                                                                                                                                                                                        | ✅   |
@@ -352,10 +352,11 @@ QueryCache 的写入口是 `create` / `update` / `delete` 三个 optional duck�
 
 ### 阶段 B — REST mapping 与可选加速
 
-> **owner 判定已完成**，阶段 B 的范围随之收敛为 AC#27 + AC#28，两条**均已交付**（AC#28 同日实现，见 `conditional-cache.ts` 与 `transport.ts` 的条件请求路径）。依据与调研见技术笔记[「AC#28～30 的 owner 判定」](#ac2830-的-owner-判定)。
+> 阶段 B 的范围是 AC#27 + AC#28，两条**均已交付**（AC#28 见 `conditional-cache.ts` 与 `transport.ts` 的条件请求路径）。owner 判定的依据见技术笔记[「AC#28～30 的 owner 判定」](#ac2830-的-owner-判定)。
 >
 > - **AC#28 ETag / If-None-Match → owner = 本包。** 它不需要 core 的任何新 API。304 的语义就是「你手上那份仍然有效」，因此按请求指纹缓存已解析结果**在定义上不会脏**——服务端一旦认为内容变了就不会回 304。两个原本待定的问题于是各有答案：响应缓存由**本包 transport** 持有（有界内存映射，既不是 `QueryCacheLocalAdapter` 也不是本地存储，与 AC#19 不冲突）；并发按请求指纹 **single-flight** 去重。
-> - **AC#29 SSE / invalidation 与 AC#30 eviction → 拿不到 owner，已从本故事移出。** 两条各需要一个 core 侧今天不存在的抽象，而都拿不出用户今天踩得到的症状。按 [US-016 / US-017 先例](../../roadmap.md#明确不排期)登记进 roadmap 的「明确不排期」表并写明解锁条件，**不新建故事文件**——[CONVENTIONS 的「价值待证」判据](../../CONVENTIONS.md)是病灶数 ≥ 抽象数，为它们建文件恰恰是那条禁止的「凭 Epic 惯性排期」。
+> - **AC#29 SSE / invalidation → 已移出本故事，由 [US-023](../core/US-023-querycache-remote-invalidation.md) 交付**：core 的失效上报口是 `RxDB.invalidateRemoteEntity()`，适配器经 `changeFeed` 接 SSE。
+> - **AC#30 eviction → 拿不到 owner，已从本故事移出。** 它需要一个 core 侧不存在的抽象，且拿不出用户踩得到的症状。按 [US-016 / US-017 先例](../../roadmap.md#明确不排期)登记进 roadmap 的「明确不排期」表并写明解锁条件，**不新建故事文件**——[CONVENTIONS 的「价值待证」判据](../../CONVENTIONS.md)是病灶数 ≥ 抽象数，为它建文件恰恰是那条禁止的「凭 Epic 惯性排期」。
 >
 > AC#27 完全在本包内，不受上述限制。**已交付**（`rest.ts` 的 `createRestHandlers()`）：
 > 它只是一个产出 {@link HttpHandlers} 的工厂，适配器本体一行未改，因此「缺省不得改变阶段 A 语义」是结构性成立的，
@@ -404,28 +405,26 @@ AC#19 是这条的可执行形式。注意它**不是**「调用这两个方法�
 
 ### `updatedAt` 必须是规范化 ISO 字符串
 
-[`QueryCacheEntityMetadata.updatedAt`](../../../packages/rxdb/src/entity/sync-options.interface.ts) 的类型是 `string`（ISO 8601），新鲜度比较按**字典序**做。这里有**两个**独立的坑，AC#14 两个都要防。
+[`QueryCacheEntityMetadata.updatedAt`](../../../packages/rxdb/src/entity/sync-options.interface.ts) 的类型是 `string`（ISO 8601）。core 的 `diffMetadata` 经 `isRemoteNewer` 把两侧解析成**时间点**再比较，解析不出抛 `TypeError`。这里有**两个**独立的坑，AC#14 两个都要防。
 
 #### 坑一：解成 `Date`（US-020 阶段 B 实测踩过）
 
-`updatedAt` 一旦经实体解码变成 `Date`，`'2026-08-09T…' > new Date(…)` 会先按 number 提示取原始值，字符串那侧转成 `NaN`，比较**恒为 false**——所有行判 fresh，远端更新永远拉不下来。症状是静默的：查询照常返回，内容停在第一次同步那一刻。
+`updatedAt` 一旦经实体解码变成 `Date`，就违背了 `QueryCacheEntityMetadata.updatedAt: string` 的契约，下游按字符串解析与比较的前提不再成立。US-020 阶段 B 的实测里它就是这样静默坏掉的：查询照常返回，内容停在第一次同步那一刻。
 
 HTTP 包最容易复现的姿势就是「把响应过一遍实体解码再返回」。metadata 通道必须绕开实体解码。
 
 #### 坑二：合法但不规范的 ISO 串
 
-**「是合法 ISO 8601」不足以保证字典序等价于时间序。** 比较的两侧形态不同：
+**「是合法 ISO 8601」不等于「是约定的 wire 形式」。** 两侧形态不同：
 
-- 远端侧：[`diffMetadata`](../../../packages/rxdb/src/repository/diff-metadata.ts) 直接 `remote.updatedAt > localUpdatedAt`，原样比字符串。
+- 远端侧：[`diffMetadata`](../../../packages/rxdb/src/repository/diff-metadata.ts) 经 [`isRemoteNewer`](../../../packages/rxdb/src/repository/updated-at.utils.ts) 用 `Date.parse` 解析成时间点再比较，所以偏移量、缺省毫秒、`+00:00` 代替 `Z` 本身不再改变新鲜度结论。
 - 本地侧：读引擎用 `toISOString()` 归一（[`QueryCacheEngine`](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts)），**恒为 UTC `Z` + 3 位毫秒**。
 
-于是远端返回 `2026-08-23T18:00:00+08:00`（= UTC 10:00，确实比本地的 `2026-08-23T10:30:00.000Z` 旧）时，字典序逐字符比到时位就得出 `18 > 10` —— 判 stale，无谓重拉。反向的例子会判 fresh，缓存卡死。偏移量、缺省毫秒、`+00:00` 代替 `Z`、多于 3 位的小数秒，四种都会破坏顺序。
+但 `Date.parse` 对**缺时区标识**的串按本机时区解析（`2026-08-23T10:00:00` 在不同机器上是不同时刻），对 `'Aug 23, 2026'` 这类非 ISO 形态也照收不误——那是不确定性，不是不规范。
 
-`diffMetadata` 自己的 TSDoc 已经写明「两个值都必须是合法 ISO 8601 格式，比较才正确」——这是对**调用方**的要求，本包就是调用方。
+**因此 metadata 的 wire 形式必须规范化**：UTC `Z`、毫秒 3 位，即与 `toISOString()` 完全同形。适配器在边界对带时区标识的合法 ISO 串 canonicalize 后再交给 core，对缺时区 / 非 ISO / 不是真实时刻的串 fail-fast；**不得直接透传**。
 
-**因此 metadata 的 wire 形式必须规范化**：UTC `Z`、毫秒 3 位，即与 `toISOString()` 完全同形。适配器要么在边界 canonicalize 后再交给 core，要么对不规范的串 fail-fast；**不得直接透传**。
-
-> 坑一的防御（不许解成 `Date`）防不住坑二——一个不规范的**字符串**照样是 `string`，类型检查全绿，`diffMetadata` 照常运行，错的只是结论。
+> 坑一的防御（不许解成 `Date`）防不住坑二——一个不规范的**字符串**照样是 `string`，类型检查全绿，错的是它指向的时刻。
 
 ### 错误分类锚定 `isNetworkError`
 
@@ -461,13 +460,13 @@ v1 不实现 Full-sync。`pullChanges` / `mergeChanges` / `getChangeCount` 若�
 
 本故事提到的 `remote_changelog_unsupported` / `unsupported_wire_type` 是**症状名，不是已定的 `code` 字面量**。落地前必须先对齐仓库里并存的三套口径，否则接入方写断言时无从下手：
 
-| 来源                                                                 | 判别位             | 形态                                            |
-| -------------------------------------------------------------------- | ------------------ | ----------------------------------------------- |
-| 仓库主流（含 core 5 个错误类、supabase 全部错误类）                  | `name`（类名）     | `SupabaseDataError`、`NetworkOfflineError`      |
-| supabase 附带的 `code`                                               | `code`（辅助）     | UPPER_SNAKE：`NETWORK_ERROR`、`DATA_ERROR`      |
-| [`RxDBError.ts`](../../../packages/rxdb/src/RxDBError.ts) 的唯一特例 | `code`（主判别位） | snake_case：`mixed_versioned_cache_transaction` |
+| 来源                                                                                                                                          | 判别位             | 形态                                                                          |
+| --------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | ----------------------------------------------------------------------------- |
+| 仓库主流（含 core 的大部分错误类、supabase 全部错误类）                                                                                       | `name`（类名）     | `SupabaseDataError`、`NetworkOfflineError`                                    |
+| supabase 附带的 `code`                                                                                                                        | `code`（辅助）     | UPPER_SNAKE：`NETWORK_ERROR`、`DATA_ERROR`                                    |
+| [`RxDBError.ts`](../../../packages/rxdb/src/RxDBError.ts) 的 `RxDBMixedVersionedCacheTransactionError`、working-tree 插件的 `CommitErrorCode` | `code`（主判别位） | snake_case：`mixed_versioned_cache_transaction`、`commit_capability_mismatch` |
 
-第三行那条**是特例且已声明为特例**——`RxDBError.ts` 原文写着「`code` 是本仓库唯一用错误码而非 `name` 判别的错误：该字符串由 `US-306 FR-046` 指定，跨故事复用，不得改名」。本包若照抄它的 snake_case 形态，就把「唯一」变成「三个」，那句话连同它保护的跨故事契约一起失效。
+第三行是**少数按 `code` 判别的特例**：`mixed_versioned_cache_transaction` 由 `US-306 FR-046` 指定、跨故事复用、不得改名，`CommitErrorCode` 码表迁就的正是它。其余各包的新错误仍按「类名主判别」，本包不照抄 snake_case 形态。
 
 **本故事的口径**：新错误一律以**类名**判别，需要跨包字符串断言时附带 UPPER_SNAKE 的 `code`，与 supabase 一致。**不新增 snake_case 主判别位。**
 
@@ -494,7 +493,7 @@ v1 不实现 Full-sync。`pullChanges` / `mergeChanges` / `getChangeCount` 若�
 | AC  | 需要什么                      | 今天有没有                                                | owner            |
 | --- | ----------------------------- | --------------------------------------------------------- | ---------------- |
 | 28  | 响应缓存持有者 + 并发协调     | **有**——两者都在 transport 层内，本包已经独占该层         | **本包**，可开工 |
-| 29  | core 的失效通知入口           | **没有**，且不是「没暴露」而是「不存在」                  | 无 → 移出        |
+| 29  | core 的失效通知入口           | **有**——US-023 新增 `RxDB.invalidateRemoteEntity()`       | 已由 US-023 交付 |
 | 30  | 删本地行的执行者 + 行选择协议 | **没有**——执行面被 AC#19 结构性禁止，选择协议 core 也没有 | 无 → 移出        |
 
 #### AC#28 归本包：304 的语义本身就是缓存有效性证明
@@ -506,31 +505,29 @@ v1 不实现 Full-sync。`pullChanges` / `mergeChanges` / `getChangeCount` 若�
 - **并发靠 single-flight，不靠锁。** 同一指纹的第二个请求若在第一个回填缓存之前发出，它会带着同一个 `If-None-Match` 拿到 304，而此时缓存里没有 body——空洞由此产生。按指纹合流 in-flight Promise 即可消除，不需要跨包协调。
 - **翻页 / 分块天然按页按块生效。** `offset` 进指纹，所以「第 3 页」的 304 说的就是第 3 页那段区间未变；行若发生位移，该页内容随之改变、ETag 也就不匹配。不存在「拼出一个跨快照的结果集」的风险。
 
-#### AC#29 / #30 拿不到 owner：core 侧缺的是抽象，不是入口
+#### AC#29：由 US-023 交付
 
-**AC#29（SSE / invalidation）——core 没有失效通知入口。** QueryCache 侧唯一的失效状态是 [`QueryCacheSyncMemo`](../../../packages/rxdb-plugin-querycache/src/query-cache-sync-memo.ts)（US-020 D13），它的三条失效路径（窗口到期 / 本仓储写 / 换适配器实例）全部由 core 内部触发，`clear()` 没有对外出口，实例也由 `Repository` 私有持有。查询重跑机制确实存在，但 [`QueryManager`](../../../packages/rxdb/src/repository/QueryManager.ts) 只监听 `ENTITY_LOCAL_CREATE / UPDATE / REMOVE` 三个**本地**事件。
+AC#29（SSE / invalidation）需要的是一个 core 新抽象：远端适配器可调用的失效上报口，语义上清 [`QueryCacheSyncMemo`](../../../packages/rxdb-plugin-querycache/src/query-cache-sync-memo.ts) 并触发重跑，且不伪装成本地写（`RxDB.dispatchEvent()` 虽能派发 `ENTITY_LOCAL_*` 事件，但那既是拿「本地写」冒充「远端变了」，也清不掉 memo）。它是 core 的题而不是本包的，因此移出本故事，由 [US-023](../core/US-023-querycache-remote-invalidation.md) 交付：入口是 `RxDB.invalidateRemoteEntity()`，适配器经 `changeFeed` 接 SSE。
 
-`RxDB.dispatchEvent()` 是公开方法，所以适配器**在物理上**能派发那三个事件——但那是错的两次：一是拿「本地写发生了」冒充「远端变了」，二是它清不掉 `syncMemo`，于是被触发的那次重跑会在记忆窗口内命中 memo、跳过同步、读回同一份陈旧本地行。**「能派发」不等于「有入口」**，这正是 owner 判定要拦住的偷渡。
+#### AC#30 拿不到 owner：core 侧缺的是抽象，不是入口
 
-真正需要的是一个 core 新抽象：远端适配器可调用的失效上报口，语义上清 memo 并触发重跑，且不伪装成本地写。设计它需要先决定粒度（整实体 / 按 `where` 指纹 / 按 id 集合）与订阅侧的重跑策略——都是 core 的题，不是本包的。
+**AC#30（eviction）——执行面被本故事自己禁止。** 删本地行只能经 `localAdapter.deleteByIds`，`QueryCacheEngine` 的 [`#evictOrphans`](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts) 独占该路径；本包按 AC#19 连碰都不能碰。而 core 现在只有**孤儿**驱逐（远端已删），没有任何按容量 / 访问时间驱逐的概念，也不记访问元数据。所以这条既不能给本包，也不能在没有设计的情况下丢给 core。
 
-**AC#30（eviction）——执行面被本故事自己禁止。** 删本地行只能经 `localAdapter.deleteByIds`，core 的 [`QueryCacheRepository#evictOrphans`](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts) 独占该路径；本包按 AC#19 连碰都不能碰。而 core 现在只有**孤儿**驱逐（远端已删），没有任何按容量 / 访问时间驱逐的概念，也不记访问元数据。所以这条既不能给本包，也不能在没有设计的情况下丢给 core。
-
-**为什么不建故事文件。** [CONVENTIONS 的「价值待证」](../../CONVENTIONS.md)判据是**病灶数 ≥ 抽象数**：两条各要新增一个 core 抽象，而今天都拿不出用户踩得到的症状——没有 SSE 只是没有实时性（下一次 `find()` 照常回远端校验），没有 eviction 只是行缓存随查询范围累积，都不产生错误结果。按 [US-016 / US-017 先例](../../roadmap.md#明确不排期)登记进 roadmap 的「明确不排期」表并写明解锁条件即可，不计入任何统计。解锁条件见该表。
+**为什么不建故事文件。** [CONVENTIONS 的「价值待证」](../../CONVENTIONS.md)判据是**病灶数 ≥ 抽象数**：eviction 要新增一个 core 抽象，而拿不出用户踩得到的症状——没有 eviction 只是行缓存随查询范围累积，不产生错误结果。按 [US-016 / US-017 先例](../../roadmap.md#明确不排期)登记进 roadmap 的「明确不排期」表并写明解锁条件即可，不计入任何统计。解锁条件见该表。
 
 ### 与 epic-006 的关系
 
-本包不构成对 [US-306](../collaboration/US-306-working-tree-commits.md) 的排期前置，也不被它前置。理由（2026-08-23 修正引用口径）：
+本包不构成对 [US-306](../collaboration/US-306-working-tree-commits.md) 的排期前置，也不被它前置。
 
-**该引的是** [epic-006 写入口语义矩阵](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)中 `upsertMany()` / `deleteByIds()` 那一行，及其紧随的注——那里把政策方向定死了（版本化实体表即拒绝、QueryCache 实体表即放行），并明说 US-306 阶段 A 补的是**覆盖面**，「不影响 bypass 门禁的裁决结论」。
+**该引的是** [epic-006 写入口语义矩阵](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)中 `upsertMany()` / `deleteByIds()` 那一行，及其紧随的注——那里把政策方向定死了（版本化实体表即拒绝、QueryCache 实体表即放行），并明说 US-306 阶段 A 补的是**覆盖面**，不影响 bypass 门禁的裁决结论。
 
-**不要单引** [epic-006 bypass 门禁判定](../../epics/epic-006-working-tree-commits.md#raw-sql--adapter-直写的-bypass-门禁判定) 第 4 步。该判定的四步只覆盖 `rawQuery`，而这两个方法**不经 `rawQuery`**——[FR-046](../collaboration/US-306-working-tree-commits.md) 与 epic-006 的注都写明「四步判定**够不到**」，所以它们今天落在门禁的结构性缺口里，要靠 US-306 阶段 A（US2-AC23）显式挂载。结论没错，但只引第 4 步会让复查者以为门禁已经生效。
+**不要单引** [epic-006 bypass 门禁判定](../../epics/epic-006-working-tree-commits.md#raw-sql--adapter-直写的-bypass-门禁判定) 第 4 步。该判定的四步只覆盖 `rawQuery`，而这两个方法**不经 `rawQuery`**——[FR-046](../collaboration/US-306-working-tree-commits.md) 与 epic-006 的注都写明「四步判定**够不到**」，所以它们由 US-306 阶段 A（US2-AC23）显式挂载，落点是 `@aiao/rxdb-plugin-working-tree` 的 `bulk-write-gate.ts`。只引第 4 步会让复查者以为门禁靠 `rawQuery` 判定就已生效。
 
-结论不受影响：政策方向已定，本包又完全不碰这两个方法（AC#19），US-306 阶段 A 落地时对本包是 no-op，没有 breaking change 可言。US-306 阶段 A 的 SC-004 漂移扫描仍应把本包纳入扫描范围（[roadmap 约束 11](../../roadmap.md#排期约束)）。
+本包完全不碰这两个方法（AC#19），门禁挂载对本包是 no-op，没有 breaking change。SC-004 漂移扫描（`pnpm audit:callsite-drift`）递归扫整个 `packages/`，本包在范围内（[roadmap 约束 11](../../roadmap.md#排期约束)）。
 
 ### 依赖
 
-YAML 没有 `depends-on` 字段。本故事当前**零前置**；排期见 [roadmap 批次 1 线 F](../../roadmap.md)。
+YAML 没有 `depends-on` 字段。本故事**零前置**。
 
 ## 实现文件
 
@@ -544,16 +541,16 @@ YAML 没有 `depends-on` 字段。本故事当前**零前置**；排期见 [road
 | 结构隔离契约测试                                             | A    | AC#19                                                                               |
 | website / [capability-matrix.md](../../capability-matrix.md) | A    | AC#21（含具名适配器计数 9 → 10）                                                    |
 | `packages/rxdb-adapter-http/src/rest.ts` + `rest.spec.ts`    | B    | AC#27。工厂产出普通 handler，适配器一行没改                                         |
-| `packages/rxdb-adapter-http/README.md` + `LICENSE`           | B    | 补齐：本包曾是唯一缺 README 的包，npm 页面为空                                      |
+| `packages/rxdb-adapter-http/README.md` + `LICENSE`           | B    | npm 页面的包说明与许可证                                                            |
 | website `docs/adapters/http.md` 的「REST 模板」小节          | B    | AC#27 的公开文档：默认模板表、构造期校验、`delete` 的取舍                           |
 | ETag 条件请求缓存 + single-flight（transport 内）            | B    | AC#28。owner = 本包（2026-08-24 判定）                                              |
-| SSE / invalidation、eviction                                 | —    | 原 AC#29 / #30，**已移出**，见 [roadmap「明确不排期」](../../roadmap.md#明确不排期) |
+| SSE / invalidation、eviction                                 | —    | AC#29 由 US-023 交付；AC#30 见 [roadmap「明确不排期」](../../roadmap.md#明确不排期) |
 
-本故事关闭前不改 US-203。能力矩阵在包落地后把「待实现 / US-212」行改成已实现。
+本故事不改 US-203。
 
 ## References
 
-- [US-020 QueryCache 接入统一 Repository](../core/US-020-querycache-repository.md) — 曾是唯一硬前置，**已全关，两档发布门禁同时解除**
+- [US-020 QueryCache 接入统一 Repository](../core/US-020-querycache-repository.md) — 前置（Done）
 - [US-203 Supabase 适配器](./US-203-supabase-adapter.md) — 翻页/分块与 QueryCache ducks 的对标；不 inherit AC
 - [US-201 SQLite 适配器](./US-201-sqlite-adapter.md) / sqlite-core — 独立 local 缓存后端
 - [US-015](../core/US-015-plugin-inject-dependency.md) — 插件侧的 `inject: ['adapter:remote']` 会解析到本适配器实例。**本适配器自己不声明 `inject`**（那是插件接口的成员，不是适配器的）

@@ -96,12 +96,22 @@ export class LifecycleScope {
    *   重入而空转。这条不构成互锁（本条目在 disposer 执行**之前**就已出清单，那一轮释放
    *   不会等它），但它与释放帧内的行为不对称，依赖其中一种写法前请先确认自己在哪条路上。
    * @throws {@link LifecycleScopeDisposedError} 作用域已不是 `active` 时同步抛出，
-   *   且 `setup` **不被执行**（不产生新资源）。
+   *   且 `setup` **不被执行**（不产生新资源）。`setup` **执行期间**（同步回调里）把本作用域
+   *   关闭掉则是另一种时序：`setup` 已经跑完、新资源已经到手，这里改为立即接管它的释放
+   *   （调用一次 disposer）后拒绝登记，而不是把它悄悄塞进一个已经清空过清单、
+   *   不会再被任何 `dispose()` 碰到的作用域（RV-063：曾经只检查状态就把 disposer 丢弃）。
    */
   acquire(setup: () => AcquireResult, label = 'anonymous'): ScopeDisposer {
     this.#assertActive(label);
     // setup 抛错时原样传播：这一条不进清单，作用域仍为 active。
     const disposer = setup();
+    if (this.#state !== 'active') {
+      // setup 的同步帧里调用了 dispose()：清单可能已经空跑完到 disposed（pending 快照为空时
+      // #runDispose 全程没有 await 点），也可能还在 disposing。无论哪种，重复 dispose() 只会
+      // 返回缓存的同一个 Promise，不会回头处理这条迟到的登记——必须在这里当场认领。
+      disposer?.();
+      throw this.#disposedError(label);
+    }
     const id = this.#register({ label, disposer, childScope: undefined });
     return () => this.#release(id);
   }
@@ -230,7 +240,11 @@ export class LifecycleScope {
 
   #assertActive(entryLabel: string): void {
     if (this.#state === 'active') return;
-    throw new LifecycleScopeDisposedError(
+    throw this.#disposedError(entryLabel);
+  }
+
+  #disposedError(entryLabel: string): LifecycleScopeDisposedError {
+    return new LifecycleScopeDisposedError(
       `LifecycleScope '${this.label}' is ${this.#state}; cannot register '${entryLabel}'`
     );
   }

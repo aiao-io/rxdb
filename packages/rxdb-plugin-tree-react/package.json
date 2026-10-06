@@ -45,7 +45,7 @@
     "@aiao/rxdb": "*",
     "@aiao/rxdb-plugin-tree": "*",
     "@aiao/rxdb-react": "*",
-    "react": "^19.2.8",
+    "react": "^19.3.0",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {

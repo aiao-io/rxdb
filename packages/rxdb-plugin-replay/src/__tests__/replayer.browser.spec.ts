@@ -1,5 +1,5 @@
 /**
- * @fileoverview 回放视图（`specs/005-us-909-session-replay/contracts/replayer-component.md` §1、§2，research D9）。
+ * @fileoverview 回放视图（`git show 2e820521:specs/005-us-909-session-replay/contracts/replayer-component.md` §1、§2，research D9）。
  *
  * @remarks
  * chromium 里用真 rrweb 录一段 DOM 变化（`#probe` 的文本 A → B → C），再交给 `mountReplayer` 回放：seek 到某一时刻时

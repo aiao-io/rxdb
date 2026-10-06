@@ -170,6 +170,17 @@ export const createSearchHandle = (opts: CreateSearchHandleOptions): SearchHandl
     });
   };
 
+  // 取消/销毁时丢弃尚未进入 pumpQueries 执行窗口的 pendingQuery 前，必须先结算其 waiters；
+  // 否则同步重入（success 订阅内 loadMore 紧接着 clear/destroy）会让调用方 Promise 永久 pending。
+  // 与已运行请求一致：pumpQueries 不论 runQuery 成功/失败/被取代都无条件 resolve waiters
+  // （结果/错误走 state$/error$，Promise<void> 只表示"已结算"），这里同样只 resolve、不 reject。
+  const settlePendingQuery = (): void => {
+    const request = pendingQuery;
+    pendingQuery = undefined;
+    if (!request) return;
+    for (const resolve of request.waiters) resolve();
+  };
+
   // 主通道：setQuery → debounce → runQuery(page=0)
   // skip(1) 跳过 BehaviorSubject 的初始 seed：initialQuery 由下方 trigger$ 直通执行一次，
   // 不再经防抖通道重复跑（否则 initialQuery 会被执行两遍）。
@@ -245,7 +256,7 @@ export const createSearchHandle = (opts: CreateSearchHandleOptions): SearchHandl
     clear(): void {
       ++generation;
       activeAbortController?.abort();
-      pendingQuery = undefined;
+      settlePendingQuery();
       query$.next('');
       currentResults = [];
       currentPage = 0;
@@ -262,7 +273,7 @@ export const createSearchHandle = (opts: CreateSearchHandleOptions): SearchHandl
       destroyed = true;
       ++generation;
       activeAbortController?.abort();
-      pendingQuery = undefined;
+      settlePendingQuery();
       subs.unsubscribe();
       query$.complete();
       trigger$.complete();

@@ -2,10 +2,10 @@
 
 > 数据源：GitHub CodeQL（[aiao-io/rxdb → Security → Code scanning](https://github.com/aiao-io/rxdb/security/code-scanning)）。
 >
-> 分析配置：CodeQL `2.26.4`，语言 `javascript-typescript`，`build-mode: none`，默认分支 `main`。
+> 分析配置：CodeQL `2.27.1`，语言 `javascript-typescript` 与 `actions`（`.github/workflows/codeql.yml`，`build-mode: none`，`queries: security-extended`），默认分支 `main`。
 >
-> 最近分析：`main` 上是 `780c1ab`（2026-09-07）；全仓最新一次是 PR #52 的 `d270baa`（2026-09-08）。
-> **0 条 open 告警**（含 PR merge ref）。
+> 最近分析：`main` 上是 `8cc005bb`（2026-10-05）。
+> **`main` 上 0 条 open 告警**（`gh api "repos/aiao-io/rxdb/code-scanning/alerts?state=open" --jq length`）。
 
 ## 生命周期（2026-08-28 定）
 
@@ -121,8 +121,9 @@
 | CS-029 | `js/file-system-race`     | `apps/dev-rxdb-electron-e2e/src/devtools-native-files-mutation.spec.ts:291` | Dismissed | 写方 rename 原子提交，检查与读之间无竞争窗口 |
 | CS-028 | `js/missing-origin-check` | `apps/rxdb-devtools-extension-e2e/src/relay.spec.ts:39`                     | Dismissed | 中继用例自建的 postMessage 桩，非产品代码    |
 
-> CS-024～CS-027 四个编号无归档条目。GitHub 告警编号会随滚动重报变化（固定告警修复后重报拿新编号，
-> 见 CS-016 备注），这四段空号的去向**推断**为编号滚动，待下次同步时按 GitHub 当前清单复核。
+> 编号空缺（CS-001～002、CS-024～027、CS-032～038）不是编号滚动：用 `gh api repos/aiao-io/rxdb/code-scanning/alerts/<n>/instances` 核对，
+> 它们只出现在 PR merge ref 上（如 PR #10 / #31 / #47 / #55 / #58 / #62 / #71），在 PR 内就被修掉，从未进入 `main`，所以没有归档条目。
+> 默认分支清单（`alerts?per_page=100`）不返回它们；要核对其状态按上面的 `alerts/<n>` 单条查询。
 
 ### 第二批处置要点
 
@@ -138,6 +139,12 @@
 
 **没有改代码**。按判定规则，测试夹具侧的告警只在「同时消掉一个真缺陷」时才动手；
 这三处不存在真缺陷，为过检查把 `exists → read` 改写成单次读只会削弱失败时的诊断信息。
+
+### 第三批（2026-10-03 报出，10-04 关闭，1 条）
+
+| 编号   | 规则                     | 位置                                                       | 处置      | 备注                                                                                                          |
+| :----- | :----------------------- | :--------------------------------------------------------- | :-------- | :------------------------------------------------------------------------------------------------------------ |
+| CS-039 | `js/file-access-to-http` | `apps/dev-rxdb-miniprogram-alipay-probe-e2e/src/cdp.ts:38` | Dismissed | dismiss reason `used in tests`：e2e 夹具里 `CdpConnection.open` 连开发者工具的 CDP WebSocket 端点，非产品代码 |
 
 ## 当前工作集
 

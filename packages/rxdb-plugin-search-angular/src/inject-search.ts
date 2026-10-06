@@ -65,6 +65,31 @@ export interface UseSearchReturn {
 }
 
 /**
+ * NG0950（必填 signal 输入尚未绑定）的 `RuntimeError.code`：Angular 存的是错误页编号的相反数，
+ * 见 https://angular.dev/errors/NG0950 。
+ */
+const REQUIRED_INPUT_NOT_YET_AVAILABLE = -950;
+
+/**
+ * 读取一个可能尚未绑定的必填 signal 输入。
+ *
+ * @remarks
+ * RV-077：README 在字段初始化器里对 `input.required()` 调 `useSearch`，此时父组件还没
+ * `setInput()`，同步读取必抛 NG0950。这只是「值还没到」，返回 `undefined` 交给首次 effect
+ * flush 去安装；其余异常（如 `source.search()` 的真实报错）原样抛出。
+ */
+function readUnlessUnbound<T>(read: () => T): { readonly value: T } | undefined {
+  try {
+    return { value: untracked(read) };
+  } catch (error) {
+    if (error instanceof Error && (error as { code?: unknown }).code === REQUIRED_INPUT_NOT_YET_AVAILABLE) {
+      return undefined;
+    }
+    throw error;
+  }
+}
+
+/**
  * 将 `SearchHandle` 的响应式输出适配为 Angular signal。
  *
  * 必须在注入上下文中调用（内部 `inject(DestroyRef)`）。
@@ -91,7 +116,12 @@ export function useSearch(
   const readSource = (): SearchSourceLike => (isSignal(source) ? source() : source);
   const readOptions = (): SearchOptions | undefined => (isSignal(options) ? options() : options);
 
-  const query = signal<string>(untracked(readOptions)?.initialQuery ?? '');
+  // source 与 options 分开读：只有 source 是未绑定的必填输入时，普通 options 的
+  // initialQuery 照样能作种子。
+  const initialSource = readUnlessUnbound(readSource);
+  const initialOptions = readUnlessUnbound(readOptions);
+
+  const query = signal<string>(initialOptions?.value?.initialQuery ?? '');
   const results = signal<readonly SearchResult[]>([]);
   const state = signal<SearchState>('idle');
   const error = signal<SearchExecutionError | undefined>(undefined);
@@ -128,6 +158,11 @@ export function useSearch(
     subs?.unsubscribe();
     previous?.destroy();
 
+    // RV-077：options 推迟到这里才读到时补种 initialQuery；query 仍等于创建时的基准
+    // 才补，安装前用户已写入的值优先。
+    if (!initialOptions && lastSource === undefined && untracked(query) === last) {
+      query.set(nextOptions?.initialQuery ?? last);
+    }
     const seed = untracked(query);
     const handle = nextSource.search(seed, nextOptions);
     const nextSubs = new Subscription();
@@ -162,8 +197,11 @@ export function useSearch(
     last = seed;
   }
 
-  // 首个 handle 同步创建：注入返回时快照已可读，不必等第一次 effect flush。
-  install(untracked(readSource), untracked(readOptions));
+  // 首个 handle 能同步读到输入就立即创建，不必等第一次 effect flush；任一必填输入
+  // 尚未绑定（RV-077）则 `lastSource` 保持 undefined，由 `rebuildRef` 首次 flush 安装。
+  if (initialSource && initialOptions) {
+    install(initialSource.value, initialOptions.value);
+  }
 
   const rebuildRef = effect(() => {
     const nextSource = readSource();

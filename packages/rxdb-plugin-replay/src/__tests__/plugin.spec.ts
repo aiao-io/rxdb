@@ -1,5 +1,5 @@
 /**
- * @fileoverview 插件装配（`specs/005-us-909-session-replay/contracts/replay-plugin.md` §1、§3 末段）。
+ * @fileoverview 插件装配（`git show 2e820521:specs/005-us-909-session-replay/contracts/replay-plugin.md` §1、§3 末段）。
  *
  * @remarks
  * `rxdb.replay` 在 `use()` 那一刻就挂上，但只有连接纪元装起来之后成员才可用：之前与之后都抛 `not_installed`，

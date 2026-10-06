@@ -19,6 +19,11 @@ const parseCountResult = (value: unknown): number => {
   if (!Number.isSafeInteger(count)) {
     throw new RxdbAdapterPGliteError('PGlite count query exceeded the safe integer range', 'invalid_count_result');
   }
+  // 树计数契约是非负（节点不存在/已删除 ≡ 空集 ≡ 0，RV-079）；SQL 侧已用 GREATEST 钳在 0，
+  // 这里再做一次防线：任何负数都说明 SQL 契约被破坏，不能当成"合法的 -1"悄悄放过去。
+  if (count < 0) {
+    throw new RxdbAdapterPGliteError('PGlite count query returned a negative result', 'invalid_count_result');
+  }
   return count;
 };
 

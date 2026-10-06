@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-09-25
+updated: 2026-10-06
 tags: [collaboration, restore, history, persistence, angular, react, vue]
 ---
 
@@ -151,7 +151,7 @@ INVEST 检查清单:
 - `packages/rxdb-plugin-working-tree-{angular,react,vue}/` — 对称的恢复入口与状态
 - `apps/dev-rxdb-{angular,react,vue}/` — 历史与恢复演示
 - `benchmarks/working-tree.bench.ts` — 恢复场景采样
-- `requirements/api-baseline/rxdb.json`
+- `requirements/api-baseline/rxdb-plugin-working-tree.json`
 
 ## 依赖与参考
 

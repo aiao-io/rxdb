@@ -20,9 +20,9 @@
 
 个别 story 因 INVEST「Small」不成立而体量偏大。这类 story **仍是一个文件、一条状态**，
 在正文里用 `## 交付阶段` 表把交付切成 A / B / C…，AC 表按阶段分段编号，实现文件表加「阶段」列。
-现有 26 条：[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-020](stories/core/US-020-querycache-repository.md)、[US-023](stories/core/US-023-querycache-remote-invalidation.md)、[US-025](stories/core/US-025-core-plugin-extraction.md)、[US-027](stories/core/US-027-entity-permission-model.md)、[US-028](stories/core/US-028-sortable-entity.md)、[US-029](stories/core/US-029-rbac-owner-role-permission.md)、[US-030](stories/core/US-030-declarative-storage-constraints.md)、[US-207](stories/adapter/US-207-desktop-local-database.md)、[US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)、[US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)、[US-212](stories/adapter/US-212-http-adapter.md)、[US-214](stories/adapter/US-214-http-browser-demo.md)、[US-216](stories/adapter/US-216-server-side-rxdb.md)、[US-217](stories/adapter/US-217-local-database-backup-restore.md)、[US-305](stories/collaboration/US-305-commit-graph-head.md)、[US-306](stories/collaboration/US-306-working-tree-commits.md)、[US-507](stories/plugin/US-507-bom-graph-skeleton.md)、[US-510](stories/plugin/US-510-bom-multilevel-explosion.md)、[US-511](stories/plugin/US-511-bom-quantity-semantics.md)、[US-524](stories/plugin/US-524-routing-master-model.md)、[US-525](stories/plugin/US-525-bom-end-to-end-demo.md)、[US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)、[US-909](stories/future/US-909-session-replay-debugging.md)。
+现有 28 条：[US-012](stories/core/US-012-field-semantic-metadata.md)、[US-015](stories/core/US-015-plugin-inject-dependency.md)、[US-020](stories/core/US-020-querycache-repository.md)、[US-023](stories/core/US-023-querycache-remote-invalidation.md)、[US-025](stories/core/US-025-core-plugin-extraction.md)、[US-027](stories/core/US-027-entity-permission-model.md)、[US-028](stories/core/US-028-sortable-entity.md)、[US-029](stories/core/US-029-rbac-owner-role-permission.md)、[US-030](stories/core/US-030-declarative-storage-constraints.md)、[US-207](stories/adapter/US-207-desktop-local-database.md)、[US-210](stories/adapter/US-210-tauri-sqlite-local-database.md)、[US-211](stories/adapter/US-211-multi-miniprogram-platforms.md)、[US-212](stories/adapter/US-212-http-adapter.md)、[US-214](stories/adapter/US-214-http-browser-demo.md)、[US-216](stories/adapter/US-216-server-side-rxdb.md)、[US-217](stories/adapter/US-217-local-database-backup-restore.md)、[US-218](stories/adapter/US-218-supabase-rls-push-integrity.md)、[US-219](stories/adapter/US-219-taro-plugin.md)、[US-305](stories/collaboration/US-305-commit-graph-head.md)、[US-306](stories/collaboration/US-306-working-tree-commits.md)、[US-507](stories/plugin/US-507-bom-graph-skeleton.md)、[US-510](stories/plugin/US-510-bom-multilevel-explosion.md)、[US-511](stories/plugin/US-511-bom-quantity-semantics.md)、[US-524](stories/plugin/US-524-routing-master-model.md)、[US-525](stories/plugin/US-525-bom-end-to-end-demo.md)、[US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md)、[US-904](stories/future/US-904-devtools-native-storage-contract.md)、[US-909](stories/future/US-909-session-replay-debugging.md)。
 
-> 判据是**正文里有阶段表**，不是 `status`——列表里既有 `Done` 也有 `Backlog`。核对方式：`grep -rl "交付阶段" requirements/stories/`。
+> 判据是**正文里有阶段表**，不是 `status`——列表里既有 `Done` 也有 `Backlog`。核对方式：`grep -rl "交付阶段" requirements/stories/`（`node scripts/audit/requirements-consistency.mjs` 会比对本清单）。
 
 分阶段规则（不建子文件、阶段各自可验收、门禁否决只转受门禁的阶段、编号只在能独立交付时才新开）
 见 [CONVENTIONS.md](CONVENTIONS.md)「大故事分阶段」一节。
@@ -37,6 +37,7 @@
 | [roadmap.md](roadmap.md)                     | **接下来做什么**、什么必须排在什么前面                         |
 | [capability-matrix.md](capability-matrix.md) | 仓库**现在能做什么**、哪些组合还不支持                         |
 | [release-plan.md](release-plan.md)           | **下一次发布**要做什么、桥接版本卡在哪                         |
+| [vision.md](vision.md)                       | 1.0 之后的长期方向（不是排期、不是承诺）                       |
 | [versioning-policy.md](versioning-policy.md) | 什么算公开 API、什么改动算破坏性                               |
 | [zh-glossary.md](zh-glossary.md)             | 中文注释 / TSDoc 词汇规约（哪些词保留、哪些要改）              |
 | [code-scanning/](code-scanning/README.md)    | GitHub CodeQL 告警工作集（open 才留文件，关闭即归档删除）      |
@@ -44,7 +45,7 @@
 | `epics/`                                     | 史诗目标与阶段划分                                             |
 | `stories/`                                   | 按领域拆分的用户故事（**状态真相源**，含 `story.template.md`） |
 | `api-baseline/`                              | 各包公开 API 表面基线（由门禁生成与校验）                      |
-| `reviews/`                                   | 给 AI 的 review 规则与结论记录（修复后标解决）                 |
+| `reviews/`                                   | review 模板与尚未处理的问题报告（修复后删除，留清理记录）      |
 | `CONVENTIONS.md`                             | 命名 / 状态 / 写作规范（单一真相源）                           |
 
 `stories/` 子目录与编号段见 [CONVENTIONS.md](CONVENTIONS.md#文档类型与编号段)（唯一真相源，不在此重复）。
@@ -103,6 +104,7 @@ Epic：
 - [epic-006 本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
 - [epic-007 公开 API 门禁](epics/epic-007-public-api-gates.md)
 - [epic-008 生命周期作用域](epics/epic-008-lifecycle-scope.md)
+- [epic-009 BOM 领域模型](epics/epic-009-bom-domain-model.md)
 
 视图：
 

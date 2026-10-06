@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-29
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [adapter, http, server, node, pglite, shared-domain]
 ---
 
@@ -13,10 +13,10 @@ tags: [adapter, http, server, node, pglite, shared-domain]
 INVEST 检查清单:
 - [x] Independent: 前置 US-212 / US-213 / US-214 / US-215 / US-023 全部 Done。本故事只动 `apps/` 下两个 demo 项目 + 新建共享模块，不改 `packages/` 生产代码
 - [x] Negotiable: 共享模块位置与命名、阶段 B 的 SSE 接线细节、pglite 落盘路径可协商；「wire 协议逐字不变（server.spec.ts + dev-rxdb-http-e2e 全绿）」「前端行为零变化」不可协商
-- [x] Valuable: 今天协议语义有两份实现（后端手写 SQL vs 引擎 RuleGroup 编译），靠 README 一句话互相拉齐；后端拿不到 RxDB 的类型安全仓储与 rxjs 查询能力，照抄 http-protocol.md 实现后端的开发者只能复制 SQL
+- [x] Valuable: 协议语义只有一份实现（引擎的 RuleGroup 编译）；后端直接用 RxDB 的类型安全仓储与 rxjs 查询能力，照抄 http-protocol.md 实现后端的开发者不必复制 SQL
 - [x] Estimable: 阶段 A / B 各自可估（A ≈ 共享模块 + 全端点迁移，B ≈ SSE 事件驱动 + 控制端点 + 落盘）
 - [x] Small: 体量偏大，按「大故事分阶段」拆 A / B（同一文件、同一条状态）
-- [x] Testable: server.spec.ts 端点级契约 + dev-rxdb-http-e2e 17 条是验收主体（US-213 套件测的是适配器 vs 其自有 reference-server，本故事不触碰，只作回归）；每条 AC 都有可执行的用例
+- [x] Testable: server.spec.ts 端点级契约 + dev-rxdb-http-e2e 套件是验收主体（US-213 套件测的是适配器 vs 其自有 reference-server，本故事不触碰，只作回归）；每条 AC 都有可执行的用例
 -->
 
 # 用户故事：参考后端以 RxDB 引擎实现
@@ -41,17 +41,15 @@ INVEST 检查清单:
 任何一次引擎语义演进都要再手工复刻一遍；任何一次漏改都是「远端给了、本地滤掉」的空列表。
 
 阶段 B 已消除这份重复：`rule-group-to-sql.ts` 与 `recipes-store.ts` 已删除，七个端点全部改由
-`Repository` / `EntityManager` 求值（当前实现见 [rxdb-store.ts](../../../apps/dev-rxdb-http-server/src/rxdb-store.ts)），
+`Repository` / `EntityManager` 求值（实现见 [recipes-repository.ts](../../../apps/dev-rxdb-http-server/src/recipes-repository.ts)，装配见 [rxdb-store.ts](../../../apps/dev-rxdb-http-server/src/rxdb-store.ts)），
 开工前的两份实现形态见 git 历史。
 
 ### 病灶二：schema 也存了两份
 
-Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http/src/app/recipe.ts)
-（`@Entity({ name: 'Recipe', tableName: 'recipes', properties: [...] })`），在后端是
-[config.ts](../../../apps/dev-rxdb-http-server/src/config.ts) 的 `RECIPE_COLUMNS` 白名单。
-字段名被协议文档的示例 curl 钉死，改一处漏一处，文档里的示例就成了跑不通的伪代码。
-（[recipe-entity.ts:19](../../../modules/recipes-domain/src/recipe-entity.ts#L19) 的实体级 `sync: { type: SyncType.QueryCache, ... }`
-与白名单并列，见 D1 的拆法。）
+Recipe 的字段定义现在只有共享模块 [recipe-schema.ts](../../../modules/recipes-domain/src/recipe-schema.ts)
+的 `RECIPE_SCHEMA` 一份，前后端共用 [recipe-entity.ts](../../../modules/recipes-domain/src/recipe-entity.ts) 里的同一个 `Recipe` 类
+（前端的 [recipe.ts](../../../apps/dev-rxdb-http/src/app/recipe.ts) 只是 re-export）。字段名被协议文档的示例 curl 钉死，
+单一来源让文档里的示例不会因漏改一处而成为跑不通的伪代码。实体级同步策略的处理见 D1。
 
 ### 病灶三：「后端不能初始化 RxDB」这个前提并不存在
 
@@ -63,26 +61,25 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
 [`shouldUsePGliteWorker()`](../../../packages/rxdb-adapter-pglite/src/PGliteClient.ts) 只在 `dataDir`
 以 `opfs-ahp://` 开头时才要求 Worker，Node 下主线程直跑。
 
-真正挡路的只有一处：**同步策略焊死在实体装饰器上**。`getSyncConfig` 的实现是
-`return metadata.sync || globalSync`（[sync-type-utils.ts:30](../../../packages/rxdb/src/sync-contract/sync-type-utils.ts#L30)）——
-实体级配置永远赢。前端 `Recipe` 类上写着 `SyncType.QueryCache + http/wa-sqlite`，后端要的是纯本地 pglite；
-把同一个类直接拿到后端，`init()` 会因缺 remote 适配器被 US-021 的 fail-fast 拒绝。
-让「同一个类」两端共用需要 [US-026 实例级实体同步配置覆盖](../core/US-026-instance-sync-override.md)。
-本故事采用「一份 schema 常量装饰出两个类」（D1），单类收敛由 US-026 承接，本故事不阻塞于它。
+真正挡路的只有一处：**同步策略写在实体装饰器上**。前端 `Recipe` 类声明 `SyncType.QueryCache + http/wa-sqlite`，
+后端要的是纯本地 pglite；把同一个类直接拿到后端，`init()` 会因缺 remote 适配器被 US-021 的 fail-fast 拒绝。
+[US-026 实例级实体同步配置覆盖](../core/US-026-instance-sync-override.md)（`syncOverrides`，由
+[sync-type-utils.ts](../../../packages/rxdb/src/sync-contract/sync-type-utils.ts) 的 `getSyncConfig` 解析）让后端在自己的
+`RxDB` 实例上覆盖该策略，前后端共用同一个类（D1）。
 
 ### 复验方式
 
 - 病灶一（已消除）：`rule-group-to-sql.ts` 与 `recipes-store.ts` 已随阶段 B 删除（git 历史可见），
-  当前实现见 [rxdb-store.ts](../../../apps/dev-rxdb-http-server/src/rxdb-store.ts)；
+  现行实现见 [recipes-repository.ts](../../../apps/dev-rxdb-http-server/src/recipes-repository.ts)；
   语义对齐声明仍是参考后端 README 的自述。
-- 病灶二：读 [recipe.ts](../../../apps/dev-rxdb-http/src/app/recipe.ts)、
-  [config.ts](../../../apps/dev-rxdb-http-server/src/config.ts) 源码实证。
+- 病灶二：读 [recipe-schema.ts](../../../modules/recipes-domain/src/recipe-schema.ts) 与
+  [recipe-entity.ts](../../../modules/recipes-domain/src/recipe-entity.ts) 源码实证。
 - 病灶三前半（引擎环境无关）：读核心包 `package.json` 依赖清单与 `Repository.ts` 方法签名；
   pglite 的 Node 可用性由 `rxdb-adapter-pglite` 自身测试套件在 Node 环境全绿实证。
-- 病灶三后半（sync 优先级）：源码实证 `getSyncConfig` 一行实现；「缺 remote 会被 US-021 拒绝」
+- 病灶三后半（sync 优先级）：源码实证 `getSyncConfig` 经 `EntitySyncResolver` 解析实例覆盖；「缺 remote 会被 US-021 拒绝」
   是 US-021 的验收行为，属既有结论引用。
 - wire 不变的总判据：本故事落地前后各跑一次 `dev-rxdb-http-server` 的 `server.spec.ts`（端点级契约，断言内容不变）
-  与 `dev-rxdb-http-e2e`（17 条），差异必须为零。US-213 套件测的是适配器 vs 它自己的
+  与 `dev-rxdb-http-e2e`，差异必须为零。US-213 套件测的是适配器 vs 它自己的
   `tests/reference-server.ts`（[`startReferenceServer`](../../../packages/rxdb-adapter-http/tests/wire-integration.spec.ts)
   的导入证实），本故事不触碰两者，只要求保持绿——它**不作**本后端的一致性证据。
 
@@ -90,8 +87,8 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
 
 ### In Scope
 
-- 新建共享领域模块（位置与命名可协商，暂定 `modules/recipes-domain`）：Recipe schema 常量单一来源 +
-  两个装饰类（前端 QueryCache 策略 / 后端本地策略）+ 共享的查询函数与 rxjs 组合（被两端 demo 实际调用，A9）
+- 新建共享领域模块 `modules/recipes-domain`：Recipe schema 常量单一来源 +
+  共享的 `Recipe` 类（装饰器声明前端 QueryCache 策略，后端用实例级覆盖，见 D1）+ 共享的查询函数与 rxjs 组合（被两端 demo 实际调用，A9）
 - 后端 [dev-rxdb-http-server](../../../apps/dev-rxdb-http-server/) 初始化 RxDB（pglite 适配器，Node 26），
   七个协议端点改为 Repository / EntityManager 实现
 - SSE 变更通知由 RxDB 实体事件（`ENTITY_LOCAL_CREATE` / `ENTITY_LOCAL_UPDATE` / `ENTITY_LOCAL_REMOVE`）驱动
@@ -101,7 +98,7 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
 
 ### Out of Scope
 
-- **单实体类收敛**：由 [US-026](../core/US-026-instance-sync-override.md) 承接，本故事 A / B 不阻塞于它
+- **单实体类收敛**：已由 [US-026](../core/US-026-instance-sync-override.md) 完成（见 D1），本故事 A / B 不阻塞于它
 - **Full-sync / 离线写队列 / 冲突解决**：`RxDBAdapterHttp` v1 刻意不实现 changelog
   （`pullChanges` 抛 `HttpChangelogUnsupportedError`，[RxDBAdapterHttp.ts:478](../../../packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts#L478)），
   本故事不改变这条边界
@@ -122,45 +119,41 @@ Recipe 的字段定义在前端实体类 [recipe.ts](../../../apps/dev-rxdb-http
 
 ## 设计决策
 
-### D1 — 共享模块用「schema 常量 + 两个装饰类」，单类收敛留给 core 故事
+### D1 — 共享模块用「schema 常量 + 单一 `Recipe` 类」，后端用实例级覆盖
 
-装饰器参数是静态的，无法按实例改写。`getSyncConfig` 的优先级（实体级赢）决定了：核心覆盖能力落地前，
-同一个装饰器类没法同时承担「前端 QueryCache」「后端本地」两种策略。
-因此共享模块导出一份 `RECIPE_SCHEMA`（name / tableName / properties），用它装饰出两个类：
-前端 `Recipe`（沿用今天的 QueryCache 策略，前端行为零变化）与后端 `ServerRecipe`（本地策略）。
-两者用一条「元数据一致性」测试冻结（字段名、类型、nullable 逐项相等），漂移在 CI 里变红而不是在文档里被遗忘。
-core 覆盖故事落地后，本故事追加一个小收尾：删除第二个类，两端共用单类（该收尾单独一条 AC 评估，不进本故事承诺）。
+装饰器参数是静态的，无法按实例改写，而前端要 QueryCache、后端要纯本地。共享模块导出一份 `RECIPE_SCHEMA`
+（name / tableName / properties）与唯一的 `Recipe` 类，装饰器声明前端的 QueryCache 策略（前端行为零变化）；
+后端在自己的 `RxDB` 实例上用 `syncOverrides` 把 `Recipe` 整体替换为 `None + local: pglite`
+（[US-026 AC#13](../core/US-026-instance-sync-override.md#验收标准)）。不存在第二个实体类。
 
-> **2026-09-27 更新**：US-026 已交付实例级覆盖，`ServerRecipe` 已删除，后端改用共享 `Recipe` + `syncOverrides`
-> （见 [US-026 AC#13](../core/US-026-instance-sync-override.md#验收标准)）。下文 A1 等处的 `ServerRecipe` 是本故事验收时的历史表述。
+> 下文 A1 / A9 的 `ServerRecipe`、「两个装饰类元数据一致」是验收时的口径，当时用 `RECIPE_SCHEMA` 装饰出两个类。
 
-### D2 — 后端存储用 pglite，`memory` 起步
+### D2 — 后端存储用 pglite，数据落盘到 `dataDir`
 
 PGlite 的 Node 可用性有本仓测试套件实证：`PGliteClient` 只在 `dataDir` 以 `opfs-ahp://` 开头时才创建
-Worker（[PGliteClient.ts:74](../../../packages/rxdb-adapter-pglite/src/PGliteClient.ts#L74)），Node 下主线程直跑。
+Worker（[`shouldUsePGliteWorker()`](../../../packages/rxdb-adapter-pglite/src/PGliteClient.ts)），Node 下主线程直跑。
 不选与前端行缓存同款的 wa-sqlite：它的 Node 路径无本仓用例背书（Worker 可选、memory VFS 在形状上支持，
 但没有任何 Node 测试）。
 
 一条**必须接受的取舍**：pglite 的 RuleGroup 编译是独立实现
 （`packages/rxdb-adapter-pglite/src/query/query_sql.ts`），与前端行缓存（sqlite-core 家族）不是同一份代码，
-语义对齐靠测试背书而不是结构保证——`server.spec.ts`（端点级契约）与 dev-rxdb-http-e2e 17 条正是这道背书，
+语义对齐靠测试背书而不是结构保证——`server.spec.ts`（端点级契约）与 dev-rxdb-http-e2e 套件正是这道背书，
 本故事把它们当验收主体（D3）的原因也在这里。
 
-阶段 A 用 `store: 'memory'` 打通全部七个端点；文件落盘（PGlite 的 Node `dataDir` 路径）在阶段 B 验证（B3），
-因为它引入跨进程状态（重启、`reset` 删库），而 demo 后端的生命周期测试要跟着一起想清楚。
-「零依赖」属性随依赖引入消失，README 同条修订（B6）。零依赖 `node:sqlite` 路线见 Out of Scope。
+阶段 A 用 `store: 'memory'` 打通全部七个端点；文件落盘（PGlite 的 Node `dataDir` 路径）由阶段 B 验证（B3），
+因为它引入跨进程状态（重启、`reset` 删库）。后端因此不再是零依赖，README 如实声明（B6）。零依赖 `node:sqlite` 路线见 Out of Scope。
 
 ### D3 — wire 不变是硬约束，不是回归兜底
 
 `server.spec.ts` 的端点级契约断言（短页、稳定排序、token 逐页推进、五算子求值）与
-dev-rxdb-http-e2e 的 17 条用例是**验收主体**，断言内容逐字不变；US-213 套件测的是适配器 vs 它自己的
+dev-rxdb-http-e2e 的既有用例是**验收主体**，断言内容逐字不变；US-213 套件测的是适配器 vs 它自己的
 reference-server，本故事不触碰，只作不改包的回归。前端只换实体导入来源，其余代码不动。
 任何「为了迁就新实现而改协议或改测试判词」的做法都是范围违约，参照 US-213 对
 「协议本身不自洽」的处置惯例（标 `it.fails` 或单列协议缺陷故事）。
 
 ### D4 — 服务端定型与冲突映射只冻结 wire 行为，机制实现阶段确认
 
-协议要求 `createdAt` / `updatedAt` 由服务端定型、不看入参（原 `recipes-store.ts` 的写路径，现由 [rxdb-store.ts](../../../apps/dev-rxdb-http-server/src/rxdb-store.ts) 的引擎写路径盖章）。
+协议要求 `createdAt` / `updatedAt` 由服务端定型、不看入参（由 [recipes-repository.ts](../../../apps/dev-rxdb-http-server/src/recipes-repository.ts) 的引擎写路径盖章）。
 引擎侧时间戳的盖章机制（引擎在服务端写路径自动盖章，还是 server 层落库前覆写）**未核实**，
 属**推断**范围：`EntityBase` 把 `createdAt` / `updatedAt` 声明为 `readonly Date`
 （[entity-base.ts:109-117](../../../packages/rxdb/src/entity/entity-base.ts#L109-L117)），
@@ -222,7 +215,7 @@ demo 的变更通知开关就是留给这类实验的。
 
 前端实例是**一人一库**（每个浏览器 profile 一个实例，`context` 就是该用户）；后端实例是**全租户共享**——
 身份随请求来，不能进实例级 `context`（其契约是「`userId` 用来填 `createdBy` / `updatedBy` 审计字段，`clientId` 用来在同步时认出本端发出的变更」，
-[rxdb.interface.ts:146](../../../packages/rxdb/src/rxdb.interface.ts#L146)）。据此画线：
+[rxdb.interface.ts:147](../../../packages/rxdb/src/rxdb.interface.ts#L147)）。据此画线：
 
 **实例级**（后端合法持有）：schema、存储、事件流、`clientId`。后端 `context` 填服务器身份（不是任何用户），
 引擎拿它盖审计字段。回声抑制用的 `x-client-id` 从**请求头**读，与实例 `clientId` 无关——这条与现行后端一致。
@@ -258,7 +251,7 @@ demo 的变更通知开关就是留给这类实验的。
 
 | 阶段 | 内容                                                                                                           | 关闭条件                                                          | 状态 |
 | :--- | :------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------- | ---- |
-| A    | 共享模块 + 后端 RxDB 装配（pglite memory）+ 确定性种子 + **七个协议端点全部**迁移（读+写一体）+ 前端切共享实体 | AC A1–A10 全绿；server.spec.ts 断言内容不变 + e2e 17 条零差异     | ✅   |
+| A    | 共享模块 + 后端 RxDB 装配（pglite memory）+ 确定性种子 + **七个协议端点全部**迁移（读+写一体）+ 前端切共享实体 | AC A1–A10 全绿；server.spec.ts 断言内容不变 + 既有 e2e 零差异     | ✅   |
 | B    | SSE 改事件驱动 + `__control/*` 适配 + 文件落盘 + 退役手写 SQL + README 修订                                    | AC B1–B6 全绿；`rule-group-to-sql.ts` / `recipes-store.ts` 已删除 | ✅   |
 
 ## 验收标准
@@ -276,7 +269,7 @@ demo 的变更通知开关就是留给这类实验的。
 | A7  | A1 就绪                   | `PATCH recipes/:id`                                                                            | `findOneOrFail` + `repo.update` 实现；不存在回 404（映射机制见 D4）；`updatedAt` 服务端定型且非入参（D4 冻结的 wire 行为）                    | ✅   |
 | A8  | A1 就绪                   | `POST recipes/delete`                                                                          | 批量删除；响应条数；空列表幂等返回 0                                                                                                          | ✅   |
 | A9  | 共享模块建成              | 两端各至少一条真实查询路径调用**同一个**共享查询函数（如分页元数据查询）；两个装饰类元数据一致 | 行为与类型层面同一份代码；一致性测试冻结 name / tableName / 字段名 / 类型 / nullable                                                          | ✅   |
-| A10 | A9 就绪，前端切到共享实体 | 跑 `server.spec.ts` + dev-rxdb-http-e2e                                                        | 17 条 e2e 全绿；协议流量面板、条件请求、离线降级行为与切换前零差异                                                                            | ✅   |
+| A10 | A9 就绪，前端切到共享实体 | 跑 `server.spec.ts` + dev-rxdb-http-e2e                                                        | 既有 e2e 全绿；协议流量面板、条件请求、离线降级行为与切换前零差异                                                                             | ✅   |
 
 ### 阶段 B
 
@@ -299,40 +292,40 @@ demo 的变更通知开关就是留给这类实验的。
 - **后端实例里有系统实体**（分支簿记等），对协议不可见：`HEAD recipes` 只答业务实体；`metadata` / `by-ids`
   只查 Recipe。库级 sync 用 `SyncType.None + local: pglite`（无 remote），后端实体不触发任何远端路径。
 - **订阅协调（D8）的实现落点**：SSE 广播订阅 `ENTITY_LOCAL_CREATE / UPDATE / REMOVE` 三个事件即可——
-  事件载荷带实体名与 namespace（[rxdb-events.ts:161-171](../../../packages/rxdb/src/rxdb-events.ts#L161-L171)），
+  事件载荷带实体名与 namespace（[rxdb-events.ts](../../../packages/rxdb/src/rxdb-events.ts) 的 `EntityLocalCreatedEvent` 等三个事件类），
   正是 `broadcastChange({ entity, clientId })` 需要的字段。覆盖范围与现行后端同判据：
   只有经本 RxDB 实例落库的行变更才产生事件，外部进程直写数据库文件不会被广播。
 - **D4 的时间戳机制确认点**：`EntityBase` 声明 `readonly createdAt/updatedAt: Date`，wire 上是 ISO 字符串。
   实现阶段先写一个「时间戳归属」用例（服务端写 → 回执 `updatedAt` 是服务端时钟且非入参），再按结果选盖章机制。
-- **`reset` 的语义迁移**：从「删库文件 → 重建表 → 写种子」变为「销毁 RxDB 实例 → 重建 → 经引擎写种子」。
+- **`reset` 的语义**：销毁 RxDB 实例 → 删 `dataDir` → 重建 → 经引擎写种子。
   `__control/reset` 的广播与 `HEAD` 行为必须保持（现行 README 里它们有明确的契约）。
   实例热替换的并发语义：在途请求与 SSE 连接要么看见旧实例、要么看见新实例，不存在半替换态；
   替换点收口后旧实例 `destroy`（释放 pglite 句柄）。
 - **`GET meta/version` 不迁移**：后端版本串与存储无关，端点原样保留。
-- **serve 的构建顺序**：`dev-rxdb-http-server` 现走 Node 26 类型剥离直跑（无 build target）；引入 workspace
-  依赖后，serve 前需先构建 `@aiao/rxdb` 与 `rxdb-adapter-pglite` 的 dist（nx `dependsOn`）。
-  「零 build」属性随「零依赖」同条修订（B6）。
+- **serve 的构建顺序**：`dev-rxdb-http-server` 走 Node 26 类型剥离直跑（无 build target），吃 `node_modules`
+  里已构建的 `@aiao/rxdb` 与 `rxdb-adapter-pglite` 的 dist，`serve` 本身不触发构建；e2e 经
+  `dev-rxdb-http-server:build-deps` 先把依赖树建好。
 - **共享模块的 project 配置**：`modules/recipes-domain` 按 `modules/` 既有先例注册为 Nx TS lib，
   依赖 `@aiao/rxdb`（类型 + 装饰器），不进 npm 发布范围。
 - **删除注入载荷测试的处置**：随 `rule-group-to-sql.ts` 退役。安全边界的表述从「这个文件做了参数化」
   迁移为「引擎生成的 SQL 全程参数化」——后者由引擎既有测试背书，不在本故事里重写等效测试（D6）。
-- **e2e 不新增、不改判词**：现有 17 条是零差异判据（D3）。阶段 B 的 B1 / B4 若需要新增用例，
+- **e2e 不新增、不改判词**：既有用例是零差异判据（D3）。阶段 B 的 B1 / B4 若需要新增用例，
   只允许**新增**「后端引擎化后行为不变」的对照断言，不允许改既有判词。
 
 ## 实现文件
 
-| 文件                                                                                                                          | 阶段 | 说明                                                                   |
-| ----------------------------------------------------------------------------------------------------------------------------- | ---- | ---------------------------------------------------------------------- |
-| `modules/recipes-domain/`（新建）                                                                                             | A    | schema 常量 + 两个装饰类 + 共享查询函数 / rxjs 组合（A9 两端实际调用） |
-| [apps/dev-rxdb-http-server/src/](../../../apps/dev-rxdb-http-server/src/) 新增 RxDB 装配模块                                  | A    | 后端 `RxDB` + pglite 初始化，替代 `db.ts` 的直接 `DatabaseSync` 路径   |
-| `apps/dev-rxdb-http-server/src/recipes-store.ts`                                                                              | B    | 删除；读+写路径已在 A 全迁到 Repository / EntityManager                |
-| `apps/dev-rxdb-http-server/src/rule-group-to-sql.ts`                                                                          | B    | 删除；翻译职责回引擎（D6）                                             |
-| [apps/dev-rxdb-http-server/src/change-feed.ts](../../../apps/dev-rxdb-http-server/src/change-feed.ts) / change-subscribers.ts | B    | 广播改由 `rxdb.addEventListener` 驱动，SSE 传输层不动                  |
-| [apps/dev-rxdb-http-server/src/control.ts](../../../apps/dev-rxdb-http-server/src/control.ts) / seed.ts                       | B    | 适配新存储层；seed 按 D7（确定性 + 不逐行广播）                        |
-| [apps/dev-rxdb-http-server/README.md](../../../apps/dev-rxdb-http-server/README.md)                                           | B    | 「零依赖」节与确定性种子表述修订（B6）                                 |
-| [apps/dev-rxdb-http/src/app/recipe.ts](../../../apps/dev-rxdb-http/src/app/recipe.ts)                                         | A    | 改为从共享模块导入；demo 特有注释与 `syncStaleTime: 0` 保留            |
-| 两个 server spec 文件（`rule-group-to-sql.spec.ts` / `server.spec.ts`）                                                       | A/B  | 前者退役；后者改为「引擎化后端」的端点级契约，断言内容不变             |
-| [packages/rxdb-adapter-http/tests/reference-server.ts](../../../packages/rxdb-adapter-http/tests/reference-server.ts)         | —    | 不动——协议第二份独立实现，保留独立性（Out of Scope）                   |
+| 文件                                                                                                                          | 阶段 | 说明                                                                    |
+| ----------------------------------------------------------------------------------------------------------------------------- | ---- | ----------------------------------------------------------------------- |
+| `modules/recipes-domain/`（新建）                                                                                             | A    | schema 常量 + `Recipe` 类 + 共享查询函数 / rxjs 组合（A9 两端实际调用） |
+| [apps/dev-rxdb-http-server/src/](../../../apps/dev-rxdb-http-server/src/) 新增 RxDB 装配模块                                  | A    | 后端 `RxDB` + pglite 初始化，替代 `db.ts` 的直接 `DatabaseSync` 路径    |
+| `apps/dev-rxdb-http-server/src/recipes-store.ts`                                                                              | B    | 删除；读+写路径已在 A 全迁到 Repository / EntityManager                 |
+| `apps/dev-rxdb-http-server/src/rule-group-to-sql.ts`                                                                          | B    | 删除；翻译职责回引擎（D6）                                              |
+| [apps/dev-rxdb-http-server/src/change-feed.ts](../../../apps/dev-rxdb-http-server/src/change-feed.ts) / change-subscribers.ts | B    | 广播改由 `rxdb.addEventListener` 驱动，SSE 传输层不动                   |
+| [apps/dev-rxdb-http-server/src/control.ts](../../../apps/dev-rxdb-http-server/src/control.ts) / seed.ts                       | B    | 适配新存储层；seed 按 D7（确定性 + 不逐行广播）                         |
+| [apps/dev-rxdb-http-server/README.md](../../../apps/dev-rxdb-http-server/README.md)                                           | B    | 「零依赖」节与确定性种子表述修订（B6）                                  |
+| [apps/dev-rxdb-http/src/app/recipe.ts](../../../apps/dev-rxdb-http/src/app/recipe.ts)                                         | A    | 改为从共享模块导入；demo 特有注释与 `syncStaleTime: 0` 保留             |
+| 两个 server spec 文件（`rule-group-to-sql.spec.ts` / `server.spec.ts`）                                                       | A/B  | 前者退役；后者改为「引擎化后端」的端点级契约，断言内容不变              |
+| [packages/rxdb-adapter-http/tests/reference-server.ts](../../../packages/rxdb-adapter-http/tests/reference-server.ts)         | —    | 不动——协议第二份独立实现，保留独立性（Out of Scope）                    |
 
 ## References
 

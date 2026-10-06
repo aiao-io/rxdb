@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-002-data-sync
 created: 2025-12-08
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [collaboration, versioning]
 ---
 
@@ -21,7 +21,7 @@ tags: [collaboration, versioning]
 
 ### In Scope
 
-- 分支生命周期：`createBranch()` / `switchBranch()` / `deleteBranch()` 与 `RxDBBranch` 树形结构管理
+- 分支生命周期：`createBranch()` / `switchBranch()` / `removeBranch()` 与 `RxDBBranch` 树形结构管理
 - 分支切换时按外键依赖的拓扑排序处理实体
 - 分支合并：可插拔 `ConflictResolver`，默认 Last-Write-Wins
 - 变更压缩：`compactChanges()` — INSERT→DELETE 丢弃，INSERT→UPDATE\* 合并
@@ -50,7 +50,7 @@ tags: [collaboration, versioning]
 
 ## 技术笔记
 
-- 分支管理：`createBranch()` / `switchBranch()` / `deleteBranch()`
+- 分支管理：`createBranch()` / `switchBranch()` / `removeBranch()`
 - 分支存储：分支是同一数据库内 `rxdb_branch` 表的行（[`branch.ts`](../../../packages/rxdb/src/system/branch.ts)，`activated` 列切换），各分支的 change/ref 也在同一主库内
 - 拓扑排序：分支切换时按外键依赖顺序处理实体
 - 变更压缩：`compactChanges()` - INSERT→DELETE 丢弃，INSERT→UPDATE\* 合并
@@ -62,7 +62,8 @@ tags: [collaboration, versioning]
 - `packages/rxdb-plugin-history/src/VersionManager.ts` — 版本管理器核心
 - `packages/rxdb-plugin-history/src/HistoryManager.ts` — 历史记录管理
 - `packages/rxdb/src/sync-contract/compact-changes.ts` — 变更压缩
-- `packages/rxdb/src/sync-contract/conflict.ts` — 冲突解决（`LWWConflictResolver`）
+- `packages/rxdb/src/sync-contract/conflict.ts` — 冲突契约（`ConflictResolver` 接口）
+- `packages/rxdb/src/sync-contract/LWWConflictResolver.ts` — 默认 Last-Write-Wins 实现（`LWWConflictResolver`）
 
 ## References
 

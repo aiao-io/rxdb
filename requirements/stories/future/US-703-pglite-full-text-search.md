@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-01
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [search, plugin, pglite, postgresql, sqlite]
 inherited_acs:
   - from: US-702
@@ -48,7 +48,7 @@ inherited_acs:
 
 ### 缺口：SQLite 侧白名单只放行一个 adapter
 
-`packages/rxdb-plugin-search/src/core/adapter-guard.ts` 当前是硬编码单值：
+`packages/rxdb-plugin-search/src/core/adapter-guard.ts` 开工时是硬编码单值（现已由 `backend-registry.ts` 派生）：
 
 ```ts
 export const SUPPORTED_SEARCH_ADAPTERS = new Set<string>(['sqlite-wasm']);
@@ -58,7 +58,7 @@ export const SUPPORTED_SEARCH_ADAPTERS = new Set<string>(['sqlite-wasm']);
 即 `wa-sqlite`、`sqlite`、`sqliteai`、`wa-sqlite-miniprogram` 四个 adapter 在技术上具备同样的 FTS5 能力，却被 guard 直接 throw。
 
 这与 [US-702](./US-702-full-text-search.md) AC#4 标注 ✅ 的表述"SQLite 适配器 → 使用 FTS5 虚拟表"不一致：
-实际支持的是"一个 SQLite 适配器"。这个缺口目前不属于任何故事，本故事一并承接——因为
+实际支持的是"一个 SQLite 适配器"。这个缺口当时不属于任何故事，本故事一并承接——因为
 guard 从"硬编码 adapter 名单"改成"按 backend 能力查表"正是 backend 抽象的直接产物，
 不能靠给 Set 再 append 一个 `'pglite'` 字符串了事。
 
@@ -108,8 +108,8 @@ guard 从"硬编码 adapter 名单"改成"按 backend 能力查表"正是 backen
   注册 arity 误判（rest 参数回调使 `length` 恒为 1，`rxdb_fts_bigram` / `regexp` / `regexp_replace` 被当零参函数），
   以及 `execute_oo1_helper` 对空 bindings 也调 `statement.bind([])` 撞 OO1「no bindable parameters」。
 - `wa-sqlite` 的 npm 预编译 wasm 未编 `SQLITE_ENABLE_FTS5`（`strings` 无 fts5 符号），属生产构建管线变更而非
-  现成替换；按 AC#8「确实不支持给可判别原因」路径，`backend-registry.ts` 把 `wa-sqlite` 从 `supported` 改为
-  `unverified` + reason「wasm build does not enable SQLITE_ENABLE_FTS5」，其 spec 改为断言「装载即被可判别拒绝」。
+  现成替换；按 AC#8「确实不支持给可判别原因」路径，`backend-registry.ts` 把 `wa-sqlite` 登记为
+  `unverified` + reason「the wa-sqlite wasm build does not enable SQLITE_ENABLE_FTS5…」，其 spec 断言「装载即被可判别拒绝」。
 
 > AC#7 的动机：AC#1 只声明「存量数据完成回填」这一 happy path。大表回填会跨多个事务，页面刷新、标签页关闭、PGlite worker 终止或 SQL 报错都可能停在中途；此时 trigger 已装、GIN 索引已建，`db.search()` 会静默返回不完整结果——即 SQLite FTS5 侧已经踩过的「索引与内容表不一致」问题。因此回填进度必须持久化（沿用 AC#4 的迁移记录），而不是靠「表存在」推断就绪。
 >
@@ -153,8 +153,9 @@ guard 从"硬编码 adapter 名单"改成"按 backend 能力查表"正是 backen
 ### 决策 2（AC#8）：`wa-sqlite-miniprogram` 不纳入放行名单
 
 故事原文要求「实测，不能假设」，而小程序环境本机跑不出来。它在能力表中登记为
-`fts5: 'unverified'`，guard 抛出的原因与「未登记」可判别地区分开
-（`unsupported-adapter.spec.ts` 最后一条用例钉死这两条原因串不相等）。待 US-211 或实测后改判。
+`unverified`（`backend-registry.ts`），guard 抛出的原因与「未登记」可判别地区分开
+（`unsupported-adapter.spec.ts` 最后一条用例钉死这两条原因串不相等）。小程序侧 FTS5 不归 [US-211](../adapter/US-211-multi-miniprogram-platforms.md)
+承接（其 Out of Scope 明确排除），缺口由 [capability-matrix](../../capability-matrix.md) 记录；真机实测后才能改判。
 
 ### 决策 3（AC#7）：回填进度的哨兵是数据本身，不另建记账记录
 
@@ -187,7 +188,7 @@ FTS5 侧沿用同一模型的另一半：两条 migration 记录**只在全部�
 - `plugin.ts` 构造期解析后端（fail-fast，不返回降级 handle），能力探测折进**第一个实体的**
   `bootstrapTransaction`——不另开事务，也不可能被绕过。
 - 迁移记录命名空间按后端隔离（`fts5__` vs `pgfts__`），同一张表换过后端时不会互认历史签名。
-- 验证：`rxdb-plugin-search` 32 文件 / 288 用例全绿（含 10 条真 PGlite 集成用例）；
+- 验证：`rxdb-plugin-search` 单测全绿（含真 PGlite 集成用例，见 `src/__tests__/backend/pg-backend-integration.spec.ts`）；
   `lint typecheck test build` 覆盖 `rxdb-plugin-search` / `rxdb-adapter-pglite` / `rxdb-adapter-sqlite-core` /
   `rxdb-adapter-wa-sqlite` 全绿、零 ESLint 警告；三框架绑定包 test 全绿且公开面零变化。
 
@@ -195,7 +196,7 @@ FTS5 侧沿用同一模型的另一半：两条 migration 记录**只在全部�
 
 - `wa-sqlite` 的 FTS5 能力：需用 `-DSQLITE_ENABLE_FTS5` 重编译 wasm 或评估第三方 FTS5-enabled fork
   替换依赖，届时再把 `backend-registry.ts` 里 `wa-sqlite` 从 `unverified` 升回 `supported`。
-- `wa-sqlite-miniprogram` 的 FTS5 实测（决策 2）随 US-211 一并处理。
+- `wa-sqlite-miniprogram` 的 FTS5 实测（决策 2）：没有承接故事（US-211 不含），缺口由 capability-matrix 记录。
 
 ## References
 

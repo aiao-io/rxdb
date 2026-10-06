@@ -65,7 +65,7 @@ describe('readAlipayCodePackageWasm', () => {
     const error = thrown(() => readAlipayCodePackageWasm(my, WASM_PATH));
 
     expect(error).toMatchObject({
-      message: `${WASM_PATH} 的二进制读与锁定版本的指纹不符（727645 / 727646 字节），base64 文本副本也读不出`,
+      message: `${WASM_PATH} 的二进制读与锁定版本的指纹不符（${String(wasmBytes.byteLength - 1)} / ${String(ALIPAY_WASM_FINGERPRINT.bytes)} 字节），base64 文本副本也读不出`,
       cause: expect.any(AlipayFsError) as unknown
     });
     expect((error as Error).cause).toMatchObject({ platformCode: 10022 });
@@ -75,7 +75,7 @@ describe('readAlipayCodePackageWasm', () => {
     const { my } = createFakeAlipay({ mode: 'simulator', codePackage: new Map([[WASM_PATH, corrupted()]]) });
 
     expect(() => readAlipayCodePackageWasm(my, WASM_PATH)).toThrow(
-      `${WASM_PATH} 的 base64 文本副本解码后与锁定版本的指纹不符（727646 / 727646 字节）`
+      `${WASM_PATH} 的 base64 文本副本解码后与锁定版本的指纹不符（${String(wasmBytes.byteLength)} / ${String(ALIPAY_WASM_FINGERPRINT.bytes)} 字节）`
     );
   });
 

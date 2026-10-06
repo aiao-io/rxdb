@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-004-future-features
 created: 2026-09-20
-updated: 2026-10-02
+updated: 2026-10-06
 tags: [core, permission, rbac, rxdb-model]
 ---
 
@@ -32,10 +32,10 @@ INVEST 检查清单:
 - [`RxDBContext.userId`](../../../packages/rxdb/src/rxdb.interface.ts) 只用于审计：适配器写实体行时拿它填 `createdBy` / `updatedBy`（实体声明了这两列才写）——本地的 sqlite-core / pglite 在 `insert_sql` / `inserts_sql` / `update_sql` 里注入，Supabase 在 `build_upsert_params`、`executeUpsert`、`SupabaseRepository` 的 `create()` / `update()`、[`build_merge_changes_payload`](../../../packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts) 里注入。没有任何写入口按身份或角色判定。
 - `createdBy` / `updatedBy` 是**审计字段，不能当授权锚点**：[`ENTITY_BASE_METADATA_OPTIONS`](../../../packages/rxdb/src/entity/entity-base.ts) 里两者 `nullable`；[`fillInitValue`](../../../packages/rxdb/src/entity/entity.utils.ts) 允许构造期传入 readonly 字段；`normalizeUpdateEntity` 对 readonly 键是**静默剔除**而不是报错；推送时 `build_merge_changes_payload` 用**推送那一刻**的 `rxdb.context.userId` 覆盖这两列，而不是写入时的身份。
 - **`ownerId` 已被业务模型占用**：[`03-business-tables.sql`](../../../docker/sql/03-business-tables.sql) 的 `shop.id_card` / `shop.order` 有 `"ownerId" uuid NOT NULL` 外键指向 `shop."user"`（共享实体 [`IdCard`](../../../packages/rxdb-test/shop/IdCard.ts)、[`Order`](../../../packages/rxdb-test/shop/Order.ts)）。往 `EntityBase` 塞同名基础字段会与子类覆盖相撞；[`buildEditableColumns`](../../../packages/rxdb-model/src/entity-table/columns/build-editable-columns.ts) 只跳过 `SKIP_FIELDS` / `DISPLAY_ONLY_FIELDS`，新基础字段会在三端默认 UI 里冒出可编辑列。
-- 服务端没有策略：参考 SQL [`docker/sql/`](../../../docker/sql/) 里没有 `auth.uid()`、没有 RLS 策略；写入 RPC `rxdb_mutations`（[`04-rxdb-utils-functions.sql`](../../../docker/sql/04-rxdb-utils-functions.sql)）是 `SECURITY INVOKER`。业务表开 RLS 后推送会产生幽灵 DELETE，已由 [US-218](../adapter/US-218-supabase-rls-push-integrity.md) 承接。
-- **同步日志不受业务表读策略约束**：`rxdb_change` 未开 RLS 且对 `anon` / `authenticated` 授权；[`rxdb_pull_changes`](../../../docker/sql/02-rxdb-sync-functions.sql) 从日志返回 `afterData` 全行。业务表上的 SELECT 策略挡不住同步实体经日志被拉走——同步实体的「读权限」在现有协议下无从实现。
+- 服务端没有业务策略：参考 SQL [`docker/sql/`](../../../docker/sql/) 里业务表没有 RLS 策略，只有测试夹具表 `rls_todos`（[`03-business-tables.sql`](../../../docker/sql/03-business-tables.sql)）用 `auth.uid()` 开了 RLS，锚点是 `createdBy`；写入 RPC `rxdb_mutations`（[`04-rxdb-utils-functions.sql`](../../../docker/sql/04-rxdb-utils-functions.sql)）是 `SECURITY INVOKER`。业务表开 RLS 后推送的幽灵 DELETE 已由 [US-218](../adapter/US-218-supabase-rls-push-integrity.md)（Done）修复。
+- **同步日志不受业务表读策略约束**：`rxdb_change` 未开 RLS 且对 `anon` / `authenticated` 授权（生产脚本 `docker/sql/production/rxdb-change-grants.sql` 只收回写权限，保留 SELECT）；[`rxdb_pull_changes`](../../../docker/sql/02-rxdb-sync-functions.sql) 从日志返回 `afterData` 全行。业务表上的 SELECT 策略挡不住同步实体经日志被拉走——同步实体的「读权限」在现有协议下无从实现。
 - 远端直读的路径**会**受业务表 SELECT 策略约束：remote 仓库（`SyncType.None` + `remote`）的 [`SupabaseRepository`](../../../packages/rxdb-adapter-supabase/src/SupabaseRepository.ts) 与 `SyncType.QueryCache` 的 `fetchMetadata` / `findByIds`（[`RxDBAdapterSupabase`](../../../packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts)）都直接 `.from(tableName)` 查业务表。
-- 身份与实例：[`RxDB.context`](../../../packages/rxdb/src/RxDB.ts) setter 整体替换、不发事件；三端 provider（Angular `provideRxDB` 走 `provideAppInitializer`、React `RxDBProvider`、Vue `provide(RxDBKey, …)`）都是一个应用一个实例。所有 demo 的 `context.userId` 都是启动时写死的常量，没有切换用户的路径。
+- 身份与实例：[`RxDB.context`](../../../packages/rxdb/src/RxDB.ts) setter 整体替换、不发事件；三端 provider（Angular `provideRxDB` 走 `provideAppInitializer`、React `RxDBProvider`、Vue `provide(RxDBKey, …)`）都是一个应用一个实例。demo 的 `context.userId` 除 supabase demo 外都是启动时写死的常量；supabase demo 取 `VITE_RXDB_USER_ID` 或 localStorage 里生成的随机 UUID（`getOrCreateUserId`）。都没有切换用户的路径。
 - [US-027 实体操作权限模型](US-027-entity-permission-model.md) 按层区分执行者：经公开写入口的写是用户写、在那里判定，适配器 / 执行器层的写是系统写、不判定；每个操作取 `'both' | 'system'`。本故事把用户写的判定扩展到**角色 / 所有权**，US-027 的 Out of Scope 明确指向本故事。
 - [vision.md](../../vision.md) 阶段 3 规划「用户身份、设备身份、工作区成员和权限模型」。
 
@@ -122,9 +122,10 @@ type EntityOperationPermission = 'both' | 'system' | EntityPermissionRule;
 ### 权威端契约（部署方实现，本仓交付说明与测试 fixture）
 
 - 业务表：按 `auth.uid()` 与 JWT `app_metadata` 中的角色判定，不读 `user_metadata`；owner 列 `WITH CHECK` 等于 `auth.uid()` 且 update 时不可变；update / delete 的 owner 与角色策略按需。
+- 测试 fixture：现有 `rls_todos` 的 RLS 锚定在审计字段 `createdBy` 上，是 US-218 的推送完整性夹具，不改；本故事另建一张以显式 owner 列为锚点的夹具表，`owner` 与 `createdBy` 分离的判定只在新表上验证。
 - 写入 RPC 与日志的完整性（日志由真实生效的写推导、逐操作确认与拒绝处置）以 [US-218](../adapter/US-218-supabase-rls-push-integrity.md) 为准，本故事不重复交付。
 - 降权窗口：角色变化对远端的生效时间（JWT 刷新周期）在部署说明中写明。
-- 测试登录态 harness：建测试用户、写 `app_metadata` 角色、取 JWT 并注入 PostgREST——`rxdb-adapter-supabase` / `rxdb-plugin-sync` / `apps/dev-rxdb-supabase` 目前没有任何登录调用，这一项从零搭。
+- 测试登录态 harness：建测试用户、写 `app_metadata` 角色、取 JWT 并注入 PostgREST——唯一的登录调用是 `rxdb-adapter-supabase` 的 `push-receipts.spec.ts` 用 `auth.signUp` 注册随机用户取会话（US-218）；`rxdb-plugin-sync` / `apps/dev-rxdb-supabase` 没有登录调用，写 `app_metadata` 角色与注入 JWT 的部分仍需新搭。
 
 ### UI 层：按操作区分的能力派生
 
@@ -208,7 +209,7 @@ type EntityOperationPermission = 'both' | 'system' | EntityPermissionRule;
 ## 价值待证
 
 本故事**价值待证**。「背景与动机」列的全是能力缺口，不是症状：没有具名的多用户使用方（demo、外部 issue、下游项目都没有），
-所有 demo 的 `userId` 都是启动时写死的常量。
+demo 的 `userId` 是启动时写死的常量或随机生成的 UUID，没有切换用户的路径。
 [`RemoteSecurityNotice`](../../../apps/dev-rxdb-supabase/src/app/remote-security-notice.ts) 只是提示「此 demo 未启用身份认证或 RLS」的文案。
 
 去掉多租户后要新增的抽象有 5 项：`access.owner` 声明、`roles` 与一次设入的身份、`EntityPermissionRule` 谓词、
@@ -219,10 +220,10 @@ RLS fixture 与登录态 harness、操作级能力派生。已知病灶为 0，�
 在同一库上换用户，所以不计病灶；若出现这类使用方并复现，它可以不等本故事、单独作为审计归属缺陷修复。
 
 评审中复现的业务表 RLS 幽灵 DELETE 不依赖本故事的任何声明，已拆为
-[US-218](../adapter/US-218-supabase-rls-push-integrity.md)；阶段 C 以它为前置。
+[US-218](../adapter/US-218-supabase-rls-push-integrity.md)（Done）；阶段 C 以它为前置，该前置已满足。
 
 **解锁条件**：出现具名的多用户使用方（demo、外部 issue 或下游项目），并能写出今天踩得到的具体症状。
-届时上调优先级，并按 [RV-022](../../reviews/RV-022-us-029-readiness-review.md) 仍适用的 R10 与 P2 各条复核。
+届时上调优先级，并按 RV-022 中仍适用的 R10 与 P2 各条复核（`git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`）。
 上游 [US-027](US-027-entity-permission-model.md) 阶段 A / B / C 不等本故事解锁，已独立交付。
 
 ## 实现文件
@@ -244,7 +245,7 @@ RLS fixture 与登录态 harness、操作级能力派生。已知病灶为 0，�
 - [vision.md](../../vision.md) — 阶段 3「用户身份、设备身份、工作区成员和权限模型」
 - [US-027 实体操作权限模型](US-027-entity-permission-model.md) — 按层执行者、`'both' | 'system'` 简写与 `PermissionDeniedError` 的基线
 - [US-218 Supabase 远端启用 RLS 时的推送完整性](../adapter/US-218-supabase-rls-push-integrity.md) — 权威端写入完整性与逐操作回执
-- [RV-022 US-029 立项准入评审](../../reviews/RV-022-us-029-readiness-review.md) — 去掉多租户的依据
+- RV-022 US-029 立项准入评审（`git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`）— 去掉多租户的依据
 - [`RxDBContext`](../../../packages/rxdb/src/rxdb.interface.ts) — 上下文现状
 - [`rxdb_pull_changes`](../../../docker/sql/02-rxdb-sync-functions.sql) — 日志读取现状（读边界的依据）
 - [EpicenterHQ — Conflict Resolution Gets All the Attention](https://github.com/EpicenterHQ/epicenter/blob/main/docs/articles/conflict-resolution-is-the-least-of-your-problems.md) — 权限是本地优先生产阻塞项

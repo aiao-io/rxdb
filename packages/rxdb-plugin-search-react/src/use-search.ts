@@ -52,17 +52,26 @@ export interface UseSearchReturn {
 const useIsomorphicLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 function useStableSearchOptions(options: SearchOptions | undefined): SearchOptions | undefined {
+  // RV-076（round 2）：options 从 undefined 变成 {}（或反过来）时，各字段值两次
+  // 都是 undefined——若依赖数组只看字段值，useMemo 判定「没变」，继续吐出旧快照，
+  // 下游 effect 的 [source, stableOptions] 也就看不出引用变了，handle 不会重建。
+  // 公开的 searchOptionsEqual 把 undefined 与 {} 判定为不等价（source 可以按
+  // 有/无显式 options 走不同配置），这里把「options 是否存在」单独纳入依赖，
+  // 让该判据也反映到这份快照的重算时机上。
+  const isPresent = options !== undefined;
   const collectionsKey = options?.collections === undefined ? undefined : JSON.stringify(options.collections);
   return useMemo(() => {
-    if (options === undefined) return undefined;
+    if (!isPresent) return undefined;
     const snapshot: SearchOptions = {};
-    if (options.debounce !== undefined) snapshot.debounce = options.debounce;
-    if (options.pageSize !== undefined) snapshot.pageSize = options.pageSize;
-    if (options.snippetLength !== undefined) snapshot.snippetLength = options.snippetLength;
-    if (options.collections !== undefined) snapshot.collections = [...options.collections];
-    if (options.initialQuery !== undefined) snapshot.initialQuery = options.initialQuery;
+    if (options?.debounce !== undefined) snapshot.debounce = options.debounce;
+    if (options?.pageSize !== undefined) snapshot.pageSize = options.pageSize;
+    if (options?.snippetLength !== undefined) snapshot.snippetLength = options.snippetLength;
+    if (options?.collections !== undefined) snapshot.collections = [...options.collections];
+    if (options?.initialQuery !== undefined) snapshot.initialQuery = options.initialQuery;
     return snapshot;
-  }, [options?.debounce, options?.pageSize, options?.snippetLength, collectionsKey]);
+    // isPresent 覆盖 options 本身的出现/消失；其余字段已各自入参，不需要把整份
+    // options 对象引用也塞进依赖（否则每个新字面量都会触发重建）。
+  }, [isPresent, options?.debounce, options?.pageSize, options?.snippetLength, collectionsKey]);
 }
 
 /**

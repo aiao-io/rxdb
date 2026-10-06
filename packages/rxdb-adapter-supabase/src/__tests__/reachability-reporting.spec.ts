@@ -99,6 +99,7 @@ function createHarness(response: unknown): Harness {
     context: { userId: 'test-user', clientId: 'local-client' },
     config: { entities: [Probe] },
     schemaManager: {
+      getEntityType: vi.fn(() => Probe),
       getEntityMetadata: vi.fn((name: string, namespace: string) =>
         metadata.find(item => item.name === name && (!namespace || item.namespace === namespace))
       )

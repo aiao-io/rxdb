@@ -409,8 +409,8 @@ export class DevToolsConnector {
    * 面板**永远不会**发那条 legacy ACK（ACK 所有权归面板，v2 分支只发 v2 ACK），于是事件
    * 无限期滞留在 buffer 里——症状是 Database / Events 两页全空，且看起来像页面没有事件。
    *
-   * 这不是「v1 该退场了」：阶段 C2 只把 `files` 迁到了 v2，数据库能力仍由 v1 消息承载
-   * （`database` 领域有意不宣告 descriptor，见 {@link createConnectorProviders}）。
+   * 这不是「v1 该退场了」：面板的 Database / Events 两个状态服务仍走 v1 消息
+   * （connector 侧的 `database` provider 已宣告 v2 能力，但面板尚未改接，见 {@link createConnectorProviders}）。
    * 两代协议在同一条链路上并存期间，**连接判定必须认两种证据**。
    *
    * 只升不降：这里不因 `sessionOpen` 转 `false` 而断开 v1。v2 session 结束有它自己的
@@ -654,7 +654,7 @@ export class DevToolsConnector {
    * 而它需要那条握手才知道页面上有 connector。
    *
    * descriptor 集由 {@link createConnectorProviders} 按本页**实际**具备的能力装配：
-   * 有 OPFS 才宣告 `files`，`database` 的 v2 操作尚未实现因此不宣告。声明服务不了的
+   * 有 OPFS 才宣告 `files`，给了 `getEntityMetadata` 才宣告 `database`。声明服务不了的
    * operation 等于让面板据此点亮按钮。
    *
    * 端点只决定 legacy 握手**何时**出门，不知道 v1 传输层还要求这条握手**随附**本次会话的

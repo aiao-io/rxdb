@@ -3,13 +3,13 @@
  * metadata 的 wire 边界：校验并**规范化** `updatedAt`（US-212 AC#14）。
  *
  * @remarks
- * core 的 `diffMetadata` 直接 `remote.updatedAt > localUpdatedAt` 比字符串，而本地侧恒是
- * `toISOString()` 的形态。所以「是合法 ISO 8601」不够——形态不同的两侧比字典序会得出与
- * 时间序相反的结论，且**全程没有异常**：查询照常返回，错的只是新鲜度判断。
+ * core 的 `diffMetadata` 经 `isRemoteNewer` 把两侧 `updatedAt` 解析成时间点再比较，而本地侧恒是
+ * `toISOString()` 的形态。所以偏移量与缺毫秒本身不再改变新鲜度结论，但「是合法 ISO 8601」
+ * 仍不够：缺时区标识的串按本机时区解析，同一份响应在不同机器上指向不同时刻，
+ * 且**全程没有异常**——查询照常返回，错的只是新鲜度判断。
  *
  * 这一层还负责让 metadata 通道**绕开实体解码**：只透出 `id` 与 `updatedAt` 两个字段，
- * 都保持 `string`。一旦 `updatedAt` 变成 `Date`，与字符串比较会走 number 提示、
- * 字符串那侧转成 `NaN`，比较恒为 `false` —— 所有行判 fresh，远端更新永远拉不下来。
+ * 都保持 `string`。一旦 `updatedAt` 变成 `Date`，就违背了 `QueryCacheEntityMetadata` 的契约。
  */
 
 import type { QueryCacheEntityMetadata } from '@aiao/rxdb';
@@ -72,8 +72,8 @@ const readId = (entityName: string, row: Record<string, unknown>): string => {
  * 校验并规范化 handler 解析出的 metadata 行。
  *
  * @remarks
- * **不得直接透传远端的串**，哪怕它合法：合法与规范是两件事，而破坏字典序的四种形态
- * （时区偏移、缺毫秒、`+00:00` 代替 `Z`、多于 3 位小数秒）全都合法。
+ * **不得直接透传远端的串**，哪怕它合法：合法与规范是两件事，时区偏移、缺毫秒、
+ * `+00:00` 代替 `Z`、多于 3 位小数秒都合法，但 wire 形式统一为与 `toISOString()` 同形。
  *
  * @param entityName - 实体名，出错时写进错误便于定位
  * @param rows - handler `parse` 出来的行，尚未校验

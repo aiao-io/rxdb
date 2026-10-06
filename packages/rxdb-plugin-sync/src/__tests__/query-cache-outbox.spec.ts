@@ -113,9 +113,15 @@ const setup = (options: SetupOptions = {}) => {
   const changeQueries: unknown[] = [];
 
   const changeRepo = {
+    // RV-055：`repairLocalCache` 落盘前会带着本轮的 `maxChangeId` 再查一次「谁比它新」，
+    // 与取初始待推行同一个 `find` 出口、同一套水位条件。假件必须照着真实查询一样按
+    // `id > value` 过滤，否则这第二次查询会把本轮正在处理的那些行自己算成「比自己新」。
     find: vi.fn(async (query: unknown) => {
       changeQueries.push(query);
-      return changeRows;
+      const rules = (query as { where: { rules: Array<{ field: string; operator: string; value: unknown }> } }).where
+        .rules;
+      const watermark = rules.find(rule => rule.field === 'id' && rule.operator === '>');
+      return watermark ? changeRows.filter(row => row.id > (watermark.value as number)) : changeRows;
     }),
     update: vi.fn(async (entity: RxDBChange, patch: Partial<RxDBChange>) => Object.assign(entity, patch))
   };

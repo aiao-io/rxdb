@@ -59,8 +59,9 @@ export type EntityOperationPermission = 'both' | 'system';
  * 这是**快速失败**，不是安全边界：它在用户写入的入口处早报错，并让 UI 据此隐藏新增 / 编辑 / 删除，
  * 但它挡不住绕过门面的写入。
  *
- * - 检查点：门面 `Repository` 的 `create()` / `update()` / `remove()`，以及
- *   `EntityManager.mutations()` 整批预检；
+ * - 检查点：门面 `Repository` 的 `create()` / `update()` / `remove()`，
+ *   `EntityManager.mutations()` 整批预检，以及 `Repository.reorder()`（读邻居与写入走执行器，
+ *   所以在开事务前自己按 `update` 判定）；
  * - 不检查：适配器与执行器层（同步拉取、迁移、历史回放、工作树物化都走这里），这是系统写入的通道。
  *
  * 按操作就近继承：子类只写 `{ delete: 'system' }` 时，父类收紧的 `update` 照样传下来；
