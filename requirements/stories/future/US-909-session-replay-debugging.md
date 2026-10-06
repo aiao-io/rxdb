@@ -1,11 +1,11 @@
 ---
 id: US-909
 title: 会话录制回放与失败现场数据还原
-status: In Progress
+status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-18
-updated: 2026-10-03
+updated: 2026-10-06
 tags: [future, replay, debugging, e2e, playwright-trace, working-tree, rrweb]
 ---
 
