@@ -27,10 +27,13 @@
   "include": ["./src", "./types", "./config"],
   "references": [
     {
-      "path": "../../packages/rxdb-adapter-miniprogram"
+      "path": "../../packages/rxdb"
     },
     {
-      "path": "../../packages/rxdb"
+      "path": "../../packages/rxdb-taro"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-miniprogram"
     }
   ]
 }

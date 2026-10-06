@@ -1,7 +1,7 @@
-import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import rxdbTaroPlugin, { type TaroPluginContext, type TaroRunnerOptions } from '../index.js';
+import { FAKE_WASM, createFakeApp } from './fake-app.js';
 
 const APP_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 
@@ -20,7 +20,7 @@ function fakeContext(appPath = APP_ROOT) {
 }
 
 /** 按 `TARO_ENV` 装上插件并跑一遍 `modifyRunnerOpts`，返回改过的配置。 */
-function build(platform: string, opts: TaroRunnerOptions, appPath?: string): TaroRunnerOptions {
+function build(platform: string | undefined, opts: TaroRunnerOptions, appPath?: string): TaroRunnerOptions {
   vi.stubEnv('TARO_ENV', platform);
   const { ctx, runnerOptsHooks } = fakeContext(appPath);
   rxdbTaroPlugin(ctx);
@@ -83,8 +83,15 @@ describe('rxdbTaroPlugin：weapp / tt + vite', () => {
     expect(() => build('weapp', { compiler: { type: 'vite', vitePlugins: {} as never } })).toThrow(/vitePlugins/);
   });
 
-  it('wasm 从 app 根解析 adapter：解析不到就在构建开始时失败', () => {
-    expect(() => build('weapp', { compiler: 'vite' }, tmpdir())).toThrow(/@aiao\/rxdb-adapter-miniprogram/);
+  it('wasm 从 ctx.paths.appPath 解析 adapter', () => {
+    const opts = build('weapp', { compiler: 'vite' }, createFakeApp());
+    const compiler = opts.compiler as unknown as { vitePlugins: { name: string; generateBundle?: unknown }[] };
+    const assets = compiler.vitePlugins.find(plugin => plugin.name === 'aiao-rxdb-taro:assets');
+    const emitted: { source: unknown }[] = [];
+
+    (assets?.generateBundle as (this: unknown) => void).call({ emitFile: (file: { source: unknown }) => emitted.push(file) });
+
+    expect(emitted.map(file => Buffer.from(file.source as Buffer).equals(FAKE_WASM))).toEqual([true]);
   });
 });
 
@@ -94,9 +101,7 @@ describe('rxdbTaroPlugin：构建期拒绝', () => {
   });
 
   it.each(['swan', 'qq', 'jd', 'h5', 'rn', 'harmony-hybrid', undefined])('平台 %s 失败，列出支持的平台', platform => {
-    vi.stubEnv('TARO_ENV', platform);
-
-    expect(() => build(platform as string, { compiler: 'vite' })).toThrow(/weapp、tt.*miniprogram-platform-feasibility\.md/s);
+    expect(() => build(platform, { compiler: 'vite' })).toThrow(/weapp、tt.*miniprogram-platform-feasibility\.md/s);
   });
 
   it('支付宝失败，并指向 @aiao/rxdb-taro/vite', () => {

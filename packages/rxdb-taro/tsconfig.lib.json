@@ -17,5 +17,10 @@
     "src/__tests__/**/*.ts"
   ],
   "extends": "../../tsconfig.base.json",
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "references": [
+    {
+      "path": "../rxdb-adapter-miniprogram/tsconfig.lib.json"
+    }
+  ]
 }

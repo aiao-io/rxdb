@@ -29,7 +29,7 @@ describe('miniProgramVitePlugins', () => {
   it.each(PLATFORMS)('%s：不读不写 build.target，跟随 Taro 或用户自己的设置', platform => {
     const userConfig = Object.freeze({ build: Object.freeze({ target: 'es2020' }) });
     const configHooks = miniProgramVitePlugins(platform, APP_ROOT)
-      .map((plugin: Plugin) => plugin.config)
+      .map((plugin: Plugin): unknown => plugin.config)
       .filter((hook): hook is ConfigHook => typeof hook === 'function');
 
     for (const hook of configHooks) {

@@ -64,9 +64,15 @@
   },
   "peerDependencies": {
     "@aiao/rxdb-adapter-miniprogram": "workspace:*",
-    "@tarojs/cli": "~4.3.0"
+    "@tarojs/cli": "~4.3.0",
+    "vite": ">=4.2.0"
   },
   "devDependencies": {
     "@aiao/rxdb-adapter-miniprogram": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "vite": {
+      "optional": true
+    }
   }
 }
