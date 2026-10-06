@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-13
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [adapter, desktop, electron, pglite, ipc, transaction]
 inherited_acs:
   - from: US-207
@@ -50,7 +50,7 @@ renderer 不直接接触 `fs` / `ipcRenderer` 的运行时边界。本故事复�
 ### In Scope
 
 - Electron 主进程使用 PGlite Node filesystem backend 打开 data directory，renderer 通过类型化 IPC 使用
-- 显式的 `begin / query / commit / rollback` 事务 ID 协议，或将完整 adapter 托管在主进程；**两种方案必须通过同一套事务与事件测试后再定**
+- 显式的 `begin / query / commit / rollback` 事务 ID 协议（选型与理由见技术笔记）
 - 关系、JSONB、bigint/binary 的跨进程类型保真
 - 系统 schema 迁移与 change codec 水位线在 IPC 之上保持有效
 - `disconnect()` 等待在途事务与持久化刷新完成后释放目录句柄，同一目录可安全断开重连
@@ -121,7 +121,7 @@ AC#4 的落地过程中查出并修掉了一个**产品缺陷**：`transaction_p
 这个错误在本机 dev、Linux / macOS 打包下都碰巧不发作——只有 Windows 那条路径会退化到
 `findWorkspaceRoot` 的回退遍历，于是包根本没被搬进产物。已在 `76e2bf4` 修掉：
 external 依赖改声明进 `dependencies`，并补两条单测把
-`tools/stage-external-dependencies.mjs` 的搬运清单同时钉在 `package.json` 的 `dependencies`
+`apps/dev-rxdb-electron/tools/stage-external-dependencies.mjs` 的搬运清单同时钉在 `package.json` 的 `dependencies`
 与 esbuild 的 `external` 上（`src-electron/desktop-sqlite-bridge.spec.ts`），三者任一处漂移即红。
 
 **那次修完之后本条曾保持 ⬜**：AC#10 要的是「通过」，不是「修过」。**2026-09-01 补上了这一跑**——
@@ -149,7 +149,7 @@ AC#2 是本故事最大的未知量，两种候选：
 | IPC 事务 ID 协议         | 主进程持有连接，renderer 侧 adapter 用事务 ID 串联多次 IPC 调用 | 每条语句一次 IPC 往返；崩溃时的悬挂事务回收（AC#3）          |
 | adapter 完整托管在主进程 | renderer 只发高层 repository 请求，adapter 与连接都在主进程     | 响应式订阅、变更通知与加密解锁需要跨进程重建，接口面显著变大 |
 
-roadmap 批次 1 线 G 的两案对照实验已完成，**选型冻结为「IPC 事务 ID 协议」**。
+两案对照实验已完成，**选型冻结为「IPC 事务 ID 协议」**。
 不得把多条独立请求包装成假事务这条铁律不受影响，且已由实验逐条验过（见下）。
 
 #### 实验做法
@@ -222,8 +222,8 @@ bigint、binary 与 JSONB 跨 `structuredClone` / IPC 序列化的行为必须�
 用户可见字符串，让它同时指代「Electron 里的 SQLite」和「Electron 里的 PGlite」，等于把 AC#2 那条
 「协议无法保证事务语义时必须失败并报告能力缺失」的错误信息指向一个无法定位到具体引擎的名字。
 
-命名对 AC 没有语义影响，但它决定了本故事开工时**新增**哪个常量——不是改哪个。
-改名动作本身归 [US-207 E3](./US-207-desktop-local-database.md#包边界重整)，本故事只负责在自己的 host 落地时用对。
+常量在 `packages/rxdb-adapter-electron/src/pglite/pglite-adapter.interface.ts`（`ADAPTER_NAME = 'pglite-electron'`）；
+改名动作归 [US-207 E3](./US-207-desktop-local-database.md#包边界重整)。
 
 ### 依赖
 
@@ -233,9 +233,9 @@ bigint、binary 与 JSONB 跨 `structuredClone` / IPC 序列化的行为必须�
 
 ## 实现文件
 
-- `packages/rxdb-adapter-pglite/src/` — 消除对具体 `PGliteClient` 实例的耦合，补齐可代理的事务与事件契约
-- `packages/rxdb-adapter-electron/`（或本故事另立的包，见「`ADAPTER_NAME` 为 `pglite-electron`」）— Electron PGlite renderer client
-- `packages/rxdb-adapter-sqlite-core/src/desktop/` — host protocol；PGlite 的事务语义要在此扩协议还是另起一套，由本故事定
+- `packages/rxdb-adapter-pglite/src/` — 可代理的事务与事件契约（`change-pipeline.ts` 等）
+- `packages/rxdb-adapter-electron/` — Electron PGlite renderer client（`./pglite` 子路径）与主进程 host（`./pglite-host` 子路径）
+- `packages/rxdb-adapter-sqlite-core/src/desktop/desktop-pglite-protocol.ts` — PGlite 单独一套线协议，与 SQLite 的 host protocol 并列，两套解析器互不接受对方的 `kind`
 - `apps/dev-rxdb-electron/src-electron/` — PGlite 主进程 host、目录解析与 IPC 校验
 - `apps/dev-rxdb-electron/src/app/` — renderer 接入示例与连接状态
 - `apps/dev-rxdb-electron-e2e/` — 打包应用的真实目录持久化测试

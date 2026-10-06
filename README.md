@@ -39,7 +39,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri               |
 
 > [!NOTE]
-> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [72/98 已交付](requirements/status-overview.md)
+> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [73/98 已交付](requirements/status-overview.md)
 
 支持与反馈：可复现的 bug 请提交 [Bug Issue](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml)，功能建议提交 [Feature Issue](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml)，使用问题请提交 [Question Issue](https://github.com/aiao-io/rxdb/issues/new?template=question.yml)。
 
@@ -119,7 +119,7 @@ const { value: todos, isLoading } = useFind(Todo, {
 一句话版本，细节与「哪些组合不支持」见 [能力矩阵](requirements/capability-matrix.md)：
 
 - **核心引擎**：装饰器实体 → DDL + 类型 + Repository；关系映射（含 M:N 中间表）、事务、变更追踪、跨 Tab 同步、树形实体、bigint / binary、远端 QueryCache 行缓存。
-- **存储适配器**：浏览器 SQLite 三种（wa-sqlite / sqlite-wasm / 官方 sqlite）、sqliteai（向量）、PGlite、Electron `node:sqlite`、Tauri `rusqlite`、Supabase、HTTP；字段级加密内建；微信 / 抖音小程序**实验性**（抖音 Android 未验证）。
+- **存储适配器**：浏览器 SQLite 三种（wa-sqlite / sqlite-wasm / 官方 sqlite）、sqliteai（向量）、PGlite、Electron `node:sqlite`、Tauri `rusqlite`、Supabase、HTTP；字段级加密内建；微信小程序**实验性**，抖音 / 支付宝小程序**实验性**（Android 未验证）。
 - **插件**：图数据、全文搜索（FTS5 / pg tsvector，三端绑定）、文件存储（OPFS 与桌面目录）、工作区（NEW 草稿的本地缓存，刷新不丢未保存的新实体）。
 - **协作**：Git 式分支 / 合并 / 切换、撤销重做、Supabase 与 HTTP 同步、加密字段不进索引与历史。
 - **UI 与工具**：CodeMirror 6 编辑器三端组件、DevTools 面板 + Chrome 扩展 + Electron / Tauri 原生存储调试。
@@ -174,7 +174,7 @@ aiao/
 │   ├── rxdb-adapter-electron/       # Electron 适配器（node:sqlite 特权宿主）
 │   ├── rxdb-adapter-tauri/          # Tauri 适配器（Rust rusqlite 宿主，WebView 侧）
 │   ├── rxdb-adapter-encrypted/      # 字段级加密（AES-GCM-256）
-│   ├── rxdb-adapter-miniprogram/    # 小程序适配器（微信 / 抖音，实验性）
+│   ├── rxdb-adapter-miniprogram/    # 小程序适配器（微信 / 抖音 / 支付宝，实验性）
 │   ├── rxdb-adapter-pglite/         # PGlite 适配器（PostgreSQL）
 │   ├── rxdb-adapter-supabase/       # Supabase 适配器
 │   ├── rxdb-adapter-http/           # HTTP 远程适配器（QueryCache + 条件请求 + SSE）

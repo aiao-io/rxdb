@@ -4,9 +4,10 @@
 
 ## 1. semver 约定
 
-遵循 [semver 2.0](https://semver.org/)。当前处于 `0.x`（公开包版本 `0.0.25`），次版本即可含破坏性变更，公开 API 尚未冻结。1.0 发布即进入稳定维护。
+遵循 [semver 2.0](https://semver.org/)。当前处于 `0.x`（最新发布 `0.0.26`，见 [CHANGELOG](../CHANGELOG.md)），次版本即可含破坏性变更，公开 API 尚未冻结。1.0 发布即进入稳定维护。
 
-所有 `@aiao/*` 采用 Nx **fixed release group**，同步版本号（`nx.json` › `release.projects: ["packages/*"]`）。
+所有 `@aiao/*` 采用 Nx **fixed release group**，工作区内同号（`nx.json` › `release.projects: ["packages/*"]`）。
+同号不等于都已发布，`rxdb-angular` 也尚有单独抬版的漂移，见 [release-plan 开项：版本漂移](release-plan.md#开项版本漂移)。
 
 ## 2. 公开 API 范围
 
@@ -60,37 +61,40 @@
 > [api-surface.mjs](../scripts/audit/api-surface.mjs) 的 `ASSET_SUBPATHS` 白名单里显式跳过，
 > 内容交由供应链审计守护。白名单双向核对：登记了包里已不存在的入口、或登记的包已退出扫描范围，同样门禁红。
 >
-> **该白名单当前含一条**：`rxdb-model-angular` 的 `./tailwind.css`（资产入口，无导出表面，内容由供应链审计守护）。
-> 机制保留给将来的包：曾登记的 `@aiao/rxdb-adapter-miniprogram/assets/wa-sqlite.{cjs,wasm}` 现由
-> `@subframe7536/sqlite-wasm`（精确版本 + 锁文件 integrity，见
-> [wa-sqlite-integrity.mjs](../scripts/audit/wa-sqlite-integrity.mjs)）替代，不再需要该入口。
+> **该白名单当前登记 4 个包的 5 个入口**（见 `ASSET_SUBPATHS`）：`rxdb-adapter-miniprogram` 的
+> `./alipay-random-worker.js`、`rxdb-model-{angular,vue}` 的 `./tailwind.css`、`rxdb-model-react` 的
+> `./index.css` 与 `./tailwind.css`。均为无导出表面的资产入口，内容由供应链审计守护
+> （小程序 wasm 另见 [wa-sqlite-integrity.mjs](../scripts/audit/wa-sqlite-integrity.mjs)）。
 >
-> `@aiao/rxdb-test` 的 5 个子路径不在此列——整包已排除，非产品 API。
+> `@aiao/rxdb-test` 的子路径不在此列——整包已排除，非产品 API。
 > 对外呈现见 [website/docs/versioning.md](../website/docs/versioning.md)。
 
 ## 5. 版本级别决策
 
 - 提交遵循 [Conventional Commits](https://www.conventionalcommits.org/)：`fix:`→补丁，`feat:`→次版本，`feat!:` / `BREAKING CHANGE:`→主版本。
-- 发布由 Nx Release 驱动（`nx.json` › `release`），`release.version.conventionalCommits` 按提交类型推断级别。
-  **0.x 例外**：nx 的 `adjustSemverBumpsForZeroMajorVersion` 默认为 `true`，major 为 0 时 `feat:` 实际落 patch
-  （`0.0.24 → 0.0.25` 即此机制，见 [release-plan](release-plan.md) 硬前提 2）；改该开关是全仓库版本策略决定，不随发布顺手做。
-- API 基线出现破坏性 diff 但提交未标注 breaking → 以基线检查为准阻止发布。
+- 版本号由 Nx Release 推算（`nx.json` › `release.version.conventionalCommits`），**发布本身由 owner 手工执行**，
+  不进 CI，也没有自动发布 workflow（见 [release-plan](release-plan.md)）。
+  **0.x 例外**：nx 的 `adjustSemverBumpsForZeroMajorVersion` 默认为 `true`，major 为 0 时 `feat:` 实际落 patch，
+  推算结果可能撞上已发布版本，所以 0.0.x 阶段版本号由 owner 显式指定（0.0.26 即如此）；
+  改该开关是全仓库版本策略决定，不随发布顺手做。
+- API 基线出现破坏性 diff → PR CI 的 `--check` 失败。提交是否标注 breaking 不影响 nx 之外的任何检查，
+  所以破坏性改动须在 changelog 如实声明并附迁移页（见 [release-plan 约束 12 修订](release-plan.md#约束-12-修订破坏性改动如实声明)）。
 
 涉及系统 schema 或 change codec 的发布还必须通过 `requirements/migration-release.json`
-清单和 `pnpm nx run @aiao/source:migration-release-gate`。迁移版本需要已发布且可追溯的
-桥接 tag，以及已启用的旧 bundle 隔离策略；缺失时发布任务 fail-closed。
+清单和 `pnpm nx run @aiao/source:migration-release-gate`（PR CI 每次都会运行）。`kind=migration` 的清单需要已发布、
+在 HEAD 祖先链上的桥接 tag，以及已启用的旧 bundle 隔离策略，缺失时门禁失败；`kind=bridge` / `normal` 不校验这些。
 
 ## 6. 实验性层级（1.0 冻结范围之外）
 
-全部公开包同步发版（当前 **50 个**，其中 49 个受 API 基线保护，`rxdb-test` 除外），但**不是每个入口都进 1.0 的兼容承诺**。下列能力标为实验性：破坏性变更不受第 3 节废弃周期约束，
+全部公开包同号（清单见 `packages/`，除 `rxdb-test` 外都受 API 基线保护），但**不是每个入口都进 1.0 的兼容承诺**。下列能力标为实验性：破坏性变更不受第 3 节废弃周期约束，
 只需在 changelog 与迁移指南注明。1.0 发布前必须把这份清单与 TSDoc `@experimental` 标注、各包 README 对齐。
 
-| 能力                                                            | 为什么是实验性                                                                                       |
-| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `@aiao/rxdb-adapter-miniprogram` 整包                           | 微信 / 抖音逻辑层（抖音 Android 未验证，US-211）、强制单连接、不保证崩溃恢复（US-209 的长期口径）    |
-| `@aiao/rxdb-adapter-http` 的 `changeFeed`（SSE 变更通知）       | 缺省关闭；协议只有参考后端一个实现                                                                   |
-| `@aiao/rxdb-plugin-search` 在 `wa-sqlite` / 小程序上的 FTS      | backend-registry 登记为 `unverified`，抛 `SearchUnsupportedAdapterError`，转正要重编 wasm 或真机实测 |
-| `@aiao/rxdb-plugin-querycache` 的 `QueryCacheEngine` 直接实例化 | `@experimental`，只有 `SyncType.QueryCache` 经 `getRepository` 的间接路径是稳定面                    |
+| 能力                                                            | 为什么是实验性                                                                                              |
+| --------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `@aiao/rxdb-adapter-miniprogram` 整包                           | 微信 / 抖音 / 支付宝逻辑层（抖音与支付宝 Android 真机未验证，US-211）、强制单连接、不保证崩溃恢复（US-209） |
+| `@aiao/rxdb-adapter-http` 的 `changeFeed`（SSE 变更通知）       | 缺省关闭；协议只有参考后端一个实现                                                                          |
+| `@aiao/rxdb-plugin-search` 在 `wa-sqlite` / 小程序上的 FTS      | backend-registry 登记为 `unverified`，抛 `SearchUnsupportedAdapterError`，转正要重编 wasm 或真机实测        |
+| `@aiao/rxdb-plugin-querycache` 的 `QueryCacheEngine` 直接实例化 | `@experimental`，只有 `SyncType.QueryCache` 经 `getRepository` 的间接路径是稳定面                           |
 
 不在表内的公开入口默认进入 1.0 冻结范围。新增实验性入口必须同时改本表、对外呈现（[website/docs/versioning.md](../website/docs/versioning.md)）与 TSDoc。
 

@@ -76,12 +76,12 @@
 
 - ✅ [US-402 代码编辑器](stories/ui/US-402-code-editor.md)
 - ✅ [US-902 DevTools 面板](stories/future/US-902-devtools-panel.md)
-- ✅ [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) — 阶段 A～D 全部关闭；AC#19 的真实断连半边、AC#40 的 OPFS conformance 半边与 AC#34/#38/#39/#42 的人工浏览器回归已移出承诺范围（项目早期暂不做，v2 收尾另立故事）
+- ✅ [US-904 DevTools 原生本地存储调试](stories/future/US-904-devtools-native-storage-contract.md) — 阶段 A～D 全部关闭；AC#19 的真实断连半边、AC#40 的 OPFS conformance 半边与 AC#34/#38/#39/#42 的人工浏览器回归已移出承诺范围（项目早期暂不做）
 - ✅ [US-905 Tauri DevTools 调试窗口、transport 与原生存储集成](stories/future/US-905-tauri-native-devtools.md) — 阶段 1 八条与阶段 2 九条共十七条 AC 全 ✅；ubuntu/macOS/Windows 三平台的 packaging 与 devtools smoke 证据齐全；idb 档走 dedicated Worker 传输；linux idb 真值为 `failed`（冻结值）
 - ✅ [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](stories/future/US-906-electron-devtools-developer-path.md) — dev 变体扩展 + 桌面调试流程文档；AC#2 的人工半边（照 README 手跑一遍）不在承诺范围
 - ✅ [US-908 DevTools 传输取消与桌面文件会话的两条已知缺陷](stories/future/US-908-devtools-transfer-session-defects.md) — 两条均已关闭：`cancel()` 与 `complete()` 一样排空在途写入（取消后不留 `.rxdb-tmp`）；Electron 装配处接上 `pagehide → dispose()`，刷新不再泄 host 文件会话
 
-> 🚧 US-401 / US-701 查询构建器系列无故事文件；该范围是 rxdb-model 实体模型库（框架无关核心 + 三框架 UI 组件集，含可视化查询构建器），原规格见 `git show 41ce2181:specs/002-rxdb-model-port/spec.md`。三框架代码已随 #62 合入，剩跨框架对拍、三端对称复核与文档（T049 / T050 / T051），登记在 [roadmap 零散收尾项](roadmap.md#零散收尾项不成故事随手可带)第 2～4 条。
+> （无故事文件）US-401 / US-701 查询构建器系列：该范围是 rxdb-model 实体模型库（框架无关核心 + 三框架 UI 组件集，含可视化查询构建器），原规格见 `git show 41ce2181:specs/002-rxdb-model-port/spec.md`。三框架代码已随 #62 合入，剩 Todo 同数据的跨框架对拍、三端对称复核与文档（T049 / T050 / T051），登记在 [roadmap 零散收尾项](roadmap.md#零散收尾项不成故事随手可带)第 2～4 条。
 
 ### [未来功能](epics/epic-004-future-features.md)
 
@@ -107,15 +107,15 @@
 - ✅ [US-026 实例级实体同步配置覆盖](stories/core/US-026-instance-sync-override.md) — 初始化时按实体整体覆盖同步配置；实例隔离、三框架一致与 HTTP demo 单类收敛
 - ✅ [US-027 实体操作权限模型](stories/core/US-027-entity-permission-model.md) — 实体级 create/update/delete 逐操作声明 `'both' | 'system'`，执行者按层区分（公开写入口判定，适配器 / 执行器层不判定），定位是快速失败而非防御边界。四阶段全部落地：0 只读行「查看」走 view 模式；A 声明、按操作就近继承、校验与 14 张系统表显式声明；B 门面 3 个写方法与 `mutations()` 整批预检，越权抛 `PermissionDeniedError`；C 三框架 `EntityList` 按 `deriveEntityCapabilities()` 派生新增 / 编辑 / 删除入口。AC#1～16 全 ✅；是 US-029 阶段 A / B / D 的上游
 - ✅ [US-028 可排序实体](stories/core/US-028-sortable-entity.md) — sortOrder 从树形实体解耦到普通实体：排序域 = 分组字段组合（整表即分组字段为空，NULL 值算一组），core 排序语义（字段强制非空）+ rxdb-model 拖放持久化。A～E 五阶段全部落地：A 整表排序域（声明与校验、默认排序、创建追加、`reorder()`、事务写边界、SQLite / PGlite 码点同序）；B 三框架 `EntityList` 拖放持久化（钉住单条排序域才开手柄，按列排序 / 筛选 / 只读 / 落库中收起，失败恢复原顺序）；C 树类型兼容；D 分组排序域与跨组移动；E 三端 Todo 按 `completed` 分组手动排序（独立 `Task` 实体，不改共享 `Todo`）。AC#1～19 全 ✅；树兄弟域迁移另立 US-031
-- ⬜ [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md) — 实体显式声明 `access.owner`（指向自有属性，不加 `EntityBase` 字段、引擎不补列）+ US-027 操作权限扩展为角色 / 所有权谓词 + `RxDBContext.roles` 与一实例一身份（换用户 = 新实例）；只做写授权，同步实体不限读，多租户已移出；A～D 四阶段交付，阶段 A / B / D 分别依赖 US-027 阶段 A / B / C；**价值待证**，阶段 C 依赖 US-218，见 [RV-022](reviews/RV-022-us-029-readiness-review.md)
+- ⬜ [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md) — 实体显式声明 `access.owner`（指向自有属性，不加 `EntityBase` 字段、引擎不补列）+ US-027 操作权限扩展为角色 / 所有权谓词 + `RxDBContext.roles` 与一实例一身份（换用户 = 新实例）；只做写授权，同步实体不限读，多租户已移出；A～D 四阶段交付；前置 US-027 与 US-218 均已 Done；**价值待证**，评审见 `git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`
 - ⬜ [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) — **价值待证**：`EntityMetadataOptions` 无 CHECK 落点、`EntityIndexMetadataOptions` 只有 `properties` / `unique` / `normalized`；四阶段（CHECK → 条件唯一与表达式索引 → 区间排他双后端等价 → 生成列与索引方法）；当前消费方全在 epic-009，但解锁条件不限 BOM
-- ⬜ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md) — 树兄弟域按 `parentId` 分组改走 US-028 排序模块：`rxdb-test` 四个树实体 `sortOrder` 改非空并按父节点回填，三端 demo 树菜单 / 文件管理的新建追加与拖放改用 core API，删掉 22 个文件里的算键与比较器副本；前置 US-028 阶段 A + D；**价值待证**，`priority: Low`，不新增抽象、今天无可复现症状
+- ⬜ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md) — 树兄弟域按 `parentId` 分组改走 US-028 排序模块：`rxdb-test` 四个树实体 `sortOrder` 改非空并按父节点回填，三端 demo 树菜单 / 文件管理的新建追加与拖放改用 core API，删掉 22 个文件里的算键与比较器副本；前置 US-028 已 Done；**价值待证**，`priority: Low`，不新增抽象、今天无可复现症状
 - ✅ [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) — PGlite、SQLite 共享层与桌面 host（Electron SQLite / PGlite、Tauri SQLite）三阶段交付；只承诺同 adapter 恢复，外置文件不在归档内
 - ⬜ [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md) — `@aiao/rxdb-taro`：把 demo 里的 wasm 拷贝、glue `import.meta.url` 改写、抖音 realm 绑定搬进可发布的 Taro 插件（只经被 await 的 `modifyRunnerOpts`；build target 跟随 Taro，不碰）；只放行 `weapp` / `tt` + vite，其余构建期报错；三阶段（构建插件 → 运行时入口 → webpack5 **价值待证**）
 - ✅ [US-218 Supabase 远端启用 RLS 时的推送完整性](stories/adapter/US-218-supabase-rls-push-integrity.md) — 出自 RV-022：被 RLS 过滤的删除仍写进 `rxdb_change`（目标行连 SELECT 都看不到时同样如此），其它端拉到幽灵 DELETE；`rxdb_mutations` 也不校验日志与业务写是否配对；三阶段（不写幽灵日志 + 配对校验 → 逐实体回执与被拒实体本地对齐 → 日志表收口与部署指引），阶段 B 以 US-220 为前置；阶段 A～C 全部落地，与 US-220 合并为 #99 合入
 - ✅ [US-220 Supabase 推送 UPDATE 的落库语义](stories/adapter/US-220-supabase-update-push-semantics.md) — 评审 US-218 时发现：推送把 UPDATE 当 `INSERT … ON CONFLICT DO UPDATE` 落库，拟插入行要过 NOT NULL、INSERT 与 SELECT 策略：NOT NULL 列报 23502（Todo 只改 `completed` 即中招），owner 型 RLS 下改自己的行、共享编辑表上改别人的行都误报 42501，整批卡住；改走普通 UPDATE（`rxdb_mutations` 新参数 `p_updates`），被拒抛 42501、行已不存在抛 `RX001`，存在性探针 `rxdb_existing_ids` 与 US-218 阶段 A 共用；已落地，与 US-218 合并为 #99 合入
 - ✅ [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做，B / C 的价值门禁豁免。三阶段合为 #85 一次合入，AC#1～17 全 ✅：A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`（`screenshots: false`），开销实测 +32.7%，上限经 owner 裁决由 +10% 改为 +33%；B Angular e2e 失败现场数据原样归档与 `dev-rxdb-angular` 导入入口，demo 的 Worker / SharedWorker 连接备份被拒（US-217 只交付主线程连接），IDB 档经同库名的主线程第二连接绕开（spike 2026-10-02 通过）；C 新包 `@aiao/rxdb-plugin-replay`（rrweb 应用内录制，独立录制库，单会话 16 MiB + 总量 128 MiB，门面 `commits$` 关联 commit）加 `rxdb-plugin-replay-{angular,react,vue}` 三框架 Replayer，`dev-rxdb-angular` opt-in 演示
-- ✅ [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体分五阶段外移为插件包，A～E 全部交付；破坏性变更逐阶段记在故事里：`QueryCacheRepository`（B）、`VersionManager` 等 12 条（C）、出站 5 条与 `rxdb.versionManager.<syncMethod>` 改挂 `rxdb.syncManager`（D）、四个树 hook 从三框架绑定包迁往 `@aiao/rxdb-plugin-tree-{angular,react,vue}`（E）
+- ✅ [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体分五阶段外移为插件包，A～E 全部交付；破坏性变更清单见 [release-plan「约束 12 修订」](release-plan.md#约束-12-修订破坏性改动如实声明)
 - ✅ [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md) — US-025 拆包三插件的文档站手册页、侧边栏与 typedoc 收录；含 flatten 坏链修复
 
 ### [类型系统演进](epics/epic-005-type-system-evolution.md)
@@ -129,17 +129,17 @@
 - ✅ [US-903 DevTools 展示 bigint/binary](stories/future/US-903-bigint-binary-devtools.md)
 - ✅ [US-012 扩展字段语义与前端通信契约](stories/core/US-012-field-semantic-metadata.md)
 - ✅ [US-019 拒绝重复声明的 URL scheme](stories/core/US-019-url-scheme-duplicate-rejection.md)
-- ✅ [US-018 生成器元数据序列化管线与 default 语义](stories/core/US-018-generator-default-serialization.md) — `BREAKING CHANGE`，发布侧约束见 [roadmap 约束 12](roadmap.md#排期约束)
+- ✅ [US-018 生成器元数据序列化管线与 default 语义](stories/core/US-018-generator-default-serialization.md) — `BREAKING CHANGE`，首发于 0.0.26，发布时漏声明，已在 CHANGELOG 0.0.26 补录，见 [roadmap 约束 12](roadmap.md#排期约束)
 
 ### [本地工作树与提交历史](epics/epic-006-working-tree-commits.md)
 
 US-305 / US-306 / US-307 / US-308 全部 Done。交付顺序 **US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）** 已按序走完，6 后端 5031 条零失败，捕获与提交两套 conformance 在 6 个后端上共 12 个调用点齐全，分支评审的架构级 P1 已清零。
 
-`bench-working-tree` 的 reference 覆盖 CI 托管 runner 的三种画像（AMD EPYC 7763 / EPYC 9V74 / Intel Xeon 6973P-C）与 Apple M1 Max，PR 的 `ci / benchmarks` 在其上转绿；分到没冻结过的型号判 `benchmark_environment_mismatch`，重跑该 job 一次，同一型号反复出现再补冻。读项 `status` / `diff` 的容差按 CI 各画像十轮的离散度定为 130%，写项 `restore` / `commit` 保持 110%。M1 那份按「已知带负载的基线复冻」冻结（复冻起跑时 1 分钟负载 9.31，`frozenAbsolute.commit` 393.53 ms），规则与理由见 [epic-006「reference 的冻结与复冻」](epics/epic-006-working-tree-commits.md#reference-的冻结与复冻)。
+`bench-working-tree` 的 reference 覆盖 CI 托管 runner 的五种画像（AMD EPYC 7763 / EPYC 9V74 / EPYC 9V45 / Intel Xeon 6973P-C / Xeon Platinum 8573C）与 Apple M1 Max（`ls benchmarks/reports/working-tree-reference/` 可数），PR 的 `ci / benchmarks` 在其上转绿；分到没冻结过的型号判 `benchmark_environment_mismatch`，重跑该 job 一次，同一型号反复出现再补冻。读项 `status` / `diff` 的容差按 CI 各画像十轮的离散度定为 130%，写项 `restore` / `commit` 保持 110%。M1 那份按「已知带负载的基线复冻」冻结（复冻起跑时 1 分钟负载 9.31，`frozenAbsolute.commit` 393.53 ms），规则与理由见 [epic-006「reference 的冻结与复冻」](epics/epic-006-working-tree-commits.md#reference-的冻结与复冻)。
 
-US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [release-plan「迁移发布的关闭条件」](release-plan.md#迁移发布的关闭条件)承接；`main` 自 #55 起已是 schema 6，桥接锚点已定案从 #55 之前的 `de70a1a9` 切出、版本 `0.0.26`，见 [release-plan 桥接锚点定案](release-plan.md#桥接锚点定案)。评审顺延的架构项登记在 [roadmap「epic-006 评审顺延的架构项」](roadmap.md#epic-006-评审顺延的架构项)。
+US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [release-plan「迁移发布的关闭条件」](release-plan.md#迁移发布的关闭条件)承接；桥接锚点从 #55 之前的 `de70a1a9` 切出、版本 `0.0.26`；源码 `RXDB_SYSTEM_SCHEMA_VERSION` 现为 7（#99 从 6 抬到 7），已发布线仍是 3，见 [release-plan 桥接锚点定案](release-plan.md#桥接锚点定案)。评审顺延的架构项登记在 [roadmap「epic-006 评审顺延的架构项」](roadmap.md#epic-006-评审顺延的架构项)。
 
-排期上桥接发布是 [roadmap 线 A](roadmap.md#线-a桥接版本发布owner-门控)，已于 2026-10-01 执行完毕：`v0.0.26` 打在 `852f3b20`、是 `main` 祖先，迁移发布从此有了合法锚点。
+排期上桥接发布是 [roadmap 线 A](roadmap.md#线-a桥接版本发布owner-门控)：`v0.0.26` 打在 `852f3b20`、是 `main` 祖先，是迁移发布的合法锚点。
 
 下列 T 编号指 `git show f9528e8f:specs/001-working-tree-commits/tasks.md` 里的任务。
 
@@ -154,7 +154,7 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 
 - ✅ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md)
-- ⬜ [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) — 语义事实源 + 漂移门禁 + 可运行样例（A1）→ `@aiao/*` peer 统一与打包消费验证（A2）→ 站点 `llms.txt`（B）→ 主包单份 Agent Skill（C，exporter 探针先行，可延期）；门禁按 `packages/*` 登记，投递只取最近 `v*` tag 树里的包（今 34 个），未发布包不给安装命令；MCP 另立故事。A2 是 `BREAKING CHANGE`，桥接区间已冻结，合入时点不受 [roadmap 约束 12](roadmap.md#排期约束) 牵制
+- ⬜ [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) — 语义事实源 + 漂移门禁 + 可运行样例（A1）→ `@aiao/*` peer 统一与打包消费验证（A2）→ 站点 `llms.txt`（B）→ 主包单份 Agent Skill（C，exporter 探针先行，可延期）；门禁按 `packages/*` 登记，投递只取最近 `v*` tag 树里的包，未发布包不给安装命令；MCP 另立故事。A2 是 `BREAKING CHANGE`，桥接区间已冻结，合入时点不受 [roadmap 约束 12](roadmap.md#排期约束) 牵制
 
 ### [生命周期作用域](epics/epic-008-lifecycle-scope.md)
 
@@ -201,6 +201,6 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 以下故事的 YAML `status` 都不是 `Blocked`，但有硬前置——epic-006 那条挡的是**发布**而不是开工，代码已全部落地，前置照样没解除。系统迁移的排他性由后端排他锁与单事务提交承担
 （[US-303](stories/collaboration/US-303-bigint-binary-change-codec.md) AC13），不存在跨 realm writer lease 或迁移 epoch，故下表没有这一类前置。
 
-| 被挡住的                                                                                                                 | 硬前置                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| epic-006 的首个 system schema 迁移发布（代码由 [US-305](stories/collaboration/US-305-commit-graph-head.md) FR-030 交付） | 其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`（桥接版本本身不填）；`main` 自 #55 起已是 schema 6，**桥接版本 `v0.0.26` 已于 2026-10-01 发布**（B = `852f3b20`，是 `main` 祖先，见 [release-plan 迁移发布的关闭条件](release-plan.md#迁移发布的关闭条件)）；首个迁移发布把清单 `bridge.tag` / `bridge.version` 填成 `v0.0.26` / `0.0.26` 即可解除 |
+| 被挡住的                                                                                                                 | 硬前置                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| epic-006 的首个 system schema 迁移发布（代码由 [US-305](stories/collaboration/US-305-commit-graph-head.md) FR-030 交付） | 其 FR-030 要求 `migration-release.json` 指向一个位于发布主线祖先上的有效 bridge tag。该文件当前 `bridge.tag` / `bridge.version` 均为 `null`（桥接版本本身不填）；源码 `RXDB_SYSTEM_SCHEMA_VERSION` 现为 7（#99 从 6 抬到 7），已发布线仍是 3；**桥接版本 `v0.0.26` 已发布**（B = `852f3b20`，是 `main` 祖先，见 [release-plan 迁移发布的关闭条件](release-plan.md#迁移发布的关闭条件)）；首个迁移发布把清单 `bridge.tag` / `bridge.version` 填成 `v0.0.26` / `0.0.26`、启用 `oldBundlePolicy` 并让升级位为 `true`（门禁见 `scripts/check-migration-release-gate.mjs`）即可解除 |

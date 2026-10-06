@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-25
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [adapter, http, testing, integration, conformance]
 ---
 
@@ -13,7 +13,7 @@ tags: [adapter, http, testing, integration, conformance]
 INVEST 检查清单:
 - [x] Independent: 零前置。US-212 两阶段已全关（status: Done），本故事只加测试、不改适配器
 - [x] Negotiable: 参考后端的文件布局、故障开关命名、端口分配方式可调；「真实 socket + 真实 fetch」不可协商
-- [x] Valuable: 现有 9 个 spec 里 6 个用 vi.stubGlobal('fetch') 在适配器输出层拦截（另三个是零桩纯单元测试，根本不经过 transport），真实 transport 从未被真实网线打过；http-protocol.md 是「给任意后端看的协议」，需要一份证明「后端照文档实现、前端照文档消费就能互通」的可执行验收
+- [x] Valuable: `src/__tests__/` 下多数 spec 用 vi.stubGlobal('fetch') 在适配器输出层拦截（其余是零桩纯单元测试，根本不经过 transport），真实 transport 从未被真实网线打过；http-protocol.md 是「给任意后端看的协议」，需要一份证明「后端照文档实现、前端照文档消费就能互通」的可执行验收
 - [x] Estimable: 一个 node:http 参考后端 + 一份本地内存 fixture + 一个 spec 文件，另加四处测试目录纳管配置
 - [x] Small: 17 条 AC 但只落三个测试文件；不改 src/ 生产代码（除非暴露「协议本身无法实现」，那属于协议缺陷另行处置）
 - [x] Testable: 每条 AC 都是一条真实网线用例，断言主体是「字节在线上怎么走」而非纯函数返回值
@@ -51,7 +51,7 @@ INVEST 检查清单:
 - 改 `src/` 生产代码（`transport.ts` / `RxDBAdapterHttp.ts` 等）。本故事是纯测试资产；若参考后端暴露「协议文档无法实现」，那是协议缺陷，另开 bug 处理，不在本故事内修
 - **动 `src/__tests__/` 下任何文件**，包括「把 `createLocalAdapter` 抽成共享 fixture」。理由见[「本地适配器 fixture 自带一份」](#本地适配器-fixture-自带一份)
 - 为 transport 增加可注入的 `fetch` / 客户端覆盖点（US-212 阶段 A 明确「不提供 transport 覆盖点」）
-- 真实 sqlite 本地适配器。本地行缓存用 `tests/` 自带的内存替身——wire 层是本故事重点，本地落盘已有 `packages/rxdb` 的 QueryCache 套件覆盖
+- 真实 sqlite 本地适配器。本地行缓存用 `tests/` 自带的内存替身——wire 层是本故事重点，本地落盘已有 `@aiao/rxdb-plugin-querycache` 的套件覆盖
 - 多语言后端的对照实现（Go / Python / Java 各写一个 server）。参考后端只写 node 一版，多语言是协议文档的阅读验收，不在此落地
 - 非 QueryCache 的 Full / Filter 变更流同步测试
 - 把参考后端作为公开 API / 发布产物（它只活在测试目录，不进 `dist`）
@@ -71,17 +71,14 @@ INVEST 检查清单:
 方式 ② 只为 AC#8 存在：「增量 pull 按 `idChunkSize` 分块」要走 core 的同步流程才会发生，纯适配器直调
 拿不到分块行为。
 
-**`offlineFallback` 不在本故事的验收面内**，AC#13 / #15 因此落在方式 ①。理由是它在 RxDB 全栈路径上
-**根本开不出来**：公开的
-[`FindOptions`](../../../packages/rxdb/src/repository/query-options.interface.ts) 只声明 `localCacheFirst`
-与 `onSyncStats`，没有 `offlineFallback` 字段；
+**`offlineFallback` 的降级行为不在本故事的验收面内**，AC#13 / #15 因此落在方式 ①。
+[`FindOptions.offlineFallback`](../../../packages/rxdb/src/repository/query-options.interface.ts) 是公开字段，
 [`QueryCachePrimaryRepository.find()`](../../../packages/rxdb-plugin-querycache/src/query-cache-primary.ts)
-也只解构这三项传给 `#sync()`，运行时多塞的字段会被丢弃。真正的降级只存在于内部
-`QueryCacheRepository.#wrapWithOfflineFallback()`，由 `QueryCacheFindOptions.offlineFallback` 开启——
-直接 `new QueryCacheRepository()` 能测到它，但那不再是本故事承诺的「RxDB 全栈」路径。于是本故事只断言
-**降级判据本身**（`HttpResponseError` 带数字 `status`、`isNetworkError` 判 `false` / `true`），
-「吞不吞成缓存命中」由 core 侧的 [US-020 AC#16](../core/US-020-querycache-repository.md) 覆盖。
-若将来要把 `offlineFallback` 透到公开 `FindOptions` 上，那是 core 的改动，另开故事。
+把它透传给引擎；但降级发生在引擎的 `QueryCacheEngine#wrapWithOfflineFallback()`，而本故事的断言主体是
+wire 层与适配器 transport。于是本故事只断言**降级判据本身**（`HttpResponseError` 带数字 `status`、
+`isNetworkError` 判 `false` / `true`），「吞不吞成缓存命中」由 core 侧的
+[US-020 AC#16](../core/US-020-querycache-repository.md) 与 dev-rxdb-http-e2e 的 `offline-fallback.spec.ts`
+（[US-214](./US-214-http-browser-demo.md) AC#13）覆盖。
 
 `local-adapter.fixture.ts` 的**最小契约**不止三个写 duck。`createQueryCachePrimary()` 还会调
 `localAdapter.getRepository(EntityType)` 取本地行仓储作为读出口，因此 fixture 至少要有：
@@ -133,9 +130,8 @@ INVEST 检查清单:
 
 ### 为什么现有测试不够：桩拦在错误的一层
 
-本包 `src/__tests__/` 下多数 spec 用 `vi.stubGlobal('fetch', …)` 打桩（另有三档零桩纯单元测试
-不经过 transport），拦截点是**适配器输出**；`config` / `conditional-cache` / `metadata` 三个是零桩纯单元测试，
-不经过 transport。对 `src/__tests__/integration.spec.ts` 而言在 fetch 层打桩是**正确的**：US-212
+本包 `src/__tests__/` 下多数 spec 用 `vi.stubGlobal('fetch', …)` 打桩，拦截点是**适配器输出**；
+`config` / `conditional-cache` / `metadata` 等是零桩纯单元测试，不经过 transport。对 `src/__tests__/integration.spec.ts` 而言在 fetch 层打桩是**正确的**：US-212
 AC#2 原文要证「适配器发出去的东西长什么样」，**若**改在 handler 层拦截，等于拿被测对象的输入冒充
 它的输出。
 
@@ -221,10 +217,10 @@ AC#3 存在的理由：`http-protocol.md` 里翻译风险最高的一节就是 R
 
 ### 与现有测试的分工（不要删 `src/__tests__/`）
 
-| 文件                                        | 拦截点                   | 证明的事                                             |
-| ------------------------------------------- | ------------------------ | ---------------------------------------------------- |
-| `src/__tests__/*.spec.ts`（9 个，6 个含桩） | `vi.stubGlobal('fetch')` | 适配器**输出**正确：谁被调用、请求描述形状、错误分类 |
-| `tests/wire-integration.spec.ts`（本故事）  | 真实 `node:http` 后端    | **协议可互通**：后端照文档实现、前端照文档消费能走通 |
+| 文件                                       | 拦截点                   | 证明的事                                             |
+| ------------------------------------------ | ------------------------ | ---------------------------------------------------- |
+| `src/__tests__/*.spec.ts`（其中多数含桩）  | `vi.stubGlobal('fetch')` | 适配器**输出**正确：谁被调用、请求描述形状、错误分类 |
+| `tests/wire-integration.spec.ts`（本故事） | 真实 `node:http` 后端    | **协议可互通**：后端照文档实现、前端照文档消费能走通 |
 
 两条互补，不是替代。删掉桩测试会丢「在 handler 层拦截」的 US-212 AC#2 语义；只留桩则漏掉真实网线
 语义。AC#17 的「零 `vi.stubGlobal('fetch')`」**只约束新增的 `tests/**`**——本包 `src/__tests__/` 下
@@ -240,7 +236,7 @@ AC#3 存在的理由：`http-protocol.md` 里翻译风险最高的一节就是 R
 余行、各自演进，重复的代价低于跨目录耦合。
 
 不上真 sqlite 的理由：本故事证明「**远端到本地**这一段是真实网线」，本地落盘是 core 的账、已由
-`packages/rxdb` 覆盖；再拉一份真 sqlite 只会让 `beforeAll` 变慢并引入无关的 IDB/OPFS 环境依赖。
+`@aiao/rxdb-plugin-querycache` 的套件覆盖；再拉一份真 sqlite 只会让 `beforeAll` 变慢并引入无关的 IDB/OPFS 环境依赖。
 
 ### 端口分配与 CI 稳定性
 

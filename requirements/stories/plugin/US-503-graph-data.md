@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-02-08
+updated: 2026-10-06
 tags: [plugin, graph]
 ---
 
@@ -19,14 +19,14 @@ tags: [plugin, graph]
 
 ## 验收标准
 
-| #   | 前置条件                         | 操作                       | 预期结果          | 状态 |
-| --- | -------------------------------- | -------------------------- | ----------------- | ---- |
-| 1   | `@GraphEntity()` 装饰器          | 注册到 RxDB                | 自动生成 edges 表 | ✅   |
-| 2   | 调用 `addEdge(from, to, weight)` | 成功                       | 创建边关系        | ✅   |
-| 3   | 调用 `findNeighbors(nodeId)`     | 查询                       | 返回所有相连节点  | ✅   |
-| 4   | 调用 `findPaths(from, to)`       | 查询                       | 返回可达路径      | ✅   |
-| 5   | 三端 Graph hooks                 | 使用 `useGraphFind` 等 API | 跨框架行为一致    | ✅   |
-| 6   | 图数据作为插件实现               | 通过 `IRxDBPlugin` 注册    | 遵循插件架构规范  | ✅   |
+| #   | 前置条件                           | 操作                                       | 预期结果          | 状态 |
+| --- | ---------------------------------- | ------------------------------------------ | ----------------- | ---- |
+| 1   | `@GraphEntity()` 装饰器            | 注册到 RxDB                                | 自动生成 edges 表 | ✅   |
+| 2   | 调用 `addEdge(from, to, weight)`   | 成功                                       | 创建边关系        | ✅   |
+| 3   | 调用 `findNeighbors({ entityId })` | 查询                                       | 返回所有相连节点  | ✅   |
+| 4   | 调用 `findPaths({ fromId, toId })` | 查询                                       | 返回可达路径      | ✅   |
+| 5   | 三端 Graph hooks                   | 使用 `useGraphNeighbors` / `useGraphPaths` | 跨框架行为一致    | ✅   |
+| 6   | 图数据作为插件实现                 | 通过 `IRxDBPlugin` 注册                    | 遵循插件架构规范  | ✅   |
 
 ## 技术笔记
 

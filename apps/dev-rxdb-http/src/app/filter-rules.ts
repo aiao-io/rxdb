@@ -13,7 +13,7 @@
 
 import type { RuleGroup } from '@aiao/rxdb';
 
-/** 参与过滤的字段。与后端 `RECIPE_COLUMNS` 白名单同名。 */
+/** 参与过滤的字段。与 `@modules/recipes-domain` 的 `RECIPE_SCHEMA` 属性同名，未知字段由后端引擎拒绝。 */
 interface RecipeFilterFields {
   title: string;
   status: string;

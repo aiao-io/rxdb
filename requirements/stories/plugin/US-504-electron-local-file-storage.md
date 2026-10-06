@@ -5,14 +5,14 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-15
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [plugin, storage, desktop, electron, filesystem]
 ---
 
 <!--
 INVEST 检查清单:
 - [x] Independent (独立): US-207 的 host 契约已随 `@aiao/rxdb-adapter-desktop@0.0.25` 发布，本故事只消费不改动其承诺
-- [x] Negotiable (可协商): 文件系统接缝的两种抽法（handle shim / 窄接口）在 plan 阶段二选一
+- [x] Negotiable (可协商): 文件系统接缝采用窄接口 `StorageFilesystem`（handle shim 案已否决，见技术笔记）
 - [x] Valuable (有价值): 文件与桌面 SQLite 落在同一备份域，拷一个目录即完整带走应用数据
 - [x] Estimable (可估算): 单一运行时（Electron）+ 单一后端（node:fs），OPFS 行为冻结不动
 - [x] Small (小): 不含 Tauri（US-505）、不含 OPFS→原生迁移工具、不含远端同步
@@ -31,15 +31,10 @@ INVEST 检查清单:
 
 结论：**✅ 可行，且改造面收敛**。依据：
 
-1. **OPFS 根入口唯一，但句柄调用面广。** `RxdbFileStorage` 的文件系统访问全部经由标准
-   `FileSystemDirectoryHandle` / `FileSystemFileHandle` 接口，OPFS 特定入口只有一处 ——
-   `getStorageRootHandle()` 里的 `navigator.storage.getDirectory()`（`storage.service.ts`）。
-   `move()` 做了特性检测并有 copy+delete 回退；`entries()` 是硬要求，后端必须提供目录
-   枚举。注意「把根句柄换掉、其余服务逻辑（路径锁、回滚 journal、临时文件提交、流式
-   落盘）原样保留」**只对 handle shim 案成立**：根句柄之后服务全程直接调用句柄 API
-   （`getDirectoryHandle` / `getFileHandle` / `removeEntry` / `createWritable` /
-   `getFile` / `move` / `entries`），
-   若 plan 阶段选窄接口案，改造面是全部这些调用点——接缝决策不能锚在「换根零改动」的预期上。
+1. **OPFS 根入口唯一。** OPFS 特定入口只有一处 —— `OpfsStorageFilesystem` 里的
+   `navigator.storage.getDirectory()`（`filesystem/opfs-filesystem.ts`）。服务层经窄接口
+   `StorageFilesystem` 访问文件系统，路径锁、回滚 journal、临时文件提交、流式落盘留在服务层；
+   `move()` 有特性检测与 copy+delete 回退，目录枚举是后端的硬要求（`list()`）。
 2. **host 模式现成。** US-207 已交付 renderer/host 双入口契约与安全基线（窄 preload、
    类型化校验、协议版本、路径白名单）。文件传输是同一模式下的新消息类型，不需要新抽象。
 3. **「Electron 里 OPFS 本来能跑」不构成反例。** Electron renderer 是 Chromium，插件不改
@@ -55,7 +50,7 @@ INVEST 检查清单:
 ### In Scope
 
 - 在 `rxdb-plugin-storage` 内抽出文件系统接缝：服务的文件访问经由可注入的后端，OPFS 是
-  默认实现，桌面原生是第二个实现；两种抽法见技术笔记，plan 阶段冻结
+  默认实现，桌面原生是第二个实现；采用窄接口，见技术笔记
 - Electron 主进程 host 把文件内容写进应用数据目录内的专用存储根，与 US-207 的
   `rxdb-data` 同级；目录名纳入既有「不与 Chromium 在 userData 下自用的目录重名」名单断言
   （`desktop-sqlite-bridge.spec.ts`）
@@ -111,7 +106,7 @@ INVEST 检查清单:
 | 5   | 上传/读取超过预览上限量级的文件（≥ 50 MiB，即 `DEFAULT_PREVIEW_LIMIT_BYTES` 默认值，可经 `previewLimitBytes` 配置，`storage.service.ts`） | 全程观察内存与中断行为                                       | 分帧流式完成，内容不整体进 JS 堆；传输中途 abort 或杀进程后重启，路径上要么旧内容要么新内容，无半写文件，无孤儿 meta                                                                                                 | ✅   |
 | 6   | 磁盘满或存储根无写权限                                                                                                                    | `upload()` / `fetch()`                                       | 稳定错误码 + 原始原因；现有补偿语义成立（meta 与文件不脱钩），不回退 OPFS/内存                                                                                                                                       | ✅   |
 | 7   | 同一应用开两个窗口                                                                                                                        | 并发 `upload()` 同一路径（其一 overwrite）                   | 串行化执行，结果等价于某一种顺序执行；无文件删失、无孤儿 meta（STOR-002 的临界区跨窗口成立）                                                                                                                         | ✅   |
-| 8   | web 应用照常使用插件（不配桌面后端）                                                                                                      | 构建 + 运行现有浏览器测试                                    | 行为与包体不变；桌面后端代码不进浏览器 bundle；新增子路径入口按 `KNOWN_UNCOVERED_SUBPATHS` 流程登记（[US-601](../tooling/US-601-subpath-api-surface-baseline.md) 缺口敞开期间人工审查其导出面）                      | ✅   |
+| 8   | web 应用照常使用插件（不配桌面后端）                                                                                                      | 构建 + 运行现有浏览器测试                                    | 行为与包体不变；桌面后端代码不进浏览器 bundle；新增子路径入口进 api-baseline 的多入口快照（[US-601](../tooling/US-601-subpath-api-surface-baseline.md)）                                                             | ✅   |
 | 9   | 启用桌面文件后端，但 `sync.local` 配置的不是桌面 SQLite adapter（如 wa-sqlite / OPFS）                                                    | 初始化 storage 插件                                          | 以稳定可判别错误码拒绝启用，不启动文件后端、不静默降级 —— 「文件在原生目录、meta 在 webview 存储」的备份域撕裂组合被禁止（无 fallback 铁律）；`ensureLocalReady` 现无 adapter 类型判别，该校验须在桌面后端接入点新增 | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
@@ -129,15 +124,15 @@ INVEST 检查清单:
 
 9 条 AC 全部通过。证据落点：
 
-| AC       | 证据                                                                                                                                                                        |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #1 #3 #5 | `apps/dev-rxdb-electron-e2e/src/storage-persistence.spec.ts` —— 打包产物真实重启 / 整目录拷贝 / SIGKILL 三段；与既有 9 条 smoke + SQLite 持久化用例合计 11/11 绿            |
-| #2       | `packages/rxdb-plugin-storage/src/__tests__/backend-parity.spec.ts` —— 15 组行为 × 2 后端 = 30 用例，测试体不知道自己跑在哪个后端上，无跳过项                               |
-| #4       | `packages/rxdb-adapter-electron/src/__tests__/electron-file-host.spec.ts` 的恶意路径矩阵 + 存储根外零写入断言                                                               |
-| #6       | `packages/rxdb-plugin-storage/src/__tests__/desktop-failure.spec.ts` —— 故障注入在**传输层**，host 与磁盘都是真的，补偿路径发出的 `writeAbort` / `remove` 走真实实现        |
-| #7       | 同 `electron-file-host.spec.ts` 的锁仲裁段：两个独立 session（等价于两个窗口）在同一路径上串行、共享锁并发、无关锁名不互相阻塞、session 关闭释放持有与排队中的锁            |
-| #8       | `public-api.spec.ts` 的 import 图断言（以每个 renderer 入口为图根，含 `desktop.ts`）+ `scripts/audit/api-surface.mjs` 的 `KNOWN_UNCOVERED_SUBPATHS` 登记 + 浏览器套件 20/20 |
-| #9       | `desktop-filesystem.spec.ts` 的 `adapter_mismatch` 两例                                                                                                                     |
+| AC       | 证据                                                                                                                                                                           |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| #1 #3 #5 | `apps/dev-rxdb-electron-e2e/src/storage-persistence.spec.ts` —— 打包产物真实重启 / 整目录拷贝 / SIGKILL 三段；与既有 9 条 smoke + SQLite 持久化用例合计 11/11 绿               |
+| #2       | `packages/rxdb-plugin-storage/src/__tests__/backend-parity.spec.ts` —— 15 组行为 × 2 后端 = 30 用例，测试体不知道自己跑在哪个后端上，无跳过项                                  |
+| #4       | `packages/rxdb-adapter-electron/src/__tests__/electron-file-host.spec.ts` 的恶意路径矩阵 + 存储根外零写入断言                                                                  |
+| #6       | `packages/rxdb-plugin-storage/src/__tests__/desktop-failure.spec.ts` —— 故障注入在**传输层**，host 与磁盘都是真的，补偿路径发出的 `writeAbort` / `remove` 走真实实现           |
+| #7       | 同 `electron-file-host.spec.ts` 的锁仲裁段：两个独立 session（等价于两个窗口）在同一路径上串行、共享锁并发、无关锁名不互相阻塞、session 关闭释放持有与排队中的锁               |
+| #8       | `public-api.spec.ts` 的 import 图断言（以每个 renderer 入口为图根，含 `desktop.ts`）+ `requirements/api-baseline/rxdb-plugin-storage.json` 的子路径入口快照 + 浏览器套件 20/20 |
+| #9       | `desktop-filesystem.spec.ts` 的 `adapter_mismatch` 两例                                                                                                                        |
 
 包级门禁：`rxdb-plugin-storage` node 侧 200/200 绿、语句覆盖率 92.3%（门槛 90%），browser 侧 20/20 绿，两包 lint 零警告。
 
@@ -155,14 +150,14 @@ INVEST 检查清单:
 
 ## 技术笔记
 
-### 接缝二选一（plan 阶段冻结）
+### 接缝：窄接口（已定）
 
 | 方案        | 做法                                                                                      | 主要风险                                                                                                              |
 | ----------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | handle shim | renderer 侧实现 `FileSystemDirectoryHandle` 兼容代理，底层走 IPC；service 零改动          | 要仿真 `File`（含 `stream()` / `slice()`）与 `createWritable` 的「副本写 + close 原子替换」语义，接口面大且随规范漂移 |
 | 窄接口      | 从 service 抽 `StorageFilesystem`（openRead / openWrite / move / remove / list / exists） | 要重构 service 内部调用点；换来的是接口面固定、逐后端可独立测试                                                       |
 
-两案共同约束：接缝层不得丢掉现有回滚 journal 语义；桌面后端可为 `move()` 提供原生
+结论：采用窄接口 `StorageFilesystem`（`filesystem/storage-filesystem.ts`），经插件选项 `filesystem` 注入。两案共同约束：接缝层不得丢掉现有回滚 journal 语义；桌面后端可为 `move()` 提供原生
 rename，而不是走 copy+delete 回退。
 
 ### 写入原子性映射
@@ -176,23 +171,16 @@ OPFS `createWritable` 天然是「写副本、`close()` 原子替换」；node:f
 
 OPFS 名字空间宽松，NTFS 不是：`? * : " < > |`、`CON` / `NUL` 等保留名、结尾空格与点在
 Windows 上非法或有陷阱。两条路：收窄逻辑名字符集（破坏与 OPFS 后端的行为一致性），或
-逻辑名→物理名做确定性编码（保留任意逻辑名，**倾向此案**）。plan 阶段冻结；host 白名单
+逻辑名→物理名做确定性编码（保留任意逻辑名，**已采用**，见 `filesystem/physical-name.ts`）；host 白名单
 校验以**物理名**为准。
 
-### 错误判别载体（plan 阶段冻结）
+### 错误判别载体
 
-AC#4 / #6 / #9 中的「稳定可判别错误码」指调用方能以编程方式稳定判别失败原因，不预设
-具体载体：`errors.ts` 现有 9 个错误类均**无 `code` 属性**，包内不存在错误码体系。
-桌面 host 协议侧则相反——协议的 error 响应自带
-`code: RxDBAdapterDesktopErrorCode`（`desktop-host-protocol.ts`），其 TSDoc 言明存在
-理由正是 `ipcRenderer.invoke` 会把 rejection 压成字符串、code 放进返回值才能跨进程
-保持可判别；解包侧经 `isRxDBAdapterDesktopErrorCode` 白名单还原为
-`RxDBAdapterDesktopError` —— 即「跨 IPC 错误形状保真」在协议层已有现成答案，不是
-待答的开放问题。plan 阶段的二选一因此收窄为 storage 服务对调用方的错误面：「沿用
-错误类判别」还是「引入 code 字段并与协议侧 code 对齐/映射」。另一处应一并归入判别
-体系的现存不一致：`getDirectoryEntries` 在 `entries()` 缺失时抛普通 `Error` 而非
-`StorageUnavailableError`（`storage.service.ts`）。US-505 的对应
-AC（#4 / #8 / #11）跟随本决策，不另订载体。
+AC#4 / #6 / #9 的「稳定可判别错误码」由 `StorageBackendError { code: StorageBackendErrorCode; detail? }` 承担
+（`errors.ts`），与既有服务层错误类并列、原样不动。桌面 host 协议侧的 error 响应自带
+`code: RxDBAdapterDesktopErrorCode`（`ipcRenderer.invoke` 会把 rejection 压成字符串，code 放进返回值才能跨进程
+保持可判别），storage 侧把它映射为 `StorageBackendErrorCode`，未知码落 `backend_internal_error`。
+OPFS 目录句柄缺 `entries()` 时抛 `StorageUnavailableError`。US-505 的对应 AC（#4 / #8 / #11）使用同一载体。
 
 ### 传输与协议
 
@@ -239,16 +227,13 @@ AC（#4 / #8 / #11）跟随本决策，不另订载体。
 - `packages/rxdb-adapter-electron/src/` — Electron 文件宿主（renderer 入口零 node 依赖不变式保持）
 - `apps/dev-rxdb-electron/src-electron/` — 文件 host：存储根解析、路径校验、流式落盘
 - `apps/dev-rxdb-electron-e2e/` — AC#1 / #3 的重启与备份恢复 e2e
-- `requirements/api-baseline/` — 新公开 API 基线；新增子路径入口同步 `KNOWN_UNCOVERED_SUBPATHS`
+- `requirements/api-baseline/` — 新公开 API 基线；新增子路径入口同步多入口快照
 
-> 本故事已 Done。上表已按
-> [US-207「包边界重整」](../adapter/US-207-desktop-local-database.md#包边界重整)
-> 同步过一次（E1～E5）：`@aiao/rxdb-adapter-desktop` 拆成 `@aiao/rxdb-adapter-electron` 与
-> `@aiao/rxdb-adapter-tauri`，共享协议下沉 `@aiao/rxdb-adapter-sqlite-core/desktop-host`。本故事引用的
-> `desktop-file-host.ts` → `electron-file-host.ts`、`desktop-filesystem.spec.ts` /
-> `desktop-failure.spec.ts` → `electron-file-host.spec.ts`、`public-api.spec.ts` 随 Electron
-> 半边迁入新包，**九条 AC 与其证据的内容一字未改，只换了路径**；
-> 「renderer 入口零 node 依赖」这条不变式由 US-207 E2 的双入口断言继续守着，未重开验收。
+> 包边界见 [US-207「包边界重整」](../adapter/US-207-desktop-local-database.md#包边界重整)：
+> Electron 半边在 `@aiao/rxdb-adapter-electron`（文件宿主 `electron-file-host.ts`，
+> 其 spec 与 `public-api.spec.ts` 同包），共享协议在 `@aiao/rxdb-adapter-sqlite-core/desktop-host`；
+> `desktop-filesystem.spec.ts` / `desktop-failure.spec.ts` 在 `rxdb-plugin-storage`。
+> 「renderer 入口零 node 依赖」由双入口 import 图断言守着。
 
 ## References
 

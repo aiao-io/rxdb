@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-002-data-sync
 created: 2026-05-10
-updated: 2026-09-26
+updated: 2026-10-06
 tags: [security, adapter, encryption, local-first, mvp]
 ---
 
@@ -23,14 +23,14 @@ tags: [security, adapter, encryption, local-first, mvp]
 
 接入点与泄漏面盘点：
 
-| 验证点                                     | 现状                                                                                                                                                                                               | 含义                                                                                             |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| SQLite core 与 PGlite 是否共享转换点       | **是**。两边都有同名 `transformEntityValueToSql()` / `getEntityObjectFromResult()`；insert / inserts / update / mutations / transaction result / Repository `addQueryCache()` **全部**走这两个函数 | 加 / 解密钩子收敛在每个适配器的 `utils.ts` 一对函数上，**不需要散点改 5+ 文件**                  |
-| 表结构生成是否单点                         | 是，两边 DDL 都走 `PropertyType → column type` 单一 switch                                                                                                                                         | 列类型强制覆写也是单点                                                                           |
-| `saveMany` / `mergeChanges` / `upsertMany` | 最终复用 `transformEntityValueToSql` + `getEntityObjectFromResult`                                                                                                                                 | 不需要给批量路径单独写转换                                                                       |
-| undo/redo 历史快照                         | `packages/rxdb-plugin-history/src/HistoryManager.ts` 持有 materialized 实体快照                                                                                                                    | **泄漏面**：内存快照必须存 envelope 而非明文                                                     |
-| 系统变更历史表 `rxdb_change`               | `packages/rxdb/src/system/change.ts` 记录的 `patch` / `inversePatch`                                                                                                                               | **最易漏列的严重泄露面**：变更历史中的 JSON patch 必须深层脱敏，对应加密列数据转为 envelope 保存 |
-| FTS5 / pglite tsvector                     | `packages/rxdb-adapter-sqlite-core/src/fts5/`、`packages/rxdb-adapter-pglite/src/fts/`                                                                                                             | **泄漏面**：加密字段绝不能进 FTS 索引，必须 schema 启动期硬拒                                    |
+| 验证点                                     | 现状                                                                                                                                                                                               | 含义                                                                                                  |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| SQLite core 与 PGlite 是否共享转换点       | **是**。两边都有同名 `transformEntityValueToSql()` / `getEntityObjectFromResult()`；insert / inserts / update / mutations / transaction result / Repository `addQueryCache()` **全部**走这两个函数 | 加 / 解密钩子收敛在每个适配器的 `utils.ts` 一对函数上，**不需要散点改 5+ 文件**                       |
+| 表结构生成是否单点                         | 是，两边 DDL 都走 `PropertyType → column type` 单一 switch                                                                                                                                         | 列类型强制覆写也是单点                                                                                |
+| `saveMany` / `mergeChanges` / `upsertMany` | 最终复用 `transformEntityValueToSql` + `getEntityObjectFromResult`                                                                                                                                 | 不需要给批量路径单独写转换                                                                            |
+| undo/redo 历史快照                         | `packages/rxdb-plugin-history/src/HistoryManager.ts` 持有 materialized 实体快照                                                                                                                    | **泄漏面**：undo/redo 的 patch 经 `rxdb-adapter-encrypted` 的 `encrypt-patch.ts` 存 envelope 而非明文 |
+| 系统变更历史表 `rxdb_change`               | `packages/rxdb/src/system/change.ts` 记录的 `patch` / `inversePatch`                                                                                                                               | **最易漏列的严重泄露面**：变更历史中的 JSON patch 必须深层脱敏，对应加密列数据转为 envelope 保存      |
+| FTS5 / pglite tsvector                     | `packages/rxdb-adapter-sqlite-core/src/fts5/`、`packages/rxdb-adapter-pglite/src/fts/`                                                                                                             | **泄漏面**：加密字段绝不能进 FTS 索引，必须 schema 启动期硬拒                                         |
 
 **收敛后的接入点**：
 
@@ -38,8 +38,8 @@ tags: [security, adapter, encryption, local-first, mvp]
 2. `packages/rxdb/src/entity/property-types.interface.ts` + `metadata-transition.ts`：加 `encrypted?: boolean` 与配置校验。
 3. SQLite core / PGlite 各自 `*.utils.ts` 里的 `transformEntityValueToSql` 与 `getEntityObjectFromResult`：加 / 解密单点。
 4. SQLite core / PGlite 各自的 DDL 列类型映射：`encrypted: true` 一律改为 `TEXT` / `text`。
-5. FTS / search 注册路径：拒绝加密字段。
-6. `HistoryManager`：快照阶段调用 envelope 序列化，不存明文。
+5. FTS / search 注册路径：拒绝加密字段（schema 阶段由 `metadata-validation.ts` 的 `encrypted_fts_forbidden` 拦截，搜索插件的 `fts5-installer.ts` 另抛 `SearchEncryptedFieldError`）。
+6. undo/redo：patch / inversePatch 经 `envelopePlaintextPatches` / `unenvelopePlaintextPatches`（`packages/rxdb-adapter-encrypted/src/encrypt-patch.ts`）加解密，`HistoryManager` 本身不含加密代码。
 7. `rxdb_change` 记录的 `patch` / `inversePatch` 单点拦截处理：每个适配器的 utils 双单点中深层遍历加密/解密对象叶子节点。
 
 **不变目标**：开发者对非加密字段的 Repository / 查询 / 索引调用零修改。**任何**对加密字段做 where / order / index / FTS / join / groupBy 的尝试 = 配置错误，启动期 throw。
@@ -108,8 +108,8 @@ tags: [security, adapter, encryption, local-first, mvp]
 - **metadata 校验放在 `metadata-transition.ts`**：构建 `encryptedPropertyMap` 同时拒绝所有非法组合（pk / fk / index / unique / sortable / computed / FTS）。schema 阶段失败 = 永远不会污染数据。
 - **AAD 必须绑定 `columnName + primaryKey`**：防止把 A 行 envelope 复制到 B 行；测试 #10 必须覆盖。
 - **SQLite bind 上限**：999 参数限额按列数算，加密不增加列数，只增加单参数体积。建议加 smoke：1k 行 × 1KiB 加密字段的 `saveMany` 不应失败。
-- **undo/redo 快照**：`HistoryManager` 当前持有 materialized 实体（明文）。两条路：(a) 增加 `serializeForHistory()` 钩子把加密字段重新包 envelope；(b) 改 HistoryManager 改持有 raw row。MVP 推荐 (a) 局部改动小，由测试 #4 兜底。
-- **FTS5 / pglite fts**：在 FTS 注册函数中检查 `metadata.properties[col].encrypted === true`，命中即抛 `EncryptedConfigurationError`。
+- **undo/redo 快照**：`HistoryManager` 持有 materialized 实体（明文），不含加密代码；加密字段的 patch / inversePatch 在适配器边界由 `encrypt-patch.ts` 包 / 解 envelope，由测试 #4 与 `rxdb-test` 的 `change-log.suite.ts` 兜底。
+- **FTS5 / pglite fts**：`encrypted + searchable` 在 schema 校验阶段（`metadata-validation.ts`）以 `EncryptedConfigurationError`（`encrypted_fts_forbidden`）拒绝；搜索插件的 FTS5 安装器在配置阶段另抛 `SearchEncryptedFieldError`。FTS DDL 构造器本身不做检查。
 - **密钥派生默认参数**：PBKDF2-SHA-256 / 600k iters（OWASP 2023）/ 16-byte salt。salt 存独立 keyring 表，密钥本身永不落盘。
 - **明文泄漏扫描 helper**：放 `packages/rxdb-test/`，遍历用户表 + `rxdb_change*` + QueryCache 表 + history serialized blob，正则匹配哨兵。
 - **性能策略**：本故事只给 baseline；如果加密 overhead > 30% 再开新故事讨论 batched encrypt / WebCrypto 优化。
@@ -132,11 +132,10 @@ tags: [security, adapter, encryption, local-first, mvp]
 
 - `packages/rxdb/src/entity/property-types.interface.ts` — 属性基础接口加 `encrypted?: boolean`
 - `packages/rxdb/src/entity/metadata-transition.ts` — 构建 `encryptedPropertyMap` + 启动期硬约束校验
-- `packages/rxdb-plugin-history/src/HistoryManager.ts` — 快照序列化复用 envelope，不存明文
+- `packages/rxdb-adapter-encrypted/src/encrypt-patch.ts` — undo/redo patch 的 envelope 加解密（`HistoryManager` 不改）
 - `packages/rxdb-adapter-sqlite-core/src/sqlite-core.utils.ts` — `transformEntityValueToSql` / `getEntityObjectFromResult` + DDL 列类型分支
-- `packages/rxdb-adapter-sqlite-core/src/fts5/` — 注册时拒绝加密字段
 - `packages/rxdb-adapter-pglite/src/pglite.utils.ts` — 同上对应改动
-- `packages/rxdb-adapter-pglite/src/fts/` — 同上对应改动
+- `packages/rxdb-plugin-search/src/core/fts5-installer.ts` — 配置阶段拒绝加密字段（schema 级拒绝在 `metadata-validation.ts`）
 
 测试 / 基线：
 

@@ -157,8 +157,8 @@ rxdb.adapter(
 ### `updatedAt` 必须是 ISO 8601 字符串
 
 `onFetchMetadata.parse` 返回的 `updatedAt` 会被规范化成 UTC + 3 位毫秒（`2026-08-23T10:00:00.000Z`）后交给 core。
-带时区偏移或缺毫秒的合法 ISO 串会先 canonicalize；**非法时间串抛 `HttpInvalidMetadataError`**，
-不静默放行——新鲜度比较是字典序的，不规范的串会得出反向结论，表现为缓存卡死或无谓重拉。
+带时区偏移或缺毫秒的合法 ISO 串会先 canonicalize；**缺时区标识、非 ISO 或不是真实时刻的串抛 `HttpInvalidMetadataError`**，
+不静默放行——core 比较新鲜度时把两侧解析成时间点，缺时区标识的串会按本机时区解析，同一份响应在不同机器上指向不同时刻。
 
 ## 翻页：翻完，或者抛错
 

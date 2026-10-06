@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [core, sync, broadcast]
 ---
 
@@ -19,19 +19,19 @@ tags: [core, sync, broadcast]
 
 ## 验收标准
 
-| #   | 前置条件                | 操作                   | 预期结果                       | 状态 |
-| --- | ----------------------- | ---------------------- | ------------------------------ | ---- |
-| 1   | 两个标签页打开同一应用  | 在 Tab A 创建数据      | Tab B 自动收到事件并更新 UI    | ✅   |
-| 2   | 使用 `BroadcastChannel` | 消息广播               | 所有标签页接收                 | ✅   |
-| 3   | `LeaderElection` 机制   | 需要唯一操作（如同步） | 仅 leader tab 执行             | ✅   |
-| 4   | Leader tab 被关闭       | 重新选举               | 自动选出新 leader tab 继续任务 | ✅   |
+| #   | 前置条件                | 操作              | 预期结果                       | 状态 |
+| --- | ----------------------- | ----------------- | ------------------------------ | ---- |
+| 1   | 两个标签页打开同一应用  | 在 Tab A 创建数据 | Tab B 自动收到事件并更新 UI    | ✅   |
+| 2   | 使用 `BroadcastChannel` | 消息广播          | 所有标签页接收                 | ✅   |
+| 3   | `LeaderElection` 机制   | 新 tab 发 HELLO   | 仅 leader tab 应答首次连接时间 | ✅   |
+| 4   | Leader tab 被关闭       | 重新选举          | 自动选出新 leader tab 继续应答 | ✅   |
 
 ## 技术笔记
 
-- 核心类：`RxDBTabsGateway`
-- 通信机制：`BroadcastChannel` API
-- Leader 选举：避免多 tab 同时执行同步、清理等独占操作
-- 事件类型：复用 `RxDBEventType` 体系，跨 tab 广播实体变更事件
+- 核心类：`RxDBTabsGateway`，留在核心包，由连接纪元作用域管理；`multiInstance !== false` 时启用
+- 通信机制：`BroadcastChannel`（经 `@aiao/utils` 的 `createBroadcastTopic`），单一频道，按消息 `type` 区分
+- Leader 选举（`LeaderElection`）：只用于应答 HELLO 与广播首次连接时间（`firstConnectedAt`）；同步、清理等操作不受 leader 约束
+- 事件：复用 `RxDBEvent` 体系，本地 CREATE / UPDATE / REMOVE 实体事件跨 tab 广播，接收端标记 `origin: 'cross-tab'` 且不再转发；另有 `CAPABILITY_ENABLED` 消息通知其他 tab 接通刚启用的能力
 
 ## 实现文件
 
@@ -39,4 +39,4 @@ tags: [core, sync, broadcast]
 
 ## 参考
 
-- [文档: 跨 Tab 同步](../../../website/docs/collaboration/sync.md)
+- [文档: isCrossTabEvent](../../../website/docs/api/rxdb/functions/isCrossTabEvent.md)

@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-05
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [core, querycache, pglite, contract]
 ---
 
@@ -13,7 +13,7 @@ tags: [core, querycache, pglite, contract]
 INVEST 检查清单:
 - [x] Independent: 只动 pglite 的 upsert 构建器与共享测试包，不依赖任何未关闭故事
 - [x] Negotiable: 判据的归属（抽公共层 / 各包实现）可议，评审后裁为各包实现；「不做本地兜底」不可议（铁律）
-- [x] Valuable: 今天 PGlite 后端缺列时抛的是 Postgres 的 `null value in column ... violates not-null constraint`，列名是本地表的，远端实现者对不上号
+- [x] Valuable: PGlite 后端缺列时若不预检，抛的是 Postgres 的 `null value in column ... violates not-null constraint`，列名是本地表的，远端实现者对不上号
 - [x] Estimable: 一处落地前校验 + 一条契约测试 + 一处文档
 - [x] Small: 单次迭代内可完成
 - [x] Testable: 断言错误类型与消息，并断言本地表未落半行
@@ -23,8 +23,8 @@ INVEST 检查清单:
 
 > [US-022](US-022-querycache-remote-row-contract.md) 在 sqlite-core 侧定义了「远端一行必须带哪些列」的契约与缺列诊断
 > （`assertQueryCacheRowContract`）。PGlite 是 QueryCache 的另一个本地行缓存后端，走的是自己的
-> [upsert_many_sql.ts](../../../packages/rxdb-adapter-pglite/src/query-cache/upsert_many_sql.ts)，**同一份契约在这条路上没有执行**。
-> 本故事把**契约语义**补齐；**必填列判据按 PostgreSQL 的 DDL 规则重写**——两个后端的建表规则在两处确有分歧，
+> [upsert_many_sql.ts](../../../packages/rxdb-adapter-pglite/src/query-cache/upsert_many_sql.ts)。
+> 本故事让**同一份契约语义**在这条路上同样执行；**必填列判据按 PostgreSQL 的 DDL 规则重写**——两个后端的建表规则在两处确有分歧，
 > 见「设计决策」。
 
 ## 作为/我想要/以便
@@ -36,10 +36,10 @@ INVEST 检查清单:
 ## 问题现状
 
 [upsert_many_sql.ts](../../../packages/rxdb-adapter-pglite/src/query-cache/upsert_many_sql.ts) 的 `buildQueryCacheUpsertStatements`
-只做两件事：`assertKnownKeys` 拒绝**多出来**的列，再按归一化后的列集把行分组成多条 INSERT。它**不看**列是否
-`nullable: false` 且无字面量 `default`——一行少了这样的列，只会让该组的列清单少一项，错误留给 Postgres 在执行时抛。
-sqlite-core 侧同样的输入在 `RxDBAdapterSqliteBase.upsertMany` 落地前就被 `assertQueryCacheRowContract` 点名。
-能力矢量在 [capability-matrix「已知的需求覆盖缺口」](../../capability-matrix.md#已知的需求覆盖缺口) 登记了这条不对称。
+在生成任何 SQL 之前先调 `assertQueryCacheRowContract`（缺非空无默认值列即 fail-fast），随后 `assertKnownKeys` 拒绝**多出来**的列，
+再按归一化后的列集把行分组成多条 INSERT。契约预检若缺位，一行少了 `nullable: false` 且无字面量 `default` 的列，
+错误会留给 Postgres 在执行时抛，列名还是本地表的，远端实现者对不上号。
+能力矩阵里这条对 sqlite-core 的不对称已不再登记（AC#6）。
 
 ## 范围边界
 
@@ -78,7 +78,7 @@ sqlite-core 侧同样的输入在 `RxDBAdapterSqliteBase.upsertMany` 落地前�
 
 ### 1. 判据按各后端的 DDL 规则各自实现，**不**抽公共层
 
-本故事初稿首选「把判定抽到 `@aiao/rxdb`」，理由是「『同一份』靠单一实现保证」。**这个前提是错的**：
+判据**不**抽到 `@aiao/rxdb` 公共层——「同一份」靠单一实现保证的前提不成立：
 判据算的不是抽象契约，而是「**本后端的建表 DDL** 会把哪些列建成 NOT NULL 且拿不到默认值」，
 而两个后端的 DDL 在两处确有分歧（源码实证）：
 
@@ -119,14 +119,13 @@ sqlite 的 `assertQueryCacheRowContract` 有两条判据。判据 ② 在那边�
 PG 侧新判据把 `default === null` 排除在豁免之外（`hasUsableDefault` 的一行条件），sqlite 侧保持原状，
 两侧的 TSDoc 各留一条注释指明这处不对称的由来。
 
-### 5. 实现中发现并修掉的**误拒**：关系列的外键别名写法
+### 5. 关系列的外键别名写法不得被误拒
 
 落地路径对关系列接受**三种**键：关系名 `team`、物理列名 `team_id`，以及 `metadata.foreignKeyNames`
-里的 `teamId`（`assertKnownKeys` 与 `transformEntityValueToSql` 都认它）。契约初版只认前两种，
-于是一行带 `teamId` 的远端行会被判成「缺 team」——**而它原本能一字不差地落进 `team_id`**。
+里的 `teamId`（`assertKnownKeys` 与 `transformEntityValueToSql` 都认它）。因此契约必须三种都认：只认前两种会把一行带 `teamId` 的远端行判成「缺 team」——**而它能一字不差地落进 `team_id`**。
 把能落的行拒掉比不判还糟。
 
-这一条在 **sqlite-core 侧同样存在**，且两侧**同改**：留一侧窄一格，就等于保留本故事要消灭的那种
+这一条在 **sqlite-core 侧同样成立**，且两侧**同改**：留一侧窄一格，就等于保留本故事要消灭的那种
 「同一行在两个本地后端得到不同结论」。修法是 `queryCacheForeignKeyColumns`（关系名 / 外键别名 /
 物理列名三种写法 → 物理列的映射表，与落地路径归一键名用的是同一张表）+ 模块私有的
 `foreignKeyColumnsInRow`（从本行的键集反查它认领了哪些物理列），两个包各一份，跨后端套件加一条
@@ -134,7 +133,7 @@ PG 侧新判据把 `default === null` 排除在豁免之外（`hasUsableDefault`
 
 ### 6. 必填列判的是**值**，不只是**键**
 
-初版只判「行里有没有这个键」，于是 `{ createdAt: null }` 一路放行，再被 `null value in column
+只判「行里有没有这个键」会让 `{ createdAt: null }` 一路放行，再被 `null value in column
 "createdAt" … violates not-null constraint` 拒掉——而这正是契约存在的那条错误。远端列可空、
 join 落空时 `select('*')` 返回的就是这个形状，不是边角情况。
 
@@ -155,9 +154,9 @@ join 落空时 `select('*')` 返回的就是这个形状，不是边角情况。
   `resolveQueryCacheTarget` 算 `idColumn` 用的是**同一条**判定（先找 `primary === true`，
   退到名为 `id` 的属性）。契约这一侧不抛错——它要报的是别的东西——但两处各写一份「主键是哪个属性」
   必然分叉：主键属性不叫 `id` 时，一行明明带着主键会在消息里被报成「无 id」。
-- 校验放在 `this.transaction(...)` **之外**：`RxDBAdapterPGlite.upsertMany` 原先把
-  `resolveQueryCacheTarget` 与 `buildQueryCacheUpsertStatements` 都放在事务回调里，那样「一行都没落地」
-  只是靠回滚兑现的，数据库已经为一个注定失败的批次开过一次事务。两者上提出事务后，AC#2 用
+- 校验放在 `this.transaction(...)` **之外**：`RxDBAdapterPGlite.upsertMany` 把
+  `resolveQueryCacheTarget` 与 `buildQueryCacheUpsertStatements` 放在事务回调**之外**：放在里面时「一行都没落地」
+  只是靠回滚兑现的，数据库已经为一个注定失败的批次开过一次事务。AC#2 用
   `vi.spyOn(adapter, 'transaction')` + `not.toHaveBeenCalled()` 把这个接缝变成可自证的断言。
 - `EntityPropertyMetadata` 是按 `type` 区分的联合：`primary` 只挂在其中几支上，必须先按 `type` 收窄再读
   `primary`；而 `property.type` 本身是「枚举成员 | 同名字符串字面量」的联合，`hasUsableDefault` 的形参

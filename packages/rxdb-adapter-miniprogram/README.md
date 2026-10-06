@@ -133,7 +133,7 @@ iOS 抖音没有原生 `TextEncoder` / `TextDecoder`，adapter 的 polyfill 要�
 
 ## 支付宝（实验性）
 
-支付宝依赖三处**未文档化**能力：逻辑层的标准 `WebAssembly`、Worker 里的 `crypto.getRandomValues`、找回真实全局对象。
+支付宝依赖四项**未文档化**能力：逻辑层的标准 `WebAssembly`、逻辑层的原生 `BigInt`（模拟器的全局上没有，经 wasm i64 返回值的构造器取回）、Worker 里的 `crypto.getRandomValues`、找回真实全局对象。
 开发者工具与 iOS 真机验证过（US-211 支付宝探针 v7），**Android 真机未验证**，配额也没撞到过（`quota-unobserved`），
 平台改掉任一项未文档化行为时引导直接报 `AlipayUndocumentedCapabilityError`，不降级。
 
@@ -245,7 +245,7 @@ wasm 加载对应 `loadWaSqliteMiniProgramModule(options, host)`（`host` 必传
 
 glue 是 ESM，内部有 `var _scriptName = import.meta.url` 和
 `new URL('wa-sqlite.wasm', import.meta.url)`。两处都有麻烦：小程序运行时没有 `import.meta`，
-而后者会被 vite 识别成资产引用，把 727 KB 的 wasm 以 base64 内联进产物（代码包凭空多出约 1 MB）。
+而后者会被 vite 识别成资产引用，把约 0.8 MB 的 wasm 以 base64 内联进产物（代码包凭空多出约 1 MB）。
 
 这两处分支在显式传 `locateFile` + `instantiateWasm` 时永远走不到，所以宿主构建把 glue 里的
 `import.meta.url` 替换成空串即可。Taro 示例的 `subframeSqliteWasmVitePlugin()`

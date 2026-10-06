@@ -12,7 +12,7 @@ tags: [adapter, supabase, sync, rls]
 <!--
 INVEST 检查清单:
 - [x] Independent: 不依赖 US-218 的任何 TypeScript 契约；与 US-218 阶段 A 共用一个「行是否存在」的 SQL 判定，与 US-218 的 plan 全部完成后才开工，见技术笔记
-- [x] Negotiable: 落库方式已定为普通 UPDATE；UPDATE 的下发形状、行已不存在时的 SQLSTATE 取值在 plan 阶段定
+- [x] Negotiable: 落库方式已定为普通 UPDATE；UPDATE 的下发形状（`p_updates`）与行已不存在时的 SQLSTATE（`RX001`）均已冻结
 - [x] Valuable: Todo 只改 `completed` 的推送在参考 schema 上就会 23502；owner 型 RLS 下连自己的行都改不了；共享编辑表上改别人的行一律被拒
 - [x] Estimable: 参考 SQL 一处落库分支 + 载荷构造一处 + 回归用例
 - [x] Small: 一个 PR
@@ -29,6 +29,8 @@ INVEST 检查清单:
 
 ## 现状与证据
 
+以下是**修复前**（#99 之前）的状态与证据；修复后的行为以验收标准为准。
+
 本地 UPDATE 产生的 `patch` 只含变更过的列。依据：
 
 - [`IRxDBChange`](../../../packages/rxdb/src/system/change.ts) 的契约注释写明「UPDATE: `patch = { 变更字段的新值 }`（仅记录变更字段，增量数据，**不含 id**）」；
@@ -36,8 +38,8 @@ INVEST 检查清单:
   PGlite 的同名文件（[`trigger_sql.ts`](../../../packages/rxdb-adapter-pglite/src/table/trigger_sql.ts)）用 `IS DISTINCT FROM`；
 - [`compactChanges()`](../../../packages/rxdb/src/sync-contract/compact-changes.ts) 把同一实体的多条 UPDATE 用 `Object.assign` 合并，结果仍是部分列。
 
-推送时 [`build_merge_changes_payload()`](../../../packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts) 把它组装成
-`{ id, ...patch, updatedBy }` 交给 [`rxdb_batch_upsert`](../../../docker/sql/04-rxdb-utils-functions.sql)。
+推送时 [`build_merge_changes_payload()`](../../../packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts) 原先把它组装成
+`{ id, ...patch, updatedBy }` 交给 [`rxdb_batch_upsert`](../../../docker/sql/04-rxdb-utils-functions.sql)；现在 UPDATE 单独分组为 `p_updates`，交给 `rxdb_batch_update`。
 [`applyAuditFields()`](../../../packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.utils.ts) 的注释说明更新路径**刻意不下发** `createdBy`，
 所以 UPDATE 载荷里永远没有归属列。`rxdb_batch_upsert` 对每一行执行：
 
@@ -46,7 +48,7 @@ INSERT INTO %I.%I SELECT * FROM pg_catalog.jsonb_populate_record(null::%I.%I, $1
  ON CONFLICT (id) DO UPDATE SET %s
 ```
 
-也就是说，远端把每一条 UPDATE 当成一次 INSERT 来做，冲突后才转成更新。没带上的列在「拟插入行」里都是 NULL；
+也就是说，修复前远端把每一条 UPDATE 当成一次 INSERT 来做，冲突后才转成更新。没带上的列在「拟插入行」里都是 NULL；
 拟插入行在走到 UPDATE 分支之前，就要先通过 NOT NULL、INSERT 策略的 `WITH CHECK` 与 SELECT 策略的 `USING`，
 与语句带不带 `RETURNING` 无关。以下四种失败均在本地 Supabase（PostgreSQL 17.6）容器内以 `anon` 角色、`BEGIN … ROLLBACK` 包裹实跑确认：
 
@@ -83,7 +85,7 @@ SELECT `USING (true)`、INSERT `WITH CHECK (owner = uid)`、UPDATE `USING (true)
 
 [`test-todo.spec.ts`](../../../packages/rxdb-adapter-supabase/src/__tests__/test-todo.spec.ts) 的更新走 `SupabaseRepository.update`
 的 PostgREST `.update()`，不经 `rxdb_mutations`，不受影响。demo 的 e2e [`remote-sync.spec.ts`](../../../apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts)
-只覆盖新建 Todo 的推送，不覆盖勾选。
+原先只覆盖新建 Todo 的推送，不覆盖勾选；AC#7 已补勾选用例。
 
 ## 范围边界
 
@@ -127,41 +129,40 @@ AC#7 由 `remote-sync.spec.ts`「pushes a completion toggle as an UPDATE …」�
   把 UPDATE 单独下发，远端执行 `UPDATE … SET <下发的键> WHERE id = $1`。另一条思路是用远端当前行补齐拟插入行
   （`jsonb_populate_record(<当前行>, $1)` 替代 `jsonb_populate_record(null::t, $1)`），它能修症状 1、2，但修不了症状 3：
   拟插入行仍要过 INSERT 的 `WITH CHECK`，整行载荷照样被拒（已实验确认），故不采用。
-  UPDATE 的下发形状（新增参数如 `p_updates`，还是在 `p_upserts` 内按行带标记）在 plan 阶段定。
+  UPDATE 的下发形状已定：新增参数 `p_updates`（`rxdb_mutations` 现为 6 参：`p_upserts` / `p_deletes` / `p_changes` / `p_skip_sync` / `p_updates` / `p_receipts`）。
 - **零行生效的判定（AC#4、AC#5）。** 普通 `UPDATE` 遇到三种情况都是 `ROW_COUNT = 0` 且不报错：被 UPDATE 的 `USING` 过滤、
   被 SELECT 策略隐藏、行已不存在（前两种已实验确认，症状 4 的同一张表上 `UPDATE` 他人的行静默零行）。
   在调用方权限下三者无法区分，判定必须绕开调用方的 RLS。这与 [US-218](./US-218-supabase-rls-push-integrity.md) 阶段 A 对 DELETE 的
   「被拒与已不存在」判定是同一个问题，候选机制也相同（`SECURITY DEFINER` 存在性探针，或按该实体在 main 分支的最新日志判定）。
-  **两个故事只交付一个判定原语，其机制、签名与 SQLSTATE 在两份 plan 里一次冻结，不得各写一份。**
+  **两个故事只交付一个判定原语（探针 `rxdb_existing_ids`），不得各写一份。**
 - **行已不存在为什么抛错而不是跳过（AC#5）。** 跳过意味着该实体的源变更既不写日志也不拿远端 ID。在 US-218 阶段 B 之前，
   客户端只能靠「缺映射静默放过」消化它，而 US-218 AC#14 要关掉的正是这一行为；所以与 US-218 一致的只有抛错。
   SQLSTATE 与 42501 分开，是为了让 US-218 阶段 B 把它与 RLS 拒绝区分开，并经 US-218 AC#11 的本地对齐把该实体在本地移除。
-  在 US-218 阶段 B 之前，这条错误仍会让该仓库的推送卡住（**推断**）；今天同一场景在 NOT NULL 表上是 23502、在可空表上是静默复活残缺行，
+  US-218 阶段 B 之前，这条错误会让该仓库的推送卡住（**推断**）；修复前同一场景在 NOT NULL 表上是 23502、在可空表上是静默复活残缺行，
   前者行为不变，后者由数据错误变成显式错误。
-- **开工条件**：本故事与 US-218（阶段 A～C）的 plan 全部完成后才进入开发。存在性判定原语、AC#5 的 SQLSTATE 与
-  US-218 阶段 B 的回执和错误分类互相咬合，须一次定好。
+- **与 US-218 的联合冻结**：存在性判定原语、AC#5 的 SQLSTATE 与 US-218 阶段 B 的回执和错误分类互相咬合，已与 US-218 一次定好。
 - **与 US-218 的关系**：本故事是 US-218 阶段 B 的前置。不修这里，阶段 B 的「被拒原因」会把 23502 和症状 2、3 的误报 42501
   当成真实拒绝暴露给用户。AC#4 保证 US-218 阶段 A 依赖的「UPDATE 被拒即抛 42501」不被普通 `UPDATE` 的静默零行削弱。
 - **远端 SQL 与客户端的版本配合**：改 `rxdb_mutations` 的参数或载荷会让新客户端连不上旧 SQL。仓库没有参考 SQL 的版本校验：
-  `rxdb_server_version()` 返回的是 `pg_catalog.version()`，即 PostgreSQL 版本。所以 plan 阶段要么保持新 SQL 兼容旧载荷，
-  要么在 `website/docs/migration/` 写明「先升级远端 SQL，再升级客户端」。
+  `rxdb_server_version()` 返回的是 `pg_catalog.version()`，即 PostgreSQL 版本。已定：在
+  [`website/docs/migration/supabase-update-push.md`](../../../website/docs/migration/supabase-update-push.md) 写明「先升级远端 SQL，再升级客户端」。
 - **三框架对称**：不改任何公共 API，三框架无需改动。
 - **SQL 回归不在 CI 里**：同 US-218，`run-supabase-sql-security-regressions.sh` 需手工对运行中的容器执行，PR 描述贴实跑输出。
 
 ## 实现文件
 
-| 路径                                                                                    | 说明                                                                                                                                     |
-| --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `docker/sql/04-rxdb-utils-functions.sql`                                                | `rxdb_mutations` 新增 `p_updates`（5 参，DROP 旧 4 参）；新增 `rxdb_batch_update`、探针 `rxdb_existing_ids`、helper `rxdb_id_array_type` |
-| `packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts`                          | UPDATE 单独分组为 `p_updates`，只带 `id` 与修改的列                                                                                      |
-| `packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts`                             | `mergeChanges()` 下发 `p_updates`                                                                                                        |
-| `packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql`    | AC#1～5 与探针的 SQL 用例                                                                                                                |
-| `packages/rxdb-adapter-supabase/src/__tests__/run-supabase-sql-security-regressions.sh` | 新用例登记进 `CASES`                                                                                                                     |
-| `packages/rxdb-adapter-supabase/src/__tests__/update-push-semantics.spec.ts`            | AC#6 连真实数据库的推送 spec                                                                                                             |
-| `packages/rxdb-adapter-supabase/src/__tests__/review-regressions.spec.ts`               | 载荷形状断言随 `p_updates` 更新                                                                                                          |
-| `apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts`                                    | AC#7 勾选推送用例                                                                                                                        |
-| `packages/rxdb-adapter-supabase/README.md`、`website/docs/adapters/supabase.md`         | `rxdb_mutations` 参数、UPDATE 语义、错误码与探针已知限制                                                                                 |
-| `website/docs/migration/supabase-update-push.md`                                        | 先升级远端 SQL 再升级客户端；新旧组合与报错特征                                                                                          |
+| 路径                                                                                    | 说明                                                                                                                                                 |
+| --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docker/sql/04-rxdb-utils-functions.sql`                                                | `rxdb_mutations` 新增 `p_updates`（#99 合入后共 6 参，DROP 旧签名）；新增 `rxdb_batch_update`、探针 `rxdb_existing_ids`、helper `rxdb_id_array_type` |
+| `packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts`                          | UPDATE 单独分组为 `p_updates`，只带 `id` 与修改的列                                                                                                  |
+| `packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts`                             | `mergeChanges()` 下发 `p_updates`                                                                                                                    |
+| `packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql`    | AC#1～5 与探针的 SQL 用例                                                                                                                            |
+| `packages/rxdb-adapter-supabase/src/__tests__/run-supabase-sql-security-regressions.sh` | 新用例登记进 `CASES`                                                                                                                                 |
+| `packages/rxdb-adapter-supabase/src/__tests__/update-push-semantics.spec.ts`            | AC#6 连真实数据库的推送 spec                                                                                                                         |
+| `packages/rxdb-adapter-supabase/src/__tests__/review-regressions.spec.ts`               | 载荷形状断言随 `p_updates` 更新                                                                                                                      |
+| `apps/dev-rxdb-supabase-e2e/src/remote-sync.spec.ts`                                    | AC#7 勾选推送用例                                                                                                                                    |
+| `packages/rxdb-adapter-supabase/README.md`、`website/docs/adapters/supabase.md`         | `rxdb_mutations` 参数、UPDATE 语义、错误码与探针已知限制                                                                                             |
+| `website/docs/migration/supabase-update-push.md`                                        | 先升级远端 SQL 再升级客户端；新旧组合与报错特征                                                                                                      |
 
 ## References
 

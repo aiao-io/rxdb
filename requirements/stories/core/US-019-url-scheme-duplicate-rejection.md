@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-005-type-system-evolution
 created: 2026-08-17
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [core, model, metadata, field-type, validation]
 ---
 
@@ -85,7 +85,7 @@ const allowed = format.schemes.map(item => item.toLowerCase());
 ### D3：不改变现有功能语义
 
 去重是**观感修复**，不是行为修复。因 D2 的小写比对，`['HTTP','http']` 与 `['HTTP']`
-今天放行的 URL 集合完全相同；唯一可观测差异是字段描述 DTO 里协议列了两遍，
+放行的 URL 集合完全相同；唯一可观测差异是字段描述 DTO 里协议列了两遍，
 前端的协议 chip 会重复渲染。本故事不改变任何 URL 的放行/拒绝结果。
 
 ## 范围边界
@@ -99,7 +99,7 @@ const allowed = format.schemes.map(item => item.toLowerCase());
 
 ### Out of Scope
 
-- **不新增 `MetadataValidationRule` 成员**。13 项全集是 US-012 冻结的公开契约，
+- **不新增 `MetadataValidationRule` 成员**。规则全集见 `MetadataValidationRule` 的 TSDoc，
   重复 scheme 归入既有的 `invalidFormatConfig`，公开 API 表面零变化
 - **不做任何归一化**（见 D1），`describeEntityFields()` 与解析器一行不动
 - **不改 `validateFieldValue()`**，其大小写无关匹配已由 US-012 AC#27 覆盖并通过
@@ -109,7 +109,7 @@ const allowed = format.schemes.map(item => item.toLowerCase());
 
 | #   | 前置条件                                                      | 操作                                                                 | 预期结果                                                                                                                                                          | 状态 |
 | --- | ------------------------------------------------------------- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 属性声明 `format: { kind: 'url', schemes: ['HTTP', 'http'] }` | 调用 `validateEntityMetadata()`                                      | 恰好一条违规，`rule` 为 `invalidFormatConfig`，`message` 指出重复的 scheme；`MetadataValidationRule` 联合成员数仍为 13                                            | ✅   |
+| 1   | 属性声明 `format: { kind: 'url', schemes: ['HTTP', 'http'] }` | 调用 `validateEntityMetadata()`                                      | 恰好一条违规，`rule` 为 `invalidFormatConfig`，`message` 指出重复的 scheme；`invalidFormatConfig` 是既有规则，不新增联合成员                                      | ✅   |
 | 2   | 属性声明 `schemes: ['https', 'x-app+v1']`（无重复）           | 调用 `validateEntityMetadata()`                                      | 零违规；且 `schemes: ['https:']`、`['1http']` 仍按语法报 `invalidFormatConfig`，判重不吞掉语法错误                                                                | ✅   |
 | 3   | 仓库全部被 git 跟踪的非二进制文件                             | 逐文件扫描 0x00 字节                                                 | 源码零命中（`.icns` / `.bmp` 等真二进制除外）；`rg "validateEntityMetadata" packages/rxdb/src/entity/metadata-validate.ts` 返回文本匹配而非 `binary file matches` | ✅   |
 | 4   | US-012 契约                                                   | 通读阶段 A 的 schemes 去重描述与 AC#11 的 `invalidFormatConfig` 规则 | 两处对重复 scheme 的说法一致（均为拒绝），不再存在归一化表述                                                                                                      | ✅   |
@@ -136,8 +136,8 @@ const invalidSchemes = (value: unknown): string | null => {
 且 US-012 已定死「同一字段的 `format` 最多产出一条错误」，先报语法更具体。
 判重写法与同文件的 `validateEnumDeclaration` 同构，两处重复语义保持一致。
 
-NUL 字节位于 `ViolationCollector.add()` 的复合键构造中，源文件里是裸 0x00 而非 `\0` 转义。
-改成转义后运行时行为逐字节相同——两者产出同一个字符串——但文件重新变回文本文件。
+`ViolationCollector.add()` 的复合键构造里用 `\0` 转义而非裸 0x00 字节：
+两者产出同一个字符串，运行时行为逐字节相同，但文件保持为文本文件。
 该字节不影响 tsc、vitest 与 eslint，只影响 grep / ripgrep / GitHub 代码搜索。
 
 ## 实现文件

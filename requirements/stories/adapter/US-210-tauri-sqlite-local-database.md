@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-08-13
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [adapter, desktop, tauri, sqlite, transaction]
 inherited_acs:
   - from: US-207
@@ -132,7 +132,7 @@ US-207 已经承诺的内容不在本故事重做：桌面存储的可辨识联�
 > 代价要写明：**这条路验不到 UI 交互**。将来若要验「点击按钮 → 数据落库」，macOS 的驱动缺口
 > 依然存在，那时再单开 spike。本 AC 不背这个债——它的前置条件里没有一个字提到界面。
 >
-> `apps/dev-rxdb-tauri-e2e` 已建（本故事创建；US-905 将来要加的 specs 落在同一个 project 里）。
+> `apps/dev-rxdb-tauri-e2e` 由本故事创建，US-905 的 devtools specs 也在同一个 project 里（`devtools-smoke` target）。
 > 它的 target 叫 **`desktop-smoke` 而不是 `e2e`**：`ci-template.yml` 用
 > `nx show projects --withTarget=e2e` 自动组矩阵，叫 `e2e` 就会自动进 PR 门禁的 **ubuntu 单 OS**
 > 跑道，而这套 smoke 要的是三 OS 矩阵。`test` / `test-browser` / `build` / `cargo-test` 同理都要避开；
@@ -212,7 +212,7 @@ Electron 半边的改名与共享层下沉见 [US-207「包边界重整」](./US
 | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | T1 ✅ | 新建 `packages/rxdb-adapter-tauri`：npm 包（`src/`）与 Rust crate（`rust/`）同居一个 Nx project                                                                                                                                        | crate 名 `aiao-rxdb-tauri`（`[lib] name = "aiao_rxdb_tauri"`），`publish = false`（见 T7）；`tag:js-lib` 的 `run-many -t lint test build` 覆盖它，并补进 Rust 那五个 target                                                                                                                                                                                                                                                                                                                                                                  |
 | T2 ✅ | Rust 宿主整体迁入：`apps/dev-rxdb-tauri/src-tauri/src/rxdb/`（`protocol.rs` / `value.rs` / `engine.rs` / `session.rs` / `paths.rs` / `router.rs` / `script.rs` / `error.rs` / `commands.rs` + `file/`）与 `src/bin/rxdb_host_stdio.rs` | 定形为**普通 crate**（见上节决策）；`src-tauri/src/rxdb/` 目录已不存在，全部 `git mv` 到 `packages/rxdb-adapter-tauri/rust/src/`（`rxdb/mod.rs` → `lib.rs`）；`cargo test --locked` **crate 131 + demo 16 = 147 条**全绿零忽略；`selfcheck.rs` **不迁**——它是 demo 应用的自检接线，不属于宿主                                                                                                                                                                                                                                                |
-| T3 ✅ | JS 侧迁入：`tauri-host-transport.ts` 与 `desktop-json-codec.ts` 及其单测从 desktop 包迁入。codec 跟着 Tauri 走而不是留共享层——`grep` 证实其唯一消费者是 `tauri-host-transport.ts`，Rust 侧有对应实现                                   | `packages/rxdb-adapter-tauri` renderer 入口不含任何 Node builtin（`tsconfig.lib.json` 的 `types: []` + `desktop-adapter-consumer.mjs` 的产物依赖图遍历双重固定）；`DESKTOP_HOST_PROTOCOL_VERSION` 仍为 `1`（拆包不是协议变更，Electron 路径一字未动）                                                                                                                                                                                                                                                                                        |
+| T3 ✅ | JS 侧迁入：`tauri-host-transport.ts` 与 `desktop-json-codec.ts` 及其单测从 desktop 包迁入。codec 跟着 Tauri 走而不是留共享层——`grep` 证实其唯一消费者是 `tauri-host-transport.ts`，Rust 侧有对应实现                                   | `packages/rxdb-adapter-tauri` renderer 入口不含任何 Node builtin（`tsconfig.lib.json` 的 `types: []` + `desktop-adapter-consumer.mjs` 的产物依赖图遍历双重固定）；拆包不是协议变更，Electron 路径一字未动                                                                                                                                                                                                                                                                                                                                    |
 | T4 ✅ | 一致性套件迁入：`conformance/` 的 `rust-adapter-factory.ts` / `rust-host-transport.ts` + 8 个 SQL 侧 spec 归本故事；`storage-parity.spec.ts` / `storage-persistence.spec.ts` 归 [US-505](../plugin/US-505-tauri-local-file-storage.md) | `605 passed / 10 files / 0 skipped`；`HOST_BINARY` 已改指 `../rust/target/debug/`。连带修掉两处只有搬家才会暴露的问题：`conformance/` 进包后 `@aiao/rxdb-adapter-tauri` 成了自引用（`@nx/enforce-module-boundaries` 报错），六个文件改走 `../src/index.js`——**仍走桶文件**，绕过桶去 sqlite-core 取 `DESKTOP_HOST_PROTOCOL_VERSION` 会让 AC#10 那条机械链接当场失效；`vitest.conformance.mts` 进 `eslint.config.mjs` 的 `ignoredFiles`，否则 `@nx/dependency-checks` 要求把 `vitest` 写进本包 `dependencies`（等于让每个用户拖一份测试框架） |
 | T5 ✅ | Nx target 搬家：`cargo-check` / `cargo-clippy` / `cargo-test` / `build-test-host` / `test-conformance` 五个 target 从 `apps/dev-rxdb-tauri/project.json` 移到新包                                                                      | `pnpm nx run rxdb-adapter-tauri:test-conformance` 绿；demo 的三个 cargo target 没有删——`cargo clippy` 不 lint path 依赖，只 lint 主包，删了等于让 `lib.rs` + `selfcheck.rs` 这 500 多行彻底脱离门禁。于是 `tauri-build` 的 `dependsOn` 是**六条**：两个项目各三条。CI 侧无需改清单：`ci-template.yml` 的 rust job 由 `nx show projects --withTarget=cargo-test` 动态取，实测已含新包                                                                                                                                                         |
 | T6 ✅ | demo 反向依赖：`src-tauri/Cargo.toml` 以 path 依赖引用新 crate，`src-tauri/src/` 只剩 `main.rs` / `lib.rs` / `selfcheck.rs` / `devtools_config.rs`；`src/app/setup_rxdb*.ts` 与 `README.md` 改指 `@aiao/rxdb-adapter-tauri`            | `pnpm nx run dev-rxdb-tauri:tauri-build` 绿（`.app` + `.dmg` 都出，六条 cargo 门禁全过）；demo 侧 `src-tauri/src/` 只剩 `main.rs` / `lib.rs` / `selfcheck.rs` / `devtools_config.rs`（后者为 US-905 的 devtools 配置，非宿主）                                                                                                                                                                                                                                                                                                               |
@@ -227,8 +227,8 @@ Electron 半边的改名与共享层下沉见 [US-207「包边界重整」](./US
 候选与探针本来就只能由应用提供，进 `@aiao/rxdb` 换不到任何复用，只会多一个必须长期
 兼容的公开 API。要复用的人照抄这两个文件比调一个框架 API 更直接。
 
-与之同源的另一件事仍然归 US-207：「静态 import 两条分支会把 transport 打进浏览器 bundle」
-这个现存缺陷，见 [US-207「Web 回落」E8～E11](./US-207-desktop-local-database.md#web-回落同一份代码跑三端)。
+与之同源的另一件事归 US-207：两条候选分支走动态 `import()`，桌面 transport 不进浏览器 bundle，
+见 [US-207「Web 回落」E8～E11](./US-207-desktop-local-database.md#web-回落同一份代码跑三端)。
 
 ## 技术笔记
 
@@ -267,11 +267,11 @@ Electron 半边的改名与共享层下沉见 [US-207「包边界重整」](./US
 
 Rust 引擎不是 `node-sqlite-engine.ts` 的逐行翻译，以下三处**故意**不同，理由记在各自的代码注释里：
 
-| 处       | Node 侧                                              | Rust 侧                  | 理由                                                                 |
-| -------- | ---------------------------------------------------- | ------------------------ | -------------------------------------------------------------------- |
-| 语句切分 | `sqlite-script.ts`（SQLite `complete.c` 的手工移植） | `sqlite3_complete()` FFI | 语义天然一致，零移植风险                                             |
-| 只读判定 | `execute-sql.utils.ts` 的正则                        | `Statement::readonly()`  | 更准确；共享套件的 `rowsAffected` 断言在两者下结果相同               |
-| 忙等     | 5000ms / 1ms→100ms 的同步自旋退避                    | `PRAGMA busy_timeout`    | Rust 有真线程，不会像 `node:sqlite` 那样把持锁方的续体冻在同一线程上 |
+| 处       | Node 侧                                                 | Rust 侧                  | 理由                                                                 |
+| -------- | ------------------------------------------------------- | ------------------------ | -------------------------------------------------------------------- |
+| 语句切分 | `sqlite-script.ts`（SQLite `complete.c` 的手工移植）    | `sqlite3_complete()` FFI | 语义天然一致，零移植风险                                             |
+| 只读判定 | `execute-sql.utils.ts` 的正则                           | `Statement::readonly()`  | 更准确；共享套件的 `rowsAffected` 断言在两者下结果相同               |
+| 忙等     | host 层 `setTimeout` 异步退避（5000ms 预算，1ms→100ms） | `PRAGMA busy_timeout`    | Rust 有真线程，不会像 `node:sqlite` 那样把持锁方的续体冻在同一线程上 |
 
 ### 路径解析
 
@@ -313,14 +313,14 @@ Tauri 的 WebView 不是 Chromium（macOS 上是 WKWebView），但目录名沿�
 [US-207 AC#9](./US-207-desktop-local-database.md#ac9-为什么值得单列一条) 是同一件事在两条路径上的对偶。
 补的理由在那边写全了：实现和用例都在，缺的是没有 AC 认领，于是**谁删掉这段校验都不算违反验收标准**。
 
-当初标 ⚠️ 是因为 Tauri 侧比 Electron 侧多一个薄弱环节。拒绝动作本身在共享层（renderer 比对
+Tauri 侧比 Electron 侧多一个薄弱环节。拒绝动作本身在共享层（renderer 比对
 `DESKTOP_HOST_PROTOCOL_VERSION`），两条路径同一份代码，这半边是稳的。
 不稳的是**版本号在 Rust 侧是手抄的第二份**：
 
 | 侧         | 常量                                                          |
 | ---------- | ------------------------------------------------------------- |
 | TypeScript | `DESKTOP_HOST_PROTOCOL_VERSION`（`desktop-host-protocol.ts`） |
-| Rust       | `PROTOCOL_VERSION: i64 = 1`（`protocol.rs:17`）               |
+| Rust       | `PROTOCOL_VERSION: i64`（`protocol.rs`）                      |
 
 两个常量之间**没有任何机械联系**：改了 TS 那个，`cargo test` 一条不红；改了 Rust 那个，
 `pnpm nx test` 一条不红。Electron 侧没有这个问题——host 与 renderer 读的是同一个 TS 常量。
@@ -357,7 +357,7 @@ Tauri 的 WebView 不是 Chromium（macOS 上是 WKWebView），但目录名沿�
 - **副作用为零由断言固定**，而不是靠读代码相信：Rust 的
   `handshake_reports_the_protocol_version_without_touching_the_disk` 把 host 建在一个**故意不预先创建**的
   目录上，握手后断言目录仍不存在（`resolve_database_path` 会 `create_dir_all`，碰过它目录就会凭空出现）；
-  TS 侧对应 `desktop-sqlite-host.spec.ts` 的「不 consult path resolver」。
+  TS 侧对应 `electron-sqlite-host.spec.ts` 的「不 consult path resolver」。
 
 ### 依赖
 
@@ -366,19 +366,19 @@ Tauri 的 WebView 不是 Chromium（macOS 上是 WKWebView），但目录名沿�
 
 ## 实现文件
 
-| 文件                                                          | 阶段 | 说明                                                                                                                                                                                                                                                                                                                                                                                                          |
-| ------------------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/rxdb-adapter-tauri/src/tauri-host-transport.ts`     | 4    | Tauri 传输实现。`invoke` / `listen` 由调用方注入，包本身不依赖 `@tauri-apps/api`（与 Electron bridge 收窄 window 是同一手法）                                                                                                                                                                                                                                                                                 |
-| `packages/rxdb-adapter-tauri/src/desktop-json-codec.ts`       | 4    | `$bigint` / `$u8` / `$date` / `$esc` 标签编码。Tauri 的 IPC 是 JSON，而协议实际携带 `bigint` / `Uint8Array` / `Date`。这是**传输层编码，不是协议变更**：`DESKTOP_HOST_PROTOCOL_VERSION` 仍为 `1`，Electron 路径一字未动                                                                                                                                                                                       |
-| `packages/rxdb-adapter-tauri/rust/`                           | 4    | Rust 宿主 crate `aiao-rxdb-tauri`：`src/protocol.rs` / `value.rs` / `engine.rs` / `session.rs` / `paths.rs` / `router.rs` / `script.rs` / `error.rs` / `commands.rs` + `file/`。**只有 `commands.rs` 依赖 `tauri`**——正是这一点让 stdio 二进制能在没有 `tauri::App` 的情况下原样复用其余全部代码。`publish = false`，引用方式见同目录 README                                                                  |
-| `packages/rxdb-adapter-tauri/rust/src/bin/rxdb_host_stdio.rs` | 4    | **测试专用**二进制，不含 `tauri::App`；stdin 逐行读请求、stdout 逐行写应答，供一致性套件 spawn（不进任何产品包）                                                                                                                                                                                                                                                                                              |
-| `packages/rxdb-adapter-tauri/conformance/`                    | 4    | 共享套件的 Rust 宿主入口。一律从 `../src/index.js` 取符号：包内自引用过不了 `@nx/enforce-module-boundaries`，而绕过桶文件会让 AC#10 失效                                                                                                                                                                                                                                                                      |
-| `apps/dev-rxdb-tauri/src-tauri/src/lib.rs`                    | 4    | 宿主应用侧的**接线**（`generate_handler!` + `app.manage` + 两处回收钩子）。这段就是包 README 里给用户抄的那份，两边不会漂                                                                                                                                                                                                                                                                                     |
-| `apps/dev-rxdb-tauri/src/app/setup_rxdb.ts`                   | 1    | 运行时选路：Tauri 窗口用 desktop 适配器，浏览器预览用 wa-sqlite。适配器名与工厂**成对返回**，避免两处判定漂移                                                                                                                                                                                                                                                                                                 |
-| `apps/dev-rxdb-tauri/src-tauri/src/selfcheck.rs`              | 3    | 自检模式的纯函数 `plan_from_env`：两个环境变量成对出现才算数，只设其一 / 相对路径 / 目录不存在一律 `Err` → 退出码 3，且发生在**建窗之前**。不设默认值是有意的——默认到某个「合理」位置，只会让测试悄悄写进真实用户数据目录                                                                                                                                                                                     |
-| `apps/dev-rxdb-tauri-e2e/`                                    | 3    | AC#1 / AC#9 的跨进程 smoke（本故事创建；US-905 将来要加的 specs 落在同一个 project 里）。target 叫 `desktop-smoke`、配置叫 `vitest.smoke.mts`，两个名字都是为了避开自动发现，理由见上文 AC#9 段落                                                                                                                                                                                                             |
-| `apps/dev-rxdb-tauri/src-tauri/tauri.conf.json`               | 3    | `beforeDevCommand` / `beforeBuildCommand` 从 `corepack pnpm exec` 改成 `pnpm exec`。**`.nvmrc` 钉的是 Node 26，而 Node 25 起不再随发行版附带 Corepack**（Node.js TSC 决议），原写法在任何一台照 `.nvmrc` 装 Node 的机器上都会 `command not found`。以前从没炸过，只是因为**没有任何 CI job 跑过 `tauri build`**——AC#9 的 workflow 是第一个。这条理由只能写在这里：`tauri.conf.json` 是严格 JSON，注释放不进去 |
-| `requirements/api-baseline/rxdb-adapter-tauri.json`           | 4    | 已同步（US-207 E2/E3 拆包后由 `rxdb-adapter-desktop.json` 分成 electron / tauri 两份）；条目总数以 `api-surface.mjs --check` 为准，不在本文写死（写本条时 50 项）。**Rust crate 不在这份基线里**——`api-surface.mjs` 只扫 npm 包的导出，crate 的公开表面今天没有任何机械约束，这也是 T7 暂不发 crates.io 的理由之一                                                                                            |
+| 文件                                                          | 阶段 | 说明                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/rxdb-adapter-tauri/src/tauri-host-transport.ts`     | 4    | Tauri 传输实现。`invoke` / `listen` 由调用方注入，包本身不依赖 `@tauri-apps/api`（与 Electron bridge 收窄 window 是同一手法）                                                                                                                                                                                                                |
+| `packages/rxdb-adapter-tauri/src/desktop-json-codec.ts`       | 4    | `$bigint` / `$u8` / `$date` / `$esc` 标签编码。Tauri 的 IPC 是 JSON，而协议实际携带 `bigint` / `Uint8Array` / `Date`。这是**传输层编码，不是协议变更**，Electron 路径一字未动                                                                                                                                                                |
+| `packages/rxdb-adapter-tauri/rust/`                           | 4    | Rust 宿主 crate `aiao-rxdb-tauri`：`src/protocol.rs` / `value.rs` / `engine.rs` / `session.rs` / `paths.rs` / `router.rs` / `script.rs` / `error.rs` / `commands.rs` + `file/`。**只有 `commands.rs` 依赖 `tauri`**——正是这一点让 stdio 二进制能在没有 `tauri::App` 的情况下原样复用其余全部代码。`publish = false`，引用方式见同目录 README |
+| `packages/rxdb-adapter-tauri/rust/src/bin/rxdb_host_stdio.rs` | 4    | **测试专用**二进制，不含 `tauri::App`；stdin 逐行读请求、stdout 逐行写应答，供一致性套件 spawn（不进任何产品包）                                                                                                                                                                                                                             |
+| `packages/rxdb-adapter-tauri/conformance/`                    | 4    | 共享套件的 Rust 宿主入口。一律从 `../src/index.js` 取符号：包内自引用过不了 `@nx/enforce-module-boundaries`，而绕过桶文件会让 AC#10 失效                                                                                                                                                                                                     |
+| `apps/dev-rxdb-tauri/src-tauri/src/lib.rs`                    | 4    | 宿主应用侧的**接线**（`generate_handler!` + `app.manage` + 两处回收钩子）。这段就是包 README 里给用户抄的那份，两边不会漂                                                                                                                                                                                                                    |
+| `apps/dev-rxdb-tauri/src/app/setup_rxdb.ts`                   | 1    | 运行时选路：Tauri 窗口用 desktop 适配器，浏览器预览用 wa-sqlite。适配器名与工厂**成对返回**，避免两处判定漂移                                                                                                                                                                                                                                |
+| `apps/dev-rxdb-tauri/src-tauri/src/selfcheck.rs`              | 3    | 自检模式的纯函数 `plan_from_env`：两个环境变量成对出现才算数，只设其一 / 相对路径 / 目录不存在一律 `Err` → 退出码 3，且发生在**建窗之前**。不设默认值是有意的——默认到某个「合理」位置，只会让测试悄悄写进真实用户数据目录                                                                                                                    |
+| `apps/dev-rxdb-tauri-e2e/`                                    | 3    | AC#1 / AC#9 的跨进程 smoke（本故事创建；US-905 的 devtools specs 也在同一个 project 里）。target 叫 `desktop-smoke`、配置叫 `vitest.smoke.mts`，两个名字都是为了避开自动发现，理由见上文 AC#9 段落                                                                                                                                           |
+| `apps/dev-rxdb-tauri/src-tauri/tauri.conf.json`               | 3    | `beforeDevCommand` / `beforeBuildCommand` 用 `pnpm exec`，不用 `corepack pnpm exec`：`.nvmrc` 钉的是 Node 26，而 Node 25 起不再随发行版附带 Corepack（Node.js TSC 决议）。这条理由只能写在这里：`tauri.conf.json` 是严格 JSON，注释放不进去                                                                                                  |
+| `requirements/api-baseline/rxdb-adapter-tauri.json`           | 4    | 已同步（US-207 E2/E3 拆包后由 `rxdb-adapter-desktop.json` 分成 electron / tauri 两份）；条目总数以 `api-surface.mjs --check` 为准，不在本文写死。**Rust crate 不在这份基线里**——`api-surface.mjs` 只扫 npm 包的导出，crate 的公开表面今天没有任何机械约束，这也是 T7 暂不发 crates.io 的理由之一                                             |
 
 ## References
 

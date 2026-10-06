@@ -12,8 +12,8 @@ tags: [adapter, supabase, sync, security, rls]
 <!--
 INVEST 检查清单:
 - [x] Independent: 不依赖 US-029 的 access 声明或角色；阶段 A 无前置，阶段 B 以 US-220（UPDATE 落库语义）为前置；「行是否存在」的判定原语与 US-220 共用，两者 plan 全部完成后才开工
-- [x] Negotiable: 「行是否存在」的判定机制、日志改由触发器推导还是函数内校验、回执形状，在 plan 阶段冻结
-- [x] Valuable: 已有可复现症状（幽灵 DELETE），开了 RLS 的部署今天就会踩到
+- [x] Negotiable: 「行是否存在」的判定机制、日志改由触发器推导还是函数内校验、回执形状，均已冻结，结论见技术笔记
+- [x] Valuable: 修复前已有可复现症状（幽灵 DELETE），开了 RLS 的部署会踩到
 - [x] Estimable: 阶段 A 只动参考 SQL 与回归用例；B / C 的波及面已列在实现文件
 - [ ] Small: 阶段 B 改远端适配器契约，按 A / B / C 分阶段，不拆子故事文件
 - [x] Testable: 阶段 A 的红测试 `rls-filtered-delete` 已在仓库里，其余阶段 A 用例按 AC 补
@@ -33,8 +33,9 @@ INVEST 检查清单:
 会提示部署方给业务表开 RLS，所以「业务表开 RLS」是推荐配置，不是边缘场景。推送经
 [`mergePushBatch()`](../../../packages/rxdb-plugin-sync/src/push-repository.ts) →
 [`RxDBAdapterSupabase.mergeChanges()`](../../../packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts) →
-`rxdb_mutations(p_upserts, p_deletes, p_changes, p_skip_sync => true)`。该函数为 `SECURITY INVOKER`，业务表的 RLS 对它生效。
+`rxdb_mutations(p_upserts, p_deletes, p_changes, p_skip_sync => true)`（现为 6 参，另含 `p_updates`、`p_receipts`）。该函数为 `SECURITY INVOKER`，业务表的 RLS 对它生效。
 
+以下症状与证据是**修复前**的状态（#99 之前）；修复后的行为以验收标准和技术笔记为准。
 以下「已实验确认」的结论均在本地 Supabase（PostgreSQL 17.6）容器内以 `anon` 角色、`BEGIN … ROLLBACK` 包裹实跑得出。
 
 **症状 1：幽灵 DELETE（已实验确认）。** [`rxdb_mutations`](../../../docker/sql/04-rxdb-utils-functions.sql) 先 `INSERT INTO public.rxdb_change`，
@@ -47,7 +48,7 @@ INVEST 检查清单:
 
 远端数据从此与所有客户端分叉，且没有任何一端报错。目标行对调用方**可见**时的复现用例：
 [`supabase-sql-security-regressions.sql`](../../../packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql)
-中的 `test_rls_filtered_delete()`（`run-supabase-sql-security-regressions.sh` 的 `rls-filtered-delete`），当前为红。
+中的 `test_rls_filtered_delete()`（`run-supabase-sql-security-regressions.sh` 的 `rls-filtered-delete`），修复前为红，现已改写为断言 42501 并转绿。
 目标行连 SELECT 策略也不放行时结果相同（`deleted = 0`，日志照写 1 条）。这种行在推送方本地**确实存在**：
 `rxdb_change` 的拉取不经业务表的 SELECT 策略过滤，用户能拉到自己按 RLS 读不到的行，再对它发起删除。
 
@@ -56,7 +57,7 @@ INVEST 检查清单:
 水位线不推进，下一轮推送原样重发同一批，同批里本可成功的变更也一起卡住，直到用户手工清掉那条本地变更。
 
 **症状 3：`rxdb_change` 可被任意登录用户直接写（已实验确认）。** [`01-rxdb-system-tables.sql`](../../../docker/sql/01-rxdb-system-tables.sql)
-对 `rxdb_change` 关闭 RLS 并 `GRANT ALL ... TO anon / authenticated`，注释写明「仅测试环境」，但仓库没有给出生产部署该怎么收紧。
+对 `rxdb_change` 关闭 RLS 并 `GRANT ALL ... TO anon / authenticated`，注释写明「仅测试环境」，当时仓库没有给出生产部署该怎么收紧；现由 [`docker/sql/production/rxdb-change-grants.sql`](../../../docker/sql/production/rxdb-change-grants.sql) 收紧（阶段 C）。
 `anon` 直接 `INSERT` 一条伪造的 DELETE 被接受，效果同症状 1。
 
 **症状 4：`rxdb_mutations` 不校验日志与业务写是否配对。**
@@ -83,15 +84,12 @@ INVEST 检查清单:
 只改部分列的 UPDATE 在 NOT NULL 列上报 23502、owner 型 RLS 下改自己的行误报 42501，INSERT 策略比 UPDATE 窄的表上改别人的行也误报 42501。
 这时阶段 B 的「被拒原因」会把这类误拒当成 RLS 拒绝暴露给用户，rejected 的判定也就失去意义。
 
-**开工条件**：本故事三个阶段与 [US-220](./US-220-supabase-update-push-semantics.md) 的 plan 全部完成后，才进入开发。
+**与 US-220 的联合冻结**：本故事三个阶段与 [US-220](./US-220-supabase-update-push-semantics.md) 的 plan 一次冻结，
 理由是几处决策互相咬合，拆开定会返工：阶段 A 与 US-220 共用「行是否存在」的判定原语；US-220 的「已不存在」SQLSTATE
 是阶段 B 错误分类（AC#13）的输入；阶段 A 推荐与 B 同版本发布，A 的拒绝语义要按 B 的回执形状来定。
 
 **阶段 A 单独发布的代价**：A 把幽灵 DELETE 从「静默成功」改成「42501 拒绝」。在 B 落地之前，客户端仍按症状 2 处理，
-被拒那条会让该仓库的推送一直卡住，直到用户手工清掉它。这比数据静默分叉安全，但对用户是一个新出现的阻塞。处置二选一，在 plan 阶段定：
-
-- A 与 B 同一版本发布（推荐）；
-- A 单独发布，并在 `website/docs/migration/` 写明手工恢复步骤：删掉那条本地变更，再从远端重拉该实体。
+被拒那条会让该仓库的推送一直卡住，直到用户手工清掉它。已定：A 与 B 同一版本发布（#99），不单独发布 A。
 
 ## 范围边界
 
@@ -117,7 +115,7 @@ INVEST 检查清单:
 | --- | --------------------------------------------------------------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | 1   | 业务表开 RLS，目标行对调用方可见，DELETE 策略不放行                               | `rxdb_mutations` 删除该行并附 DELETE       | 抛 42501；行仍在；`rxdb_change` 无该客户端的新记录（即 `rls-filtered-delete`）                                                                                                                                                  | ✅   |
 | 2   | 业务表开 RLS，目标行存在，但 SELECT 与 DELETE 策略都不放行                        | `rxdb_mutations` 删除该行并附 DELETE       | 抛 42501，**不**按「已不存在」放过；行仍在；无新日志                                                                                                                                                                            | ✅   |
-| 3   | 目标行对调用方可见，UPDATE 的 `USING` 策略不放行                                  | `rxdb_mutations` 推送对该行的 UPDATE       | 抛 42501；行未变；无新日志。今天的 upsert 路径已成立，作为回归护栏；US-220 改走普通 `UPDATE` 后由其 AC#4 继续保证                                                                                                               | ✅   |
+| 3   | 目标行对调用方可见，UPDATE 的 `USING` 策略不放行                                  | `rxdb_mutations` 推送对该行的 UPDATE       | 抛 42501；行未变；无新日志。upsert 路径本就成立，作为回归护栏；US-220 改走普通 `UPDATE` 后由其 AC#4 继续保证                                                                                                                    | ✅   |
 | 4   | 目标行已被他人删除（对任何角色都不存在）                                          | `rxdb_mutations` 删除该行                  | 按既有幂等语义成功，不因「零行生效」被误判为拒绝                                                                                                                                                                                | ✅   |
 | 5   | 同批含一条被拒操作和若干可放行操作                                                | `rxdb_mutations`                           | 整批回滚，无任何日志写入（阶段 A 的语义；阶段 B 再放开部分成功）                                                                                                                                                                | ✅   |
 | 6   | main 分支的日志与业务写不配对：有 DELETE 日志而无对应删除，或有业务写而无对应日志 | `rxdb_mutations`                           | 拒绝，业务表与 `rxdb_change` 都不变。规则：main 分支每条日志都须有业务写；`p_skip_sync => true` 时每条业务写都须有日志（`false` 时由同步触发器写）。按 (schema, table, entityId) 配对，压缩后 N 条源变更对应 1 条业务写视为配对 | ✅   |
@@ -149,19 +147,17 @@ INVEST 检查清单:
 
 ## 技术笔记
 
-- **阶段 A 的落点**：`rxdb_mutations` 当前顺序是「step 1 取快照 → step 2 写 `rxdb_change` → upsert → delete」。
-  要么把写日志挪到业务写之后、按真实受影响行数决定是否写；要么保留顺序，在受影响行数不足时抛 42501 让事务整体回滚。
-  后者改动最小，且与 upsert 被拒时的现有行为（抛错回滚）一致，**推断**是阶段 A 的首选，plan 阶段定。
+- **阶段 A 的落点**：[`rxdb_mutations`](../../../docker/sql/04-rxdb-utils-functions.sql) 先取快照、做配对校验，业务写在前，
+  零行生效时按探针判定被拒（42501）或已不存在，日志在业务写之后经 `rxdb_insert_changes` 只写已生效实体的 main 日志。
 - **「被拒」与「已不存在」的区分**：USING 过滤和行已删除都表现为 ROW_COUNT = 0，而且在调用方权限下无法区分。
   症状 1 已证实，连 SELECT 都看不到的行在推送方本地真实存在，所以「调用方查不到即已不存在」不成立（AC#2）。
-  判定必须绕开调用方的 RLS，候选两种，plan 阶段定：
-  - 一个只返回「该 id 是否存在」的 `SECURITY DEFINER` 探针函数，不返回行内容，不扩大读权限；
-  - 按日志判定：该实体在 main 分支的最新一条日志是 DELETE 即视为已不存在，否则零行生效一律按拒绝处理。
+  判定必须绕开调用方的 RLS。已定采用 `SECURITY DEFINER` 探针函数 `rxdb_existing_ids`：只返回「该 id 是否存在」，不返回行内容，不扩大读权限。
+  未采用按日志判定（实体在 main 分支最新日志是 DELETE 即视为已不存在）。
 
   对可见的行，step 1 取快照的 `SELECT … WHERE source.id::text = $1` 已经拿到了 `current_data`，可直接复用，不必再查一次。
 
   [US-220](./US-220-supabase-update-push-semantics.md) 把 UPDATE 改走普通 `UPDATE` 后面对同一个问题（零行生效时被拒还是已不存在），
-  **两个故事只交付一个判定原语，其机制、签名与 SQLSTATE 在两份 plan 里一次冻结，不得各写一份。** 「已不存在」与 42501 用不同的 SQLSTATE 报出，
+  **两个故事只交付一个判定原语（`rxdb_existing_ids`），不得各写一份。** 「已不存在」与 42501 用不同的 SQLSTATE 报出，
   阶段 B 据此区分 RLS 拒绝与远端已删；DELETE 的「已不存在」按 AC#4 幂等成功，UPDATE 的「已不存在」按 US-220 AC#5 抛错。
 
 - **日志与业务写配对（AC#6）**：`p_changes` 每条都带 `schema` / `table` / `entityId`（`rxdb_mutations` 写日志前用 `op - 'schema' - 'table'` 剥掉前两者），
@@ -173,16 +169,16 @@ INVEST 检查清单:
 - **非 main 分支**：[`build_merge_changes_payload()`](../../../packages/rxdb-adapter-supabase/src/supabase.merge-changes.ts)
   只在 `isMainBranch` 时生成 `p_upserts` / `p_deletes`，非 main 分支的推送只写日志、不碰业务表。阶段 A 的判定只对有业务写的操作生效；
   阶段 C 若改为由触发器推导日志（候选：`SECURITY DEFINER` 触发器 + 回收客户端角色对 `rxdb_change` 的 DML），
-  分支变更必须保留显式写日志的路径，否则分支同步会断。机制在 plan 阶段定。阶段 C 单靠回收直写关不掉症状 4，那一半由 AC#6 关。
+  分支变更必须保留显式写日志的路径，否则分支同步会断。已定：`rxdb_log_change_trigger()` 与内部函数 `rxdb_insert_changes` 为 `SECURITY DEFINER`，回收客户端角色对 `rxdb_change` 的 DML，非 main 分支日志经 `rxdb_insert_changes` 写入。阶段 C 单靠回收直写关不掉症状 4，那一半由 AC#6 关。
 - **阶段 B 的回执粒度**：`p_changes` 按源变更逐条发送，`p_upserts` / `p_deletes` 却是压缩后每实体一条，两者是 N:1。
   RLS 的判定发生在实体操作上，所以回执按实体键给出，再由客户端扇出到该实体的全部源变更（AC#10）。
-  沿用今天按 `localId` 的 `change_id_mapping` 无法表达「一条实体操作被拒、它的三条源变更都不拿远端 ID」。
+  沿用按 `localId` 的 `change_id_mapping` 无法表达「一条实体操作被拒、它的三条源变更都不拿远端 ID」。
 - **阶段 B 的本地对齐**：rejected 只阻止重推还不够。推送方本地已经写下了被拒的值，不对齐的话这个设备会一直显示一份远端没有的数据（AC#11）。
   对齐是「把该实体覆盖为远端当前值」，不是撤销：不生成反向变更、不进撤销栈、不产生新的待推变更。
-  用哪条现有的拉取路径重取单个实体，在 plan 阶段定。
+  对齐由 [`push-repository.ts`](../../../packages/rxdb-plugin-sync/src/push-repository.ts) 在推送后执行，登记为受信写入意图 `alignRejectedEntities`（`remote_sync`）。
 - **阶段 B 的依赖级联**：被拒的父实体 INSERT 不存在于远端，同批引用它的子实体 INSERT 会以 23503 失败（AC#12）。
   如果把 23503 当普通失败处理，就又回到毒批次。`PUSH_PHASES` 是先 DELETE 再 INSERT / UPDATE，依赖顺序由它决定；
-  级联标记按外键依赖还是按 23503 反推，在 plan 阶段定。参考 schema 只有 `shop.*` 与 `menu_large` 带外键，`todos` 没有，
+  级联由远端以 23503 回执（`dependency`）报出，客户端按 `dependsOn` 反查父实体。参考 schema 只有 `shop.*` 与 `menu_large` 带外键，`todos` 没有，
   AC#12 的用例须落在这两组表上。
 - **阶段 B 的错误分类**：[`RxDBAdapterSupabase.executeRetryableWrite()`](../../../packages/rxdb-adapter-supabase/src/RxDBAdapterSupabase.ts)
   只保留了 `error.message` 与 `status`，SQLSTATE 在这里丢掉。AC#13 要求把 SQLSTATE 带到客户端，并给出 rejected 与可重试错误的明确划分。
@@ -192,14 +188,14 @@ INVEST 检查清单:
   逐实体回执要求把它升级为强制的逐条结果（applied / rejected），影响所有 `RxDBAdapterRemoteBase` 实现。实际波及面很小：
   - 真正实现推送的只有 `RxDBAdapterSupabase`；
   - [`RxDBAdapterHttp.mergeChanges()`](../../../packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts) 直接抛 `HttpChangelogUnsupportedError`，不受影响；
-  - 测试夹具 [`sync-override.ts`](../../../packages/rxdb-test/src/cross-framework-fixtures/sync-override.ts) 返回 `undefined`，需要按新契约改。
+  - 测试夹具 [`sync-override.ts`](../../../packages/rxdb-test/src/cross-framework-fixtures/sync-override.ts) 是本地适配器，不受影响。
 
-  rejected 落到本地 `RxDBChange` 的哪个字段、是否需要系统表迁移，在 plan 阶段定。
+  rejected 落在本地 `RxDBChange.rejectedAt` / `rejection` 两个可空列，由系统 schema 迁移补列（见 `RXDB_SYSTEM_SCHEMA_VERSION` 的 7 号说明）。
 
 - **SQL 回归不在 CI 里**：`run-supabase-sql-security-regressions.sh` 没有接入任何 nx target，需要手工对一个运行中的 Supabase 容器执行
   （默认容器名 `supabase-db`，用 `SUPABASE_DB_CONTAINER` 覆盖）。阶段 A 的门禁靠它，PR 描述里需要贴实跑输出；
   是否接入 nx / CI 不在本故事范围。
-- **与 US-029 的关系**：本故事是 [RV-022](../../reviews/RV-022-us-029-readiness-review.md) R02 / R04 / R05 中与租户无关的部分，
+- **与 US-029 的关系**：本故事是 RV-022（`git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`）R02 / R04 / R05 中与租户无关的部分，
   单独成立的依据是症状 1 已复现。US-029 阶段 C 的权威端工作以本故事为前置。
 
 ## 实现文件
@@ -234,7 +230,7 @@ INVEST 检查清单:
 
 ## References
 
-- [RV-022 US-029 立项准入评审](../../reviews/RV-022-us-029-readiness-review.md)
+- RV-022 US-029 立项准入评审：`git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`
 - [US-029 多用户 RBAC：角色与所有权写权限](../core/US-029-rbac-owner-role-permission.md)
 - [US-220 Supabase 推送 UPDATE 的落库语义](./US-220-supabase-update-push-semantics.md)
 - PostgreSQL 文档：[Row Security Policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)

@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [framework, vue]
 ---
 
@@ -28,7 +28,7 @@ tags: [framework, vue]
 | 5   | `useGet/useFindOne/useFindOneOrFail/useFindAll/useCount` | 调用                                        | 均可用                         | ✅   |
 | 6   | `useFindByCursor` composable                             | 游标分页                                    | 返回正确的分页数据             | ✅   |
 | 7   | `InfiniteScroll` composable                              | 滚动到底部                                  | 自动加载下一页                 | ✅   |
-| 8   | Tree/Graph composables                                   | 使用树形/图数据实体                         | 提供对应 API                   | ✅   |
+| 8   | Graph composables；Tree 在 `rxdb-plugin-tree-vue`        | 使用树形/图数据实体                         | 提供对应 API                   | ✅   |
 | 9   | 返回 `RxDBResource<T>`                                   | 与 Angular/React 对比                       | 接口完全一致                   | ✅   |
 | 10  | `provideRxDB` 收 `RxDBSource`                            | 传实例 / Promise / 工厂                     | 三端接受同一联合类型           | ✅   |
 | 11  | 数据库尚未就绪                                           | `useRxDB()` / `useRxDBOptional()`           | 前者抛错、后者返回 `undefined` | ✅   |
@@ -50,7 +50,8 @@ tags: [framework, vue]
 ## 实现文件
 
 - `packages/rxdb-vue/src/rxdb-vue.ts` — Vue 响应式封装
-- `packages/rxdb-vue/src/hooks.ts` — Composables 核心（含 `useFindDescendants` 等 Tree/Graph composables，无独立 tree 文件）
+- `packages/rxdb-vue/src/hooks.ts` — Composables 核心（含 `useGraphNeighbors` / `useGraphPaths` 等 Graph composables）
+- `packages/rxdb-plugin-tree-vue/src/use-tree.ts` — Tree composables（`useFindDescendants` 等，随 tree 插件外移）
 - `packages/rxdb-vue/src/useInfiniteScroll.ts` — 无限滚动
 
 ## 参考

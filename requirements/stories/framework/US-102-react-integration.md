@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [framework, react]
 ---
 
@@ -28,7 +28,7 @@ tags: [framework, react]
 | 5   | `useGet/useFindOne/useFindOneOrFail/useFindAll/useCount` | 调用                                | 均可用                         | ✅   |
 | 6   | `useFindByCursor` hook                                   | 游标分页                            | 返回正确的分页数据             | ✅   |
 | 7   | `useInfiniteScroll` hook                                 | 滚动到底部                          | 自动加载下一页并追加到列表     | ✅   |
-| 8   | Tree/Graph hooks                                         | 使用树形/图数据实体                 | 提供对应 API                   | ✅   |
+| 8   | Graph hooks；Tree hooks 在 `rxdb-plugin-tree-react`      | 使用树形/图数据实体                 | 提供对应 API                   | ✅   |
 | 9   | React 组件卸载                                           | InfiniteScroll 订阅存在             | 自动取消订阅无内存泄漏         | ✅   |
 | 10  | `db` 收 `RxDBSource`                                     | 传实例 / Promise / 工厂             | 三端接受同一联合类型           | ✅   |
 | 11  | 数据库尚未就绪                                           | `useRxDB()` / `useRxDBOptional()`   | 前者抛错、后者返回 `undefined` | ✅   |
@@ -44,14 +44,15 @@ tags: [framework, react]
 - 所有权：Provider 只销毁自己造的东西 —— 否则 `StrictMode` 双挂载会断掉调用方的模块级单例，
   留下没人重连的死库
 - 响应式：`useFind()` 返回响应式数据，触发 React 重渲染
-- 资源管理：`RxDBResource<T>` 提供 `.value` / `.isLoading` / `.error` / `.isFetching`
+- 资源管理：`RxDBResource<T>` 提供 `.value` / `.isLoading` / `.error` / `.isEmpty` / `.hasValue`
 - 生命周期：`useEffect` cleanup 自动取消 RxJS 订阅
 - 无限滚动：`useInfiniteScroll` 订阅管理，自动加载下一页
 
 ## 实现文件
 
 - `packages/rxdb-react/src/rxdb-react.tsx` — Provider + Hooks 核心
-- `packages/rxdb-react/src/hooks.ts` — Hooks 实现（含 `useFindDescendants` 等 Tree/Graph hooks，无独立 tree 文件）
+- `packages/rxdb-react/src/hooks.ts` — Hooks 实现（含 `useGraphNeighbors` / `useGraphPaths` 等 Graph hooks）
+- `packages/rxdb-plugin-tree-react/src/use-tree.ts` — Tree hooks（`useFindDescendants` 等，随 tree 插件外移）
 - `packages/rxdb-react/src/useInfiniteScroll.ts` — 无限滚动
 
 ## 参考

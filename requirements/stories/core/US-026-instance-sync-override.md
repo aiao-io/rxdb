@@ -5,14 +5,14 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-09-15
-updated: 2026-09-27
+updated: 2026-10-06
 tags: [core, sync, model, server, cross-framework]
 ---
 
 <!--
 INVEST 检查清单:
 - [x] Independent: 基于现有同步模式与配置解析，不依赖 commit graph 或新的适配器
-- [x] Negotiable: 配置字段名、条目容器与内部解析接口在 plan 阶段冻结
+- [x] Negotiable: 配置字段名、条目容器与内部解析接口已冻结（见技术笔记）
 - [x] Valuable: 前后端直接复用同一个实体类，环境差异由数据库实例表达
 - [x] Estimable: 边界限定为初始化配置解析、调用链一致性与现有 HTTP demo 收敛
 - [x] Small: 不包含运行时切换、已有数据迁移、动态实体注册或新的同步协议
@@ -29,27 +29,17 @@ INVEST 检查清单:
 
 ## 现状与证据
 
-1. [`getSyncConfig()`](../../../packages/rxdb/src/sync-contract/sync-type-utils.ts) 当前按实体声明优先解析：
+1. 所有消费者经同一个解析入口取生效配置：
+   [`getSyncConfig()`](../../../packages/rxdb/src/sync-contract/sync-type-utils.ts) 调
+   `toEntitySyncResolver(globalSync).resolve(metadata)`（[`entity-sync-resolver.ts`](../../../packages/rxdb/src/sync-contract/entity-sync-resolver.ts)，
+   优先级为实例覆盖 > 实体声明 > 库级默认），核心与插件（`rxdb-plugin-sync` 的 `pull-repository.ts` /
+   `cleanup-expired.ts` 等）都传入 `rxdb.entitySync`，不自己回读 `metadata.sync`。
+   复验：`grep -rnE 'metadata\??\.sync\b' packages/*/src --include='*.ts'`，排除测试后剩下的只有解析器本身、
+   元数据层和说明「不能回读」的注释。
 
-   ```ts
-   return metadata.sync || globalSync;
-   ```
-
-   实体上已有 `sync` 时，实例的数据库默认配置无法覆盖它。复验方式是读取该函数，以及
-   [`RxDBOptions`](../../../packages/rxdb/src/rxdb.interface.ts) 的 `sync` 配置入口。
-
-   解析也不止这一处。核心里各自独立解析的入口有：[`primary-adapter.ts`](../../../packages/rxdb/src/entity/primary-adapter.ts)
-   的 `getEntitySync`（主适配器选择，`RxDB.ts` 的 QueryCache 依赖检查也走它）、`Repository` 构造函数里的
-   `metadata.sync || rxdb.config.sync`、`metadata-validate.ts` 的 `validateSyncStrategy`、`EntityManager` 的 `init()`
-   不支持组合校验与批量写路由、`pushable-repository-rules.ts`。插件侧 `rxdb-plugin-sync` 的 `pull-repository.ts` /
-   `cleanup-expired.ts` 取 filter 函数时直接读 `metadata.sync`，连解析函数都不经过。
-   复验：`grep -rlE 'metadata\??\.sync\b|getSyncConfig|getSyncType|getEntitySync|config\.sync\b' packages/*/src --include='*.ts'`，
-   排除测试、`testing/` 夹具与 `index.ts` 后是 9 个包里的 32 个文件。
-
-2. [`Recipe` 与 `ServerRecipe`](../../../modules/recipes-domain/src/recipe-entity.ts) 共享
-   `RECIPE_SCHEMA`，属性元数据只有一份；重复的是两个类外壳与 4 个 `declare` 类型字段。前者声明
-   `SyncType.QueryCache`，使用 `wa-sqlite` 与 `http`；后者声明 `SyncType.None`，仅使用 `pglite`。
-   复验方式是对照两个类的 `@Entity()` 参数与字段声明。这个重复是本故事要消除的具体接入成本。
+2. [`Recipe`](../../../modules/recipes-domain/src/recipe-entity.ts) 是前后端共享的唯一实体类：声明
+   `SyncType.QueryCache`，使用 `wa-sqlite` 与 `http`；后端经 `syncOverrides` 覆盖为 `None + pglite`
+   （AC#13）。第二个类 `ServerRecipe` 已删除。
 
 3. [US-216 的单实体类收敛边界](../adapter/US-216-server-side-rxdb.md#范围边界) 明确将实例级
    sync 覆盖留给独立 core 故事。本故事承接该能力缺口，不转移 US-216 已验收的 AC，
@@ -68,7 +58,7 @@ INVEST 检查清单:
 
 ### 选择与优先级
 
-- 新增可选的实例配置入口，按已注册的业务实体类引用选择覆盖目标。条目容器与字段名在 plan 阶段冻结。
+- 可选的实例配置入口 `RxDBOptions.syncOverrides: [{ entity, sync }]`，按已注册的业务实体类引用选择覆盖目标。
 - 生效配置的优先级为：**该实例对该实体的显式覆盖 > 实体装饰器的 `sync` > 数据库默认 `sync`**。
 - 覆盖条目提供完整的 `SyncOptions`，选中后整体替换低优先级配置，不逐字段或递归合并。
   例如用 `None + local: pglite` 覆盖 `QueryCache + local: wa-sqlite + remote: http` 后，生效配置中没有 remote。
@@ -151,15 +141,13 @@ INVEST 检查清单:
 
 ## 技术笔记
 
-- 先为 AC#1～4 建立失败用例，再修改配置解析；随后补齐每条读写与同步消费者的回归。
-- 实现前扫描 `getSyncConfig`、`getSyncType`、`metadata.sync` 及主适配器选择入口。
-  不能只修改 Repository：[`EntityManager.init()` 与批量写入口](../../../packages/rxdb/src/entity/entity-manager.ts)
+- 配置字段名 `syncOverrides`（条目 `{ entity, sync }`）、解析入口 `rxdb.entitySync.resolve`、诊断错误 `RxDBSyncOverrideError`
+  已冻结。配置优先级、整体替换、无覆盖兼容与实例隔离是本故事的固定约束。
+- 不能只改 Repository：[`EntityManager.init()` 与批量写入口](../../../packages/rxdb/src/entity/entity-manager.ts)
   也消费数据库默认配置和实体元数据。
-- plan 阶段冻结配置字段名、实体条目容器、实例生效配置的归属与诊断错误形状。
-  配置优先级、整体替换、无覆盖兼容与实例隔离属于本故事固定约束。
-- [US-025](./US-025-core-plugin-extraction.md) 已把同步消费者外移到插件包。生效配置必须由核心给出单一解析入口，
-  插件只调用它，不各自复制优先级规则；`pull-repository.ts` / `cleanup-expired.ts` 直接读 `metadata.sync` 的两处要改成走这个入口。
-- 改动面：现状与证据第 1 条的 grep 列出的 32 个文件 / 9 个包是上限（`system-entities.ts` 只是注释命中），外加三框架绑定与 demo。
+- [US-025](./US-025-core-plugin-extraction.md) 已把同步消费者外移到插件包：生效配置由核心给出单一解析入口，
+  插件只调用它，不各自复制优先级规则。
+- 改动面见「实现文件」。
 - 本故事新增配置能力，不引入数据库 schema 或 change-codec 迁移，不依赖 epic-006 的桥接发布。
 
 ## 实现文件

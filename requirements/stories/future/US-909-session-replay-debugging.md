@@ -29,14 +29,12 @@ INVEST 检查清单:
 
 ## 现状与证据
 
-1. **e2e 失败没有现场（阶段 A 的病灶）**：五个 web e2e 项目（`dev-rxdb-angular-e2e` / `dev-rxdb-react-e2e` /
-   `dev-rxdb-vue-e2e` / `dev-rxdb-supabase-e2e` / `dev-rxdb-http-e2e`）的 `playwright.config.ts` 都是
-   `trace: 'on-first-retry'` 叠 `retries: isCI ? 2 : 0`。本地没有重试，失败**从不产生 trace**；CI 上只录第一次重试——
-   flaky 用例在第一次重试就通过时，留下的是那次**通过**的 trace，首次失败没有任何记录。
-   [`rxdb-devtools-extension-e2e`](../../../apps/rxdb-devtools-extension-e2e/playwright.config.ts) 同样是 `retries: isCI ? 2 : 0`，
-   却没设 `trace`（默认 `off`），CI 重试也不录。
+1. **e2e 失败没有现场（阶段 A 的病灶，已由阶段 A 关闭）**：`trace: 'on-first-retry'` 叠 `retries: isCI ? 2 : 0`，本地没有重试，
+   失败**从不产生 trace**；CI 上只录第一次重试——flaky 用例在第一次重试就通过时，留下的是那次**通过**的 trace，首次失败没有任何记录。
+   `rxdb-devtools-extension-e2e` 不设 `trace`（默认 `off`）时，CI 重试也不录。六个配置（五个 web demo e2e 与
+   [`rxdb-devtools-extension-e2e`](../../../apps/rxdb-devtools-extension-e2e/playwright.config.ts)）现在都是 `retain-on-failure`。
    [angular 的配置](../../../apps/dev-rxdb-angular-e2e/playwright.config.ts)在 `retries` 上方的注释把本地复现的正确动作
-   定为 `--retries=0 --repeat-each=N`，这条路径上同样没有 trace。
+   定为 `--retries=0 --repeat-each=N`，这条路径上失败的那次尝试同样留下 trace。
 2. **界面现场不缺工具，缺配置**：Playwright 1.63 的 trace 含每个动作前后可检查的 DOM 快照、screencast、console、network
    与源码位置。`TraceMode` 的 `'retain-on-failure'` 每次尝试都录、只留失败的那次，且「A failed run's trace is kept even
    when a later retry passes」；`'retain-on-first-failure'` 只录首次尝试、失败才留（`playwright/types/test.d.ts` 的
@@ -46,7 +44,7 @@ INVEST 检查清单:
    `extension.fixture.ts` 里用 `chromium.launchPersistentContext()` 建的上下文都在内。六个配置都展开 `nxE2EPreset`，产物落它的
    `outputDir`（`test-output/playwright/output`）；[`ci-template.yml`](../../../.github/workflows/ci-template.yml) 的
    「Upload Playwright artifacts」步骤以 `!cancelled()` 为条件、按 `apps/${{ matrix.project }}/test-output/playwright/**`
-   上传并保留 7 天，重试后转绿的 job 也上传，不需要新通道。该步骤上方的注释写着 `on-first-retry`，随配置一起改。
+   上传并保留 7 天，重试后转绿的 job 也上传，不需要新通道。
 3. **trace 看不到的是库里的数据**：确定性失败不需要它——spec 本身就是数据场景的构造过程，本地带 trace 重跑即得同一状态；
    重跑拿不回来的只有非确定性失败（竞态 / 时序）在失败时刻的库内容。目前没有一条「trace 看完仍要失败时刻数据才能定位」
    的失败记录；阶段 B 原以这条证据为门禁，owner 于 2026-10-01 豁免（见交付阶段的排期决定）。
@@ -75,7 +73,7 @@ INVEST 检查清单:
 5. **数据版本控制基建已存在**：working-tree 写捕获与提交（US-305 / US-306 `Done`）；`restore({ commitId }, credentials)`
    （[US-307](../collaboration/US-307-restore-session.md) `Done`）把当前分支 HEAD 可达的历史 commit 内容作为未提交变更写回
    工作树，HEAD 不动。门面 [`WorkingTreeManager`](../../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts)
-   只有 Promise 方法，没有 commit 生命周期事件。工作树状态全在库内的表里（working-tree 贡献的十张系统表），全库备份连同
+   的方法都是 Promise；commit 生命周期事件经阶段 C 新增的只读 `commits$` 发出（见技术笔记「commit 关联挂点」）。工作树状态全在库内的表里（working-tree 贡献的十张系统表），全库备份连同
    未提交条目一起带走。Angular demo 在空库启动时 `enableIfEmpty()`，e2e 每个用例都是新库名；除了设
    `rxdb-e2e-skip-working-tree-auto-enable` 的两个 working-tree spec，其余 spec 都不提交，失败时刻写下的数据都是未提交条目
    （按 spec 源码判断）。`dev-rxdb-angular` 的 working-tree 页已有 `listCommits` + `restore`、提交与整棵工作树 `discard()` 的界面
@@ -206,7 +204,7 @@ AC#1～3 从阶段 A 起执行，后续每个阶段都必须继续通过：阶�
   `authDomain = <库名>@0_1`，恢复到别的库名报 `auth_domain_mismatch`；e2e 库名带随机后缀，不会与 dev 应用的库撞。
   manifest 不带库名字段，从 `authDomain` 取。dev 应用平时走 OPFS 分支，打开导入的库走 IDB 分支（与 8200 的强制 IDB 同一条路）。
   中断的导入由 `cleanupIncompleteRestore()` 清理。
-- **共享 fixture 的改动面**：`apps/dev-rxdb-angular-e2e/src` 下 27 个 spec 从 `@playwright/test` 取 `test`，各改一行 import；
+- **共享 fixture 的改动面**：`apps/dev-rxdb-angular-e2e/src` 下全部 spec 从 `fixtures.ts` 取 `test`；
   `e2e-utils.ts` / `search-test-api.ts` 只取类型与 `expect`，lint 规则只禁 `test` 这个具名导入，不影响它们。
 - **调用约束**：`restore({ commitId })` 的目标必须在当前分支 HEAD 的可达父链上（US-307 FR-033），其他分支上的 commit 先
   `switchBranch`；三个 CAS 凭据（`WorkingTreeCredentials`）取自一次新鲜的 `status()`；被拒走返回值（`conflict` /
@@ -225,9 +223,9 @@ AC#1～3 从阶段 A 起执行，后续每个阶段都必须继续通过：阶�
   rrweb 自定义事件（`EventType.Custom`）。不走实体事件总线，禁止按时间戳反查 commit 充当关联。
 - **回放与还原分工**：rrweb 回放 = 观察级；`restore()` = 状态级。调试闭环是「看回放定位 → 恢复数据 → 活应用交互调试」，
   不是「在回放里复现 bug」；非确定性问题（竞态 / 随机 / 时序）不承诺复现。
-- **依赖**：`rrweb@2.1.6` + `@rrweb/types@2.1.6`（MIT），钉精确版本（2.x 补丁版本发得密），不 fork 上游；新依赖过审计门禁，
-  不得新增 high 漏洞。原写的 `@rrweb/record` / `@rrweb/replay` 只是以 `^2.1.6` 再导出 `rrweb`，会让精确钉版失效，故改直接依赖
-  `rrweb`（plan 偏离 4）。
+- **依赖**：`rrweb@2.1.7` + `@rrweb/types@2.1.7`（MIT），钉精确版本（2.x 补丁版本发得密），不 fork 上游；新依赖过审计门禁，
+  不得新增 high 漏洞。不用 `@rrweb/record` / `@rrweb/replay`：它们以 `^` 范围再导出 `rrweb`，会让精确钉版失效，故直接依赖
+  `rrweb`。
 - **阶段 C 的体积与开销实测（2026-10-02）**：`rxdb-plugin-replay` 的 `dist/index.js` 经 esbuild 打包压缩（外置 `rrweb` /
   `@rrweb/*` / `@aiao/*` / `rxjs`）后 gzip 8,151 B，预算 50 KB；demo 里录制核心与 rrweb 是两个懒加载 chunk（8.1 KB / 81.3 KB gz），
   录制关闭时初始脚本里没有它们。批量落库 benchmark 中位数 13.4 ms（SC-007）。

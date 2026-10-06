@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-008-lifecycle-scope
 created: 2026-08-15
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [lifecycle, plugin, public-api, dependency]
 ---
 
@@ -49,8 +49,8 @@ INV-1～INV-7 与 D1～D5 对两个阶段同时生效，是本故事的唯一真
 
 ## 来源与边界
 
-来源是 [epic-008](../../epics/epic-008-lifecycle-scope.md) 「现状」表的第 5、7 项——两套语义不同的
-自建安装状态机，以及当前已经落地但尚未被依赖调度消费的按适配器就绪信号。它们存在的共同问题是：**插件无法把
+来源是 [epic-008](../../epics/epic-008-lifecycle-scope.md) 「现状」表的第 3、5 项——两套语义不同的
+自建安装状态机，外加按适配器就绪信号 `adapterConnected$`（由调度器消费）。它们存在的共同问题是：**插件无法把
 依赖和作用域交给宿主调度**，只能在 `install()` 里自己等、自己判断竞态。
 
 ### 证据一：search 插件的等待链
@@ -77,21 +77,22 @@ INV-1～INV-7 与 D1～D5 对两个阶段同时生效，是本故事的唯一真
 `#plugin_map` 是 `Map<Plugin, IRxDBPlugin>`（[`RxDB`](../../../packages/rxdb/src/RxDB.ts)），键是**工厂函数**。
 `plugin.name` 全文只出现在 `console.error` 的模板串里——`#install_one_plugin`、
 `#track_plugin_install`、`#destroy_plugin` 三条路径的报错处
-（实现已抽到 [rxdb.plugin-lifecycle.ts:77/103/196-202](../../../packages/rxdb/src/rxdb.plugin-lifecycle.ts#L77-L202)，
-RxDB.ts 里只剩薄委托）——阶段 A 之前**从来没有被当作索引用过**。
-后果是 search 的工厂只能自己探测宿主实例上的自有属性来判断「我是不是已经装过了」
-（[`searchPlugin`](../../../packages/rxdb-plugin-search/src/plugin.ts) 工厂，
-不匹配时抛 `already installed with an incompatible instance`）。按名字声明依赖要的正是这个索引：
-阶段 B 的 `RxDB.#plugin_by_name` 与 `getPlugins(name)` 补上它，裁决规则见 D4，验收见 AC#17。
+（实现在 [rxdb.plugin-lifecycle.ts](../../../packages/rxdb/src/rxdb.plugin-lifecycle.ts) 的
+`trackPluginInstall` / `discardPluginScope` / `destroyPlugin`，RxDB.ts 里只剩薄委托）——阶段 A 之前**从来没有被当作索引用过**。
+后果是 search 的工厂只能自己探测宿主实例上的自有属性来判断「我是不是已经装过了」。
+按名字声明依赖要的正是这个索引：
+阶段 B 的 `RxDB.#plugin_by_name` 与 `getPlugins(name)` 补上它，
+[`rxDBPluginSearch`](../../../packages/rxdb-plugin-search/src/plugin.ts) 工厂改用 `db.getPlugins('search')` 自检
+（不匹配时抛 `already installed with an incompatible instance`），裁决规则见 D4，验收见 AC#17。
 
 ### 证据三：部分断连已有信号，但没有依赖释放
 
 `#shutdown()` 只在**最后一个**已连接适配器断开时触发——见 `RxDB.disconnect(adapterName)`
 （[`disconnect()`](../../../packages/rxdb/src/RxDB.ts)）。本地 + 远端都连着、只断远端时，
-`adapterConnected$('remote')` 会变为 `false`，但依赖远端的插件仍不会被拆卸，也没有新 epoch 调度。
+`adapterConnected$('remote')` 变为 `false`，调度器 reconcile 释放依赖远端的插件，其余插件不受影响。
 
-[`connected$`](../../../packages/rxdb/src/RxDB.ts) 仍是聚合 `boolean`，只回答「**有没有**适配器连着」；
-阶段 A 不再补信号，而是消费已经存在的按名信号，维护依赖插件的作用域和 adapter epoch。
+[`connected$`](../../../packages/rxdb/src/RxDB.ts) 是聚合 `boolean`，只回答「**有没有**适配器连着」；
+依赖调度消费的是按名信号，并为依赖插件维护作用域和 adapter epoch。
 
 ## 核心不变式（INV）
 
@@ -106,7 +107,7 @@ RxDB.ts 里只剩薄委托）——阶段 A 之前**从来没有被当作索引�
 **INV-3 依赖状态用纪元身份表达，不用布尔位。** 「适配器换了一个新实例但一直非空」必须被识别为
 一次依赖变化，否则依赖它的插件会继续挂在已断开的旧实例上。
 
-**INV-4 宿主只 `await` 已经启动的安装。** 依赖未满足的插件**不得**进入 `#plugin_install_promises`。
+**INV-4 宿主只 `await` 已经启动的安装。** 依赖未满足的插件**不得**进入调度器的已启动安装集合（`PluginDependencyScheduler.startedInstalls()`）。
 这是死锁安全底线：`connect()` 会经 `RxDB.#await_plugin_installs()` `await` 全部在册安装
 （[`#await_plugin_installs()`](../../../packages/rxdb/src/RxDB.ts)），
 一旦「安装」变成「等依赖」而依赖恰好由 `connect()` 自己提供，就会等成死锁——search 已经踩过一次
@@ -119,8 +120,8 @@ RxDB.ts 里只剩薄委托）——阶段 A 之前**从来没有被当作索引�
 **INV-6 失败不自动重试。** 安装失败只在**依赖纪元变化**时重来，不引入定时器与退避语义（D5）。
 
 **INV-7 释放先于依赖失效。** 依赖即将消失时，必须先释放依赖方的作用域，再让依赖本身失效。
-[`disconnect()`](../../../packages/rxdb/src/RxDB.ts) 今天已经是这个顺序（`#shutdown()` 先跑，`adapter.disconnect()` 后跑），
-新调度必须保持它——反过来会让 disposer 跑在一个已经断开的适配器上。
+[`disconnect()`](../../../packages/rxdb/src/RxDB.ts) 就是这个顺序（`#shutdown()` 先跑，`adapter.disconnect()` 后跑），
+调度必须保持它——反过来会让 disposer 跑在一个已经断开的适配器上。
 
 ## 插件激活状态机
 
@@ -199,10 +200,10 @@ Cordis `Fiber._setEpoch()` / `_reload()` / `_unload()` 的可迁移部分是“�
 6. 某插件在 `waiting` / `installing` / `failed` 之间跃迁：**不**触发依赖它的插件的 reconcile；
    只有它进入或离开 `active` 才触发。
 
-事件注册应沿用 Epic 008 的账本收敛方向：`RxDB.addEventListener()` 和 `@aiao/utils` 的
-`EventDispatcher.addEventListener()` 返回幂等 remover，重复 listener 继续保持 `Set` 的单条目语义（重复调用返回空操作
-disposer），阶段 A 与阶段 B 通过 `scope.acquire()` 登记；保留现有 `removeEventListener()` 兼容调用。不得引入 Cordis
-`Context`、Proxy trace、全局 Registry、thenable Fiber 或 HMR。
+事件注册沿用 Epic 008 的账本收敛方向：通过 `scope.acquire(() => { add; return () => remove; })` 登记撤销，
+`RxDB.addEventListener()` 与 `@aiao/utils` 的 `EventDispatcher.addEventListener()` 保持返回 `void`
+（epic-008 已否决改签名），重复 listener 继续保持 `Set` 的单条目语义；`removeEventListener()` 照旧可用。
+不得引入 Cordis `Context`、Proxy trace、全局 Registry、thenable Fiber 或 HMR。
 
 ## 待冻结的五个决策
 
@@ -251,15 +252,11 @@ export type RxDBPluginDependency = 'adapter:local' | 'adapter:remote' | `plugin:
 真正的就绪点在 `connect()` 里，是这条链**全部**跑完之后：
 
 ```text
-adapter.connect()                    :628
-  → migrateSystemSchema?()           :638 / :651   ┐
-  → completeBootstrap?()             :639 / :652   │ 仅 local 分支（:631 isLocalAdapter）
-  → runMigrations() / createTables   :640 / :647   │
-  → #ensureEntityTables()            :641          │
-  → reconcileEntityIndexes?()        :654          ┘
-  → #set_adapter_connected(name)     :662   ← 就绪
-  → #adapter_connected_sub.next()    :864
-  → #await_plugin_installs()         :666
+adapter.connect()
+  → 引导链（仅 local 分支）：系统迁移 / migrateSystemSchema?() / completeBootstrap?() /
+    用户迁移 / createTables() 或 #ensureEntityTables() / reconcileEntityIndexes?()
+  → #set_adapter_connected(name)     ← 就绪（同步推送 #adapter_connected_sub）
+  → #await_plugin_installs()
 ```
 
 | 方案                                | 主要风险                                                                  | 结论            |
@@ -272,15 +269,12 @@ adapter.connect()                    :628
 [`#await_plugin_installs()`](../../../packages/rxdb/src/RxDB.ts) 后 await——**就绪信号先于插件安装等待点发生**，
 所以这个判据不会引入新的死锁窗口（INV-4 依然成立）。
 
-Search 当前已经去掉聚合 `connected$`，等待按名的 `adapterConnected$(localAdapterName)` 后再从
-`localAdapter$` 取得实例。后者只负责取实例，不能被重新解释为 readiness；阶段 A 的宿主调度应把这两个动作放进同一
-个依赖 epoch，并负责局部断连时的释放与重装。
-
-信号本身已落地；剩余的依赖释放、epoch reconcile 和 search 生命周期迁移归阶段 A。
+宿主调度把「按名的 `adapterConnected$` 就绪」与「取调度器为本纪元绑定的实例」放进同一个依赖 epoch，
+并负责局部断连时的释放与重装；`localAdapter$` 只负责取实例，不能被重新解释为 readiness。
 
 #### D2 附 — `install()` 内允许调用什么（阶段 A 的硬约束）
 
-改写 search 的等待链时**不得**顺手把 FTS DDL 挪出 `install()` 返回的 Promise。今天
+改写 search 的等待链时**不得**顺手把 FTS DDL 挪出 `install()` 返回的 Promise。
 [`install()`](../../../packages/rxdb-plugin-search/src/plugin.ts) 返回的 Promise 包含
 `#runInstall()`，而 `connect()` 会 `await` 它——**`await db.connect()` 返回即 FTS 可用是用户可见保证**，
 把它挪到连接 Promise 之外是行为回退，不是重构。
@@ -289,7 +283,7 @@ Search 当前已经去掉聚合 `connected$`，等待按名的 `adapterConnected
 [`bootstrapTransaction` / `rawQuery`](../../../packages/rxdb-plugin-search/src/plugin.ts)
 这条不回头等 `connect()` 的路径，**不改对外时序**。原因写在源码注释里：`repo.find()` /
 `adapter.rawQuery()` 都会先 `ready()`，而 `ready()` 又等 `connect()`——等于等自己。
-「另开一个不进 `#await_plugin_installs()` 的慢路径钩子」这一方案已被否决：它要绕开的那个环今天不存在
+「另开一个不进 `#await_plugin_installs()` 的慢路径钩子」这一方案已被否决：它要绕开的那个环不存在
 （`connect()` 先置位 `connected$` 再 `await` 插件安装），而把 FTS 挪出连接 Promise 会破坏
 「`await db.connect()` 返回即 FTS 可用」这条用户可见保证。
 
@@ -306,8 +300,8 @@ Search 当前已经去掉聚合 `connected$`，等待按名的 `adapterConnected
 
 ### D4 — 插件重名怎么裁决
 
-[`use()`](../../../packages/rxdb/src/RxDB.ts) 今天按**工厂函数身份**去重，
-两个不同工厂声明同一个 `name` 会双双装上且互不知情。按名字 inject 就必须先解决这个歧义。
+[`use()`](../../../packages/rxdb/src/RxDB.ts) 按**工厂函数身份**去重，
+两个不同工厂声明同一个 `name` 会双双装上；宿主对重名 `console.warn`（`#index_plugin_name`）。按名字 inject 就必须解决这个歧义。
 
 | 方案                                      | 主要风险                                                                        | 结论        |
 | ----------------------------------------- | ------------------------------------------------------------------------------- | ----------- |
@@ -328,8 +322,7 @@ Search 当前已经去掉聚合 `connected$`，等待按名的 `adapterConnected
 | 不自动重试，纪元变化时重来  | 用户想重试必须断开再连接                                                          | ✅ **推荐** |
 | 失败即整体 `connect()` 失败 | 与「依赖未就绪不安装」矛盾：延迟安装发生时 `connect()` 可能早已 resolve，无处可抛 | ❌          |
 
-推荐方案与 `#plugin_install_promises` 现有的「失败后删条目允许重试」
-（epic-008 现状表第 3 项）语义一致：失败不粘死，但也不自作主张地重来。
+推荐方案与宿主的安装记账语义一致：失败不粘死，但也不自作主张地重来。
 
 **与 US-014 AC#12～#15 的关系**：那一组说的是「安装失败时已登记的资源要被回收、失败的作用域不复用」，
 是**资源语义**；本决策说的是「回收之后由什么事件触发再试一次」，是**调度语义**。
@@ -344,12 +337,12 @@ Search 当前已经去掉聚合 `connected$`，等待按名的 `adapterConnected
 
 - **依赖注入容器 / `provide()` 式动态服务注册表**——epic-008 明确的非目标
 - **任意字符串依赖键**。扩大 `RxDBPluginDependency` 取值必须另起故事并说明理由（INV-1）
-- **`RxDB.#shutdown()` 的 8 处手工复位收敛**——原归 `US-016`，该故事已
+- **`RxDB.#shutdown()` 里手工复位的收敛**——原归 `US-016`，该故事已
   [移出 epic-008 承诺范围](../../epics/epic-008-lifecycle-scope.md)：这 8 处是**状态复位**不是资源释放，
   作用域原语按定义碰不到，今天没有归属故事
 - **拆卸错误在 `RxDB` 边界的出口**——与 [US-014 D5](./US-014-plugin-scope-contract.md) 保持一致，仍为 `console.error`
 - **workspace 的 `#installPromise` / `#installFailed`**：它等的是 IndexedDB 恢复
-  （[RxDBPluginWorkspace.ts:325-337](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L325-L337)），
+  （[RxDBPluginWorkspace.ts](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts) 的 `#installPromise` / `#installFailed`），
   **不是 rxdb 侧的依赖**，`inject` 帮不上忙。两个阶段都不动它
 - **三框架绑定接入**——原归 `US-017`，已移出 epic-008 承诺范围（三端各自的原生作用域
   `DestroyRef` / `useEffect` cleanup / `onScopeDispose` 已在用），解锁条件见 Epic
@@ -380,7 +373,7 @@ async install(scope: LifecycleScope) {
   // 到这里 adapter:local 一定已就绪（引导链跑完，见 D2）：不再需要 adapterConnected$ 等待、
   // 不再需要 phase 机。install() 内仍只走 bootstrapTransaction / rawQuery，对外时序不变
   const adapter = this.rxdb.localAdapterSync;
-  scope.effect(() => bindEntityEvents(adapter), 'search:entityEvents');
+  scope.acquire(() => bindEntityEvents(adapter), 'search:entityEvents');
   await this.#runInstall(scope, adapter);
 }
 ```
@@ -400,7 +393,7 @@ async install(scope: LifecycleScope) {
 | 7   | 插件 `install()` 挂起期间依赖被断开（并发测试 1）        | 等 `install()` settle                                      | 已登记的 scope 恰好释放一次；插件**不进入 `active`**；该纪元的成功结果被丢弃                                                                                                                                                                                                                                                   | ✅   |
 | 8   | `disposing` 期间依赖以新实例回来（并发测试 2）           | 观察调度                                                   | 旧 dispose 只执行一次，直接 reconcile 到最新 `targetEpoch`，不启动中间纪元，只安装新实例                                                                                                                                                                                                                                       | ✅   |
 | 9   | 某插件的延迟安装抛错（并发测试 3）                       | 依赖不变时观察；再断开并重连                               | 失败绑定当时的依赖 epoch，作用域被释放，同纪元内**不自动重试**（INV-6 / D5）；纪元变化后**恰好**重试一次                                                                                                                                                                                                                       | ✅   |
-| 10  | 同一插件重复 `disconnect` / `connect`（并发测试 4）      | 观察事件注册与 disposer                                    | 不重复注册事件（幂等 remover 保持 `Set` 单条目语义）；scope disposer 逆序、幂等、异步释放                                                                                                                                                                                                                                      | ✅   |
+| 10  | 同一插件重复 `disconnect` / `connect`（并发测试 4）      | 观察事件注册与 disposer                                    | 不重复注册事件（`Set` 单条目语义）；scope disposer 逆序、幂等、异步释放                                                                                                                                                                                                                                                        | ✅   |
 | 11  | 插件 `inject: ['adapter:remote']`，远端永不连接          | `init()` + `connect('local')`                              | 该插件不安装；`connect()` 正常 resolve；`console.warn` **一次**说明「因依赖未满足而未安装」并列出缺失项；**不静默**（INV-5）                                                                                                                                                                                                   | ✅   |
 | 12  | search 已迁移到 `inject: ['adapter:local']`              | 全量回归                                                   | [`search.ready`](../../../packages/rxdb-plugin-search/src/plugin.ts) 按连接纪元一格的 deferred 口径：`connect()` 之前与安装期间 **pending**，成功 resolve、失败 reject 原始错误、纪元被释放后 reject `destroyed`；`await db.connect()` 返回即 FTS 可用（D2 附）；`SearchPluginPhase` 的 `installing` / `failed` 由宿主调度取代 | ✅   |
 
@@ -409,14 +402,14 @@ async install(scope: LifecycleScope) {
 
 ### 阶段 B — 插件间依赖图（AC#13～17；AC#18 已随阶段 A 交付）
 
-| #   | 前置条件                                           | 操作                                                   | 预期结果                                                                                                                                                                                                                                         | 状态 |
-| --- | -------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 13  | 插件 B `inject: ['plugin:search']`                 | `init()` + `connect()`                                 | 安装顺序为 search → B，且只有 search 处于 `active` 时 B 才开始安装（D3）；释放顺序为 B → search（逆拓扑），优先于 US-014 的逆插入序                                                                                                              | ✅   |
-| 14  | 两个不同工厂都声明 `name = 'search'`               | 均 `use()`，且有第三方插件 `inject: ['plugin:search']` | 按 D4 裁决：重名本身只 `console.warn`；**只有当该名字被 inject 时**才抛出「依赖歧义」错误，错误信息列出全部候选                                                                                                                                  | ✅   |
-| 15  | 插件声明 `inject: ['plugin:nonexistent']`          | `init()` + `connect()`                                 | 该插件不安装；`connect()` 正常 resolve；`console.warn` 一次列出缺失项（INV-5）                                                                                                                                                                   | ✅   |
-| 16  | A `inject: ['plugin:b']`、B `inject: ['plugin:a']` | `init()`                                               | 在**安装规划阶段**抛出环检测错误，信息给出完整环路径（`a → b → a`）；不进入半装状态，不等到运行时死锁才发现                                                                                                                                      | ✅   |
-| 17  | 宿主已建立 `#plugin_by_name` 索引                  | 检查索引结构与 search 工厂                             | 索引为 `Map<string, IRxDBPlugin[]>`（存数组，重名不丢信息，D4 的歧义错误才能列出全部候选）；search 的 [`searchPlugin`](../../../packages/rxdb-plugin-search/src/plugin.ts) 工厂 的自有属性探测改用宿主索引，`incompatible instance` 分支行为不变 | ✅   |
-| 18  | `RxDBPluginDependency` 完整取值                    | 跑契约测试                                             | D1 表中六种写法的编译期结果逐条成立，尤其 `'search'` 裸名与 `'plugin:Search'` 大写开头**编译失败**                                                                                                                                               | ✅   |
+| #   | 前置条件                                           | 操作                                                   | 预期结果                                                                                                                                                                                                                                            | 状态 |
+| --- | -------------------------------------------------- | ------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 13  | 插件 B `inject: ['plugin:search']`                 | `init()` + `connect()`                                 | 安装顺序为 search → B，且只有 search 处于 `active` 时 B 才开始安装（D3）；释放顺序为 B → search（逆拓扑），优先于 US-014 的逆插入序                                                                                                                 | ✅   |
+| 14  | 两个不同工厂都声明 `name = 'search'`               | 均 `use()`，且有第三方插件 `inject: ['plugin:search']` | 按 D4 裁决：重名本身只 `console.warn`；**只有当该名字被 inject 时**才抛出「依赖歧义」错误，错误信息列出全部候选                                                                                                                                     | ✅   |
+| 15  | 插件声明 `inject: ['plugin:nonexistent']`          | `init()` + `connect()`                                 | 该插件不安装；`connect()` 正常 resolve；`console.warn` 一次列出缺失项（INV-5）                                                                                                                                                                      | ✅   |
+| 16  | A `inject: ['plugin:b']`、B `inject: ['plugin:a']` | `init()`                                               | 在**安装规划阶段**抛出环检测错误，信息给出完整环路径（`a → b → a`）；不进入半装状态，不等到运行时死锁才发现                                                                                                                                         | ✅   |
+| 17  | 宿主已建立 `#plugin_by_name` 索引                  | 检查索引结构与 search 工厂                             | 索引为 `Map<string, IRxDBPlugin[]>`（存数组，重名不丢信息，D4 的歧义错误才能列出全部候选）；search 的 [`rxDBPluginSearch`](../../../packages/rxdb-plugin-search/src/plugin.ts) 工厂的自有属性探测改用宿主索引，`incompatible instance` 分支行为不变 | ✅   |
+| 18  | `RxDBPluginDependency` 完整取值                    | 跑契约测试                                             | D1 表中六种写法的编译期结果逐条成立，尤其 `'search'` 裸名与 `'plugin:Search'` 大写开头**编译失败**                                                                                                                                                  | ✅   |
 
 > **AC#18 已在阶段 A 交付**：`RxDBPluginDependency` 的封闭取值是阶段 A 的契约前提，`plugin:*` 分支
 > 在类型层同期落地（解析仍属阶段 B），编译期契约因此当时就可测——见
@@ -434,7 +427,7 @@ async install(scope: LifecycleScope) {
 
 ## 实现约束
 
-- 依赖解析与调度集中在一处（建议 `packages/rxdb/src/plugin/dependency-scheduler.ts`），`RxDB` 只持有它
+- 依赖解析与调度集中在一处（`packages/rxdb/src/plugin/dependency-scheduler.ts`），`RxDB` 只持有它
   并转发事件；**不要**把纪元比较散进 `#install_one_plugin` / `#destroy_plugin`
 - 状态只能由 reconcile loop 改写，不得让插件包各自维护第二套标志位
 - 环检测在**安装规划阶段**做（AC#16），不是等到运行时死锁才发现

@@ -75,7 +75,7 @@ const EXCLUDED = new Set(['rxdb-test']);
  * `./alipay-random-worker.js`：支付宝小程序 Worker 脚本，手写 ES5、无 import / export，
  * 由应用作为 Worker 文件加载（协议见 `src/hosts/alipay-random.ts`），无 TS 导出表面。
  *
- * `@aiao/rxdb-test/*`（5 个子路径）不在此列——整包已由 EXCLUDED 排除，非产品 API。
+ * `@aiao/rxdb-test/*`（全部子路径）不在此列——整包已由 EXCLUDED 排除，非产品 API。
  * 三个 model 绑定包的 CSS 资产入口同理：`rxdb-model-angular` / `rxdb-model-vue` 的
  * `tailwind.css` 与 `rxdb-model-react` 的 `tailwind.css`、`index.css`（编译后的样式 bundle）
  * 都是 Tailwind `@source` 注册 / 样式产物，无 TS 导出表面，由消费方的 Tailwind 管线消费，

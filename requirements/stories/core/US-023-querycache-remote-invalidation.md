@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-08-27
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [core, querycache, realtime, invalidation, sse, http]
 inherited_acs:
   - from: US-212
@@ -17,7 +17,7 @@ inherited_acs:
 INVEST 检查清单:
 - [x] Independent: 阶段 A 只动 core 的失效路径，不依赖 US-021 / US-022 / US-215
 - [x] Negotiable: 上报口的方法名、事件名、SSE 事件体字段、合流窗口的实现手段可议；「粒度=整实体」「不推行数据」「先清记忆后重跑」「记忆认代次」不可议（D1 / D8 / D2 / D12）
-- [x] Valuable: 今天两个客户端改同一份数据，谁也看不见谁——本仓库最像 local-first 却最不 live 的一条路径
+- [x] Valuable: 无通道时两个客户端改同一份数据，谁也看不见谁——本仓库最像 local-first 却最不 live 的一条路径
 - [x] Estimable: 1 个 core 入口 + 1 个事件（连带 devtools 清单）+ 三处既有类的方法（记忆代次 / 在飞作废 / 任务选取）+ 适配器内一条连接 + demo 广播与两页面 e2e
 - [x] Small: 分三阶段，每阶段单迭代可完成
 - [x] Testable: 阶段 A 用替身可全覆盖；阶段 C 的双页面收敛是可自动化的终局证据
@@ -35,7 +35,7 @@ INVEST 检查清单:
 
 ### 病灶：两个窗口，一份数据，谁也看不见谁
 
-打开两个 [dev-rxdb-http](../../../apps/dev-rxdb-http/) 窗口 A 与 B，在 A 里改一条 recipe。
+不开 `changeFeed`（demo 带 `?changefeed=0`）时，打开两个 [dev-rxdb-http](../../../apps/dev-rxdb-http/) 窗口 A 与 B，在 A 里改一条 recipe。
 B 的列表**永远**停在旧值——不是延迟几秒，是没有任何机制会让它动。
 用户能拿到新值的唯一办法是自己去戳一下：刷新页面、翻页、改筛选条件。
 
@@ -53,11 +53,11 @@ refetch(): void {
 
 ### 断在三层，且每一层都是结构性的
 
-| 层         | 现状                                                                                                                                                 | 证据                                                                                              |
-| :--------- | :--------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------ |
-| 适配器契约 | `RxDBAdapterRemoteBase` 的抽象成员是 `pullChanges` / `getChangeCount` / `mergeChanges` / `fetchMetadata` / `findByIds`——**清一色由客户端发起的拉取** | [rxdb-adapter.ts](../../../packages/rxdb/src/rxdb-adapter.ts)                                     |
-| 失效状态   | `QueryCacheSyncMemo` 的三条失效路径（窗口到期 / 本仓储写 / 换适配器实例）全部由 core 内部触发，`clear()` 无对外出口，实例由 `Repository` 私有持有    | [query-cache-sync-memo.ts](../../../packages/rxdb-plugin-querycache/src/query-cache-sync-memo.ts) |
-| 查询重跑   | `QueryManager` 只 `addEventListener` 了 `ENTITY_LOCAL_CREATE / UPDATE / REMOVE` 三个**本地**事件                                                     | [QueryManager.ts](../../../packages/rxdb/src/repository/QueryManager.ts) `#init_db_changes`       |
+| 层         | 现状                                                                                                                                                                                                              | 证据                                                                                              |
+| :--------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------ |
+| 适配器契约 | `RxDBAdapterRemoteBase` 的抽象成员是 `pullChanges` / `getChangeCount` / `mergeChanges` / `fetchMetadata` / `findByIds`——**清一色由客户端发起的拉取**                                                              | [rxdb-adapter.ts](../../../packages/rxdb/src/rxdb-adapter.ts)                                     |
+| 失效状态   | `QueryCacheSyncMemo` 的失效路径有窗口到期 / 本仓储写 / 换适配器实例 / 远端失效上报四条；前三条由 core 内部触发，第四条经 `RxDB.invalidateRemoteEntity()` 对外开放，记忆由 `Repository` 的 QueryCache 会话私有持有 | [query-cache-sync-memo.ts](../../../packages/rxdb-plugin-querycache/src/query-cache-sync-memo.ts) |
+| 查询重跑   | `QueryManager` 只 `addEventListener` 了 `ENTITY_LOCAL_CREATE / UPDATE / REMOVE` 三个**本地**事件；远端失效由 `Repository` 的单一监听器接，不在 `QueryManager`（D2）                                               | [QueryManager.ts](../../../packages/rxdb/src/repository/QueryManager.ts) `#init_db_changes`       |
 
 三层各自独立成立，所以**补任何一层都不够**：给适配器加订阅口而不给 core 失效入口，收到的通知无处可去；
 给 core 加失效入口而不清记忆，重跑会在窗口内命中 memo、跳过同步、读回同一份陈旧本地行。
@@ -65,14 +65,14 @@ refetch(): void {
 ### 远端事件今天只喂一个角标
 
 `ENTITY_REMOTE_CREATE / UPDATE / REMOVE` 三个事件类是存在的，但全仓库唯一的消费者是
-[version/sync-listeners.ts](../../../packages/rxdb-plugin-sync/src/sync-listeners.ts) 的 `makeRemoteHandler`，
+[sync-listeners.ts](../../../packages/rxdb-plugin-sync/src/sync-listeners.ts) 的 `makeRemoteHandler`，
 它做的事只有一件：`historyManager.incrementPullableCount(count)`。而 `pullableCount$` 的自述是
 「远端还有多少条没拉下来」（[pullable-count.ts](../../../packages/rxdb-plugin-history/src/pullable-count.ts)）——
 一个**给 UI 看的角标**，不触发任何查询。
 
 这条链在 supabase 上是通的：`handle_supabase_change` 收到 `postgres_changes` 后
 `rxdb.dispatchEvent(new EntityRemoteUpdatedEvent(...))`。所以本仓库已经有一条完整的实时通道，
-**它的终点却是一个计数器**。QueryCache 侧连这条通道都没有。
+**它的终点却是一个计数器**。QueryCache 侧另走 `REMOTE_ENTITY_INVALIDATED_EVENT`（D3），不复用这条通道。
 
 ### 「派发一个本地事件」不是出路
 
@@ -85,12 +85,12 @@ refetch(): void {
 
 ### 复验方式
 
-源码实证（上表三处 + `sync-listeners.ts` 的唯一消费者由 `grep -rn "ENTITY_REMOTE_" packages/rxdb/src` 核过），
+源码实证（上表三处 + `sync-listeners.ts` 的唯一消费者由 `grep -rn "ENTITY_REMOTE_" packages/*/src` 核过，其余命中是事件定义、supabase 派发与 devtools 转发），
 症状实证（两个浏览器窗口，任一写入操作）。
 
 ## 解锁条件核对
 
-roadmap 的[「明确不排期」](../../roadmap.md#明确不排期)对本条写的解锁条件是两句，逐句核对：
+本条立项时的解锁条件是两句（原登记在 roadmap「明确不排期」，现已移出），逐句核对：
 
 | 解锁条件                 | 是否满足 | 依据                                                                             |
 | :----------------------- | :------- | :------------------------------------------------------------------------------- |
@@ -106,7 +106,7 @@ roadmap 的[「明确不排期」](../../roadmap.md#明确不排期)对本条写
   「1 个入口」不等于「改 1 个文件」。
 - **病灶数 = 1**——「别的客户端改了，本客户端永不更新」。它可复现、可自动化，且**产生错误结果**（屏幕上是过期数据）。
 
-1 ≥ 1，成立。本故事关闭时须把 roadmap 那一行从「明确不排期」移出并指向本文件。
+1 ≥ 1，成立。
 
 ## 范围边界
 
@@ -141,7 +141,7 @@ roadmap 的[「明确不排期」](../../roadmap.md#明确不排期)对本条写
 | C    | demo 后端广播 + 双页面 e2e | AC#20–#24，两个真实浏览器页面自动收敛                   |
 
 阶段 A **不得单独关闭故事**。一个没有调用方的失效入口正是
-[US-015 阶段 B 被移出时的那句判词](../../roadmap.md#明确不排期)——「为一个不存在的依赖图准备」。
+[US-015](./US-015-plugin-inject-dependency.md) 阶段 B 立项前被用来拒绝它的理由——「为一个不存在的依赖图准备」。
 它的正当性来自阶段 C 的双页面收敛，所以三阶段一并验收。
 
 ## 设计决策
@@ -174,7 +174,7 @@ X 是否落在我的 `where` 里、以及**有没有别的行因为这次变更�
 于是 B 变了之后，「A 的结果集是否因此增删」只有服务端答得出（与 D1 否决 id 集合是同一条理由），
 必须由 **A 自己的 `fetchMetadata`** 来回答。
 
-`syncMemo` 是每个 `Repository` 一份（[Repository.ts](../../../packages/rxdb/src/repository/Repository.ts) 构造期各建各的），
+`syncMemo` 是每个 QueryCache `Repository` 一份（由插件的 `query-cache-engine.factory.ts` 创建，挂在 [Repository.ts](../../../packages/rxdb/src/repository/Repository.ts) 的 QueryCache 会话里），
 若只清被上报实体那一份，A 的重跑会命中 A 自己的记忆窗口、跳过同步、读回陈旧本地行——
 症状与 D2 判死的偷渡**逐字相同**，只是换了个实体，而 AC#2 只测同实体、正好漏过。
 因此规则是：**`depEntityTypeMap` 含被上报实体的每一个 `Repository`，都先清自己的记忆再重跑**，
@@ -185,7 +185,7 @@ X 是否落在我的 `where` 里、以及**有没有别的行因为这次变更�
 
 ### D2 — 入口落在 `Repository`，因为只有它同时握着记忆与重跑
 
-`Repository` 的构造函数里，`new QueryCacheSyncMemo(...)` 与 `new QueryManager(...)` 相隔四行
+`Repository` 同时持有 QueryCache 会话（含同步记忆）与 `QueryManager`
 （[Repository.ts](../../../packages/rxdb/src/repository/Repository.ts)）。它是全仓库唯一同时够得着这两样东西的地方，
 因此也是唯一能保证**先清记忆、后重跑**的地方。
 
@@ -193,7 +193,7 @@ X 是否落在我的 `where` 里、以及**有没有别的行因为这次变更�
 症状与今天完全一样，但多了一次请求和一份「我已经修好了」的错觉。这是 US-212 判定里点名的那种偷渡，
 必须由一条 AC（#2）钉死，不能只写在注释里。
 
-落地上 `syncMemo` 今天是构造期的内联临时值，需要存成字段才够得着；监听器的注销挂进已有的 `destroy()`（AC#29）。
+监听器的注销挂在 `destroy()` 上（AC#29）。
 
 **分工必须在动手前定死，因为两种分法的稳固程度差一个量级。**
 `QueryManager` 的 `#query_task_map` 与 `#dep_entity_type_map` 都是私有字段
@@ -319,8 +319,8 @@ supabase 侧已经在这么用。复用现成字段，不新增概念。
 ### D12 — 记忆要认代次，否则失效会被飞行中的那次同步抹掉
 
 D2 钉住的是**空间顺序**（先清后跑）。还有一条**时间顺序**同样能让失效凭空消失，
-而且远端推送会把它从罕见变成常态。今天的同步长这样
-（[query-cache-primary.ts](../../../packages/rxdb-plugin-querycache/src/query-cache-primary.ts) 的 `#sync`）：
+而且远端推送会把它从罕见变成常态。若同步不认代次，`#sync`
+（[query-cache-primary.ts](../../../packages/rxdb-plugin-querycache/src/query-cache-primary.ts)）会是这个形状：
 
 ```ts
 if (this.syncMemo.has(fingerprint)) return;
@@ -331,7 +331,7 @@ this.syncMemo.remember(fingerprint); // ← 把刚才那次 clear() 抹掉了
 一次同步在飞行中时收到的失效，会被这次同步完成时的 `remember()` 覆盖。客户端从此认为自己「新鲜」，
 直到窗口到期或本地写——而它手上是**同步开始那一刻**的数据，失效说的那次变更根本没拉。
 
-今天这个窗口罕见，因为触发 `clear()` 的只有本地写（要人动手）。**推送让它变成常态**：
+没有远端推送时这个窗口罕见，因为触发 `clear()` 的只有本地写（要人动手）。**推送让它变成常态**：
 写入方广播的那一刻，所有客户端大概率正好都在跑同步——这正是广播要通知的那批人。
 
 修法轻且封闭：`QueryCacheSyncMemo` 记一个单调递增的代次，`clear()` 递增；
@@ -418,7 +418,7 @@ AC#8 由此从「照常重跑」改写为「零重跑、零请求、`pullableCou
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 AC#25 的门禁在阶段 C 收尾时复跑通过：`@aiao/rxdb` 四指标 ≥ 90%、`@aiao/rxdb-adapter-http` ≥ 80%，
-两者均不低于基线；30 个公开包、44 个入口的 API 表面与基线一致。
+两者均不低于基线；公开包的 API 表面与基线一致。
 
 ## 技术笔记
 
@@ -453,28 +453,27 @@ AC#25 的门禁在阶段 C 收尾时复跑通过：`@aiao/rxdb` 四指标 ≥ 90
 
 ## 实现文件
 
-| 文件 / 动作                                                                                                                           | 阶段   | 说明                                                                                                    |
-| :------------------------------------------------------------------------------------------------------------------------------------ | :----- | :------------------------------------------------------------------------------------------------------ |
-| [packages/rxdb/src/rxdb-events.ts](../../../packages/rxdb/src/rxdb-events.ts)                                                         | A      | 新事件常量 + 事件类 + 进 `RxDBEventMap`（D3）                                                           |
-| [packages/rxdb/src/RxDB.ts](../../../packages/rxdb/src/RxDB.ts)                                                                       | A      | 公开失效上报口（名字可议，语义不可议）                                                                  |
-| [packages/rxdb/src/repository/Repository.ts](../../../packages/rxdb/src/repository/Repository.ts)                                     | A      | `syncMemo` 存字段 + 单一监听器/注销 + 「同步清、合流跑」（D2 / D14）                                    |
-| [packages/rxdb/src/repository/QueryManager.ts](../../../packages/rxdb/src/repository/QueryManager.ts)                                 | A      | 新增两个内部公开方法：查 `depEntityTypeMap` 是否含该实体；按依赖选中受影响任务并 `refresh()`（D1 / D2） |
-| [packages/rxdb-plugin-querycache/src/query-cache-sync-memo.ts](../../../packages/rxdb-plugin-querycache/src/query-cache-sync-memo.ts) | A      | 代次字段 + `remember(fp, gen)` 的代次判定（D12）                                                        |
-| [packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts)           | A      | 作废在飞表的方法（D13）                                                                                 |
-| [packages/rxdb-plugin-querycache/src/query-cache-primary.ts](../../../packages/rxdb-plugin-querycache/src/query-cache-primary.ts)     | A      | `#sync` 取代次、传代次；失效路径连带作废在飞表（D12 / D13）                                             |
-| [packages/rxdb-devtools/src/connector-events.ts](../../../packages/rxdb-devtools/src/connector-events.ts)                             | A      | **编译期契约必改**：新事件补进订阅清单，取值 `true`（D3 / AC#31）                                       |
-| [requirements/api-baseline/rxdb.json](../../api-baseline/rxdb.json)                                                                   | A      | AC#25：新导出进基线                                                                                     |
-| [packages/rxdb-adapter-http/src/change-feed.ts](../../../packages/rxdb-adapter-http/src/change-feed.ts)                               | B / C  | SSE 通道：连接、退避重连、回声抑制、连上即全量失效（D5 / D6 / D7）；C 补 `onNotification` 上报（AC#24） |
-| [packages/rxdb-adapter-http/src/http.interface.ts](../../../packages/rxdb-adapter-http/src/http.interface.ts)                         | B / C  | `changeFeed` 选项 + 诊断回调类型（缺省关 = 缺席即禁用）；C 补与 `onUnavailable` 对称的通知出口          |
-| [packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts](../../../packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts)                       | B      | 在 `connect()` / `disconnect()` 上挂通道；订阅实体清单现读（**不加**契约成员，D4）                      |
-| [requirements/api-baseline/rxdb-adapter-http.json](../../api-baseline/rxdb-adapter-http.json)                                         | B / C  | AC#25                                                                                                   |
-| [website/docs/adapters/http-protocol.md](../../../website/docs/adapters/http-protocol.md)                                             | B      | AC#19：「变更通知（可选）」一节                                                                         |
-| [website/docs/adapters/http.md](../../../website/docs/adapters/http.md)                                                               | B / C  | 客户端侧开关/诊断/重连参数；订正「`connect()` 不建长连接」；C 补 `onNotification`                       |
-| [apps/dev-rxdb-http-server/src/](../../../apps/dev-rxdb-http-server/src/)                                                             | C      | 广播端点（协议）+ 订阅者登记（demo 设施），两者分文件                                                   |
-| [apps/dev-rxdb-http/src/app/](../../../apps/dev-rxdb-http/src/app/)                                                                   | C      | 运行时开关（`?changefeed=0` 定初值）+ 面板计数（D11 / AC#24）                                           |
-| [apps/dev-rxdb-http-e2e/src/](../../../apps/dev-rxdb-http-e2e/src/)                                                                   | C      | 双 context 收敛用例 + 关掉开关的对照用例                                                                |
-| [apps/dev-rxdb-http/project.json](../../../apps/dev-rxdb-http/project.json)                                                           | C      | `anyComponentStyle` 警告预算 4kb → 5kb：面板样式把 `app.scss` 顶到 4.24kB（错误线仍是 8kb）             |
-| [requirements/roadmap.md](../../roadmap.md)                                                                                           | 关闭时 | 把「US-212 AC#29」从「明确不排期」移出，指向本文件                                                      |
+| 文件 / 动作                                                                                                                           | 阶段  | 说明                                                                                                    |
+| :------------------------------------------------------------------------------------------------------------------------------------ | :---- | :------------------------------------------------------------------------------------------------------ |
+| [packages/rxdb/src/rxdb-events.ts](../../../packages/rxdb/src/rxdb-events.ts)                                                         | A     | 新事件常量 + 事件类 + 进 `RxDBEventMap`（D3）                                                           |
+| [packages/rxdb/src/RxDB.ts](../../../packages/rxdb/src/RxDB.ts)                                                                       | A     | 公开失效上报口（名字可议，语义不可议）                                                                  |
+| [packages/rxdb/src/repository/Repository.ts](../../../packages/rxdb/src/repository/Repository.ts)                                     | A     | QueryCache 会话持有记忆 + 单一监听器/注销 + 「同步清、合流跑」（D2 / D14）                              |
+| [packages/rxdb/src/repository/QueryManager.ts](../../../packages/rxdb/src/repository/QueryManager.ts)                                 | A     | 新增两个内部公开方法：查 `depEntityTypeMap` 是否含该实体；按依赖选中受影响任务并 `refresh()`（D1 / D2） |
+| [packages/rxdb-plugin-querycache/src/query-cache-sync-memo.ts](../../../packages/rxdb-plugin-querycache/src/query-cache-sync-memo.ts) | A     | 代次字段 + `remember(fp, gen)` 的代次判定（D12）                                                        |
+| [packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts)           | A     | 作废在飞表的方法（D13）                                                                                 |
+| [packages/rxdb-plugin-querycache/src/query-cache-primary.ts](../../../packages/rxdb-plugin-querycache/src/query-cache-primary.ts)     | A     | `#sync` 取代次、传代次；失效路径连带作废在飞表（D12 / D13）                                             |
+| [packages/rxdb-devtools/src/connector-events.ts](../../../packages/rxdb-devtools/src/connector-events.ts)                             | A     | **编译期契约必改**：新事件补进订阅清单，取值 `true`（D3 / AC#31）                                       |
+| [requirements/api-baseline/rxdb.json](../../api-baseline/rxdb.json)                                                                   | A     | AC#25：新导出进基线                                                                                     |
+| [packages/rxdb-adapter-http/src/change-feed.ts](../../../packages/rxdb-adapter-http/src/change-feed.ts)                               | B / C | SSE 通道：连接、退避重连、回声抑制、连上即全量失效（D5 / D6 / D7）；C 补 `onNotification` 上报（AC#24） |
+| [packages/rxdb-adapter-http/src/http.interface.ts](../../../packages/rxdb-adapter-http/src/http.interface.ts)                         | B / C | `changeFeed` 选项 + 诊断回调类型（缺省关 = 缺席即禁用）；C 补与 `onUnavailable` 对称的通知出口          |
+| [packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts](../../../packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts)                       | B     | 在 `connect()` / `disconnect()` 上挂通道；订阅实体清单现读（**不加**契约成员，D4）                      |
+| [requirements/api-baseline/rxdb-adapter-http.json](../../api-baseline/rxdb-adapter-http.json)                                         | B / C | AC#25                                                                                                   |
+| [website/docs/adapters/http-protocol.md](../../../website/docs/adapters/http-protocol.md)                                             | B     | AC#19：「变更通知（可选）」一节                                                                         |
+| [website/docs/adapters/http.md](../../../website/docs/adapters/http.md)                                                               | B / C | 客户端侧开关/诊断/重连参数；订正「`connect()` 不建长连接」；C 补 `onNotification`                       |
+| [apps/dev-rxdb-http-server/src/](../../../apps/dev-rxdb-http-server/src/)                                                             | C     | 广播端点（协议）+ 订阅者登记（demo 设施），两者分文件                                                   |
+| [apps/dev-rxdb-http/src/app/](../../../apps/dev-rxdb-http/src/app/)                                                                   | C     | 运行时开关（`?changefeed=0` 定初值）+ 面板计数（D11 / AC#24）                                           |
+| [apps/dev-rxdb-http-e2e/src/](../../../apps/dev-rxdb-http-e2e/src/)                                                                   | C     | 双 context 收敛用例 + 关掉开关的对照用例                                                                |
+| [apps/dev-rxdb-http/project.json](../../../apps/dev-rxdb-http/project.json)                                                           | C     | `anyComponentStyle` 警告预算 4kb → 5kb：面板样式把 `app.scss` 顶到 4.24kB（错误线仍是 8kb）             |
 
 <!-- 不列 requirements/api-baseline/rxdb-devtools.json：`RXDB_EVENT_SUBSCRIPTIONS` / `RXDB_EVENT_TYPES` 未经 connector.ts 再导出，公共 API 面不变 -->
 
@@ -486,4 +485,4 @@ AC#25 的门禁在阶段 C 收尾时复跑通过：`@aiao/rxdb` 四指标 ≥ 90
 - [US-020 将 QueryCache 接入统一 Repository](./US-020-querycache-repository.md) — `QueryCacheSyncMemo`（D13）的来历
 - [US-022 QueryCache 远端行的列契约与缺列诊断](./US-022-querycache-remote-row-contract.md) — D8 第 2 条理由所依赖的写入契约
 - [US-009 跨 Tab 数据同步](./US-009-cross-tab-sync.md) — D10 与 e2e 双 context 的对照面
-- [roadmap「明确不排期」](../../roadmap.md#明确不排期) — 本故事满足的解锁条件原文
+- [roadmap「明确不排期」](../../roadmap.md#明确不排期) — US-212 AC#30 等仍不排期的条目
