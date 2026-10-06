@@ -39,4 +39,4 @@ tags: [core, sync, broadcast]
 
 ## 参考
 
-- [文档: isCrossTabEvent](../../../website/docs/api/rxdb/functions/isCrossTabEvent.md)
+- 源码：[`isCrossTabEvent`](../../../packages/rxdb/src/rxdb-events.ts#L722)
