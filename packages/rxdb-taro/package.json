@@ -1,0 +1,72 @@
+{
+  "name": "@aiao/rxdb-taro",
+  "version": "0.0.26",
+  "description": "Experimental Taro plugin that wires @aiao/rxdb-adapter-miniprogram into WeChat and Douyin mini program builds.",
+  "homepage": "https://rxdb.netlify.app/docs/adapters",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "taro",
+    "taro-plugin",
+    "wechat",
+    "douyin",
+    "mini-program",
+    "vite"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-taro"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20.19"
+  },
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@aiao/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./vite": {
+      "@aiao/source": "./src/vite.ts",
+      "types": "./dist/vite.d.ts",
+      "import": "./dist/vite.js",
+      "default": "./dist/vite.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "nx": {
+    "name": "rxdb-taro",
+    "tags": [
+      "js-lib"
+    ]
+  },
+  "peerDependencies": {
+    "@aiao/rxdb-adapter-miniprogram": "workspace:*",
+    "@tarojs/cli": "~4.3.0"
+  },
+  "devDependencies": {
+    "@aiao/rxdb-adapter-miniprogram": "workspace:*"
+  }
+}
