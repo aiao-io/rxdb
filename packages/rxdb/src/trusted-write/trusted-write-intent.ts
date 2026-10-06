@@ -1,5 +1,5 @@
 /**
- * @fileoverview 受信写意图与 11 行调用点登记表（epic-006「受信调用点登记表」）。
+ * @fileoverview 受信写意图与 12 行调用点登记表（epic-006「受信调用点登记表」）。
  *
  * @remarks
  * 意图是「我知道我在重写业务投影，并且我会自己维护工作树」
@@ -24,12 +24,12 @@
  * `switchBranch`，#11 是屏障在那次切换的 `prepare` 里落投影的 `mergeChanges`；漏掉任何一行，
  * 那一半物化面就会被挂载点按 `crud` 或拒绝处理。
  *
- * **`writePrimitive` 一列里 `mergeChanges` 的 7 行全是 `executor.`，没有 `adapter.`。** 声明的作用域
+ * **`writePrimitive` 一列里 `mergeChanges` 的 8 行全是 `executor.`，没有 `adapter.`。** 声明的作用域
  * 每次只存一条，而 `mergeChanges` 的取用发生在排队拿到事务之后，绑适配器实例就留下一个并发覆盖
  * 窗口（见 {@link declareTrustedWrite} 所在文件的头注）。这一列因此也是一条不变量，不只是说明。
  *
  * **调用点全部住在插件里**：#1~#6 自 US-025 起在 `@aiao/rxdb-plugin-history/src/`，
- * #7~#9 在 `@aiao/rxdb-plugin-sync/src/`，#10 / #11 在 `@aiao/rxdb-plugin-working-tree/src/`。
+ * #7~#9 与 #12 在 `@aiao/rxdb-plugin-sync/src/`，#10 / #11 在 `@aiao/rxdb-plugin-working-tree/src/`。
  * 登记的是**文件基名**，不带包名也不带目录——键要跨 US-025 那次搬迁存活，而它确实跨过来了：
  * 搬迁只换了目录，没换文件名、符号名与意图。
  *
@@ -37,7 +37,7 @@
  * 而那个函数在核心；两个插件互不依赖，谁都没资格持有一张另一个也必须满足的表。
  * 把表搬给其中一个，另一个就得反向依赖它，或者各存一份——各存一份的两张表迟早有一张是旧的。
  *
- * **代价是核心的 chromium 测试从此扫不到这 11 处声明**（`import.meta.glob` 进不了兄弟包）。
+ * **代价是核心的 chromium 测试从此扫不到这 12 处声明**（`import.meta.glob` 进不了兄弟包）。
  * 那一半核对交给 `scripts/audit/working-tree-callsite-drift.mjs`（T066）：它跑在 node 里，
  * 扫整个 `packages/`，双向比对登记键、自报符号与存档行号。核心那份
  * （`__tests__/trusted-write/trusted-callsite-registry.spec.ts`）改守两件核心自己看得见的事——
@@ -53,7 +53,7 @@ import type { WriteEntrance } from './write-entrance.js';
  *
  * @remarks
  * 与 {@link WriteEntrance} 是两个维度，不能合并：意图是**调用点自报的身份**（登记表的一列），
- * 入口是**矩阵给出的分类**。两者多对一——#7/#8/#9 三行都报 `remote_sync`，却分别落 `remote_entity_apply`
+ * 入口是**矩阵给出的分类**。两者多对一——#7/#8/#9/#12 四行都报 `remote_sync`，却分别落 `remote_entity_apply`
  * 与 `cleanup_expired` 两个入口。压成一个枚举之后，登记表就没法表达「同一个意图在两个地方」，
  * 而那正是漂移扫描要比对的东西。
  */
@@ -70,7 +70,7 @@ export const TrustedWriteIntent = {
   merge_per_change: 'merge_per_change',
   /** 合并分支的压缩策略（#6）；与逐条策略各占一行 */
   merge_squash: 'merge_squash',
-  /** 同步机制写入本地业务投影（#7/#8/#9）；产生 `origin='remote_sync'` 的单元 */
+  /** 同步机制写入本地业务投影（#7/#8/#9/#12）；产生 `origin='remote_sync'` 的单元 */
   remote_sync: 'remote_sync'
 } as const;
 
@@ -129,7 +129,7 @@ export interface TrustedCallsite {
 }
 
 /**
- * 与真实代码核对过的 11 行受信调用点（整表核对日期 2026-09-16）
+ * 与真实代码核对过的 12 行受信调用点（整表核对日期 2026-09-16）
  *
  * @remarks
  * 顺序与 epic-006「受信调用点登记表」的表格逐行一致，便于漂移扫描双向比对。
@@ -149,6 +149,10 @@ export interface TrustedCallsite {
  * 把屏障放进 `prepare`（物化与切 active 同一个事务）。#10 因此换成那次 `switchBranch` 的声明
  * （符号 `switchWithMaterialization`），屏障里落投影的每一批 `executor.mergeChanges` 另占 #11
  * （符号 `applyMaterializedActions`）。只核对了这两行，表头日期照旧。
+ *
+ * 2026-10-05 新增 #12（US-218 阶段 B）：推送回执里被远端拒绝的实体，要在同一个事务里把本地业务行
+ * 对齐到远端现状（远端有行就覆盖，远端无行就删除），走的是 `executor.mergeChanges(…, true)`。
+ * 同样只核对了新增的这一行，表头日期照旧。
  */
 export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
   {
@@ -238,6 +242,14 @@ export const TRUSTED_CALLSITE_REGISTRY: readonly TrustedCallsite[] = [
     intent: TrustedWriteIntent.branch_materialization,
     entrance: 'projection_rewrite',
     verifiedAtLine: 360
+  },
+  {
+    file: 'push-repository.ts',
+    symbol: 'alignRejectedEntities',
+    writePrimitive: 'executor.mergeChanges',
+    intent: TrustedWriteIntent.remote_sync,
+    entrance: 'remote_entity_apply',
+    verifiedAtLine: 1392
   }
 ];
 

@@ -192,7 +192,10 @@ const BRANCH_TABLE_EXISTENCE_PROBE_PATTERN = /^SELECT 1 FROM sqlite_master WHERE
  */
 const transactionSqls = (client: SqliteClientLike): string[] =>
   executedSqls(client).filter(
-    sql => !BRANCH_TABLE_PATTERN.test(sql) && !BRANCH_TABLE_EXISTENCE_PROBE_PATTERN.test(sql)
+    sql =>
+      !BRANCH_TABLE_PATTERN.test(sql) &&
+      !BRANCH_TABLE_EXISTENCE_PROBE_PATTERN.test(sql) &&
+      sql !== 'PRAGMA defer_foreign_keys = ON;'
   );
 
 const emptyMutations = (): RxDBMutationsMap => ({
@@ -543,15 +546,16 @@ describe('RxDBAdapterSqliteBase', () => {
 
       await adapter.setRxDBChangeSequence(42);
 
-      expect(client.execute).toHaveBeenNthCalledWith(1, 'BEGIN;\nPRAGMA defer_foreign_keys = ON;');
-      expect(client.execute).toHaveBeenNthCalledWith(2, 'DELETE FROM sqlite_sequence WHERE name = ?', [
+      expect(client.execute).toHaveBeenNthCalledWith(1, 'BEGIN;');
+      expect(client.execute).toHaveBeenNthCalledWith(2, 'PRAGMA defer_foreign_keys = ON;');
+      expect(client.execute).toHaveBeenNthCalledWith(3, 'DELETE FROM sqlite_sequence WHERE name = ?', [
         'rxdb$rxdb_change'
       ]);
-      expect(client.execute).toHaveBeenNthCalledWith(3, 'INSERT INTO sqlite_sequence(name, seq) VALUES(?, ?)', [
+      expect(client.execute).toHaveBeenNthCalledWith(4, 'INSERT INTO sqlite_sequence(name, seq) VALUES(?, ?)', [
         'rxdb$rxdb_change',
         42
       ]);
-      expect(client.execute).toHaveBeenNthCalledWith(4, '\nCOMMIT;');
+      expect(client.execute).toHaveBeenNthCalledWith(5, '\nCOMMIT;');
     });
   });
 
@@ -650,7 +654,7 @@ describe('RxDBAdapterSqliteBase', () => {
       expect(result).toBe(42);
       const sqls = transactionSqls(client);
       expect(sqls[0]).toContain('BEGIN;');
-      expect(sqls[0]).toContain('PRAGMA defer_foreign_keys = ON;');
+      expect(executedSqls(client)).toContain('PRAGMA defer_foreign_keys = ON;');
       expect(sqls.at(-1)).toContain('COMMIT;');
       expect(rxdb.dispatchEvent).toHaveBeenNthCalledWith(1, expect.objectContaining({ type: 'TRANSACTION_BEGIN' }));
       expect(rxdb.dispatchEvent).toHaveBeenNthCalledWith(2, expect.objectContaining({ type: 'TRANSACTION_COMMIT' }));
@@ -721,8 +725,36 @@ describe('RxDBAdapterSqliteBase', () => {
       const sqls = transactionSqls(client);
       expect(sqls).toHaveLength(2);
       expect(sqls[0]).toContain('BEGIN;');
-      expect(sqls[0]).toContain('PRAGMA defer_foreign_keys = ON;');
+      expect(executedSqls(client)).toContain('PRAGMA defer_foreign_keys = ON;');
       expect(sqls[1]).toContain('COMMIT;');
+    });
+
+    it('BEGIN 被另一个 writer 拒绝时不回滚未开启的事务，也不关闭连接', async () => {
+      const lockFailure = new Error('database is locked');
+      let rejectBegin = true;
+      const client = createClient({
+        execute: vi.fn(async (sql: string) => {
+          if (sql.startsWith('BEGIN') && rejectBegin) {
+            rejectBegin = false;
+            throw lockFailure;
+          }
+          if (sql === 'ROLLBACK') throw new Error('cannot rollback - no transaction is active');
+          return okResult(sql);
+        })
+      });
+      const callback = vi.fn(async () => 'unreachable');
+      const adapter = new TestAdapter(createRxdbMock(), () => client);
+      const logging = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const error = await adapter.transaction(callback, false).catch((cause: unknown) => cause);
+      logging.mockRestore();
+
+      expect(error).toBe(lockFailure);
+      expect(callback).not.toHaveBeenCalled();
+      expect(executedSqls(client)).not.toContain('ROLLBACK');
+      expect(client.disconnect).not.toHaveBeenCalled();
+      await expect(adapter.query('SELECT after rejected BEGIN')).resolves.toMatchObject({
+        sql: 'SELECT after rejected BEGIN'
+      });
     });
 
     it('BEGIN 成功后事务配置失败时应该执行物理回滚', async () => {
@@ -730,10 +762,8 @@ describe('RxDBAdapterSqliteBase', () => {
       let transactionActive = false;
       const client = createClient({
         execute: vi.fn(async (sql: string) => {
-          if (sql.includes('BEGIN;') && sql.includes('PRAGMA defer_foreign_keys = ON;')) {
-            transactionActive = true;
-            throw setupFailure;
-          }
+          if (sql === 'BEGIN;') transactionActive = true;
+          if (sql === 'PRAGMA defer_foreign_keys = ON;') throw setupFailure;
           if (sql === 'ROLLBACK') transactionActive = false;
           return okResult(sql);
         })
@@ -1041,7 +1071,7 @@ describe('RxDBAdapterSqliteBase', () => {
 
       const sqls = transactionSqls(client);
       expect(sqls[0]).toContain('PRAGMA write_hint;\nBEGIN IMMEDIATE;');
-      expect(sqls[0]).toContain('PRAGMA defer_foreign_keys = ON;');
+      expect(executedSqls(client)).toContain('PRAGMA defer_foreign_keys = ON;');
     });
 
     it('client 未提供 beginTransactionSql 时沿用默认 BEGIN', async () => {
@@ -1052,7 +1082,7 @@ describe('RxDBAdapterSqliteBase', () => {
 
       const sqls = transactionSqls(client);
       expect(sqls[0]).toContain('BEGIN;');
-      expect(sqls[0]).toContain('PRAGMA defer_foreign_keys = ON;');
+      expect(executedSqls(client)).toContain('PRAGMA defer_foreign_keys = ON;');
     });
 
     it('beginTransactionSql 返回 Promise（Comlink 远端代理）时会被等待', async () => {
@@ -1236,12 +1266,12 @@ describe('RxDBAdapterSqliteBase', () => {
     // `foreignKeyNames` / `foreignKeyColumnNames` 都是非可选的，手搓的残缺对象靠 `as never`
     // 骗过类型，再逼被测代码写一串 `?.` 去伺候一个真实运行时不存在的形状 —— 那些 `?.`
     // 是桩逼出来的，不是生产需要的。
-    const createMetadataRxdb = () => {
+    const createMetadataRxdb = (namespace: string = 'public') => {
       const rxdb = createRxdbMock();
       vi.mocked(rxdb.schemaManager.getEntityMetadata).mockReturnValue(
         transitionMetadata({
           name: 'Todo',
-          namespace: 'public',
+          namespace,
           tableName: 'todos',
           properties: [
             { name: 'id', type: PropertyType.uuid, primary: true },
@@ -1286,6 +1316,38 @@ describe('RxDBAdapterSqliteBase', () => {
       expect(vi.mocked(client.execute).mock.calls[0][0]).toContain(
         'SELECT "id", "updated_at" FROM "public$todos" WHERE "id" IN'
       );
+    });
+
+    it('QueryCache 读写通过限定名称定位非 public 实体', async () => {
+      const client = createClient();
+      const rxdb = createMetadataRxdb('shop');
+      const adapter = new TestAdapter(rxdb, () => client);
+
+      await firstValueFrom(adapter.getMetadataByIds('shop:Todo', ['id-1']));
+      await firstValueFrom(adapter.upsertMany('shop:Todo', [{ id: 'id-1', updatedAt: ISO_UPDATED }]));
+      await firstValueFrom(adapter.deleteByIds('shop:Todo', ['id-1']));
+
+      expect(rxdb.schemaManager.getEntityMetadata).toHaveBeenCalledWith('Todo', 'shop');
+      const statements = executedSqls(client);
+      expect(statements.some(sql => sql.startsWith('SELECT') && sql.includes('FROM "shop$todos"'))).toBe(true);
+      expect(statements.some(sql => sql.startsWith('INSERT INTO "shop$todos"'))).toBe(true);
+      expect(statements.some(sql => sql.startsWith('DELETE FROM "shop$todos"'))).toBe(true);
+      expect(statements.some(sql => sql.includes('"shop:Todo"'))).toBe(false);
+    });
+
+    it('QueryCache 写后维护实例缓存时按限定名称找实体类，不写死 public（RV-061）', async () => {
+      const client = createClient();
+      const rxdb = createMetadataRxdb('shop');
+      const adapter = new TestAdapter(rxdb, () => client);
+
+      await firstValueFrom(adapter.upsertMany('shop:Todo', [{ id: 'id-1', updatedAt: ISO_UPDATED }]));
+      await firstValueFrom(adapter.deleteByIds('shop:Todo', ['id-1']));
+
+      const lookups = vi.mocked(rxdb.schemaManager.getEntityType).mock.calls;
+      expect(lookups).toEqual([
+        ['Todo', 'shop'],
+        ['Todo', 'shop']
+      ]);
     });
 
     it('getMetadataByIds 用自定义物理主键列，不写死字面量 id', async () => {

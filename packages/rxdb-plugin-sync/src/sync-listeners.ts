@@ -28,8 +28,8 @@ type RemoteEntityEvent = EntityRemoteCreatedEvent | EntityRemoteUpdatedEvent | E
  * 跑一步回推动作，把失败报给面板后吞掉
  *
  * @param syncState - 失败的去处
- * @param task - 这一步
- * @returns 这一步是否成功
+ * @param task - 这一步；返回值是这一步**自己**判定的成功与否（见 {@link flushRepository}）
+ * @returns 这一步是否成功——异常通道与 `task` 自报的 `false` 都算失败
  *
  * @remarks
  * 一轮里的各个仓库互不背书：一个仓库的出站队列重放不上，不代表别的仓库那条 REST 路
@@ -39,11 +39,15 @@ type RemoteEntityEvent = EntityRemoteCreatedEvent | EntityRemoteUpdatedEvent | E
  * 多少次网络都不会再有回推。真正的重试节奏交给
  * {@link ReachabilityMonitor.wakeup$} 的退避。吞掉不等于藏起来：错误进
  * {@link SyncStateHub.reportError}，用户在面板上看得见。
+ *
+ * **只兜异常通道**：`flushQueryCacheOutbox` 对结构化失败（REST 403、网络错误）从不
+ * `reject`，失败躺在返回值的 `failures` 数组里（RV-052）。这里只负责「`task` 真的
+ * 抛了」这一种失败；`task` 自己上报 `syncState.reportError` 并返回 `false` 的那种
+ * 失败，原样作为返回值传上去，不重复上报。
  */
-async function runQuietly(syncState: SyncStateHub, task: () => Promise<unknown>): Promise<boolean> {
+async function runQuietly(syncState: SyncStateHub, task: () => Promise<boolean>): Promise<boolean> {
   try {
-    await task();
-    return true;
+    return await task();
   } catch (error) {
     syncState.reportError(error);
     return false;
@@ -90,19 +94,35 @@ function queryCacheRepositories(sm: SyncManager): RepositoryIdentifier[] {
 }
 
 /**
- * 重放一个 QueryCache 仓库，把判负的实体报给面板
+ * 重放一个 QueryCache 仓库，把判负的实体和结构化失败都报给面板
+ *
+ * @returns 本仓库这一轮是否**真的**成功——`failures` 非空也算失败，即便没有任何异常抛出
  *
  * @remarks
- * 只有 `conflicts`（解析器判 `KEEP_REMOTE`）进面板：那是用户离线时写的东西被远端盖掉了，
- * 是唯一需要他知道的一类。逐条上报而不是只报最后一条，`lastConflict` 自然停在最新的那条。
+ * `conflicts`（解析器判 `KEEP_REMOTE`）进面板是用户离线时写的东西被远端盖掉了，
+ * 是需要他知道的一类；逐条上报而不是只报最后一条，`lastConflict` 自然停在最新的那条。
+ *
+ * **`failures` 同样必须上报（RV-052）**：`flushQueryCacheOutbox` 对 REST 403、网络错误
+ * 等结构化失败从不 `reject`——Promise 照常 resolve，失败躺在返回值的 `failures` 数组里
+ * （见 `query-cache-outbox.ts` 的 `replayEntry`/`runOutboxFlush`）。调用方如果只认「有没有
+ * 抛异常」，这类失败会被判成「没出错」，面板上 `lastError` 被清空、`reportSuccess()`
+ * 被调用，而出站队列其实原地没动。这里逐条把失败的原因上报给 `syncState`——
+ * 和 `conflicts` 同样的理由，`lastError` 自然停在本轮最新的那条——并把「有没有
+ * 失败」原样交还给调用方，参与整轮 {@link flushRepositories} 的成功聚合。
  */
-async function flushRepository(sm: SyncManager, namespace: string, entity: string): Promise<void> {
+async function flushRepository(sm: SyncManager, namespace: string, entity: string): Promise<boolean> {
   const { syncState } = sm.rxdb;
   const result = await flushQueryCacheOutbox(sm.rxdb, namespace, entity);
 
   for (const entityId of result.conflicts) {
     syncState.reportConflict({ namespace, entity, entityId, winner: 'remote' });
   }
+
+  for (const failure of result.failures) {
+    syncState.reportError(failure.error);
+  }
+
+  return result.failures.length === 0;
 }
 
 /**

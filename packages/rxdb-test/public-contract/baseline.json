@@ -15,6 +15,8 @@
     "SYNC_OVERRIDE_REMOTE_ADAPTER": "string",
     "SYNC_OVERRIDE_SEED_TITLES": "array",
     "SYNC_OVERRIDE_WRITE_TITLE": "string",
+    "SYNC_REJECTIONS_FIXTURE": "array",
+    "SYNC_REJECTIONS_NEXT_ROUND_FIXTURE": "array",
     "SingleTabBroadcastChannel": "function",
     "cleanupSqliteTestAdapter": "function",
     "clearEntityRecords": "function",

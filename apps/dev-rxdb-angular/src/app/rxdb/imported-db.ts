@@ -1,5 +1,5 @@
 // 导入库的覆盖键（US-909 阶段 B，AC#7）：启动、外壳提示条、导入页共用。备份读写在 `failure-archive-import.ts`，
-// 这里不引用它们，免得进初始包。契约见 specs/004-us-909-failure-data-archive/data-model.md §6。
+// 这里不引用它们，免得进初始包。契约见 `git show 2e820521:specs/004-us-909-failure-data-archive/data-model.md` §6。
 
 /**
  * 覆盖键：有值时 dev 应用打开这个库（而不是默认库 / e2e 隔离库），并强制 IDB + SharedWorker——导入经主线程 IDB

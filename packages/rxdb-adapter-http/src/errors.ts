@@ -173,7 +173,7 @@ export class HttpPaginationError extends HttpAdapterError {
  * @remarks
  * 覆盖两类：缺 `id` / `updatedAt` 字段，以及 `updatedAt` 不是合法 ISO 8601 时间串。
  * 后者**不能靠类型检查拦住**——不规范的字符串照样是 `string`，`diffMetadata` 照常运行，
- * 错的只是结论（字典序比较得出反向答案，缓存卡死或无谓重拉）。
+ * 错的只是结论（解析不出时间点就无法判断新旧，缓存卡死或无谓重拉）。
  */
 export class HttpInvalidMetadataError extends HttpAdapterError {
   constructor(

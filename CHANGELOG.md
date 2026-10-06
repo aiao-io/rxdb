@@ -4,7 +4,7 @@
 
 ### ⚠️ Breaking Changes
 
-相对 0.0.25 共六组 API 破坏性变更，均附迁移指南：
+相对 0.0.25 共七组破坏性变更，均附迁移指南：
 
 - **rxdb / rxdb-adapter-sqlite-core:** 删除跨 realm writer lease。`@aiao/rxdb` 移除 16 个导出（`RxDBWriterLeaseError` 等常量、函数、类型），`@aiao/rxdb-adapter-sqlite-core/testing` 移除 `rowsAffectedConformanceSuite`，`RxDBAdapterLocalBase.startWriterLease()` 移除。PGlite 遗留的 `rxdb.rxdb_upgrade_guard` / `rxdb.rxdb_writer_lease` 表可保留。→ [writer-lease-removal](https://rxdb.netlify.app/docs/migration/writer-lease-removal) ([#10](https://github.com/aiao-io/rxdb/pull/10))
 - **rxdb:** 删除孤立类型 `RemoteSyncOptions`；冲突解决改用 `PullOptions.conflictResolver` / `PullRepositoryOptions.conflictResolver`。→ [remote-sync-options](https://rxdb.netlify.app/docs/migration/remote-sync-options) ([#52](https://github.com/aiao-io/rxdb/pull/52))
@@ -12,6 +12,7 @@
 - **rxdb-adapter-desktop:** 拆分为 `@aiao/rxdb-adapter-electron` 与 `@aiao/rxdb-adapter-tauri`，import 路径与适配器注册名随之变更，数据文件与线协议不变；旧包 `@aiao/rxdb-adapter-desktop` 停在 0.0.25，不标记 deprecated。→ [desktop-split](https://rxdb.netlify.app/docs/migration/desktop-split) ([#29](https://github.com/aiao-io/rxdb/pull/29))
 - **rxdb:** 插件拆卸改为宿主下发 `LifecycleScope` + 逆序释放，第三方插件的 `install()` 需接收作用域；内置插件已迁移。→ [plugin-scope](https://rxdb.netlify.app/docs/migration/plugin-scope) ([#34](https://github.com/aiao-io/rxdb/pull/34))
 - **rxdb-adapter-supabase:** 连不上远端（`status === 0`）时改抛 core 的 `NetworkOfflineError`（原为 `SupabaseDataError`），QueryCache 的 `offlineFallback` 由此生效；401/403/409/5xx 仍为 `SupabaseDataError`。→ [supabase-network-errors](https://rxdb.netlify.app/docs/migration/supabase-network-errors) ([#39](https://github.com/aiao-io/rxdb/pull/39))
+- **rxdb-client-generator:** 实体元数据 `default` 的生成改为按运行时类型分派，不再先做 `JSON.stringify` / `JSON.parse` 往返。bigint、`Uint8Array`、`Date` 现在原样还原；函数默认值（`() => uuid()` 等）此前会被**静默丢弃**，现在生成期抛 `unsupportedDefaultFactory`；`NaN` / `Infinity`、非法 `Date`、循环引用、`Map` 等无法确定性还原的值抛 `unsupportedDefaultValue`。继承 `EntityBase` 的实体不受影响。→ [generator-default](https://rxdb.netlify.app/docs/migration/generator-default)（补录：0.0.26 发布时漏报）([#39](https://github.com/aiao-io/rxdb/pull/39))
 
 ### 📦 首次发布的包
 

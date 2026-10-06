@@ -84,10 +84,19 @@ const columnsOf = (EntityClass: EntityType): [string, ColumnType][] =>
 
 const columnNamesOf = (EntityClass: EntityType): string[] => columnsOf(EntityClass).map(([name]) => name);
 
-/** `RxDBChange` 在 commit 能力落地前的列集，按声明顺序。 */
+/**
+ * `RxDBChange` 的既定列集，按声明顺序。
+ *
+ * @remarks
+ * `rejectedAt` / `rejection` 是系统模式 7（US-218 阶段 B，推送被拒的标记）加的，不是 commit 能力加的：
+ * 它们走的是同步表该走的那条路（迁移阶梯 + 两个本地适配器的补列）。这里照样按绝对值钉——
+ * 守的是「commit 能力不准动这张表」，而不是「这张表永远不准动」。
+ */
 const LEGACY_CHANGE_COLUMNS: [string, ColumnType][] = [
   ['id', PropertyType.integer],
   ['remoteId', PropertyType.integer],
+  ['rejectedAt', PropertyType.date],
+  ['rejection', PropertyType.json],
   ['type', PropertyType.string],
   ['transactionId', PropertyType.uuid],
   ['namespace', PropertyType.string],

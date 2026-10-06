@@ -173,11 +173,11 @@ describe('query SQL runtime validation', () => {
   });
 
   it.each([
-    ['tags', 'in', ['a', 'b'], '"tags" @> $1::text[]'],
-    ['tags', 'notIn', ['a'], 'NOT "tags" @> $1::text[]'],
-    ['scores', 'in', [1, 2], '"scores" @> $1::numeric[]'],
-    ['scores', 'notIn', [3], 'NOT "scores" @> $1::numeric[]']
-  ])('uses PostgreSQL array containment for %s %s', (field, operator, value, expectedSql) => {
+    ['tags', 'in', ['a', 'b'], '"tags" && $1::text[]'],
+    ['tags', 'notIn', ['a'], 'NOT ("tags" && $1::text[])'],
+    ['scores', 'in', [1, 2], '"scores" && $1::numeric[]'],
+    ['scores', 'notIn', [3], 'NOT ("scores" && $1::numeric[])']
+  ])('uses PostgreSQL array overlap (&&, 交集语义，RV-034) for %s %s', (field, operator, value, expectedSql) => {
     const params: unknown[] = [];
     const sql = buildRuleGroupPG(
       asRuleGroup({ combinator: 'and', rules: [{ field, operator, value }] }),

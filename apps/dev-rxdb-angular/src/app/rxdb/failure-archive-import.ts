@@ -4,7 +4,7 @@ import { createMainThreadIdbRxDB, DEMO_ADAPTER_NAME } from './demo-rxdb-config';
 import { dbNameFromManifest } from './failure-archive';
 
 // e2e 失败现场归档的导入（US-909 阶段 B，AC#7），只给导入页 `/failure-archive` 用（随页面懒加载）；打开 / 离开导入库在
-// `imported-db.ts`。契约见 specs/004-us-909-failure-data-archive/data-model.md §6。
+// `imported-db.ts`。契约见 `git show 2e820521:specs/004-us-909-failure-data-archive/data-model.md` §6。
 
 /** 归档 manifest 里导入页要显示的部分。 */
 export interface FailureArchiveInfo {

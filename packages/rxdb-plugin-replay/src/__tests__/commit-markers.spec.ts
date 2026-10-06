@@ -1,5 +1,5 @@
 /**
- * @fileoverview commit 标记（`specs/005-us-909-session-replay/contracts/replay-plugin.md` §3、AC#14）。
+ * @fileoverview commit 标记（`git show 2e820521:specs/005-us-909-session-replay/contracts/replay-plugin.md` §3、AC#14）。
  *
  * @remarks
  * 应用库上真装 `@aiao/rxdb-plugin-working-tree` 并真提交：标记靠门面的 `commits$` 打，按时间戳反查 commit 是被明令禁止的形态，

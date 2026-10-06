@@ -44,10 +44,11 @@
   "peerDependencies": {
     "@aiao/rxdb": "*",
     "@aiao/rxdb-plugin-search": "*",
-    "react": "^19.2.8",
+    "react": "^19.3.0",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
+    "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-plugin-search": "workspace:*"
   },
   "publishConfig": {

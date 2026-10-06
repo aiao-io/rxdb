@@ -30,7 +30,7 @@ export type ReplayRestoreResult =
  * `rxdb.replay.state$` 的值。
  *
  * @remarks
- * 初始 `idle`；作用域释放后不再发值（流完成）。转移表见 `specs/005-us-909-session-replay/data-model.md` §3.2。
+ * 初始 `idle`；作用域释放后不再发值（流完成）。转移表见 `git show 2e820521:specs/005-us-909-session-replay/data-model.md` §3.2。
  */
 export type ReplayState =
   | { readonly kind: 'idle' }

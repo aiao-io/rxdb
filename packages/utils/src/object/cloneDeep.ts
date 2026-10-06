@@ -75,10 +75,13 @@ const cloneValue = <T>(value: T, seen: WeakMap<object, unknown>): T => {
   }
 
   if (Array.isArray(value)) {
-    const clonedArray: unknown[] = [];
+    // 先按原长度建稀疏数组（而不是从空数组 push）：push 会把 hole 压缩掉、
+    // 让 tail 元素的索引往前挪，稀疏数组的结构本身就是数据的一部分（RV-073）。
+    // forEach 原生跳过 hole，这里按同一下标写回，长度与空洞位置原样保留。
+    const clonedArray: unknown[] = new Array(value.length);
     seen.set(value, clonedArray);
-    value.forEach(item => {
-      clonedArray.push(cloneValue(item, seen));
+    value.forEach((item, index) => {
+      clonedArray[index] = cloneValue(item, seen);
     });
     return clonedArray as T;
   }

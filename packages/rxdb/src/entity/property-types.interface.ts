@@ -315,8 +315,7 @@ export interface IntegerProperty extends IEntityObject, ISortable {
  *
  * @remarks
  * 运行时只接受 `bigint`，值域为 `-2^63` 至 `2^63 - 1`。SQLite family 与
- * PGlite 本地 adapter 支持持久化；Supabase remote 不支持。类型系统演进 Epic
- * 全部完成前，该类型不得进入发布产物。
+ * PGlite 本地 adapter 支持持久化；Supabase remote 不支持。
  */
 export interface BigIntProperty extends IEntityObject, ISortable {
   primary?: boolean;
@@ -330,7 +329,7 @@ export interface BigIntProperty extends IEntityObject, ISortable {
  * @remarks
  * 默认值会按实体复制。原地修改不会触发实体 Proxy，持久化变更必须重新赋值。
  * SQLite family 与 PGlite 本地 adapter 支持 `Uint8Array` 当前视图；Supabase
- * remote 不支持。类型系统演进 Epic 全部完成前，该类型不得进入发布产物。
+ * remote 不支持。
  */
 export interface BinaryProperty extends IEntityObject {
   type: PropertyType.binary | `${PropertyType.binary}`;

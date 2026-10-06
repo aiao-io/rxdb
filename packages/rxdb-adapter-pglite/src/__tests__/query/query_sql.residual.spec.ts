@@ -189,7 +189,8 @@ describe('query_sql residual branches', () => {
       meta
     );
     expect(notContains).toContain('NOT');
-    expect(notContains).toContain('@>');
+    expect(notContains).toContain('LIKE');
+    expect(notContains).not.toContain('@>');
 
     expect(() =>
       buildRuleGroupPG(

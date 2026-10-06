@@ -8,6 +8,8 @@ import {
   type IRxDBChange,
   PropertyType,
   RelationKind,
+  type RemoteChangeRejection,
+  type RemoteChangeResult,
   type RemoteMergeResult,
   RepositorySyncBeginEvent,
   RepositorySyncErrorEvent,
@@ -19,13 +21,14 @@ import {
   RxDBSync,
   type SwitchVersionActions,
   type SyncOptions,
+  type SyncRejection,
   SyncType,
   type TransactionExecutor,
   type TransactionExecutorFun,
   type UUID
 } from '@aiao/rxdb';
 import { PushInFlightRegistry } from '@aiao/rxdb-plugin-history';
-import { of } from 'rxjs';
+import { type Observable, of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { pushRepository, type PushRepositoryResult } from '../push-repository.js';
 import type { SyncManager } from '../SyncManager.js';
@@ -38,9 +41,56 @@ type MergeChanges = (
   actions: SwitchVersionActions,
   branchId?: string,
   changes?: IRxDBChange[]
-) => Promise<RemoteMergeResult | number | void>;
+) => Promise<RemoteMergeResult>;
+
+/** 默认远端替身：把本批源变更原样标记为 applied，`remoteId = localId + 100`。 */
+function defaultMergeResult(sourceChanges: IRxDBChange[] | undefined): RemoteMergeResult {
+  const results: RemoteChangeResult[] = (sourceChanges ?? []).map(change => ({
+    localId: change.id,
+    status: 'applied',
+    remoteId: change.id + 100
+  }));
+  return { results };
+}
 type SaveChanges = (changes: RxDBChange[]) => Promise<RxDBChange[]>;
 type DispatchEvent = (event: RxDBEvent) => void;
+type RemoteRow = Record<string, unknown>;
+type FindByIds = (entityName: string, ids: string[]) => Observable<RemoteRow[]>;
+type LocalMergeChanges = (
+  actions: SwitchVersionActions,
+  changes?: IRxDBChange[],
+  disableTriggers?: boolean
+) => Promise<void>;
+type ReportRejections = (rejections: readonly SyncRejection[]) => void;
+
+/** 一条被拒回执；实体引用取自源变更，`reason` / `code` 等可覆盖 */
+function rejectedResult(change: IRxDBChange, overrides: Partial<RemoteChangeRejection> = {}): RemoteChangeResult {
+  return {
+    localId: change.id,
+    status: 'rejected',
+    rejection: {
+      code: '42501',
+      reason: 'denied',
+      message: 'new row violates row-level security policy',
+      entity: { namespace: change.namespace, entity: change.entity, entityId: String(change.entityId) },
+      ...overrides
+    }
+  };
+}
+
+/** 远端替身：`rejectedIds` 里的源变更回执被拒，其余 applied（`remoteId = localId + 100`） */
+function mergeWithRejections(
+  rejectedIds: readonly number[],
+  overrides: Partial<RemoteChangeRejection> = {}
+): MergeChanges {
+  return async (_actions, _branchId, sourceChanges) => ({
+    results: (sourceChanges ?? []).map(change =>
+      rejectedIds.includes(change.id) ?
+        rejectedResult(change, overrides)
+      : { localId: change.id, status: 'applied' as const, remoteId: change.id + 100 }
+    )
+  });
+}
 
 type ChangeInput = {
   id: number;
@@ -60,6 +110,7 @@ type HarnessOptions = {
   ancestorWatermarks?: Readonly<Record<string, number | null>>;
   mergeChanges?: MergeChanges;
   saveChanges?: SaveChanges;
+  findByIds?: FindByIds;
   sync?: SyncOptions;
   entities?: EntityType[];
 };
@@ -144,6 +195,8 @@ function createChange(input: ChangeInput): RxDBChange {
   change.inversePatch = input.inversePatch ?? null;
   change.remoteId = null;
   change.revertChangeId = null;
+  change.rejectedAt = null;
+  change.rejection = null;
   change.createdAt = new Date(`2026-01-01T00:00:${String(input.id).padStart(2, '0')}.000Z`);
   change.updatedAt = new Date(`2026-01-01T00:00:${String(input.id).padStart(2, '0')}.000Z`);
   return change;
@@ -207,9 +260,23 @@ function createHarness(options: HarnessOptions = {}) {
   >;
 
   const changeFind = vi.fn(async (findOptions: ChangeFindOptions): Promise<RxDBChange[]> => {
-    const entities = ruleValue(findOptions.where, 'entity');
-    if (!Array.isArray(entities)) return [...changes];
-    return changes.filter(change => entities.includes(change.entity));
+    const where = findOptions.where;
+    const entities = ruleValue(where, 'entity');
+    const entityIds = ruleValue(where, 'entityId');
+    const afterId = ruleValue(where, 'id');
+    // 待推口径的三个空值条件只在查询带上时才过滤，与真实适配器一致
+    const pendingOnly = (field: 'remoteId' | 'rejectedAt', change: RxDBChange): boolean =>
+      ruleValue(where, field) !== null || change[field] == null;
+    return changes.filter(
+      change =>
+        (Array.isArray(entities) ? entities.includes(change.entity)
+        : typeof entities === 'string' ? entities === change.entity
+        : true) &&
+        (!Array.isArray(entityIds) || entityIds.includes(String(change.entityId))) &&
+        (typeof afterId !== 'number' || change.id > afterId) &&
+        pendingOnly('remoteId', change) &&
+        pendingOnly('rejectedAt', change)
+    );
   });
   const changeRepo = { find: changeFind } as unknown as IRepository<typeof RxDBChange>;
 
@@ -241,15 +308,21 @@ function createHarness(options: HarnessOptions = {}) {
     throw new Error(`Unexpected repository: ${EntityClass.name}`);
   });
   const localAdapter = { getRepository, saveMany };
+  // 被拒实体的本地对齐只能走事务内的 `executor.mergeChanges`（关触发器）
+  const localMergeChanges = vi.fn<LocalMergeChanges>(async () => undefined);
   const transaction = vi.fn(async <T>(fun: TransactionExecutorFun<T>): Promise<T> => {
-    const executor = { getRepository, saveMany } as unknown as TransactionExecutor;
+    const executor = { getRepository, saveMany, mergeChanges: localMergeChanges } as unknown as TransactionExecutor;
     return await fun(executor);
   });
   Object.assign(localAdapter, { transaction });
 
-  const mergeChanges = vi.fn<MergeChanges>(options.mergeChanges ?? (async () => undefined));
-  const remoteAdapter = { mergeChanges };
+  const mergeChanges = vi.fn<MergeChanges>(
+    options.mergeChanges ?? (async (_actions, _branchId, sourceChanges) => defaultMergeResult(sourceChanges))
+  );
+  const findByIds = vi.fn<FindByIds>(options.findByIds ?? (() => of([])));
+  const remoteAdapter = { mergeChanges, findByIds };
   const dispatchEvent = vi.fn<DispatchEvent>();
+  const reportRejections = vi.fn<ReportRejections>();
   const currentBranch = createBranch(currentBranchId, branchParents[currentBranchId] ?? null);
 
   // 真的登记处，不是替身：`pushRepository` 会在这上面认领/释放在飞区间，
@@ -265,6 +338,7 @@ function createHarness(options: HarnessOptions = {}) {
       },
       context: { clientId: 'test-client' },
       dispatchEvent,
+      syncState: { reportRejections },
       // 核心的系统表解析（`getLocalSystemRepositories` / `getCurrentBranch`）认的是这两条流，
       // 不是 `SyncManager.getLocalRepositories()` —— 同一个替身适配器，换个入口暴露。
       localAdapter$: of(localAdapter),
@@ -284,7 +358,10 @@ function createHarness(options: HarnessOptions = {}) {
     changeFind,
     currentSync,
     dispatchEvent,
+    findByIds,
+    localMergeChanges,
     mergeChanges,
+    reportRejections,
     saveMany,
     transaction,
     syncFind,
@@ -315,6 +392,7 @@ describe('pushRepository', () => {
     expect(result).toEqual({
       repository: { namespace: 'public', entity: 'User' },
       pushed: 0,
+      rejected: 0,
       failed: 0,
       compacted: 0,
       originalCount: 0,
@@ -327,6 +405,7 @@ describe('pushRepository', () => {
         rules: [
           { field: 'revertChangeId', operator: '=', value: null },
           { field: 'remoteId', operator: '=', value: null },
+          { field: 'rejectedAt', operator: '=', value: null },
           { field: 'namespace', operator: '=', value: 'public' },
           { field: 'branchId', operator: '=', value: 'main' },
           { field: 'entity', operator: 'in', value: ['User'] },
@@ -352,6 +431,18 @@ describe('pushRepository', () => {
     expect(ruleValue(harness.changeFind.mock.calls[0]?.[0]?.where, 'namespace')).toBe('public');
   });
 
+  it('未推送查询必须排除已被拒绝的变更（rejectedAt 非空）', async () => {
+    // 红：`queryUnpushedChanges` 目前只按 `remoteId = null` 过滤，被拒变更的 remoteId
+    // 也一直是 null、永远不会再被推送——查询条件里还没有 `rejectedAt = null` 这条规则，
+    // 所以此刻断言会在数组里找不到它而失败。
+    const harness = createHarness({ currentWatermark: 41 });
+
+    await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    const rules = harness.changeFind.mock.calls[0]?.[0]?.where?.rules;
+    expect(rules).toContainEqual({ field: 'rejectedAt', operator: '=', value: null });
+  });
+
   it('多分支查询使用所有祖先分支的最小水位线', async () => {
     const harness = createHarness({
       currentBranchId: 'feature',
@@ -369,6 +460,7 @@ describe('pushRepository', () => {
         rules: [
           { field: 'revertChangeId', operator: '=', value: null },
           { field: 'remoteId', operator: '=', value: null },
+          { field: 'rejectedAt', operator: '=', value: null },
           { field: 'namespace', operator: '=', value: 'public' },
           { field: 'branchId', operator: 'in', value: ['feature', 'release', 'main'] },
           { field: 'entity', operator: 'in', value: ['User'] },
@@ -393,6 +485,7 @@ describe('pushRepository', () => {
     expect(findOptions.where.rules).toEqual([
       { field: 'revertChangeId', operator: '=', value: null },
       { field: 'remoteId', operator: '=', value: null },
+      { field: 'rejectedAt', operator: '=', value: null },
       { field: 'namespace', operator: '=', value: 'public' },
       { field: 'branchId', operator: 'in', value: ['feature', 'release', 'main'] },
       { field: 'entity', operator: 'in', value: ['User'] }
@@ -414,6 +507,7 @@ describe('pushRepository', () => {
     expect(result).toEqual({
       repository: { namespace: 'public', entity: 'User' },
       pushed: 0,
+      rejected: 0,
       failed: 0,
       compacted: 2,
       originalCount: 2,
@@ -467,9 +561,10 @@ describe('pushRepository', () => {
     const harness = createHarness({
       changes: [insert, otherInsert, update],
       mergeChanges: async () => ({
-        changeIdMapping: [
-          { localId: 3, remoteId: 108 },
-          { localId: 8, remoteId: 108 }
+        results: [
+          { localId: 3, status: 'applied', remoteId: 108 },
+          { localId: 5, status: 'applied', remoteId: 105 },
+          { localId: 8, status: 'applied', remoteId: 108 }
         ]
       })
     });
@@ -483,8 +578,8 @@ describe('pushRepository', () => {
     expect(sourceChanges).toEqual([insert, otherInsert, update]);
     expect(insert.remoteId).toBe(108);
     expect(update.remoteId).toBe(108);
-    expect(otherInsert.remoteId).toBeNull();
-    expect(harness.saveMany).toHaveBeenCalledWith([insert, update]);
+    expect(otherInsert.remoteId).toBe(105);
+    expect(harness.saveMany).toHaveBeenCalledWith([insert, otherInsert, update]);
     expect(harness.currentSync.lastPushedChangeId).toBe(8);
     expect(harness.currentSync.lastPushedAt).toBeInstanceOf(Date);
     expect(harness.syncUpdate).toHaveBeenCalledWith(
@@ -499,31 +594,107 @@ describe('pushRepository', () => {
     const harness = createHarness({
       changes: [change],
       mergeChanges: async () => ({
-        changeIdMapping: [
-          { localId: 3, remoteId: 103 },
-          { localId: 999, remoteId: 199 }
+        results: [
+          { localId: 3, status: 'applied', remoteId: 103 },
+          { localId: 999, status: 'applied', remoteId: 199 }
         ]
       })
     });
 
     // 一条都没发到远端，抛裸错误（见 push-repository.ts 的 throwPushFailure）
     await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toEqual(
-      expect.objectContaining({ message: 'Remote change mapping references unknown local change: 999' })
+      expect.objectContaining({ message: 'Remote merge result references unknown local change: 999' })
     );
     expect(change.remoteId).toBeNull();
     expect(harness.saveMany).not.toHaveBeenCalled();
     expect(harness.syncUpdate).not.toHaveBeenCalled();
   });
 
-  it('远端返回非映射结果时仍推进水位线，但不保存本地变更', async () => {
+  it('回执缺项时整轮失败、水位线不动', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const change = createChange({ id: 7 });
-    const harness = createHarness({ changes: [change], mergeChanges: async () => 77 });
+    const harness = createHarness({ changes: [change], mergeChanges: async () => ({ results: [] }) });
+
+    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toEqual(
+      expect.objectContaining({ message: 'Remote merge result missing local changes: 7' })
+    );
+
+    expect(harness.saveMany).not.toHaveBeenCalled();
+    expect(change.remoteId).toBeNull();
+    expect(harness.currentSync.lastPushedChangeId).toBeNull();
+    expect(harness.syncUpdate).not.toHaveBeenCalled();
+  });
+
+  it('远端结果对本批源变更缺项时抛错、水位线不动、本地无任何 remoteId 写入（覆盖检查，FR-017、AC#14）', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const first = createChange({ id: 20, entityId: '00000000-0000-0000-0000-000000000020' as UUID });
+    const second = createChange({ id: 21, entityId: '00000000-0000-0000-0000-000000000021' as UUID });
+    const harness = createHarness({
+      changes: [first, second],
+      mergeChanges: async () => ({ results: [{ localId: 20, status: 'applied', remoteId: 120 }] })
+    });
+
+    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toEqual(
+      expect.objectContaining({ message: 'Remote merge result missing local changes: 21' })
+    );
+
+    expect(harness.saveMany).not.toHaveBeenCalled();
+    expect(first.remoteId).toBeNull();
+    expect(second.remoteId).toBeNull();
+    expect(harness.currentSync.lastPushedChangeId).toBeNull();
+  });
+
+  it('远端结果对本批源变更重复 localId 时抛错、水位线不动、本地无任何 remoteId 写入（覆盖检查，FR-017、AC#14）', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const first = createChange({ id: 30, entityId: '00000000-0000-0000-0000-000000000030' as UUID });
+    const second = createChange({ id: 31, entityId: '00000000-0000-0000-0000-000000000031' as UUID });
+    const harness = createHarness({
+      changes: [first, second],
+      mergeChanges: async () => ({
+        results: [
+          { localId: 30, status: 'applied', remoteId: 130 },
+          { localId: 30, status: 'applied', remoteId: 130 },
+          { localId: 31, status: 'applied', remoteId: 131 }
+        ]
+      })
+    });
+
+    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toEqual(
+      expect.objectContaining({ message: 'Remote merge result duplicates local change: 30' })
+    );
+
+    expect(harness.saveMany).not.toHaveBeenCalled();
+    expect(first.remoteId).toBeNull();
+    expect(second.remoteId).toBeNull();
+    expect(harness.currentSync.lastPushedChangeId).toBeNull();
+  });
+
+  it('全部抵消的批次（effectiveCount === 0）不调用 mergeChanges，水位线照常推进；混入一条正常 UPDATE 时覆盖检查只看未抵消的那条', async () => {
+    const entityId = '00000000-0000-0000-0000-000000000040' as UUID;
+    const insert = createChange({ id: 40, entityId, patch: { name: 'temporary' } });
+    const cancelingDelete = createChange({ id: 41, entityId, type: 'DELETE', patch: null, inversePatch: null });
+    const update = createChange({
+      id: 42,
+      entityId: '00000000-0000-0000-0000-000000000042' as UUID,
+      type: 'UPDATE',
+      patch: { name: 'after' },
+      inversePatch: { name: 'before' }
+    });
+    const harness = createHarness({
+      changes: [insert, cancelingDelete, update],
+      // 抵消的 INSERT→DELETE 对不在 sourceChanges 里：远端只需覆盖那条 UPDATE
+      mergeChanges: async () => ({ results: [{ localId: 42, status: 'applied', remoteId: 142 }] })
+    });
 
     const result = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
 
     expect(result).toMatchObject({ success: true, pushed: 1, failed: 0 });
-    expect(harness.saveMany).not.toHaveBeenCalled();
-    expect(harness.currentSync.lastPushedChangeId).toBe(7);
+    expect(harness.mergeChanges).toHaveBeenCalledTimes(1);
+    const [, , sourceChanges] = harness.mergeChanges.mock.calls[0];
+    expect(sourceChanges).toEqual([update]);
+    expect(update.remoteId).toBe(142);
+    // 水位线按本批最大本地 change id 推进（含被抵消的那两条，它们本就不需要发远端）
+    expect(harness.currentSync.lastPushedChangeId).toBe(42);
   });
 
   it('远端提交失败时抛出，且不推进同步水位线', async () => {
@@ -564,14 +735,14 @@ describe('pushRepository', () => {
     const harness = createHarness({
       changes: [change],
       mergeChanges: async (_actions, _branchId, sourceChanges) => ({
-        changeIdMapping: (sourceChanges ?? []).map(sourceChange => {
+        results: (sourceChanges ?? []).map(sourceChange => {
           let remoteId = remoteChanges.get(sourceChange.id);
           if (remoteId === undefined) {
             remoteId = 100 + sourceChange.id;
             remoteChanges.set(sourceChange.id, remoteId);
             remoteSideEffects++;
           }
-          return { localId: sourceChange.id, remoteId };
+          return { localId: sourceChange.id, status: 'applied' as const, remoteId };
         })
       }),
       saveChanges: async records => {
@@ -604,10 +775,17 @@ describe('pushRepository', () => {
     const harness = createHarness({
       changes: [userChange],
       entities: [User, Post],
-      mergeChanges: async actions => {
+      mergeChanges: async (actions, _branchId, sourceChanges) => {
         if ([...actions.inserts.keys()].some(key => key.startsWith('public:User:'))) {
           throw pushError;
         }
+        return {
+          results: (sourceChanges ?? []).map(change => ({
+            localId: change.id,
+            status: 'applied' as const,
+            remoteId: change.id + 100
+          }))
+        };
       }
     });
     const postSync = createSyncRecord('Post', 'main', null);
@@ -653,8 +831,9 @@ describe('pushRepository', () => {
     const harness = createHarness({
       changes: [insert, otherInsert, update],
       mergeChanges: async (_actions, _branchId, sourceChanges) => ({
-        changeIdMapping: (sourceChanges ?? []).map(change => ({
+        results: (sourceChanges ?? []).map(change => ({
           localId: change.id,
+          status: 'applied' as const,
           remoteId: change.id + 100
         }))
       })
@@ -694,8 +873,9 @@ describe('pushRepository', () => {
         batchIndex++;
         if (batchIndex === 2) throw batchError;
         return {
-          changeIdMapping: (sourceChanges ?? []).map(change => ({
+          results: (sourceChanges ?? []).map(change => ({
             localId: change.id,
+            status: 'applied' as const,
             remoteId: change.id + 100
           }))
         };
@@ -759,8 +939,15 @@ describe('pushRepository 级联调度契约（RXD-030）', () => {
     const harness = createHarness({
       changes: [postChange],
       entities: [User, Post],
-      mergeChanges: async actions => {
+      mergeChanges: async (actions, _branchId, sourceChanges) => {
         if ([...actions.inserts.keys()].some(key => key.startsWith('public:Post:'))) throw pushError;
+        return {
+          results: (sourceChanges ?? []).map(change => ({
+            localId: change.id,
+            status: 'applied' as const,
+            remoteId: change.id + 100
+          }))
+        };
       }
     });
     const postSync = createSyncRecord('Post', 'main', null);
@@ -921,8 +1108,15 @@ describe('pushRepository 级联依赖闸门按相位翻转', () => {
         createChange({ id: 2, entity: 'Post', type: 'DELETE' })
       ],
       {
-        mergeChanges: async actions => {
+        mergeChanges: async (actions, _branchId, sourceChanges) => {
           if ([...actions.deletes.keys()].some(key => key.startsWith('public:Post:'))) throw deleteError;
+          return {
+            results: (sourceChanges ?? []).map(change => ({
+              localId: change.id,
+              status: 'applied' as const,
+              remoteId: change.id + 100
+            }))
+          };
         }
       }
     );
@@ -975,8 +1169,15 @@ describe('pushRepository 级联依赖闸门按相位翻转', () => {
         createChange({ id: 3, entity: 'PushComment', type: 'INSERT' }),
         createChange({ id: 4, entity: 'PushComment', type: 'DELETE' })
       ],
-      mergeChanges: async actions => {
+      mergeChanges: async (actions, _branchId, sourceChanges) => {
         if ([...actions.inserts.keys()].some(key => key.startsWith('public:Post:'))) throw insertError;
+        return {
+          results: (sourceChanges ?? []).map(change => ({
+            localId: change.id,
+            status: 'applied' as const,
+            remoteId: change.id + 100
+          }))
+        };
       }
     });
     for (const entity of ['Post', 'PushComment']) {
@@ -1057,7 +1258,7 @@ describe('pushRepository 失败一律抛出', () => {
       mergeChanges: async () => {
         batches++;
         if (batches === 2) throw remoteError;
-        return { changeIdMapping: [{ localId: 1, remoteId: 101 }] };
+        return { results: [{ localId: 1, status: 'applied' as const, remoteId: 101 }] };
       }
     });
 
@@ -1107,10 +1308,16 @@ describe('pushRepository 的在飞认领', () => {
 
     const harness = createHarness({
       changes: [createChange({ id: 11 }), createChange({ id: 12 })],
-      mergeChanges: async () => {
+      mergeChanges: async (_actions, _branchId, sourceChanges) => {
         arrived?.();
         await remoteArrived;
-        return undefined;
+        return {
+          results: (sourceChanges ?? []).map(change => ({
+            localId: change.id,
+            status: 'applied' as const,
+            remoteId: change.id + 100
+          }))
+        };
       }
     });
 
@@ -1165,5 +1372,284 @@ describe('pushRepository 的在飞认领', () => {
 
     expect(harness.mergeChanges).not.toHaveBeenCalled();
     expect([...harness.pushInFlight.snapshot()]).toEqual([]);
+  });
+});
+
+const ENTITY_A = '00000000-0000-0000-0000-00000000000a' as UUID;
+const ENTITY_B = '00000000-0000-0000-0000-00000000000b' as UUID;
+const ENTITY_C = '00000000-0000-0000-0000-00000000000c' as UUID;
+
+/**
+ * 部分被拒（US-218 AC#8～10，data-model §7）：applied 与被拒在同一本地事务里落库，
+ * 水位线越过两者；被拒是终态，下一轮不再重发。
+ */
+describe('pushRepository 的被拒标记', () => {
+  /** A 新建 applied；B 两次修改都被拒 */
+  function partialRejection(options: Partial<HarnessOptions> = {}) {
+    const changes = [
+      createChange({ id: 1, entityId: ENTITY_A }),
+      createChange({ id: 2, entityId: ENTITY_B, type: 'UPDATE', patch: { name: 'b1' } }),
+      createChange({ id: 3, entityId: ENTITY_B, type: 'UPDATE', patch: { name: 'b2' } })
+    ];
+    const harness = createHarness({
+      changes,
+      mergeChanges: mergeWithRejections([2, 3]),
+      findByIds: () => of([{ id: ENTITY_B, name: 'remote-b' }]),
+      ...options
+    });
+    return { harness, changes };
+  }
+
+  it('applied 写 remoteId，被拒实体的全部源变更写 rejectedAt / rejection，水位线越过两者', async () => {
+    const { harness, changes } = partialRejection();
+
+    const result = await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    const [applied, firstRejected, secondRejected] = changes;
+    expect(applied.remoteId).toBe(101);
+    expect(applied.rejectedAt).toBeNull();
+    for (const change of [firstRejected, secondRejected]) {
+      expect(change.remoteId).toBeNull();
+      expect(change.rejectedAt).toBeInstanceOf(Date);
+      expect(change.rejection).toEqual({
+        code: '42501',
+        reason: 'denied',
+        message: 'new row violates row-level security policy',
+        entity: { namespace: 'public', entity: 'User', entityId: ENTITY_B }
+      });
+    }
+    // 三条一并落库，且与水位线同一个事务
+    expect(harness.transaction).toHaveBeenCalledTimes(1);
+    expect(harness.saveMany.mock.calls.flatMap(([saved]) => saved.map(change => change.id)).sort()).toEqual([1, 2, 3]);
+    expect(harness.currentSync.lastPushedChangeId).toBe(3);
+    // pushed / rejected 与压缩后条目同口径：originalCount = pushed + failed + rejected + compacted
+    expect(result).toMatchObject({ success: true, pushed: 1, rejected: 1, failed: 0, compacted: 1, originalCount: 3 });
+  });
+
+  it('被拒变更是终态：下一轮推送只发新变更', async () => {
+    const { harness, changes } = partialRejection();
+    await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    changes.push(createChange({ id: 4, entityId: ENTITY_C }));
+    harness.mergeChanges.mockImplementation(async (_actions, _branchId, sourceChanges) =>
+      defaultMergeResult(sourceChanges)
+    );
+    await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    expect(harness.mergeChanges).toHaveBeenCalledTimes(2);
+    expect(harness.mergeChanges.mock.calls[1]?.[2]?.map(change => change.id)).toEqual([4]);
+  });
+
+  it('本地提交事务失败：remoteId 与被拒标记都不留，水位线不动', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { harness, changes } = partialRejection({
+      currentWatermark: null,
+      saveChanges: async () => {
+        throw new Error('disk full');
+      }
+    });
+
+    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toThrow();
+
+    for (const change of changes) {
+      expect(change.remoteId).toBeNull();
+      expect(change.rejectedAt).toBeNull();
+      expect(change.rejection).toBeNull();
+    }
+    expect(harness.currentSync.lastPushedChangeId).toBeNull();
+  });
+
+  it('同一实体的源变更回执有的 applied 有的被拒 → 契约违反，整轮失败', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const { harness, changes } = partialRejection({ mergeChanges: mergeWithRejections([2]) });
+
+    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toThrow();
+
+    expect(harness.saveMany).not.toHaveBeenCalled();
+    expect(changes.every(change => change.remoteId === null && change.rejectedAt === null)).toBe(true);
+  });
+});
+
+/**
+ * 被拒实体的本地对齐（US-218 AC#11，data-model §7）：事务外向远端取被拒实体的当前行，
+ * 事务内关触发器写回——远端有行就覆盖成远端值，远端无行就移除；不产生 `RxDBChange`。
+ */
+describe('pushRepository 对齐被拒实体', () => {
+  it('远端有行：被拒的修改按远端值覆盖、被拒的删除按远端值恢复，关触发器写入', async () => {
+    const changes = [
+      createChange({ id: 1, entityId: ENTITY_B, type: 'UPDATE', patch: { name: 'mine' } }),
+      createChange({ id: 2, entityId: ENTITY_C, type: 'DELETE', patch: null })
+    ];
+    const remoteB = { id: ENTITY_B, name: 'theirs', email: 'b@example.com' };
+    const remoteC = { id: ENTITY_C, name: 'kept', email: 'c@example.com' };
+    const harness = createHarness({
+      changes,
+      mergeChanges: mergeWithRejections([1, 2]),
+      findByIds: () => of([remoteB, remoteC])
+    });
+
+    await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    expect(harness.findByIds).toHaveBeenCalledTimes(1);
+    const [entityName, ids] = harness.findByIds.mock.calls[0] ?? [];
+    expect(entityName).toBe('public:User');
+    expect([...(ids ?? [])].sort()).toEqual([ENTITY_B, ENTITY_C]);
+
+    expect(harness.localMergeChanges).toHaveBeenCalledTimes(1);
+    const [actions, localChanges, disableTriggers] = harness.localMergeChanges.mock.calls[0] ?? [];
+    expect(disableTriggers).toBe(true);
+    expect(localChanges).toBeUndefined();
+    expect(actions?.updates.get(getRxDBChangeKey(changes[0]))).toEqual({ patch: remoteB, inversePatch: null });
+    expect(actions?.inserts.get(getRxDBChangeKey(changes[1]))).toEqual({ patch: remoteC, inversePatch: null });
+    expect(actions?.deletes.size).toBe(0);
+  });
+
+  it('远端无行：被拒的新建 / 修改在本地移除', async () => {
+    const changes = [
+      createChange({ id: 1, entityId: ENTITY_B }),
+      createChange({ id: 2, entityId: ENTITY_C, type: 'UPDATE', patch: { name: 'gone' } })
+    ];
+    const harness = createHarness({
+      changes,
+      mergeChanges: mergeWithRejections([1, 2]),
+      findByIds: () => of([])
+    });
+
+    await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    const actions = harness.localMergeChanges.mock.calls[0]?.[0];
+    expect([...(actions?.deletes.keys() ?? [])].sort()).toEqual(changes.map(getRxDBChangeKey).sort());
+    expect(actions?.inserts.size).toBe(0);
+    expect(actions?.updates.size).toBe(0);
+  });
+
+  it('被拒实体在本批之外还有更新的待推变更 → 不对齐它', async () => {
+    const changes = [createChange({ id: 1, entityId: ENTITY_B, type: 'UPDATE', patch: { name: 'mine' } })];
+    const reject = mergeWithRejections([1]);
+    const harness = createHarness({
+      changes,
+      // 远端往返期间用户又改了一次：这条不在本批里
+      mergeChanges: async (actions, branchId, sourceChanges) => {
+        changes.push(createChange({ id: 2, entityId: ENTITY_B, type: 'UPDATE', patch: { name: 'newer' } }));
+        return reject(actions, branchId, sourceChanges);
+      },
+      findByIds: () => of([{ id: ENTITY_B, name: 'theirs' }])
+    });
+
+    await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    expect(harness.localMergeChanges).not.toHaveBeenCalled();
+    // 标记照写：被拒本身与对齐无关
+    expect(changes[0]?.rejectedAt).toBeInstanceOf(Date);
+    expect(harness.currentSync.lastPushedChangeId).toBe(1);
+  });
+
+  it('远端 findByIds 失败 → 本轮不提交：无 remoteId、无被拒标记、水位线不动', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const changes = [
+      createChange({ id: 1, entityId: ENTITY_A }),
+      createChange({ id: 2, entityId: ENTITY_B, type: 'UPDATE', patch: { name: 'mine' } })
+    ];
+    const harness = createHarness({
+      changes,
+      mergeChanges: mergeWithRejections([2]),
+      findByIds: () => {
+        throw new Error('network down');
+      }
+    });
+
+    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toThrow();
+
+    expect(harness.transaction).not.toHaveBeenCalled();
+    expect(changes.every(change => change.remoteId === null && change.rejectedAt === null)).toBe(true);
+    expect(harness.currentSync.lastPushedChangeId).toBeNull();
+  });
+
+  it('本轮无被拒 → 不查远端、不对齐', async () => {
+    const harness = createHarness({ changes: [createChange({ id: 1 })] });
+
+    await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    expect(harness.findByIds).not.toHaveBeenCalled();
+    expect(harness.localMergeChanges).not.toHaveBeenCalled();
+  });
+});
+
+/** 被拒上报（US-218 AC#16，sync-rejections-api §2）：只在本地提交成功之后、本轮有被拒时上报一次。 */
+describe('pushRepository 上报被拒', () => {
+  it('提交成功且有被拒 → 调一次 reportRejections，op 取合并后的操作', async () => {
+    const changes = [
+      createChange({ id: 1, entityId: ENTITY_A }),
+      createChange({ id: 2, entityId: ENTITY_B, type: 'INSERT', patch: { name: 'b' } }),
+      createChange({ id: 3, entityId: ENTITY_B, type: 'UPDATE', patch: { name: 'b2' } })
+    ];
+    const dependsOn = { namespace: 'public', entity: 'Org', entityId: 'org-1' };
+    const harness = createHarness({
+      changes,
+      mergeChanges: mergeWithRejections([2, 3], {
+        code: '23503',
+        reason: 'dependency',
+        message: 'violates foreign key constraint',
+        dependsOn
+      }),
+      findByIds: () => of([])
+    });
+
+    await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    expect(harness.reportRejections).toHaveBeenCalledTimes(1);
+    const [reported] = harness.reportRejections.mock.calls[0] ?? [];
+    expect(reported).toEqual([
+      {
+        namespace: 'public',
+        entity: 'User',
+        entityId: ENTITY_B,
+        // 源变更是 INSERT + UPDATE，压缩后发给远端的是一次 INSERT
+        op: 'INSERT',
+        code: '23503',
+        reason: 'dependency',
+        message: 'violates foreign key constraint',
+        dependsOn,
+        at: expect.any(Date),
+        changeIds: [2, 3]
+      }
+    ]);
+  });
+
+  it('上报的 dependsOn 缺省时不出现该字段', async () => {
+    const changes = [createChange({ id: 1, entityId: ENTITY_B, type: 'DELETE', patch: null })];
+    const harness = createHarness({
+      changes,
+      mergeChanges: mergeWithRejections([1], { code: 'RX001', reason: 'gone' })
+    });
+
+    await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    const reported = harness.reportRejections.mock.calls[0]?.[0]?.[0];
+    expect(reported).toMatchObject({ op: 'DELETE', code: 'RX001', reason: 'gone', changeIds: [1] });
+    expect(reported && 'dependsOn' in reported).toBe(false);
+  });
+
+  it('本轮无被拒 → 不上报', async () => {
+    const harness = createHarness({ changes: [createChange({ id: 1 })] });
+
+    await pushRepository(harness.vm, 'public', 'User', { includeRelated: false });
+
+    expect(harness.reportRejections).not.toHaveBeenCalled();
+  });
+
+  it('本地提交失败 → 不上报', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const harness = createHarness({
+      changes: [createChange({ id: 1, entityId: ENTITY_B, type: 'UPDATE', patch: { name: 'x' } })],
+      mergeChanges: mergeWithRejections([1]),
+      saveChanges: async () => {
+        throw new Error('disk full');
+      }
+    });
+
+    await expect(pushRepository(harness.vm, 'public', 'User', { includeRelated: false })).rejects.toThrow();
+
+    expect(harness.reportRejections).not.toHaveBeenCalled();
   });
 });

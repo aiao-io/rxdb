@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-003-ui-developer-tools
 created: 2026-09-03
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [tooling, devtools, desktop, electron, dx]
 ---
 
@@ -13,7 +13,7 @@ tags: [tooling, devtools, desktop, electron, dx]
 INVEST 检查清单:
 - [x] Independent: 只依赖 US-904 阶段 D 已交付的四段 relay 与 `--serve` 启动路径，不等任何未开工故事
 - [x] Negotiable: dev 变体的承载形式（vite mode / 独立 build configuration / 构建后改写）可在 plan 阶段冻结
-- [x] Valuable: 桌面开发者今天在 Electron 上完全打不开 RxDB 面板，且没有等价 workaround（桌面 SQLite / 原生文件后端在浏览器端不存在）
+- [x] Valuable: 桌面开发者需要一条正式路径在 Electron 上打开 RxDB 面板，且没有等价 workaround（桌面 SQLite / 原生文件后端在浏览器端不存在）
 - [x] Estimable: 一个构建变体 + 一份 README + 一处面板文案 + E2E fixture 收敛，范围已分项
 - [x] Small: 不改协议、不改面板数据面、不动生产 manifest，单 PR 可审
 - [x] Testable: manifest 正负契约、真实 Electron dev 流程握手、e2e 全绿三处均可自动验收
@@ -27,7 +27,7 @@ INVEST 检查清单:
 **我想要** 有一条正式的、开箱可跑的方式在桌面应用里打开 RxDB DevTools 面板并连上数据库
 **以便** 不必为了看一眼桌面 SQLite / 原生文件后端的数据就退回浏览器端（那里根本没有这两个后端），也不必自己复刻 E2E 内部的临时 manifest 副本
 
-## 现状：两条路都不通
+## 问题：两条路都不通
 
 | 开发者的做法                                                         | inspected page          | 结果                                                           |
 | -------------------------------------------------------------------- | ----------------------- | -------------------------------------------------------------- |
@@ -39,7 +39,7 @@ INVEST 检查清单:
 1. **自定义 scheme 拿不到扩展 host permission。** `app:`（`main.utils.ts` 的 `APP_SCHEME`）不在 Chromium 扩展 match pattern 的合法 scheme 集里，`app://-/*`、`<all_urls>`、两者并列三种写法实测全部注入失败。`permissionPatternForUrl` 对它返回 `null` 是正确的，这条**没有修法**。
 2. **Electron 没有 `chrome.permissions` 命名空间**，所以生产 manifest 里的 `optional_host_permissions: ['<all_urls>']` 授权集恒为空。即使 inspected page 已是 http，也必须有一条**静态** `host_permissions` 才注得进去。
 
-今天唯一带静态 `host_permissions` 的扩展产物只存在于 `devtools-restart-persistence.spec.ts` 的 `devtoolsExtensionCopy()` 里 —— 一份跑完即删的临时 dist 副本。开发者手上没有。
+带静态 `host_permissions` 的扩展产物由 `build-desktop-dev` 产出 `dist-desktop-dev/`（AC#1），E2E 与手动调试共用这一份。
 
 ## 范围边界
 
@@ -139,7 +139,7 @@ AC#2 判据里的每一项都在这条链上得证。
 
 **dev 变体怎么落。** `manifest.config.ts` 已是 TS 函数式配置（`defineManifest`），最小改动是按 vite mode 分支产出两份 manifest，构建目标各自用不同 `outDir`，避免 dev 变体覆盖默认产物、被 `electron-package-dir` 误打包。无论选哪种承载形式，AC#1 的**负契约**（默认产物不含 `host_permissions` / `web_accessible_resources`）是硬约束。
 
-**dev 流程的既有零件都在，不用新造。** `apps/dev-rxdb-electron/project.json` 的 `serve`（Angular dev-server，4120）与 `dev`（`electron dist/apps/dev-rxdb-electron --serve`）已经把 renderer 换成 http；`resolveDevToolsDevConfig()` / `loadDevToolsExtension()` 已经读 `DEV_RXDB_DEVTOOLS`、`DEV_RXDB_DEVTOOLS_EXTENSION`、`DEV_RXDB_DEVTOOLS_CAPABILITY`、`DEV_RXDB_DEVTOOLS_MUTATION` 四个开关，并断言「加载前 0 个、加载后恰好 1 个」。本故事缺的只是一份开发者拿得到的扩展产物 + 一份说明。
+**dev 流程的既有零件都在，不用新造。** `apps/dev-rxdb-electron/project.json` 的 `serve`（Angular dev-server，4120）与 `dev`（`electron dist/apps/dev-rxdb-electron --serve`）已经把 renderer 换成 http；`resolveDevToolsDevConfig()` / `loadDevToolsExtension()` 已经读 `DEV_RXDB_DEVTOOLS`、`DEV_RXDB_DEVTOOLS_EXTENSION`、`DEV_RXDB_DEVTOOLS_CAPABILITY`、`DEV_RXDB_DEVTOOLS_MUTATION` 四个开关，并断言「加载前 0 个、加载后恰好 1 个」。本故事补的是一份开发者拿得到的扩展产物 + 一份说明。
 
 **别踩的坑（均为实测）。**
 

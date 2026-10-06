@@ -12,6 +12,7 @@
  * 是为了让「退订」这件事可断言 —— hub 自己没有暴露订阅数。
  */
 import { RxDB, SyncStateHub, type SyncState } from '@aiao/rxdb';
+import { SYNC_REJECTIONS_FIXTURE, SYNC_REJECTIONS_NEXT_ROUND_FIXTURE } from '@aiao/rxdb-test';
 import { act, cleanup, renderHook } from '@testing-library/react';
 import { BehaviorSubject, Observable } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -104,6 +105,22 @@ describe('useSyncState', () => {
     act(() => hub.reportSuccess());
 
     expect(result.current.lastConflict).toMatchObject({ namespace: 'public', entity: 'Recipe', entityId: 'r-2' });
+  });
+
+  // US-218 AC#16：被拒列表是历史事实，与 lastConflict 同理不被后续成功清空；下一轮有被拒时整体替换
+  it('被拒列表读到 hub 上报的同一引用，成功一轮仍保留，再上报整体替换', () => {
+    const { hub, rxdb } = createFixture();
+    const { result } = renderWithProvider(rxdb);
+    expect(result.current.lastRejections).toEqual([]);
+
+    act(() => hub.reportRejections(SYNC_REJECTIONS_FIXTURE));
+    expect(result.current.lastRejections).toBe(SYNC_REJECTIONS_FIXTURE);
+
+    act(() => hub.reportSuccess());
+    expect(result.current.lastRejections).toBe(SYNC_REJECTIONS_FIXTURE);
+
+    act(() => hub.reportRejections(SYNC_REJECTIONS_NEXT_ROUND_FIXTURE));
+    expect(result.current.lastRejections).toBe(SYNC_REJECTIONS_NEXT_ROUND_FIXTURE);
   });
 
   it('卸载时退订上游', () => {

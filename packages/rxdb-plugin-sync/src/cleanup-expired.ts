@@ -158,6 +158,10 @@ export async function cleanupExpired(
           { field: 'namespace', operator: '=', value: namespace },
           { field: 'entity', operator: '=', value: entityName },
           { field: 'remoteId', operator: '=', value: null },
+          // 被拒变更（rejectedAt 非空）的 remoteId 也一直是 null，但它永远不会再被推送，
+          // 必须和 remoteId = null 一起排除，否则会被误判成「还占着没推完」而继续
+          // 保护对应实体不被清理
+          { field: 'rejectedAt', operator: '=', value: null },
           { field: 'revertChangeId', operator: '=', value: null },
           {
             field: 'entityId',

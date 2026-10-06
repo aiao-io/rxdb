@@ -54,11 +54,11 @@ npx @aiao/rxdb-client-generator ./rxdb.config.ts
 ```ts
 // vite.config.ts
 import { defineConfig } from 'vite';
-import { rxDBViteClientGenerator } from '@aiao/rxdb-client-generator/vite';
+import { rxdbClientGeneratorVitePlugin } from '@aiao/rxdb-client-generator/vite';
 
 export default defineConfig({
   plugins: [
-    rxDBViteClientGenerator([
+    rxdbClientGeneratorVitePlugin([
       {
         entities: ['src/entities/*.ts'],
         outDir: 'src/generated/entities',

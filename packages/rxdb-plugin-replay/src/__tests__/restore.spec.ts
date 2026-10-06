@@ -1,5 +1,5 @@
 /**
- * @fileoverview 从回放恢复到 commit（`specs/005-us-909-session-replay/research.md` D8、contracts/replay-plugin.md §6）。
+ * @fileoverview 从回放恢复到 commit（`git show 2e820521:specs/005-us-909-session-replay/research.md` D8、contracts/replay-plugin.md §6）。
  *
  * @remarks
  * 凭据必须在点下恢复的那一刻现取：回放里的标记是过去的事，拿录制时的 HEAD 去 CAS 只会稳定地撞 `conflict`。

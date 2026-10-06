@@ -10,7 +10,7 @@ import { DIALOG_DATA, DialogRef } from '@angular/cdk/dialog';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EntityDetailComponent, type EntityDetailDialogData } from '../../entity-detail/entity-detail';
 import { EntityListComponent } from '../../entity-list/entity-list.component';
 import { QueryTableComponent } from '../../entity-table/query-table/query-table.component';
@@ -108,6 +108,15 @@ describe('EntityDetailComponent（真实组件）', () => {
     await rxdb.connect(IN_MEMORY_ADAPTER_NAME);
     const { firstValueFrom } = await import('rxjs');
     adapter = (await firstValueFrom(rxdb.localAdapter$)) as unknown as InMemoryRxDBAdapter;
+  });
+
+  afterAll(async () => {
+    // beforeAll 建的数据库跨所有 it 共用，不随 TestBed 的 destroyAfterEach 一起回收；
+    // 这里是它唯一的拆卸点，不销毁会让下一个合跑的 suite 对同一实体类触发
+    // 「registered with multiple RxDB instances」。先让 TestBed 回收本文件末尾
+    // 遗留的组件/订阅，再销毁数据库。
+    TestBed.resetTestingModule();
+    await rxdb.destroy();
   });
 
   beforeEach(() => {

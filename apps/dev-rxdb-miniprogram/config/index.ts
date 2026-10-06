@@ -4,13 +4,10 @@ import { miniProgramAssetsVitePlugin, type AssetsPlatform } from './assets-vite-
 import devConfig from './dev';
 import { labeledVarHoistVitePlugin } from './labeled-var-hoist-vite-plugin';
 import { lazyChunkVitePlugin } from './lazy-chunk-vite-plugin';
+import { noBabelVitePlugin } from './no-babel-vite-plugin';
 import prodConfig from './prod';
 import { realmVitePlugin } from './realm-vite-plugin';
-import {
-  rxdbBuildTargetVitePlugin,
-  rxdbPackagesVitePlugin,
-  subframeSqliteWasmVitePlugin
-} from './rxdb-packages-vite-plugin';
+import { rxdbBuildTargetVitePlugin, subframeSqliteWasmVitePlugin } from './rxdb-packages-vite-plugin';
 
 /**
  * 各平台产物分开放（Taro 每次构建先清空 outputRoot，共用目录会互相抹掉）：
@@ -31,14 +28,15 @@ function demoPlatform(): AssetsPlatform {
 /**
  * 各平台的构建插件。
  *
- * - 全部平台：私有成员降级、glue 去 `import.meta.url`、构建目标、代码包资源（wasm，支付宝另有副本与 Worker）。
+ * - 全部平台：不走 babel（语法降级全由 esbuild 按构建目标做，含 RxDB 包的私有成员）、glue 去 `import.meta.url`、构建目标、
+ *   代码包资源（wasm，支付宝另有副本与 Worker）。
  * - 抖音、支付宝：模块里没有 `globalThis`，构建期绑到入口登记的真实全局对象。
  * - 支付宝：RxDB 栈留在懒加载 chunk，等 host 的 `prepareRuntime` 补完 `BigInt` 才求值；标签语句里的 `var` 提升到函数开头，
  *   「真机调试」的 Boatman 解释器才不会把它写穿到外层闭包。
  */
 function vitePlugins(platform: AssetsPlatform) {
   return [
-    rxdbPackagesVitePlugin(),
+    noBabelVitePlugin(),
     subframeSqliteWasmVitePlugin(),
     rxdbBuildTargetVitePlugin(platform === 'alipay' ? 'es2018' : 'es2020'),
     // Taro 以启动目录为 appPath（nx target 的 cwd 是本 app 根）

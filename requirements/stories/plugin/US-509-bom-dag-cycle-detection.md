@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-01
+updated: 2026-10-06
 tags: [plugin, bom, graph, integrity]
 ---
 
@@ -71,16 +71,16 @@ tags: [plugin, bom, graph, integrity]
 `directed-unweighted.spec.ts` / `undirected-unweighted.spec.ts`「自环边场景（当前实现允许）」与
 `graph-semantics.spec.ts`「自环边」等用例把它钉住。读侧由
 [`query_graph_sql.ts`](../../../packages/rxdb-plugin-graph/src/sqlite/query_graph_sql.ts) 的 `cycle` 判定与
-`GRAPH_MAX_PATH_EXPANSIONS` 保证终止，`findPaths` 只返回非循环路径。BOM 需要的是在这之上**再加**一条写入期约束。
+`GRAPH_MAX_PATH_EXPANSIONS` 保证终止，`findPaths` 只返回节点不重复的路径（`fromId === toId` 时返回真实环路，如 `A→B→A`）。BOM 需要的是在这之上**再加**一条写入期约束。
 
-**「存储层」不是一个普适的位置，它到哪一层取决于适配器。** 本仓有 10 个适配器
-（`rxdb-adapter-*` 目录共 12 个，其中 `sqlite-core` 是 SQLite 家族的共享层、`encrypted` 是内建加密库，
-都没有 `IRxDBAdapter` 实现），按 DDL 归谁掌控分三档：
+**「存储层」不是一个普适的位置，它到哪一层取决于适配器。** 适配器见 `packages/rxdb-adapter-*`
+（其中 `sqlite-core` 是 SQLite 家族的共享层、`encrypted` 是内建加密库，都没有 `IRxDBAdapter` 实现；
+`electron` 有 SQLite 与 PGlite 两个入口），按 DDL 归谁掌控分三档：
 
 | 档           | 适配器                                                                                                                  | 环约束落在哪  | AC#5 是否成立           |
 | ------------ | ----------------------------------------------------------------------------------------------------------------------- | ------------- | ----------------------- |
 | DDL 本仓掌控 | `sqlite` / `sqlite-wasm` / `wa-sqlite` / `sqliteai` / `electron` / `tauri` / `miniprogram`（DDL 由 `sqlite-core` 生成） | SQLite 触发器 | ✅                      |
-| DDL 本仓掌控 | `pglite`                                                                                                                | PG 触发器     | ✅                      |
+| DDL 本仓掌控 | `pglite` / `electron` 的 PGlite 入口（`@aiao/rxdb-adapter-electron/pglite`，继承 `RxDBAdapterPGlite`）                  | PG 触发器     | ✅                      |
 | DDL 在远端   | `supabase` / `http`                                                                                                     | 本仓发不出去  | ❌，按 AC#6 / AC#7 降级 |
 
 触发器生成有现成先例：FTS 按方言各有一份生成器，PGlite 的

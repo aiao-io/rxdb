@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-27
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [core, querycache, sqlite, contract, docs]
 ---
 
@@ -13,7 +13,7 @@ tags: [core, querycache, sqlite, contract, docs]
 INVEST 检查清单:
 - [x] Independent: 判定加在 `upsertMany` 落地之前，不依赖 US-021
 - [x] Negotiable: 判定放在核心还是 sqlite-core、错误类型叫什么可议；「不做本地兜底」不可议（铁律）
-- [x] Valuable: 今天的表现是一条指向后端从没听说过的列名的 SQLite 约束错误
+- [x] Valuable: 缺列的表现是一条指向后端从没听说过的列名的 SQLite 约束错误
 - [x] Estimable: 一处列集校验 + 一个错误类型 + 两处文档
 - [x] Small: 单次迭代内可完成
 - [x] Testable: 断言错误类型与消息，并断言本地表未落半行
@@ -35,36 +35,28 @@ QueryCache 的拉取落地走的是 `RxDBAdapterSqliteBase.upsertMany`
 （[RxDBAdapterSqliteBase.ts](../../../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts)），
 文件里对这条路径已有自述注释：「`upsertMany` 是绕开仓储的裸 SQL 写（QueryCache 的拉取落地路径）」。
 
-它的 INSERT 列清单是这么来的：
+它的 INSERT 列清单取自远端行的键（再按本地表认得的列过滤）：
 
 ```ts
-const dataColumns = Object.keys(data[0] as object);
+Object.keys(data[0] as object).filter(column => columnNames.has(column));
 ```
 
-**列清单取自远端行自己的键**。实体元数据在这条路径上一次都没被读过，于是
+**列清单由远端行自己的键决定**，实体的 `default` 在这条路径上不参与，于是
 [entity-base.ts](../../../packages/rxdb/src/entity/entity-base.ts) 上的这条声明形同虚设：
 
 ```ts
-{ name: 'createdAt', displayName: '创建时间', type: PropertyType.date, readonly: true, default: () => new Date() }
+{ name: 'createdAt', displayName: '创建时间', type: PropertyType.date, readonly: true, default: () => entityDefaultNow() }
 ```
 
 `default` 是**仓储层**的东西，裸 SQL 不经过仓储。而本地建表时 `createdAt` 没有 `nullable`，
 建出来就是 NOT NULL。远端行不带 `createdAt` → INSERT 不含该列 → SQLite 拒绝。
 
-### 病灶：文档的示例行本身就是会撞墙的那一种
+### 病灶：「完整行」不只是业务字段
 
-[http-protocol.md](../../../website/docs/adapters/http-protocol.md) §2 明说返回「**完整行**」：
-
-> **响应体**：数组，元素是**完整行**（含 `id`、`updatedAt` 及全部业务字段）。
-
-而紧随其后的示例 JSON 是：
-
-```json
-[{ "id": "1111…", "title": "Pasta", "status": "published", "updatedAt": "2026-08-01T00:00:00.000Z" }]
-```
-
-**没有 `createdAt`**。「全部业务字段」这个措辞把基类的审计列排除在读者的理解之外了——
-`createdAt` 不是业务字段，是框架列，而恰恰是它非空。照抄这个示例实现后端，第一次拉取就炸。
+[http-protocol.md](../../../website/docs/adapters/http-protocol.md) §2 要求返回「**完整行**」。
+`createdAt` 不是业务字段，是基类 `EntityBase` 声明的框架列，而恰恰是它在本地表上非空：
+示例行与后端实现若只带 `id`、`updatedAt` 和业务字段，第一次拉取就会炸。因此文档必须把基类列
+写进「完整行」的定义与示例（AC#7）。
 
 ### 症状的诊断成本
 
@@ -142,7 +134,7 @@ const dataColumns = Object.keys(data[0] as object);
 
 AC#1/#2/#4/#5 由 [RxDBAdapterSqliteBase.spec.ts](../../../packages/rxdb-adapter-sqlite-core/src/__tests__/RxDBAdapterSqliteBase.spec.ts)
 里走真 `upsertMany` 的三条用例证实（AC#2 断言客户端一条 `INSERT INTO` 与一条 `BEGIN` 都没收到）；
-判据本身另有 18 条纯函数用例。AC#8 跑的是
+判据本身另有纯函数用例。AC#8 跑的是
 `rxdb-adapter-{wa-sqlite,sqlite-wasm,sqliteai,electron,tauri,supabase,pglite}` 与 `dev-rxdb-supabase`
 共 8 个项目，全绿（`Tests 685 / 767 / 35 / 659 / 568 / 47 / 1011 / 6` 全过）。
 AC#9 的门禁：`lint typecheck test build` 全绿，`Tests 1067 passed (47 files)`，
@@ -152,7 +144,7 @@ AC#9 的门禁：`lint typecheck test build` 全绿，`Tests 1067 passed (47 fil
 
 - 「必须有哪些列」的判据是**本地表**的非空列集，不是实体的全部字段：可空列缺了没事。
   实现时注意 `columnNames`（字段名 → 列名映射）已在 `#resolveQueryCacheTarget` 里拿到。
-- AC#4 的异构行集今天的表现是**绑 `undefined`** 而不是报错——`data[0]` 定了列清单，
+- AC#4 的异构行集若不拦，会**绑 `undefined`** 而不是报错——`data[0]` 定了列清单，
   后续行按同一批键取值，取不到就是 `undefined`。落到 SQLite 上是 NULL，可空列因此被静默清空。
   这是同一处代码的相邻风险，一并收口（AC#4 已由 `RxDBAdapterSqliteBase.spec.ts` 的真 `upsertMany` 用例证实）。
 - 判定放核心包还是 `rxdb-adapter-sqlite-core`：契约是 QueryCache 的（核心概念），
@@ -165,7 +157,7 @@ AC#9 的门禁：`lint typecheck test build` 全绿，`Tests 1067 passed (47 fil
   概念，但可执行的判据是「`create_table_sql.ts` 会把哪些列建成 NOT NULL 且不给 DEFAULT」——
   那是各后端各自的规则（PGlite 的 DDL 就不同）。判据逐条对齐
   `create_table_column_sql`，模块 TSDoc 里写明两处必须同改。
-- **D1 留的那条出路可行**：子类重声明基类属性即可覆盖。`metadata-transition.ts:158-166` 按
+- **D1 留的那条出路可行**：子类重声明基类属性即可覆盖。`metadata-transition.ts` 合并循环按
   「最远祖先在前、自身在最后」遍历后 `propertyMap.set(cloned.name, cloned)`——同名属性是
   **整条替换**而非逐字段合并。于是 `{ name: 'createdAt', type: date, nullable: true }` 写在子类上，
   本地表就建成可空，本校验也随之豁免（判据只读 `propertyMap`，与 DDL 同源）。
@@ -174,9 +166,7 @@ AC#9 的门禁：`lint typecheck test build` 全绿，`Tests 1067 passed (47 fil
   还需要文档与「覆盖时保留哪些字段」的守卫，另开故事。
 - `EntityPropertyMetadata` 是按 `type` 区分的联合，`primary` 只挂在其中几支上：必须先按 `type`
   收窄再读 `primary`，反过来写 `tsc` 直接报 TS2339（vitest 只转译不查类型，测试全绿也拦不住）。
-- **PGlite 侧仍有同族缺口**：`query-cache/upsert_many_sql.ts` 已处理批内异构（`groupByColumnSet`）
-  与未知键（`assertKnownKeys`），但**不**检查缺非空列。本故事的实现文件表只列 sqlite-core，
-  故未一并改；补齐宜另开故事，判据要按 PostgreSQL 的 DDL 规则重写而非照抄。
+- **PGlite 侧同族缺口由 [US-024](./US-024-pglite-querycache-row-contract.md) 补齐**：判据按 PostgreSQL 的 DDL 规则重写，而非照抄本故事的 sqlite 判据。
 - 校验放在 `this.transaction(...)` **之外**：事务体里抛错要靠 ROLLBACK 才回到干净状态，
   而这一批本来一行都不该被尝试写入。判据只要元数据与行的键集，是同步的，不必进事务。
 

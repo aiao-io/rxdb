@@ -18,7 +18,7 @@ owner: jimmy
 
 ## 为什么是 Epic 而不是一个 Story
 
-这项能力横跨 `packages/rxdb/src/version/`、`packages/rxdb/src/system/`、`rxdb-plugin-workspace`、三个框架包和三个 demo，且没有任何一条 FR 可以在不落地存储布局的前提下单独验收——即"要么全做要么全不做"，单个 story 的 INVEST「Small」不成立。因此按可独立验收的最小闭环切成四条 story；其中 [US-306](../stories/collaboration/US-306-working-tree-commits.md) 仍同时覆盖全部写入口、提交状态机、三框架和 benchmark，在文件内再切成「交付阶段 A/B/C」，每个阶段都能独立跑通「写入 → 刷新 → 读回」这条最小闭环。
+这项能力横跨 `packages/rxdb-plugin-history/`、`packages/rxdb-plugin-working-tree/`、`packages/rxdb/src/system/`、`rxdb-plugin-workspace`、三个框架包和三个 demo，且没有任何一条 FR 可以在不落地存储布局的前提下单独验收——即"要么全做要么全不做"，单个 story 的 INVEST「Small」不成立。因此按可独立验收的最小闭环切成四条 story；其中 [US-306](../stories/collaboration/US-306-working-tree-commits.md) 仍同时覆盖全部写入口、提交状态机、三框架和 benchmark，在文件内再切成「交付阶段 A/B/C」，每个阶段都能独立跑通「写入 → 刷新 → 读回」这条最小闭环。
 
 ## 目标
 
@@ -271,16 +271,15 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 | `upsertMany()` / `deleteByIds()` 等 adapter 公开批量写方法                | 与上一行同判定：目标是版本化业务实体表即拒绝，目标是 QueryCache 实体表即放行。**这两个方法不经 `rawQuery`**，US-306 阶段 A 必须显式把门禁挂到它们上，见下注                                                                                                                                                                                                                                                     |
 | `EntityManager.notifyExternalUpdate()`                                    | 它（[entity-manager.ts](../../packages/rxdb/src/entity/entity-manager.ts)）是「先绕过 ORM 写库、再补发标准事件」这条既有工作流的**后半段**，而前半段对版本化实体已被上两行拒绝。启用后它对版本化实体 MUST 抛 `commit_capability_mismatch`，而不是发出一个没有工作树单元支撑的 `EntityLocalUpdatedEvent`——那会让事件流与工作树永久分叉；对 QueryCache 实体行为不变。这条 MUST 写进下文「能力边界」那句公开声明里 |
 
-**`upsertMany` / `deleteByIds` 是门禁的结构性缺口，阶段 A 必须显式补上。** 下文「raw SQL / adapter 直写的 bypass 门禁判定」
-的四步判定只覆盖 `rawQuery`，并声明「绕过 adapter 的外部数据库句柄不在 v1 承诺内」。但
+**`upsertMany` / `deleteByIds` 不经 `rawQuery`，门禁显式挂在这两个方法上**（挂载点 4，实现见
+[bulk-write-gate.ts](../../packages/rxdb-plugin-working-tree/src/working-tree/bulk-write-gate.ts)）。
+下文「raw SQL / adapter 直写的 bypass 门禁判定」的四步判定只覆盖 `rawQuery`，而
 [`upsertMany`](../../packages/rxdb/src/rxdb-adapter.ts) 是 `RxDBAdapterLocalBase` 上的**公开抽象写方法**，
-既不是 `rawQuery` 也不是外部句柄——它落在那条能力边界声明的空隙里：实现走
-`transaction(executor => executor.query(...))`（见 [RxDBAdapterPGlite.ts](../../packages/rxdb-adapter-pglite/src/RxDBAdapterPGlite.ts)），
-门禁结构上够不到。生产调用方 `QueryCacheEngine` 与 `query-cache-outbox` 都只写 QueryCache 实体，按判定第 4 步本来就该放行，
-所以缺口暂时不可见；但方法签名 `upsertMany(entityName, data)` 不带意图，**任何调用方传一个 Full/Filter 实体名
-就能写版本化业务表且不产生工作树单元、也不被任何门禁拦下**，直接违反发布门禁 10 的「任何业务表净变化都能由 HEAD + WorkingTreeEntry 重放」。
-阶段 A 的判定必须按 `entityName` 解析出的 `sync.type` 走**同一份**版本化实体表清单（判定明令不得另建第二份），
-而不是给这两个方法单独写一套。**这条不影响 bypass 门禁的裁决结论，只是把它的覆盖面补到裁决本来就想覆盖的范围。**
+方法签名 `upsertMany(entityName, data)` 不带意图：不显式挂载，任何调用方传一个 Full/Filter 实体名
+就能写版本化业务表且不产生工作树单元，直接违反发布门禁 10 的「任何业务表净变化都能由 HEAD + WorkingTreeEntry 重放」。
+判定按 `entityName` 解析出的 `sync.type` 走**同一份**版本化实体表清单（不另建第二份）：生产调用方
+`QueryCacheEngine` 与 `query-cache-outbox` 只写 QueryCache 实体，放行；版本化实体一律拒绝。
+两个方法返回 `Observable<void>`，门禁在返回 Observable 之前同步拒绝，保证「执行前拒绝、业务表零变化」。
 
 > `cleanupExpired()` 归到 `remote_sync` 而非 QueryCache 排除或受信物化，理由：它删除的是**版本化实体**
 > （Filter 同步的业务表行，会进 baseline 与 commit），排除它会让「任何业务表净变化都能由 HEAD + WorkingTreeEntry
@@ -327,24 +326,25 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 变成噪音源。符号取**实际发起该次批量重写的最内层具名函数**，不是把调用委托出去的公开门面方法——门面方法
 本身不出现在扫描结果里，用它当键会让漂移门禁永远匹配不上。
 
-文件一列只写**基名**：#1~#6 在 `@aiao/rxdb-plugin-history/src/`，#7~#9 在 `@aiao/rxdb-plugin-sync/src/`，#10 / #11 在
+文件一列只写**基名**：#1~#6 在 `@aiao/rxdb-plugin-history/src/`，#7~#9 与 #12 在 `@aiao/rxdb-plugin-sync/src/`，#10 / #11 在
 `@aiao/rxdb-plugin-working-tree/src/`；登记键必须跨包搬迁存活，所以不含目录。登记表本身在
 [trusted-write-intent.ts](../../packages/rxdb/src/trusted-write/trusted-write-intent.ts)——它是 `declareTrustedWrite()`
 的准入名单，而那道门禁在核心。下表按符号登记，与代码实际调用点一一对应：
 
-| #   | 文件（基名）            | 符号                        | 写原语                            | 行  | 意图          | 产生工作树单元 |
-| --- | ----------------------- | --------------------------- | --------------------------------- | --- | ------------- | -------------- |
-| 1   | `VersionManager.ts`     | `switchBranch`              | `adapter.switchBranch`            | 280 | 分支物化      | **不产生**     |
-| 2   | `restore-entity.ts`     | `restore_entity`            | `executor.mergeChanges(…, false)` | 94  | 实体恢复      | **必须产生**   |
-| 3   | `HistoryManager.ts`     | `invalidateRedoStack`       | `adapter.switchBranch`            | 537 | redo 失效标记 | **不产生**     |
-| 4   | `undo-redo-apply.ts`    | `applyUndoRedoHistories`    | `adapter.switchBranch`            | 171 | 撤销 / 重做   | **必须产生**   |
-| 5   | `merge-branch.ts`       | `merge_branch`（逐条分支）  | `executor.mergeChanges(…, false)` | 134 | 逐条合并      | **必须产生**   |
-| 6   | `merge-branch.ts`       | `merge_branch`（压缩分支）  | `executor.mergeChanges(…, false)` | 174 | 压缩合并      | **必须产生**   |
-| 7   | `pull-batch.ts`         | `pullBatchOnce`             | `executor.mergeChanges(…, true)`  | 349 | `remote_sync` | **必须产生**   |
-| 8   | `pull-repository.ts`    | `pullSingleRepository`      | `executor.mergeChanges(…, true)`  | 627 | `remote_sync` | **必须产生**   |
-| 9   | `cleanup-expired.ts`    | `cleanupExpired`            | `executor.mergeChanges(…, true)`  | 208 | `remote_sync` | **必须产生**   |
-| 10  | `materialize-branch.ts` | `switchWithMaterialization` | `adapter.switchBranch`            | 313 | 分支物化      | **不产生**     |
-| 11  | `materialize-branch.ts` | `applyMaterializedActions`  | `executor.mergeChanges(…, true)`  | 360 | 分支物化      | **不产生**     |
+| #   | 文件（基名）            | 符号                        | 写原语                            | 行   | 意图          | 产生工作树单元 |
+| --- | ----------------------- | --------------------------- | --------------------------------- | ---- | ------------- | -------------- |
+| 1   | `VersionManager.ts`     | `switchBranch`              | `adapter.switchBranch`            | 280  | 分支物化      | **不产生**     |
+| 2   | `restore-entity.ts`     | `restore_entity`            | `executor.mergeChanges(…, false)` | 94   | 实体恢复      | **必须产生**   |
+| 3   | `HistoryManager.ts`     | `invalidateRedoStack`       | `adapter.switchBranch`            | 537  | redo 失效标记 | **不产生**     |
+| 4   | `undo-redo-apply.ts`    | `applyUndoRedoHistories`    | `adapter.switchBranch`            | 171  | 撤销 / 重做   | **必须产生**   |
+| 5   | `merge-branch.ts`       | `merge_branch`（逐条分支）  | `executor.mergeChanges(…, false)` | 134  | 逐条合并      | **必须产生**   |
+| 6   | `merge-branch.ts`       | `merge_branch`（压缩分支）  | `executor.mergeChanges(…, false)` | 174  | 压缩合并      | **必须产生**   |
+| 7   | `pull-batch.ts`         | `pullBatchOnce`             | `executor.mergeChanges(…, true)`  | 349  | `remote_sync` | **必须产生**   |
+| 8   | `pull-repository.ts`    | `pullSingleRepository`      | `executor.mergeChanges(…, true)`  | 627  | `remote_sync` | **必须产生**   |
+| 9   | `cleanup-expired.ts`    | `cleanupExpired`            | `executor.mergeChanges(…, true)`  | 208  | `remote_sync` | **必须产生**   |
+| 10  | `materialize-branch.ts` | `switchWithMaterialization` | `adapter.switchBranch`            | 313  | 分支物化      | **不产生**     |
+| 11  | `materialize-branch.ts` | `applyMaterializedActions`  | `executor.mergeChanges(…, true)`  | 360  | 分支物化      | **不产生**     |
+| 12  | `push-repository.ts`    | `alignRejectedEntities`     | `executor.mergeChanges(…, true)`  | 1392 | `remote_sync` | **必须产生**   |
 
 同一文件里语义不同的两个策略分支（#5 / #6）各占一行，合并成一行会让其中一条策略失去登记；同理
 `pull-batch.ts` 与 `pull-repository.ts` 是两个不同文件里的两个独立调用点，不得合并成一行。
@@ -376,7 +376,7 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 与本表的「行」一起刷新。40 行够一次重构在函数内挪位置，不够它挪出一个函数。
 
 **静态扫描跑在 `pnpm audit:callsite-drift`（[working-tree-callsite-drift.mjs](../../scripts/audit/working-tree-callsite-drift.mjs)）里**，
-扫的是整个 `packages/`——11 处声明与 8 处 QueryCache 批量写分散在 rxdb / rxdb-plugin-history / rxdb-plugin-sync /
+扫的是整个 `packages/`——12 处声明与 8 处 QueryCache 批量写分散在 rxdb / rxdb-plugin-history / rxdb-plugin-sync /
 rxdb-plugin-working-tree / rxdb-plugin-querycache 五个包里，只扫单个包的门禁会全绿地什么都看不见。本表前 6 列由
 [trusted-callsite-registry.spec.ts](../../packages/rxdb/src/__tests__/trusted-write/trusted-callsite-registry.spec.ts) 与登记表逐格比对
 （它另外断言核心自身零受信写、零批量写），第 7 列由 [trusted-callsite-capture.spec.ts](../../packages/rxdb-plugin-working-tree/src/__tests__/working-tree/trusted-callsite-capture.spec.ts)
@@ -572,15 +572,15 @@ raw 写路径，先补一条能证明身份的传递通道，判据见 `git show
 下面是**发布顺序**。只有第 2 步是 US-305 的**开工**前置；第 1 步是**发布**前置，由 owner 手动控制时点，
 开工不必等它（逐条说明见各步）。
 
-1. 当前发布主线先产生新的非迁移 bridge tag；历史 `v0.0.25` 不在当前 ancestry，不能供下一步引用。
-   [migration-release.json](../migration-release.json) 的 `bridge.tag` / `bridge.version` 仍为 `null`，
-   而 `release.version` 仍写着已脱链的 `0.0.25`。
+1. 当前发布主线上的非迁移 bridge tag 是 `v0.0.26`（`852f3b20`，`main` 的祖先）；历史 `v0.0.25` 不在当前 ancestry，
+   只保留审计意义。[migration-release.json](../migration-release.json) 现为 `kind=bridge`、`release.version` 为 `0.0.26`，
+   `bridge.tag` / `bridge.version` 为 `null`，等发布 `kind=migration` 当下才回填 `v0.0.26`。
 
    **这一步是排在 US-305 的「迁移发布」之前的独立发布事项，不是 US-305 的交付物**（见
    [release-plan](../release-plan.md) 的执行顺序）。理由是发布门禁本身：bridge 版本**不得抬升系统版本常量**，
    而 US-305 的范围含「已有数据库的一次性初始化」，必然是 `kind=migration`；把 bridge 塞进 US-305
    会让 migration 依赖一个尚不存在的 bridge tag，形成自我死锁。桥接锚点必须落在一棵**不动
-   `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 的树**上并先行打 tag：已定案为 #55 之前的
+   `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 的树**上并先行打 tag：锚点是 #55 之前的
    `de70a1a9`，版本 `0.0.26`，见 [release-plan 桥接锚点定案](../release-plan.md#桥接锚点定案)。
 
    US-305 在此只承接**门禁侧**（FR-030 + AC US2-14）：读取 manifest、校验 `bridge.tag` 是候选发布提交的
@@ -589,7 +589,7 @@ raw 写路径，先补一条能证明身份的传递通道，判据见 `git show
    **桥接发布由 owner 手动发起、手动决定时点**：不进 CI、不由任何自动化触发，也**不是 US-305 的开工前置**。
    它挡的是 US-305 的**迁移发布**——`bridge.tag` 为 `null` 时，`kind=migration` 的门禁必然红——
    但不挡 US-305 的开工与合入：代码先写、测试先绿都允许，`migration-release.json` 的 `bridge.*`
-   在真实 tag 出现前保持 `null`，任何 `kind=migration` 的发布尝试都会被门禁拦下。
+   在迁移发布当下才回填，在此之前任何 `kind=migration` 的发布尝试都会被门禁拦下。
    唯一的硬约束是**不得把某个具体 tag 名或版本号写死进实现**：FR-030 读的是 manifest，
    只依赖「manifest 里写了什么」，不依赖「tag 此刻存不存在」
 
@@ -646,8 +646,8 @@ raw 写路径，先补一条能证明身份的传递通道，判据见 `git show
   与只读摘要的操作量级不同；它的绝对预算由首个绿色实现的 reference 中位数冻结，
   与相对门禁同批签入，不在此凭空指定
 
-> **当前 reference 状态**：reference 按比值画像分份，CI 托管 runner 的三种画像（AMD EPYC 7763 / EPYC 9V74 /
-> Intel Xeon 6973P-C）与 Apple M1 Max 均已签入，`ci / benchmarks` 在其上转绿。读项 status / diff 的比值是
+> **当前 reference 状态**：reference 按比值画像分份，已签入的画像以 `benchmarks/reports/working-tree-reference/` 为准
+> （CI 托管 runner 的 AMD EPYC 7763 / 9V45 / 9V74、Intel Xeon 6973P-C / Platinum 8573C，与 Apple M1 Max），`ci / benchmarks` 在其上转绿。读项 status / diff 的比值是
 > 「几毫秒 ÷ 几毫秒」，同画像十轮里就高出 median 近 +20%，容差因此按读写分档（读 130%、写 110%，依据见下文
 > 「reference 的冻结与复冻」）。M1 那份按「已知带负载的基线复冻」冻结：旧基线冻结时 1 分钟负载 44，复冻起跑时 9.31，
 > `frozenAbsolute.commit` 为 393.53 ms，理由与旧基线上的相对门禁结果记在该 JSON 的 `regeneratedBecause` 里。
@@ -724,15 +724,15 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
      未声明升级则必须完全相等。它挡的是「悄悄抬了 schema 却把升级位写成 `false`」——那会让发布整体绕开
      `oldBundlePolicy` 分支。
      ⚠️ **它挡不住 `v0.0.24`**：实测 `v0.0.24` 与 `v0.0.25` 的常量都是 `{systemSchemaVersion: 3, changeCodecVersion: 1}`，
-     与今天的 HEAD 完全相同，所以在 `systemSchemaUpgrade: false` 的发布里这条判据对空桥恒真
+     都比 HEAD 的 `RXDB_SYSTEM_SCHEMA_VERSION`（7）更旧，所以在声明 `systemSchemaUpgrade: true` 的迁移发布里「严格更旧」对空桥恒真
      两条判据（以及四条 tag 钩子）**只在 `release.kind === "migration"` 分支内执行**；桥接发布自己
-     （`kind=bridge`）走不到它们，别把它们当成桥接发布当下的防线，见 [release-plan 硬前提 1](../release-plan.md)
+     （`kind=bridge`）走不到它们，别把它们当成桥接发布当下的防线，见 [release-plan 门禁 tag 钩子的状态](../release-plan.md#门禁-tag-钩子的状态)
 
    本条的真实 tag 验收（US-305 AC US2-14 的绿半边）由
    [release-plan「迁移发布的关闭条件」](../release-plan.md#迁移发布的关闭条件)承接，US-305 按代码 AC 关闭、不再承载它。
-   `main` 自 #55 起已是 schema 6，现有提交没有一个能同时满足祖先性、版本号与常量三条；出路已定案（2026-10-01）：
-   从 `de70a1a9` 切发布分支发 `v0.0.26`，以真 merge 并回 `main`，见
-   [桥接锚点定案](../release-plan.md#桥接锚点定案)，执行排在线 A。
+   `main` 自 #55 起系统 schema 已高于桥接树的 3（现值 7），`main` 上没有提交能同时满足祖先性、版本号与常量三条；
+   因此桥接锚点取 `de70a1a9`，`v0.0.26` 打在其发布分支上并以真 merge 并回 `main`，见
+   [桥接锚点定案](../release-plan.md#桥接锚点定案)。
 
 2. US-305 / US-306（阶段 A / B / C 全部关闭）/ US-307 / US-308 全部 Done；US-306 的
    [交付阶段与边界表](../stories/collaboration/US-306-working-tree-commits.md#交付阶段与边界) 逐条有归属，跨故事的半边以收口故事的场景为准，
@@ -749,9 +749,10 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
 8. 命名门禁分两层，**正向前缀只约束核心共享契约**：
    - `@aiao/rxdb` 的 [api-baseline](../api-baseline/rxdb.json) 新增导出（共享类型、选项、错误码）全部使用
      `Commit*` / `WorkingTree*` 前缀（`Index*` 已随暂存区一同裁掉，**不得新增该前缀的导出**）
-   - 三个框架包（`rxdb-angular` / `rxdb-react` / `rxdb-vue`）的 api-baseline 只适用**负向**规则：
+   - `@aiao/rxdb-plugin-working-tree` 的 api-baseline 同样适用该正向前缀（它承载 `Commit*` / `WorkingTree*` 的主体导出）
+   - 框架包（`rxdb-angular` / `rxdb-react` / `rxdb-vue`，以及 `rxdb-plugin-working-tree-{angular,react,vue}`）的 api-baseline 只适用**负向**规则：
      无 `Workspace*` 新导出、不复用既有 `SwitchBranchOptions`。框架侧运行时入口沿用仓库既有的 `use*` 约定
-     （`useRxDB` / `useFind` / …），因此 `useWorkingTree()` 合规——**不得**用正向前缀规则去拦它，
+     （`useRxDB` / `useFind` / …），因此 `rxdb-plugin-working-tree-{angular,react,vue}` 里的 `useWorkingTree()` 合规——**不得**用正向前缀规则去拦它，
      那会拦下本 Epic 自己的核心交付物
    - 两层都适用横切约束 4（不复活旧导出）
 9. 公开文档说明**这 6 项**：数据库级显式启用、工作树与草稿缓存的区别、恢复语义、历史保留敏感旧值的风险、
@@ -764,7 +765,7 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
     HEAD + WorkingTreeEntry 重放。意图标记登记表与代码实际调用点一致——存在未登记的
     `adapter.switchBranch` / **本地重载 `mergeChanges` 的任意调用点**（`adapter.` 与 `executor.` 两种接收者，
     `disableTriggers` 真假**都算**）/ `upsertMany` / `deleteByIds` 调用点即门禁失败。
-    `disableTriggers` 在登记表里是**分类依据**，不是扫描的筛选条件：11 行登记里有 3 行是 trigger 开启的
+    `disableTriggers` 在登记表里是**分类依据**，不是扫描的筛选条件：12 行登记里有 3 行是 trigger 开启的
     `mergeChanges(…, false)`（`merge_branch` 的两个策略分支与 `restore_entity`），按 `disableTriggers` 过滤
     会让门禁漏验这 3 行。后两个方法的登记项以**目标实体的 `sync.type`** 为准：
     QueryCache 实体登记为放行，版本化实体登记为拒绝；漂移扫描 MUST 能报出「调用 `upsertMany`
@@ -797,8 +798,8 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
 - **钩子接进 PR CI 归 epic-007，同样已落地**：[epic-007 的该项目标](./epic-007-public-api-gates.md)已勾选，
   未单开故事，落点是 `ci-template.yml` 的 `setup` job（不带 `--release-tag`，配 `fetch-tags: true`
   并按 `GITHUB_REF_TYPE` 解析 tag）。它今天在 `kind=bridge` 下是绿的——**它守的是清单变成 `migration` 的那次 PR**
-- **仍然成立的那条约束**：两边都不得在对方未落地的假设上开工。当前两边都已落地，因此 US-305 的开工前提
-  只剩「依赖顺序」第 1 步的真实 bridge tag 与 manifest 回填
+- **仍然成立的那条约束**：两边都不得在对方未落地的假设上开工。两边都已落地；`bridge.*` 的 manifest 回填
+  发生在迁移发布当下（「依赖顺序」第 1 步）
 
 ## 代码注释里的规格引用
 

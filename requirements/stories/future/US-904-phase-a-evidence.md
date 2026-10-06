@@ -225,7 +225,7 @@ TypeError: object null is not iterable (cannot read property Symbol(Symbol.itera
 
 ## 对排期的影响（AC#6）
 
-- **阶段 D 解锁**（仍需等阶段 C 与 US-207 / US-504 关闭）。
+- **阶段 D 解锁**；阶段 C 与 US-207 / US-504 均已关闭，阶段 D 已交付（见 US-904「阶段 D 关闭说明」）。
 - 阶段 B / C 的共享链与 US-905 不受影响。
 - 阶段 D 新增工作项：`chrome.permissions` 缺失下的显式能力探测与授权路径（见发现 3）。
 - 阶段 D 的 E2E 必须把 DevTools 固定为 dock 模式（见发现 1），否则面板根本不会注册。

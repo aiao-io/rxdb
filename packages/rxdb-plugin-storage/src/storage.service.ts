@@ -328,6 +328,10 @@ export class RxdbFileStorage {
    */
   async preview(fileId: string): Promise<StoragePreviewResult> {
     const blob = await this.read(fileId);
+    // read() 不受 destroy() 阻挡（见 filesystem getter 的注释），但 URL 是本服务持有的新资源：
+    // destroy() 只等 #activeWrites、不等待在途读取，registry 也已被清空。读完成后必须重新核验
+    // 生命周期，否则一个已销毁的实例会在这里重新登记出没有人会回收的 URL（RV-075）。
+    this.assertActive();
 
     if (blob.size > this.previewLimitBytes) {
       throw new StoragePreviewLimitError(this.previewLimitBytes);
@@ -343,6 +347,8 @@ export class RxdbFileStorage {
    */
   async createObjectUrl(fileId: string): Promise<string> {
     const blob = await this.read(fileId);
+    // 与 preview() 对称：读完成后才核验生命周期，销毁后迟到的读取不得再登记新 URL（RV-075）。
+    this.assertActive();
     return this.objectUrls.create(blob);
   }
 

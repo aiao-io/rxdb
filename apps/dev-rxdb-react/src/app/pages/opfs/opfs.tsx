@@ -219,11 +219,13 @@ export default function OpfsPage() {
           });
           if (!shouldOverwrite) continue;
         }
-        await opfs.uploadFile(file);
+        // RV-037：显式传 routePath（URL 的目标目录），不落回 opfs.uploadFile 内部
+        // 还没追上的 currentPath —— 目录切换未完成时也只会写进 URL 对应的目录。
+        await opfs.uploadFile(file, routePath);
       }
       if (fileInputRef.current) fileInputRef.current.value = '';
     },
-    [opfs]
+    [opfs, routePath]
   );
 
   const handleUploadFolder = useCallback(
@@ -232,7 +234,10 @@ export default function OpfsPage() {
       showToast(`正在上传文件夹，共 ${files.length} 个文件...`, 'info');
 
       const filesWithPaths = files.map(file => ({ file, relativePath: file.webkitRelativePath || file.name }));
-      const conflictPaths = await opfs.findUploadConflicts(filesWithPaths.map(item => item.relativePath));
+      const conflictPaths = await opfs.findUploadConflicts(
+        filesWithPaths.map(item => item.relativePath),
+        routePath
+      );
       const overwriteConflicts =
         conflictPaths.length === 0 ?
           true
@@ -245,7 +250,7 @@ export default function OpfsPage() {
       let failedCount = 0;
       for (const { file, relativePath } of filesWithPaths) {
         if (skippedPaths.has(relativePath)) continue;
-        const success = await opfs.uploadFileWithPath(file, relativePath);
+        const success = await opfs.uploadFileWithPath(file, relativePath, routePath);
         if (success) successCount++;
         else failedCount++;
       }
@@ -254,7 +259,7 @@ export default function OpfsPage() {
       if (failedCount > 0) showToast(`上传完成：${successCount} 成功，${failedCount} 失败`, 'error');
       else showToast(`成功上传 ${successCount} 个文件`, 'success');
     },
-    [opfs, showToast]
+    [opfs, routePath, showToast]
   );
 
   const handleFolderOverwriteResponse = useCallback(
@@ -276,12 +281,12 @@ export default function OpfsPage() {
   const handleCreateFolder = useCallback(async () => {
     const name = newFolderName.trim();
     if (!name) return;
-    const success = await opfs.createDirectory(name);
+    const success = await opfs.createDirectory(name, routePath);
     if (success) {
       setShowNewFolder(false);
       setNewFolderName('');
     }
-  }, [newFolderName, opfs]);
+  }, [newFolderName, opfs, routePath]);
 
   const handleRename = useCallback(async () => {
     if (!renameDialog.entry || !renameDialog.newName.trim()) return;

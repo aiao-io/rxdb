@@ -54,6 +54,7 @@ export async function push(sm: SyncManager, options?: PushOptions): Promise<Push
     // 汇总结果
     const pushResult: PushResult = {
       pushed: 0,
+      rejected: 0,
       failed: 0,
       compacted: 0,
       originalCount: 0,
@@ -67,6 +68,7 @@ export async function push(sm: SyncManager, options?: PushOptions): Promise<Push
       const repoResult = result.result?.pushResult;
       if (repoResult) {
         pushResult.pushed += repoResult.pushed;
+        pushResult.rejected += repoResult.rejected;
         pushResult.failed += repoResult.failed;
         pushResult.compacted += repoResult.compacted;
         pushResult.originalCount += repoResult.originalCount;
@@ -75,7 +77,7 @@ export async function push(sm: SyncManager, options?: PushOptions): Promise<Push
       if (result.success) continue;
 
       // 失败**不折算成 failed += 1**：failed 的单位是变更条数，混进仓库计数会破坏
-      // `originalCount = pushed + failed + compacted`。失败结构化保留在 failures 里。
+      // `originalCount = pushed + failed + rejected + compacted`。失败结构化保留在 failures 里。
       const failure =
         result.error ??
         new RxDBError(`Repository push failed: ${result.repository.namespace}:${result.repository.entity}`);

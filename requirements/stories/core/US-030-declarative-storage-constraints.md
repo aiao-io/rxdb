@@ -5,7 +5,7 @@ status: Backlog
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-22
-updated: 2026-10-02
+updated: 2026-10-06
 tags: [core, schema, integrity]
 ---
 
@@ -81,7 +81,7 @@ C 关闭 AC#4 / #12～#14 与 AC#6 / #10 的区间排他部分；D 关闭 AC#5�
 
 **当前 DSL 一项都没有。** [`EntityMetadataOptions`](../../../packages/rxdb/src/entity/entity-options.interface.ts) 的字段集是
 `namespace` / `name` / `tableName` / `displayName` / `extends` / `repository` / `log` / `sync` / `abstract` /
-`properties` / `computedProperties` / `relations` / `indexes` / `foreignKeys` / `features` —— 没有 CHECK 的落点。
+`properties` / `computedProperties` / `relations` / `indexes` / `foreignKeys` / `features` / `permissions` / `manualOrder` —— 没有 CHECK 的落点。
 [`EntityIndexMetadataOptions`](../../../packages/rxdb/src/entity/property-types.interface.ts) 的自有字段只有两项，
 `unique` 来自它继承的 `IEntityObject`：
 

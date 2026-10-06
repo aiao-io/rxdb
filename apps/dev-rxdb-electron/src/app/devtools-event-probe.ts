@@ -87,8 +87,8 @@ function everyEvent(): readonly RxDBEvent[] {
 
     // 同步与冲突
     new SyncBeginEvent('pull'),
-    // `originalCount = pushed + failed + compacted`（PushResult 的文档不变量），全零自洽。
-    new SyncCompleteEvent('push', { pushed: 0, failed: 0, compacted: 0, originalCount: 0, failures: [] }),
+    // `originalCount = pushed + failed + rejected + compacted`（PushResult 的文档不变量），全零自洽。
+    new SyncCompleteEvent('push', { pushed: 0, rejected: 0, failed: 0, compacted: 0, originalCount: 0, failures: [] }),
     new SyncErrorEvent('pull', error),
     new ConflictDetectedEvent([], 0, 0),
     new ConflictPendingEvent([]),

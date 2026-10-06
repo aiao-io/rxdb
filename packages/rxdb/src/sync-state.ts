@@ -1,8 +1,8 @@
 /**
  * @fileoverview 同步状态汇聚面
  *
- * 把「网通不通、还有多少没推上去、这会儿正在推吗、上一次错在哪、上一次是谁判负」
- * 五件事收成一份快照，供三框架的 `useSyncState()` 直接绑到渲染上。
+ * 把「网通不通、还有多少没推上去、这会儿正在推吗、上一次错在哪、上一次是谁判负、
+ * 上一轮哪些变更被远端拒了」六件事收成一份快照，供三框架的 `useSyncState()` 直接绑到渲染上。
  *
  * 本模块只做汇聚，不做查询：数据源由 {@link SyncStateSources} 注入，
  * 真正的 DB 读取留在各自的归属模块里（可达性在 `network/reachability.ts`，
@@ -13,6 +13,7 @@
 
 import { BehaviorSubject, combineLatest, type Observable, Subject, Subscription } from 'rxjs';
 import { distinctUntilChanged, map } from 'rxjs/operators';
+import type { RemoteEntityRef } from './rxdb-adapter.js';
 
 /**
  * 一次冲突判定的结果，冲突发生处上报用
@@ -37,6 +38,42 @@ export interface SyncConflict extends SyncConflictReport {
 }
 
 /**
+ * 一个被远端拒绝的实体，推送提交处上报用
+ *
+ * @remarks
+ * 粒度是**实体**而不是单条本地变更：远端按实体合并后整体落库或整体被拒，
+ * 同一实体的多条源变更一并记在 {@link SyncRejection.changeIds} 里。
+ */
+export interface SyncRejectionReport {
+  /** 实体命名空间 */
+  namespace: string;
+  /** 实体名 */
+  entity: string;
+  /** 被拒实体的主键 */
+  entityId: string;
+  /** 合并后的远端操作（取远端回执，不是单条源变更的类型） */
+  op: 'INSERT' | 'UPDATE' | 'DELETE';
+  /** 数据库 SQLSTATE，如 `42501`、`RX001`、`23503` */
+  code: string;
+  /** 归类：`denied` 被 RLS 拒绝；`gone` 行已不存在；`dependency` 依赖的父实体失败 */
+  reason: 'denied' | 'gone' | 'dependency';
+  /** 远端原始消息 */
+  message: string;
+  /** 依赖失败时指向父实体；定位不到父实体时给出约束名 */
+  dependsOn?: RemoteEntityRef | { constraint: string };
+}
+
+/**
+ * 带发生时刻与源变更的被拒记录
+ */
+export interface SyncRejection extends SyncRejectionReport {
+  /** 推送提交时刻 */
+  at: Date;
+  /** 该实体被一并标为被拒的本地变更 id（`RxDBChange.id`） */
+  changeIds: readonly number[];
+}
+
+/**
  * 同步状态快照
  */
 export interface SyncState {
@@ -50,6 +87,14 @@ export interface SyncState {
   lastError: Error | null;
   /** 上一次冲突判定；不会被后续成功清空，它是历史事实 */
   lastConflict: SyncConflict | null;
+  /**
+   * 最近一轮有被拒的推送产生的被拒列表
+   *
+   * @remarks
+   * 与 {@link SyncState.lastConflict} 同理不会被后续成功清空；下一轮有被拒时整体替换，不合并。
+   * 跨重启的完整列表查 `RxDBChange` 中 `rejectedAt` 不为空的行。
+   */
+  lastRejections: readonly SyncRejection[];
 }
 
 /**
@@ -68,13 +113,17 @@ export interface SyncStateSources {
   online$: Observable<boolean>;
 }
 
+/** 还没有任何被拒时的列表；冻结且全局唯一，引用稳定，框架侧不会因它白刷 */
+const NO_REJECTIONS: readonly SyncRejection[] = Object.freeze([]);
+
 /** 上游都没发过值时的读数 */
 const INITIAL_STATE: SyncState = {
   online: true,
   pendingCount: 0,
   syncing: false,
   lastError: null,
-  lastConflict: null
+  lastConflict: null,
+  lastRejections: NO_REJECTIONS
 };
 
 /** 逐字段比较两份快照 */
@@ -83,7 +132,8 @@ const sameState = (a: SyncState, b: SyncState): boolean =>
   a.pendingCount === b.pendingCount &&
   a.syncing === b.syncing &&
   a.lastError === b.lastError &&
-  a.lastConflict === b.lastConflict;
+  a.lastConflict === b.lastConflict &&
+  a.lastRejections === b.lastRejections;
 
 /** 把回推链吞到的任意值规范成 Error */
 const toError = (error: unknown): Error => (error instanceof Error ? error : new Error(String(error)));
@@ -92,7 +142,7 @@ const toError = (error: unknown): Error => (error instanceof Error ? error : new
  * 同步状态汇聚器
  *
  * @remarks
- * 上游三条流只读；`syncing` / `lastError` / `lastConflict` 由回推链主动上报
+ * 上游三条流只读；`syncing` / `lastError` / `lastConflict` / `lastRejections` 由回推链主动上报
  * （{@link beginRound}、{@link reportError}、{@link reportConflict} 等）。
  *
  * {@link destroy} 只断开上游订阅，不关闭 {@link state$} —— 关掉的话，销毁瞬间
@@ -114,6 +164,7 @@ export class SyncStateHub {
   readonly #syncing$ = new BehaviorSubject<boolean>(false);
   readonly #lastError$ = new BehaviorSubject<Error | null>(null);
   readonly #lastConflict$ = new BehaviorSubject<SyncConflict | null>(null);
+  readonly #lastRejections$ = new BehaviorSubject<readonly SyncRejection[]>(NO_REJECTIONS);
   readonly #state$ = new BehaviorSubject<SyncState>(INITIAL_STATE);
   /** 「重算待拉数」的请求跳板；没人接线时发进空里，正是无插件时该有的行为 */
   readonly #pullableRefresh$ = new Subject<void>();
@@ -132,13 +183,20 @@ export class SyncStateHub {
       sources.online$.subscribe(online => this.#upstream$.next({ ...this.#upstream$.value, online }))
     );
 
-    const derived$ = combineLatest([this.#upstream$, this.#syncing$, this.#lastError$, this.#lastConflict$]).pipe(
-      map(([upstream, syncing, lastError, lastConflict]) => ({
+    const derived$ = combineLatest([
+      this.#upstream$,
+      this.#syncing$,
+      this.#lastError$,
+      this.#lastConflict$,
+      this.#lastRejections$
+    ]).pipe(
+      map(([upstream, syncing, lastError, lastConflict, lastRejections]) => ({
         online: upstream.online,
         pendingCount: upstream.pushableCount + upstream.outboxCount,
         syncing,
         lastError,
-        lastConflict
+        lastConflict,
+        lastRejections
       })),
       distinctUntilChanged(sameState)
     );
@@ -266,6 +324,20 @@ export class SyncStateHub {
   /** 上报一次冲突判定 */
   reportConflict(report: SyncConflictReport): void {
     this.#lastConflict$.next({ ...report, at: new Date() });
+  }
+
+  /**
+   * 上报一轮推送的被拒列表
+   *
+   * @param rejections - 本轮被拒的实体；原样存入快照，不复制
+   *
+   * @remarks
+   * 由 `@aiao/rxdb-plugin-sync` 的推送仓库在本地提交成功之后调用；提交失败不上报。
+   * 空数组是「这一轮没有被拒」，不是「清空」：被拒是历史事实，与 {@link reportConflict} 同理保留到下一轮被拒。
+   */
+  reportRejections(rejections: readonly SyncRejection[]): void {
+    if (rejections.length === 0) return;
+    this.#lastRejections$.next(rejections);
   }
 
   /** 断开上游订阅；{@link state$} 保留最后一份快照 */

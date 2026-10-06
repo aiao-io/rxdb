@@ -49,6 +49,7 @@ export class InspectedPageAccessService implements DevToolsHostAccess, OnDestroy
   };
   private revision = 0;
   private permissionPattern: string | null = null;
+  private destroyed = false;
 
   readonly state = signal<InspectedPageAccessState>('checking');
   readonly error = signal<string | null>(null);
@@ -59,6 +60,7 @@ export class InspectedPageAccessService implements DevToolsHostAccess, OnDestroy
   }
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.revision++;
     chrome.devtools.network.onNavigated.removeListener(this.navigationListener);
   }
@@ -74,6 +76,10 @@ export class InspectedPageAccessService implements DevToolsHostAccess, OnDestroy
       return true;
     }
     const granted = await chrome.permissions.request({ origins: [pattern] });
+    // 本轮请求发起时绑定的 pattern 才算数：await 期间销毁或导航到另一 origin/不支持页面
+    // 会推进 revision 并改写 permissionPattern，此时旧结果一律作废，不更新 state 也不 activate。
+    // 同源导航（pattern 不变）revision 虽然也会推进，但旧请求对当前页面仍然有效，照常生效。
+    if (this.destroyed || this.permissionPattern !== pattern) return false;
     this.state.set(granted ? 'granted' : 'required');
     if (!granted) {
       this.error.set('未授予当前站点访问权限');

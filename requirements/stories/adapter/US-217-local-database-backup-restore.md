@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-09-15
-updated: 2026-09-29
+updated: 2026-10-06
 tags: [adapter, backup, restore, local-first]
 ---
 
@@ -332,11 +332,11 @@ schema 指纹的规范化规则与必需元数据在 plan 阶段冻结；未知�
   PGlite 探针是一个完整的内存 PGlite 实例，关掉之后 WASM 堆何时还给操作系统取决于 GC 与内核，与操作是否叠在一起不确定，
   所以操作本身在探针被桩掉的 host 上量，探针单独量；最坏情况按两者之和计（备份 1536、恢复 1792）。
 
-- **支持矩阵（阶段 C）**：只承诺同一 adapter、同一 RxDB 版本线的组合，system schema 6、change-codec 1、归档格式 1、桌面协议 2。
+- **支持矩阵（阶段 C）**：只承诺同一 adapter、同一 RxDB 版本线的组合：system schema / change-codec 版本取 `RXDB_SYSTEM_SCHEMA_VERSION` / `RXDB_CHANGE_CODEC_VERSION` 的当前值（manifest 按相等比较，低版本客户端产出的归档恢复时报 `incompatible_archive`，见 [`backup-manifest.ts`](../../../packages/rxdb/src/backup/backup-manifest.ts) 的 `assertRxDBBackupCompatible`），归档格式 1、桌面协议 2（`DESKTOP_HOST_PROTOCOL_VERSION`）。
 
   | adapter           | 源 / 目标存储                | 运行环境                                   | 引擎 / 必需扩展                                          | 跨 OS                                     |
   | ----------------- | ---------------------------- | ------------------------------------------ | -------------------------------------------------------- | ----------------------------------------- |
-  | `sqlite-electron` | 应用数据目录下的库文件       | Electron 44 主进程 `node:sqlite`，WAL      | SQLite ≥ 3.43（Electron 44.4.3 内置 3.53.4）；无         | Linux / macOS / Windows 两两互通（AC#20） |
+  | `sqlite-electron` | 应用数据目录下的库文件       | Electron 44 主进程 `node:sqlite`，WAL      | SQLite ≥ 3.43（Electron 44.4.3 实测内置 3.53.4）；无     | Linux / macOS / Windows 两两互通（AC#20） |
   | `sqlite-tauri`    | 应用数据目录下的库文件       | Tauri 2 Rust host（rusqlite bundled），WAL | SQLite ≥ 3.43（rusqlite 0.32 内置 3.46.0）；FTS5         | 同上                                      |
   | `pglite-electron` | 应用数据目录下的 PGlite 目录 | Electron 主进程 worker 线程里的 PGlite     | PGlite ^0.5.8（PostgreSQL 18）；扩展由宿主声明，示例为空 | 同上                                      |
 

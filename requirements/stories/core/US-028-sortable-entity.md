@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-20
-updated: 2026-10-03
+updated: 2026-10-06
 tags: [core, sortable, grouping, model, rxdb-model, tree, demo]
 ---
 
@@ -19,28 +19,29 @@ tags: [core, sortable, grouping, model, rxdb-model, tree, demo]
 
 ## 背景与动机
 
-- **表格的拖拽重排没有写入路径。** `buildTableOptions()`（`table-factory.ts`）默认开 `rowSeriesNumber.dragOrder`；
-  三框架的 `EntityTable` 监听 `change_header_position`、经 `collectReorderedIds` 抛出 `rowReordered`，`QueryTable`
-  原样透传，但没有任何组件接它。三框架的 `EntityList` 因此经 `tableOptions` 传 `LIST_TABLE_OPTIONS`
-  （`dragOrder: false`）关掉了手柄，即 AC#6 的提前交付；直接渲染 `EntityTable` / `QueryTable` 又不传 `tableOptions`
-  的调用方仍拿到默认的拖拽手柄，拖完不落库。`patchDragIconForReadonlyRows` 隐藏 `_readonly` 行与 `_isAddRow` 行的手柄，
-  但生产代码不设 `_isAddRow`，`EntityList` 的草稿行不带标记、仍有手柄；`EntityList` 按 `deriveEntityCapabilities()` 给
-  `canEdit=false` 的已加载行（含系统表）挂 `_readonly`（[US-027](US-027-entity-permission-model.md) 阶段 C），草稿行不挂。
-- **排序只存在于树形实体与应用层。** `ISortableTreeEntity`（`@aiao/rxdb-plugin-tree` 的 `tree-entity.interface.ts`：
-  `ITreeEntity` 加 `sortOrder?: string | null`）是仓库里唯一的排序类型；`sortOrder` 在 `@aiao/rxdb` 与
-  `@aiao/rxdb-model` 中零实现、零读取。三个 demo 应用的树菜单与文件管理页各自调 `@aiao/utils` 的
-  `generateKeyBetween` 算排序键（Angular `MenuDragDropService`、React / Vue `useDragDropService` 及各页 store，共 22 个文件），
-  「新建追加到末尾」「拖放插到两邻之间」三端各写一遍；`rxdb-test` 的 `MenuSimple` / `MenuLarge` / `FileNode` /
-  `FileLarge` 声明 `sortOrder` 并建 `(parentId, sortOrder)` 索引。
-- **排序要在树之外独立成模块。** 树实体在 `@aiao/rxdb-plugin-tree`，`RxDBBranch` 是普通实体；排序若只挂在
-  `ISortableTreeEntity` 下，扁平列表要排序就得装树插件。依赖方向应是树插件依赖排序模块，而不是反过来；
-  排序模块放在核心（见技术笔记「排序模块归属与依赖方向」），[US-025](US-025-core-plugin-extraction.md) 阶段 E 与此没有先后约束。
+- **表格拖拽重排由 `Repository.reorder()` 承接。** `buildTableOptions()`（`table-factory.ts`）默认开 `rowSeriesNumber.dragOrder`；
+  三框架的 `EntityTable` 监听 `change_header_position`，经 `collectReorderedIds` 抛出 `rowReordered`（签名不变），
+  另经 `rowMoved`（`RowMoveEvent`）输出移动上下文；`EntityList` 建表统一开 `dragOrder`，手柄由 UI 启用谓词经
+  `setRowDragEnabled` 门控。直接渲染 `EntityTable` / `QueryTable` 且不传 `tableOptions` 的调用方拿到默认手柄、
+  `rowReordered` 不落库（仓内没有这类调用方）。`patchDragIconForReadonlyRows` 隐藏 `_readonly` 行与 `_isAddRow` 行的手柄，
+  但生产代码不设 `_isAddRow`，`EntityList` 的草稿行不带标记，须由谓词直接读草稿列表；`EntityList` 按
+  `deriveEntityCapabilities()` 给 `canEdit=false` 的已加载行（含系统表）挂 `_readonly`
+  （[US-027](US-027-entity-permission-model.md) 阶段 C），草稿行不挂。
+- **排序模块在核心，树实体尚未迁移。** 排序模块在 `packages/rxdb/src/sortable/`；`ISortableTreeEntity`
+  （`@aiao/rxdb-plugin-tree` 的 `tree-entity.interface.ts`）的键类型取自核心 `SortOrderKey`，`sortOrder` 仍可空。
+  三个 demo 应用的树菜单与文件管理页仍各自调 `@aiao/utils` 的 `generateKeyBetween` 算排序键
+  （Angular `MenuDragDropService`、React / Vue `useDragDropService` 及各页 store，文件清单见 US-031），
+  「新建追加到末尾」「拖放插到两邻之间」三端各写一遍，这部分迁移归 [US-031](US-031-tree-sortable-migration.md)；
+  `rxdb-test` 的 `MenuSimple` / `MenuLarge` / `FileNode` / `FileLarge` 声明可空的 `sortOrder`，
+  后三者建 `(parentId, sortOrder)` 索引。
+- **排序独立于树。** 树实体在 `@aiao/rxdb-plugin-tree`，`RxDBBranch` 是普通实体；排序放在核心，
+  依赖方向是树插件 → 排序模块（见技术笔记「排序模块归属与依赖方向」），扁平列表排序不需要装树插件。
 - 普通实体同样需要手动排序：商品分类的展示优先级、菜单顺序、清单拖拽。按某列分组排序（某分类下的商品、看板列内的卡片）
-  与整表排序是同一能力的两种排序域。US-010 的 AC#2/#3 只覆盖了树形节点排序，扁平列表是空白。
-- **三端 Todo 列表需要手动排序。** `modules/angular-todo` 的 `TodoPage`（dev-rxdb-angular / electron / tauri 路由共用）、
-  React `todo.tsx`、Vue `TodoPage.vue` 都有「全部 / 进行中 / 已完成」三个 tab，经 `useFindAll` 全量加载、虚拟滚动渲染，
-  按 `[completed, id desc]` 排、没有拖拽；新建的待办只能出现在最前，用户无法调整先后。进行中与已完成各自一条序列，
-  就是以 `completed` 为分组字段的排序域。写入三端一致：新建 `new Todo({ title }).save()`、勾选 `todo.completed = …; save()`，
+  与整表排序是同一能力的两种排序域。US-010 的 AC#2/#3 只覆盖树形节点排序，扁平列表由本故事覆盖。
+- **三端 Todo 列表是驱动场景。** `modules/angular-todo` 的 `TodoPage`（dev-rxdb-angular / electron / tauri 路由共用）、
+  React `todo.tsx`、Vue `TodoPage.vue` 都有「全部 / 进行中 / 已完成」三个 tab，用可排序待办实体 `Task` 经 `useFindAll`
+  全量加载、虚拟滚动渲染，按 `[completed, sortOrder asc, id asc]` 排。进行中与已完成各自一条序列，
+  就是以 `completed` 为分组字段的排序域。写入三端一致：新建追加到进行中组末尾、勾选完成改分组字段，
   「全部完成」与「批量添加」（最多 10,000 条）经 `entityManager.saveMany`。
 
 ## 排序契约
@@ -60,12 +61,12 @@ tags: [core, sortable, grouping, model, rxdb-model, tree, demo]
 
 ### 声明与 schema
 
-- **显式 opt-in**：实体级声明，只有一处来源，子类继承、可覆写；分组字段随可排序声明一并声明。名称与挂载位置在 plan 定，
-  两条约束：不叫 `sortable`（属性级 / 关系级已用于列头排序）；若放进 `EntityMetadataFeatures`，须先改其「核心不内置任何具体特性」的约定。
+- **显式 opt-in**：实体级声明，只有一处来源，子类继承、可覆写；分组字段随可排序声明一并声明。已定为实体级 `manualOrder`
+  （`boolean | { groupBy }`），不叫 `sortable`（属性级 / 关系级已用于列头排序），也不放进 `EntityMetadataFeatures`（其「核心不内置任何具体特性」的约定不动）。
 - **字段由开发者显式声明**，引擎不注入：元数据初始化时校验字段存在、类型为 string、可写、非计算字段、非加密（密文不能排序与区间比较）、**不可为 NULL**
   （`nullable` 为假，两端建表即发 `NOT NULL`），违反即抛明确错误。非空由 DDL 保证，契约里因此没有 NULL 键这一类特殊情况。
 - 未声明但恰好有 `sortOrder` 字段的实体，行为完全不变。`ISortableEntity` 只是 TS 便利类型（被擦除），不是运行期声明。
-- 排序模块导出排序键类型（名称在 plan 定）作为唯一的类型来源：`ISortableEntity` 用它声明非空的 `sortOrder`；
+- 排序模块导出排序键类型 `SortOrderKey` 作为唯一的类型来源：`ISortableEntity` 用它声明非空的 `sortOrder`；
   树侧的 `ISortableTreeEntity` 用同一个键类型组合出 `sortOrder?: <键类型> | null`，树节点的可空性不变（见阶段 C）。
 
 ### 键不变量
@@ -80,8 +81,7 @@ tags: [core, sortable, grouping, model, rxdb-model, tree, demo]
 - **按锚点校验**：每次创建追加 / 重排只校验它读到的锚点（目标组的末尾行，或目标位置的前后邻居），锚点必须与写入目标同组。
   锚点为空串 / 非法格式，或前后邻居不满足 `prev < next`（含重复键）时，明确报错、零写入。不得依赖
   `generateKeyBetween` 对反向入参的自动交换来「修复」脏序列。被移动行自身的旧键不是锚点——把空串或非法键的行拖进两个合法邻居之间是合法写入。
-  `@aiao/utils` 今天没有导出的键校验：`validateOrderKey` 是私有函数，且不校验小数部分的字符是否属于字母表（`getDigitIndex`
-  遇到未知字符返回 0），阶段 A 须新增一个导出的完整校验，「非法格式 / 异字母表」都按它判定。
+  `@aiao/utils` 导出 `isValidOrderKey`（含小数部分的完整校验；内部 `validateOrderKey` 私有），「非法格式 / 异字母表」都按它判定。
 - **历史数据**：给已有实体启用即一次 schema 迁移（列改 `NOT NULL`），存量行必须在迁移里由开发者显式回填
   （按组、按既定顺序 `generateKeysBetween(null, null, n)`）。未回填的迁移被 DDL 拒绝，不存在「未回填但已启用」的中间态。
 
@@ -90,8 +90,7 @@ tags: [core, sortable, grouping, model, rxdb-model, tree, demo]
 - 已启用实体的查询，调用方**未给 `orderBy`** 时归一化为 `[分组字段… asc, sortOrder asc, id asc]`（无分组字段即
   `[sortOrder asc, id asc]`）；调用方显式给出的 `orderBy` 原样尊重，不追加、不改写。
 - 覆盖 `Repository` 的 `find` / `findAll` / `findOne` / `findOneOrFail` 四个读入口（`count` 不排序，不受影响；
-  `findByCursor` 强制显式 `orderBy`，不走默认；`get` 按 id 取单行，不受影响）。四者现状不一：`find` 已归一化 `limit` /
-  `offset` 并把同一对象交给 runner 与 `createTask`；`findAll` 原样下发；`findOne` / `findOneOrFail` 原样下发、只在 runner 里加 `limit: 1`。
+  `findByCursor` 强制显式 `orderBy`，不走默认；`get` 按 id 取单行，不受影响）。
 - 没有现成的单一入口：`QueryManager.createTask` 决定缓存键与活查询合并选项（`QueryTask.options`），但改不了 SQL；SQL 由各读方法的
   runner 生成。归一化做成一个函数、四个读入口显式调用，同一个归一化对象同时交给 runner 与 `createTask`，不能只改适配器参数。
   活查询 `findAll` 的增量合并只在 `options.orderBy` 非空时按 `calculateOrderBy` 重排（`merge_update.ts`），否则只就地改值——
@@ -114,7 +113,7 @@ tags: [core, sortable, grouping, model, rxdb-model, tree, demo]
 - 同批缺键记录按组拆分，每组按批内顺序一次 `generateKeysBetween(该组尾键, null, 该组条数)`，互不碰撞；不得用全局共享默认值。
 - 显式传入合法键原样保留；显式传入非法键明确报错。
 - 非用户来源（同步拉取、恢复、history 回放）原样写入，不分配、不改写已有键。带入 NULL 时由 `NOT NULL` 约束当场拒绝该次写入
-  （拉取写入当场失败，不延后到下一次锚点写入；失败粒度随该同步路径的事务边界，plan 写实）；带入空串 / 非法键时，在下一次以它为锚点的写入时按「按锚点校验」报错。
+  （拉取写入当场失败，不延后到下一次锚点写入；失败粒度随该同步路径的事务边界）；带入空串 / 非法键时，在下一次以它为锚点的写入时按「按锚点校验」报错。
 
 ### 分组字段变更
 
@@ -124,7 +123,7 @@ tags: [core, sortable, grouping, model, rxdb-model, tree, demo]
 - 同批多行改分组字段（如 Todo 的「全部完成」经 `saveMany`）按新组拆分，每组按批内顺序一次
   `generateKeysBetween(新组尾键, null, 该组条数)`，与「创建追加」的同批规则一致。
 - 必须覆盖的入口：`Repository.update`、实体 `save()`（已有行）、`EntityManager.saveMany` / `mutations` 中的 update、
-  现有级联保存路径中的 update。规范化位置与覆盖证明由 plan 给出，与「创建追加」共用同一边界。
+  现有级联保存路径中的 update。规范化位置与「创建追加」共用同一边界（门面 `Repository` 与 `EntityManager.mutations`）。
 - 原组剩下的行不改写：移出一行不破坏组内递增。
 - 非用户来源原样写入，不重新分配键，同「创建追加」。
 
@@ -132,9 +131,9 @@ tags: [core, sortable, grouping, model, rxdb-model, tree, demo]
 
 - 读锚点 → 算键 → 写入在**同一个主适配器 transaction** 内完成（`RxDBAdapterLocalBase.transaction` 经 `TransactionExecutor`）。
   同一排序域两次本地并发追加不得读到同一旧尾键；plan 须证明适配器事务对并发写者（含受支持的同库多实例）串行化，不能用组件私有锁代替。
-- 现状只有 `mutations` 满足：`RxDBAdapterSqliteBase.mutations` / `RxDBAdapterPGlite.mutations` 已在 transaction 内执行。门面
+- `mutations` 本身在 transaction 内执行（`RxDBAdapterSqliteBase.mutations` / `RxDBAdapterPGlite.mutations`）。普通实体的门面
   `Repository.create` / `update` 走适配器仓库，SQL 在事务外生成、再由 `writeQuery` 为单条语句开事务；`primary$` 只给出
-  `IRepository`，`transaction` 也不在 `IRxDBAdapter` 上。可排序实体的门面写入因此须改走主适配器事务，通道由 plan 定。
+  `IRepository`，`transaction` 也不在 `IRxDBAdapter` 上。可排序实体的门面写入因此改走主适配器的事务，其余实体路径不变。
   两个适配器各有一个并发度 1 的 `AsyncQueueExecutor`，单实例内串行；SQLite 同库多连接的冲突写以 BUSY 失败，不产生重复键（推断，未实测）。
 - 首版只支持主适配器能在单个事务内读写的本地后端（SQLite-core 系、PGlite）。remote-only 与 QueryCache 主端的缺键创建、
   重排明确报错，不拿本地缓存子集冒充完整序列。
@@ -148,7 +147,7 @@ tags: [core, sortable, grouping, model, rxdb-model, tree, demo]
 - UI 来源是 VTable `change_header_position` 的 `source` / `target`，只产生组内移动。VTable 在派发事件前已调用
   `changeRecordOrder`，事件到达时被移动记录在 `target.row`，邻居取 `target.row ± 1`（行号含表头行）；原位放下不派发事件。`rowReordered: string[]` 与
   `collectReorderedIds` 保持原签名、原行为；阶段 B 在三框架 `EntityTable` / `QueryTable` 上新增一个不破坏兼容的移动上下文输出，
-  名称在 plan 定，三端同 API。
+  即 `rowMoved`（`RowMoveEvent`），三端同 API。
 - **写集合最小**：组内移动只写 `sortOrder`；跨组移动在同一事务内只写分组字段与 `sortOrder`；原位拖拽零写；
   只支持单行（VTable 行序号拖拽本身是单行），多行移动不支持。
 - **事务内复核**：移动行仍存在；两邻居仍存在、同属目标组且仍相邻（之间没有其他行）；任一不成立即拒绝、零写、重查。
@@ -173,16 +172,16 @@ tags: [core, sortable, grouping, model, rxdb-model, tree, demo]
 4. 无用户筛选（`filterQuery`，三端是组件内部状态而非输入）、非关联选择模式（`mode: 'select'`）；`fixedQuery` 恰好钉住一个
    完整排序域——无分组字段的实体要求没有 `fixedQuery`，有分组字段的实体要求 `fixedQuery` 只由全部分组字段的等值条件组成
    （NULL 组为 `operator: 'null'`），不含其他条件；一对多关联详情的 `buildFixedQuery` 产出 `[{ field: 外键, operator: '=' }]`，正是这一形状；
-5. 数据已完整加载（已确认 `hasMore = false`；虚拟渲染本身不算不完整）。三端 `EntityList` 今天不读 `hasMore`，可从
-   `InfiniteScrollingList.hasMore` / `resource.hasMore` / `useInfiniteScroll().hasMore` 取；`hasMore` 按「收满一页」判定，
-   总数恰为页大小整数倍时要再触发一次空的 `loadMore` 才转 `false`，活查询重发也可能把它翻回 `true`，plan 写实；
-6. 列表内无 `_readonly` 行、无草稿 / 新增行、无待提交编辑。草稿行不带 `_isAddRow`，须直接读草稿列表；「待提交编辑」今天没有
-   可读状态（`#pendingChanges` 只活到下一个微任务，`mutations` 在途也无人跟踪），阶段 B 新增；
+5. 数据已完整加载（已确认 `hasMore = false` 且不在加载中；虚拟渲染本身不算不完整）。三端 `EntityList` 读
+   `InfiniteScrollingList.hasMore` / `resource.hasMore` / `useInfiniteScroll().hasMore` 组成 `fullyLoaded`；`hasMore` 按「收满一页」判定，
+   总数恰为页大小整数倍时要再触发一次空的 `loadMore` 才转 `false`，活查询重发也可能把它翻回 `true`；
+6. 列表内无 `_readonly` 行、无草稿 / 新增行、无待提交编辑。草稿行不带 `_isAddRow`，须直接读草稿列表；「待提交编辑」由
+   `hasPendingEdits` 提供（三端 `EntityList` 以计数跟踪在途的编辑批次，`#pendingChanges` 本身只活到下一个微任务）；
 7. 没有挂起中的重排。
 
 任一不满足时关闭 `dragOrder`，程序化触发同样拒绝、零写入。手柄隐藏只是视觉守卫，写入侧仍按上述条件拒绝。
-三端 `tableOptions` 只在建表时读一次（`createListTable`），之后不再应用，而谓词随运行期状态变化，开关须另走动态机制
-（`updateOption`、重建表，或类似 `patchDragIconForReadonlyRows` 的 `getIcons` 门控），plan 定。
+三端 `tableOptions` 只在建表时读一次（`createListTable`），而谓词随运行期状态变化，因此建表统一开 `dragOrder`，
+开关经 `setRowDragEnabled`（`patchDragIconForReadonlyRows` 的 `getIcons` 门控）在运行期切换。
 重排挂起期间拒绝新的拖拽（不排队）；成功后按 DB 重查结果刷新，失败后重查恢复到最新已提交顺序、清忙碌态、展示错误，下一次拖拽可用。
 VTable 派发事件前已改了内部记录顺序；拒绝 / 失败零写时活查询不重发、记录引用不变，`setRecords` 被跳过，表格会停在拖后的顺序——
 恢复必须显式重置表格记录，不能只靠重查。UI 不做跨组拖拽：跨组移动只经 core 重排 API。
@@ -340,14 +339,15 @@ AC#10 的关闭：阶段 A 一侧已验——未声明 `manualOrder` 的实体�
   `invalidManualOrder`，不等到查询时才失败。
 - **分组字段变更与跨组移动是两条路**：普通 update 改分组字段只能「追加到新组末尾」，因为它没有目标位置信息；
   要落到新组的指定位置，走重排 API 的跨组移动。两者都在同一主适配器事务内读新组锚点。
-- **列表默认排序的现状**：三框架 `buildCursorOrderBy()` 的 `normal` 状态返回 `[id desc]`，并作为**显式** `orderBy`
-  传给 `Repository.findByCursor`（要求末尾为 `id`）。core 的默认排序归一化碰不到这条路径，所以 `EntityList` 必须单独接线（AC#5）。
+- **列表默认排序**：三框架 `buildCursorOrderBy()` 的 `normal` 状态返回 `defaultListOrderBy(metadata)`（可排序实体为默认排序，
+  其余 `[id desc]`），并作为**显式** `orderBy` 传给 `Repository.findByCursor`（要求末尾为 `id`）。
+  core 的默认排序归一化碰不到这条路径，所以 `EntityList` 单独接线（AC#5）。
 - **只读行与移动意图**：`collectReorderedIds` 跳过 `_readonly` 与 `_isAddRow`，且只收 `typeof id === 'string'`。
   序列 `[A, R, B]`（R 只读）里「B 拖到 A 前」与「A 拖到 B 后」给出同一个载荷 `[B, A]`，只读锚点信息丢失；
   最终排列也推不出唯一的最小写集合。这就是首版改用 VTable `source` / `target` 移动意图、并对含只读行的列表整表关手柄的原因。
-- **事务能力部分已有**：`EntityManager.mutations` 路由到主适配器，`RxDBAdapterSqliteBase.mutations` 与
-  `RxDBAdapterPGlite.mutations` 已经在 transaction 内执行批量变更，core 可在其外包一层「读尾键 → `executor.mutations`」；
-  门面 `Repository.create` / `update` 不在可读锚点的事务里，须改走 `RxDBAdapterLocalBase.transaction`（见「写边界与并发」）。
+- **事务**：`EntityManager.mutations` 路由到主适配器，`RxDBAdapterSqliteBase.mutations` 与
+  `RxDBAdapterPGlite.mutations` 在 transaction 内执行批量变更，core 在其外包一层「读尾键 → `executor.mutations`」；
+  门面 `Repository.create` / `update` 对可排序实体改走 `RxDBAdapterLocalBase.transaction`（见「写边界与并发」）。
   三端 `EntityList` 的 `#flushPending`（React / Vue 同构）保存旧值并在失败时回滚内存。本故事复用适配器事务，不新建事务机制。
 - **为什么强制非空**：fractional-indexing 的键是字符串，NULL 不是合法键，以 NULL 行做锚点生成不出新键；
   `nullable: false` 让 DDL 直接挡住同步拉取的 NULL 键（场景 11），锚点校验不必再处理 NULL。`build_order_by` 两端都不补
@@ -362,25 +362,24 @@ AC#10 的关闭：阶段 A 一侧已验——未声明 `manualOrder` 的实体�
   `buildTableOptions()` 对 `rowSeriesNumber` 是整体覆盖，关 `dragOrder` 时 `title` / `width` 要一并带上。
 - **排序模块归属与依赖方向**：本故事定为 core——查询默认排序与 create 追加键都在引擎写路径上。
   `@aiao/rxdb-plugin-tree` 依赖 `@aiao/rxdb`，core 反向 import 树插件会被 nx 项目图判成环，AC#9 的依赖方向因此有现成门禁。
-- **Todo 接入不改共享 `Todo`**：`rxdb-test` 的 `Todo` 被约 17 个项目、约 124 个文件引用（六个 dev 应用、`modules/angular-todo`、
+- **Todo 接入不改共享 `Todo`**：`rxdb-test` 的 `Todo` 被大量项目引用（六个 dev 应用、`modules/angular-todo`、
   `examples/angular-todo`、benchmarks、pglite / sqlite-core / sqlite-wasm / supabase 适配器测试、三端 rxdb-model）；`dev-rxdb-supabase`
   以 `SyncType.Full` 同步它，`docker/sql/03-business-tables.sql` 的远端 `todos` 表没有 `sortOrder` 列。直接给它声明可排序会让
-  supabase 同步的远端表缺列、让所有不带 `orderBy` 的查询改序，所以阶段 E 用独立的可排序待办实体（名称与放置位置在 plan 定），
+  supabase 同步的远端表缺列、让所有不带 `orderBy` 的查询改序，所以阶段 E 用独立的可排序待办实体 `Task`（`rxdb-test/entities/Task.ts`，表名 `tasks`），
   三端 todo 页改用它；todo-cursor 页、workspace 页与 supabase 仍用 `Todo`。小程序用自己的 `MiniProgramTodo`，不受影响。
 - **新实体的注册与连带改动**：`modules/angular-todo` 被 dev-rxdb-angular / electron / tauri 三个宿主的路由共用。electron / tauri
   不读 `ENTITIES`，五个 setup（electron `setup_rxdb_wa-sqlite` / `desktop` / `desktop_pglite`、tauri `setup_rxdb_wa-sqlite` / `desktop`）
-  各自列实体，无论哪种落点都要逐个加；两者没有 todo e2e，以构建与类型检查守住。加进 `rxdb-test` 的 `ENTITIES` 则一并进入 Angular 四个、
-  React 两个、Vue 一个 setup，`published-model-invariants.spec.ts` 的 `toHaveLength(13)` 要改；三端 `entity-model.spec.ts` 不数实体，但断言
+  各自列实体，要逐个加；两者没有 todo e2e，以构建与类型检查守住。`Task` 已加进 `rxdb-test` 的 `ENTITIES`（Angular / React / Vue 的
+  setup 随之带上），`published-model-invariants.spec.ts` 的实体数断言随之更新；三端 `entity-model.spec.ts` 不数实体，但断言
   首个实体是 `Account`、用 `/^Todo/` 匹配链接，新实体名不能排在 `Account` 之前、不能以 `Todo` 开头。新实体与 `Todo` 同库，不能沿用
-  `todos` 表名，三端 `working-tree.spec.ts` 断言的 `/\/todos\//` 与 `'todos'` 筛选随之改。Angular `todo.page.spec.ts` mock 了 `Todo`，一并改。
-  加进 `ENTITIES` 还是在各宿主单独注册，由 plan 定。
+  `todos` 表名，三端 `working-tree.spec.ts` 断言的 `/\/todos\//` 与 `'todos'` 筛选随之改。Angular `todo.page.spec.ts` 的 mock 已改指新实体。
 - **Todo 页的拖拽开关在页面层**：todo 页不经 `EntityList`，不依赖阶段 B 的谓词实现；只在「进行中 / 已完成」tab（恰好一组）、
-  数据完整加载、无挂起重排时开拖拽，按同一组条件判定，三端同交互。拖拽组件选型在 plan 定，约束如下：
+  数据完整加载、无挂起重排时开拖拽，按同一组条件判定，三端同交互。拖拽用 `@aiao/utils` 的 `FixedRowDrag`（Angular Todo 页已用），约束如下：
   - 三端列表都是虚拟滚动（Angular `cdk-virtual-scroll-viewport`、React / Vue `@tanstack/*-virtual` 绝对定位 + `translateY`），
-    视口外的行不在 DOM 里，批量添加可到 10,000 条；拖拽须支持自动滚动与可视下标到数据下标的映射，或在开拖拽时换掉虚拟化，plan 定。
+    视口外的行不在 DOM 里，批量添加可到 10,000 条；拖拽支持自动滚动与可视下标到数据下标的映射（`todo-sort.spec.ts` 的「贴视口下沿」用例验收）。
     仓库没有拖拽库依赖，树 demo 用原生 HTML5 拖放；`@angular/cdk` 已在根依赖，但其 drag-drop 不支持 `cdk-virtual-scroll-viewport`（推断，按官方文档）。
   - Angular 的 `trackBy` 是 `getEntityStatus().fingerprint`（id + updatedAt），每次写入后行 DOM 重建，可能打断拖拽状态；React / Vue 已按 `id` 键。
-  - 行内有双击编辑与悬停操作按钮，拖拽须用独立手柄。Angular 的完成态排序按钮没有 `data-testid="todo-sort"`（React / Vue 有），e2e 前补齐。
+  - 行内有双击编辑与悬停操作按钮，拖拽须用独立手柄。三端完成态排序按钮都带 `data-testid="todo-sort"`。
   - 撤销 / 重做沿用页面现有的 `history(<实体>)` 与 `history()`（仓库 / 数据库作用域，后进先出），`history(Todo)` 与历史侧栏随之改指新实体。
 - **Todo 的可见行为变化**：新建待办从「出现在最前」（`id desc`）变为「追加到进行中组末尾」；勾选完成经普通 update 改分组字段，
   按「分组字段变更」追加到已完成组末尾，取消勾选同理回到进行中组末尾；「全部完成」经 `saveMany` 按批内顺序追加。
@@ -397,7 +396,7 @@ AC#10 的关闭：阶段 A 一侧已验——未声明 `manualOrder` 的实体�
 owner 确认三端 Todo 列表需要手动排序：进行中与已完成各自一条序列（以 `completed` 为分组字段，阶段 D），
 验收落在三端 todo 页（阶段 E，AC#18）。`priority` 为 Medium。
 
-其余来源都不构成今天的症状：三框架 `EntityList` 的拖拽手柄已由 AC#6 关掉；直接渲染 `EntityTable` / `QueryTable`
+其余来源都不构成症状：三框架 `EntityList` 的拖拽手柄由 UI 启用谓词门控（AC#6）；直接渲染 `EntityTable` / `QueryTable`
 的调用方仓内没有；三个 demo 的树拖放各自算排序键与比较器的重复归 [US-031](US-031-tree-sortable-migration.md)。
 新增抽象至少 5 个：实体级可排序声明与 `ISortableEntity`、分组字段声明与按组归一化、core 的键封装 / 默认排序 / 重排 API
 （含跨组移动）、`EntityTable` 的移动上下文输出、rxdb-model 的 UI 启用谓词与重排协调；后两个属阶段 B，不在驱动路径上。
@@ -444,12 +443,12 @@ owner 确认三端 Todo 列表需要手动排序：进行中与已完成各自�
 - [US-025 核心包子系统按插件边界外移](US-025-core-plugin-extraction.md) — 树实体已外移到 `@aiao/rxdb-plugin-tree`；排序模块由本故事定为 core
 - [US-027 实体操作权限模型](US-027-entity-permission-model.md) — 无 update 权限的行经其阶段 C 挂 `_readonly`，列表因此不开手柄
 - [US-031 树形实体迁移到排序模块](US-031-tree-sortable-migration.md) — 以 `parentId` 为分组字段复用本故事 A + D
-- [todo.page.ts](../../../modules/angular-todo/todo-page/todo.page.ts) — Todo 页现状：三 tab、`[completed, id desc]`、无拖拽
+- [todo.page.ts](../../../modules/angular-todo/todo-page/todo.page.ts) — Todo 页：三 tab、`[completed, sortOrder asc, id asc]`、单组 tab 内拖拽
 - [tree-entity.interface.ts](../../../packages/rxdb-plugin-tree/src/entity/tree-entity.interface.ts) — `ISortableTreeEntity` 现状
 - [fractional-indexing.ts](../../../packages/utils/src/indexing/fractional-indexing.ts) — `generateKeyBetween` / `generateKeysBetween`
 - [table-operations.ts](../../../packages/rxdb-model/src/entity-table/vtable/table-operations.ts) — `collectReorderedIds`
 - [table-factory.ts](../../../packages/rxdb-model/src/entity-table/vtable/table-factory.ts) — `buildTableOptions()` 默认开 `dragOrder`
-- [entity-table.component.ts](../../../packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts) — 已有 dragOrder / rowReordered 半成品
-- [entity-list.component.ts](../../../packages/rxdb-model-angular/src/entity-list/entity-list.component.ts) — `LIST_TABLE_OPTIONS` 关手柄、`buildCursorOrderBy`（React `entity-list.tsx`、Vue `EntityList.vue` 同构）
+- [entity-table.component.ts](../../../packages/rxdb-model-angular/src/entity-table/entity-table/entity-table.component.ts) — `dragOrder` 手柄开关、`rowReordered` 与 `rowMoved` 输出
+- [entity-list.component.ts](../../../packages/rxdb-model-angular/src/entity-list/entity-list.component.ts) — `LIST_TABLE_OPTIONS`（统一开 `dragOrder`）、`buildCursorOrderBy`（React `entity-list.tsx`、Vue `EntityList.vue` 同构）
 - [fractional-indexing 上游 README](https://github.com/rocicorp/fractional-indexing) — 大小写敏感排序，`localeCompare` 会排错
 - [SQLite ORDER BY](https://www.sqlite.org/lang_select.html) / [PostgreSQL Sorting Rows](https://www.postgresql.org/docs/current/queries-order.html) / [PostgreSQL Collation](https://www.postgresql.org/docs/current/collation.html) — NULL 默认位置与 collation

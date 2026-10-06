@@ -113,6 +113,10 @@ export async function queryPendingLocalChanges(
     { field: 'entity', operator: '=', value: entity },
     { field: 'branchId', operator: '=', value: branchId },
     { field: 'remoteId', operator: '=', value: null },
+    // 被拒变更（rejectedAt 非空）的 remoteId 也一直是 null，但它永远不会再被推送，
+    // 必须和 remoteId = null 一起排除，否则会被当成待推的本地变更，和远端变更
+    // 撞上同一个 entityId 时误判出一次本不存在的冲突
+    { field: 'rejectedAt', operator: '=', value: null },
     { field: 'revertChangeId', operator: '=', value: null },
     { field: 'entityId', operator: 'in', value: getRxDBChangeEntityIdQueryValues(entityIds) }
   ];

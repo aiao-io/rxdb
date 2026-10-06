@@ -36,6 +36,7 @@ export default [
       // `prettier-plugin-organize-attributes` + `attributeSort: 'ASC'`（按字母序排），
       // 与本规则要求的 Vue **语义顺序**直接冲突，实测 `eslint --fix` 与 `nx format:write`
       // 会无限互相回退。留着它等于永久 558 条无法消除的 warning。
+      // 注：.prettierrc 现已对 *.vue 关闭属性排序（RV-035），此规则可按 rxdb-model-vue 的做法重新开启
       'vue/attributes-order': 'off'
     }
   }

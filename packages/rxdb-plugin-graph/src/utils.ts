@@ -20,6 +20,13 @@ const clamp = (value: number, min: number, max: number): number =>
   : value > max ? max
   : value;
 
+const normalizeDepth = (name: 'level' | 'maxDepth', value: number, min: number, max: number): number => {
+  if (Number.isNaN(value)) {
+    throw new RangeError(`graph query ${name} must be a number, received: NaN`);
+  }
+  return clamp(value, min, max);
+};
+
 const normalizeResultLimit = (value: number | undefined): number => {
   const limit = value ?? GRAPH_DEFAULT_RESULT_LIMIT;
   if (!Number.isSafeInteger(limit) || limit < 0) {
@@ -40,7 +47,7 @@ export function normalizeNeighborsOptions<
   return {
     ...options,
     direction: options.direction ?? 'both',
-    level: preserveZeroLevel && level === 0 ? 0 : clamp(level, 1, GRAPH_MAX_LEVEL),
+    level: preserveZeroLevel && level === 0 ? 0 : normalizeDepth('level', level, 1, GRAPH_MAX_LEVEL),
     limit: normalizeResultLimit(options.limit)
   };
 }
@@ -56,7 +63,7 @@ export function normalizePathsOptions<
   return {
     ...options,
     direction: options.direction ?? 'both',
-    maxDepth: clamp(options.maxDepth ?? GRAPH_DEFAULT_MAX_DEPTH, 1, GRAPH_MAX_DEPTH),
+    maxDepth: normalizeDepth('maxDepth', options.maxDepth ?? GRAPH_DEFAULT_MAX_DEPTH, 1, GRAPH_MAX_DEPTH),
     limit: normalizeResultLimit(options.limit)
   };
 }

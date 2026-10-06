@@ -48,6 +48,7 @@
     "vue": "^3.5.43"
   },
   "devDependencies": {
+    "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-plugin-search": "workspace:*"
   },
   "publishConfig": {

@@ -8,6 +8,7 @@ import { ArrowDown, ArrowUp, GripVertical, History, Pen, Plus, Redo2, Undo2, X }
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useObservable } from 'react-use';
 import { HistorySidebar } from '../components/HistorySidebar';
+import SyncRejectionsPanel from '../components/SyncRejectionsPanel';
 import { useResettableTimeout } from '../hooks/useResettableTimeout';
 
 const ITEM_SIZE = 48;
@@ -606,6 +607,9 @@ export function TodoPage(): React.JSX.Element {
             <span>排序保存失败：{reorderError}</span>
           </div>
         )}
+
+        {/* US-218 AC#16：最近一轮被远端拒绝的推送 */}
+        <SyncRejectionsPanel />
 
         {/* Todo List */}
         <div className='mx-auto min-h-60 max-w-4xl'>

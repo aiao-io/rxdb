@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-005-type-system-evolution
 created: 2026-07-31
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [collaboration, change-tracking, migration, history, cross-tab]
 ---
 
@@ -21,9 +21,11 @@ INVEST 检查清单:
 
 # 用户故事：bigint/binary change codec 与系统迁移
 
-> **迁移路径尚未被真实发布行使过。** 0.0.x 线的 `RXDB_SYSTEM_SCHEMA_VERSION`(3) 与
-> `RXDB_CHANGE_CODEC_VERSION`(1) 从未抬升，`migrateSystemSchema()` 在生产中始终走
-> 「版本已是最新，无事可做」的分支。AC10–AC14 的正确性由旧库 fixture 与注入失败的测试担保，
+> **迁移路径尚未被真实发布行使过。** 已发布的 v0.0.26 上 `RXDB_SYSTEM_SCHEMA_VERSION` 为 3、
+> `RXDB_CHANGE_CODEC_VERSION` 为 1，`migrateSystemSchema()` 在已发布版本中始终走
+> 「版本已是最新，无事可做」的分支；源码里 schema 版本常量已更高（当前值见
+> [`migration.ts`](../../../packages/rxdb/src/system/migration.ts)），首次真实迁移发布
+> 将是 3 → 当前值的升级。AC10–AC14 的正确性由旧库 fixture 与注入失败的测试担保，
 > 首次真实迁移发布时应重新过一遍。
 
 ## 作为/我想要/以便
@@ -135,7 +137,7 @@ AC13 由后端排他锁本身满足：迁移在 `BEGIN EXCLUSIVE`（SQLite）/ �
 - `packages/rxdb/src/RxDB.ts` — 内建迁移顺序、锁与 watermark
 - `packages/rxdb-adapter-sqlite-core/src/` — trigger codec 与 SQLite 系统迁移
 - `packages/rxdb-adapter-pglite/src/` — trigger codec 与 PGlite 系统迁移
-- `packages/rxdb-test/src/testing/` — 旧库 fixture 和跨 adapter change 套件
+- `packages/rxdb-adapter-sqlite-core/src/__tests__/shared-system-schema-migration.suite.ts` 与 `packages/rxdb-adapter-pglite/src/__tests__/system-schema-migration.spec.ts` — 旧库升级 fixture 与迁移套件
 
 ## References
 

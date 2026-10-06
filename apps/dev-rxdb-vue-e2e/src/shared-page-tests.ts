@@ -7,7 +7,7 @@ interface SharedPageOptions {
 }
 
 export function registerTreeMenuTests({ title, entityName }: SharedPageOptions): void {
-  test('should display page title', async ({ page }) => {
+  test('should display tree menu page title', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
   });
 
@@ -30,13 +30,13 @@ export function registerTreeMenuTests({ title, entityName }: SharedPageOptions):
     await expect(await getMenuDeleteButton(menu)).toBeVisible();
   });
 
-  test('should have search input', async ({ page }) => {
+  test('should have menu search input', async ({ page }) => {
     await expect(page.getByTestId('menu-search-input')).toBeVisible();
   });
 }
 
 export function registerFileManagerTests({ title, entityName }: SharedPageOptions): void {
-  test('should display page title', async ({ page }) => {
+  test('should display file manager page title', async ({ page }) => {
     await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible();
   });
 
@@ -44,7 +44,7 @@ export function registerFileManagerTests({ title, entityName }: SharedPageOption
     await expect(page.getByTestId('file-name-input')).toBeVisible();
   });
 
-  test('should have search input', async ({ page }) => {
+  test('should have file search input', async ({ page }) => {
     await expect(page.getByTestId('file-search-input')).toBeVisible();
   });
 

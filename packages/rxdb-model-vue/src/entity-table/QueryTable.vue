@@ -123,8 +123,8 @@ defineExpose({
 
     <!-- 筛选状态栏 -->
     <div
-      class="text-base-content/60 flex items-center gap-2 border-b px-3 py-1 text-xs"
       v-if="queryActive && statusText"
+      class="text-base-content/60 flex items-center gap-2 border-b px-3 py-1 text-xs"
     >
       <span>{{ statusText }}</span>
     </div>
@@ -132,6 +132,7 @@ defineExpose({
     <!-- 表格主体 -->
     <div class="min-h-0 flex-1">
       <EntityTable
+        ref="entityTable"
         :cell-clearable="cellClearable"
         :cell-error-detector="cellErrorDetector"
         :columns="columns"
@@ -152,7 +153,6 @@ defineExpose({
         @row-reordered="emit('rowReordered', $event)"
         @scroll-near-bottom="emit('scrollNearBottom')"
         @sort-clicked="emit('sortClicked', $event)"
-        ref="entityTable"
       >
         <template #emptyState>
           <slot name="emptyState" />

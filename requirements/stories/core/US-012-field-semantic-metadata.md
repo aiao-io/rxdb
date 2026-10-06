@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-005-type-system-evolution
 created: 2026-08-06
-updated: 2026-08-17
+updated: 2026-10-06
 tags: [core, model, metadata, field-type, frontend, transport, teable]
 ---
 
@@ -33,16 +33,11 @@ INVEST 检查清单:
 > | C    | `validateFieldValue()` + format/enum/options 透传 + 三框架契约回归 | AC#27～36 | ✅   |
 >
 > 生成器的 `default` 序列化管线重写与函数工厂显式失败**不在本故事**，已拆到
-> [US-018](./US-018-generator-default-serialization.md)：它修的是当前就存在的生成器缺陷，与字段语义无因果关系，
+> [US-018](./US-018-generator-default-serialization.md)：它修的是生成器 `default` 序列化缺陷，与字段语义无因果关系，
 > 且是唯一带 `BREAKING CHANGE` 的部分，独立发布与回滚更安全。阶段 C 的透传只涉及 `format` / `enum` / `options`
 > 这些 JSON-safe 纯数据，现有管线即可承载，**不依赖 US-018**。
 >
-> 本文是跨阶段的公共契约。进入开发前必须为 A / B / C 分别建立子任务；一个 PR 只能交付一个阶段，
-> 每个子任务独立更新对应 AC 状态和 API baseline。不得用“阶段表已经拆分”为理由把三阶段塞进同一 PR。
->
-> 阶段 B 的 DTO 需要阶段 A 已冻结的 `FieldFormat` 判别联合（阶段 A 未落地时 B 可先做关系、系统字段、
-> 计算属性、布尔标志与解析器这些非 format 部分）；阶段 C 的 `validateFieldValue()` 入参是阶段 B 的
-> `EntityFieldDescriptor`，A 与 B 都未落地时 C 不可开工。
+> 阶段依赖：阶段 B 的 DTO 引用阶段 A 的 `FieldFormat` 判别联合；阶段 C 的 `validateFieldValue()` 入参是阶段 B 的 `EntityFieldDescriptor`。各阶段独立更新对应 AC 状态和 API baseline。
 
 ## 作为/我想要/以便
 
@@ -139,7 +134,7 @@ AC 按交付阶段分段，编号连续。阶段内可任意顺序验收，阶�
 | 17  | 实体含关系                                                                    | ①省略 `resolve` 编译；②传入返回 `undefined` 的 `resolve`                                   | ①`@ts-expect-error` 确认省略 `resolve` 不可编译（D7：签名必填，不做「无关系可省略」特例）；②抛 `RxDBError`，消息含关系名与目标实体名，**不**回退成 `uuid`、**不**省略 `valueType`（INV-4）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | ✅   |
 | 18  | 关系目标实体只有一个 `primary: true` 的 `string` 属性                         | 调用 `describeEntityFields(metadata, resolve)`                                             | 关系 DTO 的 `valueType` 为 `'string'`，而非默认猜测的 `'uuid'`；`relation` 结构和写入映射仍符合 D9                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | ✅   |
 | 19  | 关系目标实体没有主键，或主键类型不在 `uuid/string/integer/bigint` 内          | 调用 `describeEntityFields(metadata, resolve)`                                             | 抛 `EntityRelationResolutionError` 且 `instanceof RxDBError`；`details` 保留关系字段、目标实体和 `missingRelationPrimary` / `unsupportedRelationValueType`，不得只检查 message                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | ✅   |
-| 20  | 计算属性 + `createdAt` / `updatedAt` / `createdBy` 系统字段存在               | 调用 `describeEntityFields()`                                                              | 计算属性输出真实 `valueType` 且 `readonly: true`；系统字段 `source: 'system'`，`readonly` **按元数据实际声明输出**——当前 `ENTITY_BASE_METADATA_OPTIONS` 五个字段恰好都声明了 `readonly: true`（[entity-base.ts:37-71](../../../packages/rxdb/src/entity/entity-base.ts#L37-L71)），因此本条断言值为 `true`，但实现必须读元数据而不是按 `source === 'system'` 填常量；用一个把 `createdAt` 覆盖成 `readonly: false` 的 fixture 实体反证这一点；`createdBy` / `updatedBy` 的 `valueType` 为 `'string'`（元数据实际声明），无用户语义                                                                                                                                                                       | ✅   |
+| 20  | 计算属性 + `createdAt` / `updatedAt` / `createdBy` 系统字段存在               | 调用 `describeEntityFields()`                                                              | 计算属性输出真实 `valueType` 且 `readonly: true`；系统字段 `source: 'system'`，`readonly` **按元数据实际声明输出**——当前 `ENTITY_BASE_METADATA_OPTIONS` 五个字段恰好都声明了 `readonly: true`（[entity-base.ts:38-81](../../../packages/rxdb/src/entity/entity-base.ts#L38-L81)），因此本条断言值为 `true`，但实现必须读元数据而不是按 `source === 'system'` 填常量；用一个把 `createdAt` 覆盖成 `readonly: false` 的 fixture 实体反证这一点；`createdBy` / `updatedBy` 的 `valueType` 为 `'string'`（元数据实际声明），无用户语义                                                                                                                                                                       | ✅   |
 | 21  | 布尔标志矩阵 fixture：属性 / 计算属性 / 四种关系各一行，标志一律不声明        | 生成字段 DTO，对每行断言键的**存在性**（`'unique' in d`）而非取值                          | 属性行：`readonly`/`nullable`/`required`/`unique`/`encrypted` 五键都在且为 `false`，`sortable`/`searchable`/`primary` 按属性接口能力决定在或不在（`BinaryProperty`/`JSONProperty`/`KeyValueProperty` 无 `sortable` 键，不伪造 `false`）；四种关系行：`sortable` 键都在且为 `false`，`readonly` 恒 `true`，`searchable`/`primary`/`enum`/`options`/`keyValueSchema` **一个都不出现**；`nullable`/`required`/`unique`/`encrypted` 四键**只在 1:1 / m:1 出现**（值为 `false`），在 1:m / m:n 上一个都不出现。断言必须用键存在性，`toEqual` 无法区分省略与 `undefined`                                                                                                                                       | ✅   |
 | 22  | 字段同时声明 `encrypted: true` 与 `sortable: true`                            | ①不装加密 adapter 时注册并生成 DTO；②单独跑 `@aiao/rxdb-adapter-encrypted` 的 adapter init | ①core 注册期**不**报错，DTO 忠实输出 `encrypted: true` 与 `sortable: true`，不做裁剪（D13）；②加密 adapter 仍抛 `encrypted_sortable_forbidden`，既有行为无回归                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | ✅   |
 | 23  | 任意实体的字段 DTO                                                            | 执行 `parseEntityFieldsDescriptor(JSON.parse(JSON.stringify(dto)))` 并深比较               | 解析成功且往返无损；不含 `Map`、函数、`Date`、`Uint8Array`、`columnName`、`default`；`dtoVersion === ENTITY_FIELDS_DTO_VERSION`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          | ✅   |
@@ -188,7 +183,7 @@ AC 按交付阶段分段，编号连续。阶段内可任意顺序验收，阶�
 
 - `PropertyType` 继续作为存储和运行时判别联合；`url`、`richText` 等不新增物理列映射。
 - `format` 使用判别对象（`{ kind, ...options }`），避免把 `currency`、`timezone`、`contentType` 等配置散落成互相冲突的可选字段。
-- **仓库里有两个同名的 `transitionMetadata`，不要混淆**：`@aiao/rxdb` 的 `entity/metadata-transition.ts` 把 `EntityMetadataOptions` 合并成 `EntityMetadata`（装饰器求值时跑，见 D3）；`rxdb-client-generator` 的 `core/RxDBClientGenerator.utils.ts:460` 把 `EntityMetadata` 序列化成**字符串**回填 `Entity(...)`。本故事只在前者的产物上做校验；后者的管线归 [US-018](./US-018-generator-default-serialization.md)，这里只借它搬运 `format` / `enum` / `options` 三项 JSON-safe 数据。
+- **仓库里有两个同名的 `transitionMetadata`，不要混淆**：`@aiao/rxdb` 的 `entity/metadata-transition.ts` 把 `EntityMetadataOptions` 合并成 `EntityMetadata`（装饰器求值时跑，见 D3）；`rxdb-client-generator` 的 `core/RxDBClientGenerator.utils.ts` 里的 `transitionMetadata()` 把 `EntityMetadata` 序列化成**字符串**回填 `Entity(...)`。本故事只在前者的产物上做校验；后者的管线归 [US-018](./US-018-generator-default-serialization.md)，这里只借它搬运 `format` / `enum` / `options` 三项 JSON-safe 数据。
 - **`validateEntityMetadata` 是 core 独占的名字**：`rxdb-client-generator` 里校验绑定标识符与 namespace
   的那个私有箭头函数叫 [`assertGeneratedEntityBindings`](../../../packages/rxdb-client-generator/src/core/RxDBClientGenerator.ts)。
   它不导出，与 core 的公开导出本就不冲突编译；两边不同名，是为了「哪个校验器报的错」不在两个包之间
@@ -211,7 +206,7 @@ AC 按交付阶段分段，编号连续。阶段内可任意顺序验收，阶�
 - 本故事不新增物理 `PropertyType`，不进入 epic-005 的 bigint/binary 发布门禁。
 - 校验点是「读到 metadata 之后、注册 manager 之前」，不需要也不应该重跑 `transitionMetadata()`（D3）。
   `validateEntityMetadata()` 必须是纯函数，返回按 `namespace/entity/field/rule` 排序的错误数组，不得在首个错误处抛出。
-  `MetadataValidationRule` 联合在阶段 A 一次性定全 13 项，全部由 `validateEntityMetadata()` 产出；
+  `MetadataValidationRule` 联合（见 `metadata-validate.ts`）列出的规则全部由 `validateEntityMetadata()` 产出；
   关系目标解析的 `missingRelationPrimary` / `unsupportedRelationValueType` 属于另一个联合
   `RelationResolutionRule`，只由阶段 B 的 `describeEntityFields()` 产出（D3）。
 - `validateFieldValue()` 同样是纯函数：不读全局状态、不访问 repository、不做 I/O（AC#32 用 spy 断言）。

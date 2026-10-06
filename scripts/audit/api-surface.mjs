@@ -75,7 +75,7 @@ const EXCLUDED = new Set(['rxdb-test']);
  * `./alipay-random-worker.js`：支付宝小程序 Worker 脚本，手写 ES5、无 import / export，
  * 由应用作为 Worker 文件加载（协议见 `src/hosts/alipay-random.ts`），无 TS 导出表面。
  *
- * `@aiao/rxdb-test/*`（5 个子路径）不在此列——整包已由 EXCLUDED 排除，非产品 API。
+ * `@aiao/rxdb-test/*`（全部子路径）不在此列——整包已由 EXCLUDED 排除，非产品 API。
  * 三个 model 绑定包的 CSS 资产入口同理：`rxdb-model-angular` / `rxdb-model-vue` 的
  * `tailwind.css` 与 `rxdb-model-react` 的 `tailwind.css`、`index.css`（编译后的样式 bundle）
  * 都是 Tailwind `@source` 注册 / 样式产物，无 TS 导出表面，由消费方的 Tailwind 管线消费，
@@ -508,7 +508,17 @@ const NAMING = {
     'SORT_ORDER_FIELD',
     'SortOrderError',
     'SortOrderErrorReason',
-    'SortOrderKey'
+    'SortOrderKey',
+    // US-218 阶段 B 推送回执与被拒上报。`RemoteChangeResult` / `RemoteChangeRejection` / `RemoteEntityRef`
+    // 是 `RemoteMergeResult` 逐实体回执的形状，适配器实现 `mergeChanges` 时必须能命名；
+    // `SyncRejectionReport` / `SyncRejection` 是 `SyncState.lastRejections` 的元素类型，三端绑定与
+    // 调用方按 `reason` 分支时必须能命名。它们是同步契约，与工作树、提交能力都无关，
+    // 叫 `Commit*` / `WorkingTree*` 等于宣称推送回执是提交能力的一部分。
+    'RemoteChangeRejection',
+    'RemoteChangeResult',
+    'RemoteEntityRef',
+    'SyncRejection',
+    'SyncRejectionReport'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

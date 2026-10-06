@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-18
-updated: 2026-09-25
+updated: 2026-10-06
 tags: [plugin, documentation, website]
 ---
 
@@ -38,7 +38,7 @@ INVEST 检查清单:
 
 ### Out of Scope
 
-- 阶段 E（树实体外移）的文档——树实体还没拆
+- 树插件（`rxdb-plugin-tree`）的文档——另见 [US-025](../core/US-025-core-plugin-extraction.md) 阶段 E，手册页在 `website/docs/plugins/rxdb-plugin-tree/`
 - 三插件的框架绑定文档——三个包没有框架绑定层
 - `docs/api/` 目录本身入库——它是 gitignore 的生成产物，构建时自动生成
 

@@ -18,6 +18,7 @@ import { copyFile, cp, mkdir, rm } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { subframeRealmPlugin } from '../../../scripts/esbuild/subframe-realm.mjs';
 
 const projectRoot = fileURLToPath(new URL('..', import.meta.url));
 
@@ -48,7 +49,7 @@ export const CORE_INIT_ERROR_KEY = 'initError';
  * @returns {string}
  */
 function realmProbeBanner() {
-  return `var ${RUNTIME_GLOBAL_VAR};
+  return `var ${RUNTIME_GLOBAL_VAR} = typeof globalThis === "object" ? globalThis : undefined;
 var ${REALM_PROBE_VAR} = (function () {
   var record = { before: typeof globalThis, candidates: {}, chosen: null };
   if (record.before === 'object') return record;
@@ -140,14 +141,15 @@ export async function buildSpike(outDir = join(projectRoot, 'dist')) {
     entryPoints: [join(projectRoot, 'src/page.ts')],
     outfile: join(outDir, 'pages/index/index.js'),
     banner: { js: realmProbeBanner() },
-    plugins: [keepCoreExternal]
+    plugins: [keepCoreExternal, subframeRealmPlugin(RUNTIME_GLOBAL_VAR)]
   });
   await build({
     ...SHARED_OPTIONS,
     entryPoints: [join(projectRoot, 'src/core.ts')],
     outfile: join(outDir, 'spike-core.js'),
     banner: { js: `${realmProbeBanner()}\n${coreInitErrorWrapper().banner}` },
-    footer: { js: coreInitErrorWrapper().footer }
+    footer: { js: coreInitErrorWrapper().footer },
+    plugins: [subframeRealmPlugin(RUNTIME_GLOBAL_VAR)]
   });
   return outDir;
 }

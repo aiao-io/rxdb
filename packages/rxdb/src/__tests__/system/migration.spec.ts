@@ -36,8 +36,8 @@ describe('RxDBMigration', () => {
     // 强迫那次改动被人看见一次。上一次是 5 → 6：epic-006 的十张表随
     // `@aiao/rxdb-plugin-working-tree` 抽走，语义「activeKey 就位，且那十张表不再归核心管」。
     it('系统 schema 版本常量与水位行停在当前值', () => {
-      expect(RXDB_SYSTEM_SCHEMA_VERSION).toBe(6);
-      expect(RXDB_SYSTEM_SCHEMA_WATERMARK).toBe(`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}6`);
+      expect(RXDB_SYSTEM_SCHEMA_VERSION).toBe(7);
+      expect(RXDB_SYSTEM_SCHEMA_WATERMARK).toBe(`${RXDB_SYSTEM_SCHEMA_WATERMARK_PREFIX}7`);
     });
 
     // 版本号取自常量而非写死：写死会在下一次 bump 时把「当前版本」测成「历史版本」，

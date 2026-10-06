@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-15
-updated: 2026-09-22
+updated: 2026-10-06
 tags: [core, plugin, packaging]
 ---
 
@@ -185,30 +185,18 @@ export class QueryCacheRepository<T extends EntityBaseType = EntityBaseType> {
 `QueryCachePrimaryRepository` 保留原名——它确实 `implements IRepository`，站在门面轴上。
 未来新增的策略轴成员按 `*Engine` 命名，门面轴成员按 `*Repository` 命名，一个名字只属于一条轴。
 
-**门面轴今天只对插件半开。** 注册 API 已经通了（graph 插件在跑），但两处类型是硬编码的：
-
-```ts
-repository?: 'Repository' | 'TreeRepository' | string;
-```
-
-```ts
-export interface EntityMetadataFeatures {
-  [name: string]: unknown;
-  tree?: EntityMetadataTreeFeatures;
-}
-```
-
-`tree` 在核心接口上有具名字段，`graph` 只能落到索引签名——同为门面轴成员，一个是一等公民、一个是
-字符串。核心里已有现成解法，[`RxDBAdapters`](../../../packages/rxdb/src/rxdb-adapter.ts) 就是这么开的：
+**门面轴对插件开放（阶段 A 交付）。** 注册 API（graph 插件是先例）之外，两处类型也向插件开放：
+`@Entity({ repository })` 取 `RxDBRepositoryName`，`EntityMetadataFeatures` 只留索引签名，
+`tree` / `graph` 都由插件用 `declare module` 挂上来。做法照抄
+[`RxDBAdapters`](../../../packages/rxdb/src/rxdb-adapter.ts)：
 
 ```ts
 export interface RxDBAdapters {}
 export type RxDBAdapterName = keyof RxDBAdapters | (string & {});
 ```
 
-照抄成 `RxDBRepositories {}` + `RxDBRepositoryName`，把 `repository?` 换成后者，插件用
-`declare module` 把自己的成员合并进来。这是阶段 A 的第一件事：**不搬任何运行时代码**，
-却是阶段 E 把 `TreeRepository` 搬出核心的前置——`tree?` 那个具名字段要能跟着插件走，
+`RxDBRepositories {}` + `RxDBRepositoryName` 与它同构。这一步**不搬任何运行时代码**，
+却是阶段 E 把 `TreeRepository` 搬出核心的前置——`features.tree` 要能跟着插件走，
 首先得有一条插件能往里写的路。
 
 ## 范围边界
@@ -384,28 +372,23 @@ sync 插件必须排在 history 插件之后——两者共用 changelog 水位�
 等待插件就绪的公开结算点是 `await rxdb.connect(<adapterName>)`，它对已连接的适配器同样有效，
 会重跑插件等待。
 
-### 排序能力仍挂在树接口下（遗留债，不阻塞）
+### 排序能力不挂在树接口下
 
-`ISortableTreeEntity` 随树一起搬进了 `@aiao/rxdb-plugin-tree`，因此**非树实体的排序需求
-今天要装 tree 插件才能满足**——这与「按需安装」相悖，但不构成阶段 E 的阻塞：
-`sortOrder` 在核心与 `rxdb-model` 里零实现、零读取，运行期没有任何东西跟着被拖走，
-迁走的只是一个类型声明。
-
-[US-028](./US-028-sortable-entity.md)（Backlog）要新增与 `ITreeEntity` 平行的
-`ISortableEntity`，`ISortableTreeEntity` 改为同时继承两者、名字不变。排序模块已定案放在核心
-（查询默认排序与 create 追加键都在引擎写路径上），树插件本来就依赖 `@aiao/rxdb`，依赖方向天然是
-树 → 核心，与阶段 E 没有先后约束。
+`ISortableTreeEntity` 随树一起搬进了 `@aiao/rxdb-plugin-tree`，但非树实体的排序不需要装 tree 插件：
+排序模块在核心（[US-028](./US-028-sortable-entity.md) 的 `manualOrder` 声明与 `SortOrderKey`），
+`ISortableTreeEntity` 的 `sortOrder` 取核心的 `SortOrderKey` 组合而成，树节点的可空性不变。
+依赖方向是树 → 核心。
 
 ## 技术笔记
 
 **机制已经就绪的部分**（不需要新原语，照抄现有插件的做法即可）：
 
-- **插件可注册实体**：`LIVE_BEHAVIOUR_CONFIG_KEYS` 是 `new Set(['entities', 'migrations'])`，
-  `freezeConfig()` 整棵跳过这两项，所以插件能在 `install(scope)` 里往 `rxdb.config.entities` 推类并登记撤销。
+- **插件可注册实体**：`LIVE_BEHAVIOUR_CONFIG_KEYS`（`rxdb.types.ts`）含 `entities` / `migrations`（另有 `syncOverrides`），
+  配置冻结时整棵跳过这些项，所以插件能在 `install(scope)` 里往 `rxdb.config.entities` 推类并登记撤销。
   `RxDBPluginStorage.install()` 的 `'storage:entity'` 条目就是现成先例。
 - **插件可注册仓储实现**：`RxDB.repository(name, config, scope)` 第三个形参接作用域。
-  `EntityManager` 今天注册 `TreeRepository` 走的正是这个 API，阶段 E 只是把调用方从
-  `EntityManager` 换成插件。
+  `TreeRepository` 由 `@aiao/rxdb-plugin-tree` 的 `install()` 经这个 API 注册（阶段 E 把调用方从
+  `EntityManager` 换成了插件）。
 - **安装时序**：`RxDB.init()` 里 `#install_plugin()` 排在 `schemaManager.init()` **之前**，
   所以插件推进去的实体赶得上建表。
 
@@ -448,8 +431,8 @@ sync 插件必须排在 history 插件之后——两者共用 changelog 水位�
   与 changelog 原语同一性质，属适配器契约。因此 B1「依赖图里没有 QueryCache」能过，但**六个适配器
   仍要实现这五个方法**，适配器侧的包体不因阶段 B 变小。
 
-**归属已定（阶段 B 开工时结的两处）**：[`RxDBAdapterHttp`](../../../packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts)
-v1 只服务一种同步类型——
+**归属（两处）**：[`RxDBAdapterHttp`](../../../packages/rxdb-adapter-http/src/RxDBAdapterHttp.ts)
+v1 只服务一种同步类型（拒绝原因见 [`errors.ts`](../../../packages/rxdb-adapter-http/src/errors.ts)）——
 
 ```ts
 readonly reason = 'v1 supports SyncType.QueryCache only'

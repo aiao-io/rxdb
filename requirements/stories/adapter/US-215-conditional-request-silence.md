@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-08-27
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [adapter, http, etag, observability, dx]
 ---
 
@@ -13,7 +13,7 @@ tags: [adapter, http, etag, observability, dx]
 INVEST 检查清单:
 - [x] Independent: 只在 `transport.ts` 已有的分支上加一次回调，不依赖 US-021 / US-022
 - [x] Negotiable: 回调签名与载荷字段可议；「不引入 console」不可议（见 D2）
-- [x] Valuable: 今天开了 `conditionalRequests` 却全程不生效，用户侧零信号——账单照付，缓存零命中
+- [x] Valuable: 开了 `conditionalRequests` 却全程不生效时，默认零信号——账单照付，缓存零命中；配诊断回调即可观测
 - [x] Estimable: 一个可选 hook + 一次去重 + 改一条既有 e2e 的判词
 - [x] Small: 单次迭代内可完成
 - [x] Testable: 断言回调被调用的次数与载荷；断言不配回调时行为逐字不变
@@ -39,6 +39,7 @@ if (etag === null) {
   // 远端停发 ETag：留着旧条目就是拿一个再也换不到 304 的令牌去问，
   // 每次都白搭一个请求头，且下一次 200 会被误判成「内容变了」
   cache.delete(key);
+  this.#reportEtagUnreadable(cache, key, url, response, ctx); // 未配回调时什么都不做
   return value;
 }
 ```
@@ -71,8 +72,8 @@ if (etag === null) {
 ### 症状被冻结在用例里
 
 [conditional-requests.spec.ts](../../../apps/dev-rxdb-http-e2e/src/conditional-requests.spec.ts)
-的 AC#10 用例名就叫「已知症状（非待修 bug）：未暴露 ETag 时条件请求全程不命中，且不报错、无日志」，
-其断言包括 `expect(consoleErrors).toEqual([])`。本故事要动的正是这条「无日志」。
+的 AC#10 用例名是「已知症状（非待修 bug）：未暴露 ETag 且未配诊断回调时，条件请求全程不命中，且不报错、无日志」，
+其断言包括 `expect(consoleErrors).toEqual([])`。未配回调时这条「无日志」照旧；配了回调则有信号（见 D3）。
 
 ### 复验方式
 
@@ -128,17 +129,17 @@ US-214 AC#10 那条用例的语义已从**「已知症状」**改为**「未配�
 
 ## 验收标准
 
-| #   | 前置条件                                                                | 操作                 | 预期结果                                                                                             | 状态 |
-| --- | ----------------------------------------------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------- | ---- |
-| 1   | `conditionalRequests: true`，配了诊断回调，远端 200 但响应读不到 `ETag` | 一次 `fetchMetadata` | 回调被调用一次，载荷含实体名、请求 URL、`Response.type`                                              | ✅   |
-| 2   | 同 AC#1，载荷文案                                                       | 读文案               | **不**断言成因；同时点出「远端未发」与「跨源未暴露」两种可能，并指向 `Access-Control-Expose-Headers` | ✅   |
-| 3   | `conditionalRequests: true`，**未配**回调，远端读不到 `ETag`            | 一次 `fetchMetadata` | 行为与本故事之前逐字相同：缓存条目被删、正常返回值、不抛、控制台零输出                               | ✅   |
-| 4   | `conditionalRequests: false`，配了回调                                  | 一次 `fetchMetadata` | 回调不触发——关着的开关不该产生噪音                                                                   | ✅   |
-| 5   | 同一缓存 key 连续 N 次都读不到 `ETag`                                   | 连续拉取             | 回调只触发一次；不同 key 各自触发一次                                                                | ✅   |
-| 6   | 远端正常发 `ETag`                                                       | 两次 `fetchMetadata` | 回调一次都不触发；304 命中行为不变                                                                   | ✅   |
-| 7   | 回调自身抛错                                                            | 一次 `fetchMetadata` | 不影响本次请求的结果——诊断通道不得成为新的故障源                                                     | ✅   |
-| 8   | [dev-rxdb-http-e2e](../../../apps/dev-rxdb-http-e2e/) 的 AC#10 用例     | 跑 e2e               | 按 D3 更新判词后通过；新增的「配了回调有信号」对照用例通过                                           | ✅   |
-| 9   | 实现完成                                                                | 跑门禁               | `@aiao/rxdb-adapter-http` 覆盖率不回退（当前 99%）；新导出补 TSDoc 并进 api-baseline                 | ✅   |
+| #   | 前置条件                                                                | 操作                 | 预期结果                                                                                                                   | 状态 |
+| --- | ----------------------------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | `conditionalRequests: true`，配了诊断回调，远端 200 但响应读不到 `ETag` | 一次 `fetchMetadata` | 回调被调用一次，载荷含实体名、请求 URL、`Response.type`                                                                    | ✅   |
+| 2   | 同 AC#1，载荷文案                                                       | 读文案               | **不**断言成因；同时点出「远端未发」与「跨源未暴露」两种可能，并指向 `Access-Control-Expose-Headers`                       | ✅   |
+| 3   | `conditionalRequests: true`，**未配**回调，远端读不到 `ETag`            | 一次 `fetchMetadata` | 行为与本故事之前逐字相同：缓存条目被删、正常返回值、不抛、控制台零输出                                                     | ✅   |
+| 4   | `conditionalRequests: false`，配了回调                                  | 一次 `fetchMetadata` | 回调不触发——关着的开关不该产生噪音                                                                                         | ✅   |
+| 5   | 同一缓存 key 连续 N 次都读不到 `ETag`                                   | 连续拉取             | 回调只触发一次；不同 key 各自触发一次                                                                                      | ✅   |
+| 6   | 远端正常发 `ETag`                                                       | 两次 `fetchMetadata` | 回调一次都不触发；304 命中行为不变                                                                                         | ✅   |
+| 7   | 回调自身抛错                                                            | 一次 `fetchMetadata` | 不影响本次请求的结果——诊断通道不得成为新的故障源                                                                           | ✅   |
+| 8   | [dev-rxdb-http-e2e](../../../apps/dev-rxdb-http-e2e/) 的 AC#10 用例     | 跑 e2e               | 按 D3 更新判词后通过；新增的「配了回调有信号」对照用例通过                                                                 | ✅   |
+| 9   | 实现完成                                                                | 跑门禁               | `@aiao/rxdb-adapter-http` 覆盖率不回退（见 `pnpm nx test rxdb-adapter-http --coverage`）；新导出补 TSDoc 并进 api-baseline | ✅   |
 
 AC#1–#7 由 `packages/rxdb-adapter-http` 的单元用例证实（`Tests 350 passed (10 files)`，
 其中 `transport.spec.ts` 66 条、`RxDBAdapterHttp.spec.ts` 74 条、`conditional-cache.spec.ts` 20 条）。

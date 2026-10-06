@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-08-13
-updated: 2026-09-25
+updated: 2026-10-06
 tags: [collaboration, branch, concurrency, conflict]
 inherited_acs:
   - from: US-306
@@ -27,7 +27,7 @@ INVEST 检查清单:
 - [x] Independent: 依赖 US-305 与 US-306 阶段 B 的 revision CAS，但分支往返和冲突诊断自成一条交付线
 - [x] Negotiable: 冲突记录结构与提示文案可在 plan 阶段调整
 - [x] Valuable: 多标签页/多分支下不会静默丢失另一方的修改
-- [x] Estimable: 现有 switchBranch 行为与 lease 契约都已确认
+- [x] Estimable: 现有 switchBranch 行为已确认
 - [x] Small: 只做分支隔离与并发校验，不改 commit 存储，不改 restore 语义
 - [x] Testable: 双 realm fixture 可判定「后到的提交被拒绝且无数据丢失」
 -->
@@ -72,7 +72,7 @@ US-306 阶段 A 用持久层重放断言覆盖数据契约，把「必须真的�
 
 [US-305 FR-018](./US-305-commit-graph-head.md) 要求「已有 API 的行为不能因为 commit 功能而改变」。把 `switchBranch()` 的默认行为改成「要求工作树 clean」会直接违反它，而且是会打破用户代码的那种违反：
 
-- [VersionManager.ts](../../../packages/rxdb-plugin-history/src/VersionManager.ts) 的 `switchBranch(branchId: string)` 当前**无条件**切换，没有 dirty 检查，也没有 options 参数。
+- [VersionManager.ts](../../../packages/rxdb-plugin-history/src/VersionManager.ts) 的 `switchBranch(branchId, preconditions?)` 默认**无条件**切换，不做 dirty 检查；第二形参 `RxDBBranchSwitchPreconditions`（`requireClean` / `expectedActivationRevision`）是纯扩展，不传即与原行为一致。
 - [website/docs/collaboration/branch.md](../../../website/docs/collaboration/branch.md) 里所有示例都是直接 `await rxdb.versionManager.switchBranch('feature-1')`。
 - [branch-manager.ts](../../../apps/dev-rxdb-supabase/src/app/branch-manager.ts#L203) 的 `switchBranch(branch)` 方法从一个下拉框直接 `await this.#rxdb.versionManager.switchBranch(branch)`，没有任何 dirty 处理路径。
 - `VersionManager` 类方法签名不受只记录导出名的 api-baseline 完整保护；现有 `SwitchBranchOptions` 还是
@@ -192,7 +192,7 @@ commit、discard 或刷新/重新选择建议，不能只检查业务表 diff。
 - `packages/rxdb-plugin-working-tree/src/working-tree/` — 分支隔离、revision 冲突派生与错误分类（`activation-cas.ts`、`commit-conflict.ts`、`branch-materialization.ts`、`switch-branch-options.ts`）
 - `packages/rxdb-plugin-working-tree/src/working-tree/` — `WorkingTreeActivationState` 的 switch CAS 与 branch lifecycle 事务（`activation-state.ts`；表本身由 US-305 建立）
 - `packages/rxdb-plugin-working-tree-{angular,react,vue}/` — 对称的冲突状态与提示
-- `requirements/api-baseline/rxdb.json` — 新增 `WorkingTreeSwitchBranchOptions`；`CommitConflict` 只更新已由 US-306 阶段 B 登记的条目
+- `requirements/api-baseline/rxdb-plugin-working-tree.json` — 新增 `WorkingTreeSwitchBranchOptions`；`CommitConflict` 只更新已由 US-306 阶段 B 登记的条目
 - `packages/rxdb-plugin-history/src/__tests__/contracts/public-type-compatibility.spec.ts` — `switchBranch` 公开方法签名兼容测试
 
 ## 依赖与参考

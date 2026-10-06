@@ -53,8 +53,8 @@ defineExpose({ operatorOptions, onOperatorChange });
   <PopoverSelect
     :options="operatorOptions"
     :selected="selectedOperator"
-    @select-change="onOperatorChange"
     min-width="8rem"
     placeholder="选择操作符"
+    @select-change="onOperatorChange"
   />
 </template>

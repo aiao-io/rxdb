@@ -54,6 +54,12 @@ export const Replayer = forwardRef<ReplayerRef, ReplayerProps>(function Replayer
   const hostRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<ReplayerHandle | null>(null);
   const appliedRef = useRef<ReplayerInputs | null>(null);
+  // RV-070：父组件的首个 layout effect 比这里的挂载 effect（passive）先跑，那时 handle 还不
+  // 存在。之前 `seek` 对着空 handle 可选调用，目标时刻直接丢了。这里记下「挂载前最新一次
+  // seek 意图」，挂载时连同 handle 一起兑现；不在兑现后清空——`StrictMode` 下开发期会
+  // 挂载→卸载→再挂载同一个实例，若清空就只有第一个（随即被丢弃的）handle 收得到这份意图，
+  // 真正留下来的第二个 handle 反而收不到。
+  const pendingSeekRef = useRef<number | null>(null);
 
   const readInputs = useEffectEvent((): ReplayerInputs => ({ replay, sessionId, initialTime }));
   const emitTimeChange = useEffectEvent((timeMs: number) => onTimeChange?.(timeMs));
@@ -70,6 +76,7 @@ export const Replayer = forwardRef<ReplayerRef, ReplayerProps>(function Replayer
     });
     handleRef.current = handle;
     appliedRef.current = inputs;
+    if (pendingSeekRef.current !== null) handle.seek(pendingSeekRef.current);
     return () => {
       handle.destroy();
       handleRef.current = null;
@@ -93,7 +100,13 @@ export const Replayer = forwardRef<ReplayerRef, ReplayerProps>(function Replayer
     () => ({
       play: () => handleRef.current?.play(),
       pause: () => handleRef.current?.pause(),
-      seek: timeMs => handleRef.current?.seek(timeMs)
+      // 无论 handle 是否已就绪都先记下这个意图：handle 已存在时照常直接转发（行为不变）；
+      // 还不存在时单靠记忆在挂载 effect 里补发——play / pause 加载前仍保持空操作，不为
+      // 它们补队列（评审明确只要求 seek 记忆目标，不要求把全部命令都变成可排队的）。
+      seek: timeMs => {
+        pendingSeekRef.current = timeMs;
+        handleRef.current?.seek(timeMs);
+      }
     }),
     []
   );

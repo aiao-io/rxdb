@@ -45,7 +45,7 @@ const toError = (error: unknown): Error => (error instanceof Error ? error : new
  * 一个会话的录制循环：rrweb `emit` → 分配 `seq` → 缓冲 → 分批落库。
  *
  * @remarks
- * 节奏照 `specs/005-us-909-session-replay/research.md` D5：攒满 `maxEvents` 或距缓冲开始 `intervalMs` 就冲刷，
+ * 节奏照 `git show 2e820521:specs/005-us-909-session-replay/research.md` D5：攒满 `maxEvents` 或距缓冲开始 `intervalMs` 就冲刷，
  * 同一时刻至多一笔在途。冲刷失败或超限即停 rrweb、报一次结局，不重试。
  */
 export class ReplayRecorder {

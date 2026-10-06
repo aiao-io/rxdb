@@ -88,6 +88,83 @@ function wrapExecutionError(sql: string, stage: string, error: unknown): never {
   throw new RxDBAdapterSqliteError(`wa-sqlite ${stage} failed for SQL "${sql}": ${message}`, { cause: error });
 }
 
+type StatementRunner = (stmt: number, statementBindings?: SQLiteCompatibleType[]) => Promise<void>;
+
+/** 执行阶段捕获到的原始错误；包一层是为了区分「没有错误」与「抛出的就是 undefined」。 */
+type ExecutionFailure = { readonly error: unknown } | undefined;
+
+/**
+ * 逐个 finalize `unscoped` 句柄，再结算执行结果。
+ *
+ * @remarks
+ * 之前写在 `finally` 里串行 `await finalize`：第一个句柄 finalize 抛错会让后面的句柄漏收，
+ * 而 `finally` 里抛出的错误又会顶替掉 prepare / step 的原始错误，调用方只看到一句
+ * 「finalize failed」。这里每个句柄各自 try/catch，原始错误优先上抛；没有原始错误时
+ * 才把清理失败报出来，不静默吞掉。与 sqlite-wasm 的 RV-065 修法一致。
+ */
+async function finalizeStatements(
+  sqlite3: SQLiteAPI,
+  statements: readonly number[],
+  failure: ExecutionFailure
+): Promise<void> {
+  const finalizeErrors: unknown[] = [];
+  for (const stmt of statements) {
+    try {
+      await sqlite3.finalize(stmt);
+    } catch (finalizeError) {
+      finalizeErrors.push(finalizeError);
+    }
+  }
+  if (failure) throw failure.error;
+  if (finalizeErrors.length > 0) throw finalizeErrors[0];
+}
+
+/** 执行带绑定的单条语句；多语句在任何一条执行之前就拒绝，已取得的句柄全部回收。 */
+async function runBoundStatement(
+  sqlite3: SQLiteAPI,
+  db: number,
+  sql: string,
+  bindings: SQLiteCompatibleType[],
+  runStatement: StatementRunner
+): Promise<void> {
+  const statements: number[] = [];
+  let failure: ExecutionFailure;
+  try {
+    for await (const stmt of sqlite3.statements(db, sql, { unscoped: true })) {
+      statements.push(stmt);
+      if (statements.length === 2) break;
+    }
+    if (statements.length > 1) {
+      throw new RxDBAdapterSqliteError(
+        'multi-statement SQL with bindings is not supported; execute one statement per call'
+      );
+    }
+    const statement = statements[0];
+    if (statement !== undefined) await runStatement(statement, bindings);
+  } catch (error) {
+    failure = { error };
+  }
+  await finalizeStatements(sqlite3, statements, failure);
+}
+
+/** 按顺序执行无绑定的（可能多条）语句；每条执行完立即 finalize，再取下一条。 */
+async function runStatementsInOrder(
+  sqlite3: SQLiteAPI,
+  db: number,
+  sql: string,
+  runStatement: StatementRunner
+): Promise<void> {
+  for await (const stmt of sqlite3.statements(db, sql, { unscoped: true })) {
+    let failure: ExecutionFailure;
+    try {
+      await runStatement(stmt);
+    } catch (error) {
+      failure = { error };
+    }
+    await finalizeStatements(sqlite3, [stmt], failure);
+  }
+}
+
 /** 执行 SQL 并返回结果集、影响行数和耗时。 */
 async function executeHelper(
   sqlite3: SQLiteAPI,
@@ -132,30 +209,9 @@ async function executeHelper(
     );
 
     if (bindings?.length) {
-      const statements: number[] = [];
-      try {
-        for await (const stmt of sqlite3.statements(db, sql, { unscoped: true })) {
-          statements.push(stmt);
-          if (statements.length === 2) break;
-        }
-        if (statements.length > 1) {
-          throw new RxDBAdapterSqliteError(
-            'multi-statement SQL with bindings is not supported; execute one statement per call'
-          );
-        }
-        const statement = statements[0];
-        if (statement !== undefined) await runStatement(statement, bindings);
-      } finally {
-        for (const stmt of statements) await sqlite3.finalize(stmt);
-      }
+      await runBoundStatement(sqlite3, db, sql, bindings, runStatement);
     } else {
-      for await (const stmt of sqlite3.statements(db, sql, { unscoped: true })) {
-        try {
-          await runStatement(stmt);
-        } finally {
-          await sqlite3.finalize(stmt);
-        }
-      }
+      await runStatementsInOrder(sqlite3, db, sql, runStatement);
     }
   } catch (error) {
     wrapExecutionError(sql, 'execute()', error);

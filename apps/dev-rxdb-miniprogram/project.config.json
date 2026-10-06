@@ -51,10 +51,6 @@
         "type": "file"
       },
       {
-        "value": "babel.config.js",
-        "type": "file"
-      },
-      {
         "value": "commitlint.config.mjs",
         "type": "file"
       },

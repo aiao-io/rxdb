@@ -1,5 +1,5 @@
 /**
- * @fileoverview `rxdb.replay` 门面（`specs/005-us-909-session-replay/contracts/replay-plugin.md` §2、data-model §3.2）。
+ * @fileoverview `rxdb.replay` 门面（`git show 2e820521:specs/005-us-909-session-replay/contracts/replay-plugin.md` §2、data-model §3.2）。
  *
  * @remarks
  * 走真插件、真录制库（PGlite memory），只把 rrweb 换成假的：录制状态机、错误码与纪元释放时的收尾都是插件自己的事，

@@ -16,7 +16,7 @@
  *    那张表改一格两边同时红；抄一份过来的话，改契约只会红在核心那一侧，这一侧照旧全绿——
  *    而全绿的那一侧恰好是判「捕获规则要不要跟着改」的那一侧。
  *
- * 断言只有两条，因为这一列只有两种取值、且分布本身就是规格：**11 行里恰好 4 行不产生单元**——
+ * 断言只有两条，因为这一列只有两种取值、且分布本身就是规格：**12 行里恰好 4 行不产生单元**——
  * #1 分支物化、#3 redo 失效，以及 metadata-only 接管路径的 #10（那次切换）与 #11（屏障里落投影的
  * 批量写）。这四行是「受信写不一定进工作树」的全部证据；多出一行意味着某条真实编辑路径的痕迹被
  * 悄悄咽掉了，少一行则意味着库自己的簿记开始落进用户的工作树。
@@ -60,8 +60,8 @@ const CONTRACT_PRODUCES_ENTRY: readonly boolean[] = sectionOf(EPIC_MARKDOWN, '##
 
 describe('epic-006 受信调用点登记表第 7 列：产生工作树单元', () => {
   it('这一列由矩阵算出，不从登记表字段里读', () => {
-    // 前置：契约那张表确实解析出了 11 行。少解析出几行的话，下面的 toEqual 会在两个短数组之间
-    // 全绿——被守住的就从「11 行都对」缩成「解析到的那几行都对」，而缩水不会有任何症状。
+    // 前置：契约那张表确实解析出了 12 行。少解析出几行的话，下面的 toEqual 会在两个短数组之间
+    // 全绿——被守住的就从「12 行都对」缩成「解析到的那几行都对」，而缩水不会有任何症状。
     expect(CONTRACT_PRODUCES_ENTRY).toHaveLength(TRUSTED_CALLSITE_REGISTRY.length);
     const computed = TRUSTED_CALLSITE_REGISTRY.map(row => producesWorkingTreeEntry(row));
     expect(computed).toEqual(CONTRACT_PRODUCES_ENTRY);

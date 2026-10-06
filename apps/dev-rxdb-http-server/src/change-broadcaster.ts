@@ -44,13 +44,15 @@ export interface ChangeBroadcaster {
 
 /** 建桥。`subscribers` 是 SSE 连接名册（见 `change-subscribers.ts`）。 */
 export const createChangeBroadcaster = (subscribers: ChangeSubscribers): ChangeBroadcaster => {
-  // 「最近一次写入」的 clientId + 有没有对应写入。这里**不能**用 FIFO 队列：
-  // pglite 的 NOTIFY 批量窗口会把时间上相邻的多次写入（如 reset 的种子 + 下一条
-  // create）聚合成**一条**实体事件，写与事件不再是 1:1。队列会在「两次写、一条事件」
-  // 时留下一条陈旧 clientId，被更晚的事件错拿（e2e 里表现为「抑制回声」计数为 0）。
-  // 单槽位只要被后续 recordWrite 覆盖，聚合事件广播的就是「当前」这次写的 clientId，
-  // 而 demo 的写入是串行的（单进程 + pglite 队列），单槽位足够。
-  let pendingClientId: string | undefined;
+  // 「自上次广播以来全部写入者」的去重集合 + 有没有对应写入。这里**不能**用单槽位：
+  // pglite 的 NOTIFY 批量窗口会把时间上相邻的多次写入（如两个不同 client 的请求）
+  // 聚合成**一条**实体事件，写与事件不再是 1:1。单槽位只保留最后一个写入者，会把
+  // 整批事件错误归给它，过滤掉同批其他写入者的变更（RV-074）。也**不能**用 FIFO
+  // 队列：reset 的种子 + 下一条 create 聚合成一条事件时，队列会留下一条陈旧 clientId
+  // 被更晚的事件错拿（e2e 里表现为「抑制回声」计数为 0）。
+  // 用 Set 去重后：size===1 说明整批确知同一写入者，可以标 clientId；
+  // size>1（混合来源）一律不标，宁可整批都不抑制回声，也不能错误抑制别人的变更。
+  const pendingClientIds = new Set<string | undefined>();
   let hasPendingWrite = false;
 
   const onEntityEvent = (event: EntityEvent): void => {
@@ -59,12 +61,14 @@ export const createChangeBroadcaster = (subscribers: ChangeSubscribers): ChangeB
     // 典型的例子是 `createDemoServer` 的启动种子（它在任何 `recordWrite` 之前落库）。
     if (!hasPendingWrite) return;
     hasPendingWrite = false;
-    broadcastChange(subscribers, CLIENT_ENTITY_NAME, pendingClientId);
+    const singleWriter = pendingClientIds.size === 1 ? [...pendingClientIds][0] : undefined;
+    pendingClientIds.clear();
+    broadcastChange(subscribers, CLIENT_ENTITY_NAME, singleWriter);
   };
 
   return {
     recordWrite: clientId => {
-      pendingClientId = clientId;
+      pendingClientIds.add(clientId);
       hasPendingWrite = true;
     },
     attach: rxdb => {

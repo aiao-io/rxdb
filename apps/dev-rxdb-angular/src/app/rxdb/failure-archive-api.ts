@@ -10,7 +10,7 @@ import {
   toFailureArchiveReason
 } from './failure-archive';
 
-// e2e 失败现场归档的页内测试 API（US-909 阶段 B）。契约见 specs/004-us-909-failure-data-archive/data-model.md §1；
+// e2e 失败现场归档的页内测试 API（US-909 阶段 B）。契约见 `git show 2e820521:specs/004-us-909-failure-data-archive/data-model.md` §1；
 // Node 端 fixture（apps/dev-rxdb-angular-e2e/src/fixtures.ts）按同一契约另写一份类型——e2e 项目不引用应用源码。
 
 /** 一次归档的预算。 */

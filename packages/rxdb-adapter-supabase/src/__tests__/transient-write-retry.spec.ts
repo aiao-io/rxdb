@@ -8,7 +8,7 @@ import { RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS } from '../supabase.helpers.js';
 
 type MockWriteResponse<T> = {
   data: T;
-  error: { message: string } | null;
+  error: { message: string; code?: string; details?: string | null; hint?: string | null } | null;
   /** HTTP 状态码；`0` = 传输失败。省略即沿用旧用例「不关心状态码」的写法 */
   status?: number;
 };
@@ -164,7 +164,7 @@ describe('Supabase transient write retry', () => {
   it('mergeChanges retries transient upstream errors', async () => {
     const { adapter, rpc } = createRpcAdapter([
       { data: null, error: TRANSIENT_ERROR },
-      { data: { max_change_id: 5, change_id_mapping: [] }, error: null }
+      { data: { max_change_id: 5, change_id_mapping: [], entity_results: [] }, error: null }
     ]);
 
     const result = await adapter.mergeChanges(emptyActions());
@@ -289,6 +289,46 @@ describe('Supabase 写路径的错误分类（RV-001）', () => {
     const error = await adapter.saveMany([createMockTodo('502-then-offline')]).catch((e: unknown) => e);
 
     expect(select).toHaveBeenCalledTimes(3);
+    expect(error).toBeInstanceOf(NetworkOfflineError);
+    expect(isNetworkError(error)).toBe(true);
+  });
+
+  // US-218 FR-016 / AC#13：PostgREST 错误体里的 code / details / hint 一路带到抛出的错误上
+  it('业务拒绝保留 PostgREST 的 code、details，hint 并进 message', async () => {
+    const details = '{"op":"delete","schema":"public","table":"todo","entityId":"t1","reason":"denied"}';
+    const { adapter, rpc } = createRpcAdapter([
+      {
+        data: null,
+        error: { message: 'rls denied delete', code: '42501', details, hint: 'check the delete policy' },
+        status: 403
+      }
+    ]);
+    const error = await adapter.mergeChanges(emptyActions()).catch((e: unknown) => e);
+
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(error).toBeInstanceOf(SupabaseDataError);
+    expect(error).toMatchObject({ code: '42501', details });
+    expect((error as Error).message).toBe('Failed to merge changes: rls denied delete (hint: check the delete policy)');
+    expect(isNetworkError(error)).toBe(false);
+  });
+
+  it('重试过后按最后一次响应的 code 抛出，不沿用前几次的', async () => {
+    const { adapter, rpc } = createRpcAdapter([
+      { data: null, error: { ...TRANSIENT_ERROR, code: 'PGRST000' }, status: 502 },
+      { data: null, error: { message: 'row is gone', code: 'RX001', details: null, hint: null }, status: 400 }
+    ]);
+    const error = await adapter.mergeChanges(emptyActions()).catch((e: unknown) => e);
+
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(error).toMatchObject({ name: 'SupabaseDataError', code: 'RX001', details: undefined });
+    expect((error as Error).message).toBe('Failed to merge changes: row is gone');
+  });
+
+  it('传输失败即便错误体带 code 也仍是 NetworkOfflineError', async () => {
+    const offline = { data: null, error: { ...TRANSPORT_FAILURE, code: '' }, status: 0 };
+    const { adapter } = createRpcAdapter([offline, offline, offline]);
+    const error = await adapter.mergeChanges(emptyActions()).catch((e: unknown) => e);
+
     expect(error).toBeInstanceOf(NetworkOfflineError);
     expect(isNetworkError(error)).toBe(true);
   });

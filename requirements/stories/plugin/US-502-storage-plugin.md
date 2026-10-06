@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-001-core-mvp
 created: 2025-12-08
-updated: 2026-05-15
+updated: 2026-10-06
 tags: [plugin, storage, opfs, remote-cache]
 ---
 
@@ -42,7 +42,7 @@ tags: [plugin, storage, opfs, remote-cache]
 - 本地存储：OPFS (Origin Private File System) 高性能读写
 - 元数据：`StorageFileMeta` 实体（name/mimeType/size/opfsPath/contentVersion），RxDB 管理，`opfs_path` 唯一索引
 - 插件接口：`IRxDBPlugin` + `RxDBPluginBase`
-- 离线优先：完全离线可用；`StorageFileMeta` 的 SyncType 由项目同步配置决定（本 story 不锁定），是否上行到远端属于上层策略
+- 离线优先：完全离线可用；`StorageFileMeta` 实体声明 `SyncType.None`（本地专属），metadata 不上行到远端
 - Object URL 管理：`ObjectUrlRegistry` 追踪活跃 URL，`destroy()` 时全部释放
 - 响应式监听：`watch(fileId)` 基于内部 `#changes$` Subject，初始值 + 变更推送
 
@@ -50,15 +50,15 @@ tags: [plugin, storage, opfs, remote-cache]
 
 - API 签名：`fetch(opfsPath: string, options: { url: string; mimeType?: string }): Promise<Blob>`，`url` **必传**（调用方维护，不从 meta 反查）
 - 策略：**OPFS-first**。先按 `opfsPath` 查 `StorageFileMeta`，命中即从 OPFS 读 Blob 返回；未命中则 `globalThis.fetch(url)` 下载 → 写入 OPFS → upsert `StorageFileMeta` → 返回 Blob
-- 元数据始终落盘：未命中分支**必然**在 RxDB 中创建/更新 `StorageFileMeta`，确保「meta 在 storage 里」这一前提成立；同步通道是否启用由项目 SyncType 配置决定，本 story 不引入新字段（无 `remoteUrl`）
-- Blob 不参与同步：远程缓存策略**只覆盖单机 OPFS**，blob 二进制不走 RxDB attachments；其他设备同步到 meta 后若需镜像同名 opfsPath，仍由各端调用方独立 `fetch(opfsPath, { url })`
+- 元数据始终落盘：未命中分支**必然**在 RxDB 中创建/更新 `StorageFileMeta`，确保「meta 在 storage 里」这一前提成立；不引入新字段（无 `remoteUrl`）
+- Blob 与 meta 都不参与同步：远程缓存策略**只覆盖单机 OPFS**，blob 二进制不走 RxDB attachments；其他设备需要同名 opfsPath 时，由各端调用方独立 `fetch(opfsPath, { url })`
 - 缓存语义：**永久缓存**。不做 ETag/TTL 失效；需主动 `delete(fileId)` 或 `clear(path?)` 才刷新。后续若需 revalidate 走独立 story
 - 离线检测：通过 `navigator.onLine === false` 或 fetch 抛 `TypeError`（网络失败）判定离线，统一映射为 `StorageOfflineError`
 - 错误类型（新增导出）：
   - `StorageOfflineError extends Error` — OPFS 未命中且无法联网
   - `StorageFetchError extends Error` — 远程响应非 2xx，附带 `status` 字段
 - 路径规范化：`opfsPath` 复用 `normalizeRelativeOpfsPath()`，自动创建中间目录；与 `upload({ path })` 行为对齐
-- 三框架对称：service 层一次实现，Angular/React/Vue 绑定直接透传 Promise（与 `read`/`upload` 风格一致）；不引入新 hook/composable
+- 三框架对称：storage 没有框架绑定包，service 层一次实现，三端 demo 直接调用 `rxdb.storage`（与 `read`/`upload` 风格一致）；不引入新 hook/composable
 - 与现有 API 关系：`fetch()` 返回 `Blob` 与 `read()` 一致；命中后可继续走 `createObjectUrl(fileId)` / `preview(fileId)` 生成预览 URL
 
 ## 实现文件

@@ -15,7 +15,7 @@
  *
  * 用法：
  *   node scripts/ci/plan-test-lanes.mjs --projects=a,b,c [--lanes=4]
- *   → {"include":[{"lane":"supabase","label":"supabase","projects":"...","supabase":true},...]}
+ *   → {"include":[{"lane":"supabase","label":"supabase","projects":"...","supabase":true,"coverage":true},...]}
  *
  * `lane` 与 `label` 是两个东西，别合并：
  *   lane  —— 机器用的稳定 id（`t1`…/`supabase`），进 artifact 名 `coverage-lane-<lane>`，
@@ -41,6 +41,17 @@ export const LANE_COUNT = 4;
  * 钉死在同一条 lane：起一次 Supabase 约 60s，散在多条 lane 上就要交多次这笔税。
  */
 export const SUPABASE_PROJECTS = ['rxdb-adapter-supabase', 'dev-rxdb-supabase'];
+
+/**
+ * test 目标不采集覆盖率的项目：`website` 跑的是 `node --test` 脚本测，不经 vitest，
+ * `--coverage` 对它不起作用，也不在覆盖率门禁的范围里（门禁只看 packages/）。
+ *
+ * 它和别的包同 lane 时无所谓；但只改 website 的 PR 会让它单独成 lane，此时 lane
+ * 一个覆盖率文件都没有，上传步骤的 `if-no-files-found: error` 必红（PR #89）。
+ * 所以按 lane 标 `coverage`：整条 lane 都在这张表里才标 false，上传步骤据此跳过；
+ * 混进任何一个 vitest 项目就标 true，照旧严格要求产物 —— 不把 error 放宽成 warn。
+ */
+export const NO_COVERAGE_PROJECTS = ['website'];
 
 /**
  * 各项目 test 任务的实测耗时（秒），用于装箱时估算 lane 负载。
@@ -172,14 +183,16 @@ const laneLabel = names => (names.length > 1 ? `${names[0]} +${names.length - 1}
  * @param {number} [options.laneCount] 非 Supabase lane 的上限
  * @param {Record<string, number>} [options.weights] 项目名 → 实测耗时（秒）
  * @param {string[]} [options.supabaseProjects] 需要 Supabase 栈、钉在独立 lane 的项目
+ * @param {string[]} [options.noCoverageProjects] test 目标不采集覆盖率的项目
  * @param {(names: string[]) => void} [options.warn] 权重缺失时的告警出口（测试里可替换）
- * @returns {{ include: { lane: string, label: string, projects: string, supabase: boolean }[] }}
+ * @returns {{ include: { lane: string, label: string, projects: string, supabase: boolean, coverage: boolean }[] }}
  */
 export function planTestLanes({
   projects,
   laneCount = LANE_COUNT,
   weights = WEIGHTS,
   supabaseProjects = SUPABASE_PROJECTS,
+  noCoverageProjects = NO_COVERAGE_PROJECTS,
   warn = warnUnweighted
 }) {
   const unique = [...new Set(projects)].filter(Boolean);
@@ -189,17 +202,25 @@ export function planTestLanes({
   const weightOf = name => weights[name] ?? DEFAULT_WEIGHT;
   const needsSupabase = unique.filter(name => supabaseProjects.includes(name)).sort();
   const rest = unique.filter(name => !supabaseProjects.includes(name));
+  const collectsCoverage = names => names.some(name => !noCoverageProjects.includes(name));
 
   const include = packLanes(rest, laneCount, weightOf).map((lane, index) => ({
     lane: `t${index + 1}`,
     label: laneLabel(lane.names),
     projects: [...lane.names].sort().join(','),
-    supabase: false
+    supabase: false,
+    coverage: collectsCoverage(lane.names)
   }));
 
   // Supabase lane 不套 laneLabel：它的看点不是最重的包，而是「这条要起 Docker」。
   if (needsSupabase.length > 0) {
-    include.unshift({ lane: 'supabase', label: 'supabase', projects: needsSupabase.join(','), supabase: true });
+    include.unshift({
+      lane: 'supabase',
+      label: 'supabase',
+      projects: needsSupabase.join(','),
+      supabase: true,
+      coverage: collectsCoverage(needsSupabase)
+    });
   }
 
   return { include };

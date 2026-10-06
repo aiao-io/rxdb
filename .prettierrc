@@ -19,6 +19,8 @@
     {
       "files": "*.vue",
       "options": {
+        "attributeGroups": ["$DEFAULT"],
+        "attributeSort": "NONE",
         "htmlWhitespaceSensitivity": "strict",
         "singleAttributePerLine": true
       }

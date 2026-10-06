@@ -64,7 +64,11 @@ export const runRxDBBackupWhenQueued = <T>(
       .addTask(async () => {
         if (!waiting) return;
         stopWaiting();
-        await task().then(resolve, reject);
+        try {
+          resolve(await task());
+        } catch (error) {
+          reject(error);
+        }
       })
       .catch((cause: unknown) =>
         giveUp(new RxDBBackupError('aborted', `${label} was removed from the queue`, { cause }))

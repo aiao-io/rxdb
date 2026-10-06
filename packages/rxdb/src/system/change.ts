@@ -11,6 +11,7 @@ import {
   FindOneOrFailOptions,
   FindOptions
 } from '../repository/query-options.interface.js';
+import type { RemoteChangeRejection } from '../rxdb-adapter.js';
 import { RxDBBranch } from './branch.js';
 import { IRxDBChange } from './system.interface.js';
 import { RxDBChangeOrderByField, RxDBChangeRuleGroup, RxDBChangeStaticTypes } from './types.js';
@@ -36,6 +37,16 @@ import { RxDBChangeOrderByField, RxDBChangeRuleGroup, RxDBChangeStaticTypes } fr
     {
       name: 'remoteId',
       type: PropertyType.integer,
+      nullable: true
+    },
+    {
+      name: 'rejectedAt',
+      type: PropertyType.date,
+      nullable: true
+    },
+    {
+      name: 'rejection',
+      type: PropertyType.json,
       nullable: true
     },
     {
@@ -133,6 +144,24 @@ export class RxDBChange implements IRxDBChange {
    * 说明这个变更是远程同步过来的
    */
   remoteId?: number | null;
+
+  /**
+   * 远端拒绝这条本地变更的时间
+   *
+   * @remarks
+   * 推送提交事务里随回执写入：远端回执 `status: 'rejected'` 时置为当时时间，否则保持 `null`。
+   * 与 {@link RxDBChange.remoteId} 互斥——同一行最多其一非空，被拒的变更永远拿不到远端 ID。
+   * 系统模式 7 才有这一列，6 及以前的旧行迁移后为 `null`，不回填。
+   */
+  rejectedAt?: Date | null;
+
+  /**
+   * 远端拒绝这条本地变更的原因，形状同远端回执里的拒绝详情
+   *
+   * @remarks
+   * 与 {@link RxDBChange.rejectedAt} 同时写入、同时为空。
+   */
+  rejection?: RemoteChangeRejection | null;
   /**
    * 命名空间
    */

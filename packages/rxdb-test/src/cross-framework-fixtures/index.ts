@@ -13,9 +13,11 @@
  * - entity-fields-descriptor.ts — US-012 字段描述契约，由三端 `tri-framework-field-descriptor.spec.ts` 消费
  * - live-cursor-boundary.ts — CREATE 增量合并的游标窗口语义，由三端 `live cursor boundary` 用例组消费
  * - sync-override.ts — US-026 实例级同步覆盖，由三端 `tri-framework-sync-override.spec.ts` 消费
+ * - sync-rejections.ts — US-218 被拒变更列表，由三端 `use-sync-state.spec` 与三个 demo 的被拒面板 spec 消费
  */
 
 export * from './entity-fields-descriptor.js';
 export * from './live-cursor-boundary.js';
 export * from './search-parity.js';
 export * from './sync-override.js';
+export * from './sync-rejections.js';

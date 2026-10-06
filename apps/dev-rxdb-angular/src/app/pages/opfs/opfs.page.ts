@@ -370,7 +370,9 @@ export default class OpfsPage implements OnInit, OnDestroy {
         if (!shouldOverwrite) continue;
       }
 
-      await this.opfsService.uploadFile(file);
+      // RV-037：显式传入路由派生的 routePath，而非让 service 回退到
+      // 可能滞后的 currentPath 信号——导航未完成时也不会写进旧目录。
+      await this.opfsService.uploadFile(file, this.routePath());
     }
 
     if (this.fileInputRef) {
@@ -390,7 +392,8 @@ export default class OpfsPage implements OnInit, OnDestroy {
     for (const file of files) {
       // 使用 webkitRelativePath 获取文件在文件夹中的相对路径
       const relativePath = file.webkitRelativePath || file.name;
-      const success = await this.opfsService.uploadFileWithPath(file, relativePath);
+      // RV-037：同上，显式传入 routePath。
+      const success = await this.opfsService.uploadFileWithPath(file, relativePath, this.routePath());
 
       if (success) {
         successCount++;
@@ -423,7 +426,8 @@ export default class OpfsPage implements OnInit, OnDestroy {
     const name = this.newFolderName().trim();
     if (!name) return;
 
-    const success = await this.opfsService.createDirectory(name);
+    // RV-037：同上，显式传入 routePath。
+    const success = await this.opfsService.createDirectory(name, this.routePath());
     if (success) {
       this.showNewFolder.set(false);
       this.newFolderName.set('');

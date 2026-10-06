@@ -19,7 +19,7 @@ export { expect } from '@playwright/test';
  * **并发锁风险**：备份持写锁期间，页面若恰好写入，可能偶发 `database is locked`（owner 2026-10-02 接受：只在用例
  * 已失败后发生）。
  *
- * 类型与页内 API 的契约见 specs/004-us-909-failure-data-archive/data-model.md；e2e 项目不引用应用源码，所以这里另写一份。
+ * 类型与页内 API 的契约见 `git show 2e820521:specs/004-us-909-failure-data-archive/data-model.md`；e2e 项目不引用应用源码，所以这里另写一份。
  *
  * @module fixtures
  */

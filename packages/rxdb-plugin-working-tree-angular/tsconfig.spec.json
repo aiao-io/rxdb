@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "emitDeclarationOnly": false,
     "outDir": "../../dist/out-tsc/rxdb-plugin-working-tree-angular/spec",
     "target": "es2022",
     "types": ["vitest/globals", "node"],

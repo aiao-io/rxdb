@@ -3,7 +3,7 @@ import { basename, dirname, normalize, resolve, sep } from 'node:path';
 import type { Plugin } from 'vite';
 import buildClientLibrary from '../cli/build-client-lib.js';
 import type { RxDBClientCLIentGeneratorOptions } from '../cli/cli.interface.js';
-import findFiles from '../cli/find-files.js';
+import findFiles, { GLOB_MAGIC } from '../cli/find-files.js';
 import { validateUniqueConfigOutDirs } from '../cli/out-dir.js';
 
 /**
@@ -13,7 +13,6 @@ export type RxDBClientGeneratorVitePluginOptions =
   RxDBClientCLIentGeneratorOptions | RxDBClientCLIentGeneratorOptions[];
 
 const WATCH_EVENTS = new Set(['add', 'change', 'unlink']);
-const GLOB_MAGIC = /[*?[\]{}]/u;
 
 const toPhysicalPath = (filePath: string): string => {
   const absolute = normalize(resolve(filePath));

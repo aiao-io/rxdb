@@ -32,27 +32,36 @@ export class OpfsRouteSync {
   sync(available: boolean, routePath: string, getCurrentPath: () => string, actions: OpfsRouteActions): Promise<void> {
     if (!available) return Promise.resolve();
     this.#requestedPath = routePath;
-    this.#running ??= this.#drain(getCurrentPath, actions);
+    if (!this.#running) {
+      // 目标路径与当前路径相同、且已初始化时，循环体一次 await 都不会碰到，
+      // `#drain` 会在返回前就同步跑完。如果清理 `#running` 的 `finally` 写在
+      // `#drain` 内部，`this.#running ??= this.#drain(...)` 会先求值右边
+      // （这一步已经把 #running 清空），再把返回值写回 #running —— 相当于把一个
+      // 已经 resolve 的 Promise 重新钉死在 #running 上，此后的 sync() 调用都会把它
+      // 当成「正在跑」而只改 #requestedPath，再也没有循环去读，导航请求静默丢失。
+      // `.finally()` 的回调保证进微任务队列、不会同步执行，借它来清理就不会抢在
+      // 下面这行赋值前面跑，不管 `#drain` 是否同步跑完都能正确收尾。
+      const running = this.#drain(getCurrentPath, actions).finally(() => {
+        if (this.#running === running) this.#running = undefined;
+      });
+      this.#running = running;
+    }
     return this.#running;
   }
 
   async #drain(getCurrentPath: () => string, actions: OpfsRouteActions): Promise<void> {
-    try {
-      while (this.#requestedPath !== undefined) {
-        const path = this.#requestedPath;
-        this.#requestedPath = undefined;
-        if (!this.#initialized) {
-          // 标记必须在 init **成功之后**置位。原实现先置 true 再 await，
-          // init 抛错时标记已经留在 true 上 —— 后续所有请求都走 navigateTo 分支，
-          // 那个从未初始化成功的实例再也无法重试初始化（UTL-008）
-          await actions.init(path);
-          this.#initialized = true;
-        } else if (path !== getCurrentPath()) {
-          await actions.navigateTo(path);
-        }
+    while (this.#requestedPath !== undefined) {
+      const path = this.#requestedPath;
+      this.#requestedPath = undefined;
+      if (!this.#initialized) {
+        // 标记必须在 init **成功之后**置位。原实现先置 true 再 await，
+        // init 抛错时标记已经留在 true 上 —— 后续所有请求都走 navigateTo 分支，
+        // 那个从未初始化成功的实例再也无法重试初始化（UTL-008）
+        await actions.init(path);
+        this.#initialized = true;
+      } else if (path !== getCurrentPath()) {
+        await actions.navigateTo(path);
       }
-    } finally {
-      this.#running = undefined;
     }
   }
 }

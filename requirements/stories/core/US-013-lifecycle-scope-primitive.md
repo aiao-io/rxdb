@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-008-lifecycle-scope
 created: 2026-08-15
-updated: 2026-09-20
+updated: 2026-10-06
 tags: [lifecycle, utils, primitive, refactor-enabler]
 ---
 
@@ -166,7 +166,7 @@ INVEST 检查清单:
 | ------------------------- | ---------------------------------------------------------------------------------------------- | ----------- |
 | `@aiao/utils`             | 扩大 utils 的定位（从「工具函数」到「运行时构件」）                                            | ✅ **推荐** |
 | `@aiao/rxdb`              | `code-editor-*` 等非 rxdb 包用不到；`@aiao/utils` 反向依赖 `@aiao/rxdb` 不可接受，只能各写一份 | ❌          |
-| 新建 `@aiao/lifecycle` 包 | 为 ~120 行新增第 30 个公开包，连带 build / 覆盖率 / 基线 / 文档五套配置                        | ❌          |
+| 新建 `@aiao/lifecycle` 包 | 为 ~120 行新增一个公开包，连带 build / 覆盖率 / 基线 / 文档五套配置                            | ❌          |
 
 选 `@aiao/utils` 的实质理由不是「它是杂物箱」，而是**它已经在提供有生命周期的运行时构件**：
 `async/AsyncQueueExecutor`、`@browser/leader-election`、`@browser/broadcast-channel-pool` 都不是纯函数，
@@ -322,7 +322,7 @@ cordis 的 `Fiber.effect()`（`packages/core/src/fiber.ts`）是同类原语的�
 - `getTraceable` 的 Proxy 追踪——rxdb 已有 `EntityProxy` 一层代理，再叠一层会让栈与调试同时变糟
 - `composeError` / `buildOuterStack` 长栈——可独立交付的诊断增强，不在本故事
 
-同样**不要**把 cordis 作为运行时依赖引入：它是 0.x 且自述 API 未稳定，而 rxdb 要发 29 个公开包。
+同样**不要**把 cordis 作为运行时依赖引入：它是 0.x 且自述 API 未稳定，而 rxdb 要发布的公开包数量众多。
 
 ### 公开类型的形状
 
@@ -394,7 +394,7 @@ class LifecycleScopeDisposedError extends Error {}
 - `packages/utils/src/lifecycle/lifecycle-scope.interface.ts` — `ScopeDisposer` / `AcquireResult` / `ScopeEntry`（`getEntries()` 的快照节点）/ `LifecycleScopeDisposedError`
 - `packages/utils/src/lifecycle/index.ts` — 子目录桶导出
 - `packages/utils/src/index.ts` — 主入口追加 `export * from './lifecycle/index.js'` 与 fileoverview 条目
-- `packages/utils/src/__tests__/lifecycle/lifecycle-scope.spec.ts` — 语义冻结测试
+- `packages/utils/src/lifecycle/lifecycle-scope.spec.ts` — 语义冻结测试
 - `requirements/api-baseline/utils.json` — 新导出符号的基线（`node scripts/audit/api-surface.mjs --update`）
 
 ## References

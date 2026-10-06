@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2025-12-08
-updated: 2026-09-26
+updated: 2026-10-06
 tags: [search, plugin]
 ---
 
@@ -36,12 +36,12 @@ tags: [search, plugin]
 - Schema mismatch 自动检测；adapter 缺失 FTS5 能力时构造期 fail-fast 抛 `SearchUnsupportedAdapterError`（带可判别 reason），不挂载 `.search`、不返回降级 handle
 - 反应式管线：debounced query (300 ms) + `switchMap` 取消 + retry/clear/分页/scope filter
 - 跨框架 parity 测试：`packages/rxdb-test/src/cross-framework-fixtures/search-parity.ts` 提供共享种子数据
-- Performance baseline：`benchmarks/rxdb-plugin-search-latest.json` 已固化进 CI gate
-- Accessibility：三端 `/search` demo 通过 axe + Lighthouse a11y 100 分
+- Performance gate：`pnpm nx search-ci benchmarks` 在 CI 里跑浏览器内搜索基准，阈值写在 `benchmarks/src/suites/rxdb-plugin-search.bench.ts`（`INSERT_REQUERY_P90_BUDGET_MS` / `BATCH_REQUERY_P95_BUDGET_MS`），超限即红；报告 `benchmarks/reports/rxdb-plugin-search-latest.json` 是每次运行的产物（已 gitignore），不入库
+- Accessibility：三端 `/search` demo 由各 e2e 项目的 `search.a11y.spec.ts`（axe）守住
 
 ## 实现文件
 
-- `packages/rxdb-plugin-search/` — 插件核心（20 单测文件 / 131 用例）
+- `packages/rxdb-plugin-search/` — 插件核心（单测见该包 `src/__tests__/`）
 - `packages/rxdb-plugin-search-angular/` — Angular 集成
 - `packages/rxdb-plugin-search-react/` — React 集成
 - `packages/rxdb-plugin-search-vue/` — Vue 集成
@@ -50,7 +50,7 @@ tags: [search, plugin]
 ## 后续工作
 
 - PGlite 适配器路径（tsvector + GIN）— [US-703](./US-703-pglite-full-text-search.md)
-- 中文分词集成（jieba / ICU）— 评估中
+- 中文分词：SQLite FTS5 侧已有 CJK unigram + bigram 补偿（`rxdb-adapter-sqlite-core` 的 `fts5/cjk-bigram.ts`）；jieba / ICU 等词典分词未立项
 
 ## 参考
 

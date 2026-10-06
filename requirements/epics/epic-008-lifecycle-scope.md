@@ -36,7 +36,7 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 
 - [x] `@aiao/utils` 有一个语义被测试冻结的作用域原语，**登记副作用与登记它的撤销写在同一个闭包里**；
 - [x] 插件契约不再有「装了什么」的自由格式账本——四个插件包的安装态全部经 `install(scope)` 登记；
-- [x] 宿主自己持有的资源（`versionManager` / `#gateway` / `entityManager`）在**成功停机与失败回滚两条路径上对称释放**。
+- [x] 宿主自己持有的资源（历史插件的 `versionManager`、`#gateway`、`entityManager`）在**成功停机与失败回滚两条路径上对称释放**——前两者登记进作用域，`entityManager` 在两条路径上显式 `destroy()`。
 
 ## 收口判据
 
@@ -66,7 +66,7 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 
 | #   | 病灶                                                             | 结算                                                                                                                                                                                                                                                                                                           |
 | --- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `RxDB.#shutdown()` 手工复位                                      | 关闭（bugfix）——`init()` 失败回滚补齐 `versionManager.destroy()` + `#gateway?.destroy()` + `entityManager.destroy()`，与 `#shutdown()` 的资源三步对称                                                                                                                                                          |
+| 1   | `RxDB.#shutdown()` 手工复位                                      | 关闭（bugfix）——`init()` 失败回滚经 `#release_connection_scope()` 释放连接作用域（网关随之拆除，`versionManager` 随 history 插件作用域释放），再显式 `entityManager.destroy()`，与 `#shutdown()` 对称                                                                                                          |
 | 2   | `RxDB.#event_initialized` 布尔守卫                               | 不是病灶——布尔守卫防的是重连时重复注册导致监听器集合膨胀，实例被回收时监听器一并消失                                                                                                                                                                                                                           |
 | 3   | `RxDB.#plugin_install_promises` 安装记账 Map                     | 关闭（US-015 阶段 A）——字段已删，安装态迁进 `PluginDependencyScheduler`                                                                                                                                                                                                                                        |
 | 4   | storage 的 `#ownsStorage` / `#registeredEntity` 双布尔           | 关闭（US-014）——`RxDBPluginStorage.install(scope)` 三段 `scope.acquire()`，标签 `storage:service` / `storage:property` / `storage:entity`（[plugin.ts](../../packages/rxdb-plugin-storage/src/plugin.ts)）                                                                                                     |
@@ -94,14 +94,14 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
       （[US-015](../stories/core/US-015-plugin-inject-dependency.md)）：`inject: ['adapter:local']`、
       `PluginDependencyScheduler` 与 `localAdapterSync`；**关闭结算表第 3 / 5 条**
 
-- [x] `init()` 失败回滚补齐与 `#shutdown()` 对称的资源三步（`versionManager` / `#gateway` / `entityManager`
-      的 `destroy()`）——bugfix，不单开故事（见结算表第 1 条）
+- [x] `init()` 失败回滚与 `#shutdown()` 资源释放对称（连接作用域 + 插件作用域 + `entityManager.destroy()`）
+      ——bugfix，不单开故事（见结算表第 1 条）
 
 未交付：无。
 
 ## 已移出承诺范围
 
-三条无故事文件、不在排期承诺中，写明解锁条件后**未解锁不开工**：
+两条无故事文件、不在排期承诺中，写明解锁条件后**未解锁不开工**：
 
 | 条目                        | 判定理由                                                                                                                                                                                                                         | 解锁条件                     |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------- |
@@ -127,8 +127,8 @@ epic-001~006 按**产品能力**分组（核心引擎、同步、UI、未来能�
 **已否决，不再评估**：
 
 - Cordis `Context` / `provide()` / Proxy trace、全局 Registry、thenable Fiber、HMR、长异步栈追踪；
-- `packages/timer` 的 `ctx.timeout()` / `interval()` / `throttle()` / `debounce()`：rxdb 的 ~30 处 `setTimeout`
-  全部在适配器内部，已有 47 处配对的 `clear*`，且适配器自己拥有 `destroy()`——不满足「病灶数 ≥ 抽象数」；
+- `packages/timer` 的 `ctx.timeout()` / `interval()` / `throttle()` / `debounce()`：rxdb 核心里只有
+  `reachability.ts` 与 `backup-queue.ts` 两处 `setTimeout`，都配对 `clearTimeout`，适配器的计时器由适配器自己的 `destroy()` 负责——不满足「病灶数 ≥ 抽象数」；
 - **`addEventListener()` 返回幂等 disposer**：Cordis 用它保证注册与撤销同处一点，rxdb 用
   `scope.acquire(() => { add; return () => remove; })` 拿到了同一个保证。`RxDB.addEventListener()` 保持返回
   `void`，改签名只是人体工学收益，背后没有症状。

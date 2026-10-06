@@ -1,5 +1,5 @@
 /**
- * @fileoverview 录制器的缓冲与冲刷（`specs/005-us-909-session-replay/research.md` D5）。
+ * @fileoverview 录制器的缓冲与冲刷（`git show 2e820521:specs/005-us-909-session-replay/research.md` D5）。
  *
  * @remarks
  * 用假 `record` 驱动 `emit`、假落库端控制每笔冲刷何时结算，假时钟推 `intervalMs`。

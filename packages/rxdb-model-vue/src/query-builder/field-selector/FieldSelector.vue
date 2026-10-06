@@ -47,7 +47,7 @@ defineExpose({ fieldTree, onSelect });
     :nodes="fieldTree"
     :placeholder="placeholder"
     :selected="selectedField"
-    @select-change="onSelect"
     min-width="14rem"
+    @select-change="onSelect"
   />
 </template>

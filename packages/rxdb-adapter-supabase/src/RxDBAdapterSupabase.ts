@@ -17,6 +17,8 @@ import type {
   QueryCacheEntityMetadata,
   RemoteBranchInfo,
   RemoteChange,
+  RemoteEntityRef,
+  RemoteMergeResult,
   RepositoryInstance,
   RuleGroup,
   RxDB,
@@ -30,7 +32,12 @@ import { resolveEntityScope, type EntityScope } from './entity_scope.js';
 import { SupabaseConfigError, SupabaseDataError, SupabaseUnsupportedPropertyTypeError } from './errors.js';
 import { handleSupabaseChange } from './handle_supabase_change.js';
 import { chunk_values, select_all_pages, SUPABASE_IN_CHUNK_SIZE } from './pagination.js';
-import { assert_postgrest_ok, is_transport_failure, settle_postgrest_failure } from './postgrest-error.js';
+import {
+  assert_postgrest_ok,
+  is_transport_failure,
+  settle_postgrest_failure,
+  type PostgrestErrorBody
+} from './postgrest-error.js';
 import { apply_rule_group } from './rule_group_builder.js';
 import { build_delete_params, build_upsert_params, group_by_type } from './RxDBAdapterSupabase.utils.js';
 import { resolve_supabase_schema } from './schema.utils.js';
@@ -417,9 +424,13 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    * @param branchId - 分支 ID
    * @param changes - 完整的原始变更记录（可选，用于保留完整历史）
    */
-  async mergeChanges(actions: SwitchVersionActions, branchId?: string, changes?: IRxDBChange[]) {
+  async mergeChanges(
+    actions: SwitchVersionActions,
+    branchId?: string,
+    changes?: IRxDBChange[]
+  ): Promise<RemoteMergeResult> {
     if (actions.inserts.size === 0 && actions.updates.size === 0 && actions.deletes.size === 0 && !changes?.length) {
-      return;
+      return { results: [] };
     }
 
     const resolveTableKey = (namespace: string, entityName: string) => {
@@ -429,7 +440,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       return `${ns}.${tableName}`;
     };
 
-    const { p_upserts, p_deletes, p_changes } = build_merge_changes_payload(
+    const { p_upserts, p_updates, p_deletes, p_changes } = build_merge_changes_payload(
       actions,
       branchId,
       changes,
@@ -438,19 +449,33 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       resolveTableKey
     );
 
-    // 调用 RPC（单一事务，跳过触发器；瞬时网络错误自动重试）
+    // 把回执 dependsOn 的表引用（schema.table）换算成本地实体引用；反查不到时没有 fallback，
+    // 直接当数据错误抛出——父表若没注册同步实体，本地也没有地方承接这条 dependsOn
+    const resolveDependsOnEntity = (ref: { schema: string; table: string; entityId: string }): RemoteEntityRef => {
+      const metadata = this.rxdb.schemaManager.getEntityMetadataByTableName(ref.table, ref.schema);
+      if (!metadata) {
+        throw new SupabaseDataError(
+          `Merge response dependsOn references an unregistered table: ${ref.schema}.${ref.table}`
+        );
+      }
+      return { namespace: metadata.namespace, entity: metadata.name, entityId: ref.entityId };
+    };
+
+    // 调用 RPC（单一事务，跳过触发器；p_receipts 开启逐实体回执，一条被拒不拖垮整批；瞬时网络错误自动重试）
     return this.executeRetryableWrite(
       'merge changes',
       async () => {
         const { data, error, status } = await this.#client.rpc('rxdb_mutations', {
           p_upserts,
+          p_updates,
           p_deletes,
           p_changes,
-          p_skip_sync: true
+          p_skip_sync: true,
+          p_receipts: true
         });
         return { data, error, status };
       },
-      validateMergeResponse
+      data => validateMergeResponse(data, changes, resolveDependsOnEntity)
     );
   }
 
@@ -585,14 +610,23 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
   fetchMetadata(entityName: string, queryFilter: RuleGroup<unknown>): Observable<QueryCacheEntityMetadata[]> {
     return defer(() => {
       const scope = resolveEntityScope(this.rxdb, entityName);
+      const EntityType = this.rxdb.schemaManager.getEntityType(scope.entity, scope.namespace)!;
+      const metadata = getEntityMetadata(EntityType);
+      const repository = this.getRepository<EntityType, SupabaseRepository<EntityType>>(EntityType);
+      const fields = repository.buildSelectFields(queryFilter as RuleGroup<Record<string, unknown>>, 'id, updatedAt');
 
       // 元数据用于新鲜度比较，被截断掉的那些 id 会被 QueryCache 当成「远端已删除」，
       // 因此这里必须翻页取全，不能依赖服务端的 max-rows。
       const rows = select_all_pages<{ id: unknown; updatedAt: unknown }>(
         this.rxdb.reachability,
         (rangeFrom, rangeTo) => {
-          const query = this.#client.schema(scope.schema).from(scope.tableName).select('id, updatedAt');
-          return apply_rule_group(query, queryFilter).order('id', { ascending: true }).range(rangeFrom, rangeTo);
+          const query = this.#client
+            .schema(scope.schema)
+            .from(scope.tableName)
+            .select<string, { id: unknown; updatedAt: unknown }>(fields);
+          return apply_rule_group(query, queryFilter, metadata, this.rxdb.schemaManager)
+            .order('id', { ascending: true })
+            .range(rangeFrom, rangeTo);
         },
         'Failed to fetch metadata'
       );
@@ -640,7 +674,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     operation: () => PromiseLike<RetryableWriteResponse>,
     validate: (data: unknown) => TResult
   ): Promise<TResult> {
-    let lastMessage = 'Unknown error';
+    let lastError: PostgrestErrorBody = { message: 'Unknown error' };
     let lastStatus: number | undefined;
 
     for (let attempt = 1; attempt <= RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS; attempt++) {
@@ -651,10 +685,12 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
         return validate(data);
       }
 
-      lastMessage = error.message || 'Unknown error';
+      // 整个错误体留着而不是只留 message：code / details / hint 是推送方分类拒绝原因的输入（US-218 FR-016）
+      const message = error.message || 'Unknown error';
+      lastError = { ...error, message };
       lastStatus = status;
 
-      if (!isRetryableSupabaseWriteError(lastMessage) || attempt === RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS) {
+      if (!isRetryableSupabaseWriteError(message) || attempt === RETRYABLE_SUPABASE_WRITE_MAX_ATTEMPTS) {
         break;
       }
 
@@ -667,7 +703,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
     // 在一次写入里反复翻转，面板跟着抖。
     throw settle_postgrest_failure(
       this.rxdb.reachability,
-      { error: { message: lastMessage }, status: lastStatus },
+      { error: lastError, status: lastStatus },
       `Failed to ${operationName}`
     );
   }
@@ -734,15 +770,18 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       const entities = Array.from(entitySet);
       const ids = entities.map(e => e.id);
 
-      const deletedRows = await this.executeRetryableWrite(
-        'delete',
-        async () => {
-          const { data, error, status } = await client.from(metadata.tableName).delete().in('id', ids).select('id');
-          return { data, error, status };
-        },
-        value => validateArrayResponse<{ id: unknown }>(value, 'delete')
-      );
-      const deletedIds = new Set(deletedRows.map(row => String(row.id)));
+      const deletedIds = new Set<string>();
+      for (const chunk of chunk_values(ids)) {
+        const deletedRows = await this.executeRetryableWrite(
+          'delete',
+          async () => {
+            const { data, error, status } = await client.from(metadata.tableName).delete().in('id', chunk).select('id');
+            return { data, error, status };
+          },
+          value => validateArrayResponse<{ id: unknown }>(value, 'delete')
+        );
+        for (const row of deletedRows) deletedIds.add(String(row.id));
+      }
       const missingIds = [...new Set(ids.map(id => String(id)))].filter(id => !deletedIds.has(id));
       if (missingIds.length > 0) {
         throw new SupabaseDataError(`Failed to delete: no row returned for id(s): ${missingIds.join(', ')}`);

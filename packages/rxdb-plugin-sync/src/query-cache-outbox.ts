@@ -41,6 +41,7 @@ import {
   isNetworkError,
   isRepositorySyncEnabled,
   LWWConflictResolver,
+  type QueryCacheEntity,
   type QueryCacheRemoteAdapter,
   type RxDB,
   RxDBChange,
@@ -327,7 +328,12 @@ async function runOutboxFlush(
   if (metadata) {
     await replayPhases(entries, metadata, { rxdb, entity, remoteAdapter, conflictResolver, run });
   }
-  await repairLocalCache(localAdapter, remoteAdapter, entity, run);
+  await repairLocalCache(localAdapter, remoteAdapter, entity, run, {
+    changeRepo,
+    namespace,
+    branchId: branch.id,
+    maxChangeId
+  });
 
   if (run.failures.length > 0) {
     // 整批没推完，但已经结算掉的那一段可以让水位线跟上去。不跟的话，下一轮会把这些
@@ -423,6 +429,9 @@ export async function countQueryCacheOutbox(rxdb: RxDB): Promise<number> {
           { field: 'branchId', operator: '=', value: branch.id },
           { field: 'revertChangeId', operator: '=', value: null },
           { field: 'remoteId', operator: '=', value: null },
+          // 被拒变更（rejectedAt 非空）的 remoteId 也一直是 null，但它永远不会再被推送，
+          // 必须和 remoteId = null 一起排除，否则会被当成积压计进出站队列
+          { field: 'rejectedAt', operator: '=', value: null },
           { combinator: 'or', rules: repoRules }
         ]
       }
@@ -522,6 +531,9 @@ async function queryOutboxChanges(
     { field: 'entity', operator: '=', value: entity },
     { field: 'branchId', operator: '=', value: branchId },
     { field: 'remoteId', operator: '=', value: null },
+    // 被拒变更（rejectedAt 非空）的 remoteId 也一直是 null，但它永远不会再被推送，
+    // 必须和 remoteId = null 一起排除，否则会被当成待推行重放到远端
+    { field: 'rejectedAt', operator: '=', value: null },
     { field: 'revertChangeId', operator: '=', value: null }
   ];
 
@@ -836,6 +848,47 @@ function remoteWrite(
   return remoteAdapter.update ? remoteAdapter.update(entity, entry.entityId, patch) : null;
 }
 
+/** {@link repairLocalCache} 判定「这批 id 里谁被新写盖过」所需的快照上下文 */
+interface RepairSnapshot {
+  changeRepo: IRepository<typeof RxDBChange>;
+  namespace: string;
+  branchId: string;
+  /** 本轮重放开始时 `pending` 的最大变更行 id —— 判定起点,见 {@link findEntityIdsWithNewerPendingChanges} */
+  maxChangeId: number;
+}
+
+/**
+ * 查一遍这批实体里谁在本轮快照之后又产生了新的待推变更。
+ *
+ * @returns 有新变更的实体 id 集合
+ *
+ * @remarks
+ * RV-055：`repairLocalCache` 要把 KEEP_REMOTE 判负的那些行覆盖回远端取到的投影，但判负
+ * 是对着 `runOutboxFlush` 开头那份 `pending` 快照做的 —— 决定做完、`findByIds` 响应还在
+ * 网络上滞留的这段时间里，用户完全可能在同一个实体上又写了一笔离线改动。那次新写有
+ * 它自己的 `RxDBChange` 行，而触发器写入的变更 id 是自增的，必然大于本轮快照的
+ * `maxChangeId`——不用比时间戳（铁律：不用计时式修复），只用这一条单调递增的序号就能
+ * 确定「是不是本轮判过负之后才出现的」。命中的那些 id 对应的修复必须跳过：旧判决覆盖
+ * 的是「本轮快照里的状态」，而本地此刻的真实状态已经是那笔新写，拿旧判决去盖，等于让
+ * 一次已经提交的新写无声消失，且发起它的人永远不会知道。
+ *
+ * 查询条件复用 {@link queryOutboxChanges}：同分支、未推送、未回滚、`id > maxChangeId`，
+ * 与「谁还排在出站队列里」同一个口径，不开第二份判据。
+ */
+async function findEntityIdsWithNewerPendingChanges(
+  snapshot: RepairSnapshot,
+  entity: string
+): Promise<ReadonlySet<string>> {
+  const newer = await queryOutboxChanges(
+    snapshot.changeRepo,
+    snapshot.namespace,
+    entity,
+    snapshot.branchId,
+    snapshot.maxChangeId
+  );
+  return new Set(newer.map(change => String(change.entityId)));
+}
+
 /**
  * 把 LWW 判负的那些行在本地缓存里对齐远端。
  *
@@ -846,19 +899,39 @@ function remoteWrite(
  * 回去 —— 一个自我供给的循环，而且每绕一圈都以远端的那次改动被丢弃告终。
  *
  * 修复失败不改判定：远端侧已经是权威状态了，这里只是本地投影没跟上，下一次读会同步回来。
+ *
+ * **落盘前重新核对一遍「谁被新写盖过」（RV-055）**：真正的竞争窗口就是上面
+ * `findByIds` 在网络上滞留的这段时间，核对必须放在它之后、紧贴着 `upsertMany` /
+ * `deleteByIds` 之前 —— 早一步核对看到的还是旧状态，等于没核对。命中的 id 从本次要
+ * 写的集合里摘掉，留给下一轮：那时它会带着「本地此刻的真实状态」重新跟远端的最新值
+ * 比一次，而不是被这一轮的旧判决悄悄盖掉。
  */
 async function repairLocalCache(
   localAdapter: OutboxLocalAdapter,
   remoteAdapter: QueryCacheRemoteAdapter,
   entity: string,
-  run: RunState
+  run: RunState,
+  snapshot: RepairSnapshot
 ): Promise<void> {
-  if (run.restoreIds.length > 0) {
-    const rows = await firstValueFrom(remoteAdapter.findByIds(entity, run.restoreIds));
-    await firstValueFrom(localAdapter.upsertMany(entity, rows));
+  if (run.restoreIds.length === 0 && run.dropIds.length === 0) {
+    return;
   }
-  if (run.dropIds.length > 0) {
-    await firstValueFrom(localAdapter.deleteByIds(entity, run.dropIds));
+
+  const rows =
+    run.restoreIds.length > 0 ?
+      await firstValueFrom(remoteAdapter.findByIds<QueryCacheEntity>(entity, run.restoreIds))
+    : [];
+
+  const superseded = await findEntityIdsWithNewerPendingChanges(snapshot, entity);
+
+  const freshRows = rows.filter(row => !superseded.has(row.id));
+  if (freshRows.length > 0) {
+    await firstValueFrom(localAdapter.upsertMany(entity, freshRows));
+  }
+
+  const freshDropIds = run.dropIds.filter(id => !superseded.has(id));
+  if (freshDropIds.length > 0) {
+    await firstValueFrom(localAdapter.deleteByIds(entity, freshDropIds));
   }
 }
 

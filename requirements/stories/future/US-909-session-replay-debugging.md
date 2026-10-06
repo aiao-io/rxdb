@@ -1,11 +1,11 @@
 ---
 id: US-909
 title: 会话录制回放与失败现场数据还原
-status: In Progress
+status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-18
-updated: 2026-10-03
+updated: 2026-10-06
 tags: [future, replay, debugging, e2e, playwright-trace, working-tree, rrweb]
 ---
 
@@ -29,14 +29,12 @@ INVEST 检查清单:
 
 ## 现状与证据
 
-1. **e2e 失败没有现场（阶段 A 的病灶）**：五个 web e2e 项目（`dev-rxdb-angular-e2e` / `dev-rxdb-react-e2e` /
-   `dev-rxdb-vue-e2e` / `dev-rxdb-supabase-e2e` / `dev-rxdb-http-e2e`）的 `playwright.config.ts` 都是
-   `trace: 'on-first-retry'` 叠 `retries: isCI ? 2 : 0`。本地没有重试，失败**从不产生 trace**；CI 上只录第一次重试——
-   flaky 用例在第一次重试就通过时，留下的是那次**通过**的 trace，首次失败没有任何记录。
-   [`rxdb-devtools-extension-e2e`](../../../apps/rxdb-devtools-extension-e2e/playwright.config.ts) 同样是 `retries: isCI ? 2 : 0`，
-   却没设 `trace`（默认 `off`），CI 重试也不录。
+1. **e2e 失败没有现场（阶段 A 的病灶，已由阶段 A 关闭）**：`trace: 'on-first-retry'` 叠 `retries: isCI ? 2 : 0`，本地没有重试，
+   失败**从不产生 trace**；CI 上只录第一次重试——flaky 用例在第一次重试就通过时，留下的是那次**通过**的 trace，首次失败没有任何记录。
+   `rxdb-devtools-extension-e2e` 不设 `trace`（默认 `off`）时，CI 重试也不录。六个配置（五个 web demo e2e 与
+   [`rxdb-devtools-extension-e2e`](../../../apps/rxdb-devtools-extension-e2e/playwright.config.ts)）现在都是 `retain-on-failure`。
    [angular 的配置](../../../apps/dev-rxdb-angular-e2e/playwright.config.ts)在 `retries` 上方的注释把本地复现的正确动作
-   定为 `--retries=0 --repeat-each=N`，这条路径上同样没有 trace。
+   定为 `--retries=0 --repeat-each=N`，这条路径上失败的那次尝试同样留下 trace。
 2. **界面现场不缺工具，缺配置**：Playwright 1.63 的 trace 含每个动作前后可检查的 DOM 快照、screencast、console、network
    与源码位置。`TraceMode` 的 `'retain-on-failure'` 每次尝试都录、只留失败的那次，且「A failed run's trace is kept even
    when a later retry passes」；`'retain-on-first-failure'` 只录首次尝试、失败才留（`playwright/types/test.d.ts` 的
@@ -46,7 +44,7 @@ INVEST 检查清单:
    `extension.fixture.ts` 里用 `chromium.launchPersistentContext()` 建的上下文都在内。六个配置都展开 `nxE2EPreset`，产物落它的
    `outputDir`（`test-output/playwright/output`）；[`ci-template.yml`](../../../.github/workflows/ci-template.yml) 的
    「Upload Playwright artifacts」步骤以 `!cancelled()` 为条件、按 `apps/${{ matrix.project }}/test-output/playwright/**`
-   上传并保留 7 天，重试后转绿的 job 也上传，不需要新通道。该步骤上方的注释写着 `on-first-retry`，随配置一起改。
+   上传并保留 7 天，重试后转绿的 job 也上传，不需要新通道。
 3. **trace 看不到的是库里的数据**：确定性失败不需要它——spec 本身就是数据场景的构造过程，本地带 trace 重跑即得同一状态；
    重跑拿不回来的只有非确定性失败（竞态 / 时序）在失败时刻的库内容。目前没有一条「trace 看完仍要失败时刻数据才能定位」
    的失败记录；阶段 B 原以这条证据为门禁，owner 于 2026-10-01 豁免（见交付阶段的排期决定）。
@@ -75,7 +73,7 @@ INVEST 检查清单:
 5. **数据版本控制基建已存在**：working-tree 写捕获与提交（US-305 / US-306 `Done`）；`restore({ commitId }, credentials)`
    （[US-307](../collaboration/US-307-restore-session.md) `Done`）把当前分支 HEAD 可达的历史 commit 内容作为未提交变更写回
    工作树，HEAD 不动。门面 [`WorkingTreeManager`](../../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts)
-   只有 Promise 方法，没有 commit 生命周期事件。工作树状态全在库内的表里（working-tree 贡献的十张系统表），全库备份连同
+   的方法都是 Promise；commit 生命周期事件经阶段 C 新增的只读 `commits$` 发出（见技术笔记「commit 关联挂点」）。工作树状态全在库内的表里（working-tree 贡献的十张系统表），全库备份连同
    未提交条目一起带走。Angular demo 在空库启动时 `enableIfEmpty()`，e2e 每个用例都是新库名；除了设
    `rxdb-e2e-skip-working-tree-auto-enable` 的两个 working-tree spec，其余 spec 都不提交，失败时刻写下的数据都是未提交条目
    （按 spec 源码判断）。`dev-rxdb-angular` 的 working-tree 页已有 `listCommits` + `restore`、提交与整棵工作树 `discard()` 的界面
@@ -142,7 +140,7 @@ AC#1～3 从阶段 A 起执行，后续每个阶段都必须继续通过：阶�
 | --: | :--: | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :--: |
 |   1 |  A   | 本地（无重试）跑 angular / react / vue 任一 demo e2e 与 `rxdb-devtools-extension-e2e`，各临时加一条必失败断言 | 查看各自的 `test-output/playwright/output`                             | 失败用例留下 `trace.zip`，`playwright show-trace` 打开后能看到失败断言前后的 DOM 快照；devtools 扩展 e2e 的 trace 来自 fixture 自建的持久上下文；通过的用例不留 trace。结论：angular 与扩展各加一个临时探针（一条必过、一条必失败），改配置前 1 passed / 1 failed 且无 `trace.zip`，改后各恰好一份 `trace.zip`，都落在必失败用例的目录里；失败断言的快照为 `after,before`；扩展 trace 含 `chrome-extension://`。最终配置（`screenshots: false`）上重核仍成立                                                                                                                                                                                                                                                                                                        |  ✅  |
 |   2 |  A   | CI（`retries: 2`）上一条首次失败、重试通过的用例（临时分支上在 `testInfo.retry === 0` 时断言失败制造）        | 下载该 job 的 Playwright artifact                                      | job 转绿，首次失败那次尝试的 trace 在 artifact 里；六个配置的 trace 模式都是 `retain-on-failure`。结论：run `36892293781`（headSha `881b3bf5`）里 `ci / e2e (angular)` 绿，探针首次失败、重试通过（1 flaky / 133 passed）；angular artifact 里恰好一份 `trace.zip`，在探针不带 `-retry` 后缀的首次尝试目录下，没有别的 trace；六个配置都是 `{ mode: 'retain-on-failure', screenshots: false }`。同一 run 的 `ci / gate` 红是 gate 对纯 e2e 改动的误判（`has_tests=false`），与本 AC 无关                                                                                                                                                                                                                                                                            |  ✅  |
-|   3 |  A   | plan 冻结的开销上限与轮数 N                                                                                   | 同机、`--retries=0`，同一 demo e2e 全量在切换前后各跑 N 轮，比墙钟时长 | 增幅不超过冻结上限。结论：plan 冻结的上限是 +10%；angular 全量实测 +36.4%（N=5）与 +37.1%（N=9），按 research D6 关掉 `screenshots` 后仍为 +32.7%（N=5，off 中位数 73.2 s、on 97.1 s，off 臂噪声 3.8%）。开销主要来自 DOM 快照与 network / console 事件，没有不破坏 AC#1 的开关。2026-10-01 用户裁决：接受开销，上限改为 +33%，保留 `screenshots: false`，按新上限判 `valid-pass`。原始记录见 `specs/003-us-909-trace-retain-on-failure/ac3-runs.tsv`                                                                                                                                                                                                                                                                                                               |  ✅  |
+|   3 |  A   | plan 冻结的开销上限与轮数 N                                                                                   | 同机、`--retries=0`，同一 demo e2e 全量在切换前后各跑 N 轮，比墙钟时长 | 增幅不超过冻结上限。结论：plan 冻结的上限是 +10%；angular 全量实测 +36.4%（N=5）与 +37.1%（N=9），按 research D6 关掉 `screenshots` 后仍为 +32.7%（N=5，off 中位数 73.2 s、on 97.1 s，off 臂噪声 3.8%）。开销主要来自 DOM 快照与 network / console 事件，没有不破坏 AC#1 的开关。2026-10-01 用户裁决：接受开销，上限改为 +33%，保留 `screenshots: false`，按新上限判 `valid-pass`。原始记录见 `git show 2e820521:specs/003-us-909-trace-retain-on-failure/ac3-runs.tsv`                                                                                                                                                                                                                                                                                             |  ✅  |
 |   4 |  B   | 用例失败                                                                                                      | fixture 的失败处理执行完                                               | 经同库名的主线程 IDB 第二连接 `backup()`，导出前后逻辑内容不变：结构文本（`sqlite_schema.sql`）、各业务表行数与 `status()` 相等，不补提交、不丢弃（`PRAGMA schema_version` / `data_version` 不在内，见技术笔记的 spike 结论）；归档与摘要作为 test 附件出现在报告里；摘要记各业务表行数与 `status()` 的 `clean` / `entryCount` / HEAD，working-tree 未启用时记「未启用」。结论：`failure-archive.spec.ts` 写两条 Todo 后归档，`snapshot()` 前后的结构文本、业务表行数、工作树完全相等；附件 `rxdb-failure-archive`（`application/octet-stream`）字节数 = 摘要 `archive.bytes`，摘要（`application/json`）的 `tables` / `workingTree` 与 `snapshot()` 一致。自动触发由临时探针核过：失败原因仍是原断言，附件含归档、摘要与 trace，`trace.zip` 在用例目录             |  ✅  |
 |   5 |  B   | 用例失败时主 `page` 已关闭或已崩溃                                                                            | 同上                                                                   | 在同一上下文新开页面导出同一库名（Angular 的隔离库名存在 `localStorage`，同上下文共享）；上下文已不可用时摘要写明原因，不导出。结论：主页面 `close()` 后与 `chrome://crash` 后摘要 `page: 'reopened'`、导出成功、`dbName` 不变；`context.close()` 后 `page: 'unavailable'`、`reason.code: 'context_unavailable'`，没有归档附件                                                                                                                                                                                                                                                                                                                                                                                                                                      |  ✅  |
 |   6 |  B   | 用例通过                                                                                                      | 同上                                                                   | 不导出、不留附件；Angular e2e 全部 spec 从共享 fixture 模块取 `test`，lint `no-restricted-imports` 禁止从 `@playwright/test` 直接取 `test`。结论：失败判定为 `status !== expectedStatus` 且为 `failed` / `timedOut`；`eslint.config.mjs` 的 `no-restricted-imports` 只禁 `@playwright/test` 的 `test`（类型与 `expect` 照常）。阶段 B 全量 Angular e2e 139/139 通过（墙钟 122 s），JSON 报告里 `failure-archive*.spec.ts` 以外零 `rxdb-failure-*` 附件                                                                                                                                                                                                                                                                                                              |  ✅  |
@@ -206,7 +204,7 @@ AC#1～3 从阶段 A 起执行，后续每个阶段都必须继续通过：阶�
   `authDomain = <库名>@0_1`，恢复到别的库名报 `auth_domain_mismatch`；e2e 库名带随机后缀，不会与 dev 应用的库撞。
   manifest 不带库名字段，从 `authDomain` 取。dev 应用平时走 OPFS 分支，打开导入的库走 IDB 分支（与 8200 的强制 IDB 同一条路）。
   中断的导入由 `cleanupIncompleteRestore()` 清理。
-- **共享 fixture 的改动面**：`apps/dev-rxdb-angular-e2e/src` 下 27 个 spec 从 `@playwright/test` 取 `test`，各改一行 import；
+- **共享 fixture 的改动面**：`apps/dev-rxdb-angular-e2e/src` 下全部 spec 从 `fixtures.ts` 取 `test`；
   `e2e-utils.ts` / `search-test-api.ts` 只取类型与 `expect`，lint 规则只禁 `test` 这个具名导入，不影响它们。
 - **调用约束**：`restore({ commitId })` 的目标必须在当前分支 HEAD 的可达父链上（US-307 FR-033），其他分支上的 commit 先
   `switchBranch`；三个 CAS 凭据（`WorkingTreeCredentials`）取自一次新鲜的 `status()`；被拒走返回值（`conflict` /
@@ -216,7 +214,7 @@ AC#1～3 从阶段 A 起执行，后续每个阶段都必须继续通过：阶�
 - **阶段 C 的数据模型**：每事件一行（`replay_event`，主键 `${sessionId}:${seq}`，字段 sessionId / seq / type / timestamp / data /
   bytes；索引 `(sessionId, seq)` 唯一 + `(sessionId, timestamp)`），会话一行（`replay_session`，计数与状态）。理由是追加写放大
   （内嵌大数组每追加一次就重写整文档）与按时间范围查询；高频小事件聚批走 `saveMany` 事务写入，不逐条 `save()`。详见
-  `specs/005-us-909-session-replay/data-model.md`。
+  `git show 2e820521:specs/005-us-909-session-replay/data-model.md`。
 - **阶段 C 的体积上限（owner 2026-10-02 冻结）**：单会话 16 MiB + 总量 128 MiB，按序列化后的事件字节计，均可配置。单会话超限 →
   停止该会话录制、写一条终止标记事件、会话状态 `truncated`（code `session_limit`）；总量超限 → 拒绝开始新会话（code
   `store_limit`），`deleteSession` 释放空间；绝不自动删除。
@@ -225,9 +223,9 @@ AC#1～3 从阶段 A 起执行，后续每个阶段都必须继续通过：阶�
   rrweb 自定义事件（`EventType.Custom`）。不走实体事件总线，禁止按时间戳反查 commit 充当关联。
 - **回放与还原分工**：rrweb 回放 = 观察级；`restore()` = 状态级。调试闭环是「看回放定位 → 恢复数据 → 活应用交互调试」，
   不是「在回放里复现 bug」；非确定性问题（竞态 / 随机 / 时序）不承诺复现。
-- **依赖**：`rrweb@2.1.6` + `@rrweb/types@2.1.6`（MIT），钉精确版本（2.x 补丁版本发得密），不 fork 上游；新依赖过审计门禁，
-  不得新增 high 漏洞。原写的 `@rrweb/record` / `@rrweb/replay` 只是以 `^2.1.6` 再导出 `rrweb`，会让精确钉版失效，故改直接依赖
-  `rrweb`（plan 偏离 4）。
+- **依赖**：`rrweb@2.1.7` + `@rrweb/types@2.1.7`（MIT），钉精确版本（2.x 补丁版本发得密），不 fork 上游；新依赖过审计门禁，
+  不得新增 high 漏洞。不用 `@rrweb/record` / `@rrweb/replay`：它们以 `^` 范围再导出 `rrweb`，会让精确钉版失效，故直接依赖
+  `rrweb`。
 - **阶段 C 的体积与开销实测（2026-10-02）**：`rxdb-plugin-replay` 的 `dist/index.js` 经 esbuild 打包压缩（外置 `rrweb` /
   `@rrweb/*` / `@aiao/*` / `rxjs`）后 gzip 8,151 B，预算 50 KB；demo 里录制核心与 rrweb 是两个懒加载 chunk（8.1 KB / 81.3 KB gz），
   录制关闭时初始脚本里没有它们。批量落库 benchmark 中位数 13.4 ms（SC-007）。
