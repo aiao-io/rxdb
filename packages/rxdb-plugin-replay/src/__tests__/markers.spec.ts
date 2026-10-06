@@ -1,5 +1,5 @@
 /**
- * @fileoverview 标记事件的解析与字节计量（`specs/005-us-909-session-replay/data-model.md` §1.2、§2）。
+ * @fileoverview 标记事件的解析与字节计量（`git show 2e820521:specs/005-us-909-session-replay/data-model.md` §1.2、§2）。
  *
  * @remarks
  * 标记与普通事件同表、同样计字节，所以 `eventBytes` 是上限判定的唯一口径：它一旦与落库的 `bytes` 列算法分家，

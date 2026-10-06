@@ -157,11 +157,11 @@
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/semver": "^7.8.0",
-    "@typescript-eslint/parser": "^8.71.0",
-    "@typescript-eslint/utils": "^8.71.0",
+    "@typescript-eslint/parser": "^8.71.1",
+    "@typescript-eslint/utils": "^8.71.1",
     "@visactor/vtable": "1.26.8",
     "@visactor/vtable-editors": "1.26.8",
-    "@vitejs/plugin-react": "^6.1.1",
+    "@vitejs/plugin-react": "^6.1.2",
     "@vitejs/plugin-vue": "6.0.9",
     "@vitest/browser": "4.1.11",
     "@vitest/browser-playwright": "4.1.11",
@@ -184,7 +184,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import": "2.32.0",
     "eslint-plugin-jsx-a11y": "6.10.2",
-    "eslint-plugin-playwright": "^2.12.0",
+    "eslint-plugin-playwright": "^2.12.1",
     "eslint-plugin-react": "7.37.5",
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-vue": "^10.11.1",
@@ -198,7 +198,7 @@
     "nx": "23.2.1",
     "ora": "^9.4.1",
     "playwright": "^1.63.0",
-    "postcss": "^8.5.28",
+    "postcss": "^8.5.29",
     "postcss-url": "~10.1.4",
     "prettier": "^3.9.9",
     "prettier-plugin-organize-attributes": "^1.0.0",
@@ -210,7 +210,7 @@
     "tailwindcss": "^4.3.3",
     "tslib": "^2.8.1",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.71.0",
+    "typescript-eslint": "^8.71.1",
     "verdaccio": "6.10.5",
     "vite": "^8.3.2",
     "vite-plugin-dts": "~5.1.2",
@@ -299,7 +299,7 @@
     },
     "patchedDependencies": {
       "typescript@6.0.3": "patches/typescript@6.0.3.patch",
-      "@tarojs/vite-runner@4.2.1": "patches/@tarojs__vite-runner@4.2.1.patch"
+      "@tarojs/vite-runner@4.3.0": "patches/@tarojs__vite-runner@4.3.0.patch"
     }
   },
   "nx": {

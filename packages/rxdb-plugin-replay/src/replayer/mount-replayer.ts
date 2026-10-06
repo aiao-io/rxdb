@@ -7,7 +7,7 @@ import { REPLAYER_STYLE } from './style.js';
 /** rrweb `EventType.FullSnapshot`：没有它就没有可重建的 DOM。 */
 const FULL_SNAPSHOT = 2;
 
-/** 回放器的输入（`specs/005-us-909-session-replay/contracts/replayer-component.md` §1）。 */
+/** 回放器的输入（`git show 2e820521:specs/005-us-909-session-replay/contracts/replayer-component.md` §1）。 */
 export interface ReplayerOptions {
   /** 读事件、读标记、恢复到 commit 的来源，通常是 `rxdb.replay`。 */
   readonly replay: ReplayManager;
@@ -319,7 +319,7 @@ class ReplayerView implements ReplayerHandle {
  * 在 `host` 里渲染一个会话的回放器：rrweb 回放、播放 / 暂停、时间轴、commit 标记（点了恢复工作树）与恢复结果。
  *
  * @remarks
- * DOM 与四态（`loading` / `empty` / `error` / `ready`）见 `specs/005-us-909-session-replay/contracts/replayer-component.md` §2；
+ * DOM 与四态（`loading` / `empty` / `error` / `ready`）见 `git show 2e820521:specs/005-us-909-session-replay/contracts/replayer-component.md` §2；
  * 三个框架的 `Replayer` 组件都只是把宿主元素交给它。`rrweb` 在加载时才动态导入。
  *
  * @param host - 回放器挂载的元素，原有子节点会被替换

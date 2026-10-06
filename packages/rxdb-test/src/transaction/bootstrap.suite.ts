@@ -11,6 +11,7 @@ import { RxDBBranch, RxDBChange, RxDBMigration, RxDBSync } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { disposeOpened } from './dispose-opened.js';
 import {
   createUnexecutedMigrations,
   freshDbName,
@@ -40,10 +41,7 @@ export const runBootstrapAtomicitySuite = ({ factory }: TransactionSuiteOptions)
       return { database, executed };
     };
 
-    afterEach(async () => {
-      const pending = opened.splice(0, opened.length);
-      await Promise.all(pending.map(database => database.dispose().catch(() => undefined)));
-    });
+    afterEach(() => disposeOpened(opened));
 
     it('首装不执行任何 migration 的 up：建出来的表已是最新形态', async () => {
       const { database, executed } = await open(freshDbName('bootstrap-fresh'));

@@ -187,14 +187,21 @@ const NON_WRITE_LEADING_KEYWORDS: ReadonlySet<string> = new Set([
   'set'
 ]);
 
-/** 各写形态的目标表位置；`create` 单列一条是因为它前面可以堆 `temp` / `unique` / `virtual`。 */
+/**
+ * 各写形态的目标表位置；`create` 单列一条是因为它前面可以堆 `temp` / `unique` / `virtual`。
+ *
+ * @remarks
+ * 标识符字符含**全部非 ASCII**：SQLite 把 ≥ 0x80 的字节一律当标识符字符，PG 同样认非 ASCII 字母，
+ * 所以 `UPDATE café …` 不加引号也是合法写。只认 ASCII 的话表名会在 `é` 处截断成 `caf`，判成域外放行。
+ * 引号里的 ASCII 标点由 {@link quotedIdentifierLexeme} 换成私用区字符，同样落在这个字符类里。
+ */
 const TABLE_PATTERNS: readonly RegExp[] = [
-  /\bupdate\s+(?:or\s+(?:ignore|replace|abort|fail|rollback)\s+)?(?:only\s+)?([a-z0-9_.$]+)/g,
-  /\b(?:insert|replace)\s+(?:or\s+(?:ignore|replace|abort|fail|rollback)\s+)?into\s+([a-z0-9_.$]+)/g,
-  /\bdelete\s+from\s+(?:only\s+)?([a-z0-9_.$]+)/g,
-  /\bmerge\s+into\s+([a-z0-9_.$]+)/g,
-  /\b(?:drop|alter|truncate)\s+(?:table|view|index)\s+(?:if\s+exists\s+)?([a-z0-9_.$]+)/g,
-  /\bcreate\s+(?:temp\s+|temporary\s+|unique\s+|virtual\s+)*(?:table|view|index)\s+(?:if\s+not\s+exists\s+)?([a-z0-9_.$]+)/g
+  /\bupdate\s+(?:or\s+(?:ignore|replace|abort|fail|rollback)\s+)?(?:only\s+)?([a-z0-9_.$\u0080-\uffff]+)/g,
+  /\b(?:insert|replace)\s+(?:or\s+(?:ignore|replace|abort|fail|rollback)\s+)?into\s+([a-z0-9_.$\u0080-\uffff]+)/g,
+  /\bdelete\s+from\s+(?:only\s+)?([a-z0-9_.$\u0080-\uffff]+)/g,
+  /\bmerge\s+into\s+([a-z0-9_.$\u0080-\uffff]+)/g,
+  /\b(?:drop|alter|truncate)\s+(?:table|view|index)\s+(?:if\s+exists\s+)?([a-z0-9_.$\u0080-\uffff]+)/g,
+  /\bcreate\s+(?:temp\s+|temporary\s+|unique\s+|virtual\s+)*(?:table|view|index)\s+(?:if\s+not\s+exists\s+)?([a-z0-9_.$\u0080-\uffff]+)/g
 ];
 
 /** `SET` 关键字本身；子句正文从它后面开始，由 {@link setClauseOf} 往后扫。 */
@@ -210,11 +217,11 @@ const SET_KEYWORD_PATTERN = /\bset\b/;
  */
 const SET_CLAUSE_TERMINATORS: ReadonlySet<string> = new Set(['where', 'returning', 'from']);
 
-/** 归一化文本里的标识符字符；与 {@link WORD_PATTERN} 同口径，用来找词边界。 */
-const WORD_CHARACTER = /[a-z0-9_$.]/;
+/** 归一化文本里的标识符字符；与 {@link TABLE_PATTERNS} 同口径，用来找词边界。 */
+const WORD_CHARACTER = /[a-z0-9_$.\u0080-\uffff]/;
 
 /** `SET` 子句里的单列赋值。 */
-const ASSIGNMENT_PATTERN = /^\s*([a-z0-9_.$]+)\s*=/;
+const ASSIGNMENT_PATTERN = /^\s*([a-z0-9_.$\u0080-\uffff]+)\s*=/;
 
 /** 一个定界符吃完之后：游标跳到哪儿、往归一化文本里放什么。 */
 interface NormalizedLexeme {
@@ -279,8 +286,42 @@ function stringLiteralEnd(sql: string, start: number): number {
   return sql.length;
 }
 
+/** 引号里原样保留的 ASCII 字符；其余 ASCII 由 {@link encodeQuotedIdentifier} 换走。点号留着，见那里。 */
+const QUOTED_IDENTITY_CHARACTER = /[A-Za-z0-9_$.]/;
+
+/** ASCII 标点换到的私用区起点：`-` → U+E02D，空格 → U+E020。 */
+const QUOTED_ESCAPE_BASE = 0xe000;
+
 /**
- * 引号标识符吃到配对的收尾符，产出**内层原文**
+ * 把引号标识符的内层原文换成 {@link TABLE_PATTERNS} 能整段吃下的词元
+ *
+ * @param inner - 引号里的原文（已解开 `""` 转义）
+ * @returns 同长度的词元
+ *
+ * @remarks
+ * `"post-name"` 剥掉引号后若原样放回，`-` 会把表名截成 `post`，`"post name"` 更是与
+ * 「表 `post` 别名 `name`」无从区分——两者都判成域外放行。换成私用区字符后整段仍是一个标识符。
+ *
+ * 换算只需**同一个名字两侧得出同一个词元**，不必可逆：域里的表名也过这一刀（见
+ * {@link statementKeyOf}），所以私用区字符与某个真实的非 ASCII 表名撞上，后果只是多拦一条。
+ *
+ * 点号不换：`"main"."post"` 的点号在引号外、`"main.post"` 的在引号里，两者都按 schema
+ * 限定切开，宁可把后者也认成 `post` 多拦，也不让它溜出域外。
+ */
+function encodeQuotedIdentifier(inner: string): string {
+  let encoded = '';
+  for (const character of inner) {
+    const code = character.charCodeAt(0);
+    encoded +=
+      code < 0x80 && !QUOTED_IDENTITY_CHARACTER.test(character) ?
+        String.fromCharCode(QUOTED_ESCAPE_BASE + code)
+      : character;
+  }
+  return encoded;
+}
+
+/**
+ * 引号标识符吃到配对的收尾符，产出换算后的内层原文
  *
  * @param sql - 原始语句
  * @param start - 起始引号所在偏移
@@ -288,13 +329,23 @@ function stringLiteralEnd(sql: string, start: number): number {
  * @returns 这一段的结束偏移与产出
  *
  * @remarks
- * 未闭合时把内层原文原样放回去，而不是连同引号一起丢掉：丢掉等于让一个落单的引号
- * 把它后面的整条写从判定的视野里抹去。
+ * `""` 与 ``` `` ``` 是转义不是收尾（`[…]` 没有转义写法）：按第一个收尾符切的话，`"a""b"`
+ * 会被读成 `a` 和 `b` 两个标识符拼成 `ab`，与真表名 `a"b` 对不上。
+ *
+ * 未闭合时把内层原文**原样**放回去，而不是连同引号一起丢掉：丢掉等于让一个落单的引号
+ * 把它后面的整条写从判定的视野里抹去；也不做换算，后面那截要按普通 SQL 读。
  */
 function quotedIdentifierLexeme(sql: string, start: number, closer: string): NormalizedLexeme {
-  const close = sql.indexOf(closer, start + 1);
-  if (close < 0) return { end: sql.length, text: sql.slice(start + 1) };
-  return { end: close + 1, text: sql.slice(start + 1, close) };
+  const escapable = closer !== ']';
+  let inner = '';
+  let cursor = start + 1;
+  for (let close = sql.indexOf(closer, cursor); close >= 0; close = sql.indexOf(closer, cursor)) {
+    inner += sql.slice(cursor, close);
+    if (!escapable || sql[close + 1] !== closer) return { end: close + 1, text: encodeQuotedIdentifier(inner) };
+    inner += closer;
+    cursor = close + 2;
+  }
+  return { end: sql.length, text: sql.slice(start + 1) };
 }
 
 /**
@@ -582,6 +633,32 @@ function tablesOf(statement: string): readonly string[] {
   return [...tables];
 }
 
+/**
+ * 域里的名字换算到语句一侧的刻度上
+ *
+ * @param name - 域给的表名或列名
+ * @returns 与 {@link tablesOf} / {@link columnsOf} 产出可直接比较的词元
+ *
+ * @remarks
+ * 语句一侧过了三刀：引号里的标点换成私用区字符、整体压小写、按点号切掉 schema。域这一侧
+ * 不三刀都过，`public$post-name` 这类名字就永远等不到语句里的 `"public$post-name"`。
+ */
+function statementKeyOf(name: string): string {
+  return lastSegment(encodeQuotedIdentifier(name).toLowerCase());
+}
+
+/**
+ * 语句写到的表里，哪些是版本化表
+ *
+ * @param tables - {@link tablesOf} 的产出
+ * @param domain - 版本化域视图
+ * @returns 命中的**域内原名**，按语句里出现的顺序；`untrackedFieldsOf()` 与错误诊断都要原名
+ */
+function versionedHits(tables: readonly string[], domain: VersionedDomainView): readonly string[] {
+  const versioned = [...domain.versionedTables];
+  return tables.flatMap(table => versioned.filter(name => statementKeyOf(name) === table));
+}
+
 /** 单条语句的结论；`reject` 带上被命中的版本化表，供错误诊断使用。 */
 type StatementVerdict =
   | { readonly kind: 'out_of_domain' }
@@ -595,7 +672,7 @@ type StatementVerdict =
  * 直接复用写入口语义矩阵的同一份判据（`entrance: 'raw_write'`）。raw 通道自己再写一遍
  * 「列集 ⊆ untracked 域」的话，两处口径迟早分家，而 raw 通道会成为那条更松的路。
  *
- * **列名在这里压成小写，因为语句那一侧已经被 {@link normalizeSql} 压过了。** 域给的是实体
+ * **列名在这里换算到语句刻度（{@link statementKeyOf}），因为语句那一侧已经被 {@link normalizeSql} 压过了。** 域给的是实体
  * 属性名（`remoteId` / `createdAt` / `updatedAt`，驼峰），矩阵做的是精确字符串子集判定——
  * 原样递过去的话 `remoteid` 永远不等于 `remoteId`，第 4 步的 `untracked_only` 在任何真实
  * 数据库上都不可达，一条只改审计时间的簿记写会被第 3 步拦成 `commit_capability_mismatch`。
@@ -616,7 +693,7 @@ function rejectsTable(
       targetClass: 'versioned',
       operation,
       columns,
-      untrackedFields: [...domain.untrackedFieldsOf(table)].map(field => field.toLowerCase()),
+      untrackedFields: [...domain.untrackedFieldsOf(table)].map(statementKeyOf),
       capabilityEnabled: true
     }).kind === 'reject'
   );
@@ -633,7 +710,7 @@ function judgeStatement(statement: string, domain: VersionedDomainView): Stateme
   const tables = tablesOf(statement);
   // 目标表解析不出：fail-closed。空 `tables` 不是「没写表」，是「不知道写了哪张表」。
   if (tables.length === 0) return { kind: 'reject', tables: [] };
-  const hits = tables.filter(table => domain.versionedTables.has(table));
+  const hits = versionedHits(tables, domain);
   if (hits.length === 0) return { kind: 'out_of_domain' };
   const operation = operationOf(wordsOf(statement));
   // DDL 与解析不出操作种类的写：没有列级豁免可谈。

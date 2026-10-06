@@ -2,7 +2,7 @@ import { EntityType, getEntityMetadata, isRxDBBackupError, RxDBBackupManifest } 
 import { get_table_name_by_metadata } from '@aiao/rxdb-adapter-sqlite-core';
 
 // e2e 失败现场归档（US-909 阶段 B）的纯函数部分：页内测试 API 与导入页共用，契约见
-// specs/004-us-909-failure-data-archive/data-model.md。
+// `git show 2e820521:specs/004-us-909-failure-data-archive/data-model.md`。
 
 /** 页内归档流程的阶段。 */
 export type FailureArchiveStage = 'connect' | 'inspect' | 'backup';

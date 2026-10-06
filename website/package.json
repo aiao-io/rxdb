@@ -55,7 +55,7 @@
     "@tailwindcss/postcss": "^4.3.3",
     "daisyui": "^5.7.47",
     "docusaurus-plugin-typedoc": "^1.4.3",
-    "postcss": "^8.5.28",
+    "postcss": "^8.5.29",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwind-merge": "^3.7.0",
     "tailwindcss": "^4.3.3",

@@ -1,8 +1,8 @@
 /**
  * @fileoverview US-218 阶段 B：`mergeChanges` 回执映射（T038 / T051）
  *
- * 覆盖 [contracts/remote-merge-result.md](../../../specs/007-us218-rls-push-integrity/contracts/remote-merge-result.md) §3
- * 与 [contracts/rxdb-mutations-receipts.md](../../../specs/007-us218-rls-push-integrity/contracts/rxdb-mutations-receipts.md) §5-6：
+ * 覆盖 `git show 8cc005bb:specs/007-us218-rls-push-integrity/contracts/remote-merge-result.md` §3
+ * 与 `git show 8cc005bb:specs/007-us218-rls-push-integrity/contracts/rxdb-mutations-receipts.md` §5-6：
  * `mergeChanges` 如何把 `rxdb_mutations`（`p_receipts = true`）的回执（`change_id_mapping` + `entity_results`）
  * 翻译成 `RemoteMergeResult.results`，以及 `dependsOn` 的表引用如何反查回本地实体引用。
  *

@@ -22,7 +22,7 @@ import { oneDark } from '@codemirror/theme-one-dark';
 import { EditorView, highlightWhitespace, keymap, placeholder as placeholderExt } from '@codemirror/view';
 import { basicSetup, minimalSetup } from 'codemirror';
 import type { CSSProperties, HTMLAttributes, Ref } from 'react';
-import { useEffect, useImperativeHandle, useRef, useState } from 'react';
+import { useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from 'react';
 
 const External = Annotation.define<boolean>();
 const DEFAULT_HOST_CLASS_NAME = 'h-full w-full overflow-hidden text-xs';
@@ -320,13 +320,16 @@ export function CodeEditor({
     setStableLanguages(languages);
   }
 
-  useEffect(() => {
+  // 用 layout effect 换回调：子组件的 layout effect 先于父组件执行，父组件在自己的
+  // layout effect 里改文档时，派发出去的就已是本次提交的新回调；被动 effect 会晚一拍，
+  // 那次编辑落到上一次提交的旧回调上。
+  useLayoutEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
 
   // 与 `onChange` 同构：回调进语言 effect 的依赖，宿主写内联箭头函数时
   // 每次渲染都会重跑语言 effect —— 整篇重新词法分析，还多发一次 `load()`。
-  useEffect(() => {
+  useLayoutEffect(() => {
     onLanguageErrorRef.current = onLanguageError;
   }, [onLanguageError]);
 

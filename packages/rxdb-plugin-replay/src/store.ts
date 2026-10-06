@@ -81,7 +81,7 @@ const totalBytes = async (executor: TransactionExecutor): Promise<number> => {
  * - **懒建**：第一次存储调用才调工厂并 `connect()`；并发的首调共用同一次打开。打开失败抛
  *   `recording_db_unavailable`（`cause` 为原错误）并复位，下一次调用重新调工厂。
  * - **同进同退**：会话行的 `bytes` / `eventCount` / `nextSeq` / `lastEventAt` 只在写事件行的同一事务里推进，
- *   续录据此判断在途那批落没落（`specs/005-us-909-session-replay/research.md` D3）。
+ *   续录据此判断在途那批落没落（`git show 2e820521:specs/005-us-909-session-replay/research.md` D3）。
  * - **上限**：判定与写入同一事务；超限整批不写，只落一条 `truncated` 标记（同上 D4）。从不自动删除。
  */
 export class ReplayStore {

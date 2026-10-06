@@ -1,7 +1,7 @@
 import type { ReplayEventEntry } from './store.js';
 
 /**
- * 刷新暂存（`specs/005-us-909-session-replay/data-model.md` §4）。
+ * 刷新暂存（`git show 2e820521:specs/005-us-909-session-replay/data-model.md` §4）。
  *
  * @remarks
  * 只在 `pagehide` 写、下一次安装时读并立刻删、`stop()` / 截断 / `pageshow(persisted)` 时删。

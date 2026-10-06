@@ -110,7 +110,7 @@ const onlyMount = (spy: MountReplayerSpy) => {
 };
 
 /**
- * 三端 `Replayer` 组件共用的 parity 用例（`specs/005-us-909-session-replay/contracts/replayer-component.md` §4）。
+ * 三端 `Replayer` 组件共用的 parity 用例（`git show 2e820521:specs/005-us-909-session-replay/contracts/replayer-component.md` §4）。
  *
  * @remarks
  * 组件测试里 `mountReplayer` 打桩成 {@link MountReplayerSpy}，对每条用例 `spy.reset()` 后 `await testCase.run(driver, spy)`。

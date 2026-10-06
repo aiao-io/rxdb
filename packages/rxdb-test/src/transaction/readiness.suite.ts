@@ -9,6 +9,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { disposeOpened } from './dispose-opened.js';
 import { createUnexecutedMigrations, freshDbName, TransactionContractNote } from './fixtures.js';
 import type { TransactionSuiteDatabase, TransactionSuiteOptions } from './types.js';
 
@@ -32,10 +33,7 @@ export const runReadinessSuite = ({ factory }: TransactionSuiteOptions): void =>
       return { database, executed };
     };
 
-    afterEach(async () => {
-      const pending = opened.splice(0, opened.length);
-      await Promise.all(pending.map(database => database.dispose().catch(() => undefined)));
-    });
+    afterEach(() => disposeOpened(opened));
 
     it('空库 + 配置了 migrations 时 connect() 必须完成，不得死锁', async () => {
       const { database } = await open('readiness-fresh');

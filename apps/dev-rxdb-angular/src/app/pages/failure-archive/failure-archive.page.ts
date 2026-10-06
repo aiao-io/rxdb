@@ -14,7 +14,7 @@ type ImportState =
  *
  * @remarks
  * 选择失败用例附件里的 `rxdb-failure-archive` → 读 manifest 显示原库名 →「导入并打开」恢复成同名本地库，写覆盖键后
- * 整页重载打开它。状态见 specs/004-us-909-failure-data-archive/data-model.md §6：`data-phase` 为
+ * 整页重载打开它。状态见 `git show 2e820521:specs/004-us-909-failure-data-archive/data-model.md` §6：`data-phase` 为
  * `idle` / `parsed` / `importing` / `error`。目标里已有同名库时（`target_not_empty` / `target_busy`）提供「打开该库」。
  *
  * 不经 `connectLocalAdapter`：导入不用应用自己的库。

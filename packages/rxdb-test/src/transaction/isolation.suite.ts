@@ -15,6 +15,7 @@
 import { firstValueFrom } from 'rxjs';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { disposeOpened } from './dispose-opened.js';
 import { freshDbName, TransactionContractNote } from './fixtures.js';
 import type { TransactionExecutorLike, TransactionSuiteDatabase, TransactionSuiteOptions } from './types.js';
 
@@ -54,10 +55,7 @@ export const runTransactionIsolationSuite = ({ factory }: TransactionSuiteOption
       return database;
     };
 
-    afterEach(async () => {
-      const pending = opened.splice(0, opened.length);
-      await Promise.all(pending.map(database => database.dispose().catch(() => undefined)));
-    });
+    afterEach(() => disposeOpened(opened));
 
     it('事务回滚不得吞掉窗口内的外部写入', async () => {
       const database = await connect('isolation-external-write');

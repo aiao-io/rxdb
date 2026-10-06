@@ -208,16 +208,18 @@ const registerShared = (outcome: Outcome): void => {
   runTransactionIsolationSuite({ factory: isolation });
 };
 
+// shared 只跑 resolved：共享套件的 afterEach 不再吞 dispose 的拒绝，rejected 变体会如实变红。
+// 「拒绝必须冒出来、dispose 恰好一次」由 transaction/review-parallel-teardown-rejection.spec.ts 锁住。
 const registrations: Record<Mode, () => void> = {
   direct: () => outcomes.forEach(registerDirect),
-  shared: () => outcomes.forEach(registerShared),
+  shared: () => registerShared('resolved'),
   probe: () => runBootstrapAtomicitySuite({ factory: createFactory('probe-finally/rejected', 'resolved', 'rejected') })
 };
 registrations[mode]();
 
 afterAll(() => {
   console.log(`R3_CLEANUP_VERDICT ${JSON.stringify({ mode, traces })}`);
-  expect(traces).toHaveLength({ direct: 2, shared: 22, probe: 3 }[mode]);
+  expect(traces).toHaveLength({ direct: 2, shared: 11, probe: 3 }[mode]);
   for (const trace of traces) {
     expect(trace.disconnectCalls).toBe(1);
     expect(trace.disposeCalls).toBe(1);

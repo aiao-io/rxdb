@@ -1,5 +1,5 @@
 /**
- * @fileoverview 刷新续录（`specs/005-us-909-session-replay/data-model.md` §4、research D5）。
+ * @fileoverview 刷新续录（`git show 2e820521:specs/005-us-909-session-replay/data-model.md` §4、research D5）。
  *
  * @remarks
  * 「刷新」= 上一页在 `pagehide` 写下暂存、页面卸载、下一页 `connect()` 时认领。卸载本身不跑插件的拆卸，

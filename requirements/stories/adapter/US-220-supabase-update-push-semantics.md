@@ -1,11 +1,11 @@
 ---
 id: US-220
 title: Supabase 推送 UPDATE 的落库语义
-status: In Review
+status: Done
 priority: High
 epic: epic-004-future-features
 created: 2026-10-05
-updated: 2026-10-05
+updated: 2026-10-06
 tags: [adapter, supabase, sync, rls]
 ---
 
@@ -116,7 +116,7 @@ SELECT `USING (true)`、INSERT `WITH CHECK (owner = uid)`、UPDATE `USING (true)
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-验证（[specs/006 tasks](../../../specs/006-us220-update-push-semantics/tasks.md)）：AC#1～5、8 由 SQL 回归
+验证（`git show 8cc005bb:specs/006-us220-update-push-semantics/tasks.md`）：AC#1～5、8 由 SQL 回归
 `update-partial-columns` / `update-owner-rls` / `update-shared-edit` / `update-denied` / `update-gone` 等用例覆盖，
 全量 15 PASS、`rls-filtered-delete` FAIL 与基线一致（属 US-218）；AC#6 由 `update-push-semantics.spec.ts` 覆盖；
 AC#7 由 `remote-sync.spec.ts`「pushes a completion toggle as an UPDATE …」覆盖。

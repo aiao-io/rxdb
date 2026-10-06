@@ -112,6 +112,7 @@ describe('批量变更通知不能把其他写入者的变更当作自回声（R
           namespace: 'public',
           entity: CLIENT_ENTITY_NAME,
           id: 'old',
+          patch: null,
           inversePatch: {},
           recordAt: new Date()
         }
@@ -119,7 +120,15 @@ describe('批量变更通知不能把其他写入者的变更当作自回声（R
     );
     database.dispatchEvent(
       new EntityLocalCreatedEvent([
-        { type: 'INSERT', namespace: 'public', entity: CLIENT_ENTITY_NAME, id: 'new', patch: {}, recordAt: new Date() }
+        {
+          type: 'INSERT',
+          namespace: 'public',
+          entity: CLIENT_ENTITY_NAME,
+          id: 'new',
+          patch: {},
+          inversePatch: null,
+          recordAt: new Date()
+        }
       ])
     );
     database.dispatchEvent(aggregatedUpdate(['new']));

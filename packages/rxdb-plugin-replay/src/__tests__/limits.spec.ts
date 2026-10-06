@@ -1,5 +1,5 @@
 /**
- * @fileoverview 体积上限（`specs/005-us-909-session-replay/research.md` D4，owner 2026-10-02）。
+ * @fileoverview 体积上限（`git show 2e820521:specs/005-us-909-session-replay/research.md` D4，owner 2026-10-02）。
  *
  * @remarks
  * 判定与写入在同一个事务里，超限时整批不写，只在本批首个 `seq` 上落一条 `truncated` 标记。

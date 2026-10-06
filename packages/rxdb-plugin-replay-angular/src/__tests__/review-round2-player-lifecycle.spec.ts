@@ -20,13 +20,12 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import type { ReplayerComponent as ReplayerInstance } from '../replayer.component.js';
 
 type eventWithTime = Awaited<ReturnType<ReplayManager['readEvents']>>[number];
-type RrwebClass = typeof import('../../../rxdb-plugin-replay/node_modules/rrweb/dist/rrweb.js').Replayer;
+type RrwebClass = typeof import('./core-sources.js').Replayer;
 type PlaybackContract = Pick<InstanceType<RrwebClass>, 'play' | 'pause' | 'destroy' | 'getMetaData' | 'getCurrentTime'>;
 type PlaybackListener = Parameters<InstanceType<RrwebClass>['on']>[1];
 
 vi.mock('@aiao/rxdb-plugin-replay', async () => {
-  const { mountReplayer } = await import('../../../rxdb-plugin-replay/src/replayer/mount-replayer.js');
-  const { replayRestoreHint } = await import('../../../rxdb-plugin-replay/src/restore.js');
+  const { mountReplayer, replayRestoreHint } = await import('./core-sources.js');
   return { mountReplayer, replayRestoreHint };
 });
 const boundary = vi.hoisted(() => {
@@ -172,14 +171,12 @@ describe('R2-10 Angular + 真实核心：加载与生命周期', () => {
   it('R3 夹具守卫：组件入口转发真实核心，rrweb 使用同一可解析模块', async () => {
     // 本包 vite 配置下 `@aiao/rxdb-plugin-replay` 解析到 dist；这里改走顶部已静态导入的
     // `mountReplayer`（经由上方 `vi.mock` 工厂转发到核心 src），不再额外动态 `import()`
-    // 同一个包名，避免被 `@nx/enforce-module-boundaries` 误判成「懒加载」。`source` / `rrweb`
-    // 两个相对路径导入拿的是核心包未导出的内部实现文件与其私有依赖，没有包名可走，是这条断言
-    // 要证「同一可解析模块」本身要求的，无法消去。
-    const source = await import('../../../rxdb-plugin-replay/src/replayer/mount-replayer.js');
-    const rrweb = await import('../../../rxdb-plugin-replay/node_modules/rrweb/dist/rrweb.js');
+    // 同一个包名，避免被 `@nx/enforce-module-boundaries` 误判成「懒加载」。核心的内部实现文件与
+    // rrweb 没有包名可走，统一经 `core-sources.ts` 静态再导出，理由见那里。
+    const source = await import('./core-sources.js');
     expect(mountReplayer).toBe(source.mountReplayer);
     expect(vi.isMockFunction(mountReplayer)).toBe(false);
-    expect(rrweb.Replayer).toBe(boundary.Replayer);
+    expect(source.Replayer).toBe(boundary.Replayer);
     const fixture = await mount(createReplay());
     await ready(fixture);
     expect(boundary.instances).toHaveLength(1);

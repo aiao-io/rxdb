@@ -25,7 +25,7 @@
   也会漏掉被 squash 进 `chore(aiao): update deps (#53)` 的 US-908 两条缺陷修复。见硬前提 2 的 ② 与 ④。
 - 按 [roadmap 线 A](roadmap.md#线-a桥接版本发布owner-门控) 排期，桥接发布的执行**排在所有批次之后**；本计划在 owner 决定启动线 A 时执行，
   动手前重跑下方「硬前提 2」的当前状态实测。
-- **[US-218](stories/adapter/US-218-supabase-rls-push-integrity.md) 阶段 A 合入后不单独发版，与阶段 B 同一版本发布**（`specs/007` research D4）：
+- **[US-218](stories/adapter/US-218-supabase-rls-push-integrity.md) 阶段 A 合入后不单独发版，与阶段 B 同一版本发布**（`git show 8cc005bb:specs/007-us218-rls-push-integrity/research.md` D4）：
   阶段 A 让被行级权限拒绝的删除整批失败，没有阶段 B 逐实体回执的客户端会卡在这条变更上。阶段 B 抬升系统模式到 7，该版本属
   `kind=migration`，桥接锚点用 `v0.0.26`（已满足「须先有一个 `kind=bridge` 版本」）；与 US-305 的迁移版本如何合并由发布负责人定。
   `requirements/migration-release.json` 等到发布当下再改。

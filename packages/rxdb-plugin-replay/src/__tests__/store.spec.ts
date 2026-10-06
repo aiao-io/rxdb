@@ -1,5 +1,5 @@
 /**
- * @fileoverview 录制库存取（`specs/005-us-909-session-replay/data-model.md` §1、research D2 / D3 / D4）。
+ * @fileoverview 录制库存取（`git show 2e820521:specs/005-us-909-session-replay/data-model.md` §1、research D2 / D3 / D4）。
  *
  * @remarks
  * 会话行的 `bytes` / `eventCount` / `nextSeq` / `lastEventAt` 与事件行同进同退是续录的前提：刷新后只看会话行的

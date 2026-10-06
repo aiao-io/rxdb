@@ -1,5 +1,5 @@
 diff --git a/dist/index.h5.js b/dist/index.h5.js
-index 32eabe74231c5248e6e66e03e5ceb20b56ac13f4..a19f8a550e4055808f1dd60a2546411e228ff7dc 100644
+index 32eabe7..a19f8a5 100644
 --- a/dist/index.h5.js
 +++ b/dist/index.h5.js
 @@ -38,7 +38,7 @@ function default_1(appPath, rawTaroConfig) {
@@ -12,7 +12,7 @@ index 32eabe74231c5248e6e66e03e5ceb20b56ac13f4..a19f8a550e4055808f1dd60a2546411e
          }
          // custom vite plugins
 diff --git a/dist/index.harmony.js b/dist/index.harmony.js
-index 1221b1345031bf9288f58ef2eb0287ca966219a0..0815b7853a505c3df15c26274af751a0babc8f46 100644
+index 1221b13..0815b78 100644
 --- a/dist/index.harmony.js
 +++ b/dist/index.harmony.js
 @@ -29,7 +29,7 @@ function default_1(appPath, rawTaroConfig) {
@@ -25,7 +25,7 @@ index 1221b1345031bf9288f58ef2eb0287ca966219a0..0815b7853a505c3df15c26274af751a0
          }
          // custom vite plugins
 diff --git a/dist/index.mini.js b/dist/index.mini.js
-index f6117d213c5987f8292905bf3984cb465b9170cd..46097621fd0c60abe0536390b6262e5425adf190 100644
+index f6117d2..4609762 100644
 --- a/dist/index.mini.js
 +++ b/dist/index.mini.js
 @@ -29,7 +29,7 @@ function default_1(appPath, rawTaroConfig) {
@@ -38,10 +38,10 @@ index f6117d213c5987f8292905bf3984cb465b9170cd..46097621fd0c60abe0536390b6262e54
          }
          // custom vite plugins
 diff --git a/dist/mini/emit.js b/dist/mini/emit.js
-index f3effd33325ef831bb9c62d9c94e9335367d7684..c658d7773d116d732e78498ecdad5790a779f86d 100644
+index d0bf889..885245a 100644
 --- a/dist/mini/emit.js
 +++ b/dist/mini/emit.js
-@@ -189,13 +189,18 @@ function default_1(viteCompilerContext) {
+@@ -192,13 +192,18 @@ function default_1(viteCompilerContext) {
                                      source: () => source
                                  };
                              }
