@@ -12,8 +12,8 @@ import {
 import { describe, expect, it, vi, type Mock } from 'vitest';
 import type { RxDBAdapterSqliteBase, SqliteClientLike } from '../../RxDBAdapterSqliteBase.js';
 import type { SQLiteCompatibleType, SqliteSuccessResult } from '../../sqlite-core.interface.js';
-import { generateSwitchBranchSql, switch_branch } from '../../version/switch_branch.js';
 import { SQLITE_NOW_ISO_SQL } from '../../sqlite-core.utils.js';
+import { generateSwitchBranchSql, switch_branch } from '../../version/switch_branch.js';
 import { Todo } from '../fixtures/Todo.js';
 
 const rxdb = new RxDB({
