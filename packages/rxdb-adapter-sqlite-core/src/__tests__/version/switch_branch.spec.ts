@@ -13,6 +13,7 @@ import { describe, expect, it, vi, type Mock } from 'vitest';
 import type { RxDBAdapterSqliteBase, SqliteClientLike } from '../../RxDBAdapterSqliteBase.js';
 import type { SQLiteCompatibleType, SqliteSuccessResult } from '../../sqlite-core.interface.js';
 import { generateSwitchBranchSql, switch_branch } from '../../version/switch_branch.js';
+import { SQLITE_NOW_ISO_SQL } from '../../sqlite-core.utils.js';
 import { Todo } from '../fixtures/Todo.js';
 
 const rxdb = new RxDB({
@@ -134,9 +135,19 @@ describe('generateSwitchBranchSql', () => {
     const { adapter } = createSwitchAdapter({ entities: [] });
     const [deactivate, activate] = branchUpdatesOf(generateSwitchBranchSql(adapter, 'feature-1'));
 
-    expect(deactivate).toContain('updatedAt = CURRENT_TIMESTAMP');
+    expect(deactivate).toContain(`updatedAt = ${SQLITE_NOW_ISO_SQL}`);
     expect(deactivate).not.toContain('CASE');
-    expect(activate).toContain('updatedAt = CASE WHEN activated = 0 THEN CURRENT_TIMESTAMP ELSE updatedAt END');
+    expect(activate).toContain(`updatedAt = CASE WHEN activated = 0 THEN ${SQLITE_NOW_ISO_SQL} ELSE updatedAt END`);
+  });
+
+  // 裸 `CURRENT_TIMESTAMP` 写出 `YYYY-MM-DD HH:MM:SS`（无时区），读回时 iOS 解析失败、其他端按本地时区错位；
+  // 必须与建表默认值同一个 ISO-8601 UTC 格式
+  it('updatedAt 写入 ISO-8601 UTC，而不是裸 CURRENT_TIMESTAMP', () => {
+    const { adapter } = createSwitchAdapter({ entities: [] });
+    const [deactivate, activate] = branchUpdatesOf(generateSwitchBranchSql(adapter, 'feature-1'));
+
+    expect(deactivate).not.toContain('CURRENT_TIMESTAMP');
+    expect(activate).not.toContain('CURRENT_TIMESTAMP');
   });
 
   it('log: false 的实体不应生成触发器', () => {

@@ -13,6 +13,7 @@ import {
 import { Todo } from '@aiao/rxdb-test/entities';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
+import { SQLITE_NOW_ISO_SQL } from '../sqlite-core.utils.js';
 import { dispatch_switch_events, execute_switch_actions } from '../version/execute_switch_actions.js';
 import { convertSwitchResultToSql } from '../version/switch-result.utils.js';
 import { generateSwitchBranchSql } from '../version/switch_branch.js';
@@ -1874,7 +1875,7 @@ export function versionBranchSuite(factory: AdapterFactory) {
 
           expect(sql).toMatch(/\b1\b/);
           expect(sql).toMatch(/\b0\b/);
-          expect(sql).toContain('CURRENT_TIMESTAMP');
+          expect(sql).toContain(SQLITE_NOW_ISO_SQL);
         });
       });
 

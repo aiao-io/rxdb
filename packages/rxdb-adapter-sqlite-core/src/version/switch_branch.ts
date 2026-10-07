@@ -17,7 +17,8 @@ import {
   get_table_name_by_metadata,
   quote_sql_identifier,
   ROWID,
-  RxDBAdapterSqliteError
+  RxDBAdapterSqliteError,
+  SQLITE_NOW_ISO_SQL
 } from '../sqlite-core.utils.js';
 import { remove_all_triggers_sql } from '../table/remove_trigger_sql.js';
 import { generate_table_trigger_sql } from '../table/trigger_sql.js';
@@ -81,7 +82,7 @@ export const generateSwitchBranchStatements = (adapter: RxDBAdapterSqliteBase, b
     SET
       activated = 0,
       activeKey = NULL,
-      updatedAt = CURRENT_TIMESTAMP
+      updatedAt = ${SQLITE_NOW_ISO_SQL}
     WHERE activated = 1 AND id != ${branchIdSql}
     RETURNING rowid as ${ROWID},*;
     `;
@@ -90,7 +91,7 @@ export const generateSwitchBranchStatements = (adapter: RxDBAdapterSqliteBase, b
     SET
       activated = 1,
       activeKey = ${activeKeySql},
-      updatedAt = CASE WHEN activated = 0 THEN CURRENT_TIMESTAMP ELSE updatedAt END
+      updatedAt = CASE WHEN activated = 0 THEN ${SQLITE_NOW_ISO_SQL} ELSE updatedAt END
     WHERE id = ${branchIdSql}
     RETURNING rowid as ${ROWID},*;
     `;

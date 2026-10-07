@@ -128,6 +128,14 @@ export function systemSchemaMigrationSuite(factory: AdapterFactory): void {
         ).toHaveLength(0);
         const firstWatermarks = await readWatermarks(adapter);
         expect(firstWatermarks.map(row => row[1])).toEqual(currentWatermarks);
+        // 水位的 executedAt 与建表默认值同为 ISO-8601 UTC；裸 CURRENT_TIMESTAMP 的空格格式在 iOS 上解析失败
+        const executedAts = await readRows(
+          adapter,
+          `SELECT "executedAt" FROM ${migrationTable} WHERE "name" IN ('${currentWatermarks.join("', '")}')`
+        );
+        expect(executedAts.flat()).toEqual(
+          currentWatermarks.map(() => expect.stringMatching(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/))
+        );
 
         adapter = await reconnectAdapter(adapter, factory.name);
 
