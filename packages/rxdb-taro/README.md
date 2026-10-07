@@ -32,7 +32,7 @@ export default defineConfig<'vite'>({
 | 做什么                                                                        | 不做的后果                                                                    |
 | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | 把 adapter 依赖的 wasm 发到产物根的 `wa-sqlite/wa-sqlite.wasm`                | 建库时找不到 wasm                                                             |
-| 把 `@subframe7536/sqlite-wasm` glue 里的 `import.meta.url` 抹成空串           | 小程序没有 `import.meta`；vite 还会把约 0.8 MB 的 wasm 以 base64 内联进代码包 |
+| 把 `@subframe7536/sqlite-wasm` glue 里的 `import.meta.url` 抹成空串           | 小程序没有 `import.meta`；vite 还会把约 0.7 MB 的 wasm 以 base64 内联进代码包 |
 | 抖音：产物里自由的 `globalThis` 改指入口登记的真实全局对象（`rxdb-realm.js`） | 抖音模块里 `globalThis` 是 `undefined`，comlink 模块顶层一加载就 TypeError    |
 | 构建目标仍是 Taro 写死的 `es6` 时抬到 `es2020`                                | Taro 4.3 模板带的 vite 4 在 es6 下改写不了 RxDB 的 BigInt 字面量，构建报错    |
 

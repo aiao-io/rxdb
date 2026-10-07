@@ -22,6 +22,10 @@ wa-sqlite 的 Emscripten glue 与 wasm 二进制都取自
 本包把它列为**精确版本**依赖：glue 只经 `./dist/*` 暴露、文件名带内容哈希，用 `^` 放宽会让
 `loadSubframeModuleFactory()` 指向不存在的文件。
 
+当前锁在 1.3.1。1.4.0 的 glue 把 `_sqlite3_version` 改成读 wasm 导出的 Global，而 iOS 微信的 `WXWebAssembly`
+不导出 Global，真机初始化即报 `undefined is not an object`；开发者工具模拟器用的是标准 WebAssembly，测不出来。
+升级前先过 `src/__tests__/subframe-glue-exported-globals.spec.ts`：glue 里出现读导出 Global 的代码就红。
+
 宿主应用只需把 wasm 复制进小程序代码包，glue 由 `loadSubframeModuleFactory()` 自行定位：
 
 ```text
@@ -249,7 +253,7 @@ wasm 加载对应 `loadWaSqliteMiniProgramModule(options, host)`（`host` 必传
 
 glue 是 ESM，内部有 `var _scriptName = import.meta.url` 和
 `new URL('wa-sqlite.wasm', import.meta.url)`。两处都有麻烦：小程序运行时没有 `import.meta`，
-而后者会被 vite 识别成资产引用，把约 0.8 MB 的 wasm 以 base64 内联进产物（代码包凭空多出约 1 MB）。
+而后者会被 vite 识别成资产引用，把约 0.7 MB 的 wasm 以 base64 内联进产物（代码包凭空多出约 1 MB）。
 
 这两处分支在显式传 `locateFile` + `instantiateWasm` 时永远走不到，所以宿主构建把 glue 里的
 `import.meta.url` 替换成空串即可。Taro（Vite）项目在 `config/index.ts` 的 `plugins` 里加一行
