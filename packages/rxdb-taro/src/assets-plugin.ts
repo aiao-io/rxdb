@@ -40,7 +40,11 @@ export function miniProgramAssetsVitePlugin(platform: AssetsPlatform, appRoot: s
       const wasm = readFileSync(adapterRequire.resolve(WASM_SOURCE_SUBPATH));
       this.emitFile({ type: 'asset', fileName: WASM_PATH, source: wasm });
       if (platform !== 'alipay') return;
-      this.emitFile({ type: 'asset', fileName: `${WASM_PATH}${WASM_TEXT_COPY_SUFFIX}`, source: wasm.toString('base64') });
+      this.emitFile({
+        type: 'asset',
+        fileName: `${WASM_PATH}${WASM_TEXT_COPY_SUFFIX}`,
+        source: wasm.toString('base64')
+      });
       this.emitFile({
         type: 'asset',
         fileName: ALIPAY_WORKER_PATH,

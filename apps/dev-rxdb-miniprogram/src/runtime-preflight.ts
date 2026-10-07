@@ -40,7 +40,7 @@ export function wechatDemoRuntime(): MiniProgramDemoRuntime {
 
 /**
  * 抖音：不传 `runtimeGlobal`。抖音产物里所有自由的 `globalThis`（adapter、RxDB 核心、第三方库）构建期已改指入口登记的
- * 真实全局对象（`config/realm-vite-plugin.ts`），adapter 读到的就是它。
+ * 真实全局对象（`@aiao/rxdb-taro` 的 realm 插件），adapter 读到的就是它。
  */
 export function douyinDemoRuntime(): MiniProgramDemoRuntime {
   if (typeof tt === 'undefined') throw new Error('没有全局 tt：当前不是抖音小程序运行时');
@@ -51,14 +51,14 @@ export function douyinDemoRuntime(): MiniProgramDemoRuntime {
   };
 }
 
-/** 随机数 Worker 脚本在代码包里的路径；与 `config/assets-vite-plugin.ts` 的 `ALIPAY_WORKER_PATH`、`app.config.ts` 的 `workers` 一致。 */
+/** 随机数 Worker 脚本在代码包里的路径；与 `@aiao/rxdb-taro/vite` 的 `ALIPAY_WORKER_PATH`、`app.config.ts` 的 `workers` 一致。 */
 const ALIPAY_WORKER_PATH = 'workers/index.js';
 
 /** 同一时刻只能有一个 Worker，页面重进时复用它，不重复 `createWorker`。 */
 let alipayRandomWorker: AlipayRandomWorker | undefined;
 
 /**
- * 支付宝：不传 `runtimeGlobal`，理由同抖音（`config/realm-vite-plugin.ts` 在模拟器里经 `Object.prototype` getter 登记真实全局对象）。
+ * 支付宝：不传 `runtimeGlobal`，理由同抖音（`@aiao/rxdb-taro/vite` 的 realm 插件在模拟器里经 `Object.prototype` getter 登记真实全局对象）。
  *
  * - wasm：逻辑层的标准 `WebAssembly`（无文档能力，缺失时宿主 `prepareRuntime` 报错）；代码包里有 wasm 原文件与 base64 副本，
  *   adapter 按指纹选。

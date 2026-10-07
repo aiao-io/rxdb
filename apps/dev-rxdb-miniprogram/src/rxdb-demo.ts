@@ -323,7 +323,7 @@ export async function openMiniProgramRxdbDemo(runtime: MiniProgramRuntimeReferen
   logStep('加载 RxDB 与 adapter');
   const [rxdb, adapterPackage] = await Promise.all([import('@aiao/rxdb'), import('@aiao/rxdb-adapter-miniprogram')]);
   // glue 与 wasm 都来自 `@subframe7536/sqlite-wasm`（编入 FTS5），adapter 负责定位 glue，
-  // wasm 由 `config/assets-vite-plugin.ts` 放到产物根的 `wa-sqlite/`，三个平台的宿主都指向它（支付宝另有 base64 副本）。
+  // wasm 由 `@aiao/rxdb-taro` 放到产物根的 `wa-sqlite/`，三个平台的宿主都指向它（支付宝另有 base64 副本）。
   logStep('加载 wa-sqlite glue');
   const moduleFactory = await adapterPackage.loadSubframeModuleFactory();
   logStep('检测运行时能力');

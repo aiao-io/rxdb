@@ -12,7 +12,11 @@ import { subframeGlueVitePlugin } from './subframe-glue-plugin.js';
 
 export { ALIPAY_WORKER_PATH } from './constants.js';
 
-/** 构建插件支持的 Taro 平台名（即 `process.env.TARO_ENV`，不是 adapter 的平台 id）。 */
+/**
+ * 构建插件支持的 Taro 平台名（即 `process.env.TARO_ENV`，不是 adapter 的平台 id）。
+ *
+ * @experimental
+ */
 export type MiniProgramBuildPlatform = 'weapp' | 'tt' | 'alipay';
 
 /**
@@ -29,6 +33,7 @@ export type MiniProgramBuildPlatform = 'weapp' | 'tt' | 'alipay';
  * @param appRoot - app 根目录（有 package.json 的那层），从这里解析 `@aiao/rxdb-adapter-miniprogram`
  * @returns 按顺序追加的 vite 插件
  * @throws 从 `appRoot` 解析不到 `@aiao/rxdb-adapter-miniprogram`
+ * @experimental
  */
 export function miniProgramVitePlugins(platform: MiniProgramBuildPlatform, appRoot: string): Plugin[] {
   const realm = platform === 'weapp' ? [] : [realmVitePlugin(platform)];

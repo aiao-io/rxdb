@@ -89,7 +89,9 @@ describe('rxdbTaroPlugin：weapp / tt + vite', () => {
     const assets = compiler.vitePlugins.find(plugin => plugin.name === 'aiao-rxdb-taro:assets');
     const emitted: { source: unknown }[] = [];
 
-    (assets?.generateBundle as (this: unknown) => void).call({ emitFile: (file: { source: unknown }) => emitted.push(file) });
+    (assets?.generateBundle as (this: unknown) => void).call({
+      emitFile: (file: { source: unknown }) => emitted.push(file)
+    });
 
     expect(emitted.map(file => Buffer.from(file.source as Buffer).equals(FAKE_WASM))).toEqual([true]);
   });

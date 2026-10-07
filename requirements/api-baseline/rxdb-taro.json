@@ -1,0 +1,36 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "default",
+        "kind": "value"
+      },
+      {
+        "name": "TaroCompilerOptions",
+        "kind": "type"
+      },
+      {
+        "name": "TaroPluginContext",
+        "kind": "type"
+      },
+      {
+        "name": "TaroRunnerOptions",
+        "kind": "type"
+      }
+    ],
+    "./vite": [
+      {
+        "name": "ALIPAY_WORKER_PATH",
+        "kind": "value"
+      },
+      {
+        "name": "MiniProgramBuildPlatform",
+        "kind": "type"
+      },
+      {
+        "name": "miniProgramVitePlugins",
+        "kind": "value"
+      }
+    ]
+  }
+}

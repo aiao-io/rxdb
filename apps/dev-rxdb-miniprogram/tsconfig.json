@@ -24,7 +24,7 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["./src", "./types", "./config"],
+  "include": ["./src", "./types", "./config", "./verify"],
   "references": [
     {
       "path": "../../packages/rxdb"

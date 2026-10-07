@@ -19,11 +19,7 @@ describe('miniProgramVitePlugins', () => {
   });
 
   it.each(['tt', 'alipay'] as const)('%s：另把产物里的 globalThis 绑到真实全局对象', platform => {
-    expect(names(platform)).toEqual([
-      'aiao-rxdb-taro:subframe-glue',
-      'aiao-rxdb-taro:realm',
-      'aiao-rxdb-taro:assets'
-    ]);
+    expect(names(platform)).toEqual(['aiao-rxdb-taro:subframe-glue', 'aiao-rxdb-taro:realm', 'aiao-rxdb-taro:assets']);
   });
 
   it.each(PLATFORMS)('%s：不读不写 build.target，跟随 Taro 或用户自己的设置', platform => {

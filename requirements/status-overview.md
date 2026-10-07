@@ -9,26 +9,27 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 73   |
-| 🚧 In Progress | 1    |
+| 🚧 In Progress | 2    |
 | 👀 In Review   | 0    |
-| 📝 Backlog     | 24   |
+| 📝 Backlog     | 23   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 98   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **24 条 Backlog 里只有 2 条是可开工的**：另外 22 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md) + [US-029](stories/core/US-029-rbac-owner-role-permission.md) + [US-031](stories/core/US-031-tree-sortable-migration.md)）
+> **23 条 Backlog 里只有 1 条是可开工的**：另外 22 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md) + [US-029](stories/core/US-029-rbac-owner-role-permission.md) + [US-031](stories/core/US-031-tree-sortable-migration.md)）
 > 标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次。
 > 两者在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（1 条）
+## 进行中（2 条）
 
-| Story                                                                          | 进展                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过，剩 Android 真机；百度 / QQ 已判 `unsupported`，待做 |
+| Story                                                                                      | 进展                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)             | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过，剩 Android 真机；百度 / QQ 已判 `unsupported`，待做 |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md) | 阶段 A 进行中：`@aiao/rxdb-taro` 已建包（Taro 插件 + `./vite` 子路径，单测覆盖率 100%），demo 微信 / 抖音改用 Taro 插件、支付宝经 `./vite`，三平台产物与改前逐字节一致，`verify-dist` 断言进 `build`；剩 adapter README、npm 安装路径实测（AC#10）                                                                                                                                                   |
 
 ## 待评审（0 条）
 
@@ -111,7 +112,7 @@
 - ⬜ [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) — **价值待证**：`EntityMetadataOptions` 无 CHECK 落点、`EntityIndexMetadataOptions` 只有 `properties` / `unique` / `normalized`；四阶段（CHECK → 条件唯一与表达式索引 → 区间排他双后端等价 → 生成列与索引方法）；当前消费方全在 epic-009，但解锁条件不限 BOM
 - ⬜ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md) — 树兄弟域按 `parentId` 分组改走 US-028 排序模块：`rxdb-test` 四个树实体 `sortOrder` 改非空并按父节点回填，三端 demo 树菜单 / 文件管理的新建追加与拖放改用 core API，删掉 22 个文件里的算键与比较器副本；前置 US-028 已 Done；**价值待证**，`priority: Low`，不新增抽象、今天无可复现症状
 - ✅ [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) — PGlite、SQLite 共享层与桌面 host（Electron SQLite / PGlite、Tauri SQLite）三阶段交付；只承诺同 adapter 恢复，外置文件不在归档内
-- ⬜ [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md) — `@aiao/rxdb-taro`：把 demo 里的 wasm 拷贝、glue `import.meta.url` 改写、抖音 realm 绑定搬进可发布的 Taro 插件（只经被 await 的 `modifyRunnerOpts`；build target 跟随 Taro，不碰）；只放行 `weapp` / `tt` + vite，其余构建期报错；三阶段（构建插件 → 运行时入口 → webpack5 **价值待证**）
+- 🚧 [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md) — 阶段 A 进行中：`@aiao/rxdb-taro` 已建包（Taro 插件 + `./vite` 子路径，单测覆盖率 100%），demo 微信 / 抖音改用 Taro 插件、支付宝经 `./vite`，三平台产物与改前逐字节一致，`verify-dist` 断言进 `build`；剩 adapter README、npm 安装路径实测（AC#10）
 - ✅ [US-218 Supabase 远端启用 RLS 时的推送完整性](stories/adapter/US-218-supabase-rls-push-integrity.md) — 出自 RV-022：被 RLS 过滤的删除仍写进 `rxdb_change`（目标行连 SELECT 都看不到时同样如此），其它端拉到幽灵 DELETE；`rxdb_mutations` 也不校验日志与业务写是否配对；三阶段（不写幽灵日志 + 配对校验 → 逐实体回执与被拒实体本地对齐 → 日志表收口与部署指引），阶段 B 以 US-220 为前置；阶段 A～C 全部落地，与 US-220 合并为 #99 合入
 - ✅ [US-220 Supabase 推送 UPDATE 的落库语义](stories/adapter/US-220-supabase-update-push-semantics.md) — 评审 US-218 时发现：推送把 UPDATE 当 `INSERT … ON CONFLICT DO UPDATE` 落库，拟插入行要过 NOT NULL、INSERT 与 SELECT 策略：NOT NULL 列报 23502（Todo 只改 `completed` 即中招），owner 型 RLS 下改自己的行、共享编辑表上改别人的行都误报 42501，整批卡住；改走普通 UPDATE（`rxdb_mutations` 新参数 `p_updates`），被拒抛 42501、行已不存在抛 `RX001`，存在性探针 `rxdb_existing_ids` 与 US-218 阶段 A 共用；已落地，与 US-218 合并为 #99 合入
 - ✅ [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做，B / C 的价值门禁豁免。三阶段合为 #85 一次合入，AC#1～17 全 ✅：A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`（`screenshots: false`），开销实测 +32.7%，上限经 owner 裁决由 +10% 改为 +33%；B Angular e2e 失败现场数据原样归档与 `dev-rxdb-angular` 导入入口，demo 的 Worker / SharedWorker 连接备份被拒（US-217 只交付主线程连接），IDB 档经同库名的主线程第二连接绕开（spike 2026-10-02 通过）；C 新包 `@aiao/rxdb-plugin-replay`（rrweb 应用内录制，独立录制库，单会话 16 MiB + 总量 128 MiB，门面 `commits$` 关联 commit）加 `rxdb-plugin-replay-{angular,react,vue}` 三框架 Replayer，`dev-rxdb-angular` opt-in 演示

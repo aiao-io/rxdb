@@ -1,12 +1,13 @@
 {
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "// build": "统一构建：`nx build dev-rxdb-miniprogram` 依次带起 build-weapp / build-tt / build-alipay 三个平台，各自缓存、各自输出目录（Taro 每次构建先清空 outputRoot）。只要一个平台就直接跑对应的 build-<平台>。三个平台共用 config/ 下的构建插件，平台差异只在 config/index.ts 的插件清单里。",
-  "// build-alipay": "支付宝产物输出到 dist-alipay/，用支付宝小程序开发者工具直接打开 dist-alipay/。比另两个平台多三样（都在 config/ 里）：wasm 的 base64 副本与随机数 Worker（assets-vite-plugin.ts，app.config.ts 声明 workers）、模拟器里登记真实全局对象（realm-vite-plugin.ts）、RxDB 栈留在懒加载的 rxdb-lazy.js 等宿主 prepareRuntime 补完 BigInt（lazy-chunk-vite-plugin.ts）。project.alipay.json 不带 appid，真机预览/调试要关联的真实 AppID 只在工具里改，别提交。它的 compileOptions.transpile 不能删：开发者工具（编译器 0.108.16）见到它才用 babel 7（es2023）编译 JS，没有它走 babel 6（es6），Taro 运行时 taro.js 编译失败（CE1000.02 The keyword 'const' is reserved），模拟器起不来；transpile.script.ignore 让 workers/ 原样进包（IDE 转译会注入依赖 Function('return this')() 的 core-js polyfill，Worker 里拿不到全局对象、一启动就崩；包里的 Worker 已是手写 ES5）。",
+  "// build": "统一构建：`nx build dev-rxdb-miniprogram` 依次带起 build-weapp / build-tt / build-alipay 三个平台与 verify-dist 产物断言，各自缓存、各自输出目录（Taro 每次构建先清空 outputRoot）。只要一个平台就直接跑对应的 build-<平台>。adapter 的构建前提来自 @aiao/rxdb-taro（微信、抖音经 Taro 插件，支付宝经 @aiao/rxdb-taro/vite），demo 自己的构建插件在 config/ 下，平台差异只在 config/index.ts 里。",
+  "// build-alipay": "支付宝产物输出到 dist-alipay/，用支付宝小程序开发者工具直接打开 dist-alipay/。比另两个平台多三样：wasm 的 base64 副本与随机数 Worker（@aiao/rxdb-taro/vite，app.config.ts 声明 workers）、模拟器里登记真实全局对象（同上）、RxDB 栈留在懒加载的 rxdb-lazy.js 等宿主 prepareRuntime 补完 BigInt（config/lazy-chunk-vite-plugin.ts）。project.alipay.json 不带 appid，真机预览/调试要关联的真实 AppID 只在工具里改，别提交。它的 compileOptions.transpile 不能删：开发者工具（编译器 0.108.16）见到它才用 babel 7（es2023）编译 JS，没有它走 babel 6（es6），Taro 运行时 taro.js 编译失败（CE1000.02 The keyword 'const' is reserved），模拟器起不来；transpile.script.ignore 让 workers/ 原样进包（IDE 转译会注入依赖 Function('return this')() 的 core-js polyfill，Worker 里拿不到全局对象、一启动就崩；包里的 Worker 已是手写 ES5）。",
   "// build-tt": "抖音产物输出到 dist-tt/，用抖音开发者工具直接打开 dist-tt/。project.tt.json 的 appid 是占位的 testAppId，换真实 AppID 只在工具里或 dist-tt/project.config.json 里改，别提交。",
   "// build-weapp": "微信产物输出到 dist/，用微信开发者工具打开本目录（project.config.json 的 miniprogramRoot 指向 dist/）。",
   "// lint": "Taro 的依赖树被 auto-install-peers 塞进一个 eslint 8.41（@eslint-community/eslint-utils 的 peer），它的 .bin 会盖住根上的 eslint 10，flat config 直接找不到。所以显式走根二进制，而不是 @nx/eslint/plugin 推断出的裸 `eslint .`。",
   "// serve": "微信小程序没有 dev server：`serve` 就是 watch 构建，产物仍在 dist/，用微信开发者工具打开本目录（project.config.json 的 miniprogramRoot 指向 dist/）即可热更。",
   "// targets": "to see all targets run: nx show project dev-rxdb-miniprogram --web",
+  "// verify-dist": "US-219 AC#1～3、AC#5：断言 build-weapp / build-tt 的产物（wasm 落点与字节、无 import.meta 与 wasm base64 内联、抖音 realm 绑定），由 build 带起。单独一份 vitest 配置（vitest.dist.config.mts），不进 test：没构建时产物不存在。不缓存：产物是别的 target 的输出，跑一次只要几十毫秒。",
   "name": "dev-rxdb-miniprogram",
   "projectType": "application",
   "sourceRoot": "apps/dev-rxdb-miniprogram/src",
@@ -14,7 +15,15 @@
   "targets": {
     "build": {
       "executor": "nx:noop",
-      "dependsOn": ["build-weapp", "build-tt", "build-alipay"]
+      "dependsOn": ["build-weapp", "build-tt", "build-alipay", "verify-dist"]
+    },
+    "verify-dist": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["build-weapp", "build-tt"],
+      "options": {
+        "cwd": "apps/dev-rxdb-miniprogram",
+        "command": "node ../../node_modules/vitest/vitest.mjs run --config vitest.dist.config.mts"
+      }
     },
     "build-weapp": {
       "executor": "nx:run-commands",

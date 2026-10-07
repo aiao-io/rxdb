@@ -19,7 +19,9 @@ describe('subframeGlueVitePlugin', () => {
   });
 
   it('Windows 路径分隔符也认', () => {
-    expect(transform('import.meta.url', 'C:\\app\\node_modules\\@subframe7536\\sqlite-wasm\\dist\\wa-sqlite-x.js')).toEqual({
+    expect(
+      transform('import.meta.url', 'C:\\app\\node_modules\\@subframe7536\\sqlite-wasm\\dist\\wa-sqlite-x.js')
+    ).toEqual({
       code: '""',
       map: null
     });

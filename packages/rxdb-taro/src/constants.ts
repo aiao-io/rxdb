@@ -20,5 +20,7 @@ export const ALIPAY_WORKER_SOURCE_SUBPATH = `${ADAPTER_PACKAGE}/alipay-random-wo
  * 支付宝随机数 Worker 在代码包里的路径。
  *
  * `app.config.ts` 的 `workers` 与运行时 `my.createWorker` 都要用它。
+ *
+ * @experimental
  */
 export const ALIPAY_WORKER_PATH = 'workers/index.js';

@@ -29,7 +29,8 @@ wa-sqlite 的 Emscripten glue 与 wasm 二进制都取自
 ```
 
 源子路径导出为 `SUBFRAME_WASM_SUBPATH`，代码包内的目标路径导出为 `DEFAULT_WASM_PATH`。
-glue 与 wasm 是一对，跨构建混用会 `LinkError`。
+glue 与 wasm 是一对，跨构建混用会 `LinkError`。Taro（Vite）项目不用手抄构建配置，装
+[`@aiao/rxdb-taro`](../rxdb-taro/README.md) 即可（见[打包器注意事项](#打包器注意事项)）。
 
 ```typescript
 async function createDatabase() {
@@ -120,9 +121,9 @@ async function createDatabase() {
 `runtimeGlobal` 只管得到 adapter。打进同一份产物的其他代码照样读自由的 `globalThis`：sqlite-core 依赖的 comlink
 在模块顶层执行 `'FinalizationRegistry' in globalThis`，所在 chunk 一加载就抛 TypeError；RxDB 核心的选主与
 `BroadcastChannel` 也读它。所以整份产物要在构建期把 `globalThis` 改指入口取到的真实全局对象，做到这一步后 adapter
-读到的 `globalThis` 就是它，不必再传 `runtimeGlobal`。Taro（Vite）的做法见 `apps/dev-rxdb-miniprogram` 的
-`config/realm-vite-plugin.ts`（`realmVitePlugin`，抖音与支付宝共用）与 `build-tt` / `build-alipay` target。两者都拿不到真实全局对象时引导直接报
-「请经 host.runtimeGlobal 注入」，不会猜。
+读到的 `globalThis` 就是它，不必再传 `runtimeGlobal`。Taro（Vite）项目装 [`@aiao/rxdb-taro`](../rxdb-taro/README.md)，
+它在抖音构建里做这一步（入口登记真实全局对象到 `rxdb-realm.js`，其余 chunk 从那里取）；其他打包器照它的做法实现。
+两者都拿不到真实全局对象时引导直接报「请经 host.runtimeGlobal 注入」，不会猜。
 
 iOS 抖音没有原生 `TextEncoder` / `TextDecoder`，adapter 的 polyfill 要到 `prepareMiniProgramHostRuntime` 才装。
 所以打进产物的代码**不能在模块顶层构造编码器**，要等第一次用到再建：iOS 真机实测，模块顶层的 `new TextEncoder()`
@@ -137,8 +138,9 @@ iOS 抖音没有原生 `TextEncoder` / `TextDecoder`，adapter 的 polyfill 要�
 开发者工具与 iOS 真机验证过（US-211 支付宝探针 v7），**Android 真机未验证**，配额也没撞到过（`quota-unobserved`），
 平台改掉任一项未文档化行为时引导直接报 `AlipayUndocumentedCapabilityError`，不降级。
 
-代码包要放三样东西（esbuild 参考 `apps/dev-rxdb-miniprogram-alipay-probe/scripts/build.mjs`，Taro（Vite）参考
-`apps/dev-rxdb-miniprogram` 的 `config/assets-vite-plugin.ts`）：
+代码包要放三样东西。Taro（Vite）项目用 [`@aiao/rxdb-taro/vite`](../rxdb-taro/README.md#支付宝实验性) 的
+`miniProgramVitePlugins('alipay', appRoot)` 发出，它同时负责模拟器里的真实全局对象登记；esbuild 参考
+`apps/dev-rxdb-miniprogram-alipay-probe/scripts/build.mjs`：
 
 ```text
 @aiao/rxdb-adapter-miniprogram/alipay-random-worker.js  →  workers/index.js（预编译 ES5，原样拷贝）
@@ -248,9 +250,9 @@ glue 是 ESM，内部有 `var _scriptName = import.meta.url` 和
 而后者会被 vite 识别成资产引用，把约 0.8 MB 的 wasm 以 base64 内联进产物（代码包凭空多出约 1 MB）。
 
 这两处分支在显式传 `locateFile` + `instantiateWasm` 时永远走不到，所以宿主构建把 glue 里的
-`import.meta.url` 替换成空串即可。Taro 示例的 `subframeSqliteWasmVitePlugin()`
-（见 [config/rxdb-packages-vite-plugin.ts](../../apps/dev-rxdb-miniprogram/config/rxdb-packages-vite-plugin.ts)）就做这件事，
-wasm 等运行时文件由同目录的 [config/assets-vite-plugin.ts](../../apps/dev-rxdb-miniprogram/config/assets-vite-plugin.ts) 发进产物。
+`import.meta.url` 替换成空串即可。Taro（Vite）项目在 `config/index.ts` 的 `plugins` 里加一行
+[`'@aiao/rxdb-taro'`](../rxdb-taro/README.md)（微信、抖音），这一步、wasm 发进代码包与抖音的真实全局对象绑定都由它完成；
+其他 vite 项目用 `@aiao/rxdb-taro/vite` 的 `miniProgramVitePlugins()` 自行组装。
 
 本包自身的构建把 `@subframe7536/sqlite-wasm` 保持在 external，不打进 `dist`——同理，
 一旦打进来 wasm 就会被内联。
