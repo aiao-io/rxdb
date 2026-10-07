@@ -78,7 +78,7 @@ function viteCompilerOptions(compiler: TaroRunnerOptions['compiler']): TaroCompi
  * 追加进 `compiler.vitePlugins`，组装方式同 `@aiao/rxdb-taro/vite` 的 `miniProgramVitePlugins`。
  *
  * 只经 `modifyRunnerOpts` 改配置：它在 runner 启动前被 await；`modifyViteConfig` 不被 await，排在异步插件之后会与
- * vite 读配置赛跑。平台不是 `weapp` / `tt`、或编译器不是 vite 时构建期直接失败。不读不写 `build.target`。
+ * vite 读配置赛跑。平台不是 `weapp` / `tt`、或编译器不是 vite 时构建期直接失败。构建目标只替换 Taro 写死的 `es6`。
  *
  * @example
  * ```ts

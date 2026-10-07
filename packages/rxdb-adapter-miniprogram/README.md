@@ -80,7 +80,9 @@ wa-sqlite glue。它会通过 `wx.getRandomValues` 预取同步安全随机池�
 
 ## 抖音
 
-抖音没有 `wechat` 那样的便利形状，一律经 `createDouyinMiniProgramHost(tt, options)` 注入 host：
+抖音没有 `wechat` 那样的便利形状，一律经 `createDouyinMiniProgramHost(tt, options)` 注入 host。Taro 项目可以直接用
+[`@aiao/rxdb-taro/runtime`](../rxdb-taro/README.md#运行时入口) 的 `taroMiniProgramRuntime()` 按构建平台取微信或抖音的 host 与
+WASM 运行时；不用 Taro 时这样写：
 
 ```typescript
 // 必须写在非严格模式的代码里（如打包产物的入口文件）：抖音页面模块里 globalThis 是 undefined，
@@ -251,7 +253,8 @@ glue 是 ESM，内部有 `var _scriptName = import.meta.url` 和
 
 这两处分支在显式传 `locateFile` + `instantiateWasm` 时永远走不到，所以宿主构建把 glue 里的
 `import.meta.url` 替换成空串即可。Taro（Vite）项目在 `config/index.ts` 的 `plugins` 里加一行
-[`'@aiao/rxdb-taro'`](../rxdb-taro/README.md)（微信、抖音），这一步、wasm 发进代码包与抖音的真实全局对象绑定都由它完成；
+[`'@aiao/rxdb-taro'`](../rxdb-taro/README.md)（微信、抖音），这一步、wasm 发进代码包、抖音的真实全局对象绑定，以及把 Taro 写死的 `es6` 构建目标抬到 es2020
+（Taro 4.3 模板带的 vite 4 在 es6 下改写不了 RxDB 的 BigInt 字面量）都由它完成；
 其他 vite 项目用 `@aiao/rxdb-taro/vite` 的 `miniProgramVitePlugins()` 自行组装。
 
 本包自身的构建把 `@subframe7536/sqlite-wasm` 保持在 external，不打进 `dist`——同理，

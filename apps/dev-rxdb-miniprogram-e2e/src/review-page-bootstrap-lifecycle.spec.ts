@@ -50,7 +50,13 @@ function createPageHarness() {
       useCallback: (callback: unknown) => callback
     },
     'react/jsx-runtime': { jsx: () => null, jsxs: () => null },
-    '../../runtime-preflight': { inspectMiniProgramRuntime: () => [], getMiniProgramRuntimeReferences: () => ({}) },
+    '../../benchmark/stats': { formatBenchmarkValue: () => '' },
+    '../../debug-log': { logFailure: () => undefined },
+    '../../runtime-preflight': {
+      currentDemoRuntime: () => ({}),
+      inspectMiniProgramRuntime: () => [],
+      getMiniProgramRuntimeReferences: () => ({})
+    },
     '../../rxdb-demo': {
       openMiniProgramRxdbDemo: () => {
         calls.open += 1;

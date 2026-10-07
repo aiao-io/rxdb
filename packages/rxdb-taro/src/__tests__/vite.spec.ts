@@ -14,23 +14,45 @@ function names(platform: MiniProgramBuildPlatform): string[] {
 type ConfigHook = (config: object, env: object) => unknown;
 
 describe('miniProgramVitePlugins', () => {
-  it('微信：glue 改写与代码包资源，不绑 realm（模块里有 globalThis）', () => {
-    expect(names('weapp')).toEqual(['aiao-rxdb-taro:subframe-glue', 'aiao-rxdb-taro:assets']);
+  it('微信：glue 改写、构建目标与代码包资源，不绑 realm（模块里有 globalThis）', () => {
+    expect(names('weapp')).toEqual([
+      'aiao-rxdb-taro:subframe-glue',
+      'aiao-rxdb-taro:build-target',
+      'aiao-rxdb-taro:assets'
+    ]);
   });
 
   it.each(['tt', 'alipay'] as const)('%s：另把产物里的 globalThis 绑到真实全局对象', platform => {
-    expect(names(platform)).toEqual(['aiao-rxdb-taro:subframe-glue', 'aiao-rxdb-taro:realm', 'aiao-rxdb-taro:assets']);
+    expect(names(platform)).toEqual([
+      'aiao-rxdb-taro:subframe-glue',
+      'aiao-rxdb-taro:build-target',
+      'aiao-rxdb-taro:realm',
+      'aiao-rxdb-taro:assets'
+    ]);
   });
 
-  it.each(PLATFORMS)('%s：不读不写 build.target，跟随 Taro 或用户自己的设置', platform => {
-    const userConfig = Object.freeze({ build: Object.freeze({ target: 'es2020' }) });
-    const configHooks = miniProgramVitePlugins(platform, APP_ROOT)
+  function buildTargets(platform: MiniProgramBuildPlatform, target: string): unknown[] {
+    const config = Object.freeze({ build: Object.freeze({ target }) });
+    return miniProgramVitePlugins(platform, APP_ROOT)
       .map((plugin: Plugin): unknown => plugin.config)
-      .filter((hook): hook is ConfigHook => typeof hook === 'function');
+      .filter((hook): hook is ConfigHook => typeof hook === 'function')
+      .map(
+        hook => hook(config, { command: 'build', mode: 'production' }) as { build?: { target?: unknown } } | undefined
+      )
+      .map(result => result?.build?.target)
+      .filter(value => value !== undefined);
+  }
 
-    for (const hook of configHooks) {
-      expect(hook(userConfig, { command: 'build', mode: 'production' })).not.toHaveProperty('build');
-    }
+  it.each(PLATFORMS)('%s：用户自己设的 build.target 不动', platform => {
+    expect(buildTargets(platform, 'es2017')).toEqual([]);
+  });
+
+  it.each([
+    ['weapp', 'es2020'],
+    ['tt', 'es2020'],
+    ['alipay', 'es2018']
+  ] as const)('%s：只把 Taro 写死的 es6 抬到 %s', (platform, target) => {
+    expect(buildTargets(platform, 'es6')).toEqual([target]);
   });
 
   it('支付宝随机数 Worker 在代码包里的路径', () => {

@@ -6,7 +6,8 @@ import { describe, expect, it } from 'vitest';
 
 /** US-219 AC#1～3、AC#5：`@aiao/rxdb-taro` 接入后微信、抖音产物的构建前提。 */
 
-const APP_ROOT = fileURLToPath(new URL('..', import.meta.url));
+/** 默认断言本 demo；`VERIFY_DIST_APP_ROOT` 指向别的 Taro 项目时断言它的产物（US-219 AC#10 的 npm 安装路径）。 */
+const APP_ROOT = process.env['VERIFY_DIST_APP_ROOT'] ?? fileURLToPath(new URL('..', import.meta.url));
 
 const PLATFORM_OUTPUTS = { weapp: 'dist', tt: 'dist-tt' } as const;
 
@@ -73,5 +74,33 @@ describe('抖音产物绑定真实全局对象', () => {
     );
 
     expect(offenders.map(([file]) => file)).toEqual([]);
+  });
+});
+
+/**
+ * US-219 AC#14/15：运行时入口只留本平台分支。只判对平台全局的自由引用：宿主工厂里的字符串（`"TTWebAssembly"`）不会触发
+ * ReferenceError；裸 `tt.` / `wx.` 也不判，压缩器会把局部变量命名成 `tt`、`wx`。
+ */
+const PLATFORM_GLOBALS = {
+  weapp: { own: ['wx', 'WXWebAssembly'], other: ['tt', 'TTWebAssembly'] },
+  tt: { own: ['tt', 'TTWebAssembly'], other: ['wx', 'WXWebAssembly'] }
+} as const;
+
+/** `typeof 全局` 与长标识符的自由引用（前后不贴标识符字符、`.` 与引号）。 */
+function freeReferences([shortName, wasmRuntime]: readonly [string, string]): RegExp {
+  return new RegExp(`typeof ${shortName}(?![\\w$])|(?<![\\w$.'"\`])${wasmRuntime}(?![\\w$'"\`])`);
+}
+
+describe.each(Object.entries(PLATFORM_GLOBALS))('%s 产物只引用本平台的全局', (platform, globals) => {
+  const scripts = scriptsIn(PLATFORM_OUTPUTS[platform as keyof typeof PLATFORM_OUTPUTS]);
+  const filesMatching = (pattern: RegExp) =>
+    [...scripts].filter(([, code]) => pattern.test(code)).map(([file]) => file);
+
+  it('有本平台全局的引用', () => {
+    expect(filesMatching(freeReferences(globals.own))).not.toEqual([]);
+  });
+
+  it('没有另一平台全局的自由引用', () => {
+    expect(filesMatching(freeReferences(globals.other))).toEqual([]);
   });
 });

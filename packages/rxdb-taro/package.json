@@ -1,7 +1,7 @@
 {
   "name": "@aiao/rxdb-taro",
   "version": "0.0.26",
-  "description": "Experimental Taro plugin that wires @aiao/rxdb-adapter-miniprogram into WeChat and Douyin mini program builds.",
+  "description": "Experimental Taro plugin and runtime entry that wire @aiao/rxdb-adapter-miniprogram into WeChat and Douyin mini program builds.",
   "homepage": "https://rxdb.netlify.app/docs/adapters",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
@@ -43,6 +43,12 @@
       "types": "./dist/vite.d.ts",
       "import": "./dist/vite.js",
       "default": "./dist/vite.js"
+    },
+    "./runtime": {
+      "@aiao/source": "./src/runtime.ts",
+      "types": "./dist/runtime.d.ts",
+      "import": "./dist/runtime.js",
+      "default": "./dist/runtime.js"
     }
   },
   "files": [

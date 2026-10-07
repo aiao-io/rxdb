@@ -7,6 +7,7 @@
  */
 import type { Plugin } from 'vite';
 import { miniProgramAssetsVitePlugin } from './assets-plugin.js';
+import { buildTargetVitePlugin } from './build-target-plugin.js';
 import { realmVitePlugin } from './realm-plugin.js';
 import { subframeGlueVitePlugin } from './subframe-glue-plugin.js';
 
@@ -25,9 +26,9 @@ export type MiniProgramBuildPlatform = 'weapp' | 'tt' | 'alipay';
  * - 全部平台：抹掉 `@subframe7536/sqlite-wasm` glue 里的 `import.meta.url`；把 wasm 发到产物根的 `wa-sqlite/wa-sqlite.wasm`。
  * - 抖音、支付宝：模块里没有可用的 `globalThis`，产物里自由的 `globalThis` 构建期改指入口登记的真实全局对象（`rxdb-realm.js`）。
  * - 支付宝：另发 wasm 的 base64 文本副本与随机数 Worker（代码包路径 {@link ALIPAY_WORKER_PATH}，`app.config.ts` 要在
- *   `workers` 里声明）。懒加载分包、标签 `var` 提升与构建目标不在这里，见 adapter README「支付宝」。
+ *   `workers` 里声明）。懒加载分包与标签 `var` 提升不在这里，见 adapter README「支付宝」。
  *
- * 不读不写 `build.target`。
+ * - 全部平台：构建目标仍是 Taro 写死的 `es6` 时抬到实测过的值（微信、抖音 es2020，支付宝 es2018），用户自己设的不动。
  *
  * @param platform - Taro 平台名
  * @param appRoot - app 根目录（有 package.json 的那层），从这里解析 `@aiao/rxdb-adapter-miniprogram`
@@ -37,5 +38,10 @@ export type MiniProgramBuildPlatform = 'weapp' | 'tt' | 'alipay';
  */
 export function miniProgramVitePlugins(platform: MiniProgramBuildPlatform, appRoot: string): Plugin[] {
   const realm = platform === 'weapp' ? [] : [realmVitePlugin(platform)];
-  return [subframeGlueVitePlugin(), ...realm, miniProgramAssetsVitePlugin(platform, appRoot)];
+  return [
+    subframeGlueVitePlugin(),
+    buildTargetVitePlugin(platform),
+    ...realm,
+    miniProgramAssetsVitePlugin(platform, appRoot)
+  ];
 }

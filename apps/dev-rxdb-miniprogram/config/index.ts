@@ -6,7 +6,6 @@ import { labeledVarHoistVitePlugin } from './labeled-var-hoist-vite-plugin';
 import { lazyChunkVitePlugin } from './lazy-chunk-vite-plugin';
 import { noBabelVitePlugin } from './no-babel-vite-plugin';
 import prodConfig from './prod';
-import { rxdbBuildTargetVitePlugin } from './rxdb-packages-vite-plugin';
 
 /**
  * 各平台产物分开放（Taro 每次构建先清空 outputRoot，共用目录会互相抹掉）：
@@ -25,7 +24,7 @@ function demoPlatform(): MiniProgramBuildPlatform {
 }
 
 /**
- * adapter 的构建前提（glue 去 `import.meta.url`、代码包资源、抖音与支付宝绑定真实全局对象）来自 `@aiao/rxdb-taro`：
+ * adapter 的构建前提（glue 去 `import.meta.url`、构建目标、代码包资源、抖音与支付宝绑定真实全局对象）来自 `@aiao/rxdb-taro`：
  * 微信、抖音经 `plugins` 里的 Taro 插件一行接入；Taro 插件不开支付宝，支付宝经 `@aiao/rxdb-taro/vite` 组装。
  */
 function rxdbTaroPlugins(platform: MiniProgramBuildPlatform): string[] {
@@ -35,7 +34,7 @@ function rxdbTaroPlugins(platform: MiniProgramBuildPlatform): string[] {
 /**
  * demo 自己的构建插件。
  *
- * - 全部平台：不走 babel（语法降级全由 esbuild 按构建目标做，含 RxDB 包的私有成员）、构建目标。
+ * - 全部平台：不走 babel（语法降级全由 esbuild 按构建目标做，含 RxDB 包的私有成员）。
  * - 支付宝：adapter 的构建前提（Taro 以启动目录为 appPath，nx target 的 cwd 是本 app 根）；RxDB 栈留在懒加载 chunk，
  *   等 host 的 `prepareRuntime` 补完 `BigInt` 才求值；标签语句里的 `var` 提升到函数开头，「真机调试」的 Boatman 解释器
  *   才不会把它写穿到外层闭包。
@@ -43,7 +42,6 @@ function rxdbTaroPlugins(platform: MiniProgramBuildPlatform): string[] {
 function vitePlugins(platform: MiniProgramBuildPlatform) {
   return [
     noBabelVitePlugin(),
-    rxdbBuildTargetVitePlugin(platform === 'alipay' ? 'es2018' : 'es2020'),
     ...(platform === 'alipay' ?
       [...miniProgramVitePlugins(platform, process.cwd()), lazyChunkVitePlugin(), labeledVarHoistVitePlugin()]
     : [])

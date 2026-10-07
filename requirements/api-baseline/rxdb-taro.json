@@ -18,6 +18,16 @@
         "kind": "type"
       }
     ],
+    "./runtime": [
+      {
+        "name": "taroMiniProgramRuntime",
+        "kind": "value"
+      },
+      {
+        "name": "TaroMiniProgramRuntime",
+        "kind": "type"
+      }
+    ],
     "./vite": [
       {
         "name": "ALIPAY_WORKER_PATH",

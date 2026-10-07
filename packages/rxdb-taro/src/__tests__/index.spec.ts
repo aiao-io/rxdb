@@ -57,7 +57,11 @@ describe('rxdbTaroPlugin：weapp / tt + vite', () => {
     const opts = build('weapp', { compiler: 'vite' });
 
     expect(opts.compiler).toEqual({ type: 'vite', vitePlugins: expect.any(Array) });
-    expect(pluginNames(opts)).toEqual(['aiao-rxdb-taro:subframe-glue', 'aiao-rxdb-taro:assets']);
+    expect(pluginNames(opts)).toEqual([
+      'aiao-rxdb-taro:subframe-glue',
+      'aiao-rxdb-taro:build-target',
+      'aiao-rxdb-taro:assets'
+    ]);
   });
 
   it('抖音另挂 realm；用户已有的插件与其余编译器选项原样保留、排在前面', () => {
@@ -68,6 +72,7 @@ describe('rxdbTaroPlugin：weapp / tt + vite', () => {
     expect(pluginNames(opts)).toEqual([
       'user:plugin',
       'aiao-rxdb-taro:subframe-glue',
+      'aiao-rxdb-taro:build-target',
       'aiao-rxdb-taro:realm',
       'aiao-rxdb-taro:assets'
     ]);

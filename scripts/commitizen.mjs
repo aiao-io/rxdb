@@ -35,6 +35,7 @@ const scopes = [
   { value: 'rxdb-plugin-search',          name: 'rxdb-plugin-search:             rxdb-plugin-search 变更' },
   { value: 'rxdb-plugin-storage',         name: 'rxdb-plugin-storage:            rxdb-plugin-storage 变更' },
   { value: 'rxdb-plugin-workspace',       name: 'rxdb-plugin-workspace:          rxdb-plugin-workspace 变更' },
+  { value: 'rxdb-taro',                   name: 'rxdb-taro:                      rxdb-taro 变更' },
 ];
 
 // 根据 `git status` 推测当前改动的包作为默认 scope：
