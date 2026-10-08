@@ -23,12 +23,12 @@ export interface AlipayWasmFingerprint {
 }
 
 /**
- * 锁定版本 `@subframe7536/sqlite-wasm@1.4.0` 的 `dist/wa-sqlite.wasm` 的指纹。
+ * 锁定版本 `@subframe7536/sqlite-wasm@1.3.1` 的 `dist/wa-sqlite.wasm` 的指纹。
  *
  * adapter 内置的 glue 与这份 wasm 同源，跨构建混用会 `LinkError`，所以代码包里只可能放这一份；
  * 升级依赖时单测会核对常量。
  */
-export const ALIPAY_WASM_FINGERPRINT: AlipayWasmFingerprint = Object.freeze({ bytes: 812_876, fnv1a: 1_627_926_554 });
+export const ALIPAY_WASM_FINGERPRINT: AlipayWasmFingerprint = Object.freeze({ bytes: 727_646, fnv1a: 2_641_369_642 });
 
 /** 代码包里 wasm 的 base64 文本副本的后缀：`wa-sqlite/wa-sqlite.wasm` 的副本是 `wa-sqlite/wa-sqlite.wasm.base64.txt`。 */
 export const ALIPAY_WASM_TEXT_COPY_SUFFIX = '.base64.txt';

@@ -201,6 +201,26 @@ export const transformValueJsToSqlite = (
 };
 
 /**
+ * SQLite 端「当前时间」的 ISO-8601 UTC 表达式，与 JS `Date#toISOString()` 同格式。
+ *
+ * 不要在 SQL 里写裸 `CURRENT_TIMESTAMP`：它产出 `YYYY-MM-DD HH:MM:SS`（无时区），
+ * 读回时 `new Date()` 按本地时区解析（错位），iOS JSC 直接 Invalid Date。
+ */
+export const SQLITE_NOW_ISO_SQL = "strftime('%FT%H:%M:%fZ')";
+
+/** SQLite `CURRENT_TIMESTAMP` / `datetime()` 的输出格式，语义为 UTC */
+const SQLITE_DATETIME_PATTERN = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}(?:\.\d+)?)$/;
+
+/**
+ * 解析 SQLite 读出的日期字符串；SQLite 原生 `YYYY-MM-DD HH:MM:SS` 格式按 UTC 规整为 ISO 再解析
+ * （存量库里旧版本用裸 `CURRENT_TIMESTAMP` 写入的值即为此格式）
+ */
+const parseSqliteDate = (value: string): Date => {
+  const match = SQLITE_DATETIME_PATTERN.exec(value);
+  return new Date(match ? `${match[1]}T${match[2]}Z` : value);
+};
+
+/**
  * 将 SQLite 类型值转换为 JS 类型
  * @param value SQLite 类型的值
  * @param property 实体属性元数据
@@ -229,7 +249,7 @@ export const transformValueSqliteToJs = (
       if (value === '') return null; // 空字符串不应产生 Invalid Date
       if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
       if (typeof value === 'string') {
-        const d = new Date(value);
+        const d = parseSqliteDate(value);
         return isNaN(d.getTime()) ? null : d;
       }
       return value;

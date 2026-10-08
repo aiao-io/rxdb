@@ -157,6 +157,9 @@
       "path": "./packages/rxdb-adapter-miniprogram"
     },
     {
+      "path": "./packages/rxdb-taro"
+    },
+    {
       "path": "./packages/rxdb-adapter-electron"
     },
     {

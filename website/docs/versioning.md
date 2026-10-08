@@ -85,6 +85,7 @@ export { SQLiteChangeType as SQliteChangeType } from './sqlite-backend.interface
 下列能力不在 1.0 的兼容承诺内，破坏性变更只需在 changelog 与迁移指南注明：
 
 - `@aiao/rxdb-adapter-miniprogram` 整包（微信 / 抖音 / 支付宝逻辑层，抖音与支付宝 Android 真机未验证，不保证崩溃恢复）
+- `@aiao/rxdb-taro` 整包（Taro 4.3 vite 构建插件，只承诺 Taro 4.3.x；`./vite` 的支付宝组装只覆盖一部分构建前提）
 - `@aiao/rxdb-adapter-http` 的 `changeFeed` SSE 变更通知（缺省关闭）
 - `@aiao/rxdb-plugin-search` 在 `wa-sqlite` 与小程序上的全文搜索（`unverified`，当前直接抛 `SearchUnsupportedAdapterError`）
 - `@aiao/rxdb-plugin-querycache` 的 `QueryCacheEngine` 直接实例化（`@experimental`）

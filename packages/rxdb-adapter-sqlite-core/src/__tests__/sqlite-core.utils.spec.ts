@@ -371,6 +371,35 @@ describe('sqlite.utils', () => {
       expect((result as Date).toISOString()).toBe('2025-01-01T00:00:00.000Z');
     });
 
+    // SQLite 的 `CURRENT_TIMESTAMP` / `datetime()` 产出 `YYYY-MM-DD HH:MM:SS`，语义是 UTC；
+    // 直接 `new Date()` 会按本地时区解析，iOS JSC 更是直接 Invalid Date（微信开发者工具会告警）
+    it('应该把 SQLite 时间格式（空格分隔、无时区）按 UTC 解析', () => {
+      const property = { type: PropertyType.date } as EntityPropertyMetadata;
+      expect((transformValueSqliteToJs('2026-09-12 15:29:52', property) as Date).toISOString()).toBe(
+        '2026-09-12T15:29:52.000Z'
+      );
+      expect((transformValueSqliteToJs('2026-09-12 15:29:52.123', property) as Date).toISOString()).toBe(
+        '2026-09-12T15:29:52.123Z'
+      );
+    });
+
+    it('解析 SQLite 时间格式时不应把空格分隔的字符串交给 Date 构造器', () => {
+      const property = { type: PropertyType.date } as EntityPropertyMetadata;
+      const RealDate = Date;
+      const seen: unknown[] = [];
+      const SpyDate = function (this: unknown, ...args: unknown[]) {
+        seen.push(args[0]);
+        return new RealDate(...(args as []));
+      } as unknown as DateConstructor;
+      vi.stubGlobal('Date', SpyDate);
+      try {
+        transformValueSqliteToJs('2026-09-12 15:29:52', property);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+      expect(seen).not.toContain('2026-09-12 15:29:52');
+    });
+
     it('应该将空字符串 date 转换为 null（不产生 Invalid Date）', () => {
       const property = { type: PropertyType.date } as EntityPropertyMetadata;
       expect(transformValueSqliteToJs('', property)).toBe(null);

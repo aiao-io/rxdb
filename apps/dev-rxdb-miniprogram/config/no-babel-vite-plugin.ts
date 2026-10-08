@@ -7,7 +7,7 @@ const ROLLUP_BABEL = 'babel';
 const REACT_BABEL = 'vite:react-babel';
 
 /**
- * 去掉 Taro vite 链路里的两处 babel 转译，语法降级全交给 Vite 的 esbuild（`build.target` 见 `rxdbBuildTargetVitePlugin`）。
+ * 去掉 Taro vite 链路里的两处 babel 转译，语法降级全交给 Vite 的 esbuild（`build.target` 由 `@aiao/rxdb-taro` 的构建目标插件设置）。
  *
  * - `@rollup/plugin-babel`：vite-runner 写死、配置项关不掉（`compile.filter` 同时管页面处理，不能借用），在 `config` 钩子里
  *   从 Taro 合成的 `rollupOptions.plugins` 原地拿掉。

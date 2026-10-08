@@ -392,6 +392,10 @@
         "kind": "both"
       },
       {
+        "name": "MiniProgramWasmRuntime",
+        "kind": "type"
+      },
+      {
         "name": "MiniProgramWechatApi",
         "kind": "type"
       },

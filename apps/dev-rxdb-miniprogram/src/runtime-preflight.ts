@@ -4,13 +4,12 @@ import type { MiniProgramRuntimeCapability } from '@aiao/rxdb-adapter-miniprogra
 import {
   createAlipayMiniProgramHost,
   createAlipayWasmRuntime,
-  createDouyinMiniProgramHost,
-  createWechatMiniProgramHost,
   resolveMiniProgramRuntimeGlobal,
   type AlipayRandomWorker,
   type MiniProgramHost,
   type MiniProgramRuntimeGlobal
 } from '@aiao/rxdb-adapter-miniprogram/runtime';
+import { taroMiniProgramRuntime } from '@aiao/rxdb-taro/runtime';
 
 /** demo 预检项：adapter 的能力项，外加「缺失但运行时可补齐」标记。 */
 export interface RuntimeCapability extends MiniProgramRuntimeCapability {
@@ -28,37 +27,15 @@ export interface MiniProgramDemoRuntime {
   readonly repairedGlobals: readonly string[];
 }
 
-/** 微信：平台全局只在这里出现，其余代码按宿主取能力名与文案。 */
-export function wechatDemoRuntime(): MiniProgramDemoRuntime {
-  if (typeof wx === 'undefined') throw new Error('没有全局 wx：当前不是微信小程序运行时');
-  return {
-    host: createWechatMiniProgramHost(wx),
-    wasmRuntime: typeof WXWebAssembly === 'undefined' ? undefined : WXWebAssembly,
-    repairedGlobals: []
-  };
-}
-
-/**
- * 抖音：不传 `runtimeGlobal`。抖音产物里所有自由的 `globalThis`（adapter、RxDB 核心、第三方库）构建期已改指入口登记的
- * 真实全局对象（`config/realm-vite-plugin.ts`），adapter 读到的就是它。
- */
-export function douyinDemoRuntime(): MiniProgramDemoRuntime {
-  if (typeof tt === 'undefined') throw new Error('没有全局 tt：当前不是抖音小程序运行时');
-  return {
-    host: createDouyinMiniProgramHost(tt),
-    wasmRuntime: typeof TTWebAssembly === 'undefined' ? undefined : TTWebAssembly,
-    repairedGlobals: []
-  };
-}
-
-/** 随机数 Worker 脚本在代码包里的路径；与 `config/assets-vite-plugin.ts` 的 `ALIPAY_WORKER_PATH`、`app.config.ts` 的 `workers` 一致。 */
+/** 随机数 Worker 脚本在代码包里的路径；与 `@aiao/rxdb-taro/vite` 的 `ALIPAY_WORKER_PATH`、`app.config.ts` 的 `workers` 一致。 */
 const ALIPAY_WORKER_PATH = 'workers/index.js';
 
 /** 同一时刻只能有一个 Worker，页面重进时复用它，不重复 `createWorker`。 */
 let alipayRandomWorker: AlipayRandomWorker | undefined;
 
 /**
- * 支付宝：不传 `runtimeGlobal`，理由同抖音（`config/realm-vite-plugin.ts` 在模拟器里经 `Object.prototype` getter 登记真实全局对象）。
+ * 支付宝：不传 `runtimeGlobal`。`@aiao/rxdb-taro/vite` 的 realm 插件在模拟器里经 `Object.prototype` getter 登记真实全局对象，
+ * 产物里自由的 `globalThis` 构建期已改指它，adapter 读到的就是它。
  *
  * - wasm：逻辑层的标准 `WebAssembly`（无文档能力，缺失时宿主 `prepareRuntime` 报错）；代码包里有 wasm 原文件与 base64 副本，
  *   adapter 按指纹选。
@@ -77,12 +54,13 @@ export function alipayDemoRuntime(): MiniProgramDemoRuntime {
   };
 }
 
-/** 按构建平台选宿主；`TARO_ENV` 构建期替换成常量，其余平台的分支连同它们的全局一起摇掉。 */
+/**
+ * 按构建平台选宿主；`TARO_ENV` 构建期替换成常量，其余平台的分支连同它们的全局一起摇掉。
+ * 微信、抖音由 `@aiao/rxdb-taro/runtime` 取；它不接支付宝，支付宝的宿主在本文件组装。
+ */
 export function currentDemoRuntime(): MiniProgramDemoRuntime {
-  if (process.env.TARO_ENV === 'tt') return douyinDemoRuntime();
-  if (process.env.TARO_ENV === 'weapp') return wechatDemoRuntime();
   if (process.env.TARO_ENV === 'alipay') return alipayDemoRuntime();
-  throw new Error(`demo 只接了微信、抖音与支付宝，当前构建平台 ${process.env.TARO_ENV}`);
+  return { ...taroMiniProgramRuntime(), repairedGlobals: [] };
 }
 
 function hasFileSystemManager(host: MiniProgramHost): boolean {

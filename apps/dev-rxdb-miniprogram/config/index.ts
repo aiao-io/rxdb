@@ -1,13 +1,11 @@
+import { miniProgramVitePlugins, type MiniProgramBuildPlatform } from '@aiao/rxdb-taro/vite';
 import { defineConfig, type UserConfigExport } from '@tarojs/cli';
 
-import { miniProgramAssetsVitePlugin, type AssetsPlatform } from './assets-vite-plugin';
 import devConfig from './dev';
 import { labeledVarHoistVitePlugin } from './labeled-var-hoist-vite-plugin';
 import { lazyChunkVitePlugin } from './lazy-chunk-vite-plugin';
 import { noBabelVitePlugin } from './no-babel-vite-plugin';
 import prodConfig from './prod';
-import { realmVitePlugin } from './realm-vite-plugin';
-import { rxdbBuildTargetVitePlugin, subframeSqliteWasmVitePlugin } from './rxdb-packages-vite-plugin';
 
 /**
  * 各平台产物分开放（Taro 每次构建先清空 outputRoot，共用目录会互相抹掉）：
@@ -19,30 +17,34 @@ const outputRoot =
   process.env.TARO_ENV === 'tt' || process.env.TARO_ENV === 'alipay' ? `dist-${process.env.TARO_ENV}` : 'dist';
 
 /** demo 接了的三个平台；其余平台名直接失败，不按某个平台的产物凑合。 */
-function demoPlatform(): AssetsPlatform {
+function demoPlatform(): MiniProgramBuildPlatform {
   const platform = process.env.TARO_ENV;
   if (platform === 'weapp' || platform === 'tt' || platform === 'alipay') return platform;
   throw new Error(`demo 只接了 weapp / tt / alipay，当前构建平台 ${platform}`);
 }
 
 /**
- * 各平台的构建插件。
- *
- * - 全部平台：不走 babel（语法降级全由 esbuild 按构建目标做，含 RxDB 包的私有成员）、glue 去 `import.meta.url`、构建目标、
- *   代码包资源（wasm，支付宝另有副本与 Worker）。
- * - 抖音、支付宝：模块里没有 `globalThis`，构建期绑到入口登记的真实全局对象。
- * - 支付宝：RxDB 栈留在懒加载 chunk，等 host 的 `prepareRuntime` 补完 `BigInt` 才求值；标签语句里的 `var` 提升到函数开头，
- *   「真机调试」的 Boatman 解释器才不会把它写穿到外层闭包。
+ * adapter 的构建前提（glue 去 `import.meta.url`、构建目标、代码包资源、抖音与支付宝绑定真实全局对象）来自 `@aiao/rxdb-taro`：
+ * 微信、抖音经 `plugins` 里的 Taro 插件一行接入；Taro 插件不开支付宝，支付宝经 `@aiao/rxdb-taro/vite` 组装。
  */
-function vitePlugins(platform: AssetsPlatform) {
+function rxdbTaroPlugins(platform: MiniProgramBuildPlatform): string[] {
+  return platform === 'alipay' ? [] : ['@aiao/rxdb-taro'];
+}
+
+/**
+ * demo 自己的构建插件。
+ *
+ * - 全部平台：不走 babel（语法降级全由 esbuild 按构建目标做，含 RxDB 包的私有成员）。
+ * - 支付宝：adapter 的构建前提（Taro 以启动目录为 appPath，nx target 的 cwd 是本 app 根）；RxDB 栈留在懒加载 chunk，
+ *   等 host 的 `prepareRuntime` 补完 `BigInt` 才求值；标签语句里的 `var` 提升到函数开头，「真机调试」的 Boatman 解释器
+ *   才不会把它写穿到外层闭包。
+ */
+function vitePlugins(platform: MiniProgramBuildPlatform) {
   return [
     noBabelVitePlugin(),
-    subframeSqliteWasmVitePlugin(),
-    rxdbBuildTargetVitePlugin(platform === 'alipay' ? 'es2018' : 'es2020'),
-    // Taro 以启动目录为 appPath（nx target 的 cwd 是本 app 根）
-    miniProgramAssetsVitePlugin(platform, process.cwd()),
-    ...(platform === 'weapp' ? [] : [realmVitePlugin(platform)]),
-    ...(platform === 'alipay' ? [lazyChunkVitePlugin(), labeledVarHoistVitePlugin()] : [])
+    ...(platform === 'alipay' ?
+      [...miniProgramVitePlugins(platform, process.cwd()), lazyChunkVitePlugin(), labeledVarHoistVitePlugin()]
+    : [])
   ];
 }
 
@@ -60,9 +62,9 @@ export default defineConfig<'vite'>(async merge => {
     },
     sourceRoot: 'src',
     outputRoot,
-    plugins: ['@tarojs/plugin-generator'],
+    plugins: ['@tarojs/plugin-generator', ...rxdbTaroPlugins(demoPlatform())],
     defineConstants: {},
-    // 代码包资源由 `miniProgramAssetsVitePlugin` 发出，不走 copy 规则
+    // 代码包资源由 `@aiao/rxdb-taro` 发出，不走 copy 规则
     copy: {
       patterns: [],
       options: {}

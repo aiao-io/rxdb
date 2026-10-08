@@ -166,10 +166,10 @@ INVEST 检查清单:
 - demo 的微信耦合已在阶段 B 拆掉：`src/runtime-preflight.ts` 的 `currentDemoRuntime()` 按构建期 `TARO_ENV`
   选微信 / 抖音 / 支付宝宿主，其余平台直接报错；`src/rxdb-demo.ts` 调 `prepareMiniProgramHostRuntime(runtime.host)` 后建库。
   新平台进 demo 要补：`currentDemoRuntime` 的分支；`config/index.ts` 的 `demoPlatform()` 与 `vitePlugins()`、单列的产物目录
-  （`dist-<平台>/`，`dist/` 归微信，Taro 开跑先清空产物目录）；`config/assets-vite-plugin.ts` 发的运行时文件；
+  （`dist-<平台>/`，`dist/` 归微信，Taro 开跑先清空产物目录）；运行时文件（US-219 起由 `@aiao/rxdb-taro` 发出，原 `config/assets-vite-plugin.ts`）；
   开发者工具读的 `project.<平台>.json`；Nx 的 `build-<平台>` / `serve-<平台>` target，并挂进聚合的 `build`。
   构建不走 babel：`config/no-babel-vite-plugin.ts` 去掉 Taro 注入的两处 babel 转译，语法降级（含 RxDB 包的私有成员）全由 esbuild 按构建目标做。
-- 支付宝 demo 构建有几处和微信 / 抖音不同。模拟器逻辑层没有 `globalThis`，`config/realm-vite-plugin.ts` 在入口经
+- 支付宝 demo 构建有几处和微信 / 抖音不同。模拟器逻辑层没有 `globalThis`，realm 插件（US-219 起在 `@aiao/rxdb-taro/vite`，原 `config/realm-vite-plugin.ts`）在入口经
   `Object.prototype` getter 登记真实全局对象（同抖音的构建期改名）；没有 `BigInt`，`config/lazy-chunk-vite-plugin.ts` 把只经动态
   `import()` 可达的 RxDB 栈并进 `rxdb-lazy.js`，等宿主 `prepareRuntime` 补完再求值（Taro 的 `manualChunks` 按引用数把它拆进
   页面静态 `require` 的 common / vendors）；代码包另有 wasm 的 base64 副本与随机数 Worker，`project.alipay.json` 用

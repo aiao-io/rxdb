@@ -70,7 +70,7 @@ function afterDirective(code: string, statements: string): string {
  */
 export function realmVitePlugin(platform: RealmPlatform): Plugin {
   return {
-    name: 'dev-rxdb-miniprogram:realm',
+    name: 'aiao-rxdb-taro:realm',
     apply: 'build',
     config() {
       return { define: { globalThis: REALM_BINDING } };

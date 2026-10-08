@@ -104,7 +104,8 @@ import {
   isTableExistedSql,
   quote_sql_identifier,
   RxDBAdapterSqliteError,
-  rxDBColumnTypeToSqliteType
+  rxDBColumnTypeToSqliteType,
+  SQLITE_NOW_ISO_SQL
 } from './sqlite-core.utils.js';
 import { create_tables_sql } from './table/create_tables_sql.js';
 import { remove_all_triggers_sql } from './table/remove_trigger_sql.js';
@@ -910,7 +911,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
           for (const watermark of [RXDB_SYSTEM_SCHEMA_WATERMARK, RXDB_CHANGE_CODEC_WATERMARK]) {
             await client.execute(
               `INSERT INTO ${migrationTable} ("name", "executedAt")
-               SELECT ?, CURRENT_TIMESTAMP
+               SELECT ?, ${SQLITE_NOW_ISO_SQL}
                WHERE NOT EXISTS (SELECT 1 FROM ${migrationTable} WHERE "name" = ?)`,
               [watermark, watermark]
             );
