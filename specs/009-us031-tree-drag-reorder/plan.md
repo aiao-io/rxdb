@@ -48,16 +48,16 @@
 
 _GATE: Must pass before Phase 0 research. Re-check after Phase 1 design._
 
-| 原则                      | 检查                                                                                                                                                                                                                                                                       | 结论         |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
-| I 代码质量                | TS strict、零 ESLint 警告、无 `any`、嵌套 ≤ 3；新导出 `reorderTargetForDrop` 带 TSDoc；删除 `REORDER_NEEDED` / `rebalanceSortOrder`（非事务的整组重写）、`|| ''` / `?? ''` 兜底与 `window.alert`，不加新兜底                                                            | ✅           |
-| I 复杂度                  | core 新增一个导出 → 见 Complexity Tracking；三端各自的判定函数替换现有的三份「算位置」服务，净减代码                                                                                                                                                                      | ✅（已论证） |
-| II 测试                   | TDD：core 换算先写十条表驱动红测；缺陷三先写三端不修即红的单测与 e2e；判定表 9 行三端同名单测；失败分支单测（见 Complexity Tracking）；覆盖率 `rxdb` ≥ 90%（`scripts/audit/coverage-check.mjs`）                                                                      | ✅           |
-| II 确定性                 | e2e 落点取行高 15% / 50% / 85%，避开三端判定区间的边界；刷新后读回；拖拽 spec `mode: 'serial'`；不依赖时序注入失败                                                                                                                                                         | ✅           |
-| III 三端一致              | [contracts/demo-drag-drop.md](contracts/demo-drag-drop.md) 一份判定表、一组 DOM 属性、一组文案；三端 e2e 同名用例；React 手动模式「文件夹优先」与另两端对齐（spec 已写明用户可见变化）                                                                                     | ✅           |
-| III 可见状态              | loading：拖放提交中沿用现有状态；empty：拖进空组 / 折叠节点；error：页内 `role="alert"`；a11y：不新增控件、现有键盘操作不退化（spec Accessibility）                                                                                                                         | ✅           |
-| III Never break userspace | `@aiao/rxdb` 只新增导出；demo 用户可见变化（拖进当前父节点移到末尾、React 手动模式不再文件夹优先、非手动模式前后放置改为被拒、失败不再弹窗）在 spec 写明                                                                                                                  | ✅           |
-| IV 性能                   | 不增加查询（research R10）；SC-004 实测一次记入 research；`benchmarks/` 不新增（重排是固定语句数，US-028 已覆盖其契约；本阶段无新的引擎热路径）                                                                                                                           | ✅           |
+| 原则                      | 检查                                                                                                                                                                                                           | 结论         |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------ |
+| I 代码质量                | TS strict、零 ESLint 警告、无 `any`、嵌套 ≤ 3；新导出 `reorderTargetForDrop` 带 TSDoc；删除 `REORDER_NEEDED` / `rebalanceSortOrder`（非事务的整组重写）、`\|\| ''` / `?? ''` 兜底与 `window.alert`，不加新兜底 | ✅           |
+| I 复杂度                  | core 新增一个导出 → 见 Complexity Tracking；三端各自的判定函数替换现有的三份「算位置」服务，净减代码                                                                                                           | ✅（已论证） |
+| II 测试                   | TDD：core 换算先写十条表驱动红测；缺陷三先写三端不修即红的单测与 e2e；判定表 9 行三端同名单测；失败分支单测（见 Complexity Tracking）；覆盖率 `rxdb` ≥ 90%（`scripts/audit/coverage-check.mjs`）               | ✅           |
+| II 确定性                 | e2e 落点取行高 15% / 50% / 85%，避开三端判定区间的边界；刷新后读回；拖拽 spec `mode: 'serial'`；不依赖时序注入失败                                                                                             | ✅           |
+| III 三端一致              | [contracts/demo-drag-drop.md](contracts/demo-drag-drop.md) 一份判定表、一组 DOM 属性、一组文案；三端 e2e 同名用例；React 手动模式「文件夹优先」与另两端对齐（spec 已写明用户可见变化）                         | ✅           |
+| III 可见状态              | loading：拖放提交中沿用现有状态；empty：拖进空组 / 折叠节点；error：页内 `role="alert"`；a11y：不新增控件、现有键盘操作不退化（spec Accessibility）                                                            | ✅           |
+| III Never break userspace | `@aiao/rxdb` 只新增导出；demo 用户可见变化（拖进当前父节点移到末尾、React 手动模式不再文件夹优先、非手动模式前后放置改为被拒、失败不再弹窗）在 spec 写明                                                       | ✅           |
+| IV 性能                   | 不增加查询（research R10）；SC-004 实测一次记入 research；`benchmarks/` 不新增（重排是固定语句数，US-028 已覆盖其契约；本阶段无新的引擎热路径）                                                                | ✅           |
 
 Phase 1 设计后复查：无新增违规。
 
@@ -87,6 +87,7 @@ packages/rxdb/src/__tests__/sortable/reorder-target-for-drop.spec.ts   # 新
 
 apps/dev-rxdb-angular/src/app/
 ├── shared/tree-write-error.ts                      # TreeWriteOperation + '拖放'
+├── shared/tree-drop.ts                             # 新：resolveTreeDrop（菜单与文件管理器共用）
 └── pages/
     ├── menu/
     │   ├── services/menu-drag-drop.service.ts      # 改为 resolveTreeDrop + reorder；删 calculateDropPosition / rebalanceSortOrder
@@ -116,7 +117,7 @@ apps/dev-rxdb-{angular,react,vue}-e2e/src/tree-drag-reorder.spec.ts   # 新
 **Structure Decision**：
 
 - 沿用现有目录，判定函数放在各端现有的拖放服务文件里，不新建目录。
-- Angular 菜单与文件管理器两条拖放链路的判定共用 `resolveTreeDrop`（菜单传 `manual: true`、`isFolder: true`），放在 `pages/shared/`，与阶段 A 的 `tree-write-error.ts` 同目录。
+- Angular 菜单与文件管理器两条拖放链路的判定共用 `resolveTreeDrop`（菜单传 `manual: true`、`isFolder: true`），放在 `app/shared/tree-drop.ts`，与阶段 A 的 `tree-write-error.ts` 同目录。
 - React / Vue 本来就由菜单与文件管理器共用 `useDragDropService`，判定函数放在那里。
 
 ## 实施顺序
@@ -138,13 +139,13 @@ apps/dev-rxdb-{angular,react,vue}-e2e/src/tree-drag-reorder.spec.ts   # 新
 
 ## 风险
 
-- **e2e 拖拽在三端判定区间不同**：Angular 菜单为 25% / 75%，文件管理器三等分，React / Vue 为 33%。15% / 85% / 50% 三个落点在所有区间里都落在同一档。真实拖拽的 `dragover` 节流可能让最后一次落点判定滞后，helper 在 `up` 之前多停一步 `move`。
+- **e2e 拖拽的最后一次落点判定**：落点区间三端统一为三等分（research R11），e2e 取 15% / 50% / 85%。真实拖拽的 `dragover` 节流可能让最后一次落点判定滞后，helper 在 `up` 之前多停一步 `move`。
 - **删比较器后某处的显示依赖了排序副作用**：例如 Angular 懒加载 store 合并多次查询结果时按 `sortOrder` 重排。按父节点的查询本身有序，合并处要保持「每组一个数组」，不能把多组拼成一个再期望有序。实施时逐处核对，单测断言建树顺序 = 查询顺序。
 - **React 手动模式不再文件夹优先**：属用户可见变化，spec 已写明。阶段 A 的 React `tree-write-order.spec.ts` 根级交替新建用例按故事技术笔记收紧为 A、X、B。
 
 ## Complexity Tracking
 
-| Violation                                                                      | Why Needed                                                                                                                                                                          | Simpler Alternative Rejected Because                                                                                                                                                         |
-| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@aiao/rxdb` 新增导出 `reorderTargetForDrop`                                   | 前后放置的邻居换算三端今天各写一份且已分叉；跨组放置不是 `reorderTargetForMove`（同一序列的下标移动）能表达的；三端 todo 页已用 core 的同类换算（research R1）                       | 三端各留一份：同一张契约表三份实现，故事要消除的「三端各算一遍」换个形式留下；放进 `@aiao/rxdb-plugin-tree`：换算与树无关，且扩大插件公开面                                                 |
-| 拖放失败分支只有单测、没有 e2e（constitution III 要求跨框架一致性由 E2E 验证） | 同一页面里活查询在拖动前就把界面刷新到库里的状态，提交时的 `staleTarget` / `notFound` 在 Playwright 下没有确定性触发点；成功路径与「被拒零写」路径有三端 e2e                          | 为造失败加测试专用开关或延迟注入：只为测试存在的产品面，且时序注入违背 constitution II 的确定性；改由三端同名单测断言提示结构、文案与状态复位（同阶段 A 的处理）。审批：随本 plan 的 PR 评审 |
+| Violation                                                                      | Why Needed                                                                                                                                                     | Simpler Alternative Rejected Because                                                                                                                                                         |
+| ------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@aiao/rxdb` 新增导出 `reorderTargetForDrop`                                   | 前后放置的邻居换算三端今天各写一份且已分叉；跨组放置不是 `reorderTargetForMove`（同一序列的下标移动）能表达的；三端 todo 页已用 core 的同类换算（research R1） | 三端各留一份：同一张契约表三份实现，故事要消除的「三端各算一遍」换个形式留下；放进 `@aiao/rxdb-plugin-tree`：换算与树无关，且扩大插件公开面                                                  |
+| 拖放失败分支只有单测、没有 e2e（constitution III 要求跨框架一致性由 E2E 验证） | 同一页面里活查询在拖动前就把界面刷新到库里的状态，提交时的 `staleTarget` / `notFound` 在 Playwright 下没有确定性触发点；成功路径与「被拒零写」路径有三端 e2e   | 为造失败加测试专用开关或延迟注入：只为测试存在的产品面，且时序注入违背 constitution II 的确定性；改由三端同名单测断言提示结构、文案与状态复位（同阶段 A 的处理）。审批：随本 plan 的 PR 评审 |

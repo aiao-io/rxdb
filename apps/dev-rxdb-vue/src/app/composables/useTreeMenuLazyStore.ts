@@ -20,16 +20,14 @@ const defaultDataSource: TreeMenuLazyDataSource = {
       where: {
         combinator: 'and',
         rules: [{ field: 'parentId', operator: '=', value: parentId as UUID }]
-      },
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      }
     }),
   observeRootMenus: () =>
     SortableMenuLarge.findAll({
       where: {
         combinator: 'and',
         rules: [{ field: 'parentId', operator: '=', value: null }]
-      },
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      }
     })
 };
 
@@ -112,8 +110,26 @@ export function useTreeMenuLazyStore(rxdb: RxDB, dataSource: TreeMenuLazyDataSou
     { flush: 'sync' }
   );
 
+  // 已加载节点按查询顺序排列：先根组，再各已展开节点的子组。
+  // 不能直接取 nodesMap 的插入顺序——拖放后查询重新发射新顺序，Map 里已有的键不会换位。
+  const loadedMenusInQueryOrder = computed<SortableMenuLarge[]>(() => {
+    const ordered: SortableMenuLarge[] = [];
+    const seen = new Set<RxDBEntityId>();
+    const collect = (ids: readonly RxDBEntityId[]) => {
+      for (const id of ids) {
+        const menu = nodesMap.value.get(id);
+        if (!menu || seen.has(id)) continue;
+        seen.add(id);
+        ordered.push(menu);
+      }
+    };
+    collect(rootIds.value);
+    childrenMap.value.forEach(collect);
+    return ordered;
+  });
+
   const treeNodes = computed<TreeMenuLazyNode[]>(() => {
-    const menus = searchKeyword.value ? searchMenus.value : Array.from(nodesMap.value.values());
+    const menus = searchKeyword.value ? searchMenus.value : loadedMenusInQueryOrder.value;
     return buildTreeMenuNodes(
       menus,
       expandedIds.value,
@@ -437,6 +453,13 @@ export function useTreeMenuLazyStore(rxdb: RxDB, dataSource: TreeMenuLazyDataSou
    */
   const loadedNodes = computed<SortableMenuLarge[]>(() => Array.from(nodesMap.value.values()));
 
+  /**
+   * 某个父节点下已加载的完整子节点 id 序列（`null` 为根组），按手动顺序；
+   * 拖放换算前后放置的邻居用它，不用页面可见行，也不用搜索过滤后的结果。
+   */
+  const siblingIds = (parentId: RxDBEntityId | null): readonly RxDBEntityId[] =>
+    parentId === null ? rootIds.value : (childrenMap.value.get(parentId) ?? []);
+
   return {
     treeNodes,
     expandedIds,
@@ -461,12 +484,14 @@ export function useTreeMenuLazyStore(rxdb: RxDB, dataSource: TreeMenuLazyDataSou
     commitEdit,
     writeError,
     clearWriteError,
+    guardWrite,
     deleteMenu,
     cancelDelete,
     executeCascadeDelete,
     executePromoteChildrenDelete,
     addManyMenus,
     deleteAllMenus,
-    loadedNodes
+    loadedNodes,
+    siblingIds
   };
 }

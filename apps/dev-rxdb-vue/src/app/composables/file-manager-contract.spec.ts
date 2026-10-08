@@ -1,10 +1,20 @@
 import type { RxDB } from '@aiao/rxdb';
-import { SortableFileNode } from '@aiao/rxdb-test/entities';
+import { SortableFileLarge, SortableFileNode } from '@aiao/rxdb-test/entities';
+import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ref } from 'vue';
-import { getSortComparator, SortMode } from '../utils/file-sorters';
+import { createApp, ref } from 'vue';
 import { generateBatchFiles } from '../utils/file-utils';
+import { useFileManagerLazyStore } from './useFileManagerLazyStore';
 import { useFileManagerStore } from './useFileManagerStore';
+
+const queries = vi.hoisted(() => ({ findAll: vi.fn() }));
+
+// 实体类的静态 findAll 由运行时注入，这里挂上替身以便断言 store 发出的查询
+vi.mock('@aiao/rxdb-test/entities', async importOriginal => {
+  const actual = await importOriginal<typeof import('@aiao/rxdb-test/entities')>();
+  Object.assign(actual.SortableFileLarge, { findAll: queries.findAll });
+  return { ...actual };
+});
 
 interface FileSeed {
   name: string;
@@ -95,11 +105,27 @@ function createStorage(): Storage {
   };
 }
 
+/** 在组件作用域里创建懒加载 store（onMounted 订阅根节点），返回 store 与卸载函数。 */
+const mountLazyStore = () => {
+  const stores: Array<ReturnType<typeof useFileManagerLazyStore>> = [];
+  const app = createApp({
+    setup() {
+      stores.push(useFileManagerLazyStore({} as RxDB));
+      return () => null;
+    }
+  });
+  app.mount(document.createElement('div'));
+  const store = stores.at(0);
+  if (!store) throw new Error('lazy store creation failed');
+  return { store, unmount: () => app.unmount() };
+};
+
 describe('file manager contracts', () => {
   beforeEach(() => {
     vi.stubGlobal('localStorage', createStorage());
     LinkedFile.nextId = 0;
     UnlinkedFile.nextId = 0;
+    queries.findAll.mockReset();
   });
 
   afterEach(() => {
@@ -131,12 +157,46 @@ describe('file manager contracts', () => {
     }
   });
 
-  it('uses the shared manual comparator for the persisted manual mode', () => {
-    const files = [createFile('first-file', 'file', 'a'), createFile('later-folder', 'folder', 'b')];
-    const expected = [...files].sort(getSortComparator(SortMode.Manual));
+  it('建树顺序 = 查询顺序', () => {
+    // 查询给出的顺序与 sortOrder 字典序、文件夹优先都不同：手动模式不得再排序
+    const files = [
+      createFile('later-folder', 'folder', 'b'),
+      createFile('first-file', 'file', 'a'),
+      createFile('another-folder', 'folder', 'c')
+    ];
 
     const store = useFileManagerStore(ref(files), {} as RxDB);
 
-    expect(store.treeNodes.value.map(node => node.file)).toEqual(expected);
+    expect(store.sortMode.value).toBe('manual');
+    expect(store.treeNodes.value.map(node => node.file.name)).toEqual(['later-folder', 'first-file', 'another-folder']);
+  });
+
+  it('查询不传 orderBy', () => {
+    const findAll = queries.findAll.mockReturnValue(of([]));
+    const folder = createFile('folder', 'folder', 'a');
+    Object.assign(folder, { hasChildren: true });
+    findAll.mockReturnValueOnce(of([folder as unknown as SortableFileLarge]));
+    const { store, unmount } = mountLazyStore();
+
+    store.toggleExpand(folder.id);
+    store.expandAll();
+
+    // 根查询、子节点查询、展开全部
+    expect(findAll).toHaveBeenCalledTimes(3);
+    for (const [query] of findAll.mock.calls) {
+      expect(query).not.toHaveProperty('orderBy');
+    }
+    unmount();
+  });
+
+  it('建树顺序 = 查询顺序：懒加载 store 不再文件夹优先预排序', () => {
+    // 键的字典序（folder < file）与查询顺序（file、folder）相反，也与文件夹优先相反
+    const file = createFile('x-file', 'file', 'b');
+    const folder = createFile('y-folder', 'folder', 'a');
+    queries.findAll.mockReturnValue(of([file, folder] as unknown as SortableFileLarge[]));
+    const { store, unmount } = mountLazyStore();
+
+    expect(store.treeNodes.value.map(node => node.file.name)).toEqual(['x-file', 'y-folder']);
+    unmount();
   });
 });

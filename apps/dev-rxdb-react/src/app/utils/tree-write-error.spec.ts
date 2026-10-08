@@ -11,7 +11,7 @@ describe('formatTreeWriteError', () => {
     expect(formatTreeWriteError('删除', 42)).toBe('删除失败：42');
   });
 
-  it.each(['新建', '重命名', '批量添加', '删除', '级联删除', '删除并提升子节点'] as const)(
+  it.each(['新建', '重命名', '批量添加', '删除', '级联删除', '删除并提升子节点', '拖放'] as const)(
     '操作名「%s」原样出现在文案开头',
     operation => {
       expect(formatTreeWriteError(operation, new Error('x'))).toBe(`${operation}失败：x`);

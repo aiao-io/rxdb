@@ -29,49 +29,6 @@ export interface DropIndicator {
 }
 
 /**
- * Error codes for drag-drop operations
- */
-export enum DragDropErrorCode {
-  /** Attempting to drop an item into itself */
-  SELF_DROP = 'SELF_DROP',
-  /** Attempting to drop a folder into its descendant (circular nesting) */
-  CIRCULAR_NESTING = 'CIRCULAR_NESTING',
-  /** Target is not a valid folder */
-  INVALID_TARGET = 'INVALID_TARGET',
-  /** Failed to save changes to database */
-  SAVE_FAILED = 'SAVE_FAILED',
-  /** Invalid drop operation */
-  INVALID_OPERATION = 'INVALID_OPERATION'
-}
-
-/**
- * Custom error for drag-drop operations
- */
-export class DragDropError extends Error {
-  constructor(
-    public code: DragDropErrorCode,
-    message: string
-  ) {
-    super(message);
-    this.name = 'DragDropError';
-  }
-}
-
-/**
- * Result of a drop operation
- */
-export interface DropResult {
-  /** Whether the drop operation was successful */
-  success: boolean;
-  /** New sort order key assigned to the dropped item */
-  newSortOrder?: string;
-  /** New parent ID if the item was moved to a different parent */
-  newParentId?: RxDBEntityId | null;
-  /** Error if the operation failed */
-  error?: DragDropError;
-}
-
-/**
  * State tracking during drag operation
  */
 export interface DragDropState {

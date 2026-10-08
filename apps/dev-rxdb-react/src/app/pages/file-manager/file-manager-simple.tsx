@@ -34,7 +34,6 @@ import { extensionOptions } from '../../constants/file-extensions';
 import { useDragDrop } from '../../hooks/useDragDrop';
 import { useFileManagerStore } from '../../hooks/useFileManagerStore';
 import { useFileRenamePathGuard } from '../../hooks/useRenamePathGuard';
-import { getErrorMessage } from '../../utils/error';
 import { getFileIcon } from '../../utils/file-icons';
 import { SortMode } from '../../utils/file-sorters';
 import { generateBatchFiles } from '../../utils/file-utils';
@@ -56,8 +55,7 @@ export function FileManagerSimplePage() {
 
   // 获取所有文件数据 - 使用 useFindAll 实现响应式订阅
   const { value: files } = useFindAll(SortableFileNode, {
-    where: { combinator: 'and', rules: [] },
-    orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+    where: { combinator: 'and', rules: [] }
   });
 
   const history = useMemo(() => rxdb.versionManager.history(SortableFileNode), [rxdb]);
@@ -74,7 +72,12 @@ export function FileManagerSimplePage() {
   } = useFileRenamePathGuard<SortableFileNode>();
 
   // Drag and drop
-  const dragDrop = useDragDrop<SortableFileNode>(files, { isFolder: isFolderNode });
+  const dragDrop = useDragDrop<SortableFileNode>(files, {
+    repository: fileRepository,
+    runWrite,
+    isFolder: isFolderNode,
+    manual: store.sortMode === SortMode.Manual
+  });
 
   const batchAddOptions = [
     { count: 100, label: '100 条' },
@@ -536,17 +539,13 @@ export function FileManagerSimplePage() {
                       onDrop={async e => {
                         e.preventDefault();
                         e.stopPropagation();
-                        try {
-                          await dragDrop.onDrop(file, folderId => {
-                            // 展开目标文件夹
-                            if (!store.expandedIds.has(folderId)) {
-                              store.toggleExpand(folderId);
-                            }
-                          });
-                        } catch (error: unknown) {
-                          console.error('Drop error:', error);
-                          alert(getErrorMessage(error, '拖放操作失败'));
-                        }
+                        // 失败由 useDragDrop 经 runWrite 送进页内提示，这里不再有 catch / alert
+                        await dragDrop.onDrop(file, folderId => {
+                          // 展开目标文件夹
+                          if (!store.expandedIds.has(folderId)) {
+                            store.toggleExpand(folderId);
+                          }
+                        });
                       }}
                       onDragEnd={() => dragDrop.onDragEnd()}
                     >

@@ -34,7 +34,6 @@ import { extensionOptions } from '../../constants/file-extensions';
 import { useDragDrop } from '../../hooks/useDragDrop';
 import { fetchFileChildren, useFileManagerLazyStore } from '../../hooks/useFileManagerLazyStore';
 import { useFileRenamePathGuard } from '../../hooks/useRenamePathGuard';
-import { getErrorMessage } from '../../utils/error';
 import { getFileIcon } from '../../utils/file-icons';
 import { SortMode } from '../../utils/file-sorters';
 import { mergeById } from '../../utils/tree-scope';
@@ -43,9 +42,6 @@ import { formatFileName } from './utils/file-name';
 // P2-7：提到模块级 —— 内联箭头函数每次 render 都是新身份，
 // 会把 useDragDrop 内部所有 useCallback 的 deps 一起打脏。它不闭包任何东西，模块级最省。
 const isFolderNode = (node: SortableFileLarge): boolean => node.type === 'folder';
-
-// 同上：对象字面量每次 render 也是新身份，必须提到模块级。
-const DRAG_DROP_OPTIONS = { isFolder: isFolderNode, resolveSiblings: fetchFileChildren };
 
 export function FileManagerLazyPage() {
   const rxdb = useRxDB();
@@ -71,11 +67,18 @@ export function FileManagerLazyPage() {
   } = useFileRenamePathGuard<SortableFileLarge>();
 
   // P0-1：懒加载页面**不能**再订阅整表。拖放要的祖先链必然已在可见集合里
-  // （看得见就说明逐级展开过），真正可能缺席的只有落点的同级，交给 resolveSiblings 按需取。
+  // （看得见就说明逐级展开过）；前后放置的邻居取自 store 里该组已整组加载的 id 序列（getGroupIds），
+  // 拖进折叠文件夹则只写「追加到该组末尾」，不需要读它的子节点。
   const visibleFiles = useMemo(() => store.treeNodes.map(node => node.file), [store.treeNodes]);
 
   // Drag and drop
-  const dragDrop = useDragDrop<SortableFileLarge>(visibleFiles, DRAG_DROP_OPTIONS);
+  const dragDrop = useDragDrop<SortableFileLarge>(visibleFiles, {
+    repository: fileRepository,
+    runWrite: store.runWrite,
+    isFolder: isFolderNode,
+    manual: store.sortMode === SortMode.Manual,
+    getGroupIds: store.getGroupIds
+  });
 
   // 虚拟滚动配置
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns non-memoizable callbacks by design
@@ -530,17 +533,13 @@ export function FileManagerLazyPage() {
                     onDrop={async e => {
                       e.preventDefault();
                       e.stopPropagation();
-                      try {
-                        await dragDrop.onDrop(file, folderId => {
-                          // 展开目标文件夹
-                          if (!store.expandedIds.has(folderId)) {
-                            store.toggleExpand(folderId);
-                          }
-                        });
-                      } catch (error: unknown) {
-                        console.error('Drop error:', error);
-                        alert(getErrorMessage(error, '拖放操作失败'));
-                      }
+                      // 失败由 useDragDrop 经 runWrite 送进页内提示，这里不再有 catch / alert
+                      await dragDrop.onDrop(file, folderId => {
+                        // 展开目标文件夹
+                        if (!store.expandedIds.has(folderId)) {
+                          store.toggleExpand(folderId);
+                        }
+                      });
                     }}
                     onDragEnd={() => dragDrop.onDragEnd()}
                   >

@@ -4,7 +4,6 @@ import { firstValueFrom } from 'rxjs';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { getSortComparator, loadStoredSortMode, persistSortMode, SortMode } from '../utils/file-sorters';
 import { generateBatchFiles } from '../utils/file-utils';
-import { compareSortOrder } from '../utils/sort-order';
 import { formatErrorMessage, useToast } from './useToast';
 import { useTreeWriteError } from './useTreeWriteError';
 
@@ -46,8 +45,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
   const subscribeToRoot = () => {
     // 2. Subscribe to ROOT
     const rootQuery$ = SortableFileLarge.findAll({
-      where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: null }] },
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: null }] }
     });
     const subscription = rootQuery$.subscribe({
       next: (roots: SortableFileLarge[]) => {
@@ -67,18 +65,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
         });
         nodesMap.value = newMap;
 
-        const newRootIds = roots
-          .filter(r => r.name && r.name.trim())
-          .map(r => r.id)
-          .sort((a, b) => {
-            const nodeA = roots.find(r => r.id === a);
-            const nodeB = roots.find(r => r.id === b);
-            if (!nodeA || !nodeB) return 0;
-            if (nodeA.type !== nodeB.type) {
-              return nodeA.type === 'folder' ? -1 : 1;
-            }
-            return compareSortOrder(nodeA, nodeB);
-          });
+        // 保持查询顺序（手动顺序），不再文件夹优先预排序
+        const newRootIds = roots.filter(r => r.name && r.name.trim()).map(r => r.id);
         rootIds.value = newRootIds;
       },
       error: (error: unknown) => {
@@ -148,6 +136,16 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
   const treeNodes = computed(() => {
     const result: FileLazyNode[] = [];
     const comparator = getSortComparator(sortMode.value);
+    // 手动模式 comparator 为 null：沿用查询顺序，不排序
+    const sortIds = (ids: readonly RxDBEntityId[]): readonly RxDBEntityId[] => {
+      if (!comparator) return ids;
+      return [...ids].sort((a, b) => {
+        const nodeA = nodesMap.value.get(a);
+        const nodeB = nodesMap.value.get(b);
+        if (!nodeA || !nodeB) return 0;
+        return comparator(nodeA, nodeB);
+      });
+    };
 
     const traverse = (id: RxDBEntityId, level: number) => {
       const file = nodesMap.value.get(id);
@@ -170,25 +168,11 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
       });
 
       if (isExpanded && file.type === 'folder') {
-        const childIds = childrenMap.value.get(id) || [];
-        const sortedChildIds = [...childIds].sort((a, b) => {
-          const nodeA = nodesMap.value.get(a);
-          const nodeB = nodesMap.value.get(b);
-          if (!nodeA || !nodeB) return 0;
-          return comparator(nodeA, nodeB);
-        });
-        sortedChildIds.forEach(childId => traverse(childId, level + 1));
+        sortIds(childrenMap.value.get(id) || []).forEach(childId => traverse(childId, level + 1));
       }
     };
 
-    const sortedRootIds = [...rootIds.value].sort((a, b) => {
-      const nodeA = nodesMap.value.get(a);
-      const nodeB = nodesMap.value.get(b);
-      if (!nodeA || !nodeB) return 0;
-      return comparator(nodeA, nodeB);
-    });
-
-    sortedRootIds.forEach(id => traverse(id, 0));
+    sortIds(rootIds.value).forEach(id => traverse(id, 0));
     return result;
   });
 
@@ -245,8 +229,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
         where: {
           combinator: 'and',
           rules: [{ field: 'parentId', operator: '=', value: id as UUID }]
-        },
-        orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+        }
       });
 
       const subscription = childQuery$.subscribe({
@@ -260,17 +243,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
           });
           nodesMap.value = newNodesMap;
 
-          const childIds = validChildren
-            .map(c => c.id)
-            .sort((a, b) => {
-              const nodeA = validChildren.find(c => c.id === a);
-              const nodeB = validChildren.find(c => c.id === b);
-              if (!nodeA || !nodeB) return 0;
-              if (nodeA.type !== nodeB.type) {
-                return nodeA.type === 'folder' ? -1 : 1;
-              }
-              return compareSortOrder(nodeA, nodeB);
-            });
+          const childIds = validChildren.map(c => c.id);
 
           const newChildrenMap = new Map(childrenMap.value);
           newChildrenMap.set(id, childIds);
@@ -336,8 +309,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
       where: {
         combinator: 'and',
         rules: []
-      },
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      }
     });
 
     const subscription = allQuery$.subscribe({
@@ -365,30 +337,6 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
           if (file.type === 'folder') {
             newExpandedIds.add(file.id);
           }
-        });
-
-        // Sort root IDs
-        newRootIds.sort((a, b) => {
-          const nodeA = newNodesMap.get(a);
-          const nodeB = newNodesMap.get(b);
-          if (!nodeA || !nodeB) return 0;
-          if (nodeA.type !== nodeB.type) {
-            return nodeA.type === 'folder' ? -1 : 1;
-          }
-          return compareSortOrder(nodeA, nodeB);
-        });
-
-        // Sort children IDs
-        newChildrenMap.forEach(childIds => {
-          childIds.sort((a, b) => {
-            const nodeA = newNodesMap.get(a);
-            const nodeB = newNodesMap.get(b);
-            if (!nodeA || !nodeB) return 0;
-            if (nodeA.type !== nodeB.type) {
-              return nodeA.type === 'folder' ? -1 : 1;
-            }
-            return compareSortOrder(nodeA, nodeB);
-          });
         });
 
         nodesMap.value = newNodesMap;
@@ -569,6 +517,13 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
    */
   const loadedNodes = computed<SortableFileLarge[]>(() => Array.from(nodesMap.value.values()));
 
+  /**
+   * 某个父节点下已加载的完整子节点 id 序列（`null` 为根组），按手动顺序；
+   * 拖放换算前后放置的邻居用它，不用页面可见行，也不用 `loadedNodes`。
+   */
+  const siblingIds = (parentId: RxDBEntityId | null): readonly RxDBEntityId[] =>
+    parentId === null ? rootIds.value : (childrenMap.value.get(parentId) ?? []);
+
   return {
     treeNodes,
     expandedIds,
@@ -594,6 +549,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     commitEdit,
     writeError,
     clearWriteError,
+    guardWrite,
     deleteFile,
     selectFolder,
     cancelSelectFolder,
@@ -605,6 +561,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     executeCascadeDelete,
     clearSearch,
     deleteAllFiles,
-    loadedNodes
+    loadedNodes,
+    siblingIds
   };
 }

@@ -35,7 +35,7 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
   readonly $new_menu_title = signal<string>('');
   readonly $edit_menu_title = signal<string>('');
 
-  /** 写入失败的页内提示文案；`null` 表示没有错误。拖放不走这里。 */
+  /** 写入失败的页内提示文案；`null` 表示没有错误。含拖放。 */
   readonly writeError = signal<string | null>(null);
 
   readonly add_1 = useAction(async (count?: number) => {
@@ -282,18 +282,13 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
     mainContainer.nativeElement.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
-  /** 批量添加；失败写页内提示而不是经 `useAction` 抛成未处理的拒绝。 */
-  private async addMany(count: number): Promise<void> {
-    await this.runWrite('批量添加', () => this.store.add_many_menu(count));
-  }
-
   /**
    * 执行一次写入：开始前清掉上一次的错误，失败时把文案写进 {@link writeError}。
    * 失败后页面状态即库里已提交的状态，下一次操作照常可用。
    *
    * @returns 写入是否成功
    */
-  private async runWrite(operation: TreeWriteOperation, write: () => Promise<unknown>): Promise<boolean> {
+  protected async runWrite(operation: TreeWriteOperation, write: () => Promise<unknown>): Promise<boolean> {
     this.writeError.set(null);
     try {
       await write();
@@ -302,5 +297,10 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
       this.writeError.set(formatTreeWriteError(operation, error));
       return false;
     }
+  }
+
+  /** 批量添加；失败写页内提示而不是经 `useAction` 抛成未处理的拒绝。 */
+  private async addMany(count: number): Promise<void> {
+    await this.runWrite('批量添加', () => this.store.add_many_menu(count));
   }
 }

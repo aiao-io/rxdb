@@ -1,14 +1,13 @@
-import type { RxDBEntityId, UUID } from '@aiao/rxdb';
+import { type RxDBEntityId, SortOrderError, type UUID } from '@aiao/rxdb';
 import type { ITreeEntity } from '@aiao/rxdb-plugin-tree';
 import { act, renderHook } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-import { useDragDrop } from './useDragDrop';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { type DragDropOptions, useDragDrop } from './useDragDrop';
+import { useTreeWriteError } from './useTreeWriteError';
 
 interface TestNode extends ITreeEntity {
   parentId: UUID | null;
   type: 'file' | 'folder';
-  sortOrder?: string | null;
-  save?: () => Promise<void>;
 }
 
 const toUuid = (id: string): UUID => `${id}-0000-0000-0000-000000000000`;
@@ -20,27 +19,55 @@ const makeNode = (id: string, parentId: string | null, type: TestNode['type']): 
   updatedAt: new Date(0)
 });
 
-const makeSortableNode = (
-  id: string,
-  parentId: string | null,
-  type: TestNode['type'],
-  sortOrder: string
-): TestNode => ({
-  ...makeNode(id, parentId, type),
-  sortOrder,
-  save: () => Promise.resolve()
-});
+const isFolder = (node: TestNode): boolean => node.type === 'folder';
+
+/** 行高 30：y=2 落在上三分之一（before），y=15 在中间（into），y=28 在下三分之一（after）。 */
+const ROW_RECT = { top: 0, height: 30 } as DOMRect;
+
+/** 页面的接法：`runWrite` 来自 `useTreeWriteError`，失败文案由页内提示读 `writeError`。 */
+const useHarness = (items: TestNode[], options: Omit<DragDropOptions<TestNode>, 'runWrite'>) => {
+  const { writeError, runWrite } = useTreeWriteError();
+  const dragDrop = useDragDrop<TestNode>(items, { ...options, runWrite });
+  return { ...dragDrop, writeError };
+};
+
+const makeRepository = () => ({ reorder: vi.fn((_id: RxDBEntityId, _target: unknown) => Promise.resolve()) });
+
+type Harness = ReturnType<typeof renderHook<ReturnType<typeof useHarness>, unknown>>['result'];
+
+/** 一次完整的拖放：起拖 → 悬停到目标行的 y 处 → 放下。 */
+const dragAndDrop = async (
+  result: Harness,
+  dragged: TestNode,
+  target: TestNode,
+  y: number,
+  onExpandFolder?: (id: string) => void
+) => {
+  act(() => result.current.onDragStart(dragged.id));
+  act(() => {
+    result.current.onDragOver(target, y, ROW_RECT);
+  });
+  await act(async () => {
+    await result.current.onDrop(target, onExpandFolder);
+  });
+};
+
+const IDLE_STATE = { draggedItemId: null, targetItemId: null, dropMode: null, isValidTarget: false };
 
 describe('useDragDrop', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   /**
    * 页面把 `useDragDrop` 的返回值传给被 memo 的行组件。
    * 只要 handler 每次 render 都换新身份，memo 就被击穿 —— 整棵树跟着 rerender。
    */
   it('输入不变时，返回的 handler 身份必须跨 render 保持稳定', () => {
     const items = [makeNode('a', null, 'folder'), makeNode('b', null, 'file')];
-    const isFolder = (node: TestNode): boolean => node.type === 'folder';
+    const repository = makeRepository();
 
-    const { result, rerender } = renderHook(() => useDragDrop<TestNode>(items, { isFolder }));
+    const { result, rerender } = renderHook(() => useHarness(items, { isFolder, repository }));
     const first = result.current;
 
     rerender();
@@ -49,10 +76,11 @@ describe('useDragDrop', () => {
     expect(result.current.onDrop).toBe(first.onDrop);
   });
 
-  it('不传 options 时同样要稳定（默认值不能每次都是新对象）', () => {
+  it('只传必需选项时同样要稳定（默认值不能每次都是新对象）', () => {
     const items = [makeNode('a', null, 'folder')];
+    const repository = makeRepository();
 
-    const { result, rerender } = renderHook(() => useDragDrop<TestNode>(items));
+    const { result, rerender } = renderHook(() => useHarness(items, { repository }));
     const first = result.current;
 
     rerender();
@@ -60,73 +88,203 @@ describe('useDragDrop', () => {
     expect(result.current.onDragOver).toBe(first.onDragOver);
   });
 
-  /**
-   * APP-dev-rxdb-react P0-1。
-   *
-   * 懒加载页面此前给 `useDragDrop` 灌的是**全表订阅**结果，理由是"拖放要拿到所有节点"。
-   * 真实需要的只有两样：
-   *
-   * 1. **目标的祖先链** —— 用来判环。懒树里能被拖到的节点必然可见，
-   *    而要可见就必须逐级展开过它的祖先，所以祖先链**永远已经在可见集合里**，
-   *    无需全表。
-   * 2. **落点的同级列表** —— 用来算 `sortOrder`。这份是懒树里**真的可能没加载**的，
-   *    必须按需查（`resolveSiblings`），而不是靠订阅整张表顺带拿到。
-   *
-   * 下面两条锁死这个边界：拿不到同级 = 算出撞车的排序键；祖先链只能来自可见集合。
-   */
-  describe('有界作用域（P0-1）', () => {
-    it('拖入未展开的文件夹时，必须按需取同级，否则排序键与既有子节点撞车', async () => {
-      const folder = makeSortableNode('f', null, 'folder', 'a0');
-      const dragged = makeSortableNode('d', null, 'file', 'a1');
-      // 已在库里、但因为 folder 未展开而不在可见集合中的两个子节点。
-      const hiddenChildren = [makeSortableNode('c1', 'f', 'file', 'a0'), makeSortableNode('c2', 'f', 'file', 'a1')];
-      const resolveSiblings = vi.fn((parentId: RxDBEntityId | null) =>
-        Promise.resolve(parentId === folder.id ? hiddenChildren : [])
-      );
+  describe('缺陷三：拖进与完整组序列', () => {
+    it('拖进折叠且子节点未加载的节点：目标为 { group }，不读子节点', async () => {
+      const folder = makeNode('f', null, 'folder');
+      const dragged = makeNode('d', null, 'file');
+      const repository = makeRepository();
+      const getGroupIds = vi.fn(() => [] as RxDBEntityId[]);
+      const onExpandFolder = vi.fn();
 
-      const { result } = renderHook(() =>
-        useDragDrop<TestNode>([folder, dragged], {
-          isFolder: node => node.type === 'folder',
-          resolveSiblings
-        })
-      );
+      const { result } = renderHook(() => useHarness([folder, dragged], { isFolder, repository, getGroupIds }));
+      await dragAndDrop(result, dragged, folder, 15, onExpandFolder);
 
-      act(() => result.current.onDragStart(dragged.id));
-      act(() => {
-        // 行高 30，鼠标落在正中 → 'into'
-        result.current.onDragOver(folder, 15, { top: 0, height: 30 } as DOMRect);
-      });
-      await act(async () => {
-        await result.current.onDrop(folder);
-      });
-
-      expect(resolveSiblings).toHaveBeenCalledWith(folder.id);
-      expect(dragged.parentId).toBe(folder.id);
-      // 必须排在既有最后一个子节点 'a1' 之后；只看可见集合会算出 'a0'，与 c1 撞车。
-      expect(dragged.sortOrder! > 'a1').toBe(true);
+      // 折叠节点的子节点没加载：不论库里有几个，都只交给引擎「追加到该组末尾」
+      expect(repository.reorder).toHaveBeenCalledTimes(1);
+      expect(repository.reorder).toHaveBeenCalledWith(dragged.id, { group: { parentId: folder.id } });
+      expect(getGroupIds).not.toHaveBeenCalled();
+      expect(onExpandFolder).toHaveBeenCalledWith(folder.id);
+      expect(result.current.writeError).toBeNull();
     });
 
-    it('判环只用可见集合，不得为此额外发查询', async () => {
-      // parent → child，两者都可见；把 parent 拖进自己的 child 必须被拒。
-      const parent = makeSortableNode('p', null, 'folder', 'a0');
-      const child = makeSortableNode('c', 'p', 'folder', 'a0');
-      const resolveSiblings = vi.fn(() => Promise.resolve([] as TestNode[]));
+    it('前后放置的邻居取自组的完整序列，不取搜索过滤后的可见行', async () => {
+      // 搜索把 B 过滤掉了：可见行只有 A、C、X，但组的完整序列是 A、B、C、X
+      const [a, b, c, x] = [
+        makeNode('a', null, 'folder'),
+        makeNode('b', null, 'folder'),
+        makeNode('c', null, 'folder'),
+        makeNode('x', null, 'folder')
+      ];
+      const repository = makeRepository();
+      const getGroupIds = vi.fn((parentId: RxDBEntityId | null) => (parentId === null ? [a.id, b.id, c.id, x.id] : []));
 
-      const { result } = renderHook(() =>
-        useDragDrop<TestNode>([parent, child], {
-          isFolder: node => node.type === 'folder',
-          resolveSiblings
-        })
-      );
+      const { result } = renderHook(() => useHarness([a, c, x], { isFolder, repository, getGroupIds }));
+      await dragAndDrop(result, x, a, 28);
 
+      expect(getGroupIds).toHaveBeenCalledWith(null);
+      // 夹在 A 与 C 之间的 B 不能被漏掉：下一个兄弟是 B，不是可见的 C
+      expect(repository.reorder).toHaveBeenCalledWith(x.id, { prevId: a.id, nextId: b.id });
+    });
+
+    it('一次性加载的页面不传 getGroupIds：组序列取自传入的全集', async () => {
+      const [a, b, c] = [makeNode('a', null, 'folder'), makeNode('b', null, 'folder'), makeNode('c', null, 'folder')];
+      const repository = makeRepository();
+
+      const { result } = renderHook(() => useHarness([a, b, c], { isFolder, repository }));
+      await dragAndDrop(result, c, a, 28);
+
+      expect(repository.reorder).toHaveBeenCalledWith(c.id, { prevId: a.id, nextId: b.id });
+    });
+  });
+
+  describe('失败处理', () => {
+    it('reorder 抛 SortOrderError 时页内提示「拖放失败：…」、拖拽状态复位、不弹窗', async () => {
+      const alertSpy = vi.fn();
+      vi.stubGlobal('alert', alertSpy);
+      const [a, b] = [makeNode('a', null, 'folder'), makeNode('b', null, 'folder')];
+      const repository = makeRepository();
+      repository.reorder.mockRejectedValue(new SortOrderError('Menu', 'staleTarget', '邻居已不相邻'));
+
+      const { result } = renderHook(() => useHarness([a, b], { isFolder, repository }));
+      await dragAndDrop(result, a, b, 15);
+
+      expect(result.current.writeError).toBe('拖放失败：Menu: 邻居已不相邻');
+      expect(result.current.dragDropState).toEqual(IDLE_STATE);
+      expect(alertSpy).not.toHaveBeenCalled();
+    });
+
+    it('失败时不展开目标文件夹', async () => {
+      const [a, b] = [makeNode('a', null, 'folder'), makeNode('b', null, 'folder')];
+      const repository = makeRepository();
+      repository.reorder.mockRejectedValue(new SortOrderError('Menu', 'notFound', '行不存在'));
+      const onExpandFolder = vi.fn();
+
+      const { result } = renderHook(() => useHarness([a, b], { isFolder, repository }));
+      await dragAndDrop(result, a, b, 15, onExpandFolder);
+
+      expect(onExpandFolder).not.toHaveBeenCalled();
+    });
+
+    it('下一次拖放清空错误', async () => {
+      const [a, b, c] = [makeNode('a', null, 'folder'), makeNode('b', null, 'folder'), makeNode('c', null, 'folder')];
+      const repository = makeRepository();
+      repository.reorder.mockRejectedValueOnce(new SortOrderError('Menu', 'staleTarget', '邻居已不相邻'));
+
+      const { result } = renderHook(() => useHarness([a, b, c], { isFolder, repository }));
+      await dragAndDrop(result, a, b, 15);
+      expect(result.current.writeError).not.toBeNull();
+
+      await dragAndDrop(result, a, c, 15);
+
+      expect(repository.reorder).toHaveBeenCalledTimes(2);
+      expect(result.current.writeError).toBeNull();
+    });
+  });
+
+  describe('提交前被拒或原位', () => {
+    it('reject / noop 不调用 reorder', async () => {
+      const parent = makeNode('p', null, 'folder');
+      const child = makeNode('c', 'p', 'folder');
+      const file = makeNode('f', null, 'file');
+      const [a, b, c] = [makeNode('a', null, 'folder'), makeNode('b', null, 'folder'), makeNode('z', null, 'folder')];
+      const repository = makeRepository();
+
+      const cycle = renderHook(() => useHarness([parent, child], { isFolder, repository }));
+      await dragAndDrop(cycle.result, parent, child, 2); // 前
+      await dragAndDrop(cycle.result, parent, child, 28); // 后
+      await dragAndDrop(cycle.result, parent, child, 15); // 内
+      await dragAndDrop(cycle.result, parent, parent, 15); // 自己
+
+      const intoFile = renderHook(() => useHarness([parent, file], { isFolder, repository }));
+      await dragAndDrop(intoFile.result, parent, file, 15);
+
+      // 原位：c 本就在 b 之后、放回 b 的下方
+      const inPlace = renderHook(() => useHarness([a, b, c], { isFolder, repository }));
+      await dragAndDrop(inPlace.result, c, b, 28);
+
+      expect(repository.reorder).not.toHaveBeenCalled();
+      expect(cycle.result.current.dragDropState).toEqual(IDLE_STATE);
+      expect(cycle.result.current.writeError).toBeNull();
+      expect(inPlace.result.current.dragDropState).toEqual(IDLE_STATE);
+    });
+
+    it('被拒的落点高亮为无效，放得下的落点为有效', () => {
+      const parent = makeNode('p', null, 'folder');
+      const child = makeNode('c', 'p', 'folder');
+      const other = makeNode('o', null, 'folder');
+      const repository = makeRepository();
+
+      const { result } = renderHook(() => useHarness([parent, child, other], { isFolder, repository }));
       act(() => result.current.onDragStart(parent.id));
-      let validity = { isValid: true };
+      let toChild = { isValid: true };
+      let toOther = { isValid: false };
       act(() => {
-        validity = result.current.onDragOver(child, 15, { top: 0, height: 30 } as DOMRect);
+        toChild = result.current.onDragOver(child, 15, ROW_RECT);
+      });
+      act(() => {
+        toOther = result.current.onDragOver(other, 15, ROW_RECT);
       });
 
+      expect(toChild.isValid).toBe(false);
+      expect(toOther.isValid).toBe(true);
+    });
+
+    it('手动模式拖进当前父节点：交给引擎追加到该组末尾（不再一律不动）', async () => {
+      const parent = makeNode('p', null, 'folder');
+      const first = makeNode('c1', 'p', 'file');
+      const second = makeNode('c2', 'p', 'file');
+      const repository = makeRepository();
+
+      const { result } = renderHook(() => useHarness([parent, first, second], { isFolder, repository }));
+      await dragAndDrop(result, first, parent, 15);
+
+      expect(repository.reorder).toHaveBeenCalledWith(first.id, { group: { parentId: parent.id } });
+    });
+  });
+
+  describe('文件管理器非手动排序模式', () => {
+    it('非手动模式同级前后放置被拒、不调用 reorder', async () => {
+      const [a, b] = [makeNode('a', null, 'folder'), makeNode('b', null, 'folder')];
+      const repository = makeRepository();
+
+      const { result } = renderHook(() => useHarness([a, b], { isFolder, repository, manual: false }));
+      act(() => result.current.onDragStart(b.id));
+      let validity = { isValid: true };
+      act(() => {
+        validity = result.current.onDragOver(a, 2, ROW_RECT);
+      });
       expect(validity.isValid).toBe(false);
-      expect(resolveSiblings).not.toHaveBeenCalled();
+      await act(async () => {
+        await result.current.onDrop(a);
+      });
+
+      expect(repository.reorder).not.toHaveBeenCalled();
+      expect(result.current.dragDropState).toEqual(IDLE_STATE);
+    });
+
+    it('非手动模式子级拖到根级节点下方 → { group: { parentId: null } }', async () => {
+      const parent = makeNode('p', null, 'folder');
+      const child = makeNode('c', 'p', 'file');
+      const root = makeNode('r', null, 'folder');
+      const repository = makeRepository();
+
+      const { result } = renderHook(() => useHarness([parent, child, root], { isFolder, repository, manual: false }));
+      await dragAndDrop(result, child, root, 28);
+
+      expect(repository.reorder).toHaveBeenCalledWith(child.id, { group: { parentId: null } });
+    });
+
+    it('非手动模式非根级目标行整行是拖进，拖进文件夹追加到其末尾', async () => {
+      const parent = makeNode('p', null, 'folder');
+      const sub = makeNode('s', 'p', 'folder');
+      const file = makeNode('f', null, 'file');
+      const repository = makeRepository();
+
+      const { result } = renderHook(() => useHarness([parent, sub, file], { isFolder, repository, manual: false }));
+      // 光标在 sub 行的上沿：非手动模式非根级行仍判为 into
+      await dragAndDrop(result, file, sub, 2);
+
+      expect(repository.reorder).toHaveBeenCalledWith(file.id, { group: { parentId: sub.id } });
     });
   });
 });

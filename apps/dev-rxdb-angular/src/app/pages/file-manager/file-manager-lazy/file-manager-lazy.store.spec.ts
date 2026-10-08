@@ -12,6 +12,11 @@ const roots = new BehaviorSubject<SortableFileLarge[]>([]);
 const allFiles = new BehaviorSubject<SortableFileLarge[]>([]);
 const childQueries = new Map<string, BehaviorSubject<SortableFileLarge[]>>();
 let failingNodeId: string | null = null;
+/** 引擎重排的替身 */
+const reorder = vi.fn(async (id: string, target: object) => {
+  void id;
+  void target;
+});
 
 interface QueryOptions {
   where?: { rules?: Array<{ field: string; value: unknown }> };
@@ -66,13 +71,19 @@ describe('TreeFileLazyStore.treeNodes', () => {
     allFiles.next([]);
     childQueries.clear();
     failingNodeId = null;
+    reorder.mockReset();
     TestBed.configureTestingModule({
       providers: [
         TreeFileLazyStore,
         FilePathValidatorService,
         FileSearchService,
         FileDragDropService,
-        { provide: RxDB, useValue: { entityManager: { saveMany: vi.fn(), removeMany: vi.fn() } } },
+        {
+          provide: RxDB,
+          useValue: {
+            entityManager: { saveMany: vi.fn(), removeMany: vi.fn(), getRepository: vi.fn(() => ({ reorder })) }
+          }
+        },
         { provide: FILE_ENTITY_CLASS, useValue: TestFileEntityClass },
         { provide: FILE_HISTORY, useValue: {} }
       ]
@@ -221,5 +232,83 @@ describe('TreeFileLazyStore.treeNodes', () => {
     children$.next([]);
 
     expect(store.visibleNodes().map(node => node.id)).toEqual(['root', 'child']);
+  });
+
+  it('建树顺序 = 查询顺序', () => {
+    // 键的字典序与查询顺序相反：手动模式不得再按 sortOrder 排序，也不得文件夹优先
+    const file = { ...makeFile('file', '说明', null, 'file', false), sortOrder: 'a' } as SortableFileLarge;
+    const folder = { ...makeFile('folder', '文档'), sortOrder: 'b' } as SortableFileLarge;
+    roots.next([folder, file]);
+    const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
+
+    expect(store.treeNodes().map(item => item.node.id)).toEqual(['folder', 'file']);
+  });
+
+  it('查询不传 orderBy', () => {
+    const findAll = vi.spyOn(TestFileEntityClass, 'findAll');
+    const find = vi.spyOn(TestFileEntityClass, 'find');
+    const root = makeFile('root', '文档');
+    roots.next([root]);
+    const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
+
+    store.expandNode(root.id);
+    store.expandAll();
+
+    // 根查询、子节点查询、展开全部三处
+    expect(findAll).toHaveBeenCalledTimes(2);
+    expect(find).toHaveBeenCalledTimes(1);
+    for (const [options] of [...findAll.mock.calls, ...find.mock.calls]) {
+      expect(options).not.toHaveProperty('orderBy');
+    }
+    findAll.mockRestore();
+    find.mockRestore();
+  });
+
+  describe('拖放交给引擎', () => {
+    const ROW = { top: 0, height: 90 } as DOMRect;
+    const INTO = 45;
+
+    it('拖进折叠且子节点未加载的节点：目标为 { group }，不读子节点', async () => {
+      const parent = makeFile('P', '文档', null, 'folder', true);
+      const dragged = makeFile('X', '说明', null, 'file', false);
+      roots.next([parent, dragged]);
+      const find = vi.spyOn(TestFileEntityClass, 'find');
+      const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
+      // 放下瞬间已发出的子节点查询次数：P 折叠，没有订阅过它的子节点
+      const childQueriesAtReorder: number[] = [];
+      reorder.mockImplementation(async () => {
+        childQueriesAtReorder.push(find.mock.calls.length);
+      });
+
+      store.onDragStart(dragged.id);
+      store.onDragOver(parent, INTO, ROW);
+      await store.onDrop(parent);
+
+      expect(reorder).toHaveBeenCalledExactlyOnceWith('X', { group: { parentId: 'P' } });
+      expect(childQueriesAtReorder).toEqual([0]);
+      // 成功后展开目标并订阅它的子节点，新节点随订阅回流
+      expect(store.isExpanded('P')).toBe(true);
+      expect(find).toHaveBeenCalledTimes(1);
+      expect(store.dragDropState()).toEqual({
+        draggedItemId: null,
+        targetItemId: null,
+        dropMode: null,
+        isValidTarget: false
+      });
+      find.mockRestore();
+    });
+
+    it('拖放被拒时不调用 reorder，也不展开目标', async () => {
+      const parent = makeFile('P', '文档', null, 'folder', true);
+      roots.next([parent]);
+      const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
+
+      store.onDragStart(parent.id);
+      store.onDragOver(parent, INTO, ROW);
+      await store.onDrop(parent);
+
+      expect(reorder).not.toHaveBeenCalled();
+      expect(store.isExpanded('P')).toBe(false);
+    });
   });
 });

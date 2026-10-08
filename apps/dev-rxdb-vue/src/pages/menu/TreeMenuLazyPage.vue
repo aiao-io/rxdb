@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { useRxDB } from '@aiao/rxdb-vue';
-import { formatErrorMessage, useToast } from '../../app/composables/useToast';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { useObservable } from '@vueuse/rxjs';
 import {
@@ -48,9 +47,13 @@ const focusMenuTitleInput = () => {
   window.document.getElementById('menu-title-input')?.focus();
 };
 
-// 拖放验证用 store 已加载节点快照（包含 visible 节点与其祖先链），
-// 不再开第二份全表订阅，避免 lazy 模式名存实亡。
-const dragDrop = useDragDrop<SortableMenuLarge>(store.loadedNodes);
+// 拖放判环用 store 已加载节点快照（包含 visible 节点与其祖先链），不再开第二份全表订阅，避免 lazy 模式名存实亡；
+// 前后放置的邻居取目标所在父节点已加载的整组子节点，不取这份快照，也不取可见行。
+const dragDrop = useDragDrop<SortableMenuLarge>(store.loadedNodes, {
+  repository: rxdb.entityManager.getRepository(SortableMenuLarge),
+  guardWrite: store.guardWrite,
+  groupIds: store.siblingIds
+});
 
 // 虚拟滚动配置
 const rowVirtualizer = useVirtualizer(
@@ -131,16 +134,12 @@ const handleDragLeave = (e: DragEvent) => {
 const handleDrop = async (e: DragEvent, menu: SortableMenuLarge) => {
   e.preventDefault();
   e.stopPropagation();
-  try {
-    await dragDrop.onDrop(menu, menuId => {
-      // 仅当目标节点未加载子节点时才展开
-      if (!store.hasLoadedChildren(menuId)) {
-        store.toggleExpand(menuId);
-      }
-    });
-  } catch (error: unknown) {
-    useToast().error(formatErrorMessage('拖放操作失败', error));
-  }
+  await dragDrop.onDrop(menu, menuId => {
+    // 仅当目标节点未加载子节点时才展开
+    if (!store.hasLoadedChildren(menuId)) {
+      store.toggleExpand(menuId);
+    }
+  });
 };
 
 const handleDragEnd = () => {
@@ -219,11 +218,13 @@ const handleDragEnd = () => {
                   :disabled="undoCount === 0"
                   @click="history.undo()"
                   aria-label="撤销"
+                  data-testid="menu-undo"
                 >
                   <Undo2 :size="16" />
                   <span
                     class="badge badge-xs"
                     v-if="undoCount > 0"
+                    data-testid="menu-undo-count"
                   >
                     {{ undoCount }}
                   </span>

@@ -31,15 +31,15 @@ export const reorderTargetForDrop = <Id>(
 
 ## 单测（`packages/rxdb/src/__tests__/sortable/reorder-target-for-drop.spec.ts`）
 
-| 场景                                         | groupIds        | moved | target | position | 期望                                |
-| -------------------------------------------- | --------------- | ----- | ------ | -------- | ----------------------------------- |
-| 同组下移到两邻之间                           | A B C D         | D     | A      | after    | `{ A, B }`                          |
-| 同组上移到组首                               | A B C D         | C     | A      | before   | `{ null, A }`                       |
-| 同组到组尾                                   | A B C D         | A     | D      | after    | `{ D, null }`                       |
-| 原位（目标是后邻、放在它前面）               | A B C           | A     | B      | before   | `null`                              |
-| 原位（目标是前邻、放在它后面）               | A B C           | C     | B      | after    | `null`                              |
-| 跳过自己：目标在被拖行之后、放在目标前面     | A B C           | A     | C      | before   | `{ B, C }`                          |
-| 跨组（moved 不在 groupIds）                  | Q1 Q2           | P1    | Q1     | after    | `{ Q1, Q2 }`                        |
-| 跨组到空侧                                   | Q1              | P1    | Q1     | before   | `{ null, Q1 }`                      |
-| 拖到自己                                     | A B             | A     | A      | before   | `RangeError`                        |
-| 目标不在组里                                 | A B             | A     | X      | after    | `RangeError`                        |
+| 场景                                     | groupIds | moved | target | position | 期望           |
+| ---------------------------------------- | -------- | ----- | ------ | -------- | -------------- |
+| 同组下移到两邻之间                       | A B C D  | D     | A      | after    | `{ A, B }`     |
+| 同组上移到组首                           | A B C D  | C     | A      | before   | `{ null, A }`  |
+| 同组到组尾                               | A B C D  | A     | D      | after    | `{ D, null }`  |
+| 原位（目标是后邻、放在它前面）           | A B C    | A     | B      | before   | `null`         |
+| 原位（目标是前邻、放在它后面）           | A B C    | C     | B      | after    | `null`         |
+| 跳过自己：目标在被拖行之后、放在目标前面 | A B C    | A     | C      | before   | `{ B, C }`     |
+| 跨组（moved 不在 groupIds）              | Q1 Q2    | P1    | Q1     | after    | `{ Q1, Q2 }`   |
+| 跨组到空侧                               | Q1       | P1    | Q1     | before   | `{ null, Q1 }` |
+| 拖到自己                                 | A B      | A     | A      | before   | `RangeError`   |
+| 目标不在组里                             | A B      | A     | X      | after    | `RangeError`   |

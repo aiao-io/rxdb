@@ -120,6 +120,56 @@ export const reorderTargetForMove = <Id>(
 };
 
 /**
+ * 把「放到目标行的上方 / 下方」换算成 `Repository.reorder()` 的邻居目标
+ *
+ * @typeParam Id - 实体主键类型
+ * @param groupIds - 目标行所在组的**完整**序列（与库里的手动顺序一致，含界面上被过滤或不在渲染窗口内的行）
+ * @param movedId - 被拖动行的 id；跨组放置时不在 `groupIds` 里
+ * @param targetId - 落点所在的目标行 id
+ * @param position - 放在目标行的上方（`before`）还是下方（`after`）
+ * @returns 落点前后的邻居，至少一侧是 `targetId`；被拖行已在该位置时返回 `null`，调用方不应发起重排
+ * @throws {@link RangeError} `movedId` 与 `targetId` 相同，或 `targetId` 不在 `groupIds` 里
+ *
+ * @remarks
+ * 与 {@link reorderTargetForMove} 的分工：那一个回答「同一序列里第 from 行拖到第 to 行」，
+ * 适合平铺列表；这一个回答「放到某一行旁边」，被拖行可以来自别的组，树页面的跨父放置只能这样表达。
+ *
+ * 邻居一律取自 `groupIds` 去掉被拖行之后的序列。只拿界面上可见的行会把被隐藏的兄弟夹在两个邻居之间，
+ * `reorder()` 复核相邻时以 `staleTarget` 拒绝。
+ *
+ * @example
+ * ```typescript
+ * const target = reorderTargetForDrop(siblingIds, draggedId, overId, 'after');
+ * if (target) await repository.reorder(draggedId, target);
+ * ```
+ */
+export const reorderTargetForDrop = <Id>(
+  groupIds: readonly Id[],
+  movedId: Id,
+  targetId: Id,
+  position: 'before' | 'after'
+): ReorderBetween<Id> | null => {
+  if (movedId === targetId) throw new RangeError('拖放目标不能是被拖动的行自己');
+  const rest = groupIds.filter(id => id !== movedId);
+  const targetIndex = rest.indexOf(targetId);
+  if (targetIndex < 0) throw new RangeError('拖放目标不在给定的组序列里');
+  const target: ReorderBetween<Id> =
+    position === 'before' ?
+      { prevId: rest[targetIndex - 1] ?? null, nextId: targetId }
+    : { prevId: targetId, nextId: rest[targetIndex + 1] ?? null };
+  return isCurrentPlacement(groupIds, movedId, target) ? null : target;
+};
+
+/** 被拖行在 `groupIds` 里的前后邻居是否恰好就是 `target` */
+const isCurrentPlacement = <Id>(groupIds: readonly Id[], movedId: Id, target: ReorderBetween<Id>): boolean => {
+  const movedIndex = groupIds.indexOf(movedId);
+  if (movedIndex < 0) return false;
+  return (
+    (groupIds[movedIndex - 1] ?? null) === target.prevId && (groupIds[movedIndex + 1] ?? null) === target.nextId
+  );
+};
+
+/**
  * 断言用户写入的排序键合法
  *
  * @param entity - 实体名，用于报错

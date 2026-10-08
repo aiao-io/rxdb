@@ -94,8 +94,7 @@ export default class FileManagerSimplePage extends TreeFileDragDropBase<typeof S
   constructor() {
     const rxdb = inject(RxDB);
     const fileResource = useFindAll(SortableFileNode, {
-      where: { combinator: 'and', rules: [] },
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      where: { combinator: 'and', rules: [] }
     });
     const history = rxdb.versionManager.history(SortableFileNode);
     const store = new TreeFileDragDropStore(

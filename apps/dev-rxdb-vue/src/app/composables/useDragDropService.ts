@@ -1,120 +1,77 @@
-import { type RxDBEntityId } from '@aiao/rxdb';
-import { ISortableTreeEntity } from '@aiao/rxdb-plugin-tree';
-import { generateKeyBetween } from '@aiao/utils';
-import { DragDropError, DragDropErrorCode, DropMode, DropResult } from './drag-drop-types';
-
-const compareSortOrder = (a: ISortableTreeEntity, b: ISortableTreeEntity): number => {
-  const orderA = a.sortOrder || '';
-  const orderB = b.sortOrder || '';
-  if (orderA < orderB) return -1;
-  if (orderA > orderB) return 1;
-  return 0;
-};
+import { reorderTargetForDrop, type ReorderTarget } from '@aiao/rxdb';
+import type { DropMode } from './drag-drop-types';
 
 /**
- * Service for handling menu drag and drop operations
+ * 一次放置的判定输入（`contracts/demo-drag-drop.md` §1，三端同名同形）。
+ *
+ * @typeParam Id - 节点主键类型
  */
-export class DragDropService {
-  /**
-   * Check if an item can be dropped into a target folder
-   */
-  canDropInto<T extends ISortableTreeEntity>(draggedItem: T, targetItem: T, allItems: T[]): boolean {
-    if (draggedItem.id === targetItem.id) {
-      return false;
-    }
-
-    if (this.isDescendantOf(targetItem, draggedItem, allItems)) {
-      return false;
-    }
-
-    return true;
-  }
-
-  /**
-   * Calculate the new drop position and generate sort order key
-   */
-  calculateDropPosition<T extends ISortableTreeEntity>(
-    draggedItem: T,
-    targetItem: T,
-    dropMode: DropMode,
-    allItems: T[]
-  ): DropResult {
-    try {
-      let newSortOrder: string;
-      let newParentId: RxDBEntityId | null;
-
-      if (dropMode === 'into') {
-        newParentId = targetItem.id;
-        const targetChildren = allItems.filter(m => m.parentId === targetItem.id).sort(compareSortOrder);
-
-        const lastChild = targetChildren[targetChildren.length - 1];
-        try {
-          newSortOrder = generateKeyBetween(lastChild?.sortOrder || null, null);
-        } catch {
-          return {
-            success: false,
-            error: new DragDropError(DragDropErrorCode.INVALID_OPERATION, 'REORDER_NEEDED')
-          };
-        }
-      } else {
-        newParentId = targetItem.parentId || null;
-
-        const sameLevelSiblings = allItems.filter(m => m.parentId === newParentId).sort(compareSortOrder);
-        const targetIndex = sameLevelSiblings.findIndex(m => m.id === targetItem.id);
-
-        try {
-          if (dropMode === 'before') {
-            const prevItem = sameLevelSiblings[targetIndex - 1];
-            newSortOrder = generateKeyBetween(prevItem?.sortOrder || null, targetItem.sortOrder || null);
-          } else {
-            const nextItem = sameLevelSiblings[targetIndex + 1];
-            newSortOrder = generateKeyBetween(targetItem.sortOrder || null, nextItem?.sortOrder || null);
-          }
-        } catch {
-          return {
-            success: false,
-            error: new DragDropError(DragDropErrorCode.INVALID_OPERATION, 'REORDER_NEEDED')
-          };
-        }
-      }
-
-      return {
-        success: true,
-        newSortOrder,
-        newParentId
-      };
-    } catch {
-      return {
-        success: false,
-        error: new DragDropError(DragDropErrorCode.INVALID_OPERATION, 'Failed to calculate drop position')
-      };
-    }
-  }
-
-  /**
-   * Check if itemA is a descendant of itemB
-   */
-  private isDescendantOf<T extends ISortableTreeEntity>(itemA: T, itemB: T, allItems: T[]): boolean {
-    let current = itemA;
-    while (current.parentId) {
-      if (current.parentId === itemB.id) {
-        return true;
-      }
-      const parent = allItems.find(m => m.id === current.parentId);
-      if (!parent) break;
-      current = parent;
-    }
-    return false;
-  }
+export interface TreeDropInput<Id> {
+  /** 被拖节点 */
+  movedId: Id;
+  /** 放置目标行；菜单节点恒 `isFolder = true` */
+  target: { id: Id; parentId: Id | null; isFolder: boolean };
+  /** 落点：目标上方 / 下方 / 拖进目标 */
+  position: DropMode;
+  /** 是否手动排序；菜单恒 `true`，文件管理器取 `sortMode === Manual` */
+  manual: boolean;
+  /** 被拖节点当前的父节点；根为 `null` */
+  movedParentId: Id | null;
+  /** 目标是被拖节点自己或其后代（祖先链判断） */
+  isTargetInMovedSubtree: boolean;
+  /** 目标所在组的完整手动序列；`position` 为 `into` 时不用 */
+  groupIds: readonly Id[];
 }
 
-const DRAG_DROP_SERVICE = new DragDropService();
+/** 放置判定结果：拒绝、原位（不写）、或交给引擎的重排目标。 */
+export type TreeDropDecision<Id> =
+  { kind: 'reject' } | { kind: 'noop' } | { kind: 'reorder'; target: ReorderTarget<Id> };
+
+const REJECT = { kind: 'reject' } as const;
 
 /**
- * 返回拖放服务单例。
+ * 判定一次放置，按判定表自上而下命中即返回。
  *
- * DragDropService 是无状态的纯计算服务，跨组件复用同一实例避免重复创建。
+ * @remarks
+ * 拖动中的高亮与放下时的执行调用同一个函数，两处不会各判一遍。
+ * 手动模式的前后放置由 core 的 `reorderTargetForDrop` 换算邻居，原位时它返回 `null`。
+ *
+ * @param input - 判定输入
+ * @returns `reject` 不可放置；`noop` 原位不写；`reorder` 带交给 `Repository.reorder()` 的目标
  */
-export function useDragDropService(): DragDropService {
-  return DRAG_DROP_SERVICE;
+export function resolveTreeDrop<Id>(input: TreeDropInput<Id>): TreeDropDecision<Id> {
+  const { movedId, target, position, manual, movedParentId, isTargetInMovedSubtree, groupIds } = input;
+
+  if (isTargetInMovedSubtree) return REJECT;
+  if (position === 'into') {
+    if (!target.isFolder) return REJECT;
+    if (!manual && target.id === movedParentId) return REJECT;
+    return { kind: 'reorder', target: { group: { parentId: target.id } } };
+  }
+  if (!manual) {
+    const toRoot = target.parentId === null && movedParentId !== null;
+    return toRoot ? { kind: 'reorder', target: { group: { parentId: null } } } : REJECT;
+  }
+
+  const between = reorderTargetForDrop(groupIds, movedId, target.id, position);
+  return between ? { kind: 'reorder', target: between } : { kind: 'noop' };
+}
+
+/**
+ * 由指针在目标行内的纵向偏移决定落点（FR-013，三端同一份区间）。
+ *
+ * @param offsetY - 指针相对目标行顶部的偏移
+ * @param height - 目标行高度
+ * @param ctx - `manual`：是否手动排序；`targetIsRoot`：目标是否根级行
+ * @returns 非手动模式的非根级行整行为 `into`；其余上三分之一 `before`、下三分之一 `after`、中间 `into`
+ */
+export function treeDropPosition(
+  offsetY: number,
+  height: number,
+  ctx: { manual: boolean; targetIsRoot: boolean }
+): DropMode {
+  if (!ctx.manual && !ctx.targetIsRoot) return 'into';
+  if (offsetY < height / 3) return 'before';
+  if (offsetY > (height * 2) / 3) return 'after';
+  return 'into';
 }

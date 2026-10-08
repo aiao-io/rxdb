@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { useFindAll, useRxDB } from '@aiao/rxdb-vue';
-import { formatErrorMessage, useToast } from '../../app/composables/useToast';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { useObservable } from '@vueuse/rxjs';
 import {
@@ -41,8 +40,7 @@ const redoCount = useObservable(history.value.redoCount$, { initialValue: 0 });
 // 获取所有菜单数据
 const { value: menus } = toRefs(
   useFindAll(SortableMenuLarge, {
-    where: { combinator: 'and', rules: [] },
-    orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+    where: { combinator: 'and', rules: [] }
   })
 );
 
@@ -53,7 +51,10 @@ const focusMenuTitleInput = () => {
 };
 
 // Drag and drop
-const dragDrop = useDragDrop<SortableMenuLarge>(menus);
+const dragDrop = useDragDrop<SortableMenuLarge>(menus, {
+  repository: rxdb.entityManager.getRepository(SortableMenuLarge),
+  guardWrite: store.guardWrite
+});
 
 // 虚拟滚动配置
 const rowVirtualizer = useVirtualizer(
@@ -135,16 +136,12 @@ const handleDragLeave = (e: DragEvent) => {
 const handleDrop = async (e: DragEvent, menu: SortableMenuLarge) => {
   e.preventDefault();
   e.stopPropagation();
-  try {
-    await dragDrop.onDrop(menu, menuId => {
-      // 展开目标菜单
-      if (!store.expandedIds.value.has(menuId)) {
-        store.toggleExpand(menuId);
-      }
-    });
-  } catch (error: unknown) {
-    useToast().error(formatErrorMessage('拖放操作失败', error));
-  }
+  await dragDrop.onDrop(menu, menuId => {
+    // 展开目标菜单
+    if (!store.expandedIds.value.has(menuId)) {
+      store.toggleExpand(menuId);
+    }
+  });
 };
 
 const handleDragEnd = () => {
@@ -223,11 +220,13 @@ const handleDragEnd = () => {
                   :disabled="undoCount === 0"
                   @click="history.undo()"
                   aria-label="撤销"
+                  data-testid="menu-undo"
                 >
                   <Undo2 :size="16" />
                   <span
                     class="badge badge-xs"
                     v-if="undoCount > 0"
+                    data-testid="menu-undo-count"
                   >
                     {{ undoCount }}
                   </span>

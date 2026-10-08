@@ -11,13 +11,13 @@
 
 ## 拖放的输入与判定结果（页面内存态，不落库）
 
-| 名称         | 形状                                                                                         | 说明                                                                                   |
-| ------------ | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| 落点         | `{ targetId, position: 'before' \| 'after' \| 'into' }`                                       | 由鼠标在目标行的纵向位置决定；三端判定区间不同（research R9），不在本阶段统一            |
-| 排序模式     | 菜单恒为手动；文件管理器取 `SortMode`（`manual` 与 8 个非手动档）                              | 只有手动模式的前后放置需要邻居                                                         |
-| 组序列       | `groupIds: readonly Id[]`                                                                    | 目标所在组的完整手动序列（research R2），前后放置用                                    |
-| 判定结果     | `{ kind: 'reject' } \| { kind: 'noop' } \| { kind: 'reorder', target: ReorderTarget }`           | `reject` 与 `noop` 都不调用引擎；`reorder` 交给 `Repository.reorder(id, target)`         |
-| 重排目标     | `{ prevId, nextId }`（至少一侧非空）或 `{ group: { parentId } }`（根组为 `null`）              | US-028 `ReorderTarget`；`prevId` / `nextId` 由 `reorderTargetForDrop` 给出               |
+| 名称     | 形状                                                                                   | 说明                                                                                    |
+| -------- | -------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| 落点     | `{ targetId, position: 'before' \| 'after' \| 'into' }`                                | 由 `treeDropPosition` 按目标行纵向三等分决定，非手动模式非根级行整行为 `into`（FR-013） |
+| 排序模式 | 菜单恒为手动；文件管理器取 `SortMode`（`manual` 与 8 个非手动档）                      | 只有手动模式的前后放置需要邻居                                                          |
+| 组序列   | `groupIds: readonly Id[]`                                                              | 目标所在组的完整手动序列（research R2），前后放置用                                     |
+| 判定结果 | `{ kind: 'reject' } \| { kind: 'noop' } \| { kind: 'reorder', target: ReorderTarget }` | `reject` 与 `noop` 都不调用引擎；`reorder` 交给 `Repository.reorder(id, target)`        |
+| 重排目标 | `{ prevId, nextId }`（至少一侧非空）或 `{ group: { parentId } }`（根组为 `null`）      | US-028 `ReorderTarget`；`prevId` / `nextId` 由 `reorderTargetForDrop` 给出              |
 
 ## 页内错误提示
 

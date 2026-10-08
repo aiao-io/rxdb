@@ -1,10 +1,12 @@
-import type { HistoryScopeAPI, RxDB } from '@aiao/rxdb';
+import { RxDB, SortOrderError, type HistoryScopeAPI } from '@aiao/rxdb';
 import { SortableFileNode } from '@aiao/rxdb-test/entities';
-import { signal } from '@angular/core';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FileDragDropService } from '../services/file-drag-drop.service';
+import { PLATFORM_ID, signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { FileDragDropService } from '../services/file-drag-drop.service';
 import type { FilePathValidatorService } from '../services/file-path-validator.service';
 import { SortMode } from './file-sorters';
+import { TreeFileDragDropBase } from './tree-file-drag-drop.base';
 import { TreeFileDragDropStore, TreeFileStore } from './tree-file.store';
 
 const makeFile = (
@@ -55,6 +57,19 @@ describe('TreeFileStore.treeNodes', () => {
     store.setSearchKeyword('发布');
 
     expect(store.treeNodes().map(item => item.node.id)).toEqual(['root', 'matched']);
+  });
+
+  it('建树顺序 = 查询顺序', () => {
+    // 键的字典序（a < b < z）与查询给出的顺序相反：手动模式不得再按 sortOrder 排序
+    const rootB = { ...makeFile('rb', null, 'B'), sortOrder: 'b' } as SortableFileNode;
+    const rootA = { ...makeFile('ra', null, 'A'), sortOrder: 'a' } as SortableFileNode;
+    const childZ = { ...makeFile('cz', 'rb', 'Z', 'file'), sortOrder: 'z' } as SortableFileNode;
+    const childA = { ...makeFile('ca', 'rb', 'a', 'file'), sortOrder: 'a' } as SortableFileNode;
+    const store = makeStore([rootB, rootA, childZ, childA]);
+    store.expandedFileIds.set(new Set(['rb']));
+
+    expect(store.sortMode()).toBe(SortMode.Manual);
+    expect(store.treeNodes().map(item => item.node.id)).toEqual(['rb', 'cz', 'ca', 'ra']);
   });
 });
 
@@ -286,7 +301,48 @@ describe('TreeFileStore actions', () => {
   });
 });
 
-describe('TreeFileDragDropStore actions', () => {
+/** 目标行的矩形：高 90，上三分之一 [0,30)、中间 [30,60]、下三分之一 (60,90]。 */
+const ROW = { top: 0, height: 90 } as DOMRect;
+const BEFORE = 5;
+const INTO = 45;
+const AFTER = 85;
+
+const makeDragStore = (files: SortableFileNode[]) => {
+  const reorder = vi.fn(async (id: string, target: object) => {
+    void id;
+    void target;
+  });
+  const getRepository = vi.fn(() => ({ reorder }));
+  const history = { undo: vi.fn(), redo: vi.fn() } as unknown as HistoryScopeAPI;
+  const store = new TreeFileDragDropStore<typeof SortableFileNode>(
+    { entityManager: { getRepository } } as unknown as RxDB,
+    {} as FilePathValidatorService,
+    new FileDragDropService(),
+    { value: signal(files) },
+    TestFileEntity as unknown as typeof SortableFileNode,
+    history
+  );
+  return { store, reorder, history };
+};
+
+/** 拖动 `draggedId`，在 `targetId` 行的 `clientY` 处放下，返回拖动中的判定结果。 */
+const dragAndDrop = async (
+  store: TreeFileDragDropStore<typeof SortableFileNode>,
+  files: SortableFileNode[],
+  draggedId: string,
+  targetId: string,
+  clientY: number
+) => {
+  const target = files.find(file => file.id === targetId)!;
+  store.onDragStart(draggedId);
+  const over = store.onDragOver(target, clientY, ROW);
+  await store.onDrop(target);
+  return over;
+};
+
+describe('TreeFileDragDropStore 拖放交给引擎', () => {
+  const idleState = { draggedItemId: null, targetItemId: null, dropMode: null, isValidTarget: false };
+
   beforeEach(() => {
     localStorage.clear();
     TestFileEntity.reset();
@@ -296,34 +352,196 @@ describe('TreeFileDragDropStore actions', () => {
     const dragged = makeActionFile('dragged', null, '拖动', 'file', 'a0');
     const target = makeActionFile('target', null, '目标', 'folder', 'b0');
     const child = makeActionFile('target-child', target.id, '子', 'file', 'a0');
-    const dragDropService = {
-      getInvalidTargets: vi.fn(() => new Set(['dragged'])),
-      calculateDropMode: vi.fn(() => 'into' as const),
-      isValidDrop: vi.fn(() => true),
-      executeDrop: vi.fn(async () => ({ success: true, newParentId: target.id }))
-    };
-    const { resource } = makeActionStore([dragged, target, child]);
-    const store = new TreeFileDragDropStore<typeof SortableFileNode>(
-      {} as RxDB,
-      {} as FilePathValidatorService,
-      dragDropService as unknown as FileDragDropService,
-      resource,
-      TestFileEntity as unknown as typeof SortableFileNode,
-      {} as HistoryScopeAPI
-    );
+    const files = [dragged, target, child];
+    const { store, reorder } = makeDragStore(files);
 
     store.onDragStart(dragged.id);
     expect(store.invalidTargets()).toEqual(new Set(['dragged']));
-    const over = store.onDragOver(target, 50, { top: 0, bottom: 100 } as DOMRect);
+    const over = store.onDragOver(target, INTO, ROW);
     expect(over).toEqual({ dropMode: 'into', isValid: true });
     expect(store.highlightedFileIds()).toEqual(new Set(['target-child']));
 
     await store.onDrop(target);
-    expect(dragDropService.executeDrop).toHaveBeenCalledWith(dragged.id, target.id, 'into', [dragged, target, child]);
+    expect(reorder).toHaveBeenCalledExactlyOnceWith('dragged', { group: { parentId: 'target' } });
     expect(store.expandedFileIds()).toContain(target.id);
-    expect(store.dragDropState()).toMatchObject({ draggedItemId: null, targetItemId: null });
+    expect(store.dragDropState()).toEqual(idleState);
 
     store.onDragEnd();
     expect(store.dragDropState().dropMode).toBeNull();
+  });
+
+  it('手动模式前后放置的邻居取自组的完整序列', async () => {
+    const files = [
+      makeActionFile('A', null, 'A'),
+      makeActionFile('B', null, 'B'),
+      makeActionFile('C', null, 'C', 'file'),
+      makeActionFile('x', 'A', 'x', 'file')
+    ];
+    const { store, reorder } = makeDragStore(files);
+
+    await dragAndDrop(store, files, 'x', 'B', AFTER);
+
+    expect(reorder).toHaveBeenCalledExactlyOnceWith('x', { prevId: 'B', nextId: 'C' });
+  });
+
+  describe('reject / noop 不调用 reorder', () => {
+    it('拖到自己或后代、拖进文件都被拒，高亮为无效', async () => {
+      const files = [
+        makeActionFile('F', null, 'F'),
+        makeActionFile('c', 'F', 'c', 'file'),
+        makeActionFile('Y', null, 'Y', 'file')
+      ];
+      const { store, reorder } = makeDragStore(files);
+
+      for (const clientY of [BEFORE, INTO, AFTER]) {
+        expect((await dragAndDrop(store, files, 'F', 'c', clientY)).isValid).toBe(false);
+      }
+      expect((await dragAndDrop(store, files, 'F', 'Y', INTO)).isValid).toBe(false);
+
+      expect(reorder).not.toHaveBeenCalled();
+      expect(store.dragDropState()).toEqual(idleState);
+    });
+
+    it('手动模式原位放下', async () => {
+      const files = [makeActionFile('A', null, 'A'), makeActionFile('B', null, 'B'), makeActionFile('C', null, 'C')];
+      const { store, reorder } = makeDragStore(files);
+
+      const over = await dragAndDrop(store, files, 'B', 'C', BEFORE);
+
+      expect(over.isValid).toBe(true);
+      expect(reorder).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('非手动模式', () => {
+    const makeFiles = () => [
+      makeActionFile('F', null, 'F'),
+      makeActionFile('x', 'F', 'x', 'file'),
+      makeActionFile('G', null, 'G'),
+      makeActionFile('H', null, 'H')
+    ];
+
+    it('非手动模式同级前后放置被拒、不调用 reorder', async () => {
+      const files = makeFiles();
+      const { store, reorder } = makeDragStore(files);
+      store.setSortMode(SortMode.NameAsc);
+
+      // 根级节点之间（根级目标行仍分三档）
+      expect((await dragAndDrop(store, files, 'G', 'H', BEFORE)).isValid).toBe(false);
+      expect((await dragAndDrop(store, files, 'G', 'H', AFTER)).isValid).toBe(false);
+
+      expect(reorder).not.toHaveBeenCalled();
+    });
+
+    it('非手动模式非根级目标行整行为拖进；拖进当前父文件夹被拒', async () => {
+      const files = [...makeFiles(), makeActionFile('y', 'F', 'y', 'file')];
+      const { store, reorder } = makeDragStore(files);
+      store.setSortMode(SortMode.NameAsc);
+
+      // 目标 y 是 F 的子节点（非根级、文件）：上三分之一也落成 into，文件不能拖进
+      const over = await dragAndDrop(store, files, 'x', 'y', BEFORE);
+      expect(over).toEqual({ dropMode: 'into', isValid: false });
+      // 拖进当前父文件夹 F
+      expect((await dragAndDrop(store, files, 'x', 'F', INTO)).isValid).toBe(false);
+
+      expect(reorder).not.toHaveBeenCalled();
+    });
+
+    it('非手动模式子级拖到根级节点下方 → { group: { parentId: null } }', async () => {
+      const files = makeFiles();
+      const { store, reorder } = makeDragStore(files);
+      store.setSortMode(SortMode.NameAsc);
+
+      const over = await dragAndDrop(store, files, 'x', 'G', AFTER);
+
+      expect(over).toEqual({ dropMode: 'after', isValid: true });
+      expect(reorder).toHaveBeenCalledExactlyOnceWith('x', { group: { parentId: null } });
+    });
+
+    it('非手动模式拖进文件夹 → { group: { parentId } }，成功后展开目标', async () => {
+      const files = makeFiles();
+      const { store, reorder } = makeDragStore(files);
+      store.setSortMode(SortMode.NameAsc);
+
+      await dragAndDrop(store, files, 'H', 'G', INTO);
+
+      expect(reorder).toHaveBeenCalledExactlyOnceWith('H', { group: { parentId: 'G' } });
+      expect(store.expandedFileIds()).toContain('G');
+    });
+  });
+
+  describe('拖放失败进页内提示', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      TestBed.resetTestingModule();
+    });
+
+    const makeHost = (files: SortableFileNode[]) => {
+      const parts = makeDragStore(files);
+      TestBed.configureTestingModule({
+        providers: [
+          { provide: PLATFORM_ID, useValue: 'browser' },
+          { provide: RxDB, useValue: {} }
+        ]
+      });
+      class Host extends TreeFileDragDropBase<typeof SortableFileNode> {
+        constructor() {
+          super(
+            parts.store,
+            { value: signal(files) },
+            TestFileEntity as unknown as typeof SortableFileNode,
+            parts.history
+          );
+        }
+      }
+      const host = TestBed.runInInjectionContext(() => new Host());
+      return { host, ...parts };
+    };
+
+    const dropEvent = { preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as DragEvent;
+    const makeFiles = () => [
+      makeActionFile('A', null, 'A'),
+      makeActionFile('B', null, 'B'),
+      makeActionFile('X', null, 'X')
+    ];
+
+    it('reorder 抛 SortOrderError 时页内提示「拖放失败：…」、拖拽状态复位、不弹窗', async () => {
+      const alertSpy = vi.fn();
+      vi.stubGlobal('alert', alertSpy);
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const files = makeFiles();
+      const { host, store, reorder } = makeHost(files);
+      const error = new SortOrderError('SortableFileNode', 'staleTarget', '邻居已不相邻');
+      reorder.mockRejectedValueOnce(error);
+
+      store.onDragStart('X');
+      store.onDragOver(files[0], AFTER, ROW);
+      await host.onDrop(dropEvent, files[0]);
+
+      expect(host.writeError()).toBe(`拖放失败：${error.message}`);
+      expect(host.writeError()).toContain('邻居已不相邻');
+      expect(store.dragDropState()).toEqual(idleState);
+      expect(alertSpy).not.toHaveBeenCalled();
+      expect(consoleError).not.toHaveBeenCalled();
+      consoleError.mockRestore();
+    });
+
+    it('下一次拖放清空错误', async () => {
+      const files = makeFiles();
+      const { host, store, reorder } = makeHost(files);
+      reorder.mockRejectedValueOnce(new SortOrderError('SortableFileNode', 'staleTarget', '邻居已不相邻'));
+
+      store.onDragStart('X');
+      store.onDragOver(files[0], AFTER, ROW);
+      await host.onDrop(dropEvent, files[0]);
+      expect(host.writeError()).not.toBeNull();
+
+      store.onDragStart('X');
+      store.onDragOver(files[0], AFTER, ROW);
+      await host.onDrop(dropEvent, files[0]);
+
+      expect(host.writeError()).toBeNull();
+      expect(reorder).toHaveBeenCalledTimes(2);
+    });
   });
 });

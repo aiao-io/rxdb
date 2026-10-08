@@ -4,7 +4,6 @@ import { act, renderHook } from '@testing-library/react';
 import { Observable, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { generateBatchMenus } from '../utils/menu-utils';
-import { compareSortOrder } from '../utils/sort-order';
 import { menuLargeTreeSource, type TreeMenuLazySource, useTreeMenuLazyStore } from './useTreeMenuLazyStore';
 
 vi.mock('../utils/menu-utils', () => ({
@@ -61,6 +60,12 @@ interface QueryCall {
 
 const toUuid = (id: string): UUID => `${id}-0000-0000-0000-000000000000`;
 
+/** 引擎在查询不传 `orderBy` 时补的默认排序：同组按 `sortOrder`、再按 `id`。 */
+const byEngineDefaultOrder = (a: SortableMenuLarge, b: SortableMenuLarge): number => {
+  if (a.sortOrder !== b.sortOrder) return a.sortOrder < b.sortOrder ? -1 : 1;
+  return a.id < b.id ? -1 : 1;
+};
+
 /**
  * 一个"够用"的 SortableMenuLarge 替身：store 只读 id/parentId/title/sortOrder/hasChildren，
  * 写只经过 entityManager 与 save()/remove()。真实实体要连数据库，这里不需要。
@@ -88,6 +93,11 @@ class FakeMenuTable {
   private rxdb: RxDB | null = null;
   rows: SortableMenuLarge[] = [];
   readonly calls: QueryCall[] = [];
+  /**
+   * 查询返回行的顺序：`'engine'` 模拟引擎默认排序；`'insertion'` 按 `rows` 的写入顺序原样返回，
+   * 用来断言 store 建树时不再自己比较排序键（顺序 = 查询顺序）。
+   */
+  queryOrder: 'engine' | 'insertion' = 'engine';
   /** `entityManager()` 返回的假实体管理器里的写方法，断言「发了哪些写」用。 */
   get writes() {
     return (this.rxdb as unknown as { entityManager: Record<string, ReturnType<typeof vi.fn>> }).entityManager;
@@ -160,7 +170,7 @@ class FakeMenuTable {
     const rule = options.where?.rules?.find(r => r.field === 'parentId');
     const matched =
       rule === undefined ? [...this.rows] : this.rows.filter(row => (row.parentId ?? null) === (rule.value ?? null));
-    const sorted = matched.sort(compareSortOrder);
+    const sorted = this.queryOrder === 'engine' ? matched.sort(byEngineDefaultOrder) : matched;
     const ordered = options.orderBy?.[0]?.sort === 'desc' ? sorted.reverse() : sorted;
     return options.limit === undefined ? ordered : ordered.slice(0, options.limit);
   }
@@ -206,6 +216,70 @@ describe('useTreeMenuLazyStore', () => {
 
     expect(firstUnsubscribe).toHaveBeenCalledOnce();
     expect(secondSource.findRoots).toHaveBeenCalledOnce();
+  });
+
+  /** US-031 阶段 B：手动顺序只有一个来源——查询的默认排序。 */
+  describe('显示顺序取自查询默认排序', () => {
+    it('查询不传 orderBy', async () => {
+      const parent = makeMenu('p', null, 'a0');
+      (parent as { hasChildren?: boolean }).hasChildren = true;
+      table.rows = [parent, makeMenu('c1', 'p', 'a0')];
+
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      await act(async () => {
+        await result.current.toggleExpand(parent.id);
+      });
+      act(() => result.current.expandAll());
+      await act(async () => {
+        await result.current.deleteMenu(parent);
+      });
+
+      // 根订阅、展开子节点订阅、展开全部、按父节点读子节点：四种查询一个都不带显式排序
+      expect(table.calls.length).toBeGreaterThanOrEqual(4);
+      expect(table.calls.map(call => call.options.orderBy)).toEqual(table.calls.map(() => undefined));
+    });
+
+    it('建树顺序 = 查询顺序', async () => {
+      // 键的字典序与查询给出的顺序相反：store 若自己再比较排序键，顺序就会翻回去
+      const parent = makeMenu('p', null, 'a0');
+      (parent as { hasChildren?: boolean }).hasChildren = true;
+      table.queryOrder = 'insertion';
+      table.rows = [
+        makeMenu('r2', null, 'a5'),
+        parent,
+        makeMenu('c2', 'p', 'a9'),
+        makeMenu('c1', 'p', 'a1'),
+        makeMenu('r1', null, 'a1')
+      ];
+
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      await act(async () => {
+        await result.current.toggleExpand(parent.id);
+      });
+
+      expect(result.current.treeNodes.map(node => node.menu.title)).toEqual([
+        '菜单 r2',
+        '菜单 p',
+        '菜单 c2',
+        '菜单 c1',
+        '菜单 r1'
+      ]);
+    });
+
+    it('getGroupIds：根组与已展开的组各是整组 id 序列，未加载的组直接报错', async () => {
+      const parent = makeMenu('p', null, 'a0');
+      (parent as { hasChildren?: boolean }).hasChildren = true;
+      table.rows = [parent, makeMenu('r', null, 'a1'), makeMenu('c1', 'p', 'a0'), makeMenu('c2', 'p', 'a1')];
+
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      expect(() => result.current.getGroupIds(parent.id)).toThrow('尚未加载');
+      await act(async () => {
+        await result.current.toggleExpand(parent.id);
+      });
+
+      expect(result.current.getGroupIds(null)).toEqual([parent.id, toUuid('r')]);
+      expect(result.current.getGroupIds(parent.id)).toEqual([toUuid('c1'), toUuid('c2')]);
+    });
   });
 
   /**

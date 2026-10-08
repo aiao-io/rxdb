@@ -271,9 +271,11 @@
                   @defer (on viewport) {
                     <li
                       class="tree-node"
+                      [attr.data-drop-mode]="isTarget ? state.dropMode : ''"
+                      [attr.data-drop-valid]="isTarget ? state.isValidTarget : ''"
                       [attr.data-level]="node.level"
                       [attr.data-menu-id]="node.menu.id"
-                      [attr.data-parent-id]="node.menu.parentId"
+                      [attr.data-parent-id]="node.menu.parentId ?? ''"
                       [attr.draggable]="true"
                       [class.dragging]="state.draggedItemId === node.menu.id"
                       [class.drop-after]="isTarget && state.dropMode === 'after' && state.isValidTarget"

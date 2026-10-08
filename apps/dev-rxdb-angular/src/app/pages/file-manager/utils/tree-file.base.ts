@@ -46,7 +46,7 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
   readonly $new_file_extension = signal<string>('');
   readonly $edit_file_name = signal<string>('');
 
-  /** 写入失败的页内提示文案；`null` 表示没有错误。拖放不走这里。 */
+  /** 写入失败的页内提示文案；`null` 表示没有错误。含拖放。 */
   readonly writeError = signal<string | null>(null);
 
   readonly add_many = useAction(async (count?: number) => {
@@ -355,7 +355,7 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
    *
    * @returns 写入是否成功
    */
-  private async runWrite(operation: TreeWriteOperation, write: () => Promise<unknown>): Promise<boolean> {
+  protected async runWrite(operation: TreeWriteOperation, write: () => Promise<unknown>): Promise<boolean> {
     this.writeError.set(null);
     try {
       await write();

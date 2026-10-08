@@ -220,6 +220,7 @@ export function useTreeMenuStore(menus: MaybeRef<SortableMenuSimple[]>, rxdb: Rx
     commitEdit,
     writeError,
     clearWriteError,
+    guardWrite,
     deleteMenu,
     showDeleteDialog,
     cancelDelete,

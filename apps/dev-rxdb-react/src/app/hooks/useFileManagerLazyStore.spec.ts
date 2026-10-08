@@ -3,7 +3,7 @@ import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { act, renderHook } from '@testing-library/react';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { compareSortOrder } from '../utils/sort-order';
+import { SortMode } from '../utils/file-sorters';
 import { useFileManagerLazyStore } from './useFileManagerLazyStore';
 
 /**
@@ -47,6 +47,12 @@ interface QueryCall {
 
 const toUuid = (id: string): UUID => `${id}-0000-0000-0000-000000000000`;
 
+/** 引擎在查询不传 `orderBy` 时补的默认排序：同组按 `sortOrder`、再按 `id`。 */
+const byEngineDefaultOrder = (a: SortableFileLarge, b: SortableFileLarge): number => {
+  if (a.sortOrder !== b.sortOrder) return a.sortOrder < b.sortOrder ? -1 : 1;
+  return a.id < b.id ? -1 : 1;
+};
+
 const makeFile = (id: string, parentId: string | null, sortOrder: string, type: 'file' | 'folder'): SortableFileLarge =>
   ({
     id: toUuid(id),
@@ -64,6 +70,8 @@ class FakeFileTable {
   private rxdb: RxDB | null = null;
   rows: SortableFileLarge[] = [];
   readonly calls: QueryCall[] = [];
+  /** `'engine'` 模拟引擎默认排序；`'insertion'` 按 `rows` 的写入顺序原样返回（见 `useTreeMenuLazyStore.spec.ts`）。 */
+  queryOrder: 'engine' | 'insertion' = 'engine';
   /** `entityManager()` 返回的假实体管理器里的写方法，断言「发了哪些写」用。 */
   get writes() {
     return (this.rxdb as unknown as { entityManager: Record<string, ReturnType<typeof vi.fn>> }).entityManager;
@@ -134,7 +142,7 @@ class FakeFileTable {
     const rule = options.where?.rules?.find(r => r.field === 'parentId');
     const matched =
       rule === undefined ? [...this.rows] : this.rows.filter(row => (row.parentId ?? null) === (rule.value ?? null));
-    const sorted = matched.sort(compareSortOrder);
+    const sorted = this.queryOrder === 'engine' ? matched.sort(byEngineDefaultOrder) : matched;
     const ordered = options.orderBy?.[0]?.sort === 'desc' ? sorted.reverse() : sorted;
     return options.limit === undefined ? ordered : ordered.slice(0, options.limit);
   }
@@ -243,6 +251,76 @@ describe('useFileManagerLazyStore', () => {
       expect(result.current.treeNodes.map(node => node.file.name).sort()).toEqual(
         ['节点 c1', '节点 c2', '节点 p', '新文件夹'].sort()
       );
+    });
+  });
+
+  describe('显示顺序取自查询默认排序（US-031 阶段 B）', () => {
+    it('查询不传 orderBy', async () => {
+      const folder = makeFile('p', null, 'a0', 'folder');
+      table.rows = [folder, makeFile('c1', 'p', 'a0', 'file')];
+
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+      await act(async () => {
+        await result.current.toggleExpand(folder.id);
+      });
+      act(() => result.current.expandAll());
+
+      // 根订阅、展开子节点订阅、展开全部：三种查询一个都不带显式排序
+      expect(table.calls.length).toBeGreaterThanOrEqual(3);
+      expect(table.calls.map(call => call.options.orderBy)).toEqual(table.calls.map(() => undefined));
+    });
+
+    it('建树顺序 = 查询顺序', async () => {
+      // 手动模式：文件排在文件夹前、键的字典序与查询顺序相反，页面都不得再改
+      const folder = makeFile('p', null, 'a0', 'folder');
+      table.queryOrder = 'insertion';
+      table.rows = [
+        makeFile('f2', null, 'a9', 'file'),
+        folder,
+        makeFile('c2', 'p', 'a9', 'file'),
+        makeFile('c1', 'p', 'a1', 'folder'),
+        makeFile('f1', null, 'a1', 'file')
+      ];
+
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+      await act(async () => {
+        await result.current.toggleExpand(folder.id);
+      });
+
+      expect(result.current.sortMode).toBe(SortMode.Manual);
+      expect(result.current.treeNodes.map(node => node.file.name)).toEqual([
+        '节点 f2',
+        '节点 p',
+        '节点 c2',
+        '节点 c1',
+        '节点 f1'
+      ]);
+    });
+
+    it('展开全部：各组顺序同样是查询顺序', async () => {
+      table.queryOrder = 'insertion';
+      table.rows = [
+        makeFile('f2', null, 'a9', 'file'),
+        makeFile('p', null, 'a0', 'folder'),
+        makeFile('c2', 'p', 'a9', 'file'),
+        makeFile('c1', 'p', 'a1', 'folder')
+      ];
+
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+      act(() => result.current.expandAll());
+
+      expect(result.current.treeNodes.map(node => node.file.name)).toEqual(['节点 f2', '节点 p', '节点 c2', '节点 c1']);
+    });
+
+    it('非手动模式仍按比较器排；getGroupIds 始终是手动顺序', async () => {
+      table.queryOrder = 'insertion';
+      table.rows = [makeFile('b', null, 'a0', 'file'), makeFile('a', null, 'a1', 'file')];
+
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+      act(() => result.current.changeSortMode(SortMode.NameAsc));
+
+      expect(result.current.treeNodes.map(node => node.file.name)).toEqual(['节点 a', '节点 b']);
+      expect(result.current.getGroupIds(null)).toEqual([toUuid('b'), toUuid('a')]);
     });
   });
 

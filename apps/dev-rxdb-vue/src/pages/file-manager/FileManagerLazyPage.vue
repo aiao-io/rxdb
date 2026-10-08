@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { useRxDB } from '@aiao/rxdb-vue';
-import { formatErrorMessage, useToast } from '../../app/composables/useToast';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { useObservable } from '@vueuse/rxjs';
 import {
@@ -53,9 +52,14 @@ const redoCount = useObservable(history.value.redoCount$, { initialValue: 0 });
 
 const store = useFileManagerLazyStore(rxdb);
 
-// 拖放验证用 store 已加载节点快照，避免重复订阅全表（lazy 模式 10k 节点会 OOM）。
+// 拖放判环用 store 已加载节点快照，避免重复订阅全表（lazy 模式 10k 节点会 OOM）；
+// 前后放置的邻居取目标所在父节点已加载的整组子节点。
 const dragDrop = useDragDrop<SortableFileLarge>(store.loadedNodes, {
-  isFolder: node => node.type === 'folder'
+  repository: rxdb.entityManager.getRepository(SortableFileLarge),
+  guardWrite: store.guardWrite,
+  isFolder: node => node.type === 'folder',
+  sortMode: store.sortMode,
+  groupIds: store.siblingIds
 });
 
 // Virtual scroll setup
@@ -170,16 +174,12 @@ const handleDragLeave = (e: DragEvent) => {
 const handleDrop = async (e: DragEvent, file: SortableFileLarge) => {
   e.preventDefault();
   e.stopPropagation();
-  try {
-    await dragDrop.onDrop(file, folderId => {
-      // 展开目标文件夹
-      if (!store.expandedIds.value.has(folderId)) {
-        store.toggleExpand(folderId);
-      }
-    });
-  } catch (error: unknown) {
-    useToast().error(formatErrorMessage('拖放操作失败', error));
-  }
+  await dragDrop.onDrop(file, folderId => {
+    // 展开目标文件夹
+    if (!store.expandedIds.value.has(folderId)) {
+      store.toggleExpand(folderId);
+    }
+  });
 };
 
 const handleDragEnd = () => {
@@ -394,6 +394,7 @@ const getIconComponent = (iconName: string) => {
             <select
               class="select select-bordered select-sm w-32"
               v-model="store.sortMode.value"
+              data-testid="file-sort-select"
             >
               <option value="manual">自由排序</option>
               <option value="name-asc">名称 A→Z</option>
@@ -553,6 +554,17 @@ const getIconComponent = (iconName: string) => {
                   store.selectedFolderId.value === node.file.id && 'outline-primary outline outline-2'
                 ]"
                 :data-file-id="node.file.id"
+                :data-drop-mode="
+                  dragDrop.dragDropState.value.targetItemId === node.file.id ?
+                    dragDrop.dragDropState.value.dropMode
+                  : ''
+                "
+                :data-drop-target="dragDrop.dragDropState.value.targetItemId === node.file.id ? 'true' : 'false'"
+                :data-drop-valid="
+                  dragDrop.dragDropState.value.targetItemId === node.file.id ?
+                    String(dragDrop.dragDropState.value.isValidTarget)
+                  : ''
+                "
                 :data-level="node.level"
                 :data-parent-id="node.file.parentId"
                 :style="{ paddingLeft: `${node.level * 20 + 8}px` }"

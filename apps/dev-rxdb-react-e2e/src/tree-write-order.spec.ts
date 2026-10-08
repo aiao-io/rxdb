@@ -15,8 +15,8 @@ import {
  * US-031 阶段 A：树页面的创建类写入不再自己算排序键，由引擎把新节点追加到所属父节点组的末尾。
  * 这里验的是用户可见的结果：新建、批量添加、删除并提升之后，刷新页面，顺序仍是库里提交的顺序。
  *
- * 文件管理器「自由排序」的显示规则是文件夹在前、文件在后（显示顺序改造属阶段 B），
- * 所以文件与文件夹交替新建的键序在页面上只能观察到「同类内的相对顺序」与「刷新前后一致」。
+ * 文件管理器「自由排序」显示的就是库里的手动顺序（US-031 阶段 B 起不再文件夹优先），
+ * 所以文件与文件夹交替新建的顺序就是新建先后。
  */
 
 /** 某个父节点下的菜单行（按页面上的 DOM 顺序）。 */
@@ -64,12 +64,6 @@ function renderedFileIds(page: Page): Promise<string[]> {
   return page.getByTestId('file-row').evaluateAll(rows => rows.map(row => row.getAttribute('data-file-id') ?? ''));
 }
 
-/** 第一个以 `prefix` 开头的名称的下标；没有（比如被虚拟滚动挡在可视窗口外）时取末尾。 */
-function indexOrEnd(names: string[], prefix: string): number {
-  const index = names.findIndex(name => name.startsWith(prefix));
-  return index === -1 ? names.length : index;
-}
-
 /** 点批量添加的某一档，等按钮恢复可用。 */
 async function batchAddMenus(page: Page, count: number): Promise<void> {
   await page.getByTestId('menu-batch-add').click();
@@ -97,14 +91,12 @@ test.describe('树页面创建类写入的顺序（US-031 阶段 A）', () => {
     const created = [idFolderA, idFile, idFolderB];
     const orderOf = async () => (await renderedFileIds(page)).filter(id => created.includes(id));
 
-    const before = await orderOf();
-    expect(before).toHaveLength(3);
-    // 同为文件夹的甲夹、丙夹按新建先后排列
-    expect(before.indexOf(idFolderA)).toBeLessThan(before.indexOf(idFolderB));
+    // 手动顺序：文件夹 A、文件 X、文件夹 B，与新建先后一致，不再文件夹优先
+    expect(await orderOf()).toEqual([idFolderA, idFile, idFolderB]);
 
     await page.reload();
     await expect(page.getByTestId('file-row')).toHaveCount(3);
-    expect(await orderOf()).toEqual(before);
+    expect(await orderOf()).toEqual([idFolderA, idFile, idFolderB]);
   });
 
   test('折叠节点下新建子节点，展开后排在末尾', async ({ page }) => {
@@ -206,11 +198,8 @@ test.describe('树页面创建类写入的顺序（US-031 阶段 A）', () => {
 
     await page.reload();
     const rows = page.getByTestId('file-row');
-    // 自由排序文件夹在前：后建夹是最早的文件夹；先建文件是最早的文件，排在本批的任何文件之前
-    await expect(rows.first()).toHaveText(/^后建夹$/);
-    const names = await rows.evaluateAll(items => items.map(item => item.textContent?.trim() ?? ''));
-    const indexOfFirstFile = names.findIndex(name => name.startsWith('先建文件.txt'));
-    expect(indexOfFirstFile).toBeGreaterThan(0);
-    expect(indexOfFirstFile).toBeLessThan(indexOrEnd(names, 'Batch-'));
+    // 自由排序显示库里的手动顺序：两个原有根节点按新建先后排在最前，本批追加在它们之后（批内节点不会插到它们前面）
+    await expect(rows.nth(0)).toHaveText(/^先建文件\.txt/u);
+    await expect(rows.nth(1)).toHaveText(/^后建夹$/u);
   });
 });

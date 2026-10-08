@@ -7,7 +7,7 @@ export interface OperationErrorAlertProps {
 }
 
 /**
- * 树页面除拖放外的写入失败的页面级提示（新建、重命名、批量添加、删除、级联删除、删除并提升子节点）。
+ * 树页面写入失败的页面级提示（新建、重命名、批量添加、删除、级联删除、删除并提升子节点、拖放）。
  *
  * @remarks
  * 菜单与文件管理器各三页共用，文案由 `formatTreeWriteError` 生成，状态来自 store 的 `writeError`。

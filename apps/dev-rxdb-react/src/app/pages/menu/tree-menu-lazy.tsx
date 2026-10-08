@@ -25,12 +25,7 @@ import { PathConflictWarning } from '../../components/PathConflictWarning';
 import { useDragDrop } from '../../hooks/useDragDrop';
 import { useMenuRenamePathGuard } from '../../hooks/useRenamePathGuard';
 import { fetchMenuChildren, menuLargeTreeSource, useTreeMenuLazyStore } from '../../hooks/useTreeMenuLazyStore';
-import { getErrorMessage } from '../../utils/error';
 import { mergeById } from '../../utils/tree-scope';
-
-// 模块级常量：写成 JSX 里的对象字面量会每次 render 换新身份，
-// 把 useDragDrop 内部所有 useCallback 的 deps 一起打脏（P2-7）。
-const DRAG_DROP_OPTIONS = { resolveSiblings: fetchMenuChildren };
 
 export function TreeMenuLazyPage() {
   const rxdb = useRxDB();
@@ -54,11 +49,16 @@ export function TreeMenuLazyPage() {
   } = useMenuRenamePathGuard<SortableMenuLarge>();
 
   // P0-1：懒加载页面**不能**再订阅整表。拖放要的祖先链必然已在可见集合里
-  // （看得见就说明逐级展开过），真正可能缺席的只有落点的同级，交给 resolveSiblings 按需取。
+  // （看得见就说明逐级展开过）；前后放置的邻居取自 store 里该组已整组加载的 id 序列（getGroupIds），
+  // 拖进折叠节点则只写「追加到该组末尾」，不需要读它的子节点。
   const visibleMenus = useMemo(() => store.treeNodes.map(node => node.menu), [store.treeNodes]);
 
   // Drag and drop
-  const dragDrop = useDragDrop<SortableMenuLarge>(visibleMenus, DRAG_DROP_OPTIONS);
+  const dragDrop = useDragDrop<SortableMenuLarge>(visibleMenus, {
+    repository: menuRepository,
+    runWrite: store.runWrite,
+    getGroupIds: store.getGroupIds
+  });
 
   // 虚拟滚动配置
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns non-memoizable callbacks by design
@@ -459,18 +459,14 @@ export function TreeMenuLazyPage() {
                     onDrop={async e => {
                       e.preventDefault();
                       e.stopPropagation();
-                      try {
-                        await dragDrop.onDrop(menu, menuId => {
-                          // 仅当目标节点未加载子节点时才展开
-                          // 这对应 Angular 的 !this.childSubscriptions.has(targetId) 检查
-                          if (!store.hasLoadedChildren(menuId)) {
-                            void store.toggleExpand(menuId);
-                          }
-                        });
-                      } catch (error: unknown) {
-                        console.error('Drop error:', error);
-                        alert(getErrorMessage(error, '拖放操作失败'));
-                      }
+                      // 失败由 useDragDrop 经 runWrite 送进页内提示，这里不再有 catch / alert
+                      await dragDrop.onDrop(menu, menuId => {
+                        // 仅当目标节点未加载子节点时才展开
+                        // 这对应 Angular 的 !this.childSubscriptions.has(targetId) 检查
+                        if (!store.hasLoadedChildren(menuId)) {
+                          void store.toggleExpand(menuId);
+                        }
+                      });
                     }}
                     onDragEnd={() => dragDrop.onDragEnd()}
                   >

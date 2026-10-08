@@ -1,11 +1,14 @@
-import { getEntityMutations, type HistoryScopeAPI, type RxDB } from '@aiao/rxdb';
+import { getEntityMutations, SortOrderError, type HistoryScopeAPI, type RxDB } from '@aiao/rxdb';
 import { SortableMenuSimple } from '@aiao/rxdb-test/entities';
-import { signal } from '@angular/core';
+import { PLATFORM_ID, signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { MenuDragDropService } from '../services/menu-drag-drop.service';
 import { MenuSearchService } from '../services/menu-search.service';
 import type { PathValidatorService } from './path-validator';
-import { TreeMenuStore } from './tree-menu.store';
+import { TreeMenuDragDropBase } from './tree-menu.drag-drop';
+import { TreeMenuDragDropStore, TreeMenuStore } from './tree-menu.store';
 
 // 假实体没有 EntityStatus，真 getEntityMutations 会读不到；这里让它原样回传入参，断言 `mutations` 收到的分组
 vi.mock('@aiao/rxdb', async importOriginal => ({
@@ -98,6 +101,18 @@ describe('TreeMenuStore.treeNodes', () => {
 
       expect(largeCalls).toBe(smallCalls);
     });
+  });
+
+  it('建树顺序 = 查询顺序', () => {
+    // 键的字典序（a < b < z）与查询给出的顺序相反：页面不得再按 sortOrder 排序
+    const rootB = { id: 'rb', parentId: null, title: 'B', sortOrder: 'b' } as unknown as SortableMenuSimple;
+    const rootA = { id: 'ra', parentId: null, title: 'A', sortOrder: 'a' } as unknown as SortableMenuSimple;
+    const childZ = { id: 'cz', parentId: 'rb', title: 'Z', sortOrder: 'z' } as unknown as SortableMenuSimple;
+    const childA = { id: 'ca', parentId: 'rb', title: 'a', sortOrder: 'a' } as unknown as SortableMenuSimple;
+    const store = makeStore([rootB, rootA, childZ, childA], searchService);
+    store.expandedMenuIds.set(new Set(['rb']));
+
+    expect(store.treeNodes().map(node => node.menu.id)).toEqual(['rb', 'cz', 'ca', 'ra']);
   });
 });
 
@@ -303,6 +318,18 @@ describe('TreeMenuStore actions', () => {
       );
     });
 
+    it('查询不传 orderBy', async () => {
+      const folded = makeActionMenu('folded', null, '折叠的节点');
+      TestMenuEntity.dbChildren.set('folded', [makeActionMenu('a', 'folded', 'A')]);
+      TestMenuEntity.dbSubtree.set('folded', [folded]);
+      const { store } = makeActionStore([folded]);
+
+      await store.deleteMenu(folded);
+
+      expect(TestMenuEntity.findAll).toHaveBeenCalledOnce();
+      expect(TestMenuEntity.findAll.mock.calls[0]?.[0]).not.toHaveProperty('orderBy');
+    });
+
     it('库里没有子节点（页面却有过期的子节点）时直接 remove()', async () => {
       const leaf = makeActionMenu('leaf', null, '叶');
       const stale = makeActionMenu('stale', 'leaf', '过期');
@@ -431,5 +458,185 @@ describe('TreeMenuStore actions', () => {
     expect(store.pathConflictWarning()).toBeNull();
     expect(history.undo).toHaveBeenCalledOnce();
     expect(history.redo).toHaveBeenCalledOnce();
+  });
+});
+
+/** 拖放用例的行：只有 id / parentId / title，顺序即查询顺序。 */
+const dragMenu = (id: string, parentId: string | null, title = id): SortableMenuSimple =>
+  ({ id, parentId, title, sortOrder: id }) as unknown as SortableMenuSimple;
+
+/** 目标行的矩形：高 90，上三分之一 [0,30)、中间 [30,60]、下三分之一 (60,90]。 */
+const ROW = { top: 0, height: 90 } as DOMRect;
+const BEFORE = 5;
+const INTO = 45;
+const AFTER = 85;
+
+const makeDragStore = (menus: SortableMenuSimple[]) => {
+  const reorder = vi.fn(async (id: string, target: object) => {
+    void id;
+    void target;
+  });
+  const getRepository = vi.fn(() => ({ reorder }));
+  const history = { undo: vi.fn(), redo: vi.fn() } as unknown as HistoryScopeAPI;
+  const store = new TreeMenuDragDropStore<typeof SortableMenuSimple>(
+    { entityManager: { getRepository } } as unknown as RxDB,
+    {} as PathValidatorService,
+    new MenuSearchService(),
+    new MenuDragDropService(),
+    { value: signal(menus) },
+    SortableMenuSimple,
+    history
+  );
+  return { store, reorder, getRepository, history };
+};
+
+/** 拖动 `draggedId`，在 `target` 行的 `clientY` 处放下。 */
+const dragAndDrop = async (
+  store: TreeMenuDragDropStore<typeof SortableMenuSimple>,
+  menus: SortableMenuSimple[],
+  draggedId: string,
+  targetId: string,
+  clientY: number
+) => {
+  const target = menus.find(menu => menu.id === targetId)!;
+  store.onDragStart(draggedId);
+  store.onDragOver(target, clientY, ROW);
+  await store.onDrop(target);
+};
+
+describe('TreeMenuDragDropStore 拖放交给引擎', () => {
+  const idleState = { draggedItemId: null, targetItemId: null, dropMode: null, isValidTarget: false };
+
+  it('前后放置的邻居取自组的完整序列，不取搜索过滤后的可见行', async () => {
+    const menus = [dragMenu('A', null, 'alpha'), dragMenu('B', null, 'beta'), dragMenu('X', null, 'xalpha')];
+    const { store, reorder } = makeDragStore(menus);
+    // 搜索 "alpha" 隐藏 B：可见行只有 A、X
+    store.setSearchKeyword('alpha');
+    expect(store.treeNodes().map(node => node.menu.id)).toEqual(['A', 'X']);
+
+    await dragAndDrop(store, menus, 'X', 'A', AFTER);
+
+    expect(reorder).toHaveBeenCalledExactlyOnceWith('X', { prevId: 'A', nextId: 'B' });
+  });
+
+  it('跨父前后放置：邻居取自目标所在组', async () => {
+    const menus = [
+      dragMenu('P', null),
+      dragMenu('p1', 'P'),
+      dragMenu('Q', null),
+      dragMenu('q1', 'Q'),
+      dragMenu('q2', 'Q')
+    ];
+    const { store, reorder } = makeDragStore(menus);
+
+    await dragAndDrop(store, menus, 'p1', 'q1', AFTER);
+
+    expect(reorder).toHaveBeenCalledExactlyOnceWith('p1', { prevId: 'q1', nextId: 'q2' });
+  });
+
+  it('拖进节点：目标为 { group: { parentId } }，成功后展开目标', async () => {
+    const menus = [dragMenu('P', null), dragMenu('c1', 'P'), dragMenu('X', null)];
+    const { store, reorder } = makeDragStore(menus);
+
+    await dragAndDrop(store, menus, 'X', 'P', INTO);
+
+    expect(reorder).toHaveBeenCalledExactlyOnceWith('X', { group: { parentId: 'P' } });
+    expect(store.expandedMenuIds().has('P')).toBe(true);
+    expect(store.dragDropState()).toEqual(idleState);
+  });
+
+  describe('reject / noop 不调用 reorder', () => {
+    it('拖到自己或后代上（前、后、内部）被拒', async () => {
+      const menus = [dragMenu('P', null), dragMenu('c', 'P'), dragMenu('g', 'c')];
+      const { store, reorder } = makeDragStore(menus);
+
+      for (const targetId of ['P', 'c', 'g']) {
+        for (const clientY of [BEFORE, INTO, AFTER]) {
+          store.onDragStart('P');
+          const result = store.onDragOver(
+            menus.find(menu => menu.id === targetId)!,
+            clientY,
+            ROW
+          );
+          expect(result.isValid).toBe(false);
+          await store.onDrop(menus.find(menu => menu.id === targetId)!);
+        }
+      }
+
+      expect(reorder).not.toHaveBeenCalled();
+      expect(store.dragDropState()).toEqual(idleState);
+    });
+
+    it('原位放下与拖进已是末尾的当前父节点都零写入', async () => {
+      const menus = [dragMenu('A', null), dragMenu('B', null), dragMenu('C', null), dragMenu('c1', 'C')];
+      const { store, reorder } = makeDragStore(menus);
+
+      // C 本来就在 B 之后、也在根组末尾
+      await dragAndDrop(store, menus, 'C', 'B', AFTER);
+      await dragAndDrop(store, menus, 'A', 'B', BEFORE);
+
+      expect(reorder).not.toHaveBeenCalled();
+      expect(store.dragDropState()).toEqual(idleState);
+    });
+  });
+
+  describe('拖放失败进页内提示', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      TestBed.resetTestingModule();
+    });
+
+    const makeHost = (menus: SortableMenuSimple[]) => {
+      TestBed.configureTestingModule({ providers: [{ provide: PLATFORM_ID, useValue: 'browser' }] });
+      const parts = makeDragStore(menus);
+      class Host extends TreeMenuDragDropBase<typeof SortableMenuSimple> {
+        constructor() {
+          super({ value: signal(menus) }, SortableMenuSimple, parts.history, parts.store);
+        }
+      }
+      const host = TestBed.runInInjectionContext(() => new Host());
+      return { host, ...parts };
+    };
+
+    const dropEvent = { preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as DragEvent;
+
+    it('reorder 抛 SortOrderError 时页内提示「拖放失败：…」、拖拽状态复位、不弹窗', async () => {
+      const alertSpy = vi.fn();
+      vi.stubGlobal('alert', alertSpy);
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const menus = [dragMenu('A', null), dragMenu('B', null), dragMenu('X', null)];
+      const { host, store, reorder } = makeHost(menus);
+      const error = new SortOrderError('SortableMenuSimple', 'staleTarget', '邻居已不相邻');
+      reorder.mockRejectedValueOnce(error);
+
+      store.onDragStart('X');
+      store.onDragOver(menus[0], AFTER, ROW);
+      await host.onDrop(dropEvent, menus[0]);
+
+      expect(host.writeError()).toBe(`拖放失败：${error.message}`);
+      expect(host.writeError()).toContain('邻居已不相邻');
+      expect(store.dragDropState()).toEqual(idleState);
+      expect(alertSpy).not.toHaveBeenCalled();
+      expect(consoleError).not.toHaveBeenCalled();
+      consoleError.mockRestore();
+    });
+
+    it('下一次拖放清空错误', async () => {
+      const menus = [dragMenu('A', null), dragMenu('B', null), dragMenu('X', null)];
+      const { host, store, reorder } = makeHost(menus);
+      reorder.mockRejectedValueOnce(new SortOrderError('SortableMenuSimple', 'staleTarget', '邻居已不相邻'));
+
+      store.onDragStart('X');
+      store.onDragOver(menus[0], AFTER, ROW);
+      await host.onDrop(dropEvent, menus[0]);
+      expect(host.writeError()).not.toBeNull();
+
+      store.onDragStart('X');
+      store.onDragOver(menus[0], AFTER, ROW);
+      await host.onDrop(dropEvent, menus[0]);
+
+      expect(host.writeError()).toBeNull();
+      expect(reorder).toHaveBeenCalledTimes(2);
+    });
   });
 });

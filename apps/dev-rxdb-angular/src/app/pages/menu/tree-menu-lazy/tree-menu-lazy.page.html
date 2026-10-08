@@ -283,9 +283,11 @@
                   <li
                     class="tree-node"
                     *cdkVirtualFor="let node of treeNodes(); trackBy: trackByMenuId"
+                    [attr.data-drop-mode]="state.targetItemId === node.menu.id ? state.dropMode : ''"
+                    [attr.data-drop-valid]="state.targetItemId === node.menu.id ? state.isValidTarget : ''"
                     [attr.data-level]="node.level"
                     [attr.data-menu-id]="node.menu.id"
-                    [attr.data-parent-id]="node.menu.parentId"
+                    [attr.data-parent-id]="node.menu.parentId ?? ''"
                     [attr.draggable]="true"
                     [class.dragging]="state.draggedItemId === node.menu.id"
                     [class.drop-after]="

@@ -1,11 +1,10 @@
 import { RxDB, type RxDBEntityId, UUID } from '@aiao/rxdb';
 import { SortableFileLarge } from '@aiao/rxdb-test/entities';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { firstValueFrom } from 'rxjs';
 import { formatFileName, normalizeFileExtension } from '../pages/file-manager/utils/file-name';
 import { getSortComparator, loadStoredSortMode, persistSortMode, SortMode } from '../utils/file-sorters';
 import { generateBatchFiles } from '../utils/file-utils';
-import { compareSortOrder } from '../utils/sort-order';
 import { byParent, collectSubtreePostOrder } from '../utils/tree-scope';
 import { useTreeWriteError } from './useTreeWriteError';
 
@@ -13,16 +12,15 @@ import { useTreeWriteError } from './useTreeWriteError';
 const DELETE_BATCH_SIZE = 200;
 
 /**
- * 取某个父节点下的直接子节点（按 sortOrder 升序）。
+ * 取某个父节点下的直接子节点（查询不传 `orderBy`，引擎按手动顺序 `[parentId, sortOrder, id]` 返回）。
  *
- * 模块级导出而非挂在 store 返回值上：页面要把它当 `useDragDrop` 的 `resolveSiblings`，
- * 而 store 返回的是每次 render 都换新的对象字面量，经它取会把整条 useCallback 链打脏（P2-7）。
+ * 模块级导出而非挂在 store 返回值上：页面的重命名冲突检测按需调它，
+ * 而 store 返回的是每次 render 都换新的对象字面量，经它取会把页面的 useCallback 链打脏（P2-7）。
  */
 export const fetchFileChildren = (parentId: RxDBEntityId | null): Promise<SortableFileLarge[]> =>
   firstValueFrom(
     SortableFileLarge.findAll({
-      where: byParent(parentId),
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      where: byParent(parentId)
     })
   );
 
@@ -63,8 +61,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
   const subscribeToRoot = () => {
     // 2. Subscribe to ROOT
     const rootQuery$ = SortableFileLarge.findAll({
-      where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: null }] },
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: null }] }
     });
     const subscription = rootQuery$.subscribe({
       next: (roots: SortableFileLarge[]) => {
@@ -86,18 +83,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
           return newMap;
         });
 
-        const newRootIds = roots
-          .filter(r => r.name && r.name.trim())
-          .map(r => r.id)
-          .sort((a, b) => {
-            const nodeA = roots.find(r => r.id === a);
-            const nodeB = roots.find(r => r.id === b);
-            if (!nodeA || !nodeB) return 0;
-            if (nodeA.type !== nodeB.type) {
-              return nodeA.type === 'folder' ? -1 : 1;
-            }
-            return compareSortOrder(nodeA, nodeB);
-          });
+        // 顺序即查询顺序（引擎的手动顺序），不再另排
+        const newRootIds = roots.filter(r => r.name && r.name.trim()).map(r => r.id);
         setRootIds(newRootIds);
       },
       error: (error: unknown) => {
@@ -170,6 +157,17 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     const result: FileLazyNode[] = [];
     const comparator = getSortComparator(sortMode);
 
+    // 手动模式（comparator 为 null）保留查询顺序；其余模式按比较器排
+    const orderIds = (ids: readonly string[]): readonly string[] => {
+      if (comparator === null) return ids;
+      return [...ids].sort((a, b) => {
+        const nodeA = nodesMap.get(a);
+        const nodeB = nodesMap.get(b);
+        if (!nodeA || !nodeB) return 0;
+        return comparator(nodeA, nodeB);
+      });
+    };
+
     const traverse = (id: string, level: number) => {
       const file = nodesMap.get(id);
       if (!file) return;
@@ -191,25 +189,11 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
       });
 
       if (isExpanded && file.type === 'folder') {
-        const childIds = childrenMap.get(id) || [];
-        const sortedChildIds = [...childIds].sort((a, b) => {
-          const nodeA = nodesMap.get(a);
-          const nodeB = nodesMap.get(b);
-          if (!nodeA || !nodeB) return 0;
-          return comparator(nodeA, nodeB);
-        });
-        sortedChildIds.forEach(childId => traverse(childId, level + 1));
+        orderIds(childrenMap.get(id) || []).forEach(childId => traverse(childId, level + 1));
       }
     };
 
-    const sortedRootIds = [...rootIds].sort((a, b) => {
-      const nodeA = nodesMap.get(a);
-      const nodeB = nodesMap.get(b);
-      if (!nodeA || !nodeB) return 0;
-      return comparator(nodeA, nodeB);
-    });
-
-    sortedRootIds.forEach(id => traverse(id, 0));
+    orderIds(rootIds).forEach(id => traverse(id, 0));
     return result;
   }, [nodesMap, expandedIds, loadingIds, rootIds, childrenMap, matchedFileIds, sortMode]);
 
@@ -273,7 +257,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     });
   };
 
-  /** 展开：为该文件夹创建子节点的响应式订阅（库里已有的子节点全部载入）。 */
+  /** 展开：为该文件夹创建子节点的响应式订阅（库里已有的子节点按手动顺序全部载入，不传 orderBy）。 */
   const expandNode = (id: string) => {
     // 展开：创建订阅
     const newExpanded = new Set(expandedIds);
@@ -288,8 +272,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
       where: {
         combinator: 'and',
         rules: [{ field: 'parentId', operator: '=', value: id as UUID }]
-      },
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      }
     });
 
     const subscription = childQuery$.subscribe({
@@ -305,17 +288,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
           return newMap;
         });
 
-        const childIds = validChildren
-          .map(c => c.id)
-          .sort((a, b) => {
-            const nodeA = validChildren.find(c => c.id === a);
-            const nodeB = validChildren.find(c => c.id === b);
-            if (!nodeA || !nodeB) return 0;
-            if (nodeA.type !== nodeB.type) {
-              return nodeA.type === 'folder' ? -1 : 1;
-            }
-            return compareSortOrder(nodeA, nodeB);
-          });
+        // 顺序即查询顺序（引擎的手动顺序），不再另排
+        const childIds = validChildren.map(c => c.id);
 
         setChildrenMap(prev => new Map(prev).set(id, childIds));
 
@@ -385,8 +359,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
       where: {
         combinator: 'and',
         rules: []
-      },
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      }
     });
 
     const subscription = allQuery$.subscribe({
@@ -416,29 +389,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
           }
         });
 
-        // Sort root IDs
-        newRootIds.sort((a, b) => {
-          const nodeA = newNodesMap.get(a);
-          const nodeB = newNodesMap.get(b);
-          if (!nodeA || !nodeB) return 0;
-          if (nodeA.type !== nodeB.type) {
-            return nodeA.type === 'folder' ? -1 : 1;
-          }
-          return compareSortOrder(nodeA, nodeB);
-        });
-
-        // Sort children IDs
-        newChildrenMap.forEach((childIds, parentId) => {
-          childIds.sort((a, b) => {
-            const nodeA = newNodesMap.get(a);
-            const nodeB = newNodesMap.get(b);
-            if (!nodeA || !nodeB) return 0;
-            if (nodeA.type !== nodeB.type) {
-              return nodeA.type === 'folder' ? -1 : 1;
-            }
-            return compareSortOrder(nodeA, nodeB);
-          });
-        });
+        // 各组 id 的顺序即查询顺序（引擎的手动顺序），不再另排
 
         setNodesMap(newNodesMap);
         setChildrenMap(newChildrenMap);
@@ -633,6 +584,20 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     }
   };
 
+  /**
+   * 某个父节点下已整组加载的子节点 id（`null` 取根组），顺序即手动顺序，与当前排序模式无关。
+   * 拖放的前后放置从这里换算邻居（`useDragDrop` 的 `getGroupIds`）；可见的目标其所在组必然已加载。
+   */
+  const getGroupIds = useCallback(
+    (parentId: RxDBEntityId | null): readonly RxDBEntityId[] => {
+      if (parentId === null) return rootIds;
+      const childIds = childrenMap.get(parentId as string);
+      if (!childIds) throw new Error(`父节点 ${String(parentId)} 的子节点尚未加载`);
+      return childIds;
+    },
+    [rootIds, childrenMap]
+  );
+
   /** 读取已加载的节点。页面拿所在文件夹名之类的用途，不该为此持有一份全表。 */
   const getNode = (id: string): SortableFileLarge | undefined => nodesMap.get(id);
 
@@ -673,6 +638,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     executeCascadeDelete,
     clearSearch,
     deleteAllFiles,
+    getGroupIds,
     getNode
   };
 }

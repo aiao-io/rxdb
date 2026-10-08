@@ -36,6 +36,7 @@ vi.mock('@aiao/rxdb-test/entities', () => {
 
 interface QueryOptions {
   where?: { rules?: { field: string; value: unknown }[] };
+  orderBy?: unknown;
   limit?: number;
 }
 
@@ -84,6 +85,36 @@ describe('useTreeMenuVirtualStore', () => {
     delete statics.find;
     delete statics.findAll;
     vi.restoreAllMocks();
+  });
+
+  it('建树顺序 = 查询顺序', () => {
+    // 传入（查询）顺序即显示顺序：store 不得再按排序键比较
+    const second = { ...makeMenu('second', null), sortOrder: 'a9' } as SortableMenuLarge;
+    const first = { ...makeMenu('first', null), sortOrder: 'a1' } as SortableMenuLarge;
+    const child2 = { ...makeMenu('child2', 'second'), sortOrder: 'a8' } as SortableMenuLarge;
+    const child1 = { ...makeMenu('child1', 'second'), sortOrder: 'a2' } as SortableMenuLarge;
+    const { result } = renderHook(() => useTreeMenuVirtualStore([second, first, child2, child1], rxdb));
+
+    act(() => result.current.expandAll());
+
+    expect(result.current.treeNodes.map(node => node.menu.id)).toEqual(['second', 'child2', 'child1', 'first']);
+  });
+
+  it('查询不传 orderBy', async () => {
+    const root = makeMenu('root', null);
+    dbRows = [makeMenu('child', 'root')];
+    const { result } = renderHook(() => useTreeMenuVirtualStore([root], rxdb));
+
+    // 打开删除对话框读一次直接子节点，提升子节点再读一次整组：两种查询都不带显式排序
+    await act(async () => {
+      await result.current.deleteMenu(root);
+    });
+    await act(async () => {
+      await result.current.executePromoteChildrenDelete();
+    });
+
+    expect(queries.length).toBeGreaterThanOrEqual(2);
+    expect(queries.map(query => query.orderBy)).toEqual(queries.map(() => undefined));
   });
 
   it('级联删除按子孙到父节点的顺序执行', async () => {

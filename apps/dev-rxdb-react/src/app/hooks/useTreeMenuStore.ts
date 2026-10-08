@@ -3,7 +3,6 @@ import { SortableMenuSimple } from '@aiao/rxdb-test/entities';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { firstValueFrom } from 'rxjs';
 import { promoteChildrenAndRemove } from '../utils/promote-children';
-import { compareSortOrder } from '../utils/sort-order';
 import { byParent, collectSubtreePostOrder } from '../utils/tree-scope';
 import { MenuPathConflict, useMenuPathValidator } from './useMenuPathValidator';
 import { useTreeWriteError } from './useTreeWriteError';
@@ -27,9 +26,7 @@ const hasChildrenInDb = async (parentId: RxDBEntityId): Promise<boolean> => {
 
 /** 库里某节点的全部直接子节点（保持原有相对顺序）。 */
 const fetchChildrenInDb = (parentId: RxDBEntityId): Promise<SortableMenuSimple[]> =>
-  firstValueFrom(
-    SortableMenuSimple.findAll({ where: byParent(parentId), orderBy: [{ field: 'sortOrder', sort: 'asc' }] })
-  );
+  firstValueFrom(SortableMenuSimple.findAll({ where: byParent(parentId) }));
 
 export function useTreeMenuStore(menus: SortableMenuSimple[], rxdb: RxDB) {
   // P1-2：**不能用 useState 初始化器展开父节点**。
@@ -71,10 +68,10 @@ export function useTreeMenuStore(menus: SortableMenuSimple[], rxdb: RxDB) {
 
     // 递归构建节点
     const buildNodes = (parentId: string | null, level: number) => {
+      // 同组的顺序即查询顺序（引擎的手动顺序），不再另排
       const children = childrenMap.get(parentId) || [];
-      const sorted = [...children].sort(compareSortOrder);
 
-      sorted.forEach(menu => {
+      children.forEach(menu => {
         const hasChildren = childrenMap.has(menu.id) && childrenMap.get(menu.id)!.length > 0;
         const isExpanded = expandedIds.has(menu.id);
 

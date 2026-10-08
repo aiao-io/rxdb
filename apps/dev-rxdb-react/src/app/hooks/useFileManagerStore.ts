@@ -90,9 +90,10 @@ export function useFileManagerStore(files: SortableFileNode[]) {
       childrenMap.get(parentId)!.push(file);
     });
 
-    // 应用排序
+    // 应用排序：手动模式（comparator 为 null）保留查询顺序，即库里的手动顺序
+    const comparator = getSortComparator(sortMode);
     const sortFiles = (fileList: SortableFileNode[]): SortableFileNode[] =>
-      [...fileList].sort(getSortComparator(sortMode));
+      comparator === null ? fileList : [...fileList].sort(comparator);
 
     // 递归构建节点
     const buildNodes = (parentId: string | null, level: number) => {

@@ -21,9 +21,7 @@ const hasChildrenInDb = async (parentId: RxDBEntityId): Promise<boolean> => {
 
 /** 库里某节点的全部直接子节点（保持原有相对顺序）。 */
 const fetchChildrenInDb = (parentId: RxDBEntityId): Promise<SortableMenuLarge[]> =>
-  firstValueFrom(
-    SortableMenuLarge.findAll({ where: byParent(parentId), orderBy: [{ field: 'sortOrder', sort: 'asc' }] })
-  );
+  firstValueFrom(SortableMenuLarge.findAll({ where: byParent(parentId) }));
 
 export function useTreeMenuVirtualStore(menus: SortableMenuLarge[], rxdb: RxDB) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -49,16 +47,10 @@ export function useTreeMenuVirtualStore(menus: SortableMenuLarge[], rxdb: RxDB) 
 
     // 递归构建节点
     const buildNodes = (parentId: string | null, level: number) => {
+      // 同组的顺序即查询顺序（引擎的手动顺序），不再另排
       const children = childrenMap.get(parentId) || [];
-      const sorted = [...children].sort((a, b) => {
-        const orderA = a.sortOrder || '';
-        const orderB = b.sortOrder || '';
-        if (orderA < orderB) return -1;
-        if (orderA > orderB) return 1;
-        return 0;
-      });
 
-      sorted.forEach(menu => {
+      children.forEach(menu => {
         // 使用实体上的 hasChildren 属性，或者回退到内存计算
         const hasChildren = menu.hasChildren ?? (childrenMap.has(menu.id) && childrenMap.get(menu.id)!.length > 0);
         const isExpanded = expandedIds.has(menu.id);

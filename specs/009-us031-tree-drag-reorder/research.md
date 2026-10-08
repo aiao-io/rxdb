@@ -139,10 +139,7 @@ Angular 菜单在算键失败时的整组重编号会产生 N 条历史，随 `r
 
 - 三端 e2e 各新建 `tree-drag-reorder.spec.ts`，用例同名，`mode: 'serial'`（[local-e2e 并发干扰的先例](../008-us031-sortable-tree-entities/tasks.md)）。
 - 每端 e2e 项目里各写一个真实鼠标拖拽 helper：`mouse.move` → `down` → 分步 `move` → `up`。
-- 落点取目标行高的 15% / 50% / 85%，分别落进三端「前 / 内 / 后」的判定区间：
-  - Angular 菜单 25% / 75%；
-  - 文件管理器三等分；
-  - React / Vue 33%。
+- 落点取目标行高的 15% / 50% / 85%，分别落进「上方 / 拖进 / 下方」三档。三端的落点区间本阶段统一为三等分（见 R11），15% / 85% 离 1/3、2/3 边界足够远。
 - 操作后刷新页面读回顺序。
 - Angular 行模板补 `data-drop-mode` / `data-drop-valid` 两个属性，与 React / Vue 同名，供断言高亮。
 
@@ -167,3 +164,23 @@ Angular 菜单在算键失败时的整组重编号会产生 N 条历史，随 `r
 - 现状每次拖放同样是一次 `save()` 加一次活查询刷新，本阶段不增加查询。constitution IV 的「Database operation < 100 ms」按 `reorder()` 一次事务计。
 
 **实测**：待实现后补。
+
+## R11 落点区间三端统一
+
+**Decision**：三端各一份同名纯函数 `treeDropPosition(offsetY, height, { manual, targetIsRoot })`：
+
+- 上三分之一为 `before`，下三分之一为 `after`，中间为 `into`；
+- 非手动模式且目标不是根级行时整行为 `into`。
+
+它与 `resolveTreeDrop` 放在同一文件。Angular 菜单 `menu/utils/tree-utils.ts` 的 `calculateDropMode` 由它取代，原来是 25% / 75%。
+
+**Rationale**：
+
+- 现状 Angular 菜单为 25% / 75%，Angular 文件管理器为三等分，React / Vue 为 33%。同一个手势在三端落到不同档，违反 constitution III。
+- 非手动模式下「非根级行整行拖进」是 Angular 文件管理器的现状（`file-drag-drop.service.ts:45-64`）。React / Vue 不看排序模式，同一位置会显示「上方」再判无效，与 Angular 显示「拖进」不一致。
+- 统一后，三端的高亮与判定表完全由两个同名纯函数决定。
+
+**Alternatives considered**：
+
+- spec 明确批准三端区间不同：落点区间是直接可感的交互，差异没有任何框架层面的理由。
+- 只统一 e2e 的落点比例：掩盖分歧，不消除分歧。

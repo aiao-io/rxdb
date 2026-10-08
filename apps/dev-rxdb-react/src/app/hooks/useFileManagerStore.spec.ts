@@ -62,14 +62,19 @@ describe('useFileManagerStore', () => {
     vi.unstubAllGlobals();
   });
 
-  it('自由排序保持文件夹优先', () => {
+  it('建树顺序 = 查询顺序', () => {
+    // 手动模式：文件在前、键的字典序与传入顺序相反，store 都不得再改（不再文件夹优先）
     const removed: string[] = [];
-    const file = makeFile('file', null, 'file', 'a0', removed);
-    const folder = makeFile('folder', null, 'folder', 'z0', removed);
+    const file = makeFile('file', null, 'file', 'z0', removed);
+    const folder = makeFile('folder', null, 'folder', 'a0', removed);
+    const child2 = makeFile('child2', 'folder', 'file', 'a9', removed);
+    const child1 = makeFile('child1', 'folder', 'folder', 'a1', removed);
 
-    const { result } = renderHook(() => useFileManagerStore([file, folder]));
+    const { result } = renderHook(() => useFileManagerStore([file, folder, child2, child1]));
+    act(() => result.current.expandAll());
 
-    expect(result.current.treeNodes.map(node => node.file.id)).toEqual(['folder', 'file']);
+    expect(result.current.sortMode).toBe(SortMode.Manual);
+    expect(result.current.treeNodes.map(node => node.file.id)).toEqual(['file', 'folder', 'child2', 'child1']);
   });
 
   it('级联删除按子孙到父节点的顺序执行', async () => {

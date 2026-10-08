@@ -12,8 +12,16 @@ describe('formatTreeWriteError', () => {
     expect(formatTreeWriteError('级联删除', null)).toBe('级联删除失败：null');
   });
 
-  it('六个操作名都原样进入文案', () => {
-    const operations: TreeWriteOperation[] = ['新建', '重命名', '批量添加', '删除', '级联删除', '删除并提升子节点'];
+  it('七个操作名都原样进入文案', () => {
+    const operations: TreeWriteOperation[] = [
+      '新建',
+      '重命名',
+      '批量添加',
+      '删除',
+      '级联删除',
+      '删除并提升子节点',
+      '拖放'
+    ];
     for (const operation of operations) {
       expect(formatTreeWriteError(operation, new Error('x'))).toBe(`${operation}失败：x`);
     }

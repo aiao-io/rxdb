@@ -18,10 +18,10 @@ export interface UseTreeWriteError {
 }
 
 /**
- * 树页面（菜单与文件管理器各三页）除拖放外的写入失败状态。
+ * 树页面（菜单与文件管理器各三页）的写入失败状态。
  *
  * @remarks
- * 新建、重命名、批量添加、删除、级联删除、删除并提升子节点都经 `runWrite`，
+ * 新建、重命名、批量添加、删除、级联删除、删除并提升子节点、拖放都经 `runWrite`（拖放由 `useDragDrop` 接入），
  * 失败不再是未处理的拒绝，而是页内可见、可关闭的提示。
  */
 export function useTreeWriteError(): UseTreeWriteError {

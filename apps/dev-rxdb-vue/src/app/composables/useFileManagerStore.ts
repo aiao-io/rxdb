@@ -90,9 +90,10 @@ export function useFileManagerStore(files: Ref<SortableFileNode[]>, rxdb: RxDB) 
       childrenMap.get(parentId)!.push(file);
     });
 
-    // 应用排序
+    // 应用排序；手动模式不排序，沿用查询顺序
+    const comparator = getSortComparator(sortMode.value);
     const sortFiles = (fileList: SortableFileNode[]): SortableFileNode[] =>
-      [...fileList].sort(getSortComparator(sortMode.value));
+      comparator ? [...fileList].sort(comparator) : fileList;
 
     // 递归构建节点
     const buildNodes = (parentId: RxDBEntityId | null, level: number) => {
@@ -329,6 +330,7 @@ export function useFileManagerStore(files: Ref<SortableFileNode[]>, rxdb: RxDB) 
     commitEdit,
     writeError,
     clearWriteError,
+    guardWrite,
     deleteFile,
     clearPathConflict,
     selectFolder,

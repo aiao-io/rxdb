@@ -1,6 +1,5 @@
 import type { RxDBEntityId } from '@aiao/rxdb';
 import { randomString } from '@aiao/utils';
-import { DropMode } from '../models/drag-drop-types';
 
 export interface MenuNode {
   id: RxDBEntityId;
@@ -75,24 +74,6 @@ export function generateBatchMenus<T extends MenuEntity>(total: number, createEn
 }
 
 /**
- * 计算拖放模式（上方/内部/下方）
- */
-export function calculateDropMode(clientY: number, rect: { top: number; height: number }): DropMode {
-  const y = clientY - rect.top;
-  const height = rect.height;
-  const topThreshold = height * 0.25;
-  const bottomThreshold = height * 0.75;
-
-  if (y < topThreshold) {
-    return 'before';
-  } else if (y > bottomThreshold) {
-    return 'after';
-  } else {
-    return 'into';
-  }
-}
-
-/**
  * 递归计算所有后代节点数量
  */
 export function countDescendants(menuId: RxDBEntityId, allMenus: MenuNode[]): number {
@@ -148,17 +129,4 @@ export function collectDescendants(menuId: RxDBEntityId, allMenus: MenuNode[]): 
     }
   }
   return descendantIds;
-}
-
-/**
- * 比较排序顺序
- */
-export function compareSortOrder(a: { sortOrder?: string | null }, b: { sortOrder?: string | null }): number {
-  const aSortOrder = a.sortOrder ?? '';
-  const bSortOrder = b.sortOrder ?? '';
-  return (
-    aSortOrder < bSortOrder ? -1
-    : aSortOrder > bSortOrder ? 1
-    : 0
-  );
 }

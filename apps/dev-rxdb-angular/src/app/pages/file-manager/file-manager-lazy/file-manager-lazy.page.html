@@ -352,8 +352,10 @@
                   <li
                     class="tree-node"
                     *cdkVirtualFor="let node of treeNodes(); trackBy: trackByFileId"
+                    [attr.data-drop-mode]="dropModeAttr(node.node.id)"
+                    [attr.data-drop-valid]="dropValidAttr(node.node.id)"
                     [attr.data-file-id]="node.node.id"
-                    [attr.data-parent-id]="node.node.parentId"
+                    [attr.data-parent-id]="node.node.parentId ?? ''"
                     [attr.draggable]="true"
                     [class.dragging]="isDragging(node.node.id)"
                     [class.drop-after]="getDragState(node.node.id) === 'drop-after'"

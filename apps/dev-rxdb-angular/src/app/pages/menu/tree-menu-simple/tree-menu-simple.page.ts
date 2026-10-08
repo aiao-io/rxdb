@@ -63,8 +63,7 @@ export default class MenuTreePage extends TreeMenuDragDropBase<typeof SortableMe
     const rxdb = inject(RxDB);
     super(
       useFindAll(SortableMenuSimple, {
-        where: { combinator: 'and', rules: [] },
-        orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+        where: { combinator: 'and', rules: [] }
       }),
       SortableMenuSimple,
       rxdb.versionManager.history(SortableMenuSimple)

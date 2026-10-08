@@ -69,7 +69,8 @@ export class TreeFileLazyStore<C extends FileTreeEntityConstructor>
     const visibleIds = ancestorIds ? new Set([...matchedIds, ...ancestorIds]) : null;
 
     const buildNodes = (parentNodes: FileTreeInstance<C>[], level: number) => {
-      const sorted = [...parentNodes].sort(sortComparator);
+      // 手动模式不排序：数组即查询顺序（引擎的默认排序）
+      const sorted = sortComparator ? [...parentNodes].sort(sortComparator) : parentNodes;
       sorted.forEach(file => {
         if (visibleIds && !visibleIds.has(file.id)) return;
 
@@ -157,8 +158,7 @@ export class TreeFileLazyStore<C extends FileTreeEntityConstructor>
     this.loadingNodes.update((set: Set<string>) => new Set(set).add(nodeId));
 
     const childQuery$ = this.entityClass.find({
-      where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: nodeId }] },
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: nodeId }] }
     });
 
     const subscription = childQuery$.subscribe({
@@ -256,9 +256,7 @@ export class TreeFileLazyStore<C extends FileTreeEntityConstructor>
     this.childSubscriptions.clear();
 
     // 2. Subscribe to ALL
-    const allQuery$ = this.entityClass.findAll({
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
-    });
+    const allQuery$ = this.entityClass.findAll({ where: { combinator: 'and', rules: [] } });
 
     const subscription = allQuery$.subscribe({
       next: (allFiles: FileTreeInstance<C>[]) => {
@@ -285,9 +283,7 @@ export class TreeFileLazyStore<C extends FileTreeEntityConstructor>
           }
         });
 
-        // Sort logic (replicated from original store logic if needed, or rely on query sort)
-        // The original store had complex sorting in buildNodes, here we just group them.
-        // The computed `treeNodes` will handle sorting.
+        // 只分组不排序：数组即查询顺序；`treeNodes` 仅在非手动模式下再按排序模式排序
 
         this.rootNodes.set(newRoots);
         this.childNodesMap.set(newChildMap);
@@ -337,32 +333,19 @@ export class TreeFileLazyStore<C extends FileTreeEntityConstructor>
     this.expandNode(nodeId);
   }
 
-  override async onDrop(targetFile: FileTreeInstance<C>): Promise<void> {
-    const state = this.dragDropState();
-    const dropMode = state.dropMode;
-    const targetId = targetFile.id;
-
-    // Call parent implementation first to execute the drop
-    await super.onDrop(targetFile);
-
-    // After drop, if mode was 'into', ensure the target node is expanded
-    if (dropMode === 'into' && targetId) {
-      // Don't manually update target node's hasChildren - it will be automatically
-      // recalculated by the database when the dragged node's parentId is updated.
-      // The subscription will receive the updated target node with correct hasChildren value.
-
-      // If not already subscribed, create subscription to load children
-      // This will automatically show the dropped node once the subscription receives data
-      if (!this.childSubscriptions.has(targetId)) {
-        this.expandNode(targetId);
-      }
-    }
+  /**
+   * 拖进文件夹成功后展开目标并订阅它的子节点，新节点随订阅回流显示。
+   *
+   * @remarks
+   * 目标的 `hasChildren` 不在这里改：引擎写入后由数据库重算，订阅会收到带正确值的目标节点。
+   */
+  protected override expandDropTarget(targetId: string): void {
+    this.expandNode(targetId);
   }
 
   private initRootSubscription(): void {
     const rootQuery$ = this.entityClass.findAll({
-      where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: null }] },
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: null }] }
     });
 
     this.rootSubscription = rootQuery$.subscribe({

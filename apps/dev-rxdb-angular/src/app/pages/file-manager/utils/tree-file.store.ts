@@ -1,11 +1,13 @@
 import type { HistoryScopeAPI } from '@aiao/rxdb';
 import { RxDB } from '@aiao/rxdb';
 import { computed, signal, Signal } from '@angular/core';
+import { reorderTreeNode, treeDropPosition } from '../../../shared/tree-drop';
+import { runViewTransition, ViewTransitionStarter } from '../../../shared/view-transition';
 import { FileTreeEntityConstructor, FileTreeInstance } from '../models/file-node.interface';
 import { DropMode, FileDragDropService } from '../services/file-drag-drop.service';
 import { FilePathValidatorService, PathConflict } from '../services/file-path-validator.service';
 import { SortMode } from './file-sorters';
-import { buildTreeNodes, collectDescendants, compareSortOrder, countDescendants } from './tree-utils';
+import { buildTreeNodes, collectDescendants, countDescendants } from './tree-utils';
 
 /**
  * 树形文件管理 Store
@@ -489,7 +491,7 @@ export class TreeFileDragDropStore<C extends FileTreeEntityConstructor> extends 
     if (!draggedId) return new Set<string>();
 
     const allFiles = this.fileResource.value();
-    return this.dragDropService.getInvalidTargets(draggedId, allFiles);
+    return this.dragDropService.getInvalidTargets(draggedId, allFiles, this.sortMode() === SortMode.Manual);
   });
 
   // Computed: 高亮的目标节点（拖入文件夹时高亮其所有子节点）
@@ -548,16 +550,12 @@ export class TreeFileDragDropStore<C extends FileTreeEntityConstructor> extends 
     const draggedFile = this.fileResource.value().find(f => f.id === draggedId);
     if (!draggedFile) return { dropMode: null, isValid: false };
 
-    const isManualSort = this.sortMode() === SortMode.Manual;
-    const isRootLevel = !targetFile.parentId;
-    const dropMode = this.dragDropService.calculateDropMode(clientY, rect, isManualSort, isRootLevel);
-    const isValid = this.dragDropService.isValidDrop(
-      draggedId,
-      targetFile.id,
-      dropMode,
-      this.fileResource.value(),
-      isManualSort
-    );
+    // 高亮与放下后的执行共用同一份判定（resolveDrop），按当前排序模式取规则
+    const manual = this.sortMode() === SortMode.Manual;
+    const dropMode = treeDropPosition(clientY - rect.top, rect.height, { manual, targetIsRoot: !targetFile.parentId });
+    const isValid =
+      this.dragDropService.resolveDrop(draggedFile, targetFile, dropMode, this.fileResource.value(), manual).kind !==
+      'reject';
 
     const prevTargetId = this.dragDropState().targetItemId;
     if (prevTargetId !== targetFile.id) {
@@ -612,59 +610,32 @@ export class TreeFileDragDropStore<C extends FileTreeEntityConstructor> extends 
   }
 
   /**
-   * 完成拖拽
+   * 完成拖拽：判定 → 交给 `Repository.reorder()`。`reject` / `noop` 不写库；
+   * 失败向上抛，由页面经 `runWrite('拖放', …)` 展示。拖拽状态在任何路径上都复位。
    */
   async onDrop(targetFile: FileTreeInstance<C>): Promise<void> {
-    const state = this.dragDropState();
-    if (!state.draggedItemId || !state.isValidTarget || !state.dropMode) {
-      this.resetDragState();
-      return;
-    }
-
-    const draggedFile = this.fileResource.value().find(f => f.id === state.draggedItemId);
-    if (!draggedFile) {
-      this.resetDragState();
-      return;
-    }
-
-    // 检查是否是冗余拖放（拖到原位置）
-    if (this.isDropRedundant(draggedFile, targetFile, state.dropMode, this.fileResource.value())) {
-      this.resetDragState();
-      return;
-    }
-
+    const { draggedItemId, dropMode } = this.dragDropState();
     try {
-      // 提取核心拖放逻辑
-      const dropLogic = async () => {
-        const result = await this.dragDropService.executeDrop(
-          state.draggedItemId!,
-          targetFile.id,
-          state.dropMode!,
-          this.fileResource.value()
-        );
+      if (!draggedItemId || !dropMode) return;
 
-        if (!result.success) {
-          console.error('Drop failed:', result.error);
-          return;
-        }
+      const allFiles = this.fileResource.value();
+      const draggedFile = allFiles.find(f => f.id === draggedItemId);
+      if (!draggedFile) return;
 
-        // 如果拖入文件夹,展开该文件夹
-        if (state.dropMode === 'into' && result.newParentId) {
-          this.expandedFileIds.update(ids => {
-            const newIds = new Set(ids);
-            newIds.add(result.newParentId!);
-            return newIds;
-          });
-        }
+      const manual = this.sortMode() === SortMode.Manual;
+      const decision = this.dragDropService.resolveDrop(draggedFile, targetFile, dropMode, allFiles, manual);
+      if (decision.kind !== 'reorder') return;
+
+      const dropLogic = async (): Promise<void> => {
+        await reorderTreeNode(this.rxdb, this.entityClass, draggedFile.id, decision.target);
       };
+      // 使用 View Transition API 实现平滑过渡；不支持时直接执行
+      const startTransition: ViewTransitionStarter | undefined =
+        'startViewTransition' in document ? update => document.startViewTransition(update) : undefined;
 
-      // 使用 View Transition API 实现平滑过渡
-      if ('startViewTransition' in document) {
-        await document.startViewTransition(dropLogic).finished;
-      } else {
-        // 降级处理：不支持 View Transition API
-        await dropLogic();
-      }
+      await runViewTransition(dropLogic, startTransition);
+
+      if (dropMode === 'into') this.expandDropTarget(targetFile.id);
     } finally {
       this.resetDragState();
     }
@@ -689,54 +660,9 @@ export class TreeFileDragDropStore<C extends FileTreeEntityConstructor> extends 
     this.autoExpandTargetId = null;
   }
 
-  /**
-   * 检查拖放是否冗余（拖到原位置）
-   */
-  protected isDropRedundant(
-    draggedFile: FileTreeInstance<C>,
-    targetFile: FileTreeInstance<C>,
-    dropMode: DropMode,
-    allFiles: FileTreeInstance<C>[]
-  ): boolean {
-    // 确定新的父节点
-    let newParentId: string | null;
-    if (dropMode === 'into') {
-      newParentId = targetFile.id;
-    } else {
-      newParentId = targetFile.parentId || null;
-    }
-
-    // 检查父节点是否改变
-    const currentParentId = draggedFile.parentId || null;
-    if (newParentId !== currentParentId) {
-      return false; // 父节点改变，不是冗余
-    }
-
-    // 获取同级节点并排序
-    const siblings = allFiles.filter(f => (f.parentId || null) === currentParentId).sort(compareSortOrder);
-
-    const currentIndex = siblings.findIndex(f => f.id === draggedFile.id);
-    if (currentIndex === -1) return false;
-
-    // into 模式：如果拖到最后一个同级节点的 into，则是冗余
-    if (dropMode === 'into') {
-      return currentIndex === siblings.length - 1;
-    }
-
-    const targetIndex = siblings.findIndex(f => f.id === targetFile.id);
-    if (targetIndex === -1) return false;
-
-    // before 模式：如果当前位置就在目标前面（或就是目标），则是冗余
-    if (dropMode === 'before') {
-      return currentIndex === targetIndex || currentIndex === targetIndex - 1;
-    }
-
-    // after 模式：如果当前位置就在目标后面（或就是目标），则是冗余
-    if (dropMode === 'after') {
-      return currentIndex === targetIndex || currentIndex === targetIndex + 1;
-    }
-
-    return false;
+  /** 拖进文件夹成功后展开目标；懒加载页覆盖它，同时订阅目标的子节点。 */
+  protected expandDropTarget(targetId: string): void {
+    this.expandedFileIds.update(ids => new Set(ids).add(targetId));
   }
 
   /**

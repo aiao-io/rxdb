@@ -17,22 +17,20 @@ export interface TreeMenuLazySource {
 export const menuLargeTreeSource: TreeMenuLazySource = {
   findRoots: () =>
     SortableMenuLarge.findAll({
-      where: byParent(null),
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      where: byParent(null)
     })
 };
 
 /**
- * 取某个父节点下的直接子节点（按 sortOrder 升序）。
+ * 取某个父节点下的直接子节点（查询不传 `orderBy`，引擎按手动顺序 `[parentId, sortOrder, id]` 返回）。
  *
- * 模块级导出而非挂在 store 返回值上：页面要把它当 `useDragDrop` 的 `resolveSiblings`，
- * 而 store 返回的是每次 render 都换新的对象字面量，经它取会把整条 useCallback 链打脏（P2-7）。
+ * 模块级导出而非挂在 store 返回值上：页面的重命名冲突检测与删除都按需调它，
+ * 而 store 返回的是每次 render 都换新的对象字面量，经它取会把页面的 useCallback 链打脏（P2-7）。
  */
 export const fetchMenuChildren = (parentId: RxDBEntityId | null): Promise<SortableMenuLarge[]> =>
   firstValueFrom(
     SortableMenuLarge.findAll({
-      where: byParent(parentId),
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      where: byParent(parentId)
     })
   );
 
@@ -200,7 +198,7 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
     });
   };
 
-  /** 展开：为该节点创建子节点的响应式订阅（库里已有的子节点按 sortOrder 升序全部载入）。 */
+  /** 展开：为该节点创建子节点的响应式订阅（库里已有的子节点按手动顺序全部载入，不传 orderBy）。 */
   const expandNode = (id: string) => {
     // 展开：创建订阅
     const newExpanded = new Set(expandedIds);
@@ -215,8 +213,7 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
       where: {
         combinator: 'and',
         rules: [{ field: 'parentId', operator: '=', value: id as UUID }]
-      },
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      }
     });
 
     const subscription = childQuery$.subscribe({
@@ -360,8 +357,7 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
       where: {
         combinator: 'and',
         rules: []
-      },
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      }
     });
 
     const subscription = allQuery$.subscribe({
@@ -500,6 +496,20 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
     }
   };
 
+  /**
+   * 某个父节点下已整组加载的子节点 id（`null` 取根组），顺序即手动顺序，不分页、不受搜索影响。
+   * 拖放的前后放置从这里换算邻居（`useDragDrop` 的 `getGroupIds`）；可见的目标其所在组必然已加载。
+   */
+  const getGroupIds = useCallback(
+    (parentId: RxDBEntityId | null): readonly RxDBEntityId[] => {
+      if (parentId === null) return rootIds;
+      const childIds = childrenMap.get(parentId as string);
+      if (!childIds) throw new Error(`父节点 ${String(parentId)} 的子节点尚未加载`);
+      return childIds;
+    },
+    [rootIds, childrenMap]
+  );
+
   /** 读取已加载的节点。页面拿父节点标题之类的用途，不该为此持有一份全表。 */
   const getNode = (id: string): SortableMenuLarge | undefined => nodesMap.get(id);
 
@@ -520,6 +530,7 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
     expandAll,
     collapseAll,
     hasLoadedChildren,
+    getGroupIds,
     getNode,
     startEdit,
     cancelEdit,

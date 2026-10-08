@@ -198,6 +198,7 @@ export function useTreeMenuVirtualStore(menus: Ref<SortableMenuLarge[]>, rxdb: R
     commitEdit,
     writeError,
     clearWriteError,
+    guardWrite,
     deleteMenu,
     cancelDelete,
     executeCascadeDelete,

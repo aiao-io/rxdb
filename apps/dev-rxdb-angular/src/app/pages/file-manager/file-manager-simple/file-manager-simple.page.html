@@ -285,8 +285,10 @@
                   @let dragState = getDragState(node.node.id);
                   <li
                     class="tree-node"
+                    [attr.data-drop-mode]="dropModeAttr(node.node.id)"
+                    [attr.data-drop-valid]="dropValidAttr(node.node.id)"
                     [attr.data-file-id]="node.node.id"
-                    [attr.data-parent-id]="node.node.parentId"
+                    [attr.data-parent-id]="node.node.parentId ?? ''"
                     [attr.draggable]="true"
                     [class.dragging]="isDragging(node.node.id)"
                     [class.drop-after]="dragState === 'drop-after'"

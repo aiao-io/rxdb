@@ -113,6 +113,7 @@ export { query_need_refresh_update as queryNeedRefreshUpdate } from './query/nee
 // 手动排序（US-028）：公开类型、拒绝错误、四个判定原语与拖放换算。
 // `manualOrderGroupFields` / `normalizeManualOrderBy` 转出是为了插件模拟仓库时补默认排序与核心同源；
 // `reorderTargetForMove` 把拖放下标换算成邻居目标，三端 todo 页与 `EntityList` 共用，免得各写一份；
+// `reorderTargetForDrop` 把「放到某行上方 / 下方」换算成邻居目标，三端树页面的跨父放置共用（US-031 阶段 B）；
 // `assertSortOrderKey` 是 AC#12 的键校验器——UI 或导入脚本在写之前先判，免得整批到库里才被拒。
 // 追加 / 重排的读写编排（`appendMissingSortOrders` / `reorderRow`）不转：
 // 它们必须在主适配器事务内跑，入口只有门面 `Repository.reorder()` 与 `EntityManager.mutations()`。
@@ -123,6 +124,7 @@ export {
   isManualOrderEntity,
   manualOrderGroupFields,
   normalizeManualOrderBy,
+  reorderTargetForDrop,
   reorderTargetForMove
 } from './sortable/sortable.utils.js';
 // 查询语义的两条判定原语。插件要自己模拟一个仓库（历史插件的集成测试、QueryCache 的

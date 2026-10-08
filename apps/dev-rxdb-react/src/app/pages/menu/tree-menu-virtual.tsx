@@ -25,7 +25,6 @@ import { PathConflictWarning } from '../../components/PathConflictWarning';
 import { useDragDrop } from '../../hooks/useDragDrop';
 import { useMenuRenamePathGuard } from '../../hooks/useRenamePathGuard';
 import { useTreeMenuVirtualStore } from '../../hooks/useTreeMenuVirtualStore';
-import { getErrorMessage } from '../../utils/error';
 import { generateBatchMenus } from '../../utils/menu-utils';
 
 export function TreeMenuVirtualPage() {
@@ -39,8 +38,7 @@ export function TreeMenuVirtualPage() {
 
   // 获取所有菜单数据
   const { value: menus } = useFindAll(SortableMenuLarge, {
-    where: { combinator: 'and', rules: [] },
-    orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+    where: { combinator: 'and', rules: [] }
   });
 
   const history = useMemo(() => rxdb.versionManager.history(SortableMenuLarge), [rxdb]);
@@ -57,7 +55,7 @@ export function TreeMenuVirtualPage() {
   } = useMenuRenamePathGuard<SortableMenuLarge>();
 
   // Drag and drop
-  const dragDrop = useDragDrop<SortableMenuLarge>(menus);
+  const dragDrop = useDragDrop<SortableMenuLarge>(menus, { repository: menuRepository, runWrite });
 
   // 虚拟滚动配置
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns non-memoizable callbacks by design
@@ -456,17 +454,13 @@ export function TreeMenuVirtualPage() {
                     onDrop={async e => {
                       e.preventDefault();
                       e.stopPropagation();
-                      try {
-                        await dragDrop.onDrop(menu, menuId => {
-                          // 展开目标菜单
-                          if (!store.expandedIds.has(menuId)) {
-                            store.toggleExpand(menuId);
-                          }
-                        });
-                      } catch (error: unknown) {
-                        console.error('Drop error:', error);
-                        alert(getErrorMessage(error, '拖放操作失败'));
-                      }
+                      // 失败由 useDragDrop 经 runWrite 送进页内提示，这里不再有 catch / alert
+                      await dragDrop.onDrop(menu, menuId => {
+                        // 展开目标菜单
+                        if (!store.expandedIds.has(menuId)) {
+                          store.toggleExpand(menuId);
+                        }
+                      });
                     }}
                     onDragEnd={() => dragDrop.onDragEnd()}
                   >

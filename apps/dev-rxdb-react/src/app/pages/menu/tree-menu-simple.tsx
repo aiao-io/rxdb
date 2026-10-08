@@ -25,7 +25,6 @@ import { PathConflictWarning } from '../../components/PathConflictWarning';
 import { useDragDrop } from '../../hooks/useDragDrop';
 import { useMenuRenamePathGuard } from '../../hooks/useRenamePathGuard';
 import { useTreeMenuStore } from '../../hooks/useTreeMenuStore';
-import { getErrorMessage } from '../../utils/error';
 import { generateBatchMenus } from '../../utils/menu-utils';
 
 const MIN_LOADING_MS = 500;
@@ -42,8 +41,7 @@ export function TreeMenuSimplePage() {
 
   // 获取所有菜单数据 - 使用 useFindAll 实现响应式订阅
   const { value: menus } = useFindAll(SortableMenuSimple, {
-    where: { combinator: 'and', rules: [] },
-    orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+    where: { combinator: 'and', rules: [] }
   });
 
   const history = useMemo(() => rxdb.versionManager.history(SortableMenuSimple), [rxdb]);
@@ -60,7 +58,7 @@ export function TreeMenuSimplePage() {
   } = useMenuRenamePathGuard<SortableMenuSimple>();
 
   // Drag and drop
-  const dragDrop = useDragDrop<SortableMenuSimple>(menus);
+  const dragDrop = useDragDrop<SortableMenuSimple>(menus, { repository: menuRepository, runWrite });
 
   // 删除所有菜单
   const handleDeleteAll = useCallback(async () => {
@@ -470,17 +468,13 @@ export function TreeMenuSimplePage() {
                           onDrop={async e => {
                             e.preventDefault();
                             e.stopPropagation();
-                            try {
-                              await dragDrop.onDrop(menu, menuId => {
-                                // 展开目标菜单
-                                if (!store.expandedIds.has(menuId)) {
-                                  store.toggleExpand(menuId);
-                                }
-                              });
-                            } catch (error: unknown) {
-                              console.error('Drop error:', error);
-                              alert(getErrorMessage(error, '拖放操作失败'));
-                            }
+                            // 失败由 useDragDrop 经 runWrite 送进页内提示，这里不再有 catch / alert
+                            await dragDrop.onDrop(menu, menuId => {
+                              // 展开目标菜单
+                              if (!store.expandedIds.has(menuId)) {
+                                store.toggleExpand(menuId);
+                              }
+                            });
                           }}
                           onDragEnd={() => dragDrop.onDragEnd()}
                         >

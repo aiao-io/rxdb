@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { useFindAll, useRxDB } from '@aiao/rxdb-vue';
-import { formatErrorMessage, useToast } from '../../app/composables/useToast';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { useObservable } from '@vueuse/rxjs';
 import {
@@ -48,8 +47,7 @@ const parentRef = ref<HTMLDivElement | null>(null);
 // 获取所有文件数据 - 使用 useFindAll 实现响应式订阅
 const { value: files } = toRefs(
   useFindAll(SortableFileNode, {
-    where: { combinator: 'and', rules: [] },
-    orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+    where: { combinator: 'and', rules: [] }
   })
 );
 
@@ -62,7 +60,10 @@ const store = useFileManagerStore(files, rxdb);
 
 // Drag and drop
 const dragDrop = useDragDrop<SortableFileNode>(files, {
-  isFolder: node => node.type === 'folder'
+  repository: rxdb.entityManager.getRepository(SortableFileNode),
+  guardWrite: store.guardWrite,
+  isFolder: node => node.type === 'folder',
+  sortMode: store.sortMode
 });
 
 // Virtual scroll setup
@@ -177,16 +178,12 @@ const handleDragLeave = (e: DragEvent) => {
 const handleDrop = async (e: DragEvent, file: SortableFileNode) => {
   e.preventDefault();
   e.stopPropagation();
-  try {
-    await dragDrop.onDrop(file, folderId => {
-      // 展开目标文件夹
-      if (!store.expandedIds.value.has(folderId)) {
-        store.toggleExpand(folderId);
-      }
-    });
-  } catch (error: unknown) {
-    useToast().error(formatErrorMessage('拖放操作失败', error));
-  }
+  await dragDrop.onDrop(file, folderId => {
+    // 展开目标文件夹
+    if (!store.expandedIds.value.has(folderId)) {
+      store.toggleExpand(folderId);
+    }
+  });
 };
 
 const handleDragEnd = () => {
@@ -401,6 +398,7 @@ const getIconComponent = (iconName: string) => {
             <select
               class="select select-bordered select-sm w-32"
               v-model="store.sortMode.value"
+              data-testid="file-sort-select"
             >
               <option value="manual">手动排序</option>
               <option value="name-asc">名称 ↑</option>
@@ -582,6 +580,17 @@ const getIconComponent = (iconName: string) => {
                   store.selectedFolderId.value === node.file.id && 'outline-primary outline outline-2'
                 ]"
                 :data-file-id="node.file.id"
+                :data-drop-mode="
+                  dragDrop.dragDropState.value.targetItemId === node.file.id ?
+                    dragDrop.dragDropState.value.dropMode
+                  : ''
+                "
+                :data-drop-target="dragDrop.dragDropState.value.targetItemId === node.file.id ? 'true' : 'false'"
+                :data-drop-valid="
+                  dragDrop.dragDropState.value.targetItemId === node.file.id ?
+                    String(dragDrop.dragDropState.value.isValidTarget)
+                  : ''
+                "
                 :data-level="node.level"
                 :data-parent-id="node.file.parentId"
                 :style="{ paddingLeft: `${node.level * 20 + 8}px` }"

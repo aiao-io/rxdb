@@ -1,7 +1,6 @@
 interface SortableFile {
   name: string;
   type: 'file' | 'folder';
-  sortOrder?: string | null;
   extension?: string | null;
   size?: number | null;
 }
@@ -10,7 +9,7 @@ interface SortableFile {
  * 排序模式枚举
  */
 export enum SortMode {
-  Manual = 'manual', // 自由排序(使用 sortOrder)
+  Manual = 'manual', // 自由排序(显示查询顺序，即库里的手动顺序)
   NameAsc = 'name-asc', // 名称升序
   NameDesc = 'name-desc', // 名称降序
   TypeAsc = 'type-asc', // 类型优先(文件夹 → 文件)
@@ -24,21 +23,12 @@ export enum SortMode {
 /**
  * 获取排序比较器函数
  * @param mode 排序模式
- * @returns 比较器函数
+ * @returns 比较器函数；手动模式返回 `null`——显示顺序就是查询顺序（引擎的默认排序），调用方不得再排序
  */
-export function getSortComparator(mode: SortMode): (a: SortableFile, b: SortableFile) => number {
+export function getSortComparator(mode: SortMode): ((a: SortableFile, b: SortableFile) => number) | null {
   switch (mode) {
     case SortMode.Manual:
-      // 使用 sortOrder 字段进行排序
-      return (a, b) => {
-        const aSort = a.sortOrder ?? '';
-        const bSort = b.sortOrder ?? '';
-        return (
-          aSort < bSort ? -1
-          : aSort > bSort ? 1
-          : 0
-        );
-      };
+      return null;
 
     case SortMode.NameAsc:
       // 名称升序,使用中文排序规则
