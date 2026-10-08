@@ -62,4 +62,20 @@ export async function dragRowOver(page: Page, source: Locator, target: Locator, 
 export async function dragRowTo(page: Page, source: Locator, target: Locator, position: DropPosition): Promise<void> {
   await dragRowOver(page, source, target, position);
   await page.mouse.up();
+  await waitForViewTransitionEnd(page);
+}
+
+/**
+ * 等放下触发的视图转场结束。
+ *
+ * @remarks
+ * Angular 树页面的放下包在 `document.startViewTransition` 里（只有 Angular 有）。转场动画期间
+ * Chromium 把指针事件交给转场覆盖层，紧接着发起的下一次拖拽起不来——DOM 顺序在转场的更新回调里
+ * 就已变好，只等新顺序不够。转场在 drop 事件处理中同步开始，松开鼠标返回时已在进行，
+ * 所以这里等 `document.activeViewTransition` 回到 `null` 是确定的同步点，不是猜时长。
+ */
+async function waitForViewTransitionEnd(page: Page): Promise<void> {
+  await page.waitForFunction(
+    () => (document as Document & { activeViewTransition: ViewTransition | null }).activeViewTransition === null
+  );
 }

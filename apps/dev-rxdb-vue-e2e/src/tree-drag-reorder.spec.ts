@@ -80,8 +80,13 @@ async function expandRow(row: Locator, kind: Kind): Promise<void> {
  * 计数会是基线 + 2。直接在拖放后断言「计数没变」只证明那一刻还没变，晚到的误写会被漏过。
  */
 async function expectOnlySyncWrite(page: Page, kind: Kind, before: number): Promise<void> {
-  if (kind === 'menu') await addRootMenu(page, '零写同步点');
-  else await addRootEntry(page, '零写同步点', 'folder');
+  if (kind === 'menu') {
+    // 两个菜单零写用例在同步点之前都新建过子节点，父节点仍是选中态；先取消选中，同步点才落在根级
+    await page.getByRole('button', { name: '取消选择父节点' }).click();
+    await addRootMenu(page, '零写同步点');
+  } else {
+    await addRootEntry(page, '零写同步点', 'folder');
+  }
   await expect.poll(() => undoCount(page, kind)).toBe(before + 1);
 }
 

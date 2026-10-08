@@ -163,7 +163,12 @@ Angular 菜单在算键失败时的整组重编号会产生 N 条历史，随 `r
 - 页面侧只多一次 `reorderTargetForDrop`，O(组大小)。
 - 现状每次拖放同样是一次 `save()` 加一次活查询刷新，本阶段不增加查询。constitution IV 的「Database operation < 100 ms」按 `reorder()` 一次事务计。
 
-**实测**：待实现后补。
+**实测**（2026-10-09，Angular 生产构建，端口 8200 强制 IDB，Chromium 153 headless）：
+
+- 菜单虚拟滚动页先建两个根节点 X、Y，再批量添加 10,000 条（耗时 5.1 s，共 10,002 项）。
+- 把 Y 与 X 交替拖到对方上方 3 次，从 `drop` 事件到新顺序出现在 DOM 分别为 99 / 94 / 97 ms，SC-004 的 1 秒预算余量约 10 倍；无写入错误。
+- 测法：页面内在 `drop` 捕获阶段记 `performance.now()`，`waitForFunction`（`raf` 轮询）等两行 DOM 顺序翻转后取差值。
+- 含 Angular 的视图转场更新回调。IDB 比 OPFS 慢，这是偏保守的一档。
 
 ## R11 落点区间三端统一
 

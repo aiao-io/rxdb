@@ -130,7 +130,7 @@
   - React `useDragDropService.spec.ts` 删 `calculateDropPosition` / `executeDrop` / `REORDER_NEEDED` 用例；
   - Vue `useDragDropService.spec.ts` 同。
   - 三端 `pnpm nx run-many -t test lint --skipRemoteCache -p dev-rxdb-angular,dev-rxdb-react,dev-rxdb-vue` 全绿。
-- [ ] T024 [US1] 跑三端 `tree-drag-reorder.spec.ts` 的菜单用例（`pnpm nx run-many -t e2e --skipRemoteCache --parallel=1 -p dev-rxdb-angular-e2e,dev-rxdb-react-e2e,dev-rxdb-vue-e2e -- --grep 树页面拖放`），T017 转绿。
+- [x] T024 [US1] 跑三端 `tree-drag-reorder.spec.ts` 的菜单用例（`pnpm nx run-many -t e2e --skipRemoteCache --parallel=1 -p dev-rxdb-angular-e2e,dev-rxdb-react-e2e,dev-rxdb-vue-e2e -- --grep 树页面拖放`），T017 转绿。
 
 **Checkpoint**：三端菜单拖放全部经引擎，缺陷三关闭。
 
@@ -175,7 +175,7 @@
   - 三个文件管理器页 `apps/dev-rxdb-react/src/app/pages/file-manager/file-manager-{simple,virtual,lazy}.tsx` 传当前 `sortMode`，并提供完整组序列。T026 转绿。
 - [x] T033 [P] [US2] Vue：`useDragDrop` 增加排序模式输入；落点区间改用 `treeDropPosition`，删 `DROP_ZONE_THRESHOLD`。
   - 三个文件管理器页 `apps/dev-rxdb-vue/src/pages/file-manager/FileManager{Simple,Virtual,Lazy}Page.vue` 传 `sortMode`；`FileManagerLazyPage.vue` 不再以 `store.loadedNodes` 算位置。T027 转绿。
-- [ ] T034 [US2] 三端 `test lint` 全绿，跑三端 `tree-drag-reorder.spec.ts` 的文件管理器用例，T028 转绿。
+- [x] T034 [US2] 三端 `test lint` 全绿，跑三端 `tree-drag-reorder.spec.ts` 的文件管理器用例，T028 转绿。
 
 **Checkpoint**：两条拖放链路都经引擎；三端文件管理器规则一致。
 
@@ -269,19 +269,19 @@
 
 ## Phase 7: Polish & 验收
 
-- [ ] T049 三端 e2e 全量（含三端现有 a11y 用例，确认键盘操作与页内提示的 `role="alert"` 不退化；提示组件结构由阶段 A 的组件单测覆盖）（`pnpm nx run-many -t e2e --skipRemoteCache --parallel=1 -p dev-rxdb-angular-e2e,dev-rxdb-react-e2e,dev-rxdb-vue-e2e`）。
+- [x] T049 三端 e2e 全量（含三端现有 a11y 用例，确认键盘操作与页内提示的 `role="alert"` 不退化；提示组件结构由阶段 A 的组件单测覆盖）（`pnpm nx run-many -t e2e --skipRemoteCache --parallel=1 -p dev-rxdb-angular-e2e,dev-rxdb-react-e2e,dev-rxdb-vue-e2e`）。
   - 新旧拖放 spec、阶段 A 的 `tree-write-order.spec.ts` 都绿。
   - 旧拖放 spec 若断言了被删行为，逐条改写并记入「基线备注」：React「拖进当前父节点不动」、React「文件夹优先」。
-- [ ] T050 `pnpm test-all`；失败先单独复跑，再按 AGENTS.md 判真假，记入「基线备注」。
-- [ ] T051 覆盖率：`node scripts/audit/coverage-check.mjs --check --projects=rxdb`，四指标 ≥ 90%。
-- [ ] T052 quickstart §5 手工走查三端各一遍（1～4 步）。
+- [x] T050 `pnpm test-all`；失败先单独复跑，再按 AGENTS.md 判真假，记入「基线备注」。
+- [x] T051 覆盖率：`node scripts/audit/coverage-check.mjs --check --projects=rxdb`，四指标 ≥ 90%。
+- [x] T052 quickstart §5 手工走查三端各一遍（1～4 步）。
   - SC-004：Angular 虚拟滚动页批量添加 10,000 条后拖一次，测松开到新顺序可见的耗时。
   - 数字写入 `specs/009-us031-tree-drag-reorder/research.md` R10「实测」。
-- [ ] T053 回写需求：
+- [x] T053 回写需求：
   - `requirements/stories/core/US-031-tree-sortable-migration.md`：AC#5～9 状态与阶段 B 证据表；交付阶段表 B ✅；「一阶段一 PR」改为「A、B 同一 PR（owner 2026-10-08 定）」；技术笔记里「拖放失败仍走旧提示」「React 手动模式文件夹优先」两条改为已解决；实现文件表 B 行按实际路径更新；`status` 按 PR 状态。
   - `requirements/roadmap.md`、`requirements/status-overview.md` 同步。
   - 跑 `node scripts/audit/requirements-consistency.mjs`。
-- [ ] T054 `npx prettier --write` 本故事改过的全部文件；三端 `lint` 零警告；`git status` 核对无顺带写回的 `benchmarks/reports/*.json` 等无关文件。
+- [x] T054 `npx prettier --write` 本故事改过的全部文件；三端 `lint` 零警告；`git status` 核对无顺带写回的 `benchmarks/reports/*.json` 等无关文件。
 
 ---
 
@@ -328,4 +328,30 @@ T045 ∥ T046 ∥ T047
   换回实现后 10 / 10 通过。`rxdb` 全量 2,433 条通过。
 - T005：`api-surface.mjs --check` 命中 SC-014 前缀规则（核心新增导出须为 `Commit*` / `WorkingTree*`）。按 US-028 `reorderTargetForMove` 的先例，
   把 `reorderTargetForDrop` 逐名登记进 `scripts/audit/api-surface.mjs` 的例外清单并写明理由，再 `--update`：基线 diff 只多这一项；脚本自测 14 / 14。
-
+- T024 / T034：三端 `tree-drag-reorder.spec.ts` 各 12 / 12 通过。首轮暴露三处用例问题，均为测试侧：
+  - Angular 放下包在 `document.startViewTransition` 里（三端只有 Angular 有），转场期间 Chromium 把指针事件交给覆盖层，紧接着的第二次拖拽起不来。
+    `dragRowTo` 松开后等 `document.activeViewTransition` 回到 `null`：转场在 drop 事件处理中同步开始，这是确定的同步点。
+  - 零写断言原为「等 300 ms 再看计数没变」（Angular）或「拖完立刻看计数没变」（Vue），晚到的误写会被漏过。
+    改为同步点：先新建一个根节点，再断言撤销计数恰好是基线 + 1。写入经适配器队列串行提交，误写必在同步点之前落地；
+    基线按用例里数得清的写入次数写成绝对值，轮询到确切值。
+  - Angular 撤销徽标在生产构建的运行时 DOM 上没有 `data-testid`：编译产物的常量里有，运行时没有，原因未查明，属既有现象，以前也没有用例用过它。
+    e2e 改按用户可见的「撤销」按钮里的数字读。
+  - React / Vue 懒加载与 simple 菜单页新建子节点后父节点保持选中：React 用例把根节点挪到子节点之前建；Vue 同步点先点「取消选择父节点」。
+- T049：三端 e2e 全量（`--parallel=1`）一次全绿，含阶段 A 的 `tree-write-order.spec.ts` 与既有拖放 spec；React / Vue 既有的 `tree-menu-drag-drop.spec.ts`、`file-manager-drag-drop.spec.ts` 未改即通过。
+- T050：
+  - 首轮 `pnpm test-all` 被 `rxdb-adapter-electron` 中止：5 条失败，分别在 pglite 数据目录、恢复中途被杀、恢复并发三个文件，单条耗时约 260 s，`--nxBail` 中止整轮。
+  - 单独复跑 electron：这 5 条全过，另有 2 条备份内存测试失败（「库变大时额外峰值内存保持平稳」）。
+  - 再单跑 `rxdb-adapter-electron:memory`：2 / 2 通过。两次失败的是不同用例、单跑全过，判为机器负载下的假失败；本机磁盘占用 94%，同期在重装浏览器。
+  - 第二轮 `test-all` 74 个项目全绿。
+  - 迁移事务改为不写日志（阶段 A 末的引擎修复）之后，electron 这是第一次跑全量，所以单跑结果是判定依据。
+- T051：`coverage-check.mjs --check --projects=rxdb` 四指标 ≥ 90%。
+- T052：quickstart §5 第 1、3、4 步由三端 `tree-drag-reorder.spec.ts` 覆盖。
+  - 第 2 步（搜索过滤后拖放）在 Angular 生产构建上用真实浏览器走查：过滤出「搜甲1 / 搜甲2 / 搜甲X」（「其他」被隐藏）后把 X 放到「搜甲1」下方。
+    清空搜索后顺序为 搜甲1、搜甲X、其他、搜甲2，刷新不变，无写入错误。React / Vue 的同一场景由三端同名单测覆盖，未另做浏览器走查。
+  - 第 5 步 SC-004 数字见 research R10。
+- T053：US-031 AC#5～9 ✅、交付阶段表 B ✅、阶段 B 证据表、「一阶段一 PR」改为「A、B 同一 PR」、技术笔记与实现文件表已回写。
+  - 「背景与动机」里指向已删符号的三处链接改为文字并注明 `git show 37ccf014:…`，requirements-consistency 校验源码锚点。
+  - roadmap / status-overview 已同步；故事保持 In Progress，等 PR。审计通过。
+- T054：本阶段改过的文件过 prettier；三端 lint 零警告（`test-all` 含）。
+  - e2e 运行顺手写回的 `benchmarks/reports/working-tree-ui-first-visible-*.json` 已还原，不随本故事提交。
+  - 用户在实施期间自行做了两次 WIP 提交（`5eb4ecee`、`41a58479`），实现代码已在其中，本阶段只追加未提交的收尾改动。

@@ -225,9 +225,10 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     await openPage(page, '/menu-lazy', 'Tree Menu - Lazy Load');
     const tree = new RowTracker(page, 'menu');
     const parent = await tree.track('懒父', await addRootMenu(page, '懒父'));
+    // 根节点先建：懒加载页新建子节点后父节点保持选中，之后的新建都会落到它下面
+    await tree.track('拖入X', await addRootMenu(page, '拖入X'));
     await tree.track('子一', await addMenuChild(page, parent, '子一'));
     await tree.track('子二', await addMenuChild(page, parent, '子二'));
-    await tree.track('拖入X', await addRootMenu(page, '拖入X'));
 
     // 折叠：子节点从页面上卸载，页面不再持有它们（缺陷三：此时拖进去不能与既有子节点撞键）
     await parent.getByTestId('menu-node-toggle').click();

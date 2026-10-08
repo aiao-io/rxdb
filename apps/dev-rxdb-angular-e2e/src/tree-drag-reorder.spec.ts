@@ -26,31 +26,36 @@ async function expectNoWriteError(page: Page): Promise<void> {
 }
 
 /**
- * 「零写」的同步点：撤销计数恰好比基线多 1。
+ * 撤销按钮上显示的计数：按用户看到的读，即无障碍名为「撤销」的按钮里的数字；没有历史项时不显示数字，按 0 算。
  *
- * 断言零写之前先做一笔已知会落库的写入（新建一个根节点）。写入经适配器队列串行提交，
- * 这笔写入的行出现时，前面若有被拒拖放误发的写入也必然已经提交——计数只会是基线 + 2，
- * 不靠等待时长猜「该落地的都落地了」。
+ * @remarks
+ * 不按徽标的 `data-testid` 读：按钮内的徽标在生产构建的运行时 DOM 上没有这个属性（与本故事无关的既有现象，
+ * 编译产物里有、运行时没有），按它读永远是 0。
  */
-async function expectOnlySyncWrite(
-  page: Page,
-  badgeTestId: 'menu-undo-count' | 'file-undo-count',
-  undoBefore: number
-): Promise<void> {
-  await expect.poll(() => readUndoCount(page, badgeTestId), { timeout: WRITE_TIMEOUT }).toBe(undoBefore + 1);
+async function readUndoCount(page: Page): Promise<number> {
+  const text = (await page.getByRole('button', { name: '撤销', exact: true }).textContent()) ?? '';
+  return text.trim() === '' ? 0 : readCount(text, '撤销按钮');
 }
 
-/** 撤销按钮上的计数徽标；没有历史项时徽标不渲染，按 0 算。 */
-async function readUndoCount(page: Page, badgeTestId: 'menu-undo-count' | 'file-undo-count'): Promise<number> {
-  const badge = page.getByTestId(badgeTestId);
-  return (await badge.count()) === 0 ? 0 : readCount(await badge.textContent(), '撤销计数');
+/**
+ * 撤销计数等于 `expected`。
+ *
+ * 历史项在写入提交后异步出现，所以用轮询等到确切值；用例里每一笔写入都数得清，基线写成绝对值，
+ * 不在「刚写完」那一刻读一个可能还没跟上的数当基线。
+ */
+async function expectUndoCount(page: Page, expected: number): Promise<void> {
+  await expect.poll(() => readUndoCount(page), { timeout: WRITE_TIMEOUT }).toBe(expected);
 }
 
-// ---------------------------------------------------------------------------
-// 菜单页（simple / virtual / lazy 共用）
-// ---------------------------------------------------------------------------
-
-const MENU_UNDO = 'menu-undo-count';
+/**
+ * 「零写」的同步点：做一笔已知会落库的写入（由调用方新建一个根节点）后，撤销计数恰好是基线 + 1。
+ *
+ * 写入经适配器队列串行提交，这笔写入的历史项出现时，前面若有被拒 / 原位拖放误发的写入也必然已经提交——
+ * 计数会是基线 + 2。不靠等待时长猜「该落地的都落地了」。
+ */
+async function expectOnlySyncWrite(page: Page, undoBefore: number): Promise<void> {
+  await expectUndoCount(page, undoBefore + 1);
+}
 
 function menuRows(page: Page): Locator {
   return page.getByTestId('menu-row');
@@ -108,8 +113,6 @@ function menuIdOf(page: Page, title: string): Promise<string> {
 // ---------------------------------------------------------------------------
 // 文件管理器页（simple / lazy 共用）
 // ---------------------------------------------------------------------------
-
-const FILE_UNDO = 'file-undo-count';
 
 function fileRows(page: Page): Locator {
   return page.getByTestId('file-row');
@@ -254,7 +257,8 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     await gotoMenuPage(page, '/menu-simple', host);
     await addRootMenu(page, '父P');
     await addChildMenu(page, '父P', '子c');
-    const undoBefore = await readUndoCount(page, MENU_UNDO);
+    const undoBefore = 2;
+    await expectUndoCount(page, undoBefore);
     const parentPId = await menuIdOf(page, '父P');
 
     // 前、后、内部三种落点都被拒：高亮为无效，松开后零写
@@ -265,7 +269,7 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     }
 
     await addRootMenu(page, '同步点');
-    await expectOnlySyncWrite(page, MENU_UNDO, undoBefore);
+    await expectOnlySyncWrite(page, undoBefore);
     await expectOrder(menuRows(page), [/父P/, /子c/, /同步点/]);
     await expect(menuRow(page, '子c')).toHaveAttribute('data-parent-id', parentPId);
 
@@ -285,7 +289,8 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     await addChildMenu(page, '父P', '子c1');
     await addChildMenu(page, '父P', '子c2');
     await expectOrder(menuRows(page), [/节点A/, /节点B/, /父P/, /子c1/, /子c2/]);
-    const undoBefore = await readUndoCount(page, MENU_UNDO);
+    const undoBefore = 5;
+    await expectUndoCount(page, undoBefore);
 
     // B 本来就在 A 之后；A 本来就在 B 之前
     await dragRowTo(page, menuRow(page, '节点B'), menuRow(page, '节点A'), 'after');
@@ -294,7 +299,7 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     await dragRowTo(page, menuRow(page, '子c2'), menuRow(page, '父P'), 'into');
 
     await addRootMenu(page, '同步点');
-    await expectOnlySyncWrite(page, MENU_UNDO, undoBefore);
+    await expectOnlySyncWrite(page, undoBefore);
     await expectOrder(menuRows(page), [/节点A/, /节点B/, /父P/, /子c1/, /子c2/, /同步点/]);
 
     await reloadMenuPage(page, host);
@@ -313,19 +318,20 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     await expectOrder(menuRows(page), [/父P/, /子p1/, /父Q/, /子q1/]);
     const parentPId = await menuIdOf(page, '父P');
     const parentQId = await menuIdOf(page, '父Q');
-    const undoBefore = await readUndoCount(page, MENU_UNDO);
+    const undoBefore = 4;
+    await expectUndoCount(page, undoBefore);
 
     // 跨父拖进 Q：改挂与定位是一次提交
     await dragRowTo(page, menuRow(page, '子p1'), menuRow(page, '父Q'), 'into');
     await expectOrder(menuRows(page), [/父P/, /父Q/, /子q1/, /子p1/]);
     await expect(menuRow(page, '子p1')).toHaveAttribute('data-parent-id', parentQId);
-    await expect.poll(() => readUndoCount(page, MENU_UNDO), { timeout: WRITE_TIMEOUT }).toBe(undoBefore + 1);
+    await expectUndoCount(page, undoBefore + 1);
 
     // 撤销一次恢复拖放前的父节点与顺序
-    await page.locator('button[aria-label="撤销"]').first().click();
+    await page.getByRole('button', { name: '撤销', exact: true }).click();
     await expectOrder(menuRows(page), [/父P/, /子p1/, /父Q/, /子q1/]);
     await expect(menuRow(page, '子p1')).toHaveAttribute('data-parent-id', parentPId);
-    await expect.poll(() => readUndoCount(page, MENU_UNDO), { timeout: WRITE_TIMEOUT }).toBe(undoBefore);
+    await expectUndoCount(page, undoBefore);
     await expectNoWriteError(page);
   });
 
@@ -422,7 +428,8 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     await addRootFolder(page, '夹甲');
     await addRootFolder(page, '夹乙');
     await selectSortMode(page, 'name-asc');
-    const undoBefore = await readUndoCount(page, FILE_UNDO);
+    const undoBefore = 2;
+    await expectUndoCount(page, undoBefore);
 
     for (const position of ['before', 'after'] as const) {
       await dragRowOver(page, fileRow(page, '夹甲'), fileRow(page, '夹乙'), position);
@@ -431,7 +438,7 @@ test.describe('树页面拖放（US-031 阶段 B）', () => {
     }
 
     await addRootFolder(page, '夹丙');
-    await expectOnlySyncWrite(page, FILE_UNDO, undoBefore);
+    await expectOnlySyncWrite(page, undoBefore);
 
     // 切回手动模式，库里的顺序没变（同步点追加在根组末尾）
     await selectSortMode(page, 'manual');
