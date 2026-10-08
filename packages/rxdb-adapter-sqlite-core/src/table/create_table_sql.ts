@@ -9,6 +9,7 @@ import {
   quote_sql_identifier,
   RxDBAdapterSqliteError,
   rxDBColumnTypeToSqliteType,
+  SQLITE_NOW_ISO_SQL,
   transformValueJsToSqlite
 } from '../sqlite-core.utils.js';
 
@@ -74,7 +75,7 @@ const create_table_column_sql = (adapter: RxDBAdapterSqliteBase, metadata: Entit
     ) {
       const resolvedDefault = property.default;
       if (resolvedDefault === 'CURRENT_TIMESTAMP') {
-        columnSQL += ` DEFAULT(strftime('%FT%H:%M:%fZ'))`;
+        columnSQL += ` DEFAULT(${SQLITE_NOW_ISO_SQL})`;
       } else {
         const defaultValue = transformValueJsToSqlite(resolvedDefault, property);
         // 数字类型（INTEGER/REAL）不加引号

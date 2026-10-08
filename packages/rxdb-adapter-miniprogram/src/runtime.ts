@@ -30,6 +30,7 @@ export type {
   MiniProgramRandomValuesOptions,
   MiniProgramRandomValuesResult,
   MiniProgramRuntimeGlobal,
+  MiniProgramWasmRuntime,
   MiniProgramWechatApi
 } from './mini-program.interface.js';
 export { resolveMiniProgramRuntimeGlobal } from './runtime-global.js';

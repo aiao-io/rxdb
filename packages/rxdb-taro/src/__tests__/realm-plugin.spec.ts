@@ -1,6 +1,6 @@
 import { createContext, runInContext } from 'node:vm';
 import { describe, expect, it } from 'vitest';
-import { REALM_BINDING, REALM_MODULE, realmCaptureSource, realmVitePlugin } from '../realm-vite-plugin';
+import { REALM_BINDING, REALM_MODULE, realmCaptureSource, realmVitePlugin } from '../realm-plugin.js';
 
 interface FakeChunk {
   type: 'chunk';

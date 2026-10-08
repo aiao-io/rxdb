@@ -1,22 +1,16 @@
-// 构建期测试，只读 adapter 轻量 /runtime 入口的常量来核对；nx 按包判定，把 rxdb-demo 的动态 import 也算成懒加载
-// eslint-disable-next-line @nx/enforce-module-boundaries
-import { ALIPAY_WASM_TEXT_COPY_SUFFIX } from '@aiao/rxdb-adapter-miniprogram/runtime';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import {
-  ALIPAY_WORKER_PATH,
-  WASM_PATH,
-  WASM_TEXT_COPY_SUFFIX,
-  miniProgramAssetsVitePlugin
-} from '../assets-vite-plugin';
+import { miniProgramAssetsVitePlugin } from '../assets-plugin.js';
+import { ALIPAY_WORKER_PATH, WASM_PATH, WASM_TEXT_COPY_SUFFIX } from '../constants.js';
+import { FAKE_WASM, FAKE_WORKER, createFakeApp } from './fake-app.js';
 
+/** 本包把 adapter 列为 devDependency，包根就能当 app 根解析它。 */
 const APP_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 
-const adapterRequire = createRequire(
-  new URL('../../../../packages/rxdb-adapter-miniprogram/package.json', import.meta.url)
-);
+const appRequire = createRequire(new URL('../../package.json', import.meta.url));
+const adapterRequire = createRequire(appRequire.resolve('@aiao/rxdb-adapter-miniprogram/package.json'));
 
 interface EmittedAsset {
   readonly type: string;
@@ -24,9 +18,10 @@ interface EmittedAsset {
   readonly source: string | Uint8Array;
 }
 
-function emit(platform: 'weapp' | 'tt' | 'alipay'): Map<string, EmittedAsset> {
+function emit(platform: 'weapp' | 'tt' | 'alipay', appRoot = APP_ROOT): Map<string, EmittedAsset> {
   const emitted = new Map<string, EmittedAsset>();
-  const generateBundle = miniProgramAssetsVitePlugin(platform, APP_ROOT).generateBundle as (this: unknown) => void;
+  const plugin = miniProgramAssetsVitePlugin(platform, appRoot);
+  const generateBundle = plugin.generateBundle as (this: unknown) => void;
   generateBundle.call({
     emitFile(file: EmittedAsset) {
       emitted.set(file.fileName, file);
@@ -39,10 +34,15 @@ function emit(platform: 'weapp' | 'tt' | 'alipay'): Map<string, EmittedAsset> {
 const wasm = readFileSync(adapterRequire.resolve('@subframe7536/sqlite-wasm/wasm'));
 
 describe('miniProgramAssetsVitePlugin', () => {
+  it('只在 build 生效', () => {
+    expect(miniProgramAssetsVitePlugin('weapp', APP_ROOT).apply).toBe('build');
+  });
+
   it.each(['weapp', 'tt'] as const)('%s 只发 adapter glue 同源的 wasm', platform => {
     const emitted = emit(platform);
 
     expect([...emitted.keys()]).toEqual([WASM_PATH]);
+    expect(emitted.get(WASM_PATH)?.type).toBe('asset');
     expect(Buffer.from(emitted.get(WASM_PATH)?.source ?? '').equals(wasm)).toBe(true);
   });
 
@@ -56,11 +56,15 @@ describe('miniProgramAssetsVitePlugin', () => {
       Buffer.from(String(emitted.get(`${WASM_PATH}${WASM_TEXT_COPY_SUFFIX}`)?.source), 'base64').equals(wasm)
     ).toBe(true);
     expect(emitted.get(ALIPAY_WORKER_PATH)?.source).toBe(
-      readFileSync(adapterRequire.resolve('@aiao/rxdb-adapter-miniprogram/alipay-random-worker.js'), 'utf8')
+      readFileSync(appRequire.resolve('@aiao/rxdb-adapter-miniprogram/alipay-random-worker.js'), 'utf8')
     );
   });
 
-  it('副本后缀与 adapter 运行时读的一致', () => {
-    expect(WASM_TEXT_COPY_SUFFIX).toBe(ALIPAY_WASM_TEXT_COPY_SUFFIX);
+  it('从 app 根解析 adapter，wasm 按 adapter 自己的依赖解析', () => {
+    const emitted = emit('alipay', createFakeApp());
+
+    expect(Buffer.from(emitted.get(WASM_PATH)?.source ?? '').equals(FAKE_WASM)).toBe(true);
+    expect(emitted.get(`${WASM_PATH}${WASM_TEXT_COPY_SUFFIX}`)?.source).toBe(FAKE_WASM.toString('base64'));
+    expect(emitted.get(ALIPAY_WORKER_PATH)?.source).toBe(FAKE_WORKER);
   });
 });

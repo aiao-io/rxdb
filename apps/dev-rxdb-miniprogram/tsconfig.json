@@ -24,13 +24,16 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["./src", "./types", "./config"],
+  "include": ["./src", "./types", "./config", "./verify"],
   "references": [
     {
-      "path": "../../packages/rxdb-adapter-miniprogram"
+      "path": "../../packages/rxdb"
     },
     {
-      "path": "../../packages/rxdb"
+      "path": "../../packages/rxdb-taro"
+    },
+    {
+      "path": "../../packages/rxdb-adapter-miniprogram"
     }
   ]
 }

@@ -11,7 +11,8 @@ export default defineConfig({
     alias: {
       '@aiao/rxdb-adapter-miniprogram/runtime': fileURLToPath(
         new URL('../../packages/rxdb-adapter-miniprogram/src/runtime.ts', import.meta.url)
-      )
+      ),
+      '@aiao/rxdb-taro/runtime': fileURLToPath(new URL('../../packages/rxdb-taro/src/runtime.ts', import.meta.url))
     }
   },
   test: {
