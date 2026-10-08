@@ -14,8 +14,8 @@
  *   这里从 `nx show projects` 的实际输出分桶，并断言每个项目恰好落在一条 lane。
  *
  * 用法：
- *   node scripts/ci/plan-test-lanes.mjs --projects=a,b,c [--lanes=4]
- *   → {"include":[{"lane":"supabase","label":"supabase","projects":"...","supabase":true,"coverage":true},...]}
+ *   node scripts/ci/plan-test-lanes.mjs --projects=a,b,c [--lanes=4] [--memory-projects=x]
+ *   → {"include":[{"lane":"supabase","label":"supabase","projects":"...","target":"test","supabase":true,"coverage":true},...]}
  *
  * `lane` 与 `label` 是两个东西，别合并：
  *   lane  —— 机器用的稳定 id（`t1`…/`supabase`），进 artifact 名 `coverage-lane-<lane>`，
@@ -29,10 +29,10 @@ import { pathToFileURL } from 'node:url';
  * 非 Supabase 任务铺开的 lane 上限。
  *
  * 4 有两个独立的理由，任一成立就不该往上调：
- *   1. 并发位：免费额度上限 20，实测峰值并发已经是 16。
- *   2. 更根本的 —— 墙钟被 `rxdb-adapter-pglite` 一个任务卡死在 238s（见 WEIGHTS）。
- *      按实测权重装箱，4 条非 Supabase lane 的负载是 242 / 242 / 242 / 242，已经
- *      贴着这个下界。开到 5、6 条只会多出几条 200s 的空转 lane，一秒都省不下来。
+ *   1. 并发位：免费额度上限 20，实测峰值并发是 16，内存 lane 再占 1 个。
+ *   2. 墙钟的下界是单个最重的任务：`rxdb-adapter-pglite`（667s，见 WEIGHTS）。按 PR #101
+ *      的实测权重装箱，4 条 lane 的负载约 720s 一条，离这个下界只差 1 分钟；开到 5 条省下的
+ *      也就这 1 分钟，换来的是峰值并发顶到 18 以上、PR 一多就排队。
  */
 export const LANE_COUNT = 4;
 
@@ -41,6 +41,17 @@ export const LANE_COUNT = 4;
  * 钉死在同一条 lane：起一次 Supabase 约 60s，散在多条 lane 上就要交多次这笔税。
  */
 export const SUPABASE_PROJECTS = ['rxdb-adapter-supabase', 'dev-rxdb-supabase'];
+
+/**
+ * 内存用例的 target 名。有这个 target 的项目（`--memory-projects`）另开一条 lane 跑它。
+ *
+ * 按子进程常驻内存判「不随库线性增长」的用例要独占整台机器、串行执行（`fileParallelism: false`），
+ * 与别的文件并行时操作系统换页会让测量值飘出几百 MiB。放在 `test` 里时它们排在最后，
+ * 一个项目就把整条 lane 拖成长尾：PR #101 上 `rxdb-adapter-electron` 的两份内存用例串行 469s，
+ * 那条 lane 的 Test step 跑了 29 分钟。拆成独立 target 后它与常规用例并行，且不带覆盖率——
+ * v8 插桩本身就会抬高 RSS。
+ */
+export const MEMORY_TARGET = 'test-memory';
 
 /**
  * test 目标不采集覆盖率的项目：`website` 跑的是 `node --test` 脚本测，不经 vitest，
@@ -57,84 +68,91 @@ export const NO_COVERAGE_PROJECTS = ['website'];
  * 各项目 test 任务的实测耗时（秒），用于装箱时估算 lane 负载。
  * 只影响**分桶是否均衡**，不影响正确性 —— 填错了 CI 还是全跑，只是慢。
  *
- * 数据来源：main 上的 run 31874082535（run-many 全量、全部 Cache Miss，即冷跑真值）。
+ * 数据来源：PR #101 的 run 37850537027（affected 冷跑，被测的 58 个项目全部 Cache Miss）。
  * 提取方式：每条 lane 都以 `--parallel=1` 串行执行，于是同一条 lane 的日志里
- * 相邻两条 vitest `Duration` 行的时间差就是后一个项目的净耗时。
+ * 相邻两条 vitest `Duration` 行的时间差就是后一个项目的净耗时；一个 nx 项目里有多个
+ * vitest project 时（pglite、electron）按项目求和。
  * （不能用「项目首行到末行」的时间跨度 —— 那会把 Nx 的调度输出算进去。）
+ * 那一轮没测到的 10 项（supabase 两项在独立 lane、website / utils / code-editor 等未受影响）保留上一版的值。
  *
- * 上一版这张表是从更早一轮 CI 的 Nx 汇总表抄的，两处离谱偏差正是那轮
- * 四条 lane 跑出 469s / 331s / 322s / 313s（最重比最轻多 50%）的原因：
- *   dev-rxdb-angular  55 → 116   低估 2.1 倍
- *   utils              1 →  26   低估 26 倍（当轮命中了缓存，旧表填的是缓存后的耗时）
- * 教训：命中缓存的那轮数据不能用来填这张表，宁可缺项走 DEFAULT_WEIGHT。
- *
- * `website` / `benchmarks` 原先不在表里。run 31945480551（PR #10）把它们
- * 放进了 test 集，DEFAULT_WEIGHT=60 把两个轻量脚本测抬成种子，LPT 单独开出
- * `benchmarks +9`，剩下的中等包全堆到 `dev-rxdb-angular`。Test step 墙钟变成
- * 445 / 370 / 241 / 186（最重是最轻的 2.4 倍）。这两项的值不是那轮 Duration
- * （job 日志要登录），是按 target 形态估的：website 是三个 `node --test`
- * 脚本，benchmarks 是分析/工具 vitest。**不要**用那轮 Test step 总和去改
- * pglite / angular —— 那是 Nx + `^build` 的墙钟，和本表的 Duration 口径不是一回事。
- *
- * `rxdb-adapter-pglite`（238s）是唯一的长尾，比第二名（116s）大一倍。
- * 它一个人就是 test 阶段的墙钟下界：LPT 会给它一条几乎独占的 lane，其余三条
- * 各摊 ~242s。**因此把 LANE_COUNT 从 4 调大不会更快** —— 想压 test 阶段只能拆
- * pglite 自己的用例。（本地 M 系列上同样配置只要 72s，别拿本地数据填这张表。）
- *
- * `code-editor` 那轮没打出 Duration 行（它的 test 只有 type-only 的桩），
- * 保留旧估值 2 而不是填 0 —— 填 0 会让它在冷跑时被当成免费的。
+ * 上一版取自 main 的 run 31874082535，此后几个项目的用例量翻了几倍，表没有跟着更新：
+ *   rxdb-adapter-electron   21 → 840（含内存组 469，拆到 `test-memory` 后按 371 计）
+ *   rxdb-adapter-pglite    238 → 667
+ *   dev-rxdb-miniprogram-alipay-probe、rxdb-model-angular 缺项（走 DEFAULT_WEIGHT=60，实测 185 / 99）
+ * LPT 拿着 21s 的 electron 把它和 alipay-probe、dev-rxdb-angular、rxdb-model-angular 装进了同一条 lane，
+ * 那条 lane 的 Test step 跑了 29 分钟，其余 lane 在 3～17 分钟内结束。
+ * 教训不变：命中缓存的那轮数据不能用来填这张表；本地 M 系列的数据也不能（同配置约快 3 倍）。
+ * 每当某条 lane 的 Test step 明显长于其它 lane，先拿那一轮的日志按上面的口径重算这张表。
  */
 export const WEIGHTS = {
-  'rxdb-adapter-pglite': 238,
-  'dev-rxdb-angular': 116,
-  'rxdb-client-generator': 90,
-  'dev-rxdb-tauri': 49,
-  'rxdb-devtools-extension': 46,
-  rxdb: 45,
+  'rxdb-adapter-pglite': 667,
+  'rxdb-adapter-electron': 371,
+  'dev-rxdb-angular': 188,
+  'dev-rxdb-miniprogram-alipay-probe': 185,
+  'rxdb-client-generator': 117,
+  'rxdb-adapter-sqliteai': 116,
+  'rxdb-model-angular': 99,
+  'rxdb-plugin-replay': 94,
+  'rxdb-adapter-sqlite': 93,
+  rxdb: 88,
+  'dev-rxdb-http-server': 84,
+  'rxdb-devtools-panel': 77,
+  'dev-rxdb-tauri': 62,
+  'rxdb-adapter-sqlite-wasm': 61,
+  'rxdb-adapter-wa-sqlite': 61,
+  'angular-todo': 52,
+  'rxdb-adapter-sqlite-core': 49,
   'dev-rxdb-supabase': 43,
-  'rxdb-adapter-wa-sqlite': 41,
-  'rxdb-adapter-sqlite-wasm': 38,
-  benchmarks: 18,
+  'rxdb-devtools-extension': 38,
   'rxdb-adapter-supabase': 36,
-  'angular-todo': 33,
-  'rxdb-adapter-sqlite-core': 29,
-  'rxdb-adapter-sqlite': 27,
-  'rxdb-adapter-sqliteai': 27,
   utils: 26,
-  'rxdb-plugin-graph': 22,
-  // US-207 E2/E3 把 `rxdb-adapter-desktop` 拆成了下面两个包。21 原样留给 electron：
-  // 整套 host / 加密 / 客户端用例都跟着 `node:sqlite` 留在了那边，形态没变。
-  'rxdb-adapter-electron': 21,
-  // tauri 侧只剩传输层与 JSON codec 两个 spec，**尚无 CI Duration**；这里填的是按
-  // 形态估的下界，不是实测值。缺项会走 DEFAULT_WEIGHT=60，把一个两文件的包抬成
-  // 表里第三重的种子，比估低更糟。首次跑完 CI 后请用真实 Duration 覆盖。
-  'rxdb-adapter-tauri': 3,
-  'rxdb-angular': 10,
-  'dev-rxdb-vue': 9,
-  website: 4,
-  'dev-rxdb-react': 9,
-  angular: 8,
+  'rxdb-plugin-search': 24,
+  'rxdb-plugin-graph': 23,
+  'rxdb-plugin-working-tree': 21,
+  'rxdb-plugin-sync': 19,
+  'dev-rxdb-electron': 18,
+  'rxdb-model-react': 16,
+  'rxdb-plugin-history': 16,
+  'dev-rxdb-react': 15,
+  'dev-rxdb-vue': 15,
+  'rxdb-devtools': 15,
+  'rxdb-model': 13,
+  'rxdb-model-vue': 13,
+  'rxdb-angular': 12,
+  'rxdb-plugin-replay-angular': 11,
+  'rxdb-plugin-working-tree-angular': 11,
+  'dev-rxdb-http': 10,
+  'rxdb-plugin-search-angular': 10,
+  'rxdb-plugin-tree-angular': 10,
+  'rxdb-adapter-miniprogram': 9,
+  'rxdb-plugin-querycache': 9,
+  'rxdb-react': 8,
+  angular: 7,
+  'rxdb-plugin-storage': 7,
   'code-editor-angular': 6,
-  'rxdb-plugin-replay': 6,
-  'rxdb-plugin-search': 6,
+  'dev-rxdb-miniprogram-douyin-spike': 6,
   'rxdb-plugin-workspace': 6,
-  'rxdb-react': 5,
-  'rxdb-test': 5,
+  'rxdb-test': 6,
+  'rxdb-vue': 6,
+  'rxdb-adapter-encrypted': 5,
+  benchmarks: 4,
   'code-editor-vue': 4,
-  'rxdb-vue': 4,
-  'rxdb-devtools': 4,
-  'rxdb-adapter-encrypted': 4,
-  'rxdb-adapter-miniprogram': 4,
+  'rxdb-adapter-http': 4,
+  website: 4,
+  'rxdb-plugin-search-react': 3,
+  'rxdb-plugin-search-vue': 3,
+  'rxdb-plugin-tree-react': 3,
+  'rxdb-plugin-working-tree-react': 3,
   'code-editor': 2,
   'code-editor-react': 2,
-  'rxdb-plugin-replay-angular': 2,
+  'recipes-domain': 2,
+  'rxdb-adapter-tauri': 2,
   'rxdb-plugin-replay-react': 2,
   'rxdb-plugin-replay-vue': 2,
-  'rxdb-plugin-search-angular': 2,
-  'rxdb-plugin-search-react': 2,
-  'rxdb-plugin-search-vue': 2,
-  'dev-rxdb-electron': 2,
-  'rxdb-plugin-storage': 2
+  'rxdb-plugin-tree': 2,
+  'rxdb-plugin-tree-vue': 2,
+  'rxdb-plugin-working-tree-vue': 2,
+  'rxdb-taro': 2
 };
 
 /** 权重表里没登记的新包按这个值估算。宁可高估，避免新包把一条 lane 拖成长尾。 */
@@ -184,8 +202,9 @@ const laneLabel = names => (names.length > 1 ? `${names[0]} +${names.length - 1}
  * @param {Record<string, number>} [options.weights] 项目名 → 实测耗时（秒）
  * @param {string[]} [options.supabaseProjects] 需要 Supabase 栈、钉在独立 lane 的项目
  * @param {string[]} [options.noCoverageProjects] test 目标不采集覆盖率的项目
+ * @param {string[]} [options.memoryProjects] 有 {@link MEMORY_TARGET} target 的项目，另开一条 lane 跑它
  * @param {(names: string[]) => void} [options.warn] 权重缺失时的告警出口（测试里可替换）
- * @returns {{ include: { lane: string, label: string, projects: string, supabase: boolean, coverage: boolean }[] }}
+ * @returns {{ include: { lane: string, label: string, projects: string, target: string, supabase: boolean, coverage: boolean }[] }}
  */
 export function planTestLanes({
   projects,
@@ -193,6 +212,7 @@ export function planTestLanes({
   weights = WEIGHTS,
   supabaseProjects = SUPABASE_PROJECTS,
   noCoverageProjects = NO_COVERAGE_PROJECTS,
+  memoryProjects = [],
   warn = warnUnweighted
 }) {
   const unique = [...new Set(projects)].filter(Boolean);
@@ -208,6 +228,7 @@ export function planTestLanes({
     lane: `t${index + 1}`,
     label: laneLabel(lane.names),
     projects: [...lane.names].sort().join(','),
+    target: 'test',
     supabase: false,
     coverage: collectsCoverage(lane.names)
   }));
@@ -218,8 +239,22 @@ export function planTestLanes({
       lane: 'supabase',
       label: 'supabase',
       projects: needsSupabase.join(','),
+      target: 'test',
       supabase: true,
       coverage: collectsCoverage(needsSupabase)
+    });
+  }
+
+  // 内存 lane 只收本次 test 集里的项目：affected 没算到的项目，它的内存用例也不该跑。
+  const memory = [...new Set(memoryProjects)].filter(name => unique.includes(name)).sort();
+  if (memory.length > 0) {
+    include.push({
+      lane: 'memory',
+      label: `${laneLabel(memory)} (${MEMORY_TARGET})`,
+      projects: memory.join(','),
+      target: MEMORY_TARGET,
+      supabase: false,
+      coverage: false
     });
   }
 
@@ -251,13 +286,17 @@ const parseLaneCount = raw => {
 const main = argv => {
   const raw = readFlag(argv, 'projects');
   if (raw === undefined) {
-    console.error('用法: node scripts/ci/plan-test-lanes.mjs --projects=a,b,c [--lanes=4]');
+    console.error('用法: node scripts/ci/plan-test-lanes.mjs --projects=a,b,c [--lanes=4] [--memory-projects=x]');
     process.exit(1);
   }
 
   const plan = planTestLanes({
     projects: raw.split(',').map(name => name.trim()),
-    laneCount: parseLaneCount(readFlag(argv, 'lanes'))
+    laneCount: parseLaneCount(readFlag(argv, 'lanes')),
+    memoryProjects: (readFlag(argv, 'memory-projects') ?? '')
+      .split(',')
+      .map(name => name.trim())
+      .filter(Boolean)
   });
 
   process.stdout.write(`${JSON.stringify(plan)}\n`);

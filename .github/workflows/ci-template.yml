@@ -383,7 +383,9 @@ jobs:
                       + ($r | sort | map({project: ., target: "e2e-remote", label: (short_name + " remote"), supabase: true})))
             }')
 
-          TEST_MATRIX=$(node scripts/ci/plan-test-lanes.mjs --projects="$TEST")
+          # 有 test-memory target 的项目（按子进程 RSS 判内存的用例）另开一条 lane，见 plan-test-lanes.mjs 的 MEMORY_TARGET。
+          MEMORY=$(jq -r 'sort | join(",")' <<<"$(projects_json test-memory)")
+          TEST_MATRIX=$(node scripts/ci/plan-test-lanes.mjs --projects="$TEST" --memory-projects="$MEMORY")
 
           # PR 且改动落在 packages/ 或 benchmarks/ 时才跑基准门禁。
           # 在这里判定而不是在 benchmark job 里判定：不需要时整个 job 直接 skip，
@@ -550,7 +552,8 @@ jobs:
   # test lane：一条 lane = 一个 job，项目划分由 scripts/ci/plan-test-lanes.mjs
   # 按实测耗时做 LPT 装箱。lane 内 `--parallel=1` —— 各 vitest 任务自己已经
   # 多 worker 并行（见 rxdb-adapter-pglite 的 maxWorkers=4），再叠一层 Nx 并行
-  # 只会在 4 vCPU 上互相抢核。
+  # 只会在 4 vCPU 上互相抢核。测试依赖的构建不受这条限制，见 Build test prerequisites。
+  # 每条 lane 的 `matrix.target` 是 test，内存 lane 是 test-memory（plan-test-lanes.mjs 的 MEMORY_TARGET）。
   test:
     # 名字用 label 不用 lane：`test (t1)` 在 checks 列表里说不出任何信息。
     # lane ↔ label 的映射见 setup 的 job summary。
@@ -583,12 +586,36 @@ jobs:
 
       # final + summary 必须同时生成：覆盖率门禁会从 final 重算原始计数，
       # 拒绝损坏或跨代的 summary（见 scripts/coverage-artifacts.mjs）。
+      #
+      # 测试依赖的构建先以 `--parallel=3`（与 build job 相同）单独跑完：`--parallel=1` 管的是整张任务图，
+      # 不拆开的话 `^build` / typecheck 也跟着串行，PR #101 上最重的一条 lane 光建依赖就花了 301s。
+      # 拆开后测试那一步全部命中本地缓存，测试本身照旧串行。
+      - name: Build test prerequisites
+        env:
+          PROJECTS: ${{ matrix.projects }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          pnpm exec nx run-many -t "$TARGET" -p "$PROJECTS" --graph=.nx-test-task-graph.json > /dev/null
+          node scripts/ci/test-prereq-tasks.mjs .nx-test-task-graph.json --exclude=test,test-memory > .nx-test-prereqs.tsv
+          while IFS=$'\t' read -r target projects; do
+            pnpm exec nx run-many -t "$target" -p "$projects" --output-style=stream --parallel=3
+          done < .nx-test-prereqs.tsv
+
+      # 覆盖率参数只给 `matrix.coverage` 为真的 lane：内存 lane 跑 test-memory，它的命令带
+      # `--coverage.enabled=false`，后面再追加 `--coverage` 会把它重新打开（v8 插桩会抬高被测的 RSS）。
       - name: Test
         env:
           PROJECTS: ${{ matrix.projects }}
+          TARGET: ${{ matrix.target }}
+          COVERAGE: ${{ matrix.coverage }}
         run: |
-          pnpm exec nx run-many -t test -p "$PROJECTS" --output-style=stream --parallel=1 \
-            --coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=lcovonly
+          set -euo pipefail
+          COVERAGE_ARGS=()
+          if [ "$COVERAGE" = "true" ]; then
+            COVERAGE_ARGS=(--coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=lcovonly)
+          fi
+          pnpm exec nx run-many -t "$TARGET" -p "$PROJECTS" --output-style=stream --parallel=1 "${COVERAGE_ARGS[@]}"
 
       # 只传门禁和 Codecov 真正要读的四种文件。html 报告有几百 MB，
       # 传上去除了拖慢 CI 没人看。
@@ -602,7 +629,8 @@ jobs:
       # 也才容得下 `apps/` 与 `modules/` 两组。
       #
       # `matrix.coverage` 为 false 表示整条 lane 都是 `node --test` 一类不采集覆盖率的
-      # 项目（见 plan-test-lanes.mjs 的 NO_COVERAGE_PROJECTS），这时没有产物可传，
+      # 项目（见 plan-test-lanes.mjs 的 NO_COVERAGE_PROJECTS），或者是内存 lane（test-memory
+      # 刻意不带覆盖率），这时没有产物可传，
       # 跳过上传；coverage job 用 pattern 下载，缺这一份 artifact 不报错。
       - name: Upload coverage
         if: ${{ !cancelled() && matrix.coverage }}
