@@ -1,6 +1,6 @@
 import { RxDB } from '@aiao/rxdb';
 import { useFindAll } from '@aiao/rxdb-angular';
-import { FileNode } from '@aiao/rxdb-test/entities';
+import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { AsyncPipe, CommonModule } from '@angular/common';
 import { Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -29,6 +29,7 @@ import {
   LucideX as X
 } from '@lucide/angular';
 import { HistorySidebarComponent } from '@modules/angular';
+import { TreeWriteError } from '../../../components/tree-write-error';
 import { FileDragDropService } from '../services/file-drag-drop.service';
 import { FilePathValidatorService } from '../services/file-path-validator.service';
 import { TreeFileDragDropBase } from '../utils/tree-file-drag-drop.base';
@@ -45,13 +46,13 @@ import { TreeFileDragDropStore } from '../utils/tree-file.store';
 @Component({
   selector: 'app-file-manager-simple-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideDynamicIcon, AsyncPipe, HistorySidebarComponent],
+  imports: [CommonModule, FormsModule, LucideDynamicIcon, AsyncPipe, HistorySidebarComponent, TreeWriteError],
   providers: [FilePathValidatorService],
   templateUrl: './file-manager-simple.page.html',
   styleUrl: './file-manager-simple.page.scss',
   host: { class: 'page-host' }
 })
-export default class FileManagerSimplePage extends TreeFileDragDropBase<typeof FileNode> {
+export default class FileManagerSimplePage extends TreeFileDragDropBase<typeof SortableFileNode> {
   // Lucide icons
   readonly ChevronDown = ChevronDown;
   readonly ChevronRight = ChevronRight;
@@ -92,24 +93,24 @@ export default class FileManagerSimplePage extends TreeFileDragDropBase<typeof F
 
   constructor() {
     const rxdb = inject(RxDB);
-    const fileResource = useFindAll(FileNode, {
+    const fileResource = useFindAll(SortableFileNode, {
       where: { combinator: 'and', rules: [] },
       orderBy: [{ field: 'sortOrder', sort: 'asc' }]
     });
-    const history = rxdb.versionManager.history(FileNode);
+    const history = rxdb.versionManager.history(SortableFileNode);
     const store = new TreeFileDragDropStore(
       rxdb,
       inject(FilePathValidatorService),
       inject(FileDragDropService),
       fileResource,
-      FileNode,
+      SortableFileNode,
       history
     );
 
-    super(store, fileResource, FileNode, history);
+    super(store, fileResource, SortableFileNode, history);
   }
 
-  getDisplayName(node: FileNode): string {
+  getDisplayName(node: SortableFileNode): string {
     if (node.type === 'folder') return node.name;
     if (!node.extension) return node.name;
     if (node.name.endsWith(`.${node.extension}`)) return node.name;

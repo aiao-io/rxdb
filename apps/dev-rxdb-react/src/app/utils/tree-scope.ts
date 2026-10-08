@@ -1,10 +1,21 @@
-import type { RxDBEntityId } from '@aiao/rxdb';
+import type { RxDBEntityId, UUID } from '@aiao/rxdb';
 import type { ITreeEntity } from '@aiao/rxdb-plugin-tree';
 
 interface TreeScopeNode {
   id: RxDBEntityId;
   parentId?: RxDBEntityId | null;
 }
+
+/**
+ * 按父节点取直接子节点的查询条件，`null` 取根节点。
+ *
+ * 懒加载 store 的子节点订阅、删除前判断「库里有没有子节点」、删除并提升时读子节点都用它，
+ * 三处必须同一口径。
+ */
+export const byParent = (parentId: RxDBEntityId | null) => ({
+  combinator: 'and' as const,
+  rules: [{ field: 'parentId' as const, operator: '=' as const, value: parentId as UUID | null }]
+});
 
 /**
  * 以 id 去重合并两份节点列表，**前者优先**。

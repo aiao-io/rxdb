@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/member-ordering */
 import { RxDB } from '@aiao/rxdb';
 import { useFindAll } from '@aiao/rxdb-angular';
-import { MenuLarge } from '@aiao/rxdb-test/entities';
+import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { AsyncPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, ElementRef, inject, viewChild } from '@angular/core';
@@ -24,6 +24,7 @@ import {
   LucideX as X
 } from '@lucide/angular';
 import { HistorySidebarComponent } from '@modules/angular';
+import { TreeWriteError } from '../../../components/tree-write-error';
 import { TreeMenuDragDropBase } from '../utils/tree-menu.drag-drop';
 
 /**
@@ -32,7 +33,7 @@ import { TreeMenuDragDropBase } from '../utils/tree-menu.drag-drop';
  * 特性：
  * - 全量加载所有菜单数据（懒加载可选）
  * - CDK Virtual Scroll 虚拟滚动渲染
- * - hasChildren 由数据库计算（MenuLarge实体）
+ * - hasChildren 由数据库计算（SortableMenuLarge实体）
  * - 支持完整 CRUD + 拖拽 + 搜索功能
  * - 拖拽边界自动滚动
  */
@@ -42,10 +43,10 @@ import { TreeMenuDragDropBase } from '../utils/tree-menu.drag-drop';
   styleUrls: ['./tree-menu-virtual.page.scss'],
   host: { class: 'page-host' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideDynamicIcon, ScrollingModule, AsyncPipe, HistorySidebarComponent],
+  imports: [FormsModule, LucideDynamicIcon, ScrollingModule, AsyncPipe, HistorySidebarComponent, TreeWriteError],
   standalone: true
 })
-export default class MenuTreePage extends TreeMenuDragDropBase<typeof MenuLarge> {
+export default class MenuTreePage extends TreeMenuDragDropBase<typeof SortableMenuLarge> {
   // Icons
   readonly ChevronRight = ChevronRight;
   readonly ChevronDown = ChevronDown;
@@ -72,19 +73,19 @@ export default class MenuTreePage extends TreeMenuDragDropBase<typeof MenuLarge>
   constructor() {
     const rxdb = inject(RxDB);
     super(
-      useFindAll(MenuLarge, {
+      useFindAll(SortableMenuLarge, {
         where: { combinator: 'and', rules: [] },
         orderBy: [{ field: 'sortOrder', sort: 'asc' }]
       }),
-      MenuLarge,
-      rxdb.versionManager.history(MenuLarge)
+      SortableMenuLarge,
+      rxdb.versionManager.history(SortableMenuLarge)
     );
   }
 
   /**
    * 拖拽经过元素
    */
-  override onDragOver(event: DragEvent, targetMenu: MenuLarge): void {
+  override onDragOver(event: DragEvent, targetMenu: SortableMenuLarge): void {
     super.onDragOver(event, targetMenu);
     // T059: 拖拽边界自动滚动
     this.handleAutoScroll(event);

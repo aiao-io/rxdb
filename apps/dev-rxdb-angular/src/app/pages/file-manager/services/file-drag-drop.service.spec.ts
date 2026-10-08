@@ -1,17 +1,17 @@
-import { FileNode } from '@aiao/rxdb-test/entities';
+import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { generateKeyBetween } from '@aiao/utils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FileDragDropService } from './file-drag-drop.service';
 
 interface NodeHarness {
-  node: FileNode;
+  node: SortableFileNode;
   setParent: ReturnType<typeof vi.fn>;
   save: ReturnType<typeof vi.fn>;
 }
 
 function createNode(
   id: string,
-  type: FileNode['type'],
+  type: SortableFileNode['type'],
   parentId: string | null,
   sortOrder: string | null = null
 ): NodeHarness {
@@ -27,7 +27,7 @@ function createNode(
     sortOrder,
     parent$: { set: setParent },
     save
-  } as unknown as FileNode;
+  } as unknown as SortableFileNode;
 
   return { node, setParent, save };
 }
@@ -48,7 +48,7 @@ describe('FileDragDropService', () => {
   let targetFile: NodeHarness;
   let targetFolder: NodeHarness;
   let nestedFolder: NodeHarness;
-  let files: FileNode[];
+  let files: SortableFileNode[];
 
   beforeEach(() => {
     service = new FileDragDropService();

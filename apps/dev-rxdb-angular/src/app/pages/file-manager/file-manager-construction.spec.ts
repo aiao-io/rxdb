@@ -1,5 +1,5 @@
 import { RxDB } from '@aiao/rxdb';
-import { FileLarge } from '@aiao/rxdb-test/entities';
+import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { PLATFORM_ID, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -11,10 +11,10 @@ describe('file manager construction contract', () => {
 
   it('懒加载页复用 DI 提供的唯一 store 与 history', () => {
     const lazyStore = {
-      visibleNodes: signal<FileLarge[]>([]),
+      visibleNodes: signal<SortableFileLarge[]>([]),
       pathConflictWarning: signal(null),
       setSearchKeyword: vi.fn()
-    } as unknown as TreeFileLazyStore<typeof FileLarge>;
+    } as unknown as TreeFileLazyStore<typeof SortableFileLarge>;
     const history = { undo: vi.fn(), redo: vi.fn() };
     const storeFactory = vi.fn(() => lazyStore);
     const historyFactory = vi.fn(() => history);
@@ -40,12 +40,12 @@ describe('file manager construction contract', () => {
     const loadingNodes = signal(new Set<string>());
     const nodeErrors = signal(new Map<string, Error>());
     const lazyStore = {
-      visibleNodes: signal<FileLarge[]>([]),
+      visibleNodes: signal<SortableFileLarge[]>([]),
       pathConflictWarning: signal(null),
       expandedFileIds: signal(new Set<string>()),
       editingFileId: signal<string | null>(null),
       selectedFolderId: signal<string | null>(null),
-      fileToDelete: signal<FileLarge | null>(null),
+      fileToDelete: signal<SortableFileLarge | null>(null),
       searchKeyword: signal(''),
       matchedFileIds: signal(new Set<string>()),
       expandedCount: signal(0),
@@ -79,10 +79,10 @@ describe('file manager construction contract', () => {
     });
 
     const page = TestBed.runInInjectionContext(() => new FileManagerLazyPage());
-    const folder = { type: 'folder', name: '文档', extension: null } as unknown as FileLarge;
-    const plainFile = { type: 'file', name: 'README', extension: null } as unknown as FileLarge;
-    const namedFile = { type: 'file', name: 'README.txt', extension: 'txt' } as unknown as FileLarge;
-    const extensionFile = { type: 'file', name: 'README', extension: 'txt' } as unknown as FileLarge;
+    const folder = { type: 'folder', name: '文档', extension: null } as unknown as SortableFileLarge;
+    const plainFile = { type: 'file', name: 'README', extension: null } as unknown as SortableFileLarge;
+    const namedFile = { type: 'file', name: 'README.txt', extension: 'txt' } as unknown as SortableFileLarge;
+    const extensionFile = { type: 'file', name: 'README', extension: 'txt' } as unknown as SortableFileLarge;
 
     expect(page.getDisplayName(folder)).toBe('文档');
     expect(page.getDisplayName(plainFile)).toBe('README');

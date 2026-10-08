@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { FileNode } from '@aiao/rxdb-test/entities';
+import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { useFindAll, useRxDB } from '@aiao/rxdb-vue';
 import { formatErrorMessage, useToast } from '../../app/composables/useToast';
 import { useVirtualizer } from '@tanstack/vue-virtual';
@@ -31,10 +31,10 @@ import {
 } from '@lucide/vue';
 import { computed, ref, toRefs } from 'vue';
 import HistorySidebar from '../../app/components/HistorySidebar.vue';
+import TreeWriteError from '../../app/components/TreeWriteError.vue';
 import { useDragDrop } from '../../app/composables/useDragDrop';
 import { useFileManagerStore } from '../../app/composables/useFileManagerStore';
 import { getFileIcon } from '../../app/utils/file-icons';
-import { generateBatchFiles } from '../../app/utils/file-utils';
 import { pairVirtualRows } from '../../app/utils/virtual-rows';
 
 const rxdb = useRxDB();
@@ -47,21 +47,21 @@ const parentRef = ref<HTMLDivElement | null>(null);
 
 // 获取所有文件数据 - 使用 useFindAll 实现响应式订阅
 const { value: files } = toRefs(
-  useFindAll(FileNode, {
+  useFindAll(SortableFileNode, {
     where: { combinator: 'and', rules: [] },
     orderBy: [{ field: 'sortOrder', sort: 'asc' }]
   })
 );
 
-const history = computed(() => rxdb.versionManager.history(FileNode));
+const history = computed(() => rxdb.versionManager.history(SortableFileNode));
 const histories = useObservable(history.value.histories$, { initialValue: [] });
 const undoCount = useObservable(history.value.undoCount$, { initialValue: 0 });
 const redoCount = useObservable(history.value.redoCount$, { initialValue: 0 });
 
-const store = useFileManagerStore(files);
+const store = useFileManagerStore(files, rxdb);
 
 // Drag and drop
-const dragDrop = useDragDrop<FileNode>(files, {
+const dragDrop = useDragDrop<SortableFileNode>(files, {
   isFolder: node => node.type === 'folder'
 });
 
@@ -112,18 +112,10 @@ const handleDeleteAll = async () => {
 const handleAddMany = async (count: number, actionKey: string) => {
   loadingActions.value.add(actionKey);
   try {
-    const existingRoots = files.value.filter(f => !f.parentId);
-    const newFiles = generateBatchFiles(count, FileNode, existingRoots);
-    await rxdb.entityManager.saveMany(newFiles);
+    await store.addManyFiles(count);
   } finally {
     loadingActions.value.delete(actionKey);
   }
-};
-
-// 保存编辑
-const handleSave = async (file: FileNode) => {
-  await file.save();
-  store.cancelEdit();
 };
 
 // 添加文件/文件夹
@@ -164,7 +156,7 @@ const handleDragStart = (e: DragEvent, fileId: string) => {
   dragDrop.onDragStart(fileId);
 };
 
-const handleDragOver = (e: DragEvent, file: FileNode) => {
+const handleDragOver = (e: DragEvent, file: SortableFileNode) => {
   e.preventDefault();
   const element = e.currentTarget as HTMLElement;
   const rect = element.getBoundingClientRect();
@@ -182,7 +174,7 @@ const handleDragLeave = (e: DragEvent) => {
   }
 };
 
-const handleDrop = async (e: DragEvent, file: FileNode) => {
+const handleDrop = async (e: DragEvent, file: SortableFileNode) => {
   e.preventDefault();
   e.stopPropagation();
   try {
@@ -511,6 +503,12 @@ const getIconComponent = (iconName: string) => {
         </div>
       </div>
 
+      <TreeWriteError
+        class="mx-auto mt-4 w-full max-w-4xl"
+        :message="store.writeError.value"
+        @close="store.clearWriteError"
+      />
+
       <!-- Path Conflict Warning -->
       <div
         class="alert alert-warning mx-auto max-w-4xl"
@@ -663,8 +661,8 @@ const getIconComponent = (iconName: string) => {
                   class="input input-bordered input-sm flex-1"
                   v-if="store.editingId.value === node.file.id"
                   v-model="node.file.name"
-                  @blur="handleSave(node.file)"
-                  @keydown.enter="handleSave(node.file)"
+                  @blur="store.commitEdit(node.file)"
+                  @keydown.enter="store.commitEdit(node.file)"
                   @keydown.escape="store.cancelEdit()"
                   autoFocus
                   data-testid="file-edit-input"

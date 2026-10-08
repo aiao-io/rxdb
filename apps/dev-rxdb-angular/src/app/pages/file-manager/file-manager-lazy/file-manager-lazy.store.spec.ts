@@ -1,5 +1,5 @@
 import { RxDB } from '@aiao/rxdb';
-import { FileLarge } from '@aiao/rxdb-test/entities';
+import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { TestBed } from '@angular/core/testing';
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -8,9 +8,9 @@ import { FilePathValidatorService } from '../services/file-path-validator.servic
 import { FileSearchService } from '../services/file-search.service';
 import { FILE_ENTITY_CLASS, FILE_HISTORY, TreeFileLazyStore } from './file-manager-lazy.store';
 
-const roots = new BehaviorSubject<FileLarge[]>([]);
-const allFiles = new BehaviorSubject<FileLarge[]>([]);
-const childQueries = new Map<string, BehaviorSubject<FileLarge[]>>();
+const roots = new BehaviorSubject<SortableFileLarge[]>([]);
+const allFiles = new BehaviorSubject<SortableFileLarge[]>([]);
+const childQueries = new Map<string, BehaviorSubject<SortableFileLarge[]>>();
 let failingNodeId: string | null = null;
 
 interface QueryOptions {
@@ -18,18 +18,18 @@ interface QueryOptions {
 }
 
 class TestFileEntityClass {
-  static findAll = (options: object): Observable<FileLarge[]> => {
+  static findAll = (options: object): Observable<SortableFileLarge[]> => {
     const rules = (options as QueryOptions).where?.rules ?? [];
     return rules.length > 0 ? roots.asObservable() : allFiles.asObservable();
   };
 
-  static find = (options: object): Observable<FileLarge[]> => {
+  static find = (options: object): Observable<SortableFileLarge[]> => {
     const parentId = (options as QueryOptions).where?.rules?.find(rule => rule.field === 'parentId')?.value;
     if (parentId === failingNodeId) return throwError(() => new Error(`load ${String(parentId)} failed`));
     const key = String(parentId);
     let query = childQueries.get(key);
     if (!query) {
-      query = new BehaviorSubject<FileLarge[]>([]);
+      query = new BehaviorSubject<SortableFileLarge[]>([]);
       childQueries.set(key, query);
     }
     return query.asObservable();
@@ -42,7 +42,7 @@ const makeFile = (
   parentId: string | null = null,
   type: 'file' | 'folder' = 'folder',
   hasChildren = type === 'folder'
-): FileLarge =>
+): SortableFileLarge =>
   ({
     id,
     parentId,
@@ -51,13 +51,13 @@ const makeFile = (
     extension: type === 'file' ? '.txt' : null,
     sortOrder: 'a0',
     hasChildren,
-    save: vi.fn(async function (this: FileLarge) {
+    save: vi.fn(async function (this: SortableFileLarge) {
       return this;
     }),
-    remove: vi.fn(async function (this: FileLarge) {
+    remove: vi.fn(async function (this: SortableFileLarge) {
       return this;
     })
-  }) as unknown as FileLarge;
+  }) as unknown as SortableFileLarge;
 
 describe('TreeFileLazyStore.treeNodes', () => {
   beforeEach(() => {
@@ -82,7 +82,7 @@ describe('TreeFileLazyStore.treeNodes', () => {
   afterEach(() => TestBed.resetTestingModule());
 
   it('关键字无匹配时返回空树', () => {
-    const store = TestBed.inject(TreeFileLazyStore<typeof FileLarge>);
+    const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
 
     store.setSearchKeyword('zzz-绝不匹配');
 
@@ -90,7 +90,7 @@ describe('TreeFileLazyStore.treeNodes', () => {
   });
 
   it('关键字为空时返回已加载节点', () => {
-    const store = TestBed.inject(TreeFileLazyStore<typeof FileLarge>);
+    const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
 
     store.setSearchKeyword('');
 
@@ -105,7 +105,7 @@ describe('TreeFileLazyStore.treeNodes', () => {
     roots.next([file, root]);
     childQueries.set(root.id, new BehaviorSubject([child]));
     childQueries.set(child.id, new BehaviorSubject([grandchild]));
-    const store = TestBed.inject(TreeFileLazyStore<typeof FileLarge>);
+    const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
 
     store.toggleExpand(file);
     expect(store.expandedFileIds()).toEqual(new Set());
@@ -126,7 +126,7 @@ describe('TreeFileLazyStore.treeNodes', () => {
     const root = makeFile('root', '文档', null, 'folder', true);
     roots.next([root]);
     failingNodeId = root.id;
-    const store = TestBed.inject(TreeFileLazyStore<typeof FileLarge>);
+    const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
 
     store.expandNode(root.id);
     expect(store.nodeErrors().get(root.id)?.message).toBe('load root failed');
@@ -146,7 +146,7 @@ describe('TreeFileLazyStore.treeNodes', () => {
     const blank = makeFile('blank', '   ', null, 'file', false);
     roots.next([root]);
     allFiles.next([root, child, blank]);
-    const store = TestBed.inject(TreeFileLazyStore<typeof FileLarge>);
+    const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
 
     store.expandAll();
     expect(store.isFullMode()).toBe(true);
@@ -162,7 +162,7 @@ describe('TreeFileLazyStore.treeNodes', () => {
   it('批量添加重置旧订阅和展开状态，并重新订阅根节点', async () => {
     const root = makeFile('root', '根', null, 'folder', true);
     roots.next([root]);
-    const store = TestBed.inject(TreeFileLazyStore<typeof FileLarge>);
+    const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
     store.expandNode(root.id);
     store.expandedFileIds.set(new Set([root.id]));
 
@@ -179,10 +179,26 @@ describe('TreeFileLazyStore.treeNodes', () => {
     expect(store.visibleNodes()).toEqual([root]);
   });
 
+  it('批量添加的节点不带 sortOrder，不以已加载的根节点为锚点（排序键归引擎）', async () => {
+    const existingRoot = makeFile('root', '根', null, 'folder', true);
+    roots.next([existingRoot]);
+    const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
+
+    const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
+    await store.addBatch(20);
+    random.mockRestore();
+
+    const entityManager = (TestBed.inject(RxDB) as unknown as { entityManager: { saveMany: ReturnType<typeof vi.fn> } })
+      .entityManager;
+    const saved = entityManager.saveMany.mock.calls[0][0] as object[];
+    expect(saved).toHaveLength(20);
+    expect(saved.some(file => Object.hasOwn(file, 'sortOrder'))).toBe(false);
+  });
+
   it('搜索警告明确提示折叠节点仅搜索已加载数据', () => {
     const root = makeFile('root', '文档', null, 'folder', true);
     roots.next([root]);
-    const store = TestBed.inject(TreeFileLazyStore<typeof FileLarge>);
+    const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
 
     store.setSearchKeyword('发布');
 
@@ -194,10 +210,10 @@ describe('TreeFileLazyStore.treeNodes', () => {
 
   it('销毁时取消根和子订阅', () => {
     const root = makeFile('root', '根', null, 'folder', true);
-    const children$ = new BehaviorSubject<FileLarge[]>([makeFile('child', '子', root.id, 'file', false)]);
+    const children$ = new BehaviorSubject<SortableFileLarge[]>([makeFile('child', '子', root.id, 'file', false)]);
     roots.next([root]);
     childQueries.set(root.id, children$);
-    const store = TestBed.inject(TreeFileLazyStore<typeof FileLarge>);
+    const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
     store.expandNode(root.id);
 
     store.ngOnDestroy();

@@ -1,5 +1,5 @@
 import type { RxDB } from '@aiao/rxdb';
-import { MenuLarge, MenuSimple } from '@aiao/rxdb-test/entities';
+import { SortableMenuLarge, SortableMenuSimple } from '@aiao/rxdb-test/entities';
 import { of } from 'rxjs';
 import { describe, expect, it } from 'vitest';
 import { createApp, ref } from 'vue';
@@ -27,8 +27,9 @@ const menus: TestMenu[] = [
   { id: OTHER_ID, parentId: ROOT_ID, sortOrder: 'b', title: 'Other' }
 ];
 
-const asMenuSimple = (menu: TestMenu): MenuSimple => Object.assign({} as MenuSimple, menu);
-const asMenuLarge = (menu: TestMenu): MenuLarge => Object.assign({ hasChildren: false } as MenuLarge, menu);
+const asMenuSimple = (menu: TestMenu): SortableMenuSimple => Object.assign({} as SortableMenuSimple, menu);
+const asMenuLarge = (menu: TestMenu): SortableMenuLarge =>
+  Object.assign({ hasChildren: false } as SortableMenuLarge, menu);
 
 describe('tree menu contracts', () => {
   it('returns a match and every ancestor without unrelated branches', () => {
@@ -39,8 +40,8 @@ describe('tree menu contracts', () => {
   });
 
   it('keeps simple and virtual stores on the same search contract', () => {
-    const simple = useTreeMenuStore(ref(menus.map(asMenuSimple)));
-    const virtual = useTreeMenuVirtualStore(ref(menus.map(asMenuLarge)));
+    const simple = useTreeMenuStore(ref(menus.map(asMenuSimple)), {} as RxDB);
+    const virtual = useTreeMenuVirtualStore(ref(menus.map(asMenuLarge)), {} as RxDB);
 
     simple.setSearchKeyword('target');
     virtual.setSearchKeyword('target');

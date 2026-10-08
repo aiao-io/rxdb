@@ -18,6 +18,7 @@ import {
   viewChild
 } from '@angular/core';
 import { listen } from '../../../shared/event-listener';
+import { formatTreeWriteError, TreeWriteOperation } from '../../../shared/tree-write-error';
 import { FileTreeEntityConstructor, FileTreeInstance, TreeNode } from '../models/file-node.interface';
 import { getFileIcon } from '../models/file-types';
 import { SortMode } from './file-sorters';
@@ -45,7 +46,12 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
   readonly $new_file_extension = signal<string>('');
   readonly $edit_file_name = signal<string>('');
 
-  readonly add_many = useAction((count?: number) => this.store.addBatch(count ?? 100));
+  /** 写入失败的页内提示文案；`null` 表示没有错误。拖放不走这里。 */
+  readonly writeError = signal<string | null>(null);
+
+  readonly add_many = useAction(async (count?: number) => {
+    await this.runWrite('批量添加', () => this.store.addBatch(count ?? 100));
+  });
   readonly delete_all = useAction(() => this.store.deleteAllFiles());
 
   readonly batchAddOptions = [
@@ -174,13 +180,10 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
     const title = this.$new_file_name().trim();
     if (!title) return;
 
-    try {
+    await this.runWrite('新建', async () => {
       await this.store.createRootFolder(title);
       this.$new_file_name.set('');
-    } catch (error) {
-      console.error('Error adding root folder:', error);
-      alert('添加根文件夹失败');
-    }
+    });
   }
 
   selectFolder(folderId: string): void {
@@ -197,13 +200,10 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
     const title = this.$new_file_name().trim();
     if (!title) return;
 
-    try {
+    await this.runWrite('新建', async () => {
       await this.store.createSubFolder(title);
       this.$new_file_name.set('');
-    } catch (error) {
-      console.error('Error adding sub folder:', error);
-      alert('添加子文件夹失败');
-    }
+    });
   }
 
   async addFile(event: Event): Promise<void> {
@@ -212,14 +212,11 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
     const extension = this.$new_file_extension().trim();
     if (!name || !extension) return;
 
-    try {
+    await this.runWrite('新建', async () => {
       await this.store.createFile(name, extension, 0);
       this.$new_file_name.set('');
       // 保持扩展名和文件模式，方便连续添加同类型文件
-    } catch (error) {
-      console.error('Error adding file:', error);
-      alert('添加文件失败');
-    }
+    });
   }
 
   toggleAddingMode(): void {
@@ -243,12 +240,7 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
     const title = this.$edit_file_name().trim();
     if (!title) return;
 
-    try {
-      await this.store.saveEdit(title);
-    } catch (error) {
-      console.error('Error updating file/folder:', error);
-      alert('更新失败');
-    }
+    await this.runWrite('重命名', () => this.store.saveEdit(title));
   }
 
   cancelEdit(): void {
@@ -259,12 +251,7 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
   async deleteFile(event: Event, file: FileTreeInstance<C>): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
-    try {
-      await this.store.deleteFile(file);
-    } catch (error) {
-      console.error('Error deleting file:', error);
-      alert('删除失败');
-    }
+    await this.runWrite('删除', () => this.store.deleteFile(file));
   }
 
   cancelDelete(): void {
@@ -272,12 +259,14 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
   }
 
   async executeCascadeDelete(): Promise<void> {
-    try {
-      await this.store.executeCascadeDelete();
-    } catch (error) {
-      console.error('Error cascading delete:', error);
-      alert('删除失败');
-    }
+    const done = await this.runWrite('级联删除', () => this.store.executeCascadeDelete());
+    // 失败时关掉对话框，页内提示才不被模态层挡住
+    if (!done) this.store.cancelDelete();
+  }
+
+  /** 关闭写入失败的页内提示。 */
+  clearWriteError(): void {
+    this.writeError.set(null);
   }
 
   clearPathWarning(): void {
@@ -358,6 +347,22 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
       this.addSubFolder(event);
     } else {
       this.addRootFolder(event);
+    }
+  }
+  /**
+   * 执行一次写入：开始前清掉上一次的错误，失败时把文案写进 {@link writeError}。
+   * 失败后页面状态即库里已提交的状态，下一次操作照常可用。
+   *
+   * @returns 写入是否成功
+   */
+  private async runWrite(operation: TreeWriteOperation, write: () => Promise<unknown>): Promise<boolean> {
+    this.writeError.set(null);
+    try {
+      await write();
+      return true;
+    } catch (error) {
+      this.writeError.set(formatTreeWriteError(operation, error));
+      return false;
     }
   }
 }

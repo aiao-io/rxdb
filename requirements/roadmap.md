@@ -16,7 +16,7 @@
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **25** |
 
-仓库还剩 **25 条**未关闭故事（1 In Progress + 1 In Review + 23 Backlog + 0 Blocked）。
+仓库还剩 **25 条**未关闭故事（2 In Progress + 1 In Review + 22 Backlog + 0 Blocked）。
 
 > 口径与 [status-overview 状态汇总](status-overview.md#状态汇总) 一致：YAML `status` 字段 `grep` 推导。
 > rxdb-model 实体模型库与三框架 UI 组件集没有故事文件，三框架代码已随 #62 合入；剩下的跨框架对拍、三端对称复核与文档
@@ -36,7 +36,7 @@
 | [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)              | 🚧 In Progress | 阶段 A 已交付（宿主契约 + [可行性矩阵](stories/adapter/miniprogram-platform-feasibility.md)）；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 开发者工具走查已通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过，剩 Android 真机；百度 / QQ 已判 `unsupported`，剩拒绝路径与文档口径 | 批次 3   |
 | [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)  | 👀 In Review   | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；剩抖音、支付宝开发者工具手工走查；webpack5 不支持                                                                                                                                                                                                                                   | 批次 3   |
 | [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md) | 📝 Backlog     | 未立项；**价值待证**（评审 `git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`：已去掉多租户，仍无具名使用方）。前置 US-027 与 US-218 均已 Done                                                                                                                                                                                                                                                                                                                             | 立项池   |
-| [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md)             | 📝 Backlog     | 未开工。三端 demo 的树改用新建的可排序树实体（旧的四个树实体不改），阶段 A 新实体与创建类写入（新建 / 批量添加 / 删除提升子节点），阶段 B 拖放与显示顺序；前置 US-028 已 Done                                                                                                                                                                                                                                                                                                                      | 批次 3   |
+| [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md)             | 🚧 In Progress | 阶段 A 已完成（未合入）：可排序树实体，三端新建 / 批量添加 / 删除提升交给 core 追加，页内写入错误提示，core 批内追加优化；剩阶段 B：拖放改走 `reorder()`、显示顺序取自查询、删除比较器与重编号；前置 US-028 已 Done                                                                                                                                                                                                                                                                                | 批次 3   |
 | [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md)  | 📝 Backlog     | 未立项（立项评审已回写，待 owner 定批次）；A1（语义事实源 + 漂移门禁 + 可运行样例）无硬前置、可单独合并，A2（`@aiao/*` peer 统一，`BREAKING CHANGE`；桥接区间已冻结，合入时点不再受约束 12 牵制）单独关闭，B/C 只吃 A1                                                                                                                                                                                                                                                                             | 立项池   |
 
 ## 即办清单
@@ -199,7 +199,11 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
     引用了 `getEntityPermission` 等符号，而它钉死依赖的 `@aiao/rxdb@0.0.26` 里没有这些导出，显式安装 `0.0.26` 就会坏。
     处置：owner 决定稍后处理（`npm deprecate`，或随下次发版覆盖）。
 
-第 5～7 条是线 A 执行时发现的后续项，第 10～13 条是 US-218 登记的范围外后续项（tasks T088），第 14 条是 next-11 误发的包。第 2～4 条的原任务清单见 `git show 41ce2181:specs/002-rxdb-model-port/tasks.md`（T049～T051）。
+15. **Angular demo 菜单页的两份死代码**：`apps/dev-rxdb-angular/src/app/pages/menu/utils/tree-menu.basic.ts`（`TreeMenuBasic`）与
+    `menu/models/menu-operation.types.ts` 无人引用，后者仍导入旧实体 `MenuSimple` / `MenuLarge`。US-031 阶段 A 盘点写入口时发现，按范围未删；
+    删除前用 `grep -rn "TreeMenuBasic\|menu-operation.types" apps/dev-rxdb-angular/src` 复核仍无引用。
+
+第 5～7 条是线 A 执行时发现的后续项，第 10～13 条是 US-218 登记的范围外后续项（tasks T088），第 14 条是 next-11 误发的包，第 15 条是 US-031 阶段 A 盘点时发现的死代码。第 2～4 条的原任务清单见 `git show 41ce2181:specs/002-rxdb-model-port/tasks.md`（T049～T051）。
 
 ## 排期约束
 

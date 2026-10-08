@@ -1,35 +1,49 @@
-import { MenuSimple } from '@aiao/rxdb-test/entities';
-import { generateKeyBetween } from '@aiao/utils';
+import type { RxDB, RxDBEntityId } from '@aiao/rxdb';
+import { SortableMenuSimple } from '@aiao/rxdb-test/entities';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getErrorMessage } from '../utils/error';
+import { firstValueFrom } from 'rxjs';
+import { promoteChildrenAndRemove } from '../utils/promote-children';
 import { compareSortOrder } from '../utils/sort-order';
-import { collectSubtreePostOrder } from '../utils/tree-scope';
+import { byParent, collectSubtreePostOrder } from '../utils/tree-scope';
 import { MenuPathConflict, useMenuPathValidator } from './useMenuPathValidator';
+import { useTreeWriteError } from './useTreeWriteError';
 
 export interface TreeNode {
-  menu: MenuSimple;
+  menu: SortableMenuSimple;
   level: number;
   isExpanded: boolean;
   hasChildren: boolean;
 }
 
 /** 有子节点的菜单 id 集合。 */
-const collectParentIds = (menus: MenuSimple[]): Set<string> =>
+const collectParentIds = (menus: SortableMenuSimple[]): Set<string> =>
   new Set(menus.filter(menu => menus.some(child => child.parentId === menu.id)).map(menu => menu.id));
 
-export function useTreeMenuStore(menus: MenuSimple[]) {
+/** 库里某节点的直接子节点是否存在。删除对话框的取舍以库为准，不看页面已加载的节点。 */
+const hasChildrenInDb = async (parentId: RxDBEntityId): Promise<boolean> => {
+  const rows = await firstValueFrom(SortableMenuSimple.find({ where: byParent(parentId), limit: 1 }));
+  return rows.length > 0;
+};
+
+/** 库里某节点的全部直接子节点（保持原有相对顺序）。 */
+const fetchChildrenInDb = (parentId: RxDBEntityId): Promise<SortableMenuSimple[]> =>
+  firstValueFrom(
+    SortableMenuSimple.findAll({ where: byParent(parentId), orderBy: [{ field: 'sortOrder', sort: 'asc' }] })
+  );
+
+export function useTreeMenuStore(menus: SortableMenuSimple[], rxdb: RxDB) {
   // P1-2：**不能用 useState 初始化器展开父节点**。
   // 数据来自 `useFindAll` 的异步订阅，首渲染 `menus` 恒为 `[]`，初始化器算出来永远是空集，
   // 真正的数据到达时已经没有第二次机会 —— 整棵树默认全折叠，和"初始化时展开所有父节点"的注释相反。
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   // 已自动展开过的 id。只展开"第一次见到"的父节点，用户随后折叠的不会被下一次数据更新顶回去。
   const autoExpandedIdsRef = useRef<Set<string>>(new Set());
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const { writeError, clearWriteError, runWrite } = useTreeWriteError();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [pathConflict, setPathConflict] = useState<MenuPathConflict | null>(null);
-  const [menuToDelete, setMenuToDelete] = useState<MenuSimple | null>(null);
+  const [menuToDelete, setMenuToDelete] = useState<SortableMenuSimple | null>(null);
 
   const pathValidator = useMenuPathValidator();
 
@@ -44,7 +58,7 @@ export function useTreeMenuStore(menus: MenuSimple[]) {
   // 构建树节点列表
   const treeNodes = useMemo<TreeNode[]>(() => {
     const nodes: TreeNode[] = [];
-    const childrenMap = new Map<string | null, MenuSimple[]>();
+    const childrenMap = new Map<string | null, SortableMenuSimple[]>();
 
     // 构建 children 映射
     menus.forEach(menu => {
@@ -128,7 +142,7 @@ export function useTreeMenuStore(menus: MenuSimple[]) {
   }, []);
 
   const addChild = useCallback(
-    async (parentMenu: MenuSimple, title: string) => {
+    async (parentMenu: SortableMenuSimple, title: string) => {
       // 检查路径冲突
       const conflict = pathValidator.checkConflict(title, parentMenu.id, menus);
       if (conflict) {
@@ -136,29 +150,13 @@ export function useTreeMenuStore(menus: MenuSimple[]) {
         return;
       }
 
-      const siblings = menus.filter(m => m.parentId === parentMenu.id);
-      siblings.sort((a, b) => {
-        const orderA = a.sortOrder || '';
-        const orderB = b.sortOrder || '';
-        if (orderA < orderB) return -1;
-        if (orderA > orderB) return 1;
-        return 0;
-      });
-      const lastSibling = siblings[siblings.length - 1];
-      const lastSortOrder = lastSibling ? lastSibling.sortOrder : null;
-      const newSortOrder = generateKeyBetween(lastSortOrder, null);
-
-      const newMenu = new MenuSimple({
-        title,
-        parentId: parentMenu.id,
-        sortOrder: newSortOrder
-      });
-
-      await newMenu.save();
+      // 只赋业务字段与 parentId：排序键由引擎在保存事务里追加到该父节点组的末尾
+      const result = await runWrite('新建', () => new SortableMenuSimple({ title, parentId: parentMenu.id }).save());
+      if (!result.ok) return;
       setExpandedIds(prev => new Set(prev).add(parentMenu.id));
       setPathConflict(null);
     },
-    [menus, pathValidator]
+    [menus, pathValidator, runWrite]
   );
 
   const addRoot = useCallback(
@@ -170,51 +168,26 @@ export function useTreeMenuStore(menus: MenuSimple[]) {
         return;
       }
 
-      const rootMenus = menus.filter(m => m.parentId === null);
-      // Sort by sortOrder string to find the last one
-      rootMenus.sort((a, b) => {
-        const orderA = a.sortOrder || '';
-        const orderB = b.sortOrder || '';
-        if (orderA < orderB) return -1;
-        if (orderA > orderB) return 1;
-        return 0;
-      });
-      const lastMenu = rootMenus[rootMenus.length - 1];
-      const lastSortOrder = lastMenu ? lastMenu.sortOrder : null;
-      const newSortOrder = generateKeyBetween(lastSortOrder, null);
-
-      const newMenu = new MenuSimple({
-        title,
-        parentId: null,
-        sortOrder: newSortOrder
-      });
-
-      await newMenu.save();
-      setPathConflict(null);
+      const result = await runWrite('新建', () => new SortableMenuSimple({ title, parentId: null }).save());
+      if (result.ok) setPathConflict(null);
     },
-    [menus, pathValidator]
+    [menus, pathValidator, runWrite]
   );
 
   // REACT-FRESH-01：叶子删除原先是 `void menu.remove()` —— 既不等待也不处理 rejection。
-  // 删除失败时调用方（页面按钮）早已返回，用户看到行还在、没有任何提示，且产生未处理 rejection。
-  // 而紧邻的级联删除路径是逐条 `await`：同一个"删除"动作有两套错误传播契约。
-  // 这里统一成 async，错误落进 `deleteError`，由页面渲染。
+  // 这里统一成 async，失败落进 `writeError`，由页面渲染；是否有子节点以库里的直接子节点为准。
   const deleteMenu = useCallback(
-    async (menu: MenuSimple): Promise<void> => {
-      const hasChildren = menus.some(m => m.parentId === menu.id);
-      if (hasChildren) {
-        // 有子节点，显示对话框
-        setMenuToDelete(menu);
-        return;
-      }
-      setDeleteError(null);
-      try {
+    async (menu: SortableMenuSimple): Promise<void> => {
+      await runWrite('删除', async () => {
+        if (await hasChildrenInDb(menu.id)) {
+          // 有子节点，显示对话框
+          setMenuToDelete(menu);
+          return;
+        }
         await menu.remove();
-      } catch (error: unknown) {
-        setDeleteError(getErrorMessage(error, '删除菜单失败'));
-      }
+      });
     },
-    [menus]
+    [runWrite]
   );
 
   const cancelDelete = useCallback(() => {
@@ -226,49 +199,28 @@ export function useTreeMenuStore(menus: MenuSimple[]) {
 
     const menusToRemove = collectSubtreePostOrder(menuToDelete, menus);
 
-    setDeleteError(null);
-    try {
+    // 这两个 execute* 是直接挂在 onClick 上的 async 函数，rejection 无人接管：和叶子路径共用同一个错误出口。
+    await runWrite('级联删除', async () => {
       for (const menu of menusToRemove) {
         await menu.remove();
       }
-    } catch (error: unknown) {
-      // 这两个 execute* 是直接挂在 onClick 上的 async 函数，rejection 无人接管。
-      // 和叶子路径共用同一个错误出口。
-      setDeleteError(getErrorMessage(error, '级联删除失败'));
-      return;
-    }
-
+    });
+    // 成败都关闭对话框：失败时页内提示不被模态框挡住（三端同一行为）
     setMenuToDelete(null);
-  }, [menuToDelete, menus]);
+  }, [menuToDelete, menus, runWrite]);
 
   const executePromoteChildrenDelete = useCallback(async () => {
-    if (!menuToDelete) return;
+    const selected = menuToDelete;
+    if (!selected) return;
 
-    // 删除父节点，子节点提升
-    const children = menus.filter(m => m.parentId === menuToDelete.id);
-    const newParentId = menuToDelete.parentId;
-
-    setDeleteError(null);
-    try {
-      // 更新子节点的 parentId
-      for (const child of children) {
-        child.parentId = newParentId;
-        await child.save();
-      }
-
-      // 删除当前节点
-      await menuToDelete.remove();
-    } catch (error: unknown) {
-      setDeleteError(getErrorMessage(error, '删除菜单失败'));
-      return;
-    }
-
+    // 子节点取自库（页面可能没加载全），与被删节点同一事务提交
+    await runWrite('删除并提升子节点', async () => {
+      const children = await fetchChildrenInDb(selected.id);
+      await promoteChildrenAndRemove(rxdb, selected, children);
+    });
+    // 成败都关闭对话框：失败时页内提示不被模态框挡住（三端同一行为）
     setMenuToDelete(null);
-  }, [menuToDelete, menus]);
-
-  const clearDeleteError = useCallback(() => {
-    setDeleteError(null);
-  }, []);
+  }, [menuToDelete, rxdb, runWrite]);
 
   const clearPathConflict = useCallback(() => {
     setPathConflict(null);
@@ -308,7 +260,8 @@ export function useTreeMenuStore(menus: MenuSimple[]) {
     isAllExpanded,
     menuToDelete,
     deleteImpact,
-    deleteError,
+    writeError,
+    runWrite,
     setSearchKeyword,
     toggleExpand,
     expandAll,
@@ -323,6 +276,6 @@ export function useTreeMenuStore(menus: MenuSimple[]) {
     executePromoteChildrenDelete,
     setSelectedParentId,
     clearPathConflict,
-    clearDeleteError
+    clearWriteError
   };
 }

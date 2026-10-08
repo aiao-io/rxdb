@@ -1,18 +1,18 @@
 import { RxDB, UUID, type RxDBEntityId } from '@aiao/rxdb';
-import { FileLarge } from '@aiao/rxdb-test/entities';
-import { generateKeyBetween } from '@aiao/utils';
+import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { getSortComparator, loadStoredSortMode, persistSortMode, SortMode } from '../utils/file-sorters';
 import { generateBatchFiles } from '../utils/file-utils';
 import { compareSortOrder } from '../utils/sort-order';
 import { formatErrorMessage, useToast } from './useToast';
+import { useTreeWriteError } from './useTreeWriteError';
 
-const fetchAllFiles = (): Promise<FileLarge[]> =>
-  firstValueFrom(FileLarge.findAll({ where: { combinator: 'and', rules: [] } }));
+const fetchAllFiles = (): Promise<SortableFileLarge[]> =>
+  firstValueFrom(SortableFileLarge.findAll({ where: { combinator: 'and', rules: [] } }));
 
 export interface FileLazyNode {
-  file: FileLarge;
+  file: SortableFileLarge;
   level: number;
   isExpanded: boolean;
   hasChildren: boolean;
@@ -26,7 +26,7 @@ export interface DeleteImpact {
 }
 
 export function useFileManagerLazyStore(rxdb: RxDB) {
-  const nodesMap = ref<Map<RxDBEntityId, FileLarge>>(new Map());
+  const nodesMap = ref<Map<RxDBEntityId, SortableFileLarge>>(new Map());
   const expandedIds = ref<Set<RxDBEntityId>>(new Set());
   const loadingIds = ref<Set<RxDBEntityId>>(new Set());
   const rootIds = ref<RxDBEntityId[]>([]);
@@ -34,22 +34,23 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
   const editingId = ref<RxDBEntityId | null>(null);
   const searchKeyword = ref('');
   const selectedFolderId = ref<RxDBEntityId | null>(null);
-  const fileToDelete = ref<FileLarge | null>(null);
+  const fileToDelete = ref<SortableFileLarge | null>(null);
   const isAddingFile = ref(false);
   const sortMode = ref<SortMode>(loadStoredSortMode(Object.values(SortMode) as readonly SortMode[], SortMode.Manual));
   const isFullMode = ref(false);
+  const { writeError, clearWriteError, guardWrite } = useTreeWriteError();
 
   // 存储活跃的订阅，用于清理
   const subscriptions = new Map<RxDBEntityId | string, { unsubscribe: () => void }>();
 
   const subscribeToRoot = () => {
     // 2. Subscribe to ROOT
-    const rootQuery$ = FileLarge.findAll({
+    const rootQuery$ = SortableFileLarge.findAll({
       where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: null }] },
       orderBy: [{ field: 'sortOrder', sort: 'asc' }]
     });
     const subscription = rootQuery$.subscribe({
-      next: (roots: FileLarge[]) => {
+      next: (roots: SortableFileLarge[]) => {
         const newMap = new Map(nodesMap.value);
         // 更新或添加根节点（过滤空名称）
         roots.forEach(root => {
@@ -240,7 +241,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
       loadingIds.value = new Set(loadingIds.value);
 
       // 创建响应式订阅
-      const childQuery$ = FileLarge.findAll({
+      const childQuery$ = SortableFileLarge.findAll({
         where: {
           combinator: 'and',
           rules: [{ field: 'parentId', operator: '=', value: id as UUID }]
@@ -249,7 +250,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
       });
 
       const subscription = childQuery$.subscribe({
-        next: (children: FileLarge[]) => {
+        next: (children: SortableFileLarge[]) => {
           // 过滤掉无效的空名称记录
           const validChildren = children.filter(child => child.name && child.name.trim());
 
@@ -297,19 +298,18 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     editingId.value = null;
   };
 
+  // 批量添加：整批一次 saveMany，生成器不写 sortOrder，也不取根节点作锚点
   const addManyFiles = async (count: number) => {
     // 1. Unsubscribe everything
     subscriptions.forEach(sub => sub.unsubscribe());
     subscriptions.clear();
 
     // 2. Generate and save files
-    const existingRoots = rootIds.value
-      .map(id => nodesMap.value.get(id))
-      .filter((file): file is FileLarge => file !== undefined);
-    const newFiles = generateBatchFiles(count, FileLarge, existingRoots);
-    await rxdb.entityManager.saveMany(newFiles);
+    const saved = await guardWrite('批量添加', () =>
+      rxdb.entityManager.saveMany(generateBatchFiles(count, SortableFileLarge))
+    );
 
-    // 3. Reset state and resubscribe
+    // 3. Reset state and resubscribe（失败时也重订阅，页面回到库里已提交的状态）
     expandedIds.value = new Set();
     childrenMap.value = new Map();
     loadingIds.value = new Set();
@@ -321,6 +321,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     } else {
       subscribeToRoot();
     }
+    return saved;
   };
 
   const expandAll = () => {
@@ -331,7 +332,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     subscriptions.clear();
 
     // 2. Subscribe to ALL
-    const allQuery$ = FileLarge.findAll({
+    const allQuery$ = SortableFileLarge.findAll({
       where: {
         combinator: 'and',
         rules: []
@@ -340,8 +341,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     });
 
     const subscription = allQuery$.subscribe({
-      next: (allFiles: FileLarge[]) => {
-        const newNodesMap = new Map<RxDBEntityId, FileLarge>();
+      next: (allFiles: SortableFileLarge[]) => {
+        const newNodesMap = new Map<RxDBEntityId, SortableFileLarge>();
         const newChildrenMap = new Map<RxDBEntityId, RxDBEntityId[]>();
         const newRootIds: RxDBEntityId[] = [];
         const newExpandedIds = new Set<RxDBEntityId>();
@@ -443,7 +444,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     persistSortMode(mode);
   };
 
-  const showDeleteDialog = (file: FileLarge) => {
+  const showDeleteDialog = (file: SortableFileLarge) => {
     fileToDelete.value = file;
   };
 
@@ -455,22 +456,26 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     const selected = fileToDelete.value;
     if (!selected) return;
 
-    const allFiles = await fetchAllFiles();
-    const childrenByParent = new Map<RxDBEntityId, FileLarge[]>();
-    for (const file of allFiles) {
-      if (!file.parentId) continue;
-      const children = childrenByParent.get(file.parentId) ?? [];
-      children.push(file);
-      childrenByParent.set(file.parentId, children);
-    }
+    // 文件夹的后代可能还没加载，按类型而不是已加载子节点数判断
+    const operation = selected.type === 'folder' ? '级联删除' : '删除';
+    await guardWrite(operation, async () => {
+      const allFiles = await fetchAllFiles();
+      const childrenByParent = new Map<RxDBEntityId, SortableFileLarge[]>();
+      for (const file of allFiles) {
+        if (!file.parentId) continue;
+        const children = childrenByParent.get(file.parentId) ?? [];
+        children.push(file);
+        childrenByParent.set(file.parentId, children);
+      }
 
-    const filesToRemove: FileLarge[] = [];
-    const collect = (file: FileLarge): void => {
-      for (const child of childrenByParent.get(file.id) ?? []) collect(child);
-      filesToRemove.push(file);
-    };
-    collect(selected);
-    await rxdb.entityManager.removeMany(filesToRemove);
+      const filesToRemove: SortableFileLarge[] = [];
+      const collect = (file: SortableFileLarge): void => {
+        for (const child of childrenByParent.get(file.id) ?? []) collect(child);
+        filesToRemove.push(file);
+      };
+      collect(selected);
+      await rxdb.entityManager.removeMany(filesToRemove);
+    });
     fileToDelete.value = null;
   };
 
@@ -478,19 +483,16 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     searchKeyword.value = '';
   };
 
+  // 不给 sortOrder：引擎把缺键的新节点追加到所属 parentId 组末尾（文件与文件夹同属一组）
   const addRoot = async (name: string, type: 'file' | 'folder', extension?: string) => {
-    const lastRootId = rootIds.value[rootIds.value.length - 1];
-    const lastRoot = lastRootId ? nodesMap.value.get(lastRootId) : null;
-    const sortOrder = generateKeyBetween(lastRoot?.sortOrder || null, null);
-
-    const file = new FileLarge({
+    const file = new SortableFileLarge({
       name,
       type,
-      sortOrder,
       extension: type === 'file' ? extension?.replace(/^\./, '') || name.split('.').pop() : undefined,
       size: type === 'file' ? Math.floor(Math.random() * 10000) : undefined
     });
-    await rxdb.entityManager.save(file);
+    const saved = await guardWrite('新建', () => rxdb.entityManager.save(file));
+    if (!saved) return;
 
     // Update local state
     const newNodesMap = new Map(nodesMap.value);
@@ -499,24 +501,16 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     rootIds.value = [...rootIds.value, file.id];
   };
 
-  const addChild = async (parent: FileLarge, name: string, type: 'file' | 'folder', extension?: string) => {
-    const siblings = await firstValueFrom(
-      FileLarge.findAll({
-        where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: parent.id as UUID }] },
-        orderBy: [{ field: 'sortOrder', sort: 'asc' }]
-      })
-    );
-    const sortOrder = generateKeyBetween(siblings.at(-1)?.sortOrder ?? null, null);
-
-    const file = new FileLarge({
+  const addChild = async (parent: SortableFileLarge, name: string, type: 'file' | 'folder', extension?: string) => {
+    const file = new SortableFileLarge({
       name,
       type,
-      sortOrder,
       extension: type === 'file' ? extension?.replace(/^\./, '') || name.split('.').pop() : undefined,
       size: type === 'file' ? Math.floor(Math.random() * 10000) : undefined
     });
     file.parentId = parent.id;
-    await rxdb.entityManager.save(file);
+    const saved = await guardWrite('新建', () => rxdb.entityManager.save(file));
+    if (!saved) return;
 
     // Update local state
     const newNodesMap = new Map(nodesMap.value);
@@ -535,8 +529,16 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     }
   };
 
-  const deleteFile = async (file: FileLarge) => {
-    await file.remove();
+  // 保存重命名；失败时回退到库里已提交的名称并给出页内提示
+  const commitEdit = async (file: SortableFileLarge) => {
+    const saved = await guardWrite('重命名', () => file.save());
+    if (!saved) file.reset();
+    cancelEdit();
+  };
+
+  const deleteFile = async (file: SortableFileLarge) => {
+    const removed = await guardWrite('删除', () => file.remove());
+    if (!removed) return;
 
     // Update local state
     const newNodesMap = new Map(nodesMap.value);
@@ -565,7 +567,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
   /**
    * 已加载到 store 内的节点快照。供拖放校验、循环嵌套检测使用，避免 page 端再开一份全表订阅。
    */
-  const loadedNodes = computed<FileLarge[]>(() => Array.from(nodesMap.value.values()));
+  const loadedNodes = computed<SortableFileLarge[]>(() => Array.from(nodesMap.value.values()));
 
   return {
     treeNodes,
@@ -589,6 +591,9 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     cancelEdit,
     addRoot,
     addChild,
+    commitEdit,
+    writeError,
+    clearWriteError,
     deleteFile,
     selectFolder,
     cancelSelectFolder,

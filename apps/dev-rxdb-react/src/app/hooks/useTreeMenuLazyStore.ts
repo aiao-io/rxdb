@@ -1,27 +1,22 @@
 import { RxDB, type RxDBEntityId, UUID } from '@aiao/rxdb';
-import { MenuLarge } from '@aiao/rxdb-test/entities';
-import { generateKeyBetween } from '@aiao/utils';
+import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { firstValueFrom, type Observable } from 'rxjs';
-import { getErrorMessage } from '../utils/error';
 import { generateBatchMenus } from '../utils/menu-utils';
-import { collectSubtreePostOrder } from '../utils/tree-scope';
+import { promoteChildrenAndRemove } from '../utils/promote-children';
+import { byParent, collectSubtreePostOrder } from '../utils/tree-scope';
+import { useTreeWriteError } from './useTreeWriteError';
 
 /** 批量删除的单批条数 —— 一次性把整表读进内存正是 P0-1 要消灭的东西。 */
 const DELETE_BATCH_SIZE = 200;
 
-const byParent = (parentId: RxDBEntityId | null) => ({
-  combinator: 'and' as const,
-  rules: [{ field: 'parentId' as const, operator: '=' as const, value: parentId as UUID | null }]
-});
-
 export interface TreeMenuLazySource {
-  findRoots: () => Observable<MenuLarge[]>;
+  findRoots: () => Observable<SortableMenuLarge[]>;
 }
 
 export const menuLargeTreeSource: TreeMenuLazySource = {
   findRoots: () =>
-    MenuLarge.findAll({
+    SortableMenuLarge.findAll({
       where: byParent(null),
       orderBy: [{ field: 'sortOrder', sort: 'asc' }]
     })
@@ -33,28 +28,16 @@ export const menuLargeTreeSource: TreeMenuLazySource = {
  * 模块级导出而非挂在 store 返回值上：页面要把它当 `useDragDrop` 的 `resolveSiblings`，
  * 而 store 返回的是每次 render 都换新的对象字面量，经它取会把整条 useCallback 链打脏（P2-7）。
  */
-export const fetchMenuChildren = (parentId: RxDBEntityId | null): Promise<MenuLarge[]> =>
+export const fetchMenuChildren = (parentId: RxDBEntityId | null): Promise<SortableMenuLarge[]> =>
   firstValueFrom(
-    MenuLarge.findAll({
+    SortableMenuLarge.findAll({
       where: byParent(parentId),
       orderBy: [{ field: 'sortOrder', sort: 'asc' }]
     })
   );
 
-/** 取某个父节点下 sortOrder 最大的那一个 —— 新增节点只需要它，不需要整个同级列表。 */
-const fetchLastSibling = async (parentId: RxDBEntityId | null): Promise<MenuLarge | null> => {
-  const rows = await firstValueFrom(
-    MenuLarge.find({
-      where: byParent(parentId),
-      orderBy: [{ field: 'sortOrder', sort: 'desc' }],
-      limit: 1
-    })
-  );
-  return rows[0] ?? null;
-};
-
 export interface TreeMenuLazyNode {
-  menu: MenuLarge;
+  menu: SortableMenuLarge;
   level: number;
   isExpanded: boolean;
   hasChildren: boolean;
@@ -62,7 +45,7 @@ export interface TreeMenuLazyNode {
 }
 
 export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
-  const [nodesMap, setNodesMap] = useState<Map<string, MenuLarge>>(new Map());
+  const [nodesMap, setNodesMap] = useState<Map<string, SortableMenuLarge>>(new Map());
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [rootIds, setRootIds] = useState<string[]>([]);
@@ -70,8 +53,10 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [menuToDelete, setMenuToDelete] = useState<MenuLarge | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [menuToDelete, setMenuToDelete] = useState<SortableMenuLarge | null>(null);
+  // 打开删除对话框时从库里读到的直接子节点数。折叠节点的子节点没加载，childrenMap 里没有它们。
+  const [deleteChildrenCount, setDeleteChildrenCount] = useState(0);
+  const { writeError, clearWriteError, runWrite } = useTreeWriteError();
 
   // 存储活跃的订阅，用于清理
   const subscriptionsRef = useRef<Map<string, { unsubscribe: () => void }>>(new Map());
@@ -80,7 +65,7 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
     const rootQuery$ = source.findRoots();
 
     const subscription = rootQuery$.subscribe({
-      next: (roots: MenuLarge[]) => {
+      next: (roots: SortableMenuLarge[]) => {
         setNodesMap(prev => {
           const newMap = new Map(prev);
           // 更新或添加根节点
@@ -155,6 +140,119 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
     return result;
   }, [nodesMap, expandedIds, loadingIds, rootIds, childrenMap]);
 
+  /** 折叠：清理该节点及子孙的订阅与数据。 */
+  const collapseNode = (id: string) => {
+    // 折叠：清理订阅和数据
+    const currentSubscriptions = subscriptionsRef.current;
+    const subscription = currentSubscriptions.get(id);
+    if (subscription) {
+      subscription.unsubscribe();
+      currentSubscriptions.delete(id);
+    }
+
+    const newExpanded = new Set(expandedIds);
+    newExpanded.delete(id);
+    setExpandedIds(newExpanded);
+
+    // 递归清理所有子孙节点的数据
+    const cleanupDescendants = (parentId: string) => {
+      const childIds = childrenMap.get(parentId) || [];
+      childIds.forEach(childId => {
+        // 递归清理孙节点
+        cleanupDescendants(childId);
+        // 清理该子节点的订阅
+        const childSub = currentSubscriptions.get(childId);
+        if (childSub) {
+          childSub.unsubscribe();
+          currentSubscriptions.delete(childId);
+        }
+      });
+    };
+
+    cleanupDescendants(id);
+
+    // 清理 childrenMap 数据
+    setChildrenMap(prev => {
+      const newMap = new Map(prev);
+      const removeChildren = (parentId: string) => {
+        const childIds = newMap.get(parentId) || [];
+        childIds.forEach(childId => {
+          removeChildren(childId);
+        });
+        newMap.delete(parentId);
+      };
+      removeChildren(id);
+      return newMap;
+    });
+
+    // 清理 nodesMap 中的子节点数据
+    setNodesMap(prev => {
+      const newMap = new Map(prev);
+      const removeNodes = (parentId: string) => {
+        const childIds = childrenMap.get(parentId) || [];
+        childIds.forEach(childId => {
+          removeNodes(childId);
+          newMap.delete(childId);
+        });
+      };
+      removeNodes(id);
+      return newMap;
+    });
+  };
+
+  /** 展开：为该节点创建子节点的响应式订阅（库里已有的子节点按 sortOrder 升序全部载入）。 */
+  const expandNode = (id: string) => {
+    // 展开：创建订阅
+    const newExpanded = new Set(expandedIds);
+    newExpanded.add(id);
+    setExpandedIds(newExpanded);
+
+    // 开始加载
+    setLoadingIds(prev => new Set(prev).add(id));
+
+    // 创建响应式订阅
+    const childQuery$ = SortableMenuLarge.findAll({
+      where: {
+        combinator: 'and',
+        rules: [{ field: 'parentId', operator: '=', value: id as UUID }]
+      },
+      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+    });
+
+    const subscription = childQuery$.subscribe({
+      next: (children: SortableMenuLarge[]) => {
+        setNodesMap(prev => {
+          const newMap = new Map(prev);
+          children.forEach(child => {
+            newMap.set(child.id, child);
+          });
+          return newMap;
+        });
+
+        const childIds = children.map(c => c.id);
+        setChildrenMap(prev => new Map(prev).set(id, childIds));
+
+        // 停止加载状态
+        setLoadingIds(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      },
+      error: (error: unknown) => {
+        console.error(`[useTreeMenuLazyStore] Failed to load children for ${id}:`, error);
+        setLoadingIds(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+    });
+
+    const currentSubscriptions = subscriptionsRef.current;
+    currentSubscriptions.set(id, subscription);
+  };
+
   const toggleExpand = async (id: string) => {
     const menu = nodesMap.get(id);
     if (!menu) return;
@@ -163,197 +261,79 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
     const hasChildren = menu.hasChildren ?? false;
     if (!hasChildren) return;
 
-    if (expandedIds.has(id)) {
-      // 折叠：清理订阅和数据
-      const currentSubscriptions = subscriptionsRef.current;
-      const subscription = currentSubscriptions.get(id);
-      if (subscription) {
-        subscription.unsubscribe();
-        currentSubscriptions.delete(id);
-      }
-
-      const newExpanded = new Set(expandedIds);
-      newExpanded.delete(id);
-      setExpandedIds(newExpanded);
-
-      // 递归清理所有子孙节点的数据
-      const cleanupDescendants = (parentId: string) => {
-        const childIds = childrenMap.get(parentId) || [];
-        childIds.forEach(childId => {
-          // 递归清理孙节点
-          cleanupDescendants(childId);
-          // 清理该子节点的订阅
-          const childSub = currentSubscriptions.get(childId);
-          if (childSub) {
-            childSub.unsubscribe();
-            currentSubscriptions.delete(childId);
-          }
-        });
-      };
-
-      cleanupDescendants(id);
-
-      // 清理 childrenMap 数据
-      setChildrenMap(prev => {
-        const newMap = new Map(prev);
-        const removeChildren = (parentId: string) => {
-          const childIds = newMap.get(parentId) || [];
-          childIds.forEach(childId => {
-            removeChildren(childId);
-          });
-          newMap.delete(parentId);
-        };
-        removeChildren(id);
-        return newMap;
-      });
-
-      // 清理 nodesMap 中的子节点数据
-      setNodesMap(prev => {
-        const newMap = new Map(prev);
-        const removeNodes = (parentId: string) => {
-          const childIds = childrenMap.get(parentId) || [];
-          childIds.forEach(childId => {
-            removeNodes(childId);
-            newMap.delete(childId);
-          });
-        };
-        removeNodes(id);
-        return newMap;
-      });
-    } else {
-      // 展开：创建订阅
-      const newExpanded = new Set(expandedIds);
-      newExpanded.add(id);
-      setExpandedIds(newExpanded);
-
-      // 开始加载
-      setLoadingIds(prev => new Set(prev).add(id));
-
-      // 创建响应式订阅
-      const childQuery$ = MenuLarge.findAll({
-        where: {
-          combinator: 'and',
-          rules: [{ field: 'parentId', operator: '=', value: id as UUID }]
-        },
-        orderBy: [{ field: 'sortOrder', sort: 'asc' }]
-      });
-
-      const subscription = childQuery$.subscribe({
-        next: (children: MenuLarge[]) => {
-          setNodesMap(prev => {
-            const newMap = new Map(prev);
-            children.forEach(child => {
-              newMap.set(child.id, child);
-            });
-            return newMap;
-          });
-
-          const childIds = children.map(c => c.id);
-          setChildrenMap(prev => new Map(prev).set(id, childIds));
-
-          // 停止加载状态
-          setLoadingIds(prev => {
-            const next = new Set(prev);
-            next.delete(id);
-            return next;
-          });
-        },
-        error: (error: unknown) => {
-          console.error(`[useTreeMenuLazyStore] Failed to load children for ${id}:`, error);
-          setLoadingIds(prev => {
-            const next = new Set(prev);
-            next.delete(id);
-            return next;
-          });
-        }
-      });
-
-      const currentSubscriptions = subscriptionsRef.current;
-      currentSubscriptions.set(id, subscription);
-    }
+    if (expandedIds.has(id)) collapseNode(id);
+    else expandNode(id);
   };
 
   const startEdit = (id: string) => setEditingId(id);
   const cancelEdit = () => setEditingId(null);
 
   const addRoot = async (title: string) => {
-    const lastRootId = rootIds[rootIds.length - 1];
-    const lastRoot = lastRootId ? nodesMap.get(lastRootId) : null;
-    const sortOrder = generateKeyBetween(lastRoot?.sortOrder || null, null);
+    // 只赋业务字段：排序键由引擎在保存事务里追加到根节点组的末尾
+    await runWrite('新建', async () => {
+      const menu = new SortableMenuLarge({ title });
+      await rxdb.entityManager.save(menu);
 
-    const menu = new MenuLarge({ title, sortOrder });
-    await rxdb.entityManager.save(menu);
-
-    // Update local state
-    setNodesMap(prev => new Map(prev).set(menu.id, menu));
-    setRootIds(prev => [...prev, menu.id]);
+      // Update local state
+      setNodesMap(prev => new Map(prev).set(menu.id, menu));
+      setRootIds(prev => [...prev, menu.id]);
+    });
   };
 
-  const addChild = async (parent: MenuLarge, title: string) => {
-    const lastSibling = await fetchLastSibling(parent.id);
-    const sortOrder = generateKeyBetween(lastSibling?.sortOrder ?? null, null);
+  const addChild = async (parent: SortableMenuLarge, title: string) => {
+    await runWrite('新建', async () => {
+      const menu = new SortableMenuLarge({ title });
+      menu.parentId = parent.id;
+      await rxdb.entityManager.save(menu);
 
-    const menu = new MenuLarge({ title, sortOrder });
-    menu.parentId = parent.id;
-    await rxdb.entityManager.save(menu);
-
-    // Update local state
-    setNodesMap(prev => new Map(prev).set(menu.id, menu));
-    setChildrenMap(prev => {
-      const next = new Map(prev);
-      const current = next.get(parent.id) || [];
-      next.set(parent.id, [...current, menu.id]);
-      return next;
+      setNodesMap(prev => new Map(prev).set(menu.id, menu));
+      if (!expandedIds.has(parent.id)) {
+        // 折叠（子节点未加载）的父节点：走展开订阅把库里的子节点连同新节点一起载入，
+        // 而不是只往 childrenMap 里塞新节点——那样展开后只看得见这一个。
+        expandNode(parent.id);
+        return;
+      }
+      setChildrenMap(prev => {
+        const next = new Map(prev);
+        const current = next.get(parent.id) || [];
+        next.set(parent.id, [...current, menu.id]);
+        return next;
+      });
     });
-
-    // Ensure expanded
-    if (!expandedIds.has(parent.id)) {
-      setExpandedIds(prev => new Set(prev).add(parent.id));
-    }
   };
 
   // REACT-FRESH-01：见 useTreeMenuStore 中的同名说明 —— 叶子路径不能 `void`，
   // 否则与相邻级联路径的 `await` 形成两套错误契约，删除失败对用户完全不可见。
-  const deleteMenu = async (menu: MenuLarge): Promise<void> => {
-    // 检查是否有子节点（使用 hasChildren 属性）
-    const hasChildren = menu.hasChildren ?? false;
-
-    if (hasChildren) {
-      // 有子节点，显示删除对话框
-      setMenuToDelete(menu);
-      return;
-    }
-    setDeleteError(null);
-    try {
+  // 是否有子节点以库里的直接子节点为准：折叠节点的子节点没加载，页面里看不到它们。
+  const deleteMenu = async (menu: SortableMenuLarge): Promise<void> => {
+    await runWrite('删除', async () => {
+      const children = await fetchMenuChildren(menu.id);
+      if (children.length > 0) {
+        // 有子节点，显示删除对话框
+        setDeleteChildrenCount(children.length);
+        setMenuToDelete(menu);
+        return;
+      }
       await menu.remove();
-    } catch (error: unknown) {
-      setDeleteError(getErrorMessage(error, '删除菜单失败'));
-    }
+    });
   };
 
   const cancelDelete = () => {
     setMenuToDelete(null);
   };
 
-  const clearDeleteError = () => {
-    setDeleteError(null);
-  };
-
   const executeCascadeDelete = async () => {
     const selected = menuToDelete;
     if (!selected) return;
 
-    // 只取这个节点的子树，不是整表 —— 级联删除本来就只关心它自己的子孙。
-    // 不传 level 即不限深度，整棵子树一次取回
-    const descendants = await firstValueFrom(MenuLarge.findDescendants({ entityId: selected.id }));
-    const menusToRemove = collectSubtreePostOrder(selected, [selected, ...descendants]);
-    setDeleteError(null);
-    try {
+    await runWrite('级联删除', async () => {
+      // 只取这个节点的子树，不是整表 —— 级联删除本来就只关心它自己的子孙。
+      // 不传 level 即不限深度，整棵子树一次取回
+      const descendants = await firstValueFrom(SortableMenuLarge.findDescendants({ entityId: selected.id }));
+      const menusToRemove = collectSubtreePostOrder(selected, [selected, ...descendants]);
       await rxdb.entityManager.removeMany(menusToRemove);
-    } catch (error: unknown) {
-      setDeleteError(getErrorMessage(error, '级联删除失败'));
-      return;
-    }
+    });
+    // 成败都关闭对话框：失败时页内提示不被模态框挡住（三端同一行为）
     setMenuToDelete(null);
   };
 
@@ -361,18 +341,12 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
     const selected = menuToDelete;
     if (!selected) return;
 
-    const children = await fetchMenuChildren(selected.id);
-    setDeleteError(null);
-    try {
-      for (const child of children) {
-        child.parentId = selected.parentId as UUID | null;
-        await child.save();
-      }
-      await selected.remove();
-    } catch (error: unknown) {
-      setDeleteError(getErrorMessage(error, '删除菜单失败'));
-      return;
-    }
+    // 子节点取自库（折叠节点的子节点没加载），与被删节点同一事务提交
+    await runWrite('删除并提升子节点', async () => {
+      const children = await fetchMenuChildren(selected.id);
+      await promoteChildrenAndRemove(rxdb, selected, children);
+    });
+    // 成败都关闭对话框：失败时页内提示不被模态框挡住（三端同一行为）
     setMenuToDelete(null);
   };
 
@@ -382,7 +356,7 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
     subscriptionsRef.current.clear();
 
     // 2. Subscribe to ALL
-    const allQuery$ = MenuLarge.findAll({
+    const allQuery$ = SortableMenuLarge.findAll({
       where: {
         combinator: 'and',
         rules: []
@@ -391,8 +365,8 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
     });
 
     const subscription = allQuery$.subscribe({
-      next: (allMenus: MenuLarge[]) => {
-        const newNodesMap = new Map<string, MenuLarge>();
+      next: (allMenus: SortableMenuLarge[]) => {
+        const newNodesMap = new Map<string, SortableMenuLarge>();
         const newChildrenMap = new Map<string, string[]>();
         const newRootIds: string[] = [];
         const newExpandedIds = new Set<string>();
@@ -465,7 +439,7 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
     return allParentIds.length > 0 && allParentIds.every(id => expandedIds.has(id));
   }, [expandedIds, childrenMap]);
 
-  // 删除影响计算
+  // 删除影响计算：直接子节点数取自库（打开对话框时读到），后代数取已加载部分与直接子节点数的较大者
   const deleteImpact = useMemo(() => {
     if (!menuToDelete) return null;
 
@@ -478,23 +452,18 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
       return count;
     };
 
-    const childrenCount = (childrenMap.get(menuToDelete.id) || []).length;
-    const descendantsCount = collectDescendants(menuToDelete.id);
+    return {
+      childrenCount: deleteChildrenCount,
+      descendantsCount: Math.max(collectDescendants(menuToDelete.id), deleteChildrenCount)
+    };
+  }, [menuToDelete, childrenMap, deleteChildrenCount]);
 
-    return { childrenCount, descendantsCount };
-  }, [menuToDelete, childrenMap]);
-
-  // 批量添加菜单。`generateBatchMenus` 只用 existingRoots 的**最后一个**来续排序键，
-  // 因此这里查最大 sortOrder 的那一个就够，不必让调用方持有整表。
+  // 批量添加菜单：整批一次 `saveMany`，不读任何已有节点——排序键由引擎按父节点分组追加到各组末尾。
   const addManyMenus = async (count: number) => {
-    const lastRoot = await fetchLastSibling(null);
-    const existingRoots = lastRoot ? [lastRoot] : [];
-
-    const newMenus = generateBatchMenus(count, MenuLarge, existingRoots);
-    // await rxdb.entityManager.saveMany(newMenus);
-    for (const menu of newMenus) {
-      await rxdb.entityManager.save(menu);
-    }
+    const result = await runWrite('批量添加', () =>
+      rxdb.entityManager.saveMany(generateBatchMenus(count, SortableMenuLarge))
+    );
+    if (!result.ok) return;
 
     // 保存后清理展开节点的订阅和缓存，避免新旧数据混淆
     // 只清理子节点订阅，保留 ROOT 订阅（会自动更新根节点）
@@ -520,7 +489,7 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
     let lastBatchHeadId: string | null = null;
     for (;;) {
       const batch = await firstValueFrom(
-        MenuLarge.find({ where: { combinator: 'and', rules: [] }, limit: DELETE_BATCH_SIZE })
+        SortableMenuLarge.find({ where: { combinator: 'and', rules: [] }, limit: DELETE_BATCH_SIZE })
       );
       if (batch.length === 0) return;
       if (batch[0].id === lastBatchHeadId) {
@@ -532,7 +501,7 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
   };
 
   /** 读取已加载的节点。页面拿父节点标题之类的用途，不该为此持有一份全表。 */
-  const getNode = (id: string): MenuLarge | undefined => nodesMap.get(id);
+  const getNode = (id: string): SortableMenuLarge | undefined => nodesMap.get(id);
 
   return {
     treeNodes,
@@ -558,8 +527,9 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
     addChild,
     deleteMenu,
     cancelDelete,
-    deleteError,
-    clearDeleteError,
+    writeError,
+    clearWriteError,
+    runWrite,
     executeCascadeDelete,
     executePromoteChildrenDelete,
     addManyMenus,

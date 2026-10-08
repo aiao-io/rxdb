@@ -1,14 +1,13 @@
-import { FileNode } from '@aiao/rxdb-test/entities';
-import { generateKeyBetween } from '@aiao/utils';
+import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { useCallback, useMemo, useState } from 'react';
 import { formatFileName, normalizeFileExtension } from '../pages/file-manager/utils/file-name';
 import { getSortComparator, loadStoredSortMode, persistSortMode, SortMode } from '../utils/file-sorters';
-import { compareSortOrder } from '../utils/sort-order';
 import { collectSubtreePostOrder } from '../utils/tree-scope';
 import { PathConflict, useFilePathValidator } from './useFilePathValidator';
+import { useTreeWriteError } from './useTreeWriteError';
 
 export interface FileTreeNode {
-  file: FileNode;
+  file: SortableFileNode;
   level: number;
   isExpanded: boolean;
   hasChildren: boolean;
@@ -20,20 +19,21 @@ export interface DeleteImpact {
   descendantsCount: number;
 }
 
-export function useFileManagerStore(files: FileNode[]) {
+export function useFileManagerStore(files: SortableFileNode[]) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [pathConflict, setPathConflict] = useState<PathConflict | null>(null);
-  const [fileToDelete, setFileToDelete] = useState<FileNode | null>(null);
+  const [fileToDelete, setFileToDelete] = useState<SortableFileNode | null>(null);
   const [isAddingFile, setIsAddingFile] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>(() =>
     loadStoredSortMode(Object.values(SortMode) as readonly SortMode[], SortMode.Manual)
   );
 
   const pathValidator = useFilePathValidator();
+  const { writeError, clearWriteError, runWrite } = useTreeWriteError();
 
   // 搜索匹配的文件 IDs
   const matchedFileIds = useMemo(() => {
@@ -79,7 +79,7 @@ export function useFileManagerStore(files: FileNode[]) {
   // 构建树节点列表
   const treeNodes = useMemo<FileTreeNode[]>(() => {
     const nodes: FileTreeNode[] = [];
-    const childrenMap = new Map<string | null, FileNode[]>();
+    const childrenMap = new Map<string | null, SortableFileNode[]>();
 
     // 构建 children 映射
     files.forEach(file => {
@@ -91,7 +91,8 @@ export function useFileManagerStore(files: FileNode[]) {
     });
 
     // 应用排序
-    const sortFiles = (fileList: FileNode[]): FileNode[] => [...fileList].sort(getSortComparator(sortMode));
+    const sortFiles = (fileList: SortableFileNode[]): SortableFileNode[] =>
+      [...fileList].sort(getSortComparator(sortMode));
 
     // 递归构建节点
     const buildNodes = (parentId: string | null, level: number) => {
@@ -169,7 +170,7 @@ export function useFileManagerStore(files: FileNode[]) {
   }, []);
 
   const addChild = useCallback(
-    async (parentFile: FileNode, name: string, type: 'file' | 'folder', extension?: string) => {
+    async (parentFile: SortableFileNode, name: string, type: 'file' | 'folder', extension?: string) => {
       const ext = type === 'file' && extension ? extension : null;
       const conflict = pathValidator.checkConflict(name, ext, parentFile.id, files);
       if (conflict) {
@@ -177,16 +178,10 @@ export function useFileManagerStore(files: FileNode[]) {
         return;
       }
 
-      const siblings = files.filter(f => f.parentId === parentFile.id);
-      siblings.sort(compareSortOrder);
-      const lastSibling = siblings[siblings.length - 1];
-      const lastSortOrder = lastSibling ? lastSibling.sortOrder : null;
-      const newSortOrder = generateKeyBetween(lastSortOrder, null);
-
-      const newFile = new FileNode({
+      // 只赋业务字段与 parentId：文件与文件夹同属父节点下的一组，排序键由引擎追加到组末尾
+      const newFile = new SortableFileNode({
         name,
         type,
-        sortOrder: newSortOrder,
         extension:
           type === 'file' ?
             normalizeFileExtension(extension ?? (name.includes('.') ? name.split('.').pop() : null))
@@ -195,11 +190,12 @@ export function useFileManagerStore(files: FileNode[]) {
       });
       newFile.parentId = parentFile.id;
 
-      await newFile.save();
+      const result = await runWrite('新建', () => newFile.save());
+      if (!result.ok) return;
       setExpandedIds(prev => new Set(prev).add(parentFile.id));
       setPathConflict(null);
     },
-    [files, pathValidator]
+    [files, pathValidator, runWrite]
   );
 
   const addRoot = useCallback(
@@ -211,16 +207,9 @@ export function useFileManagerStore(files: FileNode[]) {
         return;
       }
 
-      const rootFiles = files.filter(f => f.parentId === null);
-      rootFiles.sort(compareSortOrder);
-      const lastFile = rootFiles[rootFiles.length - 1];
-      const lastSortOrder = lastFile ? lastFile.sortOrder : null;
-      const newSortOrder = generateKeyBetween(lastSortOrder, null);
-
-      const newFile = new FileNode({
+      const newFile = new SortableFileNode({
         name,
         type,
-        sortOrder: newSortOrder,
         extension:
           type === 'file' ?
             normalizeFileExtension(extension ?? (name.includes('.') ? name.split('.').pop() : null))
@@ -229,17 +218,19 @@ export function useFileManagerStore(files: FileNode[]) {
       });
       newFile.parentId = null;
 
-      await newFile.save();
-      setPathConflict(null);
+      const result = await runWrite('新建', () => newFile.save());
+      if (result.ok) setPathConflict(null);
     },
-    [files, pathValidator]
+    [files, pathValidator, runWrite]
   );
 
   const deleteFile = useCallback(
-    async (file: FileNode) => {
-      for (const item of collectSubtreePostOrder(file, files)) await item.remove();
+    async (file: SortableFileNode) => {
+      await runWrite('删除', async () => {
+        for (const item of collectSubtreePostOrder(file, files)) await item.remove();
+      });
     },
-    [files]
+    [files, runWrite]
   );
 
   const clearPathConflict = useCallback(() => {
@@ -273,7 +264,7 @@ export function useFileManagerStore(files: FileNode[]) {
   }, []);
 
   // 删除确认对话框
-  const showDeleteDialog = useCallback((file: FileNode) => {
+  const showDeleteDialog = useCallback((file: SortableFileNode) => {
     setFileToDelete(file);
   }, []);
 
@@ -284,9 +275,11 @@ export function useFileManagerStore(files: FileNode[]) {
   const executeCascadeDelete = useCallback(async () => {
     if (!fileToDelete) return;
 
-    for (const file of collectSubtreePostOrder(fileToDelete, files)) await file.remove();
-    setFileToDelete(null);
-  }, [fileToDelete, files]);
+    const result = await runWrite('级联删除', async () => {
+      for (const file of collectSubtreePostOrder(fileToDelete, files)) await file.remove();
+    });
+    if (result.ok) setFileToDelete(null);
+  }, [fileToDelete, files, runWrite]);
 
   // 清除搜索
   const clearSearch = useCallback(() => {
@@ -308,6 +301,9 @@ export function useFileManagerStore(files: FileNode[]) {
     matchedFileIds,
     expandedCount,
     isAllExpanded,
+    writeError,
+    clearWriteError,
+    runWrite,
     setSearchKeyword,
     toggleExpand,
     expandAll,

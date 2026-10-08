@@ -1,7 +1,7 @@
 ---
 id: US-031
 title: 树形实体迁移到排序模块
-status: Backlog
+status: In Progress
 priority: Medium
 epic: epic-004-future-features
 created: 2026-10-03
@@ -91,10 +91,10 @@ US-028 阶段 A + D 已提供所需的全部原语：按组创建追加、`Repos
 
 ## 交付阶段
 
-| 阶段 | 交付                                                                                                                                                                                                   | 直接前置                    | AC 区段 | 状态 |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------- | ------- | ---- |
-| A    | 新实体与创建类写入：四个可排序树实体；三端六页改用新实体；新建、批量添加、删除并提升子节点不再自己算键（交给 core 的按组追加与改分组字段追加），删除提升三端统一为一次提交；三端 e2e                   | US-028 阶段 A + D（已交付） | AC#1～4 | ⬜   |
-| B    | 拖放与显示顺序：三端拖放改走 `Repository.reorder()`（含文件管理器非手动排序模式的映射），失败处理三端同交；手动顺序取自查询默认排序；删除剩余的算键、比较器、`rebalanceSortOrder` 与兜底；三端拖放 e2e | 阶段 A                      | AC#5～9 | ⬜   |
+| 阶段 | 交付                                                                                                                                                                                                                                            | 直接前置                    | AC 区段 | 状态 |
+| ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------- | ---- |
+| A    | 新实体与创建类写入：四个可排序树实体；三端六页改用新实体；新建、批量添加、删除并提升子节点不再自己算键（交给 core 的按组追加与改分组字段追加），删除提升三端统一为一次提交；core 批内追加优化（按组键拆分、同批新建父行的组不读尾键）；三端 e2e | US-028 阶段 A + D（已交付） | AC#1～4 | ✅   |
+| B    | 拖放与显示顺序：三端拖放改走 `Repository.reorder()`（含文件管理器非手动排序模式的映射），失败处理三端同交；手动顺序取自查询默认排序；删除剩余的算键、比较器、`rebalanceSortOrder` 与兜底；三端拖放 e2e                                          | 阶段 A                      | AC#5～9 | ⬜   |
 
 一阶段一 PR，每个阶段三端同交。按写入类型而不按页面切：React / Vue 的 `useDragDrop` → `useDragDropService` 由菜单与文件管理器共用，按页面切会让共用的拖放层在中间态同时挂两条写入路径。阶段 A 交付后拖放仍由 demo 显式算键再 `save()`，合法的显式键 core 原样保留，可以单独发布；懒加载撞键（上面第三条）由阶段 B 关闭。
 
@@ -102,10 +102,10 @@ US-028 阶段 A + D 已提供所需的全部原语：按组创建追加、`Repos
 
 | #   | 前置条件                                                             | 操作                                                                                                                                                   | 预期结果                                                                                                                                                                                                                                | 状态 |
 | --- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | `rxdb-test` 四个可排序树实体                                         | 元数据初始化；新库建表；不带 `orderBy` 查询；跑旧实体的现有测试                                                                                        | 校验通过，`sort_order` 建成 `NOT NULL`；不带 `orderBy` 按 `[parentId asc, sortOrder asc, id asc]`，根节点所在的 NULL 组在前；旧实体的 schema、默认查询顺序与写入行为不变，`menuIntegrationSuite`、PGlite 与 supabase 的树测试不改即通过 | ⬜   |
-| 2   | 三端菜单与文件管理器 simple / virtual / lazy 六页改用新实体          | 新建根节点与子节点；文件管理器根级依次新建文件夹、文件、文件夹；在未展开、子节点未加载的父节点下新建；刷新页面                                         | 页面不传 `sortOrder`，新节点追加到同父末尾，文件与文件夹同属一组；刷新后顺序不变；三端一致                                                                                                                                              | ⬜   |
-| 3   | 同上，同父下已有节点（文件管理器根级有排在最后一个文件之后的文件夹） | 批量添加菜单与文件；刷新页面                                                                                                                           | 同组按批内顺序排在同父原有节点之后，与原有节点不重序；批量生成不再写空串键；三端一致                                                                                                                                                    | ⬜   |
-| 4   | 祖父 G 下有 P、Q，P 下有若干子节点                                   | 删除 P 并选择提升子节点；刷新页面                                                                                                                      | 子节点改挂 G 与删除 P 在一次提交内完成，子节点按原顺序追加到 G 组末尾（排在 Q 之后）；三端一致                                                                                                                                          | ⬜   |
+| 1   | `rxdb-test` 四个可排序树实体                                         | 元数据初始化；新库建表；不带 `orderBy` 查询；跑旧实体的现有测试                                                                                        | 校验通过，`sort_order` 建成 `NOT NULL`；不带 `orderBy` 按 `[parentId asc, sortOrder asc, id asc]`，根节点所在的 NULL 组在前；旧实体的 schema、默认查询顺序与写入行为不变，`menuIntegrationSuite`、PGlite 与 supabase 的树测试不改即通过 | ✅   |
+| 2   | 三端菜单与文件管理器 simple / virtual / lazy 六页改用新实体          | 新建根节点与子节点；文件管理器根级依次新建文件夹、文件、文件夹；在未展开、子节点未加载的父节点下新建；刷新页面                                         | 页面不传 `sortOrder`，新节点追加到同父末尾，文件与文件夹同属一组；刷新后顺序不变；三端一致                                                                                                                                              | ✅   |
+| 3   | 同上，同父下已有节点（文件管理器根级有排在最后一个文件之后的文件夹） | 批量添加菜单与文件；刷新页面                                                                                                                           | 同组按批内顺序排在同父原有节点之后，与原有节点不重序；批量生成不再写空串键；三端一致                                                                                                                                                    | ✅   |
+| 4   | 祖父 G 下有 P、Q，P 下有若干子节点                                   | 删除 P 并选择提升子节点；刷新页面                                                                                                                      | 子节点改挂 G 与删除 P 在一次提交内完成，子节点按原顺序追加到 G 组末尾（排在 Q 之后）；三端一致                                                                                                                                          | ✅   |
 | 5   | 三端菜单页，每组至少三个兄弟                                         | 同父拖到两邻之间、组首、组尾；跨父拖到两邻之间；拖进已展开节点、拖进未展开且子节点未加载的懒加载节点；拖到自己或后代；原位放下；撤销一次拖放；刷新页面 | 同父只写 `sortOrder`；跨父在一个事务内只写 `parentId` 与 `sortOrder`；拖进节点一律追加到其子节点末尾，与是否展开无关；拖到后代被拒绝、零写；原位零写；撤销恢复拖放前的父节点与顺序；刷新后顺序与拖放后一致；三端 Playwright 真实拖拽    | ⬜   |
 | 6   | 三端文件管理器页                                                     | 手动排序模式下做 AC#5 的全部拖放（文件不作拖入目标）；非手动排序模式下拖进文件夹、把子级节点拖到根级节点上 / 下方、同级上 / 下方拖放                   | 手动模式同 AC#5；非手动模式拖进文件夹追加到其末尾，拖到根级节点上 / 下方追加到根组末尾，同级上 / 下方拖放被拒、零写（规则沿用现状，写入改走 core）                                                                                      | ⬜   |
 | 7   | 三端菜单与文件管理器页                                               | 重排被拒（`SortOrderError`：`staleTarget` / `notFound` / `corruptAnchor`）                                                                             | 零写，展示错误，界面保持库里最新已提交的顺序，下一次拖放可用；三端同交互                                                                                                                                                                | ⬜   |
@@ -122,6 +122,22 @@ grep -rlE "sortOrder *(\?\?|\|\|) *''" apps/dev-rxdb-{angular,react,vue}/src
 ```
 
 AC#2～#8 的三端验收是 Playwright 操作后刷新页面读回顺序（同 US-028 阶段 E 的 `todo-sort.spec.ts`），AC#5、#6 是真实拖拽。写集合最小、键严格递增由 core 保证（US-028 的跨适配器契约套件）；本故事的单测断言 demo 交给 core 的入参：新建与批量不传 `sortOrder`，拖放调用 `reorder()` 的目标形式。需要直接读键的断言（如 AC#2 根级交替新建）经 demo 的实体模型页或 e2e 测试 API 读库，由 plan 定。
+
+阶段 A 的证据（契约套件在 SQLite 与 PGlite 两个 runner 上各跑一遍；三端用例同名）：
+
+| AC  | 测试                                                                                                                                                                                                                                                                                                                                                                                                  |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `packages/rxdb-test/src/__tests__/sortable-tree-entities.spec.ts`（与旧实体同形、可排序声明、旧实体不变、命名不撞）、`entity-model-contract.spec.ts`、`published-model-invariants.spec.ts`；`menuIntegrationSuite` 六个 runner、PGlite 与 supabase 树测试不改即通过                                                                                                                                   |
+| 2   | 契约套件「缺键新建：根组、已有子节点的组、空组各自追加到组尾」；Angular `tree-file.store.spec.ts`「新建文件夹 / 子文件夹 / 文件都不赋 sortOrder（缺陷一：根级文件夹与文件交替新建）」、React `useFileManagerStore.spec.ts`、Vue `file-manager-writes.spec.ts` 的同一场景；三端 `tree-write-order.spec.ts`「根级依次新建文件夹、文件、文件夹，刷新后顺序不变」「折叠节点下新建子节点，展开后排在末尾」 |
+| 3   | 契约套件「批量添加：同批新建的父节点下从首键起，既有组从库里尾键之后，组内按批内顺序」；`packages/rxdb/src/__tests__/sortable/manual-order-batch-append.spec.ts`（同批新建父行的组不读尾键）；三端批量单测；三端 `tree-write-order.spec.ts`「批量添加后原有根节点仍在最前」「文件管理器懒加载页批量添加后根级原有节点在前」；`benchmarks/sortable-batch-append.bench.ts` 比值 ≤ 1.2                   |
+| 4   | 契约套件两条「删除并提升子节点」（被删节点是根 / 不是根）；Angular `tree-menu.store.spec.ts`「删除并提升子节点（缺陷二）」「删除读库里的子节点，不看页面已加载的节点」、React `useTreeMenuStore.spec.ts`、Vue `tree-menu-writes.spec.ts` 的同组用例；三端 `tree-write-order.spec.ts`「删除并提升子节点，子节点排到祖父组末尾」「懒加载页删除折叠节点仍弹出选择对话框」                                |
+
+批量添加的性能（demo 的随机树，10,000 行约 4,200 组）：core 追加优化前缺键追加是显式键的 3.6 倍（sqlite-wasm）/ 2.91 倍（PGlite），
+优化后 0.95 / 0.97 倍；测法与数字见 `specs/008-us031-sortable-tree-entities/research.md` R3。
+全量门禁 `pnpm test-all`（74 个项目的 lint / typecheck / test / test-browser / build / e2e）通过；三端 `tree-write-order.spec.ts` 以 `mode: 'serial'` 运行，并发分散到多个 worker 时会抢占本机 CPU、拖慢同批的 `search-refresh`（实测与对照见 `specs/008-us031-sortable-tree-entities/tasks.md` 基线备注）。
+既有库升级：用 `main` 构建的 Angular demo 建库后，再用本故事的代码打开同一个库。新树为空，新建可用，旧表行数不变，四张新表已补建。
+首轮走查暴露的引擎缺陷（技术笔记「既有库打开」）已修，门禁用例为 `rxdb-adapter-sqlite-wasm/src/__tests__/existing-db-new-entity.spec.ts`；
+该修复在引擎层，三端共用；React / Vue 未另做浏览器走查。
 
 ## 技术笔记
 
@@ -141,6 +157,16 @@ AC#2～#8 的三端验收是 Playwright 操作后刷新页面读回顺序（同 
 - **连带变化**：
   - `DEMO_ENTITIES` 变了，备份与失败现场归档的结构指纹由实体清单算出（[`schemaFingerprintInput`](../../../packages/rxdb/src/backup/schema-fingerprint.ts)），本故事合入前导出的归档会按 `incompatible_archive` 拒绝恢复。
   - 实体模型页里新实体的默认列表顺序是 `[parentId, sortOrder, id]`；`children` 关联表钉住 `parentId`，自动出现拖拽手柄（见 Out of Scope）。
+- **三端文件管理器的手动排序显示不一致**：React 的 `utils/file-sorters.ts` 在手动模式下先按类型把文件夹排在文件前，再按 `sortOrder`；
+  Angular 与 Vue 只按 `sortOrder`。阶段 B 删除手动模式比较器、顺序改取查询后，React 的文件管理器从「文件夹优先」变为纯手动顺序（用户可见），
+  React `tree-write-order.spec.ts` 的根级交替新建用例届时收紧为与另两端相同的 A、X、B 顺序断言（现为刷新前后同序、两个文件夹保持创建先后）。
+- **拖放失败仍走旧提示**：Angular 两个拖放基类（`tree-menu.drag-drop.ts`、`tree-file-drag-drop.base.ts`）用 `window.alert`，Vue 用 `useToast`；
+  除拖放外的写入已统一到页内 `tree-write-error` 提示，拖放的失败提示在阶段 B 并入同一处。
+- **既有库打开**（阶段 A 走查发现的引擎缺陷，已修）：用 main 的 demo 建过库，再用本故事的代码打开，`connect()` 以 `no such table: main.public$sortable_file_large` 失败，页面空白、任何写入都报错。
+  - 起因：`runMigrations` 的引导期事务按默认值写日志。sqlite 每个带日志的事务开头会为 `config.entities` 的全部实体重建变更触发器，而新实体的表要到迁移之后的 `#ensureEntityTables` 才补建。
+  - 必然触发：工作树插件贡献了系统迁移，装了它的库每次 `connect()` 都会开这次事务。
+  - 修法：迁移事务改为不写日志，与同一条引导链路上 `#assertClaimedCapabilities` 的只读事务口径一致。迁移里的写入照样由表上已有的触发器记进 `rxdb_change`，只是不再共享 `transactionId`。
+  - 范围：缺陷不限于本故事，任何既有库新增记日志的实体都会撞上。e2e 全在新库上跑，走首装一次性建表的路径，碰不到补建分支。
 - **现有 e2e 基线**：Angular `menu-drag-sort.spec.ts` 没有拖拽操作；Angular 与 Vue 的文件管理器 spec 没有拖放；React 的菜单与文件管理器覆盖了同父重排与拖入。AC#5、#6 的三端 e2e 大部分是新增。
 
 ## 实现文件
@@ -148,6 +174,10 @@ AC#2～#8 的三端验收是 Playwright 操作后刷新页面读回顺序（同 
 | 阶段  | 文件                                                                                                                                                                                                      | 说明                                                                                                                  |
 | ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | A     | `packages/rxdb-test/entities/`（四个新实体文件、`index.ts`）                                                                                                                                              | 可排序树实体与 `ENTITIES` 注册                                                                                        |
+| A     | `packages/rxdb/src/sortable/sortable.utils.ts`、`sortable-mutations.ts`                                                                                                                                   | 批内追加：按组键拆分；分组外键指向本批新建行的组不读尾键                                                              |
+| A     | `packages/rxdb-test/src/sortable/manual-order-tree.suite.ts`、`fixtures.ts`（`SortableNode`）                                                                                                             | 自引用外键分组的契约用例（缺键新建、批量、删除提升、外键前提）                                                        |
+| A     | `benchmarks/sortable-batch-append.bench.ts`、`benchmarks/project.json`、`.github/workflows/ci-template.yml`                                                                                               | 批内追加基准（比值 ≤ 1.2）并入 CI 的 `benchmark` job                                                                  |
+| A     | `packages/rxdb/src/system/migration-runner.ts`、`packages/rxdb-adapter-sqlite-wasm/src/__tests__/existing-db-new-entity.spec.ts`                                                                          | 既有库升级：迁移事务不写日志，新实体表补建前不再重建它的触发器（见技术笔记「既有库打开」）                            |
 | A     | `packages/rxdb-test/public-contract/`、`packages/rxdb-test/src/__tests__/published-model-invariants.spec.ts`、`entity-model-contract.spec.ts`                                                             | 公开契约基线、`DEMO_ENTITIES` 实体数断言、新实体的索引断言                                                            |
 | A     | `apps/dev-rxdb-angular/src/app/pages/menu/`、`pages/file-manager/`                                                                                                                                        | 页面换实体；`TreeMenuStore`、`TreeFileStore` 与两个懒加载 store 的新建、批量添加（`generateBatchMenus` 等）、删除提升 |
 | A     | `apps/dev-rxdb-react/src/app/hooks/useTreeMenu*Store.ts`、`useFileManager*Store.ts`、`utils/menu-utils.ts`、`utils/file-utils.ts`、`pages/menu/`、`pages/file-manager/`                                   | 同上；删除提升改为一次提交                                                                                            |

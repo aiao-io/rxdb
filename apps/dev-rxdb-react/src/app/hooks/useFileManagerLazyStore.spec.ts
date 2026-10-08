@@ -1,5 +1,5 @@
 import type { RxDB, UUID } from '@aiao/rxdb';
-import { FileLarge } from '@aiao/rxdb-test/entities';
+import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { act, renderHook } from '@testing-library/react';
 import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -7,19 +7,15 @@ import { compareSortOrder } from '../utils/sort-order';
 import { useFileManagerLazyStore } from './useFileManagerLazyStore';
 
 /**
- * 真实的 `FileLarge` 构造函数走装饰器代理，没初始化 RxDB 就抛 `need init rxdb`。
+ * 真实的 `SortableFileLarge` 构造函数走装饰器代理，没初始化 RxDB 就抛 `need init rxdb`。
  * 本文件测的是 store **发了哪些查询、写了什么**，不是实体装配，所以换成同形状的替身。
+ * 替身不声明 `sortOrder` 字段：store 若赋了它，`Object.keys` 里就会出现。
  */
 vi.mock('@aiao/rxdb-test/entities', () => {
   let seq = 0;
-  class FileLargeDouble {
+  class SortableFileLargeDouble {
     id: string;
     parentId: string | null = null;
-    name?: string;
-    type?: 'file' | 'folder';
-    sortOrder?: string | null;
-    extension?: string | null;
-    size?: number;
     hasChildren = false;
     constructor(data: Record<string, unknown> = {}) {
       seq += 1;
@@ -33,7 +29,7 @@ vi.mock('@aiao/rxdb-test/entities', () => {
       return Promise.resolve();
     }
   }
-  return { FileLarge: FileLargeDouble };
+  return { SortableFileLarge: SortableFileLargeDouble };
 });
 
 interface QueryOptions {
@@ -51,7 +47,7 @@ interface QueryCall {
 
 const toUuid = (id: string): UUID => `${id}-0000-0000-0000-000000000000`;
 
-const makeFile = (id: string, parentId: string | null, sortOrder: string, type: 'file' | 'folder'): FileLarge =>
+const makeFile = (id: string, parentId: string | null, sortOrder: string, type: 'file' | 'folder'): SortableFileLarge =>
   ({
     id: toUuid(id),
     parentId: parentId === null ? null : toUuid(parentId),
@@ -59,17 +55,22 @@ const makeFile = (id: string, parentId: string | null, sortOrder: string, type: 
     type,
     sortOrder,
     hasChildren: false,
-    save: () => Promise.resolve(),
-    remove: () => Promise.resolve()
-  }) as unknown as FileLarge;
+    save: vi.fn(() => Promise.resolve()),
+    remove: vi.fn(() => Promise.resolve())
+  }) as unknown as SortableFileLarge;
 
 /** 与 `useTreeMenuLazyStore.spec.ts` 同构的内存假仓储，说明见该文件。 */
 class FakeFileTable {
-  rows: FileLarge[] = [];
+  private rxdb: RxDB | null = null;
+  rows: SortableFileLarge[] = [];
   readonly calls: QueryCall[] = [];
+  /** `entityManager()` 返回的假实体管理器里的写方法，断言「发了哪些写」用。 */
+  get writes() {
+    return (this.rxdb as unknown as { entityManager: Record<string, ReturnType<typeof vi.fn>> }).entityManager;
+  }
 
   install(): void {
-    const statics = FileLarge as unknown as Record<string, unknown>;
+    const statics = SortableFileLarge as unknown as Record<string, unknown>;
     statics.findAll = vi.fn((options: QueryOptions) => {
       this.calls.push({ method: 'findAll', options });
       return of(this.rowsFor(options));
@@ -85,7 +86,7 @@ class FakeFileTable {
   }
 
   uninstall(): void {
-    const statics = FileLarge as unknown as Record<string, unknown>;
+    const statics = SortableFileLarge as unknown as Record<string, unknown>;
     delete statics.findAll;
     delete statics.find;
     delete statics.findDescendants;
@@ -96,15 +97,20 @@ class FakeFileTable {
   }
 
   entityManager(): RxDB {
+    this.rxdb = this.buildEntityManager();
+    return this.rxdb;
+  }
+
+  private buildEntityManager(): RxDB {
     return {
       entityManager: {
-        save: vi.fn(async (entity: FileLarge) => {
+        save: vi.fn(async (entity: SortableFileLarge) => {
           this.rows.push(entity);
         }),
-        saveMany: vi.fn(async (entities: FileLarge[]) => {
+        saveMany: vi.fn(async (entities: SortableFileLarge[]) => {
           this.rows.push(...entities);
         }),
-        removeMany: vi.fn(async (entities: FileLarge[]) => {
+        removeMany: vi.fn(async (entities: SortableFileLarge[]) => {
           const ids = new Set(entities.map(entity => entity.id));
           this.rows = this.rows.filter(row => !ids.has(row.id));
         })
@@ -112,8 +118,8 @@ class FakeFileTable {
     } as unknown as RxDB;
   }
 
-  private descendantsOf(id: UUID): FileLarge[] {
-    const out: FileLarge[] = [];
+  private descendantsOf(id: UUID): SortableFileLarge[] {
+    const out: SortableFileLarge[] = [];
     const walk = (parentId: UUID): void => {
       for (const row of this.rows.filter(r => r.parentId === parentId)) {
         out.push(row);
@@ -124,7 +130,7 @@ class FakeFileTable {
     return out;
   }
 
-  private rowsFor(options: QueryOptions): FileLarge[] {
+  private rowsFor(options: QueryOptions): SortableFileLarge[] {
     const rule = options.where?.rules?.find(r => r.field === 'parentId');
     const matched =
       rule === undefined ? [...this.rows] : this.rows.filter(row => (row.parentId ?? null) === (rule.value ?? null));
@@ -197,7 +203,7 @@ describe('useFileManagerLazyStore', () => {
       expect(table.fullTableScans()).toEqual([]);
     });
 
-    it('addChild 只查同级，排在同级末尾之后', async () => {
+    it('addChild（父节点已展开）不查同级、不写 sortOrder：只赋业务字段与 parentId', async () => {
       const folder = makeFile('p', null, 'a0', 'folder');
       table.rows = [
         folder,
@@ -208,12 +214,153 @@ describe('useFileManagerLazyStore', () => {
 
       const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
       await act(async () => {
+        await result.current.toggleExpand(folder.id);
+      });
+      table.calls.length = 0;
+      await act(async () => {
         await result.current.addChild(folder, '新文件', 'file', 'txt');
       });
 
-      const created = table.rows.find(row => row.name?.startsWith('新文件'));
-      expect((created?.sortOrder ?? '') > 'a5').toBe(true);
-      expect(table.fullTableScans()).toEqual([]);
+      const created = table.rows.find(row => row.name?.startsWith('新文件')) as unknown as Record<string, unknown>;
+      expect(created['parentId']).toBe(folder.id);
+      expect(Object.keys(created)).not.toContain('sortOrder');
+      expect(table.calls).toEqual([]);
+    });
+
+    it('addChild（文件夹折叠、子节点未加载）不读尾键；只订阅该文件夹的子节点，展开后新旧子节点都在', async () => {
+      const folder = makeFile('p', null, 'a0', 'folder');
+      table.rows = [folder, makeFile('c1', 'p', 'a0', 'file'), makeFile('c2', 'p', 'a5', 'file')];
+
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+      table.calls.length = 0;
+      await act(async () => {
+        await result.current.addChild(folder, '新文件夹', 'folder');
+      });
+
+      expect(table.calls.filter(call => call.method === 'find')).toEqual([]);
+      expect(table.calls.map(call => call.options.orderBy?.[0]?.sort)).not.toContain('desc');
+      expect(result.current.expandedIds.has(folder.id)).toBe(true);
+      expect(result.current.treeNodes.map(node => node.file.name).sort()).toEqual(
+        ['节点 c1', '节点 c2', '节点 p', '新文件夹'].sort()
+      );
+    });
+  });
+
+  describe('新建与批量添加不写 sortOrder（US-031）', () => {
+    it('根级依次新建文件夹 A、文件 X、文件夹 B：三次保存都只带业务字段，不读根节点，不带 sortOrder', async () => {
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+      table.calls.length = 0;
+
+      await act(async () => {
+        await result.current.addRoot('A', 'folder');
+      });
+      await act(async () => {
+        await result.current.addRoot('X', 'file', '.txt');
+      });
+      await act(async () => {
+        await result.current.addRoot('B', 'folder');
+      });
+
+      const saved = table.writes['save'].mock.calls.map(([entity]) => entity as Record<string, unknown>);
+      expect(saved.map(file => [file['name'], file['type']])).toEqual([
+        ['A', 'folder'],
+        ['X', 'file'],
+        ['B', 'folder']
+      ]);
+      for (const file of saved) expect(Object.keys(file)).not.toContain('sortOrder');
+      expect(table.calls).toEqual([]);
+    });
+
+    it('addManyFiles：整批一次 saveMany，批内节点不带 sortOrder，不以已加载的根节点作锚点', async () => {
+      table.rows = [makeFile('r1', null, 'a0', 'file'), makeFile('r2', null, 'a1', 'folder')];
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+
+      await act(async () => {
+        await result.current.addManyFiles(100);
+      });
+
+      expect(table.writes['saveMany']).toHaveBeenCalledOnce();
+      expect(table.writes['save']).not.toHaveBeenCalled();
+      const batch = table.writes['saveMany'].mock.calls[0][0] as Record<string, unknown>[];
+      expect(batch).toHaveLength(100);
+      for (const file of batch) expect(Object.keys(file)).not.toContain('sortOrder');
+      expect(table.calls.filter(call => call.method === 'find')).toEqual([]);
+    });
+
+    it('addManyFiles 失败：写入「批量添加失败」，不抛出，根订阅恢复，下一次操作可用', async () => {
+      table.writes['saveMany'].mockRejectedValueOnce(new Error('唯一索引冲突'));
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+      table.calls.length = 0;
+
+      await act(async () => {
+        await result.current.addManyFiles(10);
+      });
+
+      expect(result.current.writeError).toBe('批量添加失败：唯一索引冲突');
+      // 失败后重新订阅根节点，页面状态即库里已提交的状态
+      expect(table.calls.some(call => call.method === 'findAll')).toBe(true);
+    });
+
+    it('addRoot / addChild 保存失败：写入「新建失败」且不抛出，本地状态不被推进', async () => {
+      const folder = makeFile('p', null, 'a0', 'folder');
+      table.writes['save'].mockRejectedValue(new Error('唯一索引冲突'));
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+
+      await act(async () => {
+        await result.current.addRoot('重名', 'folder');
+      });
+      expect(result.current.writeError).toBe('新建失败：唯一索引冲突');
+      expect(result.current.treeNodes).toEqual([]);
+
+      act(() => result.current.clearWriteError());
+      await act(async () => {
+        await result.current.addChild(folder, '重名', 'folder');
+      });
+      expect(result.current.writeError).toBe('新建失败：唯一索引冲突');
+      expect(result.current.expandedIds.has(folder.id)).toBe(false);
+    });
+  });
+
+  describe('删除失败进入 writeError（T042）', () => {
+    it('deleteFile 失败：写入「删除失败」，不抛出、不调用 window.alert', async () => {
+      const alertSpy = vi.fn();
+      vi.stubGlobal('alert', alertSpy);
+      const file = makeFile('f', null, 'a0', 'file');
+      file.remove = vi.fn(() => Promise.reject(new Error('远端拒绝删除')));
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+
+      await act(async () => {
+        await result.current.deleteFile(file);
+      });
+
+      expect(result.current.writeError).toBe('删除失败：远端拒绝删除');
+      expect(alertSpy).not.toHaveBeenCalled();
+      vi.unstubAllGlobals();
+    });
+
+    it('executeCascadeDelete 失败：写入「级联删除失败」，对话框保持打开，不抛出', async () => {
+      const folder = makeFile('p', null, 'a0', 'folder');
+      table.rows = [folder, makeFile('c1', 'p', 'a0', 'file')];
+      table.writes['removeMany'].mockRejectedValueOnce(new Error('被外键拦下'));
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+      act(() => result.current.showDeleteDialog(folder));
+
+      await act(async () => {
+        await result.current.executeCascadeDelete();
+      });
+
+      expect(result.current.writeError).toBe('级联删除失败：被外键拦下');
+      expect(result.current.fileToDelete).toBe(folder);
+    });
+
+    it('重命名失败：runWrite 把失败写入「重命名失败」', async () => {
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+
+      await act(async () => {
+        await result.current.runWrite('重命名', () => Promise.reject(new Error('同级重名')));
+      });
+
+      expect(result.current.writeError).toBe('重命名失败：同级重名');
     });
   });
 });

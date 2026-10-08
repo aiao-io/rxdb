@@ -1,5 +1,3 @@
-import { generateKeyBetween } from '@aiao/utils';
-
 export interface FileNode {
   id: string;
   parentId?: string | null;
@@ -17,7 +15,6 @@ export interface FileEntity extends FileNode {
 type FileEntitySeed = {
   name: string;
   type: 'file' | 'folder';
-  sortOrder: string | null;
   extension?: string | null;
   size?: number | null;
   hasChildren?: boolean;
@@ -49,14 +46,20 @@ const FILE_EXTENSIONS = [
 
 /**
  * 批量生成文件/文件夹数据（带随机层级）
+ *
+ * @remarks
+ * 不写 `sortOrder`：实体声明了 `manualOrder`，整批一次 `saveMany` 时引擎按父节点分组、
+ * 按批内顺序把缺键的行追加到各组末尾（根级接在库里已有根节点之后，文件与文件夹同属一组）。
+ *
+ * @param total - 生成条数
+ * @param EntityClass - 文件实体类
  */
-export function generateBatchFiles<T extends FileEntity>(total: number, EntityClass: unknown, existingRoots: T[]): T[] {
+export function generateBatchFiles<T extends FileEntity>(total: number, EntityClass: unknown): T[] {
   const maxDepth = 7;
   const files: T[] = [];
   const depths = new Map<string, number>();
   depths.set('root', 0);
 
-  const newChildrenMap = new Map<string, T[]>();
   const parentIds: string[] = ['root'];
   const createdFilesMap = new Map<string, T>();
   const folderIds: string[] = [];
@@ -82,7 +85,6 @@ export function generateBatchFiles<T extends FileEntity>(total: number, EntityCl
     const file = new FileCtor({
       name,
       type,
-      sortOrder: null,
       extension,
       size,
       hasChildren: false
@@ -108,25 +110,6 @@ export function generateBatchFiles<T extends FileEntity>(total: number, EntityCl
         parentIds.push(file.id);
         folderIds.push(file.id);
       }
-    }
-
-    const key = parentId;
-    if (!newChildrenMap.has(key)) {
-      newChildrenMap.set(key, []);
-    }
-    newChildrenMap.get(key)!.push(file);
-  }
-
-  // Calculate SortOrder
-  const lastRootSort = existingRoots[existingRoots.length - 1]?.sortOrder ?? null;
-
-  for (const [parentId, children] of newChildrenMap.entries()) {
-    let lastSort: string | null = parentId === 'root' ? lastRootSort : null;
-
-    for (const child of children) {
-      const newSort = generateKeyBetween(lastSort, null);
-      child.sortOrder = newSort;
-      lastSort = newSort;
     }
   }
 

@@ -15,7 +15,7 @@ import { TreeMenuDragDropStore } from '../utils/tree-menu.store';
  * @example
  * ```typescript
  * providers: [
- *   { provide: ENTITY_CLASS, useValue: MenuLarge }
+ *   { provide: ENTITY_CLASS, useValue: SortableMenuLarge }
  * ]
  * ```
  */
@@ -28,7 +28,7 @@ export const ENTITY_CLASS = new InjectionToken<unknown>('ENTITY_CLASS');
  * providers: [
  *   {
  *     provide: HISTORY,
- *     useFactory: () => inject(RxDB).versionManager.history(MenuLarge)
+ *     useFactory: () => inject(RxDB).versionManager.history(SortableMenuLarge)
  *   }
  * ]
  * ```
@@ -64,13 +64,13 @@ function resolveEntityClass<C extends TreeMenuEntityConstructor>(value: unknown)
  * // 在组件提供者中
  * providers: [
  *   TreeMenuLazyStore,
- *   { provide: ENTITY_CLASS, useValue: MenuLarge },
- *   { provide: HISTORY, useFactory: () => inject(RxDB).versionManager.history(MenuLarge) }
+ *   { provide: ENTITY_CLASS, useValue: SortableMenuLarge },
+ *   { provide: HISTORY, useFactory: () => inject(RxDB).versionManager.history(SortableMenuLarge) }
  * ]
  *
  * // 在组件中
  * constructor() {
- *   const store = inject(TreeMenuLazyStore<MenuLarge>);
+ *   const store = inject(TreeMenuLazyStore<SortableMenuLarge>);
  *   // 使用store方法
  * }
  * ```

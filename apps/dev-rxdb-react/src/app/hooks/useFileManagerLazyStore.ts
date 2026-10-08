@@ -1,21 +1,16 @@
 import { RxDB, type RxDBEntityId, UUID } from '@aiao/rxdb';
-import { FileLarge } from '@aiao/rxdb-test/entities';
-import { generateKeyBetween } from '@aiao/utils';
+import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { firstValueFrom } from 'rxjs';
 import { formatFileName, normalizeFileExtension } from '../pages/file-manager/utils/file-name';
 import { getSortComparator, loadStoredSortMode, persistSortMode, SortMode } from '../utils/file-sorters';
 import { generateBatchFiles } from '../utils/file-utils';
 import { compareSortOrder } from '../utils/sort-order';
-import { collectSubtreePostOrder } from '../utils/tree-scope';
+import { byParent, collectSubtreePostOrder } from '../utils/tree-scope';
+import { useTreeWriteError } from './useTreeWriteError';
 
 /** 批量删除的单批条数 —— 一次性把整表读进内存正是 P0-1 要消灭的东西。 */
 const DELETE_BATCH_SIZE = 200;
-
-const byParent = (parentId: RxDBEntityId | null) => ({
-  combinator: 'and' as const,
-  rules: [{ field: 'parentId' as const, operator: '=' as const, value: parentId as UUID | null }]
-});
 
 /**
  * 取某个父节点下的直接子节点（按 sortOrder 升序）。
@@ -23,28 +18,16 @@ const byParent = (parentId: RxDBEntityId | null) => ({
  * 模块级导出而非挂在 store 返回值上：页面要把它当 `useDragDrop` 的 `resolveSiblings`，
  * 而 store 返回的是每次 render 都换新的对象字面量，经它取会把整条 useCallback 链打脏（P2-7）。
  */
-export const fetchFileChildren = (parentId: RxDBEntityId | null): Promise<FileLarge[]> =>
+export const fetchFileChildren = (parentId: RxDBEntityId | null): Promise<SortableFileLarge[]> =>
   firstValueFrom(
-    FileLarge.findAll({
+    SortableFileLarge.findAll({
       where: byParent(parentId),
       orderBy: [{ field: 'sortOrder', sort: 'asc' }]
     })
   );
 
-/** 取某个父节点下 sortOrder 最大的那一个 —— 新增节点只需要它，不需要整个同级列表。 */
-const fetchLastSibling = async (parentId: RxDBEntityId | null): Promise<FileLarge | null> => {
-  const rows = await firstValueFrom(
-    FileLarge.find({
-      where: byParent(parentId),
-      orderBy: [{ field: 'sortOrder', sort: 'desc' }],
-      limit: 1
-    })
-  );
-  return rows[0] ?? null;
-};
-
 export interface FileLazyNode {
-  file: FileLarge;
+  file: SortableFileLarge;
   level: number;
   isExpanded: boolean;
   hasChildren: boolean;
@@ -58,7 +41,7 @@ export interface DeleteImpact {
 }
 
 export function useFileManagerLazyStore(rxdb: RxDB) {
-  const [nodesMap, setNodesMap] = useState<Map<string, FileLarge>>(new Map());
+  const [nodesMap, setNodesMap] = useState<Map<string, SortableFileLarge>>(new Map());
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [rootIds, setRootIds] = useState<string[]>([]);
@@ -66,24 +49,25 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
-  const [fileToDelete, setFileToDelete] = useState<FileLarge | null>(null);
+  const [fileToDelete, setFileToDelete] = useState<SortableFileLarge | null>(null);
   const [isAddingFile, setIsAddingFile] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>(() =>
     loadStoredSortMode(Object.values(SortMode) as readonly SortMode[], SortMode.Manual)
   );
   const [isFullMode, setIsFullMode] = useState(false);
+  const { writeError, clearWriteError, runWrite } = useTreeWriteError();
 
   // 存储活跃的订阅，用于清理
   const subscriptionsRef = useRef<Map<string, { unsubscribe: () => void }>>(new Map());
 
   const subscribeToRoot = () => {
     // 2. Subscribe to ROOT
-    const rootQuery$ = FileLarge.findAll({
+    const rootQuery$ = SortableFileLarge.findAll({
       where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: null }] },
       orderBy: [{ field: 'sortOrder', sort: 'asc' }]
     });
     const subscription = rootQuery$.subscribe({
-      next: (roots: FileLarge[]) => {
+      next: (roots: SortableFileLarge[]) => {
         setNodesMap(prev => {
           const newMap = new Map(prev);
           // 更新或添加根节点（过滤空名称）
@@ -229,132 +213,139 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     return result;
   }, [nodesMap, expandedIds, loadingIds, rootIds, childrenMap, matchedFileIds, sortMode]);
 
+  /** 折叠：清理该节点及子孙的订阅与数据。 */
+  const collapseNode = (id: string) => {
+    // 折叠：清理订阅和数据
+    const currentSubscriptions = subscriptionsRef.current;
+    const subscription = currentSubscriptions.get(id);
+    if (subscription) {
+      subscription.unsubscribe();
+      currentSubscriptions.delete(id);
+    }
+
+    const newExpanded = new Set(expandedIds);
+    newExpanded.delete(id);
+    setExpandedIds(newExpanded);
+
+    // 递归清理所有子孙节点的数据
+    const cleanupDescendants = (parentId: string) => {
+      const childIds = childrenMap.get(parentId) || [];
+      childIds.forEach(childId => {
+        // 递归清理孙节点
+        cleanupDescendants(childId);
+        // 清理该子节点的订阅
+        const childSub = currentSubscriptions.get(childId);
+        if (childSub) {
+          childSub.unsubscribe();
+          currentSubscriptions.delete(childId);
+        }
+      });
+    };
+
+    cleanupDescendants(id);
+
+    // 清理 childrenMap 数据
+    setChildrenMap(prev => {
+      const newMap = new Map(prev);
+      const removeChildren = (parentId: string) => {
+        const childIds = newMap.get(parentId) || [];
+        childIds.forEach(childId => {
+          removeChildren(childId);
+        });
+        newMap.delete(parentId);
+      };
+      removeChildren(id);
+      return newMap;
+    });
+
+    // 清理 nodesMap 中的子节点数据
+    setNodesMap(prev => {
+      const newMap = new Map(prev);
+      const removeNodes = (parentId: string) => {
+        const childIds = childrenMap.get(parentId) || [];
+        childIds.forEach(childId => {
+          removeNodes(childId);
+          newMap.delete(childId);
+        });
+      };
+      removeNodes(id);
+      return newMap;
+    });
+  };
+
+  /** 展开：为该文件夹创建子节点的响应式订阅（库里已有的子节点全部载入）。 */
+  const expandNode = (id: string) => {
+    // 展开：创建订阅
+    const newExpanded = new Set(expandedIds);
+    newExpanded.add(id);
+    setExpandedIds(newExpanded);
+
+    // 开始加载
+    setLoadingIds(prev => new Set(prev).add(id));
+
+    // 创建响应式订阅
+    const childQuery$ = SortableFileLarge.findAll({
+      where: {
+        combinator: 'and',
+        rules: [{ field: 'parentId', operator: '=', value: id as UUID }]
+      },
+      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+    });
+
+    const subscription = childQuery$.subscribe({
+      next: (children: SortableFileLarge[]) => {
+        // 过滤掉无效的空名称记录
+        const validChildren = children.filter(child => child.name && child.name.trim());
+
+        setNodesMap(prev => {
+          const newMap = new Map(prev);
+          validChildren.forEach(child => {
+            newMap.set(child.id, child);
+          });
+          return newMap;
+        });
+
+        const childIds = validChildren
+          .map(c => c.id)
+          .sort((a, b) => {
+            const nodeA = validChildren.find(c => c.id === a);
+            const nodeB = validChildren.find(c => c.id === b);
+            if (!nodeA || !nodeB) return 0;
+            if (nodeA.type !== nodeB.type) {
+              return nodeA.type === 'folder' ? -1 : 1;
+            }
+            return compareSortOrder(nodeA, nodeB);
+          });
+
+        setChildrenMap(prev => new Map(prev).set(id, childIds));
+
+        // 停止加载状态
+        setLoadingIds(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      },
+      error: (error: unknown) => {
+        console.error(`[useFileManagerLazyStore] Failed to load children for ${id}:`, error);
+        setLoadingIds(prev => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+    });
+
+    const currentSubscriptions = subscriptionsRef.current;
+    currentSubscriptions.set(id, subscription);
+  };
+
   const toggleExpand = async (id: string) => {
     const file = nodesMap.get(id);
     if (!file || file.type !== 'folder') return;
 
-    if (expandedIds.has(id)) {
-      // 折叠：清理订阅和数据
-      const currentSubscriptions = subscriptionsRef.current;
-      const subscription = currentSubscriptions.get(id);
-      if (subscription) {
-        subscription.unsubscribe();
-        currentSubscriptions.delete(id);
-      }
-
-      const newExpanded = new Set(expandedIds);
-      newExpanded.delete(id);
-      setExpandedIds(newExpanded);
-
-      // 递归清理所有子孙节点的数据
-      const cleanupDescendants = (parentId: string) => {
-        const childIds = childrenMap.get(parentId) || [];
-        childIds.forEach(childId => {
-          // 递归清理孙节点
-          cleanupDescendants(childId);
-          // 清理该子节点的订阅
-          const childSub = currentSubscriptions.get(childId);
-          if (childSub) {
-            childSub.unsubscribe();
-            currentSubscriptions.delete(childId);
-          }
-        });
-      };
-
-      cleanupDescendants(id);
-
-      // 清理 childrenMap 数据
-      setChildrenMap(prev => {
-        const newMap = new Map(prev);
-        const removeChildren = (parentId: string) => {
-          const childIds = newMap.get(parentId) || [];
-          childIds.forEach(childId => {
-            removeChildren(childId);
-          });
-          newMap.delete(parentId);
-        };
-        removeChildren(id);
-        return newMap;
-      });
-
-      // 清理 nodesMap 中的子节点数据
-      setNodesMap(prev => {
-        const newMap = new Map(prev);
-        const removeNodes = (parentId: string) => {
-          const childIds = childrenMap.get(parentId) || [];
-          childIds.forEach(childId => {
-            removeNodes(childId);
-            newMap.delete(childId);
-          });
-        };
-        removeNodes(id);
-        return newMap;
-      });
-    } else {
-      // 展开：创建订阅
-      const newExpanded = new Set(expandedIds);
-      newExpanded.add(id);
-      setExpandedIds(newExpanded);
-
-      // 开始加载
-      setLoadingIds(prev => new Set(prev).add(id));
-
-      // 创建响应式订阅
-      const childQuery$ = FileLarge.findAll({
-        where: {
-          combinator: 'and',
-          rules: [{ field: 'parentId', operator: '=', value: id as UUID }]
-        },
-        orderBy: [{ field: 'sortOrder', sort: 'asc' }]
-      });
-
-      const subscription = childQuery$.subscribe({
-        next: (children: FileLarge[]) => {
-          // 过滤掉无效的空名称记录
-          const validChildren = children.filter(child => child.name && child.name.trim());
-
-          setNodesMap(prev => {
-            const newMap = new Map(prev);
-            validChildren.forEach(child => {
-              newMap.set(child.id, child);
-            });
-            return newMap;
-          });
-
-          const childIds = validChildren
-            .map(c => c.id)
-            .sort((a, b) => {
-              const nodeA = validChildren.find(c => c.id === a);
-              const nodeB = validChildren.find(c => c.id === b);
-              if (!nodeA || !nodeB) return 0;
-              if (nodeA.type !== nodeB.type) {
-                return nodeA.type === 'folder' ? -1 : 1;
-              }
-              return compareSortOrder(nodeA, nodeB);
-            });
-
-          setChildrenMap(prev => new Map(prev).set(id, childIds));
-
-          // 停止加载状态
-          setLoadingIds(prev => {
-            const next = new Set(prev);
-            next.delete(id);
-            return next;
-          });
-        },
-        error: (error: unknown) => {
-          console.error(`[useFileManagerLazyStore] Failed to load children for ${id}:`, error);
-          setLoadingIds(prev => {
-            const next = new Set(prev);
-            next.delete(id);
-            return next;
-          });
-        }
-      });
-
-      const currentSubscriptions = subscriptionsRef.current;
-      currentSubscriptions.set(id, subscription);
-    }
+    if (expandedIds.has(id)) collapseNode(id);
+    else expandNode(id);
   };
 
   const startEdit = (id: string) => setEditingId(id);
@@ -365,12 +356,10 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     subscriptionsRef.current.forEach(sub => sub.unsubscribe());
     subscriptionsRef.current.clear();
 
-    // 2. Generate and save files
-    const existingRoots = rootIds.map(id => nodesMap.get(id)).filter(Boolean) as FileLarge[];
-    const newFiles = generateBatchFiles(count, FileLarge, existingRoots);
-    await rxdb.entityManager.saveMany(newFiles);
+    // 2. Generate and save files：整批一次 saveMany，不读任何已有节点——排序键由引擎按父节点分组追加到各组末尾
+    await runWrite('批量添加', () => rxdb.entityManager.saveMany(generateBatchFiles(count, SortableFileLarge)));
 
-    // 3. Reset state and resubscribe
+    // 3. Reset state and resubscribe（失败时同样恢复订阅：页面状态即库里已提交的状态）
     setExpandedIds(new Set());
     setChildrenMap(new Map());
     setLoadingIds(new Set());
@@ -392,7 +381,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     subscriptionsRef.current.clear();
 
     // 2. Subscribe to ALL
-    const allQuery$ = FileLarge.findAll({
+    const allQuery$ = SortableFileLarge.findAll({
       where: {
         combinator: 'and',
         rules: []
@@ -401,8 +390,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     });
 
     const subscription = allQuery$.subscribe({
-      next: (allFiles: FileLarge[]) => {
-        const newNodesMap = new Map<string, FileLarge>();
+      next: (allFiles: SortableFileLarge[]) => {
+        const newNodesMap = new Map<string, SortableFileLarge>();
         const newChildrenMap = new Map<string, string[]>();
         const newRootIds: string[] = [];
         const newExpandedIds = new Set<string>();
@@ -504,7 +493,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     persistSortMode(mode);
   };
 
-  const showDeleteDialog = (file: FileLarge) => {
+  const showDeleteDialog = (file: SortableFileLarge) => {
     setFileToDelete(file);
   };
 
@@ -516,12 +505,14 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     const selected = fileToDelete;
     if (!selected) return;
 
-    // 只取这个节点的子树，不是整表 —— 级联删除本来就只关心它自己的子孙。
-    // 不传 level 即不限深度，整棵子树一次取回
-    const descendants = await firstValueFrom(FileLarge.findDescendants({ entityId: selected.id }));
-    const filesToRemove = collectSubtreePostOrder(selected, [selected, ...descendants]);
-    await rxdb.entityManager.removeMany(filesToRemove);
-    setFileToDelete(null);
+    const result = await runWrite('级联删除', async () => {
+      // 只取这个节点的子树，不是整表 —— 级联删除本来就只关心它自己的子孙。
+      // 不传 level 即不限深度，整棵子树一次取回
+      const descendants = await firstValueFrom(SortableFileLarge.findDescendants({ entityId: selected.id }));
+      const filesToRemove = collectSubtreePostOrder(selected, [selected, ...descendants]);
+      await rxdb.entityManager.removeMany(filesToRemove);
+    });
+    if (result.ok) setFileToDelete(null);
   };
 
   const clearSearch = () => {
@@ -529,82 +520,85 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
   };
 
   const addRoot = async (name: string, type: 'file' | 'folder', extension?: string | null) => {
-    const lastRootId = rootIds[rootIds.length - 1];
-    const lastRoot = lastRootId ? nodesMap.get(lastRootId) : null;
-    const sortOrder = generateKeyBetween(lastRoot?.sortOrder || null, null);
+    // 只赋业务字段：文件与文件夹同属根节点组，排序键由引擎追加到组末尾
+    await runWrite('新建', async () => {
+      const file = new SortableFileLarge({
+        name,
+        type,
+        extension:
+          type === 'file' ?
+            normalizeFileExtension(extension ?? (name.includes('.') ? name.split('.').pop() : null))
+          : undefined,
+        size: type === 'file' ? Math.floor(Math.random() * 10000) : undefined
+      });
+      await rxdb.entityManager.save(file);
 
-    const file = new FileLarge({
-      name,
-      type,
-      sortOrder,
-      extension:
-        type === 'file' ?
-          normalizeFileExtension(extension ?? (name.includes('.') ? name.split('.').pop() : null))
-        : undefined,
-      size: type === 'file' ? Math.floor(Math.random() * 10000) : undefined
+      // Update local state
+      setNodesMap(prev => new Map(prev).set(file.id, file));
+      setRootIds(prev => [...prev, file.id]);
     });
-    await rxdb.entityManager.save(file);
-
-    // Update local state
-    setNodesMap(prev => new Map(prev).set(file.id, file));
-    setRootIds(prev => [...prev, file.id]);
   };
 
-  const addChild = async (parent: FileLarge, name: string, type: 'file' | 'folder', extension?: string | null) => {
-    const lastSibling = await fetchLastSibling(parent.id);
-    const sortOrder = generateKeyBetween(lastSibling?.sortOrder ?? null, null);
+  const addChild = async (
+    parent: SortableFileLarge,
+    name: string,
+    type: 'file' | 'folder',
+    extension?: string | null
+  ) => {
+    await runWrite('新建', async () => {
+      const file = new SortableFileLarge({
+        name,
+        type,
+        extension:
+          type === 'file' ?
+            normalizeFileExtension(extension ?? (name.includes('.') ? name.split('.').pop() : null))
+          : undefined,
+        size: type === 'file' ? Math.floor(Math.random() * 10000) : undefined
+      });
+      file.parentId = parent.id;
+      await rxdb.entityManager.save(file);
 
-    const file = new FileLarge({
-      name,
-      type,
-      sortOrder,
-      extension:
-        type === 'file' ?
-          normalizeFileExtension(extension ?? (name.includes('.') ? name.split('.').pop() : null))
-        : undefined,
-      size: type === 'file' ? Math.floor(Math.random() * 10000) : undefined
-    });
-    file.parentId = parent.id;
-    await rxdb.entityManager.save(file);
-
-    // Update local state
-    setNodesMap(prev => new Map(prev).set(file.id, file));
-    setChildrenMap(prev => {
-      const next = new Map(prev);
-      const current = next.get(parent.id) || [];
-      next.set(parent.id, [...current, file.id]);
-      return next;
-    });
-
-    // Ensure expanded
-    if (!expandedIds.has(parent.id)) {
-      setExpandedIds(prev => new Set(prev).add(parent.id));
-    }
-  };
-
-  const deleteFile = async (file: FileLarge) => {
-    await file.remove();
-
-    // Update local state
-    setNodesMap(prev => {
-      const next = new Map(prev);
-      next.delete(file.id);
-      return next;
-    });
-
-    if (file.parentId) {
+      setNodesMap(prev => new Map(prev).set(file.id, file));
+      if (!expandedIds.has(parent.id)) {
+        // 折叠（子节点未加载）的文件夹：走展开订阅把库里的子节点连同新节点一起载入，
+        // 而不是只往 childrenMap 里塞新节点——那样展开后只看得见这一个。
+        expandNode(parent.id);
+        return;
+      }
       setChildrenMap(prev => {
         const next = new Map(prev);
-        const siblings = next.get(file.parentId!) || [];
-        next.set(
-          file.parentId!,
-          siblings.filter(id => id !== file.id)
-        );
+        const current = next.get(parent.id) || [];
+        next.set(parent.id, [...current, file.id]);
         return next;
       });
-    } else {
-      setRootIds(prev => prev.filter(id => id !== file.id));
-    }
+    });
+  };
+
+  const deleteFile = async (file: SortableFileLarge) => {
+    await runWrite('删除', async () => {
+      await file.remove();
+
+      // Update local state
+      setNodesMap(prev => {
+        const next = new Map(prev);
+        next.delete(file.id);
+        return next;
+      });
+
+      if (file.parentId) {
+        setChildrenMap(prev => {
+          const next = new Map(prev);
+          const siblings = next.get(file.parentId!) || [];
+          next.set(
+            file.parentId!,
+            siblings.filter(id => id !== file.id)
+          );
+          return next;
+        });
+      } else {
+        setRootIds(prev => prev.filter(id => id !== file.id));
+      }
+    });
   };
 
   // 组件卸载时清理所有订阅
@@ -628,7 +622,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     let lastBatchHeadId: string | null = null;
     for (;;) {
       const batch = await firstValueFrom(
-        FileLarge.find({ where: { combinator: 'and', rules: [] }, limit: DELETE_BATCH_SIZE })
+        SortableFileLarge.find({ where: { combinator: 'and', rules: [] }, limit: DELETE_BATCH_SIZE })
       );
       if (batch.length === 0) return;
       if (batch[0].id === lastBatchHeadId) {
@@ -640,7 +634,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
   };
 
   /** 读取已加载的节点。页面拿所在文件夹名之类的用途，不该为此持有一份全表。 */
-  const getNode = (id: string): FileLarge | undefined => nodesMap.get(id);
+  const getNode = (id: string): SortableFileLarge | undefined => nodesMap.get(id);
 
   return {
     treeNodes,
@@ -656,6 +650,9 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     matchedFileIds,
     expandedCount,
     isAllExpanded,
+    writeError,
+    clearWriteError,
+    runWrite,
     addManyFiles,
     setSearchKeyword,
     toggleExpand,

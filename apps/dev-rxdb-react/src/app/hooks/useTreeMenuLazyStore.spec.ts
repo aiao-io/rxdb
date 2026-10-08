@@ -1,5 +1,5 @@
 import type { RxDB, UUID } from '@aiao/rxdb';
-import { MenuLarge } from '@aiao/rxdb-test/entities';
+import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { act, renderHook } from '@testing-library/react';
 import { Observable, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -11,19 +11,27 @@ vi.mock('../utils/menu-utils', () => ({
   generateBatchMenus: vi.fn(() => [])
 }));
 
+const mocks = vi.hoisted(() => ({
+  getEntityMutations: vi.fn((options: unknown) => ({ mutationsOf: options }))
+}));
+
+vi.mock('@aiao/rxdb', async importOriginal => ({
+  ...(await importOriginal<typeof import('@aiao/rxdb')>()),
+  getEntityMutations: mocks.getEntityMutations
+}));
+
 /**
- * 真实的 `MenuLarge` 构造函数走装饰器代理，没初始化 RxDB 就抛 `need init rxdb`。
+ * 真实的 `SortableMenuLarge` 构造函数走装饰器代理，没初始化 RxDB 就抛 `need init rxdb`。
  * 本文件测的是 store **发了哪些查询、写了什么**，不是实体装配，所以换成同形状的替身。
+ * 替身不声明 `sortOrder` 字段：store 若赋了它，`Object.keys` 里就会出现。
  */
 vi.mock('@aiao/rxdb-test/entities', () => {
   let seq = 0;
-  class MenuLargeDouble {
+  class SortableMenuLargeDouble {
     id: string;
     parentId: string | null = null;
-    title?: string;
-    sortOrder?: string | null;
     hasChildren = false;
-    constructor(data: { title?: string; sortOrder?: string | null } = {}) {
+    constructor(data: { title?: string } = {}) {
       seq += 1;
       this.id = `new${seq}-0000-0000-0000-000000000000`;
       Object.assign(this, data);
@@ -35,7 +43,7 @@ vi.mock('@aiao/rxdb-test/entities', () => {
       return Promise.resolve();
     }
   }
-  return { MenuLarge: MenuLargeDouble };
+  return { SortableMenuLarge: SortableMenuLargeDouble };
 });
 
 interface QueryOptions {
@@ -54,19 +62,19 @@ interface QueryCall {
 const toUuid = (id: string): UUID => `${id}-0000-0000-0000-000000000000`;
 
 /**
- * 一个"够用"的 MenuLarge 替身：store 只读 id/parentId/title/sortOrder/hasChildren，
+ * 一个"够用"的 SortableMenuLarge 替身：store 只读 id/parentId/title/sortOrder/hasChildren，
  * 写只经过 entityManager 与 save()/remove()。真实实体要连数据库，这里不需要。
  */
-const makeMenu = (id: string, parentId: string | null, sortOrder: string): MenuLarge =>
+const makeMenu = (id: string, parentId: string | null, sortOrder: string): SortableMenuLarge =>
   ({
     id: toUuid(id),
     parentId: parentId === null ? null : toUuid(parentId),
     title: `菜单 ${id}`,
     sortOrder,
     hasChildren: false,
-    save: () => Promise.resolve(),
-    remove: () => Promise.resolve()
-  }) as unknown as MenuLarge;
+    save: vi.fn(() => Promise.resolve()),
+    remove: vi.fn(() => Promise.resolve())
+  }) as unknown as SortableMenuLarge;
 
 /**
  * 极小的内存假仓储。它让断言落在**行为**上（删干净了没、拿到的同级对不对），
@@ -77,11 +85,16 @@ const makeMenu = (id: string, parentId: string | null, sortOrder: string): MenuL
  * `find` 天然带 limit，因此有界。
  */
 class FakeMenuTable {
-  rows: MenuLarge[] = [];
+  private rxdb: RxDB | null = null;
+  rows: SortableMenuLarge[] = [];
   readonly calls: QueryCall[] = [];
+  /** `entityManager()` 返回的假实体管理器里的写方法，断言「发了哪些写」用。 */
+  get writes() {
+    return (this.rxdb as unknown as { entityManager: Record<string, ReturnType<typeof vi.fn>> }).entityManager;
+  }
 
   install(): void {
-    const statics = MenuLarge as unknown as Record<string, unknown>;
+    const statics = SortableMenuLarge as unknown as Record<string, unknown>;
     statics.findAll = vi.fn((options: QueryOptions) => {
       this.calls.push({ method: 'findAll', options });
       return of(this.rowsFor(options));
@@ -97,7 +110,7 @@ class FakeMenuTable {
   }
 
   uninstall(): void {
-    const statics = MenuLarge as unknown as Record<string, unknown>;
+    const statics = SortableMenuLarge as unknown as Record<string, unknown>;
     delete statics.findAll;
     delete statics.find;
     delete statics.findDescendants;
@@ -109,24 +122,30 @@ class FakeMenuTable {
   }
 
   entityManager(): RxDB {
+    this.rxdb = this.buildEntityManager();
+    return this.rxdb;
+  }
+
+  private buildEntityManager(): RxDB {
     return {
       entityManager: {
-        save: vi.fn(async (entity: MenuLarge) => {
+        save: vi.fn(async (entity: SortableMenuLarge) => {
           this.rows.push(entity);
         }),
-        saveMany: vi.fn(async (entities: MenuLarge[]) => {
+        saveMany: vi.fn(async (entities: SortableMenuLarge[]) => {
           this.rows.push(...entities);
         }),
-        removeMany: vi.fn(async (entities: MenuLarge[]) => {
+        removeMany: vi.fn(async (entities: SortableMenuLarge[]) => {
           const ids = new Set(entities.map(entity => entity.id));
           this.rows = this.rows.filter(row => !ids.has(row.id));
-        })
+        }),
+        mutations: vi.fn((): Promise<void> => Promise.resolve())
       }
     } as unknown as RxDB;
   }
 
-  private descendantsOf(id: UUID): MenuLarge[] {
-    const out: MenuLarge[] = [];
+  private descendantsOf(id: UUID): SortableMenuLarge[] {
+    const out: SortableMenuLarge[] = [];
     const walk = (parentId: UUID): void => {
       for (const row of this.rows.filter(r => r.parentId === parentId)) {
         out.push(row);
@@ -137,7 +156,7 @@ class FakeMenuTable {
     return out;
   }
 
-  private rowsFor(options: QueryOptions): MenuLarge[] {
+  private rowsFor(options: QueryOptions): SortableMenuLarge[] {
     const rule = options.where?.rules?.find(r => r.field === 'parentId');
     const matched =
       rule === undefined ? [...this.rows] : this.rows.filter(row => (row.parentId ?? null) === (rule.value ?? null));
@@ -155,7 +174,8 @@ describe('useTreeMenuLazyStore', () => {
     table = new FakeMenuTable();
     table.install();
     rxdb = table.entityManager();
-    vi.mocked(generateBatchMenus).mockClear();
+    vi.mocked(generateBatchMenus).mockReset().mockReturnValue([]);
+    mocks.getEntityMutations.mockClear();
   });
 
   afterEach(() => {
@@ -168,7 +188,7 @@ describe('useTreeMenuLazyStore', () => {
       ...menuLargeTreeSource,
       findRoots: vi.fn(
         () =>
-          new Observable<MenuLarge[]>(subscriber => {
+          new Observable<SortableMenuLarge[]>(subscriber => {
             subscriber.next([]);
             return firstUnsubscribe;
           })
@@ -189,7 +209,7 @@ describe('useTreeMenuLazyStore', () => {
   });
 
   /**
-   * APP-dev-rxdb-react P0-1：页面此前靠 `useFindAll(MenuLarge, { rules: [] })` 拿一份全表数组，
+   * APP-dev-rxdb-react P0-1：页面此前靠 `useFindAll(SortableMenuLarge, { rules: [] })` 拿一份全表数组，
    * 再把它喂给六个下游。懒加载页面的存在意义正是"不加载整棵树"，这份订阅把它整个抵消了。
    * 下面每条锁一个下游：它要的那份数据必须由 store 自己有界地取到。
    */
@@ -215,18 +235,33 @@ describe('useTreeMenuLazyStore', () => {
       expect(table.fullTableScans()).toEqual([]);
     });
 
-    it('addManyMenus(count) 不接受数组，只按序取最后一个根节点', async () => {
+    it('addManyMenus(count) 不接受数组也不读根节点：一次 saveMany，生成器不收已有根节点', async () => {
       table.rows = [makeMenu('a', null, 'a0'), makeMenu('b', null, 'a2'), makeMenu('c', 'a', 'a0')];
+      const batch = [makeMenu('n1', null, ''), makeMenu('n2', 'n1', '')];
+      vi.mocked(generateBatchMenus).mockReturnValue(batch);
 
       const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      table.calls.length = 0;
       await act(async () => {
         await result.current.addManyMenus(5);
       });
 
-      const [count, , existingRoots] = vi.mocked(generateBatchMenus).mock.calls[0];
-      expect(count).toBe(5);
-      expect((existingRoots as MenuLarge[]).at(-1)?.sortOrder).toBe('a2');
-      expect(table.fullTableScans()).toEqual([]);
+      expect(vi.mocked(generateBatchMenus)).toHaveBeenCalledExactlyOnceWith(5, SortableMenuLarge);
+      expect(table.writes['saveMany']).toHaveBeenCalledExactlyOnceWith(batch);
+      expect(table.writes['save']).not.toHaveBeenCalled();
+      expect(table.calls).toEqual([]);
+    });
+
+    it('addManyMenus 失败：写入「批量添加失败」且不抛出', async () => {
+      vi.mocked(generateBatchMenus).mockReturnValue([makeMenu('n1', null, '')]);
+      table.writes['saveMany'].mockRejectedValueOnce(new Error('唯一索引冲突'));
+
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      await act(async () => {
+        await result.current.addManyMenus(1);
+      });
+
+      expect(result.current.writeError).toBe('批量添加失败：唯一索引冲突');
     });
 
     it('级联删除只查目标子树，不扫全表', async () => {
@@ -246,18 +281,196 @@ describe('useTreeMenuLazyStore', () => {
       expect(table.fullTableScans()).toEqual([]);
     });
 
-    it('addChild 只查同级，排在同级末尾之后', async () => {
+    it('addChild（父节点已展开）不查同级、不写 sortOrder：只赋业务字段与 parentId', async () => {
       const parent = makeMenu('p', null, 'a0');
+      (parent as { hasChildren?: boolean }).hasChildren = true;
       table.rows = [parent, makeMenu('c1', 'p', 'a0'), makeMenu('c2', 'p', 'a5'), makeMenu('other', null, 'a1')];
 
       const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
       await act(async () => {
+        await result.current.toggleExpand(parent.id);
+      });
+      table.calls.length = 0;
+      await act(async () => {
         await result.current.addChild(parent, '新子菜单');
       });
 
-      const created = table.rows.find(row => row.title === '新子菜单');
-      expect((created?.sortOrder ?? '') > 'a5').toBe(true);
-      expect(table.fullTableScans()).toEqual([]);
+      const created = table.rows.find(row => row.title === '新子菜单') as unknown as Record<string, unknown>;
+      expect(created['parentId']).toBe(parent.id);
+      expect(Object.keys(created)).not.toContain('sortOrder');
+      expect(table.calls).toEqual([]);
+    });
+
+    it('addChild（父节点折叠、子节点未加载）不读尾键；只订阅该父节点的子节点，展开后新旧子节点都在', async () => {
+      const parent = makeMenu('p', null, 'a0');
+      (parent as { hasChildren?: boolean }).hasChildren = true;
+      table.rows = [parent, makeMenu('c1', 'p', 'a0'), makeMenu('c2', 'p', 'a5')];
+
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      table.calls.length = 0;
+      await act(async () => {
+        await result.current.addChild(parent, '新子菜单');
+      });
+
+      const created = table.rows.find(row => row.title === '新子菜单') as unknown as Record<string, unknown>;
+      expect(Object.keys(created)).not.toContain('sortOrder');
+      // 没有取同级尾键的 `find`（limit + desc），只有展开该父节点的子节点订阅
+      expect(table.calls.filter(call => call.method === 'find')).toEqual([]);
+      expect(table.calls.map(call => call.options.orderBy?.[0]?.sort)).not.toContain('desc');
+      expect(result.current.expandedIds.has(parent.id)).toBe(true);
+      expect(result.current.treeNodes.map(node => node.menu.title).sort()).toEqual(
+        ['菜单 c1', '菜单 c2', '菜单 p', '新子菜单'].sort()
+      );
+    });
+
+    it('addRoot 不查同级、不写 sortOrder', async () => {
+      table.rows = [makeMenu('a', null, 'a0')];
+
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      table.calls.length = 0;
+      await act(async () => {
+        await result.current.addRoot('新根');
+      });
+
+      const created = table.rows.find(row => row.title === '新根') as unknown as Record<string, unknown>;
+      expect(created['parentId']).toBeNull();
+      expect(Object.keys(created)).not.toContain('sortOrder');
+      expect(table.calls).toEqual([]);
+    });
+  });
+
+  describe('写入失败进入 writeError', () => {
+    it('addRoot / addChild 保存失败：写入「新建失败」且不抛出，本地状态不被推进', async () => {
+      const parent = makeMenu('p', null, 'a0');
+      table.writes['save'].mockRejectedValue(new Error('唯一索引冲突'));
+
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      await act(async () => {
+        await result.current.addRoot('重名');
+      });
+      expect(result.current.writeError).toBe('新建失败：唯一索引冲突');
+      expect(result.current.treeNodes).toEqual([]);
+
+      act(() => result.current.clearWriteError());
+      await act(async () => {
+        await result.current.addChild(parent, '重名');
+      });
+      expect(result.current.writeError).toBe('新建失败：唯一索引冲突');
+      expect(result.current.expandedIds.has(parent.id)).toBe(false);
+    });
+
+    it('重命名失败：runWrite 把失败写入「重命名失败」', async () => {
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+
+      await act(async () => {
+        await result.current.runWrite('重命名', () => Promise.reject(new Error('同级重名')));
+      });
+
+      expect(result.current.writeError).toBe('重命名失败：同级重名');
+    });
+
+    it('级联删除失败：写入「级联删除失败」，对话框关闭', async () => {
+      const parent = makeMenu('p', null, 'a0');
+      table.rows = [parent, makeMenu('c1', 'p', 'a0')];
+      table.writes['removeMany'].mockRejectedValueOnce(new Error('被外键拦下'));
+
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      await act(async () => {
+        await result.current.deleteMenu(parent);
+      });
+      await act(async () => {
+        await result.current.executeCascadeDelete();
+      });
+
+      expect(result.current.writeError).toBe('级联删除失败：被外键拦下');
+      expect(result.current.menuToDelete).toBeNull();
+    });
+  });
+
+  describe('删除：对话框与提升取自库（US-031）', () => {
+    it('折叠节点（页面未加载子节点、hasChildren 为假）删除时仍弹对话框，影响数取自库', async () => {
+      const collapsed = makeMenu('p', null, 'a0');
+      table.rows = [collapsed, makeMenu('c1', 'p', 'a0'), makeMenu('c2', 'p', 'a1')];
+
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      await act(async () => {
+        await result.current.deleteMenu(collapsed);
+      });
+
+      expect(result.current.menuToDelete).toBe(collapsed);
+      expect(result.current.deleteImpact?.childrenCount).toBe(2);
+      expect(collapsed.remove).not.toHaveBeenCalled();
+    });
+
+    it('库里没有子节点：直接删除，不弹对话框', async () => {
+      const leaf = makeMenu('leaf', null, 'a0');
+      table.rows = [leaf];
+
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      await act(async () => {
+        await result.current.deleteMenu(leaf);
+      });
+
+      expect(leaf.remove).toHaveBeenCalledOnce();
+      expect(result.current.menuToDelete).toBeNull();
+    });
+
+    it('叶子删除失败：写入「删除失败」', async () => {
+      const leaf = makeMenu('leaf', null, 'a0');
+      leaf.remove = vi.fn(() => Promise.reject(new Error('远端拒绝删除')));
+      table.rows = [leaf];
+
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      await act(async () => {
+        await result.current.deleteMenu(leaf);
+      });
+
+      expect(result.current.writeError).toBe('删除失败：远端拒绝删除');
+    });
+
+    it('删除并提升：子节点按 parentId 取自库，只改 parentId，一次 mutations，不逐条 save / remove', async () => {
+      const grand = makeMenu('g', null, 'a0');
+      const parent = makeMenu('p', 'g', 'a0');
+      const c1 = makeMenu('c1', 'p', 'a0');
+      const c2 = makeMenu('c2', 'p', 'a1');
+      table.rows = [grand, parent, c1, c2];
+
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      await act(async () => {
+        await result.current.deleteMenu(parent);
+      });
+      await act(async () => {
+        await result.current.executePromoteChildrenDelete();
+      });
+
+      expect(mocks.getEntityMutations).toHaveBeenCalledExactlyOnceWith({
+        needSaveEntities: [c1, c2],
+        needRemoveEntities: [parent]
+      });
+      expect(table.writes['mutations']).toHaveBeenCalledOnce();
+      expect([c1.parentId, c2.parentId]).toEqual([grand.id, grand.id]);
+      expect([c1.sortOrder, c2.sortOrder]).toEqual(['a0', 'a1']);
+      expect(c1.save).not.toHaveBeenCalled();
+      expect(parent.remove).not.toHaveBeenCalled();
+      expect(result.current.menuToDelete).toBeNull();
+      expect(result.current.writeError).toBeNull();
+    });
+
+    it('删除并提升失败：写入「删除并提升子节点失败」，对话框关闭', async () => {
+      const parent = makeMenu('p', null, 'a0');
+      table.rows = [parent, makeMenu('c1', 'p', 'a0')];
+      table.writes['mutations'].mockRejectedValueOnce(new Error('事务回滚'));
+
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      await act(async () => {
+        await result.current.deleteMenu(parent);
+      });
+      await act(async () => {
+        await result.current.executePromoteChildrenDelete();
+      });
+
+      expect(result.current.writeError).toBe('删除并提升子节点失败：事务回滚');
+      expect(result.current.menuToDelete).toBeNull();
     });
   });
 });

@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { FileLarge } from '@aiao/rxdb-test/entities';
+import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { useRxDB } from '@aiao/rxdb-vue';
 import { formatErrorMessage, useToast } from '../../app/composables/useToast';
 import { useVirtualizer } from '@tanstack/vue-virtual';
@@ -32,6 +32,7 @@ import {
 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import HistorySidebar from '../../app/components/HistorySidebar.vue';
+import TreeWriteError from '../../app/components/TreeWriteError.vue';
 import { useDragDrop } from '../../app/composables/useDragDrop';
 import { useFileManagerLazyStore } from '../../app/composables/useFileManagerLazyStore';
 import { getFileIcon } from '../../app/utils/file-icons';
@@ -45,7 +46,7 @@ const loadingActions = ref<Set<string>>(new Set());
 const isDeleting = ref(false);
 const parentRef = ref<HTMLDivElement | null>(null);
 
-const history = computed(() => rxdb.versionManager.history(FileLarge));
+const history = computed(() => rxdb.versionManager.history(SortableFileLarge));
 const histories = useObservable(history.value.histories$, { initialValue: [] });
 const undoCount = useObservable(history.value.undoCount$, { initialValue: 0 });
 const redoCount = useObservable(history.value.redoCount$, { initialValue: 0 });
@@ -53,7 +54,7 @@ const redoCount = useObservable(history.value.redoCount$, { initialValue: 0 });
 const store = useFileManagerLazyStore(rxdb);
 
 // 拖放验证用 store 已加载节点快照，避免重复订阅全表（lazy 模式 10k 节点会 OOM）。
-const dragDrop = useDragDrop<FileLarge>(store.loadedNodes, {
+const dragDrop = useDragDrop<SortableFileLarge>(store.loadedNodes, {
   isFolder: node => node.type === 'folder'
 });
 
@@ -110,12 +111,6 @@ const handleAddMany = async (count: number, actionKey: string) => {
   }
 };
 
-// 保存编辑
-const handleSave = async (file: FileLarge) => {
-  await file.save();
-  store.cancelEdit();
-};
-
 // 添加文件/文件夹
 const handleAdd = async () => {
   if (newName.value.trim()) {
@@ -154,7 +149,7 @@ const handleDragStart = (e: DragEvent, fileId: string) => {
   dragDrop.onDragStart(fileId);
 };
 
-const handleDragOver = (e: DragEvent, file: FileLarge) => {
+const handleDragOver = (e: DragEvent, file: SortableFileLarge) => {
   e.preventDefault();
   const element = e.currentTarget as HTMLElement;
   const rect = element.getBoundingClientRect();
@@ -172,7 +167,7 @@ const handleDragLeave = (e: DragEvent) => {
   }
 };
 
-const handleDrop = async (e: DragEvent, file: FileLarge) => {
+const handleDrop = async (e: DragEvent, file: SortableFileLarge) => {
   e.preventDefault();
   e.stopPropagation();
   try {
@@ -501,6 +496,12 @@ const getIconComponent = (iconName: string) => {
         </div>
       </div>
 
+      <TreeWriteError
+        class="mx-auto mt-4 w-full max-w-4xl"
+        :message="store.writeError.value"
+        @close="store.clearWriteError"
+      />
+
       <!-- Tree List (Virtual) -->
       <div
         class="flex-1 overflow-auto p-4"
@@ -637,8 +638,8 @@ const getIconComponent = (iconName: string) => {
                   class="input input-bordered input-sm flex-1"
                   v-if="store.editingId.value === node.file.id"
                   v-model="node.file.name"
-                  @blur="handleSave(node.file)"
-                  @keydown.enter="handleSave(node.file)"
+                  @blur="store.commitEdit(node.file)"
+                  @keydown.enter="store.commitEdit(node.file)"
                   @keydown.escape="store.cancelEdit()"
                   autoFocus
                   data-testid="file-edit-input"

@@ -66,6 +66,14 @@
         "cwd": "benchmarks",
         "command": "node --experimental-strip-types push-receipts.bench.ts"
       }
+    },
+    "bench-sortable-batch": {
+      "executor": "nx:run-commands",
+      "dependsOn": ["typecheck", "^build"],
+      "options": {
+        "cwd": "benchmarks",
+        "command": "node --experimental-strip-types sortable-batch-append.bench.ts"
+      }
     }
   }
 }

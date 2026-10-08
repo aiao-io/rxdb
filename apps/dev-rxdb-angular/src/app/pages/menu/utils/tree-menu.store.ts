@@ -1,7 +1,7 @@
 import type { HistoryScopeAPI, RxDBEntityId } from '@aiao/rxdb';
 import { getEntityMutations, RxDB } from '@aiao/rxdb';
-import { generateKeyBetween } from '@aiao/utils';
 import { computed, signal, Signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { runViewTransition, ViewTransitionStarter } from '../../../shared/view-transition';
 import { DragDropState, DropMode } from '../models/drag-drop-types';
 import { TreeMenuEntityConstructor, TreeMenuInstance, TreeNode } from '../models/tree-node.interface';
@@ -12,9 +12,16 @@ import {
   calculateDropMode as calcDropMode,
   collectDescendants,
   compareSortOrder,
-  countDescendants,
   generateBatchMenus
 } from './tree-utils';
+
+/** 删除对话框展示的影响范围（取自库，不看页面已加载的节点）。 */
+export interface DeleteImpact {
+  childrenCount: number;
+  descendantsCount: number;
+}
+
+const NO_DELETE_IMPACT: DeleteImpact = { childrenCount: 0, descendantsCount: 0 };
 
 export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
   // Internal State
@@ -36,18 +43,8 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
     return this.searchService.filterTreeNodes(this.menuResource.value(), keyword);
   });
 
-  readonly deleteImpact = computed(() => {
-    const menu = this.menuToDelete();
-    if (!menu) return { childrenCount: 0, descendantsCount: 0 };
-
-    const allMenus = this.menuResource.value();
-    const children = allMenus.filter(m => m.parentId === menu.id);
-
-    return {
-      childrenCount: children.length,
-      descendantsCount: countDescendants(menu.id, allMenus)
-    };
-  });
+  /** 随 `menuToDelete` 一起在 {@link deleteMenu} 里按库查出；懒加载页的折叠节点没有已加载的子节点可数。 */
+  readonly deleteImpact = signal<DeleteImpact>(NO_DELETE_IMPACT);
 
   readonly expandedCount = computed(() => this.expandedMenuIds().size);
 
@@ -182,17 +179,9 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
       return;
     }
 
-    const rootMenus = this.menuResource
-      .value()
-      .filter(m => m.parentId == null)
-      .sort(compareSortOrder);
-
-    const lastRoot = rootMenus[rootMenus.length - 1];
-    const newSortOrder = generateKeyBetween(lastRoot?.sortOrder ?? null, null);
-
+    // 不赋 sortOrder：引擎在事务内把缺键的新行追加到所属 parentId 组的末尾
     const menu = this.createEntity();
     menu.title = title;
-    menu.sortOrder = newSortOrder;
     await menu.save();
 
     this.expandedMenuIds.update(ids => {
@@ -211,17 +200,8 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
       return;
     }
 
-    const siblings = this.menuResource
-      .value()
-      .filter(m => m.parentId === parentId)
-      .sort(compareSortOrder);
-
-    const lastSibling = siblings[siblings.length - 1];
-    const newSortOrder = generateKeyBetween(lastSibling?.sortOrder ?? null, null);
-
     const menu = this.createEntity();
     menu.title = title;
-    menu.sortOrder = newSortOrder;
     menu.parentId = parentId;
 
     await menu.save();
@@ -247,44 +227,54 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
     this.editingMenuId.set(null);
   }
 
+  /**
+   * 删除节点：按库里的直接子节点决定直接删除还是打开选择对话框。
+   *
+   * @remarks
+   * 不看 `menuResource`：懒加载页只持有已加载的节点，折叠节点的子节点不在其中，
+   * 按页面判断会把有子树的节点当叶子直接删除（`parentId` 外键级联删掉整棵子树）。
+   */
   async deleteMenu(menu: TreeMenuInstance<C>): Promise<void> {
-    const allMenus = this.menuResource.value();
-    const hasChildren = allMenus.some(m => m.parentId === menu.id);
-
-    if (!hasChildren) {
+    const children = await this.findChildren(menu.id);
+    if (children.length === 0) {
       await menu.remove();
-    } else {
-      this.menuToDelete.set(menu);
+      return;
     }
+
+    const subtree = await this.findSubtree(menu.id);
+    this.deleteImpact.set({ childrenCount: children.length, descendantsCount: subtree.length - 1 });
+    this.menuToDelete.set(menu);
   }
 
   cancelDelete(): void {
-    this.menuToDelete.set(null);
+    this.closeDeleteDialog();
   }
 
   async executeCascadeDelete(): Promise<void> {
     const menu = this.menuToDelete();
     if (!menu) return;
 
-    const allMenus = this.menuResource.value();
-    const descendantIds = collectDescendants(menu.id, allMenus);
-    const menusToRemove = allMenus.filter(m => m.id === menu.id || descendantIds.has(m.id));
-
+    // findDescendants 含节点自身
+    const menusToRemove = await this.findSubtree(menu.id);
     await this.rxdb.entityManager.removeMany(menusToRemove);
-    this.menuToDelete.set(null);
+    this.closeDeleteDialog();
   }
 
+  /**
+   * 删除节点并把它的直接子节点提升到它原来的父节点下。
+   *
+   * @remarks
+   * 子节点取自库、只改 `parentId`，不赋 `sortOrder`：引擎把改了父节点的行追加到新组末尾。
+   * 保存子节点与删除节点在同一次 `mutations` 里提交，要么全成要么全不成。
+   */
   async executePromoteChildrenDelete(): Promise<void> {
     const menu = this.menuToDelete();
     if (!menu) return;
 
-    const allMenus = this.menuResource.value();
-    const children = allMenus.filter(m => m.parentId === menu.id);
-    const newParentId = menu.parentId;
-    const newParent = newParentId != null ? allMenus.find(m => m.id === newParentId) : null;
-
+    const children = await this.findChildren(menu.id);
+    const newParentId = menu.parentId ?? null;
     children.forEach(child => {
-      child.parentId = newParent?.id ?? null;
+      child.parentId = newParentId;
     });
 
     const options = getEntityMutations<C>({
@@ -293,7 +283,7 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
     });
 
     await this.rxdb.entityManager.mutations(options);
-    this.menuToDelete.set(null);
+    this.closeDeleteDialog();
   }
 
   clearPathWarning(): void {
@@ -311,12 +301,8 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
 
   // Batch
   async add_many_menu(total: number) {
-    const existingRoots = this.menuResource
-      .value()
-      .filter(m => m.parentId == null)
-      .sort(compareSortOrder);
-
-    const menus = generateBatchMenus(total, () => this.createEntity(), existingRoots);
+    // 一次 saveMany，节点不带 sortOrder：引擎按批内顺序把各 parentId 组追加到末尾
+    const menus = generateBatchMenus(total, () => this.createEntity());
     await this.rxdb.entityManager.saveMany<C>(menus);
   }
 
@@ -336,6 +322,26 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
 
   private createEntity(): TreeMenuInstance<C> {
     return new this.entityClass() as TreeMenuInstance<C>;
+  }
+
+  private closeDeleteDialog(): void {
+    this.menuToDelete.set(null);
+    this.deleteImpact.set(NO_DELETE_IMPACT);
+  }
+
+  /** 库里某节点的直接子节点（按原有顺序）。 */
+  private findChildren(parentId: RxDBEntityId): Promise<TreeMenuInstance<C>[]> {
+    return firstValueFrom(
+      this.entityClass.findAll({
+        where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: parentId }] },
+        orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      })
+    );
+  }
+
+  /** 库里某节点的子树：节点自身加全部后代。 */
+  private findSubtree(entityId: RxDBEntityId): Promise<TreeMenuInstance<C>[]> {
+    return firstValueFrom(this.entityClass.findDescendants({ entityId }));
   }
 }
 

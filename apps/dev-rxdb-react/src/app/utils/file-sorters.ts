@@ -1,4 +1,4 @@
-import { FileNode } from '@aiao/rxdb-test/entities';
+import type { SortableFileNode } from '@aiao/rxdb-test/entities';
 
 const SORT_MODE_STORAGE_KEY = 'file-manager-sort-mode';
 
@@ -55,7 +55,7 @@ export const SORT_MODE_LABELS: Record<SortMode, string> = {
  * @param mode 排序模式
  * @returns 比较器函数
  */
-export function getSortComparator(mode: SortMode): (a: FileNode, b: FileNode) => number {
+export function getSortComparator(mode: SortMode): (a: SortableFileNode, b: SortableFileNode) => number {
   switch (mode) {
     case SortMode.Manual:
       return (a, b) => {

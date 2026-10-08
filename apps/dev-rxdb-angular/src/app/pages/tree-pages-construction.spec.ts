@@ -1,5 +1,5 @@
 import { RxDB } from '@aiao/rxdb';
-import { FileNode, MenuLarge, MenuSimple } from '@aiao/rxdb-test/entities';
+import { SortableFileNode, SortableMenuLarge, SortableMenuSimple } from '@aiao/rxdb-test/entities';
 import { PLATFORM_ID, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -57,19 +57,19 @@ describe('tree demo page construction contracts', () => {
 
     const simple = TestBed.runInInjectionContext(() => new MenuTreeSimplePage());
     const virtual = TestBed.runInInjectionContext(() => new MenuTreeVirtualPage());
-    const menu = { id: 'menu-1', parentId: null, title: '菜单', sortOrder: 'a0' } as unknown as MenuSimple;
+    const menu = { id: 'menu-1', parentId: null, title: '菜单', sortOrder: 'a0' } as unknown as SortableMenuSimple;
 
     simple.toggleExpand(menu);
     simple.selectParent(menu.id);
     simple.cancelSelectParent();
     simple.clearSearch();
     virtual.onDragEnd();
-    virtual.onDragOver({ preventDefault: vi.fn() } as unknown as DragEvent, menu as unknown as MenuLarge);
+    virtual.onDragOver({ preventDefault: vi.fn() } as unknown as DragEvent, menu as unknown as SortableMenuLarge);
 
     expect(simple.trackByMenuId(0, { menu, level: 0, isExpanded: false, hasChildren: false })).toBe(menu.id);
     expect(virtual.itemSize).toBe(44);
-    expect(rxdb.versionManager.history).toHaveBeenCalledWith(MenuSimple);
-    expect(rxdb.versionManager.history).toHaveBeenCalledWith(MenuLarge);
+    expect(rxdb.versionManager.history).toHaveBeenCalledWith(SortableMenuSimple);
+    expect(rxdb.versionManager.history).toHaveBeenCalledWith(SortableMenuLarge);
   });
 
   it('提交入口按实时 selectedParentId 分流，不依赖模板渲染快照', async () => {
@@ -104,11 +104,11 @@ describe('tree demo page construction contracts', () => {
     const loadingNodes = signal(new Set<string>());
     const nodeErrors = signal(new Map<string, Error>());
     const lazyStore = {
-      visibleNodes: signal<MenuLarge[]>([]),
+      visibleNodes: signal<SortableMenuLarge[]>([]),
       expandedMenuIds,
       editingMenuId: signal<string | null>(null),
       selectedParentId: signal<string | null>(null),
-      menuToDelete: signal<MenuLarge | null>(null),
+      menuToDelete: signal<SortableMenuLarge | null>(null),
       pathConflictWarning: signal(null),
       searchKeyword: signal(''),
       matchedMenuIds: signal(new Set<string>()),
@@ -151,7 +151,7 @@ describe('tree demo page construction contracts', () => {
     });
 
     const page = TestBed.runInInjectionContext(() => new MenuTreeLazyPage());
-    const menu = { id: 'menu-1', parentId: null, title: '菜单', sortOrder: 'a0' } as unknown as MenuLarge;
+    const menu = { id: 'menu-1', parentId: null, title: '菜单', sortOrder: 'a0' } as unknown as SortableMenuLarge;
     const error = new Error('加载失败');
     loadingNodes.set(new Set([menu.id]));
     nodeErrors.set(new Map([[menu.id, error]]));
@@ -180,11 +180,16 @@ describe('tree demo page construction contracts', () => {
 
     const simple = TestBed.runInInjectionContext(() => new FileManagerSimplePage());
     const virtual = TestBed.runInInjectionContext(() => new FileManagerVirtualPage());
-    const folder = { id: 'folder', type: 'folder', name: '文档', extension: null } as unknown as FileNode;
-    const plain = { id: 'plain', type: 'file', name: 'README', extension: null } as unknown as FileNode;
-    const complete = { id: 'complete', type: 'file', name: 'README.txt', extension: 'txt' } as unknown as FileNode;
-    const missing = { id: 'missing', type: 'file', name: 'README', extension: 'txt' } as unknown as FileNode;
-    const iconFile = { id: 'icon', type: 'file', name: 'README', extension: '.txt' } as unknown as FileNode;
+    const folder = { id: 'folder', type: 'folder', name: '文档', extension: null } as unknown as SortableFileNode;
+    const plain = { id: 'plain', type: 'file', name: 'README', extension: null } as unknown as SortableFileNode;
+    const complete = {
+      id: 'complete',
+      type: 'file',
+      name: 'README.txt',
+      extension: 'txt'
+    } as unknown as SortableFileNode;
+    const missing = { id: 'missing', type: 'file', name: 'README', extension: 'txt' } as unknown as SortableFileNode;
+    const iconFile = { id: 'icon', type: 'file', name: 'README', extension: '.txt' } as unknown as SortableFileNode;
 
     expect(simple.getDisplayName(folder)).toBe('文档');
     expect(simple.getDisplayName(plain)).toBe('README');

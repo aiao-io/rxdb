@@ -1,5 +1,5 @@
 import type { HistoryScopeAPI, RxDB } from '@aiao/rxdb';
-import { FileNode } from '@aiao/rxdb-test/entities';
+import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { signal } from '@angular/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { FileDragDropService } from '../services/file-drag-drop.service';
@@ -7,15 +7,28 @@ import type { FilePathValidatorService } from '../services/file-path-validator.s
 import { SortMode } from './file-sorters';
 import { TreeFileDragDropStore, TreeFileStore } from './tree-file.store';
 
-const makeFile = (id: string, parentId: string | null, name: string, type: 'file' | 'folder' = 'folder'): FileNode =>
-  ({ id, parentId, name, type, extension: null, sortOrder: id, hasChildren: type === 'folder' }) as unknown as FileNode;
+const makeFile = (
+  id: string,
+  parentId: string | null,
+  name: string,
+  type: 'file' | 'folder' = 'folder'
+): SortableFileNode =>
+  ({
+    id,
+    parentId,
+    name,
+    type,
+    extension: null,
+    sortOrder: id,
+    hasChildren: type === 'folder'
+  }) as unknown as SortableFileNode;
 
-const makeStore = (files: FileNode[]) =>
-  new TreeFileStore<typeof FileNode>(
+const makeStore = (files: SortableFileNode[]) =>
+  new TreeFileStore<typeof SortableFileNode>(
     {} as RxDB,
     {} as FilePathValidatorService,
     { value: signal(files) },
-    FileNode,
+    SortableFileNode,
     undefined
   );
 
@@ -55,11 +68,16 @@ class TestFileEntity {
   type: 'file' | 'folder' = 'folder';
   extension: string | null | undefined = null;
   size: number | null | undefined = null;
-  sortOrder: string | null = 'a0';
+  /** 页面代码对 `sortOrder` 的每一次赋值都记在这里（新建 / 批量不得赋值） */
+  sortOrderWrites: unknown[] = [];
   hasChildren = false;
   parent$ = { set: vi.fn() };
   readonly save = vi.fn(async () => this);
   readonly remove = vi.fn(async () => this);
+
+  set sortOrder(value: unknown) {
+    this.sortOrderWrites.push(value);
+  }
 
   constructor() {
     TestFileEntity.instances.push(this);
@@ -77,7 +95,7 @@ const makeActionFile = (
   name: string,
   type: 'file' | 'folder' = 'folder',
   sortOrder = 'a0'
-): FileNode =>
+): SortableFileNode =>
   ({
     id,
     parentId,
@@ -88,19 +106,19 @@ const makeActionFile = (
     sortOrder,
     hasChildren: type === 'folder',
     parent$: { set: vi.fn() },
-    save: vi.fn(async function (this: FileNode) {
+    save: vi.fn(async function (this: SortableFileNode) {
       return this;
     }),
-    remove: vi.fn(async function (this: FileNode) {
+    remove: vi.fn(async function (this: SortableFileNode) {
       return this;
     })
-  }) as unknown as FileNode;
+  }) as unknown as SortableFileNode;
 
-const makeActionStore = (files: FileNode[]) => {
-  const removeMany = vi.fn(async (files: FileNode[]) => {
+const makeActionStore = (files: SortableFileNode[]) => {
+  const removeMany = vi.fn(async (files: SortableFileNode[]) => {
     void files;
   });
-  const saveMany = vi.fn(async (files: FileNode[]) => {
+  const saveMany = vi.fn(async (files: SortableFileNode[]) => {
     void files;
   });
   const entityManager = {
@@ -112,11 +130,11 @@ const makeActionStore = (files: FileNode[]) => {
   };
   const history = { undo: vi.fn(), redo: vi.fn() };
   const resource = { value: signal(files) };
-  const store = new TreeFileStore<typeof FileNode>(
+  const store = new TreeFileStore<typeof SortableFileNode>(
     { entityManager } as unknown as RxDB,
     pathValidator as unknown as FilePathValidatorService,
     resource,
-    TestFileEntity as unknown as typeof FileNode,
+    TestFileEntity as unknown as typeof SortableFileNode,
     history as unknown as HistoryScopeAPI
   );
   return { entityManager, history, pathValidator, resource, store };
@@ -152,6 +170,27 @@ describe('TreeFileStore actions', () => {
     expect(newFile.size).toBe(42);
     expect(newFile.parentId).toBeNull();
     expect(newFile.save).toHaveBeenCalledOnce();
+  });
+
+  /**
+   * 缺陷一：根级已有文件夹 A（`a0`）与文件 X（`a1`）时，旧代码只在「根文件夹」里取尾键，
+   * 给新文件夹 B 算出 `a1`，与 X 同键。排序键归引擎：新建只赋业务字段，不读兄弟、不赋 `sortOrder`。
+   */
+  it('新建文件夹 / 子文件夹 / 文件都不赋 sortOrder（缺陷一：根级文件夹与文件交替新建）', async () => {
+    const folderA = makeActionFile('a', null, 'A', 'folder', 'a0');
+    const fileX = makeActionFile('x', null, 'X', 'file', 'a1');
+    const { store } = makeActionStore([folderA, fileX]);
+
+    await store.createRootFolder('B');
+    store.selectFolder(folderA.id);
+    await store.createSubFolder('子文件夹');
+    await store.createFile('说明', '.md', 1);
+
+    const [rootB, sub, file] = TestFileEntity.instances;
+    expect(rootB.sortOrderWrites).toEqual([]);
+    expect(sub.sortOrderWrites).toEqual([]);
+    expect(file.sortOrderWrites).toEqual([]);
+    expect([rootB.save, sub.save, file.save].every(save => save.mock.calls.length === 1)).toBe(true);
   });
 
   it('冲突时不创建，编辑时排除自身并清理编辑状态', async () => {
@@ -231,15 +270,17 @@ describe('TreeFileStore actions', () => {
     expect(history.undo).not.toHaveBeenCalled();
   });
 
-  it('批量添加按单次事务保存，并为每个节点生成排序键', async () => {
-    const { entityManager, store } = makeActionStore([]);
+  it('批量添加是单次 saveMany，节点不带 sortOrder，也不读页面已加载的节点', async () => {
+    const existing = makeActionFile('root', null, '已有', 'folder', 'a0');
+    const { entityManager, store } = makeActionStore([existing]);
     const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
 
     await store.addBatch(5);
 
-    const [files] = entityManager.saveMany.mock.calls[0];
+    expect(entityManager.saveMany).toHaveBeenCalledOnce();
+    const files = entityManager.saveMany.mock.calls[0][0] as unknown as TestFileEntity[];
     expect(files).toHaveLength(5);
-    expect(files.every(file => Boolean(file.sortOrder))).toBe(true);
+    expect(files.every(file => file.sortOrderWrites.length === 0)).toBe(true);
     expect(new Set(files.map(file => file.id)).size).toBe(5);
     random.mockRestore();
   });
@@ -262,12 +303,12 @@ describe('TreeFileDragDropStore actions', () => {
       executeDrop: vi.fn(async () => ({ success: true, newParentId: target.id }))
     };
     const { resource } = makeActionStore([dragged, target, child]);
-    const store = new TreeFileDragDropStore<typeof FileNode>(
+    const store = new TreeFileDragDropStore<typeof SortableFileNode>(
       {} as RxDB,
       {} as FilePathValidatorService,
       dragDropService as unknown as FileDragDropService,
       resource,
-      TestFileEntity as unknown as typeof FileNode,
+      TestFileEntity as unknown as typeof SortableFileNode,
       {} as HistoryScopeAPI
     );
 

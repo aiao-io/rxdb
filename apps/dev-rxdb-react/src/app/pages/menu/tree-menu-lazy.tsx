@@ -1,5 +1,5 @@
 import { useRxDB } from '@aiao/rxdb-react';
-import { MenuLarge } from '@aiao/rxdb-test/entities';
+import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   ChevronDown,
@@ -34,14 +34,14 @@ const DRAG_DROP_OPTIONS = { resolveSiblings: fetchMenuChildren };
 
 export function TreeMenuLazyPage() {
   const rxdb = useRxDB();
-  const menuRepository = useMemo(() => rxdb.entityManager.getRepository(MenuLarge), [rxdb]);
+  const menuRepository = useMemo(() => rxdb.entityManager.getRepository(SortableMenuLarge), [rxdb]);
   const [showHistory, setShowHistory] = useState(true);
   const [newTitle, setNewTitle] = useState('');
   const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set());
   const [editingTitles, setEditingTitles] = useState<Map<string, string>>(new Map());
   const parentRef = useRef<HTMLDivElement>(null);
 
-  const history = useMemo(() => rxdb.versionManager.history(MenuLarge), [rxdb]);
+  const history = useMemo(() => rxdb.versionManager.history(SortableMenuLarge), [rxdb]);
   const histories = useObservable(history.histories$, []);
   const undoCount = useObservable(history.undoCount$, 0);
   const redoCount = useObservable(history.redoCount$, 0);
@@ -51,14 +51,14 @@ export function TreeMenuLazyPage() {
     pathConflict: renamePathConflict,
     rename: renameWithPathGuard,
     clearPathConflict: clearRenamePathConflict
-  } = useMenuRenamePathGuard<MenuLarge>();
+  } = useMenuRenamePathGuard<SortableMenuLarge>();
 
   // P0-1：懒加载页面**不能**再订阅整表。拖放要的祖先链必然已在可见集合里
   // （看得见就说明逐级展开过），真正可能缺席的只有落点的同级，交给 resolveSiblings 按需取。
   const visibleMenus = useMemo(() => store.treeNodes.map(node => node.menu), [store.treeNodes]);
 
   // Drag and drop
-  const dragDrop = useDragDrop<MenuLarge>(visibleMenus, DRAG_DROP_OPTIONS);
+  const dragDrop = useDragDrop<SortableMenuLarge>(visibleMenus, DRAG_DROP_OPTIONS);
 
   // 虚拟滚动配置
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns non-memoizable callbacks by design
@@ -103,15 +103,17 @@ export function TreeMenuLazyPage() {
 
   // 保存编辑
   const handleSave = useCallback(
-    async (menu: MenuLarge) => {
+    async (menu: SortableMenuLarge) => {
       const nextTitle = editingTitles.get(menu.id);
       if (typeof nextTitle === 'string' && nextTitle !== menu.title) {
-        // 冲突检测只看同级（可能未加载 → 按需查），路径展示要祖先链（必在可见集合里）。
-        const scope = mergeById(visibleMenus, await fetchMenuChildren(menu.parentId ?? null));
-        const renamed = await renameWithPathGuard(menu, nextTitle, scope, async (current, value) => {
-          await menuRepository.update(current, { title: value });
+        const renamed = await store.runWrite('重命名', async () => {
+          // 冲突检测只看同级（可能未加载 → 按需查），路径展示要祖先链（必在可见集合里）。
+          const scope = mergeById(visibleMenus, await fetchMenuChildren(menu.parentId ?? null));
+          return renameWithPathGuard(menu, nextTitle, scope, async (current, value) => {
+            await menuRepository.update(current, { title: value });
+          });
         });
-        if (!renamed) return;
+        if (!renamed.ok || !renamed.value) return;
       }
       setEditingTitles(prev => {
         const next = new Map(prev);
@@ -124,7 +126,7 @@ export function TreeMenuLazyPage() {
   );
 
   const handleStartEdit = useCallback(
-    (menu: MenuLarge) => {
+    (menu: SortableMenuLarge) => {
       setEditingTitles(prev => new Map(prev).set(menu.id, menu.title));
       store.startEdit(menu.id);
     },
@@ -371,7 +373,7 @@ export function TreeMenuLazyPage() {
         />
 
         <div className='mx-auto max-w-4xl px-4'>
-          <OperationErrorAlert message={store.deleteError} onClose={store.clearDeleteError} />
+          <OperationErrorAlert message={store.writeError} onClose={store.clearWriteError} />
         </div>
 
         {/* Tree List (Virtual) */}

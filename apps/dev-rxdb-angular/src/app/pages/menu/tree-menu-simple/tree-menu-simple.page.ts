@@ -1,6 +1,6 @@
 import { RxDB } from '@aiao/rxdb';
 import { useFindAll } from '@aiao/rxdb-angular';
-import { MenuSimple } from '@aiao/rxdb-test/entities';
+import { SortableMenuSimple } from '@aiao/rxdb-test/entities';
 import { AsyncPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -22,6 +22,7 @@ import {
   LucideX as X
 } from '@lucide/angular';
 import { HistorySidebarComponent } from '@modules/angular';
+import { TreeWriteError } from '../../../components/tree-write-error';
 import { TreeMenuDragDropBase } from '../utils/tree-menu.drag-drop';
 
 /**
@@ -38,10 +39,10 @@ import { TreeMenuDragDropBase } from '../utils/tree-menu.drag-drop';
   templateUrl: './tree-menu-simple.page.html',
   styleUrls: ['./tree-menu-simple.page.scss'],
   host: { class: 'page-host' },
-  imports: [FormsModule, LucideDynamicIcon, AsyncPipe, HistorySidebarComponent],
+  imports: [FormsModule, LucideDynamicIcon, AsyncPipe, HistorySidebarComponent, TreeWriteError],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export default class MenuTreePage extends TreeMenuDragDropBase<typeof MenuSimple> {
+export default class MenuTreePage extends TreeMenuDragDropBase<typeof SortableMenuSimple> {
   // Icons
   readonly ChevronRight = ChevronRight;
   readonly ChevronDown = ChevronDown;
@@ -61,12 +62,12 @@ export default class MenuTreePage extends TreeMenuDragDropBase<typeof MenuSimple
   constructor() {
     const rxdb = inject(RxDB);
     super(
-      useFindAll(MenuSimple, {
+      useFindAll(SortableMenuSimple, {
         where: { combinator: 'and', rules: [] },
         orderBy: [{ field: 'sortOrder', sort: 'asc' }]
       }),
-      MenuSimple,
-      rxdb.versionManager.history(MenuSimple)
+      SortableMenuSimple,
+      rxdb.versionManager.history(SortableMenuSimple)
     );
   }
 }

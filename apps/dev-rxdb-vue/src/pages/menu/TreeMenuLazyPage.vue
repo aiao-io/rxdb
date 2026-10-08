@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { MenuLarge } from '@aiao/rxdb-test/entities';
+import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { useRxDB } from '@aiao/rxdb-vue';
 import { formatErrorMessage, useToast } from '../../app/composables/useToast';
 import { useVirtualizer } from '@tanstack/vue-virtual';
@@ -22,6 +22,7 @@ import {
 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import HistorySidebar from '../../app/components/HistorySidebar.vue';
+import TreeWriteError from '../../app/components/TreeWriteError.vue';
 import { useDragDrop } from '../../app/composables/useDragDrop';
 import { useTreeMenuLazyStore } from '../../app/composables/useTreeMenuLazyStore';
 import { pairVirtualRows } from '../../app/utils/virtual-rows';
@@ -32,7 +33,7 @@ const newTitle = ref('');
 const loadingActions = ref<Set<string>>(new Set());
 const parentRef = ref<HTMLElement | null>(null);
 
-const history = computed(() => rxdb.versionManager.history(MenuLarge));
+const history = computed(() => rxdb.versionManager.history(SortableMenuLarge));
 const histories = useObservable(history.value.histories$, { initialValue: [] });
 const undoCount = useObservable(history.value.undoCount$, { initialValue: 0 });
 const redoCount = useObservable(history.value.redoCount$, { initialValue: 0 });
@@ -49,7 +50,7 @@ const focusMenuTitleInput = () => {
 
 // 拖放验证用 store 已加载节点快照（包含 visible 节点与其祖先链），
 // 不再开第二份全表订阅，避免 lazy 模式名存实亡。
-const dragDrop = useDragDrop<MenuLarge>(store.loadedNodes);
+const dragDrop = useDragDrop<SortableMenuLarge>(store.loadedNodes);
 
 // 虚拟滚动配置
 const rowVirtualizer = useVirtualizer(
@@ -85,12 +86,6 @@ const handleDeleteAll = async () => {
   }
 };
 
-// 保存编辑
-const handleSave = async (menu: MenuLarge) => {
-  await menu.save();
-  store.cancelEdit();
-};
-
 // 添加菜单
 const handleAddMenu = async () => {
   if (!newTitle.value.trim()) return;
@@ -115,7 +110,7 @@ const handleDragStart = (e: DragEvent, menuId: string) => {
   dragDrop.onDragStart(menuId);
 };
 
-const handleDragOver = (e: DragEvent, menu: MenuLarge) => {
+const handleDragOver = (e: DragEvent, menu: SortableMenuLarge) => {
   e.preventDefault();
   const element = e.currentTarget as HTMLElement;
   const rect = element.getBoundingClientRect();
@@ -133,7 +128,7 @@ const handleDragLeave = (e: DragEvent) => {
   }
 };
 
-const handleDrop = async (e: DragEvent, menu: MenuLarge) => {
+const handleDrop = async (e: DragEvent, menu: SortableMenuLarge) => {
   e.preventDefault();
   e.stopPropagation();
   try {
@@ -375,6 +370,12 @@ const handleDragEnd = () => {
         </div>
       </div>
 
+      <TreeWriteError
+        class="mx-auto mt-4 w-full max-w-4xl"
+        :message="store.writeError.value"
+        @close="store.clearWriteError"
+      />
+
       <!-- Tree List (Virtual) -->
       <div class="flex-1 p-4">
         <div
@@ -482,8 +483,8 @@ const handleDragEnd = () => {
                 class="input input-sm flex-1"
                 v-if="store.editingId.value === node.menu.id"
                 v-model="node.menu.title"
-                @blur="handleSave(node.menu)"
-                @keydown.enter="handleSave(node.menu)"
+                @blur="store.commitEdit(node.menu)"
+                @keydown.enter="store.commitEdit(node.menu)"
                 @keydown.escape="
                   node.menu.reset();
                   store.cancelEdit();

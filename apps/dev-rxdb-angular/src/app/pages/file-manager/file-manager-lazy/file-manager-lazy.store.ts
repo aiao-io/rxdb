@@ -230,8 +230,7 @@ export class TreeFileLazyStore<C extends FileTreeEntityConstructor>
     this.childSubscriptions.clear();
 
     // 2. Generate and save files
-    const existingRoots = this.rootNodes();
-    const newFiles = generateBatchFiles(count, () => this.createEntity(), existingRoots);
+    const newFiles = generateBatchFiles(count, () => this.createEntity());
     await this.rxdb.entityManager.saveMany<C>(newFiles);
 
     // 3. Reset state and resubscribe

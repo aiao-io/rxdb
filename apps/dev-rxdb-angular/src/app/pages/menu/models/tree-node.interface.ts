@@ -1,3 +1,4 @@
+import type { RxDBEntityId } from '@aiao/rxdb';
 import type { ITreeEntity } from '@aiao/rxdb-plugin-tree';
 import type { Observable } from 'rxjs';
 
@@ -14,6 +15,8 @@ export interface TreeMenuEntity extends ITreeEntity {
 export interface TreeMenuEntityConstructor {
   new (...args: never[]): TreeMenuEntity;
   findAll(options: object): Observable<InstanceType<this>[]>;
+  /** 树查询：指定 `entityId` 时返回该节点自身与全部后代。 */
+  findDescendants(options: { entityId: RxDBEntityId }): Observable<InstanceType<this>[]>;
 }
 
 export type TreeMenuInstance<T extends TreeMenuEntityConstructor> = InstanceType<T>;

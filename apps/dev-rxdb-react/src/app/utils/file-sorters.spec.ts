@@ -1,4 +1,4 @@
-import type { FileNode } from '@aiao/rxdb-test/entities';
+import type { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { describe, expect, it } from 'vitest';
 import { getSortComparator, SortMode } from './file-sorters';
 
@@ -6,8 +6,8 @@ const makeFile = (
   name: string,
   type: 'file' | 'folder',
   sortOrder: string,
-  extra: Partial<Pick<FileNode, 'extension' | 'size'>> = {}
-): FileNode => ({ name, type, sortOrder, ...extra }) as FileNode;
+  extra: Partial<Pick<SortableFileNode, 'extension' | 'size'>> = {}
+): SortableFileNode => ({ name, type, sortOrder, ...extra }) as SortableFileNode;
 
 describe('getSortComparator', () => {
   it('自由排序在三个文件管理页面都保持文件夹优先', () => {

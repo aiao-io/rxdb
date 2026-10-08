@@ -1,5 +1,5 @@
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
-import { FileNode } from '@aiao/rxdb-test/entities';
+import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   ChevronDown,
@@ -29,6 +29,7 @@ import {
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useObservable } from 'react-use';
 import { HistorySidebar } from '../../components/HistorySidebar';
+import { OperationErrorAlert } from '../../components/OperationErrorAlert';
 import { PathConflictWarning } from '../../components/PathConflictWarning';
 import { useDragDrop } from '../../hooks/useDragDrop';
 import { useFileManagerStore } from '../../hooks/useFileManagerStore';
@@ -41,11 +42,11 @@ import { formatFileName } from './utils/file-name';
 
 // P2-7：提到模块级 —— 内联箭头函数每次 render 都是新身份，
 // 会把 useDragDrop 内部所有 useCallback 的 deps 一起打脏。它不闭包任何东西，模块级最省。
-const isFolderNode = (node: FileNode): boolean => node.type === 'folder';
+const isFolderNode = (node: SortableFileNode): boolean => node.type === 'folder';
 
 export function FileManagerVirtualPage() {
   const rxdb = useRxDB();
-  const fileRepository = useMemo(() => rxdb.entityManager.getRepository(FileNode), [rxdb]);
+  const fileRepository = useMemo(() => rxdb.entityManager.getRepository(SortableFileNode), [rxdb]);
   const [showHistory, setShowHistory] = useState(true);
   const [newName, setNewName] = useState('');
   const [newExtension, setNewExtension] = useState('.txt');
@@ -55,25 +56,26 @@ export function FileManagerVirtualPage() {
   const parentRef = useRef<HTMLDivElement>(null);
 
   // 获取所有文件数据
-  const { value: files } = useFindAll(FileNode, {
+  const { value: files } = useFindAll(SortableFileNode, {
     where: { combinator: 'and', rules: [] },
     orderBy: [{ field: 'sortOrder', sort: 'asc' }]
   });
 
-  const history = useMemo(() => rxdb.versionManager.history(FileNode), [rxdb]);
+  const history = useMemo(() => rxdb.versionManager.history(SortableFileNode), [rxdb]);
   const histories = useObservable(history.histories$, []);
   const undoCount = useObservable(history.undoCount$, 0);
   const redoCount = useObservable(history.redoCount$, 0);
 
   const store = useFileManagerStore(files);
+  const { runWrite } = store;
   const {
     pathConflict: renamePathConflict,
     rename: renameWithPathGuard,
     clearPathConflict: clearRenamePathConflict
-  } = useFileRenamePathGuard<FileNode>();
+  } = useFileRenamePathGuard<SortableFileNode>();
 
   // Drag and drop
-  const dragDrop = useDragDrop<FileNode>(files, { isFolder: isFolderNode });
+  const dragDrop = useDragDrop<SortableFileNode>(files, { isFolder: isFolderNode });
 
   // 虚拟滚动配置
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns non-memoizable callbacks by design
@@ -89,9 +91,8 @@ export function FileManagerVirtualPage() {
     async (count: number, actionKey: string) => {
       setLoadingActions(prev => new Set(prev).add(actionKey));
       try {
-        const existingRoots = files.filter(f => !f.parentId);
-        const newFiles = generateBatchFiles(count, FileNode, existingRoots);
-        await rxdb.entityManager.saveMany(newFiles);
+        // 整批一次 saveMany，生成器不写 sortOrder：排序键由引擎追加到各父节点组末尾
+        await runWrite('批量添加', () => rxdb.entityManager.saveMany(generateBatchFiles(count, SortableFileNode)));
       } finally {
         setLoadingActions(prev => {
           const next = new Set(prev);
@@ -100,7 +101,7 @@ export function FileManagerVirtualPage() {
         });
       }
     },
-    [rxdb, files]
+    [rxdb, runWrite]
   );
 
   // 删除所有文件
@@ -110,13 +111,15 @@ export function FileManagerVirtualPage() {
 
   // 保存编辑
   const handleSave = useCallback(
-    async (file: FileNode) => {
+    async (file: SortableFileNode) => {
       const nextName = editingNames.get(file.id);
       if (typeof nextName === 'string' && nextName !== file.name) {
-        const renamed = await renameWithPathGuard(file, nextName, files, async (current, value) => {
-          await fileRepository.update(current, { name: value });
-        });
-        if (!renamed) return;
+        const renamed = await runWrite('重命名', () =>
+          renameWithPathGuard(file, nextName, files, async (current, value) => {
+            await fileRepository.update(current, { name: value });
+          })
+        );
+        if (!renamed.ok || !renamed.value) return;
       }
       setEditingNames(prev => {
         const next = new Map(prev);
@@ -125,11 +128,11 @@ export function FileManagerVirtualPage() {
       });
       store.cancelEdit();
     },
-    [editingNames, fileRepository, store, renameWithPathGuard, files]
+    [editingNames, fileRepository, store, runWrite, renameWithPathGuard, files]
   );
 
   const handleStartEdit = useCallback(
-    (file: FileNode) => {
+    (file: SortableFileNode) => {
       setEditingNames(prev => new Map(prev).set(file.id, file.name));
       store.startEdit(file.id);
     },
@@ -459,6 +462,10 @@ export function FileManagerVirtualPage() {
           noun='文件'
           onClose={clearRenamePathConflict}
         />
+
+        <div className='mx-auto max-w-4xl px-4'>
+          <OperationErrorAlert message={store.writeError} onClose={store.clearWriteError} />
+        </div>
 
         {/* Tree List (Virtual) */}
         <div ref={parentRef} className='flex-1 overflow-auto p-4'>

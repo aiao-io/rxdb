@@ -1,5 +1,5 @@
 import { useRxDB } from '@aiao/rxdb-react';
-import { FileLarge } from '@aiao/rxdb-test/entities';
+import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   ChevronDown,
@@ -28,6 +28,7 @@ import {
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useObservable } from 'react-use';
 import { HistorySidebar } from '../../components/HistorySidebar';
+import { OperationErrorAlert } from '../../components/OperationErrorAlert';
 import { PathConflictWarning } from '../../components/PathConflictWarning';
 import { extensionOptions } from '../../constants/file-extensions';
 import { useDragDrop } from '../../hooks/useDragDrop';
@@ -41,14 +42,14 @@ import { formatFileName } from './utils/file-name';
 
 // P2-7：提到模块级 —— 内联箭头函数每次 render 都是新身份，
 // 会把 useDragDrop 内部所有 useCallback 的 deps 一起打脏。它不闭包任何东西，模块级最省。
-const isFolderNode = (node: FileLarge): boolean => node.type === 'folder';
+const isFolderNode = (node: SortableFileLarge): boolean => node.type === 'folder';
 
 // 同上：对象字面量每次 render 也是新身份，必须提到模块级。
 const DRAG_DROP_OPTIONS = { isFolder: isFolderNode, resolveSiblings: fetchFileChildren };
 
 export function FileManagerLazyPage() {
   const rxdb = useRxDB();
-  const fileRepository = useMemo(() => rxdb.entityManager.getRepository(FileLarge), [rxdb]);
+  const fileRepository = useMemo(() => rxdb.entityManager.getRepository(SortableFileLarge), [rxdb]);
   const [showHistory, setShowHistory] = useState(true);
   const [newName, setNewName] = useState('');
   const [newExtension, setNewExtension] = useState('.txt');
@@ -57,7 +58,7 @@ export function FileManagerLazyPage() {
   const [editingNames, setEditingNames] = useState<Map<string, string>>(new Map());
   const parentRef = useRef<HTMLDivElement>(null);
 
-  const history = useMemo(() => rxdb.versionManager.history(FileLarge), [rxdb]);
+  const history = useMemo(() => rxdb.versionManager.history(SortableFileLarge), [rxdb]);
   const histories = useObservable(history.histories$, []);
   const undoCount = useObservable(history.undoCount$, 0);
   const redoCount = useObservable(history.redoCount$, 0);
@@ -67,14 +68,14 @@ export function FileManagerLazyPage() {
     pathConflict: renamePathConflict,
     rename: renameWithPathGuard,
     clearPathConflict: clearRenamePathConflict
-  } = useFileRenamePathGuard<FileLarge>();
+  } = useFileRenamePathGuard<SortableFileLarge>();
 
   // P0-1：懒加载页面**不能**再订阅整表。拖放要的祖先链必然已在可见集合里
   // （看得见就说明逐级展开过），真正可能缺席的只有落点的同级，交给 resolveSiblings 按需取。
   const visibleFiles = useMemo(() => store.treeNodes.map(node => node.file), [store.treeNodes]);
 
   // Drag and drop
-  const dragDrop = useDragDrop<FileLarge>(visibleFiles, DRAG_DROP_OPTIONS);
+  const dragDrop = useDragDrop<SortableFileLarge>(visibleFiles, DRAG_DROP_OPTIONS);
 
   // 虚拟滚动配置
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns non-memoizable callbacks by design
@@ -115,15 +116,17 @@ export function FileManagerLazyPage() {
 
   // 保存编辑
   const handleSave = useCallback(
-    async (file: FileLarge) => {
+    async (file: SortableFileLarge) => {
       const nextName = editingNames.get(file.id);
       if (typeof nextName === 'string' && nextName !== file.name) {
-        // 冲突检测只看同级（可能未加载 → 按需查），路径展示要祖先链（必在可见集合里）。
-        const scope = mergeById(visibleFiles, await fetchFileChildren(file.parentId ?? null));
-        const renamed = await renameWithPathGuard(file, nextName, scope, async (current, value) => {
-          await fileRepository.update(current, { name: value });
+        const renamed = await store.runWrite('重命名', async () => {
+          // 冲突检测只看同级（可能未加载 → 按需查），路径展示要祖先链（必在可见集合里）。
+          const scope = mergeById(visibleFiles, await fetchFileChildren(file.parentId ?? null));
+          return renameWithPathGuard(file, nextName, scope, async (current, value) => {
+            await fileRepository.update(current, { name: value });
+          });
         });
-        if (!renamed) return;
+        if (!renamed.ok || !renamed.value) return;
       }
       setEditingNames(prev => {
         const next = new Map(prev);
@@ -136,7 +139,7 @@ export function FileManagerLazyPage() {
   );
 
   const handleStartEdit = useCallback(
-    (file: FileLarge) => {
+    (file: SortableFileLarge) => {
       setEditingNames(prev => new Map(prev).set(file.id, file.name));
       store.startEdit(file.id);
     },
@@ -433,6 +436,10 @@ export function FileManagerLazyPage() {
           noun='文件'
           onClose={clearRenamePathConflict}
         />
+
+        <div className='mx-auto max-w-4xl px-4'>
+          <OperationErrorAlert message={store.writeError} onClose={store.clearWriteError} />
+        </div>
 
         {/* Tree List (Virtual) */}
         <div className='flex-1 p-4'>

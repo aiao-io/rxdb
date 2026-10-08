@@ -9,26 +9,27 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 73   |
-| 🚧 In Progress | 1    |
+| 🚧 In Progress | 2    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 23   |
+| 📝 Backlog     | 22   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 98   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **23 条 Backlog 里有 2 条是可开工的**：另外 21 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md) + [US-029](stories/core/US-029-rbac-owner-role-permission.md)）
+> **22 条 Backlog 里只有 1 条是可开工的**：另外 21 条（BOM 领域模型 19 条 + [US-030](stories/core/US-030-declarative-storage-constraints.md) + [US-029](stories/core/US-029-rbac-owner-role-permission.md)）
 > 标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次。
 > 两者在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（1 条）
+## 进行中（2 条）
 
-| Story                                                                          | 进展                                                                                                                                                                                                                                                                                                                                                                                                 |
-| ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过，剩 Android 真机；百度 / QQ 已判 `unsupported`，待做 |
+| Story                                                                           | 进展                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md) | 阶段 A 已完成（未合入）：可排序树实体、三端新建 / 批量 / 删除提升交给 core 追加、页内写入错误提示、core 批内追加优化；AC#1～4 ✅。剩阶段 B：拖放改走 `reorder()`、显示顺序取自查询、删除比较器与重编号                                                                                                                                                                                               |
+| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)  | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过，剩 Android 真机；百度 / QQ 已判 `unsupported`，待做 |
 
 ## 待评审（1 条）
 
@@ -111,7 +112,7 @@
 - ✅ [US-028 可排序实体](stories/core/US-028-sortable-entity.md) — sortOrder 从树形实体解耦到普通实体：排序域 = 分组字段组合（整表即分组字段为空，NULL 值算一组），core 排序语义（字段强制非空）+ rxdb-model 拖放持久化。A～E 五阶段全部落地：A 整表排序域（声明与校验、默认排序、创建追加、`reorder()`、事务写边界、SQLite / PGlite 码点同序）；B 三框架 `EntityList` 拖放持久化（钉住单条排序域才开手柄，按列排序 / 筛选 / 只读 / 落库中收起，失败恢复原顺序）；C 树类型兼容；D 分组排序域与跨组移动；E 三端 Todo 按 `completed` 分组手动排序（独立 `Task` 实体，不改共享 `Todo`）。AC#1～19 全 ✅；树兄弟域迁移另立 US-031
 - ⬜ [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md) — 实体显式声明 `access.owner`（指向自有属性，不加 `EntityBase` 字段、引擎不补列）+ US-027 操作权限扩展为角色 / 所有权谓词 + `RxDBContext.roles` 与一实例一身份（换用户 = 新实例）；只做写授权，同步实体不限读，多租户已移出；A～D 四阶段交付；前置 US-027 与 US-218 均已 Done；**价值待证**，评审见 `git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`
 - ⬜ [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) — **价值待证**：`EntityMetadataOptions` 无 CHECK 落点、`EntityIndexMetadataOptions` 只有 `properties` / `unique` / `normalized`；四阶段（CHECK → 条件唯一与表达式索引 → 区间排他双后端等价 → 生成列与索引方法）；当前消费方全在 epic-009，但解锁条件不限 BOM
-- ⬜ [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md) — 三端 demo 的树改用新建的可排序树实体（`parentId` 分组；`MenuSimple` / `MenuLarge` / `FileNode` / `FileLarge` 不改），新建、批量添加、删除提升子节点与拖放改走 US-028 排序模块，删掉 demo 里的算键与 `sortOrder` 比较器副本；症状可复现（新建根文件夹与根级文件撞键、删除提升子节点后撞键、Angular / Vue 懒加载拖进未展开节点撞键，React 已修），三端行为已分叉；A 新实体与创建类写入 → B 拖放与显示顺序；前置 US-028 已 Done
+- 🚧 [US-031 树形实体迁移到排序模块](stories/core/US-031-tree-sortable-migration.md) — 三端 demo 的树改用新建的可排序树实体（`parentId` 分组；旧四个树实体不改）。阶段 A 已完成（未合入）：四个可排序树实体；三端六页的新建、批量添加、删除并提升子节点不再自己算键，删除提升一次提交、从库里取子节点；除拖放外的写入失败统一为页内提示；core 批内追加优化（demo 随机树 10,000 行由 3.6 倍降到 0.95 倍）；AC#1～4 ✅。剩阶段 B：拖放改走 `reorder()` 与显示顺序
 - ✅ [US-217 本地数据库一致性备份与恢复](stories/adapter/US-217-local-database-backup-restore.md) — PGlite、SQLite 共享层与桌面 host（Electron SQLite / PGlite、Tauri SQLite）三阶段交付；只承诺同 adapter 恢复，外置文件不在归档内
 - 👀 [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md) — 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；剩抖音、支付宝开发者工具手工走查；webpack5 不支持
 - ✅ [US-218 Supabase 远端启用 RLS 时的推送完整性](stories/adapter/US-218-supabase-rls-push-integrity.md) — 出自 RV-022：被 RLS 过滤的删除仍写进 `rxdb_change`（目标行连 SELECT 都看不到时同样如此），其它端拉到幽灵 DELETE；`rxdb_mutations` 也不校验日志与业务写是否配对；三阶段（不写幽灵日志 + 配对校验 → 逐实体回执与被拒实体本地对齐 → 日志表收口与部署指引），阶段 B 以 US-220 为前置；阶段 A～C 全部落地，与 US-220 合并为 #99 合入

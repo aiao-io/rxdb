@@ -1,4 +1,5 @@
-import { FileNode } from '@aiao/rxdb-test/entities';
+import type { RxDB } from '@aiao/rxdb';
+import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { getSortComparator, SortMode } from '../utils/file-sorters';
@@ -8,7 +9,6 @@ import { useFileManagerStore } from './useFileManagerStore';
 interface FileSeed {
   name: string;
   type: 'file' | 'folder';
-  sortOrder: string | null;
   extension?: string | null;
   size?: number | null;
   hasChildren?: boolean;
@@ -23,7 +23,7 @@ class LinkedFile {
     })
   };
   parentId: string | null = null;
-  sortOrder: string | null;
+  sortOrder?: string;
   type: 'file' | 'folder';
   hasChildren?: boolean | null;
   name: string;
@@ -33,7 +33,6 @@ class LinkedFile {
   constructor(seed: FileSeed) {
     this.name = seed.name;
     this.type = seed.type;
-    this.sortOrder = seed.sortOrder;
     this.extension = seed.extension;
     this.size = seed.size;
     this.hasChildren = seed.hasChildren;
@@ -44,7 +43,7 @@ class UnlinkedFile {
   static nextId = 0;
   readonly id = `unlinked-${UnlinkedFile.nextId++}`;
   parentId: string | null = null;
-  sortOrder: string | null;
+  sortOrder?: string;
   type: 'file' | 'folder';
   hasChildren?: boolean | null;
   name: string;
@@ -54,7 +53,6 @@ class UnlinkedFile {
   constructor(seed: FileSeed) {
     this.name = seed.name;
     this.type = seed.type;
-    this.sortOrder = seed.sortOrder;
     this.extension = seed.extension;
     this.size = seed.size;
     this.hasChildren = seed.hasChildren;
@@ -71,8 +69,8 @@ function forceFolderThenChild(): void {
     .mockReturnValueOnce(0);
 }
 
-function createFile(name: string, type: 'file' | 'folder', sortOrder: string): FileNode {
-  return Object.assign(Object.create(FileNode.prototype) as FileNode, {
+function createFile(name: string, type: 'file' | 'folder', sortOrder: string): SortableFileNode {
+  return Object.assign(Object.create(SortableFileNode.prototype) as SortableFileNode, {
     extension: null,
     id: name,
     name,
@@ -112,23 +110,32 @@ describe('file manager contracts', () => {
   it('fails loudly when a generated child cannot link its required parent relation', () => {
     forceFolderThenChild();
 
-    expect(() => generateBatchFiles(2, UnlinkedFile, [])).toThrow('parent$');
+    expect(() => generateBatchFiles(2, UnlinkedFile)).toThrow('parent$');
   });
 
   it('links generated children through the entity parent relation', () => {
     forceFolderThenChild();
 
-    const files = generateBatchFiles(2, LinkedFile, []);
+    const files = generateBatchFiles(2, LinkedFile);
 
     expect(files[1].parent$.set).toHaveBeenCalledWith(files[0]);
     expect(files[1].parentId).toBe(files[0].id);
+  });
+
+  it('does not write sortOrder on generated files, leaving the key to the engine', () => {
+    const files = generateBatchFiles(20, LinkedFile);
+
+    expect(files).toHaveLength(20);
+    for (const file of files) {
+      expect(file.sortOrder).toBeUndefined();
+    }
   });
 
   it('uses the shared manual comparator for the persisted manual mode', () => {
     const files = [createFile('first-file', 'file', 'a'), createFile('later-folder', 'folder', 'b')];
     const expected = [...files].sort(getSortComparator(SortMode.Manual));
 
-    const store = useFileManagerStore(ref(files));
+    const store = useFileManagerStore(ref(files), {} as RxDB);
 
     expect(store.treeNodes.value.map(node => node.file)).toEqual(expected);
   });

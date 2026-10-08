@@ -1076,8 +1076,11 @@ jobs:
   # 先重跑该 job 一次，同一新型号反复出现再走 bench-freeze.yml 补冻。一份 reference 都没冻结时
   # 打印提示以 0 退出。
   #
-  # 两个 target 走一次 run-many 而不是两个 step：串成两步的话，search-ci 红了
-  # bench-working-tree 就不跑了，而一轮 CI 本该同时看到两边的结论。run-many 默认不 bail。
+  # bench-sortable-batch（US-031）同样是纯 Node（PGlite）：手动排序的批内追加与「同一批行带显式键」
+  # 在同一次运行里自比，比值超过 1.2 即失败。它不依赖冻结的 reference，换 CPU 型号也不会报环境不匹配。
+  #
+  # 几个 target 走一次 run-many 而不是分成几个 step：串成几步的话，前一个红了
+  # 后面的就不跑了，而一轮 CI 本该同时看到全部结论。run-many 默认不 bail。
   benchmark:
     name: benchmarks
     needs: setup
@@ -1093,7 +1096,7 @@ jobs:
       - uses: ./.github/actions/setup-workspace
       - uses: ./.github/actions/nx-cache-restore
       - uses: ./.github/actions/playwright-chromium
-      - run: pnpm exec nx run-many -t search-ci bench-working-tree -p benchmarks --output-style=stream
+      - run: pnpm exec nx run-many -t search-ci bench-working-tree bench-sortable-batch -p benchmarks --output-style=stream
 
   # ---------------------------------------------------------------------------
   # 覆盖率汇总：把各 lane 的 artifact 合回一个 coverage/ 目录，跑阈值门禁 + 上报 Codecov。

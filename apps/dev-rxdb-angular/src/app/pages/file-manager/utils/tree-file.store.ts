@@ -1,6 +1,5 @@
 import type { HistoryScopeAPI } from '@aiao/rxdb';
 import { RxDB } from '@aiao/rxdb';
-import { generateKeyBetween } from '@aiao/utils';
 import { computed, signal, Signal } from '@angular/core';
 import { FileTreeEntityConstructor, FileTreeInstance } from '../models/file-node.interface';
 import { DropMode, FileDragDropService } from '../services/file-drag-drop.service';
@@ -130,23 +129,12 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
       return;
     }
 
-    // 计算 sortOrder
-    const rootFolders = allFiles.filter(f => !f.parentId && f.type === 'folder').sort(compareSortOrder);
-    const lastRoot = rootFolders[rootFolders.length - 1];
-    let newSortOrder: string;
-    try {
-      newSortOrder = generateKeyBetween(lastRoot?.sortOrder ?? null, null);
-    } catch {
-      newSortOrder = generateKeyBetween(null, null);
-    }
-
-    // 创建文件夹
+    // 创建文件夹；不赋 sortOrder，引擎把缺键的新行追加到所属 parentId 组（文件与文件夹同组）的末尾
     const folder = this.createEntity();
     folder.name = name;
     folder.type = 'folder';
     folder.extension = null;
     folder.size = null;
-    folder.sortOrder = newSortOrder;
     folder.hasChildren = false;
 
     await folder.save();
@@ -174,23 +162,12 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
       return;
     }
 
-    // 计算 sortOrder
-    const siblings = allFiles.filter(f => f.parentId === parentId).sort(compareSortOrder);
-    const lastSibling = siblings[siblings.length - 1];
-    let newSortOrder: string;
-    try {
-      newSortOrder = generateKeyBetween(lastSibling?.sortOrder ?? null, null);
-    } catch {
-      newSortOrder = generateKeyBetween(null, null);
-    }
-
-    // 创建文件夹
+    // 创建文件夹（不赋 sortOrder，见 createRootFolder）
     const folder = this.createEntity();
     folder.name = name;
     folder.type = 'folder';
     folder.extension = null;
     folder.size = null;
-    folder.sortOrder = newSortOrder;
     folder.hasChildren = false;
 
     // 设置父节点
@@ -219,23 +196,12 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
       return;
     }
 
-    // 计算 sortOrder
-    const siblings = allFiles.filter(f => (f.parentId || null) === (parentId || null)).sort(compareSortOrder);
-    const lastSibling = siblings[siblings.length - 1];
-    let newSortOrder: string;
-    try {
-      newSortOrder = generateKeyBetween(lastSibling?.sortOrder ?? null, null);
-    } catch {
-      newSortOrder = generateKeyBetween(null, null);
-    }
-
-    // 创建文件
+    // 创建文件（不赋 sortOrder，见 createRootFolder）
     const file = this.createEntity();
     file.name = name;
     file.type = 'file';
     file.extension = extension ? extension.replace(/^\./, '') : undefined;
     file.size = size;
-    file.sortOrder = newSortOrder;
 
     // 设置父节点（如果有）
     if (parentId) {
@@ -475,7 +441,6 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
       file.name = name;
       file.type = type;
       file.parentId = parentId;
-      file.sortOrder = '';
       file.extension = type === 'file' ? 'txt' : undefined;
       file.size = type === 'file' ? Math.floor(Math.random() * 10000) : undefined;
 
@@ -486,43 +451,7 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
       }
     }
 
-    // 2. Group by parentId
-    const filesByParent = new Map<string | null, FileTreeInstance<C>[]>();
-    for (const file of files) {
-      const pid = file.parentId || null;
-      if (!filesByParent.has(pid)) {
-        filesByParent.set(pid, []);
-      }
-      filesByParent.get(pid)!.push(file);
-    }
-
-    // 3. Assign sortOrder
-    const allExistingFiles = this.fileResource.value();
-
-    for (const [parentId, children] of filesByParent.entries()) {
-      // Find last sortOrder from existing files
-      let lastSortOrder: string | null = null;
-
-      const existingSiblings = allExistingFiles.filter(f => (f.parentId || null) === parentId);
-      if (existingSiblings.length > 0) {
-        existingSiblings.sort(compareSortOrder);
-        lastSortOrder = existingSiblings[existingSiblings.length - 1].sortOrder ?? null;
-      }
-
-      // Generate keys for new children
-      for (const child of children) {
-        let newSortOrder: string;
-        try {
-          newSortOrder = generateKeyBetween(lastSortOrder, null);
-        } catch {
-          newSortOrder = generateKeyBetween(null, null);
-        }
-        child.sortOrder = newSortOrder;
-        lastSortOrder = newSortOrder;
-      }
-    }
-
-    // 4. Save (batch in single transaction for single undo)
+    // 2. 整批一次 saveMany（单次事务、单次撤销）；节点不带 sortOrder，引擎按批内顺序把各 parentId 组追加到末尾
     await this.rxdb.entityManager.saveMany<C>(files);
   }
 

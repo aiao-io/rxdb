@@ -248,6 +248,9 @@
           </div>
         }
 
+        <!-- 写入失败提示（新建 / 重命名 / 批量添加 / 删除） -->
+        <app-tree-write-error [message]="writeError()" (closed)="clearWriteError()" />
+
         <!-- 路径冲突警告 -->
         @if (pathConflictWarning()) {
           <div class="alert alert-warning">

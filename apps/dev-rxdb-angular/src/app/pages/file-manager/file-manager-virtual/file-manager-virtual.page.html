@@ -281,6 +281,9 @@
     <!-- 主内容区 -->
     <div class="p-6">
       <div class="mx-auto max-w-4xl space-y-6">
+        <!-- 写入失败提示（新建 / 重命名 / 批量添加 / 删除） -->
+        <app-tree-write-error [message]="writeError()" (closed)="clearWriteError()" />
+
         <!-- 路径冲突警告 -->
         @if (pathConflictWarning(); as warning) {
           <div class="alert alert-warning">

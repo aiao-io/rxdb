@@ -1,6 +1,6 @@
 import type { HistoryScopeAPI } from '@aiao/rxdb';
 import { RxDB } from '@aiao/rxdb';
-import { MenuLarge } from '@aiao/rxdb-test/entities';
+import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { TestBed } from '@angular/core/testing';
 import { BehaviorSubject, Observable, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -15,13 +15,19 @@ interface MenuQueryOptions {
   };
 }
 
-const roots$ = new BehaviorSubject<MenuLarge[]>([]);
-const allMenus$ = new BehaviorSubject<MenuLarge[]>([]);
-const childQueries = new Map<string, BehaviorSubject<MenuLarge[]>>();
+const roots$ = new BehaviorSubject<SortableMenuLarge[]>([]);
+const allMenus$ = new BehaviorSubject<SortableMenuLarge[]>([]);
+const childQueries = new Map<string, BehaviorSubject<SortableMenuLarge[]>>();
+const subtrees = new Map<string, SortableMenuLarge[]>();
 let failingNodeId: string | null = null;
 
 class TestMenuEntityClass {
-  static readonly findAll = vi.fn((options: object): Observable<MenuLarge[]> => {
+  static readonly findDescendants = vi.fn(
+    (options: { entityId: string }): Observable<SortableMenuLarge[]> =>
+      new BehaviorSubject(subtrees.get(options.entityId) ?? [])
+  );
+
+  static readonly findAll = vi.fn((options: object): Observable<SortableMenuLarge[]> => {
     const rules = (options as MenuQueryOptions).where?.rules ?? [];
     if (rules.length === 0) return allMenus$;
 
@@ -32,37 +38,45 @@ class TestMenuEntityClass {
     const key = String(parentId);
     let query = childQueries.get(key);
     if (!query) {
-      query = new BehaviorSubject<MenuLarge[]>([]);
+      query = new BehaviorSubject<SortableMenuLarge[]>([]);
       childQueries.set(key, query);
     }
     return query;
   });
 }
 
-const makeMenu = (id: string, parentId: string | null, title: string, hasChildren = false, sortOrder = id): MenuLarge =>
+const makeMenu = (
+  id: string,
+  parentId: string | null,
+  title: string,
+  hasChildren = false,
+  sortOrder = id
+): SortableMenuLarge =>
   ({
     id,
     parentId,
     title,
     hasChildren,
     sortOrder,
-    save: vi.fn(async function (this: MenuLarge) {
+    save: vi.fn(async function (this: SortableMenuLarge) {
       return this;
     }),
-    remove: vi.fn(async function (this: MenuLarge) {
+    remove: vi.fn(async function (this: SortableMenuLarge) {
       return this;
     })
-  }) as unknown as MenuLarge;
+  }) as unknown as SortableMenuLarge;
 
-const makeStore = () => TestBed.inject(TreeMenuLazyStore<typeof MenuLarge>);
+const makeStore = () => TestBed.inject(TreeMenuLazyStore<typeof SortableMenuLarge>);
 
 describe('TreeMenuLazyStore', () => {
   beforeEach(() => {
     roots$.next([]);
     allMenus$.next([]);
     childQueries.clear();
+    subtrees.clear();
     failingNodeId = null;
     TestMenuEntityClass.findAll.mockClear();
+    TestMenuEntityClass.findDescendants.mockClear();
 
     TestBed.configureTestingModule({
       providers: [
@@ -178,6 +192,23 @@ describe('TreeMenuLazyStore', () => {
     store.collapseAll();
     expect(store.expandedMenuIds()).toEqual(new Set());
     expect(store.visibleNodes()).toEqual([root]);
+  });
+
+  it('节点折叠、子节点未加载时 deleteMenu 打开删除对话框，而不是直接 remove()', async () => {
+    const root = makeMenu('root', null, '根', true);
+    const child = makeMenu('child', 'root', '子');
+    roots$.next([root]);
+    // 库里有子节点，但节点没展开，子查询没订阅，visibleNodes 里只有根
+    childQueries.set('root', new BehaviorSubject([child]));
+    subtrees.set('root', [root, child]);
+    const store = makeStore();
+    expect(store.visibleNodes()).toEqual([root]);
+
+    await store.deleteMenu(root);
+
+    expect(root.remove).not.toHaveBeenCalled();
+    expect(store.menuToDelete()).toBe(root);
+    expect(store.deleteImpact()).toEqual({ childrenCount: 1, descendantsCount: 1 });
   });
 
   it('销毁后不再接收根与子节点更新', () => {

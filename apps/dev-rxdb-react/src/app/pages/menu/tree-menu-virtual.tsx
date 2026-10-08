@@ -1,5 +1,5 @@
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
-import { MenuLarge } from '@aiao/rxdb-test/entities';
+import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   ChevronDown,
@@ -27,11 +27,10 @@ import { useMenuRenamePathGuard } from '../../hooks/useRenamePathGuard';
 import { useTreeMenuVirtualStore } from '../../hooks/useTreeMenuVirtualStore';
 import { getErrorMessage } from '../../utils/error';
 import { generateBatchMenus } from '../../utils/menu-utils';
-import { compareSortOrder } from '../../utils/sort-order';
 
 export function TreeMenuVirtualPage() {
   const rxdb = useRxDB();
-  const menuRepository = useMemo(() => rxdb.entityManager.getRepository(MenuLarge), [rxdb]);
+  const menuRepository = useMemo(() => rxdb.entityManager.getRepository(SortableMenuLarge), [rxdb]);
   const [showHistory, setShowHistory] = useState(true);
   const [newTitle, setNewTitle] = useState('');
   const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set());
@@ -39,25 +38,26 @@ export function TreeMenuVirtualPage() {
   const parentRef = useRef<HTMLDivElement>(null);
 
   // 获取所有菜单数据
-  const { value: menus } = useFindAll(MenuLarge, {
+  const { value: menus } = useFindAll(SortableMenuLarge, {
     where: { combinator: 'and', rules: [] },
     orderBy: [{ field: 'sortOrder', sort: 'asc' }]
   });
 
-  const history = useMemo(() => rxdb.versionManager.history(MenuLarge), [rxdb]);
+  const history = useMemo(() => rxdb.versionManager.history(SortableMenuLarge), [rxdb]);
   const histories = useObservable(history.histories$, []);
   const undoCount = useObservable(history.undoCount$, 0);
   const redoCount = useObservable(history.redoCount$, 0);
 
-  const store = useTreeMenuVirtualStore(menus);
+  const store = useTreeMenuVirtualStore(menus, rxdb);
+  const { runWrite } = store;
   const {
     pathConflict: renamePathConflict,
     rename: renameWithPathGuard,
     clearPathConflict: clearRenamePathConflict
-  } = useMenuRenamePathGuard<MenuLarge>();
+  } = useMenuRenamePathGuard<SortableMenuLarge>();
 
   // Drag and drop
-  const dragDrop = useDragDrop<MenuLarge>(menus);
+  const dragDrop = useDragDrop<SortableMenuLarge>(menus);
 
   // 虚拟滚动配置
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns non-memoizable callbacks by design
@@ -73,10 +73,8 @@ export function TreeMenuVirtualPage() {
     async (count: number, actionKey: string) => {
       setLoadingActions(prev => new Set(prev).add(actionKey));
       try {
-        const existingRoots = menus.filter(m => !m.parentId).sort(compareSortOrder);
-
-        const newMenus = generateBatchMenus(count, MenuLarge, existingRoots);
-        await rxdb.entityManager.saveMany(newMenus);
+        // 整批一次 saveMany，生成器不写 sortOrder：排序键由引擎追加到各父节点组末尾
+        await runWrite('批量添加', () => rxdb.entityManager.saveMany(generateBatchMenus(count, SortableMenuLarge)));
       } finally {
         setLoadingActions(prev => {
           const next = new Set(prev);
@@ -85,7 +83,7 @@ export function TreeMenuVirtualPage() {
         });
       }
     },
-    [rxdb, menus]
+    [rxdb, runWrite]
   );
 
   // 删除所有菜单
@@ -105,13 +103,15 @@ export function TreeMenuVirtualPage() {
 
   // 保存编辑
   const handleSave = useCallback(
-    async (menu: MenuLarge) => {
+    async (menu: SortableMenuLarge) => {
       const nextTitle = editingTitles.get(menu.id);
       if (typeof nextTitle === 'string' && nextTitle !== menu.title) {
-        const renamed = await renameWithPathGuard(menu, nextTitle, menus, async (current, value) => {
-          await menuRepository.update(current, { title: value });
-        });
-        if (!renamed) return;
+        const renamed = await runWrite('重命名', () =>
+          renameWithPathGuard(menu, nextTitle, menus, async (current, value) => {
+            await menuRepository.update(current, { title: value });
+          })
+        );
+        if (!renamed.ok || !renamed.value) return;
       }
       setEditingTitles(prev => {
         const next = new Map(prev);
@@ -120,11 +120,11 @@ export function TreeMenuVirtualPage() {
       });
       store.cancelEdit();
     },
-    [editingTitles, menuRepository, store, renameWithPathGuard, menus]
+    [editingTitles, menuRepository, store, runWrite, renameWithPathGuard, menus]
   );
 
   const handleStartEdit = useCallback(
-    (menu: MenuLarge) => {
+    (menu: SortableMenuLarge) => {
       setEditingTitles(prev => new Map(prev).set(menu.id, menu.title));
       store.startEdit(menu.id);
     },
@@ -370,7 +370,7 @@ export function TreeMenuVirtualPage() {
         />
 
         <div className='mx-auto max-w-4xl px-4'>
-          <OperationErrorAlert message={store.deleteError} onClose={store.clearDeleteError} />
+          <OperationErrorAlert message={store.writeError} onClose={store.clearWriteError} />
         </div>
 
         {/* Tree List (Virtual) */}
