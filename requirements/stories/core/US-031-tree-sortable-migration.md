@@ -2,10 +2,10 @@
 id: US-031
 title: 树形实体迁移到排序模块
 status: Backlog
-priority: Low
+priority: Medium
 epic: epic-004-future-features
 created: 2026-10-03
-updated: 2026-10-06
+updated: 2026-10-08
 tags: [core, sortable, tree, rxdb-test, demo]
 ---
 
@@ -13,84 +13,154 @@ tags: [core, sortable, tree, rxdb-test, demo]
 
 ## 作为/我想要/以便
 
-**作为** 模型开发者
-**我想要** 树形实体的兄弟排序改走 [US-028](US-028-sortable-entity.md) 的排序模块（以 `parentId` 为分组字段），三个 demo 的树拖放改用排序模块的创建追加与重排 API
-**以便** 树与扁平实体共用一套键不变量、事务写边界与比较规则，demo 不再各算一遍排序键
+**作为** 在三端 demo 里操作树菜单与文件管理器的开发者
+**我想要** demo 的树改用声明了可排序（以 `parentId` 为分组字段）的树实体，新建、拖放、删除并提升子节点时的排序键一律由 [US-028](US-028-sortable-entity.md) 的排序模块给出
+**以便** 同父兄弟不再撞键，同一操作在三端结果一致，demo 不再各算一遍排序键
 
 ## 背景与动机
 
-- **排序键在 demo 里算了三遍。** 三个 demo 应用的树菜单与文件管理直接调 `@aiao/utils` 的 `generateKeyBetween`
-  算键，共 22 个文件（Angular 6、React 8、Vue 8）：`MenuDragDropService` / `FileDragDropService`、React / Vue 的
-  `useDragDropService`、各页 store 与 `menu-utils` / `file-utils` 批量造数。「新建追加到同父末尾」「拖放插到两邻之间」
-  「跨父拖放」三端各写一遍。
-- **demo 的写入没有事务边界与锚点校验。** 拖放服务在内存兄弟列表上取相邻键（`prevItem?.sortOrder || null`）再
-  `save()`，读与写不在同一事务，也不复核邻居是否仍相邻；NULL 键按 `|| null` 当作序列端点参与算键。
-- **比较器也各写一份。** Angular `tree-menu-lazy.store.ts` 内联码点比较，React / Vue 各一份 `utils/sort-order.ts`
-  的 `compareSortOrder`，三端 `file-sorters.ts` 的 Manual 模式又各一份；三份结果一致，但没有共同来源。
-- **树实体的 `sortOrder` 可空。** `rxdb-test` 的 `MenuSimple` / `MenuLarge` / `FileNode` / `FileLarge` 声明
-  `sortOrder` 为 `nullable: true`，不满足 US-028 的非空校验，不迁移就不能声明可排序。
-- **树兄弟域就是分组排序域。** 同父兄弟构成一条序列、根节点为 NULL 组，与 US-028 阶段 D 的分组语义一致；
-  跨父拖放就是跨组移动，外加防止拖进自己后代的环检测。环检测今天只在三端 demo 的 `isDescendantOf` 里（内存版），
-  `@aiao/rxdb-plugin-tree` 只有查询期的防环（`tree-helper.ts` 的 `visited`、适配器递归深度保护）。
+### 撞键可以复现
+
+下面三条在 Angular demo 上用临时 vitest 用例复现：直接调用页面自己的 store / service（实体为假对象、`save` 为 mock），断言算出的键。
+
+- **新建根文件夹与根级文件撞键。** [`TreeFileStore.createRootFolder`](../../../apps/dev-rxdb-angular/src/app/pages/file-manager/utils/tree-file.store.ts) 只在根级文件夹里取末尾键，`createFile` 却在全部根节点里取：
+
+  ```ts
+  const rootFolders = allFiles.filter(f => !f.parentId && f.type === 'folder').sort(compareSortOrder);
+  ```
+
+  依次新建文件夹 A（`a0`）、根级文件 X（`a1`）、文件夹 B，B 得 `a1`，与 X 同键。
+
+- **删除并提升子节点后撞键。** [`TreeMenuStore.executePromoteChildrenDelete`](../../../apps/dev-rxdb-angular/src/app/pages/menu/utils/tree-menu.store.ts) 只改子节点的 `parentId`，子节点带着原组的键进入祖父组：G 下有 P（`a0`）、Q（`a1`），P 下有 c1（`a0`）、c2（`a1`），删 P 并提升后 G 组为 `Q:a1 / c1:a0 / c2:a1`。React / Vue 菜单 store 的同名方法同样只改 `parentId`。
+
+- **拖进未展开的懒加载节点，与它的首个子节点撞键。** 拖放服务在传入的节点列表里找目标的子节点取末尾键，[`MenuDragDropService.calculateDropPosition`](../../../apps/dev-rxdb-angular/src/app/pages/menu/services/menu-drag-drop.service.ts) 的 `into` 分支：
+
+  ```ts
+  newSortOrder = generateKeyBetween(lastChild?.sortOrder || null, null);
+  ```
+
+  Angular 懒加载页只传已加载节点（[`TreeMenuLazyStore`](../../../apps/dev-rxdb-angular/src/app/pages/menu/tree-menu-lazy/tree-menu-lazy.store.ts) 与文件管理器的懒加载 store 都以 `visibleNodes()` 作数据源），Vue 懒加载页传 `store.loadedNodes`。目标未展开时它的子节点不在列表里，算出 `a0`，与既有的首个子节点同键，被拖节点也没有落到末尾。React 已为同一缺陷补了 [`resolveSiblings`](../../../apps/dev-rxdb-react/src/app/hooks/useDragDrop.ts)（注释写明「缺了它算出的键会和既有子节点撞车」），Angular / Vue 的菜单与文件懒加载共 4 页没有。
+
+读源码可见、未运行的两条：
+
+- React 懒加载文件管理器的 [`addManyFiles`](../../../apps/dev-rxdb-react/src/app/hooks/useFileManagerLazyStore.ts) 以 `rootIds` 末位作批量追加的锚点，`rootIds` 按「文件夹优先、再按 `sortOrder`」排过序；根级有文件夹排在最后一个文件之后时，新批次的根键与该文件夹撞键。
+- Angular 文件管理器的新建路径在 `generateKeyBetween` 抛错时 `catch` 后改用 `generateKeyBetween(null, null)`，静默落成 `a0`。
+
+### 三端已经分叉
+
+- **懒加载取兄弟**：React 读库补齐，Angular / Vue 只看已加载节点（见上）。
+- **算键失败**（两邻同键时 `generateKeyBetween` 抛错）：Angular 菜单返回 `REORDER_NEEDED` 后由 [`MenuDragDropService.rebalanceSortOrder`](../../../apps/dev-rxdb-angular/src/app/pages/menu/services/menu-drag-drop.service.ts) 把整组逐条重写键，不在事务内，也违反 US-028「不重编号」；React / Vue 的拖放服务同样返回 `REORDER_NEEDED`，调用方直接抛错，没有恢复。
+- **删除并提升子节点**：Angular 一次 `mutations` 提交；React / Vue 逐条 `save()` 子节点后再删父节点，中途失败会留下部分子节点已搬走的状态。
+
+### 病灶在结构上
+
+排序键在 demo 里算了三遍：22 个非 spec 文件直接调 `@aiao/utils` 的 `generateKeyBetween`（Angular 6、React 8、Vue 8），`sortOrder` 比较器的副本散在 15 个文件里——Angular 两个 `tree-utils.ts` 的 `compareSortOrder`、两个拖放服务与 `tree-menu-lazy.store.ts` 的内联比较，React / Vue 的 `utils/sort-order.ts` 与 virtual store 的内联比较，三端 `file-sorters.ts` 的 Manual 模式。键从内存里的局部列表算，读写不在同一事务，也不复核邻居；上面每一条缺陷都出自这个结构。逐条定点修能关掉这几条，下一个写入口还会再长出来。
+
+US-028 阶段 A + D 已提供所需的全部原语：按组创建追加、`Repository.reorder()`（含追加到某组末尾的跨组移动）、改分组字段的写入追加到新组末尾、锚点校验与事务写边界。`parentId` 是多对一关系 `parent` 的外键列，[`groupFieldIssue`](../../../packages/rxdb/src/entity/metadata-validate.ts) 对外键列放行，可作分组字段；`TreeRepository` 继承 `Repository`，即有 `reorder()`。已知病灶 5 条、新增抽象 0（新实体是测试夹具，不是引擎抽象），满足 [CONVENTIONS](../../CONVENTIONS.md#价值待证) 的「病灶数 ≥ 抽象数」。
+
+### 新建可排序树实体，不改现有四个
+
+`rxdb-test` 的 `MenuSimple` / `MenuLarge` / `FileNode` / `FileLarge` 声明可空的 `sortOrder`，不满足 US-028 的非空校验；它们也不只是 demo 实体：
+
+- **引擎改不了既有表的列。** 连接既有库时只经 [`RxDB.#ensureEntityTables`](../../../packages/rxdb/src/RxDB.ts) 补建缺失的表，没有实体改列的路径；SQLite 加 `NOT NULL` 要重建表（连带适配器维护的触发器与索引），`MigrationType.up(executor)` 做不了。原地改声明只会让新库建成 `NOT NULL`、旧库仍可空。
+- **适配器测试会整批失败。** [`menuIntegrationSuite`](../../../packages/rxdb-adapter-sqlite-core/src/__tests__/shared-menu.suite.ts)（electron、tauri conformance、sqlite、sqlite-wasm、sqliteai、wa-sqlite 六个 runner 共用）与 PGlite 的树测试经 `save()` 写入 `'a'`、`'1'`、`'special'` 这类非法键，声明 `manualOrder` 后门面的 [`assertMutationSortOrders`](../../../packages/rxdb/src/sortable/sortable-mutations.ts) 整批抛 `invalidKey`；不带 `orderBy` 的查询也改按 `[parentId, sortOrder, id]` 排序。
+- **远端表与桌面宿主也在用。** [03-business-tables.sql](../../../docker/sql/03-business-tables.sql) 的 `menu_large."sortOrder"` 是可空 `varchar` 且已 `rxdb_enable_sync_for_table`，supabase 适配器测试经适配器层仓库写入 `'a'`～`'e'`；electron 三个、tauri 两个 setup 注册了这四个实体（不渲染树页面）。
+
+理由与 US-028 阶段 E 不改共享 `Todo`、另建 `Task` 相同。新实体是新表，建表即 `NOT NULL`，不需要迁移；代价是 demo 里已有的树数据换实体后不再显示。
 
 ## 范围边界
 
 ### In Scope
 
-- `rxdb-test` 的四个树实体声明可排序（分组字段 `parentId`），`sortOrder` 改非空，存量数据按 `parentId` 分组回填
-- 三个 demo 树菜单与文件管理的新建追加改用 core 创建追加（不再自己算键），同父拖放与跨父拖放改用 core 重排 API
-- 删除 demo 内算树排序键的代码与 `sortOrder` 比较器副本，顺序由查询默认排序给出
-- 跨父拖放的环检测与跨组移动的先后关系由 plan 写实
+- `rxdb-test` 新增四个可排序树实体，列形状与索引 1:1 复刻 `MenuSimple` / `MenuLarge` / `FileNode` / `FileLarge`（含同级唯一索引、`(parentId, sortOrder)` 索引与 `FileNode` / `FileLarge` 的计算属性），另声明 `manualOrder: { groupBy: ['parentId'] }`、`sortOrder` 非空；注册进 `ENTITIES`
+- 三端 demo 的树菜单（simple / virtual / lazy）与文件管理器（simple / virtual / lazy）改用新实体
+- 新建、批量添加、删除并提升子节点、同父与跨父拖放、拖进节点内部，排序键一律由 core 给出；手动顺序取自查询默认排序
+- 删除 demo 内算树排序键的代码、`sortOrder` 比较器副本、`rebalanceSortOrder` / `REORDER_NEEDED` 路径与 `catch → a0` 兜底
+- 三端同一套拖放失败处理；三端拖放 e2e（含上面三条缺陷的回归）
 
 ### Out of Scope
 
-- US-028 本身的排序语义（本故事只消费 A + D）
-- `@aiao/rxdb-plugin-tree` 写入期环检测、深度限制、懒加载语义；demo 的环检测可以继续用 `isDescendantOf`
+- `MenuSimple` / `MenuLarge` / `FileNode` / `FileLarge` 的 schema、默认查询顺序与写入行为；`docker/sql` 的远端 `menu_large` 表；electron / tauri 的实体注册
+- 既有 demo 库里旧实体的树数据搬到新实体
+- US-028 的排序语义本身（本故事只消费阶段 A + D）；引擎为既有表补 `NOT NULL` 的改列能力
+- `@aiao/rxdb-plugin-tree` 的写入期环检测、深度限制、懒加载语义；环检测沿用 demo 的 `isDescendantOf`
 - 树查询（`findDescendants` 等适配器递归 CTE）的排序
-- `ISortableTreeEntity` 的 `sortOrder` 是否收窄为非空（收窄即破坏性变更，须走 api-baseline；plan 定）
-- `file-sorters.ts` 的名称 / 类型 / 大小等非手动排序模式
-- 树以外的 demo 页面
+- `ISortableTreeEntity` 收窄为非空：新实体的 `sortOrder!: string` 已满足 `sortOrder?: SortOrderKey | null`，收窄会让不声明 `manualOrder` 的树实体编译失败（US-028 AC#8 / AC#9），没有病灶支撑
+- 文件管理器名称 / 类型 / 扩展名 / 大小等非手动排序模式的比较器（这些模式下的拖放写入在范围内，见 AC#6）
+- rxdb-model 实体模型页对新实体的手动排序：`children` 关联表钉住 `parentId`，手柄由 US-028 阶段 B 的 UI 启用谓词自动打开，本故事不另加验收
+
+## 交付阶段
+
+| 阶段 | 交付                                                                                                                                                                                                   | 直接前置                    | AC 区段 | 状态 |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------- | ------- | ---- |
+| A    | 新实体与创建类写入：四个可排序树实体；三端六页改用新实体；新建、批量添加、删除并提升子节点不再自己算键（交给 core 的按组追加与改分组字段追加），删除提升三端统一为一次提交；三端 e2e                   | US-028 阶段 A + D（已交付） | AC#1～4 | ⬜   |
+| B    | 拖放与显示顺序：三端拖放改走 `Repository.reorder()`（含文件管理器非手动排序模式的映射），失败处理三端同交；手动顺序取自查询默认排序；删除剩余的算键、比较器、`rebalanceSortOrder` 与兜底；三端拖放 e2e | 阶段 A                      | AC#5～9 | ⬜   |
+
+一阶段一 PR，每个阶段三端同交。按写入类型而不按页面切：React / Vue 的 `useDragDrop` → `useDragDropService` 由菜单与文件管理器共用，按页面切会让共用的拖放层在中间态同时挂两条写入路径。阶段 A 交付后拖放仍由 demo 显式算键再 `save()`，合法的显式键 core 原样保留，可以单独发布；懒加载撞键（上面第三条）由阶段 B 关闭。
 
 ## 验收标准
 
-| #   | 前置条件                                                                   | 操作                                                                                     | 预期结果                                                                                                                                                     | 状态 |
-| --- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 1   | 四个树实体存量数据含 NULL 键、重复键、`localeCompare` 序与码点序不一致的键 | 执行迁移                                                                                 | 列改 `NOT NULL`；每个父节点（含根的 NULL 组）的兄弟键严格递增，不同父节点可以重复；迁移后的显示顺序与迁移前一致（码点序、NULL 视为最小、同键按 `id`）        | ⬜   |
-| 2   | 三端 demo 树菜单与文件管理                                                 | 新建根节点与子节点；批量造数；同父拖放；跨父拖放到两邻之间与拖进某节点内部；拖到自己后代 | 新建追加到同父末尾，键由 core 补；同父拖放只写 `sortOrder`；跨父拖放在一个事务内只写 `parentId` 与 `sortOrder`；拖到后代被拒绝、零写；三端顺序与 DB 重查一致 | ⬜   |
-| 3   | 三端 demo 源码                                                             | 检索 `generateKeyBetween` / `generateKeysBetween` 与 `sortOrder` 比较器                  | 树页面、store 与拖放服务不再直接算树排序键，也不再自带 `sortOrder` 比较器                                                                                    | ⬜   |
-| 4   | 现有树测试与三端 demo e2e                                                  | 运行                                                                                     | 全部通过；树查询结果与迁移前一致                                                                                                                             | ⬜   |
+| #   | 前置条件                                                             | 操作                                                                                                                                                   | 预期结果                                                                                                                                                                                                                                | 状态 |
+| --- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| 1   | `rxdb-test` 四个可排序树实体                                         | 元数据初始化；新库建表；不带 `orderBy` 查询；跑旧实体的现有测试                                                                                        | 校验通过，`sort_order` 建成 `NOT NULL`；不带 `orderBy` 按 `[parentId asc, sortOrder asc, id asc]`，根节点所在的 NULL 组在前；旧实体的 schema、默认查询顺序与写入行为不变，`menuIntegrationSuite`、PGlite 与 supabase 的树测试不改即通过 | ⬜   |
+| 2   | 三端菜单与文件管理器 simple / virtual / lazy 六页改用新实体          | 新建根节点与子节点；文件管理器根级依次新建文件夹、文件、文件夹；在未展开、子节点未加载的父节点下新建；刷新页面                                         | 页面不传 `sortOrder`，新节点追加到同父末尾，文件与文件夹同属一组；刷新后顺序不变；三端一致                                                                                                                                              | ⬜   |
+| 3   | 同上，同父下已有节点（文件管理器根级有排在最后一个文件之后的文件夹） | 批量添加菜单与文件；刷新页面                                                                                                                           | 同组按批内顺序排在同父原有节点之后，与原有节点不重序；批量生成不再写空串键；三端一致                                                                                                                                                    | ⬜   |
+| 4   | 祖父 G 下有 P、Q，P 下有若干子节点                                   | 删除 P 并选择提升子节点；刷新页面                                                                                                                      | 子节点改挂 G 与删除 P 在一次提交内完成，子节点按原顺序追加到 G 组末尾（排在 Q 之后）；三端一致                                                                                                                                          | ⬜   |
+| 5   | 三端菜单页，每组至少三个兄弟                                         | 同父拖到两邻之间、组首、组尾；跨父拖到两邻之间；拖进已展开节点、拖进未展开且子节点未加载的懒加载节点；拖到自己或后代；原位放下；撤销一次拖放；刷新页面 | 同父只写 `sortOrder`；跨父在一个事务内只写 `parentId` 与 `sortOrder`；拖进节点一律追加到其子节点末尾，与是否展开无关；拖到后代被拒绝、零写；原位零写；撤销恢复拖放前的父节点与顺序；刷新后顺序与拖放后一致；三端 Playwright 真实拖拽    | ⬜   |
+| 6   | 三端文件管理器页                                                     | 手动排序模式下做 AC#5 的全部拖放（文件不作拖入目标）；非手动排序模式下拖进文件夹、把子级节点拖到根级节点上 / 下方、同级上 / 下方拖放                   | 手动模式同 AC#5；非手动模式拖进文件夹追加到其末尾，拖到根级节点上 / 下方追加到根组末尾，同级上 / 下方拖放被拒、零写（规则沿用现状，写入改走 core）                                                                                      | ⬜   |
+| 7   | 三端菜单与文件管理器页                                               | 重排被拒（`SortOrderError`：`staleTarget` / `notFound` / `corruptAnchor`）                                                                             | 零写，展示错误，界面保持库里最新已提交的顺序，下一次拖放可用；三端同交互                                                                                                                                                                | ⬜   |
+| 8   | 三端六页，手动排序模式                                               | 浏览全量、虚拟滚动与懒加载树；拖放后与刷新后各读一次顺序                                                                                               | 兄弟顺序取自查询默认排序，页面查询不再带显式 `sortOrder` 排序，也不再自带 `sortOrder` 比较器；React / Vue 懒加载文件管理器的「文件夹优先」预排序不参与手动模式                                                                          | ⬜   |
+| 9   | 三端 demo 源码                                                       | 跑下方两条检索                                                                                                                                         | 都无输出（被删代码的单测随之删改）                                                                                                                                                                                                      | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
+AC#9 的检索：
+
+```bash
+grep -rlE "generateKeys?Between|compareSortOrder|rebalanceSortOrder|REORDER_NEEDED" apps/dev-rxdb-{angular,react,vue}/src
+grep -rlE "sortOrder *(\?\?|\|\|) *''" apps/dev-rxdb-{angular,react,vue}/src
+```
+
+AC#2～#8 的三端验收是 Playwright 操作后刷新页面读回顺序（同 US-028 阶段 E 的 `todo-sort.spec.ts`），AC#5、#6 是真实拖拽。写集合最小、键严格递增由 core 保证（US-028 的跨适配器契约套件）；本故事的单测断言 demo 交给 core 的入参：新建与批量不传 `sortOrder`，拖放调用 `reorder()` 的目标形式。需要直接读键的断言（如 AC#2 根级交替新建）经 demo 的实体模型页或 e2e 测试 API 读库，由 plan 定。
+
 ## 技术笔记
 
-- **前置**（均已交付）：US-028 阶段 A（排序模块、创建追加、重排 API）与阶段 D（分组字段、NULL 组、跨组移动）。阶段 C 只迁移类型来源，
-  不是本故事的前置。
-- **回填顺序**：保持迁移前三端 demo 的显示顺序——每个 `parentId` 组内按码点序、NULL 视为最小、同键按 `id`，
-  再 `generateKeysBetween(null, null, n)` 重新生成。迁移机制沿用 US-028「历史数据」一节。
-- **拖进节点内部**：用重排 API 的「追加到某组末尾」形式，目标组就是被拖入节点的 `id`；不需要读目标节点的子节点。
-- **环检测**：跨组移动本身不知道树结构，「拖到自己后代」必须在调用重排 API 之前拦住。demo 现有的 `isDescendantOf`
-  基于内存列表，与重排事务之间有窗口（推断：并发移动下可能放过环，未复现）；是否把环检测挪进同一事务由 plan 定，
-  挪进事务需要树插件提供写入期检测，那属于树插件能力，不在本故事。
-
-## 价值待证
-
-本故事**价值待证**。今天没有用户踩得到的症状：三端 demo 树排序的比较规则已经一致，键重复或邻居失效导致的错位没有复现。
-本故事不新增抽象，收益是删掉 22 个文件里的重复算键与三份比较器；前置的 US-028 阶段 A + D 已交付。
-
-**解锁条件**：demo 树拖放出现可复现的错序 / 键碰撞缺陷，或有外部调用方需要树实体经排序模块写入
-（US-028 阶段 A 与 D 的前置已满足）。
+- **拖放到 core 的映射**（阶段 B）：
+  - 拖进节点 → `reorder(id, { group: { parentId: target.id } })`，不读目标的子节点；目标未展开同样正确，第三条缺陷由此根治，React 的 `resolveSiblings` 不再需要。
+  - 拖到某节点上 / 下方 → `reorder(id, { prevId, nextId })`，邻居取自目标所在组「去掉被拖节点」后的显示序列，目标在组首 / 组尾时一侧为 `null`；邻居含被拖节点本身会被 core 判 `invalidTarget`。
+  - 原位放下不调用（core 对已在目标位置的行同样零写）。
+  - 文件管理器非手动排序模式下拖到根级节点上 / 下方 → `{ group: { parentId: null } }`。
+- **环检测**留在调用 `reorder()` 之前，沿用 demo 的 `isDescendantOf`：能拖到的目标必然逐级展开过祖先，懒加载下祖先链已在内存（`useDragDrop` 的注释有同样论证）。它与重排事务之间有窗口，并发移动下可能放过环（推断，未复现）；写入期检测属树插件能力，不在本故事。
+- **查询**：三端现在都给显式 `orderBy: [{ field: 'sortOrder', sort: 'asc' }]`（如 `tree-menu-simple.page.ts` 的 `useFindAll`），按 US-028 契约显式排序原样尊重、不补 `id`，删掉才走默认排序。懒加载按父查询（`parentId = X` 或 `IS NULL`）的默认排序同样是 `[parentId, sortOrder, id]`。
+- **批量添加**：`generateBatchMenus` 先给每个节点写 `sortOrder = ''` 再算键；空串是显式的非法键，不再算键后若留着它，整批被 `invalidKey` 拒绝。批量造数一律不写 `sortOrder`；core 按目标组拆分追加，同批新建的父节点下的子节点从 `a0` 起，与现状一致。
+- **删除并提升子节点**：子节点只改 `parentId`、不给键，由 US-028「分组字段变更」在同一事务内按批内顺序追加到祖父组末尾——提升的子节点排到原兄弟之后，不再按旧键插进原兄弟之间，这是用户看得见的行为变化。三端统一为一次 `mutations` 提交（Angular 现状），React / Vue 的逐条 `save()` 改掉。
+- **分组字段经关系设置**：demo 有几处用 `parent$.set()` 改父节点；多对一关系的 `set()` 同步写外键（`relation-helper.ts`），core 读到的分组取值就是新父节点，与直接写 `parentId` 等价。
+- **失败处理**：`reorder()` 失败时抛 `SortOrderError` 且零写。树页面由活查询驱动，零写时界面本就停在库里的顺序（不同于 VTable，不会停在拖后的顺序），只需展示错误、清忙碌态。`staleTarget` / `notFound` 提示后重试即可；`corruptAnchor` 说明数据已脏，新实体只经 core 写入，正常不会出现。三端共用同一组提示与状态。
+- **撤销**：拖放改走主适配器事务后，history 里这一项的类型是 `TRANSACTION`（US-028「重排写入」），一次撤销仍恢复一次拖放；三端树页面的 e2e 不断言 history 项类型。
+- **新实体**：复刻还是继承旧实体由 plan 定，前提是不改旧实体的 schema；命名不得与 `rxdb-test/src/sortable/` 的契约夹具重名，注册约束同 US-028 技术笔记「新实体的注册与连带改动」（三端 `entity-model.spec.ts` 断言首个实体是 `Account`）。electron / tauri 不注册新实体（不渲染树页面）。
+- **连带变化**：
+  - `DEMO_ENTITIES` 变了，备份与失败现场归档的结构指纹由实体清单算出（[`schemaFingerprintInput`](../../../packages/rxdb/src/backup/schema-fingerprint.ts)），本故事合入前导出的归档会按 `incompatible_archive` 拒绝恢复。
+  - 实体模型页里新实体的默认列表顺序是 `[parentId, sortOrder, id]`；`children` 关联表钉住 `parentId`，自动出现拖拽手柄（见 Out of Scope）。
+- **现有 e2e 基线**：Angular `menu-drag-sort.spec.ts` 没有拖拽操作；Angular 与 Vue 的文件管理器 spec 没有拖放；React 的菜单与文件管理器覆盖了同父重排与拖入。AC#5、#6 的三端 e2e 大部分是新增。
 
 ## 实现文件
 
-- `packages/rxdb-test/entities/MenuSimple.ts`、`MenuLarge.ts`、`FileNode.ts`、`FileLarge.ts` — 可排序声明、`sortOrder` 非空
-- `apps/dev-rxdb-angular/src/app/pages/menu/`、`apps/dev-rxdb-angular/src/app/pages/file-manager/` — 拖放服务与 store 改用排序模块
-- `apps/dev-rxdb-react/src/app/hooks/`、`apps/dev-rxdb-react/src/app/utils/` — 同上，删除 `sort-order.ts`
-- `apps/dev-rxdb-vue/src/app/composables/`、`apps/dev-rxdb-vue/src/app/utils/` — 同上，删除 `sort-order.ts`
+| 阶段  | 文件                                                                                                                                                                                                      | 说明                                                                                                                  |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| A     | `packages/rxdb-test/entities/`（四个新实体文件、`index.ts`）                                                                                                                                              | 可排序树实体与 `ENTITIES` 注册                                                                                        |
+| A     | `packages/rxdb-test/public-contract/`、`packages/rxdb-test/src/__tests__/published-model-invariants.spec.ts`、`entity-model-contract.spec.ts`                                                             | 公开契约基线、`DEMO_ENTITIES` 实体数断言、新实体的索引断言                                                            |
+| A     | `apps/dev-rxdb-angular/src/app/pages/menu/`、`pages/file-manager/`                                                                                                                                        | 页面换实体；`TreeMenuStore`、`TreeFileStore` 与两个懒加载 store 的新建、批量添加（`generateBatchMenus` 等）、删除提升 |
+| A     | `apps/dev-rxdb-react/src/app/hooks/useTreeMenu*Store.ts`、`useFileManager*Store.ts`、`utils/menu-utils.ts`、`utils/file-utils.ts`、`pages/menu/`、`pages/file-manager/`                                   | 同上；删除提升改为一次提交                                                                                            |
+| A     | `apps/dev-rxdb-vue/src/app/composables/useTreeMenu*Store.ts`、`useFileManager*Store.ts`、`src/app/utils/menu-utils.ts`、`src/app/utils/file-utils.ts`、`src/pages/menu/`、`src/pages/file-manager/`       | 同上                                                                                                                  |
+| B     | `apps/dev-rxdb-angular/src/app/pages/menu/services/menu-drag-drop.service.ts`、`pages/file-manager/services/file-drag-drop.service.ts`、两个 `tree-utils.ts`、`file-sorters.ts` 与各 store 的拖放和树构建 | 拖放改走 `reorder()`；删比较器、`rebalanceSortOrder`、兜底与显式 `sortOrder` 排序                                     |
+| B     | `apps/dev-rxdb-react/src/app/hooks/useDragDrop.ts`、`useDragDropService.ts`、`utils/sort-order.ts`、`utils/file-sorters.ts` 与各 store                                                                    | 同上                                                                                                                  |
+| B     | `apps/dev-rxdb-vue/src/app/composables/useDragDrop.ts`、`useDragDropService.ts`、`src/app/utils/sort-order.ts`、`src/app/utils/file-sorters.ts` 与各 store                                                | 同上                                                                                                                  |
+| A / B | `apps/dev-rxdb-angular-e2e/`、`apps/dev-rxdb-react-e2e/`、`apps/dev-rxdb-vue-e2e/` 的树菜单与文件管理器 spec                                                                                              | 新建、批量、删除提升（A）与拖放（B）的三端 e2e                                                                        |
 
 ## References
 
-- [US-028 可排序实体](US-028-sortable-entity.md) — 排序模块、分组排序域与跨组移动（阶段 A / D）
+- [US-028 可排序实体](US-028-sortable-entity.md) — 排序模块、分组排序域与跨组移动（阶段 A / D）；不改共享实体、另建可排序实体的先例（阶段 E 的 `Task`）
 - [US-010 树形实体](US-010-tree-entity.md) — 树节点排序的原始验收（AC#2/#3）
 - [tree-entity.interface.ts](../../../packages/rxdb-plugin-tree/src/entity/tree-entity.interface.ts) — `ISortableTreeEntity`
-- [menu-drag-drop.service.ts](../../../apps/dev-rxdb-angular/src/app/pages/menu/services/menu-drag-drop.service.ts) — demo 算键与 `isDescendantOf` 现状
+- [menu-drag-drop.service.ts](../../../apps/dev-rxdb-angular/src/app/pages/menu/services/menu-drag-drop.service.ts) — Angular 菜单的算键、`rebalanceSortOrder` 与 `isDescendantOf`
+- [useDragDrop.ts](../../../apps/dev-rxdb-react/src/app/hooks/useDragDrop.ts) — React 的 `resolveSiblings` 与祖先链论证
