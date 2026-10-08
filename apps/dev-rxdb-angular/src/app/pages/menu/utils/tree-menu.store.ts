@@ -1,7 +1,8 @@
 import type { HistoryScopeAPI, RxDBEntityId } from '@aiao/rxdb';
-import { getEntityMutations, RxDB } from '@aiao/rxdb';
+import { RxDB } from '@aiao/rxdb';
 import { computed, signal, Signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { promoteChildrenAndRemove } from '../../../shared/promote-children';
 import { reorderTreeNode, treeDropPosition } from '../../../shared/tree-drop';
 import { runViewTransition, ViewTransitionStarter } from '../../../shared/view-transition';
 import { DragDropState, DropMode } from '../models/drag-drop-types';
@@ -165,11 +166,17 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
     this.selectedParentId.set(null);
   }
 
-  async addRootMenu(title: string): Promise<void> {
+  /**
+   * 新建根菜单。
+   *
+   * @returns 是否已落库：同级重名时为 `false`，页面据此决定是否清空输入
+   * @throws 保存失败时原样抛出，由页面的 `runWrite` 展示
+   */
+  async addRootMenu(title: string): Promise<boolean> {
     const conflict = this.pathValidator.checkPathConflict(title, null, this.menuResource.value());
     if (conflict.hasConflict) {
       this.pathConflictWarning.set(conflict);
-      return;
+      return false;
     }
 
     // 不赋 sortOrder：引擎在事务内把缺键的新行追加到所属 parentId 组的末尾
@@ -181,16 +188,23 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
       ids.add(menu.id);
       return new Set(ids);
     });
+    return true;
   }
 
-  async addChildMenu(title: string): Promise<void> {
+  /**
+   * 在选中的父节点下新建子菜单。
+   *
+   * @returns 是否已落库：没有选中父节点或同级重名时为 `false`
+   * @throws 保存失败时原样抛出，由页面的 `runWrite` 展示
+   */
+  async addChildMenu(title: string): Promise<boolean> {
     const parentId = this.selectedParentId();
-    if (parentId === null) return;
+    if (parentId === null) return false;
 
     const conflict = this.pathValidator.checkPathConflict(title, parentId, this.menuResource.value());
     if (conflict.hasConflict) {
       this.pathConflictWarning.set(conflict);
-      return;
+      return false;
     }
 
     const menu = this.createEntity();
@@ -199,6 +213,7 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
 
     await menu.save();
     this.selectedParentId.set(null);
+    return true;
   }
 
   startEdit(menuId: RxDBEntityId): void {
@@ -265,17 +280,7 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
     if (!menu) return;
 
     const children = await this.findChildren(menu.id);
-    const newParentId = menu.parentId ?? null;
-    children.forEach(child => {
-      child.parentId = newParentId;
-    });
-
-    const options = getEntityMutations<C>({
-      needSaveEntities: children,
-      needRemoveEntities: [menu]
-    });
-
-    await this.rxdb.entityManager.mutations(options);
+    await promoteChildrenAndRemove(this.rxdb, menu, children);
     this.closeDeleteDialog();
   }
 

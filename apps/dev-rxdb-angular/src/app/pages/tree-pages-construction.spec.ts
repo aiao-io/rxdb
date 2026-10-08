@@ -77,8 +77,8 @@ describe('tree demo page construction contracts', () => {
     configure(rxdb);
 
     const simple = TestBed.runInInjectionContext(() => new MenuTreeSimplePage());
-    const addRootMenu = vi.spyOn(simple.store, 'addRootMenu').mockResolvedValue(undefined);
-    const addChildMenu = vi.spyOn(simple.store, 'addChildMenu').mockResolvedValue(undefined);
+    const addRootMenu = vi.spyOn(simple.store, 'addRootMenu').mockResolvedValue(true);
+    const addChildMenu = vi.spyOn(simple.store, 'addChildMenu').mockResolvedValue(true);
     const event = { preventDefault: vi.fn() } as unknown as Event;
 
     simple.$new_menu_title.set('根菜单');

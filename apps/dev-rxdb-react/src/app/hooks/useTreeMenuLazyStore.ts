@@ -265,9 +265,10 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
   const startEdit = (id: string) => setEditingId(id);
   const cancelEdit = () => setEditingId(null);
 
-  const addRoot = async (title: string) => {
+  // 新建返回是否已落库：写入失败时为 false，页面据此决定是否清空输入
+  const addRoot = async (title: string): Promise<boolean> => {
     // 只赋业务字段：排序键由引擎在保存事务里追加到根节点组的末尾
-    await runWrite('新建', async () => {
+    const result = await runWrite('新建', async () => {
       const menu = new SortableMenuLarge({ title });
       await rxdb.entityManager.save(menu);
 
@@ -275,10 +276,11 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
       setNodesMap(prev => new Map(prev).set(menu.id, menu));
       setRootIds(prev => [...prev, menu.id]);
     });
+    return result.ok;
   };
 
-  const addChild = async (parent: SortableMenuLarge, title: string) => {
-    await runWrite('新建', async () => {
+  const addChild = async (parent: SortableMenuLarge, title: string): Promise<boolean> => {
+    const result = await runWrite('新建', async () => {
       const menu = new SortableMenuLarge({ title });
       menu.parentId = parent.id;
       await rxdb.entityManager.save(menu);
@@ -297,6 +299,7 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
         return next;
       });
     });
+    return result.ok;
   };
 
   // REACT-FRESH-01：见 useTreeMenuStore 中的同名说明 —— 叶子路径不能 `void`，

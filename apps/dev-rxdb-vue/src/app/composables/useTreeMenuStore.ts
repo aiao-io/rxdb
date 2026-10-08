@@ -1,8 +1,9 @@
-import { getEntityMutations, type RxDB, type RxDBEntityId, type UUID } from '@aiao/rxdb';
+import { type RxDB, type RxDBEntityId, type UUID } from '@aiao/rxdb';
 import { SortableMenuSimple } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { computed, ref, toRaw, unref, type MaybeRef } from 'vue';
 import { generateBatchMenus } from '../utils/menu-utils';
+import { promoteChildrenAndRemove } from '../utils/promote-children';
 import { buildTreeMenuNodes, type TreeMenuNode } from '../utils/tree-menu';
 import { MenuPathConflict, useMenuPathValidator } from './useMenuPathValidator';
 import { useTreeWriteError } from './useTreeWriteError';
@@ -176,12 +177,7 @@ export function useTreeMenuStore(menus: MaybeRef<SortableMenuSimple[]>, rxdb: Rx
 
     await guardWrite('删除并提升子节点', async () => {
       const children = await fetchChildren(target.id);
-      for (const child of children) {
-        child.parentId = target.parentId;
-      }
-      await rxdb.entityManager.mutations(
-        getEntityMutations({ needSaveEntities: children, needRemoveEntities: [toRaw(target)] })
-      );
+      await promoteChildrenAndRemove(rxdb, toRaw(target), children);
     });
     menuToDelete.value = null;
   };

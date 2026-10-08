@@ -163,6 +163,8 @@ describe('TreeFileLazyStore.treeNodes', () => {
     expect(store.isFullMode()).toBe(true);
     expect(store.expandedFileIds()).toEqual(new Set(['root']));
     expect(store.treeNodes().map(item => item.node.id)).toEqual(['root', 'child']);
+    // 空白名称的行只是不展示，仍在拖放取组序列的完整集合里
+    expect(store.visibleNodes().map(node => node.id)).toEqual(['root', 'blank', 'child']);
 
     store.toggleExpandAll();
     expect(store.isFullMode()).toBe(false);
@@ -296,6 +298,26 @@ describe('TreeFileLazyStore.treeNodes', () => {
         isValidTarget: false
       });
       find.mockRestore();
+    });
+
+    it('展开全部后组里有空白名称的行：邻居按完整组换算，夹在中间的隐藏行不被漏掉', async () => {
+      const [a, hidden, b, x] = [
+        makeFile('A', '甲', null, 'file', false),
+        makeFile('H', '   ', null, 'file', false),
+        makeFile('B', '乙', null, 'file', false),
+        makeFile('X', '丙', null, 'file', false)
+      ];
+      roots.next([a, hidden, b, x]);
+      allFiles.next([a, hidden, b, x]);
+      const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
+      store.expandAll();
+      expect(store.treeNodes().map(item => item.node.id)).toEqual(['A', 'B', 'X']);
+
+      store.onDragStart(x.id);
+      store.onDragOver(a, 80, ROW);
+      await store.onDrop(a);
+
+      expect(reorder).toHaveBeenCalledExactlyOnceWith('X', { prevId: 'A', nextId: 'H' });
     });
 
     it('拖放被拒时不调用 reorder，也不展开目标', async () => {

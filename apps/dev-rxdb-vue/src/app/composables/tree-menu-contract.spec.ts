@@ -4,6 +4,7 @@ import { of, Subject } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp, ref } from 'vue';
 import { buildTreeMenuNodes } from '../utils/tree-menu';
+import { useDragDrop } from './useDragDrop';
 import { useTreeMenuLazyStore } from './useTreeMenuLazyStore';
 import { useTreeMenuStore } from './useTreeMenuStore';
 import { useTreeMenuVirtualStore } from './useTreeMenuVirtualStore';
@@ -86,6 +87,70 @@ describe('tree menu contracts', () => {
 
     expect(store.treeNodes.value.map(node => node.menu.id)).toEqual([ROOT_ID, NESTED_ID, TARGET_ID]);
     unmount();
+  });
+
+  describe('懒加载 store：搜索出的未加载节点可拖放', () => {
+    // 根组 P、X 已加载；P 从未展开，它的子节点 H（不匹配）与 Q（匹配）只出现在搜索全集里
+    const P = asMenuLarge({ id: 'P', parentId: null, sortOrder: 'a0', title: '父节点' });
+    const X = asMenuLarge({ id: 'X', parentId: null, sortOrder: 'a1', title: '命中 X' });
+    const H = asMenuLarge({ id: 'H', parentId: 'P', sortOrder: 'a0', title: '隐藏兄弟' });
+    const Q = asMenuLarge({ id: 'Q', parentId: 'P', sortOrder: 'a1', title: '命中 Q' });
+    const ROW = { top: 0, height: 90 } as DOMRect;
+    const BEFORE = 10;
+
+    const mountSearching = () => {
+      const dataSource = {
+        observeAllMenus: () => of([P, X, H, Q]),
+        observeChildMenus: () => of([]),
+        observeRootMenus: () => of([P, X])
+      };
+      const mounted = mountLazyStore({} as RxDB, dataSource);
+      const reorder = vi.fn(async () => undefined);
+      const dragDrop = useDragDrop<SortableMenuLarge>(mounted.store.dragNodes, {
+        repository: { reorder },
+        guardWrite: mounted.store.guardWrite,
+        groupIds: mounted.store.siblingIds
+      });
+      mounted.store.setSearchKeyword('命中');
+      return { ...mounted, dragDrop, reorder };
+    };
+
+    it('拖到搜索出来的 Q 前面：组序列含未匹配的 H，悬停不抛错，放下交给引擎', async () => {
+      const { store, dragDrop, reorder, unmount } = mountSearching();
+      expect(store.treeNodes.value.map(node => node.menu.id)).toEqual(['P', 'Q', 'X']);
+      expect(store.hasLoadedChildren('P')).toBe(false);
+
+      dragDrop.onDragStart('X');
+      expect(dragDrop.onDragOver(Q, BEFORE, ROW)).toEqual({ isValid: true, dropMode: 'before' });
+      await dragDrop.onDrop(Q);
+
+      expect(reorder).toHaveBeenCalledExactlyOnceWith('X', { prevId: 'H', nextId: 'Q' });
+      expect(store.writeError.value).toBeNull();
+      unmount();
+    });
+
+    it('从未加载的搜索结果 Q 发起拖动：源节点可解析', async () => {
+      const { dragDrop, reorder, unmount } = mountSearching();
+
+      dragDrop.onDragStart('Q');
+      dragDrop.onDragOver(X, BEFORE, ROW);
+      await dragDrop.onDrop(X);
+
+      expect(reorder).toHaveBeenCalledExactlyOnceWith('Q', { prevId: 'P', nextId: 'X' });
+      unmount();
+    });
+
+    it('清空搜索后回到已加载节点与已加载的组', () => {
+      const { store, unmount } = mountSearching();
+      expect(store.siblingIds('P')).toEqual(['H', 'Q']);
+
+      store.setSearchKeyword('');
+
+      expect(store.dragNodes.value.map(menu => menu.id)).toEqual(['P', 'X']);
+      expect(store.siblingIds(null)).toEqual(['P', 'X']);
+      expect(store.siblingIds('P')).toEqual([]);
+      unmount();
+    });
   });
 });
 

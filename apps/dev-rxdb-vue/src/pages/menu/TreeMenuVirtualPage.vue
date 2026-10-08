@@ -94,14 +94,11 @@ const handleDeleteAll = async () => {
 const handleAddMenu = async () => {
   if (!newTitle.value.trim()) return;
 
+  // 只在新建成功后清空：写入失败时保留用户输入
   if (store.selectedParentId.value) {
     const parent = menus.value.find(m => m.id === store.selectedParentId.value);
-    if (parent) {
-      await store.addChild(parent, newTitle.value);
-      newTitle.value = '';
-    }
-  } else {
-    await store.addRoot(newTitle.value);
+    if (parent && (await store.addChild(parent, newTitle.value))) newTitle.value = '';
+  } else if (await store.addRoot(newTitle.value)) {
     newTitle.value = '';
   }
 };

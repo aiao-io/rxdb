@@ -170,13 +170,19 @@ export function useFileManagerStore(files: SortableFileNode[]) {
     setEditingId(null);
   }, []);
 
+  // 新建返回是否已落库：路径冲突或写入失败时为 false，页面据此决定是否清空输入
   const addChild = useCallback(
-    async (parentFile: SortableFileNode, name: string, type: 'file' | 'folder', extension?: string) => {
+    async (
+      parentFile: SortableFileNode,
+      name: string,
+      type: 'file' | 'folder',
+      extension?: string
+    ): Promise<boolean> => {
       const ext = type === 'file' && extension ? extension : null;
       const conflict = pathValidator.checkConflict(name, ext, parentFile.id, files);
       if (conflict) {
         setPathConflict(conflict);
-        return;
+        return false;
       }
 
       // 只赋业务字段与 parentId：文件与文件夹同属父节点下的一组，排序键由引擎追加到组末尾
@@ -192,20 +198,21 @@ export function useFileManagerStore(files: SortableFileNode[]) {
       newFile.parentId = parentFile.id;
 
       const result = await runWrite('新建', () => newFile.save());
-      if (!result.ok) return;
+      if (!result.ok) return false;
       setExpandedIds(prev => new Set(prev).add(parentFile.id));
       setPathConflict(null);
+      return true;
     },
     [files, pathValidator, runWrite]
   );
 
   const addRoot = useCallback(
-    async (name: string, type: 'file' | 'folder', extension?: string) => {
+    async (name: string, type: 'file' | 'folder', extension?: string): Promise<boolean> => {
       const ext = type === 'file' && extension ? extension : null;
       const conflict = pathValidator.checkConflict(name, ext, null, files);
       if (conflict) {
         setPathConflict(conflict);
-        return;
+        return false;
       }
 
       const newFile = new SortableFileNode({
@@ -221,6 +228,7 @@ export function useFileManagerStore(files: SortableFileNode[]) {
 
       const result = await runWrite('新建', () => newFile.save());
       if (result.ok) setPathConflict(null);
+      return result.ok;
     },
     [files, pathValidator, runWrite]
   );
@@ -276,10 +284,11 @@ export function useFileManagerStore(files: SortableFileNode[]) {
   const executeCascadeDelete = useCallback(async () => {
     if (!fileToDelete) return;
 
-    const result = await runWrite('级联删除', async () => {
+    await runWrite('级联删除', async () => {
       for (const file of collectSubtreePostOrder(fileToDelete, files)) await file.remove();
     });
-    if (result.ok) setFileToDelete(null);
+    // 成败都关闭对话框：失败时页内提示不被模态框挡住（三端同一行为）
+    setFileToDelete(null);
   }, [fileToDelete, files, runWrite]);
 
   // 清除搜索

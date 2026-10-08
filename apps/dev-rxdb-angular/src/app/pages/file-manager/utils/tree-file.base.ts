@@ -15,6 +15,7 @@ import {
   PLATFORM_ID,
   Signal,
   signal,
+  untracked,
   viewChild
 } from '@angular/core';
 import { listen } from '../../../shared/event-listener';
@@ -122,10 +123,11 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
     this.entityClass = entityClass;
     this.history = history;
 
-    // 监听文件名变化，清除路径冲突警告
+    // 监听文件名变化，清除路径冲突警告。
+    // 只追踪文件名：重名时输入保留，追踪警告会让它一出现就被这里清掉
     effect(() => {
       const value = this.$new_file_name();
-      if (value && value.trim() && this.store.pathConflictWarning()) {
+      if (value && value.trim() && untracked(this.store.pathConflictWarning)) {
         this.store.clearPathConflict();
       }
     });
@@ -180,9 +182,9 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
     const title = this.$new_file_name().trim();
     if (!title) return;
 
+    // 只在新建成功后清空：重名或写入失败时保留用户输入
     await this.runWrite('新建', async () => {
-      await this.store.createRootFolder(title);
-      this.$new_file_name.set('');
+      if (await this.store.createRootFolder(title)) this.$new_file_name.set('');
     });
   }
 
@@ -201,8 +203,7 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
     if (!title) return;
 
     await this.runWrite('新建', async () => {
-      await this.store.createSubFolder(title);
-      this.$new_file_name.set('');
+      if (await this.store.createSubFolder(title)) this.$new_file_name.set('');
     });
   }
 
@@ -213,9 +214,8 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
     if (!name || !extension) return;
 
     await this.runWrite('新建', async () => {
-      await this.store.createFile(name, extension, 0);
-      this.$new_file_name.set('');
       // 保持扩展名和文件模式，方便连续添加同类型文件
+      if (await this.store.createFile(name, extension, 0)) this.$new_file_name.set('');
     });
   }
 

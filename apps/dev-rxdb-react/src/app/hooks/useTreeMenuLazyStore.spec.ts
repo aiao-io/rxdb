@@ -16,7 +16,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@aiao/rxdb', async importOriginal => ({
   ...(await importOriginal<typeof import('@aiao/rxdb')>()),
-  getEntityMutations: mocks.getEntityMutations
+  getEntityMutations: mocks.getEntityMutations,
+  // 替身没有实体状态：失败时退回 parentId 后按剩余差异重算 modified，这里给一份空差异
+  getEntityStatus: () => ({ patch: {}, modified: false })
 }));
 
 /**
@@ -366,7 +368,7 @@ describe('useTreeMenuLazyStore', () => {
       });
       table.calls.length = 0;
       await act(async () => {
-        await result.current.addChild(parent, '新子菜单');
+        expect(await result.current.addChild(parent, '新子菜单')).toBe(true);
       });
 
       const created = table.rows.find(row => row.title === '新子菜单') as unknown as Record<string, unknown>;
@@ -383,7 +385,7 @@ describe('useTreeMenuLazyStore', () => {
       const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
       table.calls.length = 0;
       await act(async () => {
-        await result.current.addChild(parent, '新子菜单');
+        expect(await result.current.addChild(parent, '新子菜单')).toBe(true);
       });
 
       const created = table.rows.find(row => row.title === '新子菜单') as unknown as Record<string, unknown>;
@@ -403,7 +405,7 @@ describe('useTreeMenuLazyStore', () => {
       const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
       table.calls.length = 0;
       await act(async () => {
-        await result.current.addRoot('新根');
+        expect(await result.current.addRoot('新根')).toBe(true);
       });
 
       const created = table.rows.find(row => row.title === '新根') as unknown as Record<string, unknown>;
@@ -420,14 +422,14 @@ describe('useTreeMenuLazyStore', () => {
 
       const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
       await act(async () => {
-        await result.current.addRoot('重名');
+        expect(await result.current.addRoot('重名')).toBe(false);
       });
       expect(result.current.writeError).toBe('新建失败：唯一索引冲突');
       expect(result.current.treeNodes).toEqual([]);
 
       act(() => result.current.clearWriteError());
       await act(async () => {
-        await result.current.addChild(parent, '重名');
+        expect(await result.current.addChild(parent, '重名')).toBe(false);
       });
       expect(result.current.writeError).toBe('新建失败：唯一索引冲突');
       expect(result.current.expandedIds.has(parent.id)).toBe(false);
@@ -532,7 +534,8 @@ describe('useTreeMenuLazyStore', () => {
 
     it('删除并提升失败：写入「删除并提升子节点失败」，对话框关闭', async () => {
       const parent = makeMenu('p', null, 'a0');
-      table.rows = [parent, makeMenu('c1', 'p', 'a0')];
+      const child = makeMenu('c1', 'p', 'a0');
+      table.rows = [parent, child];
       table.writes['mutations'].mockRejectedValueOnce(new Error('事务回滚'));
 
       const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
@@ -545,6 +548,8 @@ describe('useTreeMenuLazyStore', () => {
 
       expect(result.current.writeError).toBe('删除并提升子节点失败：事务回滚');
       expect(result.current.menuToDelete).toBeNull();
+      // 共享实例上不留失败的移动
+      expect(child.parentId).toBe(parent.id);
     });
   });
 });

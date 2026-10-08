@@ -351,27 +351,21 @@ export function FileManagerVirtualPage() {
                 className='flex gap-2'
                 onSubmit={async e => {
                   e.preventDefault();
-                  if (newName.trim()) {
-                    if (store.isAddingFile) {
-                      // 添加文件 - 只传文件名，不包含扩展名
-                      if (store.selectedFolderId) {
-                        const parent = files.find(f => f.id === store.selectedFolderId);
-                        if (parent) await store.addChild(parent, newName, 'file', newExtension);
-                      } else {
-                        await store.addRoot(newName, 'file', newExtension);
-                      }
-                    } else {
-                      // 添加文件夹
-                      if (store.selectedFolderId) {
-                        const parent = files.find(f => f.id === store.selectedFolderId);
-                        if (parent) await store.addChild(parent, newName, 'folder');
-                      } else {
-                        await store.addRoot(newName, 'folder');
-                      }
-                    }
-                    setNewName('');
-                    store.cancelSelectFolder();
-                  }
+                  if (!newName.trim()) return;
+                  // 文件只传文件名，扩展名单独传
+                  const type = store.isAddingFile ? 'file' : 'folder';
+                  const extension = store.isAddingFile ? newExtension : undefined;
+                  const parentId = store.selectedFolderId;
+                  const parent = parentId ? files.find(f => f.id === parentId) : undefined;
+                  if (parentId && !parent) return;
+                  const added =
+                    parent ?
+                      await store.addChild(parent, newName, type, extension)
+                    : await store.addRoot(newName, type, extension);
+                  // 只在新建成功后清空：冲突或写入失败时保留用户输入与父文件夹选择
+                  if (!added) return;
+                  setNewName('');
+                  store.cancelSelectFolder();
                 }}
               >
                 {/* 文件/文件夹模式切换 */}

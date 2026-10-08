@@ -40,7 +40,9 @@ const registry = vi.hoisted(() => ({
 
 vi.mock('@aiao/rxdb', async importOriginal => ({
   ...(await importOriginal<typeof import('@aiao/rxdb')>()),
-  getEntityMutations: registry.getEntityMutations
+  getEntityMutations: registry.getEntityMutations,
+  // 替身没有实体状态：失败时退回 parentId 后按剩余差异重算 modified，这里给一份空差异
+  getEntityStatus: () => ({ patch: {}, modified: false })
 }));
 
 vi.mock('@aiao/rxdb-test/entities', () => {
@@ -102,8 +104,9 @@ interface Harness {
   clearWriteError(): void;
   menuToDelete(): unknown;
   childrenCountInDialog(): number;
-  addRoot(title: string): Promise<unknown>;
-  addChild(parent: FakeMenu, title: string): Promise<unknown>;
+  /** 是否已落库：页面据此决定是否清空输入 */
+  addRoot(title: string): Promise<boolean>;
+  addChild(parent: FakeMenu, title: string): Promise<boolean>;
   commitEdit(menu: FakeMenu): Promise<unknown>;
   addManyMenus(count: number): Promise<unknown>;
   /** 叶子节点的删除入口：virtual / lazy 直接删，simple 走对话框确认 */
@@ -238,7 +241,7 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
       const h = makeHarness();
       const readsBefore = h.dbReads();
 
-      await h.addRoot('Root');
+      expect(await h.addRoot('Root')).toBe(true);
 
       const [menu] = created();
       expect(created()).toHaveLength(1);
@@ -254,7 +257,7 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
       const h = makeHarness([parent]);
       const readsBefore = h.dbReads();
 
-      await h.addChild(parent, 'Child');
+      expect(await h.addChild(parent, 'Child')).toBe(true);
 
       const [menu] = created();
       expect(created()).toHaveLength(1);
@@ -268,12 +271,12 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
       const h = makeHarness();
       registry.saveError = new Error('boom');
 
-      await h.addRoot('Root');
+      expect(await h.addRoot('Root')).toBe(false);
 
       expect(h.writeError()).toBe('新建失败：boom');
 
       registry.saveError = null;
-      await h.addRoot('Another');
+      expect(await h.addRoot('Another')).toBe(true);
 
       expect(h.writeError()).toBeNull();
     });
@@ -283,7 +286,7 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
       const h = makeHarness([parent]);
       registry.saveError = new Error('boom');
 
-      await h.addChild(parent, 'Child');
+      expect(await h.addChild(parent, 'Child')).toBe(false);
 
       expect(h.writeError()).toBe('新建失败：boom');
     });
@@ -443,7 +446,8 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
     it('失败：写入「删除并提升子节点失败：…」，对话框关闭，不抛出', async () => {
       const parent = fixture({ id: 'p', parentId: null });
       const h = makeHarness([parent]);
-      h.setDbChildren([fixture({ id: 'c1', parentId: 'p' })]);
+      const child = fixture({ id: 'c1', parentId: 'p' });
+      h.setDbChildren([child]);
       await h.deleteMenu(parent);
       h.rxdb.entityManager.mutations.mockRejectedValueOnce(new Error('boom'));
 
@@ -451,6 +455,8 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
 
       expect(h.writeError()).toBe('删除并提升子节点失败：boom');
       expect(h.menuToDelete()).toBeNull();
+      // 共享实例上不留失败的移动
+      expect(child.parentId).toBe('p');
     });
   });
 });

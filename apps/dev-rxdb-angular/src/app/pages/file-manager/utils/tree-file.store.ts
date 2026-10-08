@@ -120,15 +120,18 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
 
   /**
    * 创建根文件夹
+   *
+   * @returns 是否已落库：同级重名时为 `false`，页面据此决定是否清空输入
+   * @throws 保存失败时原样抛出，由页面的 `runWrite` 展示
    */
-  async createRootFolder(name: string): Promise<void> {
+  async createRootFolder(name: string): Promise<boolean> {
     const allFiles = this.fileResource.value();
 
     // 检查冲突
     const conflict = this.pathValidator.checkConflict(name, null, null, allFiles);
     if (conflict) {
       this.pathConflictWarning.set(conflict);
-      return;
+      return false;
     }
 
     // 创建文件夹；不赋 sortOrder，引擎把缺键的新行追加到所属 parentId 组（文件与文件夹同组）的末尾
@@ -146,14 +149,18 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
       ids.add(folder.id);
       return new Set(ids);
     });
+    return true;
   }
 
   /**
    * 创建子文件夹
+   *
+   * @returns 是否已落库：没有选中父文件夹或同级重名时为 `false`
+   * @throws 保存失败时原样抛出，由页面的 `runWrite` 展示
    */
-  async createSubFolder(name: string): Promise<void> {
+  async createSubFolder(name: string): Promise<boolean> {
     const parentId = this.selectedFolderId();
-    if (!parentId) return;
+    if (!parentId) return false;
 
     const allFiles = this.fileResource.value();
 
@@ -161,7 +168,7 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
     const conflict = this.pathValidator.checkConflict(name, null, parentId, allFiles);
     if (conflict) {
       this.pathConflictWarning.set(conflict);
-      return;
+      return false;
     }
 
     // 创建文件夹（不赋 sortOrder，见 createRootFolder）
@@ -180,12 +187,16 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
 
     await folder.save();
     this.selectedFolderId.set(null);
+    return true;
   }
 
   /**
    * 创建文件
+   *
+   * @returns 是否已落库：同级重名时为 `false`
+   * @throws 保存失败时原样抛出，由页面的 `runWrite` 展示
    */
-  async createFile(name: string, extension: string, size: number): Promise<void> {
+  async createFile(name: string, extension: string, size: number): Promise<boolean> {
     const parentId = this.selectedFolderId();
     // 允许在根目录创建文件
 
@@ -195,7 +206,7 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
     const conflict = this.pathValidator.checkConflict(name, extension, parentId, allFiles);
     if (conflict) {
       this.pathConflictWarning.set(conflict);
-      return;
+      return false;
     }
 
     // 创建文件（不赋 sortOrder，见 createRootFolder）
@@ -215,6 +226,7 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
 
     await file.save();
     // 不清除 selectedFolderId，保持父文件夹选中状态以便继续添加文件
+    return true;
   }
 
   // Edit Methods

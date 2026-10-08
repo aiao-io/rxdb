@@ -89,7 +89,7 @@ describe('promoteChildrenAndRemove', () => {
     expect(Object.keys(child)).not.toContain('sortOrder');
   });
 
-  it('mutations 失败时错误原样抛出，由调用方的 runWrite 接管', async () => {
+  it('mutations 失败时错误原样抛出，由调用方的 guardWrite 接管', async () => {
     mutations.mockRejectedValueOnce(new Error('事务回滚'));
 
     await expect(promoteChildrenAndRemove(rxdb, makeNode('p', null), [makeNode('c', 'p')])).rejects.toThrow('事务回滚');

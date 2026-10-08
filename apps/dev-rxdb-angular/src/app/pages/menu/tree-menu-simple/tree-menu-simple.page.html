@@ -323,6 +323,7 @@
                               [(ngModel)]="$edit_menu_title"
                               (keydown.escape)="cancelEdit()"
                               (keyup.enter)="saveEdit($event)"
+                              data-testid="menu-edit-input"
                               type="text"
                             />
                             <button class="btn btn-primary btn-sm" (click)="saveEdit($event)" type="button">

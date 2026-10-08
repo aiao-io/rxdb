@@ -11,7 +11,9 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@aiao/rxdb', async importOriginal => ({
   ...(await importOriginal<typeof import('@aiao/rxdb')>()),
-  getEntityMutations: mocks.getEntityMutations
+  getEntityMutations: mocks.getEntityMutations,
+  // 替身没有实体状态：失败时退回 parentId 后按剩余差异重算 modified，这里给一份空差异
+  getEntityStatus: () => ({ patch: {}, modified: false })
 }));
 
 /**
@@ -256,7 +258,8 @@ describe('useTreeMenuStore', () => {
 
     it('提交失败：写入「删除并提升子节点失败」，对话框关闭，不抛出', async () => {
       const parent = makeMenu('p', null, 'a0');
-      dbRows = [makeMenu('c1', 'p', 'a0')];
+      const child = makeMenu('c1', 'p', 'a0');
+      dbRows = [child];
       mutations.mockRejectedValueOnce(new Error('事务回滚'));
       const { result } = renderHook(() => useTreeMenuStore([parent], rxdb));
       await act(async () => {
@@ -269,6 +272,8 @@ describe('useTreeMenuStore', () => {
 
       expect(result.current.writeError).toBe('删除并提升子节点失败：事务回滚');
       expect(result.current.menuToDelete).toBeNull();
+      // 共享实例上不留失败的移动
+      expect(child.parentId).toBe('p');
     });
   });
 
@@ -295,7 +300,7 @@ describe('useTreeMenuStore', () => {
       const { result } = renderHook(() => useTreeMenuStore([existing], rxdb));
 
       await act(async () => {
-        await result.current.addRoot('新根');
+        expect(await result.current.addRoot('新根')).toBe(true);
       });
 
       const created = createdMenus().at(-1) as Record<string, unknown>;
@@ -311,7 +316,7 @@ describe('useTreeMenuStore', () => {
       const { result } = renderHook(() => useTreeMenuStore([parent, sibling], rxdb));
 
       await act(async () => {
-        await result.current.addChild(parent, '新子菜单');
+        expect(await result.current.addChild(parent, '新子菜单')).toBe(true);
       });
 
       const created = createdMenus().at(-1) as Record<string, unknown>;
@@ -327,13 +332,13 @@ describe('useTreeMenuStore', () => {
       const { result } = renderHook(() => useTreeMenuStore([parent], rxdb));
 
       await act(async () => {
-        await result.current.addRoot('重名');
+        expect(await result.current.addRoot('重名')).toBe(false);
       });
       expect(result.current.writeError).toBe('新建失败：唯一索引冲突');
 
       act(() => result.current.clearWriteError());
       await act(async () => {
-        await result.current.addChild(parent, '重名');
+        expect(await result.current.addChild(parent, '重名')).toBe(false);
       });
       expect(result.current.writeError).toBe('新建失败：唯一索引冲突');
       expect(result.current.expandedIds.has('p')).toBe(false);

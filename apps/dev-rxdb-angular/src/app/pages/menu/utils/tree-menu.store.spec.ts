@@ -10,10 +10,12 @@ import type { PathValidatorService } from './path-validator';
 import { TreeMenuDragDropBase } from './tree-menu.drag-drop';
 import { TreeMenuDragDropStore, TreeMenuStore } from './tree-menu.store';
 
-// 假实体没有 EntityStatus，真 getEntityMutations 会读不到；这里让它原样回传入参，断言 `mutations` 收到的分组
+// 假实体没有 EntityStatus，真 getEntityMutations 会读不到；这里让它原样回传入参，断言 `mutations` 收到的分组。
+// 失败时退回 parentId 后按剩余差异重算 modified，状态同理给一份空差异
 vi.mock('@aiao/rxdb', async importOriginal => ({
   ...(await importOriginal<typeof import('@aiao/rxdb')>()),
-  getEntityMutations: vi.fn((options: unknown) => options)
+  getEntityMutations: vi.fn((options: unknown) => options),
+  getEntityStatus: () => ({ patch: {}, modified: false })
 }));
 
 /** `treeNodes` 只读 menuResource / expandedMenuIds / searchKeyword，其余构造参数用不到。 */
@@ -220,13 +222,13 @@ describe('TreeMenuStore actions', () => {
     const conflict = { hasConflict: true, conflictPath: '/已存在' };
     const { pathValidator, store } = makeActionStore([], conflict);
 
-    await store.addRootMenu('已存在');
+    expect(await store.addRootMenu('已存在')).toBe(false);
 
     expect(store.pathConflictWarning()).toBe(conflict);
     expect(TestMenuEntity.instances).toHaveLength(0);
 
     conflict.hasConflict = false;
-    await store.addRootMenu('新根节点');
+    expect(await store.addRootMenu('新根节点')).toBe(true);
 
     const [created] = TestMenuEntity.instances;
     expect(pathValidator.checkPathConflict).toHaveBeenLastCalledWith('新根节点', null, []);
@@ -418,6 +420,20 @@ describe('TreeMenuStore actions', () => {
 
       expect(child.parentId).toBeNull();
       expect(entityManager.mutations).toHaveBeenCalledOnce();
+    });
+
+    it('提交失败时错误原样抛给页面，共享实例上的 parentId 退回原值', async () => {
+      const root = makeActionMenu('root', null, '根');
+      const child = makeActionMenu('child', 'root', '子');
+      TestMenuEntity.dbChildren.set('root', [child]);
+      TestMenuEntity.dbSubtree.set('root', [root, child]);
+      const { entityManager, store } = makeActionStore([root]);
+      entityManager.mutations.mockRejectedValueOnce(new Error('唯一约束'));
+
+      await store.deleteMenu(root);
+      await expect(store.executePromoteChildrenDelete()).rejects.toThrow('唯一约束');
+
+      expect(child.parentId).toBe('root');
     });
   });
 

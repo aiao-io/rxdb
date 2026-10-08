@@ -10,6 +10,14 @@ import { useTreeWriteError } from './useTreeWriteError';
 const fetchAllFiles = (): Promise<SortableFileLarge[]> =>
   firstValueFrom(SortableFileLarge.findAll({ where: { combinator: 'and', rules: [] } }));
 
+/**
+ * 名称非空白的行才展示。
+ *
+ * 只用在渲染层：空白名称的行仍是库里同组的成员，`rootIds` / `childrenMap` 保留它们，
+ * 否则拖放换算出的邻居之间夹着它，引擎会以 `staleTarget` 拒绝。
+ */
+const hasVisibleName = (file: SortableFileLarge): boolean => file.name.trim() !== '';
+
 export interface FileLazyNode {
   file: SortableFileLarge;
   level: number;
@@ -50,12 +58,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     const subscription = rootQuery$.subscribe({
       next: (roots: SortableFileLarge[]) => {
         const newMap = new Map(nodesMap.value);
-        // 更新或添加根节点（过滤空名称）
-        roots.forEach(root => {
-          if (root.name && root.name.trim()) {
-            newMap.set(root.id, root);
-          }
-        });
+        // 更新或添加根节点：空白名称的行也保留，展示时才过滤
+        roots.forEach(root => newMap.set(root.id, root));
         // 删除不再是根节点的节点
         Array.from(nodesMap.value.keys()).forEach(id => {
           const node = nodesMap.value.get(id);
@@ -65,9 +69,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
         });
         nodesMap.value = newMap;
 
-        // 保持查询顺序（手动顺序），不再文件夹优先预排序
-        const newRootIds = roots.filter(r => r.name && r.name.trim()).map(r => r.id);
-        rootIds.value = newRootIds;
+        // 保持查询顺序（手动顺序），不再文件夹优先预排序；是完整组，拖放换算邻居要用
+        rootIds.value = roots.map(root => root.id);
       },
       error: (error: unknown) => {
         useToast().error(formatErrorMessage('文件根目录加载失败', error));
@@ -149,7 +152,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
 
     const traverse = (id: RxDBEntityId, level: number) => {
       const file = nodesMap.value.get(id);
-      if (!file) return;
+      // 空白名称的行留在组里参与拖放换算，只是不展示
+      if (!file || !hasVisibleName(file)) return;
 
       const isExpanded = expandedIds.value.has(id);
       const isLoading = loadingIds.value.has(id);
@@ -234,16 +238,14 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
 
       const subscription = childQuery$.subscribe({
         next: (children: SortableFileLarge[]) => {
-          // 过滤掉无效的空名称记录
-          const validChildren = children.filter(child => child.name && child.name.trim());
-
           const newNodesMap = new Map(nodesMap.value);
-          validChildren.forEach(child => {
+          children.forEach(child => {
             newNodesMap.set(child.id, child);
           });
           nodesMap.value = newNodesMap;
 
-          const childIds = validChildren.map(c => c.id);
+          // 完整组（含空白名称的行），展示时才过滤
+          const childIds = children.map(c => c.id);
 
           const newChildrenMap = new Map(childrenMap.value);
           newChildrenMap.set(id, childIds);
@@ -319,10 +321,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
         const newRootIds: RxDBEntityId[] = [];
         const newExpandedIds = new Set<RxDBEntityId>();
 
-        // Filter valid files
-        const validFiles = allFiles.filter(f => f.name && f.name.trim());
-
-        validFiles.forEach(file => {
+        // 各组保留完整成员（含空白名称的行），展示时才过滤
+        allFiles.forEach(file => {
           newNodesMap.set(file.id, file);
           if (file.parentId) {
             if (!newChildrenMap.has(file.parentId)) {
@@ -432,7 +432,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
   };
 
   // 不给 sortOrder：引擎把缺键的新节点追加到所属 parentId 组末尾（文件与文件夹同属一组）
-  const addRoot = async (name: string, type: 'file' | 'folder', extension?: string) => {
+  // 新建返回是否已落库：写入失败时为 false，页面据此决定是否清空输入
+  const addRoot = async (name: string, type: 'file' | 'folder', extension?: string): Promise<boolean> => {
     const file = new SortableFileLarge({
       name,
       type,
@@ -440,16 +441,22 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
       size: type === 'file' ? Math.floor(Math.random() * 10000) : undefined
     });
     const saved = await guardWrite('新建', () => rxdb.entityManager.save(file));
-    if (!saved) return;
+    if (!saved) return false;
 
     // Update local state
     const newNodesMap = new Map(nodesMap.value);
     newNodesMap.set(file.id, file);
     nodesMap.value = newNodesMap;
     rootIds.value = [...rootIds.value, file.id];
+    return true;
   };
 
-  const addChild = async (parent: SortableFileLarge, name: string, type: 'file' | 'folder', extension?: string) => {
+  const addChild = async (
+    parent: SortableFileLarge,
+    name: string,
+    type: 'file' | 'folder',
+    extension?: string
+  ): Promise<boolean> => {
     const file = new SortableFileLarge({
       name,
       type,
@@ -458,7 +465,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     });
     file.parentId = parent.id;
     const saved = await guardWrite('新建', () => rxdb.entityManager.save(file));
-    if (!saved) return;
+    if (!saved) return false;
 
     // Update local state
     const newNodesMap = new Map(nodesMap.value);
@@ -475,6 +482,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
       expandedIds.value.add(parent.id);
       expandedIds.value = new Set(expandedIds.value);
     }
+    return true;
   };
 
   // 保存重命名；失败时回退到库里已提交的名称并给出页内提示

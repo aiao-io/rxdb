@@ -13,6 +13,7 @@ import {
   PLATFORM_ID,
   Signal,
   signal,
+  untracked,
   viewChild
 } from '@angular/core';
 import { listen } from '../../../shared/event-listener';
@@ -99,10 +100,11 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
     protected entityClass: C,
     public readonly history: HistoryScopeAPI
   ) {
-    // 监听菜单标题变化，清除路径冲突警告
+    // 监听菜单标题变化，清除路径冲突警告。
+    // 只追踪标题：重名时输入保留，追踪警告会让它一出现就被这里清掉
     effect(() => {
       const value = this.$new_menu_title();
-      if (value && value.trim() && this.store.pathConflictWarning()) {
+      if (value && value.trim() && untracked(this.store.pathConflictWarning)) {
         this.store.clearPathWarning();
       }
     });
@@ -157,9 +159,9 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
     const title = this.$new_menu_title().trim();
     if (!title) return;
 
+    // 只在新建成功后清空：重名或写入失败时保留用户输入
     await this.runWrite('新建', async () => {
-      await this.store.addRootMenu(title);
-      this.$new_menu_title.set('');
+      if (await this.store.addRootMenu(title)) this.$new_menu_title.set('');
     });
   }
 
@@ -178,8 +180,7 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
     if (!title) return;
 
     await this.runWrite('新建', async () => {
-      await this.store.addChildMenu(title);
-      this.$new_menu_title.set('');
+      if (await this.store.addChildMenu(title)) this.$new_menu_title.set('');
     });
   }
 

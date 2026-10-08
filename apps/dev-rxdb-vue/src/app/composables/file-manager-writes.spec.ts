@@ -98,8 +98,9 @@ interface Harness {
   rxdb: FakeRxdb;
   writeError(): string | null;
   clearWriteError(): void;
-  addRoot(name: string, type: 'file' | 'folder', extension?: string): Promise<unknown>;
-  addChild(parent: FakeFile, name: string, type: 'file' | 'folder'): Promise<unknown>;
+  /** 是否已落库：页面据此决定是否清空输入 */
+  addRoot(name: string, type: 'file' | 'folder', extension?: string): Promise<boolean>;
+  addChild(parent: FakeFile, name: string, type: 'file' | 'folder'): Promise<boolean>;
   commitEdit(file: FakeFile): Promise<unknown>;
   addManyFiles(count: number): Promise<unknown>;
   deleteFile(file: FakeFile): Promise<unknown>;
@@ -206,9 +207,9 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
       const h = makeHarness();
       const readsBefore = h.dbReads();
 
-      await h.addRoot('A', 'folder');
-      await h.addRoot('X', 'file', 'txt');
-      await h.addRoot('B', 'folder');
+      expect(await h.addRoot('A', 'folder')).toBe(true);
+      expect(await h.addRoot('X', 'file', 'txt')).toBe(true);
+      expect(await h.addRoot('B', 'folder')).toBe(true);
 
       const saved = h.savedEntities();
       expect(saved.map(file => file.name)).toEqual(['A', 'X', 'B']);
@@ -225,7 +226,7 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
       const h = makeHarness([parent]);
       const readsBefore = h.dbReads();
 
-      await h.addChild(parent, 'notes', 'file');
+      expect(await h.addChild(parent, 'notes', 'file')).toBe(true);
 
       const [file] = h.savedEntities();
       expect(h.savedEntities()).toHaveLength(1);
@@ -238,12 +239,12 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
       const h = makeHarness();
       registry.saveError = new Error('boom');
 
-      await h.addRoot('A', 'folder');
+      expect(await h.addRoot('A', 'folder')).toBe(false);
 
       expect(h.writeError()).toBe('新建失败：boom');
 
       registry.saveError = null;
-      await h.addRoot('B', 'folder');
+      expect(await h.addRoot('B', 'folder')).toBe(true);
 
       expect(h.writeError()).toBeNull();
     });
@@ -253,7 +254,7 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
       const h = makeHarness([parent]);
       registry.saveError = new Error('boom');
 
-      await h.addChild(parent, 'notes', 'file');
+      expect(await h.addChild(parent, 'notes', 'file')).toBe(false);
 
       expect(h.writeError()).toBe('新建失败：boom');
     });

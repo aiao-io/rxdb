@@ -47,9 +47,9 @@ const focusMenuTitleInput = () => {
   window.document.getElementById('menu-title-input')?.focus();
 };
 
-// 拖放判环用 store 已加载节点快照（包含 visible 节点与其祖先链），不再开第二份全表订阅，避免 lazy 模式名存实亡；
-// 前后放置的邻居取目标所在父节点已加载的整组子节点，不取这份快照，也不取可见行。
-const dragDrop = useDragDrop<SortableMenuLarge>(store.loadedNodes, {
+// 拖放判环用 store 的拖放快照：常规模式是已加载节点（包含 visible 节点与其祖先链），搜索时是搜索全集，
+// 不再开第二份全表订阅，避免 lazy 模式名存实亡；前后放置的邻居取同一来源里目标所在父节点的整组子节点，不取可见行。
+const dragDrop = useDragDrop<SortableMenuLarge>(store.dragNodes, {
   repository: rxdb.entityManager.getRepository(SortableMenuLarge),
   guardWrite: store.guardWrite,
   groupIds: store.siblingIds
@@ -96,12 +96,9 @@ const handleAddMenu = async () => {
   const parent = selectedParent.value;
   if (store.selectedParentId.value && !parent) return;
 
-  if (parent) {
-    await store.addChild(parent, newTitle.value);
-  } else {
-    await store.addRoot(newTitle.value);
-  }
-  newTitle.value = '';
+  const added = parent ? await store.addChild(parent, newTitle.value) : await store.addRoot(newTitle.value);
+  // 只在新建成功后清空：写入失败时保留用户输入
+  if (added) newTitle.value = '';
 };
 
 // 拖拽事件处理

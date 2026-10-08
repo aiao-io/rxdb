@@ -226,7 +226,7 @@ describe('useFileManagerLazyStore', () => {
       });
       table.calls.length = 0;
       await act(async () => {
-        await result.current.addChild(folder, '新文件', 'file', 'txt');
+        expect(await result.current.addChild(folder, '新文件', 'file', 'txt')).toBe(true);
       });
 
       const created = table.rows.find(row => row.name?.startsWith('新文件')) as unknown as Record<string, unknown>;
@@ -242,7 +242,7 @@ describe('useFileManagerLazyStore', () => {
       const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
       table.calls.length = 0;
       await act(async () => {
-        await result.current.addChild(folder, '新文件夹', 'folder');
+        expect(await result.current.addChild(folder, '新文件夹', 'folder')).toBe(true);
       });
 
       expect(table.calls.filter(call => call.method === 'find')).toEqual([]);
@@ -322,6 +322,50 @@ describe('useFileManagerLazyStore', () => {
       expect(result.current.treeNodes.map(node => node.file.name)).toEqual(['节点 a', '节点 b']);
       expect(result.current.getGroupIds(null)).toEqual([toUuid('b'), toUuid('a')]);
     });
+
+    it('空白名称的行不展示，但仍在 getGroupIds 的完整组里（根组与子组）', async () => {
+      const folder = makeFile('p', null, 'a1', 'folder');
+      const hiddenRoot = Object.assign(makeFile('h', null, 'a2', 'file'), { name: '   ' });
+      const hiddenChild = Object.assign(makeFile('hc', 'p', 'a1', 'file'), { name: '   ' });
+      table.rows = [
+        makeFile('a', null, 'a0', 'file'),
+        folder,
+        hiddenRoot,
+        makeFile('b', null, 'a3', 'file'),
+        makeFile('c1', 'p', 'a0', 'file'),
+        hiddenChild,
+        makeFile('c2', 'p', 'a2', 'file')
+      ];
+
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+      await act(async () => {
+        await result.current.toggleExpand(folder.id);
+      });
+
+      expect(result.current.treeNodes.map(node => node.file.name)).toEqual([
+        '节点 a',
+        '节点 p',
+        '节点 c1',
+        '节点 c2',
+        '节点 b'
+      ]);
+      expect(result.current.getGroupIds(null)).toEqual([toUuid('a'), toUuid('p'), toUuid('h'), toUuid('b')]);
+      expect(result.current.getGroupIds(folder.id)).toEqual([toUuid('c1'), toUuid('hc'), toUuid('c2')]);
+    });
+
+    it('展开全部：空白名称的行同样留在完整组里', async () => {
+      table.rows = [
+        makeFile('a', null, 'a0', 'file'),
+        Object.assign(makeFile('h', null, 'a1', 'file'), { name: '' }),
+        makeFile('b', null, 'a2', 'file')
+      ];
+
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+      act(() => result.current.expandAll());
+
+      expect(result.current.treeNodes.map(node => node.file.name)).toEqual(['节点 a', '节点 b']);
+      expect(result.current.getGroupIds(null)).toEqual([toUuid('a'), toUuid('h'), toUuid('b')]);
+    });
   });
 
   describe('新建与批量添加不写 sortOrder（US-031）', () => {
@@ -385,14 +429,14 @@ describe('useFileManagerLazyStore', () => {
       const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
 
       await act(async () => {
-        await result.current.addRoot('重名', 'folder');
+        expect(await result.current.addRoot('重名', 'folder')).toBe(false);
       });
       expect(result.current.writeError).toBe('新建失败：唯一索引冲突');
       expect(result.current.treeNodes).toEqual([]);
 
       act(() => result.current.clearWriteError());
       await act(async () => {
-        await result.current.addChild(folder, '重名', 'folder');
+        expect(await result.current.addChild(folder, '重名', 'folder')).toBe(false);
       });
       expect(result.current.writeError).toBe('新建失败：唯一索引冲突');
       expect(result.current.expandedIds.has(folder.id)).toBe(false);
@@ -416,7 +460,7 @@ describe('useFileManagerLazyStore', () => {
       vi.unstubAllGlobals();
     });
 
-    it('executeCascadeDelete 失败：写入「级联删除失败」，对话框保持打开，不抛出', async () => {
+    it('executeCascadeDelete 失败：写入「级联删除失败」，关闭对话框让页内提示可见，不抛出', async () => {
       const folder = makeFile('p', null, 'a0', 'folder');
       table.rows = [folder, makeFile('c1', 'p', 'a0', 'file')];
       table.writes['removeMany'].mockRejectedValueOnce(new Error('被外键拦下'));
@@ -428,7 +472,7 @@ describe('useFileManagerLazyStore', () => {
       });
 
       expect(result.current.writeError).toBe('级联删除失败：被外键拦下');
-      expect(result.current.fileToDelete).toBe(folder);
+      expect(result.current.fileToDelete).toBeNull();
     });
 
     it('重命名失败：runWrite 把失败写入「重命名失败」', async () => {

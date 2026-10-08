@@ -73,6 +73,8 @@ export class TreeFileLazyStore<C extends FileTreeEntityConstructor>
       const sorted = sortComparator ? [...parentNodes].sort(sortComparator) : parentNodes;
       sorted.forEach(file => {
         if (visibleIds && !visibleIds.has(file.id)) return;
+        // 空白名称的行留在组里参与拖放换算，只是不展示
+        if (file.name.trim() === '') return;
 
         const hasChildren = file.hasChildren ?? false;
 
@@ -264,10 +266,8 @@ export class TreeFileLazyStore<C extends FileTreeEntityConstructor>
         const newRoots: FileTreeInstance<C>[] = [];
         const newExpanded = new Set<string>();
 
-        // Filter valid files
-        const validFiles = allFiles.filter(f => f.name && f.name.trim());
-
-        validFiles.forEach(file => {
+        // 各组保留完整成员（含空白名称的行）：拖放从这里取组序列，展示时才过滤
+        allFiles.forEach(file => {
           if (file.parentId) {
             if (!newChildMap.has(file.parentId)) {
               newChildMap.set(file.parentId, []);

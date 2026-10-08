@@ -24,6 +24,14 @@ export const fetchFileChildren = (parentId: RxDBEntityId | null): Promise<Sortab
     })
   );
 
+/**
+ * 名称非空白的行才展示。
+ *
+ * 只用在渲染层：空白名称的行仍是库里同组的成员，`rootIds` / `childrenMap` 保留它们，
+ * 否则拖放换算出的邻居之间夹着它，引擎会以 `staleTarget` 拒绝。
+ */
+const hasVisibleName = (file: SortableFileLarge): boolean => file.name.trim() !== '';
+
 export interface FileLazyNode {
   file: SortableFileLarge;
   level: number;
@@ -67,12 +75,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
       next: (roots: SortableFileLarge[]) => {
         setNodesMap(prev => {
           const newMap = new Map(prev);
-          // 更新或添加根节点（过滤空名称）
-          roots.forEach(root => {
-            if (root.name && root.name.trim()) {
-              newMap.set(root.id, root);
-            }
-          });
+          // 更新或添加根节点：空白名称的行也保留，展示时才过滤
+          roots.forEach(root => newMap.set(root.id, root));
           // 删除不再是根节点的节点
           Array.from(prev.keys()).forEach(id => {
             const node = prev.get(id);
@@ -83,9 +87,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
           return newMap;
         });
 
-        // 顺序即查询顺序（引擎的手动顺序），不再另排
-        const newRootIds = roots.filter(r => r.name && r.name.trim()).map(r => r.id);
-        setRootIds(newRootIds);
+        // 顺序即查询顺序（引擎的手动顺序），不再另排；是完整组，拖放换算邻居要用
+        setRootIds(roots.map(root => root.id));
       },
       error: (error: unknown) => {
         console.error('[useFileManagerLazyStore] Root subscription error:', error);
@@ -170,7 +173,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
 
     const traverse = (id: string, level: number) => {
       const file = nodesMap.get(id);
-      if (!file) return;
+      // 空白名称的行留在组里参与拖放换算，只是不展示
+      if (!file || !hasVisibleName(file)) return;
 
       const isExpanded = expandedIds.has(id);
       const isLoading = loadingIds.has(id);
@@ -277,19 +281,16 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
 
     const subscription = childQuery$.subscribe({
       next: (children: SortableFileLarge[]) => {
-        // 过滤掉无效的空名称记录
-        const validChildren = children.filter(child => child.name && child.name.trim());
-
         setNodesMap(prev => {
           const newMap = new Map(prev);
-          validChildren.forEach(child => {
+          children.forEach(child => {
             newMap.set(child.id, child);
           });
           return newMap;
         });
 
-        // 顺序即查询顺序（引擎的手动顺序），不再另排
-        const childIds = validChildren.map(c => c.id);
+        // 顺序即查询顺序（引擎的手动顺序），不再另排；是完整组（含空白名称的行），展示时才过滤
+        const childIds = children.map(c => c.id);
 
         setChildrenMap(prev => new Map(prev).set(id, childIds));
 
@@ -369,10 +370,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
         const newRootIds: string[] = [];
         const newExpandedIds = new Set<string>();
 
-        // Filter valid files
-        const validFiles = allFiles.filter(f => f.name && f.name.trim());
-
-        validFiles.forEach(file => {
+        // 各组保留完整成员（含空白名称的行），展示时才过滤
+        allFiles.forEach(file => {
           newNodesMap.set(file.id, file);
           if (file.parentId) {
             if (!newChildrenMap.has(file.parentId)) {
@@ -456,23 +455,25 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     const selected = fileToDelete;
     if (!selected) return;
 
-    const result = await runWrite('级联删除', async () => {
+    await runWrite('级联删除', async () => {
       // 只取这个节点的子树，不是整表 —— 级联删除本来就只关心它自己的子孙。
       // 不传 level 即不限深度，整棵子树一次取回
       const descendants = await firstValueFrom(SortableFileLarge.findDescendants({ entityId: selected.id }));
       const filesToRemove = collectSubtreePostOrder(selected, [selected, ...descendants]);
       await rxdb.entityManager.removeMany(filesToRemove);
     });
-    if (result.ok) setFileToDelete(null);
+    // 成败都关闭对话框：失败时页内提示不被模态框挡住（三端同一行为）
+    setFileToDelete(null);
   };
 
   const clearSearch = () => {
     setSearchKeyword('');
   };
 
-  const addRoot = async (name: string, type: 'file' | 'folder', extension?: string | null) => {
+  // 新建返回是否已落库：写入失败时为 false，页面据此决定是否清空输入
+  const addRoot = async (name: string, type: 'file' | 'folder', extension?: string | null): Promise<boolean> => {
     // 只赋业务字段：文件与文件夹同属根节点组，排序键由引擎追加到组末尾
-    await runWrite('新建', async () => {
+    const result = await runWrite('新建', async () => {
       const file = new SortableFileLarge({
         name,
         type,
@@ -488,6 +489,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
       setNodesMap(prev => new Map(prev).set(file.id, file));
       setRootIds(prev => [...prev, file.id]);
     });
+    return result.ok;
   };
 
   const addChild = async (
@@ -495,8 +497,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     name: string,
     type: 'file' | 'folder',
     extension?: string | null
-  ) => {
-    await runWrite('新建', async () => {
+  ): Promise<boolean> => {
+    const result = await runWrite('新建', async () => {
       const file = new SortableFileLarge({
         name,
         type,
@@ -523,6 +525,7 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
         return next;
       });
     });
+    return result.ok;
   };
 
   const deleteFile = async (file: SortableFileLarge) => {

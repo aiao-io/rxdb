@@ -118,18 +118,21 @@ export function useTreeMenuVirtualStore(menus: SortableMenuLarge[], rxdb: RxDB) 
     setEditingId(null);
   }, []);
 
+  // 新建返回是否已落库：写入失败时为 false，页面据此决定是否清空输入
   const addChild = useCallback(
-    async (parentMenu: SortableMenuLarge, title: string) => {
+    async (parentMenu: SortableMenuLarge, title: string): Promise<boolean> => {
       // 只赋业务字段与 parentId：排序键由引擎在保存事务里追加到该父节点组的末尾
       const result = await runWrite('新建', () => new SortableMenuLarge({ title, parentId: parentMenu.id }).save());
       if (result.ok) setExpandedIds(prev => new Set(prev).add(parentMenu.id));
+      return result.ok;
     },
     [runWrite]
   );
 
   const addRoot = useCallback(
-    async (title: string) => {
-      await runWrite('新建', () => new SortableMenuLarge({ title, parentId: null }).save());
+    async (title: string): Promise<boolean> => {
+      const result = await runWrite('新建', () => new SortableMenuLarge({ title, parentId: null }).save());
+      return result.ok;
     },
     [runWrite]
   );

@@ -165,7 +165,7 @@ describe('TreeFileStore actions', () => {
     const root = makeActionFile('root', null, '根', 'folder', 'a0');
     const { store } = makeActionStore([root]);
 
-    await store.createRootFolder('新根');
+    expect(await store.createRootFolder('新根')).toBe(true);
     const [newRoot] = TestFileEntity.instances;
     expect(newRoot.type).toBe('folder');
     expect(newRoot.name).toBe('新根');
@@ -173,12 +173,12 @@ describe('TreeFileStore actions', () => {
     expect(store.expandedFileIds()).toContain(newRoot.id);
 
     store.selectFolder(root.id);
-    await store.createSubFolder('子文件夹');
+    expect(await store.createSubFolder('子文件夹')).toBe(true);
     const newChild = TestFileEntity.instances[1];
     expect(newChild.parentId).toBe(root.id);
     expect(store.selectedFolderId()).toBeNull();
 
-    await store.createFile('说明', '.md', 42);
+    expect(await store.createFile('说明', '.md', 42)).toBe(true);
     const newFile = TestFileEntity.instances[2];
     expect(newFile.type).toBe('file');
     expect(newFile.extension).toBe('md');
@@ -217,7 +217,7 @@ describe('TreeFileStore actions', () => {
       attemptedName: '说明.txt'
     });
 
-    await store.createFile('说明', '.txt', 1);
+    expect(await store.createFile('说明', '.txt', 1)).toBe(false);
     expect(TestFileEntity.instances).toHaveLength(0);
     expect(store.pathConflictWarning()?.attemptedName).toBe('说明.txt');
 

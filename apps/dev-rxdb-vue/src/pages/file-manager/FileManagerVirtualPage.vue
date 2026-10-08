@@ -121,31 +121,18 @@ const handleAddMany = async (count: number, actionKey: string) => {
 
 // 添加文件/文件夹
 const handleAdd = async () => {
-  if (newName.value.trim()) {
-    if (store.isAddingFile.value) {
-      // 添加文件
-      const parentId = store.selectedFolderId.value;
-      if (parentId) {
-        const parent = files.value.find(f => f.id === parentId);
-        if (parent) {
-          await store.addChild(parent, newName.value, 'file', newExtension.value);
-        }
-      } else {
-        await store.addRoot(newName.value, 'file', newExtension.value);
-      }
-    } else {
-      // 添加文件夹
-      if (store.selectedFolderId.value) {
-        const parent = files.value.find(f => f.id === store.selectedFolderId.value);
-        if (parent) {
-          await store.addChild(parent, newName.value, 'folder');
-        }
-      } else {
-        await store.addRoot(newName.value, 'folder');
-      }
-    }
-    newName.value = '';
-  }
+  if (!newName.value.trim()) return;
+  const type = store.isAddingFile.value ? 'file' : 'folder';
+  const extension = store.isAddingFile.value ? newExtension.value : undefined;
+  const parentId = store.selectedFolderId.value;
+  const parent = parentId ? files.value.find(f => f.id === parentId) : undefined;
+  if (parentId && !parent) return;
+  const added =
+    parent ?
+      await store.addChild(parent, newName.value, type, extension)
+    : await store.addRoot(newName.value, type, extension);
+  // 只在新建成功后清空：冲突或写入失败时保留用户输入
+  if (added) newName.value = '';
 };
 
 // 拖拽事件处理

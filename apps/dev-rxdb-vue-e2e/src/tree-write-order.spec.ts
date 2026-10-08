@@ -144,6 +144,59 @@ test.describe('树页面创建类写入的顺序（US-031 阶段 A）', () => {
     await expect.poll(() => menuChildOrder(page, reloadedGrandparent, expectedOrder)).toEqual(expectedOrder);
   });
 
+  test('删除并提升失败后，重命名子节点不夹带失败的移动', async ({ page }) => {
+    await open(page, MENU_SIMPLE);
+
+    const parent = await addRootMenu(page, '提升父P');
+    const parentId = await requireAttribute(parent, 'data-menu-id', '父节点行');
+    const child = await addChildMenu(page, parent, '重名S');
+    const childId = await requireAttribute(child, 'data-menu-id', '子节点行');
+
+    // 根组再建一个同名节点：提升会撞上根组同级唯一索引，整批回滚。
+    // 刷新清掉选中的父节点；两行同名，按 id 而不是按标题取行
+    await reload(page, MENU_SIMPLE.title);
+    const input = page.getByTestId('menu-title-input');
+    await input.fill('重名S');
+    await page.getByTestId('menu-add-root').click();
+    await expect(input).toHaveValue('');
+
+    const parentRow = page.locator(`[data-testid="menu-row"][data-menu-id=${JSON.stringify(parentId)}]`);
+    const childRow = page.locator(`[data-testid="menu-row"][data-menu-id=${JSON.stringify(childId)}]`);
+    await parentRow.getByTestId('menu-node-toggle').click();
+    await expect(childRow).toBeVisible();
+
+    await (await getMenuDeleteButton(parentRow)).click();
+    await page.getByRole('button', { name: /子节点提升/ }).click();
+    await expect(page.getByTestId('tree-write-error')).toContainText('删除并提升子节点失败');
+    await expect(parentRow).toBeVisible();
+
+    // 只改子节点的标题：失败的移动不能随这次保存落库
+    await childRow.hover();
+    await childRow.getByTestId('menu-edit').click();
+    const editInput = childRow.getByTestId('menu-edit-input');
+    await editInput.fill('改名C');
+    await editInput.press('Enter');
+    await expect(childRow).toContainText('改名C');
+
+    await reload(page, MENU_SIMPLE.title);
+    await parentRow.getByTestId('menu-node-toggle').click();
+    await expect(childRow).toContainText('改名C');
+    await expect(childRow).toHaveAttribute('data-parent-id', parentId);
+  });
+
+  test('懒加载页新建同名根节点被拒后保留输入', async ({ page }) => {
+    await open(page, MENU_LAZY);
+    await addRootMenu(page, '重名根R');
+
+    // 第二次提交同名根节点：被拒（同级唯一索引或页面重名校验），输入框不得被清空
+    const input = page.getByTestId('menu-title-input');
+    await input.fill('重名根R');
+    await page.getByTestId('menu-add-root').click();
+    await expect(page.getByTestId('tree-write-error')).toContainText('新建失败');
+    await expect(input).toHaveValue('重名根R');
+    await expect(page.getByTestId('menu-row').filter({ hasText: '重名根R' })).toHaveCount(1);
+  });
+
   test('懒加载页删除折叠节点仍弹出选择对话框', async ({ page }) => {
     await open(page, MENU_LAZY);
     const parentTitle = '待删折叠父节点';

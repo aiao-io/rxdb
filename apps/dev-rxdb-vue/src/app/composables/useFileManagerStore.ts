@@ -169,12 +169,18 @@ export function useFileManagerStore(files: Ref<SortableFileNode[]>, rxdb: RxDB) 
   };
 
   // 不给 sortOrder：引擎把缺键的新节点追加到所属 parentId 组末尾（文件与文件夹同属一组）
-  const addChild = async (parentFile: SortableFileNode, name: string, type: 'file' | 'folder', extension?: string) => {
+  // 新建返回是否已落库：路径冲突或写入失败时为 false，页面据此决定是否清空输入
+  const addChild = async (
+    parentFile: SortableFileNode,
+    name: string,
+    type: 'file' | 'folder',
+    extension?: string
+  ): Promise<boolean> => {
     const ext = type === 'file' && extension ? extension : null;
     const conflict = pathValidator.checkConflict(name, ext, parentFile.id, files.value);
     if (conflict) {
       pathConflict.value = conflict;
-      return;
+      return false;
     }
 
     const newFile = new SortableFileNode({
@@ -189,20 +195,21 @@ export function useFileManagerStore(files: Ref<SortableFileNode[]>, rxdb: RxDB) 
     newFile.parentId = parentFile.id;
 
     const saved = await guardWrite('新建', () => newFile.save());
-    if (!saved) return;
+    if (!saved) return false;
 
     const next = new Set(expandedIds.value);
     next.add(parentFile.id);
     expandedIds.value = next;
     pathConflict.value = null;
+    return true;
   };
 
-  const addRoot = async (name: string, type: 'file' | 'folder', extension?: string) => {
+  const addRoot = async (name: string, type: 'file' | 'folder', extension?: string): Promise<boolean> => {
     const ext = type === 'file' && extension ? extension : null;
     const conflict = pathValidator.checkConflict(name, ext, null, files.value);
     if (conflict) {
       pathConflict.value = conflict;
-      return;
+      return false;
     }
 
     const newFile = new SortableFileNode({
@@ -218,6 +225,7 @@ export function useFileManagerStore(files: Ref<SortableFileNode[]>, rxdb: RxDB) 
 
     const saved = await guardWrite('新建', () => newFile.save());
     if (saved) pathConflict.value = null;
+    return saved;
   };
 
   // 保存重命名；失败时回退到库里已提交的名称并给出页内提示

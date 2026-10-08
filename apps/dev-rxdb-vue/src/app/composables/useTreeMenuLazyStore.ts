@@ -1,8 +1,9 @@
-import { getEntityMutations, RxDB, UUID, type RxDBEntityId } from '@aiao/rxdb';
+import { RxDB, UUID, type RxDBEntityId } from '@aiao/rxdb';
 import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { firstValueFrom, type Observable, type Subscription } from 'rxjs';
 import { computed, onMounted, onScopeDispose, ref, toRaw, watch } from 'vue';
 import { generateBatchMenus } from '../utils/menu-utils';
+import { promoteChildrenAndRemove } from '../utils/promote-children';
 import { buildTreeMenuNodes, type TreeMenuNode } from '../utils/tree-menu';
 import { formatErrorMessage, useToast } from './useToast';
 import { useTreeWriteError } from './useTreeWriteError';
@@ -222,10 +223,11 @@ export function useTreeMenuLazyStore(rxdb: RxDB, dataSource: TreeMenuLazyDataSou
   const cancelEdit = () => (editingId.value = null);
 
   // 不给 sortOrder：引擎把缺键的新节点追加到所属 parentId 组末尾
-  const addRoot = async (title: string) => {
+  // 新建返回是否已落库：写入失败时为 false，页面据此决定是否清空输入
+  const addRoot = async (title: string): Promise<boolean> => {
     const menu = new SortableMenuLarge({ title, parentId: null });
     const saved = await guardWrite('新建', () => menu.save());
-    if (!saved) return;
+    if (!saved) return false;
 
     // Update local state
     const newNodesMap = new Map(nodesMap.value);
@@ -233,13 +235,14 @@ export function useTreeMenuLazyStore(rxdb: RxDB, dataSource: TreeMenuLazyDataSou
     nodesMap.value = newNodesMap;
 
     rootIds.value = [...rootIds.value, menu.id];
+    return true;
   };
 
-  const addChild = async (parent: SortableMenuLarge, title: string) => {
+  const addChild = async (parent: SortableMenuLarge, title: string): Promise<boolean> => {
     const menu = new SortableMenuLarge({ title });
     menu.parentId = parent.id;
     const saved = await guardWrite('新建', () => menu.save());
-    if (!saved) return;
+    if (!saved) return false;
 
     // Update local state
     const newNodesMap = new Map(nodesMap.value);
@@ -257,6 +260,7 @@ export function useTreeMenuLazyStore(rxdb: RxDB, dataSource: TreeMenuLazyDataSou
       newExpanded.add(parent.id);
       expandedIds.value = newExpanded;
     }
+    return true;
   };
 
   // 保存重命名；失败时回退到库里已提交的标题并给出页内提示
@@ -315,12 +319,7 @@ export function useTreeMenuLazyStore(rxdb: RxDB, dataSource: TreeMenuLazyDataSou
 
     await guardWrite('删除并提升子节点', async () => {
       const children = await fetchChildren(selected.id);
-      for (const child of children) {
-        child.parentId = selected.parentId as UUID | null;
-      }
-      await rxdb.entityManager.mutations(
-        getEntityMutations({ needSaveEntities: children, needRemoveEntities: [toRaw(selected)] })
-      );
+      await promoteChildrenAndRemove(rxdb, toRaw(selected), children);
     });
     menuToDelete.value = null;
   };
@@ -454,11 +453,28 @@ export function useTreeMenuLazyStore(rxdb: RxDB, dataSource: TreeMenuLazyDataSou
   const loadedNodes = computed<SortableMenuLarge[]>(() => Array.from(nodesMap.value.values()));
 
   /**
-   * 某个父节点下已加载的完整子节点 id 序列（`null` 为根组），按手动顺序；
+   * 拖放用的节点快照：搜索时取搜索全集，否则取已加载节点。
+   *
+   * @remarks
+   * 搜索会显示从未展开加载过的匹配节点及其祖先。被拖节点、祖先链与前后放置的组序列（{@link siblingIds}）
+   * 必须出自同一份快照，否则这些节点在拖放里查不到、所在组被当成空组，邻居换算直接抛错。
+   */
+  const dragNodes = computed<SortableMenuLarge[]>(() => (searchKeyword.value ? searchMenus.value : loadedNodes.value));
+
+  /** 搜索全集里某个父节点下的完整子节点 id（含未匹配关键字的兄弟），按查询顺序。 */
+  const searchSiblingIds = (parentId: RxDBEntityId | null): RxDBEntityId[] =>
+    searchMenus.value.filter(menu => (menu.parentId ?? null) === parentId).map(menu => menu.id);
+
+  /** 已加载的某个父节点下的完整子节点 id。 */
+  const loadedSiblingIds = (parentId: RxDBEntityId | null): readonly RxDBEntityId[] =>
+    parentId === null ? rootIds.value : (childrenMap.value.get(parentId) ?? []);
+
+  /**
+   * 某个父节点下完整的子节点 id 序列（`null` 为根组），按手动顺序；数据来源与 {@link dragNodes} 一致。
    * 拖放换算前后放置的邻居用它，不用页面可见行，也不用搜索过滤后的结果。
    */
   const siblingIds = (parentId: RxDBEntityId | null): readonly RxDBEntityId[] =>
-    parentId === null ? rootIds.value : (childrenMap.value.get(parentId) ?? []);
+    searchKeyword.value ? searchSiblingIds(parentId) : loadedSiblingIds(parentId);
 
   return {
     treeNodes,
@@ -492,6 +508,7 @@ export function useTreeMenuLazyStore(rxdb: RxDB, dataSource: TreeMenuLazyDataSou
     addManyMenus,
     deleteAllMenus,
     loadedNodes,
+    dragNodes,
     siblingIds
   };
 }

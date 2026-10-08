@@ -349,31 +349,18 @@ export function FileManagerSimplePage() {
                 className='flex gap-2'
                 onSubmit={async e => {
                   e.preventDefault();
-                  if (newName.trim()) {
-                    if (store.isAddingFile) {
-                      // 添加文件
-                      const parentId = store.selectedFolderId;
-                      if (parentId) {
-                        const parent = files.find(f => f.id === parentId);
-                        if (parent) {
-                          await store.addChild(parent, newName, 'file', newExtension);
-                        }
-                      } else {
-                        await store.addRoot(newName, 'file', newExtension);
-                      }
-                    } else {
-                      // 添加文件夹
-                      if (store.selectedFolderId) {
-                        const parent = files.find(f => f.id === store.selectedFolderId);
-                        if (parent) {
-                          await store.addChild(parent, newName, 'folder');
-                        }
-                      } else {
-                        await store.addRoot(newName, 'folder');
-                      }
-                    }
-                    setNewName('');
-                  }
+                  if (!newName.trim()) return;
+                  const type = store.isAddingFile ? 'file' : 'folder';
+                  const extension = store.isAddingFile ? newExtension : undefined;
+                  const parentId = store.selectedFolderId;
+                  const parent = parentId ? files.find(f => f.id === parentId) : undefined;
+                  if (parentId && !parent) return;
+                  const added =
+                    parent ?
+                      await store.addChild(parent, newName, type, extension)
+                    : await store.addRoot(newName, type, extension);
+                  // 只在新建成功后清空：冲突或写入失败时保留用户输入
+                  if (added) setNewName('');
                 }}
               >
                 {/* 文件/文件夹模式切换 */}

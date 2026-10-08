@@ -167,7 +167,7 @@ describe('useFileManagerStore', () => {
       const { result } = renderHook(() => useFileManagerStore([parent, sibling]));
 
       await act(async () => {
-        await result.current.addChild(parent, '新文件', 'file', '.md');
+        expect(await result.current.addChild(parent, '新文件', 'file', '.md')).toBe(true);
       });
 
       const [created] = createdFiles();
@@ -183,13 +183,13 @@ describe('useFileManagerStore', () => {
       const { result } = renderHook(() => useFileManagerStore([parent]));
 
       await act(async () => {
-        await result.current.addRoot('重名', 'folder');
+        expect(await result.current.addRoot('重名', 'folder')).toBe(false);
       });
       expect(result.current.writeError).toBe('新建失败：唯一索引冲突');
 
       act(() => result.current.clearWriteError());
       await act(async () => {
-        await result.current.addChild(parent, '重名', 'folder');
+        expect(await result.current.addChild(parent, '重名', 'folder')).toBe(false);
       });
       expect(result.current.writeError).toBe('新建失败：唯一索引冲突');
       expect(result.current.expandedIds.has('p')).toBe(false);
@@ -213,7 +213,7 @@ describe('useFileManagerStore', () => {
       expect(alertSpy).not.toHaveBeenCalled();
     });
 
-    it('executeCascadeDelete 失败：写入「级联删除失败」，对话框保持打开，不抛出', async () => {
+    it('executeCascadeDelete 失败：写入「级联删除失败」，关闭对话框让页内提示可见，不抛出', async () => {
       const alertSpy = vi.fn();
       vi.stubGlobal('alert', alertSpy);
       const removed: string[] = [];
@@ -228,7 +228,7 @@ describe('useFileManagerStore', () => {
       });
 
       expect(result.current.writeError).toBe('级联删除失败：被外键拦下');
-      expect(result.current.fileToDelete).toBe(root);
+      expect(result.current.fileToDelete).toBeNull();
       expect(alertSpy).not.toHaveBeenCalled();
     });
 

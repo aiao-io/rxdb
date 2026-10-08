@@ -138,35 +138,38 @@ export function useTreeMenuStore(menus: SortableMenuSimple[], rxdb: RxDB) {
     setEditingId(null);
   }, []);
 
+  // 新建返回是否已落库：路径冲突或写入失败时为 false，页面据此决定是否清空输入
   const addChild = useCallback(
-    async (parentMenu: SortableMenuSimple, title: string) => {
+    async (parentMenu: SortableMenuSimple, title: string): Promise<boolean> => {
       // 检查路径冲突
       const conflict = pathValidator.checkConflict(title, parentMenu.id, menus);
       if (conflict) {
         setPathConflict(conflict);
-        return;
+        return false;
       }
 
       // 只赋业务字段与 parentId：排序键由引擎在保存事务里追加到该父节点组的末尾
       const result = await runWrite('新建', () => new SortableMenuSimple({ title, parentId: parentMenu.id }).save());
-      if (!result.ok) return;
+      if (!result.ok) return false;
       setExpandedIds(prev => new Set(prev).add(parentMenu.id));
       setPathConflict(null);
+      return true;
     },
     [menus, pathValidator, runWrite]
   );
 
   const addRoot = useCallback(
-    async (title: string) => {
+    async (title: string): Promise<boolean> => {
       // 检查路径冲突
       const conflict = pathValidator.checkConflict(title, null, menus);
       if (conflict) {
         setPathConflict(conflict);
-        return;
+        return false;
       }
 
       const result = await runWrite('新建', () => new SortableMenuSimple({ title, parentId: null }).save());
       if (result.ok) setPathConflict(null);
+      return result.ok;
     },
     [menus, pathValidator, runWrite]
   );

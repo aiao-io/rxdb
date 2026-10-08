@@ -286,14 +286,11 @@ export function TreeMenuSimplePage() {
                 e.preventDefault();
                 if (!newTitle.trim()) return;
 
+                // 只在新建成功后清空：冲突或写入失败时保留用户输入
                 if (store.selectedParentId) {
                   const parent = menus.find(m => m.id === store.selectedParentId);
-                  if (parent) {
-                    await store.addChild(parent, newTitle);
-                    setNewTitle('');
-                  }
-                } else {
-                  await store.addRoot(newTitle);
+                  if (parent && (await store.addChild(parent, newTitle))) setNewTitle('');
+                } else if (await store.addRoot(newTitle)) {
                   setNewTitle('');
                 }
               }}

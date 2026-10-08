@@ -95,6 +95,36 @@ describe('菜单页：写入失败进页内提示', () => {
     await page.addChildMenu(event);
 
     expectInPageError(page, '新建失败：boom');
+    expect(page.$new_menu_title()).toBe('子');
+  });
+
+  it('新建根菜单因同级重名未写入：保留输入，不出写入失败提示', async () => {
+    const page = makePage();
+    vi.spyOn(page.store, 'addRootMenu').mockResolvedValue(false);
+    page.$new_menu_title.set('重名');
+
+    await page.addRootMenu(event);
+
+    expect(page.writeError()).toBeNull();
+    expect(page.$new_menu_title()).toBe('重名');
+  });
+
+  it('重名警告不被保留下来的输入立刻清掉，改了输入才清', async () => {
+    const page = makePage();
+    vi.spyOn(page.store, 'addRootMenu').mockImplementation(async () => {
+      page.store.pathConflictWarning.set({ hasConflict: true, conflictPath: '/重名' });
+      return false;
+    });
+    page.$new_menu_title.set('重名');
+    TestBed.tick();
+
+    await page.addRootMenu(event);
+    TestBed.tick();
+    expect(page.store.pathConflictWarning()).toEqual({ hasConflict: true, conflictPath: '/重名' });
+
+    page.$new_menu_title.set('不重名');
+    TestBed.tick();
+    expect(page.store.pathConflictWarning()).toBeNull();
   });
 
   it('重命名失败', async () => {
@@ -154,7 +184,7 @@ describe('菜单页：写入失败进页内提示', () => {
 
   it('下一次写入开始时清掉上一次的错误，失败后页面可继续操作', async () => {
     const page = makePage();
-    const addRootMenu = vi.spyOn(page.store, 'addRootMenu').mockRejectedValueOnce(boom).mockResolvedValue(undefined);
+    const addRootMenu = vi.spyOn(page.store, 'addRootMenu').mockRejectedValueOnce(boom).mockResolvedValue(true);
     page.$new_menu_title.set('根');
 
     await page.addRootMenu(event);
@@ -214,6 +244,37 @@ describe('文件管理器页：写入失败进页内提示', () => {
     await page.addRootFolder(event);
 
     expectInPageError(page, '新建失败：boom');
+    expect(page.$new_file_name()).toBe('文件夹');
+  });
+
+  it('新建根文件夹因同级重名未写入：保留输入，不出写入失败提示', async () => {
+    const page = makePage();
+    vi.spyOn(page.store, 'createRootFolder').mockResolvedValue(false);
+    page.$new_file_name.set('重名');
+
+    await page.addRootFolder(event);
+
+    expect(page.writeError()).toBeNull();
+    expect(page.$new_file_name()).toBe('重名');
+  });
+
+  it('重名警告不被保留下来的输入立刻清掉，改了输入才清', async () => {
+    const page = makePage();
+    const conflict = { conflictPath: '/重名', conflictNode: file, attemptedName: '重名' };
+    vi.spyOn(page.store, 'createRootFolder').mockImplementation(async () => {
+      page.store.pathConflictWarning.set(conflict);
+      return false;
+    });
+    page.$new_file_name.set('重名');
+    TestBed.tick();
+
+    await page.addRootFolder(event);
+    TestBed.tick();
+    expect(page.store.pathConflictWarning()).toBe(conflict);
+
+    page.$new_file_name.set('不重名');
+    TestBed.tick();
+    expect(page.store.pathConflictWarning()).toBeNull();
   });
 
   it('新建子文件夹失败', async () => {
@@ -224,6 +285,7 @@ describe('文件管理器页：写入失败进页内提示', () => {
     await page.addSubFolder(event);
 
     expectInPageError(page, '新建失败：boom');
+    expect(page.$new_file_name()).toBe('子');
   });
 
   it('新建文件失败', async () => {
@@ -235,6 +297,7 @@ describe('文件管理器页：写入失败进页内提示', () => {
     await page.addFile(event);
 
     expectInPageError(page, '新建失败：boom');
+    expect(page.$new_file_name()).toBe('说明');
   });
 
   it('重命名失败', async () => {

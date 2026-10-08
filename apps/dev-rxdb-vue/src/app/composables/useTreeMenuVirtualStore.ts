@@ -1,8 +1,9 @@
-import { getEntityMutations, type RxDB, type RxDBEntityId, type UUID } from '@aiao/rxdb';
+import { type RxDB, type RxDBEntityId, type UUID } from '@aiao/rxdb';
 import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { computed, ref, toRaw, type Ref } from 'vue';
 import { generateBatchMenus } from '../utils/menu-utils';
+import { promoteChildrenAndRemove } from '../utils/promote-children';
 import { buildTreeMenuNodes, type TreeMenuNode } from '../utils/tree-menu';
 import { useTreeWriteError } from './useTreeWriteError';
 
@@ -65,19 +66,21 @@ export function useTreeMenuVirtualStore(menus: Ref<SortableMenuLarge[]>, rxdb: R
   };
 
   // 不给 sortOrder：引擎把缺键的新节点追加到所属 parentId 组末尾
-  const addChild = async (parentMenu: SortableMenuLarge, title: string) => {
+  // 新建返回是否已落库：写入失败时为 false，页面据此决定是否清空输入
+  const addChild = async (parentMenu: SortableMenuLarge, title: string): Promise<boolean> => {
     const newMenu = new SortableMenuLarge({ title, parentId: parentMenu.id });
     const saved = await guardWrite('新建', () => newMenu.save());
-    if (!saved) return;
+    if (!saved) return false;
 
     const next = new Set(expandedIds.value);
     next.add(parentMenu.id);
     expandedIds.value = next;
+    return true;
   };
 
-  const addRoot = async (title: string) => {
+  const addRoot = async (title: string): Promise<boolean> => {
     const newMenu = new SortableMenuLarge({ title, parentId: null });
-    await guardWrite('新建', () => newMenu.save());
+    return guardWrite('新建', () => newMenu.save());
   };
 
   // 保存重命名；失败时回退到库里已提交的标题并给出页内提示
@@ -136,12 +139,7 @@ export function useTreeMenuVirtualStore(menus: Ref<SortableMenuLarge[]>, rxdb: R
 
     await guardWrite('删除并提升子节点', async () => {
       const children = await fetchChildren(target.id);
-      for (const child of children) {
-        child.parentId = target.parentId;
-      }
-      await rxdb.entityManager.mutations(
-        getEntityMutations({ needSaveEntities: children, needRemoveEntities: [toRaw(target)] })
-      );
+      await promoteChildrenAndRemove(rxdb, toRaw(target), children);
     });
     menuToDelete.value = null;
   };

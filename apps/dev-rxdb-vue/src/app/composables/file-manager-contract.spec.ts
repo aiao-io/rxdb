@@ -199,4 +199,42 @@ describe('file manager contracts', () => {
     expect(store.treeNodes.value.map(node => node.file.name)).toEqual(['x-file', 'y-folder']);
     unmount();
   });
+
+  it('空白名称的行不展示，但仍在 siblingIds 的完整组里（根组与子组）', async () => {
+    const folder = Object.assign(createFile('p', 'folder', 'a1'), { hasChildren: true });
+    const hiddenChild = Object.assign(createFile('hc', 'file', 'a1'), { name: '   ', parentId: 'p' });
+    const children = [
+      Object.assign(createFile('c1', 'file', 'a0'), { parentId: 'p' }),
+      hiddenChild,
+      Object.assign(createFile('c2', 'file', 'a2'), { parentId: 'p' })
+    ];
+    const roots = [
+      createFile('a', 'file', 'a0'),
+      folder,
+      Object.assign(createFile('h', 'file', 'a2'), { name: '   ' })
+    ];
+    queries.findAll
+      .mockReturnValueOnce(of(roots as unknown as SortableFileLarge[]))
+      .mockReturnValueOnce(of(children as unknown as SortableFileLarge[]));
+    const { store, unmount } = mountLazyStore();
+
+    await store.toggleExpand('p');
+
+    expect(store.treeNodes.value.map(node => node.file.name)).toEqual(['a', 'p', 'c1', 'c2']);
+    expect(store.siblingIds(null)).toEqual(['a', 'p', 'h']);
+    expect(store.siblingIds('p')).toEqual(['c1', 'hc', 'c2']);
+    unmount();
+  });
+
+  it('展开全部：空白名称的行同样留在完整组里', () => {
+    const all = [createFile('a', 'file', 'a0'), Object.assign(createFile('h', 'file', 'a1'), { name: '' })];
+    queries.findAll.mockReturnValueOnce(of([])).mockReturnValueOnce(of(all as unknown as SortableFileLarge[]));
+    const { store, unmount } = mountLazyStore();
+
+    store.expandAll();
+
+    expect(store.treeNodes.value.map(node => node.file.name)).toEqual(['a']);
+    expect(store.siblingIds(null)).toEqual(['a', 'h']);
+    unmount();
+  });
 });
