@@ -164,9 +164,7 @@ export const reorderTargetForDrop = <Id>(
 const isCurrentPlacement = <Id>(groupIds: readonly Id[], movedId: Id, target: ReorderBetween<Id>): boolean => {
   const movedIndex = groupIds.indexOf(movedId);
   if (movedIndex < 0) return false;
-  return (
-    (groupIds[movedIndex - 1] ?? null) === target.prevId && (groupIds[movedIndex + 1] ?? null) === target.nextId
-  );
+  return (groupIds[movedIndex - 1] ?? null) === target.prevId && (groupIds[movedIndex + 1] ?? null) === target.nextId;
 };
 
 /**

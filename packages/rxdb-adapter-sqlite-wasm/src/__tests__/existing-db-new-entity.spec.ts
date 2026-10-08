@@ -103,11 +103,9 @@ describe('既有库补建新实体表', () => {
     const second = await open({ entities: [Old, New], migrations: [migration] }, dbName);
 
     const changes = await firstValueFrom(
-      second.entityManager
-        .getRepository(RxDBChange)
-        .find({
-          where: { combinator: 'and', rules: [{ field: 'entity', operator: '=', value: getEntityMetadata(Old).name }] }
-        })
+      second.entityManager.getRepository(RxDBChange).find({
+        where: { combinator: 'and', rules: [{ field: 'entity', operator: '=', value: getEntityMetadata(Old).name }] }
+      })
     );
     expect(changes.map(change => change.type)).toEqual(['INSERT']);
     const created = await second.entityManager.getRepository(New).create(Object.assign(new New(), { title: 'n' }));
