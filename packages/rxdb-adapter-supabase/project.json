@@ -35,6 +35,21 @@
         "description": "Tear down only this checkout's isolated CI Supabase test environment (never touches other checkouts' containers)"
       }
     },
+    "sql-security-regressions": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "parallelism": false,
+      "options": {
+        "cwd": "packages/rxdb-adapter-supabase",
+        "command": "bash src/__tests__/run-supabase-sql-security-regressions.sh"
+      },
+      "metadata": {
+        "description": "Run the reference-SQL security regression suite (30 cases) against the running Supabase stack. Local: run test-env first (checkout-isolated container, name resolved via docker/supabase-ci-identity.sh + state file). CI: the supabase action starts the stack with the compose default container name supabase-db. The script resolves the container name from SUPABASE_DB_CONTAINER or falls back accordingly.",
+        "help": {
+          "command": "bash packages/rxdb-adapter-supabase/src/__tests__/run-supabase-sql-security-regressions.sh"
+        }
+      }
+    },
     "test": {
       "executor": "nx:run-commands",
       "dependsOn": [
@@ -49,7 +64,7 @@
       "outputs": ["{workspaceRoot}/coverage/packages/rxdb-adapter-supabase"],
       "options": {
         "cwd": "packages/rxdb-adapter-supabase",
-        "command": "VITE_SUPABASE_URL=$(../../docker/supabase-ci-url.sh) VITE_SUPABASE_KEY=$(grep 'SUPABASE_ANON_KEY:' ../../docker/docker-compose.ci.yml | head -1 | sed 's/.*SUPABASE_ANON_KEY:[[:space:]]*//') vitest"
+        "command": "VITE_SUPABASE_URL=$(../../docker/supabase-ci-url.sh) VITE_SUPABASE_KEY=$(grep 'SUPABASE_ANON_KEY:' ../../docker/docker-compose.ci.yml | head -1 | sed 's/.*SUPABASE_ANON_KEY:[[:space:]]*//') VITE_SUPABASE_SERVICE_ROLE_KEY=$(grep 'SUPABASE_SERVICE_KEY:' ../../docker/docker-compose.ci.yml | head -1 | sed 's/.*SUPABASE_SERVICE_KEY:[[:space:]]*//') vitest"
       },
       "metadata": {
         "technologies": ["vite", "vitest", "supabase"],

@@ -2,6 +2,7 @@ import { RxDB, SyncType, type IRxDBChange, type SwitchVersionActions } from '@ai
 import { Todo } from '@aiao/rxdb-test/entities';
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
+import { getSupabaseServiceRoleClient } from './test-utils.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
 const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
@@ -32,7 +33,7 @@ describe('Supabase filter sync snapshots', () => {
   afterEach(async () => {
     if (entityIds.length === 0) return;
     await adapter.client.from('todos').delete().in('id', entityIds);
-    await adapter.client.from('rxdb_change').delete().in('entityId', entityIds);
+    await getSupabaseServiceRoleClient().from('rxdb_change').delete().in('entityId', entityIds);
     entityIds.length = 0;
   });
 

@@ -79,6 +79,9 @@ runs:
         docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < sql/02-rxdb-sync-functions.sql
         docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < sql/03-business-tables.sql
         docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < sql/04-rxdb-utils-functions.sql
+        # 与 init-db.sh 保持同一条初始化链：01～04 之后收紧 rxdb_change 写权限（零散收尾项第 13 条），
+        # 测试侧对日志表的直写/清理经 service_role（VITE_SUPABASE_SERVICE_ROLE_KEY），anon 只读。
+        docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -U postgres -d postgres < sql/production/rxdb-change-grants.sql
 
         # pg_isready 只说明数据库起来了，Kong/PostgREST 还要几秒才接得住请求。
         echo "⏳ Waiting for REST API..."

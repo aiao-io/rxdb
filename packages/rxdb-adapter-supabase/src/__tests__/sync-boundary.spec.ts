@@ -17,6 +17,7 @@ import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
+import { getSupabaseServiceRoleClient } from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
@@ -32,7 +33,7 @@ describe('Push/Pull 边界行为测试', () => {
     try {
       // todos 上有 change 触发器：必须先删实体，再清 rxdb_change，否则会残留 DELETE change
       await adapter.client.from('todos').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await adapter.client.from('rxdb_change').delete().neq('id', 0);
+      await getSupabaseServiceRoleClient().from('rxdb_change').delete().neq('id', 0);
     } catch (error) {
       console.warn('Cleanup warning:', error);
     }
@@ -49,7 +50,7 @@ describe('Push/Pull 边界行为测试', () => {
       updatedAt: new Date().toISOString()
     });
 
-    await remoteAdapter.client.from('rxdb_change').insert({
+    await getSupabaseServiceRoleClient().from('rxdb_change').insert({
       namespace: 'public',
       entity: 'Todo',
       entityId: data.id,

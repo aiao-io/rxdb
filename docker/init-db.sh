@@ -42,6 +42,7 @@ psql_file 01-rxdb-system-tables.sql 'Loading system tables...'
 psql_file 02-rxdb-sync-functions.sql 'Loading sync functions...'
 psql_file 03-business-tables.sql 'Loading business tables...'
 psql_file 04-rxdb-utils-functions.sql 'Loading utility functions...'
+psql_file production/rxdb-change-grants.sql 'Tightening rxdb_change grants...'
 
 echo "✅ Database initialization complete!"
 echo ""

@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import { afterAll, describe, expect, it } from 'vitest';
 import { chunk_values } from '../pagination.js';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
+import { getSupabaseServiceRoleClient } from './test-utils.js';
 
 interface RequestMeasurement {
   method: string;
@@ -68,7 +69,7 @@ async function cleanupTodos(todos: Todo[]): Promise<void> {
   )) {
     const rows = await client.from('todos').delete().in('id', chunk);
     expect(rows.error).toBeNull();
-    const changes = await client
+    const changes = await getSupabaseServiceRoleClient()
       .from('rxdb_change')
       .delete()
       .eq('entity', 'Todo')
