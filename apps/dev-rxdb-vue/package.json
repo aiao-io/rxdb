@@ -26,10 +26,10 @@
     "@aiao/rxdb-test": "workspace:*",
     "@aiao/rxdb-vue": "workspace:*",
     "@aiao/utils": "workspace:*",
-    "@lucide/vue": "^1.52.0",
+    "@lucide/vue": "^1.53.0",
     "@modules/wujie": "workspace:*",
     "@tanstack/vue-virtual": "^3.13.39",
-    "@vueuse/rxjs": "^14.4.0",
+    "@vueuse/rxjs": "^15.0.0",
     "ag-grid-community": "^36.2.0",
     "ag-grid-enterprise": "^36.2.0",
     "clsx": "^2.1.1"

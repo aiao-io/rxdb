@@ -42,7 +42,7 @@
 | React   | `@aiao/code-editor-react`                | `react / react-dom ^19.2`                                | —        |
 | Vue     | `@aiao/code-editor-vue`                  | `vue >=3.5.0`                                            | —        |
 
-> Angular 绑定包当前把 `@angular/*` peer 写成了精确版本（工作区为 `22.2.1`），比上表的区间更窄；计划在下一次发版时改回区间，见 [roadmap 零散收尾项](https://github.com/aiao-io/rxdb/blob/main/requirements/roadmap.md#零散收尾项不成故事随手可带)。
+> Angular 绑定包当前把 `@angular/*` peer 写成了精确版本（工作区为 `22.2.2`），比上表的区间更窄；计划在下一次发版时改回区间，见 [roadmap 零散收尾项](https://github.com/aiao-io/rxdb/blob/main/requirements/roadmap.md#零散收尾项不成故事随手可带)。
 
 ## `@aiao/rxdb` × 适配器 / 插件
 

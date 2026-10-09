@@ -24,7 +24,7 @@ name = "aiao_rxdb_tauri"
 # 只有 `commands.rs` 用得到：`#[tauri::command]`、`AppHandle`、`State`、`spawn_blocking`。
 # 其余模块（引擎、协议、路由、文件宿主）对 tauri 零依赖，stdio 测试宿主正是靠这一点
 # 原样复用它们。
-tauri = { version = "=2.12.1", features = [] }
+tauri = { version = "=2.12.2", features = [] }
 serde = { version = "1", features = ["derive"] }
 # 线协议是 JSON：本 crate 要自己解析 renderer 请求、构造应答，不能只靠 tauri 的 IPC 层。
 serde_json = "1"

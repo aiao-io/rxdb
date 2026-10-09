@@ -63,7 +63,7 @@
     "@aiao/rxdb-plugin-sync": "workspace:*",
     "@aiao/rxdb-plugin-tree": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
-    "dotenv": "^17.4.2"
+    "dotenv": "^18.0.6"
   },
   "peerDependenciesMeta": {
     "@aiao/rxdb-plugin-tree": {

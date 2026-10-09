@@ -29,7 +29,7 @@ jobs:
         with:
           filter: tree:0
 
-      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v4
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
         with:
           # high 起拦。moderate 在一个有 3000+ 传递依赖的 workspace 里几乎天天有，
           # 全拦会让这道门禁在两周内被当成噪音关掉 —— 那才是最坏结果。
