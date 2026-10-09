@@ -23,8 +23,8 @@ tags: [plugin, bom, graph, integrity]
 
 - **约束作用域（保守政策）**：同一 `(bom_type, org_id)` 内，**所有已存储的 `consume` 行发生项**按物料级
   （`parent_item_id → child_item_id`）取并集，这张并集图无环。不区分修订、日期、备选与配置，草稿（含挂在 `draft` ECN 上的发生项）也计入，
-  见技术笔记「为什么约束并集」。**解析不可见 ≠ 判环不可见**：草稿头、`draft` ECN 与未到生效日的 `released` ECN 引入的发生项对解析不可见
-  （[US-508](US-508-bom-view-resolution.md)），但都已存储，都在并集里；只有 ECN 撤回或取消时级联删除的发生项（[US-515](US-515-bom-change-management.md)）随之退出并集
+  见技术笔记「为什么约束并集」。**解析不可见 ≠ 判环不可见**：草稿头与 `draft` ECN 引入的发生项对解析不可见，`released` ECN 引入的发生项在 `as_of_date` 早于其生效日的解析中不可见
+  （[US-508](US-508-bom-view-resolution.md)；按评估日判，不读宿主当日——宿主日期只决定 ECN 能否改期 / 取消），但都已存储，都在并集里；只有 ECN 撤回或取消时级联删除的发生项（[US-515](US-515-bom-change-management.md)）随之退出并集
 - 插入发生项、更新其 `child_item_id` / `flow_direction` 时的可达性检查：子件是否已能到达父件。这是改变并集图的**唯一**入口：
   决定作用域与父端点的结构归属列——修订的 `item_id`，头的 `parent_revision_id` / `bom_type` / `org_id`，逻辑行的 `bom_header_id`，
   发生项的 `bom_line_id`——创建后不可改（[US-507](US-507-bom-graph-skeleton.md) AC#13），于是不需要为它们再挂检查
