@@ -1,12 +1,22 @@
 import type { HistoryScopeAPI } from '@aiao/rxdb';
-import { RxDB } from '@aiao/rxdb';
-import { generateKeyBetween } from '@aiao/utils';
+import { RxDB, type RxDBEntityId } from '@aiao/rxdb';
 import { computed, signal, Signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { reorderTreeNode, treeDropPosition } from '../../../shared/tree-drop';
+import { runViewTransition, ViewTransitionStarter } from '../../../shared/view-transition';
 import { FileTreeEntityConstructor, FileTreeInstance } from '../models/file-node.interface';
 import { DropMode, FileDragDropService } from '../services/file-drag-drop.service';
 import { FilePathValidatorService, PathConflict } from '../services/file-path-validator.service';
 import { SortMode } from './file-sorters';
-import { buildTreeNodes, collectDescendants, compareSortOrder, countDescendants } from './tree-utils';
+import { buildTreeNodes, collectDescendants } from './tree-utils';
+
+/** 删除对话框展示的影响范围（取自库，不看页面已加载的节点）。 */
+export interface DeleteImpact {
+  childrenCount: number;
+  descendantsCount: number;
+}
+
+const NO_DELETE_IMPACT: DeleteImpact = { childrenCount: 0, descendantsCount: 0 };
 
 /**
  * 树形文件管理 Store
@@ -68,18 +78,8 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
     return buildTreeNodes(files, expandedIds, matchedIds, null, null, null, null, sortMode);
   });
 
-  readonly deleteImpact = computed(() => {
-    const file = this.fileToDelete();
-    if (!file) return { childrenCount: 0, descendantsCount: 0 };
-
-    const allFiles = this.fileResource.value();
-    const children = allFiles.filter(f => f.parentId === file.id);
-
-    return {
-      childrenCount: children.length,
-      descendantsCount: countDescendants(file.id, allFiles)
-    };
-  });
+  /** 随 `fileToDelete` 一起在 {@link deleteFile} 里按库查出；懒加载页的折叠文件夹没有已加载的子节点可数。 */
+  readonly deleteImpact = signal<DeleteImpact>(NO_DELETE_IMPACT);
 
   readonly expandedCount = computed(() => this.expandedFileIds().size);
 
@@ -119,34 +119,26 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
 
   /**
    * 创建根文件夹
+   *
+   * @returns 是否已落库：同级重名时为 `false`，页面据此决定是否清空输入
+   * @throws 保存失败时原样抛出，由页面的 `runWrite` 展示
    */
-  async createRootFolder(name: string): Promise<void> {
+  async createRootFolder(name: string): Promise<boolean> {
     const allFiles = this.fileResource.value();
 
     // 检查冲突
     const conflict = this.pathValidator.checkConflict(name, null, null, allFiles);
     if (conflict) {
       this.pathConflictWarning.set(conflict);
-      return;
+      return false;
     }
 
-    // 计算 sortOrder
-    const rootFolders = allFiles.filter(f => !f.parentId && f.type === 'folder').sort(compareSortOrder);
-    const lastRoot = rootFolders[rootFolders.length - 1];
-    let newSortOrder: string;
-    try {
-      newSortOrder = generateKeyBetween(lastRoot?.sortOrder ?? null, null);
-    } catch {
-      newSortOrder = generateKeyBetween(null, null);
-    }
-
-    // 创建文件夹
+    // 创建文件夹；不赋 sortOrder，引擎把缺键的新行追加到所属 parentId 组（文件与文件夹同组）的末尾
     const folder = this.createEntity();
     folder.name = name;
     folder.type = 'folder';
     folder.extension = null;
     folder.size = null;
-    folder.sortOrder = newSortOrder;
     folder.hasChildren = false;
 
     await folder.save();
@@ -156,14 +148,18 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
       ids.add(folder.id);
       return new Set(ids);
     });
+    return true;
   }
 
   /**
    * 创建子文件夹
+   *
+   * @returns 是否已落库：没有选中父文件夹或同级重名时为 `false`
+   * @throws 保存失败时原样抛出，由页面的 `runWrite` 展示
    */
-  async createSubFolder(name: string): Promise<void> {
+  async createSubFolder(name: string): Promise<boolean> {
     const parentId = this.selectedFolderId();
-    if (!parentId) return;
+    if (!parentId) return false;
 
     const allFiles = this.fileResource.value();
 
@@ -171,26 +167,15 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
     const conflict = this.pathValidator.checkConflict(name, null, parentId, allFiles);
     if (conflict) {
       this.pathConflictWarning.set(conflict);
-      return;
+      return false;
     }
 
-    // 计算 sortOrder
-    const siblings = allFiles.filter(f => f.parentId === parentId).sort(compareSortOrder);
-    const lastSibling = siblings[siblings.length - 1];
-    let newSortOrder: string;
-    try {
-      newSortOrder = generateKeyBetween(lastSibling?.sortOrder ?? null, null);
-    } catch {
-      newSortOrder = generateKeyBetween(null, null);
-    }
-
-    // 创建文件夹
+    // 创建文件夹（不赋 sortOrder，见 createRootFolder）
     const folder = this.createEntity();
     folder.name = name;
     folder.type = 'folder';
     folder.extension = null;
     folder.size = null;
-    folder.sortOrder = newSortOrder;
     folder.hasChildren = false;
 
     // 设置父节点
@@ -201,12 +186,16 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
 
     await folder.save();
     this.selectedFolderId.set(null);
+    return true;
   }
 
   /**
    * 创建文件
+   *
+   * @returns 是否已落库：同级重名时为 `false`
+   * @throws 保存失败时原样抛出，由页面的 `runWrite` 展示
    */
-  async createFile(name: string, extension: string, size: number): Promise<void> {
+  async createFile(name: string, extension: string, size: number): Promise<boolean> {
     const parentId = this.selectedFolderId();
     // 允许在根目录创建文件
 
@@ -216,26 +205,15 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
     const conflict = this.pathValidator.checkConflict(name, extension, parentId, allFiles);
     if (conflict) {
       this.pathConflictWarning.set(conflict);
-      return;
+      return false;
     }
 
-    // 计算 sortOrder
-    const siblings = allFiles.filter(f => (f.parentId || null) === (parentId || null)).sort(compareSortOrder);
-    const lastSibling = siblings[siblings.length - 1];
-    let newSortOrder: string;
-    try {
-      newSortOrder = generateKeyBetween(lastSibling?.sortOrder ?? null, null);
-    } catch {
-      newSortOrder = generateKeyBetween(null, null);
-    }
-
-    // 创建文件
+    // 创建文件（不赋 sortOrder，见 createRootFolder）
     const file = this.createEntity();
     file.name = name;
     file.type = 'file';
     file.extension = extension ? extension.replace(/^\./, '') : undefined;
     file.size = size;
-    file.sortOrder = newSortOrder;
 
     // 设置父节点（如果有）
     if (parentId) {
@@ -247,6 +225,7 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
 
     await file.save();
     // 不清除 selectedFolderId，保持父文件夹选中状态以便继续添加文件
+    return true;
   }
 
   // Edit Methods
@@ -299,49 +278,42 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
   // Delete Methods
 
   /**
-   * 删除文件/文件夹
+   * 删除文件/文件夹：按库里的直接子节点决定直接删除还是打开确认对话框。
+   *
+   * @remarks
+   * 不看 `fileResource`：懒加载页只持有已加载的节点，折叠文件夹的子节点不在其中，
+   * 按页面判断会把有子树的文件夹当叶子直接删除（`parentId` 外键级联删掉整棵子树）。
    */
   async deleteFile(file: FileTreeInstance<C>): Promise<void> {
-    const allFiles = this.fileResource.value();
-    const hasChildren = allFiles.some(f => f.parentId === file.id);
-
-    if (!hasChildren) {
-      // 直接删除
+    const children = await this.findChildren(file.id);
+    if (children.length === 0) {
       await file.remove();
-    } else {
-      // 显示确认对话框
-      this.fileToDelete.set(file);
+      return;
     }
+
+    const subtree = await this.findSubtree(file.id);
+    this.deleteImpact.set({ childrenCount: children.length, descendantsCount: subtree.length - 1 });
+    this.fileToDelete.set(file);
   }
 
   /**
    * 取消删除
    */
   cancelDelete(): void {
-    this.fileToDelete.set(null);
+    this.closeDeleteDialog();
   }
 
   /**
-   * 级联删除（删除节点及其所有后代）
+   * 级联删除（删除节点及其所有后代）：子树取自库，一次 `removeMany` 提交。
    */
   async executeCascadeDelete(): Promise<void> {
     const file = this.fileToDelete();
     if (!file) return;
 
-    const allFiles = this.fileResource.value();
-    const descendantIds = collectDescendants(file.id, allFiles);
-
-    // 删除所有后代
-    for (const descendantId of descendantIds) {
-      const descendant = allFiles.find(f => f.id === descendantId);
-      if (descendant) {
-        await descendant.remove();
-      }
-    }
-
-    // 删除自己
-    await file.remove();
-    this.fileToDelete.set(null);
+    // findDescendants 含节点自身
+    const filesToRemove = await this.findSubtree(file.id);
+    await this.rxdb.entityManager.removeMany<C>(filesToRemove);
+    this.closeDeleteDialog();
   }
 
   // Expand Methods
@@ -475,7 +447,6 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
       file.name = name;
       file.type = type;
       file.parentId = parentId;
-      file.sortOrder = '';
       file.extension = type === 'file' ? 'txt' : undefined;
       file.size = type === 'file' ? Math.floor(Math.random() * 10000) : undefined;
 
@@ -486,48 +457,31 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
       }
     }
 
-    // 2. Group by parentId
-    const filesByParent = new Map<string | null, FileTreeInstance<C>[]>();
-    for (const file of files) {
-      const pid = file.parentId || null;
-      if (!filesByParent.has(pid)) {
-        filesByParent.set(pid, []);
-      }
-      filesByParent.get(pid)!.push(file);
-    }
-
-    // 3. Assign sortOrder
-    const allExistingFiles = this.fileResource.value();
-
-    for (const [parentId, children] of filesByParent.entries()) {
-      // Find last sortOrder from existing files
-      let lastSortOrder: string | null = null;
-
-      const existingSiblings = allExistingFiles.filter(f => (f.parentId || null) === parentId);
-      if (existingSiblings.length > 0) {
-        existingSiblings.sort(compareSortOrder);
-        lastSortOrder = existingSiblings[existingSiblings.length - 1].sortOrder ?? null;
-      }
-
-      // Generate keys for new children
-      for (const child of children) {
-        let newSortOrder: string;
-        try {
-          newSortOrder = generateKeyBetween(lastSortOrder, null);
-        } catch {
-          newSortOrder = generateKeyBetween(null, null);
-        }
-        child.sortOrder = newSortOrder;
-        lastSortOrder = newSortOrder;
-      }
-    }
-
-    // 4. Save (batch in single transaction for single undo)
+    // 2. 整批一次 saveMany（单次事务、单次撤销）；节点不带 sortOrder，引擎按批内顺序把各 parentId 组追加到末尾
     await this.rxdb.entityManager.saveMany<C>(files);
   }
 
   protected createEntity(): FileTreeInstance<C> {
     return new this.entityClass() as FileTreeInstance<C>;
+  }
+
+  private closeDeleteDialog(): void {
+    this.fileToDelete.set(null);
+    this.deleteImpact.set(NO_DELETE_IMPACT);
+  }
+
+  /** 库里某节点的直接子节点（不传 orderBy，沿用引擎默认排序）。 */
+  private findChildren(parentId: RxDBEntityId): Promise<FileTreeInstance<C>[]> {
+    return firstValueFrom(
+      this.entityClass.findAll({
+        where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: parentId }] }
+      })
+    );
+  }
+
+  /** 库里某节点的子树：节点自身加全部后代。 */
+  private findSubtree(entityId: RxDBEntityId): Promise<FileTreeInstance<C>[]> {
+    return firstValueFrom(this.entityClass.findDescendants({ entityId }));
   }
 }
 
@@ -560,7 +514,7 @@ export class TreeFileDragDropStore<C extends FileTreeEntityConstructor> extends 
     if (!draggedId) return new Set<string>();
 
     const allFiles = this.fileResource.value();
-    return this.dragDropService.getInvalidTargets(draggedId, allFiles);
+    return this.dragDropService.getInvalidTargets(draggedId, allFiles, this.sortMode() === SortMode.Manual);
   });
 
   // Computed: 高亮的目标节点（拖入文件夹时高亮其所有子节点）
@@ -619,16 +573,12 @@ export class TreeFileDragDropStore<C extends FileTreeEntityConstructor> extends 
     const draggedFile = this.fileResource.value().find(f => f.id === draggedId);
     if (!draggedFile) return { dropMode: null, isValid: false };
 
-    const isManualSort = this.sortMode() === SortMode.Manual;
-    const isRootLevel = !targetFile.parentId;
-    const dropMode = this.dragDropService.calculateDropMode(clientY, rect, isManualSort, isRootLevel);
-    const isValid = this.dragDropService.isValidDrop(
-      draggedId,
-      targetFile.id,
-      dropMode,
-      this.fileResource.value(),
-      isManualSort
-    );
+    // 高亮与放下后的执行共用同一份判定（resolveDrop），按当前排序模式取规则
+    const manual = this.sortMode() === SortMode.Manual;
+    const dropMode = treeDropPosition(clientY - rect.top, rect.height, { manual, targetIsRoot: !targetFile.parentId });
+    const isValid =
+      this.dragDropService.resolveDrop(draggedFile, targetFile, dropMode, this.fileResource.value(), manual).kind !==
+      'reject';
 
     const prevTargetId = this.dragDropState().targetItemId;
     if (prevTargetId !== targetFile.id) {
@@ -683,59 +633,32 @@ export class TreeFileDragDropStore<C extends FileTreeEntityConstructor> extends 
   }
 
   /**
-   * 完成拖拽
+   * 完成拖拽：判定 → 交给 `Repository.reorder()`。`reject` / `noop` 不写库；
+   * 失败向上抛，由页面经 `runWrite('拖放', …)` 展示。拖拽状态在任何路径上都复位。
    */
   async onDrop(targetFile: FileTreeInstance<C>): Promise<void> {
-    const state = this.dragDropState();
-    if (!state.draggedItemId || !state.isValidTarget || !state.dropMode) {
-      this.resetDragState();
-      return;
-    }
-
-    const draggedFile = this.fileResource.value().find(f => f.id === state.draggedItemId);
-    if (!draggedFile) {
-      this.resetDragState();
-      return;
-    }
-
-    // 检查是否是冗余拖放（拖到原位置）
-    if (this.isDropRedundant(draggedFile, targetFile, state.dropMode, this.fileResource.value())) {
-      this.resetDragState();
-      return;
-    }
-
+    const { draggedItemId, dropMode } = this.dragDropState();
     try {
-      // 提取核心拖放逻辑
-      const dropLogic = async () => {
-        const result = await this.dragDropService.executeDrop(
-          state.draggedItemId!,
-          targetFile.id,
-          state.dropMode!,
-          this.fileResource.value()
-        );
+      if (!draggedItemId || !dropMode) return;
 
-        if (!result.success) {
-          console.error('Drop failed:', result.error);
-          return;
-        }
+      const allFiles = this.fileResource.value();
+      const draggedFile = allFiles.find(f => f.id === draggedItemId);
+      if (!draggedFile) return;
 
-        // 如果拖入文件夹,展开该文件夹
-        if (state.dropMode === 'into' && result.newParentId) {
-          this.expandedFileIds.update(ids => {
-            const newIds = new Set(ids);
-            newIds.add(result.newParentId!);
-            return newIds;
-          });
-        }
+      const manual = this.sortMode() === SortMode.Manual;
+      const decision = this.dragDropService.resolveDrop(draggedFile, targetFile, dropMode, allFiles, manual);
+      if (decision.kind !== 'reorder') return;
+
+      const dropLogic = async (): Promise<void> => {
+        await reorderTreeNode(this.rxdb, this.entityClass, draggedFile.id, decision.target);
       };
+      // 使用 View Transition API 实现平滑过渡；不支持时直接执行
+      const startTransition: ViewTransitionStarter | undefined =
+        'startViewTransition' in document ? update => document.startViewTransition(update) : undefined;
 
-      // 使用 View Transition API 实现平滑过渡
-      if ('startViewTransition' in document) {
-        await document.startViewTransition(dropLogic).finished;
-      } else {
-        // 降级处理：不支持 View Transition API
-        await dropLogic();
-      }
+      await runViewTransition(dropLogic, startTransition);
+
+      if (dropMode === 'into') this.expandDropTarget(targetFile.id);
     } finally {
       this.resetDragState();
     }
@@ -760,54 +683,9 @@ export class TreeFileDragDropStore<C extends FileTreeEntityConstructor> extends 
     this.autoExpandTargetId = null;
   }
 
-  /**
-   * 检查拖放是否冗余（拖到原位置）
-   */
-  protected isDropRedundant(
-    draggedFile: FileTreeInstance<C>,
-    targetFile: FileTreeInstance<C>,
-    dropMode: DropMode,
-    allFiles: FileTreeInstance<C>[]
-  ): boolean {
-    // 确定新的父节点
-    let newParentId: string | null;
-    if (dropMode === 'into') {
-      newParentId = targetFile.id;
-    } else {
-      newParentId = targetFile.parentId || null;
-    }
-
-    // 检查父节点是否改变
-    const currentParentId = draggedFile.parentId || null;
-    if (newParentId !== currentParentId) {
-      return false; // 父节点改变，不是冗余
-    }
-
-    // 获取同级节点并排序
-    const siblings = allFiles.filter(f => (f.parentId || null) === currentParentId).sort(compareSortOrder);
-
-    const currentIndex = siblings.findIndex(f => f.id === draggedFile.id);
-    if (currentIndex === -1) return false;
-
-    // into 模式：如果拖到最后一个同级节点的 into，则是冗余
-    if (dropMode === 'into') {
-      return currentIndex === siblings.length - 1;
-    }
-
-    const targetIndex = siblings.findIndex(f => f.id === targetFile.id);
-    if (targetIndex === -1) return false;
-
-    // before 模式：如果当前位置就在目标前面（或就是目标），则是冗余
-    if (dropMode === 'before') {
-      return currentIndex === targetIndex || currentIndex === targetIndex - 1;
-    }
-
-    // after 模式：如果当前位置就在目标后面（或就是目标），则是冗余
-    if (dropMode === 'after') {
-      return currentIndex === targetIndex || currentIndex === targetIndex + 1;
-    }
-
-    return false;
+  /** 拖进文件夹成功后展开目标；懒加载页覆盖它，同时订阅目标的子节点。 */
+  protected expandDropTarget(targetId: string): void {
+    this.expandedFileIds.update(ids => new Set(ids).add(targetId));
   }
 
   /**

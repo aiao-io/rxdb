@@ -1,15 +1,15 @@
-import type { RxDBEntityId } from '@aiao/rxdb';
-import { FileNode } from '@aiao/rxdb-test/entities';
-import { generateKeyBetween } from '@aiao/utils';
+import type { RxDB, RxDBEntityId } from '@aiao/rxdb';
+import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { computed, ref, type Ref } from 'vue';
 import { getSortComparator, loadStoredSortMode, persistSortMode, SortMode } from '../utils/file-sorters';
-import { compareSortOrder } from '../utils/sort-order';
+import { generateBatchFiles } from '../utils/file-utils';
 import { type PathConflict, useFilePathValidator } from './useFilePathValidator';
+import { useTreeWriteError } from './useTreeWriteError';
 
 export { SortMode } from '../utils/file-sorters';
 
 export interface FileTreeNode {
-  file: FileNode;
+  file: SortableFileNode;
   level: number;
   isExpanded: boolean;
   hasChildren: boolean;
@@ -21,18 +21,19 @@ export interface DeleteImpact {
   descendantsCount: number;
 }
 
-export function useFileManagerStore(files: Ref<FileNode[]>) {
+export function useFileManagerStore(files: Ref<SortableFileNode[]>, rxdb: RxDB) {
   const expandedIds = ref<Set<RxDBEntityId>>(new Set());
   const editingId = ref<RxDBEntityId | null>(null);
   const selectedId = ref<RxDBEntityId | null>(null);
   const selectedFolderId = ref<RxDBEntityId | null>(null);
   const searchKeyword = ref('');
   const pathConflict = ref<PathConflict | null>(null);
-  const fileToDelete = ref<FileNode | null>(null);
+  const fileToDelete = ref<SortableFileNode | null>(null);
   const isAddingFile = ref(false);
   const sortMode = ref<SortMode>(loadStoredSortMode(Object.values(SortMode), SortMode.Manual));
 
   const pathValidator = useFilePathValidator();
+  const { writeError, clearWriteError, guardWrite } = useTreeWriteError();
 
   // 搜索匹配的文件 IDs
   const matchedFileIds = computed(() => {
@@ -78,7 +79,7 @@ export function useFileManagerStore(files: Ref<FileNode[]>) {
   // 构建树节点列表
   const treeNodes = computed<FileTreeNode[]>(() => {
     const nodes: FileTreeNode[] = [];
-    const childrenMap = new Map<RxDBEntityId | null, FileNode[]>();
+    const childrenMap = new Map<RxDBEntityId | null, SortableFileNode[]>();
 
     // 构建 children 映射
     files.value.forEach(file => {
@@ -89,8 +90,10 @@ export function useFileManagerStore(files: Ref<FileNode[]>) {
       childrenMap.get(parentId)!.push(file);
     });
 
-    // 应用排序
-    const sortFiles = (fileList: FileNode[]): FileNode[] => [...fileList].sort(getSortComparator(sortMode.value));
+    // 应用排序；手动模式不排序，沿用查询顺序
+    const comparator = getSortComparator(sortMode.value);
+    const sortFiles = (fileList: SortableFileNode[]): SortableFileNode[] =>
+      comparator ? [...fileList].sort(comparator) : fileList;
 
     // 递归构建节点
     const buildNodes = (parentId: RxDBEntityId | null, level: number) => {
@@ -165,24 +168,24 @@ export function useFileManagerStore(files: Ref<FileNode[]>) {
     editingId.value = null;
   };
 
-  const addChild = async (parentFile: FileNode, name: string, type: 'file' | 'folder', extension?: string) => {
+  // 不给 sortOrder：引擎把缺键的新节点追加到所属 parentId 组末尾（文件与文件夹同属一组）
+  // 新建返回是否已落库：路径冲突或写入失败时为 false，页面据此决定是否清空输入
+  const addChild = async (
+    parentFile: SortableFileNode,
+    name: string,
+    type: 'file' | 'folder',
+    extension?: string
+  ): Promise<boolean> => {
     const ext = type === 'file' && extension ? extension : null;
     const conflict = pathValidator.checkConflict(name, ext, parentFile.id, files.value);
     if (conflict) {
       pathConflict.value = conflict;
-      return;
+      return false;
     }
 
-    const siblings = files.value.filter(f => f.parentId === parentFile.id);
-    siblings.sort(compareSortOrder);
-    const lastSibling = siblings[siblings.length - 1];
-    const lastSortOrder = lastSibling ? lastSibling.sortOrder : null;
-    const newSortOrder = generateKeyBetween(lastSortOrder, null);
-
-    const newFile = new FileNode({
+    const newFile = new SortableFileNode({
       name,
       type,
-      sortOrder: newSortOrder,
       extension:
         extension ? extension.replace(/^\./, '')
         : type === 'file' && name.includes('.') ? name.split('.').pop()
@@ -191,31 +194,27 @@ export function useFileManagerStore(files: Ref<FileNode[]>) {
     });
     newFile.parentId = parentFile.id;
 
-    await newFile.save();
+    const saved = await guardWrite('新建', () => newFile.save());
+    if (!saved) return false;
+
     const next = new Set(expandedIds.value);
     next.add(parentFile.id);
     expandedIds.value = next;
     pathConflict.value = null;
+    return true;
   };
 
-  const addRoot = async (name: string, type: 'file' | 'folder', extension?: string) => {
+  const addRoot = async (name: string, type: 'file' | 'folder', extension?: string): Promise<boolean> => {
     const ext = type === 'file' && extension ? extension : null;
     const conflict = pathValidator.checkConflict(name, ext, null, files.value);
     if (conflict) {
       pathConflict.value = conflict;
-      return;
+      return false;
     }
 
-    const rootFiles = files.value.filter(f => f.parentId === null);
-    rootFiles.sort(compareSortOrder);
-    const lastFile = rootFiles[rootFiles.length - 1];
-    const lastSortOrder = lastFile ? lastFile.sortOrder : null;
-    const newSortOrder = generateKeyBetween(lastSortOrder, null);
-
-    const newFile = new FileNode({
+    const newFile = new SortableFileNode({
       name,
       type,
-      sortOrder: newSortOrder,
       extension:
         extension ? extension.replace(/^\./, '')
         : type === 'file' && name.includes('.') ? name.split('.').pop()
@@ -224,25 +223,36 @@ export function useFileManagerStore(files: Ref<FileNode[]>) {
     });
     newFile.parentId = null;
 
-    await newFile.save();
-    pathConflict.value = null;
+    const saved = await guardWrite('新建', () => newFile.save());
+    if (saved) pathConflict.value = null;
+    return saved;
   };
 
-  const deleteFile = async (file: FileNode) => {
-    // 递归删除所有子节点
-    const deleteWithChildren = async (id: RxDBEntityId) => {
-      const children = files.value.filter(f => f.parentId === id);
-      for (const child of children) {
-        await deleteWithChildren(child.id);
-      }
-      const fileToDelete = files.value.find(f => f.id === id);
-      if (fileToDelete) {
-        await fileToDelete.remove();
-      }
-    };
-
-    await deleteWithChildren(file.id);
+  // 保存重命名；失败时回退到库里已提交的名称并给出页内提示
+  const commitEdit = async (file: SortableFileNode) => {
+    const saved = await guardWrite('重命名', () => file.save());
+    if (!saved) file.reset();
+    cancelEdit();
   };
+
+  // 批量添加：整批一次 saveMany，生成器不写 sortOrder
+  const addManyFiles = (count: number) =>
+    guardWrite('批量添加', () => rxdb.entityManager.saveMany(generateBatchFiles(count, SortableFileNode)));
+
+  // 递归删除节点及其全部后代
+  const removeWithDescendants = async (id: RxDBEntityId) => {
+    const children = files.value.filter(f => f.parentId === id);
+    for (const child of children) {
+      await removeWithDescendants(child.id);
+    }
+    const file = files.value.find(f => f.id === id);
+    if (file) {
+      await file.remove();
+    }
+  };
+
+  // 删除所有文件：页内错误提示，不留未处理拒绝
+  const deleteAllFiles = () => guardWrite('删除全部', () => rxdb.entityManager.removeMany(files.value));
 
   const clearPathConflict = () => {
     pathConflict.value = null;
@@ -275,7 +285,7 @@ export function useFileManagerStore(files: Ref<FileNode[]>) {
   };
 
   // 删除确认对话框
-  const showDeleteDialog = (file: FileNode) => {
+  const showDeleteDialog = (file: SortableFileNode) => {
     fileToDelete.value = file;
   };
 
@@ -284,20 +294,12 @@ export function useFileManagerStore(files: Ref<FileNode[]>) {
   };
 
   const executeCascadeDelete = async () => {
-    if (!fileToDelete.value) return;
+    const target = fileToDelete.value;
+    if (!target) return;
 
-    const deleteWithChildren = async (id: RxDBEntityId) => {
-      const children = files.value.filter(f => f.parentId === id);
-      for (const child of children) {
-        await deleteWithChildren(child.id);
-      }
-      const file = files.value.find(f => f.id === id);
-      if (file) {
-        await file.remove();
-      }
-    };
-
-    await deleteWithChildren(fileToDelete.value.id);
+    // 文件夹会连带删除后代，按级联删除上报；普通文件就是单个删除
+    const operation = target.type === 'folder' ? '级联删除' : '删除';
+    await guardWrite(operation, () => removeWithDescendants(target.id));
     fileToDelete.value = null;
   };
 
@@ -333,7 +335,12 @@ export function useFileManagerStore(files: Ref<FileNode[]>) {
     cancelEdit,
     addChild,
     addRoot,
-    deleteFile,
+    addManyFiles,
+    commitEdit,
+    writeError,
+    clearWriteError,
+    guardWrite,
+    deleteAllFiles,
     clearPathConflict,
     selectFolder,
     cancelSelectFolder,

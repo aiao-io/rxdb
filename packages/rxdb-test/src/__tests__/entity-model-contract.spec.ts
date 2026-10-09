@@ -11,6 +11,10 @@ import { FileLarge } from '../../entities/FileLarge.js';
 import { FileNode } from '../../entities/FileNode.js';
 import { MenuLarge } from '../../entities/MenuLarge.js';
 import { MenuSimple } from '../../entities/MenuSimple.js';
+import { SortableFileLarge } from '../../entities/SortableFileLarge.js';
+import { SortableFileNode } from '../../entities/SortableFileNode.js';
+import { SortableMenuLarge } from '../../entities/SortableMenuLarge.js';
+import { SortableMenuSimple } from '../../entities/SortableMenuSimple.js';
 import { AttributeValue } from '../../shop/AttributeValue.js';
 import { IdCard } from '../../shop/IdCard.js';
 import { SKUAttributes } from '../../shop/SKUAttributes.js';
@@ -58,6 +62,17 @@ describe('published entity model contract', () => {
     expect(indexes.map(index => index.properties)).toContainEqual(['parentId', 'sortOrder']);
   });
 
+  // US-031：可排序树实体按 parentId 分组读尾键、按 (parentId, sortOrder) 排序，三个大规模 / 文件模型带同一条索引
+  it.each([
+    ['SortableMenuLarge', SortableMenuLarge],
+    ['SortableFileNode', SortableFileNode],
+    ['SortableFileLarge', SortableFileLarge]
+  ])('indexes %s by (parentId, sortOrder)', (_name, entity) => {
+    const indexes = getEntityMetadata(entity).indexes;
+
+    expect(indexes.map(index => index.properties)).toContainEqual(['parentId', 'sortOrder']);
+  });
+
   // RXT-010 / RXT-016：同级唯一必须由**数据库**承担。
   // 光有 `unique: true` 不够 —— SQL 规定每个 NULL 互不相等，树形实体的根节点
   // （`parentId IS NULL`）和无扩展名的文件夹（`extension IS NULL`）会让整条索引失效；
@@ -67,7 +82,11 @@ describe('published entity model contract', () => {
     ['FileNode', FileNode, 'parent_fullname', ['parentId', 'name', 'extension']],
     ['FileLarge', FileLarge, 'parent_fullname', ['parentId', 'name', 'extension']],
     ['MenuSimple', MenuSimple, 'parent_title', ['parentId', 'title']],
-    ['MenuLarge', MenuLarge, 'parent_title', ['parentId', 'title']]
+    ['MenuLarge', MenuLarge, 'parent_title', ['parentId', 'title']],
+    ['SortableFileNode', SortableFileNode, 'parent_fullname', ['parentId', 'name', 'extension']],
+    ['SortableFileLarge', SortableFileLarge, 'parent_fullname', ['parentId', 'name', 'extension']],
+    ['SortableMenuSimple', SortableMenuSimple, 'parent_title', ['parentId', 'title']],
+    ['SortableMenuLarge', SortableMenuLarge, 'parent_title', ['parentId', 'title']]
   ])('%s declares a normalized unique sibling index', (_name, entity, indexName, properties) => {
     const index = getEntityMetadata(entity).indexes.find(candidate => candidate.name === indexName);
 

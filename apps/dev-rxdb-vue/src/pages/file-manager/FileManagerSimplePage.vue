@@ -1,7 +1,6 @@
 <script lang="ts" setup>
-import { FileNode } from '@aiao/rxdb-test/entities';
+import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { useFindAll, useRxDB } from '@aiao/rxdb-vue';
-import { formatErrorMessage, useToast } from '../../app/composables/useToast';
 import { useObservable } from '@vueuse/rxjs';
 import {
   ChevronDown,
@@ -30,10 +29,10 @@ import {
 } from '@lucide/vue';
 import { computed, ref, toRefs } from 'vue';
 import HistorySidebar from '../../app/components/HistorySidebar.vue';
+import TreeWriteError from '../../app/components/TreeWriteError.vue';
 import { useDragDrop } from '../../app/composables/useDragDrop';
 import { useFileManagerStore } from '../../app/composables/useFileManagerStore';
 import { getFileIcon } from '../../app/utils/file-icons';
-import { generateBatchFiles } from '../../app/utils/file-utils';
 
 const rxdb = useRxDB();
 const showHistory = ref(true);
@@ -44,22 +43,24 @@ const isDeleting = ref(false);
 
 // 获取所有文件数据 - 使用 useFindAll 实现响应式订阅
 const { value: files } = toRefs(
-  useFindAll(FileNode, {
-    where: { combinator: 'and', rules: [] },
-    orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+  useFindAll(SortableFileNode, {
+    where: { combinator: 'and', rules: [] }
   })
 );
 
-const history = computed(() => rxdb.versionManager.history(FileNode));
+const history = computed(() => rxdb.versionManager.history(SortableFileNode));
 const histories = useObservable(history.value.histories$, { initialValue: [] });
 const undoCount = useObservable(history.value.undoCount$, { initialValue: 0 });
 const redoCount = useObservable(history.value.redoCount$, { initialValue: 0 });
 
-const store = useFileManagerStore(files);
+const store = useFileManagerStore(files, rxdb);
 
 // Drag and drop
-const dragDrop = useDragDrop<FileNode>(files, {
-  isFolder: node => node.type === 'folder'
+const dragDrop = useDragDrop<SortableFileNode>(files, {
+  repository: rxdb.entityManager.getRepository(SortableFileNode),
+  guardWrite: store.guardWrite,
+  isFolder: node => node.type === 'folder',
+  sortMode: store.sortMode
 });
 
 // 扩展名选项
@@ -88,7 +89,7 @@ const batchAddOptions = [
 const handleDeleteAll = async () => {
   isDeleting.value = true;
   try {
-    await rxdb.entityManager.removeMany(files.value);
+    await store.deleteAllFiles();
   } finally {
     isDeleting.value = false;
   }
@@ -98,47 +99,26 @@ const handleDeleteAll = async () => {
 const handleAddMany = async (count: number, actionKey: string) => {
   loadingActions.value.add(actionKey);
   try {
-    const existingRoots = files.value.filter(f => !f.parentId);
-    const newFiles = generateBatchFiles(count, FileNode, existingRoots);
-    await rxdb.entityManager.saveMany(newFiles);
+    await store.addManyFiles(count);
   } finally {
     loadingActions.value.delete(actionKey);
   }
 };
 
-// 保存编辑
-const handleSave = async (file: FileNode) => {
-  await file.save();
-  store.cancelEdit();
-};
-
 // 添加文件/文件夹
 const handleAdd = async () => {
-  if (newName.value.trim()) {
-    if (store.isAddingFile.value) {
-      // 添加文件
-      const parentId = store.selectedFolderId.value;
-      if (parentId) {
-        const parent = files.value.find(f => f.id === parentId);
-        if (parent) {
-          await store.addChild(parent, newName.value, 'file', newExtension.value);
-        }
-      } else {
-        await store.addRoot(newName.value, 'file', newExtension.value);
-      }
-    } else {
-      // 添加文件夹
-      if (store.selectedFolderId.value) {
-        const parent = files.value.find(f => f.id === store.selectedFolderId.value);
-        if (parent) {
-          await store.addChild(parent, newName.value, 'folder');
-        }
-      } else {
-        await store.addRoot(newName.value, 'folder');
-      }
-    }
-    newName.value = '';
-  }
+  if (!newName.value.trim()) return;
+  const type = store.isAddingFile.value ? 'file' : 'folder';
+  const extension = store.isAddingFile.value ? newExtension.value : undefined;
+  const parentId = store.selectedFolderId.value;
+  const parent = parentId ? files.value.find(f => f.id === parentId) : undefined;
+  if (parentId && !parent) return;
+  const added =
+    parent ?
+      await store.addChild(parent, newName.value, type, extension)
+    : await store.addRoot(newName.value, type, extension);
+  // 只在新建成功后清空：冲突或写入失败时保留用户输入
+  if (added) newName.value = '';
 };
 
 // 拖拽事件处理
@@ -150,7 +130,7 @@ const handleDragStart = (e: DragEvent, fileId: string) => {
   dragDrop.onDragStart(fileId);
 };
 
-const handleDragOver = (e: DragEvent, file: FileNode) => {
+const handleDragOver = (e: DragEvent, file: SortableFileNode) => {
   e.preventDefault();
   const element = e.currentTarget as HTMLElement;
   const rect = element.getBoundingClientRect();
@@ -168,19 +148,15 @@ const handleDragLeave = (e: DragEvent) => {
   }
 };
 
-const handleDrop = async (e: DragEvent, file: FileNode) => {
+const handleDrop = async (e: DragEvent, file: SortableFileNode) => {
   e.preventDefault();
   e.stopPropagation();
-  try {
-    await dragDrop.onDrop(file, folderId => {
-      // 展开目标文件夹
-      if (!store.expandedIds.value.has(folderId)) {
-        store.toggleExpand(folderId);
-      }
-    });
-  } catch (error: unknown) {
-    useToast().error(formatErrorMessage('拖放操作失败', error));
-  }
+  await dragDrop.onDrop(file, folderId => {
+    // 展开目标文件夹
+    if (!store.expandedIds.value.has(folderId)) {
+      store.toggleExpand(folderId);
+    }
+  });
 };
 
 const handleDragEnd = () => {
@@ -395,6 +371,7 @@ const getIconComponent = (iconName: string) => {
             <select
               class="select select-bordered select-sm w-32"
               v-model="store.sortMode.value"
+              data-testid="file-sort-select"
             >
               <option value="manual"> 手动排序 </option>
               <option value="name-asc"> 名称 ↑ </option>
@@ -497,6 +474,12 @@ const getIconComponent = (iconName: string) => {
         </div>
       </div>
 
+      <TreeWriteError
+        class="mx-auto mt-4 w-full max-w-4xl"
+        :message="store.writeError.value"
+        @close="store.clearWriteError"
+      />
+
       <!-- Path Conflict Warning -->
       <div
         class="alert alert-warning mx-auto max-w-4xl"
@@ -558,8 +541,17 @@ const getIconComponent = (iconName: string) => {
                 store.selectedFolderId.value === file.id && 'outline-primary outline outline-2'
               ]"
               :data-file-id="file.id"
+              :data-drop-mode="
+                dragDrop.dragDropState.value.targetItemId === file.id ? dragDrop.dragDropState.value.dropMode : ''
+              "
+              :data-drop-target="dragDrop.dragDropState.value.targetItemId === file.id ? 'true' : 'false'"
+              :data-drop-valid="
+                dragDrop.dragDropState.value.targetItemId === file.id ?
+                  String(dragDrop.dragDropState.value.isValidTarget)
+                : ''
+              "
               :data-level="level"
-              :data-parent-id="file.parentId"
+              :data-parent-id="file.parentId ?? ''"
               :key="file.id"
               :style="{ paddingLeft: `${level * 20 + 8}px` }"
               @dragend="handleDragEnd"
@@ -638,8 +630,8 @@ const getIconComponent = (iconName: string) => {
                 class="input input-bordered input-sm flex-1"
                 v-if="store.editingId.value === file.id"
                 v-model="file.name"
-                @blur="handleSave(file)"
-                @keydown.enter="handleSave(file)"
+                @blur="store.commitEdit(file)"
+                @keydown.enter="store.commitEdit(file)"
                 @keydown.escape="store.cancelEdit()"
                 autoFocus
                 data-testid="file-edit-input"

@@ -1,22 +1,33 @@
-import type { RxDBEntityId } from '@aiao/rxdb';
-import { MenuSimple } from '@aiao/rxdb-test/entities';
-import { generateKeyBetween } from '@aiao/utils';
-import { computed, ref, unref, type MaybeRef } from 'vue';
-import { compareSortOrder } from '../utils/sort-order';
+import { type RxDB, type RxDBEntityId, type UUID } from '@aiao/rxdb';
+import { SortableMenuSimple } from '@aiao/rxdb-test/entities';
+import { firstValueFrom } from 'rxjs';
+import { computed, ref, toRaw, unref, type MaybeRef } from 'vue';
+import { generateBatchMenus } from '../utils/menu-utils';
+import { promoteChildrenAndRemove } from '../utils/promote-children';
 import { buildTreeMenuNodes, type TreeMenuNode } from '../utils/tree-menu';
 import { MenuPathConflict, useMenuPathValidator } from './useMenuPathValidator';
+import { useTreeWriteError } from './useTreeWriteError';
 
-export type TreeNode = TreeMenuNode<MenuSimple>;
+export type TreeNode = TreeMenuNode<SortableMenuSimple>;
 
-export function useTreeMenuStore(menus: MaybeRef<MenuSimple[]>) {
+/** 按父节点从库里取直接子节点（不看页面已加载的列表）。 */
+const fetchChildren = (parentId: RxDBEntityId): Promise<SortableMenuSimple[]> =>
+  firstValueFrom(
+    SortableMenuSimple.findAll({
+      where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: parentId as UUID }] }
+    })
+  );
+
+export function useTreeMenuStore(menus: MaybeRef<SortableMenuSimple[]>, rxdb: RxDB) {
   const expandedIds = ref<Set<RxDBEntityId>>(new Set());
   const editingId = ref<RxDBEntityId | null>(null);
   const selectedParentId = ref<RxDBEntityId | null>(null);
   const searchKeyword = ref('');
   const pathConflict = ref<MenuPathConflict | null>(null);
-  const menuToDelete = ref<MenuSimple | null>(null);
+  const menuToDelete = ref<SortableMenuSimple | null>(null);
 
   const pathValidator = useMenuPathValidator();
+  const { writeError, clearWriteError, guardWrite } = useTreeWriteError();
 
   const expandedCount = computed(() => expandedIds.value.size);
 
@@ -73,22 +84,12 @@ export function useTreeMenuStore(menus: MaybeRef<MenuSimple[]>) {
       return false;
     }
 
-    const rootMenus = unref(menus).filter(m => m.parentId === null);
-    rootMenus.sort(compareSortOrder);
-    const lastMenu = rootMenus[rootMenus.length - 1];
-    const lastSortOrder = lastMenu ? lastMenu.sortOrder : null;
-    const newSortOrder = generateKeyBetween(lastSortOrder, null);
-
-    const newMenu = new MenuSimple({
-      title,
-      sortOrder: newSortOrder,
-      parentId: null
-    });
-    await newMenu.save();
-    return true;
+    // 不给 sortOrder：引擎把缺键的新节点追加到所属 parentId 组末尾
+    const newMenu = new SortableMenuSimple({ title, parentId: null });
+    return guardWrite('新建', () => newMenu.save());
   };
 
-  const addChild = async (parent: MenuSimple, title: string) => {
+  const addChild = async (parent: SortableMenuSimple, title: string) => {
     const parentId = parent.id;
     const conflict = pathValidator.checkConflict(title, parentId, unref(menus));
     if (conflict) {
@@ -96,24 +97,27 @@ export function useTreeMenuStore(menus: MaybeRef<MenuSimple[]>) {
       return false;
     }
 
-    const siblings = unref(menus).filter(m => m.parentId === parentId);
-    siblings.sort(compareSortOrder);
-    const lastMenu = siblings[siblings.length - 1];
-    const lastSortOrder = lastMenu ? lastMenu.sortOrder : null;
-    const newSortOrder = generateKeyBetween(lastSortOrder, null);
-
-    const newMenu = new MenuSimple({
-      title,
-      sortOrder: newSortOrder,
-      parentId
-    });
-    await newMenu.save();
-
-    if (!expandedIds.value.has(parentId)) {
+    const newMenu = new SortableMenuSimple({ title, parentId });
+    const saved = await guardWrite('新建', () => newMenu.save());
+    if (saved && !expandedIds.value.has(parentId)) {
       toggleExpand(parentId);
     }
-    return true;
+    return saved;
   };
+
+  // 保存重命名；失败时回退到库里已提交的标题并给出页内提示
+  const commitEdit = async (menu: SortableMenuSimple) => {
+    const saved = await guardWrite('重命名', () => menu.save());
+    if (!saved) menu.reset();
+    cancelEdit();
+  };
+
+  // 批量添加：整批一次 saveMany，生成器不写 sortOrder
+  const addManyMenus = (count: number) =>
+    guardWrite('批量添加', () => rxdb.entityManager.saveMany(generateBatchMenus(count, SortableMenuSimple)));
+
+  // 库里的直接子节点数：弹出删除对话框时按库取，不看页面已加载的列表
+  const deleteChildrenCount = ref(0);
 
   const deleteImpact = computed(() => {
     if (!menuToDelete.value) return { childrenCount: 0, descendantsCount: 0 };
@@ -127,26 +131,28 @@ export function useTreeMenuStore(menus: MaybeRef<MenuSimple[]>) {
       return count;
     };
 
-    const childrenCount = unref(menus).filter(m => m.parentId === menuToDelete.value!.id).length;
-    const descendantsCount = countDescendants(menuToDelete.value!.id);
+    const childrenCount = deleteChildrenCount.value;
+    const descendantsCount = Math.max(countDescendants(menuToDelete.value.id), childrenCount);
 
     return { childrenCount, descendantsCount };
   });
 
-  const deleteMenu = (menu: MenuSimple) => {
-    menuToDelete.value = menu;
+  const showDeleteDialog = async (menu: SortableMenuSimple) => {
+    const opened = await guardWrite('删除', async () => {
+      deleteChildrenCount.value = (await fetchChildren(menu.id)).length;
+    });
+    if (opened) menuToDelete.value = menu;
   };
 
-  const showDeleteDialog = (menu: MenuSimple) => {
-    menuToDelete.value = menu;
-  };
+  const deleteMenu = showDeleteDialog;
 
   const cancelDelete = () => {
     menuToDelete.value = null;
   };
 
   const executeCascadeDelete = async () => {
-    if (!menuToDelete.value) return;
+    const target = menuToDelete.value;
+    if (!target) return;
 
     const deleteWithChildren = async (id: RxDBEntityId) => {
       const children = unref(menus).filter(m => m.parentId === id);
@@ -159,24 +165,20 @@ export function useTreeMenuStore(menus: MaybeRef<MenuSimple[]>) {
       }
     };
 
-    await deleteWithChildren(menuToDelete.value.id);
+    const operation = deleteImpact.value.childrenCount > 0 ? '级联删除' : '删除';
+    await guardWrite(operation, () => deleteWithChildren(target.id));
     menuToDelete.value = null;
   };
 
+  // 删除并提升子节点：子节点取自库，只改 parentId，与删除同一次 mutations 提交
   const executePromoteChildrenDelete = async () => {
-    if (!menuToDelete.value) return;
+    const target = menuToDelete.value;
+    if (!target) return;
 
-    const parentId = menuToDelete.value.parentId;
-    const children = unref(menus).filter(m => m.parentId === menuToDelete.value!.id);
-
-    await Promise.all(
-      children.map(child => {
-        child.parentId = parentId;
-        return child.save();
-      })
-    );
-
-    await menuToDelete.value.remove();
+    await guardWrite('删除并提升子节点', async () => {
+      const children = await fetchChildren(target.id);
+      await promoteChildrenAndRemove(rxdb, toRaw(target), children);
+    });
     menuToDelete.value = null;
   };
 
@@ -191,6 +193,9 @@ export function useTreeMenuStore(menus: MaybeRef<MenuSimple[]>) {
   const clearPathConflict = () => {
     pathConflict.value = null;
   };
+
+  // 删除所有菜单：页内错误提示，不留未处理拒绝
+  const deleteAllMenus = () => guardWrite('删除全部', () => rxdb.entityManager.removeMany(unref(menus)));
 
   return {
     expandedIds,
@@ -210,7 +215,13 @@ export function useTreeMenuStore(menus: MaybeRef<MenuSimple[]>) {
     validateName,
     addRoot,
     addChild,
+    addManyMenus,
+    commitEdit,
+    writeError,
+    clearWriteError,
+    guardWrite,
     deleteMenu,
+    deleteAllMenus,
     showDeleteDialog,
     cancelDelete,
     executeCascadeDelete,

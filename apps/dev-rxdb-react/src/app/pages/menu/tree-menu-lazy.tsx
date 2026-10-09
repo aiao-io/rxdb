@@ -1,5 +1,5 @@
 import { useRxDB } from '@aiao/rxdb-react';
-import { MenuLarge } from '@aiao/rxdb-test/entities';
+import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   ChevronDown,
@@ -25,23 +25,18 @@ import { PathConflictWarning } from '../../components/PathConflictWarning';
 import { useDragDrop } from '../../hooks/useDragDrop';
 import { useMenuRenamePathGuard } from '../../hooks/useRenamePathGuard';
 import { fetchMenuChildren, menuLargeTreeSource, useTreeMenuLazyStore } from '../../hooks/useTreeMenuLazyStore';
-import { getErrorMessage } from '../../utils/error';
 import { mergeById } from '../../utils/tree-scope';
-
-// 模块级常量：写成 JSX 里的对象字面量会每次 render 换新身份，
-// 把 useDragDrop 内部所有 useCallback 的 deps 一起打脏（P2-7）。
-const DRAG_DROP_OPTIONS = { resolveSiblings: fetchMenuChildren };
 
 export function TreeMenuLazyPage() {
   const rxdb = useRxDB();
-  const menuRepository = useMemo(() => rxdb.entityManager.getRepository(MenuLarge), [rxdb]);
+  const menuRepository = useMemo(() => rxdb.entityManager.getRepository(SortableMenuLarge), [rxdb]);
   const [showHistory, setShowHistory] = useState(true);
   const [newTitle, setNewTitle] = useState('');
   const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set());
   const [editingTitles, setEditingTitles] = useState<Map<string, string>>(new Map());
   const parentRef = useRef<HTMLDivElement>(null);
 
-  const history = useMemo(() => rxdb.versionManager.history(MenuLarge), [rxdb]);
+  const history = useMemo(() => rxdb.versionManager.history(SortableMenuLarge), [rxdb]);
   const histories = useObservable(history.histories$, []);
   const undoCount = useObservable(history.undoCount$, 0);
   const redoCount = useObservable(history.redoCount$, 0);
@@ -51,14 +46,19 @@ export function TreeMenuLazyPage() {
     pathConflict: renamePathConflict,
     rename: renameWithPathGuard,
     clearPathConflict: clearRenamePathConflict
-  } = useMenuRenamePathGuard<MenuLarge>();
+  } = useMenuRenamePathGuard<SortableMenuLarge>();
 
   // P0-1：懒加载页面**不能**再订阅整表。拖放要的祖先链必然已在可见集合里
-  // （看得见就说明逐级展开过），真正可能缺席的只有落点的同级，交给 resolveSiblings 按需取。
+  // （看得见就说明逐级展开过）；前后放置的邻居取自 store 里该组已整组加载的 id 序列（getGroupIds），
+  // 拖进折叠节点则只写「追加到该组末尾」，不需要读它的子节点。
   const visibleMenus = useMemo(() => store.treeNodes.map(node => node.menu), [store.treeNodes]);
 
   // Drag and drop
-  const dragDrop = useDragDrop<MenuLarge>(visibleMenus, DRAG_DROP_OPTIONS);
+  const dragDrop = useDragDrop<SortableMenuLarge>(visibleMenus, {
+    repository: menuRepository,
+    runWrite: store.runWrite,
+    getGroupIds: store.getGroupIds
+  });
 
   // 虚拟滚动配置
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns non-memoizable callbacks by design
@@ -103,15 +103,17 @@ export function TreeMenuLazyPage() {
 
   // 保存编辑
   const handleSave = useCallback(
-    async (menu: MenuLarge) => {
+    async (menu: SortableMenuLarge) => {
       const nextTitle = editingTitles.get(menu.id);
       if (typeof nextTitle === 'string' && nextTitle !== menu.title) {
-        // 冲突检测只看同级（可能未加载 → 按需查），路径展示要祖先链（必在可见集合里）。
-        const scope = mergeById(visibleMenus, await fetchMenuChildren(menu.parentId ?? null));
-        const renamed = await renameWithPathGuard(menu, nextTitle, scope, async (current, value) => {
-          await menuRepository.update(current, { title: value });
+        const renamed = await store.runWrite('重命名', async () => {
+          // 冲突检测只看同级（可能未加载 → 按需查），路径展示要祖先链（必在可见集合里）。
+          const scope = mergeById(visibleMenus, await fetchMenuChildren(menu.parentId ?? null));
+          return renameWithPathGuard(menu, nextTitle, scope, async (current, value) => {
+            await menuRepository.update(current, { title: value });
+          });
         });
-        if (!renamed) return;
+        if (!renamed.ok || !renamed.value) return;
       }
       setEditingTitles(prev => {
         const next = new Map(prev);
@@ -124,7 +126,7 @@ export function TreeMenuLazyPage() {
   );
 
   const handleStartEdit = useCallback(
-    (menu: MenuLarge) => {
+    (menu: SortableMenuLarge) => {
       setEditingTitles(prev => new Map(prev).set(menu.id, menu.title));
       store.startEdit(menu.id);
     },
@@ -283,14 +285,11 @@ export function TreeMenuLazyPage() {
                 e.preventDefault();
                 if (!newTitle.trim()) return;
 
+                // 只在新建成功后清空：冲突或写入失败时保留用户输入
                 if (store.selectedParentId) {
                   const parent = store.getNode(store.selectedParentId);
-                  if (parent) {
-                    await store.addChild(parent, newTitle);
-                    setNewTitle('');
-                  }
-                } else {
-                  await store.addRoot(newTitle);
+                  if (parent && (await store.addChild(parent, newTitle))) setNewTitle('');
+                } else if (await store.addRoot(newTitle)) {
                   setNewTitle('');
                 }
               }}
@@ -371,7 +370,7 @@ export function TreeMenuLazyPage() {
         />
 
         <div className='mx-auto max-w-4xl px-4'>
-          <OperationErrorAlert message={store.deleteError} onClose={store.clearDeleteError} />
+          <OperationErrorAlert message={store.writeError} onClose={store.clearWriteError} />
         </div>
 
         {/* Tree List (Virtual) */}
@@ -427,7 +426,7 @@ export function TreeMenuLazyPage() {
                     data-drop-target={isTarget ? 'true' : 'false'}
                     data-drop-valid={isTarget ? String(dragDrop.dragDropState.isValidTarget) : ''}
                     data-menu-id={menu.id}
-                    data-parent-id={menu.parentId}
+                    data-parent-id={menu.parentId ?? ''}
                     data-testid='menu-row'
                     style={{
                       height: `${virtualRow.size}px`,
@@ -457,18 +456,21 @@ export function TreeMenuLazyPage() {
                     onDrop={async e => {
                       e.preventDefault();
                       e.stopPropagation();
-                      try {
-                        await dragDrop.onDrop(menu, menuId => {
+                      // 失败由 useDragDrop 经 runWrite 送进页内提示，这里不再有 catch / alert
+                      await dragDrop.onDrop(
+                        menu,
+                        menuId => {
                           // 仅当目标节点未加载子节点时才展开
                           // 这对应 Angular 的 !this.childSubscriptions.has(targetId) 检查
                           if (!store.hasLoadedChildren(menuId)) {
                             void store.toggleExpand(menuId);
                           }
-                        });
-                      } catch (error: unknown) {
-                        console.error('Drop error:', error);
-                        alert(getErrorMessage(error, '拖放操作失败'));
-                      }
+                        },
+                        {
+                          mouseY: e.clientY,
+                          rect: (e.currentTarget as HTMLElement).getBoundingClientRect()
+                        }
+                      );
                     }}
                     onDragEnd={() => dragDrop.onDragEnd()}
                   >

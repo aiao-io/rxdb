@@ -7,18 +7,18 @@ export interface OperationErrorAlertProps {
 }
 
 /**
- * 写操作失败的页面级提示。
+ * 树页面写入失败的页面级提示（新建、重命名、批量添加、删除、级联删除、删除并提升子节点、拖放）。
  *
  * @remarks
- * REACT-FRESH-01：三个 tree store 的删除失败原先只能 `void` 掉 —— 页面没有任何承接错误的位置。
- * 这里补上这个位置，让 store 的 `deleteError` 有地方可去；否则"改成 await"只是把悬空 Promise
- * 换成了悬空状态。
+ * 菜单与文件管理器各三页共用，文案由 `formatTreeWriteError` 生成，状态来自 store 的 `writeError`。
+ * 根元素带 `data-testid="tree-write-error"`，三端 e2e 与单测按它定位。
+ * REACT-FRESH-01：页面此前没有任何承接写入失败的位置，失败只能是未处理的拒绝。
  */
 export function OperationErrorAlert({ message, onClose }: OperationErrorAlertProps) {
   if (!message) return null;
 
   return (
-    <div className='alert alert-error' role='alert'>
+    <div className='alert alert-error' data-testid='tree-write-error' role='alert'>
       <CircleAlert size={20} />
       <div className='flex-1 text-sm'>{message}</div>
       <button aria-label='关闭错误提示' className='btn btn-ghost btn-sm btn-circle' onClick={onClose} type='button'>

@@ -90,7 +90,7 @@
               <button class="btn btn-sm join-item" [disabled]="undo_disabled" (click)="undo()" aria-label="撤销">
                 <svg [lucideIcon]="Undo2" size="16"></svg>
                 @if (undo_count) {
-                  <span class="badge badge-xs">{{ undo_count }}</span>
+                  <span class="badge badge-xs" data-testid="menu-undo-count">{{ undo_count }}</span>
                 }
               </button>
               <button class="btn btn-sm join-item" [disabled]="redo_disabled" (click)="redo()" aria-label="重做">
@@ -166,10 +166,16 @@
               [placeholder]="parentId ? '输入子菜单标题...' : '输入根菜单标题...'"
               (keyup.enter)="onFormSubmit($event)"
               autocomplete="off"
+              data-testid="menu-title-input"
               type="text"
             />
           </div>
-          <button class="btn btn-primary btn-sm" (click)="onFormSubmit($event)" type="button">
+          <button
+            class="btn btn-primary btn-sm"
+            [attr.data-testid]="parentId ? 'menu-submit-child' : 'menu-add-root'"
+            (click)="onFormSubmit($event)"
+            type="button"
+          >
             <svg [lucideIcon]="Plus" [size]="16" />
             {{ parentId ? '添加子菜单' : '添加根菜单' }}
           </button>
@@ -203,6 +209,9 @@
     <!-- 主内容区 -->
     <div class="p-6">
       <div class="mx-auto max-w-4xl space-y-6">
+        <!-- 写入失败提示（新建 / 重命名 / 批量添加 / 删除） -->
+        <app-tree-write-error [message]="writeError()" (closed)="clearWriteError()" />
+
         <!-- 路径冲突警告 -->
         @if (pathConflictWarning()) {
           <div class="alert alert-warning">
@@ -235,7 +244,10 @@
                   <li
                     class="tree-node"
                     *cdkVirtualFor="let node of treeNodes(); trackBy: trackByMenuId"
+                    [attr.data-drop-mode]="state.targetItemId === node.menu.id ? state.dropMode : ''"
+                    [attr.data-drop-valid]="state.targetItemId === node.menu.id ? state.isValidTarget : ''"
                     [attr.data-menu-id]="node.menu.id"
+                    [attr.data-parent-id]="node.menu.parentId ?? ''"
                     [attr.draggable]="true"
                     [class.dragging]="state.draggedItemId === node.menu.id"
                     [class.drop-after]="
@@ -261,6 +273,7 @@
                       <!-- 拖拽手柄 -->
                       <button
                         class="btn btn-ghost btn-xs btn-square drag-handle opacity-0 transition-opacity group-hover:opacity-100"
+                        data-testid="menu-drag-handle"
                         title="拖拽排序"
                       >
                         <svg [lucideIcon]="GripVertical" [size]="14" />
@@ -287,6 +300,7 @@
                             [(ngModel)]="$edit_menu_title"
                             (keydown.escape)="cancelEdit()"
                             (keyup.enter)="saveEdit($event)"
+                            data-testid="menu-edit-input"
                             type="text"
                           />
                           <button class="btn btn-primary btn-sm" (click)="saveEdit($event)" type="button">确认</button>

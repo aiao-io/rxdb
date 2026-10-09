@@ -1,7 +1,6 @@
 <script lang="ts" setup>
-import { FileLarge } from '@aiao/rxdb-test/entities';
+import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { useRxDB } from '@aiao/rxdb-vue';
-import { formatErrorMessage, useToast } from '../../app/composables/useToast';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { useObservable } from '@vueuse/rxjs';
 import {
@@ -32,6 +31,7 @@ import {
 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import HistorySidebar from '../../app/components/HistorySidebar.vue';
+import TreeWriteError from '../../app/components/TreeWriteError.vue';
 import { useDragDrop } from '../../app/composables/useDragDrop';
 import { useFileManagerLazyStore } from '../../app/composables/useFileManagerLazyStore';
 import { getFileIcon } from '../../app/utils/file-icons';
@@ -45,16 +45,21 @@ const loadingActions = ref<Set<string>>(new Set());
 const isDeleting = ref(false);
 const parentRef = ref<HTMLDivElement | null>(null);
 
-const history = computed(() => rxdb.versionManager.history(FileLarge));
+const history = computed(() => rxdb.versionManager.history(SortableFileLarge));
 const histories = useObservable(history.value.histories$, { initialValue: [] });
 const undoCount = useObservable(history.value.undoCount$, { initialValue: 0 });
 const redoCount = useObservable(history.value.redoCount$, { initialValue: 0 });
 
 const store = useFileManagerLazyStore(rxdb);
 
-// 拖放验证用 store 已加载节点快照，避免重复订阅全表（lazy 模式 10k 节点会 OOM）。
-const dragDrop = useDragDrop<FileLarge>(store.loadedNodes, {
-  isFolder: node => node.type === 'folder'
+// 拖放判环用 store 已加载节点快照，避免重复订阅全表（lazy 模式 10k 节点会 OOM）；
+// 前后放置的邻居取目标所在父节点已加载的整组子节点。
+const dragDrop = useDragDrop<SortableFileLarge>(store.loadedNodes, {
+  repository: rxdb.entityManager.getRepository(SortableFileLarge),
+  guardWrite: store.guardWrite,
+  isFolder: node => node.type === 'folder',
+  sortMode: store.sortMode,
+  groupIds: store.siblingIds
 });
 
 // Virtual scroll setup
@@ -110,39 +115,20 @@ const handleAddMany = async (count: number, actionKey: string) => {
   }
 };
 
-// 保存编辑
-const handleSave = async (file: FileLarge) => {
-  await file.save();
-  store.cancelEdit();
-};
-
 // 添加文件/文件夹
 const handleAdd = async () => {
-  if (newName.value.trim()) {
-    if (store.isAddingFile.value) {
-      // 添加文件
-      const parentId = store.selectedFolderId.value;
-      if (parentId) {
-        const parent = store.loadedNodes.value.find(file => file.id === parentId);
-        if (parent) {
-          await store.addChild(parent, newName.value, 'file', newExtension.value);
-        }
-      } else {
-        await store.addRoot(newName.value, 'file', newExtension.value);
-      }
-    } else {
-      // 添加文件夹
-      if (store.selectedFolderId.value) {
-        const parent = store.loadedNodes.value.find(file => file.id === store.selectedFolderId.value);
-        if (parent) {
-          await store.addChild(parent, newName.value, 'folder');
-        }
-      } else {
-        await store.addRoot(newName.value, 'folder');
-      }
-    }
-    newName.value = '';
-  }
+  if (!newName.value.trim()) return;
+  const type = store.isAddingFile.value ? 'file' : 'folder';
+  const extension = store.isAddingFile.value ? newExtension.value : undefined;
+  const parentId = store.selectedFolderId.value;
+  const parent = parentId ? store.loadedNodes.value.find(file => file.id === parentId) : undefined;
+  if (parentId && !parent) return;
+  const added =
+    parent ?
+      await store.addChild(parent, newName.value, type, extension)
+    : await store.addRoot(newName.value, type, extension);
+  // 只在新建成功后清空：冲突或写入失败时保留用户输入
+  if (added) newName.value = '';
 };
 
 // 拖拽事件处理
@@ -154,7 +140,7 @@ const handleDragStart = (e: DragEvent, fileId: string) => {
   dragDrop.onDragStart(fileId);
 };
 
-const handleDragOver = (e: DragEvent, file: FileLarge) => {
+const handleDragOver = (e: DragEvent, file: SortableFileLarge) => {
   e.preventDefault();
   const element = e.currentTarget as HTMLElement;
   const rect = element.getBoundingClientRect();
@@ -172,19 +158,15 @@ const handleDragLeave = (e: DragEvent) => {
   }
 };
 
-const handleDrop = async (e: DragEvent, file: FileLarge) => {
+const handleDrop = async (e: DragEvent, file: SortableFileLarge) => {
   e.preventDefault();
   e.stopPropagation();
-  try {
-    await dragDrop.onDrop(file, folderId => {
-      // 展开目标文件夹
-      if (!store.expandedIds.value.has(folderId)) {
-        store.toggleExpand(folderId);
-      }
-    });
-  } catch (error: unknown) {
-    useToast().error(formatErrorMessage('拖放操作失败', error));
-  }
+  await dragDrop.onDrop(file, folderId => {
+    // 展开目标文件夹
+    if (!store.expandedIds.value.has(folderId)) {
+      store.toggleExpand(folderId);
+    }
+  });
 };
 
 const handleDragEnd = () => {
@@ -399,6 +381,7 @@ const getIconComponent = (iconName: string) => {
             <select
               class="select select-bordered select-sm w-32"
               v-model="store.sortMode.value"
+              data-testid="file-sort-select"
             >
               <option value="manual">自由排序</option>
               <option value="name-asc">名称 A→Z</option>
@@ -501,6 +484,12 @@ const getIconComponent = (iconName: string) => {
         </div>
       </div>
 
+      <TreeWriteError
+        class="mx-auto mt-4 w-full max-w-4xl"
+        :message="store.writeError.value"
+        @close="store.clearWriteError"
+      />
+
       <!-- Tree List (Virtual) -->
       <div
         class="flex-1 overflow-auto p-4"
@@ -552,8 +541,19 @@ const getIconComponent = (iconName: string) => {
                   store.selectedFolderId.value === node.file.id && 'outline-primary outline outline-2'
                 ]"
                 :data-file-id="node.file.id"
+                :data-drop-mode="
+                  dragDrop.dragDropState.value.targetItemId === node.file.id ?
+                    dragDrop.dragDropState.value.dropMode
+                  : ''
+                "
+                :data-drop-target="dragDrop.dragDropState.value.targetItemId === node.file.id ? 'true' : 'false'"
+                :data-drop-valid="
+                  dragDrop.dragDropState.value.targetItemId === node.file.id ?
+                    String(dragDrop.dragDropState.value.isValidTarget)
+                  : ''
+                "
                 :data-level="node.level"
-                :data-parent-id="node.file.parentId"
+                :data-parent-id="node.file.parentId ?? ''"
                 :style="{ paddingLeft: `${node.level * 20 + 8}px` }"
                 @dragend="handleDragEnd"
                 @dragleave="handleDragLeave"
@@ -575,7 +575,7 @@ const getIconComponent = (iconName: string) => {
                 <!-- Expand/Collapse -->
                 <button
                   class="btn btn-ghost btn-xs p-0"
-                  :disabled="node.file.type !== 'folder' || !node.hasChildren"
+                  :disabled="node.file.type !== 'folder' || !node.hasChildren || node.isLoading"
                   @click="store.toggleExpand(node.file.id)"
                   data-testid="file-node-toggle"
                 >
@@ -637,8 +637,8 @@ const getIconComponent = (iconName: string) => {
                   class="input input-bordered input-sm flex-1"
                   v-if="store.editingId.value === node.file.id"
                   v-model="node.file.name"
-                  @blur="handleSave(node.file)"
-                  @keydown.enter="handleSave(node.file)"
+                  @blur="store.commitEdit(node.file)"
+                  @keydown.enter="store.commitEdit(node.file)"
                   @keydown.escape="store.cancelEdit()"
                   autoFocus
                   data-testid="file-edit-input"

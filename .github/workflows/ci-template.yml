@@ -274,7 +274,8 @@ jobs:
           #
           # 这里**不再**整体 --exclude=website,benchmarks。当初排除它们是因为担心
           # `--coverage.*` 这些 lane 参数打到非 vitest 的 target 上（website:test 是
-          # `node --test`）。实测不会：Nx 不把未声明的 CLI 参数转发给 run-commands，
+          # `node --test`）。参数确实会被 run-commands 原样转发（`forwardAllArgs` 默认开），
+          # 但它们落在 `node --test <文件>` 的文件名之后，只是脚本 argv，node 不解析；
           # website:test / benchmarks:test 带着完整 lane 参数跑都是绿的。
           # 排除的代价是实打实的：website / benchmarks 的 lint 和 typecheck 在 CI 里
           # 一次都没跑过。
@@ -383,7 +384,9 @@ jobs:
                       + ($r | sort | map({project: ., target: "e2e-remote", label: (short_name + " remote"), supabase: true})))
             }')
 
-          TEST_MATRIX=$(node scripts/ci/plan-test-lanes.mjs --projects="$TEST")
+          # 有 test-memory target 的项目（按子进程 RSS 判内存的用例）另开一条 lane，见 plan-test-lanes.mjs 的 MEMORY_TARGET。
+          MEMORY=$(jq -r 'sort | join(",")' <<<"$(projects_json test-memory)")
+          TEST_MATRIX=$(node scripts/ci/plan-test-lanes.mjs --projects="$TEST" --memory-projects="$MEMORY")
 
           # PR 且改动落在 packages/ 或 benchmarks/ 时才跑基准门禁。
           # 在这里判定而不是在 benchmark job 里判定：不需要时整个 job 直接 skip，
@@ -550,7 +553,8 @@ jobs:
   # test lane：一条 lane = 一个 job，项目划分由 scripts/ci/plan-test-lanes.mjs
   # 按实测耗时做 LPT 装箱。lane 内 `--parallel=1` —— 各 vitest 任务自己已经
   # 多 worker 并行（见 rxdb-adapter-pglite 的 maxWorkers=4），再叠一层 Nx 并行
-  # 只会在 4 vCPU 上互相抢核。
+  # 只会在 4 vCPU 上互相抢核。测试依赖的构建不受这条限制，见 Build test prerequisites。
+  # 每条 lane 的 `matrix.target` 是 test，内存 lane 是 test-memory（plan-test-lanes.mjs 的 MEMORY_TARGET）。
   test:
     # 名字用 label 不用 lane：`test (t1)` 在 checks 列表里说不出任何信息。
     # lane ↔ label 的映射见 setup 的 job summary。
@@ -583,12 +587,36 @@ jobs:
 
       # final + summary 必须同时生成：覆盖率门禁会从 final 重算原始计数，
       # 拒绝损坏或跨代的 summary（见 scripts/coverage-artifacts.mjs）。
+      #
+      # 测试依赖的构建先以 `--parallel=3`（与 build job 相同）单独跑完：`--parallel=1` 管的是整张任务图，
+      # 不拆开的话 `^build` / typecheck 也跟着串行，PR #101 上最重的一条 lane 光建依赖就花了 301s。
+      # 拆开后测试那一步全部命中本地缓存，测试本身照旧串行。
+      - name: Build test prerequisites
+        env:
+          PROJECTS: ${{ matrix.projects }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          pnpm exec nx run-many -t "$TARGET" -p "$PROJECTS" --graph=.nx-test-task-graph.json > /dev/null
+          node scripts/ci/test-prereq-tasks.mjs .nx-test-task-graph.json > .nx-test-prereqs.tsv
+          while IFS=$'\t' read -r target projects; do
+            pnpm exec nx run-many -t "$target" -p "$projects" --output-style=stream --parallel=3
+          done < .nx-test-prereqs.tsv
+
+      # 覆盖率参数只给 `matrix.coverage` 为真的 lane：内存 lane 跑 test-memory，它的命令带
+      # `--coverage.enabled=false`，后面再追加 `--coverage` 会把它重新打开（v8 插桩会抬高被测的 RSS）。
       - name: Test
         env:
           PROJECTS: ${{ matrix.projects }}
+          TARGET: ${{ matrix.target }}
+          COVERAGE: ${{ matrix.coverage }}
         run: |
-          pnpm exec nx run-many -t test -p "$PROJECTS" --output-style=stream --parallel=1 \
-            --coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=lcovonly
+          set -euo pipefail
+          COVERAGE_ARGS=()
+          if [ "$COVERAGE" = "true" ]; then
+            COVERAGE_ARGS=(--coverage --coverage.reporter=json --coverage.reporter=json-summary --coverage.reporter=lcovonly)
+          fi
+          pnpm exec nx run-many -t "$TARGET" -p "$PROJECTS" --output-style=stream --parallel=1 "${COVERAGE_ARGS[@]}"
 
       # 只传门禁和 Codecov 真正要读的四种文件。html 报告有几百 MB，
       # 传上去除了拖慢 CI 没人看。
@@ -602,7 +630,8 @@ jobs:
       # 也才容得下 `apps/` 与 `modules/` 两组。
       #
       # `matrix.coverage` 为 false 表示整条 lane 都是 `node --test` 一类不采集覆盖率的
-      # 项目（见 plan-test-lanes.mjs 的 NO_COVERAGE_PROJECTS），这时没有产物可传，
+      # 项目（见 plan-test-lanes.mjs 的 NO_COVERAGE_PROJECTS），或者是内存 lane（test-memory
+      # 刻意不带覆盖率），这时没有产物可传，
       # 跳过上传；coverage job 用 pattern 下载，缺这一份 artifact 不报错。
       - name: Upload coverage
         if: ${{ !cancelled() && matrix.coverage }}
@@ -1076,8 +1105,12 @@ jobs:
   # 先重跑该 job 一次，同一新型号反复出现再走 bench-freeze.yml 补冻。一份 reference 都没冻结时
   # 打印提示以 0 退出。
   #
-  # 两个 target 走一次 run-many 而不是两个 step：串成两步的话，search-ci 红了
-  # bench-working-tree 就不跑了，而一轮 CI 本该同时看到两边的结论。run-many 默认不 bail。
+  # bench-sortable-batch（US-031）同样是纯 Node（PGlite）：手动排序的批内追加与「同一批行带显式键」
+  # 在同一次运行里自比，比值超过 1.2 即失败；另量已有树里新建单个节点，中位数超过 100 ms 即失败（SC-004 的两条判据）。
+  # 它不依赖冻结的 reference，换 CPU 型号也不会报环境不匹配。
+  #
+  # 几个 target 走一次 run-many 而不是分成几个 step：串成几步的话，前一个红了
+  # 后面的就不跑了，而一轮 CI 本该同时看到全部结论。run-many 默认不 bail。
   benchmark:
     name: benchmarks
     needs: setup
@@ -1093,7 +1126,7 @@ jobs:
       - uses: ./.github/actions/setup-workspace
       - uses: ./.github/actions/nx-cache-restore
       - uses: ./.github/actions/playwright-chromium
-      - run: pnpm exec nx run-many -t search-ci bench-working-tree -p benchmarks --output-style=stream
+      - run: pnpm exec nx run-many -t search-ci bench-working-tree bench-sortable-batch -p benchmarks --output-style=stream
 
   # ---------------------------------------------------------------------------
   # 覆盖率汇总：把各 lane 的 artifact 合回一个 coverage/ 目录，跑阈值门禁 + 上报 Codecov。

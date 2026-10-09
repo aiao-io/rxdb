@@ -23,13 +23,12 @@ export function persistSortMode(mode: string): void {
 export interface SortableFileLike {
   name: string;
   type: string;
-  sortOrder?: string | null;
   extension?: string | null;
   size?: number | null;
 }
 
 export enum SortMode {
-  Manual = 'manual', // 自由排序(使用 sortOrder)
+  Manual = 'manual', // 自由排序(手动顺序，显示查询顺序)
   NameAsc = 'name-asc', // 名称升序
   NameDesc = 'name-desc', // 名称降序
   TypeAsc = 'type-asc', // 类型优先(文件夹 → 文件)
@@ -55,24 +54,18 @@ export const SORT_MODE_LABELS: Record<SortMode, string> = {
   [SortMode.SizeDesc]: '大小(大→小)'
 };
 
+/** 文件排序比较器 */
+export type SortComparator = (a: SortableFileLike, b: SortableFileLike) => number;
+
 /**
  * 获取排序比较器函数
  * @param mode 排序模式
- * @returns 比较器函数
+ * @returns 比较器函数；手动模式返回 `null`——显示顺序就是查询顺序（引擎默认的 parentId、sortOrder、id），调用方不再排序
  */
-export function getSortComparator(mode: SortMode): (a: SortableFileLike, b: SortableFileLike) => number {
+export function getSortComparator(mode: SortMode): SortComparator | null {
   switch (mode) {
     case SortMode.Manual:
-      // 使用 sortOrder 字段进行排序
-      return (a, b) => {
-        const aSort = a.sortOrder ?? '';
-        const bSort = b.sortOrder ?? '';
-        return (
-          aSort < bSort ? -1
-          : aSort > bSort ? 1
-          : 0
-        );
-      };
+      return null;
 
     case SortMode.NameAsc:
       // 名称升序,使用中文排序规则

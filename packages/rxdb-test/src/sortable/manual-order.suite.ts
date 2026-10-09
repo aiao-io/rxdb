@@ -13,9 +13,17 @@ import { filter, firstValueFrom } from 'rxjs';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { generateTestDbName } from '../testing/generate-test-db-name.js';
-import { SortableItem, SortableList, SortableListItem, SortableTeamItem, SortableTodo } from './fixtures.js';
+import {
+  SortableItem,
+  SortableList,
+  SortableListItem,
+  SortableNode,
+  SortableTeamItem,
+  SortableTodo
+} from './fixtures.js';
 import { describeManualOrderEdits } from './manual-order-edits.suite.js';
 import { describeManualOrderGroups } from './manual-order-group.suite.js';
+import { describeManualOrderTree } from './manual-order-tree.suite.js';
 import { withTransactionBarrier } from './transaction-barrier.js';
 import type { ManualOrderSuiteDatabase, ManualOrderSuiteFactory } from './types.js';
 
@@ -55,7 +63,7 @@ export function runManualOrderSuite(options: ManualOrderSuiteOptions): void {
     beforeEach(async () => {
       database = await factory.createDatabase({
         dbName: generateTestDbName('manual_order'),
-        entities: [SortableItem, SortableList, SortableListItem, SortableTodo, SortableTeamItem]
+        entities: [SortableItem, SortableList, SortableListItem, SortableTodo, SortableTeamItem, SortableNode]
       });
       return async () => {
         await database.dispose();
@@ -278,6 +286,7 @@ export function runManualOrderSuite(options: ManualOrderSuiteOptions): void {
     });
 
     describeManualOrderGroups(() => database);
+    describeManualOrderTree(() => database);
     describeManualOrderEdits(() => database);
   });
 }

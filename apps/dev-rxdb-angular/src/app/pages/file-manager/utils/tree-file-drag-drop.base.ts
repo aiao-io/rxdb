@@ -69,15 +69,11 @@ export abstract class TreeFileDragDropBase<C extends FileTreeEntityConstructor> 
     event.preventDefault();
     event.stopPropagation();
 
-    try {
-      await this.store.onDrop(file);
+    // 失败只进页内提示（`拖放失败：…`）；拖拽状态由 store.onDrop 的 finally 复位
+    const done = await this.runWrite('拖放', () => this.store.onDrop(file));
 
-      // 自动滚动到目标节点
-      this.scrollToFile(file.id);
-    } catch (error) {
-      console.error('Error during drop:', error);
-      alert('拖拽失败');
-    }
+    // 自动滚动到目标节点
+    if (done) this.scrollToFile(file.id);
   }
 
   onDragEnd(event: DragEvent): void {
@@ -112,6 +108,18 @@ export abstract class TreeFileDragDropBase<C extends FileTreeEntityConstructor> 
       default:
         return null;
     }
+  }
+
+  /** 目标行的 `data-drop-mode`：拖动中的落点（before / after / into），非目标行为空串。 */
+  dropModeAttr(fileId: string): string {
+    const state = this.dragDropState();
+    return state.targetItemId === fileId ? (state.dropMode ?? '') : '';
+  }
+
+  /** 目标行的 `data-drop-valid`：判定为 reject 时 `false`，否则 `true`；非目标行为空串。 */
+  dropValidAttr(fileId: string): string {
+    const state = this.dragDropState();
+    return state.targetItemId === fileId ? String(state.isValidTarget) : '';
   }
 
   isInvalidTarget(fileId: string): boolean {

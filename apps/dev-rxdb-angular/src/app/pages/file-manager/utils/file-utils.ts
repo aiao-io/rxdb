@@ -1,5 +1,3 @@
-import { generateKeyBetween } from '@aiao/utils';
-
 export interface FileNode {
   id: string;
   parentId?: string | null;
@@ -40,18 +38,16 @@ const FILE_EXTENSIONS = [
 
 /**
  * 批量生成文件/文件夹数据（带随机层级）
+ *
+ * @remarks
+ * 节点不带 `sortOrder`：整批进一次 `saveMany`，引擎按批内顺序把各 `parentId` 组追加到末尾。
  */
-export function generateBatchFiles<T extends FileEntity>(
-  total: number,
-  createEntity: () => T,
-  existingRoots: T[]
-): T[] {
+export function generateBatchFiles<T extends FileEntity>(total: number, createEntity: () => T): T[] {
   const maxDepth = 7;
   const files: T[] = [];
   const depths = new Map<string, number>();
   depths.set('root', 0);
 
-  const newChildrenMap = new Map<string, T[]>();
   const parentIds: string[] = ['root'];
   const createdFilesMap = new Map<string, T>();
   const folderIds: string[] = [];
@@ -76,7 +72,6 @@ export function generateBatchFiles<T extends FileEntity>(
     const file = createEntity();
     file.name = name;
     file.type = type;
-    file.sortOrder = '';
     file.extension = extension;
     file.size = size;
     file.hasChildren = false;
@@ -101,25 +96,6 @@ export function generateBatchFiles<T extends FileEntity>(
         parentIds.push(file.id);
         folderIds.push(file.id);
       }
-    }
-
-    const key = parentId;
-    if (!newChildrenMap.has(key)) {
-      newChildrenMap.set(key, []);
-    }
-    newChildrenMap.get(key)!.push(file);
-  }
-
-  // Calculate SortOrder
-  const lastRootSort = existingRoots[existingRoots.length - 1]?.sortOrder ?? null;
-
-  for (const [parentId, children] of newChildrenMap.entries()) {
-    let lastSort: string | null = parentId === 'root' ? lastRootSort : null;
-
-    for (const child of children) {
-      const newSort = generateKeyBetween(lastSort, null);
-      child.sortOrder = newSort;
-      lastSort = newSort;
     }
   }
 

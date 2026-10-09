@@ -15,9 +15,19 @@ import { StringDecoder } from 'node:string_decoder';
 import { pathToFileURL } from 'node:url';
 import { stripVTControlCharacters } from 'node:util';
 
-// 与 package.json 的 `test-all` 逐个对齐（含顺序）：两处分叉过一次，
-// `audit-lazy-backend` 只写在 package.json 里，用本脚本跑「全量」时那道门禁被静默跳过。
-const defaultTargets = ['lint', 'typecheck', 'test', 'test-browser', 'build', 'audit-lazy-backend', 'e2e'];
+// 与 package.json 的 `test-all` 逐个对齐（含顺序）：两处分叉过两次，
+// `audit-lazy-backend`、`test-memory` 先后只写在 package.json 里，用本脚本跑「全量」时那道门禁被静默跳过；
+// 现由 test-all-log.spec.mjs 钉住两处一致。
+const defaultTargets = [
+  'lint',
+  'typecheck',
+  'test',
+  'test-memory',
+  'test-browser',
+  'build',
+  'audit-lazy-backend',
+  'e2e'
+];
 const outputStyles = new Set(['stream', 'static', 'buffer']);
 const defaultMaxLineLength = 4096;
 

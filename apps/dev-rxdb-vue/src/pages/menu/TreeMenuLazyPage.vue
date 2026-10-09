@@ -1,7 +1,6 @@
 <script lang="ts" setup>
-import { MenuLarge } from '@aiao/rxdb-test/entities';
+import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { useRxDB } from '@aiao/rxdb-vue';
-import { formatErrorMessage, useToast } from '../../app/composables/useToast';
 import { useVirtualizer } from '@tanstack/vue-virtual';
 import { useObservable } from '@vueuse/rxjs';
 import {
@@ -22,6 +21,7 @@ import {
 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import HistorySidebar from '../../app/components/HistorySidebar.vue';
+import TreeWriteError from '../../app/components/TreeWriteError.vue';
 import { useDragDrop } from '../../app/composables/useDragDrop';
 import { useTreeMenuLazyStore } from '../../app/composables/useTreeMenuLazyStore';
 import { pairVirtualRows } from '../../app/utils/virtual-rows';
@@ -32,7 +32,7 @@ const newTitle = ref('');
 const loadingActions = ref<Set<string>>(new Set());
 const parentRef = ref<HTMLElement | null>(null);
 
-const history = computed(() => rxdb.versionManager.history(MenuLarge));
+const history = computed(() => rxdb.versionManager.history(SortableMenuLarge));
 const histories = useObservable(history.value.histories$, { initialValue: [] });
 const undoCount = useObservable(history.value.undoCount$, { initialValue: 0 });
 const redoCount = useObservable(history.value.redoCount$, { initialValue: 0 });
@@ -47,9 +47,13 @@ const focusMenuTitleInput = () => {
   window.document.getElementById('menu-title-input')?.focus();
 };
 
-// 拖放验证用 store 已加载节点快照（包含 visible 节点与其祖先链），
-// 不再开第二份全表订阅，避免 lazy 模式名存实亡。
-const dragDrop = useDragDrop<MenuLarge>(store.loadedNodes);
+// 拖放判环用 store 的拖放快照：常规模式是已加载节点（包含 visible 节点与其祖先链），搜索时是搜索全集，
+// 不再开第二份全表订阅，避免 lazy 模式名存实亡；前后放置的邻居取同一来源里目标所在父节点的整组子节点，不取可见行。
+const dragDrop = useDragDrop<SortableMenuLarge>(store.dragNodes, {
+  repository: rxdb.entityManager.getRepository(SortableMenuLarge),
+  guardWrite: store.guardWrite,
+  groupIds: store.siblingIds
+});
 
 // 虚拟滚动配置
 const rowVirtualizer = useVirtualizer(
@@ -85,12 +89,6 @@ const handleDeleteAll = async () => {
   }
 };
 
-// 保存编辑
-const handleSave = async (menu: MenuLarge) => {
-  await menu.save();
-  store.cancelEdit();
-};
-
 // 添加菜单
 const handleAddMenu = async () => {
   if (!newTitle.value.trim()) return;
@@ -98,12 +96,9 @@ const handleAddMenu = async () => {
   const parent = selectedParent.value;
   if (store.selectedParentId.value && !parent) return;
 
-  if (parent) {
-    await store.addChild(parent, newTitle.value);
-  } else {
-    await store.addRoot(newTitle.value);
-  }
-  newTitle.value = '';
+  const added = parent ? await store.addChild(parent, newTitle.value) : await store.addRoot(newTitle.value);
+  // 只在新建成功后清空：写入失败时保留用户输入
+  if (added) newTitle.value = '';
 };
 
 // 拖拽事件处理
@@ -115,7 +110,7 @@ const handleDragStart = (e: DragEvent, menuId: string) => {
   dragDrop.onDragStart(menuId);
 };
 
-const handleDragOver = (e: DragEvent, menu: MenuLarge) => {
+const handleDragOver = (e: DragEvent, menu: SortableMenuLarge) => {
   e.preventDefault();
   const element = e.currentTarget as HTMLElement;
   const rect = element.getBoundingClientRect();
@@ -133,19 +128,15 @@ const handleDragLeave = (e: DragEvent) => {
   }
 };
 
-const handleDrop = async (e: DragEvent, menu: MenuLarge) => {
+const handleDrop = async (e: DragEvent, menu: SortableMenuLarge) => {
   e.preventDefault();
   e.stopPropagation();
-  try {
-    await dragDrop.onDrop(menu, menuId => {
-      // 仅当目标节点未加载子节点时才展开
-      if (!store.hasLoadedChildren(menuId)) {
-        store.toggleExpand(menuId);
-      }
-    });
-  } catch (error: unknown) {
-    useToast().error(formatErrorMessage('拖放操作失败', error));
-  }
+  await dragDrop.onDrop(menu, menuId => {
+    // 仅当目标节点未加载子节点时才展开
+    if (!store.hasLoadedChildren(menuId)) {
+      store.toggleExpand(menuId);
+    }
+  });
 };
 
 const handleDragEnd = () => {
@@ -224,11 +215,13 @@ const handleDragEnd = () => {
                   :disabled="undoCount === 0"
                   @click="history.undo()"
                   aria-label="撤销"
+                  data-testid="menu-undo"
                 >
                   <Undo2 :size="16" />
                   <span
                     class="badge badge-xs"
                     v-if="undoCount > 0"
+                    data-testid="menu-undo-count"
                   >
                     {{ undoCount }}
                   </span>
@@ -375,6 +368,12 @@ const handleDragEnd = () => {
         </div>
       </div>
 
+      <TreeWriteError
+        class="mx-auto mt-4 w-full max-w-4xl"
+        :message="store.writeError.value"
+        @close="store.clearWriteError"
+      />
+
       <!-- Tree List (Virtual) -->
       <div class="flex-1 p-4">
         <div
@@ -425,7 +424,7 @@ const handleDragEnd = () => {
               "
               :data-level="node.level"
               :data-menu-id="node.menu.id"
-              :data-parent-id="node.menu.parentId"
+              :data-parent-id="node.menu.parentId ?? ''"
               :key="node.menu.id"
               :style="{
                 height: `${virtualRow.size}px`,
@@ -482,8 +481,8 @@ const handleDragEnd = () => {
                 class="input input-sm flex-1"
                 v-if="store.editingId.value === node.menu.id"
                 v-model="node.menu.title"
-                @blur="handleSave(node.menu)"
-                @keydown.enter="handleSave(node.menu)"
+                @blur="store.commitEdit(node.menu)"
+                @keydown.enter="store.commitEdit(node.menu)"
                 @keydown.escape="
                   node.menu.reset();
                   store.cancelEdit();

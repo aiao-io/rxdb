@@ -1,6 +1,5 @@
 import type { RxDBEntityId } from '@aiao/rxdb';
-import { generateKeyBetween, randomString } from '@aiao/utils';
-import { DropMode } from '../models/drag-drop-types';
+import { randomString } from '@aiao/utils';
 
 export interface MenuNode {
   id: RxDBEntityId;
@@ -23,9 +22,7 @@ export interface MenuEntity extends MenuNode {
  * （`parentIds` 初始只有 `[null]`），于是第二批必定撞上第一批的 `(null, 'Batch 0')`，
  * 整批 INSERT 回滚 —— demo 页上连点两次「添加 100 条」，第二次真的不生效。
  *
- * token 取随机而不是「扫描现有标题挑个没用过的编号」：
- * React 端的调用方只把**最后一个根**传进 `existingRoots`，
- * 任何依赖入参完整性的编号方案在那一端立刻失效。
+ * token 取随机而不是「扫描现有标题挑个没用过的编号」：生成器看不到库里已有的标题。
  */
 const BATCH_TOKEN_ALPHABET = '0123456789abcdefghijklmnopqrstuvwxyz';
 
@@ -33,18 +30,16 @@ const newBatchToken = () => randomString(6, BATCH_TOKEN_ALPHABET);
 
 /**
  * 批量生成菜单数据
+ *
+ * @remarks
+ * 节点不带 `sortOrder`：整批进一次 `saveMany`，引擎按批内顺序把各 `parentId` 组追加到末尾。
  */
-export function generateBatchMenus<T extends MenuEntity>(
-  total: number,
-  createEntity: () => T,
-  existingRoots: T[]
-): T[] {
+export function generateBatchMenus<T extends MenuEntity>(total: number, createEntity: () => T): T[] {
   const batchToken = newBatchToken();
   const maxDepth = 7;
   const menus: T[] = [];
   const depths = new Map<RxDBEntityId | null, number>([[null, 0]]);
 
-  const newChildrenMap = new Map<RxDBEntityId | null, T[]>();
   const parentIds: (RxDBEntityId | null)[] = [null];
   const createdMenusMap = new Map<RxDBEntityId, T>();
 
@@ -59,7 +54,6 @@ export function generateBatchMenus<T extends MenuEntity>(
 
     const menu = createEntity();
     menu.title = `Batch ${batchToken}-${i}`;
-    menu.sortOrder = '';
     createdMenusMap.set(menu.id, menu);
 
     if (parentId !== null) {
@@ -74,46 +68,9 @@ export function generateBatchMenus<T extends MenuEntity>(
     menus.push(menu);
     depths.set(menu.id, depth + 1);
     parentIds.push(menu.id);
-
-    const key = parentId;
-    if (!newChildrenMap.has(key)) {
-      newChildrenMap.set(key, []);
-    }
-    newChildrenMap.get(key)!.push(menu);
-  }
-
-  // Calculate SortOrder
-  const lastRootSort = existingRoots[existingRoots.length - 1]?.sortOrder ?? null;
-
-  for (const [parentId, children] of newChildrenMap.entries()) {
-    let lastSort: string | null = parentId === null ? lastRootSort : null;
-
-    for (const child of children) {
-      const newSort = generateKeyBetween(lastSort, null);
-      child.sortOrder = newSort;
-      lastSort = newSort;
-    }
   }
 
   return menus;
-}
-
-/**
- * 计算拖放模式（上方/内部/下方）
- */
-export function calculateDropMode(clientY: number, rect: { top: number; height: number }): DropMode {
-  const y = clientY - rect.top;
-  const height = rect.height;
-  const topThreshold = height * 0.25;
-  const bottomThreshold = height * 0.75;
-
-  if (y < topThreshold) {
-    return 'before';
-  } else if (y > bottomThreshold) {
-    return 'after';
-  } else {
-    return 'into';
-  }
 }
 
 /**
@@ -172,17 +129,4 @@ export function collectDescendants(menuId: RxDBEntityId, allMenus: MenuNode[]): 
     }
   }
   return descendantIds;
-}
-
-/**
- * 比较排序顺序
- */
-export function compareSortOrder(a: { sortOrder?: string | null }, b: { sortOrder?: string | null }): number {
-  const aSortOrder = a.sortOrder ?? '';
-  const bSortOrder = b.sortOrder ?? '';
-  return (
-    aSortOrder < bSortOrder ? -1
-    : aSortOrder > bSortOrder ? 1
-    : 0
-  );
 }

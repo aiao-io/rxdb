@@ -31,9 +31,8 @@ describe('tree-utils entity IDs', () => {
  *
  * 这不是测试的问题：demo 页上连点两次「添加 100 条」，第二次真的不生效。
  *
- * 为什么唯一性 token 不能从 `existingRoots` 推：React 端的调用方
- * （`useTreeMenuLazyStore.addManyMenus`）**只传最后一个根**，
- * 任何「扫一遍现有标题再挑个没用过的编号」的方案在那一端立刻失效。
+ * 生成器只收 `total` 与 `createEntity`，看不到库里已有的标题，
+ * 所以唯一性靠每批一个随机 token，而不是「扫一遍现有标题再挑个没用过的编号」。
  */
 describe('generateBatchMenus 标题唯一性', () => {
   let seq = 0;
@@ -41,26 +40,55 @@ describe('generateBatchMenus 标题唯一性', () => {
   class FakeMenu implements MenuEntity {
     readonly id: RxDBEntityId = `fake-${seq++}`;
     parentId: RxDBEntityId | null = null;
-    sortOrder: string | null = null;
+    /** 生成器对 `sortOrder` 的每一次赋值都记在这里 */
+    sortOrderWrites: unknown[] = [];
     title = '';
+
+    set sortOrder(value: string | null) {
+      this.sortOrderWrites.push(value);
+    }
   }
 
   const uniqueKey = (menu: MenuEntity) => `${String(menu.parentId ?? '<root>')}::${menu.title}`;
 
   it('同一批内 (parentId, title) 不重复', () => {
-    const keys = generateBatchMenus(100, () => new FakeMenu(), []).map(uniqueKey);
+    const keys = generateBatchMenus(100, () => new FakeMenu()).map(uniqueKey);
     expect(new Set(keys).size).toBe(keys.length);
   });
 
   it('连续两批之间 (parentId, title) 也不重复', () => {
-    const first = generateBatchMenus(100, () => new FakeMenu(), []);
-    const second = generateBatchMenus(
-      100,
-      () => new FakeMenu(),
-      first.filter(m => m.parentId == null)
-    );
+    const first = generateBatchMenus(100, () => new FakeMenu());
+    const second = generateBatchMenus(100, () => new FakeMenu());
 
     const keys = [...first, ...second].map(uniqueKey);
     expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+/**
+ * 排序键归引擎：批内节点缺 `sortOrder` 进 `saveMany`，由引擎按父节点分组追加到各组末尾。
+ * 生成器写空串占位、或按「现有根」算键，都会让整批带显式键绕开引擎（也是缺陷一的同类根源）。
+ */
+describe('generateBatchMenus 不写 sortOrder', () => {
+  class FakeMenu implements MenuEntity {
+    readonly id: RxDBEntityId = `fake-${Math.random()}`;
+    parentId: RxDBEntityId | null = null;
+    sortOrderWrites: unknown[] = [];
+    title = '';
+
+    set sortOrder(value: string | null) {
+      this.sortOrderWrites.push(value);
+    }
+  }
+
+  it('生成的每个节点都没有被赋过 sortOrder', () => {
+    const menus = generateBatchMenus(200, () => new FakeMenu());
+
+    expect(menus).toHaveLength(200);
+    expect(menus.every(menu => menu.sortOrderWrites.length === 0)).toBe(true);
+  });
+
+  it('不再接收 existingRoots：形参只有 total 与 createEntity', () => {
+    expect(generateBatchMenus.length).toBe(2);
   });
 });

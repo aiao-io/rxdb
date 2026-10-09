@@ -1,16 +1,16 @@
 import type { RxDBEntityId } from '@aiao/rxdb';
-import { MenuSimple } from '@aiao/rxdb-test/entities';
+import { SortableMenuSimple } from '@aiao/rxdb-test/entities';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { MenuSearchService } from './menu-search.service';
 
 // 测试用的简化菜单数据
-const createTestMenu = (id: RxDBEntityId, title: string, parentId: RxDBEntityId | null): MenuSimple => {
-  return { id, title, parentId } as unknown as MenuSimple;
+const createTestMenu = (id: RxDBEntityId, title: string, parentId: RxDBEntityId | null): SortableMenuSimple => {
+  return { id, title, parentId } as unknown as SortableMenuSimple;
 };
 
 describe('MenuSearchService', () => {
   let service: MenuSearchService;
-  let testMenus: MenuSimple[];
+  let testMenus: SortableMenuSimple[];
 
   beforeEach(() => {
     service = new MenuSearchService();

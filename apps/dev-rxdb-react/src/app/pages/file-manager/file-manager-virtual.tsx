@@ -1,5 +1,5 @@
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
-import { FileNode } from '@aiao/rxdb-test/entities';
+import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   ChevronDown,
@@ -29,11 +29,11 @@ import {
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useObservable } from 'react-use';
 import { HistorySidebar } from '../../components/HistorySidebar';
+import { OperationErrorAlert } from '../../components/OperationErrorAlert';
 import { PathConflictWarning } from '../../components/PathConflictWarning';
 import { useDragDrop } from '../../hooks/useDragDrop';
 import { useFileManagerStore } from '../../hooks/useFileManagerStore';
 import { useFileRenamePathGuard } from '../../hooks/useRenamePathGuard';
-import { getErrorMessage } from '../../utils/error';
 import { getFileIcon } from '../../utils/file-icons';
 import { SortMode } from '../../utils/file-sorters';
 import { generateBatchFiles } from '../../utils/file-utils';
@@ -41,11 +41,11 @@ import { formatFileName } from './utils/file-name';
 
 // P2-7：提到模块级 —— 内联箭头函数每次 render 都是新身份，
 // 会把 useDragDrop 内部所有 useCallback 的 deps 一起打脏。它不闭包任何东西，模块级最省。
-const isFolderNode = (node: FileNode): boolean => node.type === 'folder';
+const isFolderNode = (node: SortableFileNode): boolean => node.type === 'folder';
 
 export function FileManagerVirtualPage() {
   const rxdb = useRxDB();
-  const fileRepository = useMemo(() => rxdb.entityManager.getRepository(FileNode), [rxdb]);
+  const fileRepository = useMemo(() => rxdb.entityManager.getRepository(SortableFileNode), [rxdb]);
   const [showHistory, setShowHistory] = useState(true);
   const [newName, setNewName] = useState('');
   const [newExtension, setNewExtension] = useState('.txt');
@@ -55,25 +55,30 @@ export function FileManagerVirtualPage() {
   const parentRef = useRef<HTMLDivElement>(null);
 
   // 获取所有文件数据
-  const { value: files } = useFindAll(FileNode, {
-    where: { combinator: 'and', rules: [] },
-    orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+  const { value: files } = useFindAll(SortableFileNode, {
+    where: { combinator: 'and', rules: [] }
   });
 
-  const history = useMemo(() => rxdb.versionManager.history(FileNode), [rxdb]);
+  const history = useMemo(() => rxdb.versionManager.history(SortableFileNode), [rxdb]);
   const histories = useObservable(history.histories$, []);
   const undoCount = useObservable(history.undoCount$, 0);
   const redoCount = useObservable(history.redoCount$, 0);
 
   const store = useFileManagerStore(files);
+  const { runWrite } = store;
   const {
     pathConflict: renamePathConflict,
     rename: renameWithPathGuard,
     clearPathConflict: clearRenamePathConflict
-  } = useFileRenamePathGuard<FileNode>();
+  } = useFileRenamePathGuard<SortableFileNode>();
 
   // Drag and drop
-  const dragDrop = useDragDrop<FileNode>(files, { isFolder: isFolderNode });
+  const dragDrop = useDragDrop<SortableFileNode>(files, {
+    repository: fileRepository,
+    runWrite,
+    isFolder: isFolderNode,
+    manual: store.sortMode === SortMode.Manual
+  });
 
   // 虚拟滚动配置
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns non-memoizable callbacks by design
@@ -89,9 +94,8 @@ export function FileManagerVirtualPage() {
     async (count: number, actionKey: string) => {
       setLoadingActions(prev => new Set(prev).add(actionKey));
       try {
-        const existingRoots = files.filter(f => !f.parentId);
-        const newFiles = generateBatchFiles(count, FileNode, existingRoots);
-        await rxdb.entityManager.saveMany(newFiles);
+        // 整批一次 saveMany，生成器不写 sortOrder：排序键由引擎追加到各父节点组末尾
+        await runWrite('批量添加', () => rxdb.entityManager.saveMany(generateBatchFiles(count, SortableFileNode)));
       } finally {
         setLoadingActions(prev => {
           const next = new Set(prev);
@@ -100,23 +104,25 @@ export function FileManagerVirtualPage() {
         });
       }
     },
-    [rxdb, files]
+    [rxdb, runWrite]
   );
 
   // 删除所有文件
   const handleDeleteAll = useCallback(async () => {
-    await rxdb.entityManager.removeMany(files);
-  }, [rxdb, files]);
+    await runWrite('删除全部', () => rxdb.entityManager.removeMany(files));
+  }, [rxdb, files, runWrite]);
 
   // 保存编辑
   const handleSave = useCallback(
-    async (file: FileNode) => {
+    async (file: SortableFileNode) => {
       const nextName = editingNames.get(file.id);
       if (typeof nextName === 'string' && nextName !== file.name) {
-        const renamed = await renameWithPathGuard(file, nextName, files, async (current, value) => {
-          await fileRepository.update(current, { name: value });
-        });
-        if (!renamed) return;
+        const renamed = await runWrite('重命名', () =>
+          renameWithPathGuard(file, nextName, files, async (current, value) => {
+            await fileRepository.update(current, { name: value });
+          })
+        );
+        if (!renamed.ok || !renamed.value) return;
       }
       setEditingNames(prev => {
         const next = new Map(prev);
@@ -125,11 +131,11 @@ export function FileManagerVirtualPage() {
       });
       store.cancelEdit();
     },
-    [editingNames, fileRepository, store, renameWithPathGuard, files]
+    [editingNames, fileRepository, store, runWrite, renameWithPathGuard, files]
   );
 
   const handleStartEdit = useCallback(
-    (file: FileNode) => {
+    (file: SortableFileNode) => {
       setEditingNames(prev => new Map(prev).set(file.id, file.name));
       store.startEdit(file.id);
     },
@@ -345,27 +351,21 @@ export function FileManagerVirtualPage() {
                 className='flex gap-2'
                 onSubmit={async e => {
                   e.preventDefault();
-                  if (newName.trim()) {
-                    if (store.isAddingFile) {
-                      // 添加文件 - 只传文件名，不包含扩展名
-                      if (store.selectedFolderId) {
-                        const parent = files.find(f => f.id === store.selectedFolderId);
-                        if (parent) await store.addChild(parent, newName, 'file', newExtension);
-                      } else {
-                        await store.addRoot(newName, 'file', newExtension);
-                      }
-                    } else {
-                      // 添加文件夹
-                      if (store.selectedFolderId) {
-                        const parent = files.find(f => f.id === store.selectedFolderId);
-                        if (parent) await store.addChild(parent, newName, 'folder');
-                      } else {
-                        await store.addRoot(newName, 'folder');
-                      }
-                    }
-                    setNewName('');
-                    store.cancelSelectFolder();
-                  }
+                  if (!newName.trim()) return;
+                  // 文件只传文件名，扩展名单独传
+                  const type = store.isAddingFile ? 'file' : 'folder';
+                  const extension = store.isAddingFile ? newExtension : undefined;
+                  const parentId = store.selectedFolderId;
+                  const parent = parentId ? files.find(f => f.id === parentId) : undefined;
+                  if (parentId && !parent) return;
+                  const added =
+                    parent ?
+                      await store.addChild(parent, newName, type, extension)
+                    : await store.addRoot(newName, type, extension);
+                  // 只在新建成功后清空：冲突或写入失败时保留用户输入与父文件夹选择
+                  if (!added) return;
+                  setNewName('');
+                  store.cancelSelectFolder();
                 }}
               >
                 {/* 文件/文件夹模式切换 */}
@@ -460,6 +460,10 @@ export function FileManagerVirtualPage() {
           onClose={clearRenamePathConflict}
         />
 
+        <div className='mx-auto max-w-4xl px-4'>
+          <OperationErrorAlert message={store.writeError} onClose={store.clearWriteError} />
+        </div>
+
         {/* Tree List (Virtual) */}
         <div ref={parentRef} className='flex-1 overflow-auto p-4'>
           <div
@@ -519,7 +523,7 @@ export function FileManagerVirtualPage() {
                     data-drop-valid={isTarget ? String(dragDrop.dragDropState.isValidTarget) : ''}
                     data-file-id={file.id}
                     data-level={level}
-                    data-parent-id={file.parentId}
+                    data-parent-id={file.parentId ?? ''}
                     data-testid='file-row'
                     style={{
                       height: `${virtualRow.size}px`,
@@ -549,17 +553,20 @@ export function FileManagerVirtualPage() {
                     onDrop={async e => {
                       e.preventDefault();
                       e.stopPropagation();
-                      try {
-                        await dragDrop.onDrop(file, folderId => {
+                      // 失败由 useDragDrop 经 runWrite 送进页内提示，这里不再有 catch / alert
+                      await dragDrop.onDrop(
+                        file,
+                        folderId => {
                           // 展开目标文件夹
                           if (!store.expandedIds.has(folderId)) {
                             store.toggleExpand(folderId);
                           }
-                        });
-                      } catch (error: unknown) {
-                        console.error('Drop error:', error);
-                        alert(getErrorMessage(error, '拖放操作失败'));
-                      }
+                        },
+                        {
+                          mouseY: e.clientY,
+                          rect: (e.currentTarget as HTMLElement).getBoundingClientRect()
+                        }
+                      );
                     }}
                     onDragEnd={() => dragDrop.onDragEnd()}
                   >

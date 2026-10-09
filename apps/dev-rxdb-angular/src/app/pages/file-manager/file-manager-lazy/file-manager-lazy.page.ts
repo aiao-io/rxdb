@@ -1,5 +1,5 @@
 import { RxDB } from '@aiao/rxdb';
-import { FileLarge } from '@aiao/rxdb-test/entities';
+import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { AsyncPipe, CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, ElementRef, inject, OnDestroy, viewChild } from '@angular/core';
@@ -30,30 +30,39 @@ import {
   LucideX as X
 } from '@lucide/angular';
 import { HistorySidebarComponent } from '@modules/angular';
+import { TreeWriteError } from '../../../components/tree-write-error';
 import { TreeFileDragDropBase } from '../utils/tree-file-drag-drop.base';
 import { FILE_ENTITY_CLASS, FILE_HISTORY, TreeFileLazyStore } from './file-manager-lazy.store';
 
 @Component({
   selector: 'app-file-manager-lazy-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideDynamicIcon, AsyncPipe, HistorySidebarComponent, ScrollingModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    LucideDynamicIcon,
+    AsyncPipe,
+    HistorySidebarComponent,
+    TreeWriteError,
+    ScrollingModule
+  ],
   templateUrl: './file-manager-lazy.page.html',
   styleUrl: './file-manager-lazy.page.scss',
   host: { class: 'page-host' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
     TreeFileLazyStore,
-    { provide: FILE_ENTITY_CLASS, useValue: FileLarge },
+    { provide: FILE_ENTITY_CLASS, useValue: SortableFileLarge },
     {
       provide: FILE_HISTORY,
       useFactory: () => {
         const rxdb = inject(RxDB);
-        return rxdb.versionManager.history(FileLarge);
+        return rxdb.versionManager.history(SortableFileLarge);
       }
     }
   ]
 })
-export default class FileManagerLazyPage extends TreeFileDragDropBase<typeof FileLarge> implements OnDestroy {
+export default class FileManagerLazyPage extends TreeFileDragDropBase<typeof SortableFileLarge> implements OnDestroy {
   private autoScrollTimer: ReturnType<typeof setInterval> | null = null;
   private currentScrollDirection: 'up' | 'down' | null = null;
 
@@ -98,17 +107,17 @@ export default class FileManagerLazyPage extends TreeFileDragDropBase<typeof Fil
   readonly itemSize = 44;
   readonly scrollViewport = viewChild<ElementRef>('virtualScrollViewport');
 
-  declare readonly store: TreeFileLazyStore<typeof FileLarge>;
+  declare readonly store: TreeFileLazyStore<typeof SortableFileLarge>;
 
   constructor() {
-    const lazyStore = inject(TreeFileLazyStore<typeof FileLarge>);
+    const lazyStore = inject(TreeFileLazyStore<typeof SortableFileLarge>);
     const history = inject(FILE_HISTORY);
 
     const fileResource = { value: lazyStore.visibleNodes };
-    super(lazyStore, fileResource, FileLarge, history);
+    super(lazyStore, fileResource, SortableFileLarge, history);
   }
 
-  override onDragOver(event: DragEvent, file: FileLarge): void {
+  override onDragOver(event: DragEvent, file: SortableFileLarge): void {
     super.onDragOver(event, file);
     this.handleAutoScroll(event);
   }
@@ -133,7 +142,7 @@ export default class FileManagerLazyPage extends TreeFileDragDropBase<typeof Fil
     return this.store.nodeErrors().get(nodeId);
   }
 
-  getDisplayName(node: FileLarge): string {
+  getDisplayName(node: SortableFileLarge): string {
     if (node.type === 'folder') return node.name;
     if (!node.extension) return node.name;
     if (node.name.endsWith(`.${node.extension}`)) return node.name;

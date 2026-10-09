@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { collectSubtreePostOrder } from './tree-scope';
+import { byParent, collectSubtreePostOrder } from './tree-scope';
 
 interface TestNode {
   id: string;
@@ -16,5 +16,15 @@ describe('collectSubtreePostOrder', () => {
     ];
 
     expect(collectSubtreePostOrder(nodes[0], nodes).map(node => node.id)).toEqual(['grandchild', 'child', 'root']);
+  });
+});
+
+describe('byParent', () => {
+  it('生成按 parentId 精确匹配的查询条件，根节点用 null', () => {
+    expect(byParent('p1' as never)).toEqual({
+      combinator: 'and',
+      rules: [{ field: 'parentId', operator: '=', value: 'p1' }]
+    });
+    expect(byParent(null).rules[0].value).toBeNull();
   });
 });

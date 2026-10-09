@@ -1,5 +1,5 @@
 import { useRxDB } from '@aiao/rxdb-react';
-import { FileLarge } from '@aiao/rxdb-test/entities';
+import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   ChevronDown,
@@ -28,12 +28,12 @@ import {
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { useObservable } from 'react-use';
 import { HistorySidebar } from '../../components/HistorySidebar';
+import { OperationErrorAlert } from '../../components/OperationErrorAlert';
 import { PathConflictWarning } from '../../components/PathConflictWarning';
 import { extensionOptions } from '../../constants/file-extensions';
 import { useDragDrop } from '../../hooks/useDragDrop';
 import { fetchFileChildren, useFileManagerLazyStore } from '../../hooks/useFileManagerLazyStore';
 import { useFileRenamePathGuard } from '../../hooks/useRenamePathGuard';
-import { getErrorMessage } from '../../utils/error';
 import { getFileIcon } from '../../utils/file-icons';
 import { SortMode } from '../../utils/file-sorters';
 import { mergeById } from '../../utils/tree-scope';
@@ -41,14 +41,11 @@ import { formatFileName } from './utils/file-name';
 
 // P2-7：提到模块级 —— 内联箭头函数每次 render 都是新身份，
 // 会把 useDragDrop 内部所有 useCallback 的 deps 一起打脏。它不闭包任何东西，模块级最省。
-const isFolderNode = (node: FileLarge): boolean => node.type === 'folder';
-
-// 同上：对象字面量每次 render 也是新身份，必须提到模块级。
-const DRAG_DROP_OPTIONS = { isFolder: isFolderNode, resolveSiblings: fetchFileChildren };
+const isFolderNode = (node: SortableFileLarge): boolean => node.type === 'folder';
 
 export function FileManagerLazyPage() {
   const rxdb = useRxDB();
-  const fileRepository = useMemo(() => rxdb.entityManager.getRepository(FileLarge), [rxdb]);
+  const fileRepository = useMemo(() => rxdb.entityManager.getRepository(SortableFileLarge), [rxdb]);
   const [showHistory, setShowHistory] = useState(true);
   const [newName, setNewName] = useState('');
   const [newExtension, setNewExtension] = useState('.txt');
@@ -57,7 +54,7 @@ export function FileManagerLazyPage() {
   const [editingNames, setEditingNames] = useState<Map<string, string>>(new Map());
   const parentRef = useRef<HTMLDivElement>(null);
 
-  const history = useMemo(() => rxdb.versionManager.history(FileLarge), [rxdb]);
+  const history = useMemo(() => rxdb.versionManager.history(SortableFileLarge), [rxdb]);
   const histories = useObservable(history.histories$, []);
   const undoCount = useObservable(history.undoCount$, 0);
   const redoCount = useObservable(history.redoCount$, 0);
@@ -67,14 +64,21 @@ export function FileManagerLazyPage() {
     pathConflict: renamePathConflict,
     rename: renameWithPathGuard,
     clearPathConflict: clearRenamePathConflict
-  } = useFileRenamePathGuard<FileLarge>();
+  } = useFileRenamePathGuard<SortableFileLarge>();
 
   // P0-1：懒加载页面**不能**再订阅整表。拖放要的祖先链必然已在可见集合里
-  // （看得见就说明逐级展开过），真正可能缺席的只有落点的同级，交给 resolveSiblings 按需取。
+  // （看得见就说明逐级展开过）；前后放置的邻居取自 store 里该组已整组加载的 id 序列（getGroupIds），
+  // 拖进折叠文件夹则只写「追加到该组末尾」，不需要读它的子节点。
   const visibleFiles = useMemo(() => store.treeNodes.map(node => node.file), [store.treeNodes]);
 
   // Drag and drop
-  const dragDrop = useDragDrop<FileLarge>(visibleFiles, DRAG_DROP_OPTIONS);
+  const dragDrop = useDragDrop<SortableFileLarge>(visibleFiles, {
+    repository: fileRepository,
+    runWrite: store.runWrite,
+    isFolder: isFolderNode,
+    manual: store.sortMode === SortMode.Manual,
+    getGroupIds: store.getGroupIds
+  });
 
   // 虚拟滚动配置
   // eslint-disable-next-line react-hooks/incompatible-library -- TanStack Virtual returns non-memoizable callbacks by design
@@ -115,15 +119,17 @@ export function FileManagerLazyPage() {
 
   // 保存编辑
   const handleSave = useCallback(
-    async (file: FileLarge) => {
+    async (file: SortableFileLarge) => {
       const nextName = editingNames.get(file.id);
       if (typeof nextName === 'string' && nextName !== file.name) {
-        // 冲突检测只看同级（可能未加载 → 按需查），路径展示要祖先链（必在可见集合里）。
-        const scope = mergeById(visibleFiles, await fetchFileChildren(file.parentId ?? null));
-        const renamed = await renameWithPathGuard(file, nextName, scope, async (current, value) => {
-          await fileRepository.update(current, { name: value });
+        const renamed = await store.runWrite('重命名', async () => {
+          // 冲突检测只看同级（可能未加载 → 按需查），路径展示要祖先链（必在可见集合里）。
+          const scope = mergeById(visibleFiles, await fetchFileChildren(file.parentId ?? null));
+          return renameWithPathGuard(file, nextName, scope, async (current, value) => {
+            await fileRepository.update(current, { name: value });
+          });
         });
-        if (!renamed) return;
+        if (!renamed.ok || !renamed.value) return;
       }
       setEditingNames(prev => {
         const next = new Map(prev);
@@ -136,7 +142,7 @@ export function FileManagerLazyPage() {
   );
 
   const handleStartEdit = useCallback(
-    (file: FileLarge) => {
+    (file: SortableFileLarge) => {
       setEditingNames(prev => new Map(prev).set(file.id, file.name));
       store.startEdit(file.id);
     },
@@ -346,29 +352,18 @@ export function FileManagerLazyPage() {
                 className='flex gap-2'
                 onSubmit={async e => {
                   e.preventDefault();
-                  if (newName.trim()) {
-                    if (store.isAddingFile) {
-                      const parentId = store.selectedFolderId;
-                      if (parentId) {
-                        const parent = store.getNode(parentId);
-                        if (parent) {
-                          await store.addChild(parent, newName, 'file', newExtension);
-                        }
-                      } else {
-                        await store.addRoot(newName, 'file', newExtension);
-                      }
-                    } else {
-                      if (store.selectedFolderId) {
-                        const parent = store.getNode(store.selectedFolderId);
-                        if (parent) {
-                          await store.addChild(parent, newName, 'folder');
-                        }
-                      } else {
-                        await store.addRoot(newName, 'folder');
-                      }
-                    }
-                    setNewName('');
-                  }
+                  if (!newName.trim()) return;
+                  const type = store.isAddingFile ? 'file' : 'folder';
+                  const extension = store.isAddingFile ? newExtension : undefined;
+                  const parentId = store.selectedFolderId;
+                  const parent = parentId ? store.getNode(parentId) : undefined;
+                  if (parentId && !parent) return;
+                  const added =
+                    parent ?
+                      await store.addChild(parent, newName, type, extension)
+                    : await store.addRoot(newName, type, extension);
+                  // 只在新建成功后清空：冲突或写入失败时保留用户输入
+                  if (added) setNewName('');
                 }}
               >
                 {/* 文件/文件夹模式切换 */}
@@ -434,6 +429,10 @@ export function FileManagerLazyPage() {
           onClose={clearRenamePathConflict}
         />
 
+        <div className='mx-auto max-w-4xl px-4'>
+          <OperationErrorAlert message={store.writeError} onClose={store.clearWriteError} />
+        </div>
+
         {/* Tree List (Virtual) */}
         <div className='flex-1 p-4'>
           <div
@@ -493,7 +492,7 @@ export function FileManagerLazyPage() {
                     data-drop-valid={isTarget ? String(dragDrop.dragDropState.isValidTarget) : ''}
                     data-file-id={file.id}
                     data-level={level}
-                    data-parent-id={file.parentId}
+                    data-parent-id={file.parentId ?? ''}
                     data-testid='file-row'
                     style={{
                       height: `${virtualRow.size}px`,
@@ -523,17 +522,20 @@ export function FileManagerLazyPage() {
                     onDrop={async e => {
                       e.preventDefault();
                       e.stopPropagation();
-                      try {
-                        await dragDrop.onDrop(file, folderId => {
+                      // 失败由 useDragDrop 经 runWrite 送进页内提示，这里不再有 catch / alert
+                      await dragDrop.onDrop(
+                        file,
+                        folderId => {
                           // 展开目标文件夹
                           if (!store.expandedIds.has(folderId)) {
                             store.toggleExpand(folderId);
                           }
-                        });
-                      } catch (error: unknown) {
-                        console.error('Drop error:', error);
-                        alert(getErrorMessage(error, '拖放操作失败'));
-                      }
+                        },
+                        {
+                          mouseY: e.clientY,
+                          rect: (e.currentTarget as HTMLElement).getBoundingClientRect()
+                        }
+                      );
                     }}
                     onDragEnd={() => dragDrop.onDragEnd()}
                   >

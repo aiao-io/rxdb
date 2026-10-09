@@ -1,117 +1,167 @@
-import { UUID } from '@aiao/rxdb';
-import { ISortableTreeEntity } from '@aiao/rxdb-plugin-tree';
-import { generateKeyBetween } from '@aiao/utils';
 import { describe, expect, it } from 'vitest';
-import { DragDropService } from './useDragDropService';
+import { isTargetInMovedSubtree, resolveTreeDrop, type TreeDropInput, treeDropPosition } from './useDragDropService';
 
-interface TestNode extends ISortableTreeEntity {
-  parentId: UUID | null;
-  sortOrder: string;
-}
-
-const toUuid = (id: string): UUID => `${id}-0000-0000-0000-000000000000`;
-const makeNode = (id: string, parentId: string | null, sortOrder: string): TestNode => ({
-  id: toUuid(id),
-  parentId: parentId === null ? null : toUuid(parentId),
-  sortOrder,
-  createdAt: new Date(0),
-  updatedAt: new Date(0)
+/** 默认：手动模式、被拖节点 D 在根组 [A, B, C, D]，目标 B（根级文件夹）。 */
+const makeInput = (overrides: Partial<TreeDropInput<string>> = {}): TreeDropInput<string> => ({
+  movedId: 'D',
+  target: { id: 'B', parentId: null, isFolder: true },
+  position: 'before',
+  manual: true,
+  movedParentId: null,
+  isTargetInMovedSubtree: false,
+  groupIds: ['A', 'B', 'C', 'D'],
+  ...overrides
 });
 
-// 从空状态依次生成 3 个合法的 fractional indexing keys
-const KEY_0 = generateKeyBetween(null, null);
-const KEY_1 = generateKeyBetween(KEY_0, null);
-const KEY_2 = generateKeyBetween(KEY_1, null);
+describe('resolveTreeDrop', () => {
+  it('目标是被拖节点自己或后代 → reject', () => {
+    for (const position of ['before', 'after', 'into'] as const) {
+      expect(resolveTreeDrop(makeInput({ position, isTargetInMovedSubtree: true }))).toEqual({ kind: 'reject' });
+    }
+  });
 
-describe('DragDropService', () => {
-  describe('canDropInto', () => {
-    it('禁止拖到自身', () => {
-      const service = new DragDropService();
-      const a = makeNode('a', null, KEY_0);
-      expect(service.canDropInto(a, a, [a])).toBe(false);
+  it('拖进文件 → reject', () => {
+    const input = makeInput({ position: 'into', target: { id: 'B', parentId: null, isFolder: false } });
+    expect(resolveTreeDrop(input)).toEqual({ kind: 'reject' });
+    expect(resolveTreeDrop({ ...input, manual: false })).toEqual({ kind: 'reject' });
+  });
+
+  it('手动模式拖进节点 → 追加到该节点子组末尾', () => {
+    expect(resolveTreeDrop(makeInput({ position: 'into' }))).toEqual({
+      kind: 'reorder',
+      target: { group: { parentId: 'B' } }
     });
-
-    it('禁止把祖先拖到后代里（防止循环嵌套）', () => {
-      const service = new DragDropService();
-      const root = makeNode('root', null, KEY_0);
-      const child = makeNode('child', 'root', KEY_1);
-      const grandchild = makeNode('grand', 'child', KEY_2);
-      const items = [root, child, grandchild];
-
-      expect(service.canDropInto(root, grandchild, items)).toBe(false);
-    });
-
-    it('允许同级或上抬节点放入新父节点', () => {
-      const service = new DragDropService();
-      const folder = makeNode('folder', null, KEY_0);
-      const leaf = makeNode('leaf', null, KEY_1);
-      expect(service.canDropInto(leaf, folder, [folder, leaf])).toBe(true);
+    // 拖进当前父节点在手动模式也是追加到末尾（已是末尾时由引擎零写）
+    expect(resolveTreeDrop(makeInput({ position: 'into', movedParentId: 'B' }))).toEqual({
+      kind: 'reorder',
+      target: { group: { parentId: 'B' } }
     });
   });
 
-  describe('executeDrop', () => {
-    it.each(['before', 'after'] as const)('禁止把祖先拖到后代的 %s 位置', async dropMode => {
-      const service = new DragDropService();
-      const root = makeNode('root', null, KEY_0);
-      const child = makeNode('child', 'root', KEY_1);
-      const grandchild = makeNode('grand', 'child', KEY_2);
-
-      const result = await service.executeDrop(root, grandchild, dropMode, [root, child, grandchild]);
-
-      expect(result.success).toBe(false);
+  it('非手动模式拖进当前父文件夹 → reject', () => {
+    expect(resolveTreeDrop(makeInput({ manual: false, position: 'into', movedParentId: 'B' }))).toEqual({
+      kind: 'reject'
     });
   });
 
-  describe('calculateDropPosition', () => {
-    it('into 模式将节点排到目标文件夹末尾', () => {
-      const service = new DragDropService();
-      const folder = makeNode('folder', null, KEY_0);
-      const existingChild = makeNode('child1', 'folder', KEY_0);
-      const dragged = makeNode('dragged', null, KEY_1);
-
-      const result = service.calculateDropPosition(dragged, folder, 'into', [folder, existingChild, dragged]);
-
-      expect(result.success).toBe(true);
-      expect(result.newParentId).toBe(folder.id);
-      expect(result.newSortOrder).toBeDefined();
-      expect((result.newSortOrder ?? '') > KEY_0).toBe(true);
+  it('非手动模式拖进文件夹 → 追加到该文件夹末尾', () => {
+    expect(resolveTreeDrop(makeInput({ manual: false, position: 'into' }))).toEqual({
+      kind: 'reorder',
+      target: { group: { parentId: 'B' } }
     });
+  });
 
-    it('before 模式生成介于前后兄弟之间的 key', () => {
-      const service = new DragDropService();
-      const a = makeNode('a', null, KEY_0);
-      const b = makeNode('b', null, KEY_2);
-      const dragged = makeNode('dragged', null, KEY_2);
+  it('非手动模式把非根级节点拖到根级节点上下方 → 追加到根组末尾', () => {
+    for (const position of ['before', 'after'] as const) {
+      expect(resolveTreeDrop(makeInput({ manual: false, position, movedParentId: 'P' }))).toEqual({
+        kind: 'reorder',
+        target: { group: { parentId: null } }
+      });
+    }
+  });
 
-      const result = service.calculateDropPosition(dragged, b, 'before', [a, b, dragged]);
-
-      expect(result.success).toBe(true);
-      expect(result.newParentId).toBe(null);
-      const order = result.newSortOrder ?? '';
-      expect(order > KEY_0).toBe(true);
-      expect(order < KEY_2).toBe(true);
+  it('非手动模式其余前后放置 → reject', () => {
+    // 根级节点之间
+    expect(resolveTreeDrop(makeInput({ manual: false, position: 'after' }))).toEqual({ kind: 'reject' });
+    // 同一父节点下的非根级节点之间
+    const sibling = makeInput({
+      manual: false,
+      position: 'before',
+      movedParentId: 'P',
+      target: { id: 'x', parentId: 'P', isFolder: false }
     });
+    expect(resolveTreeDrop(sibling)).toEqual({ kind: 'reject' });
+    // 非根级目标：即使被拖节点在别的父节点下，也不是移到根级
+    expect(resolveTreeDrop({ ...sibling, movedParentId: 'Q' })).toEqual({ kind: 'reject' });
+  });
 
-    it('after 模式拖到末尾时取最后位置', () => {
-      const service = new DragDropService();
-      const a = makeNode('a', null, KEY_0);
-      const dragged = makeNode('dragged', null, KEY_2);
+  it('手动模式原位放下 → noop', () => {
+    // D 本就在 C 之后：放到 C 的下方、放到 A 之前的 groupIds 起点同理
+    expect(
+      resolveTreeDrop(makeInput({ position: 'after', target: { id: 'C', parentId: null, isFolder: true } }))
+    ).toEqual({ kind: 'noop' });
+  });
 
-      const result = service.calculateDropPosition(dragged, a, 'after', [a, dragged]);
-
-      expect(result.success).toBe(true);
-      expect((result.newSortOrder ?? '') > KEY_0).toBe(true);
+  it('手动模式前后放置 → 邻居目标', () => {
+    expect(resolveTreeDrop(makeInput({ position: 'before' }))).toEqual({
+      kind: 'reorder',
+      target: { prevId: 'A', nextId: 'B' }
     });
-
-    it('返回失败时携带 REORDER_NEEDED 错误码（key 空间用尽）', () => {
-      const service = new DragDropService();
-      const a = makeNode('a', null, KEY_0);
-      const b = makeNode('b', null, KEY_0);
-      const dragged = makeNode('dragged', null, KEY_2);
-
-      // before 模式且 prev/target 同 key —— generateKeyBetween 会抛错触发 REORDER_NEEDED
-      const result = service.calculateDropPosition(dragged, b, 'before', [a, b, dragged]);
-      expect(result.success).toBe(false);
+    expect(
+      resolveTreeDrop(
+        makeInput({ position: 'after', target: { id: 'D', parentId: null, isFolder: true }, movedId: 'A' })
+      )
+    ).toEqual({
+      kind: 'reorder',
+      target: { prevId: 'D', nextId: null }
     });
+    // 跨父：被拖节点不在目标组里
+    expect(
+      resolveTreeDrop(
+        makeInput({
+          position: 'after',
+          movedId: 'p1',
+          movedParentId: 'P',
+          target: { id: 'q1', parentId: 'Q', isFolder: true },
+          groupIds: ['q1', 'q2']
+        })
+      )
+    ).toEqual({ kind: 'reorder', target: { prevId: 'q1', nextId: 'q2' } });
+  });
+});
+
+describe('treeDropPosition', () => {
+  const manual = { manual: true, targetIsRoot: false };
+
+  it('上三分之一为 before', () => {
+    expect(treeDropPosition(0, 30, manual)).toBe('before');
+    expect(treeDropPosition(9.9, 30, manual)).toBe('before');
+  });
+
+  it('下三分之一为 after', () => {
+    expect(treeDropPosition(20.1, 30, manual)).toBe('after');
+    expect(treeDropPosition(30, 30, manual)).toBe('after');
+  });
+
+  it('中间为 into', () => {
+    expect(treeDropPosition(10, 30, manual)).toBe('into');
+    expect(treeDropPosition(15, 30, manual)).toBe('into');
+    expect(treeDropPosition(20, 30, manual)).toBe('into');
+  });
+
+  it('非手动模式非根级行整行为 into', () => {
+    const ctx = { manual: false, targetIsRoot: false };
+    expect(treeDropPosition(1, 30, ctx)).toBe('into');
+    expect(treeDropPosition(15, 30, ctx)).toBe('into');
+    expect(treeDropPosition(29, 30, ctx)).toBe('into');
+  });
+
+  it('非手动模式根级行仍分三档', () => {
+    const ctx = { manual: false, targetIsRoot: true };
+    expect(treeDropPosition(1, 30, ctx)).toBe('before');
+    expect(treeDropPosition(15, 30, ctx)).toBe('into');
+    expect(treeDropPosition(29, 30, ctx)).toBe('after');
+  });
+});
+
+describe('isTargetInMovedSubtree', () => {
+  const items = [
+    { id: 'root', parentId: null },
+    { id: 'child', parentId: 'root' },
+    { id: 'grand', parentId: 'child' },
+    { id: 'other', parentId: null }
+  ];
+
+  it('目标是被拖节点自己', () => {
+    expect(isTargetInMovedSubtree('root', items[0], items)).toBe(true);
+  });
+
+  it('目标是被拖节点的后代', () => {
+    expect(isTargetInMovedSubtree('root', items[2], items)).toBe(true);
+  });
+
+  it('目标是祖先或无关节点', () => {
+    expect(isTargetInMovedSubtree('grand', items[0], items)).toBe(false);
+    expect(isTargetInMovedSubtree('root', items[3], items)).toBe(false);
   });
 });

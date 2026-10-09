@@ -9,26 +9,3 @@ export interface DragDropState {
   isValidTarget: boolean;
   dragStartTime?: number;
 }
-
-export enum DragDropErrorCode {
-  INVALID_OPERATION = 'INVALID_OPERATION',
-  CIRCULAR_DEPENDENCY = 'CIRCULAR_DEPENDENCY',
-  SAME_NODE = 'SAME_NODE'
-}
-
-export class DragDropError extends Error {
-  constructor(
-    public code: DragDropErrorCode,
-    message: string
-  ) {
-    super(message);
-    this.name = 'DragDropError';
-  }
-}
-
-export interface DropResult {
-  success: boolean;
-  newSortOrder?: string;
-  newParentId?: RxDBEntityId | null;
-  error?: DragDropError;
-}

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 import { formatNxLog, parseArgs, parseNxLog, renderReport, resolveNxExitCode } from './test-all-log.mjs';
@@ -20,6 +21,16 @@ Failed tasks:
   Run duration:      3.2s
   Cache:             1/2 hit (50%)
 `;
+
+test('默认 targets 与 package.json 的 test-all 逐个对齐（含顺序）', () => {
+  const { scripts } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  const testAllTargets = scripts['test-all']
+    .match(/ -t ((?:[\w-]+ )+)--/)[1]
+    .trim()
+    .split(' ');
+
+  assert.deepEqual(parseArgs([]).targets, testAllTargets);
+});
 
 test('formatNxLog 清除控制字符并压缩连续空行', () => {
   const formatted = formatNxLog(failedLog);

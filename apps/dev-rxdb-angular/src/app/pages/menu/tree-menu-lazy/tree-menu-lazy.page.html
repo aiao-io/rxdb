@@ -248,6 +248,9 @@
           </div>
         }
 
+        <!-- 写入失败提示（新建 / 重命名 / 批量添加 / 删除） -->
+        <app-tree-write-error [message]="writeError()" (closed)="clearWriteError()" />
+
         <!-- 路径冲突警告 -->
         @if (pathConflictWarning()) {
           <div class="alert alert-warning">
@@ -280,9 +283,11 @@
                   <li
                     class="tree-node"
                     *cdkVirtualFor="let node of treeNodes(); trackBy: trackByMenuId"
+                    [attr.data-drop-mode]="state.targetItemId === node.menu.id ? state.dropMode : ''"
+                    [attr.data-drop-valid]="state.targetItemId === node.menu.id ? state.isValidTarget : ''"
                     [attr.data-level]="node.level"
                     [attr.data-menu-id]="node.menu.id"
-                    [attr.data-parent-id]="node.menu.parentId"
+                    [attr.data-parent-id]="node.menu.parentId ?? ''"
                     [attr.draggable]="true"
                     [class.dragging]="state.draggedItemId === node.menu.id"
                     [class.drop-after]="
@@ -339,6 +344,7 @@
                             [(ngModel)]="$edit_menu_title"
                             (keydown.escape)="cancelEdit()"
                             (keyup.enter)="saveEdit($event)"
+                            data-testid="menu-edit-input"
                             type="text"
                           />
                           <button class="btn btn-primary btn-sm" (click)="saveEdit($event)" type="button">确认</button>

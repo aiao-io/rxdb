@@ -15,6 +15,22 @@
       "options": {
         "command": "vite build && node ../../scripts/audit/package-api-docs.mjs ."
       }
+    },
+    "test": {
+      "options": {
+        "command": "vitest --project=rxdb-adapter-electron"
+      }
+    },
+    "test-memory": {
+      "cache": true,
+      "parallelism": false,
+      "dependsOn": ["^build"],
+      "executor": "nx:run-commands",
+      "inputs": ["default", "^production"],
+      "options": {
+        "command": "vitest --project=rxdb-adapter-electron:memory --coverage.enabled=false",
+        "cwd": "packages/rxdb-adapter-electron"
+      }
     }
   }
 }

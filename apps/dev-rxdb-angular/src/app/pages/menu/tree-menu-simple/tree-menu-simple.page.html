@@ -234,6 +234,9 @@
     <!-- 主内容区 -->
     <div class="p-6">
       <div class="mx-auto max-w-4xl space-y-6">
+        <!-- 写入失败提示（新建 / 重命名 / 批量添加 / 删除） -->
+        <app-tree-write-error [message]="writeError()" (closed)="clearWriteError()" />
+
         <!-- 路径冲突警告 -->
         @if (pathConflictWarning()) {
           <div class="alert alert-warning">
@@ -268,9 +271,11 @@
                   @defer (on viewport) {
                     <li
                       class="tree-node"
+                      [attr.data-drop-mode]="isTarget ? state.dropMode : ''"
+                      [attr.data-drop-valid]="isTarget ? state.isValidTarget : ''"
                       [attr.data-level]="node.level"
                       [attr.data-menu-id]="node.menu.id"
-                      [attr.data-parent-id]="node.menu.parentId"
+                      [attr.data-parent-id]="node.menu.parentId ?? ''"
                       [attr.draggable]="true"
                       [class.dragging]="state.draggedItemId === node.menu.id"
                       [class.drop-after]="isTarget && state.dropMode === 'after' && state.isValidTarget"
@@ -318,6 +323,7 @@
                               [(ngModel)]="$edit_menu_title"
                               (keydown.escape)="cancelEdit()"
                               (keyup.enter)="saveEdit($event)"
+                              data-testid="menu-edit-input"
                               type="text"
                             />
                             <button class="btn btn-primary btn-sm" (click)="saveEdit($event)" type="button">

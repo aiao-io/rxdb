@@ -1,10 +1,8 @@
 import type { RxDBEntityId } from '@aiao/rxdb';
-import { compareSortOrder } from './sort-order';
 
 export interface TreeMenuItem {
   id: RxDBEntityId;
   parentId?: RxDBEntityId | null;
-  sortOrder?: string | null;
   title: string;
 }
 
@@ -17,6 +15,7 @@ export interface TreeMenuNode<T extends TreeMenuItem> {
 
 export type ResolveHasChildren<T extends TreeMenuItem> = (menu: T, children: readonly T[]) => boolean;
 
+/** 按父节点分组，组内保持输入（查询）顺序：手动顺序只来自引擎的默认排序。 */
 function createChildrenMap<T extends TreeMenuItem>(menus: readonly T[]): Map<RxDBEntityId | null, T[]> {
   const childrenMap = new Map<RxDBEntityId | null, T[]>();
   for (const menu of menus) {
@@ -24,10 +23,6 @@ function createChildrenMap<T extends TreeMenuItem>(menus: readonly T[]): Map<RxD
     const children = childrenMap.get(parentId) ?? [];
     children.push(menu);
     childrenMap.set(parentId, children);
-  }
-
-  for (const children of childrenMap.values()) {
-    children.sort(compareSortOrder);
   }
   return childrenMap;
 }
