@@ -24,14 +24,16 @@ tags: [plugin, bom, graph, integrity]
 - **约束作用域（保守政策）**：同一 `(bom_type, org_id)` 内，**所有已存储的 `consume` 行发生项**按物料级
   （`parent_item_id → child_item_id`）取并集，这张并集图无环。不区分修订、日期、备选与配置，草稿（含挂在 `draft` ECN 上的发生项）也计入，
   见技术笔记「为什么约束并集」。**解析不可见 ≠ 判环不可见**：草稿头与 `draft` ECN 引入的发生项对解析不可见，`released` ECN 引入的发生项在 `as_of_date` 早于其生效日的解析中不可见
-  （[US-508](US-508-bom-view-resolution.md)；按评估日判，不读宿主当日——宿主日期只决定 ECN 能否改期 / 取消），但都已存储，都在并集里；只有 ECN 撤回或取消时级联删除的发生项（[US-515](US-515-bom-change-management.md)）随之退出并集
+  （[US-508](US-508-bom-view-resolution.md)；按评估日判，不读宿主当日——宿主日期只决定 ECN 能否改期 / 取消，见 [US-515](US-515-bom-change-management.md) AC#7），但都已存储，都在并集里；被删除的发生项才退出并集：草稿头下的自由删除（[US-507](US-507-bom-graph-skeleton.md) 发布边界）与 ECN 撤回 / 取消的级联删除（[US-515](US-515-bom-change-management.md)）
 - 插入发生项、更新其 `child_item_id` / `flow_direction` 时的可达性检查：子件是否已能到达父件。这是改变并集图的**唯一**入口：
   决定作用域与父端点的结构归属列——修订的 `item_id`，头的 `parent_revision_id` / `bom_type` / `org_id`，逻辑行的 `bom_header_id`，
   发生项的 `bom_line_id`——创建后不可改（[US-507](US-507-bom-graph-skeleton.md) AC#13），于是不需要为它们再挂检查
 - 自反边（`child_item_id = parent_item_id`）由同一个可达性触发器拒绝：它是路径长度 0 的退化环（子件「已能到达」父件），
   不另设 CHECK，也不依赖 [US-030](../core/US-030-declarative-storage-constraints.md)
 - 无闭包表时的递归 CTE 兜底，带 `depth` 硬上限防脏数据
-- 只有 `flow_direction = 'consume'` 的边参与环检测
+- 只有 `flow_direction = 'consume'` 的边参与环检测。该列由 [US-513](US-513-bom-coproduct-byproduct.md) 阶段 A 引入，它落地前所有发生项都是 `consume`：
+  首轮触发器不带这条过滤、也没有 `flow_direction` 的更新入口，列落地时重新生成触发器补上两者（AC#4）。不能提前引用该列——
+  触发器里引用尚不存在的列，两后端都是创建成功、首次 INSERT 才报错（探针：SQLite `no such column`，PGlite `record "new" has no field`）
 - 「存储层」的适配器边界与无本地存储时的降级语义（见技术笔记的适配器矩阵）
 - **写入端的提交协议**：首轮 BOM 实体不参与同步，在同步配置校验处显式拒绝；导入走 [US-521](US-521-bom-erp-mrp-integration.md)
   的整批原子提交；导出给远端的 DDL 自带串行化锁。见技术笔记「多写入端」
@@ -52,7 +54,7 @@ tags: [plugin, bom, graph, integrity]
 | 1   | A→B→C 已存在                             | 插入 C→A                                                                                                                              | 存储层拒绝，错误里给出环路径                                                                                                                                                                                                                          | ⬜   |
 | 2   | 任意 BOM                                 | 插入 `child = parent`                                                                                                                 | 可达性触发器拒绝，与 AC#1 同一环错误码，环路径为单个物料                                                                                                                                                                                              | ⬜   |
 | 3   | 无闭包表的 org                           | 插入成环边                                                                                                                            | 递归 CTE 检出，`depth` 触上限时报错不静默通过                                                                                                                                                                                                         | ⬜   |
-| 4   | `flow_direction <> 'consume'` 的边       | 构成反向物料流                                                                                                                        | **不**参与环检测，保存成功                                                                                                                                                                                                                            | ⬜   |
+| 4   | X 的头已 `consume` Y（X→Y 已存）         | 保存 Y 的头一条子件为 X、`flow_direction <> 'consume'` 的行                                                                           | **不**参与环检测，保存成功（与 [US-513](US-513-bom-coproduct-byproduct.md) AC#1 同一反向对）                                                                                                                                                          | ⬜   |
 | 5   | DDL 由本仓掌控的适配器                   | 绕过 adapter 直连库写入成环边                                                                                                         | 触发器拒绝                                                                                                                                                                                                                                            | ⬜   |
 | 6   | `http` / `supabase`                      | `init()`                                                                                                                              | 显式声明本适配器无写入期环约束并 fail-fast，不静默降级为仓储层校验                                                                                                                                                                                    | ⬜   |
 | 7   | 同上                                     | 取环约束 DDL                                                                                                                          | 返回可供远端自行部署的 DDL 片段，含 `(bom_type, org_id)` 级 `pg_advisory_xact_lock` 与 `transaction_isolation` 检查；部署与否由使用方负责                                                                                                             | ⬜   |
@@ -180,4 +182,4 @@ AC#8 等 US-510 阶段 B 的可达性表，AC#13 等真实 PostgreSQL 环境，A
 - [US-513 联产品与副产品](US-513-bom-coproduct-byproduct.md) — AC#4 的前置；`flow_direction` 的来源
 - [US-510 多级展开与 where-used 反查](US-510-bom-multilevel-explosion.md) — AC#8 依赖其阶段 B
 - [US-030 实体元数据层的声明式存储约束](../core/US-030-declarative-storage-constraints.md) — AC#7 的 SQLite 宿主版本门槛
-- [US-515 变更管理](US-515-bom-change-management.md) — ECN 撤回 / 取消对并集的影响；AC#15 / #16
+- [US-515 变更管理](US-515-bom-change-management.md) — ECN 撤回 / 取消对并集的影响；AC#15 / #16；宿主日期只限改期 / 取消（其 AC#7）

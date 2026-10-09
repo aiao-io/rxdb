@@ -117,7 +117,7 @@ B2 关闭 AC#1 / #13。首轮切片（A / C / B1）不含 AC#1 与 AC#13；AC#20
                              phantom 为假：按 child.stock_uom 小数位向上取整，产出需求行
 ```
 
-**单位换算在穿透之前，不在之后。** 旧写法把第 6 步「`G''` 作为子件的 P 下钻」放在第 7 步「单位换算」之前：
+**单位换算在穿透之前，不在之后。** 若让 `G''` 先作为子件的 P 下钻、再做单位换算：
 A 需要 1000 g 的 phantom B，B 的头以 1 kg 为基准、每 kg 用 2 件 C，正确是 `1000 × 0.001 × 2 = 2` 件 C，
 直接把 1000 当 B 的 `P` 得 2000 件，**错 1000 倍**（Decimal 探针复现）。数量只有数值没有单位才会犯这种错，
 所以第 1、3、6、7 步都显式写出单位。非 phantom 的下层展开同样从第 1 步进入子 BOM，同样先归一。
@@ -125,7 +125,7 @@ A 需要 1000 g 的 phantom B，B 的头以 1 kg 为基准、每 kg 用 2 件 C�
 **工序损耗的方向：从投料工序（含）到末工序。** 物料在工序 10 投入，就要经过 20、30；20 的报废会吃掉 10 投入的料，
 所以 10 投料的需求要被 20 的损耗放大；30 投入的料不经过 20，不受影响。10→20→30、只有 20 损耗 3% 时，
 加成制下投料基数 100 的需求是 10:103、20:103、30:100（AC#13）。
-[US-520](US-520-bom-routing-operation.md) AC#3 与 [US-525](US-525-bom-end-to-end-demo.md) AC#9 已按此方向改写。
+[US-520](US-520-bom-routing-operation.md) AC#3 与 [US-525](US-525-bom-end-to-end-demo.md) AC#9 的断言用同一方向。
 
 **三类损耗不能合成一个字段**——它们在公式里的位置不同：装配损耗级联到所有组件**和工序**，
 组件损耗只放大本行，工序损耗从投料工序起逐工序累乘。
@@ -233,6 +233,7 @@ text → numeric → text 复核过，前者丢末位、后者保留）。现有
 - [epic-009 BOM 领域模型](../../epics/epic-009-bom-domain-model.md)
 - [US-510 多级展开与 where-used 反查](US-510-bom-multilevel-explosion.md) — 前置
 - [US-508 BOM 视图解析](US-508-bom-view-resolution.md) — 前置；`ResolutionContext` 与 manifest
+- [US-507 BOM 图骨架](US-507-bom-graph-skeleton.md) — 前置；七步公式直接操作其 `bom_header` 与 `bom_line_occurrence`（其阶段 B；`qty` 的存取是本故事 AC#22 / #23 的落点），本故事阶段 C 取 `item_revision.default_phantom`（其阶段 A）
 - [US-520 工艺路线挂接与工序投料分摊](US-520-bom-routing-operation.md) — 阶段 B2 的前置；`operation_seq`
 - [US-524 工艺路线本体](US-524-routing-master-model.md) — 阶段 B2 的前置；阶段 D 的工序损耗与 convention
 - [US-513 联产品与副产品](US-513-bom-coproduct-byproduct.md) — `flow_direction` 的来源

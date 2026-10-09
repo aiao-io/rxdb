@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-01
+updated: 2026-10-09
 tags: [plugin, bom, effectivity, aerospace]
 ---
 
@@ -73,6 +73,12 @@ tags: [plugin, bom, effectivity, aerospace]
 MRP 拿去就是双份需求；「只要无序列约束的行」会让这个位置凭空消失。两者都会产出看似完整的错误结构。
 所以没给 `unit` 时，按序列区分的那几个候选如实列为 `unresolved`（AC#6），与 US-508 未定备选同一信号，需要完整结构的消费方一律拒绝。
 
+**三维判定的落点（启动时裁决，此处不预设）。** 日期 × 序列两维可由 [US-030](../core/US-030-declarative-storage-constraints.md) 阶段 C 的区间排他承担，批次集合维它表达不了：
+PG GiST 对数组没有默认运算符类，NULL 在 `EXCLUDE` 里又永不冲突，而这里 NULL = 全部批次。缺口不止于「批次维另找落点」：
+阶段 C 的排他对整张表无条件生效，对日期、序列都相交而批次集合不相交的两条发生项（AC#10）同样拒绝，与 AC#10 要求的「接受」直接冲突。
+所以启动时要定的是整个三维判定放在哪——是否仍能消费阶段 C 的两维排他，还是三维整体由插件自发触发器承担（则 AC#5 / #7～#9 也不再消费阶段 C）。
+裁决前 AC#10 不关闭；无论怎么定，AC#5 / #7～#10 都要在 SQLite 与 PGlite 上给出同一结果与同一错误类。
+
 ## 价值待证
 
 同 [epic-009](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic)。
@@ -87,5 +93,7 @@ MRP 拿去就是双份需求；「只要无序列约束的行」会让这个位�
 - [epic-009 BOM 领域模型](../../epics/epic-009-bom-domain-model.md)
 - [US-507 BOM 图骨架](US-507-bom-graph-skeleton.md) — 前置；有效性字段挂在行发生项上
 - [US-508 BOM 视图解析](US-508-bom-view-resolution.md) — 前置，共用区间重叠判定与 `unresolved` 信号
-- [US-030 声明式存储约束](../core/US-030-declarative-storage-constraints.md) — 日期 × 序列两维排他的落点（阶段 C，AC#13）；
-  批次集合维 `lot_codes` 不在其内（PG GiST 无数组运算符类，NULL 在 `EXCLUDE` 里永不冲突），AC#10 的批次维须在本故事启动时另定落点
+- [US-030 声明式存储约束](../core/US-030-declarative-storage-constraints.md) — 日期 × 序列两维排他的候选落点（阶段 C，AC#13）；
+  批次集合维 `lot_codes` 不在其内（PG GiST 无数组运算符类，NULL 在 `EXCLUDE` 里永不冲突），AC#10 要求的三维判定整体落在哪，见技术笔记「三维判定的落点」
+- [US-521 ERP/MRP 集成契约](US-521-bom-erp-mrp-integration.md) — 消费方：AC#6 的 `unresolved` 在导出时被拒绝；导入排序键在本故事落地后追加 `unit_from` 与批次
+- [US-523 as-built / as-maintained 实例 BOM](US-523-bom-as-built-instance.md) — Out of Scope 的去向：实例化的装机结构

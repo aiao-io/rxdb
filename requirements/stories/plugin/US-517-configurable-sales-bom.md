@@ -21,7 +21,7 @@ tags: [plugin, bom, configuration]
 
 ### In Scope
 
-- `config_char`（特征）、`config_char_value`（选项值）、`config_condition`（选择条件表达式）、`config_constraint`（依赖约束）
+- `config_char`（特征，带必选标记 `required`，AC#3）、`config_char_value`（选项值）、`config_condition`（选择条件表达式）、`config_constraint`（依赖约束）
 - 行发生项（[US-507](US-507-bom-graph-skeleton.md)）的 `selection_condition_id` 引用选择条件
 - 配置输入是 `ResolutionContext`（[US-508](US-508-bom-view-resolution.md)）的扩展字段，不另开第二套入参；
   给定上下文解析出入选行集，manifest 记录所用配置
@@ -44,7 +44,7 @@ tags: [plugin, bom, configuration]
 | --- | --------------------------------------------- | ------------------------------- | ---------------------------------------------------- | ---- |
 | 1   | 行挂选择条件「颜色=红」                       | 选红 / 选蓝                     | 该行分别入选 / 落选                                  | ⬜   |
 | 2   | 约束「A 与 B 互斥」                           | 同时选 A 与 B                   | 配置被拒，错误里给出冲突项                           | ⬜   |
-| 3   | 必选特征未赋值                                | 展开                            | 明确报「配置不完整」，**不静默产出部分结构**         | ⬜   |
+| 3   | `required = true` 的特征未赋值                | 展开                            | 明确报「配置不完整」，**不静默产出部分结构**         | ⬜   |
 | 4   | 同一 BOM 两组配置输入                         | 分别展开                        | 得到两份不同的有效行集，共享同一份 `bom_line`        | ⬜   |
 | 5   | 选择条件不合最小语法，或引用不存在的特征 / 值 | 保存                            | 保存期拒绝，错误点名位置与未知标识；不留到展开期才炸 | ⬜   |
 | 6   | 配置「红」下 A→B、配置「蓝」下 B→A            | 保存第二条                      | 按 US-509 拒绝：两种配置互斥也不放行                 | ⬜   |
@@ -84,3 +84,4 @@ AC#3 遵守「无 fallback 兜底」：配置不完整时返回部分结构，�
 - [US-507 BOM 图骨架](US-507-bom-graph-skeleton.md) — 前置；行发生项
 - [US-508 BOM 视图解析](US-508-bom-view-resolution.md) — 前置；配置扩入 `ResolutionContext`
 - [US-509 DAG 约束与环路检测](US-509-bom-dag-cycle-detection.md) — 并集无环政策
+- [US-511 展开数量正确性](US-511-bom-quantity-semantics.md) — 非前置；`condition_grammar_version` 沿用其 `formula_grammar_version` 的语法版本化做法

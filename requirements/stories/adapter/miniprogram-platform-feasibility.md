@@ -184,8 +184,8 @@ platforms:
 | 百度   | `unsupported` | 门 1：安全随机源与 WASM 入口都找不到（文档没有，也没有实测）                                                                                                                                   |
 | 支付宝 | `supported`   | 阶段 C（2026-10-04）改判：正式 host 的探针 v7 在开发者工具模拟器与 iOS 真机五行全 pass；依赖未文档化能力，Android 真机暂无设备、经书面豁免记为 caveat，用户目录没撞上配额记 `quota-unobserved` |
 
-证据对应的构建：抖音 v9、支付宝 v7 的报告跑在 `@subframe7536/sqlite-wasm` 1.3.1（wasm 727646 字节）上，Taro demo 走查跑在 Taro 4.2.1 上；
-升级到 sqlite-wasm 1.4.0 与 Taro 4.3.0 之后还没有复跑，结论沿用旧证据（见 US-211 技术笔记「走查证据对应的构建」）。
+证据对应的构建：抖音 v9、支付宝 v7 的报告跑在 `@subframe7536/sqlite-wasm` 1.3.1（wasm 727646 字节）上，与 adapter 当前锁定的版本相同；
+Taro demo 走查跑在 Taro 4.2.1 上，Taro 4.3.0 + demo 去 babel 的构建在抖音、支付宝上还没有复跑（见 US-211 技术笔记「走查证据对应的构建」）。
 
 抖音的对外口径是「实验性支持」：Android 真机补跑一份抖音 spike 报告（现行 schema 为 v10）并全 pass 后，才去掉 `android-unverified`。
 支付宝的对外口径是「实验性（依赖未文档化能力）」：Android 真机补跑一份 v7 报告并五行全 pass 后，删掉 `waived` 与 `android-unverified`。
