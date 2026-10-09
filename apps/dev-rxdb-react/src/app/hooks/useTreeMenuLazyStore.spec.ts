@@ -553,7 +553,7 @@ describe('useTreeMenuLazyStore', () => {
     });
   });
 
-  describe('展开与新建的并发（M6）', () => {
+  describe('展开与新建的并发', () => {
     const holdNextSave = () => {
       const gate = { release: () => undefined as void };
       table.writes['save'].mockImplementationOnce(
@@ -615,7 +615,7 @@ describe('useTreeMenuLazyStore', () => {
     });
   });
 
-  describe('删除全部走 runWrite（M7）', () => {
+  describe('删除全部走 runWrite', () => {
     it('deleteAllMenus 失败：写入「删除全部失败」，不抛出', async () => {
       table.rows = [makeMenu('a', null, 'a0')];
       table.writes['removeMany'].mockRejectedValueOnce(new Error('被外键拦下'));

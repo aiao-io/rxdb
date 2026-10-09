@@ -401,7 +401,7 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
     });
   });
 
-  describe('删除全部（M7）', () => {
+  describe('删除全部', () => {
     it('失败：写入「删除全部失败：…」且不抛出', async () => {
       const h = makeHarness();
       h.rxdb.entityManager.removeMany.mockRejectedValueOnce(new Error('boom'));

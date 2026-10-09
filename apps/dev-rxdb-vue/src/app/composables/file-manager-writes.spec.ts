@@ -401,7 +401,7 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
     });
   });
 
-  describe('删除对话框的影响数（M5）', () => {
+  describe('删除对话框的影响数', () => {
     it('折叠文件夹（后代都未加载）：直接子项与后代数按库计，不是 0', async () => {
       const folder = fixture({ id: 'folder-1', name: 'Docs', type: 'folder' });
       const a = fixture({ id: 'a', name: 'a', type: 'folder', parentId: 'folder-1' });
@@ -418,7 +418,7 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
     });
   });
 
-  describe('删除全部（M7）', () => {
+  describe('删除全部', () => {
     it('失败：写入「删除全部失败：…」且不抛出', async () => {
       const file = fixture({ id: 'f1', name: 'a.txt', type: 'file' });
       const h = makeHarness([file]);
@@ -493,7 +493,7 @@ describe('useFileManagerLazyStore（lazy）的删除按库取数据', () => {
     expect(store.fileToDelete.value).toBeNull();
   });
 
-  it('加载中折叠（L7）：清掉 loading 状态，不会卡死', async () => {
+  it('加载中折叠：清掉 loading 状态，不会卡死', async () => {
     const folder = fixture({ id: 'folder-1', name: 'Docs', type: 'folder', hasChildren: true });
     registry.findAll.mockImplementation((options?: { where?: { rules?: Array<{ value: unknown }> } }) =>
       options?.where?.rules?.[0]?.value === null ? of([folder]) : NEVER

@@ -472,7 +472,7 @@ describe('useFileManagerLazyStore', () => {
     });
   });
 
-  describe('删除对话框的影响数取自库（M5）', () => {
+  describe('删除对话框的影响数取自库', () => {
     const seedCollapsedTree = () => {
       const folder = makeFile('p', null, 'a0', 'folder');
       table.rows = [
@@ -556,7 +556,7 @@ describe('useFileManagerLazyStore', () => {
     });
   });
 
-  describe('展开与新建的并发（M6）', () => {
+  describe('展开与新建的并发', () => {
     it('addChild 保存往返期间用户展开了别的文件夹：该展开不被陈旧闭包覆盖', async () => {
       const [p, q] = [makeFile('p', null, 'a0', 'folder'), makeFile('q', null, 'a1', 'folder')];
       table.rows = [p, q, makeFile('qc', 'q', 'a0', 'file')];
@@ -617,7 +617,7 @@ describe('useFileManagerLazyStore', () => {
     });
   });
 
-  describe('删除全部走 runWrite（M7）', () => {
+  describe('删除全部走 runWrite', () => {
     it('deleteAllFiles 失败：写入「删除全部失败」，不抛出', async () => {
       table.rows = [makeFile('a', null, 'a0', 'file')];
       table.writes['removeMany'].mockRejectedValueOnce(new Error('被外键拦下'));
