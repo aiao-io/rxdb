@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   loadParityGolden,
   normalizeParitySnapshot,
+  type ParityFilterRaw,
   type ParityRawSnapshot
 } from '../../e2e-parity/entity-model-parity.mjs';
 import { resetE2eState } from './e2e-utils.js';
@@ -189,9 +190,12 @@ async function readFormRaw(page: Page) {
  * 按钮的文本（即字段显示名 / 操作符标签），值取 `input[placeholder='输入值']`（规则里其它
  * input 属于已收起的选择器弹层，不能按位置取）。
  */
-async function readFilterRaw(page: Page) {
+async function readFilterRaw(page: Page): Promise<ParityFilterRaw> {
   const group = page.locator('.rxdb-query-group').first();
-  const combinator = (await group.locator('.join button.btn-primary').innerText()).trim().toLowerCase();
+  // join 按钮只有 AND / OR 两种文本；语义契约由 normalizeParitySnapshot 下游校验。
+  const combinator = (await group.locator('.join button.btn-primary').innerText())
+    .trim()
+    .toLowerCase() as ParityFilterRaw['combinator'];
   const rules = await group.locator('.rxdb-query-rule').evaluateAll(ruleEls =>
     ruleEls.map(rule => {
       const buttons = rule.querySelectorAll('button[popovertarget]');
