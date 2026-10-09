@@ -22,6 +22,10 @@ describe('reorderTargetForDrop', () => {
     expect(reorderTargetForDrop(GROUP, 'a', 'd', 'after')).toEqual({ prevId: 'd', nextId: null });
   });
 
+  it('同组相邻但非原位：b 放到 a 上方得到 null、a', () => {
+    expect(reorderTargetForDrop(GROUP, 'b', 'a', 'before')).toEqual({ prevId: null, nextId: 'a' });
+  });
+
   it('原位：放在自己的后邻上方返回 null', () => {
     expect(reorderTargetForDrop(['a', 'b', 'c'], 'a', 'b', 'before')).toBeNull();
   });
@@ -40,6 +44,10 @@ describe('reorderTargetForDrop', () => {
 
   it('跨组到组首：放在唯一兄弟上方，前邻为 null', () => {
     expect(reorderTargetForDrop(['q1'], 'p1', 'q1', 'before')).toEqual({ prevId: null, nextId: 'q1' });
+  });
+
+  it('跨组到组尾：放在最后一个兄弟下方，后邻为 null', () => {
+    expect(reorderTargetForDrop(['q1', 'q2'], 'p1', 'q2', 'after')).toEqual({ prevId: 'q2', nextId: null });
   });
 
   it('拖到自己上抛 RangeError', () => {

@@ -1,3 +1,4 @@
+import type { RxDBEntityId } from '@aiao/rxdb';
 import type { Observable } from 'rxjs';
 
 interface FileParentRelation<T> {
@@ -22,6 +23,8 @@ export interface FileTreeEntityConstructor {
   new (...args: never[]): FileTreeEntity;
   find(options: object): Observable<InstanceType<this>[]>;
   findAll(options: object): Observable<InstanceType<this>[]>;
+  /** 树查询：指定 `entityId` 时返回该节点自身与全部后代。 */
+  findDescendants(options: { entityId: RxDBEntityId }): Observable<InstanceType<this>[]>;
 }
 
 export type FileTreeInstance<T extends FileTreeEntityConstructor> = InstanceType<T>;

@@ -68,7 +68,8 @@ async function runMigrationsOnce(
   // 的**全部**实体重建变更触发器，而既有库上新增实体的表要到迁移之后的 `#ensureEntityTables`
   // 才补建——写日志就是对一张还不存在的表 `CREATE TRIGGER`，整条 `connect()` 以 `no such table`
   // 失败。系统迁移自 `0004-working-tree-commits` 起每次 `connect()` 都会走到这里。
-  // 迁移里的写入照样由表上已有的触发器记进 `rxdb_change`，少的只是共享的 `transactionId`。
+  // 迁移里的写入照样由表上已有的触发器记进 `rxdb_change`，少的只是共享的 `transactionId`：
+  // 若对迁移写入做 history 撤销，粒度是逐条而不是整次迁移（UI 的撤销路径碰不到迁移写入）。
   await adapter.bootstrapTransaction(async executor => {
     // 读写都走 executor 的仓库：事务体内经普通 adapter.query() 的调用会排在自己这个事务
     // 后面（队列并发度 1），而且这里原先用的是 entityManager 的**活查询** findAll ——

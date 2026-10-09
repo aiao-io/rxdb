@@ -2,6 +2,7 @@ import { RxDB, SortOrderError, type HistoryScopeAPI } from '@aiao/rxdb';
 import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { PLATFORM_ID, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FileDragDropService } from '../services/file-drag-drop.service';
 import type { FilePathValidatorService } from '../services/file-path-validator.service';
@@ -73,9 +74,24 @@ describe('TreeFileStore.treeNodes', () => {
   });
 });
 
+interface FindAllOptions {
+  where?: { rules?: Array<{ field: string; value: unknown }> };
+}
+
 class TestFileEntity {
   static instances: TestFileEntity[] = [];
   static nextId = 0;
+  /** 模拟库里的数据：被删节点 id -> 它的直接子节点 */
+  static dbChildren = new Map<string, SortableFileNode[]>();
+  /** 模拟库里的数据：被删节点 id -> 节点自身 + 全部后代（`findDescendants` 的语义） */
+  static dbSubtree = new Map<string, SortableFileNode[]>();
+  static readonly findAll = vi.fn((options: object) => {
+    const parentId = (options as FindAllOptions).where?.rules?.find(rule => rule.field === 'parentId')?.value;
+    return of(TestFileEntity.dbChildren.get(String(parentId)) ?? []);
+  });
+  static readonly findDescendants = vi.fn((options: { entityId: string }) =>
+    of(TestFileEntity.dbSubtree.get(options.entityId) ?? [])
+  );
 
   id = `new-file-${String(++TestFileEntity.nextId)}`;
   parentId: string | null = null;
@@ -101,6 +117,10 @@ class TestFileEntity {
   static reset(): void {
     TestFileEntity.instances = [];
     TestFileEntity.nextId = 0;
+    TestFileEntity.dbChildren.clear();
+    TestFileEntity.dbSubtree.clear();
+    TestFileEntity.findAll.mockClear();
+    TestFileEntity.findDescendants.mockClear();
   }
 }
 
@@ -230,11 +250,13 @@ describe('TreeFileStore actions', () => {
     expect(store.editingFileId()).toBeNull();
   });
 
-  it('计算删除影响，叶子直接删除，父节点级联删除后清空确认态', async () => {
+  it('叶子直接删除，父节点级联删除后清空确认态', async () => {
     const root = makeActionFile('root', null, '根');
     const child = makeActionFile('child', 'root', '子');
     const grandchild = makeActionFile('grandchild', 'child', '孙', 'file');
     const leaf = makeActionFile('leaf', null, '叶', 'file');
+    TestFileEntity.dbChildren.set('root', [child]);
+    TestFileEntity.dbSubtree.set('root', [root, child, grandchild]);
     const { entityManager, store } = makeActionStore([root, child, grandchild, leaf]);
 
     await store.deleteFile(leaf);
@@ -245,13 +267,88 @@ describe('TreeFileStore actions', () => {
     expect(store.deleteImpact()).toEqual({ childrenCount: 1, descendantsCount: 2 });
 
     await store.executeCascadeDelete();
-    expect(child.remove).toHaveBeenCalledOnce();
-    expect(grandchild.remove).toHaveBeenCalledOnce();
-    expect(root.remove).toHaveBeenCalledOnce();
+    expect(entityManager.removeMany).toHaveBeenCalledWith([root, child, grandchild]);
     expect(store.fileToDelete()).toBeNull();
+    expect(store.deleteImpact()).toEqual({ childrenCount: 0, descendantsCount: 0 });
 
     await store.deleteAllFiles();
-    expect(entityManager.removeMany).toHaveBeenCalledWith([root, child, grandchild, leaf]);
+    expect(entityManager.removeMany).toHaveBeenLastCalledWith([root, child, grandchild, leaf]);
+  });
+
+  describe('删除读库里的子节点，不看页面已加载的节点', () => {
+    it('页面没加载子节点（懒加载折叠）时，库里有子节点也要弹对话框而不是直接 remove()', async () => {
+      const folded = makeActionFile('folded', null, '折叠的文件夹');
+      const unloadedA = makeActionFile('a', 'folded', 'A', 'file');
+      const unloadedB = makeActionFile('b', 'folded', 'B', 'file');
+      TestFileEntity.dbChildren.set('folded', [unloadedA, unloadedB]);
+      TestFileEntity.dbSubtree.set('folded', [folded, unloadedA, unloadedB]);
+      const { store } = makeActionStore([folded]);
+
+      await store.deleteFile(folded);
+
+      expect(folded.remove).not.toHaveBeenCalled();
+      expect(store.fileToDelete()).toBe(folded);
+      expect(store.deleteImpact()).toEqual({ childrenCount: 2, descendantsCount: 2 });
+      expect(TestFileEntity.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: 'folded' }] }
+        })
+      );
+    });
+
+    it('查询不传 orderBy', async () => {
+      const folded = makeActionFile('folded', null, '折叠的文件夹');
+      TestFileEntity.dbChildren.set('folded', [makeActionFile('a', 'folded', 'A', 'file')]);
+      TestFileEntity.dbSubtree.set('folded', [folded]);
+      const { store } = makeActionStore([folded]);
+
+      await store.deleteFile(folded);
+
+      expect(TestFileEntity.findAll).toHaveBeenCalledOnce();
+      expect(TestFileEntity.findAll.mock.calls[0]?.[0]).not.toHaveProperty('orderBy');
+    });
+
+    it('库里没有子节点（页面却有过期的子节点）时直接 remove()', async () => {
+      const leaf = makeActionFile('leaf', null, '叶');
+      const stale = makeActionFile('stale', 'leaf', '过期', 'file');
+      const { store } = makeActionStore([leaf, stale]);
+
+      await store.deleteFile(leaf);
+
+      expect(leaf.remove).toHaveBeenCalledOnce();
+      expect(store.fileToDelete()).toBeNull();
+    });
+
+    it('级联删除的子孙集合取自库的 findDescendants，一次 removeMany 提交', async () => {
+      const folded = makeActionFile('folded', null, '折叠的文件夹');
+      const child = makeActionFile('child', 'folded', '子');
+      const grandchild = makeActionFile('grandchild', 'child', '孙', 'file');
+      TestFileEntity.dbChildren.set('folded', [child]);
+      TestFileEntity.dbSubtree.set('folded', [folded, child, grandchild]);
+      const { entityManager, store } = makeActionStore([folded]);
+
+      await store.deleteFile(folded);
+      await store.executeCascadeDelete();
+
+      expect(TestFileEntity.findDescendants).toHaveBeenCalledWith({ entityId: 'folded' });
+      expect(entityManager.removeMany).toHaveBeenCalledExactlyOnceWith([folded, child, grandchild]);
+      expect(child.remove).not.toHaveBeenCalled();
+      expect(store.fileToDelete()).toBeNull();
+    });
+
+    it('关闭对话框后影响统计清零', async () => {
+      const folded = makeActionFile('folded', null, '折叠的文件夹');
+      const child = makeActionFile('child', 'folded', '子');
+      TestFileEntity.dbChildren.set('folded', [child]);
+      TestFileEntity.dbSubtree.set('folded', [folded, child]);
+      const { store } = makeActionStore([folded]);
+
+      await store.deleteFile(folded);
+      store.cancelDelete();
+
+      expect(store.fileToDelete()).toBeNull();
+      expect(store.deleteImpact()).toEqual({ childrenCount: 0, descendantsCount: 0 });
+    });
   });
 
   it('搜索、排序、全量展开折叠和本地持久化保持一致', () => {
@@ -524,6 +621,16 @@ describe('TreeFileDragDropStore 拖放交给引擎', () => {
       expect(alertSpy).not.toHaveBeenCalled();
       expect(consoleError).not.toHaveBeenCalled();
       consoleError.mockRestore();
+    });
+
+    it('「删除全部」失败进页内提示，不成为未处理拒绝', async () => {
+      const files = makeFiles();
+      const { host, store } = makeHost(files);
+      vi.spyOn(store, 'deleteAllFiles').mockRejectedValueOnce(new Error('外键冲突'));
+
+      await host.delete_all.execute();
+
+      expect(host.writeError()).toBe('删除全部失败：外键冲突');
     });
 
     it('下一次拖放清空错误', async () => {

@@ -263,6 +263,44 @@ test.describe('树页面创建类写入的顺序（US-031 阶段 A）', () => {
     await expectNoWriteError(page);
   });
 
+  test('文件管理器懒加载页删除折叠文件夹弹出级联删除对话框', async ({ page }) => {
+    const host = 'app-file-manager-lazy-page';
+    await page.goto('/file-manager-lazy');
+    await expect(page.locator(host)).toBeVisible({ timeout: WRITE_TIMEOUT });
+    await expect(page.getByTestId('file-name-input')).toBeVisible({ timeout: WRITE_TIMEOUT });
+
+    await addRootFolder(page, '待删文件夹', 1);
+
+    // 选中父文件夹（行内「添加子文件夹」按钮）后新建子项
+    const folder = fileRows(page).filter({ hasText: '待删文件夹' }).first();
+    await folder.hover();
+    await folder.locator('button[title="添加子文件夹"]').click();
+    const input = page.getByTestId('file-name-input');
+    await input.fill('待删子项');
+    await page.getByTestId('file-submit').click();
+    await expect(input).toHaveValue('', { timeout: WRITE_TIMEOUT });
+
+    // 刷新后文件夹折叠、子项未加载：旧实现按已加载节点判断，会当叶子直接 remove() 并被外键级联删光子树
+    await page.reload();
+    await expect(page.locator(host)).toBeVisible({ timeout: WRITE_TIMEOUT });
+    await expect(page.getByTestId('file-name-input')).toBeVisible({ timeout: WRITE_TIMEOUT });
+    await expectOrder(fileRows(page), [/待删文件夹/]);
+
+    const collapsed = fileRows(page).filter({ hasText: '待删文件夹' }).first();
+    await collapsed.hover();
+    await collapsed.locator('button[title="删除"]').click();
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog).toBeVisible({ timeout: WRITE_TIMEOUT });
+    await expect(dialog).toContainText('1 个直接子项');
+    await expect(dialog.getByRole('button', { name: '级联删除' })).toBeVisible();
+
+    await dialog.getByRole('button', { name: '取消' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(fileRows(page).filter({ hasText: '待删文件夹' })).toBeVisible();
+    await expectNoWriteError(page);
+  });
+
   test('批量添加后原有根节点仍在最前', async ({ page }) => {
     const host = 'app-tree-menu-simple-page';
     await gotoMenuPage(page, '/menu-simple', host);

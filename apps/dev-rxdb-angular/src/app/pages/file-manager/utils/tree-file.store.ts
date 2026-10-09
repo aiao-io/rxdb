@@ -1,13 +1,22 @@
 import type { HistoryScopeAPI } from '@aiao/rxdb';
-import { RxDB } from '@aiao/rxdb';
+import { RxDB, type RxDBEntityId } from '@aiao/rxdb';
 import { computed, signal, Signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { reorderTreeNode, treeDropPosition } from '../../../shared/tree-drop';
 import { runViewTransition, ViewTransitionStarter } from '../../../shared/view-transition';
 import { FileTreeEntityConstructor, FileTreeInstance } from '../models/file-node.interface';
 import { DropMode, FileDragDropService } from '../services/file-drag-drop.service';
 import { FilePathValidatorService, PathConflict } from '../services/file-path-validator.service';
 import { SortMode } from './file-sorters';
-import { buildTreeNodes, collectDescendants, countDescendants } from './tree-utils';
+import { buildTreeNodes, collectDescendants } from './tree-utils';
+
+/** 删除对话框展示的影响范围（取自库，不看页面已加载的节点）。 */
+export interface DeleteImpact {
+  childrenCount: number;
+  descendantsCount: number;
+}
+
+const NO_DELETE_IMPACT: DeleteImpact = { childrenCount: 0, descendantsCount: 0 };
 
 /**
  * 树形文件管理 Store
@@ -69,18 +78,8 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
     return buildTreeNodes(files, expandedIds, matchedIds, null, null, null, null, sortMode);
   });
 
-  readonly deleteImpact = computed(() => {
-    const file = this.fileToDelete();
-    if (!file) return { childrenCount: 0, descendantsCount: 0 };
-
-    const allFiles = this.fileResource.value();
-    const children = allFiles.filter(f => f.parentId === file.id);
-
-    return {
-      childrenCount: children.length,
-      descendantsCount: countDescendants(file.id, allFiles)
-    };
-  });
+  /** 随 `fileToDelete` 一起在 {@link deleteFile} 里按库查出；懒加载页的折叠文件夹没有已加载的子节点可数。 */
+  readonly deleteImpact = signal<DeleteImpact>(NO_DELETE_IMPACT);
 
   readonly expandedCount = computed(() => this.expandedFileIds().size);
 
@@ -279,49 +278,42 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
   // Delete Methods
 
   /**
-   * 删除文件/文件夹
+   * 删除文件/文件夹：按库里的直接子节点决定直接删除还是打开确认对话框。
+   *
+   * @remarks
+   * 不看 `fileResource`：懒加载页只持有已加载的节点，折叠文件夹的子节点不在其中，
+   * 按页面判断会把有子树的文件夹当叶子直接删除（`parentId` 外键级联删掉整棵子树）。
    */
   async deleteFile(file: FileTreeInstance<C>): Promise<void> {
-    const allFiles = this.fileResource.value();
-    const hasChildren = allFiles.some(f => f.parentId === file.id);
-
-    if (!hasChildren) {
-      // 直接删除
+    const children = await this.findChildren(file.id);
+    if (children.length === 0) {
       await file.remove();
-    } else {
-      // 显示确认对话框
-      this.fileToDelete.set(file);
+      return;
     }
+
+    const subtree = await this.findSubtree(file.id);
+    this.deleteImpact.set({ childrenCount: children.length, descendantsCount: subtree.length - 1 });
+    this.fileToDelete.set(file);
   }
 
   /**
    * 取消删除
    */
   cancelDelete(): void {
-    this.fileToDelete.set(null);
+    this.closeDeleteDialog();
   }
 
   /**
-   * 级联删除（删除节点及其所有后代）
+   * 级联删除（删除节点及其所有后代）：子树取自库，一次 `removeMany` 提交。
    */
   async executeCascadeDelete(): Promise<void> {
     const file = this.fileToDelete();
     if (!file) return;
 
-    const allFiles = this.fileResource.value();
-    const descendantIds = collectDescendants(file.id, allFiles);
-
-    // 删除所有后代
-    for (const descendantId of descendantIds) {
-      const descendant = allFiles.find(f => f.id === descendantId);
-      if (descendant) {
-        await descendant.remove();
-      }
-    }
-
-    // 删除自己
-    await file.remove();
-    this.fileToDelete.set(null);
+    // findDescendants 含节点自身
+    const filesToRemove = await this.findSubtree(file.id);
+    await this.rxdb.entityManager.removeMany<C>(filesToRemove);
+    this.closeDeleteDialog();
   }
 
   // Expand Methods
@@ -471,6 +463,25 @@ export class TreeFileStore<C extends FileTreeEntityConstructor> {
 
   protected createEntity(): FileTreeInstance<C> {
     return new this.entityClass() as FileTreeInstance<C>;
+  }
+
+  private closeDeleteDialog(): void {
+    this.fileToDelete.set(null);
+    this.deleteImpact.set(NO_DELETE_IMPACT);
+  }
+
+  /** 库里某节点的直接子节点（不传 orderBy，沿用引擎默认排序）。 */
+  private findChildren(parentId: RxDBEntityId): Promise<FileTreeInstance<C>[]> {
+    return firstValueFrom(
+      this.entityClass.findAll({
+        where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: parentId }] }
+      })
+    );
+  }
+
+  /** 库里某节点的子树：节点自身加全部后代。 */
+  private findSubtree(entityId: RxDBEntityId): Promise<FileTreeInstance<C>[]> {
+    return firstValueFrom(this.entityClass.findDescendants({ entityId }));
   }
 }
 

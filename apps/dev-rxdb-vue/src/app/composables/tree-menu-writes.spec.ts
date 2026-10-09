@@ -114,6 +114,8 @@ interface Harness {
   deleteMenu(menu: FakeMenu): Promise<unknown>;
   executeCascadeDelete(): Promise<unknown>;
   executePromoteChildrenDelete(): Promise<unknown>;
+  /** 删除全部 */
+  deleteAll(): Promise<unknown>;
   /** 让「从库里按父节点取直接子节点」返回这批子节点 */
   setDbChildren(children: FakeMenu[]): void;
   /** 让「从库里取全表」返回这批节点（级联删除读全表的页用） */
@@ -160,6 +162,7 @@ const simpleHarness: HarnessFactory = (memory = []) => {
     deleteMenu: menu => store.deleteMenu(menu as never),
     executeCascadeDelete: store.executeCascadeDelete,
     executePromoteChildrenDelete: store.executePromoteChildrenDelete,
+    deleteAll: () => store.deleteAllMenus(),
     setDbChildren: children => registry.findAll.mockReturnValue(of(children)),
     setDbAll: () => undefined,
     dbReads: () => registry.findAll.mock.calls.length
@@ -183,6 +186,7 @@ const virtualHarness: HarnessFactory = (memory = []) => {
     deleteMenu: menu => store.deleteMenu(menu as never),
     executeCascadeDelete: store.executeCascadeDelete,
     executePromoteChildrenDelete: store.executePromoteChildrenDelete,
+    deleteAll: () => store.deleteAllMenus(),
     setDbChildren: children => registry.findAll.mockReturnValue(of(children)),
     setDbAll: () => undefined,
     dbReads: () => registry.findAll.mock.calls.length
@@ -209,6 +213,7 @@ const lazyHarness: HarnessFactory = () => {
     deleteMenu: menu => store.deleteMenu(menu as never),
     executeCascadeDelete: store.executeCascadeDelete,
     executePromoteChildrenDelete: store.executePromoteChildrenDelete,
+    deleteAll: () => store.deleteAllMenus(),
     setDbChildren: children => observeChildMenus.mockReturnValue(of(children as never[])),
     setDbAll: all => observeAllMenus.mockReturnValue(of(all as never[])),
     dbReads: () => observeChildMenus.mock.calls.length + observeAllMenus.mock.calls.length
@@ -393,6 +398,17 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
 
       expect(h.writeError()).toBe('级联删除失败：boom');
       expect(h.menuToDelete()).toBeNull();
+    });
+  });
+
+  describe('删除全部（M7）', () => {
+    it('失败：写入「删除全部失败：…」且不抛出', async () => {
+      const h = makeHarness();
+      h.rxdb.entityManager.removeMany.mockRejectedValueOnce(new Error('boom'));
+
+      await h.deleteAll();
+
+      expect(h.writeError()).toBe('删除全部失败：boom');
     });
   });
 

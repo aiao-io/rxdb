@@ -426,7 +426,7 @@ export function TreeMenuLazyPage() {
                     data-drop-target={isTarget ? 'true' : 'false'}
                     data-drop-valid={isTarget ? String(dragDrop.dragDropState.isValidTarget) : ''}
                     data-menu-id={menu.id}
-                    data-parent-id={menu.parentId}
+                    data-parent-id={menu.parentId ?? ''}
                     data-testid='menu-row'
                     style={{
                       height: `${virtualRow.size}px`,
@@ -457,13 +457,20 @@ export function TreeMenuLazyPage() {
                       e.preventDefault();
                       e.stopPropagation();
                       // 失败由 useDragDrop 经 runWrite 送进页内提示，这里不再有 catch / alert
-                      await dragDrop.onDrop(menu, menuId => {
-                        // 仅当目标节点未加载子节点时才展开
-                        // 这对应 Angular 的 !this.childSubscriptions.has(targetId) 检查
-                        if (!store.hasLoadedChildren(menuId)) {
-                          void store.toggleExpand(menuId);
+                      await dragDrop.onDrop(
+                        menu,
+                        menuId => {
+                          // 仅当目标节点未加载子节点时才展开
+                          // 这对应 Angular 的 !this.childSubscriptions.has(targetId) 检查
+                          if (!store.hasLoadedChildren(menuId)) {
+                            void store.toggleExpand(menuId);
+                          }
+                        },
+                        {
+                          mouseY: e.clientY,
+                          rect: (e.currentTarget as HTMLElement).getBoundingClientRect()
                         }
-                      });
+                      );
                     }}
                     onDragEnd={() => dragDrop.onDragEnd()}
                   >

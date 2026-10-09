@@ -552,4 +552,80 @@ describe('useTreeMenuLazyStore', () => {
       expect(child.parentId).toBe(parent.id);
     });
   });
+
+  describe('展开与新建的并发（M6）', () => {
+    const holdNextSave = () => {
+      const gate = { release: () => undefined as void };
+      table.writes['save'].mockImplementationOnce(
+        () =>
+          new Promise<void>(resolve => {
+            gate.release = resolve;
+          })
+      );
+      return gate;
+    };
+
+    it('addChild 保存往返期间用户展开了别的节点：该展开不被陈旧闭包覆盖', async () => {
+      const [p, q] = [makeMenu('p', null, 'a0'), makeMenu('q', null, 'a1')];
+      (q as { hasChildren?: boolean }).hasChildren = true;
+      table.rows = [p, q, makeMenu('qc', 'q', 'a0')];
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      const gate = holdNextSave();
+
+      let adding: Promise<boolean> = Promise.resolve(false);
+      act(() => {
+        adding = result.current.addChild(p, '新建');
+      });
+      await act(async () => {
+        await result.current.toggleExpand(q.id);
+      });
+      await act(async () => {
+        gate.release();
+        await adding;
+      });
+
+      expect(result.current.expandedIds.has(q.id)).toBe(true);
+      expect(result.current.expandedIds.has(p.id)).toBe(true);
+    });
+
+    it('addChild 保存期间父节点已被展开：不重复订阅其子节点', async () => {
+      const p = makeMenu('p', null, 'a0');
+      (p as { hasChildren?: boolean }).hasChildren = true;
+      table.rows = [p, makeMenu('c1', 'p', 'a0')];
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+      const gate = holdNextSave();
+
+      let adding: Promise<boolean> = Promise.resolve(false);
+      act(() => {
+        adding = result.current.addChild(p, '新建');
+      });
+      await act(async () => {
+        await result.current.toggleExpand(p.id);
+      });
+      table.calls.length = 0;
+      await act(async () => {
+        gate.release();
+        await adding;
+      });
+
+      const childSubscriptions = table.calls.filter(
+        call => call.method === 'findAll' && call.options.where?.rules?.[0]?.value === p.id
+      );
+      expect(childSubscriptions).toEqual([]);
+    });
+  });
+
+  describe('删除全部走 runWrite（M7）', () => {
+    it('deleteAllMenus 失败：写入「删除全部失败」，不抛出', async () => {
+      table.rows = [makeMenu('a', null, 'a0')];
+      table.writes['removeMany'].mockRejectedValueOnce(new Error('被外键拦下'));
+      const { result } = renderHook(() => useTreeMenuLazyStore(rxdb, menuLargeTreeSource));
+
+      await act(async () => {
+        await result.current.deleteAllMenus();
+      });
+
+      expect(result.current.writeError).toBe('删除全部失败：被外键拦下');
+    });
+  });
 });

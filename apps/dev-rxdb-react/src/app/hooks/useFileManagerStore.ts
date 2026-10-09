@@ -233,15 +233,6 @@ export function useFileManagerStore(files: SortableFileNode[]) {
     [files, pathValidator, runWrite]
   );
 
-  const deleteFile = useCallback(
-    async (file: SortableFileNode) => {
-      await runWrite('删除', async () => {
-        for (const item of collectSubtreePostOrder(file, files)) await item.remove();
-      });
-    },
-    [files, runWrite]
-  );
-
   const clearPathConflict = useCallback(() => {
     setPathConflict(null);
   }, []);
@@ -322,7 +313,6 @@ export function useFileManagerStore(files: SortableFileNode[]) {
     cancelEdit,
     addChild,
     addRoot,
-    deleteFile,
     setSelectedId,
     clearPathConflict,
     selectFolder,

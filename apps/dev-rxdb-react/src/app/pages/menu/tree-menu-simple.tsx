@@ -67,9 +67,7 @@ export function TreeMenuSimplePage() {
       setLoadingActions(prev => new Set(prev).add(actionKey));
     });
     try {
-      await Promise.all([rxdb.entityManager.removeMany(menus), keepLoadingVisible()]);
-    } catch (err) {
-      console.error('[TreeMenuSimple] handleDeleteAll failed:', err);
+      await runWrite('删除全部', () => Promise.all([rxdb.entityManager.removeMany(menus), keepLoadingVisible()]));
     } finally {
       setLoadingActions(prev => {
         const next = new Set(prev);
@@ -77,7 +75,7 @@ export function TreeMenuSimplePage() {
         return next;
       });
     }
-  }, [rxdb, menus]);
+  }, [rxdb, menus, runWrite]);
 
   // 批量添加菜单（带随机层级）
   const handleAddMany = useCallback(
@@ -439,7 +437,7 @@ export function TreeMenuSimplePage() {
                           data-drop-target={isTarget ? 'true' : 'false'}
                           data-drop-valid={isTarget ? String(dragDrop.dragDropState.isValidTarget) : ''}
                           data-menu-id={menu.id}
-                          data-parent-id={menu.parentId}
+                          data-parent-id={menu.parentId ?? ''}
                           data-testid='menu-row'
                           style={{ paddingLeft: `${level * 20 + 8}px` }}
                           draggable
@@ -466,12 +464,19 @@ export function TreeMenuSimplePage() {
                             e.preventDefault();
                             e.stopPropagation();
                             // 失败由 useDragDrop 经 runWrite 送进页内提示，这里不再有 catch / alert
-                            await dragDrop.onDrop(menu, menuId => {
-                              // 展开目标菜单
-                              if (!store.expandedIds.has(menuId)) {
-                                store.toggleExpand(menuId);
+                            await dragDrop.onDrop(
+                              menu,
+                              menuId => {
+                                // 展开目标菜单
+                                if (!store.expandedIds.has(menuId)) {
+                                  store.toggleExpand(menuId);
+                                }
+                              },
+                              {
+                                mouseY: e.clientY,
+                                rect: (e.currentTarget as HTMLElement).getBoundingClientRect()
                               }
-                            });
+                            );
                           }}
                           onDragEnd={() => dragDrop.onDragEnd()}
                         >

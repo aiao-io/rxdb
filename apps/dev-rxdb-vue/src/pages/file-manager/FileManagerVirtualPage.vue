@@ -103,7 +103,7 @@ const batchAddOptions = [
 const handleDeleteAll = async () => {
   isDeleting.value = true;
   try {
-    await rxdb.entityManager.removeMany(files.value);
+    await store.deleteAllFiles();
   } finally {
     isDeleting.value = false;
   }
@@ -579,7 +579,7 @@ const getIconComponent = (iconName: string) => {
                   : ''
                 "
                 :data-level="node.level"
-                :data-parent-id="node.file.parentId"
+                :data-parent-id="node.file.parentId ?? ''"
                 :style="{ paddingLeft: `${node.level * 20 + 8}px` }"
                 @dragend="handleDragEnd"
                 @dragleave="handleDragLeave"

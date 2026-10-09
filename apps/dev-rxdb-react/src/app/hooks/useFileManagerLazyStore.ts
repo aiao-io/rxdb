@@ -46,6 +46,8 @@ export interface DeleteImpact {
   descendantsCount: number;
 }
 
+const NO_DELETE_IMPACT: DeleteImpact = { childrenCount: 0, descendantsCount: 0 };
+
 export function useFileManagerLazyStore(rxdb: RxDB) {
   const [nodesMap, setNodesMap] = useState<Map<string, SortableFileLarge>>(new Map());
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -56,6 +58,8 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [fileToDelete, setFileToDelete] = useState<SortableFileLarge | null>(null);
+  // 删除影响数在打开对话框时取自库：折叠文件夹的子节点没加载，按页面里的 childrenMap 数会低报成 0
+  const [deleteImpact, setDeleteImpact] = useState<DeleteImpact>(NO_DELETE_IMPACT);
   const [isAddingFile, setIsAddingFile] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>(() =>
     loadStoredSortMode(Object.values(SortMode) as readonly SortMode[], SortMode.Manual)
@@ -135,25 +139,6 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     const folderCount = Array.from(nodesMap.values()).filter(f => f.type === 'folder').length;
     return folderCount > 0 && expandedIds.size === folderCount;
   }, [nodesMap, expandedIds, isFullMode]);
-
-  // 删除影响分析
-  const deleteImpact = useMemo<DeleteImpact>(() => {
-    if (!fileToDelete) return { childrenCount: 0, descendantsCount: 0 };
-
-    const countDescendants = (parentId: string): number => {
-      const childIds = childrenMap.get(parentId) || [];
-      let count = childIds.length;
-      childIds.forEach(childId => {
-        count += countDescendants(childId);
-      });
-      return count;
-    };
-
-    const childrenCount = (childrenMap.get(fileToDelete.id) || []).length;
-    const descendantsCount = countDescendants(fileToDelete.id);
-
-    return { childrenCount, descendantsCount };
-  }, [fileToDelete, childrenMap]);
 
   // Flatten visible nodes
   const treeNodes = useMemo(() => {
@@ -263,10 +248,9 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
 
   /** 展开：为该文件夹创建子节点的响应式订阅（库里已有的子节点按手动顺序全部载入，不传 orderBy）。 */
   const expandNode = (id: string) => {
-    // 展开：创建订阅
-    const newExpanded = new Set(expandedIds);
-    newExpanded.add(id);
-    setExpandedIds(newExpanded);
+    // 函数式更新 + 订阅防护：addChild 的 save 往返期间闭包已陈旧，父节点也可能已被用户展开
+    setExpandedIds(prev => (prev.has(id) ? prev : new Set(prev).add(id)));
+    if (subscriptionsRef.current.has(id)) return;
 
     // 开始加载
     setLoadingIds(prev => new Set(prev).add(id));
@@ -443,12 +427,30 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     persistSortMode(mode);
   };
 
-  const showDeleteDialog = (file: SortableFileLarge) => {
-    setFileToDelete(file);
+  /**
+   * 打开删除对话框：直接子节点与子树都从库里取（折叠文件夹的子节点没加载），据此给出级联警告；
+   * 与菜单端同口径。读库失败进页内提示，不弹对话框。
+   */
+  const showDeleteDialog = async (file: SortableFileLarge): Promise<void> => {
+    await runWrite('删除', async () => {
+      const [children, subtree] = await Promise.all([
+        fetchFileChildren(file.id),
+        firstValueFrom(SortableFileLarge.findDescendants({ entityId: file.id }))
+      ]);
+      // findDescendants 含节点自身
+      const descendantsCount = subtree.filter(item => item.id !== file.id).length;
+      setDeleteImpact({ childrenCount: children.length, descendantsCount });
+      setFileToDelete(file);
+    });
+  };
+
+  const closeDeleteDialog = () => {
+    setDeleteImpact(NO_DELETE_IMPACT);
+    setFileToDelete(null);
   };
 
   const cancelDelete = () => {
-    setFileToDelete(null);
+    closeDeleteDialog();
   };
 
   const executeCascadeDelete = async () => {
@@ -456,14 +458,13 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     if (!selected) return;
 
     await runWrite('级联删除', async () => {
-      // 只取这个节点的子树，不是整表 —— 级联删除本来就只关心它自己的子孙。
-      // 不传 level 即不限深度，整棵子树一次取回
-      const descendants = await firstValueFrom(SortableFileLarge.findDescendants({ entityId: selected.id }));
-      const filesToRemove = collectSubtreePostOrder(selected, [selected, ...descendants]);
+      // 子树在确认时重新取自库（含自身），一次 removeMany 提交（子孙先于父）
+      const subtree = await firstValueFrom(SortableFileLarge.findDescendants({ entityId: selected.id }));
+      const filesToRemove = collectSubtreePostOrder(selected, [selected, ...subtree]);
       await rxdb.entityManager.removeMany(filesToRemove);
     });
     // 成败都关闭对话框：失败时页内提示不被模态框挡住（三端同一行为）
-    setFileToDelete(null);
+    closeDeleteDialog();
   };
 
   const clearSearch = () => {
@@ -528,33 +529,6 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     return result.ok;
   };
 
-  const deleteFile = async (file: SortableFileLarge) => {
-    await runWrite('删除', async () => {
-      await file.remove();
-
-      // Update local state
-      setNodesMap(prev => {
-        const next = new Map(prev);
-        next.delete(file.id);
-        return next;
-      });
-
-      if (file.parentId) {
-        setChildrenMap(prev => {
-          const next = new Map(prev);
-          const siblings = next.get(file.parentId!) || [];
-          next.set(
-            file.parentId!,
-            siblings.filter(id => id !== file.id)
-          );
-          return next;
-        });
-      } else {
-        setRootIds(prev => prev.filter(id => id !== file.id));
-      }
-    });
-  };
-
   // 组件卸载时清理所有订阅
   useEffect(() => {
     const currentSubscriptions = subscriptionsRef.current;
@@ -573,18 +547,20 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
    * 每批都断言游标真的推进了：删不动却继续循环会变成死循环，宁可把失败抛给调用方。
    */
   const deleteAllFiles = async () => {
-    let lastBatchHeadId: string | null = null;
-    for (;;) {
-      const batch = await firstValueFrom(
-        SortableFileLarge.find({ where: { combinator: 'and', rules: [] }, limit: DELETE_BATCH_SIZE })
-      );
-      if (batch.length === 0) return;
-      if (batch[0].id === lastBatchHeadId) {
-        throw new Error('批量删除没有推进：仍有文件未被删除');
+    await runWrite('删除全部', async () => {
+      let lastBatchHeadId: string | null = null;
+      for (;;) {
+        const batch = await firstValueFrom(
+          SortableFileLarge.find({ where: { combinator: 'and', rules: [] }, limit: DELETE_BATCH_SIZE })
+        );
+        if (batch.length === 0) return;
+        if (batch[0].id === lastBatchHeadId) {
+          throw new Error('批量删除没有推进：仍有文件未被删除');
+        }
+        lastBatchHeadId = batch[0].id;
+        await rxdb.entityManager.removeMany(batch);
       }
-      lastBatchHeadId = batch[0].id;
-      await rxdb.entityManager.removeMany(batch);
-    }
+    });
   };
 
   /**
@@ -630,7 +606,6 @@ export function useFileManagerLazyStore(rxdb: RxDB) {
     cancelEdit,
     addRoot,
     addChild,
-    deleteFile,
     selectFolder,
     cancelSelectFolder,
     getSelectedFolderName,

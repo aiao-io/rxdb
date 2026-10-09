@@ -113,6 +113,16 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
     [visibleItems, isFolder, manual, groupIdsOf]
   );
 
+  // 光标落在目标行的哪一档：dragover 的高亮与 drop 的重算共用这一处
+  const dropModeAt = useCallback(
+    (targetItem: T, mouseY: number, rect: DOMRect): DropMode =>
+      treeDropPosition(mouseY - rect.top, rect.height, {
+        manual,
+        targetIsRoot: (targetItem.parentId ?? null) === null
+      }),
+    [manual]
+  );
+
   const highlightedMenuIds = useMemo(() => {
     if (!dragDropState.draggedItemId) return new Set<RxDBEntityId>();
     return getDescendants(dragDropState.draggedItemId);
@@ -142,10 +152,7 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
       const draggedItem = visibleItems.find(m => m.id === dragDropState.draggedItemId);
       if (!draggedItem) return { isValid: false };
 
-      const dropMode = treeDropPosition(mouseY - rect.top, rect.height, {
-        manual,
-        targetIsRoot: (targetItem.parentId ?? null) === null
-      });
+      const dropMode = dropModeAt(targetItem, mouseY, rect);
       const isValid = decide(draggedItem, targetItem, dropMode).kind !== 'reject';
 
       setDragDropState(prev => ({
@@ -157,7 +164,7 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
 
       return { isValid };
     },
-    [visibleItems, dragDropState.draggedItemId, manual, decide]
+    [visibleItems, dragDropState.draggedItemId, dropModeAt, decide]
   );
 
   const onDragLeave = useCallback(() => {
@@ -175,26 +182,31 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
    *
    * @param targetItem - 放下的目标行
    * @param onExpandFolder - 拖进成功后展开目标（`onExpandFolder` 绑定各页面 Set<string> 展开状态，folderId 语义上仍是 UUID）
+   * @param point - 放下事件的光标纵坐标与目标行矩形；传入时按它与 `onDragOver` 同一判定函数重算落点，
+   *   不沿用 state 里最后一次 dragover 留下的 `dropMode`（浏览器对 dragover 节流，二者可能差一档）
    */
   const onDrop = useCallback(
-    async (targetItem: T, onExpandFolder?: (folderId: string) => void) => {
+    async (targetItem: T, onExpandFolder?: (folderId: string) => void, point?: { mouseY: number; rect: DOMRect }) => {
       try {
         const draggedItem = visibleItems.find(m => m.id === dragDropState.draggedItemId);
-        const dropMode = dragDropState.dropMode;
+        const dropMode = point ? dropModeAt(targetItem, point.mouseY, point.rect) : dragDropState.dropMode;
         if (!draggedItem || !dropMode) return;
 
-        const decision = decide(draggedItem, targetItem, dropMode);
-        if (decision.kind !== 'reorder') return;
-
-        const result = await runWrite('拖放', () => repository.reorder(draggedItem.id, decision.target));
-        if (result.ok && dropMode === 'into' && onExpandFolder) {
+        // 判定可能抛错（如 `getGroupIds` 的组未加载），与写入同走 runWrite 进页内提示，不逃成未处理拒绝
+        const result = await runWrite('拖放', async () => {
+          const decision = decide(draggedItem, targetItem, dropMode);
+          if (decision.kind !== 'reorder') return false;
+          await repository.reorder(draggedItem.id, decision.target);
+          return true;
+        });
+        if (result.ok && result.value && dropMode === 'into' && onExpandFolder) {
           onExpandFolder(targetItem.id as string);
         }
       } finally {
         resetState();
       }
     },
-    [visibleItems, dragDropState, decide, runWrite, repository, resetState]
+    [visibleItems, dragDropState, dropModeAt, decide, runWrite, repository, resetState]
   );
 
   return {

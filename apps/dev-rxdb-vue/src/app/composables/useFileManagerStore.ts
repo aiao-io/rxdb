@@ -251,7 +251,8 @@ export function useFileManagerStore(files: Ref<SortableFileNode[]>, rxdb: RxDB) 
     }
   };
 
-  const deleteFile = (file: SortableFileNode) => guardWrite('删除', () => removeWithDescendants(file.id));
+  // 删除所有文件：页内错误提示，不留未处理拒绝
+  const deleteAllFiles = () => guardWrite('删除全部', () => rxdb.entityManager.removeMany(files.value));
 
   const clearPathConflict = () => {
     pathConflict.value = null;
@@ -339,7 +340,7 @@ export function useFileManagerStore(files: Ref<SortableFileNode[]>, rxdb: RxDB) 
     writeError,
     clearWriteError,
     guardWrite,
-    deleteFile,
+    deleteAllFiles,
     clearPathConflict,
     selectFolder,
     cancelSelectFolder,

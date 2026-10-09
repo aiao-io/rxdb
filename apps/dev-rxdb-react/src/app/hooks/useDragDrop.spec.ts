@@ -153,6 +153,42 @@ describe('useDragDrop', () => {
       expect(alertSpy).not.toHaveBeenCalled();
     });
 
+    it('放下时 getGroupIds 抛错：进页内提示「拖放失败」，onDrop 不 reject，状态复位', async () => {
+      const [a, b] = [makeNode('a', null, 'folder'), makeNode('b', null, 'folder')];
+      const repository = makeRepository();
+      // 悬停那次判定正常，放下那次抛错
+      const getGroupIds = vi
+        .fn<(parentId: RxDBEntityId | null) => readonly RxDBEntityId[]>()
+        .mockReturnValueOnce([a.id, b.id])
+        .mockImplementation(() => {
+          throw new Error('父节点的子节点尚未加载');
+        });
+
+      const { result } = renderHook(() => useHarness([a, b], { isFolder, repository, getGroupIds }));
+      await dragAndDrop(result, b, a, 2);
+
+      expect(repository.reorder).not.toHaveBeenCalled();
+      expect(result.current.writeError).toBe('拖放失败：父节点的子节点尚未加载');
+      expect(result.current.dragDropState).toEqual(IDLE_STATE);
+    });
+
+    it('传入放下事件的坐标时按它重算落点，不沿用 dragover 留在 state 里的 dropMode', async () => {
+      const [a, b] = [makeNode('a', null, 'folder'), makeNode('b', null, 'folder')];
+      const repository = makeRepository();
+
+      const { result } = renderHook(() => useHarness([a, b], { isFolder, repository }));
+      act(() => result.current.onDragStart(b.id));
+      act(() => {
+        result.current.onDragOver(a, 15, ROW_RECT); // 最后一次 dragover 判为「拖进」
+      });
+      await act(async () => {
+        await result.current.onDrop(a, undefined, { mouseY: 2, rect: ROW_RECT }); // 真正放下时在上沿
+      });
+
+      expect(repository.reorder).toHaveBeenCalledOnce();
+      expect(repository.reorder).not.toHaveBeenCalledWith(b.id, { group: { parentId: a.id } });
+    });
+
     it('失败时不展开目标文件夹', async () => {
       const [a, b] = [makeNode('a', null, 'folder'), makeNode('b', null, 'folder')];
       const repository = makeRepository();

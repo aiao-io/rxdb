@@ -9,10 +9,15 @@
  * 固定种子保证每次运行是同一棵树。这样的树里绝大多数分组字段指向本批新建的父行，
  * 组数约为行数的四成——正是逐组读尾键与线性拆分会放大的场景。
  *
+ * 另量 SC-004 的第二条判据：在已有 {@link SINGLE_TREE_SIZE} 行的树里新建单个节点（不写排序键）的 `save()`。
+ *
  * ## 门槛
  *
- * 10,000 行一档 `append / explicit` 的中位数比值超过 {@link MAX_RATIO} 即 `process.exit(1)`。
- * 两种写法在同一次运行、同一台机器上自比，不需要冻结跨机器的参考档。
+ * 两条，任一不满足即 `process.exit(1)`（两条都先打印完再退出）：
+ *  • 10,000 行一档 `append / explicit` 的中位数比值超过 {@link MAX_RATIO}。两种写法在同一次运行、
+ *    同一台机器上自比，不需要冻结跨机器的参考档。每档先跑 {@link WARMUP} 轮不计入的预热，
+ *    计入的各轮交替两种写法的先后，避免「explicit 恒在前」把 JIT / 缓存的预热红利全给 append；
+ *  • 单节点新建的中位数超过 {@link MAX_SINGLE_MS}（constitution 默认预算）。
  *
  * Run:
  *   node --experimental-strip-types benchmarks/sortable-batch-append.bench.ts
@@ -33,7 +38,11 @@ const LOCAL_ADAPTER = 'pglite';
 const SIZES = [1_000, 10_000] as const;
 const GATED_SIZE = 10_000;
 const SAMPLES = 5;
+const WARMUP = 1;
 const MAX_RATIO = 1.2;
+const SINGLE_TREE_SIZE = 1_000;
+const SINGLE_SAMPLES = 20;
+const MAX_SINGLE_MS = 100;
 const MAX_DEPTH = 7;
 const SEED = 42;
 
@@ -156,15 +165,42 @@ async function measure(size: number): Promise<SizeResult> {
   const explicit: number[] = [];
   const append: number[] = [];
   let groups = 0;
-  for (let round = 0; round < SAMPLES; round++) {
-    explicit.push((await sample(size, 'explicit')).ms);
-    const appended = await sample(size, 'append');
-    append.push(appended.ms);
-    groups = appended.groups;
+  for (let round = 0; round < WARMUP + SAMPLES; round++) {
+    const order: Mode[] = round % 2 === 0 ? ['explicit', 'append'] : ['append', 'explicit'];
+    for (const mode of order) {
+      const result = await sample(size, mode);
+      if (round < WARMUP) continue;
+      (mode === 'explicit' ? explicit : append).push(result.ms);
+      groups = result.groups;
+    }
   }
   const explicitMs = median(explicit);
   const appendMs = median(append);
   return { size, groups, explicitMs, appendMs, ratio: appendMs / explicitMs };
+}
+
+/**
+ * 单节点新建：先以缺键追加建好一棵 {@link SINGLE_TREE_SIZE} 行的树，再逐个新建子节点（父节点随机取自树里的行），
+ * 计时窗口只包住一次 `save()`
+ *
+ * @returns 各样本耗时的中位数（ms），首个样本作预热不计入
+ */
+async function measureSingleCreate(): Promise<number> {
+  const rxdb = await createBenchRxDB();
+  const { nodes } = buildTree(SINGLE_TREE_SIZE, 'append');
+  await rxdb.entityManager.saveMany(nodes);
+  const random = seeded(SEED + 1);
+  const samples: number[] = [];
+  for (let index = 0; index <= SINGLE_SAMPLES; index++) {
+    const node = new BenchNode();
+    node.title = `single-${index}`;
+    node.parentId = nodes[Math.floor(random() * nodes.length)].id;
+    const start = performance.now();
+    await node.save();
+    if (index > 0) samples.push(performance.now() - start);
+  }
+  await rxdb.disconnectAll();
+  return median(samples);
 }
 
 const printResult = (result: SizeResult): void => {
@@ -180,7 +216,8 @@ const printResult = (result: SizeResult): void => {
 // ---------------------------------------------------------------------------
 
 console.log(
-  `[bench:sortable-batch] ${SAMPLES} samples per mode, seed ${SEED}, gate ratio ≤ ${MAX_RATIO} at n=${GATED_SIZE}`
+  `[bench:sortable-batch] ${WARMUP} warmup + ${SAMPLES} samples per mode, seed ${SEED}, ` +
+    `gate ratio ≤ ${MAX_RATIO} at n=${GATED_SIZE}, single create p50 ≤ ${MAX_SINGLE_MS}ms`
 );
 const results: SizeResult[] = [];
 for (const size of SIZES) {
@@ -189,12 +226,21 @@ for (const size of SIZES) {
   results.push(result);
 }
 
+const singleMs = await measureSingleCreate();
+console.log(`[bench:sortable-batch] single create in ${SINGLE_TREE_SIZE}-row tree p50=${singleMs.toFixed(1)}ms`);
+
 const gated = results.find(result => result.size === GATED_SIZE);
 if (!gated) throw new Error(`[bench:sortable-batch] 没有 n=${GATED_SIZE} 的结果`);
+const failures: string[] = [];
 if (gated.ratio > MAX_RATIO) {
-  console.error(
-    `[bench:sortable-batch] FAIL：n=${GATED_SIZE} 时缺键追加是显式键的 ${gated.ratio.toFixed(2)} 倍，超过 ${MAX_RATIO}`
-  );
-  process.exit(1);
+  failures.push(`n=${GATED_SIZE} 时缺键追加是显式键的 ${gated.ratio.toFixed(2)} 倍，超过 ${MAX_RATIO}`);
 }
-console.log(`[bench:sortable-batch] PASS：n=${GATED_SIZE} ratio=${gated.ratio.toFixed(2)} ≤ ${MAX_RATIO}`);
+if (singleMs > MAX_SINGLE_MS) {
+  failures.push(`单节点新建 p50=${singleMs.toFixed(1)}ms，超过 ${MAX_SINGLE_MS}ms`);
+}
+for (const failure of failures) console.error(`[bench:sortable-batch] FAIL：${failure}`);
+if (failures.length > 0) process.exit(1);
+console.log(
+  `[bench:sortable-batch] PASS：n=${GATED_SIZE} ratio=${gated.ratio.toFixed(2)} ≤ ${MAX_RATIO}，` +
+    `single create p50=${singleMs.toFixed(1)}ms ≤ ${MAX_SINGLE_MS}ms`
+);

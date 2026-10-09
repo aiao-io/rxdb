@@ -194,6 +194,9 @@ export function useTreeMenuStore(menus: MaybeRef<SortableMenuSimple[]>, rxdb: Rx
     pathConflict.value = null;
   };
 
+  // 删除所有菜单：页内错误提示，不留未处理拒绝
+  const deleteAllMenus = () => guardWrite('删除全部', () => rxdb.entityManager.removeMany(unref(menus)));
+
   return {
     expandedIds,
     editingId,
@@ -218,6 +221,7 @@ export function useTreeMenuStore(menus: MaybeRef<SortableMenuSimple[]>, rxdb: Rx
     clearWriteError,
     guardWrite,
     deleteMenu,
+    deleteAllMenus,
     showDeleteDialog,
     cancelDelete,
     executeCascadeDelete,

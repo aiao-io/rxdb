@@ -175,6 +175,9 @@ export function useTreeMenuVirtualStore(menus: Ref<SortableMenuLarge[]>, rxdb: R
     searchKeyword.value = value;
   };
 
+  // 删除所有菜单：页内错误提示，不留未处理拒绝
+  const deleteAllMenus = () => guardWrite('删除全部', () => rxdb.entityManager.removeMany(menus.value));
+
   return {
     treeNodes,
     expandedIds,
@@ -198,6 +201,7 @@ export function useTreeMenuVirtualStore(menus: Ref<SortableMenuLarge[]>, rxdb: R
     clearWriteError,
     guardWrite,
     deleteMenu,
+    deleteAllMenus,
     cancelDelete,
     executeCascadeDelete,
     executePromoteChildrenDelete,

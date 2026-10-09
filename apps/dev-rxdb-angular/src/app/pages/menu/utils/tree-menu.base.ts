@@ -50,7 +50,9 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
     await this.addMany(count ?? 5000);
   });
   readonly add_4 = useAction((count?: number) => this.addMany(count ?? 10000));
-  readonly delete_all = useAction(() => this.store.deleteAllMenus());
+  readonly delete_all = useAction(async () => {
+    await this.runWrite('删除全部', () => this.store.deleteAllMenus());
+  });
 
   readonly batchAddOptions = [
     { count: 100, label: '添加 100 条', action: this.add_1 },

@@ -17,7 +17,7 @@ import {
  *
  * @remarks
  * 真实鼠标拖拽，落点取目标行高的 15% / 50% / 85%。放下后只经 `Repository.reorder()` 写入，
- * 显示顺序来自查询的默认排序；每条用例刷新后读回行顺序与 `data-parent-id`（根节点在 Vue 里没有该属性，
+ * 显示顺序来自查询的默认排序；每条用例刷新后读回行顺序与 `data-parent-id`（根节点行该属性为空串，
  * 根级用 `data-level="0"` 判断）。零写用撤销计数徽标断言。
  */
 
@@ -48,7 +48,7 @@ function orderOf(texts: string[], names: string[]): string[] {
   });
 }
 
-/** 根级行：Vue 的根节点行没有 `data-parent-id`，用 `data-level="0"` 判断。 */
+/** 根级行：根节点行的 `data-parent-id` 为空串，这里用 `data-level="0"` 判断。 */
 async function rootOrder(page: Page, kind: Kind, names: string[]): Promise<string[]> {
   const rows = page.getByTestId(`${kind}-row`).and(page.locator('[data-level="0"]'));
   return orderOf(await rows.allInnerTexts(), names);

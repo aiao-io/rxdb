@@ -583,7 +583,7 @@ describe('TreeMenuDragDropStore 拖放交给引擎', () => {
       expect(store.dragDropState()).toEqual(idleState);
     });
 
-    it('原位放下与拖进已是末尾的当前父节点都零写入', async () => {
+    it('原位放下零写入（页面判定为 noop，不调 reorder）', async () => {
       const menus = [dragMenu('A', null), dragMenu('B', null), dragMenu('C', null), dragMenu('c1', 'C')];
       const { store, reorder } = makeDragStore(menus);
 
@@ -592,6 +592,18 @@ describe('TreeMenuDragDropStore 拖放交给引擎', () => {
       await dragAndDrop(store, menus, 'A', 'B', BEFORE);
 
       expect(reorder).not.toHaveBeenCalled();
+      expect(store.dragDropState()).toEqual(idleState);
+    });
+  });
+
+  describe('拖进已是末尾的当前父节点', () => {
+    it('手动模式不在页面判定：交给引擎，目标为 { group }，由引擎落成零写入', async () => {
+      const menus = [dragMenu('C', null), dragMenu('c1', 'C')];
+      const { store, reorder } = makeDragStore(menus);
+
+      await dragAndDrop(store, menus, 'c1', 'C', INTO);
+
+      expect(reorder).toHaveBeenCalledExactlyOnceWith('c1', { group: { parentId: 'C' } });
       expect(store.dragDropState()).toEqual(idleState);
     });
   });
@@ -635,6 +647,16 @@ describe('TreeMenuDragDropStore 拖放交给引擎', () => {
       expect(alertSpy).not.toHaveBeenCalled();
       expect(consoleError).not.toHaveBeenCalled();
       consoleError.mockRestore();
+    });
+
+    it('「删除全部」失败进页内提示，不成为未处理拒绝', async () => {
+      const menus = [dragMenu('A', null)];
+      const { host, store } = makeHost(menus);
+      vi.spyOn(store, 'deleteAllMenus').mockRejectedValueOnce(new Error('外键冲突'));
+
+      await host.delete_all.execute();
+
+      expect(host.writeError()).toBe('删除全部失败：外键冲突');
     });
 
     it('下一次拖放清空错误', async () => {

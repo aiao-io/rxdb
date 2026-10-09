@@ -123,7 +123,7 @@ export const reorderTargetForMove = <Id>(
  * 把「放到目标行的上方 / 下方」换算成 `Repository.reorder()` 的邻居目标
  *
  * @typeParam Id - 实体主键类型
- * @param groupIds - 目标行所在组的**完整**序列（与库里的手动顺序一致，含界面上被过滤或不在渲染窗口内的行）
+ * @param groupIds - 目标行所在组的**完整**序列（与库里的手动顺序一致、id 无重复，含界面上被过滤或不在渲染窗口内的行）
  * @param movedId - 被拖动行的 id；跨组放置时不在 `groupIds` 里
  * @param targetId - 落点所在的目标行 id
  * @param position - 放在目标行的上方（`before`）还是下方（`after`）
@@ -289,7 +289,14 @@ const groupKeyPart = (value: unknown): string => {
   return `${typeof value}:${String(value)}`;
 };
 
-/** 一组分组取值的规范化键：与逐字段 `isEqual` 判同组等价，只用于建索引 */
+/**
+ * 一组分组取值的规范化键，只用于建索引
+ *
+ * @remarks
+ * 分组取值为 `null` / string / number / boolean / bigint / 合法 Date 时，与逐字段 `isEqual` 判同组等价。
+ * 对象取值一律落成 `object:[object Object]`（会把不同对象并进一组），Invalid Date 落成 `date:NaN`（与 `isEqual` 判不等相悖）；
+ * 分组字段是外键或标量列，碰不到这两种。
+ */
 const groupKeyOf = (fields: readonly string[], values: GroupValues): string =>
   JSON.stringify(fields.map(field => groupKeyPart(values[field])));
 

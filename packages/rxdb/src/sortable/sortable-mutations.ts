@@ -116,9 +116,11 @@ const createdIdsByEntity = (options: RxDBMutationsMap): ReadonlyMap<string, Read
  * 分组外键指向本批新建的行时，该组在库里必然为空
  *
  * @remarks
- * 成立的前提是外键约束：已提交的库状态里不可能有行指向尚不存在的行，本地后端都强制外键
+ * 成立的前提是后端强制外键：已提交的库状态里不可能有行指向尚不存在的行。本仓适配器建出的表都满足
  * （SQLite 系建连即 `PRAGMA foreign_keys = ON`，事务内 `defer_foreign_keys` 只推迟到提交时校验；PGlite 建表带约束）。
- * 唯一的反例是同一个事务里先借推迟校验写入指向未建父行的子行、再建父行——正常写入路径碰不到。
+ * 追加读的是已提交的库状态、且先于本批一切写入，事务内的写序影响不到这里的判断。
+ * 前提不成立的库（不强制外键的新后端）会把非空组当空组、从首键起算，与既有键相撞——新增本地后端时须让
+ * `rxdb-test` 的 `manual-order-tree.suite.ts`（「外键约束拒绝指向不存在父行的子行」一条）在它的 runner 上通过。
  *
  * 外键所指的实体用关系的 `mappedNamespace` + `mappedEntity` 与 create 桶的实体元数据比对；自引用关系的
  * `mappedEntity` 在 `transitionMetadata` 里已改写成本实体的 `name`。匹配不到就不触发，回到逐组读尾键——只会慢，不会错。

@@ -5,6 +5,10 @@
  * 前置任务（`^build`、`typecheck`、`spec-typecheck`…），按 target 分组输出，供 CI 的 test lane
  * 在跑测试之前以 `--parallel=3` 先把它们建完。
  *
+ * 「测试任务」按名称认：`test` 与一切 `test-*`。测试依赖的 `test-*` 不是构建 —— supabase 的
+ * `test-env`（`cache: false`，起隔离栈灌 SQL）挪进来会被跑两遍；pglite 的 `test-node` 是真实用例，
+ * 挪进来会与别的任务 `--parallel=3` 并发，破坏「测试只在串行那一步跑」的不变量。
+ *
  * 为什么需要它：
  *   test lane 以 `--parallel=1` 串行跑测试（各 vitest 任务自己已经多 worker 并行，再叠一层 Nx 并行
  *   会在 4 vCPU 上互相抢核）。但 `--parallel` 管的是整张任务图，测试依赖的那批构建也跟着串行：
@@ -12,7 +16,7 @@
  *   先单独并行跑完前置任务，测试那一步就全部命中本地缓存。
  *
  * 用法：
- *   node scripts/ci/test-prereq-tasks.mjs <task-graph.json> --exclude=test[,test-memory]
+ *   node scripts/ci/test-prereq-tasks.mjs <task-graph.json>
  *   → 每行一个 `<target>\t<逗号分隔的项目>`，build 排在最前
  *
  * 带 configuration 的任务（Angular 库的 `build:production`）按 target 归组：`run-many -t build`
@@ -23,16 +27,17 @@
 import { readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
+const isTestTarget = target => target === 'test' || target.startsWith('test-');
+
 /**
  * 按 target 分组的前置任务。
  *
  * @param {{ tasks?: { tasks?: Record<string, { target: { project: string, target: string } }> } }} graph
  *   `nx run-many --graph=<file>` 写出的 JSON
- * @param {string[]} excludeTargets 测试 target 本身（它们留给串行那一步跑）
- * @returns {{ target: string, projects: string[] }[]} build 在最前，其余按 target 名排序；项目去重、排序
+ * @returns {{ target: string, projects: string[] }[]} 不含 `test` / `test-*`；build 在最前，其余按 target 名排序；项目去重、排序
  * @throws {Error} 任务图里没有 `tasks.tasks`：形状不对时宁可失败，也不静默跳过预构建
  */
-export function prereqTargets(graph, excludeTargets) {
+export function prereqTargets(graph) {
   const tasks = graph?.tasks?.tasks;
   if (tasks === undefined || tasks === null || typeof tasks !== 'object') {
     throw new Error('任务图缺少 tasks.tasks：确认它来自 `nx run-many ... --graph=<file>`');
@@ -40,7 +45,7 @@ export function prereqTargets(graph, excludeTargets) {
 
   const byTarget = new Map();
   for (const { target } of Object.values(tasks)) {
-    if (excludeTargets.includes(target.target)) continue;
+    if (isTestTarget(target.target)) continue;
     const projects = byTarget.get(target.target) ?? new Set();
     projects.add(target.project);
     byTarget.set(target.target, projects);
@@ -53,15 +58,14 @@ export function prereqTargets(graph, excludeTargets) {
 }
 
 const main = argv => {
-  const file = argv.find(arg => !arg.startsWith('--'));
-  const exclude = argv.find(arg => arg.startsWith('--exclude='))?.slice('--exclude='.length);
-  if (file === undefined || exclude === undefined || exclude === '') {
-    console.error('用法: node scripts/ci/test-prereq-tasks.mjs <task-graph.json> --exclude=test[,test-memory]');
+  const [file] = argv;
+  if (file === undefined) {
+    console.error('用法: node scripts/ci/test-prereq-tasks.mjs <task-graph.json>');
     process.exit(1);
   }
 
   const graph = JSON.parse(readFileSync(file, 'utf8'));
-  for (const { target, projects } of prereqTargets(graph, exclude.split(','))) {
+  for (const { target, projects } of prereqTargets(graph)) {
     process.stdout.write(`${target}\t${projects.join(',')}\n`);
   }
 };

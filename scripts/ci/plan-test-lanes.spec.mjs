@@ -187,6 +187,15 @@ test('内存用例单独成一条 lane：跑 test-memory、不采集覆盖率、
   ]);
 });
 
+test('内存 lane 的 label 也以最重的项目打头，projects 照旧按名字排序', () => {
+  // 字母序 light < mid，权重 mid > light
+  const result = plan(['light', 'mid'], { memoryProjects: ['light', 'mid'] });
+  const memoryLane = result.include.find(lane => lane.target === MEMORY_TARGET);
+
+  assert.equal(memoryLane.label, `mid +1 (${MEMORY_TARGET})`);
+  assert.equal(memoryLane.projects, 'light,mid');
+});
+
 test('没有内存用例项目时不产出内存 lane', () => {
   assert.ok(plan(['heavy', 'light'], { memoryProjects: [] }).include.every(lane => lane.target === 'test'));
 });

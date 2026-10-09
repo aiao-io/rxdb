@@ -84,8 +84,9 @@ describe('useFileManagerStore', () => {
     const grandchild = makeFile('grandchild', 'child', 'file', 'a0', removed);
     const { result } = renderHook(() => useFileManagerStore([root, child, grandchild]));
 
+    act(() => result.current.showDeleteDialog(root));
     await act(async () => {
-      await result.current.deleteFile(root);
+      await result.current.executeCascadeDelete();
     });
 
     expect(removed).toEqual(['grandchild', 'child', 'root']);
@@ -197,22 +198,6 @@ describe('useFileManagerStore', () => {
   });
 
   describe('删除失败（T042）', () => {
-    it('deleteFile 失败：写入「删除失败」，不抛出、不调用 window.alert', async () => {
-      const alertSpy = vi.fn();
-      vi.stubGlobal('alert', alertSpy);
-      const removed: string[] = [];
-      const file = makeFile('f', null, 'file', 'a0', removed);
-      file.remove = vi.fn(() => Promise.reject(new Error('远端拒绝删除')));
-      const { result } = renderHook(() => useFileManagerStore([file]));
-
-      await act(async () => {
-        await result.current.deleteFile(file);
-      });
-
-      expect(result.current.writeError).toBe('删除失败：远端拒绝删除');
-      expect(alertSpy).not.toHaveBeenCalled();
-    });
-
     it('executeCascadeDelete 失败：写入「级联删除失败」，关闭对话框让页内提示可见，不抛出', async () => {
       const alertSpy = vi.fn();
       vi.stubGlobal('alert', alertSpy);

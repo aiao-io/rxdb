@@ -216,6 +216,39 @@ test.describe('树页面创建类写入的顺序（US-031 阶段 A）', () => {
     await expect(parent).toBeVisible();
   });
 
+  test('文件管理器懒加载页删除折叠文件夹弹出级联删除对话框', async ({ page }) => {
+    await openPage(page, '/file-manager-lazy', 'File Manager - Lazy Load');
+
+    const folder = await addRootFolderInMode(page, '待删文件夹');
+    await folder.hover();
+    await folder.getByTestId('file-select-parent').click();
+    const input = page.getByTestId('file-name-input');
+    await input.fill('待删子项');
+    await page.getByTestId('file-submit').click();
+    await expect(input).toHaveValue('');
+
+    // 刷新后文件夹折叠、子项未加载：旧实现按已加载节点判断，对话框显示「确认删除」且无级联警告
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: 'File Manager - Lazy Load' })).toBeVisible();
+    const rows = page.getByTestId('file-row');
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText('待删文件夹');
+
+    await rows.first().hover();
+    await rows.first().getByTestId('file-delete').click();
+
+    const dialog = page.locator('dialog.modal-open');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText('1 个直接子项');
+    await expect(dialog.getByRole('button', { name: '级联删除' })).toBeVisible();
+
+    await dialog.getByRole('button', { name: '取消', exact: true }).click();
+    await expect(dialog).toBeHidden();
+    await expect(rows).toHaveCount(1);
+    await expect(rows.first()).toContainText('待删文件夹');
+    await expect(page.getByTestId('tree-write-error')).toHaveCount(0);
+  });
+
   test('批量添加后原有根节点仍在最前', async ({ page }) => {
     await openPage(page, '/menu-simple', 'Tree Menu - Simple');
 

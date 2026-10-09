@@ -89,7 +89,7 @@ export function TreeMenuVirtualPage() {
     const actionKey = 'delete-all';
     setLoadingActions(prev => new Set(prev).add(actionKey));
     try {
-      await rxdb.entityManager.removeMany(menus);
+      await runWrite('删除全部', () => rxdb.entityManager.removeMany(menus));
     } finally {
       setLoadingActions(prev => {
         const next = new Set(prev);
@@ -97,7 +97,7 @@ export function TreeMenuVirtualPage() {
         return next;
       });
     }
-  }, [rxdb, menus]);
+  }, [rxdb, menus, runWrite]);
 
   // 保存编辑
   const handleSave = useCallback(
@@ -416,7 +416,7 @@ export function TreeMenuVirtualPage() {
                     key={menu.id}
                     data-testid='menu-row'
                     data-menu-id={menu.id}
-                    data-parent-id={menu.parentId}
+                    data-parent-id={menu.parentId ?? ''}
                     data-level={level}
                     data-dragging={isDragging ? 'true' : 'false'}
                     data-drop-mode={isTarget ? dragDrop.dragDropState.dropMode : ''}
@@ -452,12 +452,19 @@ export function TreeMenuVirtualPage() {
                       e.preventDefault();
                       e.stopPropagation();
                       // 失败由 useDragDrop 经 runWrite 送进页内提示，这里不再有 catch / alert
-                      await dragDrop.onDrop(menu, menuId => {
-                        // 展开目标菜单
-                        if (!store.expandedIds.has(menuId)) {
-                          store.toggleExpand(menuId);
+                      await dragDrop.onDrop(
+                        menu,
+                        menuId => {
+                          // 展开目标菜单
+                          if (!store.expandedIds.has(menuId)) {
+                            store.toggleExpand(menuId);
+                          }
+                        },
+                        {
+                          mouseY: e.clientY,
+                          rect: (e.currentTarget as HTMLElement).getBoundingClientRect()
                         }
-                      });
+                      );
                     }}
                     onDragEnd={() => dragDrop.onDragEnd()}
                   >

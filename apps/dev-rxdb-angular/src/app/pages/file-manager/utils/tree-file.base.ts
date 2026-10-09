@@ -53,7 +53,9 @@ export abstract class TreeFileBase<C extends FileTreeEntityConstructor> implemen
   readonly add_many = useAction(async (count?: number) => {
     await this.runWrite('批量添加', () => this.store.addBatch(count ?? 100));
   });
-  readonly delete_all = useAction(() => this.store.deleteAllFiles());
+  readonly delete_all = useAction(async () => {
+    await this.runWrite('删除全部', () => this.store.deleteAllFiles());
+  });
 
   readonly batchAddOptions = [
     { count: 100, label: '100 条' },

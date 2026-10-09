@@ -1,7 +1,7 @@
 import type { RxDB, UUID } from '@aiao/rxdb';
 import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { act, renderHook } from '@testing-library/react';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SortMode } from '../utils/file-sorters';
 import { useFileManagerLazyStore } from './useFileManagerLazyStore';
@@ -200,8 +200,8 @@ describe('useFileManagerLazyStore', () => {
       ];
 
       const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
-      act(() => {
-        result.current.showDeleteDialog(folder);
+      await act(async () => {
+        await result.current.showDeleteDialog(folder);
       });
       await act(async () => {
         await result.current.executeCascadeDelete();
@@ -444,28 +444,14 @@ describe('useFileManagerLazyStore', () => {
   });
 
   describe('删除失败进入 writeError（T042）', () => {
-    it('deleteFile 失败：写入「删除失败」，不抛出、不调用 window.alert', async () => {
-      const alertSpy = vi.fn();
-      vi.stubGlobal('alert', alertSpy);
-      const file = makeFile('f', null, 'a0', 'file');
-      file.remove = vi.fn(() => Promise.reject(new Error('远端拒绝删除')));
-      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
-
-      await act(async () => {
-        await result.current.deleteFile(file);
-      });
-
-      expect(result.current.writeError).toBe('删除失败：远端拒绝删除');
-      expect(alertSpy).not.toHaveBeenCalled();
-      vi.unstubAllGlobals();
-    });
-
     it('executeCascadeDelete 失败：写入「级联删除失败」，关闭对话框让页内提示可见，不抛出', async () => {
       const folder = makeFile('p', null, 'a0', 'folder');
       table.rows = [folder, makeFile('c1', 'p', 'a0', 'file')];
       table.writes['removeMany'].mockRejectedValueOnce(new Error('被外键拦下'));
       const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
-      act(() => result.current.showDeleteDialog(folder));
+      await act(async () => {
+        await result.current.showDeleteDialog(folder);
+      });
 
       await act(async () => {
         await result.current.executeCascadeDelete();
@@ -483,6 +469,165 @@ describe('useFileManagerLazyStore', () => {
       });
 
       expect(result.current.writeError).toBe('重命名失败：同级重名');
+    });
+  });
+
+  describe('删除对话框的影响数取自库（M5）', () => {
+    const seedCollapsedTree = () => {
+      const folder = makeFile('p', null, 'a0', 'folder');
+      table.rows = [
+        folder,
+        makeFile('c1', 'p', 'a0', 'folder'),
+        makeFile('c2', 'p', 'a1', 'file'),
+        makeFile('g1', 'c1', 'a0', 'file'),
+        makeFile('other', null, 'a1', 'file')
+      ];
+      return folder;
+    };
+
+    it('折叠文件夹（子节点未加载）：直接子项数与后代数取自库，级联警告不再是 0', async () => {
+      const folder = seedCollapsedTree();
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+
+      await act(async () => {
+        await result.current.showDeleteDialog(folder);
+      });
+
+      expect(result.current.fileToDelete).toBe(folder);
+      expect(result.current.deleteImpact).toEqual({ childrenCount: 2, descendantsCount: 3 });
+      expect(table.calls.every(call => call.options.orderBy === undefined)).toBe(true);
+    });
+
+    it('库里没有子节点：影响数为 0', async () => {
+      const leaf = makeFile('l', null, 'a0', 'file');
+      table.rows = [leaf];
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+
+      await act(async () => {
+        await result.current.showDeleteDialog(leaf);
+      });
+
+      expect(result.current.deleteImpact).toEqual({ childrenCount: 0, descendantsCount: 0 });
+    });
+
+    it('取消删除：影响数复位', async () => {
+      const folder = seedCollapsedTree();
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+      await act(async () => {
+        await result.current.showDeleteDialog(folder);
+      });
+
+      act(() => result.current.cancelDelete());
+
+      expect(result.current.fileToDelete).toBeNull();
+      expect(result.current.deleteImpact).toEqual({ childrenCount: 0, descendantsCount: 0 });
+    });
+
+    it('级联删除把对话框时取到的整棵子树经 removeMany 一次提交（子孙先于父）', async () => {
+      const folder = seedCollapsedTree();
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+      await act(async () => {
+        await result.current.showDeleteDialog(folder);
+      });
+
+      await act(async () => {
+        await result.current.executeCascadeDelete();
+      });
+
+      expect(table.writes['removeMany']).toHaveBeenCalledOnce();
+      const removed = table.writes['removeMany'].mock.calls[0][0] as SortableFileLarge[];
+      expect(removed.map(file => file.id)).toEqual([toUuid('g1'), toUuid('c1'), toUuid('c2'), toUuid('p')]);
+      expect(result.current.fileToDelete).toBeNull();
+    });
+
+    it('读库失败：写入「删除失败」，不弹对话框、不抛出', async () => {
+      const folder = seedCollapsedTree();
+      (SortableFileLarge as unknown as Record<string, unknown>)['findAll'] = vi.fn(() =>
+        throwError(() => new Error('库不可读'))
+      );
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+
+      await act(async () => {
+        await result.current.showDeleteDialog(folder);
+      });
+
+      expect(result.current.writeError).toBe('删除失败：库不可读');
+      expect(result.current.fileToDelete).toBeNull();
+    });
+  });
+
+  describe('展开与新建的并发（M6）', () => {
+    it('addChild 保存往返期间用户展开了别的文件夹：该展开不被陈旧闭包覆盖', async () => {
+      const [p, q] = [makeFile('p', null, 'a0', 'folder'), makeFile('q', null, 'a1', 'folder')];
+      table.rows = [p, q, makeFile('qc', 'q', 'a0', 'file')];
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+      let releaseSave: () => void = () => undefined;
+      table.writes['save'].mockImplementationOnce(
+        () =>
+          new Promise<void>(resolve => {
+            releaseSave = resolve;
+          })
+      );
+
+      let adding: Promise<boolean> = Promise.resolve(false);
+      act(() => {
+        adding = result.current.addChild(p, '新建', 'file');
+      });
+      await act(async () => {
+        await result.current.toggleExpand(q.id);
+      });
+      await act(async () => {
+        releaseSave();
+        await adding;
+      });
+
+      expect(result.current.expandedIds.has(q.id)).toBe(true);
+      expect(result.current.expandedIds.has(p.id)).toBe(true);
+    });
+
+    it('addChild 保存期间父节点已被展开：不重复订阅其子节点', async () => {
+      const p = makeFile('p', null, 'a0', 'folder');
+      table.rows = [p, makeFile('c1', 'p', 'a0', 'file')];
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+      let releaseSave: () => void = () => undefined;
+      table.writes['save'].mockImplementationOnce(
+        () =>
+          new Promise<void>(resolve => {
+            releaseSave = resolve;
+          })
+      );
+
+      let adding: Promise<boolean> = Promise.resolve(false);
+      act(() => {
+        adding = result.current.addChild(p, '新建', 'file');
+      });
+      await act(async () => {
+        await result.current.toggleExpand(p.id);
+      });
+      table.calls.length = 0;
+      await act(async () => {
+        releaseSave();
+        await adding;
+      });
+
+      const childSubscriptions = table.calls.filter(
+        call => call.method === 'findAll' && call.options.where?.rules?.[0]?.value === p.id
+      );
+      expect(childSubscriptions).toEqual([]);
+    });
+  });
+
+  describe('删除全部走 runWrite（M7）', () => {
+    it('deleteAllFiles 失败：写入「删除全部失败」，不抛出', async () => {
+      table.rows = [makeFile('a', null, 'a0', 'file')];
+      table.writes['removeMany'].mockRejectedValueOnce(new Error('被外键拦下'));
+      const { result } = renderHook(() => useFileManagerLazyStore(rxdb));
+
+      await act(async () => {
+        await result.current.deleteAllFiles();
+      });
+
+      expect(result.current.writeError).toBe('删除全部失败：被外键拦下');
     });
   });
 });

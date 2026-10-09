@@ -90,11 +90,11 @@ export function FileManagerSimplePage() {
   const handleDeleteAll = useCallback(async () => {
     setIsDeleting(true);
     try {
-      await rxdb.entityManager.removeMany(files);
+      await runWrite('删除全部', () => rxdb.entityManager.removeMany(files));
     } finally {
       setIsDeleting(false);
     }
-  }, [rxdb, files]);
+  }, [rxdb, files, runWrite]);
 
   // 批量添加文件
   const handleAddMany = useCallback(
@@ -500,7 +500,7 @@ export function FileManagerSimplePage() {
                       data-drop-valid={isTarget ? String(dragDrop.dragDropState.isValidTarget) : ''}
                       data-file-id={file.id}
                       data-level={level}
-                      data-parent-id={file.parentId}
+                      data-parent-id={file.parentId ?? ''}
                       data-testid='file-row'
                       style={{ paddingLeft: `${level * 20 + 8}px` }}
                       draggable
@@ -527,12 +527,19 @@ export function FileManagerSimplePage() {
                         e.preventDefault();
                         e.stopPropagation();
                         // 失败由 useDragDrop 经 runWrite 送进页内提示，这里不再有 catch / alert
-                        await dragDrop.onDrop(file, folderId => {
-                          // 展开目标文件夹
-                          if (!store.expandedIds.has(folderId)) {
-                            store.toggleExpand(folderId);
+                        await dragDrop.onDrop(
+                          file,
+                          folderId => {
+                            // 展开目标文件夹
+                            if (!store.expandedIds.has(folderId)) {
+                              store.toggleExpand(folderId);
+                            }
+                          },
+                          {
+                            mouseY: e.clientY,
+                            rect: (e.currentTarget as HTMLElement).getBoundingClientRect()
                           }
-                        });
+                        );
                       }}
                       onDragEnd={() => dragDrop.onDragEnd()}
                     >

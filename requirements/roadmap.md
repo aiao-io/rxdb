@@ -10,9 +10,9 @@
 | 状态           | 数量   |
 | :------------- | :----- |
 | ✅ Done        | 73     |
-| 🚧 In Progress | 1      |
+| 🚧 In Progress | 2      |
 | 👀 In Review   | 1      |
-| 📝 Backlog     | 23     |
+| 📝 Backlog     | 22     |
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **25** |
 

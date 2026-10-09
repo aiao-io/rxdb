@@ -274,7 +274,8 @@ jobs:
           #
           # 这里**不再**整体 --exclude=website,benchmarks。当初排除它们是因为担心
           # `--coverage.*` 这些 lane 参数打到非 vitest 的 target 上（website:test 是
-          # `node --test`）。实测不会：Nx 不把未声明的 CLI 参数转发给 run-commands，
+          # `node --test`）。参数确实会被 run-commands 原样转发（`forwardAllArgs` 默认开），
+          # 但它们落在 `node --test <文件>` 的文件名之后，只是脚本 argv，node 不解析；
           # website:test / benchmarks:test 带着完整 lane 参数跑都是绿的。
           # 排除的代价是实打实的：website / benchmarks 的 lint 和 typecheck 在 CI 里
           # 一次都没跑过。
@@ -597,7 +598,7 @@ jobs:
         run: |
           set -euo pipefail
           pnpm exec nx run-many -t "$TARGET" -p "$PROJECTS" --graph=.nx-test-task-graph.json > /dev/null
-          node scripts/ci/test-prereq-tasks.mjs .nx-test-task-graph.json --exclude=test,test-memory > .nx-test-prereqs.tsv
+          node scripts/ci/test-prereq-tasks.mjs .nx-test-task-graph.json > .nx-test-prereqs.tsv
           while IFS=$'\t' read -r target projects; do
             pnpm exec nx run-many -t "$target" -p "$projects" --output-style=stream --parallel=3
           done < .nx-test-prereqs.tsv
@@ -1105,7 +1106,8 @@ jobs:
   # 打印提示以 0 退出。
   #
   # bench-sortable-batch（US-031）同样是纯 Node（PGlite）：手动排序的批内追加与「同一批行带显式键」
-  # 在同一次运行里自比，比值超过 1.2 即失败。它不依赖冻结的 reference，换 CPU 型号也不会报环境不匹配。
+  # 在同一次运行里自比，比值超过 1.2 即失败；另量已有树里新建单个节点，中位数超过 100 ms 即失败（SC-004 的两条判据）。
+  # 它不依赖冻结的 reference，换 CPU 型号也不会报环境不匹配。
   #
   # 几个 target 走一次 run-many 而不是分成几个 step：串成几步的话，前一个红了
   # 后面的就不跑了，而一轮 CI 本该同时看到全部结论。run-many 默认不 bail。

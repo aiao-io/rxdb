@@ -23,6 +23,7 @@
     },
     "test-memory": {
       "cache": true,
+      "parallelism": false,
       "dependsOn": ["^build"],
       "executor": "nx:run-commands",
       "inputs": ["default", "^production"],

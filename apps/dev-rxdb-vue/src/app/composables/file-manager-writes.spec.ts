@@ -13,7 +13,7 @@
  */
 import type { RxDB } from '@aiao/rxdb';
 import { SortableFileLarge } from '@aiao/rxdb-test/entities';
-import { of } from 'rxjs';
+import { NEVER, of } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 import { createApp, ref } from 'vue';
 import { useFileManagerLazyStore } from './useFileManagerLazyStore';
@@ -36,12 +36,14 @@ const registry = vi.hoisted(() => ({
   created: [] as unknown[],
   /** 非空时，之后新建的实例保存会抛出它 */
   saveError: null as Error | null,
-  findAll: vi.fn()
+  findAll: vi.fn(),
+  findDescendants: vi.fn()
 }));
 
 vi.mock('@aiao/rxdb-test/entities', () => {
   class FakeEntity {
     static findAll = registry.findAll;
+    static findDescendants = registry.findDescendants;
     readonly id = crypto.randomUUID();
     parentId: string | null = null;
     hasChildren = false;
@@ -103,10 +105,15 @@ interface Harness {
   addChild(parent: FakeFile, name: string, type: 'file' | 'folder'): Promise<boolean>;
   commitEdit(file: FakeFile): Promise<unknown>;
   addManyFiles(count: number): Promise<unknown>;
-  deleteFile(file: FakeFile): Promise<unknown>;
+  /** 打开删除对话框（lazy 页按库取直接子节点与子树，所以是异步的） */
+  openDeleteDialog(file: FakeFile): Promise<unknown>;
   /** 对话框确认删除：先 showDeleteDialog 再 executeCascadeDelete */
   confirmDelete(file: FakeFile): Promise<unknown>;
-  /** 让「库里的全表」返回这批节点（lazy 页的级联删除读全表） */
+  /** 删除全部 */
+  deleteAll(): Promise<unknown>;
+  /** 删除对话框里展示的影响数 */
+  deleteImpact(): { childrenCount: number; descendantsCount: number };
+  /** 让「库」返回这批节点：findAll 按 parentId 规则过滤，findDescendants 返回节点自身加全部后代 */
   setDbAll(all: FakeFile[]): void;
   /** 被保存过的实例，按保存顺序 */
   savedEntities(): FakeFile[];
@@ -143,15 +150,35 @@ const simpleHarness: HarnessFactory = (memory = []) => {
     addChild: (parent, name, type) => store.addChild(parent as never, name, type),
     commitEdit: file => store.commitEdit(file as never),
     addManyFiles: count => store.addManyFiles(count),
-    deleteFile: file => store.deleteFile(file as never),
+    openDeleteDialog: async file => store.showDeleteDialog(file as never),
     confirmDelete: async file => {
       store.showDeleteDialog(file as never);
       await store.executeCascadeDelete();
     },
+    deleteAll: () => store.deleteAllFiles(),
+    deleteImpact: () => store.deleteImpact.value,
     setDbAll: () => undefined,
     savedEntities: () => created().filter(file => file.save.mock.calls.length > 0),
     dbReads: () => registry.findAll.mock.calls.length
   };
+};
+
+/** 模拟库：findAll 按 parentId 规则过滤（无规则即全表），findDescendants 含节点自身 */
+const setDbAll = (all: FakeFile[]): void => {
+  registry.findAll.mockImplementation((options?: { where?: { rules?: Array<{ field: string; value: unknown }> } }) => {
+    const rule = options?.where?.rules?.find(r => r.field === 'parentId');
+    return of(rule ? all.filter(file => file.parentId === rule.value) : all);
+  });
+  registry.findDescendants.mockImplementation(({ entityId }: { entityId: string }) => {
+    const subtree: FakeFile[] = [];
+    const collect = (id: string): void => {
+      const self = all.find(file => file.id === id);
+      if (self) subtree.push(self);
+      all.filter(file => file.parentId === id).forEach(child => collect(child.id));
+    };
+    collect(entityId);
+    return of(subtree);
+  });
 };
 
 const lazyHarness: HarnessFactory = () => {
@@ -165,12 +192,14 @@ const lazyHarness: HarnessFactory = () => {
     addChild: (parent, name, type) => store.addChild(parent as never, name, type),
     commitEdit: file => store.commitEdit(file as never),
     addManyFiles: count => store.addManyFiles(count),
-    deleteFile: file => store.deleteFile(file as never),
+    openDeleteDialog: file => store.showDeleteDialog(file as never),
     confirmDelete: async file => {
-      store.showDeleteDialog(file as never);
+      await store.showDeleteDialog(file as never);
       await store.executeCascadeDelete();
     },
-    setDbAll: all => registry.findAll.mockReturnValue(of(all)),
+    deleteAll: () => store.deleteAllFiles(),
+    deleteImpact: () => store.deleteImpact.value,
+    setDbAll,
     savedEntities: () => rxdb.entityManager.save.mock.calls.map(([entity]) => entity as FakeFile),
     dbReads: () => registry.findAll.mock.calls.length
   };
@@ -192,6 +221,7 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
     registry.created.length = 0;
     registry.saveError = null;
     registry.findAll.mockReset();
+    registry.findDescendants.mockReset();
     registry.findAll.mockReturnValue(of([]));
     useToast().toasts.value.forEach(toast => useToast().dismiss(toast.id));
   });
@@ -324,14 +354,16 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
   });
 
   describe('删除', () => {
-    it('删除失败：写入「删除失败：…」，不调用 window.alert，不走 toast，不抛出', async () => {
+    it('对话框确认删除失败：不调用 window.alert，不走 toast，不抛出', async () => {
       const alert = vi.fn();
       vi.stubGlobal('alert', alert);
       const file = fixture({ id: 'f1', name: 'a.txt', type: 'file' });
       file.remove.mockRejectedValueOnce(new Error('boom'));
       const h = makeHarness([file]);
+      h.setDbAll([file]);
+      h.rxdb.entityManager.removeMany.mockRejectedValueOnce(new Error('boom'));
 
-      await h.deleteFile(file);
+      await h.confirmDelete(file);
 
       expect(h.writeError()).toBe('删除失败：boom');
       expect(alert).not.toHaveBeenCalled();
@@ -367,5 +399,112 @@ describe.each(harnesses)('%s 的写入契约', (_name, makeHarness) => {
       expect(h.writeError()).toBe('级联删除失败：boom');
       expect(alert).not.toHaveBeenCalled();
     });
+  });
+
+  describe('删除对话框的影响数（M5）', () => {
+    it('折叠文件夹（后代都未加载）：直接子项与后代数按库计，不是 0', async () => {
+      const folder = fixture({ id: 'folder-1', name: 'Docs', type: 'folder' });
+      const a = fixture({ id: 'a', name: 'a', type: 'folder', parentId: 'folder-1' });
+      const b = fixture({ id: 'b', name: 'b.txt', type: 'file', parentId: 'folder-1' });
+      const g = fixture({ id: 'g', name: 'g.txt', type: 'file', parentId: 'a' });
+      const all = [folder, a, b, g];
+      // lazy 页的 store 没有加载任何子节点；simple 页的 store 持有全表
+      const h = makeHarness(all);
+      h.setDbAll(all);
+
+      await h.openDeleteDialog(folder);
+
+      expect(h.deleteImpact()).toEqual({ childrenCount: 2, descendantsCount: 3 });
+    });
+  });
+
+  describe('删除全部（M7）', () => {
+    it('失败：写入「删除全部失败：…」且不抛出', async () => {
+      const file = fixture({ id: 'f1', name: 'a.txt', type: 'file' });
+      const h = makeHarness([file]);
+      h.setDbAll([file]);
+      h.rxdb.entityManager.removeMany.mockRejectedValueOnce(new Error('boom'));
+
+      await h.deleteAll();
+
+      expect(h.writeError()).toBe('删除全部失败：boom');
+    });
+
+    it('成功：removeMany 收到全部节点，不报错', async () => {
+      const file = fixture({ id: 'f1', name: 'a.txt', type: 'file' });
+      const h = makeHarness([file]);
+      h.setDbAll([file]);
+
+      await h.deleteAll();
+
+      expect(h.rxdb.entityManager.removeMany).toHaveBeenCalledWith([file]);
+      expect(h.writeError()).toBeNull();
+    });
+  });
+});
+
+describe('useFileManagerLazyStore（lazy）的删除按库取数据', () => {
+  beforeEach(() => {
+    const values = new Map<string, string>();
+    vi.stubGlobal('localStorage', {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => values.set(key, value),
+      removeItem: (key: string) => values.delete(key)
+    });
+    registry.created.length = 0;
+    registry.findAll.mockReset();
+    registry.findDescendants.mockReset();
+    registry.findAll.mockReturnValue(of([]));
+  });
+
+  afterEach(() => {
+    mountedApps.splice(0).forEach(app => app.unmount());
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  it('级联删除：子树取自 findDescendants，经 removeMany 一次提交，不读全表', async () => {
+    const folder = fixture({ id: 'folder-1', name: 'Docs', type: 'folder' });
+    const child = fixture({ id: 'c', name: 'c.txt', type: 'file', parentId: 'folder-1' });
+    const other = fixture({ id: 'o', name: 'o.txt', type: 'file' });
+    const all = [folder, child, other];
+    const h = lazyHarness();
+    h.setDbAll(all);
+
+    await h.confirmDelete(folder);
+
+    expect(registry.findDescendants).toHaveBeenCalledWith({ entityId: 'folder-1' });
+    expect(h.rxdb.entityManager.removeMany).toHaveBeenCalledTimes(1);
+    expect(h.rxdb.entityManager.removeMany).toHaveBeenCalledWith([folder, child]);
+    const emptyRuleReads = registry.findAll.mock.calls.filter(([options]) => options?.where?.rules?.length === 0);
+    expect(emptyRuleReads).toHaveLength(0);
+  });
+
+  it('打开删除对话框失败：写入「删除失败：…」，对话框不打开', async () => {
+    const folder = fixture({ id: 'folder-1', name: 'Docs', type: 'folder' });
+    const store = inApp(() => useFileManagerLazyStore(asRxdb(makeRxdb())));
+    registry.findAll.mockImplementation(() => {
+      throw new Error('boom');
+    });
+
+    await store.showDeleteDialog(folder as never);
+
+    expect(store.writeError.value).toBe('删除失败：boom');
+    expect(store.fileToDelete.value).toBeNull();
+  });
+
+  it('加载中折叠（L7）：清掉 loading 状态，不会卡死', async () => {
+    const folder = fixture({ id: 'folder-1', name: 'Docs', type: 'folder', hasChildren: true });
+    registry.findAll.mockImplementation((options?: { where?: { rules?: Array<{ value: unknown }> } }) =>
+      options?.where?.rules?.[0]?.value === null ? of([folder]) : NEVER
+    );
+    const store = inApp(() => useFileManagerLazyStore(asRxdb(makeRxdb())));
+
+    await store.toggleExpand('folder-1');
+    expect(store.loadingIds.value.has('folder-1')).toBe(true);
+
+    await store.toggleExpand('folder-1');
+
+    expect(store.loadingIds.value.has('folder-1')).toBe(false);
   });
 });

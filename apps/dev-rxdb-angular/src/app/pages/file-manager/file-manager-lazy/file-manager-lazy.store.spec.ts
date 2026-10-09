@@ -1,7 +1,7 @@
 import { RxDB } from '@aiao/rxdb';
 import { SortableFileLarge } from '@aiao/rxdb-test/entities';
 import { TestBed } from '@angular/core/testing';
-import { BehaviorSubject, Observable, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, of, throwError } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { FileDragDropService } from '../services/file-drag-drop.service';
 import { FilePathValidatorService } from '../services/file-path-validator.service';
@@ -11,7 +11,12 @@ import { FILE_ENTITY_CLASS, FILE_HISTORY, TreeFileLazyStore } from './file-manag
 const roots = new BehaviorSubject<SortableFileLarge[]>([]);
 const allFiles = new BehaviorSubject<SortableFileLarge[]>([]);
 const childQueries = new Map<string, BehaviorSubject<SortableFileLarge[]>>();
+/** 模拟库里的子树：节点 id -> 自身 + 全部后代 */
+const subtrees = new Map<string, SortableFileLarge[]>();
 let failingNodeId: string | null = null;
+const removeMany = vi.fn(async (files: SortableFileLarge[]) => {
+  void files;
+});
 /** 引擎重排的替身 */
 const reorder = vi.fn(async (id: string, target: object) => {
   void id;
@@ -26,6 +31,10 @@ class TestFileEntityClass {
   static findAll = (options: object): Observable<SortableFileLarge[]> => {
     const rules = (options as QueryOptions).where?.rules ?? [];
     return rules.length > 0 ? roots.asObservable() : allFiles.asObservable();
+  };
+
+  static findDescendants = (options: { entityId: string }): Observable<SortableFileLarge[]> => {
+    return of(subtrees.get(options.entityId) ?? []);
   };
 
   static find = (options: object): Observable<SortableFileLarge[]> => {
@@ -70,8 +79,10 @@ describe('TreeFileLazyStore.treeNodes', () => {
     roots.next([makeFile('root-a', '文档'), makeFile('root-b', '图片')]);
     allFiles.next([]);
     childQueries.clear();
+    subtrees.clear();
     failingNodeId = null;
     reorder.mockReset();
+    removeMany.mockClear();
     TestBed.configureTestingModule({
       providers: [
         TreeFileLazyStore,
@@ -81,7 +92,7 @@ describe('TreeFileLazyStore.treeNodes', () => {
         {
           provide: RxDB,
           useValue: {
-            entityManager: { saveMany: vi.fn(), removeMany: vi.fn(), getRepository: vi.fn(() => ({ reorder })) }
+            entityManager: { saveMany: vi.fn(), removeMany, getRepository: vi.fn(() => ({ reorder })) }
           }
         },
         { provide: FILE_ENTITY_CLASS, useValue: TestFileEntityClass },
@@ -264,6 +275,29 @@ describe('TreeFileLazyStore.treeNodes', () => {
     }
     findAll.mockRestore();
     find.mockRestore();
+  });
+
+  describe('删除折叠文件夹', () => {
+    it('折叠且子节点未加载的文件夹：库里有子节点就弹对话框，级联删除取库里的整棵子树', async () => {
+      const folded = makeFile('folded', '折叠的文件夹', null, 'folder', true);
+      const child = makeFile('c', 'c', 'folded', 'file', false);
+      const grandchild = makeFile('g', 'g', 'c', 'file', false);
+      roots.next([folded]);
+      subtrees.set('folded', [folded, child, grandchild]);
+      const store = TestBed.inject(TreeFileLazyStore<typeof SortableFileLarge>);
+      vi.spyOn(TestFileEntityClass, 'findAll').mockReturnValueOnce(of([child]));
+
+      await store.deleteFile(folded);
+
+      expect(folded.remove).not.toHaveBeenCalled();
+      expect(store.fileToDelete()).toBe(folded);
+      expect(store.deleteImpact()).toEqual({ childrenCount: 1, descendantsCount: 2 });
+
+      await store.executeCascadeDelete();
+
+      expect(removeMany).toHaveBeenCalledExactlyOnceWith([folded, child, grandchild]);
+      expect(store.fileToDelete()).toBeNull();
+    });
   });
 
   describe('拖放交给引擎', () => {

@@ -442,10 +442,11 @@ export function useTreeMenuLazyStore(rxdb: RxDB, dataSource: TreeMenuLazyDataSou
     });
 
   // 删除所有菜单 - 内部一次性 fetch 全表后批量删除
-  const deleteAllMenus = async () => {
-    const allMenus = await fetchAllMenus();
-    await rxdb.entityManager.removeMany(allMenus);
-  };
+  const deleteAllMenus = () =>
+    guardWrite('删除全部', async () => {
+      const allMenus = await fetchAllMenus();
+      await rxdb.entityManager.removeMany(allMenus);
+    });
 
   /**
    * 已加载到 store 内的节点快照。供拖放校验、循环嵌套检测使用，避免 page 端再开一份全表订阅。

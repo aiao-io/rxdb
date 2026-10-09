@@ -10,25 +10,6 @@ import type { RxDBEntityId } from '@aiao/rxdb';
 export type DropMode = 'before' | 'after' | 'into';
 
 /**
- * Drop position enum (alias for DropMode for consistency with documentation)
- */
-export enum DropPosition {
-  BEFORE = 'before', // 插入到目标节点上方（同级）
-  INSIDE = 'into', // 作为目标节点的子节点
-  AFTER = 'after' // 插入到目标节点下方（同级）
-}
-
-/**
- * Drop indicator interface for visual feedback
- */
-export interface DropIndicator {
-  /** 目标节点 ID */
-  targetId: RxDBEntityId;
-  /** 放置位置 */
-  position: DropPosition;
-}
-
-/**
  * State tracking during drag operation
  */
 export interface DragDropState {

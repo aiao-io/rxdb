@@ -109,8 +109,8 @@ export function FileManagerVirtualPage() {
 
   // 删除所有文件
   const handleDeleteAll = useCallback(async () => {
-    await rxdb.entityManager.removeMany(files);
-  }, [rxdb, files]);
+    await runWrite('删除全部', () => rxdb.entityManager.removeMany(files));
+  }, [rxdb, files, runWrite]);
 
   // 保存编辑
   const handleSave = useCallback(
@@ -523,7 +523,7 @@ export function FileManagerVirtualPage() {
                     data-drop-valid={isTarget ? String(dragDrop.dragDropState.isValidTarget) : ''}
                     data-file-id={file.id}
                     data-level={level}
-                    data-parent-id={file.parentId}
+                    data-parent-id={file.parentId ?? ''}
                     data-testid='file-row'
                     style={{
                       height: `${virtualRow.size}px`,
@@ -554,12 +554,19 @@ export function FileManagerVirtualPage() {
                       e.preventDefault();
                       e.stopPropagation();
                       // 失败由 useDragDrop 经 runWrite 送进页内提示，这里不再有 catch / alert
-                      await dragDrop.onDrop(file, folderId => {
-                        // 展开目标文件夹
-                        if (!store.expandedIds.has(folderId)) {
-                          store.toggleExpand(folderId);
+                      await dragDrop.onDrop(
+                        file,
+                        folderId => {
+                          // 展开目标文件夹
+                          if (!store.expandedIds.has(folderId)) {
+                            store.toggleExpand(folderId);
+                          }
+                        },
+                        {
+                          mouseY: e.clientY,
+                          rect: (e.currentTarget as HTMLElement).getBoundingClientRect()
                         }
-                      });
+                      );
                     }}
                     onDragEnd={() => dragDrop.onDragEnd()}
                   >

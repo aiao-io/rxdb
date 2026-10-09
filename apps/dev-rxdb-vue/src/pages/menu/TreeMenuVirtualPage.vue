@@ -84,7 +84,7 @@ const handleDeleteAll = async () => {
   const actionKey = 'delete-all';
   loadingActions.value.add(actionKey);
   try {
-    await rxdb.entityManager.removeMany(menus.value);
+    await store.deleteAllMenus();
   } finally {
     loadingActions.value.delete(actionKey);
   }
@@ -426,7 +426,7 @@ const handleDragEnd = () => {
               "
               :data-level="node.level"
               :data-menu-id="node.menu.id"
-              :data-parent-id="node.menu.parentId"
+              :data-parent-id="node.menu.parentId ?? ''"
               :key="node.menu.id"
               :style="{
                 height: `${virtualRow.size}px`,

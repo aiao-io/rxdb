@@ -553,7 +553,7 @@ const getIconComponent = (iconName: string) => {
                   : ''
                 "
                 :data-level="node.level"
-                :data-parent-id="node.file.parentId"
+                :data-parent-id="node.file.parentId ?? ''"
                 :style="{ paddingLeft: `${node.level * 20 + 8}px` }"
                 @dragend="handleDragEnd"
                 @dragleave="handleDragLeave"
@@ -575,7 +575,7 @@ const getIconComponent = (iconName: string) => {
                 <!-- Expand/Collapse -->
                 <button
                   class="btn btn-ghost btn-xs p-0"
-                  :disabled="node.file.type !== 'folder' || !node.hasChildren"
+                  :disabled="node.file.type !== 'folder' || !node.hasChildren || node.isLoading"
                   @click="store.toggleExpand(node.file.id)"
                   data-testid="file-node-toggle"
                 >

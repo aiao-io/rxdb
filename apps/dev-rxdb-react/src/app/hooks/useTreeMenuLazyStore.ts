@@ -200,10 +200,9 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
 
   /** 展开：为该节点创建子节点的响应式订阅（库里已有的子节点按手动顺序全部载入，不传 orderBy）。 */
   const expandNode = (id: string) => {
-    // 展开：创建订阅
-    const newExpanded = new Set(expandedIds);
-    newExpanded.add(id);
-    setExpandedIds(newExpanded);
+    // 函数式更新 + 订阅防护：addChild 的 save 往返期间闭包已陈旧，父节点也可能已被用户展开
+    setExpandedIds(prev => (prev.has(id) ? prev : new Set(prev).add(id)));
+    if (subscriptionsRef.current.has(id)) return;
 
     // 开始加载
     setLoadingIds(prev => new Set(prev).add(id));
@@ -485,18 +484,20 @@ export function useTreeMenuLazyStore(rxdb: RxDB, source: TreeMenuLazySource) {
    * 每批都断言游标真的推进了：删不动却继续循环会变成死循环，宁可把失败抛给调用方。
    */
   const deleteAllMenus = async () => {
-    let lastBatchHeadId: string | null = null;
-    for (;;) {
-      const batch = await firstValueFrom(
-        SortableMenuLarge.find({ where: { combinator: 'and', rules: [] }, limit: DELETE_BATCH_SIZE })
-      );
-      if (batch.length === 0) return;
-      if (batch[0].id === lastBatchHeadId) {
-        throw new Error('批量删除没有推进：仍有菜单未被删除');
+    await runWrite('删除全部', async () => {
+      let lastBatchHeadId: string | null = null;
+      for (;;) {
+        const batch = await firstValueFrom(
+          SortableMenuLarge.find({ where: { combinator: 'and', rules: [] }, limit: DELETE_BATCH_SIZE })
+        );
+        if (batch.length === 0) return;
+        if (batch[0].id === lastBatchHeadId) {
+          throw new Error('批量删除没有推进：仍有菜单未被删除');
+        }
+        lastBatchHeadId = batch[0].id;
+        await rxdb.entityManager.removeMany(batch);
       }
-      lastBatchHeadId = batch[0].id;
-      await rxdb.entityManager.removeMany(batch);
-    }
+    });
   };
 
   /**

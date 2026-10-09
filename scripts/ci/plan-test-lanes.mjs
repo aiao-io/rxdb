@@ -11,7 +11,8 @@
  *
  * 为什么是脚本而不是在 workflow 里写死项目名：
  *   写死的清单会在新增包时静默漏测 —— 新包既不在任何 lane 里，CI 也不会报错。
- *   这里从 `nx show projects` 的实际输出分桶，并断言每个项目恰好落在一条 lane。
+ *   这里从 `nx show projects` 的实际输出分桶，并断言每个项目的 `test` 恰好落在一条 lane；
+ *   有内存用例的项目（`--memory-projects`）另在内存 lane 跑它的 `test-memory`，所以会出现两次。
  *
  * 用法：
  *   node scripts/ci/plan-test-lanes.mjs --projects=a,b,c [--lanes=4] [--memory-projects=x]
@@ -31,7 +32,7 @@ import { pathToFileURL } from 'node:url';
  * 4 有两个独立的理由，任一成立就不该往上调：
  *   1. 并发位：免费额度上限 20，实测峰值并发是 16，内存 lane 再占 1 个。
  *   2. 墙钟的下界是单个最重的任务：`rxdb-adapter-pglite`（667s，见 WEIGHTS）。按 PR #101
- *      的实测权重装箱，4 条 lane 的负载约 720s 一条，离这个下界只差 1 分钟；开到 5 条省下的
+ *      的实测权重装箱，4 条 lane 的负载约 730s 一条，离这个下界只差 1 分钟；开到 5 条省下的
  *      也就这 1 分钟，换来的是峰值并发顶到 18 以上、PR 一多就排队。
  */
 export const LANE_COUNT = 4;
@@ -73,7 +74,7 @@ export const NO_COVERAGE_PROJECTS = ['website'];
  * 相邻两条 vitest `Duration` 行的时间差就是后一个项目的净耗时；一个 nx 项目里有多个
  * vitest project 时（pglite、electron）按项目求和。
  * （不能用「项目首行到末行」的时间跨度 —— 那会把 Nx 的调度输出算进去。）
- * 那一轮没测到的 10 项（supabase 两项在独立 lane、website / utils / code-editor 等未受影响）保留上一版的值。
+ * 那一轮没测到的项目（supabase 两项在独立 lane、website / utils / code-editor 等未受影响）保留上一版的值。
  *
  * 上一版取自 main 的 run 31874082535，此后几个项目的用例量翻了几倍，表没有跟着更新：
  *   rxdb-adapter-electron   21 → 840（含内存组 469，拆到 `test-memory` 后按 371 计）
@@ -248,9 +249,10 @@ export function planTestLanes({
   // 内存 lane 只收本次 test 集里的项目：affected 没算到的项目，它的内存用例也不该跑。
   const memory = [...new Set(memoryProjects)].filter(name => unique.includes(name)).sort();
   if (memory.length > 0) {
+    const byWeight = [...memory].sort((a, b) => weightOf(b) - weightOf(a) || a.localeCompare(b));
     include.push({
       lane: 'memory',
-      label: `${laneLabel(memory)} (${MEMORY_TARGET})`,
+      label: `${laneLabel(byWeight)} (${MEMORY_TARGET})`,
       projects: memory.join(','),
       target: MEMORY_TARGET,
       supabase: false,

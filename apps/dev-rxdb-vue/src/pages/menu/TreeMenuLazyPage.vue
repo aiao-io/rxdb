@@ -424,7 +424,7 @@ const handleDragEnd = () => {
               "
               :data-level="node.level"
               :data-menu-id="node.menu.id"
-              :data-parent-id="node.menu.parentId"
+              :data-parent-id="node.menu.parentId ?? ''"
               :key="node.menu.id"
               :style="{
                 height: `${virtualRow.size}px`,
