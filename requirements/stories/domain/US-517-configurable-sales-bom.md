@@ -30,6 +30,12 @@ tags: [domain, bom, configuration]
 - **选择条件的最小语法**：原子谓词 `特征 = 值`、`特征 != 值`、`特征 in (值, …)`，以 `AND` / `OR` / `NOT` 与括号组合；
   特征与值必须引用已存在的 `config_char` / `config_char_value`。持久化时同时记 `condition_grammar_version`，语法升级不改旧条件的含义
   （同 [US-511](US-511-bom-quantity-semantics.md) 的公式语法版本）
+- **依赖约束的最小形态**（`config_constraint`，与选择条件同一语法版本）：
+  - 种类两种：`exclude`（互斥：两侧条件同时满足即冲突）与 `require`（蕴含：左侧条件满足而右侧不满足即冲突）；
+  - 两侧各是一条选择条件（同一条最小语法），引用已存在的 `config_char` / `config_char_value`，保存期校验（同 AC#5）；
+  - 求值：对给定配置输入分别求两侧条件，按种类判冲突；冲突报告点名约束与两侧条件（AC#2）；
+  - 只支持「条件 → 条件」一级，约束之间不做推理。**求解契约**：给定配置输入，返回入选行集与冲突清单；
+    外挂求解器在这份契约上做约束传播，不在本故事内
 
 ### Out of Scope
 
@@ -83,5 +89,5 @@ AC#3 遵守「无 fallback 兜底」：配置不完整时返回部分结构，�
 - [epic-009 BOM 领域模型](../../epics/epic-009-bom-domain-model.md)
 - [US-507 BOM 图骨架](US-507-bom-graph-skeleton.md) — 前置；行发生项
 - [US-508 BOM 视图解析](US-508-bom-view-resolution.md) — 前置；配置扩入 `ResolutionContext`
-- [US-509 DAG 约束与环路检测](US-509-bom-dag-cycle-detection.md) — 并集无环政策
+- [US-509 DAG 约束与环路检测](US-509-bom-dag-cycle-detection.md) — 前置（AC#6 的存储层拒绝）；并集无环政策
 - [US-511 展开数量正确性](US-511-bom-quantity-semantics.md) — 非前置；`condition_grammar_version` 沿用其 `formula_grammar_version` 的语法版本化做法

@@ -75,7 +75,7 @@ tags: [domain, bom, integration]
 | 7   | 接 #4                                                                                                                    | MBOM 改完后确认跟进，再查缺口                                                                                 | 缺口消失；基线推进到当前源解析依据与目标发生项                                                                                             | ⬜   |
 | 8   | 接 #7                                                                                                                    | 源逻辑行再改一次，再查缺口                                                                                    | 缺口重新出现，不因曾确认过而被吞掉                                                                                                         | ⬜   |
 | 9   | `relation = 'one_to_one'` 但 target 为 NULL；或两侧都为 NULL                                                             | 保存                                                                                                          | 拒绝，错误点名 relation 与缺失侧                                                                                                           | ⬜   |
-| 10  | source 行属 MBOM 头，或两侧 `org_id` 不同                                                                                | 保存                                                                                                          | 拒绝                                                                                                                                       | ⬜   |
+| 10  | source 行属 MBOM 头，或两侧 `org_id` 不同                                                                                | 保存                                                                                                          | 拒绝，错误点名该行所在头与范围：类型不匹配（`bom_type`）或组织不符（`org_id`）                                                             | ⬜   |
 | 11  | EBOM `整机 A → 功能模块 B → 螺钉 C`；MBOM 扁平为 `整机 A → 螺钉 C`                                                       | 建 C 的源行（父件 B）→ 目标行（父件 A）的 `one_to_one` 映射；再建一条反向下沉、一条两行并一行的 `merge`       | 全部接受：两侧都在 A 的变换范围内，即时父件不同不构成拒绝                                                                                  | ⬜   |
 | 12  | source 行所在头的父件在 `(EBOM, org)` 并集图里不可由范围的根件到达                                                       | 保存映射                                                                                                      | 拒绝，错误点名范围根件与该行                                                                                                               | ⬜   |
 | 13  | 共享子装配 S 在 EBOM 经路径 P1、P2 出现；MBOM 只重构 P1 下的 S                                                           | 为 P1 建带 `source_line_path` 的 `split` 映射，P2 不建                                                        | 覆盖率：P1 下 S 的行已覆盖、P2 下同一行报未覆盖；P2 不被 P1 的映射吞掉。另存一条末元素不是 `source_line_id` 或中间断开的路径：拒绝         | ⬜   |
@@ -168,9 +168,9 @@ MBOM 随后也改了——映射前后都是同一对 ID，引用本身不知道
 
 - [epic-009 BOM 领域模型](../../epics/epic-009-bom-domain-model.md)
 - [US-507 BOM 图骨架](US-507-bom-graph-skeleton.md) — 前置；逻辑行与行发生项
-- [US-508 BOM 视图解析](US-508-bom-view-resolution.md) — 视图与重构的分界；缺口查询的 `ResolutionContext`；跟进基线取自 manifest（AC#17）
-- [US-509 DAG 约束与环路检测](US-509-bom-dag-cycle-detection.md) — 本故事 AC#12 的剪枝用它的物料级并集图（与判环同一张、不按生效期）；本故事 AC#15 说明并集只剪枝、不证明成员资格
-- [US-510 多级展开与 where-used](US-510-bom-multilevel-explosion.md) — 路径数随菱形结构指数增长，故按步骤集合比；`truncated` 预算
+- [US-508 BOM 视图解析](US-508-bom-view-resolution.md) — 前置；视图与重构的分界；缺口查询的 `ResolutionContext`；跟进基线取自 manifest（AC#17）
+- [US-509 DAG 约束与环路检测](US-509-bom-dag-cycle-detection.md) — 前置（AC#12 / #15 的并集图剪枝）；并集图与判环同一张、不按生效期；只剪枝、不证明成员资格
+- [US-510 多级展开与 where-used](US-510-bom-multilevel-explosion.md) — 前置（AC#22 的 `truncated`、展开路径）；路径数随菱形结构指数增长，故按步骤集合比
 - [US-511 展开数量正确性](US-511-bom-quantity-semantics.md) — 非前置；换算率与 `qty_formula` 参数不进跟进基线，数字差异比对它追加到 manifest 的值
 - [US-514 成本卷算](US-514-bom-cost-rollup.md) — 非前置；费率、价格与 `cost_lot_qty` 不进跟进基线，成本差异比对它追加到 manifest 的值
 - [US-515 变更管理](US-515-bom-change-management.md) — 本故事 AC#16 / #19 的「ECN 生效」情景以它为前置；成员资格含挂在 `draft` ECN 上的候选发生项；撤回 / 取消的级联使映射「路径失效」

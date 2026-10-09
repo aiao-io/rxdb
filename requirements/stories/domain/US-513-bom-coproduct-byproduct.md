@@ -24,7 +24,7 @@ tags: [domain, bom, process-industry]
 | A    | `flow_direction` 三值 `consume` / `by_product` / `scrap_out`；主产物 = 头父件；副产量的基准、单位与缩放 | ⬜   |
 | B    | 联产品（第二个主产物，`produce`）与联合成本分配合同——**价值待证**，有驱动场景再开                       | ⬜   |
 
-AC 全部归阶段 A；阶段 B 立项时另写 AC。本故事在阶段 B 关闭前不置 Done。
+除 AC#2 / #7 外全部归阶段 A——这两条的操作是卷算（US-514 的交付物），随 US-514 同批关闭，数值断言以其 AC#5 / #17 为准；阶段 B 立项时另写 AC。本故事在阶段 B 与 AC#2 / #7 关闭前不置 Done。
 
 ## 范围边界
 
@@ -87,6 +87,7 @@ X→Y 加 Y→X 恰成环；不计入则只有 X→Y，无环。前置的边集�
 | `scrap_out`      | 否             | 废料量，本故事 AC#6                                 | 不计不抵（本故事 AC#7）                       |
 
 主产物不在表里：它就是头父件，主产量就是 L，成本就是卷算结果本身。US-511 的七步公式**只认 `consume`**，其余两种不进那条链路——这是分工，不是遗漏。
+AC#2 / #7 钉的是上表两格的归属（`by_product` 抵减、`scrap_out` 不计不抵），数值 oracle 由 US-514 AC#5 / #17 承接——两条随 US-514 同批关闭，避免同一断言在两处各自演化。
 
 **为什么阶段 A 不支持联产品。** 只有方向、没有合同的 `produce` 回答不了这些问题：一批投入 110 kg、产主品 100 kg 与副品 10 kg 时，L 是一个工艺批、100 kg 主品，
 还是父件基准量？L 翻倍或带装配损耗时副品怎么变？同一头两条 `produce` 时成本归谁？头父件是工艺 P、产物是 M 时，下游 consume M 从哪取成本？
@@ -113,5 +114,7 @@ AC#5 的理由：允许 `consume` 边带负用量等于给同一件事留了两�
 - [epic-009 BOM 领域模型](../../epics/epic-009-bom-domain-model.md)
 - [US-507 BOM 图骨架](US-507-bom-graph-skeleton.md) — 前置；行发生项
 - [US-509 DAG 约束与环路检测](US-509-bom-dag-cycle-detection.md) — 对偶约束
-- [US-511 展开数量正确性](US-511-bom-quantity-semantics.md) — 副产量缩放所用的 `P'`
-- [US-514 成本卷算](US-514-bom-cost-rollup.md) — 消费主产物成本与副产抵减（AC#17）
+- [US-510 多级展开与 where-used 反查](US-510-bom-multilevel-explosion.md) — 前置；AC#3 的下钻、AC#4 / #6 的展开
+- [US-511 展开数量正确性](US-511-bom-quantity-semantics.md) — 副产量缩放所用的 `P'`；AC#5 的负用量拒绝复用其十进制值合同的格式触发器（US-511 AC#23 保存即拒）
+- [US-514 成本卷算](US-514-bom-cost-rollup.md) — AC#2 / #7 随其同批关闭（其 AC#5 / #17 的数值断言）；消费主产物成本与副产抵减
+- [US-520 工艺路线挂接与工序投料分摊](US-520-bom-routing-operation.md) — AC#6 的按工序归集以其工序挂接为前置

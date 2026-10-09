@@ -40,7 +40,7 @@ tags: [domain, bom, extensibility, schema]
 
 ### Out of Scope
 
-- 属性的界面编辑器（→ US-522）
+- 属性的界面编辑器——本 Epic 无归属故事（US-522 只做 BOM 结构编辑与展开视图，不含 `attr_def` 编辑器）；需要时由驱动场景另立故事
 - 跨组织的属性字典治理流程
 - EAV 表——**本故事明确不采用**
 
