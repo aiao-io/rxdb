@@ -68,7 +68,7 @@ AC 的阶段归属：A 关闭 AC#1 / #2 / #7 / #8 / #10；B 关闭 AC#3 / #4；C
 
 **本故事存在的理由是两条悬空引用。** [US-520](US-520-bom-routing-operation.md) 的 AC#5
 要求 `operation_seq` 指向不存在的工序时拒绝——引用完整性要成立，被引用的那张表必须存在。
-[US-514](US-514-bom-cost-rollup.md) 的加工费项 `(setup + run) × rate(activity, work_center)`
+[US-514](US-514-bom-cost-rollup.md) 的加工费项 `hours(op, L) × rate(activity, work_center)`
 里，`setup` / `run` / `rate` 三个量没有一个在 BOM 侧。US-520 把路线本体列为 Out of Scope 是对的
 （挂接点与本体是两件可独立交付的事），但「由外部提供」不是一个可核对的状态。
 

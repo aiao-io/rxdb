@@ -185,7 +185,7 @@ epic-009 默认决策 1～8 已于 2026-10-02 由 owner 确认；第 0 步的形
 - ⬜ [US-510 多级展开与 where-used 反查](stories/plugin/US-510-bom-multilevel-explosion.md) — 两阶段；展开预算与 `truncated`；可达性表 `bom_reach` 不存路径、用量与生效期
 - ⬜ [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/plugin/US-511-bom-quantity-semantics.md) — 四阶段（B 拆 B1 / B2）；七步有序公式，损耗制式必须记录
 - ⬜ [US-512 替代组与替代策略](stories/plugin/US-512-bom-substitute-group.md) — 策略与是否允许混用属组不属行；概率合计 ≠ 1 拒绝而不归一化
-- ⬜ [US-513 联产品与副产品：多输出物料流](stories/plugin/US-513-bom-coproduct-byproduct.md) — 仅 `consume` 边进可达性与环检测；四个 `flow_direction` 各自有下游消费方
+- ⬜ [US-513 联产品与副产品：多输出物料流](stories/plugin/US-513-bom-coproduct-byproduct.md) — 仅 `consume` 边进可达性与环检测；阶段 A 三个 `flow_direction`（consume / by_product / scrap_out）各自有下游消费方，主产物即头父件；联产品属阶段 B（价值待证）
 - ⬜ [US-514 成本卷算](stories/plugin/US-514-bom-cost-rollup.md) — 拓扑逆序单遍；`unit_cost` = `batch_cost` / `cost_lot_qty`，节点是已解析的头；前置 US-511 / US-512 / US-513 / US-520 / US-524
 - ⬜ [US-515 变更管理（ECN）驱动的生效期](stories/plugin/US-515-bom-change-management.md) — 生效日由 ECN 派生、不手填、不追溯；已生效 ECN 不可取消
 - ⬜ [US-516 EBOM ↔ MBOM 映射与差异对比](stories/plugin/US-516-ebom-mbom-mapping.md) — 关闭条件是**明确不用视图实现**
