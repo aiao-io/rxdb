@@ -188,7 +188,7 @@ jobs:
       # 缺归档不在这里报错（if-no-files-found 默认只警告）：backup-cross-os 的用例对每个承诺组合
       # 断言归档存在，缺一份会在那边以「缺少 <平台> 产出的归档」红掉，定位比这里更直接。
       - name: Upload backup archives (US-217 AC#20)
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: backup-archives-electron-${{ matrix.os }}
           path: backup-archives/
@@ -200,7 +200,7 @@ jobs:
         shell: bash
         run: tar -cf electron-app.tar -C dist/apps/dev-rxdb-electron release
       - name: Upload packaged app for backup-cross-os
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: electron-app-${{ matrix.os }}
           path: electron-app.tar
@@ -211,7 +211,7 @@ jobs:
       # test-output/playwright/output/ 下，`pnpm exec playwright show-trace <zip>` 打开。
       - name: Upload Playwright artifacts
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: electron-smoke-${{ matrix.os }}
           path: |
@@ -319,7 +319,7 @@ jobs:
 
       # 两步的理由同 electron-smoke。release 二进制已内嵌前端（custom-protocol），单文件即完整产物。
       - name: Upload backup archives (US-217 AC#20)
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: backup-archives-tauri-${{ matrix.os }}
           path: backup-archives/
@@ -332,7 +332,7 @@ jobs:
           if [ "$RUNNER_OS" = Windows ]; then binary=dev-rxdb-tauri.exe; fi
           tar -cf tauri-app.tar -C apps/dev-rxdb-tauri/src-tauri/target/release "$binary"
       - name: Upload packaged app for backup-cross-os
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: tauri-app-${{ matrix.os }}
           path: tauri-app.tar
@@ -408,12 +408,12 @@ jobs:
         if: runner.os == 'Linux'
 
       - name: Download packaged apps
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: '*-app-${{ matrix.os }}'
           path: packaged
       - name: Download backup archives
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: backup-archives-*
           path: backup-archives

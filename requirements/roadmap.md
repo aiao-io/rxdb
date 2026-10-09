@@ -168,7 +168,7 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
    - 已发布的 `0.0.26`：`rxdb-angular` / `rxdb-plugin-search-angular` / `code-editor-angular` 的 peer 是 `"22.1.6"`，
      `0.0.25` 是 `^22.0.0`——消费者装 22.1.7 起即报 peer 冲突。
    - 工作区现状：7 个 Angular 包（`code-editor-angular`、`rxdb-angular`、`rxdb-model-angular`、`rxdb-plugin-replay-angular`、
-     `rxdb-plugin-search-angular`、`rxdb-plugin-tree-angular`、`rxdb-plugin-working-tree-angular`）的 `@angular/*` peer 都是精确的 `"22.2.1"`。
+     `rxdb-plugin-search-angular`、`rxdb-plugin-tree-angular`、`rxdb-plugin-working-tree-angular`）的 `@angular/*` peer 都是精确的 `"22.2.2"`。
    - 1e8336cd 把 `@aiao/rxdb-angular` 单独抬到 `0.0.27`，并把它的 `@aiao/*` peer 从 `*` 改成字面 `^0.0.26`
      （`rxdb-model-angular` 里另有 `@aiao/rxdb-angular: ^0.0.27`），其余包仍是 `0.0.26`。
    - 处置：owner 决定下次统一发版时一并处理。

@@ -63,12 +63,12 @@
     "@tarojs/cli": "4.3.0",
     "@tarojs/plugin-generator": "4.3.0",
     "@tarojs/vite-runner": "4.3.0",
-    "@types/minimatch": "^5.1.2",
     "@types/react": "^18.3.31",
     "@vitejs/plugin-react": "^4.7.0",
     "postcss": "^8.5.29",
-    "react-refresh": "^0.14.2",
+    "react-refresh": "^0.19.0",
     "sass": "^1.105.1",
+    "solid-js": "^1.9.17",
     "terser": "^5.51.2",
     "vite": "^6.4.4"
   }
