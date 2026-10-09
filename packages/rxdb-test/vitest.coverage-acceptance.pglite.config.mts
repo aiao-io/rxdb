@@ -111,7 +111,6 @@ export default defineConfig({
           maxWorkers: 1,
           testTimeout: 30000,
           hookTimeout: 30000,
-          teardownTimeout: 10000,
           browser: {
             enabled: false
           },
@@ -153,6 +152,7 @@ export default defineConfig({
     ],
     watch: false,
     passWithNoTests: true,
+    teardownTimeout: 10000,
     reporters: [
       'default',
       [

@@ -253,7 +253,6 @@ const createRunConfig = (suiteName: SuiteName): ViteUserConfig => {
         maxWorkers: suiteName === 'wa-sqlite' ? 1 : undefined,
         testTimeout: 30000,
         hookTimeout: 30000,
-        teardownTimeout: 10000,
         include:
           suiteName === 'core' ?
             ['{src,tests,__tests__}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}']
@@ -296,6 +295,7 @@ const createRunConfig = (suiteName: SuiteName): ViteUserConfig => {
       projects,
       watch: false,
       passWithNoTests: true,
+      teardownTimeout: 10000,
       reporters: [
         'default',
         [
