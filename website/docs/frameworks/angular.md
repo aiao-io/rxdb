@@ -660,7 +660,7 @@ import { Todo } from './entities/Todo';
   standalone: true,
   imports: [RxDBEntityChangeDirective],
   template: `
-    <div [rxdbEntityChange]="todo">
+    <div [rxdbChangeDetector]="todo">
       <h3>{{ todo.title }}</h3>
       <p>完成状态: {{ todo.completed }}</p>
     </div>

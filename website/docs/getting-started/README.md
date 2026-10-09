@@ -130,13 +130,15 @@ await todo.remove();
 
 ### 4. 订阅数据变化
 
-使用 RxJS 订阅查询结果，由数据变化驱动界面更新：
+`Todo.find()` 返回的是响应式 `Observable`：数据一变，查询结果就可能跟着变（详见[响应式查询](../model-query/query-realtime.md)）。连接状态则由 `rxdb.connected$` 提供——它是全实例聚合信号，任意一个适配器连上即为 `true`。等待数据库连上后再订阅查询，是典型的最小响应式链路：
 
 ```typescript
-import { Subscription, switchMap } from 'rxjs';
+import { Subscription, filter, first, switchMap } from 'rxjs';
 
-const subscription: Subscription = rxdb
+const subscription: Subscription = rxdb.connected$
   .pipe(
+    filter(Boolean),
+    first(),
     switchMap(() =>
       Todo.find({
         where: {
@@ -154,6 +156,8 @@ const subscription: Subscription = rxdb
 // 记得在卸载时取消
 subscription.unsubscribe();
 ```
+
+除了 `connected$`，`rxdb.localAdapter$` 与 `rxdb.remoteAdapter$` 分别发射当前生效的本地 / 远端适配器实例，可供需要感知适配器生命周期的代码订阅。
 
 至此，本地读写与响应式查询链路已经完成。下一步是把 Observable 接入界面。
 

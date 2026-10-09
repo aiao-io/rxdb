@@ -2,7 +2,7 @@
 
 `@aiao/rxdb-adapter-sqlite-wasm` 基于 [@subframe7536/sqlite-wasm](https://github.com/subframe7536/sqlite-wasm) 提供跨平台 SQLite 支持，内置 FTS5 / UPDATE DELETE LIMIT 扩展，并提供类型安全的 VFS 预设。
 
-与 `@aiao/rxdb-adapter-wa-sqlite` 共享 `@aiao/rxdb-adapter-sqlite-core` 核心；差异在于底层 WASM 由 subframe 包提供，VFS 预设更丰富，是 `@aiao/rxdb-plugin-search` 的**必需适配器**。
+与 `@aiao/rxdb-adapter-wa-sqlite` 共享 `@aiao/rxdb-adapter-sqlite-core` 核心；差异在于底层 WASM 由 subframe 包提供，VFS 预设更丰富，是 `@aiao/rxdb-plugin-search` **FTS5 后端的适配器之一**（sqlite / sqliteai 亦兼容，PGlite 走 pg-tsvector 后端）。
 
 ## 安装
 
@@ -46,12 +46,14 @@ await rxdb.connect('sqlite-wasm');
 
 ## OPFS 模式（高性能）
 
-OPFS 需要在 Worker 中运行，并要求服务器配置 `Cross-Origin-Opener-Policy` 和 `Cross-Origin-Embedder-Policy` 响应头。
+OPFS 需要在 Worker 中运行，并要求服务器配置 `Cross-Origin-Opener-Policy` 和 `Cross-Origin-Embedder-Policy` 响应头。Worker 文件需要**自己编写**并用 comlink 的 `expose` 暴露客户端（comlink 是可选 peer 依赖，需自行安装）：
 
 ```typescript
 // sqlite.worker.ts
-import { SqliteWorker } from '@aiao/rxdb-adapter-sqlite-wasm';
-new SqliteWorker().listen();
+import { SqliteClient } from '@aiao/rxdb-adapter-sqlite-wasm';
+import { expose } from 'comlink';
+
+expose(new SqliteClient());
 ```
 
 ```typescript
@@ -69,7 +71,7 @@ rxdb.adapter(
 
 ## 与全文搜索插件配合
 
-`@aiao/rxdb-plugin-search` 依赖 FTS5，**只兼容此适配器**：
+`@aiao/rxdb-plugin-search` 支持 FTS5 与 pg-tsvector 两种后端：SQLite 家族放行 sqlite-wasm / sqlite / sqliteai，PGlite 走 pg-tsvector；wa-sqlite 与小程序适配器尚未放行。本适配器（FTS5 后端）的用法：
 
 ```typescript
 import { RxDB, SyncType } from '@aiao/rxdb';

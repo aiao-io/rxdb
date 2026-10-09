@@ -15,7 +15,7 @@ RxDB + SQLite 适配器的性能基准测试工具 - React 版本
 ## 技术栈
 
 - **框架**: React 19 + TypeScript
-- **构建**: Vite 7 + SWC
+- **构建**: Vite 8
 - **UI**: Tailwind CSS 4 + DaisyUI
 - **图标**: Lucide React
 - **数据库**: RxDB + SQLite WASM (wa-sqlite)
@@ -36,9 +36,13 @@ pnpm build
 # 类型检查
 pnpm typecheck
 
-# 单元测试（分析/工具纯函数）
-pnpm nx test benchmarks
+# 包内 spec（src/analysis、src/hooks、src/utils、src/config、scripts/*.spec.mjs 与根目录 *.spec.ts）
+pnpm exec vitest run --project benchmarks
 ```
+
+> benchmarks 没有 `test` 的 nx target，`package.json` 也没有 `test` script——包内
+> spec 由 `vite.config.mts` 里的 vitest 配置收编，从仓库根用上面
+> `--project benchmarks` 过滤跑（project 名来自该配置的 `name` 字段）。
 
 ### Node 端回归 benchmark
 
@@ -53,6 +57,9 @@ pnpm nx bench-hot-path benchmarks
 
 # 推送回执路径（US-218 阶段 B）：基线批（全 applied）vs 含被拒批（10/100 rejected，触发本地对齐）
 pnpm nx bench-push-receipts benchmarks
+
+# 手动排序的批内追加（US-031 阶段 A）：append vs explicit 写法中位数比值 + 单节点新建耗时
+pnpm nx bench-sortable-batch benchmarks
 ```
 
 > 类型检查（`pnpm nx typecheck benchmarks`）覆盖整个 `src/` 与根目录的 `*.bench.ts`。
@@ -76,46 +83,42 @@ benchmarks/
 │   │   └── app.tsx              # 主应用组件
 │   ├── components/
 │   │   ├── BenchmarkResults.tsx # 结果表格组件
+│   │   ├── ScoreCard.tsx        # 评分卡片组件
 │   │   └── ThemeToggle.tsx      # 主题切换组件
+│   ├── config/
+│   │   └── vite-config.spec.ts  # vite 配置断言
 │   ├── hooks/
 │   │   ├── useBenchmark.ts      # 基准测试逻辑 Hook
 │   │   └── useTheme.ts          # 主题管理 Hook
-│   ├── scenarios/               # 测试场景 (与 vanilla 版本共享)
+│   ├── scenarios/               # 测试场景
 │   │   ├── throughput.ts
 │   │   ├── latency.ts
 │   │   ├── scalability.ts
 │   │   └── concurrency.ts
-│   ├── utils/                   # 工具函数 (与 vanilla 版本共享)
+│   ├── suites/                  # 浏览器内搜索基准套件
+│   │   └── rxdb-plugin-search.bench.ts
+│   ├── utils/                   # 工具函数
 │   │   ├── rxdb-factory.ts
 │   │   ├── export-results.ts
 │   │   ├── performance.ts
 │   │   ├── memory-tracker.ts
 │   │   └── todo-factory.ts
-│   ├── analysis/                # 数据分析工具 (与 vanilla 版本共享)
+│   ├── analysis/                # 数据分析工具
 │   ├── constants.ts             # 常量定义
 │   ├── clear-db.ts              # 数据库清理
+│   ├── search-ci-runner.ts      # 浏览器内搜索 benchmark 运行器
 │   ├── sqlite.worker.ts         # SQLite Worker
 │   ├── sqlite-shared.worker.ts  # SQLite SharedWorker
+│   ├── sqlite-wasm.worker.ts    # 官方 sqlite-wasm Worker
+│   ├── sqlite-wasm-shared.worker.ts # 官方 sqlite-wasm SharedWorker
+│   ├── sqliteai.worker.ts       # sqliteai Worker
+│   ├── wa-sqlite.worker.ts      # wa-sqlite Worker
 │   ├── main.tsx                 # 入口文件
 │   └── styles.css               # 全局样式
 ├── index.html
 ├── vite.config.mts
 └── package.json
 ```
-
-## 与 Vanilla 版本的差异
-
-本项目是从 `benchmarks` (vanilla TypeScript) 移植而来，主要差异：
-
-| 方面     | Vanilla 版本        | React 版本                       |
-| -------- | ------------------- | -------------------------------- |
-| UI 渲染  | 直接 DOM 操作       | React 组件                       |
-| 状态管理 | 全局变量 + 事件监听 | React Hooks (useState/useEffect) |
-| 主题切换 | DOM 属性操作        | useTheme Hook                    |
-| 结果展示 | innerHTML 动态生成  | BenchmarkResults 组件            |
-| 业务逻辑 | ✅ 完全复用         | ✅ 完全复用                      |
-| Worker   | ✅ 完全复用         | ✅ 完全复用                      |
-| 测试场景 | ✅ 完全复用         | ✅ 完全复用                      |
 
 ## 浏览器要求
 

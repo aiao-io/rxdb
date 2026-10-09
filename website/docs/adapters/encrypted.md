@@ -10,7 +10,7 @@
 npm install @aiao/rxdb-adapter-encrypted
 ```
 
-peer 依赖任意本地 SQLite 系适配器之一：`@aiao/rxdb-adapter-wa-sqlite`、`@aiao/rxdb-adapter-sqlite-wasm`、`@aiao/rxdb-adapter-pglite`、`@aiao/rxdb-adapter-sqliteai`。Supabase 等远端适配器不需要此包。
+peer 依赖只有 `@aiao/rxdb` 与 `rxjs`。加密钩子由 SQLite 系核心（`@aiao/rxdb-adapter-sqlite-core`）与 PGlite 适配器内部接入，配合本地适配器之一使用：`@aiao/rxdb-adapter-wa-sqlite`、`@aiao/rxdb-adapter-sqlite-wasm`、`@aiao/rxdb-adapter-sqliteai`、`@aiao/rxdb-adapter-pglite`。Supabase 等远端适配器不需要此包。
 
 ## 快速开始
 

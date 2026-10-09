@@ -11,8 +11,9 @@
   npm 上 34 个包已有 `0.0.26`（6 个首发）。迁移发布因此有了合法锚点，过程与踩到的坑见[线 A 执行记录](#线-a-执行记录v0026)。
   `v0.0.25` 的 commit 已因 squash 脱离发布主线（`git merge-base --is-ancestor v0.0.25 HEAD` 失败），不得移动或重打，
   也不能作为桥接锚点。
-- **系统 schema 版本常量：`v0.0.26` 为 3，`HEAD` 为 7，`RXDB_CHANGE_CODEC_VERSION` 两端都是 1。** 这次抬升还没有发布过，
-  下一次发布就是迁移发布，见[下一次发布：迁移发布（schema 3→7）](#下一次发布迁移发布schema-37)。
+- **系统 schema 版本常量：`v0.0.26` 为 3，`HEAD` 为 7，`RXDB_CHANGE_CODEC_VERSION` 两端都是 1。** 这次抬升还没有发布过；
+  **迁移发布与迁移收尾已暂缓到 1.0.0 前（2026-08-16 定案）**，0.x 阶段不发布 schema 3→7，
+  检查清单与口径见[下一次发布：迁移发布（schema 3→7）](#下一次发布迁移发布schema-37)。
 - **`requirements/migration-release.json` 记录的是已发布的桥接发布**（`kind=bridge`、`version=0.0.26`、`bridge.tag=null`）。
   `bridge.tag` 为 `null` 对 `kind=bridge` 是预期；`pnpm check-migration-release-gate` 在 `HEAD` 上是绿的，
   **这不说明迁移发布已就绪**（见[门禁 tag 钩子的状态](#门禁-tag-钩子的状态)）。
@@ -44,8 +45,9 @@
    依赖是 `uuid ^14.0.2`，对应提交 `67c12d1d`——这个提交既不在 `main`、也不在 `v0.0.26` 的树里。产物导入
    `getEntityPermission`、`isManualOrderEntity`、`manualOrderGroupFields`、`normalizeManualOrderBy`，这四个符号
    在 `@aiao/rxdb@0.0.26` 里不存在，而它的依赖又钉死在 `@aiao/rxdb` `0.0.26`。
-   处置：**owner 稍后处理（deprecate 或随下次发版覆盖）。** 其余没有 `0.0.26` 的 15 个包是 replay / tree / working-tree 各 4 个与
-   `rxdb-model-{angular,react,vue}`（复核：`npm view @aiao/<包名> versions`）。
+   处置：**owner 稍后处理（deprecate 或随下次发版覆盖）。** 其余没有 `0.0.26` 的 16 个包是 replay / tree / working-tree 各 4 个、
+   `rxdb-model-{angular,react,vue}` 与 `rxdb-taro`（US-219 #100 合入后新增，npm 上尚无任何版本；
+   复核：`npm view @aiao/<包名> versions`）。
 3. **`@aiao/rxdb-angular` 单独为 `0.0.27`，`@aiao/*` peer 改成了字面 `^0.0.26`；7 个 Angular 包的 `@angular/*` peer 钉成精确的 `"22.2.2"`。**
    前者来自 `1e8336cd`（提交信息只有 `23`），违反「工作区同号」；后者让消费方的 Angular 小版本必须与之完全相同。
    处置：**owner 决定下次统一发版时处理。**
@@ -86,7 +88,12 @@
 
 ## 下一次发布：迁移发布（schema 3→7）
 
-下一次发布要把系统 schema 从桥接版本的 3 一次抬到 `HEAD` 的 7，所以是 `kind=migration`。
+> **本节已暂缓（2026-08-16 定案：迁移发布与迁移收尾暂缓到 1.0.0 前）。** 0.x 阶段不发布 schema 3→7 的迁移版本；
+> 本节保留为接近 1.0.0 时的执行清单，版本号、`oldBundlePolicy` 等「待定」项届时定案。
+> `migrateSystemSchema`（US-303 交付物）与 `check-migration-release-gate` 门禁不受暂缓影响、继续保留
+> （门禁的版本漂移校验独立有价值）。
+
+迁移发布要把系统 schema 从桥接版本的 3 一次抬到 `HEAD` 的 7，所以是 `kind=migration`。
 
 **门禁对这次清单的要求**（逐条取自 `scripts/check-migration-release-gate.mjs` 的 `validateManifest`）：
 

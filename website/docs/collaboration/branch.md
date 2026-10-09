@@ -126,7 +126,7 @@ erDiagram
     RxDBChange {
       int id PK
       int remoteId
-      int branchId FK
+      string branchId FK
       string namespace
       string entity
       uuid entityId

@@ -175,6 +175,11 @@ docker/
 ├── stop.sh
 ├── reset.sh
 ├── init-db.sh
+├── supabase-ci-down.sh                 # CI：清理本 checkout 专属隔离环境（RV-036）
+├── supabase-ci-identity.sh             # CI：按 checkout 路径派生确定性隔离标识（RV-036）
+├── supabase-ci-isolation-regression.sh # CI：RV-036 隔离回归，两个 checkout 并行互不干扰
+├── supabase-ci-up.sh                   # CI：起本 checkout 专属的隔离测试环境（RV-036）
+├── supabase-ci-url.sh                  # CI：打印隔离环境的 REST/Kong 入口 URL
 ├── dev/
 │   ├── docker-compose.dev.yml
 │   └── data.sql

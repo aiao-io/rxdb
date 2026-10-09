@@ -16,10 +16,19 @@ module.exports = {
     '../packages/rxdb-adapter-sqlite-wasm',
     '../packages/rxdb-adapter-sqliteai',
     '../packages/rxdb-adapter-encrypted',
+    '../packages/rxdb-adapter-electron',
+    '../packages/rxdb-adapter-tauri',
+    '../packages/rxdb-adapter-http',
+    '../packages/rxdb-adapter-miniprogram',
     // 框架集成
     '../packages/rxdb-angular',
     '../packages/rxdb-react',
     '../packages/rxdb-vue',
+    // 实体模型
+    '../packages/rxdb-model',
+    '../packages/rxdb-model-angular',
+    '../packages/rxdb-model-react',
+    '../packages/rxdb-model-vue',
     // 插件
     '../packages/rxdb-plugin-graph',
     '../packages/rxdb-plugin-workspace',
@@ -51,6 +60,7 @@ module.exports = {
     // 工具与开发者工具
     '../packages/rxdb-client-generator',
     '../packages/rxdb-devtools',
+    '../packages/rxdb-taro',
     '../packages/utils'
     // 说明：rxdb-test 为测试夹具/套件包（供消费者编写测试），非产品公开 API，
     // 故不纳入 API 参考以避免噪音。

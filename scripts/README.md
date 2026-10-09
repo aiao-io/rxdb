@@ -20,7 +20,7 @@ CI 的 `setup` job 每轮都会执行。表格里各 spec 那一行写的 `node 
 | [preinstall.mjs](#preinstallmjs)                                            | `pnpm install` 钩子                          | 检查 Node ≥ 26 / pnpm ≥ 10，清理冲突子包                                          | `preinstall` 末段                                                             |
 | [check-workspace.mjs](#check-workspacemjs)                                  | `pnpm install` 后                            | 复制 `.env.example` → `.env`，预构建依赖库                                        | `postinstall` → `check-workspace`                                             |
 | [clean.mjs](#cleanmjs)                                                      | 想彻底清盘                                   | 递归删除 `dist` / `tmp` / `coverage` / 构建产物                                   | `pnpm clean`                                                                  |
-| [commitizen.mjs](#commitizenmjs)                                            | 交互式写 commit                              | 定义 cz-gui 的 scope/type 选项                                                    | `pnpm commit`（czg）                                                          |
+| [commitizen.mjs](#commitizenmjs)                                            | 交互式写 commit                              | 定义 czg 的 scope/type 选项                                                       | `pnpm commit`（czg）                                                          |
 | [commit-lint.mjs](#commit-lintmjs)                                          | `commit-msg` / `pre-push`，全部分支          | 校验最新 commit 是否符合 `<type>(<scope>): subject`                               | `pre-commit` / `pre-push` / `pnpm check-commit`                               |
 | [check-doc-code.mjs](#check-doc-codemjs)                                    | 改 `website/docs/**` 后                      | 抽取文档代码块里的 `@aiao/*` import，验证指向真实包                               | `node scripts/check-doc-code.mjs [--strict]`                                  |
 | [check-externals.mjs](#check-externalsmjs)                                  | 新增/删除包依赖后                            | 检查 `vite.config.mts` 的 `external` 是否覆盖 `dependencies + peerDependencies`   | `node scripts/check-externals.mjs`                                            |
@@ -51,6 +51,16 @@ CI 的 `setup` job 每轮都会执行。表格里各 spec 那一行写的 `node 
 | `audit/requirements-consistency.spec.mjs`                                   | 改该门禁后                                   | 临时目录搭最小仓库，覆盖计数 / 符号 / epic 规则 / 死链 / --update                 | `node --test scripts/audit/requirements-consistency.spec.mjs`                 |
 | [audit/coverage-check.mjs](#auditcoverage-checkmjs)                         | CI 门禁                                      | 聚合 `coverage-summary.json`，按核心 90% / 其余 80% 卡线                          | `pnpm audit:coverage` / `:update`                                             |
 | [audit/coverage-baseline.json](#auditcoverage-baselinejson)                 | 上次 `:update` 写入                          | 覆盖率历史趋势快照                                                                | 由 `coverage-check.mjs --update` 维护                                         |
+| `audit/subpath-build-entries.mjs`                                           | 全量 build 后 / 改 `exports` 后            | 把每个包 `exports` 的运行时子路径与 `dist/` 真实文件对账，揪出声明了但构建不产出的死链 | `pnpm audit:build-entries`（CI build job 阻塞门禁）                         |
+| `audit/desktop-lazy-backend.mjs`                                            | 改桌面 demo 后                             | 校验 electron/tauri 两个 demo 的本地后端两条分支各自成 chunk，且不在首屏加载图里（US-207 E11 / US-505 AC#10） | `pnpm audit:lazy-backend`（CI 桌面链路 nx target）                          |
+| `audit/working-tree-suite-callsites.mjs`                                    | 改工作树适配器后                           | 校验 6 个 v1 适配器包都实际调用两套 workingTree 一致性套件（SC-006）           | `pnpm audit:suite-callsites`（尚未接 CI）                                   |
+| `audit/working-tree-callsite-drift.mjs`                                     | 改批量写调用点后                           | 仓库里每一处批量重写要么带登记在案的意图，要么报未知入口（R5 / SC-010）        | `pnpm audit:callsite-drift`                                                 |
+| `audit/core-plugin-boundary.mjs`                                            | 改 `packages/rxdb/src` 后                  | 核心代码对 `commit/` 与 `working-tree/` 两个待抽出目录只能有登记在案的依赖     | `pnpm audit:core-boundary`                                                  |
+| `audit/docs-plugin-surface.mjs`                                             | 改 `website/docs` 后                       | 文档与插件运行期面一致性：移走的方法不得再挂 `versionManager`、示例装包要装齐  | `pnpm audit:docs-plugins`（CI setup job）                                   |
+| `audit/workflow-action-pins.mjs`                                            | 改 workflow 后                             | 第三方 action 钉 40 位 commit SHA，拒绝任何可变引用（tag / 分支 / 短 SHA）     | `pnpm audit:action-pins`（CI setup job 阻塞门禁）                           |
+| `audit/desktop-adapter-consumer.mjs`                                        | 发布桌面 adapter 前                        | 在临时 ESM 消费者项目里验证 electron/tauri 发布 tarball 可解析、可类型检查、可运行 | `node scripts/audit/desktop-adapter-consumer.mjs`（release-desktop workflow） |
+| `audit/release-desktop-gate.mjs`                                            | 改 release-desktop workflow 后             | 按缩进切分 workflow YAML 的纯函数，供 spec 断言发布链路门禁接线（US-905 AC#17） | 由 `release-desktop-gate.spec.mjs` 调用（`pnpm test-scripts`）              |
+| `audit/subpath-inventory.mjs`                                               | 改 `exports` 子路径后                      | `audit/api-surface` 的入口清单解析模块（`@aiao/source` 条件 → 源入口）         | 由 `api-surface.mjs` import                                                 |
 
 ---
 
@@ -112,7 +122,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 - **触发**：`husky#pre-commit` / `husky#pre-push` / `pnpm check-commit`。
 - **做什么**：
-  1. 本地路径（`commit-msg` 文件 / 无参）只在 `NEED_CHECK_BRANCHES`（= `workspace.mjs#NEED_CHECK_COMMIT_BRANCH_NAMES`，默认 `main`）上执行，其余分支直接放行；
+  1. 本地路径（`commit-msg` 文件 / 无参）在**全部分支**上执行（`NEED_CHECK_BRANCHES` = `workspace.mjs#NEED_CHECK_COMMIT_BRANCH_NAMES` = `['*']`，见 §10）；
   2. 读最新 commit（或 commit msg 文件）正则匹配 `type(scope)!?: subject`，类型来自 `commitizen.types`，scope 来自 `commitizen.scopes`，同时放行 `Revert` / `Release` / `wip`；
   3. 失败时把首行的不可见空白（空格/Tab/换行）用 `·` `→` `↵` 可视化输出，便于排查 CJK 输入法的隐形空格。
 - **何时手动跑**：想在 push 前手动确认 commit 文案合规。
@@ -437,7 +447,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
   - **硬失败（阻断 PR）**：`audit/wa-sqlite-integrity` 锁漂移、`check-doc-code` import 无效、`check-externals` 漏配、`check-migration-release-gate` 字段错、`audit/coverage-check` 低于阈值、`audit/api-surface` 入口消失 / removed / kind changed / **仅新增（基线漂移）** / 子路径缺 `@aiao/source`、`audit/package-api-docs` 缺 TSDoc；
   - **软警告**（仅打印）：`audit/coverage-check` 低于历史 baseline；
   - **覆盖率基线更新**总是覆写（含下降），无需显式 `--force`，防止漏声明的「基线外降」被悄悄吞掉；
-- 没在 `package.json` 注册为 npm script 的脚本（`check-doc-code`、`check-externals`、`git-stats*`、`push-docs`）通常是临时排查用，懒得加命令。
+- 没在 `package.json` 注册为 npm script 的脚本（`check-doc-code`、`check-externals`、`git-stats*`）通常是临时排查用，懒得加命令。
 
 ---
 
@@ -447,7 +457,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 ```sh
 pnpm install          # 触发 preinstall（wa-sqlite integrity + 版本校验）+ check-workspace
-pnpm test-packages    # 跑 packages/* 的 lint/typecheck/test/build/e2e
+pnpm test-packages    # 跑 packages/* 的 lint/typecheck/test/test-memory/test-browser/build/e2e
 ```
 
 如果你想 **提交**，按 `pnpm commit` 走 czg 交互式流程，husky 会在 `pre-commit` / `pre-push` 自动过 `commit-lint.mjs`。

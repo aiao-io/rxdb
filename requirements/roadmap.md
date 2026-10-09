@@ -163,7 +163,9 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
 3. **rxdb-model 三端对称复核**（T050）：对 `rxdb-model-angular` / `-react` / `-vue` 跑一遍
    `.claude/skills/tri-framework-check`，核对命名、签名与行为。
 4. **rxdb-model 文档页**（T051）：`website/docs/` 还没有 rxdb-model 的使用文档
-   （`grep -rl rxdb-model website/docs | grep -v /api/` 只命中 `migration/actions-column-can-delete.md`），补核心、三框架用法、样式接入与迁移说明。
+   （`grep -rl rxdb-model website/docs | grep -v /api/` 现命中 `versioning.md`、`compatibility.md`、
+   `migration/actions-column-can-delete.md`——前两个是资产入口白名单与依赖兼容表，都不是使用文档），
+   补核心、三框架用法、样式接入与迁移说明。
 5. **Angular 绑定包的 `@angular/*` peer 被钉成精确版本，`@aiao/rxdb-angular` 的版本号与其余包错开**。
    - 已发布的 `0.0.26`：`rxdb-angular` / `rxdb-plugin-search-angular` / `code-editor-angular` 的 peer 是 `"22.1.6"`，
      `0.0.25` 是 `^22.0.0`——消费者装 22.1.7 起即报 peer 冲突。

@@ -62,8 +62,9 @@ Category.findDescendants({ entityId: rootId, level: 2 }).subscribe(nodes => {
 
 `level` 包含当前节点本身：`level: 0` 只有当前节点，`level: 1` 是当前节点 + 直接子节点。数字以外的值（字符串、小数、NaN）在适配器层直接抛 `RxDBError`，没有兜底。
 
-- `findDescendants` / `countDescendants`：指定 `entityId` 时**不含**当前节点；不指定时覆盖所有根节点及其后代。
-- `findAncestors` / `countAncestors`：指定 `entityId` 时**含**当前节点。
+- `findDescendants` / `findAncestors`：指定 `entityId` 时返回“当前节点 + 后代 / 祖先节点”。
+- `countDescendants` / `countAncestors`：指定 `entityId` 时**不含**当前节点，只统计后代 / 祖先数量。
+- 不指定 `entityId` 时，以所有根节点为起点。
 
 ## 增量 merge
 
@@ -73,7 +74,7 @@ Category.findDescendants({ entityId: rootId, level: 2 }).subscribe(nodes => {
 2. 事件里有过期实体（`isStaleEntityEvent`）→ refresh；
 3. `findAncestors` 且 `parentId` 变过 → refresh（祖先链已被改写，增量无从谈起）。
 
-`find*` 走 recalculate，`count*` 走 refresh。用到的 merge 原语（`classifyUpdates` / `applyExternalEntityUpdate` / `invalidateEntityFingerprint` 等）由 `@aiao/rxdb` 公开导出，进基线后受兼容承诺约束。
+`find*` 走 recalculate，`count*` 走 refresh。用到的 merge 原语（`prepareIncrementalUpdate` / `UpdateDataCache` / `applyExternalEntityUpdate` / `getEntityId` / `isStaleEntityEvent` / `isStaleEntityRemoveEvent` 等）由 `@aiao/rxdb` 公开导出，进基线后受兼容承诺约束；`classifyUpdates` / `invalidateEntityFingerprint` 是核心内部装配细节，不在公开面上。
 
 ## 连接纪元
 

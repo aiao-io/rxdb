@@ -127,24 +127,41 @@ export async function createRxdb() {
 
 ## Worker 文件配置
 
+Worker / SharedWorker 文件需要**自己编写**：用 comlink 的 `expose` 把适配器客户端暴露给主线程。Worker 文件会直接 `import` comlink，请把它显式装进项目依赖（包管理器不会替你把传递依赖暴露给源码引用）：
+
+```bash npm2yarn
+npm install comlink
+```
+
 ### SQLite Worker 文件
 
 #### sqlite.worker.ts（用于 OPFS）
 
 ```typescript
-import { SqliteWorker } from '@aiao/rxdb-adapter-wa-sqlite';
+/// <reference lib="webworker" />
 
-const worker = new SqliteWorker();
-worker.listen();
+import { WaSqliteClient } from '@aiao/rxdb-adapter-wa-sqlite';
+import { expose } from 'comlink';
+
+const client = new WaSqliteClient();
+
+expose(client);
 ```
 
 #### sqlite-shared.worker.ts（用于 IDB）
 
 ```typescript
-import { SqliteSharedWorker } from '@aiao/rxdb-adapter-wa-sqlite';
+import { WaSqliteClient } from '@aiao/rxdb-adapter-wa-sqlite';
+import { expose } from 'comlink';
 
-const worker = new SqliteSharedWorker();
-worker.listen();
+declare let self: SharedWorkerGlobalScope;
+
+const client = new WaSqliteClient();
+
+self.onconnect = (event: MessageEvent) => {
+  const port = event.ports[0];
+  expose(client, port);
+};
 ```
 
 ## 静态资源配置

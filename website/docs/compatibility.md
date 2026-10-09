@@ -20,29 +20,29 @@
 
 | 框架    | 绑定包                                   | 框架版本要求                                             | RxJS     |
 | :------ | :--------------------------------------- | :------------------------------------------------------- | :------- |
-| Angular | `@aiao/rxdb-angular`                     | `@angular/core >=20.0.0`                                 | `^7.8.2` |
-| React   | `@aiao/rxdb-react`                       | `react / react-dom ^19.2`                                | `^7.8.0` |
-| Vue     | `@aiao/rxdb-vue`                         | `vue >=3.5.0`                                            | `^7.8.0` |
-| Angular | `@aiao/rxdb-plugin-search-angular`       | `@angular/core >=19.0.0`                                 | `^7.8.2` |
-| React   | `@aiao/rxdb-plugin-search-react`         | `react ^19.2`                                            | `^7.8.2` |
-| Vue     | `@aiao/rxdb-plugin-search-vue`           | `vue >=3.5.0`                                            | `^7.8.2` |
-| Angular | `@aiao/rxdb-plugin-working-tree-angular` | `@angular/core >=22.1.6`                                 | `^7.8.2` |
-| React   | `@aiao/rxdb-plugin-working-tree-react`   | `react ^19.2.8`                                          | `^7.8.2` |
-| Vue     | `@aiao/rxdb-plugin-working-tree-vue`     | `vue >=3.5.42`                                           | `^7.8.2` |
-| Angular | `@aiao/rxdb-plugin-replay-angular`       | `@angular/core >=22.1.6`                                 | `^7.8.2` |
-| React   | `@aiao/rxdb-plugin-replay-react`         | `react ^19.2.8`                                          | `^7.8.2` |
-| Vue     | `@aiao/rxdb-plugin-replay-vue`           | `vue >=3.5.43`                                           | `^7.8.2` |
-| Angular | `@aiao/rxdb-plugin-tree-angular`         | `@angular/core >=22.2.1`                                 | `^7.8.2` |
+| Angular | `@aiao/rxdb-angular`                     | `@angular/core 22.2.2`（精确 pin）                       | `^7.8.2` |
+| React   | `@aiao/rxdb-react`                       | `react / react-dom ^19.3.0`                              | `^7.8.0` |
+| Vue     | `@aiao/rxdb-vue`                         | `vue ^3.5.43`                                            | `^7.8.0` |
+| Angular | `@aiao/rxdb-plugin-search-angular`       | `@angular/core 22.2.2`（精确 pin）                       | `^7.8.2` |
+| React   | `@aiao/rxdb-plugin-search-react`         | `react ^19.3.0`                                          | `^7.8.2` |
+| Vue     | `@aiao/rxdb-plugin-search-vue`           | `vue ^3.5.43`                                            | `^7.8.2` |
+| Angular | `@aiao/rxdb-plugin-working-tree-angular` | `@angular/core 22.2.2`（精确 pin）                       | `^7.8.2` |
+| React   | `@aiao/rxdb-plugin-working-tree-react`   | `react ^19.3.0`                                          | `^7.8.2` |
+| Vue     | `@aiao/rxdb-plugin-working-tree-vue`     | `vue ^3.5.43`                                            | `^7.8.2` |
+| Angular | `@aiao/rxdb-plugin-replay-angular`       | `@angular/core 22.2.2`（精确 pin）                       | —        |
+| React   | `@aiao/rxdb-plugin-replay-react`         | `react ^19.3.0`                                          | —        |
+| Vue     | `@aiao/rxdb-plugin-replay-vue`           | `vue ^3.5.43`                                            | —        |
+| Angular | `@aiao/rxdb-plugin-tree-angular`         | `@angular/core 22.2.2`（精确 pin）                       | `^7.8.2` |
 | React   | `@aiao/rxdb-plugin-tree-react`           | `react ^19.3.0`                                          | `^7.8.2` |
-| Vue     | `@aiao/rxdb-plugin-tree-vue`             | `vue >=3.5.43`                                           | `^7.8.2` |
-| Angular | `@aiao/rxdb-model-angular`               | `@angular/core >=22.2.1`                                 | `^7.8.2` |
+| Vue     | `@aiao/rxdb-plugin-tree-vue`             | `vue ^3.5.43`                                            | `^7.8.2` |
+| Angular | `@aiao/rxdb-model-angular`               | `@angular/core 22.2.2`（精确 pin）                       | `^7.8.2` |
 | React   | `@aiao/rxdb-model-react`                 | `react ^19.3.0`                                          | `^7.8.2` |
-| Vue     | `@aiao/rxdb-model-vue`                   | `vue >=3.5.43`                                           | `^7.8.2` |
-| Angular | `@aiao/code-editor-angular`              | `@angular/{common,core,forms,platform-browser} >=20.0.0` | —        |
-| React   | `@aiao/code-editor-react`                | `react / react-dom ^19.2`                                | —        |
-| Vue     | `@aiao/code-editor-vue`                  | `vue >=3.5.0`                                            | —        |
+| Vue     | `@aiao/rxdb-model-vue`                   | `vue ^3.5.43`                                            | `^7.8.2` |
+| Angular | `@aiao/code-editor-angular`              | `@angular/{common,core,forms,platform-browser} 22.2.2`（精确 pin） | —        |
+| React   | `@aiao/code-editor-react`                | `react / react-dom ^19.3.0`                              | —        |
+| Vue     | `@aiao/code-editor-vue`                  | `vue ^3.5.43`                                            | —        |
 
-> Angular 绑定包当前把 `@angular/*` peer 写成了精确版本（工作区为 `22.2.2`），比上表的区间更窄；计划在下一次发版时改回区间，见 [roadmap 零散收尾项](https://github.com/aiao-io/rxdb/blob/main/requirements/roadmap.md#零散收尾项不成故事随手可带)。
+> Angular 绑定包当前把 `@angular/*` peer 写成了精确版本（工作区为 `22.2.2`）。改回区间的「peer 统一」归在 [US-602](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/tooling/US-602-ai-comprehensible-artifacts.md) 阶段 A2：目前仍在 **Backlog、尚未立项**，合入时将标注 `BREAKING CHANGE`——没有承诺的改版日期，见 [roadmap 未完成需求全景](https://github.com/aiao-io/rxdb/blob/main/requirements/roadmap.md#未完成需求全景)。
 
 ## `@aiao/rxdb` × 适配器 / 插件
 

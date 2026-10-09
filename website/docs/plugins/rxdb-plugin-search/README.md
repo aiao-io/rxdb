@@ -2,7 +2,7 @@
 
 `@aiao/rxdb-plugin-search` 为 `@aiao/rxdb` 提供**统一的全局全文搜索入口**，基于 SQLite FTS5 的外部内容表与同步 trigger，让带 `searchable: true` 标注的字段在任意 INSERT/UPDATE/DELETE 后保持索引一致，并通过单一 `rxDB.search(query)` / `collection.search(query)` API 暴露响应式结果流。
 
-> **仅兼容 `@aiao/rxdb-adapter-sqlite-wasm` 适配器**；在其他适配器下初始化阶段会抛 `SearchUnsupportedAdapterError` fail-fast。
+> 适配器放行名单以 [backend-registry.ts](https://github.com/aiao-io/rxdb/blob/main/packages/rxdb-plugin-search/src/backend/backend-registry.ts) 的登记表为准：`sqlite-wasm` / `sqlite` / `sqliteai` 走 SQLite FTS5 后端，`pglite` 走 `pg-tsvector` 后端；`wa-sqlite` 与 `wa-sqlite-miniprogram` 登记为 `unverified`（未实测放行）。其余适配器无本地 SQL 连接，未放行的适配器在插件注册阶段抛 `SearchUnsupportedAdapterError` fail-fast。
 
 ## 核心特性
 
@@ -24,7 +24,7 @@ npm install @aiao/rxdb-plugin-search-react
 npm install @aiao/rxdb-plugin-search-vue
 ```
 
-peer dependencies：`@aiao/rxdb`、`@aiao/rxdb-adapter-sqlite-core`、`@aiao/rxdb-adapter-sqlite-wasm`、`rxjs`。
+peer dependencies：`@aiao/rxdb-adapter-pglite`、`@aiao/rxdb-adapter-sqlite-wasm`（均为可选）；`@aiao/rxdb` / `@aiao/rxdb-adapter-sqlite-core` / `rxjs` 为常规依赖。
 
 ## Schema 标注
 
@@ -57,17 +57,21 @@ class Article extends EntityBase {}
 ## 注册插件
 
 ```typescript
-import { RxDB } from '@aiao/rxdb';
+import { RxDB, SyncType } from '@aiao/rxdb';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 
-const rxdb = new RxDB({ adapter });
+const rxdb = new RxDB({
+  dbName: 'myapp',
+  entities: [Article],
+  sync: { type: SyncType.None, local: { adapter: 'sqlite-wasm' } }
+});
 rxdb.use(rxDBPluginSearch, {
   debounce: 300, // 默认 300ms；0 表示关闭
   pageSize: 50,
   snippetLength: 120,
   excludedCollections: [] // 全局排除某些 collection
 });
-await rxdb.connect();
+await rxdb.connect('sqlite-wasm');
 ```
 
 ## Angular 集成
@@ -219,7 +223,7 @@ const { query, results, state, error, retry } = useSearch(db);
 
 - **`SearchSchemaMismatchError`** — FTS5 签名与当前 schema 不一致；**不自动 drop**，需手动清理 `_fts_<table>` 与对应 migration 记录后再挂载
 - **`SearchExecutionError`** — 运行时执行错误（SQL 失败等）；可通过 `retry()` 恢复，`cause` 暴露原始异常
-- **`SearchUnsupportedAdapterError`** — 使用非 sqlite-wasm adapter；在插件注册阶段 fail-fast
+- **`SearchUnsupportedAdapterError`** — 使用未放行的 adapter；在插件注册阶段 fail-fast
 
 ## 可达性（A11y）
 
@@ -233,7 +237,7 @@ const { query, results, state, error, retry } = useSearch(db);
 
 ## Schema 漂移处理
 
-FTS5 表在首次挂载时按 `(table, field-list, normalizer-version)` 计算签名并写入 RxDB migration 记录（`fts5__<table>__v1__install`）。后续挂载会比对签名：
+FTS5 表在首次挂载时按 `(table, field-list, normalizer-version)` 计算签名并写入 RxDB migration 记录（`fts5__<table>__v1__install__<签名>`）。后续挂载会比对签名：
 
 - **签名一致**：直接复用，`.search()` 立即可用
 - **签名不一致**：抛 `SearchSchemaMismatchError`，**不会自动 DROP**
@@ -243,10 +247,12 @@ FTS5 表在首次挂载时按 `(table, field-list, normalizer-version)` 计算�
 恢复路径（手动）：
 
 ```sql
+-- 迁移记录名 = fts5__<table>__v1__<install|backfill>__<签名>；
+-- 签名是 [分词版本, [[字段, 是否数组]…]] 的 JSON（数组字段为 1）
 DROP TABLE IF EXISTS _fts_article;
-DELETE FROM _rxdb_migrations WHERE name IN (
-  'fts5__article__v1__install',
-  'fts5__article__v1__backfill'
+DELETE FROM rxdb_migration WHERE name IN (
+  'fts5__article__v1__install__["unicode61+cjk-unigram-bigram-v3",[["body",0],["status",0],["tags",1],["title",0]]]',
+  'fts5__article__v1__backfill__["unicode61+cjk-unigram-bigram-v3",[["body",0],["status",0],["tags",1],["title",0]]]'
 );
 ```
 

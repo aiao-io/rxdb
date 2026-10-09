@@ -8,7 +8,7 @@
 
 请先阅读以下文档了解项目：
 
-- **[AI 代理指南](AGENTS.md)** - 完整的文档导航
+- **[AI 代理指南](AGENTS.md)** - 代理铁律与行为规范
 - **[需求管理](requirements/README.md)** - 用户故事和功能规划
 
 ## 开发原则
@@ -53,7 +53,7 @@ pnpm i
 
 ### 集成测试
 
-[examples](./examples) 文件夹中会包含一些集成测试的代码，主要是针对 `rxdb` 的不同平台不同方式的集成演示
+[examples](./examples) 文件夹中会包含一些端到端集成示例，目前只有 [angular-todo](./examples/angular-todo)，针对 `@aiao/rxdb` 在独立 Angular 工具链下的接入演示；Taro 微信小程序示例已迁入 [apps/dev-rxdb-miniprogram](./apps/dev-rxdb-miniprogram)
 
 ### 单元测试
 
@@ -130,11 +130,11 @@ pnpm test-all --skip-nx-cache
 | 任务       | 命令                            |
 | ---------- | ------------------------------- |
 | 安装依赖   | `pnpm install`                  |
-| 运行测试   | `nx test <project> --watch`     |
-| 完整检查   | `pnpm test-all --skip-nx-cache` |
-| 格式化代码 | `nx format:write`               |
-| 提交代码   | `pnpm commit`                   |
-| 查看架构   | `nx graph`                      |
+| 运行测试   | `pnpm nx test <project> --watch` |
+| 完整检查   | `pnpm test-all --skip-nx-cache`  |
+| 格式化代码 | `pnpm nx format:write`           |
+| 提交代码   | `pnpm commit`                    |
+| 查看架构   | `pnpm nx graph`                  |
 
 ## 版本发布
 
@@ -145,7 +145,7 @@ pnpm test-all --skip-nx-cache
 #### 1. 启动本地注册表
 
 ```sh
-nx local-registry
+pnpm nx local-registry
 ```
 
 这将启动 Verdaccio 本地实例于 <http://localhost:4873>，并自动配置 pnpm/npm/yarn 的注册表指向本地。
@@ -156,11 +156,10 @@ nx local-registry
 
 ```sh
 # 构建所有包
-nx run-many --targets=build
+pnpm nx run-many --targets=build
 
 # 发布到本地注册表（需要先启动 local-registry）
-nx release version 0.0.1 --first-release
-nx release publish --tag latest
+pnpm publish-local
 ```
 
 #### 3. 测试已发布的包
@@ -224,19 +223,19 @@ pnpm install
 - 确保已安装所有依赖
 - 检查是否有未提交的更改影响测试
 - 使用 `--skip-nx-cache` 跳过缓存重新运行
-- 清理 Nx 缓存：`nx reset`
+- 清理 Nx 缓存：`pnpm nx reset`
 
 ### Nx 相关问题
 
 ```bash
 # 清理缓存
-nx reset
+pnpm nx reset
 
 # 查看依赖图
-nx graph
+pnpm nx graph
 
 # 查看项目配置
-nx show project <project-name>
+pnpm nx show project <project-name>
 ```
 
 更多故障排查请参考常见问题部分。

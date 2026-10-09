@@ -14,8 +14,8 @@ npm install @aiao/rxdb @aiao/rxdb-adapter-wa-sqlite
 
 SQLite 适配器支持多种 VFS，根据浏览器能力选择：
 
-- **OPFSCoopSyncVFS**: 使用 Origin Private File System (OPFS)，性能最佳，需要 SharedArrayBuffer 支持
-- **IDBBatchAtomicVFS**: 使用 IndexedDB，兼容性最好，适用于不支持 OPFS 的环境
+- **OPFSCoopSyncVFS**: 使用 Origin Private File System (OPFS)，性能最佳；仅 dedicated Worker，不要求 SharedArrayBuffer
+- **IDBBatchAtomicVFS**: 使用 IndexedDB，生产支持（默认），适用于不支持 OPFS 的环境
 
 ### 运行模式
 
@@ -54,22 +54,35 @@ await rxdb.connect('wa-sqlite');
 
 ### Worker 文件
 
+Worker / SharedWorker 文件需要**自己编写**：用 comlink 的 `expose` 把客户端暴露给主线程，comlink 需一并安装（`npm install comlink`）。
+
 #### sqlite.worker.ts
 
 ```typescript
-import { SqliteWorker } from '@aiao/rxdb-adapter-wa-sqlite';
+/// <reference lib="webworker" />
 
-const worker = new SqliteWorker();
-worker.listen();
+import { WaSqliteClient } from '@aiao/rxdb-adapter-wa-sqlite';
+import { expose } from 'comlink';
+
+const client = new WaSqliteClient();
+
+expose(client);
 ```
 
 #### sqlite-shared.worker.ts
 
 ```typescript
-import { SqliteSharedWorker } from '@aiao/rxdb-adapter-wa-sqlite';
+import { WaSqliteClient } from '@aiao/rxdb-adapter-wa-sqlite';
+import { expose } from 'comlink';
 
-const worker = new SqliteSharedWorker();
-worker.listen();
+declare let self: SharedWorkerGlobalScope;
+
+const client = new WaSqliteClient();
+
+self.onconnect = (event: MessageEvent) => {
+  const port = event.ports[0];
+  expose(client, port);
+};
 ```
 
 ## 配置选项
@@ -78,34 +91,37 @@ worker.listen();
 
 ```typescript
 interface WaSqliteOptions {
-  // 虚拟文件系统类型
-  vfs: 'OPFSCoopSyncVFS' | 'IDBBatchAtomicVFS';
+  // 虚拟文件系统类型（9 值联合，缺省为 IDBBatchAtomicVFS）
+  vfs?: 'MemoryVFS' | 'MemoryAsyncVFS' | 'IDBBatchAtomicVFS' | 'IDBMirrorVFS' | 'AccessHandlePoolVFS' | 'OPFSAdaptiveVFS' | 'OPFSAnyContextVFS' | 'OPFSCoopSyncVFS' | 'OPFSWriteAheadVFS';
 
-  // Web Worker 配置 (用于 OPFS)
+  // 加载哪个 wasm 构建：true = asyncify（wa-sqlite-async.wasm），false = 同步（wa-sqlite.wasm）。
+  // 不指定时由所选 VFS 声明的能力决定
+  async?: boolean;
+
+  // WASM 文件完整 URL，必须与 async 解析出的构建匹配
+  wasmPath?: string;
+
+  // 自定义 wasm 文件定位
+  locateFile?: (name: string) => string;
+
+  // Web Worker 配置（用于 OPFS）：worker 必须与 workerInstance 成对提供
   worker?: boolean;
   workerInstance?: Worker;
 
-  // Shared Worker 配置 (用于 IDB)
+  // Shared Worker 配置（用于 IDB）：sharedWorker 必须与 sharedWorkerInstance 成对提供，
+  // 且不能与 worker 同时启用
   sharedWorker?: boolean;
   sharedWorkerInstance?: SharedWorker;
 
-  // WASM 文件路径
-  wasmPath: string;
+  // Worker 生命周期所有权：caller（默认，保留线程供后续连接复用）
+  // | client（释放客户端代理或初始化失败时终止 Worker）
+  workerOwnership?: 'caller' | 'client';
 
-  // 数据库文件名（可选，默认使用 dbName）
-  filename?: string;
+  // SQLite 页面缓存（KB），默认 51200（见 SQLite PRAGMA cache_size）
+  cacheSizeKb?: number;
 
-  // SQLite 配置选项
-  sqliteOptions?: {
-    // 页面大小（字节）
-    pageSize?: number;
-    // 缓存大小（页数）
-    cacheSize?: number;
-    // 日志模式
-    journalMode?: 'DELETE' | 'TRUNCATE' | 'PERSIST' | 'MEMORY' | 'WAL' | 'OFF';
-    // 同步模式
-    synchronous?: 'OFF' | 'NORMAL' | 'FULL' | 'EXTRA';
-  };
+  // 批量派发超时，默认 16
+  batchTimeout?: number;
 }
 ```
 
@@ -122,7 +138,7 @@ const adapter = new RxDBAdapterWaSqlite(rxdb, {
 });
 ```
 
-最佳性能，需要 OPFS 和 SharedArrayBuffer 支持。
+性能最佳；仅 dedicated Worker 运行，不要求 SharedArrayBuffer。
 
 ### IDB + SharedWorker
 
@@ -137,9 +153,9 @@ const adapter = new RxDBAdapterWaSqlite(rxdb, {
 
 **特点：**
 
-- ⚠️ 会阻塞主线程
-- ⚠️ 性能最差
-- ❌ 不推荐生产使用
+- ✅ `IDBBatchAtomicVFS` 是本包**默认且唯一生产级** VFS（wa-sqlite 的 OPFS 系列实现均为实验性，需评估后显式选择）
+- ✅ SharedWorker 让 SQLite 运行在独立线程，**不阻塞主线程**
+- ✅ 跨标签页共享同一连接，规避多标签页同时写库的锁定冲突
 
 ## 构建配置
 
@@ -185,33 +201,27 @@ public/
 
 ## 性能优化
 
-### 1. 使用 WAL 模式
+### 1. 调整缓存大小
 
-对于 OPFS，启用 WAL (Write-Ahead Logging) 可以提升并发性能：
+`cacheSizeKb` 控制 SQLite 页面缓存（默认 `51200`），增大可提升查询性能：
 
 ```typescript
-sqliteOptions: {
-  journalMode: 'WAL',
-  synchronous: 'NORMAL'
-}
+const adapter = new RxDBAdapterWaSqlite(db, {
+  vfs: 'OPFSCoopSyncVFS',
+  cacheSizeKb: 51200
+});
 ```
 
-### 2. 调整缓存大小
+### 2. 批量操作
 
-增加缓存可以提升查询性能：
-
-```typescript
-sqliteOptions: {
-  cacheSize: 10000; // 10000 页，约 40MB（页面大小 4KB）
-}
-```
-
-### 3. 批量操作
-
-使用事务批量执行操作：
+使用事务批量执行操作（正确入口是适配器的 `transaction()`，见[事务](../model-mutation/transaction.md)）：
 
 ```typescript
-await rxdb.transaction(async executor => {
+import type { TransactionExecutor } from '@aiao/rxdb';
+
+const adapter = await rxdb.getAdapter('wa-sqlite');
+
+await adapter.transaction(async (executor: TransactionExecutor) => {
   const todoRepo = executor.getRepository(Todo);
   for (const item of items) {
     await todoRepo.create({ title: item.title });
@@ -221,7 +231,7 @@ await rxdb.transaction(async executor => {
 
 > 事务回调签名自 C2 起由 `(client)` 收紧为 `(executor: TransactionExecutor)`。零参回调仍兼容 —— TypeScript 允许形参更少。
 
-### 4. 索引优化
+### 3. 索引优化
 
 为常用查询字段创建索引：
 
@@ -248,8 +258,7 @@ export class Todo extends EntityBase {
 **要求：**
 
 - 支持 OPFS (File System Access API)
-- 支持 SharedArrayBuffer
-- 正确配置 HTTP 头
+- 在 dedicated Worker 中运行
 
 ### IDB + SharedWorker 模式
 
@@ -267,18 +276,9 @@ export class Todo extends EntityBase {
 
 ## 故障排查
 
-### SharedArrayBuffer 不可用
+### OPFS 不可用
 
-如果遇到 "SharedArrayBuffer is not defined" 错误：
-
-1. 检查 HTTP 响应头：
-
-```text
-Cross-Origin-Opener-Policy: same-origin
-Cross-Origin-Embedder-Policy: require-corp
-```
-
-1. 如果无法配置 HTTP 头，使用 IDB 模式替代：
+在不支持 OPFS 的浏览器或环境中，改用 IDB 模式替代：
 
 ```typescript
 const available = await checkOPFSAvailable();
@@ -321,29 +321,45 @@ wasmPath: '/wa-sqlite/wa-sqlite.wasm';
 
 ### 从 IDB 迁移到 OPFS
 
+RxDB 没有整库导出/导入 API。保留数据的迁移方式是：保持旧库连接，用公开的查询/写入 API 把数据搬进一个**新 `dbName`** 的目标库，校验后再断开旧库（口径见[适配器切换与数据迁移](../migration/adapters.md)）。
+
 ```typescript
+import { firstValueFrom } from 'rxjs';
+
 // 1. 检测浏览器支持
 const available = await checkOPFSAvailable();
 
 if (available) {
-  // 2. 导出现有数据
-  const data = await rxdb.exportDatabase();
+  // 2. 保持旧库（IDB）连接，读出全部数据
+  const todos = await firstValueFrom(Todo.find({}));
 
-  // 3. 切换到 OPFS 适配器
-  await rxdb.disconnect();
+  // 3. 以新 dbName 连接 OPFS 目标库，避免与旧库的底层存储互相覆盖
+  const target = new RxDB({
+    dbName: 'todo-app-opfs',
+    entities: [Todo],
+    sync: { local: { adapter: 'wa-sqlite' }, type: SyncType.None }
+  });
 
-  rxdb.adapter('wa-sqlite', async db => {
+  target.adapter('wa-sqlite', async db => {
     return new RxDBAdapterWaSqlite(db, {
       vfs: 'OPFSCoopSyncVFS',
-      worker: true
+      worker: true,
+      workerInstance: new Worker(new URL('./sqlite.worker', import.meta.url), { type: 'module' })
       // ... OPFS 配置
     });
   });
 
-  await rxdb.connect('wa-sqlite');
+  await target.connect('wa-sqlite');
 
-  // 4. 导入数据
-  await rxdb.importDatabase(data);
+  // 4. 写入目标库
+  for (const todo of todos) {
+    const copy = new Todo();
+    Object.assign(copy, todo);
+    await copy.save();
+  }
+
+  // 5. 校验数量一致后，断开旧库
+  await rxdb.disconnect('wa-sqlite');
 }
 ```
 
@@ -389,11 +405,7 @@ async function initDatabase() {
           name: 'rxdb-worker'
         }),
         wasmPath: '/wa-sqlite/wa-sqlite.wasm',
-        sqliteOptions: {
-          journalMode: 'WAL',
-          synchronous: 'NORMAL',
-          cacheSize: 10000
-        }
+        cacheSizeKb: 51200
       };
     } else {
       options = {
@@ -403,11 +415,7 @@ async function initDatabase() {
           type: 'module',
           name: 'rxdb-shared-worker'
         }),
-        wasmPath: '/wa-sqlite/wa-sqlite-async.wasm',
-        sqliteOptions: {
-          journalMode: 'DELETE',
-          synchronous: 'NORMAL'
-        }
+        wasmPath: '/wa-sqlite/wa-sqlite-async.wasm'
       };
     }
 

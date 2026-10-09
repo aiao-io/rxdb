@@ -121,14 +121,14 @@ await sync.syncRepository('public', 'Todo', { direction: 'push' });
 如果自定义 resolver 返回 `MERGE` 或 `DEFER`，运行时会抛出错误并发出冲突待处理事件，避免在没有持久化冲突状态的情况下静默丢失远端变更。
 
 ```ts
-import { IConflictResolver, ConflictContext, ConflictResult } from '@aiao/rxdb';
+import type { ConflictResolver, Conflict, ConflictResolution } from '@aiao/rxdb';
 
-class MyConflictResolver implements IConflictResolver {
-  resolve(context: ConflictContext): ConflictResult {
+class MyConflictResolver implements ConflictResolver {
+  async resolve(context: Conflict): Promise<ConflictResolution> {
     // 自定义冲突解决逻辑：本地修改时间更新则保留本地
     const localTime = context.local?.updatedAt?.getTime() ?? 0;
     const remoteTime = context.remote?.updatedAt?.getTime() ?? 0;
-    return localTime >= remoteTime ? ConflictResult.KEEP_LOCAL : ConflictResult.KEEP_REMOTE;
+    return localTime >= remoteTime ? { type: 'KEEP_LOCAL' } : { type: 'KEEP_REMOTE' };
   }
 }
 
@@ -142,14 +142,16 @@ const result = await rxdb.syncManager.syncRepository('public', 'Todo', {
 ### 监听同步事件
 
 ```ts
+import { SYNC_COMPLETE_EVENT, SYNC_ERROR_EVENT } from '@aiao/rxdb';
+
 // 监听同步完成
-rxdb.addEventListener('repository-sync-complete', event => {
-  console.log(`${event.entity} 同步完成:`, event.result);
+rxdb.addEventListener(SYNC_COMPLETE_EVENT, event => {
+  console.log(`${event.direction} 同步完成:`, event.result);
 });
 
 // 监听同步错误
-rxdb.addEventListener('repository-sync-error', event => {
-  console.error(`${event.entity} 同步失败:`, event.error);
+rxdb.addEventListener(SYNC_ERROR_EVENT, event => {
+  console.error(`${event.direction} 同步失败:`, event.error);
 });
 
 // 监听冲突检测
@@ -177,9 +179,9 @@ import { subDays } from 'date-fns';
   ],
   sync: {
     type: SyncType.Filter,
-    local: { enabled: true },
+    local: { adapter: 'wa-sqlite' },
     remote: {
-      enabled: true,
+      adapter: 'supabase',
       // 动态过滤：只同步最近 30 天的数据
       filter: () => ({
         combinator: 'and',
@@ -235,9 +237,9 @@ console.log(`将清理 ${preview.removed} 条记录:`, preview.removedIds);
 // 多条件组合：最近 30 天 且 未归档
 sync: {
   type: SyncType.Filter,
-  local: { enabled: true },
+  local: { adapter: 'wa-sqlite' },
   remote: {
-    enabled: true,
+    adapter: 'supabase',
     filter: () => ({
       combinator: 'and',
       rules: [
@@ -278,7 +280,7 @@ const rxdb = new RxDB({
   }
 });
 
-const repo = rxdb.getRepository(Product);
+const repo = rxdb.entityManager.getRepository(Product);
 
 // 与其他策略完全相同的调用面：Promise / 实体实例 / limit / offset / orderBy
 const rows = await repo.find({

@@ -13,7 +13,7 @@ interface SchemaRow {
 }
 
 /**
- * KeyValue (Record<string, unknown>) editor — Schema mode only
+ * KeyValue（`Record<string, unknown>`）editor — Schema mode only
  *
  * - Key is always a dropdown derived from schema definition
  * - Value input type adapts to the key's schema type

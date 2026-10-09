@@ -35,7 +35,11 @@ class CachedProduct extends EntityBase {
   title!: string;
 }
 
-const rxdb = new RxDB({ dbName: 'shop', entities: [CachedProduct] });
+const rxdb = new RxDB({
+  dbName: 'shop',
+  entities: [CachedProduct],
+  sync: { type: SyncType.None, local: { adapter: 'sqlite' } }
+});
 rxdb.adapter('sqlite' /* … */).adapter('supabase' /* … */);
 
 // 传工厂函数本身，不要调用它。注册顺序随意，宿主按 `inject` 保证 history 先于 sync

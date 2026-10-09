@@ -5,7 +5,7 @@
 
 :::tip 后端对接者请看协议规范
 如果你是要**实现后端**（Node / Go / Python …）来对接 RxDB 前端，请看
-[HTTP QueryCache 协议规范](./http-protocol)——一份语言无关的端点 + JSON 契约，不看 TS 源码也能照着实现。
+[HTTP QueryCache 协议规范](./http-protocol.md)——一份语言无关的端点 + JSON 契约，不看 TS 源码也能照着实现。
 :::
 
 :::warning v1 只支持 `SyncType.QueryCache`
