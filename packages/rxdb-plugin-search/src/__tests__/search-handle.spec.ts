@@ -181,6 +181,17 @@ describe('search-handle (T034)', () => {
     h.destroy();
   });
 
+  it('non-empty initialQuery runs right away instead of waiting out the refreshAuditMs window', async () => {
+    const perform = vi.fn<PerformSearch>().mockResolvedValue({ results: [res('1')], hasMore: false });
+    const h = createSearchHandle({ performSearch: perform, initialQuery: 'hello' });
+    // 合并窗口只属于数据变更通道；初始查询若借道它，每个新句柄的首个结果都要白等 80ms
+    expect(await firstValueFrom(h.state$)).toBe('loading');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(perform).toHaveBeenCalledTimes(1);
+    expect(await firstValueFrom(h.state$)).toBe('success');
+    h.destroy();
+  });
+
   it('clear() abandons in-flight query — stale resolve must not write back results', async () => {
     let resolveFoo: ((page: { results: SearchResult[]; hasMore: boolean }) => void) | undefined;
     const perform = vi.fn<PerformSearch>().mockImplementation(

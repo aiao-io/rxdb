@@ -65,3 +65,17 @@
 
 - Jimmy @Jimmysh
 - Jimmy Liu @aiao-io
+
+## 0.0.24 / 0.0.25（补录）
+
+CHANGELOG 自 0.0.26 起才真正开始维护，此前两个 release tag 没有留下条目（本文件在两个 tag 上均为空），以下按 tag 与提交记录补录可核实的事实。
+
+### 0.0.24 (2026-08-11)
+
+- 初始发布：tag `v0.0.24` 指向仓库 `init` 提交 `c47cf979`，可发布包以 0.0.24 起步。
+
+### 0.0.25 (2026-08-14)
+
+- 桥接版本（bridge）：`release.kind` 由 normal 改为 bridge，不升 system schema、不换 change codec，作用是为后续 migration 版本留一个可被 `bridge.tag` 引用的锚点（发布提交 `eb4d1a26`）。
+- 新增 `@aiao/rxdb-adapter-desktop` 包。
+- 优化 GitHub Actions、更新覆盖率；修复压缩产物 name 退化并接入桌面 adapter 加密契约套件；修复 tarball 消费者门禁从 registry 回落的问题；为 29 个可发布包补齐 `repository` 字段（tag 提交 `b31c7e2c`）。

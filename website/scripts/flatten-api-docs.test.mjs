@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { plainTextMediaPackageLinks, rewriteMediaPackageLinks } from './flatten-api-docs.mjs';
+import { plainTextMediaPackageLinks, rewriteMediaFileLinks, rewriteMediaPackageLinks } from './flatten-api-docs.mjs';
 
 test('importing the module does not run the flatten', () => {
   // 能执行到这一行本身就是断言：没有主入口守卫时，import 会同步跑完整个 flatten，
@@ -62,4 +62,28 @@ test('非包 media（图片等）不降级为纯文本', () => {
   const content = '![结构图](../_media/working-tree-architecture.png)';
 
   assert.equal(plainTextMediaPackageLinks(content, ['rxdb-plugin-history']), content);
+});
+
+test('有站点页的文件 media 链接重写为真实站点页', () => {
+  // 源 README 链接 ../../website/docs/migration/history-sync-plugins.md，typedoc 把文件
+  // 复制进 docs/api/_media/ 并把 href 改成 ../_media/history-sync-plugins.md。文件不是
+  // 可路由的文档页，必须重写到 migration 页；包 README 页的源文件在 docs/api/<pkg>/ 下，
+  // 指到 docs/migration/ 需上溯两层。
+  const content = '见 [历史与同步拆包](../_media/history-sync-plugins.md)。';
+
+  assert.equal(rewriteMediaFileLinks(content), '见 [历史与同步拆包](../../migration/history-sync-plugins.md)。');
+});
+
+test('没有站点页的文件 media 链接降级为纯文本', () => {
+  // requirements 下的文档没有站点页可指，保留链接必成坏链，降级为纯文本。
+  const content = '见 [miniprogram-platform-feasibility.md](../_media/miniprogram-platform-feasibility.md)。';
+
+  assert.equal(rewriteMediaFileLinks(content), '见 miniprogram-platform-feasibility.md。');
+});
+
+test('非 .md 的 media 文件链接原样保留', () => {
+  // .mjs / .ts 等文件不在 Docusaurus 的坏链检查范围内。
+  const content = '见 [`build.mjs`](../_media/build.mjs)。';
+
+  assert.equal(rewriteMediaFileLinks(content), content);
 });

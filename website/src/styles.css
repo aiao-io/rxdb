@@ -653,7 +653,10 @@ table td {
   border-color: var(--border);
 }
 
-body:has(iframe) {
+/* 微应用页面锁定宿主滚动，避免固定容器下的页脚滚进视口。
+   只能匹配 wujie-app 宿主元素：用 iframe 匹配会被无界 alive 缓存里的
+   隐藏 iframe（直接挂在 body 下）命中，导致离开微应用页面后整站无法滚动。 */
+body:has(wujie-app) {
   overflow: hidden !important;
   height: 100vh;
 }

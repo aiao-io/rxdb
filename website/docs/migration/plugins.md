@@ -1,10 +1,10 @@
 # 插件升级与启用
 
-插件通过 `RxDB` 配置的 `plugins` 数组注册。启用一个新插件通常包含三步：安装包、在配置中注册、按插件要求标注实体元数据。
+插件通过 `rxdb.use(插件工厂, 选项)` 注册——传工厂函数本身，不要调用它。启用一个新插件通常包含三步：安装包、注册插件、按插件要求标注实体元数据。
 
 ## 启用全文搜索插件
 
-以 `@aiao/rxdb-plugin-search` 为例（仅兼容 `@aiao/rxdb-adapter-sqlite-wasm` 适配器）：
+以 `@aiao/rxdb-plugin-search` 为例（`sqlite-wasm` / `sqlite` / `sqliteai` 走 SQLite FTS5 后端，`pglite` 走 `pg-tsvector` 后端，均已放行）：
 
 ```typescript
 // 1. 安装
@@ -15,13 +15,13 @@ import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 
 const db = new RxDB({
   dbName: 'myapp',
-  entities: [Article],
-  plugins: [
-    rxDBPluginSearch({
-      debounce: 300, // 默认 300ms；0 表示关闭
-      pageSize: 50
-    })
-  ]
+  entities: [Article]
+});
+
+// 注册——传插件工厂本身，选项作为第二个参数
+db.use(rxDBPluginSearch, {
+  debounce: 300, // 默认 300ms；0 表示关闭
+  pageSize: 50
 });
 ```
 
@@ -46,11 +46,11 @@ export class Article extends EntityBase {
 
 搜索插件的框架层同功能对称：
 
-| 框架    | 包                                 | 入口                                                       |
-| :------ | :--------------------------------- | :--------------------------------------------------------- |
-| Angular | `@aiao/rxdb-plugin-search-angular` | `useSearch()`（旧名 `injectSearch` 为 `@deprecated` 别名） |
-| React   | `@aiao/rxdb-plugin-search-react`   | `useSearch()`                                              |
-| Vue     | `@aiao/rxdb-plugin-search-vue`     | `useSearch()`                                              |
+| 框架    | 包                                 | 入口          |
+| :------ | :--------------------------------- | :------------ |
+| Angular | `@aiao/rxdb-plugin-search-angular` | `useSearch()` |
+| React   | `@aiao/rxdb-plugin-search-react`   | `useSearch()` |
+| Vue     | `@aiao/rxdb-plugin-search-vue`     | `useSearch()` |
 
 ## 启用工作树插件
 
@@ -81,7 +81,7 @@ await db.workingTree.enable();
 
 ## 注意事项
 
-1. 搜索插件在非 `sqlite-wasm` 适配器上会在数据库创建阶段 fail-fast —— 启用前对照[兼容矩阵](../compatibility.md)。
+1. 搜索插件在未放行的适配器上会抛 `SearchUnsupportedAdapterError` fail-fast（`wa-sqlite` / `wa-sqlite-miniprogram` 尚未实测放行）—— 启用前对照[兼容矩阵](../compatibility.md)。
 2. 插件选项变更不影响已持久化的业务数据，仅影响运行期行为。
 
 ## 参考

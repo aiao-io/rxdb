@@ -10,7 +10,7 @@
 
 </div>
 
-RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/*` 公开包当前同步发布为 `0.0.26`，仍处于 0.x 演进阶段。
+RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/*` 公开包当前同步发布为 `0.0.26`（例外：`@aiao/rxdb-angular` 为 `0.0.27`，见 [release-plan 开项：版本漂移](requirements/release-plan.md#开项版本漂移)），仍处于 0.x 演进阶段。
 
 > 本项目发布在 `@aiao/*` 作用域下，与 npm 上的 [`rxdb`](https://rxdb.info)（NoSQL 文档数据库）**无关**：这里是装饰器实体 + SQL 引擎（SQLite / PGlite）+ 三框架绑定，不是它的 fork 或插件。
 
@@ -39,7 +39,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri               |
 
 > [!NOTE]
-> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [73/98 已交付](requirements/status-overview.md)
+> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [74/98 已交付](requirements/status-overview.md)
 
 支持与反馈：可复现的 bug 请提交 [Bug Issue](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml)，功能建议提交 [Feature Issue](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml)，使用问题请提交 [Question Issue](https://github.com/aiao-io/rxdb/issues/new?template=question.yml)。
 
@@ -151,6 +151,11 @@ aiao/
 │   ├── dev-rxdb-http/               # HTTP 远程同步 DEMO（Angular 前端）
 │   ├── dev-rxdb-http-e2e/           # HTTP E2E
 │   ├── dev-rxdb-http-server/        # HTTP 参考后端（node:sqlite）
+│   ├── dev-rxdb-miniprogram/        # 小程序 DEMO（微信 / 抖音 / 支付宝）
+│   ├── dev-rxdb-miniprogram-alipay-probe/ # 支付宝平台探针
+│   ├── dev-rxdb-miniprogram-alipay-probe-e2e/ # 支付宝探针 E2E
+│   ├── dev-rxdb-miniprogram-douyin-spike/   # 抖音平台 spike
+│   ├── dev-rxdb-miniprogram-e2e/    # 小程序 E2E
 │   ├── dev-rxdb-react/              # React DEMO
 │   ├── dev-rxdb-react-e2e/          # React E2E
 │   ├── dev-rxdb-supabase/           # Supabase 同步 DEMO
@@ -159,11 +164,12 @@ aiao/
 │   ├── dev-rxdb-tauri-e2e/          # Tauri E2E
 │   ├── dev-rxdb-vue/                # Vue DEMO
 │   ├── dev-rxdb-vue-e2e/            # Vue E2E
-│   └── rxdb-devtools-extension/     # 浏览器 Devtools 扩展
+│   ├── rxdb-devtools-extension/     # 浏览器 Devtools 扩展
+│   └── rxdb-devtools-extension-e2e/ # Devtools 扩展 E2E
 ├── benchmarks/                      # 性能测试
 ├── docker/                          # Docker 配置
 ├── examples/                        # 集成演示
-├── modules/                         # 独立模块与 Angular 示例库
+├── modules/                         # 内部共享模块（angular / angular-todo / recipes-domain / rxdb-devtools-panel / wujie）
 ├── packages/                        # 核心库
 │   ├── rxdb/                        # 核心：模型、查询、适配器接口
 │   ├── rxdb-adapter-wa-sqlite/      # WA SQLite 适配器
@@ -171,6 +177,7 @@ aiao/
 │   ├── rxdb-adapter-sqlite-core/    # SQLite 核心共享代码
 │   ├── rxdb-adapter-sqlite-wasm/    # SQLite WASM 适配器
 │   ├── rxdb-adapter-sqliteai/       # SQLite AI 适配器（向量 + AI 函数）
+│   ├── rxdb-adapter-desktop/        # 旧桌面适配器（已拆分为 electron/tauri，停在 0.0.25）
 │   ├── rxdb-adapter-electron/       # Electron 适配器（node:sqlite 特权宿主）
 │   ├── rxdb-adapter-tauri/          # Tauri 适配器（Rust rusqlite 宿主，WebView 侧）
 │   ├── rxdb-adapter-encrypted/      # 字段级加密（AES-GCM-256）
@@ -183,9 +190,16 @@ aiao/
 │   ├── rxdb-vue/                    # Vue 集成（composables）
 │   ├── rxdb-client-generator/       # 客户端代码生成
 │   ├── rxdb-devtools/               # 运行时调试工具
+│   ├── rxdb-model/                  # 实体模型库（框架无关核心）
+│   ├── rxdb-model-angular/          # Angular 实体模型 UI
+│   ├── rxdb-model-react/            # React 实体模型 UI
+│   ├── rxdb-model-vue/              # Vue 实体模型 UI
 │   ├── rxdb-plugin-graph/           # 图插件
+│   ├── rxdb-plugin-history/         # 历史与分支插件
+│   ├── rxdb-plugin-querycache/      # QueryCache 插件
 │   ├── rxdb-plugin-workspace/       # 工作区插件
 │   ├── rxdb-plugin-storage/         # 存储插件
+│   ├── rxdb-plugin-sync/            # 同步插件
 │   ├── rxdb-plugin-replay/          # 会话录制与回放插件（rrweb）
 │   ├── rxdb-plugin-replay-angular/  # Angular 回放组件
 │   ├── rxdb-plugin-replay-react/    # React 回放组件
@@ -194,11 +208,16 @@ aiao/
 │   ├── rxdb-plugin-search-angular/  # Angular 搜索集成
 │   ├── rxdb-plugin-search-react/    # React 搜索集成
 │   ├── rxdb-plugin-search-vue/      # Vue 搜索集成
+│   ├── rxdb-plugin-tree/            # 树形实体插件
+│   ├── rxdb-plugin-tree-angular/    # Angular 树集成
+│   ├── rxdb-plugin-tree-react/      # React 树集成
+│   ├── rxdb-plugin-tree-vue/        # Vue 树集成
 │   ├── rxdb-plugin-working-tree/    # 工作树与提交历史插件
 │   ├── rxdb-plugin-working-tree-angular/ # Angular 工作树集成
 │   ├── rxdb-plugin-working-tree-react/   # React 工作树集成
 │   ├── rxdb-plugin-working-tree-vue/     # Vue 工作树集成
 │   ├── rxdb-test/                   # 测试库与跨框架 fixture
+│   ├── rxdb-taro/                   # Taro 小程序插件（./vite + ./runtime）
 │   ├── code-editor/                 # 代码编辑器核心
 │   ├── code-editor-angular/         # Angular 编辑器集成
 │   ├── code-editor-react/           # React 编辑器集成
@@ -240,14 +259,14 @@ aiao/
 
 - ⚠️ **多端小程序宿主**（[US-211](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)）— 抖音已登记为实验性支持（开发者工具 + iOS 真机验证，单连接、rollback journal、无崩溃恢复保证）；Taro tt demo 已过开发者工具与 iOS 真机，剩 Android 真机。支付宝已登记为实验性支持（依赖未文档化能力，开发者工具 + iOS 真机验证，Android 未验证），Taro 支付宝 demo 已过开发者工具；百度 / QQ 判不支持
 
-本地工作树与提交历史（[epic-006](requirements/epics/epic-006-working-tree-commits.md)）的代码已全部合入，对外发布前还差一次桥接版本，见 [release-plan](requirements/release-plan.md)。
+本地工作树与提交历史（[epic-006](requirements/epics/epic-006-working-tree-commits.md)）的代码已全部合入，桥接版本 `v0.0.26` 已于 2026-10-01 发布；系统 schema 3→7 的迁移发布与迁移收尾暂缓到 1.0.0 前，见 [release-plan](requirements/release-plan.md)。
 
 ### 待办
 
 下一批能力补齐，顺序与理由见 [roadmap 批次 3](requirements/roadmap.md#批次-3能力补齐可并行开-pr)：
 
-- ⬜ **实例级实体同步配置覆盖**（[US-026](requirements/stories/core/US-026-instance-sync-override.md)）— 初始化时按实体整体覆盖同步配置，收掉 HTTP demo 前后端两个实体类的重复
-- ⬜ **本地数据库一致性备份与恢复**（[US-217](requirements/stories/adapter/US-217-local-database-backup-restore.md)）— 按 PGlite、SQLite 共享层、桌面 host 分阶段交付
+- 🚧 **多端小程序宿主**（[US-211](requirements/stories/adapter/US-211-multi-miniprogram-platforms.md)）与 👀 **Taro 插件一行接入**（[US-219](requirements/stories/adapter/US-219-taro-plugin.md)）见上方「进行中 / 待评审」
+- ⬜ **实体元数据层的声明式存储约束**（[US-030](requirements/stories/core/US-030-declarative-storage-constraints.md)）— 阶段 A～C 已解锁进批次 3，阶段 D 仍价值待证
 
 ## 路线图
 

@@ -3,17 +3,17 @@
 ## Installation
 
 ```bash
-bun install
+pnpm install
 ```
 
 ## Local Development
 
 ```bash
-bun start
+pnpm start
 ```
 
 ## Build
 
 ```bash
-bun build
+pnpm build
 ```

@@ -31,7 +31,8 @@ findNeighbors(options: FindNeighborsOptions<T>): Observable<NeighborResult<T>[]>
 ## level 归一化
 
 - 默认 `1`
-- 小于 `1` 会被规范化为 `1`
+- `level: 0` 保留原值：不查询任何邻居（`findNeighbors` 返回空数组，`countNeighbors` 返回 `0`）
+- 小于 `0` 会被规范化为 `1`
 - 大于 `100` 会被限制为 `100`
 
 ## 返回语义

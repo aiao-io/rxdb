@@ -33,7 +33,7 @@ const rxdb = new RxDB({
   sync: { local: { adapter: 'wa-sqlite' }, type: SyncType.None }
 });
 
-rxdb.use(rxdbStorage());
+rxdb.use(rxdbStorage);
 await rxdb.connect('wa-sqlite');
 await rxdb.storage.init();
 ```
@@ -41,12 +41,10 @@ await rxdb.storage.init();
 ### 配置选项
 
 ```typescript
-rxdb.use(
-  rxdbStorage({
-    rootDir: 'uploads', // OPFS 根目录，默认 'files'
-    previewLimitBytes: 10 * 1024 * 1024 // 预览文件大小限制，默认 50MB
-  })
-);
+rxdb.use(rxdbStorage, {
+  rootDir: 'uploads', // OPFS 根目录，默认 'files'
+  previewLimitBytes: 10 * 1024 * 1024 // 预览文件大小限制，默认 50MB
+});
 ```
 
 ## API
@@ -212,8 +210,7 @@ rxdb.storage
 ### Angular
 
 ```typescript
-import { inject } from '@angular/core';
-import { RXDB } from '@aiao/rxdb-angular';
+import { useRxDB } from '@aiao/rxdb-angular';
 import { toSignal } from '@angular/core/rxjs-interop';
 
 @Component({
@@ -223,7 +220,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
   `
 })
 export class FileUploadComponent {
-  private rxdb = inject(RXDB);
+  private rxdb = useRxDB();
   meta = toSignal(this.rxdb.storage.watch(this.fileId));
 
   async upload(event: Event) {
@@ -238,11 +235,11 @@ export class FileUploadComponent {
 ### React
 
 ```tsx
-import { useRxdb } from '@aiao/rxdb-react';
+import { useRxDB } from '@aiao/rxdb-react';
 import { useState } from 'react';
 
 function FileUpload() {
-  const rxdb = useRxdb();
+  const rxdb = useRxDB();
   const [meta, setMeta] = useState(null);
 
   const upload = async event => {
@@ -266,10 +263,10 @@ function FileUpload() {
 
 ```vue
 <script setup>
-import { useRxdb } from '@aiao/rxdb-vue';
+import { useRxDB } from '@aiao/rxdb-vue';
 import { ref } from 'vue';
 
-const rxdb = useRxdb();
+const rxdb = useRxDB();
 const meta = ref(null);
 
 const upload = async event => {
@@ -288,7 +285,7 @@ const upload = async event => {
 
 ## 注意事项
 
-- **必须先连接本地适配器**：Storage 插件依赖 `rxdb.config.sync.local` 适配器（SQLite 或 PGlite），确保先调用 `rxdb.connect()`
+- **必须先连接本地适配器**：Storage 插件依赖 `rxdb.config.sync.local` 适配器（SQLite 或 PGlite），确保先调用 `rxdb.connect('<本地适配器名>')`
 - **必须调用 `init()`**：插件注册后需显式调用 `rxdb.storage.init()`，`install()` 方法不可 `await`
 - **OPFS 浏览器兼容性**：Chrome 86+、Safari 15.2+、Firefox 111+ 支持 OPFS；OPFS 数据仅在同源下可访问
 - **Object URL 需要手动释放**：`createObjectUrl()` 返回的 URL 使用后需调用 `revokeObjectUrl()` 释放内存；`preview()` 返回的对象提供 `dispose()` 方法

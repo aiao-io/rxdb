@@ -122,7 +122,7 @@ const settings = await firstValueFrom(
 
 ### 3. 全文搜索
 
-PGlite 原生支持 PostgreSQL 的 `tsvector` / GIN 索引；当前 rxdb 元数据 API 暂未直接暴露这些扩展字段，需要通过 raw SQL 自行创建索引。结构化字段的全文搜索请优先使用 [`@aiao/rxdb-plugin-search`](../plugins/rxdb-plugin-search/README.md)（基于 SQLite FTS5，仅兼容 sqlite-wasm 适配器）。
+PGlite 原生支持 PostgreSQL 的 `tsvector` / GIN 索引；当前 rxdb 元数据 API 暂未直接暴露这些扩展字段，需要通过 raw SQL 自行创建索引。结构化字段的全文搜索请优先使用 [`@aiao/rxdb-plugin-search`](../plugins/rxdb-plugin-search/README.md)：本适配器已支持（pg-tsvector 后端）；SQLite 家族里兼容 sqlite-wasm / sqlite / sqliteai（FTS5 后端），wa-sqlite 与小程序适配器尚未放行。
 
 ### 4. 数组类型
 
@@ -151,10 +151,14 @@ const posts = await firstValueFrom(
 
 ### 事务支持
 
-PGlite 支持完整的 ACID 事务：
+PGlite 支持完整的 ACID 事务（正确入口是适配器的 `transaction()`，见[事务](../model-mutation/transaction.md)）：
 
 ```typescript
-await rxdb.transaction(async executor => {
+import type { TransactionExecutor } from '@aiao/rxdb';
+
+const adapter = await rxdb.getAdapter('pglite');
+
+await adapter.transaction(async (executor: TransactionExecutor) => {
   // 持有 executor 才算「在本事务内」
   const todoRepo = executor.getRepository(Todo);
   await todoRepo.create({ title: '任务 1' });
@@ -188,14 +192,16 @@ export class Todo extends EntityBase {
 
 ### 视图支持
 
-创建数据库视图：
+创建数据库视图（经适配器公开的 `writeQuery()` 下发 DDL）：
 
 ```typescript
 // 在适配器初始化后执行
 await rxdb.connect('pglite');
 
+const adapter = await rxdb.getAdapter('pglite');
+
 // 创建视图
-await rxdb.execute(`
+await adapter.writeQuery(`
   CREATE VIEW active_todos AS
   SELECT * FROM todos
   WHERE completed = false
@@ -226,10 +232,12 @@ export class Todo extends EntityBase {
 
 ### 2. 查询优化
 
-使用 EXPLAIN 分析查询：
+使用 EXPLAIN 分析查询（经适配器公开的 `query()` 下发）：
 
 ```typescript
-const result = await rxdb.execute(`
+const adapter = await rxdb.getAdapter('pglite');
+
+const result = await adapter.query(`
   EXPLAIN ANALYZE
   SELECT * FROM todos
   WHERE completed = false
@@ -245,7 +253,11 @@ console.log('查询计划:', result);
 使用事务批量执行操作：
 
 ```typescript
-await rxdb.transaction(async executor => {
+import type { TransactionExecutor } from '@aiao/rxdb';
+
+const adapter = await rxdb.getAdapter('pglite');
+
+await adapter.transaction(async (executor: TransactionExecutor) => {
   const todoRepo = executor.getRepository(Todo);
   for (const item of largeDataSet) {
     await todoRepo.create({ title: item.title });
@@ -351,14 +363,18 @@ if ('storage' in navigator && 'persist' in navigator.storage) {
 
 ### 从 SQLite 迁移到 PGlite
 
-```typescript
-// 1. 导出 SQLite 数据
-const sqliteRxdb = /* 现有的 SQLite RxDB 实例 */;
-const data = await sqliteRxdb.exportDatabase();
+RxDB 没有整库导出/导入 API。保留数据的迁移方式是：保持旧库连接，用公开的查询/写入 API 把数据搬进一个**新 `dbName`** 的目标库，校验后再断开旧库（口径见[适配器切换与数据迁移](../migration/adapters.md)）。
 
-// 2. 创建 PGlite 实例
+```typescript
+import { firstValueFrom } from 'rxjs';
+
+// 1. 保持 SQLite 旧库连接，读出全部数据
+const sqliteRxdb = /* 现有的 SQLite RxDB 实例 */;
+const todos = await firstValueFrom(Todo.find({}));
+
+// 2. 创建 PGlite 实例（新 dbName，避免与旧库的底层存储互相覆盖）
 const pgliteRxdb = new RxDB({
-  dbName: 'myapp',
+  dbName: 'myapp-pglite',
   entities: [Todo],
   sync: {
     local: { adapter: 'pglite' },
@@ -375,8 +391,15 @@ pgliteRxdb.adapter('pglite', async db => {
 
 await pgliteRxdb.connect('pglite');
 
-// 3. 导入数据
-await pgliteRxdb.importDatabase(data);
+// 3. 写入目标库
+for (const todo of todos) {
+  const copy = new Todo();
+  Object.assign(copy, todo);
+  await copy.save();
+}
+
+// 4. 校验数量一致后，断开旧库
+await sqliteRxdb.disconnect('wa-sqlite');
 ```
 
 ## 完整示例

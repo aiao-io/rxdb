@@ -6,7 +6,7 @@
 
 **rxdb** — Local-first RxDB monorepo（开源版），核心 RxDB 引擎、三框架绑定（Angular 22 / React 19 / Vue 3.5）、多存储适配器与开发者工具。
 
-核心能力：装饰器驱动实体 → 类型安全 Repository → RxDB 响应式查询 → 多存储后端（wa-sqlite / sqlite-wasm / PGlite / Supabase / sqliteai / desktop）。
+核心能力：装饰器驱动实体 → 类型安全 Repository → RxDB 响应式查询 → 多存储后端（wa-sqlite / sqlite-wasm / PGlite / Supabase / sqliteai / electron / tauri）。
 
 ## 技术栈
 
@@ -25,7 +25,7 @@
 ```
 apps/          # 演示应用（angular/react/vue + electron/tauri/supabase）
 packages/      # 可发布库（rxdb-* / rxdb-adapter-* / rxdb-plugin-* / code-editor-*）
-modules/       # 内部共享模块（angular / angular-todo）
+modules/       # 内部共享模块（angular / angular-todo / recipes-domain / rxdb-devtools-panel / wujie）
 requirements/  # Epics / Stories / status-overview.md
 scripts/       # 构建 / 审计脚本（scripts/audit/）
 docker/        # 容器配置
@@ -83,21 +83,10 @@ shell commands, and other important information, read the current plan
 
 ## General Guidelines for working with Nx
 
-- For navigating/exploring the workspace, invoke the `nx-workspace` skill first - it has patterns for querying projects, targets, and dependencies
-- When running tasks (for example build, lint, test, e2e, etc.), always prefer running the task through `nx` (i.e. `nx run`, `nx run-many`, `nx affected`) instead of using the underlying tooling directly
-- Prefix nx commands with the workspace's package manager (e.g., `pnpm nx build`, `npm exec nx test`) - avoids using globally installed CLI
-- You have access to the Nx MCP server and its tools, use them to help the user
-- For Nx plugin best practices, check `node_modules/@nx/<plugin>/PLUGIN.md`. Not all plugins have this file - proceed without it if unavailable.
-- NEVER guess CLI flags - always check nx_docs or `--help` first when unsure
-
-## Scaffolding & Generators
-
-- For scaffolding tasks (creating apps, libs, project structure, setup), ALWAYS invoke the `nx-generate` skill FIRST before exploring or calling MCP tools
-
-## When to use nx_docs
-
-- USE for: advanced config options, unfamiliar flags, migration guides, plugin configuration, edge cases
-- DON'T USE for: basic generator syntax (`nx g @nx/react:app`), standard commands, things you already know
-- The `nx-generate` skill handles generator discovery internally - don't call nx_docs just to look up generator syntax
+- 运行任务（build / lint / test / e2e 等）一律通过 `nx`（`nx run` / `nx run-many` / `nx affected`），不要直接调底层工具
+- nx 命令必须加包管理器前缀（如 `pnpm nx build`、`pnpm nx test`），避免用全局安装的 CLI
+- 探索工作区、按变更跑校验时优先用现有 skill：`affected-ci`（affected 校验）、`coverage-gate`（覆盖率阈值）、`tri-framework-check`（三框架 API 对称）
+- 不确定 CLI flag 时先跑 `nx <command> --help`，不要猜
+- Nx 插件最佳实践可查 `node_modules/@nx/<plugin>/PLUGIN.md`（不是所有插件都有此文件，没有就跳过）
 
 <!-- nx configuration end-->

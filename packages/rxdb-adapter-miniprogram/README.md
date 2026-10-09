@@ -144,9 +144,10 @@ iOS 抖音没有原生 `TextEncoder` / `TextDecoder`，adapter 的 polyfill 要�
 开发者工具与 iOS 真机验证过（US-211 支付宝探针 v7），**Android 真机未验证**，配额也没撞到过（`quota-unobserved`），
 平台改掉任一项未文档化行为时引导直接报 `AlipayUndocumentedCapabilityError`，不降级。
 
-代码包要放三样东西。Taro（Vite）项目用 [`@aiao/rxdb-taro/vite`](../rxdb-taro/README.md#支付宝实验性) 的
-`miniProgramVitePlugins('alipay', appRoot)` 发出，它同时负责模拟器里的真实全局对象登记；esbuild 参考
-`apps/dev-rxdb-miniprogram-alipay-probe/scripts/build.mjs`：
+代码包要放三样东西。Taro（Vite）项目首选 [`@aiao/rxdb-taro/vite`](../rxdb-taro/README.md#支付宝实验性) 的
+`miniProgramVitePlugins('alipay', appRoot)` 发出，它同时负责模拟器里的真实全局对象登记。其他打包器按下表自行拷贝；
+仓库里的 esbuild 写法 [`apps/dev-rxdb-miniprogram-alipay-probe/scripts/build.mjs`](../../apps/dev-rxdb-miniprogram-alipay-probe/scripts/build.mjs)
+只是参考实现，不随任何包发布：
 
 ```text
 @aiao/rxdb-adapter-miniprogram/alipay-random-worker.js  →  workers/index.js（预编译 ES5，原样拷贝）
@@ -162,12 +163,12 @@ iOS 抖音没有原生 `TextEncoder` / `TextDecoder`，adapter 的 polyfill 要�
 模拟器逻辑层没有 `BigInt`，要等 `prepareMiniProgramHostRuntime` 补上。所以 RxDB 栈（`@aiao/rxdb`、adapter 主入口、rxjs）
 必须留在动态 `import()` 的 chunk 里，在引导之后才求值：es2018 产物里模块顶层的 `BigInt("…")` 一求值就抛错。
 打包器按引用数把它们拆进页面静态 `require` 的公共 chunk 时就会出这个问题，Taro 的 `manualChunks` 正是如此；
-Taro 示例用 `config/lazy-chunk-vite-plugin.ts` 把只经动态 `import()` 可达的模块并进单独的懒加载 chunk。
+Taro 示例用 [`config/lazy-chunk-vite-plugin.ts`](../../apps/dev-rxdb-miniprogram/config/lazy-chunk-vite-plugin.ts)（demo 自带，不随包发布）把只经动态 `import()` 可达的模块并进单独的懒加载 chunk。
 
 开发者工具的「真机调试」不用原生引擎，而是用 Boatman（一个 JS 写的 JS 解释器）跑逻辑层。它提升 `var` 时不看标签语句（`label: {…}`）内部：
 这类 `var` 只有真执行到才登记进函数作用域。没执行到的那次调用里，对同名变量的赋值会写进外层闭包。React 18 的
 reconciler 正好踩中（`beginWork` 在 `e:{…}` 里 `var o`，把工厂闭包里的 `Symbol.for("react.element")` 写成元素对象），
-页面渲染时就抛 React #31。预览、体验版与模拟器都是原生引擎，不受影响。Taro 示例用 `config/labeled-var-hoist-vite-plugin.ts`
+页面渲染时就抛 React #31。预览、体验版与模拟器都是原生引擎，不受影响。Taro 示例用 [`config/labeled-var-hoist-vite-plugin.ts`](../../apps/dev-rxdb-miniprogram/config/labeled-var-hoist-vite-plugin.ts)（demo 自带，不随包发布）
 在产物定稿时把这类 `var` 补声明到函数开头（ES 语义不变），其他应用要在真机调试里跑，同样需要这一步。
 
 Boatman 还有一处偏差：成员赋值 `o.x = v` 调完 setter 会再调一次 getter，拿 getter 的返回值当赋值表达式的值。

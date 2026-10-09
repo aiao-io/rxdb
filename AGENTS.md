@@ -47,7 +47,7 @@ TS 6.0+ / Nx 23+ / pnpm 10 / Node 26+ / Angular 22+ / React 19+ / Vue 3.5+ / RxJ
 ```bash
 pnpm nx serve dev-rxdb-{angular|react|vue}  # 开发
 pnpm nx test <project> --watch              # TDD
-pnpm test-all                               # 全量门禁（affected: lint/typecheck/test/test-browser/build/e2e）
+pnpm test-all                               # 全量门禁（affected: lint/typecheck/test/test-memory/test-browser/build/audit-lazy-backend/e2e）
 ```
 
 ## 全量测试坑
@@ -55,7 +55,7 @@ pnpm test-all                               # 全量门禁（affected: lint/type
 - `pnpm test-all` 是 `nx affected`，基线通常是 `main`。失败先看 `Failed tasks`，再单独 `pnpm nx run <project>:<target>` 复跑；EPIPE / `The service was stopped` / worker 崩溃优先当并发假失败，不要直接改业务。
 - `--parallel=4` 在本机 32GB 上仍会把 vitest forks 和 Angular 构建打崩。假失败先串行复跑；不要为了「稳」把并行调到 8。
 - 共享套件删了就同步删所有后端入口（尤其 `packages/rxdb-adapter-tauri/conformance/`）。`rowsAffectedConformanceSuite` 已随 writer lease 删除，不要再加回来。
-- Nx Cloud FREE 已超限（401），本地加 `--skipRemoteCache`；不要把云缓存 miss 当成测试失败。
+- Nx Cloud 已全线关停（2026-09-03 起，坏 token，workflow 硬编码 `NX_NO_CLOUD=true`）；`test-all` 已内置 `--skipRemoteCache`，不要把云缓存 miss 当成测试失败。
 - `rxdb-adapter-electron:typecheck` 被 Nx 记过 flaky（US-207 拆包前记在 `rxdb-adapter-desktop` 名下，`node:sqlite` 宿主那一半留在了 electron）；单独复跑绿了就当并发抖动，不要扩 scope。
 
 <!-- nx configuration start-->
@@ -63,21 +63,10 @@ pnpm test-all                               # 全量门禁（affected: lint/type
 
 ## General Guidelines for working with Nx
 
-- For navigating/exploring the workspace, invoke the `nx-workspace` skill first - it has patterns for querying projects, targets, and dependencies
-- When running tasks (for example build, lint, test, e2e, etc.), always prefer running the task through `nx` (i.e. `nx run`, `nx run-many`, `nx affected`) instead of using the underlying tooling directly
-- Prefix nx commands with the workspace's package manager (e.g., `pnpm nx build`, `npm exec nx test`) - avoids using globally installed CLI
-- You have access to the Nx MCP server and its tools, use them to help the user
-- For Nx plugin best practices, check `node_modules/@nx/<plugin>/PLUGIN.md`. Not all plugins have this file - proceed without it if unavailable.
-- NEVER guess CLI flags - always check nx_docs or `--help` first when unsure
-
-## Scaffolding & Generators
-
-- For scaffolding tasks (creating apps, libs, project structure, setup), ALWAYS invoke the `nx-generate` skill FIRST before exploring or calling MCP tools
-
-## When to use nx_docs
-
-- USE for: advanced config options, unfamiliar flags, migration guides, plugin configuration, edge cases
-- DON'T USE for: basic generator syntax (`nx g @nx/react:app`), standard commands, things you already know
-- The `nx-generate` skill handles generator discovery internally - don't call nx_docs just to look up generator syntax
+- 运行任务（build / lint / test / e2e 等）一律通过 `nx`（`nx run` / `nx run-many` / `nx affected`），不要直接调底层工具
+- nx 命令必须加包管理器前缀（如 `pnpm nx build`、`pnpm nx test`），避免用全局安装的 CLI
+- 探索工作区、按变更跑校验时优先用现有 skill：`affected-ci`（affected 校验）、`coverage-gate`（覆盖率阈值）、`tri-framework-check`（三框架 API 对称）
+- 不确定 CLI flag 时先跑 `nx <command> --help`，不要猜
+- Nx 插件最佳实践可查 `node_modules/@nx/<plugin>/PLUGIN.md`（不是所有插件都有此文件，没有就跳过）
 
 <!-- nx configuration end-->

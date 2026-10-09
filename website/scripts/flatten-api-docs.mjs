@@ -116,6 +116,31 @@ export function plainTextMediaPackageLinks(content, mediaPackageNames) {
   return result;
 }
 
+/**
+ * 把「typedoc 当 media 复制的单个文件链接」重写到真实站点页，其余降级为纯文本。
+ *
+ * @remarks
+ * 源 README 指向仓库其他文件的链接（如 `../../website/docs/migration/history-sync-plugins.md`）
+ * 也会被 typedoc-plugin-markdown 当 media 处理：把目标文件复制进 `docs/api/_media/`、
+ * href 改成 `../_media/<file>`。文件不是站点文档页、不可路由，保留链接必成坏链。
+ * 已有站点页的按映射重写（保留链接价值）；没有站点页的参照包目录先例降级为纯文本。
+ * 非 `.md` 文件（图片、脚本等）不在 Docusaurus 的坏链检查范围内，原样保留。
+ */
+const MEDIA_FILE_LINK_MAP = {
+  // 包 README 页的源文件是 docs/api/<pkg>/README.md，按源文件路径指到 docs/migration/ 需上溯两层。
+  'history-sync-plugins.md': '../../migration/history-sync-plugins.md'
+};
+
+export function rewriteMediaFileLinks(content) {
+  let result = content;
+
+  for (const [file, target] of Object.entries(MEDIA_FILE_LINK_MAP)) {
+    result = result.replace(new RegExp(`\\]\\(\\.\\./_media/${escapeRegExp(file)}\\)`, 'g'), `](${target})`);
+  }
+
+  return result.replace(/\[([^\]]+)\]\(\.\.\/_media\/([^/)]+\.md)\)/g, (_, text) => text);
+}
+
 async function postProcessRootDocs() {
   const candidates = ['README.md', 'index.md'];
 
@@ -266,6 +291,7 @@ async function fixHtmlEntities(dirPath, packageNames, mediaPackageNames) {
       if (entry.name === 'README.md') {
         content = rewriteMediaPackageLinks(content, packageNames);
         content = plainTextMediaPackageLinks(content, mediaPackageNames);
+        content = rewriteMediaFileLinks(content);
       }
 
       // 在 h1 标题中处理特殊字符

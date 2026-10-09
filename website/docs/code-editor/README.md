@@ -87,13 +87,13 @@ const availableLanguageNames = SUPPORT_LANGUAGES.map(item => item.name);
 
 ## Props 参考
 
-| Prop       | 类型                  | 默认值        | 说明                     |
-| ---------- | --------------------- | ------------- | ------------------------ |
-| `value`    | `string`              | `''`          | 编辑器内容               |
-| `language` | `string`              | `'plaintext'` | 语言模式                 |
-| `theme`    | `'light' \| 'dark'`   | `'light'`     | 主题                     |
-| `readOnly` | `boolean`             | `false`       | 只读模式                 |
-| `onChange` | `(v: string) => void` | —             | 内容变化回调（React 用） |
+| Prop       | 类型                  | 默认值    | 说明                     |
+| ---------- | --------------------- | --------- | ------------------------ |
+| `value`    | `string`              | `''`      | 编辑器内容               |
+| `language` | `string`              | `'sql'`   | 语言模式                 |
+| `theme`    | `'light' \| 'dark'`   | `'light'` | 主题                     |
+| `readonly` | `boolean`             | `false`   | 只读模式                 |
+| `onChange` | `(v: string) => void` | —         | 内容变化回调（React 用） |
 
 ## 参考
 

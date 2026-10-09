@@ -12,7 +12,7 @@ Aiao 遵循 [semver 2.0](https://semver.org/lang/zh-CN/)：`主版本.次版本.
 
 ### 0.x 阶段（当前）
 
-项目当前处于 `0.x`（最新发布版本 `0.0.26`）。按 semver，**0.x 期间次版本即可包含破坏性变更**，公开 API 尚未冻结。1.0 发布即代表进入稳定维护，破坏性变更此后只能随主版本发布。
+项目当前处于 `0.x`（最新发布版本 `0.0.26`）。工作区内 `@aiao/rxdb-angular` 已单独抬到 `0.0.27`（其余包仍是 `0.0.26`）——这是有意为之的例外，口径见 [roadmap 零散收尾项](https://github.com/aiao-io/rxdb/blob/main/requirements/roadmap.md#零散收尾项不成故事随手可带)，不参与下文的同号叙述。按 semver，**0.x 期间次版本即可包含破坏性变更**，公开 API 尚未冻结。1.0 发布即代表进入稳定维护，破坏性变更此后只能随主版本发布。
 
 ### 统一版本
 
@@ -37,13 +37,14 @@ Aiao 遵循 [semver 2.0](https://semver.org/lang/zh-CN/)：`主版本.次版本.
 2. 废弃符号至少保留 **一个次版本**（1.0 后为一个主版本周期）再移除。
 3. 移除在破坏性版本中进行，并在[迁移指南](./migration/v1.md)记录。
 
-示例：
+示例（取自 `@aiao/rxdb` 的真实导出）：
 
 ```typescript
 /**
- * @deprecated 使用 {@link SQLiteChangeType} 替代。将在下一个主版本移除。
+ * @deprecated 保留仅为不破坏导出面：它既不在 {@link RxDBEventMap} 里，全仓也没有任何派发点，
+ * 订阅它永远收不到东西。要感知远端变化请用 {@link REMOTE_ENTITY_INVALIDATED_EVENT}。
  */
-export { SQLiteChangeType as SQliteChangeType } from './sqlite-backend.interface.js';
+export const REMOTE_CHANGES_PENDING_EVENT = 'REMOTE_CHANGES_PENDING' as const;
 ```
 
 ## 破坏性变更审查流程
