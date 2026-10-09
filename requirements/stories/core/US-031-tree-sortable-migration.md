@@ -1,7 +1,7 @@
 ---
 id: US-031
 title: 树形实体迁移到排序模块
-status: In Progress
+status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-10-03
