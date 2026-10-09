@@ -117,7 +117,8 @@ export const resolveDevToolsProviders = async (
   snapshotScenario: DevToolsSnapshotScenario | undefined,
   real: () => ReturnType<typeof createDesktopDevToolsProviders>
 ): Promise<
-  { readonly providerRegistry: DevToolsFakeProviderSet } | ReturnType<typeof createDesktopDevToolsProviders>
+  | { readonly providerRegistry: DevToolsFakeProviderSet & { readonly advanceScenarioIdle?: () => void } }
+  | ReturnType<typeof createDesktopDevToolsProviders>
 > => {
   if (providerSource === 'fake') {
     // Rust 的 plan_from_env 恒填 snapshotScenario（默认 ok），这里同值兜的是类型上的
@@ -127,6 +128,24 @@ export const resolveDevToolsProviders = async (
   }
   return real();
 };
+
+/**
+ * 驱动推进场景时钟用的事件名，与 `src-tauri/devtools_driver.js` 的 `SCENARIO_CLOCK_ADVANCE_EVENT` 一致。
+ *
+ * @remarks
+ * 推进事件与翻页 REQUEST 都由驱动从调试窗口按序发出、经同一条 IPC 流投递，主窗口按到达
+ * 顺序执行——「先推进、后翻页」因此是有保证的顺序，不再赌 0 ms 计时器与翻页请求谁先到 store。
+ */
+const SCENARIO_CLOCK_ADVANCE_EVENT = 'devtools:scenario-clock-advance';
+
+/**
+ * 把 expired 档的显式时钟推进接到驱动的推进事件上。
+ *
+ * @param advance - fake gear 的 {@link advanceScenarioIdle} 手柄
+ * @returns 退订手柄；监听随页面存活（刷新即整页销毁），调用方不必持有
+ */
+const connectScenarioClockAdvance = async (advance: () => void): Promise<() => void> =>
+  listen<null>(SCENARIO_CLOCK_ADVANCE_EVENT, () => advance());
 
 /**
  * 桌面文件后端的 storage 插件选项。
@@ -309,13 +328,23 @@ export default async () => {
   // 授权档与阶段 1 档位由 Rust 侧的注入脚本在页面脚本之前放好，展开进来即可 ——
   // 缺省时是空对象，交回库默认档。源档 = fake 时 provider 换整份 fake registry（AC#2）。
   const devtoolsConfig = devToolsRuntimeConfig();
+  const providers = await resolveDevToolsProviders(
+    devtoolsConfig.providerSource,
+    devtoolsConfig.snapshotScenario,
+    () => createDesktopDevToolsProviders({ transport, getStorage: () => rxdb.storage })
+  );
+  // expired 档的 idle 到期由驱动经事件**显式推进**（fake-provider-gear.ts 的 createScenarioClock）：
+  // 0 ms 真实计时器与下一次翻页请求谁先到 store 是事件循环的赌局，e2e 在慢 runner 上因此
+  // 偶发 timedOut。监听必须在 connector init 之前装好——驱动要等握手才推进，而那时这里
+  // 早已就绪；其余档（ok / busy / too_large 与真实档）没有推进手柄，不接线。
+  if ('providerRegistry' in providers && providers.providerRegistry.advanceScenarioIdle !== undefined) {
+    await connectScenarioClockAdvance(providers.providerRegistry.advanceScenarioIdle);
+  }
   const devtools = getDevToolsConnector({
     ...devtoolsConfig,
     transport: createTauriConnectorTransport(),
     // storage 延迟取：`rxdb.storage` 要等 `connect()` 才挂上，而这里还在 `init()` 之后一步。
-    providers: await resolveDevToolsProviders(devtoolsConfig.providerSource, devtoolsConfig.snapshotScenario, () =>
-      createDesktopDevToolsProviders({ transport, getStorage: () => rxdb.storage })
-    )
+    providers
   });
   devtools.init(rxdb, getEntityMetadata);
 

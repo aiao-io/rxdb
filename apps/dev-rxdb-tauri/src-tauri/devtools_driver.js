@@ -53,6 +53,8 @@
   const MAIN_LABEL = 'main';
   const MESSAGE_EVENT = 'devtools:message';
   const RESULT_EVENT = 'devtools:drive-result';
+  /** 推进主窗口场景时钟用的事件名，与 `setup_rxdb_desktop.ts` 的 `SCENARIO_CLOCK_ADVANCE_EVENT` 一致。 */
+  const SCENARIO_CLOCK_ADVANCE_EVENT = 'devtools:scenario-clock-advance';
   const SOURCE = '@aiao/rxdb-devtools';
   const PROTOCOL_V2 = 2;
   /**
@@ -137,11 +139,14 @@
   if (label !== DEVTOOLS_LABEL) return;
 
   // 档位由 Rust 侧的 `driver_init_script` 在驱动之前注入；release 二进制或没开开关时
-  // 键不存在 → 真实档。`providerSource` 之外的字段不由驱动消费：snapshot 场景与 VFS
-  // 强制已经定型在装配好的 provider 集合上，驱动只按「哪一档」选走查路线。
+  // 键不存在 → 真实档。走查路线只按 `providerSource` 分叉；`snapshotScenario` 只额外消费
+  // 一个值——expired 档的时钟推进信号（见 walkSnapshot）。场景与 VFS 强制的其余语义都
+  // 已经定型在装配好的 provider 集合上。
   const tierConfig = window.__aiaoRxdbDevToolsDriverConfig__;
   const providerSource =
     tierConfig && typeof tierConfig.providerSource === 'string' ? tierConfig.providerSource : 'real';
+  const snapshotScenario =
+    tierConfig && typeof tierConfig.snapshotScenario === 'string' ? tierConfig.snapshotScenario : 'ok';
 
   /** @type {string|null} 本次会话；由面板收到的 HANDSHAKE_ACK 给出。 */
   let sessionId = null;
@@ -201,6 +206,23 @@
       target: { kind: 'AnyLabel', label: MAIN_LABEL },
       event: RESULT_EVENT,
       payload: payload
+    });
+  }
+
+  /**
+   * 推进主窗口里的场景时钟（fake 档 expired 场景）。
+   *
+   * @remarks
+   * 走 `plugin:event|emit_to` 而不是发一帧：推进不是协议帧，混进 `devtools:message` 会让
+   * `panelFrameTypes` 多出一个不存在的「帧类型」。事件与随后的翻页 REQUEST 由本窗口按序
+   * 发出、经同一条 IPC 流投递，主窗口按到达顺序执行——推进先于翻页被 store 看到，这是
+   * 有保证的顺序，不再是 0 ms 计时器与翻页请求的先后赌局。
+   */
+  function advanceScenarioClock() {
+    return invoke('plugin:event|emit_to', {
+      target: { kind: 'AnyLabel', label: MAIN_LABEL },
+      event: SCENARIO_CLOCK_ADVANCE_EVENT,
+      payload: null
     });
   }
 
@@ -741,6 +763,11 @@
    * 双开的判据在 store 的释放语义上：再开一份首页会把上一份快照释放掉，旧 cursor
    * 于是只可能答 `snapshot_expired`——「换新快照后旧游标必须失效」正是 AC#2 要的
    * 生命周期证据。非法 pageSize 的拒绝发生在 store 开页之前，与在途快照无关。
+   *
+   * fake 档 expired 场景在第一次翻页**之前**显式推进场景时钟（见 fake-provider-gear.ts
+   * 的 createScenarioClock 与 setup_rxdb_desktop.ts 的 SCENARIO_CLOCK_ADVANCE_EVENT）：
+   * idle 回调在这时到期 → 快照释放 → 那次翻页稳定拿到 snapshot_expired。0 ms 真实计时器
+   * 与这条翻页谁先到 store 是事件循环的赌局（#102 windows-latest 的 timedOut 根因）。
    */
   async function walkSnapshot() {
     const first = await request('files', 'list', { snapshot: {} });
@@ -763,6 +790,9 @@
     let nextOffset = (typeof page.offset === 'number' ? page.offset : 0) + count;
     let pages = 1;
     let code = !complete && snapshotId === undefined ? 'walk_incomplete' : 'ok';
+    if (providerSource === 'fake' && snapshotScenario === 'expired' && !complete) {
+      await advanceScenarioClock();
+    }
     while (code === 'ok' && !complete) {
       if (pages >= MAX_SNAPSHOT_PAGES) {
         code = 'walk_incomplete';
