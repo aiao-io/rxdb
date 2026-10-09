@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-01
+updated: 2026-10-09
 tags: [plugin, bom, routing, cost]
 ---
 
@@ -26,7 +26,7 @@ tags: [plugin, bom, routing, cost]
 | C    | 工时模型：`setup_time` / `run_time` / `time_basis`（每件 / 每批 / 固定）                                 | ⬜   |
 | D    | 工序损耗 `operation_scrap` 与**每道工序各自的** `scrap_convention`（与 US-511 同一记法）                 | ⬜   |
 
-AC 的阶段归属：A 关闭 AC#1 / #2 / #7 / #8；B 关闭 AC#3 / #4；C 关闭 AC#5；D 关闭 AC#6 / #9。
+AC 的阶段归属：A 关闭 AC#1 / #2 / #7 / #8 / #10；B 关闭 AC#3 / #4；C 关闭 AC#5；D 关闭 AC#6 / #9。
 
 ## 范围边界
 
@@ -37,7 +37,8 @@ AC 的阶段归属：A 关闭 AC#1 / #2 / #7 / #8；B 关闭 AC#3 / #4；C 关�
 - 费率按 `(work_center, activity_type, valid_from)` 取值，取不到就报错，不以 0 兜底；币种随费率存，卷算时与上下文币种比对（[US-514](US-514-bom-cost-rollup.md) AC#10）
 - **路线一律落在本仓**：BOM 头的 `routing_id` 只能指向本仓 `routing`。不存在「路线由外部系统提供、本仓只存一个外部 ID」的半支持态；
   头可以不挂路线（`routing_id` 为 NULL，即无加工工序），但挂了就必须可解析
-- 工时三种基数（每件 / 每批 / 固定）在展开与卷算里各自正确
+- 工时三种基数（每件 / 每批 / 固定）在展开与卷算里各自正确；每件工时乘的是工序加工量（[US-514](US-514-bom-cost-rollup.md) 的 `W_op`），不是无损耗的父计划量
+- 工时、费率与工序损耗率按 [US-511 十进制值合同](US-511-bom-quantity-semantics.md#技术笔记)存取
 
 ### Out of Scope
 
@@ -67,7 +68,7 @@ AC 的阶段归属：A 关闭 AC#1 / #2 / #7 / #8；B 关闭 AC#3 / #4；C 关�
 
 **本故事存在的理由是两条悬空引用。** [US-520](US-520-bom-routing-operation.md) 的 AC#5
 要求 `operation_seq` 指向不存在的工序时拒绝——引用完整性要成立，被引用的那张表必须存在。
-[US-514](US-514-bom-cost-rollup.md) 的加工费项 `(setup + run) × rate(activity, work_center)`
+[US-514](US-514-bom-cost-rollup.md) 的加工费项 `hours(op, L) × rate(activity, work_center)`
 里，`setup` / `run` / `rate` 三个量没有一个在 BOM 侧。US-520 把路线本体列为 Out of Scope 是对的
 （挂接点与本体是两件可独立交付的事），但「由外部提供」不是一个可核对的状态。
 
