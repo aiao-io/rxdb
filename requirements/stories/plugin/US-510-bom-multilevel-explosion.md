@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-01
+updated: 2026-10-09
 tags: [plugin, bom, query, performance]
 ---
 
@@ -40,7 +40,9 @@ AC 的阶段归属：A 关闭 AC#1 / #2 / #11，以及 AC#7 / #10 中只关乎�
   [US-514](US-514-bom-cost-rollup.md) 成本与 [US-521](US-521-bom-erp-mrp-integration.md) 导出遇到 `truncated` 一律拒绝
 - 可达性表**只回答「能不能到」**：物料级、不带生效期，与 [US-509](US-509-bom-dag-cycle-detection.md) 判环用的是同一张表；
   它对任何解析上下文都是上界，查询用它剪枝，路径与生效期仍由 CTE 按上下文求
-- 可达性表的维护入口：行发生项的插入、删除，以及 `child_item_id` / `flow_direction` 更新；生效期变化与发布**不是**入口（见技术笔记）
+- 可达性表的维护入口：行发生项的插入、删除（含 ECN 撤回 / 取消的级联删除），以及 `child_item_id` / `flow_direction` 更新；
+  生效期变化与发布**不是**入口（见技术笔记）。决定作用域与父端点的结构归属列创建后不可改（[US-507](US-507-bom-graph-skeleton.md) AC#13），
+  所以也不是入口
 
 ### Out of Scope
 

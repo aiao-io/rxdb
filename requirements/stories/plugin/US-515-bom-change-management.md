@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-01
+updated: 2026-10-09
 tags: [plugin, bom, change-management]
 ---
 
@@ -28,12 +28,14 @@ tags: [plugin, bom, change-management]
   ECN 的单位是**发生项**，改量、换子件都是「旧发生项 `effective_to` 截止 + 新发生项 `effective_from` 起」
 - `effective_from` / `effective_to` 从 `ecn.effective_date` **派生**，不手填
 - **禁止追溯生效**（同 [US-508](US-508-bom-view-resolution.md)）：ECN 发布时生效日不得早于发布当日
-- **取消与改期只在生效前**：`released` 的 ECN 可取消或改期；`effective` 之后不可取消、不可提前，只能另开一张更正 ECN
-- **ECN 发布原子校验**：发布时对所有受影响头的聚合（US-507 的发生项不重叠与位号、US-509 环、US-512 替代组）整批校验，
-  任一冲突整批回滚，错误点名冲突的头与发生项
-- **已发布头的写入协议**（见技术笔记）：成员表触发器对已发布头只放行挂在 `draft` ECN 上的写入与 ECN 状态转移的级联，
-  [US-507](US-507-bom-graph-skeleton.md) AC#10 的拒绝在此基础上追加放行，不是替换
-- **取消的级联**：取消删掉该 ECN 引入的发生项、清掉它打的截止标记并恢复 `effective_to`；被后续 ECN 截止过的引入发生项不可回退（AC#12）
+- **取消与改期只在生效前**：`released` 的 ECN 可取消或改期；`effective` 之后不可取消、不可提前，只能另开一张更正 ECN。
+  改期不得越过同一逻辑行上后继 ECN 的生效日（AC#20），越过即拒绝并点名后继 ECN
+- **保存期与发布期的分工**（见技术笔记「哪些错误在保存、哪些在发布」）：单行 CHECK、结构归属不可改、发生项区间排他与判环是逐行即时约束，
+  ECN 草稿的每次写入都要满足；ECN 发布时只对所有受影响头的**跨行聚合**（US-507 位号、US-511 阶梯、US-512 替代组、US-520 工序分摊，
+  按生效域切片）整批校验，任一冲突整批回滚，错误点名冲突的头与发生项
+- **已发布头的写入协议**（见技术笔记）：成员表触发器对已发布头只放行「表 × 操作」矩阵内的形态——挂在 `draft` ECN 上的新逻辑行、
+  新发生项及其子表、截止标记，以及 ECN 状态转移的级联；[US-507](US-507-bom-graph-skeleton.md) AC#10 的拒绝在此基础上追加放行，不是替换
+- **撤回与取消的级联**：删掉该 ECN 引入的子表行、发生项与逻辑行，清掉它打的截止标记并恢复 `effective_to`；被后续 ECN 截止过的引入发生项不可回退（AC#12）
 - 影响面查询（经 where-used）与变更前后行集差异
 
 ### Out of Scope
@@ -53,13 +55,20 @@ tags: [plugin, bom, change-management]
 | 6   | 两个 ECN 改同一逻辑行                                  | 先后生效                                                            | 该行发生项按生效日形成不重叠的时间序列（配合 US-508 AC#2）                       | ⬜   |
 | 7   | ECN 已 `effective`                                     | 取消或提前生效日                                                    | 拒绝；错误提示改走更正 ECN                                                       | ⬜   |
 | 8   | 当日为 2026-10-01                                      | 发布生效日为 2026-09-15 的 ECN                                      | 拒绝（追溯生效）                                                                 | ⬜   |
-| 9   | 一个 ECN 改 3 张头，其中一张的新发生项与现有发生项重叠 | 发布                                                                | 整批回滚，3 张头都不变；错误点名冲突头与发生项                                   | ⬜   |
-| 10  | 一个 ECN 的变更使 `consume` 子图成环                   | 发布                                                                | 整批回滚，错误用 US-509 的环错误码                                               | ⬜   |
+| 9   | 一个 ECN 改 3 张头，其中一张的新发生项位号数与 `qty` 不符 | 发布                                                                | 整批回滚，3 张头都不变；错误点名冲突头与发生项                                   | ⬜   |
+| 10  | 已存 A→B；一张 `draft` ECN                             | 插入挂该 ECN 的 B→A 发生项                                          | 保存即拒绝，错误用 US-509 的环错误码；不等到发布（草稿 ECN 的发生项在并集里）    | ⬜   |
 | 11  | ECN 已 `effective` 后发现错误                          | 发布更正 ECN（生效日 ≥ 当日）                                       | 原 ECN 与原发生项不变；更正 ECN 截止错误发生项并引入正确发生项，历史解析结果不变 | ⬜   |
 | 12  | `released` 未生效的 ECN A 引入的发生项已被 ECN B 截止  | 取消 A                                                              | 拒绝；错误点名 B——先取消 B 才能取消 A                                            | ⬜   |
 | 13  | 已发布头；一张 `draft` ECN                             | 直连 SQL 插入挂该 ECN 的发生项                                      | 接受；ECN 发布前解析看不到它（US-508 AC#12）                                     | ⬜   |
 | 14  | 已发布头；一张 `draft` ECN                             | 直连 SQL 改发生项 `qty`，或插入 `ecn_in_id` 指向已发布 ECN 的发生项 | 拒绝；协议外的形态                                                               | ⬜   |
 | 15  | 已发布头的发生项已被 `draft` ECN A 打截止标记          | 另一张 `draft` ECN B 再截止它                                       | 拒绝；同一发生项只能有一个截止方                                                 | ⬜   |
+| 16  | 发生项 o 由仍为 `draft` 的 ECN A 引入                  | 另一张 `draft` ECN B 截止 o                                         | 拒绝；只能截止 `ecn_in_id` 为空或已发布的发生项，先发布 A                        | ⬜   |
+| 17  | 已发布头 o1 `[2026-01-01, +∞)`；`draft` ECN E 生效日 2026-11-01 | ① 给 o1 打 E 的截止标记 ② 插入挂 E 的 o2 `[2026-11-01, +∞)`；按 2026-12-01 解析 | ①② 都接受，o1 的存储区间收窄为 `[2026-01-01, 2026-11-01)`；E 发布前解析得 o1（未发布的截止不截止），不得 o2 | ⬜   |
+| 18  | 同 #17 的前置                                          | 先插入 o2，再给 o1 打截止标记                                       | 插入 o2 即被区间排他拒绝；SQLite 与 PGlite 同一错误类，错误给出冲突区间          | ⬜   |
+| 19  | 接 #17 ①②                                              | ① 先删 o2、再清 o1 的截止标记 ② 反过来先清截止标记                  | ① 接受，o1 恢复 `[2026-01-01, +∞)` ② 清截止即被区间排他拒绝（o2 仍在）           | ⬜   |
+| 20  | 同一逻辑行：`released` 未生效 ECN A（2026-11-01，o1→o2）、B（2026-12-01，o2→o3） | ① A 改期到 2026-12-15 ② A 改期到 2026-11-15                     | ① 拒绝，点名 B ② 接受：级联先把 o2 收窄为 `[2026-11-15, 2026-12-01)`，再把 o1 放宽到 2026-11-15 | ⬜   |
+| 21  | 已发布头 H；`draft` ECN E                              | E 新增逻辑行 40，并建其发生项、位号、替代组成员与工序分摊；发布 E；再建同样的 E′ 后取消 | 都可构造；E 发布后整组按生效日可见；取消 E′ 后其逻辑行、发生项与子表全部删除，不留空逻辑行 | ⬜   |
+| 22  | 已发布头                                               | 直连 SQL：改替代组 `strategy`、改成员概率、给非 ECN 发生项加工序分摊、插入不挂 ECN 的逻辑行、改头的 `cost_lot_qty` | 全部拒绝（`BomWriteProtocolError`）；头字段要改须发布新修订                       | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -78,33 +87,55 @@ AC#3 与 AC#5 合起来确立单一真相源：`ecn.effective_date` 是源，发
 所以生效是单向门：之后的修正只能是**向前**生效的更正 ECN（AC#11），旧的错误在历史上如实保留。
 `released` 未生效的改期与取消不碰过去，不受此限（AC#3 / #4）。
 
-**发布是校验点，不是逐行写入。** 一次 ECN 可能同时截止旧发生项、引入新发生项、跨多张头；逐行校验会在中间态看到
-「旧的已截止、新的未插入」的空窗或「新的已插入、旧的未截止」的重叠。所以 ECN 走与 US-507 头发布同一机制：
-草稿期可暂不合法，`draft → released` 时对所有受影响头的聚合整批校验，一处冲突整批回滚（AC#9 / #10）。
+**哪些错误在保存、哪些在发布。** 一次 ECN 可能同时截止旧发生项、引入新发生项、跨多张头。两类约束分开处理：
+
+- **逐行约束在保存时生效，ECN 草稿也不例外**：单行 CHECK、结构归属不可改（[US-507](US-507-bom-graph-skeleton.md) AC#13）、
+  同一逻辑行的发生项区间排他（[US-030](../core/US-030-declarative-storage-constraints.md) 阶段 C 两后端都按行即时检查、不提供延迟检查）
+  与 `consume` 并集判环（[US-509](US-509-bom-dag-cycle-detection.md)）。存储里的区间是**候选时间线**——「假设所有草稿 ECN 都已发布」：
+  截止标记写入时同一语句把 `effective_to` 收窄为 ECN 生效日，解析时由 [US-508](US-508-bom-view-resolution.md) 按 ECN 状态裁决可见性
+  （指向未发布 ECN 的截止不截止）。于是正常替换只有一种写入顺序：**先收窄旧的、再插入新的**；撤回、取消与改期的级联同理，
+  **删除先于放宽、收窄先于放宽**（AC#17～#20）。顺序错了，在保存时就被区间排他拒绝，两后端同一错误。
+- **跨行聚合在发布时生效**：位号计数、阶梯、替代组、工序分摊在草稿里允许暂时不合法，ECN `draft → released` 时按生效域切片
+  对所有受影响头整批校验，一处冲突整批回滚（AC#9）。
+
+判环不在发布时重检：并集本就包含草稿 ECN 的发生项，发布不改变并集（与 US-509 AC#11 同理），成环的草稿根本存不进来（AC#10）。
+早先写的「草稿可暂不合法、发布时校验发生项重叠」与 US-030 的即时排他、US-507 AC#9 不是同一个合同，已收窄为只放宽跨行聚合。
 AC#4 的「不留半生效状态」需要同一事务边界：一次 ECN 取消可能涉及跨多张 BOM 的数十个发生项。
 
 ### 已发布头的写入协议
 
-[US-507](US-507-bom-graph-skeleton.md) AC#10 让已发布头拒绝一切直接改写，可 ECN 的落地本身就是往已发布头里写发生项——
+[US-507](US-507-bom-graph-skeleton.md) AC#10 让已发布头拒绝一切直接改写，可 ECN 的落地本身就是往已发布头里写数据——
 两条放在一起若不划界，要么 ECN 写不进去，要么触发器开出一个能绕过发布校验的口子。划界的原则是：
-**已发布头上只接受「未生效的草稿」与「状态转移的级联」**，前者在 ECN 发布前不可见、发布时整批校验，
-后者由 ECN 状态转移触发器自己执行。成员表触发器对已发布头的放行形态穷举如下，其余一律拒绝：
+**已发布头上只接受「挂在草稿 ECN 上的新东西」与「状态转移的级联」**，前者在 ECN 发布前不可见、发布时整批校验，
+后者由 ECN 状态转移触发器自己执行。为了让「新东西」可识别，ECN 能新建的行都带 `ecn_in_id`：发生项、逻辑行与替代组；
+位号、替代组成员与工序分摊挂在发生项上，随所属发生项的 `ecn_in_id` 判定。
 
-| 写入                                    | 放行条件                                                                                   |
-| --------------------------------------- | ------------------------------------------------------------------------------------------ |
-| 插入发生项                              | `ecn_in_id` 指向 `draft` ECN；`effective_from` / `effective_to` 由 ECN 派生（AC#5）        |
-| 发生项 `ecn_out_id` 由空改为 X          | X 是 `draft` ECN；其余列不变；该发生项当前 `effective_to = +∞`（AC#15）                    |
-| 改 `effective_from` / `effective_to`    | 新值恰等于由 `ecn_in` / `ecn_out` 的 `effective_date` 派生出的值（发布、改期、取消的级联） |
-| 删除发生项，或 `ecn_out_id` 由 X 改回空 | 对应 ECN 为 `draft`（撤回草稿）或 `cancelled`（取消级联，AC#4）                            |
-| 位号的增删                              | 所属发生项的 `ecn_in_id` 指向 `draft` ECN                                                  |
+下表是成员表在已发布头下的**全部**放行形态（草稿头下除结构归属列外均可自由编辑，归属列见 US-507 AC#13）；表外一律拒绝（`BomWriteProtocolError`）：
 
-改 `qty`、换子件、改位号都不在表里：按 In Scope，那是「截止旧发生项 + 引入新发生项」，不是原地改写（AC#14）。
+| 表                         | 操作                         | 已发布头下的放行条件                                                                                                                     |
+| -------------------------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `bom_header`               | UPDATE                       | 只有 `draft → released` 状态转移；其余列（`base_qty` / `base_uom` / 装配损耗 / `cost_lot_qty` / `routing_id` 等）不可改，要改须发布新修订 |
+| `bom_header`               | DELETE                       | 拒绝                                                                                                                                     |
+| `bom_line`                 | INSERT                       | `ecn_in_id` 指向 `draft` ECN（无发生项的逻辑行对解析不可见）                                                                             |
+| `bom_line`                 | DELETE                       | `ecn_in_id` 指向的 ECN 为 `draft`（撤回）或 `cancelled`（取消级联），且其发生项已先删除                                                   |
+| `bom_line`                 | UPDATE                       | 拒绝                                                                                                                                     |
+| `bom_line_occurrence`      | INSERT                       | `ecn_in_id` 指向 `draft` ECN；`effective_from` / `effective_to` 由 ECN 派生（AC#5）                                                      |
+| `bom_line_occurrence`      | `ecn_out_id` 由空改为 X      | X 是 `draft` ECN；本发生项 `ecn_in_id` 为空或已发布（AC#16）、当前 `effective_to = +∞`（AC#15）；同一语句把 `effective_to` 收窄为 X 的生效日，其余列不变 |
+| `bom_line_occurrence`      | 改 `effective_from` / `effective_to` | 新值恰等于由 `ecn_in` / `ecn_out` 的 `effective_date` 派生出的值（改期、撤回、取消的级联）                                         |
+| `bom_line_occurrence`      | DELETE，或 `ecn_out_id` 由 X 改回空 | 对应 ECN 为 `draft`（撤回）或 `cancelled`（取消级联，AC#4）；清截止时 `effective_to` 同步恢复                                   |
+| `bom_line_designator`      | INSERT / DELETE              | 所属发生项的 `ecn_in_id` 指向 `draft` ECN（DELETE 另含取消级联）                                                                         |
+| `bom_substitute_group`     | INSERT / DELETE              | `ecn_in_id` 指向 `draft` ECN（DELETE 另含取消级联）；组属性发布后不可改，改策略即由 ECN 新建一组                                         |
+| 替代组成员                 | INSERT / DELETE              | 成员引用的发生项 `ecn_in_id` 指向 `draft` ECN（DELETE 另含取消级联）；引用已截止发生项的旧成员保留，见 [US-512](US-512-bom-substitute-group.md) |
+| `bom_line_operation_split` | INSERT / DELETE              | 所属发生项的 `ecn_in_id` 指向 `draft` ECN（DELETE 另含取消级联）                                                                         |
+| 以上各表                   | 其余 UPDATE                  | 拒绝                                                                                                                                     |
+
+改 `qty`、换子件、改位号、改替代概率都不在表里：按 In Scope，那是「截止旧发生项 + 引入新发生项（连同它的子表）」，不是原地改写（AC#14 / #22）。
 
 这张表让直连 SQL 与插件 API 走**同一条路**：直连写进来的东西同样只是挂在草稿 ECN 上的待校验数据，
 绕不过 `draft → released` 的整批校验。可见性由 [US-508](US-508-bom-view-resolution.md) 承担——
 挂在 `draft` / `cancelled` ECN 上的发生项不入解析结果，指向未发布 ECN 的截止标记不截止。
-环检测同理：[US-509](US-509-bom-dag-cycle-detection.md) 的并集只算可见发生项，ECN 取消即级联删除其引入的发生项，
-它们随之退出并集。
+环检测**不**按可见性：[US-509](US-509-bom-dag-cycle-detection.md) 的并集包含全部已存发生项（草稿头、`draft` ECN、未生效的 `released` ECN），
+解析不可见不等于判环不可见；ECN 撤回或取消时级联删除其引入的发生项，它们随之退出并集（US-509 AC#15 / #16）。
 
 首轮切片没有 `ecn` 实体，`ecn_in_id` / `ecn_out_id` 恒空，上表无一可放行，US-507 AC#10 就是「全部拒绝」；
 本故事落地时只往触发器里**追加**上表的放行分支。
@@ -138,6 +169,8 @@ AC#4 的「不留半生效状态」需要同一事务边界：一次 ECN 取消�
 - [epic-009 BOM 领域模型](../../epics/epic-009-bom-domain-model.md)
 - [US-507 BOM 图骨架](US-507-bom-graph-skeleton.md) — 前置；行发生项与发布校验机制
 - [US-508 BOM 视图解析](US-508-bom-view-resolution.md) — 前置；禁止追溯生效
-- [US-509 DAG 约束与环路检测](US-509-bom-dag-cycle-detection.md) — AC#10 的环错误码；并集只算可见发生项
+- [US-509 DAG 约束与环路检测](US-509-bom-dag-cycle-detection.md) — AC#10 的环错误码；并集含全部已存发生项
+- [US-030 实体元数据层的声明式存储约束](../core/US-030-declarative-storage-constraints.md) — 发生项区间排他按行即时、不延迟（AC#17～#20 的写入顺序由此而来）
+- [US-512 替代组与替代策略](US-512-bom-substitute-group.md) — 替代组的切片校验与成员随发生项的生命周期
 - [US-510 多级展开与 where-used 反查](US-510-bom-multilevel-explosion.md) — 前置；AC#1 影响面
 - [`WorkingTreeDiffOptions`](../../../packages/rxdb-plugin-working-tree/src/working-tree/diff.ts) — 单轴 diff 的证据锚点

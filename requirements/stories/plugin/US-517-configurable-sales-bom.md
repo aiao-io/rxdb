@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-01
+updated: 2026-10-09
 tags: [plugin, bom, configuration]
 ---
 
@@ -35,7 +35,8 @@ tags: [plugin, bom, configuration]
 
 - **约束求解器实现**——本故事只定数据模型与求解契约，求解可外挂
 - 变式定价与报价
-- 配置界面（→ US-522）
+- 配置界面——本 Epic 不做：本故事只提供模型与 API，[US-522](US-522-bom-tri-framework-ui.md) 与 [US-525](US-525-bom-end-to-end-demo.md) 也都不含；
+  需要时由驱动场景另立故事，写明阶段、前置、三端范围与选择 / 冲突 / 缺参的验收
 
 ## 验收标准
 

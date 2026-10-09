@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-01
+updated: 2026-10-09
 tags: [plugin, bom, schema]
 ---
 
@@ -25,7 +25,7 @@ tags: [plugin, bom, schema]
 | B    | `bom_header`（含 `draft` / `released` 状态）+ `bom_line`（逻辑行）+ `bom_line_occurrence`（行发生项）；`child_revision_id` NULL=imprecise | ⬜   |
 | C    | `bom_line_designator` 位号子表（挂行发生项）+ 位号数与 `qty` 的一致性，在发布转移上校验                                                   | ⬜   |
 
-阶段归属：A 关闭 AC#6 / #7；B 关闭 AC#1 / #8 / #9 / #11 与 AC#10 的发生项部分；C 关闭 AC#4 / #5 / #12 与 AC#10 的位号部分。
+阶段归属：A 关闭 AC#6 / #7；B 关闭 AC#1 / #8 / #9 / #11 / #13 与 AC#10 的发生项部分；C 关闭 AC#4 / #5 / #12 与 AC#10 的位号部分。
 AC#2 / #3 要 [US-508](US-508-bom-view-resolution.md) 的 imprecise 解析规则，随 epic-009 首轮第 2 步关闭。
 
 ## 范围边界
@@ -38,13 +38,19 @@ AC#2 / #3 要 [US-508](US-508-bom-view-resolution.md) 的 imprecise 解析规则
   - `bom_line` = 逻辑行，「这条设计行是谁」，身份 `(bom_header_id, line_no)` 唯一，**`(parent, child)` 不唯一**；
   - `bom_line_occurrence` = 行发生项，「这条行在 `[effective_from, effective_to)` 取哪组值」——`child_item_id`、
     `child_revision_id`、`qty` 等随时间变化的值都在这一层；同一逻辑行的发生项区间**不得重叠**（无论子件是否相同）
+- **结构归属列创建后不可改**（见技术笔记「结构归属列」）：`item_revision.item_id`；`bom_header` 的 `parent_revision_id`、`bom_type`、`org_id`；
+  `bom_line.bom_header_id`；`bom_line_occurrence.bom_line_id`；以及子表指向所属发生项或组的列（位号、替代组成员、工序分摊）。
+  草稿头里也不可改——要「移动」就在草稿里删除后重建，走已有的逐行校验，不开第二条迁移路径
+- 发生项的 `qty` 按 [US-511 十进制值合同](US-511-bom-quantity-semantics.md#技术笔记)以规范十进制串存储，不经 `number`
 - 子件引用二态：`child_revision_id IS NULL` = imprecise（跟随评估日已发布的最新修订，规则见 [US-508](US-508-bom-view-resolution.md)）／
   非 NULL = precise（锁版）；`child_revision_id` 必须属于本发生项的 `child_item_id`
 - 位号（reference designator）作为**行发生项**的 1:N 子表，只对声明 `designator_managed = true` 的离散计数行要求位号数等于名义 `qty`
   （名义用量，不是损耗后毛需求）；`qty` 是需求量的唯一真相源
 - 随修订走的属性挂 `item_revision`（`default_phantom`），随物料走的挂 `item`（`serialized`）
-- **发布边界**：`draft` 头下的行与子表可自由编辑、允许聚合暂时不合法；`draft → released` 的状态转移是**原子的存储层校验点**，
-  已发布头的成员只接受 [US-515 写入协议](US-515-bom-change-management.md#已发布头的写入协议)内的形态（挂在 `draft` ECN 上的新发生项与截止标记，以及 ECN 状态转移的级联），其余改写一律拒绝；
+- **发布边界**：`draft` 头下的行与子表可自由编辑，只有**跨行聚合**（位号计数、替代组、工序分摊、阶梯重叠）允许暂时不合法；
+  单行 CHECK、同一逻辑行的发生项区间排他（AC#9）与判环（[US-509](US-509-bom-dag-cycle-detection.md)）在草稿里同样逐行即时生效。
+  `draft → released` 的状态转移是**原子的存储层校验点**，
+  已发布头的成员只接受 [US-515 写入协议](US-515-bom-change-management.md#已发布头的写入协议)「表 × 操作」矩阵内的形态（挂在 `draft` ECN 上的新逻辑行、新发生项及其子表、截止标记，以及 ECN 状态转移的级联），其余改写一律拒绝；
   首轮没有 `ecn` 实体，已发布头的成员写入全部拒绝，US-515 落地时只**追加**放行形态，不改这条拒绝
 
 ### Out of Scope
@@ -71,6 +77,7 @@ AC#2 / #3 要 [US-508](US-508-bom-view-resolution.md) 的 imprecise 解析规则
 | 10  | 已发布头                                                              | 直连 SQL 改其发生项 `qty`、删位号、增不挂 `draft` ECN 的发生项 | 全部拒绝；只放行 US-515 写入协议内的形态（首轮无 ECN，全部拒绝）         | ⬜   |
 | 11  | 发生项 `child_item_id = B`                                            | `child_revision_id` 指向 C 的修订                              | 拒绝：修订不属于子件                                                     | ⬜   |
 | 12  | 质量单位（kg）行，未声明 `designator_managed`                         | 不挂位号并发布                                                 | 接受；位号计数规则不适用于非位号管理行                                   | ⬜   |
+| 13  | 组织 X 的 `draft` 头有 A→B，组织 Y 的 `draft` 头有 B→A                | 直连 SQL 逐一更新：Y 头的 `org_id` 改为 X、头的 `bom_type`、`parent_revision_id`、`bom_line.bom_header_id`、发生项的 `bom_line_id`、修订的 `item_id` | 全部拒绝（`BomWriteProtocolError`，点名列）；X 内不出现环，`bom_reach` 零写入 | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -110,6 +117,12 @@ ECN 差异、历史展开与实例来源都会丢失。于是：
   「同一位置同时用两种子件」必须开两条逻辑行；
 - 位号、替代组成员、`bom_map`、实例来源一律引用**发生项** ID：它们描述的是「那一段时间的那组值」。
 
+**结构归属列。** 判环（[US-509](US-509-bom-dag-cycle-detection.md)）与可达性维护（[US-510](US-510-bom-multilevel-explosion.md)）的入口是发生项写入；
+但图的作用域与父端点并不只由发生项决定。组织 X 有 A→B、组织 Y 有 B→A，把 Y 的头改到 X，不碰任何发生项就在 X 内成环；
+改头的 `bom_type`、把逻辑行挂到另一张头、把发生项挂到另一条逻辑行、改修订所属物料，同样会悄悄改变所属图或父端点（AC#13）。
+两条路：给每一列都配「旧作用域删除 + 新作用域插入」的原子重检，或者让这些列创建后不可改。取后者——前者要为每一列穷举迁移协议，
+后者只需在 UPDATE 触发器里拒绝，而「移动」本来就可以表达为草稿里的删除加重建，走已有校验。
+
 另一条路——每次变更都新建父修订——同样自洽，但会把 [US-515](US-515-bom-change-management.md) AC#6 的
 「同一行时间序列」改成跨头比对；选同头发生项是因为它让 ECN 的差异单位与存储单位一致。
 
@@ -136,7 +149,7 @@ SQLite 也没有事务提交期触发器。所以落点是**状态转移**：
   不扩展 [US-030](../core/US-030-declarative-storage-constraints.md) 为跨表规则引擎。
 
 **关闭条件**：逻辑行 `(bom_header_id, line_no)` 唯一、`(parent_revision_id, child_item_id)` 不唯一、
-同一逻辑行发生项区间不重叠，三条同时在存储层成立；位号聚合从空草稿可构造、非法不可发布、发布后不可直连改写。
+同一逻辑行发生项区间不重叠，三条同时在存储层成立；结构归属列创建后不可改；位号聚合从空草稿可构造、非法不可发布、发布后不可直连改写。
 
 ## 价值待证
 
@@ -154,3 +167,4 @@ SQLite 也没有事务提交期触发器。所以落点是**状态转移**：
 - [US-030 实体元数据层的声明式存储约束](../core/US-030-declarative-storage-constraints.md) — 前置：阶段 A 的 SQLite 版本门槛（US-030 AC#7，本故事 AC#5 / #10 的触发器动态消息）与阶段 C（本故事 AC#9 的发生项区间排他）；跨行聚合不在其范围
 - [US-509 DAG 约束与环路检测下沉存储层](US-509-bom-dag-cycle-detection.md) — 插件触发器先例；SQLite 宿主版本门槛
 - [US-515 变更管理](US-515-bom-change-management.md) — 已发布头的写入协议（AC#10 的放行形态）
+- [US-511 展开数量正确性](US-511-bom-quantity-semantics.md) — `qty` 的十进制值合同

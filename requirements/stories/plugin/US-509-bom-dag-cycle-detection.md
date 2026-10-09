@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-06
+updated: 2026-10-09
 tags: [plugin, bom, graph, integrity]
 ---
 
@@ -23,9 +23,11 @@ tags: [plugin, bom, graph, integrity]
 
 - **约束作用域（保守政策）**：同一 `(bom_type, org_id)` 内，**所有已存储的 `consume` 行发生项**按物料级
   （`parent_item_id → child_item_id`）取并集，这张并集图无环。不区分修订、日期、备选与配置，草稿（含挂在 `draft` ECN 上的发生项）也计入，
-  见技术笔记「为什么约束并集」。ECN 取消时级联删除其引入的发生项（[US-515](US-515-bom-change-management.md)），它们随之退出并集
-- 插入发生项、更新其 `child_item_id` / `flow_direction` 时的可达性检查：子件是否已能到达父件；
-  `bom_header.parent_revision_id` 与修订的 `item_id` 创建后不可改，于是这两处不需要再挂检查
+  见技术笔记「为什么约束并集」。**解析不可见 ≠ 判环不可见**：草稿头、`draft` ECN 与未到生效日的 `released` ECN 引入的发生项对解析不可见
+  （[US-508](US-508-bom-view-resolution.md)），但都已存储，都在并集里；只有 ECN 撤回或取消时级联删除的发生项（[US-515](US-515-bom-change-management.md)）随之退出并集
+- 插入发生项、更新其 `child_item_id` / `flow_direction` 时的可达性检查：子件是否已能到达父件。这是改变并集图的**唯一**入口：
+  决定作用域与父端点的结构归属列——修订的 `item_id`，头的 `parent_revision_id` / `bom_type` / `org_id`，逻辑行的 `bom_header_id`，
+  发生项的 `bom_line_id`——创建后不可改（[US-507](US-507-bom-graph-skeleton.md) AC#13），于是不需要为它们再挂检查
 - 自反边（`child_item_id = parent_item_id`）由同一个可达性触发器拒绝：它是路径长度 0 的退化环（子件「已能到达」父件），
   不另设 CHECK，也不依赖 [US-030](../core/US-030-declarative-storage-constraints.md)
 - 无闭包表时的递归 CTE 兜底，带 `depth` 硬上限防脏数据
@@ -59,7 +61,10 @@ tags: [plugin, bom, graph, integrity]
 | 10  | A→B 在 EBOM                              | 在同 org 的 MBOM 插入 B→A                       | 接受：作用域是 `(bom_type, org_id)`                                                          | ⬜   |
 | 11  | B 的行发生项 imprecise 引用 C            | C 发布新修订                                    | 无需重检：物料级并集图未变，不可能激活未校验的环                                             | ⬜   |
 | 12  | 任一 BOM 实体                            | 为其声明同步配置                                | 配置校验即拒绝，错误点名「BOM 实体首轮不参与同步」                                           | ⬜   |
-| 13  | 导出的 PG DDL 部署到真实 PostgreSQL      | 两个连接并发分别写 A→B、B→A                     | 至多一条提交，另一条被拒或在锁后重检失败                                                     | ⬜   |
+| 13  | 导出的 PG DDL 部署到真实 PostgreSQL      | Read Committed 下两个连接并发分别写 A→B、B→A；再各起一个**提前建立快照**的 Repeatable Read 事务与一个 Serializable 事务写同样的反向边 | Read Committed：至多一条提交，另一条在锁后重检失败；Repeatable Read / Serializable：触发器拒绝，错误点名隔离级别，两条反向边不会都提交 | ⬜   |
+| 14  | 组织 X 有 A→B、组织 Y 有 B→A                 | 直连 SQL 把 Y 的头 `org_id` 改为 X，或改头的 `bom_type`、把逻辑行挂到 X 的头、把发生项挂到 X 的逻辑行 | 全部拒绝（US-507 AC#13 的不可改列），X 内不成环；`bom_reach` 零写入                         | ⬜   |
+| 15  | 已发布头有 A→B；一张 `draft` ECN            | 在另一张已发布头下插入挂该 ECN 的 B→A               | 写入即拒绝（`BomCycleError`），不等 ECN 发布——draft ECN 的发生项对解析不可见，但在并集里            | ⬜   |
+| 16  | B→A 由一张 `released` 未生效 ECN 引入        | 取消该 ECN；再插入 B→A 的反向边 A→B                 | 取消后 B→A 的发生项被级联删除、退出并集与 `bom_reach`；随后 A→B 接受                       | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -135,7 +140,14 @@ ECN 改期、备选切换都会在**没有任何行写入**的情况下改变解
 - 本地适配器（SQLite 家族、PGlite）是单写者，触发器内的可达性检查与写入在同一事务内串行，不存在两个快照互相看不见的问题。
 - 远端 PostgreSQL 的多个事务各自在快照内检查、各自写入反向边，都看不到对方未提交的写入——「有触发器」不等于并发安全。
   所以 AC#7 导出的 DDL 在触发器开头取 `(bom_type, org_id)` 级的 `pg_advisory_xact_lock`，同一作用域的写入串行化；
-  AC#13 在真实 PostgreSQL 上验证，不能拿 PGlite 的单连接执行模型代替。导出 DDL **不改变**本插件在 `http` / `supabase`
+  AC#13 在真实 PostgreSQL 上验证，不能拿 PGlite 的单连接执行模型代替。
+- **拿锁不等于刷新快照，所以隔离级别是合同的一部分。** advisory lock 是应用定义的锁（PostgreSQL 手册 13.3.5），只让写入排队；
+  Repeatable Read 在首条非事务控制语句就固定快照（13.2.2），第二个事务拿到锁之后的可达性 SELECT 仍可能用旧快照，看不到第一个事务已提交的 A→B。
+  Read Committed 下触发器里每条语句取新快照，锁后的 SELECT 能看到。导出 DDL 只支持 Read Committed：触发器开头检查
+  `current_setting('transaction_isolation')`，不是 `read committed` 即 `RAISE`，而不是只在使用说明里写一句（AC#13）。
+  Serializable 理论上可由 SSI 冲突中止兜住，但要使用方实现重试协议，首轮不承诺，一并拒绝。
+  一个事务跨多个 `(bom_type, org_id)` 写入时按写入顺序逐个取锁，交叉顺序的死锁由 PostgreSQL 检出并中止其中一个事务，不会两条都提交。
+  这一段是依据官方语义的推断，未连真实 PostgreSQL 复现；AC#13 落地即验证。导出 DDL **不改变**本插件在 `http` / `supabase`
   上的支持态：`init()` 仍 fail-fast（AC#6），DDL 只保护使用方自己的远端写入端。
 - 两个离线客户端分别新增 A→B 与 B→A，本地都合法、合并后成环，而且是两条不同记录，普通行冲突检测抓不到。
   首轮不解决它，而是不让它发生：BOM 实体声明同步配置即拒绝（AC#12）。
@@ -144,8 +156,8 @@ ECN 改期、备选切换都会在**没有任何行写入**的情况下改变解
 在其余适配器上，能力缺席被显式声明（AC#6）。多写入端是本故事存在的全部理由——
 只在仓储层校验等于没校验，而声称在每个后端都校验到了，比没校验更坏。
 
-**首轮切片只验收 AC#1～#3 / #5～#7 / #9～#12**：AC#4 等 US-513 引入 `flow_direction`，
-AC#8 等 US-510 阶段 B 的可达性表，AC#13 等真实 PostgreSQL 环境；整条故事在这些前置落地前不置 Done，见
+**首轮切片只验收 AC#1～#3 / #5～#7 / #9～#12 / #14**：AC#4 等 US-513 引入 `flow_direction`，
+AC#8 等 US-510 阶段 B 的可达性表，AC#13 等真实 PostgreSQL 环境，AC#15 / #16 等 US-515 的 ECN；整条故事在这些前置落地前不置 Done，见
 [epic-009 首轮可开工切片](../../epics/epic-009-bom-domain-model.md#首轮可开工切片)。
 
 ## 价值待证
@@ -167,4 +179,4 @@ AC#8 等 US-510 阶段 B 的可达性表，AC#13 等真实 PostgreSQL 环境；�
 - [US-513 联产品与副产品](US-513-bom-coproduct-byproduct.md) — AC#4 的前置；`flow_direction` 的来源
 - [US-510 多级展开与 where-used 反查](US-510-bom-multilevel-explosion.md) — AC#8 依赖其阶段 B
 - [US-030 实体元数据层的声明式存储约束](../core/US-030-declarative-storage-constraints.md) — AC#7 的 SQLite 宿主版本门槛
-- [US-515 变更管理](US-515-bom-change-management.md) — ECN 取消对并集的影响
+- [US-515 变更管理](US-515-bom-change-management.md) — ECN 撤回 / 取消对并集的影响；AC#15 / #16

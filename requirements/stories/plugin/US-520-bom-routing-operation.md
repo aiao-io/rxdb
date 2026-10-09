@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-01
+updated: 2026-10-09
 tags: [plugin, bom, routing, manufacturing]
 ---
 
@@ -26,7 +26,10 @@ tags: [plugin, bom, routing, manufacturing]
 - `bom_header.routing_id`：头选定的工艺路线；发生项引用的工序必须属于**该头选定的路线**，不是任意路线里同号的工序
 - 工序损耗从投料工序（含）起至末工序累乘（[US-511](US-511-bom-quantity-semantics.md) 第 5 步）
 - **分摊对象是工序损耗前的量**：各份额之和 = 本发生项的 `G'`（组件损耗后、工序损耗前），每份再从自己的工序起过工序损耗
-- 分摊比例合计为 1 在头的 `draft → released` 发布转移上校验（同 US-507 / US-512 的发布聚合机制），不在逐行写入时
+- 分摊比例合计为 1 在头的 `draft → released` 发布转移（及 ECN 发布）上校验（同 US-507 / US-512 的发布聚合机制），不在逐行写入时；
+  分摊行挂在单个发生项上，随该发生项的生效域，不跨期相加。已发布头下只能随 ECN 新发生项一起新建，写入形态见
+  [US-515 表 × 操作矩阵](US-515-bom-change-management.md#已发布头的写入协议)
+- 分摊比例按 [US-511 十进制值合同](US-511-bom-quantity-semantics.md#技术笔记)存取
 
 ### Out of Scope
 

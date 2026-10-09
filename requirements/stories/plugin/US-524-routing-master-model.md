@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-01
+updated: 2026-10-09
 tags: [plugin, bom, routing, cost]
 ---
 
@@ -37,7 +37,8 @@ AC 的阶段归属：A 关闭 AC#1 / #2 / #7 / #8 / #10；B 关闭 AC#3 / #4；C
 - 费率按 `(work_center, activity_type, valid_from)` 取值，取不到就报错，不以 0 兜底；币种随费率存，卷算时与上下文币种比对（[US-514](US-514-bom-cost-rollup.md) AC#10）
 - **路线一律落在本仓**：BOM 头的 `routing_id` 只能指向本仓 `routing`。不存在「路线由外部系统提供、本仓只存一个外部 ID」的半支持态；
   头可以不挂路线（`routing_id` 为 NULL，即无加工工序），但挂了就必须可解析
-- 工时三种基数（每件 / 每批 / 固定）在展开与卷算里各自正确
+- 工时三种基数（每件 / 每批 / 固定）在展开与卷算里各自正确；每件工时乘的是工序加工量（[US-514](US-514-bom-cost-rollup.md) 的 `W_op`），不是无损耗的父计划量
+- 工时、费率与工序损耗率按 [US-511 十进制值合同](US-511-bom-quantity-semantics.md#技术笔记)存取
 
 ### Out of Scope
 
