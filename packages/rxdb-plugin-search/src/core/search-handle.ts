@@ -221,9 +221,11 @@ export const createSearchHandle = (opts: CreateSearchHandleOptions): SearchHandl
     );
   }
 
-  // 初始查询：若提供非空 initialQuery，立即触发一次（不等防抖）
+  // 初始查询：若提供非空 initialQuery，立即触发一次。
+  // 直接进执行闸门：既不等输入防抖，也不走 trigger$——后者的 refreshAuditMs 合并窗口是给数据变更用的，
+  // 借道它会让每个新句柄（含三端绑定重建时的播种查询）的首个结果白等一个窗口。
   if (opts.initialQuery && opts.initialQuery.trim().length > 0) {
-    trigger$.next(opts.initialQuery);
+    void enqueueQuery(opts.initialQuery, 0);
   }
 
   if (opts.querySource) {
