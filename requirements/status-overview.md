@@ -177,7 +177,7 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 没有一条带脱离 BOM 场景的独立病灶：graph 插件允许成环是既定语义，「写入期拒绝成环」（US-509）是 BOM 的领域约束。
 解锁后先拿真实样本复核默认决策，见 [epic-009 解锁前须先处理](epics/epic-009-bom-domain-model.md#解锁前须先处理)。
 四类引擎声明能力缺口已拆出为 [US-030](stories/core/US-030-declarative-storage-constraints.md)（归 epic-004），阶段 A～C 已提前解锁；
-epic-009 默认决策 1～8 已于 2026-10-02 由 owner 确认；第 0 步的形态样本（AdventureWorks）与手算 golden 已就位、未与决策冲突，本 Epic 仍等驱动者，见 [epic-009 第 0 步样本](epics/epic-009-bom-domain-model.md#第-0-步样本)。
+epic-009 默认决策 1～8 由 owner 确认；第 0 步的形态样本（AdventureWorks）与手算 golden 已就位、未与决策冲突，本 Epic 仍等驱动者，见 [epic-009 第 0 步样本](epics/epic-009-bom-domain-model.md#第-0-步样本)。
 
 - ⬜ [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/plugin/US-507-bom-graph-skeleton.md) — 三阶段；`bom_header` 挂修订、带 `draft` / `released`；逻辑行 `bom_line` 与行发生项 `bom_line_occurrence` 分层，跨行聚合在发布转移上校验
 - ⬜ [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/plugin/US-508-bom-view-resolution.md) — `ResolutionContext` 的 `as_of_date` 必填、禁止追溯生效；同一逻辑行的发生项区间排他落 US-030；结果附 manifest
