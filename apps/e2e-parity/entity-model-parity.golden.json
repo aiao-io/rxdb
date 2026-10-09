@@ -1,15 +1,8 @@
 {
-  "format": "aiao-rxdb-e2e-entity-model-parity",
-  "version": 1,
-  "entity": "public:Todo",
-  "list": {
-    "columns": [null, "id", "title", "completed", "createdAt", "updatedAt", "actions"],
-    "rows": [
-      { "id": "<uuid>", "title": "parity-alpha", "completed": false, "createdAt": "<date>", "updatedAt": "<date>" },
-      { "id": "<uuid>", "title": "parity-bravo", "completed": false, "createdAt": "<date>", "updatedAt": "<date>" },
-      { "id": "<uuid>", "title": "parity-charlie", "completed": false, "createdAt": "<date>", "updatedAt": "<date>" }
-    ]
-  },
+  "createForm": [
+    { "label": "title", "kind": "textbox", "value": "" },
+    { "label": "completed", "kind": "checkbox", "value": false }
+  ],
   "detail": {
     "tabs": ["基本信息"],
     "form": [
@@ -22,10 +15,7 @@
       { "label": "更新者", "value": "userId" }
     ]
   },
-  "createForm": [
-    { "label": "title", "kind": "textbox", "value": "" },
-    { "label": "completed", "kind": "checkbox", "value": false }
-  ],
+  "entity": "public:Todo",
   "filter": {
     "combinator": "and",
     "rules": [{ "field": "title", "operator": "包含", "value": "parity-bravo" }]
@@ -36,5 +26,15 @@
     "rows": [
       { "id": "<uuid>", "title": "parity-bravo", "completed": false, "createdAt": "<date>", "updatedAt": "<date>" }
     ]
-  }
+  },
+  "format": "aiao-rxdb-e2e-entity-model-parity",
+  "list": {
+    "columns": [null, "id", "title", "completed", "createdAt", "updatedAt", "actions"],
+    "rows": [
+      { "id": "<uuid>", "title": "parity-alpha", "completed": false, "createdAt": "<date>", "updatedAt": "<date>" },
+      { "id": "<uuid>", "title": "parity-bravo", "completed": false, "createdAt": "<date>", "updatedAt": "<date>" },
+      { "id": "<uuid>", "title": "parity-charlie", "completed": false, "createdAt": "<date>", "updatedAt": "<date>" }
+    ]
+  },
+  "version": 1
 }

@@ -104,117 +104,126 @@ async function seedRow(
   return id;
 }
 
-describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)('复现：mutations() 直写路径的 UPDATE 语义（零散收尾项第 8 条，待评估）', () => {
-  const fixtureRows: Array<{ table: 'rls_mutations_owner' | 'rls_mutations_shared'; id: UUID }> = [];
-  const rxdbInstances: RxDB[] = [];
+describe.skipIf(!SUPABASE_URL || !SUPABASE_KEY)(
+  '复现：mutations() 直写路径的 UPDATE 语义（零散收尾项第 8 条，待评估）',
+  () => {
+    const fixtureRows: Array<{ table: 'rls_mutations_owner' | 'rls_mutations_shared'; id: UUID }> = [];
+    const rxdbInstances: RxDB[] = [];
 
-  beforeAll(async () => {
-    // 清场：先业务行，再日志表（顺序不能反，删除会再触发日志写入）
-    const service = getSupabaseServiceRoleClient();
-    await service.from('rls_mutations_owner').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    await service.from('rls_mutations_shared').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-    await service.from('rxdb_change').delete().neq('id', 0);
-  });
+    beforeAll(async () => {
+      // 清场：先业务行，再日志表（顺序不能反，删除会再触发日志写入）
+      const service = getSupabaseServiceRoleClient();
+      await service.from('rls_mutations_owner').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await service.from('rls_mutations_shared').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await service.from('rxdb_change').delete().neq('id', 0);
+    });
 
-  afterAll(async () => {
-    for (const rxdb of rxdbInstances) {
-      try {
-        await rxdb.destroy();
-      } catch {
-        // 复现用例失败路径上实例状态不定，销毁失败不影响断言结果
+    afterAll(async () => {
+      for (const rxdb of rxdbInstances) {
+        try {
+          await rxdb.destroy();
+        } catch {
+          // 复现用例失败路径上实例状态不定，销毁失败不影响断言结果
+        }
       }
-    }
-    const service = getSupabaseServiceRoleClient();
-    for (const row of fixtureRows) {
-      await service.from(row.table).delete().eq('id', row.id);
-    }
-    await service.from('rxdb_change').delete().neq('id', 0);
-  });
-
-  it('症状 2（owner 型 FOR ALL createdBy = uid）：mutations() 更新自己的行被 42501 误拒', async () => {
-    const user = await signUpRandomUser();
-    const rowId = await seedRow(user.client, 'rls_mutations_owner', user.userId, 'original');
-    fixtureRows.push({ table: 'rls_mutations_owner', id: rowId });
-
-    const rxdb = new RxDB({
-      dbName: `mutations-repro-owner-${Date.now()}`,
-      context: { userId: user.userId },
-      entities: [RlsMutationsOwner],
-      sync: { remote: { adapter: 'supabase' }, type: SyncType.None }
+      const service = getSupabaseServiceRoleClient();
+      for (const row of fixtureRows) {
+        await service.from(row.table).delete().eq('id', row.id);
+      }
+      await service.from('rxdb_change').delete().neq('id', 0);
     });
-    rxdbInstances.push(rxdb);
-    rxdb.adapter('supabase', async db => new RxDBAdapterSupabase(db, { client: user.client }));
-    rxdb.init();
-    const adapter = (await rxdb.getAdapter('supabase')) as RxDBAdapterSupabase;
-    await adapter.connect();
 
-    // 整实体载荷（title + completed），createdBy 被 build_upsert_params 的 update 模式剔除
-    const entity = new RlsMutationsOwner({ id: rowId, title: 'changed', completed: true });
+    it('症状 2（owner 型 FOR ALL createdBy = uid）：mutations() 更新自己的行被 42501 误拒', async () => {
+      const user = await signUpRandomUser();
+      const rowId = await seedRow(user.client, 'rls_mutations_owner', user.userId, 'original');
+      fixtureRows.push({ table: 'rls_mutations_owner', id: rowId });
 
-    const failure = await adapter
-      .mutations({
-        create: new Map(),
-        update: new Map([[RlsMutationsOwner, new Set([entity])]]),
-        remove: new Map()
-      })
-      .then(() => null, (error: unknown) => error);
+      const rxdb = new RxDB({
+        dbName: `mutations-repro-owner-${Date.now()}`,
+        context: { userId: user.userId },
+        entities: [RlsMutationsOwner],
+        sync: { remote: { adapter: 'supabase' }, type: SyncType.None }
+      });
+      rxdbInstances.push(rxdb);
+      rxdb.adapter('supabase', async db => new RxDBAdapterSupabase(db, { client: user.client }));
+      rxdb.init();
+      const adapter = (await rxdb.getAdapter('supabase')) as RxDBAdapterSupabase;
+      await adapter.connect();
 
-    // 期望（按 US-220 症状 2 的机制）：拟插入行 createdBy = NULL，过不了 FOR ALL 的 WITH CHECK
-    expect(failure).toBeInstanceOf(SupabaseDataError);
-    expect((failure as InstanceType<typeof SupabaseDataError>).code).toBe('42501');
-    expect((failure as InstanceType<typeof SupabaseDataError>).message).toContain('row-level security');
+      // 整实体载荷（title + completed），createdBy 被 build_upsert_params 的 update 模式剔除
+      const entity = new RlsMutationsOwner({ id: rowId, title: 'changed', completed: true });
 
-    // 行未变
-    const { data } = await user.client
-      .from('rls_mutations_owner')
-      .select('title, completed')
-      .eq('id', rowId)
-      .single();
-    expect(data?.title).toBe('original');
-    expect(data?.completed).toBe(false);
-  });
+      const failure = await adapter
+        .mutations({
+          create: new Map(),
+          update: new Map([[RlsMutationsOwner, new Set([entity])]]),
+          remove: new Map()
+        })
+        .then(
+          () => null,
+          (error: unknown) => error
+        );
 
-  it('症状 3（共享编辑型 INSERT 策略比 UPDATE 窄）：mutations() 更新他人的行被 42501 误拒', async () => {
-    const userA = await signUpRandomUser();
-    const userB = await signUpRandomUser();
-    const rowId = await seedRow(userA.client, 'rls_mutations_shared', userA.userId, 'original');
-    fixtureRows.push({ table: 'rls_mutations_shared', id: rowId });
+      // 期望（按 US-220 症状 2 的机制）：拟插入行 createdBy = NULL，过不了 FOR ALL 的 WITH CHECK
+      expect(failure).toBeInstanceOf(SupabaseDataError);
+      expect((failure as InstanceType<typeof SupabaseDataError>).code).toBe('42501');
+      expect((failure as InstanceType<typeof SupabaseDataError>).message).toContain('row-level security');
 
-    const rxdb = new RxDB({
-      dbName: `mutations-repro-shared-${Date.now()}`,
-      context: { userId: userB.userId },
-      entities: [RlsMutationsShared],
-      sync: { remote: { adapter: 'supabase' }, type: SyncType.None }
+      // 行未变
+      const { data } = await user.client
+        .from('rls_mutations_owner')
+        .select('title, completed')
+        .eq('id', rowId)
+        .single();
+      expect(data?.title).toBe('original');
+      expect(data?.completed).toBe(false);
     });
-    rxdbInstances.push(rxdb);
-    rxdb.adapter('supabase', async db => new RxDBAdapterSupabase(db, { client: userB.client }));
-    rxdb.init();
-    const adapter = (await rxdb.getAdapter('supabase')) as RxDBAdapterSupabase;
-    await adapter.connect();
 
-    // B 整实体更新 A 的行；UPDATE 策略全放行，但拟插入行要先过 INSERT 的 WITH CHECK（createdBy = B）
-    const entity = new RlsMutationsShared({ id: rowId, title: 'changed', completed: true });
+    it('症状 3（共享编辑型 INSERT 策略比 UPDATE 窄）：mutations() 更新他人的行被 42501 误拒', async () => {
+      const userA = await signUpRandomUser();
+      const userB = await signUpRandomUser();
+      const rowId = await seedRow(userA.client, 'rls_mutations_shared', userA.userId, 'original');
+      fixtureRows.push({ table: 'rls_mutations_shared', id: rowId });
 
-    const failure = await adapter
-      .mutations({
-        create: new Map(),
-        update: new Map([[RlsMutationsShared, new Set([entity])]]),
-        remove: new Map()
-      })
-      .then(() => null, (error: unknown) => error);
+      const rxdb = new RxDB({
+        dbName: `mutations-repro-shared-${Date.now()}`,
+        context: { userId: userB.userId },
+        entities: [RlsMutationsShared],
+        sync: { remote: { adapter: 'supabase' }, type: SyncType.None }
+      });
+      rxdbInstances.push(rxdb);
+      rxdb.adapter('supabase', async db => new RxDBAdapterSupabase(db, { client: userB.client }));
+      rxdb.init();
+      const adapter = (await rxdb.getAdapter('supabase')) as RxDBAdapterSupabase;
+      await adapter.connect();
 
-    // 期望（按 US-220 症状 3 的机制）：拟插入行 createdBy = NULL，过不了 INSERT 的 WITH CHECK
-    expect(failure).toBeInstanceOf(SupabaseDataError);
-    expect((failure as InstanceType<typeof SupabaseDataError>).code).toBe('42501');
-    expect((failure as InstanceType<typeof SupabaseDataError>).message).toContain('row-level security');
+      // B 整实体更新 A 的行；UPDATE 策略全放行，但拟插入行要先过 INSERT 的 WITH CHECK（createdBy = B）
+      const entity = new RlsMutationsShared({ id: rowId, title: 'changed', completed: true });
 
-    // 行未变（用 A 的会话读，SELECT 策略全放行）
-    const { data } = await userB.client
-      .from('rls_mutations_shared')
-      .select('title, completed')
-      .eq('id', rowId)
-      .single();
-    expect(data?.title).toBe('original');
-    expect(data?.completed).toBe(false);
-  });
-});
+      const failure = await adapter
+        .mutations({
+          create: new Map(),
+          update: new Map([[RlsMutationsShared, new Set([entity])]]),
+          remove: new Map()
+        })
+        .then(
+          () => null,
+          (error: unknown) => error
+        );
+
+      // 期望（按 US-220 症状 3 的机制）：拟插入行 createdBy = NULL，过不了 INSERT 的 WITH CHECK
+      expect(failure).toBeInstanceOf(SupabaseDataError);
+      expect((failure as InstanceType<typeof SupabaseDataError>).code).toBe('42501');
+      expect((failure as InstanceType<typeof SupabaseDataError>).message).toContain('row-level security');
+
+      // 行未变（用 A 的会话读，SELECT 策略全放行）
+      const { data } = await userB.client
+        .from('rls_mutations_shared')
+        .select('title, completed')
+        .eq('id', rowId)
+        .single();
+      expect(data?.title).toBe('original');
+      expect(data?.completed).toBe(false);
+    });
+  }
+);

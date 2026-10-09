@@ -21,7 +21,9 @@
 @import '@aiao/rxdb-model-angular/tailwind.css';
 
 @plugin 'daisyui' {
-  themes: light --default, dark --prefersdark;
+  themes:
+    light --default,
+    dark --prefersdark;
 }
 ```
 
@@ -33,7 +35,9 @@ React / Vue 同理换成 `@aiao/rxdb-model-react/tailwind.css` / `@aiao/rxdb-mod
 
 ```css
 @plugin 'daisyui/index.js' {
-  themes: light --default, dark --prefersdark;
+  themes:
+    light --default,
+    dark --prefersdark;
   /* 必须用 :is()：daisyUI 会把 root 当前缀拼接 */
   root: ':is(:host, :root)';
 }
@@ -46,7 +50,7 @@ React / Vue 同理换成 `@aiao/rxdb-model-react/tailwind.css` / `@aiao/rxdb-mod
   - Angular：`provideQueryBuilderTheme(theme)`（DI token `QUERY_BUILDER_THEME`）；
   - React：`QueryBuilderThemeProvider`（context `QUERY_BUILDER_THEME`）；
   - Vue：`provideQueryBuilderTheme(theme)`（injection key `QUERY_BUILDER_THEME`）。
-  缺省为内置 `DEFAULT_QUERY_BUILDER_THEME`。
+    缺省为内置 `DEFAULT_QUERY_BUILDER_THEME`。
 
 ## 无样式管线时的行为
 

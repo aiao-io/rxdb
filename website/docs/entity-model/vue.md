@@ -96,9 +96,9 @@ const formData = ref<EntityFormData>({});
   <EntityForm
     :data="formData"
     :fields="fields"
-    mode="edit"
     @field-changed="({ field, value }) => console.log(field, value)"
     @form-submitted="data => void save(data)"
+    mode="edit"
   />
 </template>
 ```
@@ -111,7 +111,7 @@ props：`fields`（`FormFieldConfig[]`）、`data`（`EntityFormData`）、`mode
 
 ```vue
 <template>
-  <EntityDialog title="添加 Todo" @close-requested="close">
+  <EntityDialog @close-requested="close" title="添加 Todo">
     <EntityForm :data="formData" :fields="fields" mode="create" />
   </EntityDialog>
 </template>

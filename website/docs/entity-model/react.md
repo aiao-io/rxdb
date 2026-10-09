@@ -26,7 +26,7 @@ export default function EntityListPage(): React.JSX.Element {
   const { namespace = '', name = '' } = useParams();
 
   return (
-    <div className='page-host bg-base-100 flex h-full flex-col'>
+    <div className="page-host bg-base-100 flex h-full flex-col">
       <EntityList name={name} namespace={namespace} />
     </div>
   );
@@ -35,13 +35,13 @@ export default function EntityListPage(): React.JSX.Element {
 
 主要 props：
 
-| prop                     | 说明                                                        |
-| ------------------------ | ----------------------------------------------------------- |
-| `namespace` / `name`     | 实体定位（必填）                                            |
-| `fixedQuery`             | 列表固定查询（`{ combinator, rules }`，钉住固定查询后才能对分组排序实体拖拽排序） |
-| `mode`                   | `'default'` 或 `'select'`（多对多选择模式，配合 `onSelectionConfirmed`） |
-| `onSelectionConfirmed` / `onSelectionCancelled` | 选择模式确认 / 取消                              |
-| `creationChain` / `editChain` | 级联新增与关系下钻的防环链路                          |
+| prop                                            | 说明                                                                              |
+| ----------------------------------------------- | --------------------------------------------------------------------------------- |
+| `namespace` / `name`                            | 实体定位（必填）                                                                  |
+| `fixedQuery`                                    | 列表固定查询（`{ combinator, rules }`，钉住固定查询后才能对分组排序实体拖拽排序） |
+| `mode`                                          | `'default'` 或 `'select'`（多对多选择模式，配合 `onSelectionConfirmed`）          |
+| `onSelectionConfirmed` / `onSelectionCancelled` | 选择模式确认 / 取消                                                               |
+| `creationChain` / `editChain`                   | 级联新增与关系下钻的防环链路                                                      |
 
 「查看」行 → 组件内置打开 edit 详情对话框（关系 Tab 内同理可无限下钻，`editChain` 防环）。
 
@@ -61,7 +61,7 @@ export default function EntityDetailPage(): React.JSX.Element {
   const navigate = useNavigate();
 
   return (
-    <div className='page-host bg-base-100 flex h-full flex-col'>
+    <div className="page-host bg-base-100 flex h-full flex-col">
       <EntityDetail
         entityId={entityId}
         name={name}
@@ -95,7 +95,7 @@ function EditForm({ fields, initial }: { fields: FormFieldConfig[]; initial: Ent
     <EntityForm
       data={formData}
       fields={fields}
-      mode='edit'
+      mode="edit"
       onFieldChanged={({ field, value }) => console.log(field, value)}
       onFormCancelled={() => setFormData(initial)}
       onFormSubmitted={(data: EntityFormData) => void save(data)}
@@ -114,8 +114,8 @@ props：`fields`（`FormFieldConfig[]`，通常由 `buildFormFields(metadata, mo
 ```tsx
 import { EntityDialog } from '@aiao/rxdb-model-react';
 
-<EntityDialog title='添加 Todo' onCloseRequested={close}>
-  <EntityForm data={formData} fields={fields} mode='create' />
+<EntityDialog title="添加 Todo" onCloseRequested={close}>
+  <EntityForm data={formData} fields={fields} mode="create" />
 </EntityDialog>;
 ```
 
@@ -124,12 +124,7 @@ import { EntityDialog } from '@aiao/rxdb-model-react';
 `QueryBuilder`：AND/OR 分组、规则增删、拖拽重排、字段/操作符/值选择器、子查询、嵌套深度限制。`EntityList` 的筛选弹层已内嵌查询构建器，直接使用列表即可；独立使用时：
 
 ```tsx
-import {
-  QueryBuilder,
-  type FieldMetadata,
-  type RxDBQueryOutput,
-  type ValidationResult
-} from '@aiao/rxdb-model-react';
+import { QueryBuilder, type FieldMetadata, type RxDBQueryOutput, type ValidationResult } from '@aiao/rxdb-model-react';
 
 function FilterPanel({ fields }: { fields: FieldMetadata[] }): React.JSX.Element {
   return (

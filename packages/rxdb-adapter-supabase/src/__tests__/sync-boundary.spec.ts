@@ -50,15 +50,17 @@ describe('Push/Pull 边界行为测试', () => {
       updatedAt: new Date().toISOString()
     });
 
-    await getSupabaseServiceRoleClient().from('rxdb_change').insert({
-      namespace: 'public',
-      entity: 'Todo',
-      entityId: data.id,
-      type: 'INSERT',
-      patch: { id: data.id, title: data.title, completed: false },
-      clientId: 'remote-client',
-      createdAt: new Date().toISOString()
-    });
+    await getSupabaseServiceRoleClient()
+      .from('rxdb_change')
+      .insert({
+        namespace: 'public',
+        entity: 'Todo',
+        entityId: data.id,
+        type: 'INSERT',
+        patch: { id: data.id, title: data.title, completed: false },
+        clientId: 'remote-client',
+        createdAt: new Date().toISOString()
+      });
   }
 
   /**

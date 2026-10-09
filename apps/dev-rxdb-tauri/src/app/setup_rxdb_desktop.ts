@@ -328,10 +328,8 @@ export default async () => {
   // 授权档与阶段 1 档位由 Rust 侧的注入脚本在页面脚本之前放好，展开进来即可 ——
   // 缺省时是空对象，交回库默认档。源档 = fake 时 provider 换整份 fake registry（AC#2）。
   const devtoolsConfig = devToolsRuntimeConfig();
-  const providers = await resolveDevToolsProviders(
-    devtoolsConfig.providerSource,
-    devtoolsConfig.snapshotScenario,
-    () => createDesktopDevToolsProviders({ transport, getStorage: () => rxdb.storage })
+  const providers = await resolveDevToolsProviders(devtoolsConfig.providerSource, devtoolsConfig.snapshotScenario, () =>
+    createDesktopDevToolsProviders({ transport, getStorage: () => rxdb.storage })
   );
   // expired 档的 idle 到期由驱动经事件**显式推进**（fake-provider-gear.ts 的 createScenarioClock）：
   // 0 ms 真实计时器与下一次翻页请求谁先到 store 是事件循环的赌局，e2e 在慢 runner 上因此

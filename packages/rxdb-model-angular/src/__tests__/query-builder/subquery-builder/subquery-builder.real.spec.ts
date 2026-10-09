@@ -2,8 +2,8 @@ import { PropertyType } from '@aiao/rxdb';
 import type { FieldMetadata, QueryBuilderRuleGroup, UIRule } from '@aiao/rxdb-model';
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { SubqueryBuilderComponent } from '../../../query-builder/subquery-builder/subquery-builder.component';
 import type { UIRuleGroup } from '../../../query-builder/query-group/query-group.component';
+import { SubqueryBuilderComponent } from '../../../query-builder/subquery-builder/subquery-builder.component';
 
 /**
  * SubqueryBuilderComponent —— **真实加载组件源码 + 真实 QueryBuilderService**（对齐 React / Vue 侧）。

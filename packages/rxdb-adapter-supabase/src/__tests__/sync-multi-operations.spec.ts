@@ -87,15 +87,17 @@ describe('多次 Pull/Push 操作测试', () => {
     if (error) throw error;
 
     // 同时插入 RxDBChange 记录（模拟远程 push；日志表直写走 service_role）
-    const changeResult = await getSupabaseServiceRoleClient().from('rxdb_change').insert({
-      namespace: 'public',
-      entity: 'Todo',
-      entityId: data.id,
-      type: 'INSERT',
-      patch: { id: data.id, title: data.title, completed: false },
-      clientId: 'remote-client',
-      createdAt: new Date().toISOString()
-    });
+    const changeResult = await getSupabaseServiceRoleClient()
+      .from('rxdb_change')
+      .insert({
+        namespace: 'public',
+        entity: 'Todo',
+        entityId: data.id,
+        type: 'INSERT',
+        patch: { id: data.id, title: data.title, completed: false },
+        clientId: 'remote-client',
+        createdAt: new Date().toISOString()
+      });
     if (changeResult.error) throw changeResult.error;
 
     // 轮询验证数据已提交（最多等待2秒）

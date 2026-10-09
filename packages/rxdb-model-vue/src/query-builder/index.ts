@@ -25,11 +25,11 @@ export {
   type UIRuleGroup
 } from './query-group/query-drag-drop';
 export { default as QueryGroup } from './query-group/QueryGroup.vue';
-export { default as QueryRule } from './query-rule/QueryRule.vue';
 export type { UIRuleWithWhere } from './query-rule/query-rule-types';
+export { default as QueryRule } from './query-rule/QueryRule.vue';
 export { default as SubqueryBuilder } from './subquery-builder/SubqueryBuilder.vue';
-export { default as TreeSelect } from './tree-select/TreeSelect.vue';
 export { TreeItemDirective } from './tree-select/tree-item-directive';
+export { default as TreeSelect } from './tree-select/TreeSelect.vue';
 export { default as ValueInput } from './value-input/ValueInput.vue';
 
 // 主题注入

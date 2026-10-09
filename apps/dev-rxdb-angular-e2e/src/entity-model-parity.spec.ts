@@ -1,11 +1,11 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './fixtures.js';
 import {
   loadParityGolden,
   normalizeParitySnapshot,
   type ParityRawSnapshot
 } from '../../e2e-parity/entity-model-parity.mjs';
 import { resetE2eState } from './e2e-utils.js';
+import { expect, test } from './fixtures.js';
 
 /**
  * rxdb-model 跨框架对拍（T049）：同一份 Todo 种子数据下，断言本端

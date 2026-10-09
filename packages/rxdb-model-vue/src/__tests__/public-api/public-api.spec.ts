@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
+import type EntityTableComponent from '../../entity-table/EntityTable.vue';
+import type QueryTableComponent from '../../entity-table/QueryTable.vue';
 import {
   DEFAULT_QUERY_BUILDER_THEME,
   ENTITY_TABLE_CONFIG,
@@ -35,8 +37,6 @@ import {
   type UIRuleGroup,
   type UIRuleWithWhere
 } from '../../index';
-import type EntityTableComponent from '../../entity-table/EntityTable.vue';
-import type QueryTableComponent from '../../entity-table/QueryTable.vue';
 
 /**
  * rxdb-model-vue 公开 API 面对称守卫（对齐 Angular / React 侧同名 spec）。

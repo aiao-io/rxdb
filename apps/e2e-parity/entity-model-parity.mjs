@@ -54,8 +54,7 @@ const VOLATILE_FORM_LABELS = new Map([
 ]);
 
 /** 快照允许的原始单元格值类型（归一化后也只有这些类型）。 */
-const isScalarValue = (value) =>
-  typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number';
+const isScalarValue = value => typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number';
 
 /**
  * 归一化单个单元格值：易失字段换成占位符，其余必须是标量。
@@ -87,7 +86,7 @@ function normalizeList(raw) {
   if (!Array.isArray(raw.rows) || raw.rows.length === 0) {
     throw new Error('对拍列表没有任何行：要么采集失败，要么种子数据没落库');
   }
-  const columns = raw.columns.map((field) => {
+  const columns = raw.columns.map(field => {
     if (field === null || field === undefined || field === '') return null;
     if (typeof field !== 'string') {
       throw new Error(`对拍列字段名超出语义契约：${JSON.stringify(field)}`);
@@ -95,7 +94,7 @@ function normalizeList(raw) {
     // VTable 行系列号列是引擎内部列，三端一致，但在语义层是匿名列
     return field === VTABLE_SERIES_FIELD ? null : field;
   });
-  const rows = raw.rows.map((record) => {
+  const rows = raw.rows.map(record => {
     const row = {};
     for (const field of columns) {
       if (field === null || field === 'actions') continue;
@@ -129,7 +128,7 @@ function normalizeForm(raw) {
   if (!Array.isArray(raw) || raw.length === 0) {
     throw new Error('对拍表单没有任何字段：要么采集失败，要么元数据没有产出字段');
   }
-  return raw.map((field) => {
+  return raw.map(field => {
     const label = typeof field.label === 'string' ? field.label.trim() : '';
     if (!label) {
       throw new Error(`对拍表单字段缺显示名：${JSON.stringify(field)}`);
@@ -170,7 +169,7 @@ function normalizeFilter(raw) {
   }
   return {
     combinator: raw.combinator,
-    rules: raw.rules.map((rule) => {
+    rules: raw.rules.map(rule => {
       const field = typeof rule.field === 'string' ? rule.field.trim() : '';
       const operator = typeof rule.operator === 'string' ? rule.operator.trim() : '';
       if (!field || !operator) {
@@ -192,7 +191,7 @@ function normalizeTabs(tabs) {
   if (!Array.isArray(tabs) || tabs.length === 0) {
     throw new Error('对拍详情缺 Tab 列表：详情对话框可能没有打开');
   }
-  return tabs.map((tab) => (typeof tab === 'string' ? tab.trim() : ''));
+  return tabs.map(tab => (typeof tab === 'string' ? tab.trim() : ''));
 }
 
 /**

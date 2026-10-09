@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import * as api from '../../index';
 import * as entityTableModule from '../../entity-table/index.js';
+import * as api from '../../index';
 
 /**
  * rxdb-model-react 公开 API 面对称守卫（对齐 Angular / Vue 侧同名 spec）。

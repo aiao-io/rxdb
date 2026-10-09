@@ -23,13 +23,12 @@ import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core
   selector: 'app-entity-list-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [EntityListComponent],
-  template: `
-    <rxdb-entity-list
-      class="block h-full"
-      [name]="name()"
-      [namespace]="namespace()"
-      [fixedQuery]="fixedQuery()"
-    />`,
+  template: ` <rxdb-entity-list
+    class="block h-full"
+    [fixedQuery]="fixedQuery()"
+    [name]="name()"
+    [namespace]="namespace()"
+  />`,
   host: { class: 'page-host flex h-full flex-col bg-base-100' }
 })
 export default class EntityListPage {
@@ -46,13 +45,13 @@ export default class EntityListPage {
 
 主要输入：
 
-| 输入                  | 说明                                             |
-| --------------------- | ------------------------------------------------ |
-| `namespace` / `name`  | 实体定位（必填）                                 |
-| `fixedQuery`          | 列表固定查询（`{ combinator, rules }` 的 JSON 形态） |
-| `initialFilter`       | 从既有查询回填筛选条件                           |
-| `mode`                | `'default'`（默认）或 `'select'`（多对多选择模式） |
-| `creationChain` / `editChain` | 级联新增与关系下钻的防环链路               |
+| 输入                          | 说明                                                 |
+| ----------------------------- | ---------------------------------------------------- |
+| `namespace` / `name`          | 实体定位（必填）                                     |
+| `fixedQuery`                  | 列表固定查询（`{ combinator, rules }` 的 JSON 形态） |
+| `initialFilter`               | 从既有查询回填筛选条件                               |
+| `mode`                        | `'default'`（默认）或 `'select'`（多对多选择模式）   |
+| `creationChain` / `editChain` | 级联新增与关系下钻的防环链路                         |
 
 「查看」行 → 组件内置打开 edit 详情对话框（关系 Tab 内同理可无限下钻，`editChain` 防环）。
 
@@ -67,15 +66,14 @@ import { EntityDetailComponent, type EntityFormData } from '@aiao/rxdb-model-ang
   selector: 'app-entity-detail-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [EntityDetailComponent],
-  template: `
-    <rxdb-entity-detail
-      class="block h-full"
-      [entityId]="entityId()"
-      [name]="name()"
-      [namespace]="namespace()"
-      (formCancelled)="onCancelled()"
-      (formSubmitted)="onSaved($event)"
-    />`
+  template: ` <rxdb-entity-detail
+    class="block h-full"
+    [entityId]="entityId()"
+    [name]="name()"
+    [namespace]="namespace()"
+    (formCancelled)="onCancelled()"
+    (formSubmitted)="onSaved($event)"
+  />`
 })
 export default class EntityDetailPage {
   readonly namespace = input.required<string>();
@@ -94,13 +92,13 @@ export default class EntityDetailPage {
 
 主要输入 / 输出：
 
-| 输入 / 输出             | 说明                                                          |
-| ----------------------- | ------------------------------------------------------------- |
-| `namespace` / `name` / `entityId` | 路由输入通道（与 `metadata` 二选一）                  |
+| 输入 / 输出                                         | 说明                                                   |
+| --------------------------------------------------- | ------------------------------------------------------ |
+| `namespace` / `name` / `entityId`                   | 路由输入通道（与 `metadata` 二选一）                   |
 | `metadata` / `formFields` / `formData` / `formMode` | 直接传入元数据与表单数据（Dialog / metadata 输入通道） |
-| `fixedFormData` / `delegateSave` | 级联创建：预填充外键数据、委托父链保存                |
-| `(formSubmitted)` / `(formCancelled)` | 保存 / 取消                                           |
-| `(fieldChanged)` / `(validationErrors)` | 字段变更与校验失败事件                                 |
+| `fixedFormData` / `delegateSave`                    | 级联创建：预填充外键数据、委托父链保存                 |
+| `(formSubmitted)` / `(formCancelled)`               | 保存 / 取消                                            |
+| `(fieldChanged)` / `(validationErrors)`             | 字段变更与校验失败事件                                 |
 
 ## 实体表单
 
@@ -108,13 +106,13 @@ export default class EntityDetailPage {
 
 ```html
 <rxdb-entity-form
-  [fields]="fields()"
-  [data]="data()"
-  [mode]="'edit'"
   (fieldChanged)="onFieldChanged($event)"
-  (formSubmitted)="onFormSubmitted($event)"
   (formCancelled)="onFormCancelled()"
+  (formSubmitted)="onFormSubmitted($event)"
   (validationErrors)="onValidationErrors($event)"
+  [data]="data()"
+  [fields]="fields()"
+  [mode]="'edit'"
 />
 ```
 
@@ -126,11 +124,11 @@ export default class EntityDetailPage {
 
 ```html
 <rxdb-query-builder
+  (queryChange)="onQueryChange($event)"
+  (validationChange)="onValidationChange($event)"
   [fields]="fields()"
   [initialQuery]="initialQuery()"
   [maxDepth]="5"
-  (queryChange)="onQueryChange($event)"
-  (validationChange)="onValidationChange($event)"
 />
 ```
 

@@ -14,8 +14,8 @@ import { Todo } from '@aiao/rxdb-test/entities';
 import { filter, firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
-import { asyncWasmPath } from './wa-sqlite-wasm.js';
 import { getSupabaseServiceRoleClient } from './test-utils.js';
+import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
 const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
@@ -106,15 +106,17 @@ describe('同步测试 - SQLite + Supabase', () => {
     if (error) throw error;
 
     // 同时插入 RxDBChange 记录（模拟另一客户端推送；日志表直写走 service_role，零散收尾项第 13 条）
-    await getSupabaseServiceRoleClient().from('rxdb_change').insert({
-      namespace: 'public',
-      entity: 'Todo',
-      entityId: data.id,
-      type: 'INSERT',
-      patch: { id: data.id, title: data.title, completed: data.completed ?? false },
-      clientId: 'remote-client',
-      createdAt: new Date().toISOString()
-    });
+    await getSupabaseServiceRoleClient()
+      .from('rxdb_change')
+      .insert({
+        namespace: 'public',
+        entity: 'Todo',
+        entityId: data.id,
+        type: 'INSERT',
+        patch: { id: data.id, title: data.title, completed: data.completed ?? false },
+        clientId: 'remote-client',
+        createdAt: new Date().toISOString()
+      });
   }
 
   /**

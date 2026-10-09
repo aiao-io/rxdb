@@ -227,7 +227,7 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
     - 疑似缺陷三处：(a) redo 被拒变更 = 本地重新应用远端拒绝过的编辑且永不重推，本地与远端静默永久分叉，无任何
       错误或提示；(b) 「被拒变更不可撤销、不再待推」在 history 侧完全扛在水位线一个机制上，回执语义若改为逐条推进
       会失效；(c) `updatePushableCount` 是唯一仍缺 `rejectedAt = null` 显式规则的「待推」查询。是否修复另议。
-    来源：US-218 research D13 / D20。
+      来源：US-218 research D13 / D20。
 12. **已评估（2026-10-09）：`ON DELETE CASCADE` 级联删除不写日志——推断证实，建议立项**。
     回归 SQL 新增 `cascade-delete-logging` 用例（回归 schema 内建 `cascade_parent_ids` / `cascade_child_ids`
     ON DELETE CASCADE 夹具，均挂同步触发器）：`p_skip_sync = true` 推送父行删除后父子行都被删掉，`rxdb_change`

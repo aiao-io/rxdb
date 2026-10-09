@@ -20,13 +20,13 @@
  */
 import {
   createEntitySyncResolver,
-  type RemoteChangeRejection,
-  type RxDB,
   RxDBBranch,
   RxDBChange,
   RxDBSync,
   SKIP_BRANCH_SWITCH_PREPARE,
   SyncType,
+  type RemoteChangeRejection,
+  type RxDB,
   type UUID
 } from '@aiao/rxdb';
 import { BehaviorSubject, of, Subject } from 'rxjs';
@@ -198,12 +198,19 @@ describe('filterUndoableHistories 对被拒变更的判定', () => {
 const createCountHarness = (lastPushedChangeId: number | null) => {
   const count = vi.fn();
   count.mockImplementation(() => of(0));
-  const syncFind = vi.fn().mockResolvedValue([
-    { namespace: 'public', entity: 'User', branchId: 'main', lastPushedChangeId }
-  ]);
+  const syncFind = vi
+    .fn()
+    .mockResolvedValue([{ namespace: 'public', entity: 'User', branchId: 'main', lastPushedChangeId }]);
   const rxdb = {
-    config: { entities: [User], sync: { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } } },
-    entitySync: createEntitySyncResolver({ type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } }),
+    config: {
+      entities: [User],
+      sync: { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } }
+    },
+    entitySync: createEntitySyncResolver({
+      type: SyncType.Full,
+      local: { adapter: 'local' },
+      remote: { adapter: 'remote' }
+    }),
     connected$: of(true),
     localAdapter$: of({
       getRepository: vi.fn((entity: unknown) => (entity === RxDBSync ? { find: syncFind } : null))
@@ -232,7 +239,9 @@ describe('updatePushableCount 的计数查询与被拒变更', () => {
     expect(where.rules).toContainEqual({ field: 'revertChangeId', operator: '=', value: null });
     expect(where.rules).toContainEqual({ field: 'remoteId', operator: '=', value: null });
 
-    const orGroup = where.rules.find(rule => typeof rule === 'object' && rule !== null && (rule as { combinator?: string }).combinator === 'or');
+    const orGroup = where.rules.find(
+      rule => typeof rule === 'object' && rule !== null && (rule as { combinator?: string }).combinator === 'or'
+    );
     expect(orGroup).toBeDefined();
     const repoRules = (orGroup as { rules: { rules: unknown[] }[] }).rules[0]!.rules;
     // 被拒变更（id 5 < 水位线 7）被 id > watermark 排掉 —— 与 filterUndoableHistories 同一个间接机制
@@ -251,7 +260,9 @@ describe('updatePushableCount 的计数查询与被拒变更', () => {
     await updatePushableCount(host);
 
     const { where } = count.mock.calls[0][0] as { where: { rules: unknown[] } };
-    const orGroup = where.rules.find(rule => typeof rule === 'object' && rule !== null && (rule as { combinator?: string }).combinator === 'or');
+    const orGroup = where.rules.find(
+      rule => typeof rule === 'object' && rule !== null && (rule as { combinator?: string }).combinator === 'or'
+    );
     const repoRules = (orGroup as { rules: { rules: unknown[] }[] }).rules[0]!.rules;
     expect(repoRules).toEqual([
       { field: 'namespace', operator: '=', value: 'public' },
@@ -285,9 +296,9 @@ describe('HistoryManager.history().undo() 对被拒变更（公开入口）', ()
       findAll: vi.fn(() => changes$.asObservable())
     };
     const switchBranch = vi.fn().mockResolvedValue(undefined);
-    const syncFind = vi.fn().mockResolvedValue([
-      { namespace: 'public', entity: 'User', branchId: 'main', lastPushedChangeId: 7 }
-    ]);
+    const syncFind = vi
+      .fn()
+      .mockResolvedValue([{ namespace: 'public', entity: 'User', branchId: 'main', lastPushedChangeId: 7 }]);
     const connected$ = new BehaviorSubject(false);
     const rxdb = {
       addEventListener: vi.fn(),
@@ -296,7 +307,11 @@ describe('HistoryManager.history().undo() 对被拒变更（公开入口）', ()
         entities: [User],
         sync: { type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } }
       },
-      entitySync: createEntitySyncResolver({ type: SyncType.Full, local: { adapter: 'local' }, remote: { adapter: 'remote' } }),
+      entitySync: createEntitySyncResolver({
+        type: SyncType.Full,
+        local: { adapter: 'local' },
+        remote: { adapter: 'remote' }
+      }),
       connected$,
       firstConnectedAt,
       localAdapter$: of({
