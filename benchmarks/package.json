@@ -28,7 +28,7 @@
     "@modules/wujie": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
     "comlink": "^4.4.2",
-    "lucide-react": "^1.52.0",
+    "lucide-react": "^1.53.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "simple-statistics": "^7.12.1",
@@ -40,7 +40,7 @@
     "@types/react-dom": "^19.3.0",
     "daisyui": "^5.7.47",
     "typescript": "~6.0.3",
-    "vite": "^8.3.2",
+    "vite": "^8.3.4",
     "vite-plugin-static-copy": "^4.1.1"
   }
 }

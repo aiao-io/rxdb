@@ -635,7 +635,7 @@ jobs:
       # 跳过上传；coverage job 用 pattern 下载，缺这一份 artifact 不报错。
       - name: Upload coverage
         if: ${{ !cancelled() && matrix.coverage }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           # 名字前缀 `coverage-lane-` 是有意的：coverage job 要按固定顺序叠加
           # lane → test-browser → acceptance（后两者与 lane 的项目集有重叠，
@@ -702,7 +702,7 @@ jobs:
       - name: Upload coverage
         if: ${{ !cancelled() }}
         continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: coverage-browser
           path: |
@@ -739,7 +739,7 @@ jobs:
 
       - name: Upload coverage
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: coverage-acceptance
           path: |
@@ -909,7 +909,7 @@ jobs:
       # html 报告落在 playwright-report/ 而不是 preset 的 test-output/playwright/report/。
       - name: Upload Playwright artifacts
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: playwright-${{ matrix.project }}-${{ matrix.target }}
           path: |
@@ -1149,7 +1149,7 @@ jobs:
         with:
           filter: tree:0
 
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
 
@@ -1159,7 +1159,7 @@ jobs:
       # artifact 的根是 `coverage/`（见上传步骤的注释），内部路径形如
       # `packages/<pkg>/coverage-final.json`，所以要解到 `coverage/` 而不是仓库根。
       - name: Download lane coverage
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: coverage-lane-*
           merge-multiple: true
@@ -1180,7 +1180,7 @@ jobs:
       # 见 test-browser 上传步骤的注释。
       - name: Download browser coverage
         if: needs.test-browser.result == 'success'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           pattern: coverage-browser
           merge-multiple: true
@@ -1192,7 +1192,7 @@ jobs:
       # 流程里靠「acceptance 跑在 test 之后」天然覆盖，这里靠下载顺序显式复现。
       - name: Download acceptance coverage
         if: needs.acceptance.result == 'success'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           name: coverage-acceptance
           path: coverage

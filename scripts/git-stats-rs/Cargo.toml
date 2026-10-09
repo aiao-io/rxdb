@@ -6,6 +6,6 @@ edition = "2021"
 rust-version = "1.88"
 
 [dependencies]
-rayon = "1.10"
-colored = "2.1"
-gix = { version = "0.86.0", features = ["blame"] }
+rayon = "1.12"
+colored = "3.1"
+gix = { version = "0.89.0", features = ["blame"] }

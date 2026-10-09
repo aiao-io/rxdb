@@ -46,7 +46,7 @@
    在 `@aiao/rxdb@0.0.26` 里不存在，而它的依赖又钉死在 `@aiao/rxdb` `0.0.26`。
    处置：**owner 稍后处理（deprecate 或随下次发版覆盖）。** 其余没有 `0.0.26` 的 15 个包是 replay / tree / working-tree 各 4 个与
    `rxdb-model-{angular,react,vue}`（复核：`npm view @aiao/<包名> versions`）。
-3. **`@aiao/rxdb-angular` 单独为 `0.0.27`，`@aiao/*` peer 改成了字面 `^0.0.26`；7 个 Angular 包的 `@angular/*` peer 钉成精确的 `"22.2.1"`。**
+3. **`@aiao/rxdb-angular` 单独为 `0.0.27`，`@aiao/*` peer 改成了字面 `^0.0.26`；7 个 Angular 包的 `@angular/*` peer 钉成精确的 `"22.2.2"`。**
    前者来自 `1e8336cd`（提交信息只有 `23`），违反「工作区同号」；后者让消费方的 Angular 小版本必须与之完全相同。
    处置：**owner 决定下次统一发版时处理。**
 
@@ -101,7 +101,7 @@
 | `release.protocolVersion`                            | 正整数，当前为 `1`                                                                                                        |
 
 **版本号是算出来的，不是选的**：`conventionalCommits: true`，`nx.json` 只自定义了 `cleanup` / `__INVALID__` 两个类型（均 `semverBump: none`），
-其余走 nx 23.2.1 的默认配置——只有 `feat:` → minor、`fix:` → patch，其余全部 `none`；非规范标题一律 `none`。
+其余走 nx 23.3.0 的默认配置——只有 `feat:` → minor、`fix:` → patch，其余全部 `none`；非规范标题一律 `none`。
 `adjustSemverBumpsForZeroMajorVersion` 默认 `true`，major 为 0 时 `minor` 降成 `patch`。基准 tag 现在解析为 `v0.0.26`
 （`git describe --tags --abbrev=0` 与 nx 都是），所以默认推算大概率是 `0.0.27`（**推断**，以 `pnpm nx release version --dry-run` 的输出为准）。
 是否取 `0.0.27` **待定**；`@aiao/rxdb-angular` 已经单独是 `0.0.27`（见上方开项 3），取值时一并处理。
