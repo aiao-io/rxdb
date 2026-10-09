@@ -27,6 +27,7 @@ export { FieldSelector, type FieldSelectorProps } from './field-selector/field-s
 export { OperatorSelector, type OperatorSelectorProps } from './operator-selector/operator-selector.js';
 export { PopoverSelect, type PopoverSelectOption, type PopoverSelectProps } from './popover-select/popover-select.js';
 export {
+  calculateDropMode,
   QueryDragDropHandler,
   QueryGroup,
   type QueryDragDropState,

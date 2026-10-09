@@ -62,6 +62,10 @@
         "kind": "value"
       },
       {
+        "name": "calculateDropMode",
+        "kind": "value"
+      },
+      {
         "name": "canReorderEntityList",
         "kind": "value"
       },

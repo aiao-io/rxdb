@@ -33,9 +33,9 @@
         }
         @if (tab.type === 'table') {
           <rxdb-entity-list
-            [creationChain]="creationChain()"
+            [creationChain]="creationChainValue()"
             [draftParentEntity]="draftEntitySignal()"
-            [editChain]="editChain()"
+            [editChain]="editChainValue()"
             [fixedFormData]="buildFixedFormData($any(tab))"
             [fixedQuery]="buildFixedQuery($any(tab))"
             [name]="$any(tab).relatedEntityName"

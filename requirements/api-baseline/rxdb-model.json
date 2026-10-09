@@ -234,6 +234,10 @@
         "kind": "type"
       },
       {
+        "name": "EntityInstance",
+        "kind": "type"
+      },
+      {
         "name": "EntityTableConfig",
         "kind": "type"
       },
@@ -287,6 +291,10 @@
       },
       {
         "name": "FieldValidationError",
+        "kind": "type"
+      },
+      {
+        "name": "FilterQuery",
         "kind": "type"
       },
       {

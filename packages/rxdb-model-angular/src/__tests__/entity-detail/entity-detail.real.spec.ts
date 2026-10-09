@@ -250,6 +250,54 @@ describe('EntityDetailComponent（真实组件）', () => {
     expect(component.formDataValue['count']).toBe(42);
   });
 
+  it('无 DIALOG_DATA 时经 inputs 提供 create 草稿链路（fixedFormData / creationChain / editChain，对齐 React / Vue props）', () => {
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection(), { provide: RxDB, useValue: rxdb }]
+    });
+    const fixture = TestBed.createComponent(EntityDetailComponent);
+    const component = fixture.componentInstance;
+    fixture.componentRef.setInput('formMode', 'create');
+    fixture.componentRef.setInput('metadata', getEntityMetadata(DetailGroup));
+    fixture.componentRef.setInput('formFields', dialogData().formFields);
+    fixture.componentRef.setInput('formData', { title: '', count: 0 });
+    fixture.componentRef.setInput('fixedFormData', { count: 42 });
+    fixture.componentRef.setInput('creationChain', ['test:Parent']);
+    fixture.componentRef.setInput('editChain', ['p1']);
+    fixture.detectChanges();
+
+    // 草稿实体由 inputs 驱动创建（与 DIALOG_DATA 语境等价）
+    expect(component.isCreateMode()).toBe(true);
+    expect(component.draftEntitySignal()).not.toBeNull();
+    expect(component.draftEntitySignal()!.id).toBeTruthy();
+    // fixedFormData 合并进表单数据
+    expect(component.formDataValue['count']).toBe(42);
+    // 创建链路继承 input 并追加当前实体 key
+    expect(component.creationChainValue()).toEqual(['test:Parent', 'test:DetailGroup']);
+    expect(component.editChainValue()).toEqual(['p1']);
+  });
+
+  it('delegateSave 经 input 提供时不建草稿，保存时 emit formSubmitted（无 DIALOG_DATA 语境）', () => {
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection(), { provide: RxDB, useValue: rxdb }]
+    });
+    const fixture = TestBed.createComponent(EntityDetailComponent);
+    const component = fixture.componentInstance;
+    const submitted: EntityFormData[] = [];
+    component.formSubmitted.subscribe(e => submitted.push(e));
+    fixture.componentRef.setInput('formMode', 'create');
+    fixture.componentRef.setInput('delegateSave', true);
+    fixture.componentRef.setInput('metadata', getEntityMetadata(DetailGroup));
+    fixture.componentRef.setInput('formFields', dialogData().formFields);
+    fixture.componentRef.setInput('formData', { title: '', count: 0 });
+    fixture.detectChanges();
+
+    expect(component.draftEntitySignal()).toBeNull();
+    component.onFieldChanged({ field: 'title', type: 'string', value: '委托', previousValue: '' });
+    component.onSave();
+
+    expect(submitted).toEqual([{ title: '委托' }]);
+  });
+
   it('onFormCancelled 清理草稿缓存并 emit formCancelled', () => {
     const { component, cancelled } = createWithDialog(dialogData());
     const draftId = component.draftEntitySignal()!.id;
@@ -401,7 +449,7 @@ describe('EntityDetailComponent（真实组件）', () => {
   it('editChain 从 DIALOG_DATA 透传（关系 tab 列表防环用）', () => {
     const { component } = createWithDialog(dialogData({ editChain: ['group-1'] }));
 
-    expect(component.editChain()).toEqual(['group-1']);
+    expect(component.editChainValue()).toEqual(['group-1']);
   });
 
   it('US-027 AC#15 关系 tab 内嵌列表与独立列表同一派生：发票行只读可删，合同行可编辑不可删', async () => {

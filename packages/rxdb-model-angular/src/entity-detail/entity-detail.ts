@@ -3,6 +3,7 @@ import type {
   DetailTab,
   DetailTableTab,
   EntityFormData,
+  EntityInstance,
   FormFieldChangeEvent,
   FormFieldConfig,
   FormMode,
@@ -21,6 +22,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ErrorHandler,
   inject,
   input,
@@ -34,8 +36,6 @@ import { of, switchMap } from 'rxjs';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
 import { EntityFormComponent } from '../entity-form/rxdb-entity-form-angular';
 import { EntityListComponent } from '../entity-list/entity-list.component';
-
-type EntityInstance = { [key: string]: unknown; readonly id: string; save(): Promise<void>; remove(): Promise<void> };
 
 /** CDK Dialog 传入的数据结构 */
 export interface EntityDetailDialogData {
@@ -95,10 +95,10 @@ export class EntityDetailComponent {
     );
   });
 
-  /** Dialog 传入的实体类（根据 metadata 查找） */
+  /** Dialog / metadata input 传入的实体类（根据 metadata 查找） */
   readonly #entityClsFromDialog = computed<EntityType | null>(() => {
     const rxdb = this.#rxdb;
-    const meta = this.#dialogData?.metadata;
+    const meta = this.metadata() ?? this.#dialogData?.metadata;
     if (!rxdb || !meta) return null;
     return (
       rxdb.config.entities.find(cls => {
@@ -149,6 +149,18 @@ export class EntityDetailComponent {
   readonly formMode = input<FormMode | undefined>(undefined);
   readonly relatedEntityProvider = input<RelatedEntityProvider>();
 
+  /** 已打开详情对话框的记录 id 栈（input 优先，缺省回退 DIALOG_DATA），关系 tab 列表据此阻断无限套娃 */
+  readonly editChain = input<string[]>();
+
+  /** 预填充的外键数据（不可编辑），用于级联新增场景 */
+  readonly fixedFormData = input<EntityFormData>();
+
+  /** 委托保存：不创建草稿实体，仅 emit formSubmitted 让调用方处理 */
+  readonly delegateSave = input<boolean>();
+
+  /** 创建链路中的实体类型（namespace:name），用于阻断循环创建 */
+  readonly creationChain = input<string[]>();
+
   readonly formSubmitted = output<EntityFormData>();
   readonly formCancelled = output<void>();
   readonly fieldChanged = output<FormFieldChangeEvent>();
@@ -176,9 +188,9 @@ export class EntityDetailComponent {
     return mode === 'create' ? `新建${name}` : name;
   });
 
-  /** 创建链路：当前实体 + 祖先链路，传递给子 entity-list 以阻断循环创建 */
-  readonly creationChain = computed<string[]>(() => {
-    const parentChain = this.#dialogData?.creationChain ?? [];
+  /** 创建链路：当前实体 + 祖先链路，传递给子 entity-list 以阻断循环创建（input 优先，缺省回退 DIALOG_DATA） */
+  readonly creationChainValue = computed<string[]>(() => {
+    const parentChain = this.creationChain() ?? this.#dialogData?.creationChain ?? [];
     if (!this.isCreateMode()) return parentChain;
     const meta = this.metadataValue;
     if (!meta) return parentChain;
@@ -186,8 +198,8 @@ export class EntityDetailComponent {
     return parentChain.includes(key) ? parentChain : [...parentChain, key];
   });
 
-  /** 已打开详情对话框的记录 id 栈（DIALOG_DATA 透传，含当前记录），关系 tab 列表据此阻断无限套娃 */
-  readonly editChain = computed<string[]>(() => this.#dialogData?.editChain ?? []);
+  /** 已打开详情对话框的记录 id 栈（input 优先，缺省回退 DIALOG_DATA，含当前记录），关系 tab 列表据此阻断无限套娃 */
+  readonly editChainValue = computed<string[]>(() => this.editChain() ?? this.#dialogData?.editChain ?? []);
 
   /** 当前活动关系 tab 的 relationName（用于子实体注册关系） */
   readonly activeRelationName = computed<string | undefined>(() => {
@@ -198,7 +210,7 @@ export class EntityDetailComponent {
   readonly tabs = computed(() => {
     const meta = this.metadataValue;
     if (!meta) return [];
-    const chain = this.creationChain();
+    const chain = this.creationChainValue();
     return buildDetailTabs(meta).filter(tab => {
       if (tab.type !== 'table') return true;
       const t = tab as DetailTableTab;
@@ -220,7 +232,7 @@ export class EntityDetailComponent {
 
   get formFieldsValue(): FormFieldConfig[] {
     const fields = this.formFields() ?? this.#formFieldsFromRouteInputs() ?? this.#dialogData!.formFields;
-    const fixed = this.#dialogData?.fixedFormData;
+    const fixed = this.fixedFormDataValue;
     if (!fixed) return fields;
     return fields.map(f => (f.field in fixed ? { ...f, readonly: true } : f));
   }
@@ -228,13 +240,13 @@ export class EntityDetailComponent {
   get formDataValue(): EntityFormData {
     if (this.isCreateMode()) {
       const draft = this.draftFormData();
-      const fixed = this.#dialogData?.fixedFormData;
+      const fixed = this.fixedFormDataValue;
       return fixed ? { ...draft, ...fixed } : draft;
     }
     const inst = this.#entityInstance();
     if (inst) return entityToFormData(inst as Record<string, unknown>, this.formFieldsValue ?? []);
     const base = this.formData() ?? this.#dialogData?.formData ?? {};
-    const fixed = this.#dialogData?.fixedFormData;
+    const fixed = this.fixedFormDataValue;
     return fixed ? { ...base, ...fixed } : base;
   }
 
@@ -246,19 +258,33 @@ export class EntityDetailComponent {
     return this.relatedEntityProvider() ?? this.#dialogData?.relatedEntityProvider;
   }
 
+  /** 预填充外键数据（input 优先，缺省回退 DIALOG_DATA） */
+  get fixedFormDataValue(): EntityFormData | undefined {
+    return this.fixedFormData() ?? this.#dialogData?.fixedFormData;
+  }
+
+  /** 是否委托保存（input 优先，缺省回退 DIALOG_DATA） */
+  get delegateSaveValue(): boolean {
+    return this.delegateSave() ?? this.#dialogData?.delegateSave ?? false;
+  }
+
   constructor() {
-    if (this.#dialogData?.formMode === 'create' && !this.#dialogData.delegateSave) {
-      const cls = this.#entityClsFromDialog();
-      if (cls) {
-        const fixed = this.#dialogData.fixedFormData;
-        const merged = { ...(this.#dialogData.formData || {}), ...fixed };
-        this.#draftEntity = new (cls as new (...args: unknown[]) => unknown)(merged) as EntityInstance;
-        this.draftEntitySignal.set(this.#draftEntity);
-        this.draftFormData.set(
-          entityToFormData(this.#draftEntity as Record<string, unknown>, this.#dialogData.formFields)
-        );
-      }
-    }
+    // create 模式草稿实体生命周期（等价 React 端 useState 初始化 / Vue 端 immediate watch）：
+    // DIALOG_DATA 语境在构造期同步建草稿（DI 可用、inputs 尚未写入），独立使用语境在
+    // 首次变更检测写入 inputs 后由本 effect 重跑补齐 —— 两路合一，草稿只建一次。
+    effect(() => {
+      if (this.#draftEntity) return;
+      if (this.formModeValue !== 'create') return;
+      if (this.delegateSaveValue) return;
+      const cls = this.#entityCls() ?? this.#entityClsFromDialog();
+      const rxdb = this.#rxdb;
+      if (!cls || !rxdb) return;
+      const fixed = this.fixedFormDataValue;
+      const merged = { ...(this.formData() ?? this.#dialogData?.formData ?? {}), ...fixed };
+      this.#draftEntity = new (cls as new (...args: unknown[]) => unknown)(merged) as EntityInstance;
+      this.draftEntitySignal.set(this.#draftEntity);
+      this.draftFormData.set(entityToFormData(this.#draftEntity as Record<string, unknown>, this.formFieldsValue));
+    });
   }
 
   selectTab(key: string): void {
@@ -266,7 +292,7 @@ export class EntityDetailComponent {
     if (this.isCreateMode() && targetTab?.type === 'table') {
       const fields = this.formFieldsValue;
       const data = this.draftFormData();
-      const fixed = this.#dialogData?.fixedFormData;
+      const fixed = this.fixedFormDataValue;
       const merged = fixed ? { ...data, ...fixed } : data;
       const result = validateForm(fields, merged);
       if (!result.valid) {
@@ -326,7 +352,7 @@ export class EntityDetailComponent {
   onSave(): void {
     const fields = this.formFieldsValue;
     const data = this.draftFormData();
-    const fixed = this.#dialogData?.fixedFormData;
+    const fixed = this.fixedFormDataValue;
     const merged = fixed ? { ...data, ...fixed } : data;
     const result = validateForm(fields, merged);
     if (!result.valid) {
@@ -383,7 +409,7 @@ export class EntityDetailComponent {
   #syncDraftEntity(): void {
     if (!this.#draftEntity) return;
     const data = this.draftFormData();
-    const fixed = this.#dialogData?.fixedFormData;
+    const fixed = this.fixedFormDataValue;
     const merged = fixed ? { ...data, ...fixed } : data;
     Object.assign(this.#draftEntity, merged);
   }

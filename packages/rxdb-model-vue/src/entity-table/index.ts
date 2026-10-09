@@ -11,4 +11,7 @@ export { ENTITY_TABLE_CONFIG } from './config';
 export { default as EntityTable } from './EntityTable.vue';
 export { default as QueryTable } from './QueryTable.vue';
 
+// 表格命令面类型（对齐 React 侧 `EntityTableHandle` / `QueryTableHandle`）
+export type { EntityTableHandle, QueryTableHandle } from './entity-table-handles';
+
 export * from '@aiao/rxdb-model';
