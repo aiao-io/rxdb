@@ -1,5 +1,5 @@
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
-import { MenuSimple } from '@aiao/rxdb-test/entities';
+import { SortableMenuSimple } from '@aiao/rxdb-test/entities';
 import {
   ChevronDown,
   ChevronRight,
@@ -25,9 +25,7 @@ import { PathConflictWarning } from '../../components/PathConflictWarning';
 import { useDragDrop } from '../../hooks/useDragDrop';
 import { useMenuRenamePathGuard } from '../../hooks/useRenamePathGuard';
 import { useTreeMenuStore } from '../../hooks/useTreeMenuStore';
-import { getErrorMessage } from '../../utils/error';
 import { generateBatchMenus } from '../../utils/menu-utils';
-import { compareSortOrder } from '../../utils/sort-order';
 
 const MIN_LOADING_MS = 500;
 
@@ -35,32 +33,32 @@ const keepLoadingVisible = () => new Promise<void>(resolve => setTimeout(resolve
 
 export function TreeMenuSimplePage() {
   const rxdb = useRxDB();
-  const menuRepository = useMemo(() => rxdb.entityManager.getRepository(MenuSimple), [rxdb]);
+  const menuRepository = useMemo(() => rxdb.entityManager.getRepository(SortableMenuSimple), [rxdb]);
   const [showHistory, setShowHistory] = useState(true);
   const [newTitle, setNewTitle] = useState('');
   const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set());
   const [editingTitles, setEditingTitles] = useState<Map<string, string>>(new Map());
 
   // 获取所有菜单数据 - 使用 useFindAll 实现响应式订阅
-  const { value: menus } = useFindAll(MenuSimple, {
-    where: { combinator: 'and', rules: [] },
-    orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+  const { value: menus } = useFindAll(SortableMenuSimple, {
+    where: { combinator: 'and', rules: [] }
   });
 
-  const history = useMemo(() => rxdb.versionManager.history(MenuSimple), [rxdb]);
+  const history = useMemo(() => rxdb.versionManager.history(SortableMenuSimple), [rxdb]);
   const histories = useObservable(history.histories$, []);
   const undoCount = useObservable(history.undoCount$, 0);
   const redoCount = useObservable(history.redoCount$, 0);
 
-  const store = useTreeMenuStore(menus);
+  const store = useTreeMenuStore(menus, rxdb);
+  const { runWrite } = store;
   const {
     pathConflict: renamePathConflict,
     rename: renameWithPathGuard,
     clearPathConflict: clearRenamePathConflict
-  } = useMenuRenamePathGuard<MenuSimple>();
+  } = useMenuRenamePathGuard<SortableMenuSimple>();
 
   // Drag and drop
-  const dragDrop = useDragDrop<MenuSimple>(menus);
+  const dragDrop = useDragDrop<SortableMenuSimple>(menus, { repository: menuRepository, runWrite });
 
   // 删除所有菜单
   const handleDeleteAll = useCallback(async () => {
@@ -69,9 +67,7 @@ export function TreeMenuSimplePage() {
       setLoadingActions(prev => new Set(prev).add(actionKey));
     });
     try {
-      await Promise.all([rxdb.entityManager.removeMany(menus), keepLoadingVisible()]);
-    } catch (err) {
-      console.error('[TreeMenuSimple] handleDeleteAll failed:', err);
+      await runWrite('删除全部', () => Promise.all([rxdb.entityManager.removeMany(menus), keepLoadingVisible()]));
     } finally {
       setLoadingActions(prev => {
         const next = new Set(prev);
@@ -79,7 +75,7 @@ export function TreeMenuSimplePage() {
         return next;
       });
     }
-  }, [rxdb, menus]);
+  }, [rxdb, menus, runWrite]);
 
   // 批量添加菜单（带随机层级）
   const handleAddMany = useCallback(
@@ -88,10 +84,13 @@ export function TreeMenuSimplePage() {
         setLoadingActions(prev => new Set(prev).add(actionKey));
       });
       try {
-        const existingRoots = menus.filter(m => !m.parentId).sort(compareSortOrder);
-
-        const newMenus = generateBatchMenus(count, MenuSimple, existingRoots);
-        await Promise.all([rxdb.entityManager.saveMany(newMenus), keepLoadingVisible()]);
+        // 整批一次 saveMany，生成器不写 sortOrder：排序键由引擎追加到各父节点组末尾
+        await runWrite('批量添加', () =>
+          Promise.all([
+            rxdb.entityManager.saveMany(generateBatchMenus(count, SortableMenuSimple)),
+            keepLoadingVisible()
+          ])
+        );
       } finally {
         setLoadingActions(prev => {
           const next = new Set(prev);
@@ -100,18 +99,20 @@ export function TreeMenuSimplePage() {
         });
       }
     },
-    [rxdb, menus]
+    [rxdb, runWrite]
   );
 
   // 保存编辑
   const handleSave = useCallback(
-    async (menu: MenuSimple) => {
+    async (menu: SortableMenuSimple) => {
       const nextTitle = editingTitles.get(menu.id);
       if (typeof nextTitle === 'string' && nextTitle !== menu.title) {
-        const renamed = await renameWithPathGuard(menu, nextTitle, menus, async (current, value) => {
-          await menuRepository.update(current, { title: value });
-        });
-        if (!renamed) return;
+        const renamed = await runWrite('重命名', () =>
+          renameWithPathGuard(menu, nextTitle, menus, async (current, value) => {
+            await menuRepository.update(current, { title: value });
+          })
+        );
+        if (!renamed.ok || !renamed.value) return;
       }
       setEditingTitles(prev => {
         const next = new Map(prev);
@@ -120,11 +121,11 @@ export function TreeMenuSimplePage() {
       });
       store.cancelEdit();
     },
-    [editingTitles, menuRepository, store, renameWithPathGuard, menus]
+    [editingTitles, menuRepository, store, runWrite, renameWithPathGuard, menus]
   );
 
   const handleStartEdit = useCallback(
-    (menu: MenuSimple) => {
+    (menu: SortableMenuSimple) => {
       setEditingTitles(prev => new Map(prev).set(menu.id, menu.title));
       store.startEdit(menu.id);
     },
@@ -283,14 +284,11 @@ export function TreeMenuSimplePage() {
                 e.preventDefault();
                 if (!newTitle.trim()) return;
 
+                // 只在新建成功后清空：冲突或写入失败时保留用户输入
                 if (store.selectedParentId) {
                   const parent = menus.find(m => m.id === store.selectedParentId);
-                  if (parent) {
-                    await store.addChild(parent, newTitle);
-                    setNewTitle('');
-                  }
-                } else {
-                  await store.addRoot(newTitle);
+                  if (parent && (await store.addChild(parent, newTitle))) setNewTitle('');
+                } else if (await store.addRoot(newTitle)) {
                   setNewTitle('');
                 }
               }}
@@ -372,7 +370,7 @@ export function TreeMenuSimplePage() {
               onClose={clearRenamePathConflict}
             />
 
-            <OperationErrorAlert message={store.deleteError} onClose={store.clearDeleteError} />
+            <OperationErrorAlert message={store.writeError} onClose={store.clearWriteError} />
 
             {/* Path Conflict Warning */}
             {store.pathConflict && (
@@ -439,7 +437,7 @@ export function TreeMenuSimplePage() {
                           data-drop-target={isTarget ? 'true' : 'false'}
                           data-drop-valid={isTarget ? String(dragDrop.dragDropState.isValidTarget) : ''}
                           data-menu-id={menu.id}
-                          data-parent-id={menu.parentId}
+                          data-parent-id={menu.parentId ?? ''}
                           data-testid='menu-row'
                           style={{ paddingLeft: `${level * 20 + 8}px` }}
                           draggable
@@ -465,17 +463,20 @@ export function TreeMenuSimplePage() {
                           onDrop={async e => {
                             e.preventDefault();
                             e.stopPropagation();
-                            try {
-                              await dragDrop.onDrop(menu, menuId => {
+                            // 失败由 useDragDrop 经 runWrite 送进页内提示，这里不再有 catch / alert
+                            await dragDrop.onDrop(
+                              menu,
+                              menuId => {
                                 // 展开目标菜单
                                 if (!store.expandedIds.has(menuId)) {
                                   store.toggleExpand(menuId);
                                 }
-                              });
-                            } catch (error: unknown) {
-                              console.error('Drop error:', error);
-                              alert(getErrorMessage(error, '拖放操作失败'));
-                            }
+                              },
+                              {
+                                mouseY: e.clientY,
+                                rect: (e.currentTarget as HTMLElement).getBoundingClientRect()
+                              }
+                            );
                           }}
                           onDragEnd={() => dragDrop.onDragEnd()}
                         >

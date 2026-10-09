@@ -3,7 +3,13 @@ import { spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { LANE_COUNT, NO_COVERAGE_PROJECTS, SUPABASE_PROJECTS, planTestLanes } from './plan-test-lanes.mjs';
+import {
+  LANE_COUNT,
+  MEMORY_TARGET,
+  NO_COVERAGE_PROJECTS,
+  SUPABASE_PROJECTS,
+  planTestLanes
+} from './plan-test-lanes.mjs';
 
 const cliPath = fileURLToPath(new URL('./plan-test-lanes.mjs', import.meta.url));
 
@@ -153,6 +159,61 @@ test('真实常量：不采集覆盖率的项目只有 website', () => {
 test('真实常量自洽：Supabase 项目非空、lane 数为正', () => {
   assert.ok(SUPABASE_PROJECTS.length > 0);
   assert.ok(LANE_COUNT > 0);
+});
+
+test('每条 lane 都带 target：常规 lane 与 Supabase lane 跑 test', () => {
+  const result = plan(['rxdb-adapter-supabase', 'heavy', 'light']);
+
+  assert.ok(result.include.length > 0);
+  assert.ok(result.include.every(lane => lane.target === 'test'));
+});
+
+test('内存用例单独成一条 lane：跑 test-memory、不采集覆盖率、不占常规装箱', () => {
+  // 按子进程 RSS 判「不随库线性增长」的用例要独占机器、串行跑；和别的项目同 lane 时它排在最后，
+  // 整条 lane 被它拖成长尾（PR #101：rxdb-adapter-electron 的两份内存用例串行 469s）。
+  // v8 覆盖率插桩本身也会抬高 RSS，测量 lane 不该带它。
+  const result = plan(['heavy', 'light'], { memoryProjects: ['heavy'] });
+  const memoryLanes = result.include.filter(lane => lane.target === MEMORY_TARGET);
+
+  assert.deepEqual(
+    memoryLanes.map(lane => [lane.lane, lane.projects, lane.coverage, lane.supabase]),
+    [['memory', 'heavy', false, false]]
+  );
+  assert.equal(memoryLanes[0].label, `heavy (${MEMORY_TARGET})`);
+  // 常规 test lane 照旧有 heavy：两个 target 各管一半用例
+  assert.deepEqual(allProjects({ include: result.include.filter(lane => lane.target === 'test') }).sort(), [
+    'heavy',
+    'light'
+  ]);
+});
+
+test('内存 lane 的 label 也以最重的项目打头，projects 照旧按名字排序', () => {
+  // 字母序 light < mid，权重 mid > light
+  const result = plan(['light', 'mid'], { memoryProjects: ['light', 'mid'] });
+  const memoryLane = result.include.find(lane => lane.target === MEMORY_TARGET);
+
+  assert.equal(memoryLane.label, `mid +1 (${MEMORY_TARGET})`);
+  assert.equal(memoryLane.projects, 'light,mid');
+});
+
+test('没有内存用例项目时不产出内存 lane', () => {
+  assert.ok(plan(['heavy', 'light'], { memoryProjects: [] }).include.every(lane => lane.target === 'test'));
+});
+
+test('内存用例项目不在本次 test 集里时不产出内存 lane —— affected 没算到就不跑', () => {
+  assert.ok(plan(['light'], { memoryProjects: ['heavy'] }).include.every(lane => lane.target === 'test'));
+});
+
+test('CLI：--memory-projects 产出内存 lane', () => {
+  const result = runCli('--projects=a,b', '--memory-projects=a');
+
+  assert.equal(result.status, 0);
+  assert.deepEqual(
+    JSON.parse(result.stdout)
+      .include.filter(lane => lane.target === MEMORY_TARGET)
+      .map(lane => lane.projects),
+    ['a']
+  );
 });
 
 test('CLI：--lanes 非正整数直接失败，不产出空 matrix', () => {

@@ -1,20 +1,24 @@
 import type { HistoryScopeAPI, RxDBEntityId } from '@aiao/rxdb';
-import { getEntityMutations, RxDB } from '@aiao/rxdb';
-import { generateKeyBetween } from '@aiao/utils';
+import { RxDB } from '@aiao/rxdb';
 import { computed, signal, Signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { promoteChildrenAndRemove } from '../../../shared/promote-children';
+import { reorderTreeNode, treeDropPosition } from '../../../shared/tree-drop';
 import { runViewTransition, ViewTransitionStarter } from '../../../shared/view-transition';
 import { DragDropState, DropMode } from '../models/drag-drop-types';
 import { TreeMenuEntityConstructor, TreeMenuInstance, TreeNode } from '../models/tree-node.interface';
 import { MenuDragDropService } from '../services/menu-drag-drop.service';
 import { MenuSearchService } from '../services/menu-search.service';
 import { PathConflict, PathValidatorService } from './path-validator';
-import {
-  calculateDropMode as calcDropMode,
-  collectDescendants,
-  compareSortOrder,
-  countDescendants,
-  generateBatchMenus
-} from './tree-utils';
+import { collectDescendants, generateBatchMenus } from './tree-utils';
+
+/** 删除对话框展示的影响范围（取自库，不看页面已加载的节点）。 */
+export interface DeleteImpact {
+  childrenCount: number;
+  descendantsCount: number;
+}
+
+const NO_DELETE_IMPACT: DeleteImpact = { childrenCount: 0, descendantsCount: 0 };
 
 export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
   // Internal State
@@ -36,18 +40,8 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
     return this.searchService.filterTreeNodes(this.menuResource.value(), keyword);
   });
 
-  readonly deleteImpact = computed(() => {
-    const menu = this.menuToDelete();
-    if (!menu) return { childrenCount: 0, descendantsCount: 0 };
-
-    const allMenus = this.menuResource.value();
-    const children = allMenus.filter(m => m.parentId === menu.id);
-
-    return {
-      childrenCount: children.length,
-      descendantsCount: countDescendants(menu.id, allMenus)
-    };
-  });
+  /** 随 `menuToDelete` 一起在 {@link deleteMenu} 里按库查出；懒加载页的折叠节点没有已加载的子节点可数。 */
+  readonly deleteImpact = signal<DeleteImpact>(NO_DELETE_IMPACT);
 
   readonly expandedCount = computed(() => this.expandedMenuIds().size);
 
@@ -70,7 +64,7 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
     const hasSearch = this.searchKeyword().trim().length > 0;
     const nodes: TreeNode<TreeMenuInstance<C>>[] = [];
 
-    // 构建映射表
+    // 构建映射表；数组即查询顺序（引擎的默认排序），组内不再自己排序
     const childrenMap = new Map<RxDBEntityId | null, TreeMenuInstance<C>[]>();
     menus.forEach(menu => {
       const parentId = menu.parentId ?? null;
@@ -94,10 +88,7 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
     const buildNodes = (parentId: RxDBEntityId | null, level: number) => {
       const children = childrenMap.get(parentId) || [];
 
-      // 按 sortOrder 排序
-      const sortedChildren = [...children].sort(compareSortOrder);
-
-      sortedChildren.forEach(menu => {
+      children.forEach(menu => {
         // 搜索过滤：只显示匹配的菜单或其祖先节点
         if (visibleIds && !visibleIds.has(menu.id)) {
           return;
@@ -175,57 +166,54 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
     this.selectedParentId.set(null);
   }
 
-  async addRootMenu(title: string): Promise<void> {
+  /**
+   * 新建根菜单。
+   *
+   * @returns 是否已落库：同级重名时为 `false`，页面据此决定是否清空输入
+   * @throws 保存失败时原样抛出，由页面的 `runWrite` 展示
+   */
+  async addRootMenu(title: string): Promise<boolean> {
     const conflict = this.pathValidator.checkPathConflict(title, null, this.menuResource.value());
     if (conflict.hasConflict) {
       this.pathConflictWarning.set(conflict);
-      return;
+      return false;
     }
 
-    const rootMenus = this.menuResource
-      .value()
-      .filter(m => m.parentId == null)
-      .sort(compareSortOrder);
-
-    const lastRoot = rootMenus[rootMenus.length - 1];
-    const newSortOrder = generateKeyBetween(lastRoot?.sortOrder ?? null, null);
-
+    // 不赋 sortOrder：引擎在事务内把缺键的新行追加到所属 parentId 组的末尾
     const menu = this.createEntity();
     menu.title = title;
-    menu.sortOrder = newSortOrder;
     await menu.save();
 
     this.expandedMenuIds.update(ids => {
       ids.add(menu.id);
       return new Set(ids);
     });
+    return true;
   }
 
-  async addChildMenu(title: string): Promise<void> {
+  /**
+   * 在选中的父节点下新建子菜单。
+   *
+   * @returns 是否已落库：没有选中父节点或同级重名时为 `false`
+   * @throws 保存失败时原样抛出，由页面的 `runWrite` 展示
+   */
+  async addChildMenu(title: string): Promise<boolean> {
     const parentId = this.selectedParentId();
-    if (parentId === null) return;
+    if (parentId === null) return false;
 
     const conflict = this.pathValidator.checkPathConflict(title, parentId, this.menuResource.value());
     if (conflict.hasConflict) {
       this.pathConflictWarning.set(conflict);
-      return;
+      return false;
     }
-
-    const siblings = this.menuResource
-      .value()
-      .filter(m => m.parentId === parentId)
-      .sort(compareSortOrder);
-
-    const lastSibling = siblings[siblings.length - 1];
-    const newSortOrder = generateKeyBetween(lastSibling?.sortOrder ?? null, null);
 
     const menu = this.createEntity();
     menu.title = title;
-    menu.sortOrder = newSortOrder;
     menu.parentId = parentId;
 
     await menu.save();
     this.selectedParentId.set(null);
+    return true;
   }
 
   startEdit(menuId: RxDBEntityId): void {
@@ -247,53 +235,53 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
     this.editingMenuId.set(null);
   }
 
+  /**
+   * 删除节点：按库里的直接子节点决定直接删除还是打开选择对话框。
+   *
+   * @remarks
+   * 不看 `menuResource`：懒加载页只持有已加载的节点，折叠节点的子节点不在其中，
+   * 按页面判断会把有子树的节点当叶子直接删除（`parentId` 外键级联删掉整棵子树）。
+   */
   async deleteMenu(menu: TreeMenuInstance<C>): Promise<void> {
-    const allMenus = this.menuResource.value();
-    const hasChildren = allMenus.some(m => m.parentId === menu.id);
-
-    if (!hasChildren) {
+    const children = await this.findChildren(menu.id);
+    if (children.length === 0) {
       await menu.remove();
-    } else {
-      this.menuToDelete.set(menu);
+      return;
     }
+
+    const subtree = await this.findSubtree(menu.id);
+    this.deleteImpact.set({ childrenCount: children.length, descendantsCount: subtree.length - 1 });
+    this.menuToDelete.set(menu);
   }
 
   cancelDelete(): void {
-    this.menuToDelete.set(null);
+    this.closeDeleteDialog();
   }
 
   async executeCascadeDelete(): Promise<void> {
     const menu = this.menuToDelete();
     if (!menu) return;
 
-    const allMenus = this.menuResource.value();
-    const descendantIds = collectDescendants(menu.id, allMenus);
-    const menusToRemove = allMenus.filter(m => m.id === menu.id || descendantIds.has(m.id));
-
+    // findDescendants 含节点自身
+    const menusToRemove = await this.findSubtree(menu.id);
     await this.rxdb.entityManager.removeMany(menusToRemove);
-    this.menuToDelete.set(null);
+    this.closeDeleteDialog();
   }
 
+  /**
+   * 删除节点并把它的直接子节点提升到它原来的父节点下。
+   *
+   * @remarks
+   * 子节点取自库、只改 `parentId`，不赋 `sortOrder`：引擎把改了父节点的行追加到新组末尾。
+   * 保存子节点与删除节点在同一次 `mutations` 里提交，要么全成要么全不成。
+   */
   async executePromoteChildrenDelete(): Promise<void> {
     const menu = this.menuToDelete();
     if (!menu) return;
 
-    const allMenus = this.menuResource.value();
-    const children = allMenus.filter(m => m.parentId === menu.id);
-    const newParentId = menu.parentId;
-    const newParent = newParentId != null ? allMenus.find(m => m.id === newParentId) : null;
-
-    children.forEach(child => {
-      child.parentId = newParent?.id ?? null;
-    });
-
-    const options = getEntityMutations<C>({
-      needSaveEntities: children,
-      needRemoveEntities: [menu]
-    });
-
-    await this.rxdb.entityManager.mutations(options);
-    this.menuToDelete.set(null);
+    const children = await this.findChildren(menu.id);
+    await promoteChildrenAndRemove(this.rxdb, menu, children);
+    this.closeDeleteDialog();
   }
 
   clearPathWarning(): void {
@@ -311,12 +299,8 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
 
   // Batch
   async add_many_menu(total: number) {
-    const existingRoots = this.menuResource
-      .value()
-      .filter(m => m.parentId == null)
-      .sort(compareSortOrder);
-
-    const menus = generateBatchMenus(total, () => this.createEntity(), existingRoots);
+    // 一次 saveMany，节点不带 sortOrder：引擎按批内顺序把各 parentId 组追加到末尾
+    const menus = generateBatchMenus(total, () => this.createEntity());
     await this.rxdb.entityManager.saveMany<C>(menus);
   }
 
@@ -336,6 +320,25 @@ export class TreeMenuStore<C extends TreeMenuEntityConstructor> {
 
   private createEntity(): TreeMenuInstance<C> {
     return new this.entityClass() as TreeMenuInstance<C>;
+  }
+
+  private closeDeleteDialog(): void {
+    this.menuToDelete.set(null);
+    this.deleteImpact.set(NO_DELETE_IMPACT);
+  }
+
+  /** 库里某节点的直接子节点（引擎默认排序，即手动顺序）。 */
+  private findChildren(parentId: RxDBEntityId): Promise<TreeMenuInstance<C>[]> {
+    return firstValueFrom(
+      this.entityClass.findAll({
+        where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: parentId }] }
+      })
+    );
+  }
+
+  /** 库里某节点的子树：节点自身加全部后代。 */
+  private findSubtree(entityId: RxDBEntityId): Promise<TreeMenuInstance<C>[]> {
+    return firstValueFrom(this.entityClass.findDescendants({ entityId }));
   }
 }
 
@@ -393,13 +396,10 @@ export class TreeMenuDragDropStore<C extends TreeMenuEntityConstructor> extends 
     const draggedMenu = this.menuResource.value().find(m => m.id === draggedId);
     if (!draggedMenu) return { dropMode: null, isValid: false };
 
-    const dropMode = calcDropMode(clientY, rect);
-    const isValid = this.dragDropService.isValidDropTarget(
-      draggedMenu,
-      targetMenu,
-      dropMode,
-      this.menuResource.value()
-    );
+    // 菜单恒为手动排序，落点恒分三档；高亮与放下后的执行同走 resolveDrop
+    const dropMode = treeDropPosition(clientY - rect.top, rect.height, { manual: true, targetIsRoot: false });
+    const isValid =
+      this.dragDropService.resolveDrop(draggedMenu, targetMenu, dropMode, this.menuResource.value()).kind !== 'reject';
 
     const prevTargetId = this.dragDropState().targetItemId;
     if (prevTargetId !== targetMenu.id) {
@@ -448,69 +448,31 @@ export class TreeMenuDragDropStore<C extends TreeMenuEntityConstructor> extends 
     }));
   }
 
+  /**
+   * 放下：判定 → 交给 `Repository.reorder()`。`reject` / `noop` 不写库；失败向上抛，由页面经 `runWrite('拖放', …)` 展示。
+   * 拖拽状态在任何路径上都复位。
+   */
   async onDrop(targetMenu: TreeMenuInstance<C>): Promise<void> {
-    const state = this.dragDropState();
-    if (state.draggedItemId === null || !state.isValidTarget || !state.dropMode) {
-      this.resetDragState();
-      return;
-    }
-
-    const draggedMenu = this.menuResource.value().find(m => m.id === state.draggedItemId);
-    if (!draggedMenu) {
-      this.resetDragState();
-      return;
-    }
-
-    if (this.isDropRedundant(draggedMenu, targetMenu, state.dropMode, this.menuResource.value())) {
-      this.resetDragState();
-      return;
-    }
-
+    const { draggedItemId, dropMode } = this.dragDropState();
     try {
-      let dropResult = this.dragDropService.calculateDropPosition(
-        draggedMenu,
-        targetMenu,
-        state.dropMode,
-        this.menuResource.value()
-      );
+      if (draggedItemId === null || !dropMode) return;
 
-      if (!dropResult.success && dropResult.error?.message === 'REORDER_NEEDED') {
-        const allMenus = this.menuResource.value();
-        const targetParentId = state.dropMode === 'into' ? targetMenu.id : (targetMenu.parentId ?? null);
-        const siblings = allMenus.filter(m => m.parentId === targetParentId);
+      const allMenus = this.menuResource.value();
+      const draggedMenu = allMenus.find(m => m.id === draggedItemId);
+      if (!draggedMenu) return;
 
-        await this.dragDropService.rebalanceSortOrder(siblings);
-
-        dropResult = this.dragDropService.calculateDropPosition(
-          draggedMenu,
-          targetMenu,
-          state.dropMode,
-          this.menuResource.value()
-        );
-      }
-
-      if (!dropResult.success) {
-        throw new Error(dropResult.error?.message || '拖放失败');
-      }
+      const decision = this.dragDropService.resolveDrop(draggedMenu, targetMenu, dropMode, allMenus);
+      if (decision.kind !== 'reorder') return;
 
       const dropLogic = async (): Promise<void> => {
-        const result = await this.dragDropService.performDrop(draggedMenu, dropResult);
-        if (!result.success) {
-          throw result.error ?? new Error('拖放失败');
-        }
+        await reorderTreeNode(this.rxdb, this.entityClass, draggedMenu.id, decision.target);
       };
       const startTransition: ViewTransitionStarter | undefined =
         'startViewTransition' in document ? update => document.startViewTransition(update) : undefined;
 
       await runViewTransition(dropLogic, startTransition);
 
-      if (dropResult.newParentId != null && state.dropMode === 'into') {
-        this.expandedMenuIds.update(ids => {
-          const newIds = new Set(ids);
-          newIds.add(dropResult.newParentId!);
-          return newIds;
-        });
-      }
+      if (dropMode === 'into') this.expandDropTarget(targetMenu.id);
     } finally {
       this.resetDragState();
     }
@@ -521,45 +483,9 @@ export class TreeMenuDragDropStore<C extends TreeMenuEntityConstructor> extends 
     this.resetDragState();
   }
 
-  protected isDropRedundant(
-    draggedMenu: TreeMenuInstance<C>,
-    targetMenu: TreeMenuInstance<C>,
-    dropMode: DropMode,
-    allMenus: TreeMenuInstance<C>[]
-  ): boolean {
-    let newParentId: RxDBEntityId | null;
-    if (dropMode === 'into') {
-      newParentId = targetMenu.id;
-    } else {
-      newParentId = targetMenu.parentId ?? null;
-    }
-
-    const currentParentId = draggedMenu.parentId ?? null;
-    if (newParentId !== currentParentId) {
-      return false;
-    }
-
-    const siblings = allMenus.filter(m => (m.parentId ?? null) === currentParentId).sort(compareSortOrder);
-
-    const currentIndex = siblings.findIndex(m => m.id === draggedMenu.id);
-    if (currentIndex === -1) return false;
-
-    if (dropMode === 'into') {
-      return currentIndex === siblings.length - 1;
-    }
-
-    const targetIndex = siblings.findIndex(m => m.id === targetMenu.id);
-    if (targetIndex === -1) return false;
-
-    if (dropMode === 'before') {
-      return currentIndex === targetIndex || currentIndex === targetIndex - 1;
-    }
-
-    if (dropMode === 'after') {
-      return currentIndex === targetIndex || currentIndex === targetIndex + 1;
-    }
-
-    return false;
+  /** 拖进节点成功后展开目标；懒加载页覆盖它，同时订阅目标的子节点。 */
+  protected expandDropTarget(targetId: RxDBEntityId): void {
+    this.expandedMenuIds.update(ids => new Set(ids).add(targetId));
   }
 
   protected resetDragState(): void {

@@ -7,6 +7,7 @@
  */
 
 import type { EntityType } from '../entity/entity.interface.js';
+import type { EntityMetadata } from '../entity/metadata.interface.js';
 import type { RxDBMutationsMap } from '../rxdb-adapter.js';
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
 import type { TransactionExecutor } from '../transaction/transaction-executor.interface.js';
@@ -18,7 +19,9 @@ import {
   hasMissingSortOrder,
   isManualOrderEntity,
   isRegroupWithoutKey,
-  type AppendRow
+  manualOrderGroupFields,
+  type AppendRow,
+  type KnownEmptyGroup
 } from './sortable.utils.js';
 
 type MutationBucket = RxDBMutationsMap['create'];
@@ -97,6 +100,43 @@ const manualOrderTypesOf = (options: RxDBMutationsMap): EntityType[] =>
 export const sortOrderAppendEntities = (options: RxDBMutationsMap): object[] =>
   manualOrderTypesOf(options).flatMap(EntityType => appendRowsOf(EntityType, options).map(({ row }) => row));
 
+/** 实体的 `namespace:name`：关系与 create 桶按它对上号 */
+const entityKey = (namespace: string, name: string): string => `${namespace}:${name}`;
+
+/** 本批新建行的主键，按所属实体归档 */
+const createdIdsByEntity = (options: RxDBMutationsMap): ReadonlyMap<string, ReadonlySet<unknown>> =>
+  new Map(
+    [...options.create].map(([EntityType, rows]) => {
+      const { namespace, name } = getEntityMetadata(EntityType);
+      return [entityKey(namespace, name), new Set([...rows].map(row => row.id))];
+    })
+  );
+
+/**
+ * 分组外键指向本批新建的行时，该组在库里必然为空
+ *
+ * @remarks
+ * 成立的前提是后端强制外键：已提交的库状态里不可能有行指向尚不存在的行。本仓适配器建出的表都满足
+ * （SQLite 系建连即 `PRAGMA foreign_keys = ON`，事务内 `defer_foreign_keys` 只推迟到提交时校验；PGlite 建表带约束）。
+ * 追加读的是已提交的库状态、且先于本批一切写入，事务内的写序影响不到这里的判断。
+ * 前提不成立的库（不强制外键的新后端）会把非空组当空组、从首键起算，与既有键相撞——新增本地后端时须让
+ * `rxdb-test` 的 `manual-order-tree.suite.ts`（「外键约束拒绝指向不存在父行的子行」一条）在它的 runner 上通过。
+ *
+ * 外键所指的实体用关系的 `mappedNamespace` + `mappedEntity` 与 create 桶的实体元数据比对；自引用关系的
+ * `mappedEntity` 在 `transitionMetadata` 里已改写成本实体的 `name`。匹配不到就不触发，回到逐组读尾键——只会慢，不会错。
+ */
+const knownEmptyGroups = (
+  metadata: Pick<EntityMetadata, 'manualOrder' | 'foreignKeyRelationMap'>,
+  createdIds: ReadonlyMap<string, ReadonlySet<unknown>>
+): KnownEmptyGroup => {
+  const createdTargets = manualOrderGroupFields(metadata).flatMap(field => {
+    const relation = metadata.foreignKeyRelationMap.get(field);
+    const ids = relation && createdIds.get(entityKey(relation.mappedNamespace, relation.mappedEntity));
+    return ids ? [[field, ids] as const] : [];
+  });
+  return values => createdTargets.some(([field, ids]) => ids.has(values[field]));
+};
+
 /**
  * 在事务内给批内缺键的创建、改组的更新按类型、按目标组追加排序键（原地赋值）
  *
@@ -104,12 +144,17 @@ export const sortOrderAppendEntities = (options: RxDBMutationsMap): object[] =>
  *
  * @remarks
  * 同组里同批显式给的键排在自动键之前：自动键从库里尾键与这些显式键中较大的那个之后开始。
+ * 分组外键指向本批新建的行时不读尾键（见 {@link knownEmptyGroups}）：随机造树一批上万行、几千个组，
+ * 绝大多数组的父行就在本批里，逐组读尾键是这条路径的主要开销。
  */
 export const appendBatchSortOrders = async (executor: TransactionExecutor, options: RxDBMutationsMap) => {
+  const createdIds = createdIdsByEntity(options);
   for (const EntityType of manualOrderTypesOf(options)) {
     const rows = appendRowsOf(EntityType, options);
     if (rows.length === 0) continue;
+    const metadata = getEntityMetadata(EntityType);
     const repository = executor.getRepository(EntityType);
-    await appendToGroupTails(repository, getEntityMetadata(EntityType), rows, reservedRowsOf(EntityType, options));
+    const reserved = reservedRowsOf(EntityType, options);
+    await appendToGroupTails(repository, metadata, rows, reserved, knownEmptyGroups(metadata, createdIds));
   }
 };

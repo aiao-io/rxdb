@@ -78,6 +78,10 @@ import {
   Invoice,
   MenuLarge,
   MenuSimple,
+  SortableFileLarge,
+  SortableFileNode,
+  SortableMenuLarge,
+  SortableMenuSimple,
   Task,
   Todo,
   TypeDemo,
@@ -141,6 +145,14 @@ const todo = new Todo();
 const product = new Product();
 const encryptedUser = new EncryptedUser();
 declare const todoFindOptions: TodoStaticTypes['findOptions'];
+// 可排序树实体（US-031）的 sortOrder 必须是非空 string：声明成可空时，这一行在 strict 下编译失败
+const sortableTreeKeys: readonly string[] = [
+  new SortableMenuSimple().sortOrder,
+  new SortableMenuLarge().sortOrder,
+  new SortableFileNode().sortOrder,
+  new SortableFileLarge().sortOrder
+];
+
 // Task 的 orderBy 字段集里必须有 sortOrder——生成器漏了手动排序列，三端 todo 页的显式排序就写不出来
 const taskFindAllOptions: TaskStaticTypes['findAllOptions'] = {
   where: { combinator: 'and', rules: [{ field: 'completed', operator: '=', value: false }] },
@@ -242,6 +254,7 @@ void [
   entityTypes,
   todo,
   new Task().sortOrder,
+  sortableTreeKeys,
   Account,
   Article,
   AuditLog,
@@ -252,6 +265,10 @@ void [
   FileNode,
   MenuLarge,
   MenuSimple,
+  SortableFileLarge,
+  SortableFileNode,
+  SortableMenuLarge,
+  SortableMenuSimple,
   TypeDemo,
   // shop
   shopEntityTypes,

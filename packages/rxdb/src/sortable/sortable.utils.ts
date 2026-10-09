@@ -120,6 +120,54 @@ export const reorderTargetForMove = <Id>(
 };
 
 /**
+ * 把「放到目标行的上方 / 下方」换算成 `Repository.reorder()` 的邻居目标
+ *
+ * @typeParam Id - 实体主键类型
+ * @param groupIds - 目标行所在组的**完整**序列（与库里的手动顺序一致、id 无重复，含界面上被过滤或不在渲染窗口内的行）
+ * @param movedId - 被拖动行的 id；跨组放置时不在 `groupIds` 里
+ * @param targetId - 落点所在的目标行 id
+ * @param position - 放在目标行的上方（`before`）还是下方（`after`）
+ * @returns 落点前后的邻居，至少一侧是 `targetId`；被拖行已在该位置时返回 `null`，调用方不应发起重排
+ * @throws {@link RangeError} `movedId` 与 `targetId` 相同，或 `targetId` 不在 `groupIds` 里
+ *
+ * @remarks
+ * 与 {@link reorderTargetForMove} 的分工：那一个回答「同一序列里第 from 行拖到第 to 行」，
+ * 适合平铺列表；这一个回答「放到某一行旁边」，被拖行可以来自别的组，树页面的跨父放置只能这样表达。
+ *
+ * 邻居一律取自 `groupIds` 去掉被拖行之后的序列。只拿界面上可见的行会把被隐藏的兄弟夹在两个邻居之间，
+ * `reorder()` 复核相邻时以 `staleTarget` 拒绝。
+ *
+ * @example
+ * ```typescript
+ * const target = reorderTargetForDrop(siblingIds, draggedId, overId, 'after');
+ * if (target) await repository.reorder(draggedId, target);
+ * ```
+ */
+export const reorderTargetForDrop = <Id>(
+  groupIds: readonly Id[],
+  movedId: Id,
+  targetId: Id,
+  position: 'before' | 'after'
+): ReorderBetween<Id> | null => {
+  if (movedId === targetId) throw new RangeError('拖放目标不能是被拖动的行自己');
+  const rest = groupIds.filter(id => id !== movedId);
+  const targetIndex = rest.indexOf(targetId);
+  if (targetIndex < 0) throw new RangeError('拖放目标不在给定的组序列里');
+  const target: ReorderBetween<Id> =
+    position === 'before' ?
+      { prevId: rest[targetIndex - 1] ?? null, nextId: targetId }
+    : { prevId: targetId, nextId: rest[targetIndex + 1] ?? null };
+  return isCurrentPlacement(groupIds, movedId, target) ? null : target;
+};
+
+/** 被拖行在 `groupIds` 里的前后邻居是否恰好就是 `target` */
+const isCurrentPlacement = <Id>(groupIds: readonly Id[], movedId: Id, target: ReorderBetween<Id>): boolean => {
+  const movedIndex = groupIds.indexOf(movedId);
+  if (movedIndex < 0) return false;
+  return (groupIds[movedIndex - 1] ?? null) === target.prevId && (groupIds[movedIndex + 1] ?? null) === target.nextId;
+};
+
+/**
  * 断言用户写入的排序键合法
  *
  * @param entity - 实体名，用于报错
@@ -235,29 +283,74 @@ interface AppendGroup {
   rows: AppendRow[];
 }
 
-/** 按目标组拆分，组内保持批内顺序 */
+/** 单个分组取值的规范化表示：带类型标签，`null` / `'1'` / `1` / `true` / `1n` / 同一时刻的 Date 各不相撞 */
+const groupKeyPart = (value: unknown): string => {
+  if (value instanceof Date) return `date:${String(value.getTime())}`;
+  return `${typeof value}:${String(value)}`;
+};
+
+/**
+ * 一组分组取值的规范化键，只用于建索引
+ *
+ * @remarks
+ * 分组取值为 `null` / string / number / boolean / bigint / 合法 Date 时，与逐字段 `isEqual` 判同组等价。
+ * 对象取值一律落成 `object:[object Object]`（会把不同对象并进一组），Invalid Date 落成 `date:NaN`（与 `isEqual` 判不等相悖）；
+ * 分组字段是外键或标量列，碰不到这两种。
+ */
+const groupKeyOf = (fields: readonly string[], values: GroupValues): string =>
+  JSON.stringify(fields.map(field => groupKeyPart(values[field])));
+
+/**
+ * 按目标组拆分，组内保持批内顺序，组按首次出现的批内顺序排列
+ *
+ * @remarks
+ * 按组键建索引而不是逐组 `find`：随机树一批上万行、几千个组时，线性查找是 O(行数 × 组数)。
+ */
 const splitByGroup = (fields: readonly string[], rows: readonly AppendRow[]): AppendGroup[] => {
-  const groups: AppendGroup[] = [];
+  const groups = new Map<string, AppendGroup>();
   for (const item of rows) {
     const values = groupValuesOf(fields, item.row);
-    const group = groups.find(candidate => isSameGroup(fields, candidate.values, values));
+    const key = groupKeyOf(fields, values);
+    const group = groups.get(key);
     if (group) group.rows.push(item);
-    else groups.push({ values, rows: [item] });
+    else groups.set(key, { values, rows: [item] });
   }
-  return groups;
+  return [...groups.values()];
 };
+
+/** 预留显式键按组归档，同组可能有多条 */
+const reservedKeysByGroup = (
+  fields: readonly string[],
+  reserved: readonly SortableRow[]
+): ReadonlyMap<string, SortOrderKey[]> => {
+  const keys = new Map<string, SortOrderKey[]>();
+  for (const row of reserved) {
+    const key = groupKeyOf(fields, groupValuesOf(fields, row));
+    const list = keys.get(key);
+    if (list) list.push(row.sortOrder as SortOrderKey);
+    else keys.set(key, [row.sortOrder as SortOrderKey]);
+  }
+  return keys;
+};
+
+/**
+ * 判定某个目标组在库里必然为空：命中时不读尾键
+ *
+ * @remarks
+ * 由 `appendBatchSortOrders` 按「分组外键指向本批新建的行」推出，前提是外键约束（见 `knownEmptyGroups`）。
+ */
+export type KnownEmptyGroup = (values: GroupValues) => boolean;
 
 /** 按码点取较大的键；`null` 表示该侧没有键 */
 const maxKey = (keys: readonly SortOrderKey[]): SortOrderKey | null =>
   keys.reduce<SortOrderKey | null>((max, key) => (max === null || max < key ? key : max), null);
 
-const appendToGroup = async (
+/** 组内末尾行，排除本批已在库里、正在改组的行 */
+const readGroupTail = async (
   repository: IRepository<EntityType>,
-  entity: string,
   fields: readonly string[],
-  { values, rows }: AppendGroup,
-  reserved: readonly SortableRow[]
-): Promise<void> => {
+  { values, rows }: AppendGroup
+): Promise<SortableRow | undefined> => {
   const excluded = rows.filter(item => item.persisted).map(item => item.row.id);
   const rules = [
     ...groupRules(fields, values),
@@ -265,11 +358,20 @@ const appendToGroup = async (
       [{ field: 'id', operator: 'notIn', value: excluded } as Rule<InstanceType<EntityType>>]
     : [])
   ];
-  const tail = await readTailRow(repository, rules);
+  return readTailRow(repository, rules);
+};
+
+const appendToGroup = async (
+  repository: IRepository<EntityType>,
+  entity: string,
+  fields: readonly string[],
+  group: AppendGroup,
+  reservedKeys: readonly SortOrderKey[],
+  knownEmpty: boolean
+): Promise<void> => {
+  const { rows } = group;
+  const tail = knownEmpty ? undefined : await readGroupTail(repository, fields, group);
   if (tail) assertAnchorKey(entity, tail.sortOrder, '尾行');
-  const reservedKeys = reserved
-    .filter(row => isSameGroup(fields, groupValuesOf(fields, row), values))
-    .map(row => row.sortOrder as SortOrderKey);
   const anchor = maxKey([...(tail ? [tail.sortOrder as SortOrderKey] : []), ...reservedKeys]);
   const keys = generateKeysBetween(anchor, null, rows.length);
   rows.forEach(({ row }, index) => {
@@ -284,10 +386,12 @@ const appendToGroup = async (
  * @param metadata - 实体元数据
  * @param rows - 待追加的行，迭代顺序即批内顺序；新键就地写到 `row.sortOrder`
  * @param reserved - 同一事务随后要写入的显式键行（已校验合法），按写入后的分组取值归组；没有时传空数组
+ * @param isKnownEmpty - 可选：判定某组在库里必然为空，命中时不读尾键、锚点只取同组预留键；缺省一律读尾键
  * @throws {@link SortOrderError} 任一目标组的尾键不合法（`'corruptAnchor'`），一条都不写
  *
  * @remarks
- * 每个目标组一次读尾键、一次 `generateKeysBetween(锚点, null, n)`：同组 n 条互不碰撞，也不必逐条读尾键。
+ * 每个目标组至多一次读尾键、一次 `generateKeysBetween(锚点, null, n)`：同组 n 条互不碰撞，也不必逐条读尾键；
+ * `isKnownEmpty` 命中的组库里必然为空，连这一次也省掉。
  * 锚点取库里尾键与同组预留键里码点最大的那个——同批显式键还没落库，只看库里尾键会生成与它相同的键。
  * 键写到实体上而不是另给一份 patch，`getEntityStatus(entity).patch` 才会带上它；
  * 事务失败时由调用方用 {@link snapshotSortOrders} 撤回。
@@ -296,11 +400,14 @@ export const appendToGroupTails = async (
   repository: IRepository<EntityType>,
   metadata: ManualOrderMetadata,
   rows: readonly AppendRow[],
-  reserved: readonly SortableRow[]
+  reserved: readonly SortableRow[],
+  isKnownEmpty?: KnownEmptyGroup
 ): Promise<void> => {
   const fields = manualOrderGroupFields(metadata);
+  const reservedKeys = reservedKeysByGroup(fields, reserved);
   for (const group of splitByGroup(fields, rows)) {
-    await appendToGroup(repository, metadata.name, fields, group, reserved);
+    const keys = reservedKeys.get(groupKeyOf(fields, group.values)) ?? [];
+    await appendToGroup(repository, metadata.name, fields, group, keys, isKnownEmpty?.(group.values) === true);
   }
 };
 

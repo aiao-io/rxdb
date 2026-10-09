@@ -8,7 +8,7 @@
  *
  * 不设 `log: false`：变更日志触发器是活查询增量合并的事件源，关掉后套件里的增量合并断言无从观测。
  */
-import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';
+import { Entity, EntityBase, OnDeleteAction, PropertyType, RelationKind } from '@aiao/rxdb';
 
 /**
  * `SortableItem` —— 整表一条序列的手动排序实体。
@@ -120,4 +120,45 @@ export class SortableTeamItem extends EntityBase {
   sortOrder!: string;
   team!: string;
   phase!: string;
+}
+
+/**
+ * `SortableNode` —— 按自引用外键 `parentId` 分组的手动排序实体（US-031）：同一父节点下的子节点是一条序列，根节点（`parentId` 为 NULL）自成一组。
+ *
+ * @remarks
+ * 与三端 demo 的可排序树实体同一种分组形态，但不依赖树插件（runner 不装它）：分组只认外键列，树能力与排序无关。
+ * `parent` 级联删除，套件据此验证「删除并提升子节点」一次提交里子节点先改挂、父节点后删除，子节点不被级联删掉。
+ * 套件内部夹具，不从包入口导出。
+ */
+@Entity({
+  name: 'SortableNode',
+  tableName: 'manual_order_node',
+  namespace: 'manual-order-fixtures',
+  manualOrder: { groupBy: ['parentId'] },
+  properties: [
+    { name: 'title', type: PropertyType.string },
+    { name: 'sortOrder', type: PropertyType.string }
+  ],
+  relations: [
+    {
+      name: 'parent',
+      columnName: 'parentId',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'SortableNode',
+      mappedProperty: 'children',
+      nullable: true,
+      onDelete: OnDeleteAction.CASCADE
+    },
+    {
+      name: 'children',
+      kind: RelationKind.ONE_TO_MANY,
+      mappedEntity: 'SortableNode',
+      mappedProperty: 'parent'
+    }
+  ]
+})
+export class SortableNode extends EntityBase {
+  title!: string;
+  sortOrder!: string;
+  parentId!: string | null;
 }

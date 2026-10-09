@@ -237,6 +237,9 @@
     <!-- 主内容区 -->
     <div class="p-6">
       <div class="mx-auto max-w-4xl space-y-6">
+        <!-- 写入失败提示（新建 / 重命名 / 批量添加 / 删除） -->
+        <app-tree-write-error [message]="writeError()" (closed)="clearWriteError()" />
+
         <!-- 路径冲突警告 -->
         @if (pathConflictWarning(); as warning) {
           <div class="alert alert-warning">
@@ -282,8 +285,10 @@
                   @let dragState = getDragState(node.node.id);
                   <li
                     class="tree-node"
+                    [attr.data-drop-mode]="dropModeAttr(node.node.id)"
+                    [attr.data-drop-valid]="dropValidAttr(node.node.id)"
                     [attr.data-file-id]="node.node.id"
-                    [attr.data-parent-id]="node.node.parentId"
+                    [attr.data-parent-id]="node.node.parentId ?? ''"
                     [attr.draggable]="true"
                     [class.dragging]="isDragging(node.node.id)"
                     [class.drop-after]="dragState === 'drop-after'"

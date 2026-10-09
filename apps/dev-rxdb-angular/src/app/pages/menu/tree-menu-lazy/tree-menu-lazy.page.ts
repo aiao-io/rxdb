@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/member-ordering */
 import type { RxDBEntityId } from '@aiao/rxdb';
 import { RxDB } from '@aiao/rxdb';
-import { MenuLarge } from '@aiao/rxdb-test/entities';
+import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { AsyncPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, ElementRef, inject, OnDestroy, viewChild } from '@angular/core';
@@ -24,6 +24,7 @@ import {
   LucideX as X
 } from '@lucide/angular';
 import { HistorySidebarComponent } from '@modules/angular';
+import { TreeWriteError } from '../../../components/tree-write-error';
 import { TreeMenuDragDropBase } from '../utils/tree-menu.drag-drop';
 import { ENTITY_CLASS, HISTORY, TreeMenuLazyStore } from './tree-menu-lazy.store';
 
@@ -69,21 +70,21 @@ import { ENTITY_CLASS, HISTORY, TreeMenuLazyStore } from './tree-menu-lazy.store
   styleUrls: ['./tree-menu-lazy.page.scss'],
   host: { class: 'page-host' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [FormsModule, LucideDynamicIcon, ScrollingModule, AsyncPipe, HistorySidebarComponent],
+  imports: [FormsModule, LucideDynamicIcon, ScrollingModule, AsyncPipe, HistorySidebarComponent, TreeWriteError],
   standalone: true,
   providers: [
     TreeMenuLazyStore,
-    { provide: ENTITY_CLASS, useValue: MenuLarge },
+    { provide: ENTITY_CLASS, useValue: SortableMenuLarge },
     {
       provide: HISTORY,
       useFactory: () => {
         const rxdb = inject(RxDB);
-        return rxdb.versionManager.history(MenuLarge);
+        return rxdb.versionManager.history(SortableMenuLarge);
       }
     }
   ]
 })
-export default class TreeMenuLazyPage extends TreeMenuDragDropBase<typeof MenuLarge> implements OnDestroy {
+export default class TreeMenuLazyPage extends TreeMenuDragDropBase<typeof SortableMenuLarge> implements OnDestroy {
   // Icons
   readonly ChevronRight = ChevronRight;
   readonly ChevronDown = ChevronDown;
@@ -107,10 +108,10 @@ export default class TreeMenuLazyPage extends TreeMenuDragDropBase<typeof MenuLa
   /** 自动滚动定时器 */
   private autoScrollTimer: ReturnType<typeof setInterval> | null = null;
 
-  declare readonly store: TreeMenuLazyStore<typeof MenuLarge>;
+  declare readonly store: TreeMenuLazyStore<typeof SortableMenuLarge>;
 
   constructor() {
-    const lazyStore = inject(TreeMenuLazyStore<typeof MenuLarge>);
+    const lazyStore = inject(TreeMenuLazyStore<typeof SortableMenuLarge>);
     const history = inject(HISTORY);
 
     // 为基类创建menuResource包装器
@@ -118,13 +119,13 @@ export default class TreeMenuLazyPage extends TreeMenuDragDropBase<typeof MenuLa
       value: lazyStore.visibleNodes
     };
 
-    super(menuResource, MenuLarge, history, lazyStore);
+    super(menuResource, SortableMenuLarge, history, lazyStore);
   }
 
   /**
    * 覆盖toggleExpand以使用懒加载
    */
-  override toggleExpand(menu: MenuLarge): void {
+  override toggleExpand(menu: SortableMenuLarge): void {
     if (this.store.isExpanded(menu.id)) {
       this.store.collapseNode(menu.id);
     } else {
@@ -167,7 +168,7 @@ export default class TreeMenuLazyPage extends TreeMenuDragDropBase<typeof MenuLa
   /**
    * 拖拽经过元素
    */
-  override onDragOver(event: DragEvent, targetMenu: MenuLarge): void {
+  override onDragOver(event: DragEvent, targetMenu: SortableMenuLarge): void {
     super.onDragOver(event, targetMenu);
     this.handleAutoScroll(event);
   }

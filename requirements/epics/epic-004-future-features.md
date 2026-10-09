@@ -31,6 +31,7 @@ owner: jimmy
 - [x] 会话录制回放与失败现场数据还原：e2e 失败留下失败尝试的 trace，需要时导出失败时刻的库供导入调试；应用内会话录制（价值门禁 owner 2026-10-01 豁免）
 - [ ] 实体元数据能声明 CHECK、条件唯一、区间排他与生成列，业务不变量落在存储层而不只活在仓储方法里
 - [x] 普通实体可声明手动排序（整表或按分组字段），三端 Todo 列表可拖拽调整先后并落库
+- [ ] 三端 demo 的树菜单与文件管理器改用可排序树实体，排序键一律由 core 给出，同一操作三端结果一致
 
 ## 故事
 
@@ -67,7 +68,7 @@ owner: jimmy
 - [US-025 核心包子系统按插件边界外移](../stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体逐阶段外移为插件包；搬消费者不搬 changelog 原语；阶段 B 起前置 US-015 的 `plugin:*` 依赖解析
 - [US-506 website 插件文档补齐（history / sync / querycache）](../stories/plugin/US-506-website-plugin-docs.md) — US-025 拆包三插件的文档站手册页、侧边栏导航与 typedoc 收录，含 flatten 重写坏链修复；`site-build` 已绿
 - [US-030 实体元数据层的声明式存储约束](../stories/core/US-030-declarative-storage-constraints.md) — `checks` 与索引的 `where` / `expression` / `method`：`EntityMetadataOptions` 今天一项都没有；四阶段（CHECK → 条件唯一与表达式索引 → 区间排他双后端等价 → 生成列与索引方法）；阶段 A～C 已于 2026-10-02 由 owner 提前解锁，阶段 D 仍**价值待证**；当前消费方全在 epic-009
-- [US-031 树形实体迁移到排序模块](../stories/core/US-031-tree-sortable-migration.md) — 树兄弟域以 `parentId` 为分组字段迁到 US-028 排序模块：`rxdb-test` 四个树实体 `sortOrder` 改非空并按父节点回填，三端 demo 的新建追加与拖放改用 core API；前置 US-028 阶段 A + D；**价值待证**
+- [US-031 树形实体迁移到排序模块](../stories/core/US-031-tree-sortable-migration.md) — 三端 demo 的树改用新建的可排序树实体（`parentId` 分组；旧的四个树实体不改），新建、批量添加、删除提升子节点与拖放改走 US-028 排序模块；症状可复现（三处撞键），三端行为已分叉；A 新实体与创建类写入 → B 拖放与显示顺序；前置 US-028 阶段 A + D
 
 > 拆分理由：PGlite 的 callback transaction 无法跨 IPC 序列化，需要一套 SQLite 路径不需要的事务 host 协议，
 > 故 US-208 从 US-207 拆出。US-020 / US-212 / US-023 / US-213 / US-214 / US-021 / US-022 / US-215 / US-218 / US-220 归本 Epic

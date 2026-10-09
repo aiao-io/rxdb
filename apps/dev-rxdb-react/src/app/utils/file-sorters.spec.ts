@@ -1,4 +1,4 @@
-import type { FileNode } from '@aiao/rxdb-test/entities';
+import type { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { describe, expect, it } from 'vitest';
 import { getSortComparator, SortMode } from './file-sorters';
 
@@ -6,17 +6,13 @@ const makeFile = (
   name: string,
   type: 'file' | 'folder',
   sortOrder: string,
-  extra: Partial<Pick<FileNode, 'extension' | 'size'>> = {}
-): FileNode => ({ name, type, sortOrder, ...extra }) as FileNode;
+  extra: Partial<Pick<SortableFileNode, 'extension' | 'size'>> = {}
+): SortableFileNode => ({ name, type, sortOrder, ...extra }) as SortableFileNode;
 
 describe('getSortComparator', () => {
-  it('自由排序在三个文件管理页面都保持文件夹优先', () => {
-    const file = makeFile('较早文件', 'file', 'a0');
-    const folder = makeFile('较晚文件夹', 'folder', 'z0');
-
-    const sorted = [file, folder].sort(getSortComparator(SortMode.Manual));
-
-    expect(sorted).toEqual([folder, file]);
+  it('Manual 返回 null（保留查询顺序）', () => {
+    // 手动顺序就是引擎的默认排序给出的查询顺序：页面不再排序，也不再文件夹优先
+    expect(getSortComparator(SortMode.Manual)).toBeNull();
   });
 
   it('所有页面共享同一套排序语义和中文 locale', () => {
@@ -27,7 +23,6 @@ describe('getSortComparator', () => {
     ];
 
     const modes: SortMode[] = [
-      SortMode.Manual,
       SortMode.NameAsc,
       SortMode.NameDesc,
       SortMode.TypeAsc,
@@ -39,15 +34,15 @@ describe('getSortComparator', () => {
     ];
 
     for (const mode of modes) {
-      const first = [...files].sort(getSortComparator(mode)).map(file => file.name);
-      const second = [...files].sort(getSortComparator(mode)).map(file => file.name);
+      const comparator = getSortComparator(mode);
+      if (comparator === null) throw new Error(`${mode} 应有比较器`);
+      const first = [...files].sort(comparator).map(file => file.name);
+      const second = [...files].sort(comparator).map(file => file.name);
       expect(second, mode).toEqual(first);
     }
 
-    expect([...files].sort(getSortComparator(SortMode.NameAsc)).map(file => file.name)).toEqual([
-      '阿尔法',
-      'beta',
-      'zeta'
-    ]);
+    const nameAsc = getSortComparator(SortMode.NameAsc);
+    if (nameAsc === null) throw new Error('NameAsc 应有比较器');
+    expect([...files].sort(nameAsc).map(file => file.name)).toEqual(['阿尔法', 'beta', 'zeta']);
   });
 });

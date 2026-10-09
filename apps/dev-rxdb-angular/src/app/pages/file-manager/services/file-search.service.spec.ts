@@ -1,10 +1,10 @@
-import { FileNode } from '@aiao/rxdb-test/entities';
+import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { FileSearchService } from './file-search.service';
 
 describe('FileSearchService', () => {
   let service: FileSearchService;
-  let mockFiles: FileNode[];
+  let mockFiles: SortableFileNode[];
 
   beforeEach(() => {
     service = new FileSearchService();
@@ -47,7 +47,7 @@ describe('FileSearchService', () => {
         parentId: '2',
         sortOrder: 'b'
       }
-    ] as unknown as FileNode[];
+    ] as unknown as SortableFileNode[];
   });
 
   describe('filterTreeNodes', () => {
@@ -112,7 +112,7 @@ describe('FileSearchService', () => {
       const cyclicFiles = [
         { id: 'a', name: 'A', type: 'folder', parentId: 'b' },
         { id: 'b', name: 'B', type: 'folder', parentId: 'a' }
-      ] as unknown as FileNode[];
+      ] as unknown as SortableFileNode[];
       const find = cyclicFiles.find.bind(cyclicFiles);
       cyclicFiles.find = vi.fn((predicate, thisArg) => {
         if (vi.mocked(cyclicFiles.find).mock.calls.length > cyclicFiles.length + 1) {
@@ -158,7 +158,7 @@ describe('FileSearchService', () => {
       const cyclicFiles = [
         { id: 'a', name: 'A', type: 'folder', parentId: 'b' },
         { id: 'b', name: 'B', type: 'folder', parentId: 'a' }
-      ] as unknown as FileNode[];
+      ] as unknown as SortableFileNode[];
 
       expect(service.shouldShowFile('a', cyclicFiles, new Set())).toBe(false);
     });

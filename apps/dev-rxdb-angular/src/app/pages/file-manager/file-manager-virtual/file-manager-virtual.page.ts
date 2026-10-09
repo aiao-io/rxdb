@@ -1,6 +1,6 @@
 import { RxDB } from '@aiao/rxdb';
 import { useFindAll } from '@aiao/rxdb-angular';
-import { FileNode } from '@aiao/rxdb-test/entities';
+import { SortableFileNode } from '@aiao/rxdb-test/entities';
 import { ScrollingModule } from '@angular/cdk/scrolling';
 import { AsyncPipe, CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, inject, signal, viewChild } from '@angular/core';
@@ -30,6 +30,7 @@ import {
   LucideX as X
 } from '@lucide/angular';
 import { HistorySidebarComponent } from '@modules/angular';
+import { TreeWriteError } from '../../../components/tree-write-error';
 import { FileDragDropService } from '../services/file-drag-drop.service';
 import { FilePathValidatorService } from '../services/file-path-validator.service';
 import { TreeFileDragDropBase } from '../utils/tree-file-drag-drop.base';
@@ -47,14 +48,22 @@ import { TreeFileDragDropStore } from '../utils/tree-file.store';
 @Component({
   selector: 'app-file-manager-virtual-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, LucideDynamicIcon, AsyncPipe, HistorySidebarComponent, ScrollingModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    LucideDynamicIcon,
+    AsyncPipe,
+    HistorySidebarComponent,
+    TreeWriteError,
+    ScrollingModule
+  ],
   providers: [FilePathValidatorService],
   templateUrl: './file-manager-virtual.page.html',
   styleUrl: './file-manager-virtual.page.scss',
   host: { class: 'page-host' },
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export default class FileManagerVirtualPage extends TreeFileDragDropBase<typeof FileNode> {
+export default class FileManagerVirtualPage extends TreeFileDragDropBase<typeof SortableFileNode> {
   /** 自动滚动定时器 */
   private autoScrollTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -105,21 +114,20 @@ export default class FileManagerVirtualPage extends TreeFileDragDropBase<typeof 
 
   constructor() {
     const rxdb = inject(RxDB);
-    const fileResource = useFindAll(FileNode, {
-      where: { combinator: 'and', rules: [] },
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+    const fileResource = useFindAll(SortableFileNode, {
+      where: { combinator: 'and', rules: [] }
     });
-    const history = rxdb.versionManager.history(FileNode);
+    const history = rxdb.versionManager.history(SortableFileNode);
     const store = new TreeFileDragDropStore(
       rxdb,
       inject(FilePathValidatorService),
       inject(FileDragDropService),
       fileResource,
-      FileNode,
+      SortableFileNode,
       history
     );
 
-    super(store, fileResource, FileNode, history);
+    super(store, fileResource, SortableFileNode, history);
 
     // 资源清理：组件销毁时清理自动滚动定时器
     const destroyRef = inject(DestroyRef);
@@ -137,7 +145,7 @@ export default class FileManagerVirtualPage extends TreeFileDragDropBase<typeof 
     }, 0);
   }
 
-  getDisplayName(node: FileNode): string {
+  getDisplayName(node: SortableFileNode): string {
     if (node.type === 'folder') return node.name;
     if (!node.extension) return node.name;
     if (node.name.endsWith(`.${node.extension}`)) return node.name;
@@ -148,7 +156,7 @@ export default class FileManagerVirtualPage extends TreeFileDragDropBase<typeof 
    * 拖拽经过元素
    * 重写父类方法以添加自动滚动功能
    */
-  override onDragOver(event: DragEvent, file: FileNode): void {
+  override onDragOver(event: DragEvent, file: SortableFileNode): void {
     super.onDragOver(event, file);
     this.handleAutoScroll(event);
   }

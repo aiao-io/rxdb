@@ -1,28 +1,40 @@
-import { MenuLarge } from '@aiao/rxdb-test/entities';
-import { generateKeyBetween } from '@aiao/utils';
+import type { RxDB, RxDBEntityId } from '@aiao/rxdb';
+import { SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { useCallback, useMemo, useState } from 'react';
-import { getErrorMessage } from '../utils/error';
-import { collectSubtreePostOrder } from '../utils/tree-scope';
+import { firstValueFrom } from 'rxjs';
+import { promoteChildrenAndRemove } from '../utils/promote-children';
+import { byParent, collectSubtreePostOrder } from '../utils/tree-scope';
+import { useTreeWriteError } from './useTreeWriteError';
 
 export interface VirtualTreeNode {
-  menu: MenuLarge;
+  menu: SortableMenuLarge;
   level: number;
   isExpanded: boolean;
   hasChildren: boolean;
 }
 
-export function useTreeMenuVirtualStore(menus: MenuLarge[]) {
+/** 库里某节点的直接子节点是否存在。删除对话框的取舍以库为准，不看页面已加载的节点。 */
+const hasChildrenInDb = async (parentId: RxDBEntityId): Promise<boolean> => {
+  const rows = await firstValueFrom(SortableMenuLarge.find({ where: byParent(parentId), limit: 1 }));
+  return rows.length > 0;
+};
+
+/** 库里某节点的全部直接子节点（保持原有相对顺序）。 */
+const fetchChildrenInDb = (parentId: RxDBEntityId): Promise<SortableMenuLarge[]> =>
+  firstValueFrom(SortableMenuLarge.findAll({ where: byParent(parentId) }));
+
+export function useTreeMenuVirtualStore(menus: SortableMenuLarge[], rxdb: RxDB) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedParentId, setSelectedParentId] = useState<string | null>(null);
   const [searchKeyword, setSearchKeyword] = useState('');
-  const [menuToDelete, setMenuToDelete] = useState<MenuLarge | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [menuToDelete, setMenuToDelete] = useState<SortableMenuLarge | null>(null);
+  const { writeError, clearWriteError, runWrite } = useTreeWriteError();
 
   // 构建树节点列表
   const treeNodes = useMemo<VirtualTreeNode[]>(() => {
     const nodes: VirtualTreeNode[] = [];
-    const childrenMap = new Map<string | null, MenuLarge[]>();
+    const childrenMap = new Map<string | null, SortableMenuLarge[]>();
 
     // 构建 children 映射
     menus.forEach(menu => {
@@ -35,16 +47,10 @@ export function useTreeMenuVirtualStore(menus: MenuLarge[]) {
 
     // 递归构建节点
     const buildNodes = (parentId: string | null, level: number) => {
+      // 同组的顺序即查询顺序（引擎的手动顺序），不再另排
       const children = childrenMap.get(parentId) || [];
-      const sorted = [...children].sort((a, b) => {
-        const orderA = a.sortOrder || '';
-        const orderB = b.sortOrder || '';
-        if (orderA < orderB) return -1;
-        if (orderA > orderB) return 1;
-        return 0;
-      });
 
-      sorted.forEach(menu => {
+      children.forEach(menu => {
         // 使用实体上的 hasChildren 属性，或者回退到内存计算
         const hasChildren = menu.hasChildren ?? (childrenMap.has(menu.id) && childrenMap.get(menu.id)!.length > 0);
         const isExpanded = expandedIds.has(menu.id);
@@ -112,75 +118,39 @@ export function useTreeMenuVirtualStore(menus: MenuLarge[]) {
     setEditingId(null);
   }, []);
 
+  // 新建返回是否已落库：写入失败时为 false，页面据此决定是否清空输入
   const addChild = useCallback(
-    async (parentMenu: MenuLarge, title: string) => {
-      const siblings = menus.filter(m => m.parentId === parentMenu.id);
-      siblings.sort((a, b) => {
-        const orderA = a.sortOrder || '';
-        const orderB = b.sortOrder || '';
-        if (orderA < orderB) return -1;
-        if (orderA > orderB) return 1;
-        return 0;
-      });
-      const lastSibling = siblings[siblings.length - 1];
-      const lastSortOrder = lastSibling ? lastSibling.sortOrder : null;
-      const newSortOrder = generateKeyBetween(lastSortOrder, null);
-
-      const newMenu = new MenuLarge({
-        title,
-        parentId: parentMenu.id,
-        sortOrder: newSortOrder
-      });
-
-      await newMenu.save();
-      setExpandedIds(prev => new Set(prev).add(parentMenu.id));
+    async (parentMenu: SortableMenuLarge, title: string): Promise<boolean> => {
+      // 只赋业务字段与 parentId：排序键由引擎在保存事务里追加到该父节点组的末尾
+      const result = await runWrite('新建', () => new SortableMenuLarge({ title, parentId: parentMenu.id }).save());
+      if (result.ok) setExpandedIds(prev => new Set(prev).add(parentMenu.id));
+      return result.ok;
     },
-    [menus]
+    [runWrite]
   );
 
   const addRoot = useCallback(
-    async (title: string) => {
-      const rootMenus = menus.filter(m => m.parentId === null);
-      rootMenus.sort((a, b) => {
-        const orderA = a.sortOrder || '';
-        const orderB = b.sortOrder || '';
-        if (orderA < orderB) return -1;
-        if (orderA > orderB) return 1;
-        return 0;
-      });
-      const lastMenu = rootMenus[rootMenus.length - 1];
-      const lastSortOrder = lastMenu ? lastMenu.sortOrder : null;
-      const newSortOrder = generateKeyBetween(lastSortOrder, null);
-
-      const newMenu = new MenuLarge({
-        title,
-        parentId: null,
-        sortOrder: newSortOrder
-      });
-
-      await newMenu.save();
+    async (title: string): Promise<boolean> => {
+      const result = await runWrite('新建', () => new SortableMenuLarge({ title, parentId: null }).save());
+      return result.ok;
     },
-    [menus]
+    [runWrite]
   );
 
   // REACT-FRESH-01：见 useTreeMenuStore 中的同名说明 —— 叶子路径不能 `void`，
   // 否则与相邻级联路径的 `await` 形成两套错误契约，删除失败对用户完全不可见。
   const deleteMenu = useCallback(
-    async (menu: MenuLarge): Promise<void> => {
-      const hasChildren = menus.some(m => m.parentId === menu.id);
-      if (hasChildren) {
-        // 有子节点，显示对话框
-        setMenuToDelete(menu);
-        return;
-      }
-      setDeleteError(null);
-      try {
+    async (menu: SortableMenuLarge): Promise<void> => {
+      await runWrite('删除', async () => {
+        if (await hasChildrenInDb(menu.id)) {
+          // 有子节点，显示对话框
+          setMenuToDelete(menu);
+          return;
+        }
         await menu.remove();
-      } catch (error: unknown) {
-        setDeleteError(getErrorMessage(error, '删除菜单失败'));
-      }
+      });
     },
-    [menus]
+    [runWrite]
   );
 
   const cancelDelete = useCallback(() => {
@@ -192,47 +162,27 @@ export function useTreeMenuVirtualStore(menus: MenuLarge[]) {
 
     const menusToRemove = collectSubtreePostOrder(menuToDelete, menus);
 
-    setDeleteError(null);
-    try {
+    await runWrite('级联删除', async () => {
       for (const menu of menusToRemove) {
         await menu.remove();
       }
-    } catch (error: unknown) {
-      setDeleteError(getErrorMessage(error, '级联删除失败'));
-      return;
-    }
-
+    });
+    // 成败都关闭对话框：失败时页内提示不被模态框挡住（三端同一行为）
     setMenuToDelete(null);
-  }, [menuToDelete, menus]);
+  }, [menuToDelete, menus, runWrite]);
 
   const executePromoteChildrenDelete = useCallback(async () => {
-    if (!menuToDelete) return;
+    const selected = menuToDelete;
+    if (!selected) return;
 
-    // 删除父节点，子节点提升
-    const children = menus.filter(m => m.parentId === menuToDelete.id);
-    const newParentId = menuToDelete.parentId;
-
-    setDeleteError(null);
-    try {
-      // 更新子节点的 parentId
-      for (const child of children) {
-        child.parentId = newParentId;
-        await child.save();
-      }
-
-      // 删除当前节点
-      await menuToDelete.remove();
-    } catch (error: unknown) {
-      setDeleteError(getErrorMessage(error, '删除菜单失败'));
-      return;
-    }
-
+    // 子节点取自库（页面可能没加载全），与被删节点同一事务提交
+    await runWrite('删除并提升子节点', async () => {
+      const children = await fetchChildrenInDb(selected.id);
+      await promoteChildrenAndRemove(rxdb, selected, children);
+    });
+    // 成败都关闭对话框：失败时页内提示不被模态框挡住（三端同一行为）
     setMenuToDelete(null);
-  }, [menuToDelete, menus]);
-
-  const clearDeleteError = useCallback(() => {
-    setDeleteError(null);
-  }, []);
+  }, [menuToDelete, rxdb, runWrite]);
 
   // 统计信息
   const expandedCount = expandedIds.size;
@@ -267,7 +217,8 @@ export function useTreeMenuVirtualStore(menus: MenuLarge[]) {
     isAllExpanded,
     menuToDelete,
     deleteImpact,
-    deleteError,
+    writeError,
+    runWrite,
     setSearchKeyword,
     setSelectedParentId,
     toggleExpand,
@@ -281,6 +232,6 @@ export function useTreeMenuVirtualStore(menus: MenuLarge[]) {
     cancelDelete,
     executeCascadeDelete,
     executePromoteChildrenDelete,
-    clearDeleteError
+    clearWriteError
   };
 }

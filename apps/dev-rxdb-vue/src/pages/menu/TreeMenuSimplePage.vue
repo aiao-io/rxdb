@@ -1,7 +1,6 @@
 <script lang="ts" setup>
-import { MenuSimple } from '@aiao/rxdb-test/entities';
+import { SortableMenuSimple } from '@aiao/rxdb-test/entities';
 import { useFindAll, useRxDB } from '@aiao/rxdb-vue';
-import { formatErrorMessage, useToast } from '../../app/composables/useToast';
 import { useObservable } from '@vueuse/rxjs';
 import {
   ChevronDown,
@@ -21,10 +20,9 @@ import {
 } from '@lucide/vue';
 import { computed, ref, toRefs } from 'vue';
 import HistorySidebar from '../../app/components/HistorySidebar.vue';
+import TreeWriteError from '../../app/components/TreeWriteError.vue';
 import { useDragDrop } from '../../app/composables/useDragDrop';
 import { useTreeMenuStore } from '../../app/composables/useTreeMenuStore';
-import { generateBatchMenus } from '../../app/utils/menu-utils';
-import { compareSortOrder } from '../../app/utils/sort-order';
 
 const rxdb = useRxDB();
 const showHistory = ref(true);
@@ -33,32 +31,34 @@ const loadingActions = ref<Set<string>>(new Set());
 
 // 获取所有菜单数据 - 使用 useFindAll 实现响应式订阅
 const { value: menus } = toRefs(
-  useFindAll(MenuSimple, {
-    where: { combinator: 'and', rules: [] },
-    orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+  useFindAll(SortableMenuSimple, {
+    where: { combinator: 'and', rules: [] }
   })
 );
 
-const history = computed(() => rxdb.versionManager.history(MenuSimple));
+const history = computed(() => rxdb.versionManager.history(SortableMenuSimple));
 const histories = useObservable(history.value.histories$, { initialValue: [] });
 const undoCount = useObservable(history.value.undoCount$, { initialValue: 0 });
 const redoCount = useObservable(history.value.redoCount$, { initialValue: 0 });
 
-const store = useTreeMenuStore(menus);
+const store = useTreeMenuStore(menus, rxdb);
 
 const focusMenuTitleInput = () => {
   window.document.getElementById('menu-title-input')?.focus();
 };
 
 // Drag and drop
-const dragDrop = useDragDrop<MenuSimple>(menus);
+const dragDrop = useDragDrop<SortableMenuSimple>(menus, {
+  repository: rxdb.entityManager.getRepository(SortableMenuSimple),
+  guardWrite: store.guardWrite
+});
 
 // 删除所有菜单
 const handleDeleteAll = async () => {
   const actionKey = 'delete-all';
   loadingActions.value.add(actionKey);
   try {
-    await rxdb.entityManager.removeMany(menus.value);
+    await store.deleteAllMenus();
   } finally {
     loadingActions.value.delete(actionKey);
   }
@@ -68,19 +68,10 @@ const handleDeleteAll = async () => {
 const handleAddMany = async (count: number, actionKey: string) => {
   loadingActions.value.add(actionKey);
   try {
-    const existingRoots = menus.value.filter(m => !m.parentId).sort(compareSortOrder);
-
-    const newMenus = generateBatchMenus(count, MenuSimple, existingRoots);
-    await rxdb.entityManager.saveMany(newMenus);
+    await store.addManyMenus(count);
   } finally {
     loadingActions.value.delete(actionKey);
   }
-};
-
-// 保存编辑
-const handleSave = async (menu: MenuSimple) => {
-  await menu.save();
-  store.cancelEdit();
 };
 
 // 添加菜单
@@ -108,7 +99,7 @@ const handleDragStart = (e: DragEvent, menuId: string) => {
   dragDrop.onDragStart(menuId);
 };
 
-const handleDragOver = (e: DragEvent, menu: MenuSimple) => {
+const handleDragOver = (e: DragEvent, menu: SortableMenuSimple) => {
   e.preventDefault();
   const element = e.currentTarget as HTMLElement;
   const rect = element.getBoundingClientRect();
@@ -126,19 +117,15 @@ const handleDragLeave = (e: DragEvent) => {
   }
 };
 
-const handleDrop = async (e: DragEvent, menu: MenuSimple) => {
+const handleDrop = async (e: DragEvent, menu: SortableMenuSimple) => {
   e.preventDefault();
   e.stopPropagation();
-  try {
-    await dragDrop.onDrop(menu, menuId => {
-      // 展开目标菜单
-      if (!store.expandedIds.value.has(menuId)) {
-        store.toggleExpand(menuId);
-      }
-    });
-  } catch (error: unknown) {
-    useToast().error(formatErrorMessage('拖放操作失败', error));
-  }
+  await dragDrop.onDrop(menu, menuId => {
+    // 展开目标菜单
+    if (!store.expandedIds.value.has(menuId)) {
+      store.toggleExpand(menuId);
+    }
+  });
 };
 
 const handleDragEnd = () => {
@@ -214,11 +201,13 @@ const handleDragEnd = () => {
                   :disabled="undoCount === 0"
                   @click="history.undo()"
                   aria-label="撤销"
+                  data-testid="menu-undo"
                 >
                   <Undo2 :size="16" />
                   <span
                     class="badge badge-xs"
                     v-if="undoCount > 0"
+                    data-testid="menu-undo-count"
                   >
                     {{ undoCount }}
                   </span>
@@ -367,6 +356,11 @@ const handleDragEnd = () => {
 
       <div class="p-6">
         <div class="mx-auto max-w-4xl space-y-6">
+          <TreeWriteError
+            :message="store.writeError.value"
+            @close="store.clearWriteError"
+          />
+
           <!-- Path Conflict Warning -->
           <div
             class="alert alert-warning"
@@ -438,7 +432,7 @@ const handleDragEnd = () => {
                   "
                   :data-level="level"
                   :data-menu-id="menu.id"
-                  :data-parent-id="menu.parentId"
+                  :data-parent-id="menu.parentId ?? ''"
                   :key="menu.id"
                   :style="{ paddingLeft: `${level * 20 + 8}px` }"
                   @dragend="handleDragEnd"
@@ -485,8 +479,8 @@ const handleDragEnd = () => {
                     class="input input-sm flex-1"
                     v-if="store.editingId.value === menu.id"
                     v-model="menu.title"
-                    @blur="handleSave(menu)"
-                    @keydown.enter="handleSave(menu)"
+                    @blur="store.commitEdit(menu)"
+                    @keydown.enter="store.commitEdit(menu)"
                     @keydown.escape="
                       menu.reset();
                       store.cancelEdit();

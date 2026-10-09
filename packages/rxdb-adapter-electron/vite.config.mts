@@ -84,8 +84,12 @@ export default defineConfig(() => ({
     testTimeout: process.env.CI ? 30000 : 10000,
     hookTimeout: process.env.CI ? 30000 : 10000,
     // US-217 AC#9 的内存用例按子进程 host 的常驻内存判「不随库线性增长」，与其它文件并行时整机内存吃紧，
-    // 操作系统换出 / 压缩页面会让两档之间的 RSS 差值飘出几百 MiB。单独成一组、排在其它文件之后串行跑，
-    // 测量时整台机器归它。
+    // 操作系统换出 / 压缩页面会让两档之间的 RSS 差值飘出几百 MiB。单独成一组、组内串行，测量时整台机器归它。
+    // 两组分属两个 nx target：`test` 只跑第一组，`test-memory` 只跑内存组且不带覆盖率（v8 插桩会抬高 RSS）。
+    // `test-memory` 在 project.json 里声明 `parallelism: false`：本地 `pnpm test-all --parallel=4` 跑到它时，
+    // Nx 不会同时调度别的任务。
+    // CI 上内存组另开一条 lane（scripts/ci/plan-test-lanes.mjs 的 MEMORY_TARGET），不再排在常规用例之后
+    // 把整条 lane 拖成长尾。
     projects: [
       {
         extends: true,

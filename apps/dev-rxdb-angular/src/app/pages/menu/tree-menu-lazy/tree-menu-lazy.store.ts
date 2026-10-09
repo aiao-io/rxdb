@@ -15,7 +15,7 @@ import { TreeMenuDragDropStore } from '../utils/tree-menu.store';
  * @example
  * ```typescript
  * providers: [
- *   { provide: ENTITY_CLASS, useValue: MenuLarge }
+ *   { provide: ENTITY_CLASS, useValue: SortableMenuLarge }
  * ]
  * ```
  */
@@ -28,7 +28,7 @@ export const ENTITY_CLASS = new InjectionToken<unknown>('ENTITY_CLASS');
  * providers: [
  *   {
  *     provide: HISTORY,
- *     useFactory: () => inject(RxDB).versionManager.history(MenuLarge)
+ *     useFactory: () => inject(RxDB).versionManager.history(SortableMenuLarge)
  *   }
  * ]
  * ```
@@ -64,13 +64,13 @@ function resolveEntityClass<C extends TreeMenuEntityConstructor>(value: unknown)
  * // 在组件提供者中
  * providers: [
  *   TreeMenuLazyStore,
- *   { provide: ENTITY_CLASS, useValue: MenuLarge },
- *   { provide: HISTORY, useFactory: () => inject(RxDB).versionManager.history(MenuLarge) }
+ *   { provide: ENTITY_CLASS, useValue: SortableMenuLarge },
+ *   { provide: HISTORY, useFactory: () => inject(RxDB).versionManager.history(SortableMenuLarge) }
  * ]
  *
  * // 在组件中
  * constructor() {
- *   const store = inject(TreeMenuLazyStore<MenuLarge>);
+ *   const store = inject(TreeMenuLazyStore<SortableMenuLarge>);
  *   // 使用store方法
  * }
  * ```
@@ -118,18 +118,8 @@ export class TreeMenuLazyStore<C extends TreeMenuEntityConstructor>
 
     // 递归构建树节点 - 只使用已加载的数据
     const buildNodes = (parentNodes: TreeMenuInstance<C>[], level: number) => {
-      // 按 sortOrder 排序 - 使用字符串直接比较而不是 localeCompare
-      const sortedNodes = [...parentNodes].sort((a, b) => {
-        const aOrder = a.sortOrder ?? '';
-        const bOrder = b.sortOrder ?? '';
-        return (
-          aOrder < bOrder ? -1
-          : aOrder > bOrder ? 1
-          : 0
-        );
-      });
-
-      sortedNodes.forEach(menu => {
+      // 数组即查询顺序（引擎的默认排序），不再自己排序
+      parentNodes.forEach(menu => {
         // 搜索过滤：只显示匹配的菜单或其祖先节点
         if (visibleIds && !visibleIds.has(menu.id)) {
           return;
@@ -328,8 +318,7 @@ export class TreeMenuLazyStore<C extends TreeMenuEntityConstructor>
       where: {
         combinator: 'and',
         rules: [{ field: 'parentId', operator: '=', value: nodeId }]
-      },
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      }
     });
 
     // Subscribe to child changes with error handling
@@ -445,8 +434,7 @@ export class TreeMenuLazyStore<C extends TreeMenuEntityConstructor>
 
     // 2. Subscribe to ALL
     const allQuery$ = this.entityClass.findAll({
-      where: { combinator: 'and', rules: [] },
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      where: { combinator: 'and', rules: [] }
     });
 
     const subscription = allQuery$.subscribe({
@@ -587,28 +575,13 @@ export class TreeMenuLazyStore<C extends TreeMenuEntityConstructor>
   }
 
   /**
-   * 覆盖onDrop以确保拖拽到节点时进行懒加载
+   * 拖进节点成功后展开目标并订阅它的子节点，新节点随订阅回流显示。
+   *
+   * @remarks
+   * 目标节点的 `hasChildren` 不在这里改：引擎写入后由数据库重算，订阅会收到带正确值的目标节点。
    */
-  override async onDrop(targetMenu: TreeMenuInstance<C>): Promise<void> {
-    const state = this.dragDropState();
-    const dropMode = state.dropMode;
-    const targetId = targetMenu.id;
-
-    // Call parent implementation first to execute the drop
-    await super.onDrop(targetMenu);
-
-    // After drop, if mode was 'into', ensure the target node is expanded
-    if (dropMode === 'into') {
-      // Don't manually update target node's hasChildren - it will be automatically
-      // recalculated by the database when the dragged node's parentId is updated.
-      // The subscription will receive the updated target node with correct hasChildren value.
-
-      // If not already subscribed, create subscription to load children
-      // This will automatically show the dropped node once the subscription receives data
-      if (!this.childSubscriptions.has(targetId)) {
-        this.expandNode(targetId);
-      }
-    }
+  protected override expandDropTarget(targetId: RxDBEntityId): void {
+    this.expandNode(targetId);
   }
 
   /**
@@ -619,8 +592,7 @@ export class TreeMenuLazyStore<C extends TreeMenuEntityConstructor>
       where: {
         combinator: 'and',
         rules: [{ field: 'parentId', operator: '=', value: null }]
-      },
-      orderBy: [{ field: 'sortOrder', sort: 'asc' }]
+      }
     });
 
     this.rootSubscription = rootQuery$.subscribe({

@@ -82,8 +82,11 @@ tags: [core, sortable, grouping, model, rxdb-model, tree, demo]
   锚点为空串 / 非法格式，或前后邻居不满足 `prev < next`（含重复键）时，明确报错、零写入。不得依赖
   `generateKeyBetween` 对反向入参的自动交换来「修复」脏序列。被移动行自身的旧键不是锚点——把空串或非法键的行拖进两个合法邻居之间是合法写入。
   `@aiao/utils` 导出 `isValidOrderKey`（含小数部分的完整校验；内部 `validateOrderKey` 私有），「非法格式 / 异字母表」都按它判定。
-- **历史数据**：给已有实体启用即一次 schema 迁移（列改 `NOT NULL`），存量行必须在迁移里由开发者显式回填
-  （按组、按既定顺序 `generateKeysBetween(null, null, n)`）。未回填的迁移被 DDL 拒绝，不存在「未回填但已启用」的中间态。
+- **历史数据**：给已有实体启用时，既有表的列不会改成 `NOT NULL`——连接既有库只经
+  [`RxDB.#ensureEntityTables`](../../../packages/rxdb/src/RxDB.ts) 补建缺失的表、不改列，SQLite 加 `NOT NULL` 要重建表，
+  迁移的 `up(executor)` 做不到。存量行必须在迁移里由开发者显式回填（按组、按既定顺序 `generateKeysBetween(null, null, n)`）；
+  旧表的 DDL 仍可空，同步拉取带入的 NULL 不会被当场拒绝，只在下一次以它为锚点的写入时按「按锚点校验」报错。
+  要 DDL 层面的非空只能用新表：阶段 E 的 `Task` 与 [US-031](US-031-tree-sortable-migration.md) 的可排序树实体都另建实体。
 
 ### 查询默认排序
 
@@ -218,7 +221,7 @@ AC#10（未声明可排序的实体行为不变）每个阶段都要守住。B�
 ### Out of Scope
 
 - 共享 `Todo` 实体（`rxdb-test`）的 schema 与行为；`dev-rxdb-supabase` 与 `examples/angular-todo` 的 todo 页、远端 `todos` 表；三端 todo-cursor 页；Todo「全部」tab 内拖拽
-- 树实体迁移到排序模块（`sortOrder` 改非空、按 `parentId` 回填）与三个 demo 应用树拖放服务改用排序模块（→ [US-031](US-031-tree-sortable-migration.md)）
+- 三个 demo 应用的树改用可排序树实体、新建与拖放改用排序模块（→ [US-031](US-031-tree-sortable-migration.md)）；`rxdb-test` 现有四个树实体不声明可排序
 - `@aiao/rxdb-plugin-tree` 自身的树能力与树实体运行期行为（环检测、深度、懒加载）；本故事只改 `ISortableTreeEntity` 的类型来源
 - 关系路径、JSON / 数组列、加密列作分组字段；string / enum 分组列在两端的同序未进契约套件验收（PGlite 侧已显式 `COLLATE "C"`，见「分组字段的比较规则」）
 - UI 跨组拖拽（看板跨列拖拽）；跨组移动只提供 core API
@@ -388,7 +391,7 @@ AC#10 的关闭：阶段 A 一侧已验——未声明 `manualOrder` 的实体�
 - **树兄弟域即分组排序域**：树键只在兄弟集合内有意义，不同父节点可以重复（`FileDragDropService` 先按目标 `parentId`
   筛兄弟再取相邻键）——这正是以 `parentId` 为分组字段、根节点为 NULL 组的排序域；树的跨父拖放就是跨组移动加环检测。
   阶段 D 交付后树可以复用排序引擎，但树实体的 `sortOrder` 列声明为 `nullable: true`（如 `rxdb-test` 的 `MenuSimple`），
-  直接声明可排序会被非空校验拒绝，须先迁移存量数据，归 [US-031](US-031-tree-sortable-migration.md)。阶段 C 因此只迁移类型来源，
+  直接声明可排序会被非空校验拒绝；[US-031](US-031-tree-sortable-migration.md) 为 demo 另建可排序树实体，不改这几个实体。阶段 C 因此只迁移类型来源，
   组合的是键类型而不是非空的 `ISortableEntity`——直接继承会把树的 `sortOrder` 收窄成非空，破坏 AC#8。
 
 ## 驱动场景

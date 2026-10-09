@@ -1,4 +1,5 @@
-import { FileNode, MenuLarge } from '@aiao/rxdb-test/entities';
+import type { RxDB } from '@aiao/rxdb';
+import { SortableFileNode, SortableMenuLarge } from '@aiao/rxdb-test/entities';
 import { describe, expect, it } from 'vitest';
 import { ref } from 'vue';
 import { useFileManagerStore } from './useFileManagerStore.js';
@@ -8,8 +9,10 @@ const ROOT_ID = '00000000-0000-4000-8000-000000000001';
 const NESTED_ID = '00000000-0000-4000-8000-000000000002';
 const TARGET_ID = '00000000-0000-4000-8000-000000000003';
 
-const createFileNode = (data: Partial<FileNode>): FileNode => Object.assign({} as FileNode, data);
-const createMenu = (data: Partial<MenuLarge>): MenuLarge => Object.assign({} as MenuLarge, data);
+const createFileNode = (data: Partial<SortableFileNode>): SortableFileNode =>
+  Object.assign({} as SortableFileNode, data);
+const createMenu = (data: Partial<SortableMenuLarge>): SortableMenuLarge =>
+  Object.assign({} as SortableMenuLarge, data);
 
 describe('collapsed search paths', () => {
   it('shows every collapsed ancestor of a matching file without changing expansion state', () => {
@@ -42,7 +45,7 @@ describe('collapsed search paths', () => {
         size: 1
       })
     ]);
-    const store = useFileManagerStore(files);
+    const store = useFileManagerStore(files, {} as RxDB);
 
     store.setSearchKeyword('target');
 
@@ -60,7 +63,7 @@ describe('collapsed search paths', () => {
       createMenu({ id: NESTED_ID, title: 'Nested', parentId: ROOT_ID, sortOrder: 'a' }),
       createMenu({ id: TARGET_ID, title: 'Target Menu', parentId: NESTED_ID, sortOrder: 'a' })
     ]);
-    const store = useTreeMenuVirtualStore(menus);
+    const store = useTreeMenuVirtualStore(menus, {} as RxDB);
 
     store.setSearchKeyword('target');
 

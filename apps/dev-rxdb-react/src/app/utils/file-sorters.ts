@@ -1,4 +1,4 @@
-import { FileNode } from '@aiao/rxdb-test/entities';
+import type { SortableFileNode } from '@aiao/rxdb-test/entities';
 
 const SORT_MODE_STORAGE_KEY = 'file-manager-sort-mode';
 
@@ -53,21 +53,13 @@ export const SORT_MODE_LABELS: Record<SortMode, string> = {
 /**
  * 获取排序比较器函数
  * @param mode 排序模式
- * @returns 比较器函数
+ * @returns 比较器函数；`SortMode.Manual` 返回 `null`——手动顺序就是查询顺序，调用方不再排序
  */
-export function getSortComparator(mode: SortMode): (a: FileNode, b: FileNode) => number {
+export function getSortComparator(mode: SortMode): ((a: SortableFileNode, b: SortableFileNode) => number) | null {
   switch (mode) {
     case SortMode.Manual:
-      return (a, b) => {
-        if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
-        const aSort = a.sortOrder ?? '';
-        const bSort = b.sortOrder ?? '';
-        return (
-          aSort < bSort ? -1
-          : aSort > bSort ? 1
-          : 0
-        );
-      };
+      // 手动顺序由引擎的默认排序给出，页面不再自己比较排序键
+      return null;
 
     case SortMode.NameAsc:
       // 名称升序,使用中文排序规则

@@ -41,11 +41,13 @@ export function buildTreeNodes<T extends FileTreeEntity>(
     childrenMap.get(pid)!.push(file);
   });
 
-  // 2. 排序
+  // 2. 排序：手动模式不排序，数组即查询顺序
   const comparator = getSortComparator(sortMode);
-  childrenMap.forEach(children => {
-    children.sort(comparator);
-  });
+  if (comparator) {
+    childrenMap.forEach(children => {
+      children.sort(comparator);
+    });
+  }
 
   // 3. 递归构建
   function traverse(parentId: string | null, level: number) {
@@ -148,17 +150,4 @@ export function collectDescendants<T extends FileNodeData>(fileId: string, allFi
     }
   }
   return descendantIds;
-}
-
-/**
- * 比较排序顺序
- */
-export function compareSortOrder(a: { sortOrder?: string | null }, b: { sortOrder?: string | null }): number {
-  const aSortOrder = a.sortOrder ?? '';
-  const bSortOrder = b.sortOrder ?? '';
-  return (
-    aSortOrder < bSortOrder ? -1
-    : aSortOrder > bSortOrder ? 1
-    : 0
-  );
 }

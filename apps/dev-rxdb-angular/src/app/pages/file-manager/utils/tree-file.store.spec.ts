@@ -1,21 +1,37 @@
-import type { HistoryScopeAPI, RxDB } from '@aiao/rxdb';
-import { FileNode } from '@aiao/rxdb-test/entities';
-import { signal } from '@angular/core';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { FileDragDropService } from '../services/file-drag-drop.service';
+import { RxDB, SortOrderError, type HistoryScopeAPI } from '@aiao/rxdb';
+import { SortableFileNode } from '@aiao/rxdb-test/entities';
+import { PLATFORM_ID, signal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
+import { of } from 'rxjs';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { FileDragDropService } from '../services/file-drag-drop.service';
 import type { FilePathValidatorService } from '../services/file-path-validator.service';
 import { SortMode } from './file-sorters';
+import { TreeFileDragDropBase } from './tree-file-drag-drop.base';
 import { TreeFileDragDropStore, TreeFileStore } from './tree-file.store';
 
-const makeFile = (id: string, parentId: string | null, name: string, type: 'file' | 'folder' = 'folder'): FileNode =>
-  ({ id, parentId, name, type, extension: null, sortOrder: id, hasChildren: type === 'folder' }) as unknown as FileNode;
+const makeFile = (
+  id: string,
+  parentId: string | null,
+  name: string,
+  type: 'file' | 'folder' = 'folder'
+): SortableFileNode =>
+  ({
+    id,
+    parentId,
+    name,
+    type,
+    extension: null,
+    sortOrder: id,
+    hasChildren: type === 'folder'
+  }) as unknown as SortableFileNode;
 
-const makeStore = (files: FileNode[]) =>
-  new TreeFileStore<typeof FileNode>(
+const makeStore = (files: SortableFileNode[]) =>
+  new TreeFileStore<typeof SortableFileNode>(
     {} as RxDB,
     {} as FilePathValidatorService,
     { value: signal(files) },
-    FileNode,
+    SortableFileNode,
     undefined
   );
 
@@ -43,11 +59,39 @@ describe('TreeFileStore.treeNodes', () => {
 
     expect(store.treeNodes().map(item => item.node.id)).toEqual(['root', 'matched']);
   });
+
+  it('建树顺序 = 查询顺序', () => {
+    // 键的字典序（a < b < z）与查询给出的顺序相反：手动模式不得再按 sortOrder 排序
+    const rootB = { ...makeFile('rb', null, 'B'), sortOrder: 'b' } as SortableFileNode;
+    const rootA = { ...makeFile('ra', null, 'A'), sortOrder: 'a' } as SortableFileNode;
+    const childZ = { ...makeFile('cz', 'rb', 'Z', 'file'), sortOrder: 'z' } as SortableFileNode;
+    const childA = { ...makeFile('ca', 'rb', 'a', 'file'), sortOrder: 'a' } as SortableFileNode;
+    const store = makeStore([rootB, rootA, childZ, childA]);
+    store.expandedFileIds.set(new Set(['rb']));
+
+    expect(store.sortMode()).toBe(SortMode.Manual);
+    expect(store.treeNodes().map(item => item.node.id)).toEqual(['rb', 'cz', 'ca', 'ra']);
+  });
 });
+
+interface FindAllOptions {
+  where?: { rules?: Array<{ field: string; value: unknown }> };
+}
 
 class TestFileEntity {
   static instances: TestFileEntity[] = [];
   static nextId = 0;
+  /** 模拟库里的数据：被删节点 id -> 它的直接子节点 */
+  static dbChildren = new Map<string, SortableFileNode[]>();
+  /** 模拟库里的数据：被删节点 id -> 节点自身 + 全部后代（`findDescendants` 的语义） */
+  static dbSubtree = new Map<string, SortableFileNode[]>();
+  static readonly findAll = vi.fn((options: object) => {
+    const parentId = (options as FindAllOptions).where?.rules?.find(rule => rule.field === 'parentId')?.value;
+    return of(TestFileEntity.dbChildren.get(String(parentId)) ?? []);
+  });
+  static readonly findDescendants = vi.fn((options: { entityId: string }) =>
+    of(TestFileEntity.dbSubtree.get(options.entityId) ?? [])
+  );
 
   id = `new-file-${String(++TestFileEntity.nextId)}`;
   parentId: string | null = null;
@@ -55,11 +99,16 @@ class TestFileEntity {
   type: 'file' | 'folder' = 'folder';
   extension: string | null | undefined = null;
   size: number | null | undefined = null;
-  sortOrder: string | null = 'a0';
+  /** 页面代码对 `sortOrder` 的每一次赋值都记在这里（新建 / 批量不得赋值） */
+  sortOrderWrites: unknown[] = [];
   hasChildren = false;
   parent$ = { set: vi.fn() };
   readonly save = vi.fn(async () => this);
   readonly remove = vi.fn(async () => this);
+
+  set sortOrder(value: unknown) {
+    this.sortOrderWrites.push(value);
+  }
 
   constructor() {
     TestFileEntity.instances.push(this);
@@ -68,6 +117,10 @@ class TestFileEntity {
   static reset(): void {
     TestFileEntity.instances = [];
     TestFileEntity.nextId = 0;
+    TestFileEntity.dbChildren.clear();
+    TestFileEntity.dbSubtree.clear();
+    TestFileEntity.findAll.mockClear();
+    TestFileEntity.findDescendants.mockClear();
   }
 }
 
@@ -77,7 +130,7 @@ const makeActionFile = (
   name: string,
   type: 'file' | 'folder' = 'folder',
   sortOrder = 'a0'
-): FileNode =>
+): SortableFileNode =>
   ({
     id,
     parentId,
@@ -88,19 +141,19 @@ const makeActionFile = (
     sortOrder,
     hasChildren: type === 'folder',
     parent$: { set: vi.fn() },
-    save: vi.fn(async function (this: FileNode) {
+    save: vi.fn(async function (this: SortableFileNode) {
       return this;
     }),
-    remove: vi.fn(async function (this: FileNode) {
+    remove: vi.fn(async function (this: SortableFileNode) {
       return this;
     })
-  }) as unknown as FileNode;
+  }) as unknown as SortableFileNode;
 
-const makeActionStore = (files: FileNode[]) => {
-  const removeMany = vi.fn(async (files: FileNode[]) => {
+const makeActionStore = (files: SortableFileNode[]) => {
+  const removeMany = vi.fn(async (files: SortableFileNode[]) => {
     void files;
   });
-  const saveMany = vi.fn(async (files: FileNode[]) => {
+  const saveMany = vi.fn(async (files: SortableFileNode[]) => {
     void files;
   });
   const entityManager = {
@@ -112,11 +165,11 @@ const makeActionStore = (files: FileNode[]) => {
   };
   const history = { undo: vi.fn(), redo: vi.fn() };
   const resource = { value: signal(files) };
-  const store = new TreeFileStore<typeof FileNode>(
+  const store = new TreeFileStore<typeof SortableFileNode>(
     { entityManager } as unknown as RxDB,
     pathValidator as unknown as FilePathValidatorService,
     resource,
-    TestFileEntity as unknown as typeof FileNode,
+    TestFileEntity as unknown as typeof SortableFileNode,
     history as unknown as HistoryScopeAPI
   );
   return { entityManager, history, pathValidator, resource, store };
@@ -132,7 +185,7 @@ describe('TreeFileStore actions', () => {
     const root = makeActionFile('root', null, '根', 'folder', 'a0');
     const { store } = makeActionStore([root]);
 
-    await store.createRootFolder('新根');
+    expect(await store.createRootFolder('新根')).toBe(true);
     const [newRoot] = TestFileEntity.instances;
     expect(newRoot.type).toBe('folder');
     expect(newRoot.name).toBe('新根');
@@ -140,18 +193,39 @@ describe('TreeFileStore actions', () => {
     expect(store.expandedFileIds()).toContain(newRoot.id);
 
     store.selectFolder(root.id);
-    await store.createSubFolder('子文件夹');
+    expect(await store.createSubFolder('子文件夹')).toBe(true);
     const newChild = TestFileEntity.instances[1];
     expect(newChild.parentId).toBe(root.id);
     expect(store.selectedFolderId()).toBeNull();
 
-    await store.createFile('说明', '.md', 42);
+    expect(await store.createFile('说明', '.md', 42)).toBe(true);
     const newFile = TestFileEntity.instances[2];
     expect(newFile.type).toBe('file');
     expect(newFile.extension).toBe('md');
     expect(newFile.size).toBe(42);
     expect(newFile.parentId).toBeNull();
     expect(newFile.save).toHaveBeenCalledOnce();
+  });
+
+  /**
+   * 缺陷一：根级已有文件夹 A（`a0`）与文件 X（`a1`）时，旧代码只在「根文件夹」里取尾键，
+   * 给新文件夹 B 算出 `a1`，与 X 同键。排序键归引擎：新建只赋业务字段，不读兄弟、不赋 `sortOrder`。
+   */
+  it('新建文件夹 / 子文件夹 / 文件都不赋 sortOrder（缺陷一：根级文件夹与文件交替新建）', async () => {
+    const folderA = makeActionFile('a', null, 'A', 'folder', 'a0');
+    const fileX = makeActionFile('x', null, 'X', 'file', 'a1');
+    const { store } = makeActionStore([folderA, fileX]);
+
+    await store.createRootFolder('B');
+    store.selectFolder(folderA.id);
+    await store.createSubFolder('子文件夹');
+    await store.createFile('说明', '.md', 1);
+
+    const [rootB, sub, file] = TestFileEntity.instances;
+    expect(rootB.sortOrderWrites).toEqual([]);
+    expect(sub.sortOrderWrites).toEqual([]);
+    expect(file.sortOrderWrites).toEqual([]);
+    expect([rootB.save, sub.save, file.save].every(save => save.mock.calls.length === 1)).toBe(true);
   });
 
   it('冲突时不创建，编辑时排除自身并清理编辑状态', async () => {
@@ -163,7 +237,7 @@ describe('TreeFileStore actions', () => {
       attemptedName: '说明.txt'
     });
 
-    await store.createFile('说明', '.txt', 1);
+    expect(await store.createFile('说明', '.txt', 1)).toBe(false);
     expect(TestFileEntity.instances).toHaveLength(0);
     expect(store.pathConflictWarning()?.attemptedName).toBe('说明.txt');
 
@@ -176,11 +250,13 @@ describe('TreeFileStore actions', () => {
     expect(store.editingFileId()).toBeNull();
   });
 
-  it('计算删除影响，叶子直接删除，父节点级联删除后清空确认态', async () => {
+  it('叶子直接删除，父节点级联删除后清空确认态', async () => {
     const root = makeActionFile('root', null, '根');
     const child = makeActionFile('child', 'root', '子');
     const grandchild = makeActionFile('grandchild', 'child', '孙', 'file');
     const leaf = makeActionFile('leaf', null, '叶', 'file');
+    TestFileEntity.dbChildren.set('root', [child]);
+    TestFileEntity.dbSubtree.set('root', [root, child, grandchild]);
     const { entityManager, store } = makeActionStore([root, child, grandchild, leaf]);
 
     await store.deleteFile(leaf);
@@ -191,13 +267,88 @@ describe('TreeFileStore actions', () => {
     expect(store.deleteImpact()).toEqual({ childrenCount: 1, descendantsCount: 2 });
 
     await store.executeCascadeDelete();
-    expect(child.remove).toHaveBeenCalledOnce();
-    expect(grandchild.remove).toHaveBeenCalledOnce();
-    expect(root.remove).toHaveBeenCalledOnce();
+    expect(entityManager.removeMany).toHaveBeenCalledWith([root, child, grandchild]);
     expect(store.fileToDelete()).toBeNull();
+    expect(store.deleteImpact()).toEqual({ childrenCount: 0, descendantsCount: 0 });
 
     await store.deleteAllFiles();
-    expect(entityManager.removeMany).toHaveBeenCalledWith([root, child, grandchild, leaf]);
+    expect(entityManager.removeMany).toHaveBeenLastCalledWith([root, child, grandchild, leaf]);
+  });
+
+  describe('删除读库里的子节点，不看页面已加载的节点', () => {
+    it('页面没加载子节点（懒加载折叠）时，库里有子节点也要弹对话框而不是直接 remove()', async () => {
+      const folded = makeActionFile('folded', null, '折叠的文件夹');
+      const unloadedA = makeActionFile('a', 'folded', 'A', 'file');
+      const unloadedB = makeActionFile('b', 'folded', 'B', 'file');
+      TestFileEntity.dbChildren.set('folded', [unloadedA, unloadedB]);
+      TestFileEntity.dbSubtree.set('folded', [folded, unloadedA, unloadedB]);
+      const { store } = makeActionStore([folded]);
+
+      await store.deleteFile(folded);
+
+      expect(folded.remove).not.toHaveBeenCalled();
+      expect(store.fileToDelete()).toBe(folded);
+      expect(store.deleteImpact()).toEqual({ childrenCount: 2, descendantsCount: 2 });
+      expect(TestFileEntity.findAll).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: 'folded' }] }
+        })
+      );
+    });
+
+    it('查询不传 orderBy', async () => {
+      const folded = makeActionFile('folded', null, '折叠的文件夹');
+      TestFileEntity.dbChildren.set('folded', [makeActionFile('a', 'folded', 'A', 'file')]);
+      TestFileEntity.dbSubtree.set('folded', [folded]);
+      const { store } = makeActionStore([folded]);
+
+      await store.deleteFile(folded);
+
+      expect(TestFileEntity.findAll).toHaveBeenCalledOnce();
+      expect(TestFileEntity.findAll.mock.calls[0]?.[0]).not.toHaveProperty('orderBy');
+    });
+
+    it('库里没有子节点（页面却有过期的子节点）时直接 remove()', async () => {
+      const leaf = makeActionFile('leaf', null, '叶');
+      const stale = makeActionFile('stale', 'leaf', '过期', 'file');
+      const { store } = makeActionStore([leaf, stale]);
+
+      await store.deleteFile(leaf);
+
+      expect(leaf.remove).toHaveBeenCalledOnce();
+      expect(store.fileToDelete()).toBeNull();
+    });
+
+    it('级联删除的子孙集合取自库的 findDescendants，一次 removeMany 提交', async () => {
+      const folded = makeActionFile('folded', null, '折叠的文件夹');
+      const child = makeActionFile('child', 'folded', '子');
+      const grandchild = makeActionFile('grandchild', 'child', '孙', 'file');
+      TestFileEntity.dbChildren.set('folded', [child]);
+      TestFileEntity.dbSubtree.set('folded', [folded, child, grandchild]);
+      const { entityManager, store } = makeActionStore([folded]);
+
+      await store.deleteFile(folded);
+      await store.executeCascadeDelete();
+
+      expect(TestFileEntity.findDescendants).toHaveBeenCalledWith({ entityId: 'folded' });
+      expect(entityManager.removeMany).toHaveBeenCalledExactlyOnceWith([folded, child, grandchild]);
+      expect(child.remove).not.toHaveBeenCalled();
+      expect(store.fileToDelete()).toBeNull();
+    });
+
+    it('关闭对话框后影响统计清零', async () => {
+      const folded = makeActionFile('folded', null, '折叠的文件夹');
+      const child = makeActionFile('child', 'folded', '子');
+      TestFileEntity.dbChildren.set('folded', [child]);
+      TestFileEntity.dbSubtree.set('folded', [folded, child]);
+      const { store } = makeActionStore([folded]);
+
+      await store.deleteFile(folded);
+      store.cancelDelete();
+
+      expect(store.fileToDelete()).toBeNull();
+      expect(store.deleteImpact()).toEqual({ childrenCount: 0, descendantsCount: 0 });
+    });
   });
 
   it('搜索、排序、全量展开折叠和本地持久化保持一致', () => {
@@ -231,21 +382,64 @@ describe('TreeFileStore actions', () => {
     expect(history.undo).not.toHaveBeenCalled();
   });
 
-  it('批量添加按单次事务保存，并为每个节点生成排序键', async () => {
-    const { entityManager, store } = makeActionStore([]);
+  it('批量添加是单次 saveMany，节点不带 sortOrder，也不读页面已加载的节点', async () => {
+    const existing = makeActionFile('root', null, '已有', 'folder', 'a0');
+    const { entityManager, store } = makeActionStore([existing]);
     const random = vi.spyOn(Math, 'random').mockReturnValue(0.5);
 
     await store.addBatch(5);
 
-    const [files] = entityManager.saveMany.mock.calls[0];
+    expect(entityManager.saveMany).toHaveBeenCalledOnce();
+    const files = entityManager.saveMany.mock.calls[0][0] as unknown as TestFileEntity[];
     expect(files).toHaveLength(5);
-    expect(files.every(file => Boolean(file.sortOrder))).toBe(true);
+    expect(files.every(file => file.sortOrderWrites.length === 0)).toBe(true);
     expect(new Set(files.map(file => file.id)).size).toBe(5);
     random.mockRestore();
   });
 });
 
-describe('TreeFileDragDropStore actions', () => {
+/** 目标行的矩形：高 90，上三分之一 [0,30)、中间 [30,60]、下三分之一 (60,90]。 */
+const ROW = { top: 0, height: 90 } as DOMRect;
+const BEFORE = 5;
+const INTO = 45;
+const AFTER = 85;
+
+const makeDragStore = (files: SortableFileNode[]) => {
+  const reorder = vi.fn(async (id: string, target: object) => {
+    void id;
+    void target;
+  });
+  const getRepository = vi.fn(() => ({ reorder }));
+  const history = { undo: vi.fn(), redo: vi.fn() } as unknown as HistoryScopeAPI;
+  const store = new TreeFileDragDropStore<typeof SortableFileNode>(
+    { entityManager: { getRepository } } as unknown as RxDB,
+    {} as FilePathValidatorService,
+    new FileDragDropService(),
+    { value: signal(files) },
+    TestFileEntity as unknown as typeof SortableFileNode,
+    history
+  );
+  return { store, reorder, history };
+};
+
+/** 拖动 `draggedId`，在 `targetId` 行的 `clientY` 处放下，返回拖动中的判定结果。 */
+const dragAndDrop = async (
+  store: TreeFileDragDropStore<typeof SortableFileNode>,
+  files: SortableFileNode[],
+  draggedId: string,
+  targetId: string,
+  clientY: number
+) => {
+  const target = files.find(file => file.id === targetId)!;
+  store.onDragStart(draggedId);
+  const over = store.onDragOver(target, clientY, ROW);
+  await store.onDrop(target);
+  return over;
+};
+
+describe('TreeFileDragDropStore 拖放交给引擎', () => {
+  const idleState = { draggedItemId: null, targetItemId: null, dropMode: null, isValidTarget: false };
+
   beforeEach(() => {
     localStorage.clear();
     TestFileEntity.reset();
@@ -255,34 +449,206 @@ describe('TreeFileDragDropStore actions', () => {
     const dragged = makeActionFile('dragged', null, '拖动', 'file', 'a0');
     const target = makeActionFile('target', null, '目标', 'folder', 'b0');
     const child = makeActionFile('target-child', target.id, '子', 'file', 'a0');
-    const dragDropService = {
-      getInvalidTargets: vi.fn(() => new Set(['dragged'])),
-      calculateDropMode: vi.fn(() => 'into' as const),
-      isValidDrop: vi.fn(() => true),
-      executeDrop: vi.fn(async () => ({ success: true, newParentId: target.id }))
-    };
-    const { resource } = makeActionStore([dragged, target, child]);
-    const store = new TreeFileDragDropStore<typeof FileNode>(
-      {} as RxDB,
-      {} as FilePathValidatorService,
-      dragDropService as unknown as FileDragDropService,
-      resource,
-      TestFileEntity as unknown as typeof FileNode,
-      {} as HistoryScopeAPI
-    );
+    const files = [dragged, target, child];
+    const { store, reorder } = makeDragStore(files);
 
     store.onDragStart(dragged.id);
     expect(store.invalidTargets()).toEqual(new Set(['dragged']));
-    const over = store.onDragOver(target, 50, { top: 0, bottom: 100 } as DOMRect);
+    const over = store.onDragOver(target, INTO, ROW);
     expect(over).toEqual({ dropMode: 'into', isValid: true });
     expect(store.highlightedFileIds()).toEqual(new Set(['target-child']));
 
     await store.onDrop(target);
-    expect(dragDropService.executeDrop).toHaveBeenCalledWith(dragged.id, target.id, 'into', [dragged, target, child]);
+    expect(reorder).toHaveBeenCalledExactlyOnceWith('dragged', { group: { parentId: 'target' } });
     expect(store.expandedFileIds()).toContain(target.id);
-    expect(store.dragDropState()).toMatchObject({ draggedItemId: null, targetItemId: null });
+    expect(store.dragDropState()).toEqual(idleState);
 
     store.onDragEnd();
     expect(store.dragDropState().dropMode).toBeNull();
+  });
+
+  it('手动模式前后放置的邻居取自组的完整序列', async () => {
+    const files = [
+      makeActionFile('A', null, 'A'),
+      makeActionFile('B', null, 'B'),
+      makeActionFile('C', null, 'C', 'file'),
+      makeActionFile('x', 'A', 'x', 'file')
+    ];
+    const { store, reorder } = makeDragStore(files);
+
+    await dragAndDrop(store, files, 'x', 'B', AFTER);
+
+    expect(reorder).toHaveBeenCalledExactlyOnceWith('x', { prevId: 'B', nextId: 'C' });
+  });
+
+  describe('reject / noop 不调用 reorder', () => {
+    it('拖到自己或后代、拖进文件都被拒，高亮为无效', async () => {
+      const files = [
+        makeActionFile('F', null, 'F'),
+        makeActionFile('c', 'F', 'c', 'file'),
+        makeActionFile('Y', null, 'Y', 'file')
+      ];
+      const { store, reorder } = makeDragStore(files);
+
+      for (const clientY of [BEFORE, INTO, AFTER]) {
+        expect((await dragAndDrop(store, files, 'F', 'c', clientY)).isValid).toBe(false);
+      }
+      expect((await dragAndDrop(store, files, 'F', 'Y', INTO)).isValid).toBe(false);
+
+      expect(reorder).not.toHaveBeenCalled();
+      expect(store.dragDropState()).toEqual(idleState);
+    });
+
+    it('手动模式原位放下', async () => {
+      const files = [makeActionFile('A', null, 'A'), makeActionFile('B', null, 'B'), makeActionFile('C', null, 'C')];
+      const { store, reorder } = makeDragStore(files);
+
+      const over = await dragAndDrop(store, files, 'B', 'C', BEFORE);
+
+      expect(over.isValid).toBe(true);
+      expect(reorder).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('非手动模式', () => {
+    const makeFiles = () => [
+      makeActionFile('F', null, 'F'),
+      makeActionFile('x', 'F', 'x', 'file'),
+      makeActionFile('G', null, 'G'),
+      makeActionFile('H', null, 'H')
+    ];
+
+    it('非手动模式同级前后放置被拒、不调用 reorder', async () => {
+      const files = makeFiles();
+      const { store, reorder } = makeDragStore(files);
+      store.setSortMode(SortMode.NameAsc);
+
+      // 根级节点之间（根级目标行仍分三档）
+      expect((await dragAndDrop(store, files, 'G', 'H', BEFORE)).isValid).toBe(false);
+      expect((await dragAndDrop(store, files, 'G', 'H', AFTER)).isValid).toBe(false);
+
+      expect(reorder).not.toHaveBeenCalled();
+    });
+
+    it('非手动模式非根级目标行整行为拖进；拖进当前父文件夹被拒', async () => {
+      const files = [...makeFiles(), makeActionFile('y', 'F', 'y', 'file')];
+      const { store, reorder } = makeDragStore(files);
+      store.setSortMode(SortMode.NameAsc);
+
+      // 目标 y 是 F 的子节点（非根级、文件）：上三分之一也落成 into，文件不能拖进
+      const over = await dragAndDrop(store, files, 'x', 'y', BEFORE);
+      expect(over).toEqual({ dropMode: 'into', isValid: false });
+      // 拖进当前父文件夹 F
+      expect((await dragAndDrop(store, files, 'x', 'F', INTO)).isValid).toBe(false);
+
+      expect(reorder).not.toHaveBeenCalled();
+    });
+
+    it('非手动模式子级拖到根级节点下方 → { group: { parentId: null } }', async () => {
+      const files = makeFiles();
+      const { store, reorder } = makeDragStore(files);
+      store.setSortMode(SortMode.NameAsc);
+
+      const over = await dragAndDrop(store, files, 'x', 'G', AFTER);
+
+      expect(over).toEqual({ dropMode: 'after', isValid: true });
+      expect(reorder).toHaveBeenCalledExactlyOnceWith('x', { group: { parentId: null } });
+    });
+
+    it('非手动模式拖进文件夹 → { group: { parentId } }，成功后展开目标', async () => {
+      const files = makeFiles();
+      const { store, reorder } = makeDragStore(files);
+      store.setSortMode(SortMode.NameAsc);
+
+      await dragAndDrop(store, files, 'H', 'G', INTO);
+
+      expect(reorder).toHaveBeenCalledExactlyOnceWith('H', { group: { parentId: 'G' } });
+      expect(store.expandedFileIds()).toContain('G');
+    });
+  });
+
+  describe('拖放失败进页内提示', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      TestBed.resetTestingModule();
+    });
+
+    const makeHost = (files: SortableFileNode[]) => {
+      const parts = makeDragStore(files);
+      TestBed.configureTestingModule({
+        providers: [
+          { provide: PLATFORM_ID, useValue: 'browser' },
+          { provide: RxDB, useValue: {} }
+        ]
+      });
+      class Host extends TreeFileDragDropBase<typeof SortableFileNode> {
+        constructor() {
+          super(
+            parts.store,
+            { value: signal(files) },
+            TestFileEntity as unknown as typeof SortableFileNode,
+            parts.history
+          );
+        }
+      }
+      const host = TestBed.runInInjectionContext(() => new Host());
+      return { host, ...parts };
+    };
+
+    const dropEvent = { preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as DragEvent;
+    const makeFiles = () => [
+      makeActionFile('A', null, 'A'),
+      makeActionFile('B', null, 'B'),
+      makeActionFile('X', null, 'X')
+    ];
+
+    it('reorder 抛 SortOrderError 时页内提示「拖放失败：…」、拖拽状态复位、不弹窗', async () => {
+      const alertSpy = vi.fn();
+      vi.stubGlobal('alert', alertSpy);
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      const files = makeFiles();
+      const { host, store, reorder } = makeHost(files);
+      const error = new SortOrderError('SortableFileNode', 'staleTarget', '邻居已不相邻');
+      reorder.mockRejectedValueOnce(error);
+
+      store.onDragStart('X');
+      store.onDragOver(files[0], AFTER, ROW);
+      await host.onDrop(dropEvent, files[0]);
+
+      expect(host.writeError()).toBe(`拖放失败：${error.message}`);
+      expect(host.writeError()).toContain('邻居已不相邻');
+      expect(store.dragDropState()).toEqual(idleState);
+      expect(alertSpy).not.toHaveBeenCalled();
+      expect(consoleError).not.toHaveBeenCalled();
+      consoleError.mockRestore();
+    });
+
+    it('「删除全部」失败进页内提示，不成为未处理拒绝', async () => {
+      const files = makeFiles();
+      const { host, store } = makeHost(files);
+      vi.spyOn(store, 'deleteAllFiles').mockRejectedValueOnce(new Error('外键冲突'));
+
+      await host.delete_all.execute();
+
+      expect(host.writeError()).toBe('删除全部失败：外键冲突');
+    });
+
+    it('下一次拖放清空错误', async () => {
+      const files = makeFiles();
+      const { host, store, reorder } = makeHost(files);
+      reorder.mockRejectedValueOnce(new SortOrderError('SortableFileNode', 'staleTarget', '邻居已不相邻'));
+
+      store.onDragStart('X');
+      store.onDragOver(files[0], AFTER, ROW);
+      await host.onDrop(dropEvent, files[0]);
+      expect(host.writeError()).not.toBeNull();
+
+      store.onDragStart('X');
+      store.onDragOver(files[0], AFTER, ROW);
+      await host.onDrop(dropEvent, files[0]);
+
+      expect(host.writeError()).toBeNull();
+      expect(reorder).toHaveBeenCalledTimes(2);
+    });
   });
 });

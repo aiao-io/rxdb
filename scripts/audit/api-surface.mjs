@@ -495,6 +495,8 @@ const NAMING = {
     // 阶段 D 的分组声明形状 `ManualOrderOptions` 与取分组字段的 `manualOrderGroupFields` 同理——
     // PGlite 靠后者给文本分组字段补 `COLLATE "C"`。阶段 E 的 `reorderTargetForMove` 把拖放下标换算成
     // `ReorderTarget`，三端 todo 页共用，是 `Repository.reorder()` 入参的构造原语，理由同上。
+    // US-031 阶段 B 的 `reorderTargetForDrop` 是它的树页面形态（「放到某行上方 / 下方」，被拖行可来自别的组），
+    // 三端菜单与文件管理器共用，同属 `Repository.reorder()` 入参的构造原语。
     'assertSortOrderKey',
     'isManualOrderEntity',
     'ISortableEntity',
@@ -503,6 +505,7 @@ const NAMING = {
     'normalizeManualOrderBy',
     'ReorderBetween',
     'ReorderTarget',
+    'reorderTargetForDrop',
     'reorderTargetForMove',
     'ReorderToGroupEnd',
     'SORT_ORDER_FIELD',

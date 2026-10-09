@@ -13,9 +13,11 @@ import {
   PLATFORM_ID,
   Signal,
   signal,
+  untracked,
   viewChild
 } from '@angular/core';
 import { listen } from '../../../shared/event-listener';
+import { formatTreeWriteError, TreeWriteOperation } from '../../../shared/tree-write-error';
 import { TreeMenuEntityConstructor, TreeMenuInstance, TreeNode } from '../models/tree-node.interface';
 import { TreeMenuStore as MenuStore } from './tree-menu.store';
 
@@ -34,18 +36,23 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
   readonly $new_menu_title = signal<string>('');
   readonly $edit_menu_title = signal<string>('');
 
+  /** 写入失败的页内提示文案；`null` 表示没有错误。含拖放。 */
+  readonly writeError = signal<string | null>(null);
+
   readonly add_1 = useAction(async (count?: number) => {
     // 模拟网络延迟，确保 loading 状态可见
     await new Promise(resolve => setTimeout(resolve, 500));
-    await this.store.add_many_menu(count ?? 100);
+    await this.addMany(count ?? 100);
   });
-  readonly add_2 = useAction((count?: number) => this.store.add_many_menu(count ?? 1000));
+  readonly add_2 = useAction((count?: number) => this.addMany(count ?? 1000));
   readonly add_3 = useAction(async (count?: number) => {
     await new Promise(resolve => setTimeout(resolve, 500));
-    await this.store.add_many_menu(count ?? 5000);
+    await this.addMany(count ?? 5000);
   });
-  readonly add_4 = useAction((count?: number) => this.store.add_many_menu(count ?? 10000));
-  readonly delete_all = useAction(() => this.store.deleteAllMenus());
+  readonly add_4 = useAction((count?: number) => this.addMany(count ?? 10000));
+  readonly delete_all = useAction(async () => {
+    await this.runWrite('删除全部', () => this.store.deleteAllMenus());
+  });
 
   readonly batchAddOptions = [
     { count: 100, label: '添加 100 条', action: this.add_1 },
@@ -95,10 +102,11 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
     protected entityClass: C,
     public readonly history: HistoryScopeAPI
   ) {
-    // 监听菜单标题变化，清除路径冲突警告
+    // 监听菜单标题变化，清除路径冲突警告。
+    // 只追踪标题：重名时输入保留，追踪警告会让它一出现就被这里清掉
     effect(() => {
       const value = this.$new_menu_title();
-      if (value && value.trim() && this.store.pathConflictWarning()) {
+      if (value && value.trim() && untracked(this.store.pathConflictWarning)) {
         this.store.clearPathWarning();
       }
     });
@@ -153,13 +161,10 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
     const title = this.$new_menu_title().trim();
     if (!title) return;
 
-    try {
-      await this.store.addRootMenu(title);
-      this.$new_menu_title.set('');
-    } catch (error) {
-      console.error('Error adding root menu:', error);
-      alert('添加根菜单失败');
-    }
+    // 只在新建成功后清空：重名或写入失败时保留用户输入
+    await this.runWrite('新建', async () => {
+      if (await this.store.addRootMenu(title)) this.$new_menu_title.set('');
+    });
   }
 
   selectParent(menuId: RxDBEntityId): void {
@@ -176,13 +181,9 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
     const title = this.$new_menu_title().trim();
     if (!title) return;
 
-    try {
-      await this.store.addChildMenu(title);
-      this.$new_menu_title.set('');
-    } catch (error) {
-      console.error('Error adding child menu:', error);
-      alert('添加子菜单失败');
-    }
+    await this.runWrite('新建', async () => {
+      if (await this.store.addChildMenu(title)) this.$new_menu_title.set('');
+    });
   }
 
   /**
@@ -208,12 +209,7 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
     const title = this.$edit_menu_title().trim();
     if (!title) return;
 
-    try {
-      await this.store.saveEdit(title);
-    } catch (error) {
-      console.error('Error updating menu:', error);
-      alert('更新菜单失败');
-    }
+    await this.runWrite('重命名', () => this.store.saveEdit(title));
   }
 
   cancelEdit(): void {
@@ -224,12 +220,7 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
   async deleteMenu(event: Event, menu: TreeMenuInstance<C>): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
-    try {
-      await this.store.deleteMenu(menu);
-    } catch (error) {
-      console.error('Error deleting menu:', error);
-      alert('删除菜单失败');
-    }
+    await this.runWrite('删除', () => this.store.deleteMenu(menu));
   }
 
   cancelDelete(): void {
@@ -237,21 +228,19 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
   }
 
   async executeCascadeDelete(): Promise<void> {
-    try {
-      await this.store.executeCascadeDelete();
-    } catch (error) {
-      console.error('Error deleting menu:', error);
-      alert('删除菜单失败');
-    }
+    const done = await this.runWrite('级联删除', () => this.store.executeCascadeDelete());
+    // 失败时关掉对话框，页内提示才不被模态层挡住
+    if (!done) this.store.cancelDelete();
   }
 
   async executePromoteChildrenDelete(): Promise<void> {
-    try {
-      await this.store.executePromoteChildrenDelete();
-    } catch (error) {
-      console.error('Error promoting children and deleting menu:', error);
-      alert('删除失败');
-    }
+    const done = await this.runWrite('删除并提升子节点', () => this.store.executePromoteChildrenDelete());
+    if (!done) this.store.cancelDelete();
+  }
+
+  /** 关闭写入失败的页内提示。 */
+  clearWriteError(): void {
+    this.writeError.set(null);
   }
 
   getSelectedParentTitle(): string {
@@ -294,5 +283,27 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
     const mainContainer = this.mainContainerRef();
     if (!mainContainer) return;
     mainContainer.nativeElement.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /**
+   * 执行一次写入：开始前清掉上一次的错误，失败时把文案写进 {@link writeError}。
+   * 失败后页面状态即库里已提交的状态，下一次操作照常可用。
+   *
+   * @returns 写入是否成功
+   */
+  protected async runWrite(operation: TreeWriteOperation, write: () => Promise<unknown>): Promise<boolean> {
+    this.writeError.set(null);
+    try {
+      await write();
+      return true;
+    } catch (error) {
+      this.writeError.set(formatTreeWriteError(operation, error));
+      return false;
+    }
+  }
+
+  /** 批量添加；失败写页内提示而不是经 `useAction` 抛成未处理的拒绝。 */
+  private async addMany(count: number): Promise<void> {
+    await this.runWrite('批量添加', () => this.store.add_many_menu(count));
   }
 }
