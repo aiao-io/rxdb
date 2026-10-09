@@ -6,7 +6,7 @@ priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
 updated: 2026-10-09
-tags: [plugin, bom, calculation]
+tags: [domain, bom, calculation]
 ---
 
 # 用户故事：展开数量正确性：用量语义、三类损耗、虚拟件穿透

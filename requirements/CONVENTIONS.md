@@ -23,9 +23,16 @@
 | `adapter/`       | SQLite / PGlite / Supabase / sqliteai / 小程序 / 桌面适配器   | US-201~299 |
 | `collaboration/` | 版本控制、撤销/重做、迁移协作                                 | US-301~399 |
 | `ui/`            | 代码编辑器等跨框架 UI 组件                                    | US-401~499 |
-| `plugin/`        | RxDB plugin 包（workspace / storage / graph）与 BOM 领域模型  | US-501~599 |
+| `plugin/`        | RxDB plugin 包（workspace / storage / graph）                 | US-501~506 |
+| `domain/`        | 领域解决方案：业务领域模型（现为 BOM）                        | US-507~599 |
 | `tooling/`       | 门禁、基线与发布工具链（不是产品能力）                        | US-601~699 |
 | `future/`        | 搜索 / 加密 / DevTools 等扩展能力（按编号段分拣，不按交付期） | US-700~999 |
+
+`domain/` 目录的硬约束：**每个领域解决方案必须有领域测试应用**——`apps/` 下建至少一个 demo 应用与
+对应 e2e 项目，领域语义的组合验收在该应用上以端到端用例关闭（先例：BOM 的 `apps/dev-rxdb-bom` +
+`apps/dev-rxdb-bom-e2e`，由 [US-525](stories/domain/US-525-bom-end-to-end-demo.md) 交付）。
+组合缺陷（公式乘序、二次过滤、穿透后继承）只在贯穿应用上显形，单测与单点 AC 关不掉；
+没有贯穿应用的领域不视为可交付。
 
 ## 命名规范
 

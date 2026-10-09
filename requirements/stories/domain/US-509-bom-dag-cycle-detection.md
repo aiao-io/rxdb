@@ -6,7 +6,7 @@ priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
 updated: 2026-10-09
-tags: [plugin, bom, graph, integrity]
+tags: [domain, bom, graph, integrity]
 ---
 
 # 用户故事：DAG 约束与环路检测下沉存储层
@@ -176,7 +176,7 @@ AC#8 等 US-510 阶段 B 的可达性表，AC#13 等真实 PostgreSQL 环境，A
 ## References
 
 - [epic-009 BOM 领域模型](../../epics/epic-009-bom-domain-model.md)
-- [US-503 图数据插件](US-503-graph-data.md) — 现有图能力与其边界
+- [US-503 图数据插件](../plugin/US-503-graph-data.md) — 现有图能力与其边界
 - [US-507 BOM 图骨架](US-507-bom-graph-skeleton.md) — 前置；行发生项的来源
 - [US-508 BOM 视图解析](US-508-bom-view-resolution.md) — 解析上下文；本故事刻意不按它约束
 - [US-513 联产品与副产品](US-513-bom-coproduct-byproduct.md) — AC#4 的前置；`flow_direction` 的来源

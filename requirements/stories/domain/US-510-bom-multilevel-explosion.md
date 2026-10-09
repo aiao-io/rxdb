@@ -6,7 +6,7 @@ priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
 updated: 2026-10-09
-tags: [plugin, bom, query, performance]
+tags: [domain, bom, query, performance]
 ---
 
 # 用户故事：多级展开与 where-used 反查

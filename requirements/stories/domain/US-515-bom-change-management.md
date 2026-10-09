@@ -6,7 +6,7 @@ priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
 updated: 2026-10-09
-tags: [plugin, bom, change-management]
+tags: [domain, bom, change-management]
 ---
 
 # 用户故事：变更管理（ECN）驱动的生效期

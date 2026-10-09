@@ -6,7 +6,7 @@ priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
 updated: 2026-10-09
-tags: [plugin, bom, extensibility, schema]
+tags: [domain, bom, extensibility, schema]
 ---
 
 # 用户故事：扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升

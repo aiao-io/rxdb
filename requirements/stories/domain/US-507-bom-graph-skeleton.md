@@ -6,7 +6,7 @@ priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
 updated: 2026-10-09
-tags: [plugin, bom, schema]
+tags: [domain, bom, schema]
 ---
 
 # 用户故事：BOM 图骨架：物料、修订与多重边 BOM 行

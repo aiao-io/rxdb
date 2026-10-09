@@ -6,7 +6,7 @@ priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
 updated: 2026-10-09
-tags: [plugin, bom, traceability, service]
+tags: [domain, bom, traceability, service]
 ---
 
 # 用户故事：as-built / as-maintained 实例 BOM

@@ -179,25 +179,25 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 四类引擎声明能力缺口已拆出为 [US-030](stories/core/US-030-declarative-storage-constraints.md)（归 epic-004），阶段 A～C 已提前解锁；
 epic-009 默认决策 1～8 由 owner 确认；第 0 步的形态样本（AdventureWorks）与手算 golden 已就位、未与决策冲突，本 Epic 仍等驱动者，见 [epic-009 第 0 步样本](epics/epic-009-bom-domain-model.md#第-0-步样本)。
 
-- ⬜ [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/plugin/US-507-bom-graph-skeleton.md) — 三阶段；`bom_header` 挂修订、带 `draft` / `released`；逻辑行 `bom_line` 与行发生项 `bom_line_occurrence` 分层，跨行聚合在发布转移上校验
-- ⬜ [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/plugin/US-508-bom-view-resolution.md) — `ResolutionContext` 的 `as_of_date` 必填、禁止追溯生效；同一逻辑行的发生项区间排他落 US-030；结果附 manifest
-- ⬜ [US-509 DAG 约束与环路检测下沉存储层](stories/plugin/US-509-bom-dag-cycle-detection.md) — 写入期拒绝成环是 BOM 的领域约束（graph 插件允许成环是既定语义）；「存储层」按适配器分档，`http` / `supabase` 显式声明能力缺席；按 `(bom_type, org_id)` 并集无环，自反边由同一触发器拒绝；AC#4 依赖 US-513、AC#8 依赖 US-510 阶段 B
-- ⬜ [US-510 多级展开与 where-used 反查](stories/plugin/US-510-bom-multilevel-explosion.md) — 两阶段；展开预算与 `truncated`；可达性表 `bom_reach` 不存路径、用量与生效期
-- ⬜ [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/plugin/US-511-bom-quantity-semantics.md) — 四阶段（B 拆 B1 / B2）；七步有序公式，损耗制式必须记录
-- ⬜ [US-512 替代组与替代策略](stories/plugin/US-512-bom-substitute-group.md) — 策略与是否允许混用属组不属行；概率合计 ≠ 1 拒绝而不归一化
-- ⬜ [US-513 联产品与副产品：多输出物料流](stories/plugin/US-513-bom-coproduct-byproduct.md) — 仅 `consume` 边进可达性与环检测；阶段 A 三个 `flow_direction`（consume / by_product / scrap_out）各自有下游消费方，主产物即头父件；联产品属阶段 B（价值待证）
-- ⬜ [US-514 成本卷算](stories/plugin/US-514-bom-cost-rollup.md) — 拓扑逆序单遍；`unit_cost` = `batch_cost` / `cost_lot_qty`，节点是已解析的头；前置 US-511 / US-512 / US-513 / US-520 / US-524
-- ⬜ [US-515 变更管理（ECN）驱动的生效期](stories/plugin/US-515-bom-change-management.md) — 生效日由 ECN 派生、不手填、不追溯；已生效 ECN 不可取消
-- ⬜ [US-516 EBOM ↔ MBOM 映射与差异对比](stories/plugin/US-516-ebom-mbom-mapping.md) — 关闭条件是**明确不用视图实现**
-- ⬜ [US-517 可配置销售 BOM：特征、选项与选择条件](stories/plugin/US-517-configurable-sales-bom.md) — 只定模型与求解契约，求解器可外挂
-- ⬜ [US-518 序列与批次有效性](stories/plugin/US-518-bom-unit-lot-effectivity.md) — 有效性从一维扩到日期 × 序列 × 批次
-- ⬜ [US-519 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升](stories/plugin/US-519-bom-extension-attributes.md) — 关闭条件是**没有 EAV 表**
-- ⬜ [US-520 工艺路线挂接与工序投料分摊](stories/plugin/US-520-bom-routing-operation.md) — 只做挂接点，路线本体归 US-524
-- ⬜ [US-521 ERP/MRP 集成契约](stories/plugin/US-521-bom-erp-mrp-integration.md) — 导出进 api-baseline、要求完整结构并附 manifest；导入整批原子进草稿、全量诊断
-- ⬜ [US-522 三框架 BOM 编辑与展开视图](stories/plugin/US-522-bom-tri-framework-ui.md) — 单端缺失 = 未完成，故不按端拆故事
-- ⬜ [US-523 as-built / as-maintained 实例 BOM](stories/plugin/US-523-bom-as-built-instance.md) — 实例结构（`parent_instance_id`）与主数据可达性分离；源发生项删除受限
-- ⬜ [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/plugin/US-524-routing-master-model.md) — 四阶段；路线一律落在本仓；US-520 与 US-514 加工费的那一端，是二者的硬前置
-- ⬜ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/plugin/US-525-bom-end-to-end-demo.md) — 四阶段；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；一份滑板车数据集贯穿全域 + 七步算式面板
+- ⬜ [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md) — 三阶段；`bom_header` 挂修订、带 `draft` / `released`；逻辑行 `bom_line` 与行发生项 `bom_line_occurrence` 分层，跨行聚合在发布转移上校验
+- ⬜ [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md) — `ResolutionContext` 的 `as_of_date` 必填、禁止追溯生效；同一逻辑行的发生项区间排他落 US-030；结果附 manifest
+- ⬜ [US-509 DAG 约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md) — 写入期拒绝成环是 BOM 的领域约束（graph 插件允许成环是既定语义）；「存储层」按适配器分档，`http` / `supabase` 显式声明能力缺席；按 `(bom_type, org_id)` 并集无环，自反边由同一触发器拒绝；AC#4 依赖 US-513、AC#8 依赖 US-510 阶段 B
+- ⬜ [US-510 多级展开与 where-used 反查](stories/domain/US-510-bom-multilevel-explosion.md) — 两阶段；展开预算与 `truncated`；可达性表 `bom_reach` 不存路径、用量与生效期
+- ⬜ [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md) — 四阶段（B 拆 B1 / B2）；七步有序公式，损耗制式必须记录
+- ⬜ [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md) — 策略与是否允许混用属组不属行；概率合计 ≠ 1 拒绝而不归一化
+- ⬜ [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md) — 仅 `consume` 边进可达性与环检测；阶段 A 三个 `flow_direction`（consume / by_product / scrap_out）各自有下游消费方，主产物即头父件；联产品属阶段 B（价值待证）
+- ⬜ [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md) — 拓扑逆序单遍；`unit_cost` = `batch_cost` / `cost_lot_qty`，节点是已解析的头；前置 US-511 / US-512 / US-513 / US-520 / US-524
+- ⬜ [US-515 变更管理（ECN）驱动的生效期](stories/domain/US-515-bom-change-management.md) — 生效日由 ECN 派生、不手填、不追溯；已生效 ECN 不可取消
+- ⬜ [US-516 EBOM ↔ MBOM 映射与差异对比](stories/domain/US-516-ebom-mbom-mapping.md) — 关闭条件是**明确不用视图实现**
+- ⬜ [US-517 可配置销售 BOM：特征、选项与选择条件](stories/domain/US-517-configurable-sales-bom.md) — 只定模型与求解契约，求解器可外挂
+- ⬜ [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md) — 有效性从一维扩到日期 × 序列 × 批次
+- ⬜ [US-519 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升](stories/domain/US-519-bom-extension-attributes.md) — 关闭条件是**没有 EAV 表**
+- ⬜ [US-520 工艺路线挂接与工序投料分摊](stories/domain/US-520-bom-routing-operation.md) — 只做挂接点，路线本体归 US-524
+- ⬜ [US-521 ERP/MRP 集成契约](stories/domain/US-521-bom-erp-mrp-integration.md) — 导出进 api-baseline、要求完整结构并附 manifest；导入整批原子进草稿、全量诊断
+- ⬜ [US-522 三框架 BOM 编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md) — 单端缺失 = 未完成，故不按端拆故事
+- ⬜ [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md) — 实例结构（`parent_instance_id`）与主数据可达性分离；源发生项删除受限
+- ⬜ [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md) — 四阶段；路线一律落在本仓；US-520 与 US-514 加工费的那一端，是二者的硬前置
+- ⬜ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 四阶段；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；一份滑板车数据集贯穿全域 + 七步算式面板
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

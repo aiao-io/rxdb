@@ -48,7 +48,7 @@ C 关闭 AC#4 / #12～#14 与 AC#6 / #10 的区间排他部分；D 关闭 AC#5�
 - 插件自有的写入期触发器（图可达性这类跨行判定）——机制已有先例，见技术笔记
 - 跨行聚合（位号计数、替代组概率合计、工序分摊合计、ECN 整批校验）——落在 BOM 头的 `draft → released` 发布转移上，见技术笔记
 - 跨表断言（ASSERTION）与延迟约束——区间排他按行即时检查，见技术笔记「区间排他的声明与语义」
-- 集合值维度的排他（如 [US-518](../plugin/US-518-bom-unit-lot-effectivity.md) 的批次集合 `lot_codes`）——PG GiST 无数组运算符类，见同一节
+- 集合值维度的排他（如 [US-518](../domain/US-518-bom-unit-lot-effectivity.md) 的批次集合 `lot_codes`）——PG GiST 无数组运算符类，见同一节
 - 同步拉取遇本地约束拒绝远端行时的隔离 / 跳过策略——今天唯一冲突已是同一行为，见技术笔记「与既有写入路径的交互」
 - 远端适配器（`supabase` / `http`）的约束下沉——那侧的 DDL 不由本仓掌控
 - 已有表的约束自动补建与表重建——由用户迁移承担，见技术笔记「约束命名与已有表漂移」
@@ -102,8 +102,8 @@ export interface EntityIndexMetadataOptions extends IEntityObject {
 声明与语义见下文「区间排他的声明与语义」。
 
 **SQLite 版本门槛是阶段 C 与插件触发器的共同前置。** SQLite 的 `RAISE(ABORT, msg)` 在 3.47.0（2024-10-21）之前只接受字符串字面量，
-触发器拼不出「冲突区间」「环路径」「位号数与 `qty`」这类动态消息——AC#4、[US-509](../plugin/US-509-bom-dag-cycle-detection.md) AC#1、
-[US-507](../plugin/US-507-bom-graph-skeleton.md) AC#5 都依赖它。本仓各宿主：
+触发器拼不出「冲突区间」「环路径」「位号数与 `qty`」这类动态消息——AC#4、[US-509](../domain/US-509-bom-dag-cycle-detection.md) AC#1、
+[US-507](../domain/US-507-bom-graph-skeleton.md) AC#5 都依赖它。本仓各宿主：
 
 | 宿主                                                   | SQLite 版本                                     | 达标 |
 | ------------------------------------------------------ | ----------------------------------------------- | ---- |
@@ -133,9 +133,9 @@ libsqlite3-sys 0.30.1 自带的 `sqlite3.h`。满足门槛的最小升级是 **r
 AC#1 / #4 的「消息骨架一致」指归一后的类与字段一致，不要求两后端原生文本相同。
 
 插件自有触发器沿用同一前缀格式 `rxdb:<kind>:<detail>`（PG 侧 `RAISE EXCEPTION` 用同一文本），错误类归插件：
-环 → `BomCycleError`（[US-509](../plugin/US-509-bom-dag-cycle-detection.md)），发布转移聚合 → `BomPublishValidationError`、
-已发布头协议外写入 → `BomWriteProtocolError`（[US-507](../plugin/US-507-bom-graph-skeleton.md) AC#5 / #10、
-[US-515](../plugin/US-515-bom-change-management.md)）。
+环 → `BomCycleError`（[US-509](../domain/US-509-bom-dag-cycle-detection.md)），发布转移聚合 → `BomPublishValidationError`、
+已发布头协议外写入 → `BomWriteProtocolError`（[US-507](../domain/US-507-bom-graph-skeleton.md) AC#5 / #10、
+[US-515](../domain/US-515-bom-change-management.md)）。
 
 **CHECK 的声明语法。** 不自造表达式 DSL：复用查询 [`RuleGroup`](../../../packages/rxdb/src/repository/query.interface.ts) 的形状
 （`combinator` + `rules` 递归），按 CHECK 只看单行的性质收窄，另补一种查询里没有的比较：
@@ -227,7 +227,7 @@ indexes: [
   「截止旧行 + 新开一行」的 redo 会先插新行、后截旧行，中间态重叠被拒。阶段 C 须让这条路径通过（AC#14），在执行顺序上解决（如区间收窄类更新先于插入，并核对更新对本批新插行的外键依赖），不放宽约束；
   两行**互换**区间这类终态合法、却无论顺序都经过重叠的操作不支持，调用方经中间值分两步写。
 - **集合维不支持**：PG GiST 对 `int[]` / `text[]` 无默认运算符类（探针确认），NULL 在 `EXCLUDE` 里又永不冲突，表达不了「NULL = 全部批次」。
-  [US-518](../plugin/US-518-bom-unit-lot-effectivity.md) 的批次维由它启动时另行决定，本故事只交付标量区间维。
+  [US-518](../domain/US-518-bom-unit-lot-effectivity.md) 的批次维由它启动时另行决定，本故事只交付标量区间维。
   排他声明不带条件、对整表生效：日期、序列都相交而批次集合不相交的两条发生项（US-518 AC#10）同样会被拒，
   所以 US-518 能否消费阶段 C，也取决于那次裁决（见其技术笔记「三维判定的落点」）。
 
@@ -260,12 +260,12 @@ PG 虽能 `ADD CONSTRAINT`，但老数据违约时，启动就成了一次无界
 消息点名实体与约束名，运维才看得见是哪一行卡住。
 
 **插件自有触发器不在本故事内。** 图可达性这类判定要读整张边表，装不进声明式约束；
-它按 FTS 的先例由插件自己发 DDL，归 [US-509](../plugin/US-509-bom-dag-cycle-detection.md)。
+它按 FTS 的先例由插件自己发 DDL，归 [US-509](../domain/US-509-bom-dag-cycle-detection.md)。
 本故事只负责「元数据能表达的约束」这一层。
 
 **跨行聚合也不是 CHECK 的消费方。** CHECK 只看单行；「位号数 = `qty`」「概率合计为 1」这类聚合若逐行校验，
 第一条录入就必然失败，合法聚合永远建不出来。epic-009 把它们统一放在 `bom_header` 的 `draft → released` 状态转移上，
-由插件触发器整组校验（[US-507](../plugin/US-507-bom-graph-skeleton.md) AC#5 / #10），与图可达性同属插件自有触发器，不进本故事。
+由插件触发器整组校验（[US-507](../domain/US-507-bom-graph-skeleton.md) AC#5 / #10），与图可达性同属插件自有触发器，不进本故事。
 
 ## 价值待证
 

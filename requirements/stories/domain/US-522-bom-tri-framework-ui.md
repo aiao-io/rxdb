@@ -6,7 +6,7 @@ priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
 updated: 2026-10-09
-tags: [plugin, bom, angular, react, vue, ui]
+tags: [domain, bom, angular, react, vue, ui]
 ---
 
 # 用户故事：三框架 BOM 编辑与展开视图

@@ -6,7 +6,7 @@ priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
 updated: 2026-10-09
-tags: [plugin, bom, configuration]
+tags: [domain, bom, configuration]
 ---
 
 # 用户故事：可配置销售 BOM：特征、选项与选择条件

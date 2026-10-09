@@ -6,7 +6,7 @@ priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
 updated: 2026-10-09
-tags: [plugin, bom, effectivity, aerospace]
+tags: [domain, bom, effectivity, aerospace]
 ---
 
 # 用户故事：序列与批次有效性

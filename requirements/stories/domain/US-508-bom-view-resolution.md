@@ -6,7 +6,7 @@ priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
 updated: 2026-10-09
-tags: [plugin, bom, query]
+tags: [domain, bom, query]
 ---
 
 # 用户故事：BOM 视图解析：类型/组织/修订/生效期过滤
