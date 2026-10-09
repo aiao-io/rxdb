@@ -92,7 +92,16 @@ self.onconnect = (event: MessageEvent) => {
 ```typescript
 interface WaSqliteOptions {
   // 虚拟文件系统类型（9 值联合，缺省为 IDBBatchAtomicVFS）
-  vfs?: 'MemoryVFS' | 'MemoryAsyncVFS' | 'IDBBatchAtomicVFS' | 'IDBMirrorVFS' | 'AccessHandlePoolVFS' | 'OPFSAdaptiveVFS' | 'OPFSAnyContextVFS' | 'OPFSCoopSyncVFS' | 'OPFSWriteAheadVFS';
+  vfs?:
+    | 'MemoryVFS'
+    | 'MemoryAsyncVFS'
+    | 'IDBBatchAtomicVFS'
+    | 'IDBMirrorVFS'
+    | 'AccessHandlePoolVFS'
+    | 'OPFSAdaptiveVFS'
+    | 'OPFSAnyContextVFS'
+    | 'OPFSCoopSyncVFS'
+    | 'OPFSWriteAheadVFS';
 
   // 加载哪个 wasm 构建：true = asyncify（wa-sqlite-async.wasm），false = 同步（wa-sqlite.wasm）。
   // 不指定时由所选 VFS 声明的能力决定

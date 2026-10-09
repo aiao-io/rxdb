@@ -135,10 +135,7 @@ export function rewriteMediaFileLinks(content) {
   let result = content;
 
   for (const [file, target] of Object.entries(MEDIA_FILE_LINK_MAP)) {
-    result = result.replace(
-      new RegExp(`\\]\\(\\.\\./_media/${escapeRegExp(file)}\\)`, 'g'),
-      `](${target})`
-    );
+    result = result.replace(new RegExp(`\\]\\(\\.\\./_media/${escapeRegExp(file)}\\)`, 'g'), `](${target})`);
   }
 
   return result.replace(/\[([^\]]+)\]\(\.\.\/_media\/([^/)]+\.md)\)/g, (_, text) => text);

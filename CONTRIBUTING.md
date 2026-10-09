@@ -127,9 +127,9 @@ pnpm test-all --skip-nx-cache
 
 ### 快速索引
 
-| 任务       | 命令                            |
-| ---------- | ------------------------------- |
-| 安装依赖   | `pnpm install`                  |
+| 任务       | 命令                             |
+| ---------- | -------------------------------- |
+| 安装依赖   | `pnpm install`                   |
 | 运行测试   | `pnpm nx test <project> --watch` |
 | 完整检查   | `pnpm test-all --skip-nx-cache`  |
 | 格式化代码 | `pnpm nx format:write`           |

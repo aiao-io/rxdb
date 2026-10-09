@@ -46,11 +46,11 @@ export class Article extends EntityBase {
 
 搜索插件的框架层同功能对称：
 
-| 框架    | 包                                 | 入口                                                       |
-| :------ | :--------------------------------- | :--------------------------------------------------------- |
-| Angular | `@aiao/rxdb-plugin-search-angular` | `useSearch()`                                              |
-| React   | `@aiao/rxdb-plugin-search-react`   | `useSearch()`                                              |
-| Vue     | `@aiao/rxdb-plugin-search-vue`     | `useSearch()`                                              |
+| 框架    | 包                                 | 入口          |
+| :------ | :--------------------------------- | :------------ |
+| Angular | `@aiao/rxdb-plugin-search-angular` | `useSearch()` |
+| React   | `@aiao/rxdb-plugin-search-react`   | `useSearch()` |
+| Vue     | `@aiao/rxdb-plugin-search-vue`     | `useSearch()` |
 
 ## 启用工作树插件
 
