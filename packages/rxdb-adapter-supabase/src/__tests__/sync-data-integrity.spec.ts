@@ -16,7 +16,7 @@ import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
-import { cleanupSqliteAdapter, LOCAL_RXDB_SYNC_TABLE } from './test-utils.js';
+import { cleanupSqliteAdapter, getSupabaseServiceRoleClient, LOCAL_RXDB_SYNC_TABLE } from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
@@ -34,7 +34,7 @@ describe('Pull/Push 数据完整性测试', () => {
     try {
       // todos 上有 change 触发器：必须先删实体，再清 rxdb_change，否则会残留 DELETE change
       await adapter.client.from('todos').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await adapter.client.from('rxdb_change').delete().neq('id', 0);
+      await getSupabaseServiceRoleClient().from('rxdb_change').delete().neq('id', 0);
     } catch (error) {
       console.warn('Cleanup warning:', error);
     }
@@ -56,7 +56,7 @@ describe('Pull/Push 数据完整性测试', () => {
     });
     if (error) throw error;
 
-    const { data: changeData, error: changeError } = await remoteAdapter.client
+    const { data: changeData, error: changeError } = await getSupabaseServiceRoleClient()
       .from('rxdb_change')
       .insert({
         namespace: 'public',

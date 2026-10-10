@@ -24,6 +24,18 @@ test('Angular model 的 Tailwind 扫描入口保留为独立资源导出', () =>
   assert.ok(readFileSync(new URL('../../packages/rxdb-model-angular/tailwind.css', import.meta.url), 'utf8').trim());
 });
 
+test('React / Vue model 的编译样式 bundle 都以 ./index.css 导出（Angular 组件样式随 APF 编进组件）', () => {
+  // vite lib 模式把组件样式（React 的 css import、Vue SFC 的 scoped <style>）抽成 dist/index.css，
+  // JS 产物不引用它；不在 exports 里，消费方就无从引入，对话框定位 / resize 把手 / 表格尺寸全丢
+  for (const framework of ['react', 'vue']) {
+    const manifest = JSON.parse(
+      readFileSync(new URL(`../../packages/rxdb-model-${framework}/package.json`, import.meta.url), 'utf8')
+    );
+    assert.equal(manifest.exports['./index.css'], './dist/index.css', `rxdb-model-${framework}`);
+    assert.ok(manifest.files.includes('dist'), `rxdb-model-${framework} 的 files 必须带上 dist`);
+  }
+});
+
 test('框架无关的 model 公开运行时入口保持为构建产物', () => {
   assert.equal(modelManifest.exports['.'].import, './dist/index.js');
   assert.equal(modelManifest.exports['.'].default, './dist/index.js');

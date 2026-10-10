@@ -1,5 +1,5 @@
 import { PropertyType } from '@aiao/rxdb';
-import type { FieldMetadata, QueryBuilderRuleGroup, UIRule } from '@aiao/rxdb-model';
+import type { FieldMetadata, QueryBuilderRuleGroup, UIRule, ValidationResult } from '@aiao/rxdb-model';
 import { mount } from '@vue/test-utils';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { UIRuleGroup } from '../../../query-builder/query-group/query-drag-drop';
@@ -208,6 +208,8 @@ describe('SubqueryBuilder（真实组件）', () => {
     host.vm.onAddGroup(rootId);
     await host.wrapper.vm.$nextTick();
     expect(host.vm.rootGroup?.rules.length).toBe(2);
+    // 新条目是空子组（有 combinator 与 rules），不是又一条规则
+    expect(host.vm.rootGroup!.rules.at(-1)).toMatchObject({ combinator: 'and', rules: [] });
 
     const added = host.vm.rootGroup!.rules.at(-1) as { id: string };
     host.vm.onRemoveItem(added.id);
@@ -236,7 +238,7 @@ describe('SubqueryBuilder（真实组件）', () => {
     expect(last?.combinator).toBe('or');
   });
 
-  it('fields 从空变为非空时同步到服务', async () => {
+  it('fields 从空变为非空时同步到服务：新规则按新字段校验，不报 fieldExists', async () => {
     const empty = render({ fields: [] });
     await empty.wrapper.setProps({ fields: FIELDS });
     await empty.wrapper.vm.$nextTick();
@@ -244,13 +246,24 @@ describe('SubqueryBuilder（真实组件）', () => {
     empty.vm.handleAddFirstRule();
     await empty.wrapper.vm.$nextTick();
     expect(empty.vm.rootGroup?.rules.length).toBe(1);
+    // handleAddFirstRule 读的是组件自己的 fields，规则总能建出来；只有服务的字段表没同步时，
+    // 校验才会对这条规则报「字段不存在」
+    const validations = (empty.wrapper.emitted('validationChange') ?? []).map(([v]) => v as ValidationResult);
+    expect(validations.length).toBeGreaterThan(0);
+    expect(validations.at(-1)?.errors ?? []).not.toContainEqual(expect.objectContaining({ rule: 'fieldExists' }));
   });
 
-  it('maxDepth 变更同步到服务', async () => {
+  it('maxDepth 变更同步到服务：放宽之后才能在根组下建子组', async () => {
+    // 根组深度为 1，maxDepth = 1 时根组下不能再建组
     const shallow = render({ maxDepth: 1 });
+    const rootId = shallow.vm.rootGroup!.id;
+    expect(() => shallow.vm.onAddGroup(rootId)).toThrow('已达到最大嵌套深度 1');
+
     await shallow.wrapper.setProps({ maxDepth: 2 });
     await shallow.wrapper.vm.$nextTick();
-    expect(shallow.vm.hasRules).toBeFalsy();
+    shallow.vm.onAddGroup(rootId);
+    await shallow.wrapper.vm.$nextTick();
+    expect(shallow.vm.rootGroup?.rules).toHaveLength(1);
   });
 
   it('销毁组件销毁服务后不再抛错', () => {

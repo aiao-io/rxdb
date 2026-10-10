@@ -210,54 +210,119 @@ const createMergeProject = (suiteName: SuiteName): ViteUserConfig => ({
   }
 });
 
-const createRunConfig = (suiteName: SuiteName): ViteUserConfig => ({
-  root: suiteRoots[suiteName],
-  cacheDir: path.join(workspaceRoot, `node_modules/.vite/packages/rxdb-adapter-sqlite-core-coverage-${suiteName}`),
-  resolve: createResolveConfig(),
-  server: createServerConfig(),
-  optimizeDeps: {
-    include: ['fastest-levenshtein', 'ms', 'uuid'],
-    exclude: [...commonOptimizeExclude, ...suiteOptimizeExclude[suiteName]]
-  },
-  test: {
-    name: getProjectName(suiteName),
-    watch: false,
-    globals: true,
-    // 与各包 vite.config 同口径：sqlite / sqliteai 明确关掉文件级并行；
-    // wa-sqlite 在这里进一步收到单 worker —— 五个 suite 是并发起的，
-    // 五份 chromium 同时开满 worker 会把机器压垮。
-    fileParallelism: !['wa-sqlite', 'sqlite', 'sqliteai'].includes(suiteName),
-    maxWorkers: suiteName === 'wa-sqlite' ? 1 : undefined,
-    testTimeout: 30000,
-    hookTimeout: 30000,
-    teardownTimeout: 10000,
-    include:
-      suiteName === 'core' ?
-        ['{src,tests,__tests__}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}']
-      : ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
-    ...createEnvironmentConfig(suiteName),
-    reporters: [
-      'default',
-      [
-        'blob',
-        {
-          outputFile: path.join(acceptanceRoot, 'blobs', `${suiteName}.json`)
-        }
-      ]
-    ],
-    coverage: {
-      allowExternal: true,
-      enabled: true,
-      clean: true,
-      provider: 'v8',
-      reporter: ['text-summary'],
-      reportOnFailure: true,
-      reportsDirectory: path.join(acceptanceRoot, suiteName),
-      include: [coreSourceInclude],
-      exclude: coreSourceExclude
+const createRunConfig = (suiteName: SuiteName): ViteUserConfig => {
+  const suiteRoot = suiteRoots[suiteName];
+  const projectName = getProjectName(suiteName);
+
+  /**
+   * 双 project 结构（roadmap 零散收尾项第 16 条）：
+   *
+   * - runner（root = suite 所在包）：真正执行测试的 project；
+   * - coverage-root helper（root = 本包）：不跑任何测试（`include: []`），存在的唯一理由是
+   *   vitest 给「本段没加载、但进了 coverage.include 的文件」补 0 覆盖时，只会挑 `root`
+   *   是该文件路径前缀的 project 转译（@vitest/coverage-v8 的 `createUncoveredFileTransformer`）。
+   *   四个适配器 suite 的 root 在别的包下，`src/desktop*` 等文件谁都匹配不上，就退回把 TS
+   *   原文当 JS 解析，每个 suite 刷 7 条 `Failed to parse … Excluding it from coverage` 噪音。
+   *   补上这个 project 后，它们走与 core suite 同口径的本包管线正常转译。
+   *
+   *   helper 转译出的 0 覆盖条目随本段 coverage 写进 blob（blob 由全局 reporter 统一落一份），
+   *   merge 段（文件末尾的 `--mergeReports` 分支）合并各段 blob 的 coverage 出最终报告，所以这些
+   *   文件以正常转译的语句映射进入最终分母，而不是在本段被排除；helper 在 blob 里的 module graph
+   *   条目按 project 名回放，merge 段没有同名 project，直接跳过。core suite 的 root 本来就是本包，
+   *   不需要 helper。
+   *
+   *   helper 不需要 `passWithNoTests`：vitest 只在所有 project 合计零个测试文件时才判
+   *   「No test files found」。不设它也是有意的——runner 的 include 一条都没匹配上时必须照常
+   *   exit 1，否则漏掉整段 suite 也会被当成通过（`verifyBlobReports` 只查 blob 在不在）。
+   */
+  const projects: ViteUserConfig[] = [
+    {
+      root: suiteRoot,
+      cacheDir: path.join(
+        workspaceRoot,
+        `node_modules/.vite/packages/rxdb-adapter-sqlite-core-coverage-${suiteName}-runner`
+      ),
+      resolve: createResolveConfig(),
+      server: createServerConfig(),
+      optimizeDeps: {
+        include: ['fastest-levenshtein', 'ms', 'uuid'],
+        exclude: [...commonOptimizeExclude, ...suiteOptimizeExclude[suiteName]]
+      },
+      test: {
+        name: projectName,
+        globals: true,
+        // 与各包 vite.config 同口径：sqlite / sqliteai 明确关掉文件级并行；
+        // wa-sqlite 在这里进一步收到单 worker —— 五个 suite 是并发起的，
+        // 五份 chromium 同时开满 worker 会把机器压垮。
+        fileParallelism: !['wa-sqlite', 'sqlite', 'sqliteai'].includes(suiteName),
+        maxWorkers: suiteName === 'wa-sqlite' ? 1 : undefined,
+        testTimeout: 30000,
+        hookTimeout: 30000,
+        include:
+          suiteName === 'core' ?
+            ['{src,tests,__tests__}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}']
+          : ['{src,tests}/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+        ...createEnvironmentConfig(suiteName)
+      }
     }
+  ];
+
+  if (suiteRoot !== packageRoot) {
+    projects.push({
+      root: packageRoot,
+      cacheDir: path.join(
+        workspaceRoot,
+        `node_modules/.vite/packages/rxdb-adapter-sqlite-core-coverage-${suiteName}-root`
+      ),
+      resolve: createResolveConfig(),
+      server: {
+        fs: {
+          allow: [workspaceRoot, path.join(workspaceRoot, 'node_modules')]
+        }
+      },
+      test: {
+        name: `${projectName}-coverage-root`,
+        include: [],
+        environment: 'node',
+        browser: {
+          enabled: false
+        }
+      }
+    });
   }
-});
+
+  return {
+    root: suiteRoot,
+    cacheDir: path.join(workspaceRoot, `node_modules/.vite/packages/rxdb-adapter-sqlite-core-coverage-${suiteName}`),
+    resolve: createResolveConfig(),
+    server: createServerConfig(),
+    test: {
+      projects,
+      watch: false,
+      teardownTimeout: 10000,
+      reporters: [
+        'default',
+        [
+          'blob',
+          {
+            outputFile: path.join(acceptanceRoot, 'blobs', `${suiteName}.json`)
+          }
+        ]
+      ],
+      coverage: {
+        allowExternal: true,
+        enabled: true,
+        clean: true,
+        provider: 'v8',
+        reporter: ['text-summary'],
+        reportOnFailure: true,
+        reportsDirectory: path.join(acceptanceRoot, suiteName),
+        include: [coreSourceInclude],
+        exclude: coreSourceExclude
+      }
+    }
+  };
+};
 
 export default defineConfig(() => {
   const suiteName = process.env.SQLITE_CORE_COVERAGE_SUITE;

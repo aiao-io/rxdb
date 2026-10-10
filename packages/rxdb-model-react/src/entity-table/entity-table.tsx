@@ -14,6 +14,7 @@
 import type {
   BatchChangeItem,
   CellChangeEvent,
+  EntityTableHandle,
   EntityTableRecord,
   HeaderPositionChange,
   PendingWrite,
@@ -50,18 +51,6 @@ interface CellTooltipState {
   x: number;
   y: number;
   content: string;
-}
-
-/** 表格实例命令面（对应 Angular 组件的公开 getter / 方法）。 */
-export interface EntityTableHandle {
-  /** 当前 VTable 表格实例；未初始化时为 `null`。 */
-  readonly tableInstance: ListTable | null;
-  /** 从业务层回滚单元格值（校验失败时恢复原值）。 */
-  changeCellValue(col: number, row: number, value: unknown): void;
-  /** 用当前暗色模式与 CSS 变量重绘主题。 */
-  redrawTheme(): void;
-  /** 把行恢复成最近一次交给表格的顺序（拖放被拒或落库失败时调用）。 */
-  restoreRecords(): void;
 }
 
 /** {@link EntityTable} 的 props。 */

@@ -3,6 +3,7 @@ import type {
   DetailTab,
   DetailTableTab,
   EntityFormData,
+  EntityInstance,
   FormFieldChangeEvent,
   FormFieldConfig,
   FormMode,
@@ -21,12 +22,14 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
+  effect,
   ErrorHandler,
   inject,
   input,
   linkedSignal,
   output,
   signal,
+  untracked,
   type InputSignal
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
@@ -34,8 +37,6 @@ import { of, switchMap } from 'rxjs';
 import { EntityDialogComponent } from '../entity-dialog/entity-dialog.component';
 import { EntityFormComponent } from '../entity-form/rxdb-entity-form-angular';
 import { EntityListComponent } from '../entity-list/entity-list.component';
-
-type EntityInstance = { [key: string]: unknown; readonly id: string; save(): Promise<void>; remove(): Promise<void> };
 
 /** CDK Dialog 传入的数据结构 */
 export interface EntityDetailDialogData {
@@ -95,10 +96,10 @@ export class EntityDetailComponent {
     );
   });
 
-  /** Dialog 传入的实体类（根据 metadata 查找） */
+  /** Dialog / metadata input 传入的实体类（根据 metadata 查找） */
   readonly #entityClsFromDialog = computed<EntityType | null>(() => {
     const rxdb = this.#rxdb;
-    const meta = this.#dialogData?.metadata;
+    const meta = this.metadata() ?? this.#dialogData?.metadata;
     if (!rxdb || !meta) return null;
     return (
       rxdb.config.entities.find(cls => {
@@ -149,6 +150,28 @@ export class EntityDetailComponent {
   readonly formMode = input<FormMode | undefined>(undefined);
   readonly relatedEntityProvider = input<RelatedEntityProvider>();
 
+  /**
+   * 已打开详情对话框的记录 id 栈（含当前记录）的 input。
+   *
+   * @remarks 绑定名是 `editChain`，与 React / Vue 的同名 prop 对齐；同名类成员 `editChain`
+   * 是 input 与 DIALOG_DATA 合并后的有效值（main 起就公开），所以 input 以别名声明。
+   */
+  readonly editChainInput = input<string[] | undefined>(undefined, { alias: 'editChain' });
+
+  /** 预填充的外键数据（不可编辑），用于级联新增场景 */
+  readonly fixedFormData = input<EntityFormData>();
+
+  /** 委托保存：不创建草稿实体，仅 emit formSubmitted 让调用方处理 */
+  readonly delegateSave = input<boolean>();
+
+  /**
+   * 祖先创建链路（实体类型 `namespace:name`）的 input，用于阻断循环创建。
+   *
+   * @remarks 绑定名是 `creationChain`，与 React / Vue 的同名 prop 对齐；同名类成员 `creationChain`
+   * 是追加了当前实体之后的有效链路（main 起就公开），所以 input 以别名声明。
+   */
+  readonly creationChainInput = input<string[] | undefined>(undefined, { alias: 'creationChain' });
+
   readonly formSubmitted = output<EntityFormData>();
   readonly formCancelled = output<void>();
   readonly fieldChanged = output<FormFieldChangeEvent>();
@@ -176,9 +199,9 @@ export class EntityDetailComponent {
     return mode === 'create' ? `新建${name}` : name;
   });
 
-  /** 创建链路：当前实体 + 祖先链路，传递给子 entity-list 以阻断循环创建 */
+  /** 创建链路：当前实体 + 祖先链路，传递给子 entity-list 以阻断循环创建（祖先链路 input 优先，缺省回退 DIALOG_DATA） */
   readonly creationChain = computed<string[]>(() => {
-    const parentChain = this.#dialogData?.creationChain ?? [];
+    const parentChain = this.creationChainInput() ?? this.#dialogData?.creationChain ?? [];
     if (!this.isCreateMode()) return parentChain;
     const meta = this.metadataValue;
     if (!meta) return parentChain;
@@ -186,8 +209,8 @@ export class EntityDetailComponent {
     return parentChain.includes(key) ? parentChain : [...parentChain, key];
   });
 
-  /** 已打开详情对话框的记录 id 栈（DIALOG_DATA 透传，含当前记录），关系 tab 列表据此阻断无限套娃 */
-  readonly editChain = computed<string[]>(() => this.#dialogData?.editChain ?? []);
+  /** 已打开详情对话框的记录 id 栈（input 优先，缺省回退 DIALOG_DATA，含当前记录），关系 tab 列表据此阻断无限套娃 */
+  readonly editChain = computed<string[]>(() => this.editChainInput() ?? this.#dialogData?.editChain ?? []);
 
   /** 当前活动关系 tab 的 relationName（用于子实体注册关系） */
   readonly activeRelationName = computed<string | undefined>(() => {
@@ -220,7 +243,7 @@ export class EntityDetailComponent {
 
   get formFieldsValue(): FormFieldConfig[] {
     const fields = this.formFields() ?? this.#formFieldsFromRouteInputs() ?? this.#dialogData!.formFields;
-    const fixed = this.#dialogData?.fixedFormData;
+    const fixed = this.fixedFormDataValue;
     if (!fixed) return fields;
     return fields.map(f => (f.field in fixed ? { ...f, readonly: true } : f));
   }
@@ -228,13 +251,13 @@ export class EntityDetailComponent {
   get formDataValue(): EntityFormData {
     if (this.isCreateMode()) {
       const draft = this.draftFormData();
-      const fixed = this.#dialogData?.fixedFormData;
+      const fixed = this.fixedFormDataValue;
       return fixed ? { ...draft, ...fixed } : draft;
     }
     const inst = this.#entityInstance();
     if (inst) return entityToFormData(inst as Record<string, unknown>, this.formFieldsValue ?? []);
     const base = this.formData() ?? this.#dialogData?.formData ?? {};
-    const fixed = this.#dialogData?.fixedFormData;
+    const fixed = this.fixedFormDataValue;
     return fixed ? { ...base, ...fixed } : base;
   }
 
@@ -246,19 +269,30 @@ export class EntityDetailComponent {
     return this.relatedEntityProvider() ?? this.#dialogData?.relatedEntityProvider;
   }
 
+  /** 预填充外键数据（input 优先，缺省回退 DIALOG_DATA） */
+  get fixedFormDataValue(): EntityFormData | undefined {
+    return this.fixedFormData() ?? this.#dialogData?.fixedFormData;
+  }
+
+  /** 是否委托保存（input 优先，缺省回退 DIALOG_DATA） */
+  get delegateSaveValue(): boolean {
+    return this.delegateSave() ?? this.#dialogData?.delegateSave ?? false;
+  }
+
   constructor() {
-    if (this.#dialogData?.formMode === 'create' && !this.#dialogData.delegateSave) {
+    // create 模式草稿实体生命周期。DIALOG_DATA 在构造期就齐了：同步建草稿，
+    // Dialog.open() 返回时调用方即可读到（React 端 useState 初始化同一时机）。
+    this.#ensureDraftEntity(this.formModeValue, this.delegateSaveValue, this.#entityClsFromDialog());
+    // 独立使用语境的 inputs 要到首次变更检测才写入，由 effect 补建。只追踪与 Vue 端 watch 相同的
+    // 触发源（metadata 及其实体类 / formMode / delegateSave），且先读触发源再进 untracked：
+    // 草稿存续期间的重跑不会丢依赖；formData / fixedFormData / formFields 只在建草稿那一刻取值，
+    // 改动它们不会再建草稿。保存或取消后，触发源再变（换实体、切模式）才开始新一轮创建。
+    effect(() => {
+      const mode = this.formModeValue;
+      const delegateSave = this.delegateSaveValue;
       const cls = this.#entityClsFromDialog();
-      if (cls) {
-        const fixed = this.#dialogData.fixedFormData;
-        const merged = { ...(this.#dialogData.formData || {}), ...fixed };
-        this.#draftEntity = new (cls as new (...args: unknown[]) => unknown)(merged) as EntityInstance;
-        this.draftEntitySignal.set(this.#draftEntity);
-        this.draftFormData.set(
-          entityToFormData(this.#draftEntity as Record<string, unknown>, this.#dialogData.formFields)
-        );
-      }
-    }
+      untracked(() => this.#ensureDraftEntity(mode, delegateSave, cls));
+    });
   }
 
   selectTab(key: string): void {
@@ -266,7 +300,7 @@ export class EntityDetailComponent {
     if (this.isCreateMode() && targetTab?.type === 'table') {
       const fields = this.formFieldsValue;
       const data = this.draftFormData();
-      const fixed = this.#dialogData?.fixedFormData;
+      const fixed = this.fixedFormDataValue;
       const merged = fixed ? { ...data, ...fixed } : data;
       const result = validateForm(fields, merged);
       if (!result.valid) {
@@ -326,7 +360,7 @@ export class EntityDetailComponent {
   onSave(): void {
     const fields = this.formFieldsValue;
     const data = this.draftFormData();
-    const fixed = this.#dialogData?.fixedFormData;
+    const fixed = this.fixedFormDataValue;
     const merged = fixed ? { ...data, ...fixed } : data;
     const result = validateForm(fields, merged);
     if (!result.valid) {
@@ -379,11 +413,28 @@ export class EntityDetailComponent {
     return undefined;
   }
 
+  /**
+   * create 模式按需建内存草稿实体（不落库）。
+   *
+   * @remarks 草稿只认 metadata（input 或 DIALOG_DATA）对应的实体类，与 React / Vue 一致：
+   * 只给 namespace + name 的路由输入用法不建草稿，保存走 formSubmitted。字段配置先于实例化
+   * 求值，它抛错时不会留下半初始化、又因已有草稿而永不重建的状态。
+   */
+  #ensureDraftEntity(mode: FormMode, delegateSave: boolean, cls: EntityType | null): void {
+    if (this.#draftEntity || mode !== 'create' || delegateSave || !cls) return;
+    const fields = this.formFieldsValue;
+    const merged = { ...(this.formData() ?? this.#dialogData?.formData ?? {}), ...this.fixedFormDataValue };
+    const draft = new (cls as new (...args: unknown[]) => unknown)(merged) as EntityInstance;
+    this.#draftEntity = draft;
+    this.draftEntitySignal.set(draft);
+    this.draftFormData.set(entityToFormData(draft as Record<string, unknown>, fields));
+  }
+
   /** 将表单数据同步到草稿实体 */
   #syncDraftEntity(): void {
     if (!this.#draftEntity) return;
     const data = this.draftFormData();
-    const fixed = this.#dialogData?.fixedFormData;
+    const fixed = this.fixedFormDataValue;
     const merged = fixed ? { ...data, ...fixed } : data;
     Object.assign(this.#draftEntity, merged);
   }

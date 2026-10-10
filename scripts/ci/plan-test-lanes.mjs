@@ -55,15 +55,16 @@ export const SUPABASE_PROJECTS = ['rxdb-adapter-supabase', 'dev-rxdb-supabase'];
 export const MEMORY_TARGET = 'test-memory';
 
 /**
- * test 目标不采集覆盖率的项目：`website` 跑的是 `node --test` 脚本测，不经 vitest，
- * `--coverage` 对它不起作用，也不在覆盖率门禁的范围里（门禁只看 packages/）。
+ * test 目标不采集覆盖率的项目：`website` 与 `e2e-parity`（三端对拍的共享归一化）跑的是
+ * `node --test` 脚本测，不经 vitest，`--coverage` 对它们不起作用，也不在覆盖率门禁的范围里
+ * （门禁只看 packages/）。
  *
  * 它和别的包同 lane 时无所谓；但只改 website 的 PR 会让它单独成 lane，此时 lane
  * 一个覆盖率文件都没有，上传步骤的 `if-no-files-found: error` 必红（PR #89）。
  * 所以按 lane 标 `coverage`：整条 lane 都在这张表里才标 false，上传步骤据此跳过；
  * 混进任何一个 vitest 项目就标 true，照旧严格要求产物 —— 不把 error 放宽成 warn。
  */
-export const NO_COVERAGE_PROJECTS = ['website'];
+export const NO_COVERAGE_PROJECTS = ['website', 'e2e-parity'];
 
 /**
  * 各项目 test 任务的实测耗时（秒），用于装箱时估算 lane 负载。
@@ -153,7 +154,9 @@ export const WEIGHTS = {
   'rxdb-plugin-tree': 2,
   'rxdb-plugin-tree-vue': 2,
   'rxdb-plugin-working-tree-vue': 2,
-  'rxdb-taro': 2
+  'rxdb-taro': 2,
+  // 一份 node --test 单测，不到 1 秒；没有实测记录，按下限登记，免得落进 DEFAULT_WEIGHT 被高估成大包
+  'e2e-parity': 1
 };
 
 /** 权重表里没登记的新包按这个值估算。宁可高估，避免新包把一条 lane 拖成长尾。 */

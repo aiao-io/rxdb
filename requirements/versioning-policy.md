@@ -61,8 +61,8 @@
 > [api-surface.mjs](../scripts/audit/api-surface.mjs) 的 `ASSET_SUBPATHS` 白名单里显式跳过，
 > 内容交由供应链审计守护。白名单双向核对：登记了包里已不存在的入口、或登记的包已退出扫描范围，同样门禁红。
 >
-> **该白名单当前登记 4 个包的 5 个入口**（见 `ASSET_SUBPATHS`）：`rxdb-adapter-miniprogram` 的
-> `./alipay-random-worker.js`、`rxdb-model-{angular,vue}` 的 `./tailwind.css`、`rxdb-model-react` 的
+> **该白名单当前登记 4 个包的 6 个入口**（见 `ASSET_SUBPATHS`）：`rxdb-adapter-miniprogram` 的
+> `./alipay-random-worker.js`、`rxdb-model-angular` 的 `./tailwind.css`、`rxdb-model-{react,vue}` 的
 > `./index.css` 与 `./tailwind.css`。均为无导出表面的资产入口，内容由供应链审计守护
 > （小程序 wasm 另见 [wa-sqlite-integrity.mjs](../scripts/audit/wa-sqlite-integrity.mjs)）。
 >

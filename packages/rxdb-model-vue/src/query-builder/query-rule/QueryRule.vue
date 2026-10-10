@@ -6,15 +6,11 @@
  * exists / notExists 操作符带「+ 子条件」展开面板；主题插槽经
  * {@link QUERY_BUILDER_THEME} 注入（回退 {@link DEFAULT_QUERY_BUILDER_THEME}）。
  */
-import type { FieldMetadata, QueryBuilderRuleGroup, UIRule, ValidationError } from '@aiao/rxdb-model';
+import type { FieldMetadata, QueryBuilderRuleGroup, ValidationError } from '@aiao/rxdb-model';
 import { computed, inject, ref, watch } from 'vue';
 import { DEFAULT_QUERY_BUILDER_THEME } from '../theme/default-query-builder-theme';
 import { QUERY_BUILDER_THEME } from '../theme/query-builder-theme';
-
-/** 带 where 子查询的规则类型 */
-type UIRuleWithWhere = UIRule & {
-  where?: QueryBuilderRuleGroup<Record<string, unknown>>;
-};
+import type { UIRuleWithWhere } from './query-rule-types';
 
 const props = withDefaults(
   defineProps<{

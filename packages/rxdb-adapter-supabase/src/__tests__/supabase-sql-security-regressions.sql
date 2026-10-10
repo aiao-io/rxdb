@@ -351,6 +351,23 @@ CREATE TABLE rxdb_sql_regression.receipts_child_multi_ids (
 SELECT public.rxdb_enable_sync_for_table('receipts_parent_multi_ids', 'rxdb_sql_regression', 'ReceiptsParentMulti');
 SELECT public.rxdb_enable_sync_for_table('receipts_child_multi_ids', 'rxdb_sql_regression', 'ReceiptsChildMulti');
 
+-- 级联删除日志复现（零散收尾项第 12 条）：父表 + ON DELETE CASCADE 子表，都挂同步触发器。
+-- 用回归内夹具表而不是参考 schema 的 menu_large：本用例要按实体名精确计数
+-- CascadeParent / CascadeChild 的日志，参考表上跑其它 spec 的并发写入会污染计数。
+CREATE TABLE rxdb_sql_regression.cascade_parent_ids (
+  id text PRIMARY KEY,
+  value text NOT NULL
+);
+
+CREATE TABLE rxdb_sql_regression.cascade_child_ids (
+  id text PRIMARY KEY,
+  "parentId" text NOT NULL REFERENCES rxdb_sql_regression.cascade_parent_ids (id) ON DELETE CASCADE,
+  value text NOT NULL
+);
+
+SELECT public.rxdb_enable_sync_for_table('cascade_parent_ids', 'rxdb_sql_regression', 'CascadeParent');
+SELECT public.rxdb_enable_sync_for_table('cascade_child_ids', 'rxdb_sql_regression', 'CascadeChild');
+
 CREATE TABLE public.rxdb_sql_trigger_probe (
   id varchar(64) PRIMARY KEY,
   value text NOT NULL,
@@ -434,6 +451,23 @@ BEGIN
   IF p_condition IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'assertion failed: %', p_message;
   END IF;
+END;
+$$;
+
+-- 以属主身份清理 rxdb_change（零散收尾项第 13 条）：
+-- 开发/CI 默认已收紧日志表写权限（docker/sql/production/rxdb-change-grants.sql），
+-- anon / authenticated 对 rxdb_change 只剩 SELECT。回归用例的准备步骤（按 clientId
+-- 清场）改走本 SECURITY DEFINER helper；「客户端直插被拒」的断言（production-change-grants
+-- 用例里的 42501）保留，那正是被测行为。
+CREATE FUNCTION rxdb_sql_regression.clear_change_log(p_client_ids text[] DEFAULT NULL)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+  DELETE FROM public.rxdb_change
+  WHERE p_client_ids IS NULL OR "clientId" = ANY(p_client_ids);
 END;
 $$;
 
@@ -669,8 +703,7 @@ AS $$
 DECLARE
   mutation_result jsonb;
 BEGIN
-  DELETE FROM public.rxdb_change
-  WHERE "clientId" = 'sql-security-regression-entity-id';
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-security-regression-entity-id']);
 
   -- 显式日志模式下日志必须与写配对（US-218 阶段 A），这里带上同 id 的新建
   SELECT public.rxdb_mutations(
@@ -718,8 +751,7 @@ DECLARE
   first_remote_id bigint;
   retry_remote_id bigint;
 BEGIN
-  DELETE FROM public.rxdb_change
-  WHERE "clientId" = 'sql-idempotency-client';
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-idempotency-client']);
   DELETE FROM rxdb_sql_regression.idempotency_probe;
   UPDATE rxdb_sql_regression.idempotency_effects SET effect_count = 0 WHERE id = true;
 
@@ -1007,8 +1039,7 @@ DECLARE
   error_detail text;
   error_message text;
 BEGIN
-  DELETE FROM public.rxdb_change
-  WHERE "clientId" = 'sql-rls-filter-client';
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-rls-filter-client']);
   PERFORM pg_catalog.set_config('rxdb_sql_regression.uid', 'sql-owner-a', true);
 
   -- 行对调用方可见，但 DELETE 的 USING 策略把它过滤掉：普通 DELETE 静默零行，必须显式 42501
@@ -1136,8 +1167,7 @@ DECLARE
   mutation_result jsonb;
   probe_rejected boolean := false;
 BEGIN
-  DELETE FROM public.rxdb_change
-  WHERE "clientId" = 'sql-delete-gone-client';
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-delete-gone-client']);
 
   -- ① 整批都已不存在
   mutation_result := public.rxdb_mutations(
@@ -1336,8 +1366,7 @@ DECLARE
   todo_id constant text := '22000000-0000-4000-8000-0000000000a1';
   helper_oid oid := pg_catalog.to_regprocedure('public.rxdb_assert_push_integrity(jsonb,jsonb,jsonb,boolean,jsonb)');
 BEGIN
-  DELETE FROM public.rxdb_change
-  WHERE "clientId" = 'sql-push-integrity-client';
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-push-integrity-client']);
 
   -- ⓪ 校验 helper：INVOKER、只读、固定 search_path；rxdb_mutations 是 INVOKER，客户端角色须显式持有 EXECUTE
   PERFORM rxdb_sql_regression.assert_true(
@@ -1530,6 +1559,10 @@ DECLARE
   public_trigger_count integer;
   wrong_function_count integer;
 BEGIN
+  -- 整个回归在一个事务里（test_case = all）：前面 p_skip_sync = true 的用例已把事务级
+  -- rxdb.sync_enabled 置为 'false'，末尾断言靠同步触发器记日志，必须先恢复
+  PERFORM pg_catalog.set_config('rxdb.sync_enabled', 'true', true);
+
   PERFORM public.rxdb_enable_sync_for_table(
     'trigger_probe',
     'rxdb_sql_regression',
@@ -2049,7 +2082,7 @@ DECLARE
   rejected_entry jsonb;
   applied_count integer;
 BEGIN
-  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-partial-client';
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-receipts-partial-client']);
   PERFORM pg_catalog.set_config('rxdb_sql_regression.uid', 'sql-owner-a', true);
 
   mutation_result := public.rxdb_mutations(
@@ -2130,7 +2163,7 @@ DECLARE
   mutation_result jsonb;
   rejected_entry jsonb;
 BEGIN
-  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-fanout-client';
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-receipts-fanout-client']);
   PERFORM pg_catalog.set_config('rxdb_sql_regression.uid', 'sql-owner-a', true);
 
   mutation_result := public.rxdb_mutations(
@@ -2182,7 +2215,7 @@ DECLARE
   unrelated_entry jsonb;
   multi_entry jsonb;
 BEGIN
-  DELETE FROM public.rxdb_change WHERE "clientId" IN ('sql-receipts-dependency-client', 'sql-receipts-dependency-multi-client');
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-receipts-dependency-client', 'sql-receipts-dependency-multi-client']);
 
   mutation_result := public.rxdb_mutations(
     p_upserts => '[
@@ -2275,7 +2308,7 @@ DECLARE
   mutation_result jsonb;
   entry jsonb;
 BEGIN
-  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-gone-client';
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-receipts-gone-client']);
 
   mutation_result := public.rxdb_mutations(
     p_updates => '[{"schema":"rxdb_sql_regression","table":"update_nullable_ids","data":[{"id":"nullable-receipts-gone","value":"gone"}]}]'::jsonb,
@@ -2315,7 +2348,7 @@ DECLARE
   unclassified boolean := false;
   caught_sqlstate text;
 BEGIN
-  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-unclassified-client';
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-receipts-unclassified-client']);
 
   BEGIN
     PERFORM public.rxdb_mutations(
@@ -2367,7 +2400,7 @@ DECLARE
   entry jsonb;
 BEGIN
   -- Part 1：同一批调两次，第二次不执行业务写，远端 id 相同
-  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-idempotent-client';
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-receipts-idempotent-client']);
   DELETE FROM rxdb_sql_regression.idempotency_probe;
   UPDATE rxdb_sql_regression.idempotency_effects SET effect_count = 0 WHERE id = true;
 
@@ -2419,7 +2452,7 @@ BEGIN
   );
 
   -- Part 2：首次被拒的实体在放开策略后重试变为 applied
-  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-idempotent-retry-client';
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-receipts-idempotent-retry-client']);
   PERFORM pg_catalog.set_config('rxdb_sql_regression.uid', 'sql-owner-a', true);
 
   first_result := public.rxdb_mutations(
@@ -2471,7 +2504,7 @@ AS $$
 DECLARE
   denied boolean := false;
 BEGIN
-  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-legacy-client';
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-receipts-legacy-client']);
   PERFORM pg_catalog.set_config('rxdb_sql_regression.uid', 'sql-owner-a', true);
 
   BEGIN
@@ -2505,7 +2538,7 @@ BEGIN
   );
 
   -- 全部成功时也不带 entity_results
-  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-legacy-ok-client';
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-receipts-legacy-ok-client']);
   PERFORM rxdb_sql_regression.assert_true(
     NOT (public.rxdb_mutations(
       p_upserts => '[{"schema":"rxdb_sql_regression","table":"push_open_ids","data":[{"id":"open-receipts-legacy-ok-1","value":"new"}]}]'::jsonb,
@@ -2532,7 +2565,7 @@ DECLARE
   g integer;
   rejected_count integer;
 BEGIN
-  DELETE FROM public.rxdb_change WHERE "clientId" = 'sql-receipts-many-groups-client';
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-receipts-many-groups-client']);
 
   FOR g IN 1..70 LOOP
     deletes := deletes || pg_catalog.jsonb_build_array(pg_catalog.jsonb_build_object(
@@ -2565,6 +2598,100 @@ BEGIN
   PERFORM rxdb_sql_regression.assert_true(
     rejected_count = 70,
     pg_catalog.format('receipts-many-groups: 70 denied deletes across 70 groups must all be rejected: %s', rejected_count)
+  );
+END;
+$$;
+
+-- 零散收尾项第 12 条复现：p_skip_sync = true（推送路径）时，ON DELETE CASCADE 级联删除的
+-- 子行不产生 rxdb_change，其它端拉不到这些删除。触发器模式（p_skip_sync = false）作为对照：
+-- 级联子行各落一条 DELETE 日志。
+CREATE FUNCTION rxdb_sql_regression.test_cascade_delete_logging()
+RETURNS void
+LANGUAGE plpgsql
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  mutation_result jsonb;
+BEGIN
+  -- 整个回归在一个事务里（test_case = all）：前面 p_skip_sync = true 的用例已把事务级
+  -- rxdb.sync_enabled 置为 'false'，① 靠同步触发器记日志，必须先恢复
+  PERFORM pg_catalog.set_config('rxdb.sync_enabled', 'true', true);
+
+  -- ① 对照：触发器模式下删除父行，级联删除的子行各自产生 DELETE 日志。
+  -- 触发器日志不带 clientId，clear_change_log 按 clientId 清不掉它们，断言因此按 entityId 收窄
+  INSERT INTO rxdb_sql_regression.cascade_parent_ids (id, value)
+  VALUES ('cascade-parent-t', 'parent');
+  INSERT INTO rxdb_sql_regression.cascade_child_ids (id, "parentId", value)
+  VALUES ('cascade-child-t-1', 'cascade-parent-t', 'child-1'),
+         ('cascade-child-t-2', 'cascade-parent-t', 'child-2');
+
+  mutation_result := public.rxdb_mutations(
+    '[]'::jsonb,
+    '[{"schema":"rxdb_sql_regression","table":"cascade_parent_ids","ids":["cascade-parent-t"]}]'::jsonb,
+    '[]'::jsonb,
+    false
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.cascade_parent_ids WHERE id = 'cascade-parent-t')
+      AND NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.cascade_child_ids WHERE "parentId" = 'cascade-parent-t'),
+    'trigger mode: cascade delete must remove parent and children'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM public.rxdb_change
+      WHERE namespace = 'rxdb_sql_regression' AND entity = 'CascadeParent' AND type = 'DELETE'
+        AND "entityId" = 'cascade-parent-t') = 1,
+    'trigger mode: parent delete must log one DELETE'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM public.rxdb_change
+      WHERE namespace = 'rxdb_sql_regression' AND entity = 'CascadeChild' AND type = 'DELETE'
+        AND "entityId" IN ('cascade-child-t-1', 'cascade-child-t-2')) = 2,
+    'trigger mode: cascaded child deletes must log one DELETE each'
+  );
+
+  -- ② 复现：p_skip_sync = true（推送路径）只下发父行删除与父行日志
+  INSERT INTO rxdb_sql_regression.cascade_parent_ids (id, value)
+  VALUES ('cascade-parent-e', 'parent');
+  INSERT INTO rxdb_sql_regression.cascade_child_ids (id, "parentId", value)
+  VALUES ('cascade-child-e-1', 'cascade-parent-e', 'child-1'),
+         ('cascade-child-e-2', 'cascade-parent-e', 'child-2');
+  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-cascade-client']);
+
+  mutation_result := public.rxdb_mutations(
+    '[]'::jsonb,
+    '[{"schema":"rxdb_sql_regression","table":"cascade_parent_ids","ids":["cascade-parent-e"]}]'::jsonb,
+    '[{
+      "namespace":"rxdb_sql_regression",
+      "entity":"CascadeParent",
+      "schema":"rxdb_sql_regression",
+      "table":"cascade_parent_ids",
+      "entityId":"cascade-parent-e",
+      "type":"DELETE",
+      "inversePatch":{"id":"cascade-parent-e","value":"parent"},
+      "branchId":"main",
+      "clientId":"sql-cascade-client",
+      "localId":890001
+    }]'::jsonb,
+    true
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.cascade_parent_ids WHERE id = 'cascade-parent-e')
+      AND NOT EXISTS (SELECT 1 FROM rxdb_sql_regression.cascade_child_ids WHERE "parentId" = 'cascade-parent-e'),
+    'explicit mode: cascade delete must still remove parent and children'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    (SELECT pg_catalog.count(*) FROM public.rxdb_change WHERE "clientId" = 'sql-cascade-client') = 1,
+    'explicit mode: only the pushed parent DELETE may be logged'
+  );
+  PERFORM rxdb_sql_regression.assert_true(
+    NOT EXISTS (
+      SELECT 1 FROM public.rxdb_change
+      WHERE namespace = 'rxdb_sql_regression'
+        AND entity = 'CascadeChild'
+        AND type = 'DELETE'
+        AND "entityId" IN ('cascade-child-e-1', 'cascade-child-e-2')
+    ),
+    'explicit mode: cascaded child deletes must not produce rxdb_change entries'
   );
 END;
 $$;
@@ -2729,6 +2856,8 @@ SELECT rxdb_sql_regression.test_receipts_legacy()
 WHERE :'test_case' IN ('all', 'receipts-legacy');
 SELECT rxdb_sql_regression.test_receipts_many_groups()
 WHERE :'test_case' IN ('all', 'receipts-many-groups');
+SELECT rxdb_sql_regression.test_cascade_delete_logging()
+WHERE :'test_case' IN ('all', 'cascade-delete-logging');
 RESET ROLE;
 
 SELECT rxdb_sql_regression.test_delete_hidden_row_verify()

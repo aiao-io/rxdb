@@ -91,10 +91,14 @@ sql/
 ├── 01-rxdb-system-tables.sql
 ├── 02-rxdb-sync-functions.sql
 ├── 03-business-tables.sql
-└── 04-rxdb-utils-functions.sql
+├── 04-rxdb-utils-functions.sql
+└── production/
+    └── rxdb-change-grants.sql
 ```
 
 其中 `03-business-tables.sql` 会创建适配器测试需要的业务表，例如 `Todo`、`TypeDemo`、`User`、`Order`、`OrderItem`、`Category`、`MenuLarge` 等。
+
+`production/rxdb-change-grants.sql` 收回 `anon` / `authenticated` 对变更日志表 `rxdb_change` 的写权限（保留 `SELECT`），必须最后加载：01 / 03 里的 `GRANT ALL ON ALL TABLES IN SCHEMA public` 会把权限放宽回去。开发库因此与生产同口径，适配器测试对 `rxdb_change` 的预置与清理走 `service_role`。生产部署的用法见 [Supabase 适配器文档](../website/docs/adapters/supabase.md#收紧变更日志表的写权限)。
 
 ## 服务结构
 
@@ -191,7 +195,9 @@ docker/
 │   ├── 01-rxdb-system-tables.sql
 │   ├── 02-rxdb-sync-functions.sql
 │   ├── 03-business-tables.sql
-│   └── 04-rxdb-utils-functions.sql
+│   ├── 04-rxdb-utils-functions.sql
+│   └── production/
+│       └── rxdb-change-grants.sql # 收紧 rxdb_change 写权限，init-db.sh 最后加载
 ├── tests/                         # 环境测试脚本
 ├── utils/                         # 密钥/升级工具脚本
 │   ├── add-new-auth-keys.sh
