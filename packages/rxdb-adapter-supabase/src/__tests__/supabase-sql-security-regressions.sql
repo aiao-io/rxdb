@@ -1559,6 +1559,10 @@ DECLARE
   public_trigger_count integer;
   wrong_function_count integer;
 BEGIN
+  -- 整个回归在一个事务里（test_case = all）：前面 p_skip_sync = true 的用例已把事务级
+  -- rxdb.sync_enabled 置为 'false'，末尾断言靠同步触发器记日志，必须先恢复
+  PERFORM pg_catalog.set_config('rxdb.sync_enabled', 'true', true);
+
   PERFORM public.rxdb_enable_sync_for_table(
     'trigger_probe',
     'rxdb_sql_regression',
@@ -2609,15 +2613,17 @@ AS $$
 DECLARE
   mutation_result jsonb;
 BEGIN
-  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-cascade-client']);
+  -- 整个回归在一个事务里（test_case = all）：前面 p_skip_sync = true 的用例已把事务级
+  -- rxdb.sync_enabled 置为 'false'，① 靠同步触发器记日志，必须先恢复
+  PERFORM pg_catalog.set_config('rxdb.sync_enabled', 'true', true);
 
-  -- ① 对照：触发器模式下删除父行，级联删除的子行各自产生 DELETE 日志
+  -- ① 对照：触发器模式下删除父行，级联删除的子行各自产生 DELETE 日志。
+  -- 触发器日志不带 clientId，clear_change_log 按 clientId 清不掉它们，断言因此按 entityId 收窄
   INSERT INTO rxdb_sql_regression.cascade_parent_ids (id, value)
   VALUES ('cascade-parent-t', 'parent');
   INSERT INTO rxdb_sql_regression.cascade_child_ids (id, "parentId", value)
   VALUES ('cascade-child-t-1', 'cascade-parent-t', 'child-1'),
          ('cascade-child-t-2', 'cascade-parent-t', 'child-2');
-  PERFORM rxdb_sql_regression.clear_change_log(ARRAY['sql-cascade-client']);
 
   mutation_result := public.rxdb_mutations(
     '[]'::jsonb,
@@ -2632,12 +2638,14 @@ BEGIN
   );
   PERFORM rxdb_sql_regression.assert_true(
     (SELECT pg_catalog.count(*) FROM public.rxdb_change
-      WHERE namespace = 'rxdb_sql_regression' AND entity = 'CascadeParent' AND type = 'DELETE') = 1,
+      WHERE namespace = 'rxdb_sql_regression' AND entity = 'CascadeParent' AND type = 'DELETE'
+        AND "entityId" = 'cascade-parent-t') = 1,
     'trigger mode: parent delete must log one DELETE'
   );
   PERFORM rxdb_sql_regression.assert_true(
     (SELECT pg_catalog.count(*) FROM public.rxdb_change
-      WHERE namespace = 'rxdb_sql_regression' AND entity = 'CascadeChild' AND type = 'DELETE') = 2,
+      WHERE namespace = 'rxdb_sql_regression' AND entity = 'CascadeChild' AND type = 'DELETE'
+        AND "entityId" IN ('cascade-child-t-1', 'cascade-child-t-2')) = 2,
     'trigger mode: cascaded child deletes must log one DELETE each'
   );
 

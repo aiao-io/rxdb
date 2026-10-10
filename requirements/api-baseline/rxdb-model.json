@@ -242,6 +242,10 @@
         "kind": "type"
       },
       {
+        "name": "EntityTableHandle",
+        "kind": "type"
+      },
+      {
         "name": "EntityTableRecord",
         "kind": "type"
       },
@@ -647,6 +651,10 @@
       },
       {
         "name": "QueryExample",
+        "kind": "type"
+      },
+      {
+        "name": "QueryTableHandle",
         "kind": "type"
       },
       {

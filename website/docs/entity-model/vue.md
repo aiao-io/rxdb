@@ -8,7 +8,7 @@
 npm install @aiao/rxdb @aiao/rxdb-model @aiao/rxdb-model-vue
 ```
 
-组件在使用前要求数据库已初始化：调用 `injectRxDB()` 即可触发首次连接（应用侧通过 `RxDBPlugin` / provider 提供实例，见 [Vue 集成](../frameworks/vue.md)）。
+组件自己经 `@aiao/rxdb-vue` 读取数据库，祖先组件须先用 `provideRxDB()` 提供实例（见 [Vue 集成](../frameworks/vue.md)）。页面本身不需要再调 `injectRxDB()`：它只读取已注入的实例，不做任何初始化。
 
 ## 实体列表
 
@@ -16,13 +16,9 @@ npm install @aiao/rxdb @aiao/rxdb-model @aiao/rxdb-model-vue
 
 ```vue
 <script lang="ts" setup>
-import { injectRxDB } from '@aiao/rxdb-vue';
 import { EntityList } from '@aiao/rxdb-model-vue';
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-
-// 注入 RxDB 以初始化本地数据库（首次查询经适配器 ready() 自动 connect）
-injectRxDB();
 
 /** 路由参数 :namespace / :name */
 const route = useRoute();
@@ -43,7 +39,7 @@ const name = computed(() => String(route.params.name ?? ''));
 
 ## 实体详情
 
-`EntityDetail`：Tab 式详情，基础表单 + 关系表格；create 模式先在内存中生成草稿实体，保存时才落库。
+`EntityDetail`：Tab 式详情，基础表单 + 关系表格。create 模式下，传了 `metadata`（对话框 / 直接传入通道）时先在内存中生成草稿实体，保存时才落库；只给路由输入（`namespace` + `name`）时不建草稿，保存经 `formSubmitted` 事件交给调用方。
 
 ```vue
 <script lang="ts" setup>
@@ -129,7 +125,7 @@ import { ref } from 'vue';
 const fields = ref<FieldMetadata[]>([]);
 const initialQuery = ref({ combinator: 'and' as const, rules: [] });
 
-function onQueryChange(query: RxDBQueryOutput): void {
+function onQueryChange(query: RxDBQueryOutput<Record<string, unknown>>): void {
   console.log(query);
 }
 
@@ -150,5 +146,7 @@ function onValidationChange(result: ValidationResult): void {
 ```
 
 主要 props：`fields`（字段列表，优先于 `schema`）、`schema`（Schema 信息）、`initial-query`（可回填既有查询）、`max-depth`（最大嵌套层级，缺省 `5`）、`height`（内容区最大高度，缺省 `'80vh'`）、`enable-drag` / `enable-collapse`；事件 `query-change` / `validation-change`。
+
+`RxDBQueryOutput<T>` 的类型参数必填：`T` 是被查询的实体类型，约束规则里的 `field`；Vue 组件的事件固定按 `Record<string, unknown>` 发出。
 
 主题注入：`provideQueryBuilderTheme(theme)` 提供自定义 `QueryBuilderTheme`（字段选择器 / 操作符选择器 / 值输入组件的替换实现），缺省用内置 `DEFAULT_QUERY_BUILDER_THEME`。

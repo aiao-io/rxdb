@@ -327,7 +327,7 @@ local-only 并使用 SQLite family 或 PGlite；不要用 string/base64 fallback
 
 ### 收紧变更日志表的写权限
 
-仓库的开发初始化脚本（`docker/init-db.sh`）对 `anon` / `authenticated` 开放了变更日志表 `public.rxdb_change` 的全部权限，方便测试直接造数据、清理日志。生产环境在执行完基础 SQL 之后，再执行一次生产权限脚本：
+基础 SQL 里的 `docker/sql/01-rxdb-system-tables.sql` 与 `03-business-tables.sql` 以 `GRANT ALL ON ALL TABLES IN SCHEMA public` 给 `anon` / `authenticated` 授权，变更日志表 `public.rxdb_change` 也在其中。执行完基础 SQL 之后，再执行一次生产权限脚本：
 
 ```bash
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-grants.sql
@@ -339,7 +339,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f docker/sql/production/rxdb-change-gra
 - 收回序列 `rxdb_change_id_seq` 的 `USAGE` / `UPDATE`；
 - 保留 `SELECT`。拉取函数 `rxdb_pull_changes` 是 `SECURITY INVOKER`，以调用方身份读日志；Realtime 也按调用方身份投递日志的 `INSERT` 事件。收回 `SELECT` 会让拉取和实时同步一起失效。
 
-脚本可以重复执行。`init-db.sh` 不加载它。任何含 `GRANT ALL ON ALL TABLES IN SCHEMA public` 的脚本（如 `docker/sql/01-rxdb-system-tables.sql`）重跑后会把权限放宽回去，之后要再执行一次本脚本。
+脚本可以重复执行。任何含 `GRANT ALL ON ALL TABLES IN SCHEMA public` 的脚本（如 `docker/sql/01-rxdb-system-tables.sql`）重跑后会把权限放宽回去，之后要再执行一次本脚本，所以它总是最后执行。仓库的开发初始化脚本（`docker/init-db.sh`）与 CI 的 Supabase 环境都在 01～04 之后加载它，开发库与生产同口径；仓库的 Supabase 测试对 `rxdb_change` 的预置与清理经 `service_role` 身份，`anon` 只读。
 
 收紧后，日志只剩两条写入路径：
 
@@ -391,7 +391,6 @@ CREATE POLICY todos_delete ON public.todos
 - **非 main 分支的日志仍可写**：推送非 main 分支时，`rxdb_mutations` 只写日志、不写实体，也就没有可配对的实体写入。这类日志不会进入 main 分支的拉取，但调用方仍可以往任意非 main 分支写日志。
 - **`rxdb_branch` 未收紧**：分支表仍对客户端开放读写，生产权限脚本不处理它。
 - **存在性探针**：`rxdb_existing_ids` 的剩余探测面见下文[已知限制](#已知限制)。id 不应承载敏感信息。
-- **开发环境的默认权限没有收紧**：仓库的 Supabase 测试以 `anon` 身份清理和预置 `rxdb_change`。测试清理改用 `service_role` 之后，开发默认权限才能一并收紧（后续项）。
 
 ## 故障排查
 

@@ -1,6 +1,9 @@
 # 样式接入
 
-组件包**不发布编译样式**：组件模板使用约定的工具类（Tailwind + daisyUI 类名），由消费方的样式管线生成。没有样式管线的消费方会得到**无样式但结构完整**的组件 —— 这是文档化行为，不是缺陷。
+组件的视觉样式分两层：
+
+- **组件自身样式**（对话框定位与 resize 把手、表格尺寸、拖拽指示等）随组件包发布：Angular 的组件样式由 ng-packagr 编进组件定义，无需额外引入；React / Vue 的组件样式被构建抽成一份 `dist/index.css`，JS 产物不引用它，**必须在应用入口引入一次**；
+- **工具类样式**：组件模板使用约定的工具类（Tailwind + daisyUI 类名），组件包不发布这部分，由消费方的样式管线生成。没有样式管线的消费方会得到**无工具类样式但结构完整**的组件 —— 这是文档化行为，不是缺陷。
 
 ## 约定
 
@@ -9,11 +12,20 @@
   - `@aiao/rxdb-model-angular/tailwind.css`
   - `@aiao/rxdb-model-react/tailwind.css`
   - `@aiao/rxdb-model-vue/tailwind.css`
+- React / Vue 另发布编译后的组件样式 bundle：
+  - `@aiao/rxdb-model-react/index.css`
+  - `@aiao/rxdb-model-vue/index.css`
 - 表格引擎（`@visactor/vtable`）以对等依赖形式由消费方提供，不计入组件包体积。
 
 ## 接入步骤
 
-在应用的 Tailwind 入口（即引入 `tailwindcss` 的样式文件）中引入对应包的注册入口：
+React / Vue 先在应用入口（如 `main.tsx` / `main.ts`）引入组件样式 bundle，Angular 跳过这一步：
+
+```ts
+import '@aiao/rxdb-model-react/index.css'; // Vue：'@aiao/rxdb-model-vue/index.css'
+```
+
+再在应用的 Tailwind 入口（即引入 `tailwindcss` 的样式文件）中引入对应包的注册入口：
 
 ```css
 /* 例如 Angular 消费方 */
@@ -54,4 +66,4 @@ React / Vue 同理换成 `@aiao/rxdb-model-react/tailwind.css` / `@aiao/rxdb-mod
 
 ## 无样式管线时的行为
 
-不引入 Tailwind / daisyUI 也能使用组件：结构、语义（fieldset / legend、tab、aria 状态）与交互全部正常，只是没有视觉样式。需要视觉还原时按上文接入注册入口即可。
+不引入 Tailwind / daisyUI 也能使用组件：结构、语义（fieldset / legend、tab、aria 状态）与交互全部正常，只是没有工具类带来的视觉样式。需要视觉还原时按上文接入注册入口即可。React / Vue 的 `index.css` 不属于样式管线，无论有没有 Tailwind 都要引入，否则对话框与表格的布局会错位。

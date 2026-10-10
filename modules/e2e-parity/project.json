@@ -1,0 +1,17 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "//": "rxdb-model 三端对拍的共享归一化与 golden（见 README）。三端 spec 以相对路径 import 本模块的 .mjs，Nx 据此建出 e2e → e2e-parity 的静态依赖边：golden 虽是运行期 readFileSync 读的，也随 ^production 进入 e2e 任务的输入，只改本目录时三个 e2e 都会进 affected、缓存失效。刻意不建 tsconfig（理由见 README），所以没有 typecheck 目标。",
+  "name": "e2e-parity",
+  "projectType": "library",
+  "sourceRoot": "modules/e2e-parity",
+  "tags": [],
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "modules/e2e-parity",
+        "command": "node --test entity-model-parity.spec.mjs"
+      }
+    }
+  }
+}

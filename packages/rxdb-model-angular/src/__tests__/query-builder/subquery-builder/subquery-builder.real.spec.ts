@@ -1,5 +1,5 @@
 import { PropertyType } from '@aiao/rxdb';
-import type { FieldMetadata, QueryBuilderRuleGroup, UIRule } from '@aiao/rxdb-model';
+import type { FieldMetadata, QueryBuilderRuleGroup, UIRule, ValidationResult } from '@aiao/rxdb-model';
 import { TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { UIRuleGroup } from '../../../query-builder/query-group/query-group.component';
@@ -30,12 +30,14 @@ describe('SubqueryBuilderComponent（真实组件）', () => {
   ) {
     const fixture = TestBed.createComponent(SubqueryBuilderComponent);
     const emitted: EmittedQuery[] = [];
+    const validations: ValidationResult[] = [];
     fixture.componentInstance.queryChange.subscribe(q => emitted.push(q));
+    fixture.componentInstance.validationChange.subscribe(v => validations.push(v));
     fixture.componentRef.setInput('fields', inputs.fields ?? FIELDS);
     if (inputs.initialQuery) fixture.componentRef.setInput('initialQuery', inputs.initialQuery);
     if (inputs.maxDepth !== undefined) fixture.componentRef.setInput('maxDepth', inputs.maxDepth);
     fixture.detectChanges();
-    return { fixture, component: fixture.componentInstance, emitted };
+    return { fixture, component: fixture.componentInstance, emitted, validations };
   }
 
   let host: ReturnType<typeof render>;
@@ -63,9 +65,10 @@ describe('SubqueryBuilderComponent（真实组件）', () => {
   });
 
   it('模板「添加子条件」按钮点击与组件方法同效', () => {
-    const addButton = host.fixture.nativeElement.querySelector('button');
-    expect(addButton).toBeDefined();
-    (addButton as HTMLButtonElement).click();
+    const addButton = host.fixture.nativeElement.querySelector('button') as HTMLButtonElement | null;
+    expect(addButton).not.toBeNull();
+    expect(addButton!.textContent).toContain('添加子条件');
+    addButton!.click();
     host.fixture.detectChanges();
 
     expect(host.component.hasRules()).toBe(true);
@@ -194,6 +197,8 @@ describe('SubqueryBuilderComponent（真实组件）', () => {
     host.component.onAddGroup(rootId);
     host.fixture.detectChanges();
     expect(host.component.rootGroup()?.rules.length).toBe(2);
+    // 新条目是空子组（有 combinator 与 rules），不是又一条规则
+    expect(host.component.rootGroup()!.rules.at(-1)).toMatchObject({ combinator: 'and', rules: [] });
 
     const added = host.component.rootGroup()!.rules.at(-1) as { id: string };
     host.component.onRemoveItem(added.id);
@@ -221,7 +226,7 @@ describe('SubqueryBuilderComponent（真实组件）', () => {
     expect(host.emitted.at(-1)?.combinator).toBe('or');
   });
 
-  it('fields 从空变为非空时同步到服务', () => {
+  it('fields 从空变为非空时同步到服务：新规则按新字段校验，不报 fieldExists', () => {
     const empty = render({ fields: [] });
     empty.fixture.componentRef.setInput('fields', FIELDS);
     empty.fixture.detectChanges();
@@ -229,13 +234,22 @@ describe('SubqueryBuilderComponent（真实组件）', () => {
     empty.component.handleAddFirstRule();
     empty.fixture.detectChanges();
     expect(empty.component.rootGroup()?.rules.length).toBe(1);
+    // handleAddFirstRule 读的是组件自己的 fields()，规则总能建出来；只有服务的字段表没同步时，
+    // 校验才会对这条规则报「字段不存在」
+    expect(empty.validations.length).toBeGreaterThan(0);
+    expect(empty.validations.at(-1)?.errors ?? []).not.toContainEqual(expect.objectContaining({ rule: 'fieldExists' }));
   });
 
-  it('maxDepth 变更同步到服务', () => {
+  it('maxDepth 变更同步到服务：放宽之后才能在根组下建子组', () => {
+    // 根组深度为 1，maxDepth = 1 时根组下不能再建组
     const shallow = render({ maxDepth: 1 });
+    const rootId = shallow.component.rootGroup()!.id;
+    expect(() => shallow.component.onAddGroup(rootId)).toThrow('已达到最大嵌套深度 1');
+
     shallow.fixture.componentRef.setInput('maxDepth', 2);
     shallow.fixture.detectChanges();
-    expect(shallow.component.hasRules()).toBeFalsy();
+    shallow.component.onAddGroup(rootId);
+    expect(shallow.component.rootGroup()?.rules).toHaveLength(1);
   });
 
   it('销毁组件销毁服务后不再抛错', () => {

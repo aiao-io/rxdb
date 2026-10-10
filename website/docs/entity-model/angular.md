@@ -8,16 +8,15 @@
 npm install @aiao/rxdb @aiao/rxdb-model @aiao/rxdb-model-angular
 ```
 
-组件在使用前要求数据库已初始化：注入 `RxDB` 即可触发首次连接（应用侧通过 `provideRxDB` 提供实例，见 [Angular 集成](../frameworks/angular.md)）。
+组件自己经依赖注入读取 `RxDB`，应用须先用 `provideRxDB` 提供实例（见 [Angular 集成](../frameworks/angular.md)）；`provideRxDB` 在应用初始化阶段就解析好数据库，页面本身不需要再注入 `RxDB`。
 
 ## 实体列表
 
 `EntityListComponent`（selector `rxdb-entity-list`）：无限滚动可编辑表格、行内编辑、撤销/重做、筛选弹层、级联新增、多对多选择模式、列头排序与手动排序实体的行拖放。
 
 ```typescript
-import { RxDB } from '@aiao/rxdb';
 import { EntityListComponent } from '@aiao/rxdb-model-angular';
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
 @Component({
   selector: 'app-entity-list-page',
@@ -32,9 +31,6 @@ import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core
   host: { class: 'page-host flex h-full flex-col bg-base-100' }
 })
 export default class EntityListPage {
-  // 注入 RxDB 以初始化本地数据库（首次查询经适配器 ready() 自动 connect）
-  rxdb = inject(RxDB);
-
   /** 路由参数 :namespace / :name（withComponentInputBinding 自动绑定） */
   readonly namespace = input.required<string>();
   readonly name = input.required<string>();
@@ -57,7 +53,7 @@ export default class EntityListPage {
 
 ## 实体详情
 
-`EntityDetailComponent`（selector `rxdb-entity-detail`）：Tab 式详情，基础表单 + 关系表格；create 模式先在内存中生成草稿实体，保存时才落库。
+`EntityDetailComponent`（selector `rxdb-entity-detail`）：Tab 式详情，基础表单 + 关系表格。create 模式下，传了 `metadata`（DIALOG_DATA / 直接输入通道）时先在内存中生成草稿实体，保存时才落库；只给路由输入（`namespace` + `name`）时不建草稿，保存经 `(formSubmitted)` 交给调用方。
 
 ```typescript
 import { EntityDetailComponent, type EntityFormData } from '@aiao/rxdb-model-angular';

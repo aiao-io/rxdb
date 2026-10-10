@@ -22,30 +22,42 @@ structuralEqual({ a: 1, b: 2 }, { b: 2, a: 1 }); // true
 ## 表单：字段配置、双向转换与校验
 
 ```typescript
+import { getEntityMetadata } from '@aiao/rxdb';
 import {
   buildFormFields,
   createDefaultFormData,
   entityToFormData,
   formDataToEntityChanges,
-  validateForm
+  validateForm,
+  type EntityFormData,
+  type EntityInstance
 } from '@aiao/rxdb-model';
+import { Todo } from './entities/Todo';
 
 const metadata = getEntityMetadata(Todo);
 
 // 按模式生成字段列表：create 排除计算字段且不含系统字段；
 // edit 追加只读系统字段（ID / 创建时间 / 更新时间 / 创建者 / 更新者）；view 全部字段只读
 const createFields = buildFormFields(metadata, 'create');
+const editFields = buildFormFields(metadata, 'edit');
 
 // 按字段默认值生成表单数据（create 模式的初始形态；布尔默认 false，数组默认空数组，其余默认 null）
-const formData = createDefaultFormData(createFields);
-
-// 表单数据 → 实体变更：只产出实际变化的字段，未变化的字段不产生写入
-const changes = formDataToEntityChanges(todo, formData, createFields);
+const draft = createDefaultFormData(createFields);
 
 // 提交校验：返回结构化结果（valid + 按字段的错误列表），绝不抛出未捕获异常
-const result = validateForm(createFields, formData);
+const result = validateForm(createFields, draft);
 if (!result.valid) {
   console.error(result.errors); // [{ field, message }, …]
+}
+
+// edit：已加载的实体 → 表单数据；保存时表单数据 → 实体变更，只产出实际变化的字段，未变化的字段不产生写入
+function loadForm(todo: EntityInstance): EntityFormData {
+  return entityToFormData(todo, editFields);
+}
+
+async function saveForm(todo: EntityInstance, formData: EntityFormData): Promise<void> {
+  Object.assign(todo, formDataToEntityChanges(todo, formData, editFields));
+  await todo.save();
 }
 ```
 
@@ -84,21 +96,26 @@ const columns = buildEditableColumns(metadata, {
 查询条件树（规则、AND/OR 分组、嵌套）的完整操作面，与仓库查询格式互为可转换表示：
 
 ```typescript
-import { createQueryBuilderService } from '@aiao/rxdb-model';
+import { getEntityMetadata } from '@aiao/rxdb';
+import { createQueryBuilderService, createSchemaFromEntity } from '@aiao/rxdb-model';
+import { Todo } from './entities/Todo';
 
-const service = createQueryBuilderService();
+// 字段元数据从实体元数据派生；校验按它判断字段是否存在、操作符与值是否匹配字段类型
+const service = createQueryBuilderService({ fields: createSchemaFromEntity(getEntityMetadata(Todo)) });
 
-// 规则/分组增删（缺省目标即根分组）、AND/OR 组合切换、条目移动、最大嵌套深度限制
-service.addRule(null, { field: 'title', operator: 'contains', value: '草稿' });
+// 规则/分组增删（缺省目标即根分组，返回新条目 id）、AND/OR 组合切换、条目移动、最大嵌套深度限制
+const titleRuleId = service.addRule(null, { field: 'title', operator: 'contains', value: '草稿' });
 service.addRule(null, { field: 'completed', operator: '=', value: false });
-service.updateGroupCombinator(service.getState().rootGroup.id, 'or');
-service.moveItem(ruleId, service.getState().rootGroup.id, 0);
+const rootGroupId = service.getState().rootGroup.id;
+service.updateGroupCombinator(rootGroupId, 'or');
+service.moveItem(titleRuleId, rootGroupId, 1);
 
 // 与仓库查询格式双向转换（toRxDBQuery → 仓库查询；fromRxDBQuery ← 从既有查询回填状态）
 const repositoryQuery = service.toRxDBQuery();
 service.fromRxDBQuery(repositoryQuery);
 
-// 逐规则即时校验：非法值给出结构化错误（含字段路径与原因）
+// 逐规则即时校验：字段不存在（fieldExists）、操作符与字段类型不符（operatorTypeMatch）、
+// 值类型不符（valueType）都给出结构化错误
 const result = service.validate();
 if (!result.valid) {
   console.error(result.errors); // [{ field, rule, message }, …]

@@ -41,7 +41,7 @@ const meta = getEntityMetadata(Todo);
 
 ### Repository
 
-Repository 是实体的数据访问门面，由客户端生成器为每个实体类产出（`find` / `findAll` / `findByCursor` / `count` / `create` / `update` / `remove` 等，详见[模型查询](../model-query/README.md)）。`rxdb-model` 组件不直接持有 Repository —— 组件按 `namespace` + `name` 定位实体类，查询、写入、撤销/重做全部走实体类的 Repository 路径，因此消费方只需保证数据库已初始化（Angular 注入 `RxDB`、React `useRxDB()`、Vue `injectRxDB()`）。
+Repository 是实体的数据访问门面，由客户端生成器为每个实体类产出（`find` / `findAll` / `findByCursor` / `count` / `create` / `update` / `remove` 等，详见[模型查询](../model-query/README.md)）。`rxdb-model` 组件不直接持有 Repository —— 组件按 `namespace` + `name` 定位实体类，查询、写入、撤销/重做全部走实体类的 Repository 路径，因此消费方只需在应用侧提供数据库实例（Angular / Vue 的 `provideRxDB`、React 的 `RxDBProvider`），组件自己读取。
 
 ### 查询构建器
 
@@ -62,7 +62,7 @@ Repository 是实体的数据访问门面，由客户端生成器为每个实体
 | `QueryTable`   | 带筛选状态栏与计数徽标的表格；`EntityList` 的表格主体即它                                                               |
 | `QueryBuilder` | AND/OR 分组、规则增删、拖拽重排、字段/操作符/值选择器、子查询、嵌套深度限制、主题注入                                   |
 
-三端能力面一致（仓库宪法要求，单端缺失视为未完成）；跨框架一致性由三端演示应用的对拍 e2e 锁定（同一份 Todo 种子数据 → 同一份语义快照，见 `apps/e2e-parity/`）。
+三端能力面一致（仓库宪法要求，单端缺失视为未完成）；跨框架一致性由三端演示应用的对拍 e2e 锁定（同一份 Todo 种子数据 → 同一份语义快照，见 `modules/e2e-parity/`）。
 
 ## 页面
 

@@ -27,7 +27,7 @@ import {
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
 import { FileLarge, FileNode, MenuLarge, MenuSimple, Task, Todo } from '@aiao/rxdb-test/entities';
 import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+import { emitTo, listen } from '@tauri-apps/api/event';
 import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { createTauriConnectorTransport } from '../devtools/tauri-connector-transport';
 import type { BackupProbeArchiveOps, BackupProbeDatabase } from './backup-probe';
@@ -130,22 +130,43 @@ export const resolveDevToolsProviders = async (
 };
 
 /**
- * 驱动推进场景时钟用的事件名，与 `src-tauri/devtools_driver.js` 的 `SCENARIO_CLOCK_ADVANCE_EVENT` 一致。
+ * 驱动推进场景时钟用的事件名，与 `src-tauri/devtools_driver.js` 的同名常量一致。
  *
  * @remarks
- * 推进事件与翻页 REQUEST 都由驱动从调试窗口按序发出、经同一条 IPC 流投递，主窗口按到达
- * 顺序执行——「先推进、后翻页」因此是有保证的顺序，不再赌 0 ms 计时器与翻页请求谁先到 store。
+ * 推进事件走 `plugin:event|emit_to`（异步命令，经事件循环排队投递），翻页 REQUEST 走同步的
+ * `devtools_message` 命令，两条路径到达主窗口的先后没有保证。所以主窗口执行完推进要回执
+ * {@link SCENARIO_CLOCK_ADVANCED_EVENT}，驱动等到回执才发翻页请求——「先推进、后翻页」
+ * 由回执保证，而不是赌 IPC 投递顺序。
  */
-const SCENARIO_CLOCK_ADVANCE_EVENT = 'devtools:scenario-clock-advance';
+export const SCENARIO_CLOCK_ADVANCE_EVENT = 'devtools:scenario-clock-advance';
+
+/** 推进执行完之后回执调试窗口的事件名，与 `src-tauri/devtools_driver.js` 的同名常量一致。 */
+export const SCENARIO_CLOCK_ADVANCED_EVENT = 'devtools:scenario-clock-advanced';
+
+/** 调试窗口的 webview label，与 Rust 侧 `devtools_routing` 和驱动脚本的 `DEVTOOLS_LABEL` 一致。 */
+const DEVTOOLS_WINDOW_LABEL = 'rxdb-devtools';
+
+/** 推进接线用到的两个事件原语（`@tauri-apps/api/event` 的 `listen` / `emitTo`），注入以便测试。 */
+export interface ScenarioClockEvents {
+  readonly listen: (event: string, handler: () => void | Promise<void>) => Promise<() => void>;
+  readonly emitTo: (target: string, event: string, payload: null) => Promise<void>;
+}
 
 /**
- * 把 expired 档的显式时钟推进接到驱动的推进事件上。
+ * 把 expired 档的显式时钟推进接到驱动的推进事件上：执行推进，再回执调试窗口。
  *
  * @param advance - fake gear 的 {@link advanceScenarioIdle} 手柄
+ * @param events - 事件原语，生产环境传 `@tauri-apps/api/event` 的 `listen` / `emitTo`
  * @returns 退订手柄；监听随页面存活（刷新即整页销毁），调用方不必持有
  */
-const connectScenarioClockAdvance = async (advance: () => void): Promise<() => void> =>
-  listen<null>(SCENARIO_CLOCK_ADVANCE_EVENT, () => advance());
+export const connectScenarioClockAdvance = async (
+  advance: () => void,
+  events: ScenarioClockEvents
+): Promise<() => void> =>
+  events.listen(SCENARIO_CLOCK_ADVANCE_EVENT, async () => {
+    advance();
+    await events.emitTo(DEVTOOLS_WINDOW_LABEL, SCENARIO_CLOCK_ADVANCED_EVENT, null);
+  });
 
 /**
  * 桌面文件后端的 storage 插件选项。
@@ -331,12 +352,12 @@ export default async () => {
   const providers = await resolveDevToolsProviders(devtoolsConfig.providerSource, devtoolsConfig.snapshotScenario, () =>
     createDesktopDevToolsProviders({ transport, getStorage: () => rxdb.storage })
   );
-  // expired 档的 idle 到期由驱动经事件**显式推进**（fake-provider-gear.ts 的 createScenarioClock）：
-  // 0 ms 真实计时器与下一次翻页请求谁先到 store 是事件循环的赌局，e2e 在慢 runner 上因此
-  // 偶发 timedOut。监听必须在 connector init 之前装好——驱动要等握手才推进，而那时这里
-  // 早已就绪；其余档（ok / busy / too_large 与真实档）没有推进手柄，不接线。
+  // expired 档的 idle 到期由驱动经事件**显式推进**（fake-provider-gear.ts 的 createScenarioClock），
+  // 推进执行完回执驱动，驱动收到回执才发翻页请求：0 ms 真实计时器与下一次翻页请求谁先到 store
+  // 是事件循环的赌局，e2e 在慢 runner 上因此偶发 timedOut。监听必须在 connector init 之前装好——
+  // 驱动要等握手才推进，而那时这里早已就绪；其余档（ok / busy / too_large 与真实档）没有推进手柄，不接线。
   if ('providerRegistry' in providers && providers.providerRegistry.advanceScenarioIdle !== undefined) {
-    await connectScenarioClockAdvance(providers.providerRegistry.advanceScenarioIdle);
+    await connectScenarioClockAdvance(providers.providerRegistry.advanceScenarioIdle, { listen, emitTo });
   }
   const devtools = getDevToolsConnector({
     ...devtoolsConfig,

@@ -6,23 +6,18 @@
  *
  * @module entity-table/query-table
  */
-import type { BatchChangeItem, CellChangeEvent, EntityTableRecord, RowMoveEvent } from '@aiao/rxdb-model';
+import type {
+  BatchChangeItem,
+  CellChangeEvent,
+  EntityTableHandle,
+  EntityTableRecord,
+  QueryTableHandle,
+  RowMoveEvent
+} from '@aiao/rxdb-model';
 import type { ListTable, ListTableConstructorOptions } from '@visactor/vtable';
 import { forwardRef, useImperativeHandle, useRef, type ReactNode } from 'react';
-import { EntityTable, type EntityTableHandle } from './entity-table';
+import { EntityTable } from './entity-table';
 import './query-table.css';
-
-/** 查询表格命令面（对应 Angular 组件的公开 getter / 方法）。 */
-export interface QueryTableHandle {
-  /** 内部实体表格的 VTable 实例；未初始化时为 `null`。 */
-  readonly tableInstance: ListTable | null;
-  /** 回滚单元格值（委托给内部实体表格）。 */
-  changeCellValue(col: number, row: number, value: unknown): void;
-  /** 重绘主题（委托给内部实体表格）。 */
-  redrawTheme(): void;
-  /** 把行恢复成最近一次交给表格的顺序（委托给内部实体表格）。 */
-  restoreRecords(): void;
-}
 
 /** {@link QueryTable} 的 props。 */
 export interface QueryTableProps {

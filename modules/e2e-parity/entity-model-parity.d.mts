@@ -2,8 +2,8 @@
  * rxdb-model 跨框架对拍 e2e 共享模块的类型契约（与 `entity-model-parity.mjs` 同步维护）。
  *
  * 三个 e2e 项目的 tsconfig `rootDir` 都是自己的项目目录，跨项目 import .ts 源码会触发
- * TS6059 / TS6307；以本声明文件 + 同名 .mjs 实现成对放置，tsc 只把这里当纯类型输入，
- * 运行期由 Playwright / Node 加载 .mjs。
+ * TS6059 / TS6307；以本声明文件 + 同名 .mjs 实现成对放置（spec 相对 import `.mjs`，tsc 找到这里），
+ * tsc 只把这里当纯类型输入，运行期由 Playwright / Node 加载 .mjs。
  *
  * @module e2e-parity
  */

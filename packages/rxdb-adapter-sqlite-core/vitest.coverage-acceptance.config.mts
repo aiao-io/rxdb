@@ -225,10 +225,15 @@ const createRunConfig = (suiteName: SuiteName): ViteUserConfig => {
    *   原文当 JS 解析，每个 suite 刷 7 条 `Failed to parse … Excluding it from coverage` 噪音。
    *   补上这个 project 后，它们走与 core suite 同口径的本包管线正常转译。
    *
-   *   分母与最终报告仍由 merge 段决定（文件末尾的 `--mergeReports` 分支），helper 只影响
-   *   本段的中间 text-summary；blob 由全局 reporter 统一落一份，空 project 在 blob 里只占
-   *   一个名字，merge 段按名字回放时自动忽略它。core suite 的 root 本来就是本包，
+   *   helper 转译出的 0 覆盖条目随本段 coverage 写进 blob（blob 由全局 reporter 统一落一份），
+   *   merge 段（文件末尾的 `--mergeReports` 分支）合并各段 blob 的 coverage 出最终报告，所以这些
+   *   文件以正常转译的语句映射进入最终分母，而不是在本段被排除；helper 在 blob 里的 module graph
+   *   条目按 project 名回放，merge 段没有同名 project，直接跳过。core suite 的 root 本来就是本包，
    *   不需要 helper。
+   *
+   *   helper 不需要 `passWithNoTests`：vitest 只在所有 project 合计零个测试文件时才判
+   *   「No test files found」。不设它也是有意的——runner 的 include 一条都没匹配上时必须照常
+   *   exit 1，否则漏掉整段 suite 也会被当成通过（`verifyBlobReports` 只查 blob 在不在）。
    */
   const projects: ViteUserConfig[] = [
     {
@@ -294,7 +299,6 @@ const createRunConfig = (suiteName: SuiteName): ViteUserConfig => {
     test: {
       projects,
       watch: false,
-      passWithNoTests: true,
       teardownTimeout: 10000,
       reporters: [
         'default',

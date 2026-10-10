@@ -149,8 +149,10 @@ describe('fake-provider-gear snapshot 场景', () => {
     const gear = createFakeProviderGear('expired');
 
     const first = await listSnapshot(gear, { snapshot: { pageSize: 100 } });
-    // 没有推进：快照必须还活着，第二页照常交付。真实 0 ms 计时器在这里可能已经到期
-    // 也可能没有——那正是被这条用例钉死的赌局；显式推进版里「不推进」就是不到期。
+    // 让出一个宏任务：两次翻页之间若只有微任务，旧实现的真实 0 ms idle 计时器根本没机会触发，
+    // 这条用例就钉不住「不推进就不到期」。让出之后，真实计时器必然已到期、快照已释放；
+    // 显式推进版里没人推进，快照必须还活着，第二页照常交付。
+    await new Promise(resolve => setTimeout(resolve, 0));
     const second = await listSnapshot(gear, {
       snapshot: { cursor: { snapshotId: first.snapshotId, offset: first.offset + 100 } }
     });

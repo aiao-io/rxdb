@@ -76,17 +76,16 @@ const EXCLUDED = new Set(['rxdb-test']);
  * 由应用作为 Worker 文件加载（协议见 `src/hosts/alipay-random.ts`），无 TS 导出表面。
  *
  * `@aiao/rxdb-test/*`（全部子路径）不在此列——整包已由 EXCLUDED 排除，非产品 API。
- * 三个 model 绑定包的 CSS 资产入口同理：`rxdb-model-angular` / `rxdb-model-vue` 的
- * `tailwind.css` 与 `rxdb-model-react` 的 `tailwind.css`、`index.css`（编译后的样式 bundle）
- * 都是 Tailwind `@source` 注册 / 样式产物，无 TS 导出表面，由消费方的 Tailwind 管线消费，
- * 内容为纯指令、无供应链风险面。
+ * 三个 model 绑定包的 CSS 资产入口同理：三包的 `tailwind.css`（Tailwind `@source` 注册）与
+ * `rxdb-model-react` / `rxdb-model-vue` 的 `index.css`（vite 抽出的编译后组件样式 bundle）
+ * 都无 TS 导出表面，前者由消费方的 Tailwind 管线消费、后者由消费方直接引入，无供应链风险面。
  * @type {Map<string, string[]>}
  */
 const ASSET_SUBPATHS = new Map([
   ['rxdb-adapter-miniprogram', ['./alipay-random-worker.js']],
   ['rxdb-model-angular', ['./tailwind.css']],
   ['rxdb-model-react', ['./index.css', './tailwind.css']],
-  ['rxdb-model-vue', ['./tailwind.css']]
+  ['rxdb-model-vue', ['./index.css', './tailwind.css']]
 ]);
 
 const mode = process.argv.includes('--update') ? 'update' : 'check';

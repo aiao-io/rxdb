@@ -1,4 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import type {
+  EntityTableHandle as CoreEntityTableHandle,
+  QueryTableHandle as CoreQueryTableHandle
+} from '@aiao/rxdb-model';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import * as entityTableModule from '../../entity-table/index.js';
 import * as api from '../../index';
 
@@ -100,5 +104,10 @@ describe('rxdb-model-react 公开 API 面对称', () => {
     expect([entityInstance, entityTableHandle, queryTableHandle, dialogData, theme]).toHaveLength(5);
     expect(filterQuery.rules).toEqual([]);
     expect([group, dropMode, dragState, rule, output]).toBeDefined();
+  });
+
+  it('表格命令面与核心包是同一份契约（三端对称，编译期守卫）', () => {
+    expectTypeOf<api.EntityTableHandle>().toEqualTypeOf<CoreEntityTableHandle>();
+    expectTypeOf<api.QueryTableHandle>().toEqualTypeOf<CoreQueryTableHandle>();
   });
 });

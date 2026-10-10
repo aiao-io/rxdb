@@ -16,10 +16,11 @@
  * 三端 spec 里只保留「怎么读页面」（采集），「读出来之后怎么归一化」全部在这里 ——
  * 归一化是单一实现，不随框架复制。类型契约见同目录 `entity-model-parity.d.mts`。
  *
- * 本目录刻意不注册为 Nx 项目：e2e 的 tsconfig `rootDir` 是自己的项目目录，
- * 跨项目 import .ts 源码会触发 TS6059 / TS6307；以 `.mjs`（实现）+ `.d.mts`
- * （声明，被 tsc 视为纯类型输入）成对放置即可通过三端 typecheck 与 lint，
- * 运行期由 Playwright / Node 直接加载 .mjs。
+ * 本目录是 Nx 项目 `e2e-parity`（只有 lint 与 `node --test` 单测，没有 tsconfig），三端 spec 以相对路径
+ * import 本模块：Nx 据此建出 e2e → e2e-parity 的静态依赖边，改 golden 或本模块会让三端对拍重新进入
+ * affected、e2e 缓存失效。不建 tsconfig 是因为 e2e 的 tsconfig `rootDir` 是自己的项目目录，跨项目
+ * import .ts 源码会触发 TS6059 / TS6307；以 `.mjs`（实现）+ `.d.mts`（声明，被 tsc 视为纯类型输入）
+ * 成对放置即可通过三端 typecheck 与 lint，运行期由 Playwright / Node 直接加载 .mjs。
  *
  * @module e2e-parity
  */
@@ -39,34 +40,81 @@ const DATE_MARKER = '<date>';
 /** VTable 行系列号列的内部字段名（不是实体字段），语义快照中记作匿名列（`null`）。 */
 const VTABLE_SERIES_FIELD = '_vtable_rowSeries_number';
 
-/** 行级易失字段：键为列字段名，值为语义占位符。 */
+/** RxDB 生成的记录主键形态。 */
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * 行级易失字段：键为列字段名，值为原始形态校验与语义占位符。
+ *
+ * 占位符只替换「形态正确、但每次运行都变」的值；缺值或坏值（空 id、无效时间）必须失败，
+ * 否则某一端丢了主键或时间也能和 golden 对上。
+ */
 const VOLATILE_ROW_FIELDS = new Map([
-  ['id', UUID_MARKER],
-  ['createdAt', DATE_MARKER],
-  ['updatedAt', DATE_MARKER]
+  ['id', { accepts: isUuid, marker: UUID_MARKER }],
+  ['createdAt', { accepts: isRecordDate, marker: DATE_MARKER }],
+  ['updatedAt', { accepts: isRecordDate, marker: DATE_MARKER }]
 ]);
 
-/** 表单字段级易失值：键为字段显示名（legend 文本），值为语义占位符。 */
+/** 表单字段级易失值：键为字段显示名（legend 文本），值为原始形态校验与语义占位符（同上）。 */
 const VOLATILE_FORM_LABELS = new Map([
-  ['ID', UUID_MARKER],
-  ['创建时间', DATE_MARKER],
-  ['更新时间', DATE_MARKER]
+  ['ID', { accepts: isUuid, marker: UUID_MARKER }],
+  ['创建时间', { accepts: isDisplayedDate, marker: DATE_MARKER }],
+  ['更新时间', { accepts: isDisplayedDate, marker: DATE_MARKER }]
 ]);
+
+/**
+ * 是否为 UUID 字符串。
+ *
+ * @param value - 原始值
+ * @returns 是否为 UUID
+ */
+function isUuid(value) {
+  return typeof value === 'string' && UUID_PATTERN.test(value);
+}
+
+/**
+ * 是否为有效的记录时间。
+ *
+ * @param value - 记录里的原始值：表格记录是实体实例的展开副本，时间字段是 Date
+ *   （经 Playwright 序列化回到 Node 仍是 Date）；也接受可解析的时间字符串
+ * @returns 是否为有效时间
+ */
+function isRecordDate(value) {
+  if (value instanceof Date) return !Number.isNaN(value.getTime());
+  return typeof value === 'string' && value.trim() !== '' && !Number.isNaN(Date.parse(value));
+}
+
+/**
+ * 是否为表单里展示出来的有效时间文本。
+ *
+ * @param value - 只读时间字段的展示文本
+ * @returns 是否像一个时间
+ * @remarks 展示文本走浏览器的 `toLocaleString()`，格式随 locale 变，不能拿 `Date.parse` 判；
+ * 只拦缺值与坏值：空串（详情记录还没加载完时就是它）与 `Invalid Date` 都不含数字。
+ */
+function isDisplayedDate(value) {
+  return typeof value === 'string' && /\d/.test(value);
+}
 
 /** 快照允许的原始单元格值类型（归一化后也只有这些类型）。 */
 const isScalarValue = value => typeof value === 'string' || typeof value === 'boolean' || typeof value === 'number';
 
 /**
- * 归一化单个单元格值：易失字段换成占位符，其余必须是标量。
+ * 归一化单个单元格值：易失字段校验形态后换成占位符，其余必须是标量。
  *
  * @param field - 列字段名
  * @param value - 记录里的原始值
  * @returns 语义值（标量或占位符）
- * @throws 单元格值缺字段或类型超出契约时（缺数据是测试前提被破坏，直接失败）
+ * @throws 单元格值缺字段、易失字段形态不对或类型超出契约时（缺数据是测试前提被破坏，直接失败）
  */
 function normalizeRowValue(field, value) {
-  const marker = VOLATILE_ROW_FIELDS.get(field);
-  if (marker !== undefined) return marker;
+  const volatile = VOLATILE_ROW_FIELDS.get(field);
+  if (volatile !== undefined) {
+    if (!volatile.accepts(value)) {
+      throw new Error(`对拍行的易失字段形态不对：字段 ${JSON.stringify(field)} = ${JSON.stringify(value)}`);
+    }
+    return volatile.marker;
+  }
   if (!isScalarValue(value)) {
     throw new Error(`对拍行值超出语义契约：字段 ${JSON.stringify(field)} = ${JSON.stringify(value)}`);
   }
@@ -106,16 +154,20 @@ function normalizeList(raw) {
 }
 
 /**
- * 归一化表单字段值：view 模式的易失显示值换成占位符。
+ * 归一化表单字段值：只读系统字段的易失显示值校验形态后换成占位符。
  *
  * @param label - 字段显示名（legend 文本）
  * @param value - 控件当前值（create/edit）或展示文本（view）
  * @returns 语义值
+ * @throws 易失字段形态不对时（空 ID、空时间或 `Invalid Date`）
  */
 function normalizeFormValue(label, value) {
-  const marker = VOLATILE_FORM_LABELS.get(label);
-  if (marker !== undefined) return marker;
-  return value;
+  const volatile = VOLATILE_FORM_LABELS.get(label);
+  if (volatile === undefined) return value;
+  if (!volatile.accepts(value)) {
+    throw new Error(`对拍表单的易失字段形态不对：${JSON.stringify(label)} = ${JSON.stringify(value)}`);
+  }
+  return volatile.marker;
 }
 
 /**
@@ -231,15 +283,15 @@ export function normalizeParitySnapshot(raw) {
  *
  * @remarks 不能用 `import.meta.url` 定位本目录：e2e 项目没有 `"type": "module"`，
  * Playwright 会把 spec（及其依赖的本模块）按 CJS 转译加载，CJS 产物里 `import.meta` 直接报
- * "Cannot use 'import.meta' outside a module"。golden 与本模块的相对位置是固定的
- * （`apps/e2e-parity/` 位于三个 e2e 项目 `src/` 的上两级），由调用方传入 spec 文件路径定位。
+ * "Cannot use 'import.meta' outside a module"。golden 与三个 e2e 项目 `src/` 的相对位置是固定的
+ * （`../../../modules/e2e-parity`），由调用方传入 spec 文件路径定位。
  *
  * @param specFile - 调用方 spec 的绝对路径（Playwright `testInfo.file`）
  * @returns golden 快照（结构与 {@link normalizeParitySnapshot} 输出一致）
  * @throws golden 缺失或格式 / 版本不对时
  */
 export function loadParityGolden(specFile) {
-  const goldenPath = join(dirname(specFile), '../../e2e-parity', GOLDEN_FILE);
+  const goldenPath = join(dirname(specFile), '../../../modules/e2e-parity', GOLDEN_FILE);
   const raw = JSON.parse(readFileSync(goldenPath, 'utf8'));
   if (raw.format !== SNAPSHOT_FORMAT || raw.version !== SNAPSHOT_VERSION) {
     throw new Error(`golden 快照格式不匹配：${JSON.stringify({ format: raw.format, version: raw.version })}`);

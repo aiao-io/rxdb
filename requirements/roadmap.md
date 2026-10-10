@@ -160,17 +160,20 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
    新增三端薄 spec `entity-model-parity.spec.ts`：同一份 Todo 种子（3 条固定标题）→ 采集 create 表单字段 → 点 title
    列头升序 → 列表快照 → 首行详情对话框快照 → 筛选弹层查询构建器条件树 → 应用筛选后的计数徽标与过滤列表。输出归一化
    为语义级结构化快照（行内容、字段值、顺序、列布局、条件树；易失值统一 `<uuid>` / `<date>` 占位符），归一化函数单一
-   实现 `apps/e2e-parity/entity-model-parity.mjs`、golden 唯一文件 `entity-model-parity.golden.json`——三端都过同一
-   golden 即两两一致（`apps/e2e-parity/README.md` 记了两个实测踩出的约束）。三端对拍均已本地验证通过
+   实现 `modules/e2e-parity/entity-model-parity.mjs`、golden 唯一文件 `entity-model-parity.golden.json`——三端都过同一
+   golden 即两两一致（`modules/e2e-parity/README.md` 记了两个实测踩出的约束）。三端对拍均已本地验证通过
    （React 4 次含 `--repeat-each=2`、Angular / Vue 各 1 次）；三端 typecheck / lint / `nx sync:check` 全过。
 3. **✅ rxdb-model 三端对称复核（T050）已跑并修复 7 处不对称（2026-10-09）**。按 `.claude/skills/tri-framework-check`
    核对三端命名、签名与行为，最终判定 🟢 完全对称。修复：Vue 补 `TreeItemDirective`（实现 + 导出 + spec）；
-   `EntityInstance` / `FilterQuery` 提升到 core 收敛三端 5 处重复定义；`EntityTableHandle` / `QueryTableHandle` 补 Vue
-   （接口 + `InstanceType` 守卫）与 Angular（类别名）；拖拽编排（`QueryDragDropHandler` / `calculateDropMode` /
+   `EntityInstance` / `FilterQuery` 提升到 core 收敛三端 5 处重复定义；`EntityTableHandle` / `QueryTableHandle` 同样定义在
+   core（4 个命令成员），三端共用同一份契约（React `forwardRef` 直接用、Vue 以 `InstanceType` 守卫钉住 `defineExpose`、
+   Angular 组件 `implements`），public-api spec 以 `expectTypeOf` 钉住三端导出与 core 同型；拖拽编排（`QueryDragDropHandler` / `calculateDropMode` /
    `UIRuleGroup` / `QueryDropMode` / `QueryDragDropState` / `UIRuleWithWhere`）补 Angular、React 导出；Angular
-   `EntityDetail` 补 4 个 input 对齐 React / Vue props；Angular 补 subquery-builder spec（18 用例，镜像另两端）。
+   `EntityDetail` 补 4 个 input 对齐 React / Vue props（`creationChain` / `editChain` 以同名别名声明，同名类成员仍是 main
+   起就公开的有效链路 computed；create 草稿在 DIALOG_DATA 语境构造期同步建，独立使用语境由 effect 按与 Vue 端 watch
+   相同的触发源补建，只认 metadata）；Angular 补 subquery-builder spec（18 用例，镜像另两端）。
    每包新增 public-api 对称守卫 spec；`requirements/api-baseline/` 四个包已随导出重算回写（纯新增，非 breaking）。
-   验证：四包 vitest 全绿（993 + 323 + 324 + 279）、源码级 tsc / vue-tsc 零错误、`node scripts/audit/api-surface.mjs`
+   验证：四包 vitest 全绿（rxdb-model 993 + angular 328 + vue 325 + react 280）、源码级 tsc / vue-tsc 零错误、`node scripts/audit/api-surface.mjs`
    50 包全 ✅。保留的端差异（React `*Props` 接口、`QueryBuilderThemeProvider` 组件式、`*Component` 后缀等）均为
    设计选择，源文件注释互相声明等价。
 4. **✅ rxdb-model 文档页（T051）已补（2026-10-09）**。`website/docs/entity-model/` 新增 7 页：README（包结构与核心
@@ -255,7 +258,9 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
     rxdb-adapter-pglite；四个适配器 suite root = 各自包），分母文件（rxdb-test 的 entities / shop、sqlite-core 的
     desktop*）谁都匹配不上，与 #102 排查时的记载一致。
     修法：两份 run 配置改双 project 结构——**runner**（root 保持原状，行为逐字等价）+ **coverage-root helper**
-    （root = 分母文件所在包，`include: []` + `passWithNoTests`，只服务未加载文件的转译查找）；merge 分支未动。
+    （root = 分母文件所在包，`include: []`，只服务未加载文件的转译查找）；merge 分支未动。两份配置都不设
+    `passWithNoTests`：vitest 只在所有 project 合计零个测试文件时才判 No test files found，空 helper 用不到它，
+    而 runner 的 include 一条都没匹配上时必须照常 exit 1。
     验证：两个包 `grep -c 'Failed to parse file'` 均为 0；合并覆盖率无回退（rxdb-test S 95.14 → 95.43、其余指标不变，
     差异来自 entities / shop 两个 barrel 文件修复后各少计 1 条未覆盖 statement，方向是改善）；
     rxdb-adapter-sqlite-core 四个指标逐字节相同。全仓其余 vitest 配置无跨包 root，无同类噪音。

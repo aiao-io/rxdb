@@ -42,6 +42,7 @@ import {
   type FilterQuery,
   type FormFieldConfig,
   type ModelInfo,
+  type QueryTableHandle,
   type RelatedEntityProvider,
   type RowMoveEvent,
   type ValidationResult
@@ -55,7 +56,7 @@ import { of } from 'rxjs';
 import { Dialog } from '../dialog/dialog';
 import { EntityDetail, type EntityDetailDialogData } from '../entity-detail/entity-detail';
 import { EntityDialog } from '../entity-dialog/entity-dialog';
-import { QueryTable, type QueryTableHandle } from '../entity-table/query-table';
+import { QueryTable } from '../entity-table/query-table';
 import { QueryBuilder } from '../query-builder/query-builder/query-builder';
 import './entity-list.css';
 

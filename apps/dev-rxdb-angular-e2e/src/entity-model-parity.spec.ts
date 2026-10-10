@@ -4,7 +4,7 @@ import {
   normalizeParitySnapshot,
   type ParityFilterRaw,
   type ParityRawSnapshot
-} from '../../e2e-parity/entity-model-parity.mjs';
+} from '../../../modules/e2e-parity/entity-model-parity.mjs';
 import { resetE2eState } from './e2e-utils.js';
 import { expect, test } from './fixtures.js';
 
@@ -13,7 +13,7 @@ import { expect, test } from './fixtures.js';
  * 列表 / 详情 / 表单 / 查询构建器输出的**语义快照**与三端共享的 golden 一致。
  *
  * 三端（Angular / React / Vue）各有一份本 spec 的副本，跑同一场景；
- * 归一化与 golden 都在 `apps/e2e-parity/`（单一实现，见 entity-model-parity.mjs）。
+ * 归一化与 golden 都在 `modules/e2e-parity/`（单一实现，见 entity-model-parity.mjs）。
  * 三端都过同一 golden ⇒ 三端两两一致。
  *
  * 副本间只允许一处差异：Angular 端从 `./fixtures.js` 取 test / expect（US-909 失败归档守卫），
@@ -244,7 +244,9 @@ test.describe('Entity Model Cross-Framework Parity', () => {
     }
     await expect(page.getByText('暂无数据')).toHaveCount(0);
 
-    // 3) 列表渲染：点 title 列头按标题升序（默认 id 倒序的 UUID 是随机的，顺序必须由排序交互确定）
+    // 3) 列表渲染：点 title 列头按标题升序（默认 id 倒序的 UUID 是随机的，顺序必须由排序交互确定）。
+    // 先等三笔种子都进了表格：表格没就绪时点击会落空，而排序只能点一次（再点就翻成降序），不能重试
+    await expect.poll(async () => (await readListRaw(page)).rows.length, { timeout: 15000 }).toBe(SEED_TITLES.length);
     await clickHeader(page, 'title');
     await expect
       .poll(async () => (await readListRaw(page)).rows[0]?.['title'], { timeout: 15000 })
@@ -252,10 +254,12 @@ test.describe('Entity Model Cross-Framework Parity', () => {
     const list = await readListRaw(page);
 
     // 4) 详情：第一行（parity-alpha）的详情对话框（Todo 权限齐备，「查看」打开 edit 模式）
+    await expect.poll(() => findActionIcon(page, 'view-action', 1)).not.toBeNull();
     const view = await findActionIcon(page, 'view-action', 1);
-    expect(view).not.toBeNull();
     await page.mouse.click(view!.x, view!.y);
     await expect(page.getByRole('tab', { name: '基本信息' })).toBeVisible();
+    // 详情记录经仓库异步加载，加载完之前表单按空数据渲染：等标题值落定再采集，否则读到的是空表单
+    await expect(page.getByRole('group', { name: 'title' }).getByRole('textbox')).toHaveValue(SEED_TITLES[0]);
     const detail = {
       // tab 是 radio input，文本走 aria-label；读可见文本会拿到空串
       tabs: await page

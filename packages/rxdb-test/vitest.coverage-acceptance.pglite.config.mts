@@ -21,9 +21,14 @@
  *   `Failed to parse … Excluding it from coverage` 噪音（roadmap 零散收尾项第 16 条）。
  *   补上这个 project 后，它们走与 unit 段同口径的 rxdb-test 管线正常转译。
  *
- *   分母与最终报告仍由 merge 段决定（`vitest.coverage-acceptance.merge.config.mts`），
- *   helper 只影响本段的中间 text-summary；blob 由全局 reporter 统一落一份，
- *   空 project 在 blob 里只占一个名字，merge 段按名字回放时自动忽略它。
+ *   helper 转译出的 0 覆盖条目随本段 coverage 写进 blob（blob 由全局 reporter 统一落一份），
+ *   merge 段（`vitest.coverage-acceptance.merge.config.mts`）合并各段 blob 的 coverage 出最终报告，
+ *   所以这些文件以正常转译的语句映射进入最终分母，而不是在本段被排除；helper 在 blob 里的
+ *   module graph 条目按 project 名回放，merge 段没有同名 project，直接跳过。
+ *
+ *   helper 不需要 `passWithNoTests`：vitest 只在所有 project 合计零个测试文件时才判
+ *   「No test files found」。不设它也是有意的——runner 下面那 8 个写死的 spec 路径全部失效时
+ *   必须照常 exit 1，否则漏掉整段 contract spec 也会被当成通过。
  */
 import path from 'node:path';
 import { defineConfig } from 'vitest/config';
@@ -151,7 +156,6 @@ export default defineConfig({
       }
     ],
     watch: false,
-    passWithNoTests: true,
     teardownTimeout: 10000,
     reporters: [
       'default',

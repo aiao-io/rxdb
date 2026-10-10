@@ -29,6 +29,7 @@ import {
   linkedSignal,
   output,
   signal,
+  untracked,
   type InputSignal
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
@@ -149,8 +150,13 @@ export class EntityDetailComponent {
   readonly formMode = input<FormMode | undefined>(undefined);
   readonly relatedEntityProvider = input<RelatedEntityProvider>();
 
-  /** 已打开详情对话框的记录 id 栈（input 优先，缺省回退 DIALOG_DATA），关系 tab 列表据此阻断无限套娃 */
-  readonly editChain = input<string[]>();
+  /**
+   * 已打开详情对话框的记录 id 栈（含当前记录）的 input。
+   *
+   * @remarks 绑定名是 `editChain`，与 React / Vue 的同名 prop 对齐；同名类成员 `editChain`
+   * 是 input 与 DIALOG_DATA 合并后的有效值（main 起就公开），所以 input 以别名声明。
+   */
+  readonly editChainInput = input<string[] | undefined>(undefined, { alias: 'editChain' });
 
   /** 预填充的外键数据（不可编辑），用于级联新增场景 */
   readonly fixedFormData = input<EntityFormData>();
@@ -158,8 +164,13 @@ export class EntityDetailComponent {
   /** 委托保存：不创建草稿实体，仅 emit formSubmitted 让调用方处理 */
   readonly delegateSave = input<boolean>();
 
-  /** 创建链路中的实体类型（namespace:name），用于阻断循环创建 */
-  readonly creationChain = input<string[]>();
+  /**
+   * 祖先创建链路（实体类型 `namespace:name`）的 input，用于阻断循环创建。
+   *
+   * @remarks 绑定名是 `creationChain`，与 React / Vue 的同名 prop 对齐；同名类成员 `creationChain`
+   * 是追加了当前实体之后的有效链路（main 起就公开），所以 input 以别名声明。
+   */
+  readonly creationChainInput = input<string[] | undefined>(undefined, { alias: 'creationChain' });
 
   readonly formSubmitted = output<EntityFormData>();
   readonly formCancelled = output<void>();
@@ -188,9 +199,9 @@ export class EntityDetailComponent {
     return mode === 'create' ? `新建${name}` : name;
   });
 
-  /** 创建链路：当前实体 + 祖先链路，传递给子 entity-list 以阻断循环创建（input 优先，缺省回退 DIALOG_DATA） */
-  readonly creationChainValue = computed<string[]>(() => {
-    const parentChain = this.creationChain() ?? this.#dialogData?.creationChain ?? [];
+  /** 创建链路：当前实体 + 祖先链路，传递给子 entity-list 以阻断循环创建（祖先链路 input 优先，缺省回退 DIALOG_DATA） */
+  readonly creationChain = computed<string[]>(() => {
+    const parentChain = this.creationChainInput() ?? this.#dialogData?.creationChain ?? [];
     if (!this.isCreateMode()) return parentChain;
     const meta = this.metadataValue;
     if (!meta) return parentChain;
@@ -199,7 +210,7 @@ export class EntityDetailComponent {
   });
 
   /** 已打开详情对话框的记录 id 栈（input 优先，缺省回退 DIALOG_DATA，含当前记录），关系 tab 列表据此阻断无限套娃 */
-  readonly editChainValue = computed<string[]>(() => this.editChain() ?? this.#dialogData?.editChain ?? []);
+  readonly editChain = computed<string[]>(() => this.editChainInput() ?? this.#dialogData?.editChain ?? []);
 
   /** 当前活动关系 tab 的 relationName（用于子实体注册关系） */
   readonly activeRelationName = computed<string | undefined>(() => {
@@ -210,7 +221,7 @@ export class EntityDetailComponent {
   readonly tabs = computed(() => {
     const meta = this.metadataValue;
     if (!meta) return [];
-    const chain = this.creationChainValue();
+    const chain = this.creationChain();
     return buildDetailTabs(meta).filter(tab => {
       if (tab.type !== 'table') return true;
       const t = tab as DetailTableTab;
@@ -269,21 +280,18 @@ export class EntityDetailComponent {
   }
 
   constructor() {
-    // create 模式草稿实体生命周期（等价 React 端 useState 初始化 / Vue 端 immediate watch）：
-    // DIALOG_DATA 语境在构造期同步建草稿（DI 可用、inputs 尚未写入），独立使用语境在
-    // 首次变更检测写入 inputs 后由本 effect 重跑补齐 —— 两路合一，草稿只建一次。
+    // create 模式草稿实体生命周期。DIALOG_DATA 在构造期就齐了：同步建草稿，
+    // Dialog.open() 返回时调用方即可读到（React 端 useState 初始化同一时机）。
+    this.#ensureDraftEntity(this.formModeValue, this.delegateSaveValue, this.#entityClsFromDialog());
+    // 独立使用语境的 inputs 要到首次变更检测才写入，由 effect 补建。只追踪与 Vue 端 watch 相同的
+    // 触发源（metadata 及其实体类 / formMode / delegateSave），且先读触发源再进 untracked：
+    // 草稿存续期间的重跑不会丢依赖；formData / fixedFormData / formFields 只在建草稿那一刻取值，
+    // 改动它们不会再建草稿。保存或取消后，触发源再变（换实体、切模式）才开始新一轮创建。
     effect(() => {
-      if (this.#draftEntity) return;
-      if (this.formModeValue !== 'create') return;
-      if (this.delegateSaveValue) return;
-      const cls = this.#entityCls() ?? this.#entityClsFromDialog();
-      const rxdb = this.#rxdb;
-      if (!cls || !rxdb) return;
-      const fixed = this.fixedFormDataValue;
-      const merged = { ...(this.formData() ?? this.#dialogData?.formData ?? {}), ...fixed };
-      this.#draftEntity = new (cls as new (...args: unknown[]) => unknown)(merged) as EntityInstance;
-      this.draftEntitySignal.set(this.#draftEntity);
-      this.draftFormData.set(entityToFormData(this.#draftEntity as Record<string, unknown>, this.formFieldsValue));
+      const mode = this.formModeValue;
+      const delegateSave = this.delegateSaveValue;
+      const cls = this.#entityClsFromDialog();
+      untracked(() => this.#ensureDraftEntity(mode, delegateSave, cls));
     });
   }
 
@@ -403,6 +411,23 @@ export class EntityDetailComponent {
     }
 
     return undefined;
+  }
+
+  /**
+   * create 模式按需建内存草稿实体（不落库）。
+   *
+   * @remarks 草稿只认 metadata（input 或 DIALOG_DATA）对应的实体类，与 React / Vue 一致：
+   * 只给 namespace + name 的路由输入用法不建草稿，保存走 formSubmitted。字段配置先于实例化
+   * 求值，它抛错时不会留下半初始化、又因已有草稿而永不重建的状态。
+   */
+  #ensureDraftEntity(mode: FormMode, delegateSave: boolean, cls: EntityType | null): void {
+    if (this.#draftEntity || mode !== 'create' || delegateSave || !cls) return;
+    const fields = this.formFieldsValue;
+    const merged = { ...(this.formData() ?? this.#dialogData?.formData ?? {}), ...this.fixedFormDataValue };
+    const draft = new (cls as new (...args: unknown[]) => unknown)(merged) as EntityInstance;
+    this.#draftEntity = draft;
+    this.draftEntitySignal.set(draft);
+    this.draftFormData.set(entityToFormData(draft as Record<string, unknown>, fields));
   }
 
   /** 将表单数据同步到草稿实体 */

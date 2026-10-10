@@ -1,4 +1,10 @@
-import type { BatchChangeItem, CellChangeEvent, EntityTableRecord, RowMoveEvent } from '@aiao/rxdb-model';
+import type {
+  BatchChangeItem,
+  CellChangeEvent,
+  EntityTableRecord,
+  QueryTableHandle,
+  RowMoveEvent
+} from '@aiao/rxdb-model';
 import { ChangeDetectionStrategy, Component, computed, input, output, viewChild } from '@angular/core';
 import type { ListTable, ListTableConstructorOptions } from '@visactor/vtable';
 import { EntityTableComponent } from '../entity-table/entity-table.component';
@@ -28,9 +34,9 @@ import { EntityTableComponent } from '../entity-table/entity-table.component';
 })
 /**
  * 查询表格组件：EntityTableComponent + `filterBar` / `emptyState` 插槽与筛选状态栏
- * （filtered / total 计数）。
+ * （filtered / total 计数）。组件实例即三端共用的命令面 {@link QueryTableHandle}。
  */
-export class QueryTableComponent {
+export class QueryTableComponent implements QueryTableHandle {
   readonly records = input.required<EntityTableRecord[]>();
   readonly columns = input.required<ListTableConstructorOptions['columns']>();
   readonly idField = input('id');

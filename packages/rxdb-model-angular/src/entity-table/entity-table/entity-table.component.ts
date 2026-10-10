@@ -1,6 +1,7 @@
 import type {
   BatchChangeItem,
   CellChangeEvent,
+  EntityTableHandle,
   EntityTableRecord,
   HeaderPositionChange,
   PendingWrite,
@@ -69,8 +70,9 @@ import { ENTITY_TABLE_CONFIG } from '../config';
 /**
  * VTable 表格宿主组件：负责表格实例生命周期、事件桥接、暗色主题探测与销毁释放；
  * 全部表格基础设施（列构建、编辑器、剪贴板、键盘、主题）来自 @aiao/rxdb-model。
+ * 组件实例即三端共用的命令面 {@link EntityTableHandle}。
  */
-export class EntityTableComponent implements OnDestroy {
+export class EntityTableComponent implements OnDestroy, EntityTableHandle {
   readonly #document = inject(DOCUMENT);
   readonly #platformId = inject(PLATFORM_ID);
   readonly #config = inject(ENTITY_TABLE_CONFIG, { optional: true });

@@ -1,4 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import type {
+  EntityTableHandle as CoreEntityTableHandle,
+  QueryTableHandle as CoreQueryTableHandle
+} from '@aiao/rxdb-model';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
 import {
   DEFAULT_QUERY_BUILDER_THEME,
   ENTITY_TABLE_CONFIG,
@@ -128,5 +132,10 @@ describe('rxdb-model-angular 公开 API 面对称', () => {
     expect([entityInstance, entityTableHandle, queryTableHandle, dialogData, theme]).toHaveLength(5);
     expect(filterQuery.rules).toEqual([]);
     expect([group, dropMode, dragState, rule, output]).toBeDefined();
+  });
+
+  it('表格命令面与核心包是同一份契约（三端对称，编译期守卫）', () => {
+    expectTypeOf<EntityTableHandle>().toEqualTypeOf<CoreEntityTableHandle>();
+    expectTypeOf<QueryTableHandle>().toEqualTypeOf<CoreQueryTableHandle>();
   });
 });

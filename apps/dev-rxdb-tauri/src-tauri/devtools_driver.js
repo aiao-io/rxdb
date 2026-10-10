@@ -53,8 +53,10 @@
   const MAIN_LABEL = 'main';
   const MESSAGE_EVENT = 'devtools:message';
   const RESULT_EVENT = 'devtools:drive-result';
-  /** 推进主窗口场景时钟用的事件名，与 `setup_rxdb_desktop.ts` 的 `SCENARIO_CLOCK_ADVANCE_EVENT` 一致。 */
+  /** 推进主窗口场景时钟用的事件名，与 `setup_rxdb_desktop.ts` 的同名常量一致。 */
   const SCENARIO_CLOCK_ADVANCE_EVENT = 'devtools:scenario-clock-advance';
+  /** 主窗口执行完推进之后的回执事件名，与 `setup_rxdb_desktop.ts` 的同名常量一致。 */
+  const SCENARIO_CLOCK_ADVANCED_EVENT = 'devtools:scenario-clock-advanced';
   const SOURCE = '@aiao/rxdb-devtools';
   const PROTOCOL_V2 = 2;
   /**
@@ -210,20 +212,50 @@
   }
 
   /**
-   * 推进主窗口里的场景时钟（fake 档 expired 场景）。
+   * 推进主窗口里的场景时钟（fake 档 expired 场景），等主窗口回执之后才返回。
+   *
+   * @returns {Promise<string>} 主窗口执行完推进为 `ok`；回执监听或推进事件发不出去为
+   *   `clock_advance_failed`；预算内没等到回执为 `clock_advance_timeout`。
    *
    * @remarks
    * 走 `plugin:event|emit_to` 而不是发一帧：推进不是协议帧，混进 `devtools:message` 会让
-   * `panelFrameTypes` 多出一个不存在的「帧类型」。事件与随后的翻页 REQUEST 由本窗口按序
-   * 发出、经同一条 IPC 流投递，主窗口按到达顺序执行——推进先于翻页被 store 看到，这是
-   * 有保证的顺序，不再是 0 ms 计时器与翻页请求的先后赌局。
+   * `panelFrameTypes` 多出一个不存在的「帧类型」。可 `emit_to` 是异步命令、经事件循环排队
+   * 投递到主窗口，翻页 REQUEST 走的却是同步命令 `devtools_message`，两条路径到达主窗口的
+   * 先后**没有保证**；`await invoke(...)` 也只说明 Rust 把事件派发了，不说明主窗口已执行。
+   * 所以主窗口执行完推进会回执 `SCENARIO_CLOCK_ADVANCED_EVENT`，等到回执调用方才发翻页。
+   * `emit_to` 在主窗口没有监听者时照样成功，回执因此也是「推进确实执行了」的唯一证据。
+   *
+   * 回执监听随窗口存活、不退订：驱动一次运行只推进一次，与 `MESSAGE_EVENT` 的监听同理。
    */
-  function advanceScenarioClock() {
-    return invoke('plugin:event|emit_to', {
-      target: { kind: 'AnyLabel', label: MAIN_LABEL },
-      event: SCENARIO_CLOCK_ADVANCE_EVENT,
-      payload: null
+  async function advanceScenarioClock() {
+    /** @type {number | undefined} 回执监听的回调 id；Promise 的执行器同步运行，listen 之前必已赋值 */
+    let onAcknowledged;
+    /** @type {Promise<string>} */
+    const acknowledged = new Promise(function (resolve) {
+      onAcknowledged = internals.transformCallback(function () {
+        resolve('ok');
+      });
     });
+    try {
+      await invoke('plugin:event|listen', {
+        event: SCENARIO_CLOCK_ADVANCED_EVENT,
+        target: { kind: 'Webview', label: DEVTOOLS_LABEL },
+        handler: onAcknowledged
+      });
+      await invoke('plugin:event|emit_to', {
+        target: { kind: 'AnyLabel', label: MAIN_LABEL },
+        event: SCENARIO_CLOCK_ADVANCE_EVENT,
+        payload: null
+      });
+    } catch {
+      return 'clock_advance_failed';
+    }
+    return Promise.race([
+      acknowledged,
+      delay(ANSWER_TIMEOUT_MS).then(function () {
+        return 'clock_advance_timeout';
+      })
+    ]);
   }
 
   /** 入站帧：记下 session，并把应答交给等待者。 */
@@ -765,9 +797,11 @@
    * 生命周期证据。非法 pageSize 的拒绝发生在 store 开页之前，与在途快照无关。
    *
    * fake 档 expired 场景在第一次翻页**之前**显式推进场景时钟（见 fake-provider-gear.ts
-   * 的 createScenarioClock 与 setup_rxdb_desktop.ts 的 SCENARIO_CLOCK_ADVANCE_EVENT）：
-   * idle 回调在这时到期 → 快照释放 → 那次翻页稳定拿到 snapshot_expired。0 ms 真实计时器
-   * 与这条翻页谁先到 store 是事件循环的赌局（#102 windows-latest 的 timedOut 根因）。
+   * 的 createScenarioClock 与 setup_rxdb_desktop.ts 的 SCENARIO_CLOCK_ADVANCE_EVENT），
+   * 并等到主窗口回执（{@link advanceScenarioClock}）：idle 回调这时已到期 → 快照已释放 →
+   * 那次翻页稳定拿到 snapshot_expired。0 ms 真实计时器与这条翻页谁先到 store 是事件循环的
+   * 赌局（#102 windows-latest 的 timedOut 根因）。推进没有确认执行时不发翻页，直接把
+   * `clock_advance_*` 码报上去：否则那次翻页会拿到第 2 页，报出来的是误导性的 ok / 120 条。
    */
   async function walkSnapshot() {
     const first = await request('files', 'list', { snapshot: {} });
@@ -791,7 +825,8 @@
     let pages = 1;
     let code = !complete && snapshotId === undefined ? 'walk_incomplete' : 'ok';
     if (providerSource === 'fake' && snapshotScenario === 'expired' && !complete) {
-      await advanceScenarioClock();
+      const advanced = await advanceScenarioClock();
+      if (advanced !== 'ok') code = advanced;
     }
     while (code === 'ok' && !complete) {
       if (pages >= MAX_SNAPSHOT_PAGES) {

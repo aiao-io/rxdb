@@ -44,7 +44,7 @@
         "command": "bash src/__tests__/run-supabase-sql-security-regressions.sh"
       },
       "metadata": {
-        "description": "Run the reference-SQL security regression suite (30 cases) against the running Supabase stack. Local: run test-env first (checkout-isolated container, name resolved via docker/supabase-ci-identity.sh + state file). CI: the supabase action starts the stack with the compose default container name supabase-db. The script resolves the container name from SUPABASE_DB_CONTAINER or falls back accordingly.",
+        "description": "Run the reference-SQL security regression suite (30 cases, one psql each, then all cases once more in a single transaction) against the running Supabase stack. Local: run test-env first (checkout-isolated container, name resolved via docker/supabase-ci-identity.sh + state file). CI: the supabase action starts the stack with the compose default container name supabase-db. The script resolves the container name from SUPABASE_DB_CONTAINER or falls back accordingly.",
         "help": {
           "command": "bash packages/rxdb-adapter-supabase/src/__tests__/run-supabase-sql-security-regressions.sh"
         }

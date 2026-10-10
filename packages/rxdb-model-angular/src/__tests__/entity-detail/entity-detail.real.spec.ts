@@ -271,9 +271,95 @@ describe('EntityDetailComponent（真实组件）', () => {
     expect(component.draftEntitySignal()!.id).toBeTruthy();
     // fixedFormData 合并进表单数据
     expect(component.formDataValue['count']).toBe(42);
-    // 创建链路继承 input 并追加当前实体 key
-    expect(component.creationChainValue()).toEqual(['test:Parent', 'test:DetailGroup']);
-    expect(component.editChainValue()).toEqual(['p1']);
+    // 绑定名 creationChain / editChain 与 React / Vue 的 prop 同名；同名类成员仍是有效链路：
+    // 创建链路继承 input 并追加当前实体 key，记录 id 栈原样透传
+    expect(component.creationChain()).toEqual(['test:Parent', 'test:DetailGroup']);
+    expect(component.editChain()).toEqual(['p1']);
+  });
+
+  it('create 草稿（DIALOG_DATA）在构造期同步建好：Dialog.open() 返回即可读到，不等首次变更检测', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideZonelessChangeDetection(),
+        { provide: RxDB, useValue: rxdb },
+        { provide: DialogRef, useValue: { close: closeSpy } },
+        { provide: DIALOG_DATA, useValue: dialogData({ formData: { title: '预填', count: 3 } }) }
+      ]
+    });
+    const component = TestBed.createComponent(EntityDetailComponent).componentInstance;
+
+    expect(component.draftEntitySignal()).not.toBeNull();
+    expect(component.draftFormData()).toMatchObject({ title: '预填', count: 3 });
+  });
+
+  it('路由输入（namespace + name）create 不建草稿：保存 emit formSubmitted、不落库（与 React / Vue 同，草稿只认 metadata）', async () => {
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection(), { provide: RxDB, useValue: rxdb }]
+    });
+    const fixture = TestBed.createComponent(EntityDetailComponent);
+    const component = fixture.componentInstance;
+    const submitted: EntityFormData[] = [];
+    component.formSubmitted.subscribe(e => submitted.push(e));
+    fixture.componentRef.setInput('namespace', 'test');
+    fixture.componentRef.setInput('name', 'DetailGroup');
+    fixture.componentRef.setInput('formMode', 'create');
+    fixture.detectChanges();
+
+    expect(component.draftEntitySignal()).toBeNull();
+    component.onFieldChanged({ field: 'title', type: 'string', value: '路由新建', previousValue: '' });
+    component.onSave();
+
+    expect(submitted).toEqual([{ title: '路由新建' }]);
+    await FLUSH();
+    expect(await findAll()).toHaveLength(0);
+  });
+
+  /** 无 DIALOG_DATA、经 inputs 进入 create 模式的独立用法（draft 由 effect 在首次变更检测补建）。 */
+  function createStandaloneDraft() {
+    TestBed.configureTestingModule({
+      providers: [provideZonelessChangeDetection(), { provide: RxDB, useValue: rxdb }]
+    });
+    const fixture = TestBed.createComponent(EntityDetailComponent);
+    fixture.componentRef.setInput('formMode', 'create');
+    fixture.componentRef.setInput('metadata', getEntityMetadata(DetailGroup));
+    fixture.componentRef.setInput('formFields', dialogData().formFields);
+    fixture.componentRef.setInput('formData', { title: '', count: 0 });
+    fixture.detectChanges();
+    return { fixture, component: fixture.componentInstance };
+  }
+
+  it('保存后改动非触发 input（formData）不会静默再建草稿', async () => {
+    const { fixture, component } = createStandaloneDraft();
+    component.onFieldChanged({ field: 'title', type: 'string', value: '已保存', previousValue: '' });
+    component.onSave();
+    await FLUSH();
+    expect(component.draftEntitySignal()).toBeNull();
+
+    fixture.componentRef.setInput('formData', { title: '', count: 9 });
+    fixture.detectChanges();
+
+    expect(component.draftEntitySignal()).toBeNull();
+    expect(await findAll()).toHaveLength(1);
+  });
+
+  it('草稿触发源与 Vue 端 watch 一致：保存前改过 formData，保存后切 metadata 仍按新实体重建草稿', async () => {
+    const { fixture, component } = createStandaloneDraft();
+    // 草稿存续期间改一个非触发 input：effect 不得因此丢掉触发源依赖
+    fixture.componentRef.setInput('formData', { title: '', count: 1 });
+    fixture.detectChanges();
+    component.onFieldChanged({ field: 'title', type: 'string', value: '第一条', previousValue: '' });
+    component.onSave();
+    await FLUSH();
+    expect(component.draftEntitySignal()).toBeNull();
+
+    fixture.componentRef.setInput('metadata', getEntityMetadata(DetailChild));
+    fixture.componentRef.setInput('formFields', [{ field: 'label', displayName: '标签', type: 'string' }]);
+    fixture.componentRef.setInput('formData', { label: '' });
+    fixture.detectChanges();
+
+    const next = component.draftEntitySignal();
+    expect(next).not.toBeNull();
+    expect(next).toBeInstanceOf(DetailChild);
   });
 
   it('delegateSave 经 input 提供时不建草稿，保存时 emit formSubmitted（无 DIALOG_DATA 语境）', () => {
@@ -449,7 +535,7 @@ describe('EntityDetailComponent（真实组件）', () => {
   it('editChain 从 DIALOG_DATA 透传（关系 tab 列表防环用）', () => {
     const { component } = createWithDialog(dialogData({ editChain: ['group-1'] }));
 
-    expect(component.editChainValue()).toEqual(['group-1']);
+    expect(component.editChain()).toEqual(['group-1']);
   });
 
   it('US-027 AC#15 关系 tab 内嵌列表与独立列表同一派生：发票行只读可删，合同行可编辑不可删', async () => {

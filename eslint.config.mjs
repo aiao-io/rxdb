@@ -38,7 +38,13 @@ export default [
         'warn',
         {
           enforceBuildableLibDependency: true,
-          allow: ['^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$'],
+          allow: [
+            '^.*/eslint(\\.base)?\\.config\\.[cm]?[jt]s$',
+            // 三端对拍 spec 以相对路径加载 modules/e2e-parity 的 .mjs（tsc 据此找到同名 .d.mts）。走不了
+            // tsconfig paths 别名：映射到带扩展名的已有文件时 tsc 直接取该文件，在 allowJs 下把 .mjs
+            // 当源码拉进 e2e 程序（TS6059 / TS6307）。依赖边 Nx 照样从这条 import 推得出来
+            '^\\.\\./\\.\\./\\.\\./modules/e2e-parity/entity-model-parity\\.mjs$'
+          ],
           depConstraints: [
             {
               sourceTag: '*',

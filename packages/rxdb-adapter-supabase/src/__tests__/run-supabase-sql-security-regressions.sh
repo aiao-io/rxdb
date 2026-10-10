@@ -57,6 +57,10 @@ CASES=(
   receipts-many-groups
   cascade-delete-logging
   production-change-grants
+  # 最后把全部用例放进同一个事务再跑一遍（SQL 文件不给 test_case 时的默认模式）：
+  # 逐用例各起一个 psql 互相隔离，看不见用例之间经事务级设置漏过去的状态——
+  # 比如 p_skip_sync = true 留下的 rxdb.sync_enabled = 'false'，依赖同步触发器的用例必须自己恢复。
+  all
 )
 failed=0
 
