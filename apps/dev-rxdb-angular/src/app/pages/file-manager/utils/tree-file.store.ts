@@ -635,33 +635,34 @@ export class TreeFileDragDropStore<C extends FileTreeEntityConstructor> extends 
   /**
    * 完成拖拽：判定 → 交给 `Repository.reorder()`。`reject` / `noop` 不写库；
    * 失败向上抛，由页面经 `runWrite('拖放', …)` 展示。拖拽状态在任何路径上都复位。
+   *
+   * 复位必须在 `await` 之前：放下一发生拖放就已结束，高亮应立即清除。放进 `finally` 会等到
+   * 引擎写入完成——上一次拖放的写入慢到下一次拖放已经开始时才回来，会把新拖放刚建立的状态抹掉，
+   * 下一次放下因此被静默吞掉（与 React 端 useDragDrop 同一竞态，三端对称）。
    */
   async onDrop(targetFile: FileTreeInstance<C>): Promise<void> {
     const { draggedItemId, dropMode } = this.dragDropState();
-    try {
-      if (!draggedItemId || !dropMode) return;
+    this.resetDragState();
+    if (!draggedItemId || !dropMode) return;
 
-      const allFiles = this.fileResource.value();
-      const draggedFile = allFiles.find(f => f.id === draggedItemId);
-      if (!draggedFile) return;
+    const allFiles = this.fileResource.value();
+    const draggedFile = allFiles.find(f => f.id === draggedItemId);
+    if (!draggedFile) return;
 
-      const manual = this.sortMode() === SortMode.Manual;
-      const decision = this.dragDropService.resolveDrop(draggedFile, targetFile, dropMode, allFiles, manual);
-      if (decision.kind !== 'reorder') return;
+    const manual = this.sortMode() === SortMode.Manual;
+    const decision = this.dragDropService.resolveDrop(draggedFile, targetFile, dropMode, allFiles, manual);
+    if (decision.kind !== 'reorder') return;
 
-      const dropLogic = async (): Promise<void> => {
-        await reorderTreeNode(this.rxdb, this.entityClass, draggedFile.id, decision.target);
-      };
-      // 使用 View Transition API 实现平滑过渡；不支持时直接执行
-      const startTransition: ViewTransitionStarter | undefined =
-        'startViewTransition' in document ? update => document.startViewTransition(update) : undefined;
+    const dropLogic = async (): Promise<void> => {
+      await reorderTreeNode(this.rxdb, this.entityClass, draggedFile.id, decision.target);
+    };
+    // 使用 View Transition API 实现平滑过渡；不支持时直接执行
+    const startTransition: ViewTransitionStarter | undefined =
+      'startViewTransition' in document ? update => document.startViewTransition(update) : undefined;
 
-      await runViewTransition(dropLogic, startTransition);
+    await runViewTransition(dropLogic, startTransition);
 
-      if (dropMode === 'into') this.expandDropTarget(targetFile.id);
-    } finally {
-      this.resetDragState();
-    }
+    if (dropMode === 'into') this.expandDropTarget(targetFile.id);
   }
 
   /**

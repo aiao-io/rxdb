@@ -180,6 +180,10 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
    * 放下：判定 → `reorder`。`reject` / `noop` 零写、不出提示；`reorder` 失败进页内提示，不向外抛。
    * 拖拽状态在成功、失败、`reject`、`noop` 四条路径上都复位。
    *
+   * 复位必须在 `await` 之前：放下一发生拖放就已结束，高亮应立即清除。放进 `finally` 会等到
+   * 引擎写入完成——上一次拖放的写入慢到下一次拖放已经开始时才回来（CI 上 OPFS 事务可达百毫秒级），
+   * 会把新拖放刚建立的 `draggedItemId` / 落点高亮整个抹掉，下一次放下因此被静默吞掉。
+   *
    * @param targetItem - 放下的目标行
    * @param onExpandFolder - 拖进成功后展开目标（`onExpandFolder` 绑定各页面 Set<string> 展开状态，folderId 语义上仍是 UUID）
    * @param point - 放下事件的光标纵坐标与目标行矩形；传入时按它与 `onDragOver` 同一判定函数重算落点，
@@ -187,23 +191,21 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
    */
   const onDrop = useCallback(
     async (targetItem: T, onExpandFolder?: (folderId: string) => void, point?: { mouseY: number; rect: DOMRect }) => {
-      try {
-        const draggedItem = visibleItems.find(m => m.id === dragDropState.draggedItemId);
-        const dropMode = point ? dropModeAt(targetItem, point.mouseY, point.rect) : dragDropState.dropMode;
-        if (!draggedItem || !dropMode) return;
+      // 先取现场再复位：`draggedItem` / `dropMode` 来自本 state，复位后就拿不到了
+      const draggedItem = visibleItems.find(m => m.id === dragDropState.draggedItemId);
+      const dropMode = point ? dropModeAt(targetItem, point.mouseY, point.rect) : dragDropState.dropMode;
+      resetState();
+      if (!draggedItem || !dropMode) return;
 
-        // 判定可能抛错（如 `getGroupIds` 的组未加载），与写入同走 runWrite 进页内提示，不逃成未处理拒绝
-        const result = await runWrite('拖放', async () => {
-          const decision = decide(draggedItem, targetItem, dropMode);
-          if (decision.kind !== 'reorder') return false;
-          await repository.reorder(draggedItem.id, decision.target);
-          return true;
-        });
-        if (result.ok && result.value && dropMode === 'into' && onExpandFolder) {
-          onExpandFolder(targetItem.id as string);
-        }
-      } finally {
-        resetState();
+      // 判定可能抛错（如 `getGroupIds` 的组未加载），与写入同走 runWrite 进页内提示，不逃成未处理拒绝
+      const result = await runWrite('拖放', async () => {
+        const decision = decide(draggedItem, targetItem, dropMode);
+        if (decision.kind !== 'reorder') return false;
+        await repository.reorder(draggedItem.id, decision.target);
+        return true;
+      });
+      if (result.ok && result.value && dropMode === 'into' && onExpandFolder) {
+        onExpandFolder(targetItem.id as string);
       }
     },
     [visibleItems, dragDropState, dropModeAt, decide, runWrite, repository, resetState]

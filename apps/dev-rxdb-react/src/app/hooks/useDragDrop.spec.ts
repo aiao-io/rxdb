@@ -278,6 +278,50 @@ describe('useDragDrop', () => {
     });
   });
 
+  describe('竞态：上一次拖放的写入未完成时开始下一次拖放', () => {
+    it('上一次 drop 迟到的复位不能抹掉新一次拖放已建立的状态', async () => {
+      const [a, b, c] = [makeNode('a', null, 'folder'), makeNode('b', null, 'folder'), makeNode('c', null, 'folder')];
+      const repository = makeRepository();
+      let resolveReorder!: () => void;
+      // 第一次拖放的引擎写入挂起（CI 上 OPFS 事务可能慢到百毫秒级，期间用户已开始下一次拖放）
+      repository.reorder.mockReturnValue(
+        new Promise<void>(resolve => {
+          resolveReorder = resolve;
+        })
+      );
+
+      const { result } = renderHook(() => useHarness([a, b, c], { isFolder, repository }));
+
+      // 第一次拖放：b 拖进 a，放下后写入挂起
+      act(() => result.current.onDragStart(b.id));
+      act(() => {
+        result.current.onDragOver(a, 15, ROW_RECT);
+      });
+      let firstDrop!: Promise<unknown>;
+      act(() => {
+        firstDrop = result.current.onDrop(a);
+      });
+
+      // 第二次拖放开始：c 拖到 a 的上沿，状态已建立
+      act(() => result.current.onDragStart(c.id));
+      act(() => {
+        result.current.onDragOver(a, 2, ROW_RECT);
+      });
+      expect(result.current.dragDropState.draggedItemId).toBe(c.id);
+      expect(result.current.dragDropState.targetItemId).toBe(a.id);
+
+      // 第一次的写入这时才完成：它的复位只该清它自己的拖放，不能抹掉第二次的
+      act(() => resolveReorder());
+      await act(async () => {
+        await firstDrop;
+      });
+
+      expect(result.current.dragDropState.draggedItemId).toBe(c.id);
+      expect(result.current.dragDropState.targetItemId).toBe(a.id);
+      expect(result.current.dragDropState.dropMode).toBe('before');
+    });
+  });
+
   describe('文件管理器非手动排序模式', () => {
     it('非手动模式同级前后放置被拒、不调用 reorder', async () => {
       const [a, b] = [makeNode('a', null, 'folder'), makeNode('b', null, 'folder')];

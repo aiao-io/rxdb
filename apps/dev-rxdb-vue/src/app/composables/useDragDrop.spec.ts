@@ -240,4 +240,35 @@ describe('useDragDrop', () => {
 
     expect([...dragDrop.highlightedMenuIds.value].sort()).toEqual(['a1', 'a2']);
   });
+
+  it('上一次拖放的写入未完成时开始下一次拖放：迟到的复位不能抹掉新拖放的状态', async () => {
+    const [a, b, c] = ['a', 'b', 'c'].map(id => node(id));
+    let resolveReorder!: () => void;
+    // 第一次拖放的引擎写入挂起（CI 上 OPFS 事务可能慢到百毫秒级，期间用户已开始下一次拖放）
+    const { dragDrop, reorderSpy } = setup(
+      [a, b, c],
+      {},
+      () => new Promise<void>(resolve => (resolveReorder = resolve))
+    );
+
+    // 第一次拖放：b 拖进 a，放下后写入挂起
+    dragDrop.onDragStart(b.id);
+    dragDrop.onDragOver(a, INTO, ROW);
+    const firstDrop = dragDrop.onDrop(a);
+
+    // 第二次拖放开始：c 拖到 a 的上沿，状态已建立
+    dragDrop.onDragStart(c.id);
+    dragDrop.onDragOver(a, BEFORE, ROW);
+    expect(dragDrop.dragDropState.value.draggedItemId).toBe(c.id);
+    expect(dragDrop.dragDropState.value.targetItemId).toBe(a.id);
+
+    // 第一次的写入这时才完成：它的复位只该清它自己的拖放，不能抹掉第二次的
+    resolveReorder();
+    await firstDrop;
+
+    expect(dragDrop.dragDropState.value.draggedItemId).toBe(c.id);
+    expect(dragDrop.dragDropState.value.targetItemId).toBe(a.id);
+    expect(dragDrop.dragDropState.value.dropMode).toBe('before');
+    expect(reorderSpy).toHaveBeenCalledExactlyOnceWith('b', { group: { parentId: 'a' } });
+  });
 });
