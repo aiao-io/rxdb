@@ -487,11 +487,14 @@ const BEFORE = 5;
 const INTO = 45;
 const AFTER = 85;
 
-const makeDragStore = (menus: SortableMenuSimple[]) => {
-  const reorder = vi.fn(async (id: string, target: object) => {
-    void id;
-    void target;
-  });
+const makeDragStore = (menus: SortableMenuSimple[], reorderImpl?: (id: string, target: object) => Promise<void>) => {
+  const reorder = vi.fn(
+    reorderImpl ??
+      (async (id: string, target: object) => {
+        void id;
+        void target;
+      })
+  );
   const getRepository = vi.fn(() => ({ reorder }));
   const history = { undo: vi.fn(), redo: vi.fn() } as unknown as HistoryScopeAPI;
   const store = new TreeMenuDragDropStore<typeof SortableMenuSimple>(
@@ -606,6 +609,36 @@ describe('TreeMenuDragDropStore 拖放交给引擎', () => {
       expect(reorder).toHaveBeenCalledExactlyOnceWith('c1', { group: { parentId: 'C' } });
       expect(store.dragDropState()).toEqual(idleState);
     });
+  });
+
+  it('上一次拖放的写入未完成时开始下一次拖放：迟到的复位不能抹掉新拖放的状态', async () => {
+    const menus = [dragMenu('A', null), dragMenu('B', null), dragMenu('C', null)];
+    let resolveReorder!: () => void;
+    // 第一次拖放的引擎写入挂起（CI 上 OPFS 事务可能慢到百毫秒级，期间用户已开始下一次拖放）
+    const { store, reorder } = makeDragStore(
+      menus,
+      () => new Promise<void>(resolve => (resolveReorder = resolve))
+    );
+
+    // 第一次拖放：B 拖进 A，放下后写入挂起
+    store.onDragStart('B');
+    store.onDragOver(menus[0], INTO, ROW);
+    const firstDrop = store.onDrop(menus[0]);
+
+    // 第二次拖放开始：C 拖到 A 的上沿，状态已建立
+    store.onDragStart('C');
+    store.onDragOver(menus[0], BEFORE, ROW);
+    expect(store.dragDropState().draggedItemId).toBe('C');
+    expect(store.dragDropState().targetItemId).toBe('A');
+
+    // 第一次的写入这时才完成：它的复位只该清它自己的拖放，不能抹掉第二次的
+    resolveReorder();
+    await firstDrop;
+
+    expect(store.dragDropState().draggedItemId).toBe('C');
+    expect(store.dragDropState().targetItemId).toBe('A');
+    expect(store.dragDropState().dropMode).toBe('before');
+    expect(reorder).toHaveBeenCalledExactlyOnceWith('B', { group: { parentId: 'A' } });
   });
 
   describe('拖放失败进页内提示', () => {

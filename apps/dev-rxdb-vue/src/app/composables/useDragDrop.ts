@@ -161,25 +161,27 @@ export function useDragDrop<T extends ISortableTreeEntity>(allItems: MaybeRef<T[
   /**
    * 放下：判定为 `reorder` 才写；`reject` / `noop` 不调用引擎，也不出提示。
    *
+   * 复位必须在 `await` 之前：放下一发生拖放就已结束，高亮应立即清除。放进 `finally` 会等到
+   * 引擎写入完成——上一次拖放的写入慢到下一次拖放已经开始时才回来，会把新拖放刚建立的状态抹掉，
+   * 下一次放下因此被静默吞掉（与 React 端 useDragDrop 同一竞态，三端对称）。
+   *
    * @param targetItem - 放置目标行
    * @param onComplete - 拖进某个节点写入成功后回调该节点 id，页面据此展开目标
    */
   const onDrop = async (targetItem: T, onComplete?: (targetId: RxDBEntityId) => void): Promise<void> => {
-    try {
-      const { draggedItemId, dropMode } = dragDropState.value;
-      const draggedItem = findItem(draggedItemId);
-      if (!draggedItem || !dropMode) return;
+    // 先取现场再复位：`draggedItem` / `dropMode` 来自本 state，复位后就拿不到了
+    const { draggedItemId, dropMode } = dragDropState.value;
+    const draggedItem = findItem(draggedItemId);
+    resetState();
+    if (!draggedItem || !dropMode) return;
 
-      const decision = resolve(draggedItem, targetItem, dropMode);
-      if (decision.kind !== 'reorder') return;
+    const decision = resolve(draggedItem, targetItem, dropMode);
+    if (decision.kind !== 'reorder') return;
 
-      const written = await options.guardWrite('拖放', () =>
-        options.repository.reorder(draggedItem.id, decision.target)
-      );
-      if (written && dropMode === 'into') onComplete?.(targetItem.id);
-    } finally {
-      resetState();
-    }
+    const written = await options.guardWrite('拖放', () =>
+      options.repository.reorder(draggedItem.id, decision.target)
+    );
+    if (written && dropMode === 'into') onComplete?.(targetItem.id);
   };
 
   return {

@@ -481,6 +481,47 @@ describe('TreeFileDragDropStore 拖放交给引擎', () => {
     expect(reorder).toHaveBeenCalledExactlyOnceWith('x', { prevId: 'B', nextId: 'C' });
   });
 
+  it('上一次拖放的写入未完成时开始下一次拖放：迟到的复位不能抹掉新拖放的状态', async () => {
+    const files = [
+      makeActionFile('A', null, 'A'),
+      makeActionFile('B', null, 'B', 'file'),
+      makeActionFile('C', null, 'C', 'file')
+    ];
+    let resolveReorder!: () => void;
+    // 第一次拖放的引擎写入挂起（CI 上 OPFS 事务可能慢到百毫秒级，期间用户已开始下一次拖放）
+    const reorder = vi.fn(() => new Promise<void>(resolve => (resolveReorder = resolve)));
+    const getRepository = vi.fn(() => ({ reorder }));
+    const history = { undo: vi.fn(), redo: vi.fn() } as unknown as HistoryScopeAPI;
+    const store = new TreeFileDragDropStore<typeof SortableFileNode>(
+      { entityManager: { getRepository } } as unknown as RxDB,
+      {} as FilePathValidatorService,
+      new FileDragDropService(),
+      { value: signal(files) },
+      TestFileEntity as unknown as typeof SortableFileNode,
+      history
+    );
+
+    // 第一次拖放：B 拖进 A，放下后写入挂起
+    store.onDragStart('B');
+    store.onDragOver(files[0], INTO, ROW);
+    const firstDrop = store.onDrop(files[0]);
+
+    // 第二次拖放开始：C 拖到 A 的上沿，状态已建立
+    store.onDragStart('C');
+    store.onDragOver(files[0], BEFORE, ROW);
+    expect(store.dragDropState().draggedItemId).toBe('C');
+    expect(store.dragDropState().targetItemId).toBe('A');
+
+    // 第一次的写入这时才完成：它的复位只该清它自己的拖放，不能抹掉第二次的
+    resolveReorder();
+    await firstDrop;
+
+    expect(store.dragDropState().draggedItemId).toBe('C');
+    expect(store.dragDropState().targetItemId).toBe('A');
+    expect(store.dragDropState().dropMode).toBe('before');
+    expect(reorder).toHaveBeenCalledExactlyOnceWith('B', { group: { parentId: 'A' } });
+  });
+
   describe('reject / noop 不调用 reorder', () => {
     it('拖到自己或后代、拖进文件都被拒，高亮为无效', async () => {
       const files = [

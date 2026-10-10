@@ -451,31 +451,32 @@ export class TreeMenuDragDropStore<C extends TreeMenuEntityConstructor> extends 
   /**
    * 放下：判定 → 交给 `Repository.reorder()`。`reject` / `noop` 不写库；失败向上抛，由页面经 `runWrite('拖放', …)` 展示。
    * 拖拽状态在任何路径上都复位。
+   *
+   * 复位必须在 `await` 之前：放下一发生拖放就已结束，高亮应立即清除。放进 `finally` 会等到
+   * 引擎写入完成——上一次拖放的写入慢到下一次拖放已经开始时才回来，会把新拖放刚建立的状态抹掉，
+   * 下一次放下因此被静默吞掉（与 React 端 useDragDrop 同一竞态，三端对称）。
    */
   async onDrop(targetMenu: TreeMenuInstance<C>): Promise<void> {
     const { draggedItemId, dropMode } = this.dragDropState();
-    try {
-      if (draggedItemId === null || !dropMode) return;
+    this.resetDragState();
+    if (draggedItemId === null || !dropMode) return;
 
-      const allMenus = this.menuResource.value();
-      const draggedMenu = allMenus.find(m => m.id === draggedItemId);
-      if (!draggedMenu) return;
+    const allMenus = this.menuResource.value();
+    const draggedMenu = allMenus.find(m => m.id === draggedItemId);
+    if (!draggedMenu) return;
 
-      const decision = this.dragDropService.resolveDrop(draggedMenu, targetMenu, dropMode, allMenus);
-      if (decision.kind !== 'reorder') return;
+    const decision = this.dragDropService.resolveDrop(draggedMenu, targetMenu, dropMode, allMenus);
+    if (decision.kind !== 'reorder') return;
 
-      const dropLogic = async (): Promise<void> => {
-        await reorderTreeNode(this.rxdb, this.entityClass, draggedMenu.id, decision.target);
-      };
-      const startTransition: ViewTransitionStarter | undefined =
-        'startViewTransition' in document ? update => document.startViewTransition(update) : undefined;
+    const dropLogic = async (): Promise<void> => {
+      await reorderTreeNode(this.rxdb, this.entityClass, draggedMenu.id, decision.target);
+    };
+    const startTransition: ViewTransitionStarter | undefined =
+      'startViewTransition' in document ? update => document.startViewTransition(update) : undefined;
 
-      await runViewTransition(dropLogic, startTransition);
+    await runViewTransition(dropLogic, startTransition);
 
-      if (dropMode === 'into') this.expandDropTarget(targetMenu.id);
-    } finally {
-      this.resetDragState();
-    }
+    if (dropMode === 'into') this.expandDropTarget(targetMenu.id);
   }
 
   onDragEnd(): void {
