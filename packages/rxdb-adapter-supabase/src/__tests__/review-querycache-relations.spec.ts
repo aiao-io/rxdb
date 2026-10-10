@@ -7,6 +7,7 @@ import { ENTITIES, User, type UserStaticTypes } from '@aiao/rxdb-test/shop';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../RxDBAdapterSupabase.js';
+import { getSupabaseServiceRoleClient } from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 const database = new RxDB({
@@ -79,7 +80,7 @@ afterAll(async () => {
     );
   expect(count.error).toBeNull();
   expect(count.count).toBe(0);
-  const changes = await adapter.client
+  const changes = await getSupabaseServiceRoleClient()
     .from('rxdb_change')
     .delete()
     .eq('namespace', 'shop')

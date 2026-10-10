@@ -177,7 +177,7 @@ await repository.reorder(draggedId, { group: { parentId: target.id } });
 
 ## 与 rxdb-model 实体列表的拖拽
 
-三框架 `EntityList` 对满足条件的可排序实体自动开启拖拽手柄（string 主键、`normal` 排序状态、数据完整加载、无草稿 / 待提交编辑等），拖放经 `reorderTargetForMove` 换算成邻居目标后调用 `Repository.reorder()`；失败恢复最新已提交顺序并展示错误，下一次拖拽可用。使用与细节见 [rxdb-model 实体列表](../rxdb-model/README.md)。
+三框架 `EntityList` 对满足条件的可排序实体自动开启拖拽手柄（string 主键、`normal` 排序状态、数据完整加载、无草稿 / 待提交编辑等），拖放经 `reorderTargetForMove` 换算成邻居目标后调用 `Repository.reorder()`；失败恢复最新已提交顺序并展示错误，下一次拖拽可用。使用与细节见 [实体模型（rxdb-model）实体列表](../entity-model/README.md)。
 
 ## 继续阅读
 

@@ -93,6 +93,23 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
+      label: '实体模型（rxdb-model）',
+      collapsed: true,
+      link: {
+        type: 'doc',
+        id: 'entity-model/README'
+      },
+      items: [
+        'entity-model/core',
+        'entity-model/angular',
+        'entity-model/react',
+        'entity-model/vue',
+        'entity-model/styling',
+        'entity-model/migration'
+      ]
+    },
+    {
+      type: 'category',
       label: '数据库适配器',
       collapsed: true,
       link: {
@@ -200,11 +217,6 @@ const sidebars: SidebarsConfig = {
       type: 'doc',
       label: '代码编辑器组件',
       id: 'code-editor/README'
-    },
-    {
-      type: 'doc',
-      label: '实体模型组件（rxdb-model）',
-      id: 'rxdb-model/README'
     },
     {
       type: 'doc',

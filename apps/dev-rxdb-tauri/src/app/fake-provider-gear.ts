@@ -16,8 +16,10 @@
  *    供三块上传与按 `requestId` 下载——700 不是整块大小，块序错乱时断言必然红。
  * 4. **snapshot 源与时钟按场景给**（ok / busy / expired / too_large）：状态机本体是共享包的
  *    `DevToolsSnapshotStore`，这里只换物化来源——busy 恒 invalidated、too_large 超上限；
- *    expired 换的是**时钟**：cursor idle 一挂上就到期，首页交付后快照立即释放，同 cursor
- *    的下一次翻页答 `snapshot_expired`，不必像真实档那样双开。
+ *    expired 换的是**时钟**：cursor idle 计时器**不真挂计时器**，登记成待触发回调，由走查方
+ *    在第一次翻页前**显式推进**到期（单测直接调 {@link createFakeProviderGear} 返回的推进
+ *    手柄；e2e 由 wire 驱动经事件推进，见 `setup_rxdb_desktop.ts`）。首页交付后快照随即
+ *    释放，同 cursor 的下一次翻页答 `snapshot_expired`，不必像真实档那样双开。
  *
  * AC#13 的回显禁令在这里同样生效：驱动只报结果码与计数，本模块不向报告回传路径、
  * 记录、快照 ID 或字节内容。
@@ -73,19 +75,39 @@ const createScenarioSource = (scenario: DevToolsSnapshotScenario): DevToolsSnaps
  * 按场景给快照仓库的时钟。
  *
  * @remarks
- * expired 场景缩短 cursor idle：物化照常交付首页，idle 计时器一挂上就到期，快照随即被
- * 释放——同 cursor 的下一次翻页拿到 `snapshot_expired`，不必像真实档那样双开。计时器按
- * 时长区分（idle 60 s / deadline 15 s，两值互异）：deadline 必须照常走，它提前到期会把
- * open() 打成 `snapshot_busy`，档位就串了。这是 fake 装配面的模拟语义，store 本体不动。
+ * expired 场景缩短 cursor idle：物化照常交付首页，idle 计时器一到期快照就释放——同 cursor
+ * 的下一次翻页拿到 `snapshot_expired`，不必像真实档那样双开。
+ *
+ * idle 计时器**不挂真实 0 ms 计时器**：0 ms 计时器与下一次翻页请求谁先到 store，取决于两条
+ * 彼此无关的时间源（主窗口的计时器队列 vs 调试窗口经 Rust 中继的 IPC 往返），是事件循环的
+ * 赌局——#102 在 windows-latest 上因此偶发 `timedOut`。改为登记成待触发回调，由走查方在
+ * 恰当的时机经 {@link advanceIdle} **显式推进**；deadline（15 s）必须照常走真计时器，它
+ * 提前到期会把 open() 打成 `snapshot_busy`，档位就串了（两值互异，按时长区分）。这是 fake
+ * 装配面的模拟语义，store 本体不动。
  */
-const createScenarioClock = (scenario: DevToolsSnapshotScenario): DevToolsClock => {
+const createScenarioClock = (
+  scenario: DevToolsSnapshotScenario
+): DevToolsClock & { readonly advanceIdle?: () => void } => {
   if (scenario !== 'expired') return createSystemClock();
+
+  let pendingIdle: Array<() => void> = [];
   return {
     now: () => Date.now(),
     setTimeout: (handler, delayMs) => {
-      const delay = delayMs === DEVTOOLS_SNAPSHOT_CURSOR_IDLE_MS ? 0 : delayMs;
-      const timer = setTimeout(handler, delay);
-      return () => clearTimeout(timer);
+      if (delayMs !== DEVTOOLS_SNAPSHOT_CURSOR_IDLE_MS) {
+        const timer = setTimeout(handler, delayMs);
+        return () => clearTimeout(timer);
+      }
+      pendingIdle.push(handler);
+      return () => {
+        pendingIdle = pendingIdle.filter(registered => registered !== handler);
+      };
+    },
+    /** 触发全部已登记的 idle 回调（expired 场景的显式推进手柄）。 */
+    advanceIdle: () => {
+      const due = pendingIdle;
+      pendingIdle = [];
+      for (const handler of due) handler();
     }
   };
 };
@@ -95,10 +117,14 @@ const createScenarioClock = (scenario: DevToolsSnapshotScenario): DevToolsClock 
  *
  * @param scenario - 本次运行的 snapshot 场景档（ok / busy / expired / too_large）
  * @returns 结构上即 `DevToolsProviderRegistry` 的 fake 集合，可直接经
- *   `providers.providerRegistry` 交给连接器
+ *   `providers.providerRegistry` 交给连接器；expired 档额外带
+ *   {@link advanceScenarioIdle} 时钟推进手柄
  */
-export function createFakeProviderGear(scenario: DevToolsSnapshotScenario): DevToolsFakeProviderSet {
-  return createFakeProviders({
+export function createFakeProviderGear(
+  scenario: DevToolsSnapshotScenario
+): DevToolsFakeProviderSet & { readonly advanceScenarioIdle?: () => void } {
+  const clock = createScenarioClock(scenario);
+  const gear = createFakeProviders({
     runtime: 'tauri',
     kinds: { database: 'rxdb', files: 'native-files', settings: 'sqlite' },
     maxTransferBytes: DEVTOOLS_MAX_TRANSFER_BYTES_LIMIT,
@@ -106,6 +132,9 @@ export function createFakeProviderGear(scenario: DevToolsSnapshotScenario): DevT
       'database.inspect': { origin: 'rust', error: { kind: 'NotConnected' } }
     },
     files: { '/db.sqlite': 4096, '/notes/a.md': 12, '/drv-bytes.bin': 700 },
-    snapshot: { clock: createScenarioClock(scenario), source: createScenarioSource(scenario) }
+    snapshot: { clock, source: createScenarioSource(scenario) }
   });
+  // 其余档的 idle 就是系统时钟语义，没有可推进的东西；手柄只在 expired 档上出现，
+  // 装配方（setup_rxdb_desktop.ts）据它的有无决定要不要接驱动的推进事件。
+  return clock.advanceIdle === undefined ? gear : { ...gear, advanceScenarioIdle: clock.advanceIdle };
 }

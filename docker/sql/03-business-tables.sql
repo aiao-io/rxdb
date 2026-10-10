@@ -613,6 +613,84 @@ CREATE TABLE IF NOT EXISTS public.rls_unique_probe (
     "updatedBy" varchar
 );
 
+-- ============================================
+-- 11. 零散收尾项第 8 条：mutations() 直写路径 UPDATE 语义复现夹具表
+-- ============================================
+-- 复现 US-220 症状 2 / 症状 3 是否同样命中 `RxDBAdapterSupabase.mutations()`
+-- （仓库 save() 直写，`options.update` 整实体进 `p_upserts`，走
+-- `INSERT … ON CONFLICT DO UPDATE`）。策略形状照搬 US-220 SQL 回归的
+-- rls_update_owner / rls_update_shared（见
+-- packages/rxdb-adapter-supabase/src/__tests__/supabase-sql-security-regressions.sql），
+-- 但落成 public 持久表：mutations() 的复现走 vitest 真实链路
+-- （spec：mutations-update-rls-repro.spec.ts），回归 SQL 的事务内夹具表对它不可见。
+--
+-- 归属列必须叫 `createdBy`：mutations() 的 update 载荷是「整实体去掉 createdBy」
+-- （build_upsert_params mode='update'），若用 owner 之类的列名，整实体载荷带着
+-- owner 原值，症状 2 的 FOR ALL 策略会直接放行，复现不出。这与 US-220 故事
+-- 「按 createdBy 判定归属的策略必然命中这一条」的结论一致。
+-- 保持 RLS 启用（非 FORCE），与 rls_todos 同理，不纳入第 8 节「禁用 RLS」范围。
+
+-- 11a. owner 型：FOR ALL USING/WITH CHECK (createdBy = auth.uid())（US-220 症状 2 的形状）
+CREATE TABLE IF NOT EXISTS public.rls_mutations_owner (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    title varchar NOT NULL,
+    completed boolean DEFAULT false,
+    "createdAt" timestamptz(3) DEFAULT now(),
+    "updatedAt" timestamptz(3) DEFAULT now(),
+    "createdBy" varchar,
+    "updatedBy" varchar
+);
+
+CREATE OR REPLACE TRIGGER update_rls_mutations_owner_updated_at
+  BEFORE UPDATE ON public.rls_mutations_owner
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE public.rls_mutations_owner ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS rls_mutations_owner_all ON public.rls_mutations_owner;
+CREATE POLICY rls_mutations_owner_all ON public.rls_mutations_owner
+  FOR ALL
+  USING ("createdBy" = auth.uid()::text)
+  WITH CHECK ("createdBy" = auth.uid()::text);
+
+-- 11b. 共享编辑型：SELECT 全放行、INSERT 限本人、UPDATE 不设限（US-220 症状 3 的形状）
+CREATE TABLE IF NOT EXISTS public.rls_mutations_shared (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    title varchar NOT NULL,
+    completed boolean DEFAULT false,
+    "createdAt" timestamptz(3) DEFAULT now(),
+    "updatedAt" timestamptz(3) DEFAULT now(),
+    "createdBy" varchar,
+    "updatedBy" varchar
+);
+
+CREATE OR REPLACE TRIGGER update_rls_mutations_shared_updated_at
+  BEFORE UPDATE ON public.rls_mutations_shared
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE public.rls_mutations_shared ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS rls_mutations_shared_select ON public.rls_mutations_shared;
+CREATE POLICY rls_mutations_shared_select ON public.rls_mutations_shared
+  FOR SELECT USING (true);
+DROP POLICY IF EXISTS rls_mutations_shared_insert ON public.rls_mutations_shared;
+CREATE POLICY rls_mutations_shared_insert ON public.rls_mutations_shared
+  FOR INSERT WITH CHECK ("createdBy" = auth.uid()::text);
+DROP POLICY IF EXISTS rls_mutations_shared_update ON public.rls_mutations_shared;
+CREATE POLICY rls_mutations_shared_update ON public.rls_mutations_shared
+  FOR UPDATE USING (true) WITH CHECK (true);
+DROP POLICY IF EXISTS rls_mutations_shared_delete ON public.rls_mutations_shared;
+CREATE POLICY rls_mutations_shared_delete ON public.rls_mutations_shared
+  FOR DELETE USING (true);
+
+DO $$
+BEGIN
+  IF pg_catalog.to_regprocedure('public.rxdb_enable_sync_for_table(text,text,text)') IS NOT NULL THEN
+    PERFORM public.rxdb_enable_sync_for_table('rls_mutations_owner', 'public', 'RlsMutationsOwner');
+    PERFORM public.rxdb_enable_sync_for_table('rls_mutations_shared', 'public', 'RlsMutationsShared');
+  END IF;
+END $$;
+
 GRANT USAGE ON SCHEMA public TO anon;
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT USAGE ON SCHEMA shop TO anon;

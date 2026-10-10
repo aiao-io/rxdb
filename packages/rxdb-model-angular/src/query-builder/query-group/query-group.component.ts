@@ -65,7 +65,8 @@ export class QueryDragDropHandler {
   }
 }
 
-function calculateDropMode(clientY: number, rect: DOMRect, isGroup: boolean): QueryDropMode {
+/** 按 clientY 与目标矩形计算放置模式（组模式支持 into）。 */
+export function calculateDropMode(clientY: number, rect: DOMRect, isGroup: boolean): QueryDropMode {
   const ratio = (clientY - rect.top) / rect.height;
   if (isGroup) {
     if (ratio < 0.25) return 'before';

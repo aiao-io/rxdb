@@ -1,3 +1,5 @@
+import type { ListTable } from '@visactor/vtable';
+
 /**
  * 通用实体表记录基础接口
  *
@@ -70,3 +72,29 @@ export interface EntityTableConfig {
   /** 单元格错误 tooltip 延迟（毫秒），默认 800 */
   tooltipDelay?: number;
 }
+
+/**
+ * 实体表格的命令面：三端 `EntityTable` 组件对外暴露的同一组命令。
+ *
+ * @remarks
+ * React 经 `ref`（`forwardRef` + `useImperativeHandle`）、Vue 经 `defineExpose`、Angular 即组件实例
+ * 本身（`EntityTableComponent implements EntityTableHandle`）。三端各自另有的公开成员（Angular 的
+ * input / output、Vue 暴露给内部父组件的状态）不在契约内，按本类型写的调用方与 mock 三端通用。
+ */
+export interface EntityTableHandle {
+  /** 当前 VTable 表格实例；未初始化时为 `null`。 */
+  readonly tableInstance: ListTable | null;
+  /** 从业务层回滚单元格值（校验失败时恢复原值）。 */
+  changeCellValue(col: number, row: number, value: unknown): void;
+  /** 用当前暗色模式与 CSS 变量重绘主题。 */
+  redrawTheme(): void;
+  /** 把行恢复成最近一次交给表格的顺序（拖放被拒或落库失败时调用）。 */
+  restoreRecords(): void;
+}
+
+/**
+ * 查询表格的命令面：成员与 {@link EntityTableHandle} 相同，全部委托给内部实体表格。
+ *
+ * @remarks 三端 `QueryTable` 组件的暴露方式同 {@link EntityTableHandle}。
+ */
+export type QueryTableHandle = EntityTableHandle;

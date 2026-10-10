@@ -13,7 +13,7 @@ import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
-import { cleanupSqliteAdapter } from './test-utils.js';
+import { cleanupSqliteAdapter, getSupabaseServiceRoleClient } from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
@@ -54,7 +54,7 @@ describe('Repository-Level Sync Integration', () => {
     try {
       // todos 上有 change 触发器：必须先删实体，再清 rxdb_change，否则会残留 DELETE change
       await remoteAdapter.client.from('todos').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await remoteAdapter.client.from('rxdb_change').delete().neq('id', 0);
+      await getSupabaseServiceRoleClient().from('rxdb_change').delete().neq('id', 0);
       await remoteAdapter.client.from('rxdb_sync').delete().neq('id', 0);
     } catch (error) {
       console.warn('Cleanup warning:', error);
@@ -90,8 +90,8 @@ describe('Repository-Level Sync Integration', () => {
     // 插入实体数据
     await remoteAdapter.client.from('todos').insert(todoData);
 
-    // 插入变更记录（注意：字段名是 type 不是 operation）
-    await remoteAdapter.client.from('rxdb_change').insert({
+    // 插入变更记录（注意：字段名是 type 不是 operation；日志表直写走 service_role）
+    await getSupabaseServiceRoleClient().from('rxdb_change').insert({
       namespace: 'public',
       entity: 'Todo',
       entityId: id,

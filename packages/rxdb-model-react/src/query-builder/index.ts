@@ -29,6 +29,7 @@ export { PopoverSelect, type PopoverSelectOption, type PopoverSelectProps } from
 export {
   QueryDragDropHandler,
   QueryGroup,
+  calculateDropMode,
   type QueryDragDropState,
   type QueryDropMode,
   type QueryGroupProps,

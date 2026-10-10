@@ -14,6 +14,7 @@ import { getEntityMetadata, RelationKind, type EntityMetadata, type EntityType }
 import type {
   DetailTableTab,
   EntityFormData,
+  EntityInstance,
   FormFieldChangeEvent,
   FormFieldConfig,
   FormMode,
@@ -34,8 +35,6 @@ import { ENTITY_DIALOG_CONTEXT } from '../entity-dialog/dialog-context';
 import EntityDialog from '../entity-dialog/EntityDialog.vue';
 import EntityForm from '../entity-form/EntityForm.vue';
 import EntityList from '../entity-list/EntityList.vue';
-
-type EntityInstance = { [key: string]: unknown; readonly id: string; save(): Promise<void>; remove(): Promise<void> };
 
 let nextDetailId = 0;
 

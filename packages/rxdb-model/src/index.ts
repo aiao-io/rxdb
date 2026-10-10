@@ -19,6 +19,7 @@ export * from './entity-detail/interfaces.js';
 
 // Entity List（US-028 手动排序）
 export * from './entity-list/manual-order-list.js';
+export * from './entity-list/types.js';
 
 // Entity Form
 export * from './entity-form/form-data.js';

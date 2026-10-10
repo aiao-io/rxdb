@@ -36,10 +36,13 @@ import {
   type BatchChangeItem,
   type CellChangeEvent,
   type EntityFormData,
+  type EntityInstance,
   type EntityTableRecord,
   type FieldMetadata,
+  type FilterQuery,
   type FormFieldConfig,
   type ModelInfo,
+  type QueryTableHandle,
   type RelatedEntityProvider,
   type RowMoveEvent,
   type ValidationResult
@@ -53,20 +56,14 @@ import { of } from 'rxjs';
 import { Dialog } from '../dialog/dialog';
 import { EntityDetail, type EntityDetailDialogData } from '../entity-detail/entity-detail';
 import { EntityDialog } from '../entity-dialog/entity-dialog';
-import { QueryTable, type QueryTableHandle } from '../entity-table/query-table';
+import { QueryTable } from '../entity-table/query-table';
 import { QueryBuilder } from '../query-builder/query-builder/query-builder';
 import './entity-list.css';
 
-/** RxDB 实体实例（用于 CRUD 操作）。 */
-export type EntityInstance = {
-  [key: string]: unknown;
-  readonly id: string;
-  save(): Promise<void>;
-  remove(): Promise<void>;
-};
-
-/** 筛选查询结构。 */
-export type FilterQuery = { combinator: 'and' | 'or'; rules: unknown[] };
+/**
+ * RxDB 实体实例与筛选查询结构（共享类型，收敛到 `@aiao/rxdb-model` 统一透传）。
+ */
+export type { EntityInstance, FilterQuery } from '@aiao/rxdb-model';
 
 const EMPTY_FILTER: FilterQuery = { combinator: 'and', rules: [] };
 

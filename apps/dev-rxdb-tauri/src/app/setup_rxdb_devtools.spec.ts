@@ -16,9 +16,12 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  connectScenarioClockAdvance,
   createDesktopDevToolsProviders,
   DESKTOP_STORAGE_ROOT_DIR,
-  resolveDevToolsProviders
+  resolveDevToolsProviders,
+  SCENARIO_CLOCK_ADVANCE_EVENT,
+  SCENARIO_CLOCK_ADVANCED_EVENT
 } from './setup_rxdb_desktop';
 
 const read = (file: string): string => readFileSync(resolve(import.meta.dirname, file), 'utf8');
@@ -168,5 +171,33 @@ describe('resolveDevToolsProviders（US-905 AC#2 fake 档装配分叉）', () =>
     const source = stripTsComments(read('setup_rxdb_desktop.ts'));
     expect(source).toContain("await import('./fake-provider-gear')");
     expect(source).not.toMatch(/^import .*fake-provider-gear/m);
+  });
+});
+
+describe('connectScenarioClockAdvance（fake 档 expired 场景的显式时钟推进）', () => {
+  it('收到推进事件先执行推进、再回执调试窗口：驱动等到回执才发翻页请求', async () => {
+    const order: string[] = [];
+    let onAdvance: (() => void | Promise<void>) | undefined;
+    const listen = vi.fn(async (_event: string, handler: () => void | Promise<void>) => {
+      onAdvance = handler;
+      return () => undefined;
+    });
+    const emitTo = vi.fn(async (target: string, event: string) => {
+      order.push(`ack → ${target} ${event}`);
+    });
+
+    await connectScenarioClockAdvance(() => order.push('advance'), { listen, emitTo });
+    expect(listen).toHaveBeenCalledWith(SCENARIO_CLOCK_ADVANCE_EVENT, expect.any(Function));
+    expect(order).toEqual([]);
+
+    await onAdvance?.();
+    // 两个事件经不同的 IPC 路径投递，到达主窗口的先后没有保证：回执必须在推进执行完之后才发
+    expect(order).toEqual(['advance', `ack → rxdb-devtools ${SCENARIO_CLOCK_ADVANCED_EVENT}`]);
+  });
+
+  it('驱动与主窗口的推进 / 回执事件名逐字一致', () => {
+    const driver = read('../../src-tauri/devtools_driver.js');
+    expect(driver).toContain(`const SCENARIO_CLOCK_ADVANCE_EVENT = '${SCENARIO_CLOCK_ADVANCE_EVENT}';`);
+    expect(driver).toContain(`const SCENARIO_CLOCK_ADVANCED_EVENT = '${SCENARIO_CLOCK_ADVANCED_EVENT}';`);
   });
 });

@@ -17,7 +17,7 @@ import { QUERY_BUILDER_THEME } from '../theme/query-builder-theme.token';
 /**
  * 带 where 子查询的规则类型
  */
-type UIRuleWithWhere = UIRule & {
+export type UIRuleWithWhere = UIRule & {
   where?: QueryBuilderRuleGroup<Record<string, unknown>>;
 };
 

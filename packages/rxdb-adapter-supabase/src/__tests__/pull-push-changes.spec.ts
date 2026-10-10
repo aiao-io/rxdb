@@ -7,6 +7,7 @@ import { RxDB, SyncType } from '@aiao/rxdb';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
+import { getSupabaseServiceRoleClient } from './test-utils.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
 const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
@@ -132,7 +133,7 @@ describe('RxDBAdapterSupabase Pull/Push', () => {
 
       // 清理
       await adapter.client.from('todos').delete().eq('id', todoId);
-      await adapter.client.from('rxdb_change').delete().eq('entityId', todoId);
+      await getSupabaseServiceRoleClient().from('rxdb_change').delete().eq('entityId', todoId);
     });
 
     it('应该能通过 mergeChanges 推送 UPDATE', async () => {
@@ -167,7 +168,7 @@ describe('RxDBAdapterSupabase Pull/Push', () => {
 
       // 清理
       await adapter.client.from('todos').delete().eq('id', todoId);
-      await adapter.client.from('rxdb_change').delete().eq('entityId', todoId);
+      await getSupabaseServiceRoleClient().from('rxdb_change').delete().eq('entityId', todoId);
     });
 
     it('应该能通过 mergeChanges 推送 DELETE', async () => {
@@ -201,7 +202,7 @@ describe('RxDBAdapterSupabase Pull/Push', () => {
       expect(data).toBeNull();
 
       // 清理 RxDBChange
-      await adapter.client.from('rxdb_change').delete().eq('entityId', todoId);
+      await getSupabaseServiceRoleClient().from('rxdb_change').delete().eq('entityId', todoId);
     });
 
     it('应该同时写入 RxDBChange 表和实体表', async () => {
@@ -234,7 +235,7 @@ describe('RxDBAdapterSupabase Pull/Push', () => {
 
       // 清理
       await adapter.client.from('todos').delete().eq('id', todoId);
-      await adapter.client.from('rxdb_change').delete().eq('entityId', todoId);
+      await getSupabaseServiceRoleClient().from('rxdb_change').delete().eq('entityId', todoId);
     });
   });
 

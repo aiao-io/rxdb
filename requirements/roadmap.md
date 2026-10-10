@@ -156,17 +156,33 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
      只能在 changelog 生成后人工补写。**多报和漏报要一起过**，细则见 [release-plan「下一次发布」](release-plan.md#下一次发布迁移发布schema-37)。
      US-018 也属漏报：它首发于 0.0.26、发布时漏声明，已在 CHANGELOG 0.0.26 补录，见[约束 12](#排期约束)。
 
-2. **rxdb-model 跨框架对拍**（T049）。三个 e2e 应用跑的是同一份 `entity-model.spec.ts`（Angular 那份只多一行注释），
-   已覆盖目录切换、新建对话框、undo / redo、筛选，以及经 `findActionIcon`（取 VTable 场景树里操作列图标的坐标）
-   以 view 模式查看、在表单里编辑并保存已有记录（US-027）。仍缺的是原规格要求的「同一份 Todo 数据下三端列表 / 详情 /
-   表单 / 查询构建器输出一致」的对拍。
-3. **rxdb-model 三端对称复核**（T050）：对 `rxdb-model-angular` / `-react` / `-vue` 跑一遍
-   `.claude/skills/tri-framework-check`，核对命名、签名与行为。
-4. ✅ **rxdb-model 文档页**（T051，2026-10-10 完成）：`website/docs/rxdb-model/README.md` 已补使用文档
-   （核心、三框架用法、样式接入与迁移说明），并已注册进 `website/sidebars.ts`；原缺口描述
-   （`grep -rl rxdb-model website/docs | grep -v /api/` 只命中 `versioning.md`、`compatibility.md`、
-   `migration/actions-column-can-delete.md`）不再成立。同批还补了排序模块、备份恢复、实体权限、
-   Taro / 小程序 / Electron / Tauri 适配器等站点文档页。
+2. **✅ rxdb-model 跨框架对拍（T049）已落地（2026-10-09）**。三个 e2e 应用跑同一份 `entity-model.spec.ts` 之外，
+   新增三端薄 spec `entity-model-parity.spec.ts`：同一份 Todo 种子（3 条固定标题）→ 采集 create 表单字段 → 点 title
+   列头升序 → 列表快照 → 首行详情对话框快照 → 筛选弹层查询构建器条件树 → 应用筛选后的计数徽标与过滤列表。输出归一化
+   为语义级结构化快照（行内容、字段值、顺序、列布局、条件树；易失值统一 `<uuid>` / `<date>` 占位符），归一化函数单一
+   实现 `modules/e2e-parity/entity-model-parity.mjs`、golden 唯一文件 `entity-model-parity.golden.json`——三端都过同一
+   golden 即两两一致（`modules/e2e-parity/README.md` 记了两个实测踩出的约束）。三端对拍均已本地验证通过
+   （React 4 次含 `--repeat-each=2`、Angular / Vue 各 1 次）；三端 typecheck / lint / `nx sync:check` 全过。
+3. **✅ rxdb-model 三端对称复核（T050）已跑并修复 7 处不对称（2026-10-09）**。按 `.claude/skills/tri-framework-check`
+   核对三端命名、签名与行为，最终判定 🟢 完全对称。修复：Vue 补 `TreeItemDirective`（实现 + 导出 + spec）；
+   `EntityInstance` / `FilterQuery` 提升到 core 收敛三端 5 处重复定义；`EntityTableHandle` / `QueryTableHandle` 同样定义在
+   core（4 个命令成员），三端共用同一份契约（React `forwardRef` 直接用、Vue 以 `InstanceType` 守卫钉住 `defineExpose`、
+   Angular 组件 `implements`），public-api spec 以 `expectTypeOf` 钉住三端导出与 core 同型；拖拽编排（`QueryDragDropHandler` / `calculateDropMode` /
+   `UIRuleGroup` / `QueryDropMode` / `QueryDragDropState` / `UIRuleWithWhere`）补 Angular、React 导出；Angular
+   `EntityDetail` 补 4 个 input 对齐 React / Vue props（`creationChain` / `editChain` 以同名别名声明，同名类成员仍是 main
+   起就公开的有效链路 computed；create 草稿在 DIALOG_DATA 语境构造期同步建，独立使用语境由 effect 按与 Vue 端 watch
+   相同的触发源补建，只认 metadata）；Angular 补 subquery-builder spec（18 用例，镜像另两端）。
+   每包新增 public-api 对称守卫 spec；`requirements/api-baseline/` 四个包已随导出重算回写（纯新增，非 breaking）。
+   验证：四包 vitest 全绿（rxdb-model 993 + angular 328 + vue 325 + react 280）、源码级 tsc / vue-tsc 零错误、`node scripts/audit/api-surface.mjs`
+   50 包全 ✅。保留的端差异（React `*Props` 接口、`QueryBuilderThemeProvider` 组件式、`*Component` 后缀等）均为
+   设计选择，源文件注释互相声明等价。
+4. **✅ rxdb-model 文档页（T051）已补（2026-10-09）**。`website/docs/entity-model/` 新增 7 页：README（包结构与核心
+   概念）、core（框架无关核心：字段值工具、表单字段与双向转换、详情 Tab、可编辑列、查询构建器引擎、手动排序、能力派生）、
+   angular / react / vue（三框架组件用法 + 集成方式 + 主题注入）、styling（样式接入：Tailwind + daisyUI 管线、
+   各包 tailwind.css 注册入口、Shadow DOM、无样式管线行为）、migration（迁移说明）。API 与 `packages/rxdb-model*`
+   源码逐一核对（含 `canEdit`、`formDataToEntityChanges` 参数序等易错点），代码示例取自 demo 应用真实页面；
+   侧边栏以新 category「实体模型（rxdb-model）」接入 `website/sidebars.ts`。`nx lint test website` 17 全绿、
+   全部 md 链接检查通过。
 5. **Angular 绑定包的 `@angular/*` peer 被钉成精确版本，`@aiao/rxdb-angular` 的版本号与其余包错开**。
    - 已发布的 `0.0.26`：`rxdb-angular` / `rxdb-plugin-search-angular` / `code-editor-angular` 的 peer 是 `"22.1.6"`，
      `0.0.25` 是 `^22.0.0`——消费者装 22.1.7 起即报 peer 冲突。
@@ -175,47 +191,79 @@ epic-006 两份评审报告（`next-0912` 与 `review` 分支复核）收口时�
    - 1e8336cd 把 `@aiao/rxdb-angular` 单独抬到 `0.0.27`，并把它的 `@aiao/*` peer 从 `*` 改成字面 `^0.0.26`
      （`rxdb-model-angular` 里另有 `@aiao/rxdb-angular: ^0.0.27`），其余包仍是 `0.0.26`。
    - 处置：owner 决定下次统一发版时一并处理。
-6. **`dev-rxdb-tauri-e2e` 的 `devtools-provider-gear.spec.ts`「fake 档 expired 场景」偶发失败**。
-   `fake-provider-gear.ts` 的 `createScenarioClock` 把空闲计时器设成 `setTimeout(…, 0)`，与下一次分页请求竞态（#58 引入）；
-   线 A 的 PR 上重跑才过。修法是让场景时钟由测试显式推进，而不是赌事件循环顺序。
-   2026-10-09 在依赖升级 PR #102 第二轮（`7bb36693`）的 `tauri-smoke (windows-latest)` 上再次出现：该场景 `beforeAll` 的启动报告为
-   `timedOut`（`the renderer never reported within 60s`）；同一提交的 macOS / Ubuntu 与首轮的 Windows 均通过，只重跑该 job 即通过。
+6. **✅ `dev-rxdb-tauri-e2e` 的 `devtools-provider-gear.spec.ts`「fake 档 expired 场景」竞态已修（2026-10-09）**。
+   根因：expired 档把空闲计时器设成真实 `setTimeout(…, 0)`，与经「调试窗口 → Rust → 主窗口」IPC 到达的下一页请求
+   是两条互不相关的时间源；翻页先到就照常交付第二页、expired 断言必红（#58 引入）。慢 runner 上走查完成点漂移还会
+   撞破 60s Rust 看门狗——#102 第二轮 windows-latest 的 `timedOut`（renderer never reported within 60s）即此症状，
+   看门狗只报粗粒度症状掩盖了真因。修法按 roadmap 原案：场景时钟改由测试显式推进——`createScenarioClock('expired')`
+   把 idle 回调登记为待触发并暴露 `advanceScenarioIdle` 手柄，驱动 `walkSnapshot` 在第一次翻页前经
+   `devtools:scenario-clock-advance` 事件先推进再发翻页 REQUEST（同一 IPC 流保序，「先推进、后翻页」成为有保证的顺序）；
+   另加「不推进则第二页照常交付」反向回归用例钉死两个方向。验证：expired 场景连跑 3 次全过、完整 spec 14/14、
+   real 档 `devtools-window-transport.spec.ts` 29/29、lint / typecheck / build 全绿。Windows 的 WebView2 时序差异
+   只能靠 CI 最终确认，但竞态已从机制上消除（不再存在两条无序时间源）。
 7. **`ci / benchmarks` 缺 Xeon 8370C 的参考档**。该 CPU 上报 `benchmark_environment_mismatch`，线 A 的 PR 上重跑两次才落到
    有档的机型；按 epic-006 的规则，同一机型再出现就冻结一份新档（`benchmarks/reports/working-tree-reference/`）。
-8. **待评估：`mutations()` 直写路径的 UPDATE 语义**。[US-220](stories/adapter/US-220-supabase-update-push-semantics.md)
-   只改推送路径（`mergeChanges`），`RxDBAdapterSupabase.mutations()`（仓库 `save()` 直写）仍把 `options.update` 的整实体放进
-   `p_upserts`，走 `INSERT … ON CONFLICT`。**推断**：owner 型与共享编辑型 RLS 上同样会误拒（US-220 症状 2、3）；
-   先在这两种策略上各写一条复现，再决定是否立项。
-9. **待评估：SQL 安全回归接入 nx target / CI**。`packages/rxdb-adapter-supabase/src/__tests__/run-supabase-sql-security-regressions.sh`
-   今天只能手跑（需要本机 `supabase-db` 容器），CI 不跑，参考 SQL 的回归只靠 PR 作者自觉。US-220 新增的 `update-*` 与
-   `existence-probe` 用例同样如此。US-218 阶段 A～C（#99）实现后共 29 条用例、全绿（`rls-filtered-delete` 已转绿），不再需要「已知红」登记；
-   `production-change-grants` 用例在事务内加载生产权限脚本，接入时须保证跑完回滚。来源：US-220 quickstart 末注（`git show 8cc005bb:specs/006-us220-update-push-semantics/quickstart.md`）。
+8. **已评估（2026-10-09）：`mutations()` 直写路径的 UPDATE 语义——推断证实，建议立项**。
+   [US-220](stories/adapter/US-220-supabase-update-push-semantics.md) 只改推送路径（`mergeChanges`），
+   `RxDBAdapterSupabase.mutations()`（仓库 `save()` 直写）仍把 `options.update` 的整实体放进 `p_upserts`，
+   走 `INSERT … ON CONFLICT`。已在 owner 型与共享编辑型两种策略上各写一条真实 `adapter.mutations()` 复现
+   （`mutations-update-rls-repro.spec.ts`，夹具表 `rls_mutations_owner` / `rls_mutations_shared`）：
+   均以 `SupabaseDataError` 42501 被拒、行未变，US-220 症状 2、3 在直写路径同样成立。
+   修法与 US-220 同源：`options.update` 改经 `p_updates`（普通 UPDATE）下发、复用 `rxdb_batch_update` 与
+   RX001 判定。立项与否由 owner 按常规流程定。
+9. **✅ SQL 安全回归已接入 nx target / CI（2026-10-09）**。`packages/rxdb-adapter-supabase` 新增
+   `sql-security-regressions` target（`bash src/__tests__/run-supabase-sql-security-regressions.sh`；
+   容器名解析：`SUPABASE_DB_CONTAINER` 显式值 → `docker/.supabase-ci-state.*.env` 派生名 → 回落 `supabase-db`）。
+   `ci-template.yml` 的 test job 在 supabase 栈起来后、Stop Supabase 之前执行（`if: matrix.supabase`）。
+   `production-change-grants` 用例在 BEGIN…ROLLBACK 内加载生产权限脚本，跑完回滚无污染（已核实）。
+   本地验证 30 用例全绿（含新增 `cascade-delete-logging`）。来源：US-220 quickstart 末注（`git show 8cc005bb:specs/006-us220-update-push-semantics/quickstart.md`）。
 10. **待评估：23505 / 23502 / 23514 是否计为被拒**。US-218 阶段 B 的逐实体回执只把 42501、`RX001`、23503 转成 `rejected`，
     唯一、非空、检查约束违反仍整批失败、水位线不推进——它们多半是客户端或模式缺陷，按失败暴露更安全。
     有真实部署反馈再评估是否改判。来源：US-218 research D7 / D20（`git show 8cc005bb:specs/007-us218-rls-push-integrity/research.md`）。
-11. **待评估：撤销 / 重做与被拒变更的交互**。「待推」查询都加了 `rejectedAt = null`，唯独 `rxdb-plugin-history` 的
-    `undo-redo-apply.ts` 按故事 Out of Scope 没改；撤销或重做一条被拒变更会怎样，没有测试覆盖。来源：US-218 research D13 / D20。
-12. **待评估：`ON DELETE CASCADE` 级联删除不写日志**。**推断**：推送路径 `p_skip_sync = true` 时，级联删掉的子行不产生
-    `rxdb_change`，其它端拉不到这些删除；与 US-218 无关，今天即如此。先在参考 schema 上写一条复现再定。来源：US-218 research D20。
-13. **待做：Supabase 测试清理改用 `service_role`**。多个 Supabase 测试文件（`grep -l rxdb_change packages/rxdb-adapter-supabase/src/__tests__/*.spec.ts`）以 `anon` 身份直写或清理 `rxdb_change`，
-    所以开发默认不能套用 US-218 阶段 C 的生产权限脚本。改完之后，开发默认也可收紧日志表写权限，与生产一致。
+11. **已评估（2026-10-09）：撤销 / 重做与被拒变更的交互**。补 `undo-redo-rejected-change.spec.ts` 8 用例固定行为
+    （只补测试、未改实现）：
+    - 机制层对被拒变更一视同仁：undo 照常落 inversePatch 并打 `revertChangeId`，redo 照常重放 patch 并清
+      `revertChangeId`；`rejectedAt` / `rejection` 从头到尾不被触碰、不会被撤销清掉；
+    - 公开入口的排除是**间接的**：`persistPushReceipts` 同事务写 `rejectedAt` 并推进仓库水位线 `lastPushedChangeId`，
+      `filterUndoableHistories` 只靠 `id > lastPushedChangeId` 排掉它，谓词完全不看 `rejectedAt`（测试证明：水位线
+      缺位时被拒变更会重新变得可撤销）；
+    - 疑似缺陷三处：(a) redo 被拒变更 = 本地重新应用远端拒绝过的编辑且永不重推，本地与远端静默永久分叉，无任何
+      错误或提示；(b) 「被拒变更不可撤销、不再待推」在 history 侧完全扛在水位线一个机制上，回执语义若改为逐条推进
+      会失效；(c) `updatePushableCount` 是唯一仍缺 `rejectedAt = null` 显式规则的「待推」查询。是否修复另议。
+      来源：US-218 research D13 / D20。
+12. **已评估（2026-10-09）：`ON DELETE CASCADE` 级联删除不写日志——推断证实，建议立项**。
+    回归 SQL 新增 `cascade-delete-logging` 用例（回归 schema 内建 `cascade_parent_ids` / `cascade_child_ids`
+    ON DELETE CASCADE 夹具，均挂同步触发器）：`p_skip_sync = true` 推送父行删除后父子行都被删掉，`rxdb_change`
+    只有父行 1 条 DELETE、级联子行 0 条日志；对照组（触发器模式 `p_skip_sync = false`）子行各落 1 条——只有推送路径
+    丢日志。候选修法：服务端 DEFINER 触发器为级联行补日志，或推送前在客户端展开级联。立项与否由 owner 按常规流程定。来源：US-218 research D20。
+13. **✅ Supabase 测试清理已改用 `service_role`，开发默认已收紧日志表写权限（2026-10-09）**。
+    12 个 spec 对 `rxdb_change` 的直写与清场改走共享 helper `getSupabaseServiceRoleClient()` /
+    `clearRemoteRxdbChange()`；测 RLS 拒绝路径的用例（push-receipts 等）保留 anon 直写语义不动。
+    `docker/init-db.sh` 在 01～04 之后加载 `production/rxdb-change-grants.sql`（CI 的 supabase action 同步），
+    dev 与生产日志表写权限一致；回归 SQL 里 anon 清场改走 SECURITY DEFINER helper
+    `rxdb_sql_regression.clear_change_log(text[])`。全量 vitest 41 files / 610 tests 全绿，SQL 回归 30/30。
     来源：US-218 阶段 C 的 T083 记录与站点「生产部署 · 已知限制」。
 14. **`@aiao/rxdb-model@0.0.26` 是从 next-11 发出的坏版本**。它于 2026-10-05 发布到 npm，没打 `latest`（`latest` 仍是 0.0.19）；
     引用了 `getEntityPermission` 等符号，而它钉死依赖的 `@aiao/rxdb@0.0.26` 里没有这些导出，显式安装 `0.0.26` 就会坏。
     处置：owner 决定稍后处理（`npm deprecate`，或随下次发版覆盖）。
 
-15. **Angular demo 菜单页的两份死代码**：`apps/dev-rxdb-angular/src/app/pages/menu/utils/tree-menu.basic.ts`（`TreeMenuBasic`）与
-    `menu/models/menu-operation.types.ts` 无人引用，后者仍导入旧实体 `MenuSimple` / `MenuLarge`。US-031 阶段 A 盘点写入口时发现，按范围未删；
-    删除前用 `grep -rn "TreeMenuBasic\|menu-operation.types" apps/dev-rxdb-angular/src` 复核仍无引用。
+15. **✅ Angular demo 菜单页的两份死代码已删（2026-10-09）**：`apps/dev-rxdb-angular/src/app/pages/menu/utils/tree-menu.basic.ts`
+    （`TreeMenuBasic`）与 `menu/models/menu-operation.types.ts`（仍导入旧实体 `MenuSimple` / `MenuLarge`）。US-031 阶段 A
+    盘点写入口时发现、按范围未删；删除前已用全仓 `grep -rn "TreeMenuBasic\|menu-operation"` 复核无引用。
 
-16. **`coverage-acceptance` 日志里的 `Failed to parse … Excluding it from coverage` 噪音**。`rxdb-test` 与 `rxdb-adapter-sqlite-core`
-    的覆盖率验收每跑一次都刷出 45 条 Rolldown 解析报错、约一千行堆栈（31 个文件：`rxdb-test` 的 `entities/`、`shop/` 共 24 个，
-    `rxdb-adapter-sqlite-core` 的 `src/desktop*` 等 7 个），main 上同样存在。成因：分段配置的 `root` 设在别的适配器包下（pglite 段是
-    `packages/rxdb-adapter-pglite`），vitest 给本段没加载的文件做转译时，只找 `root` 是该文件路径前缀的项目；一个都找不到时
-    `throw lastError` 抛出的是 `undefined`，被吞掉后退回把 TS 原文当 JS 解析。判定不受影响：分母与门槛由合并配置决定，它的 `root`
-    包得住这些文件。代价是噪音盖住真正的失败：依赖升级 PR #102 第二轮红在 sqlite 段 900s 超时，排查时先被这串堆栈带偏。
-    不宜直接把这些文件移出分段的 `coverage.include`，那样可能丢掉它们在分段测试里实际执行到的覆盖，改之前先对比合并后的数字。
-    验收：`ci / coverage-acceptance` 日志里 `grep -c 'Failed to parse file'` 为 0。
+16. **✅ coverage-acceptance 日志里的 `Failed to parse` 噪音已消除（2026-10-09）**。
+    根因（对照 vitest 4.1.11 源码确认）：`@vitest/coverage-v8` 给「进了 `coverage.include` 但本段测试没加载」的文件
+    补 0 覆盖时，只遍历 `config.root` 是文件路径前缀的 project 做转译；一个都匹配不上时 `throw lastError`
+    （此时是 undefined）被吞掉，退回把 TS 原文当 JS 解析。分段配置的 root 设在别的适配器包（pglite 段 root =
+    rxdb-adapter-pglite；四个适配器 suite root = 各自包），分母文件（rxdb-test 的 entities / shop、sqlite-core 的
+    desktop*）谁都匹配不上，与 #102 排查时的记载一致。
+    修法：两份 run 配置改双 project 结构——**runner**（root 保持原状，行为逐字等价）+ **coverage-root helper**
+    （root = 分母文件所在包，`include: []`，只服务未加载文件的转译查找）；merge 分支未动。两份配置都不设
+    `passWithNoTests`：vitest 只在所有 project 合计零个测试文件时才判 No test files found，空 helper 用不到它，
+    而 runner 的 include 一条都没匹配上时必须照常 exit 1。
+    验证：两个包 `grep -c 'Failed to parse file'` 均为 0；合并覆盖率无回退（rxdb-test S 95.14 → 95.43、其余指标不变，
+    差异来自 entities / shop 两个 barrel 文件修复后各少计 1 条未覆盖 statement，方向是改善）；
+    rxdb-adapter-sqlite-core 四个指标逐字节相同。全仓其余 vitest 配置无跨包 root，无同类噪音。
 
 第 5～7 条是线 A 执行时发现的后续项，第 10～13 条是 US-218 登记的范围外后续项（tasks T088），第 14 条是 next-11 误发的包，第 15 条是 US-031 阶段 A 盘点时发现的死代码，第 16 条是依赖升级 PR #102 排查 CI 时发现的日志噪音。第 2～4 条的原任务清单见 `git show 41ce2181:specs/002-rxdb-model-port/tasks.md`（T049～T051）。
 
