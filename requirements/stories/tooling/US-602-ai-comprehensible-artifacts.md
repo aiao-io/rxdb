@@ -5,7 +5,7 @@ status: Backlog
 priority: Medium
 epic: epic-007-public-api-gates
 created: 2026-09-22
-updated: 2026-10-06
+updated: 2026-10-10
 tags: [tooling, dx, llms-txt, agent-skills, package-graph]
 ---
 
@@ -45,8 +45,8 @@ INVEST 检查清单:
      而 `rxdb-adapter-http` 的 `peerDependencies` 只有核心与 RxJS，**沿 npm 依赖边推不出这组运行时前置**。
 
    单个包的 tarball 里没有任何一处描述它与兄弟包的关系，AI 读完 `@aiao/rxdb-plugin-graph@0.0.26`
-   也答不出「还要装哪个 adapter、配到哪个槽位」。反过来，仓库 `main` 上有 16 个包不在 `v0.0.26` tag 树里（`git ls-tree v0.0.26 packages/` 与 `packages/` 求差集）：
-   tree / working-tree / replay 系 12 个在 npm 上 404，`rxdb-model` 系 4 个停在 0.0.19——只看仓库的 AI 会推荐装不到或装到旧 API 的包。
+   也答不出「还要装哪个 adapter、配到哪个槽位」。反过来，仓库 `main` 上有 17 个包不在 `v0.0.26` tag 树里（`git ls-tree v0.0.26 packages/` 与 `packages/` 求差集）：
+   tree / working-tree / replay 系 12 个与 `rxdb-taro` 共 13 个在 npm 上 404，`rxdb-model` 系 4 个停在 0.0.19——只看仓库的 AI 会推荐装不到或装到旧 API 的包。
 
 2. **依赖声明写法分裂，消费者无从判断共享宿主约束**。同一种「需要核心包」的关系有多种写法：
 
@@ -63,7 +63,7 @@ INVEST 检查清单:
    各包对核心给出互不相同的版本约束，就让「核心是否必须单实例、消费者要不要直接装」无从读出，版本错位时核心被装成两份实例是已知故障模式。
 
    这不是个别包的笔误。**源码计数**：`packages/` 下 24 个包把 `@aiao/rxdb` 放在 `dependencies`，17 个放在
-   `peerDependencies`，后者内部又混用 `workspace:*`（3 个）、`*`（12 个）与 `^0.0.26`（`rxdb-angular`、`rxdb-model-angular`，尚未发布）；兄弟边上还有 `>=0.0.26`
+   `peerDependencies`，后者内部又混用 `workspace:*`（3 个）、`*`（12 个）与 `^0.0.26`（`rxdb-angular`、`rxdb-model-angular`，该写法尚未随已发布产物面世）；兄弟边上还有 `>=0.0.26`
    （`code-editor-angular`）。**npm 产物计数**见技术笔记「依赖写法」。框架绑定本身就不对称，且已发布：
    `@aiao/rxdb-angular@0.0.26`（已发布产物）对核心是 peer `*`，`@aiao/rxdb-react@0.0.26` 是 `dependencies` 精确 `0.0.26`，违反三框架对称。
    **复验方式**：`node -e` 遍历 `packages/*/package.json`，按 `@aiao/rxdb` 出现在哪个字段分组计数；产物侧 `npm view <pkg>@latest dependencies peerDependencies`。
@@ -190,7 +190,7 @@ A1 的 TSDoc（AC#12）与事实源、门禁、样例零耦合，可先单独提
 | 4   | A2：fixtures                          | `@aiao/rxdb` 放在 `dependencies`；`@aiao/*` peer 写成 `*` / `workspace:*` / `>=x`；删掉原有 `peerDependenciesMeta.optional`                                                                                                                                                                                                                           | 门禁非零退出；统一为 `peerDependencies` + `workspace:^` 且 optional 保留后通过                                                                                                                                                                                                                                                                                          | ⬜   |
 | 5   | A1：真实仓库副本                      | 在临时副本里制造一处漏登，执行 CI 使用的**顶层入口** `pnpm audit:package-graph`                                                                                                                                                                                                                                                                       | 非零退出并显示为审计失败；未改动时同一入口在真实 `packages/` 上通过                                                                                                                                                                                                                                                                                                     | ⬜   |
 | 6   | A1：fixtures                          | 生成器对同一 fixture 事实源 + 模板连续生成两次；手改生成物后跑 `--check`                                                                                                                                                                                                                                                                              | 两次输出字节一致、不含当前时间、带版本标识与事实摘要；篡改被 `--check` 检出并非零退出                                                                                                                                                                                                                                                                                   | ⬜   |
-| 7   | A2 合并后                             | 对发布发现函数列出的全部项目跑 build                                                                                                                                                                                                                                                                                                                  | 全部通过，集合含 `rxdb-angular` / `rxdb-react` / `rxdb-vue`（它们不带 `js-lib` 标签，不能用 `tag:js-lib` 代替发布集合）；无运行时代码变更                                                                                                                                                                                                                               | ⬜   |
+| 7   | A2 合并后                             | 对 `nx.json` 的 `release.projects`（`packages/*`，与门禁范围同集）解析出的全部项目跑 build                                                                                                                                                                                                                                                                                                                  | 全部通过，集合含 `rxdb-angular` / `rxdb-react` / `rxdb-vue`（它们不带 `js-lib` 标签，不能用 `tag:js-lib` 代替发布集合）；无运行时代码变更                                                                                                                                                                                                                               | ⬜   |
 | 8   | A2：各 packageRoot 已真实 `pnpm pack` | 解包检查；在工作区外临时项目分别用 npm、pnpm 安装同批 tgz（不经 workspace links / tsconfig paths），覆盖代表性 adapter / plugin / binding 组合                                                                                                                                                                                                        | 发布后的 dependencies / peers 为 `^<版本>`、入口与 `.d.ts` 齐全；三框架绑定可导入并最小构建；兼容组合下核心解析为同一路径；核心版本不兼容时安装或解析明确失败；A1 样例源编译、跑通 CRUD 断言并正常退出                                                                                                                                                                  | ⬜   |
 | 9   | B：本地 build                         | `pnpm nx build website`                                                                                                                                                                                                                                                                                                                               | 输出含 `llms.txt` 与 `llms-full.txt`；`llms.txt` 每节有链接与一句话描述，投递范围内的包都在选型索引里、范围外的包没有安装命令（另有 fixture：不在 tag 树里的包、npm 上停在旧版本的包都不生成安装命令），版本标识等于最近 `v*` tag，链接以 `docusaurus.config.ts` 的 `url` 为前缀；两文件不超过 B plan 定的 UTF-8 字节上限，超限时构建失败而非静默截断；中文与代码块完整 | ⬜   |
 | 10  | B：站点已部署                         | 请求 `https://docs.aiao.io/llms.txt` 与 `https://docs.aiao.io/llms-full.txt`                                                                                                                                                                                                                                                                          | 均为 HTTP 成功、最终 URL 符合部署策略（旧域名 `rxdb.netlify.app` 是别名还是重定向在 B plan 写明）、`Content-Type: text/plain; charset=utf-8`、正文不是 HTML fallback，含版本标识、选型表与样例片段。线上请求只作部署 smoke，不进 fixtures 单测                                                                                                                          | ⬜   |
@@ -221,11 +221,11 @@ A1 的 TSDoc（AC#12）与事实源、门禁、样例零耦合，可先单独提
 
 - `@aiao/rxdb-test@0.0.26` 已在 npm 上，也在 `v0.0.26` tag 树里，`nx.json` 的 `release.projects` 是 `packages/*`。消费者装得到的包就会被问到，图里缺它，等于替它回答「不存在」。
 - 投递范围取 tag 树而不是 `npm view`：离线、确定，CI 的 `ci-template.yml` 已 `fetch-depth: 0` + `fetch-tags: true`。
-  tag 外的包是 `packages/` 与 tag 树的差集；[release-plan](../../release-plan.md) 的「只在 `main` 上存在的 12 个包」是桥接锚点处的口径。
+  tag 外的包是 `packages/` 与 tag 树的差集（现 17 个）；[release-plan](../../release-plan.md) 的「只在 `main` 上存在的 12 个包」是桥接锚点（`de70a1a9`）当时的口径，`rxdb-taro` 建于其后。
 - `listPublicPackages()` 排除 `rxdb-test` 是 **API 基线范围**的裁剪（[versioning-policy](../../versioning-policy.md) 把它定为非产品 API），
   不是「是否公开」的判定，保持不变。
 - 边界是 `packages/` 目录，不是 `private` 标记：`apps/dev-rxdb-react`、`apps/dev-rxdb-vue` 的
-  `package.json` 同样叫 `@aiao/*` 且未标 `private`，只是不在门禁范围内。`packages/` 下没有 `package.json` 的残留目录（如 `rxdb-adapter-desktop/`）不算包。
+  `package.json` 同样叫 `@aiao/*` 且未标 `private`，只是不在门禁范围内。`packages/` 下没有 `package.json` 的目录不算包。
 
 **槽位规则**：互斥的作用域是「同一情景（同一实体同步配置）的同一 local / remote 槽位」，不是「同一项目只能装一个 adapter」——
 [`RxDB.adapter()`](../../../packages/rxdb/src/RxDB.ts) 按名称注册工厂，一个实例可注册多个、不同实体可选不同后端。
@@ -245,7 +245,7 @@ backend 之间的单向依赖边真实存在且合法（`rxdb-adapter-miniprogra
 
 - 发布产物对核心包给出三种关系（`npm view <pkg>@latest` 逐包核对 0.0.26 产物）：`workspace:*` 不论在 `dependencies` 还是 peer 里都被改写成精确版本
   （20 个包精确依赖 `0.0.26`、3 个包精确 peer），`*` 原样发布（6 个包的 peer 没有任何版本约束，哪个版本的核心都算满足）；
-  另有 `rxdb-model` 系 3 个钉在 `0.0.19`，12 个 404。源码计数见病灶 2；与它的差额落在只在 `main` 上的包，以及源码里尚未发布的 `^0.0.26` peer 写法。
+  另有 `rxdb-model` 系 3 个钉在 `0.0.19`，13 个 404（含 `rxdb-taro`）。源码计数见病灶 2；与它的差额落在只在 `main` 上的包，以及源码里尚未随已发布产物面世的 `^0.0.26` peer 写法。
 - `workspace:^` 发布时改写成 `^<版本>`（pnpm 的改写规则，仅 `pnpm pack` / `pnpm publish` 生效；AC#8 用真实 pack 核对产物，不用 `npm pack --dry-run`）。
   它在 0.0.x 下等于精确版本，从 0.1 起是「同一 minor 内的 patch 都兼容」，与 [versioning-policy](../../versioning-policy.md) 的 0.x 口径（minor 可能含破坏性变更）一致。
 - 发布根以 `options.packageRoot ?? projectConfig.root` 为准：Angular 绑定发 `dist/packages/rxdb-angular`，不是源码目录。AC#8 逐项目解析，不假设都是 `packages/<name>`。
@@ -278,9 +278,8 @@ backend 之间的单向依赖边真实存在且合法（`rxdb-adapter-miniprogra
 `npm view @aiao/rxdb-plugin-graph@0.0.26 dist.fileCount dist.unpackedSize` 可复验；测试与 `*.tsbuildinfo` 已由 `files` 负向模式正确排除）。C 只动主包，单份 `SKILL.md` ≤ 8192 字节。
 `llms.txt` / `llms-full.txt` 的上限在 B plan 定案；若另用 token 上限须固定估算方式。超限按模块分片 + 索引链接，不静默截断。
 
-**语料覆盖**：[typedoc.config.cjs](../../../website/typedoc.config.cjs) 的 `entryPoints` 有 41 个包，以下 9 个发布包不在其中：
-`rxdb-adapter-electron`、`rxdb-adapter-http`、`rxdb-adapter-miniprogram`、`rxdb-adapter-tauri`、`rxdb-model`、`rxdb-model-angular`、
-`rxdb-model-react`、`rxdb-model-vue`、`rxdb-test`。这是 API 页覆盖差异，不是说站点没有它们的手册——
+**语料覆盖**：[typedoc.config.cjs](../../../website/typedoc.config.cjs) 的 `entryPoints` 有 50 个包（含未发布的 tree / working-tree / replay 系、`rxdb-taro` 与 `rxdb-model` 系），
+发布包中不在其中的只有 `rxdb-test`。这是 API 页覆盖差异，不是说站点没有它们的手册——
 「遍历站点」不等于「遍历所有发布包」，所以选型索引按投递范围生成，全文按站点生成，两个口径分开写。
 插件版本与输出格式在 B plan 固定，测试不依赖第三方线上站点。
 
