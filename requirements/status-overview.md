@@ -11,15 +11,15 @@
 | ✅ Done        | 74   |
 | 🚧 In Progress | 1    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 22   |
+| 📝 Backlog     | 23   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 98   |
+| **合计**       | 99   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **22 条 Backlog 里只有 2 条是可开工的**（含 2026-10-02 由 owner 提前解锁阶段 A～C 的 [US-030](stories/core/US-030-declarative-storage-constraints.md)）：另外 20 条（BOM 领域模型 19 条 + [US-029](stories/core/US-029-rbac-owner-role-permission.md)）
-> 标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次。
+> **23 条 Backlog 里只有 2 条是可开工的**（含 2026-10-02 由 owner 提前解锁阶段 A～C 的 [US-030](stories/core/US-030-declarative-storage-constraints.md)）：另外 20 条（BOM 领域模型 19 条 + [US-029](stories/core/US-029-rbac-owner-role-permission.md)）
+> 标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期。
 > 两者在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
@@ -117,6 +117,7 @@
 - ✅ [US-218 Supabase 远端启用 RLS 时的推送完整性](stories/adapter/US-218-supabase-rls-push-integrity.md) — 出自 RV-022：被 RLS 过滤的删除仍写进 `rxdb_change`（目标行连 SELECT 都看不到时同样如此），其它端拉到幽灵 DELETE；`rxdb_mutations` 也不校验日志与业务写是否配对；三阶段（不写幽灵日志 + 配对校验 → 逐实体回执与被拒实体本地对齐 → 日志表收口与部署指引），阶段 B 以 US-220 为前置；阶段 A～C 全部落地，与 US-220 合并为 #99 合入
 - ✅ [US-220 Supabase 推送 UPDATE 的落库语义](stories/adapter/US-220-supabase-update-push-semantics.md) — 评审 US-218 时发现：推送把 UPDATE 当 `INSERT … ON CONFLICT DO UPDATE` 落库，拟插入行要过 NOT NULL、INSERT 与 SELECT 策略：NOT NULL 列报 23502（Todo 只改 `completed` 即中招），owner 型 RLS 下改自己的行、共享编辑表上改别人的行都误报 42501，整批卡住；改走普通 UPDATE（`rxdb_mutations` 新参数 `p_updates`），被拒抛 42501、行已不存在抛 `RX001`，存在性探针 `rxdb_existing_ids` 与 US-218 阶段 A 共用；已落地，与 US-218 合并为 #99 合入
 - ✅ [US-909 会话录制回放与失败现场数据还原](stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做，B / C 的价值门禁豁免。三阶段合为 #85 一次合入，AC#1～17 全 ✅：A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`（`screenshots: false`），开销实测 +32.7%，上限经 owner 裁决由 +10% 改为 +33%；B Angular e2e 失败现场数据原样归档与 `dev-rxdb-angular` 导入入口，demo 的 Worker / SharedWorker 连接备份被拒（US-217 只交付主线程连接），IDB 档经同库名的主线程第二连接绕开（spike 2026-10-02 通过）；C 新包 `@aiao/rxdb-plugin-replay`（rrweb 应用内录制，独立录制库，单会话 16 MiB + 总量 128 MiB，门面 `commits$` 关联 commit）加 `rxdb-plugin-replay-{angular,react,vue}` 三框架 Replayer，`dev-rxdb-angular` opt-in 演示
+- ⬜ [US-910 数据国际化 / 本地化](stories/future/US-910-data-i18n.md) — 生产方案收敛为 C-L；阶段 A 依赖 Full/Filter/tombstone 同步夹具，暂不排期
 - ✅ [US-025 核心包子系统按插件边界外移](stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体分五阶段外移为插件包，A～E 全部交付；破坏性变更清单见 [release-plan「约束 12 修订」](release-plan.md#约束-12-修订破坏性改动如实声明)
 - ✅ [US-506 website 插件文档补齐（history / sync / querycache）](stories/plugin/US-506-website-plugin-docs.md) — US-025 拆包三插件的文档站手册页、侧边栏与 typedoc 收录；含 flatten 坏链修复
 
