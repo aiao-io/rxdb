@@ -48,29 +48,29 @@
 
 工作区内所有 `@aiao/*` 包使用同一 `<aiao>` 版本号，互相之间按同一版本配套使用；部分包尚未发布到 npm。
 
-| 包                               | 类型       | 依赖关系                                                                                                                            |
-| :------------------------------- | :--------- | :---------------------------------------------------------------------------------------------------------------------------------- |
-| `@aiao/rxdb-adapter-wa-sqlite`   | 适配器     | 基于 wa-sqlite；**推荐浏览器 SQLite 默认方案**，依赖 `@aiao/rxdb-adapter-sqlite-core`                                               |
-| `@aiao/rxdb-adapter-sqlite`      | 适配器     | 官方 SQLite WASM，依赖 `@aiao/rxdb-adapter-sqlite-core`                                                                             |
-| `@aiao/rxdb-adapter-sqlite-wasm` | 适配器     | sqlite-wasm，全文搜索（FTS5）已放行                                                                                                 |
-| `@aiao/rxdb-adapter-sqliteai`    | 适配器     | sqliteai 运行时                                                                                                                     |
-| `@aiao/rxdb-adapter-pglite`      | 适配器     | 浏览器内 PGlite                                                                                                                     |
-| `@aiao/rxdb-adapter-supabase`    | 适配器     | Supabase 远端同步                                                                                                                   |
-| `@aiao/rxdb-adapter-http`        | 适配器     | 自有 REST API 远端；**仅 `SyncType.QueryCache`**，changelog 方法一律 unsupported throw                                              |
-| `@aiao/rxdb-adapter-encrypted`   | 加密工具包 | 密钥环与信封编解码；非适配器，由 sqlite-core / pglite 内部使用                                                                      |
-| `@aiao/rxdb-adapter-miniprogram` | 适配器     | **实验性**，微信 / 抖音 / 支付宝小程序逻辑层（抖音、支付宝 Android 未验证）；基于 wa-sqlite，依赖 `@aiao/rxdb-adapter-wa-sqlite`    |
+| 包                               | 类型       | 依赖关系                                                                                                                                                                               |
+| :------------------------------- | :--------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@aiao/rxdb-adapter-wa-sqlite`   | 适配器     | 基于 wa-sqlite；**推荐浏览器 SQLite 默认方案**，依赖 `@aiao/rxdb-adapter-sqlite-core`                                                                                                  |
+| `@aiao/rxdb-adapter-sqlite`      | 适配器     | 官方 SQLite WASM，依赖 `@aiao/rxdb-adapter-sqlite-core`                                                                                                                                |
+| `@aiao/rxdb-adapter-sqlite-wasm` | 适配器     | sqlite-wasm，全文搜索（FTS5）已放行                                                                                                                                                    |
+| `@aiao/rxdb-adapter-sqliteai`    | 适配器     | sqliteai 运行时                                                                                                                                                                        |
+| `@aiao/rxdb-adapter-pglite`      | 适配器     | 浏览器内 PGlite                                                                                                                                                                        |
+| `@aiao/rxdb-adapter-supabase`    | 适配器     | Supabase 远端同步                                                                                                                                                                      |
+| `@aiao/rxdb-adapter-http`        | 适配器     | 自有 REST API 远端；**仅 `SyncType.QueryCache`**，changelog 方法一律 unsupported throw                                                                                                 |
+| `@aiao/rxdb-adapter-encrypted`   | 加密工具包 | 密钥环与信封编解码；非适配器，由 sqlite-core / pglite 内部使用                                                                                                                         |
+| `@aiao/rxdb-adapter-miniprogram` | 适配器     | **实验性**，微信 / 抖音 / 支付宝小程序逻辑层（抖音、支付宝 Android 未验证）；基于 wa-sqlite，依赖 `@aiao/rxdb-adapter-wa-sqlite`                                                       |
 | `@aiao/rxdb-taro`                | 构建插件   | **实验性**，Taro 4.3（vite 编译器）一行接入 `@aiao/rxdb-adapter-miniprogram`，微信 / 抖音；支付宝经 `./vite` 子路径；Node `>=20.19`；使用指南见 [Taro（小程序）](./frameworks/taro.md) |
-| `@aiao/rxdb-plugin-search`       | 插件       | 放行名单见下方「运行时能力 × 适配器」之后的说明；未放行的适配器 fail-fast                                                           |
-| `@aiao/rxdb-plugin-working-tree` | 插件       | 工作树与提交历史；`use()` 必须排在 `connect()` 之前，声明 10 张系统表并写能力水位                                                   |
-| `@aiao/rxdb-plugin-replay`       | 插件       | 基于 rrweb 的会话录制与回放；事件流写入独立录制库，可选依赖 working-tree 打 commit 标记                                             |
-| `@aiao/rxdb-plugin-graph`        | 插件       | 图结构实体与查询                                                                                                                    |
-| `@aiao/rxdb-plugin-workspace`    | 插件       | NEW 草稿恢复，需浏览器 IndexedDB                                                                                                    |
-| `@aiao/rxdb-plugin-storage`      | 插件       | 存储管理与配额                                                                                                                      |
-| `@aiao/rxdb-plugin-history`      | 插件       | 变更历史、撤销 / 重做与分支管理                                                                                                     |
-| `@aiao/rxdb-plugin-sync`         | 插件       | 推拉同步、冲突解决与离线出站队列；依赖 `@aiao/rxdb-plugin-history`                                                                  |
-| `@aiao/rxdb-plugin-querycache`   | 插件       | `SyncType.QueryCache` 的读引擎（远端权威 + 本地行缓存）                                                                             |
-| `@aiao/rxdb-plugin-tree`         | 插件       | 树形实体、层级查询与增量合并                                                                                                        |
-| `@aiao/rxdb-model`               | 模型库     | 框架无关的实体模型核心（元数据驱动的列表 / 表单）；三框架 UI 组件在 `@aiao/rxdb-model-{angular,react,vue}`                          |
+| `@aiao/rxdb-plugin-search`       | 插件       | 放行名单见下方「运行时能力 × 适配器」之后的说明；未放行的适配器 fail-fast                                                                                                              |
+| `@aiao/rxdb-plugin-working-tree` | 插件       | 工作树与提交历史；`use()` 必须排在 `connect()` 之前，声明 10 张系统表并写能力水位                                                                                                      |
+| `@aiao/rxdb-plugin-replay`       | 插件       | 基于 rrweb 的会话录制与回放；事件流写入独立录制库，可选依赖 working-tree 打 commit 标记                                                                                                |
+| `@aiao/rxdb-plugin-graph`        | 插件       | 图结构实体与查询                                                                                                                                                                       |
+| `@aiao/rxdb-plugin-workspace`    | 插件       | NEW 草稿恢复，需浏览器 IndexedDB                                                                                                                                                       |
+| `@aiao/rxdb-plugin-storage`      | 插件       | 存储管理与配额                                                                                                                                                                         |
+| `@aiao/rxdb-plugin-history`      | 插件       | 变更历史、撤销 / 重做与分支管理                                                                                                                                                        |
+| `@aiao/rxdb-plugin-sync`         | 插件       | 推拉同步、冲突解决与离线出站队列；依赖 `@aiao/rxdb-plugin-history`                                                                                                                     |
+| `@aiao/rxdb-plugin-querycache`   | 插件       | `SyncType.QueryCache` 的读引擎（远端权威 + 本地行缓存）                                                                                                                                |
+| `@aiao/rxdb-plugin-tree`         | 插件       | 树形实体、层级查询与增量合并                                                                                                                                                           |
+| `@aiao/rxdb-model`               | 模型库     | 框架无关的实体模型核心（元数据驱动的列表 / 表单）；三框架 UI 组件在 `@aiao/rxdb-model-{angular,react,vue}`                                                                             |
 
 ## 运行时能力 × 适配器
 

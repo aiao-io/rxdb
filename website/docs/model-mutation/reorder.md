@@ -109,15 +109,15 @@ await repository.reorder(todoId, { group: { completed: true } });
 
 重排失败抛 `SortOrderError`，抛出时一条写都没有提交——校验全部发生在写之前，事务内复核失败则整个事务不提交。按 `reason` 分流：
 
-| reason               | 含义                                                                      | 处理         |
-| -------------------- | ------------------------------------------------------------------------- | ------------ |
-| `notManualOrder`     | 实体没有声明 `manualOrder`，却调用了重排                                  | 调用方错误   |
-| `invalidKey`         | 用户显式写入的排序键不合法                                                | 调用方错误   |
-| `corruptAnchor`      | 库里作为锚点读到的键（尾键 / 邻居）不合法，或两邻居不满足 `prev < next`   | 数据已脏     |
-| `unsupportedPrimary` | 主端是 remote-only 或 QueryCache，读不到完整序列                          | 不支持的后端 |
+| reason               | 含义                                                                       | 处理         |
+| -------------------- | -------------------------------------------------------------------------- | ------------ |
+| `notManualOrder`     | 实体没有声明 `manualOrder`，却调用了重排                                   | 调用方错误   |
+| `invalidKey`         | 用户显式写入的排序键不合法                                                 | 调用方错误   |
+| `corruptAnchor`      | 库里作为锚点读到的键（尾键 / 邻居）不合法，或两邻居不满足 `prev < next`    | 数据已脏     |
+| `unsupportedPrimary` | 主端是 remote-only 或 QueryCache，读不到完整序列                           | 不支持的后端 |
 | `invalidTarget`      | 目标本身不成立：两侧邻居都为空、邻居就是移动行、`group` 的键与分组字段不符 | 调用方错误   |
-| `notFound`           | 被移动的行已不存在                                                        | 重查         |
-| `staleTarget`        | 邻居已不存在、不再相邻或不在同一组——调用方看到的顺序过期                  | 重查后重试   |
+| `notFound`           | 被移动的行已不存在                                                         | 重查         |
+| `staleTarget`        | 邻居已不存在、不再相邻或不在同一组——调用方看到的顺序过期                   | 重查后重试   |
 
 ```ts
 import { SortOrderError } from '@aiao/rxdb';
@@ -148,7 +148,11 @@ try {
 
 ```ts
 // 平铺列表：把「第 fromIndex 行拖到第 toIndex 行」换算成邻居目标
-const target = reorderTargetForMove(rows.map(row => row.id), fromIndex, toIndex);
+const target = reorderTargetForMove(
+  rows.map(row => row.id),
+  fromIndex,
+  toIndex
+);
 if (target) await repository.reorder(rows[fromIndex].id, target);
 
 // 树 / 跨组拖放：把「放到目标行上方 / 下方」换算成邻居目标

@@ -79,7 +79,13 @@ const sidebars: SidebarsConfig = {
         type: 'doc',
         id: 'model-mutation/README'
       },
-      items: ['model-mutation/create', 'model-mutation/update', 'model-mutation/delete', 'model-mutation/transaction', 'model-mutation/reorder']
+      items: [
+        'model-mutation/create',
+        'model-mutation/update',
+        'model-mutation/delete',
+        'model-mutation/transaction',
+        'model-mutation/reorder'
+      ]
     },
     {
       type: 'category',

@@ -6,10 +6,10 @@
 
 本包提供两个并列的适配器，可以在同一个 `RxDB` 实例上**同时注册**（名字不同，协议也不同）：
 
-| 适配器名          | 落盘形态                   | 特权侧引擎                       | 入口                                              |
-| ----------------- | -------------------------- | -------------------------------- | ------------------------------------------------- |
-| `sqlite-electron` | 单个 `.sqlite3` 文件       | `node:sqlite`（Node 内建）       | `.`（renderer）+ `/host`（特权侧）                |
-| `pglite-electron` | 一棵 PGlite data directory | `@electric-sql/pglite`（WASM）   | `/pglite`（renderer）+ `/pglite-host`（特权侧）   |
+| 适配器名          | 落盘形态                   | 特权侧引擎                     | 入口                                            |
+| ----------------- | -------------------------- | ------------------------------ | ----------------------------------------------- |
+| `sqlite-electron` | 单个 `.sqlite3` 文件       | `node:sqlite`（Node 内建）     | `.`（renderer）+ `/host`（特权侧）              |
+| `pglite-electron` | 一棵 PGlite data directory | `@electric-sql/pglite`（WASM） | `/pglite`（renderer）+ `/pglite-host`（特权侧） |
 
 两族走的是**两套协议**（SQLite 侧 `sqlite.*`，PGlite 侧 `pg.*`），不是同一个协议的两种后端。
 
@@ -183,10 +183,10 @@ SQLite 侧的事务用 `BEGIN IMMEDIATE` 而非裸 `BEGIN`：写锁在事务起�
 
 ## 能力矩阵
 
-| 存储                  | 状态                                                                                          |
-| --------------------- | --------------------------------------------------------------------------------------------- |
-| SQLite 单文件         | ✅ host 在包内（`/host`），适配器名 `sqlite-electron`                                         |
-| PGlite data directory | ✅ host 在包内（`/pglite-host`），适配器名 `pglite-electron`；需要可选 peer                    |
+| 存储                  | 状态                                                                        |
+| --------------------- | --------------------------------------------------------------------------- |
+| SQLite 单文件         | ✅ host 在包内（`/host`），适配器名 `sqlite-electron`                       |
+| PGlite data directory | ✅ host 在包内（`/pglite-host`），适配器名 `pglite-electron`；需要可选 peer |
 
 不在矩阵内的组合会被 `assertDesktopSqliteStorage` 以 `unsupported_runtime_engine` 拒绝——不静默退化。host 侧需要一个 Node 运行时（SQLite 侧要内置 `node:sqlite`，PGlite 侧要能加载 `@electric-sql/pglite`）；本包在 Node 26 与 Electron 43 上验证，更早的版本未验证。
 

@@ -74,10 +74,10 @@ Tauri WebView 不支持安装 Chrome 扩展，所以 Tauri 侧不承诺「把 CR
 
 Electron 桌面应用的调试走「http renderer + dev 变体扩展」。两条「看起来能走」的路实测都不通：
 
-| 做法                          | 实测结果                                                                                                                         |
-| ---                         | ---                                                                                                                          |
-| 跑打包产物（`app://-/index.html`） | 自定义 scheme `app:` 不在 Chromium 扩展 match pattern 的合法 scheme 集里，`permissionPatternForUrl` 恒返回 `null`，面板停在「当前页面不支持扩展注入」          |
-| `nx serve` 的 http renderer  | Electron 没有 `chrome.permissions` 命名空间，生产 manifest 的 `optional_host_permissions` 授权集恒为空——必须有一条**静态** `host_permissions` 才注得进去 |
+| 做法                               | 实测结果                                                                                                                                                 |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 跑打包产物（`app://-/index.html`） | 自定义 scheme `app:` 不在 Chromium 扩展 match pattern 的合法 scheme 集里，`permissionPatternForUrl` 恒返回 `null`，面板停在「当前页面不支持扩展注入」    |
+| `nx serve` 的 http renderer        | Electron 没有 `chrome.permissions` 命名空间，生产 manifest 的 `optional_host_permissions` 授权集恒为空——必须有一条**静态** `host_permissions` 才注得进去 |
 
 **dev 变体扩展**就是第二条路的补丁：一个 dev-only 构建变体（`build-desktop-dev` 产出 `dist-desktop-dev/`），manifest 比发布产物**只多** `host_permissions: ["http://localhost/*"]`（match pattern 不含端口，任意端口都匹配）；发布 manifest 不带 `host_permissions`、不带 `web_accessible_resources`。
 
@@ -109,9 +109,9 @@ dev 配置的四个 env 开关：`DEV_RXDB_DEVTOOLS`、`DEV_RXDB_DEVTOOLS_EXTENS
 
 QUERY_ENTITY、事件、历史/分支与冲突载荷统一走版本化 DevTools serializer（`DEVTOOLS_WIRE_VERSION = 1`）：
 
-| 类型       | wire 表示                                                                  | 说明                          |
-| ---      | ---                                                                      | ---                         |
-| `bigint` | `{ $rxdb: 1, type: 'bigint', value }`                                    | 十进制精确字符串，无精度下降              |
+| 类型     | wire 表示                                                                | 说明                                     |
+| -------- | ------------------------------------------------------------------------ | ---------------------------------------- |
+| `bigint` | `{ $rxdb: 1, type: 'bigint', value }`                                    | 十进制精确字符串，无精度下降             |
 | `binary` | `{ $rxdb: 1, type: 'binary', encoding: 'base64url', value, byteLength }` | 只编码当前 `Uint8Array` 视图，不改源数组 |
 
 - 加密字段**先遮罩再序列化**（`[encrypted]`），任何错误路径都不回退发送原值。

@@ -72,13 +72,13 @@ rxdb.use(rxdbStorage, {
 
 ### 与浏览器 OPFS 档的差异
 
-| 维度       | 浏览器 OPFS（默认）                                 | 桌面原生                                                                     |
-| -------- | -------------------------------------------- | ------------------------------------------------------------------------ |
-| 内容落点     | WebView 的 OPFS                               | 应用数据目录内的存储根                                                              |
-| 锁仲裁      | Web Locks（同源锁）                               | host 侧仲裁（跨窗口成立，后端提供 `lockBackend`，构造期断言其存在）                              |
-| 大文件      | 流式落盘                                         | 分帧流式（单帧 `DESKTOP_HOST_MAX_FILE_CHUNK_BYTES`），临时文件 + rename 原子替换，无半写文件    |
-| 路径       | 逻辑名直接可用                                      | 逻辑名→物理名确定性编码（NTFS 保留名 / 非法字符），路径逃逸由 host 二次校验                            |
-| MIME     | 浏览器按扩展名推断                                    | 原生文件无 MIME 概念；`read()` 以 metadata 的 `mimeType` 为权威重新贴 type               |
+| 维度     | 浏览器 OPFS（默认） | 桌面原生                                                                                     |
+| -------- | ------------------- | -------------------------------------------------------------------------------------------- |
+| 内容落点 | WebView 的 OPFS     | 应用数据目录内的存储根                                                                       |
+| 锁仲裁   | Web Locks（同源锁） | host 侧仲裁（跨窗口成立，后端提供 `lockBackend`，构造期断言其存在）                          |
+| 大文件   | 流式落盘            | 分帧流式（单帧 `DESKTOP_HOST_MAX_FILE_CHUNK_BYTES`），临时文件 + rename 原子替换，无半写文件 |
+| 路径     | 逻辑名直接可用      | 逻辑名→物理名确定性编码（NTFS 保留名 / 非法字符），路径逃逸由 host 二次校验                  |
+| MIME     | 浏览器按扩展名推断  | 原生文件无 MIME 概念；`read()` 以 metadata 的 `mimeType` 为权威重新贴 type                   |
 
 API 面不变：`RxdbFileStorage` 的**全部**公开方法（`upload` / `read` / `download` / `preview` / `list` / `listEntries` / `createDirectory` / `rename` / `renameDirectory` / `delete` / `clear` / `getMeta` / `watch` 等）在桌面后端可直接使用，行为与 OPFS 后端一致。
 

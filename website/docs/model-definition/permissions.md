@@ -46,15 +46,15 @@ import { Entity, EntityBase } from '@aiao/rxdb';
   permissions: {
     create: 'system', // 只由同步拉取写入：UI 无「+ 新增」，公开写入口的 create 被拒
     update: 'system', // 用户只读：行挂 _readonly，「查看」以 view 模式打开
-    delete: 'system'  // 用户不能删：操作列没有「删除」
+    delete: 'system' // 用户不能删：操作列没有「删除」
   }
 })
 export class ExchangeRate extends EntityBase {}
 ```
 
-| 取值       | 含义                                                                 |
-| ---------- | -------------------------------------------------------------------- |
-| `'both'`   | 用户与系统都能写（默认）                                             |
+| 取值       | 含义                                                                  |
+| ---------- | --------------------------------------------------------------------- |
+| `'both'`   | 用户与系统都能写（默认）                                              |
 | `'system'` | 只许系统写：用户经公开写入口写抛 `PermissionDeniedError`，UI 隐藏入口 |
 
 不配置 `permissions` 或某项缺省时，三操作都按 `'both'` 计，写入与 UI 行为与未引入权限模型时完全一致。
@@ -82,12 +82,12 @@ export class ExchangeRate extends EntityBase {}
 
 核心 4 张（`packages/rxdb/src/system/`）：
 
-| 实体             | 说明       |
-| ---------------- | ---------- |
-| `RxDBBranch`     | 分支表     |
-| `RxDBChange`     | 变更日志表 |
-| `RxDBMigration`  | 迁移登记表 |
-| `RxDBSync`       | 同步水位表 |
+| 实体            | 说明       |
+| --------------- | ---------- |
+| `RxDBBranch`    | 分支表     |
+| `RxDBChange`    | 变更日志表 |
+| `RxDBMigration` | 迁移登记表 |
+| `RxDBSync`      | 同步水位表 |
 
 working-tree 贡献 10 张（`@aiao/rxdb-plugin-working-tree`）：
 
@@ -114,11 +114,11 @@ working-tree 贡献 10 张（`@aiao/rxdb-plugin-working-tree`）：
 
 判定只设在公开写入口，共 5 处：
 
-| 入口                                      | 判定时机                                     |
-| ----------------------------------------- | -------------------------------------------- |
-| 门面 `Repository.create()` / `update()` / `remove()` | 在 `primary$` 选主端之前——与主端选哪边无关，被拒时连适配器都不碰 |
-| `EntityManager.mutations()`               | 在选主端之前对 create / update / delete 三组**整批预检** |
-| `Repository.reorder()`                    | 开事务前自己按 `update` 判定（它的读邻居与写入走执行器，属不判定的那一层） |
+| 入口                                                 | 判定时机                                                                   |
+| ---------------------------------------------------- | -------------------------------------------------------------------------- |
+| 门面 `Repository.create()` / `update()` / `remove()` | 在 `primary$` 选主端之前——与主端选哪边无关，被拒时连适配器都不碰           |
+| `EntityManager.mutations()`                          | 在选主端之前对 create / update / delete 三组**整批预检**                   |
+| `Repository.reorder()`                               | 开事务前自己按 `update` 判定（它的读邻居与写入走执行器，属不判定的那一层） |
 
 其余写方法都收敛到上面几处：`EntityManager.save()` 单条时按实体状态走 `create()` / `update()` / `remove()`；`saveMany()` / `removeMany()` 与单条 `save()` 带出关联实体、待删中间表行时走 `mutations()`；实体实例的 `save()` / `remove()` 经 `EntityManager` 委托到同一批入口。
 
@@ -134,8 +134,8 @@ class PermissionDeniedError extends RxDBError {
 }
 
 interface PermissionViolation {
-  namespace: string;                        // 实体所在命名空间
-  entity: string;                           // 实体名（元数据里的 name）
+  namespace: string; // 实体所在命名空间
+  entity: string; // 实体名（元数据里的 name）
   operation: 'create' | 'update' | 'delete'; // 被拒绝的写操作
 }
 ```
@@ -178,11 +178,11 @@ import { deriveEntityCapabilities } from '@aiao/rxdb-model';
 const { canCreate, canEdit, canDelete } = deriveEntityCapabilities(getEntityMetadata(Invoice));
 ```
 
-| 能力        | 取值                 | false 时的界面表现                                                                                    |
-| ----------- | -------------------- | ----------------------------------------------------------------------------------------------------- |
-| `canCreate` | `create === 'both'`  | 列表隐藏「+ 新增」                                                                                    |
-| `canEdit`   | `update === 'both'`  | 行挂 `_readonly`：单元格、粘贴、拖拽、键盘切换都不可写；「查看」以 view 模式打开详情（无保存入口） |
-| `canDelete` | `delete === 'both'`  | 操作列没有「删除」；「查看」保留                                                                       |
+| 能力        | 取值                | false 时的界面表现                                                                                 |
+| ----------- | ------------------- | -------------------------------------------------------------------------------------------------- |
+| `canCreate` | `create === 'both'` | 列表隐藏「+ 新增」                                                                                 |
+| `canEdit`   | `update === 'both'` | 行挂 `_readonly`：单元格、粘贴、拖拽、键盘切换都不可写；「查看」以 view 模式打开详情（无保存入口） |
+| `canDelete` | `delete === 'both'` | 操作列没有「删除」；「查看」保留                                                                   |
 
 删除能力与行只读是**解耦**的两件事：`update: 'system'` 的实体行只读但 `delete: 'both'` 时仍能删；`delete: 'system'` 的实体行可编辑却没有删除按钮。操作列 `actionsColumn()` 的第三参是逐行谓词 `(record) => boolean`，由 `buildEditableColumns()` 按 `canDelete` 派生——直接调 `actionsColumn()` 的应用需要自己传入，见[操作列删除判定迁移](../migration/actions-column-can-delete.md)。
 

@@ -125,12 +125,12 @@ Tauri WebView 不支持安装 Chrome 扩展，`@aiao/rxdb-devtools` 在 Tauri �
 
 两包共用同一份协议与 renderer client，差别只在特权侧：
 
-| 维度             | Electron（[./electron.md](./electron.md)）          | Tauri（本页）                                       |
-| ---------------- | --------------------------------------------------- | --------------------------------------------------- |
-| 特权侧引擎       | `node:sqlite` / PGlite WASM（Node 主进程，包内自带） | `rusqlite`（Rust crate，git 依赖，未发 crates.io）  |
-| 适配器名         | `sqlite-electron` / `pglite-electron`               | `sqlite-tauri`                                      |
-| 变更跨窗口       | SQLite 侧不跨；PGlite 侧跨（`NOTIFY`）              | 不跨（事件只回送开出会话的窗口）                  |
-| 备份恢复 FTS5    | host 以 defensive 模式运行，含 FTS5 虚表的库不可备份 | FTS5 可用，含 FTS5 虚表的库可以备份并恢复           |
+| 维度          | Electron（[./electron.md](./electron.md)）           | Tauri（本页）                                      |
+| ------------- | ---------------------------------------------------- | -------------------------------------------------- |
+| 特权侧引擎    | `node:sqlite` / PGlite WASM（Node 主进程，包内自带） | `rusqlite`（Rust crate，git 依赖，未发 crates.io） |
+| 适配器名      | `sqlite-electron` / `pglite-electron`                | `sqlite-tauri`                                     |
+| 变更跨窗口    | SQLite 侧不跨；PGlite 侧跨（`NOTIFY`）               | 不跨（事件只回送开出会话的窗口）                   |
+| 备份恢复 FTS5 | host 以 defensive 模式运行，含 FTS5 虚表的库不可备份 | FTS5 可用，含 FTS5 虚表的库可以备份并恢复          |
 
 需要 PostgreSQL 方言或跨窗口变更事件时只有 Electron + PGlite 一条路；只做 SQLite 单文件时按宿主栈选。
 

@@ -8,16 +8,16 @@
 
 支持矩阵逐项声明 adapter、源 / 目标存储与运行环境；**只有矩阵内的同一 adapter 组合被承诺**。未列出的组合会明确报 `unsupported_combination`，绝不回退成直接复制活动数据库文件。
 
-| adapter 标识   | 源 / 目标存储                                                | 运行环境                            | 说明                                                              |
-| -------------- | ------------------------------------------------------------ | ----------------------------------- | ----------------------------------------------------------------- |
-| `pglite`       | `memory` 与 `idb://` 互为源 / 目标                           | 浏览器主线程客户端                  | Worker / OPFS-AHP / 桌面代理客户端报 `unsupported_combination`    |
-| `wa-sqlite`    | `MemoryVFS` / `MemoryAsyncVFS` / `IDBBatchAtomicVFS`         | 浏览器                              | 仅主线程连接；配置 `worker` / `sharedWorker` 时报 `unsupported_combination` |
-| `sqlite-wasm`  | `memory` / `idb`                                             | 浏览器                              | 同上                                                              |
-| `sqlite`       | 内存库与 `opfs: true`                                        | 浏览器（官方 sqlite-wasm）          | `worker: true` 实测支持                                           |
-| `sqliteai`     | 内存库与 `opfs: true`                                        | 浏览器                              | 同上                                                              |
-| `sqlite-electron` | 应用数据目录下的库文件                                     | Electron 主进程 `node:sqlite`（WAL） | 虚表库报 `unsupported_combination`（host 开启 defensive）         |
-| `sqlite-tauri` | 应用数据目录下的库文件                                       | Tauri 2 Rust host（WAL，FTS5）      |                                                                   |
-| `pglite-electron` | 应用数据目录下的 PGlite 目录                                | Electron 主进程 PGlite              | host 需显式开启 `backup` 才支持                                   |
+| adapter 标识      | 源 / 目标存储                                        | 运行环境                             | 说明                                                                        |
+| ----------------- | ---------------------------------------------------- | ------------------------------------ | --------------------------------------------------------------------------- |
+| `pglite`          | `memory` 与 `idb://` 互为源 / 目标                   | 浏览器主线程客户端                   | Worker / OPFS-AHP / 桌面代理客户端报 `unsupported_combination`              |
+| `wa-sqlite`       | `MemoryVFS` / `MemoryAsyncVFS` / `IDBBatchAtomicVFS` | 浏览器                               | 仅主线程连接；配置 `worker` / `sharedWorker` 时报 `unsupported_combination` |
+| `sqlite-wasm`     | `memory` / `idb`                                     | 浏览器                               | 同上                                                                        |
+| `sqlite`          | 内存库与 `opfs: true`                                | 浏览器（官方 sqlite-wasm）           | `worker: true` 实测支持                                                     |
+| `sqliteai`        | 内存库与 `opfs: true`                                | 浏览器                               | 同上                                                                        |
+| `sqlite-electron` | 应用数据目录下的库文件                               | Electron 主进程 `node:sqlite`（WAL） | 虚表库报 `unsupported_combination`（host 开启 defensive）                   |
+| `sqlite-tauri`    | 应用数据目录下的库文件                               | Tauri 2 Rust host（WAL，FTS5）       |                                                                             |
+| `pglite-electron` | 应用数据目录下的 PGlite 目录                         | Electron 主进程 PGlite               | host 需显式开启 `backup` 才支持                                             |
 
 同一 adapter 的内存与持久化存储互为源 / 目标。桌面三套组合（`sqlite-electron` / `sqlite-tauri` / `pglite-electron`）的归档已验证 Linux / macOS / Windows 两两互通；浏览器组合不承诺跨 OS 恢复。
 
@@ -50,27 +50,27 @@ SQLite 系的备份用 `octet_length()` 做分页探测，要求 SQLite ≥ 3.43
 
 两种 adapter 的归档布局不同：
 
-| adapter 系 | 归档内容 |
-| ---------- | -------- |
+| adapter 系 | 归档内容                                                                                                                                                                                                                                                                                                       |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | SQLite 系  | 逻辑转储：`sqlite/schema.json`（全部建表 / 索引 / 视图 / 触发器 / 虚表语句、`user_version`、`application_id`、`sqlite_sequence`）、按表分段的 `sqlite/rows/<表>/<序号>`（`quote()` 行字面量，约 1 MiB 落一个条目，单行上限 32 MiB）、`sqlite/summary.json`（每张表的行数）。虚表只记建表语句，数据随影子表转储 |
-| PGlite     | 数据目录逐文件快照；运行态文件 `postmaster.pid` / `postmaster.opts` / `pg_internal.init`（`PGLITE_EXCLUDED_FILES`）不入档 |
+| PGlite     | 数据目录逐文件快照；运行态文件 `postmaster.pid` / `postmaster.opts` / `pg_internal.init`（`PGLITE_EXCLUDED_FILES`）不入档                                                                                                                                                                                      |
 
 ### manifest
 
 归档最前面是 manifest（`RxDBBackupManifest`），恢复时在写入目标**之前**完成兼容性校验。字段与比较规则：
 
-| 字段                                        | 内容                           | 恢复时         |
-| ------------------------------------------- | ------------------------------ | -------------- |
-| `format` / `formatVersion`                  | `rxdb-backup` / `1`            | 必须逐字相等   |
-| `scope`                                     | 数据库与外置文件的包含声明     | 校验           |
-| `adapter.name`                              | adapter 标识，如 `pglite`      | 相等           |
-| `adapter.engine` / `adapter.engineCompatibility` | 引擎与数据兼容键（`sqlite` / `sqlite-3`，`postgres` / `postgres-<大版本>`） | 相等 |
-| `adapter.extensions`                        | 源库加载的扩展                 | 目标须提供归档用到的全部 |
-| `adapter.engineVersion` / `adapter.storage` | 引擎完整版本、源存储后端       | 仅记录         |
-| `rxdb.version`                              | 源 RxDB 版本                   | 仅记录         |
-| `rxdb.systemSchemaVersion` / `rxdb.changeCodecVersion` | 内部版本       | 相等           |
-| `schemaFingerprint`                         | 实体结构指纹                   | 相等           |
-| `encryption.authDomain`                     | 加密认证域（无加密为 `null`）  | 相等，否则 `auth_domain_mismatch` |
+| 字段                                                   | 内容                                                                        | 恢复时                            |
+| ------------------------------------------------------ | --------------------------------------------------------------------------- | --------------------------------- |
+| `format` / `formatVersion`                             | `rxdb-backup` / `1`                                                         | 必须逐字相等                      |
+| `scope`                                                | 数据库与外置文件的包含声明                                                  | 校验                              |
+| `adapter.name`                                         | adapter 标识，如 `pglite`                                                   | 相等                              |
+| `adapter.engine` / `adapter.engineCompatibility`       | 引擎与数据兼容键（`sqlite` / `sqlite-3`，`postgres` / `postgres-<大版本>`） | 相等                              |
+| `adapter.extensions`                                   | 源库加载的扩展                                                              | 目标须提供归档用到的全部          |
+| `adapter.engineVersion` / `adapter.storage`            | 引擎完整版本、源存储后端                                                    | 仅记录                            |
+| `rxdb.version`                                         | 源 RxDB 版本                                                                | 仅记录                            |
+| `rxdb.systemSchemaVersion` / `rxdb.changeCodecVersion` | 内部版本                                                                    | 相等                              |
+| `schemaFingerprint`                                    | 实体结构指纹                                                                | 相等                              |
+| `encryption.authDomain`                                | 加密认证域（无加密为 `null`）                                               | 相等，否则 `auth_domain_mismatch` |
 
 ### schema 指纹
 
@@ -137,11 +137,11 @@ const adapter = await rxdb.getAdapter('wa-sqlite');
 const handle = await showSaveFilePicker({ suggestedName: 'myapp.rxdb-backup' });
 const result = await adapter.backup(await handle.createWritable());
 
-console.log(result.entries);  // 条目数（文件 + 目录）
-console.log(result.bytes);    // 文件数据总字节数
-console.log(result.sha256);   // 归档 SHA-256
+console.log(result.entries); // 条目数（文件 + 目录）
+console.log(result.bytes); // 文件数据总字节数
+console.log(result.sha256); // 归档 SHA-256
 console.log(result.manifest); // 归档 manifest
-console.log(result.scope);    // { database: 'included', externalFiles: 'excluded' }
+console.log(result.scope); // { database: 'included', externalFiles: 'excluded' }
 ```
 
 SQLite 的备份是**逻辑转储**：在 adapter 串行队列里开一个读事务，依次写出结构、按表分段的行与摘要——读的是 SQL 层看到的已提交状态，不复制任何数据库文件，因此不存在「主文件与 WAL 不同步」的路径，WAL 里已提交的数据都在其中。
@@ -167,7 +167,7 @@ const controller = new AbortController();
 
 await adapter.backup(sink, {
   signal: controller.signal, // 成功提交边界之前的取消
-  lockTimeoutMs: 30_000      // 等待一致性锁的上限，默认 30 秒
+  lockTimeoutMs: 30_000 // 等待一致性锁的上限，默认 30 秒
 });
 ```
 
@@ -238,7 +238,11 @@ IndexedDB 目标：验证通过之前不落盘，提交点是一次性刷入 Ind
 import { RxDBAdapterPGlite, restorePGliteDatabase } from '@aiao/rxdb-adapter-pglite';
 
 const options = { store: 'memory' };
-const target = new RxDB({ dbName: 'myapp', entities: [Todo], sync: { local: { adapter: 'pglite' }, type: SyncType.None } });
+const target = new RxDB({
+  dbName: 'myapp',
+  entities: [Todo],
+  sync: { local: { adapter: 'pglite' }, type: SyncType.None }
+});
 
 const { database } = await restorePGliteDatabase(archiveStream, { rxdb: target, options });
 
@@ -297,41 +301,41 @@ await adapter.restore(archiveStream, {
 
 来自 `@aiao/rxdb-adapter-sqlite-core`：
 
-| 导出 | 签名 |
-| ---- | ---- |
-| `writeSqliteBackup` | `(input: SqliteBackupInput, sink: WritableStream<Uint8Array>, options: RxDBBackupOptions) => Promise<RxDBBackupResult>` |
-| `restoreSqliteDatabase` | `(source: ReadableStream<Uint8Array>, input: SqliteRestoreInput, options: SqliteRestoreOptions) => Promise<SqliteRestoreOutcome>` |
-| `cleanupIncompleteSqliteRestore` | `(input: SqliteRestoreInput) => Promise<boolean>` |
-| `describeSqliteDatabase` | `(executor: SqliteBackupExecutor) => Promise<SqliteBlankDatabase>` |
-| `sqliteStorageLockName` | `(storageKey: string) => string` |
-| `SQLITE_BACKUP_ENGINE` | `'sqlite'` |
-| `SQLITE_BACKUP_ENGINE_COMPATIBILITY` | `'sqlite-3'` |
-| `SQLITE_BACKUP_LOCK_TIMEOUT_MS` | `30_000` |
+| 导出                                 | 签名                                                                                                                              |
+| ------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `writeSqliteBackup`                  | `(input: SqliteBackupInput, sink: WritableStream<Uint8Array>, options: RxDBBackupOptions) => Promise<RxDBBackupResult>`           |
+| `restoreSqliteDatabase`              | `(source: ReadableStream<Uint8Array>, input: SqliteRestoreInput, options: SqliteRestoreOptions) => Promise<SqliteRestoreOutcome>` |
+| `cleanupIncompleteSqliteRestore`     | `(input: SqliteRestoreInput) => Promise<boolean>`                                                                                 |
+| `describeSqliteDatabase`             | `(executor: SqliteBackupExecutor) => Promise<SqliteBlankDatabase>`                                                                |
+| `sqliteStorageLockName`              | `(storageKey: string) => string`                                                                                                  |
+| `SQLITE_BACKUP_ENGINE`               | `'sqlite'`                                                                                                                        |
+| `SQLITE_BACKUP_ENGINE_COMPATIBILITY` | `'sqlite-3'`                                                                                                                      |
+| `SQLITE_BACKUP_LOCK_TIMEOUT_MS`      | `30_000`                                                                                                                          |
 
 其中 `describeSqliteDatabase` 描述一个库的对象清单、结构与全部行，恢复用它判定目标是否「恰好等于引擎新建的空库」（先比对象清单与每表行数，一致才读行，引擎表里攒了大量行的目标不会被整库读进内存）。`SqliteRestoreOutcome.client` 只在内存目标恢复时非空，由 adapter 接管。
 
 来自 `@aiao/rxdb-adapter-pglite`：
 
-| 导出 | 签名 |
-| ---- | ---- |
-| `restorePGliteDatabase` | `(source: ReadableStream<Uint8Array>, target: PGliteRestoreTarget, options?: PGliteRestoreOptions) => Promise<PGliteRestoreResult>` |
-| `cleanupIncompletePGliteRestore` | `(target: PGliteRestoreTarget) => Promise<boolean>` |
-| `verifyPGliteRestored` | `(db: PGliteQueryable, manifest: RxDBBackupManifest) => Promise<void>` |
-| `PGliteRestoredDatabase` | 内存目标的一次性句柄（`consumed` / `close()`） |
-| `PGLITE_BACKUP_LOCK_TIMEOUT_MS` | `30_000` |
-| `PGLITE_EXCLUDED_FILES` | 不入档的运行态文件集合 |
-| `PGLITE_DATA_DIR` | `'/pglite/data'` |
+| 导出                             | 签名                                                                                                                                |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `restorePGliteDatabase`          | `(source: ReadableStream<Uint8Array>, target: PGliteRestoreTarget, options?: PGliteRestoreOptions) => Promise<PGliteRestoreResult>` |
+| `cleanupIncompletePGliteRestore` | `(target: PGliteRestoreTarget) => Promise<boolean>`                                                                                 |
+| `verifyPGliteRestored`           | `(db: PGliteQueryable, manifest: RxDBBackupManifest) => Promise<void>`                                                              |
+| `PGliteRestoredDatabase`         | 内存目标的一次性句柄（`consumed` / `close()`）                                                                                      |
+| `PGLITE_BACKUP_LOCK_TIMEOUT_MS`  | `30_000`                                                                                                                            |
+| `PGLITE_EXCLUDED_FILES`          | 不入档的运行态文件集合                                                                                                              |
+| `PGLITE_DATA_DIR`                | `'/pglite/data'`                                                                                                                    |
 
 来自 `@aiao/rxdb`（归档容器与错误分类，两端共用）：
 
-| 导出 | 说明 |
-| ---- | ---- |
-| `RxDBBackupError` / `isRxDBBackupError(error, code?)` / `RxDBBackupErrorCode` | 稳定错误分类；只按 `code` 分支，`message` 仅供人读 |
-| `RxDBBackupArchiveWriter` / `RxDBBackupArchiveReader` | 流式归档写入 / 读取器；调用顺序 `writeManifest` → `beginEntry` / `writeData` → `finish` |
-| `RXDB_BACKUP_CHUNK_SIZE` | `64 * 1024` |
-| `parseRxDBBackupManifest` / `assertRxDBBackupCompatible` | manifest 校验与兼容性判定 |
-| `computeRxDBSchemaFingerprint` | `(entities: readonly EntityType[]) => string` |
-| `RXDB_BACKUP_FORMAT` / `RXDB_BACKUP_FORMAT_VERSION` / `RXDB_BACKUP_SCOPE` | `'rxdb-backup'` / `1` / `{ database: 'included', externalFiles: 'excluded' }` |
+| 导出                                                                          | 说明                                                                                    |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| `RxDBBackupError` / `isRxDBBackupError(error, code?)` / `RxDBBackupErrorCode` | 稳定错误分类；只按 `code` 分支，`message` 仅供人读                                      |
+| `RxDBBackupArchiveWriter` / `RxDBBackupArchiveReader`                         | 流式归档写入 / 读取器；调用顺序 `writeManifest` → `beginEntry` / `writeData` → `finish` |
+| `RXDB_BACKUP_CHUNK_SIZE`                                                      | `64 * 1024`                                                                             |
+| `parseRxDBBackupManifest` / `assertRxDBBackupCompatible`                      | manifest 校验与兼容性判定                                                               |
+| `computeRxDBSchemaFingerprint`                                                | `(entities: readonly EntityType[]) => string`                                           |
+| `RXDB_BACKUP_FORMAT` / `RXDB_BACKUP_FORMAT_VERSION` / `RXDB_BACKUP_SCOPE`     | `'rxdb-backup'` / `1` / `{ database: 'included', externalFiles: 'excluded' }`           |
 
 ## 边界与承诺
 
@@ -357,23 +361,23 @@ await adapter.restore(archiveStream, {
 
 备份与恢复的失败统一抛 `RxDBBackupError`，按 `code` 分支（`message` 仅供人读）。`details.field` / `expected` / `actual` 给出结构化细节：
 
-| code                      | 含义                                                                 |
-| ------------------------- | -------------------------------------------------------------------- |
-| `unsupported_combination` | adapter / 存储组合不在支持矩阵内，或 adapter 未实现该能力             |
-| `incompatible_archive`    | 归档元数据缺失或与目标配置不兼容（`details.field` 指出哪一项）        |
-| `auth_domain_mismatch`    | 加密归档的认证域与目标不同                                            |
-| `corrupt_archive`         | 格式损坏、摘要不符或声明与载荷不一致                                  |
-| `truncated_archive`       | 输入在归档结束标记之前就结束了                                        |
-| `target_not_empty`        | 目标已含任何数据库内容（包括仅初始化过的引擎目录）                    |
-| `target_busy`             | 目标正被其他连接或恢复操作占用；或备份源的存储还被其他连接持有        |
-| `restore_in_progress`     | 普通连接撞上正在进行的恢复                                            |
-| `restore_incomplete`      | 目标留有未完成恢复的标记，须先清理再恢复                              |
-| `cleanup_pending`         | 失败后的清理本身失败；目标保持未完成状态，拒绝连接                    |
-| `aborted`                 | 调用方在成功提交边界之前取消                                          |
-| `io_error`                | 输入 / 输出流或底层存储读写失败                                       |
-| `storage_full`            | 磁盘空间或存储配额不足                                                |
-| `lock_timeout`            | 等待一致性锁超时（例如在事务回调内调用备份）                          |
-| `invalid_state`           | adapter 未连接、正在关闭等无法执行操作的状态                          |
+| code                      | 含义                                                           |
+| ------------------------- | -------------------------------------------------------------- |
+| `unsupported_combination` | adapter / 存储组合不在支持矩阵内，或 adapter 未实现该能力      |
+| `incompatible_archive`    | 归档元数据缺失或与目标配置不兼容（`details.field` 指出哪一项） |
+| `auth_domain_mismatch`    | 加密归档的认证域与目标不同                                     |
+| `corrupt_archive`         | 格式损坏、摘要不符或声明与载荷不一致                           |
+| `truncated_archive`       | 输入在归档结束标记之前就结束了                                 |
+| `target_not_empty`        | 目标已含任何数据库内容（包括仅初始化过的引擎目录）             |
+| `target_busy`             | 目标正被其他连接或恢复操作占用；或备份源的存储还被其他连接持有 |
+| `restore_in_progress`     | 普通连接撞上正在进行的恢复                                     |
+| `restore_incomplete`      | 目标留有未完成恢复的标记，须先清理再恢复                       |
+| `cleanup_pending`         | 失败后的清理本身失败；目标保持未完成状态，拒绝连接             |
+| `aborted`                 | 调用方在成功提交边界之前取消                                   |
+| `io_error`                | 输入 / 输出流或底层存储读写失败                                |
+| `storage_full`            | 磁盘空间或存储配额不足                                         |
+| `lock_timeout`            | 等待一致性锁超时（例如在事务回调内调用备份）                   |
+| `invalid_state`           | adapter 未连接、正在关闭等无法执行操作的状态                   |
 
 ## 相关页面
 

@@ -75,13 +75,13 @@ QueryCache 的拉取落地是**绕开仓储的裸 SQL 写**（`upsertMany`），
 
 两个本地行缓存后端（`rxdb-adapter-sqlite-core` 与 `rxdb-adapter-pglite`）的**判据按各自的建表 DDL 规则各自实现**，错误类各有一份但 `name` 同为 `'RxDBQueryCacheRowContractError'`、消息骨架同形（跨后端识别靠 `name`）。两处故意不同的分歧：
 
-| 情形                                 | SQLite 系                                         | PGlite                                |
-| ---                                | ---                                              | ---                                   |
-| `uuid` 主键                          | 豁免（DDL 带 `DEFAULT (lower(hex(randomblob(16))))`） | **必填**（`"id" uuid PRIMARY KEY` 无默认值）  |
-| 关系列 `SET NULL` 且 `nullable: false` | 豁免（不发 NOT NULL）                                  | **必填**（照发 NOT NULL）                   |
-| `integer` 主键                       | 豁免（AUTOINCREMENT）                                | 豁免（`serial` 隐含 `nextval()`，理由不同）      |
-| `default: null` 写在非空列上             | 既有误豁免，保持原状                                       | 不算可用默认值，仍必填                           |
-| 非空 `binary` 列带字面量 `default`        | 仍必填                                              | 仍必填（两侧 DDL 都对 `binary` 跳过 DEFAULT 子句） |
+| 情形                                   | SQLite 系                                             | PGlite                                             |
+| -------------------------------------- | ----------------------------------------------------- | -------------------------------------------------- |
+| `uuid` 主键                            | 豁免（DDL 带 `DEFAULT (lower(hex(randomblob(16))))`） | **必填**（`"id" uuid PRIMARY KEY` 无默认值）       |
+| 关系列 `SET NULL` 且 `nullable: false` | 豁免（不发 NOT NULL）                                 | **必填**（照发 NOT NULL）                          |
+| `integer` 主键                         | 豁免（AUTOINCREMENT）                                 | 豁免（`serial` 隐含 `nextval()`，理由不同）        |
+| `default: null` 写在非空列上           | 既有误豁免，保持原状                                  | 不算可用默认值，仍必填                             |
+| 非空 `binary` 列带字面量 `default`     | 仍必填                                                | 仍必填（两侧 DDL 都对 `binary` 跳过 DEFAULT 子句） |
 
 「必填」判的是**值**不只是键：`{ createdAt: null }` 同样被拒（「带了键但值为空」与「没带这一列」是两栏措辞，修法不同）。关系列的外键三种写法（关系名 / 外键别名 / 物理列名）两侧都认，带 `teamId` 的行不会被误判成缺 `team`。
 
