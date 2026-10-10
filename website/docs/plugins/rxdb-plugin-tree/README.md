@@ -17,6 +17,18 @@
 - `findDescendants()` / `countDescendants()` / `findAncestors()` / `countAncestors()`：树查询接口
 - `TreeRepository`：树查询的默认仓储实现与增量 merge 注册
 
+## 手动排序在核心
+
+拖拽手动排序（`manualOrder` / `Repository.reorder()`）在核心包 `@aiao/rxdb`，不是本插件的能力，也不依赖本插件：排序模块在引擎写路径上，依赖方向是树插件 → 排序模块。树实体声明 `manualOrder: { groupBy: ['parentId'] }`（`sortOrder` 非空）后，同一父节点下的兄弟就是一个排序域；`TreeRepository` 继承 `Repository`，天然获得 `reorder()`。
+
+跨父拖放的推荐写法是追加到目标节点的子节点末尾，不读目标的子节点，目标未展开时同样正确：
+
+```ts
+await repository.reorder(draggedId, { group: { parentId: target.id } });
+```
+
+完整说明见[手动排序（manualOrder 与 reorder）](../../model-mutation/reorder.md)。
+
 ## 安装
 
 ```bash npm2yarn

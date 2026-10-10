@@ -42,8 +42,15 @@ export type { RxDBQueryOutput } from './query-builder/query-builder.component';
 export { FieldSelectorComponent } from './field-selector/field-selector.component';
 export { OperatorSelectorComponent } from './operator-selector/operator-selector.component';
 export { PopoverSelectComponent } from './popover-select/popover-select.component';
-export { QueryGroupComponent } from './query-group/query-group.component';
-export { QueryRuleComponent } from './query-rule/query-rule.component';
+export {
+  QueryDragDropHandler,
+  QueryGroupComponent,
+  calculateDropMode,
+  type QueryDragDropState,
+  type QueryDropMode,
+  type UIRuleGroup
+} from './query-group/query-group.component';
+export { QueryRuleComponent, type UIRuleWithWhere } from './query-rule/query-rule.component';
 export { SubqueryBuilderComponent } from './subquery-builder/subquery-builder.component';
 export { TreeItemDirective, TreeSelectComponent } from './tree-select/tree-select.component';
 export { ValueInputComponent } from './value-input/value-input.component';

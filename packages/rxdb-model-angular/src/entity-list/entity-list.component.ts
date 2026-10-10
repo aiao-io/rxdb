@@ -22,8 +22,10 @@ import {
   type BatchChangeItem,
   type CellChangeEvent,
   type EntityFormData,
+  type EntityInstance,
   type EntityTableRecord,
   type FieldMetadata,
+  type FilterQuery,
   type FormFieldConfig,
   type ModelInfo,
   type RelatedEntityProvider,
@@ -71,16 +73,6 @@ declare module '@aiao/rxdb' {
     versionManager: VersionManager;
   }
 }
-
-/** RxDB 实体实例（用于 CRUD 操作） */
-type EntityInstance = {
-  [key: string]: unknown;
-  readonly id: string;
-  save(): Promise<void>;
-  remove(): Promise<void>;
-};
-
-type FilterQuery = { combinator: 'and' | 'or'; rules: unknown[] };
 
 const EMPTY_FILTER: FilterQuery = { combinator: 'and', rules: [] };
 

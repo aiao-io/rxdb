@@ -152,8 +152,8 @@ test('Supabase lane 照常标 coverage: true', () => {
   assert.equal(result.include[0].coverage, true);
 });
 
-test('真实常量：不采集覆盖率的项目只有 website', () => {
-  assert.deepEqual(NO_COVERAGE_PROJECTS, ['website']);
+test('真实常量：不采集覆盖率的项目只有两个 node --test 项目', () => {
+  assert.deepEqual(NO_COVERAGE_PROJECTS, ['website', 'e2e-parity']);
 });
 
 test('真实常量自洽：Supabase 项目非空、lane 数为正', () => {

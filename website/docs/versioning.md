@@ -63,9 +63,9 @@ export const REMOTE_CHANGES_PENDING_EVENT = 'REMOTE_CHANGES_PENDING' as const;
 唯一的例外是无导出表面的资产入口，见下一段。
 
 `api-surface.mjs` 另有一份资产入口白名单（`ASSET_SUBPATHS`）：这类入口（wasm / CSS / worker 脚本）没有导出表面可扫，
-只能显式跳过、内容交由供应链审计守护。白名单当前登记 4 个包的 5 个入口——
-`@aiao/rxdb-adapter-miniprogram` 的 `./alipay-random-worker.js`，`@aiao/rxdb-model-{angular,vue}` 的 `./tailwind.css`，
-`@aiao/rxdb-model-react` 的 `./index.css` 与 `./tailwind.css`——且双向核对：
+只能显式跳过、内容交由供应链审计守护。白名单当前登记 4 个包的 6 个入口——
+`@aiao/rxdb-adapter-miniprogram` 的 `./alipay-random-worker.js`，`@aiao/rxdb-model-angular` 的 `./tailwind.css`，
+`@aiao/rxdb-model-{react,vue}` 的 `./index.css` 与 `./tailwind.css`——且双向核对：
 登记了包里已不存在的入口，或登记的包已退出扫描范围，同样门禁红。
 
 :::

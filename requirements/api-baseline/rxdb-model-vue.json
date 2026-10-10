@@ -262,6 +262,10 @@
         "kind": "type"
       },
       {
+        "name": "EntityInstance",
+        "kind": "type"
+      },
+      {
         "name": "EntityList",
         "kind": "value"
       },
@@ -271,6 +275,10 @@
       },
       {
         "name": "EntityTableConfig",
+        "kind": "type"
+      },
+      {
+        "name": "EntityTableHandle",
         "kind": "type"
       },
       {
@@ -327,6 +335,10 @@
       },
       {
         "name": "FieldValidationError",
+        "kind": "type"
+      },
+      {
+        "name": "FilterQuery",
         "kind": "type"
       },
       {
@@ -730,6 +742,10 @@
         "kind": "value"
       },
       {
+        "name": "QueryTableHandle",
+        "kind": "type"
+      },
+      {
         "name": "readRowMove",
         "kind": "value"
       },
@@ -870,6 +886,10 @@
         "kind": "type"
       },
       {
+        "name": "TreeItemDirective",
+        "kind": "both"
+      },
+      {
         "name": "TreeSelect",
         "kind": "value"
       },
@@ -879,6 +899,10 @@
       },
       {
         "name": "UIRuleGroup",
+        "kind": "type"
+      },
+      {
+        "name": "UIRuleWithWhere",
         "kind": "type"
       },
       {

@@ -169,7 +169,7 @@ aiao/
 ├── benchmarks/                      # 性能测试
 ├── docker/                          # Docker 配置
 ├── examples/                        # 集成演示
-├── modules/                         # 内部共享模块（angular / angular-todo / recipes-domain / rxdb-devtools-panel / wujie）
+├── modules/                         # 内部共享模块（angular / angular-todo / e2e-parity / recipes-domain / rxdb-devtools-panel / wujie）
 ├── packages/                        # 核心库
 │   ├── rxdb/                        # 核心：模型、查询、适配器接口
 │   ├── rxdb-adapter-wa-sqlite/      # WA SQLite 适配器

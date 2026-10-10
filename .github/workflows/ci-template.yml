@@ -585,6 +585,14 @@ jobs:
         with:
           anon-key: ${{ env.VITE_SUPABASE_KEY }}
 
+      # SQL 安全回归（零散收尾项第 9 条）：参考 SQL 的回归用例，跑在 supabase action 刚拉起的
+      # 栈上。CI 的栈用 compose 默认容器名 supabase-db（action 不设隔离标识），脚本在找不到
+      # 隔离状态文件时回落该名字；本地经 test-env 起的隔离栈则由状态文件解析出派生名。
+      # production-change-grants 用例在事务内加载生产权限脚本，随 ROLLBACK 撤销，不留痕迹。
+      - name: Supabase SQL security regressions
+        if: matrix.supabase
+        run: pnpm exec nx run rxdb-adapter-supabase:sql-security-regressions
+
       # final + summary 必须同时生成：覆盖率门禁会从 final 重算原始计数，
       # 拒绝损坏或跨代的 summary（见 scripts/coverage-artifacts.mjs）。
       #

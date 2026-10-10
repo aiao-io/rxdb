@@ -14,6 +14,7 @@ import { Todo } from '@aiao/rxdb-test/entities';
 import { filter, firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
+import { getSupabaseServiceRoleClient } from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
@@ -31,8 +32,9 @@ describe('同步测试 - SQLite + Supabase', () => {
     try {
       // 按依赖顺序清理
       // todos 上有 change 触发器：必须先删实体，再清 rxdb_change，否则会残留 DELETE change
+      // （rxdb_change 直删走 service_role，anon 只剩 SELECT——零散收尾项第 13 条）
       await adapter.client.from('todos').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await adapter.client.from('rxdb_change').delete().neq('id', 0);
+      await getSupabaseServiceRoleClient().from('rxdb_change').delete().neq('id', 0);
     } catch (error) {
       console.warn('Cleanup warning:', error);
     }
@@ -103,16 +105,18 @@ describe('同步测试 - SQLite + Supabase', () => {
     });
     if (error) throw error;
 
-    // 同时插入 RxDBChange 记录
-    await remoteAdapter.client.from('rxdb_change').insert({
-      namespace: 'public',
-      entity: 'Todo',
-      entityId: data.id,
-      type: 'INSERT',
-      patch: { id: data.id, title: data.title, completed: data.completed ?? false },
-      clientId: 'remote-client',
-      createdAt: new Date().toISOString()
-    });
+    // 同时插入 RxDBChange 记录（模拟另一客户端推送；日志表直写走 service_role，零散收尾项第 13 条）
+    await getSupabaseServiceRoleClient()
+      .from('rxdb_change')
+      .insert({
+        namespace: 'public',
+        entity: 'Todo',
+        entityId: data.id,
+        type: 'INSERT',
+        patch: { id: data.id, title: data.title, completed: data.completed ?? false },
+        clientId: 'remote-client',
+        createdAt: new Date().toISOString()
+      });
   }
 
   /**
@@ -125,7 +129,7 @@ describe('同步测试 - SQLite + Supabase', () => {
       .eq('id', id);
     if (error) throw error;
 
-    await remoteAdapter.client.from('rxdb_change').insert({
+    await getSupabaseServiceRoleClient().from('rxdb_change').insert({
       namespace: 'public',
       entity: 'Todo',
       entityId: id,
@@ -143,7 +147,7 @@ describe('同步测试 - SQLite + Supabase', () => {
     if (!remoteAdapter) return;
     try {
       await remoteAdapter.client.from('todos').delete().like('title', `${testPrefix}%`);
-      await remoteAdapter.client.from('rxdb_change').delete().like('entityId', `${testPrefix}%`);
+      await getSupabaseServiceRoleClient().from('rxdb_change').delete().like('entityId', `${testPrefix}%`);
     } catch (error) {
       console.warn('Cleanup warning:', error);
     }

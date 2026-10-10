@@ -62,6 +62,10 @@
         "kind": "value"
       },
       {
+        "name": "calculateDropMode",
+        "kind": "value"
+      },
+      {
         "name": "canReorderEntityList",
         "kind": "value"
       },
@@ -258,6 +262,10 @@
         "kind": "type"
       },
       {
+        "name": "EntityInstance",
+        "kind": "type"
+      },
+      {
         "name": "EntityListComponent",
         "kind": "both"
       },
@@ -267,6 +275,10 @@
       },
       {
         "name": "EntityTableConfig",
+        "kind": "type"
+      },
+      {
+        "name": "EntityTableHandle",
         "kind": "type"
       },
       {
@@ -323,6 +335,10 @@
       },
       {
         "name": "FieldValidationError",
+        "kind": "type"
+      },
+      {
+        "name": "FilterQuery",
         "kind": "type"
       },
       {
@@ -698,6 +714,18 @@
         "kind": "type"
       },
       {
+        "name": "QueryDragDropHandler",
+        "kind": "both"
+      },
+      {
+        "name": "QueryDragDropState",
+        "kind": "type"
+      },
+      {
+        "name": "QueryDropMode",
+        "kind": "type"
+      },
+      {
         "name": "QueryExample",
         "kind": "type"
       },
@@ -712,6 +740,10 @@
       {
         "name": "QueryTableComponent",
         "kind": "both"
+      },
+      {
+        "name": "QueryTableHandle",
+        "kind": "type"
       },
       {
         "name": "readRowMove",
@@ -863,6 +895,14 @@
       },
       {
         "name": "UIRule",
+        "kind": "type"
+      },
+      {
+        "name": "UIRuleGroup",
+        "kind": "type"
+      },
+      {
+        "name": "UIRuleWithWhere",
         "kind": "type"
       },
       {

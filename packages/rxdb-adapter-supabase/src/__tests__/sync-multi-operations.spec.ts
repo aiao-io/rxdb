@@ -22,7 +22,7 @@ import { Todo } from '@aiao/rxdb-test/entities';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
-import { cleanupSqliteAdapter, LOCAL_RXDB_SYNC_TABLE } from './test-utils.js';
+import { cleanupSqliteAdapter, getSupabaseServiceRoleClient, LOCAL_RXDB_SYNC_TABLE } from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
@@ -61,7 +61,7 @@ describe('多次 Pull/Push 操作测试', () => {
     try {
       // todos 上有 change 触发器：必须先删实体，再清 rxdb_change，否则会残留 DELETE change
       await adapter.client.from('todos').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await adapter.client.from('rxdb_change').delete().neq('id', 0);
+      await getSupabaseServiceRoleClient().from('rxdb_change').delete().neq('id', 0);
     } catch (error) {
       console.warn('Cleanup warning:', error);
     }
@@ -86,16 +86,18 @@ describe('多次 Pull/Push 操作测试', () => {
     });
     if (error) throw error;
 
-    // 同时插入 RxDBChange 记录（模拟远程 push）
-    const changeResult = await remoteAdapter.client.from('rxdb_change').insert({
-      namespace: 'public',
-      entity: 'Todo',
-      entityId: data.id,
-      type: 'INSERT',
-      patch: { id: data.id, title: data.title, completed: false },
-      clientId: 'remote-client',
-      createdAt: new Date().toISOString()
-    });
+    // 同时插入 RxDBChange 记录（模拟远程 push；日志表直写走 service_role）
+    const changeResult = await getSupabaseServiceRoleClient()
+      .from('rxdb_change')
+      .insert({
+        namespace: 'public',
+        entity: 'Todo',
+        entityId: data.id,
+        type: 'INSERT',
+        patch: { id: data.id, title: data.title, completed: false },
+        clientId: 'remote-client',
+        createdAt: new Date().toISOString()
+      });
     if (changeResult.error) throw changeResult.error;
 
     // 轮询验证数据已提交（最多等待2秒）

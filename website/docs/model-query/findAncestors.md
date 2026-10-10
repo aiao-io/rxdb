@@ -55,6 +55,8 @@ const breadcrumb = ancestors.slice().reverse();
 
 不要假设数据库天然返回”从根到叶”的顺序。如 UI 依赖顺序，应在业务层显式处理，如 `reverse()`。
 
+树查询不接收 `orderBy`。树里兄弟的显示顺序（建树顺序）来自常规查询的默认排序：对声明 `manualOrder: { groupBy: ['parentId'] }` 的可排序树实体，不带 `orderBy` 的查询按 `[parentId, sortOrder, id]` 返回。见[手动排序（manualOrder 与 reorder）](../model-mutation/reorder.md)。
+
 ## 参考
 
 - [countAncestors](./countAncestors.md)

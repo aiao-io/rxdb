@@ -33,6 +33,12 @@ const listSnapshot = async (gear: ReturnType<typeof createFakeProviderGear>, par
   return result.result as FakeSnapshotPage;
 };
 
+/** expired 档的时钟推进手柄；缺席即装配坏了，直接抛。 */
+const advanceIdle = (gear: ReturnType<typeof createFakeProviderGear>): (() => void) => {
+  if (gear.advanceScenarioIdle === undefined) throw new Error('expired gear 缺时钟推进手柄');
+  return gear.advanceScenarioIdle;
+};
+
 describe('fake-provider-gear 镜像档', () => {
   it('三领域 descriptors 镜像真实档：kind、runtime 与限额', () => {
     const gear = createFakeProviderGear('ok');
@@ -121,21 +127,37 @@ describe('fake-provider-gear snapshot 场景', () => {
     if (result.outcome === 'failed') expect(result.error.code).toBe('snapshot_expired');
   });
 
-  it('expired：首页交付后 idle 立即到期，同 cursor 的下一次翻页答 snapshot_expired（不必双开）', async () => {
+  it('expired：推进时钟后 idle 立即到期，同 cursor 的下一次翻页答 snapshot_expired（不必双开）', async () => {
     // 这一档与 ok 的差别全在时钟：cursor idle 一挂上就到期。没有它的话，expired 与 ok
     // 在 wire 上逐字节相同，那一档的 env 值、Rust 校验和一整次 e2e 启动什么都没验到。
     const gear = createFakeProviderGear('expired');
 
     const first = await listSnapshot(gear, { snapshot: { pageSize: 100 } });
     expect(first.records).toHaveLength(100);
-    // 让 0 ms idle 计时器到期：快照在交付首页后随即被释放。
-    await new Promise(resolve => setTimeout(resolve, 0));
+    // 显式推进场景时钟：idle 回调即刻到期，快照在交付首页后随即被释放。
+    // 不赌真实 0 ms 计时器与下一次请求谁先到——那正是 e2e 在慢 runner 上偶发 timedOut 的根因。
+    advanceIdle(gear)();
 
     const result = await gear.provider('files').invoke('list', {
       snapshot: { cursor: { snapshotId: first.snapshotId, offset: first.offset + 100 } }
     });
     expect(result.outcome).toBe('failed');
     if (result.outcome === 'failed') expect(result.error.code).toBe('snapshot_expired');
+  });
+
+  it('expired：不推进时钟时 idle 不到期——同 cursor 的下一次翻页照常交付（不赌事件循环顺序）', async () => {
+    const gear = createFakeProviderGear('expired');
+
+    const first = await listSnapshot(gear, { snapshot: { pageSize: 100 } });
+    // 让出一个宏任务：两次翻页之间若只有微任务，旧实现的真实 0 ms idle 计时器根本没机会触发，
+    // 这条用例就钉不住「不推进就不到期」。让出之后，真实计时器必然已到期、快照已释放；
+    // 显式推进版里没人推进，快照必须还活着，第二页照常交付。
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const second = await listSnapshot(gear, {
+      snapshot: { cursor: { snapshotId: first.snapshotId, offset: first.offset + 100 } }
+    });
+    expect(second.records).toHaveLength(20);
+    expect(second.complete).toBe(true);
   });
 
   it('参数形状探针：畸形 spec 答 invalid_path，越界 pageSize 答 invalid_message', async () => {

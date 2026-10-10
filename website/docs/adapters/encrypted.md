@@ -138,6 +138,40 @@ await adapter.encryption.unlock({
 | 存储类型 | 所有加密列在数据库中均以 `TEXT` 存储                |
 | 口令派生 | PBKDF2，验证探针写入 DB，错误口令不保留密钥         |
 
+## bigint / binary 字段的加密（US-804）
+
+除字符串等既有类型外，加密适配器也支持加密 `PropertyType.bigint` 与 `PropertyType.binary` 字段，解密后恢复**原始运行时类型**（`bigint` / `Uint8Array`）：
+
+```typescript
+import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
+
+@Entity({
+  name: 'Ledger',
+  tableName: 'ledgers',
+  properties: [
+    { name: 'amount', type: PropertyType.bigint, encrypted: true },
+    { name: 'receipt', type: PropertyType.binary, encrypted: true }
+  ]
+})
+class Ledger extends EntityBase {
+  amount!: bigint;
+  receipt!: Uint8Array;
+}
+```
+
+编码与校验（以 `serializeForEnvelope` / `deserializeFromEnvelope` 实现为准）：
+
+| 类型     | 信封编码     | 校验与副本语义                                                           |
+| -------- | ------------ | ------------------------------------------------------------------------ |
+| `bigint` | 有符号十进制 | 必须落在 64 位范围内，超出或传 `number` 在加密前抛 `TypeError`           |
+| `binary` | 原字节入信封 | 只加密当前 `Uint8Array` 视图并复制明文；保存后修改原数组不影响已加密内容 |
+
+- 读取时 binary 返回**独立副本** `Uint8Array`，不与调用方共享可变 backing buffer。
+- 密文、tag 或类型标签被篡改时认证失败，不返回部分或退化值。
+- 既有加密限制**不放宽**：加密的 bigint / binary 同样不能用于主键、外键、索引、唯一约束、排序或查询，违反时照旧抛 `EncryptedConfigurationError` / `EncryptedQueryError`。
+- bigint 主键实体上的其他加密字段使用稳定、无歧义的 AAD（身份编码包含类型，不依赖裸 `String(id)`）。
+- save / read、undo / redo 与分支切换中解密类型一致。
+
 ## 约束
 
 以下字段**不能**标注 `encrypted: true`：

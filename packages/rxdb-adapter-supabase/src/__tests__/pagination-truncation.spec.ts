@@ -17,6 +17,7 @@ import { firstValueFrom } from 'rxjs';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
 import type { SupabaseTreeRepository } from '../SupabaseTreeRepository.js';
+import { getSupabaseServiceRoleClient } from './test-utils.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
 const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
@@ -84,7 +85,7 @@ describe('SUPA-004 / SUPA-005 — 超过 PostgREST max-rows 的结果集', () =>
   afterAll(async () => {
     // 子节点由 ON DELETE CASCADE 带走；变更日志按实体清理，避免污染后续用例的变更计数
     await adapter.client.from('menu_large').delete().eq('id', rootId);
-    await adapter.client.from('rxdb_change').delete().eq('entity', 'MenuLarge');
+    await getSupabaseServiceRoleClient().from('rxdb_change').delete().eq('entity', 'MenuLarge');
     childIds = [];
   }, LONG_RUNNING_MS);
 

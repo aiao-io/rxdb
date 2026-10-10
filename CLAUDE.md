@@ -25,7 +25,7 @@
 ```
 apps/          # 演示应用（angular/react/vue + electron/tauri/supabase）
 packages/      # 可发布库（rxdb-* / rxdb-adapter-* / rxdb-plugin-* / code-editor-*）
-modules/       # 内部共享模块（angular / angular-todo / recipes-domain / rxdb-devtools-panel / wujie）
+modules/       # 内部共享模块（angular / angular-todo / e2e-parity / recipes-domain / rxdb-devtools-panel / wujie）
 requirements/  # Epics / Stories / status-overview.md
 scripts/       # 构建 / 审计脚本（scripts/audit/）
 docker/        # 容器配置

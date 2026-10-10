@@ -20,6 +20,7 @@ import { MenuLarge } from '@aiao/rxdb-test/entities';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
 import type { SupabaseTreeRepository } from '../SupabaseTreeRepository.js';
+import { getSupabaseServiceRoleClient } from './test-utils.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
 const SUPABASE_KEY = import.meta.env['VITE_SUPABASE_KEY'] || '';
@@ -93,7 +94,7 @@ describe('SUPA-003 — 树查询应用 FindTreeOptions.where', () => {
 
   afterAll(async () => {
     await adapter.client.from('menu_large').delete().eq('id', ids['root']);
-    await adapter.client.from('rxdb_change').delete().eq('entity', 'MenuLarge');
+    await getSupabaseServiceRoleClient().from('rxdb_change').delete().eq('entity', 'MenuLarge');
   }, 60_000);
 
   it('findDescendants：锚点豁免，不匹配的子节点断链', async () => {

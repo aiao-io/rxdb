@@ -265,8 +265,10 @@ describe('fake 档 expired 场景：首页交付后 idle 立即到期，旧 curs
   }, 180_000);
 
   it('首页成立，走查在第一次翻页就按 snapshot_expired 停住', () => {
-    // 这一档与 ok 的差别全在时钟：cursor idle 一挂上就到期，走查不必双开就在第一次翻页
-    // 拿到 snapshot_expired。走查因此只读到第一页（100 条），complete 就是那个码——
+    // 这一档与 ok 的差别全在时钟：cursor idle 一挂上就到期。到期由驱动在第一次翻页前经
+    // 推进事件**显式**触发（fake-provider-gear.ts 的时钟不真挂 0 ms 计时器——赌事件循环
+    // 顺序在慢 runner 上偶发 timedOut），走查不必双开就在第一次翻页拿到 snapshot_expired。
+    // 走查因此只读到第一页（100 条），complete 就是那个码——
     // ok 档读到 120 条、complete ok，两档在 wire 上可区分，这一档才算真的验到了东西。
     const native = nativeOf(run());
     expect(native.snapshotFirstPage, wire(run())).toBe('ok');

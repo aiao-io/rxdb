@@ -10,7 +10,7 @@ import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
 import { Todo } from '@aiao/rxdb-test/entities';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { RxDBAdapterSupabase } from '../index.js';
-import { cleanupSqliteAdapter } from './test-utils.js';
+import { cleanupSqliteAdapter, getSupabaseServiceRoleClient } from './test-utils.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 const SUPABASE_URL = import.meta.env['VITE_SUPABASE_URL'] || '';
@@ -28,7 +28,7 @@ describe('Pull remoteId 调试测试', () => {
     try {
       // todos 上有 change 触发器：必须先删实体，再清 rxdb_change，否则会残留 DELETE change
       await adapter.client.from('todos').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-      await adapter.client.from('rxdb_change').delete().neq('id', 0);
+      await getSupabaseServiceRoleClient().from('rxdb_change').delete().neq('id', 0);
     } catch (error) {
       console.warn('Cleanup warning:', error);
     }
@@ -114,8 +114,8 @@ describe('Pull remoteId 调试测试', () => {
       updatedAt: new Date().toISOString()
     });
 
-    // 在远程 RxDBChange 表插入记录
-    const { error } = await remoteAdapter.client
+    // 在远程 RxDBChange 表插入记录（日志表直写走 service_role）
+    const { error } = await getSupabaseServiceRoleClient()
       .from('rxdb_change')
       .insert({
         namespace: 'public',
