@@ -25,6 +25,7 @@ const sidebars: SidebarsConfig = {
         'model-definition/relations',
         'model-definition/indexes',
         'model-definition/cascade',
+        'model-definition/permissions',
         'model-definition/structure-tree'
       ]
     },
@@ -78,7 +79,13 @@ const sidebars: SidebarsConfig = {
         type: 'doc',
         id: 'model-mutation/README'
       },
-      items: ['model-mutation/create', 'model-mutation/update', 'model-mutation/delete', 'model-mutation/transaction']
+      items: [
+        'model-mutation/create',
+        'model-mutation/update',
+        'model-mutation/delete',
+        'model-mutation/transaction',
+        'model-mutation/reorder'
+      ]
     },
     {
       type: 'category',
@@ -88,7 +95,7 @@ const sidebars: SidebarsConfig = {
         type: 'doc',
         id: 'frameworks/README'
       },
-      items: ['frameworks/react', 'frameworks/vue', 'frameworks/angular']
+      items: ['frameworks/react', 'frameworks/vue', 'frameworks/angular', 'frameworks/taro']
     },
     {
       type: 'category',
@@ -123,7 +130,11 @@ const sidebars: SidebarsConfig = {
         'adapters/http-protocol',
         'adapters/sqlite-wasm',
         'adapters/sqliteai',
-        'adapters/encrypted'
+        'adapters/encrypted',
+        'adapters/miniprogram',
+        'adapters/electron',
+        'adapters/tauri',
+        'adapters/backup'
       ]
     },
     {

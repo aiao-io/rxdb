@@ -126,8 +126,8 @@ if (!result.valid) {
 
 ## 手动排序实体（US-028）
 
-声明了排序域的实体按「分组字段组合 + 手动顺序」排序；`defaultListOrderBy` 给出实体默认排序，`canReorderEntityList` 判定当前列表是否允许拖拽排序，`commitRowMove` 把行拖放结果落库。`EntityList` 已内置这些行为，直接使用组件即可。
+声明了排序域的实体按「分组字段组合 + 手动顺序」排序；`defaultListOrderBy` 给出实体默认排序，`canReorderEntityList` 判定当前列表是否允许拖拽排序，`commitRowMove` 把行拖放结果落库。`EntityList` 已内置这些行为，直接使用组件即可。引擎侧的手动排序声明与 `Repository.reorder()` 语义见[手动排序（manualOrder 与 reorder）](../model-mutation/reorder.md)。
 
 ## 界面能力派生（US-027）
 
-`deriveEntityCapabilities(metadata)` 把实体的写操作权限（create / update / delete 各为 `both` 或 `system`）投影为界面能力 `{ canCreate, canEdit, canDelete }`：`EntityList` 据此隐藏「+ 新增」、把行降级为只读（详情以查看模式打开）、或隐藏操作列的删除入口。
+`deriveEntityCapabilities(metadata)` 把实体的写操作权限（create / update / delete 各为 `both` 或 `system`）投影为界面能力 `{ canCreate, canEdit, canDelete }`：`EntityList` 据此隐藏「+ 新增」、把行降级为只读（详情以查看模式打开）、或隐藏操作列的删除入口。权限声明与运行时判定语义见[实体操作权限](../model-definition/permissions.md)。

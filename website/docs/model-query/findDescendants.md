@@ -83,6 +83,10 @@ const visibleDescendants = await firstValueFrom(
 - 加载某个目录下的全部子节点
 - 对某个子树做批量过滤
 
+## 结果顺序与手动排序
+
+树查询不接收 `orderBy`，结果按「层级 + 主键」返回（同层兄弟按主键排，不是手动顺序）。树里兄弟的显示顺序（建树顺序）来自常规查询的默认排序：对声明 `manualOrder: { groupBy: ['parentId'] }` 的可排序树实体，不带 `orderBy` 的查询按 `[parentId, sortOrder, id]` 返回——建树时直接按查询顺序渲染，就是手动顺序。见[手动排序（manualOrder 与 reorder）](../model-mutation/reorder.md)。
+
 ## 参考
 
 - [countDescendants](./countDescendants.md)

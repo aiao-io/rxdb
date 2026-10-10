@@ -60,6 +60,8 @@ Repository 'TreeRepository' not found for entity 'Menu'. 已注册的仓储：Re
 + import { TreeAdjacencyListEntityBase, TreeEntity } from '@aiao/rxdb-plugin-tree';
 ```
 
+**手动排序不在搬家清单里。** `manualOrder`、`Repository.reorder()` 与排序模块在 `@aiao/rxdb` 核心，不随树插件走；树实体声明 `manualOrder: { groupBy: ['parentId'] }` 后，`TreeRepository` 继承自 `Repository` 直接获得 `reorder()`。见[手动排序（manualOrder 与 reorder）](../model-mutation/reorder.md)。
+
 `EntityMetadataFeatures.tree` 由插件通过 `declare module '@aiao/rxdb'` 增广而来：没装插件时写 `features: { tree: ... }` 是**编译错误**，而不是运行期被静默忽略。
 
 ### 框架包 → 框架插件包

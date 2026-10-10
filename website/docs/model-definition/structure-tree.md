@@ -146,6 +146,38 @@ b.parentId = root.id;
 await b.save();
 ```
 
+## 可排序树实体
+
+树的兄弟域在结构上就是「以 `parentId` 为分组字段、根节点为 NULL 组」的排序域。给树实体声明 `manualOrder: { groupBy: ['parentId'] }` 并自带非空 `sortOrder` 字段，就获得手动排序能力：
+
+```ts
+import { ISortableEntity, PropertyType, SortOrderKey } from '@aiao/rxdb';
+import { TreeAdjacencyListEntityBase, TreeEntity } from '@aiao/rxdb-plugin-tree';
+
+@TreeEntity({
+  name: 'SortableMenu',
+  tableName: 'sortable_menu',
+  manualOrder: { groupBy: ['parentId'] },
+  properties: [
+    { name: 'title', type: PropertyType.string },
+    { name: 'sortOrder', type: PropertyType.string }
+  ]
+})
+export class SortableMenu extends TreeAdjacencyListEntityBase implements ISortableEntity {
+  title!: string;
+  sortOrder!: SortOrderKey;
+}
+```
+
+要点：
+
+- `parentId` 是多对一关系 `parent` 的外键列，可以作分组字段；根节点（`parentId` 为 NULL）是独立的 NULL 组
+- 默认查询顺序：不带 `orderBy` 的查询按 `[parentId asc, sortOrder asc, id asc]` 返回（NULL 组在前）——建树时直接按查询返回顺序渲染，兄弟顺序就是手动顺序
+- 新建不传 `sortOrder` 时自动追加到同父节点末尾；只改 `parentId` 的写入在同一事务内追加到新父节点末尾（删除并提升子节点正是这种写入）
+- `TreeRepository` 继承 `Repository`，天然获得 `reorder()`；跨父拖放即 `reorder(id, { group: { parentId: target.id } })`
+
+排序能力的完整说明见[手动排序（manualOrder 与 reorder）](../model-mutation/reorder.md)。
+
 ## 建议
 
 - 想要完整树能力，优先继承 `TreeAdjacencyListEntityBase`
