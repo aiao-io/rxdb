@@ -69,7 +69,7 @@ export abstract class TreeFileDragDropBase<C extends FileTreeEntityConstructor> 
     event.preventDefault();
     event.stopPropagation();
 
-    // 失败只进页内提示（`拖放失败：…`）；拖拽状态由 store.onDrop 的 finally 复位
+    // 失败只进页内提示（`拖放失败：…`）；拖拽状态在 store.onDrop 开始（异步写入前）就复位
     const done = await this.runWrite('拖放', () => this.store.onDrop(file));
 
     // 自动滚动到目标节点

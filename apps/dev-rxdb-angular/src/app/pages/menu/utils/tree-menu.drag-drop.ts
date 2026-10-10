@@ -71,7 +71,7 @@ export abstract class TreeMenuDragDropBase<C extends TreeMenuEntityConstructor> 
   async onDrop(event: DragEvent, targetMenu: TreeMenuInstance<C>): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
-    // 失败只进页内提示（`拖放失败：…`）；拖拽状态由 store.onDrop 的 finally 复位
+    // 失败只进页内提示（`拖放失败：…`）；拖拽状态在 store.onDrop 开始（异步写入前）就复位
     await this.runWrite('拖放', () => this.store.onDrop(targetMenu));
   }
 
