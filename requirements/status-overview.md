@@ -83,7 +83,7 @@
 - ✅ [US-906 Electron 桌面端 DevTools 面板的开发者可用路径](stories/future/US-906-electron-devtools-developer-path.md) — dev 变体扩展 + 桌面调试流程文档；AC#2 的人工半边（照 README 手跑一遍）不在承诺范围
 - ✅ [US-908 DevTools 传输取消与桌面文件会话的两条已知缺陷](stories/future/US-908-devtools-transfer-session-defects.md) — 两条均已关闭：`cancel()` 与 `complete()` 一样排空在途写入（取消后不留 `.rxdb-tmp`）；Electron 装配处接上 `pagehide → dispose()`，刷新不再泄 host 文件会话
 
-> （无故事文件）US-401 / US-701 查询构建器系列：该范围是 rxdb-model 实体模型库（框架无关核心 + 三框架 UI 组件集，含可视化查询构建器），原规格见 `git show 41ce2181:specs/002-rxdb-model-port/spec.md`。三框架代码已随 #62 合入，剩 Todo 同数据的跨框架对拍、三端对称复核与文档（T049 / T050 / T051），登记在 [roadmap 零散收尾项](roadmap.md#零散收尾项不成故事随手可带)第 2～4 条。
+> （无故事文件）US-401 / US-701 查询构建器系列：该范围是 rxdb-model 实体模型库（框架无关核心 + 三框架 UI 组件集，含可视化查询构建器），原规格见 `git show 41ce2181:specs/002-rxdb-model-port/spec.md`。三框架代码已随 #62 合入；文档页 T051 已随网站文档补齐（`website/docs/rxdb-model/README.md`，2026-10-10），剩 Todo 同数据的跨框架对拍与三端对称复核（T049 / T050），登记在 [roadmap 零散收尾项](roadmap.md#零散收尾项不成故事随手可带)第 2～3 条。
 
 ### [未来功能](epics/epic-004-future-features.md)
 

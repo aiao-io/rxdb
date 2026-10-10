@@ -8,23 +8,25 @@
 
 ## 适配器总览
 
-| 包                               | 文档                                                                                     | 底层引擎                                | FTS5 | 全文搜索 | AI/向量 | 用途                                                                    |
-| -------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------- | ---- | -------- | ------- | ----------------------------------------------------------------------- |
-| `@aiao/rxdb-adapter-wa-sqlite`   | [SQLite](./sqlite.md)                                                                    | wa-sqlite                               | ❌   | ❌       | ❌      | 默认浏览器本地存储，**推荐**                                            |
-| `@aiao/rxdb-adapter-sqlite`      | [SQLite](./sqlite.md)                                                                    | @sqlite.org/sqlite-wasm                 | ✅   | ✅       | ❌      | 官方构建，通用场景                                                      |
-| `@aiao/rxdb-adapter-sqlite-wasm` | [SQLite WASM](./sqlite-wasm.md)                                                          | @subframe7536/sqlite-wasm               | ✅   | ✅       | ❌      | 全文搜索 / 跨平台 VFS                                                   |
-| `@aiao/rxdb-adapter-sqliteai`    | [SQLiteAI](./sqliteai.md)                                                                | @sqliteai/sqlite-wasm                   | ✅   | ✅       | ✅      | 本地 AI / 语义检索                                                      |
-| `@aiao/rxdb-adapter-pglite`      | [PGlite](./pglite.md)                                                                    | PGlite (PostgreSQL)                     | —    | ✅       | —       | 更强 SQL / PostgreSQL 兼容                                              |
-| `@aiao/rxdb-adapter-supabase`    | [Supabase](./supabase.md)                                                                | —                                       | —    | —        | —       | 远端 PostgreSQL 同步                                                    |
-| `@aiao/rxdb-adapter-http`        | [HTTP](./http.md)                                                                        | —                                       | —    | —        | —       | 自有 REST API 远端，仅 QueryCache                                       |
-| `@aiao/rxdb-adapter-encrypted`   | [字段加密](./encrypted.md)                                                               | —                                       | —    | —        | —       | AES-GCM-256 字段加密，叠加在本地适配器上                                |
-| `@aiao/rxdb-adapter-sqlite-core` | —                                                                                        | —                                       | —    | —        | —       | SQLite 共享核心代码（内部依赖）                                         |
-| `@aiao/rxdb-adapter-electron`    | [包 README](https://github.com/aiao-io/rxdb/tree/main/packages/rxdb-adapter-electron)    | node:sqlite / PGlite（Electron 主进程） | —    | ❌       | ❌      | Electron 真文件落盘；注册名 `sqlite-electron`（另有 `pglite-electron`） |
-| `@aiao/rxdb-adapter-tauri`       | [包 README](https://github.com/aiao-io/rxdb/tree/main/packages/rxdb-adapter-tauri)       | rusqlite（Rust 宿主，自备）             | —    | ❌       | ❌      | Tauri 真文件落盘；注册名 `sqlite-tauri`                                 |
-| `@aiao/rxdb-adapter-miniprogram` | [包 README](https://github.com/aiao-io/rxdb/tree/main/packages/rxdb-adapter-miniprogram) | wa-sqlite（小程序 WASM 入口）           | —    | ❌       | ❌      | 微信/抖音/支付宝小程序，实验性；注册名 `wa-sqlite-miniprogram`          |
-| `@aiao/rxdb-adapter-desktop`     | [拆包迁移](../migration/desktop-split.md)                                                | —                                       | —    | —        | —       | 旧桌面适配器（注册名 `desktop`），已拆分为 electron / tauri             |
+| 包                                | 文档                                    | 底层引擎                                    | FTS5 | 全文搜索     | AI/向量   | 用途                                                                      |
+| -------------------------------- | ------------------------------------- | --------------------------------------- | ---- | -------- | ------- | ----------------------------------------------------------------------- |
+| `@aiao/rxdb-adapter-wa-sqlite`   | [SQLite](./sqlite.md)                 | wa-sqlite                               | ❌    | ❌        | ❌       | 默认浏览器本地存储，**推荐**                                                        |
+| `@aiao/rxdb-adapter-sqlite`      | [SQLite](./sqlite.md)                 | @sqlite.org/sqlite-wasm                 | ✅    | ✅        | ❌       | 官方构建，通用场景                                                               |
+| `@aiao/rxdb-adapter-sqlite-wasm` | [SQLite WASM](./sqlite-wasm.md)       | @subframe7536/sqlite-wasm               | ✅    | ✅        | ❌       | 全文搜索 / 跨平台 VFS                                                          |
+| `@aiao/rxdb-adapter-sqliteai`    | [SQLiteAI](./sqliteai.md)             | @sqliteai/sqlite-wasm                   | ✅    | ✅        | ✅       | 本地 AI / 语义检索                                                            |
+| `@aiao/rxdb-adapter-pglite`      | [PGlite](./pglite.md)                 | PGlite (PostgreSQL)                     | —    | ✅        | —       | 更强 SQL / PostgreSQL 兼容                                                  |
+| `@aiao/rxdb-adapter-supabase`    | [Supabase](./supabase.md)             | —                                       | —    | —        | —       | 远端 PostgreSQL 同步                                                        |
+| `@aiao/rxdb-adapter-http`        | [HTTP](./http.md)                     | —                                       | —    | —        | —       | 自有 REST API 远端，仅 QueryCache                                             |
+| `@aiao/rxdb-adapter-encrypted`   | [字段加密](./encrypted.md)                | —                                       | —    | —        | —       | AES-GCM-256 字段加密，叠加在本地适配器上                                              |
+| `@aiao/rxdb-adapter-sqlite-core` | —                                     | —                                       | —    | —        | —       | SQLite 共享核心代码（内部依赖）                                                     |
+| `@aiao/rxdb-adapter-electron`    | [Electron](./electron.md)             | node:sqlite / PGlite（Electron 主进程）      | —    | ❌        | ❌       | Electron 真文件落盘；注册名 `sqlite-electron`（另有 `pglite-electron`）              |
+| `@aiao/rxdb-adapter-tauri`       | [Tauri](./tauri.md)                   | rusqlite（Rust 宿主，自备）                    | —    | ❌        | ❌       | Tauri 真文件落盘；注册名 `sqlite-tauri`                                          |
+| `@aiao/rxdb-adapter-miniprogram` | [小程序](./miniprogram.md)               | wa-sqlite（小程序 WASM 入口）                  | —    | ❌        | ❌       | 微信/抖音/支付宝小程序，实验性；注册名 `wa-sqlite-miniprogram`                            |
+| `@aiao/rxdb-adapter-desktop`     | [拆包迁移](../migration/desktop-split.md) | —                                       | —    | —        | —       | 旧桌面适配器（注册名 `desktop`），已拆分为 electron / tauri                             |
 
-> **一句话决策**：默认 wa-sqlite → 全文搜索换 sqlite-wasm → AI 换 sqliteai → SQL 复杂换 PGlite → 云同步叠 Supabase（自有 REST API 则叠 HTTP）→ 加密叠 encrypted。
+桌面端（electron / tauri）本地库的一致性备份与恢复见 [备份与恢复](./backup.md)。
+
+> **一句话决策**：默认 wa-sqlite → 全文搜索换 sqlite-wasm → AI 换 sqliteai → SQL 复杂换 PGlite → 云同步叠 Supabase（自有 REST API 则叠 HTTP）→ 加密叠 encrypted。小程序走 [Taro 插件入口](../frameworks/taro.md) 一步接入。
 
 ## 数据类型支持
 

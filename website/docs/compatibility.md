@@ -59,7 +59,7 @@
 | `@aiao/rxdb-adapter-http`        | 适配器     | 自有 REST API 远端；**仅 `SyncType.QueryCache`**，changelog 方法一律 unsupported throw                                              |
 | `@aiao/rxdb-adapter-encrypted`   | 加密工具包 | 密钥环与信封编解码；非适配器，由 sqlite-core / pglite 内部使用                                                                      |
 | `@aiao/rxdb-adapter-miniprogram` | 适配器     | **实验性**，微信 / 抖音 / 支付宝小程序逻辑层（抖音、支付宝 Android 未验证）；基于 wa-sqlite，依赖 `@aiao/rxdb-adapter-wa-sqlite`    |
-| `@aiao/rxdb-taro`                | 构建插件   | **实验性**，Taro 4.3（vite 编译器）一行接入 `@aiao/rxdb-adapter-miniprogram`，微信 / 抖音；支付宝经 `./vite` 子路径；Node `>=20.19` |
+| `@aiao/rxdb-taro`                | 构建插件   | **实验性**，Taro 4.3（vite 编译器）一行接入 `@aiao/rxdb-adapter-miniprogram`，微信 / 抖音；支付宝经 `./vite` 子路径；Node `>=20.19`；使用指南见 [Taro（小程序）](./frameworks/taro.md) |
 | `@aiao/rxdb-plugin-search`       | 插件       | 放行名单见下方「运行时能力 × 适配器」之后的说明；未放行的适配器 fail-fast                                                           |
 | `@aiao/rxdb-plugin-working-tree` | 插件       | 工作树与提交历史；`use()` 必须排在 `connect()` 之前，声明 10 张系统表并写能力水位                                                   |
 | `@aiao/rxdb-plugin-replay`       | 插件       | 基于 rrweb 的会话录制与回放；事件流写入独立录制库，可选依赖 working-tree 打 commit 标记                                             |
@@ -116,7 +116,7 @@
 运行时启动前需调用 `@aiao/rxdb-adapter-miniprogram/runtime` 的 `prepareMiniProgramRuntime(wx)`（微信），
 `prepareMiniProgramHostRuntime(createDouyinMiniProgramHost(tt, { runtimeGlobal }))`（抖音），
 或 `prepareMiniProgramHostRuntime(createAlipayMiniProgramHost(my, { randomWorker, webAssembly }))`（支付宝，Worker 脚本与 wasm 文本副本的放法见包 README），
-缺少任一必需能力时 fail-fast 并列出全部缺失项。详见[包 README](https://github.com/aiao-io/rxdb/tree/main/packages/rxdb-adapter-miniprogram)。
+缺少任一必需能力时 fail-fast 并列出全部缺失项。详见[小程序适配器](./adapters/miniprogram.md)。
 
 ## 参考
 

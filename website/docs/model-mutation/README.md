@@ -5,6 +5,7 @@
 - 单条实体:`save()`、`remove()`、`reset()`
 - 批量实体:`rxdb.entityManager.saveMany()`、`rxdb.entityManager.removeMany()`
 - 更底层写入:`rxdb.entityManager.create()`、`update()`、`remove()`
+- 手动排序:`Repository.reorder()`(声明 `manualOrder` 的实体)
 
 ## 推荐入口
 
@@ -15,6 +16,7 @@
 | 删除一条       | `entity.remove()`                 | 拿到实体实例时最直接                     |
 | 批量创建或更新 | `rxdb.entityManager.saveMany()`   | 统一合成 mutation                        |
 | 批量删除       | `rxdb.entityManager.removeMany()` | 避免逐条循环删除                         |
+| 手动排序       | `Repository.reorder(id, target)`  | 仅限声明 `manualOrder` 的实体            |
 
 ## 写入关系图
 
@@ -67,3 +69,4 @@ console.log(status.modified);
 - [更新数据](./update.md)
 - [删除数据](./delete.md)
 - [事务机制](./transaction.md)
+- [手动排序（manualOrder 与 reorder）](./reorder.md)

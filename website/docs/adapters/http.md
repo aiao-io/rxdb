@@ -187,6 +187,15 @@ offset 形态编 `ctx.offset`，token 形态编 `ctx.pageToken`。适配器只�
 `shape_switch` / `page_token_not_advancing` / `empty_page_limit` / `max_pages`。
 返回部分 metadata 会让缺席的 id 被当成「远端已删除」，把还活着的行从本地缓存抹掉。
 
+### `findByIds` 的分块
+
+`findByIds` 按 `idChunkSize`（默认 100）把 id 列表切成多块**串行**请求，按块序合并成一次结果：
+
+- **某块 reject → 整个 `findByIds` reject**，抛出的就是那一块的错误。失败块**不得**当成空块继续合并——缺了的那块 id 会在下一轮比对里被判成「远端已删除」。
+- **某块返回的行数少于本块 id 数是合法的**（远端确实删了这些行）：不重试、不补空对象。它与「这一块请求失败」是两件事，把两者分开正是分块循环的意义。
+- 所有块合并后**恰好发射一次再 `complete`**——逐块发射会让调用方的 `forkJoin` 只留最后一块，前面各块拉回来的完整行当场丢失（而那些行正是要写进本地缓存的数据）。
+- 响应体不是数组时抛 `HttpHandlerContractError`（`findByIds` 的 `parse` 必须产出行数组）。
+
 ## 配置项
 
 ```typescript
@@ -391,6 +400,8 @@ adapter.changeFeedEnabled; // boolean
 `getRepository` / `saveMany` / `removeMany` / `mutations` 一律抛 `HttpUnsupportedOperationError`。
 这不影响 QueryCache 的批量写——`EntityManager` 判定为 QueryCache 批后走 remote-then-local，
 不经过这些成员。同一个库里的 `SyncType.Full` 实体也照旧走它们自己的本地适配器。
+
+分支同步的四名成员——`pullChangesBatch` / `pushBranches` / `branchExists` / `pullBranches`——**连抛错的方法都不实现**（属性缺席）：它们的调用点做特性探测，缺席即回落到同样 throw 的成员。写一个返回 `[]` / `false` 的版本会让 Full-sync 与分支同步以为远端确实空着。
 
 ## 延伸阅读
 

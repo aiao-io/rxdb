@@ -45,6 +45,12 @@ const parentOnly = await firstValueFrom(
 );
 ```
 
+:::tip 顺序说明
+
+计数没有顺序概念。树里兄弟的显示顺序（建树顺序）来自常规查询的默认排序：对声明 `manualOrder: { groupBy: ['parentId'] }` 的可排序树实体，不带 `orderBy` 的查询按 `[parentId, sortOrder, id]` 返回。见[手动排序（manualOrder 与 reorder）](../model-mutation/reorder.md)。
+
+:::
+
 ## 参考
 
 - [findAncestors](./findAncestors.md)

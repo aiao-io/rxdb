@@ -47,6 +47,41 @@ rxdb.use(rxdbStorage, {
 });
 ```
 
+## 桌面端（原生文件系统）
+
+桌面场景下（US-504 Electron / US-505 Tauri），插件可以把文件内容写进宿主的**应用数据目录**（Electron 主进程 node:fs / Tauri Rust 文件宿主），而不是 WebView 的 OPFS——这样文件本体与 `StorageFileMeta` 所在的桌面 SQLite 库（[Electron 适配器](../../adapters/electron.md) / [Tauri 适配器](../../adapters/tauri.md)）落在**同一个备份域**：拷贝应用数据目录即可完整带走 metadata 与文件内容。
+
+### 启用
+
+从 `@aiao/rxdb-plugin-storage/desktop` 子路径导入工厂，经插件选项 `filesystem` 注入：
+
+```typescript
+import { rxdbStorage } from '@aiao/rxdb-plugin-storage';
+import { createDesktopStorageFilesystem } from '@aiao/rxdb-plugin-storage/desktop';
+
+rxdb.use(rxdbStorage, {
+  rootDir: 'uploads',
+  filesystem: createDesktopStorageFilesystem()
+});
+```
+
+- Electron 侧**不传** `transport`：与桌面适配器共用 preload 暴露的同一条 host 通道（`__aiaoRxdbDesktopHost__` 的 `request` / `subscribe`），不新增 preload 方法；Tauri 侧传入应用自己的 transport（`createDesktopStorageFilesystem({ transport })`）。
+- `./desktop` 只经子路径导出，**不从主入口再导出**：主入口要能安全打进浏览器 bundle，而桌面后端依赖 host 传输层。
+- 工厂被调用时立刻校验本地适配器：`sync.local.adapter` 不是桌面适配器（`sqlite-electron` / `sqlite-tauri`）时抛 `StorageBackendError('adapter_mismatch', …)` 拒绝启用，**不降级回 OPFS**——「文件在原生目录、meta 在 webview 存储」的备份域撕裂组合被禁止。
+- 物理文件位于应用数据目录内的专用存储根（Tauri 侧为 `<appDataDir>/rxdb-files/`，与 SQLite 的 `rxdb-data/` 同级）。
+
+### 与浏览器 OPFS 档的差异
+
+| 维度       | 浏览器 OPFS（默认）                                 | 桌面原生                                                                     |
+| -------- | -------------------------------------------- | ------------------------------------------------------------------------ |
+| 内容落点     | WebView 的 OPFS                               | 应用数据目录内的存储根                                                              |
+| 锁仲裁      | Web Locks（同源锁）                               | host 侧仲裁（跨窗口成立，后端提供 `lockBackend`，构造期断言其存在）                              |
+| 大文件      | 流式落盘                                         | 分帧流式（单帧 `DESKTOP_HOST_MAX_FILE_CHUNK_BYTES`），临时文件 + rename 原子替换，无半写文件    |
+| 路径       | 逻辑名直接可用                                      | 逻辑名→物理名确定性编码（NTFS 保留名 / 非法字符），路径逃逸由 host 二次校验                            |
+| MIME     | 浏览器按扩展名推断                                    | 原生文件无 MIME 概念；`read()` 以 metadata 的 `mimeType` 为权威重新贴 type               |
+
+API 面不变：`RxdbFileStorage` 的**全部**公开方法（`upload` / `read` / `download` / `preview` / `list` / `listEntries` / `createDirectory` / `rename` / `renameDirectory` / `delete` / `clear` / `getMeta` / `watch` 等）在桌面后端可直接使用，行为与 OPFS 后端一致。
+
 ## API
 
 ### 上传文件
