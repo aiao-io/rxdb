@@ -615,10 +615,7 @@ describe('TreeMenuDragDropStore 拖放交给引擎', () => {
     const menus = [dragMenu('A', null), dragMenu('B', null), dragMenu('C', null)];
     let resolveReorder!: () => void;
     // 第一次拖放的引擎写入挂起（CI 上 OPFS 事务可能慢到百毫秒级，期间用户已开始下一次拖放）
-    const { store, reorder } = makeDragStore(
-      menus,
-      () => new Promise<void>(resolve => (resolveReorder = resolve))
-    );
+    const { store, reorder } = makeDragStore(menus, () => new Promise<void>(resolve => (resolveReorder = resolve)));
 
     // 第一次拖放：B 拖进 A，放下后写入挂起
     store.onDragStart('B');

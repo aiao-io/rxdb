@@ -178,9 +178,7 @@ export function useDragDrop<T extends ISortableTreeEntity>(allItems: MaybeRef<T[
     const decision = resolve(draggedItem, targetItem, dropMode);
     if (decision.kind !== 'reorder') return;
 
-    const written = await options.guardWrite('拖放', () =>
-      options.repository.reorder(draggedItem.id, decision.target)
-    );
+    const written = await options.guardWrite('拖放', () => options.repository.reorder(draggedItem.id, decision.target));
     if (written && dropMode === 'into') onComplete?.(targetItem.id);
   };
 
