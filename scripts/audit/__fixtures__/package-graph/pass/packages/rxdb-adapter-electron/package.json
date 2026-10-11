@@ -1,0 +1,17 @@
+{
+  "name": "@aiao/rxdb-adapter-electron",
+  "version": "1.2.3",
+  "type": "module",
+  "dependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-adapter-sqlite-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "@aiao/rxdb-adapter-pglite": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@aiao/rxdb-adapter-pglite": {
+      "optional": true
+    }
+  }
+}

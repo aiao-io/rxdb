@@ -273,6 +273,15 @@ importers:
         specifier: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994
         version: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994
     devDependencies:
+      '@aiao/rxdb':
+        specifier: workspace:*
+        version: link:packages/rxdb
+      '@aiao/rxdb-adapter-pglite':
+        specifier: workspace:*
+        version: link:packages/rxdb-adapter-pglite
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:*
+        version: link:packages/rxdb-plugin-history
       '@analogjs/vite-plugin-angular':
         specifier: ^2.8.0
         version: 2.8.0(@angular/build@22.2.2(82c5f5d94438257c54f1afcd7dc55029))(@emnapi/core@1.11.3)(@emnapi/runtime@1.11.3)(vite@8.3.4(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(less@4.9.1)(sass-embedded@1.104.1)(sass@1.105.1)(terser@5.51.2)(yaml@2.9.0))
@@ -378,6 +387,9 @@ importers:
       '@testing-library/react':
         specifier: 16.3.3
         version: 16.3.3(@testing-library/dom@10.4.1)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@types/emscripten':
+        specifier: ^1.41.6
+        version: 1.41.6
       '@types/is-ci':
         specifier: ^3.0.4
         version: 3.0.4
@@ -9263,6 +9275,9 @@ packages:
 
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
+
+  '@types/emscripten@1.41.6':
+    resolution: {integrity: sha512-uN+9i8bFT5CUcZfyIEYDrSueACEyKGbUs5kC/72DGlZZoinh84sJfVV0i8UOJD1asdzkvLPBRrKs41kZ8MdEXg==}
 
   '@types/eslint@9.6.1':
     resolution: {integrity: sha512-FXx2pKgId/WyYo2jXw63kk7/+TY7u7AziEJxJAnSFzHlqTAS3Ync6SvgYAN/k4/PQpnnVuzoMuVnByKK2qp0ag==}
@@ -28313,6 +28328,8 @@ snapshots:
       '@types/ms': 2.1.0
 
   '@types/deep-eql@4.0.2': {}
+
+  '@types/emscripten@1.41.6': {}
 
   '@types/eslint@9.6.1':
     dependencies:

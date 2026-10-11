@@ -1,5 +1,6 @@
 import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
-import { afterEach, describe, expect, it } from 'vitest';
+import { AsyncQueueExecutor } from '@aiao/utils';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 
 /**
@@ -21,6 +22,46 @@ import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 })
 class PgExecNote extends EntityBase {
   label!: string;
+}
+
+async function verifyQueuedEntitySave(adapter: RxDBAdapterPGlite) {
+  const note = adapter.rxdb.entityManager.instantiate(PgExecNote);
+  note.label = 'before';
+  await note.save();
+  note.label = 'queued';
+  let signalQueued!: () => void;
+  const queued = new Promise<void>(resolve => {
+    signalQueued = resolve;
+  });
+  const original = AsyncQueueExecutor.prototype.addTask;
+  const probe: { queue?: AsyncQueueExecutor } = {};
+  let armed = false;
+  let saved: Promise<PgExecNote> | undefined;
+  const spy = vi.spyOn(AsyncQueueExecutor.prototype, 'addTask').mockImplementation(function (
+    this: AsyncQueueExecutor,
+    task,
+    id
+  ) {
+    probe.queue ??= this;
+    if (armed && this === probe.queue) signalQueued();
+    return original.call(this, task, id);
+  });
+  try {
+    await adapter.transaction(async executor => {
+      armed = true;
+      saved = note.save();
+      const state = await Promise.race([queued.then(() => 'queued'), saved.then(() => 'saved')]);
+      expect(state).toBe('queued');
+      const result = await executor.query('SELECT label FROM "pgexec"."pg_exec_note";');
+      expect(result.rows[0]?.[0]).toBe('before');
+    });
+  } finally {
+    armed = false;
+    spy.mockRestore();
+    await saved;
+  }
+  const result = await adapter.query<{ label: string }>('SELECT label FROM "pgexec"."pg_exec_note";');
+  expect(result.rows[0]?.label).toBe('queued');
 }
 
 describe('PGliteTransactionExecutor', () => {
@@ -53,6 +94,10 @@ describe('PGliteTransactionExecutor', () => {
   afterEach(async () => {
     const pending = databases.splice(0, databases.length);
     await Promise.all(pending.map(database => database.disconnectAll().catch(() => undefined)));
+  });
+
+  it('入口反例：事务内 entity.save() 排在本事务之后，不能在回调中等待', async () => {
+    await verifyQueuedEntitySave(await connect());
   });
 
   it('executor.getRepository() 的写入属于本事务：回滚后必须消失', async () => {

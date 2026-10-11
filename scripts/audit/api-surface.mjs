@@ -19,10 +19,11 @@
  *   pnpm audit:api-surface:update      # 重新生成基线
  */
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from 'typescript';
+import { scanPackages } from './lib/package-discovery.mjs';
 
 import { auditAssetWhitelistScope, resolveScanEntries } from './subpath-inventory.mjs';
 
@@ -100,18 +101,11 @@ const mode = process.argv.includes('--update') ? 'update' : 'check';
  * @returns {string[]} 包名（目录名）排序后
  */
 function listPublicPackages() {
-  return readdirSync(packagesDir)
-    .filter(name => {
-      const dir = join(packagesDir, name);
-      if (!statSync(dir).isDirectory()) return false;
-      if (EXCLUDED.has(name)) return false;
-      if (!existsSync(join(dir, 'src', 'index.ts'))) return false;
-      const pkgJsonPath = join(dir, 'package.json');
-      if (!existsSync(pkgJsonPath)) return false;
-      const pkgJson = JSON.parse(readFileSync(pkgJsonPath, 'utf8'));
-      // 跳过显式 private 包。
-      return pkgJson.private !== true;
-    })
+  return scanPackages(
+    packagesDir,
+    directory => !EXCLUDED.has(basename(directory)) && existsSync(join(directory, 'src/index.ts'))
+  )
+    .map(record => basename(record.directory))
     .sort();
 }
 

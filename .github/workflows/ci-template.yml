@@ -205,6 +205,12 @@ jobs:
       - name: API surface gate
         run: pnpm audit:api-surface
 
+      - name: Package composition knowledge gate
+        run: pnpm audit:package-graph
+
+      - name: Offline AI example and packed declarations
+        run: pnpm verify:ai-example
+
       # exports 里指向 .ts 的运行时 condition = 装到用户项目里的死链。
       # `@aiao/source` / `types` 是构建期条件，已在脚本里显式白名单（含 spec 说明理由）。
       - name: Package runtime conditions gate

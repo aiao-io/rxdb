@@ -27,7 +27,19 @@
       "!{projectRoot}/src/**/test-utils.ts",
       "!{projectRoot}/src/test-setup.[jt]s"
     ],
-    "sharedGlobals": []
+    "sharedGlobals": [],
+    "aiKnowledge": [
+      "{workspaceRoot}/package.json",
+      "{workspaceRoot}/requirements/package-graph.json",
+      "{workspaceRoot}/requirements/generated/**/*",
+      "{workspaceRoot}/packages/*/package.json",
+      "{workspaceRoot}/packages/rxdb-plugin-*/src/**/*",
+      "{workspaceRoot}/scripts/audit/package-graph.mjs",
+      "{workspaceRoot}/scripts/audit/lib/package-*.mjs",
+      "{workspaceRoot}/scripts/audit/templates/**/*",
+      "{workspaceRoot}/scripts/examples/ai-local/**/*",
+      { "runtime": "git describe --tags --match 'v[0-9]*' --abbrev=0" }
+    ]
   },
   "nxCloudId": "6a7b30a94caecff9b5bf52d6",
   "plugins": [
@@ -76,7 +88,7 @@
     },
     "version": {
       "conventionalCommits": true,
-      "preVersionCommand": "npx nx run-many -t build --projects='packages/*'",
+      "preVersionCommand": "pnpm audit:package-graph && pnpm nx run-many -t build --projects='packages/*'",
       "generatorOptions": { "updateDependents": "auto" }
     }
   },

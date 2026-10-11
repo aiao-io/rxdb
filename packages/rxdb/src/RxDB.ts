@@ -839,7 +839,10 @@ export class RxDB {
    * 安装插件
    *
    * `init()` 之前注册的插件在 `init()` 时统一安装；
-   * `init()` 之后注册的插件立即安装，保证与 `shutdown` 时的 destroy 对称。
+   * 普通插件在 `init()` 之后注册会立即安装，保证与 `shutdown` 时的 destroy 对称。
+   * 贡献仓储的插件必须在 `init()` 之前 `use()`，否则实体按旧的仓储注册表初始化。
+   * 带系统贡献的插件也必须在 `init()` 之前登记，晚装会直接拒绝。
+   * 首次 `connect()` 会同步调用 `init()`，因此这两类插件必须在首次 `connect()` 前安装。
    *
    * 停机窗口（`disconnect()` / `disconnectAll()` 已开始拆卸、尚未拆完）内调用只**登记**，
    * 安装推迟到下一次 `init()`——本纪元正在退场，往里装的东西没有对称的拆卸入口。
@@ -994,6 +997,10 @@ export class RxDB {
 
   /**
    * 连接适配器
+   *
+   * 首次 `connect()` 会在异步引导前同步调用 `init()`，先安装已登记的插件再初始化实体。
+   * 贡献仓储或带系统贡献的插件必须先 `use()` 再连接；普通插件仍允许连接后安装。
+   *
    * @param adapterName - 适配器名称
    * @returns 返回连接的适配器实例
    * @throws 引导期间被 `disconnect()` / `disconnectAll()` 中止时抛出（见 {@link RxDB.#connect_epochs}）

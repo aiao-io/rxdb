@@ -7,13 +7,14 @@
       "dependsOn": ["build", "^typecheck"]
     },
     "test": {
-      "dependsOn": ["^build", { "target": "test-node", "params": "ignore" }]
+      "dependsOn": ["^build", { "target": "test-node", "params": "ignore" }],
+      "inputs": ["default", "^production", { "env": "RXDB_PGLITE_NODE_TEST" }, { "env": "RXDB_PGLITE_TEST_FILE" }]
     },
     "test-node": {
       "cache": true,
       "dependsOn": ["^build"],
       "executor": "nx:run-commands",
-      "inputs": ["default", "^production"],
+      "inputs": ["default", "^production", { "env": "RXDB_PGLITE_NODE_TEST" }, { "env": "RXDB_PGLITE_TEST_FILE" }],
       "options": {
         "command": "vitest src/__tests__/system-schema-migration.spec.ts --browser.enabled=false --reporter=default",
         "cwd": "packages/rxdb-adapter-pglite"

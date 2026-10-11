@@ -9,22 +9,22 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 74   |
-| 🚧 In Progress | 1    |
+| 🚧 In Progress | 2    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 23   |
+| 📝 Backlog     | 22   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 99   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **23 条 Backlog 里只有 2 条是可开工的**（含 2026-10-02 由 owner 提前解锁阶段 A～C 的 [US-030](stories/core/US-030-declarative-storage-constraints.md)）：另外 20 条（BOM 领域模型 19 条 + [US-029](stories/core/US-029-rbac-owner-role-permission.md)）
+> **22 条 Backlog 里只有 1 条是可开工的**（含 2026-10-02 由 owner 提前解锁阶段 A～C 的 [US-030](stories/core/US-030-declarative-storage-constraints.md)）：另外 20 条（BOM 领域模型 19 条 + [US-029](stories/core/US-029-rbac-owner-role-permission.md)）
 > 标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期。
-> 两者在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
+> 可开工与暂不排期的故事在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（1 条）
+## 进行中（2 条）
 
 | Story                                                                          | 进展                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -157,7 +157,7 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 
 - ✅ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md)
-- ⬜ [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) — 语义事实源 + 漂移门禁 + 可运行样例（A1）→ `@aiao/*` peer 统一与打包消费验证（A2）→ 站点 `llms.txt`（B）→ 主包单份 Agent Skill（C，exporter 探针先行，可延期）；门禁按 `packages/*` 登记，投递只取最近 `v*` tag 树里的包，未发布包不给安装命令；MCP 另立故事。A2 是 `BREAKING CHANGE`，桥接区间已冻结，合入时点不受 [roadmap 约束 12](roadmap.md#排期约束) 牵制
+- 🚧 [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) — 2026-10-11 owner 授权并完成 A1 实现（入口 TSDoc、发布发现、语义事实源、漂移门禁、离线样例与 CI 接线）；A1 最终 affected 门禁已通过；A1 → `@aiao/*` peer 统一与打包消费验证（A2）→ 站点 `llms.txt`（B）→ 主包单份 Agent Skill（C，exporter 探针先行，可延期）；门禁按 `packages/*` 登记，投递只取最近 `v*` tag 树里的包，未发布包不给安装命令；MCP 另立故事。A2 是 `BREAKING CHANGE`，桥接区间已冻结，合入时点不受 [roadmap 约束 12](roadmap.md#排期约束) 牵制
 
 ### [生命周期作用域](epics/epic-008-lifecycle-scope.md)
 
