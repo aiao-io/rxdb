@@ -157,7 +157,7 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 
 - ✅ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md)
-- 🚧 [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) — 2026-10-11 owner 授权并完成 A1 实现（入口 TSDoc、发布发现、语义事实源、漂移门禁、离线样例与 CI 接线）；A1 最终 affected 门禁已通过；A1 → `@aiao/*` peer 统一与打包消费验证（A2）→ 站点 `llms.txt`（B）→ 主包单份 Agent Skill（C，exporter 探针先行，可延期）；门禁按 `packages/*` 登记，投递只取最近 `v*` tag 树里的包，未发布包不给安装命令；MCP 另立故事。A2 是 `BREAKING CHANGE`，桥接区间已冻结，合入时点不受 [roadmap 约束 12](roadmap.md#排期约束) 牵制
+- 🚧 [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) — 2026-10-11 owner 授权并完成 A1 实现（入口 TSDoc、发布发现、语义事实源、漂移门禁、离线样例与 CI 接线）；A1 最终 affected 门禁已通过；A1 → 站点 `llms.txt`（B，本地构建已完成，待线上 smoke）→ `@aiao/*` peer 统一与打包消费验证（A2）→ 主包单份 Agent Skill（C，exporter 探针先行，可延期）；门禁按 `packages/*` 登记，投递只取最近 `v*` tag 树里的包，未发布包不给安装命令；MCP 另立故事。A2 是 `BREAKING CHANGE`，桥接区间已冻结，合入时点不受 [roadmap 约束 12](roadmap.md#排期约束) 牵制
 
 ### [生命周期作用域](epics/epic-008-lifecycle-scope.md)
 
