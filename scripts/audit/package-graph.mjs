@@ -24,9 +24,10 @@ import { pathToFileURL } from 'node:url';
 import { discoverRelease, scanPackages } from './lib/package-discovery.mjs';
 import { analyzePackageGraph, auditPackageGraph } from './lib/package-graph-validation.mjs';
 import { buildKnowledge, renderKnowledge } from './lib/package-knowledge.mjs';
+import { renderSkill } from './lib/package-skill.mjs';
 
 export { queryCacheRequirements } from './lib/package-knowledge.mjs';
-export { analyzePackageGraph, auditPackageGraph, buildKnowledge, discoverRelease, renderKnowledge, scanPackages };
+export { analyzePackageGraph, auditPackageGraph, buildKnowledge, discoverRelease, renderKnowledge, renderSkill, scanPackages };
 
 /**
  * 读取知识生成的非事实源输入：模板、样例源、安装清单、编译选项与生成器源码。
@@ -39,6 +40,7 @@ export function readKnowledgeInput(root) {
   const sampleRoot = join(root, 'scripts/examples/ai-local');
   const generatorFiles = [
     join(root, 'scripts/audit/package-graph.mjs'),
+    join(root, 'scripts/audit/generate-skill.mjs'),
     ...readdirSync(join(root, 'scripts/audit/lib'))
       .filter(name => name.startsWith('package-') && name.endsWith('.mjs'))
       .map(name => join(root, 'scripts/audit/lib', name))
@@ -55,6 +57,7 @@ export function readKnowledgeInput(root) {
   return {
     compilerDependencies,
     template: readFileSync(join(root, 'scripts/audit/templates/package-knowledge.md'), 'utf8'),
+    skillTemplate: readFileSync(join(root, 'scripts/audit/templates/skill-aiao-rxdb.md'), 'utf8'),
     sample: readFileSync(join(sampleRoot, 'main.ts'), 'utf8'),
     compilerOptions: JSON.parse(readFileSync(join(sampleRoot, 'tsconfig.json'), 'utf8')).compilerOptions,
     install: JSON.parse(readFileSync(join(sampleRoot, 'install.json'), 'utf8')),
@@ -72,12 +75,12 @@ export function readKnowledgeInput(root) {
  */
 export function checkGenerated(root, rendered, update = false) {
   const outputs = [
-    ['package-knowledge.json', rendered.json],
-    ['package-knowledge.md', rendered.markdown]
+    [join(root, 'requirements/generated', 'package-knowledge.json'), rendered.json],
+    [join(root, 'requirements/generated', 'package-knowledge.md'), rendered.markdown],
+    [join(root, 'packages/rxdb/skills/aiao-rxdb', 'SKILL.md'), rendered.skill]
   ];
   const errors = [];
-  for (const [name, text] of outputs) {
-    const file = join(root, 'requirements/generated', name);
+  for (const [file, text] of outputs) {
     if (update) {
       mkdirSync(dirname(file), { recursive: true });
       writeFileSync(file, text);
@@ -99,7 +102,8 @@ function main() {
   if (graph.errors.length) throw new Error(graph.errors.join('\n'));
   const input = readKnowledgeInput(root);
   const knowledge = buildKnowledge(graph, release, input);
-  const generated = checkGenerated(root, renderKnowledge(knowledge, input.template), process.argv.includes('--update'));
+  const rendered = renderKnowledge(knowledge, input.template);
+  const generated = checkGenerated(root, { ...rendered, skill: renderSkill(knowledge, input.skillTemplate) }, process.argv.includes('--update'));
   if (generated.length) throw new Error(generated.join('\n'));
   console.log(
     `✅ 包组合门禁：登记 ${graph.records.length} 包，发布 ${release.packages.length} 包（${release.tag}），${knowledge.development.scenarios.length} 个情景`

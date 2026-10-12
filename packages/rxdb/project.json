@@ -6,6 +6,40 @@
   "sourceRoot": "packages/rxdb/src",
   "tags": ["js-lib"],
   "targets": {
+    "generate-skill": {
+      "// inputs": "US-602 C：改语义事实、模板、样例或生成器必须让 SKILL.md 重新生成，不能命中旧缓存（AC#17）。排除 skills/ 自身，避免生成结果回灌输入哈希。",
+      "inputs": [
+        "{projectRoot}/**/*",
+        "!{projectRoot}/skills/**",
+        "{workspaceRoot}/requirements/package-graph.json",
+        "{workspaceRoot}/packages/*/package.json",
+        "{workspaceRoot}/scripts/audit/templates/*",
+        "{workspaceRoot}/scripts/examples/ai-local/*",
+        "{workspaceRoot}/scripts/audit/package-graph.mjs",
+        "{workspaceRoot}/scripts/audit/generate-skill.mjs",
+        "{workspaceRoot}/scripts/audit/lib/package-*.mjs"
+      ],
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "packages/rxdb",
+        "command": "node ../../scripts/audit/generate-skill.mjs"
+      }
+    },
+    "build": {
+      "// dependsOn/inputs": "US-602 C：build 前先重生成 SKILL.md；事实源等输入变化必须让 build 缓存失效（与 generate-skill 同集合）。executor/options/outputs 由 vite 推断保留。",
+      "dependsOn": ["^build", "generate-skill"],
+      "inputs": [
+        "production",
+        "^production",
+        "{workspaceRoot}/requirements/package-graph.json",
+        "{workspaceRoot}/packages/*/package.json",
+        "{workspaceRoot}/scripts/audit/templates/*",
+        "{workspaceRoot}/scripts/examples/ai-local/*",
+        "{workspaceRoot}/scripts/audit/package-graph.mjs",
+        "{workspaceRoot}/scripts/audit/generate-skill.mjs",
+        "{workspaceRoot}/scripts/audit/lib/package-*.mjs"
+      ]
+    },
     "typecheck": {
       "dependsOn": ["build", "^typecheck"],
       "// inputs": "@nx/js/typescript 推断出的 inputs 是 production，把 spec 全排除了——src/__tests__/contracts/ 的编译期契约改一行也命中缓存，等于没有门禁。这里换成 default 把 spec 纳入哈希。",
