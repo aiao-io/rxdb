@@ -25,13 +25,15 @@
 ### 2.1 UI 文案全部硬编码中文
 
 rxdb-model 的框架无关核心与三端绑定包中，用户可见文案全部是硬编码中文字符串。2026-10-12 量级盘点
-（含少量注释残留，精确到 key 的盘点在阶段 A 交付）：
+（`grep -o` 统计字面量匹配次数、非行数；同一行可含多处。精确到 key 的盘点在阶段 A 交付，且**必须覆盖
+模板扩展名**——三端绑定包的 `.tsx` / `.html` / `.vue` 模板里另有中文文案，如 `dialog.tsx`、
+`entity-detail.html` 的「保存」，只扫 `*.ts` 会漏掉它们）：
 
 ```bash
-grep -rn --include="*.ts" -P "'[^']*[\x{4e00}-\x{9fff}][^']*'|\"[^\"]*[\x{4e00}-\x{9fff}][^\"]*\"|\`[^\`]*[\x{4e00}-\x{9fff}][^\`]*\`" \
+grep -rn --include="*.ts" -o -P "'[^']*[\x{4e00}-\x{9fff}][^']*'|\"[^\"]*[\x{4e00}-\x{9fff}][^\"]*\"|\`[^\`]*[\x{4e00}-\x{9fff}][^\`]*\`" \
   packages/rxdb-model/src packages/rxdb-model-angular/src packages/rxdb-model-react/src packages/rxdb-model-vue/src \
   | grep -v __tests__ | grep -v "\.spec\." | grep -v "^\s*\*" | grep -v "//" | wc -l
-# → 180
+# → 207 处字符串字面量（180 行）
 ```
 
 典型符号锚点（改 key 时逐处替换）：
@@ -136,11 +138,11 @@ node -e "console.log(process.version, typeof Intl.MessageFormat)"
    所有订阅组件经响应式查询自动重渲染，不需要事件总线或手动刷新，三端复用既有 hook 模式。
 3. **跨 Tab 语言一致。** 同源多 Tab 经 `RxDBTabsGateway` 传播，A 窗口切语言 B 窗口即时跟随
    （范围以 §2.3 的注释为准）。
-4. **用户偏好与数据国际化同源。** US-910 决策 5 的「用户显示偏好」就是本故事的 `preferredLocale`；
+4. **用户偏好与数据国际化同源。** US-910 决策 5 的「用户显示偏好」就是本故事的 `devicePreferredLocale`；
    UI 文案 fallback 与数据翻译 fallback 走同一份链、读同一份状态，数据语言和 UI 语言不会分叉。
 5. **目录是可同步数据（阶段 D）。** 翻译团队改文案 = 改数据，经 QueryCache 分发（远端权威 +
-   本地行缓存 + changeFeed 失效上报，均已交付）；客户端离线时永远有上一版可用。
-   冲突域 = 单条文案（per-message 行）。
+   本地行缓存 + changeFeed 失效上报，均已交付）；远端目录与本地覆盖**分实体存储**，同步的 orphan
+   清理只作用于远端实体，本地覆盖永不被远端删除；客户端离线时永远有上一版可用。冲突域 = 单条文案。
 6. **缺失 key 可观测。** 缺失 key 写入本地诊断实体，DevTools 面板逐行检视（阶段 D）。
 
 ## 5. 数据模型
@@ -158,32 +160,44 @@ updatedAt  date
 ```
 
 - `(locale, namespace, key)` 唯一索引，是合并键。
-- 合并优先级 **db 覆盖 > bundle 默认**；`source` 只做诊断，不参与合并。
+- **本地覆盖（`source: 'db'`）与远端目录（`source: 'remote'`）是两个实体、两张表**，行身份不共享：
+  QueryCache 的 orphan 清理只作用于远端实体，**本地覆盖永不被远端覆盖或删除**；远端缺某 key 不等于
+  删除本地覆盖，D3 的删除语义只在远端实体内收敛。
+- 合并优先级 **db 覆盖 > remote 远端 > bundle 默认**；`source` 只做诊断，不参与合并。
+- 目录注册与远端合入两条写入入口都做 ICU MessageFormat 语法校验，非法条目拒绝入库/合入（fail-fast）；
+  因此查找期不存在非法条目，不需要运行时兜底。
 - per-message 行的理由：覆盖粒度 = 单条文案、缺失检测天然成立、远端同步的冲突域 = 单条文案（LWW）、
   DevTools 可逐行检视。目录总量是千级行，不是性能问题。
 
 ### 5.2 `I18nSettings` 实体（单行）
 
 ```text
-id               string         // 'singleton'
-deviceLocale     string         // 宿主探测值
-preferredLocale  string | null  // 用户显式选择，即 US-910 决策 5 的「用户显示偏好」
-defaultLocale    string
+id                      string         // 'singleton'
+deviceLocale            string         // 宿主探测值
+devicePreferredLocale   string | null  // 用户显式选择，字段名与 US-910 决策 5 的「用户显示偏好」一致
+defaultLocale           string
 ```
 
-本地实体、不同步；设备 locale 不同步到其他设备（与 US-910 决策 5 一致）。
+- 实体显式声明 `type: SyncType.None`（[`SyncType`](../packages/rxdb/src/entity/sync-options.interface.ts)
+  枚举的 `None` 值），**不继承实例级默认同步策略**——语言偏好不 push 到其他设备（US-910 决策 5）。
+- 单行初始化是 **create-if-absent**（insert-or-ignore / upsert）：两个 tab 并发首次初始化时，
+  落败方不因主键冲突失败，而是重读该行继续；设备 locale 不同步到其他设备（US-910 决策 5）。
 
 ### 5.3 fallback 链（与 US-910 同一契约）
 
 ```text
 显式请求 locale（当前 UI 语言）
-→ 用户显式偏好（preferredLocale）
+→ 用户显式偏好（devicePreferredLocale）
 → 设备 locale
 → defaultLocale
 ```
 
+- **链上每个节点先查精确 locale，再按 BCP 47 父语言降级**（`fr-CA` → `fr` → 下一节点），
+  不因地域变体缺失而跳过已存在的父语言目录；父语言规则在纯函数中固定并测试。
 - BCP 47 规范化用 `Intl.getCanonicalLocales()`，无法规范化的 locale 拒绝。
-- 空字符串是已存在的文案值，不触发 fallback；全链缺失返回 `undefined`，不抛错。
+- 空字符串是已存在的文案值，不触发 fallback；`t()` 全链缺失时**返回 key 本身**（不抛、渲染安全），
+  并写入缺失 key 诊断实体（阶段 D）。数据翻译侧的 `resolveTranslation` 仍按 US-910 契约返回
+  `value: undefined`，两者语义分开。
 - 链去重，重复语言不重复查询。
 - 这份链与 US-910 `resolveTranslation` 的 fallback 语义一致，纯函数只实现一份，落点见决策记录 6。
 
@@ -206,7 +220,7 @@ defaultLocale    string
   跨 Tab 传播冒烟。
 - **阶段 B 核心运行时与三端绑定**：`@aiao/rxdb-i18n`（目录注册与合并、ICU 消息引擎、locale 状态、
   fallback 纯函数、命令式 `t()`）+ 三端 `useI18n()` 绑定。不依赖任何同步能力。
-- **阶段 C rxdb-model 去硬编码与 demo**：180 处文案改 key，默认 zh-Hans 目录随包发布；三端 demo
+- **阶段 C rxdb-model 去硬编码与 demo**：全部盘点文案（`.ts` 207 处 + 三端模板文案）改 key，默认 zh-Hans 目录随包发布；三端 demo
   语言切换器 + e2e。
 - **阶段 D 目录远端分发与可观测（可选后置，独立关闭）**：目录走 QueryCache 分发（前置已 Done）、
   缺失 key 诊断实体、DevTools i18n 面板。
@@ -215,20 +229,24 @@ defaultLocale    string
 
 1. 消息引擎采用 `intl-messageformat`（ICU MessageFormat 1）；平台 `Intl.MessageFormat` 未落地，
    不作为运行时依赖；数字/日期/相对时间格式化用平台 `Intl.*`。
-2. locale 状态是数据不是配置：rxdb 单行实体 `I18nSettings`，不用 localStorage / 全局单例。
-3. 目录两层：包内默认（bundle）+ 本地库 per-message 覆盖（db），合并键 `(locale, namespace, key)`，
-   db 覆盖 bundle。
+2. locale 状态是数据不是配置：rxdb 单行实体 `I18nSettings`（显式 `SyncType.None`、create-if-absent
+   初始化），不用 localStorage / 全局单例。
+3. 目录三层合并：**db 覆盖 > remote 远端 > bundle 默认**，合并键 `(locale, namespace, key)`；
+   远端目录与本地覆盖分实体存储，同步 orphan 清理不碰本地覆盖。
 4. rxdb-model 内置 zh-Hans 默认目录随包发布；不注册任何覆盖时默认渲染与现在逐字一致
    （Never break userspace），既有 options 参数（如 `buildEditableColumns` 的 `actionsTitle`）
    优先级高于目录。
-5. 小程序运行时明确排除，不写 fallback；解锁条件 = 真机 Intl 探针。
-6. 与 US-910 共享 BCP 47 规范化、fallback 链契约与「用户显示偏好」状态：纯函数只实现一份，
-   落点任选 `@aiao/rxdb-i18n` 或 `@aiao/utils`、不得双实现；US-910 的数据翻译 fallback 读取本故事的
-   `I18nSettings.preferredLocale` / `deviceLocale`。
+5. 小程序运行时明确排除，不写 fallback；真机 Intl 探针是**独立解锁条件**，不进入本故事任何阶段的 AC。
+6. 与 US-910 共享 BCP 47 规范化（含父语言降级）、fallback 链契约与「用户显示偏好」状态：持久化字段名
+   统一为 `devicePreferredLocale`；纯函数只实现一份，落点任选 `@aiao/rxdb-i18n` 或 `@aiao/utils`、
+   不得双实现；US-910 的数据翻译 fallback 读取本故事的 `I18nSettings.devicePreferredLocale` / `deviceLocale`。
 7. 包命名：客户端运行时用 `@aiao/rxdb-i18n`（+ `rxdb-i18n-{angular,react,vue}`）。它与 US-910 规划的
    `rxdb-plugin-i18n`（数据翻译）存在命名重叠——两个包都不存在、两条故事都在 Backlog，实现期由 owner
    裁决改名一方（推荐 US-910 改 `@aiao/rxdb-plugin-translation`），本文不修改 US-910。
-8. rxdb-model 框架无关核心（DOM 编辑器等）走命令式 `t()`；三框架绑定走响应式 `useI18n()`。
+8. rxdb-model 框架无关核心（DOM 编辑器等）走命令式 `t()`，并**订阅 locale 变化刷新已打开的编辑器文案**；
+   三框架绑定走响应式 `useI18n()`。
+9. 目录注册与远端合入时校验 ICU 语法（非法条目拒绝）；`t()` 全链缺失返回 key 本身并记录诊断，
+   不在渲染路径上抛错或返回 `undefined`。
 
 ## 参考
 
