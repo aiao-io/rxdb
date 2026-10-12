@@ -46,6 +46,10 @@
         "kind": "value"
       },
       {
+        "name": "assertNoEntityConstraintDrift",
+        "kind": "value"
+      },
+      {
         "name": "assertOptionalNonNegativeSafeInteger",
         "kind": "value"
       },
@@ -406,6 +410,10 @@
         "kind": "type"
       },
       {
+        "name": "EntityConstraintDriftReport",
+        "kind": "type"
+      },
+      {
         "name": "EntityData",
         "kind": "type"
       },
@@ -616,6 +624,10 @@
       {
         "name": "EventOrigin",
         "kind": "type"
+      },
+      {
+        "name": "expectedCheckConstraintNames",
+        "kind": "value"
       },
       {
         "name": "extractEntityFields",
@@ -868,6 +880,10 @@
       {
         "name": "IncrementalUpdateContext",
         "kind": "type"
+      },
+      {
+        "name": "inDriftScope",
+        "kind": "value"
       },
       {
         "name": "installWorkingTreeCapture",
