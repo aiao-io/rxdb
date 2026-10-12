@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-09
+updated: 2026-10-12
 tags: [domain, bom, extensibility, schema]
 ---
 
@@ -40,7 +40,8 @@ tags: [domain, bom, extensibility, schema]
 
 ### Out of Scope
 
-- 属性的界面编辑器——本 Epic 无归属故事（US-522 只做 BOM 结构编辑与展开视图，不含 `attr_def` 编辑器）；需要时由驱动场景另立故事
+- **产品级 `attr_def` 界面编辑器**——本 Epic 无归属故事（需要时由驱动场景另立故事）；
+  **演示级**展示与编辑面板随驱动场景（完整功能演示）落在 [US-525](US-525-bom-end-to-end-demo.md) 阶段 E（单端）
 - 跨组织的属性字典治理流程
 - EAV 表——**本故事明确不采用**
 
@@ -84,7 +85,8 @@ SQLite 侧的 `json_extract` 表达式索引与 generated column 索引同样在
 
 ## 价值待证
 
-同 [epic-009](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic)。
+已随 [epic-009 解锁记录](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic) 解锁（2026-10-12，owner 决定）。
+AC#3 / #7 仍等 [US-030](../core/US-030-declarative-storage-constraints.md) 阶段 D（价值待证）。
 
 ## 实现文件
 

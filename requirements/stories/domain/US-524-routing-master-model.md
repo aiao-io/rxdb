@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-09
+updated: 2026-10-12
 tags: [domain, bom, routing, cost]
 ---
 
@@ -58,7 +58,7 @@ AC 的阶段归属：A 关闭 AC#1 / #2 / #7 / #8 / #10 / #11；B 关闭 AC#3 / 
 | 4   | 某工作中心在卷算日期无生效费率                                          | 卷算                                                                                   | 明确报缺失项，**不以 0 兜底**                                                                     | ⬜   |
 | 5   | 工序 `setup_time = 2 h`、`fixed_time = 3 h`、`run_time = 0`，费率 1 / h | 批量 ×10 卷算加工项（US-514）                                                          | 加工项恒为 5，不随批量放大                                                                        | ⬜   |
 | 6   | 工序 20 声明 3% 损耗                                                    | 读工序                                                                                 | 损耗与 `scrap_convention` 可读，记法与 US-511 一致                                                | ⬜   |
-| 7   | 路线 `disabled_at = 2026-12-01`（路线级停用字段，阶段 A）               | 按停用前、后两个日期解析；再对已挂接该路线的 BOM 行展开（US-520）                      | 停用前该路线可解析；停用后不入结果，已挂接的 BOM 行报未覆盖（由 US-520 展开报出）而非静默算无工序 | ⬜   |
+| 7   | 路线 `disabled_at = 2026-12-01`（路线级停用字段，阶段 A）               | 按停用前、后两个日期解析；再对已挂接该路线的 BOM 行展开（US-520）                      | 停用前该路线可解析；停用后不入结果，已挂接的 BOM 行报未覆盖（由 US-520 展开报出，其 AC#11）而非静默算无工序 | ⬜   |
 | 8   | BOM 头 `routing_id` 指向本仓不存在的路线                                | 保存头                                                                                 | 拒绝；不接受「外部路线 ID」                                                                       | ⬜   |
 | 9   | 工序 10 加成制 2%、工序 20 良率制 3%                                    | 读工序并交给 US-511 第 5 步                                                            | 两道工序各按自己的 convention 计算，不被统一成一种                                                | ⬜   |
 | 10  | 头 `routing_id` 为 NULL                                                 | 卷算（US-514）                                                                         | 加工项为空且明细注明「无路线」；不是缺费率错误，也不是静默 0                                      | ⬜   |
@@ -103,17 +103,16 @@ A 就有两条 AC 关不掉。A 只建最小的工作中心（编码、组织）
 看起来正常的成本数字。
 
 **AC#4 / #5 / #7 / #9 / #10 的验证载体在消费方。** AC#4 / #5 / #10 要经 US-514 卷算验收，AC#9 交给 US-511 第 5 步，
-AC#7 由 US-520 的展开报出——本故事是它们的前置，验收断言却在消费方的行为上。阶段 A～C 与 US-514、阶段 D 与 US-511 B2
+AC#7 由 US-520 的展开报出（其 AC#11）——本故事是它们的前置，验收断言却在消费方的行为上。阶段 A～C 与 US-514、阶段 D 与 US-511 B2
 在**同一插件内共同开发、联合验证**：本故事的 AC 关闭以消费方用例绿为准，不各自线性排期
 （US-514 加工项等 A～C、US-511 B2 等 D，反过来它们的 AC 关闭又消费本故事——同一批交付，不单独置 Done）。
 
 ## 价值待证
 
-本故事与 [epic-009](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic) 其余各条同标
-**价值待证**：新增 `routing` / `work_center` / `activity_rate` 等抽象，对应零个已知病灶。
+本故事已随 [epic-009 解锁记录](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic) 解锁（2026-10-12，owner 决定）。
 
 **解锁顺序跟着消费方走**：阶段 A 是 [US-520](US-520-bom-routing-operation.md) 引用完整性的前置，A～C 是 US-514 加工项的前置，
-D 是 [US-511](US-511-bom-quantity-semantics.md) 阶段 B2 的前置。不需要工序挂接与加工成本的驱动场景，本故事不开工。
+D 是 [US-511](US-511-bom-quantity-semantics.md) 阶段 B2 的前置。驱动场景已出现（演示阶段 B / D 消费工序与加工费），开工顺序仍跟着消费方走。
 
 ## 实现文件
 
@@ -124,7 +123,7 @@ D 是 [US-511](US-511-bom-quantity-semantics.md) 阶段 B2 的前置。不需要
 - [epic-009 BOM 领域模型](../../epics/epic-009-bom-domain-model.md)
 - [US-507 BOM 图骨架](US-507-bom-graph-skeleton.md) — `bom_header` 唯一键 `(parent_revision_id, bom_type, org_id, alternative_no)` 的来源；`routing` 键与之逐列对齐（本故事 AC#11）
 - [US-516 EBOM ↔ MBOM 映射与差异对比](US-516-ebom-mbom-mapping.md) — EBOM / MBOM 是两张独立的头，共用父修订时各占一个路线位置；对路线没有需求
-- [US-520 工艺路线挂接与工序投料分摊](US-520-bom-routing-operation.md) — 消费 `(routing_id, operation_seq)` 的引用完整性
+- [US-520 工艺路线挂接与工序投料分摊](US-520-bom-routing-operation.md) — 消费 `(routing_id, operation_seq)` 的引用完整性；AC#7 的停用后未覆盖判定落在其 AC#11
 - [US-514 成本卷算](US-514-bom-cost-rollup.md) — 消费三类工时、`time_uom`、费率与 `rate_uom`（其 AC#18 / #19）
 - [US-511 展开数量正确性](US-511-bom-quantity-semantics.md) — 工序损耗记法的共用来源
 - [US-030 实体元数据层的声明式存储约束](../core/US-030-declarative-storage-constraints.md) — AC#3 的区间排他落点（阶段 C）

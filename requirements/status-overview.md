@@ -18,8 +18,8 @@
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **22 条 Backlog 里只有 1 条是可开工的**（含 2026-10-02 由 owner 提前解锁阶段 A～C 的 [US-030](stories/core/US-030-declarative-storage-constraints.md)）：另外 20 条（BOM 领域模型 19 条 + [US-029](stories/core/US-029-rbac-owner-role-permission.md)）
-> 标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期。
+> **22 条 Backlog 里 [US-030](stories/core/US-030-declarative-storage-constraints.md) 阶段 A～C 已提前解锁进批次 3；BOM 领域模型 19 条已于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）：[US-029](stories/core/US-029-rbac-owner-role-permission.md)
+> 仍标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期。
 > 可开工与暂不排期的故事在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
@@ -174,12 +174,14 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 
 ### [BOM 领域模型](epics/epic-009-bom-domain-model.md)
 
-**整条 Epic 标价值待证，全部 `priority: Low`，不进任何排期批次**——19 条故事约 15 项新增抽象对应零个已知病灶（US-525 不引入抽象），
-解锁条件见 [epic-009 价值待证](epics/epic-009-bom-domain-model.md#价值待证整个-epic)。
+**已解锁（2026-10-12，owner 决定）**：驱动者 = 需要一个完整功能的 BOM 演示应用（`apps/dev-rxdb-bom` 独立 app 展示全域能力，US-525 阶段 A～F）。
+豁免依据见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)，排期见 [roadmap 批次 4](roadmap.md#批次-4bom-首轮切片epic-009-已解锁)。
+「病灶数 ≥ 抽象数」（19 条故事约 15 项新增抽象对应零个已知病灶，US-525 不引入抽象）按 owner 决定豁免，写进解锁记录。
 没有一条带脱离 BOM 场景的独立病灶：graph 插件允许成环是既定语义，「写入期拒绝成环」（US-509）是 BOM 的领域约束。
-解锁后先拿真实样本复核默认决策，见 [epic-009 解锁前须先处理](epics/epic-009-bom-domain-model.md#解锁前须先处理)。
-四类引擎声明能力缺口已拆出为 [US-030](stories/core/US-030-declarative-storage-constraints.md)（归 epic-004），阶段 A～C 已提前解锁；
-epic-009 默认决策 1～8 由 owner 确认；第 0 步的形态样本（AdventureWorks）与手算 golden 已就位、未与决策冲突，本 Epic 仍等驱动者，见 [epic-009 第 0 步样本](epics/epic-009-bom-domain-model.md#第-0-步样本)。
+开工前先拿真实样本复核默认决策，见 [epic-009 解锁前须先处理](epics/epic-009-bom-domain-model.md#解锁前须先处理)。
+四类引擎声明能力缺口已拆出为 [US-030](stories/core/US-030-declarative-storage-constraints.md)（归 epic-004），阶段 A～C 已提前解锁（批次 3，首轮切片第 1 步的前置）；
+epic-009 默认决策 1～8 由 owner 确认；第 0 步的形态样本（AdventureWorks）与手算 golden 已就位、未与决策冲突，见 [epic-009 第 0 步样本](epics/epic-009-bom-domain-model.md#第-0-步样本)。
+US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值待证。
 
 - ⬜ [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md) — 三阶段；`bom_header` 挂修订、带 `draft` / `released`；逻辑行 `bom_line` 与行发生项 `bom_line_occurrence` 分层，跨行聚合在发布转移上校验
 - ⬜ [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md) — `ResolutionContext` 的 `as_of_date` 必填、禁止追溯生效；同一逻辑行的发生项区间排他落 US-030；结果附 manifest

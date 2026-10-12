@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-09
+updated: 2026-10-12
 tags: [domain, bom, angular, react, vue, ui]
 ---
 
@@ -98,7 +98,7 @@ AC#10 是它在路径维度上的同一要求：同一子装配经两条路径�
 
 ## 价值待证
 
-同 [epic-009](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic)。
+已随 [epic-009 解锁记录](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic) 解锁（2026-10-12，owner 决定）。三框架对称铁律不变：单端缺失 = 未完成。
 
 ## 实现文件
 
@@ -112,6 +112,8 @@ AC#10 是它在路径维度上的同一要求：同一子装配经两条路径�
 - [US-509 DAG 约束与环路检测](US-509-bom-dag-cycle-detection.md) — 前置（AC#3）：`draft` 头下成环写入的 `BomCycleError`（AC#1 / #17）
 - [US-510 多级展开与 where-used 反查](US-510-bom-multilevel-explosion.md) — 前置；路径身份
 - [US-511 展开数量正确性](US-511-bom-quantity-semantics.md) — 前置（AC#9 / #11 ①②）：阶段 A 的单位换算与用量、阶段 B1 的损耗、阶段 C 的 phantom 穿透
+- [US-512 替代组与替代策略](US-512-bom-substitute-group.md) — 仅本故事 AC#12 的 manual 替代未选候选展示（其 AC#8）
 - [US-515 变更管理](US-515-bom-change-management.md) — 前置（AC#2 / #6）：已发布头的写入协议与 ECN 状态转移
+- [US-518 序列与批次有效性](US-518-bom-unit-lot-effectivity.md) — 仅本故事 AC#12 的序列 / 批次候选展示（其 AC#6）
 - [US-520 工艺路线挂接与工序投料分摊](US-520-bom-routing-operation.md) — 前置（AC#11 ③）：工序编辑的 `operation_seq` 与分摊
 - [US-524 工艺路线本体](US-524-routing-master-model.md) — 前置（AC#11 ③）：工序实体（阶段 A）

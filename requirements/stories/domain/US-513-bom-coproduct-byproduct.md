@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-09
+updated: 2026-10-12
 tags: [domain, bom, process-industry]
 ---
 
@@ -103,7 +103,8 @@ AC#5 的理由：允许 `consume` 边带负用量等于给同一件事留了两�
 
 ## 价值待证
 
-同 [epic-009](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic)。
+已随 [epic-009 解锁记录](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic) 解锁（2026-10-12，owner 决定）。
+阶段 B（联产品与联合成本分配）仍价值待证，不随本记录解锁。
 
 ## 实现文件
 
