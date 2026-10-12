@@ -43,8 +43,20 @@ export class CheckQtyItem extends EntityBase {
       rule: {
         combinator: 'or',
         rules: [
-          { combinator: 'and', rules: [{ field: 'qty', operator: 'notNull' }, { field: 'qtyFormula', operator: 'null' }] },
-          { combinator: 'and', rules: [{ field: 'qty', operator: 'null' }, { field: 'qtyFormula', operator: 'notNull' }] }
+          {
+            combinator: 'and',
+            rules: [
+              { field: 'qty', operator: 'notNull' },
+              { field: 'qtyFormula', operator: 'null' }
+            ]
+          },
+          {
+            combinator: 'and',
+            rules: [
+              { field: 'qty', operator: 'null' },
+              { field: 'qtyFormula', operator: 'notNull' }
+            ]
+          }
         ]
       }
     }

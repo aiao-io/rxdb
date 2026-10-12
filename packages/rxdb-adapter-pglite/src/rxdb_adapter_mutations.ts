@@ -119,11 +119,7 @@ export default async <T extends EntityType = EntityType>(
     } catch (error) {
       // CHECK 违约归一成 RxDBCheckViolationError：批量 INSERT 命中哪一行原生消息不说，
       // 全部候选行的冲突值并列（US-030）
-      throw toCheckViolationErrorForRows(
-        error,
-        meta,
-        entities as unknown as ReadonlyArray<Record<string, unknown>>
-      );
+      throw toCheckViolationErrorForRows(error, meta, entities as unknown as ReadonlyArray<Record<string, unknown>>);
     }
 
     // 查询刚插入的数据

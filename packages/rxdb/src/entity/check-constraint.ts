@@ -21,7 +21,13 @@
  */
 
 import { RxDBError } from '../RxDBError.js';
-import { quoteSqlIdentifier, sqlBooleanLiteral, sqlIntegerLiteral, sqlStringLiteral, sqlTimestampLiteral } from '../system/sql-literal.js';
+import {
+  quoteSqlIdentifier,
+  sqlBooleanLiteral,
+  sqlIntegerLiteral,
+  sqlStringLiteral,
+  sqlTimestampLiteral
+} from '../system/sql-literal.js';
 import type { EntityMetadata } from './metadata.interface.js';
 import { PropertyType } from './property-types.interface.js';
 
@@ -51,7 +57,18 @@ export const CHECK_OPERATORS = [
 export type CheckOperator = (typeof CHECK_OPERATORS)[number];
 
 /** 需要携带字面量 `value` 的操作符。 */
-const VALUE_OPERATORS: ReadonlySet<string> = new Set(['=', '!=', '<', '>', '<=', '>=', 'in', 'notIn', 'between', 'notBetween']);
+const VALUE_OPERATORS: ReadonlySet<string> = new Set([
+  '=',
+  '!=',
+  '<',
+  '>',
+  '<=',
+  '>=',
+  'in',
+  'notIn',
+  'between',
+  'notBetween'
+]);
 
 /** 只配比较操作符的字段对字段比较（`ref`）。 */
 const REF_OPERATORS: ReadonlySet<string> = new Set(['=', '!=', '<', '>', '<=', '>=']);
@@ -242,7 +259,9 @@ const compileCheckLiteral = (propertyType: string, value: unknown, label: string
 const compileCheckRule = (metadata: EntityMetadata, rule: CheckRule, checkName: string): string => {
   const label = `${checkName} 的规则 (${rule.field})`;
   if (typeof rule.operator !== 'string' || !(CHECK_OPERATORS as readonly string[]).includes(rule.operator)) {
-    throw new RxDBError(`CHECK ${label} 的操作符非法：${JSON.stringify(rule.operator)}，白名单为 ${CHECK_OPERATORS.join(' / ')}`);
+    throw new RxDBError(
+      `CHECK ${label} 的操作符非法：${JSON.stringify(rule.operator)}，白名单为 ${CHECK_OPERATORS.join(' / ')}`
+    );
   }
   const column = quoteSqlIdentifier(resolveCheckField(metadata, rule.field, label));
 
@@ -306,7 +325,9 @@ const compileCheckNode = (metadata: EntityMetadata, node: CheckRule | CheckRuleG
 /** 把规则组编译成带括号的 SQL 表达式。 */
 const compileCheckGroup = (metadata: EntityMetadata, group: CheckRuleGroup, checkName: string): string => {
   if (group.combinator !== 'and' && group.combinator !== 'or') {
-    throw new RxDBError(`CHECK ${checkName} 的 combinator 非法：${JSON.stringify(group.combinator)}，只能是 'and' / 'or'`);
+    throw new RxDBError(
+      `CHECK ${checkName} 的 combinator 非法：${JSON.stringify(group.combinator)}，只能是 'and' / 'or'`
+    );
   }
   if (!Array.isArray(group.rules) || group.rules.length === 0) {
     throw new RxDBError(`CHECK ${checkName} 的规则组不能为空`);
@@ -361,7 +382,10 @@ export interface CompiledCheckConstraint {
  *
  * @returns 约束名与规范化表达式；两后端建表 DDL 与漂移比对共用
  */
-export const compileCheckConstraint = (metadata: EntityMetadata, check: EntityCheckMetadata): CompiledCheckConstraint => {
+export const compileCheckConstraint = (
+  metadata: EntityMetadata,
+  check: EntityCheckMetadata
+): CompiledCheckConstraint => {
   const expression = compileCheckExpression(metadata, check);
   return { name: checkConstraintName(metadata, check), expression };
 };

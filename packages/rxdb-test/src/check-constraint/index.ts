@@ -5,5 +5,5 @@
  * @module @aiao/rxdb-test/check-constraint
  */
 export * from './fixtures.js';
-export { runCheckConstraintWriteBehaviorSuite } from './write-behavior.suite.js';
 export * from './types.js';
+export { runCheckConstraintWriteBehaviorSuite } from './write-behavior.suite.js';

@@ -38,7 +38,6 @@ import {
 } from './rxdb-events.js';
 import { assertValidSystemContribution, type RxDBSystemContribution } from './rxdb-plugin-system.js';
 import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
-import { RxDBError } from './RxDBError.js';
 import { getEntityMetadata, uuid } from './rxdb-utils.js';
 import { RxDBContext, RxDBOptions } from './rxdb.interface.js';
 import {
@@ -64,6 +63,7 @@ import {
   runIsolated
 } from './rxdb.transaction.js';
 import type { EventListener, IRepositoryConfig, RxDBConfig, TransactionContext } from './rxdb.types.js';
+import { RxDBError } from './RxDBError.js';
 import { SchemaManager } from './schema/SchemaManager.js';
 import type { BranchMaterializationSource } from './sync-contract/branch-materialization-source.js';
 import { createEntitySyncResolver, type EntitySyncResolver } from './sync-contract/entity-sync-resolver.js';

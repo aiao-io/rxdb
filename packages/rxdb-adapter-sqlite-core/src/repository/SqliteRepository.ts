@@ -1,4 +1,12 @@
-import { EntityStaticType, EntityType, FindOptions, getEntityMetadata, getEntityStatus, IRepository, toCheckViolationError } from '@aiao/rxdb';
+import {
+  EntityStaticType,
+  EntityType,
+  FindOptions,
+  getEntityMetadata,
+  getEntityStatus,
+  IRepository,
+  toCheckViolationError
+} from '@aiao/rxdb';
 import { generate_entity_delete_sql } from '../entity/delete_sql.js';
 import { generate_entity_insert_sql } from '../entity/insert_sql.js';
 import { update_sql as generate_entity_update_sql } from '../entity/update_sql.js';

@@ -18,8 +18,8 @@ import {
   type EntityType
 } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
-import type { SqliteClientLike, SqliteSuccessResult } from '../sqlite-core.interface.js';
 import { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
+import type { SqliteClientLike, SqliteSuccessResult } from '../sqlite-core.interface.js';
 import { check_entity_constraints_sqlite } from '../table/check-entity-constraints.js';
 
 @Entity({
@@ -59,7 +59,9 @@ const querier = (createSqlByTable: Record<string, string>) => ({
   execute: vi.fn().mockImplementation(async (sql: string, bindings?: unknown[]) => {
     void sql;
     const tableName = String(bindings?.[0] ?? '');
-    return createSqlByTable[tableName] === undefined ? sqliteMasterResult('') : sqliteMasterResult(createSqlByTable[tableName]);
+    return createSqlByTable[tableName] === undefined ?
+        sqliteMasterResult('')
+      : sqliteMasterResult(createSqlByTable[tableName]);
   })
 });
 
@@ -70,7 +72,7 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
   it('声明与库一致时不抛错', async () => {
     const [qtyName, noteName] = expectedNames();
     const q = querier({
-      'public$Checked': createSqlWith([
+      public$Checked: createSqlWith([
         `CONSTRAINT "${qtyName}" CHECK ("qty" > 0)`,
         `CONSTRAINT "${noteName}" CHECK ("note" <= 10)`
       ])
@@ -80,7 +82,7 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
 
   it('AC#10：库里缺一条 CHECK → 抛 RxDBConstraintDriftError 列出缺失，不自动补建', async () => {
     const [qtyName, noteName] = expectedNames();
-    const q = querier({ 'public$Checked': createSqlWith([`CONSTRAINT "${qtyName}" CHECK ("qty" > 0)`]) });
+    const q = querier({ public$Checked: createSqlWith([`CONSTRAINT "${qtyName}" CHECK ("qty" > 0)`]) });
     try {
       await check_entity_constraints_sqlite(q as never, [Checked]);
       expect.unreachable('漂移应当抛错');
@@ -100,7 +102,7 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
   it('AC#10：库里多条声明外的 ck_ 约束 → 列「多余」', async () => {
     const [qtyName, noteName] = expectedNames();
     const q = querier({
-      'public$Checked': createSqlWith([
+      public$Checked: createSqlWith([
         `CONSTRAINT "${qtyName}" CHECK ("qty" > 0)`,
         `CONSTRAINT "${noteName}" CHECK ("note" <= 10)`,
         `CONSTRAINT "ck_Checked_removed_1a2b3c4d" CHECK ("qty" < 100)`
@@ -120,7 +122,7 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
     const [qtyName, noteName] = expectedNames();
     // 库里是同名约束的旧哈希版本：名字不同、语义已变
     const q = querier({
-      'public$Checked': createSqlWith([
+      public$Checked: createSqlWith([
         `CONSTRAINT "ck_Checked_qty_positive_deadbeef" CHECK ("qty" > 1)`,
         `CONSTRAINT "${noteName}" CHECK ("note" <= 10)`
       ])
@@ -139,7 +141,7 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
     const [qtyName, noteName] = expectedNames();
     // sqlite_master 的 sql 文本里混入各种「不是我家的」对象名
     const q = querier({
-      'public$Checked': createSqlWith([
+      public$Checked: createSqlWith([
         `CONSTRAINT "${qtyName}" CHECK ("qty" > 0)`,
         `CONSTRAINT "${noteName}" CHECK ("note" <= 10)`,
         `CONSTRAINT "Checked_parent_fk" FOREIGN KEY ("parentId") REFERENCES "other"("id")`,
@@ -156,7 +158,7 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
 
     await expect(
       check_entity_constraints_sqlite(
-        querier({ 'public$Plain': 'CREATE TABLE "public$Plain" ("id" TEXT PRIMARY KEY, "x" TEXT)' }) as never,
+        querier({ public$Plain: 'CREATE TABLE "public$Plain" ("id" TEXT PRIMARY KEY, "x" TEXT)' }) as never,
         [Plain]
       )
     ).resolves.toBeUndefined();
@@ -164,7 +166,8 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
     try {
       await check_entity_constraints_sqlite(
         querier({
-          'public$Plain': 'CREATE TABLE "public$Plain" ("id" TEXT PRIMARY KEY, "x" TEXT, CONSTRAINT "ck_Plain_stale_0badc0de" CHECK ("x" != \'bad\'))'
+          public$Plain:
+            'CREATE TABLE "public$Plain" ("id" TEXT PRIMARY KEY, "x" TEXT, CONSTRAINT "ck_Plain_stale_0badc0de" CHECK ("x" != \'bad\'))'
         }) as never,
         [Plain]
       );

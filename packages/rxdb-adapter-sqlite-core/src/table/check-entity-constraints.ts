@@ -13,9 +13,9 @@
  */
 
 import { compileCheckConstraint, getEntityMetadata, RxDBConstraintDriftError, type EntityType } from '@aiao/rxdb';
+import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SqliteResult } from '../sqlite-core.interface.js';
 import { get_table_name_by_metadata } from '../sqlite-core.utils.js';
-import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 
 /** 漂移检查只读查询的最小接口：引导事务执行器门面（`execute` 落在当前事务里，返回原生结果）。 */
 type ConstraintCatalogQuerier = Pick<RxDBAdapterSqliteBase, never> & {
@@ -56,15 +56,21 @@ export const check_entity_constraints_sqlite = async (
     }
 
     const tableName = get_table_name_by_metadata(metadata);
-    const result = await adapter.execute(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, [tableName]);
+    const result = await adapter.execute(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, [
+      tableName
+    ]);
     const rows = result.results[0]?.rows ?? [];
     // 表不存在时无行可读：缺表补建排在漂移检查之前，走到这里表必在；真有缺失就跳过
     // 该表（下一轮 connect 的 ensureEntityTables 会补建并带着约束建出来）。
     if (rows.length === 0) continue;
 
     const actual = actualCheckNames(String(rows[0][0] ?? ''));
-    const missing = Array.from(expected).filter(name => !actual.has(name)).sort();
-    const extra = Array.from(actual).filter(name => !expected.has(name)).sort();
+    const missing = Array.from(expected)
+      .filter(name => !actual.has(name))
+      .sort();
+    const extra = Array.from(actual)
+      .filter(name => !expected.has(name))
+      .sort();
     if (missing.length > 0 || extra.length > 0) {
       throw new RxDBConstraintDriftError(metadata.name, metadata.tableName, missing, extra);
     }

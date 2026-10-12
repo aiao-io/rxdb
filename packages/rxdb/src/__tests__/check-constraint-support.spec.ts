@@ -23,7 +23,12 @@ class CheckedSupportItem extends EntityBase {
   qty!: number | null;
 }
 
-@Entity({ name: 'PlainSupportItem', namespace: 'public', log: false, properties: [{ name: 'x', type: PropertyType.string }] })
+@Entity({
+  name: 'PlainSupportItem',
+  namespace: 'public',
+  log: false,
+  properties: [{ name: 'x', type: PropertyType.string }]
+})
 class PlainSupportItem extends EntityBase {
   x!: string;
 }
@@ -34,10 +39,7 @@ class DriftCapableMockAdapter extends MockLocalAdapter {
 
 const databases = new Set<RxDB>();
 
-const createDatabase = (
-  entities: EntityType[],
-  adapterFactory: (db: RxDB) => MockLocalAdapter
-): RxDB => {
+const createDatabase = (entities: EntityType[], adapterFactory: (db: RxDB) => MockLocalAdapter): RxDB => {
   const database = new RxDB({
     dbName: `check-support-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     entities,

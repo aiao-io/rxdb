@@ -33,7 +33,10 @@ const expectCheckViolation = (
 export const runCheckConstraintWriteBehaviorSuite = ({ factory }: { factory: CheckConstraintSuiteFactory }): void => {
   describe(`CHECK 违约写入被拒（${factory.name}）`, () => {
     it('AC#1：属性级 CHECK 拒绝越界值，归一错误带约束名与冲突值', async () => {
-      const { rxdb, dispose } = await factory.createDatabase({ dbName: 'check-ac1', entities: checkConstraintFixtures });
+      const { rxdb, dispose } = await factory.createDatabase({
+        dbName: 'check-ac1',
+        entities: checkConstraintFixtures
+      });
       try {
         const ok = new CheckQtyItem({ qty: 100 });
         await rxdb.entityManager.save(ok);
@@ -52,7 +55,10 @@ export const runCheckConstraintWriteBehaviorSuite = ({ factory }: { factory: Che
     });
 
     it('AC#2：实体级 CHECK「两字段二选一」同时给值即拒绝；恰好一项放行', async () => {
-      const { rxdb, dispose } = await factory.createDatabase({ dbName: 'check-ac2', entities: checkConstraintFixtures });
+      const { rxdb, dispose } = await factory.createDatabase({
+        dbName: 'check-ac2',
+        entities: checkConstraintFixtures
+      });
       try {
         const onlyQty = new CheckXorItem({ qty: 1, qtyFormula: null });
         await rxdb.entityManager.save(onlyQty);
@@ -74,7 +80,10 @@ export const runCheckConstraintWriteBehaviorSuite = ({ factory }: { factory: Che
     });
 
     it('AC#8：unitFrom > unitTo 拒绝；unitFrom 为 NULL 放行（SQL 三值逻辑）', async () => {
-      const { rxdb, dispose } = await factory.createDatabase({ dbName: 'check-ac8', entities: checkConstraintFixtures });
+      const { rxdb, dispose } = await factory.createDatabase({
+        dbName: 'check-ac8',
+        entities: checkConstraintFixtures
+      });
       try {
         const ok = new CheckRangeItem({ unitFrom: 1, unitTo: 2 });
         await rxdb.entityManager.save(ok);
@@ -99,7 +108,10 @@ export const runCheckConstraintWriteBehaviorSuite = ({ factory }: { factory: Che
     });
 
     it('AC#8 补充：UPDATE 扩成 unitFrom > unitTo 同样被拒', async () => {
-      const { rxdb, dispose } = await factory.createDatabase({ dbName: 'check-ac8-update', entities: checkConstraintFixtures });
+      const { rxdb, dispose } = await factory.createDatabase({
+        dbName: 'check-ac8-update',
+        entities: checkConstraintFixtures
+      });
       try {
         const item = new CheckRangeItem({ unitFrom: 1, unitTo: 5 });
         await rxdb.entityManager.save(item);

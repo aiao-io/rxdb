@@ -1,5 +1,8 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
-import { runCheckConstraintWriteBehaviorSuite, type CheckConstraintSuiteFactory } from '@aiao/rxdb-test/check-constraint';
+import {
+  runCheckConstraintWriteBehaviorSuite,
+  type CheckConstraintSuiteFactory
+} from '@aiao/rxdb-test/check-constraint';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 
 /**

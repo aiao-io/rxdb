@@ -12,8 +12,8 @@
  * 不改变既有行为。
  */
 
+import { CHECK_NAME_PREFIX, findCheckByConstraintName, referencedCheckFields } from '../entity/check-constraint.js';
 import type { EntityMetadata } from '../entity/metadata.interface.js';
-import { findCheckByConstraintName, referencedCheckFields, CHECK_NAME_PREFIX } from '../entity/check-constraint.js';
 import { RxDBCheckViolationError } from '../RxDBError.js';
 
 const errorMessageOf = (cause: unknown): string => (cause instanceof Error ? cause.message : String(cause));

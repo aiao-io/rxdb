@@ -96,7 +96,9 @@ describe('PGlite 漂移检查（AC#10 / #11 / #16）', () => {
     const { adapter, dispose } = await openDatabase();
     try {
       const name = qtyConstraintName();
-      await adapter.query(`ALTER TABLE ${getTableNameByMetadata(getEntityMetadata(DriftChecked))} DROP CONSTRAINT ${JSON.stringify(name)}`);
+      await adapter.query(
+        `ALTER TABLE ${getTableNameByMetadata(getEntityMetadata(DriftChecked))} DROP CONSTRAINT ${JSON.stringify(name)}`
+      );
       try {
         await adapter.checkEntityConstraints([DriftChecked as EntityType]);
         expect.unreachable('漂移应当抛错');
@@ -108,10 +110,9 @@ describe('PGlite 漂移检查（AC#10 / #11 / #16）', () => {
         expect(drift.extra).toEqual([]);
       }
       // 不自动补建：再查目录仍然没有该约束
-      const result = await adapter.query<{ conname: string }>(
-        `SELECT conname FROM pg_constraint WHERE conname = $1`,
-        [name]
-      );
+      const result = await adapter.query<{ conname: string }>(`SELECT conname FROM pg_constraint WHERE conname = $1`, [
+        name
+      ]);
       expect(result.rows.length).toBe(0);
     } finally {
       await dispose();
@@ -142,7 +143,9 @@ describe('PGlite 漂移检查（AC#10 / #11 / #16）', () => {
       const name = qtyConstraintName();
       const table = getTableNameByMetadata(getEntityMetadata(DriftChecked));
       await adapter.query(`ALTER TABLE ${table} DROP CONSTRAINT ${JSON.stringify(name)}`);
-      await adapter.query(`ALTER TABLE ${table} ADD CONSTRAINT "ck_DriftChecked_qty_positive_deadbeef" CHECK (qty > 1)`);
+      await adapter.query(
+        `ALTER TABLE ${table} ADD CONSTRAINT "ck_DriftChecked_qty_positive_deadbeef" CHECK (qty > 1)`
+      );
       try {
         await adapter.checkEntityConstraints([DriftChecked as EntityType]);
         expect.unreachable('漂移应当抛错');

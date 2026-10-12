@@ -57,8 +57,12 @@ export const check_entity_constraints_pglite = async (
     if (result.rows.length === 0 && expected.size === 0) continue;
 
     const actual = new Set(result.rows.map(row => row.conname).filter(name => name.startsWith('ck_')));
-    const missing = Array.from(expected).filter(name => !actual.has(name)).sort();
-    const extra = Array.from(actual).filter(name => !expected.has(name)).sort();
+    const missing = Array.from(expected)
+      .filter(name => !actual.has(name))
+      .sort();
+    const extra = Array.from(actual)
+      .filter(name => !expected.has(name))
+      .sort();
     if (missing.length > 0 || extra.length > 0) {
       throw new RxDBConstraintDriftError(metadata.name, metadata.tableName, missing, extra);
     }

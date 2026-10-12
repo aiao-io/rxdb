@@ -11,10 +11,15 @@
 
 import { describe, expect, it } from 'vitest';
 import { compileCheckConstraint, compileCheckExpression, hashCheckExpression } from '../../entity/check-constraint.js';
-import { BooleanProperty, IntegerProperty, PropertyType, StringProperty } from '../../entity/metadata-options.interface.js';
+import {
+  BooleanProperty,
+  EntityMetadataOptions,
+  IntegerProperty,
+  PropertyType,
+  StringProperty
+} from '../../entity/metadata-options.interface.js';
 import { transitionMetadata } from '../../entity/metadata-transition.js';
 import { validateEntityMetadata } from '../../entity/metadata-validate.js';
-import { EntityMetadataOptions } from '../../entity/metadata-options.interface.js';
 import { OnDeleteAction, RelationKind } from '../../entity/relation-types.interface.js';
 
 const stringProp = (name: string, extra: Partial<StringProperty> = {}): StringProperty =>
@@ -42,7 +47,11 @@ const metadataOf = (overrides: Partial<EntityMetadataOptions>): ReturnType<typeo
   transitionMetadata({
     name: 'Item' as Capitalize<string>,
     namespace: 'public',
-    properties: [stringProp('id', { primary: true }), intProp('qty', { nullable: true }), stringProp('note', { nullable: true })],
+    properties: [
+      stringProp('id', { primary: true }),
+      intProp('qty', { nullable: true }),
+      stringProp('note', { nullable: true })
+    ],
     computedProperties: [],
     relations: [],
     indexes: [],
@@ -64,19 +73,33 @@ describe('compileCheckConstraint', () => {
       ],
       checks: [
         { name: 'qty_positive', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '>', value: 0 }] } },
-        { name: 'unit_range', rule: { combinator: 'and', rules: [{ field: 'unitFrom', operator: '<=', ref: 'unitTo' }] } },
-        { name: 'state_in', rule: { combinator: 'and', rules: [{ field: 'state', operator: 'in', value: ['a', 'b'] }] } },
-        { name: 'qty_between', rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'between', value: [1, 10] }] } },
-        { name: 'qty_not_between', rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'notBetween', value: [1, 10] }] } },
+        {
+          name: 'unit_range',
+          rule: { combinator: 'and', rules: [{ field: 'unitFrom', operator: '<=', ref: 'unitTo' }] }
+        },
+        {
+          name: 'state_in',
+          rule: { combinator: 'and', rules: [{ field: 'state', operator: 'in', value: ['a', 'b'] }] }
+        },
+        {
+          name: 'qty_between',
+          rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'between', value: [1, 10] }] }
+        },
+        {
+          name: 'qty_not_between',
+          rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'notBetween', value: [1, 10] }] }
+        },
         { name: 'note_null', rule: { combinator: 'and', rules: [{ field: 'note', operator: 'null' }] } },
         { name: 'note_not_null', rule: { combinator: 'and', rules: [{ field: 'note', operator: 'notNull' }] } },
         { name: 'active_true', rule: { combinator: 'and', rules: [{ field: 'active', operator: '=', value: true }] } }
       ]
     });
-    const compiled = new Map(metadata.checkMap.keys().map(name => {
-      const check = metadata.checkMap.get(name)!;
-      return [name, compileCheckConstraint(metadata, check)] as const;
-    }));
+    const compiled = new Map(
+      metadata.checkMap.keys().map(name => {
+        const check = metadata.checkMap.get(name)!;
+        return [name, compileCheckConstraint(metadata, check)] as const;
+      })
+    );
     expect(compiled.get('qty_positive')!.expression).toBe('("qty" > 0)');
     expect(compiled.get('unit_range')!.expression).toBe('("unitFrom" <= "unitTo")');
     expect(compiled.get('state_in')!.expression).toBe(`("state" IN ('a', 'b'))`);
@@ -95,8 +118,20 @@ describe('compileCheckConstraint', () => {
           rule: {
             combinator: 'or',
             rules: [
-              { combinator: 'and', rules: [{ field: 'qty', operator: 'notNull' }, { field: 'note', operator: 'null' }] },
-              { combinator: 'and', rules: [{ field: 'qty', operator: 'null' }, { field: 'note', operator: 'notNull' }] }
+              {
+                combinator: 'and',
+                rules: [
+                  { field: 'qty', operator: 'notNull' },
+                  { field: 'note', operator: 'null' }
+                ]
+              },
+              {
+                combinator: 'and',
+                rules: [
+                  { field: 'qty', operator: 'null' },
+                  { field: 'note', operator: 'notNull' }
+                ]
+              }
             ]
           }
         }
@@ -110,7 +145,12 @@ describe('compileCheckConstraint', () => {
 
   it('字符串字面量转义单引号且不转义反斜杠（两后端同为标准 SQL 转义）', () => {
     const metadata = metadataOf({
-      checks: [{ name: 'note_no_quote', rule: { combinator: 'and', rules: [{ field: 'note', operator: '!=', value: "o'brien\\x" }] } }]
+      checks: [
+        {
+          name: 'note_no_quote',
+          rule: { combinator: 'and', rules: [{ field: 'note', operator: '!=', value: "o'brien\\x" }] }
+        }
+      ]
     });
     expect(compileCheckExpression(metadata, metadata.checkMap.get('note_no_quote')!)).toBe(`("note" != 'o''brien\\x')`);
   });
@@ -125,18 +165,39 @@ describe('compileCheckConstraint', () => {
       ],
       checks: [
         { name: 'ratio_gt_half', rule: { combinator: 'and', rules: [{ field: 'ratio', operator: '>', value: 0.5 }] } },
-        { name: 'amount_max', rule: { combinator: 'and', rules: [{ field: 'amount', operator: '<=', value: 9007199254740993n }] } },
-        { name: 'due_after', rule: { combinator: 'and', rules: [{ field: 'dueAt', operator: '>', value: new Date('2026-01-01T00:00:00.000Z') }] } }
+        {
+          name: 'amount_max',
+          rule: { combinator: 'and', rules: [{ field: 'amount', operator: '<=', value: 9007199254740993n }] }
+        },
+        {
+          name: 'due_after',
+          rule: {
+            combinator: 'and',
+            rules: [{ field: 'dueAt', operator: '>', value: new Date('2026-01-01T00:00:00.000Z') }]
+          }
+        }
       ]
     });
     expect(compileCheckExpression(metadata, metadata.checkMap.get('ratio_gt_half')!)).toBe('("ratio" > 0.5)');
-    expect(compileCheckExpression(metadata, metadata.checkMap.get('amount_max')!)).toBe('("amount" <= 9007199254740993)');
-    expect(compileCheckExpression(metadata, metadata.checkMap.get('due_after')!)).toBe(`("dueAt" > '2026-01-01T00:00:00.000Z')`);
+    expect(compileCheckExpression(metadata, metadata.checkMap.get('amount_max')!)).toBe(
+      '("amount" <= 9007199254740993)'
+    );
+    expect(compileCheckExpression(metadata, metadata.checkMap.get('due_after')!)).toBe(
+      `("dueAt" > '2026-01-01T00:00:00.000Z')`
+    );
   });
 
   it('约束名 = ck_ + 表名 + name + 规范化表达式 8 位哈希；改表达式不改名即换哈希（AC#11 命名侧）', () => {
-    const a = metadataOf({ checks: [{ name: 'qty_positive', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '>', value: 0 }] } }] });
-    const b = metadataOf({ checks: [{ name: 'qty_positive', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '>', value: 1 }] } }] });
+    const a = metadataOf({
+      checks: [
+        { name: 'qty_positive', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '>', value: 0 }] } }
+      ]
+    });
+    const b = metadataOf({
+      checks: [
+        { name: 'qty_positive', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '>', value: 1 }] } }
+      ]
+    });
     const nameA = compileCheckConstraint(a, a.checkMap.get('qty_positive')!).name;
     const nameB = compileCheckConstraint(b, b.checkMap.get('qty_positive')!).name;
     const expectedA = `ck_Item_qty_positive_${hashCheckExpression(compileCheckExpression(a, a.checkMap.get('qty_positive')!))}`;
@@ -149,18 +210,66 @@ describe('compileCheckConstraint', () => {
 
 describe('AC#9 单行子集外的规则在元数据期拒绝', () => {
   const rejectedRules: ReadonlyArray<{ name: string; rule: unknown; reason: RegExp }> = [
-    { name: 'bad_exists', rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'exists' }] }, reason: /操作符非法/ },
-    { name: 'bad_not_exists', rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'notExists' }] }, reason: /操作符非法/ },
-    { name: 'bad_contains', rule: { combinator: 'and', rules: [{ field: 'note', operator: 'contains', value: 'x' }] }, reason: /操作符非法/ },
-    { name: 'bad_starts_with', rule: { combinator: 'and', rules: [{ field: 'note', operator: 'startsWith', value: 'x' }] }, reason: /操作符非法/ },
-    { name: 'bad_ends_with', rule: { combinator: 'and', rules: [{ field: 'note', operator: 'endsWith', value: 'x' }] }, reason: /操作符非法/ },
-    { name: 'bad_path', rule: { combinator: 'and', rules: [{ field: 'parent.name', operator: '=', value: 'x' }] }, reason: /关系路径/ },
-    { name: 'bad_missing', rule: { combinator: 'and', rules: [{ field: 'ghost', operator: '=', value: 1 }] }, reason: /不存在的字段/ },
-    { name: 'bad_ref_on_in', rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'in', ref: 'unitTo' }] }, reason: /ref 只配比较操作符/ },
-    { name: 'bad_ref_value', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '=', value: 1, ref: 'unitTo' }] }, reason: /互斥/ },
-    { name: 'bad_value_null', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '=', value: null }] }, reason: /null 作字面量/ },
-    { name: 'bad_in_empty', rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'in', value: [] }] }, reason: /非空数组/ },
-    { name: 'bad_between_shape', rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'between', value: [1] }] }, reason: /二元组/ },
+    {
+      name: 'bad_exists',
+      rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'exists' }] },
+      reason: /操作符非法/
+    },
+    {
+      name: 'bad_not_exists',
+      rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'notExists' }] },
+      reason: /操作符非法/
+    },
+    {
+      name: 'bad_contains',
+      rule: { combinator: 'and', rules: [{ field: 'note', operator: 'contains', value: 'x' }] },
+      reason: /操作符非法/
+    },
+    {
+      name: 'bad_starts_with',
+      rule: { combinator: 'and', rules: [{ field: 'note', operator: 'startsWith', value: 'x' }] },
+      reason: /操作符非法/
+    },
+    {
+      name: 'bad_ends_with',
+      rule: { combinator: 'and', rules: [{ field: 'note', operator: 'endsWith', value: 'x' }] },
+      reason: /操作符非法/
+    },
+    {
+      name: 'bad_path',
+      rule: { combinator: 'and', rules: [{ field: 'parent.name', operator: '=', value: 'x' }] },
+      reason: /关系路径/
+    },
+    {
+      name: 'bad_missing',
+      rule: { combinator: 'and', rules: [{ field: 'ghost', operator: '=', value: 1 }] },
+      reason: /不存在的字段/
+    },
+    {
+      name: 'bad_ref_on_in',
+      rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'in', ref: 'unitTo' }] },
+      reason: /ref 只配比较操作符/
+    },
+    {
+      name: 'bad_ref_value',
+      rule: { combinator: 'and', rules: [{ field: 'qty', operator: '=', value: 1, ref: 'unitTo' }] },
+      reason: /互斥/
+    },
+    {
+      name: 'bad_value_null',
+      rule: { combinator: 'and', rules: [{ field: 'qty', operator: '=', value: null }] },
+      reason: /null 作字面量/
+    },
+    {
+      name: 'bad_in_empty',
+      rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'in', value: [] }] },
+      reason: /非空数组/
+    },
+    {
+      name: 'bad_between_shape',
+      rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'between', value: [1] }] },
+      reason: /二元组/
+    },
     { name: 'bad_combinator', rule: { combinator: 'xor' as 'or', rules: [] }, reason: /combinator 非法/ },
     { name: 'bad_empty_group', rule: { combinator: 'and', rules: [] }, reason: /不能为空/ }
   ];
@@ -168,11 +277,15 @@ describe('AC#9 单行子集外的规则在元数据期拒绝', () => {
   rejectedRules.forEach(({ name, rule, reason }) => {
     it(`拒绝 ${name} 并点名原因`, () => {
       const metadata = metadataOf({ checks: [{ name: name as Uncapitalize<string>, rule: rule as never }] });
-      expect(() => compileCheckConstraint(metadata, metadata.checkMap.get(name as Uncapitalize<string>)!)).toThrow(reason);
+      expect(() => compileCheckConstraint(metadata, metadata.checkMap.get(name as Uncapitalize<string>)!)).toThrow(
+        reason
+      );
       // 元数据校验同样以 invalidCheck 产出该违规
       const violations = validateEntityMetadata(metadata);
       expect(violations).toEqual(
-        expect.arrayContaining([expect.objectContaining({ field: name, rule: 'invalidCheck', message: expect.stringMatching(reason) })])
+        expect.arrayContaining([
+          expect.objectContaining({ field: name, rule: 'invalidCheck', message: expect.stringMatching(reason) })
+        ])
       );
     });
   });
@@ -220,7 +333,9 @@ describe('AC#9 单行子集外的规则在元数据期拒绝', () => {
           onUpdate: OnDeleteAction.CASCADE
         }
       ],
-      checks: [{ name: 'bad_fk', rule: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: 'x' }] } }]
+      checks: [
+        { name: 'bad_fk', rule: { combinator: 'and', rules: [{ field: 'parentId', operator: '=', value: 'x' }] } }
+      ]
     });
     expect(() => compileCheckConstraint(metadata, metadata.checkMap.get('bad_fk')!)).toThrow(/外键列/);
   });
@@ -230,20 +345,32 @@ describe('AC#15 约束名与字面量值域在元数据期拒绝', () => {
   it('name 含 [a-z0-9_] 外字符即拒绝', () => {
     for (const bad of ['Uppercase', 'has-dash', '1starts', '有中文', '']) {
       const metadata = metadataOf({
-        checks: [{ name: bad as Uncapitalize<string>, rule: { combinator: 'and', rules: [{ field: 'qty', operator: '>', value: 0 }] } }]
+        checks: [
+          {
+            name: bad as Uncapitalize<string>,
+            rule: { combinator: 'and', rules: [{ field: 'qty', operator: '>', value: 0 }] }
+          }
+        ]
       });
-      expect(() => compileCheckConstraint(metadata, metadata.checkMap.get(bad as Uncapitalize<string>)!)).toThrow(/只允许 \[a-z\]\[a-z0-9_\]\*/);
+      expect(() => compileCheckConstraint(metadata, metadata.checkMap.get(bad as Uncapitalize<string>)!)).toThrow(
+        /只允许 \[a-z\]\[a-z0-9_\]\*/
+      );
     }
   });
 
   it('约束名超 63 UTF-8 字节即拒绝，不截断', () => {
     const metadata = metadataOf({
       tableName: 'ExtremelyLongTableNameThatAlreadyConsumesFiftyBytes',
-      checks: [{ name: 'a_very_long_check_name_that_pushes_total_over_limit', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '>', value: 0 }] } }]
+      checks: [
+        {
+          name: 'a_very_long_check_name_that_pushes_total_over_limit',
+          rule: { combinator: 'and', rules: [{ field: 'qty', operator: '>', value: 0 }] }
+        }
+      ]
     });
-    expect(() => compileCheckConstraint(metadata, metadata.checkMap.get('a_very_long_check_name_that_pushes_total_over_limit')!)).toThrow(
-      /超过 63 UTF-8 字节/
-    );
+    expect(() =>
+      compileCheckConstraint(metadata, metadata.checkMap.get('a_very_long_check_name_that_pushes_total_over_limit')!)
+    ).toThrow(/超过 63 UTF-8 字节/);
     // 62 字节的完整名可以过：ck_ + 表名 + _ + name + _ + 8 位哈希
     const boundary = metadataOf({
       tableName: 'T',
@@ -258,16 +385,27 @@ describe('AC#15 约束名与字面量值域在元数据期拒绝', () => {
       const metadata = metadataOf({
         checks: [{ name: 'qty_bad', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '=', value: bad }] } }]
       });
-      expect(() => compileCheckConstraint(metadata, metadata.checkMap.get('qty_bad')!)).toThrow(/超出 integer 列的值域/);
+      expect(() => compileCheckConstraint(metadata, metadata.checkMap.get('qty_bad')!)).toThrow(
+        /超出 integer 列的值域/
+      );
     }
-    const ok = metadataOf({ checks: [{ name: 'qty_ok', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '=', value: 2147483647 }] } }] });
+    const ok = metadataOf({
+      checks: [
+        { name: 'qty_ok', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '=', value: 2147483647 }] } }
+      ]
+    });
     expect(compileCheckExpression(ok, ok.checkMap.get('qty_ok')!)).toBe('("qty" = 2147483647)');
   });
 
   it('bigint 列字面量超出 64 位值域即拒绝', () => {
     const metadata = metadataOf({
       properties: [stringProp('id', { primary: true }), { name: 'amount', type: PropertyType.bigint, nullable: true }],
-      checks: [{ name: 'amount_bad', rule: { combinator: 'and', rules: [{ field: 'amount', operator: '=', value: 2n ** 63n }] } }]
+      checks: [
+        {
+          name: 'amount_bad',
+          rule: { combinator: 'and', rules: [{ field: 'amount', operator: '=', value: 2n ** 63n }] }
+        }
+      ]
     });
     expect(() => compileCheckConstraint(metadata, metadata.checkMap.get('amount_bad')!)).toThrow(/64 位有符号整数/);
   });
@@ -299,7 +437,9 @@ describe('AC#17 继承合并', () => {
         stringProp('id', { primary: true }),
         intProp('qty', { nullable: true, check: { operator: '>', value: 0 } })
       ],
-      checks: [{ name: 'base_only', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '<', value: 100 }] } }],
+      checks: [
+        { name: 'base_only', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '<', value: 100 }] } }
+      ],
       computedProperties: [],
       relations: [],
       indexes: []
@@ -310,7 +450,9 @@ describe('AC#17 继承合并', () => {
       {
         name: 'ChildItem' as Capitalize<string>,
         extends: ['BaseItem'],
-        checks: [{ name: 'base_only', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '<', value: 50 }] } }],
+        checks: [
+          { name: 'base_only', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '<', value: 50 }] } }
+        ],
         properties: [],
         computedProperties: [],
         relations: [],
@@ -331,7 +473,10 @@ describe('AC#17 继承合并', () => {
     const metadata = transitionMetadata({
       name: 'Item2' as Capitalize<string>,
       namespace: 'public',
-      properties: [stringProp('id', { primary: true }), intProp('qty', { nullable: true, check: { operator: '>', value: 0 } })],
+      properties: [
+        stringProp('id', { primary: true }),
+        intProp('qty', { nullable: true, check: { operator: '>', value: 0 } })
+      ],
       checks: [{ name: 'qty', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '>=', value: 1 }] } }],
       computedProperties: [],
       relations: [],

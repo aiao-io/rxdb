@@ -82,8 +82,6 @@ import { generate_sql } from './query/query_sql.js';
 import { SqliteRepository } from './repository/SqliteRepository.js';
 import { SqliteTreeRepository } from './repository/SqliteTreeRepository.js';
 import { SQLiteChangeType } from './sqlite-backend.interface.js';
-import { assertSqliteHostVersion } from './system/sqlite-version.js';
-import { check_entity_constraints_sqlite } from './table/check-entity-constraints.js';
 import type {
   RowId,
   SqliteChangeErrorEvent,
@@ -109,6 +107,8 @@ import {
   rxDBColumnTypeToSqliteType,
   SQLITE_NOW_ISO_SQL
 } from './sqlite-core.utils.js';
+import { assertSqliteHostVersion } from './system/sqlite-version.js';
+import { check_entity_constraints_sqlite } from './table/check-entity-constraints.js';
 import { create_tables_sql } from './table/create_tables_sql.js';
 import { remove_all_triggers_sql } from './table/remove_trigger_sql.js';
 import { generate_table_trigger_sql } from './table/trigger_sql.js';
