@@ -184,7 +184,7 @@
     "electron": "^44.7.0",
     "electron-builder": "^26.15.3",
     "electron-debug": "^4.1.0",
-    "electron-reloader": "^1.2.3",
+    "electron-reloader": "^2.0.0",
     "esbuild": "^0.28.2",
     "eslint": "^10.12.0",
     "eslint-config-prettier": "^10.1.8",
