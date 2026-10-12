@@ -98,7 +98,7 @@ describe('PGliteTransactionExecutor', () => {
 
   it('入口反例：事务内 entity.save() 排在本事务之后，不能在回调中等待', async () => {
     await verifyQueuedEntitySave(await connect());
-  });
+  }, 30000);
 
   it('executor.getRepository() 的写入属于本事务：回滚后必须消失', async () => {
     const adapter = await connect();

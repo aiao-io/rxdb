@@ -1,7 +1,8 @@
 # Aiao 包组合知识（v0.0.26）
 
-事实摘要：`ac9c1df3cabb103115e42f20bf43d9568c6681ab377090914d3a8bdaae02c61f`。本文件由事实源、manifest、插件源码与已验证样例生成。
+事实摘要：`098f250ee6645d1d8d43bd375f06fe309a8c008da1419bfbe24c2c9f421c3966`。本文件由事实源、manifest、插件源码与已验证样例生成。
 安装清单只包含此发布标签树里的包；工作区新增能力见同目录 JSON 的 development 部分。
+情景的插件组合与下方样例取自工作区源码（样例在 CI 中执行过），可能新于此发布标签。
 
 ## 包选型
 
@@ -16,7 +17,7 @@ shared-impl 与 capability 不占后端槽位，tool 与 standalone 不要求 Rx
 | @aiao/code-editor-vue | binding |  | browser | vue |
 | @aiao/rxdb | core |  | browser, node, electron, tauri, miniprogram |  |
 | @aiao/rxdb-adapter-electron | backend | local | electron |  |
-| @aiao/rxdb-adapter-encrypted | capability |  | browser, node |  |
+| @aiao/rxdb-adapter-encrypted | capability |  | browser, node, electron, tauri |  |
 | @aiao/rxdb-adapter-http | backend | remote | browser, node |  |
 | @aiao/rxdb-adapter-miniprogram | backend | local | miniprogram |  |
 | @aiao/rxdb-adapter-pglite | backend | local | browser, node |  |
@@ -41,9 +42,9 @@ shared-impl 与 capability 不占后端槽位，tool 与 standalone 不要求 Rx
 | @aiao/rxdb-plugin-sync | plugin |  | browser, node |  |
 | @aiao/rxdb-plugin-workspace | plugin |  | browser |  |
 | @aiao/rxdb-react | binding |  | browser | react |
-| @aiao/rxdb-test | tool |  | node |  |
+| @aiao/rxdb-test | tool |  | browser, node |  |
 | @aiao/rxdb-vue | binding |  | browser | vue |
-| @aiao/utils | standalone |  | browser, node |  |
+| @aiao/utils | standalone |  | browser, node, electron, tauri, miniprogram |  |
 
 ## 组合情景
 
@@ -51,7 +52,7 @@ shared-impl 与 capability 不占后端槽位，tool 与 standalone 不要求 Rx
 
 必需包：@aiao/rxdb、@aiao/rxdb-adapter-wa-sqlite、@aiao/rxdb-angular
 
-插件：无
+插件（顺序不限）：无
 
 槽位：{
   "local": "@aiao/rxdb-adapter-wa-sqlite"
@@ -63,7 +64,7 @@ shared-impl 与 capability 不占后端槽位，tool 与 standalone 不要求 Rx
 
 必需包：@aiao/rxdb、@aiao/rxdb-adapter-wa-sqlite、@aiao/rxdb-react
 
-插件：无
+插件（顺序不限）：无
 
 槽位：{
   "local": "@aiao/rxdb-adapter-wa-sqlite"
@@ -75,7 +76,7 @@ shared-impl 与 capability 不占后端槽位，tool 与 standalone 不要求 Rx
 
 必需包：@aiao/rxdb、@aiao/rxdb-adapter-wa-sqlite、@aiao/rxdb-vue
 
-插件：无
+插件（顺序不限）：无
 
 槽位：{
   "local": "@aiao/rxdb-adapter-wa-sqlite"
@@ -87,7 +88,7 @@ shared-impl 与 capability 不占后端槽位，tool 与 standalone 不要求 Rx
 
 必需包：@aiao/code-editor
 
-插件：无
+插件（顺序不限）：无
 
 槽位：{}
 
@@ -97,7 +98,7 @@ shared-impl 与 capability 不占后端槽位，tool 与 standalone 不要求 Rx
 
 必需包：@aiao/rxdb、@aiao/rxdb-adapter-wa-sqlite、@aiao/rxdb-plugin-graph
 
-插件：rxDBPluginGraph
+插件（顺序不限）：rxDBPluginGraph
 
 槽位：{
   "local": "@aiao/rxdb-adapter-wa-sqlite"
@@ -109,7 +110,7 @@ shared-impl 与 capability 不占后端槽位，tool 与 standalone 不要求 Rx
 
 必需包：@aiao/rxdb、@aiao/rxdb-adapter-http、@aiao/rxdb-adapter-wa-sqlite、@aiao/rxdb-plugin-history、@aiao/rxdb-plugin-querycache、@aiao/rxdb-plugin-sync
 
-插件：rxDBPluginHistory → rxDBPluginQueryCache → rxDBPluginSync
+插件（顺序不限）：rxDBPluginHistory、rxDBPluginQueryCache、rxDBPluginSync
 
 槽位：{
   "local": "@aiao/rxdb-adapter-wa-sqlite",
@@ -122,7 +123,7 @@ shared-impl 与 capability 不占后端槽位，tool 与 standalone 不要求 Rx
 
 必需包：@aiao/rxdb、@aiao/rxdb-adapter-pglite
 
-插件：无
+插件（顺序不限）：无
 
 槽位：{
   "local": "@aiao/rxdb-adapter-pglite"
@@ -134,7 +135,7 @@ shared-impl 与 capability 不占后端槽位，tool 与 standalone 不要求 Rx
 
 必需包：@aiao/rxdb、@aiao/rxdb-adapter-supabase、@aiao/rxdb-adapter-wa-sqlite、@aiao/rxdb-plugin-history、@aiao/rxdb-plugin-sync
 
-插件：rxDBPluginHistory → rxDBPluginSync
+插件（顺序不限）：rxDBPluginHistory、rxDBPluginSync
 
 槽位：{
   "local": "@aiao/rxdb-adapter-wa-sqlite",

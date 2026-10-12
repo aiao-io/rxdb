@@ -31,10 +31,10 @@ Node 26、TS 6、Nx 23、pnpm 10；审计用 Node ESM 与已有 TypeScript AST�
 ## Decisions
 
 1. 包数均由扫描获得。门禁扫描 packages/* 非 private manifest；API 基线继续使用原 listPublicPackages，不扩大或缩小。
-2. 发布范围用 git describe 的可达 v* 标签，再读标签树下的 manifest；无标签明确报错，未发布包不给安装命令。
+2. 发布范围读事实源 release 登记的正式版标签（v<major>.<minor>.<patch>），再读标签树下的 manifest；标签不在本地明确报错，未发布包不给安装命令。不用 git describe 探测：打 tag 发生在提交之外，门禁结论不能随它改变（评审修复，见 release-plan「包组合知识随发布更新」）。已发布的包删目录时条目标 retired: true 继续投递，登记切走后再删。
 3. 事实源不复制安装边或 inject。插件登记 source/class/factory，AST 只读对应类的 inject 字面数组；无法静态识别时明确报错，避免词法猜测和全仓类型 Program。
 4. 情景登记入口插件；闭包自动加入 plugin:* 前置及包，adapter:* 前置核对槽位。输出开发范围与发布范围分开，docs-plugin-surface 从同一情景计算 QueryCache 所需项。
-5. 使用提交生成物 + --check。facts/manifest/源码/template/sample/生成脚本以及 Git 发布引用进入审计和消费目标哈希输入；不禁用全局缓存。
+5. 使用提交生成物 + --check。生成物是唯一投递源：站点只读提交的 package-knowledge.json，构建期不碰 git，website:build 以它为输入；门禁读标签树、不进任何 Nx 输入，audit-package-graph 不缓存（与 audit:api-surface 同例）；不禁用全局缓存。
 6. 最小样例用 PGlite + history，执行 use → adapter → connect → CRUD → transaction executor → disconnect。实例 save 的负例通过受控队列 spy 验证，再释放外层事务并等待保存结束，测试无定时竞态。
 7. 不运行在线模型、不发版、不改 peer 声明、不生成 llms 或 Skill。
 

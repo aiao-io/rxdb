@@ -52,9 +52,10 @@
       "name": "@aiao/rxdb-adapter-encrypted",
       "description": "Local field-level **AES-GCM-256** envelope encryption for [`@aiao/rxdb`](../rxdb).",
       "role": "capability",
-      "hosts": ["browser", "node"],
+      "hosts": ["browser", "node", "electron", "tauri"],
       "slots": [],
-      "framework": null
+      "framework": null,
+      "notes": "依赖 WebCrypto（crypto.subtle）。小程序宿主会随 sqlite-core 加载本包，但没有 crypto.subtle，加密能力不可用。"
     },
     {
       "name": "@aiao/rxdb-adapter-http",
@@ -431,7 +432,7 @@
       "name": "@aiao/rxdb-taro",
       "description": "**实验性。** 给 Taro 4.3（vite 编译器）项目一行接入",
       "role": "tool",
-      "hosts": ["node"],
+      "hosts": ["node", "miniprogram"],
       "slots": [],
       "framework": null
     },
@@ -439,7 +440,7 @@
       "name": "@aiao/rxdb-test",
       "description": "RxDB 测试资源包，集中放测试实体、跨 adapter 契约套件、跨框架行为夹具和可复用的测试辅助函数。",
       "role": "tool",
-      "hosts": ["node"],
+      "hosts": ["browser", "node"],
       "slots": [],
       "framework": null
     },
@@ -455,11 +456,12 @@
       "name": "@aiao/utils",
       "description": "Aiao 项目通用工具库，提供常用的工具函数。",
       "role": "standalone",
-      "hosts": ["browser", "node"],
+      "hosts": ["browser", "node", "electron", "tauri", "miniprogram"],
       "slots": [],
       "framework": null
     }
   ],
+  "release": "v0.0.26",
   "scenarios": [
     {
       "id": "binding-angular",

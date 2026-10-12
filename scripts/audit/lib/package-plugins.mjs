@@ -1,5 +1,12 @@
+/**
+ * 插件元数据的静态读取与情景闭包：从插件类的源码 AST 读 `name` / `inject`，按 `inject` 闭合情景的必需插件。
+ *
+ * @remarks
+ * 只读事实源登记的插件类与它跟随的局部常量，不启动全仓 TypeScript Program；读不出静态值时明确报错。
+ */
+
 import { readFileSync } from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import ts from 'typescript';
 
 const parse = source => ts.createSourceFile(source, readFileSync(source, 'utf8'), ts.ScriptTarget.Latest, true);
@@ -29,10 +36,9 @@ function constant(node, file, source, visited = new Set()) {
     const specifier = statement.moduleSpecifier.text;
     if (!specifier.startsWith('.')) throw new Error(`${source}: 常量 ${value.text} 必须可从局部源码静态读取`);
     const next = resolve(dirname(source), specifier.replace(/\.js$/, '.ts'));
-    const nextFile = parse(next);
     return constant(
       ts.factory.createIdentifier(binding.propertyName?.text ?? binding.name.text),
-      nextFile,
+      parse(next),
       next,
       visited
     );
@@ -40,11 +46,21 @@ function constant(node, file, source, visited = new Set()) {
   throw new Error(`${source}: 常量 ${value.text} 未定义`);
 }
 
+/**
+ * 读取一个插件包的插件元数据。
+ *
+ * @param record - 工作区包记录
+ * @param fact - 该包的事实源条目，`plugin` 登记 `source` / `class` / `factory`
+ * @returns 插件身份 `id`（类的静态 `name`）、工厂名、`inject` 与源码全文
+ * @throws `plugin.source` 不是包目录内的文件、类或工厂缺失、`name` / `inject` 无法静态读取时
+ */
 export function readPlugin(record, fact) {
   const source = resolve(record.directory, fact.plugin.source);
-  if (relative(record.directory, source).startsWith('..'))
-    throw new Error(`${record.source}: plugin.source 越出包目录`);
-  const file = parse(source);
+  const path = relative(record.directory, source);
+  if (!path || isAbsolute(path) || path.split(sep)[0] === '..')
+    throw new Error(`${record.source}: plugin.source 必须是包目录内的文件`);
+  const text = readFileSync(source, 'utf8');
+  const file = ts.createSourceFile(source, text, ts.ScriptTarget.Latest, true);
   const declaration = file.statements.find(
     node => ts.isClassDeclaration(node) && node.name?.text === fact.plugin.class
   );
@@ -63,20 +79,21 @@ export function readPlugin(record, fact) {
     .flatMap(node => node.declarationList.declarations)
     .find(node => node.name.getText(file) === fact.plugin.factory);
   if (!factory) throw new Error(`${source}: 缺少工厂 ${fact.plugin.factory}`);
-  return {
-    name: record.name,
-    id,
-    factory: fact.plugin.factory,
-    inject: dependencies,
-    source: readFileSync(source, 'utf8')
-  };
+  return { name: record.name, id, factory: fact.plugin.factory, inject: dependencies, source: text };
 }
 
+/**
+ * 收集一组包记录里全部插件的元数据。
+ *
+ * @param facts - 事实源
+ * @param records - 工作区包记录；只收集其中存在的插件包（退役包已不在工作区）
+ * @returns 包名 → 插件元数据，以及逐包的错误
+ */
 export function collectPlugins(facts, records) {
   const byName = new Map(records.map(record => [record.name, record]));
   const plugins = new Map();
   const errors = [];
-  for (const fact of facts.packages.filter(fact => fact.role === 'plugin')) {
+  for (const fact of facts.packages.filter(fact => fact.role === 'plugin' && byName.has(fact.name))) {
     try {
       const plugin = readPlugin(byName.get(fact.name), fact);
       if ([...plugins.values()].some(existing => existing.id === plugin.id))
@@ -89,6 +106,14 @@ export function collectPlugins(facts, records) {
   return { plugins, errors };
 }
 
+/**
+ * 按插件 `inject` 闭合一个情景：`plugin:*` 前置并入必需插件与必需包，`adapter:*` 前置核对槽位。
+ *
+ * @param scenario - 事实源情景
+ * @param facts - 事实源
+ * @param plugins - {@link collectPlugins} 的结果
+ * @returns 闭合后的情景（必需包排序、插件按包名排序）与逐条错误
+ */
 export function resolveScenario(scenario, facts, plugins) {
   const required = new Set(scenario.packages);
   const selected = new Map();

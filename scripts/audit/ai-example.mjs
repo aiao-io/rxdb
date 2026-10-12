@@ -1,8 +1,25 @@
+/**
+ * 离线 AI 样例与实际打包声明的验证（US-602 AC#12、AC#15）。
+ *
+ * @remarks
+ * 1. 真实 `pnpm pack` 核心包，按文件读 tgz 里的 `.d.ts`，跑 {@link auditEntryDocs}；
+ * 2. 读各适配器包的非测试源码，跑 {@link auditTransactionOverrides}；
+ * 3. 把 `RxDBAdapterLocalBase.transaction` 的 `@example` 正反例与 `scripts/examples/ai-local/main.ts`
+ *    一起按样例 tsconfig 严格编译，再用 Node 执行样例：use → adapter → connect → CRUD → 事务执行器 → disconnect。
+ *
+ * 在 CI 的 extras job 跑（`dependsOn` 核心、PGlite、history 的构建），不进 setup 的免构建门禁。
+ *
+ * @example
+ * ```bash
+ * pnpm verify:ai-example
+ * ```
+ */
+
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { globSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import ts from 'typescript';
-import { auditEntryDocs } from './ai-entry-docs.mjs';
+import { auditEntryDocs, auditTransactionOverrides } from './ai-entry-docs.mjs';
 
 const root = process.cwd();
 mkdirSync(join(root, 'tmp'), { recursive: true });
@@ -14,27 +31,32 @@ const diagnostics = values =>
     getNewLine: () => '\n'
   });
 
+function transactionExamples(declaration) {
+  const file = ts.createSourceFile('index.d.ts', declaration, ts.ScriptTarget.Latest, true);
+  const base = file.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'RxDBAdapterLocalBase');
+  const overload = base.members.find(node => node.name?.getText(file) === 'transaction');
+  const blocks = ts
+    .getJSDocTags(overload)
+    .filter(tag => tag.tagName.text === 'example')
+    .flatMap(tag => [
+      ...(ts.getTextOfJSDocComment(tag.comment) ?? '').matchAll(/```(?:ts|typescript)\n([\s\S]*?)\n```/g)
+    ])
+    .map(match => match[1]);
+  if (blocks.length !== 2)
+    throw new Error(
+      `RxDBAdapterLocalBase.transaction 的 @example 必须是一个正例、一个反例（实际 ${blocks.length} 个 ts 代码块）`
+    );
+  return blocks;
+}
+
 function compile(directory, declaration) {
   const sample = readFileSync(join(root, 'scripts/examples/ai-local/main.ts'), 'utf8');
   writeFileSync(join(directory, 'package.json'), '{"type":"module","private":true}\n');
   writeFileSync(join(directory, 'main.ts'), sample);
-  const file = ts.createSourceFile('index.d.ts', declaration, ts.ScriptTarget.Latest, true);
-  const base = file.statements.find(node => ts.isClassDeclaration(node) && node.name?.text === 'RxDBAdapterLocalBase');
-  const blocks = base.members
-    .filter(node => node.name?.getText(file) === 'transaction')
-    .flatMap(node => (node.jsDoc ?? []).flatMap(doc => [...doc.getText(file).matchAll(/```ts\n([\s\S]*?)```/g)]))
-    .map(match =>
-      match[1]
-        .split('\n')
-        .map(line => line.replace(/^\s*\* ?/, ''))
-        .join('\n')
-        .trim()
-    );
-  if (blocks.length !== 4) throw new Error('transaction 两个重载必须各有正例和反例代码块');
   const source = [
     'import type { RxDBAdapterLocalBase } from "@aiao/rxdb";',
     'import { Note } from "./main.js";',
-    ...blocks.map(
+    ...transactionExamples(declaration).map(
       (block, index) =>
         `export async function example${index}(adapter: RxDBAdapterLocalBase, entity: Note) {\n${block}\n}`
     )
@@ -65,11 +87,19 @@ try {
       .sort()
       .map(name => [`${archive}:dist/${name}`, readFileSync(join(declarationsRoot, name), 'utf8')])
   );
-  const errors = auditEntryDocs(declarations, `${archive}:dist/index.d.ts`);
-  const declaration = Object.values(declarations).join('\n');
+  const adapterSources = Object.fromEntries(
+    globSync('packages/rxdb-adapter-*/src/**/*.ts', { cwd: root })
+      .filter(file => !/__tests__|\.(spec|test)\.ts$/.test(file))
+      .sort()
+      .map(file => [file, readFileSync(join(root, file), 'utf8')])
+  );
+  const errors = [
+    ...auditEntryDocs(declarations, `${archive}:dist/index.d.ts`),
+    ...auditTransactionOverrides(adapterSources)
+  ];
   if (errors.length) throw new Error(errors.join('\n'));
-  console.log('✅ 实际核心 tgz：入口说明与两个事务重载验证通过');
-  compile(temporary, declaration);
+  console.log('✅ 实际核心 tgz 的入口说明、两个事务重载与适配器覆写验证通过');
+  compile(temporary, Object.values(declarations).join('\n'));
   execFileSync(process.execPath, [resolve(temporary, 'dist/main.js')], { cwd: root, stdio: 'inherit', timeout: 30000 });
 } finally {
   rmSync(temporary, { recursive: true, force: true });

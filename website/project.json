@@ -40,7 +40,7 @@
       "options": {
         "command": "node website/scripts/build-website.mjs"
       },
-      "inputs": ["production", "^production", "aiKnowledge"]
+      "inputs": ["production", "^production", "{workspaceRoot}/requirements/generated/package-knowledge.json"]
     },
     "check-doc-code": {
       "executor": "nx:run-commands",

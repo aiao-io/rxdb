@@ -27,19 +27,7 @@
       "!{projectRoot}/src/**/test-utils.ts",
       "!{projectRoot}/src/test-setup.[jt]s"
     ],
-    "sharedGlobals": [],
-    "aiKnowledge": [
-      "{workspaceRoot}/package.json",
-      "{workspaceRoot}/requirements/package-graph.json",
-      "{workspaceRoot}/requirements/generated/**/*",
-      "{workspaceRoot}/packages/*/package.json",
-      "{workspaceRoot}/packages/rxdb-plugin-*/src/**/*",
-      "{workspaceRoot}/scripts/audit/package-graph.mjs",
-      "{workspaceRoot}/scripts/audit/lib/package-*.mjs",
-      "{workspaceRoot}/scripts/audit/templates/**/*",
-      "{workspaceRoot}/scripts/examples/ai-local/**/*",
-      { "runtime": "git describe --tags --match 'v[0-9]*' --abbrev=0" }
-    ]
+    "sharedGlobals": []
   },
   "nxCloudId": "6a7b30a94caecff9b5bf52d6",
   "plugins": [

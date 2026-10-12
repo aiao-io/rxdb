@@ -1,13 +1,37 @@
+/**
+ * 包组合知识门禁（US-602 A1）：校验 `requirements/package-graph.json` 与工作区一致，
+ * 并核对提交的 `requirements/generated/package-knowledge.{json,md}` 与当前输入逐字节一致。
+ *
+ * @remarks
+ * 投递范围读事实源 `release` 登记的发布标签树，需要本地有该 tag（CI 的 setup job 已 `fetch-tags`）。
+ * 文档站只读提交的生成物、构建期不碰 git，因此生成物是包组合知识唯一的投递源；
+ * 改了事实源、manifest、插件源码、模板或样例之后跑 `--update` 重新生成，与改动一起提交。
+ *
+ * @example
+ * ```bash
+ * pnpm audit:package-graph                                  # 门禁
+ * node scripts/audit/package-graph.mjs --update             # 重新生成
+ * node scripts/audit/package-graph.mjs --check --root=<dir> # 对另一份工作区副本跑门禁
+ * ```
+ */
+
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { discoverRelease, scanPackages } from './lib/package-discovery.mjs';
-import { auditPackageGraph } from './lib/package-graph-validation.mjs';
+import { analyzePackageGraph, auditPackageGraph } from './lib/package-graph-validation.mjs';
 import { buildKnowledge, renderKnowledge } from './lib/package-knowledge.mjs';
 
 export { queryCacheRequirements } from './lib/package-knowledge.mjs';
-export { auditPackageGraph, buildKnowledge, discoverRelease, renderKnowledge, scanPackages };
+export { analyzePackageGraph, auditPackageGraph, buildKnowledge, discoverRelease, renderKnowledge, scanPackages };
 
+/**
+ * 读取知识生成的非事实源输入：模板、样例源、安装清单、编译选项与生成器源码。
+ *
+ * @param root - 仓库根目录
+ * @returns `buildKnowledge` 的 `input`；`generatorSources` 让生成器改动进入摘要
+ * @throws 样例编译依赖未在根 `devDependencies` 声明时
+ */
 export function readKnowledgeInput(root) {
   const sampleRoot = join(root, 'scripts/examples/ai-local');
   const generatorFiles = [
@@ -35,6 +59,14 @@ export function readKnowledgeInput(root) {
   };
 }
 
+/**
+ * 核对（或在 `update` 时写回）提交的两份生成物。
+ *
+ * @param root - 仓库根目录
+ * @param rendered - `renderKnowledge` 的结果
+ * @param update - 为真时写回而不是核对
+ * @returns 漂移的文件，空数组即一致
+ */
 export function checkGenerated(root, rendered, update = false) {
   const outputs = [
     ['package-knowledge.json', rendered.json],
@@ -59,16 +91,15 @@ function main() {
   const root = rootArgument ? resolve(rootArgument.slice('--root='.length)) : process.cwd();
   const factsPath = join(root, 'requirements/package-graph.json');
   const facts = JSON.parse(readFileSync(factsPath, 'utf8'));
-  const packages = scanPackages(join(root, 'packages'));
-  const errors = auditPackageGraph(facts, packages, factsPath);
-  if (errors.length) throw new Error(errors.join('\n'));
-  const release = discoverRelease(root);
+  const graph = analyzePackageGraph(facts, scanPackages(join(root, 'packages')), factsPath);
+  if (graph.errors.length) throw new Error(graph.errors.join('\n'));
+  const release = discoverRelease(root, facts.release);
   const input = readKnowledgeInput(root);
-  const knowledge = buildKnowledge(facts, packages, release, input);
+  const knowledge = buildKnowledge(graph, release, input);
   const generated = checkGenerated(root, renderKnowledge(knowledge, input.template), process.argv.includes('--update'));
   if (generated.length) throw new Error(generated.join('\n'));
   console.log(
-    `✅ 包组合门禁：登记 ${packages.length} 包，发布 ${release.packages.length} 包（${release.tag}），${knowledge.development.scenarios.length} 个情景`
+    `✅ 包组合门禁：登记 ${graph.records.length} 包，发布 ${release.packages.length} 包（${release.tag}），${knowledge.development.scenarios.length} 个情景`
   );
 }
 

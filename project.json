@@ -23,17 +23,17 @@
       }
     },
     "test-scripts": {
+      "// cache": "spec 会读 scripts/ 之外的真实文件（api 基线、迁移常量、pnpm-lock.yaml、workflow、packages/**），列不全的 inputs 会让改了被测文件仍命中旧绿灯。",
       "executor": "nx:run-commands",
-      "cache": true,
-      "inputs": ["{workspaceRoot}/scripts/**/*", "{workspaceRoot}/requirements/package-graph.json"],
+      "cache": false,
       "options": {
         "command": "node --test \"scripts/**/*.spec.mjs\""
       }
     },
     "audit-package-graph": {
+      "// cache": "门禁读登记发布标签的树（git），标签内容不在任何 Nx 输入里；与 audit:api-surface 等同类门禁一样不缓存。",
       "executor": "nx:run-commands",
-      "cache": true,
-      "inputs": ["aiKnowledge"],
+      "cache": false,
       "options": {
         "command": "node scripts/audit/package-graph.mjs --check"
       }
@@ -42,12 +42,10 @@
       "executor": "nx:run-commands",
       "cache": true,
       "inputs": [
-        "aiKnowledge",
         "{workspaceRoot}/scripts/audit/ai-*.mjs",
-        "{workspaceRoot}/packages/rxdb/**/*",
-        "{workspaceRoot}/packages/rxdb-adapter-pglite/**/*",
-        "{workspaceRoot}/packages/rxdb-plugin-history/**/*",
-        "{workspaceRoot}/packages/utils/**/*"
+        "{workspaceRoot}/scripts/examples/ai-local/**/*",
+        "{workspaceRoot}/packages/rxdb-adapter-*/src/**/*",
+        "^production"
       ],
       "dependsOn": [
         {
@@ -59,37 +57,11 @@
         "command": "node scripts/audit/ai-example.mjs"
       }
     },
-    "audit-requirements": {
+    "lint": {
       "executor": "nx:run-commands",
-      "cache": false,
+      "inputs": ["{workspaceRoot}/scripts/**/*", "{workspaceRoot}/eslint.config.mjs"],
       "options": {
-        "command": "node scripts/audit/requirements-consistency.mjs --check"
-      }
-    },
-    "audit-api-surface": {
-      "executor": "nx:run-commands",
-      "cache": false,
-      "options": {
-        "command": "node scripts/audit/api-surface.mjs --check"
-      }
-    },
-    "audit-docs-plugins": {
-      "executor": "nx:run-commands",
-      "cache": false,
-      "options": {
-        "command": "node scripts/audit/docs-plugin-surface.mjs"
-      }
-    },
-    "lint-ai-artifacts": {
-      "executor": "nx:run-commands",
-      "cache": true,
-      "inputs": [
-        "{workspaceRoot}/scripts/audit/**/*",
-        "{workspaceRoot}/scripts/examples/ai-local/**/*",
-        "{workspaceRoot}/eslint.config.mjs"
-      ],
-      "options": {
-        "command": "eslint scripts/audit/ai-*.mjs scripts/audit/package-graph*.mjs scripts/audit/lib/package-*.mjs scripts/examples/ai-local/main.ts --max-warnings=0"
+        "command": "eslint scripts --max-warnings=0 --ignore-pattern \"scripts/**/__fixtures__/**\""
       }
     }
   }
