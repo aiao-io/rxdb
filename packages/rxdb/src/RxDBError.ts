@@ -1,6 +1,6 @@
 export class RxDBError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = 'RxDBError';
     Object.setPrototypeOf(this, RxDBError.prototype);
   }
@@ -292,11 +292,14 @@ export class RxDBCheckViolationError extends RxDBError {
     /** 约束名（`ck_` 起头的确定性名） */
     readonly constraint: string,
     /** 约束引用的列与该行送出的值（列名是物理列名） */
-    readonly conflicts: ReadonlyArray<{ column: string; value: unknown }>
+    readonly conflicts: ReadonlyArray<{ column: string; value: unknown }>,
+    /** 适配器抛出的原始违约错误（仓库 `cause` 惯例，见 {@link RxDBPartialSyncError}） */
+    override readonly cause?: unknown
   ) {
     super(
       `Entity '${entity}' violates CHECK constraint '${constraint}': ` +
-        conflicts.map(c => `${c.column} = ${String(c.value)}`).join(', ')
+        conflicts.map(c => `${c.column} = ${String(c.value)}`).join(', '),
+      { cause }
     );
     this.name = 'RxDBCheckViolationError';
     Object.setPrototypeOf(this, RxDBCheckViolationError.prototype);
@@ -335,12 +338,18 @@ export class RxDBConstraintDriftError extends RxDBError {
     /** 元数据声明了、库里没有的约束名 */
     readonly missing: readonly string[],
     /** 库里存在、元数据没声明的约束名 */
-    readonly extra: readonly string[]
+    readonly extra: readonly string[],
+    /** 表本身在目录里不存在（缺表），与「有表但约束不一致」分开点名 */
+    readonly tableMissing: boolean = false
   ) {
     super(
-      `Entity '${entity}' (table '${tableName}') storage constraints drifted. ` +
-        `Missing: [${missing.join(', ')}]. Extra: [${extra.join(', ')}]. ` +
-        `Apply a migration to add/drop the listed constraints before init.`
+      tableMissing ?
+        `Entity '${entity}' table '${tableName}' is missing from the database catalog. ` +
+          `Expected check constraints: [${missing.join(', ')}]. ` +
+          `Restore the table (or a migration creating it) before init.`
+      : `Entity '${entity}' (table '${tableName}') storage constraints drifted. ` +
+          `Missing: [${missing.join(', ')}]. Extra: [${extra.join(', ')}]. ` +
+          `Apply a migration to add/drop the listed constraints before init.`
     );
     this.name = 'RxDBConstraintDriftError';
     Object.setPrototypeOf(this, RxDBConstraintDriftError.prototype);

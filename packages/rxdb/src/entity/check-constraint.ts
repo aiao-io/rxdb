@@ -162,7 +162,8 @@ export const hashCheckExpression = (expression: string): string => {
   return (hash >>> 0).toString(16).padStart(8, '0');
 };
 
-const isCheckRuleGroup = (rule: CheckRule | CheckRuleGroup): rule is CheckRuleGroup => 'rules' in rule;
+const isCheckRuleGroup = (rule: CheckRule | CheckRuleGroup | null | undefined): rule is CheckRuleGroup =>
+  rule !== null && typeof rule === 'object' && 'rules' in rule;
 
 /** 拼非整数字面量（`PropertyType.number` 的 REAL/float8 存储形态）。 */
 const sqlNumberLiteral = (value: number): string => {
@@ -254,9 +255,60 @@ const compileCheckLiteral = (propertyType: string, value: unknown, label: string
 };
 
 /**
+ * 按列类型比较两个字面量（`between` 边界序校验用）。
+ *
+ * @returns 负数 / 0 / 正数，同 `Array.sort` 比较器口径；字符串按字节序（两后端 C / BINARY 一致）
+ */
+const compareCheckLiteralValues = (propertyType: string, a: unknown, b: unknown, label: string): number => {
+  switch (propertyType) {
+    case PropertyType.string:
+    case PropertyType.enum:
+    case PropertyType.uuid: {
+      if (typeof a !== 'string' || typeof b !== 'string') {
+        throw new RxDBError(`CHECK ${label} 的字面量必须是字符串`);
+      }
+      return (
+        a < b ? -1
+        : a > b ? 1
+        : 0
+      );
+    }
+    case PropertyType.integer:
+    case PropertyType.number: {
+      if (typeof a !== 'number' || typeof b !== 'number') {
+        throw new RxDBError(`CHECK ${label} 的字面量必须是数字`);
+      }
+      return a - b;
+    }
+    case PropertyType.bigint: {
+      if (typeof a !== 'bigint' || typeof b !== 'bigint') {
+        throw new RxDBError(`CHECK ${label} 的字面量必须是 bigint`);
+      }
+      return (
+        a < b ? -1
+        : a > b ? 1
+        : 0
+      );
+    }
+    case PropertyType.date: {
+      if (!(a instanceof Date) || !(b instanceof Date)) {
+        throw new RxDBError(`CHECK ${label} 的字面量必须是 Date`);
+      }
+      return a.getTime() - b.getTime();
+    }
+    default:
+      throw new RxDBError(`CHECK 不支持的列类型：${String(propertyType)}`);
+  }
+};
+
+/**
  * 按字段列类型把一条比较 / 成员 / 区间规则拼成 SQL。
  */
 const compileCheckRule = (metadata: EntityMetadata, rule: CheckRule, checkName: string): string => {
+  // 畸形声明（规则不是对象）由注册期校验转成 invalidCheck 违规，这里显式拒绝而非裸抛 TypeError
+  if (rule === null || typeof rule !== 'object') {
+    throw new RxDBError(`CHECK ${checkName} 的规则必须是 { field, operator } 对象`);
+  }
   const label = `${checkName} 的规则 (${rule.field})`;
   if (typeof rule.operator !== 'string' || !(CHECK_OPERATORS as readonly string[]).includes(rule.operator)) {
     throw new RxDBError(
@@ -275,6 +327,16 @@ const compileCheckRule = (metadata: EntityMetadata, rule: CheckRule, checkName: 
     }
     if (!REF_OPERATORS.has(rule.operator)) {
       throw new RxDBError(`CHECK ${label} 的 ref 只配比较操作符（= != < > <= >=），不能配 ${rule.operator}`);
+    }
+    // 跨类型字段对字段比较：PG 按列类型解析（integer <= text 抛 42883）逃出 CHECK 违约归一化，
+    // 两后端的错误类分叉——在元数据期拒绝，只放行同类型列比较。
+    const fieldProperty = metadata.propertyMap.get(rule.field);
+    const refProperty = metadata.propertyMap.get(rule.ref);
+    if (fieldProperty?.type !== refProperty?.type) {
+      throw new RxDBError(
+        `CHECK ${label} 的 ref 跨列类型比较不支持：'${rule.field}' 是 ${String(fieldProperty?.type)}、` +
+          `'${rule.ref}' 是 ${String(refProperty?.type)}，两后端对跨类型比较的错误语义不一致`
+      );
     }
     const refColumn = quoteSqlIdentifier(resolveCheckField(metadata, rule.ref, `${checkName} 的 ref (${rule.ref})`));
     return `${column} ${rule.operator} ${refColumn}`;
@@ -309,6 +371,13 @@ const compileCheckRule = (metadata: EntityMetadata, rule: CheckRule, checkName: 
         throw new RxDBError(`CHECK ${label} 的 ${rule.operator} 需要二元组 [下界, 上界]`);
       }
       const [lower, upper] = rule.value;
+      // 反转边界编译出的 BETWEEN 恒假 / NOT BETWEEN 恒真——不是约束，是静默失效，
+      // 在元数据期拒绝而不是让它进 DDL。
+      if (compareCheckLiteralValues(propertyType, lower, upper, label) > 0) {
+        throw new RxDBError(
+          `CHECK ${label} 的 ${rule.operator} 边界反转：下界 ${String(lower)} 大于上界 ${String(upper)}`
+        );
+      }
       const lowerSql = compileCheckLiteral(propertyType, lower, label);
       const upperSql = compileCheckLiteral(propertyType, upper, label);
       return `${column} ${rule.operator === 'between' ? 'BETWEEN' : 'NOT BETWEEN'} ${lowerSql} AND ${upperSql}`;
@@ -324,6 +393,11 @@ const compileCheckNode = (metadata: EntityMetadata, node: CheckRule | CheckRuleG
 
 /** 把规则组编译成带括号的 SQL 表达式。 */
 const compileCheckGroup = (metadata: EntityMetadata, group: CheckRuleGroup, checkName: string): string => {
+  // 畸形声明（缺 rule / rules 不是数组）由注册期校验转成 invalidCheck 违规，
+  // 这里必须显式拒绝而不是让它裸抛 TypeError（校验入口的 catch 只接 Error 语义）。
+  if (group === null || typeof group !== 'object') {
+    throw new RxDBError(`CHECK ${checkName} 缺少 rule 规则组`);
+  }
   if (group.combinator !== 'and' && group.combinator !== 'or') {
     throw new RxDBError(
       `CHECK ${checkName} 的 combinator 非法：${JSON.stringify(group.combinator)}，只能是 'and' / 'or'`

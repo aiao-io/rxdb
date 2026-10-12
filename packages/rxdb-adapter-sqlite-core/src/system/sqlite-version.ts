@@ -14,9 +14,15 @@ import { RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
 /** 声明式 CHECK 约束（及后续触发器动态消息）要求的 SQLite 最低宿主版本。 */
 export const SQLITE_MIN_HOST_VERSION = '3.47.0';
 
-/** 解析 `x.y.z` 版本号；解析不出时返回 `null`（畸形版本按不达标处理，不静默放行）。 */
+/**
+ * 从字符串中搜索 `x.y.z` 版本号。
+ *
+ * @remarks
+ * 不锚定字符串开头：包装宿主返回的 `v3.53.0` / `SQLite 3.53.0` 这类带前缀的形态
+ * 也要能解出；解析不出时返回 `null`（畸形版本按不达标处理，不静默放行）。
+ */
 export const parseSqliteVersion = (version: string): [number, number, number] | null => {
-  const match = /^(\d+)\.(\d+)\.(\d+)/.exec(version.trim());
+  const match = /(?:\D|^)(\d+)\.(\d+)\.(\d+)/.exec(version.trim());
   if (!match) return null;
   return [Number(match[1]), Number(match[2]), Number(match[3])];
 };
@@ -33,13 +39,14 @@ export const compareSqliteVersion = (a: string, b: string): number => {
  *
  * @param version - `SELECT sqlite_version()` 的实际版本
  * @param minVersion - 门槛，默认 {@link SQLITE_MIN_HOST_VERSION}
- * @throws {@link RxDBAdapterSqliteError} 实际版本低于门槛时，消息点名实际版本与门槛
+ * @throws {@link RxDBAdapterSqliteError} 实际版本低于门槛时，消息点名实际版本与门槛。
+ *   理由文本由 `minVersion` 派生，提高门槛时消息不会自相矛盾
  */
 export const assertSqliteHostVersion = (version: string, minVersion: string = SQLITE_MIN_HOST_VERSION): void => {
   if (compareSqliteVersion(version, minVersion) >= 0) return;
   throw new RxDBAdapterSqliteError(
     `SQLite host version ${version} is below the required minimum ${minVersion}: ` +
-      `declarative CHECK constraints need SQLite 3.47.0+ (RAISE() with expressions). ` +
+      `declarative CHECK constraints need SQLite ${minVersion}+ (RAISE() with expressions). ` +
       `Upgrade the host SQLite, or remove 'checks' from entity metadata.`
   );
 };

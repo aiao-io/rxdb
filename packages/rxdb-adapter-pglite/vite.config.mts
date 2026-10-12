@@ -75,6 +75,7 @@ export default defineConfig(() => {
       include: ['fastest-levenshtein', 'ms', 'uuid'],
       exclude: [
         '@aiao/rxdb-test',
+        '@aiao/rxdb-test/check-constraint',
         '@aiao/rxdb-test/entities',
         '@aiao/rxdb-test/shop',
         '@aiao/rxdb',

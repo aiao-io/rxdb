@@ -169,11 +169,15 @@ export const transitionMetadata = (
       propertyMap.set(cloned.name, cloned);
       // 属性级 check 语法糖：编译成以属性名为 name 的实体级 CHECK，同样参与按 name 的继承覆盖。
       // 排在实体级 checks 之前：同一层里作者显式写的 checks 覆盖语法糖。
+      // 子实体重声明同一属性（不带 check）即摘除继承的语法糖——属性声明是「该属性的约束域」
+      // 的完整重定义，保留父约束会让子类被迫继承一条自己已改列的 CHECK。
       if (property.check) {
         checkMap.set(property.name, {
           name: property.name,
           rule: { combinator: 'and', rules: [{ field: property.name, ...property.check }] }
         });
+      } else {
+        checkMap.delete(property.name);
       }
     });
     meta.computedProperties?.forEach(property => {
@@ -240,8 +244,11 @@ export const transitionMetadata = (
     });
     // 处理 CHECK：与 indexes / foreignKeys 同一套按 name 的 Map 覆盖——子实体同名项覆盖父实体的，
     // 异名项全部生效（US-030 AC#17）。
+    // 与 indexes 同口径**不克隆**：畸形条目（缺 rule / rules）由注册期校验
+    // `validateEntityMetadata` 以 `invalidCheck` 聚合上报，装饰期不做深层解包——解包会在
+    // 模块加载阶段崩掉，而不是给出可定位的违规条目。
     meta.checks?.forEach(check => {
-      checkMap.set(check.name, { ...check, rule: { ...check.rule, rules: [...check.rule.rules] } });
+      checkMap.set(check.name, check);
     });
   });
 

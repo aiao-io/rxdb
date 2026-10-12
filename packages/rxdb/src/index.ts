@@ -96,6 +96,9 @@ export * from './entity/check-constraint.js';
 // CHECK 违约原始错误的识别与归一化：适配器写入路径把 PG 23514 / SQLite
 // 'CHECK constraint failed' 归一成 RxDBCheckViolationError（按类名主判别）。
 export * from './system/check-violation.js';
+// 存储约束漂移比对的共享核心：期望集合生成、缺失/多余差集与抛错（两后端共用，
+// 适配器只注入实际约束名与表存在性）。
+export * from './system/constraint-drift.js';
 // 批量写入解析主适配器时抛给调用方的结构化错误。
 // 选择器本身（selectPrimaryAdapterKind 等）是 Repository / EntityManager 的共享内部实现。
 // `getEntitySync` 是例外：实体级 `sync` 覆盖库级配置这条规则决定了一个实体归哪个适配器管，

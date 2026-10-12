@@ -59,8 +59,9 @@ const querier = (createSqlByTable: Record<string, string>) => ({
   execute: vi.fn().mockImplementation(async (sql: string, bindings?: unknown[]) => {
     void sql;
     const tableName = String(bindings?.[0] ?? '');
+    // 未登记的表：无结果集（sqlite_master 查不到该表 = 表缺失）
     return createSqlByTable[tableName] === undefined ?
-        sqliteMasterResult('')
+        { sql: '', rowsAffected: 0, elapsed: 0, results: [] }
       : sqliteMasterResult(createSqlByTable[tableName]);
   })
 });
@@ -150,6 +151,45 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
       ])
     });
     await expect(check_entity_constraints_sqlite(q as never, [Checked])).resolves.toBeUndefined();
+  });
+
+  it('评审反例：字符串字面量里伪造的 CONSTRAINT "ck_..." 片段不算约束名', async () => {
+    const [qtyName, noteName] = expectedNames();
+    // 默认值字面量里藏着伪约束文本：不剥离字面量就会解析出假 ck 名、每次 connect 报「多余」
+    const q = querier({
+      public$Checked: createSqlWith([
+        `CONSTRAINT "${qtyName}" CHECK ("qty" > 0)`,
+        `CONSTRAINT "${noteName}" CHECK ("note" <= 10)`,
+        `"note" TEXT DEFAULT 'CONSTRAINT "ck_Checked_fake_0badc0de" CHECK (1)'`
+      ])
+    });
+    await expect(check_entity_constraints_sqlite(q as never, [Checked])).resolves.toBeUndefined();
+  });
+
+  it('评审反例：小写 constraint 关键字与无引号 / 反引号标识符同样被识别', async () => {
+    const [qtyName, noteName] = expectedNames();
+    const q = querier({
+      public$Checked: createSqlWith([
+        `constraint ${qtyName} CHECK ("qty" > 0)`,
+        `CONSTRAINT \`${noteName}\` CHECK ("note" <= 10)`
+      ])
+    });
+    await expect(check_entity_constraints_sqlite(q as never, [Checked])).resolves.toBeUndefined();
+  });
+
+  it('评审反例：表缺失 fail-fast 报漂移并点名表缺失（两后端同口径，不静默跳过）', async () => {
+    const [qtyName, noteName] = expectedNames();
+    const q = querier({}); // 任何表名都没有行
+    try {
+      await check_entity_constraints_sqlite(q as never, [Checked]);
+      expect.unreachable('表缺失应当报漂移');
+    } catch (error) {
+      expect(error).toBeInstanceOf(RxDBConstraintDriftError);
+      const drift = error as RxDBConstraintDriftError;
+      expect(drift.tableMissing).toBe(true);
+      expect(drift.missing).toEqual([noteName, qtyName]);
+      expect(drift.message).toContain('missing from the database catalog');
+    }
   });
 
   it('未声明 checks 的实体表上没有 ck_ 对象 → 无漂移；有残留 ck_ → 判多余', async () => {

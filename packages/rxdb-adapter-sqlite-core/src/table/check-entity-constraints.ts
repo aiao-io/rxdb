@@ -2,9 +2,9 @@
  * @fileoverview SQLite family 的存储约束漂移检查（US-030 AC#10 / #11 / #16）。
  *
  * 只读比对：元数据确定性生成的约束名集合（阶段 A 只纳入 `ck_` 起头的对象）与
- * `sqlite_master` 里建表 SQL 文本中的实际约束名集合。不一致抛
- * `RxDBConstraintDriftError`，列出缺失与多余的名字，不自动补建——补建由用户写进
- * `migrations`（它恰好排在漂移检查之前执行）。
+ * `sqlite_master` 里建表 SQL 文本中的实际约束名集合。差集与抛错由核心
+ * `assertNoEntityConstraintDrift` 承担（两后端同一份），本文件只做 SQLite 方言的
+ * 两件事：读 sql 文本、从文本里解析命名约束。
  *
  * SQLite 的 CHECK 约束没有独立的目录行，名字只存在于建表 SQL 文本里
  * （`ALTER TABLE ADD CONSTRAINT CHECK` 也会重写该文本），所以解析 sql 文本。
@@ -12,7 +12,13 @@
  * FTS 触发器都不在范围——否则每张既有表首次 `init()` 就被报「多余」（AC#16）。
  */
 
-import { compileCheckConstraint, getEntityMetadata, RxDBConstraintDriftError, type EntityType } from '@aiao/rxdb';
+import type { EntityType } from '@aiao/rxdb';
+import {
+  assertNoEntityConstraintDrift,
+  expectedCheckConstraintNames,
+  getEntityMetadata,
+  inDriftScope
+} from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SqliteResult } from '../sqlite-core.interface.js';
 import { get_table_name_by_metadata } from '../sqlite-core.utils.js';
@@ -22,14 +28,57 @@ type ConstraintCatalogQuerier = Pick<RxDBAdapterSqliteBase, never> & {
   execute(sql: string, bindings?: unknown[]): Promise<SqliteResult>;
 };
 
-/** 建表 SQL 文本里的命名约束：`CONSTRAINT "name"`。只取 `ck_` 起头（阶段 A 范围）。 */
-const NAMED_CONSTRAINT_PATTERN = /CONSTRAINT\s+"([^"]+)"/g;
+/**
+ * 剥离 SQL 字符串字面量（`'...'`，`''` 是转义），返回只含代码的文本。
+ *
+ * @remarks
+ * 字面量里可以伪造 `CONSTRAINT "ck_..."` 片段（默认值 / CHECK 文本），
+ * 不剥离就会解析出假约束名，让每次 connect 永久抛「多余」。SQLite 没有其他
+ * 字面量形态需要处理（双引号是标识符、反引号也是标识符、注释不出现于
+ * `sqlite_master.sql` 的回显形态之外——原始建表文本就是本文件输入）。
+ */
+const stripSqlStringLiterals = (sql: string): string => {
+  let result = '';
+  let index = 0;
+  while (index < sql.length) {
+    const quote = sql[index];
+    if (quote !== "'") {
+      result += quote;
+      index += 1;
+      continue;
+    }
+    index += 1; // 跳过开引号
+    while (index < sql.length) {
+      if (sql[index] === "'") {
+        if (sql[index + 1] === "'") {
+          index += 2; // '' 转义
+          continue;
+        }
+        index += 1; // 闭引号
+        break;
+      }
+      index += 1;
+    }
+    result += "''"; // 占位保持两侧长度稳定（对解析无影响）
+  }
+  return result;
+};
+
+/**
+ * 从建表 SQL 文本里解析**命名约束**的名字（不含未命名的列级 CHECK）。
+ *
+ * - `CONSTRAINT` 关键字大小写不敏感（用户迁移手写的合法小写形态同样要认）；
+ * - 标识符接受双引号 / 反引号 / 无引号三种形态（SQLite 都合法）；
+ * - 调用前必须先 {@link stripSqlStringLiterals}，字符串字面量里的伪片段不算数。
+ */
+const NAMED_CONSTRAINT_PATTERN = /CONSTRAINT\s+(?:"([^"]+)"|`([^`]+)`|([A-Za-z_][A-Za-z0-9_$]*))/gi;
 
 /** 从建表 SQL 文本里解析 `ck_` 起头的约束名集合。 */
 const actualCheckNames = (createSql: string): Set<string> => {
   const names = new Set<string>();
-  for (const match of createSql.matchAll(NAMED_CONSTRAINT_PATTERN)) {
-    if (match[1].startsWith('ck_')) names.add(match[1]);
+  for (const match of stripSqlStringLiterals(createSql).matchAll(NAMED_CONSTRAINT_PATTERN)) {
+    const name = match[1] ?? match[2] ?? match[3];
+    if (inDriftScope(name)) names.add(name);
   }
   return names;
 };
@@ -42,7 +91,8 @@ const actualCheckNames = (createSql: string): Set<string> => {
  *   在 {@link RxDBAdapterSqliteBase.bootstrapTransaction} 里以执行器调用
  * @param EntityTypes - 全部注册实体（含未声明 checks 的：删掉声明而未迁移的残留
  *   `ck_` 约束同样判为「多余」）
- * @throws {@link RxDBConstraintDriftError} 任一实体表出现缺失或多余的 `ck_` 约束时
+ * @throws {@link RxDBConstraintDriftError} 表缺失、或任一实体表出现缺失 / 多余的
+ *   `ck_` 约束时（表缺失与约束漂移同口径 fail-fast，两后端一致）
  */
 export const check_entity_constraints_sqlite = async (
   adapter: ConstraintCatalogQuerier,
@@ -50,29 +100,21 @@ export const check_entity_constraints_sqlite = async (
 ): Promise<void> => {
   for (const EntityType of EntityTypes) {
     const metadata = getEntityMetadata(EntityType);
-    const expected = new Set<string>();
-    for (const check of metadata.checkMap.values()) {
-      expected.add(compileCheckConstraint(metadata, check).name);
-    }
-
     const tableName = get_table_name_by_metadata(metadata);
     const result = await adapter.execute(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, [
       tableName
     ]);
     const rows = result.results[0]?.rows ?? [];
-    // 表不存在时无行可读：缺表补建排在漂移检查之前，走到这里表必在；真有缺失就跳过
-    // 该表（下一轮 connect 的 ensureEntityTables 会补建并带着约束建出来）。
-    if (rows.length === 0) continue;
-
-    const actual = actualCheckNames(String(rows[0][0] ?? ''));
-    const missing = Array.from(expected)
-      .filter(name => !actual.has(name))
-      .sort();
-    const extra = Array.from(actual)
-      .filter(name => !expected.has(name))
-      .sort();
-    if (missing.length > 0 || extra.length > 0) {
-      throw new RxDBConstraintDriftError(metadata.name, metadata.tableName, missing, extra);
-    }
+    // 表缺失：fail-fast（缺表补建排在漂移检查之前，走到这里表必在；真缺失就是
+    // 异常状态，两后端同口径报漂移点名表缺失，不静默跳过）
+    const tableMissing = rows.length === 0;
+    const actual = tableMissing ? [] : [...actualCheckNames(String(rows[0][0] ?? ''))];
+    assertNoEntityConstraintDrift({
+      entity: metadata.name,
+      tableName: metadata.tableName,
+      tableMissing,
+      expected: expectedCheckConstraintNames(metadata),
+      actual
+    });
   }
 };

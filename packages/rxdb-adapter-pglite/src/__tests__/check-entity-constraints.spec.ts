@@ -158,4 +158,25 @@ describe('PGlite 漂移检查（AC#10 / #11 / #16）', () => {
       await dispose();
     }
   });
+
+  it('评审反例：表缺失 fail-fast 报漂移并点名表缺失（与 SQLite family 同口径）', async () => {
+    const { adapter, dispose } = await openDatabase();
+    try {
+      const name = qtyConstraintName();
+      const table = getTableNameByMetadata(getEntityMetadata(DriftChecked));
+      await adapter.query(`DROP TABLE ${table} CASCADE`);
+      try {
+        await adapter.checkEntityConstraints([DriftChecked as EntityType]);
+        expect.unreachable('表缺失应当报漂移');
+      } catch (error) {
+        expect(error).toBeInstanceOf(RxDBConstraintDriftError);
+        const drift = error as RxDBConstraintDriftError;
+        expect(drift.tableMissing).toBe(true);
+        expect(drift.missing).toEqual([name]);
+        expect(drift.message).toContain('missing from the database catalog');
+      }
+    } finally {
+      await dispose();
+    }
+  });
 });

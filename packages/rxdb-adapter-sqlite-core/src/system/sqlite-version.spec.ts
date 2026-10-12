@@ -46,6 +46,18 @@ describe('SQLite 宿主版本门槛（AC#7）', () => {
     expect(() => assertSqliteHostVersion('')).toThrow(/below the required minimum/);
   });
 
+  it('带前缀的版本形态（v3.53.0 / SQLite 3.53.0）同样能解出，不误判为 0.0.0', () => {
+    expect(parseSqliteVersion('v3.53.0')).toEqual([3, 53, 0]);
+    expect(parseSqliteVersion('SQLite 3.53.0')).toEqual([3, 53, 0]);
+    expect(() => assertSqliteHostVersion('v3.46.0')).toThrow(/3\.47\.0/);
+    expect(() => assertSqliteHostVersion('SQLite 3.53.0')).not.toThrow();
+  });
+
+  it('提高门槛时错误消息的理由文本由阈值派生，不自相矛盾', () => {
+    expect(() => assertSqliteHostVersion('3.48.0', '3.49.0')).toThrow(/need SQLite 3\.49\.0\+/);
+    expect(() => assertSqliteHostVersion('3.48.0', '3.49.0')).not.toThrow(/3\.47\.0/);
+  });
+
   it('可注入自定义门槛（后续阶段提高门槛时复用同一判定）', () => {
     expect(() => assertSqliteHostVersion('3.48.0', '3.49.0')).toThrow(/below the required minimum 3\.49\.0/);
     expect(() => assertSqliteHostVersion('3.49.0', '3.49.0')).not.toThrow();

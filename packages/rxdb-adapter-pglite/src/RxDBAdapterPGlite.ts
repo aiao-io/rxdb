@@ -547,9 +547,9 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    */
   override async checkEntityConstraints(EntityTypes: EntityType[]): Promise<void> {
     await this.bootstrapTransaction(async executor => {
-      // 传门面（executor）而非真实适配器：门面的 query 落在当前事务里；
+      // 传门面（executor）而非真实适配器：门面的 queryRaw 落在当前事务里；
       // 真实适配器的 query 会重新入队排在自己身后，永久挂起。
-      await check_entity_constraints_pglite(executor, EntityTypes);
+      await check_entity_constraints_pglite(executor as PGliteTransactionExecutor, EntityTypes);
     }, false);
   }
 

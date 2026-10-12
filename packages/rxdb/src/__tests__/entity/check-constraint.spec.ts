@@ -425,6 +425,60 @@ describe('AC#15 约束名与字面量值域在元数据期拒绝', () => {
     expect(() => compileCheckConstraint(metadata, metadata.checkMap.get('ratio_nan')!)).toThrow(/有限数字/);
     expect(() => compileCheckConstraint(metadata, metadata.checkMap.get('qty_fraction')!)).toThrow(/安全整数/);
   });
+
+  it('between / notBetween 反转边界在元数据期拒绝（编译出的 BETWEEN 恒假 / NOT BETWEEN 恒真）', () => {
+    const metadata = metadataOf({
+      checks: [
+        {
+          name: 'bad_between',
+          rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'between', value: [10, 1] }] }
+        },
+        {
+          name: 'bad_not_between',
+          rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'notBetween', value: [10, 1] }] }
+        }
+      ]
+    });
+    expect(() => compileCheckConstraint(metadata, metadata.checkMap.get('bad_between')!)).toThrow(/边界反转/);
+    expect(() => compileCheckConstraint(metadata, metadata.checkMap.get('bad_not_between')!)).toThrow(/边界反转/);
+    // 相等边界合法（[1, 1] 退化为等值判断）
+    const ok = metadataOf({
+      checks: [
+        {
+          name: 'ok_between',
+          rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'between', value: [1, 1] }] }
+        }
+      ]
+    });
+    expect(compileCheckExpression(ok, ok.checkMap.get('ok_between')!)).toBe('("qty" BETWEEN 1 AND 1)');
+  });
+
+  it('ref 跨列类型比较在元数据期拒绝（PG 会抛 42883 逃出 CHECK 归一化）', () => {
+    const metadata = metadataOf({
+      checks: [
+        {
+          name: 'bad_ref_type',
+          rule: { combinator: 'and', rules: [{ field: 'qty', operator: '<=', ref: 'note' }] }
+        }
+      ]
+    });
+    expect(() => compileCheckConstraint(metadata, metadata.checkMap.get('bad_ref_type')!)).toThrow(
+      /ref 跨列类型比较不支持：'qty' 是 integer、'note' 是 string/
+    );
+  });
+
+  it('畸形声明（缺 rule / 空规则组 / 规则非对象）产出 invalidCheck 违规而非装饰期崩溃', () => {
+    const metadata = metadataOf({
+      checks: [
+        { name: 'missing_rule', rule: undefined as never },
+        { name: 'missing_rules', rule: { combinator: 'and', rules: undefined as never } },
+        { name: 'rule_not_object', rule: { combinator: 'and', rules: [null as never] } }
+      ]
+    });
+    const violations = validateEntityMetadata(metadata);
+    expect(violations.map(v => v.field).sort()).toEqual(['missing_rule', 'missing_rules', 'rule_not_object']);
+    expect(violations.every(v => v.rule === 'invalidCheck')).toBe(true);
+  });
 });
 
 describe('AC#17 继承合并', () => {
@@ -490,5 +544,21 @@ describe('AC#17 继承合并', () => {
     const metadata = metadataOf({});
     expect(metadata.checkMap.size).toBe(0);
     expect(validateEntityMetadata(metadata)).toEqual([]);
+  });
+
+  it('子实体重声明属性（不带 check）摘除继承的属性级语法糖，父的显式 check 仍在', () => {
+    const child = transitionMetadata(
+      {
+        name: 'ChildItem2' as Capitalize<string>,
+        extends: ['BaseItem'],
+        properties: [intProp('qty', { nullable: true })],
+        computedProperties: [],
+        relations: [],
+        indexes: []
+      } as EntityMetadataOptions,
+      [baseOptions()]
+    );
+    // 父的 qty 语法糖被摘除；父的显式实体级 check 仍在
+    expect([...child.checkMap.keys()].sort()).toEqual(['base_only']);
   });
 });
