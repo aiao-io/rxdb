@@ -55,15 +55,15 @@
     "@tarojs/runtime": "4.3.0",
     "@tarojs/shared": "4.3.0",
     "@tarojs/taro": "4.3.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
     "@aiao/rxdb-taro": "workspace:*",
     "@tarojs/cli": "4.3.0",
     "@tarojs/plugin-generator": "4.3.0",
     "@tarojs/vite-runner": "4.3.0",
-    "@types/react": "^18.3.31",
+    "@types/react": "^19.3.0",
     "@vitejs/plugin-react": "^4.7.0",
     "postcss": "^8.5.29",
     "react-refresh": "^0.19.0",
