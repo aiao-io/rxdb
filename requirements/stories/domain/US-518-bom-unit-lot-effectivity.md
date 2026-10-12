@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-09
+updated: 2026-10-12
 tags: [domain, bom, effectivity, aerospace]
 ---
 
@@ -81,8 +81,8 @@ PG GiST 对数组没有默认运算符类，NULL 在 `EXCLUDE` 里又永不冲�
 
 ## 价值待证
 
-同 [epic-009](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic)。
-本故事的行业面更窄（航空 / 国防），驱动场景要求相应更具体。
+已随 [epic-009 解锁记录](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic) 解锁（2026-10-12，owner 决定）。
+行业面更窄（航空 / 国防）：演示阶段 E 只覆盖序列 / 批次的基础用例，更具体的驱动场景仍按需另立 AC。
 
 ## 实现文件
 

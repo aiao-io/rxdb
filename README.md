@@ -270,7 +270,7 @@ aiao/
 
 ## 路线图
 
-路线图按 Epic 组织，已完成 [Epic 1（核心 MVP）](requirements/epics/epic-001-core-mvp.md)、[Epic 2（数据同步）](requirements/epics/epic-002-data-sync.md)、[Epic 3（UI 与开发者工具）](requirements/epics/epic-003-ui-developer-tools.md)、[Epic 5（类型系统演进）](requirements/epics/epic-005-type-system-evolution.md)、[Epic 6（本地工作树与提交历史）](requirements/epics/epic-006-working-tree-commits.md) 与 [Epic 8（生命周期作用域）](requirements/epics/epic-008-lifecycle-scope.md)，[Epic 4（未来功能）](requirements/epics/epic-004-future-features.md) 与 [Epic 7（公开 API 门禁）](requirements/epics/epic-007-public-api-gates.md) 进行中，[Epic 9（BOM 领域模型）](requirements/epics/epic-009-bom-domain-model.md) 价值待证、不进排期。所有阶段遵守相同的横向原则：跨框架 API 对称、Local-first 优先、模型驱动、适配器无关。
+路线图按 Epic 组织，已完成 [Epic 1（核心 MVP）](requirements/epics/epic-001-core-mvp.md)、[Epic 2（数据同步）](requirements/epics/epic-002-data-sync.md)、[Epic 3（UI 与开发者工具）](requirements/epics/epic-003-ui-developer-tools.md)、[Epic 5（类型系统演进）](requirements/epics/epic-005-type-system-evolution.md)、[Epic 6（本地工作树与提交历史）](requirements/epics/epic-006-working-tree-commits.md) 与 [Epic 8（生命周期作用域）](requirements/epics/epic-008-lifecycle-scope.md)，[Epic 4（未来功能）](requirements/epics/epic-004-future-features.md) 与 [Epic 7（公开 API 门禁）](requirements/epics/epic-007-public-api-gates.md) 进行中，[Epic 9（BOM 领域模型）](requirements/epics/epic-009-bom-domain-model.md) 已解锁（2026-10-12，owner 决定），首轮切片见其文档。所有阶段遵守相同的横向原则：跨框架 API 对称、Local-first 优先、模型驱动、适配器无关。
 
 ### 阶段 1 → 1.0 发布
 

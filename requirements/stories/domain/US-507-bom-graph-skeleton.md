@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-09
+updated: 2026-10-12
 tags: [domain, bom, schema]
 ---
 
@@ -157,8 +157,7 @@ SQLite 也没有事务提交期触发器。所以落点是**状态转移**：
 
 ## 价值待证
 
-本故事与 [epic-009](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic) 其余 18 条同标
-**价值待证**：新增 `item_revision` 等抽象，对应零个已知病灶。解锁条件见 epic。
+本故事已随 [epic-009 解锁记录](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic) 解锁（2026-10-12，owner 决定）：新增 `item_revision` 等抽象对应零个已知病灶，「病灶数 ≥ 抽象数」按 owner 决定豁免，依据与边界见 epic。
 
 ## 实现文件
 
