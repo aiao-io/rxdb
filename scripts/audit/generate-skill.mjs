@@ -4,7 +4,9 @@
  *
  * @remarks
  * 与 `package-graph.mjs --update` 的差别：本脚本只写 SKILL.md 一个文件，不碰提交的
- * `requirements/generated/*`；仓库根从脚本自身位置解析，不依赖 cwd。
+ * `requirements/generated/*`。语义事实直接读事实源；投递快照（已发布包名与版本）读提交的
+ * `requirements/generated/package-knowledge.json`——它由门禁保证与登记发布标签树一致，
+ * 因此构建期不碰 git（CI 的构建 lane 是浅克隆、没有 tag）。仓库根从脚本自身位置解析，不依赖 cwd。
  *
  * @example
  * ```bash
@@ -13,13 +15,12 @@
  * ```
  */
 
-import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { analyzePackageGraph } from './lib/package-graph-validation.mjs';
-import { buildKnowledge } from './lib/package-knowledge.mjs';
-import { renderSkill, SKILL_MAX_BYTES } from './lib/package-skill.mjs';
-import { discoverRelease, readKnowledgeInput, scanPackages } from './package-graph.mjs';
+import { SKILL_MAX_BYTES } from './lib/package-skill.mjs';
+import { readKnowledgeInput, renderSkillFromSnapshot, scanPackages } from './package-graph.mjs';
 
 function isCliEntrypoint() {
   const entry = process.argv[1];
@@ -41,9 +42,10 @@ function main() {
   const facts = JSON.parse(readFileSync(factsPath, 'utf8'));
   const graph = analyzePackageGraph(facts, scanPackages(join(root, 'packages')), factsPath);
   if (graph.errors.length) throw new Error(graph.errors.join('\n'));
-  const release = discoverRelease(root, facts.release);
   const input = readKnowledgeInput(root);
-  const skill = renderSkill(buildKnowledge(graph, release, input), input.skillTemplate);
+  const snapshotPath = join(root, 'requirements/generated/package-knowledge.json');
+  if (!existsSync(snapshotPath)) throw new Error(`${snapshotPath} 不存在，请先运行 pnpm audit:package-graph --update`);
+  const skill = renderSkillFromSnapshot(root, graph, facts, input, JSON.parse(readFileSync(snapshotPath, 'utf8')));
   const output = join(root, 'packages/rxdb/skills/aiao-rxdb/SKILL.md');
   mkdirSync(dirname(output), { recursive: true });
   writeFileSync(output, skill);

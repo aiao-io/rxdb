@@ -23,10 +23,15 @@ import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { discoverRelease, scanPackages } from './lib/package-discovery.mjs';
 import { analyzePackageGraph, auditPackageGraph } from './lib/package-graph-validation.mjs';
-import { buildKnowledge, renderKnowledge } from './lib/package-knowledge.mjs';
+import {
+  buildKnowledge,
+  releaseFromSnapshot,
+  renderKnowledge,
+  snapshotFromKnowledgeJson
+} from './lib/package-knowledge.mjs';
 import { renderSkill } from './lib/package-skill.mjs';
 
-export { queryCacheRequirements } from './lib/package-knowledge.mjs';
+export { queryCacheRequirements, releaseFromSnapshot, snapshotFromKnowledgeJson } from './lib/package-knowledge.mjs';
 export {
   analyzePackageGraph,
   auditPackageGraph,
@@ -100,6 +105,26 @@ export function checkGenerated(root, rendered, update = false) {
   return errors;
 }
 
+/**
+ * 渲染主包 Skill：投递快照来自提交的 package-knowledge.json（门禁保证与发布标签树一致），
+ * 构建期不碰 git（CI 构建 lane 是浅克隆、没有 tag）。`update` 时快照取本次新渲染的
+ * json，避免 SKILL.md 基于旧快照写回后再次漂移。
+ *
+ * @param root - 仓库根目录
+ * @param graph - {@link analyzePackageGraph} 的结果
+ * @param facts - 事实源
+ * @param input - `readKnowledgeInput` 的结果
+ * @param snapshotJson - 已解析的 package-knowledge.json（提交版或本次新渲染版）
+ * @returns SKILL.md 文本
+ */
+export function renderSkillFromSnapshot(root, graph, facts, input, snapshotJson) {
+  const snapshot = snapshotFromKnowledgeJson(snapshotJson);
+  return renderSkill(
+    buildKnowledge(graph, releaseFromSnapshot(facts, graph.records, snapshot), input),
+    input.skillTemplate
+  );
+}
+
 function main() {
   const rootArgument = process.argv.find(arg => arg.startsWith('--root='));
   const root = rootArgument ? resolve(rootArgument.slice('--root='.length)) : process.cwd();
@@ -111,10 +136,15 @@ function main() {
   const input = readKnowledgeInput(root);
   const knowledge = buildKnowledge(graph, release, input);
   const rendered = renderKnowledge(knowledge, input.template);
+  const update = process.argv.includes('--update');
+  const snapshotJson =
+    update ?
+      JSON.parse(rendered.json)
+    : JSON.parse(readFileSync(join(root, 'requirements/generated/package-knowledge.json'), 'utf8'));
   const generated = checkGenerated(
     root,
-    { ...rendered, skill: renderSkill(knowledge, input.skillTemplate) },
-    process.argv.includes('--update')
+    { ...rendered, skill: renderSkillFromSnapshot(root, graph, facts, input, snapshotJson) },
+    update
   );
   if (generated.length) throw new Error(generated.join('\n'));
   console.log(
