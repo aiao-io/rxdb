@@ -34,8 +34,7 @@
     }
   },
   "dependencies": {
-    "@aiao/rxdb": "workspace:*",
-    "@aiao/utils": "workspace:*"
+    "@aiao/utils": "workspace:^"
   },
   "devDependencies": {
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
@@ -43,10 +42,11 @@
     "@aiao/rxdb-test": "workspace:*"
   },
   "peerDependencies": {
-    "@aiao/rxdb-plugin-graph": "*",
+    "@aiao/rxdb-plugin-graph": "workspace:^",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "rxjs": "^7.8.0"
+    "rxjs": "^7.8.0",
+    "@aiao/rxdb": "workspace:^"
   },
   "files": [
     "dist",

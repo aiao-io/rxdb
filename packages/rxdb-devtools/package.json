@@ -63,7 +63,7 @@
     ]
   },
   "peerDependencies": {
-    "@aiao/rxdb": "*",
+    "@aiao/rxdb": "workspace:^",
     "vitest": "4.1.11"
   },
   "peerDependenciesMeta": {

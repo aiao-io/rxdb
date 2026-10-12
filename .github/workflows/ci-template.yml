@@ -312,6 +312,7 @@ jobs:
           AUDIT_SECRETS_JSON=$(projects_json audit-secrets)
           LAZY_BACKEND_JSON=$(projects_json audit-lazy-backend)
           AI_EXAMPLE_JSON=$(projects_json ai-example)
+          RELEASE_CONSUMERS_JSON=$(projects_json release-consumers)
 
           # 桌面链路是否被本次 diff 触碰。路径清单与 release-desktop.yml 的
           # `on.pull_request.paths` 同源（少了 workflow 基建那几条：它们只用于触发，
@@ -369,8 +370,8 @@ jobs:
           # 后三个都 dependsOn build；audit-secrets / audit-lazy-backend 是这一组里仅有的两道有安全/隐私含义的门禁 ——
           # 前者防凭据外泄，后者防桌面传输客户端代码进浏览器 bundle（US-505 AC#10）。
           EXTRAS=$(jq -r -n --argjson a "$DOC_CODE_JSON" --argjson b "$API_DOCS_JSON" --argjson c "$AUDIT_SECRETS_JSON" \
-            --argjson d "$LAZY_BACKEND_JSON" --argjson e "$AI_EXAMPLE_JSON" \
-            '($a + $b + $c + $d + $e) | unique | join(",")')
+            --argjson d "$LAZY_BACKEND_JSON" --argjson e "$AI_EXAMPLE_JSON" --argjson f "$RELEASE_CONSUMERS_JSON" \
+            '($a + $b + $c + $d + $e + $f) | unique | join(",")')
 
           # 每个 (项目, target) 一个 e2e job。不写死清单：新增 e2e 应用自动进矩阵。
           # e2e-remote 需要本地 Supabase 栈，本地 e2e 不需要。
@@ -454,7 +455,7 @@ jobs:
             echo "| coverage-acceptance | $(jq -r 'length' <<<"$ACCEPTANCE_JSON") | \`$ACCEPTANCE\` |"
             echo "| e2e | $(jq -r '.include | length' <<<"$E2E_MATRIX") | \`$(jq -r '.include | map(.project + ":" + .target) | join(", ")' <<<"$E2E_MATRIX")\` |"
             echo "| rust | $(jq -r 'length' <<<"$RUST_JSON") | \`$RUST\` |"
-            echo "| extras | $(jq -r -n --argjson a "$DOC_CODE_JSON" --argjson b "$API_DOCS_JSON" --argjson c "$AUDIT_SECRETS_JSON" --argjson d "$LAZY_BACKEND_JSON" --argjson e "$AI_EXAMPLE_JSON" '($a+$b+$c+$d+$e)|unique|length') | \`$EXTRAS\` |"
+            echo "| extras | $(jq -r -n --argjson a "$DOC_CODE_JSON" --argjson b "$API_DOCS_JSON" --argjson c "$AUDIT_SECRETS_JSON" --argjson d "$LAZY_BACKEND_JSON" --argjson e "$AI_EXAMPLE_JSON" --argjson f "$RELEASE_CONSUMERS_JSON" '($a+$b+$c+$d+$e+$f)|unique|length') | \`$EXTRAS\` |"
             echo
             echo "desktop_chain_changed: \`$DESKTOP_CHANGED\`（false 时 e2e (electron) / rust / audit-lazy-backend 不参与过滤）"
 
@@ -1055,6 +1056,9 @@ jobs:
   #                       US-207 E11 的原话是「改后需有产物断言，否则这条只是口头承诺」——
   #                       它读的是打包结果，因此和 audit-secrets 一样只能落在这个 job 里。
   #   ai-example          真实 pack 核心包查入口 TSDoc，再编译、执行离线 AI 样例（dependsOn 三个包的 build）。
+  #   release-consumers   发布 tarball 的隔离消费验证（US-602 AC#8）：按 release.projects 解析发布根、
+  #                       真实 pnpm pack，在 /tmp 分别经 npm 与 pnpm 安装代表组合，断言依赖写法、
+  #                       入口 / .d.ts、三框架绑定可导入并最小构建、核心单实例与版本冲突明确失败。
   #
   # 后三个都带构建依赖，这也正是它们不能并进 setup 那个免构建门禁 job 的原因。
   extras:
@@ -1104,7 +1108,7 @@ jobs:
         env:
           PROJECTS: ${{ needs.setup.outputs.extras_projects }}
         run: |
-          pnpm exec nx run-many -t check-doc-code api-docs audit-secrets audit-lazy-backend ai-example \
+          pnpm exec nx run-many -t check-doc-code api-docs audit-secrets audit-lazy-backend ai-example release-consumers \
             -p "$PROJECTS" --output-style=stream --parallel=1
 
   # ---------------------------------------------------------------------------

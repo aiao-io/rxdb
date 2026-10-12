@@ -46,10 +46,10 @@
     "./tailwind.css": "./tailwind.css"
   },
   "peerDependencies": {
-    "@aiao/rxdb": "*",
-    "@aiao/rxdb-model": "*",
-    "@aiao/rxdb-plugin-history": "*",
-    "@aiao/rxdb-vue": "*",
+    "@aiao/rxdb": "workspace:^",
+    "@aiao/rxdb-model": "workspace:^",
+    "@aiao/rxdb-plugin-history": "workspace:^",
+    "@aiao/rxdb-vue": "workspace:^",
     "@lucide/vue": "^1.47.0",
     "@visactor/vtable": "~1.26.5",
     "rxjs": "^7.8.2",
