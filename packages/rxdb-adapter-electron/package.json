@@ -69,13 +69,13 @@
     ]
   },
   "dependencies": {
-    "@aiao/rxdb": "workspace:*",
-    "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
-    "@aiao/utils": "workspace:*"
+    "@aiao/rxdb-adapter-sqlite-core": "workspace:^",
+    "@aiao/utils": "workspace:^"
   },
   "peerDependencies": {
-    "@aiao/rxdb-adapter-pglite": "workspace:*",
-    "@electric-sql/pglite": "^0.5.8"
+    "@aiao/rxdb-adapter-pglite": "workspace:^",
+    "@electric-sql/pglite": "^0.5.8",
+    "@aiao/rxdb": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aiao/rxdb-adapter-pglite": {

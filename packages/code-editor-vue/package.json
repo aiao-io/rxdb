@@ -54,7 +54,7 @@
     "vue": "^3.5.43"
   },
   "dependencies": {
-    "@aiao/code-editor": "workspace:*",
+    "@aiao/code-editor": "workspace:^",
     "@codemirror/commands": "^6.11.1",
     "@codemirror/language": "^6.13.1",
     "@codemirror/state": "^6.7.6",

@@ -29,7 +29,7 @@
     "codemirror": "^6.0.2"
   },
   "peerDependencies": {
-    "@aiao/code-editor": ">=0.0.26",
+    "@aiao/code-editor": "workspace:^",
     "@angular/common": "22.2.2",
     "@angular/core": "22.2.2",
     "@angular/forms": "22.2.2",

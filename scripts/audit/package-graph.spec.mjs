@@ -158,6 +158,66 @@ test('manifest 安装边循环与未知兄弟包均被拒绝', () => {
   assert.ok(auditPackageGraph(copy(), cyclic).some(error => error.includes('@aiao/missing')));
 });
 
+test('@aiao/rxdb 放 dependencies / optionalDependencies 均被拒绝', () => {
+  const changed = structuredClone(records);
+  const target = changed.find(p => p.name === '@aiao/rxdb-plugin-history');
+  target.manifest.dependencies = { '@aiao/rxdb': 'workspace:^' };
+  const inDeps = auditPackageGraph(copy(), changed);
+  assert.ok(
+    inDeps.some(error => error.includes('dependencies') && error.includes('@aiao/rxdb')),
+    inDeps.join('\n')
+  );
+  delete target.manifest.dependencies['@aiao/rxdb'];
+  target.manifest.optionalDependencies = { '@aiao/rxdb': 'workspace:^' };
+  const inOptional = auditPackageGraph(copy(), changed);
+  assert.ok(
+    inOptional.some(error => error.includes('optionalDependencies') && error.includes('@aiao/rxdb')),
+    inOptional.join('\n')
+  );
+});
+
+for (const range of ['*', 'workspace:*', '>=1.2.3', '^1.2.3']) {
+  test(`@aiao/* peer 写成 ${range} 被拒绝`, () => {
+    const changed = structuredClone(records);
+    const target = changed.find(p => p.name === '@aiao/rxdb-adapter-http');
+    target.manifest.peerDependencies['@aiao/rxdb'] = range;
+    const errors = auditPackageGraph(copy(), changed);
+    assert.ok(
+      errors.some(error => error.includes('peer @aiao/rxdb') && error.includes('workspace:^') && error.includes(range)),
+      errors.join('\n')
+    );
+  });
+}
+
+test('留在 dependencies 的 @aiao/* 兄弟边不是 workspace:^ 被拒绝', () => {
+  const changed = structuredClone(records);
+  const target = changed.find(p => p.name === '@aiao/rxdb-adapter-wa-sqlite');
+  target.manifest.dependencies['@aiao/rxdb-adapter-sqlite-core'] = 'workspace:*';
+  const errors = auditPackageGraph(copy(), changed);
+  assert.ok(
+    errors.some(error => error.includes('兄弟依赖 @aiao/rxdb-adapter-sqlite-core') && error.includes('workspace:*')),
+    errors.join('\n')
+  );
+});
+
+test('发布标签树标过的 optional peer 被删即失败，保留则通过（AC#4 正反例）', () => {
+  const baseline = structuredClone(records);
+  const deleted = structuredClone(records);
+  const target = deleted.find(p => p.name === '@aiao/rxdb-adapter-electron');
+  delete target.manifest.peerDependenciesMeta['@aiao/rxdb-adapter-pglite'];
+  const errors = auditPackageGraph(copy(), deleted, undefined, baseline);
+  assert.ok(
+    errors.some(
+      error =>
+        error.includes('rxdb-adapter-electron/package.json') &&
+        error.includes('optional peer @aiao/rxdb-adapter-pglite')
+    ),
+    errors.join('\n')
+  );
+  assert.deepEqual(auditPackageGraph(copy(), records, undefined, baseline), []);
+  assert.deepEqual(auditPackageGraph(copy(), records), []);
+});
+
 test('inject 的前置提供者缺位时门禁失败', () => {
   const changed = copy();
   changed.packages.find(p => p.name === '@aiao/rxdb-plugin-history').plugin.class = 'WrongClass';

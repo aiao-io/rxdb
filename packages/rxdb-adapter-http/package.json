@@ -52,7 +52,7 @@
     ]
   },
   "peerDependencies": {
-    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb": "workspace:^",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {

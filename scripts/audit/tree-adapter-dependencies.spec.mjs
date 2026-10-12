@@ -17,10 +17,9 @@ for (const adapter of adapters) {
     assert.equal(pkg.devDependencies[plugin], 'workspace:*');
     if (adapter === 'sqlite-wasm') {
       assert.equal(pkg.peerDependencies?.[plugin], undefined);
-      return;
     }
-    assert.equal(pkg.peerDependencies[plugin], 'workspace:*');
-    assert.equal(pkg.peerDependenciesMeta[plugin].optional, true);
+    // tree 的 optional peer 写法（workspace:^ + peerDependenciesMeta.optional 保留）由
+    // package-graph 门禁的「@aiao/* peer 统一」与「optional 保留」两条规则统一守护，不在这里重复断言。
   });
 
   test(`${adapter} 的生产代码只允许 tree 类型导入`, async () => {

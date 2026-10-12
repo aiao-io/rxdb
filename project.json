@@ -57,6 +57,46 @@
         "command": "node scripts/audit/ai-example.mjs"
       }
     },
+    "release-consumers": {
+      "// cache": "消费者在 /tmp 里真实 pnpm pack 并分别经 npm/pnpm 安装，输入是各发布包的 manifest、project.json 与构建产物。",
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{workspaceRoot}/scripts/audit/release-consumers.mjs",
+        "{workspaceRoot}/scripts/examples/ai-local/**/*",
+        "{workspaceRoot}/nx.json",
+        "{workspaceRoot}/packages/*/package.json",
+        "{workspaceRoot}/packages/*/project.json",
+        "^production"
+      ],
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": [
+            "utils",
+            "rxdb",
+            "rxdb-adapter-sqlite-core",
+            "rxdb-adapter-encrypted",
+            "rxdb-adapter-http",
+            "rxdb-plugin-history",
+            "rxdb-plugin-querycache",
+            "rxdb-plugin-sync",
+            "rxdb-client-generator",
+            "rxdb-plugin-graph",
+            "rxdb-angular",
+            "rxdb-react",
+            "rxdb-vue",
+            "rxdb-adapter-pglite",
+            "rxdb-adapter-sqlite-wasm",
+            "rxdb-plugin-replay",
+            "rxdb-plugin-search"
+          ]
+        }
+      ],
+      "options": {
+        "command": "node scripts/audit/release-consumers.mjs"
+      }
+    },
     "lint": {
       "executor": "nx:run-commands",
       "inputs": ["{workspaceRoot}/scripts/**/*", "{workspaceRoot}/eslint.config.mjs"],

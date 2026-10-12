@@ -63,9 +63,8 @@
     ]
   },
   "dependencies": {
-    "@aiao/rxdb": "workspace:*",
-    "@aiao/rxdb-adapter-encrypted": "workspace:*",
-    "@aiao/utils": "workspace:*",
+    "@aiao/rxdb-adapter-encrypted": "workspace:^",
+    "@aiao/utils": "workspace:^",
     "comlink": "^4.4.2",
     "rxjs": "^7.8.2"
   },
@@ -78,10 +77,11 @@
     "vitest": "4.1.11"
   },
   "peerDependencies": {
-    "@aiao/rxdb-plugin-history": "workspace:*",
-    "@aiao/rxdb-plugin-tree": "workspace:*",
-    "@aiao/rxdb-test": "workspace:*",
-    "vitest": "4.1.11"
+    "@aiao/rxdb-plugin-history": "workspace:^",
+    "@aiao/rxdb-plugin-tree": "workspace:^",
+    "@aiao/rxdb-test": "workspace:^",
+    "vitest": "4.1.11",
+    "@aiao/rxdb": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aiao/rxdb-plugin-history": {

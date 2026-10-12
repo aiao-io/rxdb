@@ -46,7 +46,8 @@
     "build": "nx run-many -t build --tui=true",
     "update": "nx migrate latest",
     "audit:package-graph": "nx run @aiao/source:audit-package-graph",
-    "verify:ai-example": "nx run @aiao/source:ai-example"
+    "verify:ai-example": "nx run @aiao/source:ai-example",
+    "verify:release-consumers": "nx run @aiao/source:release-consumers"
   },
   "dependencies": {
     "@angular/cdk": "22.2.2",

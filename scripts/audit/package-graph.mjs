@@ -1,11 +1,14 @@
 /**
- * 包组合知识门禁（US-602 A1）：校验 `requirements/package-graph.json` 与工作区一致，
+ * 包组合知识门禁（US-602 A1/A2）：校验 `requirements/package-graph.json` 与工作区一致，
  * 并核对提交的 `requirements/generated/package-knowledge.{json,md}` 与当前输入逐字节一致。
  *
  * @remarks
  * 投递范围读事实源 `release` 登记的发布标签树，需要本地有该 tag（CI 的 setup job 已 `fetch-tags`）。
  * 文档站只读提交的生成物、构建期不碰 git，因此生成物是包组合知识唯一的投递源；
  * 改了事实源、manifest、插件源码、模板或样例之后跑 `--update` 重新生成，与改动一起提交。
+ *
+ * A2 起还校验 `@aiao/*` 安装边写法（核心一律 peer `workspace:^`、其余 peer 与兄弟依赖同写 `workspace:^`、
+ * 发布标签树里标过的 optional peer 不得删掉 optional 语义），并以标签树 manifest 为 optional 保留基线。
  *
  * @example
  * ```bash
@@ -91,9 +94,9 @@ function main() {
   const root = rootArgument ? resolve(rootArgument.slice('--root='.length)) : process.cwd();
   const factsPath = join(root, 'requirements/package-graph.json');
   const facts = JSON.parse(readFileSync(factsPath, 'utf8'));
-  const graph = analyzePackageGraph(facts, scanPackages(join(root, 'packages')), factsPath);
-  if (graph.errors.length) throw new Error(graph.errors.join('\n'));
   const release = discoverRelease(root, facts.release);
+  const graph = analyzePackageGraph(facts, scanPackages(join(root, 'packages')), factsPath, release.packages);
+  if (graph.errors.length) throw new Error(graph.errors.join('\n'));
   const input = readKnowledgeInput(root);
   const knowledge = buildKnowledge(graph, release, input);
   const generated = checkGenerated(root, renderKnowledge(knowledge, input.template), process.argv.includes('--update'));
