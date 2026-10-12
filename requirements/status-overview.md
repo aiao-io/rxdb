@@ -9,26 +9,27 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 74   |
-| 🚧 In Progress | 1    |
+| 🚧 In Progress | 2    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 23   |
+| 📝 Backlog     | 22   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 99   |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **23 条 Backlog 里只有 2 条是可开工的**（含 2026-10-02 由 owner 提前解锁阶段 A～C 的 [US-030](stories/core/US-030-declarative-storage-constraints.md)）：另外 20 条（BOM 领域模型 19 条 + [US-029](stories/core/US-029-rbac-owner-role-permission.md)）
+> **22 条 Backlog 里只有 1 条是可开工的**（含 2026-10-02 由 owner 提前解锁阶段 A～C 的 [US-030](stories/core/US-030-declarative-storage-constraints.md)）：另外 20 条（BOM 领域模型 19 条 + [US-029](stories/core/US-029-rbac-owner-role-permission.md)）
 > 标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期。
-> 两者在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
+> 可开工与暂不排期的故事在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（1 条）
+## 进行中（2 条）
 
-| Story                                                                          | 进展                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md) | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过、未上真机（iOS 真机调试待复测），adapter 剩 Android 真机；百度 / QQ 已判 `unsupported`，按未知平台拒绝；阶段 B+C 经 [#87](https://github.com/aiao-io/rxdb/pull/87) 合入；剩 Android 真机补验、支付宝 demo 真机走查与 AC#18 文档口径确认 |
+| Story                                                                                      | 进展                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)             | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过、未上真机（iOS 真机调试待复测），adapter 剩 Android 真机；百度 / QQ 已判 `unsupported`，按未知平台拒绝；阶段 B+C 经 [#87](https://github.com/aiao-io/rxdb/pull/87) 合入；剩 Android 真机补验、支付宝 demo 真机走查与 AC#18 文档口径确认 |
+| [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) | A1 已完成：入口 TSDoc、语义事实源与漂移门禁（投递范围读事实源登记的发布 tag）、离线样例与 CI 接线；B 本地构建已完成，待部署后线上 smoke；A2 的 peer 统一与打包消费验证、C 的主包 Skill 未启动                                                                                                                                                                                                                                                                                                                                                                                           |
 
 ## 待评审（1 条）
 
@@ -157,7 +158,7 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 
 - ✅ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md)
-- ⬜ [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) — 语义事实源 + 漂移门禁 + 可运行样例（A1）→ `@aiao/*` peer 统一与打包消费验证（A2）→ 站点 `llms.txt`（B）→ 主包单份 Agent Skill（C，exporter 探针先行，可延期）；门禁按 `packages/*` 登记，投递只取最近 `v*` tag 树里的包，未发布包不给安装命令；MCP 另立故事。A2 是 `BREAKING CHANGE`，桥接区间已冻结，合入时点不受 [roadmap 约束 12](roadmap.md#排期约束) 牵制
+- 🚧 [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) — 2026-10-11 owner 授权并完成 A1 实现（入口 TSDoc、发布发现、语义事实源、漂移门禁、离线样例与 CI 接线）；A1 最终 affected 门禁已通过；A1 → 站点 `llms.txt`（B，本地构建已完成，待线上 smoke）→ `@aiao/*` peer 统一与打包消费验证（A2）→ 主包单份 Agent Skill（C，exporter 探针先行，可延期）；门禁按 `packages/*` 登记，投递只取事实源登记的发布 tag 树里的包，未发布包不给安装命令；MCP 另立故事。A2 是 `BREAKING CHANGE`，桥接区间已冻结，合入时点不受 [roadmap 约束 12](roadmap.md#排期约束) 牵制
 
 ### [生命周期作用域](epics/epic-008-lifecycle-scope.md)
 

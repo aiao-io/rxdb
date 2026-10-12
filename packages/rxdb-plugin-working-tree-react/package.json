@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-plugin-working-tree-react",
   "version": "0.0.26",
   "description": "React bindings for the Aiao RxDB working tree and commit history plugin.",
-  "homepage": "https://rxdb.netlify.app/docs/plugins",
+  "homepage": "https://rxdb.aiao.io/docs/plugins",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

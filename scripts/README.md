@@ -61,6 +61,11 @@ CI 的 `setup` job 每轮都会执行。表格里各 spec 那一行写的 `node 
 | `audit/desktop-adapter-consumer.mjs`                                        | 发布桌面 adapter 前                          | 在临时 ESM 消费者项目里验证 electron/tauri 发布 tarball 可解析、可类型检查、可运行                            | `node scripts/audit/desktop-adapter-consumer.mjs`（release-desktop workflow） |
 | `audit/release-desktop-gate.mjs`                                            | 改 release-desktop workflow 后               | 按缩进切分 workflow YAML 的纯函数，供 spec 断言发布链路门禁接线（US-905 AC#17）                               | 由 `release-desktop-gate.spec.mjs` 调用（`pnpm test-scripts`）                |
 | `audit/subpath-inventory.mjs`                                               | 改 `exports` 子路径后                        | `audit/api-surface` 的入口清单解析模块（`@aiao/source` 条件 → 源入口）                                        | 由 `api-surface.mjs` import                                                   |
+| `audit/package-graph.mjs`                                                   | 改事实源 / manifest / 插件 / 样例后          | 包组合事实源门禁，核对 `requirements/generated/package-knowledge.*` 逐字节一致（US-602）                      | `pnpm audit:package-graph`（CI setup job）/ `--update`                        |
+| `audit/lib/package-*.mjs`                                                   | 内部依赖                                     | package-graph 的包扫描与发布发现、门禁规则、插件 `inject` 闭包、知识生成                                      | 由 `package-graph.mjs` / `api-surface.mjs` import                             |
+| `audit/ai-entry-docs.mjs`                                                   | 改核心入口 TSDoc 后                          | 入口 TSDoc 按符号与重载检查；适配器 `transaction` 覆写不得自带 TSDoc                                          | 由 `ai-example.mjs` import（`ai-entry-docs.spec.mjs`）                        |
+| `audit/ai-example.mjs`                                                      | 改核心 / PGlite / history / 样例后           | 真实 pack 核心查入口说明，再严格编译并执行 `examples/ai-local` 离线样例                                       | `pnpm verify:ai-example`（CI extras job）                                     |
+| `examples/ai-local/`                                                        | 改样例后                                     | 离线 AI 样例源、安装清单与编译选项：知识生成物与 `llms.txt` 样例的唯一输入                                    | 由 `package-graph.mjs` / `ai-example.mjs` 读取                                |
 
 ---
 

@@ -36,7 +36,7 @@
     "audit:requirements": "node scripts/audit/requirements-consistency.mjs --check",
     "audit:requirements:update": "node scripts/audit/requirements-consistency.mjs --update",
     "check-migration-release-gate": "node scripts/check-migration-release-gate.mjs --check",
-    "test-scripts": "node --test \"scripts/**/*.spec.mjs\"",
+    "test-scripts": "nx run @aiao/source:test-scripts",
     "coverage:serve": "node ./scripts/coverage-serve.mjs",
     "dep-graph": "nx graph",
     "affected:build": "nx affected:build --parallel=4",
@@ -44,7 +44,9 @@
     "reset": "nx reset",
     "build-packages": "nx run-many -t build --projects=packages/*",
     "build": "nx run-many -t build --tui=true",
-    "update": "nx migrate latest"
+    "update": "nx migrate latest",
+    "audit:package-graph": "nx run @aiao/source:audit-package-graph",
+    "verify:ai-example": "nx run @aiao/source:ai-example"
   },
   "dependencies": {
     "@angular/cdk": "22.2.2",
@@ -115,6 +117,9 @@
     "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994"
   },
   "devDependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-adapter-pglite": "workspace:*",
+    "@aiao/rxdb-plugin-history": "workspace:*",
     "@analogjs/vite-plugin-angular": "^2.8.0",
     "@analogjs/vitest-angular": "^2.8.0",
     "@angular-devkit/core": "22.2.2",
@@ -150,6 +155,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@tauri-apps/cli": "^2.12.1",
     "@testing-library/react": "16.3.3",
+    "@types/emscripten": "^1.41.6",
     "@types/is-ci": "^3.0.4",
     "@types/ms": "^2.1.0",
     "@types/node": "^26.6.4",

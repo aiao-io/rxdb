@@ -2,7 +2,7 @@
   "name": "@aiao/utils",
   "version": "0.0.26",
   "description": "Shared TypeScript utilities for Aiao packages.",
-  "homepage": "https://rxdb.netlify.app/docs/",
+  "homepage": "https://rxdb.aiao.io/docs/",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

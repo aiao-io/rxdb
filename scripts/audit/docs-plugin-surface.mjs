@@ -40,6 +40,7 @@ import { existsSync } from 'node:fs';
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { queryCacheRequirements, scanPackages } from './package-graph.mjs';
 
 /** 随 US-025 阶段 D 从 `VersionManager` 搬到 `SyncManager` 的方法。 */
 export const MOVED_SYNC_METHODS = [
@@ -65,13 +66,6 @@ export const SLOT_PACKAGES = {
   versionManager: '@aiao/rxdb-plugin-history',
   syncManager: '@aiao/rxdb-plugin-sync'
 };
-
-/** QueryCache 一条完整读写路径横跨的三个包，缺一个 `connect()` 就抛。 */
-export const QUERYCACHE_PACKAGES = [
-  '@aiao/rxdb-plugin-querycache',
-  '@aiao/rxdb-plugin-sync',
-  '@aiao/rxdb-plugin-history'
-];
 
 /** 类体里 `  foo(` / `  async foo(` 这一层缩进的方法名。 */
 const methodNames = source => {
@@ -105,7 +99,7 @@ export const auditMovedList = (versionManagerSource, syncManagerSource) => {
  * @param text - 文档全文
  * @returns 该文件的问题说明
  */
-export const auditDoc = (file, text) => {
+export const auditDoc = (file, text, queryCache) => {
   const lines = scannableLines(text);
   const offenders = [...movedMethodCalls(file, lines)];
   for (const [slot, pkg] of Object.entries(SLOT_PACKAGES)) {
@@ -113,13 +107,13 @@ export const auditDoc = (file, text) => {
     if (!text.includes(pkg)) offenders.push(`${file} -> 用到 ${slot} 却没提 ${pkg}`);
   }
   if (text.includes('rxDBPluginQueryCache')) {
-    const missing = QUERYCACHE_PACKAGES.filter(pkg => !text.includes(pkg));
+    const missing = queryCache.packages.filter(pkg => !text.includes(pkg));
     if (missing.length > 0) offenders.push(`${file} -> QueryCache 示例缺包：${missing.join('、')}`);
   }
   // 判据挂在「示例真的注册了 querycache」上，不挂在「正文提到过这个名字」上：
   // 后者会把「本包导出 rxDBPluginQueryCache」这种纯说明也拖下水
   if (lines.some(({ line }) => line.includes('use(rxDBPluginQueryCache)'))) {
-    const missing = QUERYCACHE_FACTORIES.filter(factory => !lines.some(({ line }) => line.includes(`use(${factory})`)));
+    const missing = queryCache.factories.filter(factory => !lines.some(({ line }) => line.includes(`use(${factory})`)));
     if (missing.length > 0) offenders.push(`${file} -> QueryCache 示例缺 use()：${missing.join('、')}`);
   }
   return offenders;
@@ -147,9 +141,6 @@ const movedMethodCalls = (file, lines) => {
   }
   return offenders;
 };
-
-/** 三个包各自的注册工厂名，与 {@link QUERYCACHE_PACKAGES} 一一对应。 */
-export const QUERYCACHE_FACTORIES = ['rxDBPluginQueryCache', 'rxDBPluginSync', 'rxDBPluginHistory'];
 
 /** `const vm = rxdb.versionManager` 这类槽位别名绑定。 */
 const SLOT_ALIAS = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:rxdb|db)\.(versionManager|syncManager)\b/g;
@@ -244,12 +235,14 @@ export const run = async ({ root }) => {
     readFile(path.join(root, 'packages/rxdb-plugin-history/src/VersionManager.ts'), 'utf8'),
     readFile(path.join(root, 'packages/rxdb-plugin-sync/src/SyncManager.ts'), 'utf8')
   ]);
+  const facts = JSON.parse(await readFile(path.join(root, 'requirements/package-graph.json'), 'utf8'));
+  const queryCache = queryCacheRequirements(facts, scanPackages(path.join(root, 'packages')));
   const offenders = auditMovedList(versionManagerSource, syncManagerSource);
   const docsRoot = path.join(root, 'website/docs');
   const files = await collectDocs(docsRoot, root);
   const readmes = await collectReadmes(root);
   for (const file of [...files, ...readmes]) {
-    offenders.push(...auditDoc(file, await readFile(path.join(root, file), 'utf8')));
+    offenders.push(...auditDoc(file, await readFile(path.join(root, file), 'utf8'), queryCache));
   }
   return { offenders, scanned: files.length + readmes.length };
 };

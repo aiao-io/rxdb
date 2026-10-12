@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-devtools",
   "version": "0.0.26",
   "description": "Runtime development tools for inspecting Aiao RxDB databases.",
-  "homepage": "https://rxdb.netlify.app/docs/devtools",
+  "homepage": "https://rxdb.aiao.io/docs/devtools",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

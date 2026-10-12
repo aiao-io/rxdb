@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-taro",
   "version": "0.0.26",
   "description": "Experimental Taro plugin and runtime entry that wire @aiao/rxdb-adapter-miniprogram into WeChat and Douyin mini program builds.",
-  "homepage": "https://rxdb.netlify.app/docs/adapters",
+  "homepage": "https://rxdb.aiao.io/docs/adapters",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

@@ -553,7 +553,71 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
 
   abstract isTableExisted(EntityType: EntityType): Promise<boolean>;
 
+  /**
+   * 通过执行器在同一事务内读写。
+   *
+   * @param fun - 持有本事务执行器的回调
+   * @param transactionLog - 是否记录事务日志
+   * @returns 回调结果
+   *
+   * @remarks
+   * 未持有执行器的 `entity.save()` 会重新排队。事务回调里等待它会等待自己，事务无法结束。
+   * 事务内请使用 {@link TransactionExecutor.getRepository}；实体实例的保存入口见 {@link EntityBase.save}。
+   *
+   * @example
+   * ```ts
+   * // ✅ 经执行器取得仓储，所有读写属于本事务。
+   * await adapter.transaction(async executor => {
+   *   const repository = executor.getRepository(Note);
+   *   const note = adapter.rxdb.entityManager.instantiate(Note);
+   *   note.label = 'ready';
+   *   const created = await repository.create(note);
+   *   await repository.update(created, { label: 'done' });
+   *   await repository.find({ where: { combinator: 'and', rules: [] } });
+   * });
+   * ```
+   *
+   * @example
+   * ```ts
+   * // ❌ 实体实例不持有执行器，save() 重新排队后会等待当前事务结束。
+   * await adapter.transaction(async () => {
+   *   await entity.save();
+   * });
+   * ```
+   */
   abstract transaction<T extends TransactionFun>(fun: T, transactionLog?: boolean): Promise<Awaited<ReturnType<T>>>;
+  /**
+   * 通过执行器在同一事务内读写。
+   *
+   * @param fun - 持有本事务执行器的回调
+   * @param transactionLog - 是否记录事务日志
+   * @returns 回调结果
+   *
+   * @remarks
+   * 未持有执行器的 `entity.save()` 会重新排队。事务回调里等待它会等待自己，事务无法结束。
+   * 事务内请使用 {@link TransactionExecutor.getRepository}；实体实例的保存入口见 {@link EntityBase.save}。
+   *
+   * @example
+   * ```ts
+   * // ✅ 经执行器取得仓储，所有读写属于本事务。
+   * await adapter.transaction(async executor => {
+   *   const repository = executor.getRepository(Note);
+   *   const note = adapter.rxdb.entityManager.instantiate(Note);
+   *   note.label = 'ready';
+   *   const created = await repository.create(note);
+   *   await repository.update(created, { label: 'done' });
+   *   await repository.find({ where: { combinator: 'and', rules: [] } });
+   * });
+   * ```
+   *
+   * @example
+   * ```ts
+   * // ❌ 实体实例不持有执行器，save() 重新排队后会等待当前事务结束。
+   * await adapter.transaction(async () => {
+   *   await entity.save();
+   * });
+   * ```
+   */
   abstract transaction(fun: TransactionFun, transactionLog?: boolean): Promise<unknown>;
 
   /**

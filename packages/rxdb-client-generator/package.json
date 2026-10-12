@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-client-generator",
   "version": "0.0.26",
   "description": "Type-safe client and repository generator for Aiao RxDB models.",
-  "homepage": "https://rxdb.netlify.app/docs/client-generator",
+  "homepage": "https://rxdb.aiao.io/docs/client-generator",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

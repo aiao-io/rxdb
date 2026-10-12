@@ -1,5 +1,8 @@
 import type { Plugin, Rollup } from 'vite';
 
+type GetManualChunk = Extract<NonNullable<Rollup.OutputOptions['manualChunks']>, (...args: never[]) => unknown>;
+type ManualChunkMeta = Parameters<GetManualChunk>[1] & { getModuleIds(): Iterable<string> };
+
 /** 只经动态 `import()` 可达的模块并进的 chunk，产物里是 `rxdb-lazy.js`。 */
 export const LAZY_CHUNK_NAME = 'rxdb-lazy';
 
@@ -42,10 +45,11 @@ export function staticallyReachableModules(
  *
  * @param original - Taro 的 `manualChunks`
  */
-export function lazyManualChunks(original: Rollup.GetManualChunk): Rollup.GetManualChunk {
+export function lazyManualChunks(original: GetManualChunk): GetManualChunk {
   let reachable: ReadonlySet<string> | undefined;
   return (id, meta) => {
-    reachable ??= staticallyReachableModules(meta.getModuleIds(), meta.getModuleInfo);
+    const extendedMeta = meta as ManualChunkMeta;
+    reachable ??= staticallyReachableModules(extendedMeta.getModuleIds(), meta.getModuleInfo);
     return reachable.has(id) ? original(id, meta) : LAZY_CHUNK_NAME;
   };
 }

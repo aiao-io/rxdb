@@ -129,7 +129,8 @@ git log --format='%h %s' v0.0.26..origin/main | grep -vE ' (feat|fix|chore|docs|
 以及 [v1.md「0.0.26 之后」](../website/docs/migration/v1.md) 登记的各项。完整清单发布当下以 `requirements/api-baseline` 对 `v0.0.26` 的 diff 为准。
 
 **执行步骤：待定。** 需要 owner 决定版本号与 `oldBundlePolicy` 之后再写；不预设分支策略。
-[线 A 执行记录](#线-a-执行记录v0026)里的坑（lockfile、adapter-consumer 审计、README 里的版本号、npm 网页两步验证）同样适用。
+[线 A 执行记录](#线-a-执行记录v0026)里的坑（lockfile、adapter-consumer 审计、README 里的版本号、npm 网页两步验证）同样适用；
+包组合知识的两次重新生成见[包组合知识随发布更新](#包组合知识随发布更新us-602)。
 清单切到 `migration` 之后，PR CI 里的门禁会用真实 git 跑 `bridgeTagExists` / `bridgeTagIsAncestor` / `bridgeTagSupportsProtocol` /
 `bridgeTagVersionConstants`；本地预检：
 
@@ -139,6 +140,21 @@ pnpm nx run @aiao/source:migration-release-gate --args="--release-tag=v<版本>"
 ```
 
 关闭条件见[迁移发布的关闭条件](#迁移发布的关闭条件)。
+
+## 包组合知识随发布更新（US-602）
+
+`requirements/generated/package-knowledge.*` 与站点 `llms.txt` 的投递范围，读的是 `requirements/package-graph.json` 的 `release`
+**登记**的发布标签树，不用 `git describe` 探测：打 tag 发生在任何提交之外，门禁结论若随它改变，发布后第一轮 CI 必红；
+登记切换则是一次可评审的提交。站点构建只读提交的生成物、不碰 git。每次发布按顺序处理两步，下架包另有一步：
+
+1. **版本 bump 提交里同时重新生成。** 工作区 manifest 的版本进生成物的 `development` 部分与事实摘要，
+   bump 之后跑 `pnpm audit:package-graph --update`，把 `requirements/generated/` 与 bump 一起提交。
+   `preVersionCommand` 跑的是 bump **之前**的同一门禁，拦不住 bump 之后的漂移，由 bump 提交所在 PR 的 CI 拦。
+2. **tag 推送、npm 发布完成之后切换登记。** 把 `release` 改成新 tag，再 `--update`，单独提 PR。
+   安装命令与版本标识从这个 PR 合入起才切到新版本；切换之前 `llms.txt` 继续投递上一版（0.x 下 `^` 等于精确版本，照样装得上）。
+3. **下架已发布的包。** 删目录的同一提交里，把它在事实源的条目标 `"retired": true`（保留 role / hosts 等字段，情景不得再引用它）：
+   它仍在登记的发布里、仍可安装，`llms.txt` 标「已从仓库移除」。第 2 步切到不含它的 tag 时，门禁报「退役包已不在发布里」，再删条目。
+   不标 `retired` 直接删条目会撞「发布包未登记」，留着条目不标会撞「删包残留」。
 
 ## 桥接锚点定案
 

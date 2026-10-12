@@ -18,9 +18,10 @@ export type TransactionExecutorState = 'active' | 'committed' | 'rolled-back';
  *
  * @remarks
  * **持有它 = 有权在该事务内执行；未持有 = 必须重新排队。**
+ * 事务入口与正反例见 {@link RxDBAdapterLocalBase.transaction}；事务回调不能等待 `entity.save()`。
  * 事务身份由**对象标识**表示，不再由适配器实例上的布尔环境态（`#transaction_lock`）推断。
  *
- * 存在的理由：布尔环境态跨 `await` 无法区分两类调用 —— 事务体内的合法嵌套
+ * 存在的理由：旧的布尔环境态跨 `await` 无法区分两类调用 —— 当时的事务体内嵌套
  * （`record.save()` → `entityManager.mutations` → `adapter.mutations`）与外部并发写
  * （QueryCache / 远端同步在事务窗口内的独立写入）。两者走同一个入口，一律按「嵌套」处理
  * 会让外部写入被卷进他人事务并跟着 ROLLBACK 一起丢失（`SQLC-001` / `PGL-001`），

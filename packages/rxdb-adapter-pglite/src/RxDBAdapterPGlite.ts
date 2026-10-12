@@ -584,10 +584,8 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     return result.rows as PgliteTableColumn[];
   }
 
-  /**
-   * 事务入口。与 query() 共用 `#queue`；就绪等待必须在入队之前。
-   * 体内读写必须经回调收到的 executor。
-   */
+  // 事务入口。与 query() 共用 #queue；就绪等待必须在入队之前。体内读写必须经回调收到的 executor。
+  // 不写 TSDoc：覆写自带 TSDoc 会遮住 RxDBAdapterLocalBase.transaction 的正反例。
   async transaction<T extends TransactionFun>(
     transactionFun: T,
     transactionLog: boolean = true

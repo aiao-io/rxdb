@@ -17,7 +17,7 @@ const config: Config = {
   },
 
   // 在此处设置站点的生产 URL
-  url: 'https://docs.aiao.io',
+  url: 'https://rxdb.aiao.io',
   // 设置站点服务的 /<baseUrl>/ 路径名
   // 对于 GitHub Pages 部署，通常是 '/<projectName>/'
   baseUrl: '/',
@@ -70,6 +70,7 @@ const config: Config = {
   plugins: [
     ['./src/plugins/tailwind-config.js', {}],
     ['./src/plugins/demo-routes.js', {}],
+    ['./src/plugins/llms-txt.js', {}],
     [
       'ideal-image',
       {
