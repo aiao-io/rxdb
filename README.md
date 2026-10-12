@@ -20,8 +20,8 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 
 ## Demo
 
-| 框架    | 地址                                                                   |
-| ------- | ---------------------------------------------------------------------- |
+| 框架    | 地址                                                           |
+| ------- | -------------------------------------------------------------- |
 | Angular | [rxdb.aiao.io/demo/angular](https://rxdb.aiao.io/demo/angular) |
 | React   | [rxdb.aiao.io/demo/react](https://rxdb.aiao.io/demo/react)     |
 | Vue     | [rxdb.aiao.io/demo/vue](https://rxdb.aiao.io/demo/vue)         |
