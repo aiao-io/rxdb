@@ -4,6 +4,7 @@ import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { renderSkill } from './lib/package-skill.mjs';
 import {
   analyzePackageGraph,
   auditPackageGraph,
@@ -22,6 +23,7 @@ const release = { tag: 'v1.2.3', version: '1.2.3', packages: records.filter(p =>
 const input = {
   compilerDependencies: { typescript: '~6.0.3', '@types/node': '^26.0.0', '@types/emscripten': '^1.41.6' },
   template: await readFile(new URL('template.md', fixture), 'utf8'),
+  skillTemplate: await readFile(new URL('skill-template.md', fixture), 'utf8'),
   sample: await readFile(new URL('sample.ts', fixture), 'utf8'),
   compilerOptions: { strict: true },
   install: ['@aiao/rxdb', '@aiao/rxdb-adapter-pglite']
@@ -237,6 +239,7 @@ test('事实、manifest、模板、样例、编译选项与生成器源码均参
   const baseline = build().digest;
   const variants = [
     { ...input, template: input.template + 'changed' },
+    { ...input, skillTemplate: input.skillTemplate + 'changed' },
     { ...input, sample: input.sample + 'changed' },
     { ...input, compilerOptions: { strict: false } },
     { ...input, generatorSources: ['changed'] }
@@ -281,12 +284,16 @@ test('真实 git 发现只读登记标签的树：更新的标签与工作树改
 test('提交生成物检查能检出手改，不会静默覆盖', async () => {
   const root = await mkdtemp(join(tmpdir(), 'knowledge-fixture-'));
   try {
-    const rendered = renderKnowledge(build(), input.template);
-    assert.equal(checkGenerated(root, rendered).length, 2);
+    const rendered = { ...renderKnowledge(build(), input.template), skill: renderSkill(build(), input.skillTemplate) };
+    assert.equal(checkGenerated(root, rendered).length, 3);
     assert.deepEqual(checkGenerated(root, rendered, true), []);
     assert.deepEqual(checkGenerated(root, rendered), []);
     await writeFile(join(root, 'requirements/generated/package-knowledge.md'), 'tampered');
     assert.equal(checkGenerated(root, rendered).length, 1);
+    await writeFile(join(root, 'requirements/generated/package-knowledge.md'), rendered.markdown);
+    await writeFile(join(root, 'packages/rxdb/skills/aiao-rxdb/SKILL.md'), 'tampered');
+    assert.equal(checkGenerated(root, rendered).length, 1);
+    assert.match(checkGenerated(root, rendered)[0], /skills\/aiao-rxdb\/SKILL\.md/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }
