@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-09
+updated: 2026-10-12
 tags: [domain, bom, graph, integrity]
 ---
 
@@ -165,8 +165,7 @@ AC#8 等 US-510 阶段 B 的可达性表，AC#13 等真实 PostgreSQL 环境，A
 
 ## 价值待证
 
-同 [epic-009](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic)。图插件允许成环是既定语义（见技术笔记），
-本故事的价值完全取决于 BOM 驱动场景，不能脱离 Epic 单独解锁。
+已随 [epic-009 解锁记录](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic) 解锁（2026-10-12，owner 决定）。图插件允许成环是既定语义（见技术笔记），本故事的价值来自 BOM 领域约束。
 
 ## 实现文件
 

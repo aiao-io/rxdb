@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-09
+updated: 2026-10-12
 tags: [domain, bom, traceability, service]
 ---
 
@@ -110,8 +110,8 @@ AC#4 的「装机区间可查」意味着实例节点需要 `installed_at` / `re
 
 ## 价值待证
 
-同 [epic-009](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic)。
-本故事在整个 Epic 里驱动场景最靠后——没有实际交付与售后业务时它不产生价值。
+已随 [epic-009 解锁记录](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic) 解锁（2026-10-12，owner 决定）。
+演示阶段 F 覆盖其基础用例；实际交付与售后业务的更具体形态仍按需另立 AC。
 
 ## 实现文件
 

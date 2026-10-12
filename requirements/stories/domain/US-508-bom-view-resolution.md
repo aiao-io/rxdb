@@ -5,7 +5,7 @@ status: Backlog
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
-updated: 2026-10-09
+updated: 2026-10-12
 tags: [domain, bom, query]
 ---
 
@@ -135,7 +135,7 @@ manifest 记录结构依据（头、修订、发生项 ID），[US-511](US-511-b
 
 ## 价值待证
 
-同 [epic-009](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic)。
+已随 [epic-009 解锁记录](../../epics/epic-009-bom-domain-model.md#价值待证整个-epic) 解锁（2026-10-12，owner 决定）。
 
 ## 实现文件
 
