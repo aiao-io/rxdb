@@ -13,7 +13,8 @@
     "offline-first",
     "reactive-database",
     "rxjs",
-    "sqlite"
+    "sqlite",
+    "agent-skills"
   ],
   "license": "MIT",
   "repository": {
@@ -43,6 +44,7 @@
   "files": [
     "dist",
     "src",
+    "skills",
     "!src/**/*.spec.*",
     "!src/**/*.test.*",
     "!src/**/__tests__/**",
