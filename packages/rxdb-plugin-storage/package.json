@@ -69,14 +69,14 @@
     "access": "public"
   },
   "dependencies": {
-    "@aiao/rxdb": "workspace:*",
-    "@aiao/utils": "workspace:*",
+    "@aiao/utils": "workspace:^",
     "rxjs": "^7.8.2"
   },
   "peerDependencies": {
-    "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
-    "@aiao/rxdb-devtools": "workspace:*",
-    "vitest": "4.1.11"
+    "@aiao/rxdb-adapter-sqlite-core": "workspace:^",
+    "@aiao/rxdb-devtools": "workspace:^",
+    "vitest": "4.1.11",
+    "@aiao/rxdb": "workspace:^"
   },
   "peerDependenciesMeta": {
     "@aiao/rxdb-adapter-sqlite-core": {

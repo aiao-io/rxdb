@@ -22,8 +22,8 @@
   },
   "type": "module",
   "peerDependencies": {
-    "@aiao/rxdb": "*",
-    "@aiao/rxdb-plugin-search": "*",
+    "@aiao/rxdb": "workspace:^",
+    "@aiao/rxdb-plugin-search": "workspace:^",
     "@angular/core": "22.2.2",
     "rxjs": "^7.8.2"
   },

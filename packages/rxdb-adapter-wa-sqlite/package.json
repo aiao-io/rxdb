@@ -63,9 +63,8 @@
     ]
   },
   "dependencies": {
-    "@aiao/rxdb": "workspace:*",
-    "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
-    "@aiao/utils": "workspace:*",
+    "@aiao/rxdb-adapter-sqlite-core": "workspace:^",
+    "@aiao/utils": "workspace:^",
     "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994"
   },
   "devDependencies": {
@@ -75,5 +74,8 @@
     "@aiao/rxdb-plugin-working-tree": "workspace:*",
     "@aiao/rxdb-plugin-querycache": "workspace:*",
     "@aiao/rxdb-plugin-sync": "workspace:*"
+  },
+  "peerDependencies": {
+    "@aiao/rxdb": "workspace:^"
   }
 }
