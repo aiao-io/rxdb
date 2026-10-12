@@ -34,12 +34,12 @@ const FRONTMATTER_RE = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
  */
 export function renderSkill(knowledge, template) {
   const packages = [
-    '| 包 | 角色 | 槽位 | 框架 |',
-    '| --- | --- | --- | --- |',
-    ...knowledge.delivery.packages.map(
-      pkg =>
-        `| ${pkg.name}${pkg.retired ? '（已退役）' : ''} | ${pkg.role} | ${pkg.slots.join(', ')} | ${pkg.framework ?? ''} |`
-    )
+    '| 包 | 角色 | 槽位 | 宿主/备注 | 框架 |',
+    '| --- | --- | --- | --- | --- |',
+    ...knowledge.delivery.packages.map(pkg => {
+      const hostNotes = pkg.notes ? `${pkg.hosts.join(', ')}；${pkg.notes}` : pkg.hosts.join(', ');
+      return `| ${pkg.name}${pkg.retired ? '（已退役）' : ''} | ${pkg.role} | ${pkg.slots.join(', ')} | ${hostNotes} | ${pkg.framework ?? ''} |`;
+    })
   ].join('\n');
   const scenarios = knowledge.delivery.scenarios
     .map(scenario => {
@@ -73,7 +73,8 @@ export function renderSkill(knowledge, template) {
   if (name !== SKILL_NAME) throw new Error(`SKILL.md frontmatter name 必须为 ${SKILL_NAME}`);
   const description = frontmatter.match(/^description:\s*(.+)$/m)?.[1];
   if (!description) throw new Error('SKILL.md frontmatter 缺少 description');
-  const bytes = Buffer.byteLength(markdown, 'utf8');
+  const output = markdown.endsWith('\n') ? markdown : markdown + '\n';
+  const bytes = Buffer.byteLength(output, 'utf8');
   if (bytes > SKILL_MAX_BYTES) throw new Error(`SKILL.md 超出 ${SKILL_MAX_BYTES} 字节上限（实际 ${bytes} 字节）`);
-  return markdown.endsWith('\n') ? markdown : markdown + '\n';
+  return output;
 }

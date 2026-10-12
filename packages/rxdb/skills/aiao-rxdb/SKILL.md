@@ -6,7 +6,7 @@ license: MIT
 
 # Aiao RxDB 组合指南
 
-事实摘要：`b1c669a2bc08ed51119c3ec6f0d4934332cf9677b51a7ec6d984fcd75109695f`。本文件由事实源、manifest、插件源码与已验证样例生成，只覆盖 v0.0.26 投递范围（不含仅在仓库 main 上、未发布的包）。
+事实摘要：`0c868378c4a6458c2f2e01b4e3d8fbc3d373f1c5a60214b07f86034a7954bbef`。本文件由事实源、manifest、插件源码与已验证样例生成，只覆盖 v0.0.26 投递范围（不含仅在仓库 main 上、未发布的包）。
 
 ## 何时使用
 
@@ -23,42 +23,42 @@ license: MIT
 
 ## 投递范围安装清单
 
-| 包 | 角色 | 槽位 | 框架 |
-| --- | --- | --- | --- |
-| @aiao/code-editor | standalone |  |  |
-| @aiao/code-editor-angular | binding |  | angular |
-| @aiao/code-editor-react | binding |  | react |
-| @aiao/code-editor-vue | binding |  | vue |
-| @aiao/rxdb | core |  |  |
-| @aiao/rxdb-adapter-electron | backend | local |  |
-| @aiao/rxdb-adapter-encrypted | capability |  |  |
-| @aiao/rxdb-adapter-http | backend | remote |  |
-| @aiao/rxdb-adapter-miniprogram | backend | local |  |
-| @aiao/rxdb-adapter-pglite | backend | local |  |
-| @aiao/rxdb-adapter-sqlite | backend | local |  |
-| @aiao/rxdb-adapter-sqlite-core | shared-impl |  |  |
-| @aiao/rxdb-adapter-sqlite-wasm | backend | local |  |
-| @aiao/rxdb-adapter-sqliteai | backend | local |  |
-| @aiao/rxdb-adapter-supabase | backend | remote |  |
-| @aiao/rxdb-adapter-tauri | backend | local |  |
-| @aiao/rxdb-adapter-wa-sqlite | backend | local |  |
-| @aiao/rxdb-angular | binding |  | angular |
-| @aiao/rxdb-client-generator | tool |  |  |
-| @aiao/rxdb-devtools | tool |  |  |
-| @aiao/rxdb-plugin-graph | plugin |  |  |
-| @aiao/rxdb-plugin-history | plugin |  |  |
-| @aiao/rxdb-plugin-querycache | plugin |  |  |
-| @aiao/rxdb-plugin-search | plugin |  |  |
-| @aiao/rxdb-plugin-search-angular | binding |  | angular |
-| @aiao/rxdb-plugin-search-react | binding |  | react |
-| @aiao/rxdb-plugin-search-vue | binding |  | vue |
-| @aiao/rxdb-plugin-storage | plugin |  |  |
-| @aiao/rxdb-plugin-sync | plugin |  |  |
-| @aiao/rxdb-plugin-workspace | plugin |  |  |
-| @aiao/rxdb-react | binding |  | react |
-| @aiao/rxdb-test | tool |  |  |
-| @aiao/rxdb-vue | binding |  | vue |
-| @aiao/utils | standalone |  |  |
+| 包 | 角色 | 槽位 | 宿主/备注 | 框架 |
+| --- | --- | --- | --- | --- |
+| @aiao/code-editor | standalone |  | browser |  |
+| @aiao/code-editor-angular | binding |  | browser | angular |
+| @aiao/code-editor-react | binding |  | browser | react |
+| @aiao/code-editor-vue | binding |  | browser | vue |
+| @aiao/rxdb | core |  | browser, node, electron, tauri, miniprogram |  |
+| @aiao/rxdb-adapter-electron | backend | local | electron |  |
+| @aiao/rxdb-adapter-encrypted | capability |  | browser, node, electron, tauri；依赖 WebCrypto（crypto.subtle）。小程序宿主会随 sqlite-core 加载本包，但没有 crypto.subtle，加密能力不可用。 |  |
+| @aiao/rxdb-adapter-http | backend | remote | browser, node |  |
+| @aiao/rxdb-adapter-miniprogram | backend | local | miniprogram；实验性；仅已登记平台；单连接，不承诺崩溃恢复；Android 验证状态见兼容性矩阵。 |  |
+| @aiao/rxdb-adapter-pglite | backend | local | browser, node |  |
+| @aiao/rxdb-adapter-sqlite | backend | local | browser |  |
+| @aiao/rxdb-adapter-sqlite-core | shared-impl |  | browser, node, electron, tauri, miniprogram |  |
+| @aiao/rxdb-adapter-sqlite-wasm | backend | local | browser |  |
+| @aiao/rxdb-adapter-sqliteai | backend | local | browser |  |
+| @aiao/rxdb-adapter-supabase | backend | remote | browser, node |  |
+| @aiao/rxdb-adapter-tauri | backend | local | tauri |  |
+| @aiao/rxdb-adapter-wa-sqlite | backend | local | browser |  |
+| @aiao/rxdb-angular | binding |  | browser | angular |
+| @aiao/rxdb-client-generator | tool |  | node |  |
+| @aiao/rxdb-devtools | tool |  | browser |  |
+| @aiao/rxdb-plugin-graph | plugin |  | browser, node |  |
+| @aiao/rxdb-plugin-history | plugin |  | browser, node |  |
+| @aiao/rxdb-plugin-querycache | plugin |  | browser, node |  |
+| @aiao/rxdb-plugin-search | plugin |  | browser, node |  |
+| @aiao/rxdb-plugin-search-angular | binding |  | browser | angular |
+| @aiao/rxdb-plugin-search-react | binding |  | browser | react |
+| @aiao/rxdb-plugin-search-vue | binding |  | browser | vue |
+| @aiao/rxdb-plugin-storage | plugin |  | browser, node |  |
+| @aiao/rxdb-plugin-sync | plugin |  | browser, node |  |
+| @aiao/rxdb-plugin-workspace | plugin |  | browser |  |
+| @aiao/rxdb-react | binding |  | browser | react |
+| @aiao/rxdb-test | tool |  | browser, node |  |
+| @aiao/rxdb-vue | binding |  | browser | vue |
+| @aiao/utils | standalone |  | browser, node, electron, tauri, miniprogram |  |
 
 ## 组合情景
 

@@ -83,7 +83,9 @@ test('正文只覆盖投递范围：未发布树插件与情景不出现，发�
   const skill = render();
   assert.ok(!skill.includes('rxdb-plugin-tree'));
   assert.ok(!skill.includes('树插件'));
-  assert.ok(skill.includes('@aiao/rxdb-adapter-pglite'));
+  const packageTable = skill.match(/## 投递范围安装清单\n\n([\s\S]*?)\n\n## 组合情景/)?.[1];
+  assert.ok(packageTable?.includes('| @aiao/rxdb-adapter-pglite |'));
+  assert.ok(packageTable?.includes('| browser, node |'));
   assert.ok(skill.includes('pnpm add'));
   assert.ok(skill.includes('"strict"'));
 });
@@ -109,6 +111,14 @@ test('模板引用未知字段报错', () => {
 test('超出 8192 字节上限时报错而非截断', () => {
   const oversize = `---\nname: aiao-rxdb\ndescription: oversize fixture\n---\n${'x'.repeat(SKILL_MAX_BYTES + 1)}`;
   assert.throws(() => renderSkill(knowledge(), oversize), /8192/);
+});
+
+test('8192 字节上限包含自动追加的结尾换行', () => {
+  const prefix = '---\nname: aiao-rxdb\ndescription: exact fixture\n---\n';
+  const withoutNewline = `${prefix}${'x'.repeat(SKILL_MAX_BYTES - Buffer.byteLength(prefix))}`;
+  assert.throws(() => renderSkill(knowledge(), withoutNewline), /8192/);
+  const exact = `${prefix}${'x'.repeat(SKILL_MAX_BYTES - Buffer.byteLength(prefix) - 1)}\n`;
+  assert.equal(Buffer.byteLength(renderSkill(knowledge(), exact), 'utf8'), SKILL_MAX_BYTES);
 });
 
 test('frontmatter 缺 name 或 description 时报错', () => {
