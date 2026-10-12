@@ -184,3 +184,45 @@ export function queryCacheRequirements(facts, records) {
   const names = [...new Set([...scenario.plugins, ...resolved.plugins.map(plugin => plugin.name)])];
   return { packages: names, factories: names.map(name => plugins.get(name).factory) };
 }
+
+/**
+ * 从提交的 package-knowledge.json 提取投递快照：发布标签与每个投递包的已发布版本。
+ *
+ * @remarks
+ * US-602 C 的构建期渲染路径（主包 build）用它替代 {@link discoverRelease}——
+ * CI 的构建 lane 是浅克隆、没有 tag；投递快照由 `package-graph` 门禁保证与
+ * 登记发布标签树一致（生成 `package-knowledge.json` 的 `--update` 在 setup job
+ * 带 tag 的环境里执行），语义事实仍直接读事实源。
+ *
+ * @param knowledgeJson - 已解析的 `requirements/generated/package-knowledge.json`
+ * @returns `{ tag, packages: [{ name, version }] }`
+ */
+export function snapshotFromKnowledgeJson(knowledgeJson) {
+  return {
+    tag: knowledgeJson.version,
+    packages: knowledgeJson.delivery.packages.map(({ name, version }) => ({ name, version }))
+  };
+}
+
+/**
+ * 用投递快照构造与 {@link discoverRelease} 同构的发布对象（US-602 C 的构建期渲染路径，不碰 git）。
+ *
+ * @param facts - 事实源
+ * @param records - 门禁范围的包记录（工作区 manifest）
+ * @param snapshot - {@link snapshotFromKnowledgeJson} 的结果
+ * @returns `{ tag, version, packages }`，manifest 的版本取快照（即发布版本，不是工作区版本）
+ * @throws 快照 tag 与事实源 release 不一致、快照包含工作区不存在的包时
+ */
+export function releaseFromSnapshot(facts, records, snapshot) {
+  if (snapshot.tag !== facts.release)
+    throw new Error(
+      `投递快照 ${snapshot.tag} 与事实源 release ${facts.release} 不一致，请运行 pnpm audit:package-graph --update`
+    );
+  const byName = new Map(records.map(record => [record.name, record]));
+  const packages = snapshot.packages.map(({ name, version }) => {
+    const record = byName.get(name);
+    if (!record) throw new Error(`投递快照包含工作区不存在的包 ${name}`);
+    return { ...record, manifest: { ...record.manifest, version } };
+  });
+  return { tag: snapshot.tag, version: snapshot.tag.slice(1), packages };
+}

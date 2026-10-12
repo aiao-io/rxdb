@@ -1209,7 +1209,7 @@
             "kind": "peerDependencies",
             "name": "@aiao/code-editor",
             "optional": false,
-            "range": ">=0.0.26"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/code-editor-angular",
@@ -1229,7 +1229,7 @@
             "kind": "dependencies",
             "name": "@aiao/code-editor",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/code-editor-react",
@@ -1249,7 +1249,7 @@
             "kind": "dependencies",
             "name": "@aiao/code-editor",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/code-editor-vue",
@@ -1273,7 +1273,7 @@
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb",
@@ -1290,28 +1290,28 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-adapter-pglite",
             "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-electron",
@@ -1336,7 +1336,7 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-encrypted",
@@ -1358,7 +1358,7 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-http",
@@ -1377,22 +1377,22 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-wa-sqlite",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-miniprogram",
@@ -1413,28 +1413,28 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-encrypted",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-tree",
             "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-pglite",
@@ -1453,16 +1453,16 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-sqlite",
@@ -1485,40 +1485,40 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-encrypted",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-history",
             "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-tree",
             "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-test",
             "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-sqlite-core",
@@ -1535,22 +1535,22 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-sqlite-wasm",
@@ -1569,16 +1569,16 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-sqliteai",
@@ -1601,13 +1601,13 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-tree",
             "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-supabase",
@@ -1626,16 +1626,16 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-tauri",
@@ -1654,22 +1654,22 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-adapter-wa-sqlite",
@@ -1691,19 +1691,19 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "^0.0.26"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-graph",
             "optional": false,
-            "range": "^0.0.26"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "^0.0.26"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-angular",
@@ -1720,16 +1720,16 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-client-generator",
@@ -1749,7 +1749,7 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-devtools",
@@ -1767,10 +1767,10 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-model",
@@ -1790,25 +1790,25 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "^0.0.26"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-angular",
             "optional": false,
-            "range": "^0.0.27"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-model",
             "optional": false,
-            "range": "^0.0.26"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-history",
             "optional": false,
-            "range": "^0.0.26"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-model-angular",
@@ -1828,25 +1828,25 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-model",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-history",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-react",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-model-react",
@@ -1866,25 +1866,25 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-model",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-history",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-vue",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-model-vue",
@@ -1902,28 +1902,28 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-client-generator",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-graph",
@@ -1946,16 +1946,16 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-history",
@@ -1978,16 +1978,16 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-querycache",
@@ -2010,22 +2010,22 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-working-tree",
             "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-replay",
@@ -2050,7 +2050,7 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-replay",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-replay-angular",
@@ -2070,7 +2070,7 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-replay",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-replay-react",
@@ -2090,7 +2090,7 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-replay",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-replay-vue",
@@ -2108,34 +2108,34 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-adapter-pglite",
             "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-adapter-sqlite-wasm",
             "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-search",
@@ -2160,13 +2160,13 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-search",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-search-angular",
@@ -2186,13 +2186,13 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-search",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-search-react",
@@ -2212,13 +2212,13 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-search",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-search-vue",
@@ -2236,28 +2236,28 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-adapter-sqlite-core",
             "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-devtools",
             "optional": true,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-storage",
@@ -2280,22 +2280,22 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-history",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-sync",
@@ -2318,22 +2318,22 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-client-generator",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-tree",
@@ -2358,19 +2358,19 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-angular",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-tree",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-tree-angular",
@@ -2390,19 +2390,19 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-tree",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-react",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-tree-react",
@@ -2422,19 +2422,19 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-tree",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-vue",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-tree-vue",
@@ -2452,22 +2452,22 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/rxdb-plugin-history",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-working-tree",
@@ -2492,19 +2492,19 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-angular",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-working-tree",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-working-tree-angular",
@@ -2524,19 +2524,19 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-working-tree",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-react",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-working-tree-react",
@@ -2556,19 +2556,19 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-working-tree",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-vue",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-working-tree-vue",
@@ -2585,16 +2585,16 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-plugin-workspace",
@@ -2616,22 +2616,22 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-graph",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-react",
@@ -2652,7 +2652,7 @@
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-adapter-miniprogram",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-taro",
@@ -2670,16 +2670,16 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-tree",
-            "optional": false,
-            "range": "workspace:*"
+            "optional": true,
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-test",
@@ -2696,22 +2696,22 @@
         ],
         "implementationDependencies": [
           {
-            "kind": "dependencies",
+            "kind": "peerDependencies",
             "name": "@aiao/rxdb",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           },
           {
             "kind": "peerDependencies",
             "name": "@aiao/rxdb-plugin-graph",
             "optional": false,
-            "range": "*"
+            "range": "workspace:^"
           },
           {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
-            "range": "workspace:*"
+            "range": "workspace:^"
           }
         ],
         "name": "@aiao/rxdb-vue",
@@ -2934,7 +2934,7 @@
       }
     ]
   },
-  "digest": "351d36a9af8b5fb11135b444fbd1f5e31d6e70fde87d896af637c6c0928be34c",
+  "digest": "784b6e90450943116ad98645336f0a7003b16f05379a5dde23954ef83aa3f858",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

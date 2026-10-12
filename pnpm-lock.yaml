@@ -1171,7 +1171,7 @@ importers:
   packages/code-editor-react:
     dependencies:
       '@aiao/code-editor':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../code-editor
       '@codemirror/commands':
         specifier: ^6.11.1
@@ -1201,7 +1201,7 @@ importers:
   packages/code-editor-vue:
     dependencies:
       '@aiao/code-editor':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../code-editor
       '@codemirror/commands':
         specifier: ^6.11.1
@@ -1228,7 +1228,7 @@ importers:
   packages/rxdb:
     dependencies:
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       rxjs:
         specifier: ^7.8.2
@@ -1247,13 +1247,13 @@ importers:
   packages/rxdb-adapter-electron:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/rxdb-adapter-sqlite-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-adapter-sqlite-core
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
     devDependencies:
       '@aiao/rxdb-adapter-pglite':
@@ -1281,7 +1281,7 @@ importers:
   packages/rxdb-adapter-encrypted:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       rxjs:
         specifier: ^7.8.0
@@ -1290,7 +1290,7 @@ importers:
   packages/rxdb-adapter-http:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       rxjs:
         specifier: ^7.8.2
@@ -1312,13 +1312,13 @@ importers:
   packages/rxdb-adapter-miniprogram:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/rxdb-adapter-sqlite-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-adapter-sqlite-core
       '@aiao/rxdb-adapter-wa-sqlite':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-adapter-wa-sqlite
       '@subframe7536/sqlite-wasm':
         specifier: 1.3.1
@@ -1333,13 +1333,13 @@ importers:
   packages/rxdb-adapter-pglite:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/rxdb-adapter-encrypted':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-adapter-encrypted
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       '@electric-sql/pglite':
         specifier: ^0.5.8
@@ -1373,10 +1373,10 @@ importers:
   packages/rxdb-adapter-sqlite:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/rxdb-adapter-sqlite-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-adapter-sqlite-core
       '@sqlite.org/sqlite-wasm':
         specifier: 3.53.4-build2
@@ -1413,13 +1413,13 @@ importers:
   packages/rxdb-adapter-sqlite-core:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/rxdb-adapter-encrypted':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-adapter-encrypted
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       comlink:
         specifier: ^4.4.2
@@ -1450,13 +1450,13 @@ importers:
   packages/rxdb-adapter-sqlite-wasm:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/rxdb-adapter-sqlite-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-adapter-sqlite-core
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       '@subframe7536/sqlite-wasm':
         specifier: 1.4.0
@@ -1490,10 +1490,10 @@ importers:
   packages/rxdb-adapter-sqliteai:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/rxdb-adapter-sqlite-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-adapter-sqlite-core
       '@sqliteai/sqlite-wasm':
         specifier: 3.50.4-wasm.1.0.0-sync.1.2.0-vector.1.1.2-memory.1.3.5
@@ -1524,7 +1524,7 @@ importers:
   packages/rxdb-adapter-supabase:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@supabase/supabase-js':
         specifier: ^2.88.0
@@ -1558,10 +1558,10 @@ importers:
   packages/rxdb-adapter-tauri:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/rxdb-adapter-sqlite-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-adapter-sqlite-core
     devDependencies:
       '@aiao/rxdb-plugin-history':
@@ -1574,13 +1574,13 @@ importers:
   packages/rxdb-adapter-wa-sqlite:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/rxdb-adapter-sqlite-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-adapter-sqlite-core
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       wa-sqlite:
         specifier: https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994
@@ -1608,11 +1608,11 @@ importers:
   packages/rxdb-angular:
     dependencies:
       '@aiao/rxdb':
-        specifier: ^0.0.26
-        version: 0.0.26
+        specifier: workspace:^
+        version: link:../rxdb
       '@aiao/utils':
-        specifier: ^0.0.26
-        version: 0.0.26
+        specifier: workspace:^
+        version: link:../utils
       '@angular/core':
         specifier: 22.2.2
         version: 22.2.2(@angular/compiler@22.2.2)(rxjs@7.8.2)
@@ -1642,10 +1642,10 @@ importers:
   packages/rxdb-client-generator:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       glob:
         specifier: ^13.0.6
@@ -1675,7 +1675,7 @@ importers:
   packages/rxdb-model:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@visactor/vtable':
         specifier: ~1.26.5
@@ -1813,16 +1813,16 @@ importers:
   packages/rxdb-plugin-graph:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/rxdb-adapter-sqlite-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-adapter-sqlite-core
       '@aiao/rxdb-client-generator':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-client-generator
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       rxjs:
         specifier: ^7.8.2
@@ -1835,10 +1835,10 @@ importers:
   packages/rxdb-plugin-history:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       rxjs:
         specifier: ^7.8.2
@@ -1847,10 +1847,10 @@ importers:
   packages/rxdb-plugin-querycache:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       rxjs:
         specifier: ^7.8.2
@@ -1859,10 +1859,10 @@ importers:
   packages/rxdb-plugin-replay:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       '@rrweb/types':
         specifier: 2.1.7
@@ -1925,13 +1925,13 @@ importers:
   packages/rxdb-plugin-search:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/rxdb-adapter-sqlite-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-adapter-sqlite-core
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       rxjs:
         specifier: ^7.8.2
@@ -2016,10 +2016,10 @@ importers:
   packages/rxdb-plugin-storage:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       rxjs:
         specifier: ^7.8.2
@@ -2044,13 +2044,13 @@ importers:
   packages/rxdb-plugin-sync:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/rxdb-plugin-history':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-plugin-history
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       rxjs:
         specifier: ^7.8.2
@@ -2059,13 +2059,13 @@ importers:
   packages/rxdb-plugin-tree:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/rxdb-client-generator':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-client-generator
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       rxjs:
         specifier: ^7.8.2
@@ -2143,13 +2143,13 @@ importers:
   packages/rxdb-plugin-working-tree:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/rxdb-plugin-history':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-plugin-history
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       rxjs:
         specifier: ^7.8.2
@@ -2231,10 +2231,10 @@ importers:
   packages/rxdb-plugin-workspace:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       idb-keyval:
         specifier: ^6.3.0
@@ -2250,10 +2250,10 @@ importers:
   packages/rxdb-react:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       react:
         specifier: ^19.3.0
@@ -2291,10 +2291,10 @@ importers:
   packages/rxdb-test:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/rxdb-plugin-tree':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb-plugin-tree
       rxjs:
         specifier: ^7.8.2
@@ -2310,10 +2310,10 @@ importers:
   packages/rxdb-vue:
     dependencies:
       '@aiao/rxdb':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../rxdb
       '@aiao/utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../utils
       rxjs:
         specifier: ^7.8.0
@@ -2506,12 +2506,6 @@ packages:
 
   '@actions/io@3.0.2':
     resolution: {integrity: sha512-nRBchcMM+QK1pdjO7/idu86rbJI5YHUKCvKs0KxnSYbVe3F51UfGxuZX4Qy/fWlp6l7gWFwIkrOzN+oUK03kfw==}
-
-  '@aiao/rxdb@0.0.26':
-    resolution: {integrity: sha512-FFaqexc+ocuooZSFC1Bqi8hPkDn5jQkY9CgzqMQAcubwdD86a0QFt2roCoe88bbeD4asp9xwjpaFUXBaXskRvA==}
-
-  '@aiao/utils@0.0.26':
-    resolution: {integrity: sha512-+caVJwHWPTTux+o5teMziktFMEY+PLiFGBA9ndbhCxZ4VfImjHK/myYcIZIKbAYj0cQQM5Eq2NPwbL/3gXvNzA==}
 
   '@algolia/abtesting@1.25.0':
     resolution: {integrity: sha512-rSTin9Uta23uaewYVQEp8XI9T3iA/zrg0/1G2vhf8oFFDxFL5vybnZ5IQwsVAg4JpKxPX4/WYNKdcfWrZymk7w==}
@@ -20132,20 +20126,6 @@ snapshots:
       undici: 6.28.1
 
   '@actions/io@3.0.2': {}
-
-  '@aiao/rxdb@0.0.26':
-    dependencies:
-      '@aiao/utils': 0.0.26
-      rxjs: 7.8.2
-      type-fest: 5.10.0
-      uuid: 14.0.2
-
-  '@aiao/utils@0.0.26':
-    dependencies:
-      fastest-levenshtein: 1.0.16
-      ms: 2.1.3
-      rxjs: 7.8.2
-      ts-xor: 1.3.0
 
   '@algolia/abtesting@1.25.0':
     dependencies:

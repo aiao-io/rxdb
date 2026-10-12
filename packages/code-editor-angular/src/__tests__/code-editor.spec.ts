@@ -709,9 +709,14 @@ describe('CodeEditor', () => {
       };
       const core = JSON.parse(readFileSync('../code-editor/package.json', 'utf8')) as { version: string };
       const range = own.peerDependencies['@aiao/code-editor'];
-      const lowerBound = /^>=\s*(\d+\.\d+\.\d+)$/.exec(range)?.[1];
+      // US-602 A2 起 peer 统一为 `workspace:^`，发布时改写为 `^<该包工作区版本>`；
+      // 0.x 下 `^0.0.x` 只含这一版，下界即该版本本身（比 `>=x.y.z` 更严）。
+      // 语义断言按改写后的范围算，而不是拿正则直接解析 `workspace:^`。
+      const publishedRange = range === 'workspace:^' ? `^${core.version}` : range;
+      const lowerBound =
+        /^>=\s*(\d+\.\d+\.\d+)$/.exec(publishedRange)?.[1] ?? /^\^\s*(\d+\.\d+\.\d+)$/.exec(publishedRange)?.[1];
 
-      expect(lowerBound, `peer 范围必须写成 ">=x.y.z"，当前是 "${range}"`).toBeDefined();
+      expect(lowerBound, `peer 范围必须写成 "workspace:^" 或 ">=x.y.z"，当前是 "${range}"`).toBeDefined();
       expect(compareSemver(lowerBound!, core.version)).toBeGreaterThanOrEqual(0);
     });
 

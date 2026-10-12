@@ -96,7 +96,7 @@ describe('testing subpath', () => {
     // 只被 `./testing` 用到。本断言是这条约定唯一的守卫：tarball 层的 production
     // 场景验证随手工发布改造一并移除了。
     expect(packageJson.dependencies).not.toHaveProperty('@aiao/rxdb-test');
-    expect(packageJson.peerDependencies).toHaveProperty('@aiao/rxdb-test', 'workspace:*');
+    expect(packageJson.peerDependencies).toHaveProperty('@aiao/rxdb-test', 'workspace:^');
     expect(packageJson.peerDependenciesMeta).toHaveProperty('@aiao/rxdb-test.optional', true);
     // 本地 build / typecheck 仍要解析得到它。
     expect(packageJson.devDependencies).toHaveProperty('@aiao/rxdb-test', 'workspace:*');

@@ -4,6 +4,7 @@ import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { renderSkill } from './lib/package-skill.mjs';
 import {
   analyzePackageGraph,
   auditPackageGraph,
@@ -22,6 +23,7 @@ const release = { tag: 'v1.2.3', version: '1.2.3', packages: records.filter(p =>
 const input = {
   compilerDependencies: { typescript: '~6.0.3', '@types/node': '^26.0.0', '@types/emscripten': '^1.41.6' },
   template: await readFile(new URL('template.md', fixture), 'utf8'),
+  skillTemplate: await readFile(new URL('skill-template.md', fixture), 'utf8'),
   sample: await readFile(new URL('sample.ts', fixture), 'utf8'),
   compilerOptions: { strict: true },
   install: ['@aiao/rxdb', '@aiao/rxdb-adapter-pglite']
@@ -158,6 +160,66 @@ test('manifest 安装边循环与未知兄弟包均被拒绝', () => {
   assert.ok(auditPackageGraph(copy(), cyclic).some(error => error.includes('@aiao/missing')));
 });
 
+test('@aiao/rxdb 放 dependencies / optionalDependencies 均被拒绝', () => {
+  const changed = structuredClone(records);
+  const target = changed.find(p => p.name === '@aiao/rxdb-plugin-history');
+  target.manifest.dependencies = { '@aiao/rxdb': 'workspace:^' };
+  const inDeps = auditPackageGraph(copy(), changed);
+  assert.ok(
+    inDeps.some(error => error.includes('dependencies') && error.includes('@aiao/rxdb')),
+    inDeps.join('\n')
+  );
+  delete target.manifest.dependencies['@aiao/rxdb'];
+  target.manifest.optionalDependencies = { '@aiao/rxdb': 'workspace:^' };
+  const inOptional = auditPackageGraph(copy(), changed);
+  assert.ok(
+    inOptional.some(error => error.includes('optionalDependencies') && error.includes('@aiao/rxdb')),
+    inOptional.join('\n')
+  );
+});
+
+for (const range of ['*', 'workspace:*', '>=1.2.3', '^1.2.3']) {
+  test(`@aiao/* peer 写成 ${range} 被拒绝`, () => {
+    const changed = structuredClone(records);
+    const target = changed.find(p => p.name === '@aiao/rxdb-adapter-http');
+    target.manifest.peerDependencies['@aiao/rxdb'] = range;
+    const errors = auditPackageGraph(copy(), changed);
+    assert.ok(
+      errors.some(error => error.includes('peer @aiao/rxdb') && error.includes('workspace:^') && error.includes(range)),
+      errors.join('\n')
+    );
+  });
+}
+
+test('留在 dependencies 的 @aiao/* 兄弟边不是 workspace:^ 被拒绝', () => {
+  const changed = structuredClone(records);
+  const target = changed.find(p => p.name === '@aiao/rxdb-adapter-wa-sqlite');
+  target.manifest.dependencies['@aiao/rxdb-adapter-sqlite-core'] = 'workspace:*';
+  const errors = auditPackageGraph(copy(), changed);
+  assert.ok(
+    errors.some(error => error.includes('兄弟依赖 @aiao/rxdb-adapter-sqlite-core') && error.includes('workspace:*')),
+    errors.join('\n')
+  );
+});
+
+test('发布标签树标过的 optional peer 被删即失败，保留则通过（AC#4 正反例）', () => {
+  const baseline = structuredClone(records);
+  const deleted = structuredClone(records);
+  const target = deleted.find(p => p.name === '@aiao/rxdb-adapter-electron');
+  delete target.manifest.peerDependenciesMeta['@aiao/rxdb-adapter-pglite'];
+  const errors = auditPackageGraph(copy(), deleted, undefined, baseline);
+  assert.ok(
+    errors.some(
+      error =>
+        error.includes('rxdb-adapter-electron/package.json') &&
+        error.includes('optional peer @aiao/rxdb-adapter-pglite')
+    ),
+    errors.join('\n')
+  );
+  assert.deepEqual(auditPackageGraph(copy(), records, undefined, baseline), []);
+  assert.deepEqual(auditPackageGraph(copy(), records), []);
+});
+
 test('inject 的前置提供者缺位时门禁失败', () => {
   const changed = copy();
   changed.packages.find(p => p.name === '@aiao/rxdb-plugin-history').plugin.class = 'WrongClass';
@@ -177,6 +239,7 @@ test('事实、manifest、模板、样例、编译选项与生成器源码均参
   const baseline = build().digest;
   const variants = [
     { ...input, template: input.template + 'changed' },
+    { ...input, skillTemplate: input.skillTemplate + 'changed' },
     { ...input, sample: input.sample + 'changed' },
     { ...input, compilerOptions: { strict: false } },
     { ...input, generatorSources: ['changed'] }
@@ -221,12 +284,16 @@ test('真实 git 发现只读登记标签的树：更新的标签与工作树改
 test('提交生成物检查能检出手改，不会静默覆盖', async () => {
   const root = await mkdtemp(join(tmpdir(), 'knowledge-fixture-'));
   try {
-    const rendered = renderKnowledge(build(), input.template);
-    assert.equal(checkGenerated(root, rendered).length, 2);
+    const rendered = { ...renderKnowledge(build(), input.template), skill: renderSkill(build(), input.skillTemplate) };
+    assert.equal(checkGenerated(root, rendered).length, 3);
     assert.deepEqual(checkGenerated(root, rendered, true), []);
     assert.deepEqual(checkGenerated(root, rendered), []);
     await writeFile(join(root, 'requirements/generated/package-knowledge.md'), 'tampered');
     assert.equal(checkGenerated(root, rendered).length, 1);
+    await writeFile(join(root, 'requirements/generated/package-knowledge.md'), rendered.markdown);
+    await writeFile(join(root, 'packages/rxdb/skills/aiao-rxdb/SKILL.md'), 'tampered');
+    assert.equal(checkGenerated(root, rendered).length, 1);
+    assert.match(checkGenerated(root, rendered)[0], /skills\/aiao-rxdb\/SKILL\.md/);
   } finally {
     await rm(root, { recursive: true, force: true });
   }

@@ -379,9 +379,9 @@ const auditTarget = async (target, tarballs, sharedTarballs) => {
         '@types/ms': workspacePackageJson.devDependencies['@types/ms'],
         '@types/node': workspacePackageJson.devDependencies['@types/node']
       },
-      // 传递依赖也必须落在本地 tarball 上。`pnpm pack` 会把 `workspace:*` 换成具体版本号，
-      // 于是 tarball 里的 `@aiao/*` 依赖看起来就是普通的 registry 依赖——不覆盖的话 pnpm
-      // 会去 npm 上抓同版本的**已发布**副本，这道门禁验的就成了线上旧产物而非手头这次改动。
+      // 传递依赖也必须落在本地 tarball 上。`pnpm pack` 会把 `workspace:^`（US-602 A2 之后）
+      // 换成 `^版本号`，于是 tarball 里的 `@aiao/*` 依赖看起来就是普通的 registry 依赖——
+      // 不覆盖的话 pnpm 会去 npm 上抓同版本的**已发布**副本，这道门禁验的就成了线上旧产物而非手头这次改动。
       // 症状只在某个包尚未发布时才炸（US-303 加 `@aiao/rxdb-plugin-tree` 时的 404），
       // 已发布的包则一路静默走线上副本，所以这里必须显式钉死。
       pnpm: { overrides: dependencies }

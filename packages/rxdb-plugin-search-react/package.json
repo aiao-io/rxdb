@@ -42,8 +42,8 @@
     }
   },
   "peerDependencies": {
-    "@aiao/rxdb": "*",
-    "@aiao/rxdb-plugin-search": "*",
+    "@aiao/rxdb": "workspace:^",
+    "@aiao/rxdb-plugin-search": "workspace:^",
     "react": "^19.3.0",
     "rxjs": "^7.8.2"
   },

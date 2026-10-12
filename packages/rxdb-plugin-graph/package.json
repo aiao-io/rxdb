@@ -61,13 +61,15 @@
     ]
   },
   "dependencies": {
-    "@aiao/rxdb": "workspace:*",
-    "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
-    "@aiao/rxdb-client-generator": "workspace:*",
-    "@aiao/utils": "workspace:*",
+    "@aiao/rxdb-adapter-sqlite-core": "workspace:^",
+    "@aiao/rxdb-client-generator": "workspace:^",
+    "@aiao/utils": "workspace:^",
     "rxjs": "^7.8.2"
   },
   "devDependencies": {
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*"
+  },
+  "peerDependencies": {
+    "@aiao/rxdb": "workspace:^"
   }
 }

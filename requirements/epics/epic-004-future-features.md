@@ -66,6 +66,7 @@ owner: jimmy
 - [US-220 Supabase 推送 UPDATE 的落库语义](../stories/adapter/US-220-supabase-update-push-semantics.md) — 推送把 UPDATE 当 `INSERT … ON CONFLICT DO UPDATE` 落库：只改部分列在 NOT NULL 列上报 23502，owner 型 RLS 下改自己的行、INSERT 比 UPDATE 窄的表上改别人的行都误报 42501；改走普通 UPDATE，单个 PR，US-218 阶段 B 的前置
 - [US-909 会话录制回放与失败现场数据还原](../stories/future/US-909-session-replay-debugging.md) — owner 2026-10-01 决定 A / B / C 全做。阶段 A 六个 Playwright 配置（五个 web demo e2e + devtools 扩展 e2e）的 trace 改为 `retain-on-failure`；阶段 B 失败现场数据原样归档与导入（价值证据门禁已豁免；传输限制经主线程 IDB 第二连接绕开）；阶段 C 应用内 rrweb 录制插件与三框架组件（价值待证门禁已豁免）
 - [US-910 数据国际化 / 本地化](../stories/future/US-910-data-i18n.md) — 生产方案采用 C-L；阶段 A 依赖 Full/Filter/tombstone 同步夹具，HTTP QueryCache demo 不承担本故事同步验收
+- [US-911 客户端国际化 / 本地化](../stories/future/US-911-client-i18n.md) — UI 文案与 locale 状态：ICU 消息引擎（intl-messageformat）+ locale 状态单行实体 + 三端 `useI18n()`；rxdb-model 去硬编码（默认 zh-Hans 目录随包发布）；阶段 D 目录走 QueryCache 分发、独立后置
 - [US-025 核心包子系统按插件边界外移](../stories/core/US-025-core-plugin-extraction.md) — QueryCache / 跨 tab 网关 / 历史分支 / 推拉同步 / 树实体逐阶段外移为插件包；搬消费者不搬 changelog 原语；阶段 B 起前置 US-015 的 `plugin:*` 依赖解析
 - [US-506 website 插件文档补齐（history / sync / querycache）](../stories/plugin/US-506-website-plugin-docs.md) — US-025 拆包三插件的文档站手册页、侧边栏导航与 typedoc 收录，含 flatten 重写坏链修复；`site-build` 已绿
 - [US-030 实体元数据层的声明式存储约束](../stories/core/US-030-declarative-storage-constraints.md) — `checks` 与索引的 `where` / `expression` / `method`：`EntityMetadataOptions` 今天一项都没有；四阶段（CHECK → 条件唯一与表达式索引 → 区间排他双后端等价 → 生成列与索引方法）；阶段 A～C 由 owner 提前解锁，阶段 D 仍**价值待证**；当前消费方全在 epic-009

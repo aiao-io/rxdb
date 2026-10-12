@@ -13,7 +13,8 @@
     "offline-first",
     "reactive-database",
     "rxjs",
-    "sqlite"
+    "sqlite",
+    "agent-skills"
   ],
   "license": "MIT",
   "repository": {
@@ -43,6 +44,7 @@
   "files": [
     "dist",
     "src",
+    "skills",
     "!src/**/*.spec.*",
     "!src/**/*.test.*",
     "!src/**/__tests__/**",
@@ -58,7 +60,7 @@
     ]
   },
   "dependencies": {
-    "@aiao/utils": "workspace:*",
+    "@aiao/utils": "workspace:^",
     "rxjs": "^7.8.2",
     "type-fest": "^5.10.0",
     "uuid": "^14.0.2"

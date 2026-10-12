@@ -108,6 +108,54 @@ function validateDependencies(records) {
   return errors;
 }
 
+/**
+ * `@aiao/*` 安装边写法统一（US-602 A2）：核心包一律 peer `workspace:^`，
+ * 其余 `@aiao/*` peer 与留在 dependencies 的兄弟边同样 `workspace:^`，
+ * 发布标签树里标过 optional 的 peer 不得删掉 optional 语义。
+ *
+ * @param records - 工作区包记录
+ * @param releaseRecords - 发布标签树的包记录（{@link discoverRelease}），省略则跳过 optional 保留校验
+ * @returns 错误列表，空数组即通过
+ */
+function validatePeerConventions(records, releaseRecords) {
+  const errors = [];
+  for (const record of records) {
+    const { manifest } = record;
+    for (const field of ['dependencies', 'optionalDependencies']) {
+      if (manifest[field]?.['@aiao/rxdb'] !== undefined)
+        errors.push(
+          `${record.source}: @aiao/rxdb 必须放 peerDependencies（现处于 ${field}，范围 ${manifest[field]['@aiao/rxdb']}）`
+        );
+    }
+    for (const [name, range] of Object.entries(manifest.peerDependencies ?? {})) {
+      if (name.startsWith('@aiao/') && range !== 'workspace:^')
+        errors.push(`${record.source}: peer ${name} 必须是 workspace:^（现为 ${range}）`);
+    }
+    for (const [name, range] of Object.entries(manifest.dependencies ?? {})) {
+      if (name.startsWith('@aiao/') && range !== 'workspace:^')
+        errors.push(`${record.source}: 兄弟依赖 ${name} 必须是 workspace:^（现为 ${range}）`);
+    }
+  }
+  if (releaseRecords?.length) {
+    const byName = new Map(records.map(record => [record.name, record]));
+    for (const released of releaseRecords) {
+      const current = byName.get(released.name);
+      if (!current) continue;
+      for (const [name, meta] of Object.entries(released.manifest.peerDependenciesMeta ?? {})) {
+        if (!name.startsWith('@aiao/') || meta?.optional !== true) continue;
+        const kept =
+          current.manifest.peerDependencies?.[name] !== undefined &&
+          current.manifest.peerDependenciesMeta?.[name]?.optional === true;
+        if (!kept)
+          errors.push(
+            `${current.source}: 原 optional peer ${name} 的 optional 语义被删（发布基线 ${released.source}）`
+          );
+      }
+    }
+  }
+  return errors;
+}
+
 function registrationErrors(facts, records, factsPath) {
   const errors = facts.packages.flatMap(validateFact).map(error => `${factsPath}: ${error}`);
   if (typeof facts.release !== 'string' || !releaseTag.test(facts.release))
@@ -149,9 +197,10 @@ function scenarioErrors(facts, factsPath) {
  * @param facts - 事实源
  * @param records - 门禁范围的包记录（{@link scanPackages}）
  * @param factsPath - 报错定位用的事实源路径
+ * @param releaseRecords - 发布标签树的包记录（{@link discoverRelease}），用于 optional peer 保留校验
  * @returns 原样带回的 `facts` / `records`、工作区插件元数据与错误；有错误时 `plugins` 为空
  */
-export function analyzePackageGraph(facts, records, factsPath = 'requirements/package-graph.json') {
+export function analyzePackageGraph(facts, records, factsPath = 'requirements/package-graph.json', releaseRecords) {
   const result = errors => ({ facts, records, plugins: new Map(), errors });
   if (!facts || facts.schemaVersion !== 1 || !Array.isArray(facts.packages) || !Array.isArray(facts.scenarios))
     return result([`${factsPath}: schemaVersion/packages/scenarios 无效`]);
@@ -160,6 +209,8 @@ export function analyzePackageGraph(facts, records, factsPath = 'requirements/pa
   if (!facts.scenarios.every(isRecord)) return result([`${factsPath}: scenarios 项必须为对象`]);
   const registration = registrationErrors(facts, records, factsPath);
   if (registration.length) return result(registration);
+  const peerConventions = validatePeerConventions(records, releaseRecords);
+  if (peerConventions.length) return result(peerConventions);
   const scenarios = scenarioErrors(facts, factsPath);
   if (scenarios.length) return result(scenarios);
   const { plugins, errors } = collectPlugins(facts, records);
@@ -174,8 +225,9 @@ export function analyzePackageGraph(facts, records, factsPath = 'requirements/pa
  * @param facts - 事实源
  * @param records - 门禁范围的包记录
  * @param factsPath - 报错定位用的事实源路径
+ * @param releaseRecords - 发布标签树的包记录，用于 optional peer 保留校验
  * @returns 错误列表，空数组即通过
  */
-export function auditPackageGraph(facts, records, factsPath) {
-  return analyzePackageGraph(facts, records, factsPath).errors;
+export function auditPackageGraph(facts, records, factsPath, releaseRecords) {
+  return analyzePackageGraph(facts, records, factsPath, releaseRecords).errors;
 }
