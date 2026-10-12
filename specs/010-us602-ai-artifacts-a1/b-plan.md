@@ -12,4 +12,4 @@ B 使用本地 Docusaurus 插件的 `postBuild` 生命周期生成 `llms.txt` �
 
 ## 关闭条件
 
-AC#9 与 AC#16 在本地 `pnpm nx build website` 通过后关闭；AC#10 等合入部署到 `https://docs.aiao.io` 后再做线上 smoke，并保留为 B 的剩余验收项。
+AC#9 与 AC#16 在本地 `pnpm nx build website` 通过后关闭；AC#10 等合入部署到 `https://rxdb.aiao.io` 后再做线上 smoke，并保留为 B 的剩余验收项。

@@ -126,7 +126,7 @@ function renderSample(knowledge) {
 /**
  * 渲染两个文件的正文并校验字节上限。
  *
- * @param options.siteUrl - 站点根地址（含 `baseUrl`），如 `https://docs.aiao.io/`
+ * @param options.siteUrl - 站点根地址（含 `baseUrl`），如 `https://rxdb.aiao.io/`
  * @param options.knowledge - 提交的包组合知识
  * @param options.docs - 站点公开文档：`{ relativePath, source }`
  * @param options.limits - UTF-8 字节上限，默认 {@link LLMS_LIMITS}
