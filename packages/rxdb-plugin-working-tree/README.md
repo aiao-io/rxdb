@@ -16,7 +16,7 @@ RxDB 本地工作树与提交历史插件：把「未提交的改动」与「提
 
 ## 用之前要知道的六件事
 
-完整版见文档站的[插件页](https://docs.aiao.io/docs/plugins/rxdb-plugin-working-tree)，这里是压缩版：
+完整版见文档站的[插件页](https://rxdb.aiao.io/docs/plugins/rxdb-plugin-working-tree)，这里是压缩版：
 
 1. **提交能力是数据库级的显式开关**——`enable()` 一次，整个库的所有实体、所有分支都按工作树语义运行。启用会留下一行能力水位，**没装本包的客户端从此拒绝连接这个库**；v1 没有 `disable()`。
 2. **工作树 ≠ 草稿缓存。** 工作树装的是「已经写进数据库、还没提交成快照」的变更，参与事务、被查询读到；草稿缓存（`@aiao/rxdb-plugin-workspace`）装的是「还没保存」的编辑器 buffer，根本没进主库。两层不能合并，本包因此也不占用 `Workspace*` 前缀。

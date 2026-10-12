@@ -89,7 +89,7 @@ try {
   );
   const adapterSources = Object.fromEntries(
     globSync('packages/rxdb-adapter-*/src/**/*.ts', { cwd: root })
-      .filter(file => !/__tests__|\.(spec|test)\.ts$/.test(file))
+      .filter(file => !/(?:^|\/)__tests__(?:\/|$)|\.(spec|test)\.ts$/.test(file))
       .sort()
       .map(file => [file, readFileSync(join(root, file), 'utf8')])
   );

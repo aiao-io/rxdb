@@ -2,7 +2,7 @@
   "name": "@aiao/code-editor",
   "version": "0.0.26",
   "description": "CodeMirror 6 editor core for Aiao applications.",
-  "homepage": "https://rxdb.netlify.app/docs/code-editor",
+  "homepage": "https://rxdb.aiao.io/docs/code-editor",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

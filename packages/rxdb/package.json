@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb",
   "version": "0.0.26",
   "description": "TypeScript local-first data layer with reactive queries and SQLite adapters.",
-  "homepage": "https://rxdb.netlify.app/docs/getting-started",
+  "homepage": "https://rxdb.aiao.io/docs/getting-started",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

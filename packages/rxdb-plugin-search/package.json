@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-plugin-search",
   "version": "0.0.26",
   "description": "Reactive full-text search plugin for Aiao RxDB, backed by SQLite FTS5 or PostgreSQL tsvector.",
-  "homepage": "https://rxdb.netlify.app/docs/plugins",
+  "homepage": "https://rxdb.aiao.io/docs/plugins",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

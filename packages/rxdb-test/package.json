@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-test",
   "version": "0.0.26",
   "description": "Cross-framework fixtures and test utilities for Aiao RxDB packages.",
-  "homepage": "https://rxdb.netlify.app/docs/frameworks",
+  "homepage": "https://rxdb.aiao.io/docs/frameworks",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

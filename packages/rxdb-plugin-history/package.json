@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-plugin-history",
   "version": "0.0.26",
   "description": "History, undo/redo and branch management for Aiao RxDB.",
-  "homepage": "https://rxdb.netlify.app/docs/plugins",
+  "homepage": "https://rxdb.aiao.io/docs/plugins",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

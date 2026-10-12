@@ -63,4 +63,4 @@ rxdb.init();
 
 ## 迁移
 
-从把读引擎打在 core 里的版本升级，见[QueryCache 读引擎拆包](https://rxdb.netlify.app/docs/migration/querycache-plugin)。
+从把读引擎打在 core 里的版本升级，见[QueryCache 读引擎拆包](https://rxdb.aiao.io/docs/migration/querycache-plugin)。

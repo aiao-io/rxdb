@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-adapter-encrypted",
   "version": "0.0.26",
   "description": "Transparent AES-GCM field encryption wrapper for Aiao database adapters.",
-  "homepage": "https://rxdb.netlify.app/docs/adapters/encrypted",
+  "homepage": "https://rxdb.aiao.io/docs/adapters/encrypted",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

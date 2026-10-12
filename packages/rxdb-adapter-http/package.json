@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-adapter-http",
   "version": "0.0.26",
   "description": "HTTP remote adapter for RxDB QueryCache: JSON RuleGroup over your own REST API.",
-  "homepage": "https://rxdb.netlify.app/docs/adapters/http",
+  "homepage": "https://rxdb.aiao.io/docs/adapters/http",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

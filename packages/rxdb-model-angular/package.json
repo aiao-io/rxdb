@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-model-angular",
   "version": "0.0.26",
   "description": "Angular UI components for Aiao RxDB Model: metadata-driven entity list, detail, form, dialog, editable table and query builder.",
-  "homepage": "https://rxdb.netlify.app/docs",
+  "homepage": "https://rxdb.aiao.io/docs",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

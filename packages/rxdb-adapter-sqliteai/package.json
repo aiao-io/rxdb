@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-adapter-sqliteai",
   "version": "0.0.26",
   "description": "SQLiteAI adapter with vector and AI functions for Aiao RxDB.",
-  "homepage": "https://rxdb.netlify.app/docs/adapters/sqliteai",
+  "homepage": "https://rxdb.aiao.io/docs/adapters/sqliteai",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },
