@@ -147,12 +147,40 @@ LocalizedRecipeEn {
 
 成本：
 
-- 实体数量随语言增加；
+- 实体数量随语言增加（阶段 A 有实体数量压力探针兜底，见 §7）；
 - fallback 需要跨 repository 查找；
 - 删除必须覆盖未启用但本地保留的语言表；
-- 远端必须对父删除产生所有子行的同步 tombstone。
+- 迟到翻译更新必须在客户端合并层丢弃（见 §6.4），远端保持通用。
 
-结论：这是 US-910 的生产方案。
+结论：这是 US-910 的生产方案。**每语言一张表 = 每实体独立 `RxDBSync.enabled` 与独立
+`lastPullRemoteChangeId`**，按语言启停同步、独立水位、独立冲突域全部免费获得，`rxdb-plugin-sync`
+零改动。
+
+### 3.4 多态单语言表（C-L 合并实体维度）
+
+形状：每种语言一张表服务**所有**可翻译实体：
+
+```text
+TranslationZhHans {
+  id,
+  parentType,  // 指向哪个主实体
+  parentId,
+  fieldName,
+  value,
+  ...
+}
+```
+
+优点：L 张表而非 E×L 张；新增可翻译实体是纯数据写入。
+
+成本：
+
+- `parentId` 是多态引用，失去 FK 与 DB 级联兜底——删除安全完全依赖 i18n 删除事务的正确性；
+- 失去实体粒度同步控制与水位隔离（水位按语言表计，一门语言的一张表挂掉影响所有实体）；
+- 搜索需要 `parentType` 过滤；
+- 迟到更新的孤儿判定要做 `parentType + parentId` 双查找。
+
+结论：**不采用，留作降级路线**。只有 §7 的实体数量压力探针实测超预算时才重新审议。
 
 ## 4. C-L 数据模型
 
@@ -250,27 +278,27 @@ US-910 不把设备 A 的语言选择同步成设备 B 的语言选择。
 
 ## 6. 同步、切换与删除
 
-### 6.1 C-L 启停
+### 6.1 C-L 启停（无 profile 机械）
 
-所有语言翻译实体都配置本地主适配器并采用 Full sync 类型。语言是否参与远端同步由对应 `RxDBSync.enabled` 控制：
+所有语言翻译实体都配置本地主适配器并采用 Full sync 类型。语言是否参与远端同步由对应 `RxDBSync.enabled`
+控制。**C-L 下「语言集合变化」不需要任何 profile key / 独立 watermark API**——每语言实体本来就有独立
+水位（`RxDBSync.lastPullRemoteChangeId`，[`system/sync.ts`](../packages/rxdb/src/system/sync.ts)）：
 
-- enabled：允许 push/pull；
-- disabled：停止 push/pull，但保留本地主 repository 和事务能力；
+- 新增语言：新实体，自己的水位从 0 开始全量拉历史数据；
+- 停用：`enabled = false`，只停止 push/pull，本地主 repository 与事务能力保留；
+- 重新启用（retain）：从该实体自己的水位继续，语义天然正确，不存在「旧全局 watermark」问题
+  （那是 C 单表的病灶，C-L 没有全局水位）；
+- 重新启用（purge）：重置该实体水位（`lastPullRemoteChangeId` 置 null 的写入路径在
+  [`sync-record-utils.ts`](../packages/rxdb/src/sync-contract/sync-record-utils.ts) 已存在）+
+  `cleanupExpired` 本地清理；purge 不产生用户 DELETE changelog；
 - 停用不自动产生用户 DELETE changelog；
-- 若选择 purge，purge 是明确的本地缓存清理动作；
-- 重新启用语言前必须执行同步 profile 处理，不能只把 enabled 改回 true 后从旧全局 watermark 继续。
+- 失败保留可重试状态，不把空本地表报告为同步成功。
 
-### 6.2 Profile 变化
+### 6.2 启停语义（替代原 Profile 变化）
 
-语言集合变化必须带稳定 `profileKey`，并执行：
-
-1. 计算新增、移除和保持不变的语言集合；
-2. 对移除语言执行 retain/purge；
-3. 对新增语言从基线或独立 watermark 补拉历史数据；
-4. 完成后再向 UI 发出“语言可用”状态；
-5. 中途失败保留可重试状态，不把空本地表报告为成功。
-
-如果现有 sync plugin 没有 profile reset / 独立 watermark API，阶段 A 先在同步夹具中实现最小能力，并把公共 API 另立为同步故事；不得在 i18n 包里复制一套 watermark 逻辑。
+原「profile 变化」的五个步骤随 C-L 一并消失：新增/移除语言集合的计算就是 enabled 开关集合的 diff，
+补拉靠新实体的自然水位，UI 状态按 pull 完成事件上报。若阶段 A 实测发现 retain 语义有缺口（预期没有），
+再另立 sync 故事，不在 i18n 包里复制 watermark 逻辑。
 
 ### 6.3 创建顺序
 
@@ -287,7 +315,18 @@ i18n repository 的删除事务顺序固定为：
 
 直接使用不具备 i18n 删除契约的 repository 删除已声明 `@Translatable` 的主实体必须 fail-fast。DB FK cascade 只能防止本地残留，不能替代显式 changelog。
 
-远端服务必须在一个事务内完成父行与全部翻译行删除，并为子行产生可同步 tombstone。客户端收到父删除或子 tombstone 后不得因迟到 UPDATE 重新创建翻译行。
+**远端不承担任何父子感知。** 删除经客户端显式逐行 changelog 推送（push 按依赖图拓扑序、DELETE 相位子先父后，
+[`cascade-blocking.ts`](../packages/rxdb-plugin-sync/src/cascade-blocking.ts) 的 `requiredBy` 边），
+远端只是薄通用 changelog 存储。迟到翻译更新的处理完全在客户端合并层：
+
+- pull 按依赖图拓扑序合入（父先子后，[`topologicalSortForPull`](../packages/rxdb-plugin-sync/src/pull-batch.ts)）；
+- **子行变更合入时父行已本地删除 → 丢弃该变更**（写入诊断计数，不写本地 changelog），数据不复活；
+- 父行尚未拉到 → 整批单事务回滚、水位不推进、下轮重试（现有事务语义，不丢数据）。全量同步的因果序
+  （父创建必然先于子创建进入 changelog）保证该情形罕见；
+- 引擎事务内 `defer_foreign_keys = ON`（[`RxDBAdapterSqliteBase`](../packages/rxdb-adapter-sqlite-core/src/RxDBAdapterSqliteBase.ts)）
+  意味着 FK 违规在 COMMIT 才暴露、会卡死整批水位——所以「丢弃」必须发生在 action 构建期，不能靠 FK 报错兜底。
+
+阶段 A 第一项核实：pull 合并器对「父行缺失的子行变更」的现有实测行为与本模型一致；不一致则先修正模型。
 
 ## 7. 搜索与查询
 
@@ -302,25 +341,30 @@ i18n repository 的删除事务顺序固定为：
 ### 阶段 A：方案验证
 
 - 新的语言无关试点实体；不改现有 Recipe。
+- **第一项核实**：pull 合并器对「父行缺失的子行变更」的现有行为（§6.4 模型的前提）。
+- **实体数量压力探针**：生成 100 个翻译实体度量 init / connect / 首次搜索，给 E×L 定案或触发 §3.4 降级。
+- **薄通用 Full-sync 参考夹具**（按实体存 changelog + pull/push 端点 + LWW，无父子智能），
+  建议拆为独立故事先行交付；本地 AC（建模、fallback、搜索、id 生成、分页、孤儿规则单测）不依赖夹具、可先行。
 - C-L 完整验证；C 只验证 push、watermark、搜索过滤限制并记录为对照结果。
-- 使用 Full/Filter/tombstone 同步夹具，不使用 HTTP QueryCache demo。
 - 双本地库、远端历史数据、切换语言、部分同步删除、迟到更新和 FTS 全部纳入测试。
 
 ### 阶段 B：插件
 
 - `@Translatable` metadata + `createTranslatableEntities()`；建表前注册。
-- C-L 翻译实体、i18n repository、删除事务、fallback、搜索映射。
+- C-L 翻译实体、i18n repository、删除事务、fallback、搜索映射、合并期孤儿规则。
 - 三端只共享核心输入输出契约，不强求 Angular/React/Vue 使用同一种生命周期 API。
-- 若需要新增 sync profile reset / tombstone 语义，先补同步基础能力，再接入插件。
+- sync plugin 默认零改动；仅当 A13 核实结果要求合并层钩子时新增最小扩展点。
 
 ## 9. 决策记录
 
-1. 生产表粒度选 C-L；C 只做研究对照。
+1. 生产表粒度选 C-L；C 只做研究对照；多态单语言表（§3.4）留作实体数量超预算时的降级路线。
 2. US-910 不修改已发布 Recipe 的 `title` / `tag` schema；字段迁移另立故事。
-3. `dev-rxdb-http-server` 不承担 US-910 的 Full/Filter 同步验收。
-4. 语言启停使用 `RxDBSync.enabled`，不运行时重建 entity sync resolver。
+3. `dev-rxdb-http-server` 不承担 US-910 的 Full/Filter 同步验收；同步参考夹具是薄通用服务（无父子智能），建议拆独立故事。
+4. 语言启停就是每语言实体的 `RxDBSync.enabled` 开关：新增语言靠新实体的自然水位全量拉，retain 从原水位继续，
+   purge 重置该实体水位 + `cleanupExpired`；不引入任何 profile key / 独立 watermark API，sync plugin 零改动。
 5. 设备 locale 与同步语言集合不自动同步到其他设备。
-6. 远端级联删除必须产生对子行可见的 tombstone，否则 A5 不通过。
+6. 「迟到翻译更新不复活」在**客户端合并层**解决：父行已本地删除 → 丢弃子行变更；父行未到 → 整批回滚下轮重试。
+   远端不产生级联 tombstone、不拦截。FK 的 COMMIT 期违规会卡死整批水位，因此丢弃必须发生在 action 构建期。
 7. 生成实体必须在 `SchemaManager.init()` 之前进入 `config.entities`。
 
 ## 参考
