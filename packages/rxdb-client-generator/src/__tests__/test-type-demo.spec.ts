@@ -334,6 +334,7 @@ describe('RxDBClientGenerator', () => {
         relations: [],
         indexes: [],
         foreignKeys: [],
+        checks: [],
         computedProperties: [],
         extends: [
           "EntityBase"

@@ -24,6 +24,8 @@ function makeMeta(overrides: Partial<EntityMetadata> = {}): EntityMetadata {
     columnNameToPropertyName: new Map(),
     indexMap: new Map(),
     defaultValueProperties: [],
+    checks: [],
+    checkMap: new Map(),
     isForeignKey: () => false,
     ...overrides
   } as EntityMetadata;

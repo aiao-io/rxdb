@@ -68,6 +68,7 @@ describe('@TreeEntity', () => {
     const meta = getEntityMetadata(Menu);
     expect(meta).toMatchInlineSnapshot(`
       {
+        "checks": [],
         "computedProperties": [],
         "displayName": "Menu",
         "extends": [
@@ -103,6 +104,7 @@ describe('@TreeEntity', () => {
     const meta = getEntityMetadata(menu);
     expect(meta).toMatchInlineSnapshot(`
       {
+        "checks": [],
         "computedProperties": [],
         "displayName": "Menu",
         "extends": [
