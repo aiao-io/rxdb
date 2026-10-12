@@ -18,7 +18,7 @@
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> **22 条 Backlog 里 [US-030](stories/core/US-030-declarative-storage-constraints.md) 阶段 A～C 已提前解锁进批次 3；BOM 领域模型 19 条已于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）：[US-029](stories/core/US-029-rbac-owner-role-permission.md)
+> **22 条 Backlog 里 [US-030](stories/core/US-030-declarative-storage-constraints.md) 阶段 A～C 已提前解锁进批次 3；BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4**（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）：[US-029](stories/core/US-029-rbac-owner-role-permission.md)
 > 仍标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期。
 > 可开工与暂不排期的故事在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
