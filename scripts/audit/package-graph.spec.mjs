@@ -4,6 +4,7 @@ import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
+import { renderSkill } from './lib/package-skill.mjs';
 import {
   analyzePackageGraph,
   auditPackageGraph,
@@ -13,7 +14,6 @@ import {
   renderKnowledge,
   scanPackages
 } from './package-graph.mjs';
-import { renderSkill } from './lib/package-skill.mjs';
 
 const fixture = new URL('./__fixtures__/package-graph/pass/', import.meta.url);
 const facts = JSON.parse(await readFile(new URL('facts.json', fixture), 'utf8'));

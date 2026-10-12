@@ -27,7 +27,15 @@ import { buildKnowledge, renderKnowledge } from './lib/package-knowledge.mjs';
 import { renderSkill } from './lib/package-skill.mjs';
 
 export { queryCacheRequirements } from './lib/package-knowledge.mjs';
-export { analyzePackageGraph, auditPackageGraph, buildKnowledge, discoverRelease, renderKnowledge, renderSkill, scanPackages };
+export {
+  analyzePackageGraph,
+  auditPackageGraph,
+  buildKnowledge,
+  discoverRelease,
+  renderKnowledge,
+  renderSkill,
+  scanPackages
+};
 
 /**
  * 读取知识生成的非事实源输入：模板、样例源、安装清单、编译选项与生成器源码。
@@ -103,7 +111,11 @@ function main() {
   const input = readKnowledgeInput(root);
   const knowledge = buildKnowledge(graph, release, input);
   const rendered = renderKnowledge(knowledge, input.template);
-  const generated = checkGenerated(root, { ...rendered, skill: renderSkill(knowledge, input.skillTemplate) }, process.argv.includes('--update'));
+  const generated = checkGenerated(
+    root,
+    { ...rendered, skill: renderSkill(knowledge, input.skillTemplate) },
+    process.argv.includes('--update')
+  );
   if (generated.length) throw new Error(generated.join('\n'));
   console.log(
     `✅ 包组合门禁：登记 ${graph.records.length} 包，发布 ${release.packages.length} 包（${release.tag}），${knowledge.development.scenarios.length} 个情景`

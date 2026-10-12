@@ -4,10 +4,16 @@ import { readFileSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { SKILL_MAX_BYTES, renderSkill } from './lib/package-skill.mjs';
-import { analyzePackageGraph, buildKnowledge, discoverRelease, readKnowledgeInput, scanPackages } from './package-graph.mjs';
+import {
+  analyzePackageGraph,
+  buildKnowledge,
+  discoverRelease,
+  readKnowledgeInput,
+  scanPackages
+} from './package-graph.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const fixture = new URL('./__fixtures__/package-graph/pass/', import.meta.url);
@@ -99,12 +105,18 @@ test('生成入口把 SKILL.md 写进主包 skills 目录，内容与渲染一�
     git('add', '.');
     git('commit', '-qm', 'fixture');
     git('tag', 'v1.2.3');
-    const output = execFileSync(process.execPath, [join(root, 'scripts/audit/generate-skill.mjs'), `--root=${root}`], { encoding: 'utf8' });
+    const output = execFileSync(process.execPath, [join(root, 'scripts/audit/generate-skill.mjs'), `--root=${root}`], {
+      encoding: 'utf8'
+    });
     assert.match(output, /SKILL\.md/);
     const written = readFileSync(join(root, 'packages/rxdb/skills/aiao-rxdb/SKILL.md'), 'utf8');
     const factsInRoot = JSON.parse(readFileSync(join(root, 'requirements/package-graph.json'), 'utf8'));
     const knowledgeInRoot = buildKnowledge(
-      analyzePackageGraph(factsInRoot, scanPackages(join(root, 'packages')), join(root, 'requirements/package-graph.json')),
+      analyzePackageGraph(
+        factsInRoot,
+        scanPackages(join(root, 'packages')),
+        join(root, 'requirements/package-graph.json')
+      ),
       discoverRelease(root, factsInRoot.release),
       readKnowledgeInput(root)
     );

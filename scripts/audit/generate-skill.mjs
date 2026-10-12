@@ -16,10 +16,10 @@
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { discoverRelease, readKnowledgeInput, scanPackages } from './package-graph.mjs';
 import { analyzePackageGraph } from './lib/package-graph-validation.mjs';
 import { buildKnowledge } from './lib/package-knowledge.mjs';
 import { renderSkill, SKILL_MAX_BYTES } from './lib/package-skill.mjs';
+import { discoverRelease, readKnowledgeInput, scanPackages } from './package-graph.mjs';
 
 function isCliEntrypoint() {
   const entry = process.argv[1];
@@ -33,8 +33,9 @@ function isCliEntrypoint() {
 
 function main() {
   const rootArgument = process.argv.find(arg => arg.startsWith('--root='));
-  const root = rootArgument
-    ? resolve(rootArgument.slice('--root='.length))
+  const root =
+    rootArgument ?
+      resolve(rootArgument.slice('--root='.length))
     : resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
   const factsPath = join(root, 'requirements/package-graph.json');
   const facts = JSON.parse(readFileSync(factsPath, 'utf8'));

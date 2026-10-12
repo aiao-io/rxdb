@@ -6,7 +6,7 @@ license: MIT
 
 # Aiao RxDB 组合指南
 
-事实摘要：`34ec7ff577dbf08bdf10a4dbb0c7c1ddd11b2f093d6d4eb6dc1edcb19f16793e`。本文件由事实源、manifest、插件源码与已验证样例生成，只覆盖 v0.0.26 投递范围（不含仅在仓库 main 上、未发布的包）。
+事实摘要：`10678fa3039e529bd68d40b6bc44df007f5cce6660d552f2731488c5773a2eb3`。本文件由事实源、manifest、插件源码与已验证样例生成，只覆盖 v0.0.26 投递范围（不含仅在仓库 main 上、未发布的包）。
 
 ## 何时使用
 

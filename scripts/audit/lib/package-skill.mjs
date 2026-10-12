@@ -74,7 +74,6 @@ export function renderSkill(knowledge, template) {
   const description = frontmatter.match(/^description:\s*(.+)$/m)?.[1];
   if (!description) throw new Error('SKILL.md frontmatter 缺少 description');
   const bytes = Buffer.byteLength(markdown, 'utf8');
-  if (bytes > SKILL_MAX_BYTES)
-    throw new Error(`SKILL.md 超出 ${SKILL_MAX_BYTES} 字节上限（实际 ${bytes} 字节）`);
+  if (bytes > SKILL_MAX_BYTES) throw new Error(`SKILL.md 超出 ${SKILL_MAX_BYTES} 字节上限（实际 ${bytes} 字节）`);
   return markdown.endsWith('\n') ? markdown : markdown + '\n';
 }
