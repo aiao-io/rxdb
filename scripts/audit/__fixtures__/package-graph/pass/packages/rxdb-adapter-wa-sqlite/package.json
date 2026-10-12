@@ -3,7 +3,9 @@
   "version": "1.2.3",
   "type": "module",
   "dependencies": {
-    "@aiao/rxdb": "workspace:*",
-    "@aiao/rxdb-adapter-sqlite-core": "workspace:*"
+    "@aiao/rxdb-adapter-sqlite-core": "workspace:^"
+  },
+  "peerDependencies": {
+    "@aiao/rxdb": "workspace:^"
   }
 }

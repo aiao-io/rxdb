@@ -22,7 +22,7 @@
   },
   "type": "module",
   "peerDependencies": {
-    "@aiao/rxdb-plugin-replay": "*",
+    "@aiao/rxdb-plugin-replay": "workspace:^",
     "@angular/core": "22.2.2"
   },
   "devDependencies": {

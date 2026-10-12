@@ -42,7 +42,7 @@
     }
   },
   "peerDependencies": {
-    "@aiao/rxdb-plugin-replay": "*",
+    "@aiao/rxdb-plugin-replay": "workspace:^",
     "react": "^19.3.0"
   },
   "devDependencies": {

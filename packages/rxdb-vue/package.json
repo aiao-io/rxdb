@@ -34,13 +34,13 @@
     }
   },
   "dependencies": {
-    "@aiao/rxdb": "workspace:*",
-    "@aiao/utils": "workspace:*"
+    "@aiao/utils": "workspace:^"
   },
   "peerDependencies": {
-    "@aiao/rxdb-plugin-graph": "*",
+    "@aiao/rxdb-plugin-graph": "workspace:^",
     "rxjs": "^7.8.0",
-    "vue": "^3.5.43"
+    "vue": "^3.5.43",
+    "@aiao/rxdb": "workspace:^"
   },
   "files": [
     "dist",

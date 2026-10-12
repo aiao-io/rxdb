@@ -39,6 +39,15 @@
     "nx-release-publish": {
       "options": {
         "packageRoot": "dist/{projectRoot}"
+      },
+      "dependsOn": ["^nx-release-publish", "link-release-peers"]
+    },
+    "link-release-peers": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": ["build"],
+      "options": {
+        "command": "node scripts/audit/link-release-peers.mjs packages/rxdb-angular"
       }
     }
   }

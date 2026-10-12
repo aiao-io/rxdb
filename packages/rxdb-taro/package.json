@@ -69,7 +69,7 @@
     ]
   },
   "peerDependencies": {
-    "@aiao/rxdb-adapter-miniprogram": "workspace:*",
+    "@aiao/rxdb-adapter-miniprogram": "workspace:^",
     "@tarojs/cli": "~4.3.0",
     "vite": ">=4.2.0"
   },
