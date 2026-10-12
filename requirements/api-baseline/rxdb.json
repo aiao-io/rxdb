@@ -162,6 +162,34 @@
         "kind": "value"
       },
       {
+        "name": "CHECK_NAME_MAX_BYTES",
+        "kind": "value"
+      },
+      {
+        "name": "CHECK_NAME_PREFIX",
+        "kind": "value"
+      },
+      {
+        "name": "CHECK_OPERATORS",
+        "kind": "value"
+      },
+      {
+        "name": "checkConstraintName",
+        "kind": "value"
+      },
+      {
+        "name": "CheckOperator",
+        "kind": "type"
+      },
+      {
+        "name": "CheckRule",
+        "kind": "type"
+      },
+      {
+        "name": "CheckRuleGroup",
+        "kind": "type"
+      },
+      {
         "name": "classifyBackupIoError",
         "kind": "value"
       },
@@ -176,6 +204,18 @@
       {
         "name": "compactChanges",
         "kind": "value"
+      },
+      {
+        "name": "compileCheckConstraint",
+        "kind": "value"
+      },
+      {
+        "name": "compileCheckExpression",
+        "kind": "value"
+      },
+      {
+        "name": "CompiledCheckConstraint",
+        "kind": "type"
       },
       {
         "name": "computeRxDBSchemaFingerprint",
@@ -240,6 +280,10 @@
       {
         "name": "DateTimeFormat",
         "kind": "type"
+      },
+      {
+        "name": "declaredCheckViolationOf",
+        "kind": "value"
       },
       {
         "name": "declareTrustedWrite",
@@ -347,6 +391,14 @@
       },
       {
         "name": "EntityBaseType",
+        "kind": "type"
+      },
+      {
+        "name": "EntityCheckMetadata",
+        "kind": "type"
+      },
+      {
+        "name": "EntityCheckMetadataOptions",
         "kind": "type"
       },
       {
@@ -626,6 +678,10 @@
         "kind": "type"
       },
       {
+        "name": "findCheckByConstraintName",
+        "kind": "value"
+      },
+      {
         "name": "findCurrentSyncRecord",
         "kind": "value"
       },
@@ -767,6 +823,10 @@
       },
       {
         "name": "groupBySyncType",
+        "kind": "value"
+      },
+      {
+        "name": "hashCheckExpression",
         "kind": "value"
       },
       {
@@ -1130,6 +1190,10 @@
         "kind": "value"
       },
       {
+        "name": "parseCheckConstraintViolation",
+        "kind": "value"
+      },
+      {
         "name": "parseEntityFieldsDescriptor",
         "kind": "value"
       },
@@ -1187,6 +1251,10 @@
       },
       {
         "name": "PrimaryAdapterKind",
+        "kind": "type"
+      },
+      {
+        "name": "PropertyCheckRule",
         "kind": "type"
       },
       {
@@ -1340,6 +1408,10 @@
       {
         "name": "ReachabilityOptions",
         "kind": "type"
+      },
+      {
+        "name": "referencedCheckFields",
+        "kind": "value"
       },
       {
         "name": "RefreshMatchRules",
@@ -1798,8 +1870,16 @@
         "kind": "type"
       },
       {
+        "name": "RxDBCheckViolationError",
+        "kind": "both"
+      },
+      {
         "name": "RxDBConfig",
         "kind": "type"
+      },
+      {
+        "name": "RxDBConstraintDriftError",
+        "kind": "both"
       },
       {
         "name": "RxDBContext",
@@ -2243,6 +2323,14 @@
       },
       {
         "name": "takeDeclaredWrite",
+        "kind": "value"
+      },
+      {
+        "name": "toCheckViolationError",
+        "kind": "value"
+      },
+      {
+        "name": "toCheckViolationErrorForRows",
         "kind": "value"
       },
       {

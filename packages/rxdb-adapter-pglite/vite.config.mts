@@ -50,6 +50,10 @@ export default defineConfig(() => {
         '@aiao/rxdb-plugin-working-tree': path.resolve(workspaceRoot, 'packages/rxdb-plugin-working-tree/src/index.ts'),
         '@aiao/utils': path.resolve(workspaceRoot, 'packages/utils/src/index.ts'),
         '@aiao/rxdb-test/encrypted': path.resolve(workspaceRoot, 'packages/rxdb-test/src/encrypted/index.ts'),
+        '@aiao/rxdb-test/check-constraint': path.resolve(
+          workspaceRoot,
+          'packages/rxdb-test/src/check-constraint/index.ts'
+        ),
         '@aiao/rxdb-test/entities': path.resolve(workspaceRoot, 'packages/rxdb-test/entities/index.ts'),
         '@aiao/rxdb-test/graph': path.resolve(workspaceRoot, 'packages/rxdb-test/graph/index.ts'),
         '@aiao/rxdb-test/query-cache-contract': path.resolve(

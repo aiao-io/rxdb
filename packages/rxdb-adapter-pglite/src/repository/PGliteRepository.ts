@@ -6,7 +6,8 @@ import {
   FindOptions,
   getEntityMetadata,
   getEntityStatus,
-  IRepository
+  IRepository,
+  toCheckViolationError
 } from '@aiao/rxdb';
 import generate_entity_delete_sql from '../entity/delete_sql.js';
 import generate_entity_insert_sql from '../entity/insert_sql.js';
@@ -57,7 +58,13 @@ export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase
       ...this.rxdb.context,
       encryption: this.adapter.encryptionContext
     });
-    const result = await this.adapter.writeQuery(sql, params);
+    let result;
+    try {
+      result = await this.adapter.writeQuery(sql, params);
+    } catch (error) {
+      // CHECK 违约归一成 RxDBCheckViolationError（PG SQLSTATE 23514）
+      throw toCheckViolationError(error, this.metadata, entity as unknown as Record<string, unknown>);
+    }
     await this.addQueryCache(result, true);
     return entity;
   }
@@ -68,7 +75,12 @@ export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase
       updatedAt: getMonotonicUpdatedAt(entity),
       encryption: this.adapter.encryptionContext
     });
-    const result = await this.adapter.writeQuery(sql, params);
+    let result;
+    try {
+      result = await this.adapter.writeQuery(sql, params);
+    } catch (error) {
+      throw toCheckViolationError(error, this.metadata, entity as unknown as Record<string, unknown>);
+    }
     await this.addQueryCache(result, true);
     return entity;
   }

@@ -3,6 +3,7 @@ import {
   EntityLocalRemovedEvent,
   EntityLocalUpdatedEvent,
   getEntityType,
+  toCheckViolationErrorForRows,
   type EntityData,
   type EntityType,
   type RxDBChange,
@@ -66,11 +67,29 @@ export async function execute_switch_actions(
     }
 
     for (const insertAction of switchAction.inserts) {
-      insertAction.successResults = await executeSwitchStatements(sink, insertAction.sql);
+      try {
+        insertAction.successResults = await executeSwitchStatements(sink, insertAction.sql);
+      } catch (error) {
+        // 同步拉取遇本地 CHECK 拒绝远端行：归一成 RxDBCheckViolationError 原样上抛、
+        // 不被吞，消息点名实体与约束名（US-030「与既有写入路径的交互」）。
+        throw toCheckViolationErrorForRows(
+          error,
+          insertAction.metadata,
+          Array.from(insertAction.changes.values()).map(change => change.patch ?? {})
+        );
+      }
     }
 
     for (const updateAction of switchAction.updates) {
-      updateAction.successResults = await executeSwitchStatements(sink, updateAction.sql);
+      try {
+        updateAction.successResults = await executeSwitchStatements(sink, updateAction.sql);
+      } catch (error) {
+        throw toCheckViolationErrorForRows(
+          error,
+          updateAction.metadata,
+          Array.from(updateAction.changes.values()).map(change => change.patch ?? {})
+        );
+      }
     }
 
     if (disableTriggers) {

@@ -34,6 +34,7 @@ const makeMeta = (overrides: Partial<EntityMetadata> = {}): EntityMetadata =>
     propertyMap: new Map(),
     computedPropertyMap: new Map(),
     relationMap: new Map(),
+    checkMap: new Map(),
     ...overrides
   }) as EntityMetadata;
 

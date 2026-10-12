@@ -7,7 +7,14 @@
  * 2. 支持自定义 IMutationContext
  */
 
-import { EntityStaticType, EntityType, getEntityMetadata, getEntityStatus, RxDBMutationsMap } from '@aiao/rxdb';
+import {
+  EntityStaticType,
+  EntityType,
+  getEntityMetadata,
+  getEntityStatus,
+  RxDBMutationsMap,
+  toCheckViolationErrorForRows
+} from '@aiao/rxdb';
 import generate_entity_deletes_sql from './entity/deletes_sql.js';
 import generate_entity_inserts_sql from './entity/inserts_sql.js';
 import generate_entity_update_sql from './entity/update_sql.js';
@@ -107,7 +114,17 @@ export default async <T extends EntityType = EntityType>(
       adapter.rxdb.context,
       adapter.encryptionContext
     );
-    await adapter.query(insertSql);
+    try {
+      await adapter.query(insertSql);
+    } catch (error) {
+      // CHECK 违约归一成 RxDBCheckViolationError：批量 INSERT 命中哪一行原生消息不说，
+      // 全部候选行的冲突值并列（US-030）
+      throw toCheckViolationErrorForRows(
+        error,
+        meta,
+        entities as unknown as ReadonlyArray<Record<string, unknown>>
+      );
+    }
 
     // 查询刚插入的数据
     const ids = entities.map(e => e.id);
@@ -141,7 +158,11 @@ export default async <T extends EntityType = EntityType>(
         updatedAt: now,
         encryption: adapter.encryptionContext
       });
-      await adapter.query(sql, params);
+      try {
+        await adapter.query(sql, params);
+      } catch (error) {
+        throw toCheckViolationErrorForRows(error, meta, [entity as unknown as Record<string, unknown>]);
+      }
     }
 
     // 批量查询更新后的数据

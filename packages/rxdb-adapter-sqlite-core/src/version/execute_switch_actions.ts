@@ -7,7 +7,8 @@ import {
   RxDBChange,
   RxDBEntityLocalCreatedEventData,
   RxDBEntityLocalRemovedEventData,
-  RxDBEntityLocalUpdatedEventData
+  RxDBEntityLocalUpdatedEventData,
+  toCheckViolationErrorForRows
 } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { get_sql_value, get_table_name_by_metadata, quote_sql_identifier } from '../sqlite-core.utils.js';
@@ -37,12 +38,30 @@ async function applySwitchActions(tx: SqlStatementSink, switchAction: SwitchVers
   }
 
   for (const insertAction of switchAction.inserts) {
-    await executeSqliteStatements(tx, insertAction.statements);
+    try {
+      await executeSqliteStatements(tx, insertAction.statements);
+    } catch (error) {
+      // 同步拉取遇本地 CHECK 拒绝远端行：归一成 RxDBCheckViolationError 原样上抛、
+      // 不被吞，消息点名实体与约束名（US-030「与既有写入路径的交互」）。
+      throw toCheckViolationErrorForRows(
+        error,
+        insertAction.metadata,
+        Array.from(insertAction.changes.values()).map(change => change.patch ?? {})
+      );
+    }
     insertAction.successResults = await executeSqliteSelectStatements(tx, insertAction.selectStatements);
   }
 
   for (const updateAction of switchAction.updates) {
-    await executeSqliteStatements(tx, updateAction.statements);
+    try {
+      await executeSqliteStatements(tx, updateAction.statements);
+    } catch (error) {
+      throw toCheckViolationErrorForRows(
+        error,
+        updateAction.metadata,
+        Array.from(updateAction.changes.values()).map(change => change.patch ?? {})
+      );
+    }
     updateAction.successResults = await executeSqliteSelectStatements(tx, updateAction.selectStatements);
   }
 }

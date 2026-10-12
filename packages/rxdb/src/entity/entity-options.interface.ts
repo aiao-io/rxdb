@@ -11,6 +11,7 @@
 
 import type { RxDBRepositoryName } from '../rxdb-adapter.js';
 import type { ManualOrderOptions } from '../sortable/sortable.interface.js';
+import type { EntityCheckMetadataOptions } from './check-constraint.js';
 import type {
   EntityForeignKeyMetadataOptions,
   EntityIndexMetadataOptions,
@@ -230,6 +231,41 @@ export interface EntityMetadataOptions {
    * 单列关系仍使用 `relations`；只有需要把多列作为一个整体校验时才使用本配置。
    */
   foreignKeys?: EntityForeignKeyMetadataOptions[];
+
+  /**
+   * 实体级 CHECK 约束（单行不变量，落在存储层）。
+   *
+   * 属性级 `check` 是它的语法糖；两者按 `name` 一起进继承合并——子实体同名项覆盖
+   * 父实体的，异名项全部生效。约束名由前缀 `ck_` + 表名 + `name` + 规范化表达式
+   * 8 位哈希确定性生成，改表达式不改名即判为漂移（US-030 AC#11）。
+   *
+   * 已有表与声明不一致时 `init()` 抛 `RxDBConstraintDriftError`，不自动补建；
+   * 补建由用户写进 `migrations`，它恰好排在漂移检查之前执行。
+   *
+   * @example
+   * ```typescript
+   * @Entity({
+   *   checks: [
+   *     {
+   *       name: 'qty_xor_formula',
+   *       rule: {
+   *         combinator: 'or',
+   *         rules: [
+   *           { combinator: 'and', rules: [{ field: 'qty', operator: 'notNull' }, { field: 'qtyFormula', operator: 'null' }] },
+   *           { combinator: 'and', rules: [{ field: 'qty', operator: 'null' }, { field: 'qtyFormula', operator: 'notNull' }] }
+   *         ]
+   *       }
+   *     },
+   *     {
+   *       name: 'unit_range',
+   *       rule: { combinator: 'and', rules: [{ field: 'unitFrom', operator: '<=', ref: 'unitTo' }] }
+   *     }
+   *   ]
+   * })
+   * class Item extends EntityBase {}
+   * ```
+   */
+  checks?: EntityCheckMetadataOptions[];
 
   /**
    * 功能特性

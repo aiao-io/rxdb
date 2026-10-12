@@ -71,6 +71,7 @@ describe('@Entity', () => {
     const meta = getEntityMetadata(Todo);
     expect(meta).toMatchInlineSnapshot(`
       {
+        "checks": [],
         "computedProperties": [],
         "displayName": "Todo",
         "extends": [
@@ -105,6 +106,7 @@ describe('@Entity', () => {
     const meta = getEntityMetadata(todo);
     expect(meta).toMatchInlineSnapshot(`
       {
+        "checks": [],
         "computedProperties": [],
         "displayName": "Todo",
         "extends": [

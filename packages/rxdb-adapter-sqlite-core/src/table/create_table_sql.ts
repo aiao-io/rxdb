@@ -1,4 +1,4 @@
-import { EntityMetadata, getEntityColumnName, PropertyType, RelationKind } from '@aiao/rxdb';
+import { compileCheckConstraint, EntityMetadata, getEntityColumnName, PropertyType, RelationKind } from '@aiao/rxdb';
 import { isFunction } from '@aiao/utils';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import {
@@ -229,6 +229,14 @@ const create_table_column_sql = (adapter: RxDBAdapterSqliteBase, metadata: Entit
     if (foreignKey.onDelete) constraint += ` ON DELETE ${foreignKey.onDelete}`;
     if (foreignKey.onUpdate) constraint += ` ON UPDATE ${foreignKey.onUpdate}`;
     column_check_sql.push(constraint);
+  }
+
+  // 声明式 CHECK（US-030 阶段 A）：读 checkMap（继承合并后的全集，含属性级语法糖），
+  // 与 indexMap 同口径——`metadata.checks` 是「仅本类定义」语义，照它建表会静默丢掉
+  // 全部继承的 CHECK。
+  for (const check of metadata.checkMap.values()) {
+    const { name, expression } = compileCheckConstraint(metadata, check);
+    column_check_sql.push(`CONSTRAINT ${quote_sql_identifier(name)} CHECK (${expression})`);
   }
 
   const need_column_sql = [...column_sql, ...column_check_sql];

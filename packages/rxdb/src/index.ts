@@ -89,6 +89,13 @@ export {
 // 相对路径，把核心包源码拽进下游编译程序（ng-packagr 的 `rootDir` 当场判 TS6059）。
 // 它事实上早已在公开面上，这里只是让它可被命名。
 export type { EntityMetadata, EntityMetadataType } from './entity/metadata.interface.js';
+// 声明式 CHECK 约束的元数据层：类型、白名单编译与确定性约束名（US-030 阶段 A）。
+// 编译产物是只拼字面量的 SQL 表达式，两后端（SQLite family / PGlite）共用同一条语句，
+// 见该文件 @fileoverview。
+export * from './entity/check-constraint.js';
+// CHECK 违约原始错误的识别与归一化：适配器写入路径把 PG 23514 / SQLite
+// 'CHECK constraint failed' 归一成 RxDBCheckViolationError（按类名主判别）。
+export * from './system/check-violation.js';
 // 批量写入解析主适配器时抛给调用方的结构化错误。
 // 选择器本身（selectPrimaryAdapterKind 等）是 Repository / EntityManager 的共享内部实现。
 // `getEntitySync` 是例外：实体级 `sync` 覆盖库级配置这条规则决定了一个实体归哪个适配器管，

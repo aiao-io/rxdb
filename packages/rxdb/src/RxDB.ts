@@ -38,6 +38,7 @@ import {
 } from './rxdb-events.js';
 import { assertValidSystemContribution, type RxDBSystemContribution } from './rxdb-plugin-system.js';
 import { IRxDBPlugin, Plugin, RxDBPluginDependency } from './rxdb-plugin.js';
+import { RxDBError } from './RxDBError.js';
 import { getEntityMetadata, uuid } from './rxdb-utils.js';
 import { RxDBContext, RxDBOptions } from './rxdb.interface.js';
 import {
@@ -1065,6 +1066,10 @@ export class RxDB {
       await adapter.connect();
       // 建表与迁移是重活，且要写一条可能已被 disconnect() 关掉的连接，先拦一道。
       this.#assert_connect_alive(adapterName, epoch);
+      // US-030 AC#6：实体声明了 checks 而适配器没有漂移检查能力（远端适配器没有本地 DDL，
+      // 声明即报不支持；本地适配器未实现 checkEntityConstraints 同理），init 即抛错，
+      // 不静默降级为应用层校验。
+      this.#assert_check_constraint_support(adapterName, adapter);
       if (isLocalAdapter(adapterName, this.#config)) {
         // 在 local 分支入口一次性判定，判定过了后面全部直调 —— 见 assertLocalAdapterCapabilities。
         const localAdapter = assertLocalAdapterCapabilities(adapterName, adapter);
@@ -1111,6 +1116,9 @@ export class RxDB {
           await localAdapter.migrateSystemSchema();
           localAdapter.completeBootstrap();
         }
+        // 漂移检查（只读）排在索引收敛之前：不一致时 fail-fast，不先做任何写入。
+        // 与 reconcileEntityIndexes 同一时机——用户迁移与缺表补建之后（US-030 AC#10）。
+        await localAdapter.checkEntityConstraints?.(this.#config.entities);
         await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
         if (existed) {
           // 既有库才把贡献的能力接到这条连接上。新库不调：它的贡献行全是上面那次
@@ -2027,5 +2035,26 @@ export class RxDB {
     if (missingEntities.length > 0) {
       await adapter.createTables(missingEntities);
     }
+  }
+
+  /**
+   * US-030 AC#6：实体声明了 CHECK 而适配器没有漂移检查能力时，`connect()` 即抛错。
+   *
+   * @remarks
+   * 漂移检查是 `checkEntityConstraints`（可选成员，见 {@link RxDBAdapterLocalBase}）。
+   * 远端适配器（supabase / http）没有本地 DDL，永远不实现它——声明即报不支持；
+   * 不继承基类的自定义本地适配器同理。不静默降级为应用层校验：
+   * 静默之后「不变量在存储层成立」就退回成一句只有门面守着的声明。
+   */
+  #assert_check_constraint_support(adapterName: string, adapter: IRxDBAdapter): void {
+    const declaring = this.#config.entities.filter(entity => getEntityMetadata(entity).checkMap.size > 0);
+    if (declaring.length === 0) return;
+    const driftCapable = adapter as unknown as { checkEntityConstraints?: unknown };
+    if (typeof driftCapable.checkEntityConstraints === 'function') return;
+    throw new RxDBError(
+      `适配器 '${adapterName}' 不支持声明式 CHECK 约束：未实现 checkEntityConstraints 漂移检查。` +
+        `声明了 checks 的实体：${declaring.map(entity => getEntityMetadata(entity).name).join('、')}。` +
+        `远端适配器（supabase / http）不掌控本地 DDL，请在本地适配器上使用 checks。`
+    );
   }
 }

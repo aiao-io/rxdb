@@ -6,6 +6,7 @@
 
 import { isArray, isFunction } from '@aiao/utils';
 import { tryGetEntityMetadata } from '../rxdb-utils.js';
+import { EntityCheckMetadata } from './check-constraint.js';
 import { mergeEntityPermissions } from './entity-permissions.js';
 import { AbstractEntityType, EntityType } from './entity.interface.js';
 import { setSafeObjectKey, setSafeObjectKeyLazyInitOnce } from './entity.utils.js';
@@ -114,6 +115,7 @@ export const transitionMetadata = (
   const relationMap = new Map<string, EntityRelationMetadata>(); // 关系名到关系元数据的映射
   const indexMap = new Map<string, EntityIndexMetadata>(); // 索引名到索引元数据的映射
   const foreignKeyMap = new Map<string, EntityForeignKeyMetadata>();
+  const checkMap = new Map<string, EntityCheckMetadata>(); // 约束 name 到 CHECK 元数据的映射
 
   // 创建基础元数据对象，继承元数据选项的所有属性
   const metadata = { ...metadataOptions } as EntityMetadataType;
@@ -124,6 +126,7 @@ export const transitionMetadata = (
   metadata.relations = metadata.relations || [];
   metadata.indexes = metadata.indexes || [];
   metadata.foreignKeys = metadata.foreignKeys || [];
+  metadata.checks = metadata.checks || [];
   metadata.computedProperties = metadata.computedProperties || [];
 
   // 处理原型链，收集所有父类的元数据
@@ -164,6 +167,14 @@ export const transitionMetadata = (
       const cloned = { ...property } as EntityPropertyMetadata;
       if (!cloned.columnName) cloned.columnName = cloned.name;
       propertyMap.set(cloned.name, cloned);
+      // 属性级 check 语法糖：编译成以属性名为 name 的实体级 CHECK，同样参与按 name 的继承覆盖。
+      // 排在实体级 checks 之前：同一层里作者显式写的 checks 覆盖语法糖。
+      if (property.check) {
+        checkMap.set(property.name, {
+          name: property.name,
+          rule: { combinator: 'and', rules: [{ field: property.name, ...property.check }] }
+        });
+      }
     });
     meta.computedProperties?.forEach(property => {
       const cloned = { ...property } as EntityPropertyMetadata;
@@ -227,6 +238,11 @@ export const transitionMetadata = (
         mappedNamespace: foreignKey.mappedNamespace || namespace
       });
     });
+    // 处理 CHECK：与 indexes / foreignKeys 同一套按 name 的 Map 覆盖——子实体同名项覆盖父实体的，
+    // 异名项全部生效（US-030 AC#17）。
+    meta.checks?.forEach(check => {
+      checkMap.set(check.name, { ...check, rule: { ...check.rule, rules: [...check.rule.rules] } });
+    });
   });
 
   // 实体级配置沿原型链继承
@@ -259,6 +275,7 @@ export const transitionMetadata = (
   setSafeObjectKey(metadata, 'computedPropertyMap', computedPropertyMap); // 计算属性映射
   setSafeObjectKey(metadata, 'relationMap', relationMap); // 关系映射
   setSafeObjectKey(metadata, 'indexMap', indexMap); // 索引映射
+  setSafeObjectKey(metadata, 'checkMap', checkMap); // CHECK 约束映射（继承合并后的全集）
 
   // 用规范化后的克隆对象回填「自身」数组（保持仅含本类定义的语义），
   // 避免直接引用未处理（无 columnName）的入参对象，同时不污染父类共享元数据
@@ -268,6 +285,7 @@ export const transitionMetadata = (
   );
   metadata.relations = metadata.relations.map(r => relationMap.get(r.name) as EntityRelationMetadata);
   metadata.foreignKeys = Array.from(foreignKeyMap.values());
+  metadata.checks = metadata.checks.map(c => checkMap.get(c.name) as EntityCheckMetadata);
 
   // 加密属性映射 (004-local-field-encryption)
   // 仅收集 encrypted: true 的属性；不在此处校验冲突，校验由

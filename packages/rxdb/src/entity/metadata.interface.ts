@@ -4,6 +4,7 @@
  */
 
 import { SetRequired } from 'type-fest';
+import { EntityCheckMetadata } from './check-constraint.js';
 import {
   EntityForeignKeyMetadata,
   EntityIndexMetadataOptions,
@@ -28,6 +29,7 @@ export interface EntityMetadataType extends SetRequired<
   relations: EntityRelationMetadata[];
   indexes: EntityIndexMetadata[];
   foreignKeys: EntityForeignKeyMetadata[];
+  checks: EntityCheckMetadata[];
 
   /**
    * 沿原型链按操作就近合并后的写操作权限
@@ -95,6 +97,12 @@ export interface EntityMetadataType extends SetRequired<
    * 键为索引名，值为索引元数据
    */
   indexMap: Map<string, EntityIndexMetadata>;
+
+  /**
+   * 实体全部 CHECK 约束的映射（继承合并后的全集，含属性级 `check` 编译出的项）
+   * 键为作者给的约束 `name`，值为 CHECK 元数据
+   */
+  checkMap: Map<string, EntityCheckMetadata>;
 
   /**
    * 加密属性映射 (新增于 004-local-field-encryption)

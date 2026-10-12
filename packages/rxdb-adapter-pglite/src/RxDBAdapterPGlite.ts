@@ -57,6 +57,7 @@ import { buildQueryCacheUpsertStatements } from './query-cache/upsert_many_sql.j
 import { PGliteRepository } from './repository/PGliteRepository.js';
 import { PGliteTreeRepository } from './repository/PGliteTreeRepository.js';
 import { migrateSystemSchema } from './system/migrate_system_schema.js';
+import { check_entity_constraints_pglite } from './table/check-entity-constraints.js';
 import { create_table_indexes_sql } from './table/create_table_sql.js';
 import { create_tables_statements } from './table/create_tables_sql.js';
 import { generateNotifyInfrastructureSQL, generateNotifyTriggerSQL } from './table/notify_function_sql.js';
@@ -534,6 +535,21 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
           .filter(Boolean);
         for (const statement of statements) await executor.query(statement);
       }
+    }, false);
+  }
+
+  /**
+   * 只读漂移检查：元数据声明的 CHECK 与 `pg_constraint` 里的实际约束比对（US-030 AC#10）。
+   *
+   * @remarks
+   * 由核心在 `RxDB.connect()` 里、`reconcileEntityIndexes` 同一时机调用（用户迁移与
+   * 缺表补建之后）。只比对 `ck_` 起头的对象；不一致抛 {@link RxDBConstraintDriftError}。
+   */
+  override async checkEntityConstraints(EntityTypes: EntityType[]): Promise<void> {
+    await this.bootstrapTransaction(async executor => {
+      // 传门面（executor）而非真实适配器：门面的 query 落在当前事务里；
+      // 真实适配器的 query 会重新入队排在自己身后，永久挂起。
+      await check_entity_constraints_pglite(executor, EntityTypes);
     }, false);
   }
 

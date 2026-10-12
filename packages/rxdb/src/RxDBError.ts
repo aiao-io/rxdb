@@ -261,6 +261,93 @@ export class RxDBPluginDependencyCycleError extends RxDBError {
 }
 
 /**
+ * 一次写入违反了实体元数据声明的 CHECK 约束（US-030 阶段 A）。
+ *
+ * @remarks
+ * 两个后端归一为**同一个错误类**（按类名主判别，不另立码表）：PG 识别 SQLSTATE
+ * `23514`，SQLite 识别原生 `CHECK constraint failed: <约束名>`；直连 SQL 的写入
+ * 拿不到本类，只拿到原生消息。
+ *
+ * 原生 CHECK 消息不带冲突值，所以 `conflicts` 取自适配器**自己发出的那一行**：
+ * 约束声明里引用的每个列（含 `ref` 目标）与该行送出的值。批量写入命中多条候选行时
+ * 逐行并列。
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await rxdb.entityManager.save(newItem);
+ * } catch (error) {
+ *   if (error instanceof RxDBCheckViolationError) {
+ *     console.error(`${error.entity} 违反约束 ${error.constraint}:`, error.conflicts);
+ *   } else {
+ *     throw error;
+ *   }
+ * }
+ * ```
+ */
+export class RxDBCheckViolationError extends RxDBError {
+  constructor(
+    /** 违反约束的实体名（元数据里的 `name`） */
+    readonly entity: string,
+    /** 约束名（`ck_` 起头的确定性名） */
+    readonly constraint: string,
+    /** 约束引用的列与该行送出的值（列名是物理列名） */
+    readonly conflicts: ReadonlyArray<{ column: string; value: unknown }>
+  ) {
+    super(
+      `Entity '${entity}' violates CHECK constraint '${constraint}': ` +
+        conflicts.map(c => `${c.column} = ${String(c.value)}`).join(', ')
+    );
+    this.name = 'RxDBCheckViolationError';
+    Object.setPrototypeOf(this, RxDBCheckViolationError.prototype);
+  }
+}
+
+/**
+ * 已有表上的存储约束与实体元数据声明不一致（US-030 阶段 A 起，`init()` 时抛出）。
+ *
+ * @remarks
+ * 漂移检查是只读比对：元数据确定性生成的约束名集合（阶段 A 只纳入 `ck_` 起头的对象）
+ * 与数据库目录里实际的同名集合，缺失与多余分别列出。不自动补建——补建由用户写进
+ * `migrations`，它恰好排在漂移检查之前执行；用户迁移补上后再 `init()` 即通过（AC#10）。
+ *
+ * 外键约束、`idx_` 普通索引、系统 CRUD 触发器与 FTS 触发器都不在比对范围（AC#16）。
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await rxdb.connect('local');
+ * } catch (error) {
+ *   if (error instanceof RxDBConstraintDriftError) {
+ *     console.error('缺失:', error.missing, '多余:', error.extra);
+ *   } else {
+ *     throw error;
+ *   }
+ * }
+ * ```
+ */
+export class RxDBConstraintDriftError extends RxDBError {
+  constructor(
+    /** 发生漂移的实体名（元数据里的 `name`） */
+    readonly entity: string,
+    /** 发生漂移的表名（元数据里的 `tableName`） */
+    readonly tableName: string,
+    /** 元数据声明了、库里没有的约束名 */
+    readonly missing: readonly string[],
+    /** 库里存在、元数据没声明的约束名 */
+    readonly extra: readonly string[]
+  ) {
+    super(
+      `Entity '${entity}' (table '${tableName}') storage constraints drifted. ` +
+        `Missing: [${missing.join(', ')}]. Extra: [${extra.join(', ')}]. ` +
+        `Apply a migration to add/drop the listed constraints before init.`
+    );
+    this.name = 'RxDBConstraintDriftError';
+    Object.setPrototypeOf(this, RxDBConstraintDriftError.prototype);
+  }
+}
+
+/**
  * `plugin:*` 依赖指向了多个同名插件 —— 无法裁决该注入哪一个（US-015 AC#14 / D4）。
  *
  * @remarks

@@ -8,6 +8,7 @@
  */
 
 import { toEntitySyncResolver, type EntitySyncResolver } from '../sync-contract/entity-sync-resolver.js';
+import { compileCheckConstraint } from './check-constraint.js';
 import { ENTITY_OPERATIONS } from './entity-permissions.js';
 import {
   formatConfigLiteralsOf,
@@ -52,7 +53,8 @@ export type MetadataValidationRule =
   | 'unsupportedRepositorySyncType'
   | 'missingQueryCacheAdapter'
   | 'invalidPermissions'
-  | 'invalidManualOrder';
+  | 'invalidManualOrder'
+  | 'invalidCheck';
 
 /**
  * 关系目标解析规则。
@@ -666,6 +668,24 @@ const compareViolations = (a: EntityMetadataValidationError, b: EntityMetadataVa
   a.rule.localeCompare(b.rule);
 
 /**
+ * 校验 CHECK 声明（US-030 AC#9 / AC#15）。
+ *
+ * @remarks
+ * 判定全部委托给 {@link compileCheckConstraint}：它能编译过去就说明操作符在白名单内、
+ * 字段是实体自身标量列、字面量与列类型匹配且不超值域、约束名合法且不超 63 字节。
+ * 编译抛出的原因原样进违规消息——「转不动就拒绝」的拒绝理由就是校验结论。
+ */
+const validateChecks = (collector: ViolationCollector, metadata: EntityMetadata): void => {
+  metadata.checkMap.forEach(check => {
+    try {
+      compileCheckConstraint(metadata, check);
+    } catch (error) {
+      collector.add(check.name, 'invalidCheck', error instanceof Error ? error.message : String(error));
+    }
+  });
+};
+
+/**
  * 校验单个实体的元数据声明，返回按 `namespace/entity/field/rule` 排序的全部违规。
  *
  * @remarks
@@ -698,6 +718,7 @@ export function validateEntityMetadata(
   validateSyncStrategy(collector, metadata, toEntitySyncResolver(databaseSync), isSyncTypeUnsupported);
   validatePermissions(collector, metadata.permissions);
   validateManualOrder(collector, metadata);
+  validateChecks(collector, metadata);
   return collector.drain().sort(compareViolations);
 }
 

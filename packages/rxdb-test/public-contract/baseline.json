@@ -38,6 +38,13 @@
     "version": "string",
     "withSeedLock": "function"
   },
+  "./check-constraint": {
+    "CheckQtyItem": "function",
+    "CheckXorItem": "function",
+    "CheckRangeItem": "function",
+    "checkConstraintFixtures": "array",
+    "runCheckConstraintWriteBehaviorSuite": "function"
+  },
   "./encrypted": {
     "ENCRYPTED_SENTINELS": "array",
     "EncryptedAuditedUser": "function",

@@ -1,4 +1,11 @@
-import { EntityStaticType, EntityType, getEntityMetadata, getEntityStatus, RxDBMutationsMap } from '@aiao/rxdb';
+import {
+  EntityStaticType,
+  EntityType,
+  getEntityMetadata,
+  getEntityStatus,
+  RxDBMutationsMap,
+  toCheckViolationErrorForRows
+} from '@aiao/rxdb';
 import { generate_entity_deletes_sql } from './entity/deletes_sql.js';
 import { generate_entity_inserts_sql, get_insert_column_count } from './entity/inserts_sql.js';
 import { update_sql as generate_entity_update_sql } from './entity/update_sql.js';
@@ -123,7 +130,17 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
         adapter.rxdb.context,
         adapter.encryptionContext
       );
-      await adapter.query(insert_result.sql, insert_result.params);
+      try {
+        await adapter.query(insert_result.sql, insert_result.params);
+      } catch (error) {
+        // CHECK 违约归一成 RxDBCheckViolationError：批量 INSERT 命中哪一行原生消息不说，
+        // 全部候选行的冲突值并列（US-030）
+        throw toCheckViolationErrorForRows(
+          error,
+          meta,
+          entitiesChunk as unknown as ReadonlyArray<Record<string, unknown>>
+        );
+      }
     }
 
     await sync_entities_by_ids(
@@ -152,7 +169,11 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
         returning: false,
         updatedAt: getMonotonicUpdatedAt(entity, now)
       });
-      await adapter.query(updateResult.sql, updateResult.params);
+      try {
+        await adapter.query(updateResult.sql, updateResult.params);
+      } catch (error) {
+        throw toCheckViolationErrorForRows(error, meta, [entity as unknown as Record<string, unknown>]);
+      }
     }
 
     await sync_entities_by_ids(

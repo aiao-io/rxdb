@@ -9,6 +9,7 @@
  */
 
 import type { SetRequired } from 'type-fest';
+import type { PropertyCheckRule } from './check-constraint.js';
 import type { UUID } from './entity.interface.js';
 import type { ICascadeOptions } from './relation-types.interface.js';
 
@@ -81,6 +82,17 @@ interface IEntityObject {
    * @default false
    */
   encrypted?: boolean;
+
+  /**
+   * 属性级 CHECK 约束（语法糖）：一条省略 `field` 的 {@link PropertyCheckRule}，
+   * 编译成以属性名为 `name` 的实体级 CHECK，与实体级 `checks` 同按 `name` 参与继承覆盖。
+   *
+   * @example
+   * ```typescript
+   * properties: [{ name: 'qty', type: PropertyType.integer, check: { operator: '>', value: 0 } }]
+   * ```
+   */
+  check?: PropertyCheckRule;
 }
 
 /**
