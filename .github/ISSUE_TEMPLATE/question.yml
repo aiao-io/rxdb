@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        使用问题请先查阅[文档](https://rxdb.netlify.app)和已有 Issue。
+        使用问题请先查阅[文档](https://rxdb.aiao.io)和已有 Issue。
 
   - type: textarea
     id: question

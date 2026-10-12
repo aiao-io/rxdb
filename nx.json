@@ -76,7 +76,7 @@
     },
     "version": {
       "conventionalCommits": true,
-      "preVersionCommand": "npx nx run-many -t build --projects='packages/*'",
+      "preVersionCommand": "pnpm audit:package-graph && pnpm nx run-many -t build --projects='packages/*'",
       "generatorOptions": { "updateDependents": "auto" }
     }
   },

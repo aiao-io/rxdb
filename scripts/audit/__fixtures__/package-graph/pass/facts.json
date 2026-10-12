@@ -1,0 +1,327 @@
+{
+  "packages": [
+    {
+      "name": "@aiao/rxdb",
+      "description": "rxdb fixture",
+      "role": "core",
+      "hosts": ["node"],
+      "slots": [],
+      "framework": null
+    },
+    {
+      "name": "@aiao/rxdb-adapter-pglite",
+      "description": "rxdb-adapter-pglite fixture",
+      "role": "backend",
+      "hosts": ["node"],
+      "slots": ["local"],
+      "framework": null
+    },
+    {
+      "name": "@aiao/rxdb-adapter-supabase",
+      "description": "rxdb-adapter-supabase fixture",
+      "role": "backend",
+      "hosts": ["node"],
+      "slots": ["remote"],
+      "framework": null
+    },
+    {
+      "name": "@aiao/rxdb-adapter-http",
+      "description": "rxdb-adapter-http fixture",
+      "role": "backend",
+      "hosts": ["node"],
+      "slots": ["remote"],
+      "framework": null
+    },
+    {
+      "name": "@aiao/rxdb-adapter-sqlite-core",
+      "description": "rxdb-adapter-sqlite-core fixture",
+      "role": "shared-impl",
+      "hosts": ["node"],
+      "slots": [],
+      "framework": null
+    },
+    {
+      "name": "@aiao/rxdb-adapter-encrypted",
+      "description": "rxdb-adapter-encrypted fixture",
+      "role": "capability",
+      "hosts": ["node"],
+      "slots": [],
+      "framework": null
+    },
+    {
+      "name": "@aiao/rxdb-plugin-history",
+      "description": "rxdb-plugin-history fixture",
+      "role": "plugin",
+      "hosts": ["node"],
+      "slots": [],
+      "framework": null,
+      "plugin": {
+        "source": "src/plugin.ts",
+        "class": "RxDBPluginHistory",
+        "factory": "rxDBPluginHistory"
+      }
+    },
+    {
+      "name": "@aiao/rxdb-plugin-sync",
+      "description": "rxdb-plugin-sync fixture",
+      "role": "plugin",
+      "hosts": ["node"],
+      "slots": [],
+      "framework": null,
+      "plugin": {
+        "source": "src/plugin.ts",
+        "class": "RxDBPluginSync",
+        "factory": "rxDBPluginSync"
+      }
+    },
+    {
+      "name": "@aiao/rxdb-plugin-querycache",
+      "description": "rxdb-plugin-querycache fixture",
+      "role": "plugin",
+      "hosts": ["node"],
+      "slots": [],
+      "framework": null,
+      "plugin": {
+        "source": "src/plugin.ts",
+        "class": "RxDBPluginQueryCache",
+        "factory": "rxDBPluginQueryCache"
+      }
+    },
+    {
+      "name": "@aiao/rxdb-plugin-graph",
+      "description": "rxdb-plugin-graph fixture",
+      "role": "plugin",
+      "hosts": ["node"],
+      "slots": [],
+      "framework": null,
+      "plugin": {
+        "source": "src/plugin.ts",
+        "class": "RxDBPluginGraph",
+        "factory": "rxDBPluginGraph"
+      }
+    },
+    {
+      "name": "@aiao/rxdb-plugin-tree",
+      "description": "rxdb-plugin-tree fixture",
+      "role": "plugin",
+      "hosts": ["node"],
+      "slots": [],
+      "framework": null,
+      "plugin": {
+        "source": "src/plugin.ts",
+        "class": "RxDBPluginTree",
+        "factory": "rxDBPluginTree"
+      }
+    },
+    {
+      "name": "@aiao/rxdb-angular",
+      "description": "rxdb-angular fixture",
+      "role": "binding",
+      "hosts": ["node"],
+      "slots": [],
+      "framework": "angular"
+    },
+    {
+      "name": "@aiao/rxdb-react",
+      "description": "rxdb-react fixture",
+      "role": "binding",
+      "hosts": ["node"],
+      "slots": [],
+      "framework": "react"
+    },
+    {
+      "name": "@aiao/rxdb-vue",
+      "description": "rxdb-vue fixture",
+      "role": "binding",
+      "hosts": ["node"],
+      "slots": [],
+      "framework": "vue"
+    },
+    {
+      "name": "@aiao/code-editor",
+      "description": "code-editor fixture",
+      "role": "standalone",
+      "hosts": ["node"],
+      "slots": [],
+      "framework": null
+    },
+    {
+      "name": "@aiao/rxdb-test",
+      "description": "rxdb-test fixture",
+      "role": "tool",
+      "hosts": ["node"],
+      "slots": [],
+      "framework": null
+    },
+    {
+      "name": "@aiao/rxdb-adapter-wa-sqlite",
+      "description": "rxdb-adapter-wa-sqlite fixture",
+      "role": "backend",
+      "hosts": ["browser", "node"],
+      "slots": ["local"],
+      "framework": null
+    },
+    {
+      "name": "@aiao/rxdb-adapter-miniprogram",
+      "description": "rxdb-adapter-miniprogram fixture",
+      "role": "backend",
+      "hosts": ["miniprogram"],
+      "slots": ["local"],
+      "framework": null
+    },
+    {
+      "name": "@aiao/rxdb-adapter-electron",
+      "description": "rxdb-adapter-electron fixture",
+      "role": "backend",
+      "hosts": ["electron", "node"],
+      "slots": ["local"],
+      "framework": null
+    }
+  ],
+  "release": "v1.2.3",
+  "scenarios": [
+    {
+      "id": "local",
+      "description": "纯本地",
+      "packages": ["@aiao/rxdb", "@aiao/rxdb-adapter-pglite"],
+      "plugins": [],
+      "slots": {
+        "local": "@aiao/rxdb-adapter-pglite"
+      },
+      "timing": ["use-before-connect"]
+    },
+    {
+      "id": "supabase",
+      "description": "双向同步",
+      "packages": ["@aiao/rxdb", "@aiao/rxdb-adapter-pglite", "@aiao/rxdb-adapter-supabase"],
+      "plugins": ["@aiao/rxdb-plugin-sync"],
+      "slots": {
+        "local": "@aiao/rxdb-adapter-pglite",
+        "remote": "@aiao/rxdb-adapter-supabase"
+      },
+      "timing": ["use-before-connect"]
+    },
+    {
+      "id": "http-querycache",
+      "description": "HTTP QueryCache",
+      "packages": ["@aiao/rxdb", "@aiao/rxdb-adapter-pglite", "@aiao/rxdb-adapter-http"],
+      "plugins": ["@aiao/rxdb-plugin-querycache", "@aiao/rxdb-plugin-sync"],
+      "slots": {
+        "local": "@aiao/rxdb-adapter-pglite",
+        "remote": "@aiao/rxdb-adapter-http"
+      },
+      "timing": ["use-before-connect"]
+    },
+    {
+      "id": "graph",
+      "description": "图插件",
+      "packages": ["@aiao/rxdb", "@aiao/rxdb-adapter-pglite"],
+      "plugins": ["@aiao/rxdb-plugin-graph"],
+      "slots": {
+        "local": "@aiao/rxdb-adapter-pglite"
+      },
+      "timing": ["use-before-init"]
+    },
+    {
+      "id": "tree",
+      "description": "树插件",
+      "packages": ["@aiao/rxdb", "@aiao/rxdb-adapter-pglite"],
+      "plugins": ["@aiao/rxdb-plugin-tree"],
+      "slots": {
+        "local": "@aiao/rxdb-adapter-pglite"
+      },
+      "timing": ["use-before-init"]
+    },
+    {
+      "id": "code-editor",
+      "description": "独立编辑器",
+      "packages": ["@aiao/code-editor"],
+      "plugins": [],
+      "slots": {},
+      "timing": []
+    },
+    {
+      "id": "binding-angular",
+      "description": "angular",
+      "packages": ["@aiao/rxdb", "@aiao/rxdb-adapter-pglite", "@aiao/rxdb-angular"],
+      "plugins": [],
+      "slots": {
+        "local": "@aiao/rxdb-adapter-pglite"
+      },
+      "timing": ["use-before-connect"]
+    },
+    {
+      "id": "binding-react",
+      "description": "react",
+      "packages": ["@aiao/rxdb", "@aiao/rxdb-adapter-pglite", "@aiao/rxdb-react"],
+      "plugins": [],
+      "slots": {
+        "local": "@aiao/rxdb-adapter-pglite"
+      },
+      "timing": ["use-before-connect"]
+    },
+    {
+      "id": "binding-vue",
+      "description": "vue",
+      "packages": ["@aiao/rxdb", "@aiao/rxdb-adapter-pglite", "@aiao/rxdb-vue"],
+      "plugins": [],
+      "slots": {
+        "local": "@aiao/rxdb-adapter-pglite"
+      },
+      "timing": ["use-before-connect"]
+    },
+    {
+      "id": "wa-sqlite-supabase",
+      "description": "SQLite 与 Supabase",
+      "packages": ["@aiao/rxdb", "@aiao/rxdb-adapter-wa-sqlite", "@aiao/rxdb-adapter-supabase"],
+      "plugins": [],
+      "slots": {
+        "local": "@aiao/rxdb-adapter-wa-sqlite",
+        "remote": "@aiao/rxdb-adapter-supabase"
+      },
+      "timing": ["use-before-connect"]
+    },
+    {
+      "id": "sqlite-http-querycache",
+      "description": "SQLite 与 HTTP QueryCache",
+      "packages": ["@aiao/rxdb", "@aiao/rxdb-adapter-wa-sqlite", "@aiao/rxdb-adapter-http"],
+      "plugins": ["@aiao/rxdb-plugin-querycache", "@aiao/rxdb-plugin-sync"],
+      "slots": {
+        "local": "@aiao/rxdb-adapter-wa-sqlite",
+        "remote": "@aiao/rxdb-adapter-http"
+      },
+      "timing": ["use-before-connect"]
+    },
+    {
+      "id": "local-encrypted",
+      "description": "本地后端加密",
+      "packages": ["@aiao/rxdb", "@aiao/rxdb-adapter-wa-sqlite", "@aiao/rxdb-adapter-encrypted"],
+      "plugins": [],
+      "slots": {
+        "local": "@aiao/rxdb-adapter-wa-sqlite"
+      },
+      "timing": ["use-before-connect"]
+    },
+    {
+      "id": "miniprogram",
+      "description": "小程序后端",
+      "packages": ["@aiao/rxdb", "@aiao/rxdb-adapter-miniprogram"],
+      "plugins": [],
+      "slots": {
+        "local": "@aiao/rxdb-adapter-miniprogram"
+      },
+      "timing": ["use-before-connect"]
+    },
+    {
+      "id": "electron",
+      "description": "Electron 后端",
+      "packages": ["@aiao/rxdb", "@aiao/rxdb-adapter-electron"],
+      "plugins": [],
+      "slots": {
+        "local": "@aiao/rxdb-adapter-electron"
+      },
+      "timing": ["use-before-connect"]
+    }
+  ],
+  "schemaVersion": 1
+}

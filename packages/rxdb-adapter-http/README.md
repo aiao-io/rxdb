@@ -261,8 +261,8 @@ new RxDBAdapterHttp(db, { baseUrl, handlers, conditionalRequests: true });
 
 ## 文档
 
-- [HTTP 适配器完整文档](https://rxdb.netlify.app/docs/adapters/http)
-- [适配器总览](https://rxdb.netlify.app/docs/adapters)
+- [HTTP 适配器完整文档](https://rxdb.aiao.io/docs/adapters/http)
+- [适配器总览](https://rxdb.aiao.io/docs/adapters)
 
 ## License
 

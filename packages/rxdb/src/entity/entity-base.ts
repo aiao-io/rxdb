@@ -204,7 +204,12 @@ export abstract class EntityBase<Id extends RxDBEntityId = UUID> implements IEnt
    */
   declare reset: () => void;
   /**
-   * 保存
+   * 保存实体。
+   *
+   * @remarks
+   * 本入口不持有事务执行器，会重新进入适配器队列。
+   * 事务回调中等待本方法会等待当前事务结束；请改用 {@link TransactionExecutor.getRepository}。
+   * 完整正反例见 {@link RxDBAdapterLocalBase.transaction}。
    */
   declare save: () => Promise<this>;
 

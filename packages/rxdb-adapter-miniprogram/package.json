@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-adapter-miniprogram",
   "version": "0.0.26",
   "description": "Experimental WeChat, Douyin and Alipay Mini Program adapter for local SQLite storage.",
-  "homepage": "https://rxdb.netlify.app/docs/adapters",
+  "homepage": "https://rxdb.aiao.io/docs/adapters",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

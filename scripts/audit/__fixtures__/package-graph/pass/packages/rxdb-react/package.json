@@ -1,0 +1,8 @@
+{
+  "name": "@aiao/rxdb-react",
+  "version": "1.2.3",
+  "type": "module",
+  "peerDependencies": {
+    "@aiao/rxdb": "workspace:*"
+  }
+}

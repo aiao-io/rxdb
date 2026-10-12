@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-angular",
   "version": "0.0.27",
   "description": "Angular integration for Aiao RxDB reactive data.",
-  "homepage": "https://rxdb.netlify.app/docs/frameworks/angular",
+  "homepage": "https://rxdb.aiao.io/docs/frameworks/angular",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

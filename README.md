@@ -6,7 +6,7 @@
 [![npm](https://img.shields.io/npm/v/@aiao/rxdb)](https://www.npmjs.com/package/@aiao/rxdb)
 [![codecov](https://codecov.io/gh/aiao-io/rxdb/graph/badge.svg?token=VJW8U2PNBG)](https://codecov.io/gh/aiao-io/rxdb)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Docs](https://img.shields.io/badge/docs-rxdb.netlify.app-0ea5e9)](https://rxdb.netlify.app)
+[![Docs](https://img.shields.io/badge/docs-rxdb.aiao.io-0ea5e9)](https://rxdb.aiao.io)
 
 </div>
 
@@ -20,11 +20,11 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 
 ## Demo
 
-| 框架    | 地址                                                                   |
-| ------- | ---------------------------------------------------------------------- |
-| Angular | [rxdb.netlify.app/demo/angular](https://rxdb.netlify.app/demo/angular) |
-| React   | [rxdb.netlify.app/demo/react](https://rxdb.netlify.app/demo/react)     |
-| Vue     | [rxdb.netlify.app/demo/vue](https://rxdb.netlify.app/demo/vue)         |
+| 框架    | 地址                                                           |
+| ------- | -------------------------------------------------------------- |
+| Angular | [rxdb.aiao.io/demo/angular](https://rxdb.aiao.io/demo/angular) |
+| React   | [rxdb.aiao.io/demo/react](https://rxdb.aiao.io/demo/react)     |
+| Vue     | [rxdb.aiao.io/demo/vue](https://rxdb.aiao.io/demo/vue)         |
 
 ## 技术栈
 
@@ -39,7 +39,7 @@ RxDB 是面向 Local-first 应用的 TypeScript 全栈数据层。所有 `@aiao/
 | 运行时 | 浏览器 (OPFS/IDB) + Node 26+ + Electron + Tauri               |
 
 > [!NOTE]
-> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.netlify.app/docs/migration/)。当前交付状态 [74/100 已交付](requirements/status-overview.md)
+> ⚠️ API 仍在演进中，生产使用前请锁定版本并关注 [迁移指南](https://rxdb.aiao.io/docs/migration/)。当前交付状态 [74/100 已交付](requirements/status-overview.md)
 
 支持与反馈：可复现的 bug 请提交 [Bug Issue](https://github.com/aiao-io/rxdb/issues/new?template=bug_report.yml)，功能建议提交 [Feature Issue](https://github.com/aiao-io/rxdb/issues/new?template=feature_request.yml)，使用问题请提交 [Question Issue](https://github.com/aiao-io/rxdb/issues/new?template=question.yml)。
 
@@ -112,7 +112,7 @@ const { value: todos, isLoading } = useFind(Todo, {
 });
 ```
 
-写入后 `todos` 自动更新，跨 Tab 同样生效。完整接线（Worker / WASM 路径 / 框架 provider）见[快速开始](https://rxdb.netlify.app/docs/getting-started/)。
+写入后 `todos` 自动更新，跨 Tab 同样生效。完整接线（Worker / WASM 路径 / 框架 provider）见[快速开始](https://rxdb.aiao.io/docs/getting-started/)。
 
 ## 现在有什么？
 
@@ -124,20 +124,20 @@ const { value: todos, isLoading } = useFind(Todo, {
 - **协作**：Git 式分支 / 合并 / 切换、撤销重做、Supabase 与 HTTP 同步、加密字段不进索引与历史。
 - **UI 与工具**：CodeMirror 6 编辑器三端组件、DevTools 面板 + Chrome 扩展 + Electron / Tauri 原生存储调试。
 
-对应文档（线上站：[rxdb.netlify.app](https://rxdb.netlify.app)）：
+对应文档（线上站：[rxdb.aiao.io](https://rxdb.aiao.io)）：
 
-- [快速开始](https://rxdb.netlify.app/docs/getting-started/)
-- [模型定义](https://rxdb.netlify.app/docs/model-definition/)
-- [客户端生成](https://rxdb.netlify.app/docs/client-generator)
-- [数据查询](https://rxdb.netlify.app/docs/model-query/)
-- [数据变更](https://rxdb.netlify.app/docs/model-mutation/)
-- [数据协作](https://rxdb.netlify.app/docs/collaboration/branch)
-- [框架集成](https://rxdb.netlify.app/docs/frameworks/)
-- [数据库适配器](https://rxdb.netlify.app/docs/adapters/)
-- [code-editor](https://rxdb.netlify.app/docs/code-editor/)
-- [迁移指南](https://rxdb.netlify.app/docs/migration/)
-- [版本兼容矩阵](https://rxdb.netlify.app/docs/compatibility)
-- [版本与 API 稳定性策略](https://rxdb.netlify.app/docs/versioning)
+- [快速开始](https://rxdb.aiao.io/docs/getting-started/)
+- [模型定义](https://rxdb.aiao.io/docs/model-definition/)
+- [客户端生成](https://rxdb.aiao.io/docs/client-generator)
+- [数据查询](https://rxdb.aiao.io/docs/model-query/)
+- [数据变更](https://rxdb.aiao.io/docs/model-mutation/)
+- [数据协作](https://rxdb.aiao.io/docs/collaboration/branch)
+- [框架集成](https://rxdb.aiao.io/docs/frameworks/)
+- [数据库适配器](https://rxdb.aiao.io/docs/adapters/)
+- [code-editor](https://rxdb.aiao.io/docs/code-editor/)
+- [迁移指南](https://rxdb.aiao.io/docs/migration/)
+- [版本兼容矩阵](https://rxdb.aiao.io/docs/compatibility)
+- [版本与 API 稳定性策略](https://rxdb.aiao.io/docs/versioning)
 
 ## 架构一览
 

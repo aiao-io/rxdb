@@ -178,7 +178,10 @@ describe('ReplayStore：按会话 + 时间区间查询走索引（故事 AC#11�
     );
     const plan = rows.map(row => String(row[0])).join('\n');
 
-    expect(plan).toMatch(/Index Scan on idx_replay_event_replay_event_session_timestamp/);
+    // 计划形状随环境在两种走索引的形态间切换（node 多为 Bitmap Index Scan on，
+    // 浏览器 PGlite 多为 Index Scan using），两种都满足「命中复合索引」；判据钉在
+    // 索引名出现在扫描节点上 + 不是 Seq Scan。
+    expect(plan).toMatch(/Index Scan (using|on) idx_replay_event_replay_event_session_timestamp/);
     expect(plan).not.toMatch(/Seq Scan/);
   });
 });

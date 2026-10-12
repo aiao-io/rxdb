@@ -45,3 +45,6 @@ __*__.*
 .cursor/
 .git/
 .specify/
+
+# 知识生成物由 package-graph 的逐字节门禁校验，避免格式工具改写。
+requirements/generated/

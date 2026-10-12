@@ -124,7 +124,7 @@ await rxdb.workingTree.enable();
 
 启用之后核心会在 `rxdb_migration` 里留下一行能力水位，**没装对应插件的客户端再打开这个库时，核心拒绝连接**，并把该装的包名原样报出来。这道守卫对第三方插件同样有效：包名是插件自己写进水位行的，核心不需要认识它。
 
-启用前要知道的六件事（完整版见文档站的[插件页](https://docs.aiao.io/docs/plugins/rxdb-plugin-working-tree)）：
+启用前要知道的六件事（完整版见文档站的[插件页](https://rxdb.aiao.io/docs/plugins/rxdb-plugin-working-tree)）：
 
 1. **提交能力是数据库级的显式开关**——一次 `enable()` 之后整个库的所有实体、所有分支都按工作树语义运行；从此所有访问这个库的客户端都必须装上插件，包括旧版本的、你控制不到的那些。v1 没有 `disable()`。
 2. **工作树不是草稿缓存。** 工作树装的是「已经写进数据库、还没提交成快照」的变更，参与事务、被查询读到；`@aiao/rxdb-plugin-workspace` 的草稿缓存装的是「还没保存」的编辑器 buffer，根本没进主库。两层各管一件事，不能合并。
@@ -145,7 +145,7 @@ await rxdb.workingTree.enable();
 
 - 仓库主页与路线图：[https://github.com/aiao-io/rxdb](https://github.com/aiao-io/rxdb)
 - API 参考、快速上手与框架集成指南见项目文档站
-- 工作树与提交历史：[`@aiao/rxdb-plugin-working-tree` 插件页](https://docs.aiao.io/docs/plugins/rxdb-plugin-working-tree)
+- 工作树与提交历史：[`@aiao/rxdb-plugin-working-tree` 插件页](https://rxdb.aiao.io/docs/plugins/rxdb-plugin-working-tree)
 
 ## License
 

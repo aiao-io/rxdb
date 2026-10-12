@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-plugin-search-react",
   "version": "0.0.26",
   "description": "React bindings for the Aiao RxDB full-text search plugin.",
-  "homepage": "https://rxdb.netlify.app/docs/plugins",
+  "homepage": "https://rxdb.aiao.io/docs/plugins",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

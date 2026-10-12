@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-adapter-supabase",
   "version": "0.0.26",
   "description": "Supabase adapter for remote data access and reactive synchronization.",
-  "homepage": "https://rxdb.netlify.app/docs/adapters/supabase",
+  "homepage": "https://rxdb.aiao.io/docs/adapters/supabase",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

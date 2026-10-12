@@ -21,6 +21,48 @@
       "options": {
         "command": "node --test scripts/check-migration-release-gate.spec.mjs"
       }
+    },
+    "test-scripts": {
+      "// cache": "spec 会读 scripts/ 之外的真实文件（api 基线、迁移常量、pnpm-lock.yaml、workflow、packages/**），列不全的 inputs 会让改了被测文件仍命中旧绿灯。",
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node --test \"scripts/**/*.spec.mjs\""
+      }
+    },
+    "audit-package-graph": {
+      "// cache": "门禁读登记发布标签的树（git），标签内容不在任何 Nx 输入里；与 audit:api-surface 等同类门禁一样不缓存。",
+      "executor": "nx:run-commands",
+      "cache": false,
+      "options": {
+        "command": "node scripts/audit/package-graph.mjs --check"
+      }
+    },
+    "ai-example": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": [
+        "{workspaceRoot}/scripts/audit/ai-*.mjs",
+        "{workspaceRoot}/scripts/examples/ai-local/**/*",
+        "{workspaceRoot}/packages/rxdb-adapter-*/src/**/*",
+        "^production"
+      ],
+      "dependsOn": [
+        {
+          "target": "build",
+          "projects": ["rxdb", "rxdb-adapter-pglite", "rxdb-plugin-history"]
+        }
+      ],
+      "options": {
+        "command": "node scripts/audit/ai-example.mjs"
+      }
+    },
+    "lint": {
+      "executor": "nx:run-commands",
+      "inputs": ["{workspaceRoot}/scripts/**/*", "{workspaceRoot}/eslint.config.mjs"],
+      "options": {
+        "command": "eslint scripts --max-warnings=0 --ignore-pattern \"scripts/**/__fixtures__/**\""
+      }
     }
   }
 }

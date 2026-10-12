@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-import { auditDoc, auditMovedList, MOVED_SYNC_METHODS } from './docs-plugin-surface.mjs';
+import { auditDoc as auditDocWithContext, auditMovedList, MOVED_SYNC_METHODS } from './docs-plugin-surface.mjs';
+
+import { queryCacheRequirements, scanPackages } from './package-graph.mjs';
+
+const fixture = new URL('./__fixtures__/package-graph/pass/', import.meta.url);
+const facts = JSON.parse(readFileSync(new URL('facts.json', fixture), 'utf8'));
+const queryCache = queryCacheRequirements(facts, scanPackages(new URL('packages/', fixture)));
+const auditDoc = (file, text) => auditDocWithContext(file, text, queryCache);
 
 const HISTORY_SOURCE = ['  async createBranch(branchId) {', '  history(options) {'].join('\n');
 const SYNC_SOURCE = MOVED_SYNC_METHODS.map(name => `  async ${name}(options) {`).join('\n');

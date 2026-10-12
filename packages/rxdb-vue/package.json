@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-vue",
   "version": "0.0.26",
   "description": "Vue integration for Aiao RxDB reactive data.",
-  "homepage": "https://rxdb.netlify.app/docs/frameworks/vue",
+  "homepage": "https://rxdb.aiao.io/docs/frameworks/vue",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },

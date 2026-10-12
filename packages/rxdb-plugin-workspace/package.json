@@ -2,7 +2,7 @@
   "name": "@aiao/rxdb-plugin-workspace",
   "version": "0.0.26",
   "description": "Staging, commit, and restore workflows for Aiao RxDB.",
-  "homepage": "https://rxdb.netlify.app/docs/collaboration",
+  "homepage": "https://rxdb.aiao.io/docs/collaboration",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
   },
