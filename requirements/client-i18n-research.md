@@ -9,12 +9,12 @@
 
 国际化拆成四件事，与[数据国际化研究](./data-i18n-research.md)同一分法，边界互补：
 
-| 事项         | 定义                                               | 负责故事                     |
-| ------------ | -------------------------------------------------- | ---------------------------- |
-| UI 文案翻译  | 组件菜单、表头、按钮、提示语的按语言文案           | 本故事（US-911）             |
-| 数据内容翻译 | 实体字段按语言存多份值                             | [US-910](stories/future/US-910-data-i18n.md) |
-| 格式本地化   | 日期、数字、货币按 locale 格式化                   | 本故事，限「复用平台 Intl」  |
-| 语言协商     | 请求语言、用户偏好、设备语言的 fallback 链         | 两故事共享同一契约           |
+| 事项         | 定义                                       | 负责故事                                     |
+| ------------ | ------------------------------------------ | -------------------------------------------- |
+| UI 文案翻译  | 组件菜单、表头、按钮、提示语的按语言文案   | 本故事（US-911）                             |
+| 数据内容翻译 | 实体字段按语言存多份值                     | [US-910](stories/future/US-910-data-i18n.md) |
+| 格式本地化   | 日期、数字、货币按 locale 格式化           | 本故事，限「复用平台 Intl」                  |
+| 语言协商     | 请求语言、用户偏好、设备语言的 fallback 链 | 两故事共享同一契约                           |
 
 「客户端国际化」要回答的是：rxdb-model 组件与宿主应用的 UI 文案如何按语言渲染、语言状态放在哪、
 切换语言如何传播、目录从哪里来。数据翻译（US-910）回答的是实体字段内容的多语言存储与同步，
@@ -83,9 +83,10 @@ node -e "console.log(process.version, typeof Intl.MessageFormat)"
 # node v24.18.0 undefined（Node 26.7.0 同样 undefined）
 ```
 
-  它仍是 TC39 提案（`tc39/proposal-intl-messageformat`）。基础 API（`Intl.NumberFormat` /
-  `Intl.DateTimeFormat` / `Intl.RelativeTimeFormat` / `Intl.PluralRules` / `Intl.getCanonicalLocales`）
-  均已标准化，Node 实测存在。
+它仍是 TC39 提案（`tc39/proposal-intl-messageformat`）。基础 API（`Intl.NumberFormat` /
+`Intl.DateTimeFormat` / `Intl.RelativeTimeFormat` / `Intl.PluralRules` / `Intl.getCanonicalLocales`）
+均已标准化，Node 实测存在。
+
 - `intl-messageformat@12.1.3`（`npm view intl-messageformat version`，2026-10-05 仍在发布）是 FormatJS
   的 ICU MessageFormat 参考实现：纯函数、自带解析器、不依赖平台 `Intl.MessageFormat`、无框架绑定。
 
@@ -203,13 +204,13 @@ defaultLocale           string
 
 ## 6. 运行时矩阵
 
-| 运行时                                   | 判定              | 依据                                                                        |
-| ---------------------------------------- | ----------------- | --------------------------------------------------------------------------- |
-| 浏览器（现代 Chrome / Firefox / Safari） | ✅ supported      | `intl-messageformat` 纯 JS；基础 `Intl.*` Safari 14+                         |
-| Electron                                 | ✅ supported      | 自带 Chromium                                                               |
-| Tauri                                    | ✅ supported      | 系统 WebKit（WKWebView），同上                                              |
-| Node 26+                                 | ✅ supported      | 基础 `Intl.*` 实测存在（§2.2）                                              |
-| 小程序（微信 / 抖音 / 支付宝）           | ❌ 明确排除        | iOS JSCore 的 Intl 系列缺失、仓库无真机探针；与搜索 `unverified` 同一处理：**明确声明不支持，不写 fallback** |
+| 运行时                                   | 判定         | 依据                                                                                                         |
+| ---------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------ |
+| 浏览器（现代 Chrome / Firefox / Safari） | ✅ supported | `intl-messageformat` 纯 JS；基础 `Intl.*` Safari 14+                                                         |
+| Electron                                 | ✅ supported | 自带 Chromium                                                                                                |
+| Tauri                                    | ✅ supported | 系统 WebKit（WKWebView），同上                                                                               |
+| Node 26+                                 | ✅ supported | 基础 `Intl.*` 实测存在（§2.2）                                                                               |
+| 小程序（微信 / 抖音 / 支付宝）           | ❌ 明确排除  | iOS JSCore 的 Intl 系列缺失、仓库无真机探针；与搜索 `unverified` 同一处理：**明确声明不支持，不写 fallback** |
 
 小程序解锁条件 = 真机探针证明所需 Intl API 存在（独立记录，不在本故事 AC 内）。
 
