@@ -76,7 +76,7 @@
   "peerDependencies": {
     "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
     "@aiao/rxdb-devtools": "workspace:*",
-    "vitest": "4.1.11"
+    "vitest": "5.0.3"
   },
   "peerDependenciesMeta": {
     "@aiao/rxdb-adapter-sqlite-core": {
@@ -94,6 +94,6 @@
     "@aiao/rxdb-adapter-sqlite-core": "workspace:*",
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
     "@aiao/rxdb-devtools": "workspace:*",
-    "vitest": "4.1.11"
+    "vitest": "5.0.3"
   }
 }
