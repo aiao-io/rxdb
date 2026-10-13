@@ -171,6 +171,10 @@ export default defineConfig(() => {
           '@aiao/rxdb-plugin-tree',
           '@aiao/utils',
           '@electric-sql/pglite',
+          // 区间排他按需装载的扩展（US-030）。不外置的话，它的 `new URL('../btree_gist.tar.gz', import.meta.url)`
+          // 会被当成资源内联成 base64 data URL，给每个用户的 `dist/index.js` 白加约 30 KB——
+          // 而只有声明了 `exclusions` 的应用才会真去取它。外置后由使用方从 `@electric-sql/pglite` 自己的目录解析。
+          '@electric-sql/pglite/contrib/btree_gist',
           'rxjs',
           'object-hash',
           'type-fest'

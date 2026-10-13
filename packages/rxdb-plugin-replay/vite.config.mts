@@ -97,7 +97,17 @@ export default defineConfig(() => ({
       'ms',
       'uuid',
       'rrweb',
-      ...(isBrowserTest ? ['@electric-sql/pglite', '@electric-sql/pglite/live', '@electric-sql/pglite/worker'] : [])
+      // PGlite 适配器在下面的 exclude 里、按源码引入，依赖扫描不会钻进它；它 import 的 PGlite 子路径
+      // 必须在这里点名预构建。漏一个，Vite 就会在用例跑到一半时「发现」新依赖、重载页面，
+      // 正在加载的测试文件随之 Failed to fetch。`contrib/btree_gist` 是区间排他按需装载的扩展（US-030）。
+      ...(isBrowserTest ?
+        [
+          '@electric-sql/pglite',
+          '@electric-sql/pglite/live',
+          '@electric-sql/pglite/worker',
+          '@electric-sql/pglite/contrib/btree_gist'
+        ]
+      : [])
     ],
     exclude: ['@aiao/rxdb', '@aiao/rxdb-adapter-pglite', '@aiao/rxdb-plugin-working-tree', '@aiao/utils', 'rxjs']
   },
