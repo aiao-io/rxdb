@@ -1,0 +1,90 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "BOM_DECIMAL_FORMAT_PREFIX",
+        "kind": "value"
+      },
+      {
+        "name": "BOM_ENTITIES",
+        "kind": "value"
+      },
+      {
+        "name": "BOM_PUBLISH_VALIDATION_PREFIX",
+        "kind": "value"
+      },
+      {
+        "name": "BOM_WRITE_PROTOCOL_PREFIX",
+        "kind": "value"
+      },
+      {
+        "name": "BomBackendCapabilityError",
+        "kind": "both"
+      },
+      {
+        "name": "BomDecimalFormatError",
+        "kind": "both"
+      },
+      {
+        "name": "BomError",
+        "kind": "both"
+      },
+      {
+        "name": "BomHeader",
+        "kind": "both"
+      },
+      {
+        "name": "BomItem",
+        "kind": "both"
+      },
+      {
+        "name": "BomItemRevision",
+        "kind": "both"
+      },
+      {
+        "name": "BomLine",
+        "kind": "both"
+      },
+      {
+        "name": "BomLineOccurrence",
+        "kind": "both"
+      },
+      {
+        "name": "BomPublishValidationError",
+        "kind": "both"
+      },
+      {
+        "name": "BomRepository",
+        "kind": "both"
+      },
+      {
+        "name": "BomWriteProtocolError",
+        "kind": "both"
+      },
+      {
+        "name": "DECIMAL_CANONICAL_RE",
+        "kind": "value"
+      },
+      {
+        "name": "DECIMAL_MAX_SIGNIFICANT_DIGITS",
+        "kind": "value"
+      },
+      {
+        "name": "normalizeBomError",
+        "kind": "value"
+      },
+      {
+        "name": "normalizeDecimalString",
+        "kind": "value"
+      },
+      {
+        "name": "rxDBPluginBom",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBPluginBom",
+        "kind": "both"
+      }
+    ]
+  }
+}

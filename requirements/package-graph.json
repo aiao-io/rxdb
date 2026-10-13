@@ -208,6 +208,19 @@
       }
     },
     {
+      "name": "@aiao/rxdb-plugin-bom",
+      "description": "> Implements: [US-507 BOM 图骨架](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/domain/US-507-bom-graph-skeleton.md)（epic-009 BOM 领域模型首轮切片）",
+      "role": "plugin",
+      "hosts": ["browser", "node"],
+      "slots": [],
+      "framework": null,
+      "plugin": {
+        "source": "src/plugin.ts",
+        "class": "RxDBPluginBom",
+        "factory": "rxDBPluginBom"
+      }
+    },
+    {
       "name": "@aiao/rxdb-plugin-history",
       "description": "> Implements: [US-025 核心插件化外移](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/core/US-025-core-plugin-extraction.md)",
       "role": "plugin",

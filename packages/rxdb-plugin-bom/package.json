@@ -1,0 +1,65 @@
+{
+  "name": "@aiao/rxdb-plugin-bom",
+  "version": "0.0.26",
+  "description": "BOM (bill of materials) domain entities, write-protocol triggers and decimal quantity contract for Aiao RxDB.",
+  "homepage": "https://rxdb.aiao.io/docs/plugins",
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "bom",
+    "bill-of-materials",
+    "ebom",
+    "mbom",
+    "typescript"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-plugin-bom"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@aiao/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.*",
+    "!src/**/*.test.*",
+    "!src/**/__tests__/**",
+    "!**/*.tsbuildinfo"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "nx": {
+    "name": "rxdb-plugin-bom",
+    "tags": [
+      "js-lib"
+    ]
+  },
+  "dependencies": {
+    "@aiao/utils": "workspace:^"
+  },
+  "devDependencies": {
+    "@aiao/rxdb-adapter-pglite": "workspace:*",
+    "@aiao/rxdb-adapter-wa-sqlite": "workspace:*"
+  },
+  "peerDependencies": {
+    "@aiao/rxdb": "workspace:^"
+  }
+}

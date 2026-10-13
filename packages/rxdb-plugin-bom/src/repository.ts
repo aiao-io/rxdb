@@ -1,0 +1,54 @@
+/**
+ * @fileoverview BOM 仓储门面
+ *
+ * 十进制值合同的**入口规范化**只发生在这里：`qty` 等十进制字段写前规范成规范串
+ * （接受指数写法、前导零、尾随零），存储层不替调用方规范化。违约（CHECK / 排他 /
+ * BOM 触发器消息）归一为类型化错误类再上抛。
+ */
+
+import { Repository } from '@aiao/rxdb';
+import type { EntityType } from '@aiao/rxdb';
+import { normalizeDecimalString } from './decimal.utils.js';
+import { normalizeBomError } from './types.js';
+
+/** 需要入口规范化的十进制字段（后续故事按十进制值合同扩列）。 */
+const DECIMAL_FIELDS = ['qty'] as const;
+
+/** 把实体上的十进制字段规范成规范串（原地赋值，不做数值运算）。 */
+const normalizeDecimalFields = (entity: Record<string, unknown>): void => {
+  for (const field of DECIMAL_FIELDS) {
+    if (field in entity && entity[field] !== undefined && entity[field] !== null) {
+      entity[field] = normalizeDecimalString(entity[field], field);
+    }
+  }
+};
+
+/** 把底层适配器错误归一为 BOM 错误类；不是 BOM 违约时原样上抛。 */
+const rethrowBomError = (cause: unknown): never => {
+  throw normalizeBomError(cause) ?? cause;
+};
+
+export class BomRepository<T extends EntityType = EntityType> extends Repository<T> {
+  override async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
+    normalizeDecimalFields(entity as unknown as Record<string, unknown>);
+    try {
+      return await super.create(entity);
+    } catch (error) {
+      return rethrowBomError(error);
+    }
+  }
+
+  override async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
+    // 规范化只在插件入口：patch 里的十进制字段同样经规范串入存储
+    for (const [field, value] of Object.entries(patch)) {
+      if ((DECIMAL_FIELDS as readonly string[]).includes(field) && value !== undefined && value !== null) {
+        (patch as Record<string, unknown>)[field] = normalizeDecimalString(value, field);
+      }
+    }
+    try {
+      return await super.update(entity, patch);
+    } catch (error) {
+      return rethrowBomError(error);
+    }
+  }
+}
