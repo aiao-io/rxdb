@@ -21,8 +21,8 @@ tags: [domain, bom, schema]
 
 | 阶段 | 内容                                                                                                                                      | 状态 |
 | ---- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| A    | `item` + `item_revision`；`serialized` 在 item、`default_phantom` 在 item_revision                                                        | ⬜   |
-| B    | `bom_header`（含 `draft` / `released` 状态）+ `bom_line`（逻辑行）+ `bom_line_occurrence`（行发生项）；`child_revision_id` NULL=imprecise | ⬜   |
+| A    | `item` + `item_revision`；`serialized` 在 item、`default_phantom` 在 item_revision                                                        | ✅   |
+| B    | `bom_header`（含 `draft` / `released` 状态）+ `bom_line`（逻辑行）+ `bom_line_occurrence`（行发生项）；`child_revision_id` NULL=imprecise | ✅   |
 | C    | `bom_line_designator` 位号子表（挂行发生项）+ 位号数与 `qty` 的一致性，在发布转移上校验                                                   | ⬜   |
 
 阶段归属：A 关闭 AC#6 / #7 / #14；B 关闭 AC#1 / #8 / #9 / #11 与 AC#10 / #13 的发生项部分；C 关闭 AC#4 / #5 / #12 与 AC#10 / #13 的位号部分。
@@ -68,20 +68,20 @@ AC#2 / #3 要 [US-508](US-508-bom-view-resolution.md) 的 imprecise 解析规则
 
 | #   | 前置条件                                                              | 操作                                                                                                                                                 | 预期结果                                                                                                                                            | 状态 |
 | --- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 父件 A、子件 B                                                        | 插入 3 条逻辑行，line_no 10/20/30，子件都是 B                                                                                                        | 3 行独立存在，不被唯一约束拒绝                                                                                                                      | ⬜   |
+| 1   | 父件 A、子件 B                                                        | 插入 3 条逻辑行，line_no 10/20/30，子件都是 B                                                                                                        | 3 行独立存在，不被唯一约束拒绝                                                                                                                      | ✅   |
 | 2   | 行发生项 `child_revision_id = NULL`                                   | 子件发布新修订                                                                                                                                       | 解析结果跟随最新发布版（imprecise）                                                                                                                 | ⬜   |
 | 3   | 行发生项锁定 D 版                                                     | 子件发布 E 版                                                                                                                                        | 解析结果仍为 D 版（precise）                                                                                                                        | ⬜   |
 | 4   | `designator_managed` 行发生项挂 100 个位号、`qty = 100`               | 查询该发生项                                                                                                                                         | 位号清单完整返回；需求量取自 `qty`，不由位号数推导                                                                                                  | ⬜   |
 | 5   | `draft` 头下一条 `designator_managed` 发生项挂 99 个位号、`qty = 100` | ① 逐条录入位号 ② 把头置 `released`（含直连 SQL）                                                                                                     | ① 允许（草稿可暂不合法）② 拒绝、整次转移回滚，错误同时给出位号数与 `qty`                                                                            | ⬜   |
-| 6   | D 版 phantom、E 版不是                                                | 分别解析两版                                                                                                                                         | `default_phantom` 随修订取值，不随物料                                                                                                              | ⬜   |
-| 7   | `item.serialized = true`                                              | 保存                                                                                                                                                 | 标记可持久化（为 US-523 实例 BOM 预留，本故事不消费）                                                                                               | ⬜   |
-| 8   | `draft` 头下逻辑行 H/10 有发生项 `[2026-01-01, 2026-10-01)` 子件 B    | 再写同一逻辑行发生项 `[2026-10-01, +∞)` 子件 B′                                                                                                      | 接受；旧发生项原值不变                                                                                                                              | ⬜   |
-| 9   | 同 #8 的第一条发生项                                                  | 再写 `[2026-09-01, +∞)`（无论子件是否相同）                                                                                                          | 拒绝：同一逻辑行发生项区间重叠                                                                                                                      | ⬜   |
-| 10  | 已发布头                                                              | 直连 SQL 改其发生项 `qty`、删位号、增不挂 `draft` ECN 的发生项                                                                                       | 全部拒绝；只放行 US-515 写入协议内的形态（首轮无 ECN，全部拒绝）                                                                                    | ⬜   |
-| 11  | 发生项 `child_item_id = B`                                            | `child_revision_id` 指向 C 的修订                                                                                                                    | 拒绝：修订不属于子件                                                                                                                                | ⬜   |
+| 6   | D 版 phantom、E 版不是                                                | 分别解析两版                                                                                                                                         | `default_phantom` 随修订取值，不随物料                                                                                                              | ✅   |
+| 7   | `item.serialized = true`                                              | 保存                                                                                                                                                 | 标记可持久化（为 US-523 实例 BOM 预留，本故事不消费）                                                                                               | ✅   |
+| 8   | `draft` 头下逻辑行 H/10 有发生项 `[2026-01-01, 2026-10-01)` 子件 B    | 再写同一逻辑行发生项 `[2026-10-01, +∞)` 子件 B′                                                                                                      | 接受；旧发生项原值不变                                                                                                                              | ✅   |
+| 9   | 同 #8 的第一条发生项                                                  | 再写 `[2026-09-01, +∞)`（无论子件是否相同）                                                                                                          | 拒绝：同一逻辑行发生项区间重叠                                                                                                                      | ✅   |
+| 10  | 已发布头                                                              | 直连 SQL 改其发生项 `qty`、删位号、增不挂 `draft` ECN 的发生项                                                                                       | 全部拒绝；只放行 US-515 写入协议内的形态（首轮无 ECN，全部拒绝）                                                                                    | ⚠️   |
+| 11  | 发生项 `child_item_id = B`                                            | `child_revision_id` 指向 C 的修订                                                                                                                    | 拒绝：修订不属于子件                                                                                                                                | ✅   |
 | 12  | 质量单位（kg）行，未声明 `designator_managed`                         | 不挂位号并发布                                                                                                                                       | 接受；位号计数规则不适用于非位号管理行                                                                                                              | ⬜   |
-| 13  | 组织 X 的 `draft` 头有 A→B，组织 Y 的 `draft` 头有 B→A                | 直连 SQL 逐一更新：Y 头的 `org_id` 改为 X、头的 `bom_type`、`parent_revision_id`、`bom_line.bom_header_id`、发生项的 `bom_line_id`、修订的 `item_id` | 全部拒绝（`BomWriteProtocolError`，点名列）；X 内不出现环。阶段 C 追加：位号改指另一发生项同样拒绝；US-510 阶段 B 落地后追加 `bom_reach` 零写入断言 | ⬜   |
-| 14  | 修订 D 已发布                                                         | 直连 SQL 改 D 的 `default_phantom`、`effective_from`                                                                                                 | 拒绝（`BomWriteProtocolError`）；改虚拟件标记须发布新修订 E                                                                                         | ⬜   |
+| 13  | 组织 X 的 `draft` 头有 A→B，组织 Y 的 `draft` 头有 B→A                | 直连 SQL 逐一更新：Y 头的 `org_id` 改为 X、头的 `bom_type`、`parent_revision_id`、`bom_line.bom_header_id`、发生项的 `bom_line_id`、修订的 `item_id` | 全部拒绝（`BomWriteProtocolError`，点名列）；X 内不出现环。阶段 C 追加：位号改指另一发生项同样拒绝；US-510 阶段 B 落地后追加 `bom_reach` 零写入断言 | ⚠️   |
+| 14  | 修订 D 已发布                                                         | 直连 SQL 改 D 的 `default_phantom`、`effective_from`                                                                                                 | 拒绝（`BomWriteProtocolError`）；改虚拟件标记须发布新修订 E                                                                                         | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -154,6 +154,12 @@ SQLite 也没有事务提交期触发器。所以落点是**状态转移**：
 
 **关闭条件**：逻辑行 `(bom_header_id, line_no)` 唯一、`(parent_revision_id, child_item_id)` 不唯一、
 同一逻辑行发生项区间不重叠，三条同时在存储层成立；结构归属列创建后不可改；位号聚合从空草稿可构造、非法不可发布、发布后不可直连改写。
+
+## 首轮切片第 1 步关闭记录（2026-10-13）
+
+阶段 A/B 已交付（`packages/rxdb-plugin-bom`）：AC#1/#6/#7/#8/#9/#11/#14 全关；
+AC#10/#13 的发生项部分已关（⚠️），位号子表部分随阶段 C（第 4 步）；AC#2/#3 随第 2 步（US-508 imprecise 解析）、
+AC#4/#5/#12 随阶段 C。AC#14 的 `released → draft` 按「发布不可逆」拒绝（决策 4），发布转移要求 `effective_from` 非空。
 
 ## 价值待证
 
