@@ -31,6 +31,18 @@ const PUBLISH_VALIDATION = (subject: string, detail: string): string =>
   `rxdb:bom_publish_validation:${subject}:${detail}`;
 const DECIMAL_FORMAT = (field: string): string => `rxdb:bom_decimal_format:${field}`;
 
+/**
+ * 判环递归 CTE 的深度硬上限（US-509 AC#3）：无闭包表时的兜底。触上限即报错，
+ * 不静默通过——脏数据（超深链）与真环都无法在受限深度内判定时，拒绝是唯一诚实的结果。
+ */
+export const BOM_CYCLE_DEPTH_LIMIT = 128;
+
+/** 环错误消息前缀（US-509「环错误码」：归一为 BomCycleError，携带路径）。 */
+const CYCLE = (path: string): string => `rxdb:bom_cycle:${path}`;
+
+/** 深度上限错误（同一前缀，路径段为空——归一为 BomCycleError 且 path 为空）。 */
+const CYCLE_DEPTH_LIMIT_MESSAGE = 'rxdb:bom_cycle:depth_limit';
+
 /** 结构归属列的不可改判据（SQLite：`IS NOT`，PG：`IS DISTINCT FROM` 的反）。 */
 const STRUCTURAL_COLUMNS: ReadonlyMap<string, readonly string[]> = new Map([
   ['BomItemRevision', ['itemId']],
@@ -87,12 +99,116 @@ const sqlitePublishTransitionTrigger = (metadata: EntityMetadata): string[] => {
   if (metadata.name !== 'BomItemRevision') return [];
   const state = column(metadata, 'state');
   const effectiveFrom = column(metadata, 'effectiveFrom');
-  const when = `OLD.${state} = 'draft' AND NEW.${state} = 'released' AND NEW.${effectiveFrom} IS NULL`;
-  const body = raiseWhen(
-    PUBLISH_VALIDATION('item_revision', '发布要求 effective_from 非空'),
-    '1'
-  );
+  const historyBatchNo = column(metadata, 'historyBatchNo');
+  const batchTable = quoteSqlIdentifier('bom$bom_history_batch');
+  const when = `OLD.${state} = 'draft' AND NEW.${state} = 'released'`;
+  // 追溯生效（US-508 AC#9）：发布当日是存储层取的 UTC 日期；指向开启态历史批次的行跳过
+  const body = [
+    raiseWhen(PUBLISH_VALIDATION('item_revision', '发布要求 effective_from 非空'), `NEW.${effectiveFrom} IS NULL`),
+    raiseWhen(
+      PUBLISH_VALIDATION('item_revision', '追溯生效被拒绝（effective_from 早于发布当日）'),
+      `NEW.${effectiveFrom} IS NOT NULL AND NEW.${effectiveFrom} < date('now') AND NOT EXISTS (SELECT 1 FROM ${batchTable} b WHERE b."batchNo" = NEW.${historyBatchNo} AND b."state" = 'open')`
+    )
+  ].join('\n');
   return [sqliteTrigger(sqliteTableRef(metadata), 'item_revision_publish', 'BEFORE UPDATE', body, when)];
+};
+
+
+/** 批次表 append-only（US-508 AC#14）：拒绝删除，UPDATE 只允许 open → closed。 */
+const sqliteHistoryBatchTriggers = (metadata: EntityMetadata): string[] => {
+  if (metadata.name !== 'BomHistoryBatch') return [];
+  const tableRef = sqliteTableRef(metadata);
+  const state = column(metadata, 'state');
+  return [
+    sqliteTrigger(
+      tableRef,
+      'bom_history_batch_append_only_d',
+      'BEFORE DELETE',
+      raiseWhen(WRITE_PROTOCOL('bom_history_batch', '批次表只追加，不允许删除'), '1')
+    ),
+    sqliteTrigger(
+      tableRef,
+      'bom_history_batch_transition_u',
+      'BEFORE UPDATE',
+      raiseWhen(
+        WRITE_PROTOCOL('bom_history_batch', '批次行不可改写，只允许 open → closed 转移'),
+        `NOT (OLD.${state} = 'open' AND NEW.${state} = 'closed')`
+      )
+    )
+  ];
+};
+
+/**
+ * 判环触发器（US-509）：同一 `(bom_type, org_id)` 内全部已存 consume 行发生项按物料级并集
+ * 判环。入口只有发生项的 INSERT 与 `child_item_id` 变化（UPDATE 按行自身排除旧边、补新边）；
+ * 自环是路径长度 0 的退化环，由同一递归命中。并集边不过滤头状态与日期——草稿头与
+ * 未生效发生项同样计入（解析不可见 ≠ 判环不可见）。
+ */
+const sqliteCycleTriggers = (metadata: EntityMetadata): string[] => {
+  if (metadata.name !== 'BomLineOccurrence') return [];
+  const tableRef = sqliteTableRef(metadata);
+  const occurrence = tableRef;
+  const line = quoteSqlIdentifier('bom$bom_line');
+  const header = quoteSqlIdentifier('bom$bom_header');
+  const revision = quoteSqlIdentifier('bom$item_revision');
+
+  // NEW 行的作用域（bom_type / org_id）与父物料——内联标量子查询：
+  // SQLite 不允许递归 CTE 的递归项子查询引用外层 CTE（`no such column: s.x`）
+  const scopeType = (row: string): string =>
+    `(SELECT h."bomType" FROM ${line} l JOIN ${header} h ON h."id" = l."headerId" WHERE l."id" = ${row}."lineId")`;
+  const scopeOrg = (row: string): string =>
+    `(SELECT h."orgId" FROM ${line} l JOIN ${header} h ON h."id" = l."headerId" WHERE l."id" = ${row}."lineId")`;
+  const parentItem = (row: string): string =>
+    `(SELECT r."itemId" FROM ${line} l JOIN ${header} h ON h."id" = l."headerId" JOIN ${revision} r ON r."id" = h."parentRevisionId" WHERE l."id" = ${row}."lineId")`;
+
+  // 并集边（物料级）：表内边排除被更新的行自身，再补 NEW 边
+  const edgesSql = (row: string): string =>
+    `SELECT r."itemId" AS parent_item_id, occ."childItemId" AS child_item_id` +
+    ` FROM ${occurrence} occ JOIN ${line} l ON l."id" = occ."lineId"` +
+    ` JOIN ${header} h ON h."id" = l."headerId" JOIN ${revision} r ON r."id" = h."parentRevisionId"` +
+    ` WHERE h."bomType" = ${scopeType(row)} AND h."orgId" = ${scopeOrg(row)} AND occ."id" IS NOT ${row}."id"` +
+    ` UNION ALL SELECT ${parentItem(row)}, ${row}."childItemId"`;
+
+  // WITH 必须在语句顶层（SQLite 不接受 `FROM (WITH ...)` 的括号形态），
+  // 末段 SELECT RAISE 在触发器体内对 verdict 行触发。
+  // 递归项到达父物料即停止延伸：路径终止于父（正是错误消息要的环路径），
+  // 多重边成环时递归不会沿环重复枚举（UNION ALL 不去重，会指数爆炸）
+  const cycleCheck = (row: string): string => {
+    const edges = edgesSql(row);
+    return [
+      `WITH reach(item_id, path, depth) AS (`,
+      `  SELECT ${row}."childItemId", CAST(${row}."childItemId" AS TEXT), 0`,
+      `  UNION ALL`,
+      `  SELECT e.child_item_id, reach.path || '>' || e.child_item_id, reach.depth + 1`,
+      `  FROM reach JOIN (${edges}) e ON e.parent_item_id = reach.item_id`,
+      `  WHERE reach.depth < ${BOM_CYCLE_DEPTH_LIMIT} AND reach.item_id <> ${parentItem(row)}`,
+      `),`,
+      `found AS (SELECT reach.path FROM reach WHERE reach.item_id = ${parentItem(row)} LIMIT 1),`,
+      `truncated AS (`,
+      `  SELECT 1 AS hit FROM reach JOIN (${edges}) e ON e.parent_item_id = reach.item_id`,
+      `  WHERE reach.depth >= ${BOM_CYCLE_DEPTH_LIMIT} LIMIT 1`,
+      `),`,
+      `verdict AS (`,
+      `  SELECT CASE WHEN EXISTS (SELECT 1 FROM found)` +
+        ` THEN (SELECT '${CYCLE('')}' || path FROM found)` +
+        ` WHEN EXISTS (SELECT 1 FROM truncated) THEN '${CYCLE_DEPTH_LIMIT_MESSAGE}' END AS msg`,
+      `)`,
+      `SELECT RAISE(ABORT, verdict.msg) FROM verdict WHERE verdict.msg IS NOT NULL`
+    ].join('\n');
+  };
+
+  const body = (row: string): string => `  ${cycleCheck(row)};`;
+
+  return [
+    sqliteTrigger(tableRef, 'bom_line_occurrence_cycle_i', 'BEFORE INSERT', body('NEW')),
+    sqliteTrigger(
+      tableRef,
+      'bom_line_occurrence_cycle_u',
+      'BEFORE UPDATE',
+      body('NEW'),
+      `NEW."childItemId" IS NOT OLD."childItemId"`
+    )
+  ];
 };
 
 const sqliteReleasedHeaderMembersGuard = (metadata: EntityMetadata): string[] => {
@@ -157,8 +273,10 @@ export const buildSqliteBomTriggerDdl = (metadata: EntityMetadata): string[] => 
   ...sqliteStructuralTrigger(metadata),
   ...sqlitePublishedRevisionTrigger(metadata),
   ...sqlitePublishTransitionTrigger(metadata),
+  ...sqliteHistoryBatchTriggers(metadata),
   ...sqliteReleasedHeaderMembersGuard(metadata),
-  ...sqliteDecimalFormatTriggers(metadata)
+  ...sqliteDecimalFormatTriggers(metadata),
+  ...sqliteCycleTriggers(metadata)
 ];
 
 // -----------------------------------------------------[ PGlite ]
@@ -225,13 +343,102 @@ const pgPublishTransitionFunction = (metadata: EntityMetadata): string[] => {
   if (metadata.name !== 'BomItemRevision') return [];
   const state = column(metadata, 'state');
   const effectiveFrom = column(metadata, 'effectiveFrom');
+  const historyBatchNo = column(metadata, 'historyBatchNo');
+  const batchTable = pgNamedTable(metadata, 'bom_history_batch');
   const body =
-    `  IF OLD.${state} = 'draft' AND NEW.${state} = 'released' AND NEW.${effectiveFrom} IS NULL THEN\n` +
-    `    RAISE EXCEPTION '${PUBLISH_VALIDATION('item_revision', '发布要求 effective_from 非空')}';\n  END IF;`;
+    `  IF OLD.${state} = 'draft' AND NEW.${state} = 'released' THEN\n` +
+    `    IF NEW.${effectiveFrom} IS NULL THEN\n` +
+    `      RAISE EXCEPTION '${PUBLISH_VALIDATION('item_revision', '发布要求 effective_from 非空')}';\n` +
+    `    END IF;\n` +
+    `    IF NEW.${effectiveFrom} < (now() AT TIME ZONE 'UTC')::date AND NOT EXISTS (` +
+    `SELECT 1 FROM ${batchTable} b WHERE b."batchNo" = NEW.${historyBatchNo} AND b."state" = 'open') THEN\n` +
+    `      RAISE EXCEPTION '${PUBLISH_VALIDATION('item_revision', '追溯生效被拒绝（effective_from 早于发布当日）')}';\n` +
+    `    END IF;\n` +
+    `  END IF;`;
   const tableRef = pgTableRef(metadata);
   return [
     `${pgFunctionHeader(metadata, 'item_revision__publish_guard')}\n${body}${pgFunctionFooter}`,
     pgCreateTrigger(metadata, tableRef, 'item_revision__publish_trg', 'BEFORE UPDATE', 'item_revision__publish_guard')
+  ];
+};
+
+
+const pgHistoryBatchFunction = (metadata: EntityMetadata): string[] => {
+  if (metadata.name !== 'BomHistoryBatch') return [];
+  const state = column(metadata, 'state');
+  const body =
+    `  IF TG_OP = 'DELETE' THEN\n` +
+    `    RAISE EXCEPTION '${WRITE_PROTOCOL('bom_history_batch', '批次表只追加，不允许删除')}';\n` +
+    `  END IF;\n` +
+    `  IF TG_OP = 'UPDATE' AND NOT (OLD.${state} = 'open' AND NEW.${state} = 'closed') THEN\n` +
+    `    RAISE EXCEPTION '${WRITE_PROTOCOL('bom_history_batch', '批次行不可改写，只允许 open → closed 转移')}';\n` +
+    `  END IF;`;
+  const tableRef = pgTableRef(metadata);
+  return [
+    `${pgFunctionHeader(metadata, 'bom_history_batch__append_guard')}\n${body}${pgFunctionFooter}`,
+    pgCreateTrigger(metadata, tableRef, 'bom_history_batch__append_trg', 'BEFORE DELETE OR UPDATE', 'bom_history_batch__append_guard')
+  ];
+};
+
+/**
+ * PG 判环触发器函数（US-509）：与 SQLite 同口径——同一 `(bom_type, org_id)` 物料级并集、
+ * 行自身排除 + NEW 边补充、深度硬上限、三态判定。
+ */
+const pgCycleFunction = (metadata: EntityMetadata): string[] => {
+  if (metadata.name !== 'BomLineOccurrence') return [];
+  const tableRef = pgTableRef(metadata);
+  const occurrence = tableRef;
+  const line = pgNamedTable(metadata, 'bom_line');
+  const header = pgNamedTable(metadata, 'bom_header');
+  const revision = pgNamedTable(metadata, 'item_revision');
+  const limit = BOM_CYCLE_DEPTH_LIMIT;
+
+  // 递归 CTE 的递归项子查询里引用不了兄弟 CTE（PG 报 missing FROM-clause，SQLite 报
+  // no such column）——作用域三元组（bomType / orgId / parentItemId）一律内联成标量子查询，
+  // 与 SQLite 触发器同口径；PG 递归 CTE 还必须写 RECURSIVE 关键字，裸 WITH 的自引用会被
+  // 当成普通表查找（relation "reach" does not exist）
+  const scopeType =
+    `(SELECT h."bomType" FROM ${line} l JOIN ${header} h ON h."id" = l."headerId" WHERE l."id" = NEW."lineId")`;
+  const scopeOrg =
+    `(SELECT h."orgId" FROM ${line} l JOIN ${header} h ON h."id" = l."headerId" WHERE l."id" = NEW."lineId")`;
+  const parentItem =
+    `(SELECT r."itemId" FROM ${line} l JOIN ${header} h ON h."id" = l."headerId" JOIN ${revision} r ON r."id" = h."parentRevisionId" WHERE l."id" = NEW."lineId")`;
+
+  // 并集边（物料级）：表内边排除被更新的行自身，再补 NEW 边
+  const edgesSql =
+    `SELECT r."itemId" AS parent_item_id, occ."childItemId" AS child_item_id` +
+    ` FROM ${occurrence} occ JOIN ${line} l ON l."id" = occ."lineId"` +
+    ` JOIN ${header} h ON h."id" = l."headerId" JOIN ${revision} r ON r."id" = h."parentRevisionId"` +
+    ` WHERE h."bomType" = ${scopeType} AND h."orgId" = ${scopeOrg} AND occ."id" IS DISTINCT FROM NEW."id"` +
+    ` UNION ALL SELECT ${parentItem}, NEW."childItemId"`;
+
+  const body =
+    `  IF TG_OP = 'UPDATE' AND OLD."childItemId" IS NOT DISTINCT FROM NEW."childItemId" THEN\n` +
+    `    RETURN NEW;\n` +
+    `  END IF;\n` +
+    `  WITH RECURSIVE reach(item_id, path, depth) AS (\n` +
+    `    SELECT NEW."childItemId", NEW."childItemId"::text, 0\n` +
+    `    UNION ALL\n` +
+    `    SELECT e.child_item_id, reach.path || '>' || e.child_item_id, reach.depth + 1\n` +
+    `    FROM reach JOIN (${edgesSql}) e ON e.parent_item_id = reach.item_id\n` +
+    `    WHERE reach.depth < ${limit} AND reach.item_id <> ${parentItem}\n` +
+    `  ),\n` +
+    `  found AS (SELECT reach.path FROM reach WHERE reach.item_id = ${parentItem} LIMIT 1),\n` +
+    `  truncated AS (SELECT 1 AS hit FROM reach JOIN (${edgesSql}) e ON e.parent_item_id = reach.item_id WHERE reach.depth >= ${limit} LIMIT 1)\n` +
+    `  SELECT CASE\n` +
+    `    WHEN EXISTS (SELECT 1 FROM found) THEN '${CYCLE('')}' || (SELECT path FROM found)\n` +
+    `    WHEN EXISTS (SELECT 1 FROM truncated) THEN '${CYCLE_DEPTH_LIMIT_MESSAGE}'\n` +
+    `  END INTO msg FROM (SELECT 1) AS seed;\n` +
+    `  IF msg IS NOT NULL THEN\n` +
+    `    RAISE EXCEPTION '%', msg;\n` +
+    `  END IF;`;
+
+  // DECLARE 必须在 BEGIN 之前（plpgsql 块结构），函数头单独拼
+  const functionHeader = `CREATE OR REPLACE FUNCTION ${quoteSqlIdentifier(metadata.namespace)}.${quoteSqlIdentifier('bom_line_occurrence__cycle_guard')}() RETURNS trigger AS $$\nDECLARE msg text;\nBEGIN`;
+  const functionFooter = `\n  RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql;`;
+  return [
+    `${functionHeader}\n${body}${functionFooter}`,
+    pgCreateTrigger(metadata, tableRef, 'bom_line_occurrence__cycle_trg', 'BEFORE INSERT OR UPDATE', 'bom_line_occurrence__cycle_guard')
   ];
 };
 
@@ -274,6 +481,8 @@ export const buildPgBomTriggerDdl = (metadata: EntityMetadata): string[] => [
   ...pgStructuralFunction(metadata),
   ...pgPublishedRevisionFunction(metadata),
   ...pgPublishTransitionFunction(metadata),
+  ...pgHistoryBatchFunction(metadata),
   ...pgReleasedHeaderMembersFunction(metadata),
-  ...pgDecimalFormatFunction(metadata)
+  ...pgDecimalFormatFunction(metadata),
+  ...pgCycleFunction(metadata)
 ];

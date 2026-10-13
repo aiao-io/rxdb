@@ -75,9 +75,74 @@ export class BomDecimalFormatError extends BomError {
 export class BomBackendCapabilityError extends BomError {
   constructor(
     /** 适配器名。 */
-    readonly adapterName: string
+    readonly adapterName: string,
+    /** 能力缺席的具体说明（如「无写入期环约束」）。 */
+    reason?: string
   ) {
-    super(`适配器 ${adapterName} 没有可用的 BOM 存储后端（支持 sqlite 家族与 pglite）`, 'BomBackendCapabilityError');
+    super(
+      `适配器 ${adapterName} 没有可用的 BOM 存储后端${reason ? `：${reason}` : ''}（支持 sqlite 家族与 pglite）`,
+      'BomBackendCapabilityError'
+    );
+  }
+}
+
+/**
+ * 环违约（US-509）：写入期被存储层判环拒绝。
+ *
+ * @remarks
+ * 路径是**物料级**并集图上的路径（item id 序列，首尾可能为同一物料）；自环是
+ * 路径长度 0 的退化环（路径 = 单个物料）。`unionOnly` 是插件 API 层的补充标记：
+ * 路径上不存在所有边同时生效的时点（保守政策的跨时段误拒），直连 SQL 被拒时
+ * 只有错误码与路径，没有这个标记（有意的）。
+ */
+export class BomCycleError extends BomError {
+  constructor(
+    /** 环路径（物料 id 序列）。 */
+    readonly path: string[],
+    /** 是否只是并集环（路径上无边同时生效）。 */
+    readonly unionOnly: boolean = false
+  ) {
+    super(`检测到环：${path.join(' → ')}`, 'BomCycleError');
+  }
+}
+
+/**
+ * BOM 实体声明同步配置（US-509 AC#12）：首轮不参与同步，配置校验即拒绝。
+ */
+export class BomSyncUnsupportedError extends BomError {
+  constructor(
+    /** 实体名。 */
+    readonly entity: string
+  ) {
+    super(`实体 ${entity} 声明了同步配置：BOM 实体首轮不参与同步（多写入端的环约束由 US-509 的本地触发器保证）`, 'BomSyncUnsupportedError');
+  }
+}
+
+/**
+ * 展开 / 反查的截断原因（US-510 AC#1/#10）：深度、展开数、返回路径数任一触顶，或调用方取消。
+ */
+export type TruncationReason = 'depth' | 'expansions' | 'paths' | 'cancelled';
+
+const TRUNCATION_REASON_TEXT: Record<TruncationReason, string> = {
+  depth: '深度触顶',
+  expansions: '展开数触顶',
+  paths: '返回路径数触顶',
+  cancelled: '调用方取消'
+};
+
+/**
+ * 展开 / 反查结果被截断（US-510 AC#11）：截断结果不是完整结果，
+ * 数量 / 成本 / 导出等消费方必须拒绝，不得把部分结果当完整结构。
+ */
+export class BomTruncationError extends BomError {
+  constructor(
+    /** 触顶的预算项。 */
+    readonly reason: TruncationReason
+  ) {
+    super(
+      `结果被截断（${reason}：${TRUNCATION_REASON_TEXT[reason]}）；截断结果不是完整结果，数量 / 成本 / 导出不得消费`,
+      'BomTruncationError'
+    );
   }
 }
 
@@ -87,6 +152,8 @@ export const BOM_WRITE_PROTOCOL_PREFIX = 'rxdb:bom_write_protocol:';
 export const BOM_PUBLISH_VALIDATION_PREFIX = 'rxdb:bom_publish_validation:';
 /** SQLite 触发器消息前缀：十进制格式。 */
 export const BOM_DECIMAL_FORMAT_PREFIX = 'rxdb:bom_decimal_format:';
+/** SQLite 触发器消息前缀：判环（路径以 `>` 串起物料 id；深度上限消息无路径段）。 */
+export const BOM_CYCLE_PREFIX = 'rxdb:bom_cycle:';
 
 /**
  * 沿 `cause` 链收集消息文本（适配器包装错误把原生消息藏在内层）。
@@ -110,6 +177,12 @@ const causeChainMessages = (cause: unknown): string =>
  */
 export const normalizeBomError = (cause: unknown): BomError | undefined => {
   const message = causeChainMessages(cause);
+  if (message.includes(BOM_CYCLE_PREFIX)) {
+    const payload = message.split(BOM_CYCLE_PREFIX)[1]?.split(/[\n']/)[0]?.trim() ?? '';
+    // 深度上限消息不带路径段；真环路径以 `>` 分隔
+    const path = payload.length > 0 && payload !== 'depth_limit' ? payload.split('>') : [];
+    return new BomCycleError(path);
+  }
   if (message.includes(BOM_DECIMAL_FORMAT_PREFIX)) {
     const field = message.split(BOM_DECIMAL_FORMAT_PREFIX)[1]?.split(/[:']/)[0] ?? 'qty';
     return new BomDecimalFormatError(field, '存储层拒绝非规范十进制串');

@@ -7,9 +7,10 @@
  */
 
 import { Repository } from '@aiao/rxdb';
-import type { EntityType } from '@aiao/rxdb';
+import type { EntityType, RxDB } from '@aiao/rxdb';
 import { normalizeDecimalString } from './decimal.utils.js';
-import { normalizeBomError } from './types.js';
+import { attachUnionOnlyMark } from './resolve/cycle-analysis.js';
+import { BomCycleError, normalizeBomError } from './types.js';
 
 /** 需要入口规范化的十进制字段（后续故事按十进制值合同扩列）。 */
 const DECIMAL_FIELDS = ['qty'] as const;
@@ -23,9 +24,22 @@ const normalizeDecimalFields = (entity: Record<string, unknown>): void => {
   }
 };
 
-/** 把底层适配器错误归一为 BOM 错误类；不是 BOM 违约时原样上抛。 */
-const rethrowBomError = (cause: unknown): never => {
-  throw normalizeBomError(cause) ?? cause;
+/**
+ * 把底层适配器错误归一为 BOM 错误类；不是 BOM 违约时原样上抛。
+ * 环错误附加 `unionOnly` 标记（US-509 AC#9：并集环与真环的区分只服务于产品判断）。
+ */
+const rethrowBomError = async (rxdb: RxDB, cause: unknown, attempted?: Record<string, unknown>): Promise<never> => {
+  const normalized = normalizeBomError(cause) ?? cause;
+  if (normalized instanceof BomCycleError) {
+    const interval = attempted ?
+      {
+        from: attempted['effectiveFrom'] instanceof Date ? (attempted['effectiveFrom'] as Date).getTime() : null,
+        to: attempted['effectiveTo'] instanceof Date ? (attempted['effectiveTo'] as Date).getTime() : null
+      }
+    : undefined;
+    throw await attachUnionOnlyMark(rxdb, normalized, interval);
+  }
+  throw normalized;
 };
 
 export class BomRepository<T extends EntityType = EntityType> extends Repository<T> {
@@ -34,7 +48,7 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
     try {
       return await super.create(entity);
     } catch (error) {
-      return rethrowBomError(error);
+      return await rethrowBomError(this.rxdb, error, entity as unknown as Record<string, unknown>);
     }
   }
 
@@ -48,7 +62,7 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
     try {
       return await super.update(entity, patch);
     } catch (error) {
-      return rethrowBomError(error);
+      return await rethrowBomError(this.rxdb, error, entity as unknown as Record<string, unknown>);
     }
   }
 }

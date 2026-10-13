@@ -50,7 +50,9 @@ export class BomItem extends EntityBase {
     { name: 'state', type: PropertyType.enum, enum: ['draft', 'released'], default: 'draft' },
     { name: 'effectiveFrom', type: PropertyType.date, nullable: true },
     // 随修订走的属性挂 item_revision（US-507 AC#6）
-    { name: 'defaultPhantom', type: PropertyType.boolean, default: false }
+    { name: 'defaultPhantom', type: PropertyType.boolean, default: false },
+    // 历史装载批次的批次号（US-508 历史装载通道）；直连发布恒空
+    { name: 'historyBatchNo', type: PropertyType.string, nullable: true }
   ],
   relations: [
     {
@@ -60,8 +62,25 @@ export class BomItem extends EntityBase {
       mappedProperty: 'revisions'
     }
   ],
-  // 组合外键（发生项的 `(childItemId, childRevisionId)`）引用 `(itemId, id)` 的唯一性
-  indexes: [{ name: 'item_id_id', properties: ['itemId', 'id'], unique: true }]
+  foreignKeys: [
+    {
+      name: 'revision_history_batch',
+      properties: ['historyBatchNo'],
+      mappedEntity: 'BomHistoryBatch',
+      mappedProperties: ['batchNo']
+    }
+  ],
+  indexes: [
+    // 组合外键（发生项的 `(childItemId, childRevisionId)`）引用 `(itemId, id)` 的唯一性
+    { name: 'item_id_id', properties: ['itemId', 'id'], unique: true },
+    // US-508 AC#10：同一物料已发布修订的 effective_from 唯一（「最新修订」不唯一的非法态在发布时拒绝）
+    {
+      name: 'released_effective_from',
+      properties: ['itemId', 'effectiveFrom'],
+      unique: true,
+      where: { combinator: 'and', rules: [{ field: 'state', operator: '=', value: 'released' }] }
+    }
+  ]
 })
 export class BomItemRevision extends EntityBase {
   revisionNo!: string;
@@ -69,6 +88,7 @@ export class BomItemRevision extends EntityBase {
   effectiveFrom!: Date | null;
   defaultPhantom!: boolean;
   itemId!: string;
+  historyBatchNo!: string | null;
 }
 
 /**
@@ -87,7 +107,9 @@ export class BomItemRevision extends EntityBase {
     { name: 'bomType', type: PropertyType.enum, enum: ['ebom', 'mbom', 'sales'] },
     { name: 'orgId', type: PropertyType.string },
     { name: 'alternativeNo', type: PropertyType.integer, default: 1 },
-    { name: 'state', type: PropertyType.enum, enum: ['draft', 'released'], default: 'draft' }
+    { name: 'state', type: PropertyType.enum, enum: ['draft', 'released'], default: 'draft' },
+    // 历史装载批次的批次号（US-508 历史装载通道）；直连发布恒空
+    { name: 'historyBatchNo', type: PropertyType.string, nullable: true }
   ],
   relations: [
     {
@@ -95,6 +117,14 @@ export class BomItemRevision extends EntityBase {
       kind: RelationKind.MANY_TO_ONE,
       mappedEntity: 'BomItemRevision',
       mappedProperty: 'headers'
+    }
+  ],
+  foreignKeys: [
+    {
+      name: 'header_history_batch',
+      properties: ['historyBatchNo'],
+      mappedEntity: 'BomHistoryBatch',
+      mappedProperties: ['batchNo']
     }
   ],
   indexes: [
@@ -111,6 +141,31 @@ export class BomHeader extends EntityBase {
   alternativeNo!: number;
   state!: 'draft' | 'released';
   parentRevisionId!: string;
+  historyBatchNo!: string | null;
+}
+
+/**
+ * 历史装载批次（`bom$bom_history_batch`，US-508 历史装载通道）。
+ *
+ * @remarks
+ * `loadHistory` 一次事务：建开启态批次 → 写 draft 修订/头（盖批次号）→ 发布转移
+ * （触发器只对开启态批次跳过追溯检查）→ 关闭批次。批次号由调用方给定（确定性，AC#18）；
+ * 批次表只追加：拒绝删除，UPDATE 只允许 `open → closed` 转移（AC#14）。
+ */
+@Entity({
+  name: 'BomHistoryBatch',
+  namespace: 'bom',
+  tableName: 'bom_history_batch',
+  repository: 'BomRepository',
+  properties: [
+    // 主键仍是 EntityBase 的 uuid id；批次号由调用方给定、经唯一索引约束确定性（AC#18）
+    { name: 'batchNo', type: PropertyType.string, unique: true },
+    { name: 'state', type: PropertyType.enum, enum: ['open', 'closed'], default: 'open' }
+  ]
+})
+export class BomHistoryBatch extends EntityBase {
+  batchNo!: string;
+  state!: 'open' | 'closed';
 }
 
 /**
@@ -211,4 +266,4 @@ export class BomLineOccurrence extends EntityBase {
 }
 
 /** BOM 实体全集（触发器安装按此清单在 schema 里找实体）。 */
-export const BOM_ENTITIES = [BomItem, BomItemRevision, BomHeader, BomLine, BomLineOccurrence] as const;
+export const BOM_ENTITIES = [BomItem, BomItemRevision, BomHeader, BomHistoryBatch, BomLine, BomLineOccurrence] as const;

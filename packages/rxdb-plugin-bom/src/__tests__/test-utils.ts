@@ -14,8 +14,16 @@ export type BomTestBackend = 'wa-sqlite' | 'pglite';
 export type BomTestAdapter = RxDBAdapterWaSqlite | RxDBAdapterPGlite;
 
 /** 建一个已连接、已装 BOM 插件与全部 BOM 实体的数据库。 */
-export const createBomTestAdapter = async (backend: BomTestBackend, entities: readonly EntityType[] = BOM_ENTITIES): Promise<BomTestAdapter> => {
-  const dbName = `bom-test-${backend}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+export const createBomTestAdapter = async (
+  backend: BomTestBackend,
+  entities: readonly EntityType[] = BOM_ENTITIES,
+  options: { dbName?: string; persistent?: boolean } = {}
+): Promise<BomTestAdapter> => {
+  // 固定 dbName 用于「两个连接同一份存储」的快照一致性场景；persistent 走 IDBBatchAtomicVFS
+  // （按名共享），memory 走 MemoryAsyncVFS（按实例独立）
+  const dbName =
+    options.dbName ??
+    `bom-test-${backend}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const rxdb = new RxDB({
     dbName,
     entities: [...entities],
@@ -26,7 +34,7 @@ export const createBomTestAdapter = async (backend: BomTestBackend, entities: re
   rxdb.adapter(backend, db => {
     if (backend === 'wa-sqlite') {
       adapter = new RxDBAdapterWaSqlite(db, {
-        vfs: 'MemoryAsyncVFS',
+        vfs: options.persistent ? 'IDBBatchAtomicVFS' : 'MemoryAsyncVFS',
         async: true,
         worker: false,
         wasmPath: asyncWasmPath,

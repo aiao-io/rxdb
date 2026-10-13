@@ -8,13 +8,26 @@
  * DDL 幂等（`IF NOT EXISTS` / `CREATE OR REPLACE`），重连不产生第二份对象。
  */
 
+import { SyncType } from '@aiao/rxdb';
 import type { EntityType, IRxDBPlugin, Plugin, RxDB } from '@aiao/rxdb';
 import { getEntityMetadata, RxDBPluginBase } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
+import { firstValueFrom } from 'rxjs';
 import { buildPgBomTriggerDdl, buildSqliteBomTriggerDdl } from './backend/bom-trigger-ddl.js';
+import { cycleConstraintDdlForRemotePg } from './resolve/cycle-constraint-ddl.js';
+import {
+  expandBom as runExpandBom,
+  whereUsed as runWhereUsed,
+  type ExpansionOptions,
+  type ExpansionResult,
+  type WhereUsedTarget
+} from './resolve/expansion.js';
+import { loadHistory, type HistoryBatchInput } from './resolve/history-loader.js';
+import { resolveBom, type ResolveTarget } from './resolve/resolver.js';
+import type { ResolutionContext, ResolutionResult } from './resolve/resolution.js';
 import { BOM_ENTITIES } from './entities.js';
 import { BomRepository } from './repository.js';
-import { BomBackendCapabilityError } from './types.js';
+import { BomBackendCapabilityError, BomSyncUnsupportedError } from './types.js';
 
 /** SQLite 家族适配器名（与各适配器包的 `ADAPTER_NAME` 一致）。 */
 const SQLITE_ADAPTER_NAMES: ReadonlySet<string> = new Set([
@@ -26,12 +39,32 @@ const SQLITE_ADAPTER_NAMES: ReadonlySet<string> = new Set([
   'sqlite-electron'
 ]);
 
-type BomTriggerDdlBuilder = (metadata: ReturnType<typeof getEntityMetadata>) => string[];
+export type BomTriggerDdlBuilder = (metadata: ReturnType<typeof getEntityMetadata>) => string[];
 
-/** 按适配器名解析后端 DDL 构造器；不认识的后端显式拒绝，不静默降级。 */
-const resolveBomBackend = (adapterName: string | undefined): BomTriggerDdlBuilder => {
+/**
+ * US-509 AC#12 的校验函数（导出供单测）：BOM 实体生效的同步策略必须为 `None`。
+ */
+export const assertBomSyncNotDeclared = (
+  entitySync: { resolve(metadata: ReturnType<typeof getEntityMetadata>): { type: SyncType } | undefined },
+  entities: readonly EntityType[]
+): void => {
+  for (const EntityType of entities) {
+    const metadata = getEntityMetadata(EntityType);
+    const sync = entitySync.resolve(metadata);
+    if (sync && sync.type !== SyncType.None) {
+      throw new BomSyncUnsupportedError(metadata.name);
+    }
+  }
+};
+
+/** 按适配器名解析后端 DDL 构造器；不认识的后端显式拒绝，不静默降级（导出供 AC#6 单测）。 */
+export const resolveBomBackend = (adapterName: string | undefined): BomTriggerDdlBuilder => {
   if (adapterName === 'pglite') return buildPgBomTriggerDdl;
   if (adapterName && SQLITE_ADAPTER_NAMES.has(adapterName)) return buildSqliteBomTriggerDdl;
+  if (adapterName === 'http' || adapterName === 'supabase') {
+    // US-509 AC#6：DDL 在远端，本仓发不出写入期环约束——显式声明能力缺席并 fail-fast
+    throw new BomBackendCapabilityError(adapterName, '无写入期环约束（DDL 在远端），可经 cycleConstraintDdlForRemotePg() 导出 DDL 自行部署');
+  }
   throw new BomBackendCapabilityError(adapterName ?? '(no local adapter)');
 };
 
@@ -45,6 +78,41 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
     // 仓储注册必须在 use() 期完成：实体校验（EntityManager.init）先于适配器连接跑，
     // 而 `inject: ['adapter:local']` 把 install() 推迟到连接之后，晚于那个时点
     this.rxdb.repository('BomRepository', { class: BomRepository });
+  }
+
+  /**
+   * 按显式解析上下文解析出唯一一份有效行集（US-508）。
+   */
+  resolve(context: ResolutionContext, target: ResolveTarget): Promise<ResolutionResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => resolveBom(adapter, context, target));
+  }
+
+  /**
+   * 历史装载：一次事务写入已发布修订 / 头 / 行（US-508 AC#13/#14/#18）。
+   */
+  loadHistory(batch: HistoryBatchInput): Promise<void> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => loadHistory(adapter, batch));
+  }
+
+  /**
+   * 远端 PostgreSQL 的写入期环约束 DDL（US-509 AC#7，部署与否由使用方负责）。
+   */
+  cycleConstraintDdlForRemotePg(): string {
+    return cycleConstraintDdlForRemotePg();
+  }
+
+  /**
+   * 多级展开（下钻，US-510 阶段 A）：返回各级子件、层级与路径，预算触顶带 `truncated`。
+   */
+  expandBom(context: ResolutionContext, target: ResolveTarget, options?: ExpansionOptions): Promise<ExpansionResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runExpandBom(adapter, context, target, options));
+  }
+
+  /**
+   * where-used 反查（US-510 阶段 A）：返回使用给定子件的父件与路径，预算触顶带 `truncated`。
+   */
+  whereUsed(context: ResolutionContext, target: WhereUsedTarget, options?: ExpansionOptions): Promise<ExpansionResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runWhereUsed(adapter, context, target, options));
   }
 
   install(scope: LifecycleScope): Promise<void> {
@@ -63,6 +131,11 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
     const presentEntities = BOM_ENTITIES.filter(EntityType =>
       (this.rxdb.config.entities as readonly EntityType[]).includes(EntityType)
     );
+    // US-509 AC#12：BOM 实体首轮不参与同步——多写入端会绕过本地写入期环约束，
+    // 离线两端分别写反向边合并成环的场景没有检测手段，配置校验即拒绝
+    if (this.rxdb.entitySync) {
+      assertBomSyncNotDeclared(this.rxdb.entitySync, presentEntities);
+    }
     for (const EntityType of presentEntities) {
       if (scope.state !== 'active') return;
       const statements = buildDdl(getEntityMetadata(EntityType));

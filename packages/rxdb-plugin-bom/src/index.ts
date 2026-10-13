@@ -6,18 +6,53 @@
  * 存储层触发器（写入协议 / 结构列不可改 / 十进制格式）。
  */
 
-export { BOM_ENTITIES, BomHeader, BomItem, BomItemRevision, BomLine, BomLineOccurrence } from './entities.js';
+export { BOM_ENTITIES, BomHeader, BomHistoryBatch, BomItem, BomItemRevision, BomLine, BomLineOccurrence } from './entities.js';
 export { DECIMAL_CANONICAL_RE, DECIMAL_MAX_SIGNIFICANT_DIGITS, normalizeDecimalString } from './decimal.utils.js';
 export { BomRepository } from './repository.js';
 export {
+  BOM_CYCLE_PREFIX,
   BOM_DECIMAL_FORMAT_PREFIX,
   BOM_PUBLISH_VALIDATION_PREFIX,
   BOM_WRITE_PROTOCOL_PREFIX,
   BomBackendCapabilityError,
+  BomCycleError,
   BomDecimalFormatError,
   BomError,
   BomPublishValidationError,
+  BomSyncUnsupportedError,
+  BomTruncationError,
   BomWriteProtocolError,
-  normalizeBomError
+  normalizeBomError,
+  type TruncationReason
 } from './types.js';
+export { BOM_CYCLE_DEPTH_LIMIT } from './backend/bom-trigger-ddl.js';
 export { rxDBPluginBom, RxDBPluginBom } from './plugin.js';
+export {
+  BomResolutionError,
+  type BomType,
+  type ResolutionContext,
+  type ResolutionManifest,
+  type ResolutionResult,
+  type ResolvedLineOccurrence,
+  type UnresolvedAlternative
+} from './resolve/resolution.js';
+export { resolveBom, type ResolveTarget } from './resolve/resolver.js';
+export {
+  assertCompleteResolution,
+  expandBom,
+  whereUsed,
+  type ExpansionBudgets,
+  type ExpansionNode,
+  type ExpansionOptions,
+  type ExpansionResult,
+  type WhereUsedTarget
+} from './resolve/expansion.js';
+export {
+  loadHistory,
+  type HistoryBatchInput,
+  type HistoryHeaderInput,
+  type HistoryOccurrenceInput,
+  type HistoryRevisionInput
+} from './resolve/history-loader.js';
+export { bomSqlDialectFor, pgliteBomDialect, sqliteBomDialect, type BomSqlDialect } from './resolve/bom-sql.js';
+export { cycleConstraintDdlForRemotePg } from './resolve/cycle-constraint-ddl.js';

@@ -79,6 +79,14 @@ const addLine = async (header: BomHeader, lineNo: number): Promise<BomLine> => {
   return line;
 };
 
+/** 建一个独立子件物料（US-509 判环落地后，发生项子件不得是父物料自身）。 */
+const makeChildItem = async (prefix: string): Promise<BomItem> => {
+  const item = new BomItem();
+  item.itemNo = `${prefix}-${Math.random().toString(36).slice(2, 8)}`;
+  await item.save();
+  return item;
+};
+
 /** 在逻辑行下建一个（未保存的）发生项。 */
 const makeOccurrence = (line: BomLine, item: BomItem, overrides: Partial<BomLineOccurrence> = {}): BomLineOccurrence => {
   const occurrence = new BomLineOccurrence();
@@ -104,10 +112,11 @@ for (const backend of BACKENDS) {
     });
 
     it('同一子件可挂多条逻辑行（AC#1）', async () => {
-      const { item, header } = await setup();
+      const { header } = await setup();
+      const child = await makeChildItem('multi-line-child');
       for (const lineNo of [10, 20, 30]) {
         const line = await addLine(header, lineNo);
-        await makeOccurrence(line, item).save();
+        await makeOccurrence(line, child).save();
       }
       const lines = await firstValueFrom(
         BomLine.find({ where: { combinator: 'and', rules: [{ field: 'headerId', operator: '=', value: header.id }] } })
@@ -139,23 +148,25 @@ for (const backend of BACKENDS) {
     });
 
     it('相邻发生项接受、重叠拒绝（AC#8/#9）', async () => {
-      const { item, header } = await setup();
+      const { header } = await setup();
+      const child = await makeChildItem('adjacent-child');
       const line = await addLine(header, 10);
 
-      const first = makeOccurrence(line, item, { effectiveTo: day('2026-10-01') });
+      const first = makeOccurrence(line, child, { effectiveTo: day('2026-10-01') });
       await first.save();
 
-      const adjacent = makeOccurrence(line, item, { effectiveFrom: day('2026-10-01'), effectiveTo: null });
+      const adjacent = makeOccurrence(line, child, { effectiveFrom: day('2026-10-01'), effectiveTo: null });
       await expect(adjacent.save()).resolves.toBeDefined();
 
-      const overlap = makeOccurrence(line, item, { effectiveFrom: day('2026-09-01'), effectiveTo: null });
+      const overlap = makeOccurrence(line, child, { effectiveFrom: day('2026-09-01'), effectiveTo: null });
       await expect(overlap.save()).rejects.toBeInstanceOf(RxDBExclusionViolationError);
     });
 
     it('已发布头的成员写入全部拒绝（AC#10 首轮）', async () => {
-      const { item, header } = await setup();
+      const { header } = await setup();
+      const child = await makeChildItem('released-child');
       const line = await addLine(header, 10);
-      await makeOccurrence(line, item).save();
+      await makeOccurrence(line, child).save();
       header.state = 'released';
       await header.save();
 
@@ -170,7 +181,7 @@ for (const backend of BACKENDS) {
       expect(direct.ok).toBe(false);
       expect(String((direct as { error: Error }).error.message)).toContain('rxdb:bom_write_protocol');
 
-      await expect(makeOccurrence(line, item, { effectiveFrom: day('2026-02-01') }).save()).rejects.toBeInstanceOf(
+      await expect(makeOccurrence(line, child, { effectiveFrom: day('2026-02-01') }).save()).rejects.toBeInstanceOf(
         BomWriteProtocolError
       );
 
@@ -183,17 +194,17 @@ for (const backend of BACKENDS) {
     });
 
     it('修订必须属于子件（AC#11）', async () => {
-      const { item, header } = await setup();
-      const other = new BomItem();
-      other.itemNo = `other-${Math.random().toString(36).slice(2, 8)}`;
-      await other.save();
+      const { header } = await setup();
+      const child = await makeChildItem('belong-child');
+      const other = await makeChildItem('belong-other');
       const otherRevision = new BomItemRevision();
       otherRevision.revisionNo = 'A';
       otherRevision.itemId = other.id;
       await otherRevision.save();
 
       const line = await addLine(header, 10);
-      const occurrence = makeOccurrence(line, item, { childRevisionId: otherRevision.id });
+      // 修订挂在 other 上，子件却是 child——归属违约；子件与父物料不同，不构成自环
+      const occurrence = makeOccurrence(line, child, { childRevisionId: otherRevision.id });
       await expect(occurrence.save()).rejects.toThrow();
     });
 
@@ -227,9 +238,9 @@ for (const backend of BACKENDS) {
       revision.state = 'released';
       await expect(revision.save()).rejects.toBeInstanceOf(BomPublishValidationError);
 
-      // 正常发布
+      // 正常发布（effective_from 取发布当日，追溯检查放行）
       revision.state = 'draft';
-      revision.effectiveFrom = day('2026-01-01');
+      revision.effectiveFrom = new Date();
       await revision.save();
       revision.state = 'released';
       await expect(revision.save()).resolves.toBeDefined();
@@ -247,9 +258,10 @@ for (const backend of BACKENDS) {
     });
 
     it('qty 入口规范化：指数写法与尾随零（US-511 AC#22 ②）', async () => {
-      const { item, header } = await setup();
+      const { header } = await setup();
+      const child = await makeChildItem('qty-child');
       const line = await addLine(header, 10);
-      const occurrence = makeOccurrence(line, item, { qty: '1.5E-3' });
+      const occurrence = makeOccurrence(line, child, { qty: '1.5E-3' });
       await occurrence.save();
       const stored = (await rawRows(adapter, `SELECT "qty" FROM ${tableRef(backend, 'bom_line_occurrence')} WHERE "id" = '${occurrence.id}'`))[0];
       expect(stored?.[0]).toBe('0.0015');
@@ -261,22 +273,24 @@ for (const backend of BACKENDS) {
     });
 
     it('qty 34 位有效数字存储与回读逐字相同（US-511 AC#22 ① 存储段）', async () => {
-      const { item, header } = await setup();
+      const { header } = await setup();
+      const child = await makeChildItem('qty34-child');
       const qty = '1.000000000000000000000000000000001';
       const line = await addLine(header, 10);
-      const occurrence = makeOccurrence(line, item, { qty });
+      const occurrence = makeOccurrence(line, child, { qty });
       await occurrence.save();
       const stored = (await rawRows(adapter, `SELECT "qty" FROM ${tableRef(backend, 'bom_line_occurrence')} WHERE "id" = '${occurrence.id}'`))[0];
       expect(stored?.[0]).toBe(qty);
     });
 
     it('直连 SQL 写非规范串被拒并点名字段（US-511 AC#23 存储段）', async () => {
-      const { item, header } = await setup();
+      const { header } = await setup();
+      const child = await makeChildItem('raw-qty-child');
       const line = await addLine(header, 10);
       for (const bad of ['1.5E-3', '01', '1.50', '-0']) {
         const result = await settled(
           adapter.rawQuery(
-            `INSERT INTO ${tableRef(backend, 'bom_line_occurrence')} ("id", "lineId", "childItemId", "qty", "effectiveFrom") VALUES ('${uuid()}', '${line.id}', '${item.id}', '${bad}', '2026-01-01T00:00:00.000Z')`
+            `INSERT INTO ${tableRef(backend, 'bom_line_occurrence')} ("id", "lineId", "childItemId", "qty", "effectiveFrom") VALUES ('${uuid()}', '${line.id}', '${child.id}', '${bad}', '2026-01-01T00:00:00.000Z')`
           )
         );
         expect(result.ok, bad).toBe(false);

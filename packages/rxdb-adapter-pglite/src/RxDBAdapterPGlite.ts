@@ -475,6 +475,9 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
         return new PGliteRepository<T>(host, entity);
       case 'TreeRepository':
         return new PGliteTreeRepository<T>(host, entity);
+      // BOM 插件的适配器侧仓储就是默认仓储（入口规范化与错误归一在插件门面 BomRepository）
+      case 'BomRepository':
+        return new PGliteRepository<T>(host, entity);
       default:
         throw new RxdbAdapterPGliteError('Unsupported repository type: ' + meta.repository);
     }
