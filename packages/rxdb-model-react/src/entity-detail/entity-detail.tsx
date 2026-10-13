@@ -402,7 +402,7 @@ export function EntityDetail({
     <div className='rxdb-entity-detail'>
       <EntityDialog title={dialogTitle} onCloseRequested={handleCancel}>
         {/* Tab Bar */}
-        <div className='tabs tabs-border min-h-0 flex-1' role='tablist'>
+        <div className='tabs tabs-border min-h-0 flex-1 overflow-x-auto' role='tablist'>
           {tabs.map(tab => (
             <div className='contents' key={tab.key}>
               <input

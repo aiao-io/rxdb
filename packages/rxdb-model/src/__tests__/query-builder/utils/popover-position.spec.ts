@@ -58,6 +58,24 @@ describe('applyPopoverPosition', () => {
     expect(el.style.top).toBe('unset');
     expect(el.style.bottom).toBe('52px');
   });
+
+  it('clamps left so the popover stays inside the viewport (right edge, 8px margin)', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 300, writable: true });
+    const el = document.createElement('div');
+    const rect = makeRect(200, 40, 200, 30);
+    applyPopoverPosition(el, rect);
+    // 200 + 200 > 300：左缘夹回 300 - 200 - 8 = 92
+    expect(el.style.left).toBe('92px');
+  });
+
+  it('clamps left to at least 8px when the popup is wider than the viewport', () => {
+    Object.defineProperty(window, 'innerWidth', { value: 300, writable: true });
+    const el = document.createElement('div');
+    const rect = makeRect(200, 40, 320, 30);
+    applyPopoverPosition(el, rect);
+    // 320 > 300：左缘贴 8px 保底
+    expect(el.style.left).toBe('8px');
+  });
 });
 
 describe('findOptionLabel', () => {

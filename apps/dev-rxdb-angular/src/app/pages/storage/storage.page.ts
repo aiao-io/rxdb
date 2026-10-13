@@ -489,6 +489,11 @@ export default class StoragePage implements OnInit, OnDestroy {
     this.contextMenu.set({ show: false, x: 0, y: 0, entry: null });
   }
 
+  /** 行内重命名入口：触屏没有右键菜单，列表/网格的 Rename 按钮都走这里。 */
+  openRenameDialog(entry: StorageBrowserItem): void {
+    this.renameDialog.set({ show: true, entry, newName: entry.name });
+  }
+
   async handleContextMenuAction(action: 'view' | 'download' | 'rename' | 'delete'): Promise<void> {
     const menu = this.contextMenu();
     this.closeContextMenu();

@@ -1,3 +1,4 @@
+import { dragRowTo } from './drag-utils.js';
 import { readRequiredAttribute, resetE2eState } from './e2e-utils.js';
 import { expect, test } from './fixtures.js';
 
@@ -132,8 +133,9 @@ test.describe('File Manager Lazy Loading Page', () => {
     const source = page.getByTestId('file-row').filter({ hasText: sourceTitle }).first();
     await expect(source).toBeVisible({ timeout: 10000 });
 
-    await expect(source).toHaveAttribute('draggable', 'true');
-    await source.dragTo(target);
+    // pointer 拖拽由行内手柄起拖（触屏可用）；原生 draggable 属性已移除
+    await expect(source.getByTestId('file-drag-handle')).toBeVisible();
+    await dragRowTo(page, source, target, 'into');
 
     await expect(source).toHaveAttribute(
       'data-parent-id',

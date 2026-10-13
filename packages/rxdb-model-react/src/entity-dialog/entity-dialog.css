@@ -79,3 +79,10 @@
   height: 16px;
   cursor: sw-resize;
 }
+
+/* 触屏没有 hover/mousedown 的缩放语义，8 向手柄在移动端不可用，收起以免遮挡内容 */
+@media (pointer: coarse) {
+  .resize-handle {
+    display: none;
+  }
+}

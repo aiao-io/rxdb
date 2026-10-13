@@ -85,7 +85,8 @@ export class TodoPage implements OnInit, AfterViewInit {
   readonly $completed_sort = signal<'asc' | 'desc'>('asc');
   readonly $init_date = signal(new Date()).asReadonly();
   readonly $next_new_data = signal(new Date());
-  readonly $show_history = signal(true);
+  /** 历史侧栏：桌面默认展开；移动端浮层会挡住内容，默认收起（与 app 侧栏同口径 768px）。 */
+  readonly $show_history = signal(window.innerWidth >= 768);
   readonly $show_sticky_header = signal(false);
   /** 拖拽中的起点与落点；`null` 表示没在拖 */
   readonly $drag = signal<FixedRowDragState | null>(null);
@@ -167,6 +168,13 @@ export class TodoPage implements OnInit, AfterViewInit {
 
   constructor() {
     this.#destroyRef.onDestroy(() => this.#drag.dispose());
+    // 断点跨越（旋转 / 窗口缩放）时同步历史侧栏开合
+    if (typeof window !== 'undefined') {
+      const media = window.matchMedia('(min-width: 768px)');
+      const onChange = (event: MediaQueryListEvent) => this.$show_history.set(event.matches);
+      media.addEventListener('change', onChange);
+      this.#destroyRef.onDestroy(() => media.removeEventListener('change', onChange));
+    }
   }
 
   trackByFn = (index: number, todo: Task) => getEntityStatus(todo).fingerprint;

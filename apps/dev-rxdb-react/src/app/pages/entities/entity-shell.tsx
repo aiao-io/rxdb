@@ -85,13 +85,16 @@ export default function EntityShell(): React.JSX.Element {
   }, [entityList, childMatch, navigate, location.pathname]);
 
   return (
-    <div className='page-host bg-base-100 flex h-full' data-testid='entity-shell'>
-      {/* 左侧：实体目录（public 平铺，其余按 namespace 分组） */}
-      <div className='border-base-300 bg-base-100 flex h-full w-56 shrink-0 flex-col border-r'>
+    <div className='page-host bg-base-100 flex h-full flex-col md:flex-row' data-testid='entity-shell'>
+      {/* 左侧：实体目录（public 平铺，其余按 namespace 分组）；移动端整行置顶，列表限高内滚 */}
+      <div
+        className='border-base-300 bg-base-100 flex w-full shrink-0 flex-col border-r max-md:h-auto md:h-full md:w-56'
+        data-testid='entity-catalog'
+      >
         <div className='border-base-300 text-base-content/70 flex h-10 min-h-10 items-center border-b px-3 text-xs font-medium'>
           实体类型
         </div>
-        <div className='flex-1 overflow-y-auto'>
+        <div className='flex-1 overflow-y-auto max-md:max-h-40'>
           <ul className='menu menu-sm w-full'>
             {publicEntities.map(entity => (
               <li key={entity.key}>
@@ -122,7 +125,7 @@ export default function EntityShell(): React.JSX.Element {
       </div>
 
       {/* 右侧：所选实体的列表（relative 把表格的加载/空态遮罩限制在面板内，不遮左侧目录） */}
-      <div className='relative flex flex-1 flex-col overflow-hidden'>
+      <div className='relative flex min-h-0 flex-1 flex-col overflow-hidden'>
         <Outlet />
       </div>
     </div>

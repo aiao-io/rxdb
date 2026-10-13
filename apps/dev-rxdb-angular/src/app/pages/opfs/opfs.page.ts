@@ -546,6 +546,11 @@ export default class OpfsPage implements OnInit, OnDestroy {
     this.contextMenu.set({ show: false, x: 0, y: 0, entry: null });
   }
 
+  /** 行内重命名入口：触屏没有右键菜单，列表/网格的 Rename 按钮都走这里。 */
+  openRenameDialog(entry: OPFSFileEntry): void {
+    this.renameDialog.set({ show: true, entry, newName: entry.name });
+  }
+
   // 右键菜单操作
   async handleContextMenuAction(action: 'view' | 'rename' | 'delete'): Promise<void> {
     const menu = this.contextMenu();

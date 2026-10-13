@@ -2,7 +2,7 @@
  * OPFS 文件网格组件
  */
 
-import { Download, Eye, Trash2 } from 'lucide-react';
+import { Download, Eye, Pen, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useObjectUrlMap } from '../../../hooks/loadObjectUrlMap';
 import { useOpfsService } from '../hooks/useOpfsService';
@@ -24,6 +24,7 @@ interface Props {
   onDownload: (entry: OPFSFileEntry) => void;
   onDelete: (entry: OPFSFileEntry) => void;
   onPreview: (entry: OPFSFileEntry) => void;
+  onRename: (entry: OPFSFileEntry) => void;
   onContextMenu: (event: React.MouseEvent, entry: OPFSFileEntry) => void;
   onEntryClick: (entry: OPFSFileEntry, event: React.MouseEvent) => void;
 }
@@ -39,6 +40,7 @@ export function OpfsFileGrid({
   onDownload,
   onDelete,
   onPreview,
+  onRename,
   onContextMenu,
   onEntryClick
 }: Props) {
@@ -129,7 +131,7 @@ export function OpfsFileGrid({
               )}
             </div>
 
-            <div className='absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100'>
+            <div className='absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100'>
               {entry.kind === 'file' && canPreviewFile(entry) && (
                 <button
                   className='btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur'
@@ -154,6 +156,17 @@ export function OpfsFileGrid({
                   <Download size={12} />
                 </button>
               )}
+              <button
+                className='btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur'
+                data-testid='opfs-rename-btn'
+                onClick={event => {
+                  event.stopPropagation();
+                  onRename(entry);
+                }}
+                title='重命名'
+              >
+                <Pen size={12} />
+              </button>
               <button
                 className='btn btn-circle btn-ghost btn-xs bg-base-100/80 text-error backdrop-blur'
                 onClick={e => {

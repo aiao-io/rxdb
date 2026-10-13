@@ -18,6 +18,7 @@ import {
   LucideFileVideo as FileVideo,
   LucideFolder as Folder,
   LucideFolderOpen as FolderOpen,
+  LucideGripVertical as GripVertical,
   LucideHistory as History,
   LucideDynamicIcon,
   LucidePen as Pen,
@@ -66,6 +67,7 @@ export default class FileManagerLazyPage extends TreeFileDragDropBase<typeof Sor
   private autoScrollTimer: ReturnType<typeof setInterval> | null = null;
   private currentScrollDirection: 'up' | 'down' | null = null;
 
+  readonly GripVertical = GripVertical;
   readonly ChevronDown = ChevronDown;
   readonly ChevronRight = ChevronRight;
   readonly ChevronsDown = ChevronsDown;

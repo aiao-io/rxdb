@@ -330,14 +330,9 @@ test.describe('Working Tree 页面功能', () => {
     await page.getByTestId('wt-diff-item').first().click({ button: 'right' });
     // 范围写在菜单项上，也写在确认框里：不可撤销 + 粒度与右键目标不符，这一步是唯一的拦截点。
     await expect(page.getByTestId('wt-discard')).toHaveText('Discard All Changes');
-    const discardPrompt = new Promise<string>(resolve => {
-      page.once('dialog', dialog => {
-        resolve(dialog.message());
-        void dialog.accept();
-      });
-    });
     await page.getByTestId('wt-discard').click();
-    expect(await discardPrompt).toContain('all 2 uncommitted changes');
+    await expect(page.getByTestId('wt-confirm-dialog')).toContainText('all 2 uncommitted changes');
+    await page.getByTestId('wt-confirm-ok').click();
     await expect(page.getByTestId('wt-status-clean')).toHaveText('干净', { timeout: 30000 });
     await openBranchMenu(page);
     await branchRow(page, 'main').click();

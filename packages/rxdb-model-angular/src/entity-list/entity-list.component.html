@@ -69,7 +69,9 @@
             backdropClick，所以这里也不需要 stopPropagation（Vue 同为兄弟结构；只有 React
             把面板套在 backdrop 里，那端的 stopPropagation 才是必需的）。
           -->
-          <div class="border-base-300 bg-base-100 rounded-lg border p-3 shadow-lg">
+          <div
+            class="border-base-300 bg-base-100 max-h-[70dvh] max-w-[calc(100vw-1rem)] overflow-auto rounded-lg border p-3 shadow-lg"
+          >
             <rxdb-query-builder
               [fields]="queryBuilderFields()"
               [initialQuery]="$any(filterQuery())"

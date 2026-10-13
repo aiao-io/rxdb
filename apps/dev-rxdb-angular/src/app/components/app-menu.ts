@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import {
   LucideArchiveRestore as ArchiveRestore,
@@ -17,8 +17,15 @@ import {
   LucideLock as Lock,
   LucideDynamicIcon,
   LucideSearch as Search,
-  LucideVideo as Video
+  LucideVideo as Video,
+  type LucideIconInput
 } from '@lucide/angular';
+import { AppService } from '../app.service';
+
+interface MenuChild {
+  title: string;
+  path: string;
+}
 
 @Component({
   selector: 'app-menu',
@@ -29,6 +36,25 @@ import {
         @if (item.type === 'divider') {
           <li class="menu-title">
             <span class="rxdb-menu-item">{{ item.title }}</span>
+          </li>
+        } @else if (item.type === 'group') {
+          <!-- 分组（details 原生折叠）：Tree Menu / File Manager 等重复命名收进折叠组 -->
+          <li [class.rail-hidden]="!app.$sidebarPinned()">
+            <details open>
+              <summary>
+                <svg [lucideIcon]="item.icon!" size="16"></svg>
+                <span class="rxdb-menu-item">{{ item.title }}</span>
+              </summary>
+              <ul>
+                @for (child of item.children; track child.path) {
+                  <li>
+                    <a [routerLink]="child.path" routerLinkActive="menu-active">
+                      <span class="rxdb-menu-item">{{ child.title }}</span>
+                    </a>
+                  </li>
+                }
+              </ul>
+            </details>
           </li>
         } @else {
           <li>
@@ -59,6 +85,10 @@ import {
         text-overflow: ellipsis;
         transition: opacity 0.3s ease-in-out;
       }
+      /* 折叠轨（48px）里分组子项没有图标，整组收起避免空白行 */
+      .rail-hidden details > ul {
+        display: none;
+      }
       :has(.left-menu-pinned) :host {
         .menu-title {
           grid-template-rows: 1fr;
@@ -72,7 +102,13 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class AppMenu {
-  menus = [
+  readonly app = inject(AppService);
+
+  menus: Array<
+    | { type: 'divider'; title: string }
+    | { type: 'group'; title: string; icon: LucideIconInput; children: MenuChild[] }
+    | { type: 'link'; title: string; path: string; icon: LucideIconInput }
+  > = [
     {
       type: 'link',
       title: 'Home',
@@ -100,40 +136,24 @@ export class AppMenu {
       title: 'Components'
     },
     {
-      type: 'link',
-      title: 'Tree Menu - Simple',
-      path: '/menu-simple',
-      icon: ListTree
+      type: 'group',
+      title: 'Tree Menu',
+      icon: ListTree,
+      children: [
+        { title: 'Simple', path: '/menu-simple' },
+        { title: 'Virtual Scroll', path: '/menu-virtual' },
+        { title: 'Lazy Load', path: '/menu-lazy' }
+      ]
     },
     {
-      type: 'link',
-      title: 'Tree Menu - Virtual Scroll',
-      path: '/menu-virtual',
-      icon: ListTree
-    },
-    {
-      type: 'link',
-      title: 'Tree Menu - Lazy Load',
-      path: '/menu-lazy',
-      icon: ListTree
-    },
-    {
-      type: 'link',
-      title: 'File Manager - Simple',
-      path: '/file-manager-simple',
-      icon: FolderTree
-    },
-    {
-      type: 'link',
-      title: 'File Manager - Virtual Scroll',
-      path: '/file-manager-virtual',
-      icon: FolderTree
-    },
-    {
-      type: 'link',
-      title: 'File Manager - Lazy Load',
-      path: '/file-manager-lazy',
-      icon: FolderTree
+      type: 'group',
+      title: 'File Manager',
+      icon: FolderTree,
+      children: [
+        { title: 'Simple', path: '/file-manager-simple' },
+        { title: 'Virtual Scroll', path: '/file-manager-virtual' },
+        { title: 'Lazy Load', path: '/file-manager-lazy' }
+      ]
     },
     {
       type: 'link',

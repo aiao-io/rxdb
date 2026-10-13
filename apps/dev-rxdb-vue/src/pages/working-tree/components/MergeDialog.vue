@@ -34,7 +34,7 @@ const emit = defineEmits<{
 
 <template>
   <div
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3"
     v-if="dialog !== null"
     @click="emit('closeRequested')"
     @keydown.escape="emit('closeRequested')"
@@ -43,7 +43,7 @@ const emit = defineEmits<{
     tabindex="0"
   >
     <div
-      class="w-full max-w-md rounded-md border border-[var(--gd-border)] p-5 shadow-2xl"
+      class="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-md border border-[var(--gd-border)] p-5 shadow-2xl"
       :style="{ background: 'var(--gd-panel)' }"
       @click.stop
       @keydown.stop

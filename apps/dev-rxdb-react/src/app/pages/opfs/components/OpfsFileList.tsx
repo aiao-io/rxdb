@@ -2,7 +2,7 @@
  * OPFS 文件列表组件
  */
 
-import { Download, Eye, Trash2 } from 'lucide-react';
+import { Download, Eye, Pen, Trash2 } from 'lucide-react';
 import { useCallback } from 'react';
 import { useResettableTimeout } from '../../../hooks/useResettableTimeout';
 import {
@@ -22,6 +22,7 @@ interface Props {
   onDownload: (entry: OPFSFileEntry) => void;
   onDelete: (entry: OPFSFileEntry) => void;
   onPreview: (entry: OPFSFileEntry) => void;
+  onRename: (entry: OPFSFileEntry) => void;
   onContextMenu: (event: React.MouseEvent, entry: OPFSFileEntry) => void;
   onEntryClick: (entry: OPFSFileEntry, event: React.MouseEvent) => void;
 }
@@ -33,6 +34,7 @@ export function OpfsFileList({
   onDownload,
   onDelete,
   onPreview,
+  onRename,
   onContextMenu,
   onEntryClick
 }: Props) {
@@ -68,7 +70,7 @@ export function OpfsFileList({
         <tr>
           <th>名称</th>
           <th className='w-32'>大小</th>
-          <th className='w-40'>修改时间</th>
+          <th className='hidden w-40 md:table-cell'>修改时间</th>
           <th className='w-24'>操作</th>
         </tr>
       </thead>
@@ -108,7 +110,7 @@ export function OpfsFileList({
               <td className='text-base-content/60 text-sm'>
                 {entry.kind === 'file' ? formatFileSize(entry.size || 0) : '-'}
               </td>
-              <td className='text-base-content/60 text-sm'>{formatDate(entry.lastModified)}</td>
+              <td className='text-base-content/60 hidden text-sm md:table-cell'>{formatDate(entry.lastModified)}</td>
               <td>
                 <div className='flex items-center gap-1'>
                   {entry.kind === 'file' && canPreviewFile(entry) && (
@@ -135,6 +137,17 @@ export function OpfsFileList({
                       <Download size={14} />
                     </button>
                   )}
+                  <button
+                    className='btn btn-ghost btn-xs'
+                    data-testid='opfs-rename-btn'
+                    onClick={event => {
+                      event.stopPropagation();
+                      onRename(entry);
+                    }}
+                    title='重命名'
+                  >
+                    <Pen size={14} />
+                  </button>
                   <button
                     className='btn btn-ghost btn-xs text-error'
                     onClick={e => {

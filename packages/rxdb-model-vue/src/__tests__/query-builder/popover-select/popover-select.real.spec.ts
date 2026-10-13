@@ -260,9 +260,10 @@ describe('PopoverSelect（真实组件）', () => {
       await host.wrapper.vm.$nextTick();
 
       expect(host.component.filterText).toBe('');
-      // happy-dom 无布局：triggerRect 全 0，innerHeight 768 → 空间充足，向下展示
+      // happy-dom 无布局：triggerRect 全 0，innerHeight 768 → 空间充足，向下展示；
+      // 水平夹回的保底 8px 在零尺寸触发器下同样生效（见 popover-position 的夹回逻辑）
       expect(host.popover.style.position).toBe('fixed');
-      expect(host.popover.style.left).toBe('0px');
+      expect(host.popover.style.left).toBe('8px');
       expect(host.popover.style.top).toBe('2px');
       expect(host.popover.style.bottom).toBe('unset');
     });

@@ -84,6 +84,7 @@ export function AgGridPage() {
   const defaultColDef = useMemo<ColDef>(
     () => ({
       flex: 1,
+      minWidth: 120,
       filter: true,
       sortable: true,
       enableCellChangeFlash: true

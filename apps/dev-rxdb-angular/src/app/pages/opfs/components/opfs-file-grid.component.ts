@@ -23,6 +23,7 @@ import {
   LucideFolder as Folder,
   LucideFolderOpen as FolderOpen,
   LucideDynamicIcon,
+  LucidePen as Pen,
   LucideTrash2 as Trash2
 } from '@lucide/angular';
 import { OpfsService } from '../services/opfs.service';
@@ -82,7 +83,9 @@ import {
           </div>
 
           <!-- 操作按钮 - 右上角 -->
-          <div class="absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+          <div
+            class="absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100"
+          >
             @if (entry.kind === 'file' && canPreviewFile(entry)) {
               <button
                 class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
@@ -101,6 +104,14 @@ import {
                 <svg [lucideIcon]="Download" size="12"></svg>
               </button>
             }
+            <button
+              class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
+              (click)="rename.emit(entry); $event.stopPropagation()"
+              data-testid="opfs-rename-btn"
+              title="重命名"
+            >
+              <svg [lucideIcon]="Pen" size="12"></svg>
+            </button>
             <button
               class="btn btn-circle btn-ghost btn-xs bg-base-100/80 text-error backdrop-blur"
               (click)="delete.emit(entry); $event.stopPropagation()"
@@ -134,6 +145,7 @@ export class OpfsFileGridComponent {
   download = output<OPFSFileEntry>();
   delete = output<OPFSFileEntry>();
   preview = output<OPFSFileEntry>();
+  rename = output<OPFSFileEntry>();
   contextMenu = output<{ event: MouseEvent; entry: OPFSFileEntry }>();
   entryClick = output<{ entry: OPFSFileEntry; event: MouseEvent }>();
 
@@ -152,6 +164,7 @@ export class OpfsFileGridComponent {
   readonly Download = Download;
   readonly Trash2 = Trash2;
   readonly Eye = Eye;
+  readonly Pen = Pen;
   getFileIcon = getFileIcon;
   getFileIconColor = getFileIconColor;
   isImageFile = isImageFile;

@@ -7,6 +7,7 @@ import {
   LucideEye as Eye,
   LucideFolderOpen as FolderOpen,
   LucideDynamicIcon,
+  LucidePen as Pen,
   LucideTrash2 as Trash2
 } from '@lucide/angular';
 import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, StorageBrowserItem } from '../utils/storage-utils';
@@ -61,7 +62,9 @@ import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, StorageBrow
             }
           </div>
 
-          <div class="absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+          <div
+            class="absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100"
+          >
             @if (entry.kind === 'directory') {
               <button
                 class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
@@ -98,6 +101,14 @@ import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, StorageBrow
               </button>
             }
             <button
+              class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
+              (click)="rename.emit(entry); $event.stopPropagation()"
+              data-testid="storage-rename-btn"
+              title="Rename"
+            >
+              <svg [lucideIcon]="Pen" size="12"></svg>
+            </button>
+            <button
               class="btn btn-circle btn-ghost btn-xs bg-base-100/80 text-error backdrop-blur"
               [attr.data-testid]="entry.kind === 'file' ? TESTID.DELETE_BTN : null"
               (click)="delete.emit(entry); $event.stopPropagation()"
@@ -130,6 +141,7 @@ export class StorageFileGridComponent {
   download = output<StorageBrowserItem>();
   delete = output<StorageBrowserItem>();
   preview = output<StorageBrowserItem>();
+  rename = output<StorageBrowserItem>();
   contextMenu = output<{ event: MouseEvent; entry: StorageBrowserItem }>();
   entryClick = output<{ entry: StorageBrowserItem; event: MouseEvent }>();
 
@@ -139,6 +151,7 @@ export class StorageFileGridComponent {
   readonly Download = Download;
   readonly Trash2 = Trash2;
   readonly Eye = Eye;
+  readonly Pen = Pen;
   getFileIcon = getFileIcon;
   getFileIconColor = getFileIconColor;
   isImageFile = isImageFile;

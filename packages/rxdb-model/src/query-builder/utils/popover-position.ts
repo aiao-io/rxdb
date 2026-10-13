@@ -32,7 +32,11 @@ export function applyPopoverPosition(el: HTMLElement, triggerRect: DOMRect, gap 
   el.style.margin = '0';
   el.style.inset = 'unset';
   el.style.minWidth = `${pos.minWidth}px`;
-  el.style.left = `${pos.left}px`;
+  // 水平夹回：右缘不超出视口（留 8px），左缘最多贴到视口左 8px。
+  // 窄屏（如移动端详情页靠右的字段选择）下浮层向右溢出会被截断。
+  const width = el.offsetWidth > 0 ? el.offsetWidth : pos.minWidth;
+  const clampedLeft = Math.max(8, Math.min(pos.left, window.innerWidth - width - 8));
+  el.style.left = `${clampedLeft}px`;
   if (pos.top != null) {
     el.style.top = `${pos.top}px`;
     el.style.bottom = 'unset';

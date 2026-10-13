@@ -19,6 +19,7 @@ import {
   LucideFileVideo as FileVideo,
   LucideFolder as Folder,
   LucideFolderOpen as FolderOpen,
+  LucideGripVertical as GripVertical,
   LucideHistory as History,
   LucideDynamicIcon,
   LucidePen as Pen,
@@ -68,6 +69,7 @@ export default class FileManagerVirtualPage extends TreeFileDragDropBase<typeof 
   private autoScrollTimer: ReturnType<typeof setInterval> | null = null;
 
   /** 虚拟滚动初始化状态 */
+  readonly GripVertical = GripVertical;
   readonly $virtual_scroll_ready = signal(false);
   // Lucide icons
   readonly ChevronDown = ChevronDown;
