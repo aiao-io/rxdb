@@ -34,11 +34,13 @@ import { StaleActiveBranchError } from './write-entry.js';
 export type WorktreeSwitchBranchOptions = RxDBBranchSwitchPreconditions;
 
 /**
- * 工作树非空导致切换被拒（FR-017）。
+ * 工作树非空导致操作被拒：`switchBranch(…, { requireClean: true })`（FR-017）与 `removeWorktree()`（US-310）。
  *
  * @remarks
  * 带上 `branchId` 与 `entryCount` 而不只是一句话：界面拿裸 `Error` 只能把消息原样贴出去，
  * 带上这两项它才说得出「main 上还有 2 条未提交改动，先提交或丢弃」。
+ *
+ * 文案不提 `requireClean`：同一个类也是 `removeWorktree()` 的拒绝出口，而那里没有这个开关可关。
  */
 export class WorktreeDirtyError extends RxDBError {
   /** 稳定错误码 */
@@ -55,7 +57,7 @@ export class WorktreeDirtyError extends RxDBError {
    * @param entryCount - 该分支上未提交的条目数
    */
   constructor(branchId: string, entryCount: number) {
-    super(`分支 ${branchId} 上还有 ${entryCount} 条未提交改动：先 commit() 或 discard()，或不传 requireClean。`);
+    super(`分支 ${branchId} 上还有 ${entryCount} 条未提交改动：先 commit() 或 discard()。`);
     this.branchId = branchId;
     this.entryCount = entryCount;
     this.name = 'WorktreeDirtyError';

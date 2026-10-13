@@ -1,9 +1,9 @@
 // 只取这四个：React 侧的容器就是「普通只读值」，于是 `WorktreeResource` 能直接由核心的
-// 两个类型交出来，不必逐字段重抄一遍签名。Angular / Vue 各自把十格套进 `Signal` /
+// 两个类型交出来，不必逐字段重抄一遍签名。Angular / Vue 各自把每一格套进 `Signal` /
 // `ComputedRef`，只能展开写 —— 那是容器形态的差异，不是 API 的差异。
 //
-// 这条差异在 T110 上兑现了一次：`restore()` / `restoreSession()` 进核心之后，本端一个字段都
-// 不用加，另外两端各要补两格状态、两个方法声明与两行 computed。
+// 这条差异兑现过两次：T110 的 `restore()` / `restoreSession()` 与 US-310 的四个 worktree 命令进核心之后，
+// 本端一个字段都不用加，另外两端各要补对应的状态格、方法声明与 computed。
 import {
   createWorktreeCommands,
   WORKTREE_INITIAL_ASYNC_STATES,
@@ -13,7 +13,7 @@ import {
 import { useRxDB } from '@aiao/rxdb-react';
 import { useCallback, useMemo, useState } from 'react';
 
-/** 十二格状态连同产生它的库：换库后旧库的写回凭 `database` 识别并丢弃。 */
+/** 十六格状态连同产生它的库：换库后旧库的写回凭 `database` 识别并丢弃。 */
 interface WorktreeSlot {
   readonly database: ReturnType<typeof useRxDB>;
   readonly states: WorktreeAsyncStates;
@@ -23,8 +23,8 @@ interface WorktreeSlot {
  * {@link useWorktree} 在当前 render 返回的工作树入口。
  *
  * @remarks
- * 十二个状态字段与核心的 `WorktreeAsyncStates` 一一对应，取值就是普通只读值，可以直接
- * 解构。十二个方法的签名与插件包 `WorktreeManager`（`switchBranch` 那一个是 `VersionManager`）
+ * 十六个状态字段与核心的 `WorktreeAsyncStates` 一一对应，取值就是普通只读值，可以直接
+ * 解构。十六个方法的签名与插件包 `WorktreeManager`（`switchBranch` 那一个是 `VersionManager`）
  * 上的同名方法完全一致 —— 入参与返回值用的都是 `@aiao/rxdb-plugin-worktree` 那一份类型，
  * 本包**不重定义**（tri-framework-api.md §1）。
  *
@@ -68,7 +68,7 @@ export type WorktreeResource = Readonly<WorktreeAsyncStates> & WorktreeCommands;
  * ```
  *
  * @remarks
- * **创建入口本身一次 IO 都不发**：十二格初值全是 `idle`，只有真的调了方法才会去读库。
+ * **创建入口本身一次 IO 都不发**：十六格初值全是 `idle`，只有真的调了方法才会去读库。
  * 挂上就查会让每个只想拿到 `commit()` 的组件在挂载时白发一轮查询 —— 而 React 下这还会
  * 在 `StrictMode` 里变成两轮。
  *

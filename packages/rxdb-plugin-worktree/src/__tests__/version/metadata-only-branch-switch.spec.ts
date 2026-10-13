@@ -7,7 +7,7 @@
  * MUST 用**独立 durable staging** 冻结目标分支、终止水位和**完整配置** sync scope，逐页持久化
  * payload/fingerprint 且**不触碰当前投影**。
  *
- * **入口钉在 `worktree/branch-materialization.ts`（T122 的落点）**：
+ * **入口钉在 `working-tree/branch-materialization.ts`（T122 的落点）**：
  * `classifyBranchMaterialization(executor, branchId)`，外加三段式 staging 的
  * `beginBranchMaterializationStage` / `appendBranchMaterializationPage` / `sealBranchMaterializationStage`。
  * 写入那几个的第一个参数是 `EntityManager` 而不是从 executor 上摸，与 `createBranchCommitRows` /

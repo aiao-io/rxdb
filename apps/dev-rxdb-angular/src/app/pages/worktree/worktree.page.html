@@ -62,6 +62,24 @@
         }
       </div>
 
+      <!-- worktree 选择器（US-310）：钉在分支上的命名工作上下文，夹在仓库与分支之间——
+           它比分支高一层（一个 worktree 钉一条分支），又比仓库低一层。 -->
+      <app-worktree-worktree-menu
+        class="gd-toolbar-section"
+        [(createError)]="$worktreeError"
+        [(createOpen)]="$worktreeCreateOpen"
+        [(menuOpen)]="$worktreeMenuOpen"
+        [activeBranch]="$activeBranch()"
+        [branches]="branches.value()"
+        [popupWidth]="MIN_DROPDOWN_WIDTH"
+        [style.flex-shrink]="WORKTREE_SECTION_SHRINK"
+        [style.width.px]="$worktreeSectionWidth()"
+        [worktrees]="$worktreeList()"
+        (createWorktree)="createWorktree($event)"
+        (removeWorktree)="removeWorktree($event)"
+        (switchWorktree)="switchWorktree($event)"
+      />
+
       <app-worktree-branch-menu
         class="gd-toolbar-section gd-branch-section"
         [(branchError)]="$branchError"
@@ -212,8 +230,8 @@
         <code>enable()</code>
         is a one-time database-level switch (v1 has no
         <code>disable()</code>
-        ): once enabled, the whole database runs under worktree semantics and every write is captured as an
-        uncommitted change — the equivalent of
+        ): once enabled, the whole database runs under worktree semantics and every write is captured as an uncommitted
+        change — the equivalent of
         <code>git init</code>
         . Empty databases initialize automatically at app startup; a database that already contains data still needs
         this explicit click.
@@ -255,6 +273,13 @@
       } @else if (status.phase === 'error') {
         <span>· 尚未初始化，先点「初始化仓库」</span>
       }
+    </div>
+    <div class="flex min-w-0 items-center gap-1.5" data-testid="wt-worktrees" role="status">
+      <span data-testid="wt-worktrees-phase">{{ tree.listWorktreesState().phase }}</span>
+      · worktree
+      <span data-testid="wt-worktrees-count">{{ $worktreeList().length }}</span>
+      个 · 当前
+      <span data-testid="wt-worktrees-active">{{ $activeWorktreeId() }}</span>
     </div>
     <div class="flex shrink-0 items-center gap-3">
       <span

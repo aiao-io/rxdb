@@ -9,7 +9,7 @@
  *
  * 它刻意**不**是内存数据库：底层仍是 `createCommitGraphProbe()` 那个只认一小撮算子、
  * 遇到别的直接抛的替身。真实 SQL 与跨重启语义由六个后端上的 conformance 套件
- * （`worktree/testing/commit.suite.ts`，T085）负责。
+ * （`working-tree/testing/commit.suite.ts`，T085）负责。
  */
 
 import {

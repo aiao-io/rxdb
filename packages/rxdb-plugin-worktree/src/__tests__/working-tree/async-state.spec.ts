@@ -26,6 +26,7 @@ import { CommitValidationError } from '../../commit/write-commit.js';
 import {
   isCommitLogPageEmpty,
   isWorktreeDiffEmpty,
+  isWorktreeListEmpty,
   isWorktreeRestoreSessionEmpty,
   isWorktreeStatusEmpty,
   trackWorktreeCommand,
@@ -294,6 +295,14 @@ describe('判空只有一份实现（§4）', () => {
     expect(isWorktreeRestoreSessionEmpty(restoreSessionWith('active'))).toBe(false);
     expect(isWorktreeRestoreSessionEmpty(restoreSessionWith('conflicted'))).toBe(false);
   });
+
+  // 零行是合法态（零 active 的老库不落主行），判据是「有没有行」，不看谁是 active。
+  it('worktree 列表的空是「一个 worktree 都没有」', () => {
+    expect(isWorktreeListEmpty([])).toBe(true);
+    expect(
+      isWorktreeListEmpty([{ id: 'wt-1', branchId: 'feature', label: null, active: false, createdAt: new Date(0) }])
+    ).toBe(false);
+  });
 });
 
 describe('三端共用的初始状态', () => {
@@ -312,6 +321,10 @@ describe('三端共用的初始状态', () => {
       | 'restoreState'
       | 'restoreSessionState'
       | 'switchBranchState'
+      | 'listWorktreesState'
+      | 'createWorktreeState'
+      | 'switchWorktreeState'
+      | 'removeWorktreeState'
     >();
   });
 
@@ -360,6 +373,25 @@ describe('三端共用的初始状态', () => {
   it('restoreSession 用的是查询状态：没有未结束会话就是空', () => {
     expectTypeOf<WorktreeAsyncStates['restoreSessionState']['phase']>().toEqualTypeOf<
       'idle' | 'loading' | 'success' | 'empty' | 'error'
+    >();
+  });
+
+  it('listWorktrees 用的是查询状态：零行就是空', () => {
+    expectTypeOf<WorktreeAsyncStates['listWorktreesState']['phase']>().toEqualTypeOf<
+      'idle' | 'loading' | 'success' | 'empty' | 'error'
+    >();
+  });
+
+  // 三个 worktree 命令都没有「空成功」：钉住并切过去、切过去、删掉，结局只有成或被拒。
+  it('create / switch / remove worktree 用的是命令状态', () => {
+    expectTypeOf<WorktreeAsyncStates['createWorktreeState']['phase']>().toEqualTypeOf<
+      'idle' | 'loading' | 'success' | 'error'
+    >();
+    expectTypeOf<WorktreeAsyncStates['switchWorktreeState']['phase']>().toEqualTypeOf<
+      'idle' | 'loading' | 'success' | 'error'
+    >();
+    expectTypeOf<WorktreeAsyncStates['removeWorktreeState']['phase']>().toEqualTypeOf<
+      'idle' | 'loading' | 'success' | 'error'
     >();
   });
 });

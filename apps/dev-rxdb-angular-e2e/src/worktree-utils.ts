@@ -75,3 +75,48 @@ export const openHistory = async (page: Page): Promise<void> => {
 export const openChanges = async (page: Page): Promise<void> => {
   await page.getByTestId('wt-tab-changes').click();
 };
+
+// ── 命名 worktree（US-310） ──────────────────────────────────
+
+/** 打开顶栏的 worktree 下拉并等它渲染出来。 */
+export const openWorktreeMenu = async (page: Page): Promise<void> => {
+  await page.getByTestId('wt-worktree-menu').click();
+  await expect(page.getByTestId('wt-worktree-menu-popup')).toBeVisible({ timeout: 10000 });
+};
+
+/** worktree 下拉里按所钉分支取那一行（属性选择器，理由同 `branchRow`）。 */
+export const worktreeRow = (page: Page, branchId: string) =>
+  page.locator(`[data-testid="wt-worktree-item"][data-branch-id="${branchId}"]`);
+
+/** 那一行右端的移除按钮（与行按钮是兄弟，不是子节点）。 */
+export const worktreeRemove = (page: Page, branchId: string) =>
+  page.locator(`[data-testid="wt-worktree-remove"][data-branch-id="${branchId}"]`);
+
+/**
+ * 经创建弹层建一个 worktree：`newBranch` 走「New branch」（`git worktree add -b` 同款），
+ * `existing` 走「Existing branch」。只点到确认为止，结果由调用方断言。
+ */
+export const submitWorktree = async (
+  page: Page,
+  options: { readonly newBranch?: string; readonly existing?: string; readonly label?: string }
+): Promise<void> => {
+  await openWorktreeMenu(page);
+  await page.getByTestId('wt-worktree-create').click();
+  await expect(page.getByTestId('wt-worktree-create-popover')).toBeVisible({ timeout: 10000 });
+  if (options.newBranch !== undefined) {
+    await page.getByTestId('wt-worktree-mode-new').check();
+    await page.getByTestId('wt-worktree-new-branch').fill(options.newBranch);
+  } else {
+    await page.getByTestId('wt-worktree-mode-existing').check();
+    await page.getByTestId('wt-worktree-branch').selectOption(options.existing ?? '');
+  }
+  if (options.label !== undefined) await page.getByTestId('wt-worktree-label').fill(options.label);
+  await page.getByTestId('wt-worktree-create-confirm').click();
+};
+
+/** 点 worktree 行切过去，并等 sr-only 状态条换到它钉住的分支。 */
+export const switchToWorktree = async (page: Page, branchId: string): Promise<void> => {
+  await openWorktreeMenu(page);
+  await worktreeRow(page, branchId).click();
+  await expect(page.getByTestId('wt-status-branch')).toHaveText(branchId, { timeout: 30000 });
+};

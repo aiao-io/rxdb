@@ -23,6 +23,7 @@ import { vi } from 'vitest';
 import type { CommitCapabilityInfo } from '../../commit/commit-capability.js';
 import type { CommitChangeSetPage } from '../../commit/commit-changes.js';
 import type { CommitLogPage } from '../../commit/commit-log.js';
+import type { WorktreeInfo } from '../../worktree/worktree-command.js';
 import type { CommitResult } from '../commit-command.js';
 import type { WorktreeCredentials } from '../commit-conflict.js';
 import type { WorktreeDiff } from '../diff.js';
@@ -204,6 +205,21 @@ export const CREDENTIALS = {
 export const RESTORE_TARGET: WorktreeRestoreTarget = { commitId: 'commit-1' };
 
 /**
+ * 一个命名 worktree 的视图（US-310）。
+ *
+ * @param branchId - 所钉分支；id 由它派生（`wt-<branchId>`），三端断言因此不必另记一份 id
+ * @param active - 是不是当前 checkout
+ * @returns 对应的 {@link WorktreeInfo}；`label` 为 `null`
+ */
+export const worktreeWith = (branchId: string, active: boolean): WorktreeInfo => ({
+  id: `wt-${branchId}`,
+  branchId,
+  label: null,
+  active,
+  createdAt: new Date(0)
+});
+
+/**
  * 桩到 `RxDB.worktree` 那一层；再往下是核心自己的事，不在三端重测。
  *
  * @remarks
@@ -231,6 +247,14 @@ export interface WorktreeManagerStub {
   readonly restore: Mock<() => Promise<WorktreeRestoreResult>>;
   /** 读当前未结束的恢复会话。 */
   readonly restoreSession: Mock<() => Promise<WorktreeRestoreSessionInfo | null>>;
+  /** 读全部命名 worktree。 */
+  readonly listWorktrees: Mock<() => Promise<readonly WorktreeInfo[]>>;
+  /** 钉住一条分支并切过去。 */
+  readonly createWorktree: Mock<(branchId: string, label?: string) => Promise<WorktreeInfo>>;
+  /** 切到一个 worktree；`options` 由调用方原样带下去。 */
+  readonly switchWorktree: Mock<(id: string, options?: WorktreeSwitchBranchOptions) => Promise<void>>;
+  /** 移除一个 worktree。 */
+  readonly removeWorktree: Mock<(id: string) => Promise<void>>;
   /** 提交后事件流；桩上永不发值——三端入口目前都不订阅它。 */
   readonly commits$: Observable<WorktreeCommitEvent>;
 }
@@ -266,9 +290,9 @@ export interface WorktreeHookStubs {
  * @returns 两个门面的桩，以及装着它们的 {@link WorktreeHookStubs.rxdb}。
  *
  * @remarks
- * `status` 预置成「干净」：十二格初始相位那一组用例要证明的是「创建入口本身一次 IO 都不发」，
- * 而不是「第一次读状态返回什么」——没有预置值的话，任何一条走到 `status` 的路径都会在
- * 桩返回 `undefined` 时炸在状态机里面，而错误信息与那条用例真正关心的事毫无关系。
+ * `status` 预置成「干净」、`listWorktrees` 预置成「只有当前那一个」：十六格初始相位那一组用例要证明的是
+ * 「创建入口本身一次 IO 都不发」，而不是「第一次读状态返回什么」——没有预置值的话，任何一条走到
+ * 重读的路径都会在桩返回 `undefined` 时炸在状态机里面，而错误信息与那条用例真正关心的事毫无关系。
  *
  * 这里的两次 `as unknown as` 是**故意**的：桩只桩到门面那一层，不实现 `WorktreeManager`
  * 的全部成员，也不实现 `RxDB` 的其余部分 —— 补全它们等于在三端各重写一遍核心。
@@ -285,9 +309,14 @@ export const createWorktreeHookStubs = (): WorktreeHookStubs => {
     discard: vi.fn<() => Promise<WorktreeDiscardResult>>(),
     restore: vi.fn<() => Promise<WorktreeRestoreResult>>(),
     restoreSession: vi.fn<() => Promise<WorktreeRestoreSessionInfo | null>>(),
+    listWorktrees: vi.fn<() => Promise<readonly WorktreeInfo[]>>(),
+    createWorktree: vi.fn<(branchId: string, label?: string) => Promise<WorktreeInfo>>(),
+    switchWorktree: vi.fn<(id: string, options?: WorktreeSwitchBranchOptions) => Promise<void>>(),
+    removeWorktree: vi.fn<(id: string) => Promise<void>>(),
     commits$: NEVER
   };
   worktree.status.mockResolvedValue(statusWith(0));
+  worktree.listWorktrees.mockResolvedValue([worktreeWith('main', true)]);
 
   const versionManager: VersionManagerStub = {
     switchBranch: vi.fn<(branchId: string, options?: WorktreeSwitchBranchOptions) => Promise<void>>()

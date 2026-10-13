@@ -7,7 +7,7 @@
  * 删除 staging」放进**同一提交屏障**；物化依据不足则以 `branch_not_materialized` **全量回滚**、
  * 来源分支保持 active；**分页崩溃可恢复，staging 可按 attempt 清理**。
  *
- * 三个入口与 T115 的两个并排落在 `worktree/branch-materialization.ts`（T122 的落点）：
+ * 三个入口与 T115 的两个并排落在 `working-tree/branch-materialization.ts`（T122 的落点）：
  * `commitBranchMaterialization`、`findLatestMaterializationAttempt`、`abortMaterializationAttempt`、
  * `discardMaterializationAttempt`。T115 已经钉了这条链的前半截（classify 与逐页 staging），
  * 本文件接的是后半截——把一份**已经落全**的 staging 变成一条能切过去的分支。

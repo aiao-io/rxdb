@@ -44,12 +44,7 @@ import { Commit } from '../../commit/commit.entity.js';
 import { assertSwitchBranchPreconditions, assertSwitchTargetIntact } from '../../working-tree/switch-branch-options.js';
 import { WorkingTreeState } from '../../working-tree/working-tree-state.entity.js';
 import { normalizeSql } from '../commit/fixtures/commit-graph-probe.js';
-import {
-  createWorktreeScene,
-  SCENE_BRANCH_ID,
-  seedCommit,
-  type WorktreeScene
-} from './fixtures/working-tree-scene.js';
+import { createWorktreeScene, SCENE_BRANCH_ID, seedCommit, type WorktreeScene } from './fixtures/working-tree-scene.js';
 
 /** 要切过去的那条分支。 */
 const TARGET_BRANCH_ID = 'feature';
@@ -60,7 +55,7 @@ const TARGET_HEAD = 'target-head';
 /** 来源（当前）分支的 HEAD；全程健康，第 4 组里才被弄坏。 */
 const SOURCE_HEAD = 'source-head';
 
-/** `worktree/` 下的源码快照；用来证明守卫是**被引用**的，不是被抄了一份。 */
+/** `working-tree/` 下的源码快照；用来证明守卫是**被引用**的，不是被抄了一份。 */
 const WORKTREE_SOURCES = import.meta.glob<string>('../../working-tree/*.ts', {
   query: '?raw',
   import: 'default',

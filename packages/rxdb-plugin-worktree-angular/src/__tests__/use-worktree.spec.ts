@@ -27,8 +27,10 @@
 import { provideRxDB } from '@aiao/rxdb-angular';
 import {
   CommitValidationError,
+  WorktreeActiveError,
   WorktreeDirtyError,
   type CommitResult,
+  type WorktreeInfo,
   type WorktreeRestoreResult,
   type WorktreeStatus,
   type WorktreeSwitchBranchOptions
@@ -43,7 +45,8 @@ import {
   RESTORE_OK,
   RESTORE_TARGET,
   sessionWith,
-  statusWith
+  statusWith,
+  worktreeWith
 } from '@aiao/rxdb-plugin-worktree/testing';
 import { provideZonelessChangeDetection } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -66,7 +69,7 @@ afterEach(() => TestBed.resetTestingModule());
 describe('useWorktree：初始状态', () => {
   // 挂上去就去读库，会让每个用到这个入口的组件在挂载时各发一轮查询，
   // 而其中大多数只是想拿到 commit() 这个方法。
-  it('十二格全是 idle，创建入口本身一次 IO 都不发', () => {
+  it('十六格全是 idle，创建入口本身一次 IO 都不发', () => {
     const { worktree, tree } = createFixture();
 
     expect([
@@ -81,9 +84,14 @@ describe('useWorktree：初始状态', () => {
       tree.discardState().phase,
       tree.restoreState().phase,
       tree.restoreSessionState().phase,
-      tree.switchBranchState().phase
-    ]).toEqual(['idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle', 'idle']);
+      tree.switchBranchState().phase,
+      tree.listWorktreesState().phase,
+      tree.createWorktreeState().phase,
+      tree.switchWorktreeState().phase,
+      tree.removeWorktreeState().phase
+    ]).toEqual(Array.from({ length: 16 }, () => 'idle'));
     expect(worktree.status).not.toHaveBeenCalled();
+    expect(worktree.listWorktrees).not.toHaveBeenCalled();
     expect(worktree.isEnabled).not.toHaveBeenCalled();
   });
 });
@@ -411,6 +419,85 @@ describe('useWorktree：改动之后 status 自己跟上', () => {
   });
 });
 
+describe('useWorktree：命名 worktree（US-310）', () => {
+  it('listWorktrees：一个都没有落在 empty，有行落在 success', async () => {
+    const { worktree, tree } = createFixture();
+    worktree.listWorktrees.mockResolvedValueOnce([]);
+
+    await tree.listWorktrees();
+    expect(tree.listWorktreesState()).toEqual({ phase: 'empty', value: [] });
+
+    await tree.listWorktrees();
+    expect(tree.listWorktreesState()).toEqual({ phase: 'success', value: [worktreeWith('main', true)] });
+  });
+
+  it('createWorktree 期间不静默：createWorktreeState 先进 loading', async () => {
+    const { worktree, tree } = createFixture();
+    const pending = deferred<WorktreeInfo>();
+    worktree.createWorktree.mockReturnValue(pending.promise);
+
+    const running = tree.createWorktree('feature', 'Feature');
+    expect(tree.createWorktreeState().phase).toBe('loading');
+
+    pending.resolve(worktreeWith('feature', true));
+    await running;
+    expect(tree.createWorktreeState()).toEqual({ phase: 'success', value: worktreeWith('feature', true) });
+    expect(worktree.createWorktree).toHaveBeenCalledWith('feature', 'Feature');
+  });
+
+  // 钉住并切过去：摘要换了分支、列表多了一行，两份都要重读。
+  it('一次成功的 createWorktree 之后重读 status 与列表', async () => {
+    const { worktree, tree } = createFixture();
+    const after = [worktreeWith('main', false), worktreeWith('feature', true)];
+    worktree.createWorktree.mockResolvedValue(worktreeWith('feature', true));
+    worktree.listWorktrees.mockResolvedValue(after);
+
+    await tree.createWorktree('feature');
+    await flush();
+
+    expect(worktree.status).toHaveBeenCalledTimes(1);
+    expect(tree.listWorktreesState()).toEqual({ phase: 'success', value: after });
+  });
+
+  it('switchWorktree 的第二参原样传给核心，成功后重读 status 与列表', async () => {
+    const { worktree, tree } = createFixture();
+    worktree.switchWorktree.mockResolvedValue(undefined);
+    const options: WorktreeSwitchBranchOptions = { requireClean: true };
+
+    await tree.switchWorktree('wt-feature', options);
+    await flush();
+
+    expect(worktree.switchWorktree).toHaveBeenCalledWith('wt-feature', options);
+    expect(tree.switchWorktreeState()).toEqual({ phase: 'success', value: undefined });
+    expect(worktree.status).toHaveBeenCalledTimes(1);
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(1);
+  });
+
+  // 只删那一行：当前分支与它的未提交改动都没动，status 不必重读。
+  it('一次成功的 removeWorktree 之后只重读列表', async () => {
+    const { worktree, tree } = createFixture();
+    worktree.removeWorktree.mockResolvedValue(undefined);
+
+    await tree.removeWorktree('wt-feature');
+    await flush();
+
+    expect(worktree.removeWorktree).toHaveBeenCalledWith('wt-feature');
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(1);
+    expect(worktree.status).not.toHaveBeenCalled();
+  });
+
+  it('removeWorktree 被拒时落在 error，并把错误原样抛出', async () => {
+    const { worktree, tree } = createFixture();
+    const active = new WorktreeActiveError('wt-main', 'main');
+    worktree.removeWorktree.mockRejectedValue(active);
+
+    await expect(tree.removeWorktree('wt-main')).rejects.toBe(active);
+
+    expect(tree.removeWorktreeState()).toEqual({ phase: 'error', error: active });
+    expect(worktree.listWorktrees).not.toHaveBeenCalled();
+  });
+});
+
 describe('useWorktree：没有 provider', () => {
   // 没有库就没有工作树可言。返回一份「一切干净」的默认值会把「入口没接上」
   // 伪装成「没有未提交变更」，恰好是最需要出声的时候不出声。
@@ -422,7 +509,7 @@ describe('useWorktree：没有 provider', () => {
 });
 
 describe('tri-framework-api.md §3 清单守卫', () => {
-  // 清单共十二项，十二项到齐：`deliveredIn` 从此只是出处，不再是开关。表保留而不是删掉——
+  // 清单共十六项，十六项到齐：`deliveredIn` 从此只是出处，不再是开关。表保留而不是删掉——
   // 它现在守的是反方向的那件事：任何一项被摘掉（重构时顺手改了返回值、某端漏接一次）
   // 都会在这里当场红，而不是等到另外两端的用户先发现分歧。
   // `switchBranch` 那一行今天从「不该有」翻成「该有」，靠的就是这条断言先红。
@@ -438,7 +525,11 @@ describe('tri-framework-api.md §3 清单守卫', () => {
     { member: 'listCommits', deliveredIn: 'phase-c' },
     { member: 'restore', deliveredIn: 'T110' },
     { member: 'restoreSession', deliveredIn: 'T110' },
-    { member: 'switchBranch', deliveredIn: 'T123' }
+    { member: 'switchBranch', deliveredIn: 'T123' },
+    { member: 'listWorktrees', deliveredIn: 'US-310' },
+    { member: 'createWorktree', deliveredIn: 'US-310' },
+    { member: 'switchWorktree', deliveredIn: 'US-310' },
+    { member: 'removeWorktree', deliveredIn: 'US-310' }
   ] as const;
 
   it.each(CHECKLIST)('$member 由 $deliveredIn 交付', ({ member }) => {
@@ -447,7 +538,7 @@ describe('tri-framework-api.md §3 清单守卫', () => {
     expect(member in tree).toBe(true);
   });
 
-  it('十二格状态与核心那一份同名同数', () => {
+  it('十六格状态与核心那一份同名同数', () => {
     const { tree } = createFixture();
 
     expect(
@@ -457,16 +548,20 @@ describe('tri-framework-api.md §3 清单守卫', () => {
     ).toEqual([
       'commitChangesState',
       'commitState',
+      'createWorktreeState',
       'diffState',
       'discardState',
       'enableIfEmptyState',
       'enableState',
       'isEnabledState',
       'listCommitsState',
+      'listWorktreesState',
+      'removeWorktreeState',
       'restoreSessionState',
       'restoreState',
       'statusState',
-      'switchBranchState'
+      'switchBranchState',
+      'switchWorktreeState'
     ]);
   });
 

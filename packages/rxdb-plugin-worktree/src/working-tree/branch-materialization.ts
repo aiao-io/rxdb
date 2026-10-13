@@ -37,7 +37,7 @@
  * 快照格式，而来源契约（`BranchMaterializationSource`）住在核心——工作树与同步插件互不依赖，
  * 两端相遇的那张接口只能放在它们共同的依赖里。本模块只管页序、指纹、意图与屏障里的系统行。
  *
- * **本模块只有 {@link BranchNotMaterializedError} 进 `worktree/index.ts`**：那是切换失败时
+ * **本模块只有 {@link BranchNotMaterializedError} 进 `working-tree/index.ts`**：那是切换失败时
  * 调用方要按成因分支处理的错误。其余入口由本包的编排层（`materialize-branch.ts`）调用，与它形态
  * 相同的 `commit/enable-migration.ts` 同样不在 `commit/index.ts` 上——暴露出去等于承诺一份
  * 还没有契约的外部 API。

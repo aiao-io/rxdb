@@ -209,7 +209,7 @@ export const assertSupportedCommitCapability = (info: CommitCapabilityInfo): voi
  * **`enabledAt` 取客户端时钟而不是 `CURRENT_TIMESTAMP`，这是有意的。** CAS 是一条手拼的
  * UPDATE，时刻只能作为字面量嵌进去，而 `CURRENT_TIMESTAMP` 在 SQLite 上求值成
  * `'YYYY-MM-DD HH:MM:SS'`，与本仓日期列的 ISO 存储形态对不上——`sqlTimestampLiteral` 存在
- * 的理由就是这个（`worktree/branch-materialization.ts` 的
+ * 的理由就是这个（`working-tree/branch-materialization.ts` 的
  * `buildActiveBranchSwitchStatements` 写明了同一条）。与之对照，不可变历史列走的是另一档：
  * `Commit.createdAt` 声明 `default: 'CURRENT_TIMESTAMP'` + `readonly`，由库自己填（FR-010）。
  * 两档的分界见 `commit-graph-guard.ts` 的 `markBranchCorrupted`。

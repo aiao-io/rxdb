@@ -1,5 +1,5 @@
 /**
- * @fileoverview T005 红测试：10 张工作树/提交物理表必须进得了核心的系统表登记簿。
+ * @fileoverview T005 红测试：本插件的 11 张物理表（epic-006 的 10 张 + US-310 的 `rxdb_worktree`）必须进得了核心的系统表登记簿。
  *
  * @remarks
  * 契约见 `git show f9528e8f:specs/001-working-tree-commits/data-model.md` §1 与 §0。
@@ -48,6 +48,7 @@ import { WorkingTreeMaterializationPage } from '../../working-tree/working-tree-
 import { WorkingTreeMaterializationStage } from '../../working-tree/working-tree-materialization-stage.entity.js';
 import { WorkingTreeRestoreSession } from '../../working-tree/working-tree-restore-session.entity.js';
 import { WorkingTreeState } from '../../working-tree/working-tree-state.entity.js';
+import { Worktree } from '../../worktree/worktree.entity.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 
 /** 一个没 `init()` 过的宿主；`use()` 与读 `system` 都不需要连接。 */
@@ -88,15 +89,17 @@ const EXPECTED_ORDER: readonly (readonly [EntityType, string])[] = [
   [WorkingTreeEntry, 'rxdb_working_tree_entry'],
   [WorkingTreeRestoreSession, 'rxdb_working_tree_restore_session'],
   [WorkingTreeMaterializationStage, 'rxdb_working_tree_materialization_stage'],
-  [WorkingTreeMaterializationPage, 'rxdb_working_tree_materialization_page']
+  [WorkingTreeMaterializationPage, 'rxdb_working_tree_materialization_page'],
+  // US-310：外键指向 `rxdb_branch`，排在最后不打乱 epic-006 的 1→10。
+  [Worktree, 'rxdb_worktree']
 ];
 
 describe('工作树与提交系统表登记', () => {
-  it('10 个类全部出现在系统贡献里，顺序与 data-model.md §1 的 1→10 一致（顺序即建表顺序）', () => {
+  it('11 个类全部出现在系统贡献里，前 10 个顺序与 data-model.md §1 的 1→10 一致（顺序即建表顺序）', () => {
     expect(CONTRIBUTED).toEqual(EXPECTED_ORDER.map(([EntityClass]) => EntityClass));
   });
 
-  it('use() 之后核心的登记簿当场认得这 10 张表', () => {
+  it('use() 之后核心的登记簿当场认得这 11 张表', () => {
     const database = createDatabase();
     database.use(rxDBPluginWorktree);
 
@@ -109,7 +112,7 @@ describe('工作树与提交系统表登记', () => {
     }
   });
 
-  it('10 个类一律 namespace=rxdb、log=false，且表名与 data-model.md §1 一致', () => {
+  it('11 个类一律 namespace=rxdb、log=false，且表名与 data-model.md §1 / US-310 一致', () => {
     for (const [EntityClass, tableName] of EXPECTED_ORDER) {
       const metadata = getEntityMetadata(EntityClass);
       expect({ namespace: metadata.namespace, tableName: metadata.tableName, log: metadata.log }).toEqual({

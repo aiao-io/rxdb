@@ -73,6 +73,8 @@ import { getCommitDetail, listCommits, readCommitBranchRef } from '../../commit/
 import type { WriteCommitOutcome } from '../../commit/write-commit.js';
 import { writeCommit } from '../../commit/write-commit.js';
 import * as worktreePublicSurface from '../../index.js';
+import { WorktreeActiveError, WorktreeBranchPinnedError } from '../../worktree/worktree-errors.js';
+import { createWorktreeRow } from '../../worktree/worktree.entity.js';
 import type { BranchMaterializationResult, BranchMaterializationStaging } from '../branch-materialization.js';
 import {
   appendBranchMaterializationPage,
@@ -387,7 +389,7 @@ class InjectedCommitCrash extends Error {
  *
  * @remarks
  * §2.4 要的注入点是「写完 changeSet **之后**」，而 `commit()` 在那之后做的第一件事就是
- * `executor.removeMany()` 清条目（`worktree/commit-command.ts` 的 `finishCommit`）。
+ * `executor.removeMany()` 清条目（`working-tree/commit-command.ts` 的 `finishCommit`）。
  * 让这一次调用抛，等于在四步的正中间断电。
  *
  * **不为此在生产代码里开一个「注入故障」的钩子**：那个钩子在真实构建里也会在，而它能做的事
@@ -2111,6 +2113,168 @@ export const worktreeCommitConformanceSuite = (context: WorktreeConformanceSuite
         expect(outcome.status).toBe('head_revision_conflict');
         // CAS 落空排在任何写之前：漏一行 changeSet 下来，它指着一个从未落库的 commit。
         expect(await countChangeSets(database)).toBe(0);
+      });
+    });
+
+    describe('§2.8 命名工作上下文（US-310）', () => {
+      // 核心包单测的底座（`createCommitGraphProbe`）不执行 SQL、不校验唯一约束、事务不串行，
+      // 所以唯一约束、并发仲裁与「切换真的换了分支」只能在这里、在六个真后端上测。
+      // 放在本套件而不是捕获侧：捕获侧的库为 QueryCache 实体声明了一个**不注册**的远端适配器名，
+      // 而 `createBranch()` 会去远端查重——那里建不出分支。
+
+      /** 只取跨后端稳定的三个字段；`createdAt` 的精度各后端不同（SQLite 只到秒）。 */
+      const listOf = async (): Promise<{ branchId: string; label: string | null; active: boolean }[]> =>
+        (await database.worktree.listWorktrees()).map(({ branchId, label, active }) => ({ branchId, label, active }));
+
+      /** 按分支取那一个 worktree 的 id；同一分支至多一行。 */
+      const worktreeIdOf = async (branchId: string): Promise<string> => {
+        const found = (await database.worktree.listWorktrees()).find(info => info.branchId === branchId);
+        if (!found) throw new Error(`分支 ${branchId} 上没有 worktree`);
+        return found.id;
+      };
+
+      /** 按分支名排序后比：同一秒建的两行在 SQLite 上按 branchId 排，与创建先后无关。 */
+      const byBranch = <T extends { branchId: string }>(rows: readonly T[]): T[] =>
+        [...rows].sort((left, right) => left.branchId.localeCompare(right.branchId));
+
+      it('新库自带一行主 worktree：钉在当前分支、label 为 null、active，createdAt 是库时钟填的 Date', async () => {
+        const mainId = await readActiveBranchId(database);
+
+        const [main, ...rest] = await database.worktree.listWorktrees();
+
+        expect(rest).toEqual([]);
+        expect({ branchId: main?.branchId, label: main?.label, active: main?.active }).toEqual({
+          branchId: mainId,
+          label: null,
+          active: true
+        });
+        expect(main?.createdAt).toBeInstanceOf(Date);
+      });
+
+      it('branchId 唯一索引在真后端上生效：同一分支裸插第二行被拒，原行不动', async () => {
+        const mainId = await readActiveBranchId(database);
+        const duplicate = createWorktreeRow(database.entityManager, mainId, 'duplicate');
+
+        await captureRejection(withTransaction(database, executor => executor.saveMany([duplicate])));
+
+        expect(await listOf()).toEqual([{ branchId: mainId, label: null, active: true }]);
+      });
+
+      it('并发两次 createWorktree 钉同一分支：恰一个成功，另一个 WorktreeBranchPinnedError', async () => {
+        await database.versionManager.createBranch('conformance-wt-race');
+
+        const settled = await Promise.allSettled([
+          database.worktree.createWorktree('conformance-wt-race', 'A'),
+          database.worktree.createWorktree('conformance-wt-race', 'B')
+        ]);
+
+        expect(settled.filter(outcome => outcome.status === 'fulfilled')).toHaveLength(1);
+        const reasons = settled.flatMap(outcome => (outcome.status === 'rejected' ? [outcome.reason as unknown] : []));
+        expect(reasons).toHaveLength(1);
+        expect(reasons[0]).toBeInstanceOf(WorktreeBranchPinnedError);
+        expect((await listOf()).filter(info => info.branchId === 'conformance-wt-race')).toHaveLength(1);
+      });
+
+      it('create → switch → remove：切换真的换了分支，移除只删那一行、分支还在', async () => {
+        const mainId = await readActiveBranchId(database);
+        await database.versionManager.createBranch('conformance-wt-feature');
+
+        const created = await database.worktree.createWorktree('conformance-wt-feature', 'Feature');
+
+        expect({ branchId: created.branchId, label: created.label, active: created.active }).toEqual({
+          branchId: 'conformance-wt-feature',
+          label: 'Feature',
+          active: true
+        });
+        expect(await activeBranchIdsOf(database)).toEqual(['conformance-wt-feature']);
+        expect(byBranch(await listOf())).toEqual(
+          byBranch([
+            { branchId: mainId, label: null, active: false },
+            { branchId: 'conformance-wt-feature', label: 'Feature', active: true }
+          ])
+        );
+
+        await database.worktree.switchWorktree(await worktreeIdOf(mainId));
+        expect(await activeBranchIdsOf(database)).toEqual([mainId]);
+
+        await database.worktree.removeWorktree(created.id);
+        expect(await listOf()).toEqual([{ branchId: mainId, label: null, active: true }]);
+        const branches = await withTransaction(database, executor =>
+          executor.getRepository(RxDBBranch).find({ where: { combinator: 'and', rules: [] } })
+        );
+        expect(branches.map(branch => branch.id)).toContain('conformance-wt-feature');
+        // 当前所在的 worktree 不能删。
+        expect(await captureRejection(database.worktree.removeWorktree(await worktreeIdOf(mainId)))).toBeInstanceOf(
+          WorktreeActiveError
+        );
+      });
+
+      it('worktree 之间自由切换：未提交改动留在原 worktree，切回原样还在；有改动的 worktree 移除被拒', async () => {
+        const mainId = await readActiveBranchId(database);
+        // 先建分支再写：`createBranch()` 会把当前工作树复制给新分支（FR-017），顺序反了两边都脏。
+        await database.versionManager.createBranch('conformance-wt-isolated');
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-left-behind'));
+
+        // 不带 requireClean：脏着也能切走，这正是 worktree 相对「切分支前先 stash」的价值。
+        await database.worktree.createWorktree('conformance-wt-isolated');
+        const away = await readStatus(database);
+        expect({ branchId: away.branchId, clean: away.clean }).toEqual({
+          branchId: 'conformance-wt-isolated',
+          clean: true
+        });
+
+        const dirty = await captureRejection(database.worktree.removeWorktree(await worktreeIdOf(mainId)));
+        expect(dirty).toBeInstanceOf(WorktreeDirtyError);
+        expect((dirty as WorktreeDirtyError).branchId).toBe(mainId);
+
+        await database.worktree.switchWorktree(await worktreeIdOf(mainId));
+        const back = await readStatus(database);
+        expect({ branchId: back.branchId, clean: back.clean, entries: await countEntries(database, mainId) }).toEqual({
+          branchId: mainId,
+          clean: false,
+          entries: 1
+        });
+      });
+
+      it('switchWorktree 原样透传 requireClean：脏工作树被 WorktreeDirtyError 拒，active 不动', async () => {
+        const mainId = await readActiveBranchId(database);
+        await database.versionManager.createBranch('conformance-wt-guarded');
+        const guarded = await database.worktree.createWorktree('conformance-wt-guarded');
+        await database.worktree.switchWorktree(await worktreeIdOf(mainId));
+        await withTransaction(database, executor => captureOneWrite(database, executor, 'note-dirty'));
+
+        const refused = await captureRejection(database.worktree.switchWorktree(guarded.id, { requireClean: true }));
+
+        expect(refused).toBeInstanceOf(WorktreeDirtyError);
+        expect(await activeBranchIdsOf(database)).toEqual([mainId]);
+      });
+
+      it('删分支连带删掉钉在它上面的 worktree 行', async () => {
+        const mainId = await readActiveBranchId(database);
+        await database.versionManager.createBranch('conformance-wt-doomed');
+        await database.worktree.createWorktree('conformance-wt-doomed');
+        await database.worktree.switchWorktree(await worktreeIdOf(mainId));
+
+        await database.versionManager.removeBranch('conformance-wt-doomed');
+
+        // 漏删的话同名重建的分支会被这一行旧 worktree 自动钉住（ABA）。
+        expect(await listOf()).toEqual([{ branchId: mainId, label: null, active: true }]);
+      });
+
+      it('列表次序是 (createdAt, branchId)：同一时刻建的两行按 branchId 排', async () => {
+        const mainId = await readActiveBranchId(database);
+        await database.versionManager.createBranch('conformance-wt-b');
+        await database.versionManager.createBranch('conformance-wt-a');
+        // 显式写同一个时刻：SQLite 的 `CURRENT_TIMESTAMP` 只到秒，次序不能押在「两次调用落在不同秒」上。
+        const sameInstant = new Date('2099-01-01T00:00:00.000Z');
+        const rows = ['conformance-wt-b', 'conformance-wt-a'].map(branchId => {
+          const row = createWorktreeRow(database.entityManager, branchId, null);
+          row.createdAt = sameInstant;
+          return row;
+        });
+        await withTransaction(database, executor => executor.saveMany(rows));
+
+        expect((await listOf()).map(info => info.branchId)).toEqual([mainId, 'conformance-wt-a', 'conformance-wt-b']);
       });
     });
   });

@@ -14,6 +14,7 @@ import {
   type WorktreeDiscardOptions,
   type WorktreeDiscardResult,
   type WorktreeEnableIfEmptyResult,
+  type WorktreeInfo,
   type WorktreeQueryState,
   type WorktreeRestoreOptions,
   type WorktreeRestoreResult,
@@ -29,9 +30,9 @@ import { computed, shallowRef, type ComputedRef } from 'vue';
  * {@link useWorktree} 的返回值。
  *
  * @remarks
- * 十二个状态字段与核心的 `WorktreeAsyncStates` 一一对应，只是每一项各自装进
+ * 十六个状态字段与核心的 `WorktreeAsyncStates` 一一对应，只是每一项各自装进
  * `ComputedRef`：成员可以安全解构，模板只读了 `statusState` 时，一次 `diff()` 的相位变化
- * 不会让它重新求值。十二个方法的签名与插件包 `WorktreeManager`（`switchBranch` 那一个是
+ * 不会让它重新求值。十六个方法的签名与插件包 `WorktreeManager`（`switchBranch` 那一个是
  * `VersionManager`）上的同名方法完全一致 —— 入参与返回值用的都是
  * `@aiao/rxdb-plugin-worktree` 那一份类型，本包**不重定义**（tri-framework-api.md §1）。
  *
@@ -46,6 +47,10 @@ import { computed, shallowRef, type ComputedRef } from 'vue';
  * `switchBranch(branchId, options?)` 的 `WorktreeSwitchBranchOptions` 由 T123 接进来：
  * 不传第二参时与今天逐字节一致（无条件切换），`{ requireClean: true }` 在工作树非空时**抛**
  * `WorktreeDirtyError` —— 被拒不是返回值，因为那一刻分支根本没切。
+ *
+ * 命名 worktree（US-310）的四项：`listWorktrees()` 走查询状态（零行是 `empty`），create / switch /
+ * remove 走命令状态。worktree 之间切换**不带** `requireClean` 时未提交改动留在原 worktree，
+ * 切回来原样还在。
  *
  * @public
  */
@@ -74,6 +79,14 @@ export interface WorktreeResource {
   readonly restoreSessionState: ComputedRef<WorktreeQueryState<WorktreeRestoreSessionInfo | null>>;
   /** 上一次 `switchBranch()` 的相位；**没有 empty** —— 切到当前分支是成功的 no-op */
   readonly switchBranchState: ComputedRef<WorktreeCommandState<void>>;
+  /** worktree 列表的相位；一个都没有是 `empty` */
+  readonly listWorktreesState: ComputedRef<WorktreeQueryState<readonly WorktreeInfo[]>>;
+  /** 上一次 `createWorktree()` 的相位；**没有 empty** */
+  readonly createWorktreeState: ComputedRef<WorktreeCommandState<WorktreeInfo>>;
+  /** 上一次 `switchWorktree()` 的相位；**没有 empty** */
+  readonly switchWorktreeState: ComputedRef<WorktreeCommandState<void>>;
+  /** 上一次 `removeWorktree()` 的相位；**没有 empty** —— 被拒（当前所在 / 有未提交改动）是 `error` */
+  readonly removeWorktreeState: ComputedRef<WorktreeCommandState<void>>;
 
   /** 读取这个库启没启用提交能力。 */
   readonly isEnabled: () => Promise<boolean>;
@@ -94,14 +107,19 @@ export interface WorktreeResource {
   /** 把工作树整体退回 HEAD；成功后自动重读一次 status。 */
   readonly discard: (options: WorktreeDiscardOptions) => Promise<WorktreeDiscardResult>;
   /** 把一个可达历史 commit 的内容写回工作树；被拒走返回值，不是异常。成功与否都重读 status。 */
-  readonly restore: (
-    target: WorktreeRestoreTarget,
-    options: WorktreeRestoreOptions
-  ) => Promise<WorktreeRestoreResult>;
+  readonly restore: (target: WorktreeRestoreTarget, options: WorktreeRestoreOptions) => Promise<WorktreeRestoreResult>;
   /** 读当前分支那个未结束的恢复会话；没有就是 `null`。 */
   readonly restoreSession: () => Promise<WorktreeRestoreSessionInfo | null>;
   /** 切到另一条分支；被 `requireClean` 拒掉时抛 `WorktreeDirtyError`。成功后自动重读一次 status。 */
   readonly switchBranch: (branchId: string, options?: WorktreeSwitchBranchOptions) => Promise<void>;
+  /** 读全部命名 worktree；`active` 与当前 checkout 同口径。 */
+  readonly listWorktrees: () => Promise<readonly WorktreeInfo[]>;
+  /** 把一条分支钉成新 worktree 并切过去；无论成败都自动重读 status 与列表。 */
+  readonly createWorktree: (branchId: string, label?: string) => Promise<WorktreeInfo>;
+  /** 切到一个 worktree；`options` 原样透传给 `switchBranch()`。成功后自动重读 status 与列表。 */
+  readonly switchWorktree: (id: string, options?: WorktreeSwitchBranchOptions) => Promise<void>;
+  /** 移除一个 worktree（只删那一行）；当前所在或有未提交改动时抛。成功后自动重读列表。 */
+  readonly removeWorktree: (id: string) => Promise<void>;
 }
 
 /**
@@ -131,7 +149,7 @@ export interface WorktreeResource {
  * @remarks
  * **必须在 setup 中调用** —— 它经 `useRxDB()` 取库（`inject` 只在 setup 期可用）。
  *
- * **创建入口本身一次 IO 都不发**：十二格初值全是 `idle`，只有真的调了方法才会去读库。
+ * **创建入口本身一次 IO 都不发**：十六格初值全是 `idle`，只有真的调了方法才会去读库。
  * 挂上就查会让每个只想拿到 `commit()` 的组件在挂载时白发一轮查询。
  *
  * **没有变更流**：状态只在经本入口发出的命令之后更新，因此这里也没有需要退订的订阅。
@@ -139,7 +157,7 @@ export interface WorktreeResource {
  * —— 需要最新值就再调一次 `status()`。这是核心侧至今没有工作树变更流的如实反映，
  * 不是这里省了一步。
  *
- * 状态装在 `shallowRef` 里：整份状态每次都是新对象，深响应只会让 Vue 白白遍历十二棵
+ * 状态装在 `shallowRef` 里：整份状态每次都是新对象，深响应只会让 Vue 白白遍历十六棵
  * 结构固定的树。
  *
  * 数据库取不到时**抛错而不是**返回一份「一切干净」的默认值：那会把「入口没接上」
@@ -169,6 +187,10 @@ export const useWorktree = (): WorktreeResource => {
     restoreState: computed(() => states.value.restoreState),
     restoreSessionState: computed(() => states.value.restoreSessionState),
     switchBranchState: computed(() => states.value.switchBranchState),
+    listWorktreesState: computed(() => states.value.listWorktreesState),
+    createWorktreeState: computed(() => states.value.createWorktreeState),
+    switchWorktreeState: computed(() => states.value.switchWorktreeState),
+    removeWorktreeState: computed(() => states.value.removeWorktreeState),
     ...commands
   };
 };

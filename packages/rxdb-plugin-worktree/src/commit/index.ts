@@ -7,7 +7,7 @@
  *
  * 与之相对的可变一面在 `../working-tree/`。两者分家的理由不是文件数量，而是
  * **可变性契约不同**：本目录的表除 `rxdb_commit_branch_ref` 的 HEAD 指针与
- * `status` 外一律不 UPDATE / DELETE；`worktree/` 的表每次 `save()` 都在改。
+ * `status` 外一律不 UPDATE / DELETE；`working-tree/` 的表每次 `save()` 都在改。
  * 混在一起会让「这张表能不能改」变成要逐字段回忆的问题。
  *
  * v1 **没有暂存区**：这里不存在 index / staging / 部分提交的任何形态。

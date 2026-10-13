@@ -28,6 +28,7 @@ import { WorkingTreeMaterializationPage } from '../working-tree/working-tree-mat
 import { WorkingTreeMaterializationStage } from '../working-tree/working-tree-materialization-stage.entity.js';
 import { WorkingTreeRestoreSession } from '../working-tree/working-tree-restore-session.entity.js';
 import { WorkingTreeState } from '../working-tree/working-tree-state.entity.js';
+import { Worktree } from '../worktree/worktree.entity.js';
 import { CommitBranchRef } from './commit-branch-ref.entity.js';
 import type { CommitPatchCodecContext } from './commit-codec.js';
 import type { CommitWriteContext } from './commit-context.js';
@@ -393,11 +394,12 @@ const readStagePages = async (
  *
  * @remarks
  * 与 {@link writeNewBranchCommitRows} 严格对称：一条分支在本能力里占了哪几张表，只有这一个
- * 模块知道。加第十一张表时要改的也只有这里与建行那一半——分散到 `remove-branch.ts` 去写的话，
+ * 模块知道。加新表时要改的也只有这里与建行那一半——分散到 `remove-branch.ts` 去写的话，
  * `rxdb-plugin-history` 就得认识 `WorkingTreeEntry`，而那个方向的 import 是条依赖环
  * （nx 的图插件把静态 import 直接映射成依赖边）。
  *
- * **十张表里删六张，另外四张逐张都有不删的理由：**
+ * **十一张表里删七张（含 US-310 的 `Worktree`：钉在这条分支上的 worktree 随分支一起走，
+ * 否则同名重建的分支会被一行旧 worktree 自动钉住），另外四张逐张都有不删的理由：**
  *
  * - `Commit` / `CommitChangeSet`：FR-044 明文要求保留。两张表上都**没有** `branchId` 列
  *   （可达性走 ref），所以「删干净这条分支」一旦被理解成「删掉它能看见的一切」，
@@ -416,7 +418,7 @@ const readStagePages = async (
  *
  * 分页先于 staging 删，两次 `removeMany` 而不是一次：`getEntityMutations` 按实体分组，
  * 一次调用里的跨表顺序不由调用方决定，而分页对 staging 挂着一条真正的外键。
- * 剩下五张表之间没有互指的关系（它们都只指向 `rxdb_branch`，而那一行本次不删），合在一次里。
+ * 剩下六张表之间没有互指的关系（它们都只指向 `rxdb_branch`，而那一行本次不删），合在一次里。
  */
 export const removeBranchCommitRows = async (executor: TransactionExecutor, branchId: string): Promise<void> => {
   // 串行而非 `Promise.all`：`executor` 是一条并发度为 1 的队列，并行发起一点都不会更快，
@@ -425,6 +427,7 @@ export const removeBranchCommitRows = async (executor: TransactionExecutor, bran
   const state = await readBranchOwnedRows(executor, WorkingTreeState, 'branchId', branchId);
   const entries = await readBranchOwnedRows(executor, WorkingTreeEntry, 'branchId', branchId);
   const sessions = await readBranchOwnedRows(executor, WorkingTreeRestoreSession, 'branchId', branchId);
+  const worktrees = await readBranchOwnedRows(executor, Worktree, 'branchId', branchId);
   // 这张表上**没有**指向 `rxdb_branch` 的关系，只有一个普通的 `targetBranchId` 列加一条索引：
   // 级联对它天然无效，于是「删分支行让数据库自己收尾」这种写法恰好只漏它。漏下来的是一条
   // `status='staged'`、指着一个已不存在的目标的 staging——同名重建之后它的目标 id 与新分支
@@ -433,5 +436,5 @@ export const removeBranchCommitRows = async (executor: TransactionExecutor, bran
 
   const pages = await readStagePages(executor, stages);
   if (pages.length > 0) await executor.removeMany(pages);
-  await executor.removeMany<EntityType>([...stages, ...sessions, ...entries, ...state, ...ref]);
+  await executor.removeMany<EntityType>([...stages, ...sessions, ...entries, ...state, ...ref, ...worktrees]);
 };

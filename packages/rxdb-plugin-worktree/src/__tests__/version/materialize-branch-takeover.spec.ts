@@ -4,7 +4,7 @@
  * @remarks
  * `materialization-barrier.spec.ts` 钉的是第六段——一份**已经落全**的 staging 怎么变成一条
  * 切过去的分支。本文件钉的是它前面那五段，以及把六段串起来的那条编排线
- * （`worktree/materialize-branch.ts`）。两者分开是因为要钉的性质根本不同：屏障要的是
+ * （`working-tree/materialize-branch.ts`）。两者分开是因为要钉的性质根本不同：屏障要的是
  * 「九件事同生共死」，而编排要的恰恰相反——**六段分属不同的事务边界**，中间还夹着网络 I/O。
  *
  * 四组断言各自防一种不会编译报错、也不会立刻出错的退化：

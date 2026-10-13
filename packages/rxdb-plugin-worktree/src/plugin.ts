@@ -2,10 +2,10 @@
  * @fileoverview `@aiao/rxdb-plugin-worktree` 的装配入口。
  *
  * @remarks
- * 插件本身只做三件事，其余全部语义在 `worktree/` 与 `commit/` 两个目录里：
+ * 插件本身只做三件事，其余全部语义在 `working-tree/`、`commit/` 与 `worktree/` 三个目录里：
  *
  * 1. **挂入口**：`use()` 的那一刻把 {@link WorktreeManager} 定义成 `rxdb.worktree`。
- * 2. **声明系统贡献**：10 张系统表、新库的初始行、既有库的引导迁移、既有库连接时的接通，
+ * 2. **声明系统贡献**：11 张系统表、新库的初始行、既有库的引导迁移、既有库连接时的接通，
  *    以及每条新分支的贡献行，一次性交给宿主按 {@link RxDBSystemContribution} 编排。
  *
  * 3. **接住别人的启用**：`install()` 里登记一个 `CAPABILITY_ENABLED` 监听器（FR-037），
@@ -36,6 +36,7 @@ import {
   createWorktreeCommitsInitialRows,
   createWorktreeCommitsMigration
 } from './migrations/0004-working-tree-commits.js';
+import { createWorktreesInitialRows, createWorktreesMigration } from './migrations/0005-worktrees.js';
 import { advanceActivationRevision } from './working-tree/activation-cas.js';
 import { installWorktreeCapture } from './working-tree/capture-install.js';
 import { takeOverBranchSwitchWithMaterialization } from './working-tree/materialize-branch.js';
@@ -47,6 +48,7 @@ import { WorkingTreeMaterializationPage } from './working-tree/working-tree-mate
 import { WorkingTreeMaterializationStage } from './working-tree/working-tree-materialization-stage.entity.js';
 import { WorkingTreeRestoreSession } from './working-tree/working-tree-restore-session.entity.js';
 import { WorkingTreeState } from './working-tree/working-tree-state.entity.js';
+import { Worktree } from './worktree/worktree.entity.js';
 
 /**
  * 本能力写进水位行的版本号
@@ -63,12 +65,13 @@ import { WorkingTreeState } from './working-tree/working-tree-state.entity.js';
 export const WORKTREE_CAPABILITY_VERSION = 1;
 
 /**
- * 本插件贡献的 10 张系统表，顺序即建表顺序。
+ * 本插件贡献的 11 张系统表，顺序即建表顺序。
  *
  * @remarks
- * 顺序照 `data-model.md` §1 的 1→10 抄，与一致性套件里那份手写清单
- * （`worktree/testing/capture.suite.ts` 的 `EPIC_006_SYSTEM_ENTITIES`）逐项一致。
- * 那份清单故意**不**从这里算差集：新增一张表必须先让它编译失败，逐条过一遍 §1.5 的三条断言。
+ * 前 10 张照 `data-model.md` §1 的 1→10 抄，第 11 张是 US-310 的 `rxdb_worktree`（外键指向
+ * `rxdb_branch`，排在最后不打乱前 10 张）。与一致性套件里那两份手写清单
+ * （`working-tree/testing/capture.suite.ts` 的 `EPIC_006_SYSTEM_ENTITIES` / `EPIC_010_SYSTEM_ENTITIES`）逐项一致。
+ * 那两份清单故意**不**从这里算差集：新增一张表必须先让它编译失败，逐条过一遍 §1.5 的三条断言。
  */
 const WORKTREE_SYSTEM_ENTITIES: readonly EntityType[] = [
   CommitCapabilityState,
@@ -80,7 +83,8 @@ const WORKTREE_SYSTEM_ENTITIES: readonly EntityType[] = [
   WorkingTreeEntry,
   WorkingTreeRestoreSession,
   WorkingTreeMaterializationStage,
-  WorkingTreeMaterializationPage
+  WorkingTreeMaterializationPage,
+  Worktree
 ];
 
 /**
@@ -105,8 +109,16 @@ const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
   version: WORKTREE_CAPABILITY_VERSION,
   packageSpecifier: PACKAGE_SPECIFIER,
   entities: WORKTREE_SYSTEM_ENTITIES,
-  createInitialRows: (entityManager, context) => createWorktreeCommitsInitialRows(entityManager, context.branchIds),
-  createMigrations: entityManager => [createWorktreeCommitsMigration(entityManager)],
+  // 新库上 `branchIds` 恰是建库时那条已激活的 `main`（`RxDBSystemBootstrapContext` 的契约），
+  // 于是它同时就是主 worktree 要钉的那条 checkout。
+  createInitialRows: (entityManager, context) => [
+    ...createWorktreeCommitsInitialRows(entityManager, context.branchIds),
+    ...createWorktreesInitialRows(entityManager, context.branchIds)
+  ],
+  createMigrations: entityManager => [
+    createWorktreeCommitsMigration(entityManager),
+    createWorktreesMigration(entityManager)
+  ],
   bootstrapExisting: async ({ adapter }) => {
     // 一次读、两个用途：能力位与 active 分支基数校验（FR-048）合进同一个引导事务。
     // 分成两次读的话，两次之间隔着一个别的进程可以把能力位翻掉的窗口，于是可能
@@ -232,7 +244,7 @@ export class RxDBPluginWorktree extends RxDBPluginBase implements IRxDBPlugin {
    * 另外三件事都**不**在这里，各有自己的时点：
    *
    * - `rxdb.worktree` 在**构造时**挂上（见构造器），必须早于 `init()`；
-   * - 10 张表、初始行与引导迁移经 {@link RxDBPluginWorktree.system} 声明，由宿主在建表
+   * - 11 张表、初始行与引导迁移经 {@link RxDBPluginWorktree.system} 声明，由宿主在建表
    *   那一刻编排——走 `install()` 的贡献永远赶不上自己的表（见 {@link RxDBSystemContribution}）；
    * - 本连接自己的接通由 `bootstrapExisting()`（既有库读能力位）与
    *   {@link WorktreeManager.enable}（本连接刚启用）完成。

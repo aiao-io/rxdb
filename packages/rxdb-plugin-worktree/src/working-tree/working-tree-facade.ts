@@ -16,6 +16,8 @@
 
 import type { LocalRxDBAdapter, RxDB, TransactionExecutor } from '@aiao/rxdb';
 import { RxDBChange, RxDBError } from '@aiao/rxdb';
+// 只为把 `RxDB.versionManager` 那条 `declare module` 拉进本文件的程序里，理由同 `working-tree-commands.ts`。
+import type { VersionManager } from '@aiao/rxdb-plugin-history';
 import { firstValueFrom, Subject, type Observable } from 'rxjs';
 import { WORKING_TREE_CAPABILITY } from '../capability-identity.js';
 import type { CommitCapabilityInfo } from '../commit/commit-capability.js';
@@ -31,15 +33,19 @@ import { CommitErrorCode } from '../commit/commit-error-codes.js';
 import { latchBranchCorruption } from '../commit/commit-graph-guard.js';
 import { readCommitLogPage, type CommitLogOptions, type CommitLogPage } from '../commit/commit-log.js';
 import { ENABLE_MIGRATION_OPERATION_ID, runEnableMigration } from '../commit/enable-migration.js';
+import {
+  pinWorktree,
+  readWorktreeList,
+  readWorktreeRow,
+  toWorktreeInfo,
+  unpinWorktree,
+  type WorktreeInfo
+} from '../worktree/worktree-command.js';
 import { installWorktreeCapture } from './capture-install.js';
 import { readActiveBranchToken } from './capture-runtime.js';
 import { runCommitWorktree, type CommitOptions, type CommitResult } from './commit-command.js';
 import { readWorktreeDiff, type WorktreeDiff, type WorktreeDiffOptions } from './diff.js';
-import {
-  discardWorktree,
-  type WorktreeDiscardOptions,
-  type WorktreeDiscardResult
-} from './discard-command.js';
+import { discardWorktree, type WorktreeDiscardOptions, type WorktreeDiscardResult } from './discard-command.js';
 import {
   readActiveRestoreSession,
   restoreWorktree,
@@ -49,6 +55,7 @@ import {
   type WorktreeRestoreTarget
 } from './restore-command.js';
 import { readWorktreeStatus, type WorktreeStatus } from './status.js';
+import type { WorktreeSwitchBranchOptions } from './switch-branch-options.js';
 import type { WorktreeCommitEvent } from './working-tree-commit-event.js';
 
 /**
@@ -406,10 +413,7 @@ export class WorktreeManager {
    * 不是「把 HEAD 挪过去」。恢复完的工作树是脏的，下一步是 `commit()` 或 `discard()`，与手写变更
    * 走同一条路（FR-015）。
    */
-  async restore(
-    target: WorktreeRestoreTarget,
-    options: WorktreeRestoreOptions
-  ): Promise<WorktreeRestoreResult> {
+  async restore(target: WorktreeRestoreTarget, options: WorktreeRestoreOptions): Promise<WorktreeRestoreResult> {
     return this.runEnabled((executor, adapter) =>
       restoreWorktree(executor, createCommitWriteContext(adapter), target, options)
     );
@@ -433,6 +437,99 @@ export class WorktreeManager {
       const token = await readActiveBranchToken(executor);
       return readActiveRestoreSession(executor, token.branchId);
     });
+  }
+
+  /**
+   * 全部命名 worktree（US-310，`git worktree list`）。
+   *
+   * @returns 按 `(createdAt, branchId)` 升序；零行返回空数组
+   * @throws {@link WorktreeCapabilityDisabledError} 这个库还没启用提交能力
+   *
+   * @remarks
+   * `active` 与 `rxdb_branch.activated` 同口径：从分支菜单直接切到一条没钉住的分支之后，
+   * 没有任何一行是 active——「当前 checkout 没有对应的 worktree」是合法态。
+   */
+  async listWorktrees(): Promise<readonly WorktreeInfo[]> {
+    return this.runEnabled(executor => readWorktreeList(executor));
+  }
+
+  /**
+   * 把一条分支钉成新 worktree，并切过去（US-310，`git worktree add`）。
+   *
+   * @param branchId - 要钉的分支；必须已存在（新建分支先 `versionManager.createBranch()`）
+   * @param label - 显示名；不传即不起名，界面显示 `branchId`
+   * @returns 新 worktree 的视图，`active` 为真
+   * @throws {@link WorktreeCapabilityDisabledError} 这个库还没启用提交能力
+   * @throws {@link WorktreeLabelError} label 给了却是空白
+   * @throws {@link WorktreeBranchNotFoundError} 分支不存在
+   * @throws {@link WorktreeBranchPinnedError} 这条分支已经钉着一个 worktree
+   * @throws {@link RxDBError} 没装 `rxDBPluginHistory`（切换要它的 `versionManager`）
+   *
+   * @remarks
+   * **两阶段**：落行在受管事务里，切换在事务**提交之后**——`switchBranch()` 自己开事务，
+   * 嵌套进来会死锁。切换**不带前置条件**：当前 worktree 的未提交改动按分支隔离留在原处，
+   * 切回来原样还在，这正是 git worktree 相对「切分支前先 stash」的价值。
+   *
+   * **切换失败时行保留、原错误上抛**：worktree 已经建好了，没切过去是另一件事，
+   * {@link switchWorktree} 可以重试。不做补偿删除——补偿自己也可能失败，那时盖掉的就是
+   * 用户真正需要看到的那个错误。
+   *
+   * 当前 active 但没钉住的分支照样可以钉：单 checkout 模型里没有第二个槽位，此时切换是 no-op。
+   */
+  async createWorktree(branchId: string, label?: string): Promise<WorktreeInfo> {
+    const { row, versionManager } = await this.runEnabled(async executor => {
+      const versionManager = this.#versionManager();
+      const row = await pinWorktree(executor, this.#rxdb.entityManager, branchId, label);
+      return { row, versionManager };
+    });
+    await versionManager.switchBranch(row.branchId);
+    // 切换已经成功返回：此刻 active 的就是它钉住的那条分支，不必再开一笔事务读回来。
+    return toWorktreeInfo(row, row.branchId);
+  }
+
+  /**
+   * 切到一个 worktree，即切到它钉住的分支（US-310）。
+   *
+   * @param id - worktree id
+   * @param options - 原样透传给 `versionManager.switchBranch()`；不传即不表态
+   * @throws {@link WorktreeCapabilityDisabledError} 这个库还没启用提交能力
+   * @throws {@link WorktreeNotFoundError} 这个 worktree 不存在
+   * @throws {@link WorktreeDirtyError} 传了 `requireClean: true` 且当前分支有未提交改动
+   * @throws {@link StaleActiveBranchError} 传了 `expectedActivationRevision` 且已过期
+   * @throws {@link RxDBError} 没装 `rxDBPluginHistory`
+   *
+   * @remarks
+   * 切换语义一个字都不在这里重写：脏不脏、代际过没过期、切当前分支是不是 no-op，全归
+   * `switchBranch()` 与本插件的 `prepareBranchSwitch` 判。`options` 也不补默认值——补一个
+   * `requireClean: true` 等于把「未提交改动留在原 worktree」这件事关掉。
+   *
+   * 读行与切换同样分两阶段，理由同 {@link createWorktree}。
+   */
+  async switchWorktree(id: string, options?: WorktreeSwitchBranchOptions): Promise<void> {
+    const { row, versionManager } = await this.runEnabled(async executor => {
+      const versionManager = this.#versionManager();
+      const row = await readWorktreeRow(executor, id);
+      return { row, versionManager };
+    });
+    await versionManager.switchBranch(row.branchId, options);
+  }
+
+  /**
+   * 移除一个 worktree：只删这一行（US-310，`git worktree remove`）。
+   *
+   * @param id - worktree id
+   * @throws {@link WorktreeCapabilityDisabledError} 这个库还没启用提交能力
+   * @throws {@link WorktreeNotFoundError} 这个 worktree 不存在
+   * @throws {@link WorktreeActiveError} 它是当前所在的 worktree
+   * @throws {@link WorktreeDirtyError} 它钉住的分支上还有未提交改动
+   *
+   * @remarks
+   * 分支、未提交改动与提交图一概不动；删后这条分支回到「没钉住」，随时可以再钉。
+   * 两道拒绝照 `git worktree remove`：删掉当前 checkout 会让「我在哪个 worktree」没有答案；
+   * 删掉有未提交改动的 worktree 虽不丢数据，那些改动从此只能经分支菜单找回。
+   */
+  async removeWorktree(id: string): Promise<void> {
+    await this.runEnabled(executor => unpinWorktree(executor, id));
   }
 
   /**
@@ -521,6 +618,31 @@ export class WorktreeManager {
   #healCapture(adapter: LocalRxDBAdapter): void {
     if (adapter.workingTreeCaptureHook) return;
     installWorktreeCapture(this.#rxdb, adapter);
+  }
+
+  /**
+   * 取历史插件的 `versionManager`，没装就抛。
+   *
+   * @returns 本连接纪元的 `versionManager`
+   * @throws {@link RxDBError} 没装 `rxDBPluginHistory` 时
+   *
+   * @remarks
+   * **现取**，不在构造时缓存：它由历史插件在连接纪元内装卸（见 `rxdb-plugin-history/src/plugin.ts`），
+   * 存一份等于把门面钉在第一个纪元上。
+   *
+   * 调用点在受管事务**里面**、写行**之前**：门禁先说话（未启用的库该听到的是「去 enable()」），
+   * 又不至于先落一行 worktree、再在切换那一步才发现没有东西能切。`declare module` 把它声明成
+   * 非可选，所以这里显式放宽成 `| undefined`，否则守卫会被 lint 判成恒真删掉。
+   */
+  #versionManager(): VersionManager {
+    const versionManager: VersionManager | undefined = this.#rxdb.versionManager;
+    if (!versionManager) {
+      throw new RxDBError(
+        '这个数据库上没有 versionManager：worktree 的创建与切换要经它切分支，' +
+          '它由 use(rxDBPluginHistory) 在连接时挂上。先装历史插件。'
+      );
+    }
+    return versionManager;
   }
 
   /**

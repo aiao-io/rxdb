@@ -68,7 +68,7 @@ export function createWorktreeCommitsInitialRows(
     rows.push(...createBranchCommitRows(entityManager, branchId, branchGenerationSeq));
   }
 
-  // 建行只此一处（`worktree/activation-state.ts`）：新库与既有库共用同一份初始值。
+  // 建行只此一处（`working-tree/activation-state.ts`）：新库与既有库共用同一份初始值。
   // 已发放到 N，下一次 create branch 从 N+1 起。写 0 会让新分支复用既有分支的代际（ABA）。
   rows.push(createWorktreeActivationRow(entityManager, branchGenerationSeq));
 

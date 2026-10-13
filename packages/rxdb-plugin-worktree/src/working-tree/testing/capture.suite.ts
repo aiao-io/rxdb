@@ -64,6 +64,7 @@ import { CommitCapabilityState } from '../../commit/commit-capability-state.enti
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
 import { Commit } from '../../commit/commit.entity.js';
+import { Worktree } from '../../worktree/worktree.entity.js';
 import { WorktreeCaptureRuntime } from '../capture-hook.js';
 import { assertColdReplayInvariant, type ColdReplayRow, type ColdReplaySnapshot } from '../cold-replay.js';
 import { judgeRawWrite, type RawWriteJudgmentContext } from '../raw-write-judgment.js';
@@ -387,9 +388,7 @@ const readColumnValues = async (
  * @returns 该库里受工作树跟踪的一致性实体
  */
 const trackedConformanceEntitiesOf = (database: RxDB): readonly EntityType[] =>
-  WORKTREE_CONFORMANCE_ENTITIES.filter(
-    EntityClass => database.entitySync.resolveType(EntityClass) !== 'querycache'
-  );
+  WORKTREE_CONFORMANCE_ENTITIES.filter(EntityClass => database.entitySync.resolveType(EntityClass) !== 'querycache');
 
 /**
  * 冷重放不变量——每组末尾都跑这一条
@@ -659,6 +658,18 @@ const EPIC_006_SYSTEM_ENTITIES: readonly EntityType[] = [
   WorkingTreeMaterializationStage,
   WorkingTreeMaterializationPage
 ];
+
+/**
+ * epic-010（US-310）新增的系统表
+ *
+ * @remarks
+ * 不并进 {@link EPIC_006_SYSTEM_ENTITIES}：那份清单的名字说的是 epic-006，塞进别的 epic 的表它就撒谎。
+ * 手写的理由与那份相同——新表先在这里编译失败，逐条过一遍 §1.5 的三条断言。
+ */
+const EPIC_010_SYSTEM_ENTITIES: readonly EntityType[] = [Worktree];
+
+/** 本插件贡献的全部系统表；§1.5 的三条断言逐张过。 */
+const PLUGIN_SYSTEM_ENTITIES: readonly EntityType[] = [...EPIC_006_SYSTEM_ENTITIES, ...EPIC_010_SYSTEM_ENTITIES];
 
 /**
  * 捕获侧一致性套件
@@ -1570,16 +1581,16 @@ export const worktreeCaptureConformanceSuite = (context: WorktreeConformanceSuit
     });
 
     describe('§1.5 存储契约静态断言', () => {
-      it('全部 epic-006 系统表都登记在 SYSTEM_ENTITIES 里，且 isSystemEntity() 为真', async () => {
+      it('本插件全部系统表（epic-006 + epic-010）都登记在 SYSTEM_ENTITIES 里，且 isSystemEntity() 为真', async () => {
         // 双向相等，不是单向包含：正向漏登记会让库自己的簿记写被当成用户编辑落进工作树，
         // 反向（`SYSTEM_ENTITIES` 里多出一张这里没列的表）说明有人加了系统表却没走 §1.5 的契约。
         // 两边都按 `isSystemEntity()` 用的那把身份键（`namespace:name`）比，而不是按类引用——
         // 判定本身就不是按类引用做的，按类比会让「同名不同类」这种形态漏网。
         expect(SYSTEM_ENTITIES.map(identityOf).sort()).toEqual(
-          [...PRE_EPIC_006_SYSTEM_ENTITIES, ...EPIC_006_SYSTEM_ENTITIES].map(identityOf).sort()
+          [...PRE_EPIC_006_SYSTEM_ENTITIES, ...PLUGIN_SYSTEM_ENTITIES].map(identityOf).sort()
         );
 
-        for (const EntityClass of EPIC_006_SYSTEM_ENTITIES) {
+        for (const EntityClass of PLUGIN_SYSTEM_ENTITIES) {
           expect(isSystemEntity(EntityClass), `${identityOf(EntityClass)} 没被认成系统表`).toBe(true);
         }
         // 对照组：业务实体不能被认成系统表，否则捕获会把用户编辑整批短路成 `system`。
@@ -1589,8 +1600,8 @@ export const worktreeCaptureConformanceSuite = (context: WorktreeConformanceSuit
         await expectColdReplayIntact(database);
       });
 
-      it('全部 epic-006 系统表 log === false：库自己的簿记不进变更日志', async () => {
-        for (const EntityClass of EPIC_006_SYSTEM_ENTITIES) {
+      it('本插件全部系统表 log === false：库自己的簿记不进变更日志', async () => {
+        for (const EntityClass of PLUGIN_SYSTEM_ENTITIES) {
           expect(getEntityMetadata(EntityClass).log, `${identityOf(EntityClass)} 会往变更日志里写`).toBe(false);
         }
         // `log` 缺省是「记」，所以这里必须逐张断言 `=== false` 而不是 `!== true`：
@@ -1608,9 +1619,9 @@ export const worktreeCaptureConformanceSuite = (context: WorktreeConformanceSuit
         expect(getEntityMetadata(WorkingTreeEntry).tableName).toBe('rxdb_working_tree_entry');
         expect(getEntityMetadata(CommitChangeSet).tableName).toBe('rxdb_commit_change_set');
 
-        // 十张一起断言而不是只断言点名的两张：另外八张现在也确实不引用它，把范围收窄到两张
+        // 全部系统表一起断言而不是只断言点名的两张：其余几张现在也确实不引用它，把范围收窄到两张
         // 等于给「下一张新表引用 rxdb_change」留门，而那正是这条契约要堵死的形态。
-        for (const EntityClass of EPIC_006_SYSTEM_ENTITIES) {
+        for (const EntityClass of PLUGIN_SYSTEM_ENTITIES) {
           const mapped = getEntityMetadata(EntityClass).relations.map(relation => relation.mappedEntity);
           expect(mapped, `${identityOf(EntityClass)} 的 relations 引用了 ${changeEntityName}`).not.toContain(
             changeEntityName

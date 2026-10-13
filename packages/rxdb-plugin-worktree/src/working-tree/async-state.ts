@@ -3,7 +3,7 @@
  *
  * @remarks
  * 三端入口（`@aiao/rxdb-angular` / `-react` / `-vue` 的 `useWorktree()`）把工作树的
- * 十二件事各自摊成一个可观测状态。摊的规则只有这一份：**命令是 loading / success / error，
+ * 十六件事各自摊成一个可观测状态。摊的规则只有这一份：**命令是 loading / success / error，
  * 查询在无结果时额外一个 empty**。
  *
  * 两条不可让步的性质：
@@ -31,6 +31,7 @@
 import type { CommitCapabilityInfo } from '../commit/commit-capability.js';
 import type { CommitChangeSetPage } from '../commit/commit-changes.js';
 import type { CommitLogPage } from '../commit/commit-log.js';
+import type { WorktreeInfo } from '../worktree/worktree-command.js';
 import type { CommitResult } from './commit-command.js';
 import type { WorktreeDiff } from './diff.js';
 import type { WorktreeDiscardResult } from './discard-command.js';
@@ -100,18 +101,14 @@ export type WorktreeCommandState<T> =
  * 查询的可观测状态：比命令**恰好多一个** empty（§4）。
  *
  * @remarks
- * 只有五件事有 empty 语义：`status()` 无未提交变更、`diff()` 无可展示改动、
+ * 只有六件事有 empty 语义：`status()` 无未提交变更、`diff()` 无可展示改动、
  * `listCommits()` 无历史、`commitChanges()` 无变更单元（基线节点）、`restoreSession()`
- * 无未结束会话。判据分别是 {@link isWorktreeStatusEmpty}、{@link isWorktreeDiffEmpty}、
- * {@link isCommitLogPageEmpty}、`isCommitChangeSetPageEmpty()`、
- * {@link isWorktreeRestoreSessionEmpty}。
+ * 无未结束会话、`listWorktrees()` 无 worktree。判据分别是 {@link isWorktreeStatusEmpty}、
+ * {@link isWorktreeDiffEmpty}、{@link isCommitLogPageEmpty}、`isCommitChangeSetPageEmpty()`、
+ * {@link isWorktreeRestoreSessionEmpty}、{@link isWorktreeListEmpty}。
  */
 export type WorktreeQueryState<T> =
-  | WorktreeIdleState
-  | WorktreeLoadingState
-  | WorktreeSuccessState<T>
-  | WorktreeEmptyState<T>
-  | WorktreeErrorState;
+  WorktreeIdleState | WorktreeLoadingState | WorktreeSuccessState<T> | WorktreeEmptyState<T> | WorktreeErrorState;
 
 /**
  * 三端入口持有的全部状态，一项能力一个字段。
@@ -119,15 +116,16 @@ export type WorktreeQueryState<T> =
  * @remarks
  * 键集是 US-306 阶段 C 收口的六项，加上 T110 补进来的 `restore()` / `restoreSession()`，
  * 再加 T123 补进来的 `switchBranch()`，加上 commit 明细侧的 `commitChanges()`，
- * 与 auto-enable 补进来的 `enableIfEmpty()`——tri-framework-api.md §3 清单十二项到齐。
+ * 与 auto-enable 补进来的 `enableIfEmpty()`——tri-framework-api.md §3 清单十二项；US-310 再加命名
+ * worktree 的四项（`listWorktrees()` 查询与 create / switch / remove 三个命令），共十六项。
  *
  * `switchBranchState` 走**命令**状态而不是查询：切分支没有「空」这一形态，成功就是切过去了
  * （`VersionManager.switchBranch()` 返回 `void`），被 `requireClean` 拒掉则是一次
  * `WorktreeDirtyError`，落在 `error` 相位。切到当前分支是一次 no-op **成功**，
  * 与 `discard()` 的 `discardedCount: 0` 同形，不是「这里没有内容」。
  *
- * 做成一个记录而不是十二个独立容器：三端的响应式原语都按「一次写入触发一次通知」工作，
- * 十二个容器就是十二条通知路径，而一次 `commit()` 会同时改 `commitState` 与 `statusState`
+ * 做成一个记录而不是十六个独立容器：三端的响应式原语都按「一次写入触发一次通知」工作，
+ * 十六个容器就是十六条通知路径，而一次 `commit()` 会同时改 `commitState` 与 `statusState`
  * （命令成功后刷新摘要）——两条路径先后到达时，UI 会看到「提交成功了但摘要还是旧的」
  * 这一帧。
  */
@@ -167,9 +165,21 @@ export interface WorktreeAsyncStates {
 
   /** `switchBranch()` 的状态；**没有 empty** —— 切换只有「切过去了」与「被拒/出错」两种结局 */
   readonly switchBranchState: WorktreeCommandState<void>;
+
+  /** `listWorktrees()` 的状态；空即「一个 worktree 都没有」（零行是合法态） */
+  readonly listWorktreesState: WorktreeQueryState<readonly WorktreeInfo[]>;
+
+  /** `createWorktree()` 的状态；**没有 empty** —— 成功就是钉住并切过去了 */
+  readonly createWorktreeState: WorktreeCommandState<WorktreeInfo>;
+
+  /** `switchWorktree()` 的状态；**没有 empty** —— 与 `switchBranch()` 同形 */
+  readonly switchWorktreeState: WorktreeCommandState<void>;
+
+  /** `removeWorktree()` 的状态；**没有 empty** —— 被拒（当前所在 / 有未提交改动）是 `error` */
+  readonly removeWorktreeState: WorktreeCommandState<void>;
 }
 
-/** 十二项全部「还没人问过」；三端入口的初值只有这一份。 */
+/** 十六项全部「还没人问过」；三端入口的初值只有这一份。 */
 export const WORKTREE_INITIAL_ASYNC_STATES: WorktreeAsyncStates = Object.freeze({
   isEnabledState: { phase: 'idle' },
   enableState: { phase: 'idle' },
@@ -182,7 +192,11 @@ export const WORKTREE_INITIAL_ASYNC_STATES: WorktreeAsyncStates = Object.freeze(
   discardState: { phase: 'idle' },
   restoreState: { phase: 'idle' },
   restoreSessionState: { phase: 'idle' },
-  switchBranchState: { phase: 'idle' }
+  switchBranchState: { phase: 'idle' },
+  listWorktreesState: { phase: 'idle' },
+  createWorktreeState: { phase: 'idle' },
+  switchWorktreeState: { phase: 'idle' },
+  removeWorktreeState: { phase: 'idle' }
 } satisfies WorktreeAsyncStates);
 
 /** 状态的去处；三端各自把它接到本框架的响应式原语上。 */
@@ -285,5 +299,13 @@ export const isCommitLogPageEmpty = (page: CommitLogPage): boolean => page.entri
  * 一行 `=== null` 也值得一个名字：三端各写一遍的话，迟早有一端写成上面那个版本，
  * 于是同一个库在 Angular 上显示「恢复中」、在 Vue 上显示「没有恢复」。
  */
-export const isWorktreeRestoreSessionEmpty = (session: WorktreeRestoreSessionInfo | null): boolean =>
-  session === null;
+export const isWorktreeRestoreSessionEmpty = (session: WorktreeRestoreSessionInfo | null): boolean => session === null;
+
+/**
+ * `listWorktrees()` 的空：一个 worktree 都没有。
+ *
+ * @remarks
+ * 零行是合法态：`0005-worktrees` 在零 active 的老库上不落主行，用户也可能把非当前的 worktree 全删了
+ * （当前所在的那个删不掉，但当前 checkout 本来就可以没钉住）。
+ */
+export const isWorktreeListEmpty = (worktrees: readonly WorktreeInfo[]): boolean => worktrees.length === 0;

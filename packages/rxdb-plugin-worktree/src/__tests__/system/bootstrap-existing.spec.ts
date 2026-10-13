@@ -26,11 +26,14 @@ import {
   NoActiveBranchError,
   RxDB,
   RxDBBranch,
+  RxDBMigration,
   SyncType,
   type EntityType
 } from '@aiao/rxdb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { CommitCapabilityState } from '../../commit/commit-capability-state.entity.js';
+import { WORKING_TREE_COMMITS_MIGRATION_NAME } from '../../migrations/0004-working-tree-commits.js';
+import { WORKTREES_MIGRATION_NAME } from '../../migrations/0005-worktrees.js';
 import { rxDBPluginWorktree } from '../../plugin.js';
 import { createCapabilityStateRow, createMockAdapter, type MockLocalAdapter } from '../fixtures/test-db-setup.js';
 
@@ -140,7 +143,10 @@ describe('既有库接通时校验 active 分支基数（FR-048）', () => {
     const database = createDatabaseWith(
       new Map<EntityType, object[]>([
         [CommitCapabilityState, [createEnabledCapability()]],
-        [RxDBBranch, [createActiveBranch('feature-x'), createActiveBranch('main')]]
+        [RxDBBranch, [createActiveBranch('feature-x'), createActiveBranch('main')]],
+        // 两条插件迁移记成已执行：`0005-worktrees` 自己也拒多 active（主 worktree 没法钉），
+        // 不跳过它的话连接在迁移那一步就被拒了，这条用例测的握手一次都走不到。
+        [RxDBMigration, [WORKING_TREE_COMMITS_MIGRATION_NAME, WORKTREES_MIGRATION_NAME].map(name => ({ name }))]
       ])
     );
 

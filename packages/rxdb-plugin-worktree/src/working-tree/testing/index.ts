@@ -19,7 +19,8 @@ export {
   diffWith,
   logWith,
   sessionWith,
-  statusWith
+  statusWith,
+  worktreeWith
 } from './use-working-tree-fixtures.js';
 export type {
   Deferred,

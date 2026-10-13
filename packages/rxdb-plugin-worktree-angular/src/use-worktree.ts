@@ -21,6 +21,7 @@ import {
   type WorktreeDiscardOptions,
   type WorktreeDiscardResult,
   type WorktreeEnableIfEmptyResult,
+  type WorktreeInfo,
   type WorktreeQueryState,
   type WorktreeRestoreOptions,
   type WorktreeRestoreResult,
@@ -35,8 +36,8 @@ import { computed, signal, Signal } from '@angular/core';
  * {@link useWorktree} 的返回值。
  *
  * @remarks
- * 十二个状态字段与核心的 `WorktreeAsyncStates` 一一对应，只是每一项各自装进 `Signal`：
- * 模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。十二个方法的签名
+ * 十六个状态字段与核心的 `WorktreeAsyncStates` 一一对应，只是每一项各自装进 `Signal`：
+ * 模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。十六个方法的签名
  * 与插件包 `WorktreeManager`（`switchBranch` 那一个是 `VersionManager`）上的同名方法完全
  * 一致 —— 入参与返回值用的都是 `@aiao/rxdb-plugin-worktree` 那一份类型，
  * 本包**不重定义**（tri-framework-api.md §1）。
@@ -52,6 +53,10 @@ import { computed, signal, Signal } from '@angular/core';
  * `switchBranch(branchId, options?)` 的 `WorktreeSwitchBranchOptions` 由 T123 接进来：
  * 不传第二参时与今天逐字节一致（无条件切换），`{ requireClean: true }` 在工作树非空时**抛**
  * `WorktreeDirtyError` —— 被拒不是返回值，因为那一刻分支根本没切。
+ *
+ * 命名 worktree（US-310）的四项：`listWorktrees()` 走查询状态（零行是 `empty`），create / switch /
+ * remove 走命令状态。worktree 之间切换**不带** `requireClean` 时未提交改动留在原 worktree，
+ * 切回来原样还在。
  *
  * @public
  */
@@ -80,6 +85,14 @@ export interface WorktreeResource {
   readonly restoreSessionState: Signal<WorktreeQueryState<WorktreeRestoreSessionInfo | null>>;
   /** 上一次 `switchBranch()` 的相位；**没有 empty** —— 切到当前分支是成功的 no-op */
   readonly switchBranchState: Signal<WorktreeCommandState<void>>;
+  /** worktree 列表的相位；一个都没有是 `empty` */
+  readonly listWorktreesState: Signal<WorktreeQueryState<readonly WorktreeInfo[]>>;
+  /** 上一次 `createWorktree()` 的相位；**没有 empty** */
+  readonly createWorktreeState: Signal<WorktreeCommandState<WorktreeInfo>>;
+  /** 上一次 `switchWorktree()` 的相位；**没有 empty** */
+  readonly switchWorktreeState: Signal<WorktreeCommandState<void>>;
+  /** 上一次 `removeWorktree()` 的相位；**没有 empty** —— 被拒（当前所在 / 有未提交改动）是 `error` */
+  readonly removeWorktreeState: Signal<WorktreeCommandState<void>>;
 
   /** 读取这个库启没启用提交能力。 */
   readonly isEnabled: () => Promise<boolean>;
@@ -100,14 +113,19 @@ export interface WorktreeResource {
   /** 把工作树整体退回 HEAD；成功后自动重读一次 status。 */
   readonly discard: (options: WorktreeDiscardOptions) => Promise<WorktreeDiscardResult>;
   /** 把一个可达历史 commit 的内容写回工作树；被拒走返回值，不是异常。成功与否都重读 status。 */
-  readonly restore: (
-    target: WorktreeRestoreTarget,
-    options: WorktreeRestoreOptions
-  ) => Promise<WorktreeRestoreResult>;
+  readonly restore: (target: WorktreeRestoreTarget, options: WorktreeRestoreOptions) => Promise<WorktreeRestoreResult>;
   /** 读当前分支那个未结束的恢复会话；没有就是 `null`。 */
   readonly restoreSession: () => Promise<WorktreeRestoreSessionInfo | null>;
   /** 切到另一条分支；被 `requireClean` 拒掉时抛 `WorktreeDirtyError`。成功后自动重读一次 status。 */
   readonly switchBranch: (branchId: string, options?: WorktreeSwitchBranchOptions) => Promise<void>;
+  /** 读全部命名 worktree；`active` 与当前 checkout 同口径。 */
+  readonly listWorktrees: () => Promise<readonly WorktreeInfo[]>;
+  /** 把一条分支钉成新 worktree 并切过去；无论成败都自动重读 status 与列表。 */
+  readonly createWorktree: (branchId: string, label?: string) => Promise<WorktreeInfo>;
+  /** 切到一个 worktree；`options` 原样透传给 `switchBranch()`。成功后自动重读 status 与列表。 */
+  readonly switchWorktree: (id: string, options?: WorktreeSwitchBranchOptions) => Promise<void>;
+  /** 移除一个 worktree（只删那一行）；当前所在或有未提交改动时抛。成功后自动重读列表。 */
+  readonly removeWorktree: (id: string) => Promise<void>;
 }
 
 /**
@@ -148,10 +166,10 @@ export interface WorktreeResource {
  * ```
  *
  * @remarks
- * **必须在 Angular 注入上下文中调用** —— 它经 `useRxDB()` 取库。十二格状态挂在本次调用
+ * **必须在 Angular 注入上下文中调用** —— 它经 `useRxDB()` 取库。十六格状态挂在本次调用
  * 自己的 signal 上，没有跨组件共享的单例缓存。
  *
- * **创建入口本身一次 IO 都不发**：十二格初值全是 `idle`，只有真的调了方法才会去读库。
+ * **创建入口本身一次 IO 都不发**：十六格初值全是 `idle`，只有真的调了方法才会去读库。
  * 挂上就查会让每个只想拿到 `commit()` 的组件在挂载时白发一轮查询。
  *
  * **没有变更流**：状态只在经本入口发出的命令之后更新。别的标签页写进来的改动、
@@ -185,6 +203,10 @@ export const useWorktree = (): WorktreeResource => {
     restoreState: computed(() => states().restoreState),
     restoreSessionState: computed(() => states().restoreSessionState),
     switchBranchState: computed(() => states().switchBranchState),
+    listWorktreesState: computed(() => states().listWorktreesState),
+    createWorktreeState: computed(() => states().createWorktreeState),
+    switchWorktreeState: computed(() => states().switchWorktreeState),
+    removeWorktreeState: computed(() => states().removeWorktreeState),
     ...commands
   };
 };

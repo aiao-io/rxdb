@@ -8,12 +8,12 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 74   |
-| 🚧 In Progress | 2    |
+| ✅ Done        | 75   |
+| 🚧 In Progress | 3    |
 | 👀 In Review   | 1    |
 | 📝 Backlog     | 23   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 100  |
+| **合计**       | 102  |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
@@ -25,12 +25,13 @@
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（2 条）
+## 进行中（3 条）
 
-| Story                                                                                      | 进展                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)             | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过、未上真机（iOS 真机调试待复测），adapter 剩 Android 真机；百度 / QQ 已判 `unsupported`，按未知平台拒绝；阶段 B+C 经 [#87](https://github.com/aiao-io/rxdb/pull/87) 合入；剩 Android 真机补验、支付宝 demo 真机走查与 AC#18 文档口径确认 |
-| [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) | A1 已完成：入口 TSDoc、语义事实源与漂移门禁（投递范围读事实源登记的发布 tag）、离线样例与 CI 接线；A2 经 [#113](https://github.com/aiao-io/rxdb/pull/113) 合入：`@aiao/*` peer 统一为 `workspace:^`，真实打包与隔离消费验证通过（AC#4/#7/#8），`BREAKING CHANGE` 随其后的迁移发布声明；C 主包 Skill 已交付（锁定 skills-npm@4.0.0，探针与 AC#11/#17 通过）；B 本地构建已完成，剩部署后线上 smoke                                                                                                                                                                                        |
+| Story                                                                                         | 进展                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)                | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过、未上真机（iOS 真机调试待复测），adapter 剩 Android 真机；百度 / QQ 已判 `unsupported`，按未知平台拒绝；阶段 B+C 经 [#87](https://github.com/aiao-io/rxdb/pull/87) 合入；剩 Android 真机补验、支付宝 demo 真机走查与 AC#18 文档口径确认 |
+| [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md)    | A1 已完成：入口 TSDoc、语义事实源与漂移门禁（投递范围读事实源登记的发布 tag）、离线样例与 CI 接线；A2 经 [#113](https://github.com/aiao-io/rxdb/pull/113) 合入：`@aiao/*` peer 统一为 `workspace:^`，真实打包与隔离消费验证通过（AC#4/#7/#8），`BREAKING CHANGE` 随其后的迁移发布声明；C 主包 Skill 已交付（锁定 skills-npm@4.0.0，探针与 AC#11/#17 通过）；B 本地构建已完成，剩部署后线上 smoke                                                                                                                                                                                        |
+| [US-310 命名工作上下文（git worktree 能力）](stories/collaboration/US-310-named-worktrees.md) | 2026-10-13 开工：评审修订后的执行任务单见 [specs/011](../specs/011-us310-named-worktrees/tasks.md)；worktree 之间按 git 口径自由切换（未提交改动按分支隔离保留），只有 remove 拒脏；0005 迁移对零 active 老库不落行                                                                                                                                                                                                                                                                                                                                                                     |
 
 ## 待评审（1 条）
 
@@ -205,6 +206,10 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 - ⬜ [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md) — 实例结构（`parent_instance_id`）与主数据可达性分离；源发生项删除受限
 - ⬜ [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md) — 四阶段；路线一律落在本仓；US-520 与 US-514 加工费的那一端，是二者的硬前置
 - ⬜ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 四阶段；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；一份滑板车数据集贯穿全域 + 七步算式面板
+
+### [命名工作上下文](epics/epic-010-worktree-contexts.md)
+
+- 🚧 [US-310 命名工作上下文（git worktree 能力）](stories/collaboration/US-310-named-worktrees.md) — 新系统表 `rxdb_worktree`（第 11 张）+ 迁移 `0005-worktrees`；`WorktreeManager` 新增 list / create / switch / remove，1:1 钉分支、单 checkout、创建即切换；三端 `useWorktree()` 对称扩展与 demo worktree 菜单
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

@@ -115,4 +115,11 @@ describe('本包写出的认领行走一趟真实守卫', () => {
   it('本插件在场时同一行被认领，守卫放行', () => {
     expect(() => assertClaimedCapabilities([WATERMARK_NAME], new Set([CONTRIBUTION.capability]))).not.toThrow();
   });
+
+  it('改名前的旧包名行与新包名行并存：守卫只认能力名，双双放行', () => {
+    // US-309 之前写下的那一行；改名后库里两行并存，任何一行判成未认领都等于把升级做成拒连。
+    const legacy = '__rxdb_capability__:workingTree:1:@aiao/rxdb-plugin-working-tree';
+    expect(parseCapabilityWatermark(legacy)?.capability).toBe(WORKING_TREE_CAPABILITY);
+    expect(() => assertClaimedCapabilities([legacy, WATERMARK_NAME], new Set([CONTRIBUTION.capability]))).not.toThrow();
+  });
 });

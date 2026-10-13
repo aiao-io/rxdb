@@ -45,7 +45,7 @@ import {
   type WorktreeScene
 } from './fixtures/working-tree-scene.js';
 
-/** `worktree/` 下的源码快照；用来证明守卫是**被引用**的，不是被抄了一份。 */
+/** `working-tree/` 下的源码快照；用来证明守卫是**被引用**的，不是被抄了一份。 */
 const WORKTREE_SOURCES = import.meta.glob<string>('../../working-tree/*.ts', {
   query: '?raw',
   import: 'default',

@@ -43,12 +43,11 @@ import type {
   WorktreeRestoreTarget
 } from '../../working-tree/restore-command.js';
 import type { WorktreeStatus } from '../../working-tree/status.js';
-import {
-  WorktreeDirtyError,
-  type WorktreeSwitchBranchOptions
-} from '../../working-tree/switch-branch-options.js';
+import { WorktreeDirtyError, type WorktreeSwitchBranchOptions } from '../../working-tree/switch-branch-options.js';
 import { createWorktreeCommands, type WorktreeStatePatch } from '../../working-tree/working-tree-commands.js';
 import type { WorktreeEnableIfEmptyResult, WorktreeManager } from '../../working-tree/working-tree-facade.js';
+import type { WorktreeInfo } from '../../worktree/worktree-command.js';
+import { WorktreeActiveError, WorktreeBranchPinnedError } from '../../worktree/worktree-errors.js';
 
 /** 手控的 promise：不控住它，`loading` 在第一个 await 之前就已经翻过去了。 */
 const deferred = <T>() => {
@@ -149,6 +148,21 @@ const DISCARD_OPTIONS: WorktreeDiscardOptions = CREDENTIALS;
 const RESTORE_OPTIONS: WorktreeRestoreOptions = CREDENTIALS;
 const RESTORE_TARGET: WorktreeRestoreTarget = { commitId: 'commit-1' };
 
+const WORKTREE_MAIN: WorktreeInfo = {
+  id: 'wt-main',
+  branchId: 'main',
+  label: null,
+  active: true,
+  createdAt: new Date(0)
+};
+const WORKTREE_FEATURE: WorktreeInfo = {
+  id: 'wt-feature',
+  branchId: 'feature',
+  label: 'Feature',
+  active: true,
+  createdAt: new Date(1)
+};
+
 const SESSION: WorktreeRestoreSessionInfo = {
   id: 'session-1',
   branchId: 'main',
@@ -197,12 +211,15 @@ const createFixture = () => {
     commit: vi.fn<(message: string, options: CommitOptions) => Promise<CommitResult>>(),
     discard: vi.fn<(options: WorktreeDiscardOptions) => Promise<WorktreeDiscardResult>>(),
     restore:
-      vi.fn<
-        (target: WorktreeRestoreTarget, options: WorktreeRestoreOptions) => Promise<WorktreeRestoreResult>
-      >(),
-    restoreSession: vi.fn<() => Promise<WorktreeRestoreSessionInfo | null>>()
+      vi.fn<(target: WorktreeRestoreTarget, options: WorktreeRestoreOptions) => Promise<WorktreeRestoreResult>>(),
+    restoreSession: vi.fn<() => Promise<WorktreeRestoreSessionInfo | null>>(),
+    listWorktrees: vi.fn<() => Promise<readonly WorktreeInfo[]>>(),
+    createWorktree: vi.fn<(branchId: string, label?: string) => Promise<WorktreeInfo>>(),
+    switchWorktree: vi.fn<(id: string, options?: WorktreeSwitchBranchOptions) => Promise<void>>(),
+    removeWorktree: vi.fn<(id: string) => Promise<void>>()
   };
   worktree.status.mockResolvedValue(statusWith(0));
+  worktree.listWorktrees.mockResolvedValue([WORKTREE_MAIN]);
 
   const versionManager = {
     switchBranch: vi.fn<(branchId: string, options?: WorktreeSwitchBranchOptions) => Promise<void>>()
@@ -232,7 +249,7 @@ const createFixture = () => {
   };
 };
 
-describe('十二个命令各自只驱动自己那一格（§4）', () => {
+describe('十六个命令各自只驱动自己那一格（§4）', () => {
   it('isEnabled 走命令状态，其余十一格纹丝不动', async () => {
     const { commands, states, worktree } = createFixture();
     worktree.isEnabled.mockResolvedValue(true);
@@ -1060,10 +1077,141 @@ describe('库上没装工作树插件时，建入口这一步就抛', () => {
     expect(() => createWorktreeCommands(database, () => undefined)).toThrow(/rxDBPluginWorktree/);
   });
 
-  it('装了插件时照常建出十二个命令', () => {
+  it('装了插件时照常建出十六个命令', () => {
     // 守卫写成无条件抛的话这条会红。
     const { commands } = createFixture();
 
-    expect(Object.keys(commands)).toHaveLength(12);
+    expect(Object.keys(commands)).toHaveLength(16);
+  });
+});
+
+describe('US-310 四个 worktree 命令', () => {
+  it('listWorktrees 走查询状态：零行是 empty、有行是 success，别的格子不动', async () => {
+    const { commands, states, worktree } = createFixture();
+    worktree.listWorktrees.mockResolvedValueOnce([]);
+
+    await expect(commands.listWorktrees()).resolves.toEqual([]);
+    expect(states.listWorktreesState).toEqual({ phase: 'empty', value: [] });
+
+    await commands.listWorktrees();
+    expect(states.listWorktreesState).toEqual({ phase: 'success', value: [WORKTREE_MAIN] });
+    expect(untouchedKeys(states, 'listWorktreesState')).toEqual([]);
+  });
+
+  // 钉住并切过去：摘要换了分支，列表多了一行、active 勾选也挪了位置——两份都要重读，次序在命令落地之后。
+  it('createWorktree 成功：先落 createWorktreeState，再依次重读 status 与列表', async () => {
+    const { commands, states, transitions, worktree } = createFixture();
+    worktree.createWorktree.mockResolvedValue(WORKTREE_FEATURE);
+
+    await expect(commands.createWorktree('feature', 'Feature')).resolves.toBe(WORKTREE_FEATURE);
+
+    expect(worktree.createWorktree).toHaveBeenCalledWith('feature', 'Feature');
+    expect(states.createWorktreeState).toEqual({ phase: 'success', value: WORKTREE_FEATURE });
+    expect(transitions).toEqual([
+      'createWorktreeState:loading',
+      'createWorktreeState:success',
+      'statusState:loading',
+      'statusState:empty',
+      'listWorktreesState:loading',
+      'listWorktreesState:success'
+    ]);
+  });
+
+  // 两阶段：切换阶段失败时行已落库（见 `WorktreeManager.createWorktree` 的 TSDoc），只在成功时重读的话，
+  // 列表里会缺一个确实存在、可以重试切换的 worktree。
+  it('createWorktree 失败：原错原样上抛，status 与列表照样重读', async () => {
+    const { commands, states, worktree } = createFixture();
+    const failure = new WorktreeBranchPinnedError('feature', 'wt-feature');
+    worktree.createWorktree.mockRejectedValue(failure);
+
+    await expect(commands.createWorktree('feature')).rejects.toBe(failure);
+
+    expect(states.createWorktreeState).toEqual({ phase: 'error', error: failure });
+    expect(worktree.status).toHaveBeenCalledTimes(1);
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(1);
+  });
+
+  it('switchWorktree 成功：id 与 options 原样透传，之后依次重读 status 与列表', async () => {
+    const { commands, states, transitions, worktree } = createFixture();
+    worktree.switchWorktree.mockResolvedValue(undefined);
+    const options = { requireClean: true };
+
+    await expect(commands.switchWorktree('wt-feature', options)).resolves.toBeUndefined();
+
+    expect(worktree.switchWorktree).toHaveBeenCalledWith('wt-feature', options);
+    expect(states.switchWorktreeState).toEqual({ phase: 'success', value: undefined });
+    expect(transitions).toEqual([
+      'switchWorktreeState:loading',
+      'switchWorktreeState:success',
+      'statusState:loading',
+      'statusState:empty',
+      'listWorktreesState:loading',
+      'listWorktreesState:success'
+    ]);
+  });
+
+  // 与 switchBranch 同形：被拒那一刻什么都没切，也就没有什么可重读的。
+  it('switchWorktree 被拒：原错原样上抛，status 与列表都不重读', async () => {
+    const { commands, states, worktree } = createFixture();
+    const dirty = new WorktreeDirtyError('main', 2);
+    worktree.switchWorktree.mockRejectedValue(dirty);
+
+    await expect(commands.switchWorktree('wt-feature', { requireClean: true })).rejects.toBe(dirty);
+
+    expect(states.switchWorktreeState).toEqual({ phase: 'error', error: dirty });
+    expect(worktree.status).not.toHaveBeenCalled();
+    expect(worktree.listWorktrees).not.toHaveBeenCalled();
+  });
+
+  // 只删 worktree 那一行：当前分支与它的未提交改动都没动，status 不必重读。
+  it('removeWorktree 成功：只重读列表', async () => {
+    const { commands, states, transitions, worktree } = createFixture();
+    worktree.removeWorktree.mockResolvedValue(undefined);
+
+    await expect(commands.removeWorktree('wt-feature')).resolves.toBeUndefined();
+
+    expect(worktree.removeWorktree).toHaveBeenCalledWith('wt-feature');
+    expect(transitions).toEqual([
+      'removeWorktreeState:loading',
+      'removeWorktreeState:success',
+      'listWorktreesState:loading',
+      'listWorktreesState:success'
+    ]);
+    expect(states.statusState).toEqual({ phase: 'idle' });
+  });
+
+  it('removeWorktree 被拒：原错原样上抛，列表不重读', async () => {
+    const { commands, states, worktree } = createFixture();
+    const active = new WorktreeActiveError('wt-main', 'main');
+    worktree.removeWorktree.mockRejectedValue(active);
+
+    await expect(commands.removeWorktree('wt-main')).rejects.toBe(active);
+
+    expect(states.removeWorktreeState).toEqual({ phase: 'error', error: active });
+    expect(worktree.listWorktrees).not.toHaveBeenCalled();
+  });
+
+  // 重读失败已经落进 listWorktreesState 的 error 相位；再抛一次会把一次成功的 worktree 操作
+  // 在调用方那里变成失败。
+  it('列表重读失败被吞掉：命令照常 resolve，失败只落在 listWorktreesState', async () => {
+    const { commands, states, worktree } = createFixture();
+    worktree.removeWorktree.mockResolvedValue(undefined);
+    const readFailure = new Error('读列表失败');
+    worktree.listWorktrees.mockRejectedValue(readFailure);
+
+    await expect(commands.removeWorktree('wt-feature')).resolves.toBeUndefined();
+
+    expect(states.removeWorktreeState).toEqual({ phase: 'success', value: undefined });
+    expect(states.listWorktreesState).toEqual({ phase: 'error', error: readFailure });
+  });
+
+  // `switchBranch()` 不顺手重读列表：从不显示 worktree 列表的应用不该每切一次分支就白发一轮查询。
+  it('switchBranch 不碰 listWorktreesState', async () => {
+    const { commands, states, worktree } = createFixture();
+
+    await commands.switchBranch('feature');
+
+    expect(worktree.listWorktrees).not.toHaveBeenCalled();
+    expect(states.listWorktreesState).toEqual({ phase: 'idle' });
   });
 });

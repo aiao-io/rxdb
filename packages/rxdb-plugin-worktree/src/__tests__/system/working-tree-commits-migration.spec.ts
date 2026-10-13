@@ -44,6 +44,7 @@ import {
 import { RxDBPluginWorktree, rxDBPluginWorktree } from '../../plugin.js';
 import { WorkingTreeActivationState } from '../../working-tree/working-tree-activation-state.entity.js';
 import { WorkingTreeState } from '../../working-tree/working-tree-state.entity.js';
+import { Worktree } from '../../worktree/worktree.entity.js';
 import { fakeTableRef } from '../fixtures/fake-table-ref.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 
@@ -127,10 +128,11 @@ function pick<T>(saved: InstanceType<EntityType>[], EntityClass: new () => T): T
 }
 
 describe('0004-working-tree-commits 迁移', () => {
-  it('本插件贡献的迁移清单只含本条，且名字与文件名一致', () => {
+  it('本条排在本插件迁移清单之首，且名字与文件名一致', () => {
     const entityManager = createEntityManager();
     const migrations = new RxDBPluginWorktree(createDatabase()).system.createMigrations(entityManager);
-    expect(migrations.map(migration => migration.name)).toEqual([WORKING_TREE_COMMITS_MIGRATION_NAME]);
+    // 之后的 `0005-worktrees`（US-310）由 `__tests__/worktree/worktrees-migration.spec.ts` 守。
+    expect(migrations[0]?.name).toBe(WORKING_TREE_COMMITS_MIGRATION_NAME);
     // 名字既是迁移的主键，也是水位行的内容；与文件名分叉不会编译报错，
     // 只会让既有库认领一个名、下次启动按另一个名判「还没跑过」。
     expect(WORKING_TREE_COMMITS_MIGRATION_NAME).toBe('0004-working-tree-commits');
@@ -213,17 +215,18 @@ describe('新库首装的初始行（createInitialRows）', () => {
     ...new RxDBPluginWorktree(createDatabase()).system.createInitialRows(entityManager, { branchIds })
   ];
 
-  it('单分支新库写满四行：branch ref、working tree state、激活状态、能力位', () => {
+  it('单分支新库写满五行：branch ref、working tree state、激活状态、能力位，外加 US-310 的主 worktree', () => {
     const entityManager = createEntityManager();
 
     const rows = initialRowsFor(entityManager, ['main']);
 
-    // 逐类计数而不是只看总数：四行里少一行、多一行同名的，总数都可能仍是 4。
-    expect(rows).toHaveLength(4);
+    // 逐类计数而不是只看总数：五行里少一行、多一行同名的，总数都可能仍是 5。
+    expect(rows).toHaveLength(5);
     expect(pick(rows, CommitBranchRef).map(ref => ref.id)).toEqual(['main']);
     expect(pick(rows, WorkingTreeState).map(state => state.id)).toEqual(['main']);
     expect(pick(rows, WorkingTreeActivationState)).toHaveLength(1);
     expect(pick(rows, CommitCapabilityState)).toHaveLength(1);
+    expect(pick(rows, Worktree).map(worktree => worktree.branchId)).toEqual(['main']);
   });
 
   it('每条分支各得一行 branch ref 与一行 working tree state，代际依次发放', () => {
@@ -247,7 +250,8 @@ describe('新库首装的初始行（createInitialRows）', () => {
     const entityManager = createEntityManager();
     const branchIds = ['main', 'feature-1'];
 
-    const fresh = initialRowsFor(entityManager, branchIds);
+    // 主 worktree 行属于 `0005-worktrees`，不在本条迁移的产出里；两条路径的比对见 worktrees-migration.spec.ts。
+    const fresh = initialRowsFor(entityManager, branchIds).filter(row => !(row instanceof Worktree));
     const { executor, saved } = createExecutorProbe(createBranches(entityManager, branchIds.length));
     await createWorktreeCommitsMigration(entityManager).up(executor);
 

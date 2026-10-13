@@ -1,7 +1,7 @@
 /**
- * @fileoverview 三端入口共用的**命令实现**：把 {@link WorktreeManager} 的十一个方法与
+ * @fileoverview 三端入口共用的**命令实现**：把 {@link WorktreeManager} 的十五个方法与
  * `versionManager.switchBranch()` 接到 {@link WorktreeAsyncStates} 上
- * （US-306 阶段 C、T110 与 T123，contracts/tri-framework-api.md §1/§4）。
+ * （US-306 阶段 C、T110、T123 与 US-310，contracts/tri-framework-api.md §1/§4）。
  *
  * @remarks
  * 只有容器形态该由框架决定——Angular 是 `Signal`、React 是渲染快照、Vue 是 `ComputedRef`。
@@ -23,9 +23,11 @@ import type { VersionManager } from '@aiao/rxdb-plugin-history';
 import type { CommitCapabilityInfo } from '../commit/commit-capability.js';
 import { isCommitChangeSetPageEmpty, type CommitChangeSetPage } from '../commit/commit-changes.js';
 import type { CommitLogOptions, CommitLogPage } from '../commit/commit-log.js';
+import type { WorktreeInfo } from '../worktree/worktree-command.js';
 import {
   isCommitLogPageEmpty,
   isWorktreeDiffEmpty,
+  isWorktreeListEmpty,
   isWorktreeRestoreSessionEmpty,
   isWorktreeStatusEmpty,
   trackWorktreeCommand,
@@ -53,13 +55,10 @@ import type { WorktreeEnableIfEmptyResult, WorktreeManager } from './working-tre
  * 按 key 分格而不是整份替换：`commit()` 进行中不该让 `statusState` 也变成 `loading`，
  * 而整份替换要么做到这一点，要么逼每个框架自己拼一次「保留其余六格」的展开。
  */
-export type WorktreeStatePatch = <K extends keyof WorktreeAsyncStates>(
-  key: K,
-  state: WorktreeAsyncStates[K]
-) => void;
+export type WorktreeStatePatch = <K extends keyof WorktreeAsyncStates>(key: K, state: WorktreeAsyncStates[K]) => void;
 
 /**
- * 三端入口对外暴露的十二个命令；签名与 {@link WorktreeManager}
+ * 三端入口对外暴露的十六个命令；签名与 {@link WorktreeManager}
  * （以及 `switchBranch` 那一个 {@link VersionManager}）上的同名方法一致。
  *
  * @remarks
@@ -90,14 +89,19 @@ export interface WorktreeCommands {
   /** 把工作树整体退回 HEAD；`discardedCount: 0` 是 no-op，不是 empty */
   readonly discard: (options: WorktreeDiscardOptions) => Promise<WorktreeDiscardResult>;
   /** 把一个可达历史 commit 的内容写回工作树；四个被拒成因走返回值，不是异常 */
-  readonly restore: (
-    target: WorktreeRestoreTarget,
-    options: WorktreeRestoreOptions
-  ) => Promise<WorktreeRestoreResult>;
+  readonly restore: (target: WorktreeRestoreTarget, options: WorktreeRestoreOptions) => Promise<WorktreeRestoreResult>;
   /** 当前分支那个未结束的恢复会话；没有就是 `null`，落在 `empty` 相位 */
   readonly restoreSession: () => Promise<WorktreeRestoreSessionInfo | null>;
   /** 切到另一条分支；成功后顺带重读一次 status。被 `requireClean` 拒掉时**抛** `WorktreeDirtyError` */
   readonly switchBranch: (branchId: string, options?: WorktreeSwitchBranchOptions) => Promise<void>;
+  /** 全部命名 worktree；零行是 `empty` 相位 */
+  readonly listWorktrees: () => Promise<readonly WorktreeInfo[]>;
+  /** 钉住一条分支并切过去；无论成败都顺带重读 status 与 worktree 列表（切换阶段失败时行已落库） */
+  readonly createWorktree: (branchId: string, label?: string) => Promise<WorktreeInfo>;
+  /** 切到一个 worktree；成功后顺带重读 status 与 worktree 列表 */
+  readonly switchWorktree: (id: string, options?: WorktreeSwitchBranchOptions) => Promise<void>;
+  /** 移除一个 worktree（只删那一行）；成功后顺带重读 worktree 列表 */
+  readonly removeWorktree: (id: string) => Promise<void>;
 }
 
 /**
@@ -172,7 +176,7 @@ const assertWorkingTreeEntry = (database: RxDB): WorktreeManager => {
 };
 
 /**
- * 把十二个命令接到状态格子上。
+ * 把十六个命令接到状态格子上。
  *
  * @param database - 宿主库；命令取的是它的 `worktree` 与 `versionManager` 两个入口
  * @param patch - 每一次相位变化的落点；见 {@link WorktreeStatePatch}
@@ -227,6 +231,21 @@ export const createWorktreeCommands = (database: RxDB, patch: WorktreeStatePatch
       () => undefined,
       () => undefined
     );
+  const runWorktrees = (): Promise<readonly WorktreeInfo[]> =>
+    trackWorktreeQuery(sinkFor('listWorktreesState'), isWorktreeListEmpty, () => worktree.listWorktrees());
+
+  /**
+   * 一次 worktree 改动之后把列表重读一遍；理由与吞错口径同 {@link refreshStatus}。
+   *
+   * 只有 worktree 命令调它，`switchBranch()` 不调：分支菜单切走同样会挪动列表里的 active 勾选，
+   * 但在那条路上补一轮 `listWorktrees()`，等于让从不显示 worktree 列表的应用每切一次分支就白发一轮查询
+   * ——列表在不在屏幕上只有调用方知道，由它在切分支之后自己重读。
+   */
+  const refreshWorktrees = (): Promise<void> =>
+    runWorktrees().then(
+      () => undefined,
+      () => undefined
+    );
 
   return {
     isEnabled: () => trackWorktreeCommand(sinkFor('isEnabledState'), () => worktree.isEnabled()),
@@ -245,8 +264,7 @@ export const createWorktreeCommands = (database: RxDB, patch: WorktreeStatePatch
 
     status: runStatus,
 
-    diff: options =>
-      trackWorktreeQuery(sinkFor('diffState'), isWorktreeDiffEmpty, () => worktree.diff(options)),
+    diff: options => trackWorktreeQuery(sinkFor('diffState'), isWorktreeDiffEmpty, () => worktree.diff(options)),
 
     listCommits: options =>
       trackWorktreeQuery(sinkFor('listCommitsState'), isCommitLogPageEmpty, () => worktree.listCommits(options)),
@@ -290,12 +308,40 @@ export const createWorktreeCommands = (database: RxDB, patch: WorktreeStatePatch
       // 被拒（`requireClean` 撞上脏工作树、`expectedActivationRevision` 过期）与出错在这里是
       // 同一件事：两者都**抛**，与 `commit()` 的 CAS 落败不同——那一个是「调用成功、结果是
       // 冲突」，而这一个连切换都没发生。翻成返回值会让调用方以为自己已经在新分支上了。
-      await trackWorktreeCommand(sinkFor('switchBranchState'), () =>
-        versionManager().switchBranch(branchId, options)
-      );
+      await trackWorktreeCommand(sinkFor('switchBranchState'), () => versionManager().switchBranch(branchId, options));
       // 切过去之后那份摘要属于**另一条**分支：`branchId`、`entryCount`、三个 revision 全换了人。
       // 不重读的话面板上留着的是上一条分支的未提交计数，而用户正要按着它决定提不提交。
       await refreshStatus();
+    },
+
+    listWorktrees: runWorktrees,
+
+    createWorktree: async (branchId, label) => {
+      // 无论成败都重读：`createWorktree()` 是两阶段的，切换阶段失败时行已经落了库
+      // （见它的 TSDoc），只在成功时重读的话，列表里会缺一个确实存在、可以重试切换的 worktree。
+      // 第一阶段就被拒（已钉住、分支不存在、label 空白）时多读一轮是白读，但不会读错。
+      try {
+        return await trackWorktreeCommand(sinkFor('createWorktreeState'), () =>
+          worktree.createWorktree(branchId, label)
+        );
+      } finally {
+        await refreshStatus();
+        await refreshWorktrees();
+      }
+    },
+
+    switchWorktree: async (id, options) => {
+      // 与 `switchBranch()` 同形：被拒与出错都抛，那一刻什么都没切，也就没有什么可重读的。
+      await trackWorktreeCommand(sinkFor('switchWorktreeState'), () => worktree.switchWorktree(id, options));
+      // 摘要换了分支（同 `switchBranch()`），列表里的 active 勾选也挪了位置。
+      await refreshStatus();
+      await refreshWorktrees();
+    },
+
+    removeWorktree: async id => {
+      await trackWorktreeCommand(sinkFor('removeWorktreeState'), () => worktree.removeWorktree(id));
+      // 只删 worktree 那一行：当前分支、它的未提交改动都没动，status 不必重读。
+      await refreshWorktrees();
     }
   };
 };
