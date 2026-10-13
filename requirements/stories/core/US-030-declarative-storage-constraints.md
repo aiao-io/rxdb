@@ -1,11 +1,11 @@
 ---
 id: US-030
 title: 实体元数据层的声明式存储约束
-status: Backlog
+status: In Review
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-22
-updated: 2026-10-09
+updated: 2026-10-13
 tags: [core, schema, integrity]
 ---
 
@@ -21,9 +21,9 @@ tags: [core, schema, integrity]
 
 | 阶段 | 内容                                                                                                                | 状态 |
 | ---- | ------------------------------------------------------------------------------------------------------------------- | ---- |
-| A    | 属性级与实体级 CHECK 约束；SQLite 宿主版本门槛（AC#7），同 PR 把 Tauri 升到 rusqlite ≥ 0.33，门槛不打掉仓内任何宿主 | ⬜   |
-| B    | 条件唯一索引（`where`）                                                                                             | ⬜   |
-| C    | 区间排他约束：PG `EXCLUDE` + SQLite 触发器等价物，错误语义统一                                                      | ⬜   |
+| A    | 属性级与实体级 CHECK 约束；SQLite 宿主版本门槛（AC#7），同 PR 把 Tauri 升到 rusqlite ≥ 0.33，门槛不打掉仓内任何宿主 | ✅   |
+| B    | 条件唯一索引（`where`）                                                                                             | ✅   |
+| C    | 区间排他约束：PG `EXCLUDE` + SQLite 触发器等价物，错误语义统一                                                      | ✅   |
 | D    | 生成列（generated column）、表达式索引（`expression`）与索引方法（`method`：GIN / GiST）声明                        | ⬜   |
 
 阶段归属：A 关闭 AC#1 / #2 / #7～#9 / #11 / #15～#17，以及 AC#6 / #10 的 CHECK 部分；B 关闭 AC#3 与 AC#6 / #10 的条件唯一部分；
@@ -41,7 +41,8 @@ C 关闭 AC#4 / #12～#14 与 AC#6 / #10 的区间排他部分；D 关闭 AC#5�
 - 每项能力在 SQLite family 与 PGlite 上**要么都支持、要么显式声明不支持**，不做静默降级
 - 无原生能力的后端（SQLite 的 `EXCLUDE`）用触发器补齐，且两侧抛同一个错误码
 - 违约错误进 `RxDBError` 体系，携带冲突列与冲突值
-- **SQLite 宿主版本门槛 ≥ 3.47.0**：触发器错误要携带冲突值，需要 `RAISE()` 接受表达式；低于门槛的宿主在 `init()` 即 fail-fast（AC#7）
+- **SQLite 宿主版本门槛 ≥ 3.47.0**：触发器错误要携带冲突值，需要 `RAISE()` 接受表达式；低于门槛的宿主在 `init()` 即 fail-fast（AC#7）。
+  门槛只对声明了存储约束（`checks` / 条件唯一 `where` / `exclusions` 任一项）的应用生效，一项都不用的应用不受影响
 
 ### Out of Scope
 
@@ -57,23 +58,23 @@ C 关闭 AC#4 / #12～#14 与 AC#6 / #10 的区间排他部分；D 关闭 AC#5�
 
 | #   | 前置条件                                                                                                          | 操作                                                      | 预期结果                                                                                          | 状态 |
 | --- | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---- |
-| 1   | 属性声明 CHECK                                                                                                    | 写入越界值                                                | 两个后端均拒绝，错误码与消息骨架一致                                                              | ⬜   |
-| 2   | 实体级 CHECK「两字段二选一」                                                                                      | 两字段同时给值                                            | 拒绝                                                                                              | ⬜   |
-| 3   | 索引声明 `where`                                                                                                  | 写入不满足条件的重复行                                    | 不被唯一约束误拒                                                                                  | ⬜   |
-| 4   | 区间排他约束                                                                                                      | 插入重叠区间                                              | 两个后端均拒绝，错误指出冲突区间                                                                  | ⬜   |
+| 1   | 属性声明 CHECK                                                                                                    | 写入越界值                                                | 两个后端均拒绝，错误码与消息骨架一致                                                              | ✅   |
+| 2   | 实体级 CHECK「两字段二选一」                                                                                      | 两字段同时给值                                            | 拒绝                                                                                              | ✅   |
+| 3   | 索引声明 `where`                                                                                                  | 写入不满足条件的重复行                                    | 不被唯一约束误拒                                                                                  | ✅   |
+| 4   | 区间排他约束                                                                                                      | 插入重叠区间                                              | 两个后端均拒绝，错误指出冲突区间                                                                  | ✅   |
 | 5   | 声明生成列 + GIN                                                                                                  | 按该列过滤                                                | 走索引；原字段的读写方式不变                                                                      | ⬜   |
-| 6   | 后端不支持某项声明                                                                                                | `init()`                                                  | 建元数据期抛错，不静默降级为应用层校验                                                            | ⬜   |
-| 7   | SQLite 宿主版本 < 3.47.0                                                                                          | `init()`                                                  | 抛错并点名实际版本与门槛，不退化为常量错误消息                                                    | ⬜   |
-| 8   | 实体级 CHECK `unit_from <= unit_to`（字段对字段）                                                                 | 写入 `unit_from > unit_to`；另写一行 `unit_from` 为 NULL  | 前者两后端均拒绝；后者两后端均放行（SQL 三值逻辑，要拒 NULL 须另加 `notNull`）                    | ⬜   |
-| 9   | CHECK 用了单行子集外的规则（`exists`、`contains`、`startsWith`、关系路径、JSON / 键值 / 二进制字段）              | `init()`                                                  | 建元数据期抛错，点名规则与原因                                                                    | ⬜   |
-| 10  | 库里已有该实体的表，实体新增一条 CHECK（或条件唯一索引、区间排他）                                                | `init()`                                                  | 抛 `RxDBConstraintDriftError`，列出缺失与多余的约束名，不自动补建；用户迁移补上后再 `init()` 通过 | ⬜   |
-| 11  | 已有约束只改表达式、不改 `name`                                                                                   | `init()`                                                  | 同 #10：约束名含表达式哈希，改表达式即判为漂移                                                    | ⬜   |
-| 12  | 区间排他已生效；行 X 经 UPDATE 扩成与行 Y 重叠；另一行只在自身范围内扩区间、不碰他行                              | 保存                                                      | 前者两后端均拒绝（SQLite 的 UPDATE 路径同样设防）；后者两后端均放行（不与自身旧值比）             | ⬜   |
-| 13  | 排他声明一个相等列 + 日期 `[)` 与整数 `[]` 两个区间维，端点可为 NULL                                              | 写入两维同时相交的一行；再写整数维相邻（136 / 137）的一行 | 前者两后端均拒绝，错误给出双方区间；后者放行；NULL 端点按无界比较                                 | ⬜   |
-| 14  | 同一相等键「截止旧行 `to` + 新开一行 `from`」两步写入后                                                           | undo 再 redo；或经分支切换重放同一组变更                  | 两后端均不被排他误拒，最终态与直接写入一致                                                        | ⬜   |
-| 15  | CHECK 字面量超出列类型值域（如 `integer` 列写 `3000000000`）；或 `name` 含 `[a-z0-9_]` 外字符、或约束名超 63 字节 | `init()`                                                  | 建元数据期抛错，点名约束与原因                                                                    | ⬜   |
-| 16  | 既有库的实体未声明任何新约束，但表上已有外键、`idx_` 普通索引、系统 CRUD 触发器、FTS 触发器                       | `init()`                                                  | 不报漂移：这些对象不在比对范围                                                                    | ⬜   |
-| 17  | 父实体与子实体（`extends`）各声明 CHECK，其中一条同名                                                             | 子实体 `init()` 后写入                                    | 同名项按子实体的生效、父实体的被覆盖；异名项全部生效                                              | ⬜   |
+| 6   | 后端不支持某项声明                                                                                                | `init()`                                                  | 建元数据期抛错，不静默降级为应用层校验                                                            | ✅   |
+| 7   | SQLite 宿主版本 < 3.47.0                                                                                          | `init()`                                                  | 抛错并点名实际版本与门槛，不退化为常量错误消息                                                    | ✅   |
+| 8   | 实体级 CHECK `unit_from <= unit_to`（字段对字段）                                                                 | 写入 `unit_from > unit_to`；另写一行 `unit_from` 为 NULL  | 前者两后端均拒绝；后者两后端均放行（SQL 三值逻辑，要拒 NULL 须另加 `notNull`）                    | ✅   |
+| 9   | CHECK 用了单行子集外的规则（`exists`、`contains`、`startsWith`、关系路径、JSON / 键值 / 二进制字段）              | `init()`                                                  | 建元数据期抛错，点名规则与原因                                                                    | ✅   |
+| 10  | 库里已有该实体的表，实体新增一条 CHECK（或条件唯一索引、区间排他）                                                | `init()`                                                  | 抛 `RxDBConstraintDriftError`，列出缺失与多余的约束名，不自动补建；用户迁移补上后再 `init()` 通过 | ✅   |
+| 11  | 已有约束只改表达式、不改 `name`                                                                                   | `init()`                                                  | 同 #10：约束名含表达式哈希，改表达式即判为漂移                                                    | ✅   |
+| 12  | 区间排他已生效；行 X 经 UPDATE 扩成与行 Y 重叠；另一行只在自身范围内扩区间、不碰他行                              | 保存                                                      | 前者两后端均拒绝（SQLite 的 UPDATE 路径同样设防）；后者两后端均放行（不与自身旧值比）             | ✅   |
+| 13  | 排他声明一个相等列 + 日期 `[)` 与整数 `[]` 两个区间维，端点可为 NULL                                              | 写入两维同时相交的一行；再写整数维相邻（136 / 137）的一行 | 前者两后端均拒绝，错误给出双方区间；后者放行；NULL 端点按无界比较                                 | ✅   |
+| 14  | 同一相等键「截止旧行 `to` + 新开一行 `from`」两步写入后                                                           | undo 再 redo；或经分支切换重放同一组变更                  | 两后端均不被排他误拒，最终态与直接写入一致                                                        | ✅   |
+| 15  | CHECK 字面量超出列类型值域（如 `integer` 列写 `3000000000`）；或 `name` 含 `[a-z0-9_]` 外字符、或约束名超 63 字节 | `init()`                                                  | 建元数据期抛错，点名约束与原因                                                                    | ✅   |
+| 16  | 既有库的实体未声明任何新约束，但表上已有外键、`idx_` 普通索引、系统 CRUD 触发器、FTS 触发器                       | `init()`                                                  | 不报漂移：这些对象不在比对范围                                                                    | ✅   |
+| 17  | 父实体与子实体（`extends`）各声明 CHECK，其中一条同名                                                             | 子实体 `init()` 后写入                                    | 同名项按子实体的生效、父实体的被覆盖；异名项全部生效                                              | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -194,6 +195,9 @@ indexes: [
 ];
 ```
 
+`where` 只对 `unique: true` 有意义，非唯一索引带 `where` 在元数据期报错（`invalidIndexWhere`），不静默忽略。
+索引名为 `uq_` + 表名 + 索引 `name` + 规范化定义哈希，定义含 namespace——SQLite 的索引名是库级的，跨 namespace 的同名表不撞名。
+
 `ON CONFLICT` 推断子句要命中带 `where` 的唯一索引，须带同一 `WHERE`，否则两后端都拒绝该语句。今天的实体保存路径全以主键为冲突目标，不受影响；
 插件里已有非主键目标（[`SqliteGraphRepository`](../../../packages/rxdb-plugin-graph/src/sqlite/SqliteGraphRepository.ts) 的 `("sourceId", "targetId")`），
 在同一列集上加条件唯一时要一并核对。
@@ -217,14 +221,26 @@ indexes: [
 
 - `equal` 至少一列、`ranges` 至少一维。区间维只接受时间类与整数列，`bounds` 限 `[)` / `[]`；端点 NULL 即该侧无界，两后端一致（AC#13）。
 - **PG**：`EXCLUDE USING gist (<equal> WITH =, <range>(from, to, bounds) WITH &&, …)`，时间列（PG 侧是 `timestamptz`）取 `tstzrange`，整数取 `int8range`。
-  `=` 上 GiST 要 `btree_gist`，适配器从 `@electric-sql/pglite/contrib/btree_gist` 加载并 `CREATE EXTENSION IF NOT EXISTS`。
+  `=` 上 GiST 要 `btree_gist`：有实体声明 `exclusions` 时，适配器从 `@electric-sql/pglite/contrib/btree_gist` 装载（OPFS worker 模式由 worker 入口装载），
+  并在 `connect()` 里 `CREATE EXTENSION IF NOT EXISTS`，排在用户迁移之前。装载由实体元数据决定、不进用户的 `extensions`，备份扩展清单不变。
+  桌面端（Electron）的 PGlite 由宿主在主进程创建，宿主据 `pgliteServerExtensionRequirementsOf(entities)` 自行装载；没装载时 `connect()` 显式失败、点名缺的扩展（AC#6）。
+  倒置区间（`from > to`）在 PG 侧以 `CASE … THEN 'empty'` 映射成空区间——否则范围构造函数先抛 `22000`，与 SQLite 的错误类分叉。
   探针（PGlite 0.5.8）：`uuid` / `varchar` 相等列 + `tstzrange` / `int8range` 多维可建，半开区间相邻不冲突，冲突报 `23P01`，`DETAIL` 带双方键值。
-- **SQLite**：每条排他生成**两个**触发器，`BEFORE INSERT` 与 `BEFORE UPDATE`；UPDATE 的判定按主键排除被更新行自身。
+- **SQLite**：每条排他生成**两个**触发器，`AFTER INSERT` 与 `AFTER UPDATE OF <相等列与区间端点>`；判定按主键排除被写入行自身。
   只建 INSERT 时，UPDATE 能静默造出重叠；不排除自身，则合法的自身扩区间被误拒（AC#12）。触发器名为约束名加 `_i` / `_u`，仍以 `ex_` 起头，进漂移比对。
+  用 `AFTER` 而不是 `BEFORE`：`BEFORE` 先于 NOT NULL / CHECK 求值，同一行同时违反 CHECK 与排他时 SQLite 会报排他、PG 报 CHECK（PG 先做行约束、插索引时才查排他），
+  两后端的错误类就分叉了；`RAISE(ABORT)` 回滚整条语句，效果与 `BEFORE` 一致。判定按相等列查找同组行，SQLite 不为此自动建索引，大表请为相等列另行声明普通索引。
+- **空区间与倒置区间不与任何行冲突**，两后端一致：`[)` 的 `from = to` 天然是空区间，`from > to` 两侧都当空区间。要拒绝倒置须另加 CHECK `from <= to`，与「要拒 NULL 须显式 `notNull`」同口径。
+- **违约错误** `RxDBExclusionViolationError` 携带实体、约束名与逐维的双方区间（`incoming` / `existing`，端点 `null` 即无界；时间维为 `Date`、整数维为 `number`、bigint 维为 `bigint`）。
+  PG 的整数范围按 `[a,b)` 规范化输出，`[]` 维换回闭区间后再上报，两后端给出同一组值；PGlite worker 模式只回传消息文本、没有 `DETAIL`，此时 `ranges` 为空、约束名仍准确。
 - **按行即时检查，两后端一致**：PG 不用 `DEFERRABLE`，SQLite 触发器逐行触发；本故事不提供延迟检查。代价落在批量重放路径——
   两类适配器的 `execute_switch_actions`（[PGlite](../../../packages/rxdb-adapter-pglite/src/version/execute_switch_actions.ts) /
   [SQLite](../../../packages/rxdb-adapter-sqlite-core/src/version/execute_switch_actions.ts)）都按 deletes → inserts → updates 执行，
-  「截止旧行 + 新开一行」的 redo 会先插新行、后截旧行，中间态重叠被拒。阶段 C 须让这条路径通过（AC#14），在执行顺序上解决（如区间收窄类更新先于插入，并核对更新对本批新插行的外键依赖），不放宽约束；
+  「截止旧行 + 新开一行」的 redo 会先插新行、后截旧行，中间态重叠被拒。对**声明了区间排他的实体**，重放（undo / redo / 切分支 / 同步拉取）改为
+  删除 → 更新 → 插入，更新内部收窄类（相等列不变、每一维只缩不扩）排最前，其余保持原相对顺序（核心 `exclusion-write-order.ts`）：删除与更新执行完时表是合法终态去掉本批新插行，
+  逐行插回去的每一步仍是终态的子集。外键不受影响——两后端都在提交时检查外键（SQLite 事务内 `defer_foreign_keys`、PG 外键 `DEFERRABLE INITIALLY DEFERRED`）。
+  批量写入（`saveMany` / `mutations`）原本按 插入 → 更新 → 删除 执行，同一批「截旧 + 新开」「删旧 + 新增」同样经过重叠，同样改为删除与更新先于插入；
+  同一批里既被创建又被更新 / 删除的实例不提前（提前会改写它的语义）。没有区间排他的实体两条路径的顺序都不变。
   两行**互换**区间这类终态合法、却无论顺序都经过重叠的操作不支持，调用方经中间值分两步写。
 - **集合维不支持**：PG GiST 对 `int[]` / `text[]` 无默认运算符类（探针确认），NULL 在 `EXCLUDE` 里又永不冲突，表达不了「NULL = 全部批次」。
   [US-518](../domain/US-518-bom-unit-lot-effectivity.md) 的批次维由它启动时另行决定，本故事只交付标量区间维。
@@ -233,7 +249,8 @@ indexes: [
 
 **约束命名与已有表漂移。** 约束名由前缀（`ck_` / `uq_` / `ex_`）+ 表名 + 作者给的 `name` + 规范化表达式的 8 位哈希确定性生成。
 `name` 限 `[a-z][a-z0-9_]*`；PG 标识符上限 63 字节，按 UTF-8 字节数计（不是字符数），超长在元数据期抛错，不截断——截断会让两个约束撞名（AC#15）。
-哈希让「改表达式不改名」也成为可检出的漂移（AC#11）。
+哈希让「改表达式不改名」也成为可检出的漂移（AC#11）。`uq_` / `ex_` 的规范化定义含 namespace：它们在 SQLite 上是库级对象（索引、触发器），
+两个 namespace 下同名表、同名约束、同一定义不会撞成同一个名字。
 
 今天的已有表处理：[`RxDB.#ensureEntityTables`](../../../packages/rxdb/src/RxDB.ts) 只给**缺失**的表建表；
 已有表上只有 PGlite 实现了可选的 `reconcileEntityIndexes`（以 `IF NOT EXISTS` 补建索引），SQLite family 没有实现。
@@ -241,11 +258,13 @@ indexes: [
 
 所以在 `init()` 调用 `reconcileEntityIndexes` 的同一时机（用户迁移与缺表补建之后）加一步**只读**漂移检查。它是新的适配器方法，
 SQLite family 与 PGlite 都要实现——SQLite family 今天没有 `reconcileEntityIndexes`，没有现成挂点可扩展；
-适配器未实现它而实体声明了约束，按 AC#6 在 `init()` 报不支持。PG 查 `pg_constraint` / `pg_indexes`，
+本地适配器未实现它而实体声明了约束，按 AC#6 在 `init()` 报不支持。远端适配器（supabase / http）永远不实现它，但只拒**主存储在该远端上**的实体（remote-only）：
+「本地 + 远端同步」的实体由本地适配器承担约束，远端只是同步对端，按「声明了就拒」处理会让整个同步应用连不上远端。PG 查 `pg_constraint` / `pg_indexes`，
 SQLite 查 `sqlite_master`（表 `sql` 文本里的约束名、索引名与触发器名），与元数据生成的名字集合比对，
 不一致即抛 `RxDBConstraintDriftError`，列出缺失与多余的名字（AC#10）。
 
-比对**只纳入** `ck_` / `uq_` / `ex_` 起头的对象。外键约束（作者原名，见 `create_table_sql.ts`）、普通索引（`idx_` 前缀）、
+比对**只纳入** `ck_` / `uq_` / `ex_` 起头的对象，每类对象只认自己的前缀：SQLite 上 `ck_` 读建表 SQL 文本、`uq_` 读 `type = 'index'`、`ex_` 读 `type = 'trigger'`（每条约束两个）；
+PG 上 `ck_` 读 `pg_constraint`（`contype = 'c'`）、`ex_` 读 `pg_constraint`（`contype = 'x'`）、`uq_` 读 `pg_indexes`（`EXCLUDE` 的同名支撑索引也在那里，按前缀分开）。外键约束（作者原名，见 `create_table_sql.ts`）、普通索引（`idx_` 前缀）、
 系统 CRUD 触发器（`<表>_insert` / `_update` / `_delete`）、FTS 触发器与插件自有触发器都不在范围——否则每张既有表首次 `init()` 就被报「多余」（AC#16）。
 
 不自动补建：SQLite 3.53.0 起才有原生 `ALTER TABLE ADD CONSTRAINT CHECK`（本机 3.53.1 实测：老数据违约时 ALTER 被拒），
@@ -290,10 +309,16 @@ epic-009 其余故事仍等第 0 步的真实样本；若最终没有样本出�
 
 ## 实现文件
 
-- `packages/rxdb/src/entity/` — 元数据接口与校验（`checks` / `exclusions` 白名单、值域检查、约束名生成；`metadata-transition.ts` 的继承合并）
-- `packages/rxdb/src/RxDB.ts` — `init()` 漂移检查的调用点（与 `reconcileEntityIndexes` 同一时机）
-- `packages/rxdb-adapter-sqlite-core/` — SQLite family 的 DDL、排他触发器、漂移检查；`version/execute_switch_actions.ts` 的执行顺序（AC#14）
-- `packages/rxdb-adapter-pglite/` — PG 侧 DDL、`btree_gist` 加载、漂移检查；`version/execute_switch_actions.ts` 同上
+- `packages/rxdb/src/entity/` — 元数据接口与校验：`check-constraint.ts`（CHECK 与 `where` 共用的单行规则组编译）、`conditional-unique-index.ts`、
+  `exclusion-constraint.ts`、`constraint-name.ts`（三类共用的确定性命名）；`metadata-transition.ts` 的继承合并、`metadata-validate.ts` 的
+  `invalidCheck` / `invalidIndexWhere` / `invalidExclusion`
+- `packages/rxdb/src/system/` — `check-violation.ts` / `exclusion-violation.ts`（违约归一化）、`constraint-drift.ts`（漂移比对共享核心）、
+  `exclusion-write-order.ts`（AC#14 的执行顺序）
+- `packages/rxdb/src/RxDB.ts` — AC#6 的能力判定与 `init()` 漂移检查的调用点（与 `reconcileEntityIndexes` 同一时机）
+- `packages/rxdb-adapter-sqlite-core/` — SQLite family 的 DDL（`table/create_table_sql.ts`、`table/exclusion_trigger_sql.ts`）、漂移检查、
+  写入路径归一化；`version/execute_switch_actions.ts` 与 `rxdb_adapter_mutations.ts` 的执行顺序（AC#14）
+- `packages/rxdb-adapter-pglite/` — PG 侧 DDL、`btree_gist` 装载（`pglite-server-extensions.ts`）、漂移检查、写入路径归一化；执行顺序同上
+- `packages/rxdb-test/src/check-constraint/` — 两后端共用的契约套件（CHECK / 条件唯一 / 区间排他）
 - `requirements/api-baseline/rxdb.json` — 三个新错误类是 `packages/rxdb` 的新导出，跑 `pnpm audit:api-surface:update` 同步基线并补 TSDoc
 
 ## References

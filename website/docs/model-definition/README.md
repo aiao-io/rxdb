@@ -29,16 +29,18 @@ export class Todo extends EntityBase {}
 
 `EntityMetadataOptions` 里业务最常打交道的几项:
 
-| 字段         | 说明                               |
-| ------------ | ---------------------------------- |
-| `name`       | 实体名                             |
-| `namespace`  | 命名空间,默认 `public`             |
-| `tableName`  | 数据库表名,不写时取 `name`         |
-| `properties` | 字段定义                           |
-| `relations`  | 关系定义                           |
-| `indexes`    | 索引定义                           |
-| `repository` | 仓库类型,普通实体默认 `Repository` |
-| `features`   | 树、图等扩展特性                   |
+| 字段         | 说明                                         |
+| ------------ | -------------------------------------------- |
+| `name`       | 实体名                                       |
+| `namespace`  | 命名空间,默认 `public`                       |
+| `tableName`  | 数据库表名,不写时取 `name`                   |
+| `properties` | 字段定义                                     |
+| `relations`  | 关系定义                                     |
+| `indexes`    | 索引定义                                     |
+| `checks`     | CHECK 约束，见[存储约束](./constraints.md)   |
+| `exclusions` | 区间排他约束，见[存储约束](./constraints.md) |
+| `repository` | 仓库类型,普通实体默认 `Repository`           |
+| `features`   | 树、图等扩展特性                             |
 
 ## 自动得到的能力
 
