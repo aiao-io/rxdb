@@ -86,6 +86,13 @@ const narrowsExclusion = (exclusion: CompiledExclusionConstraint, change: Exclus
     range => endpointNarrows(change, range.from.field, 'from') && endpointNarrows(change, range.to.field, 'to')
   );
 
+const compiledExclusionsOf = (metadata: EntityMetadata): CompiledExclusionConstraint[] =>
+  Array.from(metadata.exclusionMap.values(), exclusion => compileExclusionConstraint(metadata, exclusion));
+
+const narrowsAll = (exclusions: readonly CompiledExclusionConstraint[], change: ExclusionUpdateChange): boolean =>
+  exclusions.some(exclusion => touchesExclusion(exclusion, change)) &&
+  exclusions.every(exclusion => narrowsExclusion(exclusion, change));
+
 /**
  * 一条更新对实体的全部区间排他而言是否「收窄」：至少碰了一列排他列，相等列不变，
  * 每一维新区间都落在旧区间之内（端点比较；倒置 / 空区间收窄后仍是空区间）。
@@ -93,15 +100,8 @@ const narrowsExclusion = (exclusion: CompiledExclusionConstraint, change: Exclus
  * @param metadata - 实体元数据
  * @param change - 更新的新旧值（属性名为键）
  */
-export const isExclusionNarrowingUpdate = (metadata: EntityMetadata, change: ExclusionUpdateChange): boolean => {
-  const exclusions = Array.from(metadata.exclusionMap.values(), exclusion =>
-    compileExclusionConstraint(metadata, exclusion)
-  );
-  return (
-    exclusions.some(exclusion => touchesExclusion(exclusion, change)) &&
-    exclusions.every(exclusion => narrowsExclusion(exclusion, change))
-  );
-};
+export const isExclusionNarrowingUpdate = (metadata: EntityMetadata, change: ExclusionUpdateChange): boolean =>
+  narrowsAll(compiledExclusionsOf(metadata), change);
 
 /**
  * 给一个实体的一组更新排序：收窄类在前，其余保持原相对顺序（稳定分组，不做全排序）。
@@ -117,11 +117,13 @@ export const orderExclusionUpdates = <T>(
   changeOf: (item: T) => ExclusionUpdateChange | undefined
 ): T[] => {
   if (!ordersWritesForExclusion(metadata)) return [...items];
+  // 一组更新只编译一次排他声明（批量重放可能有成千上万条）
+  const exclusions = compiledExclusionsOf(metadata);
   const narrowing: T[] = [];
   const rest: T[] = [];
   for (const item of items) {
     const change = changeOf(item);
-    (change && isExclusionNarrowingUpdate(metadata, change) ? narrowing : rest).push(item);
+    (change && narrowsAll(exclusions, change) ? narrowing : rest).push(item);
   }
   return [...narrowing, ...rest];
 };
