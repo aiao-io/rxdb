@@ -3,6 +3,7 @@ import {
   bigintBinaryClientSuite,
   bigintBinaryEntitySuite,
   cascadeMutationSuite,
+  constraintSuite,
   createSqliteClientSuite,
   crudIntegrationSuite,
   customPrimaryKeySuite,
@@ -48,3 +49,4 @@ treeIntegrationSuite(sqliteOfficialFactory);
 
 versionBranchSuite(sqliteOfficialFactory);
 undoRedoSuite(sqliteOfficialFactory);
+constraintSuite(sqliteOfficialFactory);

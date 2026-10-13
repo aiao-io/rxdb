@@ -331,6 +331,7 @@ type SuiteExportName =
   | 'bigintBinaryClientSuite'
   | 'bigintBinaryEntitySuite'
   | 'cascadeMutationSuite'
+  | 'constraintSuite'
   | 'createSqliteClientSuite'
   | 'crudIntegrationSuite'
   | 'customPrimaryKeySuite'
@@ -477,6 +478,7 @@ export const transactionSqliteResultSuite = getSharedSuite(
 export const treeIntegrationSuite = getSharedSuite('./__tests__/shared-tree.suite.ts', 'treeIntegrationSuite');
 export const undoRedoSuite = getSharedSuite('./__tests__/shared-undo-redo.suite.ts', 'undoRedoSuite');
 export const versionBranchSuite = getSharedSuite('./__tests__/shared-version-branch.suite.ts', 'versionBranchSuite');
+export const constraintSuite = getSharedSuite('./__tests__/shared-constraints.suite.ts', 'constraintSuite');
 export const backupChannelSuite = getBackupSuite('./__tests__/shared-backup-channel.suite.ts', 'backupChannelSuite');
 export const backupConcurrencySuite = getBackupSuite(
   './__tests__/shared-backup-concurrency.suite.ts',

@@ -22,7 +22,22 @@ import type { SwitchVersionSqlResult } from './switch-result.utils.js';
 import { withTriggersDisabled } from './with_triggers_disabled.js';
 
 /**
- * 按 删除 → 插入 → 更新 的顺序应用一组 SQL 操作，并回填各自的 SELECT 结果。
+ * 批次里是否有声明了区间排他的实体。
+ *
+ * @remarks
+ * 排他约束下「截止旧行 + 新开一行」的重放（undo/redo、分支切换）按 删除 → 插入 → 更新
+ * 执行会先插新行、后截旧行，中间态重叠被排他触发器拒绝（US-030 AC#14）。含排他实体的批次
+ * 改成 删除 → 更新 → 插入：先截旧行再插新行，中间态不再重叠。无排他实体的批次维持既有
+ * 顺序——更新的外键可能指向本批新插的行，先于插入执行会破坏这类既有重放。
+ */
+const batchHasExclusions = (switchAction: SwitchVersionSqlResult): boolean =>
+  [...switchAction.deletes, ...switchAction.inserts, ...switchAction.updates].some(
+    action => action.metadata.exclusions.length > 0
+  );
+
+/**
+ * 按 删除 → 插入 → 更新（或含排他实体时 删除 → 更新 → 插入）的顺序应用一组 SQL 操作，
+ * 并回填各自的 SELECT 结果。
  *
  * @param tx - 当前事务的执行器
  * @param switchAction - 已转换的 SQL 操作集合；`successResults` 就地写回
@@ -36,14 +51,31 @@ async function applySwitchActions(tx: SqlStatementSink, switchAction: SwitchVers
     await executeSqliteStatements(tx, deleteAction.statements);
   }
 
-  for (const insertAction of switchAction.inserts) {
+  const exclusionReorder = batchHasExclusions(switchAction);
+  const applyInsert = async (insertAction: SwitchVersionSqlResult['inserts'][number]): Promise<void> => {
     await executeSqliteStatements(tx, insertAction.statements);
     insertAction.successResults = await executeSqliteSelectStatements(tx, insertAction.selectStatements);
-  }
-
-  for (const updateAction of switchAction.updates) {
+  };
+  const applyUpdate = async (updateAction: SwitchVersionSqlResult['updates'][number]): Promise<void> => {
     await executeSqliteStatements(tx, updateAction.statements);
     updateAction.successResults = await executeSqliteSelectStatements(tx, updateAction.selectStatements);
+  };
+
+  if (exclusionReorder) {
+    for (const updateAction of switchAction.updates) {
+      await applyUpdate(updateAction);
+    }
+    for (const insertAction of switchAction.inserts) {
+      await applyInsert(insertAction);
+    }
+    return;
+  }
+
+  for (const insertAction of switchAction.inserts) {
+    await applyInsert(insertAction);
+  }
+  for (const updateAction of switchAction.updates) {
+    await applyUpdate(updateAction);
   }
 }
 

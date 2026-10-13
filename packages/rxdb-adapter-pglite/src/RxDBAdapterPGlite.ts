@@ -51,12 +51,14 @@ import {
   PgliteTableColumn
 } from './pglite.interface.js';
 import { type EncryptionContext, quoteIdentifier, RxdbAdapterPGliteError } from './pglite.utils.js';
+import { btree_gist } from '@electric-sql/pglite/contrib/btree_gist';
 import { asPGliteChangeEventSource, IPGliteClient, PGliteClient, resolvePGliteInitOptions } from './PGliteClient.js';
 import { resolveQueryCacheTarget, resolveUpdatedAtColumn } from './query-cache/query_cache_target.js';
 import { buildQueryCacheUpsertStatements } from './query-cache/upsert_many_sql.js';
 import { PGliteRepository } from './repository/PGliteRepository.js';
 import { PGliteTreeRepository } from './repository/PGliteTreeRepository.js';
 import { migrateSystemSchema } from './system/migrate_system_schema.js';
+import { checkPgliteConstraintDrift } from './table/constraint-drift.js';
 import { create_table_indexes_sql } from './table/create_table_sql.js';
 import { create_tables_statements } from './table/create_tables_sql.js';
 import { generateNotifyInfrastructureSQL, generateNotifyTriggerSQL } from './table/notify_function_sql.js';
@@ -181,6 +183,16 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     private readonly options: PGliteClientOptions
   ) {
     super(rxdb);
+    // 区间排他（US-030 阶段 C）的 EXCLUDE USING gist 需要 `=` 的 GiST 运算符类。
+    // 只在实体声明了排他时注入：btree_gist 带 tarball bundle，经 vite 打包的 Node 应用会把
+    // 它内联成 data: URL，PGlite 的 nodefs 读不了（「Extension bundle not found」）——
+    // 恒注入会让所有 Node 端 PGlite 用户（如 dev-rxdb-http-server）在启动期崩掉。
+    if ((this.rxdb.config?.entities ?? []).some(entity => getEntityMetadata(entity).exclusions.length > 0)) {
+      this.options.extensions = {
+        ...(this.options.extensions ?? {}),
+        btree_gist
+      };
+    }
     this.#pipelineHost = this.#createPipelineHost();
   }
 
@@ -480,6 +492,10 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
         case 'TreeRepository':
           repository = new PGliteTreeRepository<T>(this, entity);
           break;
+        // BOM 插件的适配器侧仓储就是默认仓储（入口规范化与错误归一在插件门面 BomRepository）
+        case 'BomRepository':
+          repository = new PGliteRepository<T>(this, entity);
+          break;
         default:
           throw new RxdbAdapterPGliteError('Unsupported repository type: ' + meta.repository);
       }
@@ -535,6 +551,10 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
         for (const statement of statements) await executor.query(statement);
       }
     }, false);
+  }
+
+  override async checkEntityConstraintDrift(EntityTypes: EntityType[]): Promise<void> {
+    await this.bootstrapTransaction(executor => checkPgliteConstraintDrift(executor, EntityTypes), false);
   }
 
   override async migrateSystemSchema(): Promise<void> {

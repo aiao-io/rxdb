@@ -8,6 +8,15 @@
  */
 
 import { toEntitySyncResolver, type EntitySyncResolver } from '../sync-contract/entity-sync-resolver.js';
+import {
+  buildStorageConstraintName,
+  CHECK_COMPARABLE_TYPES,
+  compileCheckConstraint,
+  EXCLUSION_RANGE_TYPES,
+  renderCheckLiteral,
+  serializeExclusion,
+  type StorageConstraintPrefix
+} from './check-sql.js';
 import { ENTITY_OPERATIONS } from './entity-permissions.js';
 import {
   formatConfigLiteralsOf,
@@ -20,12 +29,14 @@ import { isPlainRecord } from './json-safe.js';
 import {
   EntityPropertyMetadata,
   EntityRelationMetadata,
+  EnumProperty,
   FieldFormat,
   PropertyType,
   SyncOptions,
   SyncType
 } from './metadata-options.interface.js';
 import { EntityMetadata } from './metadata.interface.js';
+import { CheckRuleGroup, EntityCheckMetadataOptions, EntityExclusionMetadataOptions } from './storage-constraints.interface.js';
 
 /**
  * 注册期元数据校验规则。
@@ -52,7 +63,11 @@ export type MetadataValidationRule =
   | 'unsupportedRepositorySyncType'
   | 'missingQueryCacheAdapter'
   | 'invalidPermissions'
-  | 'invalidManualOrder';
+  | 'invalidManualOrder'
+  | 'invalidCheck'
+  | 'invalidIndexWhere'
+  | 'invalidExclusion'
+  | 'invalidConstraintName';
 
 /**
  * 关系目标解析规则。
@@ -665,6 +680,229 @@ const compareViolations = (a: EntityMetadataValidationError, b: EntityMetadataVa
   a.field.localeCompare(b.field) ||
   a.rule.localeCompare(b.rule);
 
+// -----------------------------------------------------[ 声明式存储约束 ]
+
+/** 约束作者名形状：`[a-z][a-z0-9_]*`（哈希后缀由生成器补齐，作者名不参与哈希）。 */
+const CONSTRAINT_NAME_RE = /^[a-z][a-z0-9_]*$/;
+
+/** PG 标识符上限 63 字节（按 UTF-8 字节数计，不是字符数）。 */
+const PG_IDENTIFIER_MAX_BYTES = 63;
+
+const utf8ByteLength = (value: string): number => new TextEncoder().encode(value).length;
+
+/** CHECK 操作符白名单：只收单行确定性比较（`exists` 要子查询、`contains` 系两端单行语义不一致）。 */
+const CHECK_OPERATOR_WHITELIST: ReadonlySet<string> = new Set([
+  '=',
+  '!=',
+  '<',
+  '>',
+  '<=',
+  '>=',
+  'in',
+  'notIn',
+  'between',
+  'notBetween',
+  'null',
+  'notNull'
+]);
+
+/** `ref` 只配比较操作符。 */
+const COMPARISON_OPERATOR_SET: ReadonlySet<string> = new Set(['=', '!=', '<', '>', '<=', '>=']);
+
+const enumValuesOfProperty = (property: EntityPropertyMetadata): readonly string[] | undefined =>
+  property.type === PropertyType.enum ? (property as EnumProperty).enum : undefined;
+
+/** 规则字段必须是实体自身的标量列：关系路径、计算属性、JSON / 键值 / 二进制 / 数组列一律拒绝。 */
+const checkFieldIssue = (metadata: EntityMetadata, field: unknown): string | null => {
+  if (typeof field !== 'string') return '缺少字符串 field';
+  if (metadata.computedPropertyMap.has(field)) return `不能是计算属性 ${field}：约束需要落库列`;
+  const property = metadata.propertyMap.get(field);
+  if (property) {
+    if (!CHECK_COMPARABLE_TYPES.has(property.type)) {
+      return `不能是 ${String(property.type)} 列：只支持标量列（uuid/string/enum/number/integer/bigint/boolean/date）`;
+    }
+    return null;
+  }
+  // 多对一关系的外键列（如发生项的 lineId）：列是被引用实体的主键，标量类型
+  if (metadata.foreignKeyRelationMap.has(field)) return null;
+  return `引用了不存在的列 ${field}`;
+};
+
+/** 单条 CHECK 规则（`where` 共用）的违规；合法返回 `null`。 */
+const checkRuleIssue = (metadata: EntityMetadata, rule: unknown): string | null => {
+  if (!isPlainRecord(rule)) return '规则必须是普通对象';
+  const fieldIssue = checkFieldIssue(metadata, rule['field']);
+  if (fieldIssue) return fieldIssue;
+  const property = metadata.propertyMap.get(String(rule['field'])) as EntityPropertyMetadata;
+  const enumValues = enumValuesOfProperty(property);
+
+  const operator = rule['operator'];
+  if (typeof operator !== 'string' || !CHECK_OPERATOR_WHITELIST.has(operator)) {
+    return `操作符 ${JSON.stringify(operator)} 不在白名单内：exists/contains/startsWith/endsWith 等在两后端的单行语义不一致，一律拒绝`;
+  }
+  const ref = rule['ref'];
+  if (ref !== undefined) {
+    if (typeof ref !== 'string') return 'ref 必须是字段名字符串';
+    if (!COMPARISON_OPERATOR_SET.has(operator)) return 'ref 只能配比较操作符（= != < > <= >=）';
+    if (['value', 'values', 'low', 'high'].some(key => key in rule && rule[key] !== undefined)) {
+      return 'ref 与字面量取值互斥';
+    }
+    return checkFieldIssue(metadata, ref);
+  }
+  // 关系外键列的存储类型是被引用实体的主键：只开放 null/notNull（编译期没有映射元数据可判字面量域）
+  if (!property && metadata.foreignKeyRelationMap.has(String(rule['field'])) && operator !== 'null' && operator !== 'notNull') {
+    return '关系外键列只支持 null / notNull 规则（字面量值域取决于被引用实体的主键类型）';
+  }
+  const hasValue = (key: string): boolean => key in rule && rule[key] !== undefined;
+  switch (operator) {
+    case 'null':
+    case 'notNull':
+      return hasValue('value') || hasValue('values') || hasValue('low') || hasValue('high')
+        ? `${operator} 不接受取值`
+        : null;
+    case 'in':
+    case 'notIn': {
+      const values = rule['values'];
+      if (!Array.isArray(values) || values.length === 0) return `${operator} 需要非空 values 数组`;
+      for (const value of values) {
+        const rendered = renderCheckLiteral(value, property.type, enumValues);
+        if (!rendered.ok) return `values 含非法字面量：${rendered.reason}`;
+      }
+      return hasValue('value') || hasValue('low') || hasValue('high') ? `${operator} 不接受 value/low/high` : null;
+    }
+    case 'between':
+    case 'notBetween': {
+      if (!hasValue('low') || !hasValue('high')) return `${operator} 需要 low 与 high`;
+      for (const bound of ['low', 'high'] as const) {
+        const rendered = renderCheckLiteral(rule[bound], property.type, enumValues);
+        if (!rendered.ok) return `${bound} 字面量非法：${rendered.reason}`;
+      }
+      return hasValue('value') || hasValue('values') ? `${operator} 不接受 value/values` : null;
+    }
+    default: {
+      if (!hasValue('value')) return `${operator} 需要 value 字面量`;
+      const rendered = renderCheckLiteral(rule['value'], property.type, enumValues);
+      if (!rendered.ok) return `字面量非法：${rendered.reason}`;
+      return hasValue('values') || hasValue('low') || hasValue('high') ? `${operator} 不接受 values/low/high` : null;
+    }
+  }
+};
+
+/** CHECK 规则组的违规：递归校验，命中即返（组内多条违规逐次收集由调用方控制粒度）。 */
+const checkGroupIssue = (metadata: EntityMetadata, group: unknown): string | null => {
+  if (!isPlainRecord(group)) return '规则组必须是普通对象';
+  const combinator = group['combinator'];
+  if (combinator !== 'and' && combinator !== 'or') return `combinator 必须是 'and' 或 'or'，实际为 ${JSON.stringify(combinator)}`;
+  const rules = group['rules'];
+  if (!Array.isArray(rules) || rules.length === 0) return 'rules 必须是非空数组';
+  for (const rule of rules) {
+    const issue = isPlainRecord(rule) && 'combinator' in rule ? checkGroupIssue(metadata, rule) : checkRuleIssue(metadata, rule);
+    if (issue) return issue;
+  }
+  return null;
+};
+
+/** 约束作者名与完整约束名（63 字节）的违规；`expressionSql` 为空时跳过字节检查。 */
+const constraintNameIssue = (
+  metadata: EntityMetadata,
+  prefix: StorageConstraintPrefix,
+  authorName: unknown,
+  expressionSql: string
+): string | null => {
+  if (typeof authorName !== 'string' || !CONSTRAINT_NAME_RE.test(authorName)) {
+    return `约束名 ${JSON.stringify(authorName)} 必须匹配 [a-z][a-z0-9_]*`;
+  }
+  if (!expressionSql) return null;
+  const fullName = buildStorageConstraintName(prefix, metadata.namespace, metadata.tableName, authorName, expressionSql);
+  if (utf8ByteLength(fullName) > PG_IDENTIFIER_MAX_BYTES) {
+    return `完整约束名 ${fullName} 超过 ${PG_IDENTIFIER_MAX_BYTES} 字节（PG 标识符上限），不截断`;
+  }
+  return null;
+};
+
+/** 校验单个 CHECK 声明：规则内容（`invalidCheck`）与命名（`invalidConstraintName`）。 */
+const validateCheck = (collector: ViolationCollector, metadata: EntityMetadata, check: EntityCheckMetadataOptions): void => {
+  const ruleIssue = checkGroupIssue(metadata, check.rule as unknown);
+  if (ruleIssue) collector.add(check.name, 'invalidCheck', ruleIssue);
+  // 规则内容非法时跳过字节检查：编译会抛，长度门限已无意义
+  const expressionSql = ruleIssue ? '' : compileCheckConstraint(metadata, check).sql;
+  const nameIssue = constraintNameIssue(metadata, 'ck_', check.name, expressionSql);
+  if (nameIssue) collector.add(check.name, 'invalidConstraintName', nameIssue);
+};
+
+/** 校验单个区间排他声明：结构（`invalidExclusion`）与命名（`invalidConstraintName`）。 */
+const validateExclusion = (
+  collector: ViolationCollector,
+  metadata: EntityMetadata,
+  exclusion: EntityExclusionMetadataOptions
+): void => {
+  const nameIssue = constraintNameIssue(metadata, 'ex_', exclusion.name, serializeExclusion(exclusion));
+  if (nameIssue) collector.add(exclusion.name, 'invalidConstraintName', nameIssue);
+
+  const equal = exclusion.equal as unknown;
+  if (!Array.isArray(equal) || equal.length === 0 || !equal.every(column => typeof column === 'string')) {
+    collector.add(exclusion.name, 'invalidExclusion', 'equal 必须是非空字段名数组');
+  } else {
+    for (const column of equal as string[]) {
+      const fieldIssue = checkFieldIssue(metadata, column);
+      if (fieldIssue) collector.add(column, 'invalidExclusion', fieldIssue);
+    }
+  }
+
+  const ranges = exclusion.ranges as unknown;
+  if (!Array.isArray(ranges) || ranges.length === 0) {
+    collector.add(exclusion.name, 'invalidExclusion', 'ranges 必须至少一维');
+    return;
+  }
+  for (const range of ranges as unknown[]) {
+    if (!isPlainRecord(range)) {
+      collector.add(exclusion.name, 'invalidExclusion', '区间维必须是普通对象');
+      continue;
+    }
+    const from = range['from'];
+    const to = range['to'];
+    const bounds = range['bounds'];
+    for (const bound of [['from', from], ['to', to]] as const) {
+      const fieldIssue = checkFieldIssue(metadata, bound[1]);
+      if (fieldIssue) {
+        collector.add(String(bound[1]), 'invalidExclusion', `区间${bound[0]}：${fieldIssue}`);
+        continue;
+      }
+      const property = metadata.propertyMap.get(String(bound[1])) as EntityPropertyMetadata;
+      if (!EXCLUSION_RANGE_TYPES.has(property.type)) {
+        collector.add(String(bound[1]), 'invalidExclusion', `区间${bound[0]} 不能是 ${String(property.type)} 列：只支持时间类与整数列`);
+      }
+    }
+    if (bounds !== '[)' && bounds !== '[]') {
+      collector.add(exclusion.name, 'invalidExclusion', `bounds 只能是 '[)' 或 '[]'，实际为 ${JSON.stringify(bounds)}`);
+    }
+  }
+};
+
+/**
+ * 校验实体声明式存储约束（CHECK / 条件唯一 `where` / 区间排他）
+ *
+ * @remarks
+ * 校验对象是 `transitionMetadata()` 产出的合并后元数据（checkMap / indexMap / exclusionMap），
+ * 继承同名覆盖已在合并期完成，这里只看最终生效的声明。
+ */
+const validateConstraintDeclarations = (collector: ViolationCollector, metadata: EntityMetadata): void => {
+  // 未类型化来源（手搓字面量）可能没有 transitionMetadata 派生的 Map：缺失按零声明处理
+  metadata.checkMap?.forEach(check => validateCheck(collector, metadata, check));
+  metadata.indexMap?.forEach(index => {
+    if (!index.where) return;
+    const issue = checkGroupIssue(metadata, index.where as unknown);
+    if (issue) {
+      collector.add(index.name, 'invalidIndexWhere', issue);
+      return;
+    }
+    const { sql } = compileCheckConstraint(metadata, { name: index.name, rule: index.where as CheckRuleGroup });
+    const nameIssue = constraintNameIssue(metadata, 'uq_', index.name, sql);
+    if (nameIssue) collector.add(index.name, 'invalidConstraintName', nameIssue);
+  });
+  metadata.exclusionMap?.forEach(exclusion => validateExclusion(collector, metadata, exclusion));
+};
+
 /**
  * 校验单个实体的元数据声明，返回按 `namespace/entity/field/rule` 排序的全部违规。
  *
@@ -698,6 +936,7 @@ export function validateEntityMetadata(
   validateSyncStrategy(collector, metadata, toEntitySyncResolver(databaseSync), isSyncTypeUnsupported);
   validatePermissions(collector, metadata.permissions);
   validateManualOrder(collector, metadata);
+  validateConstraintDeclarations(collector, metadata);
   return collector.drain().sort(compareViolations);
 }
 

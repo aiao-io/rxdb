@@ -8,6 +8,7 @@ import {
   bigintBinaryClientSuite,
   bigintBinaryEntitySuite,
   cascadeMutationSuite,
+  constraintSuite,
   createSqliteClientSuite,
   crudIntegrationSuite,
   customPrimaryKeySuite,
@@ -58,3 +59,4 @@ treeIntegrationSuite(sqliteWasmFactory);
 // 版本管理。
 versionBranchSuite(sqliteWasmFactory);
 undoRedoSuite(sqliteWasmFactory);
+constraintSuite(sqliteWasmFactory);

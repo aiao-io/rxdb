@@ -67,6 +67,24 @@ export {
   type EntityMutationsOptions
 } from './entity/entity.utils.js';
 export * from './entity/metadata-options.interface.js';
+// 声明式存储约束（CHECK / 条件唯一 / 区间排他）的编译与命名：只拼字面量、无占位符的 DDL 路径，
+// SQLite family 与 PGlite 适配器共用（同 sql-literal 的公开理由——包外适配器也要拼 DDL）。
+export {
+  buildConditionalUniqueName,
+  buildExclusionConstraintName,
+  buildStorageConstraintName,
+  CHECK_COMPARABLE_TYPES,
+  EXCLUSION_RANGE_TYPES,
+  compileCheckConstraint,
+  compileCheckRule,
+  compileCheckRuleGroup,
+  CONSTRAINT_HASH_LENGTH,
+  expectedStorageConstraintObjects,
+  renderCheckLiteral,
+  serializeExclusion,
+  type CheckLiteralResult,
+  type StorageConstraintPrefix
+} from './entity/check-sql.js';
 // 不经装饰器直接产出 `EntityMetadata` 的入口。跨包的元数据夹具（rxdb-adapter-encrypted 的
 // 查询校验与 patch 加密测试）靠它拿到一份与装饰器产物同构的元数据——不转出去，包外只能手搓
 // 字面量，而那个形状一旦与转换结果分叉，测出来的就不是被测代码的行为。
@@ -88,7 +106,7 @@ export {
 // 底层接口不能经本 barrel 命名，下游包的声明发射只能退回一条指向 `packages/rxdb/src/` 的
 // 相对路径，把核心包源码拽进下游编译程序（ng-packagr 的 `rootDir` 当场判 TS6059）。
 // 它事实上早已在公开面上，这里只是让它可被命名。
-export type { EntityMetadata, EntityMetadataType } from './entity/metadata.interface.js';
+export type { EntityCheckMetadata, EntityExclusionMetadata, EntityIndexMetadata, EntityMetadata, EntityMetadataType } from './entity/metadata.interface.js';
 // 批量写入解析主适配器时抛给调用方的结构化错误。
 // 选择器本身（selectPrimaryAdapterKind 等）是 Repository / EntityManager 的共享内部实现。
 // `getEntitySync` 是例外：实体级 `sync` 覆盖库级配置这条规则决定了一个实体归哪个适配器管，
@@ -221,6 +239,7 @@ export {
 } from './system/change-codec.js';
 export * from './system/change.js';
 export * from './system/migration.js';
+export * from './system/constraint-violations.js';
 // 内容寻址摘要。必须出现在公开面上：`@aiao/rxdb-plugin-working-tree` 在包外，它的变更单元
 // 指纹与提交幂等键都按它算，而这两个 hex 是**落库**的。插件自带一份实现不产生编译错误，
 // 只会让同一份数据在两处得出两个 id，症状要到下一次幂等本该命中却没命中时才显形。

@@ -107,6 +107,7 @@ import {
   rxDBColumnTypeToSqliteType,
   SQLITE_NOW_ISO_SQL
 } from './sqlite-core.utils.js';
+import { checkSqliteConstraintDrift } from './table/constraint-drift.js';
 import { create_tables_sql } from './table/create_tables_sql.js';
 import { remove_all_triggers_sql } from './table/remove_trigger_sql.js';
 import { generate_table_trigger_sql } from './table/trigger_sql.js';
@@ -340,6 +341,36 @@ type QueryCacheTarget = {
 type AdapterLifecycleState = 'bootstrap' | 'ready' | 'closing' | 'closed';
 
 /**
+ * SQLite 宿主版本门槛（US-030 AC#7）。
+ *
+ * @remarks
+ * 触发器要拼动态错误消息（`rxdb:exclusion_violation:…` 里的冲突区间、BOM 插件的位号计数等），
+ * 需要 `RAISE()` 接受表达式——SQLite 3.47.0 起才支持。低于门槛在 `connect()` 即失败，
+ * 并把错误消息退化成常量。仓内各宿主（官方 wasm 3.53.4 / wa-sqlite 3.53.0 / sqliteai 3.50.4 /
+ * node:sqlite 随 Node 26 / Tauri rusqlite 0.33 → 3.48.0）全部达标。
+ */
+const SQLITE_VERSION_GATE = '3.47.0';
+
+/** 把 `3.53.4-build2` 这类版本串解析成数值三元组（非数字段全部丢弃）。 */
+const parse_sqlite_version = (version: string): readonly number[] =>
+  version
+    .split(/[^0-9]+/)
+    .filter(part => part.length > 0)
+    .map(Number)
+    .concat([0, 0, 0])
+    .slice(0, 3);
+
+/** 按 major.minor.patch 数值比较；`actual` 低于 `required` 返回负数。 */
+const compare_sqlite_versions = (actual: string, required: string): number => {
+  const a = parse_sqlite_version(actual);
+  const b = parse_sqlite_version(required);
+  for (let index = 0; index < 3; index++) {
+    if (a[index] !== b[index]) return a[index] - b[index];
+  }
+  return 0;
+};
+
+/**
  * 一张表「认得的列」：字段名（关系名 / 物理列名 / 外键别名三种口径）→ 物理列名。
  *
  * @remarks
@@ -435,6 +466,9 @@ const assert_row_single_spelling = (
  */
 export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase implements IRxDBAdapter {
   #cached_client?: SqliteClientLike;
+
+  /** 版本门槛只查一次（`SELECT sqlite_version()` 的代价留给断线重连以外的路径）。 */
+  #version_gate_checked = false;
   /** 恢复到内存目标得到的连接，下一次建连时代替 `createClient()` 被接管。 */
   #adopted_client?: SqliteClientLike;
   #restoring = false;
@@ -510,6 +544,9 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     }
     this.repository('Repository', SqliteRepository);
     this.repository('TreeRepository', SqliteTreeRepository);
+    // BOM 插件的适配器侧仓储就是默认仓储（入口规范化与错误归一在插件门面 BomRepository），
+    // 与 TreeRepository 同款先例：适配器认得插件声明的仓储名（US-507）
+    this.repository('BomRepository', SqliteRepository);
   }
 
   /**
@@ -624,6 +661,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     try {
       this.#initEncryption();
       await this.#client();
+      await this.#assert_sqlite_version_gate();
     } catch (err) {
       // 初始化失败时恢复 disconnected 状态，避免后续操作误判为已连接
       this.#is_disconnected = true;
@@ -823,6 +861,12 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       await executor.execute(sql);
     }, false);
     return true;
+  }
+
+  override async checkEntityConstraintDrift(EntityTypes: EntityType[]): Promise<void> {
+    // 与 reconcileEntityIndexes 同类的只读比对，仍走 bootstrapTransaction：此刻还在
+    // RxDB.connect() 的引导链路上，事务日志里不该出现纯检查的语句
+    await this.bootstrapTransaction(executor => checkSqliteConstraintDrift(executor, EntityTypes), false);
   }
 
   override async migrateSystemSchema(): Promise<void> {
@@ -1533,6 +1577,17 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       code: 'no_encrypted_columns',
       message: `adapter.encryption.${method} called but no entity declares an encrypted column`
     });
+  }
+
+  async #assert_sqlite_version_gate(): Promise<void> {
+    if (this.#version_gate_checked) return;
+    const version = await this.version();
+    if (compare_sqlite_versions(version, SQLITE_VERSION_GATE) < 0) {
+      throw new RxDBAdapterSqliteError(
+        `SQLite 宿主版本 ${version} 低于门槛 ${SQLITE_VERSION_GATE}：存储约束触发器的动态错误消息（RAISE 接受表达式）需要 ${SQLITE_VERSION_GATE}+，请升级宿主（如 rusqlite ≥ 0.33）`
+      );
+    }
+    this.#version_gate_checked = true;
   }
 
   #client(): Promise<SqliteClientLike> {

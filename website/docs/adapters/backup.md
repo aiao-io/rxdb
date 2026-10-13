@@ -23,7 +23,7 @@
 
 :::warning 引擎版本要求
 
-SQLite 系的备份用 `octet_length()` 做分页探测，要求 SQLite ≥ 3.43；更低的引擎备份直接以 `io_error` 失败，不产出归档。桌面 host 自带满足要求的引擎（Electron 内置 3.53+、Tauri rusqlite 内置 3.46+）。
+SQLite 系的备份用 `octet_length()` 做分页探测，要求 SQLite ≥ 3.43；更低的引擎备份直接以 `io_error` 失败，不产出归档。桌面 host 自带满足要求的引擎（Electron 内置 3.53+、Tauri rusqlite 内置 3.48+）。
 
 :::
 

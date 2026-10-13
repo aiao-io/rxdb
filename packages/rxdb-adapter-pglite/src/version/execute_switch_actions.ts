@@ -65,12 +65,31 @@ export async function execute_switch_actions(
       deleteAction.successResults = await executeSwitchStatements(sink, deleteAction.sql, deleteAction.params);
     }
 
-    for (const insertAction of switchAction.inserts) {
-      insertAction.successResults = await executeSwitchStatements(sink, insertAction.sql);
-    }
-
-    for (const updateAction of switchAction.updates) {
+    // 含排他实体的批次先更新后插入：先截旧行再插新行，中间态不重叠（US-030 AC#14，
+    // 与 sqlite-core 同口径）；无排他实体的批次维持插入在前——更新的外键可能指向本批新插的行
+    const exclusionReorder = [...switchAction.deletes, ...switchAction.inserts, ...switchAction.updates].some(
+      action => action.metadata.exclusions.length > 0
+    );
+    const applyUpdate = async (updateAction: SwitchVersionSqlResult['updates'][number]): Promise<void> => {
       updateAction.successResults = await executeSwitchStatements(sink, updateAction.sql);
+    };
+    const applyInsert = async (insertAction: SwitchVersionSqlResult['inserts'][number]): Promise<void> => {
+      insertAction.successResults = await executeSwitchStatements(sink, insertAction.sql);
+    };
+    if (exclusionReorder) {
+      for (const updateAction of switchAction.updates) {
+        await applyUpdate(updateAction);
+      }
+      for (const insertAction of switchAction.inserts) {
+        await applyInsert(insertAction);
+      }
+    } else {
+      for (const insertAction of switchAction.inserts) {
+        await applyInsert(insertAction);
+      }
+      for (const updateAction of switchAction.updates) {
+        await applyUpdate(updateAction);
+      }
     }
 
     if (disableTriggers) {

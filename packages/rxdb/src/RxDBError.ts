@@ -261,6 +261,80 @@ export class RxDBPluginDependencyCycleError extends RxDBError {
 }
 
 /**
+ * 存储层 CHECK 约束违约（US-030 阶段 A）。
+ *
+ * @remarks
+ * 两个后端归一为同一个错误类：PG 按 SQLSTATE `23514`，SQLite 按原生消息
+ * `CHECK constraint failed: <约束名>`。约束名由元数据确定性生成，适配器凭它反查实体与列；
+ * 冲突值取自适配器自己发出的那一行（原生 CHECK 消息不带值），直连 SQL 场景拿不到
+ * 归一后的类，只有原生消息或 `rxdb:` 前缀消息。
+ */
+export class RxDBCheckViolationError extends RxDBError {
+  constructor(
+    /** 违反的约束全名（`ck_<表>_<名>_<哈希>`） */
+    readonly constraintName: string,
+    /** 实体名（可解析到时） */
+    readonly entity?: string,
+    /** 冲突列名（单列规则可解析到时） */
+    readonly column?: string,
+    /** 冲突值（适配器发出的那一行里该列的值） */
+    readonly value?: unknown,
+    override readonly cause?: Error
+  ) {
+    super(`CHECK constraint violated: ${constraintName}${entity ? ` on '${entity}'` : ''}`);
+    this.name = 'RxDBCheckViolationError';
+    Object.setPrototypeOf(this, RxDBCheckViolationError.prototype);
+  }
+}
+
+/**
+ * 存储层区间排他违约（US-030 阶段 C）。
+ *
+ * @remarks
+ * 两个后端归一为同一个错误类：PG 按 SQLSTATE `23P01`（DETAIL 带双方键值），
+ * SQLite 按触发器消息前缀 `rxdb:exclusion_violation:<约束名>:`。错误详情（双方区间）
+ * 在 `cause` 的原始消息里，本类只把可解析的约束名结构化出来。
+ */
+export class RxDBExclusionViolationError extends RxDBError {
+  constructor(
+    /** 违反的约束全名（`ex_<表>_<名>_<哈希>`） */
+    readonly constraintName: string,
+    override readonly cause?: Error
+  ) {
+    super(`Exclusion constraint violated: ${constraintName}`);
+    this.name = 'RxDBExclusionViolationError';
+    Object.setPrototypeOf(this, RxDBExclusionViolationError.prototype);
+  }
+}
+
+/**
+ * 已有表与声明的存储约束不一致（US-030 漂移检查）。
+ *
+ * @remarks
+ * `init()` 在用户迁移与缺表补建之后做**只读**比对，只纳入 `ck_` / `uq_` / `ex_` 起头的
+ * 约束对象；不一致即抛本错误、列出缺失与多余的名字，**不自动补建**——补建由用户写进
+ * `migrations`（它恰好排在漂移检查之前执行）。
+ */
+export class RxDBConstraintDriftError extends RxDBError {
+  constructor(
+    /** 实体名（元数据里的 `name`） */
+    readonly entity: string,
+    /** 声明了但库里缺失的约束名 */
+    readonly missing: readonly string[],
+    /** 库里存在但声明里没有的约束名 */
+    readonly extra: readonly string[]
+  ) {
+    super(
+      `Constraint drift on '${entity}': ` +
+        `missing ${missing.join(', ') || '(none)'}; extra ${extra.join(', ') || '(none)'}. ` +
+        `Add the missing constraints in a migration (or drop the extra ones) and retry.`
+    );
+    this.name = 'RxDBConstraintDriftError';
+    Object.setPrototypeOf(this, RxDBConstraintDriftError.prototype);
+  }
+}
+
+/**
  * `plugin:*` 依赖指向了多个同名插件 —— 无法裁决该注入哪一个（US-015 AC#14 / D4）。
  *
  * @remarks

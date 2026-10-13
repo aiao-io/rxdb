@@ -7,7 +7,14 @@
  * 2. 支持自定义 IMutationContext
  */
 
-import { EntityStaticType, EntityType, getEntityMetadata, getEntityStatus, RxDBMutationsMap } from '@aiao/rxdb';
+import {
+  EntityStaticType,
+  EntityType,
+  getEntityMetadata,
+  getEntityStatus,
+  normalizeEntityWriteConstraintError,
+  RxDBMutationsMap
+} from '@aiao/rxdb';
 import generate_entity_deletes_sql from './entity/deletes_sql.js';
 import generate_entity_inserts_sql from './entity/inserts_sql.js';
 import generate_entity_update_sql from './entity/update_sql.js';
@@ -107,7 +114,13 @@ export default async <T extends EntityType = EntityType>(
       adapter.rxdb.context,
       adapter.encryptionContext
     );
-    await adapter.query(insertSql);
+    try {
+      await adapter.query(insertSql);
+    } catch (error) {
+      // 存储约束违约归一（CHECK / 区间排他）：与 sqlite-core 同口径，多行时只补实体与列
+      const attempted = entities.length === 1 ? ({ ...entities[0] } as Record<string, unknown>) : {};
+      throw normalizeEntityWriteConstraintError(error, meta, attempted) ?? error;
+    }
 
     // 查询刚插入的数据
     const ids = entities.map(e => e.id);
@@ -141,7 +154,14 @@ export default async <T extends EntityType = EntityType>(
         updatedAt: now,
         encryption: adapter.encryptionContext
       });
-      await adapter.query(sql, params);
+      try {
+        await adapter.query(sql, params);
+      } catch (error) {
+        throw (
+          normalizeEntityWriteConstraintError(error, meta, { ...entity, ...(status.patch || {}) } as Record<string, unknown>) ??
+          error
+        );
+      }
     }
 
     // 批量查询更新后的数据

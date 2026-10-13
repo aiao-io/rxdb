@@ -5,6 +5,8 @@
 
 import { SetRequired } from 'type-fest';
 import {
+  EntityCheckMetadataOptions,
+  EntityExclusionMetadataOptions,
   EntityForeignKeyMetadata,
   EntityIndexMetadataOptions,
   EntityMetadataOptions,
@@ -14,6 +16,9 @@ import {
 } from './metadata-options.interface.js';
 
 export type EntityIndexMetadata = EntityIndexMetadataOptions;
+
+export type EntityCheckMetadata = EntityCheckMetadataOptions;
+export type EntityExclusionMetadata = EntityExclusionMetadataOptions;
 
 /**
  * 实体元数据类型
@@ -28,6 +33,8 @@ export interface EntityMetadataType extends SetRequired<
   relations: EntityRelationMetadata[];
   indexes: EntityIndexMetadata[];
   foreignKeys: EntityForeignKeyMetadata[];
+  checks: EntityCheckMetadata[];
+  exclusions: EntityExclusionMetadata[];
 
   /**
    * 沿原型链按操作就近合并后的写操作权限
@@ -95,6 +102,18 @@ export interface EntityMetadataType extends SetRequired<
    * 键为索引名，值为索引元数据
    */
   indexMap: Map<string, EntityIndexMetadata>;
+
+  /**
+   * 实体所有 CHECK 约束的映射（含属性级 `check` 编译项）
+   * 键为约束名，值为约束元数据；继承时同名项子实体覆盖父实体
+   */
+  checkMap: Map<string, EntityCheckMetadata>;
+
+  /**
+   * 实体所有区间排他约束的映射
+   * 键为约束名，值为约束元数据；继承时同名项子实体覆盖父实体
+   */
+  exclusionMap: Map<string, EntityExclusionMetadata>;
 
   /**
    * 加密属性映射 (新增于 004-local-field-encryption)

@@ -1,4 +1,9 @@
 import {
+  buildConditionalUniqueName,
+  buildExclusionConstraintName,
+  compileCheckConstraint,
+  compileCheckRuleGroup,
+  EntityExclusionMetadata,
   EntityMetadata,
   EntityPropertyMetadata,
   EntityRelationManyToOneMetadata,
@@ -46,6 +51,41 @@ const getPropertyDefaultSql = (property: EntityPropertyMetadata): string | undef
   throw new RxdbAdapterPGliteError(`Property "${property.name}" has an unsupported literal default value.`);
 };
 
+/** 区间维的 PG 范围构造：时间列 tstzrange、整数列 int8range（int4 隐式升 int8）。 */
+const pgRangeSql = (metadata: EntityMetadata, from: string, to: string, bounds: string): string => {
+  const fromColumn = getEntityColumnName(metadata, from);
+  const toColumn = getEntityColumnName(metadata, to);
+  const fromProperty = metadata.propertyMap.get(from);
+  if (!fromColumn || !toColumn || !fromProperty) {
+    throw new RxdbAdapterPGliteError(`排他区间维引用了不存在的列 ${from}/${to}`);
+  }
+  const rangeType = fromProperty.type === PropertyType.date ? 'tstzrange' : 'int8range';
+  return `${rangeType}(${quoteIdentifier(fromColumn)}, ${quoteIdentifier(toColumn)}, '${bounds}')`;
+};
+
+/** 单条排他声明的 EXCLUDE 约束：全部相等列 `=`、全部区间维 `&&`。 */
+const buildPgExclusionConstraintSql = (metadata: EntityMetadata, exclusion: EntityExclusionMetadata): string => {
+  const equalColumns = exclusion.equal.map(field => {
+    const columnName = getEntityColumnName(metadata, field);
+    if (!columnName) throw new RxdbAdapterPGliteError(`排他相等列引用了不存在的列 ${field}`);
+    return `${quoteIdentifier(columnName)} WITH =`;
+  });
+  const ranges = exclusion.ranges.map(range => `${pgRangeSql(metadata, range.from, range.to, range.bounds)} WITH &&`);
+  const name = buildExclusionConstraintName(metadata, exclusion);
+  return `ALTER TABLE ${getTableNameByMetadata(metadata)} ADD CONSTRAINT ${quoteIdentifier(name)} EXCLUDE USING gist (${[...equalColumns, ...ranges].join(', ')})`;
+};
+
+/**
+ * 实体全部排他声明的 ALTER TABLE 语句。
+ *
+ * @remarks
+ * PG 的关系外键列在 `ALTER TABLE ADD COLUMN` 阶段才建（见 `_create_table_relations_sql`），
+ * 排他约束引用 `lineId` 这类列时不能内联进 CREATE TABLE——延后为 ADD CONSTRAINT，
+ * 由 `create_tables_statements` 的延后阶段（isDeferredStatement）在所有表建完后执行。
+ */
+const _create_table_exclusions_sql = (metadata: EntityMetadata): string =>
+  metadata.exclusions.map(exclusion => `\n${buildPgExclusionConstraintSql(metadata, exclusion)};`).join('');
+
 const _create_table_column_sql = (metadata: EntityMetadata) => {
   const tableName = getTableNameByMetadata(metadata);
   let runSQL = `CREATE TABLE ${tableName} (`;
@@ -90,6 +130,14 @@ const _create_table_column_sql = (metadata: EntityMetadata) => {
 
     column_sql.push(columnSQL);
   });
+
+  // 实体级 CHECK（含属性级 `check` 编译项）：与 sqlite-core 同一条核心编译路径，
+  // 约束名含表达式哈希，供 `init()` 漂移比对
+  for (const check of metadata.checks) {
+    const compiled = compileCheckConstraint(metadata, check);
+    column_check_sql.push(`CONSTRAINT ${quoteIdentifier(compiled.name)} CHECK ${compiled.sql}`);
+  }
+
   const need_column_sql = [...column_sql, ...column_check_sql];
   if (need_column_sql.length) {
     runSQL += need_column_sql.map(sql => `\n${sql}`).join(',');
@@ -140,6 +188,19 @@ export const create_table_indexes_sql = (metadata: EntityMetadata, ifNotExists =
   // 添加实体定义的索引（包括组合索引）
   if (metadata.indexMap && metadata.indexMap.size > 0) {
     metadata.indexMap.forEach(index => {
+      // 条件唯一索引（`where`）以 `uq_` 命名、进约束漂移比对，`reconcileEntityIndexes`
+      // （ifNotExists=true 的补建路径）跳过——已有表的收敛只修普通索引，约束类索引不一致
+      // 由 `init()` 的漂移检查点名，不静默补建
+      if (index.where) {
+        if (ifNotExists) return;
+        const whereSql = compileCheckRuleGroup(index.where, metadata);
+        const indexName = buildConditionalUniqueName(metadata, index.name, whereSql);
+        const columns =
+          index.properties?.map(prop => getIndexColumnSql(metadata, prop, index.normalized)).join(', ') ||
+          getIndexColumnSql(metadata, index.name, index.normalized);
+        indexSql += `\nCREATE UNIQUE INDEX ${quoteIdentifier(indexName)} ON ${tableName}(${columns}) WHERE ${whereSql};`;
+        return;
+      }
       const indexName = `idx_${metadata.tableName}_${index.name}`;
       const columns =
         index.properties?.map(prop => getIndexColumnSql(metadata, prop, index.normalized)).join(', ') ||
@@ -282,6 +343,7 @@ export default (adapter: RxDBAdapterPGlite, metadata: EntityMetadata) => {
   create_table_sql += _create_table_column_sql(metadata);
   create_table_sql += _create_table_relations_sql(adapter, metadata);
   create_table_sql += _create_table_foreign_keys_sql(adapter, metadata);
+  create_table_sql += _create_table_exclusions_sql(metadata);
   create_table_sql += create_table_indexes_sql(metadata);
   return create_table_sql;
 };

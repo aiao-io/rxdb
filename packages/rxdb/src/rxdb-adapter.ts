@@ -686,6 +686,17 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
   /** 在用户迁移和缺表补建后幂等收敛实体索引。 */
   reconcileEntityIndexes?(EntityTypes: EntityType[]): Promise<void>;
 
+  /**
+   * 只读比对已有表与声明式存储约束（`ck_` / `uq_` / `ex_` 起头的对象）是否一致。
+   *
+   * @remarks
+   * 在 `reconcileEntityIndexes` 的同一时机调用；不一致抛 {@link RxDBConstraintDriftError}，
+   * 列出缺失与多余的名字，**不自动补建**（补建由用户写进 `migrations`）。
+   * 可选成员：实体声明了约束（checks / 带 `where` 的唯一索引 / exclusions）而适配器
+   * 未实现本方法时，`RxDB.init()` 按「不支持」抛错，不静默降级为应用层校验（US-030 AC#6）。
+   */
+  checkEntityConstraintDrift?(EntityTypes: EntityType[]): Promise<void>;
+
   abstract switchBranch(options: SwitchBranchOptions): Promise<void>;
 
   abstract getRxDBChangeSequence(): Promise<number>;

@@ -2,6 +2,7 @@ import { EntityMetadata, EntityType, getEntityMetadata } from '@aiao/rxdb';
 import { generate_entity_inserts_sql } from '../entity/inserts_sql.js';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { get_sql_with_params } from '../sqlite-core.utils.js';
+import { buildExclusionTriggersSql } from './build-exclusion-triggers.js';
 import { create_table_sql } from './create_table_sql.js';
 import { generate_table_trigger_sql } from './trigger_sql.js';
 
@@ -27,6 +28,8 @@ export const create_tables_sql = async <T extends EntityType>(
     const EntityType = EntityTypes[i];
     const metadata = getEntityMetadata(EntityType);
     sql += '\n' + create_table_sql(adapter, metadata);
+    // 区间排他触发器（`ex_…_i` / `ex_…_u`）：声明了 exclusions 的实体才有
+    sql += '\n' + buildExclusionTriggersSql(metadata);
     if (metadata.log !== false) {
       const trigger_sql = generate_table_trigger_sql(metadata, {
         branchId,

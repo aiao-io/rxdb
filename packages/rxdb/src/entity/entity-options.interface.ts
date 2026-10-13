@@ -17,6 +17,7 @@ import type {
   EntityPropertyMetadataOptions
 } from './property-types.interface.js';
 import type { EntityRelationMetadataOptions } from './relation-types.interface.js';
+import type { EntityCheckMetadataOptions, EntityExclusionMetadataOptions } from './storage-constraints.interface.js';
 import type { SyncOptions } from './sync-options.interface.js';
 
 /**
@@ -223,6 +224,22 @@ export interface EntityMetadataOptions {
    * 自己定义的索引，不包括继承的
    */
   indexes?: EntityIndexMetadataOptions[];
+
+  /**
+   * 实体级 CHECK 约束（含属性级 `check` 编译项）
+   *
+   * 单行不变量落在存储层；操作符白名单与字面量编译见 {@link ./storage-constraints.interface.ts}。
+   * 继承时按 `name` 合并，子实体同名项覆盖父实体；已有表与声明不一致时 `init()` 抛漂移错误。
+   */
+  checks?: EntityCheckMetadataOptions[];
+
+  /**
+   * 区间排他约束：「相等列 + 区间维」，全部维同时相交才冲突
+   *
+   * PG 走 `EXCLUDE USING gist`，SQLite 走 INSERT / UPDATE 双触发器，
+   * 错误语义统一；已有表与声明不一致时 `init()` 抛漂移错误。
+   */
+  exclusions?: EntityExclusionMetadataOptions[];
 
   /**
    * 实体级多列外键约束。

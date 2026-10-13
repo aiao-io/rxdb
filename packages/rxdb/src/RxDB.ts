@@ -28,6 +28,7 @@ import {
   RxDBAdapterName,
   RxDBAdapters
 } from './rxdb-adapter.js';
+import { RxDBLocalAdapterCapabilityError } from './RxDBError.js';
 import {
   RemoteEntityInvalidatedEvent,
   RxDBEvent,
@@ -1112,6 +1113,22 @@ export class RxDB {
           localAdapter.completeBootstrap();
         }
         await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
+        // 声明式存储约束的漂移检查：与索引收敛同一时机（用户迁移与缺表补建之后）、只读比对。
+        // 适配器未实现该方法而实体声明了约束 → 按「不支持」抛错（US-030 AC#6），不静默降级
+        const entities_with_constraints = this.#config.entities.filter(EntityType => {
+          const metadata = getEntityMetadata(EntityType);
+          return (
+            metadata.checks.length > 0 ||
+            metadata.exclusions.length > 0 ||
+            Array.from(metadata.indexMap.values()).some(index => index.where)
+          );
+        });
+        if (entities_with_constraints.length > 0) {
+          if (!localAdapter.checkEntityConstraintDrift) {
+            throw new RxDBLocalAdapterCapabilityError(String(adapterName), ['checkEntityConstraintDrift']);
+          }
+          await localAdapter.checkEntityConstraintDrift(entities_with_constraints);
+        }
         if (existed) {
           // 既有库才把贡献的能力接到这条连接上。新库不调：它的贡献行全是上面那次
           // `createTables()` 刚由本进程写下的，取值当场就已知道，读回来问的是自己一行之前

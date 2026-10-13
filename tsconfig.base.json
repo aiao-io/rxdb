@@ -66,6 +66,7 @@
       "@aiao/rxdb-plugin-graph": ["./packages/rxdb-plugin-graph/src/index.ts"],
       "@aiao/rxdb-plugin-graph/generator": ["./packages/rxdb-plugin-graph/src/generator/index.ts"],
       "@aiao/rxdb-plugin-graph/sqlite": ["./packages/rxdb-plugin-graph/src/sqlite.ts"],
+      "@aiao/rxdb-plugin-bom": ["./packages/rxdb-plugin-bom/src/index.ts"],
       "@aiao/rxdb-plugin-history": ["./packages/rxdb-plugin-history/src/index.ts"],
       "@aiao/rxdb-plugin-querycache": ["./packages/rxdb-plugin-querycache/src/index.ts"],
       "@aiao/rxdb-plugin-replay": ["./packages/rxdb-plugin-replay/src/index.ts"],

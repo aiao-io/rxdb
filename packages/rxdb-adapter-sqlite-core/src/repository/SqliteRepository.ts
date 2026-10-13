@@ -1,4 +1,12 @@
-import { EntityStaticType, EntityType, FindOptions, getEntityMetadata, getEntityStatus, IRepository } from '@aiao/rxdb';
+import {
+  EntityStaticType,
+  EntityType,
+  FindOptions,
+  getEntityMetadata,
+  getEntityStatus,
+  IRepository,
+  normalizeEntityWriteConstraintError
+} from '@aiao/rxdb';
 import { generate_entity_delete_sql } from '../entity/delete_sql.js';
 import { generate_entity_insert_sql } from '../entity/insert_sql.js';
 import { update_sql as generate_entity_update_sql } from '../entity/update_sql.js';
@@ -63,9 +71,14 @@ export class SqliteRepository<T extends EntityType> extends SqliteRepositoryBase
       ...this.rxdb.context,
       encryption: this.adapter.encryptionContext
     });
-    const result = await this.adapter.writeQuery(sql, params);
-    await this.addQueryCache(result, true);
-    return entity;
+    try {
+      const result = await this.adapter.writeQuery(sql, params);
+      await this.addQueryCache(result, true);
+      return entity;
+    } catch (error) {
+      // 存储约束违约归一（CHECK / 区间排他）：单行写入能补上冲突列与冲突值
+      throw normalizeEntityWriteConstraintError(error, this.metadata, { ...entity } as Record<string, unknown>) ?? error;
+    }
   }
 
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
@@ -74,9 +87,13 @@ export class SqliteRepository<T extends EntityType> extends SqliteRepositoryBase
       encryption: this.adapter.encryptionContext,
       updatedAt: getMonotonicUpdatedAt(entity)
     });
-    const result = await this.adapter.writeQuery(sql, params);
-    await this.addQueryCache(result, true);
-    return entity;
+    try {
+      const result = await this.adapter.writeQuery(sql, params);
+      await this.addQueryCache(result, true);
+      return entity;
+    } catch (error) {
+      throw normalizeEntityWriteConstraintError(error, this.metadata, { ...entity, ...patch } as Record<string, unknown>) ?? error;
+    }
   }
 
   async remove(entity: InstanceType<T>): Promise<InstanceType<T>> {

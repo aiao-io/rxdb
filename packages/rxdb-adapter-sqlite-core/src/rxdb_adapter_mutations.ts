@@ -1,4 +1,11 @@
-import { EntityStaticType, EntityType, getEntityMetadata, getEntityStatus, RxDBMutationsMap } from '@aiao/rxdb';
+import {
+  EntityStaticType,
+  EntityType,
+  getEntityMetadata,
+  getEntityStatus,
+  normalizeEntityWriteConstraintError,
+  RxDBMutationsMap
+} from '@aiao/rxdb';
 import { generate_entity_deletes_sql } from './entity/deletes_sql.js';
 import { generate_entity_inserts_sql, get_insert_column_count } from './entity/inserts_sql.js';
 import { update_sql as generate_entity_update_sql } from './entity/update_sql.js';
@@ -123,7 +130,14 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
         adapter.rxdb.context,
         adapter.encryptionContext
       );
-      await adapter.query(insert_result.sql, insert_result.params);
+      try {
+        await adapter.query(insert_result.sql, insert_result.params);
+      } catch (error) {
+        // 存储约束违约归一（CHECK / 区间排他）：多行 chunk 定位不到是哪一行，只补实体与列；
+        // 单行时再补冲突值（原生 CHECK 消息不带值）
+        const attempted = entitiesChunk.length === 1 ? ({ ...entitiesChunk[0] } as Record<string, unknown>) : {};
+        throw normalizeEntityWriteConstraintError(error, meta, attempted) ?? error;
+      }
     }
 
     await sync_entities_by_ids(
@@ -152,7 +166,14 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
         returning: false,
         updatedAt: getMonotonicUpdatedAt(entity, now)
       });
-      await adapter.query(updateResult.sql, updateResult.params);
+      try {
+        await adapter.query(updateResult.sql, updateResult.params);
+      } catch (error) {
+        // UPDATE 的行值是 patch 合并后的形态：单列 CHECK 违约时补上冲突列与冲突值
+        throw (
+          normalizeEntityWriteConstraintError(error, meta, { ...entity, ...patch } as Record<string, unknown>) ?? error
+        );
+      }
     }
 
     await sync_entities_by_ids(

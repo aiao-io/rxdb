@@ -1,4 +1,13 @@
-import { EntityMetadata, getEntityColumnName, PropertyType, RelationKind } from '@aiao/rxdb';
+import {
+  buildConditionalUniqueName,
+  compileCheckConstraint,
+  compileCheckRuleGroup,
+  EntityIndexMetadata,
+  EntityMetadata,
+  getEntityColumnName,
+  PropertyType,
+  RelationKind
+} from '@aiao/rxdb';
 import { isFunction } from '@aiao/utils';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import {
@@ -30,6 +39,22 @@ import {
  */
 const normalize_index_column = (quotedColumn: string, normalized: boolean | undefined): string =>
   normalized ? `lower(COALESCE(CAST(${quotedColumn} AS TEXT), ''))` : quotedColumn;
+
+/** 索引的列列表：属性列 / 外键列（`normalized` 逐列展开）。 */
+const index_columns = (metadata: EntityMetadata, index: EntityIndexMetadata): string =>
+  index.properties
+    ?.map(prop => {
+      const property = metadata.propertyMap.get(prop);
+      if (property) return normalize_index_column(quote_sql_identifier(property.columnName), index.normalized);
+      const fkNames = metadata.foreignKeyNames;
+      const fkColumnNames = metadata.foreignKeyColumnNames;
+      if (fkNames && fkColumnNames) {
+        const fkIdx = fkNames.indexOf(prop);
+        if (fkIdx >= 0) return normalize_index_column(quote_sql_identifier(fkColumnNames[fkIdx]), index.normalized);
+      }
+      return normalize_index_column(quote_sql_identifier(prop), index.normalized);
+    })
+    .join(', ') || quote_sql_identifier(index.name);
 
 /**
  * 创建表的列的 SQL（包含外键约束）
@@ -231,6 +256,13 @@ const create_table_column_sql = (adapter: RxDBAdapterSqliteBase, metadata: Entit
     column_check_sql.push(constraint);
   }
 
+  // 实体级 CHECK（含属性级 `check` 编译项）：读合并后的 `metadata.checks`（继承同名覆盖
+  // 已在 transitionMetadata 完成），约束名含表达式哈希，供 `init()` 漂移比对
+  for (const check of metadata.checks) {
+    const compiled = compileCheckConstraint(metadata, check);
+    column_check_sql.push(`CONSTRAINT ${quote_sql_identifier(compiled.name)} CHECK ${compiled.sql}`);
+  }
+
   const need_column_sql = [...column_sql, ...column_check_sql];
   if (need_column_sql.length) {
     runSQL += need_column_sql.map(sql => `\n${sql}`).join(',');
@@ -252,24 +284,18 @@ const create_table_column_sql = (adapter: RxDBAdapterSqliteBase, metadata: Entit
   // 查询照常能跑，只是退化成全表扫描，大数据集上才暴露。
   if (metadata.indexMap && metadata.indexMap.size > 0) {
     metadata.indexMap.forEach(index => {
+      // 条件唯一索引（`where`）以 `uq_` 命名、进约束漂移比对，与普通索引（`idx_`）分开
+      if (index.where) {
+        const whereSql = compileCheckRuleGroup(index.where, metadata);
+        const constraintIndexName = buildConditionalUniqueName(metadata, index.name, whereSql);
+        const columns = index_columns(metadata, index);
+        runSQL += `\nCREATE UNIQUE INDEX ${quote_sql_identifier(constraintIndexName)} ON ${quote_sql_identifier(tableName)}(${columns}) WHERE ${whereSql};`;
+        return;
+      }
       // SQLite 的索引名是**库级全局**的，不含 namespace 时跨 namespace 的同名实体
       // 会撞在一起、第二张表直接建不出来。与表名同口径带上 `namespace$`（SQLC-021）
       const indexName = `idx_${get_table_name_by_metadata(metadata)}_${index.name}`;
-      const columns =
-        index.properties
-          ?.map(prop => {
-            const property = metadata.propertyMap.get(prop);
-            if (property) return normalize_index_column(quote_sql_identifier(property.columnName), index.normalized);
-            const fkNames = metadata.foreignKeyNames;
-            const fkColumnNames = metadata.foreignKeyColumnNames;
-            if (fkNames && fkColumnNames) {
-              const fkIdx = fkNames.indexOf(prop);
-              if (fkIdx >= 0)
-                return normalize_index_column(quote_sql_identifier(fkColumnNames[fkIdx]), index.normalized);
-            }
-            return normalize_index_column(quote_sql_identifier(prop), index.normalized);
-          })
-          .join(', ') || quote_sql_identifier(index.name);
+      const columns = index_columns(metadata, index);
       const uniqueKeyword = index.unique ? 'UNIQUE ' : '';
       runSQL += `\nCREATE ${uniqueKeyword}INDEX ${quote_sql_identifier(indexName)} ON ${quote_sql_identifier(tableName)}(${columns});`;
     });

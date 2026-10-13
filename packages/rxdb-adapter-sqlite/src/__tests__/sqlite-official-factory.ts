@@ -1,4 +1,4 @@
-import { RxDB, SyncType, type EntityType, type Plugin } from '@aiao/rxdb';
+import { RxDB, SyncType, type EntityType, type MigrationType, type Plugin } from '@aiao/rxdb';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { queryCountOf, registerQueryCount, type EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
@@ -48,15 +48,21 @@ async function createSqliteOfficialAdapter(
     persistent?: boolean;
     plugins?: readonly Plugin[];
     remoteAdapter?: string;
+    dbName?: string;
+    migrations?: MigrationType[];
   };
   const entities = (rawOptions.entities ?? []).slice();
   const persistent = rawOptions.persistent === true;
   const plugins = rawOptions.plugins ?? [];
-  const dbName = `sqlite-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const dbName =
+    typeof rawOptions.dbName === 'string' ?
+      rawOptions.dbName
+    : `sqlite-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const rxdb = new RxDB({
     dbName,
     context: { userId: 'userId' },
     entities,
+    migrations: rawOptions.migrations,
     sync: {
       local: { adapter: 'sqlite' },
       // 捕获侧一致性调用点要传 remote：清单里的 QueryCache 实体要求**库级** sync 两侧齐全，
