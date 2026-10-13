@@ -29,6 +29,7 @@ function createMockEntityMetadata(name: string, properties: EntityPropertyMetada
     relations: [],
     indexes: [],
     checks: [],
+    exclusions: [],
     propertyMap,
     computedPropertyMap: new Map(),
     defaultValueProperties: [],
@@ -42,6 +43,7 @@ function createMockEntityMetadata(name: string, properties: EntityPropertyMetada
     columnNameToPropertyName: new Map(),
     indexMap: new Map(),
     checkMap: new Map(),
+    exclusionMap: new Map(),
     isForeignKey: () => false
   } as EntityMetadata;
 }
@@ -222,7 +224,9 @@ describe('metadata-field-extractor', () => {
         encryptedPropertyMap: new Map(),
         foreignKeys: [],
         checks: [],
+        exclusions: [],
         checkMap: new Map(),
+        exclusionMap: new Map(),
         isForeignKey: (name: string) => name === 'ownerId'
       };
 

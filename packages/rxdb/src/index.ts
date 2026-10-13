@@ -89,13 +89,21 @@ export {
 // 相对路径，把核心包源码拽进下游编译程序（ng-packagr 的 `rootDir` 当场判 TS6059）。
 // 它事实上早已在公开面上，这里只是让它可被命名。
 export type { EntityMetadata, EntityMetadataType } from './entity/metadata.interface.js';
-// 声明式 CHECK 约束的元数据层：类型、白名单编译与确定性约束名（US-030 阶段 A）。
-// 编译产物是只拼字面量的 SQL 表达式，两后端（SQLite family / PGlite）共用同一条语句，
-// 见该文件 @fileoverview。
+// 声明式存储约束的元数据层（US-030）：CHECK（阶段 A）、条件唯一索引（阶段 B）、区间排他（阶段 C）
+// 的类型、白名单编译与确定性约束名。编译产物两后端（SQLite family / PGlite）共用，
+// 见各文件 @fileoverview。
 export * from './entity/check-constraint.js';
+export * from './entity/conditional-unique-index.js';
+export * from './entity/constraint-name.js';
+export * from './entity/exclusion-constraint.js';
 // CHECK 违约原始错误的识别与归一化：适配器写入路径把 PG 23514 / SQLite
 // 'CHECK constraint failed' 归一成 RxDBCheckViolationError（按类名主判别）。
 export * from './system/check-violation.js';
+// 区间排他违约的识别与归一化（PG 23P01 / SQLite 排他触发器消息 → RxDBExclusionViolationError），
+// 以及写入路径统一调用的 toStorageConstraintViolationError（CHECK 与排他各归各的错误类）。
+export * from './system/exclusion-violation.js';
+// 声明了区间排他的实体在批量写入与切换重放里的执行顺序（删除 → 更新 → 插入，AC#14）。
+export * from './system/exclusion-write-order.js';
 // 存储约束漂移比对的共享核心：期望集合生成、缺失/多余差集与抛错（两后端共用，
 // 适配器只注入实际约束名与表存在性）。
 export * from './system/constraint-drift.js';

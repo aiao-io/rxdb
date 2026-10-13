@@ -43,7 +43,14 @@
     "CheckXorItem": "function",
     "CheckRangeItem": "function",
     "checkConstraintFixtures": "array",
-    "runCheckConstraintWriteBehaviorSuite": "function"
+    "ConditionalUniqueRevision": "function",
+    "conditionalUniqueFixtures": "array",
+    "ExclusionOccurrence": "function",
+    "ExclusionSegment": "function",
+    "exclusionFixtures": "array",
+    "runCheckConstraintWriteBehaviorSuite": "function",
+    "runConditionalUniqueWriteBehaviorSuite": "function",
+    "runExclusionWriteBehaviorSuite": "function"
   },
   "./encrypted": {
     "ENCRYPTED_SENTINELS": "array",

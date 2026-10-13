@@ -250,6 +250,14 @@
         "kind": "type"
       },
       {
+        "name": "PGliteServerExtensionRequirements",
+        "kind": "type"
+      },
+      {
+        "name": "pgliteServerExtensionRequirementsOf",
+        "kind": "value"
+      },
+      {
         "name": "PgliteTableColumn",
         "kind": "type"
       },

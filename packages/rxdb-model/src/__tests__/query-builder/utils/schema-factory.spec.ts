@@ -33,7 +33,9 @@ function createMockEntityMetadata(name: Capitalize<string>, properties: EntityPr
     encryptedPropertyMap: new Map(),
     foreignKeys: [],
     checks: [],
+    exclusions: [],
     checkMap: new Map(),
+    exclusionMap: new Map(),
     isForeignKey: () => false
   };
 }

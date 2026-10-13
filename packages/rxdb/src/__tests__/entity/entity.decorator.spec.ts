@@ -74,6 +74,7 @@ describe('@Entity', () => {
         "checks": [],
         "computedProperties": [],
         "displayName": "Todo",
+        "exclusions": [],
         "extends": [
           "EntityBase",
         ],
@@ -109,6 +110,7 @@ describe('@Entity', () => {
         "checks": [],
         "computedProperties": [],
         "displayName": "Todo",
+        "exclusions": [],
         "extends": [
           "EntityBase",
         ],

@@ -50,7 +50,12 @@ import {
   PGliteClientOptions,
   PgliteTableColumn
 } from './pglite.interface.js';
-import { type EncryptionContext, quoteIdentifier, RxdbAdapterPGliteError } from './pglite.utils.js';
+import {
+  type EncryptionContext,
+  pgliteServerExtensionRequirementsOf,
+  quoteIdentifier,
+  RxdbAdapterPGliteError
+} from './pglite.utils.js';
 import { asPGliteChangeEventSource, IPGliteClient, PGliteClient, resolvePGliteInitOptions } from './PGliteClient.js';
 import { resolveQueryCacheTarget, resolveUpdatedAtColumn } from './query-cache/query_cache_target.js';
 import { buildQueryCacheUpsertStatements } from './query-cache/upsert_many_sql.js';
@@ -376,6 +381,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       await client.exec(notifySql);
       this.#notifyInfrastructureReady = true;
     }
+    await this.#ensureServerExtensions(client);
 
     const source = asPGliteChangeEventSource(client);
     if (source) {
@@ -539,11 +545,12 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   }
 
   /**
-   * 只读漂移检查：元数据声明的 CHECK 与 `pg_constraint` 里的实际约束比对（US-030 AC#10）。
+   * 只读漂移检查：元数据声明的存储约束与目录里的实际对象比对（US-030 AC#10）。
    *
    * @remarks
    * 由核心在 `RxDB.connect()` 里、`reconcileEntityIndexes` 同一时机调用（用户迁移与
-   * 缺表补建之后）。只比对 `ck_` 起头的对象；不一致抛 {@link RxDBConstraintDriftError}。
+   * 缺表补建之后）。比对 `ck_` CHECK、`uq_` 条件唯一索引、`ex_` 区间排他；不一致抛
+   * {@link RxDBConstraintDriftError}。
    */
   override async checkEntityConstraints(EntityTypes: EntityType[]): Promise<void> {
     await this.bootstrapTransaction(async executor => {
@@ -744,7 +751,8 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    * @returns 尚未 `init()` 的客户端实例
    */
   protected createClient(): IPGliteClient {
-    return new PGliteClient();
+    // 有实体声明区间排他即装载 btree_gist（见 pglite-server-extensions.ts）
+    return new PGliteClient(pgliteServerExtensionRequirementsOf(this.rxdb.config.entities));
   }
 
   /**
@@ -903,6 +911,29 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   async #internal_query<T>(query: string, params?: unknown[], options?: QueryOptions): Promise<Results<T>> {
     const client = await this.#getClient();
     return client.query(query, params, options);
+  }
+
+  /**
+   * 在库里启用服务端扩展（`CREATE EXTENSION IF NOT EXISTS`，幂等）。
+   *
+   * @remarks
+   * 排在用户迁移与建表之前（`connect()` 里），用户迁移补建 `EXCLUDE` 约束时不必自己启用扩展。
+   * 运行时没装载扩展包（桌面端由主进程 `createRuntime` 建 PGlite，扩展归宿主应用装）时
+   * 在这里显式失败、点名缺什么，不留到第一次建表才报一条读不出原因的 SQL 错误（AC#6）。
+   */
+  async #ensureServerExtensions(client: IPGliteClient): Promise<void> {
+    if (!pgliteServerExtensionRequirementsOf(this.rxdb.config.entities).btreeGist) return;
+    try {
+      await client.exec('CREATE EXTENSION IF NOT EXISTS btree_gist');
+    } catch (error) {
+      throw new RxdbAdapterPGliteError(
+        '实体声明了区间排他（exclusions），需要 PGlite 的 btree_gist 扩展，但当前运行时没有装载它。' +
+          '浏览器 / Node 下适配器自动装载；桌面端请在主进程创建 PGlite 时装载 ' +
+          '@electric-sql/pglite/contrib/btree_gist。',
+        'MISSING_SERVER_EXTENSION',
+        error instanceof Error ? error : undefined
+      );
+    }
   }
 
   /**

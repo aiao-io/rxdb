@@ -12,6 +12,7 @@
 import type { RxDBRepositoryName } from '../rxdb-adapter.js';
 import type { ManualOrderOptions } from '../sortable/sortable.interface.js';
 import type { EntityCheckMetadataOptions } from './check-constraint.js';
+import type { EntityExclusionMetadataOptions } from './exclusion-constraint.js';
 import type {
   EntityForeignKeyMetadataOptions,
   EntityIndexMetadataOptions,
@@ -266,6 +267,37 @@ export interface EntityMetadataOptions {
    * ```
    */
   checks?: EntityCheckMetadataOptions[];
+
+  /**
+   * 实体级区间排他约束：相等列全部相等、且每一维区间都相交的两行互斥（US-030 阶段 C）。
+   *
+   * PG 落成 `EXCLUDE USING gist`（`btree_gist` 由适配器加载），SQLite 落成插入 / 更新两个触发器，
+   * 违约在两后端都归一成 `RxDBExclusionViolationError`，携带双方区间。按 `name` 进继承合并——
+   * 子实体同名项覆盖父实体的，异名项全部生效。约束名由 `ex_` + 表名 + `name` + 规范化定义哈希
+   * 确定性生成；已有表与声明不一致时 `init()` 抛 `RxDBConstraintDriftError`，不自动补建。
+   *
+   * 端点 NULL 即该侧无界；空区间与倒置区间不与任何行冲突，要拒绝倒置区间请另加 CHECK。
+   * 检查按行即时进行（不提供延迟检查）：两行**互换**区间这类终态合法、却无论顺序都经过重叠的
+   * 写入不支持，须经中间值分两步写。
+   *
+   * @example
+   * ```typescript
+   * @Entity({
+   *   exclusions: [
+   *     {
+   *       name: 'occurrence_no_overlap',
+   *       equal: ['bomLineId'],
+   *       ranges: [
+   *         { from: 'effectiveFrom', to: 'effectiveTo', bounds: '[)' },
+   *         { from: 'unitFrom', to: 'unitTo', bounds: '[]' }
+   *       ]
+   *     }
+   *   ]
+   * })
+   * class BomLineOccurrence extends EntityBase {}
+   * ```
+   */
+  exclusions?: EntityExclusionMetadataOptions[];
 
   /**
    * 功能特性

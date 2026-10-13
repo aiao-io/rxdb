@@ -1,23 +1,29 @@
 /**
  * @fileoverview SQLite family 的存储约束漂移检查（US-030 AC#10 / #11 / #16）。
  *
- * 只读比对：元数据确定性生成的约束名集合（阶段 A 只纳入 `ck_` 起头的对象）与
- * `sqlite_master` 里建表 SQL 文本中的实际约束名集合。差集与抛错由核心
- * `assertNoEntityConstraintDrift` 承担（两后端同一份），本文件只做 SQLite 方言的
- * 两件事：读 sql 文本、从文本里解析命名约束。
+ * 只读比对：元数据确定性生成的名字集合与 `sqlite_master` 里的实际集合。差集与抛错由核心
+ * `assertNoEntityConstraintDrift` 承担（两后端同一份），本文件只做 SQLite 方言的读取：
+ * - `ck_` CHECK：没有独立的目录行，名字只存在于建表 SQL 文本里
+ *   （`ALTER TABLE ADD CONSTRAINT CHECK` 也会重写该文本），所以解析 sql 文本；
+ * - `uq_` 条件唯一索引：`sqlite_master` 里 `type = 'index'` 的行；
+ * - `ex_` 区间排他：`sqlite_master` 里 `type = 'trigger'` 的行，每条约束两个（`_i` / `_u`），
+ *   缺一个就是缺一道防线（只剩插入触发器时 UPDATE 能静默造出重叠，AC#12）。
  *
- * SQLite 的 CHECK 约束没有独立的目录行，名字只存在于建表 SQL 文本里
- * （`ALTER TABLE ADD CONSTRAINT CHECK` 也会重写该文本），所以解析 sql 文本。
- * 比对范围刻意收窄：外键约束（作者原名）、`idx_` 普通索引、系统 CRUD 触发器与
- * FTS 触发器都不在范围——否则每张既有表首次 `init()` 就被报「多余」（AC#16）。
+ * 每类对象只认自己的前缀。比对范围刻意收窄：外键约束（作者原名）、`idx_` 普通索引、
+ * 系统 CRUD 触发器与 FTS 触发器都不在范围——否则每张既有表首次 `init()` 就被报「多余」（AC#16）。
  */
 
 import type { EntityType } from '@aiao/rxdb';
 import {
   assertNoEntityConstraintDrift,
+  CHECK_NAME_PREFIX,
+  EXCLUSION_NAME_PREFIX,
+  exclusionTriggerNames,
   expectedCheckConstraintNames,
+  expectedConditionalUniqueIndexNames,
+  expectedExclusionConstraintNames,
   getEntityMetadata,
-  inDriftScope
+  UNIQUE_INDEX_NAME_PREFIX
 } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import type { SqliteResult } from '../sqlite-core.interface.js';
@@ -78,13 +84,27 @@ const actualCheckNames = (createSql: string): Set<string> => {
   const names = new Set<string>();
   for (const match of stripSqlStringLiterals(createSql).matchAll(NAMED_CONSTRAINT_PATTERN)) {
     const name = match[1] ?? match[2] ?? match[3];
-    if (inDriftScope(name)) names.add(name);
+    if (name.startsWith(CHECK_NAME_PREFIX)) names.add(name);
   }
   return names;
 };
 
+/** 挂在该表上的某类对象（索引 / 触发器）里，以 `prefix` 起头的名字。 */
+const actualObjectNames = async (
+  adapter: ConstraintCatalogQuerier,
+  type: 'index' | 'trigger',
+  tableName: string,
+  prefix: string
+): Promise<string[]> => {
+  const result = await adapter.execute(`SELECT name FROM sqlite_master WHERE type = ? AND tbl_name = ?`, [
+    type,
+    tableName
+  ]);
+  return (result.results[0]?.rows ?? []).map(row => String(row[0])).filter(name => name.startsWith(prefix));
+};
+
 /**
- * SQLite family 的漂移检查：元数据声明的 CHECK 与库里的实际 CHECK 逐表比对。
+ * SQLite family 的漂移检查：元数据声明的 CHECK / 条件唯一索引 / 区间排他与库里的实际对象逐表比对。
  *
  * @param adapter - 引导事务执行器门面：`connect()` 引导期内 `ready()` 等的是当前
  *   connect promise，直接走 `adapter.query()` 会等自己、永久挂起，所以本函数必须
@@ -92,7 +112,7 @@ const actualCheckNames = (createSql: string): Set<string> => {
  * @param EntityTypes - 全部注册实体（含未声明 checks 的：删掉声明而未迁移的残留
  *   `ck_` 约束同样判为「多余」）
  * @throws {@link RxDBConstraintDriftError} 表缺失、或任一实体表出现缺失 / 多余的
- *   `ck_` 约束时（表缺失与约束漂移同口径 fail-fast，两后端一致）
+ *   `ck_` / `uq_` / `ex_` 对象时（表缺失与约束漂移同口径 fail-fast，两后端一致）
  */
 export const check_entity_constraints_sqlite = async (
   adapter: ConstraintCatalogQuerier,
@@ -108,12 +128,23 @@ export const check_entity_constraints_sqlite = async (
     // 表缺失：fail-fast（缺表补建排在漂移检查之前，走到这里表必在；真缺失就是
     // 异常状态，两后端同口径报漂移点名表缺失，不静默跳过）
     const tableMissing = rows.length === 0;
-    const actual = tableMissing ? [] : [...actualCheckNames(String(rows[0][0] ?? ''))];
+    const actual =
+      tableMissing ?
+        []
+      : [
+          ...actualCheckNames(String(rows[0][0] ?? '')),
+          ...(await actualObjectNames(adapter, 'index', tableName, UNIQUE_INDEX_NAME_PREFIX)),
+          ...(await actualObjectNames(adapter, 'trigger', tableName, EXCLUSION_NAME_PREFIX))
+        ];
     assertNoEntityConstraintDrift({
       entity: metadata.name,
       tableName: metadata.tableName,
       tableMissing,
-      expected: expectedCheckConstraintNames(metadata),
+      expected: [
+        ...expectedCheckConstraintNames(metadata),
+        ...expectedConditionalUniqueIndexNames(metadata),
+        ...expectedExclusionConstraintNames(metadata).flatMap(name => exclusionTriggerNames(name))
+      ],
       actual
     });
   }

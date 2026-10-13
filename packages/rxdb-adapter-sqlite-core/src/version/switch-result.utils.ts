@@ -26,7 +26,7 @@
  * 不是各写一遍。新增逻辑先问一句「这一格与方言有关吗」——无关的往那两处放。
  */
 import type { EntityData, EntityMetadata, RxDBEntityId, SwitchVersionActions } from '@aiao/rxdb';
-import { parseRxDBChangeKey } from '@aiao/rxdb';
+import { orderExclusionUpdates, ordersWritesForExclusion, parseRxDBChangeKey } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { generate_entity_insert_sql } from '../entity/insert_sql.js';
 import { update_sql } from '../entity/update_sql.js';
@@ -88,6 +88,11 @@ export interface SwitchVersionSqlItem {
   selectStatements?: SqliteStatement[];
   successResults?: SqliteSuccessResult;
   changes: Map<RxDBEntityId, SwitchVersionChangeData>;
+  /**
+   * 更新项是否排在全部插入之前执行（声明了区间排他的实体，US-030 AC#14）。
+   * 语句已按「收窄类在前」排好，见核心 `orderExclusionUpdates`。
+   */
+  beforeInserts?: boolean;
 }
 
 /**
@@ -265,7 +270,11 @@ export const convertSwitchResultToSql = async (
     // 只收真正写过的 id：被跳过的行没落过写，就不该被 SELECT 回来当成「更新过」再发事件、
     // 再回填身份缓存。changes 里多留的条目只是没人读，不影响 dispatch。
     const ids = new Set<RxDBEntityId>();
-    for (const rawEntity of rawEntities) {
+    // 声明了区间排他的实体：收窄类更新排最前，整组排到插入之前执行（US-030 AC#14）
+    const orderedEntities = orderExclusionUpdates(metadata, rawEntities, entity =>
+      changes.get(entity['id'] as RxDBEntityId)
+    );
+    for (const rawEntity of orderedEntities) {
       const entityData = await decryptEntityDataForApply(adapter, metadata, rawEntity);
       const { id, ...patch } = entityData;
       if (hasNoWritableColumn(metadata, patch)) continue;
@@ -297,7 +306,8 @@ export const convertSwitchResultToSql = async (
       ids,
       statements,
       selectStatements: buildSelectStatements(metadata, ids),
-      changes
+      changes,
+      beforeInserts: ordersWritesForExclusion(metadata)
     });
   }
 

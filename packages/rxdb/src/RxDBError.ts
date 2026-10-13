@@ -307,11 +307,88 @@ export class RxDBCheckViolationError extends RxDBError {
 }
 
 /**
- * 已有表上的存储约束与实体元数据声明不一致（US-030 阶段 A 起，`init()` 时抛出）。
+ * 区间排他冲突里一维区间的双方取值（见 {@link RxDBExclusionViolationError}）。
+ */
+export interface ExclusionRangeConflict {
+  /** 区间起点列（属性名） */
+  readonly from: string;
+  /** 区间终点列（属性名） */
+  readonly to: string;
+  /** 区间边界：`[)` 左闭右开、`[]` 两端闭合 */
+  readonly bounds: '[)' | '[]';
+  /** 本次写入行在该维的 `[起点, 终点]`；`null` 即该侧无界 */
+  readonly incoming: readonly [unknown, unknown];
+  /** 已有冲突行在该维的 `[起点, 终点]`；`null` 即该侧无界 */
+  readonly existing: readonly [unknown, unknown];
+}
+
+const formatRangeEndpoint = (value: unknown): string =>
+  value === null ? '∞'
+  : value instanceof Date ? value.toISOString()
+  : String(value);
+
+const formatRange = (bounds: '[)' | '[]', [from, to]: readonly [unknown, unknown]): string =>
+  `${bounds[0]}${from === null ? '-∞' : formatRangeEndpoint(from)}, ${formatRangeEndpoint(to)}${bounds[1]}`;
+
+const formatExclusionRangeConflict = (conflict: ExclusionRangeConflict): string =>
+  `${conflict.from}..${conflict.to} ${formatRange(conflict.bounds, conflict.incoming)} overlaps existing ` +
+  formatRange(conflict.bounds, conflict.existing);
+
+/**
+ * 一次写入与已有行违反了实体元数据声明的区间排他约束（US-030 阶段 C）。
  *
  * @remarks
- * 漂移检查是只读比对：元数据确定性生成的约束名集合（阶段 A 只纳入 `ck_` 起头的对象）
- * 与数据库目录里实际的同名集合，缺失与多余分别列出。不自动补建——补建由用户写进
+ * 两个后端归一为**同一个错误类**：PG 识别 SQLSTATE `23P01`（`EXCLUDE USING gist`），
+ * SQLite 识别排他触发器的 `rxdb:exclusion_violation:<约束名>:` 消息；直连 SQL 的写入
+ * 拿不到本类，只拿到原生消息。
+ *
+ * `ranges` 逐维给出**双方**区间：本次写入行（`incoming`）与已有冲突行（`existing`），端点取自
+ * PG 的 `DETAIL` 或触发器消息，`null` 即该侧无界。后端没有回报冲突键时（PGlite 的 worker
+ * 模式只回传错误消息文本）`ranges` 为空，约束名仍然准确。
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await rxdb.entityManager.save(occurrence);
+ * } catch (error) {
+ *   if (error instanceof RxDBExclusionViolationError) {
+ *     console.error(`${error.entity} 违反排他约束 ${error.constraint}:`, error.ranges);
+ *   } else {
+ *     throw error;
+ *   }
+ * }
+ * ```
+ */
+export class RxDBExclusionViolationError extends RxDBError {
+  constructor(
+    /** 违反约束的实体名（元数据里的 `name`） */
+    readonly entity: string,
+    /** 约束名（`ex_` 起头的确定性名） */
+    readonly constraint: string,
+    /** 逐维的双方区间；后端没有回报冲突键时为空 */
+    readonly ranges: ReadonlyArray<ExclusionRangeConflict>,
+    /** 适配器抛出的原始违约错误（仓库 `cause` 惯例，见 {@link RxDBPartialSyncError}） */
+    override readonly cause?: unknown
+  ) {
+    super(
+      `Entity '${entity}' violates exclusion constraint '${constraint}': ` +
+        (ranges.length > 0 ?
+          ranges.map(formatExclusionRangeConflict).join('; ')
+        : 'the backend did not report the conflicting key'),
+      { cause }
+    );
+    this.name = 'RxDBExclusionViolationError';
+    Object.setPrototypeOf(this, RxDBExclusionViolationError.prototype);
+  }
+}
+
+/**
+ * 已有表上的存储约束与实体元数据声明不一致（US-030，`init()` 时抛出）。
+ *
+ * @remarks
+ * 漂移检查是只读比对：元数据确定性生成的约束名集合与数据库目录里实际的同类对象集合，
+ * 缺失与多余分别列出。比对纳入三类：`ck_` CHECK、`uq_` 条件唯一索引、`ex_` 区间排他
+ * （PG 是 `EXCLUDE` 约束，SQLite 是它的 `_i` / `_u` 两个触发器）。不自动补建——补建由用户写进
  * `migrations`，它恰好排在漂移检查之前执行；用户迁移补上后再 `init()` 即通过（AC#10）。
  *
  * 外键约束、`idx_` 普通索引、系统 CRUD 触发器与 FTS 触发器都不在比对范围（AC#16）。
@@ -345,7 +422,7 @@ export class RxDBConstraintDriftError extends RxDBError {
     super(
       tableMissing ?
         `Entity '${entity}' table '${tableName}' is missing from the database catalog. ` +
-          `Expected check constraints: [${missing.join(', ')}]. ` +
+          `Expected constraints: [${missing.join(', ')}]. ` +
           `Restore the table (or a migration creating it) before init.`
       : `Entity '${entity}' (table '${tableName}') storage constraints drifted. ` +
           `Missing: [${missing.join(', ')}]. Extra: [${extra.join(', ')}]. ` +

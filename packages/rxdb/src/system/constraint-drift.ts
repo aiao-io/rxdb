@@ -1,17 +1,24 @@
 /**
- * @fileoverview 存储约束漂移比对的共享核心（US-030 阶段 A）。
+ * @fileoverview 存储约束漂移比对的共享核心（US-030）。
  *
  * 两后端（SQLite family / PGlite）的漂移检查只有「读实际约束名」这一步是方言：
- * 期望集合由元数据确定性生成（{@link expectedCheckConstraintNames}），缺失 / 多余
- * 差集与抛错逻辑完全一致——各写一份必然像历史上发生过的那样语义分叉
- * （表缺失时一边静默跳过、一边报全部缺失）。所以差集与抛错放在这里，
- * 适配器只注入「表在不在」与「实际约束名集合」。
+ * 期望集合由元数据确定性生成，缺失 / 多余差集与抛错逻辑完全一致——各写一份必然像
+ * 历史上发生过的那样语义分叉（表缺失时一边静默跳过、一边报全部缺失）。所以差集与抛错
+ * 放在这里，适配器只注入「表在不在」与「实际约束名集合」。
  *
- * 比对只纳入 `ck_` 起头对象（阶段 A 范围）；`uq_` / `ex_`（阶段 B / C）沿用
- * 同一差集与错误类，届时只需扩前缀过滤。
+ * 比对纳入三类对象，按前缀各自过滤：`ck_` CHECK（阶段 A）、`uq_` 条件唯一索引（阶段 B）、
+ * `ex_` 区间排他（阶段 C：PG 是 `EXCLUDE` 约束，SQLite 是它的 `_i` / `_u` 两个触发器，
+ * 见 `exclusionTriggerNames`）。外键、`idx_` 普通索引、系统 CRUD 触发器、FTS 触发器
+ * 都不在范围（AC#16）。
  */
 
 import { CHECK_NAME_PREFIX, compileCheckConstraint } from '../entity/check-constraint.js';
+import {
+  compileConditionalUniqueIndex,
+  conditionalUniqueIndexesOf,
+  UNIQUE_INDEX_NAME_PREFIX
+} from '../entity/conditional-unique-index.js';
+import { compileExclusionConstraint, EXCLUSION_NAME_PREFIX } from '../entity/exclusion-constraint.js';
 import type { EntityMetadata } from '../entity/metadata.interface.js';
 import { RxDBConstraintDriftError } from '../RxDBError.js';
 
@@ -25,7 +32,7 @@ export interface EntityConstraintDriftReport {
   tableName: string;
   /** 表本身在目录里不存在（缺表）。与「有表但约束不一致」分开点名（fail-fast）。 */
   tableMissing: boolean;
-  /** 元数据确定性生成的约束名（阶段 A 只含 `ck_`） */
+  /** 元数据确定性生成的约束名（`ck_` / `uq_` / `ex_`，由适配器按本方言的对象形态拼好） */
   expected: readonly string[];
   /** 库里实际的约束名（适配器已过滤到比对范围内） */
   actual: readonly string[];
@@ -35,8 +42,46 @@ export interface EntityConstraintDriftReport {
 export const expectedCheckConstraintNames = (metadata: EntityMetadata): string[] =>
   Array.from(metadata.checkMap.values(), check => compileCheckConstraint(metadata, check).name);
 
-/** 只保留比对范围内的约束名（阶段 A：`ck_` 起头）。 */
-export const inDriftScope = (name: string): boolean => name.startsWith(CHECK_NAME_PREFIX);
+/** 元数据确定性生成的全部条件唯一索引名（`uq_`，阶段 B）。 */
+export const expectedConditionalUniqueIndexNames = (metadata: EntityMetadata): string[] =>
+  conditionalUniqueIndexesOf(metadata).map(index => compileConditionalUniqueIndex(metadata, index).name);
+
+/**
+ * 元数据确定性生成的全部区间排他约束名（`ex_`，阶段 C）。
+ *
+ * @remarks
+ * 这是**约束**名：PG 上就是 `EXCLUDE` 约束本身；SQLite 上每条约束落成两个触发器，
+ * 适配器用 `exclusionTriggerNames` 展开后再比对。
+ */
+export const expectedExclusionConstraintNames = (metadata: EntityMetadata): string[] =>
+  Array.from(metadata.exclusionMap.values(), exclusion => compileExclusionConstraint(metadata, exclusion).name);
+
+/** 漂移比对纳入的对象名前缀：`ck_` CHECK、`uq_` 条件唯一索引、`ex_` 区间排他。 */
+export const STORAGE_CONSTRAINT_NAME_PREFIXES = [
+  CHECK_NAME_PREFIX,
+  UNIQUE_INDEX_NAME_PREFIX,
+  EXCLUSION_NAME_PREFIX
+] as const;
+
+/**
+ * 是否在比对范围内（`ck_` / `uq_` / `ex_` 起头）。
+ *
+ * @remarks
+ * 适配器读目录时按对象类别用**各自的**前缀过滤（表 SQL 里的命名约束只认 `ck_`、索引只认 `uq_`、
+ * 触发器只认 `ex_`），本函数回答的是「这个名字归不归漂移检查管」。
+ */
+export const inDriftScope = (name: string): boolean =>
+  STORAGE_CONSTRAINT_NAME_PREFIXES.some(prefix => name.startsWith(prefix));
+
+/**
+ * 实体是否声明了任何声明式存储约束（CHECK / 条件唯一索引 / 区间排他，含继承来的）。
+ *
+ * @remarks
+ * 能力判定（AC#6：适配器没有漂移检查即报不支持）与 SQLite 宿主版本门槛（AC#7）都以它为准：
+ * 一项都没声明的应用不受这两道门影响。
+ */
+export const declaresStorageConstraints = (metadata: EntityMetadata): boolean =>
+  metadata.checkMap.size > 0 || metadata.exclusionMap.size > 0 || conditionalUniqueIndexesOf(metadata).length > 0;
 
 /**
  * 断言一张实体表没有约束漂移。

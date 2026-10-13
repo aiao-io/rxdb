@@ -693,10 +693,11 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    * @remarks
    * 与 {@link RxDBAdapterLocalBase.reconcileEntityIndexes} 同一时机调用（用户迁移与
    * 缺表补建之后），但**只读、不自动补建**——补建由用户写进 `migrations`。
-   * 比对只纳入 `ck_` / `uq_` / `ex_` 起头的对象（阶段 A 只比对 `ck_`）。
+   * 比对只纳入 `ck_` CHECK、`uq_` 条件唯一索引、`ex_` 区间排他三类对象。
    *
    * 缺席是契约允许的形态（与 `reconcileEntityIndexes` 一致）；但实体声明了
-   * `checks` 而适配器没有本方法时，`connect()` 按 US-030 AC#6 报不支持，不做静默降级。
+   * `checks` / 条件唯一 `where` / `exclusions` 而适配器没有本方法时，`connect()` 按
+   * US-030 AC#6 报不支持，不做静默降级。
    */
   checkEntityConstraints?(EntityTypes: EntityType[]): Promise<void>;
 

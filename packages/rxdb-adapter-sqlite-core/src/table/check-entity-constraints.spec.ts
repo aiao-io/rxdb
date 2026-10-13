@@ -1,15 +1,18 @@
 /**
  * @fileoverview SQLite family 漂移检查的单元测试（US-030 AC#10 / #11 / #16）。
  *
- * 用 mock client 喂 `sqlite_master` 的建表 SQL 文本，覆盖：
- * - AC#10：声明了 CHECK 而库里没有 → 抛 RxDBConstraintDriftError 列出缺失与多余；
+ * 用 mock client 喂 `sqlite_master` 的建表 SQL 文本与索引 / 触发器行，覆盖：
+ * - AC#10：声明了 CHECK / 条件唯一索引 / 区间排他而库里没有 → 抛 RxDBConstraintDriftError 列出缺失与多余；
  * - AC#11：只改表达式不改 name → 约束名换哈希 → 旧名判「多余」、新名判「缺失」；
+ * - AC#12：区间排他只剩插入触发器（UPDATE 能静默造出重叠）→ 判缺失 `_u`；
  * - AC#16：外键约束 / 匿名 CHECK / 系统触发器 / idx_ 索引都不在比对范围；
  * - 通过 `adapter.checkEntityConstraints()` 的完整路径（bootstrapTransaction 事务内执行）。
  */
 
 import {
   compileCheckConstraint,
+  compileConditionalUniqueIndex,
+  compileExclusionConstraint,
   Entity,
   EntityBase,
   getEntityMetadata,
@@ -55,9 +58,25 @@ const sqliteMasterResult = (createSql: string): SqliteSuccessResult => ({
   results: [{ columns: ['sql'], rows: [[createSql]] }]
 });
 
-const querier = (createSqlByTable: Record<string, string>) => ({
+/** 挂在表上的索引 / 触发器名（`sqlite_master` 里 `type = 'index' | 'trigger'` 的行）。 */
+interface CatalogObjects {
+  readonly index?: Record<string, readonly string[]>;
+  readonly trigger?: Record<string, readonly string[]>;
+}
+
+const querier = (createSqlByTable: Record<string, string>, objects: CatalogObjects = {}) => ({
   execute: vi.fn().mockImplementation(async (sql: string, bindings?: unknown[]) => {
-    void sql;
+    // 索引 / 触发器查询：bindings = [type, tableName]
+    if (String(sql).includes('type = ?')) {
+      const [type, tableName] = (bindings ?? []).map(String) as ['index' | 'trigger', string];
+      const names = objects[type]?.[tableName] ?? [];
+      return {
+        sql: '',
+        rowsAffected: 0,
+        elapsed: 0,
+        results: [{ columns: ['name'], rows: names.map(name => [name]) }]
+      };
+    }
     const tableName = String(bindings?.[0] ?? '');
     // 未登记的表：无结果集（sqlite_master 查不到该表 = 表缺失）
     return createSqlByTable[tableName] === undefined ?
@@ -95,9 +114,11 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
       expect(drift.missing).toEqual([noteName]);
       expect(drift.extra).toEqual([]);
     }
-    // 只读：没有下发任何 DDL（execute 只有一条 sqlite_master 查询）
-    expect(q.execute).toHaveBeenCalledTimes(1);
-    expect(String(q.execute.mock.calls[0][0])).toContain('sqlite_master');
+    // 只读：没有下发任何 DDL（建表文本、索引、触发器三条 sqlite_master 查询）
+    expect(q.execute).toHaveBeenCalledTimes(3);
+    for (const [sql] of q.execute.mock.calls) {
+      expect(String(sql)).toMatch(/^SELECT [^;]* FROM sqlite_master WHERE/);
+    }
   });
 
   it('AC#10：库里多条声明外的 ck_ 约束 → 列「多余」', async () => {
@@ -214,6 +235,84 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
       expect.unreachable('残留 ck_ 约束应当判多余');
     } catch (error) {
       expect((error as RxDBConstraintDriftError).extra).toEqual(['ck_Plain_stale_0badc0de']);
+    }
+  });
+});
+
+describe('条件唯一索引与区间排他的漂移（阶段 B / C）', () => {
+  @Entity({
+    name: 'Ranged',
+    namespace: 'public',
+    log: false,
+    properties: [
+      { name: 'lineId', type: PropertyType.string },
+      { name: 'state', type: PropertyType.string },
+      { name: 'unitFrom', type: PropertyType.integer, nullable: true },
+      { name: 'unitTo', type: PropertyType.integer, nullable: true }
+    ],
+    indexes: [
+      { name: 'line_idx', properties: ['lineId'] },
+      {
+        name: 'released_line',
+        properties: ['lineId'],
+        unique: true,
+        where: { combinator: 'and', rules: [{ field: 'state', operator: '=', value: 'released' }] }
+      }
+    ],
+    exclusions: [{ name: 'no_overlap', equal: ['lineId'], ranges: [{ from: 'unitFrom', to: 'unitTo', bounds: '[]' }] }]
+  })
+  class Ranged extends EntityBase {}
+
+  const names = () => {
+    const meta = getEntityMetadata(Ranged);
+    const exclusion = compileExclusionConstraint(meta, meta.exclusionMap.get('no_overlap')!).name;
+    return {
+      unique: compileConditionalUniqueIndex(meta, meta.indexMap.get('released_line')!).name,
+      insertTrigger: `${exclusion}_i`,
+      updateTrigger: `${exclusion}_u`
+    };
+  };
+
+  const createSql = { public$Ranged: 'CREATE TABLE "public$Ranged" ("id" TEXT PRIMARY KEY, "lineId" TEXT)' };
+
+  it('uq_ 索引与两个 ex_ 触发器俱全 → 无漂移；idx_ 索引与系统 CRUD 触发器不在范围（AC#16）', async () => {
+    const { unique, insertTrigger, updateTrigger } = names();
+    const q = querier(createSql, {
+      index: { public$Ranged: ['idx_public$Ranged_line_idx', unique, 'sqlite_autoindex_public$Ranged_1'] },
+      trigger: { public$Ranged: ['public$Ranged_insert', 'public$Ranged_update', insertTrigger, updateTrigger] }
+    });
+    await expect(check_entity_constraints_sqlite(q as never, [Ranged])).resolves.toBeUndefined();
+  });
+
+  it('AC#10：缺 uq_ 索引 → 判缺失；残留别的 uq_ 索引 → 判多余', async () => {
+    const { unique, insertTrigger, updateTrigger } = names();
+    const q = querier(createSql, {
+      index: { public$Ranged: ['uq_Ranged_released_line_deadbeef'] },
+      trigger: { public$Ranged: [insertTrigger, updateTrigger] }
+    });
+    try {
+      await check_entity_constraints_sqlite(q as never, [Ranged]);
+      expect.unreachable('漂移应当抛错');
+    } catch (error) {
+      const drift = error as RxDBConstraintDriftError;
+      expect(drift.missing).toEqual([unique]);
+      expect(drift.extra).toEqual(['uq_Ranged_released_line_deadbeef']);
+    }
+  });
+
+  it('AC#12：只剩插入触发器（UPDATE 能静默造出重叠）→ 判缺失 _u', async () => {
+    const { unique, insertTrigger, updateTrigger } = names();
+    const q = querier(createSql, {
+      index: { public$Ranged: [unique] },
+      trigger: { public$Ranged: [insertTrigger] }
+    });
+    try {
+      await check_entity_constraints_sqlite(q as never, [Ranged]);
+      expect.unreachable('漂移应当抛错');
+    } catch (error) {
+      const drift = error as RxDBConstraintDriftError;
+      expect(drift.missing).toEqual([updateTrigger]);
+      expect(drift.extra).toEqual([]);
     }
   });
 });

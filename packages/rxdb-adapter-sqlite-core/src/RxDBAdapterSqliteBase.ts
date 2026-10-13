@@ -12,6 +12,7 @@ import {
   ACTIVE_BRANCH_KEY,
   AmbiguousActiveBranchError,
   assertSupportedRxDBSystemVersions,
+  declaresStorageConstraints,
   gateRawWrite,
   getEntityMetadata,
   getEntityMutations,
@@ -642,11 +643,12 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   }
 
   /**
-   * 只读漂移检查：元数据声明的 CHECK 与 `sqlite_master` 里的实际约束比对（US-030 AC#10）。
+   * 只读漂移检查：元数据声明的存储约束与 `sqlite_master` 里的实际对象比对（US-030 AC#10）。
    *
    * @remarks
    * 由核心在 `RxDB.connect()` 里、`reconcileEntityIndexes` 同一时机调用（用户迁移与
-   * 缺表补建之后）。只比对 `ck_` 起头的对象；不一致抛 {@link RxDBConstraintDriftError}。
+   * 缺表补建之后）。比对 `ck_` CHECK、`uq_` 条件唯一索引、`ex_` 区间排他触发器；
+   * 不一致抛 {@link RxDBConstraintDriftError}。
    */
   override async checkEntityConstraints(EntityTypes: EntityType[]): Promise<void> {
     // 必须走 bootstrapTransaction：connect() 引导期内 ready() 等的是当前 connect
@@ -1555,13 +1557,14 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
 
   /**
    * 宿主版本门槛（US-030 AC#7）：`SELECT sqlite_version()` 只查一次，低于门槛
-   * fail-fast 点名实际版本与门槛。只在有实体声明 `checks` 时生效——不用 CHECK 的
-   * 应用不被旧宿主拦在门外。
+   * fail-fast 点名实际版本与门槛。只在有实体声明存储约束（checks / 条件唯一 where /
+   * exclusions）时生效——一项都不用的应用不被旧宿主拦在门外。区间排他的触发器消息
+   * 要带冲突区间，靠的正是 `RAISE()` 接受表达式（3.47.0 起）。
    */
   async #assert_sqlite_host_version(client: SqliteClientLike): Promise<void> {
     if (this.#sqlite_host_version_checked) return;
-    const hasChecks = this.rxdb.config.entities.some(entity => getEntityMetadata(entity).checkMap.size > 0);
-    if (!hasChecks) return;
+    const declaring = this.rxdb.config.entities.some(entity => declaresStorageConstraints(getEntityMetadata(entity)));
+    if (!declaring) return;
     const result = await client.execute('SELECT sqlite_version() AS version');
     const version = String(result.results[0]?.rows[0]?.[0] ?? '');
     assertSqliteHostVersion(version);

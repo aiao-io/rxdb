@@ -177,6 +177,7 @@ describe('graph', () => {
         indexes: [],
         foreignKeys: [],
         checks: [],
+        exclusions: [],
         computedProperties: [],
         extends: [
           "GraphEntityBase",

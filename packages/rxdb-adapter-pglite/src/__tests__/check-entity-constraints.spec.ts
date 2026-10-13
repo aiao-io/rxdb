@@ -1,14 +1,16 @@
 /**
  * @fileoverview PGlite 漂移检查测试（US-030 AC#10 / #11 / #16）。
  *
- * 在真实内存 PGlite 引擎上：建库（建表带 ck_ 约束）→ 操纵目录（DROP / ADD 约束）
- * → 直接调 `adapter.checkEntityConstraints()` 断言缺失与多余。
+ * 在真实内存 PGlite 引擎上：建库（建表带 ck_ 约束、uq_ 条件唯一索引、ex_ 区间排他）→ 操纵目录
+ * （DROP / ADD 约束与索引）→ 直接调 `adapter.checkEntityConstraints()` 断言缺失与多余。
  * connect() 期间的漂移检查由 check-constraint-contract.spec.ts 隐式覆盖（每次
  * connect 都跑漂移检查且无声明时通过）。
  */
 
 import {
   compileCheckConstraint,
+  compileConditionalUniqueIndex,
+  compileExclusionConstraint,
   Entity,
   EntityBase,
   getEntityMetadata,
@@ -59,12 +61,14 @@ const qtyConstraintName = (): string => {
   return compileCheckConstraint(metadata, metadata.checkMap.get('qty_positive')!).name;
 };
 
-const openDatabase = async (): Promise<{ rxdb: RxDB; adapter: RxDBAdapterPGlite; dispose: () => Promise<void> }> => {
+const openDatabase = async (
+  entities: readonly EntityType[] = [DriftChecked as EntityType]
+): Promise<{ rxdb: RxDB; adapter: RxDBAdapterPGlite; dispose: () => Promise<void> }> => {
   let adapter: RxDBAdapterPGlite | undefined;
   const rxdb = new RxDB({
     dbName: `drift-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     context: { userId: 'userId' },
-    entities: [DriftChecked as EntityType],
+    entities: [...entities],
     sync: { local: { adapter: 'pglite' }, type: SyncType.None }
   });
   rxdb.adapter('pglite', async database => {
@@ -174,6 +178,98 @@ describe('PGlite 漂移检查（AC#10 / #11 / #16）', () => {
         expect(drift.tableMissing).toBe(true);
         expect(drift.missing).toEqual([name]);
         expect(drift.message).toContain('missing from the database catalog');
+      }
+    } finally {
+      await dispose();
+    }
+  });
+});
+
+/**
+ * 带条件唯一索引（uq_）、普通索引（idx_）与区间排他（ex_）的实体。
+ * `EXCLUDE` 约束在 `pg_indexes` 里也有一条同名支撑索引——它不能被当成多余的 uq_。
+ */
+@Entity({
+  name: 'DriftRanged',
+  namespace: 'drift-fixtures',
+  log: false,
+  properties: [
+    { name: 'lineId', type: PropertyType.string },
+    { name: 'state', type: PropertyType.string },
+    { name: 'unitFrom', type: PropertyType.integer, nullable: true },
+    { name: 'unitTo', type: PropertyType.integer, nullable: true }
+  ],
+  indexes: [
+    { name: 'line_idx', properties: ['lineId'] },
+    {
+      name: 'released_line',
+      properties: ['lineId'],
+      unique: true,
+      where: { combinator: 'and', rules: [{ field: 'state', operator: '=', value: 'released' }] }
+    }
+  ],
+  exclusions: [{ name: 'no_overlap', equal: ['lineId'], ranges: [{ from: 'unitFrom', to: 'unitTo', bounds: '[]' }] }]
+})
+class DriftRanged extends EntityBase {}
+
+const rangedNames = () => {
+  const metadata = getEntityMetadata(DriftRanged);
+  return {
+    table: getTableNameByMetadata(metadata),
+    unique: compileConditionalUniqueIndex(metadata, metadata.indexMap.get('released_line')!).name,
+    exclusion: compileExclusionConstraint(metadata, metadata.exclusionMap.get('no_overlap')!).name
+  };
+};
+
+describe('PGlite 漂移检查：条件唯一索引与区间排他（阶段 B / C）', () => {
+  it('建库即一致：uq_ 索引与 ex_ 约束俱全，EXCLUDE 的支撑索引与 idx_ 不报多余（AC#16）', async () => {
+    const { adapter, dispose } = await openDatabase([DriftRanged as EntityType]);
+    try {
+      const { unique, exclusion } = rangedNames();
+      const indexes = await adapter.query<{ indexname: string }>(
+        `SELECT indexname FROM pg_indexes WHERE schemaname = 'drift-fixtures' AND tablename = 'DriftRanged'`
+      );
+      // 支撑索引与约束同名，确实出现在 pg_indexes 里
+      expect(indexes.rows.map(row => row.indexname)).toEqual(expect.arrayContaining([unique, exclusion]));
+      await expect(adapter.checkEntityConstraints([DriftRanged as EntityType])).resolves.toBeUndefined();
+    } finally {
+      await dispose();
+    }
+  });
+
+  it('AC#10：缺 uq_ 条件唯一索引 → 判缺失；reconcileEntityIndexes 不替用户补建', async () => {
+    const { adapter, dispose } = await openDatabase([DriftRanged as EntityType]);
+    try {
+      const { unique } = rangedNames();
+      await adapter.query(`DROP INDEX "drift-fixtures".${JSON.stringify(unique)}`);
+      await adapter.reconcileEntityIndexes([DriftRanged as EntityType]);
+      try {
+        await adapter.checkEntityConstraints([DriftRanged as EntityType]);
+        expect.unreachable('漂移应当抛错');
+      } catch (error) {
+        expect(error).toBeInstanceOf(RxDBConstraintDriftError);
+        const drift = error as RxDBConstraintDriftError;
+        expect(drift.missing).toEqual([unique]);
+        expect(drift.extra).toEqual([]);
+      }
+    } finally {
+      await dispose();
+    }
+  });
+
+  it('AC#10：缺 ex_ 区间排他 → 判缺失；残留别的 uq_ 索引 → 判多余', async () => {
+    const { adapter, dispose } = await openDatabase([DriftRanged as EntityType]);
+    try {
+      const { table, exclusion } = rangedNames();
+      await adapter.query(`ALTER TABLE ${table} DROP CONSTRAINT ${JSON.stringify(exclusion)}`);
+      await adapter.query(`CREATE UNIQUE INDEX "uq_DriftRanged_stale_0badc0de" ON ${table} ("state") WHERE false`);
+      try {
+        await adapter.checkEntityConstraints([DriftRanged as EntityType]);
+        expect.unreachable('漂移应当抛错');
+      } catch (error) {
+        const drift = error as RxDBConstraintDriftError;
+        expect(drift.missing).toEqual([exclusion]);
+        expect(drift.extra).toEqual(['uq_DriftRanged_stale_0badc0de']);
       }
     } finally {
       await dispose();

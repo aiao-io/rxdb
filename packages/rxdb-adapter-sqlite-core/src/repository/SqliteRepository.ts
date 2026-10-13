@@ -5,7 +5,7 @@ import {
   getEntityMetadata,
   getEntityStatus,
   IRepository,
-  toCheckViolationError
+  toStorageConstraintViolationError
 } from '@aiao/rxdb';
 import { generate_entity_delete_sql } from '../entity/delete_sql.js';
 import { generate_entity_insert_sql } from '../entity/insert_sql.js';
@@ -75,8 +75,8 @@ export class SqliteRepository<T extends EntityType> extends SqliteRepositoryBase
     try {
       result = await this.adapter.writeQuery(sql, params);
     } catch (error) {
-      // CHECK 违约归一成 RxDBCheckViolationError（PG 23514 / SQLite CHECK constraint failed）
-      throw toCheckViolationError(error, this.metadata, entity as unknown as Record<string, unknown>);
+      // 存储约束违约归一：CHECK → RxDBCheckViolationError、区间排他 → RxDBExclusionViolationError
+      throw toStorageConstraintViolationError(error, this.metadata, [entity as unknown as Record<string, unknown>]);
     }
     await this.addQueryCache(result, true);
     return entity;
@@ -92,7 +92,7 @@ export class SqliteRepository<T extends EntityType> extends SqliteRepositoryBase
     try {
       result = await this.adapter.writeQuery(sql, params);
     } catch (error) {
-      throw toCheckViolationError(error, this.metadata, entity as unknown as Record<string, unknown>);
+      throw toStorageConstraintViolationError(error, this.metadata, [entity as unknown as Record<string, unknown>]);
     }
     await this.addQueryCache(result, true);
     return entity;

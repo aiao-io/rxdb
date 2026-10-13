@@ -1,13 +1,16 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
+import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import {
   runCheckConstraintWriteBehaviorSuite,
+  runConditionalUniqueWriteBehaviorSuite,
+  runExclusionWriteBehaviorSuite,
   type CheckConstraintSuiteFactory
 } from '@aiao/rxdb-test/check-constraint';
 import { RxDBAdapterWaSqlite } from '../RxDBAdapterSqlite.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 /**
- * CHECK 违约写入被拒（US-030 AC#1 / #2 / #8）的 wa-sqlite runner。
+ * 声明式存储约束（US-030：CHECK AC#1 / #2 / #8、条件唯一 AC#3、区间排他 AC#4 / #12 / #13 / #14）的 wa-sqlite runner。
  *
  * @remarks
  * wa-sqlite 是 SQLite family 的共享套件宿主：行为来自 sqlite-core 共享层的
@@ -15,7 +18,7 @@ import { asyncWasmPath } from './wa-sqlite-wasm.js';
  */
 const factory: CheckConstraintSuiteFactory = {
   name: 'wa-sqlite',
-  createDatabase: async ({ dbName, entities }) => {
+  createDatabase: async ({ dbName, entities, history }) => {
     const rxdb = new RxDB({
       dbName,
       context: { userId: 'userId' },
@@ -31,9 +34,12 @@ const factory: CheckConstraintSuiteFactory = {
         batchTimeout: 1
       });
     });
+    // 区间排他的 AC#14 要走 undo / redo 与切分支重放
+    if (history) rxdb.use(rxDBPluginHistory);
     await rxdb.connect('wa-sqlite');
     return {
       rxdb,
+      versionManager: history ? rxdb.versionManager : undefined,
       dispose: async () => {
         await rxdb.disconnectAll().catch(() => undefined);
       }
@@ -42,3 +48,5 @@ const factory: CheckConstraintSuiteFactory = {
 };
 
 runCheckConstraintWriteBehaviorSuite({ factory });
+runConditionalUniqueWriteBehaviorSuite({ factory });
+runExclusionWriteBehaviorSuite({ factory });

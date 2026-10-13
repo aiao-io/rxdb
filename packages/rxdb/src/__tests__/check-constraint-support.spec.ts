@@ -1,11 +1,12 @@
 /**
- * @fileoverview AC#6：实体声明 checks 而适配器没有漂移检查能力时 init() 报不支持
- * （核心侧判定路径，US-030 阶段 A）。
+ * @fileoverview AC#6：实体声明存储约束（checks / 条件唯一 where / exclusions）而适配器没有
+ * 漂移检查能力时 init() 报不支持（核心侧判定路径，US-030）。
  *
- * - 不实现 `checkEntityConstraints` 的适配器 + 声明 checks 的实体 → connect 抛错，
+ * - 不实现 `checkEntityConstraints` 的本地适配器 + 声明约束的实体 → connect 抛错，
  *   点名适配器与实体，不静默降级为应用层校验；
+ * - 远端适配器只拒主存储在它上面的实体；「本地 + 远端同步」的实体由本地适配器承担约束；
  * - 实现该方法的适配器 → connect 正常，且漂移检查被调用；
- * - 没有实体声明 checks → 不要求适配器实现（既有应用零变化）。
+ * - 没有实体声明约束 → 不要求适配器实现（既有应用零变化）。
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -28,6 +29,45 @@ import { createMockAdapter, MockLocalAdapter } from './fixtures/test-db-setup.js
 })
 class CheckedSupportItem extends EntityBase {
   qty!: number | null;
+}
+
+@Entity({
+  name: 'ExclusionSupportItem',
+  namespace: 'public',
+  log: false,
+  properties: [
+    { name: 'lineId', type: PropertyType.string },
+    { name: 'unitFrom', type: PropertyType.integer, nullable: true },
+    { name: 'unitTo', type: PropertyType.integer, nullable: true }
+  ],
+  exclusions: [{ name: 'no_overlap', equal: ['lineId'], ranges: [{ from: 'unitFrom', to: 'unitTo', bounds: '[]' }] }]
+})
+class ExclusionSupportItem extends EntityBase {
+  lineId!: string;
+  unitFrom!: number | null;
+  unitTo!: number | null;
+}
+
+@Entity({
+  name: 'ConditionalUniqueSupportItem',
+  namespace: 'public',
+  log: false,
+  properties: [
+    { name: 'code', type: PropertyType.string },
+    { name: 'released', type: PropertyType.boolean }
+  ],
+  indexes: [
+    {
+      name: 'released_code',
+      properties: ['code'],
+      unique: true,
+      where: { combinator: 'and', rules: [{ field: 'released', operator: '=', value: true }] }
+    }
+  ]
+})
+class ConditionalUniqueSupportItem extends EntityBase {
+  code!: string;
+  released!: boolean;
 }
 
 @Entity({
@@ -73,7 +113,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-describe('AC#6 适配器不支持声明式 CHECK 时 init 报错', () => {
+describe('AC#6 适配器不支持声明式存储约束时 init 报错', () => {
   it('未实现 checkEntityConstraints 的本地适配器 + 声明 checks 的实体 → connect 抛类型化能力错误点名双方', async () => {
     let mockAdapter: MockLocalAdapter | undefined;
     const database = createDatabase([CheckedSupportItem as EntityType], db => {
@@ -94,7 +134,15 @@ describe('AC#6 适配器不支持声明式 CHECK 时 init 报错', () => {
     expect(mockAdapter!.connect).not.toHaveBeenCalled();
   });
 
-  it('远端适配器（无本地 DDL）注册了声明 checks 的实体 → connect 抛错点名实体，不建连接', async () => {
+  it.each([
+    ['区间排他（exclusions）', ExclusionSupportItem],
+    ['条件唯一索引（where）', ConditionalUniqueSupportItem]
+  ])('只声明了%s的实体同样要求漂移检查能力', async (_label, Item) => {
+    const database = createDatabase([Item as EntityType], db => createMockAdapter(db));
+    await expect(database.connect('local')).rejects.toBeInstanceOf(RxDBLocalAdapterCapabilityError);
+  });
+
+  it('远端适配器（无本地 DDL）注册了主存储在它上面、声明 checks 的实体 → connect 抛错点名实体，不建连接', async () => {
     let mockAdapter: MockLocalAdapter | undefined;
     const database = new RxDB({
       dbName: `check-support-remote-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -107,9 +155,21 @@ describe('AC#6 适配器不支持声明式 CHECK 时 init 报错', () => {
     });
     databases.add(database);
     await expect(database.connect('remote')).rejects.toThrow(
-      /适配器 'remote' 不支持声明式 CHECK 约束：远端适配器（supabase \/ http）不掌控本地 DDL。声明了 checks 的实体：CheckedSupportItem/
+      /适配器 'remote' 不支持声明式存储约束（checks \/ 条件唯一 where \/ exclusions）：远端适配器（supabase \/ http）不掌控 DDL。主存储在该适配器上的实体：CheckedSupportItem/
     );
     expect(mockAdapter!.connect).not.toHaveBeenCalled();
+  });
+
+  it('「本地 + 远端同步」的实体由本地适配器承担约束：连接远端适配器不因约束声明报错', async () => {
+    const database = new RxDB({
+      dbName: `check-support-sync-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      entities: [CheckedSupportItem as EntityType, ExclusionSupportItem as EntityType],
+      sync: { local: { adapter: 'local' }, remote: { adapter: 'remote' }, type: SyncType.Full }
+    });
+    database.adapter('local', db => makeDriftCapable(db).adapter);
+    database.adapter('remote', db => createMockAdapter(db));
+    databases.add(database);
+    await expect(database.connect('remote')).resolves.toBeDefined();
   });
 
   it('实现 checkEntityConstraints 的适配器 → connect 正常，漂移检查按注册实体调用', async () => {

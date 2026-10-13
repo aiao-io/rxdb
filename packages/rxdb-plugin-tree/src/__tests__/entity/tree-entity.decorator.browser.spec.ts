@@ -71,6 +71,7 @@ describe('@TreeEntity', () => {
         "checks": [],
         "computedProperties": [],
         "displayName": "Menu",
+        "exclusions": [],
         "extends": [
           "TreeAdjacencyListEntityBase",
           "EntityBase",
@@ -107,6 +108,7 @@ describe('@TreeEntity', () => {
         "checks": [],
         "computedProperties": [],
         "displayName": "Menu",
+        "exclusions": [],
         "extends": [
           "TreeAdjacencyListEntityBase",
           "EntityBase",

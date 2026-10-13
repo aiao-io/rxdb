@@ -1,4 +1,14 @@
-import { compileCheckConstraint, EntityMetadata, getEntityColumnName, PropertyType, RelationKind } from '@aiao/rxdb';
+import {
+  compileCheckConstraint,
+  compileConditionalUniqueIndex,
+  compileExclusionConstraint,
+  conditionalUniqueIndexesOf,
+  EntityMetadata,
+  getEntityColumnName,
+  isConditionalUniqueIndex,
+  PropertyType,
+  RelationKind
+} from '@aiao/rxdb';
 import { isFunction } from '@aiao/utils';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import {
@@ -12,6 +22,7 @@ import {
   SQLITE_NOW_ISO_SQL,
   transformValueJsToSqlite
 } from '../sqlite-core.utils.js';
+import { exclusion_trigger_sql } from './exclusion_trigger_sql.js';
 
 /**
  * 归一化索引列：`lower(COALESCE(CAST(列 AS TEXT), ''))`。
@@ -260,6 +271,8 @@ const create_table_column_sql = (adapter: RxDBAdapterSqliteBase, metadata: Entit
   // 查询照常能跑，只是退化成全表扫描，大数据集上才暴露。
   if (metadata.indexMap && metadata.indexMap.size > 0) {
     metadata.indexMap.forEach(index => {
+      // 带 where 的条件唯一索引是存储约束，走下方确定性命名的 uq_ 分支，不进 idx_
+      if (isConditionalUniqueIndex(index)) return;
       // SQLite 的索引名是**库级全局**的，不含 namespace 时跨 namespace 的同名实体
       // 会撞在一起、第二张表直接建不出来。与表名同口径带上 `namespace$`（SQLC-021）
       const indexName = `idx_${get_table_name_by_metadata(metadata)}_${index.name}`;
@@ -281,6 +294,19 @@ const create_table_column_sql = (adapter: RxDBAdapterSqliteBase, metadata: Entit
       const uniqueKeyword = index.unique ? 'UNIQUE ' : '';
       runSQL += `\nCREATE ${uniqueKeyword}INDEX ${quote_sql_identifier(indexName)} ON ${quote_sql_identifier(tableName)}(${columns});`;
     });
+  }
+
+  // 条件唯一索引（US-030 阶段 B）：确定性名 uq_ + 部分索引 WHERE。读 indexMap（继承合并后的全集）。
+  // 名字含 namespace 参与的定义哈希——SQLite 的索引名是库级的，跨 namespace 的同名表不撞名。
+  for (const index of conditionalUniqueIndexesOf(metadata)) {
+    const { name, columns, normalized, where } = compileConditionalUniqueIndex(metadata, index);
+    const columnSql = columns.map(column => normalize_index_column(quote_sql_identifier(column), normalized));
+    runSQL += `\nCREATE UNIQUE INDEX ${quote_sql_identifier(name)} ON ${quote_sql_identifier(tableName)}(${columnSql.join(', ')}) WHERE ${where};`;
+  }
+
+  // 区间排他（US-030 阶段 C）：SQLite 没有 EXCLUDE，每条落成插入 / 更新两个触发器。
+  for (const exclusion of metadata.exclusionMap.values()) {
+    runSQL += '\n' + exclusion_trigger_sql(metadata, compileExclusionConstraint(metadata, exclusion));
   }
 
   return runSQL;

@@ -9,7 +9,9 @@
 
 import { toEntitySyncResolver, type EntitySyncResolver } from '../sync-contract/entity-sync-resolver.js';
 import { compileCheckConstraint } from './check-constraint.js';
+import { compileConditionalUniqueIndex, conditionalUniqueIndexesOf } from './conditional-unique-index.js';
 import { ENTITY_OPERATIONS } from './entity-permissions.js';
+import { compileExclusionConstraint } from './exclusion-constraint.js';
 import {
   formatConfigLiteralsOf,
   isStepAligned,
@@ -54,7 +56,9 @@ export type MetadataValidationRule =
   | 'missingQueryCacheAdapter'
   | 'invalidPermissions'
   | 'invalidManualOrder'
-  | 'invalidCheck';
+  | 'invalidCheck'
+  | 'invalidIndexWhere'
+  | 'invalidExclusion';
 
 /**
  * 关系目标解析规则。
@@ -686,6 +690,39 @@ const validateChecks = (collector: ViolationCollector, metadata: EntityMetadata)
 };
 
 /**
+ * 校验条件唯一索引的 `where`（US-030 阶段 B，AC#9 / AC#15）。
+ *
+ * @remarks
+ * 与 {@link validateChecks} 同口径：判定委托给 {@link compileConditionalUniqueIndex}，
+ * 编译抛出的原因原样进违规消息（没有 `unique`、列不存在、where 不在单行白名单内、名字非法）。
+ */
+const validateIndexWheres = (collector: ViolationCollector, metadata: EntityMetadata): void => {
+  conditionalUniqueIndexesOf(metadata).forEach(index => {
+    try {
+      compileConditionalUniqueIndex(metadata, index);
+    } catch (error) {
+      collector.add(index.name, 'invalidIndexWhere', error instanceof Error ? error.message : String(error));
+    }
+  });
+};
+
+/**
+ * 校验区间排他声明（US-030 阶段 C，AC#15）。
+ *
+ * @remarks
+ * 与 {@link validateChecks} 同口径：判定委托给 {@link compileExclusionConstraint}。
+ */
+const validateExclusions = (collector: ViolationCollector, metadata: EntityMetadata): void => {
+  metadata.exclusionMap.forEach(exclusion => {
+    try {
+      compileExclusionConstraint(metadata, exclusion);
+    } catch (error) {
+      collector.add(exclusion.name, 'invalidExclusion', error instanceof Error ? error.message : String(error));
+    }
+  });
+};
+
+/**
  * 校验单个实体的元数据声明，返回按 `namespace/entity/field/rule` 排序的全部违规。
  *
  * @remarks
@@ -719,6 +756,8 @@ export function validateEntityMetadata(
   validatePermissions(collector, metadata.permissions);
   validateManualOrder(collector, metadata);
   validateChecks(collector, metadata);
+  validateIndexWheres(collector, metadata);
+  validateExclusions(collector, metadata);
   return collector.drain().sort(compareViolations);
 }
 

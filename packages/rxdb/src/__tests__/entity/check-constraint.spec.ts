@@ -10,7 +10,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { compileCheckConstraint, compileCheckExpression, hashCheckExpression } from '../../entity/check-constraint.js';
+import { compileCheckConstraint, compileCheckExpression } from '../../entity/check-constraint.js';
+import { hashConstraintDefinition } from '../../entity/constraint-name.js';
 import {
   BooleanProperty,
   EntityMetadataOptions,
@@ -200,7 +201,7 @@ describe('compileCheckConstraint', () => {
     });
     const nameA = compileCheckConstraint(a, a.checkMap.get('qty_positive')!).name;
     const nameB = compileCheckConstraint(b, b.checkMap.get('qty_positive')!).name;
-    const expectedA = `ck_Item_qty_positive_${hashCheckExpression(compileCheckExpression(a, a.checkMap.get('qty_positive')!))}`;
+    const expectedA = `ck_Item_qty_positive_${hashConstraintDefinition(compileCheckExpression(a, a.checkMap.get('qty_positive')!))}`;
     expect(nameA).toBe(expectedA);
     expect(nameA).not.toBe(nameB);
     // 哈希是 8 位小写 hex

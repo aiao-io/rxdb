@@ -1,10 +1,15 @@
 import {
   compileCheckConstraint,
+  compileConditionalUniqueIndex,
+  compileExclusionConstraint,
+  conditionalUniqueIndexesOf,
   EntityMetadata,
   EntityPropertyMetadata,
   EntityRelationManyToOneMetadata,
   EnumProperty,
+  exclusionRangeExpressionPG,
   getEntityColumnName,
+  isConditionalUniqueIndex,
   PropertyType,
   RelationKind,
   UUIDProperty
@@ -99,6 +104,16 @@ const _create_table_column_sql = (metadata: EntityMetadata) => {
     const { name, expression } = compileCheckConstraint(metadata, check);
     column_check_sql.push(`CONSTRAINT ${quoteIdentifier(name)} CHECK (${expression})`);
   }
+  // 区间排他（US-030 阶段 C）：EXCLUDE USING gist，相等列的 `=` 靠 btree_gist（适配器 connect 时启用）。
+  // 区间维的表达式（含倒置区间映射成 'empty'）由核心给出，与 SQLite 触发器同一语义。
+  for (const exclusion of metadata.exclusionMap.values()) {
+    const { name, equal, ranges } = compileExclusionConstraint(metadata, exclusion);
+    const elements = [
+      ...equal.map(column => `${quoteIdentifier(column.column)} WITH =`),
+      ...ranges.map(range => `${exclusionRangeExpressionPG(range)} WITH &&`)
+    ];
+    column_check_sql.push(`CONSTRAINT ${quoteIdentifier(name)} EXCLUDE USING gist (${elements.join(', ')})`);
+  }
   const need_column_sql = [...column_sql, ...column_check_sql];
   if (need_column_sql.length) {
     runSQL += need_column_sql.map(sql => `\n${sql}`).join(',');
@@ -142,6 +157,13 @@ const getIndexColumnSql = (metadata: EntityMetadata, propertyName: string, norma
   return `${column} ${rxDBColumnTypeToPGliteTypeIndexName(property)}`;
 };
 
+/**
+ * 实体声明的普通索引（含组合索引），`idx_` 前缀。
+ *
+ * @remarks
+ * 带 `where` 的条件唯一索引不在这里：它是存储约束，只随建表创建（{@link create_table_conditional_unique_indexes_sql}），
+ * 已有表上只走漂移检查——`reconcileEntityIndexes` 用本函数补建，补建不能替用户迁移悄悄加约束（US-030）。
+ */
 export const create_table_indexes_sql = (metadata: EntityMetadata, ifNotExists = false): string => {
   let indexSql = '';
   const tableName = getTableNameByMetadata(metadata);
@@ -149,6 +171,7 @@ export const create_table_indexes_sql = (metadata: EntityMetadata, ifNotExists =
   // 添加实体定义的索引（包括组合索引）
   if (metadata.indexMap && metadata.indexMap.size > 0) {
     metadata.indexMap.forEach(index => {
+      if (isConditionalUniqueIndex(index)) return;
       const indexName = `idx_${metadata.tableName}_${index.name}`;
       const columns =
         index.properties?.map(prop => getIndexColumnSql(metadata, prop, index.normalized)).join(', ') ||
@@ -157,6 +180,26 @@ export const create_table_indexes_sql = (metadata: EntityMetadata, ifNotExists =
       const existenceKeyword = ifNotExists ? 'IF NOT EXISTS ' : '';
       indexSql += `\nCREATE ${uniqueKeyword}INDEX ${existenceKeyword}${quoteIdentifier(indexName)} ON ${tableName}(${columns});`;
     });
+  }
+  return indexSql;
+};
+
+/**
+ * 条件唯一索引（US-030 阶段 B）：确定性名 `uq_` + 部分索引 `WHERE`，只随建表创建。
+ *
+ * @remarks
+ * 列表达式与 `idx_` 同一口径（{@link getIndexColumnSql}：外键列、`normalized`、bigint / binary 的
+ * 运算符类）；`where` 是核心编译的只拼字面量的谓词，与 SQLite 侧同一条。
+ */
+export const create_table_conditional_unique_indexes_sql = (metadata: EntityMetadata): string => {
+  const tableName = getTableNameByMetadata(metadata);
+  let indexSql = '';
+  for (const index of conditionalUniqueIndexesOf(metadata)) {
+    const { name, where } = compileConditionalUniqueIndex(metadata, index);
+    const columns = (index.properties?.length ? index.properties : [index.name])
+      .map(prop => getIndexColumnSql(metadata, prop, index.normalized))
+      .join(', ');
+    indexSql += `\nCREATE UNIQUE INDEX ${quoteIdentifier(name)} ON ${tableName}(${columns}) WHERE ${where};`;
   }
   return indexSql;
 };
@@ -292,5 +335,6 @@ export default (adapter: RxDBAdapterPGlite, metadata: EntityMetadata) => {
   create_table_sql += _create_table_relations_sql(adapter, metadata);
   create_table_sql += _create_table_foreign_keys_sql(adapter, metadata);
   create_table_sql += create_table_indexes_sql(metadata);
+  create_table_sql += create_table_conditional_unique_indexes_sql(metadata);
   return create_table_sql;
 };
