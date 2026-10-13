@@ -6,7 +6,8 @@
  *   携带实体名、确定性约束名与冲突列/冲突值；
  * - AC#2：实体级 CHECK「两字段二选一」两字段同时给值即拒绝；
  * - AC#8：ref 字段对字段比较——`unitFrom > unitTo` 拒绝；`unitFrom` 为 NULL 放行
- *   （SQL 三值逻辑，要拒 NULL 须另加 `notNull`）。
+ *   （SQL 三值逻辑，要拒 NULL 须另加 `notNull`）；
+ * - 适配器直调 `saveMany` 与经 `EntityManager` 写入归一成同一个错误类。
  */
 
 import { RxDBCheckViolationError } from '@aiao/rxdb';
@@ -125,6 +126,22 @@ export const runCheckConstraintWriteBehaviorSuite = ({ factory }: { factory: Che
             { column: 'unitTo', value: 5 }
           ]);
         }
+      } finally {
+        await dispose();
+      }
+    });
+
+    it('适配器直调 saveMany 的违约同样归一为 RxDBCheckViolationError', async () => {
+      const { rxdb, dispose } = await factory.createDatabase({
+        dbName: 'check-adapter-save-many',
+        entities: checkConstraintFixtures
+      });
+      try {
+        const adapter = await rxdb.getAdapter(rxdb.config.sync.local!.adapter);
+        const error = await adapter.saveMany([new CheckQtyItem({ qty: 101 })]).catch((cause: unknown) => cause);
+        expectCheckViolation(error, 'CheckQtyItem', /^ck_CheckQtyItem_qty_[0-9a-f]{8}$/, [
+          { column: 'qty', value: 101 }
+        ]);
       } finally {
         await dispose();
       }

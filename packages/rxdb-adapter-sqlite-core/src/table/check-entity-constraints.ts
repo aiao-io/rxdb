@@ -71,18 +71,20 @@ const stripSqlStringLiterals = (sql: string): string => {
 };
 
 /**
- * 从建表 SQL 文本里解析**命名约束**的名字（不含未命名的列级 CHECK）。
+ * 从建表 SQL 文本里解析**命名 CHECK** 的名字（不含未命名的列级 CHECK）。
  *
- * - `CONSTRAINT` 关键字大小写不敏感（用户迁移手写的合法小写形态同样要认）；
- * - 标识符接受双引号 / 反引号 / 无引号三种形态（SQLite 都合法）；
+ * - 只认名字后紧跟 `CHECK` 的条目：外键 / 唯一约束的名字同样可以合法地以 `ck_` 起头
+ *   （`foreignKeys` 的约束名就是作者给的 name），只看前缀会把它们判成「多余」的 CHECK；
+ * - 关键字大小写不敏感（用户迁移手写的合法小写形态同样要认）；
+ * - 标识符接受双引号 / 反引号 / 无引号三种形态（SQLite 都合法，无引号也可以含非 ASCII 字母）；
  * - 调用前必须先 {@link stripSqlStringLiterals}，字符串字面量里的伪片段不算数。
  */
-const NAMED_CONSTRAINT_PATTERN = /CONSTRAINT\s+(?:"([^"]+)"|`([^`]+)`|([A-Za-z_][A-Za-z0-9_$]*))/gi;
+const NAMED_CHECK_PATTERN = /CONSTRAINT\s+(?:"([^"]+)"\s*|`([^`]+)`\s*|([\p{L}_][\p{L}\p{N}_$]*)\s+)CHECK\b/giu;
 
-/** 从建表 SQL 文本里解析 `ck_` 起头的约束名集合。 */
+/** 从建表 SQL 文本里解析 `ck_` 起头的 CHECK 约束名集合。 */
 const actualCheckNames = (createSql: string): Set<string> => {
   const names = new Set<string>();
-  for (const match of stripSqlStringLiterals(createSql).matchAll(NAMED_CONSTRAINT_PATTERN)) {
+  for (const match of stripSqlStringLiterals(createSql).matchAll(NAMED_CHECK_PATTERN)) {
     const name = match[1] ?? match[2] ?? match[3];
     if (name.startsWith(CHECK_NAME_PREFIX)) names.add(name);
   }

@@ -174,6 +174,20 @@ describe('check_entity_constraints_sqlite（AC#10 / #11 / #16）', () => {
     await expect(check_entity_constraints_sqlite(q as never, [Checked])).resolves.toBeUndefined();
   });
 
+  it('评审反例：ck_ 起头的外键 / 唯一约束名不算 CHECK（只认名字后紧跟 CHECK 的命名约束）', async () => {
+    const [qtyName, noteName] = expectedNames();
+    // foreignKeys 的约束名就是作者给的 name，合法地可以 ck_ 起头；手写迁移的 UNIQUE 同理
+    const q = querier({
+      public$Checked: createSqlWith([
+        `CONSTRAINT "${qtyName}" CHECK ("qty" > 0)`,
+        `CONSTRAINT "${noteName}" CHECK ("note" <= 10)`,
+        `CONSTRAINT "ck_parent_fk" FOREIGN KEY ("parentId") REFERENCES "parent" ("id")`,
+        `constraint ck_note_unique UNIQUE ("note")`
+      ])
+    });
+    await expect(check_entity_constraints_sqlite(q as never, [Checked])).resolves.toBeUndefined();
+  });
+
   it('评审反例：字符串字面量里伪造的 CONSTRAINT "ck_..." 片段不算约束名', async () => {
     const [qtyName, noteName] = expectedNames();
     // 默认值字面量里藏着伪约束文本：不剥离字面量就会解析出假 ck 名、每次 connect 报「多余」

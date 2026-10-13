@@ -1,4 +1,5 @@
 import type {
+  EntityMetadata,
   EntityType,
   IRepository,
   IRxDBAdapter,
@@ -15,10 +16,13 @@ import {
   getEntityMetadata,
   getEntityStatus,
   MAIN_BRANCH_ID,
+  orderExclusionUpdates,
+  ordersWritesForExclusion,
   RxDB,
   RxDBAdapterLocalBase,
   RxDBBackupError,
   RxDBChange,
+  toStorageConstraintViolationError,
   TransactionFun
 } from '@aiao/rxdb';
 import {
@@ -83,6 +87,28 @@ import rxdb_adapter_switch_transaction_id from './version/switch_transaction_id.
  * `RxDB.connect()` 建表完成后调 {@link RxDBAdapterPGlite.completeBootstrap} 翻到 `ready`。
  */
 type AdapterLifecycleState = 'bootstrap' | 'ready' | 'closing' | 'closed';
+
+/**
+ * 一组同类型实体在 {@link RxDBAdapterPGlite.saveMany} 那条多行 UPSERT 里的行序。
+ *
+ * @remarks
+ * 区间排他按行即时检查，多行 UPSERT 按 VALUES 顺序逐行写。声明了区间排他的实体，已在库里的行
+ * 排在新行之前、其中收窄类最前——与 `mutations` 的「更新先于插入」同一口径（US-030 AC#14，
+ * 见核心 `planMutationWrites`），「截旧 + 新开」一起保存才不经过重叠的中间态。其余实体保持传入顺序。
+ */
+const upsertRowsOf = <T extends EntityType>(
+  metadata: EntityMetadata,
+  entities: InstanceType<T>[]
+): InstanceType<T>[] => {
+  if (!ordersWritesForExclusion(metadata)) return entities;
+  const stored = entities.filter(entity => getEntityStatus(entity).local);
+  const created = entities.filter(entity => !getEntityStatus(entity).local);
+  const updates = orderExclusionUpdates(metadata, stored, entity => {
+    const status = getEntityStatus(entity);
+    return { patch: status.patch, inversePatch: status.inversePatch };
+  });
+  return [...updates, ...created];
+};
 
 export { RxDBChangePipelineTimeoutError, type RxDBChangePipelineTimeoutDiagnostics } from './change-pipeline.types.js';
 
@@ -352,9 +378,19 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     await this.transaction(async executor => {
       for (const [EntityType, list] of groups.entries()) {
         const metadata = getEntityMetadata(EntityType);
+        const rows = upsertRowsOf(metadata, list);
         // 生成批量插入 SQL（使用 ON CONFLICT DO UPDATE 实现 UPSERT）
-        const sql = await generate_entity_upserts_sql(metadata, list, this.rxdb.context, this.encryptionContext);
-        await executor.query(sql);
+        const sql = await generate_entity_upserts_sql(metadata, rows, this.rxdb.context, this.encryptionContext);
+        try {
+          await executor.query(sql);
+        } catch (error) {
+          // 存储约束违约归一（US-030），与 mutations 路径同一口径
+          throw toStorageConstraintViolationError(
+            error,
+            metadata,
+            rows as unknown as ReadonlyArray<Record<string, unknown>>
+          );
+        }
       }
     });
     for (const entity of entities) {

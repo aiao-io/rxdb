@@ -174,7 +174,8 @@ AC#1 / #4 的「消息骨架一致」指归一后的类与字段一致，不要�
   缺的字面量类型（如非整数）在那里按「转不动就拒绝」的口径补。
 - **字面量不得超出列类型值域**（AC#15）：PG 把 `PropertyType.integer` 建成 `integer`（int4），SQLite 的整数是 8 字节。
   超 int4 的字面量在 PG 上先撞列类型（SQLSTATE `22003`）而不是 CHECK（`23514`），两后端的错误类就分叉了，所以在元数据期拒绝；
-  需要更大值域的列声明为 `bigint`。
+  需要更大值域的列声明为 `bigint`。`uuid` 列同理：PG 建表时就按 uuid 解析字面量（非法文本让 DDL 失败，SQLite 照建），
+  大写 / 无连字符的合法写法在 PG 按值比较、在 SQLite 按文本比较，所以只收小写规范形态（8-4-4-4-12），`where` 同一条路径。
 - **字符串比较按字节序**：PGlite 默认排序规则是 `C`，与 SQLite 的 `BINARY` 一致；远端 PG 的 locale 排序不在本故事内（Out of Scope 已排除远端）。
 - **继承**：`checks` / `exclusions` 按 `name` 进 [`transitionMetadata()`](../../../packages/rxdb/src/entity/metadata-transition.ts)，
   与 `indexes` / `foreignKeys` 同一套 Map 覆盖——子实体同名项覆盖父实体的，异名项全部生效（AC#17）；属性级 `check` 编译出的项以属性名为键，同样参与覆盖。
@@ -221,6 +222,7 @@ indexes: [
 
 - `equal` 至少一列、`ranges` 至少一维。区间维只接受时间类与整数列，`bounds` 限 `[)` / `[]`；端点 NULL 即该侧无界，两后端一致（AC#13）。
 - **PG**：`EXCLUDE USING gist (<equal> WITH =, <range>(from, to, bounds) WITH &&, …)`，时间列（PG 侧是 `timestamptz`）取 `tstzrange`，整数取 `int8range`。
+  相等列可以是关系外键，而 PGlite 的关系列在建表之后才 `ADD COLUMN`，所以排他以 `ALTER TABLE … ADD CONSTRAINT` 单列一条，与外键一起排在全部建表语句之后。
   `=` 上 GiST 要 `btree_gist`：有实体声明 `exclusions` 时，适配器从 `@electric-sql/pglite/contrib/btree_gist` 装载（OPFS worker 模式由 worker 入口装载），
   并在 `connect()` 里 `CREATE EXTENSION IF NOT EXISTS`，排在用户迁移之前。装载由实体元数据决定、不进用户的 `extensions`，备份扩展清单不变。
   桌面端（Electron）的 PGlite 由宿主在主进程创建，宿主据 `pgliteServerExtensionRequirementsOf(entities)` 自行装载；没装载时 `connect()` 显式失败、点名缺的扩展（AC#6）。
@@ -241,6 +243,7 @@ indexes: [
   逐行插回去的每一步仍是终态的子集。外键不受影响——两后端都在提交时检查外键（SQLite 事务内 `defer_foreign_keys`、PG 外键 `DEFERRABLE INITIALLY DEFERRED`）。
   批量写入（`saveMany` / `mutations`）原本按 插入 → 更新 → 删除 执行，同一批「截旧 + 新开」「删旧 + 新增」同样经过重叠，同样改为删除与更新先于插入；
   同一批里既被创建又被更新 / 删除的实例不提前（提前会改写它的语义）。没有区间排他的实体两条路径的顺序都不变。
+  PGlite 适配器直调的 `saveMany` 是按类型一条多行 UPSERT（不经 `mutations`），同一口径落在行序上：已在库里的行（收窄类最前）排在新行之前，违约同样归一。
   两行**互换**区间这类终态合法、却无论顺序都经过重叠的操作不支持，调用方经中间值分两步写。
 - **集合维不支持**：PG GiST 对 `int[]` / `text[]` 无默认运算符类（探针确认），NULL 在 `EXCLUDE` 里又永不冲突，表达不了「NULL = 全部批次」。
   [US-518](../domain/US-518-bom-unit-lot-effectivity.md) 的批次维由它启动时另行决定，本故事只交付标量区间维。
@@ -249,6 +252,8 @@ indexes: [
 
 **约束命名与已有表漂移。** 约束名由前缀（`ck_` / `uq_` / `ex_`）+ 表名 + 作者给的 `name` + 规范化表达式的 8 位哈希确定性生成。
 `name` 限 `[a-z][a-z0-9_]*`；PG 标识符上限 63 字节，按 UTF-8 字节数计（不是字符数），超长在元数据期抛错，不截断——截断会让两个约束撞名（AC#15）。
+表名段只允许字母（任意文字）、数字与下划线：约束名要原样出现在 SQLite 的违约消息（`CHECK constraint failed: <名>` 以空白为界、
+排他触发器消息以冒号为界）与建表 SQL 里，漂移扫描与违约归一都按这些边界取名，空白、冒号、逗号、引号会把名字截断。
 哈希让「改表达式不改名」也成为可检出的漂移（AC#11）。`uq_` / `ex_` 的规范化定义含 namespace：它们在 SQLite 上是库级对象（索引、触发器），
 两个 namespace 下同名表、同名约束、同一定义不会撞成同一个名字。
 
@@ -263,7 +268,7 @@ SQLite family 与 PGlite 都要实现——SQLite family 今天没有 `reconcile
 SQLite 查 `sqlite_master`（表 `sql` 文本里的约束名、索引名与触发器名），与元数据生成的名字集合比对，
 不一致即抛 `RxDBConstraintDriftError`，列出缺失与多余的名字（AC#10）。
 
-比对**只纳入** `ck_` / `uq_` / `ex_` 起头的对象，每类对象只认自己的前缀：SQLite 上 `ck_` 读建表 SQL 文本、`uq_` 读 `type = 'index'`、`ex_` 读 `type = 'trigger'`（每条约束两个）；
+比对**只纳入** `ck_` / `uq_` / `ex_` 起头的对象，每类对象只认自己的前缀：SQLite 上 `ck_` 读建表 SQL 文本里紧跟 `CHECK` 的命名约束（外键 / 唯一约束的名字也可能以 `ck_` 起头）、`uq_` 读 `type = 'index'`、`ex_` 读 `type = 'trigger'`（每条约束两个）；
 PG 上 `ck_` 读 `pg_constraint`（`contype = 'c'`）、`ex_` 读 `pg_constraint`（`contype = 'x'`）、`uq_` 读 `pg_indexes`（`EXCLUDE` 的同名支撑索引也在那里，按前缀分开）。外键约束（作者原名，见 `create_table_sql.ts`）、普通索引（`idx_` 前缀）、
 系统 CRUD 触发器（`<表>_insert` / `_update` / `_delete`）、FTS 触发器与插件自有触发器都不在范围——否则每张既有表首次 `init()` 就被报「多余」（AC#16）。
 

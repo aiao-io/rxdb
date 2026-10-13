@@ -104,16 +104,6 @@ const _create_table_column_sql = (metadata: EntityMetadata) => {
     const { name, expression } = compileCheckConstraint(metadata, check);
     column_check_sql.push(`CONSTRAINT ${quoteIdentifier(name)} CHECK (${expression})`);
   }
-  // 区间排他（US-030 阶段 C）：EXCLUDE USING gist，相等列的 `=` 靠 btree_gist（适配器 connect 时启用）。
-  // 区间维的表达式（含倒置区间映射成 'empty'）由核心给出，与 SQLite 触发器同一语义。
-  for (const exclusion of metadata.exclusionMap.values()) {
-    const { name, equal, ranges } = compileExclusionConstraint(metadata, exclusion);
-    const elements = [
-      ...equal.map(column => `${quoteIdentifier(column.column)} WITH =`),
-      ...ranges.map(range => `${exclusionRangeExpressionPG(range)} WITH &&`)
-    ];
-    column_check_sql.push(`CONSTRAINT ${quoteIdentifier(name)} EXCLUDE USING gist (${elements.join(', ')})`);
-  }
   const need_column_sql = [...column_sql, ...column_check_sql];
   if (need_column_sql.length) {
     runSQL += need_column_sql.map(sql => `\n${sql}`).join(',');
@@ -329,11 +319,34 @@ const _create_table_foreign_keys_sql = (adapter: RxDBAdapterPGlite, metadata: En
   return sql;
 };
 
+/**
+ * 区间排他（US-030 阶段 C）：`EXCLUDE USING gist`，相等列的 `=` 靠 btree_gist（适配器 connect 时启用）。
+ *
+ * @remarks
+ * 不写进 `CREATE TABLE`：相等列可以是关系外键，而关系列在建表之后才由 {@link _create_table_relations_sql}
+ * 以 `ADD COLUMN` 加上。以 `ADD CONSTRAINT` 单列一条，`create_tables_statements` 把它与外键一起排到
+ * 全部建表语句之后。区间维的表达式（含倒置区间映射成 'empty'）由核心给出，与 SQLite 触发器同一语义。
+ */
+const _create_table_exclusions_sql = (metadata: EntityMetadata): string => {
+  const tableName = getTableNameByMetadata(metadata);
+  let sql = '';
+  for (const exclusion of metadata.exclusionMap.values()) {
+    const { name, equal, ranges } = compileExclusionConstraint(metadata, exclusion);
+    const elements = [
+      ...equal.map(column => `${quoteIdentifier(column.column)} WITH =`),
+      ...ranges.map(range => `${exclusionRangeExpressionPG(range)} WITH &&`)
+    ];
+    sql += `\nALTER TABLE ${tableName} ADD CONSTRAINT ${quoteIdentifier(name)} EXCLUDE USING gist (${elements.join(', ')});`;
+  }
+  return sql;
+};
+
 export default (adapter: RxDBAdapterPGlite, metadata: EntityMetadata) => {
   let create_table_sql = '';
   create_table_sql += _create_table_column_sql(metadata);
   create_table_sql += _create_table_relations_sql(adapter, metadata);
   create_table_sql += _create_table_foreign_keys_sql(adapter, metadata);
+  create_table_sql += _create_table_exclusions_sql(metadata);
   create_table_sql += create_table_indexes_sql(metadata);
   create_table_sql += create_table_conditional_unique_indexes_sql(metadata);
   return create_table_sql;

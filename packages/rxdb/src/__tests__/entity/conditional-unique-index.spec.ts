@@ -42,7 +42,8 @@ const metadataOf = (indexes: EntityIndexMetadataOptions[], namespace = 'public')
       stringProp('itemId'),
       stringProp('code', { nullable: true }),
       stringProp('state'),
-      boolProp('active', { nullable: true })
+      boolProp('active', { nullable: true }),
+      { name: 'ownerId', type: PropertyType.uuid, nullable: true }
     ],
     computedProperties: [],
     relations: [],
@@ -145,7 +146,17 @@ describe('compileConditionalUniqueIndex', () => {
       /关系路径/
     ],
     ['列不存在', { name: 'bad_col', properties: ['missing'], unique: true, where: releasedWhere }, /不存在的字段/],
-    ['name 含大写（AC#15）', { name: 'BadName', properties: ['code'], unique: true, where: releasedWhere }, /非法/]
+    ['name 含大写（AC#15）', { name: 'BadName', properties: ['code'], unique: true, where: releasedWhere }, /非法/],
+    [
+      'uuid 字面量不是小写规范 UUID（PG 建索引时按 uuid 解析）',
+      {
+        name: 'bad_uuid',
+        properties: ['code'],
+        unique: true,
+        where: { combinator: 'and', rules: [{ field: 'ownerId', operator: '=', value: 'not-a-uuid' }] }
+      },
+      /不是小写规范 UUID/
+    ]
   ])('%s → 元数据期拒绝并点名索引', (_label, index, reason) => {
     const metadata = metadataOf([index as EntityIndexMetadataOptions]);
     const declared = metadata.indexMap.get((index as EntityIndexMetadataOptions).name)!;

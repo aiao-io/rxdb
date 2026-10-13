@@ -480,6 +480,72 @@ describe('AC#15 约束名与字面量值域在元数据期拒绝', () => {
     expect(violations.map(v => v.field).sort()).toEqual(['missing_rule', 'missing_rules', 'rule_not_object']);
     expect(violations.every(v => v.rule === 'invalidCheck')).toBe(true);
   });
+
+  it('uuid 列字面量不是小写规范 UUID 即拒绝（PG 建表时按 uuid 解析字面量，SQLite 只比文本）', () => {
+    const canonical = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+    const rule = (value: unknown) => ({
+      combinator: 'and' as const,
+      rules: [{ field: 'ownerId', operator: '=' as const, value }]
+    });
+    const metadata = metadataOf({
+      properties: [stringProp('id', { primary: true }), { name: 'ownerId', type: PropertyType.uuid, nullable: true }],
+      checks: [
+        { name: 'not_uuid', rule: rule('not-a-uuid') },
+        { name: 'upper_case', rule: rule(canonical.toUpperCase()) },
+        { name: 'no_dashes', rule: rule(canonical.replaceAll('-', '')) },
+        {
+          name: 'in_list',
+          rule: { combinator: 'and', rules: [{ field: 'ownerId', operator: 'in', value: [canonical, 'nope'] }] }
+        },
+        { name: 'canonical', rule: rule(canonical) }
+      ]
+    });
+    for (const name of ['not_uuid', 'upper_case', 'no_dashes', 'in_list']) {
+      expect(() => compileCheckConstraint(metadata, metadata.checkMap.get(name as Uncapitalize<string>)!)).toThrow(
+        /不是小写规范 UUID/
+      );
+    }
+    expect(compileCheckExpression(metadata, metadata.checkMap.get('canonical')!)).toBe(`("ownerId" = '${canonical}')`);
+  });
+
+  it('表名含字母、数字、下划线以外的字符即拒绝：约束名要原样出现在违约消息与建表 SQL 里（三类约束共用）', () => {
+    const declarations = (tableName: string): Partial<EntityMetadataOptions> => ({
+      tableName,
+      properties: [
+        stringProp('id', { primary: true }),
+        stringProp('lineId'),
+        intProp('unitFrom', { nullable: true }),
+        intProp('unitTo', { nullable: true })
+      ],
+      checks: [
+        { name: 'positive', rule: { combinator: 'and', rules: [{ field: 'unitFrom', operator: '>', value: 0 }] } }
+      ],
+      indexes: [
+        {
+          name: 'one_open',
+          properties: ['lineId'],
+          unique: true,
+          where: { combinator: 'and', rules: [{ field: 'unitTo', operator: 'null' }] }
+        }
+      ],
+      exclusions: [
+        { name: 'no_overlap', equal: ['lineId'], ranges: [{ from: 'unitFrom', to: 'unitTo', bounds: '[]' }] }
+      ]
+    });
+    for (const tableName of ['my table', 'a:b', 'a,b', 'order"line', 'a-b']) {
+      const violations = validateEntityMetadata(metadataOf(declarations(tableName)));
+      expect(violations.map(v => v.rule).sort()).toEqual(['invalidCheck', 'invalidExclusion', 'invalidIndexWhere']);
+      expect(violations.every(v => /表名 .* 非法/.test(v.message))).toBe(true);
+    }
+    // 非 ASCII 字母与数字照常可用
+    const unicode = metadataOf({
+      tableName: '订单_2',
+      checks: [{ name: 'positive', rule: { combinator: 'and', rules: [{ field: 'qty', operator: '>', value: 0 }] } }]
+    });
+    expect(compileCheckConstraint(unicode, unicode.checkMap.get('positive')!).name).toMatch(
+      /^ck_订单_2_positive_[0-9a-f]{8}$/
+    );
+  });
 });
 
 describe('AC#17 继承合并', () => {

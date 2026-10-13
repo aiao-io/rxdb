@@ -7,7 +7,8 @@
  * - AC#13：两维同时相交才算冲突；整数 `[]` 维相邻（136 / 137）放行；日期 `[)` 维首尾相接放行；
  *   NULL 端点按无界比较；倒置区间当空区间、不与任何行冲突；
  * - AC#12：UPDATE 扩成与他行重叠被拒（SQLite 的 UPDATE 路径同样设防）；只在自身范围内扩区间放行；
- * - 批量写入：同一批「截旧 + 新开」「删旧 + 新增」不经过重叠的中间态；
+ * - 批量写入：同一批「截旧 + 新开」「删旧 + 新增」不经过重叠的中间态；适配器直调 `saveMany` 同样如此，违约同样归一；
+ * - 相等列是关系外键：建表不受关系列的建表时机影响，同一关系目标下重叠被拒；
  * - AC#14：「截旧 + 新开」同一事务写入后 undo 再 redo、经分支切换重放，均不被误拒，终态与直接写入一致。
  */
 
@@ -19,7 +20,13 @@ import {
   type RxDBAdapterLocalBase
 } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
-import { exclusionFixtures, ExclusionOccurrence, ExclusionSegment } from './fixtures.js';
+import {
+  exclusionFixtures,
+  ExclusionLine,
+  ExclusionLineSlot,
+  ExclusionOccurrence,
+  ExclusionSegment
+} from './fixtures.js';
 import type {
   CheckConstraintSuiteDatabase,
   CheckConstraintSuiteFactory,
@@ -47,6 +54,7 @@ const expectExclusionViolation = (
 
 const OCCURRENCE_CONSTRAINT = /^ex_ExclusionOccurrence_occurrence_no_overlap_[0-9a-f]{8}$/;
 const SEGMENT_CONSTRAINT = /^ex_ExclusionSegment_segment_no_overlap_[0-9a-f]{8}$/;
+const SLOT_CONSTRAINT = /^ex_ExclusionLineSlot_slot_no_overlap_[0-9a-f]{8}$/;
 
 const occurrence = (init: Partial<ExclusionOccurrence>): ExclusionOccurrence =>
   new ExclusionOccurrence({
@@ -191,6 +199,65 @@ export const runExclusionWriteBehaviorSuite = ({ factory }: { factory: CheckCons
         expect(await segmentsOf(rxdb, 'B')).toEqual([
           [day(1, 1).getTime(), day(6, 1).getTime()],
           [day(6, 1).getTime(), null]
+        ]);
+      } finally {
+        await dispose();
+      }
+    });
+
+    it('适配器直调 saveMany：「截旧 + 新开」不受数组顺序影响，违约同样归一为 RxDBExclusionViolationError', async () => {
+      const { rxdb, dispose } = await factory.createDatabase({
+        dbName: 'exclusion-adapter-save-many',
+        entities: exclusionFixtures
+      });
+      try {
+        const adapter = await rxdb.getAdapter(rxdb.config.sync.local!.adapter);
+        const current = new ExclusionSegment({ lineId: 'D', effectiveFrom: day(1, 1), effectiveTo: null });
+        await rxdb.entityManager.save(current);
+
+        // 新行排在数组前面：先写它就会与还没截短的旧行重叠
+        current.effectiveTo = day(6, 1);
+        const next = new ExclusionSegment({ lineId: 'D', effectiveFrom: day(6, 1), effectiveTo: null });
+        await adapter.saveMany([next, current]);
+        expect(await segmentsOf(rxdb, 'D')).toEqual([
+          [day(1, 1).getTime(), day(6, 1).getTime()],
+          [day(6, 1).getTime(), null]
+        ]);
+
+        const overlapping = new ExclusionSegment({ lineId: 'D', effectiveFrom: day(3, 1), effectiveTo: day(4, 1) });
+        const error = await adapter.saveMany([overlapping]).catch((cause: unknown) => cause);
+        expectExclusionViolation(error, 'ExclusionSegment', SEGMENT_CONSTRAINT, [
+          {
+            from: 'effectiveFrom',
+            to: 'effectiveTo',
+            bounds: '[)',
+            incoming: [day(3, 1), day(4, 1)],
+            existing: [day(1, 1), day(6, 1)]
+          }
+        ]);
+      } finally {
+        await dispose();
+      }
+    });
+
+    it('相等列是关系外键：建表成功；同一关系目标下重叠被拒，不同目标互不影响', async () => {
+      const { rxdb, dispose } = await factory.createDatabase({
+        dbName: 'exclusion-relation-key',
+        entities: exclusionFixtures
+      });
+      try {
+        const first = new ExclusionLine({ code: 'first' });
+        const second = new ExclusionLine({ code: 'second' });
+        await rxdb.entityManager.saveMany([first, second]);
+        await rxdb.entityManager.save(new ExclusionLineSlot({ lineId: first.id, unitFrom: 1, unitTo: 10 }));
+        // 区间与上一行重叠，但关系目标不同
+        await rxdb.entityManager.save(new ExclusionLineSlot({ lineId: second.id, unitFrom: 5, unitTo: 15 }));
+
+        const error = await rxdb.entityManager
+          .save(new ExclusionLineSlot({ lineId: first.id, unitFrom: 5, unitTo: 15 }))
+          .catch((cause: unknown) => cause);
+        expectExclusionViolation(error, 'ExclusionLineSlot', SLOT_CONSTRAINT, [
+          { from: 'unitFrom', to: 'unitTo', bounds: '[]', incoming: [5, 15], existing: [1, 10] }
         ]);
       } finally {
         await dispose();

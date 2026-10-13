@@ -142,6 +142,14 @@ export const CHECK_NAME_PREFIX = 'ck_';
 const PG_INT4_MIN = -2147483648;
 const PG_INT4_MAX = 2147483647;
 
+/**
+ * uuid 列字面量的形态：小写、带连字符的 8-4-4-4-12。
+ *
+ * PG 建表时就按 uuid 解析字面量，非法文本让 DDL 直接失败（SQLite 照建不误）；大写、无连字符这类合法
+ * 但非规范的写法，PG 按 uuid 值比较、SQLite 按文本比较，同一条约束两后端放行的行就不一样了。
+ */
+const CANONICAL_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 /** `PropertyType.bigint` 的值域（两后端都是 8 字节有符号整数）。 */
 const BIGINT_MIN = -(2n ** 63n);
 const BIGINT_MAX = 2n ** 63n - 1n;
@@ -189,15 +197,22 @@ const resolveCheckField = (metadata: EntityMetadata, field: string, label: strin
 /**
  * 按列类型把单个字面量拼成 SQL。
  *
- * @throws {@link RxDBError} 字面量与列类型不匹配、或超出列类型值域时（AC#15）
+ * @throws {@link RxDBError} 字面量与列类型不匹配、超出列类型值域、或 uuid 字面量不是小写规范形态时（AC#15）
  */
 const compileCheckLiteral = (propertyType: string, value: unknown, label: string): string => {
   switch (propertyType) {
     case PropertyType.string:
     case PropertyType.enum:
-    case PropertyType.uuid:
       if (typeof value !== 'string') {
         throw new RxDBError(`${label} 的字面量必须是字符串，实际为 ${typeof value}`);
+      }
+      return sqlStringLiteral(value);
+    case PropertyType.uuid:
+      if (typeof value !== 'string' || !CANONICAL_UUID_PATTERN.test(value)) {
+        throw new RxDBError(
+          `${label} 的字面量不是小写规范 UUID（8-4-4-4-12）：${JSON.stringify(value)}。` +
+            'PG 建表时按 uuid 解析字面量，SQLite 只比文本，非规范写法两后端的行为不一致'
+        );
       }
       return sqlStringLiteral(value);
     case PropertyType.integer: {

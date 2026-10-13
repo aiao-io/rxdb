@@ -52,7 +52,7 @@ const splitStatements = (blob: string): string[] =>
  * 按**阶段**排序，而不是按传入顺序边建表边建 trigger：
  * 1. `CREATE SCHEMA`（所有非 public namespace）
  * 2. 全部 `CREATE TABLE` 与 `ADD COLUMN`
- * 3. 全部外键约束与索引（必须等所有表建完）
+ * 3. 全部索引与 `ADD CONSTRAINT`（外键、区间排他：必须等所有表与关系列建完）
  * 4. 全部触发器（仅对 log !== false 的实体）
  * 5. 初始数据 INSERT（可选）
  *

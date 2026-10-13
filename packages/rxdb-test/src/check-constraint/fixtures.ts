@@ -7,12 +7,13 @@
  * - {@link CheckRangeItem}：AC#8 实体级 CHECK `unitFrom <= unitTo`（ref 字段对字段）。
  *
  * 条件唯一（阶段 B）：{@link ConditionalUniqueRevision}（AC#3）。
- * 区间排他（阶段 C）：{@link ExclusionOccurrence}（AC#4 / #12 / #13）、{@link ExclusionSegment}（AC#14 重放）。
+ * 区间排他（阶段 C）：{@link ExclusionOccurrence}（AC#4 / #12 / #13）、{@link ExclusionSegment}（AC#14 重放）、
+ * {@link ExclusionLineSlot}（相等列是关系外键）。
  *
  * 断言的对象是**归一后的错误类**与落库行为，与具体后端无关——两后端跑同一份套件。
  */
 
-import { Entity, EntityBase, PropertyType } from '@aiao/rxdb';
+import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';
 
 /**
  * AC#1：属性级 `check` 语法糖——`qty` 必须是 ≤ 100 的整数。
@@ -185,5 +186,42 @@ export class ExclusionSegment extends EntityBase {
   effectiveTo!: Date | null;
 }
 
+/** {@link ExclusionLineSlot} 的关系目标。 */
+@Entity({
+  name: 'ExclusionLine',
+  namespace: 'check-constraint-fixtures',
+  log: false,
+  properties: [{ name: 'code', type: PropertyType.string }],
+  relations: [
+    { name: 'slots', kind: RelationKind.ONE_TO_MANY, mappedEntity: 'ExclusionLineSlot', mappedProperty: 'line' }
+  ]
+})
+export class ExclusionLine extends EntityBase {
+  code!: string;
+}
+
+/**
+ * 相等列是关系外键：`lineId` 由 MANY_TO_ONE 关系 `line` 派生，不是实体自身属性。
+ * PG 侧关系列在建表之后才以 `ALTER TABLE … ADD COLUMN` 加上，排他约束必须排在它之后建。
+ */
+@Entity({
+  name: 'ExclusionLineSlot',
+  namespace: 'check-constraint-fixtures',
+  log: false,
+  properties: [
+    { name: 'unitFrom', type: PropertyType.integer, nullable: true },
+    { name: 'unitTo', type: PropertyType.integer, nullable: true }
+  ],
+  relations: [{ name: 'line', kind: RelationKind.MANY_TO_ONE, mappedEntity: 'ExclusionLine', mappedProperty: 'slots' }],
+  exclusions: [
+    { name: 'slot_no_overlap', equal: ['lineId'], ranges: [{ from: 'unitFrom', to: 'unitTo', bounds: '[]' }] }
+  ]
+})
+export class ExclusionLineSlot extends EntityBase {
+  lineId!: string;
+  unitFrom!: number | null;
+  unitTo!: number | null;
+}
+
 /** 区间排他套件的夹具（建库用）。 */
-export const exclusionFixtures = [ExclusionOccurrence, ExclusionSegment] as const;
+export const exclusionFixtures = [ExclusionOccurrence, ExclusionSegment, ExclusionLine, ExclusionLineSlot] as const;
