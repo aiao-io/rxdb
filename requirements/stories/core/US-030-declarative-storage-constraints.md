@@ -1,7 +1,7 @@
 ---
 id: US-030
 title: 实体元数据层的声明式存储约束
-status: Backlog
+status: In Progress
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-22

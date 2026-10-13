@@ -1,7 +1,7 @@
 ---
 id: US-511
 title: 展开数量正确性：用量语义、三类损耗、虚拟件穿透
-status: Backlog
+status: In Progress
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22

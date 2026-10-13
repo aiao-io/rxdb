@@ -1,6 +1,6 @@
 ---
 id: epic-009-bom-domain-model
-status: Backlog
+status: In Progress
 startDate: 2026-10-12
 targetDate: TBD
 owner: jimmy
@@ -127,6 +127,12 @@ owner 于 2026-10-12 决定解锁，**驱动者 = 需要一个完整功能的 BO
 > **截至 2026-10-13：第 1 步已交付**（US-030 阶段 A/B/C + US-507 阶段 A/B + Tauri 升 rusqlite 0.33 + `qty` 十进制存储段），
 > 各故事不提前置 Done；AC 勾选与关闭记录见 [US-030](../stories/core/US-030-declarative-storage-constraints.md)、
 > [US-507](../stories/domain/US-507-bom-graph-skeleton.md)、[US-511](../stories/domain/US-511-bom-quantity-semantics.md)。第 2 步起可从 US-508 / US-509 开工。
+>
+> **截至 2026-10-14：第 2 步已交付**（US-508 首轮 AC + US-509 首轮 AC + US-510 阶段 A + `rxdb.bom` 插件收尾：
+> `resolveBom` / `loadHistory` / `expandBom` / `whereUsed` / `assertCompleteResolution` / `cycleConstraintDdlForRemotePg`），
+> 三条故事不提前置 Done；AC 勾选与关闭记录见 [US-508](../stories/domain/US-508-bom-view-resolution.md)、
+> [US-509](../stories/domain/US-509-bom-dag-cycle-detection.md)、[US-510](../stories/domain/US-510-bom-multilevel-explosion.md)。
+> 第 3 步起可从 US-511 开工。
 第 1～4 步合起来就是最小可演示闭环：建 BOM → 按视图解析 → 多级展开 → where-used 反查 → 拒绝成环 → 数量与手算一致。
 这个闭环的**验收手段**是 [US-525](../stories/domain/US-525-bom-end-to-end-demo.md) 阶段 A：
 各故事的 AC 都是单点断言，而组合错误（乘序、二次过滤、穿透后继承）只在一份贯穿的数据集上显形。

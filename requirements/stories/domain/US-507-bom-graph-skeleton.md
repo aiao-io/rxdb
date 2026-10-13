@@ -1,7 +1,7 @@
 ---
 id: US-507
 title: BOM 图骨架：物料、修订与多重边 BOM 行
-status: Backlog
+status: In Progress
 priority: Low
 epic: epic-009-bom-domain-model
 created: 2026-09-22
