@@ -23,6 +23,7 @@ import {
 } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { getTableNameByMetadata } from '../pglite.utils.js';
+import { PGliteClient, type IPGliteClient } from '../PGliteClient.js';
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
 
 /**
@@ -273,6 +274,34 @@ describe('PGlite 漂移检查：条件唯一索引与区间排他（阶段 B / C
       }
     } finally {
       await dispose();
+    }
+  });
+});
+
+describe('PGlite 运行时没装载 btree_gist（桌面宿主自建 PGlite 的形态）', () => {
+  /** 换掉客户端、不装载服务端扩展：模拟 Electron 主进程建的 PGlite 漏装 btree_gist。 */
+  class AdapterWithoutServerExtensions extends RxDBAdapterPGlite {
+    protected override createClient(): IPGliteClient {
+      return new PGliteClient();
+    }
+  }
+
+  it('声明了区间排他时 connect() 显式失败并点名扩展（AC#6），不留到建表才报 SQL 错误', async () => {
+    const rxdb = new RxDB({
+      dbName: `drift-no-gist-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      context: { userId: 'userId' },
+      entities: [DriftRanged as EntityType],
+      sync: { local: { adapter: 'pglite' }, type: SyncType.None }
+    });
+    rxdb.adapter('pglite', async database => new AdapterWithoutServerExtensions(database, { store: 'memory' }));
+    try {
+      await expect(rxdb.connect('pglite')).rejects.toMatchObject({
+        name: 'RxdbAdapterPGliteError',
+        code: 'MISSING_SERVER_EXTENSION',
+        message: expect.stringContaining('btree_gist')
+      });
+    } finally {
+      await rxdb.disconnectAll().catch(() => undefined);
     }
   });
 });
