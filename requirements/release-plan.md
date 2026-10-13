@@ -29,7 +29,7 @@
 
 - `@aiao/rxdb@0.0.25` 的 `RXDB_VERSION` 报 `'0.0.24'`：源码已修，`0.0.26` 起与包版本一致（`version.spec.ts` 守着）。
   已发布的 `0.0.25` 产物改不了。
-- `@aiao/code-editor-angular` 的 peer 下界低于工作区版本：已修，当前为 `">=0.0.26"`。
+- `@aiao/code-editor-angular` 的 peer 下界低于工作区版本：已修，当前为 `"workspace:^"`（[US-602](stories/tooling/US-602-ai-comprehensible-artifacts.md) A2 的统一写法，发布时改写为 `^<版本>`）。
 - `v0.0.25` tag 的树与 npm 上的 `0.0.25` 产物一致：`@aiao/rxdb` 与 `@aiao/rxdb-client-generator` 两个包的 `src` 逐文件相同，
   tag 树里的 `RXDB_VERSION` 本来就是 `'0.0.24'`。「某个改动发没发过」可以用 tag 祖先链判断，也可以 `npm pack` 拉产物搜；
   两者在本仓库一致。
@@ -48,7 +48,7 @@
    处置：**owner 稍后处理（deprecate 或随下次发版覆盖）。** 其余没有 `0.0.26` 的 16 个包是 replay / tree / working-tree 各 4 个、
    `rxdb-model-{angular,react,vue}` 与 `rxdb-taro`（US-219 #100 合入后新增，npm 上尚无任何版本；
    复核：`npm view @aiao/<包名> versions`）。
-3. **`@aiao/rxdb-angular` 单独为 `0.0.27`，`@aiao/*` peer 改成了字面 `^0.0.26`；7 个 Angular 包的 `@angular/*` peer 钉成精确的 `"22.2.2"`。**
+3. **`@aiao/rxdb-angular` 单独为 `0.0.27`；7 个 Angular 包的 `@angular/*` peer 钉成精确的 `"22.2.2"`。**
    前者来自 `1e8336cd`（提交信息只有 `23`），违反「工作区同号」；后者让消费方的 Angular 小版本必须与之完全相同。
    处置：**owner 决定下次统一发版时处理。**
 

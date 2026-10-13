@@ -5,7 +5,7 @@ status: In Progress
 priority: Medium
 epic: epic-007-public-api-gates
 created: 2026-09-22
-updated: 2026-10-11
+updated: 2026-10-13
 tags: [tooling, dx, llms-txt, agent-skills, package-graph]
 ---
 
@@ -111,7 +111,7 @@ INVEST 检查清单:
 | 阶段 | 内容                                                                    | 依赖 | 关闭条件                                              | 状态 |
 | ---- | ----------------------------------------------------------------------- | ---- | ----------------------------------------------------- | ---- |
 | A1   | 发布发现、语义事实源、漂移门禁与接线、生成生命周期、可运行样例源、TSDoc | 无   | AC#1–3、#5、#6、#12–15                                | ✅   |
-| A2   | `@aiao/*` peer 统一、真实打包与隔离消费验证、迁移发布                   | A1   | AC#4、#7、#8                                          | ⬜   |
+| A2   | `@aiao/*` peer 统一、真实打包与隔离消费验证、迁移发布                   | A1   | AC#4、#7、#8                                          | ✅   |
 | B    | 站点 `llms.txt` / `llms-full.txt`                                       | A1   | AC#9、#10、#16                                        | ⚠️   |
 | C    | 主包内嵌单份 Agent Skill（exporter 探针先行）                           | A1   | AC#11、#17 通过，或探针失败后在状态中明确标「C 延期」 | ✅   |
 
@@ -129,7 +129,7 @@ A1 的实现已落在入口 TSDoc、`requirements/package-graph.json`、包组�
 - `pnpm nx run rxdb-adapter-pglite:test --coverage ...`：四项覆盖率均达标，statements 95.91%、branches 89.71%、functions 96.26%、lines 97.22%。核心 `rxdb` 四项为 95.68%、93.37%、95.58%、96.26%。
 - `website:typecheck` 的 Vite 8/Rolldown 类型兼容问题已以类型别名兼容修复，未改变运行时逻辑；串行 affected 全量已通过，AC#13 与 A1 阶段验收完成。
 
-A1 完成后故事仍保持 `In Progress`：B 已完成本地构建与缓存门禁，待部署后线上 smoke；A2 的 peer 统一与外部 tgz 消费尚未启动，C 的主包 Skill 已交付（见下）。
+故事仍保持 `In Progress`：A2、C 已关闭（见下），B 已完成本地构建与缓存门禁，剩部署后的线上 smoke（AC#10）。
 
 **评审修复（2026-10-12）**：合入前评审指出的发布流程与缓存缺陷已修复，口径变化如下。
 
@@ -144,6 +144,27 @@ A1 完成后故事仍保持 `In Progress`：B 已完成本地构建与缓存门�
 - AC#12 的覆写子句改为可执行检查：`ai-example` 扫各适配器包源码，覆写 `transaction` 的类不得自带 TSDoc
   （自带就会遮住基类正反例；`RxDBAdapterPGlite` 原有的一段已改成行注释），并要求两个重载的 TSDoc 一致。
 - 情景的插件闭包与样例取自工作区源码，可能新于登记的发布，生成物与 `llms.txt` 正文如实注明；与发布树完全同源的投递快照留给后续阶段。
+
+## A2 验收记录
+
+A2 经 [#113](https://github.com/aiao-io/rxdb/pull/113) 合入（提交 `803f633c`，`feat(aiao)!:`），不改运行时代码；
+迁移说明是[迁移指南](../../../website/docs/migration/v1.md)「`0.0.26` 之后（未发布）」第 9 项。
+逐条边放 `dependencies` 还是 peer 的判定表在 #113 描述里，下列验证证据取自 #113 的验证记录：
+
+- **AC#4**：[`validatePeerConventions`](../../../scripts/audit/lib/package-graph-validation.mjs) 拒绝核心进 `dependencies` / `optionalDependencies`、
+  `@aiao/*` peer 或留在 `dependencies` 的兄弟边不是 `workspace:^`，并以登记的发布标签树为基线拒绝删掉 optional 语义；
+  正反例在 `package-graph.spec.mjs`，真实仓库由 `pnpm audit:package-graph` 守。
+- **AC#7**：`nx.json` 的 `release.projects` 全集（51 个项目，含 `rxdb-angular` / `rxdb-react` / `rxdb-vue`）`--skip-nx-cache` 冷跑 build 通过。
+- **AC#8**：`pnpm verify:release-consumers`（[`release-consumers.mjs`](../../../scripts/audit/release-consumers.mjs)，CI extras job 同样执行）
+  从解析后的发布根真实 `pnpm pack` 18 个 tgz，在工作区外按 5 组组合分别用 npm、pnpm 安装：产物无 `workspace:` 残留、
+  `@aiao/*` 安装边全为 `^<版本>`、入口与 `.d.ts` 齐全；三框架绑定 tsc 与 esbuild 最小构建通过；兼容组合下核心单实例；
+  核心版本不兼容时 npm 报 `ERESOLVE`、pnpm 报 `ERR_PNPM_PEER_DEP_ISSUES`；A1 样例源在消费端编译并跑通 CRUD 断言。
+- **发布链**：pnpm 改写 `workspace:^` 时从包目录下的 `node_modules` 读兄弟 manifest，从 `dist/` 发布根 pack 会抛
+  `ERR_PNPM_CANNOT_RESOLVE_WORKSPACE_PROTOCOL`；[`link-release-peers.mjs`](../../../scripts/audit/link-release-peers.mjs) 补兄弟包链接，
+  挂在 7 个 Angular 系包 `nx-release-publish` 的前置 target 上。
+
+AC#8 的绑定消费者按 UI 应用常规用 Bundler 解析。`@aiao/rxdb-vue` 入口的 `export * from './hooks'` 不带扩展名，
+NodeNext 解析下报 `TS2305`——现存缺陷，#113 用已发布的 `0.0.26` 复现，不由 A2 引入。
 
 ## B 实施记录
 
@@ -232,11 +253,11 @@ A1 的 TSDoc（AC#12）与事实源、门禁、样例零耦合，可先单独提
 | 1   | A1：fixtures                          | 分别构造：未登记的非 private 包、**无 `src/index.ts` 的非 private 资源包**未登记、登记了已删除的包、重复登记、情景引用未登记的包；另给一个只在工作树、不在 fixture tag 树里的包                                                                                                                                                                       | 门禁非零退出，各自指出包名与来源字段；资源包与 `rxdb-test` 类 tool 包进入门禁范围，`listPublicPackages()` 的返回不变；tag 外的包在门禁范围内、不在投递范围内                                                                                                                                                                                                            | ✅   |
 | 2   | A1：fixtures                          | 情景在同一槽位放两个 backend；把 shared-impl 或 capability 包放进槽位；制造 `@aiao/*` 依赖环                                                                                                                                                                                                                                                          | 门禁非零退出，指明情景名 / 槽位 / 环上的包                                                                                                                                                                                                                                                                                                                              | ✅   |
 | 3   | A1：fixtures                          | 正例：wa-sqlite（local）+ Supabase（remote）；SQLite（local）+ HTTP（remote）QueryCache；具体 SQLite adapter 依赖 sqlite-core；本地 adapter + encrypted；backend 间单向边（如 `miniprogram → wa-sqlite`、`electron ⇢ pglite` optional peer）；反例：QueryCache 情景只声明 sync + querycache、而 sync 的 fixture `inject` 含 history 时删掉 history 包 | 正例全部通过；QueryCache 情景算出的必需项含 local backend 与 history / sync / querycache 三个插件（history 经 `inject` 闭合得出），纯本地情景不含它们；code-editor 情景不含任何 RxDB adapter；反例非零退出并指出缺的插件；`docs-plugin-surface` 的 QueryCache 包名取自事实源                                                                                            | ✅   |
-| 4   | A2：fixtures                          | `@aiao/rxdb` 放在 `dependencies`；`@aiao/*` peer 写成 `*` / `workspace:*` / `>=x`；删掉原有 `peerDependenciesMeta.optional`                                                                                                                                                                                                                           | 门禁非零退出；统一为 `peerDependencies` + `workspace:^` 且 optional 保留后通过                                                                                                                                                                                                                                                                                          | ⬜   |
+| 4   | A2：fixtures                          | `@aiao/rxdb` 放在 `dependencies`；`@aiao/*` peer 写成 `*` / `workspace:*` / `>=x`；删掉原有 `peerDependenciesMeta.optional`                                                                                                                                                                                                                           | 门禁非零退出；统一为 `peerDependencies` + `workspace:^` 且 optional 保留后通过                                                                                                                                                                                                                                                                                          | ✅   |
 | 5   | A1：真实仓库副本                      | 在临时副本里制造一处漏登，执行 CI 使用的**顶层入口** `pnpm audit:package-graph`                                                                                                                                                                                                                                                                       | 非零退出并显示为审计失败；未改动时同一入口在真实 `packages/` 上通过                                                                                                                                                                                                                                                                                                     | ✅   |
 | 6   | A1：fixtures                          | 生成器对同一 fixture 事实源 + 模板连续生成两次；手改生成物后跑 `--check`                                                                                                                                                                                                                                                                              | 两次输出字节一致、不含当前时间、带版本标识与事实摘要；篡改被 `--check` 检出并非零退出                                                                                                                                                                                                                                                                                   | ✅   |
-| 7   | A2 合并后                             | 对 `nx.json` 的 `release.projects`（`packages/*`，与门禁范围同集）解析出的全部项目跑 build                                                                                                                                                                                                                                                            | 全部通过，集合含 `rxdb-angular` / `rxdb-react` / `rxdb-vue`（它们不带 `js-lib` 标签，不能用 `tag:js-lib` 代替发布集合）；无运行时代码变更                                                                                                                                                                                                                               | ⬜   |
-| 8   | A2：各 packageRoot 已真实 `pnpm pack` | 解包检查；在工作区外临时项目分别用 npm、pnpm 安装同批 tgz（不经 workspace links / tsconfig paths），覆盖代表性 adapter / plugin / binding 组合                                                                                                                                                                                                        | 发布后的 dependencies / peers 为 `^<版本>`、入口与 `.d.ts` 齐全；三框架绑定可导入并最小构建；兼容组合下核心解析为同一路径；核心版本不兼容时安装或解析明确失败；A1 样例源编译、跑通 CRUD 断言并正常退出                                                                                                                                                                  | ⬜   |
+| 7   | A2 合并后                             | 对 `nx.json` 的 `release.projects`（`packages/*`，与门禁范围同集）解析出的全部项目跑 build                                                                                                                                                                                                                                                            | 全部通过，集合含 `rxdb-angular` / `rxdb-react` / `rxdb-vue`（它们不带 `js-lib` 标签，不能用 `tag:js-lib` 代替发布集合）；无运行时代码变更                                                                                                                                                                                                                               | ✅   |
+| 8   | A2：各 packageRoot 已真实 `pnpm pack` | 解包检查；在工作区外临时项目分别用 npm、pnpm 安装同批 tgz（不经 workspace links / tsconfig paths），覆盖代表性 adapter / plugin / binding 组合                                                                                                                                                                                                        | 发布后的 dependencies / peers 为 `^<版本>`、入口与 `.d.ts` 齐全；三框架绑定可导入并最小构建；兼容组合下核心解析为同一路径；核心版本不兼容时安装或解析明确失败；A1 样例源编译、跑通 CRUD 断言并正常退出                                                                                                                                                                  | ✅   |
 | 9   | B：本地 build                         | `pnpm nx build website`                                                                                                                                                                                                                                                                                                                               | 输出含 `llms.txt` 与 `llms-full.txt`；`llms.txt` 每节有链接与一句话描述，投递范围内的包都在选型索引里、范围外的包没有安装命令（另有 fixture：不在 tag 树里的包、npm 上停在旧版本的包不生成安装命令），版本标识等于登记的 `v*` tag，链接以 `docusaurus.config.ts` 的 `url` 为前缀；两文件不超过 B plan 定的 UTF-8 字节上限，超限时构建失败而非静默截断；中文与代码块完整 | ✅   |
 | 10  | B：站点已部署                         | 请求 `https://rxdb.aiao.io/llms.txt` 与 `https://rxdb.aiao.io/llms-full.txt`                                                                                                                                                                                                                                                                          | 均为 HTTP 成功、最终 URL 符合部署策略（旧域名 `rxdb.aiao.io` 是别名还是重定向在 B plan 写明）、`Content-Type: text/plain; charset=utf-8`、正文不是 HTML fallback，含版本标识、选型表与样例片段。线上请求只作部署 smoke，不进 fixtures 单测                                                                                                                              | ⬜   |
 | 11  | C：exporter 已锁定                    | 临时项目安装真实核心 tgz（**核心为直接依赖**），执行锁定的 exporter 固定命令                                                                                                                                                                                                                                                                          | 生成的 Skill 路径、内容、相对引用与事实源一致；`SKILL.md` ≤ 8192 字节；tgz 含 `skills/aiao-rxdb/SKILL.md`，`files` 去掉 `"skills"` 时不含（反向用例）；核心仅被 peer 自动安装、或 Skill 路径无效时，结果与所选 exporter 文档一致并明确报告，不靠手工拷贝                                                                                                                | ✅   |
@@ -298,7 +319,8 @@ backend 之间的单向依赖边真实存在且合法（`rxdb-adapter-miniprogra
   **工作区绿不能证明外部消费者装配安全**，所以 AC#8 必须在工作区外跑。临时消费者的写法参照
   [`desktop-adapter-consumer.mjs`](../../../scripts/audit/desktop-adapter-consumer.mjs)（参数化目标表，不复制第二份脚本）。
 - 放在 `dependencies` 的兄弟边（`@aiao/utils`、`rxdb-adapter-sqlite-core` 之于各 SQLite 适配器等）由 manifest 照实读出，
-  是否改成 peer 按「消费者会不会直接 import、是否必须单实例」逐条判，A2 plan 列清。
+  是否改成 peer 按「消费者会不会直接 import、是否必须单实例」逐条判，判定表在 [#113](https://github.com/aiao-io/rxdb/pull/113) 描述里：
+  改成 peer 的只有 `rxdb-plugin-sync → rxdb-plugin-history`（必装）与 `rxdb-test → rxdb-plugin-tree`（optional），其余兄弟边留在 `dependencies`、写 `workspace:^`。
 - 对外承诺的措辞：声明共享宿主约束、**推荐把直接 import 的核心列为消费者顶层依赖**、用消费测试防止多实例。不写「改为 peer 即保证单实例」。
 - 影响面：消费者需显式安装核心包。提交标注 `BREAKING CHANGE`（0.x 下的级别换算见 versioning-policy §5），
   并在 `website/docs/migration/v1.md` 追加一节迁移说明。
@@ -330,27 +352,27 @@ backend 之间的单向依赖边真实存在且合法（`rxdb-adapter-miniprogra
 
 ## 实现文件
 
-| 阶段 | 文件                                                                    | 说明                                                                                                                                |
-| ---- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| A1   | `requirements/package-graph.json`                                       | 语义事实源（若 plan 选方案 a）                                                                                                      |
-| A1   | `scripts/audit/package-graph.mjs` + `.spec.mjs` + `__fixtures__/`       | 发布发现、漂移门禁、生成器（或拆出独立生成脚本）                                                                                    |
-| A1   | `scripts/audit/api-surface.mjs`                                         | 包扫描拆出「门禁范围」「投递范围」「API 基线范围」三个出口                                                                          |
-| A1   | `scripts/audit/docs-plugin-surface.mjs`                                 | `QUERYCACHE_*` 改读事实源，删掉硬编码                                                                                               |
-| A1   | `package.json` / `.github/workflows/ci-template.yml`                    | `audit:package-graph` 根命令与 CI 独立审计步骤                                                                                      |
-| A1   | `website/project.json` / `packages/rxdb/project.json`（或 `nx.json`）   | 事实源、模板、样例、生成器进入消费 target 的输入或依赖                                                                              |
-| A1   | 样例源（位置在 plan 定，不进 `apps/`）                                  | 可运行初始化样例，载体片段与安装清单的唯一输入，CI 运行（AC#15）                                                                    |
-| A1   | `packages/rxdb/src/RxDB.ts` / `rxdb-adapter.ts` / `transaction/` 等     | `use` / `connect` / `RxDBAdapterLocalBase.transaction` 的 TSDoc                                                                     |
-| A1   | `requirements/epics/epic-007-public-api-gates.md`                       | 愿景补一句 + 目标清单加本故事（AC#14）                                                                                              |
-| A2   | `packages/*/package.json`                                               | `@aiao/*` peer 统一为 `workspace:^`，optional 保留                                                                                  |
-| A2   | `scripts/audit/tree-adapter-dependencies.spec.mjs`                      | 现断言真实 manifest 的 peer 为 `workspace:*`，统一后必红；optional peer 一半并入 `package-graph` 门禁、类型导入一半保留，A2 plan 定 |
-| A2   | 打包消费脚本（参照 `desktop-adapter-consumer.mjs`）                     | 真实 tgz 解包与 npm / pnpm 隔离消费（AC#8）                                                                                         |
-| A2   | `website/docs/migration/v1.md`                                          | 追加一节：核心包改 peer 的迁移说明                                                                                                  |
-| B    | `website/docusaurus.config.ts` / `website/package.json`                 | 接入 llms.txt 插件，链接取站点 `url`                                                                                                |
-| B    | `website/src/`                                                          | `llms.txt` 头部（由事实源生成）                                                                                                     |
-| B    | `website/scripts/generate-llms.mjs` / `website/src/plugins/llms-txt.js` | Docusaurus 构建后生成两个纯文本文件，复用 A1 事实源并校验 UTF-8 字节上限                                                            |
-| B    | `netlify.toml`                                                          | `llms.txt` / `llms-full.txt` 的 `text/plain; charset=utf-8` 响应头                                                                  |
-| C    | `packages/rxdb/skills/aiao-rxdb/SKILL.md`                               | 主包单份 Skill，正文生成                                                                                                            |
-| C    | `packages/rxdb/package.json`                                            | 按锁定 exporter 的元数据字段 + `files` 加 `"skills"`                                                                                |
+| 阶段 | 文件                                                                    | 说明                                                                     |
+| ---- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| A1   | `requirements/package-graph.json`                                       | 语义事实源（若 plan 选方案 a）                                           |
+| A1   | `scripts/audit/package-graph.mjs` + `.spec.mjs` + `__fixtures__/`       | 发布发现、漂移门禁、生成器（或拆出独立生成脚本）                         |
+| A1   | `scripts/audit/api-surface.mjs`                                         | 包扫描拆出「门禁范围」「投递范围」「API 基线范围」三个出口               |
+| A1   | `scripts/audit/docs-plugin-surface.mjs`                                 | `QUERYCACHE_*` 改读事实源，删掉硬编码                                    |
+| A1   | `package.json` / `.github/workflows/ci-template.yml`                    | `audit:package-graph` 根命令与 CI 独立审计步骤                           |
+| A1   | `website/project.json` / `packages/rxdb/project.json`（或 `nx.json`）   | 事实源、模板、样例、生成器进入消费 target 的输入或依赖                   |
+| A1   | 样例源（位置在 plan 定，不进 `apps/`）                                  | 可运行初始化样例，载体片段与安装清单的唯一输入，CI 运行（AC#15）         |
+| A1   | `packages/rxdb/src/RxDB.ts` / `rxdb-adapter.ts` / `transaction/` 等     | `use` / `connect` / `RxDBAdapterLocalBase.transaction` 的 TSDoc          |
+| A1   | `requirements/epics/epic-007-public-api-gates.md`                       | 愿景补一句 + 目标清单加本故事（AC#14）                                   |
+| A2   | `packages/*/package.json`                                               | `@aiao/*` peer 统一为 `workspace:^`，optional 保留                       |
+| A2   | `scripts/audit/tree-adapter-dependencies.spec.mjs`                      | optional peer 的断言并入 `package-graph` 门禁，类型导入的断言保留        |
+| A2   | 打包消费脚本（参照 `desktop-adapter-consumer.mjs`）                     | 真实 tgz 解包与 npm / pnpm 隔离消费（AC#8）                              |
+| A2   | `website/docs/migration/v1.md`                                          | 追加一节：核心包改 peer 的迁移说明                                       |
+| B    | `website/docusaurus.config.ts` / `website/package.json`                 | 接入 llms.txt 插件，链接取站点 `url`                                     |
+| B    | `website/src/`                                                          | `llms.txt` 头部（由事实源生成）                                          |
+| B    | `website/scripts/generate-llms.mjs` / `website/src/plugins/llms-txt.js` | Docusaurus 构建后生成两个纯文本文件，复用 A1 事实源并校验 UTF-8 字节上限 |
+| B    | `netlify.toml`                                                          | `llms.txt` / `llms-full.txt` 的 `text/plain; charset=utf-8` 响应头       |
+| C    | `packages/rxdb/skills/aiao-rxdb/SKILL.md`                               | 主包单份 Skill，正文生成                                                 |
+| C    | `packages/rxdb/package.json`                                            | 按锁定 exporter 的元数据字段 + `files` 加 `"skills"`                     |
 
 ## References
 
