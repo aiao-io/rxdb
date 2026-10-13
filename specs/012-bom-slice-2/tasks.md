@@ -32,9 +32,9 @@
 ## Phase 4: 门禁与回写
 
 - [x] T012 插件接线收尾（rxdb.bom 门面方法、DDL 下发追加判环/批次触发器、api-baseline 更新、lint/typecheck/test、覆盖率 ≥ 80%）
-- [ ] T013 affected full（272 任务）+ 修复
-- [ ] T014 故事回写（US-508 / US-509 / US-510 首轮 AC 勾选 + 技术笔记；epic/roadmap/status-overview 第 2 步记录）+ specs/012 quickstart
-- [ ] T015 提交
+- [x] T013 affected full（272 任务）+ 修复
+- [x] T014 故事回写（US-508 / US-509 / US-510 首轮 AC 勾选 + 技术笔记；epic/roadmap/status-overview 第 2 步记录）+ specs/012 quickstart
+- [x] T015 提交
 
 ## Dependencies and implementation strategy
 

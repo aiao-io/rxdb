@@ -2,6 +2,18 @@
   "entries": {
     ".": [
       {
+        "name": "assertCompleteResolution",
+        "kind": "value"
+      },
+      {
+        "name": "BOM_CYCLE_DEPTH_LIMIT",
+        "kind": "value"
+      },
+      {
+        "name": "BOM_CYCLE_PREFIX",
+        "kind": "value"
+      },
+      {
         "name": "BOM_DECIMAL_FORMAT_PREFIX",
         "kind": "value"
       },
@@ -22,6 +34,10 @@
         "kind": "both"
       },
       {
+        "name": "BomCycleError",
+        "kind": "both"
+      },
+      {
         "name": "BomDecimalFormatError",
         "kind": "both"
       },
@@ -31,6 +47,10 @@
       },
       {
         "name": "BomHeader",
+        "kind": "both"
+      },
+      {
+        "name": "BomHistoryBatch",
         "kind": "both"
       },
       {
@@ -58,8 +78,36 @@
         "kind": "both"
       },
       {
+        "name": "BomResolutionError",
+        "kind": "both"
+      },
+      {
+        "name": "BomSqlDialect",
+        "kind": "type"
+      },
+      {
+        "name": "bomSqlDialectFor",
+        "kind": "value"
+      },
+      {
+        "name": "BomSyncUnsupportedError",
+        "kind": "both"
+      },
+      {
+        "name": "BomTruncationError",
+        "kind": "both"
+      },
+      {
+        "name": "BomType",
+        "kind": "type"
+      },
+      {
         "name": "BomWriteProtocolError",
         "kind": "both"
+      },
+      {
+        "name": "cycleConstraintDdlForRemotePg",
+        "kind": "value"
       },
       {
         "name": "DECIMAL_CANONICAL_RE",
@@ -67,6 +115,46 @@
       },
       {
         "name": "DECIMAL_MAX_SIGNIFICANT_DIGITS",
+        "kind": "value"
+      },
+      {
+        "name": "expandBom",
+        "kind": "value"
+      },
+      {
+        "name": "ExpansionBudgets",
+        "kind": "type"
+      },
+      {
+        "name": "ExpansionNode",
+        "kind": "type"
+      },
+      {
+        "name": "ExpansionOptions",
+        "kind": "type"
+      },
+      {
+        "name": "ExpansionResult",
+        "kind": "type"
+      },
+      {
+        "name": "HistoryBatchInput",
+        "kind": "type"
+      },
+      {
+        "name": "HistoryHeaderInput",
+        "kind": "type"
+      },
+      {
+        "name": "HistoryOccurrenceInput",
+        "kind": "type"
+      },
+      {
+        "name": "HistoryRevisionInput",
+        "kind": "type"
+      },
+      {
+        "name": "loadHistory",
         "kind": "value"
       },
       {
@@ -78,12 +166,60 @@
         "kind": "value"
       },
       {
+        "name": "pgliteBomDialect",
+        "kind": "value"
+      },
+      {
+        "name": "ResolutionContext",
+        "kind": "type"
+      },
+      {
+        "name": "ResolutionManifest",
+        "kind": "type"
+      },
+      {
+        "name": "ResolutionResult",
+        "kind": "type"
+      },
+      {
+        "name": "resolveBom",
+        "kind": "value"
+      },
+      {
+        "name": "ResolvedLineOccurrence",
+        "kind": "type"
+      },
+      {
+        "name": "ResolveTarget",
+        "kind": "type"
+      },
+      {
         "name": "rxDBPluginBom",
         "kind": "value"
       },
       {
         "name": "RxDBPluginBom",
         "kind": "both"
+      },
+      {
+        "name": "sqliteBomDialect",
+        "kind": "value"
+      },
+      {
+        "name": "TruncationReason",
+        "kind": "type"
+      },
+      {
+        "name": "UnresolvedAlternative",
+        "kind": "type"
+      },
+      {
+        "name": "whereUsed",
+        "kind": "value"
+      },
+      {
+        "name": "WhereUsedTarget",
+        "kind": "type"
       }
     ]
   }
