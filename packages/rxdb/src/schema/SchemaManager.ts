@@ -64,7 +64,7 @@ export class SchemaManager {
    * 要在 devtools 里单独注册，都会这么写），整批系统表就一张都不会补进来。
    *
    * 在 epic-006 之前这个后果还藏得住：会写 `RxDBBranch` 的人通常四张一起写，缺的那部分
-   * 恰好是空集。现在装了 `@aiao/rxdb-plugin-working-tree` 的库有 14 张，其中 10 张**不对外
+   * 恰好是空集。现在装了 `@aiao/rxdb-plugin-worktree` 的库有 14 张，其中 10 张**不对外
    * 导出**，接入方没有任何写法能把它们列全，于是必然缺表 —— 症状是首次 `commit()` 时
    * `entityManager.instantiate(CommitBranchRef)` 抛 `need init rxdb`，一条读不出主语的错。
    *

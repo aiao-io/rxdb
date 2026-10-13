@@ -77,11 +77,11 @@ const router = createRouter({
       redirect: '/file-manager-simple'
     },
     {
-      // 与 /search 同一道门：面板挂载就调 `workingTree.status()`，深链进来时连接还没建立。
-      path: '/working-tree',
-      name: 'working-tree',
+      // 与 /search 同一道门：面板挂载就调 `worktree.status()`，深链进来时连接还没建立。
+      path: '/worktree',
+      name: 'worktree',
       beforeEnter: connectLocalAdapter,
-      component: () => import('../pages/WorkingTreePage.vue')
+      component: () => import('../pages/WorktreePage.vue')
     },
     {
       path: '/ag-grid',

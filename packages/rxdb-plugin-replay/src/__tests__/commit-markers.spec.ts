@@ -2,13 +2,13 @@
  * @fileoverview commit 标记（`git show 2e820521:specs/005-us-909-session-replay/contracts/replay-plugin.md` §3、AC#14）。
  *
  * @remarks
- * 应用库上真装 `@aiao/rxdb-plugin-working-tree` 并真提交：标记靠门面的 `commits$` 打，按时间戳反查 commit 是被明令禁止的形态，
+ * 应用库上真装 `@aiao/rxdb-plugin-worktree` 并真提交：标记靠门面的 `commits$` 打，按时间戳反查 commit 是被明令禁止的形态，
  * 所以这里要的是「每次真写进新 commit 恰好一个标记，`commitId` 与 `listCommits()` 对得上」，替身给不出这个保证。
  */
 
 import { RxDB } from '@aiao/rxdb';
-import { rxDBPluginWorkingTree, type CommitResult } from '@aiao/rxdb-plugin-working-tree';
-import { ConformanceNote } from '@aiao/rxdb-plugin-working-tree/testing';
+import { rxDBPluginWorktree, type CommitResult } from '@aiao/rxdb-plugin-worktree';
+import { ConformanceNote } from '@aiao/rxdb-plugin-worktree/testing';
 import { randomUUID } from 'node:crypto';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -40,12 +40,12 @@ afterEach(async () => {
 });
 
 /** 装了工作树（已启用）与录制插件的应用库。工作树贡献系统表，必须排在 `connect()` 之前 `use()`。 */
-const connectWorkingTreeApp = async (): Promise<RxDB> => {
+const connectWorktreeApp = async (): Promise<RxDB> => {
   app = createPgliteDb(`replay-wt-${randomUUID()}`, [ConformanceNote]);
-  app.use(rxDBPluginWorkingTree);
+  app.use(rxDBPluginWorktree);
   app.use(rxDBPluginReplay, { createRecordingDb: createRecordingDbFactory().factory, flush: FLUSH });
   await app.connect('pglite');
-  await app.workingTree.enable();
+  await app.worktree.enable();
   return app;
 };
 
@@ -56,11 +56,11 @@ const editAndCommit = async (db: RxDB, title: string): Promise<CommitResult & { 
   note.title = title;
   note.body = null;
   await adapter.transaction(executor => executor.getRepository(ConformanceNote).create(note));
-  const status = await db.workingTree.status();
-  const result = await db.workingTree.commit(title, {
+  const status = await db.worktree.status();
+  const result = await db.worktree.commit(title, {
     expectedBranch: { branchId: status.branchId, activationRevision: status.activationRevision },
     expectedHeadRevision: status.headRevision,
-    expectedWorkingTreeRevision: status.workingTreeRevision,
+    expectedWorktreeRevision: status.workingTreeRevision,
     authorId: 'replay-test',
     operationId: randomUUID()
   });
@@ -70,7 +70,7 @@ const editAndCommit = async (db: RxDB, title: string): Promise<CommitResult & { 
 
 describe('录制中提交 → commit 标记', () => {
   it('两次提交 → 两个标记，commitId 与 listCommits() 一致、按提交先后排列', async () => {
-    const db = await connectWorkingTreeApp();
+    const db = await connectWorktreeApp();
     const sessionId = await db.replay.start();
 
     const first = await editAndCommit(db, '第一次');
@@ -78,7 +78,7 @@ describe('录制中提交 → commit 标记', () => {
     await db.replay.stop();
 
     const markers = await db.replay.listCommitMarkers(sessionId);
-    const { branchId, entries } = await db.workingTree.listCommits();
+    const { branchId, entries } = await db.worktree.listCommits();
     expect(markers.map(marker => marker.commitId)).toEqual([first.commitId, second.commitId]);
     // listCommits() 最新在前，最末一条是 enable() 的基线
     expect(
@@ -92,7 +92,7 @@ describe('录制中提交 → commit 标记', () => {
   });
 
   it('标记经 rrweb 的 addCustomEvent 写成 Custom 事件，落在回放时间轴上', async () => {
-    const db = await connectWorkingTreeApp();
+    const db = await connectWorktreeApp();
     const sessionId = await db.replay.start();
 
     const { commitId } = await editAndCommit(db, '一次提交');
@@ -111,7 +111,7 @@ describe('录制中提交 → commit 标记', () => {
   });
 
   it('没在录制时提交不写标记；停录之后的提交不进上一个会话', async () => {
-    const db = await connectWorkingTreeApp();
+    const db = await connectWorktreeApp();
     await editAndCommit(db, '录制前');
     const sessionId = await db.replay.start();
     const during = await editAndCommit(db, '录制中');

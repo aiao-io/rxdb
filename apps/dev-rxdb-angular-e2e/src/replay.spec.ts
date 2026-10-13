@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test';
 import { readCount, readRequiredAttribute, resetE2eState } from './e2e-utils.js';
 import { expect, test } from './fixtures.js';
-import { commit, openHistory, waitForAutoEnabled, writeTodo } from './working-tree-utils.js';
+import { commit, openHistory, waitForAutoEnabled, writeTodo } from './worktree-utils.js';
 
 /**
  * @fileoverview 会话录制回放（US-909 阶段 C）的 demo 闭环：AC#10～14、AC#16（research D11）。
@@ -138,9 +138,9 @@ const openTodo = async (page: Page): Promise<void> => {
   await waitForReplay(page);
 };
 
-const openWorkingTree = async (page: Page): Promise<void> => {
-  await page.goto('/working-tree', { waitUntil: 'domcontentloaded' });
-  await expect(page.getByTestId('working-tree-page')).toBeVisible({ timeout: 20000 });
+const openWorktree = async (page: Page): Promise<void> => {
+  await page.goto('/worktree', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByTestId('worktree-page')).toBeVisible({ timeout: 20000 });
   await waitForAutoEnabled(page);
   await waitForReplay(page);
 };
@@ -195,7 +195,7 @@ test.describe('会话录制回放', () => {
 
   test('录制不进被录应用库：工作树条目数与不录制时相同（AC#12）', async ({ page }) => {
     await enableReplay(page);
-    await openWorkingTree(page);
+    await openWorktree(page);
     const baseline = await entryCount(page);
 
     await writeTodo(page, '不录制');
@@ -215,7 +215,7 @@ test.describe('会话录制回放', () => {
 
   test('commit 标记与提交历史一致，点标记跳到提交时刻并恢复工作树（AC#13 / AC#14）', async ({ page }) => {
     await enableReplay(page);
-    await openWorkingTree(page);
+    await openWorktree(page);
     const sessionId = await startRecording(page);
     await writeTodo(page, '标记 A');
     await commit(page, 'feat: 标记 A');

@@ -2017,7 +2017,7 @@
           },
           {
             "kind": "peerDependencies",
-            "name": "@aiao/rxdb-plugin-working-tree",
+            "name": "@aiao/rxdb-plugin-worktree",
             "optional": true,
             "range": "workspace:^"
           },
@@ -2443,140 +2443,6 @@
         "version": "0.0.26"
       },
       {
-        "description": "RxDB 本地工作树与提交历史插件：把「未提交的改动」与「提交历史」作为一等概念加进 `@aiao/rxdb`。",
-        "framework": null,
-        "homepage": "https://rxdb.aiao.io/docs/getting-started",
-        "hosts": [
-          "browser",
-          "node"
-        ],
-        "implementationDependencies": [
-          {
-            "kind": "peerDependencies",
-            "name": "@aiao/rxdb",
-            "optional": false,
-            "range": "workspace:^"
-          },
-          {
-            "kind": "dependencies",
-            "name": "@aiao/rxdb-plugin-history",
-            "optional": false,
-            "range": "workspace:^"
-          },
-          {
-            "kind": "dependencies",
-            "name": "@aiao/utils",
-            "optional": false,
-            "range": "workspace:^"
-          }
-        ],
-        "name": "@aiao/rxdb-plugin-working-tree",
-        "plugin": {
-          "class": "RxDBPluginWorkingTree",
-          "factory": "rxDBPluginWorkingTree",
-          "source": "src/plugin.ts"
-        },
-        "role": "plugin",
-        "slots": [],
-        "version": "0.0.26"
-      },
-      {
-        "description": "@aiao/rxdb-plugin-working-tree-angular",
-        "framework": "angular",
-        "homepage": "https://rxdb.aiao.io/docs/plugins",
-        "hosts": [
-          "browser"
-        ],
-        "implementationDependencies": [
-          {
-            "kind": "peerDependencies",
-            "name": "@aiao/rxdb",
-            "optional": false,
-            "range": "workspace:^"
-          },
-          {
-            "kind": "peerDependencies",
-            "name": "@aiao/rxdb-angular",
-            "optional": false,
-            "range": "workspace:^"
-          },
-          {
-            "kind": "peerDependencies",
-            "name": "@aiao/rxdb-plugin-working-tree",
-            "optional": false,
-            "range": "workspace:^"
-          }
-        ],
-        "name": "@aiao/rxdb-plugin-working-tree-angular",
-        "role": "binding",
-        "slots": [],
-        "version": "0.0.26"
-      },
-      {
-        "description": "@aiao/rxdb-plugin-working-tree-react",
-        "framework": "react",
-        "homepage": "https://rxdb.aiao.io/docs/plugins",
-        "hosts": [
-          "browser"
-        ],
-        "implementationDependencies": [
-          {
-            "kind": "peerDependencies",
-            "name": "@aiao/rxdb",
-            "optional": false,
-            "range": "workspace:^"
-          },
-          {
-            "kind": "peerDependencies",
-            "name": "@aiao/rxdb-plugin-working-tree",
-            "optional": false,
-            "range": "workspace:^"
-          },
-          {
-            "kind": "peerDependencies",
-            "name": "@aiao/rxdb-react",
-            "optional": false,
-            "range": "workspace:^"
-          }
-        ],
-        "name": "@aiao/rxdb-plugin-working-tree-react",
-        "role": "binding",
-        "slots": [],
-        "version": "0.0.26"
-      },
-      {
-        "description": "@aiao/rxdb-plugin-working-tree-vue",
-        "framework": "vue",
-        "homepage": "https://rxdb.aiao.io/docs/plugins",
-        "hosts": [
-          "browser"
-        ],
-        "implementationDependencies": [
-          {
-            "kind": "peerDependencies",
-            "name": "@aiao/rxdb",
-            "optional": false,
-            "range": "workspace:^"
-          },
-          {
-            "kind": "peerDependencies",
-            "name": "@aiao/rxdb-plugin-working-tree",
-            "optional": false,
-            "range": "workspace:^"
-          },
-          {
-            "kind": "peerDependencies",
-            "name": "@aiao/rxdb-vue",
-            "optional": false,
-            "range": "workspace:^"
-          }
-        ],
-        "name": "@aiao/rxdb-plugin-working-tree-vue",
-        "role": "binding",
-        "slots": [],
-        "version": "0.0.26"
-      },
-      {
         "description": "RxDB Workspace 插件为**尚未入库的 NEW 实体草稿**提供本地恢复能力：草稿保存在内存和 IndexedDB 中，并通过 BroadcastChannel 同步同源标签页。刷新或重开页面后，草稿会自动恢复，可继续编辑、保存或丢弃。",
         "framework": null,
         "homepage": "https://rxdb.aiao.io/docs/collaboration",
@@ -2604,6 +2470,140 @@
           "source": "src/RxDBPluginWorkspace.ts"
         },
         "role": "plugin",
+        "slots": [],
+        "version": "0.0.26"
+      },
+      {
+        "description": "RxDB 本地工作树与提交历史插件：把「未提交的改动」与「提交历史」作为一等概念加进 `@aiao/rxdb`。",
+        "framework": null,
+        "homepage": "https://rxdb.aiao.io/docs/getting-started",
+        "hosts": [
+          "browser",
+          "node"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/rxdb-plugin-history",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/utils",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-worktree",
+        "plugin": {
+          "class": "RxDBPluginWorktree",
+          "factory": "rxDBPluginWorktree",
+          "source": "src/plugin.ts"
+        },
+        "role": "plugin",
+        "slots": [],
+        "version": "0.0.26"
+      },
+      {
+        "description": "@aiao/rxdb-plugin-worktree-angular",
+        "framework": "angular",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-angular",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-worktree",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-worktree-angular",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.26"
+      },
+      {
+        "description": "@aiao/rxdb-plugin-worktree-react",
+        "framework": "react",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-worktree",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-react",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-worktree-react",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.26"
+      },
+      {
+        "description": "@aiao/rxdb-plugin-worktree-vue",
+        "framework": "vue",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-worktree",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-vue",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-worktree-vue",
+        "role": "binding",
         "slots": [],
         "version": "0.0.26"
       },
@@ -2934,7 +2934,7 @@
       }
     ]
   },
-  "digest": "a449fcd80cc0e3223e5160230e2cdc242b623b0d93a1cf9bd6edb2f667eb6032",
+  "digest": "577275a3669c892c9d217e60981368e4b0ebe02c7364e2b22d5b7a2fc9edced9",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

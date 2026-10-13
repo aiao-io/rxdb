@@ -11,7 +11,7 @@
  *
  * **为什么这条用例必须用两个真实适配器实例、且共享同一个持久库。** 另外两处断言分别在
  * `@aiao/rxdb` 的 `__tests__/gateway/capability-propagation.spec.ts`（网关把消息发出去、
- * 收进来、不回声）与 `@aiao/rxdb-plugin-working-tree` 的
+ * 收进来、不回声）与 `@aiao/rxdb-plugin-worktree` 的
  * `__tests__/system/capability-enabled-listener.spec.ts`（收到之后同步装钩子），两边都用替身。
  * 它们证得了通道的两端各自成立，证不了**接起来之后真的能捕获**：从「钩子对象挂上了」到
  * 「B 的下一次 INSERT 在共享库里留下一条单元」之间还隔着能力位、分支身份、系统表与
@@ -34,8 +34,8 @@
 
 import { RxDB, SyncType, uuid, type TransactionExecutor } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
-import { ConformanceNote, WORKING_TREE_CONFORMANCE_USER_ID } from '@aiao/rxdb-plugin-working-tree/testing';
+import { rxDBPluginWorktree } from '@aiao/rxdb-plugin-worktree';
+import { ConformanceNote, WORKTREE_CONFORMANCE_USER_ID } from '@aiao/rxdb-plugin-worktree/testing';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { RxDBAdapterWaSqlite } from '../RxDBAdapterSqlite.js';
@@ -65,7 +65,7 @@ const openConnection = async (dbName: string, options: { multiInstance?: false }
   const database = new RxDB({
     dbName,
     // 审计主体必须非空：适配器拿它覆写 createdBy / updatedBy，而这两列是 tracked 的。
-    context: { userId: WORKING_TREE_CONFORMANCE_USER_ID },
+    context: { userId: WORKTREE_CONFORMANCE_USER_ID },
     entities: [ConformanceNote],
     ...options,
     sync: { local: { adapter: 'wa-sqlite' }, type: SyncType.None }
@@ -83,7 +83,7 @@ const openConnection = async (dbName: string, options: { multiInstance?: false }
       })
   );
   // 两个都必须排在 `connect()` 之前：贡献系统能力的插件晚于 `init()` 注册会被核心当场拒绝。
-  database.use(rxDBPluginWorkingTree);
+  database.use(rxDBPluginWorktree);
   database.use(rxDBPluginHistory);
   opened.push(database);
   await database.connect('wa-sqlite');
@@ -158,15 +158,15 @@ describe('能力启用跨连接接通捕获（顺延 1 / FR-037，两个真实�
     const bAdapter = await b.getAdapter('wa-sqlite');
     expect(bAdapter.workingTreeCaptureHook, 'B 在启用之前就已经装了捕获').toBeUndefined();
 
-    await a.workingTree.enable();
+    await a.worktree.enable();
     await awaitCaptureInstalled(b, 'B');
 
     await writeNote(b, '通知送达之后 B 写的');
 
     // 从**两端**各读一次。只读 B 的话，「共享的是同一个库」这个前提本身没有被断言到：
     // 两个各自独立的库也能让 B 自己看见自己写的单元。
-    const fromB = await b.workingTree.status();
-    const fromA = await a.workingTree.status();
+    const fromB = await b.worktree.status();
+    const fromA = await a.worktree.status();
     expect(fromB.entryCount, 'B 的写入没有留下工作树单元').toBe(1);
     expect(fromA.entryCount, 'A 看不见 B 的单元——两条连接并没有共享同一个库').toBe(1);
     expect(fromA.branchId, '两端的 active 分支对不上').toBe(fromB.branchId);
@@ -177,7 +177,7 @@ describe('能力启用跨连接接通捕获（顺延 1 / FR-037，两个真实�
     const a = await openConnection(dbName);
     const b = await openConnection(dbName);
 
-    await a.workingTree.enable();
+    await a.worktree.enable();
     await awaitCaptureInstalled(b, 'B');
 
     await writeNote(a, 'A 写的');
@@ -185,10 +185,10 @@ describe('能力启用跨连接接通捕获（顺延 1 / FR-037，两个真实�
 
     // 两条都要在，而且要来自**两个不同的单元**。只断言总数为 2 不够：A 的钩子来自 `enable()`
     // 自己那一句，B 的来自跨连接通知；两条来源各漏一条都凑不出两个互不相同的 unitId。
-    const { entries } = await b.workingTree.diff();
+    const { entries } = await b.worktree.diff();
     expect(entries).toHaveLength(2);
     expect(new Set(entries.map(entry => entry.unitId)).size, '两次写入被折进了同一个单元').toBe(2);
-    const status = await a.workingTree.status();
+    const status = await a.worktree.status();
     expect(status.entryCount).toBe(2);
     expect(status.clean).toBe(false);
   });
@@ -201,7 +201,7 @@ describe('能力启用跨连接接通捕获（顺延 1 / FR-037，两个真实�
     const b = await openConnection(dbName, { multiInstance: false });
     const bAdapter = await b.getAdapter('wa-sqlite');
 
-    await a.workingTree.enable();
+    await a.worktree.enable();
 
     // 先证「通知确实没到」，否则下面的绿可能来自广播而不是自愈。这里没有可等的条件，
     // 只能给一段足以让广播跑完的时间——上面那条用例实测 10ms 一档就够，取 300ms 是宽的一侧。
@@ -209,10 +209,10 @@ describe('能力启用跨连接接通捕获（顺延 1 / FR-037，两个真实�
     expect(bAdapter.workingTreeCaptureHook, 'multiInstance:false 的连接居然收到了广播').toBeUndefined();
 
     // 一次只读调用就足以自愈：`status()` 与写操作走的是同一道 `runEnabled()` 门禁。
-    await b.workingTree.status();
+    await b.worktree.status();
     expect(bAdapter.workingTreeCaptureHook, '过了能力门禁却仍然没有捕获').toBeDefined();
 
     await writeNote(b, '自愈之后 B 写的');
-    expect((await a.workingTree.status()).entryCount, '自愈之后 B 的写入仍然没留下单元').toBe(1);
+    expect((await a.worktree.status()).entryCount, '自愈之后 B 的写入仍然没留下单元').toBe(1);
   });
 });

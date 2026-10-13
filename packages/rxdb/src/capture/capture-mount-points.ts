@@ -8,7 +8,7 @@
  *
  * **这份清单为什么归核心**：它随**核心的写原语**变——多一个 `RxDBAdapterLocalBase` 写方法就多
  * 一个挂载点，而按 `capture/index.ts` 立的那条线，随核心写原语变的东西归核心。
- * `@aiao/rxdb-plugin-working-tree` 那侧的同名导出是本模块的**转发**，不是平行的第二份声明；
+ * `@aiao/rxdb-plugin-worktree` 那侧的同名导出是本模块的**转发**，不是平行的第二份声明；
  * 早先它是各写一遍的形态，形参名在两处手抄，核心改名不会让任何一处编译红。
  *
  * **它不是一份没人调用的自述**：{@link WORKING_TREE_CAPTURE_MOUNT_POINT_METHODS} 就是

@@ -99,8 +99,8 @@ function everyEvent(): readonly RxDBEvent[] {
     new RepositorySyncErrorEvent('push', PROBE_NAMESPACE, PROBE_ENTITY, error),
     new RemoteEntityInvalidatedEvent(PROBE_NAMESPACE, PROBE_ENTITY),
 
-    // 能力启用：能力名用探针自己的名字，不借 `workingTree` 之类的真能力名 ——
-    // 本 demo 没接 working-tree 插件，写真名会让面板上的读者以为这库真开过那个能力
+    // 能力启用：能力名用探针自己的名字，不借 `worktree` 之类的真能力名 ——
+    // 本 demo 没接 worktree 插件，写真名会让面板上的读者以为这库真开过那个能力
     // （同 PROBE_ENTITY 的理由）。
     new CapabilityEnabledEvent('devtools-event-probe'),
 

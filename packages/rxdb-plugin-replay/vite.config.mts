@@ -75,7 +75,7 @@ export default defineConfig(() => ({
       checks: { pluginTimings: false },
       // `rrweb` 必须外置：插件只经 `import('rrweb')` 按需加载它，内联进来等于让「装了插件但没开录制」
       // 的应用也背上整个录制器（FR-022 / SC-008 的预算不计 rrweb，前提就是它不在本包产物里）。
-      external: ['@aiao/rxdb', '@aiao/rxdb-plugin-working-tree', '@aiao/utils', '@rrweb/types', 'rrweb', 'rxjs']
+      external: ['@aiao/rxdb', '@aiao/rxdb-plugin-worktree', '@aiao/utils', '@rrweb/types', 'rrweb', 'rxjs']
     }
   },
   server: {
@@ -99,7 +99,7 @@ export default defineConfig(() => ({
       'rrweb',
       ...(isBrowserTest ? ['@electric-sql/pglite', '@electric-sql/pglite/live', '@electric-sql/pglite/worker'] : [])
     ],
-    exclude: ['@aiao/rxdb', '@aiao/rxdb-adapter-pglite', '@aiao/rxdb-plugin-working-tree', '@aiao/utils', 'rxjs']
+    exclude: ['@aiao/rxdb', '@aiao/rxdb-adapter-pglite', '@aiao/rxdb-plugin-worktree', '@aiao/utils', 'rxjs']
   },
   test: {
     name: 'rxdb-plugin-replay',

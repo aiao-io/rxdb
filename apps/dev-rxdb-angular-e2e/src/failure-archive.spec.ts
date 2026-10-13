@@ -83,7 +83,7 @@ test.describe('e2e 失败现场归档', () => {
       page: 'original',
       outcome: 'archived',
       tables: before.tables,
-      workingTree: before.workingTree
+      worktree: before.worktree
     });
     expect(summary.reason).toBeUndefined();
 

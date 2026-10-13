@@ -6,7 +6,7 @@ import { RxDBReplayError } from './errors.js';
 import { createReplayMarkerEvent, parseReplayMarker, REPLAY_MARKER_TAGS } from './markers.js';
 import type { ResolvedReplayOptions } from './options.js';
 import { ReplayRecorder, type ReplayRecorderEnd, type ReplayRecordFn } from './recorder.js';
-import { hasWorkingTree, restoreToCommit } from './restore.js';
+import { hasWorktree, restoreToCommit } from './restore.js';
 import {
   claimReplayStash,
   replayStashKey,
@@ -225,8 +225,8 @@ export class ReplayRuntime {
     });
     recorder.start();
     this.#recorder = recorder;
-    if (hasWorkingTree(this.#rxdb)) {
-      this.#commits = this.#rxdb.workingTree.commits$.subscribe(event => recorder.addCommitMarker(event));
+    if (hasWorktree(this.#rxdb)) {
+      this.#commits = this.#rxdb.worktree.commits$.subscribe(event => recorder.addCommitMarker(event));
     }
     this.#state.next({ kind: 'recording', sessionId });
   }

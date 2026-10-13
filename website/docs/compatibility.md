@@ -26,9 +26,9 @@
 | Angular | `@aiao/rxdb-plugin-search-angular`       | `@angular/core 22.2.2`（精确 pin）                                 | `^7.8.2` |
 | React   | `@aiao/rxdb-plugin-search-react`         | `react ^19.3.0`                                                    | `^7.8.2` |
 | Vue     | `@aiao/rxdb-plugin-search-vue`           | `vue ^3.5.43`                                                      | `^7.8.2` |
-| Angular | `@aiao/rxdb-plugin-working-tree-angular` | `@angular/core 22.2.2`（精确 pin）                                 | `^7.8.2` |
-| React   | `@aiao/rxdb-plugin-working-tree-react`   | `react ^19.3.0`                                                    | `^7.8.2` |
-| Vue     | `@aiao/rxdb-plugin-working-tree-vue`     | `vue ^3.5.43`                                                      | `^7.8.2` |
+| Angular | `@aiao/rxdb-plugin-worktree-angular` | `@angular/core 22.2.2`（精确 pin）                                 | `^7.8.2` |
+| React   | `@aiao/rxdb-plugin-worktree-react`   | `react ^19.3.0`                                                    | `^7.8.2` |
+| Vue     | `@aiao/rxdb-plugin-worktree-vue`     | `vue ^3.5.43`                                                      | `^7.8.2` |
 | Angular | `@aiao/rxdb-plugin-replay-angular`       | `@angular/core 22.2.2`（精确 pin）                                 | —        |
 | React   | `@aiao/rxdb-plugin-replay-react`         | `react ^19.3.0`                                                    | —        |
 | Vue     | `@aiao/rxdb-plugin-replay-vue`           | `vue ^3.5.43`                                                      | —        |
@@ -61,8 +61,8 @@
 | `@aiao/rxdb-adapter-miniprogram` | 适配器     | **实验性**，微信 / 抖音 / 支付宝小程序逻辑层（抖音、支付宝 Android 未验证）；基于 wa-sqlite，依赖 `@aiao/rxdb-adapter-wa-sqlite`                                                       |
 | `@aiao/rxdb-taro`                | 构建插件   | **实验性**，Taro 4.3（vite 编译器）一行接入 `@aiao/rxdb-adapter-miniprogram`，微信 / 抖音；支付宝经 `./vite` 子路径；Node `>=20.19`；使用指南见 [Taro（小程序）](./frameworks/taro.md) |
 | `@aiao/rxdb-plugin-search`       | 插件       | 放行名单见下方「运行时能力 × 适配器」之后的说明；未放行的适配器 fail-fast                                                                                                              |
-| `@aiao/rxdb-plugin-working-tree` | 插件       | 工作树与提交历史；`use()` 必须排在 `connect()` 之前，声明 10 张系统表并写能力水位                                                                                                      |
-| `@aiao/rxdb-plugin-replay`       | 插件       | 基于 rrweb 的会话录制与回放；事件流写入独立录制库，可选依赖 working-tree 打 commit 标记                                                                                                |
+| `@aiao/rxdb-plugin-worktree` | 插件       | 工作树与提交历史；`use()` 必须排在 `connect()` 之前，声明 10 张系统表并写能力水位                                                                                                      |
+| `@aiao/rxdb-plugin-replay`       | 插件       | 基于 rrweb 的会话录制与回放；事件流写入独立录制库，可选依赖 worktree 打 commit 标记                                                                                                |
 | `@aiao/rxdb-plugin-graph`        | 插件       | 图结构实体与查询                                                                                                                                                                       |
 | `@aiao/rxdb-plugin-workspace`    | 插件       | NEW 草稿恢复，需浏览器 IndexedDB                                                                                                                                                       |
 | `@aiao/rxdb-plugin-storage`      | 插件       | 存储管理与配额                                                                                                                                                                         |

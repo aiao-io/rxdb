@@ -274,7 +274,7 @@ export class VersionManager {
    * （undo/redo 回放、redo 失效），那些路径上工作树恒非空，默认开启等于让 undo 在有改动时不可用。
    *
    * 条件由**能力插件**校验，本方法一个字段都不读：判据是
-   * `@aiao/rxdb-plugin-working-tree` 贡献的那几张表，这里既不认识也不该认识它们。
+   * `@aiao/rxdb-plugin-worktree` 贡献的那几张表，这里既不认识也不该认识它们。
    * 反方向（本包 import 那个插件）是条依赖环，nx 的图插件会把 `run-many` 当场拒掉。
    */
   async switchBranch(branchId: string, preconditions?: RxDBBranchSwitchPreconditions): Promise<void> {

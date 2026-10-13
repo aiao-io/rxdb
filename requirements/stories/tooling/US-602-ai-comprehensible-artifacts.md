@@ -73,7 +73,7 @@ INVEST 检查清单:
      [`RxDBPluginGraph.install`](../../../packages/rxdb-plugin-graph/src/plugin.ts) 调 `this.rxdb.repository('GraphRepository', …)`，
      而 [`RxDB.init`](../../../packages/rxdb/src/RxDB.ts) 先 `#install_plugin()`、后 `entityManager.init()`——晚装时实体已按旧注册表初始化。
      `RxDB.connect()` 在异步启动前调 `init()`，所以实际就是第一次 `connect()` 之前。
-     带系统贡献的插件晚装由 `#register_system_contribution()` 直接抛错（例如未发布的 `rxdb-plugin-working-tree`；
+     带系统贡献的插件晚装由 `#register_system_contribution()` 直接抛错（例如未发布的 `rxdb-plugin-worktree`；
      未发布的 `rxdb-plugin-tree` 属于贡献仓储一类，发布后同样适用）。**普通插件晚装合法**——`RxDB.use` 的 TSDoc
      「`init()` 之后注册的插件立即安装」对它们是对的，缺的是对前两类的区分，照着 `.d.ts` 推理会把它推广到所有插件。
    - **事务内 `await entity.save()`**：会落回队列并永久挂起（[rxdb README](../../../packages/rxdb/README.md)）。

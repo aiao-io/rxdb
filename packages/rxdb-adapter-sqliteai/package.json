@@ -64,7 +64,7 @@
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-plugin-querycache": "workspace:*",
     "@aiao/rxdb-plugin-sync": "workspace:*",
-    "@aiao/rxdb-plugin-working-tree": "workspace:*",
+    "@aiao/rxdb-plugin-worktree": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
     "comlink": "^4.4.2",
     "ms": "^2.1.3"

@@ -247,25 +247,25 @@
       "functions": 100,
       "lines": 100
     },
-    "rxdb-plugin-working-tree": {
+    "rxdb-plugin-worktree": {
       "statements": 97,
       "branches": 91,
       "functions": 97,
       "lines": 98
     },
-    "rxdb-plugin-working-tree-angular": {
+    "rxdb-plugin-worktree-angular": {
       "statements": 100,
       "branches": 100,
       "functions": 100,
       "lines": 100
     },
-    "rxdb-plugin-working-tree-react": {
+    "rxdb-plugin-worktree-react": {
       "statements": 100,
       "branches": 100,
       "functions": 100,
       "lines": 100
     },
-    "rxdb-plugin-working-tree-vue": {
+    "rxdb-plugin-worktree-vue": {
       "statements": 100,
       "branches": 100,
       "functions": 100,

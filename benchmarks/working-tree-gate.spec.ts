@@ -11,7 +11,7 @@ import {
   decideRelativeGate,
   ratioProfileFileName,
   readReferences
-} from './working-tree-gate.ts';
+} from './worktree-gate.ts';
 import type { BenchMeasurement, BenchReference } from './working-tree-report.ts';
 import { REFERENCE_DIR } from './working-tree-report.ts';
 
@@ -135,7 +135,7 @@ describe('readReferences', () => {
   let directory = '';
 
   beforeEach(async () => {
-    directory = await mkdtemp(join(tmpdir(), 'working-tree-reference-'));
+    directory = await mkdtemp(join(tmpdir(), 'worktree-reference-'));
   });
 
   afterEach(async () => {

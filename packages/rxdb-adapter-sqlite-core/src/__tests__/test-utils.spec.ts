@@ -82,7 +82,7 @@ describe('cleanup_db', () => {
     expect(executedSql).toContain('DELETE FROM "rxdb$rxdb_change";');
   });
 
-  // 清库要回到的是**新库形态**。对一个没装 `@aiao/rxdb-plugin-working-tree` 的库而言，
+  // 清库要回到的是**新库形态**。对一个没装 `@aiao/rxdb-plugin-worktree` 的库而言，
   // 新库形态就是「main 分支行 + 它的激活态哨兵」，一行不多。两者必须同进同出：
   // 只补 `id='main'` 会留下一条谁也没激活的分支，`resolveCurrentBranch()` 当场读不到激活行。
   //
@@ -116,7 +116,7 @@ describe('cleanup_db', () => {
 
   // 清库要回到的是新库形态，而「新库形态」是 `RxDB` 建库时定下的：`main` 分支行 **加上**
   // 每个系统能力贡献的初始行（`RxDB.ts` 的 `createTables()` 就是这么拼的）。逐表 DELETE 把
-  // 后半截一并清掉却不补，装了 `@aiao/rxdb-plugin-working-tree` 的库在清库后第一次
+  // 后半截一并清掉却不补，装了 `@aiao/rxdb-plugin-worktree` 的库在清库后第一次
   // `createBranch()` 就会在发放分支代际时读不到激活态行直接抛错。
   //
   // 补法是回头调**同一个** `createInitialRows`，不是让调用方把行再写一遍：行的内容归贡献方

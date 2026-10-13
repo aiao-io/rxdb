@@ -25,7 +25,7 @@ import { VersionManager } from './VersionManager.js';
  * 写队列被一次 RTT 堵住。它本来也只是尽力而为的预检，真正的互斥由本地主键约束兜底。
  *
  * **一条分支未必只有一行。** 贡献系统能力的插件可以在同一个事务里追写自己那几行
- * （{@link RxDBSystemContribution.writeBranchRows}）——装了 `@aiao/rxdb-plugin-working-tree`
+ * （{@link RxDBSystemContribution.writeBranchRows}）——装了 `@aiao/rxdb-plugin-worktree`
  * 时是 `CommitBranchRef` 与 `WorkingTreeState` 两行。同属一个事务，正是为了不让
  * 「建了分支却没有对应视图」这种半成品状态存在：那样一条分支与一条正常的老分支
  * 在形状上分辨不出来，只会在下一次用到它时抛一句读不出主语的错。

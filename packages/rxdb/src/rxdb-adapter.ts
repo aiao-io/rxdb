@@ -523,7 +523,7 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    *
    * @remarks
    * **命名规则归写表的那一方所有。** 在这条能力之前，
-   * `@aiao/rxdb-plugin-working-tree` 的版本化域自己按 `'$'` 把 sqlite 家族的折叠规则重拼了
+   * `@aiao/rxdb-plugin-worktree` 的版本化域自己按 `'$'` 把 sqlite 家族的折叠规则重拼了
    * 一遍。抄来的规则不会因为原件改了而报错，它只是开始算错——而算错的后果是单向的：
    * raw 写门禁认不出某张受版本控制的表，于是**静默放行**一条绕过捕获的写。
    *

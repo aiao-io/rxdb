@@ -84,7 +84,7 @@ INVEST 检查清单:
 
 阶段 A / B / C ✅：代码与任务侧全部关闭。CI 托管 runner 画像与 M1 的 reference 均已签入（`benchmarks/reports/working-tree-reference/`），读项容差已定（见「性能门禁」节）。
 
-阶段 B 依赖阶段 A 的持久工作树；阶段 C 只适配 `@aiao/rxdb-plugin-working-tree` 阶段 B 冻结的共享类型与命令，不自带业务分支逻辑，
+阶段 B 依赖阶段 A 的持久工作树；阶段 C 只适配 `@aiao/rxdb-plugin-worktree` 阶段 B 冻结的共享类型与命令，不自带业务分支逻辑，
 A 与 B 都未落地时 C 不可开工。整体固定顺序为
 **US-305 → 阶段 A → 阶段 B → 阶段 C →（US-307 ∥ US-308）**。US-307 / US-308 的核心持久层语义可与阶段 C
 并行开工，但它们的三框架入口必须排在阶段 C 之后；benchmark 追加只涉及 US-307 的 restore 场景，US-308 无 benchmark 交付项（见
@@ -278,7 +278,7 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
   [epic-006 受信调用点登记表](../../epics/epic-006-working-tree-commits.md#受信调用点登记表)为准，新增调用点
   MUST 先登记再实现，未登记即拒绝。
 - 新增公开类型（`WorkingTreeState`、`WorkingTreeEntry` 及全部共享 DTO 与错误码）
-  MUST 补齐 TSDoc 并登记进 `requirements/api-baseline/rxdb-plugin-working-tree.json`，前缀遵守 epic 术语表（禁止 `Workspace*`）。
+  MUST 补齐 TSDoc 并登记进 `requirements/api-baseline/rxdb-plugin-worktree.json`，前缀遵守 epic 术语表（禁止 `Workspace*`）。
   **MUST NOT 新增 `Index*` 前缀的导出**：该前缀随暂存区一并裁撤。
 - **阶段 B 的 `commit()` MUST 复用 [US-305 FR-051](./US-305-commit-graph-head.md) 提供的同一份 commit 图损坏守卫**
   （见 [epic-006 横切约束 6](../../epics/epic-006-working-tree-commits.md)）：当前分支处于 `corrupted_read_only`
@@ -322,7 +322,7 @@ A 与 B 都未落地时 C 不可开工。整体固定顺序为
 ### 三框架公开契约（阶段 C）
 
 三端都 MUST 导出 `useWorkingTree()` 与 `WorkingTreeResource` 类型。共享类型（`WorkingTreeStatus`、`WorkingTreeDiff`、
-`WorkingTreeErrorState`、`CommitOptions`、`CommitConflict` 等）由 `@aiao/rxdb-plugin-working-tree` 导出，三端不转出，
+`WorkingTreeErrorState`、`CommitOptions`、`CommitConflict` 等）由 `@aiao/rxdb-plugin-worktree` 导出，三端不转出，
 调用方从插件包直接 import。
 
 `useWorkingTree()` 的返回对象 = `WorkingTreeAsyncStates`（每个命令 / 查询一个 `*State`）+ `WorkingTreeCommands`
@@ -355,7 +355,7 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 | [US-307](./US-307-restore-session.md)           | `restore`、`restoreState`           | 复用同一命令态形状与错误 code 结构；`status` 的 `restoring` 值在本故事已存在，不得改语义 |
 | [US-308](./US-308-branch-isolation-conflict.md) | `switchBranch`、`switchBranchState` | 同上；不得在某一端把切换做成组件内部逻辑                                                 |
 
-追加 MUST 满足：三端同名同签名同返回键、共享类型仍只由 `@aiao/rxdb-plugin-working-tree` 导出、`tri-framework-check` 与 a11y 门禁
+追加 MUST 满足：三端同名同签名同返回键、共享类型仍只由 `@aiao/rxdb-plugin-worktree` 导出、`tri-framework-check` 与 a11y 门禁
 对新键同样生效（缺一端整故事失败）。追加者 MUST NOT 重定义已冻结键的语义；确需变更时改本故事并同步三端。
 
 ### 性能门禁（阶段 C）
@@ -460,19 +460,19 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 
 | 路径                                                          | 阶段 | 用途                                                                                                      |
 | ------------------------------------------------------------- | ---- | --------------------------------------------------------------------------------------------------------- |
-| `packages/rxdb-plugin-working-tree/src/working-tree/`         | A    | 工作树单元与写入口编排、受信路径登记（`capture-*`、`write-entry.ts`、`working-tree-state.entity.ts`）     |
-| `packages/rxdb-plugin-working-tree/src/working-tree/`         | B    | status/diff/commit 状态机（`status.ts`、`diff.ts`、`commit-command.ts`、`working-tree-commands.ts`）      |
-| `packages/rxdb-plugin-working-tree/src/working-tree/`         | A    | `WorkingTreeState` / `WorkingTreeEntry`（`working-tree-state.entity.ts`、`working-tree-entry.entity.ts`） |
-| `packages/rxdb-plugin-working-tree/src/working-tree/`         | B    | `WorkingTreeRestoreSession`（仅建表与迁移；`working-tree-restore-session.entity.ts`）                     |
-| `packages/rxdb-plugin-working-tree/src/__tests__/`            | B    | CAS、幂等与 commit 后工作树清空                                                                           |
-| `packages/rxdb-plugin-working-tree/src/working-tree/testing/` | A/B  | `workingTreeCaptureConformanceSuite` / `workingTreeCommitConformanceSuite`                                |
+| `packages/rxdb-plugin-worktree/src/working-tree/`         | A    | 工作树单元与写入口编排、受信路径登记（`capture-*`、`write-entry.ts`、`working-tree-state.entity.ts`）     |
+| `packages/rxdb-plugin-worktree/src/working-tree/`         | B    | status/diff/commit 状态机（`status.ts`、`diff.ts`、`commit-command.ts`、`working-tree-commands.ts`）      |
+| `packages/rxdb-plugin-worktree/src/working-tree/`         | A    | `WorkingTreeState` / `WorkingTreeEntry`（`working-tree-state.entity.ts`、`working-tree-entry.entity.ts`） |
+| `packages/rxdb-plugin-worktree/src/working-tree/`         | B    | `WorkingTreeRestoreSession`（仅建表与迁移；`working-tree-restore-session.entity.ts`）                     |
+| `packages/rxdb-plugin-worktree/src/__tests__/`            | B    | CAS、幂等与 commit 后工作树清空                                                                           |
+| `packages/rxdb-plugin-worktree/src/working-tree/testing/` | A/B  | `workingTreeCaptureConformanceSuite` / `workingTreeCommitConformanceSuite`                                |
 | 各 v1 本地 adapter                                            | A    | 事务内 trigger/capability 接入                                                                            |
-| `packages/rxdb-plugin-working-tree-{angular,react,vue}/`      | C    | `useWorkingTree()` 与 `WorkingTreeResource`                                                               |
+| `packages/rxdb-plugin-worktree-{angular,react,vue}/`      | C    | `useWorkingTree()` 与 `WorkingTreeResource`                                                               |
 | `apps/dev-rxdb-{angular,react,vue}/`                          | C    | 对称演示与 E2E                                                                                            |
 | `benchmarks/working-tree.bench.ts`                            | C    | FR-026 的判定依据                                                                                         |
 | `benchmarks/reports/`                                         | C    | 冻结 reference 报告                                                                                       |
-| `website/docs/plugins/rxdb-plugin-working-tree/README.md`     | C    | 发布门禁 9 的公开文档（US5-AC8）；`website/docs/collaboration/README.md` 只放链接                         |
-| `requirements/api-baseline/rxdb-plugin-working-tree.json`     | A/B  | 新增公开类型登记                                                                                          |
+| `website/docs/plugins/rxdb-plugin-worktree/README.md`     | C    | 发布门禁 9 的公开文档（US5-AC8）；`website/docs/collaboration/README.md` 只放链接                         |
+| `requirements/api-baseline/rxdb-plugin-worktree.json`     | A/B  | 新增公开类型登记                                                                                          |
 
 ## 依赖与参考
 

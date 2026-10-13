@@ -521,7 +521,7 @@ AC#29（SSE / invalidation）需要的是一个 core 新抽象：远端适配器
 
 **该引的是** [epic-006 写入口语义矩阵](../../epics/epic-006-working-tree-commits.md#写入口语义矩阵)中 `upsertMany()` / `deleteByIds()` 那一行，及其紧随的注——那里把政策方向定死了（版本化实体表即拒绝、QueryCache 实体表即放行），并明说 US-306 阶段 A 补的是**覆盖面**，不影响 bypass 门禁的裁决结论。
 
-**不要单引** [epic-006 bypass 门禁判定](../../epics/epic-006-working-tree-commits.md#raw-sql--adapter-直写的-bypass-门禁判定) 第 4 步。该判定的四步只覆盖 `rawQuery`，而这两个方法**不经 `rawQuery`**——[FR-046](../collaboration/US-306-working-tree-commits.md) 与 epic-006 的注都写明「四步判定**够不到**」，所以它们由 US-306 阶段 A（US2-AC23）显式挂载，落点是 `@aiao/rxdb-plugin-working-tree` 的 `bulk-write-gate.ts`。只引第 4 步会让复查者以为门禁靠 `rawQuery` 判定就已生效。
+**不要单引** [epic-006 bypass 门禁判定](../../epics/epic-006-working-tree-commits.md#raw-sql--adapter-直写的-bypass-门禁判定) 第 4 步。该判定的四步只覆盖 `rawQuery`，而这两个方法**不经 `rawQuery`**——[FR-046](../collaboration/US-306-working-tree-commits.md) 与 epic-006 的注都写明「四步判定**够不到**」，所以它们由 US-306 阶段 A（US2-AC23）显式挂载，落点是 `@aiao/rxdb-plugin-worktree` 的 `bulk-write-gate.ts`。只引第 4 步会让复查者以为门禁靠 `rawQuery` 判定就已生效。
 
 本包完全不碰这两个方法（AC#19），门禁挂载对本包是 no-op，没有 breaking change。SC-004 漂移扫描（`pnpm audit:callsite-drift`）递归扫整个 `packages/`，本包在范围内（[roadmap 约束 11](../../roadmap.md#排期约束)）。
 

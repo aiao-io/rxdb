@@ -54,7 +54,7 @@ import { runCrudSuite, runLifecycleSuite, runTamperSuite } from '@aiao/rxdb-test
 
 US-025 把核心拆成 `@aiao/rxdb-plugin-*` 之后，几份小夹具在多个插件包里逐字重复：
 `private-symbols.ts`（querycache / sync）、`reachability.ts`（querycache / sync）、
-`fake-table-ref.ts`（history / sync / working-tree）、`test-entities.ts`（history / sync）。
+`fake-table-ref.ts`（history / sync / worktree）、`test-entities.ts`（history / sync）。
 它们**有意**留在各自包里，不往本包搬：
 
 - 本包是**发布**包，公开面由 `scripts/verify-public-contract.mjs` + `public-contract/baseline.json`

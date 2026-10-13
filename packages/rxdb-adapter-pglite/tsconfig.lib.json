@@ -82,7 +82,7 @@
       "path": "../rxdb-test/tsconfig.lib.json"
     },
     {
-      "path": "../rxdb-plugin-working-tree/tsconfig.lib.json"
+      "path": "../rxdb-plugin-worktree/tsconfig.lib.json"
     },
     {
       "path": "../rxdb-plugin-querycache/tsconfig.lib.json"

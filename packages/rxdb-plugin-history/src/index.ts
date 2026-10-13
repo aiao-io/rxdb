@@ -46,10 +46,10 @@ export type { PushInFlightSession } from './push-inflight.js';
 export type { SyncHistoryBridge } from './sync-history-bridge.js';
 
 // ---------------------------------------------------------------------------
-// 以下六项只为 `@aiao/rxdb-plugin-working-tree` 而导出，全部标了 `@internal`：
+// 以下六项只为 `@aiao/rxdb-plugin-worktree` 而导出，全部标了 `@internal`：
 // 工作树插件的 commit 迁移（`commit/enable-migration.ts`）要在放行一条分支之前，
 // 先按 `switchBranch` 的同一口径问两件事——「父链自不自洽」与「这条分支现在停在哪」；
-// 它的物化屏障（`working-tree/materialize-branch.ts`）要在切换事务里按同一口径撤掉
+// 它的物化屏障（`worktree/materialize-branch.ts`）要在切换事务里按同一口径撤掉
 // 来源分支的投影，手上只有事务执行器的仓库。另写一条同义查询，迟早会在「回滚标记算不算」
 // 或「排序列是哪一个」上与切换路径分叉，表现为迁移放行了一条 `switchBranch` 走不通的分支
 // （research.md R11），或物化后留下一截来源分支的数据。

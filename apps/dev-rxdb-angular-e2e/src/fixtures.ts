@@ -40,7 +40,7 @@ export interface FailureArchiveReason {
 }
 
 /** 工作树摘要。 */
-export type WorkingTreeSummary =
+export type WorktreeSummary =
   | { readonly enabled: false }
   | {
       readonly enabled: true;
@@ -59,7 +59,7 @@ export type FailureArchivePageResult =
       readonly bytes: number;
       readonly durationMs: number;
       readonly tables: Record<string, number>;
-      readonly workingTree: WorkingTreeSummary;
+      readonly worktree: WorktreeSummary;
     }
   | { readonly ok: false; readonly dbName: string; readonly reason: FailureArchiveReason };
 
@@ -67,7 +67,7 @@ export type FailureArchivePageResult =
 export interface DemoDbSnapshot {
   readonly schemaSql: string;
   readonly tables: Record<string, number>;
-  readonly workingTree: WorkingTreeSummary;
+  readonly worktree: WorktreeSummary;
 }
 
 interface FailureArchiveApi {
@@ -96,7 +96,7 @@ export interface FailureArchiveSummary {
   readonly durationMs: number;
   readonly archive?: { readonly attachment: typeof ARCHIVE_ATTACHMENT; readonly bytes: number };
   readonly tables?: Record<string, number>;
-  readonly workingTree?: WorkingTreeSummary;
+  readonly worktree?: WorktreeSummary;
   readonly reason?: FailureArchiveReason;
 }
 
@@ -119,7 +119,7 @@ const DEFAULT_NODE_GUARD_MS = 25_000;
 const API_WAIT_MS = 10_000;
 const TEARDOWN_BUDGET_MS = 60_000;
 /** 与 dev 应用 `setup_rxdb_sqlite-wasm.ts` 同名：重开的页面不得在导出前自动启用工作树（那等于改了库）。 */
-const WORKING_TREE_AUTO_ENABLE_SKIP_KEY = 'rxdb-e2e-skip-working-tree-auto-enable';
+const WORKTREE_AUTO_ENABLE_SKIP_KEY = 'rxdb-e2e-skip-worktree-auto-enable';
 
 type PageChoice =
   | { readonly page: 'original' | 'reopened'; readonly target: Page }
@@ -137,7 +137,7 @@ async function choosePage(page: Page, crashed: boolean): Promise<PageChoice> {
   try {
     // 库名在 localStorage，同一上下文的新页面连的是同一个库
     const target = await page.context().newPage();
-    await target.addInitScript(key => window.localStorage.setItem(key, '1'), WORKING_TREE_AUTO_ENABLE_SKIP_KEY);
+    await target.addInitScript(key => window.localStorage.setItem(key, '1'), WORKTREE_AUTO_ENABLE_SKIP_KEY);
     await target.goto('/home');
     return { page: 'reopened', target };
   } catch (error) {
@@ -229,7 +229,7 @@ export async function archiveFailure(
       durationMs: Date.now() - started,
       archive: { attachment: ARCHIVE_ATTACHMENT, bytes: transferred.bytes },
       tables: transferred.tables,
-      workingTree: transferred.workingTree
+      worktree: transferred.worktree
     };
   } else {
     summary = {

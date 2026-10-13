@@ -3,7 +3,7 @@
  *
  * @remarks
  * 单独成文件，因为有**两个**脚本读它：跑数字的 `working-tree.bench.ts` 与冻结基线的
- * `freeze-working-tree-reference.ts`（门禁判定本身在 `working-tree-gate.ts`）。而前者是个顶层就开跑的脚本，`import` 它等于跑一遍
+ * `freeze-working-tree-reference.ts`（门禁判定本身在 `worktree-gate.ts`）。而前者是个顶层就开跑的脚本，`import` 它等于跑一遍
  * benchmark——共享的定义因此不能住在那里。
  *
  * 字段集逐条出自 spec-kit 阶段的报告契约 §2 / §3（文中的「契约 §N」）；仍然生效的必填项与门禁规则
@@ -77,7 +77,7 @@ export const RESTORE_ABSOLUTE_BUDGET_MS = 1_000;
  * 只有一份 reference 时，PR 能不能过要看 `ubuntu-latest` 这一次分到哪种 CPU。冻结脚本写它，
  * bench 只读。
  */
-export const REFERENCE_DIR = resolve(__dirname, 'reports', 'working-tree-reference');
+export const REFERENCE_DIR = resolve(__dirname, 'reports', 'worktree-reference');
 
 /**
  * 每次运行都覆盖的最新报告；T097 的冻结脚本按这个稳定路径收集十次运行。
@@ -87,7 +87,7 @@ export const REFERENCE_DIR = resolve(__dirname, 'reports', 'working-tree-referen
  * **十次**——留副本就是往版本库里扔十个只有一次会被读到的文件。需要保留某一次运行时，
  * 把这个文件复制走即可。
  */
-export const LATEST_PATH = resolve(__dirname, 'reports', 'working-tree-latest.json');
+export const LATEST_PATH = resolve(__dirname, 'reports', 'worktree-latest.json');
 
 /** 本机没有可比的 reference 时的稳定错误码：相对门禁找不到同画像（§3.1），绝对门禁 profile 对不上（§3.2）。 */
 export const ENVIRONMENT_MISMATCH_CODE = 'benchmark_environment_mismatch';
@@ -96,7 +96,7 @@ export const ENVIRONMENT_MISMATCH_CODE = 'benchmark_environment_mismatch';
 // 报告 JSON（契约 §2）
 // ---------------------------------------------------------------------------
 
-/** 报告里的 fixture 段；逐字段取自 {@link WorkingTreeFixturePlan}。 */
+/** 报告里的 fixture 段；逐字段取自 {@link WorktreeFixturePlan}。 */
 export interface BenchFixture {
   readonly entities: number;
   readonly commits: number;
@@ -160,7 +160,7 @@ export interface BenchReference {
 }
 
 /** 一次运行的完整报告。 */
-export interface WorkingTreeBenchReport {
+export interface WorktreeBenchReport {
   readonly schemaVersion: number;
   readonly fixture: BenchFixture;
   readonly environment: BenchEnvironment;

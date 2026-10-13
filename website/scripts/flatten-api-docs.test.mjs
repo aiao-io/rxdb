@@ -33,7 +33,7 @@ test('带 README.md 后缀的 media 链接同样重写', () => {
 });
 
 test('非包 media（图片等）链接原样保留', () => {
-  const content = '![结构图](../_media/working-tree-architecture.png)';
+  const content = '![结构图](../_media/worktree-architecture.png)';
 
   assert.equal(rewriteMediaPackageLinks(content, ['rxdb-plugin-history']), content);
 });
@@ -59,7 +59,7 @@ test('带 README.md 后缀的无页面 media 链接同样降级', () => {
 });
 
 test('非包 media（图片等）不降级为纯文本', () => {
-  const content = '![结构图](../_media/working-tree-architecture.png)';
+  const content = '![结构图](../_media/worktree-architecture.png)';
 
   assert.equal(plainTextMediaPackageLinks(content, ['rxdb-plugin-history']), content);
 });

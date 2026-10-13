@@ -1,9 +1,9 @@
 /**
- * @fileoverview 撤销/重做这三个类的**形状**——`@aiao/rxdb-plugin-working-tree`
+ * @fileoverview 撤销/重做这三个类的**形状**——`@aiao/rxdb-plugin-worktree`
  * 的 FR-018/FR-019 全靠它们成立，而 US-025 之后它们全在 `@aiao/rxdb-plugin-history` 这一侧。
  *
  * @remarks
- * 这些断言原本长在 `@aiao/rxdb-plugin-working-tree` 的
+ * 这些断言原本长在 `@aiao/rxdb-plugin-worktree` 的
  * `__tests__/commit/legacy-compat.spec.ts` 里。在那边跑不起来：`RedoStack` /
  * `HistoryManager` / `VersionManager` 三个类，工作树插件拿不到它们运行期的构造器与
  * prototype——核心只转类型不转值，而实现包（本包）它并不依赖。

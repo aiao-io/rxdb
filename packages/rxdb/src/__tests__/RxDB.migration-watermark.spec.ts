@@ -4,7 +4,7 @@
  * @remarks
  * 本文件测的是**接缝**，不是任何一个贡献方的载荷：分支行、贡献方初始行、系统与接入方两条
  * 迁移水位线必须搭在**同一次** `createTables()` 上。载荷（epic-006 那四行长什么样）归
- * `@aiao/rxdb-plugin-working-tree` 自己的 spec 管——那些类在包外，核心连名字都不该认识。
+ * `@aiao/rxdb-plugin-worktree` 自己的 spec 管——那些类在包外，核心连名字都不该认识。
  *
  * 因此这里用一个**假贡献方**（见 {@link probeContribution}）。它不是为了省事：核心今天
  * **自带零条系统迁移**（`system/migrations/index.ts` 自陈，`0004-working-tree-commits` 随插件

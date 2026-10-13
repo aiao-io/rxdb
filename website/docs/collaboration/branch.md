@@ -184,4 +184,4 @@ if (!merged.sourceDeleted) console.warn('合并已落库，但删源分支没做
 
 - [同步策略](./sync.md) - 了解数据同步配置
 - [Undo/Redo](./undo-redo.md) - 撤销和重做功能
-- [工作树与提交历史](../plugins/rxdb-plugin-working-tree/README.md) - 未提交改动捕获与提交历史（`@aiao/rxdb-plugin-working-tree`）；装上该插件后 `switchBranch()` 多接受一个前置条件参数（`requireClean` / `expectedActivationRevision`），不传时行为与今天逐字节一致
+- [工作树与提交历史](../plugins/rxdb-plugin-worktree/README.md) - 未提交改动捕获与提交历史（`@aiao/rxdb-plugin-worktree`）；装上该插件后 `switchBranch()` 多接受一个前置条件参数（`requireClean` / `expectedActivationRevision`），不传时行为与今天逐字节一致

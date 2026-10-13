@@ -2,13 +2,13 @@
  * scripts/audit/core-plugin-boundary.mjs
  *
  * 核心包与待抽出插件之间的**边界门禁**：`packages/rxdb/src/` 下的核心代码，对
- * `commit/` 与 `working-tree/` 这两个即将成为 `@aiao/rxdb-plugin-working-tree` 的目录，
+ * `commit/` 与 `worktree/` 这两个即将成为 `@aiao/rxdb-plugin-worktree` 的目录，
  * 只能有**登记在案**的依赖。
  *
  * 触发路径：`pnpm audit:core-boundary`。
  *
  * 为什么要机械门禁，而不是抽包那天再一次性 grep：抽包是分阶段做的（先在核心内部把边界
- * 理顺，再建包搬迁）。中间这段时间里，核心多长出一条指向 `working-tree/` 的 import
+ * 理顺，再建包搬迁）。中间这段时间里，核心多长出一条指向 `worktree/` 的 import
  * **不产生任何编译错误**——它今天还在同一个包里。等到搬迁那天才发现，那条依赖已经
  * 长进了别的改动里，拆它要连带回滚不相干的东西。
  *
@@ -33,7 +33,7 @@ import { blankStringLiterals, stripComments } from './working-tree-suite-callsit
 export const CORE_SOURCE_ROOT = 'packages/rxdb/src';
 
 /** 即将随插件走的两个目录；相对 {@link CORE_SOURCE_ROOT}。 */
-export const PLUGIN_DIRS = Object.freeze(['commit', 'working-tree']);
+export const PLUGIN_DIRS = Object.freeze(['commit', 'worktree']);
 
 /** 不参与扫描的目录；相对 {@link CORE_SOURCE_ROOT} 的**顶层**路径。 */
 export const SCAN_EXCLUDED_DIRS = Object.freeze(['__tests__', ...PLUGIN_DIRS]);
@@ -46,7 +46,7 @@ export const SCAN_EXCLUDED_DIRS = Object.freeze(['__tests__', ...PLUGIN_DIRS]);
  *
  * - `__tests__` 排除的理由是「里面的代码不是核心的依赖」。测试文件里贴一段
  *   「核心不该这么写」的反例是常事，嵌在哪一层都一样不该算数，所以按名字认。
- * - `commit` / `working-tree` 排除的理由是「这两个顶层目录即将随插件搬走」。
+ * - `commit` / `worktree` 排除的理由是「这两个顶层目录即将随插件搬走」。
  *   {@link resolveCrossing} 只看说明符首段，`version/commit/x.js` 归的是 `version`
  *   而不是插件目录；跟着改成按名字排除，扫描范围会凭空塌掉一块，那块里真长出跨界
  *   依赖也再报不出来——门禁静默变窄，比它报错难发现得多。
@@ -62,7 +62,7 @@ export const EXCLUDED_DIR_NAMES = Object.freeze(['__tests__']);
  * 登记一条的成本必须高于顺手拆掉它——否则这张表会变成绕过门禁的快捷方式。
  *
  * 阶段 2（建包搬迁）已完成，这张表**现在是空的**，也应当一直是空的：核心不再 import
- * `commit/` 与 `working-tree/` 里的任何东西。新登记一条的门槛因此比阶段 1 时更高——
+ * `commit/` 与 `worktree/` 里的任何东西。新登记一条的门槛因此比阶段 1 时更高——
  * 它意味着核心又长回了一条对插件的依赖，绝大多数时候正确的动作是拆掉它而不是登记它。
  */
 export const PENDING_BOUNDARY_CROSSINGS = Object.freeze({});

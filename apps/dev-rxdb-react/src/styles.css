@@ -108,7 +108,7 @@ app-header,
   }
 
   /* 只作用于应用壳的侧栏（#layout-main 的直接子级）：页面内容里的 aside
-     （如 working-tree 面板的 .gd-sidebar）不受这条移动端覆盖影响。 */
+     （如 worktree 面板的 .gd-sidebar）不受这条移动端覆盖影响。 */
   #layout-main > aside {
     position: fixed !important;
     top: 0;
@@ -181,7 +181,7 @@ app-header,
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   working-tree 面板的 GitHub Desktop 形态样式（.gd-* 只被该面板使用）
+   worktree 面板的 GitHub Desktop 形态样式（.gd-* 只被该面板使用）
    ═══════════════════════════════════════════════════════════════ */
 
 /* 调色板：跟随 daisyUI 的 data-theme，light 用 GitHub Desktop 亮色值，

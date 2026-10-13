@@ -41,7 +41,7 @@ interface BranchRowsCall {
  * 有没有调、拿到的是不是同一个执行器、排不排在分支行之后、抛错让不让它穿出去。
  * 换成真插件，断言就会同时压在「插件写了什么行」上，于是插件改一个字段名，
  * 核心的 spec 跟着红——而红的这一侧什么都不用改。行的内容由
- * `@aiao/rxdb-plugin-working-tree` 自己的 spec 守。
+ * `@aiao/rxdb-plugin-worktree` 自己的 spec 守。
  */
 function createRecordingContribution(
   capability: Uncapitalize<string>,

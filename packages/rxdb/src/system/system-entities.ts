@@ -36,7 +36,7 @@ const SYSTEM_ENTITY_REGISTRY: EntityType[] = [...CORE_SYSTEM_ENTITIES];
  * 不回答「哪个库该建哪些表」。后者按实例算，见 {@link CORE_SYSTEM_ENTITIES}。
  *
  * **核心只自带四张。** epic-006「本地工作树与提交历史」的十张表随
- * `@aiao/rxdb-plugin-working-tree` 走，装了那个包才经 {@link registerSystemEntities} 追加进来。
+ * `@aiao/rxdb-plugin-worktree` 走，装了那个包才经 {@link registerSystemEntities} 追加进来。
  *
  * 判定清单只此一份。此前每个需要「排除系统表」的地方都自己抄一遍类名，
  * 抄漏一个的代价不是编译错误而是运行期的错判。

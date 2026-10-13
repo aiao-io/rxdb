@@ -7,7 +7,7 @@
  * 各适配器在自己的 `rawQuery` 实现里调一句 {@link gateRawWrite}，其余一概不管。
  *
  * **本文件只有分派，没有判定。** 判定认的是语句词法与表名在六种后端上的物理形态——两样都随
- * 捕获规则变，整套随 `@aiao/rxdb-plugin-working-tree` 走。留在核心的是
+ * 捕获规则变，整套随 `@aiao/rxdb-plugin-worktree` 走。留在核心的是
  * 那一句「没装插件就什么都不做」，因为它必须对**所有**用户成立，包括永远不装插件的那些。
  *
  * **未启用形态在类型上就没有门。** {@link RawWriteContext} 是个可辨识联合：`capabilityEnabled`

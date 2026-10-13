@@ -1,3 +1,9 @@
+## Unreleased
+
+### ⚠️ Breaking Changes
+
+- **rxdb-plugin-working-tree:** 四个包改名 `@aiao/rxdb-plugin-working-tree{,-angular,-react,-vue}` → `@aiao/rxdb-plugin-worktree{,-angular,-react,-vue}`，公开符号全部 `WorkingTree*` → `Worktree*`（`db.workingTree` → `db.worktree`、`useWorkingTree` → `useWorktree`、`rxDBPluginWorkingTree` → `rxDBPluginWorktree` 等）。旧包名从未发布到 npm；能力水位、系统表名、迁移名与库内数据不变，新旧客户端对同一库双向兼容。→ [worktree-rename](https://rxdb.aiao.io/docs/migration/worktree-rename)
+
 ## 0.0.26 (2026-10-01)
 
 桥接版本（bridge）：发布点为 `de70a1a9`（US-025 核心插件外移完成）。`RXDB_SYSTEM_SCHEMA_VERSION` 与 `RXDB_CHANGE_CODEC_VERSION` 均未提升，已有本地数据库无需迁移即可打开。

@@ -2,7 +2,7 @@
  * @fileoverview Electron（node:sqlite host）后端的提交侧一致性调用点（T043）。
  *
  * @remarks
- * 套件本体在 `@aiao/rxdb-plugin-working-tree/testing`，六个 v1 后端各有一个这样的文件。**后端语义的断言一律不
+ * 套件本体在 `@aiao/rxdb-plugin-worktree/testing`，六个 v1 后端各有一个这样的文件。**后端语义的断言一律不
  * 写在这里**：一旦某个后端在本地加一条「它自己的」断言，六份就开始各测各的，而这套套件存在
  * 的理由恰恰是「六个后端对同一组语义给出同一个答案」。
  *
@@ -38,8 +38,8 @@
 import type { RxDB } from '@aiao/rxdb';
 import type { AdapterCleanupTarget } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
-import { ConformanceNote, workingTreeCommitConformanceSuite } from '@aiao/rxdb-plugin-working-tree/testing';
+import { rxDBPluginWorktree } from '@aiao/rxdb-plugin-worktree';
+import { ConformanceNote, worktreeCommitConformanceSuite } from '@aiao/rxdb-plugin-worktree/testing';
 import { afterAll, afterEach, expect } from 'vitest';
 
 import {
@@ -63,15 +63,15 @@ afterAll(() => {
   }
 });
 
-workingTreeCommitConformanceSuite({
+worktreeCommitConformanceSuite({
   name: 'electron',
   createDatabase: async (): Promise<RxDB> => {
     const adapter = await electronAdapterFactory.createAdapter<AdapterCleanupTarget>({
       entities: [ConformanceNote],
-      plugins: [rxDBPluginHistory, rxDBPluginWorkingTree]
+      plugins: [rxDBPluginHistory, rxDBPluginWorktree]
     });
     opened.push(adapter);
-    await adapter.rxdb.workingTree.enable();
+    await adapter.rxdb.worktree.enable();
     return adapter.rxdb;
   }
 });

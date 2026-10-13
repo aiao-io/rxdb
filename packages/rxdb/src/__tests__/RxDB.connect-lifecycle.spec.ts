@@ -58,7 +58,7 @@ afterEach(async () => {
  * 一个只为「让系统迁移链非空」而存在的假贡献方。
  *
  * @remarks
- * 核心今天**自带零条系统迁移**——十张表随 `@aiao/rxdb-plugin-working-tree` 走了，
+ * 核心今天**自带零条系统迁移**——十张表随 `@aiao/rxdb-plugin-worktree` 走了，
  * `createSystemMigrations()` 对一个没装插件的库返回空数组。而 `runMigrations()` 开头
  * 就是 `if (!migrations || migrations.length === 0) return;`：空链**一次读都不发**。
  *

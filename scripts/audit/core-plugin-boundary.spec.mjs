@@ -80,7 +80,7 @@ test('findSpecifiers 不把字符串字面量里的 import 语句当依赖', () 
 test('resolveCrossing 把相对说明符归一到核心根', () => {
   assert.equal(resolveCrossing('RxDB.ts', './commit/x.js'), 'commit/x.js');
   assert.equal(resolveCrossing('version/create-branch.ts', '../commit/x.js'), 'commit/x.js');
-  assert.equal(resolveCrossing('system/migrations/0004.ts', '../../working-tree/y.js'), 'working-tree/y.js');
+  assert.equal(resolveCrossing('system/migrations/0004.ts', '../../working-tree/y.js'), 'worktree/y.js');
 });
 
 test('resolveCrossing 放过包名与核心内部路径', () => {
@@ -106,7 +106,7 @@ test('auditSource 对同一文件的重复依赖只报一次，且按字典序',
     "import type { B } from './working-tree/z.js';",
     "import { C } from './commit/a.js';"
   ].join('\n');
-  assert.deepEqual(auditSource('RxDB.ts', source), ['RxDB.ts·commit/a.js', 'RxDB.ts·working-tree/z.js']);
+  assert.deepEqual(auditSource('RxDB.ts', source), ['RxDB.ts·commit/a.js', 'RxDB.ts·worktree/z.js']);
 });
 
 // ---------------------------------------------------------------------------
@@ -118,7 +118,7 @@ test('collectCoreFiles 跳过 __tests__ 与两个插件目录，只收 .ts', asy
     await writeSourceFile(root, 'RxDB.ts', '');
     await writeSourceFile(root, 'system/x.ts', '');
     await writeSourceFile(root, 'commit/skip.ts', '');
-    await writeSourceFile(root, 'working-tree/skip.ts', '');
+    await writeSourceFile(root, 'worktree/skip.ts', '');
     await writeSourceFile(root, '__tests__/skip.ts', '');
     await writeSourceFile(root, 'readme.md', '');
     assert.deepEqual(await collectCoreFiles(root), ['RxDB.ts', 'system/x.ts']);

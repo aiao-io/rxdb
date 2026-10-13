@@ -170,7 +170,7 @@ app-header,
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   working-tree 面板的 GitHub Desktop 形态样式（.gd-* 只被该面板使用）
+   worktree 面板的 GitHub Desktop 形态样式（.gd-* 只被该面板使用）
    —— 从 Angular styles.scss 逐字移植；SCSS 嵌套按原生 CSS 嵌套落盘
    （Tailwind 4 / lightningcss 原生支持）。
    ═══════════════════════════════════════════════════════════════ */

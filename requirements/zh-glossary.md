@@ -157,7 +157,7 @@ README、Rust、测试标题、API 标识符和用户可见文案不自动套用
 - 词：**吃掉**（`RxDBAdapterHttp.ts`、`transport.ts`）
 - 🔴 “吃掉”按语境改“丢掉”（用户选择被重连清掉）或“覆盖 / 截断”（URL 拼接丢掉 `/v1`）。
 
-### `packages/rxdb-plugin-working-tree` / `rxdb-plugin-querycache` / `rxdb-plugin-sync` / `rxdb-model*`
+### `packages/rxdb-plugin-worktree` / `rxdb-plugin-querycache` / `rxdb-plugin-sync` / `rxdb-model*`
 
 - 这些包晚于本表建立，🔴 候选词命中较多；先按上文语义表逐处对线，命中位置用「检索命令」复核，不在此登记静态清单。
 

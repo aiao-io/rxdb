@@ -295,7 +295,7 @@ describe('switch_branch', () => {
     options.prepare.mockRejectedValue(rejection);
 
     // 两条断言各管一件事：
-    // 1. **原样抛出**——前置校验的拒绝是调用方的领域错误（`WorkingTreeDirtyError` 之类），
+    // 1. **原样抛出**——前置校验的拒绝是调用方的领域错误（`WorktreeDirtyError` 之类），
     //    包成 RxDBAdapterSqliteError 会让调用方的 `instanceof` 全部落空。
     // 2. **一条 SQL 都没发**——只断错误类型的话，一个「先删触发器再校验」的实现照样能过，
     //    而那正是两事务版本留下的那个窗口。

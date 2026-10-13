@@ -189,10 +189,10 @@ commit、discard 或刷新/重新选择建议，不能只检查业务表 diff。
 ## 实现文件
 
 - `packages/rxdb-plugin-history/src/VersionManager.ts` — `switchBranch` 新增可选参数，默认行为不变
-- `packages/rxdb-plugin-working-tree/src/working-tree/` — 分支隔离、revision 冲突派生与错误分类（`activation-cas.ts`、`commit-conflict.ts`、`branch-materialization.ts`、`switch-branch-options.ts`）
-- `packages/rxdb-plugin-working-tree/src/working-tree/` — `WorkingTreeActivationState` 的 switch CAS 与 branch lifecycle 事务（`activation-state.ts`；表本身由 US-305 建立）
-- `packages/rxdb-plugin-working-tree-{angular,react,vue}/` — 对称的冲突状态与提示
-- `requirements/api-baseline/rxdb-plugin-working-tree.json` — 新增 `WorkingTreeSwitchBranchOptions`；`CommitConflict` 只更新已由 US-306 阶段 B 登记的条目
+- `packages/rxdb-plugin-worktree/src/working-tree/` — 分支隔离、revision 冲突派生与错误分类（`activation-cas.ts`、`commit-conflict.ts`、`branch-materialization.ts`、`switch-branch-options.ts`）
+- `packages/rxdb-plugin-worktree/src/working-tree/` — `WorkingTreeActivationState` 的 switch CAS 与 branch lifecycle 事务（`activation-state.ts`；表本身由 US-305 建立）
+- `packages/rxdb-plugin-worktree-{angular,react,vue}/` — 对称的冲突状态与提示
+- `requirements/api-baseline/rxdb-plugin-worktree.json` — 新增 `WorkingTreeSwitchBranchOptions`；`CommitConflict` 只更新已由 US-306 阶段 B 登记的条目
 - `packages/rxdb-plugin-history/src/__tests__/contracts/public-type-compatibility.spec.ts` — `switchBranch` 公开方法签名兼容测试
 
 ## 依赖与参考

@@ -1,10 +1,10 @@
 import type { RxDB } from '@aiao/rxdb';
-import type { WorkingTreeRestoreResult } from '@aiao/rxdb-plugin-working-tree';
+import type { WorktreeRestoreResult } from '@aiao/rxdb-plugin-worktree';
 import { RxDBReplayError } from './errors.js';
 import type { ReplayRestoreRejection, ReplayRestoreResult } from './types.js';
 
 /**
- * 工作树插件在宿主插件索引里的名字（与 `@aiao/rxdb-plugin-working-tree` 的 `WORKING_TREE_CAPABILITY` 同值）。
+ * 工作树插件在宿主插件索引里的名字（与 `@aiao/rxdb-plugin-worktree` 的 `WORKING_TREE_CAPABILITY` 同值）。
  *
  * @remarks
  * 抄一份字面量而不是 import 那个常量：工作树是可选 peer，这里只能有类型依赖，值依赖会让没装它的应用打包失败。
@@ -12,7 +12,7 @@ import type { ReplayRestoreRejection, ReplayRestoreResult } from './types.js';
 export const WORKING_TREE_PLUGIN_NAME = 'workingTree';
 
 // 键取工作树的被拒原因：它新增一种原因时这里缺提示、`restoreToCommit` 的返回也对不上 `ReplayRestoreResult`，两处都编不过
-const RESTORE_HINTS: Readonly<Record<Extract<WorkingTreeRestoreResult, { ok: false }>['reason'], string>> = {
+const RESTORE_HINTS: Readonly<Record<Extract<WorktreeRestoreResult, { ok: false }>['reason'], string>> = {
   conflict: 'The working tree changed while restoring. Try again.',
   dirty_working_tree: 'There are uncommitted changes. Commit or discard them before restoring.',
   incompatible_schema: 'This commit was written by an incompatible schema version and cannot be restored.',
@@ -27,7 +27,7 @@ const RESTORE_HINTS: Readonly<Record<Extract<WorkingTreeRestoreResult, { ok: fal
 export const replayRestoreHint = (reason: ReplayRestoreRejection): string => RESTORE_HINTS[reason];
 
 /** 这个库上装没装工作树插件（装了不等于启用，未启用由门面自己抛）。 */
-export const hasWorkingTree = (rxdb: RxDB): boolean => rxdb.getPlugins(WORKING_TREE_PLUGIN_NAME).length > 0;
+export const hasWorktree = (rxdb: RxDB): boolean => rxdb.getPlugins(WORKING_TREE_PLUGIN_NAME).length > 0;
 
 /**
  * 取此刻的工作树凭据，把工作树恢复到 `commitId`。
@@ -39,19 +39,19 @@ export const hasWorkingTree = (rxdb: RxDB): boolean => rxdb.getPlugins(WORKING_T
  * @throws `RxDBReplayError('working_tree_unavailable')`：没装工作树插件；门面抛的错误原样透传
  */
 export const restoreToCommit = async (rxdb: RxDB, commitId: string): Promise<ReplayRestoreResult> => {
-  if (!hasWorkingTree(rxdb)) {
+  if (!hasWorktree(rxdb)) {
     throw new RxDBReplayError(
       'working_tree_unavailable',
-      'restoreToCommit() needs @aiao/rxdb-plugin-working-tree installed on this database'
+      'restoreToCommit() needs @aiao/rxdb-plugin-worktree installed on this database'
     );
   }
-  const status = await rxdb.workingTree.status();
-  return rxdb.workingTree.restore(
+  const status = await rxdb.worktree.status();
+  return rxdb.worktree.restore(
     { commitId },
     {
       expectedBranch: { branchId: status.branchId, activationRevision: status.activationRevision },
       expectedHeadRevision: status.headRevision,
-      expectedWorkingTreeRevision: status.workingTreeRevision
+      expectedWorktreeRevision: status.workingTreeRevision
     }
   );
 };

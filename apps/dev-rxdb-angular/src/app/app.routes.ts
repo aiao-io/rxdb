@@ -130,10 +130,10 @@ export const appRoutes: Route[] = [
     pathMatch: 'full'
   },
   {
-    // 与 /search 同一道门：面板初始化就调 `workingTree.status()`，深链进来时连接还没建立。
-    path: 'working-tree',
+    // 与 /search 同一道门：面板初始化就调 `worktree.status()`，深链进来时连接还没建立。
+    path: 'worktree',
     canActivate: [connectLocalAdapter],
-    loadComponent: () => import('./pages/working-tree/working-tree.page')
+    loadComponent: () => import('./pages/worktree/worktree.page')
   },
   {
     matcher: storageMatcher,
@@ -157,7 +157,7 @@ export const appRoutes: Route[] = [
     loadComponent: () => import('./pages/failure-archive/failure-archive.page')
   },
   {
-    // 录制回放（US-909 阶段 C）：点 commit 标记要调 `workingTree.restore()`，深链进来时先把连接带起来
+    // 录制回放（US-909 阶段 C）：点 commit 标记要调 `worktree.restore()`，深链进来时先把连接带起来
     path: 'replay',
     canActivate: [connectLocalAdapter],
     loadComponent: () => import('./pages/replay/replay.page')

@@ -10,7 +10,8 @@
 - [Supabase 推送回执迁移](./supabase-push-receipts.md)：`mergeChanges` 返回值从 `changeIdMapping` 改为必填的 `results`，自定义远端适配器须跟着改；被拒变更不再拖垮整批，须先执行新版 SQL 再升级客户端
 - [HTTP 适配器翻页键改名](./http-page-token.md)：`ctx.cursor` → `ctx.pageToken`、`nextCursor` → `nextPageToken`，与 core 的 keyset 游标区分开
 - [桌面适配器拆包](./desktop-split.md)：`rxdb-adapter-desktop` 拆成 `-electron` / `-tauri` 两个包
-- [工作树拆包](./working-tree-split.md)：工作树与提交历史从核心拆成 `@aiao/rxdb-plugin-working-tree`，能力守卫取代版本号锁
+- [工作树拆包](./working-tree-split.md)：工作树与提交历史从核心拆成 `@aiao/rxdb-plugin-worktree`，能力守卫取代版本号锁
+- [工作树插件改名](./worktree-rename.md)：`rxdb-plugin-working-tree` 改名 `rxdb-plugin-worktree`，包名与公开符号全部 `WorkingTree*` → `Worktree*`
 - [树结构拆包](./tree-split.md)：树实体、`TreeRepository` 与增量 merge 从核心拆成 `@aiao/rxdb-plugin-tree`，四个树 hook 搬进 `@aiao/rxdb-plugin-tree-{angular,react,vue}`
 - [插件升级与启用](./plugins.md)：启用/升级插件（如全文搜索）
 - [插件作用域契约迁移](./plugin-scope.md)：`install(scope)` 新契约、`destroy()` 废弃与随之而来的行为变化

@@ -90,10 +90,10 @@ export const routes: RouteObject[] = [
         loader: () => redirect('/file-manager-simple')
       },
       {
-        // 与 /search 同一道门：面板挂载就调 `workingTree.status()`，深链进来时连接还没建立。
-        path: 'working-tree',
+        // 与 /search 同一道门：面板挂载就调 `worktree.status()`，深链进来时连接还没建立。
+        path: 'worktree',
         loader: connectLocalAdapter,
-        lazy: lazyRoute(() => import('./pages/working-tree'))
+        lazy: lazyRoute(() => import('./pages/worktree'))
       },
       {
         path: 'ag-grid',

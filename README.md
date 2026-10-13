@@ -212,10 +212,10 @@ aiao/
 │   ├── rxdb-plugin-tree-angular/    # Angular 树集成
 │   ├── rxdb-plugin-tree-react/      # React 树集成
 │   ├── rxdb-plugin-tree-vue/        # Vue 树集成
-│   ├── rxdb-plugin-working-tree/    # 工作树与提交历史插件
-│   ├── rxdb-plugin-working-tree-angular/ # Angular 工作树集成
-│   ├── rxdb-plugin-working-tree-react/   # React 工作树集成
-│   ├── rxdb-plugin-working-tree-vue/     # Vue 工作树集成
+│   ├── rxdb-plugin-worktree/    # 工作树与提交历史插件
+│   ├── rxdb-plugin-worktree-angular/ # Angular 工作树集成
+│   ├── rxdb-plugin-worktree-react/   # React 工作树集成
+│   ├── rxdb-plugin-worktree-vue/     # Vue 工作树集成
 │   ├── rxdb-test/                   # 测试库与跨框架 fixture
 │   ├── rxdb-taro/                   # Taro 小程序插件（./vite + ./runtime）
 │   ├── code-editor/                 # 代码编辑器核心

@@ -96,7 +96,7 @@ tags: [domain, bom, graph, integrity]
 [`fts5/build-fts-triggers.ts`](../../../packages/rxdb-adapter-sqlite-core/src/fts5/build-fts-triggers.ts)。可复用的是机制，不是那份 SQL。
 
 **降级必须是显式的，这是本仓已经付过一次学费的地方。**
-[`@aiao/rxdb-plugin-working-tree` 的 README](../../../packages/rxdb-plugin-working-tree/README.md)
+[`@aiao/rxdb-plugin-worktree` 的 README](../../../packages/rxdb-plugin-worktree/README.md)
 在「能力边界」一节里写的是：
 
 > 不假装拦得住比拦不住更重要：一道号称拦得住却拦不住的门禁，会让人把「没报错」当成「没被绕过」。

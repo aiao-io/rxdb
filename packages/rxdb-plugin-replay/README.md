@@ -9,7 +9,7 @@ rrweb 钉在精确版本 `2.1.7`。回放组件按需 `import('rrweb')`，所以
 ```bash
 pnpm add @aiao/rxdb @aiao/rxdb-plugin-replay rxjs
 # 需要 commit 标记与恢复时再装（可选 peer）
-pnpm add @aiao/rxdb-plugin-working-tree
+pnpm add @aiao/rxdb-plugin-worktree
 ```
 
 ## 用法
@@ -73,9 +73,9 @@ const events = await db.replay.readEvents(sessionId);
 
 ## commit 标记与恢复
 
-被录的库装了 `@aiao/rxdb-plugin-working-tree` 时，录制中的每次提交都会写一条 `commit` 标记（rrweb Custom 事件，`tag` 为 `rxdb-replay:commit`）。标记来自工作树门面的 `commits$`。
+被录的库装了 `@aiao/rxdb-plugin-worktree` 时，录制中的每次提交都会写一条 `commit` 标记（rrweb Custom 事件，`tag` 为 `rxdb-replay:commit`）。标记来自工作树门面的 `commits$`。
 
-`restoreToCommit(commitId)` 每次调用时都现取工作树凭据，再调 `workingTree.restore()`。被拒绝时用 `replayRestoreHint(reason)` 取提示文案，可能的 `reason`：
+`restoreToCommit(commitId)` 每次调用时都现取工作树凭据，再调 `worktree.restore()`。被拒绝时用 `replayRestoreHint(reason)` 取提示文案，可能的 `reason`：
 
 - `conflict`
 - `dirty_working_tree`
@@ -132,7 +132,7 @@ REPLAY_BENCH=1 pnpm nx test rxdb-plugin-replay -- store.bench   # 写入基准�
 1. `pnpm nx serve dev-rxdb-angular`，打开 `http://localhost:4200/replay`，打开录制开关（页面会重新加载）。
 2. 在 `/todo` 建两条 Todo，各提交一次，回到 `/replay` 停止录制。
 3. 在会话列表里点「回放」：时间轴可以拖动，两个 commit 标记按提交顺序排列。
-4. 点第一个标记：回放跳到第一次提交那一刻，状态区显示 `Restored …`，`/working-tree` 上工作树变脏。
+4. 点第一个标记：回放跳到第一次提交那一刻，状态区显示 `Restored …`，`/worktree` 上工作树变脏。
 5. 在「脱敏演示」的输入框里打字再回放：输入只剩同样长度的 `*`，`data-rxdb-replay-block` 区块只剩占位块。
 6. 关掉开关后重新加载：DevTools Network 里不出现 `rrweb` 与 `rxdb-plugin-replay` 的 chunk，IndexedDB 里不新建 `*-replay` 库。
 

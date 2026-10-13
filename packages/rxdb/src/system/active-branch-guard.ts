@@ -156,7 +156,7 @@ export class AmbiguousActiveBranchError extends RxDBError {
    *
    * @remarks
    * 字面量而非 `CommitErrorCode.ambiguous_active_branch`：那张码表随提交能力走进
-   * `@aiao/rxdb-plugin-working-tree`，而本守卫是分支拓扑不变量、留在核心。核心为了
+   * `@aiao/rxdb-plugin-worktree`，而本守卫是分支拓扑不变量、留在核心。核心为了
    * 一个字符串反向依赖插件，等于把「不装插件」这件事又变成不可能。
    *
    * 两边不会漂：码表是 const 对象不是 `enum`（见插件侧 `commit-error-codes.ts` 自陈的

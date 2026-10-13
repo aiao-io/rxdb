@@ -9,7 +9,7 @@
  * 固定 fixture——行数相同而内容分布不同会让 ratio 漂移几十个百分点，且看不出来」。
  * 一份「10,000 行、每行 title 3 个字符」的库和一份「10,000 行、每行 title 300 个字符」的库
  * 行数一模一样，而 diff 要搬的字节差两个数量级。于是这里把**将要写进库的每一个值**摊进
- * 一份规划（{@link WorkingTreeFixturePlan}），再对规划整体取 SHA-256——报告里的
+ * 一份规划（{@link WorktreeFixturePlan}），再对规划整体取 SHA-256——报告里的
  * `fixture.contentHash` 就是它。
  *
  * **规划是纯的，先于数据库存在。** 建库、写入、提交都读同一份规划，因此「这次跑的是不是
@@ -45,14 +45,14 @@ import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
-import type { CommitOptions, WorkingTreeCredentials } from '@aiao/rxdb-plugin-working-tree';
-import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
+import type { CommitOptions, WorktreeCredentials } from '@aiao/rxdb-plugin-worktree';
+import { rxDBPluginWorktree } from '@aiao/rxdb-plugin-worktree';
 import {
   ConformanceNote,
-  WORKING_TREE_CONFORMANCE_ENTITIES,
-  WORKING_TREE_CONFORMANCE_REMOTE_ADAPTER,
-  WORKING_TREE_CONFORMANCE_USER_ID
-} from '@aiao/rxdb-plugin-working-tree/testing';
+  WORKTREE_CONFORMANCE_ENTITIES,
+  WORKTREE_CONFORMANCE_REMOTE_ADAPTER,
+  WORKTREE_CONFORMANCE_USER_ID
+} from '@aiao/rxdb-plugin-worktree/testing';
 import { firstValueFrom } from 'rxjs';
 
 // ---------------------------------------------------------------------------
@@ -204,7 +204,7 @@ export interface FixtureUpdatePlan {
  * @remarks
  * 报告 JSON 的 `fixture` 段（契约 §2）直接由前五个字段构成。
  */
-export interface WorkingTreeFixturePlan {
+export interface WorktreeFixturePlan {
   /** 实体总数 */
   readonly entities: number;
 
@@ -286,7 +286,7 @@ const hashPlan = (
 /**
  * 造一份 fixture 规划。纯函数，一次数据库调用都不发。
  *
- * @returns 见 {@link WorkingTreeFixturePlan}
+ * @returns 见 {@link WorktreeFixturePlan}
  * @throws `Error` 契约常数之间互相矛盾，或取样步长把下标算飞
  *
  * @remarks
@@ -294,7 +294,7 @@ const hashPlan = (
  * 不取最后 100 行：最后写入的那 100 行此刻还躺在最热的页上，只改它们会把 diff 测成
  * 「全在缓存里」，而真实用户改的行散落在整张表里。
  */
-export const buildWorkingTreeFixturePlan = (): WorkingTreeFixturePlan => {
+export const buildWorktreeFixturePlan = (): WorktreeFixturePlan => {
   if (FIXTURE_COMMITS * FIXTURE_UNITS_PER_COMMIT !== FIXTURE_ENTITIES) {
     throw new Error(`fixture 常数矛盾：${FIXTURE_COMMITS} × ${FIXTURE_UNITS_PER_COMMIT} ≠ ${FIXTURE_ENTITIES}`);
   }
@@ -348,14 +348,14 @@ export const buildWorkingTreeFixturePlan = (): WorkingTreeFixturePlan => {
 /**
  * 建一个已启用工作树能力的 PGlite memory 库。
  *
- * @returns 已 `connect()` 且 `workingTree.enable()` 过的实例
+ * @returns 已 `connect()` 且 `worktree.enable()` 过的实例
  *
  * @remarks
- * 实体清单、远端占位适配器名与 `context.userId` 全部复用 `@aiao/rxdb-plugin-working-tree/testing` 那一份：
+ * 实体清单、远端占位适配器名与 `context.userId` 全部复用 `@aiao/rxdb-plugin-worktree/testing` 那一份：
  * benchmark 自己再声明一套实体的话，测的就不是一致性套件跑过的那条路径了。
  *
  * **四个 `use()` 与捕获侧调用点逐条对齐**（`rxdb-adapter-pglite/src/__tests__/working-tree-capture-conformance.spec.ts`），
- * 顺序也一样。它们不是「顺手多装几个」：`WORKING_TREE_CONFORMANCE_ENTITIES` 里的
+ * 顺序也一样。它们不是「顺手多装几个」：`WORKTREE_CONFORMANCE_ENTITIES` 里的
  * `ConformanceCache` 声明了 `SyncType.QueryCache`，核心的护栏查的是**注册清单**而不是
  * 运行期有没有真的走到，缺 querycache 引擎时 `connect()` 当场抛 `RxDBMissingPluginError`；
  * sync 插件又声明了 `inject: ['plugin:history']`，缺历史插件时宿主**只告警一次、不装它**，
@@ -368,24 +368,24 @@ export const buildWorkingTreeFixturePlan = (): WorkingTreeFixturePlan => {
  * 库名带时间戳与随机后缀——那是**标识**不是内容，不进 `contentHash`；同一次运行里连开两个
  * 库时它们必须互不覆盖。
  */
-export const createWorkingTreeFixtureDatabase = async (): Promise<RxDB> => {
+export const createWorktreeFixtureDatabase = async (): Promise<RxDB> => {
   const database = new RxDB({
-    dbName: `working-tree-bench-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    context: { userId: WORKING_TREE_CONFORMANCE_USER_ID },
-    entities: [...WORKING_TREE_CONFORMANCE_ENTITIES],
+    dbName: `worktree-bench-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    context: { userId: WORKTREE_CONFORMANCE_USER_ID },
+    entities: [...WORKTREE_CONFORMANCE_ENTITIES],
     sync: {
       local: { adapter: 'pglite' },
-      remote: { adapter: WORKING_TREE_CONFORMANCE_REMOTE_ADAPTER },
+      remote: { adapter: WORKTREE_CONFORMANCE_REMOTE_ADAPTER },
       type: SyncType.None
     }
   });
   database.adapter('pglite', async db => new RxDBAdapterPGlite(db, { store: 'memory' }));
-  database.use(rxDBPluginWorkingTree);
+  database.use(rxDBPluginWorktree);
   database.use(rxDBPluginQueryCache);
   database.use(rxDBPluginSync);
   database.use(rxDBPluginHistory);
   await database.connect('pglite');
-  await database.workingTree.enable();
+  await database.worktree.enable();
   return database;
 };
 
@@ -393,19 +393,19 @@ export const createWorkingTreeFixtureDatabase = async (): Promise<RxDB> => {
  * 读当前三个捕获位，凑一组调用方凭据。
  *
  * @param database - 已启用工作树的库
- * @returns 见 `WorkingTreeCredentials`
+ * @returns 见 `WorktreeCredentials`
  *
  * @remarks
  * 硬裁决 3：commit 用的是**调用方捕获**的 CAS，不是命令自己在事务里现读的值。因此这里
  * 如实走一次 `status()` 取三个位，而不是从上一次命令的返回值里推算——推算出来的值在并发下
  * 会对，在实现写错时也会对。
  */
-export const captureFixtureCredentials = async (database: RxDB): Promise<WorkingTreeCredentials> => {
-  const status = await database.workingTree.status();
+export const captureFixtureCredentials = async (database: RxDB): Promise<WorktreeCredentials> => {
+  const status = await database.worktree.status();
   return {
     expectedBranch: { branchId: status.branchId, activationRevision: status.activationRevision },
     expectedHeadRevision: status.headRevision,
-    expectedWorkingTreeRevision: status.workingTreeRevision
+    expectedWorktreeRevision: status.workingTreeRevision
   };
 };
 
@@ -461,12 +461,12 @@ const updateNote = async (database: RxDB, update: FixtureUpdatePlan, revision: n
  *
  * @remarks
  * 调用前工作树应当是干净的。本函数不自己检查：两个调用点
- * （{@link seedWorkingTreeFixture} 与 {@link restoreWorkingTreeFixture}）都刚刚确保过，
+ * （{@link seedWorktreeFixture} 与 {@link restoreWorktreeFixture}）都刚刚确保过，
  * 再查一次只是把同一条断言写两遍。
  */
 export const applyUncommittedUnits = async (
   database: RxDB,
-  plan: WorkingTreeFixturePlan,
+  plan: WorktreeFixturePlan,
   revision: number
 ): Promise<void> => {
   for (const update of plan.uncommittedUpdates) await updateNote(database, update, revision);
@@ -475,8 +475,8 @@ export const applyUncommittedUnits = async (
 /**
  * 按规划建出整份 fixture：100 次提交 + 100 个未提交单元。
  *
- * @param database - 见 {@link createWorkingTreeFixtureDatabase}
- * @param plan - 见 {@link buildWorkingTreeFixturePlan}
+ * @param database - 见 {@link createWorktreeFixtureDatabase}
+ * @param plan - 见 {@link buildWorktreeFixturePlan}
  * @throws `Error` 任何一次提交返回 `ok: false`（单线程建库里出现 CAS 冲突只可能是实现缺陷），
  *   或落库的单元数与规划不符
  *
@@ -485,11 +485,11 @@ export const applyUncommittedUnits = async (
  * 单元（硬裁决 1），所以「每 commit 恰好 100 单元」只能靠「写 100 行就提交一次」达成，
  * 不能先写满 10,000 行再分 100 次提交——后者在 v1 里根本无法表达。
  */
-export const seedWorkingTreeFixture = async (database: RxDB, plan: WorkingTreeFixturePlan): Promise<void> => {
+export const seedWorktreeFixture = async (database: RxDB, plan: WorktreeFixturePlan): Promise<void> => {
   for (const commit of plan.commitPlans) {
     for (const note of commit.notes) await insertNote(database, note);
     const options = await fixtureCommitOptions(database, `fixture-commit-${commit.index}`);
-    const result = await database.workingTree.commit(commit.message, options);
+    const result = await database.worktree.commit(commit.message, options);
     if (!result.ok) throw new Error(`fixture 第 ${commit.index} 次提交冲突：${JSON.stringify(result.conflict)}`);
     if (result.changeSetCount !== plan.unitsPerCommit) {
       throw new Error(
@@ -508,7 +508,7 @@ export const seedWorkingTreeFixture = async (database: RxDB, plan: WorkingTreeFi
  * @throws `Error` 丢弃返回 `ok: false`（单线程 benchmark 里出现 CAS 冲突只可能是实现缺陷）
  *
  * @remarks
- * 两个调用点各要它的一半：{@link restoreWorkingTreeFixture} 拿它当「写新一轮单元之前先
+ * 两个调用点各要它的一半：{@link restoreWorktreeFixture} 拿它当「写新一轮单元之前先
  * 清场」，而 `restore` 测点拿它当**被测项自己的前置**——契约 §3.2 给 `restore` 的口径是
  * 「从 clean HEAD 恢复 `HEAD~1`」，工作树不空时 `restore()` 会直接被
  * `dirty_working_tree` 拒掉，量到的就成了一次前置检查的耗时。
@@ -517,9 +517,9 @@ export const seedWorkingTreeFixture = async (database: RxDB, plan: WorkingTreeFi
  * 会话，下一轮靠这一次丢弃清掉；不清的话，第二轮会撞上「一分支至多一个未结束会话」的
  * 唯一索引。
  */
-export const clearWorkingTreeFixture = async (database: RxDB): Promise<void> => {
+export const clearWorktreeFixture = async (database: RxDB): Promise<void> => {
   const credentials = await captureFixtureCredentials(database);
-  const discarded = await database.workingTree.discard(credentials);
+  const discarded = await database.worktree.discard(credentials);
   if (!discarded.ok) throw new Error(`fixture 清场时丢弃冲突：${JSON.stringify(discarded.conflict)}`);
 };
 
@@ -541,12 +541,12 @@ export const clearWorkingTreeFixture = async (database: RxDB): Promise<void> => 
  * 时」的样子——能消掉这层漂移的唯一办法是每个 sample 重建整库，而那是 10,000 行插入乘以
  * 采样数。轮次号保证每轮的 100 个单元确实与已提交状态不同，见 {@link fixtureUpdateTitle}。
  */
-export const restoreWorkingTreeFixture = async (
+export const restoreWorktreeFixture = async (
   database: RxDB,
-  plan: WorkingTreeFixturePlan,
+  plan: WorktreeFixturePlan,
   revision: number
 ): Promise<void> => {
-  await clearWorkingTreeFixture(database);
+  await clearWorktreeFixture(database);
   await applyUncommittedUnits(database, plan, revision);
 };
 
@@ -568,12 +568,12 @@ export const restoreWorkingTreeFixture = async (
  *
  * 不传 `limit`：读整条可达历史，于是「多出来的 normal 提交」同样会被数出来。限长只能发现少写。
  */
-export const assertFixtureIntact = async (database: RxDB, plan: WorkingTreeFixturePlan): Promise<void> => {
-  const status = await database.workingTree.status();
+export const assertFixtureIntact = async (database: RxDB, plan: WorktreeFixturePlan): Promise<void> => {
+  const status = await database.worktree.status();
   if (status.entryCount !== plan.uncommittedUnits) {
     throw new Error(`fixture 工作树有 ${status.entryCount} 个未提交单元，应为 ${plan.uncommittedUnits}`);
   }
-  const log = await database.workingTree.listCommits();
+  const log = await database.worktree.listCommits();
   const normalCount = log.entries.filter(entry => entry.kind === 'normal').length;
   if (normalCount !== plan.commits) {
     throw new Error(

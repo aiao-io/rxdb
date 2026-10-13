@@ -18,7 +18,7 @@ let rxdb: RxDB | null | undefined;
 const DEFAULT_DB_NAME = 'aiao';
 
 /** e2e 需要「未启用 + 有内容」的手动启用路径时，用这个 localStorage 键跳过启动时的自动启用。 */
-const WORKING_TREE_AUTO_ENABLE_SKIP_KEY = 'rxdb-e2e-skip-working-tree-auto-enable';
+const WORKTREE_AUTO_ENABLE_SKIP_KEY = 'rxdb-e2e-skip-worktree-auto-enable';
 
 // Angular demo 历史上用 localStorage（跨标签页共享同一隔离名）+ e2e 端口 8200 检测，
 // 这两个差异通过 options 注入，避免破坏既有 spec 期望
@@ -77,10 +77,10 @@ export default () => {
   });
 
   db.init();
-  // 空库在应用启动时自动初始化工作树；已有内容的库保持未启用，由 /working-tree 面板显式点击。
+  // 空库在应用启动时自动初始化工作树；已有内容的库保持未启用，由 /worktree 面板显式点击。
   // `enableIfEmpty()` 自会解析 localAdapter$（连接就绪后生效），这里 fire-and-forget 即可。
-  if (typeof window !== 'undefined' && window.localStorage.getItem(WORKING_TREE_AUTO_ENABLE_SKIP_KEY) === null) {
-    void db.workingTree.enableIfEmpty().catch(() => undefined);
+  if (typeof window !== 'undefined' && window.localStorage.getItem(WORKTREE_AUTO_ENABLE_SKIP_KEY) === null) {
+    void db.worktree.enableIfEmpty().catch(() => undefined);
   }
   installSearchDemoTestApi(db, { Article, Comment, seedData: seedSearchParityData });
   // 失败现场归档另开主线程 IDB 连接读同一个库，只在主实例确定走 IDB 时成立；OPFS 档的库在 Worker 里，读不到。

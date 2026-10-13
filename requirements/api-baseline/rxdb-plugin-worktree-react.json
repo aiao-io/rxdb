@@ -1,0 +1,14 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "useWorktree",
+        "kind": "value"
+      },
+      {
+        "name": "WorktreeResource",
+        "kind": "type"
+      }
+    ]
+  }
+}

@@ -18,7 +18,7 @@ owner: jimmy
 
 ## 为什么是 Epic 而不是一个 Story
 
-这项能力横跨 `packages/rxdb-plugin-history/`、`packages/rxdb-plugin-working-tree/`、`packages/rxdb/src/system/`、`rxdb-plugin-workspace`、三个框架包和三个 demo，且没有任何一条 FR 可以在不落地存储布局的前提下单独验收——即"要么全做要么全不做"，单个 story 的 INVEST「Small」不成立。因此按可独立验收的最小闭环切成四条 story；其中 [US-306](../stories/collaboration/US-306-working-tree-commits.md) 仍同时覆盖全部写入口、提交状态机、三框架和 benchmark，在文件内再切成「交付阶段 A/B/C」，每个阶段都能独立跑通「写入 → 刷新 → 读回」这条最小闭环。
+这项能力横跨 `packages/rxdb-plugin-history/`、`packages/rxdb-plugin-worktree/`、`packages/rxdb/src/system/`、`rxdb-plugin-workspace`、三个框架包和三个 demo，且没有任何一条 FR 可以在不落地存储布局的前提下单独验收——即"要么全做要么全不做"，单个 story 的 INVEST「Small」不成立。因此按可独立验收的最小闭环切成四条 story；其中 [US-306](../stories/collaboration/US-306-working-tree-commits.md) 仍同时覆盖全部写入口、提交状态机、三框架和 benchmark，在文件内再切成「交付阶段 A/B/C」，每个阶段都能独立跑通「写入 → 刷新 → 读回」这条最小闭环。
 
 ## 目标
 
@@ -140,7 +140,7 @@ US-306 阶段 B 只负责建表与「从已存在的 session 派生 conflicted�
 `CommitConflict` 的定义、TSDoc 与 api-baseline 登记归**首个使用者 US-306 阶段 B**，US-308 只做 activation 维度的扩展。
 
 `WorkingTreeEntry` 在本 Epic 层面是**逻辑契约**，本表只约束它必须持久化什么、按什么粒度隔离。
-物理表名、字段、索引、FK、加密 envelope 与迁移版本以代码为准（[`@aiao/rxdb-plugin-working-tree`](../../packages/rxdb-plugin-working-tree/src/)
+物理表名、字段、索引、FK、加密 envelope 与迁移版本以代码为准（[`@aiao/rxdb-plugin-worktree`](../../packages/rxdb-plugin-worktree/src/)
 的 `*.entity.ts` 与 `migrations/`），设计记录归档在 `git show f9528e8f:specs/001-working-tree-commits/data-model.md`。
 本 Epic 只定死其中一条：`WorkingTreeEntry` 是**独立表**并完整复制 patch / inverse patch，**不复用 `RxDBChange`**、
 也不只存其外键——`rxdb_change` 行会被删分支级联删除、[compact-changes.ts](../../packages/rxdb/src/sync-contract/compact-changes.ts)
@@ -272,7 +272,7 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 | `EntityManager.notifyExternalUpdate()`                                    | 它（[entity-manager.ts](../../packages/rxdb/src/entity/entity-manager.ts)）是「先绕过 ORM 写库、再补发标准事件」这条既有工作流的**后半段**，而前半段对版本化实体已被上两行拒绝。启用后它对版本化实体 MUST 抛 `commit_capability_mismatch`，而不是发出一个没有工作树单元支撑的 `EntityLocalUpdatedEvent`——那会让事件流与工作树永久分叉；对 QueryCache 实体行为不变。这条 MUST 写进下文「能力边界」那句公开声明里 |
 
 **`upsertMany` / `deleteByIds` 不经 `rawQuery`，门禁显式挂在这两个方法上**（挂载点 4，实现见
-[bulk-write-gate.ts](../../packages/rxdb-plugin-working-tree/src/working-tree/bulk-write-gate.ts)）。
+[bulk-write-gate.ts](../../packages/rxdb-plugin-worktree/src/working-tree/bulk-write-gate.ts)）。
 下文「raw SQL / adapter 直写的 bypass 门禁判定」的四步判定只覆盖 `rawQuery`，而
 [`upsertMany`](../../packages/rxdb/src/rxdb-adapter.ts) 是 `RxDBAdapterLocalBase` 上的**公开抽象写方法**，
 方法签名 `upsertMany(entityName, data)` 不带意图：不显式挂载，任何调用方传一个 Full/Filter 实体名
@@ -327,7 +327,7 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 本身不出现在扫描结果里，用它当键会让漂移门禁永远匹配不上。
 
 文件一列只写**基名**：#1~#6 在 `@aiao/rxdb-plugin-history/src/`，#7~#9 与 #12 在 `@aiao/rxdb-plugin-sync/src/`，#10 / #11 在
-`@aiao/rxdb-plugin-working-tree/src/`；登记键必须跨包搬迁存活，所以不含目录。登记表本身在
+`@aiao/rxdb-plugin-worktree/src/`；登记键必须跨包搬迁存活，所以不含目录。登记表本身在
 [trusted-write-intent.ts](../../packages/rxdb/src/trusted-write/trusted-write-intent.ts)——它是 `declareTrustedWrite()`
 的准入名单，而那道门禁在核心。下表按符号登记，与代码实际调用点一一对应：
 
@@ -377,9 +377,9 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 
 **静态扫描跑在 `pnpm audit:callsite-drift`（[working-tree-callsite-drift.mjs](../../scripts/audit/working-tree-callsite-drift.mjs)）里**，
 扫的是整个 `packages/`——12 处声明与 8 处 QueryCache 批量写分散在 rxdb / rxdb-plugin-history / rxdb-plugin-sync /
-rxdb-plugin-working-tree / rxdb-plugin-querycache 五个包里，只扫单个包的门禁会全绿地什么都看不见。本表前 6 列由
+rxdb-plugin-worktree / rxdb-plugin-querycache 五个包里，只扫单个包的门禁会全绿地什么都看不见。本表前 6 列由
 [trusted-callsite-registry.spec.ts](../../packages/rxdb/src/__tests__/trusted-write/trusted-callsite-registry.spec.ts) 与登记表逐格比对
-（它另外断言核心自身零受信写、零批量写），第 7 列由 [trusted-callsite-capture.spec.ts](../../packages/rxdb-plugin-working-tree/src/__tests__/working-tree/trusted-callsite-capture.spec.ts)
+（它另外断言核心自身零受信写、零批量写），第 7 列由 [trusted-callsite-capture.spec.ts](../../packages/rxdb-plugin-worktree/src/__tests__/working-tree/trusted-callsite-capture.spec.ts)
 与捕获矩阵算出的结论比对；两份测试都当场解析本节原文，改措辞会让它们变红。
 
 **`mergeChanges` 是被重载的名字，扫描必须按签名区分**，否则本表会收进与本地业务表无关的调用：
@@ -749,10 +749,10 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
 8. 命名门禁分两层，**正向前缀只约束核心共享契约**：
    - `@aiao/rxdb` 的 [api-baseline](../api-baseline/rxdb.json) 新增导出（共享类型、选项、错误码）全部使用
      `Commit*` / `WorkingTree*` 前缀（`Index*` 已随暂存区一同裁掉，**不得新增该前缀的导出**）
-   - `@aiao/rxdb-plugin-working-tree` 的 api-baseline 同样适用该正向前缀（它承载 `Commit*` / `WorkingTree*` 的主体导出）
-   - 框架包（`rxdb-angular` / `rxdb-react` / `rxdb-vue`，以及 `rxdb-plugin-working-tree-{angular,react,vue}`）的 api-baseline 只适用**负向**规则：
+   - `@aiao/rxdb-plugin-worktree` 的 api-baseline 同样适用该正向前缀（它承载 `Commit*` / `WorkingTree*` 的主体导出）
+   - 框架包（`rxdb-angular` / `rxdb-react` / `rxdb-vue`，以及 `rxdb-plugin-worktree-{angular,react,vue}`）的 api-baseline 只适用**负向**规则：
      无 `Workspace*` 新导出、不复用既有 `SwitchBranchOptions`。框架侧运行时入口沿用仓库既有的 `use*` 约定
-     （`useRxDB` / `useFind` / …），因此 `rxdb-plugin-working-tree-{angular,react,vue}` 里的 `useWorkingTree()` 合规——**不得**用正向前缀规则去拦它，
+     （`useRxDB` / `useFind` / …），因此 `rxdb-plugin-worktree-{angular,react,vue}` 里的 `useWorkingTree()` 合规——**不得**用正向前缀规则去拦它，
      那会拦下本 Epic 自己的核心交付物
    - 两层都适用横切约束 4（不复活旧导出）
 9. 公开文档说明**这 6 项**：数据库级显式启用、工作树与草稿缓存的区别、恢复语义、历史保留敏感旧值的风险、

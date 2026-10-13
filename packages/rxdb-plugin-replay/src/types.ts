@@ -10,7 +10,7 @@ export type ReplayRestoreRejection = 'conflict' | 'dirty_working_tree' | 'incomp
  * `restoreToCommit()` 的结果：工作树 `restore()` 结果里回放用得上的那部分。
  *
  * @remarks
- * 不直接引用 `@aiao/rxdb-plugin-working-tree` 的 `WorkingTreeRestoreResult`：它是可选 peer，类型导入一旦进了
+ * 不直接引用 `@aiao/rxdb-plugin-worktree` 的 `WorktreeRestoreResult`：它是可选 peer，类型导入一旦进了
  * 公开签名就会留在 `.d.ts` 里，没装它的 strict 消费方连录制都编不过。被拒时的诊断细节（`conflict` / `incompatible`）
  * 运行时仍在对象上，要类型就直接用工作树的 `restore()`。
  */
@@ -132,7 +132,7 @@ export interface ReplayManager {
   /** 录制库当前用量与生效的上限。 */
   usage(): Promise<ReplayUsage>;
   /**
-   * 把工作树恢复到某个 commit（取恢复前那一刻的新鲜凭据调 `workingTree.restore()`）。
+   * 把工作树恢复到某个 commit（取恢复前那一刻的新鲜凭据调 `worktree.restore()`）。
    *
    * @throws `RxDBReplayError('working_tree_unavailable')`：没装工作树插件；其余错误原样透传
    */

@@ -24,13 +24,13 @@ import {
 const CLAIM = {
   capability: 'workingTree',
   version: 1,
-  packageSpecifier: '@aiao/rxdb-plugin-working-tree'
+  packageSpecifier: '@aiao/rxdb-plugin-worktree'
 } as const;
 
 describe('能力认领水位的行名编解码', () => {
   it('行名带前缀，三段按 capability:version:packageSpecifier 拼', () => {
     expect(capabilityWatermarkName(CLAIM)).toBe(
-      `${RXDB_CAPABILITY_WATERMARK_PREFIX}workingTree:1:@aiao/rxdb-plugin-working-tree`
+      `${RXDB_CAPABILITY_WATERMARK_PREFIX}workingTree:1:@aiao/rxdb-plugin-worktree`
     );
   });
 
@@ -80,7 +80,7 @@ describe('未认领能力守卫', () => {
     expect(thrown).toBeInstanceOf(UnclaimedRxDBCapabilityError);
     expect((thrown as UnclaimedRxDBCapabilityError).claims).toEqual([CLAIM]);
     // 包名是插件自己写进行里的，所以第三方插件同样能产出可执行的报错。
-    expect((thrown as Error).message).toContain('@aiao/rxdb-plugin-working-tree');
+    expect((thrown as Error).message).toContain('@aiao/rxdb-plugin-worktree');
     expect((thrown as Error).message).toContain('workingTree');
   });
 

@@ -1,6 +1,6 @@
 import type { Browser, Page, TestInfo } from '@playwright/test';
 import { archiveFailure, type DemoDbSnapshot, expect, type FailureArchiveSummary, test } from './fixtures.js';
-import { commit, openHistory, openPanel, waitForAutoEnabled, writeTodo } from './working-tree-utils.js';
+import { commit, openHistory, openPanel, waitForAutoEnabled, writeTodo } from './worktree-utils.js';
 
 /**
  * @fileoverview e2e 失败现场归档的导入（US-909 阶段 B，AC#7）：归档在另一个浏览器上下文经 `/failure-archive`
@@ -32,8 +32,8 @@ const requireDbName = (summary: FailureArchiveSummary): string => {
 };
 
 const headCommitIdOf = (summary: FailureArchiveSummary): string | null => {
-  if (!summary.workingTree?.enabled) throw new Error('summary has no enabled working tree');
-  return summary.workingTree.headCommitId;
+  if (!summary.worktree?.enabled) throw new Error('summary has no enabled working tree');
+  return summary.worktree.headCommitId;
 };
 
 const newImportPage = async (browser: Browser, testInfo: TestInfo): Promise<Page> => {
@@ -75,7 +75,7 @@ const archiveSource = async (page: Page, testInfo: TestInfo): Promise<FailureArc
   await writeTodo(page, '导入 C');
   const summary = await archiveFailure(page, testInfo);
   expect(summary.outcome).toBe('archived');
-  expect(summary.workingTree).toMatchObject({ enabled: true, clean: false, entryCount: 1 });
+  expect(summary.worktree).toMatchObject({ enabled: true, clean: false, entryCount: 1 });
   return summary;
 };
 
@@ -99,11 +99,11 @@ test.describe('e2e 失败现场归档的导入', () => {
     // ── 2. 打开的库与摘要一致 ──────────────
     const imported = await snapshot(importer);
     expect(imported.tables).toEqual(summary.tables);
-    expect(imported.workingTree).toEqual(summary.workingTree);
+    expect(imported.worktree).toEqual(summary.worktree);
 
     // ── 3. 在导入的库上继续：丢弃未提交改动，恢复 c1 ──────────────
-    await importer.goto('/working-tree', { waitUntil: 'domcontentloaded' });
-    await expect(importer.getByTestId('working-tree-page')).toBeVisible({ timeout: 20000 });
+    await importer.goto('/worktree', { waitUntil: 'domcontentloaded' });
+    await expect(importer.getByTestId('worktree-page')).toBeVisible({ timeout: 20000 });
     await expect(importer.getByTestId('wt-status-clean')).toHaveText('有未提交改动', { timeout: 30000 });
     await discardAll(importer);
     await openHistory(importer);
@@ -127,7 +127,7 @@ test.describe('e2e 失败现场归档的导入', () => {
     await again.getByRole('button', { name: '打开该库' }).click();
     await expect(again.getByTestId('imported-db-name')).toHaveText(dbName, { timeout: 20000 });
     // 打开的是上一步留下恢复会话的那个库，不是又一份新导入
-    expect((await snapshot(again)).workingTree).toMatchObject({
+    expect((await snapshot(again)).worktree).toMatchObject({
       enabled: true,
       headCommitId: headCommitIdOf(summary),
       clean: false
