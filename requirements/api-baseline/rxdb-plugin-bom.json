@@ -74,6 +74,10 @@
         "kind": "both"
       },
       {
+        "name": "BomLineOperationSplit",
+        "kind": "both"
+      },
+      {
         "name": "BomPublishValidationError",
         "kind": "both"
       },
@@ -90,12 +94,24 @@
         "kind": "both"
       },
       {
+        "name": "BomRouting",
+        "kind": "both"
+      },
+      {
+        "name": "BomRoutingOperation",
+        "kind": "both"
+      },
+      {
         "name": "BomSqlDialect",
         "kind": "type"
       },
       {
         "name": "bomSqlDialectFor",
         "kind": "value"
+      },
+      {
+        "name": "BomSubstituteGroup",
+        "kind": "both"
       },
       {
         "name": "BomSyncUnsupportedError",
@@ -108,6 +124,10 @@
       {
         "name": "BomType",
         "kind": "type"
+      },
+      {
+        "name": "BomWorkCenter",
+        "kind": "both"
       },
       {
         "name": "BomWriteProtocolError",
@@ -256,6 +276,10 @@
       {
         "name": "normalizeDecimalString",
         "kind": "value"
+      },
+      {
+        "name": "OutputLine",
+        "kind": "type"
       },
       {
         "name": "PenetrationRecord",

@@ -54,7 +54,7 @@ tags: [domain, bom, graph, integrity]
 | 1   | A→B→C 已存在                             | 插入 C→A                                                                                                                              | 存储层拒绝，错误里给出环路径                                                                                                                                                                                                                          | | ✅   |
 | 2   | 任意 BOM                                 | 插入 `child = parent`                                                                                                                 | 可达性触发器拒绝，与 AC#1 同一环错误码，环路径为单个物料                                                                                                                                                                                              | | ✅   |
 | 3   | 无闭包表的 org                           | 插入成环边                                                                                                                            | 递归 CTE 检出，`depth` 触上限时报错不静默通过                                                                                                                                                                                                         | | ✅   |
-| 4   | X 的头已 `consume` Y（X→Y 已存）         | 保存 Y 的头一条子件为 X、`flow_direction <> 'consume'` 的行                                                                           | **不**参与环检测，保存成功（与 [US-513](US-513-bom-coproduct-byproduct.md) AC#1 同一反向对）                                                                                                                                                          | ⬜   |
+| 4   | X 的头已 `consume` Y（X→Y 已存）         | 保存 Y 的头一条子件为 X、`flow_direction <> 'consume'` 的行                                                                           | **不**参与环检测，保存成功（与 [US-513](US-513-bom-coproduct-byproduct.md) AC#1 同一反向对）                                                                                                                                                          | | ✅   |
 | 5   | DDL 由本仓掌控的适配器                   | 绕过 adapter 直连库写入成环边                                                                                                         | 触发器拒绝                                                                                                                                                                                                                                            | | ✅   |
 | 6   | `http` / `supabase`                      | `init()`                                                                                                                              | 显式声明本适配器无写入期环约束并 fail-fast，不静默降级为仓储层校验                                                                                                                                                                                    | | ✅   |
 | 7   | 同上                                     | 取环约束 DDL                                                                                                                          | 返回可供远端自行部署的 DDL 片段，含 `(bom_type, org_id)` 级 `pg_advisory_xact_lock` 与 `transaction_isolation` 检查；部署与否由使用方负责                                                                                                             | | ✅   |
@@ -182,6 +182,12 @@ AC#8 等 US-510 阶段 B 的可达性表，AC#13 等真实 PostgreSQL 环境，A
 `cycleConstraintDdlForRemotePg()` 导出含 advisory 锁与隔离级别检查的远端 DDL（AC#7）、
 BOM 实体声明同步配置即拒绝（AC#12）。
 AC#4 等 US-513、AC#8 等 US-510 阶段 B 的可达性表、AC#13 等真实 PostgreSQL 环境、AC#15/#16 等 US-515 落地。
+
+## 首轮切片第 5 步关闭记录（2026-10-14）
+
+AC#4 已关（随 US-513 阶段 A）：`flow_direction` 列落地，判环触发器只认 `consume` 边
+（存储边与 NEW 边均过滤，非 consume 的 NEW 行整体跳过）——X consume Y 与 Y by_product X
+并存不报环，consume 子图成环仍拒。
 
 ## References
 
