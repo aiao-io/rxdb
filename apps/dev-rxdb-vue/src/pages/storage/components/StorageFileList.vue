@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { formatFileSize, STORAGE_TESTID } from '@aiao/utils';
-import { Download, Eye, FolderOpen, Trash2 } from '@lucide/vue';
+import { Download, Eye, FolderOpen, Pen, Trash2 } from '@lucide/vue';
 import { ref } from 'vue';
 import {
   canPreviewFile,
@@ -21,6 +21,7 @@ const emit = defineEmits<{
   download: [entry: StorageBrowserItem];
   delete: [entry: StorageBrowserItem];
   preview: [entry: StorageBrowserItem];
+  rename: [entry: StorageBrowserItem];
   contextMenu: [payload: { event: MouseEvent; entry: StorageBrowserItem }];
   entryClick: [payload: { entry: StorageBrowserItem; event: MouseEvent }];
 }>();
@@ -65,7 +66,7 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
       <tr>
         <th>Name</th>
         <th class="w-32">Size</th>
-        <th class="w-40">Modified</th>
+        <th class="hidden w-40 md:table-cell">Modified</th>
         <th class="w-24">Actions</th>
       </tr>
     </thead>
@@ -115,7 +116,7 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
         >
           {{ entry.kind === 'file' ? formatFileSize(entry.size || 0) : '-' }}
         </td>
-        <td class="text-base-content/60 text-sm">
+        <td class="text-base-content/60 hidden text-sm md:table-cell">
           {{ formatDate(entry.lastModified) }}
         </td>
         <td>
@@ -155,6 +156,14 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
                 <Download :size="14" />
               </button>
             </template>
+            <button
+              class="btn btn-ghost btn-xs"
+              data-testid="storage-rename-btn"
+              @click.stop="emit('rename', entry)"
+              title="Rename"
+            >
+              <Pen :size="14" />
+            </button>
             <button
               class="btn btn-ghost btn-xs text-error"
               :data-testid="entry.kind === 'file' ? T.DELETE_BTN : undefined"

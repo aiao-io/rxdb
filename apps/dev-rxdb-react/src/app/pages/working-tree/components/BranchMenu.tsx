@@ -1,5 +1,5 @@
 import { RxDBBranch } from '@aiao/rxdb';
-import { Check, ChevronDown, ChevronRight, GitBranch, Plus, Search } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, GitBranch, MoreVertical, Plus, Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { gdRelativeTime } from '../utils/gd';
 
@@ -45,6 +45,24 @@ interface WorkingTreeBranchMenuProps {
  * 滚动容器里的右对齐下拉会向左伸进侧栏区域被裁剪——裁掉的那块恰好是操作按钮的
  * 位置，点击会被 fixed 背板吃掉（Angular 端 2026-09-18 实测复现，见 e2e）。
  */
+
+/**
+ * 触屏没有右键：行尾 ⋯ 按钮按自身位置合成一次 contextmenu 请求，
+ * 打开与右键相同的菜单（桌面端按钮隐藏，仍走原生右键）。
+ */
+function touchMenuRequest<T>(event: React.MouseEvent, target: T): { target: T; event: React.MouseEvent } {
+  event.stopPropagation();
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  return {
+    target,
+    event: new MouseEvent('contextmenu', {
+      clientX: rect.left,
+      clientY: rect.bottom,
+      bubbles: true
+    }) as unknown as React.MouseEvent
+  };
+}
+
 export function WorkingTreeBranchMenu({
   activeBranch,
   branchError,
@@ -64,6 +82,18 @@ export function WorkingTreeBranchMenu({
   /** 分支名筛选（大小写不敏感的子串匹配）。 */
   const [filter, setFilter] = useState('');
   const createInputRef = useRef<HTMLInputElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+  const [popupLeft, setPopupLeft] = useState(0);
+
+  // 窄屏夹回：面板右缘不超出视口（右缘留 8px），左缘最多贴到视口左 8px
+  useEffect(() => {
+    if (!menuOpen) return;
+    const popup = popupRef.current;
+    const section = popup?.offsetParent as HTMLElement | null;
+    if (!popup || !section) return;
+    const sectionLeft = section.getBoundingClientRect().left;
+    setPopupLeft(Math.max(8 - sectionLeft, Math.min(0, window.innerWidth - sectionLeft - popupWidth - 8)));
+  }, [menuOpen, popupWidth]);
 
   const closeAll = () => {
     onMenuOpenChange(false);
@@ -229,8 +259,9 @@ export function WorkingTreeBranchMenu({
           </div>
         : menuOpen ?
           <div
+            ref={popupRef}
             className='gd-menu gd-menu-flush absolute top-full left-0 z-40 flex flex-col overflow-y-auto'
-            style={{ height: 'calc(100vh - 50px)', width: popupWidth }}
+            style={{ height: 'calc(100vh - 50px)', width: popupWidth, left: popupLeft }}
             aria-label='Branch list'
             data-testid='wt-branch-menu-popup'
             role='menu'
@@ -304,6 +335,17 @@ export function WorkingTreeBranchMenu({
                       >
                         {gdRelativeTime(branchTime(branch))}
                       </span>
+                    </button>
+                    {/* 触屏没有右键：行尾 ⋯ 打开同一菜单（桌面端隐藏） */}
+                    <button
+                      className='gd-icon-btn hidden max-md:inline-flex pointer-coarse:inline-flex'
+                      onClick={event => onMenuRequest(touchMenuRequest(event, branch))}
+                      aria-label='更多操作'
+                      data-testid='wt-branch-more'
+                      title='更多操作（触屏）'
+                      type='button'
+                    >
+                      <MoreVertical size={14} />
                     </button>
                   </div>
                 </li>

@@ -10,6 +10,7 @@ import { useObservable } from 'react-use';
 import { HistorySidebar } from '../components/HistorySidebar';
 import SyncRejectionsPanel from '../components/SyncRejectionsPanel';
 import { useResettableTimeout } from '../hooks/useResettableTimeout';
+import { useShowHistory } from '../hooks/useShowHistory';
 
 const ITEM_SIZE = 48;
 
@@ -34,7 +35,7 @@ export function TodoPage(): React.JSX.Element {
   const [completedSort, setCompletedSort] = useState<'asc' | 'desc'>('asc');
   const [editingTodoIds, setEditingTodoIds] = useState<Set<string>>(new Set());
   const [editValues, setEditValues] = useState<Map<string, string>>(new Map());
-  const [showHistory, setShowHistory] = useState(true);
+  const [showHistory, setShowHistory] = useShowHistory();
   const [showStickyHeader, setShowStickyHeader] = useState(false);
   const [addingCount, setAddingCount] = useState<number | null>(null);
   // 拖拽中的起点与落点；null 表示没在拖
@@ -290,7 +291,7 @@ export function TodoPage(): React.JSX.Element {
 
   const toggleHistory = useCallback(() => {
     setShowHistory(prev => !prev);
-  }, []);
+  }, [setShowHistory]);
 
   const stickyTabClick = useCallback(
     (tab: 'all' | 'active' | 'completed') => {
@@ -418,21 +419,19 @@ export function TodoPage(): React.JSX.Element {
                 </div>
 
                 {/* Batch Add Dropdown */}
-                <div className='dropdown dropdown-end'>
-                  <button
-                    className='btn btn-circle btn-sm'
-                    data-testid='todo-batch-add'
-                    aria-label='批量添加'
-                    tabIndex={0}
-                  >
+                <details className='dropdown dropdown-end'>
+                  <summary className='btn btn-circle btn-sm' data-testid='todo-batch-add' aria-label='批量添加'>
                     <Plus size={16} />
-                  </button>
+                  </summary>
                   <ul className='menu dropdown-content rounded-box bg-base-200 z-[1] w-40 p-2 shadow'>
                     <li>
                       <button
                         data-testid='todo-batch-option-1'
                         disabled={addingCount === 1}
-                        onClick={() => addManyTodo(1)}
+                        onClick={e => {
+                          addManyTodo(1);
+                          e.currentTarget.closest('details')?.removeAttribute('open');
+                        }}
                       >
                         {addingCount === 1 && <span className='loading loading-spinner loading-xs'></span>}
                         添加 1 条
@@ -442,7 +441,10 @@ export function TodoPage(): React.JSX.Element {
                       <button
                         data-testid='todo-batch-option-10'
                         disabled={addingCount === 10}
-                        onClick={() => addManyTodo(10)}
+                        onClick={e => {
+                          addManyTodo(10);
+                          e.currentTarget.closest('details')?.removeAttribute('open');
+                        }}
                       >
                         {addingCount === 10 && <span className='loading loading-spinner loading-xs'></span>}
                         添加 10 条
@@ -452,7 +454,10 @@ export function TodoPage(): React.JSX.Element {
                       <button
                         data-testid='todo-batch-option-100'
                         disabled={addingCount === 100}
-                        onClick={() => addManyTodo(100)}
+                        onClick={e => {
+                          addManyTodo(100);
+                          e.currentTarget.closest('details')?.removeAttribute('open');
+                        }}
                       >
                         {addingCount === 100 && <span className='loading loading-spinner loading-xs'></span>}
                         添加 100 条
@@ -462,7 +467,10 @@ export function TodoPage(): React.JSX.Element {
                       <button
                         data-testid='todo-batch-option-1000'
                         disabled={addingCount === 1000}
-                        onClick={() => addManyTodo(1000)}
+                        onClick={e => {
+                          addManyTodo(1000);
+                          e.currentTarget.closest('details')?.removeAttribute('open');
+                        }}
                       >
                         {addingCount === 1000 && <span className='loading loading-spinner loading-xs'></span>}
                         添加 1000 条
@@ -472,14 +480,17 @@ export function TodoPage(): React.JSX.Element {
                       <button
                         data-testid='todo-batch-option-10000'
                         disabled={addingCount === 10000}
-                        onClick={() => addManyTodo(10000)}
+                        onClick={e => {
+                          addManyTodo(10000);
+                          e.currentTarget.closest('details')?.removeAttribute('open');
+                        }}
                       >
                         {addingCount === 10000 && <span className='loading loading-spinner loading-xs'></span>}
                         添加 10000 条
                       </button>
                     </li>
                   </ul>
-                </div>
+                </details>
               </div>
 
               <div className='flex items-center gap-2'>
@@ -732,7 +743,7 @@ export function TodoPage(): React.JSX.Element {
                             >
                               {todo.title}
                             </div>
-                            <div className='flex gap-1 opacity-0 transition-opacity group-hover:opacity-100'>
+                            <div className='flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100'>
                               <button
                                 className='btn btn-ghost btn-xs'
                                 data-testid='todo-edit'

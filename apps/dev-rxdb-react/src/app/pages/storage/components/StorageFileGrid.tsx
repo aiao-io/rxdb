@@ -1,6 +1,6 @@
 import { useRxDB } from '@aiao/rxdb-react';
 import { formatFileSize, STORAGE_TESTID } from '@aiao/utils';
-import { Download, Eye, FolderOpen, Trash2 } from 'lucide-react';
+import { Download, Eye, FolderOpen, Pen, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useObjectUrlMap } from '../../../hooks/loadObjectUrlMap';
 import { canPreviewFile, getFileIcon, getFileIconColor, isImageFile, StorageBrowserItem } from '../utils/storage-utils';
@@ -13,6 +13,7 @@ interface Props {
   onDownload: (entry: StorageBrowserItem) => void;
   onDelete: (entry: StorageBrowserItem) => void;
   onPreview: (entry: StorageBrowserItem) => void;
+  onRename: (entry: StorageBrowserItem) => void;
   onContextMenu: (event: React.MouseEvent, entry: StorageBrowserItem) => void;
   onEntryClick: (entry: StorageBrowserItem, event: React.MouseEvent) => void;
 }
@@ -26,6 +27,7 @@ export function StorageFileGrid({
   onDownload,
   onDelete,
   onPreview,
+  onRename,
   onContextMenu,
   onEntryClick
 }: Props) {
@@ -131,7 +133,7 @@ export function StorageFileGrid({
               )}
             </div>
 
-            <div className='absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100'>
+            <div className='absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100'>
               {entry.kind === 'directory' ?
                 <>
                   <button
@@ -182,6 +184,17 @@ export function StorageFileGrid({
                   </button>
                 </>
               }
+              <button
+                className='btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur'
+                data-testid='storage-rename-btn'
+                onClick={event => {
+                  event.stopPropagation();
+                  onRename(entry);
+                }}
+                title='Rename'
+              >
+                <Pen size={12} />
+              </button>
               <button
                 className='btn btn-circle btn-ghost btn-xs bg-base-100/80 text-error backdrop-blur'
                 data-testid={entry.kind === 'file' ? T.DELETE_BTN : undefined}

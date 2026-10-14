@@ -485,6 +485,7 @@ export default function StoragePage(): React.JSX.Element {
             onEntryClick={(entry, event) => handleEntryClick(entry, event)}
             onNavigate={entry => void navigateTo(entry.path)}
             onPreview={entry => setPreviewEntry(entry)}
+            onRename={entry => setRenameDialog({ show: true, entry, newName: entry.name })}
           />
         : <StorageFileGrid
             currentPath={currentPath}
@@ -496,6 +497,7 @@ export default function StoragePage(): React.JSX.Element {
             onEntryClick={(entry, event) => handleEntryClick(entry, event)}
             onNavigate={entry => void navigateTo(entry.path)}
             onPreview={entry => setPreviewEntry(entry)}
+            onRename={entry => setRenameDialog({ show: true, entry, newName: entry.name })}
           />
         }
 

@@ -2,7 +2,7 @@
 /**
  * OPFS 文件网格组件
  */
-import { Download, Eye, Trash2 } from '@lucide/vue';
+import { Download, Eye, Pen, Trash2 } from '@lucide/vue';
 import { onUnmounted, ref, watch } from 'vue';
 import { useOpfsService } from '../composables/useOpfsService';
 import {
@@ -25,6 +25,7 @@ const emit = defineEmits<{
   download: [entry: OPFSFileEntry];
   delete: [entry: OPFSFileEntry];
   preview: [entry: OPFSFileEntry];
+  rename: [entry: OPFSFileEntry];
   contextMenu: [payload: { event: MouseEvent; entry: OPFSFileEntry }];
   entryClick: [payload: { entry: OPFSFileEntry; event: MouseEvent }];
 }>();
@@ -160,7 +161,9 @@ function handleContextMenu(event: MouseEvent, entry: OPFSFileEntry) {
         </p>
       </div>
 
-      <div class="absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+      <div
+        class="absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100"
+      >
         <button
           class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
           v-if="entry.kind === 'file' && canPreviewFile(entry)"
@@ -176,6 +179,14 @@ function handleContextMenu(event: MouseEvent, entry: OPFSFileEntry) {
           title="下载"
         >
           <Download :size="12" />
+        </button>
+        <button
+          class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
+          data-testid="opfs-rename-btn"
+          @click.stop="emit('rename', entry)"
+          title="重命名"
+        >
+          <Pen :size="12" />
         </button>
         <button
           class="btn btn-circle btn-ghost btn-xs bg-base-100/80 text-error backdrop-blur"

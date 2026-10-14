@@ -89,14 +89,18 @@
             }
 
             <!-- 批量添加 -->
-            <div class="dropdown dropdown-end">
-              <button class="btn btn-sm btn-circle" aria-label="批量添加">
+            <!-- 批量添加：details/summary 原生切换（触屏 tap 不产生 :focus，focus 驱动的 daisyUI dropdown 在移动端打不开） -->
+            <details class="dropdown dropdown-end" #batchDropdown>
+              <summary class="btn btn-sm btn-circle" aria-label="批量添加">
                 <svg [lucideIcon]="Plus" [size]="16" />
-              </button>
+              </summary>
               <ul class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
                 @for (option of batchAddOptions; track option.count) {
                   <li>
-                    <button [disabled]="add_many.isPending()" (click)="add_many.execute(option.count)">
+                    <button
+                      [disabled]="add_many.isPending()"
+                      (click)="add_many.execute(option.count); batchDropdown.removeAttribute('open')"
+                    >
                       @if (add_many.isPending()) {
                         <span class="loading loading-spinner loading-xs"></span>
                       }
@@ -105,7 +109,7 @@
                   </li>
                 }
               </ul>
-            </div>
+            </details>
           </div>
           <div class="flex items-center gap-2">
             <!-- Undo/Redo -->
@@ -168,7 +172,7 @@
         </div>
 
         <!-- 搜索框和排序 -->
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
           <div class="relative flex-1">
             <svg
               class="text-base-content/40 absolute top-1/2 left-3 -translate-y-1/2"
@@ -227,7 +231,7 @@
             </div>
           }
 
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-2">
             <!-- 文件/文件夹模式切换 -->
             <button
               class="btn btn-sm"
@@ -332,7 +336,6 @@
                     [attr.data-drop-valid]="dropValidAttr(node.node.id)"
                     [attr.data-file-id]="node.node.id"
                     [attr.data-parent-id]="node.node.parentId ?? ''"
-                    [attr.draggable]="true"
                     [class.dragging]="isDragging(node.node.id)"
                     [class.drop-after]="getDragState(node.node.id) === 'drop-after'"
                     [class.drop-before]="getDragState(node.node.id) === 'drop-before'"
@@ -341,11 +344,6 @@
                     [class.drop-invalid]="isInvalidTarget(node.node.id)"
                     [class.z-10]="selectedFolder === node.node.id"
                     [style.padding-left.px]="node.level * 24"
-                    (dragend)="onDragEnd($event)"
-                    (dragleave)="onDragLeave($event)"
-                    (dragover)="onDragOver($event, node.node)"
-                    (dragstart)="onDragStart($event, node.node)"
-                    (drop)="onDrop($event, node.node)"
                   >
                     <div
                       class="tree-node-content hover:bg-base-200 group flex items-center gap-2 rounded px-2 py-2"
@@ -353,6 +351,20 @@
                       [class.ring-inset]="selectedFolderId() === node.node.id"
                       [class.ring-primary]="selectedFolderId() === node.node.id"
                     >
+                      <!-- 拖拽手柄（pointer 起拖，触屏可用） -->
+                      <button
+                        class="btn btn-ghost btn-xs btn-square drag-handle touch-none opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100"
+                        (click)="$event.stopPropagation()"
+                        (pointercancel)="onPointerUp($event)"
+                        (pointerdown)="startPointerDrag($event, node.node)"
+                        (pointermove)="onPointerMove($event)"
+                        (pointerup)="onPointerUp($event)"
+                        data-testid="file-drag-handle"
+                        title="拖拽排序"
+                        type="button"
+                      >
+                        <svg [lucideIcon]="GripVertical" [size]="14" />
+                      </button>
                       <!-- 展开/折叠按钮 -->
                       <button
                         class="btn btn-ghost btn-xs btn-square"
@@ -424,7 +436,9 @@
                         </span>
 
                         <!-- 操作按钮 -->
-                        <div class="actions flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div
+                          class="actions flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100"
+                        >
                           <!-- 添加子文件夹 (仅文件夹显示) -->
                           @if (node.node.type === 'folder') {
                             <button

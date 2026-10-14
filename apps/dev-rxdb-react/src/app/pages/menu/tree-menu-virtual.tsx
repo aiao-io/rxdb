@@ -24,13 +24,14 @@ import { OperationErrorAlert } from '../../components/OperationErrorAlert';
 import { PathConflictWarning } from '../../components/PathConflictWarning';
 import { useDragDrop } from '../../hooks/useDragDrop';
 import { useMenuRenamePathGuard } from '../../hooks/useRenamePathGuard';
+import { useShowHistory } from '../../hooks/useShowHistory';
 import { useTreeMenuVirtualStore } from '../../hooks/useTreeMenuVirtualStore';
 import { generateBatchMenus } from '../../utils/menu-utils';
 
 export function TreeMenuVirtualPage() {
   const rxdb = useRxDB();
   const menuRepository = useMemo(() => rxdb.entityManager.getRepository(SortableMenuLarge), [rxdb]);
-  const [showHistory, setShowHistory] = useState(true);
+  const [showHistory, setShowHistory] = useShowHistory();
   const [newTitle, setNewTitle] = useState('');
   const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set());
   const [editingTitles, setEditingTitles] = useState<Map<string, string>>(new Map());
@@ -164,10 +165,10 @@ export function TreeMenuVirtualPage() {
                   {menus.length} 项
                 </div>
                 {/* 批量添加 */}
-                <div className='dropdown dropdown-end'>
-                  <button className='btn btn-circle btn-sm' aria-label='批量添加' data-testid='menu-batch-add'>
+                <details className='dropdown dropdown-end'>
+                  <summary className='btn btn-circle btn-sm' aria-label='批量添加' data-testid='menu-batch-add'>
                     <Plus size={16} />
-                  </button>
+                  </summary>
                   <ul className='dropdown-content menu rounded-box bg-base-100 z-10 w-52 p-2 shadow'>
                     {[
                       { count: 100, label: '添加 100 条' },
@@ -182,7 +183,10 @@ export function TreeMenuVirtualPage() {
                           <button
                             data-testid={`menu-batch-option-${count}`}
                             disabled={isLoading}
-                            onClick={() => handleAddMany(count, actionKey)}
+                            onClick={e => {
+                              handleAddMany(count, actionKey);
+                              e.currentTarget.closest('details')?.removeAttribute('open');
+                            }}
                           >
                             {isLoading && <span className='loading loading-spinner loading-xs'></span>}
                             {label}
@@ -191,7 +195,7 @@ export function TreeMenuVirtualPage() {
                       );
                     })}
                   </ul>
-                </div>
+                </details>
               </div>
 
               <div className='flex items-center gap-2'>
@@ -275,7 +279,7 @@ export function TreeMenuVirtualPage() {
 
             {/* 添加菜单 (根/子) */}
             <form
-              className='flex gap-2'
+              className='flex flex-wrap gap-2'
               onSubmit={async e => {
                 e.preventDefault();
                 if (!newTitle.trim()) return;
@@ -331,7 +335,7 @@ export function TreeMenuVirtualPage() {
             </form>
 
             {/* Search Bar */}
-            <div className='flex gap-2'>
+            <div className='flex flex-wrap gap-2'>
               <div className='relative flex-1'>
                 <Search className='text-base-content/40 absolute top-1/2 left-3 -translate-y-1/2' size={16} />
                 <input
@@ -428,56 +432,149 @@ export function TreeMenuVirtualPage() {
                       transform: `translateY(${virtualRow.start}px)`,
                       paddingLeft: `${level * 20 + 8}px`
                     }}
-                    draggable
-                    onDragStart={e => {
-                      e.dataTransfer.effectAllowed = 'move';
-                      e.dataTransfer.setData('text/plain', menu.id);
-                      dragDrop.onDragStart(menu.id);
+                    onPointerDown={e => {
+                      // 桌面鼠标：行本体起拖（阈值防点击闪烁）；触屏走手柄，避免与滚动冲突
+                      if (e.pointerType !== 'mouse') return;
+                      if ((e.target as HTMLElement).closest('button, a, input, select')) return;
+                      (e.currentTarget as HTMLElement).dataset.pendingDrag = JSON.stringify({
+                        x: e.clientX,
+                        y: e.clientY,
+                        id: menu.id
+                      });
                     }}
-                    onDragOver={e => {
-                      e.preventDefault();
-                      const element = e.currentTarget as HTMLElement;
-                      const rect = element.getBoundingClientRect();
-                      const { isValid } = dragDrop.onDragOver(menu, e.clientY, rect);
-                      e.dataTransfer.dropEffect = isValid ? 'move' : 'none';
-                    }}
-                    onDragLeave={e => {
-                      const target = e.currentTarget as HTMLElement;
-                      const related = e.relatedTarget as HTMLElement;
-                      if (!target.contains(related)) {
-                        dragDrop.onDragLeave();
+                    onPointerMove={e => {
+                      const rowEl = e.currentTarget as HTMLElement;
+                      const pending = rowEl.dataset.pendingDrag;
+                      if (pending) {
+                        const { x, y, id } = JSON.parse(pending) as { x: number; y: number; id: string };
+                        if (Math.hypot(e.clientX - x, e.clientY - y) > 4) {
+                          delete rowEl.dataset.pendingDrag;
+                          dragDrop.onDragStart(id);
+                          rowEl.setPointerCapture(e.pointerId);
+                        } else {
+                          return;
+                        }
                       }
+                      if (dragDrop.dragDropState.draggedItemId === null) return;
+                      const hit = document
+                        .elementFromPoint(e.clientX, e.clientY)
+                        ?.closest('[data-menu-id]') as HTMLElement | null;
+                      if (!hit) {
+                        dragDrop.onDragLeave();
+                        return;
+                      }
+                      const target = menus.find(m => m.id === hit.getAttribute('data-menu-id'));
+                      if (!target) return;
+                      dragDrop.onDragOver(target, e.clientY, hit.getBoundingClientRect());
                     }}
-                    onDrop={async e => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      // 失败由 useDragDrop 经 runWrite 送进页内提示，这里不再有 catch / alert
-                      await dragDrop.onDrop(
-                        menu,
+                    onPointerUp={e => {
+                      const rowEl = e.currentTarget as HTMLElement;
+                      if (rowEl.dataset.pendingDrag) {
+                        delete rowEl.dataset.pendingDrag;
+                        return;
+                      }
+                      if (dragDrop.dragDropState.draggedItemId === null) return;
+                      const hit = document
+                        .elementFromPoint(e.clientX, e.clientY)
+                        ?.closest('[data-menu-id]') as HTMLElement | null;
+                      const target = hit ? menus.find(m => m.id === hit.getAttribute('data-menu-id')) : undefined;
+                      if (!target || !hit) {
+                        dragDrop.onDragEnd();
+                        return;
+                      }
+                      void dragDrop.onDrop(
+                        target,
                         menuId => {
-                          // 展开目标菜单
                           if (!store.expandedIds.has(menuId)) {
                             store.toggleExpand(menuId);
                           }
                         },
-                        {
-                          mouseY: e.clientY,
-                          rect: (e.currentTarget as HTMLElement).getBoundingClientRect()
-                        }
+                        { mouseY: e.clientY, rect: hit.getBoundingClientRect() }
                       );
                     }}
-                    onDragEnd={() => dragDrop.onDragEnd()}
+                    onPointerCancel={e => {
+                      delete (e.currentTarget as HTMLElement).dataset.pendingDrag;
+                      if (dragDrop.dragDropState.draggedItemId !== null) dragDrop.onDragEnd();
+                    }}
                   >
-                    {/* Drag Handle */}
+                    {/* Drag Handle（pointer 起拖，触屏可用） */}
                     <button
-                      className='btn btn-ghost btn-xs cursor-grab p-0 opacity-0 group-hover:opacity-100'
+                      className='btn btn-ghost btn-xs cursor-grab touch-none p-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100'
+
                       data-testid='menu-drag-handle'
+
                       title='拖拽排序'
+
                       onMouseDown={e => e.stopPropagation()}
+
+                      onClick={e => e.stopPropagation()}
+
+                      onPointerDown={e => {
+                        e.preventDefault();
+
+                        e.stopPropagation();
+
+                        (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+
+                        dragDrop.onDragStart(menu.id);
+                      }}
+
+                      onPointerMove={e => {
+                        if (dragDrop.dragDropState.draggedItemId === null) return;
+
+                        const row = document
+                          .elementFromPoint(e.clientX, e.clientY)
+                          ?.closest('[data-menu-id]') as HTMLElement | null;
+
+                        if (!row) {
+                          dragDrop.onDragLeave();
+
+                          return;
+                        }
+
+                        const target = menus.find(m => m.id === row.getAttribute('data-menu-id'));
+
+                        if (!target) return;
+
+                        dragDrop.onDragOver(target, e.clientY, row.getBoundingClientRect());
+                      }}
+
+                      onPointerUp={e => {
+                        if (dragDrop.dragDropState.draggedItemId === null) return;
+
+                        const row = document
+                          .elementFromPoint(e.clientX, e.clientY)
+                          ?.closest('[data-menu-id]') as HTMLElement | null;
+
+                        const target = row ? menus.find(m => m.id === row.getAttribute('data-menu-id')) : undefined;
+
+                        if (!target || !row) {
+                          dragDrop.onDragEnd();
+
+                          return;
+                        }
+
+                        void dragDrop.onDrop(
+                          target,
+
+                          menuId => {
+                            // 展开目标菜单
+
+                            if (!store.expandedIds.has(menuId)) {
+                              store.toggleExpand(menuId);
+                            }
+                          },
+
+                          { mouseY: e.clientY, rect: row.getBoundingClientRect() }
+                        );
+                      }}
+
+                      onPointerCancel={() => {
+                        if (dragDrop.dragDropState.draggedItemId !== null) dragDrop.onDragEnd();
+                      }}
                     >
                       <GripVertical size={14} />
                     </button>
-
                     {/* Expand/Collapse */}
                     <button
                       className='btn btn-ghost btn-xs p-0'
@@ -491,7 +588,6 @@ export function TreeMenuVirtualPage() {
                         : <ChevronRight size={16} />
                       : <span className='w-4' />}
                     </button>
-
                     {/* Title (editable) */}
                     {isEditing ?
                       <input
@@ -522,9 +618,8 @@ export function TreeMenuVirtualPage() {
                         {menu.title}
                       </span>
                     }
-
                     {/* Actions */}
-                    <div className='flex gap-1 opacity-0 group-hover:opacity-100'>
+                    <div className='actions flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100'>
                       <button
                         className='btn btn-ghost btn-xs'
                         onClick={() => {

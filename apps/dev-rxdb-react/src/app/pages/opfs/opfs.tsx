@@ -502,7 +502,7 @@ export default function OpfsPage() {
       </div>
 
       {/* Toolbar */}
-      <div className='border-base-300 flex items-center gap-2 border-b p-2'>
+      <div className='border-base-300 flex flex-wrap items-center gap-2 border-b p-2'>
         <button className='btn btn-xs btn-ghost' onClick={() => navigateToPath('/')} title='根目录'>
           <Home size={16} />
         </button>
@@ -541,7 +541,7 @@ export default function OpfsPage() {
       </div>
 
       {/* Breadcrumb */}
-      <div className='border-base-300 flex items-center gap-1 border-b px-3 py-2 text-sm'>
+      <div className='border-base-300 flex items-center gap-1 overflow-x-auto border-b px-3 py-2 text-sm whitespace-nowrap'>
         <button className='hover:underline' onClick={() => navigateToPath('/')}>
           根目录
         </button>
@@ -580,6 +580,7 @@ export default function OpfsPage() {
             onDownload={handleDownload}
             onDelete={handleDelete}
             onPreview={entry => setPreviewEntry(entry)}
+            onRename={entry => setRenameDialog({ show: true, entry, newName: entry.name })}
             onContextMenu={handleContextMenu}
             onEntryClick={handleEntryClick}
           />
@@ -592,6 +593,7 @@ export default function OpfsPage() {
             onDownload={handleDownload}
             onDelete={handleDelete}
             onPreview={entry => setPreviewEntry(entry)}
+            onRename={entry => setRenameDialog({ show: true, entry, newName: entry.name })}
             onContextMenu={handleContextMenu}
             onEntryClick={handleEntryClick}
           />

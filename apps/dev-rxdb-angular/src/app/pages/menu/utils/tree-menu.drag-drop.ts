@@ -78,4 +78,45 @@ export abstract class TreeMenuDragDropBase<C extends TreeMenuEntityConstructor> 
   onDragEnd(): void {
     this.store.onDragEnd();
   }
+
+  // ── Pointer 拖拽（触屏可用；store 判定逻辑与原生 DnD 完全共用） ──────────────────
+
+  /**
+   * 手柄 pointerdown 起拖：捕获指针后 move/up 都落回手柄，落点用 elementFromPoint 命中行。
+   */
+  startPointerDrag(event: PointerEvent, menu: TreeMenuInstance<C>): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    this.store.onDragStart(menu.id);
+  }
+
+  /** 拖动中：按指针位置命中目标行，复用 store 的三档落点判定。 */
+  onPointerMove(event: PointerEvent): void {
+    if (this.store.dragDropState().draggedItemId === null) return;
+    const row = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest('[data-menu-id]') as HTMLElement | null;
+    if (!row) {
+      this.store.onDragLeave();
+      return;
+    }
+    const menu = this.menuResource.value().find(m => m.id === row.getAttribute('data-menu-id'));
+    if (!menu) return;
+    this.store.onDragOver(menu, event.clientY, row.getBoundingClientRect());
+  }
+
+  /** 松开：命中目标行则走 store 落库，否则仅复位拖拽状态。 */
+  async onPointerUp(event: PointerEvent): Promise<void> {
+    if (this.store.dragDropState().draggedItemId === null) return;
+    const row = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest('[data-menu-id]') as HTMLElement | null;
+    const menu = row ? this.menuResource.value().find(m => m.id === row.getAttribute('data-menu-id')) : undefined;
+    if (menu) {
+      await this.runWrite('拖放', () => this.store.onDrop(menu));
+    } else {
+      this.store.onDragEnd();
+    }
+  }
 }

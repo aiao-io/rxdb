@@ -65,6 +65,7 @@ const columnDefs = ref<ColDef<Todo>[]>(
 );
 const defaultColDef = ref<ColDef<Todo>>({
   flex: 1,
+  minWidth: 120,
   filter: true,
   sortable: true,
   enableCellChangeFlash: true

@@ -1050,8 +1050,8 @@ export function EntityList({
             setOpenDialog(null);
             if (result === 'saved') refreshCurrentList();
           }}
-          width='720px'
-          minWidth='400px'
+          width='min(720px, calc(100vw - 1rem))'
+          minWidth='min(400px, calc(100vw - 1rem))'
           height='80vh'
           minHeight='300px'
           className='entity-detail-dialog'
@@ -1074,8 +1074,8 @@ export function EntityList({
             setOpenDialog(null);
             if (result === 'saved') refreshCurrentList();
           }}
-          width='720px'
-          minWidth='400px'
+          width='min(720px, calc(100vw - 1rem))'
+          minWidth='min(400px, calc(100vw - 1rem))'
           height='80vh'
           minHeight='300px'
           className='entity-detail-dialog'
@@ -1089,8 +1089,8 @@ export function EntityList({
         <Dialog
           open
           onClose={() => setOpenDialog(null)}
-          width='720px'
-          minWidth='400px'
+          width='min(720px, calc(100vw - 1rem))'
+          minWidth='min(400px, calc(100vw - 1rem))'
           height='70vh'
           minHeight='300px'
           className='entity-m2m-select-dialog'
@@ -1201,7 +1201,7 @@ function FilterPopover({
             */
             <div
               ref={contentRef}
-              className='border-base-300 bg-base-100 rounded-lg border p-3 shadow-lg'
+              className='border-base-300 bg-base-100 max-h-[70dvh] max-w-[calc(100vw-1rem)] overflow-auto rounded-lg border p-3 shadow-lg'
               onClick={event => event.stopPropagation()}
             >
               <QueryBuilder

@@ -273,12 +273,17 @@ async function handleContextMenuAction(action: 'view' | 'download' | 'rename' | 
     return;
   }
   if (action === 'rename') {
-    renameDialog.value = { show: true, entry };
+    openRenameDialog(entry);
     return;
   }
   if (action === 'delete') {
     await handleDelete(entry);
   }
+}
+
+/** 行内重命名入口：触屏没有右键菜单，列表/网格的 Rename 按钮都走这里。 */
+function openRenameDialog(entry: StorageBrowserItem): void {
+  renameDialog.value = { show: true, entry };
 }
 
 async function handleDrop(event: DragEvent): Promise<void> {
@@ -428,6 +433,7 @@ function resolveConfirmDialog(confirmed: boolean): void {
         @entry-click="payload => selection.handleEntryClick(payload.entry, payload.event)"
         @navigate="navigateTo($event.path)"
         @preview="previewEntry = $event"
+        @rename="openRenameDialog"
       />
       <StorageFileGrid
         v-else
@@ -440,6 +446,7 @@ function resolveConfirmDialog(confirmed: boolean): void {
         @entry-click="payload => selection.handleEntryClick(payload.entry, payload.event)"
         @navigate="navigateTo($event.path)"
         @preview="previewEntry = $event"
+        @rename="openRenameDialog"
       />
 
       <div

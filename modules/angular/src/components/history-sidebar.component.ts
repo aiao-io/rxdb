@@ -13,10 +13,16 @@ import { LucideDynamicIcon, LucideX } from '@lucide/angular';
     @let scope = this.scopeType();
     @let histories = this.histories();
     @let hasHistories = histories.length > 0;
+    @if (show) {
+      <!-- 移动端遮罩：窄屏下侧栏浮在内容上方（md 以上由 md:hidden 收起） -->
+      <div class="bg-base-content/40 fixed inset-0 z-30 md:hidden" (click)="closeClick.emit()" aria-hidden="true"></div>
+    }
     <aside
-      class="bg-base-100 border-base-300 flex h-full flex-col overflow-hidden shadow-lg transition-all duration-300"
+      class="bg-base-100 border-base-300 flex h-full flex-col overflow-hidden shadow-lg transition-all duration-300 max-md:absolute max-md:inset-y-0 max-md:z-40 max-md:shadow-2xl"
       [class.border-l]="borderSide() === 'left'"
       [class.border-r]="borderSide() === 'right'"
+      [class.max-md:left-0]="borderSide() === 'left'"
+      [class.max-md:right-0]="borderSide() === 'right'"
       [class.w-0]="!show"
       [class.w-48]="show"
     >

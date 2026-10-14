@@ -454,7 +454,7 @@ defineExpose({
     >
       <!-- Tab Bar -->
       <div
-        class="tabs tabs-border min-h-0 flex-1"
+        class="tabs tabs-border min-h-0 flex-1 overflow-x-auto"
         role="tablist"
       >
         <template

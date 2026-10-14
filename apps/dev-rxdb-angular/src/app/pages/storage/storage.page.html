@@ -23,7 +23,7 @@
     </div>
   </div>
 
-  <div class="border-base-300 flex items-center gap-2 border-b p-2">
+  <div class="border-base-300 flex flex-wrap items-center gap-2 border-b p-2">
     <button class="btn btn-xs btn-ghost" (click)="navigateTo('/')" title="Root">
       <svg [lucideIcon]="Home" size="16"></svg>
     </button>
@@ -90,7 +90,7 @@
     }
   </div>
 
-  <div class="border-base-300 flex items-center gap-1 border-b px-3 py-2 text-sm">
+  <div class="border-base-300 flex items-center gap-1 overflow-x-auto border-b px-3 py-2 text-sm whitespace-nowrap">
     <button class="hover:underline" (click)="navigateTo('/')">Root</button>
     @for (segment of pathSegments; track segment.path) {
       <div class="flex items-center gap-1">
@@ -131,6 +131,7 @@
         (entryClick)="handleEntryClick($event.entry, $event.event)"
         (navigate)="handleNavigate($event)"
         (preview)="previewEntry.set($event)"
+        (rename)="openRenameDialog($event)"
       ></app-storage-file-list>
     } @else {
       <app-storage-file-grid
@@ -143,6 +144,7 @@
         (entryClick)="handleEntryClick($event.entry, $event.event)"
         (navigate)="handleNavigate($event)"
         (preview)="previewEntry.set($event)"
+        (rename)="openRenameDialog($event)"
       ></app-storage-file-grid>
     }
 

@@ -6,6 +6,7 @@ import {
   LucideEye as Eye,
   LucideFolderOpen as FolderOpen,
   LucideDynamicIcon,
+  LucidePen as Pen,
   LucideTrash2 as Trash2
 } from '@lucide/angular';
 import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } from '../utils/storage-utils';
@@ -21,7 +22,7 @@ import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } fro
         <tr>
           <th>Name</th>
           <th class="w-32">Size</th>
-          <th class="w-40">Modified</th>
+          <th class="hidden w-40 md:table-cell">Modified</th>
           <th class="w-24">Actions</th>
         </tr>
       </thead>
@@ -59,7 +60,7 @@ import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } fro
             >
               {{ entry.kind === 'file' ? formatFileSize(entry.size || 0) : '-' }}
             </td>
-            <td class="text-base-content/60 text-sm">{{ formatDate(entry.lastModified) }}</td>
+            <td class="text-base-content/60 hidden text-sm md:table-cell">{{ formatDate(entry.lastModified) }}</td>
             <td>
               <div class="flex items-center gap-1">
                 @if (entry.kind === 'directory') {
@@ -98,6 +99,14 @@ import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } fro
                   </button>
                 }
                 <button
+                  class="btn btn-ghost btn-xs"
+                  (click)="rename.emit(entry); $event.stopPropagation()"
+                  data-testid="storage-rename-btn"
+                  title="Rename"
+                >
+                  <svg [lucideIcon]="Pen" size="14"></svg>
+                </button>
+                <button
                   class="btn btn-ghost btn-xs text-error"
                   [attr.data-testid]="entry.kind === 'file' ? TESTID.DELETE_BTN : null"
                   (click)="delete.emit(entry); $event.stopPropagation()"
@@ -127,6 +136,7 @@ export class StorageFileListComponent {
   download = output<StorageBrowserItem>();
   delete = output<StorageBrowserItem>();
   preview = output<StorageBrowserItem>();
+  rename = output<StorageBrowserItem>();
   contextMenu = output<{ event: MouseEvent; entry: StorageBrowserItem }>();
   entryClick = output<{ entry: StorageBrowserItem; event: MouseEvent }>();
 
@@ -134,6 +144,7 @@ export class StorageFileListComponent {
   readonly Download = Download;
   readonly Trash2 = Trash2;
   readonly Eye = Eye;
+  readonly Pen = Pen;
   getFileIcon = getFileIcon;
   getFileIconColor = getFileIconColor;
   formatFileSize = formatFileSize;
