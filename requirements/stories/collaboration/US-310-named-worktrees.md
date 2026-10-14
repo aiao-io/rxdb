@@ -68,7 +68,7 @@ INVEST 检查清单:
 | 16  | 三端 demo，非 active worktree 有未提交改动 | 移除它                                                  | 被拒并 toast；行仍在                                                                                                                                                                                                         | ✅   |
 | 17  | 三端 demo                                  | a11y 走查                                               | 纯 Tab 可达、Escape（document 级）与背板点击关闭、role / aria 断言（列表弹层为非模态 dialog）、菜单打开时 axe 零违规、筛空文案、remove 按钮有可访问名、输入法组合中的回车不提交                                              | ✅   |
 | 18  | 门禁                                       | 收尾                                                    | api-baseline 自更新；`rxdb-plugin-worktree` 覆盖率 ≥ 90%；package-graph 重生成；`audit:suite-callsites` / `audit:callsite-drift` / `tri-framework-check` 全绿                                                                | ✅   |
-| 19  | 三端，读过一次 worktree 列表               | 别处删掉钉住的分支 / 从分支菜单切换 / 启用能力          | 列表不经手动刷新就跟着变（含别的标签页、devtools）；组件销毁后不再跟随                                                                                                                                                       | ⚠️   |
+| 19  | 三端，读过一次 worktree 列表               | 别处删掉钉住的分支 / 从分支菜单切换 / 启用能力          | 列表不经手动刷新就跟着变（含别的标签页、devtools）；组件销毁后不再跟随                                                                                                                                                       | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
