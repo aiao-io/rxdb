@@ -118,6 +118,8 @@ export class BomItemRevision extends EntityBase {
     { name: 'state', type: PropertyType.enum, enum: ['draft', 'released'], default: 'draft' },
     // 历史装载批次的批次号（US-508 历史装载通道）；直连发布恒空
     { name: 'historyBatchNo', type: PropertyType.string, nullable: true },
+    // 工艺路线（US-524 阶段 A）：可空；挂了必须可解析（发布转移校验）
+    { name: 'routingId', type: PropertyType.uuid, nullable: true },
     // 数量语义（US-511 阶段 A/B1）：头基准单位与基准量、装配损耗（加成制 ×(1+s) / 良率制 ÷(1−s)）
     { name: 'baseUom', type: PropertyType.string, default: 'pcs' },
     { name: 'baseQty', type: PropertyType.string, default: '1' },
@@ -138,6 +140,12 @@ export class BomItemRevision extends EntityBase {
       properties: ['historyBatchNo'],
       mappedEntity: 'BomHistoryBatch',
       mappedProperties: ['batchNo']
+    },
+    {
+      name: 'header_routing',
+      properties: ['routingId'],
+      mappedEntity: 'BomRouting',
+      mappedProperties: ['id']
     }
   ],
   indexes: [
@@ -155,6 +163,7 @@ export class BomHeader extends EntityBase {
   state!: 'draft' | 'released';
   parentRevisionId!: string;
   historyBatchNo!: string | null;
+  routingId!: string | null;
   baseUom!: string;
   baseQty!: string;
   assemblyScrap!: string;
@@ -253,7 +262,16 @@ export class BomLine extends EntityBase {
     { name: 'uomConversion', type: PropertyType.string, nullable: true },
     { name: 'phantomOverride', type: PropertyType.boolean, nullable: true },
     // 位号管理（US-507 阶段 C）：发布转移要求位号数 = 名义 qty
-    { name: 'designatorManaged', type: PropertyType.boolean, default: false }
+    { name: 'designatorManaged', type: PropertyType.boolean, default: false },
+    // 物料流方向（US-513 阶段 A）：只有 consume 进判环与需求展开
+    { name: 'flowDirection', type: PropertyType.enum, enum: ['consume', 'by_product', 'scrap_out'], default: 'consume' },
+    // 替代组成员（US-512）：primary 是原始需求对象，替代只从 primary 指向各 substitute
+    { name: 'substituteRole', type: PropertyType.enum, enum: ['primary', 'substitute'], nullable: true },
+    { name: 'substitutePriority', type: PropertyType.integer, nullable: true },
+    { name: 'usageProbability', type: PropertyType.string, nullable: true },
+    { name: 'equivQty', type: PropertyType.string, nullable: true },
+    // 投料工序（US-520）：行归属工序；分摊经 bom_line_operation_split 子表
+    { name: 'operationSeq', type: PropertyType.integer, nullable: true }
   ],
   checks: [
     // US-511 AC#7：qty 与 qty_formula 恰好一项非空
@@ -304,6 +322,13 @@ export class BomLine extends EntityBase {
       kind: RelationKind.MANY_TO_ONE,
       mappedEntity: 'BomItem',
       mappedProperty: 'occurrences'
+    },
+    {
+      name: 'substituteGroup',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'BomSubstituteGroup',
+      mappedProperty: 'members',
+      nullable: true
     }
   ],
   foreignKeys: [
@@ -346,6 +371,62 @@ export class BomLineOccurrence extends EntityBase {
   uomConversion!: string | null;
   phantomOverride!: boolean | null;
   designatorManaged!: boolean;
+  flowDirection!: 'consume' | 'by_product' | 'scrap_out';
+  substituteGroupId!: string | null;
+  substituteRole!: 'primary' | 'substitute' | null;
+  substitutePriority!: number | null;
+  usageProbability!: string | null;
+  equivQty!: string | null;
+  operationSeq!: number | null;
+}
+
+/**
+ * 替代组（`bom$bom_substitute_group`，US-512 非 ECN 场景）。
+ *
+ * @remarks
+ * 一等实体：`(headerId, code)` 唯一；`strategy`（priority / proportional / manual）与
+ * `allowMix` 是组的属性；组成员是同一头下的行发生项（成员列见 `BomLineOccurrence`）。
+ * 单行 CHECK：按比例分摊本身就是混用（`proportional × !allow_mix` 保存即拒，AC#10）；
+ * 聚合约束（恰好一个 primary、priority 不并列、合计恒 1）在发布转移按生效域切片校验。
+ */
+@Entity({
+  name: 'BomSubstituteGroup',
+  namespace: 'bom',
+  tableName: 'bom_substitute_group',
+  repository: 'BomRepository',
+  properties: [
+    { name: 'code', type: PropertyType.string },
+    { name: 'strategy', type: PropertyType.enum, enum: ['priority', 'proportional', 'manual'] },
+    { name: 'allowMix', type: PropertyType.boolean, default: true }
+  ],
+  relations: [
+    {
+      name: 'header',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'BomHeader',
+      mappedProperty: 'substituteGroups',
+      onDelete: 'CASCADE'
+    }
+  ],
+  indexes: [{ name: 'header_code', properties: ['headerId', 'code'], unique: true }],
+  checks: [
+    {
+      name: 'proportional_allows_mix',
+      rule: {
+        combinator: 'or',
+        rules: [
+          { field: 'strategy', operator: '!=', value: 'proportional' },
+          { field: 'allowMix', operator: '=', value: true }
+        ]
+      }
+    }
+  ]
+})
+export class BomSubstituteGroup extends EntityBase {
+  code!: string;
+  strategy!: 'priority' | 'proportional' | 'manual';
+  allowMix!: boolean;
+  headerId!: string;
 }
 
 /**
@@ -378,5 +459,133 @@ export class BomLineDesignator extends EntityBase {
   occurrenceId!: string;
 }
 
+/**
+ * 工作中心（`bom$work_center`，US-524 阶段 A）：编码 + 组织，`(code, orgId)` 唯一。
+ */
+@Entity({
+  name: 'BomWorkCenter',
+  namespace: 'bom',
+  tableName: 'work_center',
+  repository: 'BomRepository',
+  properties: [
+    { name: 'code', type: PropertyType.string },
+    { name: 'orgId', type: PropertyType.string }
+  ],
+  indexes: [{ name: 'code_org', properties: ['code', 'orgId'], unique: true }]
+})
+export class BomWorkCenter extends EntityBase {
+  code!: string;
+  orgId!: string;
+}
+
+/**
+ * 工艺路线（`bom$routing`，US-524 阶段 A）：唯一键与 BOM 头逐列对齐
+ * `(parentRevisionId, bomType, orgId, alternativeNo)`；`validFrom` / `disabledAt` 路线级生效。
+ */
+@Entity({
+  name: 'BomRouting',
+  namespace: 'bom',
+  tableName: 'routing',
+  repository: 'BomRepository',
+  properties: [
+    { name: 'bomType', type: PropertyType.enum, enum: ['ebom', 'mbom', 'sales'] },
+    { name: 'orgId', type: PropertyType.string },
+    { name: 'alternativeNo', type: PropertyType.integer, default: 1 },
+    { name: 'validFrom', type: PropertyType.date },
+    { name: 'disabledAt', type: PropertyType.date, nullable: true }
+  ],
+  relations: [
+    {
+      name: 'parentRevision',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'BomItemRevision',
+      mappedProperty: 'routings'
+    }
+  ],
+  indexes: [
+    { name: 'revision_type_org_alternative', properties: ['parentRevisionId', 'bomType', 'orgId', 'alternativeNo'], unique: true }
+  ]
+})
+export class BomRouting extends EntityBase {
+  bomType!: 'ebom' | 'mbom' | 'sales';
+  orgId!: string;
+  alternativeNo!: number;
+  validFrom!: Date;
+  disabledAt!: Date | null;
+  parentRevisionId!: string;
+}
+
+/**
+ * 工序（`bom$routing_operation`，US-524 阶段 A/D）：`(routingId, operationSeq)` 唯一；
+ * 引用完整性指向工作中心；工序损耗与每道工序各自的 `scrap_convention`（D，与 US-511 同一记法）。
+ */
+@Entity({
+  name: 'BomRoutingOperation',
+  namespace: 'bom',
+  tableName: 'routing_operation',
+  repository: 'BomRepository',
+  properties: [
+    { name: 'operationSeq', type: PropertyType.integer },
+    { name: 'description', type: PropertyType.string, nullable: true },
+    { name: 'operationScrap', type: PropertyType.string, default: '0' },
+    { name: 'scrapConvention', type: PropertyType.enum, enum: ['additive', 'yield'], default: 'additive' }
+  ],
+  relations: [
+    {
+      name: 'routing',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'BomRouting',
+      mappedProperty: 'operations',
+      onDelete: 'CASCADE'
+    },
+    {
+      name: 'workCenter',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'BomWorkCenter',
+      mappedProperty: 'operations'
+    }
+  ],
+  indexes: [{ name: 'routing_operation_seq', properties: ['routingId', 'operationSeq'], unique: true }]
+})
+export class BomRoutingOperation extends EntityBase {
+  operationSeq!: number;
+  description!: string | null;
+  operationScrap!: string;
+  scrapConvention!: 'additive' | 'yield';
+  routingId!: string;
+  workCenterId!: string;
+}
+
+/**
+ * 投料分摊（`bom$bom_line_operation_split`，US-520）：一个发生项按比例分摊到多道工序；
+ * 分摊对象是工序损耗前的量（G'），各份额之和 = 1（发布转移校验）。
+ */
+@Entity({
+  name: 'BomLineOperationSplit',
+  namespace: 'bom',
+  tableName: 'bom_line_operation_split',
+  repository: 'BomRepository',
+  properties: [
+    { name: 'operationSeq', type: PropertyType.integer },
+    // 分摊比例 [0,1]、小数至多 9 位（与 usage_probability 同域）
+    { name: 'ratio', type: PropertyType.string }
+  ],
+  relations: [
+    {
+      name: 'occurrence',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'BomLineOccurrence',
+      mappedProperty: 'operationSplits',
+      onDelete: 'CASCADE'
+    }
+  ],
+  indexes: [{ name: 'occurrence_operation_seq', properties: ['occurrenceId', 'operationSeq'], unique: true }]
+})
+export class BomLineOperationSplit extends EntityBase {
+  operationSeq!: number;
+  ratio!: string;
+  occurrenceId!: string;
+}
+
 /** BOM 实体全集（触发器安装按此清单在 schema 里找实体）。 */
-export const BOM_ENTITIES = [BomItem, BomItemRevision, BomHeader, BomHistoryBatch, BomLine, BomLineOccurrence, BomLineDesignator] as const;
+export const BOM_ENTITIES = [BomItem, BomItemRevision, BomHeader, BomHistoryBatch, BomLine, BomLineOccurrence, BomLineDesignator, BomSubstituteGroup, BomWorkCenter, BomRouting, BomRoutingOperation, BomLineOperationSplit] as const;

@@ -2,7 +2,7 @@ import { computed, Injectable, signal } from '@angular/core';
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { firstValueFrom } from 'rxjs';
-import { BOM_ENTITIES, BomHeader, BomItemRevision, BomLine, BomLineDesignator, BomLineOccurrence, rxDBPluginBom, type ExpansionResult, type ExplosionResult, type RequirementLine } from '@aiao/rxdb-plugin-bom';
+import { BOM_ENTITIES, BomHeader, BomItemRevision, BomLine, BomLineDesignator, BomLineOccurrence, BomSubstituteGroup, rxDBPluginBom, type ExpansionResult, type ExplosionResult } from '@aiao/rxdb-plugin-bom';
 import { goldenItemId, loadScooterDataset, SCOOTER_SEED_BATCH_NO, SCOOTER_SEED_TIMESTAMP } from '@aiao/rxdb-plugin-bom/testing';
 
 /** demo 库名（reset 删除的 IndexedDB 库）。 */
@@ -62,61 +62,61 @@ export class BomDemoService {
     await this.#hydrate();
   }
 
-  async #connect(): Promise<void> {
-    if (this.rxdb) return;
-    if (this.connectPromise) return this.connectPromise;
-    this.connectPromise = this.#doConnect().finally(() => {
-      this.connectPromise = undefined;
-    });
-    return this.connectPromise;
-  }
-
-  async #doConnect(): Promise<void> {
-    const rxdb = new RxDB({
-      dbName: BOM_DEMO_DB_NAME,
-      entities: [...BOM_ENTITIES],
-      sync: { local: { adapter: 'wa-sqlite' }, type: SyncType.None }
-    });
-    rxdb.use(rxDBPluginBom);
-    let adapter: RxDBAdapterWaSqlite;
-    rxdb.adapter('wa-sqlite', db => {
-      adapter = new RxDBAdapterWaSqlite(db, {
-        vfs: 'IDBBatchAtomicVFS',
-        async: true,
-        worker: false,
-        wasmPath: '/wa-sqlite/wa-sqlite-async.wasm',
-        batchTimeout: 1
-      });
-      return adapter;
-    });
-    await rxdb.connect('wa-sqlite');
-    this.rxdb = rxdb;
-    this.adapter = adapter!;
-  }
-
-  async #hydrate(): Promise<void> {
-    await this.#loadItemNos();
-    await this.#loadDesignators();
-    await this.#ensureDemoHeader();
-    this.ready.set(true);
-  }
-
-  /** 按评估日与计划量展开整机（父修订按时点取最新）。 */
-  async explode(asOfDate: string, plannedQty: string): Promise<ExplosionResult> {
+  /** 按评估日与计划量展开（父修订按时点取最新；根物料可选，默认整机 SC-100）。 */
+  async explode(asOfDate: string, plannedQty: string, rootKey = 'SC-100'): Promise<ExplosionResult> {
     if (!this.rxdb) throw new Error('demo 未就绪');
     return this.rxdb.bom.explodeBom(
       { bomType: 'ebom', orgId: 'org-x', asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) },
-      { parentItemId: goldenItemId('SC-100') },
+      { parentItemId: goldenItemId(rootKey) },
       { plannedQty: { value: plannedQty, uom: 'pcs' } }
     );
   }
 
-  /** 需求行路径 → 业务键序列（展示与 e2e 断言用）。 */
-  pathKeys(line: RequirementLine): string[] {
-    return line.path.map(id => {
-      // 发生项 id → 业务键：种子的 id 由业务键确定性派生，这里按行内容反查（demo 只展示）
-      return id.slice(0, 8);
-    });
+  /** 替代组发布拒绝演示（US-525 AC#7 ②）：draft 组 0.5/0.3 发布 → 拒绝并给实际合计 0.8。 */
+  async demoSubstitutePublishRejection(): Promise<string> {
+    if (!this.rxdb) throw new Error('demo 未就绪');
+    try {
+      // 演示头挂 COVER-ASSY 的新建 draft 修订（种子已发布头占着唯一键；成员行不构成自环）
+      const revision = new BomItemRevision();
+      revision.revisionNo = 'E';
+      revision.itemId = goldenItemId('COVER-ASSY');
+      await revision.save();
+      const draftHeader = new BomHeader();
+      draftHeader.parentRevisionId = revision.id;
+      draftHeader.bomType = 'ebom';
+      draftHeader.orgId = 'org-x';
+      await draftHeader.save();
+      const group = new BomSubstituteGroup();
+      group.headerId = draftHeader.id;
+      group.code = 'G-DEMO';
+      group.strategy = 'proportional';
+      await group.save();
+      const addMember = async (childKey: string, role: 'primary' | 'substitute', probability: string): Promise<void> => {
+        const line = new BomLine();
+        line.headerId = draftHeader.id;
+        line.lineNo = 10 + Math.floor(Math.random() * 100000);
+        await line.save();
+        const occurrence = new BomLineOccurrence();
+        occurrence.lineId = line.id;
+        occurrence.childItemId = goldenItemId(childKey);
+        occurrence.qty = '100';
+        occurrence.uom = 'pcs';
+        occurrence.effectiveFrom = new Date('2026-01-01T00:00:00.000Z');
+        await occurrence.save();
+        occurrence.substituteGroupId = group.id;
+        occurrence.substituteRole = role;
+        occurrence.usageProbability = probability;
+        occurrence.equivQty = '1';
+        await occurrence.save();
+      };
+      await addMember('R10K', 'primary', '0.5');
+      await addMember('R10K-ALT1', 'substitute', '0.3');
+      draftHeader.state = 'released';
+      await draftHeader.save();
+      return '发布成功（不应发生：合计 0.8 未校验）';
+    } catch (error) {
+      return String(error);
+    }
   }
 
   /** where-used 反查（AC#6：M3 螺钉的全部父件与路径，含虚拟件路径）。 */
@@ -188,7 +188,6 @@ export class BomDemoService {
     if (!this.adapter) throw new Error('demo 未就绪');
     const headerId = this.demoHeaderId;
     if (!headerId) throw new Error('演示头未就绪');
-    // 在演示 draft 头下新建一行 + 发生项（PCBA → SC-100 闭合多跳环：SC-100→PCBA 已存在）。
     // 行号随机：重复点击会留空行，固定行号会撞 (headerId, lineNo) 唯一约束
     const lineId = crypto.randomUUID();
     const occurrenceId = crypto.randomUUID();
@@ -231,6 +230,45 @@ export class BomDemoService {
     } catch (error) {
       return String(error);
     }
+  }
+
+  async #connect(): Promise<void> {
+    if (this.rxdb) return;
+    if (this.connectPromise) return this.connectPromise;
+    this.connectPromise = this.#doConnect().finally(() => {
+      this.connectPromise = undefined;
+    });
+    return this.connectPromise;
+  }
+
+  async #doConnect(): Promise<void> {
+    const rxdb = new RxDB({
+      dbName: BOM_DEMO_DB_NAME,
+      entities: [...BOM_ENTITIES],
+      sync: { local: { adapter: 'wa-sqlite' }, type: SyncType.None }
+    });
+    rxdb.use(rxDBPluginBom);
+    let adapter: RxDBAdapterWaSqlite;
+    rxdb.adapter('wa-sqlite', db => {
+      adapter = new RxDBAdapterWaSqlite(db, {
+        vfs: 'IDBBatchAtomicVFS',
+        async: true,
+        worker: false,
+        wasmPath: '/wa-sqlite/wa-sqlite-async.wasm',
+        batchTimeout: 1
+      });
+      return adapter;
+    });
+    await rxdb.connect('wa-sqlite');
+    this.rxdb = rxdb;
+    this.adapter = adapter!;
+  }
+
+  async #hydrate(): Promise<void> {
+    await this.#loadItemNos();
+    await this.#loadDesignators();
+    await this.#ensureDemoHeader();
+    this.ready.set(true);
   }
 
   async #loadItemNos(): Promise<void> {

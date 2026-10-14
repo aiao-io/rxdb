@@ -71,6 +71,8 @@ export interface ScooterOccurrenceSpec {
   designators?: ScooterDesignatorSpec[];
   effectiveFrom?: string;
   effectiveTo?: string | null;
+  operationSeq?: number;
+  flowDirection?: 'consume' | 'by_product' | 'scrap_out';
 }
 
 /** 头规格（挂物料修订）。 */
@@ -84,6 +86,19 @@ export interface ScooterHeaderSpec {
   assemblyScrap?: string;
   assemblyScrapConvention?: 'additive' | 'yield';
   occurrences: ScooterOccurrenceSpec[];
+  /** 替代组（US-512，B 层）：成员按 occurrence 序号引用本头的行。 */
+  substituteGroups?: {
+    code: string;
+    strategy: 'priority' | 'proportional' | 'manual';
+    allowMix?: boolean;
+    members: { occurrenceIndex: number; role: 'primary' | 'substitute'; probability?: string | null; priority?: number | null; equivQty?: string | null }[];
+  }[];
+  /** 工艺路线（US-524/520，B 层）：工序列表 + 行的投料工序与分摊。 */
+  routing?: {
+    workCenterCode: string;
+    operations: { seq: number; scrap?: string; convention?: 'additive' | 'yield' }[];
+    allocations: { occurrenceIndex: number; operationSeq?: number | null; splits: { operationSeq: number; ratio: string }[] }[];
+  };
 }
 
 /** SC-100 数据集（阶段 A 层）：纯数据描述，不含任何随机成分。 */
@@ -157,6 +172,82 @@ export const SCOOTER_DATASET: {
   ]
 };
 
+/**
+ * SC-100 数据集阶段 B 层（US-525 AC#7~#9）：只追加该阶段 schema 已存在的实体，
+ * 不改写下层行——外壳下料头（consume/by_product/scrap_out）、10kΩ 替代组（新装配头）、
+ * 工艺路线 10→20→30（20 损耗 3%）与投料分摊 6:4。
+ */
+export const SCOOTER_DATASET_B: {
+  items: ScooterItemSpec[];
+  headers: ScooterHeaderSpec[];
+} = {
+  items: [
+    { key: 'HOUSING' },
+    { key: 'SHEET' },
+    { key: 'OFFCUT' },
+    { key: 'TRIM' },
+    { key: 'R10K-ALT1' },
+    { key: 'R10K-ALT2' },
+    { key: 'P-MATERIAL', uomDecimals: 1 },
+    { key: 'COVER-ASSY' },
+    { key: 'PROCESS-01' }
+  ],
+  headers: [
+    {
+      // US-525 AC#8：外壳下料头——consume 板材 + by_product 余料 + scrap_out 边角料
+      itemKey: 'HOUSING',
+      occurrences: [
+        { childKey: 'SHEET', qty: '2', flowDirection: 'consume' },
+        { childKey: 'OFFCUT', qty: '0.3', flowDirection: 'by_product' },
+        { childKey: 'TRIM', qty: '0.1', flowDirection: 'scrap_out' }
+      ]
+    },
+    {
+      // US-525 AC#7：10kΩ 替代组（proportional 0.5/0.3/0.2，equiv 1/2/0.5）
+      itemKey: 'COVER-ASSY',
+      occurrences: [
+        { childKey: 'R10K', qty: '100' },
+        { childKey: 'R10K-ALT1', qty: '0' },
+        { childKey: 'R10K-ALT2', qty: '0' }
+      ],
+      substituteGroups: [
+        {
+          code: 'G-R10K',
+          strategy: 'proportional',
+          members: [
+            { occurrenceIndex: 0, role: 'primary', probability: '0.5' },
+            { occurrenceIndex: 1, role: 'substitute', probability: '0.3', equivQty: '2' },
+            { occurrenceIndex: 2, role: 'substitute', probability: '0.2', equivQty: '0.5' }
+          ]
+        }
+      ]
+    },
+    {
+      // US-525 AC#9：路线 10→20→30（20 损耗 3% 加成制）；行 G'=100 分摊到 10/30 比例 6:4
+      itemKey: 'PROCESS-01',
+      baseQty: '100',
+      occurrences: [{ childKey: 'P-MATERIAL', qty: '100' }],
+      routing: {
+        workCenterCode: 'WC-P1',
+        operations: [
+          { seq: 10 },
+          { seq: 20, scrap: '0.03', convention: 'additive' },
+          { seq: 30 }
+        ],
+        allocations: [
+          {
+            occurrenceIndex: 0,
+            splits: [
+              { operationSeq: 10, ratio: '0.6' },
+              { operationSeq: 30, ratio: '0.4' }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+};
+
 /** 种子里的业务键 → 物料 id 映射（demo 与测试按业务键引用）。 */
 export type ScooterItemIds = Record<string, string>;
 
@@ -199,21 +290,46 @@ export const loadScooterDataset = async (adapter: BomLocalAdapter): Promise<Scoo
     items.set(spec.key, item);
   }
   // 修订与头同批装载：每个头规格对应一个修订（同一物料可有多个修订，如 WH-01 的 C/D 版）
-  const headers = SCOOTER_DATASET.headers;
+  const headers = [...SCOOTER_DATASET.headers, ...SCOOTER_DATASET_B.headers];
+  // B 层物料追加
+  for (const spec of SCOOTER_DATASET_B.items) {
+    if (items.has(spec.key)) continue;
+    const item = new BomItem();
+    const writable = item as unknown as { id: string; createdAt: Date; updatedAt: Date };
+    writable.id = deterministicId(`item:${spec.key}`);
+    item.itemNo = spec.key;
+    item.stockUom = spec.stockUom ?? 'pcs';
+    item.uomDecimals = spec.uomDecimals ?? 0;
+    item.uomConversion = spec.uomConversion ?? null;
+    writable.createdAt = new Date(SCOOTER_SEED_TIMESTAMP);
+    writable.updatedAt = new Date(SCOOTER_SEED_TIMESTAMP);
+    await item.save();
+    items.set(spec.key, item);
+  }
   await loadHistory(adapter, {
     batchNo: SCOOTER_SEED_BATCH_NO,
     id: deterministicId('batch:scooter-seed-a'),
     createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
     updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
-    revisions: headers.map(header => ({
-      id: deterministicId(`revision:${header.itemKey}:${header.revisionNo ?? 'A'}`),
-      itemId: items.get(header.itemKey)!.id,
-      revisionNo: header.revisionNo ?? 'A',
-      effectiveFrom: new Date(`${header.effectiveFrom ?? '2026-01-01'}T00:00:00.000Z`),
-      defaultPhantom: header.defaultPhantom ?? false,
-      createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
-      updatedAt: new Date(SCOOTER_SEED_TIMESTAMP)
-    })),
+    revisions: (() => {
+      // 父件修订 + 全部子件修订（去重）：子件经 imprecise 解析需要已发布修订
+      const parentKeys = headers.map(header => ({ key: header.itemKey, revisionNo: header.revisionNo ?? 'A', effectiveFrom: header.effectiveFrom ?? '2026-01-01', defaultPhantom: header.defaultPhantom ?? false }));
+      const childKeys = [...new Set(headers.flatMap(header => header.occurrences.map(occurrence => occurrence.childKey)))]
+        .filter(key => !parentKeys.some(parent => parent.key === key));
+      const all = [
+        ...parentKeys,
+        ...childKeys.map(key => ({ key, revisionNo: 'A' as string, effectiveFrom: '2026-01-01', defaultPhantom: false }))
+      ];
+      return all.map(spec => ({
+        id: deterministicId(`revision:${spec.key}:${spec.revisionNo}`),
+        itemId: items.get(spec.key)!.id,
+        revisionNo: spec.revisionNo,
+        effectiveFrom: new Date(`${spec.effectiveFrom}T00:00:00.000Z`),
+        defaultPhantom: spec.defaultPhantom,
+        createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+        updatedAt: new Date(SCOOTER_SEED_TIMESTAMP)
+      }));
+    })(),
     headers: headers.map((header, headerIndex) => ({
       revisionIndex: headerIndex,
       bomType: 'ebom',
@@ -251,11 +367,42 @@ export const loadScooterDataset = async (adapter: BomLocalAdapter): Promise<Scoo
               id: deterministicId(`designator:${header.itemKey}:${header.revisionNo ?? 'A'}:${occurrenceIndex}:${designatorIndex}`),
               designator: designator.designator
             })),
+            flowDirection: occurrence.flowDirection ?? 'consume',
+            operationSeq: occurrence.operationSeq ?? null,
             effectiveFrom: occurrence.effectiveFrom !== undefined ? new Date(`${occurrence.effectiveFrom}T00:00:00.000Z`) : new Date('2026-01-01T00:00:00.000Z'),
             effectiveTo: occurrence.effectiveTo !== undefined ? new Date(`${occurrence.effectiveTo}T00:00:00.000Z`) : null
           }
         ]
-      }))
+      })),
+      substituteGroups: (header.substituteGroups ?? []).map(group => ({
+        id: deterministicId(`substitute-group:${header.itemKey}:${header.revisionNo ?? 'A'}:${group.code}`),
+        code: group.code,
+        strategy: group.strategy,
+        allowMix: group.allowMix,
+        members: group.members
+      })),
+      routing: header.routing !== undefined ?
+        {
+          id: deterministicId(`routing:${header.itemKey}:${header.revisionNo ?? 'A'}`),
+          workCenterCode: header.routing.workCenterCode,
+          workCenterId: deterministicId(`work-center:${header.itemKey}:${header.revisionNo ?? 'A'}`),
+          operations: header.routing.operations.map((operation, operationIndex) => ({
+            id: deterministicId(`routing-op:${header.itemKey}:${header.revisionNo ?? 'A'}:${operationIndex}`),
+            seq: operation.seq,
+            scrap: operation.scrap,
+            convention: operation.convention
+          })),
+          allocations: header.routing.allocations.map(allocation => ({
+            occurrenceIndex: allocation.occurrenceIndex,
+            operationSeq: allocation.operationSeq,
+            splits: allocation.splits.map((split, splitIndex) => ({
+              id: deterministicId(`routing-split:${header.itemKey}:${header.revisionNo ?? 'A'}:${allocation.occurrenceIndex}:${splitIndex}`),
+              operationSeq: split.operationSeq,
+              ratio: split.ratio
+            }))
+          }))
+        }
+      : undefined
     }))
   });
   return Object.fromEntries([...items.entries()].map(([key, item]) => [key, item.id]));

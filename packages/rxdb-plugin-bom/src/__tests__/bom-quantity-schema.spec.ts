@@ -20,7 +20,7 @@ const settled = <T>(promise: Promise<T>): Promise<{ ok: true; value: T } | { ok:
   );
 
 /** 建一套最小装配（draft 头 + 行），返回可挂发生项的 line 与头。 */
-const setup = async (adapter: BomTestAdapter) => {
+const setup = async (): Promise<{ header: BomHeader; child: BomItem }> => {
   const item = new BomItem();
   item.itemNo = `qs-item-${Math.random().toString(36).slice(2, 8)}`;
   await item.save();
@@ -71,7 +71,7 @@ for (const backend of BACKENDS) {
     });
 
     it('qty 与 qty_formula 恰好一项（AC#7）', async () => {
-      const { header, child } = await setup(adapter);
+      const { header, child } = await setup();
       await expect((await makeOccurrence(header, child)).save()).resolves.toBeDefined();
       const both = await settled((await makeOccurrence(header, child, { qty: '1', qtyFormula: '1+1' })).save());
       expect(both.ok).toBe(false);
@@ -85,7 +85,7 @@ for (const backend of BACKENDS) {
     });
 
     it('阶梯三字段同空或 tier_group_no 与 lotsize_from 同非空（AC#21）', async () => {
-      const { header, child } = await setup(adapter);
+      const { header, child } = await setup();
       await expect((await makeOccurrence(header, child)).save()).resolves.toBeDefined();
       const fromOnly = await settled((await makeOccurrence(header, child, { lotsizeFrom: '0' })).save());
       expect(fromOnly.ok).toBe(false);
@@ -100,7 +100,7 @@ for (const backend of BACKENDS) {
     });
 
     it('新列存取往返（uom / 损耗 / 换算率 / phantom_override）', async () => {
-      const { header, child } = await setup(adapter);
+      const { header, child } = await setup();
       const occurrence = await makeOccurrence(header, child, {
         uom: 'm',
         componentScrap: '0.02',
@@ -120,7 +120,7 @@ for (const backend of BACKENDS) {
     });
 
     it('良率制损耗必须 < 1：s = 1 拒绝、加成制不受限（AC#12）', async () => {
-      const { header, child } = await setup(adapter);
+      const { header, child } = await setup();
       const rejected = await settled(
         (await makeOccurrence(header, child, { componentScrap: '1', componentScrapConvention: 'yield' })).save()
       );
@@ -142,7 +142,7 @@ for (const backend of BACKENDS) {
     });
 
     it('阶梯边界域：15 位有效数字与整数/小数位数（AC#25/#26 保存段）', async () => {
-      const { header, child } = await setup(adapter);
+      const { header, child } = await setup();
       // 15 位有效数字（14 位小数）与 15 位小数对照组、15 位整数对照组：接受
       await expect(
         (await makeOccurrence(header, child, { tierGroupNo: 'g', lotsizeFrom: '1.00000000000001', lotsizeTo: '999999999999999' })).save()
@@ -172,7 +172,7 @@ for (const backend of BACKENDS) {
     });
 
     it('直连 SQL 写非规范串到新十进制列仍被拒', async () => {
-      const { header, child } = await setup(adapter);
+      const { header, child } = await setup();
       const rawLine = new BomLine();
       rawLine.headerId = header.id;
       rawLine.lineNo = 500 + Math.floor(Math.random() * 100);

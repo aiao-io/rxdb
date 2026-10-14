@@ -21,11 +21,6 @@ interface ExplosionView {
 export class ExplosionPage implements OnInit {
   private readonly service = inject(BomDemoService);
 
-  ngOnInit(): void {
-    // 页面重载走既有库路径：连接即安装插件触发器（幂等），种子行原样可用
-    void this.service.connectExisting().catch(() => undefined);
-  }
-
   readonly ready = this.service.ready;
   readonly itemNos = this.service.itemNos;
   readonly seedBatchNo = this.service.seedBatchNo;
@@ -38,7 +33,14 @@ export class ExplosionPage implements OnInit {
   readonly rowCounts = signal('');
   readonly publishResult = signal('');
   readonly whereUsedLines = signal<string[]>([]);
+  readonly rootKey = signal('SC-100');
+  readonly substituteResult = signal('');
   readonly busy = signal(false);
+
+  ngOnInit(): void {
+    // 页面重载走既有库路径：连接即安装插件触发器（幂等），种子行原样可用
+    void this.service.connectExisting().catch(() => undefined);
+  }
 
   itemNo(itemId: string): string {
     return this.itemNos().get(itemId) ?? itemId.slice(0, 8);
@@ -93,10 +95,19 @@ export class ExplosionPage implements OnInit {
   async runExplode(): Promise<void> {
     this.busy.set(true);
     try {
-      const result = await this.service.explode(this.asOfDate(), this.plannedQty());
+      const result = await this.service.explode(this.asOfDate(), this.plannedQty(), this.rootKey());
       this.view.set({ result, selected: null });
     } catch (error) {
       this.rawResult.set(String(error));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  async runSubstituteDemo(): Promise<void> {
+    this.busy.set(true);
+    try {
+      this.substituteResult.set(await this.service.demoSubstitutePublishRejection());
     } finally {
       this.busy.set(false);
     }
@@ -144,7 +155,7 @@ export class ExplosionPage implements OnInit {
       { label: "2. P'", value: steps.assemblyScrapped.value, uom: steps.assemblyScrapped.uom, source: 'h.assembly_scrap' },
       { label: '3. G', value: steps.gross.value, uom: steps.gross.uom, source: 'qty / qty_formula × P′ / h.base_qty' },
       { label: "4. G'", value: steps.componentScrapped.value, uom: steps.componentScrapped.uom, source: 'l.component_scrap(+fixed)' },
-      { label: '5. G″', value: '—', uom: '', source: '工序损耗未交付（阶段 B）' },
+      { label: '5. G″', value: steps.operationScrapped?.value ?? '—', uom: steps.operationScrapped?.uom ?? '', source: steps.operationScrapped ? '投料工序（含）至末工序逐道累乘' : '工序损耗未交付（无路线行）' },
       { label: '6. D', value: steps.converted.value, uom: steps.converted.uom, source: '行 UoM → 子件库存单位' },
       { label: '7. 需求', value: line.qty, uom: line.uom, source: `phantom = ${phantomSource}（向上取整）` }
     ];

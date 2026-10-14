@@ -23,6 +23,11 @@ DECLARE
   scope bom_header%ROWTYPE;
   msg text;
 BEGIN
+  -- US-513：非 consume 边是反向物料流，不进入判环
+  IF NEW.flow_direction <> 'consume' THEN
+    RETURN NEW;
+  END IF;
+
   -- 隔离级别是合同的一部分：advisory lock 只串行化写入，Repeatable Read 的旧快照会漏检
   IF current_setting('transaction_isolation') <> 'read committed' THEN
     RAISE EXCEPTION 'rxdb:bom_cycle:isolation:%', current_setting('transaction_isolation');
@@ -50,8 +55,10 @@ BEGIN
       JOIN item_revision r ON r.id = h.parent_revision_id
       WHERE h.bom_type = scope.bom_type AND h.org_id = scope.org_id
         AND occ.id IS DISTINCT FROM NEW.id
+        AND occ.flow_direction = 'consume'
       UNION ALL
       SELECT scope.item_id, NEW.child_item_id
+      WHERE NEW.flow_direction = 'consume'
     ) e ON e.parent_item_id = reach.item_id
     WHERE reach.depth < ${128} AND reach.item_id <> scope.item_id
   ),

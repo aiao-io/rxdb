@@ -9,7 +9,7 @@
 
 import type { BomEntityFactory, BomLocalAdapter } from './bom-adapter.js';
 import type { EntityType } from '@aiao/rxdb';
-import { BomHeader, BomHistoryBatch, BomItemRevision, BomLine, BomLineDesignator, BomLineOccurrence } from '../entities.js';
+import { BomHeader, BomHistoryBatch, BomItemRevision, BomLine, BomLineDesignator, BomLineOccurrence, BomLineOperationSplit, BomRouting, BomRoutingOperation, BomSubstituteGroup, BomWorkCenter } from '../entities.js';
 import { normalizeDecimalString } from '../decimal.utils.js';
 import { BomType } from './resolution.js';
 
@@ -60,6 +60,15 @@ export interface HistoryOccurrenceInput {
   /** 固定审计时间戳（US-525 AC#1）；缺省走系统时钟。 */
   createdAt?: Date;
   updatedAt?: Date;
+  /** 物料流方向（US-513，默认 consume）。 */
+  flowDirection?: 'consume' | 'by_product' | 'scrap_out';
+  /** 投料工序（US-520）。 */
+  operationSeq?: number | null;
+  /** 替代组成员（US-512）：role / probability / equiv_qty；组装载见 HistoryHeaderInput.substituteGroups。 */
+  substituteRole?: 'primary' | 'substitute' | null;
+  substitutePriority?: number | null;
+  usageProbability?: string | null;
+  equivQty?: string | null;
 }
 
 /** 一张历史头的输入：挂本批修订（按 `revisionIndex` 引用），含逻辑行与发生项。 */
@@ -77,6 +86,22 @@ export interface HistoryHeaderInput {
   createdAt?: Date;
   updatedAt?: Date;
   lines: { lineNo: number; occurrences: HistoryOccurrenceInput[]; id?: string; createdAt?: Date; updatedAt?: Date }[];
+  /** 替代组（US-512，B 层种子）：成员按 occurrence 序号引用本头的行。 */
+  substituteGroups?: {
+    code: string;
+    strategy: 'priority' | 'proportional' | 'manual';
+    allowMix?: boolean;
+    id?: string;
+    members: { occurrenceIndex: number; role: 'primary' | 'substitute'; probability?: string | null; priority?: number | null; equivQty?: string | null }[];
+  }[];
+  /** 工艺路线（US-524/520，B 层种子）：工序与行的投料工序/分摊。 */
+  routing?: {
+    id?: string;
+    workCenterCode: string;
+    workCenterId?: string;
+    operations: { seq: number; scrap?: string; convention?: 'additive' | 'yield'; id?: string }[];
+    allocations: { occurrenceIndex: number; operationSeq?: number | null; splits: { operationSeq: number; ratio: string; id?: string }[] }[];
+  };
 }
 
 /** 一次历史装载的输入：批次号由调用方给定，同一输入装载两遍批次号逐字相同（AC#18）。 */
@@ -148,6 +173,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       header.assemblyScrap = headerInput.assemblyScrap ?? '0';
       header.assemblyScrapConvention = headerInput.assemblyScrapConvention ?? 'additive';
       await executor.getRepository(BomHeader).create(header);
+      const lines: { line: BomLine; occurrence: BomLineOccurrence }[] = [];
       for (const lineInput of headerInput.lines) {
         const line = construct(BomLine);
         if (lineInput.id) (line as unknown as { id: string }).id = lineInput.id;
@@ -180,7 +206,14 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
           occurrence.uomConversion = occurrenceInput.uomConversion ?? null;
           occurrence.phantomOverride = occurrenceInput.phantomOverride ?? null;
           occurrence.designatorManaged = occurrenceInput.designatorManaged ?? false;
+          occurrence.flowDirection = occurrenceInput.flowDirection ?? 'consume';
+          occurrence.operationSeq = occurrenceInput.operationSeq ?? null;
+          occurrence.substituteRole = occurrenceInput.substituteRole ?? null;
+          occurrence.substitutePriority = occurrenceInput.substitutePriority ?? null;
+          occurrence.usageProbability = occurrenceInput.usageProbability ?? null;
+          occurrence.equivQty = occurrenceInput.equivQty ?? null;
           await executor.getRepository(BomLineOccurrence).create(occurrence);
+          lines.push({ line, occurrence });
           for (const designator of occurrenceInput.designators ?? []) {
             const designatorEntity = construct(BomLineDesignator);
             if (designator.id) (designatorEntity as unknown as { id: string }).id = designator.id;
@@ -191,6 +224,70 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
             await executor.getRepository(BomLineDesignator).create(designatorEntity);
           }
         }
+      }
+      // B 层：替代组（成员引用本头行发生项，需在头发布前建）
+      for (const groupInput of headerInput.substituteGroups ?? []) {
+        const group = construct(BomSubstituteGroup);
+        if (groupInput.id) (group as unknown as { id: string }).id = groupInput.id;
+        group.headerId = header.id;
+        group.code = groupInput.code;
+        group.strategy = groupInput.strategy;
+        group.allowMix = groupInput.allowMix ?? true;
+        await executor.getRepository(BomSubstituteGroup).create(group);
+        for (const member of groupInput.members) {
+          const target = lines[member.occurrenceIndex];
+          if (!target) throw new Error(`替代组成员引用不存在行的序号 ${member.occurrenceIndex}`);
+          await executor.getRepository(BomLineOccurrence).update(target.occurrence, {
+            substituteGroupId: group.id,
+            substituteRole: member.role,
+            substitutePriority: member.priority ?? null,
+            usageProbability: member.probability ?? null,
+            equivQty: member.equivQty ?? null
+          } as Partial<BomLineOccurrence>);
+        }
+      }
+      // B 层：工艺路线 + 工序 + 投料分摊（头挂 routingId）
+      if (headerInput.routing) {
+        const center = construct(BomWorkCenter);
+        if (headerInput.routing.workCenterId) (center as unknown as { id: string }).id = headerInput.routing.workCenterId;
+        center.code = headerInput.routing.workCenterCode;
+        center.orgId = headerInput.orgId;
+        await executor.getRepository(BomWorkCenter).create(center);
+        const routing = construct(BomRouting);
+        if (headerInput.routing.id) (routing as unknown as { id: string }).id = headerInput.routing.id;
+        routing.parentRevisionId = revisionIds[headerInput.revisionIndex];
+        routing.bomType = headerInput.bomType;
+        routing.orgId = headerInput.orgId;
+        routing.validFrom = new Date('2020-01-01T00:00:00.000Z');
+        await executor.getRepository(BomRouting).create(routing);
+        for (const op of headerInput.routing.operations) {
+          const operation = construct(BomRoutingOperation);
+          if (op.id) (operation as unknown as { id: string }).id = op.id;
+          operation.routingId = routing.id;
+          operation.operationSeq = op.seq;
+          operation.workCenterId = center.id;
+          operation.operationScrap = op.scrap ?? '0';
+          operation.scrapConvention = op.convention ?? 'additive';
+          await executor.getRepository(BomRoutingOperation).create(operation);
+        }
+        for (const allocation of headerInput.routing.allocations) {
+          const target = lines[allocation.occurrenceIndex];
+          if (!target) throw new Error(`投料分摊引用不存在行的序号 ${allocation.occurrenceIndex}`);
+          if (allocation.operationSeq != null) {
+            await executor.getRepository(BomLineOccurrence).update(target.occurrence, {
+              operationSeq: allocation.operationSeq
+            } as Partial<BomLineOccurrence>);
+          }
+          for (const splitInput of allocation.splits) {
+            const splitEntity = construct(BomLineOperationSplit);
+            if (splitInput.id) (splitEntity as unknown as { id: string }).id = splitInput.id;
+            splitEntity.occurrenceId = target.occurrence.id;
+            splitEntity.operationSeq = splitInput.operationSeq;
+            splitEntity.ratio = splitInput.ratio;
+            await executor.getRepository(BomLineOperationSplit).create(splitEntity);
+          }
+        }
+        await executor.getRepository(BomHeader).update(header, { routingId: routing.id } as Partial<BomHeader>);
       }
       const headerPatch: Record<string, unknown> = { state: 'released' };
       if (headerInput.updatedAt) headerPatch['updatedAt'] = headerInput.updatedAt;

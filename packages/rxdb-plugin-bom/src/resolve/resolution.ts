@@ -24,6 +24,17 @@ export interface ResolutionContext {
   asOfDate: Date;
   /** 备选方案选择；未给且存在多个备选时结果标 `unresolved` 并列候选（AC#11）。 */
   alternativeNo?: number;
+  /**
+   * 替代组的手动选择 / 分配（US-512，键 = 组 code）：
+   * `memberKey` = 唯一选择（manual × allow_mix=false）；`allocation` = 按成员物料 id 的
+   * primary 需求分配（manual × allow_mix=true）。未给且组 strategy=manual → unresolved。
+   */
+  substituteSelections?: Record<string, { memberKey?: string; allocation?: Record<string, string> }>;
+  /**
+   * priority 组的成员可用量上限（US-512 AC#4）：只在 priority 且最高者不足时起作用；
+   * 值 + 单位按十进制值合同承载，键 = 成员物料 id。
+   */
+  substituteAvailabilities?: Record<string, { value: string; uom: string }>;
 }
 
 /** 解析出的一行发生项（已按上下文过滤与修订解析）。 */

@@ -6,7 +6,7 @@
  * 存储层触发器（写入协议 / 结构列不可改 / 十进制格式）。
  */
 
-export { BOM_ENTITIES, BomHeader, BomHistoryBatch, BomItem, BomItemRevision, BomLine, BomLineDesignator, BomLineOccurrence } from './entities.js';
+export { BOM_ENTITIES, BomHeader, BomHistoryBatch, BomItem, BomItemRevision, BomLine, BomLineDesignator, BomLineOccurrence, BomLineOperationSplit, BomRouting, BomRoutingOperation, BomSubstituteGroup, BomWorkCenter } from './entities.js';
 export { DECIMAL_CANONICAL_RE, DECIMAL_MAX_SIGNIFICANT_DIGITS, normalizeDecimalString } from './decimal.utils.js';
 export { BomRepository } from './repository.js';
 export {
@@ -56,6 +56,7 @@ export {
   type ExplosionResult,
   type ExplosionSteps,
   type ExplosionStepValue,
+  type OutputLine,
   type PenetrationRecord,
   type PlannedQuantity,
   type RequirementLine

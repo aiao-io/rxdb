@@ -126,6 +126,47 @@ function golden(pathKey: string[], itemKey: string, qty: string, plannedUom = 'p
   };
 }
 
+/**
+ * 阶段 B 层 golden（US-525 AC#7~#9）：A 层路径值逐位不变（加层不扰动旧结构），
+ * B 层新路径给出新值——手写，不由被测 kernel 生成。
+ */
+export const SCOOTER_GOLDEN_B: {
+  requirements: { rootKey: string; plannedQty: GoldenStepValue; lines: GoldenRequirement[]; outputs: { itemKey: string; qty: string }[] }[];
+} = {
+  requirements: [
+    {
+      // US-525 AC#8：外壳下料——consume 2、by_product 0.3、scrap_out 0.1
+      rootKey: 'HOUSING',
+      plannedQty: { value: '1', uom: 'pcs' },
+      lines: [golden(['occurrence:HOUSING:A:0'], 'SHEET', '2')],
+      outputs: [
+        { itemKey: 'OFFCUT', qty: '0.3' },
+        { itemKey: 'TRIM', qty: '0.1' }
+      ]
+    },
+    {
+      // US-525 AC#7：10kΩ 替代组 proportional 0.5/0.3/0.2（equiv 1/2/0.5）
+      // primary 行 qty 100、计划量 1 → primary 需求 100 → R10K 50、ALT1 60、ALT2 10
+      rootKey: 'COVER-ASSY',
+      plannedQty: { value: '1', uom: 'pcs' },
+      lines: [
+        golden(['occurrence:COVER-ASSY:A:0'], 'R10K', '50'),
+        golden(['occurrence:COVER-ASSY:A:1'], 'R10K-ALT1', '60'),
+        golden(['occurrence:COVER-ASSY:A:2'], 'R10K-ALT2', '10')
+      ],
+      outputs: []
+    },
+    {
+      // US-525 AC#9：路线 10→20→30（20 损耗 3%）；G'=100 分摊 10/30 比例 6:4
+      // 60×1.03=61.8 + 40 = 101.8（P-MATERIAL 库存小数位 1，不取整）
+      rootKey: 'PROCESS-01',
+      plannedQty: { value: '100', uom: 'pcs' },
+      lines: [golden(['occurrence:PROCESS-01:A:0'], 'P-MATERIAL', '101.8')],
+      outputs: []
+    }
+  ]
+};
+
 /** 业务键 → 确定性发生项 id（对账时把 explodeBom 的 id 路径映射回业务键）。 */
 export const goldenOccurrenceId = (pathKey: string): string => deterministicId(pathKey);
 

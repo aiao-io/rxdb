@@ -64,7 +64,7 @@ for (const backend of BACKENDS) {
     ): Promise<BomLineOccurrence> => {
       const line = new BomLine();
       line.headerId = header.id;
-      line.lineNo = 10 + Math.floor(Math.random() * 1000);
+      line.lineNo = 10 + Math.floor(Math.random() * 100000);
       await line.save();
       const occurrence = new BomLineOccurrence();
       occurrence.lineId = line.id;

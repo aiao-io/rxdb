@@ -8,7 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import { explodeBom } from '../quantity/explosion.js';
 import { loadScooterDataset, SCOOTER_SEED_BATCH_NO } from '../testing/scooter-dataset.js';
-import { goldenItemId, goldenOccurrenceId, SCOOTER_GOLDEN } from '../testing/scooter-golden.js';
+import { goldenItemId, goldenOccurrenceId, SCOOTER_GOLDEN, SCOOTER_GOLDEN_B } from '../testing/scooter-golden.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 const BACKENDS: BomTestBackend[] = ['wa-sqlite', 'pglite'];
@@ -76,8 +76,10 @@ for (const backend of BACKENDS) {
           ` JOIN ${table('bom_line')} l ON l."id" = occ."lineId"` +
           ` WHERE occ."childItemId" = '${r10kId}' ORDER BY l."lineNo"`
         ));
-        expect(rows.rows.length).toBe(3);
-        expect(rows.rows.map(row => [row[0], row[1], row[2]])).toEqual([
+        // A 层三条（lineNo 20/30/40）+ B 层 COVER-ASSY 的 primary 行（lineNo 10，无位号）
+        expect(rows.rows.length).toBe(4);
+        const pcbaRows = rows.rows.filter(row => [20, 30, 40].includes(Number(row[0])));
+        expect(pcbaRows.map(row => [row[0], row[1], row[2]])).toEqual([
           [20, '2', 2],
           [30, '3', 3],
           [40, '1', 1]
@@ -122,6 +124,44 @@ for (const backend of BACKENDS) {
         expect(penetration.source).toBe(goldenPenetration.source);
         expect(penetration.converted).toEqual(goldenPenetration.converted);
         expect(penetration.childPlanned).toEqual(goldenPenetration.childPlanned);
+      } finally {
+        await disposeBomTestAdapter(created).catch(() => undefined);
+      }
+    });
+
+    it('B 层 golden：替代组分摊 / 多输出 / 工序损耗与分摊（A 层路径值逐位不变）', async () => {
+      const created = await loadOnce();
+      try {
+        // A 层对账在同库 B 层装载后仍成立（加层不扰动旧结构）
+        const aResult = await explodeBom(
+          created,
+          { bomType: SCOOTER_GOLDEN.context.bomType, orgId: SCOOTER_GOLDEN.context.orgId, asOfDate: day(SCOOTER_GOLDEN.context.asOfDate) },
+          { parentItemId: goldenItemId(SCOOTER_GOLDEN.rootKey) },
+          { plannedQty: { value: SCOOTER_GOLDEN.plannedQty.value, uom: SCOOTER_GOLDEN.plannedQty.uom } }
+        );
+        expect(aResult.requirementLines.length).toBe(SCOOTER_GOLDEN.requirements.length);
+        expect(aResult.requirementLines.find(line => line.itemId === goldenItemId('MCU'))?.qty).toBe('2');
+        // B 层三组 golden
+        for (const goldenSet of SCOOTER_GOLDEN_B.requirements) {
+          const result = await explodeBom(
+            created,
+            { bomType: SCOOTER_GOLDEN.context.bomType, orgId: SCOOTER_GOLDEN.context.orgId, asOfDate: day(SCOOTER_GOLDEN.context.asOfDate) },
+            { parentItemId: goldenItemId(goldenSet.rootKey) },
+            { plannedQty: { value: goldenSet.plannedQty.value, uom: goldenSet.plannedQty.uom } }
+          );
+          expect(result.truncated).toBeNull();
+          for (const goldenLine of goldenSet.lines) {
+            const pathIds = goldenLine.pathKey.map(goldenOccurrenceId);
+            const actual = result.requirementLines.find(line => line.path.join('>') === pathIds.join('>'));
+            expect(actual, `B 层路径 ${goldenLine.pathKey.join(' → ')} 应有需求行`).toBeDefined();
+            expect(actual!.qty).toBe(goldenLine.qty);
+          }
+          for (const goldenOutput of goldenSet.outputs) {
+            const actual = result.outputs.find(output => output.itemId === goldenItemId(goldenOutput.itemKey));
+            expect(actual, `B 层产出 ${goldenOutput.itemKey} 应在产出列表`).toBeDefined();
+            expect(actual!.qty).toBe(goldenOutput.qty);
+          }
+        }
       } finally {
         await disposeBomTestAdapter(created).catch(() => undefined);
       }

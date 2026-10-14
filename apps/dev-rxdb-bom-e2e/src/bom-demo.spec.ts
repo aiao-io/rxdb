@@ -37,8 +37,8 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     await resetAndSeed(page);
     const second = await page.getByTestId('row-counts').textContent();
     expect(second).toBe(first);
-    expect(second).toContain('item=13');
-    expect(second).toContain('bom_line_occurrence=15');
+    expect(second).toContain('item=22');
+    expect(second).toContain('bom_line_occurrence=22');
     await expect(page.getByTestId('seed-info')).toContainText('scooter-seed-a');
     await expect(page.getByTestId('seed-info')).toContainText('2026-01-01T00:00:00.000Z');
   });
@@ -95,6 +95,44 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     // 表单消息「检测到环：A → B」：提取到行尾的路径段并归一为与错误码一致的 '>' 串
     const formPath = ((formText ?? '').match(/检测到环：([^\n]+)/)?.[1] ?? '').replace(/ → /g, '>').trim();
     expect(formPath).toBe(rawPath);
+  });
+
+  test('US-525 AC#7 替代组 proportional：COVER-ASSY 展开三件分摊 50/60/10；0.5/0.3 发布拒绝给 0.8', async ({ page }) => {
+    await resetAndSeed(page);
+    // 根物料选 COVER-ASSY
+    await page.locator('select').selectOption({ label: 'COVER-ASSY' });
+    await clickButton(page, '展开整机');
+    const r10k = page.locator('.requirement-row[data-item="R10K"] .qty');
+    await expect(r10k).toHaveText('50 pcs', { timeout: 30000 });
+    await expect(page.locator('.requirement-row[data-item="R10K-ALT1"] .qty')).toHaveText('60 pcs');
+    await expect(page.locator('.requirement-row[data-item="R10K-ALT2"] .qty')).toHaveText('10 pcs');
+    // ② draft 组 0.5/0.3 发布拒绝且给实际合计 0.8
+    await clickButton(page, '发布 draft 组');
+    const result = page.getByTestId('substitute-result');
+    await expect(result).toContainText('0.8', { timeout: 30000 });
+  });
+
+  test('US-525 AC#8 外壳下料：consume 需求 2、by_product 0.3、scrap_out 0.1 分列', async ({ page }) => {
+    await resetAndSeed(page);
+    await page.locator('select').selectOption({ label: 'HOUSING' });
+    await clickButton(page, '展开整机');
+    await expect(page.locator('.requirement-row[data-item="SHEET"] .qty')).toHaveText('2 pcs', { timeout: 30000 });
+    // 产出区块：副产与废料不进需求行
+    await expect(page.locator('.requirement-row[data-item="OFFCUT"]')).toHaveCount(0);
+    await expect(page.locator('[data-output="OFFCUT"] .qty')).toHaveText('0.3 pcs');
+    await expect(page.locator('[data-output="TRIM"][data-direction="scrap_out"] .qty')).toHaveText('0.1 pcs');
+  });
+
+  test('US-525 AC#9 工序损耗与分摊：PROCESS-01 需求 101.8，面板第 5 步显示累乘', async ({ page }) => {
+    await resetAndSeed(page);
+    await page.locator('select').selectOption({ label: 'PROCESS-01' });
+    await page.locator('input').nth(1).fill('100');
+    await clickButton(page, '展开整机');
+    const material = page.locator('.requirement-row[data-item="P-MATERIAL"] .qty');
+    await expect(material).toHaveText('101.8 pcs', { timeout: 30000 });
+    // 选中行：面板第 5 步显示工序损耗后的值（不再是占位「—」）
+    await page.locator('.requirement-row[data-item="P-MATERIAL"]').click();
+    await expect(page.locator('.step-row[data-step="5. G″"] .value')).toHaveText('101.8 pcs');
   });
 
   test('既有库重开：不重置直接重载页面，插件新表与触发器在既有库上幂等安装', async ({ page }) => {

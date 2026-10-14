@@ -132,7 +132,7 @@ const parseTerm = (context: ParseContext): Decimal => {
     } else {
       try {
         value = decimalDiv(value, right);
-      } catch (error) {
+      } catch {
         throw new BomQuantityError(`公式 ${context.formula} 除数为零`);
       }
     }
