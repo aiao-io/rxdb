@@ -74,6 +74,10 @@
         "kind": "both"
       },
       {
+        "name": "BomQuantityError",
+        "kind": "both"
+      },
+      {
         "name": "BomRepository",
         "kind": "both"
       },
@@ -106,8 +110,20 @@
         "kind": "both"
       },
       {
+        "name": "ceilToDecimalPlaces",
+        "kind": "value"
+      },
+      {
+        "name": "convertUom",
+        "kind": "value"
+      },
+      {
         "name": "cycleConstraintDdlForRemotePg",
         "kind": "value"
+      },
+      {
+        "name": "Decimal",
+        "kind": "type"
       },
       {
         "name": "DECIMAL_CANONICAL_RE",
@@ -115,6 +131,46 @@
       },
       {
         "name": "DECIMAL_MAX_SIGNIFICANT_DIGITS",
+        "kind": "value"
+      },
+      {
+        "name": "decimalAdd",
+        "kind": "value"
+      },
+      {
+        "name": "decimalCmp",
+        "kind": "value"
+      },
+      {
+        "name": "decimalDiv",
+        "kind": "value"
+      },
+      {
+        "name": "decimalFromCanonical",
+        "kind": "value"
+      },
+      {
+        "name": "decimalIsNegative",
+        "kind": "value"
+      },
+      {
+        "name": "decimalIsZero",
+        "kind": "value"
+      },
+      {
+        "name": "decimalMul",
+        "kind": "value"
+      },
+      {
+        "name": "decimalSub",
+        "kind": "value"
+      },
+      {
+        "name": "decimalToCanonical",
+        "kind": "value"
+      },
+      {
+        "name": "evaluateFormula",
         "kind": "value"
       },
       {
@@ -136,6 +192,30 @@
       {
         "name": "ExpansionResult",
         "kind": "type"
+      },
+      {
+        "name": "explodeBom",
+        "kind": "value"
+      },
+      {
+        "name": "EXPLOSION_ALGORITHM_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "ExplosionManifest",
+        "kind": "type"
+      },
+      {
+        "name": "ExplosionOptions",
+        "kind": "type"
+      },
+      {
+        "name": "ExplosionResult",
+        "kind": "type"
+      },
+      {
+        "name": "FORMULA_GRAMMAR_VERSION",
+        "kind": "value"
       },
       {
         "name": "HistoryBatchInput",
@@ -170,6 +250,14 @@
         "kind": "value"
       },
       {
+        "name": "PlannedQuantity",
+        "kind": "type"
+      },
+      {
+        "name": "RequirementLine",
+        "kind": "type"
+      },
+      {
         "name": "ResolutionContext",
         "kind": "type"
       },
@@ -194,6 +282,10 @@
         "kind": "type"
       },
       {
+        "name": "roundToSignificant",
+        "kind": "value"
+      },
+      {
         "name": "rxDBPluginBom",
         "kind": "value"
       },
@@ -211,6 +303,10 @@
       },
       {
         "name": "UnresolvedAlternative",
+        "kind": "type"
+      },
+      {
+        "name": "UomConversionRates",
         "kind": "type"
       },
       {
