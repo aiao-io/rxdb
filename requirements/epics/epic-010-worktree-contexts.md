@@ -190,34 +190,48 @@ gitglossary（git 2.54，`man gitglossary`）对两个词的定义：
 
 两个插件都只有核心包、没有三端绑定，demo 直接调用；Vue demo 同时装了 history、storage、workspace 与工作树插件。
 
-### rxdb-plugin-storage：受影响，需要支持，而且今天就有缺口
+### rxdb-plugin-storage：文件不进版本控制
+
+**结论（owner 2026-10-14 确认）：storage 的文件现在不进版本控制**，登记为 epic-006
+[版本化域](epic-006-working-tree-commits.md#版本化域tracked--untracked)的第四类 untracked，理由写在那一节的表里。
+内容寻址等触发条件出现再做，见本节末。
 
 现状（读源码确认）：
 
 - 文件元数据实体 [`StorageFileMeta`](../../packages/rxdb-plugin-storage/src/file-meta.entity.ts) 是业务实体（不在系统实体登记里），
-  但声明了 `log: false`。文件内容放在 OPFS 的 `files/` 目录下，按可变路径存放，不按库名或分支划分；覆盖写原路径，删除连文件一起删。
-- [`versioned-domain.ts`](../../packages/rxdb-plugin-worktree/src/working-tree/versioned-domain.ts) 把它判成 tracked（非系统、非 QueryCache），
-  但写捕获的挂载点 1 只从变更日志取增量（[`capture-hook.ts`](../../packages/rxdb-plugin-worktree/src/working-tree/capture-hook.ts) 文件头），
-  而 `log: false` 的表不建变更日志触发器（[`create_tables_sql.ts`](../../packages/rxdb-adapter-sqlite-core/src/table/create_tables_sql.ts)：
-  `if (metadata.log !== false) {`）。结果：文件的增删改**从不进工作树**，status、diff、commit、restore 都看不见，切分支也不动它。
-- 这等于 epic-006 [版本化域](epic-006-working-tree-commits.md#版本化域tracked--untracked)之外的第四类 untracked，
-  而那一节规定「新增第四类必须先改本节」。
+  声明了 `log: false` 与 `SyncType.None`。文件内容放在 OPFS 的 `files/` 目录下，按可变路径存放，不按库名或分支划分；
+  覆盖写原路径，删除连文件一起删。
+- 代码还没跟上这条结论。[`versioned-domain.ts`](../../packages/rxdb-plugin-worktree/src/working-tree/versioned-domain.ts)
+  只把 QueryCache 判成 untracked，`StorageFileMeta` 被判成 tracked；可写捕获的挂载点 1 只从变更日志取增量
+  （[`capture-hook.ts`](../../packages/rxdb-plugin-worktree/src/working-tree/capture-hook.ts) 文件头），而 `log: false` 的表不建变更日志触发器
+  （[`create_tables_sql.ts`](../../packages/rxdb-adapter-sqlite-core/src/table/create_tables_sql.ts)：`if (metadata.log !== false) {`）。
+  于是它在事务写入口上从不进工作树，在批量写入口上却按版本化实体被拒
+  （[`bulk-write-gate.ts`](../../packages/rxdb-plugin-worktree/src/working-tree/bulk-write-gate.ts) 抛 `WorktreeWriteRejectedError`），
+  正是 `versioned-domain.ts` 文件头要防的「某个实体在一条写入口上进版本控制、在另一条上不进」。
+- 仓库里没有业务实体引用 storage 的文件：grep `StorageFileMeta` / `fileId` / `opfsPath` 只命中 demo 的文件管理页与远端资源缓存页
+  （`storage.fetch(path, { url })`）。
 
-后果（推断）：任何分支、任何历史提交里引用某个文件的行，读到的都是该文件的最新内容；在一条分支上覆盖或删除文件，
-所有分支和历史一起变。
+要做的事（阶段 1）：
 
-多检出位下（推断）：
+- `versioned-domain.ts` 把 `StorageFileMeta` 登记为 untracked，各写入口口径一致。登记后 storage 的写入不得与 tracked 写入同事务
+  （epic-006 版本化域的第一条不变量），实现时核对 `repository.create()` / `remove()` 的事务边界；生成的 API 文档随代码注释一起更新。
+- storage 的 README 与文档站写明：文件不随分支、提交、恢复变化；需要随版本回溯的附件，应用层按不可变方式使用——新内容写新路径、
+  不覆盖、不删除，业务行只存路径。
 
-- 场景二无法如实展示某个提交时的文件；
-- 场景一若按检出位分表，元数据分开而 OPFS 文件共享，别的检出位的文件会成为看不见的孤儿，同路径上传会冲突或互相覆盖；
-- 场景三的导入直接进共享命名空间，审不了，也不会随那条线一起丢弃。
+多检出位下的后果：
 
-**指点**：先由 owner 定「文件进不进版本控制」。场景二交付前必须定下来，否则预览某个提交时展示的文件是错的。
+- 预览与只读检出位展示的是文件的当前内容，界面标明「不随版本」；
+- 按检出位分表（场景一）时，storage 元数据表保持全库共享、不进副本，否则别的检出位的文件会成为看不见的孤儿；
+- 隔离写入方导入的文件直接进共享命名空间，不随那条线丢弃，审阅界面要单列出来。
 
-- **不进**：在 epic-006 版本化域里补第四类（文件内容与元数据，全分支共享），检出位展示文件时标明「不随版本」。便宜、诚实。
-- **进**：文件内容按哈希不可变存储，跨分支、跨检出位共享去重；新增一张记变更日志的引用表（fileId → 哈希、文件名、类型、大小），
-  让文件随工作树、提交、合并走。回收用标记清除，根集是可达提交、工作树条目、恢复会话、物化暂存、草稿缓存与上传中的文件，
-  带宽限期与跨标签页锁；配额按哈希全局只计一次。`removeBranch()` 不删提交、历史不改写，所以只有仅被已删分支引用的内容才可能回收。
+**转为内容寻址的触发条件**：出现第一个引用 storage 文件、并要求恢复、切分支、预览时文件保持一致的业务实体（例如 BOM 物料修订挂图纸）。
+届时按 Git LFS 的思路做：文件内容按哈希不可变存储，跨分支、跨检出位共享去重；新增一张记变更日志的引用表
+（fileId → 哈希、文件名、类型、大小），让文件随工作树、提交、合并走；回收用标记清除，根集是可达提交、工作树条目、恢复会话、
+物化暂存、草稿缓存与上传中的文件，带宽限期与跨标签页锁；配额按哈希全局只计一次；存量文件补一次哈希迁移。
+`removeBranch()` 不删提交、历史不改写，所以只有仅被已删分支引用的内容才可能回收。
+
+**不能只把 `log: false` 改成 `true`**：那样只有元数据进版本控制，恢复与切分支会把元数据带回旧状态，
+内容却是按路径覆盖后的最新字节或已删除，比不版本化更糟。
 
 ### rxdb-plugin-workspace：受影响，改动小；另有一处今天就该修的缺口
 
@@ -241,14 +255,14 @@ gitglossary（git 2.54，`man gitglossary`）对两个词的定义：
 
 ## 分期与解锁条件
 
-| 阶段 | 交付                                                                                             | 覆盖                     | 解锁条件                                                            | 明确不承诺       |
-| ---- | ------------------------------------------------------------------------------------------------ | ------------------------ | ------------------------------------------------------------------- | ---------------- |
-| 0    | 本分支收尾：不合入 US-309 改名与 US-310                                                          | —                        | 无                                                                  | —                |
-| 1    | workspace 系统实体排除改读实时登记；storage 定版本归属（不进则改 epic-006 版本化域，进则立故事） | 前置                     | 无，两处今天就是缺口                                                | 不做检出位       |
-| 2    | 只读的对比与合并预览 API（含覆盖标注）                                                           | 场景二的对比部分         | 阶段 1                                                              | 不提供完整视图   |
-| 3    | 只读检出位：快照库 + 第二实例 + 生命周期与回收 + 三端绑定                                        | 场景二、场景一的只读部分 | 阶段 2；storage 归属已定                                            | 不可写；不实时   |
-| 4    | 写进非 active 线的原语 + 隔离写入方 + 合并前覆盖检测                                             | 场景三                   | 具名使用方（批量导入或 agent），或 owner 判定「同步即变脏」不可接受 | 不改默认同步语义 |
-| 5    | 可写检出位（影子表或分库）                                                                       | 场景一                   | 具名需求                                                            | —                |
+| 阶段 | 交付                                                                                                       | 覆盖                     | 解锁条件                                                            | 明确不承诺               |
+| ---- | ---------------------------------------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------- | ------------------------ |
+| 0    | 本分支收尾：不合入 US-309 改名与 US-310                                                                    | —                        | 无                                                                  | —                        |
+| 1    | workspace 系统实体排除改读实时登记；`StorageFileMeta` 登记为第四类 untracked，storage 文档写明文件不随版本 | 前置                     | 无，两处今天就是缺口                                                | 不做检出位；不做内容寻址 |
+| 2    | 只读的对比与合并预览 API（含覆盖标注）                                                                     | 场景二的对比部分         | 阶段 1                                                              | 不提供完整视图           |
+| 3    | 只读检出位：快照库 + 第二实例 + 生命周期与回收 + 三端绑定                                                  | 场景二、场景一的只读部分 | 阶段 2                                                              | 不可写；不实时           |
+| 4    | 写进非 active 线的原语 + 隔离写入方 + 合并前覆盖检测                                                       | 场景三                   | 具名使用方（批量导入或 agent），或 owner 判定「同步即变脏」不可接受 | 不改默认同步语义         |
+| 5    | 可写检出位（影子表或分库）                                                                                 | 场景一                   | 具名需求                                                            | —                        |
 
 ## 本分支现存实现的处置
 
@@ -271,7 +285,7 @@ npm 上也没有 `@aiao/rxdb-plugin-worktree`（`npm view` 返回 E404），撤�
 
 ## 目标
 
-- [ ] workspace 的系统实体排除读实时登记；storage 定下文件的版本归属（**尚无故事认领**，见[对 storage 与 workspace 插件的影响](#对-storage-与-workspace-插件的影响)）
+- [ ] workspace 的系统实体排除读实时登记；`StorageFileMeta` 登记为第四类 untracked，storage 文档写明文件不随版本（**尚无故事认领**，见[对 storage 与 workspace 插件的影响](#对-storage-与-workspace-插件的影响)）
 - [ ] 不切换 active 分支就能对比两条分支、预览一次合并会改什么（**尚无故事认领**，场景二）
 - [ ] 不切换 active 分支就能只读查看任一分支或可达提交的完整数据（**尚无故事认领**，场景二）
 - [ ] 后台写入方写进自己的线，经审阅合并回主线，覆盖可见（**尚无故事认领**，场景三，价值待证）
