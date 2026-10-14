@@ -22,6 +22,7 @@ import {
   type ExpansionResult,
   type WhereUsedTarget
 } from './resolve/expansion.js';
+import { explodeBom as runExplodeBom, type ExplosionOptions, type ExplosionResult } from './quantity/explosion.js';
 import { loadHistory, type HistoryBatchInput } from './resolve/history-loader.js';
 import { resolveBom, type ResolveTarget } from './resolve/resolver.js';
 import type { ResolutionContext, ResolutionResult } from './resolve/resolution.js';
@@ -113,6 +114,14 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
    */
   whereUsed(context: ResolutionContext, target: WhereUsedTarget, options?: ExpansionOptions): Promise<ExpansionResult> {
     return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runWhereUsed(adapter, context, target, options));
+  }
+
+  /**
+   * 七步数量展开（US-511 阶段 A/B1/C）：虚拟件穿透、损耗与换算后的需求行，
+   * 预算触顶带 `truncated`；数量语义违约整次拒绝。
+   */
+  explodeBom(context: ResolutionContext, target: ResolveTarget, options: ExplosionOptions): Promise<ExplosionResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runExplodeBom(adapter, context, target, options));
   }
 
   install(scope: LifecycleScope): Promise<void> {

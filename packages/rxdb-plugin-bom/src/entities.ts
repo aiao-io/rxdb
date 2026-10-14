@@ -24,13 +24,21 @@ import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';
     { name: 'itemNo', type: PropertyType.string, unique: true },
     { name: 'description', type: PropertyType.string, nullable: true },
     // 随物料走的属性挂 item（US-507 阶段 A）：为 US-523 实例 BOM 预留，本阶段不消费
-    { name: 'serialized', type: PropertyType.boolean, default: false }
+    { name: 'serialized', type: PropertyType.boolean, default: false },
+    // 数量语义（US-511 阶段 A）：库存单位与需求行取整小数位（默认件；缺换算率时按 AC#10 拒绝）
+    { name: 'stockUom', type: PropertyType.string, default: 'pcs' },
+    { name: 'uomDecimals', type: PropertyType.integer, default: 0 },
+    // 物料级换算率：1 目标单位含多少库存单位（行级 uom_conversion 覆盖它）
+    { name: 'uomConversion', type: PropertyType.string, nullable: true }
   ]
 })
 export class BomItem extends EntityBase {
   itemNo!: string;
   description!: string | null;
   serialized!: boolean;
+  stockUom!: string;
+  uomDecimals!: number;
+  uomConversion!: string | null;
 }
 
 /**
@@ -109,7 +117,12 @@ export class BomItemRevision extends EntityBase {
     { name: 'alternativeNo', type: PropertyType.integer, default: 1 },
     { name: 'state', type: PropertyType.enum, enum: ['draft', 'released'], default: 'draft' },
     // 历史装载批次的批次号（US-508 历史装载通道）；直连发布恒空
-    { name: 'historyBatchNo', type: PropertyType.string, nullable: true }
+    { name: 'historyBatchNo', type: PropertyType.string, nullable: true },
+    // 数量语义（US-511 阶段 A/B1）：头基准单位与基准量、装配损耗（加成制 ×(1+s) / 良率制 ÷(1−s)）
+    { name: 'baseUom', type: PropertyType.string, default: 'pcs' },
+    { name: 'baseQty', type: PropertyType.string, default: '1' },
+    { name: 'assemblyScrap', type: PropertyType.string, default: '0' },
+    { name: 'assemblyScrapConvention', type: PropertyType.enum, enum: ['additive', 'yield'], default: 'additive' }
   ],
   relations: [
     {
@@ -142,6 +155,10 @@ export class BomHeader extends EntityBase {
   state!: 'draft' | 'released';
   parentRevisionId!: string;
   historyBatchNo!: string | null;
+  baseUom!: string;
+  baseQty!: string;
+  assemblyScrap!: string;
+  assemblyScrapConvention!: 'additive' | 'yield';
 }
 
 /**
@@ -216,11 +233,62 @@ export class BomLine extends EntityBase {
   repository: 'BomRepository',
   properties: [
     { name: 'childRevisionId', type: PropertyType.uuid, nullable: true },
-    { name: 'qty', type: PropertyType.string },
+    // US-511 阶段 A：qty 与 qty_formula 恰好一项（单行 CHECK），公式行的 qty 为空
+    { name: 'qty', type: PropertyType.string, nullable: true },
     { name: 'effectiveFrom', type: PropertyType.date },
     { name: 'effectiveTo', type: PropertyType.date, nullable: true },
     { name: 'ecnInId', type: PropertyType.string, nullable: true },
-    { name: 'ecnOutId', type: PropertyType.string, nullable: true }
+    { name: 'ecnOutId', type: PropertyType.string, nullable: true },
+    // 数量语义（US-511 阶段 A/B1/C）
+    { name: 'uom', type: PropertyType.string, default: 'pcs' },
+    { name: 'qtyFormula', type: PropertyType.string, nullable: true },
+    { name: 'formulaGrammarVersion', type: PropertyType.string, nullable: true },
+    { name: 'isFixedQty', type: PropertyType.boolean, default: false },
+    { name: 'tierGroupNo', type: PropertyType.string, nullable: true },
+    { name: 'lotsizeFrom', type: PropertyType.string, nullable: true },
+    { name: 'lotsizeTo', type: PropertyType.string, nullable: true },
+    { name: 'componentScrap', type: PropertyType.string, default: '0' },
+    { name: 'componentScrapConvention', type: PropertyType.enum, enum: ['additive', 'yield'], default: 'additive' },
+    { name: 'componentScrapFixed', type: PropertyType.string, default: '0' },
+    { name: 'uomConversion', type: PropertyType.string, nullable: true },
+    { name: 'phantomOverride', type: PropertyType.boolean, nullable: true }
+  ],
+  checks: [
+    // US-511 AC#7：qty 与 qty_formula 恰好一项非空
+    {
+      name: 'qty_xor_formula',
+      rule: {
+        combinator: 'or',
+        rules: [
+          { combinator: 'and', rules: [{ field: 'qty', operator: 'notNull' }, { field: 'qtyFormula', operator: 'null' }] },
+          { combinator: 'and', rules: [{ field: 'qty', operator: 'null' }, { field: 'qtyFormula', operator: 'notNull' }] }
+        ]
+      }
+    },
+    // US-511 AC#21：阶梯三字段同空，或 tier_group_no 与 lotsize_from 同非空
+    {
+      name: 'tier_columns_shape',
+      rule: {
+        combinator: 'or',
+        rules: [
+          {
+            combinator: 'and',
+            rules: [
+              { field: 'tierGroupNo', operator: 'null' },
+              { field: 'lotsizeFrom', operator: 'null' },
+              { field: 'lotsizeTo', operator: 'null' }
+            ]
+          },
+          {
+            combinator: 'and',
+            rules: [
+              { field: 'tierGroupNo', operator: 'notNull' },
+              { field: 'lotsizeFrom', operator: 'notNull' }
+            ]
+          }
+        ]
+      }
+    }
   ],
   relations: [
     {
@@ -256,13 +324,25 @@ export class BomLine extends EntityBase {
 })
 export class BomLineOccurrence extends EntityBase {
   childRevisionId!: string | null;
-  qty!: string;
+  qty!: string | null;
   effectiveFrom!: Date;
   effectiveTo!: Date | null;
   ecnInId!: string | null;
   ecnOutId!: string | null;
   lineId!: string;
   childItemId!: string;
+  uom!: string;
+  qtyFormula!: string | null;
+  formulaGrammarVersion!: string | null;
+  isFixedQty!: boolean;
+  tierGroupNo!: string | null;
+  lotsizeFrom!: string | null;
+  lotsizeTo!: string | null;
+  componentScrap!: string;
+  componentScrapConvention!: 'additive' | 'yield';
+  componentScrapFixed!: string;
+  uomConversion!: string | null;
+  phantomOverride!: boolean | null;
 }
 
 /** BOM 实体全集（触发器安装按此清单在 schema 里找实体）。 */

@@ -24,9 +24,22 @@ export interface HistoryRevisionInput {
 export interface HistoryOccurrenceInput {
   childItemId: string;
   childRevisionId?: string | null;
-  qty: string;
+  /** 规范十进制串（US-511 阶段 A 后可为公式行：省略 qty 时必给 qtyFormula）。 */
+  qty?: string | null;
   effectiveFrom: Date;
   effectiveTo?: Date | null;
+  uom?: string;
+  qtyFormula?: string | null;
+  formulaGrammarVersion?: string | null;
+  isFixedQty?: boolean;
+  tierGroupNo?: string | null;
+  lotsizeFrom?: string | null;
+  lotsizeTo?: string | null;
+  componentScrap?: string;
+  componentScrapConvention?: 'additive' | 'yield';
+  componentScrapFixed?: string;
+  uomConversion?: string | null;
+  phantomOverride?: boolean | null;
 }
 
 /** 一张历史头的输入：挂本批修订（按 `revisionIndex` 引用），含逻辑行与发生项。 */
@@ -35,6 +48,10 @@ export interface HistoryHeaderInput {
   bomType: BomType;
   orgId: string;
   alternativeNo?: number;
+  baseUom?: string;
+  baseQty?: string;
+  assemblyScrap?: string;
+  assemblyScrapConvention?: 'additive' | 'yield';
   lines: { lineNo: number; occurrences: HistoryOccurrenceInput[] }[];
 }
 
@@ -80,6 +97,10 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       header.orgId = headerInput.orgId;
       header.alternativeNo = headerInput.alternativeNo ?? 1;
       header.historyBatchNo = batch.batchNo;
+      header.baseUom = headerInput.baseUom ?? 'pcs';
+      header.baseQty = headerInput.baseQty ?? '1';
+      header.assemblyScrap = headerInput.assemblyScrap ?? '0';
+      header.assemblyScrapConvention = headerInput.assemblyScrapConvention ?? 'additive';
       await executor.getRepository(BomHeader).create(header);
       for (const lineInput of headerInput.lines) {
         const line = new BomLine();
@@ -91,9 +112,21 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
           occurrence.lineId = line.id;
           occurrence.childItemId = occurrenceInput.childItemId;
           occurrence.childRevisionId = occurrenceInput.childRevisionId ?? null;
-          occurrence.qty = normalizeDecimalString(occurrenceInput.qty, 'qty');
+          occurrence.qty = occurrenceInput.qty != null ? normalizeDecimalString(occurrenceInput.qty, 'qty') : null;
+          occurrence.qtyFormula = occurrenceInput.qtyFormula ?? null;
+          occurrence.formulaGrammarVersion = occurrenceInput.formulaGrammarVersion ?? null;
           occurrence.effectiveFrom = occurrenceInput.effectiveFrom;
           occurrence.effectiveTo = occurrenceInput.effectiveTo ?? null;
+          occurrence.uom = occurrenceInput.uom ?? 'pcs';
+          occurrence.isFixedQty = occurrenceInput.isFixedQty ?? false;
+          occurrence.tierGroupNo = occurrenceInput.tierGroupNo ?? null;
+          occurrence.lotsizeFrom = occurrenceInput.lotsizeFrom ?? null;
+          occurrence.lotsizeTo = occurrenceInput.lotsizeTo ?? null;
+          occurrence.componentScrap = normalizeDecimalString(occurrenceInput.componentScrap ?? '0', 'componentScrap');
+          occurrence.componentScrapConvention = occurrenceInput.componentScrapConvention ?? 'additive';
+          occurrence.componentScrapFixed = normalizeDecimalString(occurrenceInput.componentScrapFixed ?? '0', 'componentScrapFixed');
+          occurrence.uomConversion = occurrenceInput.uomConversion ?? null;
+          occurrence.phantomOverride = occurrenceInput.phantomOverride ?? null;
           await executor.getRepository(BomLineOccurrence).create(occurrence);
         }
       }

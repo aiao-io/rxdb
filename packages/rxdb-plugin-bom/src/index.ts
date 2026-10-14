@@ -19,6 +19,7 @@ export {
   BomDecimalFormatError,
   BomError,
   BomPublishValidationError,
+  BomQuantityError,
   BomSyncUnsupportedError,
   BomTruncationError,
   BomWriteProtocolError,
@@ -47,6 +48,31 @@ export {
   type ExpansionResult,
   type WhereUsedTarget
 } from './resolve/expansion.js';
+export {
+  EXPLOSION_ALGORITHM_VERSION,
+  explodeBom,
+  type ExplosionManifest,
+  type ExplosionOptions,
+  type ExplosionResult,
+  type PlannedQuantity,
+  type RequirementLine
+} from './quantity/explosion.js';
+export { FORMULA_GRAMMAR_VERSION, evaluateFormula } from './quantity/formula.js';
+export { convertUom, type UomConversionRates } from './quantity/uom.js';
+export {
+  ceilToDecimalPlaces,
+  decimalAdd,
+  decimalCmp,
+  decimalDiv,
+  decimalFromCanonical,
+  decimalIsNegative,
+  decimalIsZero,
+  decimalMul,
+  decimalSub,
+  decimalToCanonical,
+  roundToSignificant,
+  type Decimal
+} from './quantity/decimal.js';
 export {
   loadHistory,
   type HistoryBatchInput,

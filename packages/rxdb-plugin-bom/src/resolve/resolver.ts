@@ -150,7 +150,7 @@ export const resolveBom = async (
           resolvedChildRevisionId: row[columnIndexOf(cols, 'resolvedChildRevisionId')] === null ?
             null
           : String(row[columnIndexOf(cols, 'resolvedChildRevisionId')]),
-          qty: String(row[columnIndexOf(cols, 'qty')]),
+          qty: row[columnIndexOf(cols, 'qty')] === null ? null : String(row[columnIndexOf(cols, 'qty')]),
           effectiveFrom: normalizeDate(row[columnIndexOf(cols, 'effectiveFrom')]) as Date,
           effectiveTo: normalizeDate(row[columnIndexOf(cols, 'effectiveTo')])
         };

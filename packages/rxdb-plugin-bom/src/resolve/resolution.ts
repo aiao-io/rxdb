@@ -39,7 +39,8 @@ export interface ResolvedLineOccurrence {
    * imprecise 且评估日前无已发布修订时为 `null`（该子件按叶子处理，不再下钻）。
    */
   resolvedChildRevisionId: string | null;
-  qty: string;
+  /** 规范十进制串；公式行的 qty 为空（US-511 阶段 A）。 */
+  qty: string | null;
   effectiveFrom: Date;
   effectiveTo: Date | null;
 }

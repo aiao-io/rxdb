@@ -52,7 +52,7 @@ export interface ExpansionNode {
   revisionId: string | null;
   /** 到达本节点的发生项 id；根节点为 null。 */
   occurrenceId: string | null;
-  /** 到达本节点发生项的用量；根节点为 null。 */
+  /** 到达本节点发生项的用量；根节点与公式行为 null。 */
   qty: string | null;
   /** 到达本节点发生项所在逻辑行的位号；根节点为 null。 */
   lineNo: number | null;
@@ -108,7 +108,7 @@ interface ChildRow {
   occurrenceId: string;
   childItemId: string;
   resolvedChildRevisionId: string | null;
-  qty: string;
+  qty: string | null;
   effectiveFrom: Date;
   effectiveTo: Date | null;
 }
@@ -177,7 +177,7 @@ const fetchChildren = async (
           row[columnIndexOf(result.columns, 'resolvedChildRevisionId')] === null ?
             null
           : String(row[columnIndexOf(result.columns, 'resolvedChildRevisionId')]),
-        qty: String(row[columnIndexOf(result.columns, 'qty')]),
+        qty: row[columnIndexOf(result.columns, 'qty')] === null ? null : String(row[columnIndexOf(result.columns, 'qty')]),
         effectiveFrom: normalizeDate(row[columnIndexOf(result.columns, 'effectiveFrom')]) as Date,
         effectiveTo: normalizeDate(row[columnIndexOf(result.columns, 'effectiveTo')])
       });

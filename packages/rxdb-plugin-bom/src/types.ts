@@ -119,6 +119,21 @@ export class BomSyncUnsupportedError extends BomError {
 }
 
 /**
+ * 数量语义违约（US-511）：缺换算率 / 量纲不兼容、阶梯越界、公式错误、除零、负结果等，
+ * 一律整次拒绝，不跳过该行、不部分产出。
+ */
+export class BomQuantityError extends BomError {
+  constructor(
+    /** 违约点描述（含公式 / 参数名 / 缺失换算率等）。 */
+    readonly detail: string,
+    /** 违约所在路径（物料 id 序列；公式 / 换算错误点名用）。 */
+    readonly path: string[] = []
+  ) {
+    super(`数量语义违约${path.length > 0 ? `（路径：${path.join(' → ')}）` : ''}：${detail}`, 'BomQuantityError');
+  }
+}
+
+/**
  * 展开 / 反查的截断原因（US-510 AC#1/#10）：深度、展开数、返回路径数任一触顶，或调用方取消。
  */
 export type TruncationReason = 'depth' | 'expansions' | 'paths' | 'cancelled';

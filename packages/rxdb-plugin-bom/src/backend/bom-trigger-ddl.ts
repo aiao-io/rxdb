@@ -29,7 +29,7 @@ const column = (metadata: EntityMetadata, field: string): string =>
 const WRITE_PROTOCOL = (subject: string, detail: string): string => `rxdb:bom_write_protocol:${subject}:${detail}`;
 const PUBLISH_VALIDATION = (subject: string, detail: string): string =>
   `rxdb:bom_publish_validation:${subject}:${detail}`;
-const DECIMAL_FORMAT = (field: string): string => `rxdb:bom_decimal_format:${field}`;
+const DECIMAL_FORMAT = (field: string, detail?: string): string => `rxdb:bom_decimal_format:${field}${detail ? `:${detail}` : ''}`;
 
 /**
  * 判环递归 CTE 的深度硬上限（US-509 AC#3）：无闭包表时的兜底。触上限即报错，
@@ -250,25 +250,132 @@ const sqliteReleasedHeaderMembersGuard = (metadata: EntityMetadata): string[] =>
  * 3. 无前导零（单个 `0` 或 `0.` 开头除外）；
  * 4. 含小数点时末位不是 `0`（无尾随零）。
  */
-const CANONICAL_GLOB = `(
-  NEW."qty" NOT GLOB '*[^0-9.]*' AND
-  length(replace(NEW."qty", '.', '')) >= length(NEW."qty") - 1 AND
-  substr(NEW."qty", 1, 1) BETWEEN '0' AND '9' AND
-  (substr(NEW."qty", 1, 1) <> '0' OR NEW."qty" = '0' OR substr(NEW."qty", 1, 2) = '0.') AND
-  (instr(NEW."qty", '.') = 0 OR substr(NEW."qty", -1, 1) <> '0')
+const canonicalGlob = (field: string): string => `(
+  NEW."${field}" NOT GLOB '*[^0-9.]*' AND
+  length(replace(NEW."${field}", '.', '')) >= length(NEW."${field}") - 1 AND
+  substr(NEW."${field}", 1, 1) BETWEEN '0' AND '9' AND
+  (substr(NEW."${field}", 1, 1) <> '0' OR NEW."${field}" = '0' OR substr(NEW."${field}", 1, 2) = '0.') AND
+  (instr(NEW."${field}", '.') = 0 OR substr(NEW."${field}", -1, 1) <> '0')
 )`;
 
-const sqliteDecimalFormatTriggers = (metadata: EntityMetadata): string[] => {
-  if (metadata.name !== 'BomLineOccurrence') return [];
-  const tableRef = sqliteTableRef(metadata);
-  const message = DECIMAL_FORMAT('qty');
-  return [
-    sqliteTrigger(tableRef, 'bom_line_occurrence_qty_format_i', 'BEFORE INSERT', raiseWhen(message, `NOT ${CANONICAL_GLOB}`)),
-    sqliteTrigger(tableRef, 'bom_line_occurrence_qty_format_u', 'BEFORE UPDATE', raiseWhen(message, `NOT ${CANONICAL_GLOB}`))
-  ];
+/** 需要格式触发器兜底的十进制列（qty 可空：公式行的 qty 为空，跳过检查）。 */
+const SQLITE_DECIMAL_FORMAT_COLUMNS: { entity: string; field: string; nullable: boolean }[] = [
+  { entity: 'BomLineOccurrence', field: 'qty', nullable: true },
+  { entity: 'BomLineOccurrence', field: 'componentScrap', nullable: false },
+  { entity: 'BomLineOccurrence', field: 'componentScrapFixed', nullable: false },
+  { entity: 'BomLineOccurrence', field: 'lotsizeFrom', nullable: true },
+  { entity: 'BomLineOccurrence', field: 'lotsizeTo', nullable: true },
+  { entity: 'BomLineOccurrence', field: 'uomConversion', nullable: true },
+  { entity: 'BomHeader', field: 'baseQty', nullable: false },
+  { entity: 'BomHeader', field: 'assemblyScrap', nullable: false }
+];
+
+/**
+ * 良率制损耗域（US-511 AC#12）：`0 ≤ s < 1` ⇔ `s = '0' OR substr(s, 1, 2) = '0.'`，
+ * 逐字节谓词，两后端一致；加成制不受此限。
+ */
+const sqliteYieldScrapGuard = (field: string, conventionField: string): string =>
+  `NEW."${conventionField}" = 'yield' AND NEW."${field}" <> '0' AND substr(NEW."${field}", 1, 2) <> '0.'`;
+
+/**
+ * 阶梯边界域（US-511 AC#25/#26）：15 位有效数字、整数部分 ≤ 15 位、小数部分 ≤ 15 位
+ * （后两条逐字节长度谓词；有效数字 = 去小数点后去前导零的长度）。
+ */
+const sqliteLotsizeBoundGuard = (field: string): string => {
+  const digits = `replace(NEW."${field}", '.', '')`;
+  const significant = `CASE WHEN ${digits} = '0' THEN '0' ELSE ltrim(${digits}, '0') END`;
+  return `(
+    length(${significant}) > 15 OR
+    (CASE WHEN instr(NEW."${field}", '.') = 0 THEN length(NEW."${field}") ELSE instr(NEW."${field}", '.') - 1 END) > 15 OR
+    (CASE WHEN instr(NEW."${field}", '.') = 0 THEN 0 ELSE length(NEW."${field}") - instr(NEW."${field}", '.') END) > 15
+  )`;
 };
 
+const sqliteDecimalFormatTriggers = (metadata: EntityMetadata): string[] => {
+  if (metadata.name !== 'BomLineOccurrence' && metadata.name !== 'BomHeader') return [];
+  const tableRef = sqliteTableRef(metadata);
+  const statements: string[] = [];
+  for (const { entity, field, nullable } of SQLITE_DECIMAL_FORMAT_COLUMNS) {
+    if (entity !== metadata.name) continue;
+    const violation = nullable ? `NEW."${field}" IS NOT NULL AND NOT ${canonicalGlob(field)}` : `NOT ${canonicalGlob(field)}`;
+    const message = DECIMAL_FORMAT(field);
+    statements.push(
+      sqliteTrigger(tableRef, `${metadata.tableName}_${field}_decimal_i`, 'BEFORE INSERT', raiseWhen(message, violation)),
+      sqliteTrigger(tableRef, `${metadata.tableName}_${field}_decimal_u`, 'BEFORE UPDATE', raiseWhen(message, violation))
+    );
+  }
+  // 良率制损耗域（AC#12）
+  if (metadata.name === 'BomHeader') {
+    const message = DECIMAL_FORMAT('assemblyScrap', '良率制损耗必须在 [0,1)（s = 1 拒绝）');
+    statements.push(
+      sqliteTrigger(tableRef, 'bom_header_assembly_scrap_yield_i', 'BEFORE INSERT', raiseWhen(message, sqliteYieldScrapGuard('assemblyScrap', 'assemblyScrapConvention'))),
+      sqliteTrigger(tableRef, 'bom_header_assembly_scrap_yield_u', 'BEFORE UPDATE', raiseWhen(message, sqliteYieldScrapGuard('assemblyScrap', 'assemblyScrapConvention')))
+    );
+  }
+  if (metadata.name === 'BomLineOccurrence') {
+    const message = DECIMAL_FORMAT('componentScrap', '良率制损耗必须在 [0,1)（s = 1 拒绝）');
+    statements.push(
+      sqliteTrigger(tableRef, 'bom_line_occurrence_component_scrap_yield_i', 'BEFORE INSERT', raiseWhen(message, sqliteYieldScrapGuard('componentScrap', 'componentScrapConvention'))),
+      sqliteTrigger(tableRef, 'bom_line_occurrence_component_scrap_yield_u', 'BEFORE UPDATE', raiseWhen(message, sqliteYieldScrapGuard('componentScrap', 'componentScrapConvention')))
+    );
+    // 阶梯边界域（AC#25/#26）
+    for (const field of ['lotsizeFrom', 'lotsizeTo'] as const) {
+      const boundMessage = DECIMAL_FORMAT(field, '阶梯边界限 15 位有效数字、整数与小数部分各 ≤ 15 位');
+      statements.push(
+        sqliteTrigger(tableRef, `bom_line_occurrence_${field}_bound_i`, 'BEFORE INSERT', raiseWhen(boundMessage, `NEW."${field}" IS NOT NULL AND ${sqliteLotsizeBoundGuard(field)}`)),
+        sqliteTrigger(tableRef, `bom_line_occurrence_${field}_bound_u`, 'BEFORE UPDATE', raiseWhen(boundMessage, `NEW."${field}" IS NOT NULL AND ${sqliteLotsizeBoundGuard(field)}`))
+      );
+    }
+  }
+  return statements;
+};
+
+/**
+ * 头发布转移的阶梯切片校验（US-511 AC#24）：同 (header, tier_group_no) 组内两条阶梯行，
+ * 生效域与批量区间**同时**相交才拒绝（同档跨期改量的旧新发生项并存通过）。
+ * 批量比较收窄在 15 位域内（保存期触发器已保证），SQLite `CAST AS REAL` 与 PG `::numeric`
+ * 结论一致；区间一律半开 `[from, to)`。
+ */
+const sqliteTierPublishGuard = (metadata: EntityMetadata): string[] => {
+  if (metadata.name !== 'BomHeader') return [];
+  const tableRef = sqliteTableRef(metadata);
+  const occurrence = quoteSqlIdentifier('bom$bom_line_occurrence');
+  const line = quoteSqlIdentifier('bom$bom_line');
+  const overlap = (a: string, b: string, suffix: string): string =>
+    `(${a}."${suffix}To" IS NULL OR CAST(${b}."${suffix}From" AS REAL) < CAST(${a}."${suffix}To" AS REAL)) AND ` +
+    `(${b}."${suffix}To" IS NULL OR CAST(${a}."${suffix}From" AS REAL) < CAST(${b}."${suffix}To" AS REAL))`;
+  // 日期段用同名 from/to（半开判定一致，但日期段是文本 ISO 比较）
+  const dateOverlap = (a: string, b: string): string =>
+    `(${a}."effectiveTo" IS NULL OR ${b}."effectiveFrom" < ${a}."effectiveTo") AND ` +
+    `(${b}."effectiveTo" IS NULL OR ${a}."effectiveFrom" < ${b}."effectiveTo")`;
+  // RAISE 必须是触发器体的顶层语句：消息表达式内联在 SELECT 里（点名组号与两个发生项）
+  const message =
+    `'${PUBLISH_VALIDATION('bom_header', '阶梯切片重叠：')}'` +
+    ` || a."tierGroupNo" || ':' || a."id" || ':' || b."id" || ':日期段与批量段同时相交'`;
+  const sql = [
+    `SELECT RAISE(ABORT, ${message})`,
+    `FROM ${occurrence} a`,
+    `JOIN ${line} la ON la."id" = a."lineId"`,
+    `JOIN ${occurrence} b ON b."id" <> a."id" AND b."tierGroupNo" = a."tierGroupNo"`,
+    `JOIN ${line} lb ON lb."id" = b."lineId"`,
+    `WHERE la."headerId" = NEW."id" AND lb."headerId" = NEW."id"`,
+    `  AND a."tierGroupNo" IS NOT NULL`,
+    `  AND ${dateOverlap('a', 'b')}`,
+    `  AND ${overlap('a', 'b', 'lotsize')}`,
+    `LIMIT 1;`
+  ].join('\n');
+  return [
+    sqliteTrigger(
+      tableRef,
+      'bom_header_tier_publish_trg',
+      'BEFORE UPDATE OF "state"',
+      sql,
+      `OLD."state" = 'draft' AND NEW."state" = 'released'`
+    )
+  ];
+};
 /** 实体全部 SQLite 触发器 DDL（单条语句数组）。 */
+
 export const buildSqliteBomTriggerDdl = (metadata: EntityMetadata): string[] => [
   ...sqliteStructuralTrigger(metadata),
   ...sqlitePublishedRevisionTrigger(metadata),
@@ -276,6 +383,7 @@ export const buildSqliteBomTriggerDdl = (metadata: EntityMetadata): string[] => 
   ...sqliteHistoryBatchTriggers(metadata),
   ...sqliteReleasedHeaderMembersGuard(metadata),
   ...sqliteDecimalFormatTriggers(metadata),
+  ...sqliteTierPublishGuard(metadata),
   ...sqliteCycleTriggers(metadata)
 ];
 
@@ -464,19 +572,93 @@ const pgReleasedHeaderMembersFunction = (metadata: EntityMetadata): string[] => 
   ];
 };
 
+const PG_CANONICAL_RE = `'^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$'`;
+
+/** PG 侧格式触发器兜底的十进制列（与 SQLite 侧同清单）。 */
+const PG_DECIMAL_FORMAT_COLUMNS: { entity: string; field: string; nullable: boolean }[] = [
+  { entity: 'BomLineOccurrence', field: 'qty', nullable: true },
+  { entity: 'BomLineOccurrence', field: 'componentScrap', nullable: false },
+  { entity: 'BomLineOccurrence', field: 'componentScrapFixed', nullable: false },
+  { entity: 'BomLineOccurrence', field: 'lotsizeFrom', nullable: true },
+  { entity: 'BomLineOccurrence', field: 'lotsizeTo', nullable: true },
+  { entity: 'BomLineOccurrence', field: 'uomConversion', nullable: true },
+  { entity: 'BomHeader', field: 'baseQty', nullable: false },
+  { entity: 'BomHeader', field: 'assemblyScrap', nullable: false }
+];
+
 const pgDecimalFormatFunction = (metadata: EntityMetadata): string[] => {
-  if (metadata.name !== 'BomLineOccurrence') return [];
-  const body =
-    `  IF NEW."qty" !~ '^(0|[1-9][0-9]*)(\\.[0-9]*[1-9])?$' THEN\n` +
-    `    RAISE EXCEPTION '${DECIMAL_FORMAT('qty')}';\n  END IF;`;
+  if (metadata.name !== 'BomLineOccurrence' && metadata.name !== 'BomHeader') return [];
   const tableRef = pgTableRef(metadata);
+  const guards: string[] = [];
+  for (const { entity, field, nullable } of PG_DECIMAL_FORMAT_COLUMNS) {
+    if (entity !== metadata.name) continue;
+    const violation = nullable ? `NEW."${field}" IS NOT NULL AND NEW."${field}" !~ ${PG_CANONICAL_RE}` : `NEW."${field}" !~ ${PG_CANONICAL_RE}`;
+    guards.push(`  IF ${violation} THEN\n    RAISE EXCEPTION '${DECIMAL_FORMAT(field)}';\n  END IF;`);
+  }
+  if (metadata.name === 'BomHeader') {
+    guards.push(`  IF NEW."assemblyScrapConvention" = 'yield' AND NEW."assemblyScrap" <> '0' AND left(NEW."assemblyScrap", 2) <> '0.' THEN`);
+    guards.push(`    RAISE EXCEPTION '${DECIMAL_FORMAT('assemblyScrap', '良率制损耗必须在 [0,1)（s = 1 拒绝）')}';\n  END IF;`);
+  }
+  if (metadata.name === 'BomLineOccurrence') {
+    guards.push(`  IF NEW."componentScrapConvention" = 'yield' AND NEW."componentScrap" <> '0' AND left(NEW."componentScrap", 2) <> '0.' THEN`);
+    guards.push(`    RAISE EXCEPTION '${DECIMAL_FORMAT('componentScrap', '良率制损耗必须在 [0,1)（s = 1 拒绝）')}';\n  END IF;`);
+    for (const field of ['lotsizeFrom', 'lotsizeTo'] as const) {
+      const digits = `translate(NEW."${field}", '.', '')`;
+      const significant = `ltrim(${digits}, '0')`;
+      guards.push(`  IF NEW."${field}" IS NOT NULL AND (`);
+      guards.push(`    length(CASE WHEN ${digits} = '0' THEN '0' ELSE ${significant} END) > 15 OR`);
+      guards.push(`    (CASE WHEN strpos(NEW."${field}", '.') = 0 THEN length(NEW."${field}") ELSE strpos(NEW."${field}", '.') - 1 END) > 15 OR`);
+      guards.push(`    (CASE WHEN strpos(NEW."${field}", '.') = 0 THEN 0 ELSE length(NEW."${field}") - strpos(NEW."${field}", '.') END) > 15`);
+      guards.push(`  ) THEN\n    RAISE EXCEPTION '${DECIMAL_FORMAT(field, '阶梯边界限 15 位有效数字、整数与小数部分各 ≤ 15 位')}';\n  END IF;`);
+    }
+  }
+  if (guards.length === 0) return [];
+  const body = guards.join('\n');
   return [
-    `${pgFunctionHeader(metadata, 'bom_line_occurrence__qty_format_guard')}\n${body}${pgFunctionFooter}`,
-    pgCreateTrigger(metadata, tableRef, 'bom_line_occurrence__qty_format_trg', 'BEFORE INSERT OR UPDATE', 'bom_line_occurrence__qty_format_guard')
+    `${pgFunctionHeader(metadata, `${metadata.tableName}__decimal_guard`)}\n${body}${pgFunctionFooter}`,
+    pgCreateTrigger(metadata, tableRef, `${metadata.tableName}__decimal_trg`, 'BEFORE INSERT OR UPDATE', `${metadata.tableName}__decimal_guard`)
   ];
 };
 
+/**
+ * 头发布转移的阶梯切片校验（PG 侧，与 SQLite 同口径；批量比较 `::numeric`）。
+ */
+const pgTierPublishFunction = (metadata: EntityMetadata): string[] => {
+  if (metadata.name !== 'BomHeader') return [];
+  const tableRef = pgTableRef(metadata);
+  const occurrence = pgNamedTable(metadata, 'bom_line_occurrence');
+  const line = pgNamedTable(metadata, 'bom_line');
+  const overlap = (a: string, b: string, suffix: string): string =>
+    `(${a}."${suffix}To" IS NULL OR CAST(${b}."${suffix}From" AS numeric) < CAST(${a}."${suffix}To" AS numeric)) AND ` +
+    `(${b}."${suffix}To" IS NULL OR CAST(${a}."${suffix}From" AS numeric) < CAST(${b}."${suffix}To" AS numeric))`;
+  const dateOverlap = (a: string, b: string): string =>
+    `(${a}."effectiveTo" IS NULL OR ${b}."effectiveFrom" < ${a}."effectiveTo") AND ` +
+    `(${b}."effectiveTo" IS NULL OR ${a}."effectiveFrom" < ${b}."effectiveTo")`;
+  // 违规行查进变量：错误消息点名组号与两个发生项（与 SQLite 侧同口径）
+  const violation =
+    `SELECT '${PUBLISH_VALIDATION('bom_header', '阶梯切片重叠：')}' || a."tierGroupNo" || ':' || a."id" || ':' || b."id" || ':日期段与批量段同时相交'` +
+    ` FROM ${occurrence} a` +
+    ` JOIN ${line} la ON la."id" = a."lineId"` +
+    ` JOIN ${occurrence} b ON b."id" <> a."id" AND b."tierGroupNo" = a."tierGroupNo"` +
+    ` JOIN ${line} lb ON lb."id" = b."lineId"` +
+    ` WHERE la."headerId" = NEW."id" AND lb."headerId" = NEW."id"` +
+    ` AND a."tierGroupNo" IS NOT NULL` +
+    ` AND ${dateOverlap('a', 'b')}` +
+    ` AND ${overlap('a', 'b', 'lotsize')}` +
+    ` LIMIT 1`;
+  const body =
+    `  IF OLD."state" = 'draft' AND NEW."state" = 'released' THEN\n` +
+    `    DECLARE violation text;\n    BEGIN\n` +
+    `      ${violation} INTO violation;\n` +
+    `      IF violation IS NOT NULL THEN\n        RAISE EXCEPTION '%', violation;\n      END IF;\n` +
+    `    END;\n  END IF;`;
+  return [
+    `${pgFunctionHeader(metadata, 'bom_header__tier_publish_guard')}\n${body}${pgFunctionFooter}`,
+    pgCreateTrigger(metadata, tableRef, 'bom_header__tier_publish_trg', 'BEFORE UPDATE OF "state"', 'bom_header__tier_publish_guard')
+  ];
+};
 /** 实体全部 PGlite 触发器 DDL（单条语句数组）。 */
+
 export const buildPgBomTriggerDdl = (metadata: EntityMetadata): string[] => [
   ...pgStructuralFunction(metadata),
   ...pgPublishedRevisionFunction(metadata),
@@ -484,5 +666,6 @@ export const buildPgBomTriggerDdl = (metadata: EntityMetadata): string[] => [
   ...pgHistoryBatchFunction(metadata),
   ...pgReleasedHeaderMembersFunction(metadata),
   ...pgDecimalFormatFunction(metadata),
+  ...pgTierPublishFunction(metadata),
   ...pgCycleFunction(metadata)
 ];

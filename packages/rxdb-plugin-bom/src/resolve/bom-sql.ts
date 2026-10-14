@@ -129,7 +129,7 @@ export const buildAlternativeHeadersSql = (
   };
   const header = dialect.table('bom_header');
   const sql = [
-    `SELECT h."id" AS "headerId", h."alternativeNo" AS "alternativeNo"`,
+    `SELECT h."id" AS "headerId", h."alternativeNo" AS "alternativeNo", h."baseUom" AS "baseUom"`,
     `FROM ${header} h`,
     `WHERE h."state" = 'released'`,
     `  AND h."parentRevisionId" = ${p(params.parentRevisionId)}`,
@@ -165,6 +165,91 @@ export const buildParentRevisionSql = (
         `WHERE r."itemId" = ${p(params.itemId)} AND r."state" = 'released' AND r."effectiveFrom" <= ${p(params.asOfDate)}`,
         `ORDER BY r."effectiveFrom" DESC LIMIT 1`
       ].join('\n');
+  return { sql, params: bind };
+};
+
+/** 按前沿头集取已解析发生项（含头数量语义与子件主数据）的参数集合。 */
+export interface HeaderOccurrencesParams {
+  asOfDate: Date;
+  bomType: string;
+  orgId: string;
+  /** 前沿头 id 集（非空；调用方分块）。 */
+  headerIds: string[];
+}
+
+/**
+ * 生成「一层数量展开」查询（US-511）：给定前沿头集，返回这些头下已解析的发生项
+ * （released 头 + 生效窗口 + 子件修订解析），连同头的基准单位/基准量/装配损耗、
+ * 子件物料的库存单位/小数位/换算率、子件修订的 default_phantom（LEFT JOIN，无修订时为 NULL）。
+ * 行按 `(lineNo, effectiveFrom, id)` 排序保证同层确定性。
+ */
+export const buildHeaderOccurrencesSql = (
+  dialect: BomSqlDialect,
+  params: HeaderOccurrencesParams
+): { sql: string; params: unknown[] } => {
+  const bind: unknown[] = [];
+  const p = (value: unknown): string => {
+    bind.push(dialect.encode(value));
+    return dialect.placeholder(bind.length - 1);
+  };
+
+  const occurrence = dialect.table('bom_line_occurrence');
+  const line = dialect.table('bom_line');
+  const header = dialect.table('bom_header');
+  const revision = dialect.table('item_revision');
+  const item = dialect.table('item');
+
+  // 同一表达式在 SELECT 与 JOIN ON 各出现一次：分别构造、各自绑定占位符
+  const resolvedSelect = childRevisionExpr(dialect, revision, p, params.asOfDate, 'occ');
+  const resolvedJoin = childRevisionExpr(dialect, revision, p, params.asOfDate, 'occ');
+  const sql = [
+    `SELECT`,
+    `  h."id" AS "headerId",`,
+    `  h."baseUom" AS "headerBaseUom",`,
+    `  h."baseQty" AS "headerBaseQty",`,
+    `  h."assemblyScrap" AS "headerAssemblyScrap",`,
+    `  h."assemblyScrapConvention" AS "headerAssemblyScrapConvention",`,
+    `  r."itemId" AS "parentItemId",`,
+    `  l."id" AS "lineId",`,
+    `  l."lineNo" AS "lineNo",`,
+    `  occ."id" AS "occurrenceId",`,
+    `  occ."childItemId" AS "childItemId",`,
+    `  occ."childRevisionId" AS "childRevisionId",`,
+    `  ${resolvedSelect} AS "resolvedChildRevisionId",`,
+    `  occ."qty" AS "qty",`,
+    `  occ."qtyFormula" AS "qtyFormula",`,
+    `  occ."formulaGrammarVersion" AS "formulaGrammarVersion",`,
+    `  occ."isFixedQty" AS "isFixedQty",`,
+    `  occ."tierGroupNo" AS "tierGroupNo",`,
+    `  occ."lotsizeFrom" AS "lotsizeFrom",`,
+    `  occ."lotsizeTo" AS "lotsizeTo",`,
+    `  occ."componentScrap" AS "componentScrap",`,
+    `  occ."componentScrapConvention" AS "componentScrapConvention",`,
+    `  occ."componentScrapFixed" AS "componentScrapFixed",`,
+    `  occ."uom" AS "occurrenceUom",`,
+    `  occ."uomConversion" AS "occurrenceUomConversion",`,
+    `  occ."phantomOverride" AS "phantomOverride",`,
+    `  occ."effectiveFrom" AS "effectiveFrom",`,
+    `  occ."effectiveTo" AS "effectiveTo",`,
+    `  cr."defaultPhantom" AS "childRevisionPhantom",`,
+    `  ci."stockUom" AS "childStockUom",`,
+    `  ci."uomDecimals" AS "childUomDecimals",`,
+    `  ci."uomConversion" AS "childItemUomConversion"`,
+    `FROM ${occurrence} occ`,
+    `JOIN ${line} l ON l."id" = occ."lineId"`,
+    `JOIN ${header} h ON h."id" = l."headerId"`,
+    `JOIN ${revision} r ON r."id" = h."parentRevisionId"`,
+    `JOIN ${item} ci ON ci."id" = occ."childItemId"`,
+    `LEFT JOIN ${revision} cr ON cr."id" = ${resolvedJoin}`,
+    `WHERE h."state" = 'released'`,
+    `  AND h."bomType" = ${p(params.bomType)}`,
+    `  AND h."orgId" = ${p(params.orgId)}`,
+    `  AND h."id" IN (${params.headerIds.map(id => p(id)).join(', ')})`,
+    `  AND occ."effectiveFrom" <= ${p(params.asOfDate)}`,
+    `  AND (occ."effectiveTo" IS NULL OR occ."effectiveTo" > ${p(params.asOfDate)})`,
+    `ORDER BY l."lineNo" ASC, occ."effectiveFrom" ASC, occ."id" ASC`
+  ].join('\n');
+
   return { sql, params: bind };
 };
 

@@ -12,8 +12,17 @@ import { normalizeDecimalString } from './decimal.utils.js';
 import { attachUnionOnlyMark } from './resolve/cycle-analysis.js';
 import { BomCycleError, normalizeBomError } from './types.js';
 
-/** 需要入口规范化的十进制字段（后续故事按十进制值合同扩列）。 */
-const DECIMAL_FIELDS = ['qty'] as const;
+/** 需要入口规范化的十进制字段（US-511 按十进制值合同扩列）。 */
+const DECIMAL_FIELDS = [
+  'qty',
+  'baseQty',
+  'assemblyScrap',
+  'componentScrap',
+  'componentScrapFixed',
+  'lotsizeFrom',
+  'lotsizeTo',
+  'uomConversion'
+] as const;
 
 /** 把实体上的十进制字段规范成规范串（原地赋值，不做数值运算）。 */
 const normalizeDecimalFields = (entity: Record<string, unknown>): void => {
