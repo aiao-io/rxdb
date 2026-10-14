@@ -27,11 +27,8 @@ const emit = defineEmits<{
     data-testid="search-results"
   >
     <div
-      :class="`rounded-box border-base-300 bg-base-100 flex items-center gap-2 border px-3 py-2 text-sm${
-        displayState === 'loading' ? 'border-primary'
-        : displayState === 'error' ? 'border-warning'
-        : ''
-      }`"
+      class="rounded-box border-base-300 bg-base-100 flex items-center gap-2 border px-3 py-2 text-sm"
+      :class="{ 'border-primary': displayState === 'loading', 'border-warning': displayState === 'error' }"
     >
       <span
         class="loading loading-spinner loading-xs text-primary"

@@ -14,21 +14,22 @@ import { resetE2eState } from './e2e-utils.js';
  * 而不是留给用户去发现（contracts/tri-framework-api.md §4）。Angular 版
  * （2026-09-18 二版重构为 GitHub Desktop 形态：顶部分支栏 + 变更/历史标签页 +
  * 右栏详情）是参考实现，本拷贝逐条移植。契约值不变：live region、
- * 四态 axe 零违规、键盘可达、SC-005 归档。
+ * 五态 axe 零违规、键盘可达、SC-005 归档。
  *
  * 扫描范围锁在 `[data-testid="worktree-page"]`：页面外的导航壳由
  * `search.a11y.spec.ts` 那一路覆盖，混进来只会让这份用例因为别处的回归而红。
- * 分支下拉与创建弹层是**内联**渲染（面板 div 内的子节点，见 branch-menu 的 TSDoc——
- * overlay 会把节点追加到 body 末尾，Tab 顺序排在面板之后，键盘走不进去），
- * 因此它们在扫描与走查范围里；合并对话框是 fixed 定位的面板子元素，同样在内。
+ * 分支 / worktree 下拉与它们的创建弹层是**内联**渲染（面板 div 内的子节点，见 ToolbarDropdown
+ * 的 TSDoc——overlay 会把节点追加到 body 末尾，Tab 顺序排在面板之后，键盘走不进去），
+ * 因此它们在扫描与走查范围里：「菜单打开时 axe 零违规」与 worktree 菜单用例在弹层开着时扫描；
+ * 合并对话框是 fixed 定位的面板子元素，同样在内。
  *
- * **面板上只有一处 disabled 按钮**：提交按钮在摘要为空时禁用（GitHub Desktop 的
+ * **面板上真实存在的 disabled 控件**：提交按钮在摘要为空时禁用（GitHub Desktop 的
  * `isSummaryBlank` 同款交互，它的 tooltip 原文 "A commit summary is required to
- * commit"）。其余地方不做禁用态——daisyUI 的禁用态文字是 `base-content/20%`，白底上
- * 合成 `#d1d1d1`，对比度 1.52，必然触发 axe 的 `color-contrast`（见
- * `search.a11y.spec.ts` 里记下的同一个坑）。提交按钮的禁用配色是专门选过的
- * （白字压 `#6b7280`，≈4.8:1，见 styles.css 的 `.gd-btn-primary:disabled`），
- * 两套主题都过 axe；键盘走查前先填摘要让按钮回到可用态（disabled 不进 Tab 序列）。
+ * commit"）；当前所在 worktree 的移除按钮（git 同款：删不掉当前 checkout）；命令在途时
+ * 下拉里的新建、行与创建按钮。axe 的 `color-contrast` 跳过 disabled 控件，禁用态配色不靠它
+ * 把关——提交按钮的禁用配色仍按可读性选过（白字压 `#6b7280`，≈4.8:1，见 styles.css 的
+ * `.gd-btn-primary:disabled`），下拉的禁用态是 `.gd-btn-ghost:disabled` / `.gd-menu-row:disabled`
+ * 的灰字。键盘走查前先填摘要让按钮回到可用态（disabled 不进 Tab 序列）。
  *
  * 面板不造数据：写 Todo 走 /todo 页（`writeTodo`），和真实用户流一致。
  */
@@ -343,23 +344,33 @@ test.describe('Working Tree Page A11y', () => {
     expectReachedWithIndicator(historyReached, ['wt-commit-item']);
   });
 
-  test('worktree 菜单：role / aria、键盘可达、Escape 与背板关闭、筛空文案、移除按钮可访问名', async ({ page }) => {
+  test('worktree 菜单：role / aria、键盘可达、Escape 与背板关闭、筛空文案、移除按钮可访问名、axe 零违规', async ({
+    page
+  }) => {
     await openPanel(page);
     await waitForAutoEnabled(page);
     await expect(page.getByTestId('wt-worktrees-phase')).toHaveText('success', { timeout: 30000 });
 
     const trigger = page.getByTestId('wt-worktree-menu');
-    await expect(trigger).toHaveAttribute('aria-haspopup', 'true');
+    await expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
+    await expect(trigger).toHaveAttribute('aria-controls', 'wt-worktree-menu-popup');
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
     await trigger.click();
     const popup = page.getByTestId('wt-worktree-menu-popup');
     await expect(popup).toBeVisible({ timeout: 10000 });
     await expect(trigger).toHaveAttribute('aria-expanded', 'true');
-    await expect(popup).toHaveAttribute('role', 'menu');
-    await expect(page.getByTestId('wt-worktree-item').first()).toHaveAttribute('role', 'menuitem');
+    // 列表弹层是非模态 dialog（里面还有筛选框与新建按钮，role=menu 只许装菜单项），id 对上 aria-controls。
+    await expect(popup).toHaveAttribute('role', 'dialog');
+    await expect(popup).toHaveAttribute('id', 'wt-worktree-menu-popup');
+    await expect(popup).toHaveAttribute('aria-label', 'Worktree list');
+    // 行是 <ul>/<li> 里的普通按钮：没有 role；当前所在的那一行带 aria-current="true"。
+    const firstRow = page.getByTestId('wt-worktree-item').first();
+    await expect(firstRow).not.toHaveAttribute('role');
+    await expect(firstRow).toHaveAttribute('aria-current', 'true');
     // 移除按钮只有图标：可访问名必须由 aria-label 给出，读屏才说得出删的是哪一个。
     await expect(page.getByTestId('wt-worktree-remove').first()).toHaveAccessibleName('Remove worktree main');
     await expect(page.getByTestId('wt-worktree-remove').first()).toBeDisabled();
+    await scanPanel(page);
 
     // 内联渲染：新建按钮与 worktree 行都在 Tab 序列里（当前 worktree 的移除按钮禁用，不进序列）。
     const reached = await walkPanelWithTab(page, 2);
@@ -367,6 +378,7 @@ test.describe('Working Tree Page A11y', () => {
 
     await page.getByLabel('Filter worktrees').fill('no-such-worktree');
     await expect(popup).toContainText('No matching worktrees');
+    await scanPanel(page);
 
     // Escape 走 document 级监听：焦点在筛选框里照样收得到。
     await page.keyboard.press('Escape');
@@ -387,6 +399,31 @@ test.describe('Working Tree Page A11y', () => {
     await scanPanel(page);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
+  });
+
+  test('菜单打开时 axe 零违规：分支列表、分支创建弹层、带复制提示的 worktree 创建弹层', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+    await expect(page.getByTestId('wt-worktrees-phase')).toHaveText('success', { timeout: 30000 });
+
+    await page.getByTestId('wt-branch-menu').click();
+    await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
+    await scanPanel(page);
+
+    await page.getByTestId('wt-branch-create').click();
+    await expect(page.getByTestId('wt-branch-create-popover')).toBeVisible();
+    await scanPanel(page);
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('wt-branch-create-popover')).toHaveCount(0);
+
+    // 写一条改动之后，new 模式的创建弹层多出「会复制未提交改动」的提示：带着它扫一遍。
+    await writeTodo(page, 'axe menus');
+    await page.getByTestId('wt-worktree-menu').click();
+    await expect(page.getByTestId('wt-worktree-menu-popup')).toBeVisible({ timeout: 10000 });
+    await page.getByTestId('wt-worktree-create').click();
+    await page.getByTestId('wt-worktree-mode-new').check();
+    await expect(page.getByTestId('wt-worktree-copy-note')).toContainText('1 uncommitted change');
+    await scanPanel(page);
   });
 
   test('记录首次可见状态耗时并归档（SC-005）', async ({ page }) => {

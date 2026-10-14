@@ -1,4 +1,5 @@
 import type { SearchResult, SearchState } from '@aiao/rxdb-plugin-search';
+import clsx from 'clsx';
 import { collectionBadgeClass, localizeCollection, localizeField } from '../types';
 
 interface SearchResultsListProps {
@@ -31,11 +32,10 @@ export function SearchResultsList({
   return (
     <section className='flex flex-col gap-2' aria-live='polite' data-testid='search-results'>
       <div
-        className={`rounded-box border-base-300 bg-base-100 flex items-center gap-2 border px-3 py-2 text-sm${
-          displayState === 'loading' ? 'border-primary'
-          : displayState === 'error' ? 'border-warning'
-          : ''
-        }`}
+        className={clsx('rounded-box border-base-300 bg-base-100 flex items-center gap-2 border px-3 py-2 text-sm', {
+          'border-primary': displayState === 'loading',
+          'border-warning': displayState === 'error'
+        })}
       >
         {displayState === 'loading' && <span className='loading loading-spinner loading-xs text-primary' />}
         {displayState === 'error' && <span className='text-warning'>⚠</span>}

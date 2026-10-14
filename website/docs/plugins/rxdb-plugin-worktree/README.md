@@ -466,12 +466,12 @@ await db.worktree.switchWorktree(main.id); // login 上的未提交改动留在�
 await db.worktree.removeWorktree(login.id); // 只删 worktree 那一行，分支与它的改动都还在
 ```
 
-| 成员                               | 说明                                                                                                                                       |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `listWorktrees()`                  | 全部行，`{ id, branchId, label, active, createdAt }`；零行是合法态                                                                         |
+| 成员                               | 说明                                                                                                                                                  |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `listWorktrees()`                  | 全部行，`{ id, branchId, label, active, createdAt }`；零行是合法态                                                                                    |
 | `createWorktree(branchId, label?)` | 落行并切过去。同一分支已有行抛 `WorktreeBranchPinnedError`；分支不存在抛 `WorktreeBranchNotFoundError`；label 原样落库，全空白抛 `WorktreeLabelError` |
-| `switchWorktree(id, options?)`     | `options` 原样透传给 `versionManager.switchBranch()`；不传即不要求干净                                                                     |
-| `removeWorktree(id)`               | 只删这一行；当前所在抛 `WorktreeActiveError`，所钉分支有未提交改动抛 `WorktreeDirtyError`                                                  |
+| `switchWorktree(id, options?)`     | `options` 原样透传给 `versionManager.switchBranch()`；不传即不要求干净                                                                                |
+| `removeWorktree(id)`               | 只删这一行；当前所在抛 `WorktreeActiveError`，所钉分支有未提交改动抛 `WorktreeDirtyError`                                                             |
 
 容易踩的细节：
 

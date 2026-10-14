@@ -514,7 +514,12 @@ const NAMING = {
     'RemoteChangeResult',
     'RemoteEntityRef',
     'SyncRejection',
-    'SyncRejectionReport'
+    'SyncRejectionReport',
+    // US-310 评审回修（R13–R21 一轮）：active 分支基数守卫的第三个入口，与早已在基线里的
+    // `assertSingleActiveBranch` / `resolveSingleActiveBranch` 同族——三者共用「多行怎么办」的同一份答案，
+    // 只在「零行怎么办」上分道扬镳。插件的 `0005-worktrees` 要对所有既有库跑、零 active 合法，
+    // 没有它就只能在插件里再抄一份查询与基数判定。分支基数属于分支系统，叫 `Commit*` / `WorkingTree*` 只会是个谎。
+    'findSingleActiveBranch'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

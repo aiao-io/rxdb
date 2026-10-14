@@ -92,23 +92,24 @@ export const worktreeRow = (page: Page, branchId: string) =>
 export const worktreeRemove = (page: Page, branchId: string) =>
   page.locator(`[data-testid="wt-worktree-remove"][data-branch-id="${branchId}"]`);
 
+/** 创建弹层的两种来源：新建分支，或钉一条已有分支；label 原样填写（不 trim）。 */
+export type WorktreeSubmitOptions =
+  { readonly newBranch: string; readonly label?: string } | { readonly existing: string; readonly label?: string };
+
 /**
- * 经创建弹层建一个 worktree：`newBranch` 走「New branch」（`git worktree add -b` 同款），
- * `existing` 走「Existing branch」。只点到确认为止，结果由调用方断言。
+ * 经创建弹层建一个 worktree：`newBranch` 走「New branch」（先 `createBranch`，FR-017：会复制当前
+ * 未提交改动，再钉住），`existing` 走「Existing branch」。只点到确认为止，结果由调用方断言。
  */
-export const submitWorktree = async (
-  page: Page,
-  options: { readonly newBranch?: string; readonly existing?: string; readonly label?: string }
-): Promise<void> => {
+export const submitWorktree = async (page: Page, options: WorktreeSubmitOptions): Promise<void> => {
   await openWorktreeMenu(page);
   await page.getByTestId('wt-worktree-create').click();
   await expect(page.getByTestId('wt-worktree-create-popover')).toBeVisible({ timeout: 10000 });
-  if (options.newBranch !== undefined) {
+  if ('newBranch' in options) {
     await page.getByTestId('wt-worktree-mode-new').check();
     await page.getByTestId('wt-worktree-new-branch').fill(options.newBranch);
   } else {
     await page.getByTestId('wt-worktree-mode-existing').check();
-    await page.getByTestId('wt-worktree-branch').selectOption(options.existing ?? '');
+    await page.getByTestId('wt-worktree-branch').selectOption(options.existing);
   }
   if (options.label !== undefined) await page.getByTestId('wt-worktree-label').fill(options.label);
   await page.getByTestId('wt-worktree-create-confirm').click();

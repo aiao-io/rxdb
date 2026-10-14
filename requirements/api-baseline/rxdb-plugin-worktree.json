@@ -246,6 +246,10 @@
         "kind": "value"
       },
       {
+        "name": "disposeWorktreeCommands",
+        "kind": "value"
+      },
+      {
         "name": "encodeWorktreePatch",
         "kind": "value"
       },
@@ -739,6 +743,10 @@
       }
     ],
     "./testing": [
+      {
+        "name": "branchActivatedEvent",
+        "kind": "value"
+      },
       {
         "name": "ConformanceCache",
         "kind": "both"

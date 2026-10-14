@@ -71,12 +71,16 @@
         [(menuOpen)]="$worktreeMenuOpen"
         [activeBranch]="$activeBranch()"
         [branches]="branches.value()"
+        [busy]="$worktreeMenuBusy()"
+        [listError]="$worktreeListError()"
         [popupWidth]="MIN_DROPDOWN_WIDTH"
         [style.flex-shrink]="WORKTREE_SECTION_SHRINK"
-        [style.width.px]="$worktreeSectionWidth()"
+        [style.width.px]="WORKTREE_SECTION_WIDTH"
+        [uncommittedCount]="$changesCount()"
         [worktrees]="$worktreeList()"
         (createWorktree)="createWorktree($event)"
         (removeWorktree)="removeWorktree($event)"
+        (retryList)="retryWorktreeList()"
         (switchWorktree)="switchWorktree($event)"
       />
 
@@ -88,6 +92,7 @@
         [(menuOpen)]="$branchMenuOpen"
         [activeBranch]="$activeBranch()"
         [branches]="branches.value()"
+        [busy]="$branchMenuBusy()"
         [popupWidth]="$branchSectionWidth() < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : $branchSectionWidth()"
         [style.width.px]="$branchSectionWidth()"
         (createBranch)="createBranch($event)"
@@ -278,8 +283,7 @@
       <span data-testid="wt-worktrees-phase">{{ tree.listWorktreesState().phase }}</span>
       · worktree
       <span data-testid="wt-worktrees-count">{{ $worktreeList().length }}</span>
-      个 · 当前
-      <span data-testid="wt-worktrees-active">{{ $activeWorktreeId() }}</span>
+      个
     </div>
     <div class="flex shrink-0 items-center gap-3">
       <span

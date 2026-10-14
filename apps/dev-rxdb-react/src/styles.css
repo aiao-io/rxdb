@@ -316,6 +316,14 @@ app-header,
   outline: 2px solid var(--gd-accent);
   outline-offset: -1px;
 }
+/* 禁用态（当前 worktree 的移除、命令在途时的新建）：灰字、不变手型、悬停不亮。
+   放在 :hover 之后，禁用时悬停也不变色；axe 的 color-contrast 本就跳过 disabled 控件。 */
+.gd-btn-ghost:disabled,
+.gd-btn-ghost:disabled:hover {
+  background: transparent;
+  color: var(--gd-muted);
+  cursor: default;
+}
 
 /* 工具栏图标按钮（获取 origin）。 */
 .gd-icon-btn {
@@ -449,6 +457,13 @@ app-header,
 }
 .gd-menu-row:hover {
   background: var(--gd-hover);
+}
+/* 禁用态（下拉行在命令在途时）：灰字、不变手型、悬停不亮；规则同 .gd-btn-ghost:disabled。 */
+.gd-menu-row:disabled,
+.gd-menu-row:disabled:hover {
+  background: transparent;
+  color: var(--gd-muted);
+  cursor: default;
 }
 .gd-menu-row svg {
   color: var(--gd-muted);

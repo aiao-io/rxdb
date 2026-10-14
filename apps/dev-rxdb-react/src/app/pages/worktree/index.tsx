@@ -12,13 +12,17 @@ import type {
 import {
   CommitValidationError,
   WorktreeActiveError,
+  WorktreeBranchNotFoundError,
   WorktreeBranchPinnedError,
-  WorktreeDirtyError
+  WorktreeDirtyError,
+  WorktreeLabelError,
+  WorktreeNotFoundError
 } from '@aiao/rxdb-plugin-worktree';
 import { useWorktree } from '@aiao/rxdb-plugin-worktree-react';
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
+import clsx from 'clsx';
 import { Check, ChevronDown, FolderGit2, GitBranch, RefreshCw } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useResettableTimeout } from '../../hooks/useResettableTimeout';
 import { WorktreeBranchMenu } from './components/BranchMenu';
@@ -33,7 +37,7 @@ import {
 import { WorktreeDiffViewer } from './components/DiffViewer';
 import { WorktreeHistoryList } from './components/HistoryList';
 import { WorktreeMergeDialog, type MergeDialogState } from './components/MergeDialog';
-import { WorktreeMenu, type WorktreeCreateRequest } from './components/WorktreeMenu';
+import { WorktreeWorktreeMenu, type WorktreeCreateRequest } from './components/WorktreeMenu';
 import { diffEntryKey } from './utils/diff-format';
 import { startDragResize } from './utils/drag';
 import { gdEntryPath } from './utils/gd';
@@ -75,6 +79,31 @@ const DIRTY_REMOVE_TEXT =
 /** 当前所在的 worktree 删不掉（界面上它的移除按钮本就禁用，这条兜的是并发切换后的旧列表）。 */
 const ACTIVE_REMOVE_TEXT = 'This is the current worktree. Switch to another worktree before removing it.';
 
+/** label 给了却全是空白（`WorktreeLabelError`）：核心原样保存 label，不替用户把它改成「没起名」。 */
+const LABEL_INVALID_TEXT = "A worktree label can't be only spaces. Leave it empty to show the branch name.";
+
+/** worktree 已经不在了（`WorktreeNotFoundError`）：多半是别的标签页刚把它移除。 */
+const WORKTREE_NOT_FOUND_TEXT = 'This worktree no longer exists.';
+
+/** 要钉的分支已经不在了（`WorktreeBranchNotFoundError`）。 */
+const branchNotFoundText = (branchId: string): string => `Branch "${branchId}" no longer exists.`;
+
+/**
+ * worktree 三个命令（建 / 切 / 删）的失败 → 用户能看懂的提示；认不出的错误给 `message`，连 Error 都不是时给 `fallback`。
+ *
+ * @remarks
+ * `WorktreeDirtyError` 在这三个命令里只会来自移除（切 worktree 不带 `requireClean`），所以映射成移除的文案。
+ */
+const worktreeErrorText = (error: unknown, fallback: string): string => {
+  if (error instanceof WorktreeDirtyError) return DIRTY_REMOVE_TEXT;
+  if (error instanceof WorktreeActiveError) return ACTIVE_REMOVE_TEXT;
+  if (error instanceof WorktreeBranchPinnedError) return `Branch "${error.branchId}" already has a worktree.`;
+  if (error instanceof WorktreeBranchNotFoundError) return branchNotFoundText(error.branchId);
+  if (error instanceof WorktreeNotFoundError) return WORKTREE_NOT_FOUND_TEXT;
+  if (error instanceof WorktreeLabelError) return LABEL_INVALID_TEXT;
+  return error instanceof Error ? error.message : fallback;
+};
+
 /** 工具栏 worktree 段的宽度（固定；与分支段同起点）。 */
 const WORKTREE_SECTION_WIDTH = 220;
 
@@ -107,9 +136,10 @@ type WorktreeContextMenuTarget =
  * 标签页（文件列表 + 底部提交框），右栏选中项的详情（字段级 hunk diff 或提交详情），
  * 最底部一条窄状态条放 demo 的原始状态读数（分支 / 未提交数 / 干净与否——这些是
  * 仪器不是 UI）。视觉细节（选中行 3px 蓝左边条、hunk 盒子、头像散列取色、蓝底
- * 白字主按钮）见 `styles.css` 里的 `.gd-*` 共享样式。面板没有变更流（见
- * `useWorktree` 的 TSDoc），每次命令后仍要手动重读；本页发起的写之后都由
- * `refreshStatus()` 兜这一下。所有 data-testid 与行为契约与 Angular 端逐字节对齐，
+ * 白字主按钮）见 `styles.css` 里的 `.gd-*` 共享样式。worktree 列表是实时的（挂载时读过一次
+ * 之后，跟随 worktree 行与当前分支的变化自动重读），其余读数没有变更流（见 `useWorktree` 的
+ * TSDoc），命令后仍要手动重读：本页发起的写之后由 `refreshStatus()` 兜这一下，切换成功之后由
+ * `refreshAfterSwitch()` 补页面自己的读数。所有 data-testid 与行为契约与 Angular 端逐字节对齐，
  * 由 e2e（worktree.spec / worktree.a11y.spec）锁定。
  */
 export default function WorktreePage(): React.JSX.Element {
@@ -137,6 +167,9 @@ export default function WorktreePage(): React.JSX.Element {
   const [worktreeMenuOpen, setWorktreeMenuOpen] = useState(false);
   const [worktreeCreateOpen, setWorktreeCreateOpen] = useState(false);
   const [worktreeError, setWorktreeError] = useState<string | null>(null);
+  // 命令在途标志：new 模式先 createBranch 再钉，前一段不落在任何命令状态上，只能页面自己记
+  const [worktreePending, setWorktreePending] = useState(false);
+  const [branchPending, setBranchPending] = useState(false);
   const [mergeDialog, setMergeDialog] = useState<MergeDialogState | null>(null);
   const [mergeError, setMergeError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -177,13 +210,26 @@ export default function WorktreePage(): React.JSX.Element {
   const displayDiffState = useKeepLastGood(diffState);
   const displayWorktreesState = useKeepLastGood(tree.listWorktreesState);
 
-  /** worktree 列表；还没读到时是空数组（菜单显示「No worktrees yet」，触发按钮回退到分支名）。 */
+  /**
+   * worktree 列表；还没读到时是空数组（菜单显示「No worktrees yet」，触发按钮回退到分支名），
+   * 读失败时同样是空数组（菜单换成错误块 + Retry，也不拿分支充当候选）。
+   */
   const worktreeList: readonly WorktreeInfo[] =
     displayWorktreesState.phase === 'success' || displayWorktreesState.phase === 'empty' ?
       displayWorktreesState.value
     : [];
-  /** 当前 worktree 的 id；当前分支没钉住时为空串（「无行 active」是合法态）。 */
-  const activeWorktreeId = worktreeList.find(worktree => worktree.active)?.id ?? '';
+  /** 列表读失败的提示；只看渲染用的那份状态，重试期间（loading）停在错误块上。 */
+  const worktreeListError =
+    displayWorktreesState.phase === 'error' ? `Couldn't load worktrees. ${displayWorktreesState.error.message}` : null;
+
+  /** worktree 菜单在途：页面自己的标志，或三个 worktree 命令里任意一个还在飞。 */
+  const worktreeBusy =
+    worktreePending ||
+    tree.createWorktreeState.phase === 'loading' ||
+    tree.switchWorktreeState.phase === 'loading' ||
+    tree.removeWorktreeState.phase === 'loading';
+  /** 分支菜单在途：建 / 删分支走 versionManager，只有切换落在命令状态上。 */
+  const branchBusy = branchPending || tree.switchBranchState.phase === 'loading';
 
   // ── 派生状态 ──────────────────────────────────────────────
   const activeBranch = branches.find(branch => branch.activated)?.id ?? '';
@@ -230,19 +276,22 @@ export default function WorktreePage(): React.JSX.Element {
     selectedCommitId !== null ? (commitEntries.find(entry => entry.commitId === selectedCommitId) ?? null) : null;
 
   // ── 挂载：入口自己不发 IO（见 useWorktree 的 TSDoc），读一次状态让面板开箱能说话 ──
-  useEffect(() => {
+  // 入口对象随每次状态写回换新，这一轮只想在挂载时跑一次：读它的动作放进 Effect Event。
+  const readOnMount = useEffectEvent(() => {
     mountedAt.current = performance.now();
     void tree
       .isEnabled()
       .then(enabledResult => {
-        if (!enabledResult) return;
-        void tree.diff().catch(() => undefined);
-        void tree.listWorktrees().catch(() => undefined);
+        if (enabledResult) void tree.diff().catch(() => undefined);
       })
       .catch(() => undefined);
+    // 列表读不看能力位：未启用时它落在 error（工具栏藏着，看不见），但列表跟随从这一次读开始，
+    // 之后 enable() / enableIfEmpty() 与能力启用事件都会替页面重读，页面不再手动刷新列表。
+    void tree.listWorktrees().catch(() => undefined);
     void tree.status().catch(() => undefined);
-    // 入口对象每次 render 都是新的；这一轮只想在挂载时跑一次。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  });
+  useEffect(() => {
+    readOnMount();
   }, []);
 
   // 首次可见状态耗时：status 相位第一次离开 idle / loading 时定格（SC-005）。
@@ -308,14 +357,16 @@ export default function WorktreePage(): React.JSX.Element {
 
   const closeRepoMenu = () => setRepoMenuOpen(false);
 
-  /** 重读本地状态与历史，并更新刷新时间；进行中忽略重复点击（GitHub Desktop 的 Fetching 态）。 */
+  /**
+   * 重读本地状态与历史，并更新刷新时间；进行中忽略重复点击（GitHub Desktop 的 Fetching 态）。
+   * worktree 列表是实时的，不在这里重读。
+   */
   const runFetch = async (): Promise<void> => {
     if (fetching) return;
     setFetching(true);
     try {
       await refreshStatus();
       await readCommits();
-      await refreshWorktrees();
       setLastFetchedAt(Date.now());
     } finally {
       setFetching(false);
@@ -492,14 +543,13 @@ export default function WorktreePage(): React.JSX.Element {
     });
   };
 
-  // `enable()` 自己会重读一次 status，但**不会**重读 isEnabled ——
-  // 不补这一句，成功启用之后「提交能力」那行仍然写着「未启用」。
+  // `enable()` 自己会重读一次 status（挂载时读过 worktree 列表，它也会重读列表），但**不会**
+  // 重读 isEnabled —— 不补这一句，成功启用之后「提交能力」那行仍然写着「未启用」。
   const runEnable = async (): Promise<void> => {
     await tree.enable().catch(() => undefined);
     await tree.isEnabled().catch(() => undefined);
     await refreshStatus();
     await readCommits();
-    await refreshWorktrees();
   };
 
   /**
@@ -512,12 +562,12 @@ export default function WorktreePage(): React.JSX.Element {
   const refreshStatus = async (): Promise<void> => {
     const fresh = await tree.status().catch(() => null);
     await tree.diff().catch(() => undefined);
-    if (fresh !== null && (fresh.restoring || fresh.conflicted)) {
-      const session = await tree.restoreSession().catch(() => null);
-      setRestoreSession(session);
-    } else {
-      setRestoreSession(null);
-    }
+    await readRestoreSession(fresh !== null && (fresh.restoring || fresh.conflicted));
+  };
+
+  /** 读恢复会话；`needed` 为假时直接清空，不白发一次 IO。 */
+  const readRestoreSession = async (needed: boolean): Promise<void> => {
+    setRestoreSession(needed ? await tree.restoreSession().catch(() => null) : null);
   };
 
   const readCommits = async (): Promise<void> => {
@@ -525,14 +575,21 @@ export default function WorktreePage(): React.JSX.Element {
   };
 
   /**
-   * 重读 worktree 列表。
+   * 切换成功之后（分支菜单、worktree 菜单、创建即切换）只重读页面自己的读数：diff、恢复会话、历史。
    *
-   * worktree 命令自己会重读（见 `createWorktreeCommands`）；这里补的是**分支**操作之后那一下：
-   * 分支菜单切走会挪动列表里的 active 勾选，删分支会连带删掉钉在它上面的 worktree 行，
-   * 而 `switchBranch()` 有意不替从不显示 worktree 列表的应用多发这一轮查询。
+   * status 不在这里读：命令层在切换成功后已经重读过它；worktree 列表也不读——它是实时的。
+   * 恢复会话因此没有现读的 status 可判，直接读：没有会话时它是一次返回 null 的 empty 查询，
+   * 比为了这一判再读一轮 status 便宜。
    */
-  const refreshWorktrees = async (): Promise<void> => {
-    await tree.listWorktrees().catch(() => undefined);
+  const refreshAfterSwitch = async (): Promise<void> => {
+    await tree.diff().catch(() => undefined);
+    await readRestoreSession(true);
+    await readCommits();
+  };
+
+  /** 列表读失败后的 Retry；再失败照样落在 `listWorktreesState` 的 error 相位里，这里不必接。 */
+  const retryWorktreeList = () => {
+    void tree.listWorktrees().catch(() => undefined);
   };
 
   /**
@@ -664,7 +721,11 @@ export default function WorktreePage(): React.JSX.Element {
 
   // ── 分支操作 ──────────────────────────────────────────────
 
+  // 三个分支命令都先看在途标志再动手：disabled 只挡得住下拉里的按钮，行右键菜单里的切换 / 删除不经过它。
+
   const createBranch = async (name: string) => {
+    if (branchBusy) return;
+    setBranchPending(true);
     try {
       await rxdb.versionManager.createBranch(name);
       setCreatePopoverOpen(false);
@@ -672,6 +733,8 @@ export default function WorktreePage(): React.JSX.Element {
       showToast('success', `Branch "${name}" created.`);
     } catch (e: unknown) {
       setBranchError(e instanceof Error ? e.message : '创建失败');
+    } finally {
+      setBranchPending(false);
     }
   };
 
@@ -681,15 +744,16 @@ export default function WorktreePage(): React.JSX.Element {
    * 不传 `requireClean` 的话切换照样发生（脏工作树按分支隔离保留，切走再切回原样还在），
    * 但那把「先处理未提交改动」这个 git 流程里最关键的一步藏起来了——demo 要演的就是这一步。
    * 无论成败都收起菜单：点行即切换（GitHub Desktop 同款），收起来让 toast 成为唯一的反馈。
+   * worktree 列表的勾选跟着当前分支走，由实时列表自己挪。
    */
   const switchBranch = async (branchId: string) => {
+    if (branchBusy) return;
     setBranchMenuOpen(false);
+    setBranchPending(true);
     try {
       await tree.switchBranch(branchId, { requireClean: true });
       showToast('success', `Switched to branch "${branchId}".`);
-      await refreshStatus();
-      await readCommits();
-      await refreshWorktrees();
+      await refreshAfterSwitch();
     } catch (e: unknown) {
       showToast(
         'error',
@@ -697,18 +761,24 @@ export default function WorktreePage(): React.JSX.Element {
         : e instanceof Error ? e.message
         : 'Switch failed.'
       );
+    } finally {
+      setBranchPending(false);
     }
   };
 
+  /** 删分支；钉在它上面的 worktree 随分支一起删，实时列表跟着去掉那一行。 */
   const removeBranch = async (branchId: string) => {
+    if (branchBusy) return;
     if (!window.confirm(`确定要删除分支 "${branchId}" 吗？`)) return;
+    setBranchPending(true);
     try {
       await rxdb.versionManager.removeBranch(branchId);
       setBranchMenuOpen(false);
       showToast('success', `Branch "${branchId}" deleted.`);
-      await refreshWorktrees();
     } catch (e: unknown) {
       showToast('error', e instanceof Error ? e.message : 'Delete failed.');
+    } finally {
+      setBranchPending(false);
     }
   };
 
@@ -720,6 +790,10 @@ export default function WorktreePage(): React.JSX.Element {
     return worktree ? (worktree.label ?? worktree.branchId) : id;
   };
 
+  // 三个 worktree 命令同样先看在途标志，在 disabled 之外再挡一道：双击移除时第二下若真打出去，会撞上
+  // 已经删掉的行（WorktreeNotFoundError），它的 toast 盖掉第一下的成功提示。列表由命令层在每个命令
+  // 之后重读，这里不再手动刷新。
+
   /**
    * 切到一个 worktree：**不带** `requireClean`。
    *
@@ -727,63 +801,82 @@ export default function WorktreePage(): React.JSX.Element {
    * 这正是 worktree 相对「切分支前先提交 / 丢弃」的价值。无论成败都收起菜单，让 toast 成为唯一的反馈。
    */
   const switchWorktree = async (id: string) => {
+    if (worktreeBusy) return;
     setWorktreeMenuOpen(false);
+    setWorktreePending(true);
     const name = worktreeName(id);
     try {
       await tree.switchWorktree(id);
       showToast('success', `Switched to worktree "${name}".`);
+      await refreshAfterSwitch();
     } catch (e: unknown) {
-      showToast('error', e instanceof Error ? e.message : 'Switch failed.');
+      showToast('error', worktreeErrorText(e, 'Switch failed.'));
+    } finally {
+      setWorktreePending(false);
     }
-    await refreshStatus();
-    await readCommits();
   };
 
   /**
-   * 建 worktree：`new` 模式先建分支再钉（`git worktree add -b` 同款），创建即切换。
+   * 建 worktree：`new` 模式先 `createBranch`（FR-017：会复制当前未提交改动），再钉住；创建即切换。
    *
    * 建分支失败（名字已占用等）就地显示在弹层里、不关弹层；钉住阶段的拒绝走 toast。
    */
   const createWorktree = async (request: WorktreeCreateRequest) => {
+    if (worktreeBusy) return;
     setWorktreeError(null);
-    if (request.mode === 'new') {
-      try {
-        await rxdb.versionManager.createBranch(request.branchId);
-      } catch (e: unknown) {
-        setWorktreeError(e instanceof Error ? e.message : 'Create failed.');
-        return;
-      }
+    setWorktreePending(true);
+    try {
+      if (request.mode === 'new' && !(await createWorktreeBranch(request.branchId))) return;
+      setWorktreeCreateOpen(false);
+      await pinWorktree(request);
+    } finally {
+      setWorktreePending(false);
     }
-    setWorktreeCreateOpen(false);
+  };
+
+  /** `new` 模式的第一步：建分支；失败就地显示在弹层里，返回 false 让调用方停下。 */
+  const createWorktreeBranch = async (branchId: string): Promise<boolean> => {
+    try {
+      await rxdb.versionManager.createBranch(branchId);
+      return true;
+    } catch (e: unknown) {
+      setWorktreeError(e instanceof Error ? e.message : 'Create failed.');
+      return false;
+    }
+  };
+
+  /**
+   * 第二步：钉住并切过去（label 原样交给核心）。
+   *
+   * `new` 模式走到这里时分支已经建好了：钉住失败的提示要点明这一点，否则用户会以为什么都没发生，
+   * 再建一次又撞上「分支已存在」。
+   */
+  const pinWorktree = async (request: WorktreeCreateRequest): Promise<void> => {
     try {
       const created = await tree.createWorktree(request.branchId, request.label);
       showToast('success', `Created worktree "${created.label ?? created.branchId}" and switched to it.`);
+      await refreshAfterSwitch();
     } catch (e: unknown) {
+      const text = worktreeErrorText(e, 'Create failed.');
       showToast(
         'error',
-        e instanceof WorktreeBranchPinnedError ? `Branch "${e.branchId}" already has a worktree.`
-        : e instanceof Error ? e.message
-        : 'Create failed.'
+        request.mode === 'new' ? `Branch "${request.branchId}" was created, but the worktree wasn't: ${text}` : text
       );
     }
-    await refreshStatus();
-    await readCommits();
   };
 
   /** 移除一个 worktree：只删那一行，分支与它的未提交改动都还在。菜单保持打开，行就地消失。 */
   const removeWorktree = async (id: string) => {
+    if (worktreeBusy) return;
+    setWorktreePending(true);
     const name = worktreeName(id);
     try {
       await tree.removeWorktree(id);
       showToast('success', `Removed worktree "${name}". Its branch is kept.`);
     } catch (e: unknown) {
-      showToast(
-        'error',
-        e instanceof WorktreeDirtyError ? DIRTY_REMOVE_TEXT
-        : e instanceof WorktreeActiveError ? ACTIVE_REMOVE_TEXT
-        : e instanceof Error ? e.message
-        : 'Remove failed.'
-      );
+      showToast('error', worktreeErrorText(e, 'Remove failed.'));
+    } finally {
+      setWorktreePending(false);
     }
   };
 
@@ -829,8 +922,8 @@ export default function WorktreePage(): React.JSX.Element {
         `Merged ${result.merged} change(s) into the working tree of ${activeBranch}` +
           ` — commit to record them${result.sourceDeleted ? '; source branch deleted' : ''}.`
       );
+      // 删掉源分支时钉在它上面的 worktree 一起没了：实时列表自己跟，不必重读。
       await refreshStatus();
-      if (result.sourceDeleted) await refreshWorktrees();
     } catch (e: unknown) {
       setMergeError(e instanceof Error ? e.message : 'Merge failed.');
     }
@@ -919,19 +1012,23 @@ export default function WorktreePage(): React.JSX.Element {
               className='gd-toolbar-section'
               style={{ width: WORKTREE_SECTION_WIDTH, flexShrink: WORKTREE_SECTION_SHRINK }}
             >
-              <WorktreeMenu
+              <WorktreeWorktreeMenu
                 activeBranch={activeBranch}
                 branches={branches}
+                busy={worktreeBusy}
                 createError={worktreeError}
                 createOpen={worktreeCreateOpen}
+                listError={worktreeListError}
                 menuOpen={worktreeMenuOpen}
                 popupWidth={MIN_DROPDOWN_WIDTH}
+                uncommittedCount={changesCount}
                 worktrees={worktreeList}
                 onCreateErrorChange={setWorktreeError}
                 onCreateOpenChange={setWorktreeCreateOpen}
                 onCreateWorktree={request => void createWorktree(request)}
                 onMenuOpenChange={setWorktreeMenuOpen}
                 onRemoveWorktree={id => void removeWorktree(id)}
+                onRetryList={retryWorktreeList}
                 onSwitchWorktree={id => void switchWorktree(id)}
               />
             </div>
@@ -942,6 +1039,7 @@ export default function WorktreePage(): React.JSX.Element {
                 branchError={branchError}
                 branchName={newBranchName}
                 branches={branches}
+                busy={branchBusy}
                 createOpen={createPopoverOpen}
                 menuOpen={branchMenuOpen}
                 popupWidth={branchSectionWidth < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : branchSectionWidth}
@@ -1160,12 +1258,11 @@ export default function WorktreePage(): React.JSX.Element {
           <span data-testid='wt-worktrees-phase'>{tree.listWorktreesState.phase}</span>
           {' · worktree'}
           <span data-testid='wt-worktrees-count'>{worktreeList.length}</span>
-          {'个 · 当前'}
-          <span data-testid='wt-worktrees-active'>{activeWorktreeId}</span>
+          {'个'}
         </div>
         <div className='flex shrink-0 items-center gap-3'>
           <span
-            className={`rounded-full border px-1.5${enabled ? 'border-green-500 text-green-700' : ''}`}
+            className={clsx('rounded-full border px-1.5', { 'border-green-500 text-green-700': enabled })}
             data-testid='wt-enabled'
             role='status'
           >
