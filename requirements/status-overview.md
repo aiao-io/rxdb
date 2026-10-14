@@ -189,7 +189,7 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 - 🚧 [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md) — 首轮 AC#1~#11/#13~#15/#17/#18 已交付（第 2 步，2026-10-14）：显式 `ResolutionContext`（`as_of_date` 必填、不读时钟）、追溯发布存储层拒绝、`loadHistory` 审计通道、一致快照；AC#12/#16 等 US-515
 - 🚧 [US-509 DAG 约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md) — 首轮 AC#1~#3/#5~#7/#9~#12/#14/#17 已交付（第 2 步，2026-10-14）：双后端并集递归判环 + 深度硬上限、`union_only` 插件层标记、http/supabase fail-fast + 远端 DDL 导出 + 同步拒绝；AC#4 依赖 US-513、AC#8 依赖 US-510 阶段 B、AC#13 等真实 PG、AC#15/#16 等 US-515
 - 🚧 [US-510 多级展开与 where-used 反查](stories/domain/US-510-bom-multilevel-explosion.md) — 阶段 A 已交付（第 2 步，2026-10-14）：BFS 逐层 `expandBom` / `whereUsed`、三预算 + 取消、`truncated` 与 `assertCompleteResolution` 守卫（AC#1/#2/#11，AC#7/#10 下钻部分 ⚠️）；可达性表 `bom_reach` 随阶段 B（只由实测热路径触发）
-- 🚧 [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md) — 十进制值合同的存储段已交付（AC#22 ①存储/回读、②入口规范化、AC#23）；四阶段本体与展开段随第 3 步
+- 🚧 [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md) — 阶段 A/C/B1 已交付（第 3 步，2026-10-14）：十进制 kernel（34 位 half-even）、公式求值器、单位换算、`explodeBom` 七步展开、阶梯/损耗/虚拟件穿透、阶梯切片发布校验（AC#2~#12/#14~#22/#24~#26）；AC#1/#13 等 B2（US-520/US-524）
 - ⬜ [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md) — 策略与是否允许混用属组不属行；概率合计 ≠ 1 拒绝而不归一化
 - ⬜ [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md) — 仅 `consume` 边进可达性与环检测；阶段 A 三个 `flow_direction`（consume / by_product / scrap_out）各自有下游消费方，主产物即头父件；联产品属阶段 B（价值待证）
 - ⬜ [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md) — 拓扑逆序单遍；`unit_cost` = `batch_cost` / `cost_lot_qty`，节点是已解析的头；前置 US-511 / US-512 / US-513 / US-520 / US-524
