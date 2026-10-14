@@ -41,23 +41,27 @@ export type WorktreeSwitchBranchOptions = RxDBBranchSwitchPreconditions;
  * 带上这两项它才说得出「main 上还有 2 条未提交改动，先提交或丢弃」。
  *
  * 文案不提 `requireClean`：同一个类也是 `removeWorktree()` 的拒绝出口，而那里没有这个开关可关。
+ *
+ * 出路写成「在该分支上」处理，不写「先 commit()」：`commit()` / `discard()` 只作用在当前分支上，
+ * 而 `removeWorktree()` 拒掉的必然是**另一条**分支——照「先 commit()」去做，提交或丢弃的是当前分支
+ * 的改动，移除照样失败。切换时被拒的恰好就是当前分支，同一句话两处都成立。
  */
 export class WorktreeDirtyError extends RxDBError {
   /** 稳定错误码 */
   readonly code = 'working_tree_dirty';
 
-  /** 被拒时所在的分支 */
+  /** 有未提交改动的那条分支 */
   readonly branchId: string;
 
   /** 该分支上未提交的条目数 */
   readonly entryCount: number;
 
   /**
-   * @param branchId - 被拒时所在的分支
+   * @param branchId - 有未提交改动的那条分支
    * @param entryCount - 该分支上未提交的条目数
    */
   constructor(branchId: string, entryCount: number) {
-    super(`分支 ${branchId} 上还有 ${entryCount} 条未提交改动：先 commit() 或 discard()。`);
+    super(`分支 ${branchId} 上还有 ${entryCount} 条未提交改动：在该分支上 commit() 或 discard() 之后再试。`);
     this.branchId = branchId;
     this.entryCount = entryCount;
     this.name = 'WorktreeDirtyError';

@@ -84,7 +84,7 @@ export class Worktree {
   label!: string | null;
 
   /**
-   * 创建时间；由库时钟填
+   * 创建时间；写入时由适配器填充（PGlite 用库时钟，SQLite 族用客户端时钟）
    */
   createdAt!: Date;
 
@@ -109,7 +109,7 @@ export class Worktree {
  * @remarks
  * 新库初始行、`0005-worktrees` 迁移与 `createWorktree()` 三条入口共用这一处：各写一份的话，
  * 「新建的库」「升上来的库」「运行期建出来的行」会从第一天起就是三种行。
- * `createdAt` 不赋值，留给库时钟。
+ * `createdAt` 不赋值，留给适配器在写入时填（PGlite 用库时钟，SQLite 族用客户端时钟）。
  */
 export const createWorktreeRow = (entityManager: EntityManager, branchId: string, label: string | null): Worktree => {
   const row = entityManager.instantiate(Worktree);

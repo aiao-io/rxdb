@@ -25,7 +25,7 @@
  * 本层只用得到这两个属性，多桩出来的每一个都会变成一处与真库无关的约束。
  */
 
-import type { RxDB } from '@aiao/rxdb';
+import { RxDBError, type RxDB } from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import type { CommitCapabilityInfo } from '../../commit/commit-capability.js';
 import type { CommitChangeSetPage } from '../../commit/commit-changes.js';
@@ -189,8 +189,12 @@ const untouchedKeys = (
     key => !touched.includes(key) && states[key].phase !== 'idle'
   );
 
-/** 桩到 `RxDB.worktree` / `RxDB.versionManager` 那一层；再往下是命令自己的事，不在本文件重测。 */
-const createFixture = () => {
+/**
+ * 桩到 `RxDB.worktree` / `RxDB.versionManager` 那一层；再往下是命令自己的事，不在本文件重测。
+ *
+ * @param options - `history: false` 模拟没装 `rxDBPluginHistory`（`versionManager` 不存在）
+ */
+const createFixture = (options: { readonly history?: boolean } = {}) => {
   const states: MutableAsyncStates = { ...WORKTREE_INITIAL_ASYNC_STATES };
   // 相位流水账：既记「进了哪一格」也记「什么相位」，用来钉住**次序**——
   // 「命令先落地、再重读 status」只能靠次序证明，靠终值证明不了。
@@ -234,7 +238,7 @@ const createFixture = () => {
     worktree: worktree as unknown as WorktreeManager,
     get versionManager() {
       versionManagerReads += 1;
-      return versionManager;
+      return options.history === false ? undefined : versionManager;
     }
   } as unknown as RxDB;
 
@@ -527,6 +531,16 @@ describe('入参原样透传，签名不做框架化改写（§1）', () => {
     await commands.switchBranch('main');
 
     expect(versionManagerReadCount()).toBe(2);
+  });
+
+  it('没装历史插件：switchBranch 报明确的 RxDBError 而不是裸 TypeError，并落进 switchBranchState', async () => {
+    const { commands, states } = createFixture({ history: false });
+
+    const error = await commands.switchBranch('feature').catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(RxDBError);
+    expect((error as Error).message).toMatch(/rxDBPluginHistory/);
+    expect(states.switchBranchState).toEqual({ phase: 'error', error });
   });
 
   it('discard 的三个捕获位原样传下去', async () => {

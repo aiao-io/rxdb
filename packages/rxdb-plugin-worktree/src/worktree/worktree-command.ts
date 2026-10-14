@@ -10,8 +10,9 @@
  */
 
 import { assertSingleActiveBranch, RxDBBranch, type EntityManager, type TransactionExecutor } from '@aiao/rxdb';
+import { classifyBranchMaterialization } from '../working-tree/branch-materialization.js';
+import { readWorktreeStateRow } from '../working-tree/capture-runtime.js';
 import { WorktreeDirtyError } from '../working-tree/switch-branch-options.js';
-import { WorkingTreeState } from '../working-tree/working-tree-state.entity.js';
 import {
   WorktreeActiveError,
   WorktreeBranchNotFoundError,
@@ -38,7 +39,7 @@ export interface WorktreeInfo {
   readonly label: string | null;
   /** 是不是当前 checkout；与 `rxdb_branch.activated` 同口径 */
   readonly active: boolean;
-  /** 创建时间（库时钟） */
+  /** 创建时间；写入时由适配器填充（PGlite 用库时钟，SQLite 族用客户端时钟） */
   readonly createdAt: Date;
 }
 
@@ -46,14 +47,14 @@ export interface WorktreeInfo {
  * 把一行翻成公开视图
  *
  * @param row - worktree 行
- * @param activeBranchId - 当前 active 分支
+ * @param active - 它钉住的分支是不是当前 active 分支
  * @returns 公开视图
  */
-export const toWorktreeInfo = (row: Worktree, activeBranchId: string): WorktreeInfo => ({
+export const toWorktreeInfo = (row: Worktree, active: boolean): WorktreeInfo => ({
   id: row.id,
   branchId: row.branchId,
   label: row.label,
-  active: row.branchId === activeBranchId,
+  active,
   createdAt: row.createdAt
 });
 
@@ -91,8 +92,9 @@ export const readWorktreeRow = async (executor: TransactionExecutor, id: string)
  * @returns 公开视图；零行是合法态
  *
  * @remarks
- * 第二排序键不是装饰：SQLite 的 `CURRENT_TIMESTAMP` 只到秒，同秒建的两行只靠 `createdAt`
- * 排不出确定次序，界面上的列表会在两次读之间换位。`branchId` 上有唯一索引，次序因此确定。
+ * 第二排序键不是装饰：`createdAt` 由适配器在写入时填（SQLite 族取客户端时钟，PGlite 取库时钟），
+ * 两行完全可能落在同一个时刻，只靠它排不出确定次序，界面上的列表会在两次读之间换位。
+ * `branchId` 上有唯一索引，次序因此确定。
  */
 export const readWorktreeList = async (executor: TransactionExecutor): Promise<WorktreeInfo[]> => {
   const active = await assertSingleActiveBranch(executor);
@@ -103,7 +105,7 @@ export const readWorktreeList = async (executor: TransactionExecutor): Promise<W
       { field: 'branchId', sort: 'asc' }
     ]
   });
-  return rows.map(row => toWorktreeInfo(row, active.id));
+  return rows.map(row => toWorktreeInfo(row, row.branchId === active.id));
 };
 
 /**
@@ -113,7 +115,7 @@ export const readWorktreeList = async (executor: TransactionExecutor): Promise<W
  * @param entityManager - 用于 `instantiate()` 的实体管理器
  * @param branchId - 要钉的分支
  * @param label - 显示名；不传即不起名
- * @returns 落库后读回来的那一行（`createdAt` 是库时钟填的值）
+ * @returns 落库后的那一行；`createdAt` 已由适配器在写入时填好
  * @throws {@link WorktreeLabelError} label 给了却是空白
  * @throws {@link WorktreeBranchNotFoundError} 分支不存在
  * @throws {@link WorktreeBranchPinnedError} 这条分支已经钉着一个 worktree
@@ -142,8 +144,10 @@ export const pinWorktree = async (
   const pinned = await findWorktree(executor, 'branchId', branchId);
   if (pinned) throw new WorktreeBranchPinnedError(branchId, pinned.id);
   const row = createWorktreeRow(entityManager, branchId, label ?? null);
-  await executor.saveMany([row]);
-  return readWorktreeRow(executor, row.id);
+  // 不再按主键读回一遍：两个适配器的写路径都会在 INSERT 之后回查这一行、水合到同一个实例上，
+  // `createdAt` 这类由写入填的列此刻已经在实例上了（`ensureBranchCommitRows` 同款）。
+  const [saved] = await executor.saveMany([row]);
+  return saved;
 };
 
 /**
@@ -152,17 +156,17 @@ export const pinWorktree = async (
  * @remarks
  * 判据与切换守卫同一列（`WorkingTreeState.entryCount`），不扫条目表——两份判据迟早漂移。
  *
- * **没有状态行就是 0**，这不是兜底：状态行随分支落地（本地分支建分支时写，远端分支物化时写），
- * 没有它的只有 metadata-only 的远端分支，而那条分支在本地从没有过工作树，也就不可能有未提交改动。
- * 照 `readWorktreeStateRow()` 的「缺行即抛」处理的话，`createWorktree()` 切换阶段失败留下的那一行
- * （钉在一条还没物化的远端分支上）就永远删不掉。
+ * **metadata-only 的远端分支记 0**：它在本地从没有过工作树，也就没有状态行、不可能有未提交改动。
+ * `createWorktree()` 切换阶段失败留下的那一行（钉在一条还没物化的远端分支上）因此删得掉。
+ * 「是不是 metadata-only」由 {@link classifyBranchMaterialization} 按分支行判，与切换走同一条裁决；
+ * 其余分支一律经 {@link readWorktreeStateRow} 读，缺行即抛——本地分支没有状态行是迁移没跑完或被
+ * 外部删了行，按 0 条改动放行会把那条分支上可能存在的改动连同 worktree 一起悄悄丢开。
  */
 const readEntryCount = async (executor: TransactionExecutor, branchId: string): Promise<number> => {
-  const [state] = await executor.getRepository(WorkingTreeState).find({
-    where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: branchId }] },
-    limit: 1
-  });
-  return state?.entryCount ?? 0;
+  const materialization = await classifyBranchMaterialization(executor, branchId);
+  if (materialization.kind === 'metadata_only') return 0;
+  const state = await readWorktreeStateRow(executor, branchId);
+  return state.entryCount;
 };
 
 /**

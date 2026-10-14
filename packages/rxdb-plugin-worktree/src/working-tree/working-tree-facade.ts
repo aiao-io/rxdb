@@ -16,8 +16,6 @@
 
 import type { LocalRxDBAdapter, RxDB, TransactionExecutor } from '@aiao/rxdb';
 import { RxDBChange, RxDBError } from '@aiao/rxdb';
-// 只为把 `RxDB.versionManager` 那条 `declare module` 拉进本文件的程序里，理由同 `working-tree-commands.ts`。
-import type { VersionManager } from '@aiao/rxdb-plugin-history';
 import { firstValueFrom, Subject, type Observable } from 'rxjs';
 import { WORKING_TREE_CAPABILITY } from '../capability-identity.js';
 import type { CommitCapabilityInfo } from '../commit/commit-capability.js';
@@ -42,6 +40,7 @@ import {
   type WorktreeInfo
 } from '../worktree/worktree-command.js';
 import { installWorktreeCapture } from './capture-install.js';
+import { requireVersionManager } from './require-version-manager.js';
 import { readActiveBranchToken } from './capture-runtime.js';
 import { runCommitWorktree, type CommitOptions, type CommitResult } from './commit-command.js';
 import { readWorktreeDiff, type WorktreeDiff, type WorktreeDiffOptions } from './diff.js';
@@ -118,6 +117,19 @@ export type WorktreeEnableIfEmptyResult =
       /** 判别位：库里已有内容，按规则不自动启用；手动 `enable()` 仍可用 */
       readonly kind: 'not_empty';
     };
+
+/**
+ * {@link WorktreeManager.runEnabled} 的事务选项。
+ *
+ * @remarks
+ * 只有一项：`transactionLog`。命令体只读、或只写 `log: false` 的系统表时传 `false`——记日志的事务
+ * 在 SQLite 族上每次要为每个记日志实体重建两轮触发器（BEGIN 与 COMMIT 各一轮），而这样的命令体
+ * 一条变更日志都不会产生。会写业务表或记日志实体的命令体不许传：它们的写入要靠那几个触发器进 `rxdb_change`。
+ */
+interface RunEnabledOptions {
+  /** 传给 `adapter.transaction()` 的第二参；不传即适配器默认（记日志） */
+  readonly transactionLog?: boolean;
+}
 
 /**
  * 工作树与提交历史的入口（契约见 contracts/core-api.md §1）。
@@ -450,7 +462,7 @@ export class WorktreeManager {
    * 没有任何一行是 active——「当前 checkout 没有对应的 worktree」是合法态。
    */
   async listWorktrees(): Promise<readonly WorktreeInfo[]> {
-    return this.runEnabled(executor => readWorktreeList(executor));
+    return this.runEnabled(executor => readWorktreeList(executor), { transactionLog: false });
   }
 
   /**
@@ -477,14 +489,19 @@ export class WorktreeManager {
    * 当前 active 但没钉住的分支照样可以钉：单 checkout 模型里没有第二个槽位，此时切换是 no-op。
    */
   async createWorktree(branchId: string, label?: string): Promise<WorktreeInfo> {
-    const { row, versionManager } = await this.runEnabled(async executor => {
-      const versionManager = this.#versionManager();
-      const row = await pinWorktree(executor, this.#rxdb.entityManager, branchId, label);
-      return { row, versionManager };
-    });
-    await versionManager.switchBranch(row.branchId);
+    const row = await this.runEnabled(
+      async executor => {
+        // 门禁之后、写行之前先断言历史插件在场：门禁先说话（未启用的库该听到的是「去 enable()」），
+        // 又不至于先落一行 worktree、到切换那一步才发现没有东西能切（R9）。
+        requireVersionManager(this.#rxdb);
+        return pinWorktree(executor, this.#rxdb.entityManager, branchId, label);
+      },
+      { transactionLog: false }
+    );
+    // 提交之后现取，不把事务里那一份带出来：它按连接纪元装卸，切换用的必须是此刻这一份。
+    await requireVersionManager(this.#rxdb).switchBranch(row.branchId);
     // 切换已经成功返回：此刻 active 的就是它钉住的那条分支，不必再开一笔事务读回来。
-    return toWorktreeInfo(row, row.branchId);
+    return toWorktreeInfo(row, true);
   }
 
   /**
@@ -506,12 +523,10 @@ export class WorktreeManager {
    * 读行与切换同样分两阶段，理由同 {@link createWorktree}。
    */
   async switchWorktree(id: string, options?: WorktreeSwitchBranchOptions): Promise<void> {
-    const { row, versionManager } = await this.runEnabled(async executor => {
-      const versionManager = this.#versionManager();
-      const row = await readWorktreeRow(executor, id);
-      return { row, versionManager };
-    });
-    await versionManager.switchBranch(row.branchId, options);
+    // 这一阶段只读，不写任何一行：没装历史插件时先报「worktree 不存在」还是先报「缺插件」都不留痕迹，
+    // 于是守卫放在提交之后、切换之前，与 `switchBranch()` 用同一份现取的入口。
+    const row = await this.runEnabled(executor => readWorktreeRow(executor, id), { transactionLog: false });
+    await requireVersionManager(this.#rxdb).switchBranch(row.branchId, options);
   }
 
   /**
@@ -529,13 +544,14 @@ export class WorktreeManager {
    * 删掉有未提交改动的 worktree 虽不丢数据，那些改动从此只能经分支菜单找回。
    */
   async removeWorktree(id: string): Promise<void> {
-    await this.runEnabled(executor => unpinWorktree(executor, id));
+    await this.runEnabled(executor => unpinWorktree(executor, id), { transactionLog: false });
   }
 
   /**
    * 受管成员的**唯一**入口：开写事务、过能力门禁、再跑命令体。
    *
    * @param run - 命令体；拿到的执行器与门禁读能力行用的是同一个，第二参是本纪元的本地适配器
+   * @param options - 见 {@link RunEnabledOptions}；不传即默认的记日志事务
    * @returns 命令体的返回值
    * @throws {@link WorktreeCapabilityDisabledError} 未启用时
    * @throws {@link RxDBError} 能力行缺失时（`0004` 迁移没写入那一行）
@@ -579,10 +595,11 @@ export class WorktreeManager {
    * 少写形参的回调在 TS 里仍然可赋值，不需要它的成员一个字都不用改。
    */
   protected async runEnabled<T>(
-    run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>
+    run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>,
+    options: RunEnabledOptions = {}
   ): Promise<T> {
     const adapter = await firstValueFrom(this.#rxdb.localAdapter$);
-    const result = await this.#runEnabledOnce(adapter, run);
+    const result = await this.#runEnabledOnce(adapter, run, options.transactionLog);
     // 事务已提交，这里才自愈——理由与 `enable()` 那一句完全相同：装在事务里的话，
     // 捕获会立刻开始拦截这同一个事务余下的写。
     this.#healCapture(adapter);
@@ -621,31 +638,6 @@ export class WorktreeManager {
   }
 
   /**
-   * 取历史插件的 `versionManager`，没装就抛。
-   *
-   * @returns 本连接纪元的 `versionManager`
-   * @throws {@link RxDBError} 没装 `rxDBPluginHistory` 时
-   *
-   * @remarks
-   * **现取**，不在构造时缓存：它由历史插件在连接纪元内装卸（见 `rxdb-plugin-history/src/plugin.ts`），
-   * 存一份等于把门面钉在第一个纪元上。
-   *
-   * 调用点在受管事务**里面**、写行**之前**：门禁先说话（未启用的库该听到的是「去 enable()」），
-   * 又不至于先落一行 worktree、再在切换那一步才发现没有东西能切。`declare module` 把它声明成
-   * 非可选，所以这里显式放宽成 `| undefined`，否则守卫会被 lint 判成恒真删掉。
-   */
-  #versionManager(): VersionManager {
-    const versionManager: VersionManager | undefined = this.#rxdb.versionManager;
-    if (!versionManager) {
-      throw new RxDBError(
-        '这个数据库上没有 versionManager：worktree 的创建与切换要经它切分支，' +
-          '它由 use(rxDBPluginHistory) 在连接时挂上。先装历史插件。'
-      );
-    }
-    return versionManager;
-  }
-
-  /**
    * 开那笔受管事务；回滚时把损坏闩补上，再把原错原样抛回去。
    *
    * @param adapter - 调用方已经解析好的本纪元适配器；闩要落在**同一个**实例上
@@ -660,7 +652,8 @@ export class WorktreeManager {
    */
   async #runEnabledOnce<T>(
     adapter: LocalRxDBAdapter,
-    run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>
+    run: (executor: TransactionExecutor, adapter: LocalRxDBAdapter) => Promise<T>,
+    transactionLog: boolean | undefined
   ): Promise<T> {
     try {
       return await adapter.transaction(async executor => {
@@ -668,7 +661,7 @@ export class WorktreeManager {
         if (!info.enabled) throw new WorktreeCapabilityDisabledError();
         assertSupportedCommitCapability(info);
         return run(executor, adapter);
-      });
+      }, transactionLog);
     } catch (error) {
       await latchBranchCorruption(adapter, error);
       throw error;

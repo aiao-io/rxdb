@@ -14,6 +14,7 @@
  * 也就不可能有未提交改动：它必须能删，否则那一行永远清不掉。
  */
 
+import { RxDBError } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import { removeBranchCommitRows } from '../../commit/branch-commit-rows.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
@@ -83,6 +84,32 @@ describe('removeWorktree', () => {
       branchId: (error as WorktreeDirtyError).branchId,
       entryCount: (error as WorktreeDirtyError).entryCount
     }).toEqual({ code: 'working_tree_dirty', branchId: 'feature-x', entryCount: 3 });
+    expect(scene.worktreeRows().map(row => row.id)).toEqual(['wt-x']);
+  });
+
+  it('脏拒的提示只指向那条分支本身：照着做不会动到当前分支', async () => {
+    // commit() / discard() 只作用在当前分支上，而被拒的必然是另一条分支——提示若写「先 commit()」，
+    // 照做的用户提交或丢弃的是当前分支的改动，移除仍然失败。
+    const scene = createWorktreeContextsScene();
+    scene.addBranch('feature-x', { entryCount: 3 });
+    scene.addWorktree({ id: 'wt-x', branchId: 'feature-x' });
+
+    const error = await scene.manager.removeWorktree('wt-x').catch((caught: unknown) => caught);
+
+    expect((error as WorktreeDirtyError).message).toBe(
+      '分支 feature-x 上还有 3 条未提交改动：在该分支上 commit() 或 discard() 之后再试。'
+    );
+  });
+
+  it('所钉的本地分支缺工作树状态行：响亮失败，不按 0 条改动删掉', async () => {
+    const scene = createWorktreeContextsScene();
+    scene.addBranch('feature-x', { missingState: true });
+    scene.addWorktree({ id: 'wt-x', branchId: 'feature-x' });
+
+    const error = await scene.manager.removeWorktree('wt-x').catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(RxDBError);
+    expect((error as RxDBError).message).toContain('工作树状态行缺失');
     expect(scene.worktreeRows().map(row => row.id)).toEqual(['wt-x']);
   });
 

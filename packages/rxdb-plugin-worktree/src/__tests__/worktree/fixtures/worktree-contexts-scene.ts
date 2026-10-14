@@ -15,6 +15,7 @@
 import { RxDBBranch } from '@aiao/rxdb';
 import type { VersionManager } from '@aiao/rxdb-plugin-history';
 import { vi, type Mock } from 'vitest';
+import { createBranchCommitRows } from '../../../commit/branch-commit-rows.js';
 import { CommitBranchRef } from '../../../commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from '../../../commit/commit-capability-state.entity.js';
 import type { WorktreeSwitchBranchOptions } from '../../../working-tree/switch-branch-options.js';
@@ -40,9 +41,19 @@ export interface WorktreeContextsScene extends WorktreeScene {
   readonly switchBranch: Mock<(branchId: string, options?: WorktreeSwitchBranchOptions) => Promise<void>>;
   /** 按发生顺序记下的全部切换 */
   readonly switchCalls: SwitchBranchCall[];
-  /** 再加一条非 active 的本地分支，连同它的 ref 与工作树状态行 */
-  readonly addBranch: (branchId: string, options?: { readonly entryCount?: number }) => RxDBBranch;
-  /** 只加分支行、不加 ref / 状态行：metadata-only 的远端分支 */
+  /** 按发生顺序记下每一笔事务开的时候传的 `transactionLog`（没传即 `undefined`，适配器按默认记日志） */
+  readonly transactionLogs: (boolean | undefined)[];
+  /**
+   * 再加一条非 active 的本地分支，连同它的 ref 与工作树状态行
+   *
+   * @remarks
+   * `missingState` 造一个缺工作树状态行的本地分支——迁移没跑完或被外部删行的损坏现场。
+   */
+  readonly addBranch: (
+    branchId: string,
+    options?: { readonly entryCount?: number; readonly missingState?: boolean }
+  ) => RxDBBranch;
+  /** 只加分支行、不加 ref / 状态行：metadata-only 的远端分支（`remote` 且非 `local`） */
   readonly addMetadataOnlyBranch: (branchId: string) => RxDBBranch;
   /** 直接往探针里塞一行 worktree */
   readonly addWorktree: (seed: {
@@ -75,8 +86,10 @@ export function createWorktreeContextsScene(options: { readonly enabled?: boolea
   // 事务深度计数：包在场景原有的事务替身外面。自愈补装（`installWorktreeCapture`）会把
   // `adapter.transaction` 换成转发回原件的包装，所以计数挂在原件上照样作数。
   let depth = 0;
+  const transactionLogs: (boolean | undefined)[] = [];
   const original = adapter.transaction.getMockImplementation();
   adapter.transaction.mockImplementation(async (fun, transactionLog) => {
+    transactionLogs.push(transactionLog);
     depth += 1;
     try {
       return await original?.(fun, transactionLog);
@@ -112,25 +125,21 @@ export function createWorktreeContextsScene(options: { readonly enabled?: boolea
     return branch;
   };
 
-  const addBranch = (branchId: string, branchOptions: { readonly entryCount?: number } = {}): RxDBBranch => {
+  const addBranch: WorktreeContextsScene['addBranch'] = (branchId, branchOptions = {}) => {
     const branch = addBranchRow(branchId);
-    const ref = entityManager.instantiate(CommitBranchRef);
-    ref.id = branchId;
-    ref.branchId = branchId;
-    ref.generation = probe.rowsOf(CommitBranchRef).length + 1;
-    ref.headCommitId = null;
-    ref.headRevision = 0;
-    ref.status = 'ok';
-    ref.corruptedAt = null;
-    probe.seed(CommitBranchRef, [ref]);
-    const state = entityManager.instantiate(WorkingTreeState);
-    state.id = branchId;
-    state.branchId = branchId;
-    state.baseHeadCommitId = null;
-    state.workingTreeRevision = 0;
+    // 行形状取自生产的建分支工厂：手抄一份的话，工厂哪天加了列，这里的种子还停在旧形状上照样通过。
+    const [ref, state] = createBranchCommitRows(entityManager, branchId, probe.rowsOf(CommitBranchRef).length + 1);
     state.entryCount = branchOptions.entryCount ?? 0;
     state.updatedAt = new Date('2026-01-01T00:00:00.000Z');
-    probe.seed(WorkingTreeState, [state]);
+    probe.seed(CommitBranchRef, [ref]);
+    if (!branchOptions.missingState) probe.seed(WorkingTreeState, [state]);
+    return branch;
+  };
+
+  const addMetadataOnlyBranch = (branchId: string): RxDBBranch => {
+    const branch = addBranchRow(branchId);
+    branch.local = false;
+    branch.remote = true;
     return branch;
   };
 
@@ -148,8 +157,9 @@ export function createWorktreeContextsScene(options: { readonly enabled?: boolea
     ...scene,
     switchBranch,
     switchCalls,
+    transactionLogs,
     addBranch,
-    addMetadataOnlyBranch: addBranchRow,
+    addMetadataOnlyBranch,
     addWorktree,
     worktreeRows: () => probe.rowsOf(Worktree) as Worktree[],
     activeBranchId

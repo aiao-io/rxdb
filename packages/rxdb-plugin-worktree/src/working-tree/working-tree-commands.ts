@@ -46,6 +46,7 @@ import type {
 } from './restore-command.js';
 import type { WorktreeStatus } from './status.js';
 import type { WorktreeSwitchBranchOptions } from './switch-branch-options.js';
+import { requireVersionManager } from './require-version-manager.js';
 import type { WorktreeEnableIfEmptyResult, WorktreeManager } from './working-tree-facade.js';
 
 /**
@@ -210,8 +211,8 @@ export const createWorktreeCommands = (database: RxDB, patch: WorktreeStatePatch
   const worktree = assertWorkingTreeEntry(database);
   // 现取而不是构造时存一份：`versionManager` 由历史插件在**连接纪元内**用
   // `defineProperty` 装上、释放时删掉（见 `rxdb-plugin-history/src/plugin.ts`），
-  // 构造那一刻取一次等于把入口钉死在第一个纪元上。
-  const versionManager = (): VersionManager => database.versionManager;
+  // 构造那一刻取一次等于把入口钉死在第一个纪元上。没装历史插件时抛明确的错，不让它炸成裸 TypeError。
+  const versionManager = (): VersionManager => requireVersionManager(database);
   const sinkFor = createLatestOnlyPatch(patch);
   const runStatus = (): Promise<WorktreeStatus> =>
     trackWorktreeQuery(sinkFor('statusState'), isWorktreeStatusEmpty, () => worktree.status());
