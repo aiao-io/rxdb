@@ -1,5 +1,5 @@
 import type { CommitLogEntry, CommitLogPage, WorktreeQueryState } from '@aiao/rxdb-plugin-worktree';
-import { History } from 'lucide-react';
+import { History, MoreVertical } from 'lucide-react';
 import { gdAvatarColor, gdAvatarInitial, gdRelativeTime } from '../utils/gd';
 import type { WorktreeContextMenuRequest } from './ChangesList';
 
@@ -22,6 +22,24 @@ interface WorktreeHistoryListProps {
  * 基线提交（`baseline` / `branch_baseline`）不可恢复——恢复它们的语义是把内容
  * 写回工作树，而基线不是用户提交。
  */
+
+/**
+ * 触屏没有右键：行尾 ⋯ 按钮按自身位置合成一次 contextmenu 请求，
+ * 打开与右键相同的菜单（桌面端按钮隐藏，仍走原生右键）。
+ */
+function touchMenuRequest<T>(event: React.MouseEvent, target: T): { target: T; event: React.MouseEvent } {
+  event.stopPropagation();
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  return {
+    target,
+    event: new MouseEvent('contextmenu', {
+      clientX: rect.left,
+      clientY: rect.bottom,
+      bubbles: true
+    }) as unknown as React.MouseEvent
+  };
+}
+
 export function WorktreeHistoryList({
   commitsState,
   selectedCommitId,
@@ -44,48 +62,61 @@ export function WorktreeHistoryList({
           <ol data-testid='wt-commits-list'>
             {commitsState.value.entries.map(entry => (
               <li key={entry.commitId}>
-                <div
-                  className={`gd-row gd-history-row ${selectedCommitId === entry.commitId ? 'gd-row-selected' : ''}`}
-                  aria-current={selectedCommitId === entry.commitId ? 'true' : undefined}
-                  data-commit-id={entry.commitId}
-                  onClick={() => onSelectEntry(entry)}
-                  onContextMenu={event => onMenuRequest({ target: entry, event })}
-                  onKeyDown={event => {
-                    if (event.key === 'Enter') onSelectEntry(entry);
-                  }}
-                  data-testid='wt-commit-item'
-                  role='button'
-                  tabIndex={0}
-                >
-                  <div className='min-w-0 flex-1'>
-                    <div className='min-w-0 truncate text-[13px] font-semibold' title={entry.message}>
-                      {entry.message.split('\n', 1)[0]}
-                    </div>
-                    <div className='mt-1 flex items-center gap-1.5 text-[11px]' style={{ color: 'var(--gd-muted)' }}>
-                      <span
-                        className='gd-avatar text-[9px]'
-                        style={{ background: gdAvatarColor(entry.authorId ?? '?'), height: 14, width: 14 }}
-                      >
-                        {gdAvatarInitial(entry.authorId ?? '?')}
-                      </span>
-                      <span className='min-w-0 truncate'>{entry.authorId ?? 'No author'}</span>
-                      <span>·</span>
-                      {/* GitHub Desktop 的 TimeAgo：相对时间展示，完整时间戳留在悬停 title */}
-                      <span className='min-w-0 truncate' title={entry.createdAt.toLocaleString()}>
-                        {gdRelativeTime(entry.createdAt)}
-                      </span>
-                      {entry.kind === 'baseline' || entry.kind === 'branch_baseline' ?
-                        <span className='shrink-0 rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]'>
-                          Baseline
+                <div className='flex items-center'>
+                  <div
+                    className={`gd-row gd-history-row min-w-0 flex-1 ${selectedCommitId === entry.commitId ? 'gd-row-selected' : ''}`}
+                    aria-current={selectedCommitId === entry.commitId ? 'true' : undefined}
+                    data-commit-id={entry.commitId}
+                    onClick={() => onSelectEntry(entry)}
+                    onContextMenu={event => onMenuRequest({ target: entry, event })}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter') onSelectEntry(entry);
+                    }}
+                    data-testid='wt-commit-item'
+                    role='button'
+                    tabIndex={0}
+                  >
+                    <div className='min-w-0 flex-1'>
+                      <div className='min-w-0 truncate text-[13px] font-semibold' title={entry.message}>
+                        {entry.message.split('\n', 1)[0]}
+                      </div>
+                      <div className='mt-1 flex items-center gap-1.5 text-[11px]' style={{ color: 'var(--gd-muted)' }}>
+                        <span
+                          className='gd-avatar text-[9px]'
+                          style={{ background: gdAvatarColor(entry.authorId ?? '?'), height: 14, width: 14 }}
+                        >
+                          {gdAvatarInitial(entry.authorId ?? '?')}
                         </span>
-                      : null}
-                      {entry.parentIds.length > 1 ?
-                        <span className='shrink-0 rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]'>
-                          Merge
+                        <span className='min-w-0 truncate'>{entry.authorId ?? 'No author'}</span>
+                        <span>·</span>
+                        {/* GitHub Desktop 的 TimeAgo：相对时间展示，完整时间戳留在悬停 title */}
+                        <span className='min-w-0 truncate' title={entry.createdAt.toLocaleString()}>
+                          {gdRelativeTime(entry.createdAt)}
                         </span>
-                      : null}
+                        {entry.kind === 'baseline' || entry.kind === 'branch_baseline' ?
+                          <span className='shrink-0 rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]'>
+                            Baseline
+                          </span>
+                        : null}
+                        {entry.parentIds.length > 1 ?
+                          <span className='shrink-0 rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]'>
+                            Merge
+                          </span>
+                        : null}
+                      </div>
                     </div>
                   </div>
+                  {/* 触屏没有右键：行尾 ⋯ 打开同一菜单（桌面端隐藏） */}
+                  <button
+                    className='gd-btn-ghost hidden max-md:inline-flex pointer-coarse:inline-flex'
+                    onClick={event => onMenuRequest(touchMenuRequest(event, entry))}
+                    aria-label='更多操作'
+                    data-testid='wt-commit-more'
+                    title='更多操作（触屏）'
+                    type='button'
+                  >
+                    <MoreVertical size={14} />
+                  </button>
                 </div>
               </li>
             ))}

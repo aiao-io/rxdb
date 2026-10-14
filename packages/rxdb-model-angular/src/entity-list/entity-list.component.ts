@@ -636,8 +636,8 @@ export class EntityListComponent {
     if (this.#destroyRef.destroyed) return;
 
     const dialogRef = this.#dialog.open(EntityDetailComponent, {
-      width: '720px',
-      minWidth: '400px',
+      width: 'min(720px, calc(100vw - 1rem))',
+      minWidth: 'min(400px, calc(100vw - 1rem))',
       height: '80vh',
       minHeight: '300px',
       panelClass: 'entity-detail-dialog',
@@ -671,8 +671,8 @@ export class EntityListComponent {
     if (!tpl) return;
 
     const ref = this.#dialog.open(tpl, {
-      width: '720px',
-      minWidth: '400px',
+      width: 'min(720px, calc(100vw - 1rem))',
+      minWidth: 'min(400px, calc(100vw - 1rem))',
       height: '70vh',
       minHeight: '300px',
       panelClass: 'entity-m2m-select-dialog'
@@ -772,8 +772,8 @@ export class EntityListComponent {
     if (this.#destroyRef.destroyed) return;
 
     const dialogRef = this.#dialog.open(EntityDetailComponent, {
-      width: '720px',
-      minWidth: '400px',
+      width: 'min(720px, calc(100vw - 1rem))',
+      minWidth: 'min(400px, calc(100vw - 1rem))',
       height: '80vh',
       minHeight: '300px',
       panelClass: 'entity-detail-dialog',

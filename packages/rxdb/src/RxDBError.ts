@@ -1,6 +1,6 @@
 export class RxDBError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = 'RxDBError';
     Object.setPrototypeOf(this, RxDBError.prototype);
   }
@@ -257,6 +257,179 @@ export class RxDBPluginDependencyCycleError extends RxDBError {
     );
     this.name = 'RxDBPluginDependencyCycleError';
     Object.setPrototypeOf(this, RxDBPluginDependencyCycleError.prototype);
+  }
+}
+
+/**
+ * 一次写入违反了实体元数据声明的 CHECK 约束（US-030 阶段 A）。
+ *
+ * @remarks
+ * 两个后端归一为**同一个错误类**（按类名主判别，不另立码表）：PG 识别 SQLSTATE
+ * `23514`，SQLite 识别原生 `CHECK constraint failed: <约束名>`；直连 SQL 的写入
+ * 拿不到本类，只拿到原生消息。
+ *
+ * 原生 CHECK 消息不带冲突值，所以 `conflicts` 取自适配器**自己发出的那一行**：
+ * 约束声明里引用的每个列（含 `ref` 目标）与该行送出的值。批量写入命中多条候选行时
+ * 逐行并列。
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await rxdb.entityManager.save(newItem);
+ * } catch (error) {
+ *   if (error instanceof RxDBCheckViolationError) {
+ *     console.error(`${error.entity} 违反约束 ${error.constraint}:`, error.conflicts);
+ *   } else {
+ *     throw error;
+ *   }
+ * }
+ * ```
+ */
+export class RxDBCheckViolationError extends RxDBError {
+  constructor(
+    /** 违反约束的实体名（元数据里的 `name`） */
+    readonly entity: string,
+    /** 约束名（`ck_` 起头的确定性名） */
+    readonly constraint: string,
+    /** 约束引用的列与该行送出的值（列名是物理列名） */
+    readonly conflicts: ReadonlyArray<{ column: string; value: unknown }>,
+    /** 适配器抛出的原始违约错误（仓库 `cause` 惯例，见 {@link RxDBPartialSyncError}） */
+    override readonly cause?: unknown
+  ) {
+    super(
+      `Entity '${entity}' violates CHECK constraint '${constraint}': ` +
+        conflicts.map(c => `${c.column} = ${String(c.value)}`).join(', '),
+      { cause }
+    );
+    this.name = 'RxDBCheckViolationError';
+    Object.setPrototypeOf(this, RxDBCheckViolationError.prototype);
+  }
+}
+
+/**
+ * 区间排他冲突里一维区间的双方取值（见 {@link RxDBExclusionViolationError}）。
+ */
+export interface ExclusionRangeConflict {
+  /** 区间起点列（属性名） */
+  readonly from: string;
+  /** 区间终点列（属性名） */
+  readonly to: string;
+  /** 区间边界：`[)` 左闭右开、`[]` 两端闭合 */
+  readonly bounds: '[)' | '[]';
+  /** 本次写入行在该维的 `[起点, 终点]`；`null` 即该侧无界 */
+  readonly incoming: readonly [unknown, unknown];
+  /** 已有冲突行在该维的 `[起点, 终点]`；`null` 即该侧无界 */
+  readonly existing: readonly [unknown, unknown];
+}
+
+const formatRangeEndpoint = (value: unknown): string =>
+  value === null ? '∞'
+  : value instanceof Date ? value.toISOString()
+  : String(value);
+
+const formatRange = (bounds: '[)' | '[]', [from, to]: readonly [unknown, unknown]): string =>
+  `${bounds[0]}${from === null ? '-∞' : formatRangeEndpoint(from)}, ${formatRangeEndpoint(to)}${bounds[1]}`;
+
+const formatExclusionRangeConflict = (conflict: ExclusionRangeConflict): string =>
+  `${conflict.from}..${conflict.to} ${formatRange(conflict.bounds, conflict.incoming)} overlaps existing ` +
+  formatRange(conflict.bounds, conflict.existing);
+
+/**
+ * 一次写入与已有行违反了实体元数据声明的区间排他约束（US-030 阶段 C）。
+ *
+ * @remarks
+ * 两个后端归一为**同一个错误类**：PG 识别 SQLSTATE `23P01`（`EXCLUDE USING gist`），
+ * SQLite 识别排他触发器的 `rxdb:exclusion_violation:<约束名>:` 消息；直连 SQL 的写入
+ * 拿不到本类，只拿到原生消息。
+ *
+ * `ranges` 逐维给出**双方**区间：本次写入行（`incoming`）与已有冲突行（`existing`），端点取自
+ * PG 的 `DETAIL` 或触发器消息，`null` 即该侧无界。后端没有回报冲突键时（PGlite 的 worker
+ * 模式只回传错误消息文本）`ranges` 为空，约束名仍然准确。
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await rxdb.entityManager.save(occurrence);
+ * } catch (error) {
+ *   if (error instanceof RxDBExclusionViolationError) {
+ *     console.error(`${error.entity} 违反排他约束 ${error.constraint}:`, error.ranges);
+ *   } else {
+ *     throw error;
+ *   }
+ * }
+ * ```
+ */
+export class RxDBExclusionViolationError extends RxDBError {
+  constructor(
+    /** 违反约束的实体名（元数据里的 `name`） */
+    readonly entity: string,
+    /** 约束名（`ex_` 起头的确定性名） */
+    readonly constraint: string,
+    /** 逐维的双方区间；后端没有回报冲突键时为空 */
+    readonly ranges: ReadonlyArray<ExclusionRangeConflict>,
+    /** 适配器抛出的原始违约错误（仓库 `cause` 惯例，见 {@link RxDBPartialSyncError}） */
+    override readonly cause?: unknown
+  ) {
+    super(
+      `Entity '${entity}' violates exclusion constraint '${constraint}': ` +
+        (ranges.length > 0 ?
+          ranges.map(formatExclusionRangeConflict).join('; ')
+        : 'the backend did not report the conflicting key'),
+      { cause }
+    );
+    this.name = 'RxDBExclusionViolationError';
+    Object.setPrototypeOf(this, RxDBExclusionViolationError.prototype);
+  }
+}
+
+/**
+ * 已有表上的存储约束与实体元数据声明不一致（US-030，`init()` 时抛出）。
+ *
+ * @remarks
+ * 漂移检查是只读比对：元数据确定性生成的约束名集合与数据库目录里实际的同类对象集合，
+ * 缺失与多余分别列出。比对纳入三类：`ck_` CHECK、`uq_` 条件唯一索引、`ex_` 区间排他
+ * （PG 是 `EXCLUDE` 约束，SQLite 是它的 `_i` / `_u` 两个触发器）。不自动补建——补建由用户写进
+ * `migrations`，它恰好排在漂移检查之前执行；用户迁移补上后再 `init()` 即通过（AC#10）。
+ *
+ * 外键约束、`idx_` 普通索引、系统 CRUD 触发器与 FTS 触发器都不在比对范围（AC#16）。
+ *
+ * @example
+ * ```typescript
+ * try {
+ *   await rxdb.connect('local');
+ * } catch (error) {
+ *   if (error instanceof RxDBConstraintDriftError) {
+ *     console.error('缺失:', error.missing, '多余:', error.extra);
+ *   } else {
+ *     throw error;
+ *   }
+ * }
+ * ```
+ */
+export class RxDBConstraintDriftError extends RxDBError {
+  constructor(
+    /** 发生漂移的实体名（元数据里的 `name`） */
+    readonly entity: string,
+    /** 发生漂移的表名（元数据里的 `tableName`） */
+    readonly tableName: string,
+    /** 元数据声明了、库里没有的约束名 */
+    readonly missing: readonly string[],
+    /** 库里存在、元数据没声明的约束名 */
+    readonly extra: readonly string[],
+    /** 表本身在目录里不存在（缺表），与「有表但约束不一致」分开点名 */
+    readonly tableMissing: boolean = false
+  ) {
+    super(
+      tableMissing ?
+        `Entity '${entity}' table '${tableName}' is missing from the database catalog. ` +
+          `Expected constraints: [${missing.join(', ')}]. ` +
+          `Restore the table (or a migration creating it) before init.`
+      : `Entity '${entity}' (table '${tableName}') storage constraints drifted. ` +
+          `Missing: [${missing.join(', ')}]. Extra: [${extra.join(', ')}]. ` +
+          `Apply a migration to add/drop the listed constraints before init.`
+    );
+    this.name = 'RxDBConstraintDriftError';
+    Object.setPrototypeOf(this, RxDBConstraintDriftError.prototype);
   }
 }
 

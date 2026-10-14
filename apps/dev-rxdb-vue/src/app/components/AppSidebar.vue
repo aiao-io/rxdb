@@ -24,10 +24,11 @@ import AppBranchManager from './AppBranchManager.vue';
 import AppThemeBtn from './AppThemeBtn.vue';
 
 interface MenuItem {
-  type: 'link' | 'divider';
+  type: 'link' | 'divider' | 'group';
   title: string;
   path?: string;
   icon?: Component;
+  children?: Array<{ title: string; path: string }>;
 }
 
 const menus: MenuItem[] = [
@@ -58,40 +59,24 @@ const menus: MenuItem[] = [
     title: 'Components'
   },
   {
-    type: 'link',
-    title: 'Tree Menu - Simple',
-    path: '/menu-simple',
-    icon: ListTree
+    type: 'group',
+    title: 'Tree Menu',
+    icon: ListTree,
+    children: [
+      { title: 'Simple', path: '/menu-simple' },
+      { title: 'Virtual Scroll', path: '/menu-virtual' },
+      { title: 'Lazy Load', path: '/menu-lazy' }
+    ]
   },
   {
-    type: 'link',
-    title: 'Tree Menu - Virtual Scroll',
-    path: '/menu-virtual',
-    icon: ListTree
-  },
-  {
-    type: 'link',
-    title: 'Tree Menu - Lazy Load',
-    path: '/menu-lazy',
-    icon: ListTree
-  },
-  {
-    type: 'link',
-    title: 'File Manager - Simple',
-    path: '/file-manager-simple',
-    icon: FolderTree
-  },
-  {
-    type: 'link',
-    title: 'File Manager - Virtual Scroll',
-    path: '/file-manager-virtual',
-    icon: FolderTree
-  },
-  {
-    type: 'link',
-    title: 'File Manager - Lazy Load',
-    path: '/file-manager-lazy',
-    icon: FolderTree
+    type: 'group',
+    title: 'File Manager',
+    icon: FolderTree,
+    children: [
+      { title: 'Simple', path: '/file-manager-simple' },
+      { title: 'Virtual Scroll', path: '/file-manager-virtual' },
+      { title: 'Lazy Load', path: '/file-manager-lazy' }
+    ]
   },
   {
     type: 'link',
@@ -237,6 +222,35 @@ const { sidebarPinned, toggleSidebar } = useAppService();
             v-if="item.type === 'divider'"
           >
             <span class="rxdb-menu-item">{{ item.title }}</span>
+          </li>
+          <!-- 分组（details 原生折叠）：Tree Menu / File Manager 等重复命名收进折叠组 -->
+          <li
+            class="menu-group"
+            v-else-if="item.type === 'group'"
+          >
+            <details open>
+              <summary>
+                <component
+                  v-if="item.icon"
+                  :is="item.icon"
+                  :size="16"
+                />
+                <span class="rxdb-menu-item">{{ item.title }}</span>
+              </summary>
+              <ul>
+                <li
+                  v-for="child in item.children"
+                  :key="child.path"
+                >
+                  <RouterLink
+                    :to="child.path"
+                    active-class="menu-active"
+                  >
+                    <span class="rxdb-menu-item">{{ child.title }}</span>
+                  </RouterLink>
+                </li>
+              </ul>
+            </details>
           </li>
           <li v-else>
             <RouterLink

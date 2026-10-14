@@ -98,6 +98,21 @@ defineSlots<{
 const filter = ref('');
 
 const createPopover = ref<HTMLElement | null>(null);
+const menuPopup = ref<HTMLElement | null>(null);
+const popupLeft = ref(0);
+
+watch(
+  [menuOpen, createOpen, () => props.popupWidth],
+  () => {
+    if (!menuOpen.value && !createOpen.value) return;
+    const popup = menuOpen.value ? menuPopup.value : createPopover.value;
+    const section = popup?.offsetParent as HTMLElement | null;
+    if (!popup || !section) return;
+    const sectionLeft = section.getBoundingClientRect().left;
+    popupLeft.value = Math.max(8 - sectionLeft, Math.min(0, window.innerWidth - sectionLeft - popup.offsetWidth - 8));
+  },
+  { flush: 'post' }
+);
 
 /** 筛出来的行；空筛选 = 全量。 */
 const filteredItems = computed<readonly T[]>(() => {
@@ -229,7 +244,7 @@ function onCreateKeydown(event: KeyboardEvent): void {
         ref="createPopover"
         :aria-label="copy.createTitle"
         :data-testid="`${testIdPrefix}-create-popover`"
-        :style="{ width: popupWidth + 'px' }"
+        :style="{ width: popupWidth + 'px', left: popupLeft + 'px' }"
         @keydown="onCreateKeydown"
         role="dialog"
       >
@@ -266,10 +281,11 @@ function onCreateKeydown(event: KeyboardEvent): void {
       <div
         class="gd-menu gd-menu-flush absolute top-full left-0 z-40 flex flex-col overflow-y-auto"
         v-else-if="menuOpen"
+        ref="menuPopup"
         :id="`${testIdPrefix}-menu-popup`"
         :aria-label="copy.listLabel"
         :data-testid="`${testIdPrefix}-menu-popup`"
-        :style="{ height: 'calc(100vh - 50px)', width: popupWidth + 'px' }"
+        :style="{ height: 'calc(100vh - 50px)', width: popupWidth + 'px', left: popupLeft + 'px' }"
         role="dialog"
       >
         <div class="flex items-center justify-between px-3 pt-1 pb-1.5">

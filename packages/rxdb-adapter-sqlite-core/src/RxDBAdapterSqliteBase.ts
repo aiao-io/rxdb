@@ -12,6 +12,7 @@ import {
   ACTIVE_BRANCH_KEY,
   AmbiguousActiveBranchError,
   assertSupportedRxDBSystemVersions,
+  declaresStorageConstraints,
   gateRawWrite,
   getEntityMetadata,
   getEntityMutations,
@@ -107,6 +108,8 @@ import {
   rxDBColumnTypeToSqliteType,
   SQLITE_NOW_ISO_SQL
 } from './sqlite-core.utils.js';
+import { assertSqliteHostVersion } from './system/sqlite-version.js';
+import { check_entity_constraints_sqlite } from './table/check-entity-constraints.js';
 import { create_tables_sql } from './table/create_tables_sql.js';
 import { remove_all_triggers_sql } from './table/remove_trigger_sql.js';
 import { generate_table_trigger_sql } from './table/trigger_sql.js';
@@ -449,6 +452,8 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   #keyring: Keyring | null = null;
   #encryption_facade?: AdapterEncryptionFacade;
   #lifecycle_state: AdapterLifecycleState = 'bootstrap';
+  /** 宿主版本门槛只查一次（`SELECT sqlite_version()` 一次连接查一次即可）。 */
+  #sqlite_host_version_checked = false;
   #change_error_listeners = new Set<SqliteChangeErrorListener>();
   readonly #change_tasks = new Set<Promise<void>>();
   #sqlite_change_handler = proxy((event: SqliteChangeEvent) => {
@@ -623,7 +628,8 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
     this.#is_disconnected = false;
     try {
       this.#initEncryption();
-      await this.#client();
+      const client = await this.#client();
+      await this.#assert_sqlite_host_version(client);
     } catch (err) {
       // 初始化失败时恢复 disconnected 状态，避免后续操作误判为已连接
       this.#is_disconnected = true;
@@ -634,6 +640,20 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
 
   override completeBootstrap(): void {
     if (this.#lifecycle_state === 'bootstrap') this.#lifecycle_state = 'ready';
+  }
+
+  /**
+   * 只读漂移检查：元数据声明的存储约束与 `sqlite_master` 里的实际对象比对（US-030 AC#10）。
+   *
+   * @remarks
+   * 由核心在 `RxDB.connect()` 里、`reconcileEntityIndexes` 同一时机调用（用户迁移与
+   * 缺表补建之后）。比对 `ck_` CHECK、`uq_` 条件唯一索引、`ex_` 区间排他触发器；
+   * 不一致抛 {@link RxDBConstraintDriftError}。
+   */
+  override async checkEntityConstraints(EntityTypes: EntityType[]): Promise<void> {
+    // 必须走 bootstrapTransaction：connect() 引导期内 ready() 等的是当前 connect
+    // promise，直接 query() 会等自己、永久挂起（与 rawQuery 引导窗分支同口径）。
+    await this.bootstrapTransaction(executor => check_entity_constraints_sqlite(executor, EntityTypes), false);
   }
 
   public async disconnect() {
@@ -1533,6 +1553,22 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       code: 'no_encrypted_columns',
       message: `adapter.encryption.${method} called but no entity declares an encrypted column`
     });
+  }
+
+  /**
+   * 宿主版本门槛（US-030 AC#7）：`SELECT sqlite_version()` 只查一次，低于门槛
+   * fail-fast 点名实际版本与门槛。只在有实体声明存储约束（checks / 条件唯一 where /
+   * exclusions）时生效——一项都不用的应用不被旧宿主拦在门外。区间排他的触发器消息
+   * 要带冲突区间，靠的正是 `RAISE()` 接受表达式（3.47.0 起）。
+   */
+  async #assert_sqlite_host_version(client: SqliteClientLike): Promise<void> {
+    if (this.#sqlite_host_version_checked) return;
+    const declaring = this.rxdb.config.entities.some(entity => declaresStorageConstraints(getEntityMetadata(entity)));
+    if (!declaring) return;
+    const result = await client.execute('SELECT sqlite_version() AS version');
+    const version = String(result.results[0]?.rows[0]?.[0] ?? '');
+    assertSqliteHostVersion(version);
+    this.#sqlite_host_version_checked = true;
   }
 
   #client(): Promise<SqliteClientLike> {

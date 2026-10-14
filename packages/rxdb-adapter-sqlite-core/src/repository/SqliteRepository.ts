@@ -1,4 +1,12 @@
-import { EntityStaticType, EntityType, FindOptions, getEntityMetadata, getEntityStatus, IRepository } from '@aiao/rxdb';
+import {
+  EntityStaticType,
+  EntityType,
+  FindOptions,
+  getEntityMetadata,
+  getEntityStatus,
+  IRepository,
+  toStorageConstraintViolationError
+} from '@aiao/rxdb';
 import { generate_entity_delete_sql } from '../entity/delete_sql.js';
 import { generate_entity_insert_sql } from '../entity/insert_sql.js';
 import { update_sql as generate_entity_update_sql } from '../entity/update_sql.js';
@@ -63,7 +71,13 @@ export class SqliteRepository<T extends EntityType> extends SqliteRepositoryBase
       ...this.rxdb.context,
       encryption: this.adapter.encryptionContext
     });
-    const result = await this.adapter.writeQuery(sql, params);
+    let result;
+    try {
+      result = await this.adapter.writeQuery(sql, params);
+    } catch (error) {
+      // 存储约束违约归一：CHECK → RxDBCheckViolationError、区间排他 → RxDBExclusionViolationError
+      throw toStorageConstraintViolationError(error, this.metadata, [entity as unknown as Record<string, unknown>]);
+    }
     await this.addQueryCache(result, true);
     return entity;
   }
@@ -74,7 +88,12 @@ export class SqliteRepository<T extends EntityType> extends SqliteRepositoryBase
       encryption: this.adapter.encryptionContext,
       updatedAt: getMonotonicUpdatedAt(entity)
     });
-    const result = await this.adapter.writeQuery(sql, params);
+    let result;
+    try {
+      result = await this.adapter.writeQuery(sql, params);
+    } catch (error) {
+      throw toStorageConstraintViolationError(error, this.metadata, [entity as unknown as Record<string, unknown>]);
+    }
     await this.addQueryCache(result, true);
     return entity;
   }

@@ -17,6 +17,7 @@ import {
   LucideFileDiff as FileDiff,
   LucideListFilter as ListFilter,
   LucideDynamicIcon,
+  LucideMoreVertical as MoreVertical,
   LucideSearch as Search
 } from '@lucide/angular';
 import { diffEntryKey, formatPatchSummary } from '../worktree.diff-format';
@@ -140,40 +141,53 @@ const KINDS = [
           <ul data-testid="wt-diff-list">
             @for (entry of filteredEntries(); track diffEntryKey(entry)) {
               <li>
-                <div
-                  class="gd-row"
-                  [attr.aria-current]="selectedKey() === diffEntryKey(entry) ? 'true' : null"
-                  [attr.data-diff-key]="diffEntryKey(entry)"
-                  [class.gd-row-selected]="selectedKey() === diffEntryKey(entry)"
-                  (click)="selectEntry.emit(entry)"
-                  (contextmenu)="menuRequest.emit({ target: entry, event: $event })"
-                  (keydown.enter)="selectEntry.emit(entry)"
-                  data-testid="wt-diff-item"
-                  role="button"
-                  tabindex="0"
-                >
+                <div class="flex items-center">
                   <div
-                    class="flex min-w-0 items-center gap-2"
-                    [title]="gdEntryPath(entry) + ' · ' + formatPatchSummary(entry)"
+                    class="gd-row min-w-0 flex-1"
+                    [attr.aria-current]="selectedKey() === diffEntryKey(entry) ? 'true' : null"
+                    [attr.data-diff-key]="diffEntryKey(entry)"
+                    [class.gd-row-selected]="selectedKey() === diffEntryKey(entry)"
+                    (click)="selectEntry.emit(entry)"
+                    (contextmenu)="menuRequest.emit({ target: entry, event: $event })"
+                    (keydown.enter)="selectEntry.emit(entry)"
+                    data-testid="wt-diff-item"
+                    role="button"
+                    tabindex="0"
                   >
-                    <!-- 路径中间省略（GitHub Desktop 的文件列表同款）：前缀段照常截断，id 尾部保留结尾 -->
-                    <span
-                      class="gd-file-name flex min-w-0 flex-1 items-center"
-                      [style.color]="gdPathColor(entry.operation)"
+                    <div
+                      class="flex min-w-0 items-center gap-2"
+                      [title]="gdEntryPath(entry) + ' · ' + formatPatchSummary(entry)"
                     >
-                      <!-- schema/实体 前缀永不省略（Todo 必须完整可见），只有 uuid 前段省略 -->
-                      <span class="shrink-0">{{ entry.namespace }}/{{ gdTableName(entry.entity) }}/</span>
-                      <span class="gd-truncate-tail min-w-0"
-                        ><span>{{ entry.entityId }}</span></span
+                      <!-- 路径中间省略（GitHub Desktop 的文件列表同款）：前缀段照常截断，id 尾部保留结尾 -->
+                      <span
+                        class="gd-file-name flex min-w-0 flex-1 items-center"
+                        [style.color]="gdPathColor(entry.operation)"
                       >
-                    </span>
-                    <svg
-                      class="shrink-0"
-                      [lucideIcon]="opIcon(entry.operation)"
-                      [style.color]="opColor(entry.operation)"
-                      size="16"
-                    ></svg>
+                        <!-- schema/实体 前缀永不省略（Todo 必须完整可见），只有 uuid 前段省略 -->
+                        <span class="shrink-0">{{ entry.namespace }}/{{ gdTableName(entry.entity) }}/</span>
+                        <span class="gd-truncate-tail min-w-0"
+                          ><span>{{ entry.entityId }}</span></span
+                        >
+                      </span>
+                      <svg
+                        class="shrink-0"
+                        [lucideIcon]="opIcon(entry.operation)"
+                        [style.color]="opColor(entry.operation)"
+                        size="16"
+                      ></svg>
+                    </div>
                   </div>
+                  <!-- 触屏没有右键：行尾 ⋯ 打开同一菜单（桌面端隐藏） -->
+                  <button
+                    class="gd-btn-ghost hidden max-md:inline-flex pointer-coarse:inline-flex"
+                    (click)="openRowMenu($event, entry)"
+                    aria-label="更多操作"
+                    data-testid="wt-diff-more"
+                    title="更多操作（触屏）"
+                    type="button"
+                  >
+                    <svg [lucideIcon]="MoreVertical" size="14"></svg>
+                  </button>
                 </div>
               </li>
             } @empty {
@@ -207,6 +221,7 @@ export class WorktreeChangesListComponent {
   /** 行上右键；页面按条目拼菜单（复制 / 丢弃）。 */
   readonly menuRequest = output<WorktreeContextMenuRequest<WorktreeDiffEntry>>();
 
+  readonly MoreVertical = MoreVertical;
   readonly KINDS = KINDS;
   readonly FileDiff = FileDiff;
   readonly Search = Search;
@@ -247,5 +262,18 @@ export class WorktreeChangesListComponent {
   setOperation(value: 'all' | WorktreeDiffEntry['operation']): void {
     this.$operation.set(value);
     this.$kindOpen.set(false);
+  }
+
+  /**
+   * 触屏没有右键：行尾 ⋯ 按钮按自身位置合成一次 contextmenu 请求，
+   * 打开与右键相同的菜单（桌面端按钮隐藏，仍走原生右键）。
+   */
+  openRowMenu(event: MouseEvent, entry: WorktreeDiffEntry): void {
+    event.stopPropagation();
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.menuRequest.emit({
+      target: entry,
+      event: new MouseEvent('contextmenu', { clientX: rect.left, clientY: rect.bottom, bubbles: true })
+    });
   }
 }

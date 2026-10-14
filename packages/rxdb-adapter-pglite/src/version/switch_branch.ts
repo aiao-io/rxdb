@@ -16,7 +16,7 @@ import remove_all_triggers_sql from '../table/remove_trigger_sql.js';
 import generate_trigger_sql from '../table/trigger_sql.js';
 import type { PGliteTransactionExecutor } from '../transaction/PGliteTransactionExecutor.js';
 import { PGliteExecuteResult, transaction_pglite_result } from '../transaction_pglite_result.js';
-import { dispatch_switch_events } from './execute_switch_actions.js';
+import { applySwitchActions, dispatch_switch_events } from './execute_switch_actions.js';
 import { executeSwitchStatements } from './execute_switch_statements.js';
 import { readCurrentBranchId } from './read_current_branch_id.js';
 import { convertSwitchResultToSql } from './switch-result.utils.js';
@@ -193,21 +193,8 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
 
       // 执行切换分支的操作
       if (switchAction) {
-        if (switchAction.deletes.length) {
-          for (const deleteAction of switchAction.deletes) {
-            deleteAction.successResults = await executeSwitchStatements(sink, deleteAction.sql, deleteAction.params);
-          }
-        }
-        if (switchAction.inserts.length) {
-          for (const insertAction of switchAction.inserts) {
-            insertAction.successResults = await executeSwitchStatements(sink, insertAction.sql);
-          }
-        }
-        if (switchAction.updates.length) {
-          for (const updateAction of switchAction.updates) {
-            updateAction.successResults = await executeSwitchStatements(sink, updateAction.sql);
-          }
-        }
+        // 与 undo / redo 同一份执行顺序，见 applySwitchActions
+        await applySwitchActions(sink, switchAction);
       }
 
       // 更新 RxDBChange 序列号（如果提供）

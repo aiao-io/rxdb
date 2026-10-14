@@ -164,7 +164,18 @@ export function WorktreeToolbarDropdown<T>({
   /** 筛选文本（大小写不敏感的子串匹配）；每次打开列表都从空开始。 */
   const [filter, setFilter] = useState('');
   const createPopoverRef = useRef<HTMLDivElement>(null);
+  const popupRef = useRef<HTMLDivElement>(null);
+  const [popupLeft, setPopupLeft] = useState(0);
   const popupId = `${testIdPrefix}-menu-popup`;
+
+  useEffect(() => {
+    if (!menuOpen && !createOpen) return;
+    const popup = menuOpen ? popupRef.current : createPopoverRef.current;
+    const section = popup?.offsetParent as HTMLElement | null;
+    if (!popup || !section) return;
+    const sectionLeft = section.getBoundingClientRect().left;
+    setPopupLeft(Math.max(8 - sectionLeft, Math.min(0, window.innerWidth - sectionLeft - popupWidth - 8)));
+  }, [menuOpen, createOpen, popupWidth]);
 
   const closeAll = () => {
     onMenuOpenChange(false);
@@ -283,7 +294,7 @@ export function WorktreeToolbarDropdown<T>({
         {createOpen ?
           <div
             className='gd-menu gd-menu-flush gd-branch-create-popover absolute top-full left-0 z-40 mt-1'
-            style={{ width: popupWidth }}
+            style={{ width: popupWidth, left: popupLeft }}
             ref={createPopoverRef}
             aria-label={copy.createTitle}
             onKeyDown={onCreateKeyDown}
@@ -320,8 +331,9 @@ export function WorktreeToolbarDropdown<T>({
           </div>
         : menuOpen ?
           <div
+            ref={popupRef}
             className='gd-menu gd-menu-flush absolute top-full left-0 z-40 flex flex-col overflow-y-auto'
-            style={{ height: 'calc(100vh - 50px)', width: popupWidth }}
+            style={{ height: 'calc(100vh - 50px)', width: popupWidth, left: popupLeft }}
             aria-label={copy.listLabel}
             data-testid={popupId}
             id={popupId}

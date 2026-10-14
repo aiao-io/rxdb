@@ -82,7 +82,7 @@ function download() {
 </script>
 
 <template>
-  <div class="flex h-full w-full overflow-hidden">
+  <div class="flex h-full w-full flex-col overflow-hidden md:flex-row">
     <!-- Left Panel: JSON Editor -->
     <div class="border-base-300 flex w-2/5 flex-col border-r">
       <div

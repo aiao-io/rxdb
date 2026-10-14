@@ -100,7 +100,7 @@ const pathSegments = computed(() => {
     </div>
   </div>
 
-  <div class="border-base-300 flex items-center gap-2 border-b p-2">
+  <div class="border-base-300 flex flex-wrap items-center gap-2 border-b p-2">
     <button
       class="btn btn-xs btn-ghost"
       @click="emit('navigate', '/')"
@@ -180,7 +180,7 @@ const pathSegments = computed(() => {
     </template>
   </div>
 
-  <div class="border-base-300 flex items-center gap-1 border-b px-3 py-2 text-sm">
+  <div class="border-base-300 flex items-center gap-1 overflow-x-auto border-b px-3 py-2 text-sm whitespace-nowrap">
     <button
       class="hover:underline"
       @click="emit('navigate', '/')"

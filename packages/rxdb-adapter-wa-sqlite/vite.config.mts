@@ -96,6 +96,7 @@ export default defineConfig(() => ({
     include: ['fastest-levenshtein', 'ms', 'uuid'],
     exclude: [
       '@aiao/rxdb-test',
+      '@aiao/rxdb-test/check-constraint',
       '@aiao/rxdb-test/entities',
       '@aiao/rxdb-test/shop',
       '@aiao/rxdb',
@@ -120,6 +121,12 @@ export default defineConfig(() => ({
       {
         find: '@aiao/rxdb-adapter-sqlite-core',
         replacement: path.resolve(import.meta.dirname, '../rxdb-adapter-sqlite-core/src/index.ts')
+      },
+      // 与 sqlite-core 同一理由：rxdb-test 的 dist 按 node 解析会装出第二份 rxdb，
+      // 套件与适配器两边的 RxDB 错误类身份对不上（`instanceof` 为假）。
+      {
+        find: '@aiao/rxdb-test/check-constraint',
+        replacement: path.resolve(import.meta.dirname, '../rxdb-test/src/check-constraint/index.ts')
       }
     ],
     watch: false,

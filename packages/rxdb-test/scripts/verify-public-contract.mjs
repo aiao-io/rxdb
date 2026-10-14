@@ -23,6 +23,7 @@ const baseline = JSON.parse(await readFile(new URL('../public-contract/baseline.
 
 const SPECIFIERS = {
   '.': '@aiao/rxdb-test',
+  './check-constraint': '@aiao/rxdb-test/check-constraint',
   './encrypted': '@aiao/rxdb-test/encrypted',
   './entities': '@aiao/rxdb-test/entities',
   './query-cache-contract': '@aiao/rxdb-test/query-cache-contract',

@@ -82,7 +82,7 @@ describe('RxDBAdapterPGlite - change queue', () => {
     state.pendingCalls.length = 0;
     state.handleRxdbChange.mockClear();
 
-    adapter = new RxDBAdapterPGlite({ config: { dbName: 'change-queue-test' } } as unknown as RxDB, {
+    adapter = new RxDBAdapterPGlite({ config: { dbName: 'change-queue-test', entities: [] } } as unknown as RxDB, {
       store: 'memory'
     });
     await adapter.connect();

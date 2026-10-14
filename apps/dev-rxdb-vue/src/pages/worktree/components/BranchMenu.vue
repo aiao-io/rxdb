@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { RxDBBranch } from '@aiao/rxdb';
-import { ChevronRight, GitBranch } from '@lucide/vue';
+import { ChevronRight, GitBranch, MoreVertical } from '@lucide/vue';
 import { gdRelativeTime } from '../utils/gd';
 import type { ToolbarDropdownCopy } from '../utils/worktree-menu';
 import ToolbarDropdown from './ToolbarDropdown.vue';
@@ -54,6 +54,15 @@ const emit = defineEmits<{
   /** 创建确认；建库调用由页面做，组件只负责把名字交出去。 */
   (e: 'createBranch', name: string): void;
 }>();
+
+function onTouchMenu(event: MouseEvent, branch: RxDBBranch): void {
+  event.stopPropagation();
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  emit('menuRequest', {
+    target: branch,
+    event: new MouseEvent('contextmenu', { clientX: rect.left, clientY: rect.bottom, bubbles: true })
+  });
+}
 
 /** 行的键、名字与 `data-branch-id` 都是分支 id。 */
 const branchIdOf = (branch: RxDBBranch): string => branch.id;
@@ -137,6 +146,19 @@ function confirmCreate(): void {
       >
         {{ gdRelativeTime(branchTime(item)) }}
       </span>
+    </template>
+    <template #row-actions="{ item, busy: rowBusy }">
+      <button
+        class="gd-icon-btn hidden max-md:inline-flex pointer-coarse:inline-flex"
+        :disabled="rowBusy"
+        @click="onTouchMenu($event, item)"
+        aria-label="更多操作"
+        data-testid="wt-branch-more"
+        title="更多操作（触屏）"
+        type="button"
+      >
+        <MoreVertical :size="14" />
+      </button>
     </template>
     <template #create>
       <div class="text-xs font-medium">

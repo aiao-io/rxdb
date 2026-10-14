@@ -81,6 +81,49 @@ export abstract class TreeFileDragDropBase<C extends FileTreeEntityConstructor> 
     this.store.onDragEnd();
   }
 
+  // ── Pointer 拖拽（触屏可用；store 判定逻辑与原生 DnD 完全共用） ──────────────────
+
+  /**
+   * 手柄 pointerdown 起拖：捕获指针后 move/up 都落回手柄，落点用 elementFromPoint 命中行。
+   */
+  startPointerDrag(event: PointerEvent, file: FileTreeInstance<C>): void {
+    event.preventDefault();
+    event.stopPropagation();
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+    this.store.onDragStart(file.id);
+  }
+
+  /** 拖动中：按指针位置命中目标行，复用 store 的三档落点判定。 */
+  onPointerMove(event: PointerEvent): void {
+    if (this.store.dragDropState().draggedItemId === null) return;
+    const row = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest('[data-file-id]') as HTMLElement | null;
+    if (!row) {
+      this.store.onDragLeave();
+      return;
+    }
+    const file = this.fileResource.value().find(f => f.id === row.getAttribute('data-file-id'));
+    if (!file) return;
+    this.store.onDragOver(file, event.clientY, row.getBoundingClientRect());
+  }
+
+  /** 松开：命中目标行则走 store 落库，否则仅复位拖拽状态。 */
+  async onPointerUp(event: PointerEvent): Promise<void> {
+    if (this.store.dragDropState().draggedItemId === null) return;
+    const row = document
+      .elementFromPoint(event.clientX, event.clientY)
+      ?.closest('[data-file-id]') as HTMLElement | null;
+    const file = row ? this.fileResource.value().find(f => f.id === row.getAttribute('data-file-id')) : undefined;
+    if (file) {
+      const done = await this.runWrite('拖放', () => this.store.onDrop(file));
+      // 自动滚动到目标节点
+      if (done) this.scrollToFile(file.id);
+    } else {
+      this.store.onDragEnd();
+    }
+  }
+
   // Helper Methods
 
   scrollToFile(fileId: string): void {

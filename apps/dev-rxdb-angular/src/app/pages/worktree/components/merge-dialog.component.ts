@@ -33,7 +33,7 @@ export interface MergeDialogState {
   template: `
     @if (dialog(); as dialog) {
       <div
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3"
         (click)="closeRequested.emit()"
         (keydown.escape)="closeRequested.emit()"
         aria-label="Close dialog"
@@ -41,7 +41,7 @@ export interface MergeDialogState {
         tabindex="0"
       >
         <div
-          class="w-full max-w-md rounded-md border border-[var(--gd-border)] p-5 shadow-2xl"
+          class="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-md border border-[var(--gd-border)] p-5 shadow-2xl"
           [style.background]="'var(--gd-panel)'"
           (click)="$event.stopPropagation()"
           (keydown)="$event.stopPropagation()"

@@ -1,7 +1,7 @@
 import type { CommitLogEntry, CommitLogPage, WorktreeQueryState } from '@aiao/rxdb-plugin-worktree';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import { LucideHistory as History, LucideDynamicIcon } from '@lucide/angular';
+import { LucideHistory as History, LucideDynamicIcon, LucideMoreVertical as MoreVertical } from '@lucide/angular';
 import { gdAvatarColor, gdAvatarInitial, gdRelativeTime } from '../worktree.gd';
 import type { WorktreeContextMenuRequest } from './changes-list.component';
 
@@ -47,55 +47,68 @@ import type { WorktreeContextMenuRequest } from './changes-list.component';
           <ol data-testid="wt-commits-list">
             @for (entry of commits.value.entries; track entry.commitId) {
               <li>
-                <div
-                  class="gd-row gd-history-row"
-                  [attr.aria-current]="selectedCommitId() === entry.commitId ? 'true' : null"
-                  [attr.data-commit-id]="entry.commitId"
-                  [class.gd-row-selected]="selectedCommitId() === entry.commitId"
-                  (click)="selectEntry.emit(entry)"
-                  (contextmenu)="menuRequest.emit({ target: entry, event: $event })"
-                  (keydown.enter)="selectEntry.emit(entry)"
-                  data-testid="wt-commit-item"
-                  role="button"
-                  tabindex="0"
-                >
-                  <div class="min-w-0 flex-1">
-                    <div class="min-w-0 truncate text-[13px] font-semibold" [title]="entry.message">
-                      {{
-                        entry.message.split(
-                          '
+                <div class="flex items-center">
+                  <div
+                    class="gd-row gd-history-row min-w-0 flex-1"
+                    [attr.aria-current]="selectedCommitId() === entry.commitId ? 'true' : null"
+                    [attr.data-commit-id]="entry.commitId"
+                    [class.gd-row-selected]="selectedCommitId() === entry.commitId"
+                    (click)="selectEntry.emit(entry)"
+                    (contextmenu)="menuRequest.emit({ target: entry, event: $event })"
+                    (keydown.enter)="selectEntry.emit(entry)"
+                    data-testid="wt-commit-item"
+                    role="button"
+                    tabindex="0"
+                  >
+                    <div class="min-w-0 flex-1">
+                      <div class="min-w-0 truncate text-[13px] font-semibold" [title]="entry.message">
+                        {{
+                          entry.message.split(
+                            '
 ',
-                          1
-                        )[0]
-                      }}
-                    </div>
-                    <div class="mt-1 flex items-center gap-1.5 text-[11px]" [style.color]="'var(--gd-muted)'">
-                      <span
-                        class="gd-avatar text-[9px]"
-                        [style.background]="gdAvatarColor(entry.authorId ?? '?')"
-                        [style.height.px]="14"
-                        [style.width.px]="14"
-                      >
-                        {{ gdAvatarInitial(entry.authorId ?? '?') }}
-                      </span>
-                      <span class="min-w-0 truncate">{{ entry.authorId ?? 'No author' }}</span>
-                      <span>·</span>
-                      <!-- GitHub Desktop 的 TimeAgo：相对时间展示，完整时间戳留在悬停 title -->
-                      <span class="min-w-0 truncate" [title]="entry.createdAt.toLocaleString()">{{
-                        gdRelativeTime(entry.createdAt)
-                      }}</span>
-                      @if (entry.kind === 'baseline' || entry.kind === 'branch_baseline') {
-                        <span class="shrink-0 rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]"
-                          >Baseline</span
+                            1
+                          )[0]
+                        }}
+                      </div>
+                      <div class="mt-1 flex items-center gap-1.5 text-[11px]" [style.color]="'var(--gd-muted)'">
+                        <span
+                          class="gd-avatar text-[9px]"
+                          [style.background]="gdAvatarColor(entry.authorId ?? '?')"
+                          [style.height.px]="14"
+                          [style.width.px]="14"
                         >
-                      }
-                      @if (entry.parentIds.length > 1) {
-                        <span class="shrink-0 rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]"
-                          >Merge</span
-                        >
-                      }
+                          {{ gdAvatarInitial(entry.authorId ?? '?') }}
+                        </span>
+                        <span class="min-w-0 truncate">{{ entry.authorId ?? 'No author' }}</span>
+                        <span>·</span>
+                        <!-- GitHub Desktop 的 TimeAgo：相对时间展示，完整时间戳留在悬停 title -->
+                        <span class="min-w-0 truncate" [title]="entry.createdAt.toLocaleString()">{{
+                          gdRelativeTime(entry.createdAt)
+                        }}</span>
+                        @if (entry.kind === 'baseline' || entry.kind === 'branch_baseline') {
+                          <span class="shrink-0 rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]"
+                            >Baseline</span
+                          >
+                        }
+                        @if (entry.parentIds.length > 1) {
+                          <span class="shrink-0 rounded-full border border-[var(--gd-border)] px-1.5 text-[10px]"
+                            >Merge</span
+                          >
+                        }
+                      </div>
                     </div>
                   </div>
+                  <!-- 触屏没有右键：行尾 ⋯ 打开同一菜单（桌面端隐藏） -->
+                  <button
+                    class="gd-btn-ghost hidden max-md:inline-flex pointer-coarse:inline-flex"
+                    (click)="openRowMenu($event, entry)"
+                    aria-label="更多操作"
+                    data-testid="wt-commit-more"
+                    title="更多操作（触屏）"
+                    type="button"
+                  >
+                    <svg [lucideIcon]="MoreVertical" size="14"></svg>
+                  </button>
                 </div>
               </li>
             }
@@ -113,8 +126,22 @@ export class WorktreeHistoryListComponent {
   /** 行上右键；页面按条目拼菜单（复制 / 恢复）。 */
   readonly menuRequest = output<WorktreeContextMenuRequest<CommitLogEntry>>();
 
+  readonly MoreVertical = MoreVertical;
   readonly History = History;
   readonly gdAvatarColor = gdAvatarColor;
   readonly gdAvatarInitial = gdAvatarInitial;
   readonly gdRelativeTime = gdRelativeTime;
+
+  /**
+   * 触屏没有右键：行尾 ⋯ 按钮按自身位置合成一次 contextmenu 请求，
+   * 打开与右键相同的菜单（桌面端按钮隐藏，仍走原生右键）。
+   */
+  openRowMenu(event: MouseEvent, entry: CommitLogEntry): void {
+    event.stopPropagation();
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.menuRequest.emit({
+      target: entry,
+      event: new MouseEvent('contextmenu', { clientX: rect.left, clientY: rect.bottom, bubbles: true })
+    });
+  }
 }

@@ -143,6 +143,10 @@ const worktreeError = ref<string | null>(null);
 /** 本页发起的 worktree 命令在飞；new 模式先走的 `versionManager.createBranch` 不经任何状态追踪，只能靠它。 */
 const worktreeInFlight = ref(false);
 const mergeDialog = ref<MergeDialogState | null>(null);
+/** 应用内确认框请求（替代原生 confirm）。 */
+const confirmRequest = ref<{ kind: 'discard'; message: string } | { kind: 'delete-branch'; branchId: string } | null>(
+  null
+);
 const mergeError = ref<string | null>(null);
 const toast = ref<{ type: 'success' | 'error'; message: string } | null>(null);
 const notice = ref<string | null>(null);
@@ -428,7 +432,7 @@ function handleContextMenuSelect(item: WorktreeContextMenuItem): void {
   contextMenuTarget.value = null;
   if (target === null) return;
   if (item.id === 'discard') {
-    void runDiscard();
+    void requestDiscard();
     return;
   }
   if (item.id === 'copy-path') {
@@ -449,7 +453,7 @@ function handleContextMenuSelect(item: WorktreeContextMenuItem): void {
     } else if (item.id === 'branch-merge') {
       openMergeDialog(target.branchId);
     } else if (item.id === 'branch-delete') {
-      void removeBranch(target.branchId);
+      requestRemoveBranch(target.branchId);
     } else if (item.id === 'branch-copy') {
       void copyText(target.branchId);
     }
@@ -645,18 +649,20 @@ async function runCommit(): Promise<void> {
  * 一份 status（与 diff 条目同源），读不到时回落 {@link changesCount} 快照、再读不到说
  * 「所有未提交改动」而不是编一个数字。
  */
-async function runDiscard(): Promise<void> {
+/** 打开应用内确认框（替代原生 confirm：移动端样式割裂、iOS 文案截断）。 */
+async function requestDiscard(): Promise<void> {
   // 确认框里的条数**现读一份**：fetch 的 status 可能还在飞行，快照会读出 null 让文案
   // 漏掉数字；现读拿到的才是丢弃这一刻的真实条数。读不到才回落快照，绝不编数字。
   const freshStatus = await tree.status().catch(() => null);
   const count = freshStatus !== null && freshStatus.entryCount > 0 ? freshStatus.entryCount : changesCount.value;
   const scope = count === null ? 'all uncommitted changes' : `all ${count} uncommitted changes`;
-  if (
-    !confirm(
-      `Discard ${scope} in the working tree? This covers the whole tree, not just the selected row, and cannot be undone.`
-    )
-  )
-    return;
+  confirmRequest.value = {
+    kind: 'discard',
+    message: `Discard ${scope} in the working tree? This covers the whole tree, not just the selected row, and cannot be undone.`
+  };
+}
+
+async function runDiscard(): Promise<void> {
   const credentials = await freshCredentials();
   if (credentials === null) {
     notice.value = 'Cannot read the working tree — refresh status before discarding.';
@@ -755,10 +761,14 @@ async function switchBranch(branchId: string): Promise<void> {
   }
 }
 
+function requestRemoveBranch(branchId: string): void {
+  if (branchBusy.value) return;
+  confirmRequest.value = { kind: 'delete-branch', branchId };
+}
+
 /** 删分支；钉在它上面的 worktree 行被连带删掉，worktree 菜单由实时列表跟随，这里不重读列表。 */
 async function removeBranch(branchId: string): Promise<void> {
   if (branchBusy.value) return;
-  if (!confirm(`确定要删除分支 "${branchId}" 吗？`)) return;
   branchInFlight.value = true;
   try {
     await rxdb.versionManager.removeBranch(branchId);
@@ -872,6 +882,17 @@ function worktreeErrorText(error: unknown, fallback: string): string {
   if (error instanceof WorktreeNotFoundError) return WORKTREE_NOT_FOUND_TEXT;
   if (error instanceof WorktreeLabelError) return LABEL_INVALID_TEXT;
   return error instanceof Error ? error.message : fallback;
+}
+
+async function handleConfirmRequest(): Promise<void> {
+  const request = confirmRequest.value;
+  confirmRequest.value = null;
+  if (!request) return;
+  if (request.kind === 'discard') {
+    await runDiscard();
+  } else {
+    await removeBranch(request.branchId);
+  }
 }
 
 // ── 合并对话框 ────────────────────────────────────────────
@@ -1374,6 +1395,60 @@ function clampAsideWidth(width: number): number {
       @delete-source-change="setDeleteSource"
       @strategy-change="setMergeStrategy"
     />
+
+    <!-- ═══════════════════ 应用内确认框（替代原生 confirm，移动端样式一致） ═══════════════════ -->
+    <div
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3"
+      v-if="confirmRequest !== null"
+      @click="confirmRequest = null"
+      @keydown.escape="confirmRequest = null"
+      aria-label="Close dialog"
+      role="button"
+      tabindex="0"
+    >
+      <div
+        class="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-md border border-[var(--gd-border)] p-5 shadow-2xl"
+        :style="{ background: 'var(--gd-panel)' }"
+        @click.stop
+        @keydown.stop
+        aria-modal="true"
+        data-testid="wt-confirm-dialog"
+        role="alertdialog"
+      >
+        <h2 class="mb-3 text-sm font-semibold">
+          {{ confirmRequest.kind === 'discard' ? 'Discard changes' : 'Delete branch' }}
+        </h2>
+        <p
+          class="mb-4 text-sm"
+          :style="{ color: 'var(--gd-muted)' }"
+        >
+          {{
+            confirmRequest.kind === 'discard' ?
+              confirmRequest.message
+            : `确定要删除分支 "${confirmRequest.branchId}" 吗？`
+          }}
+        </p>
+        <div class="flex justify-end gap-2">
+          <button
+            class="gd-btn-secondary"
+            @click="confirmRequest = null"
+            data-testid="wt-confirm-cancel"
+            type="button"
+          >
+            Cancel
+          </button>
+          <button
+            class="gd-btn-primary"
+            :style="{ background: 'var(--gd-del-fg)', borderColor: 'var(--gd-del-fg)' }"
+            @click="handleConfirmRequest"
+            data-testid="wt-confirm-ok"
+            type="button"
+          >
+            {{ confirmRequest.kind === 'discard' ? 'Discard' : 'Delete' }}
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- ═══════════════════ Toast ═══════════════════ -->
     <div

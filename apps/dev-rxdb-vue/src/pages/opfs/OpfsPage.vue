@@ -328,12 +328,17 @@ async function handleContextMenuAction(action: 'view' | 'rename' | 'delete') {
       else handleNavigate(entry);
       break;
     case 'rename':
-      renameDialog.value = { show: true, entry, newName: entry.name };
+      openRenameDialog(entry);
       break;
     case 'delete':
       await handleDelete(entry);
       break;
   }
+}
+
+/** 行内重命名入口：触屏没有右键菜单，列表/网格的 Rename 按钮都走这里。 */
+function openRenameDialog(entry: OPFSFileEntry): void {
+  renameDialog.value = { show: true, entry, newName: entry.name };
 }
 
 async function handleDrop(event: DragEvent) {
@@ -488,7 +493,7 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
     </div>
 
     <!-- Toolbar -->
-    <div class="border-base-300 flex items-center gap-2 border-b p-2">
+    <div class="border-base-300 flex flex-wrap items-center gap-2 border-b p-2">
       <button
         class="btn btn-xs btn-ghost"
         @click="opfs.navigateTo('/')"
@@ -549,7 +554,7 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
     </div>
 
     <!-- Breadcrumb -->
-    <div class="border-base-300 flex items-center gap-1 border-b px-3 py-2 text-sm">
+    <div class="border-base-300 flex items-center gap-1 overflow-x-auto border-b px-3 py-2 text-sm whitespace-nowrap">
       <button
         class="hover:underline"
         @click="opfs.navigateTo('/')"
@@ -595,6 +600,7 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
         @entry-click="handleEntryClick"
         @navigate="handleNavigate"
         @preview="previewEntry = $event"
+        @rename="openRenameDialog"
       />
       <OpfsFileGrid
         v-else
@@ -607,6 +613,7 @@ async function traverseFileTree(item: FileSystemEntry, path: string, files: File
         @entry-click="handleEntryClick"
         @navigate="handleNavigate"
         @preview="previewEntry = $event"
+        @rename="openRenameDialog"
       />
 
       <!-- Selection box -->

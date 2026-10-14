@@ -3,6 +3,7 @@ import {
   EntityPropertyMetadata,
   EntityRelationMetadata,
   EntityType,
+  getEntityMetadata,
   KeyValuePropertyMetadata,
   PropertyType,
   quoteSqlIdentifier,
@@ -17,9 +18,27 @@ import {
   type Keyring
 } from '@aiao/rxdb-adapter-encrypted';
 
+import type { PGliteServerExtensionRequirements } from './pglite-server-extensions.js';
+
 // 更新路径的实体归一化走核心的唯一一份实现（sqlite-core 同样再导出这一份）：本地再写一遍
 // 就是第二份真相，而这一份决定的是「值落到哪个列」——两份分家的代价是把数据写到相邻的列上。
 export { normalizeCreateEntity, normalizeUpdateEntity } from '@aiao/rxdb';
+
+/**
+ * 一组实体要求适配器装载的 PGlite 服务端扩展（见 `pglite-server-extensions.ts`）：
+ * 有实体声明了区间排他（`exclusions`）即要 `btree_gist`。
+ *
+ * @param entities - 参与建库的实体（`rxdb.config.entities`）
+ *
+ * @remarks
+ * 浏览器 / Node 下适配器据此自动装载；桌面端（Electron）的 PGlite 由宿主在主进程创建，
+ * 宿主用同一个判定决定要不要在 `createRuntime` 里装 `@electric-sql/pglite/contrib/btree_gist`。
+ */
+export const pgliteServerExtensionRequirementsOf = (
+  entities: readonly EntityType[]
+): PGliteServerExtensionRequirements => ({
+  btreeGist: entities.some(entity => getEntityMetadata(entity).exclusionMap.size > 0)
+});
 
 /**
  * 加密上下文，贯穿所有可能接触加密列的 PGlite 辅助函数。

@@ -109,7 +109,7 @@ const emit = defineEmits<{
             <p class="mt-1.5 text-sm leading-relaxed break-words">{{ r.snippet }}</p>
           </div>
           <div
-            class="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
+            class="flex shrink-0 gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100"
             v-if="r.collection === 'article' || r.collection === 'comment'"
           >
             <button

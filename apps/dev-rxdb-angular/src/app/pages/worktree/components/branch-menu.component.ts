@@ -1,10 +1,16 @@
 import { RxDBBranch } from '@aiao/rxdb';
 import { ChangeDetectionStrategy, Component, input, model, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { LucideChevronRight as ChevronRight, LucideGitBranch as GitBranch, LucideDynamicIcon } from '@lucide/angular';
+import {
+  LucideChevronRight as ChevronRight,
+  LucideGitBranch as GitBranch,
+  LucideDynamicIcon,
+  LucideMoreVertical as MoreVertical
+} from '@lucide/angular';
 import { gdRelativeTime } from '../worktree.gd';
 import {
   WorktreeDropdownCreateDirective,
+  WorktreeDropdownRowActionsDirective,
   WorktreeDropdownRowMetaDirective,
   WorktreeToolbarDropdownComponent,
   type WorktreeToolbarDropdownCopy
@@ -46,6 +52,7 @@ const BRANCH_MENU_COPY: WorktreeToolbarDropdownCopy = {
     FormsModule,
     LucideDynamicIcon,
     WorktreeDropdownCreateDirective,
+    WorktreeDropdownRowActionsDirective,
     WorktreeDropdownRowMetaDirective,
     WorktreeToolbarDropdownComponent
   ],
@@ -84,6 +91,19 @@ const BRANCH_MENU_COPY: WorktreeToolbarDropdownCopy = {
         </span>
       </ng-template>
 
+      <ng-template [appWorktreeDropdownRowActions]="branches()" let-branch let-busy="busy">
+        <button
+          class="gd-icon-btn hidden max-md:inline-flex pointer-coarse:inline-flex"
+          [disabled]="busy"
+          (click)="openRowMenu($event, branch)"
+          aria-label="更多操作"
+          data-testid="wt-branch-more"
+          title="更多操作（触屏）"
+          type="button"
+        >
+          <svg [lucideIcon]="MoreVertical" size="14"></svg>
+        </button>
+      </ng-template>
       <ng-template appWorktreeDropdownCreate>
         <div class="text-xs font-medium">
           Create a branch
@@ -103,6 +123,8 @@ const BRANCH_MENU_COPY: WorktreeToolbarDropdownCopy = {
   `
 })
 export class WorktreeBranchMenuComponent {
+  readonly MoreVertical = MoreVertical;
+
   readonly branches = input.required<readonly RxDBBranch[]>();
   readonly activeBranch = input('');
   /** 下拉面板宽：与仓库 foldout 同宽（页面把左栏宽传进来）。 */
@@ -132,6 +154,16 @@ export class WorktreeBranchMenuComponent {
   readonly isActive = (branch: RxDBBranch): boolean => branch.activated;
   /** 分支名筛选（大小写不敏感的子串匹配；`needle` 已由下拉小写化）。 */
   readonly matches = (branch: RxDBBranch, needle: string): boolean => branch.id.toLowerCase().includes(needle);
+
+  /** 触屏操作按钮按自身位置打开与右键相同的菜单。 */
+  openRowMenu(event: MouseEvent, branch: RxDBBranch): void {
+    event.stopPropagation();
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.menuRequest.emit({
+      target: branch,
+      event: new MouseEvent('contextmenu', { clientX: rect.left, clientY: rect.bottom, bubbles: true })
+    });
+  }
 
   /** 创建弹层打开前清掉上一次的名字与错误。 */
   resetCreate(): void {

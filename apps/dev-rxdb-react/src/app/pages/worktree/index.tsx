@@ -171,6 +171,10 @@ export default function WorktreePage(): React.JSX.Element {
   const [worktreePending, setWorktreePending] = useState(false);
   const [branchPending, setBranchPending] = useState(false);
   const [mergeDialog, setMergeDialog] = useState<MergeDialogState | null>(null);
+  /** 应用内确认框请求（替代原生 confirm）。 */
+  const [confirm, setConfirm] = useState<
+    { kind: 'discard'; message: string } | { kind: 'delete-branch'; branchId: string } | null
+  >(null);
   const [mergeError, setMergeError] = useState<string | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -447,7 +451,7 @@ export default function WorktreePage(): React.JSX.Element {
     setContextMenuTarget(null);
     if (target === null) return;
     if (item.id === 'discard') {
-      void runDiscard();
+      requestDiscard();
       return;
     }
     if (item.id === 'copy-path') {
@@ -468,7 +472,7 @@ export default function WorktreePage(): React.JSX.Element {
       } else if (item.id === 'branch-merge') {
         openMergeDialog(target.branchId);
       } else if (item.id === 'branch-delete') {
-        void removeBranch(target.branchId);
+        requestRemoveBranch(target.branchId);
       } else if (item.id === 'branch-copy') {
         void copyText(target.branchId);
       }
@@ -659,14 +663,16 @@ export default function WorktreePage(): React.JSX.Element {
    * 「我只右键了这一行」与「丢的是全部」之间的落差，只有这一步能拦住。条数来自
    * `changesCount`（与 diff 条目同源），读不到时说「所有未提交改动」而不是编一个数字。
    */
-  const runDiscard = async (): Promise<void> => {
+  /** 打开应用内确认框（替代原生 confirm：移动端样式割裂、iOS 文案截断）。 */
+  const requestDiscard = (): void => {
     const scope = changesCount === null ? 'all uncommitted changes' : `all ${changesCount} uncommitted changes`;
-    if (
-      !window.confirm(
-        `Discard ${scope} in the working tree? This covers the whole tree, not just the selected row, and cannot be undone.`
-      )
-    )
-      return;
+    setConfirm({
+      kind: 'discard',
+      message: `Discard ${scope} in the working tree? This covers the whole tree, not just the selected row, and cannot be undone.`
+    });
+  };
+
+  const runDiscard = async (): Promise<void> => {
     const credentials = await freshCredentials();
     if (credentials === null) {
       setNotice('Cannot read the working tree — refresh status before discarding.');
@@ -766,10 +772,14 @@ export default function WorktreePage(): React.JSX.Element {
     }
   };
 
+  const requestRemoveBranch = (branchId: string): void => {
+    if (branchBusy) return;
+    setConfirm({ kind: 'delete-branch', branchId });
+  };
+
   /** 删分支；钉在它上面的 worktree 随分支一起删，实时列表跟着去掉那一行。 */
   const removeBranch = async (branchId: string) => {
     if (branchBusy) return;
-    if (!window.confirm(`确定要删除分支 "${branchId}" 吗？`)) return;
     setBranchPending(true);
     try {
       await rxdb.versionManager.removeBranch(branchId);
@@ -877,6 +887,17 @@ export default function WorktreePage(): React.JSX.Element {
       showToast('error', worktreeErrorText(e, 'Remove failed.'));
     } finally {
       setWorktreePending(false);
+    }
+  };
+
+  const confirmRequest = async (): Promise<void> => {
+    const request = confirm;
+    setConfirm(null);
+    if (!request) return;
+    if (request.kind === 'discard') {
+      await runDiscard();
+    } else {
+      await removeBranch(request.branchId);
     }
   };
 
@@ -1307,6 +1328,56 @@ export default function WorktreePage(): React.JSX.Element {
         onDeleteSourceChange={setDeleteSource}
         onStrategyChange={setMergeStrategy}
       />
+
+      {/* ═══════════════════ 应用内确认框（替代原生 confirm，移动端样式一致） ═══════════════════ */}
+      {confirm !== null && (
+        <div
+          className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3'
+          onClick={() => setConfirm(null)}
+          onKeyDown={event => {
+            if (event.key === 'Escape') setConfirm(null);
+          }}
+          aria-label='Close dialog'
+          role='button'
+          tabIndex={0}
+        >
+          <div
+            className='max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-md border border-[var(--gd-border)] p-5 shadow-2xl'
+            style={{ background: 'var(--gd-panel)' }}
+            onClick={event => event.stopPropagation()}
+            onKeyDown={event => event.stopPropagation()}
+            aria-modal='true'
+            data-testid='wt-confirm-dialog'
+            role='alertdialog'
+          >
+            <h2 className='mb-3 text-sm font-semibold'>
+              {confirm.kind === 'discard' ? 'Discard changes' : 'Delete branch'}
+            </h2>
+            <p className='mb-4 text-sm' style={{ color: 'var(--gd-muted)' }}>
+              {confirm.kind === 'discard' ? confirm.message : `确定要删除分支 "${confirm.branchId}" 吗？`}
+            </p>
+            <div className='flex justify-end gap-2'>
+              <button
+                className='gd-btn-secondary'
+                onClick={() => setConfirm(null)}
+                data-testid='wt-confirm-cancel'
+                type='button'
+              >
+                Cancel
+              </button>
+              <button
+                className='gd-btn-primary'
+                style={{ background: 'var(--gd-del-fg)', borderColor: 'var(--gd-del-fg)' }}
+                onClick={() => void confirmRequest()}
+                data-testid='wt-confirm-ok'
+                type='button'
+              >
+                {confirm.kind === 'discard' ? 'Discard' : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══════════════════ Toast ═══════════════════ */}
       {toast !== null && (

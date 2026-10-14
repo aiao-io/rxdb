@@ -2,7 +2,7 @@
 /**
  * OPFS 文件列表组件
  */
-import { Download, Eye, Trash2 } from '@lucide/vue';
+import { Download, Eye, Pen, Trash2 } from '@lucide/vue';
 import { ref } from 'vue';
 import {
   canPreviewFile,
@@ -24,6 +24,7 @@ const emit = defineEmits<{
   download: [entry: OPFSFileEntry];
   delete: [entry: OPFSFileEntry];
   preview: [entry: OPFSFileEntry];
+  rename: [entry: OPFSFileEntry];
   contextMenu: [payload: { event: MouseEvent; entry: OPFSFileEntry }];
   entryClick: [payload: { entry: OPFSFileEntry; event: MouseEvent }];
 }>();
@@ -59,7 +60,7 @@ function handleContextMenu(event: MouseEvent, entry: OPFSFileEntry) {
       <tr>
         <th>名称</th>
         <th class="w-32">大小</th>
-        <th class="w-40">修改时间</th>
+        <th class="hidden w-40 md:table-cell">修改时间</th>
         <th class="w-24">操作</th>
       </tr>
     </thead>
@@ -102,7 +103,7 @@ function handleContextMenu(event: MouseEvent, entry: OPFSFileEntry) {
         <td class="text-base-content/60 text-sm">
           {{ entry.kind === 'file' ? formatFileSize(entry.size || 0) : '-' }}
         </td>
-        <td class="text-base-content/60 text-sm">
+        <td class="text-base-content/60 hidden text-sm md:table-cell">
           {{ formatDate(entry.lastModified) }}
         </td>
         <td>
@@ -122,6 +123,14 @@ function handleContextMenu(event: MouseEvent, entry: OPFSFileEntry) {
               title="下载"
             >
               <Download :size="14" />
+            </button>
+            <button
+              class="btn btn-ghost btn-xs"
+              data-testid="opfs-rename-btn"
+              @click.stop="emit('rename', entry)"
+              title="重命名"
+            >
+              <Pen :size="14" />
             </button>
             <button
               class="btn btn-ghost btn-xs text-error"

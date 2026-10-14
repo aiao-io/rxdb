@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { WorktreeDiff, WorktreeDiffEntry, WorktreeQueryState } from '@aiao/rxdb-plugin-worktree';
-import { Check, ChevronDown, FileDiff, ListFilter, Search } from '@lucide/vue';
+import { Check, ChevronDown, FileDiff, ListFilter, MoreVertical, Search } from '@lucide/vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { diffEntryKey, formatPatchSummary } from '../utils/diff-format';
 import type { WorktreeContextMenuRequest } from '../utils/context-menu';
@@ -36,6 +36,19 @@ const props = defineProps<{
   diffState: WorktreeQueryState<WorktreeDiff>;
   selectedKey: string | null;
 }>();
+
+/**
+ * 触屏没有右键：行尾 ⋯ 按钮按自身位置合成一次 contextmenu 请求，
+ * 打开与右键相同的菜单（桌面端按钮隐藏，仍走原生右键）。
+ */
+function onTouchMenu(event: MouseEvent, target: unknown): void {
+  event.stopPropagation();
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  emit('menuRequest', {
+    target,
+    event: new MouseEvent('contextmenu', { clientX: rect.left, clientY: rect.bottom, bubbles: true })
+  } as never);
+}
 
 const emit = defineEmits<{
   (e: 'selectEntry', entry: WorktreeDiffEntry): void;
@@ -200,40 +213,53 @@ onBeforeUnmount(() => {
           v-for="entry in filteredEntries"
           :key="diffEntryKey(entry)"
         >
-          <div
-            class="gd-row"
-            :aria-current="selectedKey === diffEntryKey(entry) || undefined"
-            :class="{ 'gd-row-selected': selectedKey === diffEntryKey(entry) }"
-            :data-diff-key="diffEntryKey(entry)"
-            @click="emit('selectEntry', entry)"
-            @contextmenu="emit('menuRequest', { target: entry, event: $event })"
-            @keydown.enter="emit('selectEntry', entry)"
-            data-testid="wt-diff-item"
-            role="button"
-            tabindex="0"
-          >
+          <div class="flex items-center">
             <div
-              class="flex min-w-0 items-center gap-2"
-              :title="gdEntryPath(entry) + ' · ' + formatPatchSummary(entry)"
+              class="gd-row min-w-0 flex-1"
+              :aria-current="selectedKey === diffEntryKey(entry) || undefined"
+              :class="{ 'gd-row-selected': selectedKey === diffEntryKey(entry) }"
+              :data-diff-key="diffEntryKey(entry)"
+              @click="emit('selectEntry', entry)"
+              @contextmenu="emit('menuRequest', { target: entry, event: $event })"
+              @keydown.enter="emit('selectEntry', entry)"
+              data-testid="wt-diff-item"
+              role="button"
+              tabindex="0"
             >
-              <!-- 路径中间省略（GitHub Desktop 的文件列表同款）：前缀段照常截断，id 尾部保留结尾 -->
-              <span
-                class="gd-file-name flex min-w-0 flex-1 items-center"
-                :style="{ color: gdPathColor(entry.operation) }"
+              <div
+                class="flex min-w-0 items-center gap-2"
+                :title="gdEntryPath(entry) + ' · ' + formatPatchSummary(entry)"
               >
-                <!-- schema/实体 前缀永不省略（Todo 必须完整可见），只有 uuid 前段省略 -->
-                <span class="shrink-0">{{ entry.namespace }}/{{ gdTableName(entry.entity) }}/</span>
-                <span class="gd-truncate-tail min-w-0"
-                  ><span>{{ entry.entityId }}</span></span
+                <!-- 路径中间省略（GitHub Desktop 的文件列表同款）：前缀段照常截断，id 尾部保留结尾 -->
+                <span
+                  class="gd-file-name flex min-w-0 flex-1 items-center"
+                  :style="{ color: gdPathColor(entry.operation) }"
                 >
-              </span>
-              <component
-                class="shrink-0"
-                :is="gdOpIcon(entry.operation)"
-                :size="16"
-                :style="{ color: gdOpColor(entry.operation) }"
-              />
+                  <!-- schema/实体 前缀永不省略（Todo 必须完整可见），只有 uuid 前段省略 -->
+                  <span class="shrink-0">{{ entry.namespace }}/{{ gdTableName(entry.entity) }}/</span>
+                  <span class="gd-truncate-tail min-w-0"
+                    ><span>{{ entry.entityId }}</span></span
+                  >
+                </span>
+                <component
+                  class="shrink-0"
+                  :is="gdOpIcon(entry.operation)"
+                  :size="16"
+                  :style="{ color: gdOpColor(entry.operation) }"
+                />
+              </div>
             </div>
+            <!-- 触屏没有右键：行尾 ⋯ 打开同一菜单（桌面端隐藏） -->
+            <button
+              class="gd-btn-ghost hidden max-md:inline-flex pointer-coarse:inline-flex"
+              @click="onTouchMenu($event, entry)"
+              aria-label="更多操作"
+              data-testid="wt-diff-more"
+              title="更多操作（触屏）"
+              type="button"
+            >
+              <MoreVertical :size="14" />
+            </button>
           </div>
         </li>
         <li

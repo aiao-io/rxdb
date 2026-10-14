@@ -46,6 +46,10 @@
         "kind": "value"
       },
       {
+        "name": "assertNoEntityConstraintDrift",
+        "kind": "value"
+      },
+      {
         "name": "assertOptionalNonNegativeSafeInteger",
         "kind": "value"
       },
@@ -162,6 +166,30 @@
         "kind": "value"
       },
       {
+        "name": "CHECK_NAME_PREFIX",
+        "kind": "value"
+      },
+      {
+        "name": "CHECK_OPERATORS",
+        "kind": "value"
+      },
+      {
+        "name": "checkConstraintName",
+        "kind": "value"
+      },
+      {
+        "name": "CheckOperator",
+        "kind": "type"
+      },
+      {
+        "name": "CheckRule",
+        "kind": "type"
+      },
+      {
+        "name": "CheckRuleGroup",
+        "kind": "type"
+      },
+      {
         "name": "classifyBackupIoError",
         "kind": "value"
       },
@@ -178,7 +206,51 @@
         "kind": "value"
       },
       {
+        "name": "compileCheckConstraint",
+        "kind": "value"
+      },
+      {
+        "name": "compileCheckExpression",
+        "kind": "value"
+      },
+      {
+        "name": "compileCheckRuleGroup",
+        "kind": "value"
+      },
+      {
+        "name": "compileConditionalUniqueIndex",
+        "kind": "value"
+      },
+      {
+        "name": "CompiledCheckConstraint",
+        "kind": "type"
+      },
+      {
+        "name": "CompiledConditionalUniqueIndex",
+        "kind": "type"
+      },
+      {
+        "name": "CompiledExclusionColumn",
+        "kind": "type"
+      },
+      {
+        "name": "CompiledExclusionConstraint",
+        "kind": "type"
+      },
+      {
+        "name": "CompiledExclusionRange",
+        "kind": "type"
+      },
+      {
+        "name": "compileExclusionConstraint",
+        "kind": "value"
+      },
+      {
         "name": "computeRxDBSchemaFingerprint",
+        "kind": "value"
+      },
+      {
+        "name": "conditionalUniqueIndexesOf",
         "kind": "value"
       },
       {
@@ -208,6 +280,10 @@
       {
         "name": "ConflictResolver",
         "kind": "type"
+      },
+      {
+        "name": "CONSTRAINT_NAME_MAX_BYTES",
+        "kind": "value"
       },
       {
         "name": "CORE_SYSTEM_ENTITIES",
@@ -240,6 +316,14 @@
       {
         "name": "DateTimeFormat",
         "kind": "type"
+      },
+      {
+        "name": "declaredCheckViolationOf",
+        "kind": "value"
+      },
+      {
+        "name": "declaresStorageConstraints",
+        "kind": "value"
       },
       {
         "name": "declareTrustedWrite",
@@ -350,7 +434,19 @@
         "kind": "type"
       },
       {
+        "name": "EntityCheckMetadata",
+        "kind": "type"
+      },
+      {
+        "name": "EntityCheckMetadataOptions",
+        "kind": "type"
+      },
+      {
         "name": "EntityComputedFieldDescriptor",
+        "kind": "type"
+      },
+      {
+        "name": "EntityConstraintDriftReport",
         "kind": "type"
       },
       {
@@ -360,6 +456,18 @@
       {
         "name": "entityDefaultNow",
         "kind": "value"
+      },
+      {
+        "name": "EntityExclusionMetadata",
+        "kind": "type"
+      },
+      {
+        "name": "EntityExclusionMetadataOptions",
+        "kind": "type"
+      },
+      {
+        "name": "EntityExclusionRangeOptions",
+        "kind": "type"
       },
       {
         "name": "EntityFieldConfig",
@@ -550,6 +658,10 @@
         "kind": "type"
       },
       {
+        "name": "EntityWriteStep",
+        "kind": "type"
+      },
+      {
         "name": "EnumProperty",
         "kind": "type"
       },
@@ -564,6 +676,54 @@
       {
         "name": "EventOrigin",
         "kind": "type"
+      },
+      {
+        "name": "EXCLUSION_BOUNDS",
+        "kind": "value"
+      },
+      {
+        "name": "EXCLUSION_NAME_PREFIX",
+        "kind": "value"
+      },
+      {
+        "name": "EXCLUSION_VIOLATION_MESSAGE_PREFIX",
+        "kind": "value"
+      },
+      {
+        "name": "ExclusionBounds",
+        "kind": "type"
+      },
+      {
+        "name": "ExclusionRangeConflict",
+        "kind": "type"
+      },
+      {
+        "name": "exclusionRangeExpressionPG",
+        "kind": "value"
+      },
+      {
+        "name": "ExclusionRangeKind",
+        "kind": "type"
+      },
+      {
+        "name": "exclusionTriggerNames",
+        "kind": "value"
+      },
+      {
+        "name": "ExclusionUpdateChange",
+        "kind": "type"
+      },
+      {
+        "name": "expectedCheckConstraintNames",
+        "kind": "value"
+      },
+      {
+        "name": "expectedConditionalUniqueIndexNames",
+        "kind": "value"
+      },
+      {
+        "name": "expectedExclusionConstraintNames",
+        "kind": "value"
       },
       {
         "name": "extractEntityFields",
@@ -626,7 +786,15 @@
         "kind": "type"
       },
       {
+        "name": "findCheckByConstraintName",
+        "kind": "value"
+      },
+      {
         "name": "findCurrentSyncRecord",
+        "kind": "value"
+      },
+      {
+        "name": "findExclusionByConstraintName",
         "kind": "value"
       },
       {
@@ -774,6 +942,10 @@
         "kind": "value"
       },
       {
+        "name": "hashConstraintDefinition",
+        "kind": "value"
+      },
+      {
         "name": "hasRxDBBackupWebLocks",
         "kind": "value"
       },
@@ -812,6 +984,10 @@
       {
         "name": "IncrementalUpdateContext",
         "kind": "type"
+      },
+      {
+        "name": "inDriftScope",
+        "kind": "value"
       },
       {
         "name": "installWorkingTreeCapture",
@@ -866,6 +1042,10 @@
         "kind": "value"
       },
       {
+        "name": "isConditionalUniqueIndex",
+        "kind": "value"
+      },
+      {
         "name": "isCrossTabEvent",
         "kind": "value"
       },
@@ -883,6 +1063,10 @@
       },
       {
         "name": "isEntitySyncResolver",
+        "kind": "value"
+      },
+      {
+        "name": "isExclusionNarrowingUpdate",
         "kind": "value"
       },
       {
@@ -1130,8 +1314,24 @@
         "kind": "type"
       },
       {
+        "name": "orderExclusionUpdates",
+        "kind": "value"
+      },
+      {
+        "name": "ordersWritesForExclusion",
+        "kind": "value"
+      },
+      {
         "name": "parseCapabilityWatermark",
         "kind": "value"
+      },
+      {
+        "name": "parseCheckConstraintViolation",
+        "kind": "value"
+      },
+      {
+        "name": "ParsedExclusionViolation",
+        "kind": "type"
       },
       {
         "name": "parseEntityFieldsDescriptor",
@@ -1143,6 +1343,10 @@
       },
       {
         "name": "parseEntityRecordValues",
+        "kind": "value"
+      },
+      {
+        "name": "parseExclusionViolation",
         "kind": "value"
       },
       {
@@ -1182,6 +1386,10 @@
         "kind": "type"
       },
       {
+        "name": "planMutationWrites",
+        "kind": "value"
+      },
+      {
         "name": "Plugin",
         "kind": "type"
       },
@@ -1191,6 +1399,10 @@
       },
       {
         "name": "PrimaryAdapterKind",
+        "kind": "type"
+      },
+      {
+        "name": "PropertyCheckRule",
         "kind": "type"
       },
       {
@@ -1344,6 +1556,10 @@
       {
         "name": "ReachabilityOptions",
         "kind": "type"
+      },
+      {
+        "name": "referencedCheckFields",
+        "kind": "value"
       },
       {
         "name": "RefreshMatchRules",
@@ -1802,8 +2018,16 @@
         "kind": "type"
       },
       {
+        "name": "RxDBCheckViolationError",
+        "kind": "both"
+      },
+      {
         "name": "RxDBConfig",
         "kind": "type"
+      },
+      {
+        "name": "RxDBConstraintDriftError",
+        "kind": "both"
       },
       {
         "name": "RxDBContext",
@@ -1872,6 +2096,10 @@
       {
         "name": "RxDBEventMap",
         "kind": "type"
+      },
+      {
+        "name": "RxDBExclusionViolationError",
+        "kind": "both"
       },
       {
         "name": "RxDBLocalAdapterCapabilityError",
@@ -2074,6 +2302,14 @@
         "kind": "value"
       },
       {
+        "name": "STORAGE_CONSTRAINT_NAME_PREFIXES",
+        "kind": "value"
+      },
+      {
+        "name": "storageConstraintName",
+        "kind": "value"
+      },
+      {
         "name": "StringArrayProperty",
         "kind": "type"
       },
@@ -2250,7 +2486,23 @@
         "kind": "value"
       },
       {
+        "name": "toCheckViolationError",
+        "kind": "value"
+      },
+      {
+        "name": "toCheckViolationErrorForRows",
+        "kind": "value"
+      },
+      {
         "name": "toEntitySyncResolver",
+        "kind": "value"
+      },
+      {
+        "name": "toExclusionViolationError",
+        "kind": "value"
+      },
+      {
+        "name": "toStorageConstraintViolationError",
         "kind": "value"
       },
       {
@@ -2347,6 +2599,10 @@
       },
       {
         "name": "uninstallWorkingTreeCapture",
+        "kind": "value"
+      },
+      {
+        "name": "UNIQUE_INDEX_NAME_PREFIX",
         "kind": "value"
       },
       {

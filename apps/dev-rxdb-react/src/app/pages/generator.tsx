@@ -103,7 +103,7 @@ export function GeneratorPage() {
   }, [activeFileIndex, generatedFiles]);
 
   return (
-    <div className='flex h-full w-full overflow-hidden'>
+    <div className='flex h-full w-full flex-col overflow-hidden md:flex-row'>
       {/* Left Panel: JSON Input */}
       <div className='border-base-300 flex h-full w-[40%] flex-col border-r'>
         <div className='tabs tabs-border bg-base-100' role='tablist'>

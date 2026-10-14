@@ -22,6 +22,7 @@ import {
   LucideFolder as Folder,
   LucideFolderOpen as FolderOpen,
   LucideDynamicIcon,
+  LucidePen as Pen,
   LucideTrash2 as Trash2
 } from '@lucide/angular';
 import { OPFSFileEntry, canPreviewFile, formatFileSize, getFileIcon, getFileIconColor } from '../utils/opfs-utils';
@@ -37,7 +38,7 @@ import { OPFSFileEntry, canPreviewFile, formatFileSize, getFileIcon, getFileIcon
         <tr>
           <th>名称</th>
           <th class="w-32">大小</th>
-          <th class="w-40">修改时间</th>
+          <th class="hidden w-40 md:table-cell">修改时间</th>
           <th class="w-24">操作</th>
         </tr>
       </thead>
@@ -71,7 +72,7 @@ import { OPFSFileEntry, canPreviewFile, formatFileSize, getFileIcon, getFileIcon
             <td class="text-base-content/60 text-sm">
               {{ entry.kind === 'file' ? formatFileSize(entry.size || 0) : '-' }}
             </td>
-            <td class="text-base-content/60 text-sm">
+            <td class="text-base-content/60 hidden text-sm md:table-cell">
               {{ formatDate(entry.lastModified) }}
             </td>
             <td>
@@ -94,6 +95,14 @@ import { OPFSFileEntry, canPreviewFile, formatFileSize, getFileIcon, getFileIcon
                     <svg [lucideIcon]="Download" size="14"></svg>
                   </button>
                 }
+                <button
+                  class="btn btn-ghost btn-xs"
+                  (click)="rename.emit(entry); $event.stopPropagation()"
+                  data-testid="opfs-rename-btn"
+                  title="重命名"
+                >
+                  <svg [lucideIcon]="Pen" size="14"></svg>
+                </button>
                 <button
                   class="btn btn-ghost btn-xs text-error"
                   (click)="delete.emit(entry); $event.stopPropagation()"
@@ -124,6 +133,7 @@ export class OpfsFileListComponent {
   download = output<OPFSFileEntry>();
   delete = output<OPFSFileEntry>();
   preview = output<OPFSFileEntry>();
+  rename = output<OPFSFileEntry>();
   contextMenu = output<{ event: MouseEvent; entry: OPFSFileEntry }>();
   entryClick = output<{ entry: OPFSFileEntry; event: MouseEvent }>();
 
@@ -140,6 +150,7 @@ export class OpfsFileListComponent {
   readonly Download = Download;
   readonly Trash2 = Trash2;
   readonly Eye = Eye;
+  readonly Pen = Pen;
 
   // Helper functions
   getFileIcon = getFileIcon;

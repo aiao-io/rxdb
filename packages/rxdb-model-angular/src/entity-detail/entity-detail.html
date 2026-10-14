@@ -1,6 +1,6 @@
 <rxdb-entity-dialog [title]="dialogTitle()" (closeRequested)="onCancel()">
   <!-- Tab Bar -->
-  <div class="tabs tabs-border min-h-0 flex-1" role="tablist">
+  <div class="tabs tabs-border min-h-0 flex-1 overflow-x-auto" role="tablist">
     @for (tab of tabs(); track tab.key) {
       <input
         class="tab"

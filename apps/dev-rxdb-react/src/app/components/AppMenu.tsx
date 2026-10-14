@@ -24,14 +24,21 @@ interface LinkMenuItem {
 }
 
 interface DividerMenuItem {
-  type: 'link' | 'divider';
+  type: 'divider';
   title: string;
 }
 
-type MenuItem = LinkMenuItem | DividerMenuItem;
+interface GroupMenuItem {
+  type: 'group';
+  title: string;
+  icon?: React.ComponentType<{ size?: number }>;
+  children: Array<{ title: string; path: string }>;
+}
 
-function isLinkMenuItem(item: MenuItem): item is LinkMenuItem {
-  return item.type === 'link';
+type MenuItem = LinkMenuItem | DividerMenuItem | GroupMenuItem;
+
+function isGroupMenuItem(item: MenuItem): item is GroupMenuItem {
+  return item.type === 'group';
 }
 
 const menus: MenuItem[] = [
@@ -62,40 +69,24 @@ const menus: MenuItem[] = [
     title: 'Components'
   },
   {
-    type: 'link',
-    title: 'Tree Menu - Simple',
-    path: '/menu-simple',
-    icon: ListTree
+    type: 'group',
+    title: 'Tree Menu',
+    icon: ListTree,
+    children: [
+      { title: 'Simple', path: '/menu-simple' },
+      { title: 'Virtual Scroll', path: '/menu-virtual' },
+      { title: 'Lazy Load', path: '/menu-lazy' }
+    ]
   },
   {
-    type: 'link',
-    title: 'Tree Menu - Virtual Scroll',
-    path: '/menu-virtual',
-    icon: ListTree
-  },
-  {
-    type: 'link',
-    title: 'Tree Menu - Lazy Load',
-    path: '/menu-lazy',
-    icon: ListTree
-  },
-  {
-    type: 'link',
-    title: 'File Manager - Simple',
-    path: '/file-manager-simple',
-    icon: FolderTree
-  },
-  {
-    type: 'link',
-    title: 'File Manager - Virtual Scroll',
-    path: '/file-manager-virtual',
-    icon: FolderTree
-  },
-  {
-    type: 'link',
-    title: 'File Manager - Lazy Load',
-    path: '/file-manager-lazy',
-    icon: FolderTree
+    type: 'group',
+    title: 'File Manager',
+    icon: FolderTree,
+    children: [
+      { title: 'Simple', path: '/file-manager-simple' },
+      { title: 'Virtual Scroll', path: '/file-manager-virtual' },
+      { title: 'Lazy Load', path: '/file-manager-lazy' }
+    ]
   },
   {
     type: 'link',
@@ -193,14 +184,31 @@ export function AppMenu() {
           <li key={index} className='menu-title'>
             <span className='rxdb-menu-item'>{item.title}</span>
           </li>
-        : isLinkMenuItem(item) && (
-            <li key={index}>
-              <NavLink to={item.path} className={({ isActive }) => (isActive ? 'menu-active' : '')}>
+        : isGroupMenuItem(item) ?
+          /* 分组（details 原生折叠）：Tree Menu / File Manager 等重复命名收进折叠组 */
+          <li key={index} className='menu-group'>
+            <details open>
+              <summary>
                 {item.icon && <item.icon size={16} />}
                 <span className='rxdb-menu-item'>{item.title}</span>
-              </NavLink>
-            </li>
-          )
+              </summary>
+              <ul>
+                {item.children.map(child => (
+                  <li key={child.path}>
+                    <NavLink to={child.path} className={({ isActive }) => (isActive ? 'menu-active' : '')}>
+                      <span className='rxdb-menu-item'>{child.title}</span>
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          </li>
+        : <li key={index}>
+            <NavLink to={item.path} className={({ isActive }) => (isActive ? 'menu-active' : '')}>
+              {item.icon && <item.icon size={16} />}
+              <span className='rxdb-menu-item'>{item.title}</span>
+            </NavLink>
+          </li>
       )}
     </ul>
   );

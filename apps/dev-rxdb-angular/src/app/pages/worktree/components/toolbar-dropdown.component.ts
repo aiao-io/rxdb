@@ -199,6 +199,7 @@ export class WorktreeDropdownCreateDirective {
           #createPopover
           [attr.aria-label]="copy().createTitle"
           [attr.data-testid]="ids().createPopover"
+          [style.left.px]="popupLeft()"
           [style.width.px]="popupWidth()"
           (keydown)="onCreateKeydown($event)"
           role="dialog"
@@ -236,6 +237,7 @@ export class WorktreeDropdownCreateDirective {
           [attr.data-testid]="ids().popup"
           [id]="ids().popup"
           [style.height]="'calc(100vh - 50px)'"
+          [style.left.px]="popupLeft()"
           [style.width.px]="popupWidth()"
           role="dialog"
         >
@@ -347,6 +349,7 @@ export class WorktreeDropdownCreateDirective {
 })
 export class WorktreeToolbarDropdownComponent<T> {
   readonly #injector = inject(Injector);
+  readonly #el = inject<ElementRef<HTMLElement>>(ElementRef);
 
   /** e2e 锚点前缀；全部测试 id 由它派生（见 {@link ids}）。 */
   readonly testIdPrefix = input.required<'wt-branch' | 'wt-worktree'>();
@@ -456,6 +459,12 @@ export class WorktreeToolbarDropdownComponent<T> {
       this.createFocusKey();
       afterNextRender(() => this.focusAutofocusTarget(), { injector: this.#injector });
     });
+  }
+
+  /** 窄屏夹回弹层，让左右边缘各留出至少 8px。 */
+  popupLeft(): number {
+    const sectionLeft = this.#el.nativeElement.getBoundingClientRect().left;
+    return Math.max(8 - sectionLeft, Math.min(0, window.innerWidth - sectionLeft - this.popupWidth() - 8));
   }
 
   toggleMenu(): void {

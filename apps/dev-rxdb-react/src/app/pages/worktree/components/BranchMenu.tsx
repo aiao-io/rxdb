@@ -1,5 +1,5 @@
 import { RxDBBranch } from '@aiao/rxdb';
-import { ChevronRight, GitBranch } from 'lucide-react';
+import { ChevronRight, GitBranch, MoreVertical } from 'lucide-react';
 import { gdRelativeTime } from '../utils/gd';
 import { WorktreeToolbarDropdown, type WorktreeToolbarDropdownCopy } from './ToolbarDropdown';
 
@@ -43,6 +43,19 @@ interface WorktreeBranchMenuProps {
 
 /** 分支的展示时间：优先 updatedAt，没有就 createdAt。 */
 const branchTime = (branch: RxDBBranch): Date => branch.updatedAt ?? branch.createdAt ?? new Date(0);
+
+function touchMenuRequest<T>(event: React.MouseEvent, target: T): { target: T; event: React.MouseEvent } {
+  event.stopPropagation();
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  return {
+    target,
+    event: new MouseEvent('contextmenu', {
+      clientX: rect.left,
+      clientY: rect.bottom,
+      bubbles: true
+    }) as unknown as React.MouseEvent
+  };
+}
 
 /**
  * 顶部分支栏里的分支选择器，模仿 GitHub Desktop 的分支下拉。
@@ -133,6 +146,19 @@ export function WorktreeBranchMenu({
       onMenuOpenChange={onMenuOpenChange}
       onRowContextMenu={(branch, event) => onMenuRequest({ target: branch, event })}
       onSelect={branch => onSwitchBranch(branch.id)}
+      renderRowActions={(branch, { busy }) => (
+        <button
+          className='gd-icon-btn hidden max-md:inline-flex pointer-coarse:inline-flex'
+          disabled={busy}
+          onClick={event => onMenuRequest(touchMenuRequest(event, branch))}
+          aria-label='更多操作'
+          data-testid='wt-branch-more'
+          title='更多操作（触屏）'
+          type='button'
+        >
+          <MoreVertical size={14} />
+        </button>
+      )}
       renderRowMeta={branch => (
         <>
           {branch.parentId && (

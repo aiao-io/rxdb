@@ -24,6 +24,7 @@ const sidebars: SidebarsConfig = {
         'model-definition/properties',
         'model-definition/relations',
         'model-definition/indexes',
+        'model-definition/constraints',
         'model-definition/cascade',
         'model-definition/permissions',
         'model-definition/structure-tree'

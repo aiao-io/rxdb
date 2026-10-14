@@ -93,10 +93,18 @@ const formatTime = (timestamp: number | Date) => {
 </script>
 
 <template>
+  <!-- 移动端遮罩：窄屏下侧栏浮在内容上方（md 以上由 md:hidden 收起） -->
+  <div
+    class="bg-base-content/40 fixed inset-0 z-30 md:hidden"
+    v-if="show"
+    aria-hidden="true"
+    @click="onClose"
+  ></div>
   <aside
+    data-testid="history-sidebar"
     :class="[
-      'bg-base-100 border-base-300 flex h-full flex-col overflow-hidden shadow-lg transition-all duration-300',
-      borderSide === 'left' ? 'border-l' : 'border-r'
+      'bg-base-100 border-base-300 flex h-full flex-col overflow-hidden shadow-lg transition-all duration-300 max-md:absolute max-md:inset-y-0 max-md:z-40 max-md:shadow-2xl',
+      borderSide === 'left' ? 'border-l max-md:left-0' : 'border-r max-md:right-0'
     ]"
     :style="{ width: show ? '192px' : '0' }"
   >

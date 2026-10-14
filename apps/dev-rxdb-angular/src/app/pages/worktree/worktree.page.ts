@@ -210,6 +210,10 @@ export default class WorktreePage implements OnInit {
   /** worktree 命令（建 / 切 / 移除）的页面级在途标志；new 模式先跑的 `createBranch` 不在任何命令状态里。 */
   readonly $worktreeBusy = signal(false);
   readonly $mergeDialog = signal<MergeDialogState | null>(null);
+  /** 应用内确认框请求（替代原生 confirm）。 */
+  readonly $confirm = signal<{ kind: 'discard'; message: string } | { kind: 'delete-branch'; branchId: string } | null>(
+    null
+  );
   readonly $mergeError = signal<string | null>(null);
   readonly $toast = signal<{ type: 'success' | 'error'; message: string } | null>(null);
   readonly $notice = signal<string | null>(null);
@@ -490,7 +494,7 @@ export default class WorktreePage implements OnInit {
     this.$contextMenuTarget.set(null);
     if (target === null) return;
     if (item.id === 'discard') {
-      void this.runDiscard();
+      this.requestDiscard();
       return;
     }
     if (item.id === 'copy-path') {
@@ -511,7 +515,7 @@ export default class WorktreePage implements OnInit {
       } else if (item.id === 'branch-merge') {
         this.openMergeDialog(target.branchId);
       } else if (item.id === 'branch-delete') {
-        void this.removeBranch(target.branchId);
+        this.requestRemoveBranch(target.branchId);
       } else if (item.id === 'branch-copy') {
         void this.copyText(target.branchId);
       }
@@ -699,23 +703,14 @@ export default class WorktreePage implements OnInit {
    * 「我只右键了这一行」与「丢的是全部」之间的落差，只有这一步能拦住。条数来自
    * {@link $changesCount}（与 diff 条目同源），读不到时说「所有未提交改动」而不是编一个数字。
    */
-  async runDiscard(): Promise<void> {
+  /** 打开应用内确认框（替代原生 confirm：移动端样式割裂、iOS 文案截断）。 */
+  requestDiscard(): void {
     const count = this.$changesCount();
     const scope = count === null ? 'all uncommitted changes' : `all ${count} uncommitted changes`;
-    if (
-      !confirm(
-        `Discard ${scope} in the working tree? This covers the whole tree, not just the selected row, and cannot be undone.`
-      )
-    )
-      return;
-    const credentials = await this.freshCredentials();
-    if (credentials === null) {
-      this.$notice.set('Cannot read the working tree — refresh status before discarding.');
-      return;
-    }
-    this.$notice.set(null);
-    await this.tree.discard(credentials).catch(() => undefined);
-    await this.refreshStatus();
+    this.$confirm.set({
+      kind: 'discard',
+      message: `Discard ${scope} in the working tree? This covers the whole tree, not just the selected row, and cannot be undone.`
+    });
   }
 
   /**
@@ -806,22 +801,6 @@ export default class WorktreePage implements OnInit {
     }
   }
 
-  /** 删分支；钉在它上面的 worktree 行随之消失（实时列表跟随分支删除，这里不重读）。 */
-  async removeBranch(branchId: string) {
-    if (this.$branchMenuBusy()) return;
-    if (!confirm(`确定要删除分支 "${branchId}" 吗？`)) return;
-    this.$branchBusy.set(true);
-    try {
-      await this.#rxdb.versionManager.removeBranch(branchId);
-      this.$branchMenuOpen.set(false);
-      this.showToast('success', `Branch "${branchId}" deleted.`);
-    } catch (e: unknown) {
-      this.showToast('error', e instanceof Error ? e.message : 'Delete failed.');
-    } finally {
-      this.$branchBusy.set(false);
-    }
-  }
-
   // ── worktree 操作（US-310） ───────────────────────────────
 
   /**
@@ -874,6 +853,26 @@ export default class WorktreePage implements OnInit {
       this.showToast('error', worktreeErrorText(e, 'Remove failed.'));
     } finally {
       this.$worktreeBusy.set(false);
+    }
+  }
+
+  requestRemoveBranch(branchId: string): void {
+    if (this.$branchMenuBusy()) return;
+    this.$confirm.set({ kind: 'delete-branch', branchId });
+  }
+
+  cancelConfirm(): void {
+    this.$confirm.set(null);
+  }
+
+  async confirmRequest(): Promise<void> {
+    const request = this.$confirm();
+    this.$confirm.set(null);
+    if (!request) return;
+    if (request.kind === 'discard') {
+      await this.#performDiscard();
+    } else {
+      await this.#performRemoveBranch(request.branchId);
     }
   }
 
@@ -979,5 +978,30 @@ export default class WorktreePage implements OnInit {
   /** 按绝对宽度夹回 [MIN, MAX]。 */
   private clampAsideWidth(width: number): number {
     return Math.min(ASIDE_WIDTH_MAX, Math.max(ASIDE_WIDTH_MIN, width));
+  }
+
+  async #performDiscard(): Promise<void> {
+    const credentials = await this.freshCredentials();
+    if (credentials === null) {
+      this.$notice.set('Cannot read the working tree — refresh status before discarding.');
+      return;
+    }
+    this.$notice.set(null);
+    await this.tree.discard(credentials).catch(() => undefined);
+    await this.refreshStatus();
+  }
+
+  async #performRemoveBranch(branchId: string): Promise<void> {
+    if (this.$branchMenuBusy()) return;
+    this.$branchBusy.set(true);
+    try {
+      await this.#rxdb.versionManager.removeBranch(branchId);
+      this.$branchMenuOpen.set(false);
+      this.showToast('success', `Branch "${branchId}" deleted.`);
+    } catch (e: unknown) {
+      this.showToast('error', e instanceof Error ? e.message : 'Delete failed.');
+    } finally {
+      this.$branchBusy.set(false);
+    }
   }
 }
