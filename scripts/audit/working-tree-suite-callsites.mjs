@@ -459,7 +459,7 @@ export const findPackageCallsites = async (packageDir, suiteName) => {
  * 套件改名时，这一条让门禁报「导出名变了」，而不是 12 条「缺调用点」——后者会把一次
  * 重命名伪装成一场全面塌方，排查的人得先自己还原出真正发生了什么。
  *
- * @param {string} source `worktree/testing/index.ts` 的源码
+ * @param {string} source `working-tree/testing/index.ts` 的源码
  * @returns {string[]} 缺失的套件名
  */
 export const findMissingSuiteExports = source => {

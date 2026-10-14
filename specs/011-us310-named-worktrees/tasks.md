@@ -167,7 +167,7 @@ a11y：纯 Tab 走查、Escape（document 级）、背板点击关闭、role/ari
 ## 7. 执行顺序与验证
 
 1. 文档（§6 的 1、2）→ 2. 红：§5.1 失败测试 → 3. 绿：`worktree.entity.ts` → `0005-worktrees.ts` + plugin.ts 装配 +
-   capture 绊线更新 → `worktree-errors.ts` → `worktree-commands.ts` → facade 4 方法 → 导出接线
+   capture 绊线更新 → `worktree-errors.ts` → `worktree-command.ts` → facade 4 方法 → 导出接线
    → 4. 三端绑定 + 单测 + `tri-framework-check` → 5. demo 三端 UI + e2e + a11y → 6. 基线/审计收尾 → 7. 文档收尾
 
 每步验证（nx 目标名按新项目名）：

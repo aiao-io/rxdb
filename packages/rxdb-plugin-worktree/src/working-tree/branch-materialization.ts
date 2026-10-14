@@ -159,8 +159,11 @@ export class BranchNotMaterializedError extends RxDBError {
  * @remarks
  * 与 `commit-idempotency.ts` 同一个手法：不带域前缀时，另一处恰好也拿「水位 + scope」算摘要的
  * 代码会与本处撞上同一个值，而两边的语义并不相同。
+ *
+ * 它是哈希输入的一部分，算出的指纹落在 `rxdb_working_tree_materialization_stage.fingerprint`，
+ * 属于持久化值：不随包名改名，由 `__tests__/system/persisted-names.spec.ts` 钉住。
  */
-const MATERIALIZATION_FINGERPRINT_DOMAIN = 'rxdb.worktree.materialization.v1';
+export const MATERIALIZATION_FINGERPRINT_DOMAIN = 'rxdb.working-tree.materialization.v1';
 
 /** 算指纹用的编码器；每次现 new 一个是白白的分配。抖音 iOS 没有原生编码器、polyfill 在 import 之后才装，模块顶层不能构造：第一次用到再建。 */
 let textEncoder: TextEncoder | undefined;

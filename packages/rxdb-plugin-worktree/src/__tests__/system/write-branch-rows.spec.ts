@@ -72,7 +72,7 @@ describe('writeBranchRows', () => {
     // `create_branch` 在调贡献方**之前**就把这一行写进了同一个事务，贡献方的两条支线
     // （共享源 HEAD / 锚一个 branch_baseline）正是从它的 `parentId` / `fromChangeId` 上判的。
     // 这里给的是一条**无父**分支：本文件守的是「两行落没落下、代际怎么发」，
-    // 继承什么归 `__tests__/version/switch-branch-worktree.spec.ts`。
+    // 继承什么归 `__tests__/version/switch-branch-working-tree.spec.ts`。
     const branchRow = entityManager.instantiate(RxDBBranch);
     branchRow.id = 'feature-x';
     branchRow.activated = false;

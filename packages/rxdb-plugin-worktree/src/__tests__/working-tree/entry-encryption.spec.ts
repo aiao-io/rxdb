@@ -11,7 +11,7 @@
  * 三段前置责任已各有归属，这里不重复：
  *
  * - **codec 层「加密列原样穿过」**：`working-tree-patch-codec.spec.ts`（T020）。
- * - **`log: false`（条目不进变更日志）**：`__tests__/system/worktree-system-entities.spec.ts`。
+ * - **`log: false`（条目不进变更日志）**：`__tests__/system/system-entity-registration.spec.ts`。
  * - **磁盘上真的没有明文**：`worktreeCaptureConformanceSuite` 在六个后端上用
  *   `@aiao/rxdb-adapter-encrypted` 的 `scanForPlaintext()` 做（T067/T068）。单元测试跑不出真
  *   加密后端，本文件因此不假装能证明那一条。

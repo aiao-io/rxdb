@@ -87,7 +87,7 @@ export const REFERENCE_DIR = resolve(__dirname, 'reports', 'working-tree-referen
  * **十次**——留副本就是往版本库里扔十个只有一次会被读到的文件。需要保留某一次运行时，
  * 把这个文件复制走即可。
  */
-export const LATEST_PATH = resolve(__dirname, 'reports', 'worktree-latest.json');
+export const LATEST_PATH = resolve(__dirname, 'reports', 'working-tree-latest.json');
 
 /** 本机没有可比的 reference 时的稳定错误码：相对门禁找不到同画像（§3.1），绝对门禁 profile 对不上（§3.2）。 */
 export const ENVIRONMENT_MISMATCH_CODE = 'benchmark_environment_mismatch';

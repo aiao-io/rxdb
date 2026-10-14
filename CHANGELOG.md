@@ -2,7 +2,7 @@
 
 ### ⚠️ Breaking Changes
 
-- **rxdb-plugin-working-tree:** 四个包改名 `@aiao/rxdb-plugin-working-tree{,-angular,-react,-vue}` → `@aiao/rxdb-plugin-worktree{,-angular,-react,-vue}`，公开符号全部 `WorkingTree*` → `Worktree*`（`db.workingTree` → `db.worktree`、`useWorkingTree` → `useWorktree`、`rxDBPluginWorkingTree` → `rxDBPluginWorktree` 等）。旧包名从未发布到 npm；能力水位、系统表名、迁移名与库内数据不变，新旧客户端对同一库双向兼容。→ [worktree-rename](https://rxdb.aiao.io/docs/migration/worktree-rename)
+- **rxdb-plugin-working-tree:** 四个包改名 `@aiao/rxdb-plugin-working-tree{,-angular,-react,-vue}` → `@aiao/rxdb-plugin-worktree{,-angular,-react,-vue}`，公开符号全部 `WorkingTree*` → `Worktree*`（`db.workingTree` → `db.worktree`、`useWorkingTree` → `useWorktree`、`rxDBPluginWorkingTree` → `rxDBPluginWorktree` 等），`WorktreeCredentials` 的字段 `expectedWorkingTreeRevision` → `expectedWorktreeRevision`（列名不变）。旧包名从未发布到 npm；能力水位、系统表名、迁移名与库内数据不变，新旧客户端对同一库双向兼容。→ [worktree-rename](https://rxdb.aiao.io/docs/migration/worktree-rename)
 
 ### 🚀 Features
 

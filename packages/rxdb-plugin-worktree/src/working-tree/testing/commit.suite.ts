@@ -30,7 +30,7 @@
  * 回滚」与「未启用的数据库行为与未安装本特性逐字节一致（FR-046）」说的都是**启用之前**的
  * 状态，而 {@link WorktreeConformanceSuiteContext} 契约上交还的是一个**已启用**的库。
  * 要在这里断言它们，只能先把库改回未启用态——那测的就不再是适配器行为，而是套件自己伪造
- * 出来的中间态。两条分别落在 `src/__tests__/system/worktree-commits-migration.spec.ts`
+ * 出来的中间态。两条分别落在 `src/__tests__/system/working-tree-commits-migration.spec.ts`
  * （用例「任一分支初始化失败时错误穿出 `up()`，不被吞掉」）与
  * `src/__tests__/commit/legacy-compat.spec.ts`，本套件不重复。
  *

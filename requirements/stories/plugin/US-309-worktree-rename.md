@@ -61,6 +61,6 @@ INVEST 检查清单:
 ## 技术笔记
 
 - **能力水位行不构成拒连风险**：守卫认领判定只吃能力名（`packages/rxdb/src/system/capability-watermark.ts:127-142`），包名只是行内第三段提示信息。改名后旧库旧行（…:workingTree:1:旧包名）与新客户端写的新行并存、互相放行，双向打开均不被拒；改能力名才是守卫意义上的新能力（破坏性），因此 `WORKING_TREE_CAPABILITY = 'workingTree'` 冻结。
-- **迁移名与表名是持久化元数据**：`0004-working-tree-commits` 迁移名、`rxdb_working_tree_*` 表名、`workingTreeRevision` 列名随库走，改名时不动。
+- **迁移名、表名与列名是持久化元数据**：`0004-working-tree-commits` 迁移名、`rxdb_working_tree_*` 表名、全部系统表的列名（`workingTreeRevision`、恢复会话的 `expectedWorkingTreeRevision` 等）与物化指纹的域前缀 `rxdb.working-tree.materialization.v1` 随库走，改名时不动。公开字段改了名的（`expectedWorktreeRevision`）用 `columnName` 把列钉在旧名上；`packages/rxdb-plugin-worktree/src/__tests__/system/persisted-names.spec.ts` 把这些名字逐个钉成字面量，全局替换误改时当场变红。
 - **受信登记表**：`trusted-write-intent.ts` 的 TRUSTED_CALLSITE_REGISTRY #10/#11 file 段随包路径改名，`audit:callsite-drift` 验证。
 - **npm 处置**：旧包名从未发布（release-plan.md 开项 2），无 deprecate 对象；按仓内约定（desktop-split 先例）以迁移文档指路。

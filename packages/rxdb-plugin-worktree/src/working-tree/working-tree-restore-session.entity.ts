@@ -43,6 +43,8 @@ export type WorktreeRestoreSessionStatus = 'active' | 'conflicted' | 'committed'
     },
     {
       name: 'expectedWorktreeRevision',
+      // 属性名随 US-309 改名换成了 worktree，列名是持久化元数据，钉回既有库里的旧名。
+      columnName: 'expectedWorkingTreeRevision',
       type: PropertyType.integer
     },
     {
