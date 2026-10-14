@@ -23,8 +23,7 @@ import {
 import { remove_all_triggers_sql } from '../table/remove_trigger_sql.js';
 import { generate_table_trigger_sql } from '../table/trigger_sql.js';
 import { transaction_sqlite_result } from '../transaction_sqlite_result.js';
-import { executeSqliteSelectStatements, executeSqliteStatements } from './execute-sql-statements.js';
-import { dispatch_switch_events } from './execute_switch_actions.js';
+import { applySwitchActions, dispatch_switch_events } from './execute_switch_actions.js';
 import { read_current_branch_id } from './read_current_branch_id.js';
 import { convertSwitchResultToSql } from './switch-result.utils.js';
 
@@ -181,19 +180,9 @@ export const switch_branch = async (adapter: RxDBAdapterSqliteBase, options: Swi
       if (remove_all_triggers) {
         await tx.execute(remove_all_triggers);
       }
-      // 执行切换分支的操作
+      // 执行切换分支的操作（与 undo / redo 同一份执行顺序，见 applySwitchActions）
       if (switchAction) {
-        for (const deleteAction of switchAction.deletes) {
-          await executeSqliteStatements(tx, deleteAction.statements);
-        }
-        for (const insertAction of switchAction.inserts) {
-          await executeSqliteStatements(tx, insertAction.statements);
-          insertAction.successResults = await executeSqliteSelectStatements(tx, insertAction.selectStatements);
-        }
-        for (const updateAction of switchAction.updates) {
-          await executeSqliteStatements(tx, updateAction.statements);
-          updateAction.successResults = await executeSqliteSelectStatements(tx, updateAction.selectStatements);
-        }
+        await applySwitchActions(tx, switchAction);
       }
 
       // 更新 RxDBChange 序列号（如果提供）——走 tx 保持原子，不旁路 #internal_exec

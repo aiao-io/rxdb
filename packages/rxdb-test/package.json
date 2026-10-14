@@ -61,6 +61,11 @@
       "import": "./dist/tree-unique/index.js",
       "default": "./dist/tree-unique/index.js"
     },
+    "./check-constraint": {
+      "types": "./dist/check-constraint/index.d.ts",
+      "import": "./dist/check-constraint/index.js",
+      "default": "./dist/check-constraint/index.js"
+    },
     "./transaction": {
       "types": "./dist/transaction/index.d.ts",
       "import": "./dist/transaction/index.js",

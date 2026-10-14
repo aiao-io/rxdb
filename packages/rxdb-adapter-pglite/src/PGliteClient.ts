@@ -15,6 +15,12 @@ import {
   readPGliteStorageGeneration
 } from './backup/pglite-restore-lock.js';
 import { PGliteNotificationBatcher } from './notify/notification-batcher.js';
+import {
+  NO_PGLITE_SERVER_EXTENSIONS,
+  PGLITE_WORKER_BTREE_GIST_OPTION,
+  pgliteServerExtensions,
+  type PGliteServerExtensionRequirements
+} from './pglite-server-extensions.js';
 import { PGliteChangeEvent, PGliteChangeType, PGliteClientOptions } from './pglite.interface.js';
 import { RxdbAdapterPGliteError } from './pglite.utils.js';
 
@@ -49,15 +55,21 @@ const runtimeWorkers = new WeakMap<PGliteRuntime, Worker>();
  * - `store: 'memory'` 时不设 `dataDir`，并默认开启 `relaxedDurability`
  * - 其他情况 `dataDir` 默认为 `idb://<dbName>`
  * - 强制注入 `live` extension（liveQuery 依赖）
+ * - 按实体元数据注入适配器负责的服务端扩展（目前只有区间排他要的 `btree_gist`）
  *
  * 公开导出供单测与高级用户预计算配置，正常使用无需直接调用。
  *
  * @param dbName - 数据库名（用作 IndexedDB key）
  * @param options - 原始用户选项
+ * @param serverExtensions - 适配器按实体元数据装载的服务端扩展，见 `pglite-server-extensions.ts`
  * @returns 规范化后的 PGlite 选项
  * @public
  */
-export function resolvePGliteInitOptions(dbName: string, options: PGliteClientOptions): ResolvedPGliteClientOptions {
+export function resolvePGliteInitOptions(
+  dbName: string,
+  options: PGliteClientOptions,
+  serverExtensions: PGliteServerExtensionRequirements = NO_PGLITE_SERVER_EXTENSIONS
+): ResolvedPGliteClientOptions {
   const { store, dataDir, relaxedDurability, extensions, ...restOptions } = options;
   // restoredDatabase 是交给客户端的句柄，不是 PGlite 构造参数。
   delete restOptions.restoredDatabase;
@@ -68,6 +80,7 @@ export function resolvePGliteInitOptions(dbName: string, options: PGliteClientOp
     dataDir: dataDir ?? (store === 'memory' ? undefined : `idb://${dbName}`),
     extensions: {
       ...(extensions ?? {}),
+      ...pgliteServerExtensions(serverExtensions),
       live
     }
   };
@@ -87,8 +100,12 @@ export function shouldUsePGliteWorker(options: Pick<ResolvedPGliteClientOptions,
   return options.dataDir?.startsWith('opfs-ahp://') ?? false;
 }
 
-async function createPGliteRuntime(dbName: string, options: PGliteClientOptions): Promise<PGliteRuntime> {
-  const initOptions = resolvePGliteInitOptions(dbName, options);
+async function createPGliteRuntime(
+  dbName: string,
+  options: PGliteClientOptions,
+  serverExtensions: PGliteServerExtensionRequirements
+): Promise<PGliteRuntime> {
+  const initOptions = resolvePGliteInitOptions(dbName, options, serverExtensions);
 
   if (options.restoredDatabase) {
     if (initOptions.dataDir !== undefined && initOptions.dataDir !== 'memory://') {
@@ -110,7 +127,13 @@ async function createPGliteRuntime(dbName: string, options: PGliteClientOptions)
     });
 
     try {
-      const runtime = (await PGliteWorker.create(worker, initOptions)) as unknown as PGliteRuntime;
+      // 服务端扩展在 worker 客户端侧装不上（PGliteWorker 只在主线程执行 extensions），
+      // 改以标记字段带给 worker 入口自己装，见 pglite.browser.worker.ts
+      const workerOptions = {
+        ...resolvePGliteInitOptions(dbName, options),
+        [PGLITE_WORKER_BTREE_GIST_OPTION]: serverExtensions.btreeGist
+      };
+      const runtime = (await PGliteWorker.create(worker, workerOptions)) as unknown as PGliteRuntime;
       runtimeWorkers.set(runtime, worker);
       return runtime;
     } catch (error) {
@@ -361,6 +384,7 @@ export function asPGliteChangeEventSource(client: IPGliteClient): PGliteChangeEv
 export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements IPGliteClient {
   #pglite?: PGliteRuntime;
   #dbName!: string;
+  readonly #serverExtensions: PGliteServerExtensionRequirements;
   /**
    * NOTIFY 的去重与批量窗口。
    *
@@ -389,6 +413,15 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
   /** 尚未分发的 NOTIFY 行事件数量。 */
   get pendingNotificationCount(): number {
     return this.#batcher.pendingCount;
+  }
+
+  /**
+   * @param serverExtensions - 适配器按实体元数据装载的服务端扩展（区间排他要的 `btree_gist`）；
+   *   默认不装载任何扩展
+   */
+  constructor(serverExtensions: PGliteServerExtensionRequirements = NO_PGLITE_SERVER_EXTENSIONS) {
+    super();
+    this.#serverExtensions = serverExtensions;
   }
 
   /**
@@ -555,7 +588,7 @@ export class PGliteClient extends EventDispatcher<PGliteClientEvents> implements
       const dataDir = resolvePGliteInitOptions(dbName, options).dataDir;
       this.#storageLock = await acquireStorageLock(dataDir);
       this.#storageView = await openStorageView(dataDir);
-      const runtime = await createPGliteRuntime(dbName, options);
+      const runtime = await createPGliteRuntime(dbName, options, this.#serverExtensions);
       this.#pglite = runtime;
 
       // 仅订阅系统表的通知，避免误处理 liveQuery 等内部频道。

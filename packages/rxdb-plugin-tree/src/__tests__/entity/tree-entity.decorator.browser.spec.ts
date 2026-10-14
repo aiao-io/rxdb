@@ -68,8 +68,10 @@ describe('@TreeEntity', () => {
     const meta = getEntityMetadata(Menu);
     expect(meta).toMatchInlineSnapshot(`
       {
+        "checks": [],
         "computedProperties": [],
         "displayName": "Menu",
+        "exclusions": [],
         "extends": [
           "TreeAdjacencyListEntityBase",
           "EntityBase",
@@ -103,8 +105,10 @@ describe('@TreeEntity', () => {
     const meta = getEntityMetadata(menu);
     expect(meta).toMatchInlineSnapshot(`
       {
+        "checks": [],
         "computedProperties": [],
         "displayName": "Menu",
+        "exclusions": [],
         "extends": [
           "TreeAdjacencyListEntityBase",
           "EntityBase",

@@ -50,6 +50,10 @@ export default defineConfig(() => {
         '@aiao/rxdb-plugin-working-tree': path.resolve(workspaceRoot, 'packages/rxdb-plugin-working-tree/src/index.ts'),
         '@aiao/utils': path.resolve(workspaceRoot, 'packages/utils/src/index.ts'),
         '@aiao/rxdb-test/encrypted': path.resolve(workspaceRoot, 'packages/rxdb-test/src/encrypted/index.ts'),
+        '@aiao/rxdb-test/check-constraint': path.resolve(
+          workspaceRoot,
+          'packages/rxdb-test/src/check-constraint/index.ts'
+        ),
         '@aiao/rxdb-test/entities': path.resolve(workspaceRoot, 'packages/rxdb-test/entities/index.ts'),
         '@aiao/rxdb-test/graph': path.resolve(workspaceRoot, 'packages/rxdb-test/graph/index.ts'),
         '@aiao/rxdb-test/query-cache-contract': path.resolve(
@@ -71,6 +75,7 @@ export default defineConfig(() => {
       include: ['fastest-levenshtein', 'ms', 'uuid'],
       exclude: [
         '@aiao/rxdb-test',
+        '@aiao/rxdb-test/check-constraint',
         '@aiao/rxdb-test/entities',
         '@aiao/rxdb-test/shop',
         '@aiao/rxdb',
@@ -166,6 +171,10 @@ export default defineConfig(() => {
           '@aiao/rxdb-plugin-tree',
           '@aiao/utils',
           '@electric-sql/pglite',
+          // 区间排他按需装载的扩展（US-030）。不外置的话，它的 `new URL('../btree_gist.tar.gz', import.meta.url)`
+          // 会被当成资源内联成 base64 data URL，给每个用户的 `dist/index.js` 白加约 30 KB——
+          // 而只有声明了 `exclusions` 的应用才会真去取它。外置后由使用方从 `@electric-sql/pglite` 自己的目录解析。
+          '@electric-sql/pglite/contrib/btree_gist',
           'rxjs',
           'object-hash',
           'type-fest'

@@ -9,6 +9,7 @@
  */
 
 import type { SetRequired } from 'type-fest';
+import type { CheckRuleGroup, PropertyCheckRule } from './check-constraint.js';
 import type { UUID } from './entity.interface.js';
 import type { ICascadeOptions } from './relation-types.interface.js';
 
@@ -81,6 +82,17 @@ interface IEntityObject {
    * @default false
    */
   encrypted?: boolean;
+
+  /**
+   * 属性级 CHECK 约束（语法糖）：一条省略 `field` 的 {@link PropertyCheckRule}，
+   * 编译成以属性名为 `name` 的实体级 CHECK，与实体级 `checks` 同按 `name` 参与继承覆盖。
+   *
+   * @example
+   * ```typescript
+   * properties: [{ name: 'qty', type: PropertyType.integer, check: { operator: '>', value: 0 } }]
+   * ```
+   */
+  check?: PropertyCheckRule;
 }
 
 /**
@@ -528,6 +540,30 @@ export interface EntityIndexMetadataOptions extends IEntityObject {
    * @defaultValue `false`
    */
   normalized?: boolean;
+
+  /**
+   * 条件唯一：只对满足谓词的行生效的唯一约束（部分唯一索引，US-030 阶段 B）。
+   *
+   * @remarks
+   * 与实体级 `checks` 同一份单行规则组、同一条字面量编译路径（操作符白名单与 `ref` 见
+   * {@link CheckRuleGroup}）；只对 `unique: true` 有意义，单独出现在元数据期报错。
+   * 索引名由 `uq_` + 表名 + `name` + 规范化定义哈希确定性生成（`name` 限 `[a-z][a-z0-9_]*`），
+   * 已有表上缺失或多余时 `init()` 抛 `RxDBConstraintDriftError`，不自动补建。
+   * 违约与普通唯一冲突同一口径（PG `23505` / SQLite `UNIQUE constraint failed`）。
+   *
+   * @example
+   * ```typescript
+   * indexes: [
+   *   {
+   *     name: 'released_effective_from',
+   *     properties: ['itemId', 'effectiveFrom'],
+   *     unique: true,
+   *     where: { combinator: 'and', rules: [{ field: 'state', operator: '=', value: 'released' }] }
+   *   }
+   * ]
+   * ```
+   */
+  where?: CheckRuleGroup;
 }
 
 /**
