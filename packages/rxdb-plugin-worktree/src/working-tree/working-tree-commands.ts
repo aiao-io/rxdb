@@ -15,15 +15,30 @@
  * 由框架决定那一格写进 signal、`useState` 还是 `shallowRef`。
  */
 
-import { RxDBError, type RxDB } from '@aiao/rxdb';
+import {
+  CAPABILITY_ENABLED_EVENT,
+  ENTITY_LOCAL_CREATE_EVENT,
+  ENTITY_LOCAL_REMOVE_EVENT,
+  ENTITY_LOCAL_UPDATE_EVENT,
+  getEntityMetadata,
+  RxDBBranch,
+  RxDBError,
+  type CapabilityEnabledEvent,
+  type EntityLocalCreatedEvent,
+  type EntityLocalRemovedEvent,
+  type EntityLocalUpdatedEvent,
+  type RxDB
+} from '@aiao/rxdb';
 // 只为把 `RxDB.versionManager` 那条 `declare module` 拉进本文件的程序里：形状声明在
 // `@aiao/rxdb-plugin-history` 的 `plugin.ts`，靠「本包别处正好 import 过它」间接生效的话，
 // 那个别处哪天不 import 了，这里就会退化成 `any` 上的属性访问而没有任何一条用例会红。
 import type { VersionManager } from '@aiao/rxdb-plugin-history';
+import { WORKING_TREE_CAPABILITY } from '../capability-identity.js';
 import type { CommitCapabilityInfo } from '../commit/commit-capability.js';
 import { isCommitChangeSetPageEmpty, type CommitChangeSetPage } from '../commit/commit-changes.js';
 import type { CommitLogOptions, CommitLogPage } from '../commit/commit-log.js';
 import type { WorktreeInfo } from '../worktree/worktree-command.js';
+import { Worktree } from '../worktree/worktree.entity.js';
 import {
   isCommitLogPageEmpty,
   isWorktreeDiffEmpty,
@@ -54,7 +69,7 @@ import type { WorktreeEnableIfEmptyResult, WorktreeManager } from './working-tre
  *
  * @remarks
  * 按 key 分格而不是整份替换：`commit()` 进行中不该让 `statusState` 也变成 `loading`，
- * 而整份替换要么做到这一点，要么逼每个框架自己拼一次「保留其余六格」的展开。
+ * 而整份替换要么做到这一点，要么逼每个框架自己拼一次「保留其余各格」的展开。
  */
 export type WorktreeStatePatch = <K extends keyof WorktreeAsyncStates>(key: K, state: WorktreeAsyncStates[K]) => void;
 
@@ -73,9 +88,9 @@ export type WorktreeStatePatch = <K extends keyof WorktreeAsyncStates>(key: K, s
 export interface WorktreeCommands {
   /** 这个库启没启用提交能力；`boolean` 没有空形态，因此走命令状态 */
   readonly isEnabled: () => Promise<boolean>;
-  /** 启用提交能力；成功后顺带重读一次 status */
+  /** 启用提交能力；成功后顺带重读一次 status，读过 worktree 列表的话也重读列表 */
   readonly enable: () => Promise<CommitCapabilityInfo>;
-  /** 库为空时自动启用、有内容时跳过；三种结局后都顺带重读一次 status */
+  /** 库为空时自动启用、有内容时跳过；三种结局后都顺带重读一次 status，读过 worktree 列表的话也重读列表 */
   readonly enableIfEmpty: () => Promise<WorktreeEnableIfEmptyResult>;
   /** 当前分支的工作树摘要；干净工作树是 `empty` 相位 */
   readonly status: () => Promise<WorktreeStatus>;
@@ -95,13 +110,16 @@ export interface WorktreeCommands {
   readonly restoreSession: () => Promise<WorktreeRestoreSessionInfo | null>;
   /** 切到另一条分支；成功后顺带重读一次 status。被 `requireClean` 拒掉时**抛** `WorktreeDirtyError` */
   readonly switchBranch: (branchId: string, options?: WorktreeSwitchBranchOptions) => Promise<void>;
-  /** 全部命名 worktree；零行是 `empty` 相位 */
+  /**
+   * 全部命名 worktree；零行是 `empty` 相位。第一次读过之后，列表跟随 worktree 行与 active 分支的变更
+   * 自动重读（另一个标签页、devtools、分支菜单的切换与删除都算），直到 {@link disposeWorktreeCommands}
+   */
   readonly listWorktrees: () => Promise<readonly WorktreeInfo[]>;
-  /** 钉住一条分支并切过去；无论成败都顺带重读 status 与 worktree 列表（切换阶段失败时行已落库） */
+  /** 钉住一条分支并切过去；成功后重读 status，无论成败都重读 worktree 列表（切换阶段失败时行已落库） */
   readonly createWorktree: (branchId: string, label?: string) => Promise<WorktreeInfo>;
-  /** 切到一个 worktree；成功后顺带重读 status 与 worktree 列表 */
+  /** 切到一个 worktree；成功后重读 status，无论成败都重读 worktree 列表（被拒多半是列表已过期） */
   readonly switchWorktree: (id: string, options?: WorktreeSwitchBranchOptions) => Promise<void>;
-  /** 移除一个 worktree（只删那一行）；成功后顺带重读 worktree 列表 */
+  /** 移除一个 worktree（只删那一行）；无论成败都重读 worktree 列表，status 不动 */
   readonly removeWorktree: (id: string) => Promise<void>;
 }
 
@@ -139,6 +157,59 @@ const createLatestOnlyPatch = (
       patch(key, state);
     };
   };
+};
+
+/** worktree 列表跟随的事件：三类实体事件，加上能力启用通知。 */
+type WorktreeListSourceEvent =
+  | EntityLocalCreatedEvent
+  | EntityLocalUpdatedEvent
+  | EntityLocalRemovedEvent
+  | CapabilityEnabledEvent;
+
+/**
+ * 这次事件会不会改变 worktree 列表。
+ *
+ * @remarks
+ * 列表由两张表决定：`rxdb_worktree` 的行，以及 `active` 现算所依据的 `rxdb_branch.activated`。
+ * 只认这两个实体——业务实体每写一次都触发一轮 `listWorktrees()` 是白读。`rxdb_branch` 的事件来自
+ * 适配器的变更钩子，`rxdb_worktree` 的由本插件写行时自己补发（`worktree/worktree-events.ts`）。
+ *
+ * 本能力的启用通知也算：别的标签页启用之前，这里读到的是「能力未启用」的错误；启用不一定伴随任何
+ * worktree 事件（新库建库时就钉好了主 worktree）。按 `type` 判别而不是 `instanceof`：别的标签页转发来的
+ * 事件经过结构化克隆，已经不是本进程那个类的实例。
+ */
+const touchesWorktreeList = (event: WorktreeListSourceEvent): boolean => {
+  if (event.type === CAPABILITY_ENABLED_EVENT) return event.capability === WORKING_TREE_CAPABILITY;
+  const sources = [getEntityMetadata(RxDBBranch), getEntityMetadata(Worktree)];
+  return event.entities.some(data =>
+    sources.some(source => source.namespace === data.namespace && source.name === data.entity)
+  );
+};
+
+/**
+ * 命令对象 → 停止跟随的函数。
+ *
+ * @remarks
+ * 不挂在命令对象上：三端绑定把命令 `...commands` 展开进公开资源，挂上去就成了第十七个「命令」。
+ */
+const stopFollowingOf = new WeakMap<WorktreeCommands, () => void>();
+
+/**
+ * 停止跟随 worktree 列表；三端绑定在组件 / 作用域销毁时调用。
+ *
+ * @param commands - {@link createWorktreeCommands} 建出来的那一份
+ * @throws {@link RxDBError} 传入的不是 {@link createWorktreeCommands} 建出来的命令时
+ *
+ * @remarks
+ * 停的只是事件监听：在途的读照常落地（只写自己那一格，latest-only 照旧）。停止之后再读一次列表会
+ * 重新开始跟随——React StrictMode 会先卸载、再重挂同一份命令，重挂时页面那一次首读把跟随接回来。
+ *
+ * @public
+ */
+export const disposeWorktreeCommands = (commands: WorktreeCommands): void => {
+  const stopFollowing = stopFollowingOf.get(commands);
+  if (!stopFollowing) throw new RxDBError('传入的命令不是 createWorktreeCommands() 建的，没有可停的跟随。');
+  stopFollowing();
 };
 
 /**
@@ -200,7 +271,7 @@ const assertWorkingTreeEntry = (database: RxDB): WorktreeManager => {
  * 同理，`commit()` / `discard()` 也不重读会话，尽管两者都会结束它：三处各加一轮查询，换来的
  * 是一份没有任何判定依赖它的补充信息。
  *
- * **收整个库而不是只收 `worktree`。** 清单第十一项 `switchBranch` 挂在 `versionManager` 上
+ * **收整个库而不是只收 `worktree`。** 清单里的 `switchBranch` 挂在 `versionManager` 上
  * （contracts/core-api.md §6 把它钉在那里，判定才走系统贡献口子回到本插件）；只收工作树入口
  * 的话，这一项只能由三端各自去取 `versionManager` 再各自接一遍状态——而「切完要不要重读
  * status」这类判定正是本文件存在的理由，三份实现迟早有一份忘了重读。
@@ -232,34 +303,78 @@ export const createWorktreeCommands = (database: RxDB, patch: WorktreeStatePatch
       () => undefined,
       () => undefined
     );
-  const runWorktrees = (): Promise<readonly WorktreeInfo[]> =>
+  const queryWorktrees = (): Promise<readonly WorktreeInfo[]> =>
     trackWorktreeQuery(sinkFor('listWorktreesState'), isWorktreeListEmpty, () => worktree.listWorktrees());
-
-  /**
-   * 一次 worktree 改动之后把列表重读一遍；理由与吞错口径同 {@link refreshStatus}。
-   *
-   * 只有 worktree 命令调它，`switchBranch()` 不调：分支菜单切走同样会挪动列表里的 active 勾选，
-   * 但在那条路上补一轮 `listWorktrees()`，等于让从不显示 worktree 列表的应用每切一次分支就白发一轮查询
-   * ——列表在不在屏幕上只有调用方知道，由它在切分支之后自己重读。
-   */
-  const refreshWorktrees = (): Promise<void> =>
-    runWorktrees().then(
+  // 吞错口径同 {@link refreshStatus}：重读失败已经落进 `listWorktreesState` 的 `error` 相位。
+  const requeryWorktrees = (): Promise<void> =>
+    queryWorktrees().then(
       () => undefined,
       () => undefined
     );
 
-  return {
+  // 实时列表：第一次读列表之后才开始跟随，创建入口本身一次 IO、一个监听都不发（`idle` 契约）。
+  // 从不显示 worktree 列表的应用于是一轮重读都不付——它从没读过列表。
+  let following = false;
+  let requeryScheduled = false;
+  const onWorktreeListSource = (event: WorktreeListSourceEvent): void => {
+    if (requeryScheduled || !touchesWorktreeList(event)) return;
+    requeryScheduled = true;
+    // 一笔事务提交时一起放行的那串事件，合并成一次重读。
+    queueMicrotask(() => {
+      requeryScheduled = false;
+      if (following) void requeryWorktrees();
+    });
+  };
+  const followWorktrees = (): void => {
+    if (following) return;
+    following = true;
+    database.addEventListener(ENTITY_LOCAL_CREATE_EVENT, onWorktreeListSource);
+    database.addEventListener(ENTITY_LOCAL_UPDATE_EVENT, onWorktreeListSource);
+    database.addEventListener(ENTITY_LOCAL_REMOVE_EVENT, onWorktreeListSource);
+    database.addEventListener(CAPABILITY_ENABLED_EVENT, onWorktreeListSource);
+  };
+  const stopFollowing = (): void => {
+    if (!following) return;
+    following = false;
+    database.removeEventListener(ENTITY_LOCAL_CREATE_EVENT, onWorktreeListSource);
+    database.removeEventListener(ENTITY_LOCAL_UPDATE_EVENT, onWorktreeListSource);
+    database.removeEventListener(ENTITY_LOCAL_REMOVE_EVENT, onWorktreeListSource);
+    database.removeEventListener(CAPABILITY_ENABLED_EVENT, onWorktreeListSource);
+  };
+  const runWorktrees = (): Promise<readonly WorktreeInfo[]> => {
+    followWorktrees();
+    return queryWorktrees();
+  };
+
+  /**
+   * 一次 worktree 命令之后把列表重读一遍，并从此开始跟随。
+   *
+   * 命令自己重读而不全等跟随：自家命令的结果要在命令的 promise 兑现之前就落进列表，调用方
+   * `await createWorktree()` 之后读到的必须已经是新列表。`switchBranch()` 不调它——那条路上列表的变化
+   * （active 勾选挪位）由跟随接住，从没读过列表的应用也就不为它白发一轮查询。
+   */
+  const refreshWorktrees = (): Promise<void> => {
+    followWorktrees();
+    return requeryWorktrees();
+  };
+
+  const commands: WorktreeCommands = {
     isEnabled: () => trackWorktreeCommand(sinkFor('isEnabledState'), () => worktree.isEnabled()),
 
     enable: async () => {
       const info = await trackWorktreeCommand(sinkFor('enableState'), () => worktree.enable());
       await refreshStatus();
+      // 启用之前读过列表的话，那一次落的是「能力未启用」的 error，而启用不一定伴随任何 worktree 事件；
+      // 没读过列表就不读——从不显示列表的应用不为它付一轮查询。
+      if (following) await requeryWorktrees();
       return info;
     },
 
     enableIfEmpty: async () => {
       const result = await trackWorktreeCommand(sinkFor('enableIfEmptyState'), () => worktree.enableIfEmpty());
       await refreshStatus();
+      // 理由同 `enable()`。
+      if (following) await requeryWorktrees();
       return result;
     },
 
@@ -318,31 +433,41 @@ export const createWorktreeCommands = (database: RxDB, patch: WorktreeStatePatch
     listWorktrees: runWorktrees,
 
     createWorktree: async (branchId, label) => {
-      // 无论成败都重读：`createWorktree()` 是两阶段的，切换阶段失败时行已经落了库
-      // （见它的 TSDoc），只在成功时重读的话，列表里会缺一个确实存在、可以重试切换的 worktree。
-      // 第一阶段就被拒（已钉住、分支不存在、label 空白）时多读一轮是白读，但不会读错。
+      // 列表无论成败都重读：`createWorktree()` 是两阶段的，切换阶段失败时行已经落了库（见它的 TSDoc）；
+      // 第一阶段就被拒（已钉住、分支不存在）多半意味着手上的列表已经过期。
+      // status 只在成功后重读：失败时要么一行没写，要么切换整笔回滚，当前分支的摘要都没变。
       try {
-        return await trackWorktreeCommand(sinkFor('createWorktreeState'), () =>
+        const created = await trackWorktreeCommand(sinkFor('createWorktreeState'), () =>
           worktree.createWorktree(branchId, label)
         );
-      } finally {
         await refreshStatus();
+        return created;
+      } finally {
         await refreshWorktrees();
       }
     },
 
     switchWorktree: async (id, options) => {
-      // 与 `switchBranch()` 同形：被拒与出错都抛，那一刻什么都没切，也就没有什么可重读的。
-      await trackWorktreeCommand(sinkFor('switchWorktreeState'), () => worktree.switchWorktree(id, options));
-      // 摘要换了分支（同 `switchBranch()`），列表里的 active 勾选也挪了位置。
-      await refreshStatus();
-      await refreshWorktrees();
+      // 被拒（`WorktreeNotFoundError` 等）多半意味着列表已经过期——它在别处被删了、或别处换了 checkout，
+      // 所以列表无论成败都重读；status 只在真的切过去之后重读（摘要换了分支，同 `switchBranch()`）。
+      try {
+        await trackWorktreeCommand(sinkFor('switchWorktreeState'), () => worktree.switchWorktree(id, options));
+        await refreshStatus();
+      } finally {
+        await refreshWorktrees();
+      }
     },
 
     removeWorktree: async id => {
-      await trackWorktreeCommand(sinkFor('removeWorktreeState'), () => worktree.removeWorktree(id));
       // 只删 worktree 那一行：当前分支、它的未提交改动都没动，status 不必重读。
-      await refreshWorktrees();
+      // 被拒（不存在、恰是当前所在）同样多半是列表过期，列表照样重读。
+      try {
+        await trackWorktreeCommand(sinkFor('removeWorktreeState'), () => worktree.removeWorktree(id));
+      } finally {
+        await refreshWorktrees();
+      }
     }
   };
+  stopFollowingOf.set(commands, stopFollowing);
+  return commands;
 };

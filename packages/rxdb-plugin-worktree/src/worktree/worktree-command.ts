@@ -174,6 +174,7 @@ const readEntryCount = async (executor: TransactionExecutor, branchId: string): 
  *
  * @param executor - 调用方那个事务的执行器
  * @param id - worktree id
+ * @returns 删掉的那一行（调用方据此派发删除事件）
  * @throws {@link WorktreeNotFoundError} 行不存在
  * @throws {@link WorktreeActiveError} 它是当前所在的 worktree
  * @throws {@link WorktreeDirtyError} 它所钉的分支上还有未提交改动
@@ -183,11 +184,37 @@ const readEntryCount = async (executor: TransactionExecutor, branchId: string): 
  * 两道拒绝都照 `git worktree remove`：删掉当前 checkout 会让「我在哪个 worktree」没有答案；
  * 删掉有未提交改动的 worktree 虽不丢数据，但那些改动从此只能经分支菜单找回。
  */
-export const unpinWorktree = async (executor: TransactionExecutor, id: string): Promise<void> => {
+export const unpinWorktree = async (executor: TransactionExecutor, id: string): Promise<Worktree> => {
   const row = await readWorktreeRow(executor, id);
   const active = await assertSingleActiveBranch(executor);
   if (row.branchId === active.id) throw new WorktreeActiveError(row.id, row.branchId);
   const entryCount = await readEntryCount(executor, row.branchId);
   if (entryCount > 0) throw new WorktreeDirtyError(row.branchId, entryCount);
   await executor.removeMany([row]);
+  return row;
+};
+
+/**
+ * 库里一个 worktree 都没有时，把当前 active 分支钉成主 worktree（只在首次启用时调用）
+ *
+ * @param executor - 启用那一笔事务的执行器
+ * @param entityManager - 用于 `instantiate()` 的实体管理器
+ * @returns 新钉的那一行；表里已有行时返回 `null`，一行都不写
+ *
+ * @remarks
+ * 新库建库时就有主 worktree（`createInitialRows`），升级上来、恰有一条 active 分支的库由 `0005-worktrees`
+ * 补。落空的只有「零 active 分支的老库」：0005 跑的时候没有可钉的分支（R2），active 分支要到首次启用时
+ * 才由启用迁移建出来。在同一笔启用事务里补上这一行，三种库启用之后的形状就相同了。
+ *
+ * 表里已有行就不动：新库在首次启用时已经有主 worktree，再钉一行会撞 `idx_worktree_branch`。
+ */
+export const ensureMainWorktree = async (
+  executor: TransactionExecutor,
+  entityManager: EntityManager
+): Promise<Worktree | null> => {
+  const [existing] = await executor.getRepository(Worktree).find({ where: { combinator: 'and', rules: [] }, limit: 1 });
+  if (existing) return null;
+  const active = await assertSingleActiveBranch(executor);
+  const [saved] = await executor.saveMany([createWorktreeRow(entityManager, active.id, null)]);
+  return saved;
 };

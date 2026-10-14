@@ -12,7 +12,7 @@
  * 「有没有人喊了一声 commit」。桩用手控的 deferred 而不是立即 resolve 的 promise，
  * 否则 `loading` 相位在断言之前就已经过去了 —— 而 §4 要求的正是它可观测。
  *
- * **本文件覆盖 tri-framework-api.md §3 清单十项，十项到齐。** `restore()` / `restoreSession()`
+ * **本文件覆盖 tri-framework-api.md §3 的清单，逐项到齐。** `restore()` / `restoreSession()`
  * 由 T110 接到本端；最后一项 `switchBranch` 的 `WorktreeSwitchBranchOptions` 由 T123 接上 ——
  * 它的桩落在 `RxDB.versionManager` 而不是 `worktree`（contracts/core-api.md §6 把它钉在
  * `VersionManager` 上），三端入口因此都改成收整个库。末尾的清单守卫把这件事写成断言而不是
@@ -48,6 +48,7 @@ import {
   statusWith,
   worktreeWith
 } from '@aiao/rxdb-plugin-worktree/testing';
+import { branchActivatedEvent } from '@aiao/rxdb-plugin-worktree/testing';
 import { RxDBProvider } from '@aiao/rxdb-react';
 import { act, cleanup, renderHook, type RenderHookResult } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -59,10 +60,10 @@ const renderWithProvider = (rxdb: RxDB): RenderHookResult<WorktreeResource, unkn
   });
 
 const createFixture = () => {
-  const { worktree, versionManager, rxdb } = createWorktreeHookStubs();
-  const rendered = renderWithProvider(rxdb);
+  const stubs = createWorktreeHookStubs();
+  const rendered = renderWithProvider(stubs.rxdb);
   // 方法引用跨 render 稳定，状态字段不稳定 —— 读状态必须每次重新取 `result.current`。
-  return { worktree, versionManager, tree: () => rendered.result.current };
+  return { ...stubs, tree: () => rendered.result.current, unmount: rendered.unmount };
 };
 
 /** 让已经 resolve 的微任务跑完；不做真实计时。 */
@@ -137,7 +138,7 @@ describe('useWorktree：loading 可观测（§4）', () => {
     expect(tree().commitState.phase).toBe('success');
   });
 
-  // 恢复是这十项里最慢的一个：整个 commit 的单元要一条条物化写回工作树。这一格在结果回来之前
+  // 恢复是这些命令里最慢的一个：整个 commit 的单元要一条条物化写回工作树。这一格在结果回来之前
   // 不出声的话，用户看到的是一个按下去毫无反应、几百毫秒后突然变脏的面板。
   it('恢复期间不静默：restoreState 先进 loading', async () => {
     const { worktree, tree } = createFixture();
@@ -535,7 +536,8 @@ describe('useWorktree：命名 worktree（US-310）', () => {
     });
 
     expect(tree().removeWorktreeState).toEqual({ phase: 'error', error: active });
-    expect(worktree.listWorktrees).not.toHaveBeenCalled();
+    // 被拒多半意味着手上的列表过期了（当前行的移除按钮本就禁用），列表照样重读。
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -626,7 +628,7 @@ describe('tri-framework-api.md §3 清单守卫', () => {
     expect(Object.keys(commandsBefore)).toHaveLength(16);
   });
 
-  // 第十项的清单文字是「`switchBranch` 的 `WorktreeSwitchBranchOptions`」——在场还不够，
+  // 清单里 `switchBranch` 那一项的文字是「`switchBranch` 的 `WorktreeSwitchBranchOptions`」——在场还不够，
   // 那份选项必须**原样**落到核心。本端替调用方补一个空对象的话，核心那条「一个条件都没提就
   // 一条语句都不发」的快路径会在每一次切换上白读一次 active 分支令牌。
   it('switchBranch 的第二参原样传给核心；不传就是不传', async () => {
@@ -652,5 +654,37 @@ describe('tri-framework-api.md §3 清单守卫', () => {
 
     expect(status.branchId).toBe('main');
     expect(resource.statusState.phase).toBe('success');
+  });
+});
+
+describe('useWorktree：enableIfEmpty 与 worktree 列表的跟随', () => {
+  it('enableIfEmpty 驱动 enableIfEmptyState，成功后重读一次 status', async () => {
+    const { worktree, tree } = createFixture();
+    worktree.enableIfEmpty.mockResolvedValue({ kind: 'not_empty' });
+
+    await act(async () => {
+      await expect(tree().enableIfEmpty()).resolves.toEqual({ kind: 'not_empty' });
+    });
+
+    expect(tree().enableIfEmptyState).toEqual({ phase: 'success', value: { kind: 'not_empty' } });
+    expect(worktree.status).toHaveBeenCalledTimes(1);
+  });
+
+  // 读过一次列表之后它跟随实体事件；组件卸载时摘掉监听，不再替列表重读。
+  it('读过列表之后跟随实体事件；卸载后摘掉监听', async () => {
+    const { worktree, tree, emitEntityEvent, listenerCount, unmount } = createFixture();
+
+    await act(async () => {
+      await tree().listWorktrees();
+    });
+    await act(async () => {
+      emitEntityEvent(branchActivatedEvent());
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(2);
+
+    unmount();
+
+    expect(listenerCount()).toBe(0);
   });
 });

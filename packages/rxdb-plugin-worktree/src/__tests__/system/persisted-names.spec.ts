@@ -42,8 +42,8 @@ interface PhysicalShape {
   /** `[属性名, 列名]`，按声明顺序。 */
   readonly columns: readonly (readonly [string, string])[];
   readonly uniqueColumns: readonly string[];
-  /** `[关系名, 外键列名]`。 */
-  readonly foreignKeys: readonly (readonly [string, string])[];
+  /** `[关系名, 外键列名]`；列名在关系元数据的联合类型里是可选的，缺了就让比对失败。 */
+  readonly foreignKeys: readonly (readonly [string, string | undefined])[];
   readonly indexes: readonly {
     readonly name: string;
     readonly properties: readonly string[];

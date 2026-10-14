@@ -14,6 +14,7 @@ export {
   REJECTED_RESTORES,
   RESTORE_OK,
   RESTORE_TARGET,
+  branchActivatedEvent,
   createWorktreeHookStubs,
   deferred,
   diffWith,

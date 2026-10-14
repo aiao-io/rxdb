@@ -2,12 +2,14 @@
  * @fileoverview active 分支的基数不变量（FR-048，`system/active-branch-guard.ts`）
  *
  * @remarks
- * 「恰好一个」由 schema 与运行期各担一半，本文件只管运行期那一半。两个入口的区别
+ * 「恰好一个」由 schema 与运行期各担一半，本文件只管运行期那一半。三个入口的区别
  * **不是严格程度，是时点**：`resolveSingleActiveBranch` 只给首次启用迁移用，零 active
- * 属于正常状态、可以恢复；`assertSingleActiveBranch` 给运行期用，零 active 一律拒绝。
+ * 属于正常状态、可以恢复；`assertSingleActiveBranch` 给运行期用，零 active 一律拒绝；
+ * `findSingleActiveBranch` 给「零行是合法态、但不归它修」的调用方（插件对所有既有库跑的迁移），
+ * 零 active 如实返回 `null`。
  *
- * 因此用例按「零 / 一 / 多」三种基数 × 两个入口铺开：共识部分（多行一律拒、一行原样返回）
- * 必须两侧一致，分歧只准出现在零行那一格。漏掉任何一格，两个入口就会各自长出一份答案。
+ * 因此用例按「零 / 一 / 多」三种基数 × 三个入口铺开：共识部分（多行一律拒、一行原样返回）
+ * 必须三侧一致，分歧只准出现在零行那一格。漏掉任何一格，三个入口就会各自长出一份答案。
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -18,6 +20,7 @@ import {
   AmbiguousActiveBranchError,
   assertSingleActiveBranch,
   assertUsableBranchId,
+  findSingleActiveBranch,
   InvalidBranchIdError,
   NoActiveBranchError,
   resolveSingleActiveBranch
@@ -88,6 +91,40 @@ describe('assertSingleActiveBranch', () => {
     const [query] = find.mock.calls[0];
     expect(query).not.toHaveProperty('limit');
     expect(query.where.rules).toEqual([{ field: 'activated', operator: '=', value: true }]);
+  });
+});
+
+describe('findSingleActiveBranch', () => {
+  it('恰好一行 active 时原样返回那一行，一行都不写', async () => {
+    const active = activeRow('feature-x');
+    const { executor, update, create } = createExecutor([active, { id: 'main', activated: false, activeKey: null }]);
+
+    await expect(findSingleActiveBranch(executor)).resolves.toBe(active);
+    expect(update).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('零 active 时如实返回 null —— 不报错，也不顺手激活 main', async () => {
+    const { executor, update, create } = createExecutor([{ id: 'main', activated: false, activeKey: null }]);
+
+    await expect(findSingleActiveBranch(executor)).resolves.toBeNull();
+    expect(update).not.toHaveBeenCalled();
+    expect(create).not.toHaveBeenCalled();
+  });
+
+  it('多行 active 时与另外两个入口口径一致：抛 AmbiguousActiveBranchError', async () => {
+    const { executor } = createExecutor([activeRow('feature-x'), activeRow('main')]);
+
+    await expect(findSingleActiveBranch(executor)).rejects.toBeInstanceOf(AmbiguousActiveBranchError);
+  });
+
+  it('查询不带 limit：基数本身就是要判定的东西', async () => {
+    const { executor, find } = createExecutor([activeRow('feature-x')]);
+
+    await findSingleActiveBranch(executor);
+
+    const [query] = find.mock.calls[0];
+    expect(query).not.toHaveProperty('limit');
   });
 });
 

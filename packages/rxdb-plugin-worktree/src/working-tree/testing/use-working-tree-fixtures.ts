@@ -3,7 +3,7 @@
  *
  * @remarks
  * Angular / React / Vue 三份 `use-worktree.spec` 要断言的是**同一份**契约
- * （contracts/tri-framework-api.md §3 的十项清单）：同名方法、同名状态字段、同一组相位、
+ * （contracts/tri-framework-api.md §3 的那份清单）：同名方法、同名状态字段、同一组相位、
  * 同一份「哪些结果算 empty」的答案。三端不同的只有容器形态 —— `Signal` / 渲染快照 /
  * `ComputedRef` —— 以及挂载方式。
  *
@@ -16,7 +16,7 @@
  * 与跨 render 稳定性、Vue 的 `mount()` 与显式卸载 —— 那些是三端真正不同的地方，
  * 合并它们只会把差异藏起来。
  */
-import type { RxDB } from '@aiao/rxdb';
+import { EntityLocalUpdatedEvent, type RxDB } from '@aiao/rxdb';
 import { NEVER, type Observable } from 'rxjs';
 import type { Mock } from 'vitest';
 import { vi } from 'vitest';
@@ -33,7 +33,7 @@ import type { WorktreeRestoreTarget } from '../restore-precheck.js';
 import type { WorktreeStatus } from '../status.js';
 import type { WorktreeSwitchBranchOptions } from '../switch-branch-options.js';
 import type { WorktreeCommitEvent } from '../working-tree-commit-event.js';
-import type { WorktreeManager } from '../working-tree-facade.js';
+import type { WorktreeEnableIfEmptyResult, WorktreeManager } from '../working-tree-facade.js';
 
 /**
  * 一个由调用方决定何时兑现的 promise。
@@ -231,6 +231,8 @@ export interface WorktreeManagerStub {
   readonly isEnabled: Mock<() => Promise<boolean>>;
   /** 启用提交能力。 */
   readonly enable: Mock<() => Promise<CommitCapabilityInfo>>;
+  /** 库为空时自动启用。 */
+  readonly enableIfEmpty: Mock<() => Promise<WorktreeEnableIfEmptyResult>>;
   /** 读工作树状态。 */
   readonly status: Mock<() => Promise<WorktreeStatus>>;
   /** 读工作树差异。 */
@@ -260,7 +262,7 @@ export interface WorktreeManagerStub {
 }
 
 /**
- * 桩到 `RxDB.versionManager` 那一层 —— 清单第十项 `switchBranch` 挂在这里，不在 `worktree`
+ * 桩到 `RxDB.versionManager` 那一层 —— 清单里的 `switchBranch` 挂在这里，不在 `worktree`
  * 上（contracts/core-api.md §6）。
  *
  * @remarks
@@ -282,7 +284,34 @@ export interface WorktreeHookStubs {
   readonly versionManager: VersionManagerStub;
   /** 装好两个桩、可以直接喂给各端 provider 的库。 */
   readonly rxdb: RxDB;
+  /**
+   * 往桩库上派发一个实体事件（同步调用当前挂着的监听器）。
+   *
+   * @remarks
+   * worktree 列表读过一次之后会跟随实体事件；三端用它验「挂着时跟、卸载后不跟」。
+   */
+  readonly emitEntityEvent: (event: { readonly type: string }) => void;
+  /** 桩库上此刻挂着的事件监听器总数。 */
+  readonly listenerCount: () => number;
 }
+
+/**
+ * 一条「分支激活变了」的实体事件：worktree 列表的跟随源之一。
+ *
+ * @returns 形状与适配器给 `rxdb_branch` 发的系统事件相同
+ */
+export const branchActivatedEvent = (): EntityLocalUpdatedEvent =>
+  new EntityLocalUpdatedEvent([
+    {
+      type: 'UPDATE',
+      namespace: 'rxdb',
+      entity: 'RxDBBranch',
+      id: 'feature',
+      patch: {},
+      inversePatch: {},
+      recordAt: new Date(0)
+    }
+  ]);
 
 /**
  * 建一套桩并装成一个可以喂给 provider 的 `RxDB`。
@@ -301,6 +330,7 @@ export const createWorktreeHookStubs = (): WorktreeHookStubs => {
   const worktree: WorktreeManagerStub = {
     isEnabled: vi.fn<() => Promise<boolean>>(),
     enable: vi.fn<() => Promise<CommitCapabilityInfo>>(),
+    enableIfEmpty: vi.fn<() => Promise<WorktreeEnableIfEmptyResult>>(),
     status: vi.fn<() => Promise<WorktreeStatus>>(),
     diff: vi.fn<() => Promise<WorktreeDiff>>(),
     listCommits: vi.fn<() => Promise<CommitLogPage>>(),
@@ -323,10 +353,28 @@ export const createWorktreeHookStubs = (): WorktreeHookStubs => {
   };
   versionManager.switchBranch.mockResolvedValue(undefined);
 
+  // 实体事件总线的替身：只有挂、摘、派发三个动作。
+  const listeners = new Map<string, Set<(event: unknown) => void>>();
+  const listenersOf = (type: string): Set<(event: unknown) => void> => {
+    const existing = listeners.get(type);
+    if (existing) return existing;
+    const created = new Set<(event: unknown) => void>();
+    listeners.set(type, created);
+    return created;
+  };
+
   const rxdb = {
     worktree: worktree as unknown as WorktreeManager,
-    versionManager
+    versionManager,
+    addEventListener: (type: string, listener: (event: unknown) => void) => listenersOf(type).add(listener),
+    removeEventListener: (type: string, listener: (event: unknown) => void) => listenersOf(type).delete(listener)
   } as unknown as RxDB;
 
-  return { worktree, versionManager, rxdb };
+  return {
+    worktree,
+    versionManager,
+    rxdb,
+    emitEntityEvent: event => listenersOf(event.type).forEach(listener => listener(event)),
+    listenerCount: () => [...listeners.values()].reduce((count, set) => count + set.size, 0)
+  };
 };

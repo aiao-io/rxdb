@@ -72,7 +72,7 @@ function createEntityManager(): EntityManager {
     sync: { local: { adapter: 'local' }, type: SyncType.None }
   });
   database.adapter('local', db => createMockAdapter(db));
-  // 十张系统表由插件贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
+  // 系统表由插件贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
   // 而这些实体进不了 `config.entities` 时 `instantiate()` 抛的是「need init rxdb」。
   database.use(rxDBPluginWorktree);
   database.init();
@@ -227,7 +227,7 @@ describe('为每个本地可完整物化分支生成 baseline（FR-021）', () =
 
     // Workspace 草稿在插件自己的 IndexedDB 里，本来就够不到；这条断言守的是更大的面：
     // 迁移不枚举任何接入方实体，因此没有任何业务数据能被读进 baseline。
-    // 现算，不提模块级常量：那十张表是插件经 `registerSystemEntities()` 追加进登记簿的，
+    // 现算，不提模块级常量：那些表是插件经 `registerSystemEntities()` 追加进登记簿的，
     // 而追加发生在上面 `createScene()` 里的 `use()`。在模块加载期把登记簿 `map` 成一份
     // 派生集合，拿到的只有核心那四张，于是插件自己的系统表会被这条断言当成业务实体点名——
     // 报的是「迁移碰了业务实体」，实际是断言的那份清单停在了插件登记之前。

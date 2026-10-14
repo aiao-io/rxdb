@@ -13,7 +13,7 @@
  * 本文件接的是后半截——把一份**已经落全**的 staging 变成一条能切过去的分支。
  *
  * **物化那一步由调用方注入 `materialize`，本模块不认识业务实体。** 要写进投影的行来自
- * 配置的 sync scope，那份登记在宿主上；本模块把它内联的话，十张系统表的知识与整个业务
+ * 配置的 sync scope，那份登记在宿主上；本模块把它内联的话，这些系统表的知识与整个业务
  * 实体登记就绑在了一起。注入之后「完整物化排在建 baseline 之前」也才是可观测的：
  * 用例在 `materialize` 里回看库里的 commit 表与目标 ref，两者都必须还是空的。
  * 「冻结之后本地同步配置漂没漂」同样由调用方注入 `resolveIntentDrift` 来判——配置在来源方手上。
@@ -109,7 +109,7 @@ const BRANCH_GENERATION_SEQ = 4;
  */
 const FROZEN_FINGERPRINT = 'stage-fingerprint-frozen';
 
-/** 一个挂了 mock 适配器、已 `init()` 的宿主；十张系统表由插件贡献，必须早于 `init()` 进 `use()`。 */
+/** 一个挂了 mock 适配器、已 `init()` 的宿主；系统表由插件贡献，必须早于 `init()` 进 `use()`。 */
 function createDatabase(): RxDB {
   const database = new RxDB({
     dbName: `rxdb-materialization-barrier-${Math.random().toString(36).slice(2)}`,

@@ -62,7 +62,7 @@ function createDatabase(): RxDB {
 /** 只为拿一个真的 {@link EntityManager}——迁移要靠它 `instantiate()` 出初始行。 */
 function createEntityManager(): EntityManager {
   const database = createDatabase();
-  // 十张系统表由本插件贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
+  // 系统表由本插件贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
   // 而这些实体进不了 `config.entities` 时 `instantiate()` 抛的是「need init rxdb」。
   database.use(rxDBPluginWorktree);
   database.init();

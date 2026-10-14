@@ -450,10 +450,12 @@ v1 **没有自动 stash，也不携带脏工作树跨分支**：工作树属于�
 
 - **1:1 钉分支、单 checkout**：业务表同一时刻只装一条分支的物化结果，所以这里没有第二个目录；切 worktree 就是切到它钉住的分支。一条分支至多一个 worktree（`branchId` 唯一索引）。
 - **未提交改动按分支隔离保存**：worktree 之间切换**不要求**工作树干净——切走时改动留在原 worktree，切回来原样还在。这正是 worktree 相对「切分支前先提交 / 丢弃」的价值。
-- **创建即切换**；新库自带一行钉在 `main` 上的主 worktree，既有库升级时（迁移 `0005-worktrees`）为当前 active 分支补这一行。
+- **创建即切换**；新库自带一行钉在 `main` 上的主 worktree，既有库升级时（迁移 `0005-worktrees`）为当前 active 分支补这一行；一条 active 分支都没有的老库在首次启用能力时补上。
 - 「当前 worktree」不另存一份：`active` 恒等于「它钉住的分支就是当前 checkout」。从分支菜单直接切到一条没钉住的分支是合法的，那时没有任何一行是 active。
 
 ```typescript
+// createBranch() 从当前状态分叉，会把当前的未提交改动复制一份到新分支（FR-017）；
+// 想让新 worktree 从干净的 HEAD 开始，先提交或丢弃当前改动再建
 await db.versionManager.createBranch('feature/login');
 const login = await db.worktree.createWorktree('feature/login', 'Login'); // 钉住并切过去
 
@@ -467,15 +469,16 @@ await db.worktree.removeWorktree(login.id); // 只删 worktree 那一行，分�
 | 成员                               | 说明                                                                                                                                       |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
 | `listWorktrees()`                  | 全部行，`{ id, branchId, label, active, createdAt }`；零行是合法态                                                                         |
-| `createWorktree(branchId, label?)` | 落行并切过去。同一分支已有行抛 `WorktreeBranchPinnedError`；分支不存在抛 `WorktreeBranchNotFoundError`；空白 label 抛 `WorktreeLabelError` |
+| `createWorktree(branchId, label?)` | 落行并切过去。同一分支已有行抛 `WorktreeBranchPinnedError`；分支不存在抛 `WorktreeBranchNotFoundError`；label 原样落库，全空白抛 `WorktreeLabelError` |
 | `switchWorktree(id, options?)`     | `options` 原样透传给 `versionManager.switchBranch()`；不传即不要求干净                                                                     |
 | `removeWorktree(id)`               | 只删这一行；当前所在抛 `WorktreeActiveError`，所钉分支有未提交改动抛 `WorktreeDirtyError`                                                  |
 
-两条容易踩的细节：
+容易踩的细节：
 
 - **两阶段**：`createWorktree()` / `switchWorktree()` 先在受管事务里落行 / 读行，**提交之后**再调 `versionManager.switchBranch()`（它自己开事务，嵌套会死锁）。切换阶段失败时**行保留、原错误上抛**——worktree 已经建好，用 `switchWorktree()` 重试即可。
 - 创建与切换都经 `db.versionManager`，因此要一起 `use(rxDBPluginHistory)`；没装时在写行**之前**就抛明确的错误，不会留下一行孤行。
 - `versionManager.removeBranch()` 会连带删掉钉在那条分支上的 worktree 行。
+- worktree 行的增删会报到实体事件总线上（`ENTITY_LOCAL_CREATE` / `ENTITY_LOCAL_REMOVE`，实体 `Worktree`），别的标签页经网关同样收得到；三端入口的实时列表靠它。
 
 ## 未认领能力守卫
 
@@ -545,7 +548,7 @@ export class CommitBar {
 }
 ```
 
-`useWorktree()` **必须在 Angular 注入上下文中调用**——它经 `useRxDB()` 取库，因此上游要有 `provideRxDB()`。十格状态各自装进 `Signal`：模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。
+`useWorktree()` **必须在 Angular 注入上下文中调用**——它经 `useRxDB()` 取库，因此上游要有 `provideRxDB()`。每一格状态各自装进 `Signal`：模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。
 
 ### React
 
@@ -582,7 +585,7 @@ export function CommitBar() {
 }
 ```
 
-`useWorktree()` 经 `useRxDB()` 取库，因此组件树里必须有 `RxDBProvider`。十个状态字段是**普通只读值**（`Readonly<WorktreeAsyncStates>`），可以直接解构；十个方法**引用稳定**，可以安全放进 `useEffect` / `useMemo` 的依赖数组。
+`useWorktree()` 经 `useRxDB()` 取库，因此组件树里必须有 `RxDBProvider`。状态字段是**普通只读值**（`Readonly<WorktreeAsyncStates>`），可以直接解构；方法**引用稳定**，可以安全放进 `useEffect` / `useMemo` 的依赖数组。
 
 ### Vue
 
@@ -617,7 +620,7 @@ const save = async (): Promise<void> => {
 </template>
 ```
 
-`useWorktree()` 经 `useRxDB()` 取库，因此上游要有 `provideRxDB()`。十格状态各自装进 `ComputedRef`：模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。
+`useWorktree()` 经 `useRxDB()` 取库，因此上游要有 `provideRxDB()`。每一格状态各自装进 `ComputedRef`：模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。
 
 ### 异步状态
 
@@ -642,7 +645,7 @@ const save = async (): Promise<void> => {
 | `switchWorktreeState` | 命令态 `<void>`                               | `switchWorktree()` 的状态；**没有 empty**                                          |
 | `removeWorktreeState` | 命令态 `<void>`                               | `removeWorktree()` 的状态；**没有 empty** —— 被拒是 `error`                        |
 
-查询态五相：`idle → loading → success / empty / error`；命令态四相（无 `empty`）。两条判别细节：
+查询态五相：`idle → loading → success / empty / error`；命令态四相（无 `empty`）。判别细节：
 
 - **`switchBranch()` 的被拒反过来走 `error`**：`requireClean` 撞上脏工作树、激活代际过期，都是异常而不是返回值——那一刻分支根本没切，没有结果可交给调用方。
 - **`commit()` 的 CAS 冲突走 `success`**（`CommitResult.ok === false` 的冲突也是成功出口），**不是 `error`**——冲突是并发编辑的正常出口，不是错误。
@@ -653,11 +656,11 @@ const save = async (): Promise<void> => {
 ### 行为约定（三端一致）
 
 - **创建入口本身一次 IO 都不发**：全部状态初值都是 `idle`，只有真调了方法才去读库。
-- **没有变更流**：状态只在经本入口发出的命令之后更新。别的标签页写进来的改动、直接走 `entity.save()` 的写入，都不会推一份新的 status 过来——要最新值就再调一次 `status()`。
+- **worktree 列表是实时的，其余状态不是**：读过一次 `listWorktrees()` 之后，`listWorktreesState` 跟随 worktree 行与 active 分支的变更、以及本能力的启用（本页的 `enable()` / `enableIfEmpty()` 或别的标签页）自动重读（别的标签页、devtools、分支菜单的切换与删除都算），组件 / 作用域销毁时停止跟随（自己建命令层的调用方用 `disposeWorktreeCommands()` 停）。其余状态只在经本入口发出的命令之后更新：别的标签页写进来的改动、直接走 `entity.save()` 的写入，都不会推一份新的 status 过来——要最新值就再调一次 `status()`。
 - 拿不到数据库时**抛错**，而不是返回一份「一切干净」的默认值。
 - `commit()` / `discard()` / `restore()` 的被拒走返回值（`result.ok === false`），不是异常；`switchBranch()` 的被拒**走异常**。
-- `enable()` / `discard()` / `restore()` / `switchBranch()` 成功之后自动重读一次 `status()`——`switchBranch()` 重读回来的那份摘要属于**另一条**分支。
-- `createWorktree()` 无论成败都重读 `status()` 与 worktree 列表（切换阶段失败时行已落库）；`switchWorktree()` 成功后重读这两份；`removeWorktree()` 成功后只重读列表。`switchBranch()` **不**重读 worktree 列表——显示列表的页面在切分支之后自己重读。
+- `enable()` / `enableIfEmpty()` / `commit()` / `discard()` / `restore()` / `switchBranch()` 成功之后自动重读一次 `status()`——`switchBranch()` 重读回来的那份摘要属于**另一条**分支。
+- `createWorktree()` / `switchWorktree()` 成功之后重读 `status()`；这两个与 `removeWorktree()` **无论成败**都重读 worktree 列表——切换阶段失败时行已落库，被拒多半意味着手上的列表已经过期。`switchBranch()` 不额外重读列表，列表的变化由实时跟随接住。
 - `switchBranch()` 挂在历史插件（`@aiao/rxdb-plugin-history`）的 `versionManager` 上而不是 `worktree` 上，因此三端入口取的是整个 `RxDB`，不是只取 `db.worktree`。
 - 类型与错误类一律从 `@aiao/rxdb-plugin-worktree` 直接 import，绑定包**不重定义、也不再导出**。
 

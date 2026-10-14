@@ -48,6 +48,7 @@ import { WorkingTreeMaterializationPage } from './working-tree/working-tree-mate
 import { WorkingTreeMaterializationStage } from './working-tree/working-tree-materialization-stage.entity.js';
 import { WorkingTreeRestoreSession } from './working-tree/working-tree-restore-session.entity.js';
 import { WorkingTreeState } from './working-tree/working-tree-state.entity.js';
+import { dispatchWorktreesRemoved } from './worktree/worktree-events.js';
 import { Worktree } from './worktree/worktree.entity.js';
 
 /**
@@ -179,14 +180,17 @@ const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
     // 「这两行里装的是什么」全在 `branch-commit-rows.ts`：共享源分支 HEAD、复制一份独立工作树，
     // 还是给历史分叉点写一个 `branch_baseline` 锚点，判据是库里那两个值（FR-017）。
     writeNewBranchCommitRows(executor, entityManager, branchId),
-  removeBranchRows: ({ executor, branchId }) =>
+  removeBranchRows: async ({ executor, branchId }) => {
     // 建行与删行同住一个模块：「一条分支在本能力里占了哪几张表」只有那里知道，
     // 而两半分家的那一天，新加的表会只在其中一半里被记得（FR-044）。
     //
-    // **不判能力位。** 这六张表里的行与 `enable()` 无关——ref 与工作树状态行由
+    // **不判能力位。** 这些表里的行与 `enable()` 无关——ref 与工作树状态行由
     // `createInitialRows` / `writeBranchRows` 无条件写下，未启用的库上照样有。
     // 照着 `prepareBranchSwitch` 抄一句短路进来，残留的就正是那些库上的行。
-    removeBranchCommitRows(executor, branchId)
+    const removedWorktrees = await removeBranchCommitRows(executor, branchId);
+    // 钉在这条分支上的 worktree 随分支一起删了：报到事件总线上，各标签页的实时列表跟着变。
+    dispatchWorktreesRemoved(rxdb, removedWorktrees);
+  }
 });
 
 /**

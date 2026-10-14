@@ -43,7 +43,7 @@ const save = async (): Promise<void> => {
 
 装插件仍在库侧完成（`db.use(rxDBPluginWorktree)` **必须排在 `connect()` 之前**），本包只负责读写。
 
-`useWorktree()` 经 `useRxDB()` 取库，因此上游要有 `provideRxDB()`。十格状态各自装进
+`useWorktree()` 经 `useRxDB()` 取库，因此上游要有 `provideRxDB()`。每一格状态各自装进
 `ComputedRef`：模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。
 
 ## 三端对称
@@ -56,7 +56,7 @@ Vue `@aiao/rxdb-plugin-worktree-vue`（本包） 的
 
 ## 行为约定（三端一致）
 
-- **创建入口本身一次 IO 都不发**：十格状态初值全是 `idle`，只有真调了方法才去读库。
+- **创建入口本身一次 IO 都不发**：全部状态格初值都是 `idle`，只有真调了方法才去读库。
 - **没有变更流**：状态只在经本入口发出的命令之后更新。别的标签页写进来的改动、直接走
   `entity.save()` 的写入，都不会推一份新的 status 过来——要最新值就再调一次 `status()`。
 - 拿不到数据库时**抛错**，而不是返回一份「一切干净」的默认值。

@@ -6,12 +6,13 @@
 // 本端一个字段都不用加，另外两端各要补对应的状态格、方法声明与 computed。
 import {
   createWorktreeCommands,
+  disposeWorktreeCommands,
   WORKTREE_INITIAL_ASYNC_STATES,
   type WorktreeAsyncStates,
   type WorktreeCommands
 } from '@aiao/rxdb-plugin-worktree';
 import { useRxDB } from '@aiao/rxdb-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 /** 十六格状态连同产生它的库：换库后旧库的写回凭 `database` 识别并丢弃。 */
 interface WorktreeSlot {
@@ -72,9 +73,10 @@ export type WorktreeResource = Readonly<WorktreeAsyncStates> & WorktreeCommands;
  * 挂上就查会让每个只想拿到 `commit()` 的组件在挂载时白发一轮查询 —— 而 React 下这还会
  * 在 `StrictMode` 里变成两轮。
  *
- * **没有变更流**：状态只在经本入口发出的命令之后更新。别的标签页写进来的改动、直接走
- * `entity.save()` 的写入，都不会触发重渲染 —— 需要最新值就再调一次 `status()`。这是核心
- * 侧至今没有工作树变更流的如实反映，不是这里省了一步。
+ * **worktree 列表是实时的，其余各格不是**：读过一次列表之后，`listWorktreesState` 跟随 worktree 行与
+ * active 分支的变更自动重读（别的标签页、devtools、分支菜单的切换与删除都算），组件卸载时停止跟随。
+ * 其余各格只在经本入口发出的命令之后更新：别的标签页写进来的改动、直接走 `entity.save()` 的写入，
+ * 都不会触发重渲染 —— 需要最新值就再调一次 `status()`。核心侧至今没有工作树的变更流。
  *
  * 状态用 `useState` 而不是 `useSyncExternalStore`：状态源就在 React 里（本 hook 自己的
  * 命令产生它），不是外部 store，没有撕裂可言。
@@ -85,7 +87,7 @@ export type WorktreeResource = Readonly<WorktreeAsyncStates> & WorktreeCommands;
  * @public
  */
 export const useWorktree = (): WorktreeResource => {
-  // 取整个库而不是解构 `worktree`：清单第十一项 `switchBranch` 挂在 `versionManager` 上，
+  // 取整个库而不是解构 `worktree`：清单里的 `switchBranch` 挂在 `versionManager` 上，
   // 两个入口都由命令层去取（见 `createWorktreeCommands` 的同名注记）。
   const database = useRxDB();
   // RV-069：状态与产生它的库绑在同一份 state 里。库身份变了就在本次 render 收回初态
@@ -105,6 +107,9 @@ export const useWorktree = (): WorktreeResource => {
     [database]
   );
   const commands = useMemo(() => createWorktreeCommands(database, patch), [database, patch]);
+  // 停掉旧命令的列表跟随：库换了（命令随之重建）或组件卸载时。StrictMode 的卸载—重挂会先停再挂，
+  // 重挂后页面那一次首读把跟随接回来——`disposeWorktreeCommands` 允许停了之后再读。
+  useEffect(() => () => disposeWorktreeCommands(commands), [commands]);
 
   return useMemo(() => ({ ...slot.states, ...commands }), [slot.states, commands]);
 };

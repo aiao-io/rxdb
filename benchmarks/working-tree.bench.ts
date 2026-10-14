@@ -164,7 +164,7 @@ const CONTROL_SEED_BATCH = 500;
  * @remarks
  * 只注册 {@link BenchControlNoteBase} 一个实体，一个插件都不 `use()`：control 要量的是
  * 「这台机器上，普通 CRUD 碰 100 个实体要多久」。装上工作树插件（哪怕不 `enable()`）
- * 会多出 10 张系统表与一层引导事务，而那些都不属于「普通 CRUD」。
+ * 会多出插件的系统表与一层引导事务，而那些都不属于「普通 CRUD」。
  *
  * 灌数据走 `adapter.transaction(ex => ex.saveMany(batch))` 而不是逐行 `entityManager.save()`：
  * 后者是 10,000 个事务，建库要几十秒，而这段耗时既不进报告也不该拖慢门禁。

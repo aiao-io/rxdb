@@ -1,5 +1,6 @@
 import {
   createWorktreeCommands,
+  disposeWorktreeCommands,
   WORKTREE_INITIAL_ASYNC_STATES,
   type CommitCapabilityInfo,
   type CommitChangeSetPage,
@@ -24,7 +25,7 @@ import {
   type WorktreeSwitchBranchOptions
 } from '@aiao/rxdb-plugin-worktree';
 import { useRxDB } from '@aiao/rxdb-vue';
-import { computed, shallowRef, type ComputedRef } from 'vue';
+import { computed, getCurrentScope, onScopeDispose, shallowRef, type ComputedRef } from 'vue';
 
 /**
  * {@link useWorktree} 的返回值。
@@ -152,10 +153,11 @@ export interface WorktreeResource {
  * **创建入口本身一次 IO 都不发**：十六格初值全是 `idle`，只有真的调了方法才会去读库。
  * 挂上就查会让每个只想拿到 `commit()` 的组件在挂载时白发一轮查询。
  *
- * **没有变更流**：状态只在经本入口发出的命令之后更新，因此这里也没有需要退订的订阅。
- * 别的标签页写进来的改动、直接走 `entity.save()` 的写入，都不会推一份新的 status 过来
- * —— 需要最新值就再调一次 `status()`。这是核心侧至今没有工作树变更流的如实反映，
- * 不是这里省了一步。
+ * **worktree 列表是实时的，其余各格不是**：读过一次列表之后，`listWorktreesState` 跟随 worktree 行与
+ * active 分支的变更自动重读（别的标签页、devtools、分支菜单的切换与删除都算），作用域销毁时停止跟随
+ * ——这是本入口唯一要退订的东西。其余各格只在经本入口发出的命令之后更新：别的标签页写进来的改动、
+ * 直接走 `entity.save()` 的写入，都不会推一份新的 status 过来 —— 需要最新值就再调一次 `status()`。
+ * 核心侧至今没有工作树的变更流。
  *
  * 状态装在 `shallowRef` 里：整份状态每次都是新对象，深响应只会让 Vue 白白遍历十六棵
  * 结构固定的树。
@@ -166,13 +168,16 @@ export interface WorktreeResource {
  * @public
  */
 export const useWorktree = (): WorktreeResource => {
-  // 取整个库而不是解构 `worktree`：清单第十一项 `switchBranch` 挂在 `versionManager` 上，
+  // 取整个库而不是解构 `worktree`：清单里的 `switchBranch` 挂在 `versionManager` 上，
   // 两个入口都由命令层去取（见 `createWorktreeCommands` 的同名注记）。
   const database = useRxDB();
   const states = shallowRef<WorktreeAsyncStates>(WORKTREE_INITIAL_ASYNC_STATES);
   const commands = createWorktreeCommands(database, (key, state) => {
     states.value = { ...states.value, [key]: state };
   });
+  // 读过列表之后它跟随实体事件；作用域销毁时停掉。没有作用域（例如 `app.runWithContext()` 里调用）
+  // 就没有销毁时机可挂，跟随持续到库释放。
+  if (getCurrentScope()) onScopeDispose(() => disposeWorktreeCommands(commands));
 
   return {
     isEnabledState: computed(() => states.value.isEnabledState),

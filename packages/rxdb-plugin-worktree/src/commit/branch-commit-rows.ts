@@ -390,7 +390,7 @@ const readStagePages = async (
  *
  * @param executor - 调用方那个写事务的执行器；与 `remove_branch` 删分支行用的是同一个
  * @param branchId - 即将被删、此刻仍在库里的分支 id
- * @returns 清理完成
+ * @returns 随分支一起删掉的 worktree 行（调用方据此派发删除事件，实时列表靠它）
  *
  * @remarks
  * 与 {@link writeNewBranchCommitRows} 严格对称：一条分支在本能力里占了哪几张表，只有这一个
@@ -420,7 +420,10 @@ const readStagePages = async (
  * 一次调用里的跨表顺序不由调用方决定，而分页对 staging 挂着一条真正的外键。
  * 剩下六张表之间没有互指的关系（它们都只指向 `rxdb_branch`，而那一行本次不删），合在一次里。
  */
-export const removeBranchCommitRows = async (executor: TransactionExecutor, branchId: string): Promise<void> => {
+export const removeBranchCommitRows = async (
+  executor: TransactionExecutor,
+  branchId: string
+): Promise<readonly Worktree[]> => {
   // 串行而非 `Promise.all`：`executor` 是一条并发度为 1 的队列，并行发起一点都不会更快，
   // 只是让读的次序取决于各 await 的排布，出问题时复现不出来。
   const ref = await readBranchOwnedRows(executor, CommitBranchRef, 'branchId', branchId);
@@ -437,4 +440,5 @@ export const removeBranchCommitRows = async (executor: TransactionExecutor, bran
   const pages = await readStagePages(executor, stages);
   if (pages.length > 0) await executor.removeMany(pages);
   await executor.removeMany<EntityType>([...stages, ...sessions, ...entries, ...state, ...ref, ...worktrees]);
+  return worktrees;
 };

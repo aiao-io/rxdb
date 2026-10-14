@@ -32,6 +32,7 @@ import { latchBranchCorruption } from '../commit/commit-graph-guard.js';
 import { readCommitLogPage, type CommitLogOptions, type CommitLogPage } from '../commit/commit-log.js';
 import { ENABLE_MIGRATION_OPERATION_ID, runEnableMigration } from '../commit/enable-migration.js';
 import {
+  ensureMainWorktree,
   pinWorktree,
   readWorktreeList,
   readWorktreeRow,
@@ -39,6 +40,7 @@ import {
   unpinWorktree,
   type WorktreeInfo
 } from '../worktree/worktree-command.js';
+import { dispatchWorktreesCreated, dispatchWorktreesRemoved } from '../worktree/worktree-events.js';
 import { installWorktreeCapture } from './capture-install.js';
 import { requireVersionManager } from './require-version-manager.js';
 import { readActiveBranchToken } from './capture-runtime.js';
@@ -222,10 +224,13 @@ export class WorktreeManager {
   async enable(): Promise<CommitCapabilityInfo> {
     const adapter = await firstValueFrom(this.#rxdb.localAdapter$);
     const info = await adapter.transaction(async executor => {
+      const wasEnabled = (await readCommitCapability(executor)).enabled;
       const enabled = await enableCommitCapability(executor);
       await runEnableMigration(executor, createCommitWriteContext(adapter), {
         operationId: ENABLE_MIGRATION_OPERATION_ID
       });
+      // 只在这一次真的翻了能力位时补：重复调用 `enable()` 不该替用户把一条没钉住的分支钉上。
+      if (!wasEnabled) await this.#ensureMainWorktree(executor);
       return enabled;
     });
     installWorktreeCapture(this.#rxdb, adapter);
@@ -273,6 +278,7 @@ export class WorktreeManager {
       await runEnableMigration(executor, createCommitWriteContext(adapter), {
         operationId: ENABLE_MIGRATION_OPERATION_ID
       });
+      await this.#ensureMainWorktree(executor);
       return { kind: 'enabled', capability } as const;
     });
     if (result.kind !== 'not_empty') installWorktreeCapture(this.#rxdb, adapter);
@@ -494,7 +500,9 @@ export class WorktreeManager {
         // 门禁之后、写行之前先断言历史插件在场：门禁先说话（未启用的库该听到的是「去 enable()」），
         // 又不至于先落一行 worktree、到切换那一步才发现没有东西能切（R9）。
         requireVersionManager(this.#rxdb);
-        return pinWorktree(executor, this.#rxdb.entityManager, branchId, label);
+        const pinned = await pinWorktree(executor, this.#rxdb.entityManager, branchId, label);
+        dispatchWorktreesCreated(this.#rxdb, [pinned]);
+        return pinned;
       },
       { transactionLog: false }
     );
@@ -544,7 +552,13 @@ export class WorktreeManager {
    * 删掉有未提交改动的 worktree 虽不丢数据，那些改动从此只能经分支菜单找回。
    */
   async removeWorktree(id: string): Promise<void> {
-    await this.runEnabled(executor => unpinWorktree(executor, id), { transactionLog: false });
+    await this.runEnabled(
+      async executor => {
+        const removed = await unpinWorktree(executor, id);
+        dispatchWorktreesRemoved(this.#rxdb, [removed]);
+      },
+      { transactionLog: false }
+    );
   }
 
   /**
@@ -604,6 +618,20 @@ export class WorktreeManager {
     // 捕获会立刻开始拦截这同一个事务余下的写。
     this.#healCapture(adapter);
     return result;
+  }
+
+  /**
+   * 首次启用时，库里一个 worktree 都没有就把当前 active 分支钉成主 worktree，并报到事件总线上。
+   *
+   * @param executor - 启用那一笔事务的执行器；启用迁移已经在里面把 active 分支建好了
+   *
+   * @remarks
+   * 判据与理由见 {@link ensureMainWorktree}。放在门面而不是启用迁移里：`enable-migration.ts`
+   * 只写提交侧的表（见它的模块头），worktree 行不归它。
+   */
+  async #ensureMainWorktree(executor: TransactionExecutor): Promise<void> {
+    const pinned = await ensureMainWorktree(executor, this.#rxdb.entityManager);
+    if (pinned) dispatchWorktreesCreated(this.#rxdb, [pinned]);
   }
 
   /**

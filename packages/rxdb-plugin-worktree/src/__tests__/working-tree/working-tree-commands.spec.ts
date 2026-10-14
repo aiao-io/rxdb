@@ -17,15 +17,23 @@
  *
  * 本文件不碰数据库：谁能落库、落成什么样归 `commit-atomicity.spec.ts` /
  * `discard.spec.ts` / `status.spec.ts`；相位机本身归 `async-state.spec.ts`。
- * 这里只测**接线**：十一个方法各自接哪一格、哪几个之后要重读 status、错误往哪走。
+ * 这里只测**接线**：每个方法各自接哪一格、哪几个之后要重读 status、错误往哪走。
  *
  * 桩的形状从 T123 起是 `{ worktree, versionManager }` 而不再是裸 `worktree`：
- * 清单第十一项 `switchBranch` 挂在 `versionManager` 上（contracts/core-api.md §6），
+ * 清单里的 `switchBranch` 挂在 `versionManager` 上（contracts/core-api.md §6），
  * 命令层因此收整个库。桩到两个门面**而不是**让 spec 自己造一份 `RxDB`——
  * 本层只用得到这两个属性，多桩出来的每一个都会变成一处与真库无关的约束。
  */
 
-import { RxDBError, type RxDB } from '@aiao/rxdb';
+import {
+  CapabilityEnabledEvent,
+  EntityLocalCreatedEvent,
+  EntityLocalRemovedEvent,
+  EntityLocalUpdatedEvent,
+  RxDBError,
+  type RxDB,
+  type RxDBEntityLocalEventData
+} from '@aiao/rxdb';
 import { describe, expect, it, vi } from 'vitest';
 import type { CommitCapabilityInfo } from '../../commit/commit-capability.js';
 import type { CommitChangeSetPage } from '../../commit/commit-changes.js';
@@ -44,7 +52,12 @@ import type {
 } from '../../working-tree/restore-command.js';
 import type { WorktreeStatus } from '../../working-tree/status.js';
 import { WorktreeDirtyError, type WorktreeSwitchBranchOptions } from '../../working-tree/switch-branch-options.js';
-import { createWorktreeCommands, type WorktreeStatePatch } from '../../working-tree/working-tree-commands.js';
+import {
+  createWorktreeCommands,
+  disposeWorktreeCommands,
+  type WorktreeCommands,
+  type WorktreeStatePatch
+} from '../../working-tree/working-tree-commands.js';
 import type { WorktreeEnableIfEmptyResult, WorktreeManager } from '../../working-tree/working-tree-facade.js';
 import type { WorktreeInfo } from '../../worktree/worktree-command.js';
 import { WorktreeActiveError, WorktreeBranchPinnedError } from '../../worktree/worktree-errors.js';
@@ -170,7 +183,7 @@ const SESSION: WorktreeRestoreSessionInfo = {
   status: 'active'
 };
 
-/** 十格状态的可写副本；本层不持有状态，状态在调用方那边，这里替调用方存一份。 */
+/** 全部状态格的可写副本；本层不持有状态，状态在调用方那边，这里替调用方存一份。 */
 type MutableAsyncStates = { -readonly [K in keyof WorktreeAsyncStates]: WorktreeAsyncStates[K] };
 
 /**
@@ -234,12 +247,23 @@ const createFixture = (options: { readonly history?: boolean } = {}) => {
   // 顺带把「命令层是不是每次现取」问出来：构造时存一份的实现下 `versionManagerReads`
   // 会停在 1，而真库里那一份在释放后就没了。
   let versionManagerReads = 0;
+  // 实体事件总线的替身：只有挂、摘、派发三个动作，派发即同步调用——实时列表只用得到这些。
+  const listeners = new Map<string, Set<(event: unknown) => void>>();
+  const listenersOf = (type: string): Set<(event: unknown) => void> => {
+    const existing = listeners.get(type);
+    if (existing) return existing;
+    const created = new Set<(event: unknown) => void>();
+    listeners.set(type, created);
+    return created;
+  };
   const database = {
     worktree: worktree as unknown as WorktreeManager,
     get versionManager() {
       versionManagerReads += 1;
       return options.history === false ? undefined : versionManager;
-    }
+    },
+    addEventListener: (type: string, listener: (event: unknown) => void) => listenersOf(type).add(listener),
+    removeEventListener: (type: string, listener: (event: unknown) => void) => listenersOf(type).delete(listener)
   } as unknown as RxDB;
 
   const commands = createWorktreeCommands(database, patch);
@@ -249,12 +273,38 @@ const createFixture = (options: { readonly history?: boolean } = {}) => {
     transitions,
     worktree,
     versionManager,
-    versionManagerReadCount: () => versionManagerReads
+    versionManagerReadCount: () => versionManagerReads,
+    /** 往替身总线上派发一个事件 */
+    emit: (event: { readonly type: string }) => listenersOf(event.type).forEach(listener => listener(event)),
+    /** 替身总线上此刻挂着的监听器总数 */
+    listenerCount: () => [...listeners.values()].reduce((count, set) => count + set.size, 0)
   };
 };
 
+/** 一条实体事件的载荷；只填判据用得到的那几项。 */
+const eventData = (
+  type: RxDBEntityLocalEventData['type'],
+  entity: string,
+  id: string,
+  extra: Partial<RxDBEntityLocalEventData> = {}
+) => ({ type, namespace: 'rxdb', entity, id, recordAt: new Date(0), ...extra });
+
+const branchActivated = (origin?: 'cross-tab') =>
+  new EntityLocalUpdatedEvent([
+    { ...eventData('UPDATE', 'RxDBBranch', 'feature', origin ? { origin } : {}), patch: {}, inversePatch: {} }
+  ]);
+const worktreeRemoved = () =>
+  new EntityLocalRemovedEvent([{ ...eventData('DELETE', 'Worktree', 'wt-feature'), patch: null, inversePatch: {} }]);
+const noteCreated = () =>
+  new EntityLocalCreatedEvent([
+    { ...eventData('INSERT', 'Note', 'note-1'), namespace: 'app', patch: {}, inversePatch: null }
+  ]);
+
+/** 让排进微任务的那一次重读跑完。 */
+const flushRequeries = () => new Promise(resolve => setTimeout(resolve, 0));
+
 describe('十六个命令各自只驱动自己那一格（§4）', () => {
-  it('isEnabled 走命令状态，其余十一格纹丝不动', async () => {
+  it('isEnabled 走命令状态，其余各格纹丝不动', async () => {
     const { commands, states, worktree } = createFixture();
     worktree.isEnabled.mockResolvedValue(true);
 
@@ -277,7 +327,7 @@ describe('十六个命令各自只驱动自己那一格（§4）', () => {
     expect(untouchedKeys(states, 'enableIfEmptyState', 'statusState')).toEqual([]);
   });
 
-  it('status 走查询状态，其余十一格纹丝不动', async () => {
+  it('status 走查询状态，其余各格纹丝不动', async () => {
     const { commands, states, worktree } = createFixture();
     const dirty = statusWith(3);
     worktree.status.mockResolvedValue(dirty);
@@ -288,7 +338,7 @@ describe('十六个命令各自只驱动自己那一格（§4）', () => {
     expect(untouchedKeys(states, 'statusState')).toEqual([]);
   });
 
-  it('diff 走查询状态，其余十一格纹丝不动', async () => {
+  it('diff 走查询状态，其余各格纹丝不动', async () => {
     const { commands, states, worktree } = createFixture();
     const diff = diffWith(2);
     worktree.diff.mockResolvedValue(diff);
@@ -299,7 +349,7 @@ describe('十六个命令各自只驱动自己那一格（§4）', () => {
     expect(untouchedKeys(states, 'diffState')).toEqual([]);
   });
 
-  it('listCommits 走查询状态，其余十一格纹丝不动', async () => {
+  it('listCommits 走查询状态，其余各格纹丝不动', async () => {
     const { commands, states, worktree } = createFixture();
     const page = logWith(2);
     worktree.listCommits.mockResolvedValue(page);
@@ -310,7 +360,7 @@ describe('十六个命令各自只驱动自己那一格（§4）', () => {
     expect(untouchedKeys(states, 'listCommitsState')).toEqual([]);
   });
 
-  it('commitChanges 走查询状态，零变更单元是 empty，其余十一格纹丝不动', async () => {
+  it('commitChanges 走查询状态，零变更单元是 empty，其余各格纹丝不动', async () => {
     const { commands, states, worktree } = createFixture();
     const empty = changesWith(0);
     worktree.commitChanges.mockResolvedValue(empty);
@@ -321,7 +371,7 @@ describe('十六个命令各自只驱动自己那一格（§4）', () => {
     expect(untouchedKeys(states, 'commitChangesState')).toEqual([]);
   });
 
-  it('restoreSession 走查询状态，其余十一格纹丝不动', async () => {
+  it('restoreSession 走查询状态，其余各格纹丝不动', async () => {
     const { commands, states, worktree } = createFixture();
     worktree.restoreSession.mockResolvedValue(SESSION);
 
@@ -332,7 +382,7 @@ describe('十六个命令各自只驱动自己那一格（§4）', () => {
   });
 
   // restore 进行中时**只有** restoreState 在 loading：恢复要写满一整个 commit 的条目，
-  // 是九个方法里最慢的一个，此刻若 statusState 也被推成 loading，面板上那份还完全有效的
+  // 是这些方法里最慢的一个，此刻若 statusState 也被推成 loading，面板上那份还完全有效的
   // 摘要会在整段恢复期间变成一个转圈——而它根本没有被重读。
   it('restore 进行中时只有 restoreState 是 loading，statusState 照旧 idle', async () => {
     const { commands, states, worktree } = createFixture();
@@ -361,7 +411,7 @@ describe('十六个命令各自只驱动自己那一格（§4）', () => {
     await call;
   });
 
-  // 切分支要重放目标分支的整段历史，是十个方法里第二慢的一个。此刻若 statusState 也被推成
+  // 切分支要重放目标分支的整段历史，是这些方法里第二慢的一个。此刻若 statusState 也被推成
   // loading，面板上那份**当前**分支的摘要会在整段切换期间变成转圈——而它此刻仍然完全有效，
   // 真正该重读它的时刻在切换**之后**。
   it('switchBranch 进行中时只有 switchBranchState 是 loading，statusState 照旧 idle', async () => {
@@ -1132,8 +1182,9 @@ describe('US-310 四个 worktree 命令', () => {
   });
 
   // 两阶段：切换阶段失败时行已落库（见 `WorktreeManager.createWorktree` 的 TSDoc），只在成功时重读的话，
-  // 列表里会缺一个确实存在、可以重试切换的 worktree。
-  it('createWorktree 失败：原错原样上抛，status 与列表照样重读', async () => {
+  // 列表里会缺一个确实存在、可以重试切换的 worktree；第一阶段被拒（已钉住）多半是手上的列表过期了。
+  // status 不重读：失败时要么一行没写、要么切换整笔回滚，当前分支的摘要没变。
+  it('createWorktree 失败：原错原样上抛，列表照样重读，status 不重读', async () => {
     const { commands, states, worktree } = createFixture();
     const failure = new WorktreeBranchPinnedError('feature', 'wt-feature');
     worktree.createWorktree.mockRejectedValue(failure);
@@ -1141,7 +1192,7 @@ describe('US-310 四个 worktree 命令', () => {
     await expect(commands.createWorktree('feature')).rejects.toBe(failure);
 
     expect(states.createWorktreeState).toEqual({ phase: 'error', error: failure });
-    expect(worktree.status).toHaveBeenCalledTimes(1);
+    expect(worktree.status).not.toHaveBeenCalled();
     expect(worktree.listWorktrees).toHaveBeenCalledTimes(1);
   });
 
@@ -1164,8 +1215,9 @@ describe('US-310 四个 worktree 命令', () => {
     ]);
   });
 
-  // 与 switchBranch 同形：被拒那一刻什么都没切，也就没有什么可重读的。
-  it('switchWorktree 被拒：原错原样上抛，status 与列表都不重读', async () => {
+  // 被拒那一刻什么都没切，status 不必重读；但被拒多半意味着列表已经过期（它在别处被删了、
+  // 或别处换了 checkout），列表要重读，否则那一行和它的按钮会一直留在屏幕上。
+  it('switchWorktree 被拒：原错原样上抛，列表照样重读，status 不重读', async () => {
     const { commands, states, worktree } = createFixture();
     const dirty = new WorktreeDirtyError('main', 2);
     worktree.switchWorktree.mockRejectedValue(dirty);
@@ -1174,7 +1226,7 @@ describe('US-310 四个 worktree 命令', () => {
 
     expect(states.switchWorktreeState).toEqual({ phase: 'error', error: dirty });
     expect(worktree.status).not.toHaveBeenCalled();
-    expect(worktree.listWorktrees).not.toHaveBeenCalled();
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(1);
   });
 
   // 只删 worktree 那一行：当前分支与它的未提交改动都没动，status 不必重读。
@@ -1194,7 +1246,8 @@ describe('US-310 四个 worktree 命令', () => {
     expect(states.statusState).toEqual({ phase: 'idle' });
   });
 
-  it('removeWorktree 被拒：原错原样上抛，列表不重读', async () => {
+  // 「删的恰是当前所在」只在列表过期时才会从界面上发生（当前行的移除按钮本就禁用）。
+  it('removeWorktree 被拒：原错原样上抛，列表照样重读', async () => {
     const { commands, states, worktree } = createFixture();
     const active = new WorktreeActiveError('wt-main', 'main');
     worktree.removeWorktree.mockRejectedValue(active);
@@ -1202,7 +1255,8 @@ describe('US-310 四个 worktree 命令', () => {
     await expect(commands.removeWorktree('wt-main')).rejects.toBe(active);
 
     expect(states.removeWorktreeState).toEqual({ phase: 'error', error: active });
-    expect(worktree.listWorktrees).not.toHaveBeenCalled();
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(1);
+    expect(states.statusState).toEqual({ phase: 'idle' });
   });
 
   // 重读失败已经落进 listWorktreesState 的 error 相位；再抛一次会把一次成功的 worktree 操作
@@ -1220,6 +1274,7 @@ describe('US-310 四个 worktree 命令', () => {
   });
 
   // `switchBranch()` 不顺手重读列表：从不显示 worktree 列表的应用不该每切一次分支就白发一轮查询。
+  // 读过列表的应用由实时跟随接住那次切换（见下一节）。
   it('switchBranch 不碰 listWorktreesState', async () => {
     const { commands, states, worktree } = createFixture();
 
@@ -1227,5 +1282,140 @@ describe('US-310 四个 worktree 命令', () => {
 
     expect(worktree.listWorktrees).not.toHaveBeenCalled();
     expect(states.listWorktreesState).toEqual({ phase: 'idle' });
+  });
+});
+
+describe('worktree 列表的实时跟随', () => {
+  // 创建入口本身一次 IO、一个监听都不发（`idle` 契约）；从没读过列表的应用不为它付任何东西。
+  it('第一次读列表之前：一个监听都不挂，事件来了也不读', async () => {
+    const { emit, listenerCount, worktree } = createFixture();
+
+    emit(branchActivated());
+    await flushRequeries();
+
+    expect(listenerCount()).toBe(0);
+    expect(worktree.listWorktrees).not.toHaveBeenCalled();
+  });
+
+  it('读过之后：分支激活变化与 worktree 行变化各触发一次重读', async () => {
+    const { commands, emit, worktree } = createFixture();
+    await commands.listWorktrees();
+
+    emit(branchActivated());
+    await flushRequeries();
+    emit(worktreeRemoved());
+    await flushRequeries();
+
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(3);
+  });
+
+  it('同一轮里的一串事件合并成一次重读', async () => {
+    const { commands, emit, worktree } = createFixture();
+    await commands.listWorktrees();
+
+    emit(branchActivated());
+    emit(worktreeRemoved());
+    emit(branchActivated());
+    await flushRequeries();
+
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(2);
+  });
+
+  it('无关实体的事件不读', async () => {
+    const { commands, emit, worktree } = createFixture();
+    await commands.listWorktrees();
+
+    emit(noteCreated());
+    await flushRequeries();
+
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(1);
+  });
+
+  it('别的标签页转发过来的事件照样读', async () => {
+    const { commands, emit, worktree } = createFixture();
+    await commands.listWorktrees();
+
+    emit(branchActivated('cross-tab'));
+    await flushRequeries();
+
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(2);
+  });
+
+  it('worktree 命令内部那一次重读同样开始跟随', async () => {
+    const { commands, emit, worktree } = createFixture();
+    worktree.removeWorktree.mockResolvedValue(undefined);
+    await commands.removeWorktree('wt-feature');
+
+    emit(branchActivated());
+    await flushRequeries();
+
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(2);
+  });
+
+  it('dispose 之后摘掉监听、不再读；再读一次列表又接回跟随（React StrictMode 的卸载—重挂）', async () => {
+    const { commands, emit, listenerCount, worktree } = createFixture();
+    await commands.listWorktrees();
+
+    disposeWorktreeCommands(commands);
+    emit(branchActivated());
+    await flushRequeries();
+    expect(listenerCount()).toBe(0);
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(1);
+
+    await commands.listWorktrees();
+    emit(branchActivated());
+    await flushRequeries();
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(3);
+  });
+
+  it('dispose 排在事件之后、重读之前：那一次排队的重读也不再发', async () => {
+    const { commands, emit, worktree } = createFixture();
+    await commands.listWorktrees();
+
+    emit(branchActivated());
+    disposeWorktreeCommands(commands);
+    await flushRequeries();
+
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(1);
+  });
+
+  // 启用之前读过列表的话，那一次落的是「能力未启用」的 error；新库建库时就钉好了 main，启用这一下
+  // 不产生任何 worktree 事件，不重读的话列表会一直停在那个 error 上。
+  it('读过列表之后 enable() / enableIfEmpty() 成功：重读一次列表', async () => {
+    const { commands, worktree } = createFixture();
+    worktree.enable.mockResolvedValue(CAPABILITY);
+    worktree.enableIfEmpty.mockResolvedValue({ kind: 'enabled', capability: CAPABILITY });
+    await commands.listWorktrees();
+
+    await commands.enable();
+    await commands.enableIfEmpty();
+
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(3);
+  });
+
+  it('没读过列表时 enable() 不读列表——从不显示列表的应用不为它付一轮查询', async () => {
+    const { commands, worktree } = createFixture();
+    worktree.enable.mockResolvedValue(CAPABILITY);
+
+    await commands.enable();
+
+    expect(worktree.listWorktrees).not.toHaveBeenCalled();
+  });
+
+  it('别的标签页启用了本能力：重读一次列表；别的能力的启用通知不读', async () => {
+    const { commands, emit, worktree } = createFixture();
+    await commands.listWorktrees();
+
+    emit(new CapabilityEnabledEvent('someOtherCapability'));
+    await flushRequeries();
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(1);
+
+    emit(new CapabilityEnabledEvent('workingTree'));
+    await flushRequeries();
+    expect(worktree.listWorktrees).toHaveBeenCalledTimes(2);
+  });
+
+  it('dispose 一份不是 createWorktreeCommands 建的命令：报错而不是静默什么都不做', () => {
+    expect(() => disposeWorktreeCommands({} as WorktreeCommands)).toThrow(RxDBError);
   });
 });

@@ -7,19 +7,19 @@
  *
  * **入口是贡献方的 `removeBranchRows`，与 `writeBranchRows` 对称**（T111 已按后者钉死建分支那一半）。
  * 落在这里而不是 `remove-branch.ts` 里，理由与 T120 那条注记同一条：`rxdb-plugin-history` 不认识
- * `WorkingTreeEntry`，把六张表的删除写在那边要么反向 import 成环（nx 图插件把静态 import 映射成
- * 依赖边，`run-many` 当场拒跑），要么把十张表的知识泄进核心分支逻辑。`remove_branch` 那一侧
+ * `WorkingTreeEntry`，把这些表的删除写在那边要么反向 import 成环（nx 图插件把静态 import 映射成
+ * 依赖边，`run-many` 当场拒跑），要么把这些表的知识泄进核心分支逻辑。`remove_branch` 那一侧
  * 只多一句「在自己那个事务里调一遍贡献」，形参与它调 `writeBranchRows` 时逐字同形。
  *
- * **不指望外键级联替它做这件事。** 六张表里 `rxdb_working_tree_materialization_stage` 上
+ * **不指望外键级联替它做这件事。** 这些表里 `rxdb_working_tree_materialization_stage` 上
  * **没有**指向 `rxdb_branch` 的关系（它只有一个普通的 `targetBranchId` 列加一条索引），级联对它
- * 天然无效；而剩下五张表即使配了 `ON DELETE CASCADE`，那条保证也摊在六个后端各自的
+ * 天然无效；而其余各表即使配了 `ON DELETE CASCADE`，那条保证也摊在六个后端各自的
  * `PRAGMA foreign_keys` 与建表路径上。一半靠约束、一半靠代码的清理等于两套要互相盯着的机制，
  * 而 `remove_branch` 早已给出过答案——它对 `RxDBChange` 就是显式删的，尽管那张表同样挂着级联。
  *
  * 四组断言各自防一种不会编译报错、也不会立刻出错的退化：
  *
- * 1. **漏掉 materialization attempt**。它是六张表里唯一没有外键的那张，于是「删分支行让数据库
+ * 1. **漏掉 materialization attempt**。它是这些表里唯一没有外键的那张，于是「删分支行让数据库
  *    自己收尾」这种写法恰好只漏它。漏下来的是一条 `status='staged'`、指着一个已经不存在的
  *    `targetBranchId` 的 staging：同名重建之后，那条 staging 的目标 id 与新分支逐字相同，
  *    FR-044 的物化屏障会拿它当成「上一次分页崩溃留下的现场」接着往下走。
@@ -50,6 +50,7 @@ import { WorkingTreeMaterializationPage } from '../../working-tree/working-tree-
 import { WorkingTreeMaterializationStage } from '../../working-tree/working-tree-materialization-stage.entity.js';
 import { WorkingTreeRestoreSession } from '../../working-tree/working-tree-restore-session.entity.js';
 import { WorkingTreeState } from '../../working-tree/working-tree-state.entity.js';
+import { createWorktreeRow, Worktree } from '../../worktree/worktree.entity.js';
 import { createCommitGraphProbe } from '../commit/fixtures/commit-graph-probe.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
 import { runBranchGenerationSql } from './fixtures/activation-sql.js';
@@ -90,7 +91,7 @@ const LEGACY_OPERATION_ID = deriveCommitOperationId({
   operationId: CALLER_OPERATION_ID
 });
 
-/** 一个挂了 mock 适配器、已 `init()` 的宿主；十张系统表由插件贡献，必须早于 `init()` 进 `use()`。 */
+/** 一个挂了 mock 适配器、已 `init()` 的宿主；系统表由插件贡献，必须早于 `init()` 进 `use()`。 */
 function createDatabase(): { database: RxDB; plugin: RxDBPluginWorktree } {
   const database = new RxDB({
     dbName: `rxdb-remove-branch-aba-${Math.random().toString(36).slice(2)}`,
@@ -251,13 +252,14 @@ interface Scene {
   sessionsOf(branchId: string): WorkingTreeRestoreSession[];
   stagesOf(branchId: string): WorkingTreeMaterializationStage[];
   pagesOf(stageId: string): WorkingTreeMaterializationPage[];
+  worktreesOf(branchId: string): Worktree[];
 }
 
 /**
  * 造一个「`remove_branch` 已经校验完、正要清理贡献方那几张表」的现场。
  *
  * @remarks
- * 两条分支的六张表**逐张都有行**：只给目标分支布景的话，「删的时候没带 branchId 条件」
+ * 两条分支在每张表上**都有行**：只给目标分支布景的话，「删的时候没带 branchId 条件」
  * 这种写法会把全库清空，而用例照样全绿——它要的行确实都没了。
  */
 function createScene(): Scene {
@@ -294,6 +296,10 @@ function createScene(): Scene {
   probe.seed(WorkingTreeMaterializationStage, [
     createStage(entityManager, KEPT_BRANCH_ID),
     createStage(entityManager, REMOVED_BRANCH_ID)
+  ]);
+  probe.seed(Worktree, [
+    createWorktreeRow(entityManager, KEPT_BRANCH_ID, null),
+    createWorktreeRow(entityManager, REMOVED_BRANCH_ID, 'removed')
   ]);
   probe.seed(WorkingTreeMaterializationPage, [
     createPage(entityManager, `${KEPT_BRANCH_ID}-stage`, 0),
@@ -334,23 +340,25 @@ function createScene(): Scene {
       rowsOf<WorkingTreeMaterializationStage>(WorkingTreeMaterializationStage).filter(
         row => row.targetBranchId === branchId
       ),
+    worktreesOf: branchId => rowsOf<Worktree>(Worktree).filter(row => row.branchId === branchId),
     pagesOf: stageId =>
       rowsOf<WorkingTreeMaterializationPage>(WorkingTreeMaterializationPage).filter(row => row.stageId === stageId)
   };
 }
 
-/** 这条分支在六张表里还剩下几行；一次读出来才好整份比对，逐张断言会漏掉刚加的第七张表。 */
+/** 这条分支在各张表里还剩下几行；一次读出来才好整份比对，逐张断言会漏掉新加的表。 */
 const branchFootprintOf = (scene: Scene, branchId: string) => ({
   ref: scene.refOf(branchId) ? 1 : 0,
   state: scene.stateOf(branchId) ? 1 : 0,
   entries: scene.entriesOf(branchId).length,
   sessions: scene.sessionsOf(branchId).length,
   stages: scene.stagesOf(branchId).length,
-  pages: scene.pagesOf(`${branchId}-stage`).length
+  pages: scene.pagesOf(`${branchId}-stage`).length,
+  worktrees: scene.worktreesOf(branchId).length
 });
 
 describe('removeBranch() 原子删除该分支全部可变状态（FR-044）', () => {
-  it('ref / 工作树状态 / 未提交条目 / 恢复会话四张表上一行不剩', async () => {
+  it('ref / 工作树状态 / 未提交条目 / 恢复会话 / 钉住它的 worktree 上一行不剩', async () => {
     const scene = createScene();
 
     await scene.remove();
@@ -361,8 +369,9 @@ describe('removeBranch() 原子删除该分支全部可变状态（FR-044）', (
       ref: scene.refOf(REMOVED_BRANCH_ID),
       state: scene.stateOf(REMOVED_BRANCH_ID),
       entries: scene.entriesOf(REMOVED_BRANCH_ID),
-      sessions: scene.sessionsOf(REMOVED_BRANCH_ID)
-    }).toEqual({ ref: undefined, state: undefined, entries: [], sessions: [] });
+      sessions: scene.sessionsOf(REMOVED_BRANCH_ID),
+      worktrees: scene.worktreesOf(REMOVED_BRANCH_ID)
+    }).toEqual({ ref: undefined, state: undefined, entries: [], sessions: [], worktrees: [] });
   });
 
   it('materialization attempt 与它的分页一并消失——那张表上没有外键，级联管不到它', async () => {
@@ -377,7 +386,7 @@ describe('removeBranch() 原子删除该分支全部可变状态（FR-044）', (
     expect(scene.pagesOf(`${REMOVED_BRANCH_ID}-stage`)).toEqual([]);
   });
 
-  it('旁观分支的六张表一行都没动', async () => {
+  it('旁观分支的各张表一行都没动', async () => {
     const scene = createScene();
 
     await scene.remove();
@@ -389,7 +398,8 @@ describe('removeBranch() 原子删除该分支全部可变状态（FR-044）', (
       entries: 1,
       sessions: 1,
       stages: 1,
-      pages: 1
+      pages: 1,
+      worktrees: 1
     });
   });
 

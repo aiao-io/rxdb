@@ -105,7 +105,7 @@ const PAGE_COUNT = 3;
 /** attempt 开始那一刻的终止水位；分页期间调用方那份会继续推进。 */
 const FROZEN_WATERMARK = { changeId: 100 } as const;
 
-/** 一个挂了 mock 适配器、已 `init()` 的宿主；十张系统表由插件贡献，必须早于 `init()` 进 `use()`。 */
+/** 一个挂了 mock 适配器、已 `init()` 的宿主；系统表由插件贡献，必须早于 `init()` 进 `use()`。 */
 function createDatabase(): { database: RxDB; plugin: RxDBPluginWorktree } {
   const database = new RxDB({
     dbName: `rxdb-metadata-only-switch-${Math.random().toString(36).slice(2)}`,

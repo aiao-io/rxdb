@@ -49,8 +49,8 @@ export function CommitBar() {
 }
 ```
 
-`useWorktree()` 经 `useRxDB()` 取库，因此组件树里必须有 `RxDBProvider`。十个状态字段是**普通只读值**
-（`Readonly<WorktreeAsyncStates>`），可以直接解构；十个方法**引用稳定**，可以安全放进
+`useWorktree()` 经 `useRxDB()` 取库，因此组件树里必须有 `RxDBProvider`。状态字段是**普通只读值**
+（`Readonly<WorktreeAsyncStates>`），可以直接解构；方法**引用稳定**，可以安全放进
 `useEffect` / `useMemo` 的依赖数组。
 
 ## 三端对称
@@ -63,7 +63,7 @@ Vue [`@aiao/rxdb-plugin-worktree-vue`](../rxdb-plugin-worktree-vue) 的
 
 ## 行为约定（三端一致）
 
-- **创建入口本身一次 IO 都不发**：十格状态初值全是 `idle`，只有真调了方法才去读库。
+- **创建入口本身一次 IO 都不发**：全部状态格初值都是 `idle`，只有真调了方法才去读库。
 - **没有变更流**：状态只在经本入口发出的命令之后更新。别的标签页写进来的改动、直接走
   `entity.save()` 的写入，都不会推一份新的 status 过来——要最新值就再调一次 `status()`。
 - 拿不到数据库时**抛错**，而不是返回一份「一切干净」的默认值。

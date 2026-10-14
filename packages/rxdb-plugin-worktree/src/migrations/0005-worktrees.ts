@@ -7,13 +7,7 @@
  * `rxdb_migration`、同一把锁，按名字排在它之后。
  */
 
-import {
-  AmbiguousActiveBranchError,
-  RxDBBranch,
-  type EntityManager,
-  type MigrationType,
-  type TransactionExecutor
-} from '@aiao/rxdb';
+import { findSingleActiveBranch, type EntityManager, type MigrationType, type TransactionExecutor } from '@aiao/rxdb';
 import { createWorktreeRow, type Worktree } from '../worktree/worktree.entity.js';
 
 /**
@@ -50,37 +44,30 @@ export function createWorktreesInitialRows(
  * @returns 可交给 `runMigrations()` 的迁移
  *
  * @remarks
- * **不用 `assertSingleActiveBranch()`。** 本迁移对**所有**既有库都跑，而零 active 是从没启用过
- * 提交能力的老库的合法态：`commit-error-codes.ts` 的 `no_active_branch` 写明迁移期不抛，
- * `bootstrapExisting()` 也只在能力已启用时才断言基数。照那个守卫写，这类库升级当场拒连。
+ * **用 `findSingleActiveBranch()`，不用 `assertSingleActiveBranch()`。** 本迁移对**所有**既有库都跑，
+ * 而零 active 是从没启用过提交能力的老库的合法态：`commit-error-codes.ts` 的 `no_active_branch` 写明
+ * 迁移期不抛，`bootstrapExisting()` 也只在能力已启用时才断言基数。照运行期守卫写，这类库升级当场拒连；
+ * 自己再抄一份查询与基数判定，「多行怎么办」又会在核心之外长出第二份答案。
  *
  * 三种基数各有各的答案：
  *
  * - **一条**：主行钉在它上面——升级之后用户看到的第一个 worktree 就是自己正在用的那条分支；
- * - **零条**：不落行。没有当前 checkout，也就没有「主 worktree」；零行是 `listWorktrees()` 的合法态，
- *   用户随时可以自己 `createWorktree()`。不顺手激活 `main`——修复 active 是首次启用迁移的事
- *   （`resolveSingleActiveBranch` 的限定），在这里修等于多一条「顺手修一下」的路；
+ * - **零条**：不落行。没有当前 checkout，也就没有「主 worktree」。不顺手激活 `main`——修复 active 是
+ *   首次启用迁移的事（`resolveSingleActiveBranch` 的限定），在这里修等于多一条「顺手修一下」的路；
+ *   首次启用那一笔事务建出 active 分支之后，门面在同一笔里补钉主 worktree（`ensureMainWorktree`）；
  * - **多条**：抛 {@link AmbiguousActiveBranchError}，整条迁移回滚。「当前 checkout 是谁」没有答案，
  *   与 `ensureBranchActiveKey` 撞上多 active 时的处置同口径。
  *
- * 读基数**不带 `limit`**：带了就是先把答案截断再问答案是多少（`active-branch-guard.ts` 的原话）。
- * 读也必须走 `executor` 的仓库：事务体内经普通 `adapter.query()` 的读会排在自己这个事务后面，直接挂死。
+ * 读走 `executor`（`findSingleActiveBranch` 只经它的仓库读、不带 `limit`）：事务体内经普通
+ * `adapter.query()` 的读会排在自己这个事务后面，直接挂死。
  */
 export function createWorktreesMigration(entityManager: EntityManager): MigrationType {
   return {
     name: WORKTREES_MIGRATION_NAME,
     async up(executor: TransactionExecutor): Promise<void> {
-      const active = await executor.getRepository(RxDBBranch).find({
-        where: { combinator: 'and', rules: [{ field: 'activated', operator: '=', value: true }] }
-      });
-      if (active.length > 1) throw new AmbiguousActiveBranchError(active.map(branch => branch.id).sort());
-      if (active.length === 0) return;
-      await executor.saveMany(
-        createWorktreesInitialRows(
-          entityManager,
-          active.map(branch => branch.id)
-        )
-      );
+      const active = await findSingleActiveBranch(executor);
+      if (!active) return;
+      await executor.saveMany(createWorktreesInitialRows(entityManager, [active.id]));
     },
     down(): Promise<void> {
       // 反向迁移唯一有意义的实现是删掉全部 worktree 行，而 RxDB 从不主动调 down()。

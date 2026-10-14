@@ -2186,6 +2186,9 @@ export const worktreeCommitConformanceSuite = (context: WorktreeConformanceSuite
           label: 'Feature',
           active: true
         });
+        // 返回值不再按主键读回：`createdAt` 由适配器在写入时填，写路径回查后水合到同一个实例上。
+        // 六个后端各自填一次时钟，这一句守住「填了、而且是 Date」。
+        expect(created.createdAt).toBeInstanceOf(Date);
         expect(await activeBranchIdsOf(database)).toEqual(['conformance-wt-feature']);
         expect(byBranch(await listOf())).toEqual(
           byBranch([
