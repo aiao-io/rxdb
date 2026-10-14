@@ -6,8 +6,10 @@
  */
 
 import type { PGliteOptions } from '@electric-sql/pglite';
+import { btree_gist } from '@electric-sql/pglite/contrib/btree_gist';
 import { live } from '@electric-sql/pglite/live';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { pgliteBackupExtensions } from '../backup/pglite-backup-compat.js';
 import { PGliteClient, resolvePGliteInitOptions, shouldUsePGliteWorker } from '../PGliteClient.js';
 
 describe('PGliteClient', () => {
@@ -160,6 +162,34 @@ describe('PGliteClient', () => {
       expect(options.relaxedDurability).toBe(false);
       expect(options.dataDir).toBeUndefined();
     });
+
+    it('btree_gist 只按要求装载（有实体声明区间排他），且不进备份兼容性的扩展清单（US-030）', () => {
+      const userOptions = { store: 'memory' as const };
+      expect(Reflect.has(resolvePGliteInitOptions('x', userOptions).extensions, 'btree_gist')).toBe(false);
+      const options = resolvePGliteInitOptions('x', userOptions, { btreeGist: true });
+      expect(Reflect.get(options.extensions, 'btree_gist')).toBe(btree_gist);
+      expect(options.extensions.live).toBe(live);
+      // 装载由实体元数据决定，恢复目标声明同样的实体就装同样的扩展，不进用户扩展清单
+      expect(pgliteBackupExtensions(userOptions)).toEqual([]);
+    });
+  });
+
+  it('装载了 btree_gist 的客户端能建 EXCLUDE USING gist（相等列走 btree_gist 运算符类）', async () => {
+    const gistClient = new PGliteClient({ btreeGist: true });
+    await gistClient.init(`pglite-btree-gist-${Date.now()}`, { store: 'memory' });
+    try {
+      await gistClient.exec(`CREATE EXTENSION IF NOT EXISTS btree_gist`);
+      await gistClient.exec(
+        `CREATE TABLE gist_probe ("lineId" varchar, "unitFrom" integer, "unitTo" integer,
+          EXCLUDE USING gist ("lineId" WITH =, int8range("unitFrom", "unitTo", '[]') WITH &&))`
+      );
+      await gistClient.exec(`INSERT INTO gist_probe VALUES ('L1', 1, 5)`);
+      await expect(gistClient.exec(`INSERT INTO gist_probe VALUES ('L1', 5, 9)`)).rejects.toMatchObject({
+        code: '23P01'
+      });
+    } finally {
+      await gistClient.disconnect();
+    }
   });
 });
 

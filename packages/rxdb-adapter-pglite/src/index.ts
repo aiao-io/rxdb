@@ -37,6 +37,9 @@ export * from './fts/index.js';
 // 相同的行为。不导出的话桌面侧只能照抄一份，而分叉的表征是「桌面下变更事件比浏览器多」。
 export * from './notify/notification-batcher.js';
 export * from './pglite.interface.js';
+// 适配器按实体元数据装载的服务端扩展（区间排他要的 btree_gist）。桌面端的 PGlite 由宿主应用在
+// 主进程创建，宿主据 `pgliteServerExtensionRequirementsOf(entities)` 决定要不要装载它。
+export type { PGliteServerExtensionRequirements } from './pglite-server-extensions.js';
 export * from './pglite.utils.js';
 export { RxdbAdapterPGliteError } from './pglite.utils.js';
 export * from './PGliteClient.js';

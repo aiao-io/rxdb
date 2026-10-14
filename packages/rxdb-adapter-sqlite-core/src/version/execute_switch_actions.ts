@@ -7,7 +7,8 @@ import {
   RxDBChange,
   RxDBEntityLocalCreatedEventData,
   RxDBEntityLocalRemovedEventData,
-  RxDBEntityLocalUpdatedEventData
+  RxDBEntityLocalUpdatedEventData,
+  toStorageConstraintViolationError
 } from '@aiao/rxdb';
 import type { RxDBAdapterSqliteBase } from '../RxDBAdapterSqliteBase.js';
 import { get_sql_value, get_table_name_by_metadata, quote_sql_identifier } from '../sqlite-core.utils.js';
@@ -18,8 +19,28 @@ import {
   executeSqliteStatements,
   type SqlStatementSink
 } from './execute-sql-statements.js';
-import type { SwitchVersionSqlResult } from './switch-result.utils.js';
+import type { SwitchVersionSqlItem, SwitchVersionSqlResult } from './switch-result.utils.js';
 import { withTriggersDisabled } from './with_triggers_disabled.js';
+
+/**
+ * 执行一项插入 / 更新并回填 SELECT 结果；存储约束违约归一后原样上抛。
+ *
+ * @remarks
+ * 同步拉取遇本地约束拒绝远端行时，归一后的错误（CHECK / 区间排他）不被吞，消息点名实体与
+ * 约束名（US-030「与既有写入路径的交互」）。冲突值取自本项的 patch。
+ */
+async function applySwitchWrite(tx: SqlStatementSink, action: SwitchVersionSqlItem): Promise<void> {
+  try {
+    await executeSqliteStatements(tx, action.statements);
+  } catch (error) {
+    throw toStorageConstraintViolationError(
+      error,
+      action.metadata,
+      Array.from(action.changes.values()).map(change => change.patch ?? {})
+    );
+  }
+  action.successResults = await executeSqliteSelectStatements(tx, action.selectStatements);
+}
 
 /**
  * 按 删除 → 插入 → 更新 的顺序应用一组 SQL 操作，并回填各自的 SELECT 结果。
@@ -28,22 +49,24 @@ import { withTriggersDisabled } from './with_triggers_disabled.js';
  * @param switchAction - 已转换的 SQL 操作集合；`successResults` 就地写回
  *
  * @remarks
+ * 声明了区间排他的实体，其更新项（`beforeInserts`）提到全部插入之前：「截止旧行 + 新开一行」
+ * 一起重放时，先插新行就会经过重叠的中间态（US-030 AC#14，见核心 `exclusion-write-order`）。
+ *
  * 抽成独立函数是为了让触发器三明治（{@link withTriggersDisabled}）能整段包住它 ——
- * 内联在事务回调里会把嵌套顶到四层。
+ * 内联在事务回调里会把嵌套顶到四层；切分支（`switch_branch`）也走这一份，顺序只写一次。
  */
-async function applySwitchActions(tx: SqlStatementSink, switchAction: SwitchVersionSqlResult): Promise<void> {
+export async function applySwitchActions(tx: SqlStatementSink, switchAction: SwitchVersionSqlResult): Promise<void> {
   for (const deleteAction of switchAction.deletes) {
     await executeSqliteStatements(tx, deleteAction.statements);
   }
-
-  for (const insertAction of switchAction.inserts) {
-    await executeSqliteStatements(tx, insertAction.statements);
-    insertAction.successResults = await executeSqliteSelectStatements(tx, insertAction.selectStatements);
+  for (const updateAction of switchAction.updates.filter(action => action.beforeInserts)) {
+    await applySwitchWrite(tx, updateAction);
   }
-
-  for (const updateAction of switchAction.updates) {
-    await executeSqliteStatements(tx, updateAction.statements);
-    updateAction.successResults = await executeSqliteSelectStatements(tx, updateAction.selectStatements);
+  for (const insertAction of switchAction.inserts) {
+    await applySwitchWrite(tx, insertAction);
+  }
+  for (const updateAction of switchAction.updates.filter(action => !action.beforeInserts)) {
+    await applySwitchWrite(tx, updateAction);
   }
 }
 

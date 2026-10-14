@@ -38,6 +38,22 @@
     "version": "string",
     "withSeedLock": "function"
   },
+  "./check-constraint": {
+    "CheckQtyItem": "function",
+    "CheckXorItem": "function",
+    "CheckRangeItem": "function",
+    "checkConstraintFixtures": "array",
+    "ConditionalUniqueRevision": "function",
+    "conditionalUniqueFixtures": "array",
+    "ExclusionOccurrence": "function",
+    "ExclusionSegment": "function",
+    "ExclusionLine": "function",
+    "ExclusionLineSlot": "function",
+    "exclusionFixtures": "array",
+    "runCheckConstraintWriteBehaviorSuite": "function",
+    "runConditionalUniqueWriteBehaviorSuite": "function",
+    "runExclusionWriteBehaviorSuite": "function"
+  },
   "./encrypted": {
     "ENCRYPTED_SENTINELS": "array",
     "EncryptedAuditedUser": "function",

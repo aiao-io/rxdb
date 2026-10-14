@@ -28,6 +28,8 @@
 import {
   EntityData,
   EntityMetadata,
+  orderExclusionUpdates,
+  ordersWritesForExclusion,
   parseRxDBChangeKey,
   PropertyType,
   RxDBEntityId,
@@ -314,8 +316,12 @@ export const convertSwitchResultToSql = async (
     // 只收真正写过的 id：被跳过的行没落过写，它的 RETURNING 行自然也不存在，
     // 不该被当成「更新过」再发事件、再回填身份缓存。
     const writtenIds = new Set<RxDBEntityId>();
+    // 声明了区间排他的实体：收窄类更新排最前，整组排到插入之前执行（US-030 AC#14）
+    const orderedEntityData = orderExclusionUpdates(metadata, entityDataArray, data =>
+      isEntityId(data['id']) ? changesMap.get(data['id']) : undefined
+    );
 
-    for (const dataRaw of entityDataArray) {
+    for (const dataRaw of orderedEntityData) {
       // FR-006：把历史行里的信封解回明文，让写入钩子只加密一次。
       const data = await decryptEntityDataForApply(adapter, metadata, dataRaw);
       const { id, ...updateData } = data;
@@ -346,7 +352,8 @@ export const convertSwitchResultToSql = async (
       ids: writtenIds,
       sql: sqlStatements.join('---STATEMENT_SEPARATOR---'),
       params: [], // 已经内联到 SQL 中
-      changes: changesMap
+      changes: changesMap,
+      beforeInserts: ordersWritesForExclusion(metadata)
     });
   }
 

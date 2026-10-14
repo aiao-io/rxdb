@@ -57,6 +57,8 @@ export class Order extends EntityBase {}
 
 其中最重要的是 `properties` 的顺序。组合索引不是集合，而是有顺序的列前缀。
 
+唯一索引还可以加 `where`，只对满足条件的行生效（条件唯一），见[存储约束](./constraints.md#条件唯一)。
+
 ## 什么时候该建索引
 
 - 某个字段会被频繁精确查询时
@@ -87,3 +89,4 @@ export class Order extends EntityBase {}
 - 多字段约束使用 `indexes`
 - `properties` 顺序按最常见查询模式排列
 - 跨表约束不属于索引职责，由业务层或关系约束层处理
+- 单行取值规则、条件唯一、区间不重叠用[存储约束](./constraints.md)声明，不要只写在仓储方法里
