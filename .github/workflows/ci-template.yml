@@ -1116,7 +1116,7 @@ jobs:
   # 所以这个 job 和 test/e2e 一样需要 chromium —— 旧流程里它和别的任务同 job，
   # 白蹭了前面装好的浏览器，拆出来后必须自己装。
   #
-  # bench-working-tree 同住这个 job：它是纯 Node（PGlite）跑分，一个浏览器都不要，但触发
+  # bench-worktree 同住这个 job：它是纯 Node（PGlite）跑分，一个浏览器都不要，但触发
   # 条件与 search-ci 逐字相同（need_benchmark），单开一个 job 只会把同一份 setup-workspace
   # 与 nx-cache-restore 再付一遍。它是 epic-006「性能预算的口径」指定的**普通 PR CI
   # 唯一硬门禁**：拿与本 runner 同比值画像（系统/架构 + CPU 型号 + Node 主版本）的 reference 比相对
@@ -1146,7 +1146,7 @@ jobs:
       - uses: ./.github/actions/setup-workspace
       - uses: ./.github/actions/nx-cache-restore
       - uses: ./.github/actions/playwright-chromium
-      - run: pnpm exec nx run-many -t search-ci bench-working-tree bench-sortable-batch -p benchmarks --output-style=stream
+      - run: pnpm exec nx run-many -t search-ci bench-worktree bench-sortable-batch -p benchmarks --output-style=stream
 
   # ---------------------------------------------------------------------------
   # 覆盖率汇总：把各 lane 的 artifact 合回一个 coverage/ 目录，跑阈值门禁 + 上报 Codecov。

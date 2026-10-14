@@ -58,10 +58,7 @@ import {
   decodeCommitChangeSetUnit,
   decodeCommitChangeSetUnits
 } from '../../commit/commit-codec.js';
-import {
-  encodeWorktreePatch,
-  UnknownWorktreePatchEntityError
-} from '../../working-tree/working-tree-patch-codec.js';
+import { encodeWorktreePatch, UnknownWorktreePatchEntityError } from '../../working-tree/working-tree-patch-codec.js';
 import { codecWith, ENVELOPE, isEnvelopeLike, RAW_CIPHERTEXT, SENTINEL } from './fixtures/encrypted-entities.js';
 
 /** 普通（未加密）二进制列的值，用来证明本断言不越界管它。 */

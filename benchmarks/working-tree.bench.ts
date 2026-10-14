@@ -40,7 +40,7 @@
  * - 相对门禁：各项 ratio ≤ **与本机同比值画像**的那份 reference median × 该项容差（读项
  *   `status` / `diff` 130%，写项 `restore` / `commit` 110%，见 `RELATIVE_GATE_TOLERANCES`），
  *   这是 PR CI 的**唯一**硬门禁。画像 = 系统/架构 + CPU 型号 + Node 主版本；为什么 ratio 只能在同画像内比，
- *   见 `worktree-gate.ts`。三种结局：
+ *   见 `working-tree-gate.ts`。三种结局：
  *   - 一份 reference 都没冻结：打印提示并以 0 退出——首个绿色实现得先跑出数字，T097 才有东西可冻。
  *   - 有 reference 但没有同画像的：以 `benchmark_environment_mismatch` 失败，不降级为通过；
  *     补冻方法见失败时打印的提示。
@@ -77,14 +77,9 @@ import {
   restoreWorktreeFixture,
   seedWorktreeFixture
 } from './working-tree-fixture.ts';
-import type { RatioVerdict, RelativeGateDecision } from './worktree-gate.ts';
-import { collectEnvironment, decideRelativeGate, readReferences, selectReference } from './worktree-gate.ts';
-import type {
-  BenchEnvironment,
-  BenchMeasurement,
-  BenchReference,
-  WorktreeBenchReport
-} from './working-tree-report.ts';
+import type { RatioVerdict, RelativeGateDecision } from './working-tree-gate.ts';
+import { collectEnvironment, decideRelativeGate, readReferences, selectReference } from './working-tree-gate.ts';
+import type { BenchEnvironment, BenchMeasurement, BenchReference, WorktreeBenchReport } from './working-tree-report.ts';
 import {
   ABSOLUTE_BUDGET_MS,
   ENVIRONMENT_MISMATCH_CODE,
@@ -656,7 +651,7 @@ if (gatingDisabled) {
 const decision = decideRelativeGate(references, report.environment.ratioProfile, report.measurements);
 if (decision.kind === 'unfrozen') {
   console.log(
-    '\n[bench:worktree] 还没有冻结的 reference（reports/worktree-reference/）——' +
+    '\n[bench:worktree] 还没有冻结的 reference（reports/working-tree-reference/）——' +
       '本次只产出数字，不做门禁判定。冻结用 benchmarks/freeze-working-tree-reference.ts。'
   );
   process.exit(0);

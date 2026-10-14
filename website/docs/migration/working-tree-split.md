@@ -75,8 +75,8 @@ await db.worktree.enable();
 
 三端 `useWorktree()` **同名、同字段、同方法签名**，只有状态容器形态不同（`Signal` / 渲染快照 / `ComputedRef`）：
 
-| 框架    | 包                                       | 入口               |
-| :------ | :--------------------------------------- | :----------------- |
+| 框架    | 包                                   | 入口            |
+| :------ | :----------------------------------- | :-------------- |
 | Angular | `@aiao/rxdb-plugin-worktree-angular` | `useWorktree()` |
 | React   | `@aiao/rxdb-plugin-worktree-react`   | `useWorktree()` |
 | Vue     | `@aiao/rxdb-plugin-worktree-vue`     | `useWorktree()` |
@@ -129,10 +129,10 @@ await db.versionManager.switchBranch('feature'); // 首次切换即物化
 
 随之变化的公开面：
 
-| 旧（`@aiao/rxdb-plugin-worktree`）                                  | 新                                                                                                     |
+| 旧（`@aiao/rxdb-plugin-worktree`）                                      | 新                                                                                                     |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `db.worktree.registerMaterializationSource(source)`                  | 删除；自定义来源改用 `db.branchMaterializationSource(source, scope?)`                                  |
-| `db.worktree.materializationSource`                                  | 删除；读取用 `db.getBranchMaterializationSource()`                                                     |
+| `db.worktree.registerMaterializationSource(source)`                     | 删除；自定义来源改用 `db.branchMaterializationSource(source, scope?)`                                  |
+| `db.worktree.materializationSource`                                     | 删除；读取用 `db.getBranchMaterializationSource()`                                                     |
 | `BranchMaterializationSource` / `BranchMaterializationIntent`           | 移到 `@aiao/rxdb`，成员改为 `freezeIntent` / `pages` / `resolveIntentDrift` / `projectPage` / `settle` |
 | `BranchMaterializationPagePayload` / `BranchMaterializationPageRequest` | 移到 `@aiao/rxdb`                                                                                      |
 | `branchMaterializationPageFingerprint`                                  | 移到 `@aiao/rxdb`（算法不变）                                                                          |

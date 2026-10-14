@@ -68,7 +68,7 @@ export class RxDBPluginExample extends RxDBPluginBase implements IRxDBPlugin {
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `capability`                | 能力名；非空且不含 `:`。同时是水位行归因与版本不匹配报错用的名字                                                 |
 | `version`                   | 能力版本；核心拿它写水位行、不比对                                                                               |
-| `packageSpecifier`          | 包说明符（如 `@aiao/rxdb-plugin-worktree`）；未认领守卫把它**原样报给用户**                                  |
+| `packageSpecifier`          | 包说明符（如 `@aiao/rxdb-plugin-worktree`）；未认领守卫把它**原样报给用户**                                      |
 | `entities`                  | 系统表实体类；进核心的系统表身份集（`isSystemEntity()` 认得它们，跨包消费者不会当接入方数据）                    |
 | `createInitialRows`         | 新库建表那一刻写入的初始行                                                                                       |
 | `createMigrations`          | 既有库的引导迁移；与核心系统迁移并进**同一条链、同一张 `rxdb_migration`、同一把锁**，名字必须是 `NNNN-` 数字前缀 |

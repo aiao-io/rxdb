@@ -1,6 +1,6 @@
 # US-310 命名工作上下文（git worktree 能力）—— 执行任务单
 
-> 状态：进行中。前置：US-309 改名已完成（commit `ffb66c62`，分支 `claude/worktree-rename-contexts`）。
+> 状态：待评审——§7 第 1～7 步与 `pnpm test-all` 全量门禁均已完成；§6.3 的 speckit 配套文档按原计划后补。前置：US-309 改名已完成（commit `ffb66c62`，分支 `claude/worktree-rename-contexts`）。
 > 本文档是自包含的执行清单：背景、设计、任务、验证一步不缺，按序执行即可。
 > **§0 的评审修订优先于下文**；下文相应位置已同步改写。
 

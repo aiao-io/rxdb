@@ -65,12 +65,7 @@ const credentialsOf = (scene: WorktreeScene): WorktreeRestoreOptions => ({
 
 /** 跑一次恢复，返回落进工作树的那批行。 */
 const restoreAndRead = async (scene: WorktreeScene): Promise<WorkingTreeEntry[]> => {
-  const result = await restoreWorktree(
-    scene.probe.executor,
-    scene.context,
-    { commitId: OLDER },
-    credentialsOf(scene)
-  );
+  const result = await restoreWorktree(scene.probe.executor, scene.context, { commitId: OLDER }, credentialsOf(scene));
   if (!result.ok) throw new Error(`期望这次恢复成功，实际拿到：${JSON.stringify(result)}`);
   return entryRowsOf(scene);
 };

@@ -96,9 +96,7 @@
       "@aiao/rxdb-plugin-worktree-angular": ["./packages/rxdb-plugin-worktree-angular/src/index.ts"],
       "@aiao/rxdb-plugin-worktree-react": ["./packages/rxdb-plugin-worktree-react/src/index.ts"],
       "@aiao/rxdb-plugin-worktree-vue": ["./packages/rxdb-plugin-worktree-vue/src/index.ts"],
-      "@aiao/rxdb-plugin-worktree/testing": [
-        "./packages/rxdb-plugin-worktree/src/working-tree/testing/index.ts"
-      ],
+      "@aiao/rxdb-plugin-worktree/testing": ["./packages/rxdb-plugin-worktree/src/working-tree/testing/index.ts"],
       "@aiao/rxdb-plugin-workspace": ["./packages/rxdb-plugin-workspace/src/index.ts"],
       "@aiao/rxdb-react": ["./packages/rxdb-react/src/index.ts"],
       "@aiao/rxdb-test": ["./packages/rxdb-test/src/index.ts"],

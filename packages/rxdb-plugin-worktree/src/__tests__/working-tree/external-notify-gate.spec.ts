@@ -36,9 +36,7 @@ describe('行 11 门禁 —— gateExternalNotify', () => {
 
   it('版本化业务实体上拒绝，且通知体一次都没被调用', () => {
     let ran = 0;
-    expect(() => gateExternalNotify(request('versioned'), () => void (ran += 1))).toThrow(
-      WorktreeWriteRejectedError
-    );
+    expect(() => gateExternalNotify(request('versioned'), () => void (ran += 1))).toThrow(WorktreeWriteRejectedError);
     expect(ran, '拒绝发生在派发之后').toBe(0);
   });
 

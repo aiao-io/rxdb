@@ -11,7 +11,7 @@ import {
   decideRelativeGate,
   ratioProfileFileName,
   readReferences
-} from './worktree-gate.ts';
+} from './working-tree-gate.ts';
 import type { BenchMeasurement, BenchReference } from './working-tree-report.ts';
 import { REFERENCE_DIR } from './working-tree-report.ts';
 

@@ -65,10 +65,7 @@
 import type { EntityMetadata } from '@aiao/rxdb';
 import { RxDBError } from '@aiao/rxdb';
 import type { WorktreePatchCodecContext, WorktreePatchTarget } from '../working-tree/working-tree-patch-codec.js';
-import {
-  UnknownWorktreePatchEntityError,
-  decodeWorktreePatch
-} from '../working-tree/working-tree-patch-codec.js';
+import { UnknownWorktreePatchEntityError, decodeWorktreePatch } from '../working-tree/working-tree-patch-codec.js';
 import type { CommitChangeUnitContent } from './change-unit.js';
 import type { CommitChangeSet } from './commit-change-set.entity.js';
 

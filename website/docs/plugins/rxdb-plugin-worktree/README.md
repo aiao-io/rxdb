@@ -2,7 +2,9 @@
 
 `@aiao/rxdb-plugin-worktree` 为 `@aiao/rxdb` 提供**本地工作树与提交历史**：把「未提交的改动」与「提交历史」作为一等概念加进数据库——用户的编辑先落进工作树而不是直接改主数据，`status()` / `diff()` 查看摘要与逐条改动，`commit()` 一次性提交成快照，`discard()` 整体退回，`listCommits()` 读取当前分支的提交历史，`restore()` 把历史版本的内容搬回工作树。
 
-未装本包的库**零成本**——十张系统表、写捕获、提交图编解码全部随包走，核心侧只留下装卸口与两道转交门。
+未装本包的库**零成本**——十一张系统表、写捕获、提交图编解码全部随包走，核心侧只留下装卸口与两道转交门。
+
+另带一层 `git worktree` 式的**命名工作上下文**：把分支钉成有名字的 worktree，在几条工作线之间切换时，每条线上没提交的改动原样保留，见[命名 worktree](#命名-worktree)。
 
 ## 能力范围
 
@@ -18,6 +20,10 @@
 | `restoreSession()` | 当前分支那个尚未结束的恢复会话                                                                                         |
 | `commits$`         | 每次 `commit()` **确实写入了新 commit** 时发一次 `{ commitId, branchId }`，供录制回放等订阅方关联提交                  |
 | `switchBranch()`   | 切分支时可以要求「当前分支必须干净」「激活代际必须对得上」；挂在 `@aiao/rxdb-plugin-history` 的 `db.versionManager` 上 |
+| `listWorktrees()`  | 全部命名 worktree；`active` 与当前 checkout 同口径                                                                     |
+| `createWorktree()` | 把一条分支钉成命名 worktree 并切过去（`git worktree add`）                                                             |
+| `switchWorktree()` | 切到一个 worktree；**不要求**工作树干净，未提交改动留在原 worktree                                                     |
+| `removeWorktree()` | 移除一个 worktree（只删那一行）；当前所在或有未提交改动时拒绝                                                          |
 
 ## 用之前要知道的六件事
 
@@ -192,17 +198,17 @@ console.log(status.entryCount, status.clean, status.byOrigin);
 
 返回 `WorktreeStatus`：
 
-| 字段                  | 类型                         | 说明                                           |
-| --------------------- | ---------------------------- | ---------------------------------------------- |
-| `branchId`            | `string`                     | 当前 active 分支 id                            |
-| `entryCount`          | `number`                     | 未提交条目数                                   |
-| `clean`               | `boolean`                    | 没有未提交条目                                 |
-| `restoring`           | `boolean`                    | 有未结束的恢复会话，且捕获的 revision 仍对得上 |
-| `conflicted`          | `boolean`                    | 有未结束的恢复会话，但捕获的 revision 已经分叉 |
+| 字段                  | 类型                      | 说明                                           |
+| --------------------- | ------------------------- | ---------------------------------------------- |
+| `branchId`            | `string`                  | 当前 active 分支 id                            |
+| `entryCount`          | `number`                  | 未提交条目数                                   |
+| `clean`               | `boolean`                 | 没有未提交条目                                 |
+| `restoring`           | `boolean`                 | 有未结束的恢复会话，且捕获的 revision 仍对得上 |
+| `conflicted`          | `boolean`                 | 有未结束的恢复会话，但捕获的 revision 已经分叉 |
 | `byOrigin`            | `WorktreeOriginBreakdown` | 条目按来源分布；`remote_sync` **不豁免**       |
-| `activationRevision`  | `number`                     | 捕获位之一：分支激活 revision                  |
-| `headRevision`        | `number`                     | 捕获位之一：HEAD 推进 revision                 |
-| `workingTreeRevision` | `number`                     | 捕获位之一：工作树 revision                    |
+| `activationRevision`  | `number`                  | 捕获位之一：分支激活 revision                  |
+| `headRevision`        | `number`                  | 捕获位之一：HEAD 推进 revision                 |
+| `workingTreeRevision` | `number`                  | 捕获位之一：工作树 revision                    |
 
 三个 revision 字段缺一不可：它们恰好是 `commit()` / `discard()` 要求调用方捕获的那三个位。少给一个，调用方就永远构造不出一次不会撞 `CommitConflict` 的提交。
 
@@ -255,7 +261,7 @@ if (result.ok) {
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `expectedBranch`                      | 捕获时的 active 分支**令牌**：`{ branchId, activationRevision }`——只认 `branchId` 的话，`main → feature → main` 一个来回之后令牌又「对上了」，而这中间工作树已经换过两轮 |
 | `expectedHeadRevision`                | 捕获时的 HEAD 推进 revision                                                                                                                                              |
-| `expectedWorktreeRevision`         | 捕获时的工作树 revision                                                                                                                                                  |
+| `expectedWorktreeRevision`            | 捕获时的工作树 revision                                                                                                                                                  |
 | `authorId`                            | 提交作者；落进不可变历史的 `Commit.author`                                                                                                                               |
 | `operationId`                         | 调用方的操作 id；同一次逻辑提交的重试必须带同一个值（幂等键）                                                                                                            |
 
@@ -438,6 +444,39 @@ v1 **没有自动 stash，也不携带脏工作树跨分支**：工作树属于�
 
 另一道前置不受 `requireClean` 控制：**目标分支的提交图必须完整**。它单独判、单独抛，`requireClean: false` 关不掉它——否则历史子系统的回放路径就能切进一份重放不出来的历史。
 
+## 命名 worktree
+
+`git worktree` 的本地优先版本：一个 worktree = 一个**钉在分支上的命名工作上下文**。
+
+- **1:1 钉分支、单 checkout**：业务表同一时刻只装一条分支的物化结果，所以这里没有第二个目录；切 worktree 就是切到它钉住的分支。一条分支至多一个 worktree（`branchId` 唯一索引）。
+- **未提交改动按分支隔离保存**：worktree 之间切换**不要求**工作树干净——切走时改动留在原 worktree，切回来原样还在。这正是 worktree 相对「切分支前先提交 / 丢弃」的价值。
+- **创建即切换**；新库自带一行钉在 `main` 上的主 worktree，既有库升级时（迁移 `0005-worktrees`）为当前 active 分支补这一行。
+- 「当前 worktree」不另存一份：`active` 恒等于「它钉住的分支就是当前 checkout」。从分支菜单直接切到一条没钉住的分支是合法的，那时没有任何一行是 active。
+
+```typescript
+await db.versionManager.createBranch('feature/login');
+const login = await db.worktree.createWorktree('feature/login', 'Login'); // 钉住并切过去
+
+const worktrees = await db.worktree.listWorktrees(); // 按 (createdAt, branchId) 升序
+const main = worktrees.find(worktree => worktree.branchId === 'main')!;
+
+await db.worktree.switchWorktree(main.id); // login 上的未提交改动留在原处
+await db.worktree.removeWorktree(login.id); // 只删 worktree 那一行，分支与它的改动都还在
+```
+
+| 成员                               | 说明                                                                                                                                       |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `listWorktrees()`                  | 全部行，`{ id, branchId, label, active, createdAt }`；零行是合法态                                                                         |
+| `createWorktree(branchId, label?)` | 落行并切过去。同一分支已有行抛 `WorktreeBranchPinnedError`；分支不存在抛 `WorktreeBranchNotFoundError`；空白 label 抛 `WorktreeLabelError` |
+| `switchWorktree(id, options?)`     | `options` 原样透传给 `versionManager.switchBranch()`；不传即不要求干净                                                                     |
+| `removeWorktree(id)`               | 只删这一行；当前所在抛 `WorktreeActiveError`，所钉分支有未提交改动抛 `WorktreeDirtyError`                                                  |
+
+两条容易踩的细节：
+
+- **两阶段**：`createWorktree()` / `switchWorktree()` 先在受管事务里落行 / 读行，**提交之后**再调 `versionManager.switchBranch()`（它自己开事务，嵌套会死锁）。切换阶段失败时**行保留、原错误上抛**——worktree 已经建好，用 `switchWorktree()` 重试即可。
+- 创建与切换都经 `db.versionManager`，因此要一起 `use(rxDBPluginHistory)`；没装时在写行**之前**就抛明确的错误，不会留下一行孤行。
+- `versionManager.removeBranch()` 会连带删掉钉在那条分支上的 worktree 行。
+
 ## 未认领能力守卫
 
 `enable()` 过的库会在 `rxdb_migration` 里留下一行能力水位（`__rxdb_capability__:workingTree:1:@aiao/rxdb-plugin-worktree`）。**没装本包的客户端再打开这个库时，核心拒绝连接**并把该装的包名原样报出来：
@@ -451,11 +490,11 @@ v1 **没有自动 stash，也不携带脏工作树跨分支**：工作树属于�
 
 ## 系统表
 
-十张，顺序即建表顺序：
+十一张，顺序即建表顺序：
 
 `CommitCapabilityState`、`WorkingTreeActivationState`、`Commit`、`CommitChangeSet`、`CommitBranchRef`、
 `WorkingTreeState`、`WorkingTreeEntry`、`WorkingTreeRestoreSession`、`WorkingTreeMaterializationStage`、
-`WorkingTreeMaterializationPage`。
+`WorkingTreeMaterializationPage`、`Worktree`（命名 worktree，迁移 `0005-worktrees`）。
 
 它们经 `registerSystemEntities()` 进入核心的系统表身份集，因此 `isSystemEntity()` 认得它们——`@aiao/rxdb-adapter-http` 等跨包消费者不会把它们当接入方数据推上远端。
 
@@ -580,22 +619,28 @@ const save = async (): Promise<void> => {
 
 `useWorktree()` 经 `useRxDB()` 取库，因此上游要有 `provideRxDB()`。十格状态各自装进 `ComputedRef`：模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。
 
-### 十格异步状态
+### 异步状态
 
 三端共享同一份状态契约（`WorktreeAsyncStates`，定义在插件包而不是三个框架包里）：
 
-| 字段                  | 类型                                             | 说明                                                                               |
-| --------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| `isEnabledState`      | 命令态 `<boolean>`                               | `isEnabled()` 的状态                                                               |
-| `enableState`         | 命令态 `<CommitCapabilityInfo>`                  | `enable()` 的状态                                                                  |
+| 字段                  | 类型                                          | 说明                                                                               |
+| --------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `isEnabledState`      | 命令态 `<boolean>`                            | `isEnabled()` 的状态                                                               |
+| `enableState`         | 命令态 `<CommitCapabilityInfo>`               | `enable()` 的状态                                                                  |
+| `enableIfEmptyState`  | 命令态 `<WorktreeEnableIfEmptyResult>`        | `enableIfEmpty()` 的状态；**没有 empty** —— `not_empty` 是结果                     |
 | `statusState`         | 查询态 `<WorktreeStatus>`                     | `status()` 的状态；**空即没有未提交变更**                                          |
 | `diffState`           | 查询态 `<WorktreeDiff>`                       | `diff()` 的状态；**空即没有可展示的改动**                                          |
-| `listCommitsState`    | 查询态 `<CommitLogPage>`                         | `listCommits()` 的状态；**空即还没有历史**                                         |
-| `commitState`         | 命令态 `<CommitResult>`                          | `commit()` 的状态；**没有 empty**                                                  |
+| `listCommitsState`    | 查询态 `<CommitLogPage>`                      | `listCommits()` 的状态；**空即还没有历史**                                         |
+| `commitChangesState`  | 查询态 `<CommitChangeSetPage>`                | `commitChanges()` 的状态；**空即这个提交没有变更单元**（基线节点）                 |
+| `commitState`         | 命令态 `<CommitResult>`                       | `commit()` 的状态；**没有 empty**                                                  |
 | `discardState`        | 命令态 `<WorktreeDiscardResult>`              | `discard()` 的状态；**没有 empty**                                                 |
 | `restoreState`        | 命令态 `<WorktreeRestoreResult>`              | `restore()` 的状态；**没有 empty** —— 四个被拒成因与 `restoredCount: 0` 都是结果   |
 | `restoreSessionState` | 查询态 `<WorktreeRestoreSessionInfo \| null>` | `restoreSession()` 的状态；**空即当前分支没有未结束的恢复会话**，且带着那个 `null` |
-| `switchBranchState`   | 命令态 `<void>`                                  | `switchBranch()` 的状态；**没有 empty** —— 切到当前分支是成功的 no-op              |
+| `switchBranchState`   | 命令态 `<void>`                               | `switchBranch()` 的状态；**没有 empty** —— 切到当前分支是成功的 no-op              |
+| `listWorktreesState`  | 查询态 `<readonly WorktreeInfo[]>`            | `listWorktrees()` 的状态；**空即一个 worktree 都没有**                             |
+| `createWorktreeState` | 命令态 `<WorktreeInfo>`                       | `createWorktree()` 的状态；**没有 empty**                                          |
+| `switchWorktreeState` | 命令态 `<void>`                               | `switchWorktree()` 的状态；**没有 empty**                                          |
+| `removeWorktreeState` | 命令态 `<void>`                               | `removeWorktree()` 的状态；**没有 empty** —— 被拒是 `error`                        |
 
 查询态五相：`idle → loading → success / empty / error`；命令态四相（无 `empty`）。两条判别细节：
 
@@ -607,25 +652,31 @@ const save = async (): Promise<void> => {
 
 ### 行为约定（三端一致）
 
-- **创建入口本身一次 IO 都不发**：十格状态初值全是 `idle`，只有真调了方法才去读库。
+- **创建入口本身一次 IO 都不发**：全部状态初值都是 `idle`，只有真调了方法才去读库。
 - **没有变更流**：状态只在经本入口发出的命令之后更新。别的标签页写进来的改动、直接走 `entity.save()` 的写入，都不会推一份新的 status 过来——要最新值就再调一次 `status()`。
 - 拿不到数据库时**抛错**，而不是返回一份「一切干净」的默认值。
 - `commit()` / `discard()` / `restore()` 的被拒走返回值（`result.ok === false`），不是异常；`switchBranch()` 的被拒**走异常**。
 - `enable()` / `discard()` / `restore()` / `switchBranch()` 成功之后自动重读一次 `status()`——`switchBranch()` 重读回来的那份摘要属于**另一条**分支。
+- `createWorktree()` 无论成败都重读 `status()` 与 worktree 列表（切换阶段失败时行已落库）；`switchWorktree()` 成功后重读这两份；`removeWorktree()` 成功后只重读列表。`switchBranch()` **不**重读 worktree 列表——显示列表的页面在切分支之后自己重读。
 - `switchBranch()` 挂在历史插件（`@aiao/rxdb-plugin-history`）的 `versionManager` 上而不是 `worktree` 上，因此三端入口取的是整个 `RxDB`，不是只取 `db.worktree`。
 - 类型与错误类一律从 `@aiao/rxdb-plugin-worktree` 直接 import，绑定包**不重定义、也不再导出**。
 
 ## 错误类型
 
-| 错误                                 | 出现时机                                                                                                                 | 出路                                                |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- |
-| `WorktreeCapabilityDisabledError` | 库还没启用提交能力就调用受管成员（`code: 'commit_capability_disabled'`）                                                 | 先 `db.worktree.enable()`                        |
-| `UnsupportedRxDBSystemVersionError`  | 库启用了能力，但能力版本三元组与本进程不符                                                                               | 升客户端或跑迁移                                    |
-| `CommitValidationError`              | 提交消息为空、或工作树是干净的（`empty_commit`）                                                                         | 检查入参与 `status()`                               |
-| `CommitGraphCorruptedError`          | 当前分支的提交图已损坏（FR-051）                                                                                         | 诊断数据现场                                        |
-| `WorktreeEntryCountMismatchError` | 冗余列与实际条目行数对不上——库里两份真相对不上                                                                           | 诊断数据现场                                        |
-| `WorktreeDirtyError`              | `switchBranch(..., { requireClean: true })` 撞上非空工作树（`code: 'working_tree_dirty'`，带 `branchId` / `entryCount`） | 先 `commit()` 或 `discard()`，或不传 `requireClean` |
-| `StaleActiveBranchError`             | `expectedActivationRevision` 与库里的激活代际对不上（`code: 'stale_active_branch'`，带 `expected` / `actual` 两个令牌）  | 重读 `status()` 再切                                |
+| 错误                                | 出现时机                                                                                                                                                             | 出路                                                          |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `WorktreeCapabilityDisabledError`   | 库还没启用提交能力就调用受管成员（`code: 'commit_capability_disabled'`）                                                                                             | 先 `db.worktree.enable()`                                     |
+| `UnsupportedRxDBSystemVersionError` | 库启用了能力，但能力版本三元组与本进程不符                                                                                                                           | 升客户端或跑迁移                                              |
+| `CommitValidationError`             | 提交消息为空、或工作树是干净的（`empty_commit`）                                                                                                                     | 检查入参与 `status()`                                         |
+| `CommitGraphCorruptedError`         | 当前分支的提交图已损坏（FR-051）                                                                                                                                     | 诊断数据现场                                                  |
+| `WorktreeEntryCountMismatchError`   | 冗余列与实际条目行数对不上——库里两份真相对不上                                                                                                                       | 诊断数据现场                                                  |
+| `WorktreeDirtyError`                | `switchBranch(..., { requireClean: true })` 撞上非空工作树，或 `removeWorktree()` 所钉分支有未提交改动（`code: 'working_tree_dirty'`，带 `branchId` / `entryCount`） | 先 `commit()` 或 `discard()`；切换时也可以不传 `requireClean` |
+| `WorktreeBranchPinnedError`         | `createWorktree()` 的分支已经钉着一个 worktree（`code: 'worktree_branch_pinned'`，带 `branchId` / `worktreeId`）                                                     | 直接 `switchWorktree(worktreeId)`                             |
+| `WorktreeBranchNotFoundError`       | `createWorktree()` 的分支不存在（`code: 'worktree_branch_not_found'`）                                                                                               | 先 `versionManager.createBranch()`                            |
+| `WorktreeLabelError`                | `createWorktree()` 的 label 给了却是空白（`code: 'worktree_label_invalid'`）                                                                                         | 不想起名就不传                                                |
+| `WorktreeNotFoundError`             | `switchWorktree()` / `removeWorktree()` 的 worktree 不存在（`code: 'worktree_not_found'`）                                                                           | 重新 `listWorktrees()`                                        |
+| `WorktreeActiveError`               | `removeWorktree()` 删的是当前所在的 worktree（`code: 'worktree_active'`）                                                                                            | 先切到别的 worktree                                           |
+| `StaleActiveBranchError`            | `expectedActivationRevision` 与库里的激活代际对不上（`code: 'stale_active_branch'`，带 `expected` / `actual` 两个令牌）                                              | 重读 `status()` 再切                                          |
 
 ## 一致性套件
 

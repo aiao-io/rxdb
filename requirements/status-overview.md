@@ -9,8 +9,8 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 75   |
-| 🚧 In Progress | 3    |
-| 👀 In Review   | 1    |
+| 🚧 In Progress | 2    |
+| 👀 In Review   | 2    |
 | 📝 Backlog     | 23   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 102  |
@@ -25,19 +25,19 @@
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（3 条）
+## 进行中（2 条）
 
-| Story                                                                                         | 进展                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)                | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过、未上真机（iOS 真机调试待复测），adapter 剩 Android 真机；百度 / QQ 已判 `unsupported`，按未知平台拒绝；阶段 B+C 经 [#87](https://github.com/aiao-io/rxdb/pull/87) 合入；剩 Android 真机补验、支付宝 demo 真机走查与 AC#18 文档口径确认 |
-| [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md)    | A1 已完成：入口 TSDoc、语义事实源与漂移门禁（投递范围读事实源登记的发布 tag）、离线样例与 CI 接线；A2 经 [#113](https://github.com/aiao-io/rxdb/pull/113) 合入：`@aiao/*` peer 统一为 `workspace:^`，真实打包与隔离消费验证通过（AC#4/#7/#8），`BREAKING CHANGE` 随其后的迁移发布声明；C 主包 Skill 已交付（锁定 skills-npm@4.0.0，探针与 AC#11/#17 通过）；B 本地构建已完成，剩部署后线上 smoke                                                                                                                                                                                        |
-| [US-310 命名工作上下文（git worktree 能力）](stories/collaboration/US-310-named-worktrees.md) | 2026-10-13 开工：评审修订后的执行任务单见 [specs/011](../specs/011-us310-named-worktrees/tasks.md)；worktree 之间按 git 口径自由切换（未提交改动按分支隔离保留），只有 remove 拒脏；0005 迁移对零 active 老库不落行                                                                                                                                                                                                                                                                                                                                                                     |
+| Story                                                                                      | 进展                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)             | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过、未上真机（iOS 真机调试待复测），adapter 剩 Android 真机；百度 / QQ 已判 `unsupported`，按未知平台拒绝；阶段 B+C 经 [#87](https://github.com/aiao-io/rxdb/pull/87) 合入；剩 Android 真机补验、支付宝 demo 真机走查与 AC#18 文档口径确认 |
+| [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) | A1 已完成：入口 TSDoc、语义事实源与漂移门禁（投递范围读事实源登记的发布 tag）、离线样例与 CI 接线；A2 经 [#113](https://github.com/aiao-io/rxdb/pull/113) 合入：`@aiao/*` peer 统一为 `workspace:^`，真实打包与隔离消费验证通过（AC#4/#7/#8），`BREAKING CHANGE` 随其后的迁移发布声明；C 主包 Skill 已交付（锁定 skills-npm@4.0.0，探针与 AC#11/#17 通过）；B 本地构建已完成，剩部署后线上 smoke                                                                                                                                                                                        |
 
-## 待评审（1 条）
+## 待评审（2 条）
 
-| Story                                                                                      | 进展                                                                                                                                                                                                                                                                                                                                                         |
-| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md) | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持 |
+| Story                                                                                         | 进展                                                                                                                                                                                                                                                                                                                                                         |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持 |
+| [US-310 命名工作上下文（git worktree 能力）](stories/collaboration/US-310-named-worktrees.md) | 代码完成：核心 `rxdb_worktree` + 迁移 `0005-worktrees` + `WorktreeManager` 四成员、三端 `useWorktree()` 对称扩展、三端 demo worktree 菜单；单测 / 6 后端 conformance / 三端 e2e 与 a11y / `pnpm test-all` 全绿；剩代码评审与提交，speckit 配套文档（spec / data-model / contracts）按任务单 §6.3 后补                                                        |
 
 ## 阻塞（0 条）
 
@@ -142,7 +142,7 @@
 
 US-305 / US-306 / US-307 / US-308 全部 Done。交付顺序 **US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）** 已按序走完，6 后端 5031 条零失败，捕获与提交两套 conformance 在 6 个后端上共 12 个调用点齐全，分支评审的架构级 P1 已清零。
 
-`bench-working-tree` 的 reference 覆盖 CI 托管 runner 的五种画像（AMD EPYC 7763 / EPYC 9V74 / EPYC 9V45 / Intel Xeon 6973P-C / Xeon Platinum 8573C）与 Apple M1 Max（`ls benchmarks/reports/working-tree-reference/` 可数），PR 的 `ci / benchmarks` 在其上转绿；分到没冻结过的型号判 `benchmark_environment_mismatch`，重跑该 job 一次，同一型号反复出现再补冻。读项 `status` / `diff` 的容差按 CI 各画像十轮的离散度定为 130%，写项 `restore` / `commit` 保持 110%。M1 那份按「已知带负载的基线复冻」冻结（复冻起跑时 1 分钟负载 9.31，`frozenAbsolute.commit` 393.53 ms），规则与理由见 [epic-006「reference 的冻结与复冻」](epics/epic-006-working-tree-commits.md#reference-的冻结与复冻)。
+`bench-worktree`（US-309 前名 `bench-working-tree`）的 reference 覆盖 CI 托管 runner 的五种画像（AMD EPYC 7763 / EPYC 9V74 / EPYC 9V45 / Intel Xeon 6973P-C / Xeon Platinum 8573C）与 Apple M1 Max（`ls benchmarks/reports/working-tree-reference/` 可数），PR 的 `ci / benchmarks` 在其上转绿；分到没冻结过的型号判 `benchmark_environment_mismatch`，重跑该 job 一次，同一型号反复出现再补冻。读项 `status` / `diff` 的容差按 CI 各画像十轮的离散度定为 130%，写项 `restore` / `commit` 保持 110%。M1 那份按「已知带负载的基线复冻」冻结（复冻起跑时 1 分钟负载 9.31，`frozenAbsolute.commit` 393.53 ms），规则与理由见 [epic-006「reference 的冻结与复冻」](epics/epic-006-working-tree-commits.md#reference-的冻结与复冻)。
 
 US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [release-plan「迁移发布的关闭条件」](release-plan.md#迁移发布的关闭条件)承接；桥接锚点从 #55 之前的 `de70a1a9` 切出、版本 `0.0.26`；源码 `RXDB_SYSTEM_SCHEMA_VERSION` 现为 7（#99 从 6 抬到 7），已发布线仍是 3，见 [release-plan 桥接锚点定案](release-plan.md#桥接锚点定案)。评审顺延的架构项登记在 [roadmap「epic-006 评审顺延的架构项」](roadmap.md#epic-006-评审顺延的架构项)。
 
@@ -209,7 +209,7 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 
 ### [命名工作上下文](epics/epic-010-worktree-contexts.md)
 
-- 🚧 [US-310 命名工作上下文（git worktree 能力）](stories/collaboration/US-310-named-worktrees.md) — 新系统表 `rxdb_worktree`（第 11 张）+ 迁移 `0005-worktrees`；`WorktreeManager` 新增 list / create / switch / remove，1:1 钉分支、单 checkout、创建即切换；三端 `useWorktree()` 对称扩展与 demo worktree 菜单
+- 👀 [US-310 命名工作上下文（git worktree 能力）](stories/collaboration/US-310-named-worktrees.md) — 新系统表 `rxdb_worktree`（第 11 张）+ 迁移 `0005-worktrees`；`WorktreeManager` 新增 list / create / switch / remove，1:1 钉分支、单 checkout、创建即切换；三端 `useWorktree()` 对称扩展与 demo worktree 菜单
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

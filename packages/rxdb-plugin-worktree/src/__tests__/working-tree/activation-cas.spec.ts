@@ -107,12 +107,11 @@ const writeOf = (entityId: string): CapturedWrite => ({
 const captureOnce = (scene: WorktreeScene, token: ActiveBranchToken, entityId: string) => {
   const write = writeOf(entityId);
   const businessWrite = vi.fn(async () => 'written');
-  const port = createWorktreeCapturePort(
-    scene.probe.executor,
-    { entityManager: scene.database.entityManager },
-    token,
-    { namespace: write.namespace, entity: write.entity, entityId: write.entityId }
-  );
+  const port = createWorktreeCapturePort(scene.probe.executor, { entityManager: scene.database.entityManager }, token, {
+    namespace: write.namespace,
+    entity: write.entity,
+    entityId: write.entityId
+  });
   return { run: () => captureCrudWrite(port, token, write, businessWrite), businessWrite };
 };
 

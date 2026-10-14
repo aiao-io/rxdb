@@ -458,19 +458,19 @@ empty/loading/success/error 判定和恢复建议必须对称。不得让某一�
 
 ## 实现文件
 
-| 路径                                                          | 阶段 | 用途                                                                                                      |
-| ------------------------------------------------------------- | ---- | --------------------------------------------------------------------------------------------------------- |
+| 路径                                                      | 阶段 | 用途                                                                                                      |
+| --------------------------------------------------------- | ---- | --------------------------------------------------------------------------------------------------------- |
 | `packages/rxdb-plugin-worktree/src/working-tree/`         | A    | 工作树单元与写入口编排、受信路径登记（`capture-*`、`write-entry.ts`、`working-tree-state.entity.ts`）     |
 | `packages/rxdb-plugin-worktree/src/working-tree/`         | B    | status/diff/commit 状态机（`status.ts`、`diff.ts`、`commit-command.ts`、`working-tree-commands.ts`）      |
 | `packages/rxdb-plugin-worktree/src/working-tree/`         | A    | `WorkingTreeState` / `WorkingTreeEntry`（`working-tree-state.entity.ts`、`working-tree-entry.entity.ts`） |
 | `packages/rxdb-plugin-worktree/src/working-tree/`         | B    | `WorkingTreeRestoreSession`（仅建表与迁移；`working-tree-restore-session.entity.ts`）                     |
 | `packages/rxdb-plugin-worktree/src/__tests__/`            | B    | CAS、幂等与 commit 后工作树清空                                                                           |
 | `packages/rxdb-plugin-worktree/src/working-tree/testing/` | A/B  | `workingTreeCaptureConformanceSuite` / `workingTreeCommitConformanceSuite`                                |
-| 各 v1 本地 adapter                                            | A    | 事务内 trigger/capability 接入                                                                            |
+| 各 v1 本地 adapter                                        | A    | 事务内 trigger/capability 接入                                                                            |
 | `packages/rxdb-plugin-worktree-{angular,react,vue}/`      | C    | `useWorkingTree()` 与 `WorkingTreeResource`                                                               |
-| `apps/dev-rxdb-{angular,react,vue}/`                          | C    | 对称演示与 E2E                                                                                            |
-| `benchmarks/working-tree.bench.ts`                            | C    | FR-026 的判定依据                                                                                         |
-| `benchmarks/reports/`                                         | C    | 冻结 reference 报告                                                                                       |
+| `apps/dev-rxdb-{angular,react,vue}/`                      | C    | 对称演示与 E2E                                                                                            |
+| `benchmarks/working-tree.bench.ts`                        | C    | FR-026 的判定依据                                                                                         |
+| `benchmarks/reports/`                                     | C    | 冻结 reference 报告                                                                                       |
 | `website/docs/plugins/rxdb-plugin-worktree/README.md`     | C    | 发布门禁 9 的公开文档（US5-AC8）；`website/docs/collaboration/README.md` 只放链接                         |
 | `requirements/api-baseline/rxdb-plugin-worktree.json`     | A/B  | 新增公开类型登记                                                                                          |
 

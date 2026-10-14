@@ -3,7 +3,7 @@
  *
  * @remarks
  * 单独成文件，因为有**两个**脚本读它：跑数字的 `working-tree.bench.ts` 与冻结基线的
- * `freeze-working-tree-reference.ts`（门禁判定本身在 `worktree-gate.ts`）。而前者是个顶层就开跑的脚本，`import` 它等于跑一遍
+ * `freeze-working-tree-reference.ts`（门禁判定本身在 `working-tree-gate.ts`）。而前者是个顶层就开跑的脚本，`import` 它等于跑一遍
  * benchmark——共享的定义因此不能住在那里。
  *
  * 字段集逐条出自 spec-kit 阶段的报告契约 §2 / §3（文中的「契约 §N」）；仍然生效的必填项与门禁规则
@@ -77,7 +77,7 @@ export const RESTORE_ABSOLUTE_BUDGET_MS = 1_000;
  * 只有一份 reference 时，PR 能不能过要看 `ubuntu-latest` 这一次分到哪种 CPU。冻结脚本写它，
  * bench 只读。
  */
-export const REFERENCE_DIR = resolve(__dirname, 'reports', 'worktree-reference');
+export const REFERENCE_DIR = resolve(__dirname, 'reports', 'working-tree-reference');
 
 /**
  * 每次运行都覆盖的最新报告；T097 的冻结脚本按这个稳定路径收集十次运行。

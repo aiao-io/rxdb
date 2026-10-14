@@ -825,12 +825,7 @@ describe('createWorktreeCaptureRuntime —— 按实体登记造域', () => {
       [CaptureRuntimePost],
       databaseSync
     );
-    const logical = createWorktreeCaptureRuntime(
-      logicalOnlyAdapter,
-      entityManager,
-      [CaptureRuntimePost],
-      databaseSync
-    );
+    const logical = createWorktreeCaptureRuntime(logicalOnlyAdapter, entityManager, [CaptureRuntimePost], databaseSync);
     const physical = `public$${getEntityMetadata(CaptureRuntimePost).tableName}`.toLowerCase();
 
     expect(folded.domain.versionedTables.has(physical)).toBe(true);
@@ -922,12 +917,7 @@ describe('系统实体的判定域 —— 按身份而不是裸名，且不进�
   });
 
   it('域不认得的名字才回落到系统身份，系统表照旧放行', () => {
-    const runtime = createWorktreeCaptureRuntime(
-      logicalOnlyAdapter,
-      entityManager,
-      [CaptureRuntimePost],
-      databaseSync
-    );
+    const runtime = createWorktreeCaptureRuntime(logicalOnlyAdapter, entityManager, [CaptureRuntimePost], databaseSync);
 
     expect(runtime.targetClassOf('WorkingTreeEntry')).toBe('system');
     expect(runtime.targetClassOf('WorkingTreeEntry', 'rxdb')).toBe('system');

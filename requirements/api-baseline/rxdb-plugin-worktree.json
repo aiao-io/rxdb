@@ -306,6 +306,10 @@
         "kind": "value"
       },
       {
+        "name": "isWorktreeListEmpty",
+        "kind": "value"
+      },
+      {
         "name": "isWorktreeRestoreSessionEmpty",
         "kind": "value"
       },
@@ -490,8 +494,20 @@
         "kind": "type"
       },
       {
+        "name": "WorktreeActiveError",
+        "kind": "both"
+      },
+      {
         "name": "WorktreeAsyncStates",
         "kind": "type"
+      },
+      {
+        "name": "WorktreeBranchNotFoundError",
+        "kind": "both"
+      },
+      {
+        "name": "WorktreeBranchPinnedError",
+        "kind": "both"
       },
       {
         "name": "WorktreeCapabilityDisabledError",
@@ -598,11 +614,23 @@
         "kind": "type"
       },
       {
+        "name": "WorktreeInfo",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeLabelError",
+        "kind": "both"
+      },
+      {
         "name": "WorktreeLoadingState",
         "kind": "type"
       },
       {
         "name": "WorktreeManager",
+        "kind": "both"
+      },
+      {
+        "name": "WorktreeNotFoundError",
         "kind": "both"
       },
       {
@@ -802,6 +830,10 @@
       {
         "name": "WorktreeManagerStub",
         "kind": "type"
+      },
+      {
+        "name": "worktreeWith",
+        "kind": "value"
       }
     ]
   }

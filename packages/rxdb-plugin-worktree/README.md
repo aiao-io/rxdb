@@ -2,7 +2,7 @@
 
 RxDB 本地工作树与提交历史插件：把「未提交的改动」与「提交历史」作为一等概念加进 `@aiao/rxdb`。
 
-未装本包的库**零成本**——十张系统表、写捕获、提交图编解码全部随包走，核心侧只留下装卸口与两道转交门。
+未装本包的库**零成本**——十一张系统表、写捕获、提交图编解码全部随包走，核心侧只留下装卸口与两道转交门。
 
 ## 能力范围
 
@@ -13,6 +13,7 @@ RxDB 本地工作树与提交历史插件：把「未提交的改动」与「提
 - `listCommits()`：读当前分支的可达提交历史
 - `restore()` / `restoreSession()`：把一个可达历史提交的内容作为**新的未提交变更**写回工作树；不移动 HEAD、不删历史，四个被拒成因走返回值
 - `switchBranch()` 的两道可选前置（`requireClean` / `expectedActivationRevision`）；挂在 `@aiao/rxdb-plugin-history` 的 `db.versionManager` 上，被拒**走异常**
+- 命名 worktree（`listWorktrees()` / `createWorktree()` / `switchWorktree()` / `removeWorktree()`）：`git worktree` 式的命名工作上下文，1:1 钉在分支上、单 checkout、创建即切换；worktree 之间切换**不要求**工作树干净（未提交改动按分支隔离保留，切回原样还在），移除拒绝当前所在或有未提交改动的 worktree
 
 ## 用之前要知道的六件事
 
@@ -78,6 +79,16 @@ db.use(rxDBPluginWorktree);
 db.use(rxDBPluginHistory);
 ```
 
+命名 worktree 的创建与切换同样要它（两者都经 `versionManager.switchBranch()` 切分支）：
+
+```ts
+await db.versionManager.createBranch('feature/login');
+const feature = await db.worktree.createWorktree('feature/login', 'Login'); // 钉住并切过去
+const [main] = await db.worktree.listWorktrees(); // 新库自带一行钉在 main 上的主 worktree
+await db.worktree.switchWorktree(main.id); // 不要求干净：feature/login 上的未提交改动留在原处
+await db.worktree.removeWorktree(feature.id); // 只删 worktree 那一行，分支与它的改动都还在
+```
+
 `db.worktree` 是**非可选**成员，由 `declare module '@aiao/rxdb'` 增广而来：装了本包才存在这个入口，
 没装时 `db.worktree` 是编译错误，而不是运行期的 `undefined`。能力未启用时它照样在，
 但每个方法以 `commit_capability_disabled` 拒绝。
@@ -97,11 +108,11 @@ db.use(rxDBPluginHistory);
 
 ## 系统表
 
-十张，顺序即建表顺序：
+十一张，顺序即建表顺序：
 
 `CommitCapabilityState`、`WorkingTreeActivationState`、`Commit`、`CommitChangeSet`、`CommitBranchRef`、
 `WorkingTreeState`、`WorkingTreeEntry`、`WorkingTreeRestoreSession`、`WorkingTreeMaterializationStage`、
-`WorkingTreeMaterializationPage`。
+`WorkingTreeMaterializationPage`、`Worktree`（命名 worktree，迁移 `0005-worktrees`）。
 
 它们经 `registerSystemEntities()` 进入核心的系统表身份集，因此 `isSystemEntity()` 认得它们——
 `@aiao/rxdb-adapter-http` 等跨包消费者不会把它们当接入方数据推上远端。

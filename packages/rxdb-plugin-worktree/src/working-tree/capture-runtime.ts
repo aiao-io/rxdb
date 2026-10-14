@@ -383,11 +383,7 @@ interface BatchPortContext {
  * 不复用 `unitId`：整个事务的全部实体共享同一个 unitId（adapter-contract.md §5），
  * 拿它当主键的话，一次事务写两个实体时第二行直接撞主键。
  */
-const newEntryOf = (
-  host: WorktreeCaptureHost,
-  token: ActiveBranchToken,
-  row: WorktreeEntryRow
-): WorkingTreeEntry => {
+const newEntryOf = (host: WorktreeCaptureHost, token: ActiveBranchToken, row: WorktreeEntryRow): WorkingTreeEntry => {
   const entry = host.entityManager.instantiate(WorkingTreeEntry);
   entry.id = uuid();
   entry.branchId = token.branchId;

@@ -468,3 +468,163 @@ test.describe('Working Tree 页面功能', () => {
     await expect(page.getByTestId('wt-status-phase')).toHaveText(/^(success|empty)$/, { timeout: 30000 });
   });
 });
+
+// ── 命名 worktree（US-310）：与 Angular 端 `worktree-utils.ts` 逐字对齐 ──────────
+
+/** 打开顶栏的 worktree 下拉并等它渲染出来。 */
+const openWorktreeMenu = async (page: import('@playwright/test').Page): Promise<void> => {
+  await page.getByTestId('wt-worktree-menu').click();
+  await expect(page.getByTestId('wt-worktree-menu-popup')).toBeVisible({ timeout: 10000 });
+};
+
+/** worktree 下拉里按所钉分支取那一行（属性选择器，理由同 `branchRow`）。 */
+const worktreeRow = (page: import('@playwright/test').Page, branchId: string) =>
+  page.locator(`[data-testid="wt-worktree-item"][data-branch-id="${branchId}"]`);
+
+/** 那一行右端的移除按钮（与行按钮是兄弟，不是子节点）。 */
+const worktreeRemove = (page: import('@playwright/test').Page, branchId: string) =>
+  page.locator(`[data-testid="wt-worktree-remove"][data-branch-id="${branchId}"]`);
+
+/**
+ * 经创建弹层建一个 worktree：`newBranch` 走「New branch」（`git worktree add -b` 同款），
+ * `existing` 走「Existing branch」。只点到确认为止，结果由调用方断言。
+ */
+const submitWorktree = async (
+  page: import('@playwright/test').Page,
+  options: { readonly newBranch?: string; readonly existing?: string; readonly label?: string }
+): Promise<void> => {
+  await openWorktreeMenu(page);
+  await page.getByTestId('wt-worktree-create').click();
+  await expect(page.getByTestId('wt-worktree-create-popover')).toBeVisible({ timeout: 10000 });
+  if (options.newBranch !== undefined) {
+    await page.getByTestId('wt-worktree-mode-new').check();
+    await page.getByTestId('wt-worktree-new-branch').fill(options.newBranch);
+  } else {
+    await page.getByTestId('wt-worktree-mode-existing').check();
+    await page.getByTestId('wt-worktree-branch').selectOption(options.existing ?? '');
+  }
+  if (options.label !== undefined) await page.getByTestId('wt-worktree-label').fill(options.label);
+  await page.getByTestId('wt-worktree-create-confirm').click();
+};
+
+/** 点 worktree 行切过去，并等 sr-only 状态条换到它钉住的分支。 */
+const switchToWorktree = async (page: import('@playwright/test').Page, branchId: string): Promise<void> => {
+  await openWorktreeMenu(page);
+  await worktreeRow(page, branchId).click();
+  await expect(page.getByTestId('wt-status-branch')).toHaveText(branchId, { timeout: 30000 });
+};
+
+/**
+ * 命名 worktree（US-310）：钉在分支上的命名工作上下文，单 checkout、1:1 钉分支、创建即切换。
+ *
+ * worktree 之间切换**不带** `requireClean`（git worktree 口径）：未提交改动按分支隔离保存，切走再切回
+ * 原样还在。只有移除会拒绝有未提交改动的 worktree。断言锚在 sr-only 读数上：`wt-status-branch`
+ * （当前 checkout）与 `wt-worktrees-*`（列表相位 / 行数 / 当前 worktree id）。
+ */
+test.describe('命名 worktree（US-310）', () => {
+  test('新库自带主 worktree：钉在 main、当前所在、移除按钮禁用', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+
+    await expect(page.getByTestId('wt-worktrees-phase')).toHaveText('success', { timeout: 30000 });
+    await expect(page.getByTestId('wt-worktrees-count')).toHaveText('1');
+    await expect(page.getByTestId('wt-worktree-current')).toHaveText('main');
+
+    await openWorktreeMenu(page);
+    await expect(page.getByTestId('wt-worktree-item')).toHaveCount(1);
+    await expect(worktreeRow(page, 'main')).toContainText('main');
+    // 删不掉当前 checkout（git 同款）。
+    await expect(worktreeRemove(page, 'main')).toBeDisabled();
+  });
+
+  test('从已有分支创建（带 label）→ 切回 → 移除：行消失、分支还在', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+
+    // 先经分支菜单建一条分支：建分支不切换，当前仍在 main。
+    await page.getByTestId('wt-branch-menu').click();
+    await page.getByTestId('wt-branch-create').click();
+    await page.getByTestId('wt-branch-name').fill('feature/x');
+    await page.getByTestId('wt-branch-create-confirm').click();
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('main');
+
+    await submitWorktree(page, { existing: 'feature/x', label: 'Feature X' });
+    await expect(page.getByTestId('wt-toast')).toContainText('Created worktree', { timeout: 10000 });
+    // 创建即切换：当前 checkout 换到它钉住的分支，触发按钮显示 label。
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('feature/x', { timeout: 30000 });
+    await expect(page.getByTestId('wt-worktree-current')).toHaveText('Feature X');
+    await expect(page.getByTestId('wt-worktrees-count')).toHaveText('2');
+
+    await openWorktreeMenu(page);
+    await expect(worktreeRow(page, 'feature/x')).toContainText('Feature X');
+    await expect(worktreeRemove(page, 'feature/x')).toBeDisabled();
+    await expect(worktreeRemove(page, 'main')).toBeEnabled();
+    await page.keyboard.press('Escape');
+
+    await switchToWorktree(page, 'main');
+    await expect(page.getByTestId('wt-worktree-current')).toHaveText('main');
+
+    await openWorktreeMenu(page);
+    await worktreeRemove(page, 'feature/x').click();
+    await expect(page.getByTestId('wt-toast')).toContainText('Removed worktree', { timeout: 10000 });
+    await expect(worktreeRow(page, 'feature/x')).toHaveCount(0);
+    await expect(page.getByTestId('wt-worktrees-count')).toHaveText('1');
+    await page.keyboard.press('Escape');
+
+    // 移除 worktree 不是删分支。
+    await page.getByTestId('wt-branch-menu').click();
+    await expect(page.locator('[data-testid="wt-branch-item"][data-branch-id="feature/x"]')).toBeVisible();
+  });
+
+  test('新建分支并钉住（git worktree add -b）；分支名已被占用时就地报错、不新增行', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+
+    await submitWorktree(page, { newBranch: 'feature/y' });
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('feature/y', { timeout: 30000 });
+    await expect(page.getByTestId('wt-worktree-current')).toHaveText('feature/y');
+    await expect(page.getByTestId('wt-worktrees-count')).toHaveText('2');
+
+    await submitWorktree(page, { newBranch: 'feature/y' });
+    await expect(page.getByTestId('wt-worktree-create-popover').getByRole('alert')).toContainText('already exists', {
+      timeout: 10000
+    });
+    await expect(page.getByTestId('wt-worktrees-count')).toHaveText('2');
+    await page.getByTestId('wt-worktree-create-cancel').click();
+    await expect(page.getByTestId('wt-worktree-create-popover')).toHaveCount(0);
+  });
+
+  test('worktree 之间自由切换：未提交改动留在原 worktree；有改动的 worktree 移除被拒', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+
+    // 先建 worktree 再写：新分支从当前工作树复制一份，顺序反了两边都脏。
+    await submitWorktree(page, { newBranch: 'feature/wip' });
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('feature/wip', { timeout: 30000 });
+    await switchToWorktree(page, 'main');
+
+    await writeTodo(page, 'main 上的草稿');
+    // 脏着也能切走：不带 requireClean，草稿留在 main。
+    await switchToWorktree(page, 'feature/wip');
+    await expect(page.getByTestId('wt-status-clean')).toHaveText('干净', { timeout: 30000 });
+
+    await writeTodo(page, 'feature 上的草稿');
+    await switchToWorktree(page, 'main');
+    await expect(page.getByTestId('wt-status-clean')).toHaveText('有未提交改动', { timeout: 30000 });
+    // 行上只有实体路径；内容在右栏详情里（唯一的一条自动选中）。
+    await expect(page.getByTestId('wt-diff-item')).toHaveCount(1, { timeout: 30000 });
+    await expect(page.getByTestId('wt-diff-viewer')).toContainText('main 上的草稿', { timeout: 10000 });
+
+    // 有未提交改动的 worktree 移除被拒（git 同款），行还在。
+    await openWorktreeMenu(page);
+    await worktreeRemove(page, 'feature/wip').click();
+    await expect(page.getByTestId('wt-toast')).toContainText('uncommitted changes', { timeout: 10000 });
+    await expect(worktreeRow(page, 'feature/wip')).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    await switchToWorktree(page, 'feature/wip');
+    await expect(page.getByTestId('wt-status-clean')).toHaveText('有未提交改动', { timeout: 30000 });
+    await expect(page.getByTestId('wt-diff-item')).toHaveCount(1, { timeout: 30000 });
+    await expect(page.getByTestId('wt-diff-viewer')).toContainText('feature 上的草稿', { timeout: 10000 });
+  });
+});

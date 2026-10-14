@@ -2,12 +2,12 @@
 
 `@aiao/rxdb-plugin-working-tree` 与三个框架绑定包改名为 `rxdb-plugin-worktree`，**下一个发布版本起**生效：
 
-| 旧 | 新 |
-| --- | --- |
-| `@aiao/rxdb-plugin-working-tree` | `@aiao/rxdb-plugin-worktree` |
+| 旧                                       | 新                                   |
+| ---------------------------------------- | ------------------------------------ |
+| `@aiao/rxdb-plugin-working-tree`         | `@aiao/rxdb-plugin-worktree`         |
 | `@aiao/rxdb-plugin-working-tree-angular` | `@aiao/rxdb-plugin-worktree-angular` |
-| `@aiao/rxdb-plugin-working-tree-react` | `@aiao/rxdb-plugin-worktree-react` |
-| `@aiao/rxdb-plugin-working-tree-vue` | `@aiao/rxdb-plugin-worktree-vue` |
+| `@aiao/rxdb-plugin-working-tree-react`   | `@aiao/rxdb-plugin-worktree-react`   |
+| `@aiao/rxdb-plugin-working-tree-vue`     | `@aiao/rxdb-plugin-worktree-vue`     |
 
 **旧包名从未发布到 npm**（改名之前本包只在 workspace 内流转），registry 上没有任何版本，因此不存在旧包弃用或回撤问题，也不需要 `deprecated` 标记——跟着 `main` 开发的下游改一下 import 即可。按[版本与 API 稳定性策略](../versioning.md)，0.x 期间次版本即可包含破坏性变更。
 
@@ -30,22 +30,22 @@ pnpm add @aiao/rxdb-plugin-worktree-angular
 
 ## 2. 公开符号映射
 
-| 旧 | 新 |
-| --- | --- |
-| `rxDBPluginWorkingTree` | `rxDBPluginWorktree` |
-| `RxDBPluginWorkingTree` | `RxDBPluginWorktree` |
-| `db.workingTree` | `db.worktree` |
-| `WorkingTreeManager` | `WorktreeManager` |
-| `useWorkingTree()`（三端绑定） | `useWorktree()` |
-| `WorkingTreeResource` | `WorktreeResource` |
-| `WorkingTreeStatus` / `WorkingTreeDiff` / `WorkingTreeDiffEntry` | `WorktreeStatus` / `WorktreeDiff` / `WorktreeDiffEntry` |
-| `WorkingTreeCredentials` / `WorkingTreeSwitchBranchOptions` | `WorktreeCredentials` / `WorktreeSwitchBranchOptions` |
-| `WorkingTreeDirtyError` | `WorktreeDirtyError` |
-| `WorkingTreeRestoreSessionInfo` / `WorkingTreeDiscardResult` 等其余 `WorkingTree*` | 对应 `Worktree*` |
-| `WORKING_TREE_CAPABILITY_VERSION` | `WORKTREE_CAPABILITY_VERSION` |
-| `WORKING_TREE_INITIAL_ASYNC_STATES` | `WORKTREE_INITIAL_ASYNC_STATES` |
+| 旧                                                                                              | 新                                                                   |
+| ----------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `rxDBPluginWorkingTree`                                                                         | `rxDBPluginWorktree`                                                 |
+| `RxDBPluginWorkingTree`                                                                         | `RxDBPluginWorktree`                                                 |
+| `db.workingTree`                                                                                | `db.worktree`                                                        |
+| `WorkingTreeManager`                                                                            | `WorktreeManager`                                                    |
+| `useWorkingTree()`（三端绑定）                                                                  | `useWorktree()`                                                      |
+| `WorkingTreeResource`                                                                           | `WorktreeResource`                                                   |
+| `WorkingTreeStatus` / `WorkingTreeDiff` / `WorkingTreeDiffEntry`                                | `WorktreeStatus` / `WorktreeDiff` / `WorktreeDiffEntry`              |
+| `WorkingTreeCredentials` / `WorkingTreeSwitchBranchOptions`                                     | `WorktreeCredentials` / `WorktreeSwitchBranchOptions`                |
+| `WorkingTreeDirtyError`                                                                         | `WorktreeDirtyError`                                                 |
+| `WorkingTreeRestoreSessionInfo` / `WorkingTreeDiscardResult` 等其余 `WorkingTree*`              | 对应 `Worktree*`                                                     |
+| `WORKING_TREE_CAPABILITY_VERSION`                                                               | `WORKTREE_CAPABILITY_VERSION`                                        |
+| `WORKING_TREE_INITIAL_ASYNC_STATES`                                                             | `WORKTREE_INITIAL_ASYNC_STATES`                                      |
 | `workingTreeCaptureConformanceSuite` / `workingTreeCommitConformanceSuite`（`/testing` 子路径） | `worktreeCaptureConformanceSuite` / `worktreeCommitConformanceSuite` |
-| `WORKING_TREE_CONFORMANCE_ENTITIES` / `LOCAL_ADAPTER` / `REMOTE_ADAPTER` / `USER_ID` | `WORKTREE_CONFORMANCE_*` 同后缀 |
+| `WORKING_TREE_CONFORMANCE_ENTITIES` / `LOCAL_ADAPTER` / `REMOTE_ADAPTER` / `USER_ID`            | `WORKTREE_CONFORMANCE_*` 同后缀                                      |
 
 一次性机械替换（顺序执行；`WorkingTree` → `Worktree` 一步已覆盖上表大部分条目）：
 

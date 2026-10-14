@@ -1,9 +1,5 @@
 import type { RxDB } from '@aiao/rxdb';
-import {
-  rxDBPluginWorktree,
-  type WorktreeDiffEntry,
-  type WorktreeStatus
-} from '@aiao/rxdb-plugin-worktree';
+import { rxDBPluginWorktree, type WorktreeDiffEntry, type WorktreeStatus } from '@aiao/rxdb-plugin-worktree';
 import { ConformanceNote } from '@aiao/rxdb-plugin-worktree/testing';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, describe, expect, it } from 'vitest';

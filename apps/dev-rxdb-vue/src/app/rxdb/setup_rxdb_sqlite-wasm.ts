@@ -6,8 +6,8 @@ import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
-import { rxDBPluginWorktree } from '@aiao/rxdb-plugin-worktree';
 import { rxDBPluginWorkspace } from '@aiao/rxdb-plugin-workspace';
+import { rxDBPluginWorktree } from '@aiao/rxdb-plugin-worktree';
 import {
   getE2eDbName,
   installSearchDemoTestApi,

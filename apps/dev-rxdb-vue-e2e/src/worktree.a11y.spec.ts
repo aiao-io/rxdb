@@ -57,6 +57,7 @@ const PANEL = '[data-testid="worktree-page"]';
  */
 const KEYBOARD_REACHABLE = [
   'wt-repo-menu',
+  'wt-worktree-menu',
   'wt-branch-menu',
   'wt-refresh-status',
   'wt-tab-changes',
@@ -340,6 +341,52 @@ test.describe('Working Tree Page A11y', () => {
     await expect(page.getByTestId('wt-commits-phase')).toHaveText('success', { timeout: 30000 });
     const historyReached = await walkPanelWithTab(page, 2);
     expectReachedWithIndicator(historyReached, ['wt-commit-item']);
+  });
+
+  test('worktree 菜单：role / aria、键盘可达、Escape 与背板关闭、筛空文案、移除按钮可访问名', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+    await expect(page.getByTestId('wt-worktrees-phase')).toHaveText('success', { timeout: 30000 });
+
+    const trigger = page.getByTestId('wt-worktree-menu');
+    await expect(trigger).toHaveAttribute('aria-haspopup', 'true');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await trigger.click();
+    const popup = page.getByTestId('wt-worktree-menu-popup');
+    await expect(popup).toBeVisible({ timeout: 10000 });
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(popup).toHaveAttribute('role', 'menu');
+    await expect(page.getByTestId('wt-worktree-item').first()).toHaveAttribute('role', 'menuitem');
+    // 移除按钮只有图标：可访问名必须由 aria-label 给出，读屏才说得出删的是哪一个。
+    await expect(page.getByTestId('wt-worktree-remove').first()).toHaveAccessibleName('Remove worktree main');
+    await expect(page.getByTestId('wt-worktree-remove').first()).toBeDisabled();
+
+    // 内联渲染：新建按钮与 worktree 行都在 Tab 序列里（当前 worktree 的移除按钮禁用，不进序列）。
+    const reached = await walkPanelWithTab(page, 2);
+    expectReachedWithIndicator(reached, ['wt-worktree-create', 'wt-worktree-item']);
+
+    await page.getByLabel('Filter worktrees').fill('no-such-worktree');
+    await expect(popup).toContainText('No matching worktrees');
+
+    // Escape 走 document 级监听：焦点在筛选框里照样收得到。
+    await page.keyboard.press('Escape');
+    await expect(popup).toHaveCount(0);
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+
+    await trigger.click();
+    await expect(popup).toBeVisible({ timeout: 10000 });
+    await page.locator('[aria-label="Close worktree menu"]').click({ position: { x: 1000, y: 500 } });
+    await expect(popup).toHaveCount(0);
+
+    // 创建弹层是 role=dialog；它整个落在扫描范围里，零违规。
+    await trigger.click();
+    await page.getByTestId('wt-worktree-create').click();
+    const dialog = page.getByTestId('wt-worktree-create-popover');
+    await expect(dialog).toHaveAttribute('role', 'dialog');
+    await expect(dialog).toHaveAttribute('aria-label', 'Create a worktree');
+    await scanPanel(page);
+    await page.keyboard.press('Escape');
+    await expect(dialog).toHaveCount(0);
   });
 
   test('记录首次可见状态耗时并归档（SC-005）', async ({ page }) => {

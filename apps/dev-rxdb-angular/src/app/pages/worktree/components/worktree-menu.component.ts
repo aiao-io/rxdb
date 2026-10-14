@@ -258,8 +258,8 @@ export interface WorktreeCreateRequest {
                     <button
                       class="gd-btn-ghost shrink-0 px-2"
                       [attr.aria-disabled]="worktree.active"
-                      [attr.data-branch-id]="worktree.branchId"
                       [attr.aria-label]="'Remove worktree ' + (worktree.label ?? worktree.branchId)"
+                      [attr.data-branch-id]="worktree.branchId"
                       [attr.title]="worktree.active ? 'The current worktree cannot be removed' : null"
                       [disabled]="worktree.active"
                       (click)="removeWorktree.emit(worktree.id)"

@@ -138,7 +138,7 @@ async function createDesktopAdapter(options?: Record<string, unknown>): Promise<
   rxdb.use(rxDBPluginHistory);
 
   // 其余插件**由调用点传进来**，不在这里无条件装：本工厂被共享套件反复复用，
-  // 无条件装上工作树插件等于给每一个都多建 10 张系统表。默认空数组 ⇒ 既有调用方零变化。
+  // 无条件装上工作树插件等于给每一个都多建 11 张系统表。默认空数组 ⇒ 既有调用方零变化。
   //
   // 两者都必须排在 `connect()` 之前：贡献系统能力的插件晚于 `init()` 注册会被核心当场拒绝
   // （系统表随建表一次建出，那时已经来不及），而 `connect()` 的第一步就是 `init()`。

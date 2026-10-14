@@ -25,10 +25,8 @@ import {
 import { createWorktreeScene, SCENE_BRANCH_ID } from './fixtures/working-tree-scene.js';
 
 /** 一次默认粒度（实体）的 diff。 */
-const diffOf = (
-  scene: ReturnType<typeof createWorktreeScene>,
-  options?: WorktreeDiffOptions
-): Promise<WorktreeDiff> => readWorktreeDiff(scene.probe.executor, SCENE_BRANCH_ID, options);
+const diffOf = (scene: ReturnType<typeof createWorktreeScene>, options?: WorktreeDiffOptions): Promise<WorktreeDiff> =>
+  readWorktreeDiff(scene.probe.executor, SCENE_BRANCH_ID, options);
 
 describe('只有 HEAD ↔ 工作树 一条轴（FR-005、硬裁决 2）', () => {
   it('WorktreeDiffOptions 的键集是封闭的，不含任何指向第二个比较端的入参', () => {

@@ -3,9 +3,9 @@
  *
  * @remarks
  * 跑 **10 次独立运行**，对每个测点取 median ratio，连同 `commit` 的绝对预算一起写进
- * `reports/worktree-reference/<本机比值画像>.json`。此后每次 `bench-worktree` 都拿与
+ * `reports/working-tree-reference/<本机比值画像>.json`。此后每次 `bench-worktree` 都拿与
  * 自己同画像的那一份做相对门禁——那是 PR CI 的**唯一**硬门禁。画像的定义与「为什么按画像分份」
- * 见 `worktree-gate.ts`。
+ * 见 `working-tree-gate.ts`。
  *
  * **「独立运行」= 独立进程，不是同一进程里跑十遍。** 每次运行都要重新建库、重新灌 fixture、
  * 重新预热。同进程跑十遍的话，第二遍起面对的是一个已经被跑热的 V8 与一个长起来的 WASM 堆，
@@ -43,7 +43,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { median } from './bench-stats.ts';
-import { collectEnvironment, decideFreeze, ratioProfileFileName, readReferences } from './worktree-gate.ts';
+import { collectEnvironment, decideFreeze, ratioProfileFileName, readReferences } from './working-tree-gate.ts';
 import type { BenchReference, WorktreeBenchReport } from './working-tree-report.ts';
 import { LATEST_PATH, REFERENCE_DIR, SAMPLES, WARMUP } from './working-tree-report.ts';
 

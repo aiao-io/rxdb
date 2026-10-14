@@ -6,14 +6,21 @@ import type {
   CommitValidationReason,
   WorktreeCredentials,
   WorktreeDiffEntry,
+  WorktreeInfo,
+  WorktreeQueryState,
   WorktreeRestoreFailureReason,
   WorktreeRestoreSessionInfo
 } from '@aiao/rxdb-plugin-worktree';
-import { CommitValidationError, WorktreeDirtyError } from '@aiao/rxdb-plugin-worktree';
+import {
+  CommitValidationError,
+  WorktreeActiveError,
+  WorktreeBranchPinnedError,
+  WorktreeDirtyError
+} from '@aiao/rxdb-plugin-worktree';
 import { useWorktree } from '@aiao/rxdb-plugin-worktree-vue';
 import { useFindAll, useRxDB } from '@aiao/rxdb-vue';
 import { Check, ChevronDown, FolderGit2, GitBranch, RefreshCw } from '@lucide/vue';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import BranchMenu from './worktree/components/BranchMenu.vue';
 import ChangesList from './worktree/components/ChangesList.vue';
@@ -23,6 +30,7 @@ import ContextMenu from './worktree/components/ContextMenu.vue';
 import DiffViewer from './worktree/components/DiffViewer.vue';
 import HistoryList from './worktree/components/HistoryList.vue';
 import MergeDialog, { type MergeDialogState } from './worktree/components/MergeDialog.vue';
+import WorktreeMenu from './worktree/components/WorktreeMenu.vue';
 import type {
   WorktreeContextMenuItem,
   WorktreeContextMenuRequest,
@@ -31,6 +39,7 @@ import type {
 import { diffEntryKey } from './worktree/utils/diff-format';
 import { startDragResize } from './worktree/utils/drag';
 import { gdEntryPath } from './worktree/utils/gd';
+import type { WorktreeCreateRequest } from './worktree/utils/worktree-menu';
 
 const AUTHOR_ID = 'demo-author';
 
@@ -60,6 +69,24 @@ const COMMIT_REJECTION_TEXT: Record<CommitValidationReason, string> = {
 
 /** `requireClean` 切换被拒的提示；GitHub Desktop 会在切换时拒绝脏工作树，同款语义。 */
 const DIRTY_SWITCH_TEXT = 'The working tree has uncommitted changes. Commit or discard them before switching branches.';
+
+/** 移除有未提交改动的 worktree 被拒（git 同款）：删行不丢数据，但那些改动从此只能经分支菜单找回。 */
+const DIRTY_REMOVE_TEXT =
+  'This worktree has uncommitted changes. Switch to it and commit or discard them before removing it.';
+
+/** 当前所在的 worktree 删不掉（界面上它的移除按钮本就禁用，这条兜的是并发切换后的旧列表）。 */
+const ACTIVE_REMOVE_TEXT = 'This is the current worktree. Switch to another worktree before removing it.';
+
+/** 工具栏 worktree 段的宽度（固定；与分支段同起点）。 */
+const WORKTREE_SECTION_WIDTH = 220;
+
+/**
+ * worktree 段的收缩权重：工具栏放不下时几乎由它独自让出空间。
+ *
+ * 仓库 / 分支 / 获取三段的宽度是用户拖出来的（或跟着左栏走），被等比压缩等于不认那次拖动；
+ * worktree 段是固定宽、label 本就截断显示，让它先收缩代价最小。
+ */
+const WORKTREE_SECTION_SHRINK = 100;
 
 /**
  * 工作树与提交历史页面 —— GitHub Desktop 形态的参考实现（Vue 端）。
@@ -94,6 +121,10 @@ const branchMenuOpen = ref(false);
 const createPopoverOpen = ref(false);
 const newBranchName = ref('');
 const branchError = ref<string | null>(null);
+// worktree 菜单（US-310）：开合、创建弹层与它的就地错误由 WorktreeMenu 组件用 v-model 双向持有
+const worktreeMenuOpen = ref(false);
+const worktreeCreateOpen = ref(false);
+const worktreeError = ref<string | null>(null);
 const mergeDialog = ref<MergeDialogState | null>(null);
 const mergeError = ref<string | null>(null);
 const toast = ref<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -150,6 +181,28 @@ const statusState = computed(() => tree.statusState.value);
 const enabledState = computed(() => tree.isEnabledState.value);
 
 const activeBranch = computed(() => branches.value.find(b => b.activated)?.id ?? '');
+
+/**
+ * worktree 列表的渲染保底：loading 期间停在上一份非 loading 状态（Angular / React 的 keepLastGood 同款），
+ * 重读时菜单与读数不会闪成「一个都没有」。
+ */
+const lastWorktreesState = shallowRef<WorktreeQueryState<readonly WorktreeInfo[]>>(tree.listWorktreesState.value);
+watch(
+  () => tree.listWorktreesState.value,
+  state => {
+    if (state.phase !== 'loading') lastWorktreesState.value = state;
+  }
+);
+
+/** worktree 列表；还没读到时是空数组（菜单显示「No worktrees yet」，触发按钮回退到分支名）。 */
+const worktreeList = computed<readonly WorktreeInfo[]>(() => {
+  const current = tree.listWorktreesState.value;
+  const state = current.phase === 'loading' ? lastWorktreesState.value : current;
+  return state.phase === 'success' || state.phase === 'empty' ? state.value : [];
+});
+
+/** 当前 worktree 的 id；当前分支没钉住时为空串（「无行 active」是合法态）。 */
+const activeWorktreeId = computed(() => worktreeList.value.find(worktree => worktree.active)?.id ?? '');
 
 /** 「更改」标签上的条数徽章；status 里那份 entryCount 与 diff 条目数同源。 */
 const changesCount = computed(() => {
@@ -228,7 +281,9 @@ onMounted(() => {
   void tree
     .isEnabled()
     .then(enabled => {
-      if (enabled) void tree.diff().catch(() => undefined);
+      if (!enabled) return;
+      void tree.diff().catch(() => undefined);
+      void refreshWorktrees();
     })
     .catch(() => undefined);
   void tree.status().catch(() => undefined);
@@ -251,6 +306,7 @@ async function runFetch(): Promise<void> {
   try {
     await refreshStatus();
     await readCommits();
+    await refreshWorktrees();
     lastFetchedAt.value = Date.now();
   } finally {
     fetching.value = false;
@@ -433,6 +489,7 @@ async function runEnable(): Promise<void> {
   await tree.isEnabled().catch(() => undefined);
   await refreshStatus();
   await readCommits();
+  await refreshWorktrees();
 }
 
 /**
@@ -455,6 +512,17 @@ async function refreshStatus(): Promise<void> {
 
 async function readCommits(): Promise<void> {
   await tree.listCommits({ limit: 50 }).catch(() => undefined);
+}
+
+/**
+ * 重读 worktree 列表。
+ *
+ * worktree 命令自己会重读（见 `createWorktreeCommands`）；这里补的是**分支**操作之后那一下：
+ * 分支菜单切走会挪动列表里的 active 勾选，删分支会连带删掉钉在它上面的 worktree 行，
+ * 而 `switchBranch()` 有意不替从不显示 worktree 列表的应用多发这一轮查询。
+ */
+async function refreshWorktrees(): Promise<void> {
+  await tree.listWorktrees().catch(() => undefined);
 }
 
 /**
@@ -617,6 +685,7 @@ async function switchBranch(branchId: string): Promise<void> {
     showToast('success', `Switched to branch "${branchId}".`);
     await refreshStatus();
     await readCommits();
+    await refreshWorktrees();
   } catch (e: unknown) {
     showToast(
       'error',
@@ -633,8 +702,78 @@ async function removeBranch(branchId: string): Promise<void> {
     await rxdb.versionManager.removeBranch(branchId);
     branchMenuOpen.value = false;
     showToast('success', `Branch "${branchId}" deleted.`);
+    await refreshWorktrees();
   } catch (e: unknown) {
     showToast('error', e instanceof Error ? e.message : 'Delete failed.');
+  }
+}
+
+// ── worktree 操作（US-310） ───────────────────────────────
+
+/**
+ * 切到一个 worktree：**不带** `requireClean`。
+ *
+ * 与分支菜单的 `switchBranch` 相反：worktree 的未提交改动按分支隔离保存，切走再切回原样还在——
+ * 这正是 worktree 相对「切分支前先提交 / 丢弃」的价值。无论成败都收起菜单，让 toast 成为唯一的反馈。
+ */
+async function switchWorktree(id: string): Promise<void> {
+  worktreeMenuOpen.value = false;
+  const name = worktreeName(id);
+  try {
+    await tree.switchWorktree(id);
+    showToast('success', `Switched to worktree "${name}".`);
+  } catch (e: unknown) {
+    showToast('error', e instanceof Error ? e.message : 'Switch failed.');
+  }
+  await refreshStatus();
+  await readCommits();
+}
+
+/**
+ * 建 worktree：`new` 模式先建分支再钉（`git worktree add -b` 同款），创建即切换。
+ *
+ * 建分支失败（名字已占用等）就地显示在弹层里、不关弹层；钉住阶段的拒绝走 toast。
+ */
+async function createWorktree(request: WorktreeCreateRequest): Promise<void> {
+  worktreeError.value = null;
+  if (request.mode === 'new') {
+    try {
+      await rxdb.versionManager.createBranch(request.branchId);
+    } catch (e: unknown) {
+      worktreeError.value = e instanceof Error ? e.message : 'Create failed.';
+      return;
+    }
+  }
+  worktreeCreateOpen.value = false;
+  try {
+    const created = await tree.createWorktree(request.branchId, request.label);
+    showToast('success', `Created worktree "${created.label ?? created.branchId}" and switched to it.`);
+  } catch (e: unknown) {
+    showToast(
+      'error',
+      e instanceof WorktreeBranchPinnedError ? `Branch "${e.branchId}" already has a worktree.`
+      : e instanceof Error ? e.message
+      : 'Create failed.'
+    );
+  }
+  await refreshStatus();
+  await readCommits();
+}
+
+/** 移除一个 worktree：只删那一行，分支与它的未提交改动都还在。菜单保持打开，行就地消失。 */
+async function removeWorktree(id: string): Promise<void> {
+  const name = worktreeName(id);
+  try {
+    await tree.removeWorktree(id);
+    showToast('success', `Removed worktree "${name}". Its branch is kept.`);
+  } catch (e: unknown) {
+    showToast(
+      'error',
+      e instanceof WorktreeDirtyError ? DIRTY_REMOVE_TEXT
+      : e instanceof WorktreeActiveError ? ACTIVE_REMOVE_TEXT
+      : e instanceof Error ? e.message
+      : 'Remove failed.'
+    );
   }
 }
 
@@ -684,12 +823,19 @@ async function executeMerge(): Promise<void> {
         ` — commit to record them${result.sourceDeleted ? '; source branch deleted' : ''}.`
     );
     await refreshStatus();
+    if (result.sourceDeleted) await refreshWorktrees();
   } catch (e: unknown) {
     mergeError.value = e instanceof Error ? e.message : 'Merge failed.';
   }
 }
 
 // ── 私有辅助 ──────────────────────────────────────────────
+
+/** 一个 worktree 在提示里的名字：label，没有就是分支名。 */
+function worktreeName(id: string): string {
+  const worktree = worktreeList.value.find(candidate => candidate.id === id);
+  return worktree ? (worktree.label ?? worktree.branchId) : id;
+}
 
 function selectHeadCommitIfNone(): void {
   if (selectedCommitId.value !== null) return;
@@ -799,6 +945,23 @@ function clampAsideWidth(width: number): number {
             </div>
           </template>
         </div>
+
+        <!-- worktree 选择器（US-310）：钉在分支上的命名工作上下文，夹在仓库与分支之间——
+             它比分支高一层（一个 worktree 钉一条分支），又比仓库低一层。 -->
+        <WorktreeMenu
+          class="gd-toolbar-section"
+          v-model:create-error="worktreeError"
+          v-model:create-open="worktreeCreateOpen"
+          v-model:menu-open="worktreeMenuOpen"
+          :active-branch="activeBranch"
+          :branches="branches.value"
+          :popup-width="MIN_DROPDOWN_WIDTH"
+          :style="{ width: WORKTREE_SECTION_WIDTH + 'px', flexShrink: WORKTREE_SECTION_SHRINK }"
+          :worktrees="worktreeList"
+          @create-worktree="createWorktree"
+          @remove-worktree="removeWorktree"
+          @switch-worktree="switchWorktree"
+        />
 
         <BranchMenu
           class="gd-toolbar-section gd-branch-section"
@@ -989,8 +1152,8 @@ function clampAsideWidth(width: number): number {
         <code>enable()</code>
         is a one-time database-level switch (v1 has no
         <code>disable()</code>
-        ): once enabled, the whole database runs under worktree semantics and every write is captured as an
-        uncommitted change — the equivalent of
+        ): once enabled, the whole database runs under worktree semantics and every write is captured as an uncommitted
+        change — the equivalent of
         <code>git init</code>
         . Empty databases initialize automatically at app startup; a database that already contains data still needs
         this explicit click.
@@ -1049,6 +1212,17 @@ function clampAsideWidth(width: number): number {
           会话分叉
         </span>
         <span v-if="statusState.phase === 'error'">· 尚未初始化，先点「初始化仓库」</span>
+      </div>
+      <div
+        class="flex min-w-0 items-center gap-1.5"
+        data-testid="wt-worktrees"
+        role="status"
+      >
+        <span data-testid="wt-worktrees-phase">{{ tree.listWorktreesState.value.phase }}</span>
+        · worktree
+        <span data-testid="wt-worktrees-count">{{ worktreeList.length }}</span>
+        个 · 当前
+        <span data-testid="wt-worktrees-active">{{ activeWorktreeId }}</span>
       </div>
       <div class="flex shrink-0 items-center gap-3">
         <span

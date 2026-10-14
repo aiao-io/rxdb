@@ -247,10 +247,16 @@
       "functions": 100,
       "lines": 100
     },
+    "rxdb-plugin-workspace": {
+      "statements": 90,
+      "branches": 81,
+      "functions": 95,
+      "lines": 94
+    },
     "rxdb-plugin-worktree": {
       "statements": 97,
       "branches": 91,
-      "functions": 97,
+      "functions": 98,
       "lines": 98
     },
     "rxdb-plugin-worktree-angular": {
@@ -270,12 +276,6 @@
       "branches": 100,
       "functions": 100,
       "lines": 100
-    },
-    "rxdb-plugin-workspace": {
-      "statements": 90,
-      "branches": 81,
-      "functions": 95,
-      "lines": 94
     },
     "rxdb-react": {
       "statements": 99,

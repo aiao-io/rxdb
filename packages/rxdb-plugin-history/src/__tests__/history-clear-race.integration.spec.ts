@@ -81,7 +81,7 @@ function getLastUndoneChangeIds(harness: TestHarness): number[] {
 async function createHarness(): Promise<TestHarness> {
   const rxdb = new RxDB({
     dbName: `history-clear-race-${crypto.randomUUID()}`,
-    // 手写系统表清单在 epic-006 之后已经不可能写全（10 张不对外导出），
+    // 手写系统表清单在 epic-006 之后已经不可能写全（11 张不对外导出），
     // 交给 `SchemaManager.init()` 注入；本文件只关心 RxDBChange 的读写口径。
     entities: [],
     sync: {

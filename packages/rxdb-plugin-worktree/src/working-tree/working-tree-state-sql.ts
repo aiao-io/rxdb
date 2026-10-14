@@ -66,10 +66,7 @@ export interface WorktreeDiscardTransition {
  * @param transition - 见 {@link WorktreeCommitTransition}
  * @returns 单条 SQL
  */
-export const buildWorktreeCommitTransitionSql = (
-  tableRef: string,
-  transition: WorktreeCommitTransition
-): string => {
+export const buildWorktreeCommitTransitionSql = (tableRef: string, transition: WorktreeCommitTransition): string => {
   const metadata = getEntityMetadata(WorkingTreeState);
   return assemble(
     tableRef,
@@ -94,10 +91,7 @@ export const buildWorktreeCommitTransitionSql = (
  * （FR-016）。顺手更新基线的话，一次丢弃就把 `diff()` 的参照物挪成了「上一次丢弃时的
  * HEAD」，而那与真正的 HEAD 只在下一次提交后才看得出差别。
  */
-export const buildWorktreeDiscardTransitionSql = (
-  tableRef: string,
-  transition: WorktreeDiscardTransition
-): string => {
+export const buildWorktreeDiscardTransitionSql = (tableRef: string, transition: WorktreeDiscardTransition): string => {
   const metadata = getEntityMetadata(WorkingTreeState);
   return assemble(
     tableRef,
@@ -137,10 +131,7 @@ export interface WorktreeRestoreTransition {
  *
  * `entryCount` 这里不是归零而是赋值：恢复的产物本身就是未提交条目（FR-015）。
  */
-export const buildWorktreeRestoreTransitionSql = (
-  tableRef: string,
-  transition: WorktreeRestoreTransition
-): string => {
+export const buildWorktreeRestoreTransitionSql = (tableRef: string, transition: WorktreeRestoreTransition): string => {
   const metadata = getEntityMetadata(WorkingTreeState);
   return assemble(
     tableRef,

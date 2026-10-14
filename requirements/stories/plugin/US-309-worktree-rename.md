@@ -47,16 +47,16 @@ INVEST 检查清单:
 
 ## 验收标准（AC）
 
-| # | 场景 | 预期 |
-| - | ---- | ---- |
-| 1 | 全仓 grep `rxdb-plugin-working-tree` | 0 命中（生成物除外，锁文件由 `pnpm install` 重生成） |
-| 2 | 全仓 grep `WorkingTree` / `workingTree` / `working-tree` | 仅白名单残留：能力值 `'workingTree'`、表名/迁移名、核心捕获挂点、`src/working-tree/` 内部路径、实体类名、历史文档引用（epic-006 及其 story、working-tree-split 迁移页） |
-| 3 | 能力水位兼容 | `capability-identity.spec.ts` 断言 `PACKAGE_SPECIFIER === packageJson.name` 与水位行名 `__rxdb_capability__:workingTree:1:@aiao/rxdb-plugin-worktree` 通过；旧包名行与新包名行共存放行（守卫按能力名认领） |
-| 4 | 改名包测试 | `rxdb-plugin-worktree` 与三个绑定包、replay、6 适配器、核心 rxdb 的 lint/test/typecheck 全绿 |
-| 5 | demo 与 e2e | 三端 demo 单测全绿；三端 worktree.spec / a11y.spec e2e 全绿；angular 的 replay/failure-archive e2e 全绿 |
-| 6 | API 基线 | `pnpm audit:api-surface` 通过；4 个基线文件改名且内容自更新（旧符号移除/新符号加入）随提交 |
-| 7 | 审计门禁 | `audit:coverage`、`audit:suite-callsites`、`audit:callsite-drift`、`audit:package-graph` 全绿 |
-| 8 | 迁移文档 | `website/docs/migration/worktree-rename.md` 含包名/符号映射表与「不改的东西」清单，migration/README 与 sidebars 登记，CHANGELOG 有 Unreleased 破坏性条目 |
+| #   | 场景                                                     | 预期                                                                                                                                                                                                       |
+| --- | -------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 全仓 grep `rxdb-plugin-working-tree`                     | 0 命中（生成物除外，锁文件由 `pnpm install` 重生成）                                                                                                                                                       |
+| 2   | 全仓 grep `WorkingTree` / `workingTree` / `working-tree` | 仅白名单残留：能力值 `'workingTree'`、表名/迁移名、核心捕获挂点、`src/working-tree/` 内部路径、实体类名、历史文档引用（epic-006 及其 story、working-tree-split 迁移页）                                    |
+| 3   | 能力水位兼容                                             | `capability-identity.spec.ts` 断言 `PACKAGE_SPECIFIER === packageJson.name` 与水位行名 `__rxdb_capability__:workingTree:1:@aiao/rxdb-plugin-worktree` 通过；旧包名行与新包名行共存放行（守卫按能力名认领） |
+| 4   | 改名包测试                                               | `rxdb-plugin-worktree` 与三个绑定包、replay、6 适配器、核心 rxdb 的 lint/test/typecheck 全绿                                                                                                               |
+| 5   | demo 与 e2e                                              | 三端 demo 单测全绿；三端 worktree.spec / a11y.spec e2e 全绿；angular 的 replay/failure-archive e2e 全绿                                                                                                    |
+| 6   | API 基线                                                 | `pnpm audit:api-surface` 通过；4 个基线文件改名且内容自更新（旧符号移除/新符号加入）随提交                                                                                                                 |
+| 7   | 审计门禁                                                 | `audit:coverage`、`audit:suite-callsites`、`audit:callsite-drift`、`audit:package-graph` 全绿                                                                                                              |
+| 8   | 迁移文档                                                 | `website/docs/migration/worktree-rename.md` 含包名/符号映射表与「不改的东西」清单，migration/README 与 sidebars 登记，CHANGELOG 有 Unreleased 破坏性条目                                                   |
 
 ## 技术笔记
 
