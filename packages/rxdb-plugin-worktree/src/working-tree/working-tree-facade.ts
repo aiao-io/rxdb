@@ -42,11 +42,11 @@ import {
 } from '../worktree/worktree-command.js';
 import { dispatchWorktreesCreated, dispatchWorktreesRemoved } from '../worktree/worktree-events.js';
 import { installWorktreeCapture } from './capture-install.js';
-import { requireVersionManager } from './require-version-manager.js';
 import { readActiveBranchToken } from './capture-runtime.js';
 import { runCommitWorktree, type CommitOptions, type CommitResult } from './commit-command.js';
 import { readWorktreeDiff, type WorktreeDiff, type WorktreeDiffOptions } from './diff.js';
 import { discardWorktree, type WorktreeDiscardOptions, type WorktreeDiscardResult } from './discard-command.js';
+import { requireVersionManager } from './require-version-manager.js';
 import {
   readActiveRestoreSession,
   restoreWorktree,

@@ -53,6 +53,7 @@ import {
 import type { CommitOptions, CommitResult } from './commit-command.js';
 import type { WorktreeDiff, WorktreeDiffOptions } from './diff.js';
 import type { WorktreeDiscardOptions, WorktreeDiscardResult } from './discard-command.js';
+import { requireVersionManager } from './require-version-manager.js';
 import type {
   WorktreeRestoreOptions,
   WorktreeRestoreResult,
@@ -61,7 +62,6 @@ import type {
 } from './restore-command.js';
 import type { WorktreeStatus } from './status.js';
 import type { WorktreeSwitchBranchOptions } from './switch-branch-options.js';
-import { requireVersionManager } from './require-version-manager.js';
 import type { WorktreeEnableIfEmptyResult, WorktreeManager } from './working-tree-facade.js';
 
 /**
@@ -161,10 +161,7 @@ const createLatestOnlyPatch = (
 
 /** worktree 列表跟随的事件：三类实体事件，加上能力启用通知。 */
 type WorktreeListSourceEvent =
-  | EntityLocalCreatedEvent
-  | EntityLocalUpdatedEvent
-  | EntityLocalRemovedEvent
-  | CapabilityEnabledEvent;
+  EntityLocalCreatedEvent | EntityLocalUpdatedEvent | EntityLocalRemovedEvent | CapabilityEnabledEvent;
 
 /**
  * 这次事件会不会改变 worktree 列表。

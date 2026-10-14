@@ -36,6 +36,7 @@ import {
   type WorktreeSwitchBranchOptions
 } from '@aiao/rxdb-plugin-worktree';
 import {
+  branchActivatedEvent,
   createWorktreeHookStubs,
   CREDENTIALS,
   deferred,
@@ -48,7 +49,6 @@ import {
   statusWith,
   worktreeWith
 } from '@aiao/rxdb-plugin-worktree/testing';
-import { branchActivatedEvent } from '@aiao/rxdb-plugin-worktree/testing';
 import { RxDBProvider } from '@aiao/rxdb-react';
 import { act, cleanup, renderHook, type RenderHookResult } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';

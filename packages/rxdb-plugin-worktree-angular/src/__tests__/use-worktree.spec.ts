@@ -36,8 +36,8 @@ import {
   type WorktreeSwitchBranchOptions
 } from '@aiao/rxdb-plugin-worktree';
 import {
-  createWorktreeHookStubs,
   branchActivatedEvent,
+  createWorktreeHookStubs,
   CREDENTIALS,
   deferred,
   diffWith,
