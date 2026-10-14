@@ -66,6 +66,10 @@
         "kind": "both"
       },
       {
+        "name": "BomLineDesignator",
+        "kind": "both"
+      },
+      {
         "name": "BomLineOccurrence",
         "kind": "both"
       },
@@ -214,6 +218,14 @@
         "kind": "type"
       },
       {
+        "name": "ExplosionSteps",
+        "kind": "type"
+      },
+      {
+        "name": "ExplosionStepValue",
+        "kind": "type"
+      },
+      {
         "name": "FORMULA_GRAMMAR_VERSION",
         "kind": "value"
       },
@@ -244,6 +256,10 @@
       {
         "name": "normalizeDecimalString",
         "kind": "value"
+      },
+      {
+        "name": "PenetrationRecord",
+        "kind": "type"
       },
       {
         "name": "pgliteBomDialect",
@@ -315,6 +331,72 @@
       },
       {
         "name": "WhereUsedTarget",
+        "kind": "type"
+      }
+    ],
+    "./testing": [
+      {
+        "name": "deterministicId",
+        "kind": "value"
+      },
+      {
+        "name": "goldenItemId",
+        "kind": "value"
+      },
+      {
+        "name": "goldenOccurrenceId",
+        "kind": "value"
+      },
+      {
+        "name": "GoldenPenetration",
+        "kind": "type"
+      },
+      {
+        "name": "GoldenRequirement",
+        "kind": "type"
+      },
+      {
+        "name": "GoldenStepValue",
+        "kind": "type"
+      },
+      {
+        "name": "loadScooterDataset",
+        "kind": "value"
+      },
+      {
+        "name": "SCOOTER_DATASET",
+        "kind": "value"
+      },
+      {
+        "name": "SCOOTER_GOLDEN",
+        "kind": "value"
+      },
+      {
+        "name": "SCOOTER_SEED_BATCH_NO",
+        "kind": "value"
+      },
+      {
+        "name": "SCOOTER_SEED_TIMESTAMP",
+        "kind": "value"
+      },
+      {
+        "name": "ScooterDesignatorSpec",
+        "kind": "type"
+      },
+      {
+        "name": "ScooterHeaderSpec",
+        "kind": "type"
+      },
+      {
+        "name": "ScooterItemIds",
+        "kind": "type"
+      },
+      {
+        "name": "ScooterItemSpec",
+        "kind": "type"
+      },
+      {
+        "name": "ScooterOccurrenceSpec",
         "kind": "type"
       }
     ]

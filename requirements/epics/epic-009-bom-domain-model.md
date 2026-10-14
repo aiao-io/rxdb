@@ -135,7 +135,12 @@ owner 于 2026-10-12 决定解锁，**驱动者 = 需要一个完整功能的 BO
 >
 > **截至 2026-10-14：第 3 步已交付**（US-511 阶段 A / C / B1：十进制 kernel 与公式求值器、单位换算、
 > `explodeBom` 七步展开、阶梯与损耗、虚拟件穿透、阶梯切片发布校验），AC 勾选与关闭记录见
-> [US-511](../stories/domain/US-511-bom-quantity-semantics.md)。第 4 步起可从 US-507 阶段 C + US-525 阶段 A 开工。
+> [US-511](../stories/domain/US-511-bom-quantity-semantics.md)。
+>
+> **截至 2026-10-14：第 4 步已交付**（US-507 阶段 C 位号子表 + US-525 阶段 A：SC-100 确定性种子与手写 golden、
+> `apps/dev-rxdb-bom` 演示应用与 `apps/dev-rxdb-bom-e2e` 六条验收用例）——**首轮切片 1~4 步闭环完成**，
+> AC 勾选与关闭记录见 [US-507](../stories/domain/US-507-bom-graph-skeleton.md)、
+> [US-525](../stories/domain/US-525-bom-end-to-end-demo.md)。
 第 1～4 步合起来就是最小可演示闭环：建 BOM → 按视图解析 → 多级展开 → where-used 反查 → 拒绝成环 → 数量与手算一致。
 这个闭环的**验收手段**是 [US-525](../stories/domain/US-525-bom-end-to-end-demo.md) 阶段 A：
 各故事的 AC 都是单点断言，而组合错误（乘序、二次过滤、穿透后继承）只在一份贯穿的数据集上显形。

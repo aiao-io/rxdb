@@ -9,9 +9,9 @@
 | 状态           | 数量 |
 | :------------- | :--- |
 | ✅ Done        | 74   |
-| 🚧 In Progress | 8    |
+| 🚧 In Progress | 9    |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 17   |
+| 📝 Backlog     | 16   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 100  |
 
@@ -25,7 +25,7 @@
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（8 条）
+## 进行中（9 条）
 
 | Story                                                                                      | 进展                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -185,7 +185,7 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 epic-009 默认决策 1～8 由 owner 确认；第 0 步的形态样本（AdventureWorks）与手算 golden 已就位、未与决策冲突，见 [epic-009 第 0 步样本](epics/epic-009-bom-domain-model.md#第-0-步样本)。
 US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值待证。
 
-- 🚧 [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md) — 阶段 A/B 已交付（`@aiao/rxdb-plugin-bom`，AC#1/#6~#9/#11/#14），阶段 C 位号子表随第 4 步；`bom_header` 挂修订、带 `draft` / `released`；逻辑行 `bom_line` 与行发生项 `bom_line_occurrence` 分层，跨行聚合在发布转移上校验
+- 🚧 [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md) — 阶段 A/B/C 全部交付（第 4 步：`bom_line_designator` 位号子表 + 发布转移位号计数校验，AC#4/#5/#12 与 AC#10/#13 位号部分，2026-10-14）；`bom_header` 挂修订、带 `draft` / `released`；逻辑行与行发生项分层，跨行聚合在发布转移上校验
 - 🚧 [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md) — 首轮 AC#1~#11/#13~#15/#17/#18 已交付（第 2 步，2026-10-14）：显式 `ResolutionContext`（`as_of_date` 必填、不读时钟）、追溯发布存储层拒绝、`loadHistory` 审计通道、一致快照；AC#12/#16 等 US-515
 - 🚧 [US-509 DAG 约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md) — 首轮 AC#1~#3/#5~#7/#9~#12/#14/#17 已交付（第 2 步，2026-10-14）：双后端并集递归判环 + 深度硬上限、`union_only` 插件层标记、http/supabase fail-fast + 远端 DDL 导出 + 同步拒绝；AC#4 依赖 US-513、AC#8 依赖 US-510 阶段 B、AC#13 等真实 PG、AC#15/#16 等 US-515
 - 🚧 [US-510 多级展开与 where-used 反查](stories/domain/US-510-bom-multilevel-explosion.md) — 阶段 A 已交付（第 2 步，2026-10-14）：BFS 逐层 `expandBom` / `whereUsed`、三预算 + 取消、`truncated` 与 `assertCompleteResolution` 守卫（AC#1/#2/#11，AC#7/#10 下钻部分 ⚠️）；可达性表 `bom_reach` 随阶段 B（只由实测热路径触发）
@@ -203,7 +203,7 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 - ⬜ [US-522 三框架 BOM 编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md) — 单端缺失 = 未完成，故不按端拆故事
 - ⬜ [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md) — 实例结构（`parent_instance_id`）与主数据可达性分离；源发生项删除受限
 - ⬜ [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md) — 四阶段；路线一律落在本仓；US-520 与 US-514 加工费的那一端，是二者的硬前置
-- ⬜ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 四阶段；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；一份滑板车数据集贯穿全域 + 七步算式面板
+- 🚧 [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 阶段 A 已交付（第 4 步，2026-10-14）：SC-100 确定性种子 + 手写 golden + `apps/dev-rxdb-bom`（算式面板/评估日/直连写入）+ `dev-rxdb-bom-e2e` 六条 AC 用例；阶段 B~F 各自等前置 — 四阶段；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；一份滑板车数据集贯穿全域 + 七步算式面板
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 
