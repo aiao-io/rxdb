@@ -8,6 +8,7 @@
 
 import { Repository } from '@aiao/rxdb';
 import type { EntityType, RxDB } from '@aiao/rxdb';
+import { BomLineOccurrence } from './entities.js';
 import { normalizeDecimalString } from './decimal.utils.js';
 import { attachUnionOnlyMark } from './resolve/cycle-analysis.js';
 import { BomCycleError, normalizeBomError } from './types.js';
@@ -58,6 +59,20 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
       return await super.create(entity);
     } catch (error) {
       return await rethrowBomError(this.rxdb, error, entity as unknown as Record<string, unknown>);
+    }
+  }
+
+  override async remove(entity: InstanceType<T>): Promise<InstanceType<T>> {
+    // 位号应用层级联：PGlite 0.5.8 的 DEFERRABLE FK CASCADE 不生效（探针：FK confdeltype 'c'
+    // 但删父行后子行仍在），行级触发器内 DML 同样不触发——两后端一致走应用层先删位号
+    if ((entity as unknown as Record<string, unknown>) instanceof BomLineOccurrence) {
+      const table = this.rxdb.localAdapterSync?.name === 'pglite' ? '"bom"."bom_line_designator"' : '"bom$bom_line_designator"';
+      await this.rawQuery(`DELETE FROM ${table} WHERE "occurrenceId" = '${entity.id}'`);
+    }
+    try {
+      return await super.remove(entity);
+    } catch (error) {
+      return await rethrowBomError(this.rxdb, error);
     }
   }
 

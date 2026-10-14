@@ -242,6 +242,12 @@
     },
     {
       "path": "./packages/rxdb-plugin-bom"
+    },
+    {
+      "path": "./apps/dev-rxdb-bom"
+    },
+    {
+      "path": "./apps/dev-rxdb-bom-e2e"
     }
   ]
 }

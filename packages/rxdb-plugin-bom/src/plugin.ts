@@ -171,4 +171,14 @@ declare module '@aiao/rxdb' {
   }
 }
 
-export const rxDBPluginBom: Plugin = (db: RxDB) => new RxDBPluginBom(db);
+export const rxDBPluginBom: Plugin = (db: RxDB) => {
+  const plugin = new RxDBPluginBom(db);
+  // 门面属性在工厂里挂（search 插件的先例）：`declare module` 只解决类型，运行时靠这里
+  Object.defineProperty(db, 'bom', {
+    value: plugin,
+    enumerable: false,
+    configurable: false,
+    writable: false
+  });
+  return plugin;
+};

@@ -47,6 +47,7 @@ const CYCLE_DEPTH_LIMIT_MESSAGE = 'rxdb:bom_cycle:depth_limit';
 const STRUCTURAL_COLUMNS: ReadonlyMap<string, readonly string[]> = new Map([
   ['BomItemRevision', ['itemId']],
   ['BomHeader', ['parentRevisionId', 'bomType', 'orgId']],
+  ['BomLineDesignator', ['occurrenceId']],
   ['BomLine', ['headerId']],
   ['BomLineOccurrence', ['lineId']]
 ]);
@@ -374,7 +375,83 @@ const sqliteTierPublishGuard = (metadata: EntityMetadata): string[] => {
     )
   ];
 };
+/**
+ * 位号的已发布头协议（US-507 阶段 C）：位号的增删改经 occurrence → line → header 判
+ * `released` 即拒（与行/发生项同口径，多一跳）。
+ */
+const sqliteDesignatorReleasedGuard = (metadata: EntityMetadata): string[] => {
+  if (metadata.name !== 'BomLineDesignator') return [];
+  const tableRef = sqliteTableRef(metadata);
+  const occurrence = quoteSqlIdentifier('bom$bom_line_occurrence');
+  const line = quoteSqlIdentifier('bom$bom_line');
+  const header = quoteSqlIdentifier('bom$bom_header');
+  const message = WRITE_PROTOCOL(metadata.tableName, '已发布头的位号增删改全部拒绝（首轮无 ECN）');
+  const join = (row: string): string =>
+    `EXISTS (SELECT 1 FROM ${occurrence} occ JOIN ${line} l ON l."id" = occ."lineId" JOIN ${header} h ON h."id" = l."headerId" WHERE occ."id" = ${row}."occurrenceId" AND h."state" = 'released')`;
+  return [
+    sqliteTrigger(tableRef, 'bom_line_designator_released_i', 'BEFORE INSERT', raiseWhen(message, join('NEW'))),
+    sqliteTrigger(tableRef, 'bom_line_designator_released_u', 'BEFORE UPDATE', raiseWhen(message, join('NEW'))),
+    sqliteTrigger(tableRef, 'bom_line_designator_released_d', 'BEFORE DELETE', raiseWhen(message, join('OLD')))
+  ];
+};
+
+/**
+ * 位号计数发布校验（US-507 阶段 C，AC#5）：`designator_managed` 且 qty 非空的行的
+ * 位号数必须等于名义 qty；错误同时给出位号数与 qty。草稿下可暂不合法（只在发布转移校验）。
+ */
+const sqliteDesignatorCountGuard = (metadata: EntityMetadata): string[] => {
+  if (metadata.name !== 'BomHeader') return [];
+  const tableRef = sqliteTableRef(metadata);
+  const occurrence = quoteSqlIdentifier('bom$bom_line_occurrence');
+  const designator = quoteSqlIdentifier('bom$bom_line_designator');
+  const line = quoteSqlIdentifier('bom$bom_line');
+  const count = (row: string): string =>
+    `(SELECT COUNT(*) FROM ${designator} d WHERE d."occurrenceId" = ${row}."id")`;
+  // 非整数 qty（含 NULL）不参与比较；整数性由逐字节判定（无小数点）
+  const expected = (row: string): string =>
+    `CASE WHEN ${row}."qty" IS NULL OR instr(${row}."qty", '.') > 0 THEN -1 ELSE CAST(${row}."qty" AS INTEGER) END`;
+  const message =
+    `'${PUBLISH_VALIDATION('bom_header', '位号计数违约：')}'` +
+    ` || occ."id" || ':位号数' || ${count('occ')} || ':qty' || occ."qty"`;
+  const sql = [
+    `SELECT RAISE(ABORT, ${message})`,
+    `FROM ${occurrence} occ`,
+    `JOIN ${line} l ON l."id" = occ."lineId"`,
+    `WHERE l."headerId" = NEW."id" AND occ."designatorManaged" = true`,
+    `  AND ${count('occ')} <> ${expected('occ')}`,
+    `LIMIT 1;`
+  ].join('\n');
+  return [
+    sqliteTrigger(
+      tableRef,
+      'bom_header_designator_publish_trg',
+      'BEFORE UPDATE OF "state"',
+      sql,
+      `OLD."state" = 'draft' AND NEW."state" = 'released'`
+    )
+  ];
+};
+/**
+ * 位号级联删除（US-507 阶段 C）：发生项删除时先删其位号。PGlite 0.5.8 的
+ * DEFERRABLE FK CASCADE 不生效（探针：FK 声明 confdeltype 'c' 但删除父行后子行仍在），
+ * SQLite 侧 FK 级联正常、重复删除无碍——两后端都用触发器兜底，直连删除也自洽。
+ */
+const sqliteDesignatorCascadeTrigger = (metadata: EntityMetadata): string[] => {
+  if (metadata.name !== 'BomLineOccurrence') return [];
+  const tableRef = sqliteTableRef(metadata);
+  const designator = quoteSqlIdentifier('bom$bom_line_designator');
+  return [
+    sqliteTrigger(
+      tableRef,
+      'bom_line_occurrence_designator_cascade_trg',
+      'BEFORE DELETE',
+      `DELETE FROM ${designator} WHERE "occurrenceId" = OLD."id";`
+    )
+  ];
+};
 /** 实体全部 SQLite 触发器 DDL（单条语句数组）。 */
+
+
 
 export const buildSqliteBomTriggerDdl = (metadata: EntityMetadata): string[] => [
   ...sqliteStructuralTrigger(metadata),
@@ -384,6 +461,9 @@ export const buildSqliteBomTriggerDdl = (metadata: EntityMetadata): string[] => 
   ...sqliteReleasedHeaderMembersGuard(metadata),
   ...sqliteDecimalFormatTriggers(metadata),
   ...sqliteTierPublishGuard(metadata),
+  ...sqliteDesignatorCountGuard(metadata),
+  ...sqliteDesignatorReleasedGuard(metadata),
+  ...sqliteDesignatorCascadeTrigger(metadata),
   ...sqliteCycleTriggers(metadata)
 ];
 
@@ -392,7 +472,9 @@ export const buildSqliteBomTriggerDdl = (metadata: EntityMetadata): string[] => 
 const pgFunctionHeader = (metadata: EntityMetadata, name: string): string =>
   `CREATE OR REPLACE FUNCTION ${quoteSqlIdentifier(metadata.namespace)}.${quoteSqlIdentifier(name)}() RETURNS trigger AS $$\nBEGIN`;
 
-const pgFunctionFooter = `\n  RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql;`;
+// DELETE 触发器返回 NEW 会把删除吞掉（PG 语义：BEFORE DELETE 返回 NEW = 取消删除）——
+// 守卫函数统一按 TG_OP 返回：DELETE 放行时 RETURN OLD，INSERT / UPDATE 时 RETURN NEW
+const pgFunctionFooter = `\n  IF TG_OP = 'DELETE' THEN\n    RETURN OLD;\n  END IF;\n  RETURN NEW;\nEND;\n$$ LANGUAGE plpgsql;`;
 
 /**
  * 触发器创建语句：包进 `DO $$` 块——PGlite 0.5.8 的扩展协议解析不了裸 `CREATE TRIGGER`，
@@ -657,7 +739,59 @@ const pgTierPublishFunction = (metadata: EntityMetadata): string[] => {
     pgCreateTrigger(metadata, tableRef, 'bom_header__tier_publish_trg', 'BEFORE UPDATE OF "state"', 'bom_header__tier_publish_guard')
   ];
 };
+/**
+ * 位号的已发布头协议（PG 侧，三跳 join 同 SQLite 口径）。
+ */
+const pgDesignatorReleasedFunction = (metadata: EntityMetadata): string[] => {
+  if (metadata.name !== 'BomLineDesignator') return [];
+  const tableRef = pgTableRef(metadata);
+  const occurrence = pgNamedTable(metadata, 'bom_line_occurrence');
+  const line = pgNamedTable(metadata, 'bom_line');
+  const header = pgNamedTable(metadata, 'bom_header');
+  const message = WRITE_PROTOCOL(metadata.tableName, '已发布头的位号增删改全部拒绝（首轮无 ECN）');
+  // DELETE 触发器里 NEW 未赋值：按 TG_OP 选行（行/发生项守卫的同款先例）
+  const owner = `CASE WHEN TG_OP = 'DELETE' THEN OLD."occurrenceId" ELSE NEW."occurrenceId" END`;
+  const body =
+    `  IF EXISTS (SELECT 1 FROM ${occurrence} occ JOIN ${line} l ON l."id" = occ."lineId" JOIN ${header} h ON h."id" = l."headerId" WHERE occ."id" = ${owner} AND h."state" = 'released') THEN\n` +
+    `    RAISE EXCEPTION '${message}';\n  END IF;`;
+  return [
+    `${pgFunctionHeader(metadata, 'bom_line_designator__released_guard')}\n${body}${pgFunctionFooter}`,
+    pgCreateTrigger(metadata, tableRef, 'bom_line_designator__released_trg', 'BEFORE INSERT OR UPDATE OR DELETE', 'bom_line_designator__released_guard')
+  ];
+};
+
+/**
+ * 位号计数发布校验（PG 侧，与 SQLite 同口径；整数性由逐字节判定保证 `::integer` 安全）。
+ */
+const pgDesignatorCountFunction = (metadata: EntityMetadata): string[] => {
+  if (metadata.name !== 'BomHeader') return [];
+  const tableRef = pgTableRef(metadata);
+  const occurrence = pgNamedTable(metadata, 'bom_line_occurrence');
+  const designator = pgNamedTable(metadata, 'bom_line_designator');
+  const line = pgNamedTable(metadata, 'bom_line');
+  const count = `(SELECT COUNT(*) FROM ${designator} d WHERE d."occurrenceId" = occ."id")`;
+  const expected = `CASE WHEN occ."qty" IS NULL OR strpos(occ."qty", '.') > 0 THEN -1 ELSE occ."qty"::integer END`;
+  const violation =
+    `SELECT '${PUBLISH_VALIDATION('bom_header', '位号计数违约：')}' || occ."id" || ':位号数' || ${count} || ':qty' || occ."qty"` +
+    ` FROM ${occurrence} occ JOIN ${line} l ON l."id" = occ."lineId"` +
+    ` WHERE l."headerId" = NEW."id" AND occ."designatorManaged" = true` +
+    ` AND ${count} <> ${expected} LIMIT 1`;
+  const body =
+    `  IF OLD."state" = 'draft' AND NEW."state" = 'released' THEN\n` +
+    `    DECLARE violation text;\n    BEGIN\n` +
+    `      ${violation} INTO violation;\n` +
+    `      IF violation IS NOT NULL THEN\n        RAISE EXCEPTION '%', violation;\n      END IF;\n` +
+    `    END;\n  END IF;`;
+  return [
+    `${pgFunctionHeader(metadata, 'bom_header__designator_publish_guard')}\n${body}${pgFunctionFooter}`,
+    pgCreateTrigger(metadata, tableRef, 'bom_header__designator_publish_trg', 'BEFORE UPDATE OF "state"', 'bom_header__designator_publish_guard')
+  ];
+};
+// 位号级联不落 PG 触发器：PGlite 0.5.8 行级触发器内 DML 不触发（探针实证），
+// 级联由 BomRepository.remove 应用层完成（两后端一致）
 /** 实体全部 PGlite 触发器 DDL（单条语句数组）。 */
+
+
 
 export const buildPgBomTriggerDdl = (metadata: EntityMetadata): string[] => [
   ...pgStructuralFunction(metadata),
@@ -667,5 +801,7 @@ export const buildPgBomTriggerDdl = (metadata: EntityMetadata): string[] => [
   ...pgReleasedHeaderMembersFunction(metadata),
   ...pgDecimalFormatFunction(metadata),
   ...pgTierPublishFunction(metadata),
+  ...pgDesignatorCountFunction(metadata),
+  ...pgDesignatorReleasedFunction(metadata),
   ...pgCycleFunction(metadata)
 ];

@@ -121,6 +121,14 @@ for (const backend of BACKENDS) {
       expect(result.requirementLines[0].qty).toBe('217');
       expect(result.requirementLines[0].itemId).toBe(part.id);
       expect(result.requirementLines[0].uom).toBe('pcs');
+      // 七步中间值（算式面板展示输入）：P=100 → P'=105 → G=210 → G'=216.4948453608247422680412371134021 → D 同 → 取整 217
+      const steps = result.requirementLines[0].steps;
+      expect(steps.planned).toEqual({ value: '100', uom: 'pcs' });
+      expect(steps.assemblyScrapped).toEqual({ value: '105', uom: 'pcs' });
+      expect(steps.gross).toEqual({ value: '210', uom: 'pcs' });
+      expect(steps.componentScrapped).toEqual({ value: '216.4948453608247422680412371134021', uom: 'pcs' });
+      expect(steps.converted).toEqual({ value: '216.4948453608247422680412371134021', uom: 'pcs' });
+      expect(steps.phantom.value).toBe(false);
       // manifest：算法版本与换算记录
       expect(result.manifest.algorithmVersion).toBe('1');
       expect(result.manifest.parentItemId).toBe(finished.id);

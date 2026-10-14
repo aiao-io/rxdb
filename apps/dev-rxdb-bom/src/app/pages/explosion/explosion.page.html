@@ -1,0 +1,98 @@
+<div class="page">
+  <div class="toolbar panel">
+    <button (click)="resetAndSeed()" [disabled]="busy()">重置并装载种子</button>
+    <label>评估日（显式入参，不读系统时钟）<input type="date" [(ngModel)]="asOfDate" [value]="asOfDate()" /></label>
+    <label>计划量 <input type="text" [(ngModel)]="plannedQty" style="width: 72px" /></label>
+    <button (click)="runExplode()" [disabled]="busy() || !ready()">展开整机</button>
+    <span data-testid="seed-info">批次 {{ seedBatchNo }} · 基准 {{ seedTimestamp }}</span>
+  </div>
+
+  @if (rowCounts()) {
+    <div class="panel" data-testid="row-counts"><pre>{{ rowCounts() }}</pre></div>
+  }
+
+  <div class="main">
+    <section class="panel tree">
+      <h2>需求行（展开树）</h2>
+      @if (view()?.result.truncated) {
+        <div class="error-box">截断：{{ view()!.result.truncated!.reason }}</div>
+      }
+      @for (line of view()?.result.requirementLines; track line.path.join('>')) {
+        <div
+          class="requirement-row"
+          role="button"
+          tabindex="0"
+          [class.selected]="view()!.selected === line"
+          [style.paddingLeft.px]="8 + depth(line) * 20"
+          (click)="select(line)"
+          (keydown.enter)="select(line)"
+          [attr.data-item]="itemNo(line.itemId)"
+        >
+          <span class="qty" [attr.data-qty]="line.qty">{{ line.qty }} {{ line.uom }}</span>
+          <span>{{ itemNo(line.itemId) }}</span>
+          @if (designatorsOf(line).length > 0) {
+            <span class="designators" [attr.data-designators]="designatorsOf(line).join(',')">位号：{{ designatorsOf(line).join(', ') }}</span>
+          }
+        </div>
+      }
+    </section>
+
+    <section class="panel steps">
+      <h2>算式面板（七步）</h2>
+      @if (!view()?.selected) {
+        <p class="hint">选中一条需求行查看七步手算式。</p>
+      } @else {
+        @for (row of stepRows(); track row.label) {
+          <div class="step-row" [attr.data-step]="row.label">
+            <span class="label">{{ row.label }}</span>
+            <span class="value" [attr.data-value]="row.value">{{ row.value }} {{ row.uom }}</span>
+            <span class="label">取自</span>
+            <span class="source">{{ row.source }}</span>
+          </div>
+        }
+        @for (penetration of penetrationsOn(view()!.selected!); track penetration.occurrenceId) {
+          <div class="step-row" data-step="penetration">
+            <span class="label">穿透</span>
+            <span class="value">{{ itemNo(penetration.childItemId) }} → P = {{ penetration.childPlanned.value }} {{ penetration.childPlanned.uom }}</span>
+            <span class="label">判定</span>
+            <span class="source">COALESCE(phantom_override, default_phantom) = {{ penetration.source }}</span>
+          </div>
+        }
+      }
+    </section>
+  </div>
+
+  <section class="panel">
+    <h2>直连写入（存储层环约束，US-509 AC#5）</h2>
+    <div class="toolbar">
+      <button (click)="runRawCycle()" [disabled]="busy() || !ready()">直连写入成环边（PCBA → SC-100）</button>
+      <button (click)="runFormCycle()" [disabled]="busy() || !ready()">表单写入同一条边</button>
+    </div>
+    @if (rawResult()) {
+      <div class="error-box" data-testid="raw-cycle-result">{{ rawResult() }}</div>
+    }
+    @if (formResult()) {
+      <div class="error-box" data-testid="form-cycle-result">{{ formResult() }}</div>
+    }
+  </section>
+
+  <section class="panel">
+    <h2>位号发布校验（US-507 AC#5）</h2>
+    <div class="toolbar">
+      <button (click)="publishDemoHeader()" [disabled]="busy() || !ready()">发布演示头（managed 行 qty=100、位号 39 个）</button>
+    </div>
+    @if (publishResult()) {
+      <div class="error-box" data-testid="publish-result">{{ publishResult() }}</div>
+    }
+  </section>
+
+  <section class="panel">
+    <h2>where-used 反查（M3 螺钉，US-510）</h2>
+    <div class="toolbar">
+      <button (click)="runWhereUsed()" [disabled]="busy() || !ready()">反查 M3</button>
+    </div>
+    @for (line of whereUsedLines(); track line) {
+      <div class="where-used-row" data-testid="where-used-line">{{ line }}</div>
+    }
+  </section>
+</div>

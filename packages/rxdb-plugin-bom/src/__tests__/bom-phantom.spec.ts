@@ -135,6 +135,16 @@ for (const backend of BACKENDS) {
       expect(result.requirementLines[0].itemId).toBe(d.id);
       expect(result.requirementLines[0].qty).toBe('3');
       expect(result.requirementLines[0].uom).toBe('pcs');
+      // 穿透记录（算式面板第 7 步）：B 修订级、C 修订级；C 的行级覆盖归一为 1 盒
+      expect(result.penetrations.length).toBe(2);
+      const bPenetration = result.penetrations.find(entry => entry.childItemId === b.id);
+      expect(bPenetration?.source).toBe('revision');
+      expect(bPenetration?.converted).toEqual({ value: '1', uom: 'kg' });
+      expect(bPenetration?.childPlanned).toEqual({ value: '1', uom: 'kg' });
+      const cPenetration = result.penetrations.find(entry => entry.childItemId === c.id);
+      expect(cPenetration?.source).toBe('revision');
+      expect(cPenetration?.converted).toEqual({ value: '4', uom: 'pcs' });
+      expect(cPenetration?.childPlanned).toEqual({ value: '1', uom: '盒' });
     });
 
     it('AC#10 展开期缺换算率：跨量纲（米 → 千克）且两级均未声明，整次拒绝不默认 1', async () => {

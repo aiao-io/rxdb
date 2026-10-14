@@ -251,7 +251,9 @@ export class BomLine extends EntityBase {
     { name: 'componentScrapConvention', type: PropertyType.enum, enum: ['additive', 'yield'], default: 'additive' },
     { name: 'componentScrapFixed', type: PropertyType.string, default: '0' },
     { name: 'uomConversion', type: PropertyType.string, nullable: true },
-    { name: 'phantomOverride', type: PropertyType.boolean, nullable: true }
+    { name: 'phantomOverride', type: PropertyType.boolean, nullable: true },
+    // 位号管理（US-507 阶段 C）：发布转移要求位号数 = 名义 qty
+    { name: 'designatorManaged', type: PropertyType.boolean, default: false }
   ],
   checks: [
     // US-511 AC#7：qty 与 qty_formula 恰好一项非空
@@ -343,7 +345,38 @@ export class BomLineOccurrence extends EntityBase {
   componentScrapFixed!: string;
   uomConversion!: string | null;
   phantomOverride!: boolean | null;
+  designatorManaged!: boolean;
+}
+
+/**
+ * 位号（`bom$bom_line_designator`，US-507 阶段 C）：「这个位号装在哪条行发生项上」。
+ *
+ * @remarks
+ * 行发生项的 1:N 子表，引用发生项 ID（描述「那一段时间的那组值」）；`(occurrenceId, designator)`
+ * 唯一；随发生项删除级联。位号字符串按业务语义（如 `R1`、`C3`）不做内容校验。
+ * `occurrenceId` 创建后不可改（结构归属列）；已发布头的位号增删改全部拒绝（写入协议）。
+ */
+@Entity({
+  name: 'BomLineDesignator',
+  namespace: 'bom',
+  tableName: 'bom_line_designator',
+  repository: 'BomRepository',
+  properties: [{ name: 'designator', type: PropertyType.string }],
+  relations: [
+    {
+      name: 'occurrence',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'BomLineOccurrence',
+      mappedProperty: 'designators',
+      onDelete: 'CASCADE'
+    }
+  ],
+  indexes: [{ name: 'occurrence_designator', properties: ['occurrenceId', 'designator'], unique: true }]
+})
+export class BomLineDesignator extends EntityBase {
+  designator!: string;
+  occurrenceId!: string;
 }
 
 /** BOM 实体全集（触发器安装按此清单在 schema 里找实体）。 */
-export const BOM_ENTITIES = [BomItem, BomItemRevision, BomHeader, BomHistoryBatch, BomLine, BomLineOccurrence] as const;
+export const BOM_ENTITIES = [BomItem, BomItemRevision, BomHeader, BomHistoryBatch, BomLine, BomLineOccurrence, BomLineDesignator] as const;

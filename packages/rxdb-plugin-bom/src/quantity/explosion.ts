@@ -69,6 +69,46 @@ export interface ExplosionOptions {
   signal?: AbortSignal;
 }
 
+/** 七步公式的一个中间量：值 + 单位。 */
+export interface ExplosionStepValue {
+  value: string;
+  uom: string;
+}
+
+/** 一条需求行的七步中间值（US-525 算式面板的展示输入；面板只展示、不重算）。 */
+export interface ExplosionSteps {
+  /** 第 1 步 P：父计划量（头基准单位，已由上层归一）。 */
+  planned: ExplosionStepValue;
+  /** 第 2 步 P'：装配损耗后。 */
+  assemblyScrapped: ExplosionStepValue;
+  /** 第 3 步 G：组件毛需求（行 UoM；定量 / 公式 / 阶梯命中行）。 */
+  gross: ExplosionStepValue;
+  /** 第 4 步 G'：组件损耗后（含固定损耗）。 */
+  componentScrapped: ExplosionStepValue;
+  /** 第 6 步 D：换算到子件库存单位。 */
+  converted: ExplosionStepValue;
+  /** 本行自身的 phantom 判定（COALESCE(phantom_override, default_phantom)）。 */
+  phantom: { value: boolean; source: 'override' | 'revision' | 'fallback'; revisionId: string | null };
+}
+
+/** 一次穿透记录（虚拟件不产需求行，但其第 7 步判定与换算要能在算式面板摊开）。 */
+export interface PenetrationRecord {
+  /** 到穿透发生项的路径。 */
+  path: string[];
+  /** 穿透边（行发生项 id）。 */
+  occurrenceId: string;
+  /** 虚拟件物料 id。 */
+  childItemId: string;
+  /** 解析所得虚拟件修订 id。 */
+  revisionId: string;
+  /** phantom 判定来源：行级覆盖 / 修订级默认。 */
+  source: 'override' | 'revision';
+  /** 第 6 步 D（子件库存单位）。 */
+  converted: ExplosionStepValue;
+  /** 换算到子头基准单位后作为 P 的值。 */
+  childPlanned: ExplosionStepValue;
+}
+
 /** 一条需求行（非虚拟件的向上取整结果；虚拟件不产出需求行）。 */
 export interface RequirementLine {
   /** 行发生项 id 序列（根→本节点）。 */
@@ -81,6 +121,8 @@ export interface RequirementLine {
   qty: string;
   /** 子件库存单位。 */
   uom: string;
+  /** 七步中间值（算式面板展示输入）。 */
+  steps: ExplosionSteps;
 }
 
 /** 展开 manifest：上下文、命中头与发生项、用到的换算率、公式信息与算法版本。 */
@@ -99,10 +141,12 @@ export interface ExplosionManifest {
   unresolved: UnresolvedAlternative[];
 }
 
-/** 一次数量展开的结果：需求行 + manifest + 截断标记。 */
+/** 一次数量展开的结果：需求行 + 穿透记录 + manifest + 截断标记。 */
 export interface ExplosionResult {
   manifest: ExplosionManifest;
   requirementLines: RequirementLine[];
+  /** 虚拟件穿透记录（不产需求行，供算式面板展示第 7 步判定与换算）。 */
+  penetrations: PenetrationRecord[];
   truncated: { reason: TruncationReason } | null;
 }
 
@@ -348,6 +392,7 @@ export const explodeBom = async (
       }
     ];
     const requirementLines: RequirementLine[] = [];
+    const penetrations: PenetrationRecord[] = [];
     const occurrenceIds: string[] = [];
     let truncated: ExplosionResult['truncated'] = null;
     let expansions = 0;
@@ -429,6 +474,10 @@ export const explodeBom = async (
           recordConversion(row.occurrenceUom, row.childStockUom, rates.lineRate ?? rates.itemRate ?? null);
 
           // 7. 穿透 / 产出需求行
+          const phantomSource =
+            row.phantomOverride !== null ? 'override' as const
+            : row.childRevisionPhantom !== null ? 'revision' as const
+            : 'fallback' as const;
           const phantom = row.phantomOverride ?? row.childRevisionPhantom ?? false;
           if (phantom) {
             if (row.resolvedChildRevisionId === null) {
@@ -441,6 +490,15 @@ export const explodeBom = async (
             // 换算到子头基准 UoM 作为 P，不产出需求行、不舍入
             const childPlanned = convertUom(decimalToCanonical(demand), row.childStockUom, childHeader.baseUom, rates);
             recordConversion(row.childStockUom, childHeader.baseUom, rates.lineRate ?? rates.itemRate ?? null);
+            penetrations.push({
+              path: [...node.path, row.occurrenceId],
+              occurrenceId: row.occurrenceId,
+              childItemId: row.childItemId,
+              revisionId: row.resolvedChildRevisionId,
+              source: phantomSource === 'override' ? 'override' : 'revision',
+              converted: { value: decimalToCanonical(demand), uom: row.childStockUom },
+              childPlanned: { value: childPlanned, uom: childHeader.baseUom }
+            });
             nextFrontier.push(
               nodes.push({
                 path: [...node.path, row.occurrenceId],
@@ -459,7 +517,15 @@ export const explodeBom = async (
               itemId: row.childItemId,
               revisionId: row.resolvedChildRevisionId,
               qty: decimalToCanonical(rounded),
-              uom: row.childStockUom
+              uom: row.childStockUom,
+              steps: {
+                planned: { value: decimalToCanonical(node.plannedQty), uom: node.baseUom },
+                assemblyScrapped: { value: decimalToCanonical(plannedPrime), uom: node.baseUom },
+                gross: { value: decimalToCanonical(gross), uom: row.occurrenceUom },
+                componentScrapped: { value: decimalToCanonical(net), uom: row.occurrenceUom },
+                converted: { value: decimalToCanonical(demand), uom: row.childStockUom },
+                phantom: { value: phantom, source: phantomSource, revisionId: row.resolvedChildRevisionId }
+              }
             });
             // 非虚拟件有头：取整值换算到子头基准 UoM 下传（AC#17）
             if (row.resolvedChildRevisionId !== null) {
@@ -499,7 +565,7 @@ export const explodeBom = async (
       algorithmVersion: EXPLOSION_ALGORITHM_VERSION,
       unresolved: []
     };
-    return { manifest, requirementLines, truncated };
+    return { manifest, requirementLines, penetrations, truncated };
   }, false);
 };
 
