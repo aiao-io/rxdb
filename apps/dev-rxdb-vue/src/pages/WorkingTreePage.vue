@@ -1,5 +1,6 @@
 <script lang="ts" setup>
-import { RxDBBranch } from '@aiao/rxdb';
+import { RxDBBranch, type MergeStrategy } from '@aiao/rxdb';
+import type { MergePreview } from '@aiao/rxdb-plugin-history';
 import type {
   CommitLogEntry,
   CommitResult,
@@ -19,6 +20,7 @@ import BranchMenu from './working-tree/components/BranchMenu.vue';
 import ChangesList from './working-tree/components/ChangesList.vue';
 import CommitBox from './working-tree/components/CommitBox.vue';
 import CommitDetail from './working-tree/components/CommitDetail.vue';
+import CompareDialog, { type CompareDialogState } from './working-tree/components/CompareDialog.vue';
 import ContextMenu from './working-tree/components/ContextMenu.vue';
 import DiffViewer from './working-tree/components/DiffViewer.vue';
 import HistoryList from './working-tree/components/HistoryList.vue';
@@ -28,6 +30,7 @@ import type {
   WorkingTreeContextMenuRequest,
   WorkingTreeContextMenuState
 } from './working-tree/utils/context-menu';
+import type { BranchDiffLoad } from './working-tree/utils/branch-diff';
 import { diffEntryKey } from './working-tree/utils/diff-format';
 import { startDragResize } from './working-tree/utils/drag';
 import { gdEntryPath } from './working-tree/utils/gd';
@@ -95,6 +98,11 @@ const createPopoverOpen = ref(false);
 const newBranchName = ref('');
 const branchError = ref<string | null>(null);
 const mergeDialog = ref<MergeDialogState | null>(null);
+const mergePreview = ref<BranchDiffLoad<MergePreview>>({ phase: 'loading' });
+const compareDialog = ref<CompareDialogState | null>(null);
+/** 只读请求的代号：对话框关掉或换了参数之后，迟到的结果不落进新状态。 */
+let mergePreviewRequest = 0;
+let compareRequest = 0;
 /** 应用内确认框请求（替代原生 confirm）。 */
 const confirmRequest = ref<{ kind: 'discard'; message: string } | { kind: 'delete-branch'; branchId: string } | null>(
   null
@@ -295,7 +303,7 @@ function openChangesContextMenu(request: WorkingTreeContextMenuRequest<WorkingTr
   };
 }
 
-/** 分支行上的右键：切换 / 合并 / 删除在前，分隔线后是复制分支名（GitHub Desktop 的分支右键菜单）。 */
+/** 分支行上的右键：切换 / 合并 / 对比 / 删除在前，分隔线后是复制分支名（GitHub Desktop 的分支右键菜单）。 */
 function openBranchContextMenu(request: { target: RxDBBranch; event: MouseEvent }): void {
   request.event.preventDefault();
   const branch = request.target;
@@ -304,6 +312,7 @@ function openBranchContextMenu(request: { target: RxDBBranch; event: MouseEvent 
     items.push(
       { id: 'branch-switch', label: 'Switch', testId: 'wt-branch-menu-switch' },
       { id: 'branch-merge', label: `Merge into ${activeBranch.value}`, testId: 'wt-branch-menu-merge' },
+      { id: 'branch-compare', label: `Compare with ${activeBranch.value}`, testId: 'wt-branch-menu-compare' },
       { id: 'branch-delete', label: 'Delete', danger: true, testId: 'wt-branch-menu-delete' },
       { id: 'sep-1', label: '', separator: true }
     );
@@ -355,6 +364,8 @@ function handleContextMenuSelect(item: WorkingTreeContextMenuItem): void {
       void switchBranch(target.branchId);
     } else if (item.id === 'branch-merge') {
       openMergeDialog(target.branchId);
+    } else if (item.id === 'branch-compare') {
+      openCompareDialog(target.branchId);
     } else if (item.id === 'branch-delete') {
       requestRemoveBranch(target.branchId);
     } else if (item.id === 'branch-copy') {
@@ -660,20 +671,39 @@ async function handleConfirmRequest(): Promise<void> {
 
 // ── 合并对话框 ────────────────────────────────────────────
 
+/** 按给定策略读一次合并预览（只读，不切换）；`merged` 跟着策略变，所以换策略要重读。 */
+function loadMergePreview(sourceBranchId: string, strategy: MergeStrategy): void {
+  const request = ++mergePreviewRequest;
+  mergePreview.value = { phase: 'loading' };
+  void rxdb.versionManager.previewMerge(sourceBranchId, { strategy }).then(
+    value => {
+      if (request === mergePreviewRequest) mergePreview.value = { phase: 'success', value };
+    },
+    (e: unknown) => {
+      if (request !== mergePreviewRequest) return;
+      mergePreview.value = { phase: 'error', message: e instanceof Error ? e.message : 'Preview failed.' };
+    }
+  );
+}
+
 function openMergeDialog(sourceBranchId: string): void {
   branchMenuOpen.value = false;
   mergeError.value = null;
   mergeDialog.value = { sourceBranchId, strategy: 'squash', deleteSource: false };
+  loadMergePreview(sourceBranchId, 'squash');
 }
 
 function closeMergeDialog(): void {
+  mergePreviewRequest++;
   mergeDialog.value = null;
   mergeError.value = null;
 }
 
 function setMergeStrategy(strategy: MergeDialogState['strategy']): void {
   const cur = mergeDialog.value;
-  if (cur) mergeDialog.value = { ...cur, strategy };
+  if (!cur || cur.strategy === strategy) return;
+  mergeDialog.value = { ...cur, strategy };
+  loadMergePreview(cur.sourceBranchId, strategy);
 }
 
 function setDeleteSource(value: boolean): void {
@@ -707,6 +737,30 @@ async function executeMerge(): Promise<void> {
   } catch (e: unknown) {
     mergeError.value = e instanceof Error ? e.message : 'Merge failed.';
   }
+}
+
+// ── 对比对话框 ────────────────────────────────────────────
+
+/** 拿一条分支和当前分支对比（只读，不切换）：字段读作「当前分支的值 → 那条分支的值」。 */
+function openCompareDialog(branchId: string): void {
+  branchMenuOpen.value = false;
+  const request = ++compareRequest;
+  compareDialog.value = { branchId, comparison: { phase: 'loading' } };
+  void rxdb.versionManager.compareBranches(activeBranch.value, branchId).then(
+    value => {
+      if (request === compareRequest) compareDialog.value = { branchId, comparison: { phase: 'success', value } };
+    },
+    (e: unknown) => {
+      if (request !== compareRequest) return;
+      const message = e instanceof Error ? e.message : 'Compare failed.';
+      compareDialog.value = { branchId, comparison: { phase: 'error', message } };
+    }
+  );
+}
+
+function closeCompareDialog(): void {
+  compareRequest++;
+  compareDialog.value = null;
 }
 
 // ── 私有辅助 ──────────────────────────────────────────────
@@ -1114,10 +1168,18 @@ function clampAsideWidth(width: number): number {
       :active-branch="activeBranch"
       :dialog="mergeDialog"
       :error="mergeError"
+      :preview="mergePreview"
       @close-requested="closeMergeDialog"
       @confirm="executeMerge"
       @delete-source-change="setDeleteSource"
       @strategy-change="setMergeStrategy"
+    />
+
+    <!-- ═══════════════════ 对比对话框 ═══════════════════ -->
+    <CompareDialog
+      :active-branch="activeBranch"
+      :dialog="compareDialog"
+      @close-requested="closeCompareDialog"
     />
 
     <!-- ═══════════════════ 应用内确认框（替代原生 confirm，移动端样式一致） ═══════════════════ -->

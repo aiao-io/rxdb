@@ -514,7 +514,12 @@ const NAMING = {
     'RemoteChangeResult',
     'RemoteEntityRef',
     'SyncRejection',
-    'SyncRejectionReport'
+    'SyncRejectionReport',
+    // US-312 簿记字段清单。`remoteId` 与审计时间是核心定义的列（实体基类、同步回填），清单因此在核心：
+    // 工作树插件的 `UNTRACKED_BOOKKEEPING_FIELDS` 就是它，历史插件的分支对比与合并预览按同一份不把它们
+    // 算作差异或覆盖——历史插件依赖不到工作树插件，两处各存一份迟早分叉。它说的是实体行上哪些列不表达
+    // 用户意图，叫 `Commit*` / `WorkingTree*` 等于宣称分支对比是提交能力的一部分。
+    'ENTITY_BOOKKEEPING_FIELDS'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

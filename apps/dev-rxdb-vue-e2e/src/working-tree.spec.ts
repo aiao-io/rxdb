@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
-import { resetE2eState } from './e2e-utils.js';
+import { readCount, resetE2eState } from './e2e-utils.js';
+import { branchMenuAction, divergeBranches } from './working-tree-branches.js';
 
 /**
  * @fileoverview `/working-tree` 面板的 git 工作流功能用例（Vue 端）。
@@ -306,10 +307,11 @@ test.describe('Working Tree 页面功能', () => {
     await openBranchMenu(page);
     await expect(branchRow(page, 'feature/x')).toBeVisible({ timeout: 10000 });
 
-    // 分支行右键有菜单（GitHub Desktop 同款）：切换 / 合并 / 删除 + 复制分支名。
+    // 分支行右键有菜单（GitHub Desktop 同款）：切换 / 合并 / 对比 / 删除 + 复制分支名。
     await branchRow(page, 'feature/x').click({ button: 'right' });
     await expect(page.getByRole('menuitem', { name: 'Switch' })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: 'Merge into main' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Compare with main' })).toBeVisible();
     await page.locator('[aria-label="Close context menu"]').click({ position: { x: 4, y: 4 } });
 
     await branchRow(page, 'feature/x').click();
@@ -484,6 +486,60 @@ test.describe('Working Tree 页面功能', () => {
  * 分支下拉的输入法守卫：组字期间的 Enter 是「上屏」、Escape 是「取消组字」，都属于输入法，
  * 不能被当成提交或关闭吃掉。
  */
+test.describe('合并预览与分支对比（US-312）', () => {
+  test.describe.configure({ mode: 'serial' });
+
+  test('不切换就看到合并会落什么、会盖掉哪些改动，以及两条分支差在哪', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+    await divergeBranches(page, {
+      branch: 'feature/preview',
+      base: 'preview-base',
+      onBranch: 'preview-feature',
+      onMain: 'preview-main',
+      ghost: 'preview-ghost'
+    });
+
+    // ── 合并对话框一打开就是预览：幽灵操作被压缩掉，只剩改标题这一条，且会盖掉 main 的改动 ──
+    await branchMenuAction(page, 'feature/preview', 'wt-branch-menu-merge');
+    const summary = page.getByTestId('wt-merge-preview-summary');
+    await expect(summary).toContainText(
+      'from feature/preview into main. 1 entity overlaps with changes made on main.',
+      {
+        timeout: 30000
+      }
+    );
+    const items = page.getByTestId('wt-branch-diff-item');
+    await expect(items).toHaveCount(1);
+    await expect(items).toContainText('"preview-feature"');
+    await expect(page.getByTestId('wt-branch-diff-conflict')).toHaveText("Overwrites main's changes to title");
+
+    // 逐条合并连幽灵操作一起记：计数变多，落的条目不变
+    const squashed = readCount(await summary.textContent(), '压缩合并的预览摘要');
+    await page.getByTestId('wt-merge-strategy-normal').click();
+    await expect(summary).toHaveText(new RegExp(`^Merges (?!${squashed} )\\d+ changes from`), { timeout: 30000 });
+    expect(readCount(await summary.textContent(), '逐条合并的预览摘要')).toBeGreaterThan(squashed);
+    await expect(items).toHaveCount(1);
+
+    // 预览不写任何东西：Escape 关掉对话框，当前分支照旧干净
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('wt-merge-dialog')).toHaveCount(0);
+    await expect(page.getByTestId('wt-status-clean')).toHaveText('干净');
+
+    // ── 对比：字段读作「main 的值 → feature 的值」；幽灵操作两边都没有，不出条目 ──
+    await branchMenuAction(page, 'feature/preview', 'wt-branch-menu-compare');
+    await expect(page.getByTestId('wt-compare-summary')).toHaveText(
+      '1 entity differs between main and feature/preview.',
+      { timeout: 30000 }
+    );
+    await expect(items).toContainText('"preview-main"');
+    await expect(items).toContainText('"preview-feature"');
+    await page.getByTestId('wt-compare-close').click();
+    await expect(page.getByTestId('wt-compare-dialog')).toHaveCount(0);
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('main');
+  });
+});
+
 test.describe('分支下拉：输入法组字', () => {
   test('组字中的回车不提交、Escape 不收弹层与菜单；同一个事件去掉 isComposing 就照常生效', async ({ page }) => {
     await openPanel(page);

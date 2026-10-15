@@ -31,6 +31,17 @@ export * from './plugin.js';
 export { RxDBCrossScopeTransactionError } from './scope-selection.js';
 // 实例由插件装配，用户不自己 new，因此只转类型不转类。
 export type { VersionManager } from './VersionManager.js';
+// `compareBranches()` / `previewMerge()` 的入参与回答（US-312）：调用方按 `operation` / `conflict.kind`
+// 分支、给结果起类型时必须能命名它们。实现函数是内部的，只经 `VersionManager` 调。
+export type {
+  BranchComparison,
+  BranchDiffEntry,
+  BranchDiffOperation,
+  MergePreview,
+  MergePreviewConflict,
+  MergePreviewEntry,
+  MergePreviewOptions
+} from './branch-compare.js';
 
 // ---------------------------------------------------------------------------
 // 以下四项只为 `@aiao/rxdb-plugin-sync` 而导出，全部标了 `@internal`：

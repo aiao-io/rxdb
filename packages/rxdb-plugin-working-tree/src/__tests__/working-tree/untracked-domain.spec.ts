@@ -32,7 +32,7 @@
  *    拿来断言，于是「不得另建第二份」从一句规约变成一条类型约束：两边形状分叉时编译就红。
  */
 
-import { SyncType } from '@aiao/rxdb';
+import { ENTITY_BOOKKEEPING_FIELDS, SyncType } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
 import {
   buildVersionedDomain,
@@ -104,6 +104,12 @@ describe('第二类 untracked — 实体行上的簿记字段', () => {
 
   it('业务字段不因为同在一行就跟着豁免', () => {
     expect(domain().isUntrackedField('Post', 'title')).toBe(false);
+  });
+
+  it('清单就是核心的 ENTITY_BOOKKEEPING_FIELDS：分支对比与合并预览按同一份不把它们算作差异', () => {
+    // 同一个引用，不是内容相等：两处各存一份的话，迟早有一边加了新列另一边没跟上。
+    expect(UNTRACKED_BOOKKEEPING_FIELDS).toBe(ENTITY_BOOKKEEPING_FIELDS);
+    expect(ENTITY_BOOKKEEPING_FIELDS).toEqual(['remoteId', 'createdAt', 'updatedAt']);
   });
 
   it('带簿记字段的实体本身仍是 tracked', () => {

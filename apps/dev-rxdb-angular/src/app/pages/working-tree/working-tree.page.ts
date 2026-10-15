@@ -1,5 +1,6 @@
-import { RxDB, RxDBBranch } from '@aiao/rxdb';
+import { RxDB, RxDBBranch, type MergeStrategy } from '@aiao/rxdb';
 import { useFindAll } from '@aiao/rxdb-angular';
+import type { MergePreview } from '@aiao/rxdb-plugin-history';
 import type {
   CommitLogEntry,
   CommitResult,
@@ -39,6 +40,7 @@ import {
 } from './components/changes-list.component';
 import { WorkingTreeCommitBoxComponent } from './components/commit-box.component';
 import { WorkingTreeCommitDetailComponent } from './components/commit-detail.component';
+import { WorkingTreeCompareDialogComponent, type CompareDialogState } from './components/compare-dialog.component';
 import {
   WorkingTreeContextMenuComponent,
   type WorkingTreeContextMenuItem,
@@ -47,6 +49,7 @@ import {
 import { WorkingTreeDiffViewerComponent } from './components/diff-viewer.component';
 import { WorkingTreeHistoryListComponent } from './components/history-list.component';
 import { MergeDialogState, WorkingTreeMergeDialogComponent } from './components/merge-dialog.component';
+import type { BranchDiffLoad } from './working-tree.branch-diff';
 import { diffEntryKey } from './working-tree.diff-format';
 import { startDragResize } from './working-tree.drag';
 import { gdEntryPath } from './working-tree.gd';
@@ -112,6 +115,7 @@ const DIRTY_SWITCH_TEXT = 'The working tree has uncommitted changes. Commit or d
     WorkingTreeChangesListComponent,
     WorkingTreeCommitBoxComponent,
     WorkingTreeCommitDetailComponent,
+    WorkingTreeCompareDialogComponent,
     WorkingTreeContextMenuComponent,
     WorkingTreeDiffViewerComponent,
     WorkingTreeHistoryListComponent,
@@ -120,6 +124,9 @@ const DIRTY_SWITCH_TEXT = 'The working tree has uncommitted changes. Commit or d
 })
 export default class WorkingTreePage implements OnInit {
   readonly #rxdb = inject(RxDB);
+  /** 只读请求的代号：对话框关掉或换了参数之后，迟到的结果不落进新状态。 */
+  #mergePreviewRequest = 0;
+  #compareRequest = 0;
   private readonly createdAt = performance.now();
   private readonly destroyRef = inject(DestroyRef);
   private readonly toastTimer = new ResettableTimer();
@@ -146,6 +153,8 @@ export default class WorkingTreePage implements OnInit {
   readonly $newBranchName = signal('');
   readonly $branchError = signal<string | null>(null);
   readonly $mergeDialog = signal<MergeDialogState | null>(null);
+  readonly $mergePreview = signal<BranchDiffLoad<MergePreview>>({ phase: 'loading' });
+  readonly $compareDialog = signal<CompareDialogState | null>(null);
   /** 应用内确认框请求（替代原生 confirm）。 */
   readonly $confirm = signal<{ kind: 'discard'; message: string } | { kind: 'delete-branch'; branchId: string } | null>(
     null
@@ -348,7 +357,7 @@ export default class WorkingTreePage implements OnInit {
     });
   }
 
-  /** 分支行上的右键：切换 / 合并 / 删除在前，分隔线后是复制分支名（GitHub Desktop 的分支右键菜单）。 */
+  /** 分支行上的右键：切换 / 合并 / 对比 / 删除在前，分隔线后是复制分支名（GitHub Desktop 的分支右键菜单）。 */
   openBranchContextMenu(request: { target: RxDBBranch; event: MouseEvent }) {
     request.event.preventDefault();
     const branch = request.target;
@@ -357,6 +366,7 @@ export default class WorkingTreePage implements OnInit {
       items.push(
         { id: 'branch-switch', label: 'Switch', testId: 'wt-branch-menu-switch' },
         { id: 'branch-merge', label: `Merge into ${this.$activeBranch()}`, testId: 'wt-branch-menu-merge' },
+        { id: 'branch-compare', label: `Compare with ${this.$activeBranch()}`, testId: 'wt-branch-menu-compare' },
         { id: 'branch-delete', label: 'Delete', danger: true, testId: 'wt-branch-menu-delete' },
         { id: 'sep-1', label: '', separator: true }
       );
@@ -408,6 +418,8 @@ export default class WorkingTreePage implements OnInit {
         void this.switchBranch(target.branchId);
       } else if (item.id === 'branch-merge') {
         this.openMergeDialog(target.branchId);
+      } else if (item.id === 'branch-compare') {
+        this.openCompareDialog(target.branchId);
       } else if (item.id === 'branch-delete') {
         this.requestRemoveBranch(target.branchId);
       } else if (item.id === 'branch-copy') {
@@ -694,16 +706,20 @@ export default class WorkingTreePage implements OnInit {
     this.$branchMenuOpen.set(false);
     this.$mergeError.set(null);
     this.$mergeDialog.set({ sourceBranchId, strategy: 'squash', deleteSource: false });
+    this.#loadMergePreview(sourceBranchId, 'squash');
   }
 
   closeMergeDialog() {
+    this.#mergePreviewRequest++;
     this.$mergeDialog.set(null);
     this.$mergeError.set(null);
   }
 
   setMergeStrategy(strategy: MergeDialogState['strategy']) {
     const cur = this.$mergeDialog();
-    if (cur) this.$mergeDialog.set({ ...cur, strategy });
+    if (!cur || cur.strategy === strategy) return;
+    this.$mergeDialog.set({ ...cur, strategy });
+    this.#loadMergePreview(cur.sourceBranchId, strategy);
   }
 
   setDeleteSource(value: boolean) {
@@ -739,6 +755,31 @@ export default class WorkingTreePage implements OnInit {
     }
   }
 
+  // ── 对比对话框 ────────────────────────────────────────────
+
+  /** 拿一条分支和当前分支对比（只读，不切换）：字段读作「当前分支的值 → 那条分支的值」。 */
+  openCompareDialog(branchId: string) {
+    this.$branchMenuOpen.set(false);
+    const request = ++this.#compareRequest;
+    this.$compareDialog.set({ branchId, comparison: { phase: 'loading' } });
+    void this.#rxdb.versionManager.compareBranches(this.$activeBranch(), branchId).then(
+      value => {
+        if (request === this.#compareRequest)
+          this.$compareDialog.set({ branchId, comparison: { phase: 'success', value } });
+      },
+      (e: unknown) => {
+        if (request !== this.#compareRequest) return;
+        const message = e instanceof Error ? e.message : 'Compare failed.';
+        this.$compareDialog.set({ branchId, comparison: { phase: 'error', message } });
+      }
+    );
+  }
+
+  closeCompareDialog() {
+    this.#compareRequest++;
+    this.$compareDialog.set(null);
+  }
+
   // ── 私有辅助（成员排序规则：私有方法放最后） ──────────────
 
   private selectHeadCommitIfNone(): void {
@@ -756,6 +797,21 @@ export default class WorkingTreePage implements OnInit {
   /** 按绝对宽度夹回 [MIN, MAX]。 */
   private clampAsideWidth(width: number): number {
     return Math.min(ASIDE_WIDTH_MAX, Math.max(ASIDE_WIDTH_MIN, width));
+  }
+
+  /** 按给定策略读一次合并预览（只读，不切换）；`merged` 跟着策略变，所以换策略要重读。 */
+  #loadMergePreview(sourceBranchId: string, strategy: MergeStrategy): void {
+    const request = ++this.#mergePreviewRequest;
+    this.$mergePreview.set({ phase: 'loading' });
+    void this.#rxdb.versionManager.previewMerge(sourceBranchId, { strategy }).then(
+      value => {
+        if (request === this.#mergePreviewRequest) this.$mergePreview.set({ phase: 'success', value });
+      },
+      (e: unknown) => {
+        if (request !== this.#mergePreviewRequest) return;
+        this.$mergePreview.set({ phase: 'error', message: e instanceof Error ? e.message : 'Preview failed.' });
+      }
+    );
   }
 
   async #performDiscard(): Promise<void> {

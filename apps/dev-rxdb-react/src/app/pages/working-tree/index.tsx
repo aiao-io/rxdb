@@ -1,4 +1,5 @@
-import { RxDBBranch } from '@aiao/rxdb';
+import { RxDBBranch, type MergeStrategy } from '@aiao/rxdb';
+import type { MergePreview } from '@aiao/rxdb-plugin-history';
 import type {
   CommitLogEntry,
   CommitResult,
@@ -20,6 +21,7 @@ import { WorkingTreeBranchMenu } from './components/BranchMenu';
 import { WorkingTreeChangesList, type WorkingTreeContextMenuRequest } from './components/ChangesList';
 import { WorkingTreeCommitBox } from './components/CommitBox';
 import { WorkingTreeCommitDetail } from './components/CommitDetail';
+import { WorkingTreeCompareDialog, type CompareDialogState } from './components/CompareDialog';
 import {
   WorkingTreeContextMenu,
   type WorkingTreeContextMenuItem,
@@ -28,6 +30,7 @@ import {
 import { WorkingTreeDiffViewer } from './components/DiffViewer';
 import { WorkingTreeHistoryList } from './components/HistoryList';
 import { WorkingTreeMergeDialog, type MergeDialogState } from './components/MergeDialog';
+import type { BranchDiffLoad } from './utils/branch-diff';
 import { diffEntryKey } from './utils/diff-format';
 import { startDragResize } from './utils/drag';
 import { gdEntryPath } from './utils/gd';
@@ -110,6 +113,11 @@ export default function WorkingTreePage(): React.JSX.Element {
   const [newBranchName, setNewBranchName] = useState('');
   const [branchError, setBranchError] = useState<string | null>(null);
   const [mergeDialog, setMergeDialog] = useState<MergeDialogState | null>(null);
+  const [mergePreview, setMergePreview] = useState<BranchDiffLoad<MergePreview>>({ phase: 'loading' });
+  const [compareDialog, setCompareDialog] = useState<CompareDialogState | null>(null);
+  /** 只读请求的代号：对话框关掉或换了参数之后，迟到的结果不落进新状态。 */
+  const mergePreviewRequest = useRef(0);
+  const compareRequest = useRef(0);
   /** 应用内确认框请求（替代原生 confirm）。 */
   const [confirm, setConfirm] = useState<
     { kind: 'discard'; message: string } | { kind: 'delete-branch'; branchId: string } | null
@@ -320,7 +328,7 @@ export default function WorkingTreePage(): React.JSX.Element {
     });
   };
 
-  /** 分支行上的右键：切换 / 合并 / 删除在前，分隔线后是复制分支名（GitHub Desktop 的分支右键菜单）。 */
+  /** 分支行上的右键：切换 / 合并 / 对比 / 删除在前，分隔线后是复制分支名（GitHub Desktop 的分支右键菜单）。 */
   const openBranchContextMenu = (request: { target: RxDBBranch; event: React.MouseEvent }) => {
     request.event.preventDefault();
     const branch = request.target;
@@ -329,6 +337,7 @@ export default function WorkingTreePage(): React.JSX.Element {
       items.push(
         { id: 'branch-switch', label: 'Switch', testId: 'wt-branch-menu-switch' },
         { id: 'branch-merge', label: `Merge into ${activeBranch}`, testId: 'wt-branch-menu-merge' },
+        { id: 'branch-compare', label: `Compare with ${activeBranch}`, testId: 'wt-branch-menu-compare' },
         { id: 'branch-delete', label: 'Delete', danger: true, testId: 'wt-branch-menu-delete' },
         { id: 'sep-1', label: '', separator: true }
       );
@@ -380,6 +389,8 @@ export default function WorkingTreePage(): React.JSX.Element {
         void switchBranch(target.branchId);
       } else if (item.id === 'branch-merge') {
         openMergeDialog(target.branchId);
+      } else if (item.id === 'branch-compare') {
+        openCompareDialog(target.branchId);
       } else if (item.id === 'branch-delete') {
         requestRemoveBranch(target.branchId);
       } else if (item.id === 'branch-copy') {
@@ -680,19 +691,38 @@ export default function WorkingTreePage(): React.JSX.Element {
 
   // ── 合并对话框 ────────────────────────────────────────────
 
+  /** 按给定策略读一次合并预览（只读，不切换）；`merged` 跟着策略变，所以换策略要重读。 */
+  const loadMergePreview = (sourceBranchId: string, strategy: MergeStrategy) => {
+    const request = ++mergePreviewRequest.current;
+    setMergePreview({ phase: 'loading' });
+    void rxdb.versionManager.previewMerge(sourceBranchId, { strategy }).then(
+      value => {
+        if (request === mergePreviewRequest.current) setMergePreview({ phase: 'success', value });
+      },
+      (e: unknown) => {
+        if (request !== mergePreviewRequest.current) return;
+        setMergePreview({ phase: 'error', message: e instanceof Error ? e.message : 'Preview failed.' });
+      }
+    );
+  };
+
   const openMergeDialog = (sourceBranchId: string) => {
     setBranchMenuOpen(false);
     setMergeError(null);
     setMergeDialog({ sourceBranchId, strategy: 'squash', deleteSource: false });
+    loadMergePreview(sourceBranchId, 'squash');
   };
 
   const closeMergeDialog = () => {
+    mergePreviewRequest.current++;
     setMergeDialog(null);
     setMergeError(null);
   };
 
   const setMergeStrategy = (strategy: MergeDialogState['strategy']) => {
-    setMergeDialog(current => (current === null ? null : { ...current, strategy }));
+    if (mergeDialog === null || mergeDialog.strategy === strategy) return;
+    setMergeDialog({ ...mergeDialog, strategy });
+    loadMergePreview(mergeDialog.sourceBranchId, strategy);
   };
 
   const setDeleteSource = (value: boolean) => {
@@ -724,6 +754,30 @@ export default function WorkingTreePage(): React.JSX.Element {
     } catch (e: unknown) {
       setMergeError(e instanceof Error ? e.message : 'Merge failed.');
     }
+  };
+
+  // ── 对比对话框 ────────────────────────────────────────────
+
+  /** 拿一条分支和当前分支对比（只读，不切换）：字段读作「当前分支的值 → 那条分支的值」。 */
+  const openCompareDialog = (branchId: string) => {
+    setBranchMenuOpen(false);
+    const request = ++compareRequest.current;
+    setCompareDialog({ branchId, comparison: { phase: 'loading' } });
+    void rxdb.versionManager.compareBranches(activeBranch, branchId).then(
+      value => {
+        if (request === compareRequest.current) setCompareDialog({ branchId, comparison: { phase: 'success', value } });
+      },
+      (e: unknown) => {
+        if (request !== compareRequest.current) return;
+        const message = e instanceof Error ? e.message : 'Compare failed.';
+        setCompareDialog({ branchId, comparison: { phase: 'error', message } });
+      }
+    );
+  };
+
+  const closeCompareDialog = () => {
+    compareRequest.current++;
+    setCompareDialog(null);
   };
 
   // ── Toast ─────────────────────────────────────────────────
@@ -1069,6 +1123,14 @@ export default function WorkingTreePage(): React.JSX.Element {
         onConfirm={() => void executeMerge()}
         onDeleteSourceChange={setDeleteSource}
         onStrategyChange={setMergeStrategy}
+        preview={mergePreview}
+      />
+
+      {/* ═══════════════════ 对比对话框 ═══════════════════ */}
+      <WorkingTreeCompareDialog
+        activeBranch={activeBranch}
+        dialog={compareDialog}
+        onCloseRequested={closeCompareDialog}
       />
 
       {/* ═══════════════════ 应用内确认框（替代原生 confirm，移动端样式一致） ═══════════════════ */}

@@ -180,6 +180,39 @@ if (!merged.sourceDeleted) console.warn('合并已落库，但删源分支没做
 
 合并有变更时会**清空 undo/redo 历史**——合并本身不可逆。`deleteSource` 的删除是合并落库之后的收尾动作，失败不回滚合并、也不抛错，只在 `sourceDeleted` / `sourceDeleteError` 上如实报告。
 
+## 对比与合并预览
+
+不切换当前分支，也能看另一条分支差在哪、一次合并会落什么。两个方法都只读：不开写事务，不碰业务表，也不动当前分支。
+
+```typescript
+// 两条分支当前状态之间的实体差异：patch 是 feature-1 上的值，inversePatch 是 main 上的值
+const comparison = await rxdb.versionManager.compareBranches('main', 'feature-1');
+for (const entry of comparison.entries) {
+  console.log(entry.operation, entry.entity, entry.entityId, entry.inversePatch, '→', entry.patch);
+}
+
+// 把 feature-1 合并进当前分支会落什么
+const preview = await rxdb.versionManager.previewMerge('feature-1', { strategy: 'squash' });
+console.log(`合并会落 ${preview.merged} 条变更`); // 与随后 mergeBranch() 返回的 merged 一致
+for (const entry of preview.entries) {
+  if (entry.conflict) console.warn(entry.entityId, entry.conflict.kind);
+}
+```
+
+- `compareBranches(from, to)`：只在 `to` 上有的实体是 `INSERT`（`patch` 为整行），只在 `from` 上有的是 `DELETE`（`inversePatch` 为整行），两边都有且业务字段不同的是 `UPDATE`（两侧各取自己的值）。同一条分支返回空条目，分支不存在时与 `mergeBranch()` 报同一句错。
+- `previewMerge(source, options?)`：条目就是合并会落的操作，压缩合并滤掉的先建后删同样不出现；`patch` 是合并会写入的值，`inversePatch` 是当前分支现在的值。`merged` 跟着策略走，条目恒为净效果——两种策略落库后的终态相同。
+
+合并是单向覆盖。预览把撞上当前分支分叉以来改动的条目标出来（`conflict`）：
+
+| `conflict.kind`  | 情形                                       | 合并之后                        |
+| ---------------- | ------------------------------------------ | ------------------------------- |
+| `overwrite`      | 源要写的字段，当前分支分叉以来改成了别的值 | `fields` 里的字段被源的值盖掉   |
+| `delete_edited`  | 源删了它，当前分支分叉以来改过它           | `fields` 里的改动随实体一起删掉 |
+| `update_deleted` | 源改了它，当前分支分叉以来删了它           | 这次更新落空，源的改动不会出现  |
+| `revive_deleted` | 源删后重建了它，当前分支分叉以来删了它     | 它被重新建出来                  |
+
+只看业务字段：`remoteId`、`createdAt`、`updatedAt` 这类簿记字段（`ENTITY_BOOKKEEPING_FIELDS`）不算差异，也不算覆盖。补丁不解码，取值原样来自变更日志，加密字段保持密文。
+
 ## 相关文档
 
 - [同步策略](./sync.md) - 了解数据同步配置

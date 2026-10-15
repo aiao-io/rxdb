@@ -49,6 +49,7 @@ await rxdb.versionManager.mergeBranch('feature-a');
 | ---- | ------------------------------------------------------------------------------------------------------- |
 | 历史 | `history(scope?)` → `histories$` / `undoHistories$` / `redoHistories$` / `count$` / `undo()` / `redo()` |
 | 分支 | `createBranch()` / `switchBranch()` / `mergeBranch()` / `removeBranch()`                                |
+| 对比 | `compareBranches()` / `previewMerge()`：不切换分支就对比两条分支、预览一次合并（含覆盖标注）            |
 | 计数 | `pushableCount$` / `pullableCount$`                                                                     |
 | 恢复 | `restoreEntity()`                                                                                       |
 

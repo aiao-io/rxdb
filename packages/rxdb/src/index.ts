@@ -20,6 +20,7 @@ export { computeRxDBSchemaFingerprint } from './backup/schema-fingerprint.js';
 // 适配器包在**包外**，它们的 `rawQuery?()` 是可选方法，核心拦不住，只能由各自实现调这一句。
 export * from './capture/index.js';
 export * from './entity/entity-base.js';
+export * from './entity/entity-bookkeeping.js';
 export * from './entity/entity-field.utils.js';
 export {
   ENTITY_OPERATIONS,

@@ -44,7 +44,7 @@ owner: jimmy
 
 多检出位（v1 之后，按[分期与解锁条件](#分期与解锁条件)逐段解锁）：
 
-- [ ] 不切换 active 分支就能对比两条分支、预览一次合并会改什么（**尚无故事认领**，场景二）
+- [ ] 不切换 active 分支就能对比两条分支、预览一次合并会改什么（[US-312](../stories/collaboration/US-312-branch-compare-merge-preview.md)，场景二）
 - [ ] 不切换 active 分支就能只读查看任一分支或可达提交的完整数据（**尚无故事认领**，场景二）
 - [ ] 后台写入方写进自己的线，经审阅合并回主线，覆盖可见（**尚无故事认领**，场景三，价值待证）
 - [ ] 多个标签页各自检出可写的分支（**尚无故事认领**，场景一，价值待证）
@@ -366,8 +366,8 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 | 2   | `restore-entity.ts`     | `restore_entity`            | `executor.mergeChanges(…, false)` | 94   | 实体恢复      | **必须产生**   |
 | 3   | `HistoryManager.ts`     | `invalidateRedoStack`       | `adapter.switchBranch`            | 537  | redo 失效标记 | **不产生**     |
 | 4   | `undo-redo-apply.ts`    | `applyUndoRedoHistories`    | `adapter.switchBranch`            | 171  | 撤销 / 重做   | **必须产生**   |
-| 5   | `merge-branch.ts`       | `merge_branch`（逐条分支）  | `executor.mergeChanges(…, false)` | 134  | 逐条合并      | **必须产生**   |
-| 6   | `merge-branch.ts`       | `merge_branch`（压缩分支）  | `executor.mergeChanges(…, false)` | 174  | 压缩合并      | **必须产生**   |
+| 5   | `merge-branch.ts`       | `merge_branch`（逐条分支）  | `executor.mergeChanges(…, false)` | 196  | 逐条合并      | **必须产生**   |
+| 6   | `merge-branch.ts`       | `merge_branch`（压缩分支）  | `executor.mergeChanges(…, false)` | 236  | 压缩合并      | **必须产生**   |
 | 7   | `pull-batch.ts`         | `pullBatchOnce`             | `executor.mergeChanges(…, true)`  | 349  | `remote_sync` | **必须产生**   |
 | 8   | `pull-repository.ts`    | `pullSingleRepository`      | `executor.mergeChanges(…, true)`  | 627  | `remote_sync` | **必须产生**   |
 | 9   | `cleanup-expired.ts`    | `cleanupExpired`            | `executor.mergeChanges(…, true)`  | 208  | `remote_sync` | **必须产生**   |
@@ -654,6 +654,7 @@ raw 写路径，先补一条能证明身份的传递通道，判据见 `git show
 - [US-307 历史恢复会话](../stories/collaboration/US-307-restore-session.md) (Medium)
 - [US-308 分支隔离与跨 realm 冲突检测](../stories/collaboration/US-308-branch-isolation-conflict.md) (Medium)
 - [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](../stories/collaboration/US-311-unlogged-entities-scope.md) (High)
+- [US-312 不切换分支就对比两条分支、预览一次合并（含覆盖标注）](../stories/collaboration/US-312-branch-compare-merge-preview.md) (High) — 多检出位阶段 2
 
 ## 性能预算的口径
 
@@ -922,6 +923,11 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
     - demo 的合并对话框（`merge-dialog.component.ts`）只有源 / 目标分支名、合并策略与「合并后删除源分支」，没有预览；
       合并结果直接混进当前工作树。
 
+**阶段 2（[US-312](../stories/collaboration/US-312-branch-compare-merge-preview.md)）之后**，以上快照有四处变化：现状 2 的增量计算可以指定任意两点
+（`compute_branch_transition_actions`，切换与对比共用）；现状 5 里两条分支的**差异**可以不切换读到（`compareBranches()`），
+完整数据仍然没有；现状 6 的覆盖在合并前可见（`previewMerge()` 的四类标注），合并的写法不变；现状 10 的 demo 合并对话框
+打开即显示预览，分支菜单可以拿任一分支与当前分支对比。
+
 ### 三类场景
 
 价值状态按 [CONVENTIONS 的价值待证](../CONVENTIONS.md#价值待证)：写得出今天用户踩得到的症状才算实。
@@ -1058,7 +1064,7 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
 | 阶段 | 交付                                                                                                                                                                                             | 覆盖                     | 解锁条件                                                            | 明确不承诺               |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ | ------------------------------------------------------------------- | ------------------------ |
 | 1    | 草稿缓存不收系统表与关闭变更日志的实体；版本化域把 `log: false` 的实体归为第四类 untracked；storage 文档写明文件不随版本（[US-311](../stories/collaboration/US-311-unlogged-entities-scope.md)） | 前置                     | 无，今天就是缺口                                                    | 不做检出位；不做内容寻址 |
-| 2    | 只读的对比与合并预览 API（含覆盖标注）                                                                                                                                                           | 场景二的对比部分         | 阶段 1                                                              | 不提供完整视图           |
+| 2    | 只读的对比与合并预览 API（含覆盖标注）（[US-312](../stories/collaboration/US-312-branch-compare-merge-preview.md)）                                                                              | 场景二的对比部分         | 阶段 1                                                              | 不提供完整视图           |
 | 3    | 只读检出位：快照库 + 第二实例 + 生命周期与回收 + 三端绑定                                                                                                                                        | 场景二、场景一的只读部分 | 阶段 2                                                              | 不可写；不实时           |
 | 4    | 写进非 active 线的原语 + 隔离写入方 + 合并前覆盖检测                                                                                                                                             | 场景三                   | 具名使用方（批量导入或 agent），或 owner 判定「同步即变脏」不可接受 | 不改默认同步语义         |
 | 5    | 可写检出位（影子表或分库）                                                                                                                                                                       | 场景一                   | 具名需求                                                            | —                        |

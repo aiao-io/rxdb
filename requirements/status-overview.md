@@ -10,10 +10,10 @@
 | :------------- | :--- |
 | ✅ Done        | 74   |
 | 🚧 In Progress | 2    |
-| 👀 In Review   | 3    |
+| 👀 In Review   | 4    |
 | 📝 Backlog     | 22   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 101  |
+| **合计**       | 102  |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
@@ -32,13 +32,14 @@
 | [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)             | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过、未上真机（iOS 真机调试待复测），adapter 剩 Android 真机；百度 / QQ 已判 `unsupported`，按未知平台拒绝；阶段 B+C 经 [#87](https://github.com/aiao-io/rxdb/pull/87) 合入；剩 Android 真机补验、支付宝 demo 真机走查与 AC#18 文档口径确认 |
 | [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) | A1 已完成：入口 TSDoc、语义事实源与漂移门禁（投递范围读事实源登记的发布 tag）、离线样例与 CI 接线；A2 经 [#113](https://github.com/aiao-io/rxdb/pull/113) 合入：`@aiao/*` peer 统一为 `workspace:^`，真实打包与隔离消费验证通过（AC#4/#7/#8），`BREAKING CHANGE` 随其后的迁移发布声明；C 主包 Skill 已交付（锁定 skills-npm@4.0.0，探针与 AC#11/#17 通过）；B 本地构建已完成，剩部署后线上 smoke                                                                                                                                                                                        |
 
-## 待评审（3 条）
+## 待评审（4 条）
 
-| Story                                                                                                                  | 进展                                                                                                                                                                                                                                                                                                                                                         |
-| ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)                          | 阶段 A～C 代码完成（[#114](https://github.com/aiao-io/rxdb/pull/114)）：CHECK、条件唯一索引 `where`、区间排他（PG `EXCLUDE USING gist` / SQLite 触发器）双后端同一错误类；SQLite 宿主门槛 ≥ 3.47.0；已有表约束漂移在 `init()` fail-fast；区间排他实体的重放与批量写入按删除 → 更新 → 插入执行（AC#14）。阶段 D 仍价值待证                                    |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)                             | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持 |
-| [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](stories/collaboration/US-311-unlogged-entities-scope.md) | 代码完成：草稿缓存不收系统表（每次读活登记）与关闭变更日志的实体，启动时清掉存量；版本化域把 `log: false` 的实体归为第四类 untracked，写入口目标类别 `query_cache` 改名 `untracked`；单测、浏览器集成用例与 Angular e2e 全绿；剩代码评审与提交                                                                                                               |
+| Story                                                                                                                       | 进展                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)                               | 阶段 A～C 代码完成（[#114](https://github.com/aiao-io/rxdb/pull/114)）：CHECK、条件唯一索引 `where`、区间排他（PG `EXCLUDE USING gist` / SQLite 触发器）双后端同一错误类；SQLite 宿主门槛 ≥ 3.47.0；已有表约束漂移在 `init()` fail-fast；区间排他实体的重放与批量写入按删除 → 更新 → 插入执行（AC#14）。阶段 D 仍价值待证                                                                                                     |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)                                  | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持                                                                  |
+| [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](stories/collaboration/US-311-unlogged-entities-scope.md)      | 代码完成：草稿缓存不收系统表（每次读活登记）与关闭变更日志的实体，启动时清掉存量；版本化域把 `log: false` 的实体归为第四类 untracked，写入口目标类别 `query_cache` 改名 `untracked`；单测、浏览器集成用例与 Angular e2e 全绿；剩代码评审与提交                                                                                                                                                                                |
+| [US-312 不切换分支就对比两条分支、预览一次合并（含覆盖标注）](stories/collaboration/US-312-branch-compare-merge-preview.md) | 代码完成：`VersionManager.compareBranches()` / `previewMerge()` 只读、不切换，预览的 `merged` 与随后的合并一致，标出 `overwrite` / `delete_edited` / `update_deleted` / `revive_deleted` 四类覆盖；切换与对比共用任意两点的增量计算，合并与预览共用压缩逻辑；簿记字段清单下沉核心 `ENTITY_BOOKKEEPING_FIELDS`；三端合并对话框带预览、分支菜单可对比；历史插件、PGlite、SQLite 共享套件、三端单测与 e2e 全绿；剩代码评审与合入 |
 
 ## 阻塞（0 条）
 
@@ -159,8 +160,9 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 - ✅ [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — T098～T110 全部关闭；`restore` 测点在 CI 画像上过相对门禁
 - ✅ [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — T111～T123 全部关闭；原落在本故事的 3 条 P1（FR-020 的 activation revision 未推进与切换 TOCTOU、FR-044 的物化未接公开入口）已全部落地
 - 👀 [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](stories/collaboration/US-311-unlogged-entities-scope.md) — 草稿缓存不收系统表与关闭变更日志的实体；版本化域第四类 untracked 的判据是 `log: false`；storage 文档写明文件不随版本；是多检出位阶段 1
+- 👀 [US-312 不切换分支就对比两条分支、预览一次合并（含覆盖标注）](stories/collaboration/US-312-branch-compare-merge-preview.md) — `compareBranches()` / `previewMerge()` 只读、不切换，预览标出四类覆盖；三端 demo 的合并对话框带预览、分支菜单可对比；是多检出位阶段 2
 
-多检出位（v1 之后）阶段 2～5 尚无故事认领，解锁条件见 [epic-006 分期与解锁条件](epics/epic-006-working-tree-commits.md#分期与解锁条件)。
+多检出位（v1 之后）阶段 3～5 尚无故事认领，解锁条件见 [epic-006 分期与解锁条件](epics/epic-006-working-tree-commits.md#分期与解锁条件)。
 
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 

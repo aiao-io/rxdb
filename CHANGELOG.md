@@ -1,5 +1,10 @@
 ## Unreleased
 
+### 🚀 Features
+
+- **rxdb-plugin-history:** `VersionManager.compareBranches()` 与 `previewMerge()`：不切换分支就对比两条分支、预览一次合并会落什么，`merged` 与随后 `mergeBranch()` 返回的一致，并标出四类覆盖（`overwrite` / `delete_edited` / `update_deleted` / `revive_deleted`）。只读，不写任何表（US-312）
+- **rxdb:** 新增 `ENTITY_BOOKKEEPING_FIELDS`（`remoteId` / `createdAt` / `updatedAt`）；工作树插件的 `UNTRACKED_BOOKKEEPING_FIELDS` 改为引用它，对比与覆盖判定同样不把这些字段算作差异（US-312）
+
 ### 🩹 Fixes
 
 - **rxdb-plugin-workspace:** 草稿缓存不再收系统表与关闭变更日志（`log: false`）实体的草稿。此前系统表名单只认核心四张表，插件登记的系统表（如工作树插件的提交表）与 storage 插件的 `StorageFileMeta` 每次构造都留下一条永远清不掉的草稿：它们出现在 `list()` / `cacheCount` 里、广播给其他标签页、每次启动被恢复。`install()` 会删掉 IndexedDB 里已有的这类草稿（US-311）

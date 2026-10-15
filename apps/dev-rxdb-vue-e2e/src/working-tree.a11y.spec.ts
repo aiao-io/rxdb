@@ -4,6 +4,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { resetE2eState } from './e2e-utils.js';
+import { branchMenuAction, divergeBranches } from './working-tree-branches.js';
 
 /**
  * @fileoverview `/working-tree` 面板的 a11y 与 SC-005 归档用例（T128，Vue 端）。
@@ -296,7 +297,7 @@ test.describe('Working Tree Page A11y', () => {
     expectReachedWithIndicator(menuReached, ['wt-branch-create', 'wt-branch-item']);
     await page.keyboard.press('Escape');
 
-    // 建一条分支。点行是立即切换（GitHub Desktop 同款），切换 / 合并 / 删除收在
+    // 建一条分支。点行是立即切换（GitHub Desktop 同款），切换 / 合并 / 对比 / 删除收在
     // 行的右键菜单里——菜单项是真按钮，也要能键盘走到。
     await page.getByTestId('wt-branch-menu').click();
     await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
@@ -309,10 +310,11 @@ test.describe('Working Tree Page A11y', () => {
     await expect(page.getByTestId('wt-branch-menu-switch')).toBeVisible({ timeout: 10000 });
     // 右键不聚焦行：把焦点锚在菜单背板上（菜单项的前一个 Tab 停靠点），走查才收得到菜单项。
     await page.locator('[aria-label="Close context menu"]').focus();
-    const actionsReached = await walkPanelWithTab(page, 3);
+    const actionsReached = await walkPanelWithTab(page, 4);
     expectReachedWithIndicator(actionsReached, [
       'wt-branch-menu-switch',
       'wt-branch-menu-merge',
+      'wt-branch-menu-compare',
       'wt-branch-menu-delete'
     ]);
     await page.keyboard.press('Escape');
@@ -372,6 +374,39 @@ test.describe('Working Tree Page A11y', () => {
     await scanPanel(page);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);
+  });
+
+  test('合并对话框（带预览与覆盖说明）与对比对话框：axe 零违规，焦点进对话框，Escape 关闭', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+    await divergeBranches(page, {
+      branch: 'feature/axe',
+      base: 'axe-base',
+      onBranch: 'axe-feature',
+      onMain: 'axe-main'
+    });
+
+    // 预览里要有一行覆盖说明：它用的是警示色，对比度也在扫描范围里
+    await branchMenuAction(page, 'feature/axe', 'wt-branch-menu-merge');
+    const mergeDialog = page.getByTestId('wt-merge-dialog');
+    await expect(page.getByTestId('wt-branch-diff-conflict')).toBeVisible({ timeout: 30000 });
+    await expect(mergeDialog).toBeFocused();
+    await expect(mergeDialog).toHaveAccessibleName('Merge branch');
+    await scanPanel(page);
+    await page.keyboard.press('Escape');
+    await expect(mergeDialog).toHaveCount(0);
+
+    await branchMenuAction(page, 'feature/axe', 'wt-branch-menu-compare');
+    const compareDialog = page.getByTestId('wt-compare-dialog');
+    await expect(page.getByTestId('wt-compare-summary')).toBeVisible({ timeout: 30000 });
+    await expect(compareDialog).toBeFocused();
+    await expect(compareDialog).toHaveAccessibleName('Compare branches');
+    await scanPanel(page);
+    // 差异列表是可聚焦的滚动区，Tab 走得进去；Escape 在里面照样关
+    await page.keyboard.press('Tab');
+    await expect(page.getByRole('region', { name: 'Differences between main and feature/axe' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(compareDialog).toHaveCount(0);
   });
 
   test('记录首次可见状态耗时并归档（SC-005）', async ({ page }) => {

@@ -23,7 +23,7 @@
  * 本地用户。把它当豁免最省事，代价是一次 pull 之后 HEAD 与工作树永久对不上，且不可见、不可恢复。
  */
 
-import { RxDBError, RxDBMixedVersionedCacheTransactionError, SyncType } from '@aiao/rxdb';
+import { ENTITY_BOOKKEEPING_FIELDS, RxDBError, RxDBMixedVersionedCacheTransactionError, SyncType } from '@aiao/rxdb';
 
 /**
  * 第二类 untracked：实体行上的簿记字段，**全域**豁免
@@ -42,8 +42,11 @@ import { RxDBError, RxDBMixedVersionedCacheTransactionError, SyncType } from '@a
  * 与「写了什么」同属一次真实的净变化；把它并进来等于让「换个人改同一个值」不进提交。
  *
  * **为什么不含 `id`**：主键是行的身份不是它的簿记。豁免它意味着改主键不算变化。
+ *
+ * 清单本身是核心的 `ENTITY_BOOKKEEPING_FIELDS`（同一个引用）：历史插件的分支对比与合并预览按同一份
+ * 不把这些列算作差异，两处各写一份迟早会分叉。
  */
-export const UNTRACKED_BOOKKEEPING_FIELDS: readonly string[] = ['remoteId', 'createdAt', 'updatedAt'];
+export const UNTRACKED_BOOKKEEPING_FIELDS: readonly string[] = ENTITY_BOOKKEEPING_FIELDS;
 
 /** {@link UNTRACKED_BOOKKEEPING_FIELDS} 的查表形态，避免每次判定都线性扫一遍。 */
 const BOOKKEEPING_FIELD_SET: ReadonlySet<string> = new Set(UNTRACKED_BOOKKEEPING_FIELDS);

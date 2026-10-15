@@ -386,6 +386,10 @@
         "kind": "value"
       },
       {
+        "name": "ENTITY_BOOKKEEPING_FIELDS",
+        "kind": "value"
+      },
+      {
         "name": "ENTITY_FIELDS_DTO_VERSION",
         "kind": "value"
       },

@@ -822,6 +822,51 @@ export function versionBranchSuite(factory: AdapterFactory) {
         const latest = changes.filter(c => c.entityId === todo2.id);
         expect(latest.every(c => c.branchId === 'main')).toBe(true);
       });
+
+      it('对比与合并预览（US-312）：SQLite 编码的补丁上照样算对，merged 与随后的合并一致', async () => {
+        const both = new Todo();
+        both.title = 'both';
+        await both.save();
+        const status = new Todo();
+        status.title = 'status';
+        await status.save();
+        await rxdb.versionManager.createBranch('feature');
+        await rxdb.versionManager.switchBranch('feature');
+        both.title = 'from-feature';
+        await both.save();
+        status.title = 'title-from-feature';
+        await status.save();
+        const added = new Todo();
+        added.title = 'added';
+        await added.save();
+        await rxdb.versionManager.switchBranch('main');
+        both.title = 'from-main';
+        await both.save();
+        status.completed = true;
+        await status.save();
+
+        const comparison = await rxdb.versionManager.compareBranches('main', 'feature');
+        expect(new Map(comparison.entries.map(entry => [entry.entityId, entry.operation]))).toEqual(
+          new Map([
+            [both.id, 'UPDATE'],
+            [status.id, 'UPDATE'],
+            [added.id, 'INSERT']
+          ])
+        );
+        // 布尔在 SQLite 里存成 0/1：两侧取值都来自变更日志，在同一种编码下比较
+        const statusEntry = comparison.entries.find(entry => entry.entityId === status.id);
+        expect(Object.keys(statusEntry?.patch ?? {}).sort()).toEqual(['completed', 'title']);
+
+        const preview = await rxdb.versionManager.previewMerge('feature');
+        const conflicts = new Map(preview.entries.map(entry => [entry.entityId, entry.conflict]));
+        expect(conflicts.get(both.id)).toEqual({ kind: 'overwrite', fields: ['title'] });
+        expect(conflicts.get(status.id)).toBeNull();
+        expect(conflicts.get(added.id)).toBeNull();
+
+        const result = await rxdb.versionManager.mergeBranch('feature');
+        expect(preview.merged).toBe(result.merged);
+        expect(await todo_titles()).toEqual(['added', 'from-feature', 'title-from-feature']);
+      });
     });
 
     // ================================================================

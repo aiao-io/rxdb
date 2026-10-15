@@ -295,10 +295,18 @@
     [activeBranch]="$activeBranch()"
     [dialog]="$mergeDialog()"
     [error]="$mergeError()"
+    [preview]="$mergePreview()"
     (closeRequested)="closeMergeDialog()"
     (confirm)="executeMerge()"
     (deleteSourceChange)="setDeleteSource($event)"
     (strategyChange)="setMergeStrategy($event)"
+  />
+
+  <!-- ═══════════════════ 对比对话框 ═══════════════════ -->
+  <app-working-tree-compare-dialog
+    [activeBranch]="$activeBranch()"
+    [dialog]="$compareDialog()"
+    (closeRequested)="closeCompareDialog()"
   />
 
   <!-- ═══════════════════ 应用内确认框（替代原生 confirm，移动端样式一致） ═══════════════════ -->
