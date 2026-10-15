@@ -88,6 +88,19 @@ export {
   type Decimal
 } from './quantity/decimal.js';
 export {
+  BomMapError,
+  confirmMapping,
+  mappingCoverage,
+  mappingGaps,
+  saveMapping,
+  type MappingCoverageResult,
+  type MappingGap,
+  type MappingGapsResult,
+  type MappingSaveInput,
+  type MappingStep,
+  type MapScopeInfo
+} from './resolve/bom-map.js';
+export {
   loadHistory,
   type HistoryBatchInput,
   type HistoryHeaderInput,

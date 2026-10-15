@@ -2,8 +2,8 @@ import { computed, Injectable, signal } from '@angular/core';
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { firstValueFrom } from 'rxjs';
-import { BOM_ENTITIES, BomEcn, BomHeader, BomItem, BomItemRevision, BomLine, BomLineDesignator, BomLineOccurrence, BomSubstituteGroup, rxDBPluginBom, type ExpansionResult, type ExplosionResult, type EcnDiffResult, type EcnImpactResult } from '@aiao/rxdb-plugin-bom';
-import { deterministicId, goldenItemId, loadScooterDataset, loadScooterDatasetC, SCOOTER_SEED_BATCH_NO, SCOOTER_SEED_TIMESTAMP } from '@aiao/rxdb-plugin-bom/testing';
+import { BOM_ENTITIES, BomEcn, BomHeader, BomItem, BomItemRevision, BomLine, BomLineDesignator, BomLineOccurrence, BomSubstituteGroup, mappingCoverage, mappingGaps, rollupCost, rxDBPluginBom, type CostRollupResult, type ExpansionResult, type ExplosionResult, type EcnDiffResult, type EcnImpactResult, type MappingCoverageResult, type MappingGapsResult } from '@aiao/rxdb-plugin-bom';
+import { deterministicId, goldenItemId, loadScooterDataset, loadScooterDatasetC, loadScooterDatasetD, SCOOTER_SEED_BATCH_NO, SCOOTER_SEED_TIMESTAMP } from '@aiao/rxdb-plugin-bom/testing';
 
 /** demo 库名（reset 删除的 IndexedDB 库）。 */
 export const BOM_DEMO_DB_NAME = 'dev-rxdb-bom';
@@ -57,6 +57,8 @@ export class BomDemoService {
     const itemIds = await loadScooterDataset(this.adapter!);
     // 阶段 C：ECN 时间轴（改 3 张 BOM 5 行 + 已生效 ECN）
     await loadScooterDatasetC(this.adapter!, itemIds);
+    // 阶段 D：双图与卷算输入（SHEET-ASSY 双图 + split 映射 + 成本/费率/工时 + 故意缺成本件）
+    await loadScooterDatasetD(this.adapter!, itemIds);
     await this.#hydrate();
   }
 
@@ -75,6 +77,49 @@ export class BomDemoService {
       { bomType: 'ebom', orgId: 'org-x', asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) },
       { parentItemId: goldenItemId(rootKey) },
       { plannedQty: { value: plannedQty, uom: 'pcs' } }
+    );
+  }
+
+  /** EBOM / MBOM 双图展开（US-525 AC#13：SHEET-ASSY 钣金外壳两张图）。 */
+  async dualExplode(asOfDate: string): Promise<{ ebom: ExplosionResult; mbom: ExplosionResult }> {
+    if (!this.rxdb) throw new Error('demo 未就绪');
+    const ebomContext = { bomType: 'ebom' as const, orgId: 'org-x', asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) };
+    const [ebom, mbom] = await Promise.all([
+      this.rxdb.bom.explodeBom(ebomContext, { parentItemId: goldenItemId('SHEET-ASSY') }, { plannedQty: { value: '1', uom: 'pcs' } }),
+      this.rxdb.bom.explodeBom({ ...ebomContext, bomType: 'mbom' }, { parentItemId: goldenItemId('SHEET-ASSY-M') }, { plannedQty: { value: '1', uom: 'pcs' } })
+    ]);
+    return { ebom, mbom };
+  }
+
+  /** 映射覆盖率（US-516 AC#5/#6 / US-525 AC#13）：路径级优先、未覆盖报出。 */
+  async mapCoverage(asOfDate: string): Promise<MappingCoverageResult> {
+    if (!this.adapter) throw new Error('demo 未就绪');
+    return mappingCoverage(this.adapter, deterministicId('map-scope:D'), {
+      bomType: 'ebom',
+      orgId: 'org-x',
+      asOfDate: new Date(`${asOfDate}T00:00:00.000Z`)
+    });
+  }
+
+  /** 映射跟进缺口（US-516 AC#16~#22）：解析步骤集合比对。 */
+  async mapGaps(asOfDate: string): Promise<MappingGapsResult> {
+    if (!this.adapter) throw new Error('demo 未就绪');
+    return mappingGaps(this.adapter, deterministicId('map-scope:D'), {
+      bomType: 'ebom',
+      orgId: 'org-x',
+      asOfDate: new Date(`${asOfDate}T00:00:00.000Z`)
+    });
+  }
+
+  /** 成本卷算（US-525 AC#14/#15）：逐层明细树，金额为规范十进制串。 */
+  async rollup(rootKey: string, asOfDate: string): Promise<CostRollupResult> {
+    if (!this.rxdb) throw new Error('demo 未就绪');
+    const day = new Date(`${asOfDate}T00:00:00.000Z`);
+    return rollupCost(
+      this.adapter!,
+      { bomType: 'ebom', orgId: 'org-x', asOfDate: day, currency: 'CNY', rateDate: day },
+      { parentItemId: goldenItemId(rootKey) },
+      { value: '1', uom: 'pcs' }
     );
   }
 

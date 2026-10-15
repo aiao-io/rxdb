@@ -148,4 +148,65 @@
       <div class="where-used-row" data-testid="ecn-diff-line">{{ line }}</div>
     }
   </section>
+
+  <section class="panel">
+    <h2>EBOM ↔ MBOM 双图与映射（US-525 AC#13）</h2>
+    <div class="toolbar">
+      <button (click)="runDualExplode()" [disabled]="busy() || !ready()">双图并排展开</button>
+      <button (click)="runCoverage()" [disabled]="busy() || !ready()">查覆盖率</button>
+      <button (click)="runGaps()" [disabled]="busy() || !ready()">查跟进缺口</button>
+    </div>
+    @if (dualView()) {
+      <div class="dual">
+        <div class="panel tree" data-testid="ebom-tree">
+          <h3>EBOM（SHEET-ASSY）</h3>
+          @for (line of dualView()!.ebom.requirementLines; track line.path.join('>')) {
+            <div class="requirement-row" [style.paddingLeft.px]="8 + depth(line) * 20" [attr.data-item]="itemNo(line.itemId)">
+              <span class="qty">{{ line.qty }} {{ line.uom }}</span>
+              <span>{{ itemNo(line.itemId) }}</span>
+            </div>
+          }
+        </div>
+        <div class="panel tree" data-testid="mbom-tree">
+          <h3>MBOM（SHEET-ASSY-M）</h3>
+          @for (line of dualView()!.mbom.requirementLines; track line.path.join('>')) {
+            <div class="requirement-row" [style.paddingLeft.px]="8 + depth(line) * 20" [attr.data-item]="itemNo(line.itemId)">
+              <span class="qty">{{ line.qty }} {{ line.uom }}</span>
+              <span>{{ itemNo(line.itemId) }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+    @for (line of coverageLines(); track line) {
+      <div class="where-used-row" data-testid="coverage-line">{{ line }}</div>
+    }
+    @for (line of gapLines(); track line) {
+      <div class="where-used-row" data-testid="gap-line">{{ line }}</div>
+    }
+  </section>
+
+  <section class="panel">
+    <h2>成本卷算（US-525 AC#14 / #15）</h2>
+    <div class="toolbar">
+      <label>卷算根
+        <select data-testid="cost-root-select" [(ngModel)]="costRootKey">
+          <option value="SC-100">SC-100</option>
+          <option value="COST-DEMO">COST-DEMO（故意缺成本）</option>
+        </select>
+      </label>
+      <button (click)="runRollup()" [disabled]="busy() || !ready()">卷算</button>
+    </div>
+    @if (costError()) {
+      <div class="error-box" data-testid="cost-error">{{ costError() }}</div>
+    }
+    @for (row of costRows(); track row.label + row.kind) {
+      <div class="cost-row" [attr.data-kind]="row.kind" [attr.data-item]="row.itemNo" [style.paddingLeft.px]="8 + row.depth * 20">
+        <span class="label">{{ row.label }}</span>
+        @if (row.amount !== undefined) {
+          <span class="qty" [attr.data-amount]="row.amount">{{ row.amount }}</span>
+        }
+      </div>
+    }
+  </section>
 </div>

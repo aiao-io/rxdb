@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DatePipe } from '@angular/common';
-import type { ExplosionResult, PenetrationRecord, RequirementLine } from '@aiao/rxdb-plugin-bom';
+import type { CostNodeDetail, ExplosionResult, PenetrationRecord, RequirementLine } from '@aiao/rxdb-plugin-bom';
 import { goldenItemId } from '@aiao/rxdb-plugin-bom/testing';
 import { BomDemoService } from '../../bom-demo.service';
 
@@ -9,6 +9,21 @@ import { BomDemoService } from '../../bom-demo.service';
 interface ExplosionView {
   result: ExplosionResult;
   selected: RequirementLine | null;
+}
+
+/** 双图并排视图（US-525 AC#13：EBOM / MBOM 各自展开）。 */
+interface DualView {
+  ebom: ExplosionResult;
+  mbom: ExplosionResult;
+}
+
+/** 卷算明细的扁平行（模板无递归，逐层缩进展示）。 */
+interface CostFlatRow {
+  depth: number;
+  label: string;
+  kind: 'head' | 'material' | 'processing' | 'overhead' | 'credit';
+  itemNo?: string;
+  amount?: string;
 }
 
 @Component({
@@ -41,6 +56,12 @@ export class ExplosionPage implements OnInit {
   readonly impactLines = signal<string[]>([]);
   readonly diffLines = signal<string[]>([]);
   readonly ecnActionResult = signal('');
+  readonly dualView = signal<DualView | null>(null);
+  readonly coverageLines = signal<string[]>([]);
+  readonly gapLines = signal<string[]>([]);
+  readonly costRows = signal<CostFlatRow[]>([]);
+  readonly costError = signal('');
+  readonly costRootKey = signal('SC-100');
 
   ngOnInit(): void {
     // 页面重载走既有库路径：连接即安装插件触发器（幂等），种子行原样可用
@@ -235,9 +256,74 @@ export class ExplosionPage implements OnInit {
     }
   }
 
+  /** 双图并排展开（US-525 AC#13）：EBOM / MBOM 两张图同评估日。 */
+  async runDualExplode(): Promise<void> {
+    this.busy.set(true);
+    try {
+      this.dualView.set(await this.service.dualExplode(this.asOfDate()));
+    } catch (error) {
+      this.coverageLines.set([String(error)]);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** 覆盖率查询（US-516 AC#5/#6）：已覆盖 / 未覆盖 / 失效三段。 */
+  async runCoverage(): Promise<void> {
+    this.busy.set(true);
+    try {
+      const coverage = await this.service.mapCoverage(this.asOfDate());
+      this.coverageLines.set([
+        ...coverage.covered.map(entry => `已覆盖：${this.itemNo(entry.lineId)}（路径 ${entry.pathKey.split('>').slice(0, 8).join(' → ')}）`),
+        ...coverage.uncovered.flatMap(entry =>
+          entry.paths.map(path => `未覆盖：${this.itemNo(entry.lineId)}（路径 ${path.slice(0, 8).join(' → ')}）`)
+        ),
+        ...coverage.invalid.map(entry => `失效映射：${entry.reason}`)
+      ]);
+    } catch (error) {
+      this.coverageLines.set([String(error)]);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** 跟进缺口查询（US-516 AC#16~#22）：解析步骤集合比对点名。 */
+  async runGaps(): Promise<void> {
+    this.busy.set(true);
+    try {
+      const gaps = await this.service.mapGaps(this.asOfDate());
+      this.gapLines.set(
+        gaps.gaps.map(gap => {
+          if (gap.undecidable !== null) return `无法判定：${gap.undecidable.reason}`;
+          const diff = gap.differences.map(entry => `${entry.kind === 'missing' ? '消失' : '变化'}：${entry.baseline.lineId.slice(0, 8)} → ${entry.current?.lineId.slice(0, 8) ?? '—'}`).join('；') || '（无差异）';
+          const appeared = gap.appeared.length > 0 ? `；新出现：${gap.appeared.join('、')}` : '';
+          return `映射 ${gap.mappingId.slice(0, 8)}：${diff}${appeared}`;
+        })
+      );
+    } catch (error) {
+      this.gapLines.set([String(error)]);
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
+  /** 卷算（US-525 AC#14/#15）：明细树拍平逐层展示；缺成本整体报缺失。 */
+  async runRollup(): Promise<void> {
+    this.busy.set(true);
+    this.costError.set('');
+    try {
+      const result = await this.service.rollup(this.costRootKey(), this.asOfDate());
+      this.costRows.set(flattenCost(this.itemNo.bind(this), result.root));
+    } catch (error) {
+      this.costRows.set([]);
+      this.costError.set(String(error));
+    } finally {
+      this.busy.set(false);
+    }
+  }
+
   /** 七步算式面板的展示行（第 5 步未交付占位）。 */
-  stepRows(): { label: string; value: string; uom: string; source: string }[] {
-    const line = this.view()?.selected;
+  stepRows(): { label: string; value: string; uom: string; source: string }[] {    const line = this.view()?.selected;
     if (!line) return [];
     const steps = line.steps;
     const phantomSource = steps.phantom.source === 'override' ? '行级 phantom_override' : steps.phantom.source === 'revision' ? '修订级 default_phantom' : '均未声明（按实体件）';
@@ -253,3 +339,43 @@ export class ExplosionPage implements OnInit {
     return rows;
   }
 }
+
+/** 卷算明细树拍平（模板无递归）：头节点 + 材料/加工/制费/抵减行，逐层缩进。 */
+const flattenCost = (itemNo: (id: string) => string, node: CostNodeDetail, depth = 0): CostFlatRow[] => {
+  const rows: CostFlatRow[] = [
+    { depth, kind: 'head', itemNo: itemNo(node.itemId), label: `批次 ${node.batchCost}（${node.batchQty} ${node.baseUom}）· 单位 ${node.unitCost}`, amount: node.batchCost }
+  ];
+  for (const line of node.material) {
+    rows.push({
+      depth: depth + 1,
+      kind: 'material',
+      itemNo: itemNo(line.childItemId),
+      label: `材料 ${itemNo(line.childItemId)}：需求 ${line.demand} ${line.demandUom} × 单位 ${line.unitCost}`,
+      amount: line.amount
+    });
+  }
+  for (const line of node.processing) {
+    rows.push({
+      depth: depth + 1,
+      kind: 'processing',
+      label: `加工 工序 ${line.operationSeq}：${line.hours} ${line.timeUom} × 费率 ${line.rate}`,
+      amount: line.amount
+    });
+  }
+  if (node.overhead !== '0') {
+    rows.push({ depth: depth + 1, kind: 'overhead', label: `制费（${node.overheadReason}）`, amount: node.overhead });
+  }
+  for (const line of node.credits) {
+    rows.push({
+      depth: depth + 1,
+      kind: 'credit',
+      itemNo: itemNo(line.childItemId),
+      label: `副产抵减 ${itemNo(line.childItemId)}：${line.outQty} ${line.outUom} × ${line.creditPrice}`,
+      amount: `-${line.amount}`
+    });
+  }
+  for (const child of node.children) {
+    rows.push(...flattenCost(itemNo, child, depth + 1));
+  }
+  return rows;
+};

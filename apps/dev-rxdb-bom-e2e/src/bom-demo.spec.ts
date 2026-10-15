@@ -7,6 +7,7 @@
  */
 
 import { expect, Page, test } from '@playwright/test';
+import { deterministicId } from '@aiao/rxdb-plugin-bom/testing';
 
 const BASE = '/';
 
@@ -17,8 +18,8 @@ const clickButton = async (page: Page, text: string): Promise<void> => {
 const resetAndSeed = async (page: Page): Promise<void> => {
   await clickButton(page, '重置并装载种子');
   // 种子装载（wa-sqlite 启动 + 装载）需要数秒
-  // 阶段 C：A/B 层与 C 层各一个历史批次
-  await expect(page.getByTestId('row-counts')).toContainText('bom_history_batch=2', { timeout: 30000 });
+  // 阶段 D：A/B 层、C 层与 D 层各一个历史批次
+  await expect(page.getByTestId('row-counts')).toContainText('bom_history_batch=3', { timeout: 30000 });
 };
 
 const explode = async (page: Page): Promise<void> => {
@@ -38,10 +39,10 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     await resetAndSeed(page);
     const second = await page.getByTestId('row-counts').textContent();
     expect(second).toBe(first);
-    // 阶段 C：C 层种子追加 5 个物料、6 段发生项、2 张 ECN
-    expect(second).toContain('item=27');
-    expect(second).toContain('bom_line_occurrence=28');
-    expect(second).toContain('ecn=2');
+    // 阶段 D：D 层种子再追加 8 个物料（双图/成本演示）、8 段发生项、1 张外壳换版 ECN
+    expect(second).toContain('item=35');
+    expect(second).toContain('bom_line_occurrence=36');
+    expect(second).toContain('ecn=3');
     await expect(page.getByTestId('seed-info')).toContainText('scooter-seed-a');
     await expect(page.getByTestId('seed-info')).toContainText('2026-01-01T00:00:00.000Z');
   });
@@ -222,5 +223,67 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     // ② 对已生效种子 ECN 点取消 → 拒绝，提示改走更正 ECN
     await clickButton(page, '对已生效种子 ECN 点取消');
     await expect(page.getByTestId('ecn-action-result')).toContainText(/更正|已生效/, { timeout: 30000 });
+  });
+
+  test('US-525 AC#13 双图并排：EBOM 钣金外壳 / MBOM 板材 + 2 工序件；覆盖率报未覆盖', async ({ page }) => {
+    await resetAndSeed(page);
+    await page.getByTestId('as-of-date').fill('2026-10-15');
+    await clickButton(page, '双图并排展开');
+    // 两侧层级结构不同且各自自洽：EBOM 一行 SHEET；MBOM 三行（板材 + 2 个工序件）
+    const ebomTree = page.getByTestId('ebom-tree');
+    await expect(ebomTree.locator('.requirement-row[data-item="SHEET"]')).toHaveCount(1, { timeout: 30000 });
+    await expect(ebomTree.locator('.requirement-row[data-item="WIP-BEND"]')).toHaveCount(0);
+    const mbomTree = page.getByTestId('mbom-tree');
+    await expect(mbomTree.locator('.requirement-row[data-item="SHEET"]')).toHaveCount(1);
+    await expect(mbomTree.locator('.requirement-row[data-item="WIP-BEND"]')).toHaveCount(1);
+    await expect(mbomTree.locator('.requirement-row[data-item="WIP-CUT"]')).toHaveCount(1);
+    // 覆盖率：split 1:3 三个目标行全部已覆盖（路径级映射在 scope 内）
+    await clickButton(page, '查覆盖率');
+    const coverage = page.getByTestId('coverage-line');
+    await expect(coverage).toHaveCount(1, { timeout: 30000 });
+    await expect(coverage.first()).toContainText('已覆盖');
+  });
+
+  test('US-525 AC#14 整机卷算逐项等于手工 golden：39.1204…、HOUSING 材料/加工/制费/抵减', async ({ page }) => {
+    await resetAndSeed(page);
+    await page.getByTestId('as-of-date').fill('2026-10-15');
+    await clickButton(page, '卷算');
+    // 根节点：批次与单位成本等于 golden（34 位有效数字 half-even）
+    const head = page.locator('.cost-row[data-kind="head"]').first();
+    await expect(head.locator('[data-amount]')).toHaveText('39.12040816326530612244897959183674', { timeout: 30000 });
+    // HOUSING 节点：材料 SHEET 2、加工 0.5h × 2 = 1、制费 0.2、副产抵减 OFFCUT 0.3
+    // （材料行 data-item 是子件；卷算树里 SHEET 只在 HOUSING 节点出现一次）
+    const sheetMaterial = page.locator('.cost-row[data-kind="material"][data-item="SHEET"]');
+    await expect(sheetMaterial).toHaveCount(1);
+    await expect(sheetMaterial.locator('[data-amount]')).toHaveText('2');
+    await expect(page.locator('.cost-row[data-kind="processing"]').first()).toContainText('加工 工序 10');
+    await expect(page.locator('.cost-row[data-kind="processing"]').first().locator('[data-amount]')).toHaveText('1');
+    await expect(page.locator('.cost-row[data-kind="overhead"]').first().locator('[data-amount]')).toHaveText('0.2');
+    await expect(page.locator('.cost-row[data-kind="credit"]').first()).toContainText('OFFCUT');
+    await expect(page.locator('.cost-row[data-kind="credit"]').first().locator('[data-amount]')).toHaveText('-0.3');
+  });
+
+  test('US-525 AC#15 缺成本子件：卷算报缺失项而非 0', async ({ page }) => {
+    await resetAndSeed(page);
+    await page.getByTestId('cost-root-select').selectOption({ label: 'COST-DEMO（故意缺成本）' });
+    await clickButton(page, '卷算');
+    const error = page.getByTestId('cost-error');
+    // 错误消息点名缺成本的物料 id（COST-MISSING 的确定性 id，不经 0 兜底）
+    await expect(error).toContainText(deterministicId('item:COST-MISSING'), { timeout: 30000 });
+    await expect(error).toContainText('缺成本');
+    await expect(error).toContainText('不以 0 兜底');
+    // 明细树整体不产出（不以 0 兜底的部分树）
+    await expect(page.locator('.cost-row')).toHaveCount(0);
+  });
+
+  test('阶段 D 既有库重开：D 层实体与映射重开后原样可用（幂等）', async ({ page }) => {
+    await resetAndSeed(page);
+    await page.getByTestId('as-of-date').fill('2026-10-15');
+    await clickButton(page, '卷算');
+    await expect(page.locator('.cost-row[data-kind="head"]').first().locator('[data-amount]')).toHaveText('39.12040816326530612244897959183674', { timeout: 30000 });
+    // 重载后连接的是已有库：连接期安装全部触发器（幂等 DDL），映射与成本输入原样可用
+    await page.reload();
+    await clickButton(page, '双图并排展开');
+    await expect(page.getByTestId('mbom-tree').locator('.requirement-row[data-item="WIP-BEND"]')).toHaveCount(1, { timeout: 30000 });
   });
 });
