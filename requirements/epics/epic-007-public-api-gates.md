@@ -38,8 +38,8 @@ epic-001～006 都以**产品能力**分组（核心引擎、同步、UI、平�
       [release-plan 的执行顺序第 0 步](../release-plan.md#执行顺序)
 - [ ] 手工发布路径的前置校验：`pnpm test-all` 未跑绿即发布，会重演 0.0.25 的版本漂移——**尚无故事认领**，
       背景见 [release-plan「开项：版本漂移」](../release-plan.md#开项版本漂移)
-- [ ] 发布产物的语义事实源进漂移门禁：公开包的用途与关系有单一事实源，README / 站点 / 包元数据与它不一致即红
-      （[US-602](../stories/tooling/US-602-ai-comprehensible-artifacts.md) 阶段 A1；A2 / B / C 随其后）
+- [x] 发布产物的语义事实源进漂移门禁：公开包的用途与关系有单一事实源，README / 站点 / 包元数据与它不一致即红
+      （[US-602](../stories/tooling/US-602-ai-comprehensible-artifacts.md) 阶段 A1；A2 / B / C 已随其后全部关闭，故事 Done 2026-10-15）
 
 新缺口进入本 Epic 的判据只有一条：**它是一道门禁的覆盖面问题**。
 「某个功能还没做」不属于本 Epic，哪怕它会顺带改到门禁配置。

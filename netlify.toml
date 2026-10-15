@@ -49,11 +49,15 @@ Cache-Control = "no-cache, no-store, must-revalidate"
 for = "/llms.txt"
 [headers.values]
 Content-Type = "text/plain; charset=utf-8"
+# 选型索引承载发布指引，陈旧窗口收紧到 5 分钟；正缓存龄避免 max-age=0 时每次请求都回源（线上 smoke 实测 ~16 KB/s）
+Cache-Control = "public, max-age=300"
 
 [[headers]]
 for = "/llms-full.txt"
 [headers.values]
 Content-Type = "text/plain; charset=utf-8"
+# 8 MB 语料全文：正缓存龄让两层 CDN 命中，过期后走 304 条件校验；部署后陈旧窗口 ≤ 1 小时
+Cache-Control = "public, max-age=3600"
 
 [[headers]]
 for = "/*"

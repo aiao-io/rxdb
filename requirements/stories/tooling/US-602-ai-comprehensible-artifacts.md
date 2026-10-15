@@ -1,11 +1,11 @@
 ---
 id: US-602
 title: 发布产物面向 AI 的可理解性
-status: In Progress
+status: Done
 priority: Medium
 epic: epic-007-public-api-gates
 created: 2026-09-22
-updated: 2026-10-13
+updated: 2026-10-15
 tags: [tooling, dx, llms-txt, agent-skills, package-graph]
 ---
 
@@ -112,7 +112,7 @@ INVEST 检查清单:
 | ---- | ----------------------------------------------------------------------- | ---- | ----------------------------------------------------- | ---- |
 | A1   | 发布发现、语义事实源、漂移门禁与接线、生成生命周期、可运行样例源、TSDoc | 无   | AC#1–3、#5、#6、#12–15                                | ✅   |
 | A2   | `@aiao/*` peer 统一、真实打包与隔离消费验证、迁移发布                   | A1   | AC#4、#7、#8                                          | ✅   |
-| B    | 站点 `llms.txt` / `llms-full.txt`                                       | A1   | AC#9、#10、#16                                        | ⚠️   |
+| B    | 站点 `llms.txt` / `llms-full.txt`                                       | A1   | AC#9、#10、#16                                        | ✅   |
 | C    | 主包内嵌单份 Agent Skill（exporter 探针先行）                           | A1   | AC#11、#17 通过，或探针失败后在状态中明确标「C 延期」 | ✅   |
 
 三种投递格式**全部由 A1 的事实源与样例源生成**，不各自手写——否则就是三份互相漂移的文档。
@@ -129,7 +129,7 @@ A1 的实现已落在入口 TSDoc、`requirements/package-graph.json`、包组�
 - `pnpm nx run rxdb-adapter-pglite:test --coverage ...`：四项覆盖率均达标，statements 95.91%、branches 89.71%、functions 96.26%、lines 97.22%。核心 `rxdb` 四项为 95.68%、93.37%、95.58%、96.26%。
 - `website:typecheck` 的 Vite 8/Rolldown 类型兼容问题已以类型别名兼容修复，未改变运行时逻辑；串行 affected 全量已通过，AC#13 与 A1 阶段验收完成。
 
-故事仍保持 `In Progress`：A2、C 已关闭（见下），B 已完成本地构建与缓存门禁，剩部署后的线上 smoke（AC#10）。
+A1 / A2 / B / C 全部关闭，故事 `Done`：A2 与 C 已关闭（见下），B 经 2026-10-15 的部署后线上 smoke 关闭 AC#10。
 
 **评审修复（2026-10-12）**：合入前评审指出的发布流程与缓存缺陷已修复，口径变化如下。
 
@@ -168,8 +168,18 @@ NodeNext 解析下报 `TS2305`——现存缺陷，#113 用已发布的 `0.0.26`
 
 ## B 实施记录
 
-B 已接入 Docusaurus `postBuild` 生成器。当前本地构建产物包含 `llms.txt`（17,836 B）和 `llms-full.txt`（8,178,175 B），完整文档包含 3,366 个 Markdown / MDX 文件；生产域名线上 smoke 留待部署后执行。
+B 已接入 Docusaurus `postBuild` 生成器。当前本地构建产物包含 `llms.txt`（17,836 B）和 `llms-full.txt`（8,178,175 B），完整文档包含 3,366 个 Markdown / MDX 文件。
 评审修复后生成器只读提交的 `package-knowledge.json`，站点地址取 Docusaurus 解析后的 `url` + `baseUrl`；同一份文档下 `llms.txt` 为 18,334 B、`llms-full.txt` 为 8,178,673 B（新增宿主备注与退役标记）。
+
+**线上 smoke（2026-10-15，AC#10 关闭）**：`https://rxdb.aiao.io/llms.txt` 与 `https://rxdb.aiao.io/llms-full.txt` 均 HTTP 200、
+零重定向、`Content-Type: text/plain; charset=utf-8`（`netlify.toml` 的两个文件级 header 生效）、正文为 Markdown 而非 HTML fallback。
+`llms.txt` 部署产物 18,334 B：含发布版本标识 `v0.0.26`、包选型表与最小离线样例（4 个代码块），40 处站内链接全为 `rxdb.aiao.io`、无 `netlify.app` 泄漏。
+`llms-full.txt` 部署产物 8,313,081 B：UTF-8 纯文本，3,491 个一级标题，正文以「参考」节收尾（迁移指南 / 兼容矩阵链接），无截断。
+部署形态：`rxdb.aiao.io` 为主域直出（2026-10-12 owner 定，PR #109）；旧域 `rxdb.netlify.app` 同部署直出、不重定向（两域名同 etag
+`8bc521bea6daf58a2ba5d84d87e7497a-ssl`）。运营问题与修复：`rxdb.aiao.io` 经 Cloudflare 代理且原响应头为
+`Cache-Control: public, max-age=0, must-revalidate`，两层 CDN 均不缓存，`llms-full.txt` 全量下载实测仅 ~16 KB/s（直连 `rxdb.netlify.app` 同文件 1.2 MB/s）；
+本 PR 在 `netlify.toml` 给两个文件加正缓存龄（`llms.txt` 5 分钟、`llms-full.txt` 1 小时，过期走 304 条件校验），部署后生效。
+代价是部署后存在 ≤ 5 分钟 / ≤ 1 小时的有界陈旧窗口，属已知取舍：选型索引的陈旧窗口收紧到分钟级，版本化 URL 会破坏 AC#10 的固定地址，不取。
 
 A1 的 TSDoc（AC#12）与事实源、门禁、样例零耦合，可先单独提 PR。
 故事 `Done` 要求 A1 / A2 / B 关闭，且 C 已交付或已按上表标为延期——不允许一边宣称整体完成、一边忽略 AC#11。
@@ -259,7 +269,7 @@ A1 的 TSDoc（AC#12）与事实源、门禁、样例零耦合，可先单独提
 | 7   | A2 合并后                             | 对 `nx.json` 的 `release.projects`（`packages/*`，与门禁范围同集）解析出的全部项目跑 build                                                                                                                                                                                                                                                            | 全部通过，集合含 `rxdb-angular` / `rxdb-react` / `rxdb-vue`（它们不带 `js-lib` 标签，不能用 `tag:js-lib` 代替发布集合）；无运行时代码变更                                                                                                                                                                                                                               | ✅   |
 | 8   | A2：各 packageRoot 已真实 `pnpm pack` | 解包检查；在工作区外临时项目分别用 npm、pnpm 安装同批 tgz（不经 workspace links / tsconfig paths），覆盖代表性 adapter / plugin / binding 组合                                                                                                                                                                                                        | 发布后的 dependencies / peers 为 `^<版本>`、入口与 `.d.ts` 齐全；三框架绑定可导入并最小构建；兼容组合下核心解析为同一路径；核心版本不兼容时安装或解析明确失败；A1 样例源编译、跑通 CRUD 断言并正常退出                                                                                                                                                                  | ✅   |
 | 9   | B：本地 build                         | `pnpm nx build website`                                                                                                                                                                                                                                                                                                                               | 输出含 `llms.txt` 与 `llms-full.txt`；`llms.txt` 每节有链接与一句话描述，投递范围内的包都在选型索引里、范围外的包没有安装命令（另有 fixture：不在 tag 树里的包、npm 上停在旧版本的包不生成安装命令），版本标识等于登记的 `v*` tag，链接以 `docusaurus.config.ts` 的 `url` 为前缀；两文件不超过 B plan 定的 UTF-8 字节上限，超限时构建失败而非静默截断；中文与代码块完整 | ✅   |
-| 10  | B：站点已部署                         | 请求 `https://rxdb.aiao.io/llms.txt` 与 `https://rxdb.aiao.io/llms-full.txt`                                                                                                                                                                                                                                                                          | 均为 HTTP 成功、最终 URL 符合部署策略（旧域名 `rxdb.aiao.io` 是别名还是重定向在 B plan 写明）、`Content-Type: text/plain; charset=utf-8`、正文不是 HTML fallback，含版本标识、选型表与样例片段。线上请求只作部署 smoke，不进 fixtures 单测                                                                                                                              | ⬜   |
+| 10  | B：站点已部署                         | 请求 `https://rxdb.aiao.io/llms.txt` 与 `https://rxdb.aiao.io/llms-full.txt`                                                                                                                                                                                                                                                                          | 均为 HTTP 成功、最终 URL 符合部署策略（`rxdb.aiao.io` 为主域直出、零重定向；旧域 `rxdb.netlify.app` 同部署直出，2026-10-12 owner 定，PR #109）、`Content-Type: text/plain; charset=utf-8`、正文不是 HTML fallback，含版本标识、选型表与样例片段。线上请求只作部署 smoke，不进 fixtures 单测                                                                             | ✅   |
 | 11  | C：exporter 已锁定                    | 临时项目安装真实核心 tgz（**核心为直接依赖**），执行锁定的 exporter 固定命令                                                                                                                                                                                                                                                                          | 生成的 Skill 路径、内容、相对引用与事实源一致；`SKILL.md` ≤ 8192 字节；tgz 含 `skills/aiao-rxdb/SKILL.md`，`files` 去掉 `"skills"` 时不含（反向用例）；核心仅被 peer 自动安装、或 Skill 路径无效时，结果与所选 exporter 文档一致并明确报告，不靠手工拷贝                                                                                                                | ✅   |
 | 12  | A1：TSDoc 已补                        | 读**实际打包**的 `.d.ts`，按符号与重载归属检查                                                                                                                                                                                                                                                                                                        | `RxDB.use` 区分三类插件且保留「普通插件晚装立即安装」；`RxDBAdapterLocalBase.transaction` 两个重载都带 ✅ / ❌ `@example`，各具体适配器的 `transaction` 覆写不带与基类矛盾的 TSDoc；正例可编译，反例由受控队列 spy 或带清理的超时用例证明会重新排队，不挂死测试套件                                                                                                     | ✅   |
 | 13  | 全部阶段合并                          | `pnpm test-all` + CI 审计步骤                                                                                                                                                                                                                                                                                                                         | 绿；新增 `*.spec.mjs` 全部基于 `__fixtures__/` 假包，不断言真实 `packages/` 内容；真实仓库校验只走 `audit:package-graph`                                                                                                                                                                                                                                                | ✅   |
