@@ -176,9 +176,10 @@ B 已接入 Docusaurus `postBuild` 生成器。当前本地构建产物包含 `l
 `llms.txt` 部署产物 18,334 B：含发布版本标识 `v0.0.26`、包选型表与最小离线样例（4 个代码块），40 处站内链接全为 `rxdb.aiao.io`、无 `netlify.app` 泄漏。
 `llms-full.txt` 部署产物 8,313,081 B：UTF-8 纯文本，3,491 个一级标题，正文以「参考」节收尾（迁移指南 / 兼容矩阵链接），无截断。
 部署形态：`rxdb.aiao.io` 为主域直出（2026-10-12 owner 定，PR #109）；旧域 `rxdb.netlify.app` 同部署直出、不重定向（两域名同 etag
-`8bc521bea6daf58a2ba5d84d87e7497a-ssl`）。已知运营问题（不影响 AC#10 判据，留作后续项）：`rxdb.aiao.io` 经 Cloudflare 代理且响应头为
+`8bc521bea6daf58a2ba5d84d87e7497a-ssl`）。运营问题与修复：`rxdb.aiao.io` 经 Cloudflare 代理且原响应头为
 `Cache-Control: public, max-age=0, must-revalidate`，两层 CDN 均不缓存，`llms-full.txt` 全量下载实测仅 ~16 KB/s（直连 `rxdb.netlify.app` 同文件 1.2 MB/s）；
-给两个文件加正缓存龄（如 `max-age=86400`）需要改 `netlify.toml` 并重新部署。
+本 PR 在 `netlify.toml` 给两个文件加正缓存龄（`llms.txt` 5 分钟、`llms-full.txt` 1 小时，过期走 304 条件校验），部署后生效。
+代价是部署后存在 ≤ 5 分钟 / ≤ 1 小时的有界陈旧窗口，属已知取舍：选型索引的陈旧窗口收紧到分钟级，版本化 URL 会破坏 AC#10 的固定地址，不取。
 
 A1 的 TSDoc（AC#12）与事实源、门禁、样例零耦合，可先单独提 PR。
 故事 `Done` 要求 A1 / A2 / B 关闭，且 C 已交付或已按上表标为延期——不允许一边宣称整体完成、一边忽略 AC#11。
