@@ -47,11 +47,11 @@
   "dependencies": {
     "clsx": "^2.1.1",
     "rxjs": "^7.8.2",
-    "uuid": "^14.0.2"
+    "uuid": "^14.0.3"
   },
   "peerDependencies": {
+    "@aiao/rxdb": "workspace:^",
     "@visactor/vtable": "~1.26.5",
-    "@visactor/vtable-editors": "~1.26.5",
-    "@aiao/rxdb": "workspace:^"
+    "@visactor/vtable-editors": "~1.26.5"
   }
 }
