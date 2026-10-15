@@ -252,14 +252,18 @@ describe('控制端点改了数据也广播', () => {
     expect(await feed.next()).toEqual({ entity: CLIENT_ENTITY_NAME });
   });
 
-  it('重置为种子 → 订阅者收到通知', async () => {
+  // reset 与 clear 的成本不在一个量级：前者要销毁整个 RxDB 实例、删掉 dataDir、
+  // 重建 store 再经引擎重写 250 行种子。本地约 2s，CI 的 lane 在 4 vCPU 上串行
+  // 跑十几个项目的测试时轻松翻到 5s 默认超时之上（run 38584139375 上两个用例
+  // 就因此挂掉）。本用例验的是广播语义，不是 reset 的耗时，超时按 30s 给。
+  it('重置为种子 → 订阅者收到通知', { timeout: 30_000 }, async () => {
     const feed = await openFeedConnection();
     const response = await post('__control/reset', {});
     expect(response.ok).toBe(true);
     expect(await feed.next()).toEqual({ entity: CLIENT_ENTITY_NAME });
   });
 
-  it('reset 的种子不逐行广播——250 行只派发一条通知（D7）', async () => {
+  it('reset 的种子不逐行广播——250 行只派发一条通知（D7）', { timeout: 30_000 }, async () => {
     const feed = await openFeedConnection();
     await post('__control/reset', {});
     expect(await feed.next()).toEqual({ entity: CLIENT_ENTITY_NAME });

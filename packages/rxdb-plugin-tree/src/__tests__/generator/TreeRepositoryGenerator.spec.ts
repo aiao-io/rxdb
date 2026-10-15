@@ -71,7 +71,9 @@ describe('TreeRepositoryGenerator', () => {
     expect(declaration).toContain('export declare type FolderTreeRuleGroup = RuleGroupBase<typeof Folder,');
   });
 
-  it('compiles concrete tree queries against TreeAdjacencyListEntityBase static members', async () => {
+  // 真实 tsc 程序编译（生成代码 + 类型检查），冷缓存 + 高负载下会压线超 5s 默认超时
+  // （本地 affected 全量并发时实测 5014ms）。验的是编译正确性不是耗时，按 30s 给。
+  it('compiles concrete tree queries against TreeAdjacencyListEntityBase static members', { timeout: 30_000 }, async () => {
     const generator = generateFolder();
 
     await expect(
