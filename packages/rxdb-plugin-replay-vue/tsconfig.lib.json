@@ -7,7 +7,7 @@
     "jsxImportSource": "vue",
     "module": "esnext",
     "moduleResolution": "bundler",
-    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo"
+    "tsBuildInfoFile": "out-tsc/tsconfig.lib.tsbuildinfo"
   },
   "exclude": [
     "out-tsc",

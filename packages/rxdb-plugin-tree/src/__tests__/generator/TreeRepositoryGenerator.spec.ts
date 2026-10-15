@@ -71,25 +71,31 @@ describe('TreeRepositoryGenerator', () => {
     expect(declaration).toContain('export declare type FolderTreeRuleGroup = RuleGroupBase<typeof Folder,');
   });
 
-  it('compiles concrete tree queries against TreeAdjacencyListEntityBase static members', async () => {
-    const generator = generateFolder();
+  // 真实 tsc 程序编译（生成代码 + 类型检查），冷缓存 + 高负载下会压线超 5s 默认超时
+  // （本地 affected 全量并发时实测 5014ms）。验的是编译正确性不是耗时，按 30s 给。
+  it(
+    'compiles concrete tree queries against TreeAdjacencyListEntityBase static members',
+    { timeout: 30_000 },
+    async () => {
+      const generator = generateFolder();
 
-    await expect(
-      compileGeneratedConsumer(
-        generator.getSourceFiles(),
-        [
-          "import { Folder } from './generated/index.js';",
-          "import type { Observable } from 'rxjs';",
-          'const descendants: Observable<Folder[]> = Folder.findDescendants();',
-          'declare class SpecializedFolder extends Folder {}',
-          'const specialized: Observable<SpecializedFolder[]> = SpecializedFolder.findDescendants({});',
-          'void descendants;',
-          'void specialized;'
-        ].join('\n'),
-        { pluginStubs: [TREE_PLUGIN_STUB] }
-      )
-    ).resolves.toEqual([]);
-  });
+      await expect(
+        compileGeneratedConsumer(
+          generator.getSourceFiles(),
+          [
+            "import { Folder } from './generated/index.js';",
+            "import type { Observable } from 'rxjs';",
+            'const descendants: Observable<Folder[]> = Folder.findDescendants();',
+            'declare class SpecializedFolder extends Folder {}',
+            'const specialized: Observable<SpecializedFolder[]> = SpecializedFolder.findDescendants({});',
+            'void descendants;',
+            'void specialized;'
+          ].join('\n'),
+          { pluginStubs: [TREE_PLUGIN_STUB] }
+        )
+      ).resolves.toEqual([]);
+    }
+  );
 
   it('resolves the hand-written TreeEntityBase alias to the adjacency-list base', () => {
     const generator = new RxDBClientGenerator();
