@@ -8,12 +8,12 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 75   |
+| ✅ Done        | 74   |
 | 🚧 In Progress | 2    |
-| 👀 In Review   | 4    |
+| 👀 In Review   | 3    |
 | 📝 Backlog     | 22   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 103  |
+| **合计**       | 101  |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
@@ -32,13 +32,12 @@
 | [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)             | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过、未上真机（iOS 真机调试待复测），adapter 剩 Android 真机；百度 / QQ 已判 `unsupported`，按未知平台拒绝；阶段 B+C 经 [#87](https://github.com/aiao-io/rxdb/pull/87) 合入；剩 Android 真机补验、支付宝 demo 真机走查与 AC#18 文档口径确认 |
 | [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) | A1 已完成：入口 TSDoc、语义事实源与漂移门禁（投递范围读事实源登记的发布 tag）、离线样例与 CI 接线；A2 经 [#113](https://github.com/aiao-io/rxdb/pull/113) 合入：`@aiao/*` peer 统一为 `workspace:^`，真实打包与隔离消费验证通过（AC#4/#7/#8），`BREAKING CHANGE` 随其后的迁移发布声明；C 主包 Skill 已交付（锁定 skills-npm@4.0.0，探针与 AC#11/#17 通过）；B 本地构建已完成，剩部署后线上 smoke                                                                                                                                                                                        |
 
-## 待评审（4 条）
+## 待评审（3 条）
 
-| Story                                                                                                                  | 进展                                                                                                                                                                                                                                                                                                                                                         |
-| ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)                          | 阶段 A～C 代码完成（[#114](https://github.com/aiao-io/rxdb/pull/114)）：CHECK、条件唯一索引 `where`、区间排他（PG `EXCLUDE USING gist` / SQLite 触发器）双后端同一错误类；SQLite 宿主门槛 ≥ 3.47.0；已有表约束漂移在 `init()` fail-fast；区间排他实体的重放与批量写入按删除 → 更新 → 插入执行（AC#14）。阶段 D 仍价值待证                                    |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)                             | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持 |
-| [US-310 命名工作上下文（git worktree 能力）](stories/collaboration/US-310-named-worktrees.md)                          | 代码在本分支、AC 全 ✅，但**不交付**：钉在分支上的命名 worktree 不服务多检出位的任何一类场景、且与检出位语义冲突，本分支收尾时连同 US-309 改名一起撤回、删除故事文件，见 [epic-006 本分支现存实现的处置](epics/epic-006-working-tree-commits.md#本分支现存实现的处置)                                                                                        |
+| Story                                                                                         | 进展                                                                                                                                                                                                                                                                                                                                                         |
+| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 阶段 A～C 代码完成（[#114](https://github.com/aiao-io/rxdb/pull/114)）：CHECK、条件唯一索引 `where`、区间排他（PG `EXCLUDE USING gist` / SQLite 触发器）双后端同一错误类；SQLite 宿主门槛 ≥ 3.47.0；已有表约束漂移在 `init()` fail-fast；区间排他实体的重放与批量写入按删除 → 更新 → 插入执行（AC#14）。阶段 D 仍价值待证                                    |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持 |
 | [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](stories/collaboration/US-311-unlogged-entities-scope.md) | 代码完成：草稿缓存不收系统表（每次读活登记）与关闭变更日志的实体，启动时清掉存量；版本化域把 `log: false` 的实体归为第四类 untracked，写入口目标类别 `query_cache` 改名 `untracked`；单测、浏览器集成用例与 Angular e2e 全绿；剩代码评审与提交                                                                                                               |
 
 ## 阻塞（0 条）
@@ -144,7 +143,7 @@
 
 US-305 / US-306 / US-307 / US-308 全部 Done。交付顺序 **US-305 → US-306 阶段 A → B → C →（US-307 ∥ US-308）** 已按序走完，6 后端 5031 条零失败，捕获与提交两套 conformance 在 6 个后端上共 12 个调用点齐全，分支评审的架构级 P1 已清零。
 
-`bench-worktree`（US-309 前名 `bench-working-tree`）的 reference 覆盖 CI 托管 runner 的五种画像（AMD EPYC 7763 / EPYC 9V74 / EPYC 9V45 / Intel Xeon 6973P-C / Xeon Platinum 8573C）与 Apple M1 Max（`ls benchmarks/reports/working-tree-reference/` 可数），PR 的 `ci / benchmarks` 在其上转绿；分到没冻结过的型号判 `benchmark_environment_mismatch`，重跑该 job 一次，同一型号反复出现再补冻。读项 `status` / `diff` 的容差按 CI 各画像十轮的离散度定为 130%，写项 `restore` / `commit` 保持 110%。M1 那份按「已知带负载的基线复冻」冻结（复冻起跑时 1 分钟负载 9.31，`frozenAbsolute.commit` 393.53 ms），规则与理由见 [epic-006「reference 的冻结与复冻」](epics/epic-006-working-tree-commits.md#reference-的冻结与复冻)。
+`bench-working-tree` 的 reference 覆盖 CI 托管 runner 的五种画像（AMD EPYC 7763 / EPYC 9V74 / EPYC 9V45 / Intel Xeon 6973P-C / Xeon Platinum 8573C）与 Apple M1 Max（`ls benchmarks/reports/working-tree-reference/` 可数），PR 的 `ci / benchmarks` 在其上转绿；分到没冻结过的型号判 `benchmark_environment_mismatch`，重跑该 job 一次，同一型号反复出现再补冻。读项 `status` / `diff` 的容差按 CI 各画像十轮的离散度定为 130%，写项 `restore` / `commit` 保持 110%。M1 那份按「已知带负载的基线复冻」冻结（复冻起跑时 1 分钟负载 9.31，`frozenAbsolute.commit` 393.53 ms），规则与理由见 [epic-006「reference 的冻结与复冻」](epics/epic-006-working-tree-commits.md#reference-的冻结与复冻)。
 
 US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [release-plan「迁移发布的关闭条件」](release-plan.md#迁移发布的关闭条件)承接；桥接锚点从 #55 之前的 `de70a1a9` 切出、版本 `0.0.26`；源码 `RXDB_SYSTEM_SCHEMA_VERSION` 现为 7（#99 从 6 抬到 7），已发布线仍是 3，见 [release-plan 桥接锚点定案](release-plan.md#桥接锚点定案)。评审顺延的架构项登记在 [roadmap「epic-006 评审顺延的架构项」](roadmap.md#epic-006-评审顺延的架构项)。
 
@@ -160,13 +159,11 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 - ✅ [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — T098～T110 全部关闭；`restore` 测点在 CI 画像上过相对门禁
 - ✅ [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — T111～T123 全部关闭；原落在本故事的 3 条 P1（FR-020 的 activation revision 未推进与切换 TOCTOU、FR-044 的物化未接公开入口）已全部落地
 - 👀 [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](stories/collaboration/US-311-unlogged-entities-scope.md) — 草稿缓存不收系统表与关闭变更日志的实体；版本化域第四类 untracked 的判据是 `log: false`；storage 文档写明文件不随版本；是多检出位阶段 1
-- 👀 [US-310 命名工作上下文（git worktree 能力）](stories/collaboration/US-310-named-worktrees.md) — 不交付，本分支收尾时删除（见[本分支现存实现的处置](epics/epic-006-working-tree-commits.md#本分支现存实现的处置)）
 
-多检出位（v1 之后）阶段 2～5 尚无故事认领，解锁条件见 [epic-006 分期与解锁条件](epics/epic-006-working-tree-commits.md#分期与解锁条件)；阶段 0（本分支收尾）未执行。
+多检出位（v1 之后）阶段 2～5 尚无故事认领，解锁条件见 [epic-006 分期与解锁条件](epics/epic-006-working-tree-commits.md#分期与解锁条件)。
 
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 
-- ✅ [US-309 工作树插件改名 rxdb-plugin-worktree](stories/plugin/US-309-worktree-rename.md) — 4 包改名 + `WorkingTree*`→`Worktree*` 公开符号全改；能力名 `workingTree` 冻结（守卫按能力名认领，新旧水位行并存互放行）；api-baseline 4 文件改名并自更新；迁移页 [worktree-rename](../website/docs/migration/worktree-rename.md) 登记
 - ✅ [US-601 子路径入口纳入 API 表面基线](stories/tooling/US-601-subpath-api-surface-baseline.md)
 - 🚧 [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) — 2026-10-11 owner 授权并完成 A1 实现（入口 TSDoc、发布发现、语义事实源、漂移门禁、离线样例与 CI 接线）；A1 最终 affected 门禁已通过；A1 → 站点 `llms.txt`（B，本地构建已完成，待线上 smoke）→ `@aiao/*` peer 统一与打包消费验证（A2，经 [#113](https://github.com/aiao-io/rxdb/pull/113) 合入，AC#4/#7/#8 通过）→ 主包单份 Agent Skill（C，exporter 探针先行，已交付：锁定 skills-npm@4.0.0，SKILL.md 由事实源生成并接入 build/pack 生命周期）；门禁按 `packages/*` 登记，投递只取事实源登记的发布 tag 树里的包，未发布包不给安装命令；MCP 另立故事。A2 是 `BREAKING CHANGE`，进不了已冻结的桥接区间，随其后的迁移发布声明（[roadmap 约束 12](roadmap.md#排期约束)）
 

@@ -3,7 +3,7 @@
  *
  * @remarks
  * 跑 **10 次独立运行**，对每个测点取 median ratio，连同 `commit` 的绝对预算一起写进
- * `reports/working-tree-reference/<本机比值画像>.json`。此后每次 `bench-worktree` 都拿与
+ * `reports/working-tree-reference/<本机比值画像>.json`。此后每次 `bench-working-tree` 都拿与
  * 自己同画像的那一份做相对门禁——那是 PR CI 的**唯一**硬门禁。画像的定义与「为什么按画像分份」
  * 见 `working-tree-gate.ts`。
  *
@@ -44,7 +44,7 @@ import { fileURLToPath } from 'node:url';
 
 import { median } from './bench-stats.ts';
 import { collectEnvironment, decideFreeze, ratioProfileFileName, readReferences } from './working-tree-gate.ts';
-import type { BenchReference, WorktreeBenchReport } from './working-tree-report.ts';
+import type { BenchReference, WorkingTreeBenchReport } from './working-tree-report.ts';
 import { LATEST_PATH, REFERENCE_DIR, SAMPLES, WARMUP } from './working-tree-report.ts';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -57,7 +57,7 @@ const BENCH_SCRIPT = resolve(__dirname, 'working-tree.bench.ts');
 
 /** 一次运行收下来的东西：报告本体，加上用于一致性核对的三个身份。 */
 interface CollectedRun {
-  readonly report: WorktreeBenchReport;
+  readonly report: WorkingTreeBenchReport;
   readonly contentHash: string;
   readonly runnerProfileHash: string;
   readonly ratioProfile: string;
@@ -65,7 +65,7 @@ interface CollectedRun {
 
 /** 读回 {@link LATEST_PATH}；拆成独立函数只为让「读」这一步在类型上自证。 */
 const readLatest = async (): Promise<CollectedRun> => {
-  const report = JSON.parse(await readFile(LATEST_PATH, 'utf8')) as WorktreeBenchReport;
+  const report = JSON.parse(await readFile(LATEST_PATH, 'utf8')) as WorkingTreeBenchReport;
   if (report.measurements.length === 0) throw new Error(`${LATEST_PATH} 里一个测量都没有`);
   return {
     report,

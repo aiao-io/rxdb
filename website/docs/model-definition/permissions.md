@@ -15,7 +15,7 @@
 
 在权限模型之前，系统表只能靠逐字段 `readonly` 和 `isSystemEntity()` 特判来维持只读：逐字段标记拦不住新建与删除，漏标一个新字段就裸奔。权限模型把「能不能动这个实体」收敛成实体上的一条声明：
 
-- 15 张系统表（核心 4 张 + worktree 插件贡献 11 张）显式声明三操作都为 `'system'`，整表对用户只读
+- 14 张系统表（核心 4 张 + working-tree 插件贡献 10 张）显式声明三操作都为 `'system'`，整表对用户只读
 - 业务里只由同步 / 迁移写入的实体（如汇率表）可以只收紧 `create`，UI 随之隐藏「+ 新增」
 - 三框架 UI 按同一份声明派生入口，而不是各自维护一套特判
 
@@ -78,7 +78,7 @@ export class ExchangeRate extends EntityBase {}
 
 ## 系统表
 
-系统表是「15 张表各自显式声明」：核心 4 张 + worktree 插件贡献 11 张，每张都在自己的 `@Entity` 上写着 `permissions: SYSTEM_ENTITY_PERMISSIONS`（即三操作都为 `'system'`）。
+系统表是「14 张表各自显式声明」：核心 4 张 + working-tree 插件贡献 10 张，每张都在自己的 `@Entity` 上写着 `permissions: SYSTEM_ENTITY_PERMISSIONS`（即三操作都为 `'system'`）。
 
 核心 4 张（`packages/rxdb/src/system/`）：
 
@@ -89,7 +89,7 @@ export class ExchangeRate extends EntityBase {}
 | `RxDBMigration` | 迁移登记表 |
 | `RxDBSync`      | 同步水位表 |
 
-worktree 贡献 11 张（`@aiao/rxdb-plugin-worktree`）：
+working-tree 贡献 10 张（`@aiao/rxdb-plugin-working-tree`）：
 
 | 实体                              |
 | --------------------------------- |
@@ -103,7 +103,6 @@ worktree 贡献 11 张（`@aiao/rxdb-plugin-worktree`）：
 | `WorkingTreeMaterializationStage` |
 | `WorkingTreeMaterializationPage`  |
 | `WorkingTreeRestoreSession`       |
-| `Worktree`                        |
 
 `RxDB.init()` 会在插件安装之后、`schemaManager.init()` 之前，按实例清单 `rxdb.systemEntities` 逐表断言三操作都声明为 `'system'`。插件贡献的系统表漏声明（或任一操作不是 `'system'`）会在初始化时抛错，消息点名每张表与它缺的操作。
 

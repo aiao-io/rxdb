@@ -189,7 +189,7 @@ export const cleanup_db = async (adapter: RxDBAdapterPGlite): Promise<void> => {
   //
   // 这一版比注释里许诺过的「由调用方传入初始行」更省事，也更不容易错：既不必在本文件
   // import 插件包（`src/testing.ts` 是已发布的 `./testing` 子路径，而
-  // `@aiao/rxdb-plugin-worktree` 只是 devDependency，静态 import 等于把它塞进发布链），
+  // `@aiao/rxdb-plugin-working-tree` 只是 devDependency，静态 import 等于把它塞进发布链），
   // 也不必给调用方开第二个定义处。没装插件的库贡献列表为空，一行不写、一次事务都不开。
   //
   // 位置卡在触发器重装**之前**且不可下移：此刻触发器还没挂回去，这批行不会被记成变更；

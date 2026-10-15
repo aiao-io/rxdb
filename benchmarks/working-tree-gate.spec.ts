@@ -135,7 +135,7 @@ describe('readReferences', () => {
   let directory = '';
 
   beforeEach(async () => {
-    directory = await mkdtemp(join(tmpdir(), 'worktree-reference-'));
+    directory = await mkdtemp(join(tmpdir(), 'working-tree-reference-'));
   });
 
   afterEach(async () => {

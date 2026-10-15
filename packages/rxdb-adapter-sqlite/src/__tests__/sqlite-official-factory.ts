@@ -89,11 +89,11 @@ async function createSqliteOfficialAdapter(
     rxdb.use(rxDBPluginHistory);
 
     // 其余插件**由调用点传进来**，不在这里无条件装：本工厂被二十来个共享套件复用，
-    // 无条件装上工作树插件等于给每一个都多建 11 张系统表。默认空数组 ⇒ 既有调用方零变化。
+    // 无条件装上工作树插件等于给每一个都多建 10 张系统表。默认空数组 ⇒ 既有调用方零变化。
     //
     // 工作树插件也刻意不静态 import：`src/testing.ts` 用 `import.meta.glob` 把本文件挂在已发布的
     // `./testing` 子路径上，静态 import 一个只在 spec 里用的 devDependency
-    // （`@aiao/rxdb-plugin-worktree`）就等于把它塞进那条发布链。收函数则只有 spec 认识它，
+    // （`@aiao/rxdb-plugin-working-tree`）就等于把它塞进那条发布链。收函数则只有 spec 认识它，
     // 而 spec 不进发布物。
     //
     // 两者都必须排在 `connect()` 之前：贡献系统能力的插件晚于 `init()` 注册会被核心当场拒绝

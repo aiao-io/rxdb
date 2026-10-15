@@ -67,7 +67,7 @@ describe('录制库与插件安装', () => {
     expect(db.config.entities).toEqual([...REPLAY_ENTITIES]);
     expect(db.config.sync.type).toBe(SyncType.None);
     expect(db.getPlugins('replay')).toEqual([]);
-    expect(db.getPlugins('worktree')).toEqual([]);
+    expect(db.getPlugins('working-tree')).toEqual([]);
   });
 
   it('installReplay：装上插件、录制库走 <dbName>-replay，并挂页内测试 API', async () => {

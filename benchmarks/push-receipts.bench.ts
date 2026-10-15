@@ -13,11 +13,11 @@
  *
  * 本基准是 US-218 阶段 B 新增的回执字段（`remoteId` / `rejectedAt` / `rejection`）
  * 与被拒实体本地对齐路径上线后才第一次量出的数字，此前没有任何版本跑过这条路径，
- * 不存在「历史基线」可比——`bench-hot-path`/`bench-worktree` 的回归门槛比的是
+ * 不存在「历史基线」可比——`bench-hot-path`/`bench-working-tree` 的回归门槛比的是
  * 「这次改动是否比上一次慢」，而本基准此刻就是「上一次」。因此只打印 avg/p50/p95
  * 与两个场景的差值百分比、断言「被拒路径确实被跑到」（`rejected === 10` 且
  * `pushed === 90`），不设阈值、不 `process.exit(1)`。待积累几轮真实数据后再考虑按
- * `bench-worktree` 的冻结流程补一份回归门槛。
+ * `bench-working-tree` 的冻结流程补一份回归门槛。
  *
  * Run:
  *   node --experimental-strip-types benchmarks/push-receipts.bench.ts

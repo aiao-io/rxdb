@@ -2,7 +2,7 @@
  * @fileoverview 捕获挂载点注册表（adapter-contract.md §1）——**清单归核心**之后的判据。
  *
  * @remarks
- * 这份判据原先长在 `@aiao/rxdb-plugin-worktree` 里，靠 `?raw` 跨包读核心源码做漂移比对
+ * 这份判据原先长在 `@aiao/rxdb-plugin-working-tree` 里，靠 `?raw` 跨包读核心源码做漂移比对
  * （那条 import 上挂着一行 `eslint-disable @nx/enforce-module-boundaries`）。清单本身也在那边
  * 手抄了一份形参名——**核心的写原语清单于是有第三份编码**，而漂移只会在那一包的测试里响。
  *

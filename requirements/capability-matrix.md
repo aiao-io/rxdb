@@ -48,7 +48,7 @@
 > （`sqlite-electron` / `sqlite-tauri`）**有意不进表**：SQL 在宿主侧执行，宿主没注册那个函数，
 > 缺的不是验证而是宿主实现；`http` / `supabase` 同理，缺的是本地 SQL 连接本身。
 
-三端绑定不止上表的 hook：插件各有 `-angular` / `-react` / `-vue` 绑定包，包含 `rxdb-plugin-tree-*`（树 hook）、`rxdb-plugin-search-*`（`useSearch`）、`rxdb-plugin-worktree-*`（`useWorktree` 等）、`rxdb-plugin-replay-*`（`Replayer` 组件与恢复提示）与 `rxdb-model-*`（实体模型 UI）；包清单与导出以 [api-baseline/](api-baseline/) 为准，对称性用 `tri-framework-check` 复核。
+三端绑定不止上表的 hook：插件各有 `-angular` / `-react` / `-vue` 绑定包，包含 `rxdb-plugin-tree-*`（树 hook）、`rxdb-plugin-search-*`（`useSearch`）、`rxdb-plugin-working-tree-*`（`useWorkingTree` 等）、`rxdb-plugin-replay-*`（`Replayer` 组件与恢复提示）与 `rxdb-model-*`（实体模型 UI）；包清单与导出以 [api-baseline/](api-baseline/) 为准，对称性用 `tri-framework-check` 复核。
 
 ## 适配器能力对比
 

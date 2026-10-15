@@ -189,7 +189,7 @@ export class RxDBMissingPluginError extends RxDBError {
  * 同批执行只会得到「一半进了变更历史、一半没有」，因此在入口拒绝，由调用方分批。
  *
  * `code` 而非 `name` 是本类的判别位：该字符串由 `US-306 FR-046` 指定，跨故事复用，
- * 不得改名。它也是 `@aiao/rxdb-plugin-worktree` 那张 `CommitErrorCode` 码表里的一条——
+ * 不得改名。它也是 `@aiao/rxdb-plugin-working-tree` 那张 `CommitErrorCode` 码表里的一条——
  * 但**本类先于那张表存在**，而且本类属于核心：核心为了一个字符串反向依赖插件，等于把
  * 「不装插件」这件事变成不可能。所以这里写字面量，不从码表取。
  *

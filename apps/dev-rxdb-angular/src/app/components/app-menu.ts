@@ -228,7 +228,7 @@ export class AppMenu {
     {
       type: 'link',
       title: 'Working Tree',
-      path: '/worktree',
+      path: '/working-tree',
       icon: GitMerge
     },
     {

@@ -1,7 +1,7 @@
 /**
  * metadata-only 远端分支的首次物化 —— 走官方同步插件的生产装配路径。
  *
- * 命题：只装官方插件（history + sync + worktree），**一次都不手工登记物化来源**：
+ * 命题：只装官方插件（history + sync + working-tree），**一次都不手工登记物化来源**：
  *
  * 1. `syncBranches()` 落下的 metadata-only 分支，第一次 `switchBranch()` 就被完整物化并切过去；
  * 2. 网络失败、sync scope 漂移、分页中断都以稳定的 `BranchNotMaterializedError` 收场，
@@ -33,7 +33,7 @@ import {
 } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
-import { BranchNotMaterializedError, rxDBPluginWorktree } from '@aiao/rxdb-plugin-worktree';
+import { BranchNotMaterializedError, rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import sqliteWasmAsyncUrl from '@subframe7536/sqlite-wasm/wasm-async?url&inline';
 import sqliteWasmUrl from '@subframe7536/sqlite-wasm/wasm?url&inline';
 import { firstValueFrom, Observable, of } from 'rxjs';
@@ -325,7 +325,7 @@ const openDatabase = async ({
   });
   rxdb.use(rxDBPluginHistory);
   rxdb.use(rxDBPluginSync);
-  rxdb.use(rxDBPluginWorktree);
+  rxdb.use(rxDBPluginWorkingTree);
   rxdb.adapter(
     LOCAL_ADAPTER,
     db =>
@@ -341,7 +341,7 @@ const openDatabase = async ({
   await rxdb.connect(LOCAL_ADAPTER);
   await rxdb.connect(REMOTE_ADAPTER);
   await rxdb.versionManager.getCurrentBranch();
-  if (enable) await rxdb.worktree.enable();
+  if (enable) await rxdb.workingTree.enable();
   return rxdb;
 };
 
@@ -442,7 +442,7 @@ const syncMetadataOnlyFeature = async (rxdb: RxDB): Promise<void> => {
   expect(feature, 'feature 分支没有落库').toMatchObject({ local: false, remote: true, activated: false });
 };
 
-describe('metadata-only 远端分支的首次物化（官方 sync + worktree 装配）', () => {
+describe('metadata-only 远端分支的首次物化（官方 sync + working-tree 装配）', () => {
   afterEach(async () => {
     memoFilter = VISIBLE_MEMOS;
     for (const rxdb of [...openDatabases]) await closeDatabase(rxdb);

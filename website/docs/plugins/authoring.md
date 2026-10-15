@@ -68,7 +68,7 @@ export class RxDBPluginExample extends RxDBPluginBase implements IRxDBPlugin {
 | --------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `capability`                | 能力名；非空且不含 `:`。同时是水位行归因与版本不匹配报错用的名字                                                 |
 | `version`                   | 能力版本；核心拿它写水位行、不比对                                                                               |
-| `packageSpecifier`          | 包说明符（如 `@aiao/rxdb-plugin-worktree`）；未认领守卫把它**原样报给用户**                                      |
+| `packageSpecifier`          | 包说明符（如 `@aiao/rxdb-plugin-working-tree`）；未认领守卫把它**原样报给用户**                                  |
 | `entities`                  | 系统表实体类；进核心的系统表身份集（`isSystemEntity()` 认得它们，跨包消费者不会当接入方数据）                    |
 | `createInitialRows`         | 新库建表那一刻写入的初始行                                                                                       |
 | `createMigrations`          | 既有库的引导迁移；与核心系统迁移并进**同一条链、同一张 `rxdb_migration`、同一把锁**，名字必须是 `NNNN-` 数字前缀 |
@@ -83,7 +83,7 @@ export class RxDBPluginExample extends RxDBPluginBase implements IRxDBPlugin {
 
 `install()` 对这类插件往往是空的：入口在构造时挂、表与迁移经 `system` 由宿主在建表那一刻编排，两者都早于 `install()`。仍然声明 `lifecycle = 'scoped'`——它表示「不要调 `destroy()`」，与登记了几条无关。
 
-内置范例：`@aiao/rxdb-plugin-worktree` 是当前唯一的系统贡献插件，见[工作树与提交历史插件](rxdb-plugin-worktree/README.md)。
+内置范例：`@aiao/rxdb-plugin-working-tree` 是当前唯一的系统贡献插件，见[工作树与提交历史插件](rxdb-plugin-working-tree/README.md)。
 
 ## 在作用域上登记
 

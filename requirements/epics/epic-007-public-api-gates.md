@@ -48,7 +48,6 @@ epic-001～006 都以**产品能力**分组（核心引擎、同步、UI、平�
 
 > 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
 
-- [US-309 工作树插件改名 rxdb-plugin-worktree](../stories/plugin/US-309-worktree-rename.md) (Medium)
 - [US-601 子路径入口纳入 API 表面基线](../stories/tooling/US-601-subpath-api-surface-baseline.md) (Medium)
 - [US-602 发布产物面向 AI 的可理解性](../stories/tooling/US-602-ai-comprehensible-artifacts.md) (Medium)
 

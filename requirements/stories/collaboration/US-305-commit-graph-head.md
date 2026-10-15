@@ -72,7 +72,7 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 - 上述前置**已满足**：重生成的规格集（`git show f9528e8f:specs/001-working-tree-commits/<文件>` 取回）里，
   `data-model.md` 与 `quickstart.md` 对 `RxDBIndexState` / `RxDBIndexEntry` 零命中，`index_dependency_cycle`
   只剩 `data-model.md` 一行「已裁撤」，v1 的无暂存区模型已就位。两个阶段随后由其 `tasks.md` 的 T022～T045 落地，实现全部落在
-  `packages/rxdb-plugin-worktree/`，6 个本地后端各有 `workingTreeCommitConformanceSuite` 的实际调用点。
+  `packages/rxdb-plugin-working-tree/`，6 个本地后端各有 `workingTreeCommitConformanceSuite` 的实际调用点。
   两阶段 ✅：代码已完成，收尾三道（T130 全矩阵回归 / T131 quickstart 十场景 / T132 性能门禁）已全部关闭——
   T130 那 6 条同形红判定为套件断言与 FR-017 相反（`createBranch(branchId)` 按规格就该共享当前 HEAD），
   按规格收紧断言后 6 后端 5031 条零失败；T132 已随 reference 重新冻结复跑 ✓ PASS（四项 ratio 均 ≤110%）。
@@ -323,15 +323,15 @@ Commit 记录 `originBranchId` 表示创建位置，不表示节点只属于该�
 
 ## 实现文件
 
-| 路径                                                  | 阶段 | 用途                                                                                                                                                                |
-| ----------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `packages/rxdb-plugin-worktree/src/commit/`           | A    | commit 图、HEAD 与分支引用（`write-commit.ts`、`commit-log.ts`、`commit-graph-guard.ts`）                                                                           |
-| `packages/rxdb-plugin-worktree/src/commit/`           | A    | commit 元数据表（`commit.entity.ts`、`commit-branch-ref.entity.ts`、`commit-change-set.entity.ts`）                                                                 |
-| `packages/rxdb-plugin-worktree/src/`                  | B    | 首次启用迁移、baseline、`WorkingTreeActivationState`（`commit/enable-migration.ts`、`migrations/0004-working-tree-commits.ts`、`working-tree/activation-state.ts`） |
-| `packages/rxdb/src/system/migration.ts`               | B    | `RXDB_SYSTEM_SCHEMA_VERSION` 抬升与迁移登记（常量在核心，本故事只抬号登记）                                                                                         |
-| `requirements/migration-release.json`                 | B    | `kind=migration`、bridge 锚点与 `oldBundlePolicy` 回填                                                                                                              |
-| `packages/rxdb-plugin-worktree/src/__tests__/`        | A/B  | 核心回归套件                                                                                                                                                        |
-| `requirements/api-baseline/rxdb-plugin-worktree.json` | A/B  | 新增公开类型登记                                                                                                                                                    |
+| 路径                                                      | 阶段 | 用途                                                                                                                                                                |
+| --------------------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `packages/rxdb-plugin-working-tree/src/commit/`           | A    | commit 图、HEAD 与分支引用（`write-commit.ts`、`commit-log.ts`、`commit-graph-guard.ts`）                                                                           |
+| `packages/rxdb-plugin-working-tree/src/commit/`           | A    | commit 元数据表（`commit.entity.ts`、`commit-branch-ref.entity.ts`、`commit-change-set.entity.ts`）                                                                 |
+| `packages/rxdb-plugin-working-tree/src/`                  | B    | 首次启用迁移、baseline、`WorkingTreeActivationState`（`commit/enable-migration.ts`、`migrations/0004-working-tree-commits.ts`、`working-tree/activation-state.ts`） |
+| `packages/rxdb/src/system/migration.ts`                   | B    | `RXDB_SYSTEM_SCHEMA_VERSION` 抬升与迁移登记（常量在核心，本故事只抬号登记）                                                                                         |
+| `requirements/migration-release.json`                     | B    | `kind=migration`、bridge 锚点与 `oldBundlePolicy` 回填                                                                                                              |
+| `packages/rxdb-plugin-working-tree/src/__tests__/`        | A/B  | 核心回归套件                                                                                                                                                        |
+| `requirements/api-baseline/rxdb-plugin-working-tree.json` | A/B  | 新增公开类型登记                                                                                                                                                    |
 
 ## 依赖与参考
 

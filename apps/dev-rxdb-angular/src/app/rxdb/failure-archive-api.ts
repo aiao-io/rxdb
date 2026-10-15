@@ -1,5 +1,5 @@
 import { IRxDBAdapter, RxDB } from '@aiao/rxdb';
-import { WorktreeCapabilityDisabledError } from '@aiao/rxdb-plugin-worktree';
+import { WorkingTreeCapabilityDisabledError } from '@aiao/rxdb-plugin-working-tree';
 import { createMainThreadIdbRxDB, DEMO_ADAPTER_NAME, DEMO_ENTITIES } from './demo-rxdb-config';
 import {
   businessTableNames,
@@ -24,7 +24,7 @@ export interface FailureArchiveRequest {
 }
 
 /** 工作树摘要：未启用提交能力时只有 `enabled: false`。 */
-export type WorktreeSummary =
+export type WorkingTreeSummary =
   | { readonly enabled: false }
   | {
       readonly enabled: true;
@@ -46,7 +46,7 @@ export type FailureArchivePageResult =
       readonly durationMs: number;
       /** 业务表行数，键为表名 */
       readonly tables: Record<string, number>;
-      readonly worktree: WorktreeSummary;
+      readonly workingTree: WorkingTreeSummary;
     }
   | { readonly ok: false; readonly dbName: string; readonly reason: FailureArchiveReason };
 
@@ -55,7 +55,7 @@ export interface DemoDbSnapshot {
   /** 全部结构 SQL，按对象名排序、换行拼接 */
   readonly schemaSql: string;
   readonly tables: Record<string, number>;
-  readonly worktree: WorktreeSummary;
+  readonly workingTree: WorkingTreeSummary;
 }
 
 /**
@@ -94,10 +94,10 @@ async function countBusinessTables(adapter: IRxDBAdapter): Promise<Record<string
   return tables;
 }
 
-async function readWorktree(rxdb: RxDB): Promise<WorktreeSummary> {
+async function readWorkingTree(rxdb: RxDB): Promise<WorkingTreeSummary> {
   try {
-    const status = await rxdb.worktree.status();
-    const log = await rxdb.worktree.listCommits({ limit: 1 });
+    const status = await rxdb.workingTree.status();
+    const log = await rxdb.workingTree.listCommits({ limit: 1 });
     return {
       enabled: true,
       branchId: log.branchId,
@@ -106,7 +106,7 @@ async function readWorktree(rxdb: RxDB): Promise<WorktreeSummary> {
       entryCount: status.entryCount
     };
   } catch (error) {
-    if (error instanceof WorktreeCapabilityDisabledError) return { enabled: false };
+    if (error instanceof WorkingTreeCapabilityDisabledError) return { enabled: false };
     throw error;
   }
 }
@@ -178,13 +178,13 @@ export function installFailureArchiveApi(primary: RxDB, options: { dbName: strin
       const adapter = await beforeDeadline(connecting, signal);
       stage = 'inspect';
       const tables = await beforeDeadline(countBusinessTables(adapter), signal);
-      const worktree = await beforeDeadline(readWorktree(secondary), signal);
+      const workingTree = await beforeDeadline(readWorkingTree(secondary), signal);
       stage = 'backup';
       const sink = createCappedSink(request.maxBytes);
       await adapter.backup(sink.stream, { signal, lockTimeoutMs: request.lockTimeoutMs });
       const bytes = sink.bytes();
       const durationMs = Math.round(performance.now() - started);
-      return { ok: true, dbName, base64: toBase64(bytes), bytes: bytes.byteLength, durationMs, tables, worktree };
+      return { ok: true, dbName, base64: toBase64(bytes), bytes: bytes.byteLength, durationMs, tables, workingTree };
     } catch (error) {
       return { ok: false, dbName, reason: toFailureArchiveReason(stage, error, signal) };
     } finally {
@@ -200,7 +200,7 @@ export function installFailureArchiveApi(primary: RxDB, options: { dbName: strin
     return {
       schemaSql: String(await firstCell(adapter, SCHEMA_SQL)),
       tables: await countBusinessTables(adapter),
-      worktree: await readWorktree(primary)
+      workingTree: await readWorkingTree(primary)
     };
   };
 

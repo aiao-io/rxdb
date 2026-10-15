@@ -2,7 +2,7 @@
  * @fileoverview PGlite 后端的提交侧一致性调用点（T043）。
  *
  * @remarks
- * 套件本体在 `@aiao/rxdb-plugin-worktree/testing`，六个 v1 后端各有一个这样的文件。**断言一律不写在这里**：
+ * 套件本体在 `@aiao/rxdb-plugin-working-tree/testing`，六个 v1 后端各有一个这样的文件。**断言一律不写在这里**：
  * 一旦某个后端在本地加一条「它自己的」断言，六份就开始各测各的，而这套套件存在的理由
  * 恰恰是「六个后端对同一组语义给出同一个答案」。这里只负责两件事：造一个已启用的库，
  * 以及在用例之间把它关掉。
@@ -26,8 +26,8 @@
 
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import { rxDBPluginWorktree } from '@aiao/rxdb-plugin-worktree';
-import { ConformanceNote, worktreeCommitConformanceSuite } from '@aiao/rxdb-plugin-worktree/testing';
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
+import { ConformanceNote, workingTreeCommitConformanceSuite } from '@aiao/rxdb-plugin-working-tree/testing';
 import { afterEach } from 'vitest';
 
 import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
@@ -39,7 +39,7 @@ afterEach(async () => {
   for (const database of pending) await database.disconnectAll();
 });
 
-worktreeCommitConformanceSuite({
+workingTreeCommitConformanceSuite({
   name: 'PGlite',
   createDatabase: async () => {
     const database = new RxDB({
@@ -51,10 +51,10 @@ worktreeCommitConformanceSuite({
     // 必须排在 `connect()` 之前：贡献系统能力的插件晚于 `init()` 注册会被核心当场拒绝
     // （系统表随建表一次建出，那时已经来不及），而 `connect()` 的第一步就是 `init()`。
     database.use(rxDBPluginHistory);
-    database.use(rxDBPluginWorktree);
+    database.use(rxDBPluginWorkingTree);
     opened.push(database);
     await database.connect('pglite');
-    await database.worktree.enable();
+    await database.workingTree.enable();
     return database;
   }
 });

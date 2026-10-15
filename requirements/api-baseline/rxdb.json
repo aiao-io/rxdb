@@ -810,10 +810,6 @@
         "kind": "type"
       },
       {
-        "name": "findSingleActiveBranch",
-        "kind": "value"
-      },
-      {
         "name": "Fingerprint",
         "kind": "type"
       },

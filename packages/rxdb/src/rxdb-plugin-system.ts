@@ -94,7 +94,7 @@ export interface RxDBBranchRemovalContext {
  * **字段的形状在核心，字段的含义在能力插件。** 核心一个字段都不读，原样转交
  * {@link RxDBSystemContribution.prepareBranchSwitch}——`requireClean` 的判据是
  * `WorkingTreeState.entryCount`、`expectedActivationRevision` 的判据是工作树的激活行，
- * 两张表都由 `@aiao/rxdb-plugin-worktree` 贡献，核心不认识它们。这与
+ * 两张表都由 `@aiao/rxdb-plugin-working-tree` 贡献，核心不认识它们。这与
  * {@link RxDBSystemContribution.version} 是同一个分工：核心搬运，插件解释。
  *
  * 那为什么不让插件自己声明类型？因为 `switchBranch()` 是**核心表面**的方法，它的入参得在
@@ -103,7 +103,7 @@ export interface RxDBBranchRemovalContext {
  * 依赖插件的类型）是条依赖环：nx 的图插件把静态 import 直接映射成依赖边。
  *
  * 写成类型别名而不是 `interface`：能力插件那侧要拿它当自己的领域类型再导出一次
- * （`WorktreeSwitchBranchOptions`），而那个名字上挂着一条「不多不少就这两个字段」的
+ * （`WorkingTreeSwitchBranchOptions`），而那个名字上挂着一条「不多不少就这两个字段」的
  * 类型层断言——别名让两边**只有一处声明**，于是那条断言同时看住了这里。
  */
 export type RxDBBranchSwitchPreconditions = {
@@ -242,7 +242,7 @@ export interface RxDBSystemContribution {
    */
   readonly version: number;
 
-  /** 包说明符，如 `@aiao/rxdb-plugin-worktree`；未认领时原样报给用户 */
+  /** 包说明符，如 `@aiao/rxdb-plugin-working-tree`；未认领时原样报给用户 */
   readonly packageSpecifier: string;
 
   /** 贡献的系统实体，顺序即建表顺序 */

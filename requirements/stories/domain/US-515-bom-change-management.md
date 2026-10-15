@@ -164,12 +164,12 @@ AC#4 的「不留半生效状态」需要同一事务边界：一次 ECN 取消�
 首轮切片没有 `ecn` 实体，`ecn_in_id` / `ecn_out_id` 恒空，上表无一可放行，US-507 AC#10 就是「全部拒绝」；
 本故事落地时只往触发器里**追加**上表的放行分支。
 
-**AC#2 的差异不能由 `@aiao/rxdb-plugin-worktree` 的 `diff()` 承担**，三条理由，
+**AC#2 的差异不能由 `@aiao/rxdb-plugin-working-tree` 的 `diff()` 承担**，三条理由，
 按 [CONVENTIONS 的病灶数 ≥ 抽象数](../../CONVENTIONS.md#价值待证) 这里必须说清，
 否则 `ecn` 看起来就是一个已有能力的重复抽象：
 
 1. **轴不对。** `WorkingTreeDiff` 的
-   [`WorktreeDiffOptions`](../../../packages/rxdb-plugin-worktree/src/working-tree/diff.ts)
+   [`WorkingTreeDiffOptions`](../../../packages/rxdb-plugin-working-tree/src/working-tree/diff.ts)
    键集是封闭的，文件头自述「只有一条轴，而且它没有入参」——左端恒为 `baseHeadCommitId`、
    右端恒为当前工作树，`from` / `to` / `ref` 被明确拒绝。AC#2 要的是「这个 ECN 生效前 ↔ 生效后」，
    是任意两点，不是 HEAD ↔ 工作树。
@@ -200,4 +200,4 @@ AC#4 的「不留半生效状态」需要同一事务边界：一次 ECN 取消�
 - [US-520 工艺路线挂接与工序投料分摊](US-520-bom-routing-operation.md) — 前置（AC#21 的工序分摊子表）；分摊合计校验（AC#4 / #10）接入同一入口，`bom_line_operation_split` 在表 × 操作矩阵里
 - [US-510 多级展开与 where-used 反查](US-510-bom-multilevel-explosion.md) — 前置；AC#1 影响面
 - [US-523 as-built / as-maintained 实例 BOM](US-523-bom-as-built-instance.md) — 下游约束：ECN 引入的发生项被实例引用时不可撤回、不可取消（AC#7），在本故事的取消校验上追加
-- [`WorktreeDiffOptions`](../../../packages/rxdb-plugin-worktree/src/working-tree/diff.ts) — 单轴 diff 的证据锚点
+- [`WorkingTreeDiffOptions`](../../../packages/rxdb-plugin-working-tree/src/working-tree/diff.ts) — 单轴 diff 的证据锚点

@@ -32,10 +32,10 @@
   "include": ["src/**/*.js", "src/**/*.jsx", "src/**/*.ts", "src/**/*.tsx"],
   "references": [
     {
-      "path": "../../packages/rxdb-plugin-worktree-react/tsconfig.lib.json"
+      "path": "../../packages/rxdb-plugin-working-tree-react/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-plugin-worktree/tsconfig.lib.json"
+      "path": "../../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-adapter-sqlite-core/tsconfig.lib.json"

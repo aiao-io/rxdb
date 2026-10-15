@@ -51,7 +51,7 @@
         "command": "node --experimental-strip-types non-encrypted-hot-path.bench.ts"
       }
     },
-    "bench-worktree": {
+    "bench-working-tree": {
       "executor": "nx:run-commands",
       "dependsOn": ["typecheck", "^build"],
       "options": {

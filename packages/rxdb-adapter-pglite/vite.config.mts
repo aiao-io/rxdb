@@ -30,7 +30,7 @@ export default defineConfig(() => {
         '@aiao/rxdb-adapter-encrypted': path.resolve(workspaceRoot, 'packages/rxdb-adapter-encrypted/src/index.ts'),
         // `./testing` 必须排在裸 `@aiao/rxdb` 之前：alias 按 `/` 边界前缀匹配，
         // 反过来 `@aiao/rxdb/testing` 会被改写成 `.../src/index.ts/testing`（`Not a directory`）。
-        // 同下方 `@aiao/rxdb-plugin-worktree` 与 `@aiao/rxdb-test` 两处的排序理由。
+        // 同下方 `@aiao/rxdb-plugin-working-tree` 与 `@aiao/rxdb-test` 两处的排序理由。
         '@aiao/rxdb/testing': path.resolve(workspaceRoot, 'packages/rxdb/src/testing.ts'),
         '@aiao/rxdb': path.resolve(workspaceRoot, 'packages/rxdb/src/index.ts'),
         // 插件包的两条都必须显式指向源码，缺一条就是**同一份代码被装载两次**。
@@ -39,15 +39,15 @@ export default defineConfig(() => {
         // `resolve.tsconfigPaths` 对它们失效（六个跑一致性套件的适配器里只有本包这样）。
         // 退回 node 解析后两条子路径分道扬镳：`.` 按仓库惯例不带 `@aiao/source` 条件 → dist，
         // `./testing` 带 → src。症状不是报错而是**类身份对不上**：`hook instanceof
-        // WorktreeCaptureRuntime` 为假、`toBeInstanceOf(BranchNotMaterializableError)` 为假、
+        // WorkingTreeCaptureRuntime` 为假、`toBeInstanceOf(BranchNotMaterializableError)` 为假、
         // 以及实体类两份导致 `instantiate()` 抛 `need init rxdb`。
         // 子路径必须排在裸说明符之前：alias 按 `/` 边界前缀匹配，反过来会被改写成
         // `.../src/index.ts/testing`（同下方 `@aiao/rxdb-test` 那条兜底注释）。
-        '@aiao/rxdb-plugin-worktree/testing': path.resolve(
+        '@aiao/rxdb-plugin-working-tree/testing': path.resolve(
           workspaceRoot,
-          'packages/rxdb-plugin-worktree/src/working-tree/testing/index.ts'
+          'packages/rxdb-plugin-working-tree/src/working-tree/testing/index.ts'
         ),
-        '@aiao/rxdb-plugin-worktree': path.resolve(workspaceRoot, 'packages/rxdb-plugin-worktree/src/index.ts'),
+        '@aiao/rxdb-plugin-working-tree': path.resolve(workspaceRoot, 'packages/rxdb-plugin-working-tree/src/index.ts'),
         '@aiao/utils': path.resolve(workspaceRoot, 'packages/utils/src/index.ts'),
         '@aiao/rxdb-test/encrypted': path.resolve(workspaceRoot, 'packages/rxdb-test/src/encrypted/index.ts'),
         '@aiao/rxdb-test/check-constraint': path.resolve(

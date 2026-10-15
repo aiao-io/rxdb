@@ -7,7 +7,7 @@
  * - `recording_db_unavailable`：录制库工厂抛错，或它返回的库连不上；`cause` 是原错误，下一次调用会重新调用工厂。
  * - `session_not_found`：给出的会话 id 在录制库里不存在。
  * - `session_recording`：要删除的会话正在录制，先 `stop()`。
- * - `working_tree_unavailable`：没有安装 `@aiao/rxdb-plugin-worktree`，无从恢复到 commit。
+ * - `working_tree_unavailable`：没有安装 `@aiao/rxdb-plugin-working-tree`，无从恢复到 commit。
  * - `invalid_marker`：事件的 tag 是本插件的标记，但 payload 形状不对（数据被外部改过）。
  * - `not_installed`：插件没安装，或安装它的连接纪元已经释放。
  */

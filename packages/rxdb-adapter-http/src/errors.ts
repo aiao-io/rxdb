@@ -6,7 +6,7 @@
  * **判别位是类名，不是 `code`**（US-212「新错误的判别口径」）。仓库里并存三套口径：
  * 主流按 `name` 判别（core 5 个错误类、supabase 全部错误类），supabase 附带 UPPER_SNAKE
  * 的 `code` 作辅助，而 snake_case `code` 作主判别位的只有 epic-006 那一组——九个常量登记在
- * `@aiao/rxdb-plugin-worktree` 的 `commit/commit-error-codes.ts`（**不在** `@aiao/rxdb` 里，
+ * `@aiao/rxdb-plugin-working-tree` 的 `commit/commit-error-codes.ts`（**不在** `@aiao/rxdb` 里，
  * 那两个目录随插件搬走了）。core 的 `RxDBMixedVersionedCacheTransactionError.code`
  * （`mixed_versioned_cache_transaction`）是同一口径，但它早于码表存在，至今写的是裸字面量。
  * 那组码保护着一条跨故事契约，**成员只能在该模块里增加**；本包照抄它的形态

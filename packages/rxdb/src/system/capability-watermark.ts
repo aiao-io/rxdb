@@ -13,7 +13,7 @@
  * （「这个库上已经发生过什么」），共用那条唯一索引就直接得到了幂等与并发仲裁；
  * 新开表则要自己再造一遍，还得先有一次迁移才能把表建出来——而守卫恰恰要在迁移之前跑。
  *
- * 行名形如 `__rxdb_capability__:workingTree:1:@aiao/rxdb-plugin-worktree`。
+ * 行名形如 `__rxdb_capability__:workingTree:1:@aiao/rxdb-plugin-working-tree`。
  * 第三段是**包说明符**，由插件自己写进去；守卫据此产出可直接执行的报错
  * （`pnpm add <包名>`），于是第三方插件不需要核心认识它就能给出一样有用的提示。
  */
@@ -35,7 +35,7 @@ export interface RxDBCapabilityClaim {
   /** 能力版本，正整数；比对由认领方自己负责（核心只管「有没有人认领」） */
   readonly version: number;
 
-  /** 包说明符，如 `@aiao/rxdb-plugin-worktree`；未认领时原样报给用户 */
+  /** 包说明符，如 `@aiao/rxdb-plugin-working-tree`；未认领时原样报给用户 */
   readonly packageSpecifier: string;
 }
 

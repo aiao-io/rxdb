@@ -25,7 +25,7 @@
  * `controlP95` 会有零点几毫秒的差别，而那正是本该留在各自 ratio 里的那部分漂移。
  *
  * **每个 sample 之前在计时外恢复 fixture**（契约 §1「恢复时机」），恢复动作见
- * {@link restoreWorktreeFixture}。`restore` 是唯一的例外形状：它的前置只清场、不写那
+ * {@link restoreWorkingTreeFixture}。`restore` 是唯一的例外形状：它的前置只清场、不写那
  * 100 个未提交单元，因为契约 §3.2 给它的口径是「从 **clean HEAD** 恢复 `HEAD~1`」，
  * 而工作树不干净时 `restore()` 压根不会开始干活（`dirty_working_tree`）。
  *
@@ -62,24 +62,29 @@ import { dirname } from 'node:path';
 import type { IRxDBAdapter, RxDBAdapterLocalBase, UUID } from '@aiao/rxdb';
 import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
-import { WORKTREE_CONFORMANCE_USER_ID } from '@aiao/rxdb-plugin-worktree/testing';
+import { WORKING_TREE_CONFORMANCE_USER_ID } from '@aiao/rxdb-plugin-working-tree/testing';
 import { firstValueFrom } from 'rxjs';
 
 import { summarise } from './bench-stats.ts';
-import type { WorktreeFixturePlan } from './working-tree-fixture.ts';
+import type { WorkingTreeFixturePlan } from './working-tree-fixture.ts';
 import {
-  buildWorktreeFixturePlan,
+  buildWorkingTreeFixturePlan,
   captureFixtureCredentials,
-  clearWorktreeFixture,
-  createWorktreeFixtureDatabase,
+  clearWorkingTreeFixture,
+  createWorkingTreeFixtureDatabase,
   fixtureCommitOptions,
   fixtureUpdateTitle,
-  restoreWorktreeFixture,
-  seedWorktreeFixture
+  restoreWorkingTreeFixture,
+  seedWorkingTreeFixture
 } from './working-tree-fixture.ts';
 import type { RatioVerdict, RelativeGateDecision } from './working-tree-gate.ts';
 import { collectEnvironment, decideRelativeGate, readReferences, selectReference } from './working-tree-gate.ts';
-import type { BenchEnvironment, BenchMeasurement, BenchReference, WorktreeBenchReport } from './working-tree-report.ts';
+import type {
+  BenchEnvironment,
+  BenchMeasurement,
+  BenchReference,
+  WorkingTreeBenchReport
+} from './working-tree-report.ts';
 import {
   ABSOLUTE_BUDGET_MS,
   ENVIRONMENT_MISMATCH_CODE,
@@ -164,7 +169,7 @@ const CONTROL_SEED_BATCH = 500;
  * @remarks
  * 只注册 {@link BenchControlNoteBase} 一个实体，一个插件都不 `use()`：control 要量的是
  * 「这台机器上，普通 CRUD 碰 100 个实体要多久」。装上工作树插件（哪怕不 `enable()`）
- * 会多出插件的系统表与一层引导事务，而那些都不属于「普通 CRUD」。
+ * 会多出 10 张系统表与一层引导事务，而那些都不属于「普通 CRUD」。
  *
  * 灌数据走 `adapter.transaction(ex => ex.saveMany(batch))` 而不是逐行 `entityManager.save()`：
  * 后者是 10,000 个事务，建库要几十秒，而这段耗时既不进报告也不该拖慢门禁。
@@ -173,10 +178,10 @@ const CONTROL_SEED_BATCH = 500;
  * 行宽必须一样，否则 control 搬的字节数与被测搬的对不上，ratio 就不再是「同样的数据量下
  * 贵多少」。
  */
-const createControlDatabase = async (plan: WorktreeFixturePlan): Promise<ControlDatabase> => {
+const createControlDatabase = async (plan: WorkingTreeFixturePlan): Promise<ControlDatabase> => {
   const database = new RxDB({
-    dbName: `worktree-bench-control-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-    context: { userId: WORKTREE_CONFORMANCE_USER_ID },
+    dbName: `working-tree-bench-control-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    context: { userId: WORKING_TREE_CONFORMANCE_USER_ID },
     entities: [BenchControlNote],
     sync: { local: { adapter: 'pglite' }, type: SyncType.None }
   });
@@ -247,7 +252,7 @@ const sampleControlRead = async (control: ControlDatabase, ids: readonly UUID[])
  */
 const sampleControlWrite = async (
   control: ControlDatabase,
-  plan: WorktreeFixturePlan,
+  plan: WorkingTreeFixturePlan,
   revision: number
 ): Promise<number> => {
   const ids = plan.uncommittedUpdates.map(update => update.id);
@@ -296,7 +301,7 @@ type RoundPreparer = (revision: number) => Promise<void>;
  * @returns 见 {@link BenchMeasurement}
  *
  * @remarks
- * 前置收成参数而不是在这里直接调 `restoreWorktreeFixture()`：契约 §1 要求的是「每个
+ * 前置收成参数而不是在这里直接调 `restoreWorkingTreeFixture()`：契约 §1 要求的是「每个
  * sample 前在计时外恢复**同一** fixture」，而「同一」对不同测点落在不同状态上——
  * `status` / `diff` / `commit` 要的是「100 个未提交单元」，`restore` 要的是
  * 「clean HEAD」（契约 §3.2 的 SC-004 口径）。写死一种的话，`restore` 每轮都会先被写脏
@@ -319,7 +324,7 @@ const runMeasurement = async (
 ): Promise<BenchMeasurement> => {
   const measuredSamples: number[] = [];
   const controlSamples: number[] = [];
-  process.stdout.write(`[bench:worktree] ${id} `);
+  process.stdout.write(`[bench:working-tree] ${id} `);
   for (let round = 0; round < WARMUP + SAMPLES; round++) {
     const revision = nextRevision++;
     await prepare(revision);
@@ -354,7 +359,7 @@ const runMeasurement = async (
  * `HEAD^2`。fixture 里没有合并节点，但这个函数不该靠那件事成立。
  */
 const resolveHeadParentCommitId = async (database: RxDB): Promise<string> => {
-  const log = await database.worktree.listCommits();
+  const log = await database.workingTree.listCommits();
   const head = log.entries.find(entry => entry.commitId === log.headCommitId);
   if (!head) throw new Error(`历史里找不到 HEAD（${String(log.headCommitId)}）`);
   if (head.firstParentId === null) throw new Error('HEAD 是根节点，没有 HEAD~1 可恢复');
@@ -382,14 +387,14 @@ const resolveHeadParentCommitId = async (database: RxDB): Promise<string> => {
  * 被拒出口也必须炸而不是记成一个很快的样本：`dirty_working_tree` 之类的拒绝只要几毫秒，
  * 一旦前置失灵，这一项会以「快了两个数量级」的姿态绿着过门禁。
  */
-const buildRestoreSampler = async (database: RxDB, plan: WorktreeFixturePlan): Promise<MeasuredSampler> => {
+const buildRestoreSampler = async (database: RxDB, plan: WorkingTreeFixturePlan): Promise<MeasuredSampler> => {
   const commitId = await resolveHeadParentCommitId(database);
   return async revision => {
     const credentials = await captureFixtureCredentials(database);
     let restoredCount = -1;
     let rejectedBecause = '';
     const elapsed = await timed(async () => {
-      const result = await database.worktree.restore({ commitId }, credentials);
+      const result = await database.workingTree.restore({ commitId }, credentials);
       if (result.ok) restoredCount = result.restoredCount;
       else rejectedBecause = result.reason;
     });
@@ -425,28 +430,28 @@ const buildRestoreSampler = async (database: RxDB, plan: WorktreeFixturePlan): P
 const runMeasurements = async (
   database: RxDB,
   control: ControlDatabase,
-  plan: WorktreeFixturePlan
+  plan: WorkingTreeFixturePlan
 ): Promise<BenchMeasurement[]> => {
-  const restoreFixture: RoundPreparer = revision => restoreWorktreeFixture(database, plan, revision);
+  const restoreFixture: RoundPreparer = revision => restoreWorkingTreeFixture(database, plan, revision);
   const ids = plan.uncommittedUpdates.map(update => update.id);
 
   const status = await runMeasurement(
     'status',
     restoreFixture,
     CONTROL_READ,
-    () => timed(() => database.worktree.status()),
+    () => timed(() => database.workingTree.status()),
     () => sampleControlRead(control, ids)
   );
   const diff = await runMeasurement(
     'diff',
     restoreFixture,
     CONTROL_READ,
-    () => timed(() => database.worktree.diff()),
+    () => timed(() => database.workingTree.diff()),
     () => sampleControlRead(control, ids)
   );
   const restore = await runMeasurement(
     'restore',
-    () => clearWorktreeFixture(database),
+    () => clearWorkingTreeFixture(database),
     CONTROL_WRITE,
     await buildRestoreSampler(database, plan),
     revision => sampleControlWrite(control, plan, revision)
@@ -459,7 +464,7 @@ const runMeasurements = async (
       const options = await fixtureCommitOptions(database, `bench-commit-${revision}`);
       let ok = false;
       const elapsed = await timed(async () => {
-        const result = await database.worktree.commit(`bench commit ${revision}`, options);
+        const result = await database.workingTree.commit(`bench commit ${revision}`, options);
         ok = result.ok;
       });
       if (!ok) throw new Error(`第 ${revision} 轮提交冲突：单线程 benchmark 里出现 CAS 冲突只可能是实现缺陷`);
@@ -480,7 +485,7 @@ const runMeasurements = async (
  * @param verdicts - 同画像 reference 下的逐项判定
  */
 const printRelativeVerdicts = (verdicts: readonly RatioVerdict[]): void => {
-  console.log('\n[bench:worktree] === 相对门禁（PR CI 唯一硬门禁）===');
+  console.log('\n[bench:working-tree] === 相对门禁（PR CI 唯一硬门禁）===');
   for (const verdict of verdicts) {
     if (verdict.referenceRatio === null) {
       console.log(`  [${verdict.id}] reference 里没有这一项 → ✗ FAIL（新增测点必须先重新冻结 reference）`);
@@ -510,13 +515,13 @@ const printRelativeVerdicts = (verdicts: readonly RatioVerdict[]): void => {
  */
 const printProfileMismatch = (decision: Extract<RelativeGateDecision, { kind: 'mismatch' }>): void => {
   console.error(
-    `\n[bench:worktree] ${ENVIRONMENT_MISMATCH_CODE}: 本机画像「${decision.profile}」没有冻结的 reference。\n` +
-      `[bench:worktree] 已冻结的画像：${decision.known.map(profile => `「${profile}」`).join('、')}\n` +
-      '[bench:worktree] ratio 只在同画像内可比，相对门禁不在此机上评估，也不降级为通过。\n' +
-      '[bench:worktree] CI 偶然分到新型号：先重跑该 job 一次；同一型号反复出现再补冻（契约 §3.1）。\n' +
-      '[bench:worktree] 补冻（所在提交须先在已冻结画像上过相对门禁）：\n' +
-      '[bench:worktree]   CI：推注解 tag `git tag -a bench-freeze/<日期> -m "理由"`，或手动触发 bench-freeze workflow；\n' +
-      '[bench:worktree]   本机：node --experimental-strip-types benchmarks/freeze-working-tree-reference.ts --new-profile "理由"'
+    `\n[bench:working-tree] ${ENVIRONMENT_MISMATCH_CODE}: 本机画像「${decision.profile}」没有冻结的 reference。\n` +
+      `[bench:working-tree] 已冻结的画像：${decision.known.map(profile => `「${profile}」`).join('、')}\n` +
+      '[bench:working-tree] ratio 只在同画像内可比，相对门禁不在此机上评估，也不降级为通过。\n' +
+      '[bench:working-tree] CI 偶然分到新型号：先重跑该 job 一次；同一型号反复出现再补冻（契约 §3.1）。\n' +
+      '[bench:working-tree] 补冻（所在提交须先在已冻结画像上过相对门禁）：\n' +
+      '[bench:working-tree]   CI：推注解 tag `git tag -a bench-freeze/<日期> -m "理由"`，或手动触发 bench-freeze workflow；\n' +
+      '[bench:working-tree]   本机：node --experimental-strip-types benchmarks/freeze-working-tree-reference.ts --new-profile "理由"'
   );
 };
 
@@ -540,7 +545,7 @@ const evaluateAbsoluteGate = (
   reference: BenchReference,
   environment: BenchEnvironment
 ): boolean => {
-  console.log('\n[bench:worktree] === 绝对门禁（仅发布）===');
+  console.log('\n[bench:working-tree] === 绝对门禁（仅发布）===');
   if (environment.runnerProfileHash !== reference.runnerProfileHash) {
     console.error(
       `  ${ENVIRONMENT_MISMATCH_CODE}: 本机 profile ${environment.runnerProfileHash.slice(0, 12)} ` +
@@ -575,10 +580,10 @@ const evaluateAbsoluteGate = (
 // ---------------------------------------------------------------------------
 
 /** 把报告写进 {@link LATEST_PATH}。 */
-const archiveReport = async (report: WorktreeBenchReport): Promise<void> => {
+const archiveReport = async (report: WorkingTreeBenchReport): Promise<void> => {
   await mkdir(dirname(LATEST_PATH), { recursive: true });
   await writeFile(LATEST_PATH, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
-  console.log(`\n[bench:worktree] 报告已写入 → ${LATEST_PATH}`);
+  console.log(`\n[bench:working-tree] 报告已写入 → ${LATEST_PATH}`);
 };
 
 /**
@@ -586,21 +591,21 @@ const archiveReport = async (report: WorktreeBenchReport): Promise<void> => {
  *
  * @param references - 已冻结的全部 reference；报告里只记与本机同画像的那一份
  */
-const runBenchmark = async (references: readonly BenchReference[]): Promise<WorktreeBenchReport> => {
+const runBenchmark = async (references: readonly BenchReference[]): Promise<WorkingTreeBenchReport> => {
   const environment = collectEnvironment();
-  console.log(`[bench:worktree] ${environment.runtime} / ${environment.cpuModel} / ${environment.os}`);
-  console.log(`[bench:worktree] ratioProfile=${environment.ratioProfile}`);
-  console.log(`[bench:worktree] runnerProfileHash=${environment.runnerProfileHash}`);
+  console.log(`[bench:working-tree] ${environment.runtime} / ${environment.cpuModel} / ${environment.os}`);
+  console.log(`[bench:working-tree] ratioProfile=${environment.ratioProfile}`);
+  console.log(`[bench:working-tree] runnerProfileHash=${environment.runnerProfileHash}`);
 
-  const plan = buildWorktreeFixturePlan();
-  console.log(`[bench:worktree] fixture contentHash=${plan.contentHash}`);
+  const plan = buildWorkingTreeFixturePlan();
+  console.log(`[bench:working-tree] fixture contentHash=${plan.contentHash}`);
 
-  console.log('[bench:worktree] 建对照库（无工作树插件，同规模 10,000 行）…');
+  console.log('[bench:working-tree] 建对照库（无工作树插件，同规模 10,000 行）…');
   const control = await createControlDatabase(plan);
 
-  console.log('[bench:worktree] 建被测库并灌 fixture（100 次提交，耗时以分钟计）…');
-  const database = await createWorktreeFixtureDatabase();
-  await seedWorktreeFixture(database, plan);
+  console.log('[bench:working-tree] 建被测库并灌 fixture（100 次提交，耗时以分钟计）…');
+  const database = await createWorkingTreeFixtureDatabase();
+  await seedWorkingTreeFixture(database, plan);
 
   const measurements = await runMeasurements(database, control, plan);
   await database.disconnectAll();
@@ -629,7 +634,7 @@ const gatingDisabled = process.argv.includes('--no-gate');
 const references = await readReferences(REFERENCE_DIR);
 const report = await runBenchmark(references);
 
-console.log('\n[bench:worktree] === 测量 ===');
+console.log('\n[bench:working-tree] === 测量 ===');
 for (const measurement of report.measurements) {
   console.log(
     `  [${measurement.id}] p50=${measurement.p50.toFixed(2)}ms p95=${measurement.p95.toFixed(2)}ms ` +
@@ -644,21 +649,21 @@ if (gatingDisabled) {
   // 冻结跑的就是「还没有 reference」那一刻的场景，而 reference 文件此刻可能已经存在
   // （重新冻结）。不跳过的话，第一次跑就会拿旧 reference 判定新基线——正是 §3.1 禁止的
   // 「失败后重算基线」的镜像。
-  console.log('\n[bench:worktree] --no-gate：只产出数字，不做门禁判定。');
+  console.log('\n[bench:working-tree] --no-gate：只产出数字，不做门禁判定。');
   process.exit(0);
 }
 
 const decision = decideRelativeGate(references, report.environment.ratioProfile, report.measurements);
 if (decision.kind === 'unfrozen') {
   console.log(
-    '\n[bench:worktree] 还没有冻结的 reference（reports/working-tree-reference/）——' +
+    '\n[bench:working-tree] 还没有冻结的 reference（reports/working-tree-reference/）——' +
       '本次只产出数字，不做门禁判定。冻结用 benchmarks/freeze-working-tree-reference.ts。'
   );
   process.exit(0);
 }
 if (decision.kind === 'mismatch') {
   printProfileMismatch(decision);
-  console.log('\n[bench:worktree] 总判定：✗ FAIL');
+  console.log('\n[bench:working-tree] 总判定：✗ FAIL');
   process.exit(1);
 }
 
@@ -666,8 +671,8 @@ printRelativeVerdicts(decision.verdicts);
 const relativePassed = decision.passed;
 const absolutePassed =
   releaseMode ? evaluateAbsoluteGate(report.measurements, decision.reference, report.environment) : true;
-if (!releaseMode) console.log('\n[bench:worktree] 绝对门禁未评估（非 --release）。');
+if (!releaseMode) console.log('\n[bench:working-tree] 绝对门禁未评估（非 --release）。');
 
 const overall = relativePassed && absolutePassed;
-console.log(`\n[bench:worktree] 总判定：${overall ? '✓ PASS' : '✗ FAIL'}`);
+console.log(`\n[bench:working-tree] 总判定：${overall ? '✓ PASS' : '✗ FAIL'}`);
 if (!overall) process.exit(1);

@@ -2,7 +2,7 @@
  * @fileoverview sqlite-wasm 后端的捕获侧一致性调用点（T068）。
  *
  * @remarks
- * 套件本体在 `@aiao/rxdb-plugin-worktree/testing`，六个 v1 后端各有一个这样的文件。**断言一律不写在这里**：
+ * 套件本体在 `@aiao/rxdb-plugin-working-tree/testing`，六个 v1 后端各有一个这样的文件。**断言一律不写在这里**：
  * 一旦某个后端在本地加一条「它自己的」断言，六份就开始各测各的，而这套套件存在的理由
  * 恰恰是「六个后端对同一组语义给出同一个答案」。
  *
@@ -14,13 +14,13 @@
  * 命题决定的，而且后两处同出一源——清单里那个 `SyncType.QueryCache` 实体：
  *
  * 1. **`entities` 必须注册整份清单。**「捕获是否完备」是关于业务写的命题，少一个实体就少一整
- *    类断言。清单由套件自己导出（{@link WORKTREE_CONFORMANCE_ENTITIES}），六个调用点原样
+ *    类断言。清单由套件自己导出（{@link WORKING_TREE_CONFORMANCE_ENTITIES}），六个调用点原样
  *    注册同一份——各写各的实体就等于各测各的语义。提交侧只取其中的 `ConformanceNote`，而且一次
  *    都不写它（理由见那边的 fileoverview）。
  * 2. **`remoteAdapter` 必须给。** 那个实体（untracked 域的第一类）让 `missingQueryCacheAdapter`
  *    校验生效，而它读的是**库级** sync 的两侧；少一侧，`EntityManager.init()` 直接拒绝建库。
  *    这个名字下不会有适配器被注册，也不需要：`remoteAdapter$` 是惰性的，`connect()` 与
- *    `worktree.enable()` 都不会去订阅它。
+ *    `workingTree.enable()` 都不会去订阅它。
  * 3. **`plugins` 里必须多装三个。** US-025 把 QueryCache 的两半都拆了出去，核心只留槽位：
  *    读引擎在 {@link rxDBPluginQueryCache}，出站队列在 {@link rxDBPluginSync}
  *    （`query-cache-outbox.interface.ts` 的结论——「一个 QueryCache 实体要两个插件」）。任一
@@ -44,12 +44,12 @@ import type { AdapterCleanupTarget } from '@aiao/rxdb-adapter-sqlite-core/testin
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginQueryCache } from '@aiao/rxdb-plugin-querycache';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
-import { rxDBPluginWorktree } from '@aiao/rxdb-plugin-worktree';
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import {
-  WORKTREE_CONFORMANCE_ENTITIES,
-  WORKTREE_CONFORMANCE_REMOTE_ADAPTER,
-  worktreeCaptureConformanceSuite
-} from '@aiao/rxdb-plugin-worktree/testing';
+  WORKING_TREE_CONFORMANCE_ENTITIES,
+  WORKING_TREE_CONFORMANCE_REMOTE_ADAPTER,
+  workingTreeCaptureConformanceSuite
+} from '@aiao/rxdb-plugin-working-tree/testing';
 import { afterEach } from 'vitest';
 
 import { sqliteWasmFactory } from './sqlite-wasm-factory.js';
@@ -64,16 +64,16 @@ afterEach(async () => {
   }
 });
 
-worktreeCaptureConformanceSuite({
+workingTreeCaptureConformanceSuite({
   name: 'sqlite-wasm',
   createDatabase: async (): Promise<RxDB> => {
     const adapter = await sqliteWasmFactory.createAdapter<AdapterCleanupTarget>({
-      entities: [...WORKTREE_CONFORMANCE_ENTITIES],
-      plugins: [rxDBPluginWorktree, rxDBPluginQueryCache, rxDBPluginSync, rxDBPluginHistory],
-      remoteAdapter: WORKTREE_CONFORMANCE_REMOTE_ADAPTER
+      entities: [...WORKING_TREE_CONFORMANCE_ENTITIES],
+      plugins: [rxDBPluginWorkingTree, rxDBPluginQueryCache, rxDBPluginSync, rxDBPluginHistory],
+      remoteAdapter: WORKING_TREE_CONFORMANCE_REMOTE_ADAPTER
     });
     opened.push(adapter);
-    await adapter.rxdb.worktree.enable();
+    await adapter.rxdb.workingTree.enable();
     return adapter.rxdb;
   }
 });

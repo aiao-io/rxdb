@@ -2,7 +2,7 @@
  * scripts/audit/working-tree-suite-callsites.mjs
  *
  * 工作树一致性套件的**调用点**门禁：6 个 v1 适配器包各自都必须实际调用
- * `worktreeCaptureConformanceSuite` 与 `worktreeCommitConformanceSuite` 两套套件，
+ * `workingTreeCaptureConformanceSuite` 与 `workingTreeCommitConformanceSuite` 两套套件，
  * 缺一即失败（`git show f9528e8f:specs/001-working-tree-commits/contracts/conformance-suites.md` §0、SC-006）。
  *
  * 触发路径：`pnpm audit:suite-callsites`。
@@ -33,12 +33,12 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 /** 两套套件的公共入口；调用点必须从这里导入，不得深路径直连套件文件。 */
-export const SUITE_ENTRY = '@aiao/rxdb-plugin-worktree/testing';
+export const SUITE_ENTRY = '@aiao/rxdb-plugin-working-tree/testing';
 
 /** conformance-suites.md §0 的两套套件，没有第三套。 */
 export const CONFORMANCE_SUITE_NAMES = Object.freeze([
-  'worktreeCaptureConformanceSuite',
-  'worktreeCommitConformanceSuite'
+  'workingTreeCaptureConformanceSuite',
+  'workingTreeCommitConformanceSuite'
 ]);
 
 /** v1 运行矩阵的 6 个后端，见 epic-006「启用与存储边界」。Tauri Rust host 不在 v1 内。 */
@@ -52,7 +52,7 @@ export const V1_ADAPTER_PACKAGES = Object.freeze([
 ]);
 
 /** 两套套件的导出处，供 {@link findMissingSuiteExports} 核对改名。 */
-export const TESTING_ENTRY_FILE = 'rxdb-plugin-worktree/src/working-tree/testing/index.ts';
+export const TESTING_ENTRY_FILE = 'rxdb-plugin-working-tree/src/working-tree/testing/index.ts';
 
 /** `/` 出现在这些字符之后时是正则开头，不是除号。 */
 const REGEX_AFTER_PUNCTUATION = new Set([

@@ -964,7 +964,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    *
    * @remarks
    * 覆写的全部意义是**让规则只有一份**：名字由 {@link get_table_name_by_metadata} 给出，
-   * 与建表、查询、触发器用的是同一个函数。在它之前，`@aiao/rxdb-plugin-worktree` 的
+   * 与建表、查询、触发器用的是同一个函数。在它之前，`@aiao/rxdb-plugin-working-tree` 的
    * 版本化域按 `'$'` 自己拼了一份；拼法一改，那份不会报错，只会开始认不出这张表，于是
    * raw 写门禁对它静默放行。
    *
@@ -1788,7 +1788,7 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
       // 事务体的错误**原样**冒泡。包装成 RxDBAdapterSqliteError 只保下文案，原型、`code`
       // 与 stack 一并丢掉：调用方再也 `instanceof` 不到自己抛的领域错误，只能拿字符串匹配
       // 错误消息。而 PGlite 那一端是原样抛的——同一段业务代码在两个后端上要走不同的 catch
-      // 分支，这正是 worktreeCommitConformanceSuite 存在的理由。
+      // 分支，这正是 workingTreeCommitConformanceSuite 存在的理由。
       //
       // 驱动层的 SQL 错误不靠这里补类型：executeHelper 在 client 层就已经包成了
       // RxDBAdapterSqliteError，再包一层只是把 cause 链拉长。

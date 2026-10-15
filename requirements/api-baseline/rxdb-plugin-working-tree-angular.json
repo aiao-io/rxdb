@@ -1,0 +1,14 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "useWorkingTree",
+        "kind": "value"
+      },
+      {
+        "name": "WorkingTreeResource",
+        "kind": "type"
+      }
+    ]
+  }
+}

@@ -196,7 +196,7 @@ export const validateManifest = (manifest, options = {}) => {
     }
     if (isSemver(bridge.version) && compareVersions(bridge.version, LAST_INELIGIBLE_BRIDGE_VERSION) <= 0) {
       errors.push(
-        `bridge.version must be newer than ${LAST_INELIGIBLE_BRIDGE_VERSION}: anchors at or before it predate the worktree bridging change`
+        `bridge.version must be newer than ${LAST_INELIGIBLE_BRIDGE_VERSION}: anchors at or before it predate the working-tree bridging change`
       );
     }
     if (

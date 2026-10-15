@@ -4,7 +4,7 @@
  * 共享 `Todo` 被十几个项目引用、经 supabase 全量同步，远端 `todos` 表没有 `sortOrder` 列，
  * 所以 todo 页改用独立的 `Task` 承载手动排序；`Todo` 的 schema 与默认查询顺序保持不变。
  * 新实体与 `Todo` 同库，名称与表名的约束来自三端 e2e（`entity-model.spec.ts` 断言首个实体是
- * `Account`、用 `/^Todo/` 匹配链接；`worktree.spec.ts` 按表名筛选）。
+ * `Account`、用 `/^Todo/` 匹配链接；`working-tree.spec.ts` 按表名筛选）。
  */
 import { getEntityMetadata, isManualOrderEntity, manualOrderGroupFields, SORT_ORDER_FIELD } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';

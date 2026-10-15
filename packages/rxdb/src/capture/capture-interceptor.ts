@@ -18,7 +18,7 @@
  * 时被调用；没调用过的库，五个原语连一层包装都没有。FR-046 的零行为差异因此是结构性的，
  * 而不是靠一个运行时判断维持的。
  *
- * **本文件归核心，不随 `@aiao/rxdb-plugin-worktree` 走。** 它是`RxDBAdapterLocalBase`
+ * **本文件归核心，不随 `@aiao/rxdb-plugin-working-tree` 走。** 它是`RxDBAdapterLocalBase`
  * 自己的装卸机制——`setWorkingTreeCaptureHook()` 直接调 {@link installWorkingTreeCapture}，
  * 搬进插件就等于核心 import 插件。{@link WorkingTreeCaptureHook} 因此只列**核心真正会调的**
  * 成员：四个挂载点、一次认领、两道转交门。域与实体归类不在其列——本文件一次都不读它们，
@@ -36,7 +36,7 @@ import { WORKING_TREE_CAPTURE_MOUNT_POINT_METHODS } from './capture-mount-points
  * 被拦截的批量写方法。
  *
  * @remarks
- * 这个集合随核心的写原语变，所以它归核心——`@aiao/rxdb-plugin-worktree` 的
+ * 这个集合随核心的写原语变，所以它归核心——`@aiao/rxdb-plugin-working-tree` 的
  * `BulkWriteOperation` 是本类型的**别名**，不是平行的第二份声明。加第四个批量写原语时，
  * 改这里一处，插件侧按操作键的查找表会因穷尽性检查一并变红。
  */

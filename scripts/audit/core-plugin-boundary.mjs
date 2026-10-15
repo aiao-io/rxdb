@@ -2,7 +2,7 @@
  * scripts/audit/core-plugin-boundary.mjs
  *
  * 核心包与待抽出插件之间的**边界门禁**：`packages/rxdb/src/` 下的核心代码，对
- * `commit/` 与 `working-tree/` 这两个即将成为 `@aiao/rxdb-plugin-worktree` 的目录，
+ * `commit/` 与 `working-tree/` 这两个即将成为 `@aiao/rxdb-plugin-working-tree` 的目录，
  * 只能有**登记在案**的依赖。
  *
  * 触发路径：`pnpm audit:core-boundary`。

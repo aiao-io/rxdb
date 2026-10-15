@@ -10,7 +10,7 @@ import {
   type MigrationType
 } from '@aiao/rxdb';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
-import { rxDBPluginWorktree } from '@aiao/rxdb-plugin-worktree';
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import { cloneEntityClasses } from '@aiao/rxdb/testing';
 import sqliteWasmAsyncUrl from '@subframe7536/sqlite-wasm/wasm-async?url&inline';
 import { firstValueFrom } from 'rxjs';
@@ -30,7 +30,7 @@ class UpgradeNew extends EntityBase {
 interface OpenOptions {
   readonly entities: EntityType[];
   readonly migrations?: MigrationType[];
-  readonly worktree?: boolean;
+  readonly workingTree?: boolean;
 }
 
 /**
@@ -46,7 +46,7 @@ interface OpenOptions {
  *
  * 必须用持久 vfs：首装（`RxDBMigration` 表不存在）走的是一次性建全表，碰不到补建路径。
  */
-const open = async ({ entities, migrations, worktree }: OpenOptions, dbName: string) => {
+const open = async ({ entities, migrations, workingTree }: OpenOptions, dbName: string) => {
   const rxdb = new RxDB({
     dbName,
     context: { userId: 'userId' },
@@ -55,7 +55,7 @@ const open = async ({ entities, migrations, worktree }: OpenOptions, dbName: str
     sync: { local: { adapter: 'sqlite-wasm' }, type: SyncType.None }
   });
   rxdb.use(rxDBPluginHistory);
-  if (worktree) rxdb.use(rxDBPluginWorktree);
+  if (workingTree) rxdb.use(rxDBPluginWorkingTree);
   rxdb.adapter(
     'sqlite-wasm',
     async db => new RxDBAdapterSqlite(db, { vfs: 'idb', batchTimeout: 1, wasmUrl: sqliteWasmAsyncUrl })
@@ -77,11 +77,11 @@ describe('既有库补建新实体表', () => {
 
   it('装了贡献系统迁移的插件时，connect() 补建出新表且新表可写', async () => {
     const dbName = newDbName();
-    const first = await open({ entities: cloneEntityClasses([UpgradeOld]), worktree: true }, dbName);
+    const first = await open({ entities: cloneEntityClasses([UpgradeOld]), workingTree: true }, dbName);
     await first.disconnectAll();
 
     const [Old, New] = cloneEntityClasses([UpgradeOld, UpgradeNew]);
-    const second = await open({ entities: [Old, New], worktree: true }, dbName);
+    const second = await open({ entities: [Old, New], workingTree: true }, dbName);
 
     const created = await second.entityManager.getRepository(New).create(Object.assign(new New(), { title: 'n' }));
     expect(created.id).toBeTruthy();

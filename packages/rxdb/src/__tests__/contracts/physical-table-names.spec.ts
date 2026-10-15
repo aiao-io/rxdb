@@ -3,7 +3,7 @@
  *
  * @remarks
  * 这条能力存在的唯一理由是：**命名规则归写表的那个适配器所有**。在它之前，
- * `@aiao/rxdb-plugin-worktree` 的版本化域自己按 `'$'` 把 sqlite 家族的规则重拼了一遍。
+ * `@aiao/rxdb-plugin-working-tree` 的版本化域自己按 `'$'` 把 sqlite 家族的规则重拼了一遍。
  * 抄来的规则不会因为原件改了而报错，它只会开始算错——而算错的后果是单向的：raw 写门禁认不出
  * 某张受版本控制的表，于是静默放行。现在域只登记适配器报上来的名字
  * （`VersionedDomainEntityInput.physicalTableNames`），一个字都不猜。

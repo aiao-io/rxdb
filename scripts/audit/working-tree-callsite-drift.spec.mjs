@@ -353,7 +353,7 @@ test('事务体末尾自报意图的物化屏障照样逐条核对：键、符�
       '};',
       ''
     ].join('\n');
-  const relPath = 'rxdb-plugin-worktree/src/working-tree/materialize-branch.ts';
+  const relPath = 'rxdb-plugin-working-tree/src/working-tree/materialize-branch.ts';
   assert.deepEqual(audit(barrier(), { relPath, rows: [row] }), []);
   assert.match(audit(barrier({ symbol: 'commitBarrier' }), { relPath, rows: [row] }).join('\n'), /最内层具名函数/);
   assert.match(audit(barrier({ scope: 'context' }), { relPath, rows: [row] }).join('\n'), /作用域实参/);

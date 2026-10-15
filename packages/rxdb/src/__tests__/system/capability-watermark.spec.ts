@@ -3,7 +3,7 @@
  *
  * @remarks
  * 守卫要防的事故没有任何编译期形态：一个装过工作树插件的库，被一个**没装**该插件的客户端打开，
- * 那 11 张表照样在，写原语却一层拦截都没有——用户编辑安静地绕过写捕获，工作树与真实数据分叉。
+ * 那 10 张表照样在，写原语却一层拦截都没有——用户编辑安静地绕过写捕获，工作树与真实数据分叉。
  * 今天挡住它的是 `RXDB_SYSTEM_SCHEMA_VERSION` 这个全库性的闸门（旧客户端一律拒之门外）；
  * 抽包之后闸门归零，只剩这道按能力归因的守卫。
  *
@@ -24,13 +24,13 @@ import {
 const CLAIM = {
   capability: 'workingTree',
   version: 1,
-  packageSpecifier: '@aiao/rxdb-plugin-worktree'
+  packageSpecifier: '@aiao/rxdb-plugin-working-tree'
 } as const;
 
 describe('能力认领水位的行名编解码', () => {
   it('行名带前缀，三段按 capability:version:packageSpecifier 拼', () => {
     expect(capabilityWatermarkName(CLAIM)).toBe(
-      `${RXDB_CAPABILITY_WATERMARK_PREFIX}workingTree:1:@aiao/rxdb-plugin-worktree`
+      `${RXDB_CAPABILITY_WATERMARK_PREFIX}workingTree:1:@aiao/rxdb-plugin-working-tree`
     );
   });
 
@@ -80,7 +80,7 @@ describe('未认领能力守卫', () => {
     expect(thrown).toBeInstanceOf(UnclaimedRxDBCapabilityError);
     expect((thrown as UnclaimedRxDBCapabilityError).claims).toEqual([CLAIM]);
     // 包名是插件自己写进行里的，所以第三方插件同样能产出可执行的报错。
-    expect((thrown as Error).message).toContain('@aiao/rxdb-plugin-worktree');
+    expect((thrown as Error).message).toContain('@aiao/rxdb-plugin-working-tree');
     expect((thrown as Error).message).toContain('workingTree');
   });
 

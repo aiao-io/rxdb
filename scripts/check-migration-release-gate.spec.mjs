@@ -244,7 +244,7 @@ test('bridge.tag 必须与 bridge.version 对应', () => {
 // v0.0.25 已脱离发布主线。两者都必须被版本下限挡住，否则「满足依赖顺序第 1 步」可以纯靠改清单伪造。
 test('bridge.version 必须严格新于最后一个不合格锚点', () => {
   const expected =
-    'bridge.version must be newer than 0.0.25: anchors at or before it predate the worktree bridging change';
+    'bridge.version must be newer than 0.0.25: anchors at or before it predate the working-tree bridging change';
 
   for (const version of ['0.0.23', '0.0.24', '0.0.25']) {
     const manifest = migrationManifest();

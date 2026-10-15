@@ -135,7 +135,7 @@ iOS 抖音没有原生 `TextEncoder` / `TextDecoder`，adapter 的 polyfill 要�
 所以打进产物的代码**不能在模块顶层构造编码器**，要等第一次用到再建：iOS 真机实测，模块顶层的 `new TextEncoder()`
 让页面加载即报 `ReferenceError: Can't find variable: TextEncoder`，真机 `require` 吞掉错误后还会冒出次生的
 `... is not a function`。`@aiao/rxdb`、`rxdb-adapter-sqlite-core`、`rxdb-adapter-encrypted`、`rxdb-plugin-storage`、
-`rxdb-plugin-worktree` 已经全部改成首次使用时创建，各包的 `module-load-without-encoding.spec.ts` 把住每个发布入口；
+`rxdb-plugin-working-tree` 已经全部改成首次使用时创建，各包的 `module-load-without-encoding.spec.ts` 把住每个发布入口；
 业务代码打进同一份产物时守同一条规矩。
 
 ## 支付宝（实验性）

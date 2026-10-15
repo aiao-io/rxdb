@@ -45,9 +45,7 @@
    依赖是 `uuid ^14.0.2`，对应提交 `67c12d1d`——这个提交既不在 `main`、也不在 `v0.0.26` 的树里。产物导入
    `getEntityPermission`、`isManualOrderEntity`、`manualOrderGroupFields`、`normalizeManualOrderBy`，这四个符号
    在 `@aiao/rxdb@0.0.26` 里不存在，而它的依赖又钉死在 `@aiao/rxdb` `0.0.26`。
-   处置：**owner 稍后处理（deprecate 或随下次发版覆盖）。** 其余没有 `0.0.26` 的 16 个包是 replay / tree 各 4 个、
-   worktree 各 4 个（2026-10 自 working-tree 改名的未发布新包名；旧名 `rxdb-plugin-working-tree*` 从未发布、此后也不再发布，
-   改名映射见 [worktree-rename](../website/docs/migration/worktree-rename.md)）、
+   处置：**owner 稍后处理（deprecate 或随下次发版覆盖）。** 其余没有 `0.0.26` 的 16 个包是 replay / tree / working-tree 各 4 个、
    `rxdb-model-{angular,react,vue}` 与 `rxdb-taro`（US-219 #100 合入后新增，npm 上尚无任何版本；
    复核：`npm view @aiao/<包名> versions`）。
 3. **`@aiao/rxdb-angular` 单独为 `0.0.27`；7 个 Angular 包的 `@angular/*` peer 钉成精确的 `"22.2.2"`。**
@@ -69,8 +67,8 @@
 
 ### ② 三个框架绑定包的破坏性变更
 
-`useWorktree` / `WorktreeResource` 不在 `@aiao/rxdb-{angular,react,vue}` 里，由
-`@aiao/rxdb-plugin-worktree-{angular,react,vue}` 三端同名提供。这三个符号从未发布过，所以对已发布版本**不是**破坏性变更，
+`useWorkingTree` / `WorkingTreeResource` 不在 `@aiao/rxdb-{angular,react,vue}` 里，由
+`@aiao/rxdb-plugin-working-tree-{angular,react,vue}` 三端同名提供。这三个符号从未发布过，所以对已发布版本**不是**破坏性变更，
 但升级说明仍要写：跟着 `main` 开发的下游要改 import 来源。
 
 ### ③ 已知影响：系统 schema 号抬升之后，旧客户端打不开升级过的库

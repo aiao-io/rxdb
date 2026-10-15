@@ -6,7 +6,7 @@
  * `interceptMergeChanges()` 先 `host.runInTransaction(...)` 拿到事务，**之后**才
  * `#requireEntrance()` 取声明（`capture-hook.ts`）。于是把声明挂在**适配器实例**上时，
  * 两个并发调用会互相覆盖——先执行的那个取到后声明者的意图（判定按错误的行走），
- * 后执行的那个取不到声明，被 `WorktreeWriteRejectedError` 当作未知入口拒绝。
+ * 后执行的那个取不到声明，被 `WorkingTreeWriteRejectedError` 当作未知入口拒绝。
  *
  * 两条用例都把「声明」与「取用」之间那次排队显式建模成一个**双方栅栏**：两个调用各自声明完毕
  * 之后才有任何一个走到取用。没有这个栅栏，两个调用在测试里会一前一后跑完，覆盖窗口根本不出现，

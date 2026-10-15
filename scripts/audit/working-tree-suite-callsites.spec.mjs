@@ -17,8 +17,8 @@ import {
   stripComments
 } from './working-tree-suite-callsites.mjs';
 
-const COMMIT_SUITE = 'worktreeCommitConformanceSuite';
-const CAPTURE_SUITE = 'worktreeCaptureConformanceSuite';
+const COMMIT_SUITE = 'workingTreeCommitConformanceSuite';
+const CAPTURE_SUITE = 'workingTreeCaptureConformanceSuite';
 
 /** 一个合格调用点的最小形状：从入口具名导入 + 顶层调用。 */
 const callsite = suite =>
@@ -182,11 +182,11 @@ test('别名导入按别名找调用', () => {
   assert.equal(describeRejection(inspection), null);
 });
 
-test('绕过 @aiao/rxdb-plugin-worktree/testing 入口的深路径导入不算调用点', () => {
-  const source = `import { ${COMMIT_SUITE} } from '../../../rxdb-plugin-worktree/src/working-tree/testing/commit.suite.js';\n\n${COMMIT_SUITE}({});\n`;
+test('绕过 @aiao/rxdb-plugin-working-tree/testing 入口的深路径导入不算调用点', () => {
+  const source = `import { ${COMMIT_SUITE} } from '../../../rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.js';\n\n${COMMIT_SUITE}({});\n`;
   const inspection = inspectSource(source, COMMIT_SUITE);
 
-  assert.equal(inspection.importedFrom, '../../../rxdb-plugin-worktree/src/working-tree/testing/commit.suite.js');
+  assert.equal(inspection.importedFrom, '../../../rxdb-plugin-working-tree/src/working-tree/testing/commit.suite.js');
   assert.match(describeRejection(inspection), new RegExp(SUITE_ENTRY.replace('/', '\\/')));
 });
 

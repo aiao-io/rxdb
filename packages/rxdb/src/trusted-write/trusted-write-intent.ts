@@ -29,7 +29,7 @@
  * 窗口（见 {@link declareTrustedWrite} 所在文件的头注）。这一列因此也是一条不变量，不只是说明。
  *
  * **调用点全部住在插件里**：#1~#6 自 US-025 起在 `@aiao/rxdb-plugin-history/src/`，
- * #7~#9 与 #12 在 `@aiao/rxdb-plugin-sync/src/`，#10 / #11 在 `@aiao/rxdb-plugin-worktree/src/`。
+ * #7~#9 与 #12 在 `@aiao/rxdb-plugin-sync/src/`，#10 / #11 在 `@aiao/rxdb-plugin-working-tree/src/`。
  * 登记的是**文件基名**，不带包名也不带目录——键要跨 US-025 那次搬迁存活，而它确实跨过来了：
  * 搬迁只换了目录，没换文件名、符号名与意图。
  *

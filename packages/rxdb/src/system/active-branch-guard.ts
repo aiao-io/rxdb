@@ -10,15 +10,14 @@
  *   `NULL` 不参与唯一比较，于是「至多一行非 NULL」在 PostgreSQL 与全部 SQLite 绑定上
  *   语义一致，不需要各后端写方言化的部分索引。
  * - **至少一个**只有运行期拦得住。「没有 active 分支」是一张**空表**也满足的条件，
- *   任何列约束都表达不了。这一半由本模块的入口承担。
+ *   任何列约束都表达不了。这一半由本模块的两个入口承担。
  *
- * **入口之间不是严格程度之分，是时点之分。** {@link resolveSingleActiveBranch} 只给
- * 首次启用迁移用：那是唯一一个「库里还没有 active 分支」属于正常状态、且归它修的时刻，所以它
+ * **两个入口不是严格程度之分，是时点之分。** {@link resolveSingleActiveBranch} 只给
+ * 首次启用迁移用：那是唯一一个「库里还没有 active 分支」属于正常状态的时刻，所以它
  * 沿用既有 `resolve_current_branch` 的恢复语义。{@link assertSingleActiveBranch} 给运行期
  * 用，零 active 一律拒绝——把修复搬到连接路径上，意味着某个 Tab 的 `activated` 行因故
  * 消失时用户被静默挪到 `main`：他的未提交条目还挂在 `feature-x` 上，界面却显示一个
- * 干净的空工作树。{@link findSingleActiveBranch} 给「零 active 合法、但不归它修」的调用方
- * （对所有既有库都跑的插件迁移），零行如实返回 `null`。三者对多行的回答是同一份。
+ * 干净的空工作树。
  *
  * **不复用 `version/resolve-current-branch.ts`。** 它的两条查询都带 `limit: 1`，两行
  * active 会被安静地读成一行——「按查询顺序猜一个」正是 FR-048 点名禁止的行为。本模块
@@ -157,7 +156,7 @@ export class AmbiguousActiveBranchError extends RxDBError {
    *
    * @remarks
    * 字面量而非 `CommitErrorCode.ambiguous_active_branch`：那张码表随提交能力走进
-   * `@aiao/rxdb-plugin-worktree`，而本守卫是分支拓扑不变量、留在核心。核心为了
+   * `@aiao/rxdb-plugin-working-tree`，而本守卫是分支拓扑不变量、留在核心。核心为了
    * 一个字符串反向依赖插件，等于把「不装插件」这件事又变成不可能。
    *
    * 两边不会漂：码表是 const 对象不是 `enum`（见插件侧 `commit-error-codes.ts` 自陈的
@@ -217,30 +216,14 @@ const readActiveBranches = async (executor: TransactionExecutor): Promise<RxDBBr
  * @throws {@link AmbiguousActiveBranchError} 多于一行时
  *
  * @remarks
- * 三个入口对「多行」的处理完全一致，对「零行」才分道扬镳，所以分歧点留给调用方，
- * 共识部分收在这里——否则「多行怎么办」会有几份答案，而它们必须永远相同。
+ * 两个入口对「多行」的处理完全一致，对「零行」才分道扬镳，所以分歧点留给调用方，
+ * 共识部分收在这里——否则「多行怎么办」会有两份答案，而它们必须永远相同。
  */
 const singleActiveOf = (branches: readonly RxDBBranch[]): RxDBBranch | null => {
   if (branches.length === 1) return branches[0];
   if (branches.length === 0) return null;
   throw new AmbiguousActiveBranchError(branches.map(branch => branch.id).sort());
 };
-
-/**
- * 读出唯一的 active 分支；一行都没有时如实返回 `null`，**不修复、也不报错**。
- *
- * @param executor - 调用方那个事务的执行器
- * @returns 唯一的 active 分支；一行 active 都没有时为 `null`
- * @throws {@link AmbiguousActiveBranchError} 有多行 active 时
- *
- * @remarks
- * 给「零行是合法态、但不归它修」的调用方用：插件的迁移要对**所有**既有库跑，而未启用过能力的老库里
- * 一行 active 都没有是正常的——`main` 要到首次启用迁移（{@link resolveSingleActiveBranch}）才建出来。
- * 这样的调用方若拿 {@link assertSingleActiveBranch} 再接住 `NoActiveBranchError`，等于用异常传一个
- * 合法结果；自己再抄一份查询与基数判定，「多行怎么办」就有了第二份答案。
- */
-export const findSingleActiveBranch = async (executor: TransactionExecutor): Promise<RxDBBranch | null> =>
-  singleActiveOf(await readActiveBranches(executor));
 
 /**
  * 把 `main` 置为 active：有就激活它，没有就建一个。
@@ -289,7 +272,7 @@ export const resolveSingleActiveBranch = async (
   executor: TransactionExecutor,
   host: ActiveBranchEntityHost
 ): Promise<RxDBBranch> => {
-  const active = await findSingleActiveBranch(executor);
+  const active = singleActiveOf(await readActiveBranches(executor));
   if (active) return active;
   return activateMainBranch(executor, host);
 };
@@ -307,7 +290,7 @@ export const resolveSingleActiveBranch = async (
  * 这条捷径在类型层面就走不通。
  */
 export const assertSingleActiveBranch = async (executor: TransactionExecutor): Promise<RxDBBranch> => {
-  const active = await findSingleActiveBranch(executor);
+  const active = singleActiveOf(await readActiveBranches(executor));
   if (!active) throw new NoActiveBranchError();
   return active;
 };

@@ -110,7 +110,7 @@ app-header,
   }
 
   /* 只作用于应用壳的侧栏（#layout-main 的直接子级）：页面内容里的 aside
-     （如 worktree 面板的 .gd-sidebar）不受这条移动端覆盖影响。
+     （如 working-tree 面板的 .gd-sidebar）不受这条移动端覆盖影响。
      absolute 锚定 #layout-main 应用区而不是视口：无界嵌入里 fixed top:0 会被宿主导航栏压住 */
   #layout-main > aside {
     position: absolute !important;
@@ -189,7 +189,7 @@ app-header,
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   worktree 面板的 GitHub Desktop 形态样式（.gd-* 只被该面板使用）
+   working-tree 面板的 GitHub Desktop 形态样式（.gd-* 只被该面板使用）
    ═══════════════════════════════════════════════════════════════ */
 
 /* 调色板：跟随 daisyUI 的 data-theme，light 用 GitHub Desktop 亮色值，
@@ -324,14 +324,6 @@ app-header,
   outline: 2px solid var(--gd-accent);
   outline-offset: -1px;
 }
-/* 禁用态（当前 worktree 的移除、命令在途时的新建）：灰字、不变手型、悬停不亮。
-   放在 :hover 之后，禁用时悬停也不变色；axe 的 color-contrast 本就跳过 disabled 控件。 */
-.gd-btn-ghost:disabled,
-.gd-btn-ghost:disabled:hover {
-  background: transparent;
-  color: var(--gd-muted);
-  cursor: default;
-}
 
 /* 工具栏图标按钮（获取 origin）。 */
 .gd-icon-btn {
@@ -465,13 +457,6 @@ app-header,
 }
 .gd-menu-row:hover {
   background: var(--gd-hover);
-}
-/* 禁用态（下拉行在命令在途时）：灰字、不变手型、悬停不亮；规则同 .gd-btn-ghost:disabled。 */
-.gd-menu-row:disabled,
-.gd-menu-row:disabled:hover {
-  background: transparent;
-  color: var(--gd-muted);
-  cursor: default;
 }
 .gd-menu-row svg {
   color: var(--gd-muted);

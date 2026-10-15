@@ -11,7 +11,7 @@
  * #1~#6 去了 `@aiao/rxdb-plugin-history`、#7~#9 去了 `@aiao/rxdb-plugin-sync`，8 处 QueryCache
  * 批量写去了 `@aiao/rxdb-plugin-querycache` 与 `@aiao/rxdb-plugin-sync`。vitest 的 `import.meta.glob`
  * 进不了兄弟包，于是这份测试对那两半是**结构性失明**——不是少看了几行，是一行都看不见。
- * 后来补登的 #10 / #11 从一开始就在 `@aiao/rxdb-plugin-worktree` 里，#12 在 `@aiao/rxdb-plugin-sync` 里，同样看不见。
+ * 后来补登的 #10 / #11 从一开始就在 `@aiao/rxdb-plugin-working-tree` 里，#12 在 `@aiao/rxdb-plugin-sync` 里，同样看不见。
  *
  * 失明的那两半整个交给 `scripts/audit/working-tree-callsite-drift.mjs`（T066，
  * `pnpm audit:callsite-drift`）：它跑在 node 里，扫整个 `packages/`，双向比对登记键、自报符号、
@@ -36,9 +36,9 @@
  *
  * - **「产生工作树单元」那一列不在这里比对，因为核心算不出它。** 登记表刻意不存这一列
  *   （见 `trusted-write-intent.ts` 的 `TrustedCallsite` 注释）：它是捕获矩阵的结论，不是核心的事实。
- *   算它要 `producesWorkingTreeEntry()`，而那个函数在 `@aiao/rxdb-plugin-worktree` 里——核心
+ *   算它要 `producesWorkingTreeEntry()`，而那个函数在 `@aiao/rxdb-plugin-working-tree` 里——核心
  *   够不着，**也不该够得着**。那一列在
- *   `packages/rxdb-plugin-worktree/src/__tests__/working-tree/trusted-callsite-capture.spec.ts`
+ *   `packages/rxdb-plugin-working-tree/src/__tests__/working-tree/trusted-callsite-capture.spec.ts`
  *   里解析**同一份**契约原文比对；两边各自解析而不是一边抄另一边，是为了让契约改动同时落到两处。
  * - **漂移扫描按「调用点身份」判，不按实参判。** 真实批量写传的全是 `this.entityName` / `entity`
  *   这类运行期值，没有一处是字面量——想从实参读出「这是不是 QueryCache」的扫描，在真实仓库上恒等于

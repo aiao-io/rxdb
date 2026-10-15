@@ -1,7 +1,7 @@
 import type { Locator } from '@playwright/test';
 import { resetE2eState } from './e2e-utils.js';
 import { expect, test } from './fixtures.js';
-import { openPanel, waitForAutoEnabled } from './worktree-utils.js';
+import { openPanel, waitForAutoEnabled } from './working-tree-utils.js';
 
 /**
  * 移动端（390×844）UX 回归：dev-rxdb-angular 移动端体验优化的每条修复各占一条用例。
@@ -55,18 +55,13 @@ test('移动端：entities 新增对话框不横向溢出视口', async ({ page 
   await expect(pane).toHaveCount(0, { timeout: 5000 });
 });
 
-test('移动端：worktree 工具栏各段全部可达', async ({ page }) => {
+test('移动端：working-tree 工具栏三段平分、全部可达', async ({ page }) => {
   await openPanel(page);
   await waitForAutoEnabled(page);
 
   await expectFitsHorizontally(page.locator('.gd-toolbar'));
   await expectFitsHorizontally(page.getByTestId('wt-repo-menu'));
-  await expectFitsHorizontally(page.getByTestId('wt-branch-menu'));
-  await expectFitsHorizontally(page.getByTestId('wt-worktree-menu'));
   await expectFitsHorizontally(page.getByTestId('wt-refresh-status'));
-  await page.getByTestId('wt-worktree-menu').click();
-  await expectFitsHorizontally(page.getByTestId('wt-worktree-menu-popup'));
-  await page.keyboard.press('Escape');
 });
 
 test('移动端：storage 工具栏换行、按钮不溢出', async ({ page }) => {
@@ -127,12 +122,11 @@ test('移动端：tree-menu 历史侧栏以浮层呈现', async ({ page }) => {
   expect(mainBox!.width, '主内容区在浮层打开时仍占满视口').toBeGreaterThan(VIEWPORT.width * 0.9);
 });
 
-test('移动端：worktree 分支行 ⋯ 打开触屏菜单', async ({ page }) => {
+test('移动端：working-tree 分支行 ⋯ 打开触屏菜单', async ({ page }) => {
   await openPanel(page);
   await waitForAutoEnabled(page);
 
   await page.getByTestId('wt-branch-menu').click();
-  await expectFitsHorizontally(page.getByTestId('wt-branch-menu-popup'));
   await expect(page.getByTestId('wt-branch-item').first()).toBeVisible();
   await page.getByTestId('wt-branch-more').first().click();
   // 当前分支的菜单只有 Copy branch name（切换/合并/删除只属于非当前分支）

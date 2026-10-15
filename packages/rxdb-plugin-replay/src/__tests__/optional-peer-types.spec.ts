@@ -30,7 +30,7 @@ const declarationOf = (path: string): string =>
   }).outputText;
 
 describe('可选 peer 不进声明', () => {
-  it.each(sourceFiles(SRC).map(path => relative(SRC, path)))('%s 的声明不引用 @aiao/rxdb-plugin-worktree', file => {
-    expect(declarationOf(join(SRC, file))).not.toContain('@aiao/rxdb-plugin-worktree');
+  it.each(sourceFiles(SRC).map(path => relative(SRC, path)))('%s 的声明不引用 @aiao/rxdb-plugin-working-tree', file => {
+    expect(declarationOf(join(SRC, file))).not.toContain('@aiao/rxdb-plugin-working-tree');
   });
 });

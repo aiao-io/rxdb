@@ -49,7 +49,7 @@ export interface SwitchBranchActionReaders {
  * @returns 切换分支所需的操作序列
  *
  * @remarks
- * 拆出来是给 `@aiao/rxdb-plugin-worktree` 的物化屏障用的：屏障要先把来源分支的投影撤掉，
+ * 拆出来是给 `@aiao/rxdb-plugin-working-tree` 的物化屏障用的：屏障要先把来源分支的投影撤掉，
  * 再铺目标分支的快照，而它跑在 `switchBranch` 的 `prepare` 里，手上只有事务执行器的仓库——
  * 绑在适配器上的本地仓库会在同一条连接上等屏障自己那笔事务，死锁。另写一份同义计算，
  * 迟早会在「回滚标记算不算」上与普通切换分叉。

@@ -9,7 +9,7 @@
  * 有一条非平凡的证据：没有它，`expect(config.entities).toEqual([...database.systemEntities])`
  * 就是拿同一份核心清单和自己比，贡献接线整条断掉也照样绿。
  *
- * 假的而不是真的，是因为核心**认不得**插件的类：epic-006 那十张表在 `@aiao/rxdb-plugin-worktree`
+ * 假的而不是真的，是因为核心**认不得**插件的类：epic-006 那十张表在 `@aiao/rxdb-plugin-working-tree`
  * 里，它们各自长什么样由那个包自己的
  * `src/__tests__/system/system-entity-registration.spec.ts` 守。
  */

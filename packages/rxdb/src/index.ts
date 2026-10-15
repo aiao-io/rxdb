@@ -16,7 +16,7 @@ export * from './backup/backup.interface.js';
 export { computeRxDBSchemaFingerprint } from './backup/schema-fingerprint.js';
 // 写捕获接缝（adapter-contract.md §1/§2）。**整条留在核心**：装卸口就在 `RxDBAdapterLocalBase`
 // 上，搬走等于核心反向依赖插件。这里只有机制与两道转交门，一个捕获语义都不认识——
-// 判定实现随 `@aiao/rxdb-plugin-worktree` 走。`gateRawWrite` 必须出现在公开面上：
+// 判定实现随 `@aiao/rxdb-plugin-working-tree` 走。`gateRawWrite` 必须出现在公开面上：
 // 适配器包在**包外**，它们的 `rawQuery?()` 是可选方法，核心拦不住，只能由各自实现调这一句。
 export * from './capture/index.js';
 export * from './entity/entity-base.js';
@@ -32,7 +32,7 @@ export {
   type PermissionViolation
 } from './entity/entity-permissions.js';
 // 只转类型不转类：`RxDB.entityManager` 是公开成员，用户接得到就得能具名；
-// `@aiao/rxdb-plugin-worktree` 的捕获运行时与提交命令也都把它当形参收。
+// `@aiao/rxdb-plugin-working-tree` 的捕获运行时与提交命令也都把它当形参收。
 // 不转类本身是因为构造器要的是整个 RxDB 实例、`init()` / `destroy()` 由宿主按生命周期调——
 // 那套装配是宿主的事，转出类只会让人以为可以自己 new 一个。
 export type { EntityManager } from './entity/entity-manager.js';
@@ -110,7 +110,7 @@ export * from './system/constraint-drift.js';
 // 批量写入解析主适配器时抛给调用方的结构化错误。
 // 选择器本身（selectPrimaryAdapterKind 等）是 Repository / EntityManager 的共享内部实现。
 // `getEntitySync` 是例外：实体级 `sync` 覆盖库级配置这条规则决定了一个实体归哪个适配器管，
-// 而 `@aiao/rxdb-plugin-worktree` 的捕获要按同一条规则判「这张表是不是查询缓存」。
+// 而 `@aiao/rxdb-plugin-working-tree` 的捕获要按同一条规则判「这张表是不是查询缓存」。
 // 包外另算一遍不会有编译错误，只会让核心与插件对同一个实体给出两种归属。
 // 实例级同步覆盖的条目形状与配置期错误（US-026）。
 export {
@@ -239,7 +239,7 @@ export {
 } from './system/change-codec.js';
 export * from './system/change.js';
 export * from './system/migration.js';
-// 内容寻址摘要。必须出现在公开面上：`@aiao/rxdb-plugin-worktree` 在包外，它的变更单元
+// 内容寻址摘要。必须出现在公开面上：`@aiao/rxdb-plugin-working-tree` 在包外，它的变更单元
 // 指纹与提交幂等键都按它算，而这两个 hex 是**落库**的。插件自带一份实现不产生编译错误，
 // 只会让同一份数据在两处得出两个 id，症状要到下一次幂等本该命中却没命中时才显形。
 export { createSha256, sha256Hex, type Sha256Hasher } from './system/sha256.js';

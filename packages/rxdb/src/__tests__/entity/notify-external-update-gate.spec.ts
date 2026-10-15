@@ -3,7 +3,7 @@
  *
  * @remarks
  * 判定本身不在核心：`gateExternalNotify` 的语义（哪一类目标在行 11 上是放是拒）随
- * `@aiao/rxdb-plugin-worktree` 走，那边的 `__tests__/working-tree/external-notify-gate-wiring.spec.ts`
+ * `@aiao/rxdb-plugin-working-tree` 走，那边的 `__tests__/working-tree/external-notify-gate-wiring.spec.ts`
  * 钉的就是它。本文件钉的是核心这一半——**判定有没有被接上**，以及接上的方式对不对：
  *
  * 1. **拒绝必须发生在派发之前。** 事件一旦派发就有跨 tab 广播，撤不回来。所以门包着

@@ -21,7 +21,7 @@ owner: jimmy
 
 ## 为什么是 Epic 而不是一个 Story
 
-这项能力横跨 `packages/rxdb-plugin-history/`、`packages/rxdb-plugin-worktree/`、`packages/rxdb/src/system/`、`rxdb-plugin-workspace`、三个框架包和三个 demo，且没有任何一条 FR 可以在不落地存储布局的前提下单独验收——即"要么全做要么全不做"，单个 story 的 INVEST「Small」不成立。因此按可独立验收的最小闭环切成四条 story；其中 [US-306](../stories/collaboration/US-306-working-tree-commits.md) 仍同时覆盖全部写入口、提交状态机、三框架和 benchmark，在文件内再切成「交付阶段 A/B/C」，每个阶段都能独立跑通「写入 → 刷新 → 读回」这条最小闭环。
+这项能力横跨 `packages/rxdb-plugin-history/`、`packages/rxdb-plugin-working-tree/`、`packages/rxdb/src/system/`、`rxdb-plugin-workspace`、三个框架包和三个 demo，且没有任何一条 FR 可以在不落地存储布局的前提下单独验收——即"要么全做要么全不做"，单个 story 的 INVEST「Small」不成立。因此按可独立验收的最小闭环切成四条 story；其中 [US-306](../stories/collaboration/US-306-working-tree-commits.md) 仍同时覆盖全部写入口、提交状态机、三框架和 benchmark，在文件内再切成「交付阶段 A/B/C」，每个阶段都能独立跑通「写入 → 刷新 → 读回」这条最小闭环。
 
 ## 目标
 
@@ -77,9 +77,8 @@ owner: jimmy
 
 由此：
 
-- **插件包名保持 `@aiao/rxdb-plugin-working-tree`**（`origin/main` 现名），公开名是 `WorkingTree*`、`db.workingTree`、`useWorkingTree()`。
+- **插件包名是 `@aiao/rxdb-plugin-working-tree`**，公开名是 `WorkingTree*`、`db.workingTree`、`useWorkingTree()`。
   它交付的是工作树、提交与历史，按 git 术语正是 working tree。`Worktree*` 只留给检出位，两者不混用。
-  本分支上的改名见[本分支现存实现的处置](#本分支现存实现的处置)。
 - **今天一个库只有一个检出位**，即**主检出位**：业务表就是它的数据视图。「多检出位」一节里的「检出位」都指新增的那种。
 
 ### 三层分层对照（读本 Epic 前必须先对齐）
@@ -168,7 +167,7 @@ US-306 阶段 B 只负责建表与「从已存在的 session 派生 conflicted�
 `CommitConflict` 的定义、TSDoc 与 api-baseline 登记归**首个使用者 US-306 阶段 B**，US-308 只做 activation 维度的扩展。
 
 `WorkingTreeEntry` 在本 Epic 层面是**逻辑契约**，本表只约束它必须持久化什么、按什么粒度隔离。
-物理表名、字段、索引、FK、加密 envelope 与迁移版本以代码为准（[`@aiao/rxdb-plugin-worktree`](../../packages/rxdb-plugin-worktree/src/)
+物理表名、字段、索引、FK、加密 envelope 与迁移版本以代码为准（[`@aiao/rxdb-plugin-working-tree`](../../packages/rxdb-plugin-working-tree/src/)
 的 `*.entity.ts` 与 `migrations/`），设计记录归档在 `git show f9528e8f:specs/001-working-tree-commits/data-model.md`。
 本 Epic 只定死其中一条：`WorkingTreeEntry` 是**独立表**并完整复制 patch / inverse patch，**不复用 `RxDBChange`**、
 也不只存其外键——`rxdb_change` 行会被删分支级联删除、[compact-changes.ts](../../packages/rxdb/src/sync-contract/compact-changes.ts)
@@ -302,7 +301,7 @@ durable domain session 派生，v1 唯一来源是 `WorkingTreeRestoreSession` �
 | `EntityManager.notifyExternalUpdate()`                                    | 它（[entity-manager.ts](../../packages/rxdb/src/entity/entity-manager.ts)）是「先绕过 ORM 写库、再补发标准事件」这条既有工作流的**后半段**，而前半段对版本化实体已被上两行拒绝。启用后它对版本化实体 MUST 抛 `commit_capability_mismatch`，而不是发出一个没有工作树单元支撑的 `EntityLocalUpdatedEvent`——那会让事件流与工作树永久分叉；对 QueryCache 实体行为不变。这条 MUST 写进下文「能力边界」那句公开声明里 |
 
 **`upsertMany` / `deleteByIds` 不经 `rawQuery`，门禁显式挂在这两个方法上**（挂载点 4，实现见
-[bulk-write-gate.ts](../../packages/rxdb-plugin-worktree/src/working-tree/bulk-write-gate.ts)）。
+[bulk-write-gate.ts](../../packages/rxdb-plugin-working-tree/src/working-tree/bulk-write-gate.ts)）。
 下文「raw SQL / adapter 直写的 bypass 门禁判定」的四步判定只覆盖 `rawQuery`，而
 [`upsertMany`](../../packages/rxdb/src/rxdb-adapter.ts) 是 `RxDBAdapterLocalBase` 上的**公开抽象写方法**，
 方法签名 `upsertMany(entityName, data)` 不带意图：不显式挂载，任何调用方传一个 Full/Filter 实体名
@@ -357,7 +356,7 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 本身不出现在扫描结果里，用它当键会让漂移门禁永远匹配不上。
 
 文件一列只写**基名**：#1~#6 在 `@aiao/rxdb-plugin-history/src/`，#7~#9 与 #12 在 `@aiao/rxdb-plugin-sync/src/`，#10 / #11 在
-`@aiao/rxdb-plugin-worktree/src/`；登记键必须跨包搬迁存活，所以不含目录。登记表本身在
+`@aiao/rxdb-plugin-working-tree/src/`；登记键必须跨包搬迁存活，所以不含目录。登记表本身在
 [trusted-write-intent.ts](../../packages/rxdb/src/trusted-write/trusted-write-intent.ts)——它是 `declareTrustedWrite()`
 的准入名单，而那道门禁在核心。下表按符号登记，与代码实际调用点一一对应：
 
@@ -407,9 +406,9 @@ Repository 拿不到同事务的原子边界，也覆盖不了同步与撤销路
 
 **静态扫描跑在 `pnpm audit:callsite-drift`（[working-tree-callsite-drift.mjs](../../scripts/audit/working-tree-callsite-drift.mjs)）里**，
 扫的是整个 `packages/`——12 处声明与 8 处 QueryCache 批量写分散在 rxdb / rxdb-plugin-history / rxdb-plugin-sync /
-rxdb-plugin-worktree / rxdb-plugin-querycache 五个包里，只扫单个包的门禁会全绿地什么都看不见。本表前 6 列由
+rxdb-plugin-working-tree / rxdb-plugin-querycache 五个包里，只扫单个包的门禁会全绿地什么都看不见。本表前 6 列由
 [trusted-callsite-registry.spec.ts](../../packages/rxdb/src/__tests__/trusted-write/trusted-callsite-registry.spec.ts) 与登记表逐格比对
-（它另外断言核心自身零受信写、零批量写），第 7 列由 [trusted-callsite-capture.spec.ts](../../packages/rxdb-plugin-worktree/src/__tests__/working-tree/trusted-callsite-capture.spec.ts)
+（它另外断言核心自身零受信写、零批量写），第 7 列由 [trusted-callsite-capture.spec.ts](../../packages/rxdb-plugin-working-tree/src/__tests__/working-tree/trusted-callsite-capture.spec.ts)
 与捕获矩阵算出的结论比对；两份测试都当场解析本节原文，改措辞会让它们变红。
 
 **`mergeChanges` 是被重载的名字，扫描必须按签名区分**，否则本表会收进与本地业务表无关的调用：
@@ -655,7 +654,6 @@ raw 写路径，先补一条能证明身份的传递通道，判据见 `git show
 - [US-307 历史恢复会话](../stories/collaboration/US-307-restore-session.md) (Medium)
 - [US-308 分支隔离与跨 realm 冲突检测](../stories/collaboration/US-308-branch-isolation-conflict.md) (Medium)
 - [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](../stories/collaboration/US-311-unlogged-entities-scope.md) (High)
-- [US-310 命名工作上下文（git worktree 能力）](../stories/collaboration/US-310-named-worktrees.md) (High)：不交付，见[本分支现存实现的处置](#本分支现存实现的处置)
 
 ## 性能预算的口径
 
@@ -784,10 +782,10 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
 8. 命名门禁分两层，**正向前缀只约束核心共享契约**：
    - `@aiao/rxdb` 的 [api-baseline](../api-baseline/rxdb.json) 新增导出（共享类型、选项、错误码）全部使用
      `Commit*` / `WorkingTree*` 前缀（`Index*` 已随暂存区一同裁掉，**不得新增该前缀的导出**）
-   - `@aiao/rxdb-plugin-worktree` 的 api-baseline 同样适用该正向前缀（它承载 `Commit*` / `WorkingTree*` 的主体导出）
-   - 框架包（`rxdb-angular` / `rxdb-react` / `rxdb-vue`，以及 `rxdb-plugin-worktree-{angular,react,vue}`）的 api-baseline 只适用**负向**规则：
+   - `@aiao/rxdb-plugin-working-tree` 的 api-baseline 同样适用该正向前缀（它承载 `Commit*` / `WorkingTree*` 的主体导出）
+   - 框架包（`rxdb-angular` / `rxdb-react` / `rxdb-vue`，以及 `rxdb-plugin-working-tree-{angular,react,vue}`）的 api-baseline 只适用**负向**规则：
      无 `Workspace*` 新导出、不复用既有 `SwitchBranchOptions`。框架侧运行时入口沿用仓库既有的 `use*` 约定
-     （`useRxDB` / `useFind` / …），因此 `rxdb-plugin-worktree-{angular,react,vue}` 里的 `useWorkingTree()` 合规——**不得**用正向前缀规则去拦它，
+     （`useRxDB` / `useFind` / …），因此 `rxdb-plugin-working-tree-{angular,react,vue}` 里的 `useWorkingTree()` 合规——**不得**用正向前缀规则去拦它，
      那会拦下本 Epic 自己的核心交付物
    - 两层都适用横切约束 4（不复活旧导出）
 9. 公开文档说明**这 6 项**：数据库级显式启用、工作树与草稿缓存的区别、恢复语义、历史保留敏感旧值的风险、
@@ -872,21 +870,21 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
    沿「当前分支 → 共同祖先 → 目标分支」的变更区间折叠出增删改，再在一个事务里应用；起点写死为当前 active 分支
    （`rules: [{ field: 'activated', operator: '=', value: true }]`）。成本与两条线之间的变更行数成正比（推断），
    不是整表重建。只在远端存在、本地从没物化过的分支
-   （[`classifyBranchMaterialization`](../../packages/rxdb-plugin-worktree/src/working-tree/branch-materialization.ts)
+   （[`classifyBranchMaterialization`](../../packages/rxdb-plugin-working-tree/src/working-tree/branch-materialization.ts)
    判为 `metadata_only`）首次切换时才拉整份快照。
 
 3. **未提交改动按分支保存，切走再切回原样还在。** 未提交的编辑本身就是那条分支上的 `rxdb_change` 行：
-   切走时按 inversePatch 撤掉，切回时重放。[`WorkingTreeState`](../../packages/rxdb-plugin-worktree/src/working-tree/working-tree-state.entity.ts)
+   切走时按 inversePatch 撤掉，切回时重放。[`WorkingTreeState`](../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-state.entity.ts)
    一条分支一行（主键 = `branchId`），切换不碰它。效果相当于 git 每次切分支都自动 stash。
 
 4. **写入只能落在 active 分支上。** 三层锚定：触发器里写死的分支 id；捕获在写事务内读 active 分支令牌；
-   令牌与库里的 active 分支不符时 [`write-entry.ts`](../../packages/rxdb-plugin-worktree/src/working-tree/write-entry.ts)
+   令牌与库里的 active 分支不符时 [`write-entry.ts`](../../packages/rxdb-plugin-working-tree/src/working-tree/write-entry.ts)
    抛 `StaleActiveBranchError`。除了 `createBranch()` 复制工作树条目、`removeBranch()` 清理，没有任何路径往非 active 分支写。
 
 5. **没有任何 API 能不切换就读到另一条线或某个提交的完整数据。** 最近的积木是上面的 `compute_switch_branch_actions`：
    只读、能在任意事务里跑，算出「当前业务表 → 目标分支」的增量；它从 `@aiao/rxdb-plugin-history` 的桶里作为内部符号导出，
    [`index.ts`](../../packages/rxdb-plugin-history/src/index.ts) 写明「应用代码不该引用它们」。基线提交不带变更单元
-   （[`branch-commit-rows.ts`](../../packages/rxdb-plugin-worktree/src/commit/branch-commit-rows.ts)：`units: []`），
+   （[`branch-commit-rows.ts`](../../packages/rxdb-plugin-working-tree/src/commit/branch-commit-rows.ts)：`units: []`），
    提交图本身拼不出快照。
 
 6. **合并只能合进 active 分支，而且是单向覆盖。** [`VersionManager`](../../packages/rxdb-plugin-history/src/VersionManager.ts)
@@ -916,10 +914,10 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
    （[`connector.ts`](../../packages/rxdb-devtools/src/connector.ts)：`DevToolsConnector supports a single RxDB instance`）。
 
 10. **看旧版本只有 `restore()` 一条路，比较只有一条轴，合并前看不到对方。**
-    - [`restore-command.ts`](../../packages/rxdb-plugin-worktree/src/working-tree/restore-command.ts)：
+    - [`restore-command.ts`](../../packages/rxdb-plugin-working-tree/src/working-tree/restore-command.ts)：
       `if (state.entryCount !== 0) return { ok: false, reason: 'dirty_working_tree' };`。restore 把历史内容作为新的未提交变更写回工作树，
       看完只能 `discard()` 整棵工作树。
-    - [`diff.ts`](../../packages/rxdb-plugin-worktree/src/working-tree/diff.ts) 文件头：「这里只有一条轴，而且它没有入参」，
+    - [`diff.ts`](../../packages/rxdb-plugin-working-tree/src/working-tree/diff.ts) 文件头：「这里只有一条轴，而且它没有入参」，
       不加第二条轴的理由是 `status()` 的 `clean` 与 `diff()` 会不再指同一件事。
     - demo 的合并对话框（`merge-dialog.component.ts`）只有源 / 目标分支名、合并策略与「合并后删除源分支」，没有预览；
       合并结果直接混进当前工作树。
@@ -1059,32 +1057,11 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
 
 | 阶段 | 交付                                                                                                                                                                                             | 覆盖                     | 解锁条件                                                            | 明确不承诺               |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ | ------------------------------------------------------------------- | ------------------------ |
-| 0    | 本分支收尾：不合入 US-309 改名与 US-310（[处置](#本分支现存实现的处置)）                                                                                                                         | —                        | 无                                                                  | —                        |
 | 1    | 草稿缓存不收系统表与关闭变更日志的实体；版本化域把 `log: false` 的实体归为第四类 untracked；storage 文档写明文件不随版本（[US-311](../stories/collaboration/US-311-unlogged-entities-scope.md)） | 前置                     | 无，今天就是缺口                                                    | 不做检出位；不做内容寻址 |
 | 2    | 只读的对比与合并预览 API（含覆盖标注）                                                                                                                                                           | 场景二的对比部分         | 阶段 1                                                              | 不提供完整视图           |
 | 3    | 只读检出位：快照库 + 第二实例 + 生命周期与回收 + 三端绑定                                                                                                                                        | 场景二、场景一的只读部分 | 阶段 2                                                              | 不可写；不实时           |
 | 4    | 写进非 active 线的原语 + 隔离写入方 + 合并前覆盖检测                                                                                                                                             | 场景三                   | 具名使用方（批量导入或 agent），或 owner 判定「同步即变脏」不可接受 | 不改默认同步语义         |
 | 5    | 可写检出位（影子表或分库）                                                                                                                                                                       | 场景一                   | 具名需求                                                            | —                        |
-
-### 本分支现存实现的处置
-
-本分支（`claude/worktree-rename-contexts`）上的 US-309 改名与 US-310 实现都**不合入**。两者都不在 `origin/main` 上，
-npm 上也没有 `@aiao/rxdb-plugin-worktree`（`npm view` 返回 E404），撤回没有发布包袱。
-
-- **[US-309](../stories/plugin/US-309-worktree-rename.md) 改名**：理由是「与即将新增的 git worktree 能力（US-310）同词」。
-  US-310 不交付，理由随之不成立；`origin/main` 上包名仍是 `rxdb-plugin-working-tree`，不需要反向改名。
-- **[US-310](../stories/collaboration/US-310-named-worktrees.md) 钉在分支上的命名 worktree**：不服务任何一类场景，且与检出位语义冲突。
-  在 demo 上用 Playwright 从空库实测：
-  - 分支菜单带 `requireClean`、worktree 菜单不带，同样是离开有改动的分支，一个被拒、一个放行；
-  - 经分支菜单切到未钉住的分支后，「当前 worktree」不存在，主 worktree 的移除按钮变为可用并能删掉；
-  - New branch 复制未提交改动，一份改动变两份；
-  - `switchWorktree()` 切的是全库 active 分支，发布后要改成「换检出位」只能做破坏性变更。
-- **做法**：以 `origin/main` 为底重建本分支，带走本 Epic 的改动、US-311 和下列与 worktree 无关的修复，然后删掉本节、
-  US-309、US-310（连同「故事」清单里那一行）与 `specs/011-us310-named-worktrees/`。带走的文档里指向
-  `packages/rxdb-plugin-worktree/` 的链接改回 `packages/rxdb-plugin-working-tree/`，US-311 的代码按旧包路径与 `WorkingTree*` 旧名移植。
-  - React / Vue 搜索页 `SearchRecordsPanel`、`SearchResultsList` 的 class 拼接漏空格；
-  - 分支下拉抽出的 `ToolbarDropdown`：修掉 `role="menu"` 的非法结构（axe `aria-required-children`），三端同改；
-  - 新建分支输入框的输入法组合守卫（组字中的回车不提交）。
 
 ## 非目标
 
@@ -1095,7 +1072,8 @@ npm 上也没有 `@aiao/rxdb-plugin-worktree`（`npm view` 返回 E404），撤�
   （多检出位现状 6），覆盖标注见设计指点 7
 - 基于时间或大小的 commit 自动清理策略
 - 改变 `VersionManager.switchBranch()` 的现有默认行为（见 US-308）
-- **钉在分支上的 label 层**（US-310 的命名 worktree）：见[本分支现存实现的处置](#本分支现存实现的处置)
+- **钉在分支上的 label 层**（一行 = 一个名字钉一条分支）：它不构成检出位（设计指点 1）；经它切换切的仍是全库 active 分支，
+  将来改成「换检出位」只能做破坏性变更
 - **查询时叠加**：见[共同前提](#共同前提不切换也能读到另一条线)
 - **检出位跨设备**：检出位是本地概念，不进同步范围
 - **`git worktree move` / `lock`**：检出位没有路径；防回收靠生命周期登记

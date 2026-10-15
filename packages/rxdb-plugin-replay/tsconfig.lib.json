@@ -28,7 +28,7 @@
       "path": "../rxdb/tsconfig.lib.json"
     },
     {
-      "path": "../rxdb-plugin-worktree/tsconfig.lib.json"
+      "path": "../rxdb-plugin-working-tree/tsconfig.lib.json"
     },
     {
       "path": "../rxdb-adapter-pglite/tsconfig.lib.json"

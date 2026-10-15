@@ -7,7 +7,7 @@
  */
 
 import type { RxDB } from '@aiao/rxdb';
-import type { WorktreeRestoreResult, WorktreeStatus } from '@aiao/rxdb-plugin-worktree';
+import type { WorkingTreeRestoreResult, WorkingTreeStatus } from '@aiao/rxdb-plugin-working-tree';
 import { describe, expect, it, vi } from 'vitest';
 import { replayRestoreHint, restoreToCommit } from '../restore.js';
 
@@ -16,10 +16,10 @@ const STATUS = {
   activationRevision: 2,
   headRevision: 7,
   workingTreeRevision: 11
-} as unknown as WorktreeStatus;
+} as unknown as WorkingTreeStatus;
 
-/** 只带 `getPlugins` 与 `worktree.status / restore` 的假库。 */
-const fakeDb = (options: { installed: boolean; restore?: () => Promise<WorktreeRestoreResult> }) => {
+/** 只带 `getPlugins` 与 `workingTree.status / restore` 的假库。 */
+const fakeDb = (options: { installed: boolean; restore?: () => Promise<WorkingTreeRestoreResult> }) => {
   const calls: string[] = [];
   const status = vi.fn(async () => {
     calls.push('status');
@@ -27,11 +27,11 @@ const fakeDb = (options: { installed: boolean; restore?: () => Promise<WorktreeR
   });
   const restore = vi.fn(async () => {
     calls.push('restore');
-    return (options.restore ?? (async () => ({ ok: true, restoredCount: 1 }) as WorktreeRestoreResult))();
+    return (options.restore ?? (async () => ({ ok: true, restoredCount: 1 }) as WorkingTreeRestoreResult))();
   });
   const db = {
     getPlugins: (name: string) => (name === 'workingTree' && options.installed ? [{}] : []),
-    worktree: { status, restore }
+    workingTree: { status, restore }
   } as unknown as RxDB;
   return { db, calls, status, restore };
 };
@@ -48,13 +48,13 @@ describe('restoreToCommit', () => {
       {
         expectedBranch: { branchId: 'main', activationRevision: 2 },
         expectedHeadRevision: 7,
-        expectedWorktreeRevision: 11
+        expectedWorkingTreeRevision: 11
       }
     );
   });
 
   it('结果原样透传（ok: true 与 ok: false 都是）', async () => {
-    const rejected = { ok: false, reason: 'dirty_working_tree' } as WorktreeRestoreResult;
+    const rejected = { ok: false, reason: 'dirty_working_tree' } as WorkingTreeRestoreResult;
     const { db } = fakeDb({ installed: true, restore: async () => rejected });
 
     await expect(restoreToCommit(db, 'c1')).resolves.toBe(rejected);

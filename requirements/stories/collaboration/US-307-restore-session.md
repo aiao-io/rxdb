@@ -146,12 +146,12 @@ INVEST 检查清单:
 
 ## 实现文件
 
-- `packages/rxdb-plugin-worktree/src/working-tree/` — 恢复语义与恢复会话生命周期（`restore-command.ts`、`restore-session-transitions.ts`）
-- `packages/rxdb-plugin-worktree/src/working-tree/` — 恢复会话元数据（`working-tree-restore-session.entity.ts`；表由 US-306 阶段 B 建立，本故事只写入）
-- `packages/rxdb-plugin-worktree-{angular,react,vue}/` — 对称的恢复入口与状态
+- `packages/rxdb-plugin-working-tree/src/working-tree/` — 恢复语义与恢复会话生命周期（`restore-command.ts`、`restore-session-transitions.ts`）
+- `packages/rxdb-plugin-working-tree/src/working-tree/` — 恢复会话元数据（`working-tree-restore-session.entity.ts`；表由 US-306 阶段 B 建立，本故事只写入）
+- `packages/rxdb-plugin-working-tree-{angular,react,vue}/` — 对称的恢复入口与状态
 - `apps/dev-rxdb-{angular,react,vue}/` — 历史与恢复演示
 - `benchmarks/working-tree.bench.ts` — 恢复场景采样
-- `requirements/api-baseline/rxdb-plugin-worktree.json`
+- `requirements/api-baseline/rxdb-plugin-working-tree.json`
 
 ## 依赖与参考
 

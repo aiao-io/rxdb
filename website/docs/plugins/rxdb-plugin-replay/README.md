@@ -11,7 +11,7 @@
 - **刷新续录**：页面刷新后续上同一个会话，未冲刷的事件不丢
 - **体积上限**：单会话与总量各有上限，可配置；插件从不自动删除录像
 - **默认脱敏**：输入框只录成同长度的 `*`，标了 `data-rxdb-replay-block` 的区块只录占位
-- **commit 标记**：装了 `@aiao/rxdb-plugin-worktree` 时，录制中的每次提交都会落一条标记，回放时可一键恢复
+- **commit 标记**：装了 `@aiao/rxdb-plugin-working-tree` 时，录制中的每次提交都会落一条标记，回放时可一键恢复
 - **三框架回放组件**：Angular `ao-replayer` / React `Replayer` / Vue `Replayer`，输入、事件、命令一一对应
 
 rrweb 钉在精确版本 `2.1.7`。录制端随插件加载；回放端在第一次打开回放视图时才按需 `import('rrweb')`。
@@ -21,7 +21,7 @@ rrweb 钉在精确版本 `2.1.7`。录制端随插件加载；回放端在第一
 ```bash npm2yarn
 npm install @aiao/rxdb-plugin-replay
 # 需要 commit 标记与恢复时（可选 peer）
-npm install @aiao/rxdb-plugin-worktree
+npm install @aiao/rxdb-plugin-working-tree
 # 回放组件（按需选其一）
 npm install @aiao/rxdb-plugin-replay-angular
 npm install @aiao/rxdb-plugin-replay-react
@@ -111,7 +111,7 @@ await db.replay.deleteSession(sessionId); // 释放空间的唯一途径
 
 ## commit 标记与恢复
 
-被录的库装了 [`@aiao/rxdb-plugin-worktree`](../rxdb-plugin-worktree/README.md) 时，插件订阅工作树门面的 `commits$`。录制中每次提交都会写一条 commit 标记（rrweb Custom 事件，`tag` 为 `rxdb-replay:commit`）。
+被录的库装了 [`@aiao/rxdb-plugin-working-tree`](../rxdb-plugin-working-tree/README.md) 时，插件订阅工作树门面的 `commits$`。录制中每次提交都会写一条 commit 标记（rrweb Custom 事件，`tag` 为 `rxdb-replay:commit`）。
 
 ```typescript
 import { replayRestoreHint } from '@aiao/rxdb-plugin-replay';
@@ -121,7 +121,7 @@ const result = await db.replay.restoreToCommit(markers[0].commitId);
 if (!result.ok) console.warn(replayRestoreHint(result.reason));
 ```
 
-`restoreToCommit()` 每次都现取工作树凭据再调 `worktree.restore()`。被拒绝时 `reason` 是下面之一，用 `replayRestoreHint(reason)` 取提示文案：
+`restoreToCommit()` 每次都现取工作树凭据再调 `workingTree.restore()`。被拒绝时 `reason` 是下面之一，用 `replayRestoreHint(reason)` 取提示文案：
 
 | `reason`              | 含义                               |
 | --------------------- | ---------------------------------- |

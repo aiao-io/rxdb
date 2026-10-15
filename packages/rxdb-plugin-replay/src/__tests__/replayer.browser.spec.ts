@@ -6,7 +6,7 @@
  * 回放 iframe 里的 DOM 必须是那一刻的样子。`ReplayManager` 只用到读事件、读标记、恢复三个成员，这里给假的。
  */
 
-import type { WorktreeRestoreResult } from '@aiao/rxdb-plugin-worktree';
+import type { WorkingTreeRestoreResult } from '@aiao/rxdb-plugin-working-tree';
 import type { eventWithTime } from '@rrweb/types';
 import { record } from 'rrweb';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -65,7 +65,7 @@ const fakeReplay = (overrides: Partial<ReplayManager> = {}) => {
   const replay = {
     readEvents: vi.fn(async () => recording.events),
     listCommitMarkers: vi.fn(async (): Promise<ReplayCommitMarker[]> => []),
-    restoreToCommit: vi.fn(async (): Promise<WorktreeRestoreResult> => ({
+    restoreToCommit: vi.fn(async (): Promise<WorkingTreeRestoreResult> => ({
       ok: true,
       restoredCount: 3,
       sessionId: 'r1',

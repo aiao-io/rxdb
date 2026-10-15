@@ -53,10 +53,10 @@
       "path": "../../packages/rxdb-plugin-workspace/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-plugin-worktree-angular/tsconfig.lib.json"
+      "path": "../../packages/rxdb-plugin-working-tree-angular/tsconfig.lib.json"
     },
     {
-      "path": "../../packages/rxdb-plugin-worktree/tsconfig.lib.json"
+      "path": "../../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
     },
     {
       "path": "../../packages/rxdb-plugin-replay/tsconfig.lib.json"

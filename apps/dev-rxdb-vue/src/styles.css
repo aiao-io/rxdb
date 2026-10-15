@@ -180,7 +180,7 @@ app-header,
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   worktree 面板的 GitHub Desktop 形态样式（.gd-* 只被该面板使用）
+   working-tree 面板的 GitHub Desktop 形态样式（.gd-* 只被该面板使用）
    —— 从 Angular styles.scss 逐字移植；SCSS 嵌套按原生 CSS 嵌套落盘
    （Tailwind 4 / lightningcss 原生支持）。
    ═══════════════════════════════════════════════════════════════ */
@@ -316,14 +316,6 @@ app-header,
 .gd-btn-ghost:focus-visible {
   outline: 2px solid var(--gd-accent);
   outline-offset: -1px;
-}
-/* 禁用态（当前 worktree 的移除按钮、命令在飞时的新建按钮）：不再像可点的样子，悬停也不变色。
-   axe 的 color-contrast 本就跳过 disabled 控件，淡色不会撞对比度门禁。 */
-.gd-btn-ghost:disabled,
-.gd-btn-ghost:disabled:hover {
-  background: transparent;
-  color: var(--gd-muted);
-  cursor: default;
 }
 
 /* 工具栏图标按钮（获取 origin）。 */
@@ -472,13 +464,6 @@ button.gd-menu-row:focus-visible {
 .gd-menu-row svg {
   color: var(--gd-muted);
   flex-shrink: 0;
-}
-/* 禁用态（命令在飞时的下拉行）：文字转灰、不再有指针与悬停底色。 */
-.gd-menu-row:disabled,
-.gd-menu-row:disabled:hover {
-  background: transparent;
-  color: var(--gd-muted);
-  cursor: default;
 }
 
 /* 侧栏列表行（更改 / 历史共用）：选中 = 浅蓝底 + 3px 蓝左边条。 */

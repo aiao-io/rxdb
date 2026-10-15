@@ -161,7 +161,7 @@ const menus: MenuItem[] = [
   {
     type: 'link',
     title: 'Working Tree',
-    path: '/worktree',
+    path: '/working-tree',
     icon: GitMerge
   },
   {

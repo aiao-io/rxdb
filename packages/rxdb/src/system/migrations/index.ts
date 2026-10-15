@@ -51,7 +51,7 @@ function createCapabilityClaimMigration(contribution: RxDBSystemContribution): M
  * `createMigrationWatermarks()` 直接写成已执行水位。只有既有库才真的执行 `up()`。
  *
  * **核心今天一条自带迁移都没有**，返回值全部来自插件贡献——`0004-working-tree-commits`
- * 随 `@aiao/rxdb-plugin-worktree` 走了。空数组是合法且常见的结果：没装任何贡献系统
+ * 随 `@aiao/rxdb-plugin-working-tree` 走了。空数组是合法且常见的结果：没装任何贡献系统
  * 能力的插件时，这条链本来就该是空的。函数不因此可以删——它是「贡献 → 迁移 + 认领行」
  * 这条展开规则的唯一实现处，两个调用点（既有库的 `runMigrations` 与新库的
  * `createMigrationWatermarks`）必须拿到逐字相同的清单。

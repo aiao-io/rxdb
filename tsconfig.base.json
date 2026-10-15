@@ -92,11 +92,13 @@
       "@aiao/rxdb-plugin-tree-angular": ["./packages/rxdb-plugin-tree-angular/src/index.ts"],
       "@aiao/rxdb-plugin-tree-react": ["./packages/rxdb-plugin-tree-react/src/index.ts"],
       "@aiao/rxdb-plugin-tree-vue": ["./packages/rxdb-plugin-tree-vue/src/index.ts"],
-      "@aiao/rxdb-plugin-worktree": ["./packages/rxdb-plugin-worktree/src/index.ts"],
-      "@aiao/rxdb-plugin-worktree-angular": ["./packages/rxdb-plugin-worktree-angular/src/index.ts"],
-      "@aiao/rxdb-plugin-worktree-react": ["./packages/rxdb-plugin-worktree-react/src/index.ts"],
-      "@aiao/rxdb-plugin-worktree-vue": ["./packages/rxdb-plugin-worktree-vue/src/index.ts"],
-      "@aiao/rxdb-plugin-worktree/testing": ["./packages/rxdb-plugin-worktree/src/working-tree/testing/index.ts"],
+      "@aiao/rxdb-plugin-working-tree": ["./packages/rxdb-plugin-working-tree/src/index.ts"],
+      "@aiao/rxdb-plugin-working-tree-angular": ["./packages/rxdb-plugin-working-tree-angular/src/index.ts"],
+      "@aiao/rxdb-plugin-working-tree-react": ["./packages/rxdb-plugin-working-tree-react/src/index.ts"],
+      "@aiao/rxdb-plugin-working-tree-vue": ["./packages/rxdb-plugin-working-tree-vue/src/index.ts"],
+      "@aiao/rxdb-plugin-working-tree/testing": [
+        "./packages/rxdb-plugin-working-tree/src/working-tree/testing/index.ts"
+      ],
       "@aiao/rxdb-plugin-workspace": ["./packages/rxdb-plugin-workspace/src/index.ts"],
       "@aiao/rxdb-react": ["./packages/rxdb-react/src/index.ts"],
       "@aiao/rxdb-test": ["./packages/rxdb-test/src/index.ts"],

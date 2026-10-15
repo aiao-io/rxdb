@@ -1,6 +1,10 @@
 import type { RxDB } from '@aiao/rxdb';
-import { rxDBPluginWorktree, type WorktreeDiffEntry, type WorktreeStatus } from '@aiao/rxdb-plugin-worktree';
-import { ConformanceNote } from '@aiao/rxdb-plugin-worktree/testing';
+import {
+  rxDBPluginWorkingTree,
+  type WorkingTreeDiffEntry,
+  type WorkingTreeStatus
+} from '@aiao/rxdb-plugin-working-tree';
+import { ConformanceNote } from '@aiao/rxdb-plugin-working-tree/testing';
 import { firstValueFrom } from 'rxjs';
 import { afterEach, describe, expect, it } from 'vitest';
 import { rxDBPluginReplay } from '../plugin.js';
@@ -11,10 +15,10 @@ const apps: RxDB[] = [];
 const createApp = async (): Promise<RxDB> => {
   const db = createPgliteDb(`review-replay-restore-${crypto.randomUUID()}`, [ConformanceNote]);
   apps.push(db);
-  db.use(rxDBPluginWorktree);
+  db.use(rxDBPluginWorkingTree);
   db.use(rxDBPluginReplay, { createRecordingDb: createRecordingDbFactory().factory });
   await db.connect('pglite');
-  await db.worktree.enable();
+  await db.workingTree.enable();
   return db;
 };
 
@@ -26,11 +30,11 @@ const createAndCommit = async (
   note.title = title;
   note.body = null;
   await note.save();
-  const status = await db.worktree.status();
-  const committed = await db.worktree.commit(title, {
+  const status = await db.workingTree.status();
+  const committed = await db.workingTree.commit(title, {
     expectedBranch: { branchId: status.branchId, activationRevision: status.activationRevision },
     expectedHeadRevision: status.headRevision,
-    expectedWorktreeRevision: status.workingTreeRevision,
+    expectedWorkingTreeRevision: status.workingTreeRevision,
     authorId: 'review-plugins',
     operationId: crypto.randomUUID()
   });
@@ -38,13 +42,13 @@ const createAndCommit = async (
   return { commitId: committed.commitId, noteId: note.id };
 };
 
-const credentialsOf = (status: WorktreeStatus) => ({
+const credentialsOf = (status: WorkingTreeStatus) => ({
   expectedBranch: { branchId: status.branchId, activationRevision: status.activationRevision },
   expectedHeadRevision: status.headRevision,
-  expectedWorktreeRevision: status.workingTreeRevision
+  expectedWorkingTreeRevision: status.workingTreeRevision
 });
 
-const contentOf = (entry: WorktreeDiffEntry) => ({
+const contentOf = (entry: WorkingTreeDiffEntry) => ({
   namespace: entry.namespace,
   entity: entry.entity,
   entityId: entry.entityId,
@@ -90,22 +94,22 @@ describe('并行评审：replay 恢复走真实 PGlite 工作树事务', () => {
     if (!note) throw new Error('复验夹具首条 note 缺失');
     note.title = 'changed';
     await note.save();
-    const changed = await db.worktree.status();
-    const committed = await db.worktree.commit('changed', {
+    const changed = await db.workingTree.status();
+    const committed = await db.workingTree.commit('changed', {
       expectedBranch: { branchId: changed.branchId, activationRevision: changed.activationRevision },
       expectedHeadRevision: changed.headRevision,
-      expectedWorktreeRevision: changed.workingTreeRevision,
+      expectedWorkingTreeRevision: changed.workingTreeRevision,
       authorId: 'review-plugins',
       operationId: crypto.randomUUID()
     });
     expect(committed.ok).toBe(true);
-    const before = await db.worktree.status();
-    const history = await db.worktree.listCommits();
-    const target = await db.worktree.commitChanges(first.commitId);
+    const before = await db.workingTree.status();
+    const history = await db.workingTree.listCommits();
+    const target = await db.workingTree.commitChanges(first.commitId);
     const projectionBefore = await projectionOf(db);
     expect(before).toMatchObject({ clean: true, entryCount: 0, restoring: false, conflicted: false });
-    expect((await db.worktree.diff()).entries).toEqual([]);
-    expect(await db.worktree.restoreSession()).toBeNull();
+    expect((await db.workingTree.diff()).entries).toEqual([]);
+    expect(await db.workingTree.restoreSession()).toBeNull();
     expect(target.entries).toHaveLength(1);
     expect(target.entries[0]).toMatchObject({ entityId: first.noteId, operation: 'insert', patch: { title: 'first' } });
     expect(projectionBefore.find(row => row.id === first.noteId)?.title).toBe('changed');
@@ -119,7 +123,7 @@ describe('并行评审：replay 恢复走真实 PGlite 工作树事务', () => {
         }),
       false
     );
-    const diff = await db.worktree.diff();
+    const diff = await db.workingTree.diff();
     expect(diff.entries.map(contentOf)).toEqual(target.entries.map(contentOf));
     expect(diff.entries[0]?.patch).toMatchObject({ title: 'first' });
     expect(diff.entries[0]?.unitId).not.toBe(target.entries[0]?.unitId);
@@ -127,7 +131,7 @@ describe('并行评审：replay 恢复走真实 PGlite 工作树事务', () => {
     expect(diff.baseHeadCommitId).toBe(history.headCommitId);
     expect(restoredNotes[0]?.title).toBe('changed');
     expect(await projectionOf(db)).toEqual(projectionBefore);
-    const after = await db.worktree.status();
+    const after = await db.workingTree.status();
     expect(after.headRevision).toBe(before.headRevision);
     expect(after.branchId).toBe(before.branchId);
     expect(after.activationRevision).toBe(before.activationRevision);
@@ -141,32 +145,32 @@ describe('并行评审：replay 恢复走真实 PGlite 工作树事务', () => {
     });
     if (!restored.ok) throw new Error('复验夹具恢复被拒');
     expect(restored.workingTreeRevision).toBe(after.workingTreeRevision);
-    expect(await db.worktree.restoreSession()).toEqual({
+    expect(await db.workingTree.restoreSession()).toEqual({
       id: restored.sessionId,
       branchId: before.branchId,
       targetCommitId: first.commitId,
       status: 'active'
     });
-    expect(await db.worktree.listCommits()).toEqual(history);
+    expect(await db.workingTree.listCommits()).toEqual(history);
     await expect(db.replay.restoreToCommit(first.commitId)).resolves.toEqual({
       ok: false,
       reason: 'dirty_working_tree'
     });
     expect(await noteIds(db)).toEqual([first.noteId, second.noteId].sort());
-    expect(await db.worktree.status()).toEqual(after);
-    expect(await db.worktree.diff()).toEqual(diff);
+    expect(await db.workingTree.status()).toEqual(after);
+    expect(await db.workingTree.diff()).toEqual(diff);
     expect(await projectionOf(db)).toEqual(projectionBefore);
-    await expect(db.worktree.discard(credentialsOf(after))).resolves.toMatchObject({ ok: true, discardedCount: 1 });
-    const cleared = await db.worktree.status();
+    await expect(db.workingTree.discard(credentialsOf(after))).resolves.toMatchObject({ ok: true, discardedCount: 1 });
+    const cleared = await db.workingTree.status();
     expect(cleared).toMatchObject({ clean: true, entryCount: 0, restoring: false, conflicted: false });
-    expect(await db.worktree.restoreSession()).toBeNull();
-    const direct = await db.worktree.restore({ commitId: first.commitId }, credentialsOf(cleared));
+    expect(await db.workingTree.restoreSession()).toBeNull();
+    const direct = await db.workingTree.restore({ commitId: first.commitId }, credentialsOf(cleared));
     expect(direct).toMatchObject({ ok: true, restoredCount: 1 });
-    const directDiff = await db.worktree.diff();
+    const directDiff = await db.workingTree.diff();
     expect(directDiff.entries.map(contentOf)).toEqual(diff.entries.map(contentOf));
     expect(await projectionOf(db)).toEqual(projectionBefore);
-    expect(await db.worktree.listCommits()).toEqual(history);
-    const directStatus = await db.worktree.status();
+    expect(await db.workingTree.listCommits()).toEqual(history);
+    const directStatus = await db.workingTree.status();
     expect(directStatus).toMatchObject({
       clean: false,
       entryCount: 1,
@@ -176,13 +180,13 @@ describe('并行评审：replay 恢复走真实 PGlite 工作树事务', () => {
       branchId: before.branchId,
       activationRevision: before.activationRevision
     });
-    await expect(db.worktree.discard(credentialsOf(directStatus))).resolves.toMatchObject({
+    await expect(db.workingTree.discard(credentialsOf(directStatus))).resolves.toMatchObject({
       ok: true,
       discardedCount: 1
     });
-    expect(await db.worktree.restoreSession()).toBeNull();
-    expect((await db.worktree.diff()).entries).toEqual([]);
-    expect(await db.worktree.status()).toMatchObject({
+    expect(await db.workingTree.restoreSession()).toBeNull();
+    expect((await db.workingTree.diff()).entries).toEqual([]);
+    expect(await db.workingTree.status()).toMatchObject({
       clean: true,
       entryCount: 0,
       restoring: false,
@@ -199,7 +203,7 @@ describe('并行评审：replay 恢复走真实 PGlite 工作树事务', () => {
         directResult: direct,
         directDiff,
         directStatus,
-        exitStatus: await db.worktree.status()
+        exitStatus: await db.workingTree.status()
       })
     );
   });
@@ -207,13 +211,13 @@ describe('并行评审：replay 恢复走真实 PGlite 工作树事务', () => {
   it('不可达目标拒绝不改数据/HEAD，断开后公开入口明确拒绝', async () => {
     const db = await createApp();
     const { noteId } = await createAndCommit(db, 'kept');
-    const before = await db.worktree.status();
+    const before = await db.workingTree.status();
     await expect(db.replay.restoreToCommit('review-unreachable')).resolves.toEqual({
       ok: false,
       reason: 'unreachable_target'
     });
     expect(await noteIds(db)).toEqual([noteId]);
-    expect(await db.worktree.status()).toEqual(before);
+    expect(await db.workingTree.status()).toEqual(before);
     await db.disconnectAll();
     await expect(db.replay.restoreToCommit('review-unreachable')).rejects.toMatchObject({ code: 'not_installed' });
   });

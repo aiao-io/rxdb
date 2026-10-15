@@ -96,7 +96,7 @@ export const ENVIRONMENT_MISMATCH_CODE = 'benchmark_environment_mismatch';
 // 报告 JSON（契约 §2）
 // ---------------------------------------------------------------------------
 
-/** 报告里的 fixture 段；逐字段取自 {@link WorktreeFixturePlan}。 */
+/** 报告里的 fixture 段；逐字段取自 {@link WorkingTreeFixturePlan}。 */
 export interface BenchFixture {
   readonly entities: number;
   readonly commits: number;
@@ -160,7 +160,7 @@ export interface BenchReference {
 }
 
 /** 一次运行的完整报告。 */
-export interface WorktreeBenchReport {
+export interface WorkingTreeBenchReport {
   readonly schemaVersion: number;
   readonly fixture: BenchFixture;
   readonly environment: BenchEnvironment;

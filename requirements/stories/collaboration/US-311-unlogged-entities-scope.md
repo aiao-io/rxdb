@@ -6,7 +6,7 @@ priority: High
 epic: epic-006-working-tree-commits
 created: 2026-10-15
 updated: 2026-10-15
-tags: [collaboration, workspace, storage, worktree, version-control]
+tags: [collaboration, workspace, storage, working-tree, version-control]
 ---
 
 <!--
@@ -34,7 +34,7 @@ INVEST 检查清单:
 
 | 步骤                 | 新增的草稿                                  |
 | -------------------- | ------------------------------------------- |
-| 启动后自动启用工作树 | `rxdb:Commit` ×1、`rxdb:Worktree` ×1        |
+| 启动后自动启用工作树 | `rxdb:Commit` ×1                            |
 | 写一条 Todo          | `rxdb:WorkingTreeEntry` ×1                  |
 | 提交                 | `rxdb:Commit` ×1、`rxdb:CommitChangeSet` ×1 |
 | 上传一个文件         | `storage:StorageFileMeta` ×1                |
@@ -51,15 +51,15 @@ demo 的草稿页只显示 `entity === 'Todo'` 的条目（`workspace.page.ts` �
 
 1. **草稿缓存的系统表名单是模块加载时的快照。** [`RxDBPluginWorkspace.ts`](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts)
    的 `SYSTEM_ENTITY_IDENTITIES` 由 `[RxDBBranch, RxDBChange, RxDBMigration, RxDBSync]` 算出，插件经 `registerSystemEntities()`
-   追加的系统表（工作树插件贡献的十一张）不在其中。核心 [`system-entities.ts`](../../../packages/rxdb/src/system/system-entities.ts)
+   追加的系统表（工作树插件贡献的十张）不在其中。核心 [`system-entities.ts`](../../../packages/rxdb/src/system/system-entities.ts)
    对 `SYSTEM_ENTITIES` 写明：「不要在模块加载期把它 `map` 成一份派生常量」。
 2. **不写变更日志的实体没有 CREATE / REMOVE 事件。** 实体构造器经 `EntityManager` 的代理派发 NEW（`instantiate()` 同样如此）；
    CREATE / UPDATE / REMOVE 只从 `rxdb_change` 行派生（sqlite-core 与 PGlite 各自的 `handle_rxdb_change.ts`），而 `log: false`
    的表不建变更日志触发器。草稿缓存只在 CREATE / REMOVE 时收尾，`log: false` 实体的草稿于是永远等不到清除。
    `StorageFileMeta` 声明了 `log: false`，由 `StorageService` 经 `entityManager.instantiate()` 造出。
-3. **版本化域对 `log: false` 的业务实体前后不一。** [`versioned-domain.ts`](../../../packages/rxdb-plugin-worktree/src/working-tree/versioned-domain.ts)
+3. **版本化域对 `log: false` 的业务实体前后不一。** [`versioned-domain.ts`](../../../packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts)
    的 `buildVersionedDomain` 只把 QueryCache 判成 untracked，`StorageFileMeta` 被判成 tracked：事务写入口从不捕获它
-   （挂载点 1 只读变更日志增量），批量写入口却按版本化实体拒绝（`gateBulkWrite` 抛 `WorktreeWriteRejectedError`），
+   （挂载点 1 只读变更日志增量），批量写入口却按版本化实体拒绝（`gateBulkWrite` 抛 `WorkingTreeWriteRejectedError`），
    raw 写也按版本化表拦截。这违反 epic-006 [版本化域](../../epics/epic-006-working-tree-commits.md#版本化域tracked--untracked)
    的第二条不变量「同一个实体不得在一条写入口上 tracked、在另一条上 untracked」。
 
@@ -101,10 +101,10 @@ demo 的草稿页只显示 `entity === 'Todo'` 的条目（`workspace.page.ts` �
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
 复验方式：AC 1～5 见 `pnpm nx test rxdb-plugin-workspace`（`describe('不收的实体：插件系统表与关闭变更日志的实体')`）与
-`pnpm nx run rxdb-plugin-workspace:test-browser`（「关闭变更日志的实体不进草稿缓存」）；AC 6～9 见 `pnpm nx test rxdb-plugin-worktree`
+`pnpm nx run rxdb-plugin-workspace:test-browser`（「关闭变更日志的实体不进草稿缓存」）；AC 6～9 见 `pnpm nx test rxdb-plugin-working-tree`
 的 `untracked-domain.spec.ts`、`capture-runtime-mount-points.spec.ts` 与 `write-entry-matrix.spec.ts`；AC 10 见
-`pnpm nx e2e dev-rxdb-angular-e2e -- src/storage.spec.ts src/worktree.spec.ts --grep 草稿缓存`，把 `RxDBPluginWorkspace.ts`
-换回改动前的版本时这两条各自报出泄漏的键（`storage:StorageFileMeta:*`；`rxdb:Commit:*` 等五条）；AC 12 见 `pnpm audit:*` 各项。
+`pnpm nx e2e dev-rxdb-angular-e2e -- src/storage.spec.ts src/working-tree.spec.ts --grep 草稿缓存`，把 `RxDBPluginWorkspace.ts`
+换回改动前的版本时这两条各自报出泄漏的键（`storage:StorageFileMeta:*`；`rxdb:Commit:*` 等四条）；AC 12 见 `pnpm audit:*` 各项。
 
 ## 技术笔记
 
@@ -122,10 +122,11 @@ demo 的草稿页只显示 `entity === 'Todo'` 的条目（`workspace.page.ts` �
 ## 实现文件
 
 - `packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts` — 草稿收录判定
-- `packages/rxdb-plugin-worktree/src/working-tree/versioned-domain.ts` — 第四类归类与混用守卫
-- `packages/rxdb-plugin-worktree/src/working-tree/{write-entry-matrix,capture-hook}.ts` — 目标类别改名、建域时传 `log`
+- `packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts` — 第四类归类与混用守卫
+- `packages/rxdb-plugin-working-tree/src/working-tree/{write-entry-matrix,capture-hook}.ts` — 目标类别改名、建域时传 `log`
+- `packages/rxdb-plugin-working-tree/src/commit/commit-error-codes.ts` — `mixed_versioned_cache_transaction` 的文档口径限定为 QueryCache
 - `packages/rxdb/src/entity/entity-options.interface.ts` — `log` 选项的 TSDoc
-- `apps/dev-rxdb-angular-e2e/src/{storage,worktree}.spec.ts` — AC 10
+- `apps/dev-rxdb-angular-e2e/src/{storage,working-tree}.spec.ts` — AC 10
 
 ## References
 

@@ -53,7 +53,7 @@ export type SqliteCleanupOptions<TTx extends SqliteTransactionLike = SqliteTrans
    * @remarks
    * 新库形态由 `RxDB.createTables()` 定义 —— main 分支行**加上**
    * `systemContributions.flatMap(c => c.createInitialRows(...))`。逐表 DELETE 把后半截
-   * 一并清掉了，不补回来，装了 `@aiao/rxdb-plugin-worktree` 这类插件的库在清库后
+   * 一并清掉了，不补回来，装了 `@aiao/rxdb-plugin-working-tree` 这类插件的库在清库后
    * 第一次 `createBranch()` 就会因为读不到工作树单例行直接抛错。
    *
    * 之所以是钩子而不是本工具自己做：**行的内容归贡献方定义**，本包不认识任何插件，

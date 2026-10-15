@@ -1,7 +1,7 @@
 {
   "name": "@aiao/rxdb-plugin-replay",
   "version": "0.0.26",
-  "description": "Opt-in rrweb session recording and replay for Aiao RxDB, with worktree commit markers and restore-to-commit.",
+  "description": "Opt-in rrweb session recording and replay for Aiao RxDB, with working-tree commit markers and restore-to-commit.",
   "homepage": "https://rxdb.aiao.io/docs/plugins",
   "bugs": {
     "url": "https://github.com/aiao-io/rxdb/issues"
@@ -12,7 +12,7 @@
     "rrweb",
     "session-replay",
     "debugging",
-    "worktree"
+    "working-tree"
   ],
   "license": "MIT",
   "repository": {
@@ -64,14 +64,14 @@
   },
   "devDependencies": {
     "@aiao/rxdb-adapter-pglite": "workspace:*",
-    "@aiao/rxdb-plugin-worktree": "workspace:*"
+    "@aiao/rxdb-plugin-working-tree": "workspace:*"
   },
   "peerDependencies": {
-    "@aiao/rxdb-plugin-worktree": "workspace:^",
+    "@aiao/rxdb-plugin-working-tree": "workspace:^",
     "@aiao/rxdb": "workspace:^"
   },
   "peerDependenciesMeta": {
-    "@aiao/rxdb-plugin-worktree": {
+    "@aiao/rxdb-plugin-working-tree": {
       "optional": true
     }
   }

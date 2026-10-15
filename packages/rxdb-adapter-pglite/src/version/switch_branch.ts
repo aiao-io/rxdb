@@ -241,7 +241,7 @@ export const switch_branch = async (adapter: RxDBAdapterPGlite, options: SwitchB
     }
   } catch (cause) {
     // `prepare` 的拒绝是**调用方的领域错误**（工作树不干净、凭据过期……），调用方按类型接住它。
-    // 包进 RxdbAdapterPGliteError 会把类型抹平成「适配器出错」，`instanceof WorktreeDirtyError`
+    // 包进 RxdbAdapterPGliteError 会把类型抹平成「适配器出错」，`instanceof WorkingTreeDirtyError`
     // 这类判断随之全部失效——而这条路径上一行都没动过，本来就不是适配器的故障。
     if (prepareRejected) throw cause;
     const message = cause instanceof Error ? cause.message : String(cause);

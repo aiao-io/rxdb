@@ -2017,7 +2017,7 @@
           },
           {
             "kind": "peerDependencies",
-            "name": "@aiao/rxdb-plugin-worktree",
+            "name": "@aiao/rxdb-plugin-working-tree",
             "optional": true,
             "range": "workspace:^"
           },
@@ -2443,37 +2443,6 @@
         "version": "0.0.26"
       },
       {
-        "description": "RxDB Workspace 插件为**尚未入库的 NEW 实体草稿**提供本地恢复能力：草稿保存在内存和 IndexedDB 中，并通过 BroadcastChannel 同步同源标签页。刷新或重开页面后，草稿会自动恢复，可继续编辑、保存或丢弃。",
-        "framework": null,
-        "homepage": "https://rxdb.aiao.io/docs/collaboration",
-        "hosts": [
-          "browser"
-        ],
-        "implementationDependencies": [
-          {
-            "kind": "peerDependencies",
-            "name": "@aiao/rxdb",
-            "optional": false,
-            "range": "workspace:^"
-          },
-          {
-            "kind": "dependencies",
-            "name": "@aiao/utils",
-            "optional": false,
-            "range": "workspace:^"
-          }
-        ],
-        "name": "@aiao/rxdb-plugin-workspace",
-        "plugin": {
-          "class": "RxDBPluginWorkspace",
-          "factory": "rxDBPluginWorkspace",
-          "source": "src/RxDBPluginWorkspace.ts"
-        },
-        "role": "plugin",
-        "slots": [],
-        "version": "0.0.26"
-      },
-      {
         "description": "RxDB 本地工作树与提交历史插件：把「未提交的改动」与「提交历史」作为一等概念加进 `@aiao/rxdb`。",
         "framework": null,
         "homepage": "https://rxdb.aiao.io/docs/getting-started",
@@ -2501,10 +2470,10 @@
             "range": "workspace:^"
           }
         ],
-        "name": "@aiao/rxdb-plugin-worktree",
+        "name": "@aiao/rxdb-plugin-working-tree",
         "plugin": {
-          "class": "RxDBPluginWorktree",
-          "factory": "rxDBPluginWorktree",
+          "class": "RxDBPluginWorkingTree",
+          "factory": "rxDBPluginWorkingTree",
           "source": "src/plugin.ts"
         },
         "role": "plugin",
@@ -2512,7 +2481,7 @@
         "version": "0.0.26"
       },
       {
-        "description": "@aiao/rxdb-plugin-worktree-angular",
+        "description": "@aiao/rxdb-plugin-working-tree-angular",
         "framework": "angular",
         "homepage": "https://rxdb.aiao.io/docs/plugins",
         "hosts": [
@@ -2533,18 +2502,18 @@
           },
           {
             "kind": "peerDependencies",
-            "name": "@aiao/rxdb-plugin-worktree",
+            "name": "@aiao/rxdb-plugin-working-tree",
             "optional": false,
             "range": "workspace:^"
           }
         ],
-        "name": "@aiao/rxdb-plugin-worktree-angular",
+        "name": "@aiao/rxdb-plugin-working-tree-angular",
         "role": "binding",
         "slots": [],
         "version": "0.0.26"
       },
       {
-        "description": "@aiao/rxdb-plugin-worktree-react",
+        "description": "@aiao/rxdb-plugin-working-tree-react",
         "framework": "react",
         "homepage": "https://rxdb.aiao.io/docs/plugins",
         "hosts": [
@@ -2559,7 +2528,7 @@
           },
           {
             "kind": "peerDependencies",
-            "name": "@aiao/rxdb-plugin-worktree",
+            "name": "@aiao/rxdb-plugin-working-tree",
             "optional": false,
             "range": "workspace:^"
           },
@@ -2570,13 +2539,13 @@
             "range": "workspace:^"
           }
         ],
-        "name": "@aiao/rxdb-plugin-worktree-react",
+        "name": "@aiao/rxdb-plugin-working-tree-react",
         "role": "binding",
         "slots": [],
         "version": "0.0.26"
       },
       {
-        "description": "@aiao/rxdb-plugin-worktree-vue",
+        "description": "@aiao/rxdb-plugin-working-tree-vue",
         "framework": "vue",
         "homepage": "https://rxdb.aiao.io/docs/plugins",
         "hosts": [
@@ -2591,7 +2560,7 @@
           },
           {
             "kind": "peerDependencies",
-            "name": "@aiao/rxdb-plugin-worktree",
+            "name": "@aiao/rxdb-plugin-working-tree",
             "optional": false,
             "range": "workspace:^"
           },
@@ -2602,8 +2571,39 @@
             "range": "workspace:^"
           }
         ],
-        "name": "@aiao/rxdb-plugin-worktree-vue",
+        "name": "@aiao/rxdb-plugin-working-tree-vue",
         "role": "binding",
+        "slots": [],
+        "version": "0.0.26"
+      },
+      {
+        "description": "RxDB Workspace 插件为**尚未入库的 NEW 实体草稿**提供本地恢复能力：草稿保存在内存和 IndexedDB 中，并通过 BroadcastChannel 同步同源标签页。刷新或重开页面后，草稿会自动恢复，可继续编辑、保存或丢弃。",
+        "framework": null,
+        "homepage": "https://rxdb.aiao.io/docs/collaboration",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/utils",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-workspace",
+        "plugin": {
+          "class": "RxDBPluginWorkspace",
+          "factory": "rxDBPluginWorkspace",
+          "source": "src/RxDBPluginWorkspace.ts"
+        },
+        "role": "plugin",
         "slots": [],
         "version": "0.0.26"
       },
@@ -2934,7 +2934,7 @@
       }
     ]
   },
-  "digest": "87e3577dfff85c13d39e0fa3c33607872aa8f0328a7dd6230fdd662cf3f084c0",
+  "digest": "4da1be9f0928cb1015240a26f812dc888881c3a29c85f2935d566b6a9bf84f1d",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

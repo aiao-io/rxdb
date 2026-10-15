@@ -6,8 +6,8 @@ import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import { rxDBPluginWorkspace } from '@aiao/rxdb-plugin-workspace';
-import { rxDBPluginWorktree } from '@aiao/rxdb-plugin-worktree';
 import { EncryptedUser } from '@aiao/rxdb-test/encrypted';
 import { ENTITIES } from '@aiao/rxdb-test/entities';
 import { ENTITIES as shop_entities } from '@aiao/rxdb-test/shop';
@@ -72,10 +72,10 @@ export function useDemoPlugins(rxdb: RxDB, createOptions: () => Promise<SqliteOp
     .use(rxDBPluginStorage)
     .use(rxDBPluginTree)
     .use(rxDBPluginWorkspace)
-    // 只装不手动启用：`worktree.enable()` 是数据库级的一次性开关（v1 无 `disable()`），
+    // 只装不手动启用：`workingTree.enable()` 是数据库级的一次性开关（v1 无 `disable()`），
     // 按在这里等于替所有 demo 页做了这个决定。空库由启动时的 `enableIfEmpty()` 自动启用
-    // （见 setup 里 `rxdb.init()` 之后那一行）；有内容的库保持未启用，启用走 /worktree 面板的显式点击。
-    .use(rxDBPluginWorktree)
+    // （见 setup 里 `rxdb.init()` 之后那一行）；有内容的库保持未启用，启用走 /working-tree 面板的显式点击。
+    .use(rxDBPluginWorkingTree)
     .adapter(
       DEMO_ADAPTER_NAME,
       async db =>

@@ -48,7 +48,7 @@ export const cleanup_db = async (adapter: RxDBAdapterSqliteBase) => {
     // 「新库形态」不是本文件定义的，是 `RxDB.createTables()` 定义的：main 分支行**加上**每个
     // 系统能力贡献的初始行。上面那条 INSERT 补的是前半截，这个钩子补后半截——回头调**同一个**
     // `createInitialRows`，于是行的内容始终只有贡献方一个定义处，本文件不必知道有哪些行，
-    // 也就不必 import 任何插件包（sqlite-core 连 `@aiao/rxdb-plugin-worktree` 的
+    // 也就不必 import 任何插件包（sqlite-core 连 `@aiao/rxdb-plugin-working-tree` 的
     // devDependency 都没有）。没装插件的库贡献列表为空，一行不写、一次 `saveMany` 都不发。
     //
     // 必须走钩子而不是等 `cleanupSqliteTestAdapter` 返回后再补：那时 `resetToMainBranchSql`

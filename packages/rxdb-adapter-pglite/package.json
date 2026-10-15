@@ -79,7 +79,7 @@
     "@aiao/rxdb-plugin-querycache": "workspace:*",
     "@aiao/rxdb-plugin-sync": "workspace:*",
     "@aiao/rxdb-plugin-tree": "workspace:*",
-    "@aiao/rxdb-plugin-worktree": "workspace:*",
+    "@aiao/rxdb-plugin-working-tree": "workspace:*",
     "@aiao/rxdb-test": "workspace:*"
   },
   "peerDependencies": {

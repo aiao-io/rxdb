@@ -43,7 +43,7 @@ interface BranchRowsCall {
  * 不用真实插件的贡献：本文件测的是 `remove_branch` 那一侧的契约——有没有调、拿到的是不是
  * 同一个执行器、排不排在分支行之前、抛错让不让它穿出去。换成真插件，断言会同时压在
  * 「插件删了哪几张表」上，于是插件加一张表、本文件跟着红，而红的这一侧什么都不用改。
- * 删了什么由 `@aiao/rxdb-plugin-worktree` 自己的 `remove-branch-aba.spec.ts` 守。
+ * 删了什么由 `@aiao/rxdb-plugin-working-tree` 自己的 `remove-branch-aba.spec.ts` 守。
  */
 function createRecordingContribution(
   calls: BranchRowsCall[],

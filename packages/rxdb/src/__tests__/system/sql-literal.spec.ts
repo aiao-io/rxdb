@@ -9,7 +9,7 @@
  * 浮点输入，于是 CAS 的判据静悄悄换成了另一个判据。
  *
  * US-025 把两处调用点（`commit/commit-capability.ts` 与 `commit/write-commit.ts`）搬进了
- * `@aiao/rxdb-plugin-worktree`，本模块留在核心 —— 转义与命名规则六个后端共用，
+ * `@aiao/rxdb-plugin-working-tree`，本模块留在核心 —— 转义与命名规则六个后端共用，
  * 不该随某一个插件走。搬迁之后核心自己的套件够不着它，因此这里按**核心原语**的身份
  * 给它补上直接的判据：每个函数各自的转义正确性，以及各自那条拒绝路径。
  */

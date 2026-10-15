@@ -1,6 +1,6 @@
-# 工作树拆包：核心 → `@aiao/rxdb-plugin-worktree`
+# 工作树拆包：核心 → `@aiao/rxdb-plugin-working-tree`
 
-工作树与提交历史（epic-006）从 `@aiao/rxdb` 核心抽成了独立插件包，**下一个发布版本起**生效：十张系统表、写捕获、提交图编解码、`0004-working-tree-commits` 迁移全部随 `@aiao/rxdb-plugin-worktree` 走，核心侧只留下装卸口与「未认领能力守卫」。
+工作树与提交历史（epic-006）从 `@aiao/rxdb` 核心抽成了独立插件包，**下一个发布版本起**生效：十张系统表、写捕获、提交图编解码、`0004-working-tree-commits` 迁移全部随 `@aiao/rxdb-plugin-working-tree` 走，核心侧只留下装卸口与「未认领能力守卫」。
 
 **不涉及数据迁移。** 磁盘上的库文件、表结构、`rxdb_change` 链、已经写进 `rxdb_migration` 的迁移名——一样都没动。要改的只有依赖清单、一行 `use()`、以及（对用过工作树的库）一次 `enable()` 收敛。按[版本与 API 稳定性策略](../versioning.md)，0.x 期间次版本即可包含破坏性变更。
 
@@ -13,11 +13,11 @@
 ## 1. 安装
 
 ```bash
-pnpm add @aiao/rxdb-plugin-worktree
+pnpm add @aiao/rxdb-plugin-working-tree
 # 框架绑定（按需选其一）
-pnpm add @aiao/rxdb-plugin-worktree-angular
-pnpm add @aiao/rxdb-plugin-worktree-react
-pnpm add @aiao/rxdb-plugin-worktree-vue
+pnpm add @aiao/rxdb-plugin-working-tree-angular
+pnpm add @aiao/rxdb-plugin-working-tree-react
+pnpm add @aiao/rxdb-plugin-working-tree-vue
 ```
 
 不打算用工作树的应用**不需要装**，也不会有任何行为差异。
@@ -28,23 +28,23 @@ pnpm add @aiao/rxdb-plugin-worktree-vue
 
 ```typescript
 import { RxDB } from '@aiao/rxdb';
-import { rxDBPluginWorktree } from '@aiao/rxdb-plugin-worktree';
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 
 const db = new RxDB(config);
-db.use(rxDBPluginWorktree); // ← 必须在 connect() 之前
+db.use(rxDBPluginWorkingTree); // ← 必须在 connect() 之前
 await db.connect('sqlite-wasm');
 ```
 
 本插件声明 `system`（`RxDBSystemContribution`），宿主要在建表之前读走它的实体、初始行与迁移；`connect()` 之后再 `use()` 已经赶不上建表，核心会当场抛错而不是静默跳过。
 
-类型入口也随之变化：`db.worktree` 是**非可选**成员，由 `declare module '@aiao/rxdb'` 增广而来——没装本包时 `db.worktree` 是**编译错误**，而不是运行期的 `undefined`。装没装插件是构建期属性，能不能用才是数据库的属性。
+类型入口也随之变化：`db.workingTree` 是**非可选**成员，由 `declare module '@aiao/rxdb'` 增广而来——没装本包时 `db.workingTree` 是**编译错误**，而不是运行期的 `undefined`。装没装插件是构建期属性，能不能用才是数据库的属性。
 
 ## 3. 既有库：`enable()` 收敛一次
 
-连接之后调用一次 `db.worktree.enable()`——**幂等**，既有库与新库同一条调用路径：
+连接之后调用一次 `db.workingTree.enable()`——**幂等**，既有库与新库同一条调用路径：
 
 ```typescript
-await db.worktree.enable();
+await db.workingTree.enable();
 ```
 
 它的语义是「把库收敛到已启用该有的形状」：翻 `CommitCapabilityState` 的能力位，并给每条本地分支补上提交图根节点（同一个事务）。已启用过的库重复调用是一条语句都不发的 no-op。迁移抛错时整笔回滚，能力位退回未启用，重试面对的还是同一个起点。
@@ -53,11 +53,11 @@ await db.worktree.enable();
 
 ## 4. 未认领能力守卫取代版本号锁
 
-升级并 `enable()` 之后，库里多出一行能力水位（`__rxdb_capability__:workingTree:1:@aiao/rxdb-plugin-worktree`）。**此后没装本包的客户端再打开这个库，核心拒绝连接**，并把该装的包名原样报出来：
+升级并 `enable()` 之后，库里多出一行能力水位（`__rxdb_capability__:workingTree:1:@aiao/rxdb-plugin-working-tree`）。**此后没装本包的客户端再打开这个库，核心拒绝连接**，并把该装的包名原样报出来：
 
 ```
 这个数据库启用了当前进程未认领的 RxDB 能力，缺少对应插件时写入不受该能力管辖，因此拒绝连接：
-  - workingTree v1 —— 安装 @aiao/rxdb-plugin-worktree
+  - workingTree v1 —— 安装 @aiao/rxdb-plugin-working-tree
 ```
 
 行为对比（旧 → 新）：
@@ -73,15 +73,15 @@ await db.worktree.enable();
 
 ## 5. 框架绑定
 
-三端 `useWorktree()` **同名、同字段、同方法签名**，只有状态容器形态不同（`Signal` / 渲染快照 / `ComputedRef`）：
+三端 `useWorkingTree()` **同名、同字段、同方法签名**，只有状态容器形态不同（`Signal` / 渲染快照 / `ComputedRef`）：
 
-| 框架    | 包                                   | 入口            |
-| :------ | :----------------------------------- | :-------------- |
-| Angular | `@aiao/rxdb-plugin-worktree-angular` | `useWorktree()` |
-| React   | `@aiao/rxdb-plugin-worktree-react`   | `useWorktree()` |
-| Vue     | `@aiao/rxdb-plugin-worktree-vue`     | `useWorktree()` |
+| 框架    | 包                                       | 入口               |
+| :------ | :--------------------------------------- | :----------------- |
+| Angular | `@aiao/rxdb-plugin-working-tree-angular` | `useWorkingTree()` |
+| React   | `@aiao/rxdb-plugin-working-tree-react`   | `useWorkingTree()` |
+| Vue     | `@aiao/rxdb-plugin-working-tree-vue`     | `useWorkingTree()` |
 
-装插件仍在库侧完成（`db.use(rxDBPluginWorktree)`），绑定包只负责读写。十个状态字段的初值全是 `idle`（创建入口一次 IO 都不发），类型与错误类一律从插件包直接 import。
+装插件仍在库侧完成（`db.use(rxDBPluginWorkingTree)`），绑定包只负责读写。十个状态字段的初值全是 `idle`（创建入口一次 IO 都不发），类型与错误类一律从插件包直接 import。
 
 ## 6. 捕获挂载点注册表改名并下沉到核心
 
@@ -97,10 +97,10 @@ await db.worktree.enable();
 
 ```typescript
 // 旧
-import { CAPTURE_MOUNT_POINTS, isCaptureMountPoint } from '@aiao/rxdb-plugin-worktree';
+import { CAPTURE_MOUNT_POINTS, isCaptureMountPoint } from '@aiao/rxdb-plugin-working-tree';
 
 // 新：路径照旧，改名字即可；从 `@aiao/rxdb` 直接取也等价（是同一个对象）
-import { WORKING_TREE_CAPTURE_MOUNT_POINTS, isWorkingTreeCaptureMountPoint } from '@aiao/rxdb-plugin-worktree';
+import { WORKING_TREE_CAPTURE_MOUNT_POINTS, isWorkingTreeCaptureMountPoint } from '@aiao/rxdb-plugin-working-tree';
 ```
 
 改名是为了让核心扁平的导出清单说清这些名字属于哪个特性——`CaptureMountPoint` 在核心里读不出「捕获什么」，而它的同族 `WorkingTreeCaptureHook` / `WorkingTreeCaptureMountTarget` 早就带着前缀（门禁：`scripts/audit/api-surface.mjs` 的 `NAMING`，规则见 `contracts/core-api.md` §0）。
@@ -109,18 +109,18 @@ import { WORKING_TREE_CAPTURE_MOUNT_POINTS, isWorkingTreeCaptureMountPoint } fro
 
 ## 7. 分支物化来源由同步插件自动登记
 
-`metadata_only` 分支（`syncBranches()` 拉下来、本地还没有数据的分支）第一次 `switchBranch()` 要从远端物化快照。此前这份来源要调用方自己实现 `BranchMaterializationSource` 并调 `db.worktree.registerMaterializationSource()` 登记，而生产代码里没有任何人登记它——结果是 `syncBranches()` 之后的第一次切换恒抛 `BranchNotMaterializedError`（`source_unavailable`）。
+`metadata_only` 分支（`syncBranches()` 拉下来、本地还没有数据的分支）第一次 `switchBranch()` 要从远端物化快照。此前这份来源要调用方自己实现 `BranchMaterializationSource` 并调 `db.workingTree.registerMaterializationSource()` 登记，而生产代码里没有任何人登记它——结果是 `syncBranches()` 之后的第一次切换恒抛 `BranchNotMaterializedError`（`source_unavailable`）。
 
 现在 `@aiao/rxdb-plugin-sync` 在每个连接纪元的 `install()` 里自动登记来源、断开时撤销，**同时 `use()` 了同步插件与本插件就够了**，不需要任何手动接线：
 
 ```typescript
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSync } from '@aiao/rxdb-plugin-sync';
-import { rxDBPluginWorktree } from '@aiao/rxdb-plugin-worktree';
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 
 db.use(rxDBPluginHistory);
 db.use(rxDBPluginSync);
-db.use(rxDBPluginWorktree);
+db.use(rxDBPluginWorkingTree);
 await db.connect('sqlite-wasm');
 
 await db.syncManager.syncBranches();
@@ -129,10 +129,10 @@ await db.versionManager.switchBranch('feature'); // 首次切换即物化
 
 随之变化的公开面：
 
-| 旧（`@aiao/rxdb-plugin-worktree`）                                      | 新                                                                                                     |
+| 旧（`@aiao/rxdb-plugin-working-tree`）                                  | 新                                                                                                     |
 | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| `db.worktree.registerMaterializationSource(source)`                     | 删除；自定义来源改用 `db.branchMaterializationSource(source, scope?)`                                  |
-| `db.worktree.materializationSource`                                     | 删除；读取用 `db.getBranchMaterializationSource()`                                                     |
+| `db.workingTree.registerMaterializationSource(source)`                  | 删除；自定义来源改用 `db.branchMaterializationSource(source, scope?)`                                  |
+| `db.workingTree.materializationSource`                                  | 删除；读取用 `db.getBranchMaterializationSource()`                                                     |
 | `BranchMaterializationSource` / `BranchMaterializationIntent`           | 移到 `@aiao/rxdb`，成员改为 `freezeIntent` / `pages` / `resolveIntentDrift` / `projectPage` / `settle` |
 | `BranchMaterializationPagePayload` / `BranchMaterializationPageRequest` | 移到 `@aiao/rxdb`                                                                                      |
 | `branchMaterializationPageFingerprint`                                  | 移到 `@aiao/rxdb`（算法不变）                                                                          |
@@ -143,7 +143,7 @@ await db.versionManager.switchBranch('feature'); // 首次切换即物化
 
 ## 参考
 
-- [工作树与提交历史插件](../plugins/rxdb-plugin-worktree/README.md)：完整用法与 API
+- [工作树与提交历史插件](../plugins/rxdb-plugin-working-tree/README.md)：完整用法与 API
 - [插件作用域契约迁移](./plugin-scope.md)：`install(scope)` 新契约与本插件 `lifecycle: 'scoped'` 的含义
 - [版本与 API 稳定性策略](../versioning.md)：废弃周期与公开 API 范围
 - [兼容矩阵](../compatibility.md)：框架版本与 RxJS 版本对应关系

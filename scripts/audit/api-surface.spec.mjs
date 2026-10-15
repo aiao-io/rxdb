@@ -100,7 +100,7 @@ test('US-217 备份契约的核心导出全部逐名登记——基线与导出�
 test('前缀规则只管核心；插件包的新增导出不受它约束', () => {
   const added = ['assertSwitchBranchPreconditions'];
 
-  assert.deepEqual(auditNaming({ pkg: 'rxdb-plugin-worktree', currentNames: added, addedNames: added }), []);
+  assert.deepEqual(auditNaming({ pkg: 'rxdb-plugin-working-tree', currentNames: added, addedNames: added }), []);
 });
 
 test('`Index*` / `Workspace*` 按**当前全集**判，不是按 diff —— 否则更新一次基线就再也拦不住', () => {
@@ -131,7 +131,7 @@ test('workspace 插件自己那四个 Workspace* 与核心的 SwitchBranchOption
 
 test('复活 staging 词汇的导出在任何包里都拦', () => {
   for (const name of ['stagedChange', 'unstageChange', 'stagedCount']) {
-    const problems = auditNaming({ pkg: 'rxdb-plugin-worktree', currentNames: [name], addedNames: [name] });
+    const problems = auditNaming({ pkg: 'rxdb-plugin-working-tree', currentNames: [name], addedNames: [name] });
 
     assert.equal(problems.length, 1, name);
   }
@@ -139,7 +139,7 @@ test('复活 staging 词汇的导出在任何包里都拦', () => {
 
 test('别的包复用 SwitchBranchOptions 这个名字照样拦', () => {
   const problems = auditNaming({
-    pkg: 'rxdb-plugin-worktree',
+    pkg: 'rxdb-plugin-working-tree',
     currentNames: ['SwitchBranchOptions'],
     addedNames: ['SwitchBranchOptions']
   });

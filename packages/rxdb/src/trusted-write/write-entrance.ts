@@ -2,7 +2,7 @@
  * @fileoverview 写入口词汇表：核心有哪些写入口身份（epic-006「写入口语义矩阵」与「受信调用点登记表」）。
  *
  * @remarks
- * **只有词汇表，没有语义。** 「每个入口对捕获意味着什么」归 `@aiao/rxdb-plugin-worktree`
+ * **只有词汇表，没有语义。** 「每个入口对捕获意味着什么」归 `@aiao/rxdb-plugin-working-tree`
  * 的 `classifyWriteEntrance`；这里只回答「一共有哪些入口」。
  *
  * 分家的判据是**谁改它**：入口的集合随核心 `version/` 下的调用点增减而变（新增一条批量重写路径

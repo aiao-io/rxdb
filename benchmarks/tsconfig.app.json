@@ -40,7 +40,7 @@
       "path": "../packages/utils/tsconfig.lib.json"
     },
     {
-      "path": "../packages/rxdb-plugin-worktree/tsconfig.lib.json"
+      "path": "../packages/rxdb-plugin-working-tree/tsconfig.lib.json"
     },
     {
       "path": "../packages/rxdb-plugin-sync/tsconfig.lib.json"

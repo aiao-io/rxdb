@@ -22,7 +22,7 @@ import { RxDBMigrationOrderByField, RxDBMigrationRuleGroup, RxDBMigrationStaticT
  * 4：epic-006 的 10 张工作树 / 提交图表（当时长在核心）。
  * 5：`rxdb_branch.activeKey` 可空唯一列（FR-048 的「至多一个 active」那一半）。
  * 6：`activeKey` 就位，且 v4 那十张表**不再归核心管**——它们随
- * `@aiao/rxdb-plugin-worktree` 走，认领与否改由能力水位裁决（见 `system/capability-watermark.ts`）。
+ * `@aiao/rxdb-plugin-working-tree` 走，认领与否改由能力水位裁决（见 `system/capability-watermark.ts`）。
  *
  * 5 是**补记**而不是新增能力：该列在 v4 水位线之后才进 `system/branch.ts`，于是已经被标成 4 的
  * 库（开发机上的那批）再也不会走进升级路径——版本号是升级路径唯一的触发条件，列本身不是。
