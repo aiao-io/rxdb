@@ -17,7 +17,8 @@ const clickButton = async (page: Page, text: string): Promise<void> => {
 const resetAndSeed = async (page: Page): Promise<void> => {
   await clickButton(page, '重置并装载种子');
   // 种子装载（wa-sqlite 启动 + 装载）需要数秒
-  await expect(page.getByTestId('row-counts')).toContainText('bom_history_batch=1', { timeout: 30000 });
+  // 阶段 C：A/B 层与 C 层各一个历史批次
+  await expect(page.getByTestId('row-counts')).toContainText('bom_history_batch=2', { timeout: 30000 });
 };
 
 const explode = async (page: Page): Promise<void> => {
@@ -37,8 +38,10 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     await resetAndSeed(page);
     const second = await page.getByTestId('row-counts').textContent();
     expect(second).toBe(first);
-    expect(second).toContain('item=22');
-    expect(second).toContain('bom_line_occurrence=22');
+    // 阶段 C：C 层种子追加 5 个物料、6 段发生项、2 张 ECN
+    expect(second).toContain('item=27');
+    expect(second).toContain('bom_line_occurrence=28');
+    expect(second).toContain('ecn=2');
     await expect(page.getByTestId('seed-info')).toContainText('scooter-seed-a');
     await expect(page.getByTestId('seed-info')).toContainText('2026-01-01T00:00:00.000Z');
   });
@@ -100,7 +103,7 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
   test('US-525 AC#7 替代组 proportional：COVER-ASSY 展开三件分摊 50/60/10；0.5/0.3 发布拒绝给 0.8', async ({ page }) => {
     await resetAndSeed(page);
     // 根物料选 COVER-ASSY
-    await page.locator('select').selectOption({ label: 'COVER-ASSY' });
+    await page.getByTestId('root-select').selectOption({ label: 'COVER-ASSY' });
     await clickButton(page, '展开整机');
     const r10k = page.locator('.requirement-row[data-item="R10K"] .qty');
     await expect(r10k).toHaveText('50 pcs', { timeout: 30000 });
@@ -114,7 +117,7 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
 
   test('US-525 AC#8 外壳下料：consume 需求 2、by_product 0.3、scrap_out 0.1 分列', async ({ page }) => {
     await resetAndSeed(page);
-    await page.locator('select').selectOption({ label: 'HOUSING' });
+    await page.getByTestId('root-select').selectOption({ label: 'HOUSING' });
     await clickButton(page, '展开整机');
     await expect(page.locator('.requirement-row[data-item="SHEET"] .qty')).toHaveText('2 pcs', { timeout: 30000 });
     // 产出区块：副产与废料不进需求行
@@ -125,7 +128,7 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
 
   test('US-525 AC#9 工序损耗与分摊：PROCESS-01 需求 101.8，面板第 5 步显示累乘', async ({ page }) => {
     await resetAndSeed(page);
-    await page.locator('select').selectOption({ label: 'PROCESS-01' });
+    await page.getByTestId('root-select').selectOption({ label: 'PROCESS-01' });
     await page.locator('input').nth(1).fill('100');
     await clickButton(page, '展开整机');
     const material = page.locator('.requirement-row[data-item="P-MATERIAL"] .qty');
@@ -156,5 +159,68 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     expect(texts.filter(text => text.includes('SC-100')).length).toBe(2);
     expect(texts.some(text => text.includes('2 跳') && text.includes('SC-100'))).toBe(true);
     expect(texts.some(text => text.includes('1 跳') && text.includes('WH-01'))).toBe(true);
+  });
+
+  test('US-525 AC#10 评估日切换：两段生效期行集不同且各自自洽（不读系统时钟）', async ({ page }) => {
+    await resetAndSeed(page);
+    // 生效前评估日：FRAME 在、无 SEAT
+    await page.getByTestId('as-of-date').fill('2026-09-22');
+    await explode(page);
+    await expect(page.locator('.requirement-row[data-item="FRAME"]')).toHaveCount(1);
+    await expect(page.locator('.requirement-row[data-item="SEAT"]')).toHaveCount(0);
+    // 生效后评估日：SEAT 在、FRAME 消失——两次展开的行集不同且各自自洽
+    await page.getByTestId('as-of-date').fill('2026-10-15');
+    await clickButton(page, '展开整机');
+    await expect(page.locator('.requirement-row[data-item="SEAT"]')).toHaveCount(1, { timeout: 30000 });
+    await expect(page.locator('.requirement-row[data-item="FRAME"]')).toHaveCount(0);
+    // 改量 2→3 与改版子件在生效后可见
+    await expect(page.locator('.requirement-row[data-item="R10K"] .qty').first()).toHaveText('3 pcs');
+    await expect(page.locator('.requirement-row[data-item="MCU-V2"]')).toHaveCount(1);
+    await expect(page.locator('.requirement-row[data-item="BMS-V2"]')).toHaveCount(1);
+  });
+
+  test('US-525 AC#11 ECN-2026-014 影响面与差异：整机、四类变更各自可见', async ({ page }) => {
+    await resetAndSeed(page);
+    // 选中 ECN-2026-014
+    await page.getByTestId('ecn-select').selectOption({ label: 'ECN-2026-014（released，2026-10-01）' });
+    await clickButton(page, '查影响面');
+    const impactLines = page.getByTestId('ecn-impact-line');
+    await expect(impactLines.first()).toContainText('SC-100', { timeout: 30000 });
+    await expect(impactLines.first()).toContainText('PCBA');
+    await expect(impactLines.first()).toContainText('BATT');
+    const impactTexts = await impactLines.allTextContents();
+    expect(impactTexts.some(text => text.includes('受影响整机') && text.includes('SC-100'))).toBe(true);
+    await clickButton(page, '查差异');
+    const diffLines = page.getByTestId('ecn-diff-line');
+    await expect(diffLines).toHaveCount(5, { timeout: 30000 });
+    const diffTexts = await diffLines.allTextContents();
+    expect(diffTexts.filter(text => text.startsWith('新增')).length).toBe(1);
+    expect(diffTexts.filter(text => text.startsWith('删除')).length).toBe(1);
+    expect(diffTexts.filter(text => text.startsWith('改量')).length).toBe(1);
+    expect(diffTexts.filter(text => text.startsWith('改版')).length).toBe(2);
+  });
+
+  test('US-525 AC#12 现场 ECN 取消整体回退；已生效种子 ECN 取消拒绝', async ({ page }) => {
+    await resetAndSeed(page);
+    // ① 现场新建并发布（改 3 张 BOM 5 行，生效日晚于宿主 UTC 当日）→ 取消 → 整体回退
+    await clickButton(page, '现场新建并发布 ECN');
+    const actionResult = page.getByTestId('ecn-action-result');
+    await expect(actionResult).toContainText('发布成功', { timeout: 30000 });
+    await clickButton(page, '取消现场 ECN');
+    await expect(actionResult).toContainText('取消成功', { timeout: 30000 });
+    // 页面刷新后不存在「部分行已生效、部分未生效」的中间态：评估日切到明天仍是 A/B 层结构
+    await page.reload();
+    const tomorrow = new Date();
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    await page.getByTestId('as-of-date').fill(tomorrow.toISOString().slice(0, 10));
+    await clickButton(page, '展开整机');
+    await expect(page.locator('.requirement-row[data-item="SEAT-LIVE"]')).toHaveCount(0, { timeout: 30000 });
+    // 现场 ECN 截止的 WH-01 已整体回退：虚拟件穿透照常（WIRE 需求行在；FRAME 在明天评估日
+    // 由种子 ECN-2026-014 截止，与现场 ECN 无关）
+    await expect(page.locator('.requirement-row[data-item="WIRE"]')).toHaveCount(1);
+    await expect(page.locator('.requirement-row[data-item="R10K"]').first()).toContainText('3 pcs');
+    // ② 对已生效种子 ECN 点取消 → 拒绝，提示改走更正 ECN
+    await clickButton(page, '对已生效种子 ECN 点取消');
+    await expect(page.getByTestId('ecn-action-result')).toContainText(/更正|已生效/, { timeout: 30000 });
   });
 });

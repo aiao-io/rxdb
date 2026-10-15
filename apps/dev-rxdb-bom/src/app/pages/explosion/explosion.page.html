@@ -1,10 +1,10 @@
 <div class="page">
   <div class="toolbar panel">
     <button (click)="resetAndSeed()" [disabled]="busy()">重置并装载种子</button>
-    <label>评估日（显式入参，不读系统时钟）<input type="date" [(ngModel)]="asOfDate" [value]="asOfDate()" /></label>
+    <label>评估日（显式入参，不读系统时钟）<input type="date" [(ngModel)]="asOfDate" [value]="asOfDate()" data-testid="as-of-date" /></label>
     <label>计划量 <input type="text" [(ngModel)]="plannedQty" style="width: 72px" /></label>
     <label>根物料
-      <select [(ngModel)]="rootKey">
+      <select data-testid="root-select" [(ngModel)]="rootKey">
         @for (key of itemNos().values(); track key) {
           <option [value]="key">{{ key }}</option>
         }
@@ -117,6 +117,35 @@
     </div>
     @for (line of whereUsedLines(); track line) {
       <div class="where-used-row" data-testid="where-used-line">{{ line }}</div>
+    }
+  </section>
+
+  <section class="panel">
+    <h2>ECN 变更管理（US-525 AC#10~#12）</h2>
+    <div class="toolbar">
+      <label for="ecn-select">选择 ECN：</label>
+      <select id="ecn-select" [(ngModel)]="selectedEcnId" data-testid="ecn-select">
+        <option [ngValue]="null">—</option>
+        @for (entry of ecns().values(); track entry.ecnNo) {
+          <option [ngValue]="ecnsKey(entry.ecnNo)" [attr.data-state]="entry.state">{{ entry.ecnNo }}（{{ entry.state }}，{{ entry.effectiveDate }}）</option>
+        }
+      </select>
+      <button (click)="runEcnImpact()" [disabled]="busy() || !ready() || !selectedEcnId()">查影响面</button>
+      <button (click)="runEcnDiff()" [disabled]="busy() || !ready() || !selectedEcnId()">查差异</button>
+    </div>
+    <div class="toolbar">
+      <button (click)="runCreateAndReleaseEcn()" [disabled]="busy() || !ready()">现场新建并发布 ECN（改 3 张 BOM 5 行）</button>
+      <button (click)="runCancelLiveEcn()" [disabled]="busy() || !ready()">取消现场 ECN</button>
+      <button (click)="runCancelEffectiveEcn()" [disabled]="busy() || !ready()">对已生效种子 ECN 点取消</button>
+    </div>
+    @if (ecnActionResult()) {
+      <div class="error-box" data-testid="ecn-action-result">{{ ecnActionResult() }}</div>
+    }
+    @for (line of impactLines(); track line) {
+      <div class="where-used-row" data-testid="ecn-impact-line">{{ line }}</div>
+    }
+    @for (line of diffLines(); track line) {
+      <div class="where-used-row" data-testid="ecn-diff-line">{{ line }}</div>
     }
   </section>
 </div>

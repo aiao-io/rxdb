@@ -7,6 +7,7 @@
 export {
   deterministicId,
   loadScooterDataset,
+  loadScooterDatasetC,
   SCOOTER_DATASET,
   SCOOTER_SEED_BATCH_NO,
   SCOOTER_SEED_TIMESTAMP,

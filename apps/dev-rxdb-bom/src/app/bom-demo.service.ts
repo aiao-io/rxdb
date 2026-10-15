@@ -2,8 +2,8 @@ import { computed, Injectable, signal } from '@angular/core';
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { firstValueFrom } from 'rxjs';
-import { BOM_ENTITIES, BomHeader, BomItemRevision, BomLine, BomLineDesignator, BomLineOccurrence, BomSubstituteGroup, rxDBPluginBom, type ExpansionResult, type ExplosionResult } from '@aiao/rxdb-plugin-bom';
-import { goldenItemId, loadScooterDataset, SCOOTER_SEED_BATCH_NO, SCOOTER_SEED_TIMESTAMP } from '@aiao/rxdb-plugin-bom/testing';
+import { BOM_ENTITIES, BomEcn, BomHeader, BomItem, BomItemRevision, BomLine, BomLineDesignator, BomLineOccurrence, BomSubstituteGroup, rxDBPluginBom, type ExpansionResult, type ExplosionResult, type EcnDiffResult, type EcnImpactResult } from '@aiao/rxdb-plugin-bom';
+import { deterministicId, goldenItemId, loadScooterDataset, loadScooterDatasetC, SCOOTER_SEED_BATCH_NO, SCOOTER_SEED_TIMESTAMP } from '@aiao/rxdb-plugin-bom/testing';
 
 /** demo 库名（reset 删除的 IndexedDB 库）。 */
 export const BOM_DEMO_DB_NAME = 'dev-rxdb-bom';
@@ -21,6 +21,8 @@ export class BomDemoService {
   private demoRevisionId?: string;
   /** 进行中的连接（页面自动连接与手动重置共用一把互斥，防双实例）。 */
   private connectPromise?: Promise<void>;
+  /** 现场新建并发布的 ECN id（取消演示的对象；未建为 null）。 */
+  private liveEcnId?: string;
   readonly ready = signal(false);
   readonly seedBatchNo = SCOOTER_SEED_BATCH_NO;
   readonly seedTimestamp = SCOOTER_SEED_TIMESTAMP;
@@ -29,6 +31,8 @@ export class BomDemoService {
   /** occurrenceId → 位号清单（AC#2 的行级位号展示）。 */
   readonly designators = signal(new Map<string, string[]>());
   readonly itemCount = computed(() => this.itemNos().size);
+  /** ECN 清单（阶段 C：ecnId → { ecnNo, state, effectiveDate }）。 */
+  readonly ecns = signal(new Map<string, { ecnNo: string; state: string; effectiveDate: string }>());
 
   /** 重置并装载种子（两遍执行结果逐字节相同，AC#1）。 */
   async resetAndSeed(): Promise<void> {
@@ -50,7 +54,9 @@ export class BomDemoService {
       request.onblocked = () => resolve();
     });
     await this.#connect();
-    await loadScooterDataset(this.adapter!);
+    const itemIds = await loadScooterDataset(this.adapter!);
+    // 阶段 C：ECN 时间轴（改 3 张 BOM 5 行 + 已生效 ECN）
+    await loadScooterDatasetC(this.adapter!, itemIds);
     await this.#hydrate();
   }
 
@@ -170,7 +176,7 @@ export class BomDemoService {
   /** 行数统计（AC#1 的页面可见面：两遍 seed 后行数一致）。 */
   async dumpRowCounts(): Promise<string> {
     if (!this.adapter) return '';
-    const tables = ['item', 'item_revision', 'bom_header', 'bom_line', 'bom_line_occurrence', 'bom_line_designator', 'bom_history_batch'];
+    const tables = ['item', 'item_revision', 'bom_header', 'bom_line', 'bom_line_occurrence', 'bom_line_designator', 'bom_history_batch', 'ecn'];
     const lines: string[] = [];
     for (const name of tables) {
       const result = (await this.adapter.rawQuery(`SELECT COUNT(*) AS c FROM "bom$${name}"`)) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
@@ -232,6 +238,133 @@ export class BomDemoService {
     }
   }
 
+  /** 影响面（US-515 AC#1 / US-525 AC#11）：整机与命中路径。 */
+  async ecnImpact(ecnId: string): Promise<EcnImpactResult> {
+    if (!this.rxdb) throw new Error('demo 未就绪');
+    return this.rxdb.bom.ecnImpact(ecnId);
+  }
+
+  /** 差异（US-515 AC#2 / US-525 AC#11）：新增/删除/改量/改版四类。 */
+  async ecnDiff(ecnId: string): Promise<EcnDiffResult> {
+    if (!this.rxdb) throw new Error('demo 未就绪');
+    return this.rxdb.bom.ecnDiff(ecnId);
+  }
+
+  /**
+   * 现场新建并发布一张同样改 5 行、生效日晚于宿主 UTC 当日的 ECN（US-525 AC#12 ①）：
+   * 改 SC-100 / PCBA / BATT 三张头的 5 行（新增 / 截止 / 改量 / 改版 ×2），发布成功返回空串。
+   */
+  async demoCreateAndReleaseEcn(): Promise<string> {
+    if (!this.rxdb) throw new Error('demo 未就绪');
+    try {
+      // 生效日 = 宿主 UTC 当日 + 1 天（未生效：发布与取消都在生效前窗口内）
+      const tomorrow = new Date();
+      tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+      const effectiveDate = `${tomorrow.toISOString().slice(0, 10)}`;
+      const ecn = new BomEcn();
+      ecn.ecnNo = `ECN-LIVE-${Math.random().toString(36).slice(2, 8)}`;
+      ecn.effectiveDate = new Date(`${effectiveDate}T00:00:00.000Z`);
+      await ecn.save();
+      this.liveEcnId = ecn.id;
+      // 改 3 张头的 5 行：SC-100 新增 SEAT-LIVE、截止 WH-01；PCBA 的 R10K 第二行改量 3→4；BATT 的 CELL 行改量 10→11（避开种子 ECN 已截止的旧段）
+      const sc100 = goldenItemId('SC-100');
+      const seat2Id = deterministicId('item:SEAT-LIVE');
+      // 现场新物料
+      const seat2 = new BomItem();
+      (seat2 as unknown as { id: string }).id = seat2Id;
+      seat2.itemNo = 'SEAT-LIVE';
+      await seat2.save();
+      const table = (name: string): string => `"bom$${name}"`;
+      const scHeader = (await this.adapter!.rawQuery(`SELECT h."id" FROM ${table('bom_header')} h JOIN ${table('item_revision')} r ON r."id" = h."parentRevisionId" WHERE r."itemId" = '${sc100}'`)) as unknown as
+        | { results: { rows: unknown[][] }[] }
+        | { rows: unknown[][] };
+      const scHeaderRows = 'results' in scHeader ? scHeader.results[0].rows : scHeader.rows;
+      const scHeaderId = String(scHeaderRows[0][0]);
+      // ① SC-100：截止 WH-01 行（index 2）+ 新增 SEAT-LIVE 行
+      const scWhOcc = deterministicId('occurrence:SC-100:A:2');
+      await this.adapter!.rawQuery(
+        `UPDATE ${table('bom_line_occurrence')} SET "ecnOutId" = '${ecn.id}', "effectiveTo" = '${effectiveDate}T00:00:00.000Z' WHERE "id" = '${scWhOcc}'`
+      );
+      const seatLine = new BomLine();
+      seatLine.headerId = scHeaderId;
+      seatLine.lineNo = 60 + Math.floor(Math.random() * 1000);
+      seatLine.ecnInId = ecn.id;
+      await seatLine.save();
+      const seatOcc = new BomLineOccurrence();
+      seatOcc.lineId = seatLine.id;
+      seatOcc.childItemId = seat2.id;
+      seatOcc.qty = '1';
+      seatOcc.uom = 'pcs';
+      seatOcc.ecnInId = ecn.id;
+      seatOcc.effectiveFrom = new Date(`${effectiveDate}T00:00:00.000Z`);
+      await seatOcc.save();
+      // ② PCBA：R10K 第二行（index 2，未被种子 ECN 碰过）改量 3→4
+      const r10kOcc = deterministicId('occurrence:PCBA:A:2');
+      await this.adapter!.rawQuery(
+        `UPDATE ${table('bom_line_occurrence')} SET "ecnOutId" = '${ecn.id}', "effectiveTo" = '${effectiveDate}T00:00:00.000Z' WHERE "id" = '${r10kOcc}'`
+      );
+      const r10kLineId = deterministicId('line:PCBA:A:2');
+      const r10kNew = new BomLineOccurrence();
+      r10kNew.lineId = r10kLineId;
+      r10kNew.childItemId = goldenItemId('R10K');
+      r10kNew.qty = '4';
+      r10kNew.uom = 'pcs';
+      r10kNew.ecnInId = ecn.id;
+      r10kNew.effectiveFrom = new Date(`${effectiveDate}T00:00:00.000Z`);
+      await r10kNew.save();
+      // ③ BATT：CELL 行（index 0，未被种子 ECN 碰过）改量 10→11
+      const bmsOcc = deterministicId('occurrence:BATT:A:0');
+      await this.adapter!.rawQuery(
+        `UPDATE ${table('bom_line_occurrence')} SET "ecnOutId" = '${ecn.id}', "effectiveTo" = '${effectiveDate}T00:00:00.000Z' WHERE "id" = '${bmsOcc}'`
+      );
+      const bmsLineId = deterministicId('line:BATT:A:0');
+      const bmsNew = new BomLineOccurrence();
+      bmsNew.lineId = bmsLineId;
+      bmsNew.childItemId = goldenItemId('CELL');
+      bmsNew.qty = '11';
+      bmsNew.uom = 'pcs';
+      bmsNew.ecnInId = ecn.id;
+      bmsNew.effectiveFrom = new Date(`${effectiveDate}T00:00:00.000Z`);
+      await bmsNew.save();
+      // 发布（生效日在未来 → 通过追溯检查与投影校验）
+      ecn.state = 'released';
+      await ecn.save();
+      await this.#loadEcns();
+      return '';
+    } catch (error) {
+      return String(error);
+    }
+  }
+
+  /** 取消现场 ECN（US-525 AC#12 ①）：未生效 → 5 行整体回退。 */
+  async demoCancelLiveEcn(): Promise<string> {
+    if (!this.rxdb) throw new Error('demo 未就绪');
+    const liveEcnId = this.liveEcnId;
+    if (!liveEcnId) return '现场 ECN 未创建';
+    try {
+      const table = '"bom$ecn"';
+      await this.adapter!.rawQuery(`UPDATE ${table} SET "state" = 'cancelled' WHERE "id" = '${liveEcnId}'`);
+      await this.#loadEcns();
+      return '';
+    } catch (error) {
+      return String(error);
+    }
+  }
+
+  /** 对已生效的种子 ECN 点取消（US-525 AC#12 ②）：拒绝并提示改走更正 ECN。 */
+  async demoCancelEffectiveEcn(): Promise<string> {
+    if (!this.rxdb) throw new Error('demo 未就绪');
+    try {
+      const table = '"bom$ecn"';
+      await this.adapter!.rawQuery(
+        `UPDATE ${table} SET "state" = 'cancelled' WHERE "id" = '${deterministicId('ecn:ECN-2026-005')}'`
+      );
+      return '取消成功（不应发生：已生效 ECN 不可取消）';
+    } catch (error) {
+      return String(error);
+    }
+  }
+
   async #connect(): Promise<void> {
     if (this.rxdb) return;
     if (this.connectPromise) return this.connectPromise;
@@ -267,8 +400,25 @@ export class BomDemoService {
   async #hydrate(): Promise<void> {
     await this.#loadItemNos();
     await this.#loadDesignators();
+    await this.#loadEcns();
     await this.#ensureDemoHeader();
     this.ready.set(true);
+  }
+
+  async #loadEcns(): Promise<void> {
+    if (!this.adapter) return;
+    const result = (await this.adapter.rawQuery(`SELECT "id", "ecnNo", "state", "effectiveDate" FROM "bom$ecn" ORDER BY "effectiveDate"`)) as unknown as
+      | { results: { rows: unknown[][] }[] }
+      | { rows: unknown[][] };
+    const rows = 'results' in result ? result.results[0].rows : result.rows;
+    this.ecns.set(
+      new Map(
+        rows.map(row => [
+          String(row[0]),
+          { ecnNo: String(row[1]), state: String(row[2]), effectiveDate: new Date(String(row[3])).toISOString().slice(0, 10) }
+        ])
+      )
+    );
   }
 
   async #loadItemNos(): Promise<void> {

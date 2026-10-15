@@ -8,10 +8,10 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 74   |
-| 🚧 In Progress | 13   |
+| ✅ Done        | 76   |
+| 🚧 In Progress | 12   |
 | 👀 In Review   | 1    |
-| 📝 Backlog     | 12   |
+| 📝 Backlog     | 11   |
 | 🚫 Blocked     | 0    |
 | **合计**       | 100  |
 
@@ -25,7 +25,7 @@
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（13 条）
+## 进行中（12 条）
 
 | Story                                                                                      | 进展                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -185,15 +185,15 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 epic-009 默认决策 1～8 由 owner 确认；第 0 步的形态样本（AdventureWorks）与手算 golden 已就位、未与决策冲突，见 [epic-009 第 0 步样本](epics/epic-009-bom-domain-model.md#第-0-步样本)。
 US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值待证。
 
-- 🚧 [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md) — 阶段 A/B/C 全部交付（第 4 步：`bom_line_designator` 位号子表 + 发布转移位号计数校验，AC#4/#5/#12 与 AC#10/#13 位号部分，2026-10-14）；`bom_header` 挂修订、带 `draft` / `released`；逻辑行与行发生项分层，跨行聚合在发布转移上校验
-- 🚧 [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md) — 首轮 AC#1~#11/#13~#15/#17/#18 已交付（第 2 步，2026-10-14）：显式 `ResolutionContext`（`as_of_date` 必填、不读时钟）、追溯发布存储层拒绝、`loadHistory` 审计通道、一致快照；AC#12/#16 等 US-515
-- 🚧 [US-509 DAG 约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md) — 首轮 AC#1~#3/#5~#7/#9~#12/#14/#17 已交付（第 2 步，2026-10-14）：双后端并集递归判环 + 深度硬上限、`union_only` 插件层标记、http/supabase fail-fast + 远端 DDL 导出 + 同步拒绝；AC#4 依赖 US-513、AC#8 依赖 US-510 阶段 B、AC#13 等真实 PG、AC#15/#16 等 US-515
+- 🚧 [US-507 BOM 图骨架：物料、修订与多重边 BOM 行](stories/domain/US-507-bom-graph-skeleton.md) — 阶段 A/B/C 全部交付（第 4 步：`bom_line_designator` 位号子表 + 发布转移位号计数校验，AC#4/#5/#12 与 AC#13 位号部分，2026-10-14；AC#10 随第 6 步关闭：已发布头的写入协议矩阵放行挂 draft ECN 的新对象）；`bom_header` 挂修订、带 `draft` / `released`；逻辑行与行发生项分层，跨行聚合在发布转移上校验
+- 🚧 [US-508 BOM 视图解析：类型/组织/修订/生效期过滤](stories/domain/US-508-bom-view-resolution.md) — 首轮 AC#1~#11/#13~#15/#17/#18 已交付（第 2 步，2026-10-14）：显式 `ResolutionContext`（`as_of_date` 必填、不读时钟）、追溯发布存储层拒绝、`loadHistory` 审计通道、一致快照；AC#12/#16 随第 6 步关闭（2026-10-15）：ECN 可见性只看 `as_of_date` 与 ECN 状态、未发布截止不采信
+- 🚧 [US-509 DAG 约束与环路检测下沉存储层](stories/domain/US-509-bom-dag-cycle-detection.md) — 首轮 AC#1~#3/#5~#7/#9~#12/#14/#17 已交付（第 2 步，2026-10-14）：双后端并集递归判环 + 深度硬上限、`union_only` 插件层标记、http/supabase fail-fast + 远端 DDL 导出 + 同步拒绝；AC#4 依赖 US-513、AC#8 依赖 US-510 阶段 B、AC#13 等真实 PG；AC#15/#16 随第 6 步主体交付（2026-10-15，⚠️：取消/撤回级联退出并集已生效，`bom_reach` 追加段等 US-510 阶段 B）
 - 🚧 [US-510 多级展开与 where-used 反查](stories/domain/US-510-bom-multilevel-explosion.md) — 阶段 A 已交付（第 2 步，2026-10-14）：BFS 逐层 `expandBom` / `whereUsed`、三预算 + 取消、`truncated` 与 `assertCompleteResolution` 守卫（AC#1/#2/#11，AC#7/#10 下钻部分 ⚠️）；可达性表 `bom_reach` 随阶段 B（只由实测热路径触发）
 - 🚧 [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md) — 阶段 A/C/B1/B2 全部交付（第 3、5 步，2026-10-14）：十进制 kernel（34 位 half-even）、公式求值器、单位换算、`explodeBom` 七步展开、阶梯/损耗/虚拟件穿透、阶梯切片发布校验、第 5 步工序损耗（AC#1/#13 golden）；全部 AC 关闭
-- 🚧 [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md) — 非 ECN 场景已交付（第 5 步，2026-10-14）：组实体、发布切片聚合校验（定点整数合计）、展开分流（proportional/priority/manual）；ECN 场景随 US-515 — 策略与是否允许混用属组不属行；概率合计 ≠ 1 拒绝而不归一化
+- ✅ [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md) — 非 ECN 场景已交付（第 5 步，2026-10-14）：组实体、发布切片聚合校验（定点整数合计）、展开分流（proportional/priority/manual）；ECN 场景随第 6 步交付（2026-10-15）：AC#6/#9/#14 在转换后运行投影上按检查点切片校验（空切片不校验） — 策略与是否允许混用属组不属行；概率合计 ≠ 1 拒绝而不归一化
 - 🚧 [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md) — 阶段 A 已交付（第 5 步，2026-10-14）：flow_direction 三值、判环只认 consume、副产缩放与产出列表；AC#2/#7 随 US-514，阶段 B 价值待证 — 仅 `consume` 边进可达性与环检测；阶段 A 三个 `flow_direction`（consume / by_product / scrap_out）各自有下游消费方，主产物即头父件；联产品属阶段 B（价值待证）
 - ⬜ [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md) — 拓扑逆序单遍；`unit_cost` = `batch_cost` / `cost_lot_qty`，节点是已解析的头；前置 US-511 / US-512 / US-513 / US-520 / US-524
-- ⬜ [US-515 变更管理（ECN）驱动的生效期](stories/domain/US-515-bom-change-management.md) — 生效日由 ECN 派生、不手填、不追溯；已生效 ECN 不可取消
+- ✅ [US-515 变更管理（ECN）驱动的生效期](stories/domain/US-515-bom-change-management.md) — 全部 26 个 AC 交付（第 6 步，2026-10-15）：`ecn` 实体（draft/released/cancelled，`effective` 派生态不存）、发生项区间由 ECN 派生（真相源唯一）、写入协议矩阵、发布/改期/取消状态机与转换后运行投影切片校验、影响面与差异查询；已生效 ECN 不可取消、改走更正 ECN
 - ⬜ [US-516 EBOM ↔ MBOM 映射与差异对比](stories/domain/US-516-ebom-mbom-mapping.md) — 关闭条件是**明确不用视图实现**
 - ⬜ [US-517 可配置销售 BOM：特征、选项与选择条件](stories/domain/US-517-configurable-sales-bom.md) — 只定模型与求解契约，求解器可外挂
 - ⬜ [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md) — 有效性从一维扩到日期 × 序列 × 批次
@@ -203,7 +203,7 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 - ⬜ [US-522 三框架 BOM 编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md) — 单端缺失 = 未完成，故不按端拆故事
 - ⬜ [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md) — 实例结构（`parent_instance_id`）与主数据可达性分离；源发生项删除受限
 - 🚧 [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md) — 阶段 A（除 AC#7 展开面）与 D 已交付（第 5 步，2026-10-14）：work_center/routing/routing_operation + 工序损耗与各自 convention；阶段 B/C 未开；US-520 与 US-514 加工费的那一端
-- 🚧 [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 阶段 A/B 已交付（第 4、5 步，2026-10-14）：SC-100 确定性种子 + 手写 golden + `apps/dev-rxdb-bom`（算式面板/评估日/直连写入/第 5 步）+ `dev-rxdb-bom-e2e` 十条 AC 用例（含替代组/多输出/工序三条）；阶段 C~F 各自等前置 — 四阶段；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；一份滑板车数据集贯穿全域 + 七步算式面板
+- 🚧 [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 阶段 A/B/C 已交付（第 4、5、6 步，2026-10-15）：SC-100 确定性种子 + 手写 golden + `apps/dev-rxdb-bom`（算式面板/评估日/直连写入/第 5 步/ECN 面板）+ `dev-rxdb-bom-e2e` 十三条 AC 用例（含 ECN 时间轴三条）；阶段 D~F 各自等前置 — 四阶段；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；一份滑板车数据集贯穿全域 + 七步算式面板
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

@@ -9,7 +9,7 @@
 
 import type { BomEntityFactory, BomLocalAdapter } from './bom-adapter.js';
 import type { EntityType } from '@aiao/rxdb';
-import { BomHeader, BomHistoryBatch, BomItemRevision, BomLine, BomLineDesignator, BomLineOccurrence, BomLineOperationSplit, BomRouting, BomRoutingOperation, BomSubstituteGroup, BomWorkCenter } from '../entities.js';
+import { BomEcn, BomHeader, BomHistoryBatch, BomItemRevision, BomLine, BomLineDesignator, BomLineOccurrence, BomLineOperationSplit, BomRouting, BomRoutingOperation, BomSubstituteGroup, BomWorkCenter } from '../entities.js';
 import { normalizeDecimalString } from '../decimal.utils.js';
 import { BomType } from './resolution.js';
 
@@ -20,6 +20,19 @@ export interface HistoryRevisionInput {
   effectiveFrom: Date;
   defaultPhantom?: boolean;
   /** 确定性装载的显式 id（US-525 种子）；缺省走 uuid 默认值。 */
+  id?: string;
+  /** 固定审计时间戳（US-525 AC#1）；缺省走系统时钟。 */
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+/** 一条历史 ECN 输入（US-515 / US-525 阶段 C 种子）：装载为已发布（或已取消）的历史事实。 */
+export interface HistoryEcnInput {
+  ecnNo: string;
+  state: 'released' | 'cancelled';
+  effectiveDate: Date;
+  reason?: string | null;
+  /** 确定性装载的显式 id（US-525 种子）。 */
   id?: string;
   /** 固定审计时间戳（US-525 AC#1）；缺省走系统时钟。 */
   createdAt?: Date;
@@ -69,6 +82,9 @@ export interface HistoryOccurrenceInput {
   substitutePriority?: number | null;
   usageProbability?: string | null;
   equivQty?: string | null;
+  /** ECN 引入 / 截止（US-515 阶段 C 种子）：区间须与 ECN 生效日一致（派生校验照常）。 */
+  ecnInId?: string | null;
+  ecnOutId?: string | null;
 }
 
 /** 一张历史头的输入：挂本批修订（按 `revisionIndex` 引用），含逻辑行与发生项。 */
@@ -85,13 +101,14 @@ export interface HistoryHeaderInput {
   id?: string;
   createdAt?: Date;
   updatedAt?: Date;
-  lines: { lineNo: number; occurrences: HistoryOccurrenceInput[]; id?: string; createdAt?: Date; updatedAt?: Date }[];
+  lines: { lineNo: number; occurrences: HistoryOccurrenceInput[]; id?: string; createdAt?: Date; updatedAt?: Date; ecnInId?: string | null }[];
   /** 替代组（US-512，B 层种子）：成员按 occurrence 序号引用本头的行。 */
   substituteGroups?: {
     code: string;
     strategy: 'priority' | 'proportional' | 'manual';
     allowMix?: boolean;
     id?: string;
+    ecnInId?: string | null;
     members: { occurrenceIndex: number; role: 'primary' | 'substitute'; probability?: string | null; priority?: number | null; equivQty?: string | null }[];
   }[];
   /** 工艺路线（US-524/520，B 层种子）：工序与行的投料工序/分摊。 */
@@ -108,6 +125,18 @@ export interface HistoryHeaderInput {
 export interface HistoryBatchInput {
   batchNo: string;
   revisions: HistoryRevisionInput[];
+  /** ECN 变更单（US-515 阶段 C 种子）：draft 装载 + 发布转移，盖批次号跳过追溯检查。 */
+  ecns?: HistoryEcnInput[];
+  /** 既有已发布头的行操作（US-515 阶段 C 种子改下层头）：批次开放期间执行，ECN 须已在本批装载。 */
+  headerOverlays?: {
+    headerId: string;
+    /** 截止标记：行发生项 → 截止它的 ECN（effective_to 由 ECN 生效日派生）。 */
+    cutoffs?: { occurrenceId: string; ecnId: string }[];
+    /** 追加行（挂 ECN；矩阵在 open 批次下放行 released 历史 ECN）。 */
+    lines?: { lineNo: number; ecnInId?: string | null; occurrences: HistoryOccurrenceInput[]; id?: string; createdAt?: Date; updatedAt?: Date }[];
+    /** 既有逻辑行上追加发生项（改量 / 改版 = 截止 + 同逻辑行引入）。 */
+    occurrenceAdds?: { lineId: string; occurrences: HistoryOccurrenceInput[] }[];
+  }[];
   headers: HistoryHeaderInput[];
   /** 确定性装载的显式批次行 id 与固定审计时间戳（US-525 种子）；缺省走默认值。 */
   id?: string;
@@ -157,6 +186,22 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       revisionIds.push(revision.id);
     }
 
+    // 2.5 ECN：draft 装载（盖批次号）→ 发布转移（发布触发器看到开启态批次跳过追溯检查与投影校验）
+    for (const input of batch.ecns ?? []) {
+      const ecn = construct(BomEcn);
+      if (input.id) (ecn as unknown as { id: string }).id = input.id;
+      if (input.createdAt) (ecn as unknown as { createdAt: Date }).createdAt = input.createdAt;
+      if (input.updatedAt) (ecn as unknown as { updatedAt: Date }).updatedAt = input.updatedAt;
+      ecn.ecnNo = input.ecnNo;
+      ecn.effectiveDate = input.effectiveDate;
+      ecn.reason = input.reason ?? null;
+      ecn.historyBatchNo = batch.batchNo;
+      await executor.getRepository(BomEcn).create(ecn);
+      const patch: Record<string, unknown> = { state: input.state };
+      if (input.updatedAt) patch['updatedAt'] = input.updatedAt;
+      await executor.getRepository(BomEcn).update(ecn, patch as Partial<BomEcn>);
+    }
+
     // 3. 头与行：draft 写入（成员写入协议只约束已发布头）→ 发布头
     for (const headerInput of batch.headers) {
       const header = construct(BomHeader);
@@ -181,6 +226,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
         if (lineInput.updatedAt) (line as unknown as { updatedAt: Date }).updatedAt = lineInput.updatedAt;
         line.headerId = header.id;
         line.lineNo = lineInput.lineNo;
+        line.ecnInId = lineInput.ecnInId ?? null;
         await executor.getRepository(BomLine).create(line);
         for (const occurrenceInput of lineInput.occurrences) {
           const occurrence = construct(BomLineOccurrence);
@@ -212,6 +258,8 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
           occurrence.substitutePriority = occurrenceInput.substitutePriority ?? null;
           occurrence.usageProbability = occurrenceInput.usageProbability ?? null;
           occurrence.equivQty = occurrenceInput.equivQty ?? null;
+          occurrence.ecnInId = occurrenceInput.ecnInId ?? null;
+          occurrence.ecnOutId = occurrenceInput.ecnOutId ?? null;
           await executor.getRepository(BomLineOccurrence).create(occurrence);
           lines.push({ line, occurrence });
           for (const designator of occurrenceInput.designators ?? []) {
@@ -233,6 +281,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
         group.code = groupInput.code;
         group.strategy = groupInput.strategy;
         group.allowMix = groupInput.allowMix ?? true;
+        group.ecnInId = groupInput.ecnInId ?? null;
         await executor.getRepository(BomSubstituteGroup).create(group);
         for (const member of groupInput.members) {
           const target = lines[member.occurrenceIndex];
@@ -292,6 +341,74 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       const headerPatch: Record<string, unknown> = { state: 'released' };
       if (headerInput.updatedAt) headerPatch['updatedAt'] = headerInput.updatedAt;
       await executor.getRepository(BomHeader).update(header, headerPatch as Partial<BomHeader>);
+    }
+
+    // 3.5 既有已发布头的行操作（C 层种子改下层头）：截止标记与追加行都在本批 open 期间
+    const ecnEffectiveDates = new Map<string, Date>();
+    for (const input of batch.ecns ?? []) {
+      if (input.id) ecnEffectiveDates.set(input.id, input.effectiveDate);
+    }
+    for (const overlay of batch.headerOverlays ?? []) {
+      for (const cutoff of overlay.cutoffs ?? []) {
+        const effectiveDate = ecnEffectiveDates.get(cutoff.ecnId);
+        if (!effectiveDate) throw new Error(`overlay 截止标记引用的 ECN 未在本批装载：${cutoff.ecnId}`);
+        const target = construct(BomLineOccurrence);
+        (target as unknown as { id: string }).id = cutoff.occurrenceId;
+        await executor.getRepository(BomLineOccurrence).update(target, {
+          ecnOutId: cutoff.ecnId,
+          effectiveTo: effectiveDate
+        } as Partial<BomLineOccurrence>);
+      }
+      const writeOccurrences = async (lineId: string, inputs: HistoryOccurrenceInput[]): Promise<void> => {
+        for (const occurrenceInput of inputs) {
+          const occurrence = construct(BomLineOccurrence);
+          if (occurrenceInput.id) (occurrence as unknown as { id: string }).id = occurrenceInput.id;
+          if (occurrenceInput.createdAt) (occurrence as unknown as { createdAt: Date }).createdAt = occurrenceInput.createdAt;
+          if (occurrenceInput.updatedAt) (occurrence as unknown as { updatedAt: Date }).updatedAt = occurrenceInput.updatedAt;
+          occurrence.lineId = lineId;
+          occurrence.childItemId = occurrenceInput.childItemId;
+          occurrence.childRevisionId = occurrenceInput.childRevisionId ?? null;
+          occurrence.qty = occurrenceInput.qty != null ? normalizeDecimalString(occurrenceInput.qty, 'qty') : null;
+          occurrence.qtyFormula = occurrenceInput.qtyFormula ?? null;
+          occurrence.formulaGrammarVersion = occurrenceInput.formulaGrammarVersion ?? null;
+          occurrence.effectiveFrom = occurrenceInput.effectiveFrom;
+          occurrence.effectiveTo = occurrenceInput.effectiveTo ?? null;
+          occurrence.uom = occurrenceInput.uom ?? 'pcs';
+          occurrence.isFixedQty = occurrenceInput.isFixedQty ?? false;
+          occurrence.tierGroupNo = occurrenceInput.tierGroupNo ?? null;
+          occurrence.lotsizeFrom = occurrenceInput.lotsizeFrom ?? null;
+          occurrence.lotsizeTo = occurrenceInput.lotsizeTo ?? null;
+          occurrence.componentScrap = normalizeDecimalString(occurrenceInput.componentScrap ?? '0', 'componentScrap');
+          occurrence.componentScrapConvention = occurrenceInput.componentScrapConvention ?? 'additive';
+          occurrence.componentScrapFixed = normalizeDecimalString(occurrenceInput.componentScrapFixed ?? '0', 'componentScrapFixed');
+          occurrence.uomConversion = occurrenceInput.uomConversion ?? null;
+          occurrence.phantomOverride = occurrenceInput.phantomOverride ?? null;
+          occurrence.designatorManaged = occurrenceInput.designatorManaged ?? false;
+          occurrence.flowDirection = occurrenceInput.flowDirection ?? 'consume';
+          occurrence.operationSeq = occurrenceInput.operationSeq ?? null;
+          occurrence.substituteRole = occurrenceInput.substituteRole ?? null;
+          occurrence.substitutePriority = occurrenceInput.substitutePriority ?? null;
+          occurrence.usageProbability = occurrenceInput.usageProbability ?? null;
+          occurrence.equivQty = occurrenceInput.equivQty ?? null;
+          occurrence.ecnInId = occurrenceInput.ecnInId ?? null;
+          occurrence.ecnOutId = occurrenceInput.ecnOutId ?? null;
+          await executor.getRepository(BomLineOccurrence).create(occurrence);
+        }
+      };
+      for (const lineInput of overlay.lines ?? []) {
+        const line = construct(BomLine);
+        if (lineInput.id) (line as unknown as { id: string }).id = lineInput.id;
+        if (lineInput.createdAt) (line as unknown as { createdAt: Date }).createdAt = lineInput.createdAt;
+        if (lineInput.updatedAt) (line as unknown as { updatedAt: Date }).updatedAt = lineInput.updatedAt;
+        line.headerId = overlay.headerId;
+        line.lineNo = lineInput.lineNo;
+        line.ecnInId = lineInput.ecnInId ?? null;
+        await executor.getRepository(BomLine).create(line);
+        await writeOccurrences(line.id, lineInput.occurrences);
+      }
+      for (const add of overlay.occurrenceAdds ?? []) {
+        await writeOccurrences(add.lineId, add.occurrences);
+      }
     }
 
     // 4. 关闭批次（open → closed 是批次表唯一允许的转移）

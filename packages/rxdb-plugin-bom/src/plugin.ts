@@ -23,6 +23,7 @@ import {
   type WhereUsedTarget
 } from './resolve/expansion.js';
 import { explodeBom as runExplodeBom, type ExplosionOptions, type ExplosionResult } from './quantity/explosion.js';
+import { ecnDiff as runEcnDiff, ecnImpact as runEcnImpact, type EcnDiffResult, type EcnImpactResult } from './resolve/ecn.js';
 import { loadHistory, type HistoryBatchInput } from './resolve/history-loader.js';
 import { resolveBom, type ResolveTarget } from './resolve/resolver.js';
 import type { ResolutionContext, ResolutionResult } from './resolve/resolution.js';
@@ -122,6 +123,22 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
    */
   explodeBom(context: ResolutionContext, target: ResolveTarget, options: ExplosionOptions): Promise<ExplosionResult> {
     return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runExplodeBom(adapter, context, target, options));
+  }
+
+  /**
+   * ECN 影响面（US-515 AC#1）：成员发生项的头物料按 ECN 生效日 where-used 走到顶，
+   * 返回被改物料、顶层整机与命中路径。
+   */
+  ecnImpact(ecnId: string): Promise<EcnImpactResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runEcnImpact(adapter, ecnId));
+  }
+
+  /**
+   * ECN 差异（US-515 AC#2）：生效前后两个评估日对涉及的头各解析一次，按逻辑行对齐
+   * 对比——新增 / 删除（截止）/ 改量 / 改版（换子件）四类。
+   */
+  ecnDiff(ecnId: string): Promise<EcnDiffResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runEcnDiff(adapter, ecnId));
   }
 
   install(scope: LifecycleScope): Promise<void> {

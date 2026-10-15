@@ -156,6 +156,9 @@ describe('useFileManagerLazyStore', () => {
     table = new FakeFileTable();
     table.install();
     rxdb = table.entityManager();
+    // `changeSortMode` 会持久化到 localStorage：跨测试清掉，排序模式回到 Manual 缺省
+    // （否则「按名称升序」用例泄漏的 NameAsc 会让后续用例的引擎默认排序断言随机挂）
+    window.localStorage?.clear();
   });
 
   afterEach(() => {

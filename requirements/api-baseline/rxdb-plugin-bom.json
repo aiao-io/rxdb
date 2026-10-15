@@ -42,6 +42,10 @@
         "kind": "both"
       },
       {
+        "name": "BomEcn",
+        "kind": "both"
+      },
+      {
         "name": "BomError",
         "kind": "both"
       },
@@ -192,6 +196,26 @@
       {
         "name": "decimalToCanonical",
         "kind": "value"
+      },
+      {
+        "name": "ecnDiff",
+        "kind": "value"
+      },
+      {
+        "name": "EcnDiffEntry",
+        "kind": "type"
+      },
+      {
+        "name": "EcnDiffResult",
+        "kind": "type"
+      },
+      {
+        "name": "ecnImpact",
+        "kind": "value"
+      },
+      {
+        "name": "EcnImpactResult",
+        "kind": "type"
       },
       {
         "name": "evaluateFormula",
@@ -385,6 +409,10 @@
       },
       {
         "name": "loadScooterDataset",
+        "kind": "value"
+      },
+      {
+        "name": "loadScooterDatasetC",
         "kind": "value"
       },
       {

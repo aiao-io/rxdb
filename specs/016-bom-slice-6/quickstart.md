@@ -1,0 +1,34 @@
+# Quickstart: epic-009 首轮切片第 6 步（验证记录）
+
+**日期**：2026-10-15 | **分支**：`claude/bom-related-work-77235b`
+
+## 交付物
+
+| 项 | 落点 |
+| --- | --- |
+| US-515 ECN 变更管理（26 个 AC 全关） | `BomEcn` 实体（draft/released/cancelled，`effective` 派生态不存）；发生项 `effective_from/to` 由 ECN 派生（真相源唯一，AC#5 手填拒绝）；已发布头的「表 × 操作」写入协议矩阵（行/发生项/位号/组/成员/分摊六处，挂 draft ECN 才放行，AC#13/#14/#22、AC#26 ①）；截止标记单截止方与只能截止已发布或普通发生项（AC#15/#16/#17/#18/#19）；发布/改期/取消三种转换在存储层同一入口（未生效才可改期/取消，AC#20 不得越过后继 ECN、AC#12 被后续截止不可回退、AC#26 ②③ 引用保护），级联删除/清标记/先收窄后放宽全部在触发器里原子完成；转换后运行投影按检查点切片整批校验（位号/替代组 primary·priority·proportional/阶梯/分摊，AC#9/#23/#24/#25）；`ecnImpact`/`ecnDiff` 查询（AC#1/#2） |
+| US-508 AC#12/#16 关闭 | 解析可见性只看 `as_of_date` 与 ECN 状态：挂未发布 ECN 的行不入结果、未发布截止不采信；宿主当日只管改期/取消 |
+| US-512 AC#6/#9/#14 关闭 | ECN 场景的替代组校验在投影上按切片（空切片不校验） |
+| US-507 AC#10 关闭 | 写入协议矩阵（首轮「全部拒绝」→ 追加放行分支） |
+| US-509 AC#15/#16 主体 | draft ECN 行在判环并集（保存即拒）；取消/撤回级联退出并集（⚠️：`bom_reach` 追加段等 US-510 阶段 B） |
+| US-525 阶段 C | 种子 C 层（ECN-2026-014 改 3 张 BOM 5 行 + 已生效的 ECN-2026-005）+ `SCOOTER_GOLDEN_C` 两段值 + ECN 面板（影响面/差异/现场新建发布取消/已生效取消拒绝）+ e2e 第 11~13 条 |
+
+## 测试与门禁（截至当日）
+
+- `rxdb-plugin-bom`:test — 354/354 通过（24 个 spec，新增 bom-ecn / bom-ecn-resolution / bom-ecn-slice / bom-ecn-impact / bom-scooter-c 五个）；覆盖率 95.66% 语句 / 85.36% 分支 / 94.51% 函数 / 96.96% 行
+- `dev-rxdb-bom-e2e` — 13/13 全绿（A/B/C 三阶段 AC）
+- api-baseline 更新（BomEcn、ecnImpact/ecnDiff/EcnDiffEntry/EcnDiffResult/EcnImpactResult 等）
+- affected full — 见任务记录（无 TUI 重跑）
+
+## 排障记录（第 6 步踩过的坑）
+
+1. **SQLite 同事件触发器按逆创建序执行**：最小实验证实「后创建的触发器先跑」——已发布头下 INSERT 同时违反派生与矩阵时，矩阵消息先出。把保存期派生守卫放在矩阵守卫之后创建，错误消息更具体。
+2. **SQLite 三值逻辑吞拒绝**：`WHERE`/`IF` 条件里的 `x = y` 在 NULL 比较下得到 NULL（不 RAISE）。所有「要求相等」的检查必须写成 `IS NOT` / `IS DISTINCT FROM` 二元谓词；`NOT EXISTS(A) OR EXISTS(B)` 的运算符优先级还会把 `NOT (A OR B)` 展开错——组合谓词统一加括号。
+3. **引擎 create 是 `INSERT … ON CONFLICT DO UPDATE`**：INSERT 阶段的触发器 RAISE 后引擎会走 UPDATE 重试路径，报错消息变成 UPDATE 守卫的——直连 INSERT 与实体 API 的报错面不同但都拒绝，断言以错误码前缀为准。
+4. **SQLite 引擎开着 `recursive_triggers`**：ecn 状态机触发器里级联 UPDATE/DELETE 会触发成员表守卫，且 BEFORE 触发器里 ECN 新状态未写库导致派生比较失败——SQLite 与 PG 的状态机统一用 **AFTER UPDATE**（级联在转换后状态下执行，守卫按新状态自然放行），PG 的「触发器内 DML 不触发」结论对多表 DML 不成立（实测会触发）。
+5. **投影校验的受影响头不可在级联后重算**：取消级联删掉了「ecn_in = 目标」的行——校验起点改为「全部 released 头 + 校验起点切片」（检查点 = 起点 ∪ 成员区间端点），起点 = 发布生效日 / 改期新旧较小者 / 取消原生效日；历史装载（open 批次）跳过全部投影校验（历史是既成事实）。
+6. **历史装载的截止标记**：INSERT 直接带 `ecn_out_id` 需要 open 批次豁免（运行时 INSERT 不打截止标记）；打标记 UPDATE 的「当前 effective_to = +∞」检查会拦历史行——C 层装载改走 INSERT 带标记 + 豁免。
+7. **种子 ECN 的改行要避开已截止旧段**：现场演示 ECN 改「被 ECN-2026-014 截止过的行」会撞 AC#15 单截止方——demo 现场 ECN 改 R10K 第二行与 CELL 行。
+8. **golden C 的 MCU 值**：需求行 qty 按 0 位小数向上取整（1.0204 → 2），1.0204 是七步中间值不是最终 qty；MCU-V2 新发生项要携带与旧行相同的损耗属性（改版只换子件、行属性不变）。
+9. **概率 '1' 的定点提取**：`substr('1' || '000000000', 3, 9)` = 0——合计提取只认 `0.xxx` 形态（第 5 步既有边界，quickstart 记录）。
+10. **PGlite 触发器内 DML 探针**：plpgsql 函数里 DELETE/UPDATE 可执行、RAISE EXCEPTION 后级联随语句回滚（AC#4 原子性成立）。

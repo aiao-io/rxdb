@@ -16,7 +16,7 @@
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **26** |
 
-仓库还剩 **26 条**未关闭故事（13 In Progress + 1 In Review + 12 Backlog + 0 Blocked）。
+仓库还剩 **24 条**未关闭故事（12 In Progress + 1 In Review + 11 Backlog + 0 Blocked）。
 
 > 口径与 [status-overview 状态汇总](status-overview.md#状态汇总) 一致：YAML `status` 字段 `grep` 推导。
 > rxdb-model 实体模型库与三框架 UI 组件集没有故事文件，三框架代码已随 #62 合入；剩下的跨框架对拍、三端对称复核与文档
@@ -39,9 +39,9 @@
 | [US-029 多用户 RBAC：角色与所有权写权限](stories/core/US-029-rbac-owner-role-permission.md) | 📝 Backlog     | 未立项；**价值待证**（评审 `git show 952be44f:requirements/reviews/RV-022-us-029-readiness-review.md`：已去掉多租户，仍无具名使用方）。前置 US-027 与 US-218 均已 Done                                                                                                                                                                                                                                                                                                                                                                                                      | 立项池   |
 | [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md)  | 🚧 In Progress | owner 2026-10-11 授权并完成 A1 实现：入口 TSDoc、发布发现、语义事实源、漂移门禁、离线样例、CI 与生成生命周期；A1 最终 affected 门禁已通过；A2 经 [#113](https://github.com/aiao-io/rxdb/pull/113) 合入（`@aiao/*` peer 统一为 `workspace:^`、真实打包与隔离消费验证，AC#4/#7/#8 通过），`BREAKING CHANGE` 随其后的迁移发布声明；C 主包 Skill 已交付（锁定 skills-npm@4.0.0）；B 已完成本地 llms.txt / llms-full.txt 构建，剩部署后线上 smoke                                                                                                                                | 批次 3   |
 | [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                        | 📝 Backlog     | 未立项（待 owner 定批次）；阶段 A（盘点与可行性）→ B（`@aiao/rxdb-i18n` 核心 + 三端 `useI18n()`）→ C（rxdb-model 去硬编码 + 三端 demo 切换器）均无硬前置、全本地能力；阶段 D（目录 QueryCache 分发 + DevTools 面板）复用已 Done 的 US-212 / US-023 / US-902，独立后置关闭。与 US-910 的协调点：fallback 链与「用户显示偏好」只实现一份；`rxdb-plugin-i18n`（数据翻译）与 `@aiao/rxdb-i18n`（UI 文案）包名重叠由 owner 裁决                                                                                                                                                  | 立项池   |
-| [epic-009 BOM 领域模型](epics/epic-009-bom-domain-model.md) 19 条（已解锁 2026-10-12）      | 📝 Backlog     | 第 0 步复核决策 1～8 与演示范围（US-525 阶段 A～F）→ 首轮切片第 1～4 步 → 演示阶段 B～F 的消费方按前置接入；US-513 阶段 B 联产品与 US-519 AC#3 / #7 仍价值待证                                                                                                                                                                                                                                                                                                                                                                                                              | 批次 4   |
+| [epic-009 BOM 领域模型](epics/epic-009-bom-domain-model.md) 19 条（已解锁 2026-10-12）      | 📝 Backlog     | 第 0 步复核决策 1～8 与演示范围（US-525 阶段 A～F）→ 首轮切片第 1～6 步（2026-10-15 全部交付，US-515 ECN 变更管理闭环）→ 演示阶段 D～F 的消费方按前置接入；US-513 阶段 B 联产品与 US-519 AC#3 / #7 仍价值待证                                                                                                                                                                                                                                                                                                                                                                                                              | 批次 4   |
 
-| [epic-009 BOM 领域模型](epics/epic-009-bom-domain-model.md) 19 条（已解锁 2026-10-12） | 📝 Backlog | 第 0 步复核决策 1～8 与演示范围（US-525 阶段 A～F）→ 首轮切片第 1～4 步 → 演示阶段 B～F 的消费方按前置接入；US-513 阶段 B 联产品与 US-519 AC#3 / #7 仍价值待证 | 批次 4 |
+| [epic-009 BOM 领域模型](epics/epic-009-bom-domain-model.md) 19 条（已解锁 2026-10-12） | 📝 Backlog | 第 0 步复核决策 1～8 与演示范围（US-525 阶段 A～F）→ 首轮切片第 1～6 步（2026-10-15 全部交付，US-515 ECN 变更管理闭环）→ 演示阶段 D～F 的消费方按前置接入；US-513 阶段 B 联产品与 US-519 AC#3 / #7 仍价值待证 | 批次 4 |
 
 ## 即办清单
 

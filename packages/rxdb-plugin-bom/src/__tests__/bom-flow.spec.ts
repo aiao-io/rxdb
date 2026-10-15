@@ -177,6 +177,8 @@ for (const backend of BACKENDS) {
       const { header, addLine } = await setup(adapter, parent);
       (header as unknown as { baseQty: string }).baseQty = '100';
       (header as unknown as { baseUom: string }).baseUom = 'kg';
+      // 加装配损耗 10% 加成制：L 不变、R 121、S 11（US-515 AC#22：已发布头字段不可改，须在发布前定稿）
+      (header as unknown as { assemblyScrap: string }).assemblyScrap = '0.1';
       await header.save();
       await addLine('consume', r, { qty: '110', uom: 'kg' });
       await addLine('by_product', s, { qty: '10', uom: 'kg' });
@@ -188,12 +190,8 @@ for (const backend of BACKENDS) {
           s: result.outputs.find(output => output.itemId === s.id)?.qty ?? ''
         };
       };
-      expect(await at('100')).toEqual({ r: '110', s: '10' });
-      expect(await at('200')).toEqual({ r: '220', s: '20' });
-      // 加装配损耗 10% 加成制：L 不变、R 121、S 11
-      (header as unknown as { assemblyScrap: string }).assemblyScrap = '0.1';
-      await header.save();
       expect(await at('100')).toEqual({ r: '121', s: '11' });
+      expect(await at('200')).toEqual({ r: '242', s: '22' });
     });
   });
 }

@@ -61,6 +61,28 @@ const childRevisionExpr = (
   `COALESCE(${alias}."childRevisionId", (SELECT r."id" FROM ${revisionTable} r WHERE r."itemId" = ${alias}."childItemId" AND r."state" = 'released' AND r."effectiveFrom" <= ${bind(asOfDate)} ORDER BY r."effectiveFrom" DESC LIMIT 1))`;
 
 /**
+ * ECN 可见性（US-515 / US-508 AC#12）：引入侧挂未发布 ECN 的发生项不入结果
+ * （draft 与 cancelled 都排除）；ecn 表按方言引用。
+ */
+const ecnVisibleExpr = (dialect: BomSqlDialect, alias: string): string =>
+  `(${alias}."ecnInId" IS NULL OR EXISTS (SELECT 1 FROM ${dialect.table('ecn')} e WHERE e."id" = ${alias}."ecnInId" AND e."state" = 'released'))`;
+
+/**
+ * 截止侧采信（US-515 / US-508 AC#12）：`ecn_out_id` 指向 released ECN 时按存储
+ * `effective_to` 比较；指向未发布 ECN 的截止不截止（视为 +∞，上界恒过）。
+ * 可见性只看 ECN 状态与 `as_of_date`，不读宿主当日（US-508 AC#16）。
+ * 注意 `ecnOutId IS NOT NULL` 守卫：无截止标记的行不落入「未发布不采信」分支。
+ */
+const ecnEffectiveToExpr = (
+  dialect: BomSqlDialect,
+  alias: string,
+  bind: (value: unknown) => string,
+  asOfDate: Date
+): string =>
+  `(${alias}."effectiveTo" IS NULL OR ${alias}."effectiveTo" > ${bind(asOfDate)} OR ` +
+  `(${alias}."ecnOutId" IS NOT NULL AND NOT EXISTS (SELECT 1 FROM ${dialect.table('ecn')} e WHERE e."id" = ${alias}."ecnOutId" AND e."state" = 'released')))`;
+
+/**
  * 生成「已解析的发生项」查询：released 头 + 生效窗口含评估日 + 子件修订解析。
  *
  * @param dialect - 方言
@@ -108,7 +130,8 @@ export const buildResolvedOccurrencesSql = (
     `  AND h."orgId" = ${p(params.orgId)}`,
     ...(params.alternativeNo !== undefined ? [`  AND h."alternativeNo" = ${p(params.alternativeNo)}`] : []),
     `  AND occ."effectiveFrom" <= ${p(params.asOfDate)}`,
-    `  AND (occ."effectiveTo" IS NULL OR occ."effectiveTo" > ${p(params.asOfDate)})`,
+    `  AND ${ecnEffectiveToExpr(dialect, 'occ', p, params.asOfDate)}`,
+    `  AND ${ecnVisibleExpr(dialect, 'occ')}`,
     `ORDER BY l."lineNo" ASC, occ."effectiveFrom" ASC`
   ].join('\n');
 
@@ -258,7 +281,8 @@ export const buildHeaderOccurrencesSql = (
     `  AND h."orgId" = ${p(params.orgId)}`,
     `  AND h."id" IN (${params.headerIds.map(id => p(id)).join(', ')})`,
     `  AND occ."effectiveFrom" <= ${p(params.asOfDate)}`,
-    `  AND (occ."effectiveTo" IS NULL OR occ."effectiveTo" > ${p(params.asOfDate)})`,
+    `  AND ${ecnEffectiveToExpr(dialect, 'occ', p, params.asOfDate)}`,
+    `  AND ${ecnVisibleExpr(dialect, 'occ')}`,
     `ORDER BY l."lineNo" ASC, occ."effectiveFrom" ASC, occ."id" ASC`
   ].join('\n');
 
@@ -317,7 +341,8 @@ export const buildChildrenOfRevisionsSql = (
     `  AND h."orgId" = ${p(params.orgId)}`,
     `  AND h."parentRevisionId" IN (${params.revisionIds.map(id => p(id)).join(', ')})`,
     `  AND occ."effectiveFrom" <= ${p(params.asOfDate)}`,
-    `  AND (occ."effectiveTo" IS NULL OR occ."effectiveTo" > ${p(params.asOfDate)})`,
+    `  AND ${ecnEffectiveToExpr(dialect, 'occ', p, params.asOfDate)}`,
+    `  AND ${ecnVisibleExpr(dialect, 'occ')}`,
     `ORDER BY l."lineNo" ASC, occ."effectiveFrom" ASC, occ."id" ASC`
   ].join('\n');
 
@@ -375,7 +400,8 @@ export const buildParentsOfItemsSql = (
     `  AND h."orgId" = ${p(params.orgId)}`,
     `  AND occ."childItemId" IN (${params.itemIds.map(id => p(id)).join(', ')})`,
     `  AND occ."effectiveFrom" <= ${p(params.asOfDate)}`,
-    `  AND (occ."effectiveTo" IS NULL OR occ."effectiveTo" > ${p(params.asOfDate)})`,
+    `  AND ${ecnEffectiveToExpr(dialect, 'occ', p, params.asOfDate)}`,
+    `  AND ${ecnVisibleExpr(dialect, 'occ')}`,
     `ORDER BY l."lineNo" ASC, occ."effectiveFrom" ASC, occ."id" ASC`
   ].join('\n');
 

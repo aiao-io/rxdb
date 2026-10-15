@@ -195,11 +195,52 @@ export class BomHistoryBatch extends EntityBase {
 }
 
 /**
+ * 变更单（`bom$ecn`，US-515）：行发生项区间的唯一真相源。
+ *
+ * @remarks
+ * 存储态只有 `draft` / `released` / `cancelled`；`effective` 是派生态（`released` 且
+ * `effective_date` ≤ UTC 当日），不存派生态就没有「到点推进状态」的定时任务问题。
+ * `effectiveDate` 创建即必填（存储层触发器兜底）、`draft` 期可改；发生项的
+ * `effective_from` / `effective_to` 一律由它派生，手填即拒绝（AC#5）。
+ * `released` 后只允许「改期（未生效，不越过同一逻辑行后继 ECN）」与「取消（未生效）」
+ * 两种转移，其余拒绝——全部由存储层触发器执行级联与投影校验（US-515 状态机）。
+ */
+@Entity({
+  name: 'BomEcn',
+  namespace: 'bom',
+  tableName: 'ecn',
+  repository: 'BomRepository',
+  properties: [
+    { name: 'ecnNo', type: PropertyType.string, unique: true },
+    { name: 'state', type: PropertyType.enum, enum: ['draft', 'released', 'cancelled'], default: 'draft' },
+    { name: 'effectiveDate', type: PropertyType.date },
+    { name: 'reason', type: PropertyType.string, nullable: true },
+    // 历史装载批次的批次号（US-525 阶段 C 种子 ECN 走 loadHistory 通道）；直连发布恒空
+    { name: 'historyBatchNo', type: PropertyType.string, nullable: true }
+  ],
+  foreignKeys: [
+    {
+      name: 'ecn_history_batch',
+      properties: ['historyBatchNo'],
+      mappedEntity: 'BomHistoryBatch',
+      mappedProperties: ['batchNo']
+    }
+  ]
+})
+export class BomEcn extends EntityBase {
+  ecnNo!: string;
+  state!: 'draft' | 'released' | 'cancelled';
+  effectiveDate!: Date;
+  reason!: string | null;
+  historyBatchNo!: string | null;
+}
+
+/**
  * 逻辑行（`bom$bom_line`）：「这条设计行是谁」。
  *
  * @remarks
  * 身份 `(headerId, lineNo)` 唯一；`(parent, child)` **不**唯一（多重图，US-507 AC#1）。
- * `ecnInId` 首轮恒空（US-515 落地后启用）。
+ * `ecnInId` 挂 draft ECN（US-515 写入协议）：ECN 新建的逻辑行在发布前对解析不可见。
  */
 @Entity({
   name: 'BomLine',
@@ -208,7 +249,7 @@ export class BomHistoryBatch extends EntityBase {
   repository: 'BomRepository',
   properties: [
     { name: 'lineNo', type: PropertyType.integer },
-    { name: 'ecnInId', type: PropertyType.string, nullable: true }
+    { name: 'ecnInId', type: PropertyType.uuid, nullable: true }
   ],
   relations: [
     {
@@ -216,6 +257,14 @@ export class BomHistoryBatch extends EntityBase {
       kind: RelationKind.MANY_TO_ONE,
       mappedEntity: 'BomHeader',
       mappedProperty: 'lines'
+    }
+  ],
+  foreignKeys: [
+    {
+      name: 'line_ecn_in',
+      properties: ['ecnInId'],
+      mappedEntity: 'BomEcn',
+      mappedProperties: ['id']
     }
   ],
   indexes: [{ name: 'header_line_no', properties: ['headerId', 'lineNo'], unique: true }]
@@ -246,8 +295,8 @@ export class BomLine extends EntityBase {
     { name: 'qty', type: PropertyType.string, nullable: true },
     { name: 'effectiveFrom', type: PropertyType.date },
     { name: 'effectiveTo', type: PropertyType.date, nullable: true },
-    { name: 'ecnInId', type: PropertyType.string, nullable: true },
-    { name: 'ecnOutId', type: PropertyType.string, nullable: true },
+    { name: 'ecnInId', type: PropertyType.uuid, nullable: true },
+    { name: 'ecnOutId', type: PropertyType.uuid, nullable: true },
     // 数量语义（US-511 阶段 A/B1/C）
     { name: 'uom', type: PropertyType.string, default: 'pcs' },
     { name: 'qtyFormula', type: PropertyType.string, nullable: true },
@@ -339,6 +388,19 @@ export class BomLine extends EntityBase {
       mappedEntity: 'BomItemRevision',
       mappedProperties: ['itemId', 'id'],
       onDelete: 'CASCADE'
+    },
+    // ECN 引入 / 截止（US-515）：ECN 行不删除（cancelled 保留），默认 RESTRICT 即够
+    {
+      name: 'occurrence_ecn_in',
+      properties: ['ecnInId'],
+      mappedEntity: 'BomEcn',
+      mappedProperties: ['id']
+    },
+    {
+      name: 'occurrence_ecn_out',
+      properties: ['ecnOutId'],
+      mappedEntity: 'BomEcn',
+      mappedProperties: ['id']
     }
   ],
   exclusions: [
@@ -397,7 +459,9 @@ export class BomLineOccurrence extends EntityBase {
   properties: [
     { name: 'code', type: PropertyType.string },
     { name: 'strategy', type: PropertyType.enum, enum: ['priority', 'proportional', 'manual'] },
-    { name: 'allowMix', type: PropertyType.boolean, default: true }
+    { name: 'allowMix', type: PropertyType.boolean, default: true },
+    // 挂 draft ECN（US-515 写入协议）：已发布头的替代组只能由 ECN 新建，发布前对解析不可见
+    { name: 'ecnInId', type: PropertyType.uuid, nullable: true }
   ],
   relations: [
     {
@@ -406,6 +470,14 @@ export class BomLineOccurrence extends EntityBase {
       mappedEntity: 'BomHeader',
       mappedProperty: 'substituteGroups',
       onDelete: 'CASCADE'
+    }
+  ],
+  foreignKeys: [
+    {
+      name: 'substitute_group_ecn_in',
+      properties: ['ecnInId'],
+      mappedEntity: 'BomEcn',
+      mappedProperties: ['id']
     }
   ],
   indexes: [{ name: 'header_code', properties: ['headerId', 'code'], unique: true }],
@@ -426,6 +498,7 @@ export class BomSubstituteGroup extends EntityBase {
   code!: string;
   strategy!: 'priority' | 'proportional' | 'manual';
   allowMix!: boolean;
+  ecnInId!: string | null;
   headerId!: string;
 }
 
@@ -588,4 +661,4 @@ export class BomLineOperationSplit extends EntityBase {
 }
 
 /** BOM 实体全集（触发器安装按此清单在 schema 里找实体）。 */
-export const BOM_ENTITIES = [BomItem, BomItemRevision, BomHeader, BomHistoryBatch, BomLine, BomLineOccurrence, BomLineDesignator, BomSubstituteGroup, BomWorkCenter, BomRouting, BomRoutingOperation, BomLineOperationSplit] as const;
+export const BOM_ENTITIES = [BomItem, BomItemRevision, BomHeader, BomHistoryBatch, BomEcn, BomLine, BomLineOccurrence, BomLineDesignator, BomSubstituteGroup, BomWorkCenter, BomRouting, BomRoutingOperation, BomLineOperationSplit] as const;

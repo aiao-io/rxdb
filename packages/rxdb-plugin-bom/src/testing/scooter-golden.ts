@@ -172,3 +172,29 @@ export const goldenOccurrenceId = (pathKey: string): string => deterministicId(p
 
 /** 业务键 → 确定性物料 id。 */
 export const goldenItemId = (itemKey: string): string => deterministicId(`item:${itemKey}`);
+
+/**
+ * SC-100 阶段 C 的 golden（US-525 AC#10/#11）：受影响路径按评估日两段手写值——
+ * `before`（2026-09-22，ECN-2026-014 生效前，与 A/B 层逐位一致）与 `after`
+ * （2026-10-15，生效后）；不受影响路径沿用 A/B 层值（逐位不变是本层的断言）。
+ * MCU 行的 2% 良率制损耗在换版后保留（行属性不变）：G' = 1 ÷ 0.98。
+ */
+export const SCOOTER_GOLDEN_C: {
+  /** 受影响需求行：itemKey → 两段的各路径 qty 列表（NULL = 该段不存在此物料的需求行）。 */
+  requirements: { itemKey: string; before: string[] | null; after: string[] | null }[];
+} = {
+  requirements: [
+    // SC-100 的 FRAME 行被截止删除
+    { itemKey: 'FRAME', before: ['1'], after: null },
+    // SC-100 新增 SEAT 行
+    { itemKey: 'SEAT', before: null, after: ['1'] },
+    // PCBA 的 MCU 行换版 MCU-V2（损耗 2% 良率制保留；需求行 qty 按 0 位小数向上取整 = 2）
+    { itemKey: 'MCU', before: ['2'], after: null },
+    { itemKey: 'MCU-V2', before: null, after: ['2'] },
+    // PCBA 的 R10K 三行首行改量 2→3：2/3/1 → 3/3/1
+    { itemKey: 'R10K', before: ['2', '3', '1'], after: ['3', '3', '1'] },
+    // BATT 的 BMS 行换版 BMS-V2
+    { itemKey: 'BMS', before: ['1'], after: null },
+    { itemKey: 'BMS-V2', before: null, after: ['1'] }
+  ]
+};

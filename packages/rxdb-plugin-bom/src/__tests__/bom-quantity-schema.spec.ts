@@ -47,7 +47,7 @@ const makeOccurrence = async (
 ): Promise<BomLineOccurrence> => {
   const line = new BomLine();
   line.headerId = header.id;
-  line.lineNo = 10 + Math.floor(Math.random() * 1000);
+  line.lineNo = 10 + Math.floor(Math.random() * 100000);
   await line.save();
   const occurrence = new BomLineOccurrence();
   occurrence.lineId = line.id;
@@ -175,7 +175,7 @@ for (const backend of BACKENDS) {
       const { header, child } = await setup();
       const rawLine = new BomLine();
       rawLine.headerId = header.id;
-      rawLine.lineNo = 500 + Math.floor(Math.random() * 100);
+      rawLine.lineNo = 500 + Math.floor(Math.random() * 100000);
       await rawLine.save();
       const tableRef = backend === 'wa-sqlite' ? `"bom$bom_line_occurrence"` : `"bom"."bom_line_occurrence"`;
       const raw = await settled(
