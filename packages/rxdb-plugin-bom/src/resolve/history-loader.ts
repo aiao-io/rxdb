@@ -97,6 +97,8 @@ export interface HistoryHeaderInput {
   baseQty?: string;
   assemblyScrap?: string;
   assemblyScrapConvention?: 'additive' | 'yield';
+  /** 标准成本批量（US-514）：以头 base_uom 计；卷算必填。 */
+  costLotQty?: string | null;
   /** 确定性装载的显式 id（US-525 种子）。 */
   id?: string;
   createdAt?: Date;
@@ -217,6 +219,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       header.baseQty = headerInput.baseQty ?? '1';
       header.assemblyScrap = headerInput.assemblyScrap ?? '0';
       header.assemblyScrapConvention = headerInput.assemblyScrapConvention ?? 'additive';
+      header.costLotQty = headerInput.costLotQty ?? null;
       await executor.getRepository(BomHeader).create(header);
       const lines: { line: BomLine; occurrence: BomLineOccurrence }[] = [];
       for (const lineInput of headerInput.lines) {

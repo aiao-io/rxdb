@@ -152,7 +152,9 @@ export const buildAlternativeHeadersSql = (
   };
   const header = dialect.table('bom_header');
   const sql = [
-    `SELECT h."id" AS "headerId", h."alternativeNo" AS "alternativeNo", h."baseUom" AS "baseUom"`,
+    `SELECT h."id" AS "headerId", h."alternativeNo" AS "alternativeNo", h."baseUom" AS "baseUom",`,
+    `  h."baseQty" AS "baseQty", h."assemblyScrap" AS "assemblyScrap", h."assemblyScrapConvention" AS "assemblyScrapConvention",`,
+    `  h."costLotQty" AS "costLotQty", h."routingId" AS "routingId"`,
     `FROM ${header} h`,
     `WHERE h."state" = 'released'`,
     `  AND h."parentRevisionId" = ${p(params.parentRevisionId)}`,

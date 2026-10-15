@@ -10,6 +10,16 @@
 import { BomQuantityError } from '../types.js';
 import { decimalDiv, decimalFromCanonical, decimalMul, decimalToCanonical } from './decimal.js';
 
+/**
+ * 时间单位表（US-514 AC#19）：60 进制不走 10 幂词根表，按秒数折算；
+ * 工时（time_uom）与费率计费单位（rate_uom）同为时间量纲才可换算，否则拒绝不默认 1。
+ */
+const TIME_UNITS: Readonly<Record<string, number>> = {
+  s: 1,
+  min: 60,
+  h: 3600
+};
+
 /** 常用单位表：词根 + 相对于词根基数的 10 幂指数（scale）。 */
 const METRIC_UNITS: Readonly<Record<string, { root: string; scale: number }>> = {
   mg: { root: 'g', scale: -3 },
@@ -46,6 +56,18 @@ export interface UomConversionRates {
  */
 export const convertUom = (value: string, from: string, to: string, rates: UomConversionRates = {}): string => {
   if (from === to) return value;
+  // 时间量纲：双方同属时间单位按秒数折算；一方时间一方非时间即量纲不兼容，拒绝不默认 1
+  const fromSeconds = TIME_UNITS[from];
+  const toSeconds = TIME_UNITS[to];
+  if (fromSeconds !== undefined && toSeconds !== undefined) {
+    const source = decimalFromCanonical(value);
+    // value 以 from 单位计：× from 秒数转到秒，÷ to 秒数转到 to 单位
+    const converted = decimalDiv(decimalMul(source, { coeff: BigInt(fromSeconds), exp: 0 }), { coeff: BigInt(toSeconds), exp: 0 });
+    return decimalToCanonical(converted);
+  }
+  if (fromSeconds !== undefined || toSeconds !== undefined) {
+    throw new BomQuantityError(`时间单位 ${from} 与 ${to} 量纲不兼容：缺换算或计费单位与工时单位不同量纲，不默认 1`);
+  }
   const fromUnit = METRIC_UNITS[from];
   const toUnit = METRIC_UNITS[to];
   // 同词根：标准系数（1 kg = 1000 g 之类；BigInt 幂指数须非负，负指数走除法）

@@ -29,7 +29,13 @@ import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';
     { name: 'stockUom', type: PropertyType.string, default: 'pcs' },
     { name: 'uomDecimals', type: PropertyType.integer, default: 0 },
     // 物料级换算率：1 目标单位含多少库存单位（行级 uom_conversion 覆盖它）
-    { name: 'uomConversion', type: PropertyType.string, nullable: true }
+    { name: 'uomConversion', type: PropertyType.string, nullable: true },
+    // 外购叶子价格（US-514）：有价即外购；价格带 price_uom（与库存单位不同按物料级换算，缺换算拒绝）
+    { name: 'unitPrice', type: PropertyType.string, nullable: true },
+    { name: 'priceUom', type: PropertyType.string, nullable: true },
+    { name: 'priceCurrency', type: PropertyType.string, nullable: true },
+    // 副产品抵减价（US-514 AC#5/#17）：by_product 产出量 × credit_price
+    { name: 'creditPrice', type: PropertyType.string, nullable: true }
   ]
 })
 export class BomItem extends EntityBase {
@@ -39,6 +45,10 @@ export class BomItem extends EntityBase {
   stockUom!: string;
   uomDecimals!: number;
   uomConversion!: string | null;
+  unitPrice!: string | null;
+  priceUom!: string | null;
+  priceCurrency!: string | null;
+  creditPrice!: string | null;
 }
 
 /**
@@ -124,7 +134,9 @@ export class BomItemRevision extends EntityBase {
     { name: 'baseUom', type: PropertyType.string, default: 'pcs' },
     { name: 'baseQty', type: PropertyType.string, default: '1' },
     { name: 'assemblyScrap', type: PropertyType.string, default: '0' },
-    { name: 'assemblyScrapConvention', type: PropertyType.enum, enum: ['additive', 'yield'], default: 'additive' }
+    { name: 'assemblyScrapConvention', type: PropertyType.enum, enum: ['additive', 'yield'], default: 'additive' },
+    // 标准成本批量（US-514）：以头的 base_uom 计；卷算必填，缺失即拒绝
+    { name: 'costLotQty', type: PropertyType.string, nullable: true }
   ],
   relations: [
     {
@@ -168,6 +180,7 @@ export class BomHeader extends EntityBase {
   baseQty!: string;
   assemblyScrap!: string;
   assemblyScrapConvention!: 'additive' | 'yield';
+  costLotQty!: string | null;
 }
 
 /**
@@ -533,7 +546,9 @@ export class BomLineDesignator extends EntityBase {
 }
 
 /**
- * 工作中心（`bom$work_center`，US-524 阶段 A）：编码 + 组织，`(code, orgId)` 唯一。
+ * 工作中心（`bom$work_center`，US-524）：编码 + 组织，`(code, orgId)` 唯一；
+ * 阶段 B 补成本属性——`overheadRate`（制费，US-514 的 `overhead(n, L)` 输入：按换算到
+ * `rate_uom` 的工时计；「按工时计制费」是故事未细说下的最小模型，golden 据此手写）。
  */
 @Entity({
   name: 'BomWorkCenter',
@@ -542,13 +557,17 @@ export class BomLineDesignator extends EntityBase {
   repository: 'BomRepository',
   properties: [
     { name: 'code', type: PropertyType.string },
-    { name: 'orgId', type: PropertyType.string }
+    { name: 'orgId', type: PropertyType.string },
+    { name: 'overheadRate', type: PropertyType.string, nullable: true },
+    { name: 'overheadCurrency', type: PropertyType.string, nullable: true }
   ],
   indexes: [{ name: 'code_org', properties: ['code', 'orgId'], unique: true }]
 })
 export class BomWorkCenter extends EntityBase {
   code!: string;
   orgId!: string;
+  overheadRate!: string | null;
+  overheadCurrency!: string | null;
 }
 
 /**
@@ -601,7 +620,12 @@ export class BomRouting extends EntityBase {
     { name: 'operationSeq', type: PropertyType.integer },
     { name: 'description', type: PropertyType.string, nullable: true },
     { name: 'operationScrap', type: PropertyType.string, default: '0' },
-    { name: 'scrapConvention', type: PropertyType.enum, enum: ['additive', 'yield'], default: 'additive' }
+    { name: 'scrapConvention', type: PropertyType.enum, enum: ['additive', 'yield'], default: 'additive' },
+    // 工时模型（US-524 阶段 C）：规范十进制串，默认 0；time_uom 默认小时
+    { name: 'setupTime', type: PropertyType.string, default: '0' },
+    { name: 'runTime', type: PropertyType.string, default: '0' },
+    { name: 'fixedTime', type: PropertyType.string, default: '0' },
+    { name: 'timeUom', type: PropertyType.string, default: 'h' }
   ],
   relations: [
     {
@@ -625,6 +649,12 @@ export class BomRoutingOperation extends EntityBase {
   description!: string | null;
   operationScrap!: string;
   scrapConvention!: 'additive' | 'yield';
+  // 工时模型（US-524 阶段 C）：setup 每批一次、run 每件乘加工量、fixed 固定一批一次；
+  // 三者同一 time_uom 计，求和后换算一次到费率 rate_uom（US-514 AC#18/#19）
+  setupTime!: string;
+  runTime!: string;
+  fixedTime!: string;
+  timeUom!: string;
   routingId!: string;
   workCenterId!: string;
 }
@@ -661,4 +691,157 @@ export class BomLineOperationSplit extends EntityBase {
 }
 
 /** BOM 实体全集（触发器安装按此清单在 schema 里找实体）。 */
-export const BOM_ENTITIES = [BomItem, BomItemRevision, BomHeader, BomHistoryBatch, BomEcn, BomLine, BomLineOccurrence, BomLineDesignator, BomSubstituteGroup, BomWorkCenter, BomRouting, BomRoutingOperation, BomLineOperationSplit] as const;
+
+/**
+ * 作业类型（`bom$activity_type`，US-524 阶段 B）：工作中心内的作业种类，
+ * `(workCenterId, code)` 唯一；费率按 `(work_center, activity_type, valid_from)` 取值。
+ */
+@Entity({
+  name: 'BomActivityType',
+  namespace: 'bom',
+  tableName: 'activity_type',
+  repository: 'BomRepository',
+  properties: [{ name: 'code', type: PropertyType.string }],
+  relations: [
+    {
+      name: 'workCenter',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'BomWorkCenter',
+      mappedProperty: 'activityTypes'
+    }
+  ],
+  indexes: [{ name: 'work_center_code', properties: ['workCenterId', 'code'], unique: true }]
+})
+export class BomActivityType extends EntityBase {
+  code!: string;
+  workCenterId!: string;
+}
+
+/**
+ * 作业费率（`bom$activity_rate`，US-524 阶段 B）：按 `(work_center, activity_type, valid_from)`
+ * 取值，带币种与计费单位 `rate_uom`；同一作业类型的生效段以 valid_from 区分，
+ * 同 key 同日起始的两段即重叠（区间语义 [validFrom, 下一段 validFrom)，无显式 to 列）。
+ */
+@Entity({
+  name: 'BomActivityRate',
+  namespace: 'bom',
+  tableName: 'activity_rate',
+  repository: 'BomRepository',
+  properties: [
+    { name: 'validFrom', type: PropertyType.date },
+    { name: 'rate', type: PropertyType.string },
+    { name: 'currency', type: PropertyType.string },
+    { name: 'rateUom', type: PropertyType.string }
+  ],
+  relations: [
+    {
+      name: 'workCenter',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'BomWorkCenter',
+      mappedProperty: 'activityRates'
+    },
+    {
+      name: 'activityType',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'BomActivityType',
+      mappedProperty: 'activityRates'
+    }
+  ],
+  indexes: [
+    { name: 'activity_rate_segment', properties: ['workCenterId', 'activityTypeId', 'validFrom'], unique: true }
+  ]
+})
+export class BomActivityRate extends EntityBase {
+  validFrom!: Date;
+  rate!: string;
+  currency!: string;
+  rateUom!: string;
+  workCenterId!: string;
+  activityTypeId!: string;
+}
+
+/**
+ * EBOM↔MBOM 变换范围（`bom$bom_map_scope`，US-516）：一对根级头
+ * `(ebom_root_header_id, mbom_root_header_id)`，两侧 org 相同、父件同一物料（修订可不同）；
+ * 每条映射属于一个变换范围。
+ */
+@Entity({
+  name: 'BomMapScope',
+  namespace: 'bom',
+  tableName: 'bom_map_scope',
+  repository: 'BomRepository',
+  properties: [{ name: 'orgId', type: PropertyType.string }],
+  relations: [
+    {
+      name: 'ebomRootHeader',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'BomHeader',
+      mappedProperty: 'ebomMapScopes'
+    },
+    {
+      name: 'mbomRootHeader',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'BomHeader',
+      mappedProperty: 'mbomMapScopes'
+    }
+  ],
+  indexes: [{ name: 'scope_roots', properties: ['ebomRootHeaderId', 'mbomRootHeaderId'], unique: true }]
+})
+export class BomMapScope extends EntityBase {
+  orgId!: string;
+  ebomRootHeaderId!: string;
+  mbomRootHeaderId!: string;
+}
+
+/**
+ * EBOM↔MBOM 行映射（`bom$bom_map`，US-516）：逻辑行 ↔ 逻辑行多对多，六态 `relation`；
+ * `added` 只能 source 为 NULL、`removed` 只能 target 为 NULL、其余四态两侧必填、不允许双 NULL
+ * （单行 CHECK 兜底）；路径级映射带 `sourceLinePath`（自 EBOM 根起的逻辑行 ID 序列，只作用于
+ * 那一条路径）；跟进基线存 `targetOccurrenceId` 与「到源行为止的解析步骤集合」JSON。
+ */
+@Entity({
+  name: 'BomMap',
+  namespace: 'bom',
+  tableName: 'bom_map',
+  repository: 'BomRepository',
+  properties: [
+    { name: 'relation', type: PropertyType.enum, enum: ['one_to_one', 'split', 'merge', 'added', 'removed', 'resequenced'] },
+    { name: 'sourceLinePath', type: PropertyType.string, nullable: true },
+    { name: 'targetOccurrenceId', type: PropertyType.string, nullable: true },
+    { name: 'baselineSteps', type: PropertyType.string, nullable: true }
+  ],
+  relations: [
+    {
+      name: 'scope',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'BomMapScope',
+      mappedProperty: 'mappings'
+    },
+    {
+      name: 'sourceLine',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'BomLine',
+      mappedProperty: 'ebomMappings',
+      nullable: true
+    },
+    {
+      name: 'targetLine',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'BomLine',
+      mappedProperty: 'mbomMappings',
+      nullable: true
+    }
+  ]
+})
+export class BomMap extends EntityBase {
+  relation!: 'one_to_one' | 'split' | 'merge' | 'added' | 'removed' | 'resequenced';
+  sourceLinePath!: string | null;
+  targetOccurrenceId!: string | null;
+  baselineSteps!: string | null;
+  scopeId!: string;
+  sourceLineId!: string | null;
+  targetLineId!: string | null;
+}
+
+/** BOM 实体全集（触发器安装按此清单在 schema 里找实体）。 */
+export const BOM_ENTITIES = [BomItem, BomItemRevision, BomHeader, BomHistoryBatch, BomEcn, BomLine, BomLineOccurrence, BomLineDesignator, BomSubstituteGroup, BomWorkCenter, BomActivityType, BomActivityRate, BomRouting, BomRoutingOperation, BomLineOperationSplit, BomMapScope, BomMap] as const;

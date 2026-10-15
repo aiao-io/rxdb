@@ -23,6 +23,7 @@ import {
   type WhereUsedTarget
 } from './resolve/expansion.js';
 import { explodeBom as runExplodeBom, type ExplosionOptions, type ExplosionResult } from './quantity/explosion.js';
+import { rollupCost as runRollupCost, type CostRollupContext, type CostRollupResult } from './quantity/cost.js';
 import { ecnDiff as runEcnDiff, ecnImpact as runEcnImpact, type EcnDiffResult, type EcnImpactResult } from './resolve/ecn.js';
 import { loadHistory, type HistoryBatchInput } from './resolve/history-loader.js';
 import { resolveBom, type ResolveTarget } from './resolve/resolver.js';
@@ -123,6 +124,14 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
    */
   explodeBom(context: ResolutionContext, target: ResolveTarget, options: ExplosionOptions): Promise<ExplosionResult> {
     return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runExplodeBom(adapter, context, target, options));
+  }
+
+  /**
+   * 成本卷算（US-514）：拓扑逆序单遍，材料 + 加工 + 制费 − 副产抵减，逐层明细可展开；
+   * 缺成本/缺费率/币种不符/环/unresolved 即拒绝，不以 0 兜底。
+   */
+  rollupCost(context: CostRollupContext, target: ResolveTarget, options?: { batchQty?: { value: string; uom: string } }): Promise<CostRollupResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runRollupCost(adapter, context, target, options?.batchQty));
   }
 
   /**

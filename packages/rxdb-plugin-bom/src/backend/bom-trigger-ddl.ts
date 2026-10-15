@@ -470,7 +470,14 @@ const SQLITE_DECIMAL_FORMAT_COLUMNS: { entity: string; field: string; nullable: 
   { entity: 'BomLineOccurrence', field: 'lotsizeTo', nullable: true },
   { entity: 'BomLineOccurrence', field: 'uomConversion', nullable: true },
   { entity: 'BomHeader', field: 'baseQty', nullable: false },
-  { entity: 'BomHeader', field: 'assemblyScrap', nullable: false }
+  { entity: 'BomHeader', field: 'assemblyScrap', nullable: false },
+  { entity: 'BomRoutingOperation', field: 'setupTime', nullable: false },
+  { entity: 'BomRoutingOperation', field: 'runTime', nullable: false },
+  { entity: 'BomRoutingOperation', field: 'fixedTime', nullable: false },
+  { entity: 'BomWorkCenter', field: 'overheadRate', nullable: true },
+  { entity: 'BomHeader', field: 'costLotQty', nullable: true },
+  { entity: 'BomItem', field: 'unitPrice', nullable: true },
+  { entity: 'BomItem', field: 'creditPrice', nullable: true }
 ];
 
 /**
@@ -495,7 +502,7 @@ const sqliteLotsizeBoundGuard = (field: string): string => {
 };
 
 const sqliteDecimalFormatTriggers = (metadata: EntityMetadata): string[] => {
-  if (metadata.name !== 'BomLineOccurrence' && metadata.name !== 'BomHeader') return [];
+  if (!['BomLineOccurrence', 'BomHeader', 'BomRoutingOperation', 'BomWorkCenter', 'BomItem'].includes(metadata.name)) return [];
   const tableRef = sqliteTableRef(metadata);
   const statements: string[] = [];
   for (const { entity, field, nullable } of SQLITE_DECIMAL_FORMAT_COLUMNS) {
@@ -1252,6 +1259,24 @@ const sqliteEcnProjectionChecks = (
   return guards;
 };
 
+/**
+ * 行映射的 NULL 规则（US-516 AC#9，存储层）：added 只 source 空、removed 只 target 空、
+ * 其余四态两侧必填、不允许双 NULL。
+ */
+const sqliteMapNullRuleTriggers = (metadata: EntityMetadata): string[] => {
+  if (metadata.name !== 'BomMap') return [];
+  const tableRef = sqliteTableRef(metadata);
+  const message = WRITE_PROTOCOL(metadata.tableName, 'NULL 规则违约：added 只 source 空、removed 只 target 空、其余四态两侧必填、不允许双 NULL');
+  const violation = (row: string): string =>
+    `(${row}."relation" = 'added' AND (${row}."sourceLineId" IS NOT NULL OR ${row}."targetLineId" IS NULL)) OR ` +
+    `(${row}."relation" = 'removed' AND (${row}."targetLineId" IS NOT NULL OR ${row}."sourceLineId" IS NULL)) OR ` +
+    `(${row}."relation" NOT IN ('added', 'removed') AND (${row}."sourceLineId" IS NULL OR ${row}."targetLineId" IS NULL))`;
+  return [
+    sqliteTrigger(tableRef, 'bom_map_null_rule_i', 'BEFORE INSERT', raiseWhen(message, violation('NEW'))),
+    sqliteTrigger(tableRef, 'bom_map_null_rule_u', 'BEFORE UPDATE', raiseWhen(message, violation('NEW')))
+  ];
+};
+
 /** 实体全部 SQLite 触发器 DDL（单条语句数组）。 */
 
 
@@ -1268,6 +1293,7 @@ export const buildSqliteBomTriggerDdl = (metadata: EntityMetadata): string[] => 
   ...sqliteReleasedHeaderMembersGuard(metadata),
   ...sqliteEcnOccurrenceGuards(metadata),
   ...sqliteReleasedHeaderGuard(metadata),
+  ...sqliteMapNullRuleTriggers(metadata),
   ...sqliteDecimalFormatTriggers(metadata),
   ...sqliteTierPublishGuard(metadata),
   ...sqliteDesignatorCountGuard(metadata),
@@ -1889,11 +1915,18 @@ const PG_DECIMAL_FORMAT_COLUMNS: { entity: string; field: string; nullable: bool
   { entity: 'BomLineOccurrence', field: 'lotsizeTo', nullable: true },
   { entity: 'BomLineOccurrence', field: 'uomConversion', nullable: true },
   { entity: 'BomHeader', field: 'baseQty', nullable: false },
-  { entity: 'BomHeader', field: 'assemblyScrap', nullable: false }
+  { entity: 'BomHeader', field: 'assemblyScrap', nullable: false },
+  { entity: 'BomRoutingOperation', field: 'setupTime', nullable: false },
+  { entity: 'BomRoutingOperation', field: 'runTime', nullable: false },
+  { entity: 'BomRoutingOperation', field: 'fixedTime', nullable: false },
+  { entity: 'BomWorkCenter', field: 'overheadRate', nullable: true },
+  { entity: 'BomHeader', field: 'costLotQty', nullable: true },
+  { entity: 'BomItem', field: 'unitPrice', nullable: true },
+  { entity: 'BomItem', field: 'creditPrice', nullable: true }
 ];
 
 const pgDecimalFormatFunction = (metadata: EntityMetadata): string[] => {
-  if (metadata.name !== 'BomLineOccurrence' && metadata.name !== 'BomHeader') return [];
+  if (!['BomLineOccurrence', 'BomHeader', 'BomRoutingOperation', 'BomWorkCenter', 'BomItem'].includes(metadata.name)) return [];
   const tableRef = pgTableRef(metadata);
   const guards: string[] = [];
   for (const { entity, field, nullable } of PG_DECIMAL_FORMAT_COLUMNS) {
@@ -2256,6 +2289,20 @@ const pgRoutingGuards = (metadata: EntityMetadata): string[] => {
   }
   return statements;
 };
+/** 行映射的 NULL 规则（PG 侧，与 SQLite 同口径，US-516 AC#9）。 */
+const pgMapNullRuleFunction = (metadata: EntityMetadata): string[] => {
+  if (metadata.name !== 'BomMap') return [];
+  const body =
+    `  IF (NEW."relation" = 'added' AND (NEW."sourceLineId" IS NOT NULL OR NEW."targetLineId" IS NULL)) OR ` +
+    `(NEW."relation" = 'removed' AND (NEW."targetLineId" IS NOT NULL OR NEW."sourceLineId" IS NULL)) OR ` +
+    `(NEW."relation" NOT IN ('added', 'removed') AND (NEW."sourceLineId" IS NULL OR NEW."targetLineId" IS NULL)) THEN\n` +
+    `    RAISE EXCEPTION '${WRITE_PROTOCOL('bom_map', 'NULL 规则违约：added 只 source 空、removed 只 target 空、其余四态两侧必填、不允许双 NULL')}';\n  END IF;`;
+  return [
+    `${pgFunctionHeader(metadata, 'bom_map__null_rule_guard')}\n${body}${pgFunctionFooter}`,
+    pgCreateTrigger(metadata, pgTableRef(metadata), 'bom_map__null_rule_trg', 'BEFORE INSERT OR UPDATE', 'bom_map__null_rule_guard')
+  ];
+};
+
 /** 实体全部 PGlite 触发器 DDL（单条语句数组）。 */
 
 
@@ -2272,6 +2319,7 @@ export const buildPgBomTriggerDdl = (metadata: EntityMetadata): string[] => [
   ...pgEcnOccurrenceFunction(metadata),
   ...pgReleasedHeaderMembersFunction(metadata),
   ...pgReleasedHeaderFunction(metadata),
+  ...pgMapNullRuleFunction(metadata),
   ...pgDecimalFormatFunction(metadata),
   ...pgTierPublishFunction(metadata),
   ...pgDesignatorCountFunction(metadata),

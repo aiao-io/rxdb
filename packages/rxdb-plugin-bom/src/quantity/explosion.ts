@@ -48,6 +48,7 @@ import {
   type Decimal
 } from './decimal.js';
 import { evaluateFormula, FORMULA_GRAMMAR_VERSION } from './formula.js';
+import { allocateSubstituteShares, computeGross, computeLayerNet, computeOutputQuantity, scrap, selectTierRows, type LayerRoutingOp, type SubstituteMember } from './layer.js';
 import { convertUom } from './uom.js';
 
 /** 展开算法版本：34 位有效数字、half-even 中间量、七步顺序、需求行向上取整（改动即升版本）。 */
@@ -235,15 +236,6 @@ const DEFAULT_BUDGETS: ResolvedBudgets = { depth: 128, expansions: 100_000, path
 
 const CHUNK_SIZE = 200;
 
-/** 损耗：加成制 x×(1+s)；良率制 x÷(1−s)。 */
-const scrap = (value: Decimal, rate: string, convention: 'additive' | 'yield'): Decimal => {
-  const s = decimalFromCanonical(rate);
-  if (decimalCmp(s, { coeff: 0n, exp: 0 }) === 0) return value;
-  return convention === 'additive' ?
-    decimalMul(value, decimalAdd({ coeff: 1n, exp: 0 }, s))
-  : decimalDiv(value, decimalSub({ coeff: 1n, exp: 0 }, s));
-};
-
 const readString = (row: unknown[], columns: string[], name: string): string =>
   String(row[columnIndexOf(columns, name)]);
 
@@ -258,7 +250,7 @@ const readNullableBool = (row: unknown[], columns: string[], name: string): bool
 };
 
 /** 分块取一层已解析发生项并按头分组。 */
-const fetchHeaderRows = async (
+export const fetchHeaderRows = async (
   query: BomQueryExecutor['query'],
   dialect: BomSqlDialect,
   context: ResolutionContext,
@@ -323,18 +315,30 @@ const fetchHeaderRows = async (
 };
 
 /** 行的换算率链（行级覆盖物料级）。 */
-const rowRates = (row: ExplosionRow): { lineRate?: string | null; itemRate?: string | null } => ({
+export const rowRates = (row: ExplosionRow): { lineRate?: string | null; itemRate?: string | null } => ({
   lineRate: row.occurrenceUomConversion,
   itemRate: row.childItemUomConversion
 });
 
 /** 子头选择：该修订在上下文下的 released 头（恰好一个；多备选未裁决拒绝）。 */
-const resolveChildHeader = async (
+/** 子头（含成本卷算所需的头字段；多备选未裁决拒绝）。 */
+export interface ResolvedChildHeader {
+  headerId: string;
+  baseUom: string;
+  baseQty: string;
+  assemblyScrap: string;
+  assemblyScrapConvention: 'additive' | 'yield';
+  costLotQty: string | null;
+  routingId: string | null;
+}
+
+/** 子头选择：该修订在上下文下的 released 头（恰好一个；多备选未裁决拒绝）。 */
+export const resolveChildHeader = async (
   query: BomQueryExecutor['query'],
   dialect: BomSqlDialect,
   context: ResolutionContext,
   revisionId: string
-): Promise<{ headerId: string; baseUom: string } | null> => {
+): Promise<ResolvedChildHeader | null> => {
   const built = buildAlternativeHeadersSql(dialect, {
     parentRevisionId: revisionId,
     bomType: context.bomType,
@@ -348,7 +352,12 @@ const resolveChildHeader = async (
   }
   return {
     headerId: String(headers[0][columnIndexOf(result.columns, 'headerId')]),
-    baseUom: readString(headers[0], result.columns, 'baseUom')
+    baseUom: readString(headers[0], result.columns, 'baseUom'),
+    baseQty: readString(headers[0], result.columns, 'baseQty'),
+    assemblyScrap: readString(headers[0], result.columns, 'assemblyScrap'),
+    assemblyScrapConvention: readString(headers[0], result.columns, 'assemblyScrapConvention') as 'additive' | 'yield',
+    costLotQty: readNullableString(headers[0], result.columns, 'costLotQty'),
+    routingId: readNullableString(headers[0], result.columns, 'routingId')
   };
 };
 
@@ -439,15 +448,6 @@ export const explodeBom = async (
       });
       splitsByOccurrence.set(occurrenceId, list);
     }
-    /** 从给定工序（含）至末工序逐道累乘损耗（US-511 第 5 步方向）。 */
-    const operationScrapChain = (value: Decimal, ops: { operationSeq: number; operationScrap: string; scrapConvention: 'additive' | 'yield' }[], fromSeq: number): Decimal => {
-      let result = value;
-      for (const operation of ops) {
-        if (operation.operationSeq < fromSeq) continue;
-        result = scrap(result, operation.operationScrap, operation.scrapConvention);
-      }
-      return result;
-    };
     const recordConversion = (from: string, to: string, rate: string | null): void => {
       if (from !== to) conversions.push({ from, to, rate });
     };
@@ -459,7 +459,7 @@ export const explodeBom = async (
     const rootPlanned = convertUom(options.plannedQty.value, options.plannedQty.uom, rootBaseUom);
     recordConversion(options.plannedQty.uom, rootBaseUom, null);
 
-    const nodeRoutingOps = new Map<string, { operationSeq: number; operationScrap: string; scrapConvention: 'additive' | 'yield' }[]>();
+    const nodeRoutingOps = new Map<string, LayerRoutingOp[]>();
     const nodes: ExplosionNode[] = [
       {
         path: [],
@@ -498,31 +498,16 @@ export const explodeBom = async (
         }
         // 2. 装配损耗
         const plannedPrime = scrap(node.plannedQty, rows[0]?.headerAssemblyScrap ?? '0', rows[0]?.headerAssemblyScrapConvention ?? 'additive');
-        // 3. 阶梯按损耗前 P 选行（普通行恒计入）
-        const tiered = rows.filter(row => row.tierGroupNo !== null);
-        const plain = rows.filter(row => row.tierGroupNo === null);
-        const selectedTier: ExplosionRow[] = [];
-        const tierGroups = new Map<string, ExplosionRow[]>();
-        for (const row of tiered) {
-          const list = tierGroups.get(row.tierGroupNo as string);
-          if (list) list.push(row);
-          else tierGroups.set(row.tierGroupNo as string, [row]);
-        }
-        for (const [groupNo, groupRows] of tierGroups) {
-          const hit = groupRows.find(row => {
-            if (row.lotsizeFrom !== null && decimalCmp(node.plannedQty, decimalFromCanonical(row.lotsizeFrom)) < 0) return false;
-            if (row.lotsizeTo !== null && decimalCmp(node.plannedQty, decimalFromCanonical(row.lotsizeTo)) >= 0) return false;
-            return true;
-          });
-          if (!hit) {
-            throw new BomQuantityError(`阶梯组 ${groupNo} 在计划量 ${decimalToCanonical(node.plannedQty)} 上没有命中行`, node.path);
-          }
-          selectedTier.push(hit);
+        // 3. 阶梯按损耗前 P 选行（普通行恒计入；共享实现，US-514 同源）
+        let effectiveRows: ExplosionRow[];
+        try {
+          effectiveRows = selectTierRows(rows, node.plannedQty);
+        } catch (error) {
+          throw new BomQuantityError(error instanceof Error ? error.message : String(error), node.path);
         }
 
         // US-513：只有 consume 行进入七步需求链路；by_product / scrap_out 是反向物料流。
         // 「无投入」的头（有行但没有 consume 行）整次拒绝，不把空结果当成功。
-        const effectiveRows = [...plain, ...selectedTier];
         if (!effectiveRows.some(row => row.flowDirection === 'consume')) {
           throw new BomQuantityError('头没有 consume 行（无投入）：副产与废料行不能单独构成层级', node.path);
         }
@@ -536,33 +521,18 @@ export const explodeBom = async (
           if (expansions + 1 > budget.expansions) return { truncated: 'expansions' };
           expansions += 1;
           occurrenceIds.push(row.occurrenceId);
-          // 4. 组件损耗 + 固定损耗（固定损耗按行 UoM 计，不再被良率放大）
-          const net = decimalAdd(
-            scrap(gross, row.componentScrap, row.componentScrapConvention),
-            decimalFromCanonical(row.componentScrapFixed)
-          );
-          // 5. 工序损耗：从投料工序（含）至末工序逐道累乘；有分摊行时每份额从自己的工序起算再求和
-          let operationScrappedValue: Decimal = net;
-          let hasOperation: boolean;
-          const splits = splitsByOccurrence.get(row.occurrenceId);
-          if (row.operationSeq !== null || (splits !== undefined && splits.length > 0)) {
-            hasOperation = true;
-            // 工序按头路由取（头节点创建时已缓存）
-            const routingOps = nodeRoutingOps.get(node.headerId) ?? [];
-            if (splits !== undefined && splits.length > 0) {
-              // 分摊：每份额 × 各自工序链累乘后求和（分摊对象是损耗前的 G'）
-              let total = { coeff: 0n, exp: 0 } as Decimal;
-              for (const split of splits) {
-                const share = decimalMul(net, decimalFromCanonical(split.ratio));
-                total = decimalAdd(total, operationScrapChain(share, routingOps, split.operationSeq));
-              }
-              operationScrappedValue = total;
-            } else if (row.operationSeq !== null) {
-              operationScrappedValue = operationScrapChain(net, routingOps, row.operationSeq);
-            }
-          } else {
-            hasOperation = false;
-          }
+          // 4~5. 组件损耗 + 固定损耗 + 工序损耗链/分摊（共享实现，US-514 同源）
+          const splits = splitsByOccurrence.get(row.occurrenceId) ?? [];
+          const layer = computeLayerNet(gross, row, {
+            plannedPrime,
+            headerBaseQty: row.headerBaseQty,
+            formulaParams: options.params,
+            routingOps: nodeRoutingOps.get(node.headerId) ?? [],
+            splits
+          });
+          const net = layer.net;
+          const operationScrappedValue: Decimal = layer.net;
+          const hasOperation = layer.hasOperation;
           // 6. 单位换算（行 UoM → 子件库存 UoM）
           const rates = rowRates(row);
           const demand = decimalFromCanonical(convertUom(decimalToCanonical(operationScrappedValue), row.occurrenceUom, row.childStockUom, rates));
@@ -644,15 +614,14 @@ export const explodeBom = async (
         };
 
         // 第 3 步：行的组件毛需求（组 primary 与普通行共用）
-        const grossOf = (row: ExplosionRow): Decimal => {
-          const quantity =
-            row.qty !== null ?
-              decimalFromCanonical(row.qty)
-            : decimalFromCanonical(evaluateFormula(row.qtyFormula as string, options.params ?? {}));
-          return row.isFixedQty ?
-            quantity
-          : decimalMul(quantity, decimalDiv(plannedPrime, decimalFromCanonical(row.headerBaseQty)));
-        };
+        const grossOf = (row: ExplosionRow): Decimal =>
+          computeGross(row, {
+            plannedPrime,
+            headerBaseQty: row.headerBaseQty,
+            formulaParams: options.params,
+            routingOps: [],
+            splits: []
+          });
 
         // US-512 替代组：组内成员整体分摊，不走各自行的 qty
         const substituteRows = effectiveRows.filter(row => row.substituteGroupId !== null);
@@ -668,9 +637,7 @@ export const explodeBom = async (
         // 反向物料流与普通 consume 行
         for (const row of effectiveRows) {
           if (row.flowDirection !== 'consume') {
-            const outputQuantity = row.isFixedQty ?
-              decimalFromCanonical(row.qty ?? '0')
-            : decimalMul(decimalFromCanonical(row.qty ?? '0'), decimalDiv(plannedPrime, decimalFromCanonical(row.headerBaseQty)));
+            const outputQuantity = computeOutputQuantity(row.qty, row.isFixedQty, plannedPrime, row.headerBaseQty);
             outputs.push({
               path: [...node.path, row.occurrenceId],
               itemId: row.childItemId,
@@ -689,109 +656,48 @@ export const explodeBom = async (
           }
         }
 
-        // 替代组分流（AC#1/#2/#4/#8）
+        // 替代组分流（AC#1/#2/#4/#8；共享纯函数，US-514 同源）
         for (const [groupId, members] of substituteGroups) {
           const primary = members.find(member => member.substituteRole === 'primary');
           if (!primary) continue; // 发布转移已校验恰好一个 primary
-          const code = primary.substituteGroupCode ?? groupId.slice(0, 8);
-          const strategy = primary.substituteStrategy ?? 'proportional';
-          const allowMix = primary.substituteAllowMix ?? true;
           const primaryGross = grossOf(primary);
-          if (strategy === 'proportional') {
-            for (const member of members) {
-              const share = decimalMul(primaryGross, decimalFromCanonical(member.usageProbability ?? '0'));
-              const withEquiv =
-                member.substituteRole === 'primary' ?
-                  share
-                : decimalMul(share, decimalFromCanonical(member.equivQty ?? '1'));
-              const emitted = await emitConsumeLine(member, withEquiv);
-              if (emitted.truncated !== null) {
-                truncated = { reason: emitted.truncated };
-                break nodeLoop;
-              }
+          const allocated = (() => {
+            try {
+              return allocateSubstituteShares(
+                members.map(member => ({
+                  childItemId: member.childItemId,
+                  occurrenceId: member.occurrenceId,
+                  substituteRole: member.substituteRole,
+                  substitutePriority: member.substitutePriority,
+                  usageProbability: member.usageProbability,
+                  equivQty: member.equivQty,
+                  substituteGroupCode: member.substituteGroupCode ?? groupId.slice(0, 8),
+                  substituteStrategy: member.substituteStrategy ?? 'proportional',
+                  substituteAllowMix: member.substituteAllowMix ?? true,
+                  occurrenceUom: member.occurrenceUom
+                } satisfies SubstituteMember)),
+                primaryGross,
+                context.substituteAvailabilities,
+                context.substituteSelections
+              );
+            } catch (error) {
+              throw new BomQuantityError(error instanceof Error ? error.message : String(error), [...node.path, primary.occurrenceId]);
             }
-          } else if (strategy === 'priority') {
-            const substitutes = members
-              .filter(member => member.substituteRole !== 'primary')
-              .sort((a, b) => (b.substitutePriority ?? 0) - (a.substitutePriority ?? 0));
-            let remaining = primaryGross;
-            for (const member of substitutes) {
-              const equiv = decimalFromCanonical(member.equivQty ?? '1');
-              const needed = decimalMul(remaining, equiv);
-              const availability = context.substituteAvailabilities?.[member.childItemId];
-              if (availability !== undefined && decimalCmp(needed, decimalFromCanonical(availability.value)) > 0) {
-                if (!allowMix) {
-                  throw new BomQuantityError(
-                    `priority 组 ${code} 最高者可用量不足（需 ${decimalToCanonical(needed)} ${member.occurrenceUom}，上限 ${availability.value} ${availability.uom}）`,
-                    [...node.path, primary.occurrenceId]
-                  );
-                }
-                // 补足：按序承担可用上限，剩余交给次高者
-                const taken = decimalDiv(decimalFromCanonical(availability.value), equiv);
-                const emitted = await emitConsumeLine(member, taken);
-                if (emitted.truncated !== null) {
-                  truncated = { reason: emitted.truncated };
-                  break nodeLoop;
-                }
-                remaining = decimalSub(remaining, taken);
-                continue;
-              }
-              const emitted = await emitConsumeLine(member, remaining);
-              if (emitted.truncated !== null) {
-                truncated = { reason: emitted.truncated };
-                break nodeLoop;
-              }
-              break;
-            }
-          } else {
-            const selection = context.substituteSelections?.[code];
-            if (selection === undefined) {
-              unresolvedGroups.push({
-                groupCode: code,
-                candidates: members.map(member => ({
-                  itemId: member.childItemId,
-                  role: member.substituteRole ?? 'substitute',
-                  occurrenceId: member.occurrenceId
-                }))
-              });
-              continue;
-            }
-            if (selection.memberKey !== undefined) {
-              const member = members.find(candidate => candidate.childItemId === selection.memberKey);
-              if (!member) {
-                throw new BomQuantityError(`manual 组 ${code} 的选择 ${selection.memberKey} 不是组成员`, [...node.path, primary.occurrenceId]);
-              }
-              const withEquiv =
-                member.substituteRole === 'primary' ?
-                  primaryGross
-                : decimalMul(primaryGross, decimalFromCanonical(member.equivQty ?? '1'));
-              const emitted = await emitConsumeLine(member, withEquiv);
-              if (emitted.truncated !== null) {
-                truncated = { reason: emitted.truncated };
-                break nodeLoop;
-              }
-            } else {
-              // AC#4 ②：manual × allow_mix=false 的分配只能涉及一个成员（唯一选择）
-              const allocatedMembers = Object.entries(selection.allocation ?? {}).filter(([, value]) => value !== '0');
-              if (!allowMix && allocatedMembers.length > 1) {
-                throw new BomQuantityError(
-                  `manual 组 ${code}（allow_mix=false）的分配涉及 ${allocatedMembers.length} 个成员，须唯一选择`,
-                  [...node.path, primary.occurrenceId]
-                );
-              }
-              for (const member of members) {
-                const shareValue = selection.allocation?.[member.childItemId] ?? '0';
-                const share = decimalMul(primaryGross, decimalFromCanonical(shareValue));
-                const withEquiv =
-                  member.substituteRole === 'primary' ?
-                    share
-                  : decimalMul(share, decimalFromCanonical(member.equivQty ?? '1'));
-                const emitted = await emitConsumeLine(member, withEquiv);
-                if (emitted.truncated !== null) {
-                  truncated = { reason: emitted.truncated };
-                  break nodeLoop;
-                }
-              }
+          })();
+          if (allocated.unresolved) {
+            unresolvedGroups.push({
+              groupCode: allocated.unresolved.groupCode,
+              candidates: allocated.unresolved.candidates
+            });
+            continue;
+          }
+          for (const { member, gross } of allocated.shares) {
+            const source = members.find(candidate => candidate.occurrenceId === member.occurrenceId);
+            if (!source) continue;
+            const emitted = await emitConsumeLine(source, gross);
+            if (emitted.truncated !== null) {
+              truncated = { reason: emitted.truncated };
+              break nodeLoop;
             }
           }
         }

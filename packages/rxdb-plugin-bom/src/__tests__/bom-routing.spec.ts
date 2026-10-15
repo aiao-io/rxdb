@@ -452,3 +452,51 @@ for (const backend of BACKENDS) {
     });
   });
 }
+
+describe('US-524 阶段 B/C 费率与工时', () => {
+  for (const backend of BACKENDS) {
+    describe(`[${backend}]`, () => {
+      let adapter: BomTestAdapter;
+      beforeAll(async () => { adapter = await createBomTestAdapter(backend); });
+      afterAll(async () => { await disposeBomTestAdapter(adapter).catch(() => undefined); });
+
+      it('AC#3 同一 (work_center, activity_type) 两段费率并存；同日起始的第二段拒绝', async () => {
+        const { BomActivityRate, BomActivityType, BomWorkCenter } = await import('../entities.js');
+        const center = new BomWorkCenter();
+        center.code = `WC-${Math.random().toString(36).slice(2, 6)}`;
+        center.orgId = 'org-x';
+        await center.save();
+        const type = new BomActivityType();
+        type.code = `ACT-${Math.random().toString(36).slice(2, 6)}`;
+        type.workCenterId = center.id;
+        await type.save();
+        const first = new BomActivityRate();
+        first.workCenterId = center.id;
+        first.activityTypeId = type.id;
+        first.validFrom = new Date('2026-01-01T00:00:00.000Z');
+        first.rate = '60';
+        first.currency = 'CNY';
+        first.rateUom = 'h';
+        await first.save();
+        // 不同日期的第二段：并存（取值时命中对应区间）
+        const second = new BomActivityRate();
+        second.workCenterId = center.id;
+        second.activityTypeId = type.id;
+        second.validFrom = new Date('2026-07-01T00:00:00.000Z');
+        second.rate = '70';
+        second.currency = 'CNY';
+        second.rateUom = 'h';
+        await second.save();
+        // 同 key 同日起始：拒绝
+        const overlap = new BomActivityRate();
+        overlap.workCenterId = center.id;
+        overlap.activityTypeId = type.id;
+        overlap.validFrom = new Date('2026-01-01T00:00:00.000Z');
+        overlap.rate = '80';
+        overlap.currency = 'CNY';
+        overlap.rateUom = 'h';
+        await expect(overlap.save()).rejects.toThrow();
+      });
+    });
+  }
+});
