@@ -387,6 +387,8 @@ describe('错误与开关', () => {
    *
    * 后者才是 QueryCache 孤儿清理的极端情形：远端空集 + 本地满缓存。
    */
+  // reset 的耗时与「种子确定性（D7）」同理：销毁 store、删 dataDir、重建、重写 250 行，
+  // CI 负载下会越过 5s 默认超时，写死的是它本来要花的时间。
   it('__control/clear 清空数据但保留表，reset 还能把种子灌回来', async () => {
     expect(await postJson<{ deleted: number }>('__control/clear', {})).toEqual({ deleted: SEED_ROW_COUNT });
 
@@ -398,12 +400,13 @@ describe('错误与开关', () => {
 
     expect(await postJson('__control/reset', {})).toEqual({ rows: SEED_ROW_COUNT });
     expect(await postJson<MetadataRow[]>('recipes/metadata', { offset: 0, limit: 1000 })).toHaveLength(SEED_ROW_COUNT);
-  });
+  }, 20_000);
 
   /*
    * `reset` 删库文件重建，旧句柄指向的 inode 已经不在了。库连接因此放在闭包的 `let` 里，
    * 由 `getDb()` 每次现取——但只有**每次使用前**现取才算数：在 `await readJsonBody` 之前
    * 取一次、把句柄按值传下去，等于把「当前句柄」冻结在了请求刚进来的那一刻。
+   * 显式超时同上：中途那次 reset 同样要走完整的销毁-重建-播种。
    */
   it('请求正在等 body 时 reset 换掉句柄，这条请求不能吃 500', async () => {
     let push!: (chunk: string) => void;
@@ -435,7 +438,7 @@ describe('错误与开关', () => {
     const response = await pending;
     expect(response.status).toBe(200);
     expect((await response.json()) as MetadataRow[]).toHaveLength(1);
-  });
+  }, 20_000);
 
   it('version 与 isTableExisted 按协议返回', async () => {
     const version = await fetch(`${baseUrl}/meta/version`);
