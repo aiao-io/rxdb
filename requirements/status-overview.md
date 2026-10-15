@@ -192,9 +192,9 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 - 🚧 [US-511 展开数量正确性：用量语义、三类损耗、虚拟件穿透](stories/domain/US-511-bom-quantity-semantics.md) — 阶段 A/C/B1/B2 全部交付（第 3、5 步，2026-10-14）：十进制 kernel（34 位 half-even）、公式求值器、单位换算、`explodeBom` 七步展开、阶梯/损耗/虚拟件穿透、阶梯切片发布校验、第 5 步工序损耗（AC#1/#13 golden）；全部 AC 关闭
 - ✅ [US-512 替代组与替代策略](stories/domain/US-512-bom-substitute-group.md) — 非 ECN 场景已交付（第 5 步，2026-10-14）：组实体、发布切片聚合校验（定点整数合计）、展开分流（proportional/priority/manual）；ECN 场景随第 6 步交付（2026-10-15）：AC#6/#9/#14 在转换后运行投影上按检查点切片校验（空切片不校验） — 策略与是否允许混用属组不属行；概率合计 ≠ 1 拒绝而不归一化
 - 🚧 [US-513 联产品与副产品：多输出物料流](stories/domain/US-513-bom-coproduct-byproduct.md) — 阶段 A 已交付（第 5 步，2026-10-14）：flow_direction 三值、判环只认 consume、副产缩放与产出列表；AC#2/#7 随 US-514，阶段 B 价值待证 — 仅 `consume` 边进可达性与环检测；阶段 A 三个 `flow_direction`（consume / by_product / scrap_out）各自有下游消费方，主产物即头父件；联产品属阶段 B（价值待证）
-- ⬜ [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md) — 拓扑逆序单遍；`unit_cost` = `batch_cost` / `cost_lot_qty`，节点是已解析的头；前置 US-511 / US-512 / US-513 / US-520 / US-524
+- ✅ [US-514 成本卷算](stories/domain/US-514-bom-cost-rollup.md) — 全部 19 个 AC 交付（第 7 步，2026-10-16）：拓扑逆序单遍、`unit_cost` = `batch_cost` / `cost_lot_qty`（节点是已解析的头）、34 位有效数字（half-even）纯 BigInt 定点内核；材料/加工/制费/副产抵减四项构成与逐层明细树；替代组加权、副产抵减、工时三量与 W_op 加工量、precise/imprecise 缓存不串、unresolved/truncated 拒绝、缺成本/缺费率/币种不符报缺失不以 0 兜底；demo 卷算面板与 e2e AC#14/#15 同断言
 - ✅ [US-515 变更管理（ECN）驱动的生效期](stories/domain/US-515-bom-change-management.md) — 全部 26 个 AC 交付（第 6 步，2026-10-15）：`ecn` 实体（draft/released/cancelled，`effective` 派生态不存）、发生项区间由 ECN 派生（真相源唯一）、写入协议矩阵、发布/改期/取消状态机与转换后运行投影切片校验、影响面与差异查询；已生效 ECN 不可取消、改走更正 ECN
-- ⬜ [US-516 EBOM ↔ MBOM 映射与差异对比](stories/domain/US-516-ebom-mbom-mapping.md) — 关闭条件是**明确不用视图实现**
+- ✅ [US-516 EBOM ↔ MBOM 映射与差异对比](stories/domain/US-516-ebom-mbom-mapping.md) — 全部 22 个 AC 交付（第 7 步，2026-10-16）：六态 `relation` + NULL 规则下沉存储层触发器、保存校验（两侧类型/组织/范围成员资格/路径相邻与末元素/修订边界）、路径级覆盖率优先行级兜底、跟进基线与缺口按解析步骤集合比对（祖先变/解析修订变/unresolved/truncated 都点名）、确认跟进整体推进；demo 双图并排 + 覆盖率/缺口面板 + e2e AC#13
 - ⬜ [US-517 可配置销售 BOM：特征、选项与选择条件](stories/domain/US-517-configurable-sales-bom.md) — 只定模型与求解契约，求解器可外挂
 - ⬜ [US-518 序列与批次有效性](stories/domain/US-518-bom-unit-lot-effectivity.md) — 有效性从一维扩到日期 × 序列 × 批次
 - ⬜ [US-519 扩展属性：jsonb 值 + attr_def 元数据 + 热字段提升](stories/domain/US-519-bom-extension-attributes.md) — 关闭条件是**没有 EAV 表**
@@ -202,8 +202,8 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 - ⬜ [US-521 ERP/MRP 集成契约](stories/domain/US-521-bom-erp-mrp-integration.md) — 导出进 api-baseline、要求完整结构并附 manifest；导入整批原子进草稿、全量诊断
 - ⬜ [US-522 三框架 BOM 编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md) — 单端缺失 = 未完成，故不按端拆故事
 - ⬜ [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md) — 实例结构（`parent_instance_id`）与主数据可达性分离；源发生项删除受限
-- 🚧 [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md) — 阶段 A（除 AC#7 展开面）与 D 已交付（第 5 步，2026-10-14）：work_center/routing/routing_operation + 工序损耗与各自 convention；阶段 B/C 未开；US-520 与 US-514 加工费的那一端
-- 🚧 [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 阶段 A/B/C 已交付（第 4、5、6 步，2026-10-15）：SC-100 确定性种子 + 手写 golden + `apps/dev-rxdb-bom`（算式面板/评估日/直连写入/第 5 步/ECN 面板）+ `dev-rxdb-bom-e2e` 十三条 AC 用例（含 ECN 时间轴三条）；阶段 D~F 各自等前置 — 四阶段；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；一份滑板车数据集贯穿全域 + 七步算式面板
+- 🚧 [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md) — 阶段 A（除 AC#7 展开面）与 D 已交付（第 5 步，2026-10-14）、阶段 B/C 已交付（第 7 步，2026-10-16）：activity_type/activity_rate（生效区间排他唯一、按费率日取值、缺费率报缺失）、work_center 成本属性（overhead_rate/币种）、setup/run/fixed 工时模型与 time_uom 换算；US-520 与 US-514 加工费的那一端
+- 🚧 [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 阶段 A/B/C 已交付（第 4、5、6 步，2026-10-15）、阶段 D 已交付（第 7 步，2026-10-16）：SC-100 确定性种子 + 手写 golden + `apps/dev-rxdb-bom`（算式面板/评估日/直连写入/第 5 步/ECN 面板/双图并排 + 覆盖率缺口/卷算面板）+ `dev-rxdb-bom-e2e` 十七条 AC 用例（含双图、卷算 golden、缺成本报缺失三条）；阶段 E/F 各自等前置；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；一份滑板车数据集贯穿全域 + 七步算式面板
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

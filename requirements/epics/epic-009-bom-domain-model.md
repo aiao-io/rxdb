@@ -151,6 +151,14 @@ owner 于 2026-10-12 决定解锁，**驱动者 = 需要一个完整功能的 BO
 > AC 勾选与关闭记录见 [US-515](../stories/domain/US-515-bom-change-management.md)、
 > [US-525](../stories/domain/US-525-bom-end-to-end-demo.md)；US-508 AC#12/#16、US-512 AC#6/#9/#14、
 > US-507 AC#10 同批关闭。
+>
+> **截至 2026-10-16：第 7 步已交付**（US-524 阶段 B/C 费率与工时 + US-514 全部 19 个 AC + US-516 全部 22 个 AC +
+> US-525 阶段 D：activity_type/rate 生效区间与按日取值、成本属性与 34 位定点卷算引擎、EBOM↔MBOM 六态映射与
+> 覆盖率/跟进缺口、种子 D 层双图与卷算输入、demo 双图并排 + 覆盖率缺口 + 卷算面板、e2e 第 14~17 条），
+> AC 勾选与关闭记录见 [US-514](../stories/domain/US-514-bom-cost-rollup.md)、
+> [US-516](../stories/domain/US-516-ebom-mbom-mapping.md)、
+> [US-524](../stories/domain/US-524-routing-master-model.md)、
+> [US-525](../stories/domain/US-525-bom-end-to-end-demo.md)。
 第 1～4 步合起来就是最小可演示闭环：建 BOM → 按视图解析 → 多级展开 → where-used 反查 → 拒绝成环 → 数量与手算一致。
 这个闭环的**验收手段**是 [US-525](../stories/domain/US-525-bom-end-to-end-demo.md) 阶段 A：
 各故事的 AC 都是单点断言，而组合错误（乘序、二次过滤、穿透后继承）只在一份贯穿的数据集上显形。

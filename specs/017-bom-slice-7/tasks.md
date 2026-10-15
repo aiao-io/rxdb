@@ -25,14 +25,14 @@
 
 ## Phase 4: demo 阶段 D（US-525 AC#13~#16）
 
-- [ ] T012 种子 D 层（EBOM 钣金 → MBOM 拆分映射；成本输入齐全；故意缺成本子件）+ golden D 手写；`bom-scooter-d.spec.ts` 红→绿
-- [ ] T013 demo 双图并排 + 覆盖率/缺口面板 + 卷算面板（逐层明细 + 缺失显示）；e2e 第 14~17 条（AC#13/#14/#15/#16）
+- [x] T012 种子 D 层（EBOM 钣金 → MBOM 拆分映射；成本输入齐全；故意缺成本子件）+ golden D 手写；`bom-scooter-d.spec.ts` 红→绿
+- [x] T013 demo 双图并排 + 覆盖率/缺口面板 + 卷算面板（逐层明细 + 缺失显示）；e2e 第 14~17 条（AC#13/#14/#15/#16）
 
 ## Phase 5: 门禁与回写
 
-- [ ] T014 插件收尾（api-baseline、lint/typecheck/test、覆盖率 ≥ 80%）
+- [x] T014 插件收尾（api-baseline、lint/typecheck/test、覆盖率 ≥ 80%）
 - [ ] T015 affected full + 修复
-- [ ] T016 故事回写（US-524 B/C、US-514 全量、US-516 全量、US-525 阶段 D）+ epic/status-overview/roadmap 第 7 步记录 + specs/017 quickstart
+- [x] T016 故事回写（US-524 B/C、US-514 全量、US-516 全量、US-525 阶段 D）+ epic/status-overview/roadmap 第 7 步记录 + specs/017 quickstart
 - [ ] T017 提交
 
 ## Dependencies and implementation strategy
