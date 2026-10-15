@@ -10,6 +10,12 @@
         "dev-rxdb-bom"
       ],
       "port": 4311
+    },
+    {
+      "name": "bom-demo-static",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/e2e-static-server.mjs", "--root", "dist/apps/dev-rxdb-bom/browser", "--port", "4322"],
+      "port": 4322
     }
   ]
 }
