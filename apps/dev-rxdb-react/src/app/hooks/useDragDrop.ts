@@ -1,6 +1,6 @@
 import { type ReorderTarget, type RxDBEntityId } from '@aiao/rxdb';
 import { ITreeEntity } from '@aiao/rxdb-plugin-tree';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { DragDropState, DropMode } from './drag-drop-types';
 import { isTargetInMovedSubtree, resolveTreeDrop, treeDropPosition } from './useDragDropService';
 import type { UseTreeWriteError } from './useTreeWriteError';
@@ -67,6 +67,15 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
     isValidTarget: false
   });
 
+  /**
+   * 正在拖的那一项：与 state 同时写，立即可读。
+   *
+   * 手柄上的 pointerup 会冒泡到行：同一次放下，手柄与行的处理器在同一个事件里各调一次 `onDrop`，
+   * 而 state 要到下一次渲染才更新，两次读到的都是「还在拖」——写入发两遍，拖进文件夹时展开回调也跑两遍，
+   * 刚展开就被收起。放下时从这里取走拖拽项并清空，同一次放下的第二次调用就什么也拿不到。
+   */
+  const draggingRef = useRef<RxDBEntityId | null>(null);
+
   // Get all descendants of a node
   const getDescendants = useCallback(
     (itemId: RxDBEntityId): Set<RxDBEntityId> => {
@@ -129,6 +138,7 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
   }, [dragDropState.draggedItemId, getDescendants]);
 
   const resetState = useCallback(() => {
+    draggingRef.current = null;
     setDragDropState({
       draggedItemId: null,
       targetItemId: null,
@@ -138,6 +148,7 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
   }, []);
 
   const onDragStart = useCallback((itemId: RxDBEntityId) => {
+    draggingRef.current = itemId;
     setDragDropState({
       draggedItemId: itemId,
       targetItemId: null,
@@ -184,6 +195,8 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
    * 引擎写入完成——上一次拖放的写入慢到下一次拖放已经开始时才回来（CI 上 OPFS 事务可达百毫秒级），
    * 会把新拖放刚建立的 `draggedItemId` / 落点高亮整个抹掉，下一次放下因此被静默吞掉。
    *
+   * 一次放下只执行一次：拖拽项从 `draggingRef` 取走即清空，同一事件里的第二次调用直接返回。
+   *
    * @param targetItem - 放下的目标行
    * @param onExpandFolder - 拖进成功后展开目标（`onExpandFolder` 绑定各页面 Set<string> 展开状态，folderId 语义上仍是 UUID）
    * @param point - 放下事件的光标纵坐标与目标行矩形；传入时按它与 `onDragOver` 同一判定函数重算落点，
@@ -191,8 +204,9 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
    */
   const onDrop = useCallback(
     async (targetItem: T, onExpandFolder?: (folderId: string) => void, point?: { mouseY: number; rect: DOMRect }) => {
-      // 先取现场再复位：`draggedItem` / `dropMode` 来自本 state，复位后就拿不到了
-      const draggedItem = visibleItems.find(m => m.id === dragDropState.draggedItemId);
+      // 先取现场再复位：`draggedItem` 来自 `draggingRef`、`dropMode` 来自本 state，复位后就拿不到了
+      const draggedId = draggingRef.current;
+      const draggedItem = draggedId === null ? undefined : visibleItems.find(m => m.id === draggedId);
       const dropMode = point ? dropModeAt(targetItem, point.mouseY, point.rect) : dragDropState.dropMode;
       resetState();
       if (!draggedItem || !dropMode) return;

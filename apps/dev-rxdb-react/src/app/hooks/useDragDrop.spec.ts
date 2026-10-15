@@ -320,6 +320,31 @@ describe('useDragDrop', () => {
       expect(result.current.dragDropState.targetItemId).toBe(a.id);
       expect(result.current.dragDropState.dropMode).toBe('before');
     });
+
+    /**
+     * 手柄上的 pointerup 会冒泡到行：同一次放下，手柄与行的处理器在同一个事件里各调一次 `onDrop`，
+     * 两次之间没有重新渲染。拖进文件夹时展开回调若跑两遍，刚展开就被收起（CI 上的 tree-drag-reorder 用例）。
+     */
+    it('同一次放下被调两次（手柄的 pointerup 冒泡到行）：只写一次，展开回调只跑一次', async () => {
+      const folder = makeNode('f', null, 'folder');
+      const dragged = makeNode('d', null, 'file');
+      const repository = makeRepository();
+      const onExpandFolder = vi.fn();
+
+      const { result } = renderHook(() => useHarness([folder, dragged], { isFolder, repository }));
+      act(() => result.current.onDragStart(dragged.id));
+      act(() => {
+        result.current.onDragOver(folder, 15, ROW_RECT);
+      });
+      const onDrop = result.current.onDrop;
+      await act(async () => {
+        await Promise.all([onDrop(folder, onExpandFolder), onDrop(folder, onExpandFolder)]);
+      });
+
+      expect(repository.reorder).toHaveBeenCalledTimes(1);
+      expect(onExpandFolder).toHaveBeenCalledTimes(1);
+      expect(result.current.dragDropState).toEqual(IDLE_STATE);
+    });
   });
 
   describe('文件管理器非手动排序模式', () => {
