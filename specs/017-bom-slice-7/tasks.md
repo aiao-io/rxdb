@@ -18,10 +18,10 @@
 
 ## Phase 3: EBOM↔MBOM 映射（US-516）
 
-- [ ] T008 `BomMapScope` + `BomMap` 实体 + NULL 规则 CHECK；`bom-map.spec.ts` 建文件（AC#2/#3/#9 存储面红→绿）
-- [ ] T009 保存校验 TS 层：两侧类型/组织、范围成员资格（头链一跳）、路径相邻与末元素、AC#15 的修订边界；`bom-map.spec.ts` 红→绿（AC#1/#10/#11/#12/#13/#15）
-- [ ] T010 覆盖率查询：路径级优先行级兜底、未覆盖报出、失效映射标记；`bom-map.spec.ts` 红→绿（AC#5/#6/#13/#14）
-- [ ] T011 跟进基线与缺口查询：解析步骤集合基线、确认跟进整体推进、缺口按步骤点名（祖先变/解析修订变/unresolved/truncated）；`bom-map.spec.ts` 红→绿（AC#4/#7/#8/#16~#22）
+- [x] T008 `BomMapScope` + `BomMap` 实体 + NULL 规则 CHECK；`bom-map.spec.ts` 建文件（AC#2/#3/#9 存储面红→绿）
+- [x] T009 保存校验 TS 层：两侧类型/组织、范围成员资格（头链一跳）、路径相邻与末元素、AC#15 的修订边界；`bom-map.spec.ts` 红→绿（AC#1/#10/#11/#12/#13/#15）
+- [x] T010 覆盖率查询：路径级优先行级兜底、未覆盖报出、失效映射标记；`bom-map.spec.ts` 红→绿（AC#5/#6/#13/#14）
+- [x] T011 跟进基线与缺口查询：解析步骤集合基线、确认跟进整体推进、缺口按步骤点名（祖先变/解析修订变/unresolved/truncated）；`bom-map.spec.ts` 红→绿（AC#4/#7/#8/#16~#22）
 
 ## Phase 4: demo 阶段 D（US-525 AC#13~#16）
 

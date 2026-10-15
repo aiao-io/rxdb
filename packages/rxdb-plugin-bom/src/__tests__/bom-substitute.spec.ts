@@ -71,7 +71,7 @@ const makeMember = async (
 ): Promise<BomLineOccurrence> => {
   const line = new BomLine();
   line.headerId = header.id;
-  line.lineNo = 10 + Math.floor(Math.random() * 1000);
+  line.lineNo = 10 + Math.floor(Math.random() * 100000);
   await line.save();
   const occurrence = new BomLineOccurrence();
   occurrence.lineId = line.id;
@@ -171,7 +171,7 @@ for (const backend of BACKENDS) {
       // 直连 SQL 同样拒绝
       const line = new BomLine();
       line.headerId = header.id;
-      line.lineNo = 500 + Math.floor(Math.random() * 100);
+      line.lineNo = 500 + Math.floor(Math.random() * 100000);
       await line.save();
       const table = backend === 'wa-sqlite' ? `"bom$bom_line_occurrence"` : `"bom"."bom_line_occurrence"`;
       const raw = await adapter.rawQuery(
