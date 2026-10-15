@@ -64,6 +64,18 @@ describe('apply_rule_group', () => {
     expect(calls).toEqual([]);
   });
 
+  it('uses physical column names for mapped properties', () => {
+    const { proxy, calls } = recordingQuery();
+    const mappedMetadata = {
+      propertyMap: new Map([['id', { columnName: 'todo_key' }]]),
+      foreignKeyRelationMap: new Map()
+    } as unknown as EntityMetadata;
+
+    applyGroup(proxy, { combinator: 'and', rules: [{ field: 'id', operator: '=', value: 'a' }] }, mappedMetadata);
+
+    expect(calls).toEqual([{ method: 'eq', args: ['todo_key', 'a'] }]);
+  });
+
   it.each<{
     name: string;
     rule: TestRule;

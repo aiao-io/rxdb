@@ -61,6 +61,27 @@ describe('Replayer（Vue）parity', () => {
 });
 
 describe('Replayer（Vue）', () => {
+  it('模板 ref 在挂载前调用 seek 时，会在核心句柄就绪后兑现目标时刻', async () => {
+    const current = spy.current;
+    if (!current) throw new Error('spy missing');
+
+    const Parent = defineComponent({
+      setup() {
+        return () =>
+          h(Replayer, {
+            ref: value => (value as unknown as ReplayerRef | undefined)?.seek(5000),
+            replay: {} as never,
+            sessionId: 's1'
+          });
+      }
+    });
+
+    mount(Parent);
+    await nextTick();
+
+    expect(current.argsOf('seek')).toEqual([[5000]]);
+  });
+
   it('换 replay 实例 → update({ replay })；同时改两项合成一次 update', async () => {
     const current = spy.current;
     if (!current) throw new Error('spy missing');

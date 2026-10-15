@@ -83,9 +83,10 @@ function defaultDisplayNameGenerator(fieldName: string, metadata?: { displayName
   if (metadata?.displayName) {
     return metadata.displayName;
   }
-  // camelCase -> Camel Case
+  // 先切开缩写与普通单词，再切开普通 camelCase。
   return fieldName
-    .replace(/([A-Z])/g, ' $1')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/([a-z\d])([A-Z])/g, '$1 $2')
     .replace(/^./, str => str.toUpperCase())
     .trim();
 }

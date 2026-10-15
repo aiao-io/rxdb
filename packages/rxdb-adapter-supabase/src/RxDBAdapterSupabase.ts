@@ -25,7 +25,13 @@ import type {
   RxDBMutationsMap,
   SwitchVersionActions
 } from '@aiao/rxdb';
-import { getEntityMetadata, getSyncConfig, RxDBAdapterRemoteBase, tryGetEntityStatus } from '@aiao/rxdb';
+import {
+  getEntityMetadata,
+  getSyncConfig,
+  normalizeCreateEntity,
+  RxDBAdapterRemoteBase,
+  tryGetEntityStatus
+} from '@aiao/rxdb';
 import { createClient, RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
 import { defer, from, map, Observable, of } from 'rxjs';
 import { resolveEntityScope, type EntityScope } from './entity_scope.js';
@@ -72,6 +78,7 @@ import {
 } from './supabase.rls.js';
 import { SupabaseRepository } from './SupabaseRepository.js';
 import { SupabaseTreeRepository } from './SupabaseTreeRepository.js';
+import { transform_row_to_entity } from './transform.js';
 
 export { ADAPTER_NAME, SUPABASE_SDK_VERSION };
 
@@ -613,19 +620,23 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       const EntityType = this.rxdb.schemaManager.getEntityType(scope.entity, scope.namespace)!;
       const metadata = getEntityMetadata(EntityType);
       const repository = this.getRepository<EntityType, SupabaseRepository<EntityType>>(EntityType);
-      const fields = repository.buildSelectFields(queryFilter as RuleGroup<Record<string, unknown>>, 'id, updatedAt');
+      const primaryKeyColumn = metadata.propertyMap.get('id')?.columnName ?? 'id';
+      const fields = repository.buildSelectFields(
+        queryFilter as RuleGroup<Record<string, unknown>>,
+        `${primaryKeyColumn}, updatedAt`
+      );
 
       // 元数据用于新鲜度比较，被截断掉的那些 id 会被 QueryCache 当成「远端已删除」，
       // 因此这里必须翻页取全，不能依赖服务端的 max-rows。
-      const rows = select_all_pages<{ id: unknown; updatedAt: unknown }>(
+      const rows = select_all_pages<Record<string, unknown>>(
         this.rxdb.reachability,
         (rangeFrom, rangeTo) => {
           const query = this.#client
             .schema(scope.schema)
             .from(scope.tableName)
-            .select<string, { id: unknown; updatedAt: unknown }>(fields);
+            .select<string, Record<string, unknown>>(fields);
           return apply_rule_group(query, queryFilter, metadata, this.rxdb.schemaManager)
-            .order('id', { ascending: true })
+            .order(primaryKeyColumn, { ascending: true })
             .range(rangeFrom, rangeTo);
         },
         'Failed to fetch metadata'
@@ -634,7 +645,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       return from(rows).pipe(
         map(data =>
           data.map(row => ({
-            id: row.id as string,
+            id: row[primaryKeyColumn] as string,
             updatedAt: row.updatedAt as string
           }))
         )
@@ -719,21 +730,24 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       const metadata = getEntityMetadata(EntityType);
       const client = this.getSchemaClient(metadata.namespace);
       const entities = Array.from(entitySet);
+      const createdByColumn = metadata.propertyMap.get('createdBy')?.columnName ?? 'createdBy';
+      const updatedByColumn = metadata.propertyMap.get('updatedBy')?.columnName ?? 'updatedBy';
       // saveMany 的实体可能既有新建也有已存在的，按 `status.local` 逐个判定 ——
       // 这与 `getEntityMutations` 划分 create/update 用的是同一个判据。
       // 已存在的行不下发 createdBy，否则 upsert 的 DO UPDATE SET 会覆写原作者。
       const data =
         userId ?
           entities.map(entity => {
-            const row: Record<string, unknown> = { ...entity, updatedBy: userId };
+            const row: Record<string, unknown> = normalizeCreateEntity(metadata, entity);
+            row[updatedByColumn] = userId;
             if (tryGetEntityStatus(entity)?.local) {
-              delete row['createdBy'];
+              delete row[createdByColumn];
             } else {
-              row['createdBy'] = userId;
+              row[createdByColumn] = userId;
             }
             return row;
           })
-        : entities;
+        : entities.map(entity => normalizeCreateEntity(metadata, entity));
 
       const result = await this.executeRetryableWrite(
         'upsert',
@@ -769,18 +783,23 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       const client = this.getSchemaClient(metadata.namespace);
       const entities = Array.from(entitySet);
       const ids = entities.map(e => e.id);
+      const primaryKeyColumn = metadata.propertyMap.get('id')?.columnName ?? 'id';
 
       const deletedIds = new Set<string>();
       for (const chunk of chunk_values(ids)) {
         const deletedRows = await this.executeRetryableWrite(
           'delete',
           async () => {
-            const { data, error, status } = await client.from(metadata.tableName).delete().in('id', chunk).select('id');
+            const { data, error, status } = await client
+              .from(metadata.tableName)
+              .delete()
+              .in(primaryKeyColumn, chunk)
+              .select(primaryKeyColumn);
             return { data, error, status };
           },
-          value => validateArrayResponse<{ id: unknown }>(value, 'delete')
+          value => validateArrayResponse<Record<string, unknown>>(value, 'delete')
         );
-        for (const row of deletedRows) deletedIds.add(String(row.id));
+        for (const row of deletedRows) deletedIds.add(String(row[primaryKeyColumn]));
       }
       const missingIds = [...new Set(ids.map(id => String(id)))].filter(id => !deletedIds.has(id));
       if (missingIds.length > 0) {
@@ -998,17 +1017,25 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
    */
   async #findByIdsInChunks<T>(scope: EntityScope, ids: string[]): Promise<T[]> {
     const rows: T[] = [];
+    const EntityType = this.rxdb.schemaManager.getEntityType(scope.entity, scope.namespace);
+    const metadata = EntityType ? getEntityMetadata(EntityType) : undefined;
+    const primaryKeyColumn = metadata?.propertyMap.get('id')?.columnName ?? 'id';
 
     for (const chunk of chunk_values(ids, SUPABASE_IN_CHUNK_SIZE)) {
       const { data, error, status } = await this.#client
         .schema(scope.schema)
         .from(scope.tableName)
         .select('*')
-        .in('id', chunk);
+        .in(primaryKeyColumn, chunk);
 
       assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to find by ids');
 
-      rows.push(...((data ?? []) as T[]));
+      const batch = (data ?? []) as Record<string, unknown>[];
+      rows.push(
+        ...(metadata && EntityType ?
+          batch.map(row => transform_row_to_entity(EntityType, metadata, row) as unknown as T)
+        : (batch as T[]))
+      );
     }
 
     return rows;
