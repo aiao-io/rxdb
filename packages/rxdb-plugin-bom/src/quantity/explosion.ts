@@ -38,16 +38,11 @@ import {
 import { BomQuantityError, type TruncationReason } from '../types.js';
 import {
   ceilToDecimalPlaces,
-  decimalAdd,
-  decimalCmp,
-  decimalDiv,
   decimalFromCanonical,
-  decimalMul,
-  decimalSub,
   decimalToCanonical,
   type Decimal
 } from './decimal.js';
-import { evaluateFormula, FORMULA_GRAMMAR_VERSION } from './formula.js';
+import { FORMULA_GRAMMAR_VERSION } from './formula.js';
 import { allocateSubstituteShares, computeGross, computeLayerNet, computeOutputQuantity, scrap, selectTierRows, type LayerRoutingOp, type SubstituteMember } from './layer.js';
 import { convertUom } from './uom.js';
 

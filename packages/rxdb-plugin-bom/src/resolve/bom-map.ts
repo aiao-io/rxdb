@@ -536,7 +536,8 @@ export const mappingGaps = async (
         }))
     };
   }
-  if (expansion.truncated !== null) {
+  const truncated = expansion.truncated;
+  if (truncated !== null) {
     return {
       scopeId,
       gaps: mappings
@@ -545,7 +546,7 @@ export const mappingGaps = async (
           mappingId: mapping.id,
           relation: mapping.relation,
           targetLineId: null,
-          undecidable: { reason: `展开触顶（${expansion.truncated.reason}）` },
+          undecidable: { reason: `展开触顶（${truncated.reason}）` },
           differences: [],
           appeared: []
         }))

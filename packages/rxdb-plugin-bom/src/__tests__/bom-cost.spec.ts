@@ -221,7 +221,6 @@ for (const backend of BACKENDS) {
     });
 
     it('AC#13 g→kg：子件头基准 kg、unit 30/kg；父件用 500g → 材料 0.5kg×30 = 15', async () => {
-      const c = await makeItem('c13', { stockUom: 'g' });
       const a = await makeItem('a13');
       const b = await makeItem('b13', { stockUom: 'g' });
       // B 头：base kg、lot 1kg、材料 1500g 单价 0.02/g = 30 → unit 30/kg

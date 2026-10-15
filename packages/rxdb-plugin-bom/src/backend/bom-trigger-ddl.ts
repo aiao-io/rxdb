@@ -943,13 +943,16 @@ const sqliteRoutingGuards = (metadata: EntityMetadata): string[] => {
  */
 const sqliteReleasedHeaderGuard = (metadata: EntityMetadata): string[] => {
   if (metadata.name !== 'BomHeader') return [];
+  // 历史装载通道豁免：存在开启态批次即豁免（loadHistory 补 cost_lot_qty / routing_id；
+  // 补丁不改头的批次号，故按「通道开放」判定而非行级批次）
+  const historical = `EXISTS (SELECT 1 FROM ${quoteSqlIdentifier('bom$bom_history_batch')} b WHERE b."state" = 'open')`;
   return [
     sqliteTrigger(
       sqliteTableRef(metadata),
       'bom_header_released_fields_u',
       'BEFORE UPDATE',
       raiseWhen(WRITE_PROTOCOL(metadata.tableName, '已发布头字段不可改（改头字段须发布新修订）'), '1'),
-      `OLD."state" = 'released'`
+      `OLD."state" = 'released' AND NOT (${historical})`
     )
   ];
 };
@@ -1643,7 +1646,8 @@ const pgReleasedHeaderFunction = (metadata: EntityMetadata): string[] => {
   if (metadata.name !== 'BomHeader') return [];
   const state = column(metadata, 'state');
   const body =
-    `  IF TG_OP = 'UPDATE' AND OLD.${state} = 'released' THEN\n` +
+    `  IF TG_OP = 'UPDATE' AND OLD.${state} = 'released' AND NOT EXISTS (` +
+    `SELECT 1 FROM ${pgNamedTable(metadata, 'bom_history_batch')} b WHERE b."state" = 'open') THEN\n` +
     `    RAISE EXCEPTION '${WRITE_PROTOCOL('bom_header', '已发布头字段不可改（改头字段须发布新修订）')}';\n` +
     `  END IF;`;
   return [

@@ -454,7 +454,7 @@ describe('覆盖率查询（AC#5/#6/#13/#14）', () => {
         // EBOM 根用 P1、P2 各一行；共享子装配 S 头（同一批行经两条路径出现）
         const ebomRoot = await makeHeader(rootItem, 'ebom', [p1Item, p2Item]);
         const ebomP1 = await makeHeader(p1Item, 'ebom', [s]);
-        const ebomP2 = await makeHeader(p2Item, 'ebom', [s]);
+        await makeHeader(p2Item, 'ebom', [s]); // P2 头建出即达意：共享 S 行经两条路径出现（覆盖查询自行走头链）
         const sPart = await makeItemOnly('c13-sp');
         const ebomS = await makeHeader(s, 'ebom', [sPart]);
         const mbom = await makeHeader(mRoot, 'mbom', [s, s]);

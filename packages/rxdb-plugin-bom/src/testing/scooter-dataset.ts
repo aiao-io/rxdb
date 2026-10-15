@@ -623,3 +623,301 @@ export const loadScooterDataset = async (adapter: BomLocalAdapter): Promise<Scoo
   });
   return Object.fromEntries([...items.entries()].map(([key, item]) => [key, item.id]));
 };
+
+/**
+ * SC-100 数据集阶段 D 层（US-525 AC#13~#15）：EBOM↔MBOM 拆分映射（钣金 SHEET-ASSY：
+ * EBOM 一张头拆成 MBOM 的板材 + 2 个工序件）；成本输入齐全——全部外购叶子价格 1 元、
+ * 副产 OFFCUT 抵减价 1、HOUSING 挂路线（工序 10：run 0.5 h/件、费率 2/h、制费 0.4/h）、
+ * 全部头 `cost_lot_qty = 1`；MCU 下补 MCU-DIE → DIE-PART 两层（整机 5 层）；
+ * `COST-DEMO` 头挂无价的 `COST-MISSING`（AC#15 的缺失演示面）。
+ */
+export const SCOOTER_DATASET_D: {
+  items: ScooterItemSpec[];
+  headers: ScooterHeaderSpec[];
+  pricePatches: { itemKey: string; unitPrice: string; priceUom?: string }[];
+  creditPatches: { itemKey: string; creditPrice: string }[];
+  routingPatches: { headerKey: string; workCenterCode: string; operations: { seq: number; runTime: string; setupTime?: string; fixedTime?: string }[]; rate: string; rateUom: string; overheadRate: string }[];
+} = {
+  items: [
+    { key: 'SHEET-ASSY' },
+    { key: 'SHEET-ASSY-M' },
+    { key: 'WIP-BEND' },
+    { key: 'WIP-CUT' },
+    { key: 'MCU-DIE' },
+    { key: 'DIE-PART' },
+    { key: 'COST-DEMO' },
+    { key: 'COST-MISSING' }
+  ],
+  headers: [
+    // SHEET-ASSY 的 MBOM 头（EBOM 头在下层——SHEET-ASSY 是新物料，两层头都在这建）
+    {
+      itemKey: 'SHEET-ASSY',
+      occurrences: [{ childKey: 'SHEET', qty: '1' }]
+    },
+    {
+      itemKey: 'SHEET-ASSY-M',
+      occurrences: [
+        { childKey: 'SHEET', qty: '1' },
+        { childKey: 'WIP-BEND', qty: '1' },
+        { childKey: 'WIP-CUT', qty: '1' }
+      ]
+    },
+    // MCU-V2 与 MCU-DIE 的新头（整机 5 层）
+    {
+      itemKey: 'MCU-V2',
+      occurrences: [{ childKey: 'MCU-DIE', qty: '1' }]
+    },
+    {
+      itemKey: 'MCU-DIE',
+      occurrences: [{ childKey: 'DIE-PART', qty: '1' }]
+    },
+    // 成本缺失演示头
+    {
+      itemKey: 'COST-DEMO',
+      occurrences: [{ childKey: 'COST-MISSING', qty: '1' }]
+    }
+  ],
+  pricePatches: [
+    { itemKey: 'FRAME', unitPrice: '1' },
+    { itemKey: 'SEAT', unitPrice: '1' },
+    { itemKey: 'MCU', unitPrice: '1' },
+    { itemKey: 'MCU-V2', unitPrice: '1' },
+    { itemKey: 'MCU-DIE', unitPrice: '1' },
+    { itemKey: 'DIE-PART', unitPrice: '1' },
+    { itemKey: 'R10K', unitPrice: '1' },
+    { itemKey: 'R10K-ALT1', unitPrice: '1' },
+    { itemKey: 'R10K-ALT2', unitPrice: '1' },
+    { itemKey: 'WIRE', unitPrice: '1', priceUom: 'm' },
+    { itemKey: 'TERMINAL', unitPrice: '1' },
+    { itemKey: 'SHRINK', unitPrice: '1' },
+    { itemKey: 'M3', unitPrice: '1' },
+    { itemKey: 'CELL', unitPrice: '1' },
+    { itemKey: 'BMS', unitPrice: '1' },
+    { itemKey: 'BMS-V2', unitPrice: '1' },
+    { itemKey: 'SHEET', unitPrice: '1' },
+    { itemKey: 'OFFCUT', unitPrice: '1' },
+    { itemKey: 'TRIM', unitPrice: '1' },
+    { itemKey: 'P-MATERIAL', unitPrice: '1' },
+    { itemKey: 'DEMO-PART', unitPrice: '1' }
+  ],
+  creditPatches: [{ itemKey: 'OFFCUT', creditPrice: '1' }],
+  routingPatches: [
+    {
+      headerKey: 'HOUSING',
+      workCenterCode: 'WC-D',
+      operations: [{ seq: 10, runTime: '0.5' }],
+      rate: '2',
+      rateUom: 'h',
+      overheadRate: '0.4'
+    }
+  ]
+};
+
+/**
+ * 装载 SC-100 种子 D 层（在 C 层之后调用）：新物料 → 新头（SHEET-ASSY 双图 / 成本演示头 /
+ * MCU 下钻两层）→ 价格与抵减价（item 直接更新，无写入协议）→ HOUSING 路线与费率 →
+ * 头 `cost_lot_qty` 补丁与映射（scope + split，经 loadHistory 的 open 批次通道）。
+ */
+export const loadScooterDatasetD = async (
+  adapter: BomLocalAdapter,
+  itemIds: ScooterItemIds
+): Promise<void> => {
+  // 映射 / 路线 / 费率实体（函数体内的 TDZ：声明提到最前）
+  const { BomMap, BomMapScope, BomWorkCenter, BomActivityType, BomActivityRate, BomRouting, BomRoutingOperation } = await import('../entities.js');
+  // D 层新物料追加
+  for (const spec of SCOOTER_DATASET_D.items) {
+    if (itemIds[spec.key]) continue;
+    const item = new BomItem();
+    const writable = item as unknown as { id: string; createdAt: Date; updatedAt: Date };
+    writable.id = deterministicId(`item:${spec.key}`);
+    item.itemNo = spec.key;
+    item.stockUom = spec.stockUom ?? 'pcs';
+    item.uomDecimals = spec.uomDecimals ?? 0;
+    item.uomConversion = spec.uomConversion ?? null;
+    writable.createdAt = new Date(SCOOTER_SEED_TIMESTAMP);
+    writable.updatedAt = new Date(SCOOTER_SEED_TIMESTAMP);
+    await item.save();
+    itemIds[spec.key] = item.id;
+  }
+  // 价格与抵减价（item 更新，无写入协议；表名按后端分叉）
+  const itemTable = adapter.name === 'pglite' ? '"bom"."item"' : '"bom$item"';
+  for (const patch of SCOOTER_DATASET_D.pricePatches) {
+    const itemId = itemIds[patch.itemKey];
+    if (!itemId) continue;
+    const uom = patch.priceUom ?? 'pcs';
+    await adapter.rawQuery?.(
+      `UPDATE ${itemTable} SET "unitPrice" = '${patch.unitPrice}', "priceUom" = '${uom}', "priceCurrency" = 'CNY' WHERE "id" = '${itemId}'`
+    );
+  }
+  for (const patch of SCOOTER_DATASET_D.creditPatches) {
+    const itemId = itemIds[patch.itemKey];
+    if (!itemId) continue;
+    await adapter.rawQuery?.(
+      `UPDATE ${itemTable} SET "creditPrice" = '${patch.creditPrice}' WHERE "id" = '${itemId}'`
+    );
+  }
+  // HOUSING 路线 + 费率 + 制费
+  const housingHeaderId = deterministicId('header:HOUSING:A');
+  const center = new BomWorkCenter();
+  (center as unknown as { id: string }).id = deterministicId('work-center:D');
+  center.code = 'WC-D';
+  center.orgId = 'org-x';
+  center.overheadRate = '0.4';
+  center.overheadCurrency = 'CNY';
+  await center.save();
+  const activity = new BomActivityType();
+  (activity as unknown as { id: string }).id = deterministicId('activity:D');
+  activity.code = 'RUN';
+  activity.workCenterId = center.id;
+  await activity.save();
+  const rate = new BomActivityRate();
+  (rate as unknown as { id: string }).id = deterministicId('rate:D');
+  rate.workCenterId = center.id;
+  rate.activityTypeId = activity.id;
+  rate.validFrom = new Date('2026-01-01T00:00:00.000Z');
+  rate.rate = '2';
+  rate.currency = 'CNY';
+  rate.rateUom = 'h';
+  await rate.save();
+  const routing = new BomRouting();
+  (routing as unknown as { id: string }).id = deterministicId('routing:D');
+  routing.parentRevisionId = deterministicId('revision:HOUSING:A');
+  routing.bomType = 'ebom';
+  routing.orgId = 'org-x';
+  routing.validFrom = new Date('2020-01-01T00:00:00.000Z');
+  await routing.save();
+  const operation = new BomRoutingOperation();
+  (operation as unknown as { id: string }).id = deterministicId('routing-op:D:0');
+  operation.routingId = routing.id;
+  operation.operationSeq = 10;
+  operation.workCenterId = center.id;
+  operation.runTime = '0.5';
+  operation.timeUom = 'h';
+  await operation.save();
+  // D 层头（SHEET-ASSY 双图 / MCU-V2 / MCU-DIE / COST-DEMO）+ 头字段补丁经 open 批次通道
+  await loadHistory(adapter, {
+    batchNo: 'scooter-seed-d',
+    id: deterministicId('batch:scooter-seed-d'),
+    createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+    updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
+    // 外壳换版 ECN：随本批 draft 装载 + 发布转移（open 批次放行 released 历史 ECN 的行插入）
+    ecns: [
+      {
+        id: deterministicId('ecn:ECN-2026-016'),
+        ecnNo: 'ECN-2026-016',
+        state: 'released',
+        effectiveDate: new Date('2026-10-05T00:00:00.000Z'),
+        reason: 'US-525 阶段 D：整机外壳换版 FRAME → HOUSING',
+        createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+        updatedAt: new Date(SCOOTER_SEED_TIMESTAMP)
+      }
+    ],
+    revisions: SCOOTER_DATASET_D.headers.map(header => ({
+      id: deterministicId(`revision:${header.itemKey}:${header.revisionNo ?? 'A'}`),
+      itemId: itemIds[header.itemKey]!,
+      revisionNo: header.revisionNo ?? 'A',
+      effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+      defaultPhantom: false,
+      createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+      updatedAt: new Date(SCOOTER_SEED_TIMESTAMP)
+    })),
+    headers: SCOOTER_DATASET_D.headers.map((header, headerIndex) => ({
+      revisionIndex: headerIndex,
+      // SHEET-ASSY-M 是 MBOM 头（EBOM↔MBOM 拆分演示）；其余为 EBOM
+      bomType: header.itemKey.endsWith('-M') ? 'mbom' : 'ebom',
+      orgId: 'org-x',
+      id: deterministicId(`header:${header.itemKey}:${header.revisionNo ?? 'A'}`),
+      createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+      updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
+      lines: header.occurrences.map((occurrence, occurrenceIndex) => ({
+        id: deterministicId(`line:${header.itemKey}:${header.revisionNo ?? 'A'}:${occurrenceIndex}`),
+        createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+        updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
+        lineNo: 10 + occurrenceIndex * 10,
+        occurrences: [
+          {
+            id: deterministicId(`occurrence:${header.itemKey}:${header.revisionNo ?? 'A'}:${occurrenceIndex}`),
+            createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+            updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
+            childItemId: itemIds[occurrence.childKey]!,
+            qty: occurrence.qty ?? '1',
+            uom: 'pcs',
+            effectiveFrom: new Date('2026-01-01T00:00:00.000Z')
+          }
+        ]
+      }))
+    })),
+    headerOverlays: [
+      ...(() => {
+        const patches: { headerId: string; headerPatch: { costLotQty: string } }[] = [];
+        // 全部头 cost_lot_qty = 1（卷算必填）
+        for (const headerKey of ['SC-100', 'PCBA', 'WH-01', 'BATT', 'MCU-V2', 'MCU-DIE', 'HOUSING', 'SHEET-ASSY', 'SHEET-ASSY-M', 'COVER-ASSY', 'PROCESS-01', 'ECN-DEMO', 'COST-DEMO']) {
+          patches.push({
+            headerId: deterministicId(`header:${headerKey}:${headerKey === 'WH-01' ? 'D' : 'A'}`),
+            headerPatch: { costLotQty: '1' }
+          });
+        }
+        return patches;
+      })(),
+      {
+        headerId: housingHeaderId,
+        headerPatch: { routingId: routing.id }
+      },
+      {
+        // 整机外壳换版：ECN-2026-016 引入 HOUSING（open 批次放行 released 历史 ECN 的行插入）
+        headerId: deterministicId('header:SC-100:A'),
+        lines: [
+          {
+            id: deterministicId('line:SC-100:A:5'),
+            createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+            updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
+            lineNo: 70,
+            ecnInId: deterministicId('ecn:ECN-2026-016'),
+            occurrences: [
+              {
+                id: deterministicId('occurrence:SC-100:A:5:0'),
+                createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+                updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
+                childItemId: itemIds['HOUSING']!,
+                qty: '1',
+                uom: 'pcs',
+                effectiveFrom: new Date('2026-10-05T00:00:00.000Z'),
+                ecnInId: deterministicId('ecn:ECN-2026-016')
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  });
+
+  // SHEET-ASSY 双图与映射（同物料两张头 + scope + split 1:3；行 id 按头查得）
+  const sheetAssyEbom = deterministicId('header:SHEET-ASSY:A');
+  const sheetAssyMbom = deterministicId('header:SHEET-ASSY-M:A');
+  const scope = new BomMapScope();
+  (scope as unknown as { id: string }).id = deterministicId('map-scope:D');
+  scope.orgId = 'org-x';
+  scope.ebomRootHeaderId = sheetAssyEbom;
+  scope.mbomRootHeaderId = sheetAssyMbom;
+  await scope.save();
+  const lineTable = adapter.name === 'pglite' ? '"bom"."bom_line"' : '"bom$bom_line"';
+  const readLineIds = async (headerId: string): Promise<string[]> => {
+    const result = (await adapter.rawQuery?.(
+      `SELECT l."id" FROM ${lineTable} l WHERE l."headerId" = '${headerId}' ORDER BY l."lineNo" ASC`
+    )) as unknown as { results?: { rows: unknown[][] }[]; rows?: unknown[][] };
+    const rows = Array.isArray(result.results) ? result.results[0].rows : (result.rows ?? []);
+    return rows.map(row => String(row[0]));
+  };
+  const ebomLineIds = await readLineIds(sheetAssyEbom);
+  const mbomLineIds = await readLineIds(sheetAssyMbom);
+  for (const [targetKey, index] of [['SHEET', 0], ['WIP-BEND', 1], ['WIP-CUT', 2]] as const) {
+    const mapping = new BomMap();
+    (mapping as unknown as { id: string }).id = deterministicId(`map:D:${index}`);
+    mapping.scopeId = scope.id;
+    mapping.relation = 'split';
+    mapping.sourceLineId = ebomLineIds[0];
+    mapping.targetLineId = mbomLineIds[index];
+    await mapping.save();
+    void targetKey;
+  }
+};

@@ -315,7 +315,7 @@ describe('US-515 ECN 变更管理', () => {
         const child = await makeItem(adapter, 'e22-c');
         // 替代组在草稿期建好（已发布头下插不挂 ECN 的组本身就是协议外形态）；配一个 primary 成员过发布校验
         let groupId = '';
-        const { header, occurrence } = await setupReleasedHeader(adapter, parent, child, '1', async (draftHeader, _draftLine) => {
+        const { header, occurrence } = await setupReleasedHeader(adapter, parent, child, '1', async (draftHeader) => {
           const groupTable = backend === 'wa-sqlite' ? '"bom$bom_substitute_group"' : '"bom"."bom_substitute_group"';
           groupId = crypto.randomUUID();
           await adapter.rawQuery(
@@ -389,7 +389,7 @@ describe('US-515 ECN 变更管理', () => {
         const child = await makeItem(adapter, 'e507-c');
         // managed 发生项与位号在草稿期建好再发布（新行，避免与基础行区间排他冲突）
         let designatorId = '';
-        await setupReleasedHeader(adapter, parent, child, '1', async (draftHeader, _draftLine) => {
+        await setupReleasedHeader(adapter, parent, child, '1', async (draftHeader) => {
           const managedLine = new BomLine();
           managedLine.headerId = draftHeader.id;
           managedLine.lineNo = 20 + Math.floor(Math.random() * 1000);

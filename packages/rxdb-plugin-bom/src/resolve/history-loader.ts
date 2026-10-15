@@ -132,6 +132,8 @@ export interface HistoryBatchInput {
   /** 既有已发布头的行操作（US-515 阶段 C 种子改下层头）：批次开放期间执行，ECN 须已在本批装载。 */
   headerOverlays?: {
     headerId: string;
+    /** 头字段补丁（US-514 阶段 D 种子补 cost_lot_qty / routing_id；open 批次期间放行）。 */
+    headerPatch?: { costLotQty?: string | null; routingId?: string | null };
     /** 截止标记：行发生项 → 截止它的 ECN（effective_to 由 ECN 生效日派生）。 */
     cutoffs?: { occurrenceId: string; ecnId: string }[];
     /** 追加行（挂 ECN；矩阵在 open 批次下放行 released 历史 ECN）。 */
@@ -352,6 +354,16 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       if (input.id) ecnEffectiveDates.set(input.id, input.effectiveDate);
     }
     for (const overlay of batch.headerOverlays ?? []) {
+      if (overlay.headerPatch) {
+        const patch: Record<string, unknown> = {};
+        if (overlay.headerPatch.costLotQty !== undefined) patch['costLotQty'] = overlay.headerPatch.costLotQty;
+        if (overlay.headerPatch.routingId !== undefined) patch['routingId'] = overlay.headerPatch.routingId;
+        if (Object.keys(patch).length > 0) {
+          const headerTarget = construct(BomHeader);
+          (headerTarget as unknown as { id: string }).id = overlay.headerId;
+          await executor.getRepository(BomHeader).update(headerTarget, patch as Partial<BomHeader>);
+        }
+      }
       for (const cutoff of overlay.cutoffs ?? []) {
         const effectiveDate = ecnEffectiveDates.get(cutoff.ecnId);
         if (!effectiveDate) throw new Error(`overlay 截止标记引用的 ECN 未在本批装载：${cutoff.ecnId}`);

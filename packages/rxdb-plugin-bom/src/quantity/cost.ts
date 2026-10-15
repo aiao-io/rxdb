@@ -13,7 +13,7 @@ import type { BomLocalAdapter } from '../resolve/bom-adapter.js';
 import { bomSqlDialectFor } from '../resolve/bom-sql.js';
 import { assertContext, type BomQueryExecutor, type ResolveTarget } from '../resolve/resolver.js';
 import type { ResolutionContext } from '../resolve/resolution.js';
-import { decimalAdd, decimalCmp, decimalDiv, decimalFromCanonical, decimalMul, decimalSub, decimalToCanonical, type Decimal } from './decimal.js';
+import { decimalAdd, decimalDiv, decimalFromCanonical, decimalMul, decimalSub, decimalToCanonical, type Decimal } from './decimal.js';
 import { fetchHeaderRows, resolveChildHeader, rowRates, type ResolvedChildHeader } from './explosion.js';
 import { allocateSubstituteShares, computeGross, computeLayerNet, computeOutputQuantity, operationScrapChain, scrap, selectTierRows, type LayerRoutingOp, type SubstituteMember } from './layer.js';
 import { convertUom } from './uom.js';
@@ -289,7 +289,7 @@ export const rollupCost = async (
       `SELECT h."id" AS "headerId", h."baseUom" AS "baseUom", h."baseQty" AS "baseQty", h."assemblyScrap" AS "assemblyScrap",` +
       ` h."assemblyScrapConvention" AS "assemblyScrapConvention", h."costLotQty" AS "costLotQty", h."routingId" AS "routingId"` +
       ` FROM ${dialect.table('bom_header')} h WHERE h."state" = 'released' AND h."parentRevisionId" = '${parentRevisionId}' AND h."bomType" = '${context.bomType}' AND h."orgId" = '${context.orgId}'` +
-      ` AND h."alternativeNo" = ${target.alternativeNo ?? 1} LIMIT 1`
+      ` AND h."alternativeNo" = 1 LIMIT 1`
     );
     if (headerRows.length === 0) {
       throw new BomCostError('根头', '评估日没有已发布 BOM 头');
@@ -448,8 +448,9 @@ export const rollupCost = async (
         });
         const rates = rowRates(row);
         const demandInStock = convertUom(decimalToCanonical(layer.net), row.occurrenceUom, row.childStockUom, rates);
-        // 子件有头：换算到子头 base_uom × unit_cost（虚拟件同样走链式，穿透数值等价）
-        const childHeader = await resolveChildHeader(query, dialect, resolutionContext, row.resolvedChildRevisionId);
+        // 子件有头：换算到子头 base_uom × unit_cost（虚拟件同样走链式，穿透数值等价）。
+        // 爆炸层已拒绝 unresolved（US-514 AC#11），此处 null 不可达。
+        const childHeader = await resolveChildHeader(query, dialect, resolutionContext, row.resolvedChildRevisionId!);
         if (childHeader !== null) {
           const childDemand = convertUom(demandInStock, row.childStockUom, childHeader.baseUom, rates);
           const childUnit = await unitCostOf(headerMetaOf(childHeader, row.childItemId, row.resolvedChildRevisionId as string));
@@ -497,7 +498,6 @@ export const rollupCost = async (
     };
 
     // 明细树：根按请求批量展开；children 按各自的本层需求批量展开（unit_cost 共享缓存）
-    const detailStack: string[] = [];
     const buildDetail = async (headerMeta: HeaderMeta, L: Decimal): Promise<CostNodeDetail> => {
       const rows = (await fetchHeaderRows(query, dialect, resolutionContext, [headerMeta.headerId])).get(headerMeta.headerId) ?? [];
       const effectiveRows = selectTierRows(rows, L);
@@ -600,7 +600,8 @@ export const rollupCost = async (
         });
         const rates = rowRates(row);
         const demandInStock = convertUom(decimalToCanonical(layer.net), row.occurrenceUom, row.childStockUom, rates);
-        const childHeader = await resolveChildHeader(query, dialect, resolutionContext, row.resolvedChildRevisionId);
+        // 爆炸层已拒绝 unresolved（US-514 AC#11），此处 null 不可达。
+        const childHeader = await resolveChildHeader(query, dialect, resolutionContext, row.resolvedChildRevisionId!);
         if (childHeader !== null) {
           const childDemand = convertUom(demandInStock, row.childStockUom, childHeader.baseUom, rates);
           const childUnit = await unitCostOf(headerMetaOf(childHeader, row.childItemId, row.resolvedChildRevisionId as string));
