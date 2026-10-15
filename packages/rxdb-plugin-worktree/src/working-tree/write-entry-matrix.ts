@@ -27,11 +27,11 @@ import { CommitErrorCode } from '../commit/commit-error-codes.js';
  * 一次写所针对的表类别
  *
  * @remarks
- * 三类穷尽了库里的表，且**只有 `versioned` 需要保护**：`query_cache` 的内容可从远端重建，
- * `system` 是库自己的簿记。判定因此可以在看入口之前先按目标类短路两类，剩下的分支全是
- * 「谁在写这张版本化业务表」。
+ * 三类穷尽了库里的表，且**只有 `versioned` 需要保护**：`untracked` 是版本化域判为未版本化的业务表
+ * （QueryCache 实体的内容可从远端重建；关闭变更日志的实体本就在分支与历史之外），`system` 是库自己的簿记。
+ * 判定因此可以在看入口之前先按目标类短路两类，剩下的分支全是「谁在写这张版本化业务表」。
  */
-export const WRITE_TARGET_CLASSES = ['versioned', 'query_cache', 'system'] as const;
+export const WRITE_TARGET_CLASSES = ['versioned', 'untracked', 'system'] as const;
 
 /** {@link WRITE_TARGET_CLASSES} 的值联合 */
 export type WriteTargetClass = (typeof WRITE_TARGET_CLASSES)[number];
@@ -110,8 +110,8 @@ export type WriteEntryOrigin = 'local' | 'remote_sync';
 
 /** 放行但不产生单元的理由；每一条对应矩阵里一组不同的行。 */
 export type NoCaptureReason =
-  /** 目标是 QueryCache 实体表：可从远端重建，不是用户编辑的结果 */
-  | 'query_cache'
+  /** 目标是未版本化实体表（epic-006 版本化域的第一、四类）：QueryCache 或关闭变更日志的实体 */
+  | 'untracked_target'
   /** 列集 ⊆ untracked 字段域的 UPDATE：回填簿记列不表达用户意图 */
   | 'no_net_change'
   /** 底层投影重写（行 6）：写必须照常发生，只是不被二次记录 */
@@ -282,7 +282,7 @@ function classifyVersionedTarget(request: WriteEntranceRequest): WriteEntranceDe
  *    未知入口、`notifyExternalUpdate()` 都必须与没装这个特性时逐字节一致。放在入口许可之后
  *    判断的话，未启用的库会开始拒绝它一直允许的写法：升级即故障，故障点在完全没打算用这个
  *    功能的用户那里。
- * 2. **再按目标类短路。** 系统表与 QueryCache 表上没有需要保护的东西，于是「谁在写」这个问题
+ * 2. **再按目标类短路。** 系统表与未版本化表上没有需要保护的东西，于是「谁在写」这个问题
  *    只在版本化业务表上才需要回答。反过来（先按入口分派）要求每个入口分支各自再判一次目标类，
  *    十一个分支就有十一次抄写机会。
  *
@@ -304,6 +304,6 @@ function classifyVersionedTarget(request: WriteEntranceRequest): WriteEntranceDe
 export function classifyWriteEntrance(request: WriteEntranceRequest): WriteEntranceDecision {
   if (!request.capabilityEnabled) return noCapture('capability_disabled');
   if (request.targetClass === 'system') return noCapture('system_target');
-  if (request.targetClass === 'query_cache') return noCapture('query_cache');
+  if (request.targetClass === 'untracked') return noCapture('untracked_target');
   return classifyVersionedTarget(request);
 }

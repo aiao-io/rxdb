@@ -1,4 +1,4 @@
-import { resetE2eState } from './e2e-utils.js';
+import { flushDraftsAndReadKeys, resetE2eState } from './e2e-utils.js';
 import { expect, test } from './fixtures.js';
 
 const T = {
@@ -23,6 +23,24 @@ test.describe('Storage Page', () => {
     await resetE2eState(page);
     await page.goto('/storage');
     await expect(page.getByTestId(T.PAGE)).toBeVisible({ timeout: 15000 });
+  });
+
+  // US-311：文件元数据实体关闭了变更日志，保存不派发 CREATE；草稿缓存若收它，每上传一个文件就留一条永久草稿。
+  test('上传不在草稿缓存里留下文件元数据草稿', async ({ page }) => {
+    await page.getByTestId(T.FILE_INPUT).setInputFiles({
+      name: 'draft-check.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('draft check')
+    });
+    await expect(page.getByTestId(T.FILE_NAME).first()).toContainText('draft-check.txt', { timeout: 10000 });
+
+    const keys = await flushDraftsAndReadKeys(page);
+
+    expect(
+      keys.some(key => key.split(':')[1] === 'Todo'),
+      '对照草稿没有落盘'
+    ).toBe(true);
+    expect(keys.filter(key => key.split(':')[1] === 'StorageFileMeta')).toEqual([]);
   });
 
   test('should show empty state when no files', async ({ page }) => {

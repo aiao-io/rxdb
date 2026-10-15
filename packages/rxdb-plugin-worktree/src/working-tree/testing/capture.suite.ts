@@ -1380,7 +1380,7 @@ export const worktreeCaptureConformanceSuite = (context: WorktreeConformanceSuit
         const adapter = await localAdapterOf(database);
         const hook = hookOf(adapter);
         const domain = domainOf(adapter);
-        expect(hook.targetClassOf(getEntityMetadata(ConformanceCache).name)).toBe('query_cache');
+        expect(hook.targetClassOf(getEntityMetadata(ConformanceCache).name)).toBe('untracked');
         expect(hook.targetClassOf(getEntityMetadata(ConformanceNote).name)).toBe('versioned');
         // 表平面必须跟着实体平面走：缓存表不在 `versionedTables` 里，于是一条打在它上面的 raw 写
         // 在第 4 步就以 out_of_domain 放行，根本走不到第 3 步的列级判定。两个平面分叉的话，

@@ -11,9 +11,9 @@
  * 1. **默认 tracked，不是默认 untracked。** 判据是「净变化能否由 HEAD + WorkingTreeEntry 重放」，
  *    一个没被登记过的新实体当然能重放，所以它进版本控制。反过来的默认值意味着任何人新加一个实体，
  *    它的改动都悄悄不进提交——而这种漏没有任何报错形态，只会表现为「我明明改了，commit 说没有变更」。
- * 2. **三类 untracked 各测一组，外加一条「第四类不存在」。** spec.md 把「新增第四类必须先改
+ * 2. **四类 untracked 各测一组，外加一条「四类之外不存在」。** spec.md 把「新增一类必须先改
  *    epic-006」写成了硬规则；规则要能被违反才有意义，所以用例里放一个不属于任何一类的实体，
- *    断言它是 tracked。少了这条，往判定里塞第四类分支不会让任何用例变红。
+ *    断言它是 tracked。少了这条，往判定里塞第五类分支不会让任何用例变红。
  * 3. **untracked 是静态属性，不看入口。** 同一个实体在 CRUD 上 tracked、在同步路径上 untracked，
  *    会让「工作树是否有未提交变更」取决于变更**怎么来的**——而 status 面向的用户不知道也不该知道
  *    这件事。判定函数因此不接收入口、意图或调用方参数：这条用它的**签名**来保证，用例只负责
@@ -52,12 +52,16 @@ const entity = (init: Partial<VersionedDomainEntityInput> & { entityName: string
   ...init
 });
 
-/** 一份覆盖三类 untracked 的登记：两个普通实体、一个 QueryCache 实体、一列插件派生索引。 */
+/**
+ * 一份覆盖四类 untracked 的登记：三个普通实体、一个 QueryCache 实体、一列插件派生索引、
+ * 一个关闭变更日志的实体（形同 storage 插件的 `StorageFileMeta`）。
+ */
 const DOMAIN_INPUT: readonly VersionedDomainEntityInput[] = [
   entity({ entityName: 'Post', derivedIndexColumns: ['title_norm'] }),
   entity({ entityName: 'Comment' }),
   entity({ entityName: 'Draft', syncType: SyncType.None }),
-  entity({ entityName: 'ProductCache', syncType: SyncType.QueryCache })
+  entity({ entityName: 'ProductCache', syncType: SyncType.QueryCache }),
+  entity({ entityName: 'FileMeta', syncType: SyncType.None, log: false })
 ];
 
 const domain = (): VersionedDomain => buildVersionedDomain(DOMAIN_INPUT);
@@ -125,7 +129,39 @@ describe('第三类 untracked — 插件静态声明的派生索引列', () => {
   });
 });
 
-describe('没有第四类：清单外的实体默认 tracked', () => {
+describe('第四类 untracked — 关闭变更日志（log: false）的实体', () => {
+  it('整个实体不进版本化域', () => {
+    // 它的写不产生 `rxdb_change`：挂载点 1 读不到，分支投影、历史与同步推送也都看不见它。
+    // 判成 tracked 的话，批量写与 raw 写按版本化表被拦，事务写却静默放行。
+    expect(domain().classifyEntity('FileMeta')).toBe('untracked');
+  });
+
+  it('它的表不出现在版本化表集合里', () => {
+    expect(domain().versionedTables.has('filemeta')).toBe(false);
+  });
+
+  it('它的任意列都不构成净变化', () => {
+    expect(domain().isUntrackedField('FileMeta', 'opfsPath')).toBe(true);
+  });
+
+  it('与同步类型无关：Full 同步的实体关掉变更日志同样 untracked', () => {
+    const view = buildVersionedDomain([entity({ entityName: 'Telemetry', syncType: SyncType.Full, log: false })]);
+
+    expect(view.classifyEntity('Telemetry')).toBe('untracked');
+  });
+
+  it('log 为 true 或缺省时照旧 tracked', () => {
+    // 判据是显式声明的 `log: false`，不是「没写 log」：缺省值与核心实体元数据的默认值（`true`）一致。
+    const view = buildVersionedDomain([
+      entity({ entityName: 'Logged', log: true }),
+      entity({ entityName: 'Defaulted' })
+    ]);
+
+    expect([view.classifyEntity('Logged'), view.classifyEntity('Defaulted')]).toEqual(['tracked', 'tracked']);
+  });
+});
+
+describe('四类之外：清单外的实体默认 tracked', () => {
   it('未登记的实体是 tracked', () => {
     expect(domain().classifyEntity('Invoice')).toBe('tracked');
   });
@@ -139,7 +175,7 @@ describe('没有第四类：清单外的实体默认 tracked', () => {
     expect(domain().isUntrackedField('Invoice', 'remoteId')).toBe(true);
   });
 
-  it('三类之外的同步类型（Full / Filter / None）一律 tracked', () => {
+  it('写变更日志的实体，QueryCache 之外的同步类型（Full / Filter / None）一律 tracked', () => {
     const view = buildVersionedDomain([
       entity({ entityName: 'A', syncType: SyncType.Full }),
       entity({ entityName: 'B', syncType: SyncType.Filter }),
@@ -198,7 +234,13 @@ describe('origin=remote_sync 不是 untracked 的一种', () => {
   });
 });
 
-describe('tracked 与 untracked 混进同一事务', () => {
+/**
+ * 混用守卫只分 QueryCache 与其余实体两边，与核心 `isQueryCacheBatch` 同口径。
+ *
+ * 拒绝混用的理由是写路径不可调和：QueryCache 先写远端再落可丢弃的缓存，其余实体写本地并进变更日志。
+ * 关闭变更日志的实体（第四类）与版本化实体同走本地事务、同提交同回滚，不在被拒之列。
+ */
+describe('QueryCache 与其余实体混进同一事务', () => {
   it('检测到混用时抛 mixed_versioned_cache_transaction', () => {
     const guard = domain().createTransactionGuard();
     guard.record('Post');
@@ -237,12 +279,28 @@ describe('tracked 与 untracked 混进同一事务', () => {
     }).not.toThrow();
   });
 
-  it('同类事务一路放行：全 untracked', () => {
+  it('同类事务一路放行：全 QueryCache', () => {
     const guard = domain().createTransactionGuard();
     expect(() => {
       guard.record('ProductCache');
       guard.record('ProductCache');
     }).not.toThrow();
+  });
+
+  it('关闭变更日志的实体与版本化实体同事务放行：两者同走本地事务', () => {
+    const guard = domain().createTransactionGuard();
+    expect(() => {
+      guard.record('Post');
+      guard.record('FileMeta');
+      guard.record('Comment');
+    }).not.toThrow();
+  });
+
+  it('关闭变更日志的实体与 QueryCache 同事务照样抛：它站在本地写那一边', () => {
+    const guard = domain().createTransactionGuard();
+    guard.record('FileMeta');
+
+    expect(() => guard.record('ProductCache')).toThrow(MixedVersionedCacheTransactionError);
   });
 
   it('错误带得走两边的身份，定位得到是哪两个实体撞上的', () => {
@@ -259,8 +317,8 @@ describe('tracked 与 untracked 混进同一事务', () => {
     expect(caught).toBeInstanceOf(MixedVersionedCacheTransactionError);
     const error = caught as MixedVersionedCacheTransactionError;
     expect(error.code).toBe('mixed_versioned_cache_transaction');
-    expect(error.trackedEntityName).toBe('Post');
-    expect(error.untrackedEntityName).toBe('ProductCache');
+    expect(error.versionedEntityName).toBe('Post');
+    expect(error.cacheEntityName).toBe('ProductCache');
   });
 
   it('两个守卫互不影响：一个事务的混用不污染另一个', () => {

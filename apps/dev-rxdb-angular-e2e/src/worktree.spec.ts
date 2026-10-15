@@ -1,4 +1,4 @@
-import { resetE2eState } from './e2e-utils.js';
+import { flushDraftsAndReadKeys, resetE2eState } from './e2e-utils.js';
 import { expect, test } from './fixtures.js';
 import {
   commit,
@@ -743,5 +743,28 @@ test.describe('工具栏下拉：IME / 占位 / label / 在途 / 复制提示 / 
     await openWorktreeMenu(page);
     await expect(worktreeRow(page, 'feature/live')).toHaveCount(0);
     await expect(page.getByTestId('wt-worktree-item')).toHaveCount(1);
+  });
+});
+
+/**
+ * 草稿缓存不收工作树插件的系统表（US-311）。
+ *
+ * 启用、捕获与提交都经 `EntityManager.instantiate()` 造出系统表行，构造即派发 NEW；这些表不写变更日志，
+ * 永远等不到清理草稿的 CREATE。草稿缓存的系统表名单若是模块加载期的快照，每一步都会在 IndexedDB 里留下一条。
+ */
+test.describe('草稿缓存不收工作树系统表（US-311）', () => {
+  test('启用、写入、提交之后，草稿仓库里没有系统表的键', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+    await writeTodo(page, '不该留下系统表草稿');
+    await commit(page, '提交一次');
+
+    const keys = await flushDraftsAndReadKeys(page);
+
+    expect(
+      keys.some(key => key.split(':')[1] === 'Todo'),
+      '对照草稿没有落盘'
+    ).toBe(true);
+    expect(keys.filter(key => key.startsWith('rxdb:'))).toEqual([]);
   });
 });

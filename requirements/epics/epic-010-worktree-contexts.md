@@ -192,31 +192,24 @@ gitglossary（git 2.54，`man gitglossary`）对两个词的定义：
 
 ### rxdb-plugin-storage：文件不进版本控制
 
-**结论（owner 2026-10-14 确认）：storage 的文件现在不进版本控制**，登记为 epic-006
-[版本化域](epic-006-working-tree-commits.md#版本化域tracked--untracked)的第四类 untracked，理由写在那一节的表里。
-内容寻址等触发条件出现再做，见本节末。
+**结论（owner 2026-10-14 确认）：storage 的文件现在不进版本控制**，归入 epic-006
+[版本化域](epic-006-working-tree-commits.md#版本化域tracked--untracked)的第四类 untracked。这一类的判据是实体声明的
+`log: false`，`StorageFileMeta` 是目前唯一的实例，理由写在那一节的表里。内容寻址等触发条件出现再做，见本节末。
 
 现状（读源码确认）：
 
 - 文件元数据实体 [`StorageFileMeta`](../../packages/rxdb-plugin-storage/src/file-meta.entity.ts) 是业务实体（不在系统实体登记里），
   声明了 `log: false` 与 `SyncType.None`。文件内容放在 OPFS 的 `files/` 目录下，按可变路径存放，不按库名或分支划分；
   覆盖写原路径，删除连文件一起删。
-- 代码还没跟上这条结论。[`versioned-domain.ts`](../../packages/rxdb-plugin-worktree/src/working-tree/versioned-domain.ts)
-  只把 QueryCache 判成 untracked，`StorageFileMeta` 被判成 tracked；可写捕获的挂载点 1 只从变更日志取增量
-  （[`capture-hook.ts`](../../packages/rxdb-plugin-worktree/src/working-tree/capture-hook.ts) 文件头），而 `log: false` 的表不建变更日志触发器
-  （[`create_tables_sql.ts`](../../packages/rxdb-adapter-sqlite-core/src/table/create_tables_sql.ts)：`if (metadata.log !== false) {`）。
-  于是它在事务写入口上从不进工作树，在批量写入口上却按版本化实体被拒
-  （[`bulk-write-gate.ts`](../../packages/rxdb-plugin-worktree/src/working-tree/bulk-write-gate.ts) 抛 `WorktreeWriteRejectedError`），
-  正是 `versioned-domain.ts` 文件头要防的「某个实体在一条写入口上进版本控制、在另一条上不进」。
+- `log: false` 的表不建变更日志触发器（[`create_tables_sql.ts`](../../packages/rxdb-adapter-sqlite-core/src/table/create_tables_sql.ts)：
+  `if (metadata.log !== false) {`），写捕获的挂载点 1 又只从变更日志取增量，所以文件的增删改从不进工作树。
+  [US-311](../stories/collaboration/US-311-unlogged-entities-scope.md) 让版本化域按同一个判据把它归为 untracked，
+  事务写、批量写、raw 写三条入口口径一致。
+- 它与版本化实体可以同事务写入：混用守卫只拦 QueryCache 与其余实体的混用（epic-006 版本化域第一条不变量），
+  `log: false` 的实体与版本化实体同走本地事务。
 - 仓库里没有业务实体引用 storage 的文件：grep `StorageFileMeta` / `fileId` / `opfsPath` 只命中 demo 的文件管理页与远端资源缓存页
-  （`storage.fetch(path, { url })`）。
-
-要做的事（阶段 1）：
-
-- `versioned-domain.ts` 把 `StorageFileMeta` 登记为 untracked，各写入口口径一致。登记后 storage 的写入不得与 tracked 写入同事务
-  （epic-006 版本化域的第一条不变量），实现时核对 `repository.create()` / `remove()` 的事务边界；生成的 API 文档随代码注释一起更新。
-- storage 的 README 与文档站写明：文件不随分支、提交、恢复变化；需要随版本回溯的附件，应用层按不可变方式使用——新内容写新路径、
-  不覆盖、不删除，业务行只存路径。
+  （`storage.fetch(path, { url })`）。storage 的 README 与文档站写明文件不随分支、提交、恢复变化，需要随版本回溯的附件由应用层
+  按不可变方式使用：新内容写新路径，不覆盖、不删除，业务行只存路径。
 
 多检出位下的后果：
 
@@ -233,16 +226,15 @@ gitglossary（git 2.54，`man gitglossary`）对两个词的定义：
 **不能只把 `log: false` 改成 `true`**：那样只有元数据进版本控制，恢复与切分支会把元数据带回旧状态，
 内容却是按路径覆盖后的最新字节或已删除，比不版本化更糟。
 
-### rxdb-plugin-workspace：受影响，改动小；另有一处今天就该修的缺口
+### rxdb-plugin-workspace：受影响，改动小
 
 现状（读源码确认）：
 
 - 草稿存在 IndexedDB（库名即 `dbName`，对象仓库 `workspace`），经 BroadcastChannel 同步到所有标签页；键是 `namespace:entity:id`，不带分支。
 - 草稿不感知分支：切分支后草稿还在，保存时落进**保存那一刻**的 active 分支。
-- 系统实体排除是写死的四张核心表，[`RxDBPluginWorkspace.ts`](../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts)
-  的 `SYSTEM_ENTITY_IDENTITIES` 只收 `[RxDBBranch, RxDBChange, RxDBMigration, RxDBSync]`。工作树插件的系统表与 `StorageFileMeta` 都不在内，
-  而 `EntityManager.instantiate()` 走实体构造器、会派发 NEW 事件，这些行会先进草稿缓存（推断，未跑测试复现）。
-  这与多检出位无关，今天就该改成读实时的系统实体登记。
+- 草稿缓存不收两类实体：系统表（每次判定读活登记），与关闭变更日志的实体——后者保存与删除不派发 CREATE / REMOVE，
+  草稿等不到收尾。这与多检出位无关，由 [US-311](../stories/collaboration/US-311-unlogged-entities-scope.md) 交付，
+  症状与 demo 实测见该故事。
 
 多检出位下（推断）：
 
@@ -255,14 +247,14 @@ gitglossary（git 2.54，`man gitglossary`）对两个词的定义：
 
 ## 分期与解锁条件
 
-| 阶段 | 交付                                                                                                       | 覆盖                     | 解锁条件                                                            | 明确不承诺               |
-| ---- | ---------------------------------------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------- | ------------------------ |
-| 0    | 本分支收尾：不合入 US-309 改名与 US-310                                                                    | —                        | 无                                                                  | —                        |
-| 1    | workspace 系统实体排除改读实时登记；`StorageFileMeta` 登记为第四类 untracked，storage 文档写明文件不随版本 | 前置                     | 无，两处今天就是缺口                                                | 不做检出位；不做内容寻址 |
-| 2    | 只读的对比与合并预览 API（含覆盖标注）                                                                     | 场景二的对比部分         | 阶段 1                                                              | 不提供完整视图           |
-| 3    | 只读检出位：快照库 + 第二实例 + 生命周期与回收 + 三端绑定                                                  | 场景二、场景一的只读部分 | 阶段 2                                                              | 不可写；不实时           |
-| 4    | 写进非 active 线的原语 + 隔离写入方 + 合并前覆盖检测                                                       | 场景三                   | 具名使用方（批量导入或 agent），或 owner 判定「同步即变脏」不可接受 | 不改默认同步语义         |
-| 5    | 可写检出位（影子表或分库）                                                                                 | 场景一                   | 具名需求                                                            | —                        |
+| 阶段 | 交付                                                                                                                                                                                             | 覆盖                     | 解锁条件                                                            | 明确不承诺               |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------ | ------------------------------------------------------------------- | ------------------------ |
+| 0    | 本分支收尾：不合入 US-309 改名与 US-310                                                                                                                                                          | —                        | 无                                                                  | —                        |
+| 1    | 草稿缓存不收系统表与关闭变更日志的实体；版本化域把 `log: false` 的实体归为第四类 untracked；storage 文档写明文件不随版本（[US-311](../stories/collaboration/US-311-unlogged-entities-scope.md)） | 前置                     | 无，今天就是缺口                                                    | 不做检出位；不做内容寻址 |
+| 2    | 只读的对比与合并预览 API（含覆盖标注）                                                                                                                                                           | 场景二的对比部分         | 阶段 1                                                              | 不提供完整视图           |
+| 3    | 只读检出位：快照库 + 第二实例 + 生命周期与回收 + 三端绑定                                                                                                                                        | 场景二、场景一的只读部分 | 阶段 2                                                              | 不可写；不实时           |
+| 4    | 写进非 active 线的原语 + 隔离写入方 + 合并前覆盖检测                                                                                                                                             | 场景三                   | 具名使用方（批量导入或 agent），或 owner 判定「同步即变脏」不可接受 | 不改默认同步语义         |
+| 5    | 可写检出位（影子表或分库）                                                                                                                                                                       | 场景一                   | 具名需求                                                            | —                        |
 
 ## 本分支现存实现的处置
 
@@ -285,7 +277,7 @@ npm 上也没有 `@aiao/rxdb-plugin-worktree`（`npm view` 返回 E404），撤�
 
 ## 目标
 
-- [ ] workspace 的系统实体排除读实时登记；`StorageFileMeta` 登记为第四类 untracked，storage 文档写明文件不随版本（**尚无故事认领**，见[对 storage 与 workspace 插件的影响](#对-storage-与-workspace-插件的影响)）
+- [ ] 草稿缓存与版本化域都按变更日志归类实体，storage 文档写明文件不随版本（[US-311](../stories/collaboration/US-311-unlogged-entities-scope.md)）
 - [ ] 不切换 active 分支就能对比两条分支、预览一次合并会改什么（**尚无故事认领**，场景二）
 - [ ] 不切换 active 分支就能只读查看任一分支或可达提交的完整数据（**尚无故事认领**，场景二）
 - [ ] 后台写入方写进自己的线，经审阅合并回主线，覆盖可见（**尚无故事认领**，场景三，价值待证）
@@ -296,6 +288,7 @@ npm 上也没有 `@aiao/rxdb-plugin-worktree`（`npm view` 返回 E404），撤�
 > 本清单只列范围，**不带状态**。状态见 [status-overview](../status-overview.md)（真相源是各 story 的 YAML `status`）。
 
 - [US-310 命名工作上下文（git worktree 能力）](../stories/collaboration/US-310-named-worktrees.md) (High)：不交付，见[本分支现存实现的处置](#本分支现存实现的处置)
+- [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](../stories/collaboration/US-311-unlogged-entities-scope.md) (High)
 
 ## 非目标
 

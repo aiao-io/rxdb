@@ -780,6 +780,16 @@ class CaptureRuntimeCache extends EntityBase {
   payload!: string;
 }
 
+/** 关闭变更日志的业务实体，形同 storage 插件的 `StorageFileMeta`（第四类 untracked）。 */
+@Entity({
+  name: 'CaptureRuntimeUnlogged',
+  log: false,
+  properties: [{ name: 'path', type: PropertyType.string }]
+})
+class CaptureRuntimeUnlogged extends EntityBase {
+  path!: string;
+}
+
 /**
  * 建域时的物理表名出处，形状与真适配器上的那个成员逐字相同。
  *
@@ -834,6 +844,30 @@ describe('createWorktreeCaptureRuntime —— 按实体登记造域', () => {
     expect(logical.domain.versionedTables.has(physical)).toBe(false);
 
     await expect(folded.gateRawWrite(`UPDATE "${physical}" SET title = 'x'`, () => 'executed')).rejects.toThrow();
+  });
+
+  it('关闭变更日志的业务实体判成 untracked：三条入口口径一致', async () => {
+    // 事务写入口本来就捕获不到它（挂载点 1 只读变更日志增量，它一行都不写）；判成 tracked 的话，
+    // 批量写与 raw 写却按版本化表被拦——同一个实体在一条入口上进版本控制、在另一条上不进。
+    const runtime = createWorktreeCaptureRuntime(
+      logicalOnlyAdapter,
+      entityManager,
+      [CaptureRuntimePost, CaptureRuntimeCache, CaptureRuntimeUnlogged],
+      databaseSync
+    );
+    const table = getEntityMetadata(CaptureRuntimeUnlogged).tableName.toLowerCase();
+    const host = {} as WorkingTreeWriteHost;
+
+    expect(runtime.targetClassOf('CaptureRuntimeUnlogged')).toBe('untracked');
+    expect(runtime.targetClassOf('CaptureRuntimeCache')).toBe('untracked');
+    expect(runtime.targetClassOf('CaptureRuntimePost')).toBe('versioned');
+    expect(runtime.domain.versionedTables.has(table)).toBe(false);
+    expect(runtime.interceptBulkWrite(host, () => EMPTY, 'CaptureRuntimeUnlogged', 'upsert_many')).toBe(EMPTY);
+    await expect(runtime.gateRawWrite(`UPDATE "${table}" SET path = 'x'`, () => 'executed')).resolves.toBe('executed');
+    // 对照组：写变更日志的业务实体照旧被批量写门禁拦下。
+    expect(() => runtime.interceptBulkWrite(host, () => EMPTY, 'CaptureRuntimePost', 'upsert_many')).toThrow(
+      WorktreeWriteRejectedError
+    );
   });
 
   it('解析不出生效的同步配置时抛，不按「不是 QueryCache」继续', () => {

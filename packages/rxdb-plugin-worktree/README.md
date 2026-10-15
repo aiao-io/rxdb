@@ -28,6 +28,8 @@ RxDB 本地工作树与提交历史插件：把「未提交的改动」与「提
 
 另外一条常被漏掉的：**远端同步拉下来的变更和用户的编辑一样进工作树**，在 `status().byOrigin` 里计为 `origin = 'remote_sync'`、**不豁免**，会让 `clean` 变成 `false`，并被下一次 `commit()` 一并提交（提交者是这次 `commit()` 的 `authorId`，v1 不伪造远端作者）。「同步之后工作树突然脏了」是正常行为。
 
+不进版本控制的只有四类：`SyncType.QueryCache` 的实体、实体行上的 `remoteId` 与审计时间、插件登记的派生索引列、关闭变更日志（`@Entity({ log: false })`）的实体（如 storage 插件的文件元数据）。它们的变化不进 `status()` / `diff()` / `commit()`，`restore()` 也不会带回。
+
 ## 能力边界：绕过 adapter 的写入拦不住
 
 写捕获只覆盖**经 adapter 的写路径与 adapter 公开的批量写方法**。直接打开同一个 SQLite 文件、另起一个 PGlite 实例、DevTools 里手写 SQL——这些**拦不住，v1 也不承诺拦得住**，而且它们不进工作树、不进历史、`status()` 看不见。

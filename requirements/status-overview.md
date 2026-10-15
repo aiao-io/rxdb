@@ -10,10 +10,10 @@
 | :------------- | :--- |
 | ✅ Done        | 75   |
 | 🚧 In Progress | 2    |
-| 👀 In Review   | 3    |
+| 👀 In Review   | 4    |
 | 📝 Backlog     | 22   |
 | 🚫 Blocked     | 0    |
-| **合计**       | 102  |
+| **合计**       | 103  |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
@@ -32,13 +32,14 @@
 | [US-211 多端小程序宿主](stories/adapter/US-211-multi-miniprogram-platforms.md)             | 阶段 A 已交付；阶段 B 已登记抖音（v9 实验在开发者工具与 iOS 全 pass），Taro tt demo 已在开发者工具走查通过、iOS 真机走查通过，剩 Android 真机；阶段 C 支付宝 2026-10-04 凭探针 v7（开发者工具 + iOS 真机）与 Android 书面豁免改判 `supported`（实验性，依赖未文档化能力），已登记 `alipay`，Taro 支付宝 demo 已接入并在开发者工具模拟器走查通过、未上真机（iOS 真机调试待复测），adapter 剩 Android 真机；百度 / QQ 已判 `unsupported`，按未知平台拒绝；阶段 B+C 经 [#87](https://github.com/aiao-io/rxdb/pull/87) 合入；剩 Android 真机补验、支付宝 demo 真机走查与 AC#18 文档口径确认 |
 | [US-602 发布产物面向 AI 的可理解性](stories/tooling/US-602-ai-comprehensible-artifacts.md) | A1 已完成：入口 TSDoc、语义事实源与漂移门禁（投递范围读事实源登记的发布 tag）、离线样例与 CI 接线；A2 经 [#113](https://github.com/aiao-io/rxdb/pull/113) 合入：`@aiao/*` peer 统一为 `workspace:^`，真实打包与隔离消费验证通过（AC#4/#7/#8），`BREAKING CHANGE` 随其后的迁移发布声明；C 主包 Skill 已交付（锁定 skills-npm@4.0.0，探针与 AC#11/#17 通过）；B 本地构建已完成，剩部署后线上 smoke                                                                                                                                                                                        |
 
-## 待评审（3 条）
+## 待评审（4 条）
 
-| Story                                                                                         | 进展                                                                                                                                                                                                                                                                                                                                                         |
-| --------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md) | 阶段 A～C 代码完成（[#114](https://github.com/aiao-io/rxdb/pull/114)）：CHECK、条件唯一索引 `where`、区间排他（PG `EXCLUDE USING gist` / SQLite 触发器）双后端同一错误类；SQLite 宿主门槛 ≥ 3.47.0；已有表约束漂移在 `init()` fail-fast；区间排他实体的重放与批量写入按删除 → 更新 → 插入执行（AC#14）。阶段 D 仍价值待证                                    |
-| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)    | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持 |
-| [US-310 命名工作上下文（git worktree 能力）](stories/collaboration/US-310-named-worktrees.md) | 代码完成：核心 `rxdb_worktree` + 迁移 `0005-worktrees` + `WorktreeManager` 四成员、三端 `useWorktree()` 对称扩展、三端 demo worktree 菜单；单测 / 6 后端 conformance / 三端 e2e 与 a11y / `pnpm test-all` 全绿；剩代码评审与提交，speckit 配套文档（spec / data-model / contracts）按任务单 §6.3 后补                                                        |
+| Story                                                                                                                  | 进展                                                                                                                                                                                                                                                                                                                                                         |
+| ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)                          | 阶段 A～C 代码完成（[#114](https://github.com/aiao-io/rxdb/pull/114)）：CHECK、条件唯一索引 `where`、区间排他（PG `EXCLUDE USING gist` / SQLite 触发器）双后端同一错误类；SQLite 宿主门槛 ≥ 3.47.0；已有表约束漂移在 `init()` fail-fast；区间排他实体的重放与批量写入按删除 → 更新 → 插入执行（AC#14）。阶段 D 仍价值待证                                    |
+| [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)                             | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持 |
+| [US-310 命名工作上下文（git worktree 能力）](stories/collaboration/US-310-named-worktrees.md)                          | 代码完成：核心 `rxdb_worktree` + 迁移 `0005-worktrees` + `WorktreeManager` 四成员、三端 `useWorktree()` 对称扩展、三端 demo worktree 菜单；单测 / 6 后端 conformance / 三端 e2e 与 a11y / `pnpm test-all` 全绿；剩代码评审与提交，speckit 配套文档（spec / data-model / contracts）按任务单 §6.3 后补                                                        |
+| [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](stories/collaboration/US-311-unlogged-entities-scope.md) | 代码完成：草稿缓存不收系统表（每次读活登记）与关闭变更日志的实体，启动时清掉存量；版本化域把 `log: false` 的实体归为第四类 untracked，写入口目标类别 `query_cache` 改名 `untracked`；单测、浏览器集成用例与 Angular e2e 全绿；剩代码评审与提交                                                                                                               |
 
 ## 阻塞（0 条）
 
@@ -208,9 +209,10 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 - ⬜ [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md) — 四阶段；路线一律落在本仓；US-520 与 US-514 加工费的那一端，是二者的硬前置
 - ⬜ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 四阶段；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；一份滑板车数据集贯穿全域 + 七步算式面板
 
-### [命名工作上下文](epics/epic-010-worktree-contexts.md)
+### [多检出位（git worktree 能力）](epics/epic-010-worktree-contexts.md)
 
 - 👀 [US-310 命名工作上下文（git worktree 能力）](stories/collaboration/US-310-named-worktrees.md) — 新系统表 `rxdb_worktree`（第 11 张）+ 迁移 `0005-worktrees`；`WorktreeManager` 新增 list / create / switch / remove，1:1 钉分支、单 checkout、创建即切换；三端 `useWorktree()` 对称扩展与 demo worktree 菜单
+- 👀 [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](stories/collaboration/US-311-unlogged-entities-scope.md) — 草稿缓存不收系统表与关闭变更日志的实体；版本化域第四类 untracked 的判据是 `log: false`；storage 文档写明文件不随版本
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

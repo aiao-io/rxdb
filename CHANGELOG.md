@@ -8,6 +8,10 @@
 
 - **rxdb-plugin-worktree:** 命名 worktree（`git worktree` 能力，US-310）：`listWorktrees()` / `createWorktree()` / `switchWorktree()` / `removeWorktree()` 把分支钉成命名工作上下文，1:1、单 checkout、创建即切换；worktree 之间切换不要求工作树干净（未提交改动按分支隔离保留），移除拒绝当前所在或有未提交改动的 worktree。新增系统表 `rxdb_worktree` 与插件迁移 `0005-worktrees`（既有库为当前 active 分支补一行主 worktree；零 active 的老库照常打开，首次启用能力时补钉主 worktree），能力水位不变。worktree 行的增删报到实体事件总线上。三端 `useWorktree()` 对称新增 4 格状态与 4 个命令，`listWorktreesState` 读过一次之后实时跟随 worktree 行、active 分支与能力启用（含别的标签页），组件销毁时停止；命令层另导出 `disposeWorktreeCommands()`。三端 demo 工具栏新增 worktree 菜单。→ [rxdb-plugin-worktree](https://rxdb.aiao.io/docs/plugins/rxdb-plugin-worktree)
 
+### 🩹 Fixes
+
+- **rxdb-plugin-workspace:** 草稿缓存不再收系统表与关闭变更日志（`log: false`）实体的草稿。此前系统表名单只认核心四张表，插件登记的系统表（如工作树插件的提交表）与 storage 插件的 `StorageFileMeta` 每次构造都留下一条永远清不掉的草稿：它们出现在 `list()` / `cacheCount` 里、广播给其他标签页、每次启动被恢复。`install()` 会删掉 IndexedDB 里已有的这类草稿（US-311）
+
 ## 0.0.26 (2026-10-01)
 
 桥接版本（bridge）：发布点为 `de70a1a9`（US-025 核心插件外移完成）。`RXDB_SYSTEM_SCHEMA_VERSION` 与 `RXDB_CHANGE_CODEC_VERSION` 均未提升，已有本地数据库无需迁移即可打开。

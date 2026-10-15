@@ -103,6 +103,17 @@ v1 **没有 detached HEAD、没有 `checkout()`、没有只读历史浏览**：`
 
 如果界面上有「有未提交改动」的提示，记得它会被后台同步点亮。
 
+### 另外：不进版本控制的数据
+
+默认每个业务实体都进版本控制。例外只有四类，它们的变化不进 `status()` / `diff()` / `commit()`，`restore()` 也不会带回：
+
+- `SyncType.QueryCache` 的实体：可从远端重建的缓存；
+- 实体行上的 `remoteId` 与审计时间（`createdAt` / `updatedAt`）：同步与簿记字段，不表达用户意图；
+- 插件在业务表上登记的派生索引列；
+- 关闭变更日志（`@Entity({ log: false })`）的实体，如 storage 插件的文件元数据：它们不写变更日志，分支、历史与撤销本来就看不见它们。
+
+关闭变更日志的实体可以与版本化实体在同一个事务里写；QueryCache 实体与其余实体混在一个事务里会被拒绝（`mixed_versioned_cache_transaction`）。
+
 ## 能力边界：绕过 adapter 的写入拦不住
 
 写捕获只覆盖**经 adapter 的写路径与 adapter 公开的批量写方法**。下面这些**拦不住，v1 也不承诺拦得住**：
