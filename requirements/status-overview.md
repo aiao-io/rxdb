@@ -38,7 +38,7 @@
 | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | [US-030 实体元数据层的声明式存储约束](stories/core/US-030-declarative-storage-constraints.md)                          | 阶段 A～C 代码完成（[#114](https://github.com/aiao-io/rxdb/pull/114)）：CHECK、条件唯一索引 `where`、区间排他（PG `EXCLUDE USING gist` / SQLite 触发器）双后端同一错误类；SQLite 宿主门槛 ≥ 3.47.0；已有表约束漂移在 `init()` fail-fast；区间排他实体的重放与批量写入按删除 → 更新 → 插入执行（AC#14）。阶段 D 仍价值待证                                    |
 | [US-219 Taro 插件一行接入小程序 adapter 的构建配置](stories/adapter/US-219-taro-plugin.md)                             | 阶段 A、B 代码完成：`@aiao/rxdb-taro` Taro 插件 + `./vite` + `./runtime`，demo 改用（三平台产物与改前逐字节一致）；npm 安装路径（React / Vue 官方模板，只加一行插件）构建通过、微信开发者工具建库读写重开通过；阶段 A+B 经 [#100](https://github.com/aiao-io/rxdb/pull/100)（`592e0706`，2026-10-08）合入；剩抖音、支付宝开发者工具手工走查；webpack5 不支持 |
-| [US-310 命名工作上下文（git worktree 能力）](stories/collaboration/US-310-named-worktrees.md)                          | 代码完成：核心 `rxdb_worktree` + 迁移 `0005-worktrees` + `WorktreeManager` 四成员、三端 `useWorktree()` 对称扩展、三端 demo worktree 菜单；单测 / 6 后端 conformance / 三端 e2e 与 a11y / `pnpm test-all` 全绿；剩代码评审与提交，speckit 配套文档（spec / data-model / contracts）按任务单 §6.3 后补                                                        |
+| [US-310 命名工作上下文（git worktree 能力）](stories/collaboration/US-310-named-worktrees.md)                          | 代码在本分支、AC 全 ✅，但**不交付**：钉在分支上的命名 worktree 不服务多检出位的任何一类场景、且与检出位语义冲突，本分支收尾时连同 US-309 改名一起撤回、删除故事文件，见 [epic-006 本分支现存实现的处置](epics/epic-006-working-tree-commits.md#本分支现存实现的处置)                                                                                        |
 | [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](stories/collaboration/US-311-unlogged-entities-scope.md) | 代码完成：草稿缓存不收系统表（每次读活登记）与关闭变更日志的实体，启动时清掉存量；版本化域把 `log: false` 的实体归为第四类 untracked，写入口目标类别 `query_cache` 改名 `untracked`；单测、浏览器集成用例与 Angular e2e 全绿；剩代码评审与提交                                                                                                               |
 
 ## 阻塞（0 条）
@@ -159,6 +159,10 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
   - ✅ 阶段 C 三框架工作树交互面与性能门禁 — T086～T097；三端 `useWorkingTree()`、三个 demo 面板、a11y E2E 与 `bench-working-tree` 门禁
 - ✅ [US-307 历史恢复会话](stories/collaboration/US-307-restore-session.md) — T098～T110 全部关闭；`restore` 测点在 CI 画像上过相对门禁
 - ✅ [US-308 分支隔离与跨 realm 冲突检测](stories/collaboration/US-308-branch-isolation-conflict.md) — T111～T123 全部关闭；原落在本故事的 3 条 P1（FR-020 的 activation revision 未推进与切换 TOCTOU、FR-044 的物化未接公开入口）已全部落地
+- 👀 [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](stories/collaboration/US-311-unlogged-entities-scope.md) — 草稿缓存不收系统表与关闭变更日志的实体；版本化域第四类 untracked 的判据是 `log: false`；storage 文档写明文件不随版本；是多检出位阶段 1
+- 👀 [US-310 命名工作上下文（git worktree 能力）](stories/collaboration/US-310-named-worktrees.md) — 不交付，本分支收尾时删除（见[本分支现存实现的处置](epics/epic-006-working-tree-commits.md#本分支现存实现的处置)）
+
+多检出位（v1 之后）阶段 2～5 尚无故事认领，解锁条件见 [epic-006 分期与解锁条件](epics/epic-006-working-tree-commits.md#分期与解锁条件)；阶段 0（本分支收尾）未执行。
 
 ### [公开 API 门禁](epics/epic-007-public-api-gates.md)
 
@@ -208,11 +212,6 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 - ⬜ [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md) — 实例结构（`parent_instance_id`）与主数据可达性分离；源发生项删除受限
 - ⬜ [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md) — 四阶段；路线一律落在本仓；US-520 与 US-514 加工费的那一端，是二者的硬前置
 - ⬜ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 四阶段；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；一份滑板车数据集贯穿全域 + 七步算式面板
-
-### [多检出位（git worktree 能力）](epics/epic-010-worktree-contexts.md)
-
-- 👀 [US-310 命名工作上下文（git worktree 能力）](stories/collaboration/US-310-named-worktrees.md) — 新系统表 `rxdb_worktree`（第 11 张）+ 迁移 `0005-worktrees`；`WorktreeManager` 新增 list / create / switch / remove，1:1 钉分支、单 checkout、创建即切换；三端 `useWorktree()` 对称扩展与 demo worktree 菜单
-- 👀 [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](stories/collaboration/US-311-unlogged-entities-scope.md) — 草稿缓存不收系统表与关闭变更日志的实体；版本化域第四类 untracked 的判据是 `log: false`；storage 文档写明文件不随版本
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

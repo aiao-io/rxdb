@@ -3,7 +3,7 @@ id: US-311
 title: 不写变更日志的实体与插件系统表退出草稿缓存与版本化域
 status: In Review
 priority: High
-epic: epic-010-worktree-contexts
+epic: epic-006-working-tree-commits
 created: 2026-10-15
 updated: 2026-10-15
 tags: [collaboration, workspace, storage, worktree, version-control]
@@ -78,7 +78,7 @@ demo 的草稿页只显示 `entity === 'Todo'` 的条目（`workspace.page.ts` �
 ### Out of Scope
 
 - 让 `log: false` 的写派发 CREATE / UPDATE / REMOVE 事件：各适配器的实体事件都只从变更日志派生，storage 自带 `watch()`
-- storage 文件转内容寻址：触发条件见 [epic-010](../../epics/epic-010-worktree-contexts.md#rxdb-plugin-storage文件不进版本控制)
+- storage 文件转内容寻址：触发条件见 [epic-006 多检出位](../../epics/epic-006-working-tree-commits.md#rxdb-plugin-storage文件不进版本控制)
 - 多检出位的任何阶段
 
 ## 验收标准
@@ -129,5 +129,5 @@ demo 的草稿页只显示 `entity === 'Todo'` 的条目（`workspace.page.ts` �
 
 ## References
 
-- [epic-010 对 storage 与 workspace 插件的影响](../../epics/epic-010-worktree-contexts.md#对-storage-与-workspace-插件的影响)
+- [epic-006 多检出位对 storage 与 workspace 插件的影响](../../epics/epic-006-working-tree-commits.md#对-storage-与-workspace-插件的影响)
 - [epic-006 版本化域](../../epics/epic-006-working-tree-commits.md#版本化域tracked--untracked)

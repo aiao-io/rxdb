@@ -3,15 +3,15 @@ id: US-310
 title: 命名工作上下文（git worktree 能力）
 status: In Review
 priority: High
-epic: epic-010-worktree-contexts
+epic: epic-006-working-tree-commits
 created: 2026-10-13
-updated: 2026-10-13
+updated: 2026-10-15
 tags: [collaboration, worktree, version-control, tri-framework]
 ---
 
 <!--
 INVEST 检查清单:
-- [x] Independent (独立): 只依赖已 Done 的 epic-006 与 US-309 改名
+- [x] Independent (独立): 只依赖 epic-006 v1（US-305～US-308）与 US-309 改名
 - [x] Negotiable (可协商): 语义（单 checkout、1:1 钉分支、自由切换）已与 owner 确认
 - [x] Valuable (有价值): demo 的 worktree 页面没有「创建 worktree」入口，并行工作线只能靠先提交再切分支
 - [x] Estimable (可估算): 一张表 + 一条迁移 + 4 个命令 + 三端绑定与 demo
@@ -41,7 +41,7 @@ INVEST 检查清单:
 
 ### Out of Scope
 
-- 同一时刻多个 checkout（按 worktree 分表 / 分库），见 [epic-010 非目标](../../epics/epic-010-worktree-contexts.md#非目标)
+- 同一时刻多个 checkout（按 worktree 分表 / 分库），见 [epic-006 非目标](../../epics/epic-006-working-tree-commits.md#非目标)
 - 改 label、`move` / `lock` / `prune`
 - 捕获、提交、物化与同步：worktree 的未提交改动就是所钉分支的 `WorkingTreeState`，三个捕获位仍锚定 active 分支
 - 能力水位：`WORKING_TREE_CAPABILITY = 'workingTree'` 与 `WORKTREE_CAPABILITY_VERSION = 1` 不动
