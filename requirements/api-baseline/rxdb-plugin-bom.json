@@ -18,6 +18,10 @@
         "kind": "value"
       },
       {
+        "name": "BOM_EFFECTIVITY_OVERLAP_PREFIX",
+        "kind": "value"
+      },
+      {
         "name": "BOM_ENTITIES",
         "kind": "value"
       },
@@ -62,6 +66,14 @@
         "kind": "both"
       },
       {
+        "name": "BomConfigError",
+        "kind": "both"
+      },
+      {
+        "name": "BomConfigSyntaxError",
+        "kind": "both"
+      },
+      {
         "name": "BomCostError",
         "kind": "both"
       },
@@ -82,11 +94,27 @@
         "kind": "both"
       },
       {
+        "name": "BomExportPayload",
+        "kind": "type"
+      },
+      {
+        "name": "BomExportRejectedError",
+        "kind": "both"
+      },
+      {
+        "name": "BomExtAttrError",
+        "kind": "both"
+      },
+      {
         "name": "BomHeader",
         "kind": "both"
       },
       {
         "name": "BomHistoryBatch",
+        "kind": "both"
+      },
+      {
+        "name": "BomImportContractError",
         "kind": "both"
       },
       {
@@ -174,8 +202,36 @@
         "kind": "both"
       },
       {
+        "name": "buildExtFilterSql",
+        "kind": "value"
+      },
+      {
+        "name": "buildUnitLotOverlapGuardPg",
+        "kind": "value"
+      },
+      {
+        "name": "buildUnitLotOverlapGuardSqlite",
+        "kind": "value"
+      },
+      {
         "name": "ceilToDecimalPlaces",
         "kind": "value"
+      },
+      {
+        "name": "checkConfigCompleteness",
+        "kind": "value"
+      },
+      {
+        "name": "checkConfigConflicts",
+        "kind": "value"
+      },
+      {
+        "name": "CONDITION_GRAMMAR_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "ConditionAst",
+        "kind": "type"
       },
       {
         "name": "confirmMapping",
@@ -222,6 +278,10 @@
         "kind": "value"
       },
       {
+        "name": "DECIMAL_FIELDS",
+        "kind": "value"
+      },
+      {
         "name": "DECIMAL_MAX_SIGNIFICANT_DIGITS",
         "kind": "value"
       },
@@ -262,6 +322,10 @@
         "kind": "value"
       },
       {
+        "name": "describeCandidates",
+        "kind": "value"
+      },
+      {
         "name": "ecnDiff",
         "kind": "value"
       },
@@ -282,8 +346,24 @@
         "kind": "type"
       },
       {
+        "name": "EffectiveDomain",
+        "kind": "type"
+      },
+      {
+        "name": "effectiveDomainsOverlap",
+        "kind": "value"
+      },
+      {
+        "name": "evaluateCondition",
+        "kind": "value"
+      },
+      {
         "name": "evaluateFormula",
         "kind": "value"
+      },
+      {
+        "name": "ExistingBomKeySets",
+        "kind": "type"
       },
       {
         "name": "expandBom",
@@ -334,6 +414,46 @@
         "kind": "type"
       },
       {
+        "name": "EXPORT_CONTRACT_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "EXPORT_TABLE_COLUMNS",
+        "kind": "value"
+      },
+      {
+        "name": "ExportRowBatch",
+        "kind": "type"
+      },
+      {
+        "name": "ExportSerializeMeta",
+        "kind": "type"
+      },
+      {
+        "name": "ExportTable",
+        "kind": "type"
+      },
+      {
+        "name": "ExtAttrDefShape",
+        "kind": "type"
+      },
+      {
+        "name": "ExtFilter",
+        "kind": "type"
+      },
+      {
+        "name": "ExtFilterDialect",
+        "kind": "type"
+      },
+      {
+        "name": "ExtFilterOp",
+        "kind": "type"
+      },
+      {
+        "name": "ExtWriteMode",
+        "kind": "type"
+      },
+      {
         "name": "FORMULA_GRAMMAR_VERSION",
         "kind": "value"
       },
@@ -354,7 +474,39 @@
         "kind": "type"
       },
       {
+        "name": "IMPORT_KINDS",
+        "kind": "value"
+      },
+      {
+        "name": "ImportDiagnostic",
+        "kind": "type"
+      },
+      {
+        "name": "ImportKind",
+        "kind": "type"
+      },
+      {
+        "name": "ImportRecord",
+        "kind": "type"
+      },
+      {
+        "name": "ImportValidationResult",
+        "kind": "type"
+      },
+      {
+        "name": "isDecimalString",
+        "kind": "value"
+      },
+      {
         "name": "loadHistory",
+        "kind": "value"
+      },
+      {
+        "name": "lotMatches",
+        "kind": "value"
+      },
+      {
+        "name": "lotSetsOverlap",
         "kind": "value"
       },
       {
@@ -390,6 +542,10 @@
         "kind": "type"
       },
       {
+        "name": "naturalKeyFor",
+        "kind": "value"
+      },
+      {
         "name": "normalizeBomError",
         "kind": "value"
       },
@@ -398,8 +554,28 @@
         "kind": "value"
       },
       {
+        "name": "normalizeExtValue",
+        "kind": "value"
+      },
+      {
         "name": "OutputLine",
         "kind": "type"
+      },
+      {
+        "name": "parseCondition",
+        "kind": "value"
+      },
+      {
+        "name": "parseImportPayload",
+        "kind": "value"
+      },
+      {
+        "name": "parseLotCodes",
+        "kind": "value"
+      },
+      {
+        "name": "parseNaturalKey",
+        "kind": "value"
       },
       {
         "name": "PenetrationRecord",
@@ -412,6 +588,10 @@
       {
         "name": "PlannedQuantity",
         "kind": "type"
+      },
+      {
+        "name": "positionText",
+        "kind": "value"
       },
       {
         "name": "RequirementLine",
@@ -462,6 +642,14 @@
         "kind": "value"
       },
       {
+        "name": "selectCandidatesByUnit",
+        "kind": "value"
+      },
+      {
+        "name": "serializeExportRows",
+        "kind": "value"
+      },
+      {
         "name": "sqliteBomDialect",
         "kind": "value"
       },
@@ -470,12 +658,40 @@
         "kind": "type"
       },
       {
+        "name": "unitFromGtUnitToCheck",
+        "kind": "value"
+      },
+      {
+        "name": "unitIntervalMatches",
+        "kind": "value"
+      },
+      {
+        "name": "unitIntervalOverlaps",
+        "kind": "value"
+      },
+      {
         "name": "UnresolvedAlternative",
         "kind": "type"
       },
       {
         "name": "UomConversionRates",
         "kind": "type"
+      },
+      {
+        "name": "validateConditionReferences",
+        "kind": "value"
+      },
+      {
+        "name": "validateExportReady",
+        "kind": "value"
+      },
+      {
+        "name": "validateExtWrite",
+        "kind": "value"
+      },
+      {
+        "name": "validateImportRecords",
+        "kind": "value"
       },
       {
         "name": "whereUsed",
