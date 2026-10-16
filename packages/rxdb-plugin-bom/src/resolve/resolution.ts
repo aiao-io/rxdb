@@ -22,6 +22,12 @@ export interface ResolutionContext {
   bomType: BomType;
   orgId: string;
   asOfDate: Date;
+  /** 配置选择（US-517）：特征 code → 选中值集合；未给的特征按「未选择」求值。 */
+  configSelection?: Record<string, string[]>;
+  /** 序列号（US-518）：整数；未给且行有按序列区分的多候选时标 `unresolved`。 */
+  unit?: number;
+  /** 批次（US-518）：精确匹配；未给 = 全部批次。 */
+  lot?: string;
   /** 备选方案选择；未给且存在多个备选时结果标 `unresolved` 并列候选（AC#11）。 */
   alternativeNo?: number;
   /**

@@ -35,11 +35,14 @@ import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';
     { name: 'priceUom', type: PropertyType.string, nullable: true },
     { name: 'priceCurrency', type: PropertyType.string, nullable: true },
     // 副产品抵减价（US-514 AC#5/#17）：by_product 产出量 × credit_price
-    { name: 'creditPrice', type: PropertyType.string, nullable: true }
+    { name: 'creditPrice', type: PropertyType.string, nullable: true },
+    // 扩展属性（US-519）：JSON 文本，写入期按 attr_def 校验
+    { name: 'ext', type: PropertyType.string, nullable: true }
   ]
 })
 export class BomItem extends EntityBase {
   itemNo!: string;
+  ext!: string | null;
   description!: string | null;
   serialized!: boolean;
   stockUom!: string;
@@ -136,7 +139,9 @@ export class BomItemRevision extends EntityBase {
     { name: 'assemblyScrap', type: PropertyType.string, default: '0' },
     { name: 'assemblyScrapConvention', type: PropertyType.enum, enum: ['additive', 'yield'], default: 'additive' },
     // 标准成本批量（US-514）：以头的 base_uom 计；卷算必填，缺失即拒绝
-    { name: 'costLotQty', type: PropertyType.string, nullable: true }
+    { name: 'costLotQty', type: PropertyType.string, nullable: true },
+    // 扩展属性（US-519）：JSON 文本，写入期按 attr_def 校验
+    { name: 'ext', type: PropertyType.string, nullable: true }
   ],
   relations: [
     {
@@ -170,6 +175,7 @@ export class BomItemRevision extends EntityBase {
 })
 export class BomHeader extends EntityBase {
   bomType!: 'ebom' | 'mbom' | 'sales';
+  ext!: string | null;
   orgId!: string;
   alternativeNo!: number;
   state!: 'draft' | 'released';
@@ -338,7 +344,15 @@ export class BomLine extends EntityBase {
     { name: 'usageProbability', type: PropertyType.string, nullable: true },
     { name: 'equivQty', type: PropertyType.string, nullable: true },
     // 投料工序（US-520）：行归属工序；分摊经 bom_line_operation_split 子表
-    { name: 'operationSeq', type: PropertyType.integer, nullable: true }
+    { name: 'operationSeq', type: PropertyType.integer, nullable: true },
+    // 序列 / 批次有效性（US-518）：三维有效域 = 日期 × 序列 × 批次
+    { name: 'unitFrom', type: PropertyType.integer, nullable: true },
+    { name: 'unitTo', type: PropertyType.integer, nullable: true },
+    { name: 'lotCodes', type: PropertyType.string, nullable: true },
+    // 配置选择条件（US-517）：行挂选择条件，NULL = 恒真
+    { name: 'selectionConditionId', type: PropertyType.string, nullable: true },
+    // 扩展属性（US-519）：JSON 文本，写入期按 attr_def 校验
+    { name: 'ext', type: PropertyType.string, nullable: true }
   ],
   checks: [
     // US-511 AC#7：qty 与 qty_formula 恰好一项非空
@@ -470,6 +484,11 @@ export class BomLineOccurrence extends EntityBase {
   usageProbability!: string | null;
   equivQty!: string | null;
   operationSeq!: number | null;
+  unitFrom!: number | null;
+  unitTo!: number | null;
+  lotCodes!: string | null;
+  selectionConditionId!: string | null;
+  ext!: string | null;
 }
 
 /**
@@ -868,9 +887,130 @@ export class BomMap extends EntityBase {
   targetLineId!: string | null;
 }
 
+/**
+ * 配置特征（`bom$config_char`，US-517）：`(orgId, code)` 唯一；`required` 特征未赋值时
+ * 配置不完整（AC#3）。
+ */
+@Entity({
+  name: 'BomConfigChar',
+  namespace: 'bom',
+  tableName: 'config_char',
+  repository: 'BomRepository',
+  properties: [
+    { name: 'orgId', type: PropertyType.string },
+    { name: 'code', type: PropertyType.string },
+    { name: 'required', type: PropertyType.boolean, default: false }
+  ],
+  indexes: [{ name: 'config_char_org_code', properties: ['orgId', 'code'], unique: true }]
+})
+export class BomConfigChar extends EntityBase {
+  orgId!: string;
+  code!: string;
+  required!: boolean;
+}
+
+/**
+ * 配置选项值（`bom$config_char_value`，US-517）：`(charId, value)` 唯一。
+ */
+@Entity({
+  name: 'BomConfigCharValue',
+  namespace: 'bom',
+  tableName: 'config_char_value',
+  repository: 'BomRepository',
+  properties: [
+    { name: 'charId', type: PropertyType.string },
+    { name: 'value', type: PropertyType.string }
+  ],
+  indexes: [{ name: 'config_char_value_char_value', properties: ['charId', 'value'], unique: true }]
+})
+export class BomConfigCharValue extends EntityBase {
+  charId!: string;
+  value!: string;
+}
+
+/**
+ * 选择条件（`bom$config_condition`，US-517）：最小语法表达式文本 + 语法版本。
+ * 保存期解析校验（未知特征/值/语法错误点名）；持久化版本号（升级不改旧条件含义）。
+ */
+@Entity({
+  name: 'BomConfigCondition',
+  namespace: 'bom',
+  tableName: 'config_condition',
+  repository: 'BomRepository',
+  properties: [
+    { name: 'orgId', type: PropertyType.string },
+    { name: 'expression', type: PropertyType.string },
+    { name: 'grammarVersion', type: PropertyType.string }
+  ]
+})
+export class BomConfigCondition extends EntityBase {
+  orgId!: string;
+  expression!: string;
+  grammarVersion!: string;
+}
+
+/**
+ * 依赖约束（`bom$config_constraint`，US-517）：`exclude` 互斥 / `require` 蕴含；
+ * 两侧各是一条选择条件；`(orgId, code)` 唯一；求值冲突点名约束与两侧条件（AC#2）。
+ */
+@Entity({
+  name: 'BomConfigConstraint',
+  namespace: 'bom',
+  tableName: 'config_constraint',
+  repository: 'BomRepository',
+  properties: [
+    { name: 'orgId', type: PropertyType.string },
+    { name: 'code', type: PropertyType.string },
+    { name: 'kind', type: PropertyType.string },
+    { name: 'leftConditionId', type: PropertyType.string },
+    { name: 'rightConditionId', type: PropertyType.string }
+  ],
+  indexes: [{ name: 'config_constraint_org_code', properties: ['orgId', 'code'], unique: true }]
+})
+export class BomConfigConstraint extends EntityBase {
+  orgId!: string;
+  code!: string;
+  kind!: 'exclude' | 'require';
+  leftConditionId!: string;
+  rightConditionId!: string;
+}
+
+/**
+ * 扩展属性声明（`bom$attr_def`，US-519）：`(code, appliesTo)` 唯一（同一 code 可跨作用域，
+ * AC#6）；写入期按声明校验（枚举/必填/作用域）；过滤查询按 `data_type` 比较。
+ */
+@Entity({
+  name: 'BomAttrDef',
+  namespace: 'bom',
+  tableName: 'attr_def',
+  repository: 'BomRepository',
+  properties: [
+    { name: 'code', type: PropertyType.string },
+    { name: 'dataType', type: PropertyType.string },
+    { name: 'required', type: PropertyType.boolean, default: false },
+    { name: 'enumValues', type: PropertyType.string, nullable: true },
+    { name: 'appliesTo', type: PropertyType.string },
+    { name: 'unit', type: PropertyType.string, nullable: true }
+  ],
+  indexes: [{ name: 'attr_def_code_applies_to', properties: ['code', 'appliesTo'], unique: true }]
+})
+export class BomAttrDef extends EntityBase {
+  code!: string;
+  dataType!: 'string' | 'number' | 'boolean' | 'date';
+  required!: boolean;
+  enumValues!: string | null;
+  appliesTo!: 'item' | 'bom_header' | 'bom_line_occurrence';
+  unit!: string | null;
+}
+
 /** BOM 实体全集（触发器安装按此清单在 schema 里找实体）。 */
 export const BOM_ENTITIES = [
   BomItem,
+  BomAttrDef,
+  BomConfigChar,
+  BomConfigCharValue,
+  BomConfigCondition,
+  BomConfigConstraint,
   BomItemRevision,
   BomHeader,
   BomHistoryBatch,
