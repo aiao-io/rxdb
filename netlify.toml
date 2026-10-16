@@ -14,6 +14,11 @@ NODE_VERSION = "26"
 # Netlify 上自由漂移（nx@23.3.0 的 ngcli-adapter 因此解析不到 @angular-devkit/architect，
 # Angular 演示构建直接崩），锁定后依赖图与锁文件提交物一致。
 PNPM_FLAGS = "--frozen-lockfile"
+# pnpm 在 NODE_ENV=production 时跳过 devDependencies，而 website 构建链上的
+# @angular-devkit/architect 只经根 devDependencies（@angular/build / @angular/cli /
+# angular-eslint）进入依赖图——这正是 Netlify 上该模块缺失的原因。显式声明开发环境，
+# 让 Netlify 安装与 GitHub CI、本机完全一致。
+NODE_ENV = "development"
 # 使用 HTTPS 协议克隆 Git 依赖
 GIT_SSH_COMMAND = "true"
 # 禁用 Nx Cloud（免费额度用完时构建会失败）
