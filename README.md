@@ -69,15 +69,18 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 
 ## 5 分钟跑通
 
-```bash
-pnpm add @aiao/rxdb @aiao/rxdb-adapter-pglite @electric-sql/pglite   # 浏览器内 PostgreSQL；SQLite 见文档
-pnpm add @aiao/rxdb-react                                            # 或 @aiao/rxdb-angular / @aiao/rxdb-vue
-```
+不用装环境，直接在浏览器里打开一个可编辑的最小 Todo（wa-sqlite · 装饰器实体 · 响应式查询 · OPFS / IndexedDB 持久化）：
+
+- [React](https://stackblitz.com/~/github/aiao-io/rxdb-examples/tree/todo-react)
+- [Vue](https://stackblitz.com/~/github/aiao-io/rxdb-examples/tree/todo-vue)
+- [Angular](https://stackblitz.com/~/github/aiao-io/rxdb-examples/tree/todo-angular)
+
+核心代码就这几行——同一份声明同时生成表、类型与 Repository：
 
 ```ts
 import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
-import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
-import { PGlite } from '@electric-sql/pglite';
+import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
+import waSqliteAsync from 'wa-sqlite/dist/wa-sqlite-async.wasm?url';
 
 @Entity({
   name: 'Todo',
@@ -86,33 +89,22 @@ import { PGlite } from '@electric-sql/pglite';
     { name: 'completed', type: PropertyType.boolean, default: false }
   ]
 })
-export class Todo extends EntityBase {}
+class Todo extends EntityBase {
+  title!: string;
+  completed!: boolean;
+}
 
 const rxdb = new RxDB({
   dbName: 'demo',
   entities: [Todo],
-  sync: { local: { adapter: 'pglite' }, type: SyncType.None }
+  sync: { local: { adapter: 'wa-sqlite' }, type: SyncType.None }
 });
-rxdb.adapter(
-  'pglite',
-  async db => new RxDBAdapterPGlite(db, await PGlite.create({ dataDir: `idb://rxdb-${db.dbName}` }))
-);
-await rxdb.connect('pglite');
-
-const todo = new Todo();
-todo.title = '读完 README';
-await todo.save(); // 同一份声明已生成表、类型与 Repository
+rxdb.adapter('wa-sqlite', db => new RxDBAdapterWaSqlite(db, { wasmPath: waSqliteAsync }));
+await rxdb.connect('wa-sqlite');
+await new Todo({ title: '读完 README' }).save();
 ```
 
-```tsx
-import { useFind } from '@aiao/rxdb-react'; // Angular / Vue 同名 API
-
-const { value: todos, isLoading } = useFind(Todo, {
-  where: { combinator: 'and', rules: [{ field: 'completed', operator: '=', value: false }] }
-});
-```
-
-写入后 `todos` 自动更新，跨 Tab 同样生效。完整接线（Worker / WASM 路径 / 框架 provider）见[快速开始](https://rxdb.aiao.io/docs/getting-started/)。
+完整安装、三框架 `useFind` 响应式查询与 Worker / WASM 接线见[快速开始](https://rxdb.aiao.io/docs/getting-started/)。
 
 ## 现在有什么？
 
@@ -168,7 +160,6 @@ aiao/
 │   └── rxdb-devtools-extension-e2e/ # Devtools 扩展 E2E
 ├── benchmarks/                      # 性能测试
 ├── docker/                          # Docker 配置
-├── examples/                        # 集成演示
 ├── modules/                         # 内部共享模块（angular / angular-todo / e2e-parity / recipes-domain / rxdb-devtools-panel / wujie）
 ├── packages/                        # 核心库
 │   ├── rxdb/                        # 核心：模型、查询、适配器接口

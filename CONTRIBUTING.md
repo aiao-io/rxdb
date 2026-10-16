@@ -53,7 +53,7 @@ pnpm i
 
 ### 集成测试
 
-[examples](./examples) 文件夹中会包含一些端到端集成示例，目前只有 [angular-todo](./examples/angular-todo)，针对 `@aiao/rxdb` 在独立 Angular 工具链下的接入演示；Taro 微信小程序示例已迁入 [apps/dev-rxdb-miniprogram](./apps/dev-rxdb-miniprogram)
+端到端集成示例已迁入独立仓库 [aiao-io/rxdb-examples](https://github.com/aiao-io/rxdb-examples)（`todo-react` / `todo-vue` / `todo-angular` 各一个分支，可在 StackBlitz 一键打开）；Taro 微信小程序示例已迁入 [apps/dev-rxdb-miniprogram](./apps/dev-rxdb-miniprogram)
 
 ### 单元测试
 

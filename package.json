@@ -337,8 +337,7 @@
     "packages/*",
     "apps/*",
     "website",
-    "benchmarks",
-    "!examples/*"
+    "benchmarks"
   ],
   "packageManager": "pnpm@10.34.6"
 }
