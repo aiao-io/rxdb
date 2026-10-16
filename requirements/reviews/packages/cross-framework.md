@@ -13,14 +13,14 @@ reviewed: 2026-10-16
 
 ## 对照结果
 
-| API 组 | Angular | React | Vue | 结论 |
-| --- | --- | --- | --- | --- |
-| `rxdb-plugin-search` | `useSearch`、`SearchExecutionError`、4 个共享类型 | 同左 | 同左 | 🟢 共享运行时值与类型一致 |
-| `rxdb-plugin-tree` | 四个 `use*Ancestors/Descendants` | 同左 | 同左 | 🟢 入口完整一致 |
-| `rxdb-plugin-working-tree` | `useWorkingTree`、`WorkingTreeResource` | 同左 | 同左 | 🟢 入口和资源类型一致 |
-| `rxdb-plugin-replay` | `ReplayerComponent` + 共享恢复事件/提示 | `Replayer` + props/ref + 共享事件/提示 | `Replayer` + ref + 共享事件/提示 | 🟢 框架包装面不同但命令/事件契约一致 |
-| `code-editor` | Angular 组件实例方法 + inputs/outputs | `CodeEditorProps` + `CodeEditorHandle` | `CodeEditorProps` + emits/expose | 🟢 命名按框架习惯，行为字段与命令面逐项对照 |
-| `rxdb-model` | Angular 组件/Directive 导出 | React 组件/props 导出 | Vue 组件/props 导出 | 🟢 功能分区对齐，组件命名按框架惯例 |
+| API 组                     | Angular                                           | React                                  | Vue                              | 结论                                        |
+| -------------------------- | ------------------------------------------------- | -------------------------------------- | -------------------------------- | ------------------------------------------- |
+| `rxdb-plugin-search`       | `useSearch`、`SearchExecutionError`、4 个共享类型 | 同左                                   | 同左                             | 🟢 共享运行时值与类型一致                   |
+| `rxdb-plugin-tree`         | 四个 `use*Ancestors/Descendants`                  | 同左                                   | 同左                             | 🟢 入口完整一致                             |
+| `rxdb-plugin-working-tree` | `useWorkingTree`、`WorkingTreeResource`           | 同左                                   | 同左                             | 🟢 入口和资源类型一致                       |
+| `rxdb-plugin-replay`       | `ReplayerComponent` + 共享恢复事件/提示           | `Replayer` + props/ref + 共享事件/提示 | `Replayer` + ref + 共享事件/提示 | 🟢 框架包装面不同但命令/事件契约一致        |
+| `code-editor`              | Angular 组件实例方法 + inputs/outputs             | `CodeEditorProps` + `CodeEditorHandle` | `CodeEditorProps` + emits/expose | 🟢 命名按框架习惯，行为字段与命令面逐项对照 |
+| `rxdb-model`               | Angular 组件/Directive 导出                       | React 组件/props 导出                  | Vue 组件/props 导出              | 🟢 功能分区对齐，组件命名按框架惯例         |
 
 ## 检查方法
 

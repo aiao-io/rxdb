@@ -26,6 +26,7 @@ status: StaticReview
 - [`packages/rxdb-plugin-querycache/src/__tests__/fixtures/reachability.ts`]
 
 关键源码锚点：
+
 - [`src/plugin.ts:1-50`](../../../packages/rxdb-plugin-querycache/src/plugin.ts#L1)
 - [`src/QueryCacheEngine.ts:1-849`](../../../packages/rxdb-plugin-querycache/src/QueryCacheEngine.ts#L1)
 - [`src/query-cache-engine.factory.ts:1-180`](../../../packages/rxdb-plugin-querycache/src/query-cache-engine.factory.ts#L1)

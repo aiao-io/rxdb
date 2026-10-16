@@ -26,6 +26,7 @@ status: StaticReview
 - [`packages/rxdb-plugin-search/src/__tests__/core/options-equality.spec.ts`]
 
 关键源码锚点：
+
 - [`src/plugin.ts:1-776`](../../../packages/rxdb-plugin-search/src/plugin.ts#L1)
 - [`src/core/search-handle.ts:1-420`](../../../packages/rxdb-plugin-search/src/core/search-handle.ts#L1)
 - [`src/index.ts:1-70`](../../../packages/rxdb-plugin-search/src/index.ts#L1)

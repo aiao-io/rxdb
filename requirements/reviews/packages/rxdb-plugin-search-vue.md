@@ -24,6 +24,7 @@ Vue `useSearch` 适配层。 当前基线为 `main@94df0a04`（2026-10-16）。�
 - [`packages/rxdb-plugin-search-vue/src/__tests__/use-search.spec.ts`]
 
 关键源码锚点：
+
 - [`src/use-search.ts:1-220`](../../../packages/rxdb-plugin-search-vue/src/use-search.ts#L1)
 - [`src/index.ts:1-16`](../../../packages/rxdb-plugin-search-vue/src/index.ts#L1)
 

@@ -1984,6 +1984,18 @@
             "range": "workspace:^"
           },
           {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-history",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-sync",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
@@ -2934,7 +2946,7 @@
       }
     ]
   },
-  "digest": "784b6e90450943116ad98645336f0a7003b16f05379a5dde23954ef83aa3f858",
+  "digest": "803703bb8b049de3819ee2ba8a2c68c2e5f2108699c7256372e762c78121520e",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

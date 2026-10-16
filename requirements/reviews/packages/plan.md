@@ -15,11 +15,11 @@ base: main@94df0a04
 
 ## 评审范围
 
-| 分组 | 包数量 | 包名 |
-| --- | ---: | --- |
-| 核心与框架 | 16 | `code-editor`、`code-editor-angular`、`code-editor-react`、`code-editor-vue`、`rxdb`、`rxdb-angular`、`rxdb-react`、`rxdb-vue`、`rxdb-model`、`rxdb-model-angular`、`rxdb-model-react`、`rxdb-model-vue`、`rxdb-client-generator`、`rxdb-devtools`、`rxdb-test`、`utils` |
-| 存储与宿主适配器 | 13 | `rxdb-adapter-electron`、`rxdb-adapter-encrypted`、`rxdb-adapter-http`、`rxdb-adapter-miniprogram`、`rxdb-adapter-pglite`、`rxdb-adapter-sqlite`、`rxdb-adapter-sqlite-core`、`rxdb-adapter-sqlite-wasm`、`rxdb-adapter-sqliteai`、`rxdb-adapter-supabase`、`rxdb-adapter-tauri`、`rxdb-adapter-wa-sqlite`、`rxdb-taro` |
-| 插件 | 22 | `rxdb-plugin-graph`、`rxdb-plugin-history`、`rxdb-plugin-querycache`、`rxdb-plugin-replay`、`rxdb-plugin-replay-angular`、`rxdb-plugin-replay-react`、`rxdb-plugin-replay-vue`、`rxdb-plugin-search`、`rxdb-plugin-search-angular`、`rxdb-plugin-search-react`、`rxdb-plugin-search-vue`、`rxdb-plugin-storage`、`rxdb-plugin-sync`、`rxdb-plugin-tree`、`rxdb-plugin-tree-angular`、`rxdb-plugin-tree-react`、`rxdb-plugin-tree-vue`、`rxdb-plugin-working-tree`、`rxdb-plugin-working-tree-angular`、`rxdb-plugin-working-tree-react`、`rxdb-plugin-working-tree-vue`、`rxdb-plugin-workspace` |
+| 分组             | 包数量 | 包名                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ---------------- | -----: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 核心与框架       |     16 | `code-editor`、`code-editor-angular`、`code-editor-react`、`code-editor-vue`、`rxdb`、`rxdb-angular`、`rxdb-react`、`rxdb-vue`、`rxdb-model`、`rxdb-model-angular`、`rxdb-model-react`、`rxdb-model-vue`、`rxdb-client-generator`、`rxdb-devtools`、`rxdb-test`、`utils`                                                                                                                                                                                                                                                                                                                         |
+| 存储与宿主适配器 |     13 | `rxdb-adapter-electron`、`rxdb-adapter-encrypted`、`rxdb-adapter-http`、`rxdb-adapter-miniprogram`、`rxdb-adapter-pglite`、`rxdb-adapter-sqlite`、`rxdb-adapter-sqlite-core`、`rxdb-adapter-sqlite-wasm`、`rxdb-adapter-sqliteai`、`rxdb-adapter-supabase`、`rxdb-adapter-tauri`、`rxdb-adapter-wa-sqlite`、`rxdb-taro`                                                                                                                                                                                                                                                                          |
+| 插件             |     22 | `rxdb-plugin-graph`、`rxdb-plugin-history`、`rxdb-plugin-querycache`、`rxdb-plugin-replay`、`rxdb-plugin-replay-angular`、`rxdb-plugin-replay-react`、`rxdb-plugin-replay-vue`、`rxdb-plugin-search`、`rxdb-plugin-search-angular`、`rxdb-plugin-search-react`、`rxdb-plugin-search-vue`、`rxdb-plugin-storage`、`rxdb-plugin-sync`、`rxdb-plugin-tree`、`rxdb-plugin-tree-angular`、`rxdb-plugin-tree-react`、`rxdb-plugin-tree-vue`、`rxdb-plugin-working-tree`、`rxdb-plugin-working-tree-angular`、`rxdb-plugin-working-tree-react`、`rxdb-plugin-working-tree-vue`、`rxdb-plugin-workspace` |
 
 ## 评审维度
 
@@ -49,12 +49,12 @@ base: main@94df0a04
 
 ## 交付物状态
 
-| 交付物 | 状态 |
-| --- | --- |
-| 本计划 | 已建立 |
-| 核心与框架分组报告 | 已完成（16/16） |
-| 适配器分组报告 | 已完成（13/13） |
-| 插件分组报告 | 已完成（22/22） |
+| 交付物             | 状态                                          |
+| ------------------ | --------------------------------------------- |
+| 本计划             | 已建立                                        |
+| 核心与框架分组报告 | 已完成（16/16）                               |
+| 适配器分组报告     | 已完成（13/13）                               |
+| 插件分组报告       | 已完成（22/22）                               |
 | 总结与交叉框架复核 | 已完成；见 `summary.md`、`cross-framework.md` |
 
 ## 本轮结果

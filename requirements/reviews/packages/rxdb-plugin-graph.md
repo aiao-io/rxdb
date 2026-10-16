@@ -26,6 +26,7 @@ status: StaticReview
 - [`packages/rxdb-plugin-graph/src/__tests__/generator/GraphRepositoryGenerator.spec.ts`]
 
 关键源码锚点：
+
 - [`src/plugin.ts:1-61`](../../../packages/rxdb-plugin-graph/src/plugin.ts#L1)
 - [`src/GraphRepository.ts:1-180`](../../../packages/rxdb-plugin-graph/src/GraphRepository.ts#L1)
 - [`src/sqlite.ts:1-120`](../../../packages/rxdb-plugin-graph/src/sqlite.ts#L1)

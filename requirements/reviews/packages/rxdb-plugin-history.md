@@ -26,6 +26,7 @@ status: StaticReview
 - [`packages/rxdb-plugin-history/src/__tests__/detached-event-error.spec.ts`]
 
 关键源码锚点：
+
 - [`src/plugin.ts:1-93`](../../../packages/rxdb-plugin-history/src/plugin.ts#L1)
 - [`src/HistoryManager.ts:1-720`](../../../packages/rxdb-plugin-history/src/HistoryManager.ts#L1)
 - [`src/VersionManager.ts:1-700`](../../../packages/rxdb-plugin-history/src/VersionManager.ts#L1)

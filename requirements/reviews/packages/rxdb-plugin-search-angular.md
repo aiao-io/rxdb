@@ -23,6 +23,7 @@ Angular `injectSearch` 适配层。 当前基线为 `main@94df0a04`（2026-10-16
 - [`packages/rxdb-plugin-search-angular/src/__tests__/review-round2-lifecycle.spec.ts`]
 
 关键源码锚点：
+
 - [`src/inject-search.ts:1-240`](../../../packages/rxdb-plugin-search-angular/src/inject-search.ts#L1)
 - [`src/index.ts:1-16`](../../../packages/rxdb-plugin-search-angular/src/index.ts#L1)
 - [`src/test-setup.ts:1-25`](../../../packages/rxdb-plugin-search-angular/src/test-setup.ts#L1)

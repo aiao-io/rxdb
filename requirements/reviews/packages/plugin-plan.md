@@ -49,11 +49,11 @@ created: 2026-10-16
 
 ## 执行顺序与重点
 
-| 阶段 | 包 | 重点 |
-| --- | --- | --- |
-| A：核心状态/数据一致性 | `graph`、`history`、`querycache`、`sync`、`tree`、`working-tree`、`workspace` | 事务边界、CAS/并发、撤销/恢复、缓存回写、递归/资源上限、跨连接纪元与持久化。 |
-| B：宿主与文件能力 | `storage`、`replay` | OPFS/桌面失败清理、对象 URL、rrweb 按需加载、录制库销毁与续录。 |
-| C：框架适配对称性 | replay/search/tree/working-tree 的 Angular、React、Vue 包 | 输入变更、卸载与晚到异步、错误透传、公开类型和三端命令/状态同构。 |
-| D：发布闭环 | 全部 22 包 | Nx build/typecheck、覆盖率、browser target、`pnpm pack` 独立消费者及 exports/types 入口。 |
+| 阶段                   | 包                                                                            | 重点                                                                                      |
+| ---------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| A：核心状态/数据一致性 | `graph`、`history`、`querycache`、`sync`、`tree`、`working-tree`、`workspace` | 事务边界、CAS/并发、撤销/恢复、缓存回写、递归/资源上限、跨连接纪元与持久化。              |
+| B：宿主与文件能力      | `storage`、`replay`                                                           | OPFS/桌面失败清理、对象 URL、rrweb 按需加载、录制库销毁与续录。                           |
+| C：框架适配对称性      | replay/search/tree/working-tree 的 Angular、React、Vue 包                     | 输入变更、卸载与晚到异步、错误透传、公开类型和三端命令/状态同构。                         |
+| D：发布闭环            | 全部 22 包                                                                    | Nx build/typecheck、覆盖率、browser target、`pnpm pack` 独立消费者及 exports/types 入口。 |
 
 每阶段先完成源码与配置静态核对，再运行串行门禁；动态失败需先排除 Node/Nx 并发或宿主环境噪声，再决定是否登记为产品缺陷。任何确认问题必须单独给出最小复现、影响范围、修复建议和回归验证，避免以覆盖率或“有测试文件”替代行为证据。

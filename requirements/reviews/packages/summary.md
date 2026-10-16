@@ -13,14 +13,14 @@ reviewed: 2026-10-16
 
 已确认 6 条问题：2 条 P1、4 条 P2；没有 P0 或 P3。
 
-| 等级 | 包 | 问题 |
-| --- | --- | --- |
-| P1 | `rxdb-adapter-pglite` | 关系 JOIN SQL 在一对一、一对多、多对多路径硬编码关联主键物理列 `id`，自定义 `columnName` 时关系查询失败或条件错误。 |
-| P1 | `rxdb-adapter-supabase` | CRUD、分页、树查询和行转换硬编码物理列 `id`，没有遵循 metadata 的主键列映射。 |
-| P2 | `rxdb-adapter-supabase` | `collectParents()` 只接受字符串 `parentId`，数值/BigInt 父节点的 `hasChildren` 会被误判为 false。 |
-| P2 | `rxdb-model` | `URLValue` 等连续大写缩写被默认标题生成器拆成 `U R L Value`，与自身文档示例不一致。 |
-| P2 | `rxdb-plugin-querycache` | README 要求 history/sync 为硬依赖，但 `package.json` 未声明对应 peerDependencies，安装阶段无法表达缺失依赖。 |
-| P2 | `rxdb-plugin-replay-vue` | README 承诺挂载前 `seek()` 会记忆目标时刻，但 Vue 适配层没有保存 pending seek；目标被静默丢失，和 Angular/React 不一致。 |
+| 等级 | 包                       | 问题                                                                                                                     |
+| ---- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| P1   | `rxdb-adapter-pglite`    | 关系 JOIN SQL 在一对一、一对多、多对多路径硬编码关联主键物理列 `id`，自定义 `columnName` 时关系查询失败或条件错误。      |
+| P1   | `rxdb-adapter-supabase`  | CRUD、分页、树查询和行转换硬编码物理列 `id`，没有遵循 metadata 的主键列映射。                                            |
+| P2   | `rxdb-adapter-supabase`  | `collectParents()` 只接受字符串 `parentId`，数值/BigInt 父节点的 `hasChildren` 会被误判为 false。                        |
+| P2   | `rxdb-model`             | `URLValue` 等连续大写缩写被默认标题生成器拆成 `U R L Value`，与自身文档示例不一致。                                      |
+| P2   | `rxdb-plugin-querycache` | README 要求 history/sync 为硬依赖，但 `package.json` 未声明对应 peerDependencies，安装阶段无法表达缺失依赖。             |
+| P2   | `rxdb-plugin-replay-vue` | README 承诺挂载前 `seek()` 会记忆目标时刻，但 Vue 适配层没有保存 pending seek；目标被静默丢失，和 Angular/React 不一致。 |
 
 ## 验证结论
 

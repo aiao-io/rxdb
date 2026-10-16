@@ -16,7 +16,6 @@
 - 影响：RxDB 元数据允许实体主键属性 `id` 设置自定义 `columnName`，但关系过滤/排序触发 JOIN 时仍访问不存在的 `id` 列，导致 PostgreSQL 报列不存在或关系条件不匹配。当前 `test-column-name.spec.ts` 只覆盖普通属性/外键的 columnName，未覆盖自定义主键 + 一对一/一对多/多对多 JOIN。
 - 建议：在 join context 中携带每个 alias 对应的 `EntityMetadata`，统一用 `propertyMap.get('id')?.columnName ?? 'id'`（或共用主键解析函数）生成两侧主键列；补三种关系和嵌套路径的自定义主键集成测试。
 
-
 ## 风险/未覆盖
 
 除上述 JOIN 主键问题外，PGlite WASM、OPFS AHP worker 和浏览器 IndexedDB 的真实版本组合未在本轮执行；部分系统迁移/备份测试受宿主能力和测试环境影响。

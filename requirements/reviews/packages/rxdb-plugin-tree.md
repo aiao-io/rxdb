@@ -26,6 +26,7 @@ status: StaticReview
 - [`packages/rxdb-plugin-tree/src/__tests__/entity/tree-entity.decorator.browser.spec.ts`]
 
 关键源码锚点：
+
 - [`src/plugin.ts:1-111`](../../../packages/rxdb-plugin-tree/src/plugin.ts#L1)
 - [`src/constants.ts:1-120`](../../../packages/rxdb-plugin-tree/src/constants.ts#L1)
 - [`src/generator/TreeRepositoryGenerator.ts:1-360`](../../../packages/rxdb-plugin-tree/src/generator/TreeRepositoryGenerator.ts#L1)

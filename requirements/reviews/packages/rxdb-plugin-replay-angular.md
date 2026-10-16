@@ -22,6 +22,7 @@ Angular `ReplayerComponent` 适配层。 当前基线为 `main@94df0a04`（2026-
 - [`packages/rxdb-plugin-replay-angular/src/__tests__/review-round2-player-lifecycle.spec.ts`]
 
 关键源码锚点：
+
 - [`src/replayer.component.ts:1-125`](../../../packages/rxdb-plugin-replay-angular/src/replayer.component.ts#L1)
 - [`src/index.ts:1-12`](../../../packages/rxdb-plugin-replay-angular/src/index.ts#L1)
 - [`src/test-setup.ts:1-25`](../../../packages/rxdb-plugin-replay-angular/src/test-setup.ts#L1)

@@ -19,6 +19,7 @@ Vue `Replayer` 适配层。 当前基线为 `main@94df0a04`（2026-10-16）。�
 - [`packages/rxdb-plugin-replay-vue/src/__tests__/replayer.spec.ts`]
 
 关键源码锚点：
+
 - [`src/replayer.ts:1-240`](../../../packages/rxdb-plugin-replay-vue/src/replayer.ts#L1)
 - [`src/index.ts:1-12`](../../../packages/rxdb-plugin-replay-vue/src/index.ts#L1)
 
