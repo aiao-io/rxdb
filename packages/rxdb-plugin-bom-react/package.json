@@ -1,0 +1,54 @@
+{
+  "name": "@aiao/rxdb-plugin-bom-react",
+  "version": "0.0.26",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "@aiao/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!**/*.tsbuildinfo"
+  ],
+  "devDependencies": {
+    "@aiao/rxdb": "workspace:*",
+    "@aiao/rxdb-plugin-bom": "workspace:*",
+    "react": "^19.3.1",
+    "rxjs": "^7.8.2"
+  },
+  "peerDependencies": {
+    "@aiao/rxdb": "workspace:^",
+    "@aiao/rxdb-plugin-bom": "workspace:^",
+    "react": "^19.3.1",
+    "rxjs": "^7.8.2"
+  },
+  "description": "React BOM 编辑与展开视图绑定",
+  "license": "MIT",
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
+  "homepage": "https://rxdb.aiao.io/docs/plugins",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aiao-io/rxdb.git",
+    "directory": "packages/rxdb-plugin-bom-react"
+  },
+  "bugs": {
+    "url": "https://github.com/aiao-io/rxdb/issues"
+  },
+  "keywords": [
+    "aiao",
+    "rxdb",
+    "bom",
+    "react"
+  ]
+}

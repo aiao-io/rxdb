@@ -256,6 +256,13 @@ const readNullableBool = (row: unknown[], columns: string[], name: string): bool
 const readNullableNumber = (row: unknown[], columns: string[], name: string): number | null =>
   row[columnIndexOf(columns, name)] === null ? null : Number(row[columnIndexOf(columns, name)]);
 
+/** 路由有效期列值归一为 ISO 文本（PGlite 的 date 列返回 Date 对象，toString 不是 ISO）。 */
+export const normalizeRoutingDate = (value: unknown): string => {
+  if (value instanceof Date) return value.toISOString();
+  const text = String(value);
+  return text.length > 0 && Number.isNaN(Date.parse(text)) ? new Date(text).toISOString() : text;
+};
+
 export const fetchHeaderRows = async (
   query: BomQueryExecutor['query'],
   dialect: BomSqlDialect,
@@ -475,6 +482,26 @@ export const explodeBom = async (
       });
       opsByRouting.set(routingId, list);
     }
+    // 路线有效期（US-520 AC#11 / US-524 AC#7）：validFrom ≤ asOfDate < disabledAt 才有效；
+    // 投料行（带 operationSeq）所在头的路线在该评估日未覆盖时整次拒绝，不静默按无工序算
+    const routingValidity = (
+      await query(
+        `SELECT "id" AS "id", "validFrom" AS "validFrom", "disabledAt" AS "disabledAt" FROM ${dialect.table('routing')}`
+      )
+    ).rows;
+    const routingUncovered = new Map<string, string>(); // routingId → 未覆盖原因文本
+    const asOfIso = context.asOfDate.toISOString();
+    for (const row of routingValidity) {
+      // 列序固定（SELECT id, validFrom, disabledAt），不经 columns 反查
+      const routingId = String(row[0]);
+      const validFrom = normalizeRoutingDate(row[1]);
+      const disabledAt = row[2] === null ? null : normalizeRoutingDate(row[2]);
+      if (validFrom > asOfIso) {
+        routingUncovered.set(routingId, `生效起始 ${validFrom.slice(0, 10)} 晚于评估日`);
+      } else if (disabledAt !== null && disabledAt <= asOfIso) {
+        routingUncovered.set(routingId, `停用日 ${disabledAt.slice(0, 10)} 不晚于评估日`);
+      }
+    }
     const splitsByOccurrence = new Map<string, { operationSeq: number; ratio: string }[]>();
     const splitsResult = await query(
       `SELECT "occurrenceId", "operationSeq", "ratio" FROM ${dialect.table('bom_line_operation_split')}`
@@ -549,6 +576,20 @@ export const explodeBom = async (
           effectiveRows = selectTierRows(rows, node.plannedQty);
         } catch (error) {
           throw new BomQuantityError(error instanceof Error ? error.message : String(error), node.path);
+        }
+
+        // 路线未覆盖（US-520 AC#11 / US-524 AC#7）：投料行所在头的路线在评估日失效即整次拒绝
+        for (const row of effectiveRows) {
+          if (row.operationSeq === null) continue;
+          const headerRoutingId = rows[0]?.headerRoutingId ?? null;
+          if (headerRoutingId === null) continue;
+          const uncoveredReason = routingUncovered.get(headerRoutingId);
+          if (uncoveredReason !== undefined) {
+            throw new BomQuantityError(
+              `路线未覆盖（${uncoveredReason}）：路线 ${headerRoutingId}、发生项 ${row.occurrenceId} 的投料工序在评估日不可用`,
+              node.path
+            );
+          }
         }
 
         // US-513：只有 consume 行进入七步需求链路；by_product / scrap_out 是反向物料流。

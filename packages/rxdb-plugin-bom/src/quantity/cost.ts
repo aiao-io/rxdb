@@ -22,7 +22,13 @@ import {
   decimalToCanonical,
   type Decimal
 } from './decimal.js';
-import { fetchHeaderRows, resolveChildHeader, rowRates, type ResolvedChildHeader } from './explosion.js';
+import {
+  fetchHeaderRows,
+  normalizeRoutingDate,
+  resolveChildHeader,
+  rowRates,
+  type ResolvedChildHeader
+} from './explosion.js';
 import {
   allocateSubstituteShares,
   computeGross,
@@ -188,7 +194,8 @@ const fetchRate = async (
 const fetchRoutingOps = async (
   query: CostQuery,
   dialect: ReturnType<typeof bomSqlDialectFor>,
-  routingId: string
+  routingId: string,
+  asOfDate: Date
 ): Promise<{
   operations: {
     operationSeq: number;
@@ -200,13 +207,34 @@ const fetchRoutingOps = async (
     timeUom: string;
     workCenterId: string;
   }[];
+  uncoveredReason: string | null;
 }> => {
+  // 路线有效期（US-520 AC#11 / US-524 AC#7）：validFrom ≤ asOfDate < disabledAt 才有效
+  const routingTable = dialect.table('routing');
+  const routingRows = await queryRows(
+    query,
+    `SELECT "validFrom" AS "validFrom", "disabledAt" AS "disabledAt" FROM ${routingTable} WHERE "id" = '${routingId}'`
+  );
+  let uncoveredReason: string | null = null;
+  if (routingRows.length === 0) {
+    uncoveredReason = '路线不存在';
+  } else {
+    const asOfIso = asOfDate.toISOString();
+    const validFrom = normalizeRoutingDate(routingRows[0][0]);
+    const disabledAt = routingRows[0][1] === null ? null : normalizeRoutingDate(routingRows[0][1]);
+    if (validFrom > asOfIso) {
+      uncoveredReason = `生效起始 ${validFrom.slice(0, 10)} 晚于评估日`;
+    } else if (disabledAt !== null && disabledAt <= asOfIso) {
+      uncoveredReason = `停用日 ${disabledAt.slice(0, 10)} 不晚于评估日`;
+    }
+  }
   const opTable = dialect.table('routing_operation');
   const rows = await queryRows(
     query,
     `SELECT "operationSeq", "operationScrap", "scrapConvention", "setupTime", "runTime", "fixedTime", "timeUom", "workCenterId" FROM ${opTable} WHERE "routingId" = '${routingId}' ORDER BY "operationSeq" ASC`
   );
   return {
+    uncoveredReason,
     operations: rows.map(row => ({
       operationSeq: Number(row[0]),
       operationScrap: String(row[1]),
@@ -418,7 +446,16 @@ export const rollupCost = async (
       // 路由工序链（批级加工量用）+ 加工明细
       const routingOps: LayerRoutingOp[] = [];
       const routingDetail =
-        headerMeta.routingId !== null ? await fetchRoutingOps(q, dialect, headerMeta.routingId) : { operations: [] };
+        headerMeta.routingId !== null ?
+          await fetchRoutingOps(q, dialect, headerMeta.routingId, context.asOfDate)
+        : { operations: [], uncoveredReason: null };
+      if (routingDetail.uncoveredReason !== null) {
+        const firstRouted = effectiveRows.find(row => row.operationSeq !== null);
+        throw new BomCostError(
+          `路线 ${headerMeta.routingId}${firstRouted !== undefined ? `（发生项 ${firstRouted.occurrenceId}）` : ''}`,
+          `路线未覆盖：${routingDetail.uncoveredReason}，成本不能继续使用工序或退化成无路线`
+        );
+      }
       for (const operation of routingDetail.operations) {
         routingOps.push({
           operationSeq: operation.operationSeq,
@@ -613,7 +650,16 @@ export const rollupCost = async (
       const pPrime = scrap(L, headerMeta.assemblyScrap, headerMeta.assemblyScrapConvention);
       const routingOps: LayerRoutingOp[] = [];
       const routingDetail =
-        headerMeta.routingId !== null ? await fetchRoutingOps(q, dialect, headerMeta.routingId) : { operations: [] };
+        headerMeta.routingId !== null ?
+          await fetchRoutingOps(q, dialect, headerMeta.routingId, context.asOfDate)
+        : { operations: [], uncoveredReason: null };
+      if (routingDetail.uncoveredReason !== null) {
+        const firstRouted = effectiveRows.find(row => row.operationSeq !== null);
+        throw new BomCostError(
+          `路线 ${headerMeta.routingId}${firstRouted !== undefined ? `（发生项 ${firstRouted.occurrenceId}）` : ''}`,
+          `路线未覆盖：${routingDetail.uncoveredReason}，成本不能继续使用工序或退化成无路线`
+        );
+      }
       for (const operation of routingDetail.operations) {
         routingOps.push({
           operationSeq: operation.operationSeq,

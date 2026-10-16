@@ -11,7 +11,7 @@
 import type { EntityType, IRxDBPlugin, Plugin, RxDB } from '@aiao/rxdb';
 import { getEntityMetadata, RxDBPluginBase, SyncType } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Observable } from 'rxjs';
 import { BOM_ENTITIES } from './entities.js';
 import type {
   BomInstanceQueryOptions,
@@ -92,6 +92,13 @@ export const resolveBomBackend = async (adapterName: string | undefined): Promis
   throw new BomBackendCapabilityError(adapterName ?? '(no local adapter)');
 };
 
+/** 活视图快照（US-522）：结构恒在，数量违约时 explosion 为 null、quantityError 携带原因。 */
+export interface LiveSnapshot {
+  expansion: ExpansionResult;
+  explosion: ExplosionResult | null;
+  quantityError: unknown | null;
+}
+
 export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
   readonly lifecycle = 'scoped' as const;
   readonly inject = ['adapter:local'] as const;
@@ -153,6 +160,67 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
   /**
    * 远端 PostgreSQL 的写入期环约束 DDL（US-509 AC#7，部署与否由使用方负责）。
    */
+  /**
+   * 活视图订阅（US-522）：结构与数量随库变更（ECN 发布、修订发布、行变更）自动重算。
+   * 每次 emit 一个 { expansion, explosion, quantityError } 快照——expansion 恒为结构；
+   * 数量违约时 explosion 为 null、quantityError 携带原因（AC#6/#7/#8 的消费面）。
+   */
+  watchView(input: {
+    context: ResolutionContext;
+    target: ResolveTarget;
+    plannedQty: { value: string; uom: string };
+  }): Observable<LiveSnapshot> {
+    // 活语义经 rxdb_change 最新 id 轮询驱动（适配器面无变更流；change 表是全部写入的统一日志）。
+    // 每次探测到新变更即整体重算并 emit 快照；订阅立即发首帧。
+    return new Observable<LiveSnapshot>(subscriber => {
+      let stopped = false;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      let lastChangeId = -1;
+      const compute = async (): Promise<void> => {
+        if (stopped) return;
+        const adapter = await firstValueFrom(this.rxdb.localAdapter$).catch(() => undefined);
+        if (adapter === undefined) {
+          subscriber.error(new Error('BOM 活视图：本地适配器未就绪'));
+          return;
+        }
+        const expansion = await runExpandBom(adapter, input.context, input.target);
+        let explosion: ExplosionResult | null = null;
+        let quantityError: unknown = null;
+        try {
+          explosion = await runExplodeBom(adapter, input.context, input.target, { plannedQty: input.plannedQty });
+        } catch (error) {
+          quantityError = error;
+        }
+        subscriber.next({ expansion, explosion, quantityError });
+      };
+      const tick = async (): Promise<void> => {
+        if (stopped) return;
+        const adapter = await firstValueFrom(this.rxdb.localAdapter$).catch(() => undefined);
+        if (adapter === undefined) {
+          timer = setTimeout(() => void tick(), 250);
+          return;
+        }
+        const table = adapter.name === 'pglite' ? '"rxdb"."rxdb_change"' : '"rxdb$rxdb_change"';
+        const result = (await adapter.rawQuery?.(
+          `SELECT COALESCE(MAX("id"), -1) AS "maxId" FROM ${table}`
+        )) as unknown as { results?: { rows: unknown[][] }[]; rows?: unknown[][] };
+        const rows = Array.isArray(result.results) ? result.results[0].rows : (result.rows ?? []);
+        const current = rows.length > 0 ? Number(rows[0][0]) : -1;
+        if (current > lastChangeId) {
+          lastChangeId = current;
+          await compute();
+        }
+        timer = setTimeout(() => void tick(), 250);
+      };
+      void tick();
+      void compute();
+      return () => {
+        stopped = true;
+        if (timer !== null) clearTimeout(timer);
+      };
+    });
+  }
+
   cycleConstraintDdlForRemotePg(): string {
     return cycleConstraintDdlForRemotePg();
   }
