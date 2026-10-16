@@ -36,8 +36,8 @@
 
 - [x] T013 跑 packages/rxdb-plugin-bom 全测试、lint/typecheck/build、四项覆盖率并收敛缺口。
 - [x] T014 更新 requirements/api-baseline/rxdb-plugin-bom.json 及包图生成物，完成五项审计与 pnpm nx format:check。
-- [ ] T015 跑当前分支 affected 全范围，重负载目标按前轮证实方式串行，不绕过本地缓存。
-- [ ] T016 回写 requirements/stories/domain/US-523-bom-as-built-instance.md、US-525、epic-009、roadmap/status-overview 与 specs/019-bom-slice-9/ 验收记录，正常本地提交。
+- [x] T015 跑当前分支 affected 全范围，重负载目标按前轮证实方式串行，不绕过本地缓存。
+- [x] T016 回写 requirements/stories/domain/US-523-bom-as-built-instance.md、US-525、epic-009、roadmap/status-overview 与 specs/019-bom-slice-9/ 验收记录，正常本地提交。
 
 ## 集成发现的必要修复
 
@@ -45,7 +45,7 @@
 - [x] T018 修复 benchmarks/bom.bench.ts 暴露的导出 p95 16.75ms 超预算：在 packages/rxdb-plugin-bom/src/resolve/integration.ts 每行只构造一次排序自然键，复验导入导出回归和性能，再收口门禁。
 - [x] T019 在 `packages/rxdb-plugin-bom/src/__tests__/bom-instance-upgrade.spec.ts` 验证真实持久化 A～E 库升级实例 schema 后主数据不变、F 与来源保护可用。
 - [x] T020 在 apps/dev-rxdb-bom-e2e/src/bom-demo.spec.ts 补首次空库状态失败回归，修复 bom-demo.service.ts / components/app-shell.ts 的连接装载顺序与状态标签，禁止空库创建悬空演示修订。
-- [ ] T021 将分支门禁发现的 Vue 普通文本未失焦重绘丢值补成确定性失败回归，最小修复输入同步，并复验 Vue 模型包与完整 e2e。
+- [x] T021 将分支门禁发现的 Vue 普通文本未失焦重绘丢值补成确定性失败回归，最小修复输入同步，并复验 Vue 模型包与完整 e2e；登记既有断言辅助函数，零警告 lint 通过。
 
 ## 并行纪律
 

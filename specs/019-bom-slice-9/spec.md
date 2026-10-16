@@ -2,7 +2,7 @@
 
 **Feature Branch**: `claude/bom-related-work-77235b`
 **Created**: 2026-10-16
-**Status**: Draft
+**Status**: Implemented
 **Input**: 第 8 步已交付，继续既定 BOM 排期，完成 US-523 全部 13 条验收与 US-525 阶段 F。
 
 ## User Scenarios & Testing
