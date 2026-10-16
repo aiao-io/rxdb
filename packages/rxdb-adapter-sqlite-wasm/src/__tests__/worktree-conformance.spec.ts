@@ -3,8 +3,8 @@
  *
  * @remarks
  * 套件本体在 `@aiao/rxdb-plugin-working-tree/testing`，六个 v1 后端各有一个这样的文件，断言一律不写在这里。
- * 主库由本包的 {@link sqliteWasmFactory} 建，快照库由 {@link createSqliteWasmWorktreeAdapter} 建：两者是同一份非持久档连法，
- * 每个适配器实例一个独立的库。
+ * 主库由本包的 {@link sqliteWasmFactory} 建（内存档），快照库由 {@link createSqliteWasmWorktreeAdapter} 建（持久档）：
+ * 持久归属的检出位放开之后要能原样再打开，`close()` / `prune()` 删的也要是真存储。
  */
 
 import type { RxDB } from '@aiao/rxdb';

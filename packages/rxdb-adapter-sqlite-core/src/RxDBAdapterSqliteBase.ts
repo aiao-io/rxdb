@@ -1321,6 +1321,19 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   }
 
   /**
+   * `dropStorage()` 的前置守卫：还连着就拒绝（只读检出位回收快照库，US-313）。
+   *
+   * @throws {@link RxDBAdapterSqliteError} 适配器还连着
+   *
+   * @remarks
+   * `dropStorage()` 落在各个具体适配器上而不是这里：库落在哪（IndexedDB 库名、OPFS 文件名、宿主上的文件）
+   * 只有它们知道，基类实现一份会被 Tauri、小程序这些不知道怎么删的子类原样继承。
+   */
+  protected assertDisconnectedForDrop(): void {
+    if (this.#client_promise) throw new RxDBAdapterSqliteError('dropStorage: 适配器还连着，先断开再删库');
+  }
+
+  /**
    * 当前配置对应的备份存储后端，决定 {@link backup} / {@link restore} 能否使用以及恢复走哪条路径。
    *
    * @remarks

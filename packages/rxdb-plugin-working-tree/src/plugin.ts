@@ -24,6 +24,7 @@ import {
   type RxDBSystemContribution
 } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
+import { take } from 'rxjs';
 import { PACKAGE_SPECIFIER, WORKING_TREE_CAPABILITY } from './capability-identity.js';
 import type { RxDBPluginWorkingTreeOptions } from './checkout/worktree-options.js';
 import { Worktree } from './checkout/worktree.entity.js';
@@ -192,6 +193,9 @@ const createSystemContribution = (rxdb: RxDB): RxDBSystemContribution => ({
  * 对称的拆卸义务。真正落在作用域里的只有那个跨连接的能力启用监听器（见 {@link RxDBPluginWorkingTree.install}）。
  */
 export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin {
+  /** 装插件时给了 `worktrees`：连接时要在后台回收一次只读检出位。 */
+  readonly #worktreesConfigured: boolean;
+
   /** 已迁移到作用域拆卸，宿主不再调用 `destroy()`。 */
   readonly lifecycle = 'scoped' as const;
 
@@ -220,6 +224,7 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
    */
   constructor(rxdb: RxDB, options?: RxDBPluginWorkingTreeOptions) {
     super(rxdb);
+    this.#worktreesConfigured = options?.worktrees !== undefined;
     if (Object.prototype.hasOwnProperty.call(rxdb, 'workingTree')) return;
     Object.defineProperty(rxdb, 'workingTree', {
       value: new WorkingTreeManager(rxdb, options?.worktrees),
@@ -270,6 +275,29 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
       this.rxdb.addEventListener(CAPABILITY_ENABLED_EVENT, onCapabilityEnabled);
       return () => this.rxdb.removeEventListener(CAPABILITY_ENABLED_EVENT, onCapabilityEnabled);
     }, 'workingTree:capability-enabled');
+
+    // 只读检出位（US-313）：每个连接纪元第一次连上本地适配器后，在后台回收一次没人在用的检出位。
+    // 关掉或崩掉的标签页留下的会话归属检出位，就靠这一次被收走
+    if (!this.#worktreesConfigured) return;
+    scope.acquire(() => {
+      const subscription = this.rxdb.localAdapter$.pipe(take(1)).subscribe(() => void this.#pruneWorktrees());
+      return () => subscription.unsubscribe();
+    }, 'workingTree:worktree-prune');
+  }
+
+  /**
+   * 后台回收一次只读检出位；未启用的库上什么都不做。
+   *
+   * @remarks
+   * 没有调用方可以把错误交回去，打到控制台：回收失败只是留下几个没删的快照库，下一个连接纪元会再试。
+   */
+  async #pruneWorktrees(): Promise<void> {
+    try {
+      if (!(await this.rxdb.workingTree.isEnabled())) return;
+      await this.rxdb.workingTree.checkouts.prune();
+    } catch (error) {
+      console.error('[rxdb-plugin-working-tree] 回收只读检出位失败', error);
+    }
   }
 }
 

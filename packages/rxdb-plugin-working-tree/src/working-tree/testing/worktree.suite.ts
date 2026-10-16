@@ -8,6 +8,8 @@
  * **调用点的义务**（{@link WorkingTreeConformanceSuiteContext.createDatabase}）：注册
  * {@link WORKTREE_CONFORMANCE_ENTITIES}，装上历史插件与带 `worktrees.adapter` 的工作树插件，
  * `enable()` 之后交回。密钥环由套件自己解锁（{@link WORKTREE_CONFORMANCE_KEY}）。
+ * `worktrees.adapter` 要造**持久**存储的快照库：持久归属的检出位放开之后要能原样再打开（AC10），
+ * `close()` / `prune()` 删的也得是真的存储。
  *
  * 与另外两套共用一个上下文形状：六个后端各写三个调用点，形状分叉的话写调用点的人就得逐套件回忆参数。
  *
@@ -15,7 +17,7 @@
  */
 
 import { firstValueFrom } from 'rxjs';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type {
   EntityRelationManyToManyMetadata,
@@ -483,6 +485,53 @@ export const worktreeConformanceSuite = (context: WorkingTreeConformanceSuiteCon
 
         const error = await database.workingTree.checkouts.open({ commitId: first }).catch(e => e);
         expect((error as WorktreeUnavailableError).reason).toBe('restoring_working_tree');
+      });
+    });
+
+    describe('生命周期与回收（AC8～AC10）', () => {
+      it('close()：断开之后删快照库、撤销登记', async () => {
+        await seedTwoBranches(database);
+        const view = await open(FEATURE);
+        const adapter = await localAdapterOf(view.rxdb);
+        const drop = vi.spyOn(adapter, 'dropStorage');
+
+        await view.close();
+        views.splice(views.indexOf(view), 1);
+
+        expect(drop).toHaveBeenCalledTimes(1);
+        expect(await database.workingTree.checkouts.list()).toEqual([]);
+        const error = await database.workingTree.checkouts.attach(view.id).catch(e => e);
+        expect((error as WorktreeUnavailableError).reason).toBe('not_found');
+      });
+
+      it('会话归属的检出位所在处已不在：prune() 回收它，还开着的不受影响', async () => {
+        await seedTwoBranches(database);
+        const held = await open(FEATURE);
+        const viewed = await tablesOf(held.rxdb, held);
+        const gone = await open(FEATURE);
+        // 放开 = 本处的只读实例与锁都没了，与标签页关掉或崩掉同一个形状
+        await gone.release();
+        views.splice(views.indexOf(gone), 1);
+
+        expect(await database.workingTree.checkouts.prune()).toEqual([gone.id]);
+        expect((await database.workingTree.checkouts.list()).map(record => record.id)).toEqual([held.id]);
+        expect(await tablesOf(held.rxdb, held)).toEqual(viewed);
+      });
+
+      it('持久归属的检出位：放开之后还在登记里，attach() 原样打开；prune() 不碰它', async () => {
+        await seedTwoBranches(database);
+        const view = await database.workingTree.checkouts.open({ branchId: FEATURE }, { owner: 'persistent' });
+        const viewed = await tablesOf(view.rxdb, view);
+        await view.release();
+        expect(await database.workingTree.checkouts.prune()).toEqual([]);
+
+        const attached = await database.workingTree.checkouts.attach(view.id);
+        views.push(attached);
+
+        expect(attached).toMatchObject({ id: view.id, owner: 'persistent', target: { branchId: FEATURE } });
+        expect(await tablesOf(attached.rxdb, attached)).toEqual(viewed);
+        const again = await database.workingTree.checkouts.attach(view.id).catch(e => e);
+        expect((again as WorktreeUnavailableError).reason).toBe('in_use');
       });
     });
 

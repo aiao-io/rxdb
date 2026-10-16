@@ -43,6 +43,12 @@ import type { QueryOptions, Results } from '@electric-sql/pglite';
 import { defer, from, map, Observable, of, Subject } from 'rxjs';
 import { pgliteBackupExtensions, resolvePGliteBackupStorage } from './backup/pglite-backup-compat.js';
 import { writePGliteBackup } from './backup/pglite-backup.js';
+import { pgliteIdbDatabaseName } from './backup/pglite-restore-fs.js';
+import {
+  countPGliteStorageHolders,
+  deleteIdbDatabase,
+  deletePGliteStorageBookkeeping
+} from './backup/pglite-restore-lock.js';
 import {
   type ChangePipelineHost,
   drainPendingChangeHandlers,
@@ -93,6 +99,15 @@ import { importSnapshotTable, readSnapshotPage } from './worktree/worktree-snaps
  * `RxDB.connect()` 建表完成后调 {@link RxDBAdapterPGlite.completeBootstrap} 翻到 `ready`。
  */
 type AdapterLifecycleState = 'bootstrap' | 'ready' | 'closing' | 'closed';
+
+/**
+ * `dropStorage()` 删得掉的数据目录：内存与 `idb://`。
+ *
+ * @remarks
+ * 位置不由库名推导的存储（`opfs-ahp://`、文件目录）不知道该删哪里。
+ */
+const isDroppableDataDir = (dataDir: string | undefined): boolean =>
+  dataDir === undefined || dataDir === 'memory://' || dataDir.startsWith('idb://');
 
 /**
  * 一组同类型实体在 {@link RxDBAdapterPGlite.saveMany} 那条多行 UPSERT 里的行序。
@@ -288,6 +303,40 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       throw new RxdbAdapterPGliteError(`adoptWorktreeEncryption: 主库适配器 ${source.name} 不是 PGlite`);
     }
     this.#keyring = source.#keyring;
+  }
+
+  /**
+   * 按当前数据目录，`dropStorage()` 删不删得掉本库（只读检出位建快照库之前问一次，US-313）。
+   *
+   * @returns 内存与 `idb://` 为 `true`；其余数据目录为 `false`
+   */
+  override canDropStorage(): boolean {
+    return isDroppableDataDir(resolvePGliteInitOptions(this.rxdb.config.dbName, this.options).dataDir);
+  }
+
+  /**
+   * 删掉本库的持久存储（只读检出位回收快照库，US-313）。
+   *
+   * @throws {@link RxdbAdapterPGliteError} 还连着、存储正被别的上下文持有，或存储不是 `memory` / `idb://`
+   *
+   * @remarks
+   * 内存库断开即无，什么都不做。`idb://` 删 IndexedDB 库 `/pglite/<库名>`，再删标记库里这个存储的恢复标记与
+   * 世代计数——库删了、簿记留着，同名重建的库会被当成「有人恢复到一半」。断开时客户端已亲手关掉 IdbFs
+   * 那条连接（见 `idbConnectionOf`），这里的 `deleteDatabase` 才不会卡在 `blocked`。
+   * 位置不由库名推导的存储（`opfs-ahp://`、文件目录）不知道该删哪里，报不支持。
+   */
+  override async dropStorage(): Promise<void> {
+    if (this.#client_promise) throw new RxdbAdapterPGliteError('dropStorage: 适配器还连着，先断开再删库');
+    const { dataDir } = resolvePGliteInitOptions(this.rxdb.config.dbName, this.options);
+    if (!isDroppableDataDir(dataDir)) {
+      throw new RxdbAdapterPGliteError(`dropStorage: 不支持删除存储 ${dataDir}，只支持 memory 与 idb://`);
+    }
+    if (dataDir === undefined || dataDir === 'memory://') return;
+    if ((await countPGliteStorageHolders(dataDir)) > 0) {
+      throw new RxdbAdapterPGliteError(`dropStorage: 存储 ${dataDir} 正被别的上下文打开着`);
+    }
+    await deleteIdbDatabase(pgliteIdbDatabaseName(dataDir.slice('idb://'.length)));
+    await deletePGliteStorageBookkeeping(dataDir);
   }
 
   /**

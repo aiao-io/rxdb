@@ -19,7 +19,7 @@
  */
 
 /** SQLite 族的请求 kind（`desktop-host-protocol.ts` 的 `REQUEST_KINDS`；协议未导出谓词，故此处内联）。 */
-const SQLITE_REQUEST_KINDS: readonly string[] = ['handshake', 'open', 'execute', 'version', 'close', 'mute'];
+const SQLITE_REQUEST_KINDS: readonly string[] = ['handshake', 'open', 'execute', 'version', 'close', 'mute', 'drop'];
 
 /** 文件族请求 kind（`desktop-host-protocol.ts` 的 `FILE_REQUEST_KINDS`）。 */
 const FILE_REQUEST_KINDS: readonly string[] = [

@@ -230,6 +230,10 @@
         "kind": "value"
       },
       {
+        "name": "createWorktreeCommands",
+        "kind": "value"
+      },
+      {
         "name": "decodeCommitChangeSetUnit",
         "kind": "value"
       },
@@ -698,11 +702,23 @@
         "kind": "both"
       },
       {
+        "name": "WORKTREE_INITIAL_ASYNC_STATES",
+        "kind": "value"
+      },
+      {
         "name": "WorktreeAdapterFactory",
         "kind": "type"
       },
       {
+        "name": "WorktreeAsyncStates",
+        "kind": "type"
+      },
+      {
         "name": "WorktreeBranchTarget",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeCommands",
         "kind": "type"
       },
       {
@@ -718,8 +734,16 @@
         "kind": "type"
       },
       {
+        "name": "WorktreeLockRelease",
+        "kind": "type"
+      },
+      {
         "name": "WorktreeManager",
         "kind": "both"
+      },
+      {
+        "name": "WorktreeOpenOptions",
+        "kind": "type"
       },
       {
         "name": "WorktreeOptions",
@@ -731,6 +755,10 @@
       },
       {
         "name": "WorktreeState",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeStatePatch",
         "kind": "type"
       },
       {

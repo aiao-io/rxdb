@@ -45,6 +45,11 @@ export interface SqliteClientEvents {
 interface SqliteConnection {
   readonly sqlite: SQLiteAPI;
   readonly db: number;
+  /**
+   * 打开它的 VFS。关库之后还要关它：IndexedDB 系 VFS 的连接只在这里关，留着的话之后的
+   * `deleteDatabase` 会一直卡在 `blocked`（只读检出位回收快照库，US-313）
+   */
+  readonly vfs: { close(): void | Promise<void> };
 }
 
 export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
@@ -210,6 +215,7 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
         this.#clear_batch_timers();
         this.#flush_pending_events();
         await connection.sqlite.close(connection.db);
+        await connection.vfs.close();
       }
       this.#is_init = false;
     } catch (error) {
@@ -224,7 +230,7 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
 
   async #init_sqlite(dbName: string, options: LoadModuleOptions, cacheSize: number): Promise<void> {
     const core = await sqliteLoad(dbName, options);
-    const { sqlite, pointer: db } = core;
+    const { sqlite, pointer: db, vfs } = core;
 
     try {
       this.#register_custom_functions(sqlite, db);
@@ -247,10 +253,11 @@ export class SqliteClient extends EventDispatcher<SqliteClientEvents> {
         this.#schedule_batch_send();
       });
 
-      this.#connection = { sqlite, db };
+      this.#connection = { sqlite, db, vfs };
     } catch (initializationError) {
       try {
         await sqlite.close(db);
+        await vfs.close();
       } catch (cleanupError) {
         throw new AggregateError(
           [initializationError, cleanupError],

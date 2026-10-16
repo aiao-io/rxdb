@@ -47,7 +47,7 @@ async function createFunctionHarness(): Promise<FunctionHarness> {
     update_hook: vi.fn(),
     value_text: vi.fn((value: number) => values.get(value) ?? '')
   } as unknown as SQLiteAPI;
-  sqliteLoadMock.mockResolvedValue({ pointer: 1, sqlite });
+  sqliteLoadMock.mockResolvedValue({ pointer: 1, sqlite, vfs: { close: vi.fn() } });
 
   const client = new SqliteClient();
   await client.init('regexp-db', { vfs: 'memory' });

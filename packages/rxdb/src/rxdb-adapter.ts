@@ -757,6 +757,28 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    */
   sealWorktreeReadOnly?(): Promise<void>;
 
+  /**
+   * 永久删除本适配器这个库的持久存储（只读检出位回收快照库，US-313）。
+   *
+   * @throws 本适配器还连着时抛错：先断开，再删
+   *
+   * @remarks
+   * 存储位置与连接时同一套推导（`rxdb.config.dbName` 加适配器选项），库不存在时什么都不做。
+   * 内存库断开即无，这里也是空操作。删掉的东西找不回来：调用方要先确认没有别的上下文还在用这个库。
+   */
+  dropStorage?(): Promise<void>;
+
+  /**
+   * 按当前配置，{@link dropStorage} 删不删得掉这个库（只读检出位建快照库之前问一次，US-313）。
+   *
+   * @returns `false` 时 `dropStorage()` 必然拒绝
+   *
+   * @remarks
+   * 只看配置、不碰存储。建快照之前没有别的办法知道：先删一次来试，删的是还没验明身份的库，
+   * 快照工厂配错、指到主库存储时那就是主库。而建得出却删不掉的快照库，关闭时抛错，之后每次回收都报错。
+   */
+  canDropStorage?(): boolean;
+
   abstract switchBranch(options: SwitchBranchOptions): Promise<void>;
 
   abstract getRxDBChangeSequence(): Promise<number>;

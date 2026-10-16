@@ -26,13 +26,17 @@ const memoryAdapterOptions = (): WaSqliteOptions => ({
 });
 
 /**
- * 给只读检出位的快照实例造适配器（US-313）：与本工厂非持久档同一份连法，每个实例一个独立的库。
+ * 给只读检出位的快照实例造适配器（US-313）：与本工厂持久档同一份连法（`IDBBatchAtomicVFS`），
+ * 按快照实例的库名在 VFS 的共用库里各占一组记录。
  *
  * @param db - 快照实例
  * @returns 快照库的适配器
+ *
+ * @remarks
+ * 持久档而不是内存：持久归属的检出位放开之后要能原样再打开，`close()` / `prune()` 删的也要是真存储。
  */
 export const createWaSqliteWorktreeAdapter = (db: RxDB): RxDBAdapterWaSqlite =>
-  new RxDBAdapterWaSqlite(db, memoryAdapterOptions());
+  new RxDBAdapterWaSqlite(db, { ...memoryAdapterOptions(), vfs: 'IDBBatchAtomicVFS' });
 
 export const waSqliteFactory: AdapterFactory = {
   name: 'wa-sqlite',

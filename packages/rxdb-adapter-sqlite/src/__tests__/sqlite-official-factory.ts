@@ -27,14 +27,40 @@ const terminateWorker = (rxdb: RxDB): void => {
 /** 非持久档的连法：主线程内存库。 */
 const memoryAdapterOptions = (): SqliteOptions => ({ batchTimeout: 1 });
 
+/** 快照库用的 Worker：断开不会替调用方终止它们，测试文件在用例之间统一收掉。 */
+const worktreeWorkers = new Set<Worker>();
+
 /**
- * 给只读检出位的快照实例造适配器（US-313）：与本工厂非持久档同一份连法，每个实例一个独立的库。
+ * 给只读检出位的快照实例造适配器（US-313）：与本工厂持久档同一份连法（专用 Worker 里的 OPFS），
+ * 每个快照实例一个 Worker、一个库文件。
  *
  * @param db - 快照实例
  * @returns 快照库的适配器
+ *
+ * @remarks
+ * 持久档而不是内存：持久归属的检出位放开之后要能原样再打开，`close()` / `prune()` 删的也要是真存储。
+ * Worker 由 {@link terminateSqliteOfficialWorktreeWorkers} 收掉。
  */
-export const createSqliteOfficialWorktreeAdapter = (db: RxDB): RxDBAdapterSqlite =>
-  new RxDBAdapterSqlite(db, memoryAdapterOptions());
+export const createSqliteOfficialWorktreeAdapter = (db: RxDB): RxDBAdapterSqlite => {
+  const worker = new Worker(new URL('./sqlite-official-test.worker', import.meta.url), {
+    type: 'module',
+    name: `${db.config.dbName}-worktree-worker`
+  });
+  worktreeWorkers.add(worker);
+  return new RxDBAdapterSqlite(db, {
+    batchTimeout: 1,
+    opfs: true,
+    opfsFallback: 'throw',
+    worker: true,
+    workerInstance: worker
+  });
+};
+
+/** 终止 {@link createSqliteOfficialWorktreeAdapter} 建过的全部 Worker；在快照实例都断开之后调用。 */
+export const terminateSqliteOfficialWorktreeWorkers = (): void => {
+  for (const worker of worktreeWorkers) worker.terminate();
+  worktreeWorkers.clear();
+};
 
 export const sqliteOfficialFactory: AdapterFactory = {
   name: 'sqlite',

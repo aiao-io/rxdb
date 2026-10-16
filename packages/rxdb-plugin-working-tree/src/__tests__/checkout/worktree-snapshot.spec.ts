@@ -52,6 +52,8 @@ class SnapshotCapableAdapter extends MockLocalAdapter {
   );
   override adoptWorktreeEncryption = vi.fn<NonNullable<LocalRxDBAdapter['adoptWorktreeEncryption']>>();
   override sealWorktreeReadOnly = vi.fn<NonNullable<LocalRxDBAdapter['sealWorktreeReadOnly']>>(async () => undefined);
+  override dropStorage = vi.fn<NonNullable<LocalRxDBAdapter['dropStorage']>>(async () => undefined);
+  override canDropStorage = vi.fn<NonNullable<LocalRxDBAdapter['canDropStorage']>>(() => true);
 }
 
 const opened: RxDB[] = [];
@@ -142,6 +144,24 @@ describe('createSnapshotDatabase', () => {
     opened.push(snapshot);
 
     expect(await reasonOf(connectSnapshotDatabase(snapshot))).toBe('unsupported_adapter');
+  });
+
+  // 建得出却删不掉的快照库，关闭时抛错、之后每次回收都报错；先删一次来试又会删掉没验明身份的库，只能问配置
+  it('快照适配器按当前配置删不掉存储：unsupported_adapter，连接之前就拒', async () => {
+    let created: SnapshotCapableAdapter | undefined;
+    const snapshot = createSnapshotDatabase(mainAdapterNamed('mock'), 'main~wt~6', [SnapshotNote], {
+      adapter: db => {
+        created = new SnapshotCapableAdapter(db);
+        created.canDropStorage.mockReturnValue(false);
+        return created as unknown as LocalRxDBAdapter;
+      }
+    });
+    opened.push(snapshot);
+
+    expect(await reasonOf(connectSnapshotDatabase(snapshot))).toBe('unsupported_adapter');
+    expect(created?.connect).not.toHaveBeenCalled();
+    expect(created?.adoptWorktreeEncryption).not.toHaveBeenCalled();
+    expect(created?.dropStorage).not.toHaveBeenCalled();
   });
 
   it('连上之后交回快照适配器，它已沿用主库的密钥环', async () => {

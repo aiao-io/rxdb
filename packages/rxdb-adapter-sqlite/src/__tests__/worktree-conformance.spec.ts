@@ -3,8 +3,8 @@
  *
  * @remarks
  * 套件本体在 `@aiao/rxdb-plugin-working-tree/testing`，六个 v1 后端各有一个这样的文件，断言一律不写在这里。
- * 主库由本包的 {@link sqliteOfficialFactory} 建，快照库由 {@link createSqliteOfficialWorktreeAdapter} 建：两者是同一份非持久档连法，
- * 每个适配器实例一个独立的库。
+ * 主库由本包的 {@link sqliteOfficialFactory} 建（内存档），快照库由 {@link createSqliteOfficialWorktreeAdapter} 建（持久档：Worker 里的 OPFS）：
+ * 持久归属的检出位放开之后要能原样再打开，`close()` / `prune()` 删的也要是真存储。快照库的 Worker 在用例之间统一收掉。
  */
 
 import type { RxDB } from '@aiao/rxdb';
@@ -14,7 +14,11 @@ import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import { WORKTREE_CONFORMANCE_ENTITIES, worktreeConformanceSuite } from '@aiao/rxdb-plugin-working-tree/testing';
 import { afterEach } from 'vitest';
 
-import { createSqliteOfficialWorktreeAdapter, sqliteOfficialFactory } from './sqlite-official-factory.js';
+import {
+  createSqliteOfficialWorktreeAdapter,
+  sqliteOfficialFactory,
+  terminateSqliteOfficialWorktreeWorkers
+} from './sqlite-official-factory.js';
 
 const opened: AdapterCleanupTarget[] = [];
 
@@ -23,6 +27,7 @@ afterEach(async () => {
     await adapter.rxdb.disconnectAll();
     await sqliteOfficialFactory.cleanupAdapter?.(adapter);
   }
+  terminateSqliteOfficialWorktreeWorkers();
 });
 
 worktreeConformanceSuite({

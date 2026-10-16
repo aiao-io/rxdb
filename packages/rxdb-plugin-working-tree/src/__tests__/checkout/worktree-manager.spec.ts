@@ -48,6 +48,8 @@ const matches = (row: Row, where: { rules: { field: string; value: unknown }[] }
 
 const databases: RxDBInstance[] = [];
 let rows: Worktree[];
+/** 每次连上的快照适配器替身，按连接顺序。 */
+let snapshotAdapters: LocalRxDBAdapter[];
 let runEnabled: WorktreeTransactionRunner;
 
 /** 主实例：装了工作树插件（登记表因此在实体清单里），不连接。 */
@@ -73,6 +75,7 @@ const fakeSnapshot = () =>
 
 beforeEach(() => {
   rows = [];
+  snapshotAdapters = [];
   const branches = [{ id: 'main' }, { id: 'feature' }];
   const executor = {
     saveMany: vi.fn(async (entities: Worktree[]) => {
@@ -96,8 +99,13 @@ beforeEach(() => {
   // 提交视图要拿适配器造编解码上下文：它只在调用时才读 `rxdb` 上的两样
   runEnabled = run => run(executor, { rxdb: { entityManager: {}, schemaManager: {} } } as unknown as LocalRxDBAdapter);
   vi.mocked(classifyBranchMaterialization).mockResolvedValue({ kind: 'materialized', ref: {} as never });
+  vi.mocked(planCommitView).mockResolvedValue({ branchId: 'main', path: [] });
   vi.mocked(createSnapshotDatabase).mockImplementation(() => fakeSnapshot());
-  vi.mocked(connectSnapshotDatabase).mockResolvedValue({} as LocalRxDBAdapter);
+  vi.mocked(connectSnapshotDatabase).mockImplementation(async () => {
+    const adapter = { dropStorage: vi.fn(async () => undefined) } as unknown as LocalRxDBAdapter;
+    snapshotAdapters.push(adapter);
+    return adapter;
+  });
   vi.mocked(importSnapshot).mockResolvedValue({ sourceBranchId: 'main', sourceChangeId: 4, targetChangeId: 9 });
   vi.mocked(sealSnapshot).mockResolvedValue(undefined);
 });
@@ -165,6 +173,7 @@ describe('WorktreeManager.open', () => {
     await view.close();
     await view.close();
     expect(snapshot.disconnectAll).toHaveBeenCalledTimes(1);
+    expect(snapshotAdapters[0].dropStorage).toHaveBeenCalledTimes(1);
     expect(rows).toEqual([]);
   });
 
@@ -207,6 +216,67 @@ describe('WorktreeManager.open', () => {
 
     await expect(managerOf().open({ branchId: 'feature' })).rejects.toBeInstanceOf(RxDBError);
     expect(rows).toEqual([]);
+  });
+});
+
+describe('生命周期：锁、release、attach 与 prune（阶段 C）', () => {
+  it('release()：只断开、还锁，登记行与快照库留着；会话归属的随后被 prune() 回收', async () => {
+    const manager = managerOf();
+    const kept = await manager.open({ branchId: 'feature' });
+    const gone = await manager.open({ branchId: 'feature' });
+    await gone.release();
+    expect(snapshotAdapters[1].dropStorage).not.toHaveBeenCalled();
+    expect(rows.map(row => row.id)).toEqual([kept.id, gone.id]);
+    const goneDbName = rows[1].dbName;
+
+    expect(await manager.prune()).toEqual([gone.id]);
+
+    // 回收先用空实体集连一次快照库确认身份，再删库、删登记行；还开着的那个锁在本页手里，碰不到
+    const reclaimCall = vi.mocked(createSnapshotDatabase).mock.calls.at(-1);
+    expect(reclaimCall?.[1]).toBe(goneDbName);
+    expect(reclaimCall?.[2]).toEqual([]);
+    expect(snapshotAdapters.at(-1)?.dropStorage).toHaveBeenCalledTimes(1);
+    expect(rows.map(row => row.id)).toEqual([kept.id]);
+  });
+
+  it('持久归属：prune() 不碰；release() 之后 attach() 再打开，拿不到锁时 in_use', async () => {
+    const manager = managerOf();
+    const view = await manager.open({ branchId: 'feature' }, { owner: 'persistent' });
+    expect(await reasonOf(manager.attach(view.id))).toBe('in_use');
+    await view.release();
+    expect(await manager.prune()).toEqual([]);
+
+    const attached = await manager.attach(view.id);
+
+    expect(attached).toMatchObject({ id: view.id, owner: 'persistent', target: { branchId: 'feature' } });
+    expect(sealSnapshot).toHaveBeenCalledTimes(2);
+    await attached.close();
+    expect(rows).toEqual([]);
+  });
+
+  it('attach()：没有这个持久检出位 not_found；实体结构变了 schema_mismatch', async () => {
+    const manager = managerOf();
+    expect(await reasonOf(manager.attach('nope'))).toBe('not_found');
+    const session = await manager.open({ branchId: 'feature' });
+    await session.release();
+    expect(await reasonOf(manager.attach(session.id))).toBe('not_found');
+
+    const persistent = await manager.open({ commitId: 'c1' }, { owner: 'persistent' });
+    await persistent.release();
+    rows.find(row => row.id === persistent.id)!.schemaFingerprint = 'stale';
+    expect(await reasonOf(manager.attach(persistent.id))).toBe('schema_mismatch');
+  });
+
+  it('prune() 里有一个回收失败：其余照常回收，最后一起报出来', async () => {
+    const manager = managerOf();
+    const first = await manager.open({ branchId: 'feature' });
+    const second = await manager.open({ branchId: 'feature' });
+    await first.release();
+    await second.release();
+    vi.mocked(connectSnapshotDatabase).mockRejectedValueOnce(new WorktreeUnavailableError('adapter_mismatch', 'x'));
+
+    await expect(manager.prune()).rejects.toBeInstanceOf(AggregateError);
+    expect(rows.map(row => row.id)).toEqual([first.id]);
   });
 });
 

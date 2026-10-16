@@ -66,17 +66,34 @@ const SNAPSHOT_TARGET_METHODS = [
   'importWorktreeSnapshot',
   'adoptWorktreeEncryption',
   'sealWorktreeReadOnly',
+  'dropStorage',
+  'canDropStorage',
   'setWorkingTreeCaptureHook'
 ] as const;
 
-/** 快照库的适配器写得进快照、封得住吗；是就收窄成本地适配器。 */
+/**
+ * 快照库的适配器写得进快照、封得住、按当前配置删得掉吗；是就收窄成本地适配器。
+ *
+ * @remarks
+ * 「删得掉」只问配置（`canDropStorage()`），在连接之前问：建得出却删不掉的快照库关闭时抛错、之后每次回收都报错，
+ * 而先删一次来试会删掉还没验明身份的库。
+ */
 const asSnapshotTarget = (adapter: IRxDBAdapter): LocalRxDBAdapter => {
   const missing = SNAPSHOT_TARGET_METHODS.filter(method => typeof Reflect.get(adapter, method) !== 'function');
-  if (missing.length === 0) return adapter as LocalRxDBAdapter;
-  throw new WorktreeUnavailableError(
-    'unsupported_adapter',
-    `快照库的适配器 ${adapter.name} 没有 ${missing.join(' / ')}`
-  );
+  if (missing.length > 0) {
+    throw new WorktreeUnavailableError(
+      'unsupported_adapter',
+      `快照库的适配器 ${adapter.name} 没有 ${missing.join(' / ')}`
+    );
+  }
+  const target = adapter as LocalRxDBAdapter;
+  if (!target.canDropStorage!()) {
+    throw new WorktreeUnavailableError(
+      'unsupported_adapter',
+      `快照库的适配器 ${adapter.name} 按当前配置删不掉自己的存储，建出来的快照库关闭时回收不了`
+    );
+  }
+  return target;
 };
 
 /**

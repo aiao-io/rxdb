@@ -102,6 +102,10 @@
         "kind": "value"
       },
       {
+        "name": "deleteIndexedDatabase",
+        "kind": "value"
+      },
+      {
         "name": "describeSqliteDatabase",
         "kind": "value"
       },
@@ -419,6 +423,10 @@
       },
       {
         "name": "remove_entity_ids_from_cache",
+        "kind": "value"
+      },
+      {
+        "name": "removeOpfsFiles",
         "kind": "value"
       },
       {
@@ -844,6 +852,14 @@
         "kind": "type"
       },
       {
+        "name": "DesktopHostDropRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostDropResult",
+        "kind": "type"
+      },
+      {
         "name": "DesktopHostExecuteRequest",
         "kind": "type"
       },
@@ -1109,6 +1125,10 @@
       },
       {
         "name": "parseDesktopHostChangeEvent",
+        "kind": "value"
+      },
+      {
+        "name": "parseDesktopHostDropResult",
         "kind": "value"
       },
       {
