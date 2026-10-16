@@ -929,6 +929,12 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
 完整数据仍然没有；现状 6 的覆盖在合并前可见（`previewMerge()` 的四类标注），合并的写法不变；现状 10 的 demo 合并对话框
 打开即显示预览，分支菜单可以拿任一分支与当前分支对比。
 
+**阶段 3（[US-313](../stories/collaboration/US-313-read-only-checkout.md)）之后**，现状 1 与现状 5 有了不切换的出路：
+`rxdb.workingTree.checkouts.open({ branchId } | { commitId })` 把另一条分支或当前分支上一个可达提交的**完整数据**建成只读快照库
+（与主库同一种后端、独立库名），用第二个只读实例浏览，active 分支与工作树都不动；三端 demo 的分支行与历史行菜单可以「Open read-only」。
+现状 9 照旧：DevTools 只连主实例。只读检出位在 PGlite 与 SQLite 系六个后端上验过一致性（检出位一致性套件），
+各后端新增了删库能力（`dropStorage()` / `canDropStorage()`）用来回收快照库。
+
 ### 三类场景
 
 价值状态按 [CONVENTIONS 的价值待证](../CONVENTIONS.md#价值待证)：写得出今天用户踩得到的症状才算实。

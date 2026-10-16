@@ -213,6 +213,21 @@ for (const entry of preview.entries) {
 
 只看业务字段：`remoteId`、`createdAt`、`updatedAt` 这类簿记字段（`ENTITY_BOOKKEEPING_FIELDS`）不算差异，也不算覆盖。补丁不解码，取值原样来自变更日志，加密字段保持密文。
 
+## 只读打开另一条分支或一个提交
+
+差异只给变了的实体；排序、分页、聚合、树形展开要整张表。装了工作树插件并配上快照库时，`rxdb.workingTree.checkouts.open()` 不切换分支、不动工作树，把目标的**完整数据**建成一份只读快照，用第二个只读实例浏览：
+
+```typescript
+const view = await rxdb.workingTree.checkouts.open({ branchId: 'feature-1' }); // 或 { commitId }
+const FeatureTodo = view.entityOf(Todo);
+const todos = await firstValueFrom(
+  view.rxdb.entityManager.getRepository(FeatureTodo).findAll({ where: { combinator: 'and', rules: [] } })
+);
+await view.close();
+```
+
+分支视图与「切过去读到的数据」逐行一致；提交视图是那次 `commit()` 刚完成时的数据，提交要在当前分支 HEAD 的可达父链上。快照是建立时刻的数据，`view.refresh()` 重建。配置快照库、生命周期与支持的后端见[工作树插件的只读检出位](../plugins/rxdb-plugin-working-tree/README.md#只读检出位)。
+
 ## 相关文档
 
 - [同步策略](./sync.md) - 了解数据同步配置

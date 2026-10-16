@@ -2,22 +2,23 @@
 
 `@aiao/rxdb-plugin-working-tree` 为 `@aiao/rxdb` 提供**本地工作树与提交历史**：把「未提交的改动」与「提交历史」作为一等概念加进数据库——用户的编辑先落进工作树而不是直接改主数据，`status()` / `diff()` 查看摘要与逐条改动，`commit()` 一次性提交成快照，`discard()` 整体退回，`listCommits()` 读取当前分支的提交历史，`restore()` 把历史版本的内容搬回工作树。
 
-未装本包的库**零成本**——十张系统表、写捕获、提交图编解码全部随包走，核心侧只留下装卸口与两道转交门。
+未装本包的库**零成本**——十一张系统表、写捕获、提交图编解码全部随包走，核心侧只留下装卸口与两道转交门。
 
 ## 能力范围
 
-| 能力               | 说明                                                                                                                   |
-| ------------------ | ---------------------------------------------------------------------------------------------------------------------- |
-| 写捕获             | 用户编辑落进工作树而不是直接改主数据；库自己的簿记写入（`rxdb_change` 等）不被捕获                                     |
-| `status()`         | 当前分支的未提交摘要：条目数、三个捕获位（revision）、来源分布                                                         |
-| `diff()`           | 逐条未提交改动；`entity` / `transaction` 两种粒度，支持分页游标                                                        |
-| `commit()`         | 把工作树里的**全部**未提交单元提交成一次快照；CAS 落败走返回值而非异常                                                 |
-| `discard()`        | 把工作树整体退回 HEAD                                                                                                  |
-| `listCommits()`    | 当前分支从 HEAD 沿父链可达的提交历史                                                                                   |
-| `restore()`        | 把一个可达历史提交的内容作为**新的未提交变更**写回工作树；不移动 HEAD、不删历史                                        |
-| `restoreSession()` | 当前分支那个尚未结束的恢复会话                                                                                         |
-| `commits$`         | 每次 `commit()` **确实写入了新 commit** 时发一次 `{ commitId, branchId }`，供录制回放等订阅方关联提交                  |
-| `switchBranch()`   | 切分支时可以要求「当前分支必须干净」「激活代际必须对得上」；挂在 `@aiao/rxdb-plugin-history` 的 `db.versionManager` 上 |
+| 能力               | 说明                                                                                                                          |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| 写捕获             | 用户编辑落进工作树而不是直接改主数据；库自己的簿记写入（`rxdb_change` 等）不被捕获                                            |
+| `status()`         | 当前分支的未提交摘要：条目数、三个捕获位（revision）、来源分布                                                                |
+| `diff()`           | 逐条未提交改动；`entity` / `transaction` 两种粒度，支持分页游标                                                               |
+| `commit()`         | 把工作树里的**全部**未提交单元提交成一次快照；CAS 落败走返回值而非异常                                                        |
+| `discard()`        | 把工作树整体退回 HEAD                                                                                                         |
+| `listCommits()`    | 当前分支从 HEAD 沿父链可达的提交历史                                                                                          |
+| `restore()`        | 把一个可达历史提交的内容作为**新的未提交变更**写回工作树；不移动 HEAD、不删历史                                               |
+| `restoreSession()` | 当前分支那个尚未结束的恢复会话                                                                                                |
+| `commits$`         | 每次 `commit()` **确实写入了新 commit** 时发一次 `{ commitId, branchId }`，供录制回放等订阅方关联提交                         |
+| `switchBranch()`   | 切分支时可以要求「当前分支必须干净」「激活代际必须对得上」；挂在 `@aiao/rxdb-plugin-history` 的 `db.versionManager` 上        |
+| `checkouts`        | 只读检出位：不切换分支、不动工作树，以只读方式打开另一条分支或当前分支上一个可达提交的完整数据（见[只读检出位](#只读检出位)） |
 
 ## 用之前要知道的六件事
 
@@ -52,7 +53,7 @@
 - 工作树是**脏的**，脏在普通条目上，与手写变更同表同形；
 - 下一步是 `commit()`（把这次恢复变成一个新提交）或 `discard()`（当作没恢复过）。
 
-v1 **没有 detached HEAD、没有 `checkout()`、没有只读历史浏览**：`listCommits()` 返回的是**数据，不是可切换的位置**。想「切过去看一眼再切回来」，用分支。
+**没有 detached HEAD、没有 `checkout()`**：`listCommits()` 返回的是**数据，不是可切换的位置**。只想看一眼另一条分支或一个历史提交，用[只读检出位](#只读检出位)：它把目标的数据建成一份只读快照，HEAD 与工作树都不动。
 
 恢复目标必须在当前分支 HEAD 的可达父链上；够不到就是 `{ ok: false, reason: 'unreachable_target' }`，而不是异常。
 
@@ -449,6 +450,85 @@ v1 **没有自动 stash，也不携带脏工作树跨分支**：工作树属于�
 
 另一道前置不受 `requireClean` 控制：**目标分支的提交图必须完整**。它单独判、单独抛，`requireClean: false` 关不掉它——否则历史子系统的回放路径就能切进一份重放不出来的历史。
 
+## 只读检出位
+
+不切换分支、不动工作树，以只读方式打开另一条分支或当前分支上一个可达提交的**完整数据**，用平常的查询与实体列表浏览（US-313）。`db.workingTree.checkouts` 把业务数据复制进一个独立的快照库，叠上从当前分支走到目标点的增量，再用第二个 RxDB 实例只读打开它。
+
+| 视图     | 目标           | 看到的是                                                                                          |
+| -------- | -------------- | ------------------------------------------------------------------------------------------------- |
+| 分支视图 | `{ branchId }` | 那条分支此刻的数据，含它的未提交变更，与「切过去读到的数据」逐行一致                              |
+| 提交视图 | `{ commitId }` | 当前分支上那次 `commit()` 刚完成时的已跟踪数据；提交要在 HEAD 的可达父链上，与 `restore()` 同口径 |
+
+快照是**建立时刻**的数据，不实时；`view.refresh()` 按同一个目标重建一份。
+
+### 配置快照库
+
+快照库与主库是**同一种后端**、各用各的库名。插件选项 `worktrees.adapter` 给出快照实例的适配器工厂，存储位置按快照实例自己的 `db.config.dbName` 定（`wt-` 加一串散列，每个检出位一个）：
+
+```typescript
+import { RxDBAdapterSqlite } from '@aiao/rxdb-adapter-sqlite-wasm';
+import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
+
+db.use(rxDBPluginWorkingTree, {
+  worktrees: {
+    // 主线程 IndexedDB：每个检出位一个独立的 IndexedDB 库，关闭时删得掉
+    adapter: snapshot => new RxDBAdapterSqlite(snapshot, { vfs: 'idb' }),
+    // 快照实例只装读侧要的插件：实体用到 TreeRepository 就要装树插件
+    plugins: [rxDBPluginTree]
+  }
+});
+```
+
+:::warning
+**不要照搬主库的适配器工厂。** 主库若跑在 Worker / SharedWorker 里、按外层库名或常量给 Worker 命名，Worker 里的客户端初始化过一次就直接复用，快照实例会悄悄连到主库上。连错了也写不坏主库：快照实例带一条只在快照库上登记的标记迁移，误打开已有的库时当场以 `adapter_mismatch` 失败。
+:::
+
+`plugins` 里不要装写侧插件（history / sync / workspace / working-tree / storage / search）。
+
+### 打开、浏览、关闭
+
+```typescript
+const view = await db.workingTree.checkouts.open({ branchId: 'feature/x' }); // 或 { commitId }
+
+const FeatureTodo = view.entityOf(Todo); // 主实例的实体类 → 快照实例上的对应类
+const todos = await firstValueFrom(
+  view.rxdb.entityManager.getRepository(FeatureTodo).findAll({ where: { combinator: 'and', rules: [] } })
+);
+
+await view.close(); // 断开只读实例，删快照库与登记
+```
+
+| 成员              | 说明                                                                                         |
+| ----------------- | -------------------------------------------------------------------------------------------- |
+| `view.rxdb`       | 只读的第二个实例；交给各端的 Provider，现有查询 hook 与 rxdb-model 的实体列表照用            |
+| `view.entityOf()` | 主实例的实体类在快照实例上的对应类（同命名空间、同名）；快照里没有时抛 `incomplete_entities` |
+| `view.refresh()`  | 按同一个目标重建快照，交回新视图，旧的随之关闭                                               |
+| `view.close()`    | 断开、删快照库、撤销登记                                                                     |
+| `view.release()`  | 只断开与放开锁，登记与快照库留着：持久归属的留给 `attach()`，会话归属的留给 `prune()`        |
+
+`checkouts.list()` 读登记表，`checkouts.attach(id)` 再打开一个持久归属、已建完的检出位（不重建快照），`checkouts.prune()` 回收没人在用的。
+
+### 只读，且不污染主实例
+
+- **三层只读**：核心的 `readOnly` 让公开写入口抛 `RxDBReadOnlyError`；只读捕获钩子拦适配器层的批量写与 raw 写；引擎封印（SQLite `PRAGMA query_only`、PGlite 只读事务）兜住直接打到适配器的写。快照库与主库都不变。
+- **实体类是克隆**：同一个实体类不能注册到两个实例，快照实例用 `cloneEntityClasses()` 克隆出来的类，主实例的实体缓存、NEW 事件、草稿缓存都碰不到它们。核心系统实体两个实例共用同一个类，`RxDBBranch.find()` 这类静态调用落到可写的主实例。
+- **加密照旧**：加密字段按信封原样复制、不解密，建快照不调用密钥环。快照实例与主实例共用同一个密钥环（信封的 AAD 绑定库名），在快照实例上 `lock()` 也会锁住主库。
+
+### 快照里有什么
+
+复制的是主实例上的业务表；系统表（快照实例有自己的一套）、QueryCache 实体与只有远端一侧的实体不复制，全文搜索不装（搜索插件要往快照库写索引）。不记变更日志（`log: false`）的实体照常复制，但增量不碰它们：它们在快照里是**此刻的内容**，不随检出的分支或提交。storage 的文件元数据就是这样，界面上要标「不随版本」。
+
+### 生命周期与回收
+
+- 每个检出位一把**排他** Web Lock：写登记行之前拿下，关闭或放开时还。标签页关掉或崩掉，浏览器替它还锁：「锁没人持有」即「没人在用」。同一个检出位同一时刻只能在一处打开，`attach()` 拿不到锁即 `in_use`。
+- `owner: 'session'`（默认）是会话归属，标签页没了就该回收；`owner: 'persistent'` 放开之后还在登记里，刷新页面后 `attach(id)` 原样打开。
+- `prune()` 回收拿得到锁的会话归属检出位，以及没建完的（`building`）。删之前先用空实体集连一次快照库：标记迁移在不是快照库的已有库上当场失败，工厂配错、指到主库存储时报错而不是把主库删掉。启动清理：既有库连接时，插件在本来就有的引导事务里读一次登记表，确有孤儿（会话归属或没建完、且锁没人持有）才在连上之后跑一次 `prune()`。不无条件回收，是因为另一个连接的 `connect()` 要先拿系统迁移的排他锁、拿不到就失败，连上之后多开一笔事务会让恰好同时连接的标签页连不上。
+- `attach()` 校验实体结构指纹：应用的实体结构变了报 `schema_mismatch`，要重新打开一个。
+
+### 支持的后端
+
+首批六个后端：PGlite、sqlite-wasm、wa-sqlite、sqlite（官方）、sqliteai、Electron。快照原语（读页、导入、接手密钥环、封印）与删库（`dropStorage()`）由适配器提供。按当前配置删不掉自己存储的后端由 `canDropStorage()` 答 `false`，`open()` 在建快照之前就以 `unsupported_adapter` 拒绝：sqlite-wasm 的 `fs-handle`、wa-sqlite 的 `AccessHandlePoolVFS`、PGlite 内存与 `idb://` 之外的数据目录、Electron PGlite。Tauri 等没有快照原语的适配器同样报 `unsupported_adapter`。
+
 ## 未认领能力守卫
 
 `enable()` 过的库会在 `rxdb_migration` 里留下一行能力水位（`__rxdb_capability__:workingTree:1:@aiao/rxdb-plugin-working-tree`）。**没装本包的客户端再打开这个库时，核心拒绝连接**并把该装的包名原样报出来：
@@ -462,11 +542,11 @@ v1 **没有自动 stash，也不携带脏工作树跨分支**：工作树属于�
 
 ## 系统表
 
-十张，顺序即建表顺序：
+十一张，顺序即建表顺序：
 
 `CommitCapabilityState`、`WorkingTreeActivationState`、`Commit`、`CommitChangeSet`、`CommitBranchRef`、
 `WorkingTreeState`、`WorkingTreeEntry`、`WorkingTreeRestoreSession`、`WorkingTreeMaterializationStage`、
-`WorkingTreeMaterializationPage`。
+`WorkingTreeMaterializationPage`、`Worktree`（只读检出位登记表，`rxdb_worktree`，不记变更日志）。
 
 它们经 `registerSystemEntities()` 进入核心的系统表身份集，因此 `isSystemEntity()` 认得它们——`@aiao/rxdb-adapter-http` 等跨包消费者不会把它们当接入方数据推上远端。
 
@@ -626,21 +706,37 @@ const save = async (): Promise<void> => {
 - `switchBranch()` 挂在历史插件（`@aiao/rxdb-plugin-history`）的 `versionManager` 上而不是 `workingTree` 上，因此三端入口取的是整个 `RxDB`，不是只取 `db.workingTree`。
 - 类型与错误类一律从 `@aiao/rxdb-plugin-working-tree` 直接 import，绑定包**不重定义、也不再导出**。
 
+### 只读检出位：`useWorktrees()`
+
+三端 `useWorktrees()` 同名同 API：四格状态 `listState` / `openState` / `attachState` / `pruneState`，命令 `list()` / `open()` / `attach()` / `prune()` 与 `db.workingTree.checkouts` 上的同名方法签名一致。打开、再打开、回收之后，以及视图的 `close()` / `release()` / `refresh()` 之后，都会顺带重读登记表；同一格后发的请求胜出。
+
+打开得到的视图把 `view.rxdb` 交给各端现成的 Provider，里面的查询 hook 与 rxdb-model 的实体列表照用（只读实例上列表不出写控件）：
+
+- React：`<RxDBProvider db={view.rxdb}>…</RxDBProvider>`
+- Vue：在子组件里 `provideRxDB(view.rxdb)`；视图放 `shallowRef`，RxDB 实例的私有字段过不了深层响应式代理
+- Angular：子组件注入器里 `{ provide: RxDB, useValue: view.rxdb }`，比如经 `NgComponentOutlet` 的 `injector`
+
+`useWorktrees()` 本身要在嵌套的 Provider **之外**调用：快照实例没装工作树插件。
+
 ## 错误类型
 
-| 错误                                 | 出现时机                                                                                                                 | 出路                                                |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- |
-| `WorkingTreeCapabilityDisabledError` | 库还没启用提交能力就调用受管成员（`code: 'commit_capability_disabled'`）                                                 | 先 `db.workingTree.enable()`                        |
-| `UnsupportedRxDBSystemVersionError`  | 库启用了能力，但能力版本三元组与本进程不符                                                                               | 升客户端或跑迁移                                    |
-| `CommitValidationError`              | 提交消息为空、或工作树是干净的（`empty_commit`）                                                                         | 检查入参与 `status()`                               |
-| `CommitGraphCorruptedError`          | 当前分支的提交图已损坏（FR-051）                                                                                         | 诊断数据现场                                        |
-| `WorkingTreeEntryCountMismatchError` | 冗余列与实际条目行数对不上——库里两份真相对不上                                                                           | 诊断数据现场                                        |
-| `WorkingTreeDirtyError`              | `switchBranch(..., { requireClean: true })` 撞上非空工作树（`code: 'working_tree_dirty'`，带 `branchId` / `entryCount`） | 先 `commit()` 或 `discard()`，或不传 `requireClean` |
-| `StaleActiveBranchError`             | `expectedActivationRevision` 与库里的激活代际对不上（`code: 'stale_active_branch'`，带 `expected` / `actual` 两个令牌）  | 重读 `status()` 再切                                |
+| 错误                                 | 出现时机                                                                                                                 | 出路                                                  |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| `WorkingTreeCapabilityDisabledError` | 库还没启用提交能力就调用受管成员（`code: 'commit_capability_disabled'`）                                                 | 先 `db.workingTree.enable()`                          |
+| `UnsupportedRxDBSystemVersionError`  | 库启用了能力，但能力版本三元组与本进程不符                                                                               | 升客户端或跑迁移                                      |
+| `CommitValidationError`              | 提交消息为空、或工作树是干净的（`empty_commit`）                                                                         | 检查入参与 `status()`                                 |
+| `CommitGraphCorruptedError`          | 当前分支的提交图已损坏（FR-051）                                                                                         | 诊断数据现场                                          |
+| `WorkingTreeEntryCountMismatchError` | 冗余列与实际条目行数对不上——库里两份真相对不上                                                                           | 诊断数据现场                                          |
+| `WorkingTreeDirtyError`              | `switchBranch(..., { requireClean: true })` 撞上非空工作树（`code: 'working_tree_dirty'`，带 `branchId` / `entryCount`） | 先 `commit()` 或 `discard()`，或不传 `requireClean`   |
+| `StaleActiveBranchError`             | `expectedActivationRevision` 与库里的激活代际对不上（`code: 'stale_active_branch'`，带 `expected` / `actual` 两个令牌）  | 重读 `status()` 再切                                  |
+| `WorktreeUnavailableError`           | 只读检出位打不开（`reason`：没配快照库、后端不支持、分支不存在、提交不可达、有进行中的恢复、`in_use` 等十三种）          | 按 `reason` 处理；提交视图的拒绝与 `restore()` 同口径 |
+| `RxDBReadOnlyError`（核心）          | 在只读检出位的实例上写                                                                                                   | 回主实例写                                            |
 
 ## 一致性套件
 
-`@aiao/rxdb-plugin-working-tree/testing` 导出跨后端一致性套件（capture + commit），六个适配器包（electron / sqlite / sqlite-wasm / pglite / sqliteai / wa-sqlite）各引两条。新增适配器时接上这两条，才能拿到「捕获不漏、提交不错」的跨后端保证。
+`@aiao/rxdb-plugin-working-tree/testing` 导出跨后端一致性套件（capture + commit + worktree），六个适配器包（electron / sqlite / sqlite-wasm / pglite / sqliteai / wa-sqlite）各引三条。新增适配器时接上这三条，才能拿到「捕获不漏、提交不错、只读检出位与切过去读到的一致」的跨后端保证。
+
+只读检出位套件的上下文比另外两套多一个可选的 `createDatabaseWithPersistentSnapshots`：只有「持久归属的检出位放开之后原样再打开」那条用例要求快照库落在持久存储上。快照库开在持久存储上很贵的后端（比如 OPFS 只能在专用 Worker 里开、一个快照库一个 Worker），`createDatabase` 给内存档快照、这一项给持久档；不给就用 `createDatabase`，那时它的快照库要落在持久存储上。
 
 ## 相关文档
 

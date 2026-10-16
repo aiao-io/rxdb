@@ -215,7 +215,7 @@ demo 的变更通知开关就是留给这类实验的。
 
 前端实例是**一人一库**（每个浏览器 profile 一个实例，`context` 就是该用户）；后端实例是**全租户共享**——
 身份随请求来，不能进实例级 `context`（其契约是「`userId` 用来填 `createdBy` / `updatedBy` 审计字段，`clientId` 用来在同步时认出本端发出的变更」，
-[rxdb.interface.ts:157](../../../packages/rxdb/src/rxdb.interface.ts#L157)）。据此画线：
+[rxdb.interface.ts:160](../../../packages/rxdb/src/rxdb.interface.ts#L160)）。据此画线：
 
 **实例级**（后端合法持有）：schema、存储、事件流、`clientId`。后端 `context` 填服务器身份（不是任何用户），
 引擎拿它盖审计字段。回声抑制用的 `x-client-id` 从**请求头**读，与实例 `clientId` 无关——这条与现行后端一致。

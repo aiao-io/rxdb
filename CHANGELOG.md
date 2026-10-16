@@ -4,9 +4,19 @@
 
 - **rxdb-plugin-history:** `VersionManager.compareBranches()` 与 `previewMerge()`：不切换分支就对比两条分支、预览一次合并会落什么，`merged` 与随后 `mergeBranch()` 返回的一致，并标出四类覆盖（`overwrite` / `delete_edited` / `update_deleted` / `revive_deleted`）。只读，不写任何表（US-312）
 - **rxdb:** 新增 `ENTITY_BOOKKEEPING_FIELDS`（`remoteId` / `createdAt` / `updatedAt`）；工作树插件的 `UNTRACKED_BOOKKEEPING_FIELDS` 改为引用它，对比与覆盖判定同样不把这些字段算作差异（US-312）
+- **rxdb-plugin-working-tree:** 只读检出位 `rxdb.workingTree.checkouts`：不切换分支、不动工作树，以只读方式打开另一条分支或当前分支上一个可达提交的完整数据。快照库与主库同一种后端、独立库名，用第二个只读实例浏览；`open()` / `attach()` / `list()` / `prune()`，会话归属与持久归属，排他 Web Lock；既有库连接期判定出孤儿时在连上之后回收；插件选项 `worktrees: { adapter, plugins? }`（US-313）
+- **rxdb-plugin-working-tree-angular / -react / -vue:** `useWorktrees()`，三端同名同 API；打开的视图把 `view.rxdb` 交给各端现成的 Provider（US-313）
+- **rxdb:** `cloneEntityClasses()` 从 `@aiao/rxdb/testing` 提为主入口公开 API；新增 `RxDBOptions.readOnly` 与 `RxDBReadOnlyError`；适配器新增可选的快照原语（`readWorktreeSnapshotPage` / `importWorktreeSnapshot` / `adoptWorktreeEncryption` / `sealWorktreeReadOnly`）与删库能力（`dropStorage()` / `canDropStorage()`）（US-313）
+- **rxdb-adapter-pglite / -sqlite / -sqlite-wasm / -sqliteai / -wa-sqlite / -electron:** 实现快照原语与 `dropStorage()`；Electron 桌面线协议新增 `drop` 请求，老宿主在任何副作用之前就拒绝不认识的请求，协议版本不变（US-313）
+- **rxdb-model / -angular / -react / -vue:** `deriveEntityCapabilities` 认实例侧的 `readOnly`：只读实例上实体列表不出新建、编辑与删除（US-313）
 
 ### 🩹 Fixes
 
+- **rxdb:** 多对多解绑后保存，中间行留在根实体的待删集合里；切走再切回来那一行被切换插回，下一次哪怕只改一个标量的 `save()` 都会把它再删一遍。两端都不记日志（`log: false`）时，生成的中间表也不再记日志（US-313）
+- **rxdb:** 只读实例与可写实例共用一个实体类时（核心系统实体每个实例都登记），`RxDBBranch.find()` 这类静态调用落到可写的那个，不再报多实例；两个可写实例共用一个类照旧报错（US-313）
+- **rxdb-adapter-pglite:** 断开时关掉 IdbFs 留着的 IndexedDB 连接，此前之后的 `deleteDatabase` 会一直卡在 `blocked`（US-313）
+- **rxdb-adapter-sqlite-wasm:** 断开与初始化失败时关掉打开库的 VFS，IndexedDB 系 VFS 的连接此前一直留着（US-313）
+- **rxdb-model:** 实体表格接键盘焦点的隐藏输入框补上可读名，此前 axe 判 `label`（critical），读屏只念「编辑框，只读」（US-313）
 - **rxdb-plugin-workspace:** 草稿缓存不再收系统表与关闭变更日志（`log: false`）实体的草稿。此前系统表名单只认核心四张表，插件登记的系统表（如工作树插件的提交表）与 storage 插件的 `StorageFileMeta` 每次构造都留下一条永远清不掉的草稿：它们出现在 `list()` / `cacheCount` 里、广播给其他标签页、每次启动被恢复。`install()` 会删掉 IndexedDB 里已有的这类草稿（US-311）
 
 ## 0.0.26 (2026-10-01)

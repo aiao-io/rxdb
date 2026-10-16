@@ -1,7 +1,7 @@
 ---
 id: US-313
 title: 只读检出位：不切换分支就打开另一条分支或一个可达提交的完整数据
-status: In Progress
+status: In Review
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-10-16
@@ -75,7 +75,7 @@ epic-006 多检出位[场景二](../../epics/epic-006-working-tree-commits.md#�
 | A    | 核心前置（克隆实体类不再泄漏多对多中间表、`cloneEntityClasses` 公开、`readOnly` 与 `RxDBReadOnlyError`、生成类清单、快照原语声明）；PGlite 与 SQLite 系的快照原语；登记表；分支视图与只读实例；一致性套件接六个后端 | ✅   |
 | B    | 提交视图                                                                                                                                                                                                            | ✅   |
 | C    | 生命周期与回收：六个后端的 `dropStorage`、Web Locks、`prune()`、启动清理、`attach()`                                                                                                                                | ✅   |
-| D    | 三端绑定、三端 demo、文档                                                                                                                                                                                           | ⚠️   |
+| D    | 三端绑定、三端 demo、文档                                                                                                                                                                                           | ✅   |
 
 ## 验收标准
 
@@ -83,7 +83,7 @@ epic-006 多检出位[场景二](../../epics/epic-006-working-tree-commits.md#�
 | --- | ---- | ---------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---- |
 | 1   | A    | 两条分支各有提交与未提交变更                   | 打开另一条分支的只读检出位                         | 每张业务表与「切过去读到的数据」逐行一致；当前 active 分支、工作树、业务表都不变                 | ✅   |
 | 2   | A    | 只读检出位已打开                               | 在它上面 save / remove / reorder / 批量写 / raw 写 | 公开写入口抛 `RxDBReadOnlyError`；适配器层的写被只读钩子与引擎封印拒绝；快照库与主库都不变       | ✅   |
-| 3   | A    | 主实例装了 workspace 插件                      | 在只读实例上查询并实例化实体                       | 主实例实体缓存里没有这些实体；草稿缓存不新增条目                                                 | ⚠️   |
+| 3   | A    | 主实例装了 workspace 插件                      | 在只读实例上查询并实例化实体                       | 主实例实体缓存里没有这些实体；草稿缓存不新增条目                                                 | ✅   |
 | 4   | A    | 有加密字段的实体                               | 打开只读检出位                                     | 快照库里每个密文都是主库已有信封的逐字节拷贝；建快照不调用密钥环                                 | ✅   |
 | 5   | A    | 只读检出位已打开，主库随后又写入               | 读只读检出位；再 `refresh()`                       | 先读到的仍是建立时刻的数据；`refresh()` 后与新状态一致                                           | ✅   |
 | 6   | B    | 当前分支上一个可达的历史提交                   | 打开提交视图                                       | 已跟踪实体的数据与「那次 `commit()` 刚完成时读到的数据」逐行一致                                 | ✅   |
@@ -91,19 +91,26 @@ epic-006 多检出位[场景二](../../epics/epic-006-working-tree-commits.md#�
 | 8   | C    | 只读检出位已打开                               | `close()`                                          | 快照库与登记都删除                                                                               | ✅   |
 | 9   | C    | 标签页会话归属的检出位，所在标签页已关闭或崩溃 | 任一标签页启动，或调 `prune()`                     | 该检出位被回收；其它标签页仍在用的不受影响                                                       | ✅   |
 | 10  | C    | 持久归属的检出位                               | 刷新页面                                           | 仍在登记里，可直接打开                                                                           | ✅   |
-| 11  | D    | 三端 demo                                      | 分支行 / 历史行菜单「Open read-only」              | 打开只读视图，能按实体浏览列表与详情；有只读横幅，写入口不可用；storage 文件标注「不随版本」     | ⬜   |
+| 11  | D    | 三端 demo                                      | 分支行 / 历史行菜单「Open read-only」              | 打开只读视图，能按实体浏览列表与详情；有只读横幅，写入口不可用；storage 文件标注「不随版本」     | ✅   |
 | 12  | D    | 三端绑定                                       | 对照三端 API                                       | 同名同 API（`tri-framework-check`）                                                              | ✅   |
-| 13  | D    | 三端 demo                                      | a11y 走查                                          | 只读视图 axe 零违规、键盘可达                                                                    | ⬜   |
+| 13  | D    | 三端 demo                                      | a11y 走查                                          | 只读视图 axe 零违规、键盘可达                                                                    | ✅   |
 | 14  | —    | 门禁                                           | 收尾                                               | 首批后端的真库比对、三端单测与 e2e、`audit:api-surface`（基线随提交）、`audit:requirements` 全绿 | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-阶段 D 的三端绑定已就位（AC12：三端入口同名导出 `useWorktrees` 与 `WorktreesResource`），demo 与文档待做。
+阶段 D：三端绑定（AC12：三端入口同名导出 `useWorktrees` 与 `WorktreesResource`）、三端 demo 与文档已交付。
+AC11 / AC13 由三端 demo 的 e2e 与 a11y 用例验：分支视图与提交视图读到的是目标的数据、没有新增入口、存储文件标「不随版本」、
+关掉之后当前分支不变；查看器 axe 零违规、焦点进对话框、Escape 关闭。
 AC1～AC10 由 `worktreeConformanceSuite` 在六个后端上验（PGlite / sqlite-wasm / wa-sqlite / sqlite / sqliteai / Electron）。
 AC8 的「快照库删除」另由六个后端各自的 `drop-storage.spec.ts` 对真实存储验；AC9 的「任一标签页启动」由插件的
-`worktree-startup-prune.spec.ts` 验：每个连接纪元第一次连上本地适配器后在后台回收一次，未启用的库与没配快照库的实例跳过。
-AC3 的保留：主实例实体缓存的隔离已验；workspace 草稿缓存这一半等阶段 D 的 demo（主实例装着 workspace）补 e2e，
-结构上它只收主实例 `EntityManager` 的实体，快照实例不装 workspace。
+`worktree-startup-prune.spec.ts` 验：既有库的连接期判定有孤儿（会话归属或没建完、且锁没人持有）时，连上之后在后台回收一次；没有孤儿、未启用的库、没配快照库的实例与新库都不回收。
+AC3 的两半：主实例实体缓存的隔离由一致性套件验；workspace 草稿缓存由 Angular demo 的 e2e 验（主实例装着 workspace，
+浏览只读视图之后草稿缓存里没有 `Task` 的键；只有 Angular 的 e2e 工具读得到草稿仓库）。
+官方 sqlite 与 sqliteai 的快照库在一致性套件里平时用内存档，只有 AC10 那条用例经套件上下文的
+`createDatabaseWithPersistentSnapshots` 落到 OPFS：这两个后端的 OPFS 只能在专用 Worker 里开，一个快照库一个 Worker，
+整套用例都这么建时，覆盖率验收里 sqlite 组的 Chromium 内存从平均约 0.95 GB 涨到约 2.3 GB（峰值约 3.9 GB），
+CI 上四组浏览器并发跑时 sqlite 组三次里挂死两次（文件之间无声卡住，直到 15 分钟被杀）。改成只在 AC10 用 OPFS 之后
+回到平均约 0.95 GB；快照的读写与封印跟存储档位无关，真实存储的删除仍由 `drop-storage.spec.ts` 对 OPFS 验。
 
 ## 设计决定
 
@@ -190,7 +197,7 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
   `close()` 断开、删库、删登记行再还锁；`release()` 只断开与还锁，持久归属的留给 `attach()`、会话归属的留给 `prune()`。
   `prune()` 以 `ifAvailable` 试锁，拿到且归属为 `session` 或仍是 `building` 的才回收；`persistent` 且 `ready` 的保留。
   回收前先用空实体集连一次快照库：标记迁移在不是快照库的已有库上当场失败，工厂配错指到主库存储时报错而不是把主库删掉；
-  建快照失败时没连上的库一个字节都不删，理由相同。每个连接纪元第一次拿到本地适配器后，插件在后台跑一次 `prune()`（未启用的库跳过）。
+  建快照失败时没连上的库一个字节都不删，理由相同。启动清理的判定放在连接期本来就开的引导事务里（`bootstrapExisting()`）：读一次登记表，再用 `navigator.locks.query()` 看候选的锁有没有人持有，确有孤儿才在适配器连上之后（`adapterConnected$`）跑一次 `prune()`。不在连上之后无条件回收：另一个连接的 `connect()` 开头先拿系统迁移的排他锁、拿不到就失败，连上之后多开的那一笔事务正赶上它时它就连不上（Angular demo 失败现场归档的第二连接因此挂过，e2e 稳定复现）。
   Node 26 起自带 `navigator.locks`（进程即会话），原先「Node 没有 Web Locks 就拒绝 `session`」不再需要；运行时真没有时报
   `locks_unavailable`。`attach()` 校验 `schemaFingerprint`，应用的实体结构变了报 `schema_mismatch`。
   后台回收失败只打到控制台：没有调用方接得住，留下的快照库下一个连接纪元再试。
@@ -198,6 +205,16 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
   三端各一个 `useWorktrees()`；打开的视图把 `view.rxdb` 交给各端现成的 Provider（React `RxDBProvider`、Vue `provideRxDB`、
   Angular 组件级 `{ provide: RxDB }`），现有查询 hook 与 rxdb-model 的实体列表照用；`deriveEntityCapabilities` 认 `rxdb.readOnly`，
   只读时不出写控件。demo 的快照适配器走主线程 IDB VFS（先例：`replay-recording.ts`）。
+- **阶段 D 的发现**（做 demo 时揪出、一并修掉）：
+  - 核心系统实体每个实例都登记，只读检出位一开，主实例上 `RxDBBranch.find()` 这类静态调用就报多实例，三端查询 hook 走的都是它。
+    静态解析改为：同一个类挂在只读与可写实例上、可写的恰好一个时落到可写的那个；两个可写实例共用一个类照旧报错
+  - 复制筛选原先只认同步配置里有本地一侧的实体，存储插件的 `StorageFileMeta` 只声明了 `type: None`（插件经库级本地适配器读写它），
+    被漏掉；现在只排除只有远端一侧的实体与查询缓存实体
+  - VTable 接键盘焦点的隐藏输入框不带标签，axe 判 `label`（critical）：此前没有用例在实体列表上跑 axe。三端共用的 `createListTable`
+    建完表给它补可读名
+  - 三端把 `view.rxdb` 交出去的方式：React 嵌套 `RxDBProvider`；Vue 右栏组件里 `provideRxDB`，视图放 `shallowRef`（RxDB 的私有字段
+    过不了深层响应式代理）；Angular 经 `NgComponentOutlet` 的注入器 `{ provide: RxDB }`。React 的对话框外壳只认面板 DOM 里发出的
+    Escape：React 事件沿组件树冒泡，实体列表经 portal 开的对话框按 Escape 不该连查看器一起关
 
 ## 实现文件
 
@@ -219,7 +236,10 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
   （各后端 `src/__tests__/worktree-conformance.spec.ts`；快照库的适配器由各自测试工厂的 `create*WorktreeAdapter` 造）
 - `scripts/audit/working-tree-suite-callsites.mjs` — 调用点门禁从 6 × 2 扩到 6 × 3
 - `packages/rxdb-plugin-working-tree-{angular,react,vue}` — `useWorktrees()`
-- `apps/dev-rxdb-{angular,react,vue}` 与对应 `-e2e` — 只读视图与用例
+- `packages/rxdb/src/entity/entity-manager.ts` — 只读实例不跟可写实例抢共用类的静态解析
+- `packages/rxdb-model/src/entity-capabilities.ts`、`entity-table/` — 只读能力推导；建表后给 VTable 的焦点输入框补可读名
+- `apps/dev-rxdb-{angular,react,vue}` 与对应 `-e2e` — 菜单「Open read-only」、只读查看器、快照适配器配置与用例
+- `website/docs/plugins/rxdb-plugin-working-tree/README.md`、`website/docs/collaboration/branch.md` — 只读检出位文档
 
 ## References
 

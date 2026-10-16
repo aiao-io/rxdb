@@ -57,12 +57,36 @@ export class CommitBar {
 `provideRxDB()`。十格状态各自装进 `Signal`：模板只读了 `statusState` 时，一次 `diff()`
 的相位变化不会让它重新求值。
 
+## 只读检出位：`useWorktrees()`
+
+`useWorktrees()` 是工作树插件 `db.workingTree.checkouts` 的入口（US-313）：四格状态 `listState` / `openState` /
+`attachState` / `pruneState`，命令 `list()` / `open()` / `attach()` / `prune()`，签名与插件上的同名方法一致。
+打开、再打开、回收之后，以及视图的 `close()` / `release()` / `refresh()` 之后，都会顺带重读登记表；同一格后发的请求胜出。
+`useWorktrees()` 要在嵌套的 Provider **之外**调用：快照实例没装工作树插件。
+
+打开得到的视图经子组件的注入器交出去：`{ provide: RxDB, useValue: view.rxdb }`，里面 `inject(RxDB)` 的查询与
+rxdb-model 的实体列表照用。动态的视图用 `NgComponentOutlet` 的 `injector` 最直接：
+
+```typescript
+readonly worktrees = useWorktrees();
+
+async open(): Promise<void> {
+  const view = await this.worktrees.open({ branchId: 'feature' });
+  this.paneInjector = Injector.create({
+    providers: [{ provide: RxDB, useValue: view.rxdb }],
+    parent: this.injector
+  });
+}
+```
+
+用完 `view.close()`：断开只读实例、删快照库与登记。
+
 ## 三端对称
 
 Angular `@aiao/rxdb-plugin-working-tree-angular`（本包） /
 React [`@aiao/rxdb-plugin-working-tree-react`](../rxdb-plugin-working-tree-react) /
 Vue [`@aiao/rxdb-plugin-working-tree-vue`](../rxdb-plugin-working-tree-vue) 的
-`useWorkingTree()` **同名、同字段、同方法签名**，只有状态容器形态不同（`Signal` / 渲染快照 / `ComputedRef`）。
+`useWorkingTree()` 与 `useWorktrees()` **同名、同字段、同方法签名**，只有状态容器形态不同（`Signal` / 渲染快照 / `ComputedRef`）。
 三个包各自的 spec 结尾都带一段 `tri-framework-api.md §3 清单守卫`，任一端加减成员都会红。
 
 ## 行为约定（三端一致）

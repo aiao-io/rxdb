@@ -2,7 +2,7 @@
 
 RxDB 本地工作树与提交历史插件：把「未提交的改动」与「提交历史」作为一等概念加进 `@aiao/rxdb`。
 
-未装本包的库**零成本**——十张系统表、写捕获、提交图编解码全部随包走，核心侧只留下装卸口与两道转交门。
+未装本包的库**零成本**——十一张系统表、写捕获、提交图编解码全部随包走，核心侧只留下装卸口与两道转交门。
 
 ## 能力范围
 
@@ -13,6 +13,8 @@ RxDB 本地工作树与提交历史插件：把「未提交的改动」与「提
 - `listCommits()`：读当前分支的可达提交历史
 - `restore()` / `restoreSession()`：把一个可达历史提交的内容作为**新的未提交变更**写回工作树；不移动 HEAD、不删历史，四个被拒成因走返回值
 - `switchBranch()` 的两道可选前置（`requireClean` / `expectedActivationRevision`）；挂在 `@aiao/rxdb-plugin-history` 的 `db.versionManager` 上，被拒**走异常**
+- `checkouts`：只读检出位。不切换分支、不动工作树，把另一条分支或当前分支上一个可达提交的完整数据建成一份只读快照，
+  用第二个只读实例浏览；快照库由插件选项 `worktrees.adapter` 给出，与主库同一种后端、各用各的库名（PGlite 与 SQLite 系六个后端）
 
 ## 用之前要知道的六件事
 
@@ -99,11 +101,11 @@ db.use(rxDBPluginHistory);
 
 ## 系统表
 
-十张，顺序即建表顺序：
+十一张，顺序即建表顺序：
 
 `CommitCapabilityState`、`WorkingTreeActivationState`、`Commit`、`CommitChangeSet`、`CommitBranchRef`、
 `WorkingTreeState`、`WorkingTreeEntry`、`WorkingTreeRestoreSession`、`WorkingTreeMaterializationStage`、
-`WorkingTreeMaterializationPage`。
+`WorkingTreeMaterializationPage`、`Worktree`（只读检出位登记表）。
 
 它们经 `registerSystemEntities()` 进入核心的系统表身份集，因此 `isSystemEntity()` 认得它们——
 `@aiao/rxdb-adapter-http` 等跨包消费者不会把它们当接入方数据推上远端。
@@ -114,12 +116,12 @@ db.use(rxDBPluginHistory);
 - React —— [`@aiao/rxdb-plugin-working-tree-react`](../rxdb-plugin-working-tree-react)
 - Vue —— [`@aiao/rxdb-plugin-working-tree-vue`](../rxdb-plugin-working-tree-vue)
 
-三端 `useWorkingTree()` 同名同语义，只是状态容器形态不同（`Signal` / 渲染快照 / `ComputedRef`）。
+三端 `useWorkingTree()` 与只读检出位的 `useWorktrees()` 同名同语义，只是状态容器形态不同（`Signal` / 渲染快照 / `ComputedRef`）。
 
 ## 一致性套件
 
-`@aiao/rxdb-plugin-working-tree/testing` 导出跨后端一致性套件（capture + commit），
-六个适配器包（electron / sqlite / sqlite-wasm / pglite / sqliteai / wa-sqlite）各引两条。
+`@aiao/rxdb-plugin-working-tree/testing` 导出跨后端一致性套件（capture + commit + worktree），
+六个适配器包（electron / sqlite / sqlite-wasm / pglite / sqliteai / wa-sqlite）各引三条。
 
 ## 开发命令
 
