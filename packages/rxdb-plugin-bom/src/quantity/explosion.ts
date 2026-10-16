@@ -29,8 +29,10 @@ import {
   buildParentRevisionSql,
   type BomSqlDialect
 } from '../resolve/bom-sql.js';
+import { evaluateCondition, parseCondition } from '../resolve/config-condition.js';
 import { BomResolutionError, type ResolutionContext, type UnresolvedAlternative } from '../resolve/resolution.js';
 import { assertContext, columnIndexOf, type BomQueryExecutor, type ResolveTarget } from '../resolve/resolver.js';
+import { lotMatches, parseLotCodes, unitIntervalMatches } from '../resolve/unit-lot.js';
 import { BomQuantityError, type TruncationReason } from '../types.js';
 import { ceilToDecimalPlaces, decimalFromCanonical, decimalToCanonical, type Decimal } from './decimal.js';
 import { FORMULA_GRAMMAR_VERSION } from './formula.js';
@@ -203,6 +205,10 @@ interface ExplosionRow {
   usageProbability: string | null;
   equivQty: string | null;
   operationSeq: number | null;
+  unitFrom: number | null;
+  unitTo: number | null;
+  lotCodes: string | null;
+  selectionConditionId: string | null;
   childRevisionPhantom: boolean | null;
   childStockUom: string;
   childUomDecimals: number;
@@ -244,7 +250,31 @@ const readNullableBool = (row: unknown[], columns: string[], name: string): bool
   return row[index] === null ? null : Boolean(row[index]);
 };
 
+const readNullableNumber = (row: unknown[], columns: string[], name: string): number | null =>
+  row[columnIndexOf(columns, name)] === null ? null : Number(row[columnIndexOf(columns, name)]);
+
 /** 分块取一层已解析发生项并按头分组。 */
+/** 配置条件求值缓存（US-517）：conditionId → 在上下文配置下是否为真。 */
+const fetchConditionTruth = async (
+  query: BomQueryExecutor['query'],
+  dialect: BomSqlDialect,
+  context: ResolutionContext
+): Promise<Map<string, boolean>> => {
+  const truth = new Map<string, boolean>();
+  const selection = context.configSelection ?? {};
+  const rows = (
+    await query(
+      `SELECT c."id" AS "id", c."expression" AS "expression" FROM ${dialect.table('config_condition')} c WHERE c."orgId" = '${context.orgId}'`
+    )
+  ).rows;
+  if (rows.length === 0) return truth;
+  for (const row of rows) {
+    const expression = String(row[1]);
+    truth.set(String(row[0]), evaluateCondition(parseCondition(expression).ast, selection));
+  }
+  return truth;
+};
+
 export const fetchHeaderRows = async (
   query: BomQueryExecutor['query'],
   dialect: BomSqlDialect,
@@ -252,6 +282,8 @@ export const fetchHeaderRows = async (
   headerIds: string[]
 ): Promise<Map<string, ExplosionRow[]>> => {
   const byHeader = new Map<string, ExplosionRow[]>();
+  // 配置条件预载（US-517）：按组织取全部条件与特征值，一次求值缓存
+  const conditionTruth = await fetchConditionTruth(query, dialect, context);
   for (let offset = 0; offset < headerIds.length; offset += CHUNK_SIZE) {
     const chunk = headerIds.slice(offset, offset + CHUNK_SIZE);
     const built = buildHeaderOccurrencesSql(dialect, {
@@ -304,11 +336,20 @@ export const fetchHeaderRows = async (
           row[columnIndexOf(result.columns, 'operationSeq')] === null ?
             null
           : Number(row[columnIndexOf(result.columns, 'operationSeq')]),
+        unitFrom: readNullableNumber(row, result.columns, 'unitFrom'),
+        unitTo: readNullableNumber(row, result.columns, 'unitTo'),
+        lotCodes: readNullableString(row, result.columns, 'lotCodes'),
+        selectionConditionId: readNullableString(row, result.columns, 'selectionConditionId'),
         childRevisionPhantom: readNullableBool(row, result.columns, 'childRevisionPhantom'),
         childStockUom: readString(row, result.columns, 'childStockUom'),
         childUomDecimals: Number(row[columnIndexOf(result.columns, 'childUomDecimals')]),
         childItemUomConversion: readNullableString(row, result.columns, 'childItemUomConversion')
       };
+      // 序列 / 批次维度（US-518）：有效域 = 日期 × 序列 × 批次三维的积
+      if (!unitIntervalMatches(mapped.unitFrom, mapped.unitTo, context.unit)) continue;
+      if (!lotMatches(parseLotCodes(mapped.lotCodes), context.lot)) continue;
+      // 配置条件（US-517）：行挂选择条件，按上下文配置求值
+      if (mapped.selectionConditionId !== null && !conditionTruth.has(mapped.selectionConditionId)) continue;
       const list = byHeader.get(mapped.headerId);
       if (list) list.push(mapped);
       else byHeader.set(mapped.headerId, [mapped]);
