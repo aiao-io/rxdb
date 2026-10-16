@@ -54,6 +54,27 @@ afterEach(async () => {
   await Promise.all(databases.splice(0).map(database => database.disconnectAll()));
 });
 
+describe('SchemaManager.generatedEntities（US-313）', () => {
+  it('列出本实例生成的多对多中间表类，不含声明的实体与系统表；重复 init 不重复', () => {
+    const database = initDatabase('clone-m2m-generated', [CloneM2MArticle, CloneM2MTag]);
+    database.schemaManager.init();
+
+    const generated = database.schemaManager.generatedEntities;
+    expect(generated).toEqual([junctionOf(CloneM2MArticle, 'tags')]);
+    expect(generated).not.toContain(CloneM2MArticle);
+    expect(generated.some(EntityClass => database.systemEntities.includes(EntityClass))).toBe(false);
+  });
+});
+
+describe('cloneEntityClasses 的 log 选项（US-313）', () => {
+  it('{ log: false } 的克隆体不写变更日志，源类不受影响', () => {
+    const [ArticleClone] = cloneEntityClasses([CloneM2MArticle], { log: false });
+
+    expect(getEntityMetadata(ArticleClone).log).toBe(false);
+    expect(getEntityMetadata(CloneM2MArticle).log).not.toBe(false);
+  });
+});
+
 describe('cloneEntityClasses × 多对多', () => {
   it('第二个实例用克隆体初始化后，原实例两端的中间表实体类都不变', () => {
     initDatabase('clone-m2m-main', [CloneM2MArticle, CloneM2MTag]);

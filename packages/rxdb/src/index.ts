@@ -19,7 +19,7 @@ export { computeRxDBSchemaFingerprint } from './backup/schema-fingerprint.js';
 // 判定实现随 `@aiao/rxdb-plugin-working-tree` 走。`gateRawWrite` 必须出现在公开面上：
 // 适配器包在**包外**，它们的 `rawQuery?()` 是可选方法，核心拦不住，只能由各自实现调这一句。
 export * from './capture/index.js';
-export { cloneEntityClasses } from './entity/clone-entity-classes.js';
+export { cloneEntityClasses, type CloneEntityClassesOptions } from './entity/clone-entity-classes.js';
 export * from './entity/entity-base.js';
 export * from './entity/entity-bookkeeping.js';
 export * from './entity/entity-field.utils.js';

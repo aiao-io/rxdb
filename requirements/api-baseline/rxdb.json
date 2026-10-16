@@ -198,6 +198,10 @@
         "kind": "value"
       },
       {
+        "name": "CloneEntityClassesOptions",
+        "kind": "type"
+      },
+      {
         "name": "CodeFormat",
         "kind": "type"
       },

@@ -69,8 +69,11 @@ function findMetadata(EntityClass: EntityType): object | undefined {
  * （`relation.junctionEntityType = …`）。沿原型链共享的话，第二个实例一初始化，源类以及别的克隆体的
  * 多对多就指向这个实例的中间表类。关系对象浅拷贝即可：初始化只往它们身上写这一个字段。
  */
-function cloneMetadata(metadata: object): object {
+function cloneMetadata(metadata: object, options: CloneEntityClassesOptions): object {
   const cloned: object = Object.create(metadata);
+  if (options.log === false) {
+    Object.defineProperty(cloned, 'log', { value: false, enumerable: true, configurable: true, writable: true });
+  }
   const relationMap = (metadata as { relationMap?: unknown }).relationMap;
   if (relationMap instanceof Map) {
     Object.defineProperty(cloned, 'relationMap', {
@@ -107,10 +110,22 @@ function copyStaticProperties(source: EntityType, target: EntityType): void {
   }
 }
 
+/** {@link cloneEntityClasses} 的选项。 */
+export interface CloneEntityClassesOptions {
+  /**
+   * 克隆体不写变更日志（元数据 `log: false`）：新实例的库不建变更日志触发器
+   *
+   * @remarks
+   * 只读检出位的快照库用它：快照是另一条线建立时刻的数据，不在任何分支上，没有变更可记。
+   */
+  readonly log?: false;
+}
+
 /**
  * 克隆一组实体类，隔离跨实例 / 跨套件的注册副作用
  *
  * @param entities - 待克隆的实体类，顺序保留
+ * @param options - 见 {@link CloneEntityClassesOptions}
  * @returns 与入参一一对应的克隆体；每个克隆体 `extends` 它的源类
  *
  * @remarks
@@ -129,7 +144,7 @@ function copyStaticProperties(source: EntityType, target: EntityType): void {
  *
  * @public
  */
-export function cloneEntityClasses(entities: EntityType[]): EntityType[] {
+export function cloneEntityClasses(entities: EntityType[], options: CloneEntityClassesOptions = {}): EntityType[] {
   return entities.map(EntityClass => {
     const Clone: EntityType = class extends EntityClass {};
     Object.defineProperty(Clone, 'name', { value: `${EntityClass.name}Clone`, configurable: true });
@@ -137,7 +152,7 @@ export function cloneEntityClasses(entities: EntityType[]): EntityType[] {
     copyStaticProperties(EntityClass, Clone);
     if (metadata) {
       Object.defineProperty(Clone, METADATA, {
-        value: cloneMetadata(metadata),
+        value: cloneMetadata(metadata, options),
         enumerable: false,
         configurable: true,
         writable: false
