@@ -5,7 +5,18 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { BomAttrDef, BomConfigChar, BomConfigCharValue, BomConfigCondition, BomConfigConstraint, BomHeader, BomItem, BomItemRevision, BomLine, BomLineOccurrence } from '../entities.js';
+import {
+  BomAttrDef,
+  BomConfigChar,
+  BomConfigCharValue,
+  BomConfigCondition,
+  BomConfigConstraint,
+  BomHeader,
+  BomItem,
+  BomItemRevision,
+  BomLine,
+  BomLineOccurrence
+} from '../entities.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 const BACKENDS: BomTestBackend[] = ['wa-sqlite', 'pglite'];
