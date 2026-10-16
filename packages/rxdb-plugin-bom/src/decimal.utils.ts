@@ -15,8 +15,45 @@ import { BomDecimalFormatError } from './types.js';
  */
 export const DECIMAL_CANONICAL_RE = /^(0|[1-9][0-9]*)(\.[0-9]*[1-9])?$/;
 
-/** 入口接受的十进制语法：可选符号 + 数字（可带小数点）+ 可选指数。 */
-const DECIMAL_INPUT_RE = /^([+-]?)([0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE]([+-]?[0-9]+))?$/;
+/** 入口十进制语法的手写解析（线性扫描，无正则——正则版是 CodeQL ReDoS 告警面）。 */
+const parseDecimalInput = (input: string): { sign: string; mantissa: string; exponent: number } | null => {
+  let index = 0;
+  const sign = input[0] === '+' || input[0] === '-' ? input[index++] : '';
+  let intDigits = 0;
+  while (index < input.length && input[index] >= '0' && input[index] <= '9') {
+    index += 1;
+    intDigits += 1;
+  }
+  let fracDigits = 0;
+  if (index < input.length && input[index] === '.') {
+    index += 1;
+    while (index < input.length && input[index] >= '0' && input[index] <= '9') {
+      index += 1;
+      fracDigits += 1;
+    }
+  }
+  if (intDigits === 0 && fracDigits === 0) return null;
+  const mantissa = input.slice(sign.length, index);
+  let exponent = 0;
+  if (index < input.length && (input[index] === 'e' || input[index] === 'E')) {
+    index += 1;
+    let expSign = 1;
+    if (index < input.length && (input[index] === '+' || input[index] === '-')) {
+      if (input[index] === '-') expSign = -1;
+      index += 1;
+    }
+    let expDigits = 0;
+    while (index < input.length && input[index] >= '0' && input[index] <= '9') {
+      exponent = exponent * 10 + (input.charCodeAt(index) - 48);
+      index += 1;
+      expDigits += 1;
+    }
+    if (expDigits === 0) return null;
+    exponent *= expSign;
+  }
+  if (index !== input.length) return null;
+  return { sign, mantissa, exponent };
+};
 
 /** 有效数字上限（34 位，decimal128 语义）。 */
 export const DECIMAL_MAX_SIGNIFICANT_DIGITS = 34;
@@ -26,8 +63,12 @@ const canonicalizePlain = (plain: string): string => {
   const dotIndex = plain.indexOf('.');
   const intPart = dotIndex === -1 ? plain : plain.slice(0, dotIndex);
   const fracPart = dotIndex === -1 ? '' : plain.slice(dotIndex + 1);
-  const intPartStripped = intPart.replace(/^0+/, '') || '0';
-  const fracPartStripped = fracPart.replace(/0+$/, '');
+  let intLead = 0;
+  while (intLead < intPart.length && intPart[intLead] === '0') intLead += 1;
+  const intPartStripped = intPart.slice(intLead) || '0';
+  let fracEnd = fracPart.length;
+  while (fracEnd > 0 && fracPart[fracEnd - 1] === '0') fracEnd -= 1;
+  const fracPartStripped = fracPart.slice(0, fracEnd);
   return fracPartStripped.length > 0 ? `${intPartStripped}.${fracPartStripped}` : intPartStripped;
 };
 
@@ -56,14 +97,11 @@ export const normalizeDecimalString = (input: unknown, field: string): string =>
   if (typeof input !== 'string' || input.length === 0) {
     throw new BomDecimalFormatError(field, `必须是十进制字符串，实际为 ${JSON.stringify(input)}`);
   }
-  const match = DECIMAL_INPUT_RE.exec(input);
-  if (!match) {
+  const parsed = parseDecimalInput(input);
+  if (parsed === null) {
     throw new BomDecimalFormatError(field, `非法十进制语法：${input}`);
   }
-  const sign = match[1];
-  const mantissa = match[2];
-  const exponentText = match[3];
-  const exponent = exponentText ? Number(exponentText) : 0;
+  const { sign, mantissa, exponent } = parsed;
   // `-0` 写作 `0`：值为零时符号无意义，先归零再拒绝其余负值（首期没有允许负值的字段）。
   // 全零判定不用正则（`0*\.?0*` 对长串是多项式回溯，CodeQL ReDoS 告警面）
   const mantissaIsZero = [...mantissa].every(ch => ch === '0' || ch === '.');
