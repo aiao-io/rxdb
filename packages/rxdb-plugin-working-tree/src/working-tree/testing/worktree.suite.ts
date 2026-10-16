@@ -26,7 +26,14 @@ import type {
   RxDB,
   SwitchVersionActions
 } from '@aiao/rxdb';
-import { ENTITY_BOOKKEEPING_FIELDS, getEntityMetadata, RxDBChange, RxDBReadOnlyError, uuid } from '@aiao/rxdb';
+import {
+  ENTITY_BOOKKEEPING_FIELDS,
+  getEntityMetadata,
+  RxDBBranch,
+  RxDBChange,
+  RxDBReadOnlyError,
+  uuid
+} from '@aiao/rxdb';
 import { WorktreeUnavailableError } from '../../checkout/worktree-errors.js';
 import type { WorktreeView } from '../../checkout/worktree-manager.js';
 import type { WorktreeTarget } from '../../checkout/worktree-target.js';
@@ -409,6 +416,19 @@ export const worktreeConformanceSuite = (context: WorkingTreeConformanceSuiteCon
         }
         expect(viewTasks.find(task => task.id === shared.id)?.title).toBe('特性改名');
         expect(shared.title).toBe('共同');
+      });
+
+      // 核心系统实体两个实例都登记：静态调用（三端查询 hook 走的就是它）要落到主实例，而不是报多实例
+      it('检出位开着时，主实例上系统实体的静态查询照常落到主实例', async () => {
+        await seedTwoBranches(database);
+        await open(FEATURE);
+        const all = { where: { combinator: 'and' as const, rules: [] } };
+
+        const viaStatic = await firstValueFrom(RxDBBranch.findAll(all));
+        const viaInstance = await firstValueFrom(database.entityManager.getRepository(RxDBBranch).findAll(all));
+
+        expect(viaStatic.map(branch => branch.id).sort()).toEqual(viaInstance.map(branch => branch.id).sort());
+        expect(viaStatic.map(branch => branch.id)).toContain(FEATURE);
       });
     });
 

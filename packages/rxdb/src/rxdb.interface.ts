@@ -115,6 +115,9 @@ export interface RxDBOptions {
    * 为 `true` 时，公开写入口（`Repository.create/update/remove/reorder`、`EntityManager` 的批量写与
    * `notifyExternalUpdate`、实体实例的 `save()` / `remove()`）在写权限判定之前抛 {@link RxDBReadOnlyError}。
    * 与 US-027 的权限一样只是快速失败：适配器与执行器层不判定。默认 `false`。
+   *
+   * 只读实例被当作可写实例旁边的视图：一个实体类同时登记在两者上时（核心系统实体每个实例都登记），
+   * `RxDBBranch.find()` 这类静态调用落到可写的那个，不再报多实例。
    */
   readOnly?: boolean;
 

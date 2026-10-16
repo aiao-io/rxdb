@@ -769,12 +769,14 @@ const resolveEntityManager = (EntityType: EntityType): EntityManager => {
   const managers = entityManagers.get(EntityType);
   const entityName = getEntityMetadata(EntityType).name;
   if (!managers || managers.size === 0) throw new RxDBError(`Entity '${entityName}' needs an initialized RxDB`);
-  if (managers.size > 1) {
-    throw new RxDBError(
-      `Entity '${entityName}' is registered with multiple RxDB instances; use rxdb.entityManager or repository`
-    );
-  }
-  return managers.values().next().value!;
+  if (managers.size === 1) return managers.values().next().value!;
+  // 只读实例是可写实例旁边的视图（如只读检出位的快照实例，US-313）。两者共用的类——核心系统实体每个实例都登记——
+  // 静态调用指的是可写的那个；可写的不止一个才是真歧义
+  const writable = [...managers].filter(manager => !manager.rxdb.readOnly);
+  if (writable.length === 1) return writable[0];
+  throw new RxDBError(
+    `Entity '${entityName}' is registered with multiple RxDB instances; use rxdb.entityManager or repository`
+  );
 };
 
 const withEntityManagerContext = <T>(EntityType: EntityType, manager: EntityManager, callback: () => T): T => {
