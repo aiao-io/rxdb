@@ -55,6 +55,7 @@
           }
         ],
         "browser": "apps/dev-rxdb-electron/src/main.ts",
+        "externalDependencies": ["node:module"],
         "index": "apps/dev-rxdb-electron/src/index.html",
         "inlineStyleLanguage": "scss",
         "outputPath": "dist/apps/dev-rxdb-electron",
