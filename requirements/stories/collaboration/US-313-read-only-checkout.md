@@ -1,7 +1,7 @@
 ---
 id: US-313
 title: 只读检出位：不切换分支就打开另一条分支或一个可达提交的完整数据
-status: Backlog
+status: In Progress
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-10-16
@@ -12,7 +12,7 @@ tags: [collaboration, branch, checkout, history, tri-framework]
 <!--
 INVEST 检查清单:
 - [x] Independent (独立): 只依赖阶段 2（US-312）放开起点的增量计算；不依赖可写检出位与隔离写入方
-- [ ] Negotiable (可协商): 快照库存储、API 落点、第二实例的实体类、首批后端待 owner 拍板（见「待决问题」）
+- [x] Negotiable (可协商): 快照库存储、API 落点、第二实例的实体类、首批后端由 owner 2026-10-16 确认（见「设计决定」）
 - [x] Valuable (有价值): 看另一条线的完整数据，今天只能切分支或 restore，两条路都要先清空工作树
 - [x] Estimable (可估算): 按交付阶段 A～D 估
 - [x] Small (小): 只读、不实时；可写检出位与往非 active 线写不在本故事
@@ -93,16 +93,17 @@ epic-006 多检出位[场景二](../../epics/epic-006-working-tree-commits.md#�
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-## 待决问题
+## 设计决定
 
-开工前由 owner 拍板；括号里是建议的默认值。
+owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
 
-1. **快照库放在哪**：与主库同类后端、独立库名，还是内存库。（同类后端、独立库名：大库不吃内存，关闭即删。）
-2. **API 落点**：工作树插件里，还是独立插件包。（工作树插件：提交视图要用它的 restore 物化，检出位的登记也是它的系统表。）
+1. **快照库**：与主库同类后端、独立库名。大库不吃内存，关闭即删，持久归属刷新后还在。
+2. **API 落点**：工作树插件，`rxdb.workingTree.checkouts`。提交视图复用它的 restore 物化，检出位登记是它的系统表，
+   三端绑定沿用 `rxdb-plugin-working-tree-{angular,react,vue}`。
 3. **第二实例的实体类**：同一个实体类不能注册到两个实例（[`entity-manager.ts`](../../../packages/rxdb/src/entity/entity-manager.ts)：
-   `is registered with multiple RxDB instances`）。失败归档导入用 `cloneEntityClasses()` 绕开，它今天只从 `@aiao/rxdb/testing` 导出。
-   （把它提为公开 API，不放宽注册限制。）
-4. **首批后端**：（PGlite 与 SQLite 系，与捕获、提交两套 conformance 同口径。）
+   `is registered with multiple RxDB instances`）。把失败归档导入在用的 `cloneEntityClasses()` 从 `@aiao/rxdb/testing` 提为公开 API，
+   不放宽注册限制。
+4. **首批后端**：PGlite 与 SQLite 系（pglite / sqlite / sqlite-wasm / wa-sqlite / sqliteai / electron），与捕获、提交两套 conformance 同口径。
 
 ## 技术笔记
 

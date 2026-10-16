@@ -9,6 +9,7 @@
 
 import { RxDBAdapterSqliteError } from '@aiao/rxdb-adapter-sqlite-core';
 import { initSQLiteCore, type InitSQLiteOptions, type SQLiteDBCore } from '@subframe7536/sqlite-wasm';
+import { isOpfsAccessHandleBusy, openOpfsWithRetry } from './opfs-open-retry.js';
 import { LoadModuleOptions, SupportVFS } from './sqlite.interface.js';
 
 interface VFSConfig {
@@ -121,12 +122,15 @@ export const checkVFSConfig = (options: LoadModuleOptions) => {
   return vfsConfig;
 };
 
+/** 库名对应的数据库文件名。 */
+const sqliteFileName = (dbName: string): string => `${dbName}.sqlite`;
+
 /**
  * 根据 VFS 预设和选项生成 @subframe7536/sqlite-wasm 的 storage 初始化 options
  */
 const buildStorageOptions = async (dbName: string, options: LoadModuleOptions): Promise<InitSQLiteOptions> => {
   const vfs = options.vfs ?? 'idb';
-  const fileName = `${dbName}.sqlite`;
+  const fileName = sqliteFileName(dbName);
   const base = {
     url: options.wasmUrl,
     readonly: options.readonly
@@ -170,9 +174,15 @@ const buildStorageOptions = async (dbName: string, options: LoadModuleOptions): 
  * 加载并初始化 @subframe7536/sqlite-wasm
  *
  * @returns 返回 `SQLiteDBCore`，包含 `sqlite`、`pointer`（db）、`vfs` 等字段
+ *
+ * @remarks
+ * `opfs` 打开失败为 `SQLITE_CANTOPEN` 时退避重试：整页刷新时上一个页面可能还占着库文件的同步访问句柄
+ * （见 {@link openOpfsWithRetry}）。每次重试都新建 VFS 与连接；配置类错误在打开之前就抛出，不重试。
  */
 export const sqliteLoad = async (dbName: string, options: LoadModuleOptions): Promise<SQLiteDBCore> => {
   checkVFSConfig(options);
-  const storage = await buildStorageOptions(dbName, options);
-  return initSQLiteCore(storage);
+  const open = async () => initSQLiteCore(await buildStorageOptions(dbName, options));
+  if ((options.vfs ?? 'idb') !== 'opfs') return open();
+  const fileName = sqliteFileName(dbName);
+  return openOpfsWithRetry(open, { fileName, isAccessHandleBusy: () => isOpfsAccessHandleBusy(fileName) });
 };
