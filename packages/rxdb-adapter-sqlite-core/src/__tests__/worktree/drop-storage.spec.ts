@@ -9,6 +9,9 @@ import { deleteIndexedDatabase, removeOpfsFiles } from '../../worktree/drop-stor
  * 各适配器的 `drop-storage.spec.ts` 只走真实存储的快乐路径，共享层的退避、耗尽与宽限期在这里钉死：
  * OPFS 根目录句柄与 `indexedDB.deleteDatabase` 的请求换成假的，时间用 fake timers 推进。
  * 桩只装在本文件的用例里，`afterEach` 还原。
+ *
+ * `navigator` 与 `indexedDB` 整个换成桩，不去 spy 真的：本文件也在 node 里跑
+ * （coverage-acceptance 的 core 段），那里没有 `navigator.storage`，也没有 `indexedDB`。
  */
 
 /** 文件被占用时 `removeEntry` 抛的错（Chromium 部分版本报 `InvalidModificationError`）。 */
@@ -34,9 +37,7 @@ const fakeOpfsRoot = (outcomes: Record<string, (Error | undefined)[]>): RemoveCa
     const failure = outcomes[name]?.shift();
     if (failure) throw failure;
   };
-  vi.spyOn(navigator.storage, 'getDirectory').mockResolvedValue({
-    removeEntry
-  } as unknown as FileSystemDirectoryHandle);
+  vi.stubGlobal('navigator', { storage: { getDirectory: () => Promise.resolve({ removeEntry }) } });
   return calls;
 };
 
@@ -50,7 +51,7 @@ interface FakeDeleteRequest {
 
 const fakeDeleteRequest = (): FakeDeleteRequest => {
   const request: FakeDeleteRequest = { error: null, onsuccess: null, onerror: null, onblocked: null };
-  vi.spyOn(indexedDB, 'deleteDatabase').mockReturnValue(request as unknown as IDBOpenDBRequest);
+  vi.stubGlobal('indexedDB', { deleteDatabase: vi.fn(() => request) });
   return request;
 };
 
@@ -80,7 +81,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers();
-  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('removeOpfsFiles', () => {

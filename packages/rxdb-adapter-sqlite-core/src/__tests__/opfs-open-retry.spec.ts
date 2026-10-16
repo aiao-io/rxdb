@@ -104,15 +104,18 @@ describe('releaseOpfsCoopSyncHandles', () => {
 
 describe('isOpfsAccessHandleBusy', () => {
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
-  /** 把 OPFS 根目录换成只认 `getFileHandle` 的假目录；真实的占用探测在适配器的真实 Worker 用例里。 */
+  /**
+   * 把 OPFS 根目录换成只认 `getFileHandle` 的假目录；真实的占用探测在适配器的真实 Worker 用例里。
+   *
+   * 整个 `navigator` 换成桩，不去 spy `navigator.storage`：本文件也在 node 里跑
+   * （coverage-acceptance 的 core 段），那里没有 `navigator.storage`。
+   */
   const fakeRoot = (getFileHandle: (name: string) => Promise<unknown>) => {
     const lookup = vi.fn(getFileHandle);
-    vi.spyOn(navigator.storage, 'getDirectory').mockResolvedValue({
-      getFileHandle: lookup
-    } as unknown as FileSystemDirectoryHandle);
+    vi.stubGlobal('navigator', { storage: { getDirectory: () => Promise.resolve({ getFileHandle: lookup }) } });
     return lookup;
   };
 
