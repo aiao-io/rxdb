@@ -118,6 +118,12 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
   }
 
   override async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
+    // 扩展属性（US-519）：触碰 ext 即按 attr_def 完整校验（局部更新的其余列不强制必填）
+    const appliesTo = EXT_APPLIES_TO[entity.constructor.name];
+    const patchRecord = patch as unknown as Record<string, unknown>;
+    if (appliesTo !== undefined && patchRecord['ext'] !== undefined && patchRecord['ext'] !== null) {
+      await validateExtByDefs(this.rxdb, appliesTo, JSON.parse(String(patchRecord['ext'])) as Record<string, unknown>, 'update-complete');
+    }
     // 规范化只在插件入口：patch 里的十进制字段同样经规范串入存储
     for (const [field, value] of Object.entries(patch)) {
       if ((DECIMAL_FIELDS as readonly string[]).includes(field) && value !== undefined && value !== null) {

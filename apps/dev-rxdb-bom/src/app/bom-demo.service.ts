@@ -124,18 +124,59 @@ export class BomDemoService {
     );
   }
 
-  /** 扩展属性演示（US-525 AC#17）：ext 写入（非法值 / 缺必填报错）与过滤由页面面板消费。 */
+  /** 扩展属性演示（US-525 AC#17）：经实体 API 写 ext（BomRepository 按 attr_def 校验）。 */
   async extWrite(itemKey: string, ext: Record<string, unknown>): Promise<string> {
-    if (!this.adapter) throw new Error('demo 未就绪');
-    const itemTable = '"bom$item"';
+    if (!this.rxdb) throw new Error('demo 未就绪');
     try {
-      await this.adapter.rawQuery(
-        `UPDATE ${itemTable} SET "ext" = '${JSON.stringify(ext).replace(/'/g, "''")}' WHERE "id" = '${goldenItemId(itemKey)}'`
+      const found = await firstValueFrom(
+        BomItem.find({ where: { combinator: 'and', rules: [{ field: 'itemNo', operator: '=', value: itemKey }] } })
       );
-      await this.#hydrate();
+      const item = found[0];
+      if (!item) return '物料未找到';
+      item.ext = JSON.stringify(ext);
+      await item.save();
       return '';
     } catch (error) {
       return String(error);
+    }
+  }
+
+  /** 读取物料的当前 ext（面板展示 eq 过滤结果面）。 */
+  async extRead(itemKey: string): Promise<string> {
+    if (!this.adapter) throw new Error('demo 未就绪');
+    const result = (await this.adapter.rawQuery(
+      `SELECT "ext" FROM "bom$item" WHERE "id" = '${goldenItemId(itemKey)}'`
+    )) as unknown as { results?: { rows: unknown[][] }[]; rows?: unknown[][] };
+    const rows = Array.isArray(result.results) ? result.results[0].rows : (result.rows ?? []);
+    return rows.length > 0 && rows[0][0] !== null ? String(rows[0][0]) : '{}';
+  }
+
+  /** 导出演示（US-525 AC#20）：展开结果 + manifest 的契约 JSON（十进制字段为字符串）。 */
+  async exportBom(asOfDate: string): Promise<{ json: string } | { error: string }> {
+    if (!this.rxdb) return { error: 'demo 未就绪' };
+    const { EXPORT_CONTRACT_VERSION } = await import('@aiao/rxdb-plugin-bom');
+    try {
+      const expansion = await this.rxdb.bom.explodeBom(
+        { bomType: 'ebom', orgId: 'org-x', asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) },
+        { parentItemId: goldenItemId('SC-100') },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
+      const payload = {
+        version: EXPORT_CONTRACT_VERSION,
+        exportedAt: `${asOfDate}T00:00:00.000Z`,
+        orgId: 'org-x',
+        manifest: expansion.manifest,
+        requirementLines: expansion.requirementLines.map(line => ({
+          itemId: line.itemId,
+          qty: line.qty,
+          uom: line.uom,
+          path: line.path
+        })),
+        outputs: expansion.outputs.map(output => ({ itemId: output.itemId, qty: output.qty, uom: output.uom, direction: output.direction }))
+      };
+      return { json: JSON.stringify(payload, null, 2) };
+    } catch (error) {
+      return { error: String(error) };
     }
   }
 
