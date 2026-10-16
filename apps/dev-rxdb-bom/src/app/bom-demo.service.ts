@@ -28,6 +28,7 @@ import {
   loadScooterDataset,
   loadScooterDatasetC,
   loadScooterDatasetD,
+  loadScooterDatasetE,
   SCOOTER_SEED_BATCH_NO,
   SCOOTER_SEED_TIMESTAMP
 } from '@aiao/rxdb-plugin-bom/testing';
@@ -88,6 +89,8 @@ export class BomDemoService {
     await loadScooterDatasetC(this.adapter!, itemIds);
     // 阶段 D：双图与卷算输入（SHEET-ASSY 双图 + split 映射 + 成本/费率/工时 + 故意缺成本件）
     await loadScooterDatasetD(this.adapter!, itemIds);
+    // 阶段 E：扩展属性 / 序列批次 / 配置选择演示输入
+    await loadScooterDatasetE(this.adapter!, itemIds);
     await this.#hydrate();
   }
 
@@ -100,13 +103,40 @@ export class BomDemoService {
   }
 
   /** 按评估日与计划量展开（父修订按时点取最新；根物料可选，默认整机 SC-100）。 */
-  async explode(asOfDate: string, plannedQty: string, rootKey = 'SC-100'): Promise<ExplosionResult> {
+  async explode(
+    asOfDate: string,
+    plannedQty: string,
+    rootKey = 'SC-100',
+    effectivity: { unit?: number; lot?: string; configSelection?: Record<string, string[]> } = {}
+  ): Promise<ExplosionResult> {
     if (!this.rxdb) throw new Error('demo 未就绪');
     return this.rxdb.bom.explodeBom(
-      { bomType: 'ebom', orgId: 'org-x', asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) },
+      {
+        bomType: 'ebom',
+        orgId: 'org-x',
+        asOfDate: new Date(`${asOfDate}T00:00:00.000Z`),
+        unit: effectivity.unit,
+        lot: effectivity.lot,
+        configSelection: effectivity.configSelection
+      },
       { parentItemId: goldenItemId(rootKey) },
       { plannedQty: { value: plannedQty, uom: 'pcs' } }
     );
+  }
+
+  /** 扩展属性演示（US-525 AC#17）：ext 写入（非法值 / 缺必填报错）与过滤由页面面板消费。 */
+  async extWrite(itemKey: string, ext: Record<string, unknown>): Promise<string> {
+    if (!this.adapter) throw new Error('demo 未就绪');
+    const itemTable = '"bom$item"';
+    try {
+      await this.adapter.rawQuery(
+        `UPDATE ${itemTable} SET "ext" = '${JSON.stringify(ext).replace(/'/g, "''")}' WHERE "id" = '${goldenItemId(itemKey)}'`
+      );
+      await this.#hydrate();
+      return '';
+    } catch (error) {
+      return String(error);
+    }
   }
 
   /** EBOM / MBOM 双图展开（US-525 AC#13：SHEET-ASSY 钣金外壳两张图）。 */

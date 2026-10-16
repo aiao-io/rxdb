@@ -8,9 +8,11 @@
 
 import type { EntityType, RxDB } from '@aiao/rxdb';
 import { Repository } from '@aiao/rxdb';
+import { firstValueFrom } from 'rxjs';
 import { normalizeDecimalString } from './decimal.utils.js';
-import { BomLineOccurrence } from './entities.js';
+import { BomAttrDef, BomLineOccurrence } from './entities.js';
 import { attachUnionOnlyMark } from './resolve/cycle-analysis.js';
+import { validateExtWrite, type ExtAttrDefShape, type ExtWriteMode } from './resolve/ext-attr.js';
 import { BomCycleError, normalizeBomError } from './types.js';
 
 /** 需要入口规范化的十进制字段（US-511 按十进制值合同扩列）。 */
@@ -38,6 +40,38 @@ const normalizeDecimalFields = (entity: Record<string, unknown>): void => {
  * 把底层适配器错误归一为 BOM 错误类；不是 BOM 违约时原样上抛。
  * 环错误附加 `unionOnly` 标记（US-509 AC#9：并集环与真环的区分只服务于产品判断）。
  */
+
+/** 实体类型 → ext 作用域（US-519 写入期按 attr_def 校验的入口）。 */
+const EXT_APPLIES_TO: Record<string, 'item' | 'bom_header' | 'bom_line_occurrence'> = {
+  BomItem: 'item',
+  BomHeader: 'bom_header',
+  BomLineOccurrence: 'bom_line_occurrence'
+};
+
+/** 读取 appliesTo 的 attr_def 声明并校验 ext（缺声明 = 无约束）。 */
+const validateExtByDefs = async (
+  rxdb: RxDB,
+  appliesTo: 'item' | 'bom_header' | 'bom_line_occurrence',
+  ext: Record<string, unknown>,
+  mode: ExtWriteMode
+): Promise<void> => {
+  void rxdb;
+  const defs = await firstValueFrom(
+    BomAttrDef.find({
+      where: { combinator: 'and', rules: [{ field: 'appliesTo', operator: '=', value: appliesTo }] }
+    })
+  ).catch(() => [] as BomAttrDef[]);
+  if (defs.length === 0) return;
+  const shapes: ExtAttrDefShape[] = defs.map(def => ({
+    code: def.code,
+    dataType: def.dataType,
+    required: def.required,
+    enumValues: def.enumValues === null ? null : (JSON.parse(def.enumValues) as string[]),
+    appliesTo: def.appliesTo
+  }));
+  validateExtWrite(shapes, appliesTo, ext, mode);
+};
+
 const rethrowBomError = async (rxdb: RxDB, cause: unknown, attempted?: Record<string, unknown>): Promise<never> => {
   const normalized = normalizeBomError(cause) ?? cause;
   if (normalized instanceof BomCycleError) {
@@ -56,6 +90,11 @@ const rethrowBomError = async (rxdb: RxDB, cause: unknown, attempted?: Record<st
 export class BomRepository<T extends EntityType = EntityType> extends Repository<T> {
   override async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
     normalizeDecimalFields(entity as unknown as Record<string, unknown>);
+    const appliesTo = EXT_APPLIES_TO[entity.constructor.name];
+    const ext = (entity as unknown as Record<string, unknown>)['ext'];
+    if (appliesTo !== undefined && ext !== undefined && ext !== null) {
+      await validateExtByDefs(this.rxdb, appliesTo, JSON.parse(String(ext)) as Record<string, unknown>, 'create');
+    }
     try {
       return await super.create(entity);
     } catch (error) {
