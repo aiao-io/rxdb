@@ -24,6 +24,9 @@ class CheckoutCache extends EntityBase {}
 @Entity({ name: 'CheckoutRemote' })
 class CheckoutRemote extends EntityBase {}
 
+@Entity({ name: 'CheckoutUnbound' })
+class CheckoutUnbound extends EntityBase {}
+
 const LOCAL: SyncOptions = { local: { adapter: 'local' }, type: SyncType.None };
 
 /** 只给 `worktreeCopiedEntities` 读的那几样：实体清单、同步解析器、生成类清单。 */
@@ -57,6 +60,13 @@ describe('worktreeCopiedEntities', () => {
 
     expect(copied).toEqual([CheckoutLocal, CheckoutGenerated]);
     expect(worktreeDeclaredEntities(main, copied)).toEqual([CheckoutLocal]);
+  });
+
+  // 存储插件的文件元数据就是这样：声明里只有 `type: None`，插件经库级本地适配器读写它，数据在主库里
+  it('两侧都没声明的实体照常复制：它的数据在库级本地适配器里', () => {
+    const main = mainOf(new Map<EntityType, SyncOptions>([[CheckoutUnbound, { type: SyncType.None }]]));
+
+    expect(worktreeCopiedEntities(main)).toEqual([CheckoutUnbound]);
   });
 });
 

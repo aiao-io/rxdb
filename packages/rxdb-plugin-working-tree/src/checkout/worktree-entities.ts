@@ -14,13 +14,15 @@ import { WorktreeUnavailableError } from './worktree-errors.js';
  *
  * @remarks
  * 去掉三类：系统表（快照实例有自己的一套）、QueryCache 实体（它们的表要 querycache、sync、远端插件一起才连得上）、
- * 没有本地一侧的实体（它们的数据不在主库里）。归属按 {@link getEntitySync} 判，与捕获判「是不是查询缓存」同一条规则。
+ * 只有远端一侧的实体（它们的数据不在主库里）。归属按 {@link getEntitySync} 判，与捕获判「是不是查询缓存」同一条规则。
+ * 两侧都没声明的照常复制：存储插件的文件元数据就是这样，插件经库级本地适配器读写它，数据在主库里。
  */
 export const worktreeCopiedEntities = (rxdb: RxDB): EntityType[] =>
   rxdb.config.entities.filter(EntityClass => {
     if (isSystemEntity(EntityClass)) return false;
     const sync = getEntitySync(EntityClass, rxdb.entitySync);
-    return sync?.local !== undefined && sync.type !== SyncType.QueryCache;
+    if (sync?.type === SyncType.QueryCache) return false;
+    return sync?.local !== undefined || sync?.remote === undefined;
   });
 
 /**
