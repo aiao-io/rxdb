@@ -110,7 +110,7 @@ AC#5 的理由：允许 `consume` 边带负用量等于给同一件事留了两�
 
 - `packages/rxdb-plugin-bom/` — 待建；`flow_direction` 语义与反向流处理
 
-## 首轮切片第 5 步关闭记录（2026-10-14）
+## 首轮切片第 5 步关闭记录
 
 阶段 A 已交付（`packages/rxdb-plugin-bom`，双后端同断言）：AC#1/#3/#4/#5/#6/#8/#9/#10/#11 全关。
 `flow_direction` 三值列 + 判环/可达性只认 `consume`（US-509 AC#4 同批关闭）；`by_product` 子件 =

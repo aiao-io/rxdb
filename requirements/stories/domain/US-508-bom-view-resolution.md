@@ -141,7 +141,7 @@ manifest 记录结构依据（头、修订、发生项 ID），[US-511](US-511-b
 
 - `packages/rxdb-plugin-bom/` — 待建；视图解析查询与有效期约束
 
-## 首轮切片第 2 步关闭记录（2026-10-14）
+## 首轮切片第 2 步关闭记录
 
 首轮 AC#1~#11 / #13~#15 / #17 / #18 全关（`packages/rxdb-plugin-bom`，双后端 wa-sqlite / pglite 同断言）：
 显式 `ResolutionContext`（`as_of_date` 必填、不读系统时钟）；父修订按时点取已发布最新或显式指定；

@@ -102,7 +102,7 @@ AC#4 拒绝而不归一化，与 [US-512](US-512-bom-substitute-group.md) AC#5 �
 
 - `packages/rxdb-plugin-bom/` — 待建；工序挂接与分摊
 
-## 首轮切片第 5 步关闭记录（2026-10-14）
+## 首轮切片第 5 步关闭记录
 
 非 ECN 场景已交付（`packages/rxdb-plugin-bom`，双后端同断言）：AC#1~#10 全关。
 行挂 `operation_seq`（保存期校验：头已挂路由时工序必须在序集内）+ `bom_line_operation_split`

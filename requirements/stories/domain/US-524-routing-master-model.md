@@ -118,7 +118,7 @@ D 是 [US-511](US-511-bom-quantity-semantics.md) 阶段 B2 的前置。驱动场
 
 - `packages/rxdb-plugin-bom/` — 待建；路线、工作中心与费率实体
 
-## 首轮切片第 5 步关闭记录（2026-10-14）
+## 首轮切片第 5 步关闭记录
 
 阶段 A（除 AC#7 的展开面）与阶段 D 已交付（`packages/rxdb-plugin-bom`，双后端同断言）：
 AC#1/#2/#6/#8/#9/#10/#11 全关。`work_center` / `routing`（唯一键与 BOM 头对齐）/

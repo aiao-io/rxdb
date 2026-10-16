@@ -172,7 +172,7 @@ AC#8 等 US-510 阶段 B 的可达性表，AC#13 等真实 PostgreSQL 环境，A
 - `packages/rxdb-plugin-bom/` — 待建；可达性校验
 - `packages/rxdb-plugin-graph/` — 可选：给图插件加 opt-in 的写入期无环约束，默认行为不变
 
-## 首轮切片第 2 步关闭记录（2026-10-14）
+## 首轮切片第 2 步关闭记录
 
 首轮 AC#1~#3 / #5~#7 / #9~#12 / #14 / #17 全关（`packages/rxdb-plugin-bom`，双后端同断言）：
 `(bom_type, org_id)` 物料级并集的递归 CTE 判环（深度硬上限 128、三态判定），递归项到达父物料即停止延伸——
@@ -183,7 +183,7 @@ AC#8 等 US-510 阶段 B 的可达性表，AC#13 等真实 PostgreSQL 环境，A
 BOM 实体声明同步配置即拒绝（AC#12）。
 AC#4 等 US-513、AC#8 等 US-510 阶段 B 的可达性表、AC#13 等真实 PostgreSQL 环境、AC#15/#16 等 US-515 落地。
 
-## 首轮切片第 5 步关闭记录（2026-10-14）
+## 首轮切片第 5 步关闭记录
 
 AC#4 已关（随 US-513 阶段 A）：`flow_direction` 列落地，判环触发器只认 `consume` 边
 （存储边与 NEW 边均过滤，非 consume 的 NEW 行整体跳过）——X consume Y 与 Y by_product X

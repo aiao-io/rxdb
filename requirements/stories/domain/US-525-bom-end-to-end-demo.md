@@ -223,7 +223,7 @@ owner 需要一个**完整功能的 BOM 演示应用**（`apps/dev-rxdb-bom` 独
 | E    | `apps/dev-rxdb-bom/` 扩展属性、序列 / 批次、配置与导出 / 导入面板 | 待建                                   |
 | F    | `apps/dev-rxdb-bom/` 实例树与换件面板                             | 待建                                   |
 
-## 首轮切片第 4 步关闭记录（2026-10-14）
+## 首轮切片第 4 步关闭记录
 
 阶段 A 已交付（AC#1~#6 全绿）：
 `packages/rxdb-plugin-bom/src/testing/`（`scooter-dataset.ts` 确定性种子——id 由业务键 FNV-1a
@@ -234,7 +234,7 @@ where-used 面板，`pnpm nx serve dev-rxdb-bom` 一键起）、`apps/dev-rxdb-b
 （playwright 六条 AC 用例）。vitest 对账测试以独立 oracle 逐位比对 explodeBom 输出。
 端口：本机 4310 被 QQ 占用，demo 起在 **4311**（故事 INVEST 清单端口可调）。
 
-## 首轮切片第 5 步关闭记录（2026-10-14）
+## 首轮切片第 5 步关闭记录
 
 阶段 B 已交付（AC#7~#9 全绿）：种子 B 层追加外壳下料头（consume/by_product/scrap_out）、
 10kΩ 替代组（COVER-ASSY，proportional 0.5/0.3/0.2）、工艺路线 10→20→30（20 损耗 3%）与

@@ -139,7 +139,7 @@ priority 组 A/B/C 为 1/2/3，E1 于 11-01 把 B 改为 4、E2 于 12-01 把 C 
 
 - `packages/rxdb-plugin-bom/` — 待建；替代组实体与分摊计算
 
-## 首轮切片第 5 步关闭记录（2026-10-14）
+## 首轮切片第 5 步关闭记录
 
 非 ECN 场景已交付（`packages/rxdb-plugin-bom`，双后端同断言）：AC#1~#5/#7/#8/#10~#13/#15 全关。
 `bom_substitute_group` 一等实体（(headerId, code) 唯一 + 单行 CHECK AC#10）；成员列挂行发生项
