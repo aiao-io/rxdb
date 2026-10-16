@@ -62,6 +62,28 @@ function findMetadata(EntityClass: EntityType): object | undefined {
 }
 
 /**
+ * 克隆体的元数据：以源元数据为原型，关系表单独一份
+ *
+ * @remarks
+ * 关系对象不能共享：`SchemaManager.init()` 把生成的多对多中间表实体类直接赋到关系对象上
+ * （`relation.junctionEntityType = …`）。沿原型链共享的话，第二个实例一初始化，源类以及别的克隆体的
+ * 多对多就指向这个实例的中间表类。关系对象浅拷贝即可：初始化只往它们身上写这一个字段。
+ */
+function cloneMetadata(metadata: object): object {
+  const cloned: object = Object.create(metadata);
+  const relationMap = (metadata as { relationMap?: unknown }).relationMap;
+  if (relationMap instanceof Map) {
+    Object.defineProperty(cloned, 'relationMap', {
+      value: new Map([...relationMap].map(([name, relation]) => [name, { ...(relation as object) }])),
+      enumerable: true,
+      configurable: true,
+      writable: true
+    });
+  }
+  return cloned;
+}
+
+/**
  * 把源类的自有静态属性搬到克隆体上；内部槽位与身份三件套除外。
  *
  * @remarks
@@ -93,7 +115,8 @@ function copyStaticProperties(source: EntityType, target: EntityType): void {
  *
  * @remarks
  * 克隆体的元数据是一个**以源元数据为原型**的新对象，不是同一个引用：读取照常沿原型链走，
- * 而克隆体这一侧的写入停在自己身上，不会回流到源类或另一个实例的克隆体。
+ * 而克隆体这一侧的写入停在自己身上，不会回流到源类或另一个实例的克隆体。关系表单独一份
+ * （见 {@link cloneMetadata}），否则多对多中间表会被后初始化的实例改写。
  *
  * 克隆体的类名是 `<源类名>Clone`：与源类区分得开（两个实例的错误消息里不会是同一个名字），
  * 又看得出它从哪个实体类来。
@@ -114,7 +137,7 @@ export function cloneEntityClasses(entities: EntityType[]): EntityType[] {
     copyStaticProperties(EntityClass, Clone);
     if (metadata) {
       Object.defineProperty(Clone, METADATA, {
-        value: Object.create(metadata),
+        value: cloneMetadata(metadata),
         enumerable: false,
         configurable: true,
         writable: false
