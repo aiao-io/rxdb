@@ -1,0 +1,57 @@
+<div class="page">
+  <section class="page-hero">
+    <div>
+      <h2>物料概览</h2>
+      <p class="panel-desc">
+        查看 SC-100 电动滑板车的物料清单与种子状态，维护物料扩展属性。通过左侧导航展开结构、查看变更、映射、成本与反查。
+      </p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <h2>种子与行数（AC#1）</h2>
+      <p class="panel-desc">两遍 seed 的可见面逐字相同；重置会删除 IndexedDB 库并重新装载全部阶段数据。</p>
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-primary" [disabled]="busy()" (click)="resetAndSeed()">
+        {{ busy() ? '处理中…' : '重置并装载种子' }}
+      </button>
+      <span class="seed-meta" data-testid="seed-info">批次 {{ seedBatchNo }} · 基准 {{ seedTimestamp }}</span>
+    </div>
+    <div class="row-counts" data-testid="row-counts">
+      @if (rowCounts()) {
+        <pre>{{ rowCounts() }}</pre>
+      } @else {
+        <div class="empty-state">尚未装载种子：点击「重置并装载种子」。</div>
+      }
+    </div>
+    <details class="inventory" data-testid="item-inventory">
+      <summary data-testid="item-inventory-toggle">物料清单（{{ inventory().length }} 项）</summary>
+      @if (inventory().length > 0) {
+        <div class="inventory-scroll">
+          <table aria-label="已装载物料清单">
+            <thead>
+              <tr>
+                <th class="item-index" scope="col">序号</th>
+                <th scope="col">物料编码</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (itemNo of inventory(); track itemNo) {
+                <tr data-testid="item-inventory-row">
+                  <td class="item-index">{{ $index + 1 }}</td>
+                  <td>{{ itemNo }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      } @else {
+        <div class="empty-state">暂无物料，请先装载种子。</div>
+      }
+    </details>
+  </section>
+
+  <bom-ext-panel />
+</div>

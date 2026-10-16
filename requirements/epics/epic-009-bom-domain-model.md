@@ -1,6 +1,6 @@
 ---
 id: epic-009-bom-domain-model
-status: Backlog
+status: In Progress
 startDate: 2026-10-12
 targetDate: TBD
 owner: jimmy
@@ -123,10 +123,48 @@ owner 于 2026-10-12 决定解锁，**驱动者 = 需要一个完整功能的 BO
 | 4    | US-507 阶段 C + US-525 阶段 A                                                                                                                                                          | 位号计数的编辑 / 发布协议；分层种子的 A 层与分阶段 golden；无路线版算式面板                                                                                                                                                                                                                                        | 不演示第 5 步工序损耗，面板标「未交付」而非按 0 计                                                                        |
 | 5    | 演示与真实需求驱动的后续阶段                                                                                                                                                           | 替代、副产与废料、路线、成本、ECN、映射（US-516）、序列 / 批次（US-518）、扩展属性（US-519 不依赖 US-030 阶段 D 的 AC）、集成与导出（US-521）、实例（US-523）各按自身 References 的前置接入，交付顺序由 [US-525](../stories/domain/US-525-bom-end-to-end-demo.md) 阶段 B～F 引导；联产品属 US-513 阶段 B，另需驱动 | US-510 阶段 B 只由实测热路径触发；三框架绑定（US-522）与演示独立排期；US-519 的 AC#3 / #7 仍等 US-030 阶段 D（价值待证）  |
 
-第 1～4 步合起来就是最小可演示闭环：建 BOM → 按视图解析 → 多级展开 → where-used 反查 → 拒绝成环 → 数量与手算一致。
-这个闭环的**验收手段**是 [US-525](../stories/domain/US-525-bom-end-to-end-demo.md) 阶段 A：
-各故事的 AC 都是单点断言，而组合错误（乘序、二次过滤、穿透后继承）只在一份贯穿的数据集上显形。
-它不是解锁依据——demo 需要插件存在，拿它当启动理由是循环论证，见该故事的「价值待证」。
+> **截至 2026-10-13：第 1 步已交付**（US-030 阶段 A/B/C + US-507 阶段 A/B + Tauri 升 rusqlite 0.33 + `qty` 十进制存储段），
+> 各故事不提前置 Done；AC 勾选与关闭记录见 [US-030](../stories/core/US-030-declarative-storage-constraints.md)、
+> [US-507](../stories/domain/US-507-bom-graph-skeleton.md)、[US-511](../stories/domain/US-511-bom-quantity-semantics.md)。第 2 步起可从 US-508 / US-509 开工。
+>
+> **截至 2026-10-14：第 2 步已交付**（US-508 首轮 AC + US-509 首轮 AC + US-510 阶段 A + `rxdb.bom` 插件收尾：
+> `resolveBom` / `loadHistory` / `expandBom` / `whereUsed` / `assertCompleteResolution` / `cycleConstraintDdlForRemotePg`），
+> 三条故事不提前置 Done；AC 勾选与关闭记录见 [US-508](../stories/domain/US-508-bom-view-resolution.md)、
+> [US-509](../stories/domain/US-509-bom-dag-cycle-detection.md)、[US-510](../stories/domain/US-510-bom-multilevel-explosion.md)。
+>
+> **截至 2026-10-14：第 3 步已交付**（US-511 阶段 A / C / B1：十进制 kernel 与公式求值器、单位换算、
+> `explodeBom` 七步展开、阶梯与损耗、虚拟件穿透、阶梯切片发布校验），AC 勾选与关闭记录见
+> [US-511](../stories/domain/US-511-bom-quantity-semantics.md)。
+>
+> **截至 2026-10-14：第 4 步已交付**（US-507 阶段 C 位号子表 + US-525 阶段 A：SC-100 确定性种子与手写 golden、
+> `apps/dev-rxdb-bom` 演示应用与 `apps/dev-rxdb-bom-e2e` 六条验收用例）——**首轮切片 1~4 步闭环完成**，
+> AC 勾选与关闭记录见 [US-507](../stories/domain/US-507-bom-graph-skeleton.md)、
+> [US-525](../stories/domain/US-525-bom-end-to-end-demo.md)。
+>
+> **截至 2026-10-14：第 5 步已交付**（US-513 阶段 A + US-512 非 ECN + US-524 A/D + US-520 非 ECN +
+> US-511 B2 + US-525 阶段 B：多输出物料流、替代组、工艺路线与工序损耗、投料分摊），
+> AC 勾选与关闭记录见各故事；US-509 AC#4 同批关闭。
+>
+> **截至 2026-10-15：第 6 步已交付**（US-515 全部 26 个 AC + US-525 阶段 C：`ecn` 实体与写入协议矩阵、
+> ECN 发布 / 改期 / 取消状态机与转换后运行投影切片校验、影响面与差异查询、ECN 时间轴种子与面板），
+> AC 勾选与关闭记录见 [US-515](../stories/domain/US-515-bom-change-management.md)、
+> [US-525](../stories/domain/US-525-bom-end-to-end-demo.md)；US-508 AC#12/#16、US-512 AC#6/#9/#14、
+> US-507 AC#10 同批关闭。
+>
+> **截至 2026-10-16：第 7 步已交付**（US-524 阶段 B/C 费率与工时 + US-514 全部 19 个 AC + US-516 全部 22 个 AC +
+> US-525 阶段 D：activity_type/rate 生效区间与按日取值、成本属性与 34 位定点卷算引擎、EBOM↔MBOM 六态映射与
+> 覆盖率/跟进缺口、种子 D 层双图与卷算输入、demo 双图并排 + 覆盖率缺口 + 卷算面板、e2e 第 14~17 条），
+> AC 勾选与关闭记录见 [US-514](../stories/domain/US-514-bom-cost-rollup.md)、
+> [US-516](../stories/domain/US-516-ebom-mbom-mapping.md)、
+> [US-524](../stories/domain/US-524-routing-master-model.md)、
+> [US-525](../stories/domain/US-525-bom-end-to-end-demo.md)。
+> **截至 2026-10-16：第 8 步已交付**（US-517 / US-518 / US-521 全部 AC、US-519 AC#1/#2/#4/#5/#6、US-525 阶段 E）：配置与三维有效性统一解析、元数据属性校验、同快照导出及整批原子草稿导入、六页演示应用与 21 条 e2e；插件 554 条双后端回归通过。阶段 F / US-523 与 US-522 三框架绑定留在后续，US-519 AC#3/#7 仍等 US-030 阶段 D。
+> **第 9 步领域与演示验收（2026-10-16）**：US-523 全部 13 条 AC 与 US-525 阶段 F 通过；实例安装事实、换件历史、序列/批次追溯与来源删除保护接回 SC-100，七页应用保留 23 条 e2e。两端各 10 万实例节点的主数据摘要、结果与查询计划不变，领域用例共 599 条分段通过；验证见 [第 9 步 quickstart](../../specs/019-bom-slice-9/quickstart.md)。US-522 可复用三框架绑定独立排期，US-519 AC#3/#7 与 US-513 阶段 B 仍按既定驱动条件推进。
+>
+> 第 1～4 步合起来就是最小可演示闭环：建 BOM → 按视图解析 → 多级展开 → where-used 反查 → 拒绝成环 → 数量与手算一致。
+> 这个闭环的**验收手段**是 [US-525](../stories/domain/US-525-bom-end-to-end-demo.md) 阶段 A：
+> 各故事的 AC 都是单点断言，而组合错误（乘序、二次过滤、穿透后继承）只在一份贯穿的数据集上显形。
+> 它不是解锁依据——demo 需要插件存在，拿它当启动理由是循环论证，见该故事的「价值待证」。
 
 ## 第 0 步样本
 
@@ -188,7 +226,7 @@ Stem           ×1 EA   [2021-08-08, ∞)            → Metal Bar 1 ×1
 | 未声明的前置                                            | 各故事 References 已逐条标「前置」，并按阶段 / AC 写明依赖                                                                                                                                                                                                                                                                                                       |
 | US-525 的评估日 AC 没有归属                             | 已成为 [US-508](../stories/domain/US-508-bom-view-resolution.md) AC#7 / #8（`as_of_date` 必填、不读系统时钟）                                                                                                                                                                                                                                                    |
 | ECN 要写已发布头，US-507 AC#10 又禁写                   | [US-515 已发布头的写入协议](../stories/domain/US-515-bom-change-management.md#已发布头的写入协议)：只放行挂在 `draft` ECN 上的写入与状态转移级联；US-508 按 ECN 状态定可见性；首轮无 ECN，全部拒绝                                                                                                                                                               |
-| 动态错误消息要 SQLite ≥ 3.47，Tauri 是 3.46.0           | [US-030](../stories/core/US-030-declarative-storage-constraints.md) AC#7 宿主版本门槛；Tauri 升 rusqlite 是第 1 步前置                                                                                                                                                                                                                                           |
+| 动态错误消息要 SQLite ≥ 3.47，Tauri 是 3.46.0           | [US-030](../stories/core/US-030-declarative-storage-constraints.md) AC#7 宿主版本门槛；Tauri 已随第 1 步升 rusqlite 0.33（3.48.0）                                                                                                                                                                                                                               |
 | US-509 自反边依赖 US-030 的 CHECK                       | 自反边改由同一可达性触发器拒绝（US-509 AC#2，路径长度 0），不再依赖 US-030，进首轮验收                                                                                                                                                                                                                                                                           |
 | US-511 阶梯行按「同头同子件」成组，与 US-507 多重图冲突 | 阶梯以 `(bom_header_id, tier_group_no)` 成组（[US-511](../stories/domain/US-511-bom-quantity-semantics.md) AC#6 / #19）                                                                                                                                                                                                                                          |
 | US-525 固定日期种子撞禁止追溯生效                       | [US-508](../stories/domain/US-508-bom-view-resolution.md) 历史装载通道（AC#13 / #14，可审计而非不可绕过）；种子按阶段分层追加                                                                                                                                                                                                                                    |

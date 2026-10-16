@@ -1,0 +1,864 @@
+{
+  "entries": {
+    ".": [
+      {
+        "name": "assertCompleteResolution",
+        "kind": "value"
+      },
+      {
+        "name": "BOM_CYCLE_DEPTH_LIMIT",
+        "kind": "value"
+      },
+      {
+        "name": "BOM_CYCLE_PREFIX",
+        "kind": "value"
+      },
+      {
+        "name": "BOM_DECIMAL_FORMAT_PREFIX",
+        "kind": "value"
+      },
+      {
+        "name": "BOM_EFFECTIVITY_OVERLAP_PREFIX",
+        "kind": "value"
+      },
+      {
+        "name": "BOM_ENTITIES",
+        "kind": "value"
+      },
+      {
+        "name": "BOM_INSTANCE_PREFIX",
+        "kind": "value"
+      },
+      {
+        "name": "BOM_PUBLISH_VALIDATION_PREFIX",
+        "kind": "value"
+      },
+      {
+        "name": "BOM_WRITE_PROTOCOL_PREFIX",
+        "kind": "value"
+      },
+      {
+        "name": "BomActivityRate",
+        "kind": "both"
+      },
+      {
+        "name": "BomActivityType",
+        "kind": "both"
+      },
+      {
+        "name": "BomAttrDef",
+        "kind": "both"
+      },
+      {
+        "name": "BomBackendCapabilityError",
+        "kind": "both"
+      },
+      {
+        "name": "BomConfigChar",
+        "kind": "both"
+      },
+      {
+        "name": "BomConfigCharValue",
+        "kind": "both"
+      },
+      {
+        "name": "BomConfigCondition",
+        "kind": "both"
+      },
+      {
+        "name": "BomConfigConstraint",
+        "kind": "both"
+      },
+      {
+        "name": "BomConfigError",
+        "kind": "both"
+      },
+      {
+        "name": "BomConfigSyntaxError",
+        "kind": "both"
+      },
+      {
+        "name": "BomCostError",
+        "kind": "both"
+      },
+      {
+        "name": "BomCycleError",
+        "kind": "both"
+      },
+      {
+        "name": "BomDecimalFormatError",
+        "kind": "both"
+      },
+      {
+        "name": "BomEcn",
+        "kind": "both"
+      },
+      {
+        "name": "BomError",
+        "kind": "both"
+      },
+      {
+        "name": "BomExportPayload",
+        "kind": "type"
+      },
+      {
+        "name": "BomExportRejectedError",
+        "kind": "both"
+      },
+      {
+        "name": "BomExtAttrError",
+        "kind": "both"
+      },
+      {
+        "name": "BomHeader",
+        "kind": "both"
+      },
+      {
+        "name": "BomHistoryBatch",
+        "kind": "both"
+      },
+      {
+        "name": "BomImportContractError",
+        "kind": "both"
+      },
+      {
+        "name": "BomImportResult",
+        "kind": "type"
+      },
+      {
+        "name": "BomInstanceError",
+        "kind": "both"
+      },
+      {
+        "name": "BomInstanceNode",
+        "kind": "both"
+      },
+      {
+        "name": "BomInstanceNodeView",
+        "kind": "type"
+      },
+      {
+        "name": "BomInstanceQueryOptions",
+        "kind": "type"
+      },
+      {
+        "name": "BomInstanceTraceMatch",
+        "kind": "type"
+      },
+      {
+        "name": "BomInstanceTraceResult",
+        "kind": "type"
+      },
+      {
+        "name": "BomInstanceTraceTarget",
+        "kind": "type"
+      },
+      {
+        "name": "BomInstanceTreeNode",
+        "kind": "type"
+      },
+      {
+        "name": "BomInstanceTreeResult",
+        "kind": "type"
+      },
+      {
+        "name": "BomItem",
+        "kind": "both"
+      },
+      {
+        "name": "BomItemRevision",
+        "kind": "both"
+      },
+      {
+        "name": "BomLine",
+        "kind": "both"
+      },
+      {
+        "name": "BomLineDesignator",
+        "kind": "both"
+      },
+      {
+        "name": "BomLineOccurrence",
+        "kind": "both"
+      },
+      {
+        "name": "BomLineOperationSplit",
+        "kind": "both"
+      },
+      {
+        "name": "BomMapError",
+        "kind": "both"
+      },
+      {
+        "name": "BomPublishValidationError",
+        "kind": "both"
+      },
+      {
+        "name": "BomQuantityError",
+        "kind": "both"
+      },
+      {
+        "name": "BomRepository",
+        "kind": "both"
+      },
+      {
+        "name": "BomResolutionError",
+        "kind": "both"
+      },
+      {
+        "name": "BomRouting",
+        "kind": "both"
+      },
+      {
+        "name": "BomRoutingOperation",
+        "kind": "both"
+      },
+      {
+        "name": "BomSqlDialect",
+        "kind": "type"
+      },
+      {
+        "name": "bomSqlDialectFor",
+        "kind": "value"
+      },
+      {
+        "name": "BomSubstituteGroup",
+        "kind": "both"
+      },
+      {
+        "name": "BomSyncUnsupportedError",
+        "kind": "both"
+      },
+      {
+        "name": "BomTruncationError",
+        "kind": "both"
+      },
+      {
+        "name": "BomType",
+        "kind": "type"
+      },
+      {
+        "name": "BomWorkCenter",
+        "kind": "both"
+      },
+      {
+        "name": "BomWriteProtocolError",
+        "kind": "both"
+      },
+      {
+        "name": "buildExtFilterSql",
+        "kind": "value"
+      },
+      {
+        "name": "buildUnitLotOverlapGuardPg",
+        "kind": "value"
+      },
+      {
+        "name": "buildUnitLotOverlapGuardSqlite",
+        "kind": "value"
+      },
+      {
+        "name": "ceilToDecimalPlaces",
+        "kind": "value"
+      },
+      {
+        "name": "checkConfigCompleteness",
+        "kind": "value"
+      },
+      {
+        "name": "checkConfigConflicts",
+        "kind": "value"
+      },
+      {
+        "name": "CONDITION_GRAMMAR_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "ConditionAst",
+        "kind": "type"
+      },
+      {
+        "name": "confirmMapping",
+        "kind": "value"
+      },
+      {
+        "name": "convertUom",
+        "kind": "value"
+      },
+      {
+        "name": "CostCreditLine",
+        "kind": "type"
+      },
+      {
+        "name": "CostMaterialLine",
+        "kind": "type"
+      },
+      {
+        "name": "CostNodeDetail",
+        "kind": "type"
+      },
+      {
+        "name": "CostProcessingLine",
+        "kind": "type"
+      },
+      {
+        "name": "CostRollupContext",
+        "kind": "type"
+      },
+      {
+        "name": "CostRollupResult",
+        "kind": "type"
+      },
+      {
+        "name": "cycleConstraintDdlForRemotePg",
+        "kind": "value"
+      },
+      {
+        "name": "Decimal",
+        "kind": "type"
+      },
+      {
+        "name": "DECIMAL_CANONICAL_RE",
+        "kind": "value"
+      },
+      {
+        "name": "DECIMAL_FIELDS",
+        "kind": "value"
+      },
+      {
+        "name": "DECIMAL_MAX_SIGNIFICANT_DIGITS",
+        "kind": "value"
+      },
+      {
+        "name": "decimalAdd",
+        "kind": "value"
+      },
+      {
+        "name": "decimalCmp",
+        "kind": "value"
+      },
+      {
+        "name": "decimalDiv",
+        "kind": "value"
+      },
+      {
+        "name": "decimalFromCanonical",
+        "kind": "value"
+      },
+      {
+        "name": "decimalIsNegative",
+        "kind": "value"
+      },
+      {
+        "name": "decimalIsZero",
+        "kind": "value"
+      },
+      {
+        "name": "decimalMul",
+        "kind": "value"
+      },
+      {
+        "name": "decimalSub",
+        "kind": "value"
+      },
+      {
+        "name": "decimalToCanonical",
+        "kind": "value"
+      },
+      {
+        "name": "describeCandidates",
+        "kind": "value"
+      },
+      {
+        "name": "ecnDiff",
+        "kind": "value"
+      },
+      {
+        "name": "EcnDiffEntry",
+        "kind": "type"
+      },
+      {
+        "name": "EcnDiffResult",
+        "kind": "type"
+      },
+      {
+        "name": "ecnImpact",
+        "kind": "value"
+      },
+      {
+        "name": "EcnImpactResult",
+        "kind": "type"
+      },
+      {
+        "name": "EffectiveDomain",
+        "kind": "type"
+      },
+      {
+        "name": "effectiveDomainsOverlap",
+        "kind": "value"
+      },
+      {
+        "name": "evaluateCondition",
+        "kind": "value"
+      },
+      {
+        "name": "evaluateFormula",
+        "kind": "value"
+      },
+      {
+        "name": "ExistingBomKeySets",
+        "kind": "type"
+      },
+      {
+        "name": "expandBom",
+        "kind": "value"
+      },
+      {
+        "name": "ExpansionBudgets",
+        "kind": "type"
+      },
+      {
+        "name": "ExpansionNode",
+        "kind": "type"
+      },
+      {
+        "name": "ExpansionOptions",
+        "kind": "type"
+      },
+      {
+        "name": "ExpansionResult",
+        "kind": "type"
+      },
+      {
+        "name": "explodeBom",
+        "kind": "value"
+      },
+      {
+        "name": "EXPLOSION_ALGORITHM_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "ExplosionManifest",
+        "kind": "type"
+      },
+      {
+        "name": "ExplosionOptions",
+        "kind": "type"
+      },
+      {
+        "name": "ExplosionResult",
+        "kind": "type"
+      },
+      {
+        "name": "ExplosionSteps",
+        "kind": "type"
+      },
+      {
+        "name": "ExplosionStepValue",
+        "kind": "type"
+      },
+      {
+        "name": "EXPORT_CONTRACT_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "EXPORT_TABLE_COLUMNS",
+        "kind": "value"
+      },
+      {
+        "name": "exportBom",
+        "kind": "value"
+      },
+      {
+        "name": "ExportRowBatch",
+        "kind": "type"
+      },
+      {
+        "name": "ExportSerializeMeta",
+        "kind": "type"
+      },
+      {
+        "name": "ExportTable",
+        "kind": "type"
+      },
+      {
+        "name": "ExtAttrDefShape",
+        "kind": "type"
+      },
+      {
+        "name": "ExtAttrQueryFilter",
+        "kind": "type"
+      },
+      {
+        "name": "ExtAttrScope",
+        "kind": "type"
+      },
+      {
+        "name": "ExtFilter",
+        "kind": "type"
+      },
+      {
+        "name": "ExtFilterDialect",
+        "kind": "type"
+      },
+      {
+        "name": "ExtFilterOp",
+        "kind": "type"
+      },
+      {
+        "name": "ExtWriteMode",
+        "kind": "type"
+      },
+      {
+        "name": "filterByAttr",
+        "kind": "value"
+      },
+      {
+        "name": "FORMULA_GRAMMAR_VERSION",
+        "kind": "value"
+      },
+      {
+        "name": "HistoryBatchInput",
+        "kind": "type"
+      },
+      {
+        "name": "HistoryHeaderInput",
+        "kind": "type"
+      },
+      {
+        "name": "HistoryOccurrenceInput",
+        "kind": "type"
+      },
+      {
+        "name": "HistoryRevisionInput",
+        "kind": "type"
+      },
+      {
+        "name": "IMPORT_KINDS",
+        "kind": "value"
+      },
+      {
+        "name": "importBomDraft",
+        "kind": "value"
+      },
+      {
+        "name": "ImportDiagnostic",
+        "kind": "type"
+      },
+      {
+        "name": "ImportKind",
+        "kind": "type"
+      },
+      {
+        "name": "ImportRecord",
+        "kind": "type"
+      },
+      {
+        "name": "ImportValidationResult",
+        "kind": "type"
+      },
+      {
+        "name": "isDecimalString",
+        "kind": "value"
+      },
+      {
+        "name": "loadHistory",
+        "kind": "value"
+      },
+      {
+        "name": "lotMatches",
+        "kind": "value"
+      },
+      {
+        "name": "lotSetsOverlap",
+        "kind": "value"
+      },
+      {
+        "name": "mappingCoverage",
+        "kind": "value"
+      },
+      {
+        "name": "MappingCoverageResult",
+        "kind": "type"
+      },
+      {
+        "name": "MappingGap",
+        "kind": "type"
+      },
+      {
+        "name": "mappingGaps",
+        "kind": "value"
+      },
+      {
+        "name": "MappingGapsResult",
+        "kind": "type"
+      },
+      {
+        "name": "MappingSaveInput",
+        "kind": "type"
+      },
+      {
+        "name": "MappingStep",
+        "kind": "type"
+      },
+      {
+        "name": "MapScopeInfo",
+        "kind": "type"
+      },
+      {
+        "name": "naturalKeyFor",
+        "kind": "value"
+      },
+      {
+        "name": "normalizeBomError",
+        "kind": "value"
+      },
+      {
+        "name": "normalizeDecimalString",
+        "kind": "value"
+      },
+      {
+        "name": "normalizeExtValue",
+        "kind": "value"
+      },
+      {
+        "name": "OutputLine",
+        "kind": "type"
+      },
+      {
+        "name": "parseCondition",
+        "kind": "value"
+      },
+      {
+        "name": "parseImportPayload",
+        "kind": "value"
+      },
+      {
+        "name": "parseLotCodes",
+        "kind": "value"
+      },
+      {
+        "name": "parseNaturalKey",
+        "kind": "value"
+      },
+      {
+        "name": "PenetrationRecord",
+        "kind": "type"
+      },
+      {
+        "name": "pgliteBomDialect",
+        "kind": "value"
+      },
+      {
+        "name": "PlannedQuantity",
+        "kind": "type"
+      },
+      {
+        "name": "positionText",
+        "kind": "value"
+      },
+      {
+        "name": "RequirementLine",
+        "kind": "type"
+      },
+      {
+        "name": "ResolutionContext",
+        "kind": "type"
+      },
+      {
+        "name": "ResolutionManifest",
+        "kind": "type"
+      },
+      {
+        "name": "ResolutionResult",
+        "kind": "type"
+      },
+      {
+        "name": "resolveBom",
+        "kind": "value"
+      },
+      {
+        "name": "ResolvedLineOccurrence",
+        "kind": "type"
+      },
+      {
+        "name": "ResolveTarget",
+        "kind": "type"
+      },
+      {
+        "name": "rollupCost",
+        "kind": "value"
+      },
+      {
+        "name": "roundToSignificant",
+        "kind": "value"
+      },
+      {
+        "name": "rxDBPluginBom",
+        "kind": "value"
+      },
+      {
+        "name": "RxDBPluginBom",
+        "kind": "both"
+      },
+      {
+        "name": "saveMapping",
+        "kind": "value"
+      },
+      {
+        "name": "selectCandidatesByUnit",
+        "kind": "value"
+      },
+      {
+        "name": "serializeExportRows",
+        "kind": "value"
+      },
+      {
+        "name": "sqliteBomDialect",
+        "kind": "value"
+      },
+      {
+        "name": "TruncationReason",
+        "kind": "type"
+      },
+      {
+        "name": "unitFromGtUnitToCheck",
+        "kind": "value"
+      },
+      {
+        "name": "unitIntervalMatches",
+        "kind": "value"
+      },
+      {
+        "name": "unitIntervalOverlaps",
+        "kind": "value"
+      },
+      {
+        "name": "UnresolvedAlternative",
+        "kind": "type"
+      },
+      {
+        "name": "UomConversionRates",
+        "kind": "type"
+      },
+      {
+        "name": "validateConditionReferences",
+        "kind": "value"
+      },
+      {
+        "name": "validateExportReady",
+        "kind": "value"
+      },
+      {
+        "name": "validateExtWrite",
+        "kind": "value"
+      },
+      {
+        "name": "validateImportRecords",
+        "kind": "value"
+      },
+      {
+        "name": "whereUsed",
+        "kind": "value"
+      },
+      {
+        "name": "WhereUsedTarget",
+        "kind": "type"
+      }
+    ],
+    "./testing": [
+      {
+        "name": "deterministicId",
+        "kind": "value"
+      },
+      {
+        "name": "goldenItemId",
+        "kind": "value"
+      },
+      {
+        "name": "goldenOccurrenceId",
+        "kind": "value"
+      },
+      {
+        "name": "GoldenPenetration",
+        "kind": "type"
+      },
+      {
+        "name": "GoldenRequirement",
+        "kind": "type"
+      },
+      {
+        "name": "GoldenStepValue",
+        "kind": "type"
+      },
+      {
+        "name": "loadScooterDataset",
+        "kind": "value"
+      },
+      {
+        "name": "loadScooterDatasetC",
+        "kind": "value"
+      },
+      {
+        "name": "loadScooterDatasetD",
+        "kind": "value"
+      },
+      {
+        "name": "loadScooterDatasetE",
+        "kind": "value"
+      },
+      {
+        "name": "loadScooterDatasetF",
+        "kind": "value"
+      },
+      {
+        "name": "SCOOTER_DATASET",
+        "kind": "value"
+      },
+      {
+        "name": "SCOOTER_DATASET_D",
+        "kind": "value"
+      },
+      {
+        "name": "SCOOTER_DATASET_E",
+        "kind": "value"
+      },
+      {
+        "name": "SCOOTER_DATASET_F",
+        "kind": "value"
+      },
+      {
+        "name": "SCOOTER_GOLDEN",
+        "kind": "value"
+      },
+      {
+        "name": "SCOOTER_SEED_BATCH_NO",
+        "kind": "value"
+      },
+      {
+        "name": "SCOOTER_SEED_TIMESTAMP",
+        "kind": "value"
+      },
+      {
+        "name": "ScooterDesignatorSpec",
+        "kind": "type"
+      },
+      {
+        "name": "ScooterHeaderSpec",
+        "kind": "type"
+      },
+      {
+        "name": "ScooterItemIds",
+        "kind": "type"
+      },
+      {
+        "name": "ScooterItemSpec",
+        "kind": "type"
+      },
+      {
+        "name": "ScooterOccurrenceSpec",
+        "kind": "type"
+      }
+    ]
+  }
+}

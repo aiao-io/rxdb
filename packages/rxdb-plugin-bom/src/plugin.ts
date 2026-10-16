@@ -1,0 +1,337 @@
+/**
+ * @fileoverview BOM 插件：仓储门面 + 存储层触发器的下发
+ *
+ * 触发器下发照 `@aiao/rxdb-plugin-search` 的先例：`inject: ['adapter:local']` 保证
+ * `install()` 被调用时本地适配器引导链（迁移、建表、索引收敛）已跑完；DDL 经
+ * `bootstrapTransaction` 执行（此刻 `RxDB.connect()` 还卡在等插件安装，裸查询会等自己）。
+ * 后端按适配器名分叉：SQLite 家族与 PGlite 各一份 DDL，其余显式声明不支持（US-030 AC#6）。
+ * DDL 幂等（`IF NOT EXISTS` / `CREATE OR REPLACE`），重连不产生第二份对象。
+ */
+
+import type { EntityType, IRxDBPlugin, Plugin, RxDB } from '@aiao/rxdb';
+import { getEntityMetadata, RxDBPluginBase, SyncType } from '@aiao/rxdb';
+import type { LifecycleScope } from '@aiao/utils';
+import { firstValueFrom, Observable } from 'rxjs';
+import { BOM_ENTITIES } from './entities.js';
+import type {
+  BomInstanceQueryOptions,
+  BomInstanceTraceResult,
+  BomInstanceTraceTarget,
+  BomInstanceTreeResult
+} from './instance.js';
+import { rollupCost as runRollupCost, type CostRollupContext, type CostRollupResult } from './quantity/cost.js';
+import { explodeBom as runExplodeBom, type ExplosionOptions, type ExplosionResult } from './quantity/explosion.js';
+import { BomRepository } from './repository.js';
+import { cycleConstraintDdlForRemotePg } from './resolve/cycle-constraint-ddl.js';
+import {
+  ecnDiff as runEcnDiff,
+  ecnImpact as runEcnImpact,
+  type EcnDiffResult,
+  type EcnImpactResult
+} from './resolve/ecn.js';
+import {
+  expandBom as runExpandBom,
+  whereUsed as runWhereUsed,
+  type ExpansionOptions,
+  type ExpansionResult,
+  type WhereUsedTarget
+} from './resolve/expansion.js';
+import type { BomExportPayload } from './resolve/export-contract.js';
+import { filterByAttr as runFilterByAttr, type ExtAttrQueryFilter, type ExtAttrScope } from './resolve/ext-attr.js';
+import { loadHistory, type HistoryBatchInput } from './resolve/history-loader.js';
+import {
+  exportBom as runExportBom,
+  importBomDraft as runImportBomDraft,
+  type BomImportResult
+} from './resolve/integration.js';
+import type { ResolutionContext, ResolutionResult } from './resolve/resolution.js';
+import { resolveBom, type ResolveTarget } from './resolve/resolver.js';
+import { BomBackendCapabilityError, BomSyncUnsupportedError } from './types.js';
+
+/** SQLite 家族适配器名（与各适配器包的 `ADAPTER_NAME` 一致）。 */
+const SQLITE_ADAPTER_NAMES: ReadonlySet<string> = new Set([
+  'wa-sqlite',
+  'sqlite',
+  'sqlite-wasm',
+  'sqliteai',
+  'sqlite-tauri',
+  'sqlite-electron'
+]);
+
+export type BomTriggerDdlBuilder = (metadata: ReturnType<typeof getEntityMetadata>) => string[];
+
+/**
+ * US-509 AC#12 的校验函数（导出供单测）：BOM 实体生效的同步策略必须为 `None`。
+ */
+export const assertBomSyncNotDeclared = (
+  entitySync: { resolve(metadata: ReturnType<typeof getEntityMetadata>): { type: SyncType } | undefined },
+  entities: readonly EntityType[]
+): void => {
+  for (const EntityType of entities) {
+    const metadata = getEntityMetadata(EntityType);
+    const sync = entitySync.resolve(metadata);
+    if (sync && sync.type !== SyncType.None) {
+      throw new BomSyncUnsupportedError(metadata.name);
+    }
+  }
+};
+
+/** 按适配器名解析后端 DDL 构造器；不认识的后端显式拒绝，不静默降级（导出供 AC#6 单测）。 */
+export const resolveBomBackend = async (adapterName: string | undefined): Promise<BomTriggerDdlBuilder> => {
+  if (adapterName === 'pglite') return (await import('./backend/bom-trigger-ddl.js')).buildPgBomTriggerDdl;
+  if (adapterName && SQLITE_ADAPTER_NAMES.has(adapterName)) {
+    return (await import('./backend/bom-trigger-ddl.js')).buildSqliteBomTriggerDdl;
+  }
+  if (adapterName === 'http' || adapterName === 'supabase') {
+    // US-509 AC#6：DDL 在远端，本仓发不出写入期环约束——显式声明能力缺席并 fail-fast
+    throw new BomBackendCapabilityError(
+      adapterName,
+      '无写入期环约束（DDL 在远端），可经 cycleConstraintDdlForRemotePg() 导出 DDL 自行部署'
+    );
+  }
+  throw new BomBackendCapabilityError(adapterName ?? '(no local adapter)');
+};
+
+/** 活视图快照（US-522）：结构恒在，数量违约时 explosion 为 null、quantityError 携带原因。 */
+export interface LiveSnapshot {
+  expansion: ExpansionResult;
+  explosion: ExplosionResult | null;
+  quantityError: unknown | null;
+}
+
+export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
+  readonly lifecycle = 'scoped' as const;
+  readonly inject = ['adapter:local'] as const;
+  name: Uncapitalize<string> = 'bom';
+
+  constructor(rxdb: RxDB) {
+    super(rxdb);
+    // 仓储注册必须在 use() 期完成：实体校验（EntityManager.init）先于适配器连接跑，
+    // 而 `inject: ['adapter:local']` 把 install() 推迟到连接之后，晚于那个时点
+    this.rxdb.repository('BomRepository', { class: BomRepository });
+  }
+
+  /**
+   * 按显式解析上下文解析出唯一一份有效行集（US-508）。
+   */
+  resolve(context: ResolutionContext, target: ResolveTarget): Promise<ResolutionResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => resolveBom(adapter, context, target));
+  }
+
+  /** 按实际安装事实展开实例；省略时点时返回全部安装历史。 */
+  async expandInstance(rootId: string, options?: BomInstanceQueryOptions): Promise<BomInstanceTreeResult> {
+    const adapter = await firstValueFrom(this.rxdb.localAdapter$);
+    const { expandInstance } = await import('./instance.js');
+    return expandInstance(adapter, rootId, options);
+  }
+
+  /** 按实际序列号、批次或修订反查命中记录及其整机路径。 */
+  async whereUsedInstance(
+    target: BomInstanceTraceTarget,
+    options?: BomInstanceQueryOptions
+  ): Promise<BomInstanceTraceResult> {
+    const adapter = await firstValueFrom(this.rxdb.localAdapter$);
+    const { whereUsedInstance } = await import('./instance.js');
+    return whereUsedInstance(adapter, target, options);
+  }
+
+  /**
+   * 历史装载：一次事务写入已发布修订 / 头 / 行（US-508 AC#13/#14/#18）。
+   */
+  loadHistory(batch: HistoryBatchInput): Promise<void> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => loadHistory(adapter, batch));
+  }
+
+  /** 在一致快照中导出完整结构、数量与主数据（US-521）。 */
+  exportBom(context: ResolutionContext, target: ResolveTarget, options?: ExplosionOptions): Promise<BomExportPayload> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runExportBom(adapter, context, target, options));
+  }
+
+  /** 整批原子导入草稿，逐行返回诊断；发布由调用方显式执行（US-521）。 */
+  importBomDraft(payload: unknown): Promise<BomImportResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runImportBomDraft(adapter, payload));
+  }
+
+  /** 按属性声明的类型过滤扩展值；缺字段与 null 使用一致语义（US-519）。 */
+  filterByAttr(appliesTo: ExtAttrScope, filters: ExtAttrQueryFilter[]): Promise<Record<string, unknown>[]> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runFilterByAttr(adapter, appliesTo, filters));
+  }
+
+  /**
+   * 远端 PostgreSQL 的写入期环约束 DDL（US-509 AC#7，部署与否由使用方负责）。
+   */
+  /**
+   * 活视图订阅（US-522）：结构与数量随库变更（ECN 发布、修订发布、行变更）自动重算。
+   * 每次 emit 一个 { expansion, explosion, quantityError } 快照——expansion 恒为结构；
+   * 数量违约时 explosion 为 null、quantityError 携带原因（AC#6/#7/#8 的消费面）。
+   */
+  watchView(input: {
+    context: ResolutionContext;
+    target: ResolveTarget;
+    plannedQty: { value: string; uom: string };
+  }): Observable<LiveSnapshot> {
+    // 活语义经 rxdb_change 最新 id 轮询驱动（适配器面无变更流；change 表是全部写入的统一日志）。
+    // 每次探测到新变更即整体重算并 emit 快照；订阅立即发首帧。
+    return new Observable<LiveSnapshot>(subscriber => {
+      let stopped = false;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      let lastChangeId = -1;
+      const compute = async (): Promise<void> => {
+        if (stopped) return;
+        const adapter = await firstValueFrom(this.rxdb.localAdapter$).catch(() => undefined);
+        if (adapter === undefined) {
+          subscriber.error(new Error('BOM 活视图：本地适配器未就绪'));
+          return;
+        }
+        const expansion = await runExpandBom(adapter, input.context, input.target);
+        let explosion: ExplosionResult | null = null;
+        let quantityError: unknown = null;
+        try {
+          explosion = await runExplodeBom(adapter, input.context, input.target, { plannedQty: input.plannedQty });
+        } catch (error) {
+          quantityError = error;
+        }
+        subscriber.next({ expansion, explosion, quantityError });
+      };
+      const tick = async (): Promise<void> => {
+        if (stopped) return;
+        const adapter = await firstValueFrom(this.rxdb.localAdapter$).catch(() => undefined);
+        if (adapter === undefined) {
+          timer = setTimeout(() => void tick(), 250);
+          return;
+        }
+        const table = adapter.name === 'pglite' ? '"rxdb"."rxdb_change"' : '"rxdb$rxdb_change"';
+        const result = (await adapter.rawQuery?.(
+          `SELECT COALESCE(MAX("id"), -1) AS "maxId" FROM ${table}`
+        )) as unknown as { results?: { rows: unknown[][] }[]; rows?: unknown[][] };
+        const rows = Array.isArray(result.results) ? result.results[0].rows : (result.rows ?? []);
+        const current = rows.length > 0 ? Number(rows[0][0]) : -1;
+        if (current > lastChangeId) {
+          lastChangeId = current;
+          await compute();
+        }
+        timer = setTimeout(() => void tick(), 250);
+      };
+      void tick();
+      void compute();
+      return () => {
+        stopped = true;
+        if (timer !== null) clearTimeout(timer);
+      };
+    });
+  }
+
+  cycleConstraintDdlForRemotePg(): string {
+    return cycleConstraintDdlForRemotePg();
+  }
+
+  /**
+   * 多级展开（下钻，US-510 阶段 A）：返回各级子件、层级与路径，预算触顶带 `truncated`。
+   */
+  expandBom(context: ResolutionContext, target: ResolveTarget, options?: ExpansionOptions): Promise<ExpansionResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runExpandBom(adapter, context, target, options));
+  }
+
+  /**
+   * where-used 反查（US-510 阶段 A）：返回使用给定子件的父件与路径，预算触顶带 `truncated`。
+   */
+  whereUsed(context: ResolutionContext, target: WhereUsedTarget, options?: ExpansionOptions): Promise<ExpansionResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runWhereUsed(adapter, context, target, options));
+  }
+
+  /**
+   * 七步数量展开（US-511 阶段 A/B1/C）：虚拟件穿透、损耗与换算后的需求行，
+   * 预算触顶带 `truncated`；数量语义违约整次拒绝。
+   */
+  explodeBom(context: ResolutionContext, target: ResolveTarget, options: ExplosionOptions): Promise<ExplosionResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runExplodeBom(adapter, context, target, options));
+  }
+
+  /**
+   * 成本卷算（US-514）：拓扑逆序单遍，材料 + 加工 + 制费 − 副产抵减，逐层明细可展开；
+   * 缺成本/缺费率/币种不符/环/unresolved 即拒绝，不以 0 兜底。
+   */
+  rollupCost(
+    context: CostRollupContext,
+    target: ResolveTarget,
+    options?: { batchQty?: { value: string; uom: string } }
+  ): Promise<CostRollupResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter =>
+      runRollupCost(adapter, context, target, options?.batchQty)
+    );
+  }
+
+  /**
+   * ECN 影响面（US-515 AC#1）：成员发生项的头物料按 ECN 生效日 where-used 走到顶，
+   * 返回被改物料、顶层整机与命中路径。
+   */
+  ecnImpact(ecnId: string): Promise<EcnImpactResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runEcnImpact(adapter, ecnId));
+  }
+
+  /**
+   * ECN 差异（US-515 AC#2）：生效前后两个评估日对涉及的头各解析一次，按逻辑行对齐
+   * 对比——新增 / 删除（截止）/ 改量 / 改版（换子件）四类。
+   */
+  ecnDiff(ecnId: string): Promise<EcnDiffResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runEcnDiff(adapter, ecnId));
+  }
+
+  install(scope: LifecycleScope): Promise<void> {
+    // 安装失败必须显式失败 connect：吞掉会让「触发器没装上」伪装成正常启动
+    return this.#installTriggers(scope);
+  }
+
+  /** 对 schema 里存在的每个 BOM 实体下发存储层触发器（幂等）。 */
+  async #installTriggers(scope: LifecycleScope): Promise<void> {
+    const adapterName = this.rxdb.config.sync?.local?.adapter;
+    const buildDdl = await resolveBomBackend(adapterName);
+    const adapter = this.rxdb.localAdapterSync;
+    if (!adapter) {
+      throw new BomBackendCapabilityError(adapterName ?? '(no local adapter)');
+    }
+    const presentEntities = BOM_ENTITIES.filter(EntityType =>
+      (this.rxdb.config.entities as readonly EntityType[]).includes(EntityType)
+    );
+    // US-509 AC#12：BOM 实体首轮不参与同步——多写入端会绕过本地写入期环约束，
+    // 离线两端分别写反向边合并成环的场景没有检测手段，配置校验即拒绝
+    if (this.rxdb.entitySync) {
+      assertBomSyncNotDeclared(this.rxdb.entitySync, presentEntities);
+    }
+    for (const EntityType of presentEntities) {
+      if (scope.state !== 'active') return;
+      const statements = buildDdl(getEntityMetadata(EntityType));
+      if (statements.length === 0) continue;
+      await adapter.bootstrapTransaction(async executor => {
+        for (const statement of statements) {
+          try {
+            await executor.query(statement);
+          } catch (error) {
+            throw new Error(`BOM 触发器 DDL 安装失败：${statement}`, { cause: error });
+          }
+        }
+      }, false);
+    }
+  }
+}
+
+declare module '@aiao/rxdb' {
+  interface RxDB {
+    bom: RxDBPluginBom;
+  }
+  interface RxDBRepositories {
+    BomRepository: typeof BomRepository;
+  }
+}
+
+export const rxDBPluginBom: Plugin = (db: RxDB) => {
+  const plugin = new RxDBPluginBom(db);
+  // 门面属性在工厂里挂（search 插件的先例）：`declare module` 只解决类型，运行时靠这里
+  Object.defineProperty(db, 'bom', {
+    value: plugin,
+    enumerable: false,
+    configurable: false,
+    writable: false
+  });
+  return plugin;
+};

@@ -1,0 +1,75 @@
+<div class="page">
+  <section class="page-hero">
+    <div>
+      <h2>整机展开</h2>
+      <p class="panel-desc">按评估日、计划量与序列号展开结构，查看逐步算式、选择配置，并导出快照或导入草稿。</p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="toolbar">
+      <label>
+        评估日（显式入参，不读系统时钟）
+        <input [(ngModel)]="asOfDate" data-testid="as-of-date" type="date" />
+      </label>
+      <label>
+        计划量
+        <input class="qty-input" [(ngModel)]="plannedQty" type="text" />
+      </label>
+      <label>
+        根物料
+        <select [(ngModel)]="rootKey" data-testid="root-select">
+          @for (key of itemNos().values(); track key) {
+            <option [value]="key">{{ key }}</option>
+          }
+        </select>
+      </label>
+      <label>
+        序列号
+        <input class="qty-input" [(ngModel)]="unit" data-testid="unit-input" min="1" step="1" type="number" />
+      </label>
+      <button class="btn btn-primary" [disabled]="busy() || !ready()" (click)="runExplode()">
+        {{ busy() ? '处理中…' : '展开整机' }}
+      </button>
+    </div>
+    @if (explodeError()) {
+      <div class="error-box" data-testid="explode-error">{{ explodeError() }}</div>
+    }
+    <div class="main">
+      <div class="panel-inset tree">
+        <h3>需求行（展开树）</h3>
+        @if (view()) {
+          <bom-req-tree
+            [designators]="designators()"
+            [itemNos]="itemNos()"
+            [result]="view()!.result"
+            [selected]="view()!.selected"
+            (rowSelect)="select($event)"
+          />
+        } @else {
+          <div class="empty-state">尚未展开：点击「展开整机」查看需求行。</div>
+        }
+      </div>
+      <div class="panel-inset">
+        <h3>算式面板（七步）</h3>
+        <bom-step-panel
+          [itemNos]="itemNos()"
+          [line]="view()?.selected ?? null"
+          [penetrations]="penetrationsOn(view()?.selected ?? null)"
+        />
+      </div>
+    </div>
+  </section>
+
+  <bom-config-panel [asOfDate]="asOfDate()" />
+
+  <bom-integration-panel
+    [asOfDate]="asOfDate()"
+    [expanded]="view() !== null"
+    [plannedQty]="plannedQty()"
+    [rootKey]="rootKey()"
+    [unit]="unit() ?? undefined"
+  />
+
+  <bom-demo-checks />
+</div>

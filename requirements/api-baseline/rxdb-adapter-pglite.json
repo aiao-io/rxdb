@@ -230,6 +230,10 @@
         "kind": "type"
       },
       {
+        "name": "PGliteRepository",
+        "kind": "both"
+      },
+      {
         "name": "PGliteRestoredDatabase",
         "kind": "both"
       },

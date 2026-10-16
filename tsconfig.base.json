@@ -115,7 +115,10 @@
       "@modules/rxdb-devtools-panel/wire": ["./modules/rxdb-devtools-panel/wire/index.ts"],
       "@modules/recipes-domain": ["./modules/recipes-domain/src/index.ts"],
       "@modules/wujie": ["./modules/wujie/src/index.ts"],
-      "@modules/wujie/testing": ["./modules/wujie/src/testing/index.ts"]
+      "@modules/wujie/testing": ["./modules/wujie/src/testing/index.ts"],
+      "@aiao/rxdb-plugin-bom": ["./packages/rxdb-plugin-bom/src/index.ts"],
+      "@aiao/rxdb-plugin-bom/testing": ["./packages/rxdb-plugin-bom/src/testing/index.ts"],
+      "@aiao/rxdb-plugin-bom-angular": ["./packages/rxdb-plugin-bom-angular/src/index.ts"]
     },
     "resolveJsonModule": true,
     "skipDefaultLibCheck": true,

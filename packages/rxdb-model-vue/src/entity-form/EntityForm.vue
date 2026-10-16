@@ -560,7 +560,7 @@ defineExpose({
           :placeholder="field.placeholder ?? ''"
           :type="textInputType(field)"
           :value="displayInputValue(field)"
-          @change="onFieldChange(field, ($event.target as HTMLInputElement).value)"
+          @input="onFieldChange(field, ($event.target as HTMLInputElement).value)"
         />
       </template>
       <p

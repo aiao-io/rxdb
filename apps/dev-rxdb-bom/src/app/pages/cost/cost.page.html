@@ -1,0 +1,27 @@
+<div class="page">
+  <section class="page-hero">
+    <div>
+      <h2>成本卷算</h2>
+      <p class="panel-desc">
+        逐层卷算明细树（US-525 AC#14/#15）：材料/加工/制费/副产抵减分列；缺成本整体报缺失，不以 0 兜底。
+      </p>
+    </div>
+    <label class="hero-control">
+      评估日
+      <input [(ngModel)]="asOfDate" data-testid="as-of-date" type="date" />
+    </label>
+  </section>
+
+  <bom-cost-panel [asOfDate]="asOfDate()" />
+
+  <section class="panel">
+    <h2>卷算口径说明</h2>
+    <ul class="note-list">
+      <li>批次成本：批成本 × 批数量与单位成本在头节点给出（金额为规范十进制串，half-even 舍入）。</li>
+      <li>
+        明细分列：材料（需求 × 单位成本）、加工（工时 × 费率）、制费（按原因）、副产抵减（出量 × 抵减价，负数列示）。
+      </li>
+      <li>缺成本：任一子件缺成本时整体报缺失并点名物料 id（不以 0 兜底、不产出部分树）——用卷算根 COST-DEMO 演示。</li>
+    </ul>
+  </section>
+</div>
