@@ -19,6 +19,9 @@ PNPM_FLAGS = "--frozen-lockfile"
 # angular-eslint）进入依赖图——这正是 Netlify 上该模块缺失的原因。显式声明开发环境，
 # 让 Netlify 安装与 GitHub CI、本机完全一致。
 NODE_ENV = "development"
+# corepack 下载 pnpm 时禁止交互确认：构建机无 TTY，提示挂起会拖到依赖安装超时。
+# 部署历史里 ~170s 的安装阶段失败与此吻合（跨分支间歇出现，registry 波动时必现）。
+COREPACK_ENABLE_DOWNLOAD_PROMPT = "0"
 # 使用 HTTPS 协议克隆 Git 依赖
 GIT_SSH_COMMAND = "true"
 # 禁用 Nx Cloud（免费额度用完时构建会失败）
