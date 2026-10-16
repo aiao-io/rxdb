@@ -222,6 +222,10 @@
         "kind": "type"
       },
       {
+        "name": "EntityCapabilityContext",
+        "kind": "type"
+      },
+      {
         "name": "EntityFieldConfig",
         "kind": "type"
       },

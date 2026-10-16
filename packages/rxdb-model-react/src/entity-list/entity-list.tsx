@@ -299,8 +299,8 @@ export function EntityList({
 
   /** 当前实体的界面能力，由 `permissions` 派生（US-027）；未注册实体无元数据可派生，为 `undefined`。 */
   const capabilities = useMemo(
-    () => (entityCls ? deriveEntityCapabilities(getEntityMetadata(entityCls)) : undefined),
-    [entityCls]
+    () => (entityCls ? deriveEntityCapabilities(getEntityMetadata(entityCls), { readOnly: rxdb.readOnly }) : undefined),
+    [entityCls, rxdb]
   );
   const isRowReadonly = capabilities?.canEdit === false;
 
@@ -441,6 +441,7 @@ export function EntityList({
       cache.set(
         `${meta.namespace}:${meta.name}`,
         buildEditableColumns(meta, {
+          readOnly: rxdb.readOnly,
           relatedItemsProviderFactory: (fkField, relatedEntityName) => {
             const relCls = [...entityClsMap.values()].find(c => getEntityMetadata(c).name === relatedEntityName);
             if (!relCls) return undefined;

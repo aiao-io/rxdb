@@ -234,6 +234,10 @@
         "kind": "type"
       },
       {
+        "name": "EntityCapabilityContext",
+        "kind": "type"
+      },
+      {
         "name": "EntityDetail",
         "kind": "value"
       },

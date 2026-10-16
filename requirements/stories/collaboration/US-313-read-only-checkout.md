@@ -74,8 +74,8 @@ epic-006 多检出位[场景二](../../epics/epic-006-working-tree-commits.md#�
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | A    | 核心前置（克隆实体类不再泄漏多对多中间表、`cloneEntityClasses` 公开、`readOnly` 与 `RxDBReadOnlyError`、生成类清单、快照原语声明）；PGlite 与 SQLite 系的快照原语；登记表；分支视图与只读实例；一致性套件接六个后端 | ✅   |
 | B    | 提交视图                                                                                                                                                                                                            | ✅   |
-| C    | 生命周期与回收：六个后端的 `dropStorage`、Web Locks、`prune()`、启动清理、`attach()`                                                                                                                                | ⬜   |
-| D    | 三端绑定、三端 demo、文档                                                                                                                                                                                           | ⬜   |
+| C    | 生命周期与回收：六个后端的 `dropStorage`、Web Locks、`prune()`、启动清理、`attach()`                                                                                                                                | ✅   |
+| D    | 三端绑定、三端 demo、文档                                                                                                                                                                                           | ⚠️   |
 
 ## 验收标准
 
@@ -88,17 +88,20 @@ epic-006 多检出位[场景二](../../epics/epic-006-working-tree-commits.md#�
 | 5   | A    | 只读检出位已打开，主库随后又写入               | 读只读检出位；再 `refresh()`                       | 先读到的仍是建立时刻的数据；`refresh()` 后与新状态一致                                           | ✅   |
 | 6   | B    | 当前分支上一个可达的历史提交                   | 打开提交视图                                       | 已跟踪实体的数据与「那次 `commit()` 刚完成时读到的数据」逐行一致                                 | ✅   |
 | 7   | B    | 不可达的提交                                   | 打开提交视图                                       | 拒绝，原因与 restore 的 `unreachable_target` 同口径                                              | ✅   |
-| 8   | C    | 只读检出位已打开                               | `close()`                                          | 快照库与登记都删除                                                                               | ⬜   |
-| 9   | C    | 标签页会话归属的检出位，所在标签页已关闭或崩溃 | 任一标签页启动，或调 `prune()`                     | 该检出位被回收；其它标签页仍在用的不受影响                                                       | ⬜   |
-| 10  | C    | 持久归属的检出位                               | 刷新页面                                           | 仍在登记里，可直接打开                                                                           | ⬜   |
+| 8   | C    | 只读检出位已打开                               | `close()`                                          | 快照库与登记都删除                                                                               | ✅   |
+| 9   | C    | 标签页会话归属的检出位，所在标签页已关闭或崩溃 | 任一标签页启动，或调 `prune()`                     | 该检出位被回收；其它标签页仍在用的不受影响                                                       | ✅   |
+| 10  | C    | 持久归属的检出位                               | 刷新页面                                           | 仍在登记里，可直接打开                                                                           | ✅   |
 | 11  | D    | 三端 demo                                      | 分支行 / 历史行菜单「Open read-only」              | 打开只读视图，能按实体浏览列表与详情；有只读横幅，写入口不可用；storage 文件标注「不随版本」     | ⬜   |
-| 12  | D    | 三端绑定                                       | 对照三端 API                                       | 同名同 API（`tri-framework-check`）                                                              | ⬜   |
+| 12  | D    | 三端绑定                                       | 对照三端 API                                       | 同名同 API（`tri-framework-check`）                                                              | ✅   |
 | 13  | D    | 三端 demo                                      | a11y 走查                                          | 只读视图 axe 零违规、键盘可达                                                                    | ⬜   |
 | 14  | —    | 门禁                                           | 收尾                                               | 首批后端的真库比对、三端单测与 e2e、`audit:api-surface`（基线随提交）、`audit:requirements` 全绿 | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-AC1～AC7 由 `worktreeConformanceSuite` 在六个后端上验（PGlite / sqlite-wasm / wa-sqlite / sqlite / sqliteai / Electron）。
+阶段 D 的三端绑定已就位（AC12：三端入口同名导出 `useWorktrees` 与 `WorktreesResource`），demo 与文档待做。
+AC1～AC10 由 `worktreeConformanceSuite` 在六个后端上验（PGlite / sqlite-wasm / wa-sqlite / sqlite / sqliteai / Electron）。
+AC8 的「快照库删除」另由六个后端各自的 `drop-storage.spec.ts` 对真实存储验；AC9 的「任一标签页启动」由插件的
+`worktree-startup-prune.spec.ts` 验：每个连接纪元第一次连上本地适配器后在后台回收一次，未启用的库与没配快照库的实例跳过。
 AC3 的保留：主实例实体缓存的隔离已验；workspace 草稿缓存这一半等阶段 D 的 demo（主实例装着 workspace）补 e2e，
 结构上它只收主实例 `EntityManager` 的实体，快照实例不装 workspace。
 
@@ -116,7 +119,7 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
 5. **范围修正**：只读视图不含全文搜索与 QueryCache 实体；AC4 判据为「密文是主库已有信封的逐字节拷贝、建快照不调用密钥环」；
    AC6 判据为「那次提交刚完成时读到的已跟踪实体数据」——v1 的 restore 从不重写业务表，拿它当判据证明不了什么。
 6. **只读三层防线**：核心 `readOnly`、只读捕获钩子、引擎封印。
-7. **删库能力**：首批六个后端都新增 `dropStorage`。
+7. **删库能力**：首批六个后端都新增 `dropStorage`；按当前配置删不掉的，由 `canDropStorage()` 在建快照之前拒绝。
 
 ## 技术笔记
 
@@ -147,7 +150,18 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
   - `adoptWorktreeEncryption(source)`：快照适配器沿用主适配器的密钥环——信封的 AAD 含 `databaseNamespace`（即库名），
     快照库自己的库名解不开；同一基类的实例之间可直接交接
   - `sealWorktreeReadOnly()`：SQLite `PRAGMA query_only = 1`；PGlite `SET default_transaction_read_only = on`
-  - `dropStorage()`（阶段 C）：PGlite 的 idb / opfs-ahp / memory，SQLite 系各 VFS 的库文件与 journal / WAL，Electron 经宿主 IPC
+  - `dropStorage()`（阶段 C）：断开之后才删，库不存在时什么都不做。PGlite 删 `memory` 与 `idb://`（IndexedDB 库
+    `/pglite/<库名>` 连同恢复簿记），别的上下文还开着就拒绝；sqlite-wasm 的 `idb` 系删独立的 IndexedDB 库，`opfs` 删库文件与旁文件；
+    wa-sqlite 的 IDB 系 VFS 在以 VFS 命名的共用库里按路径删记录（那个库别的库也在用，不能整库删），OPFS 系删库文件与旁文件；
+    sqlite / sqliteai 开 OPFS 时删库文件与旁文件；Electron 经宿主的 `drop` 请求删库文件与 `-wal` / `-shm` / `-journal`
+    （先删旁文件、最后删库文件），宿主上还有会话开着同名库（按小写比，macOS 与 Windows 的文件系统不分大小写）就报 `database_busy`
+  - `canDropStorage()`（阶段 C）：只看配置、不碰存储。删不掉的配置——sqlite-wasm 的 `fs-handle`、wa-sqlite 的
+    `AccessHandlePoolVFS`、PGlite 的其余数据目录、Electron PGlite（数据目录在宿主上，宿主还没有删目录的请求）——答 `false`，
+    快照工厂在连接之前以 `unsupported_adapter` 拒绝：建得出却删不掉的快照库关闭时抛错、之后每次回收都报错，
+    而先删一次来试会删掉还没验明身份的库（工厂配错、指到主库存储时那就是主库）
+- **桌面线协议的 `drop`**：不依附会话，先握手再发；加入它没有抬高 `DESKTOP_HOST_PROTOCOL_VERSION`——老宿主不认识它，
+  在任何副作用之前以 `protocol_violation` 拒绝。Tauri 的 Rust 宿主同样不认识，`RxDBAdapterTauri` 也不实现 `dropStorage`，
+  因此不是快照库的候选。demo 主进程的请求种类闭集与 preload 的内联副本一并加上 `drop`。
 - **比对口径**：快照与「切过去读到的数据」逐行比对时去掉 `ENTITY_BOOKKEEPING_FIELDS`：切换写回的行 `updatedAt` 取写入时刻。
 - **只读三层**：(1) 核心：`RxDBOptions.readOnly`、`RxDB.readOnly`，`Repository.create/update/remove/reorder`、
   `EntityManager` 的 save / saveMany / removeMany 与 `notifyExternalUpdate` 在权限判定之前抛 `RxDBReadOnlyError`；
@@ -170,11 +184,16 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
   切分支的 SQL 生成两者都吃；单元里的 `entityId` 是字符串（整数主键是编码信封），先 `decodeRxDBChangeEntityId` 还原再拼增量键。
   同一身份在一条分支上至多一条工作树条目（唯一索引），撤销与顺序无关；跨提交按时间编号后逆向折叠，同一行取最早的旧值。
   可达路径在建快照的那个主库事务里重新算一次：登记之后 HEAD 可能又前进了。实现：`checkout/worktree-commit-view.ts`。
-- **生命周期**：每个持有检出位的标签页拿共享 Web Lock `rxdb-worktree:${主库 config.dbName}:${id}`（建库期间也持有）；
-  `prune()` 以 `ifAvailable` 试排他锁，拿到且归属为 `session` 或仍是 `building` 的就删库、删登记行；`persistent` 且 `ready` 的保留。
-  `close()` 关本标签页的视图、放共享锁，排他锁空闲才删库与登记行。每个连接纪元第一次拿到本地适配器后在后台跑一次 `prune()`。
-  Node 里没有 Web Locks：`owner: 'session'` 抛类型化错误，不自动 prune。PGlite 的持久快照不能多标签页同开：`attach()` 要排他，
-  否则返回 `in_use`。
+- **生命周期**：每个检出位一把**排他** Web Lock `rxdb-worktree:${主库 config.dbName}:${id}`，写登记行之前拿下、关闭或放开时还；
+  标签页关掉或崩掉，浏览器替它还锁，「锁没人持有」即「没人在用」。阶段 C 把原先的共享锁改成排他锁：快照库的存储本身是单上下文的
+  （OPFS 同步访问句柄、PGlite 数据目录），一个检出位同一时刻只能在一处打开，`attach()` 拿不到锁即 `in_use`，不分后端。
+  `close()` 断开、删库、删登记行再还锁；`release()` 只断开与还锁，持久归属的留给 `attach()`、会话归属的留给 `prune()`。
+  `prune()` 以 `ifAvailable` 试锁，拿到且归属为 `session` 或仍是 `building` 的才回收；`persistent` 且 `ready` 的保留。
+  回收前先用空实体集连一次快照库：标记迁移在不是快照库的已有库上当场失败，工厂配错指到主库存储时报错而不是把主库删掉；
+  建快照失败时没连上的库一个字节都不删，理由相同。每个连接纪元第一次拿到本地适配器后，插件在后台跑一次 `prune()`（未启用的库跳过）。
+  Node 26 起自带 `navigator.locks`（进程即会话），原先「Node 没有 Web Locks 就拒绝 `session`」不再需要；运行时真没有时报
+  `locks_unavailable`。`attach()` 校验 `schemaFingerprint`，应用的实体结构变了报 `schema_mismatch`。
+  后台回收失败只打到控制台：没有调用方接得住，留下的快照库下一个连接纪元再试。
 - **三端绑定**：插件核心出 `createWorktreeCommands` 与异步状态（后发请求胜出，与 `working-tree-commands.ts` 同形），
   三端各一个 `useWorktrees()`；打开的视图把 `view.rxdb` 交给各端现成的 Provider（React `RxDBProvider`、Vue `provideRxDB`、
   Angular 组件级 `{ provide: RxDB }`），现有查询 hook 与 rxdb-model 的实体列表照用；`deriveEntityCapabilities` 认 `rxdb.readOnly`，
@@ -187,9 +206,13 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
 - `packages/rxdb/src/schema/SchemaManager.ts` — 生成类清单
 - `packages/rxdb/src/entity/many-to-many-entity.ts` — 两端都不记日志时中间表也不记
 - `packages/rxdb/src/entity/relation-cache.ts`、`entity-status.ts`、`entity-manager.ts` — 保存删掉的中间行不再待删
-- `packages/rxdb/src/rxdb-adapter.ts`、`worktree-snapshot.interface.ts` — 快照原语声明（`Worktree*` 类型）
+- `packages/rxdb/src/rxdb-adapter.ts`、`worktree-snapshot.interface.ts` — 快照原语声明（`Worktree*` 类型）、`dropStorage` / `canDropStorage`
 - `packages/rxdb-adapter-sqlite-core/src/worktree/`、`packages/rxdb-adapter-pglite/src/worktree/` 与两个适配器类 — 快照原语、
-  引擎封印；两边的 `convertSwitchResultToSql` 与写入值转换加信封直通开关；`dropStorage`（阶段 C，含 Electron 宿主）
+  引擎封印；两边的 `convertSwitchResultToSql` 与写入值转换加信封直通开关；`dropStorage` / `canDropStorage`（阶段 C）
+- `packages/rxdb-adapter-sqlite-core/src/worktree/drop-storage.ts` — SQLite 系共用的删 IndexedDB 库与删 OPFS 文件（占用时退避重试）
+- `packages/rxdb-adapter-sqlite-core/src/desktop/desktop-host-protocol.ts`、`desktop-sqlite-client.ts`、
+  `packages/rxdb-adapter-electron/src/electron-sqlite-host.ts` — 桌面线协议的 `drop` 请求与宿主的删库
+- `apps/dev-rxdb-electron/src-electron/desktop-host-request-guard.ts`、`preload.ts` — 请求种类闭集加 `drop`
 - `packages/rxdb-plugin-history/src/switch-branch-actions.ts` — 任意两点之间的增量计算（复用）
 - `packages/rxdb-plugin-working-tree/src/checkout/` — 登记表、建快照、只读钩子、提交视图、生命周期、`WorktreeManager`
 - `packages/rxdb-plugin-working-tree/src/working-tree/testing/` — 检出位一致性套件 `worktreeConformanceSuite`，接六个后端

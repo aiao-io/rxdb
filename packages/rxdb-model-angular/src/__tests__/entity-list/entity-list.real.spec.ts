@@ -1,4 +1,4 @@
-import { Entity, EntityBase, PropertyType, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
+import { cloneEntityClasses, Entity, EntityBase, PropertyType, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
 import { isRowDragEnabled, type EntityTableRecord } from '@aiao/rxdb-model';
 import { Account, AuditLog, Contract, Invoice, Task, Todo } from '@aiao/rxdb-test/entities';
 import { provideZonelessChangeDetection } from '@angular/core';
@@ -735,6 +735,38 @@ describe('EntityListComponent（真实组件）', () => {
 
     const rowOf = (component: EntityListComponent, id: string): number =>
       component.tableRecords().findIndex(r => r['id'] === id) + 1;
+
+    it('只读实例（只读检出位，US-313）：不出新增，单元格无编辑器，操作列只剩查看', async () => {
+      // 克隆体是 Todo 的子类：收窄成 typeof Todo 才能带着字段 new 出来
+      const [ReadOnlyTodo] = cloneEntityClasses([Todo as unknown as EntityType]) as unknown as [typeof Todo];
+      const readOnly = createInMemoryRxdb([ReadOnlyTodo as unknown as EntityType], undefined, { readOnly: true });
+      await readOnly.connect(IN_MEMORY_ADAPTER_NAME);
+      const { firstValueFrom } = await import('rxjs');
+      const readOnlyAdapter = await firstValueFrom(readOnly.localAdapter$);
+      // 只读实例的公开写入口一律拒，灌数据走适配器层
+      await readOnlyAdapter.mutations({
+        create: new Map<EntityType, Set<EntityBase>>([
+          [ReadOnlyTodo as unknown as EntityType, new Set([new ReadOnlyTodo({ title: 'frozen' })])]
+        ]),
+        update: new Map(),
+        remove: new Map()
+      });
+      TestBed.resetTestingModule();
+      TestBed.configureTestingModule({
+        providers: [provideZonelessChangeDetection(), { provide: RxDB, useValue: readOnly }]
+      });
+      const { fixture, component } = await renderList();
+      await FLUSH();
+      fixture.detectChanges();
+
+      expect(component.tableRecords()).toHaveLength(1);
+      expect(fixture.nativeElement.textContent).not.toContain('+ 新增');
+      const columns = component.tableColumns() as unknown as Record<string, unknown>[];
+      // 列上压根没有编辑器，不只是这一行不可编辑
+      expect(columns.find(column => column['field'] === 'title')?.['editor']).toBeUndefined();
+      expect(actionIconNames(fixture, 1)).toEqual(['view-action']);
+      await readOnly.disconnectAll();
+    });
 
     it('AC#10 create: system 的实体不提供新增，已有行照常可编辑可删除', async () => {
       const log = new AuditLog({ message: 'seeded-by-system' });

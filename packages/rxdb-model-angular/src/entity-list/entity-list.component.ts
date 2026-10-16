@@ -226,6 +226,7 @@ export class EntityListComponent {
       return [
         `${meta.namespace}:${meta.name}`,
         buildEditableColumns(meta, {
+          readOnly: this.#rxdb.readOnly,
           relatedItemsProviderFactory: (fkField, relatedEntityName) => {
             const relCls = [...this.#entityClsMap.values()].find(c => {
               const m = getEntityMetadata(c);
@@ -269,7 +270,7 @@ export class EntityListComponent {
   /** 当前实体的界面能力，由 `permissions` 派生（US-027）；未注册实体无元数据可派生，为 `undefined` */
   readonly #capabilities = computed(() => {
     const cls = this.#entityCls();
-    return cls ? deriveEntityCapabilities(getEntityMetadata(cls)) : undefined;
+    return cls ? deriveEntityCapabilities(getEntityMetadata(cls), { readOnly: this.#rxdb.readOnly }) : undefined;
   });
 
   /** 级联新增模式下本地草稿子实体（未保存到DB，由父实体级联保存） */

@@ -306,7 +306,7 @@ const entityCls = computed(() => entityClsMap.get(entityKey.value));
 /** 当前实体的界面能力，由 `permissions` 派生（US-027）；未注册实体无元数据可派生，为 `undefined` */
 const capabilities = computed(() => {
   const cls = entityCls.value;
-  return cls ? deriveEntityCapabilities(getEntityMetadata(cls)) : undefined;
+  return cls ? deriveEntityCapabilities(getEntityMetadata(cls), { readOnly: rxdb.readOnly }) : undefined;
 });
 
 // ── History (undo/redo) ───────────────────────────────────────────────
@@ -340,6 +340,7 @@ const columnsCache = new Map<string, ColumnsDefine>(
     return [
       `${meta.namespace}:${meta.name}`,
       buildEditableColumns(meta, {
+        readOnly: rxdb.readOnly,
         relatedItemsProviderFactory: (_fkField, relatedEntityName) => {
           const relCls = [...entityClsMap.values()].find(c => {
             const m = getEntityMetadata(c);
