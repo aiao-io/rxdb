@@ -1,5 +1,5 @@
-import { PGliteOptions } from '@electric-sql/pglite';
 import type { AdapterRepositoryConstructor } from '@aiao/rxdb';
+import { PGliteOptions } from '@electric-sql/pglite';
 import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
 import type { PGliteRestoredDatabase } from './backup/pglite-restored-database.js';
 
