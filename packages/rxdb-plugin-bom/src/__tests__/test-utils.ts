@@ -41,7 +41,10 @@ export const createBomTestAdapter = async (
         repositories: { BomRepository: SqliteRepository } as unknown as WaSqliteOptions['repositories']
       });
     } else {
-      adapter = new RxDBAdapterPGlite(db, { store: 'memory', repositories: { BomRepository: PGliteRepository as unknown as AdapterRepositoryConstructor<RxDBAdapterPGlite> } });
+      adapter = new RxDBAdapterPGlite(db, {
+        store: 'memory',
+        repositories: { BomRepository: PGliteRepository as unknown as AdapterRepositoryConstructor<RxDBAdapterPGlite> }
+      });
     }
     return adapter;
   });
