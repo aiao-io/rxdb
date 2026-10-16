@@ -51,6 +51,7 @@ export const Replayer = defineComponent({
     const host = useTemplateRef<HTMLDivElement>('host');
     let handle: ReplayerHandle | undefined;
     let applied: ReplayerInputs | undefined;
+    let pendingSeek: number | undefined;
     // 父组件把门面放进 ref() / reactive() 时拿到的是代理；核心视图要原对象（门面有私有字段，也按引用比较是否换了实例）
     const readInputs = (): ReplayerInputs => ({
       replay: toRaw(props.replay),
@@ -67,6 +68,7 @@ export const Replayer = defineComponent({
         onTimeChange: timeMs => emit('time-change', timeMs),
         onCommitRestore: event => emit('commit-restore', event)
       });
+      if (pendingSeek !== undefined) handle.seek(pendingSeek);
     });
 
     watch(readInputs, next => {
@@ -86,7 +88,10 @@ export const Replayer = defineComponent({
     const exposed: ReplayerRef = {
       play: () => handle?.play(),
       pause: () => handle?.pause(),
-      seek: timeMs => handle?.seek(timeMs)
+      seek: timeMs => {
+        pendingSeek = timeMs;
+        handle?.seek(timeMs);
+      }
     };
     expose(exposed);
 

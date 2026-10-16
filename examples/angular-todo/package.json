@@ -35,7 +35,7 @@
     "@angular/forms": "^21.2.25",
     "@angular/platform-browser": "^21.2.25",
     "@angular/router": "^21.2.25",
-    "@lucide/angular": "1.53.0",
+    "@lucide/angular": "1.57.0",
     "comlink": "^4.4.2",
     "daisyui": "^5.7.47",
     "rxjs": "~7.8.2",

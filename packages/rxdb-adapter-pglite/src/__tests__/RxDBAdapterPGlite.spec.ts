@@ -42,7 +42,7 @@ describe('RxDBAdapterPGlite', () => {
   it('adapter.version() 能返回数据库版本', async () => {
     const version = await adapter.version();
     expect(version).toBeTypeOf('string');
-    expect(version.includes('PostgreSQL 18.3')).toBeTruthy();
+    expect(version.includes('PostgreSQL 18.6')).toBeTruthy();
   });
 
   it('adapter.getTableColumns() 能返回表的列信息', async () => {

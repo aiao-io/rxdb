@@ -19,6 +19,10 @@ import { type FieldAlias, jsonAccessor } from './json_accessor.js';
 
 export const MAIN_TABLE_ALIAS = '_' as const;
 
+/** 获取实体主键对应的物理列名。主键属性名固定为 id，但 columnName 可以自定义。 */
+const get_primary_key_column = (metadata: EntityMetadata): string =>
+  metadata.propertyMap?.get('id')?.columnName ?? 'id';
+
 export interface JoinOptions {
   joinTableName: string;
   on: string;
@@ -199,7 +203,8 @@ export const process_relation_joins = (
           context,
           mappedRelation as { metadata: EntityMetadata; relation: EntityRelationManyToManyMetadata },
           uniqueAlias,
-          prevAlias
+          prevAlias,
+          metadata
         );
         break;
       case RelationKind.ONE_TO_ONE:
@@ -221,7 +226,8 @@ export const process_relation_joins = (
           mappedRelation as { metadata: EntityMetadata; relation: EntityRelationManyToManyMetadata },
           uniqueAlias,
           prevAlias,
-          relation
+          relation,
+          metadata
         );
         break;
     }
@@ -232,14 +238,15 @@ const handle_one_to_many_join = (
   context: JoinContext,
   mappedRelation: { metadata: EntityMetadata; relation: EntityRelationManyToManyMetadata },
   uniqueAlias: string,
-  prevAlias: string
+  prevAlias: string,
+  sourceMetadata: EntityMetadata
 ): void => {
   const joinArray = get_join_array(context, mappedRelation.metadata);
   // ONE_TO_MANY: 子表通过 mappedProperty + 'Id' 指向父表 id
   // 例如 Branch.changes -> Change.branchId = Branch.id
   // 使用反向的 mappedProperty 名称作为外键前缀
   const fkColumnName = mappedRelation.relation.columnName;
-  const joinOn = `"${uniqueAlias}"."${fkColumnName}" = ${format_table_alias(prevAlias)}."id"`;
+  const joinOn = `"${uniqueAlias}"."${fkColumnName}" = ${format_table_alias(prevAlias)}."${get_primary_key_column(sourceMetadata)}"`;
 
   // 检查是否已存在相同的 JOIN
   const existingJoin = joinArray.find(j => j.joinTableName === uniqueAlias && j.on === joinOn);
@@ -262,7 +269,7 @@ const handle_to_one_join = (
   relation: EntityRelationManyToOneMetadata | EntityRelationOneToOneMetadata
 ): void => {
   const joinArray = get_join_array(context, mappedRelation.metadata);
-  const joinOn = `"${uniqueAlias}"."id" = ${format_table_alias(prevAlias)}."${relation.columnName}"`;
+  const joinOn = `"${uniqueAlias}"."${get_primary_key_column(mappedRelation.metadata)}" = ${format_table_alias(prevAlias)}."${relation.columnName}"`;
 
   // 检查是否已存在相同的 JOIN
   const existingJoin = joinArray.find(j => j.joinTableName === uniqueAlias && j.on === joinOn);
@@ -279,13 +286,14 @@ const handle_many_to_many_join = (
   mappedRelation: { metadata: EntityMetadata; relation: EntityRelationManyToManyMetadata },
   uniqueAlias: string,
   prevAlias: string,
-  relation: EntityRelationManyToManyMetadata
+  relation: EntityRelationManyToManyMetadata,
+  sourceMetadata: EntityMetadata
 ): void => {
   // 连接（中间）表 / 关联表（junction table）
   const junctionEntityMetadata = getEntityMetadata(relation.junctionEntityType);
   const joinJunctionArray = get_join_array(context, junctionEntityMetadata);
   const joinJunctionJoinTableName = generate_unique_alias(context, sanitize_alias(`${relation.name}_m_n`));
-  const junctionOn = `"${joinJunctionJoinTableName}"."${mappedRelation.relation.columnName}" = ${format_table_alias(prevAlias)}."id"`;
+  const junctionOn = `"${joinJunctionJoinTableName}"."${mappedRelation.relation.columnName}" = ${format_table_alias(prevAlias)}."${get_primary_key_column(sourceMetadata)}"`;
 
   // 检查中间表 JOIN 是否已存在
   const existingJunctionJoin = joinJunctionArray.find(
@@ -299,7 +307,7 @@ const handle_many_to_many_join = (
   }
 
   const joinArray = get_join_array(context, mappedRelation.metadata);
-  const mainOn = `"${uniqueAlias}"."id" = "${joinJunctionJoinTableName}"."${relation.columnName}"`;
+  const mainOn = `"${uniqueAlias}"."${get_primary_key_column(mappedRelation.metadata)}" = "${joinJunctionJoinTableName}"."${relation.columnName}"`;
 
   // 检查主表 JOIN 是否已存在
   const existingMainJoin = joinArray.find(j => j.joinTableName === uniqueAlias && j.on === mainOn);

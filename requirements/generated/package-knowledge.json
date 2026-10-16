@@ -1984,6 +1984,18 @@
             "range": "workspace:^"
           },
           {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-history",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-sync",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
             "kind": "dependencies",
             "name": "@aiao/utils",
             "optional": false,
@@ -2934,7 +2946,7 @@
       }
     ]
   },
-  "digest": "4da1be9f0928cb1015240a26f812dc888881c3a29c85f2935d566b6a9bf84f1d",
+  "digest": "166997194d3891b8c14641c9037b431b4aa14a292b571dd564a63df51a089f90",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,
@@ -2948,7 +2960,7 @@
         "emscripten"
       ]
     },
-    "devInstall": "pnpm add -D typescript@~6.0.3 @types/node@^26.6.4 @types/emscripten@^1.41.6",
+    "devInstall": "pnpm add -D typescript@~6.0.3 @types/node@^26.6.5 @types/emscripten@^1.41.6",
     "install": "pnpm add @aiao/rxdb@^0.0.26 @aiao/rxdb-adapter-pglite@^0.0.26 @aiao/rxdb-plugin-history@^0.0.26",
     "source": "import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';\nimport { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';\nimport { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';\nimport assert from 'node:assert/strict';\n\n@Entity({\n  name: 'AiNote',\n  namespace: 'ai_example',\n  tableName: 'notes',\n  log: false,\n  properties: [{ name: 'label', type: PropertyType.string, required: true }]\n})\nexport class Note extends EntityBase {\n  label!: string;\n}\n\nconst database = new RxDB({\n  dbName: 'aiao-ai-local',\n  context: { userId: 'ai-example' },\n  entities: [Note],\n  sync: { local: { adapter: 'pglite' }, type: SyncType.None }\n});\n\ndatabase.use(rxDBPluginHistory);\ndatabase.adapter('pglite', async db => new RxDBAdapterPGlite(db, { store: 'memory' }));\n\ntry {\n  const adapter = await database.connect('pglite');\n  assert.ok(adapter instanceof RxDBAdapterPGlite);\n  await adapter.transaction(async executor => {\n    const repository = executor.getRepository(Note);\n    const draft = database.entityManager.instantiate(Note);\n    draft.label = 'created';\n    const created = await repository.create(draft);\n    const query = { where: { combinator: 'and' as const, rules: [] } };\n    const rows = await repository.find(query);\n    assert.equal(rows.length, 1);\n    assert.equal(rows[0]?.label, 'created');\n    await repository.update(created, { label: 'updated' });\n    assert.equal((await repository.find(query))[0]?.label, 'updated');\n    await repository.remove(created);\n    assert.equal((await repository.find(query)).length, 0);\n  });\n  console.log('✅ 离线样例：初始化、CRUD 与事务执行器全部通过');\n} finally {\n  await database.disconnectAll();\n}\n"
   },

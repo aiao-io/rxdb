@@ -83,9 +83,12 @@ function defaultDisplayNameGenerator(fieldName: string, metadata?: { displayName
   if (metadata?.displayName) {
     return metadata.displayName;
   }
-  // camelCase -> Camel Case
+  // 先切开缩写与普通单词，再切开普通 camelCase。
+  // 只用零宽断言定位「缩写末字母 + 大写单词首字母」的边界：没有任何带量词的
+  // 消费式片段，对任意输入都是线性时间（CodeQL 多项式正则告警）。
   return fieldName
-    .replace(/([A-Z])/g, ' $1')
+    .replace(/(?<=[A-Z])(?=[A-Z][a-z])/g, ' ')
+    .replace(/([a-z\d])([A-Z])/g, '$1 $2')
     .replace(/^./, str => str.toUpperCase())
     .trim();
 }
