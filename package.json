@@ -1,6 +1,7 @@
 {
   "name": "@aiao/source",
   "version": "0.0.1",
+  "description": "rxdb monorepo — local-first 数据库与三框架绑定",
   "private": true,
   "license": "MIT",
   "scripts": {
