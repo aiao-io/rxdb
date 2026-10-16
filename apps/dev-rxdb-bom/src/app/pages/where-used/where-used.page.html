@@ -1,0 +1,23 @@
+<div class="page">
+  <section class="page-hero">
+    <div>
+      <h2>反查</h2>
+      <p class="panel-desc">从子件出发向上反查全部父件与路径（含虚拟件路径）；默认反查 M3 螺钉（US-510）。</p>
+    </div>
+    <label class="hero-control">
+      评估日
+      <input [(ngModel)]="asOfDate" data-testid="as-of-date" type="date" />
+    </label>
+  </section>
+
+  <bom-where-used-panel [asOfDate]="asOfDate()" />
+
+  <section class="panel">
+    <h2>反查口径说明</h2>
+    <ul class="note-list">
+      <li>父件与路径：每个命中节点给跳数与完整路径（发生项 id 前缀展示，与需求树同口径）。</li>
+      <li>虚拟件路径：M3 螺钉经 WH-01（phantom）反查 SC-100 的 2 跳路径单列，与直连 1 跳并存。</li>
+      <li>评估日：与展开同规则（显式入参，不读系统时钟），生效期行集随评估日切换。</li>
+    </ul>
+  </section>
+</div>

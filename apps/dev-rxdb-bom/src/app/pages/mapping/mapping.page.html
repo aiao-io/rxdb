@@ -1,0 +1,25 @@
+<div class="page">
+  <section class="page-hero">
+    <div>
+      <h2>双图映射</h2>
+      <p class="panel-desc">EBOM ↔ MBOM 双图并排展开（US-525 AC#13），映射覆盖率与跟进缺口按路径级口径核对。</p>
+    </div>
+    <label class="hero-control">
+      评估日
+      <input [(ngModel)]="asOfDate" data-testid="as-of-date" type="date" />
+    </label>
+  </section>
+
+  <bom-mapping-panel [asOfDate]="asOfDate()" />
+
+  <section class="panel">
+    <h2>映射口径说明</h2>
+    <ul class="note-list">
+      <li>
+        双图并排：SHEET-ASSY（EBOM，一行 SHEET）与 SHEET-ASSY-M（MBOM，板材 + WIP-BEND/WIP-CUT 两工序件）同评估日展开。
+      </li>
+      <li>覆盖率：路径级映射优先；未覆盖与失效映射分别报出。</li>
+      <li>跟进缺口：解析步骤集合比对点名，变化/消失/新出现三类差异。</li>
+    </ul>
+  </section>
+</div>

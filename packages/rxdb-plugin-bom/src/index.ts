@@ -7,6 +7,12 @@
  */
 
 export { BOM_CYCLE_DEPTH_LIMIT } from './backend/bom-trigger-ddl.js';
+export {
+  BOM_EFFECTIVITY_OVERLAP_PREFIX,
+  buildUnitLotOverlapGuardPg,
+  buildUnitLotOverlapGuardSqlite,
+  unitFromGtUnitToCheck
+} from './backend/unit-lot-trigger-ddl.js';
 export { DECIMAL_CANONICAL_RE, DECIMAL_MAX_SIGNIFICANT_DIGITS, normalizeDecimalString } from './decimal.utils.js';
 export {
   BOM_ENTITIES,
@@ -86,6 +92,20 @@ export {
   type MappingStep
 } from './resolve/bom-map.js';
 export { bomSqlDialectFor, pgliteBomDialect, sqliteBomDialect, type BomSqlDialect } from './resolve/bom-sql.js';
+export {
+  BomConfigError,
+  BomConfigSyntaxError,
+  CONDITION_GRAMMAR_VERSION,
+  evaluateCondition,
+  parseCondition,
+  positionText,
+  type ConditionAst
+} from './resolve/config-condition.js';
+export {
+  checkConfigCompleteness,
+  checkConfigConflicts,
+  validateConditionReferences
+} from './resolve/config-validate.js';
 export { cycleConstraintDdlForRemotePg } from './resolve/cycle-constraint-ddl.js';
 export { ecnDiff, ecnImpact, type EcnDiffEntry, type EcnDiffResult, type EcnImpactResult } from './resolve/ecn.js';
 export {
@@ -99,12 +119,49 @@ export {
   type WhereUsedTarget
 } from './resolve/expansion.js';
 export {
+  BomExportRejectedError,
+  EXPORT_CONTRACT_VERSION,
+  EXPORT_TABLE_COLUMNS,
+  isDecimalString,
+  serializeExportRows,
+  validateExportReady,
+  type BomExportPayload,
+  type ExportRowBatch,
+  type ExportSerializeMeta,
+  type ExportTable
+} from './resolve/export-contract.js';
+export {
+  BomExtAttrError,
+  buildExtFilterSql,
+  normalizeExtValue,
+  validateExtWrite,
+  type ExtAttrDefShape,
+  type ExtFilter,
+  type ExtFilterDialect,
+  type ExtFilterOp,
+  type ExtWriteMode
+} from './resolve/ext-attr.js';
+export {
   loadHistory,
   type HistoryBatchInput,
   type HistoryHeaderInput,
   type HistoryOccurrenceInput,
   type HistoryRevisionInput
 } from './resolve/history-loader.js';
+export {
+  BomImportContractError,
+  DECIMAL_FIELDS,
+  IMPORT_KINDS,
+  naturalKeyFor,
+  parseImportPayload,
+  parseNaturalKey,
+  validateImportRecords,
+  type ExistingBomKeySets,
+  type ImportDiagnostic,
+  type ImportKind,
+  type ImportRecord,
+  type ImportValidationResult
+} from './resolve/import-contract.js';
 export {
   BomResolutionError,
   type BomType,
@@ -115,6 +172,17 @@ export {
   type UnresolvedAlternative
 } from './resolve/resolution.js';
 export { resolveBom, type ResolveTarget } from './resolve/resolver.js';
+export {
+  describeCandidates,
+  effectiveDomainsOverlap,
+  lotMatches,
+  lotSetsOverlap,
+  parseLotCodes,
+  selectCandidatesByUnit,
+  unitIntervalMatches,
+  unitIntervalOverlaps,
+  type EffectiveDomain
+} from './resolve/unit-lot.js';
 export {
   BOM_CYCLE_PREFIX,
   BOM_DECIMAL_FORMAT_PREFIX,

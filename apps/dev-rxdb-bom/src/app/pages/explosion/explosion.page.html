@@ -1,250 +1,63 @@
 <div class="page">
-  <div class="toolbar panel">
-    <button [disabled]="busy()" (click)="resetAndSeed()">重置并装载种子</button>
-    <label>
-      评估日（显式入参，不读系统时钟）
-      <input [(ngModel)]="asOfDate" [value]="asOfDate()" data-testid="as-of-date" type="date" />
-    </label>
-    <label>
-      计划量
-      <input [(ngModel)]="plannedQty" style="width: 72px" type="text" />
-    </label>
-    <label>
-      根物料
-      <select [(ngModel)]="rootKey" data-testid="root-select">
-        @for (key of itemNos().values(); track key) {
-          <option [value]="key">{{ key }}</option>
-        }
-      </select>
-    </label>
-    <button [disabled]="busy() || !ready()" (click)="runExplode()">展开整机</button>
-    <span data-testid="seed-info">批次 {{ seedBatchNo }} · 基准 {{ seedTimestamp }}</span>
-  </div>
-
-  @if (rowCounts()) {
-    <div class="panel" data-testid="row-counts">
-      <pre>{{ rowCounts() }}</pre>
+  <section class="page-hero">
+    <div>
+      <h2>整机展开</h2>
+      <p class="panel-desc">
+        EBOM 展开专项页：评估日与计划量显式入参（不读系统时钟）；需求行选中联动七步算式面板；页底附校验演示。
+      </p>
     </div>
-  }
-
-  <div class="main">
-    <section class="panel tree">
-      <h2>需求行（展开树）</h2>
-      @if (view()?.result.truncated) {
-        <div class="error-box">截断：{{ view()!.result.truncated!.reason }}</div>
-      }
-      @for (output of view()?.result.outputs; track output.path.join('>') + output.direction) {
-        <div
-          class="requirement-row output"
-          [attr.data-direction]="output.direction"
-          [attr.data-output]="itemNo(output.itemId)"
-        >
-          <span class="qty" [attr.data-qty]="output.qty">{{ output.qty }} {{ output.uom }}</span>
-          <span>{{ itemNo(output.itemId) }}</span>
-          <span class="designators">产出（{{ output.direction === 'by_product' ? '副产' : '废料' }}）</span>
-        </div>
-      }
-      @for (line of view()?.result.requirementLines; track line.path.join('>')) {
-        <div
-          class="requirement-row"
-          [attr.data-item]="itemNo(line.itemId)"
-          [class.selected]="view()!.selected === line"
-          [style.paddingLeft.px]="8 + depth(line) * 20"
-          (click)="select(line)"
-          (keydown.enter)="select(line)"
-          role="button"
-          tabindex="0"
-        >
-          <span class="qty" [attr.data-qty]="line.qty">{{ line.qty }} {{ line.uom }}</span>
-          <span>{{ itemNo(line.itemId) }}</span>
-          @if (designatorsOf(line).length > 0) {
-            <span class="designators" [attr.data-designators]="designatorsOf(line).join(',')">
-              位号：{{ designatorsOf(line).join(', ') }}
-            </span>
-          }
-        </div>
-      }
-    </section>
-
-    <section class="panel steps">
-      <h2>算式面板（七步）</h2>
-      @if (!view()?.selected) {
-        <p class="hint">选中一条需求行查看七步手算式。</p>
-      } @else {
-        @for (row of stepRows(); track row.label) {
-          <div class="step-row" [attr.data-step]="row.label">
-            <span class="label">{{ row.label }}</span>
-            <span class="value" [attr.data-value]="row.value">{{ row.value }} {{ row.uom }}</span>
-            <span class="label">取自</span>
-            <span class="source">{{ row.source }}</span>
-          </div>
-        }
-        @for (penetration of penetrationsOn(view()!.selected!); track penetration.occurrenceId) {
-          <div class="step-row" data-step="penetration">
-            <span class="label">穿透</span>
-            <span class="value">
-              {{ itemNo(penetration.childItemId) }} → P = {{ penetration.childPlanned.value }}
-              {{ penetration.childPlanned.uom }}
-            </span>
-            <span class="label">判定</span>
-            <span class="source">COALESCE(phantom_override, default_phantom) = {{ penetration.source }}</span>
-          </div>
-        }
-      }
-    </section>
-  </div>
-
-  <section class="panel">
-    <h2>直连写入（存储层环约束，US-509 AC#5）</h2>
-    <div class="toolbar">
-      <button [disabled]="busy() || !ready()" (click)="runRawCycle()">直连写入成环边（PCBA → SC-100）</button>
-      <button [disabled]="busy() || !ready()" (click)="runFormCycle()">表单写入同一条边</button>
-    </div>
-    @if (rawResult()) {
-      <div class="error-box" data-testid="raw-cycle-result">{{ rawResult() }}</div>
-    }
-    @if (formResult()) {
-      <div class="error-box" data-testid="form-cycle-result">{{ formResult() }}</div>
-    }
   </section>
 
   <section class="panel">
-    <h2>位号发布校验（US-507 AC#5）</h2>
-    <div class="toolbar">
-      <button [disabled]="busy() || !ready()" (click)="publishDemoHeader()">
-        发布演示头（managed 行 qty=100、位号 39 个）
-      </button>
-    </div>
-    @if (publishResult()) {
-      <div class="error-box" data-testid="publish-result">{{ publishResult() }}</div>
-    }
-  </section>
-
-  <section class="panel">
-    <h2>替代组发布校验（US-525 AC#7 ②）</h2>
-    <div class="toolbar">
-      <button [disabled]="busy() || !ready()" (click)="runSubstituteDemo()">发布 draft 组（概率 0.5/0.3）</button>
-    </div>
-    @if (substituteResult()) {
-      <div class="error-box" data-testid="substitute-result">{{ substituteResult() }}</div>
-    }
-  </section>
-
-  <section class="panel">
-    <h2>where-used 反查（M3 螺钉，US-510）</h2>
-    <div class="toolbar">
-      <button [disabled]="busy() || !ready()" (click)="runWhereUsed()">反查 M3</button>
-    </div>
-    @for (line of whereUsedLines(); track line) {
-      <div class="where-used-row" data-testid="where-used-line">{{ line }}</div>
-    }
-  </section>
-
-  <section class="panel">
-    <h2>ECN 变更管理（US-525 AC#10~#12）</h2>
-    <div class="toolbar">
-      <label for="ecn-select">选择 ECN：</label>
-      <select id="ecn-select" [(ngModel)]="selectedEcnId" data-testid="ecn-select">
-        <option [ngValue]="null">—</option>
-        @for (entry of ecns().values(); track entry.ecnNo) {
-          <option [attr.data-state]="entry.state" [ngValue]="ecnsKey(entry.ecnNo)">
-            {{ entry.ecnNo }}（{{ entry.state }}，{{ entry.effectiveDate }}）
-          </option>
-        }
-      </select>
-      <button [disabled]="busy() || !ready() || !selectedEcnId()" (click)="runEcnImpact()">查影响面</button>
-      <button [disabled]="busy() || !ready() || !selectedEcnId()" (click)="runEcnDiff()">查差异</button>
-    </div>
-    <div class="toolbar">
-      <button [disabled]="busy() || !ready()" (click)="runCreateAndReleaseEcn()">
-        现场新建并发布 ECN（改 3 张 BOM 5 行）
-      </button>
-      <button [disabled]="busy() || !ready()" (click)="runCancelLiveEcn()">取消现场 ECN</button>
-      <button [disabled]="busy() || !ready()" (click)="runCancelEffectiveEcn()">对已生效种子 ECN 点取消</button>
-    </div>
-    @if (ecnActionResult()) {
-      <div class="error-box" data-testid="ecn-action-result">{{ ecnActionResult() }}</div>
-    }
-    @for (line of impactLines(); track line) {
-      <div class="where-used-row" data-testid="ecn-impact-line">{{ line }}</div>
-    }
-    @for (line of diffLines(); track line) {
-      <div class="where-used-row" data-testid="ecn-diff-line">{{ line }}</div>
-    }
-  </section>
-
-  <section class="panel">
-    <h2>EBOM ↔ MBOM 双图与映射（US-525 AC#13）</h2>
-    <div class="toolbar">
-      <button [disabled]="busy() || !ready()" (click)="runDualExplode()">双图并排展开</button>
-      <button [disabled]="busy() || !ready()" (click)="runCoverage()">查覆盖率</button>
-      <button [disabled]="busy() || !ready()" (click)="runGaps()">查跟进缺口</button>
-    </div>
-    @if (dualView()) {
-      <div class="dual">
-        <div class="panel tree" data-testid="ebom-tree">
-          <h3>EBOM（SHEET-ASSY）</h3>
-          @for (line of dualView()!.ebom.requirementLines; track line.path.join('>')) {
-            <div
-              class="requirement-row"
-              [attr.data-item]="itemNo(line.itemId)"
-              [style.paddingLeft.px]="8 + depth(line) * 20"
-            >
-              <span class="qty">{{ line.qty }} {{ line.uom }}</span>
-              <span>{{ itemNo(line.itemId) }}</span>
-            </div>
-          }
-        </div>
-        <div class="panel tree" data-testid="mbom-tree">
-          <h3>MBOM（SHEET-ASSY-M）</h3>
-          @for (line of dualView()!.mbom.requirementLines; track line.path.join('>')) {
-            <div
-              class="requirement-row"
-              [attr.data-item]="itemNo(line.itemId)"
-              [style.paddingLeft.px]="8 + depth(line) * 20"
-            >
-              <span class="qty">{{ line.qty }} {{ line.uom }}</span>
-              <span>{{ itemNo(line.itemId) }}</span>
-            </div>
-          }
-        </div>
-      </div>
-    }
-    @for (line of coverageLines(); track line) {
-      <div class="where-used-row" data-testid="coverage-line">{{ line }}</div>
-    }
-    @for (line of gapLines(); track line) {
-      <div class="where-used-row" data-testid="gap-line">{{ line }}</div>
-    }
-  </section>
-
-  <section class="panel">
-    <h2>成本卷算（US-525 AC#14 / #15）</h2>
     <div class="toolbar">
       <label>
-        卷算根
-        <select [(ngModel)]="costRootKey" data-testid="cost-root-select">
-          <option value="SC-100">SC-100</option>
-          <option value="COST-DEMO">COST-DEMO（故意缺成本）</option>
+        评估日（显式入参，不读系统时钟）
+        <input [(ngModel)]="asOfDate" data-testid="as-of-date" type="date" />
+      </label>
+      <label>
+        计划量
+        <input class="qty-input" [(ngModel)]="plannedQty" type="text" />
+      </label>
+      <label>
+        根物料
+        <select [(ngModel)]="rootKey" data-testid="root-select">
+          @for (key of itemNos().values(); track key) {
+            <option [value]="key">{{ key }}</option>
+          }
         </select>
       </label>
-      <button [disabled]="busy() || !ready()" (click)="runRollup()">卷算</button>
+      <button class="btn btn-primary" [disabled]="busy() || !ready()" (click)="runExplode()">
+        {{ busy() ? '处理中…' : '展开整机' }}
+      </button>
     </div>
-    @if (costError()) {
-      <div class="error-box" data-testid="cost-error">{{ costError() }}</div>
+    @if (explodeError()) {
+      <div class="error-box" data-testid="explode-error">{{ explodeError() }}</div>
     }
-    @for (row of costRows(); track row.label + row.kind) {
-      <div
-        class="cost-row"
-        [attr.data-item]="row.itemNo"
-        [attr.data-kind]="row.kind"
-        [style.paddingLeft.px]="8 + row.depth * 20"
-      >
-        <span class="label">{{ row.label }}</span>
-        @if (row.amount !== undefined) {
-          <span class="qty" [attr.data-amount]="row.amount">{{ row.amount }}</span>
+    <div class="main">
+      <div class="panel-inset tree">
+        <h3>需求行（展开树）</h3>
+        @if (view()) {
+          <bom-req-tree
+            [designators]="designators()"
+            [itemNos]="itemNos()"
+            [result]="view()!.result"
+            [selected]="view()!.selected"
+            (rowSelect)="select($event)"
+          />
+        } @else {
+          <div class="empty-state">尚未展开：点击「展开整机」查看需求行。</div>
         }
       </div>
-    }
+      <div class="panel-inset">
+        <h3>算式面板（七步）</h3>
+        <bom-step-panel
+          [itemNos]="itemNos()"
+          [line]="view()?.selected ?? null"
+          [penetrations]="penetrationsOn(view()?.selected ?? null)"
+        />
+      </div>
+    </div>
   </section>
+
+  <bom-demo-checks />
 </div>

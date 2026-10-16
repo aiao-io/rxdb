@@ -168,6 +168,9 @@ export const BOM_PUBLISH_VALIDATION_PREFIX = 'rxdb:bom_publish_validation:';
 /** SQLite 触发器消息前缀：十进制格式。 */
 export const BOM_DECIMAL_FORMAT_PREFIX = 'rxdb:bom_decimal_format:';
 /** SQLite 触发器消息前缀：判环（路径以 `>` 串起物料 id；深度上限消息无路径段）。 */
+/** 序列 / 批次有效域三维重叠的存储层消息前缀（US-518，触发器 RAISE 归一入口）。 */
+export const BOM_EFFECTIVITY_OVERLAP_PREFIX = 'rxdb:bom_effectivity_overlap:';
+
 export const BOM_CYCLE_PREFIX = 'rxdb:bom_cycle:';
 
 /**
@@ -209,6 +212,10 @@ export const normalizeBomError = (cause: unknown): BomError | undefined => {
   if (message.includes(BOM_WRITE_PROTOCOL_PREFIX)) {
     const detail = message.split(BOM_WRITE_PROTOCOL_PREFIX)[1]?.trim() ?? '';
     return new BomWriteProtocolError('bom', detail);
+  }
+  if (message.includes(BOM_EFFECTIVITY_OVERLAP_PREFIX)) {
+    const detail = message.split(BOM_EFFECTIVITY_OVERLAP_PREFIX)[1]?.trim() ?? '';
+    return new BomWriteProtocolError('bom_line_occurrence', `有效域三维重叠：${detail}`);
   }
   return undefined;
 };

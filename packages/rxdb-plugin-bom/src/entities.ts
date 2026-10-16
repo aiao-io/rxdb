@@ -446,13 +446,6 @@ export class BomLine extends EntityBase {
       mappedEntity: 'BomEcn',
       mappedProperties: ['id']
     }
-  ],
-  exclusions: [
-    {
-      name: 'occurrence_no_overlap',
-      equal: ['lineId'],
-      ranges: [{ from: 'effectiveFrom', to: 'effectiveTo', bounds: '[)' }]
-    }
   ]
 })
 export class BomLineOccurrence extends EntityBase {

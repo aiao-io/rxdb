@@ -1,0 +1,41 @@
+<div class="page">
+  <section class="page-hero">
+    <div>
+      <h2>ECN 时间轴</h2>
+      <p class="panel-desc">
+        种子 ECN 与现场 ECN 按生效日排列；下方面板可查影响面/差异并演示现场 ECN 的发布与取消窗口。
+      </p>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>ECN 清单（按生效日）</h2>
+    @if (entries().length === 0) {
+      <div class="empty-state">尚未装载种子：回「概览」页点击「重置并装载种子」。</div>
+    } @else {
+      <div class="timeline">
+        @for (entry of entries(); track entry.id) {
+          <div class="timeline-item">
+            <span class="timeline-dot"></span>
+            <div class="timeline-card">
+              <div class="timeline-head">
+                <span class="timeline-no">{{ entry.ecnNo }}</span>
+                <span
+                  class="chip"
+                  [class.chip-cancelled]="entry.state === 'cancelled'"
+                  [class.chip-draft]="entry.state === 'draft'"
+                  [class.chip-released]="entry.state === 'released'"
+                >
+                  {{ stateLabel(entry.state) }}
+                </span>
+              </div>
+              <div class="timeline-meta">生效日 {{ entry.effectiveDate }}（UTC）</div>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </section>
+
+  <bom-ecn-panel />
+</div>

@@ -7,7 +7,7 @@
  * 存取与拒绝（US-511 AC#22 存储段 / AC#23）。
  */
 
-import { RxDBExclusionViolationError, uuid } from '@aiao/rxdb';
+import { uuid } from '@aiao/rxdb';
 import { firstValueFrom } from 'rxjs';
 import { afterAll, describe, expect, it } from 'vitest';
 import { DECIMAL_CANONICAL_RE, normalizeDecimalString } from '../decimal.utils.js';
@@ -174,7 +174,7 @@ for (const backend of BACKENDS) {
       await expect(adjacent.save()).resolves.toBeDefined();
 
       const overlap = makeOccurrence(line, child, { effectiveFrom: day('2026-09-01'), effectiveTo: null });
-      await expect(overlap.save()).rejects.toBeInstanceOf(RxDBExclusionViolationError);
+      await expect(overlap.save()).rejects.toBeInstanceOf(BomWriteProtocolError);
     });
 
     it('已发布头的成员写入全部拒绝（AC#10 首轮）', async () => {

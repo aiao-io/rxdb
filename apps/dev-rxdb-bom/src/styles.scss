@@ -1,93 +1,551 @@
-/* BOM demo 全局样式（最小面：算式面板与展开树） */
+/* =============================================================
+   BOM demo 全局样式：产品级设计令牌 + 组件面（纯 SCSS + CSS 变量，light 主题）
+   覆盖：面板卡片、按钮分级、树行态（hover/选中）、加载/错误/空态、结果行
+   ============================================================= */
+
+:root {
+  /* ---- 颜色 ---- */
+  --color-bg: #f5f6f8; /* 页面底色 */
+  --color-surface: #ffffff; /* 卡片表面 */
+  --color-surface-alt: #fbfcfd; /* 嵌套面板表面 */
+  --color-hover: #f2f4f7; /* 行悬停 */
+  --color-selected: #e8f1ff; /* 行选中 */
+  --color-border: #e3e6ea; /* 常规边框 */
+  --color-border-strong: #c9ced6; /* 控件边框 */
+  --color-text: #1d2129; /* 主文本 */
+  --color-text-secondary: #4e5969; /* 次级文本 */
+  --color-text-muted: #86909c; /* 弱化文本 */
+  --color-primary: #2563eb; /* 主色 */
+  --color-primary-hover: #1d4ed8;
+  --color-primary-bg: #eff6ff; /* 主色浅底 */
+  --color-danger: #b91c1c; /* 危险/错误 */
+  --color-danger-bg: #fef2f2;
+  --color-danger-border: #f3c6c6;
+  --color-success: #15803d;
+  --color-success-bg: #f0fdf4;
+  --color-warning: #b45309;
+  --color-warning-bg: #fffbeb;
+
+  /* ---- 间距（4px 基准） ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* ---- 圆角 ---- */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* ---- 字体 ---- */
+  --font-ui: system-ui, -apple-system, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* ---- 阴影 ---- */
+  --shadow-card: 0 1px 2px rgb(29 33 41 / 4%), 0 1px 6px rgb(29 33 41 / 6%);
+}
+
+/* =============================================================
+   基础元素
+   ============================================================= */
+
 body {
   margin: 0;
-  font-family: system-ui, 'PingFang SC', sans-serif;
-  background: #f7f7f8;
-  color: #1c1c1e;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
 }
 
-.panel {
-  background: #fff;
-  border: 1px solid #e2e2e5;
-  border-radius: 8px;
-  padding: 12px 16px;
+button,
+input,
+select {
+  font: inherit;
 }
 
-.step-row {
-  display: grid;
-  grid-template-columns: 64px 1fr 72px 1fr;
-  gap: 8px;
-  padding: 4px 0;
-  border-bottom: 1px dashed #eee;
-  font-variant-numeric: tabular-nums;
+input,
+select {
+  padding: 5px 8px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
 }
 
-.step-row .label {
-  color: #6b6b70;
-}
-.step-row .value {
-  font-weight: 600;
-}
-.step-row .source {
-  color: #8e8e93;
-  font-size: 12px;
+input:focus,
+select:focus {
+  border-color: var(--color-primary);
+  outline: 2px solid var(--color-primary-bg);
 }
 
-.requirement-row {
-  display: flex;
-  gap: 8px;
-  padding: 6px 8px;
+select {
   cursor: pointer;
-  border-radius: 6px;
-}
-.requirement-row:hover {
-  background: #f0f0f2;
-}
-.requirement-row.selected {
-  background: #dde9ff;
-}
-.requirement-row .qty {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
 }
 
-.error-box {
-  border: 1px solid #f4b8b8;
-  background: #fdf0f0;
-  color: #a12b2b;
-  border-radius: 6px;
-  padding: 8px 12px;
-  font-family: ui-monospace, monospace;
+pre {
+  margin: 0;
+  font-family: var(--font-mono);
   font-size: 12px;
   white-space: pre-wrap;
 }
 
-.toolbar {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
+/* =============================================================
+   按钮分级（主/次/危险）；禁用态即加载态（配合按钮文案切换）
+   ============================================================= */
+
+.btn {
+  padding: 6px 14px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
-.toolbar label {
+
+.btn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  background: var(--color-primary-bg);
+  color: var(--color-primary);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  border-color: var(--color-primary-hover);
+  background: var(--color-primary-hover);
+  color: #fff;
+}
+
+.btn-secondary {
+  color: var(--color-text-secondary);
+}
+
+.btn-danger {
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.btn-danger:hover:not(:disabled) {
+  border-color: var(--color-danger);
+  background: #fee2e2;
+  color: var(--color-danger);
+}
+
+/* =============================================================
+   页面布局
+   ============================================================= */
+
+.page {
   display: flex;
-  gap: 6px;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: var(--space-5);
+}
+
+.page-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.page-hero h2 {
+  margin: 0 0 var(--space-1);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.hero-control {
+  display: flex;
   align-items: center;
-  color: #6b6b70;
+  gap: var(--space-2);
+  color: var(--color-text-secondary);
   font-size: 13px;
 }
-button {
-  border: 1px solid #c7c7cc;
-  background: #fff;
-  border-radius: 6px;
-  padding: 6px 12px;
-  cursor: pointer;
+
+/* =============================================================
+   面板卡片
+   ============================================================= */
+
+.panel {
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
 }
-button:disabled {
-  opacity: 0.5;
+
+.panel h2 {
+  margin: 0 0 var(--space-3);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.panel-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.panel-head h2 {
+  margin: 0;
+}
+
+.panel-desc {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* 嵌套面板（卡片内的卡片） */
+.panel-inset {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+}
+
+.panel-inset h3 {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* =============================================================
+   工具条
+   ============================================================= */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.toolbar label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.qty-input {
+  width: 72px;
+}
+
+.seed-meta {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+/* =============================================================
+   双栏布局（展开树/算式面板、双图、校验演示三卡）
+   ============================================================= */
+
+.main,
+.dual {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+  align-items: start;
+  margin-top: var(--space-4);
+}
+
+.tree {
+  max-height: 520px;
+  overflow: auto;
+}
+
+.check-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-4);
+}
+
+.check-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+}
+
+.check-card h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.check-desc {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* =============================================================
+   需求树行（hover / 选中态）
+   ============================================================= */
+
+.requirement-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.requirement-row:hover {
+  background: var(--color-hover);
+}
+
+.requirement-row.selected {
+  background: var(--color-selected);
+  box-shadow: inset 2px 0 0 var(--color-primary);
+}
+
+.requirement-row.output {
+  background: var(--color-surface-alt);
+  color: var(--color-text-secondary);
   cursor: default;
 }
-input {
-  border: 1px solid #c7c7cc;
-  border-radius: 6px;
-  padding: 5px 8px;
+
+.requirement-row .qty {
+  min-width: 72px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.designators {
+  margin-left: var(--space-2);
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+/* =============================================================
+   算式面板（七步）
+   ============================================================= */
+
+.step-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 72px 1fr;
+  gap: var(--space-2);
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--color-border);
+  font-variant-numeric: tabular-nums;
+}
+
+.step-row:last-child {
+  border-bottom: none;
+}
+
+.step-row .label {
+  color: var(--color-text-secondary);
+}
+
+.step-row .value {
+  font-weight: 600;
+}
+
+.step-row .source {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+/* =============================================================
+   结果行（where-used / 影响面 / 差异 / 覆盖率 / 缺口 / 卷算）
+   ============================================================= */
+
+.result-title {
+  margin: var(--space-4) 0 var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.where-used-row {
+  padding: 5px 0;
+  border-bottom: 1px dashed var(--color-border);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+
+.where-used-row:last-child {
+  border-bottom: none;
+}
+
+.cost-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 3px 0;
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+}
+
+.cost-row .qty {
+  margin-left: var(--space-2);
+  color: var(--color-success);
+  font-weight: 600;
+}
+
+.cost-row[data-kind='head'] .label {
+  font-weight: 600;
+}
+
+/* =============================================================
+   状态面：错误 / 空态 / 徽标 / 状态片
+   ============================================================= */
+
+.error-box {
+  padding: 10px 14px;
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.empty-state {
+  padding: var(--space-5);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+  color: var(--color-text-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  content: '';
+}
+
+.badge-success {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.badge-neutral {
+  background: var(--color-hover);
+  color: var(--color-text-muted);
+}
+
+.chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.chip-released {
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.chip-draft {
+  background: var(--color-warning-bg);
+  color: var(--color-warning);
+}
+
+.chip-cancelled {
+  background: var(--color-hover);
+  color: var(--color-text-muted);
+}
+
+/* =============================================================
+   行数面板与说明清单
+   ============================================================= */
+
+.row-counts {
+  margin-top: var(--space-3);
+}
+
+.row-counts pre {
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-alt);
+}
+
+.note-list {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.note-list li {
+  padding: 3px 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* =============================================================
+   响应式：窄屏单列
+   ============================================================= */
+
+@media (max-width: 960px) {
+  .main,
+  .dual {
+    grid-template-columns: 1fr;
+  }
+
+  .check-grid {
+    grid-template-columns: 1fr;
+  }
 }

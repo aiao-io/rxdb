@@ -14,6 +14,7 @@
  */
 
 import { EntityMetadata, getEntityColumnName, quoteSqlIdentifier } from '@aiao/rxdb';
+import { buildUnitLotOverlapGuardPg, buildUnitLotOverlapGuardSqlite } from './unit-lot-trigger-ddl.js';
 
 /** SQLite 物理表名：`namespace$tableName`（与 sqlite-core 的表名约定一致）。 */
 const sqliteTableRef = (metadata: EntityMetadata): string =>
@@ -1428,6 +1429,9 @@ const sqliteMapNullRuleTriggers = (metadata: EntityMetadata): string[] => {
 /** 实体全部 SQLite 触发器 DDL（单条语句数组）。 */
 
 export const buildSqliteBomTriggerDdl = (metadata: EntityMetadata): string[] => [
+  // 有效域三维重叠守卫创建最早 = 执行最晚（SQLite 同事件触发器逆创建序）：
+  // 让 ECN 派生 / 行归属等更具体的违约先报，三维重叠作兜底
+  ...buildUnitLotOverlapGuardSqlite(metadata),
   ...sqliteStructuralTrigger(metadata),
   ...sqlitePublishedRevisionTrigger(metadata),
   ...sqlitePublishTransitionTrigger(metadata),
@@ -2605,6 +2609,7 @@ const pgMapNullRuleFunction = (metadata: EntityMetadata): string[] => {
 /** 实体全部 PGlite 触发器 DDL（单条语句数组）。 */
 
 export const buildPgBomTriggerDdl = (metadata: EntityMetadata): string[] => [
+  ...buildUnitLotOverlapGuardPg(metadata),
   ...pgStructuralFunction(metadata),
   ...pgPublishedRevisionFunction(metadata),
   ...pgPublishTransitionFunction(metadata),

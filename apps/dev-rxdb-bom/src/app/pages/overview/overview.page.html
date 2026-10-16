@@ -1,0 +1,105 @@
+<div class="page">
+  <section class="page-hero">
+    <div>
+      <h2>验收面板</h2>
+      <p class="panel-desc">
+        一份 SC-100 电动滑板车种子走完全域验收：两遍 seed 一致、位号与替代组、环约束、phantom 穿透、 ECN
+        时间轴、双图映射与成本卷算。左侧导航可进入各专项页面。
+      </p>
+    </div>
+  </section>
+
+  <!-- ① 种子与行数（AC#1） -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2>种子与行数（AC#1）</h2>
+      <p class="panel-desc">两遍 seed 的可见面逐字相同；重置会删除 IndexedDB 库并重新装载全部阶段数据。</p>
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-primary" [disabled]="busy()" (click)="resetAndSeed()">
+        {{ busy() ? '处理中…' : '重置并装载种子' }}
+      </button>
+      <span class="seed-meta" data-testid="seed-info">批次 {{ seedBatchNo }} · 基准 {{ seedTimestamp }}</span>
+    </div>
+    <div class="row-counts" data-testid="row-counts">
+      @if (rowCounts()) {
+        <pre>{{ rowCounts() }}</pre>
+      } @else {
+        <div class="empty-state">尚未装载种子：点击「重置并装载种子」。</div>
+      }
+    </div>
+  </section>
+
+  <!-- ② 整机展开（展开树 + 七步算式面板） -->
+  <section class="panel">
+    <div class="panel-head">
+      <h2>整机展开（EBOM）</h2>
+      <p class="panel-desc">
+        评估日与计划量显式入参（不读系统时钟）；需求行选中联动七步算式面板，穿透记录展示 COALESCE 判定来源。
+      </p>
+    </div>
+    <div class="toolbar">
+      <label>
+        评估日（显式入参，不读系统时钟）
+        <input [(ngModel)]="asOfDate" data-testid="as-of-date" type="date" />
+      </label>
+      <label>
+        计划量
+        <input class="qty-input" [(ngModel)]="plannedQty" type="text" />
+      </label>
+      <label>
+        根物料
+        <select [(ngModel)]="rootKey" data-testid="root-select">
+          @for (key of itemNos().values(); track key) {
+            <option [value]="key">{{ key }}</option>
+          }
+        </select>
+      </label>
+      <button class="btn btn-primary" [disabled]="busy() || !ready()" (click)="runExplode()">
+        {{ busy() ? '处理中…' : '展开整机' }}
+      </button>
+    </div>
+    @if (explodeError()) {
+      <div class="error-box" data-testid="explode-error">{{ explodeError() }}</div>
+    }
+    <div class="main">
+      <div class="panel-inset tree">
+        <h3>需求行（展开树）</h3>
+        @if (view()) {
+          <bom-req-tree
+            [designators]="designators()"
+            [itemNos]="itemNos()"
+            [result]="view()!.result"
+            [selected]="view()!.selected"
+            (rowSelect)="select($event)"
+          />
+        } @else {
+          <div class="empty-state">尚未展开：点击「展开整机」查看需求行。</div>
+        }
+      </div>
+      <div class="panel-inset">
+        <h3>算式面板（七步）</h3>
+        <bom-step-panel
+          [itemNos]="itemNos()"
+          [line]="view()?.selected ?? null"
+          [penetrations]="penetrationsOn(view()?.selected ?? null)"
+        />
+      </div>
+    </div>
+  </section>
+
+  <!-- ③ 校验演示（直连写入环 / 位号发布 / 替代组发布） -->
+  <bom-demo-checks />
+
+  <!-- ④ where-used 反查 -->
+  <bom-where-used-panel [asOfDate]="asOfDate()" />
+
+  <!-- ⑤ ECN 变更管理 -->
+  <bom-ecn-panel />
+
+  <!-- ⑥ EBOM ↔ MBOM 双图与映射 -->
+  <bom-mapping-panel [asOfDate]="asOfDate()" />
+
+  <!-- ⑦ 成本卷算 -->
+  <bom-cost-panel [asOfDate]="asOfDate()" />
+</div>
