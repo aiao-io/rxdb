@@ -113,7 +113,15 @@ function runSteps() {
     const startedAt = performance.now();
     console.log(`▶ ${step.name}`);
     try {
-      execSync(step.command, { stdio: 'inherit', cwd: repoRoot });
+      // 整站构建只允许 production 语义：NODE_ENV=development 会让 vite（@vitejs/plugin-react
+      // 的 babel 走 dev JSX 编译）与 docusaurus（rspack 的 jsx.development）产出 jsxDEV 调用，
+      // Docusaurus SSG 渲染时 jsxDEV 不可用，首页即崩（Netlify 上 deploy-preview 的
+      // NODE_ENV=development 正是这样触发的）。显式覆盖，让本脚本从任何环境调用都一致。
+      execSync(step.command, {
+        stdio: 'inherit',
+        cwd: repoRoot,
+        env: { ...process.env, NODE_ENV: 'production' }
+      });
       step.postBuild?.();
     } catch (error) {
       console.error(`❌ ${step.name} 失败`);

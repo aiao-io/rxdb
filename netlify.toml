@@ -12,12 +12,11 @@ NODE_VERSION = "26"
 [build.environment]
 # Netlify 安装依赖时默认 NODE_ENV=production，pnpm 10 按此硬编码跳过 devDependencies
 # （无任何 CLI flag 可关闭），website 构建链上经根 devDependencies 进入依赖图的
-# @angular-devkit/architect、clsx 等会缺失，构建核心库阶段即崩（本地已完整复现）。
-# 显式声明开发环境，让 Netlify 安装与 GitHub CI、本机一致。
+# @angular-devkit/architect、clsx 等会缺失。显式声明开发环境，让安装与 GitHub CI、
+# 本机一致。构建阶段的生产语义由 website/scripts/build-website.mjs 强制
+# （NODE_ENV=production 传给所有子进程），不受这里的 development 影响。
 NODE_ENV = "development"
-# 冻结锁文件安装：与 GitHub CI / 本地一致。注意：本分支的 deploy-preview 缓存被
-# 平台故障时段写坏（~170s 的安装阶段失败与任何 flags 无关），必须在 Netlify 部署页
-# 用「Retry with cache cleared」清掉分支缓存后，这里及以下的配置才能生效。
+# 冻结锁文件安装：与 GitHub CI / 本地一致。
 PNPM_FLAGS = "--frozen-lockfile"
 # corepack 老版本缺少 2025 年后 npm registry 轮换的签名 key，验证 pnpm 10.1.0+
 # 时抛 Cannot find matching keyid。关闭完整性 key 校验绕开（HTTPS 下载仍由 TLS
