@@ -2,9 +2,9 @@
  * @fileoverview BOM 插件测试装配：wa-sqlite 与 pglite 双后端各建一个已装插件的 RxDB。
  */
 
-import { EntityType, RxDB, SyncType } from '@aiao/rxdb';
-import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
-import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
+import { EntityType, RxDB, SyncType, type AdapterRepositoryConstructor } from '@aiao/rxdb';
+import { PGliteRepository, RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
+import { RxDBAdapterWaSqlite, SqliteRepository, type WaSqliteOptions } from '@aiao/rxdb-adapter-wa-sqlite';
 import { BOM_ENTITIES, BomItem } from '../entities.js';
 import { rxDBPluginBom } from '../plugin.js';
 import { loadHistory } from '../resolve/history-loader.js';
@@ -37,10 +37,11 @@ export const createBomTestAdapter = async (
         async: true,
         worker: false,
         wasmPath: asyncWasmPath,
-        batchTimeout: 1
+        batchTimeout: 1,
+        repositories: { BomRepository: SqliteRepository } as unknown as WaSqliteOptions['repositories']
       });
     } else {
-      adapter = new RxDBAdapterPGlite(db, { store: 'memory' });
+      adapter = new RxDBAdapterPGlite(db, { store: 'memory', repositories: { BomRepository: PGliteRepository as unknown as AdapterRepositoryConstructor<RxDBAdapterPGlite> } });
     }
     return adapter;
   });

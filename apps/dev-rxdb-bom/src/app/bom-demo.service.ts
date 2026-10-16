@@ -1,5 +1,5 @@
 import { RxDB, SyncType } from '@aiao/rxdb';
-import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
+import { RxDBAdapterWaSqlite, SqliteRepository, type WaSqliteOptions } from '@aiao/rxdb-adapter-wa-sqlite';
 import {
   BOM_ENTITIES,
   BomEcn,
@@ -489,7 +489,8 @@ export class BomDemoService {
         async: true,
         worker: false,
         wasmPath: '/wa-sqlite/wa-sqlite-async.wasm',
-        batchTimeout: 1
+        batchTimeout: 1,
+        repositories: { BomRepository: SqliteRepository } as unknown as WaSqliteOptions['repositories']
       });
       return adapter;
     });

@@ -20,6 +20,7 @@ export {
   type PGliteQueryable
 } from './backup/pglite-backup-compat.js';
 export { PGLITE_BACKUP_LOCK_TIMEOUT_MS } from './backup/pglite-backup.js';
+export { PGliteRepository } from './repository/PGliteRepository.js';
 export { PGLITE_EXCLUDED_FILES, type PGliteDataDirItem } from './backup/pglite-data-dir.js';
 export { PGliteRestoredDatabase } from './backup/pglite-restored-database.js';
 export {

@@ -1,4 +1,6 @@
 import { PGliteOptions } from '@electric-sql/pglite';
+import type { AdapterRepositoryConstructor } from '@aiao/rxdb';
+import type { RxDBAdapterPGlite } from './RxDBAdapterPGlite.js';
 import type { PGliteRestoredDatabase } from './backup/pglite-restored-database.js';
 
 /**
@@ -66,6 +68,12 @@ export interface PGliteClientOptions extends PGliteOptions {
    * 只能配合内存存储使用；句柄只能被领取一次，且只能被恢复时校验过的那个 RxDB 实例、以同一组扩展领取。
    */
   restoredDatabase?: PGliteRestoredDatabase;
+
+  /**
+   * 追加的适配器仓储（插件轴）：`BomRepository` 等自定义仓储名 → 构造器。
+   * 与 SQLite 适配器的同名字段同口径（main 双轴注册：门面轴决定公开面、适配器轴执行 SQL）。
+   */
+  repositories?: Record<string, AdapterRepositoryConstructor<RxDBAdapterPGlite>>;
 }
 
 /**
