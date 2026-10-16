@@ -12,6 +12,8 @@
  */
 
 import { BomError } from '../types.js';
+import type { BomLocalAdapter } from './bom-adapter.js';
+import { bomSqlDialectFor } from './bom-sql.js';
 
 /**
  * 扩展属性违约（US-519）：非法 JSON、越界 / 枚举 / 必填 / 类型违约、非法过滤值。
@@ -47,7 +49,8 @@ const isFiniteNumber = (value: unknown): value is number => typeof value === 'nu
 const ISO_DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const ISO_DATETIME_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}:\d{2})$/;
 const isIsoDateText = (value: string): boolean => {
-  if (!ISO_DATE_ONLY_RE.test(value) && !ISO_DATETIME_RE.test(value)) return false;
+  if ((!ISO_DATE_ONLY_RE.test(value) && !ISO_DATETIME_RE.test(value)) || !Number.isFinite(Date.parse(value)))
+    return false;
   // Date.parse 对「2026-02-30」这类形似日期做宽松滚动（V8 实测），必须回读比对真实性
   const year = Number(value.slice(0, 4));
   const month = Number(value.slice(5, 7));
@@ -211,10 +214,17 @@ const sqlLiteral = (value: unknown): string => {
  * 表列名一律双引号转义；tableRef 为空时列不加表限定（单表查询）。
  */
 const extJsonExpr = (dialect: ExtFilterDialect, dataType: string, code: string, tableRef: string): string => {
-  const column = tableRef === '' ? '"ext"' : `${tableRef}."ext"`;
-  if (dialect === 'sqlite') return `json_extract(${column}, ${sqlStringLiteral(`$.${code}`)})`;
-  if (dataType === 'number') return `(${column}->${sqlStringLiteral(code)})::numeric`;
-  if (dataType === 'boolean') return `(${column}->${sqlStringLiteral(code)})::boolean`;
+  const reference = tableRef === '' ? '"ext"' : `${tableRef}."ext"`;
+  const column = dialect === 'pglite' ? `(${reference})::jsonb` : reference;
+  if (dialect === 'sqlite') {
+    const path = /^[A-Za-z_][A-Za-z0-9_]*$/.test(code) ? `$.${code}` : `$.${JSON.stringify(code)}`;
+    const value = `json_extract(${column}, ${sqlStringLiteral(path)})`;
+    return dataType === 'date' ? `julianday(${value})` : value;
+  }
+  const value = `NULLIF(${column}->${sqlStringLiteral(code)}, 'null'::jsonb)`;
+  if (dataType === 'number') return `(${value})::numeric`;
+  if (dataType === 'boolean') return `(${value})::boolean`;
+  if (dataType === 'date') return `(${column}->>${sqlStringLiteral(code)})::timestamptz`;
   return `${column}->>${sqlStringLiteral(code)}`;
 };
 
@@ -224,7 +234,12 @@ const filterClause = (dialect: ExtFilterDialect, filter: ExtFilter, tableRef: st
   if (!EXT_DATA_TYPES.includes(dataType)) {
     throw new BomExtAttrError(filter.code, `未知 dataType「${dataType}」`);
   }
+  if (['lt', 'lte', 'gt', 'gte'].includes(filter.op) && dataType !== 'number' && dataType !== 'date') {
+    throw new BomExtAttrError(filter.code, '范围比较仅支持 number / date');
+  }
   const json = extJsonExpr(dialect, dataType, filter.code, tableRef);
+  const literalOf = (value: unknown): string =>
+    dataType === 'date' && dialect === 'sqlite' ? `julianday(${sqlLiteral(value)})` : sqlLiteral(value);
   if (filter.op === 'exists') return `${json} IS NOT NULL`;
   if (filter.op === 'in') {
     if (!Array.isArray(filter.value)) throw new BomExtAttrError(filter.code, 'in 的 value 必须是数组');
@@ -234,13 +249,13 @@ const filterClause = (dialect: ExtFilterDialect, filter: ExtFilter, tableRef: st
       }
     }
     if (filter.value.length === 0) return '(1 = 0)';
-    return filter.value.map(item => `${json} = ${sqlLiteral(item)}`).join(' OR ');
+    return filter.value.map(item => `${json} = ${literalOf(item)}`).join(' OR ');
   }
   const value = filter.value;
   if (value === undefined || value === null || !matchesDataType(dataType, value)) {
     throw new BomExtAttrError(filter.code, `过滤值 ${valueText(value)} 与 dataType「${dataType}」不符`);
   }
-  const literal = sqlLiteral(value);
+  const literal = literalOf(value);
   if (filter.op === 'eq') return `${json} = ${literal}`;
   // ne（US-519 契约：缺字段与显式 null 等价，其余比较对缺字段一律不匹配，含 ne）：
   // 提取表达式对缺字段与 JSON null 都返回 SQL NULL，`IS NOT NULL AND <>` 让二者都落败；
@@ -261,7 +276,7 @@ const filterClause = (dialect: ExtFilterDialect, filter: ExtFilter, tableRef: st
  *   传空字符串则列不加表限定（单表查询无歧义）
  * @param filters - 过滤条件（按序 AND 组合）
  * @returns `{ sql }` 谓词片段（每条过滤自带括号）；无过滤时 sql 为空字符串。
- *   主会话把片段拼进查询执行面的 WHERE（本模块只生成 SQL，不绑定参数、不执行）
+ *   查询执行面把片段拼进 WHERE（本模块只生成 SQL，不绑定参数、不执行）
  *
  * @remarks
  * 值以 SQL 字面量内联（与 bom-map.ts 直连 SQL 口径一致），调用前已按 dataType 校验，
@@ -276,3 +291,36 @@ export const buildExtFilterSql = (
   if (clauses.length === 0) return { sql: '' };
   return { sql: clauses.map(clause => `(${clause})`).join(' AND ') };
 };
+
+/** 查询时类型来自属性声明，调用方只提供字段、操作符与值。 */
+export type ExtAttrQueryFilter = Omit<ExtFilter, 'dataType'>;
+
+/** 扩展属性所在的三种实体作用域。 */
+export type ExtAttrScope = 'item' | 'bom_header' | 'bom_line_occurrence';
+
+/** 在同一快照内读取属性声明并执行过滤，未知属性或类型错误直接拒绝。 */
+export const filterByAttr = async (
+  adapter: BomLocalAdapter,
+  appliesTo: ExtAttrScope,
+  filters: ExtAttrQueryFilter[]
+): Promise<Record<string, unknown>[]> =>
+  adapter.transaction(async executor => {
+    if (!['item', 'bom_header', 'bom_line_occurrence'].includes(appliesTo))
+      throw new BomExtAttrError('appliesTo', `未知作用域「${String(appliesTo)}」`);
+    const dialect = bomSqlDialectFor(adapter.name);
+    const defs = await executor.query(
+      `SELECT "code", "dataType" FROM ${dialect.table('attr_def')} WHERE "appliesTo" = ${dialect.placeholder(0)}`,
+      [appliesTo]
+    );
+    const types = new Map(defs.rows.map(row => [String(row[0]), String(row[1])]));
+    const typed = filters.map(filter => {
+      const dataType = types.get(filter.code);
+      if (dataType === undefined) throw new BomExtAttrError(filter.code, `未在作用域「${appliesTo}」声明`);
+      return { ...filter, dataType };
+    });
+    const { sql } = buildExtFilterSql(adapter.name === 'pglite' ? 'pglite' : 'sqlite', '', typed);
+    const result = await executor.query(
+      `SELECT * FROM ${dialect.table(appliesTo)}${sql.length > 0 ? ` WHERE ${sql}` : ''} ORDER BY "id"`
+    );
+    return result.rows.map(row => Object.fromEntries(result.columns.map((column, index) => [column, row[index]])));
+  });

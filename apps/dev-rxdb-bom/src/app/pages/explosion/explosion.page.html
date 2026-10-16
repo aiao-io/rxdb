@@ -2,9 +2,7 @@
   <section class="page-hero">
     <div>
       <h2>整机展开</h2>
-      <p class="panel-desc">
-        EBOM 展开专项页：评估日与计划量显式入参（不读系统时钟）；需求行选中联动七步算式面板；页底附校验演示。
-      </p>
+      <p class="panel-desc">按评估日、计划量与序列号展开结构，查看逐步算式、选择配置，并导出快照或导入草稿。</p>
     </div>
   </section>
 
@@ -25,6 +23,10 @@
             <option [value]="key">{{ key }}</option>
           }
         </select>
+      </label>
+      <label>
+        序列号
+        <input class="qty-input" [(ngModel)]="unit" data-testid="unit-input" min="1" step="1" type="number" />
       </label>
       <button class="btn btn-primary" [disabled]="busy() || !ready()" (click)="runExplode()">
         {{ busy() ? '处理中…' : '展开整机' }}
@@ -58,6 +60,16 @@
       </div>
     </div>
   </section>
+
+  <bom-config-panel [asOfDate]="asOfDate()" />
+
+  <bom-integration-panel
+    [asOfDate]="asOfDate()"
+    [expanded]="view() !== null"
+    [plannedQty]="plannedQty()"
+    [rootKey]="rootKey()"
+    [unit]="unit() ?? undefined"
+  />
 
   <bom-demo-checks />
 </div>

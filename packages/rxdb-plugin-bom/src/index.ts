@@ -6,7 +6,7 @@
  * 存储层触发器（写入协议 / 结构列不可改 / 十进制格式）。
  */
 
-export { BOM_CYCLE_DEPTH_LIMIT } from './backend/bom-trigger-ddl.js';
+export { BOM_CYCLE_DEPTH_LIMIT } from './backend/constants.js';
 export {
   BOM_EFFECTIVITY_OVERLAP_PREFIX,
   buildUnitLotOverlapGuardPg,
@@ -133,9 +133,12 @@ export {
 export {
   BomExtAttrError,
   buildExtFilterSql,
+  filterByAttr,
   normalizeExtValue,
   validateExtWrite,
   type ExtAttrDefShape,
+  type ExtAttrQueryFilter,
+  type ExtAttrScope,
   type ExtFilter,
   type ExtFilterDialect,
   type ExtFilterOp,
@@ -162,6 +165,7 @@ export {
   type ImportRecord,
   type ImportValidationResult
 } from './resolve/import-contract.js';
+export { exportBom, importBomDraft, type BomImportResult } from './resolve/integration.js';
 export {
   BomResolutionError,
   type BomType,

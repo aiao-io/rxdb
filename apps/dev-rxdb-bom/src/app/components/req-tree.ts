@@ -13,6 +13,23 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
     @if (result().truncated) {
       <div class="error-box">截断：{{ result().truncated!.reason }}</div>
     }
+    @for (unresolved of result().manifest.unresolved; track $index) {
+      <div class="panel-inset" data-testid="unit-unresolved">
+        <h3>
+          未解析：{{
+            unresolved.reason === 'unit' || unresolved.reason === 'lot' ?
+              '请填写序列号或批次以确定发生项'
+            : '请选择备选方案'
+          }}
+        </h3>
+        @for (candidate of unresolved.candidates; track $index) {
+          <div class="where-used-row" data-testid="unit-candidate">
+            {{ candidate.childItemId ? itemNo(candidate.childItemId) : candidate.headerId }}
+            · 序列 {{ candidate.unitFrom ?? 1 }} ～ {{ candidate.unitTo ?? '不限' }}
+          </div>
+        }
+      </div>
+    }
     @for (output of result().outputs; track output.path.join('>') + output.direction) {
       <div
         class="requirement-row output"

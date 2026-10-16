@@ -7,13 +7,18 @@
  * 与依赖约束冲突判定（AC#2：exclude 互斥 / require 蕴含）。
  */
 
+import type { BomSqlDialect } from './bom-sql.js';
 import {
   BomConfigError,
+  CONDITION_GRAMMAR_VERSION,
   evaluateCondition,
+  extractCharCodes,
   parseCondition,
   positionText,
   type ConditionAst
 } from './config-condition.js';
+import { BomResolutionError, type ResolutionContext, type UnresolvedAlternative } from './resolution.js';
+import { lotMatches, parseLotCodes, unitIntervalMatches } from './unit-lot.js';
 
 /** 行 / 列位置的人读形式；无位置信息（手工构造的 AST）时省略。 */
 const positionOf = (expression: string, offset: number | undefined): string =>
@@ -34,7 +39,7 @@ const positionOf = (expression: string, offset: number | undefined): string =>
 export const validateConditionReferences = (
   expression: string,
   knownChars: Set<string>,
-  knownValues: Set<string>
+  knownValues: Set<string> | Map<string, Set<string>>
 ): void => {
   const { ast } = parseCondition(expression);
   const problems: string[] = [];
@@ -46,7 +51,7 @@ export const validateConditionReferences = (
         }
         const values = node.op === 'in' ? node.value : [node.value];
         values.forEach((value, index) => {
-          if (!knownValues.has(value)) {
+          if (!(knownValues instanceof Map ? knownValues.get(node.charCode)?.has(value) : knownValues.has(value))) {
             problems.push(`未知值「${value}」${positionOf(expression, node.valueOffsets?.[index])}`);
           }
         });
@@ -85,7 +90,7 @@ export const checkConfigCompleteness = (selection: Record<string, string[]>, req
   for (const code of requiredChars) {
     if (reported.has(code)) continue;
     reported.add(code);
-    const selected = selection[code];
+    const selected = Object.hasOwn(selection, code) ? selection[code] : undefined;
     if (selected === undefined || selected.length === 0) {
       missing.push(code);
     }
@@ -102,6 +107,14 @@ export interface ConfigConstraintInput {
   leftAst: ConditionAst;
   rightAst: ConditionAst;
 }
+
+const conditionText = (ast: ConditionAst): string => {
+  if (ast.kind === 'not') return `NOT (${conditionText(ast.operand)})`;
+  if (ast.kind !== 'atom')
+    return ast.operands.map(operand => `(${conditionText(operand)})`).join(ast.kind === 'and' ? ' AND ' : ' OR ');
+  if (ast.op === 'in') return `${ast.charCode} in (${ast.value.join(', ')})`;
+  return `${ast.charCode} ${ast.op === 'eq' ? '=' : '!='} ${ast.value}`;
+};
 
 /**
  * 依赖约束冲突判定（AC#2）：对给定配置输入分别求两侧条件，按种类判冲突。
@@ -124,15 +137,181 @@ export const checkConfigConflicts = (
     const rightSatisfied = evaluateCondition(constraint.rightAst, selection);
     if (constraint.kind === 'exclude') {
       if (leftSatisfied && rightSatisfied) {
-        conflicts.push(`约束「${constraint.code}」：左/右条件同时满足`);
+        conflicts.push(
+          `约束「${constraint.code}」：左/右条件同时满足（${conditionText(constraint.leftAst)}；${conditionText(constraint.rightAst)}）`
+        );
       }
     } else if (constraint.kind === 'require') {
       if (leftSatisfied && !rightSatisfied) {
-        conflicts.push(`约束「${constraint.code}」：左条件满足而右条件不满足`);
+        conflicts.push(
+          `约束「${constraint.code}」：左条件满足而右条件不满足（${conditionText(constraint.leftAst)}；${conditionText(constraint.rightAst)}）`
+        );
       }
     } else {
       conflicts.push(`约束「${constraint.code}」：未知约束种类「${String(constraint.kind)}」，按违约报告`);
     }
   }
   return conflicts;
+};
+
+interface ConfigurationQuery {
+  (sql: string, params?: unknown[]): Promise<{ columns: string[]; rows: unknown[][] }>;
+}
+
+/** 在调用方的快照内按组织读取配置，校验相关必选特征、输入取值与约束后求值。 */
+export const evaluateConfigConditions = async (
+  query: ConfigurationQuery,
+  dialect: BomSqlDialect,
+  context: ResolutionContext,
+  conditionIds: string[]
+): Promise<Map<string, boolean>> => {
+  const truth = new Map<string, boolean>();
+  if (conditionIds.length === 0 && context.configSelection === undefined) return truth;
+  const selection = context.configSelection ?? {};
+  const org = [context.orgId];
+  const conditionResult = await query(
+    `SELECT "id", "expression", "grammarVersion" FROM ${dialect.table('config_condition')} WHERE "orgId" = ${dialect.placeholder(0)} ORDER BY "id"`,
+    org
+  );
+  const conditions = new Map(
+    conditionResult.rows.map(row => [String(row[0]), { expression: String(row[1]), version: String(row[2]) }])
+  );
+  const asts = new Map<string, ConditionAst>();
+  const astOf = (id: string): ConditionAst => {
+    const cached = asts.get(id);
+    if (cached !== undefined) return cached;
+    const condition = conditions.get(id);
+    if (condition === undefined) throw new BomConfigError(id, '选择条件不存在或不属于当前组织');
+    if (condition.version !== CONDITION_GRAMMAR_VERSION)
+      throw new BomConfigError(id, `不支持的条件语法版本「${condition.version}」`);
+    const ast = parseCondition(condition.expression).ast;
+    asts.set(id, ast);
+    return ast;
+  };
+  const relevant = new Set(conditionIds.flatMap(id => extractCharCodes(astOf(id))));
+  for (const code of Object.keys(selection)) relevant.add(code);
+  const charResult = await query(
+    `SELECT "id", "code", "required" FROM ${dialect.table('config_char')} WHERE "orgId" = ${dialect.placeholder(0)} ORDER BY "code"`,
+    org
+  );
+  const knownChars = new Set(charResult.rows.map(row => String(row[1])));
+  const valuesResult = await query(
+    `SELECT c."code", v."value" FROM ${dialect.table('config_char_value')} v JOIN ${dialect.table('config_char')} c ON c."id" = v."charId" WHERE c."orgId" = ${dialect.placeholder(0)}`,
+    org
+  );
+  const values = new Map<string, Set<string>>();
+  for (const row of valuesResult.rows) {
+    const code = String(row[0]);
+    const list = values.get(code) ?? new Set<string>();
+    list.add(String(row[1]));
+    values.set(code, list);
+  }
+  for (const [code, selected] of Object.entries(selection)) {
+    if (!knownChars.has(code)) throw new BomConfigError('配置输入', `未知特征「${code}」`);
+    for (const value of selected) {
+      if (!values.get(code)?.has(value)) throw new BomConfigError('配置输入', `特征「${code}」未知值「${value}」`);
+    }
+  }
+  const constraintResult = await query(
+    `SELECT "code", "kind", "leftConditionId", "rightConditionId" FROM ${dialect.table('config_constraint')} WHERE "orgId" = ${dialect.placeholder(0)} ORDER BY "code"`,
+    org
+  );
+  const constraints = constraintResult.rows.map(row => ({
+    code: String(row[0]),
+    kind: String(row[1]) as ConfigConstraintInput['kind'],
+    leftAst: astOf(String(row[2])),
+    rightAst: astOf(String(row[3]))
+  }));
+  const active = new Set<ConfigConstraintInput>();
+  let count = -1;
+  while (count !== relevant.size) {
+    count = relevant.size;
+    for (const constraint of constraints) {
+      const codes = [...extractCharCodes(constraint.leftAst), ...extractCharCodes(constraint.rightAst)];
+      if (!codes.some(code => relevant.has(code))) continue;
+      active.add(constraint);
+      for (const code of codes) relevant.add(code);
+    }
+  }
+  const required = charResult.rows
+    .filter(row => Boolean(row[2]) && relevant.has(String(row[1])))
+    .map(row => String(row[1]));
+  const missing = checkConfigCompleteness(selection, required);
+  if (missing.length > 0) throw new BomConfigError('配置输入', `配置不完整：必选特征未赋值——${missing.join('、')}`);
+  const conflicts = checkConfigConflicts([...active], selection);
+  if (conflicts.length > 0) throw new BomConfigError('配置输入', conflicts.join('；'));
+  for (const id of conditionIds) {
+    const condition = conditions.get(id);
+    if (condition !== undefined) validateConditionReferences(condition.expression, knownChars, values);
+    truth.set(id, evaluateCondition(astOf(id), selection));
+  }
+  return truth;
+};
+
+/** 日期过滤后的发生项，后续维度共用这一份快照与解析口径。 */
+export interface ResolutionFilterRow {
+  headerId: string;
+  alternativeNo: number;
+  parentItemId: string;
+  parentRevisionId: string;
+  lineId: string;
+  occurrenceId: string;
+  childItemId: string;
+  unitFrom: number | null;
+  unitTo: number | null;
+  lotCodes: string | null;
+  selectionConditionId: string | null;
+}
+
+/** 依次按序列、批次、配置过滤，同逻辑行多候选显式标未解析。 */
+export const filterResolutionRows = async <T extends ResolutionFilterRow>(
+  query: ConfigurationQuery,
+  dialect: BomSqlDialect,
+  context: ResolutionContext,
+  rows: T[],
+  unresolved?: UnresolvedAlternative[]
+): Promise<T[]> => {
+  const candidates = rows.filter(
+    row =>
+      unitIntervalMatches(row.unitFrom, row.unitTo, context.unit) &&
+      lotMatches(parseLotCodes(row.lotCodes), context.lot)
+  );
+  const conditionIds = [
+    ...new Set(candidates.flatMap(row => (row.selectionConditionId === null ? [] : [row.selectionConditionId])))
+  ];
+  const truth = await evaluateConfigConditions(query, dialect, context, conditionIds);
+  const selected = candidates.filter(
+    row => row.selectionConditionId === null || truth.get(row.selectionConditionId) === true
+  );
+  const byLine = new Map<string, T[]>();
+  for (const row of selected) {
+    const list = byLine.get(row.lineId) ?? [];
+    list.push(row);
+    byLine.set(row.lineId, list);
+  }
+  const ambiguous = new Set<string>();
+  for (const group of byLine.values()) {
+    if (group.length < 2) continue;
+    const reason =
+      context.unit === undefined && group.some(row => row.unitFrom !== null || row.unitTo !== null) ? 'unit' : 'lot';
+    if (unresolved === undefined)
+      throw new BomResolutionError(reason, `存在未解析的序列 / 批次候选：逻辑行 ${group[0].lineId}，请指定 ${reason}`);
+    ambiguous.add(group[0].lineId);
+    unresolved.push({
+      parentItemId: group[0].parentItemId,
+      parentRevisionId: group[0].parentRevisionId,
+      reason,
+      lineId: group[0].lineId,
+      candidates: group.map(row => ({
+        headerId: row.headerId,
+        alternativeNo: row.alternativeNo,
+        occurrenceId: row.occurrenceId,
+        childItemId: row.childItemId,
+        unitFrom: row.unitFrom,
+        unitTo: row.unitTo,
+        lotCodes: parseLotCodes(row.lotCodes)
+      }))
+    });
+  }
+  return selected.filter(row => !ambiguous.has(row.lineId));
 };

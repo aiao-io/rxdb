@@ -12,7 +12,6 @@ import type { EntityType, IRxDBPlugin, Plugin, RxDB } from '@aiao/rxdb';
 import { getEntityMetadata, RxDBPluginBase, SyncType } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
 import { firstValueFrom } from 'rxjs';
-import { buildPgBomTriggerDdl, buildSqliteBomTriggerDdl } from './backend/bom-trigger-ddl.js';
 import { BOM_ENTITIES } from './entities.js';
 import { rollupCost as runRollupCost, type CostRollupContext, type CostRollupResult } from './quantity/cost.js';
 import { explodeBom as runExplodeBom, type ExplosionOptions, type ExplosionResult } from './quantity/explosion.js';
@@ -31,7 +30,14 @@ import {
   type ExpansionResult,
   type WhereUsedTarget
 } from './resolve/expansion.js';
+import type { BomExportPayload } from './resolve/export-contract.js';
+import { filterByAttr as runFilterByAttr, type ExtAttrQueryFilter, type ExtAttrScope } from './resolve/ext-attr.js';
 import { loadHistory, type HistoryBatchInput } from './resolve/history-loader.js';
+import {
+  exportBom as runExportBom,
+  importBomDraft as runImportBomDraft,
+  type BomImportResult
+} from './resolve/integration.js';
 import type { ResolutionContext, ResolutionResult } from './resolve/resolution.js';
 import { resolveBom, type ResolveTarget } from './resolve/resolver.js';
 import { BomBackendCapabilityError, BomSyncUnsupportedError } from './types.js';
@@ -65,9 +71,11 @@ export const assertBomSyncNotDeclared = (
 };
 
 /** 按适配器名解析后端 DDL 构造器；不认识的后端显式拒绝，不静默降级（导出供 AC#6 单测）。 */
-export const resolveBomBackend = (adapterName: string | undefined): BomTriggerDdlBuilder => {
-  if (adapterName === 'pglite') return buildPgBomTriggerDdl;
-  if (adapterName && SQLITE_ADAPTER_NAMES.has(adapterName)) return buildSqliteBomTriggerDdl;
+export const resolveBomBackend = async (adapterName: string | undefined): Promise<BomTriggerDdlBuilder> => {
+  if (adapterName === 'pglite') return (await import('./backend/bom-trigger-ddl.js')).buildPgBomTriggerDdl;
+  if (adapterName && SQLITE_ADAPTER_NAMES.has(adapterName)) {
+    return (await import('./backend/bom-trigger-ddl.js')).buildSqliteBomTriggerDdl;
+  }
   if (adapterName === 'http' || adapterName === 'supabase') {
     // US-509 AC#6：DDL 在远端，本仓发不出写入期环约束——显式声明能力缺席并 fail-fast
     throw new BomBackendCapabilityError(
@@ -102,6 +110,21 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
    */
   loadHistory(batch: HistoryBatchInput): Promise<void> {
     return firstValueFrom(this.rxdb.localAdapter$).then(adapter => loadHistory(adapter, batch));
+  }
+
+  /** 在一致快照中导出完整结构、数量与主数据（US-521）。 */
+  exportBom(context: ResolutionContext, target: ResolveTarget, options?: ExplosionOptions): Promise<BomExportPayload> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runExportBom(adapter, context, target, options));
+  }
+
+  /** 整批原子导入草稿，逐行返回诊断；发布由调用方显式执行（US-521）。 */
+  importBomDraft(payload: unknown): Promise<BomImportResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runImportBomDraft(adapter, payload));
+  }
+
+  /** 按属性声明的类型过滤扩展值；缺字段与 null 使用一致语义（US-519）。 */
+  filterByAttr(appliesTo: ExtAttrScope, filters: ExtAttrQueryFilter[]): Promise<Record<string, unknown>[]> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runFilterByAttr(adapter, appliesTo, filters));
   }
 
   /**
@@ -171,7 +194,7 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
   /** 对 schema 里存在的每个 BOM 实体下发存储层触发器（幂等）。 */
   async #installTriggers(scope: LifecycleScope): Promise<void> {
     const adapterName = this.rxdb.config.sync?.local?.adapter;
-    const buildDdl = resolveBomBackend(adapterName);
+    const buildDdl = await resolveBomBackend(adapterName);
     const adapter = this.rxdb.localAdapterSync;
     if (!adapter) {
       throw new BomBackendCapabilityError(adapterName ?? '(no local adapter)');

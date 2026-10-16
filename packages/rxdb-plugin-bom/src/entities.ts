@@ -345,16 +345,21 @@ export class BomLine extends EntityBase {
     { name: 'equivQty', type: PropertyType.string, nullable: true },
     // 投料工序（US-520）：行归属工序；分摊经 bom_line_operation_split 子表
     { name: 'operationSeq', type: PropertyType.integer, nullable: true },
+    { name: 'supplyToVendor', type: PropertyType.boolean, default: false },
     // 序列 / 批次有效性（US-518）：三维有效域 = 日期 × 序列 × 批次
     { name: 'unitFrom', type: PropertyType.integer, nullable: true },
     { name: 'unitTo', type: PropertyType.integer, nullable: true },
     { name: 'lotCodes', type: PropertyType.string, nullable: true },
     // 配置选择条件（US-517）：行挂选择条件，NULL = 恒真
-    { name: 'selectionConditionId', type: PropertyType.string, nullable: true },
+    { name: 'selectionConditionId', type: PropertyType.uuid, nullable: true },
     // 扩展属性（US-519）：JSON 文本，写入期按 attr_def 校验
     { name: 'ext', type: PropertyType.string, nullable: true }
   ],
   checks: [
+    {
+      name: 'unit_interval_order',
+      rule: { combinator: 'and', rules: [{ field: 'unitFrom', operator: '<=', ref: 'unitTo' }] }
+    },
     // US-511 AC#7：qty 与 qty_formula 恰好一项非空
     {
       name: 'qty_xor_formula',
@@ -425,6 +430,12 @@ export class BomLine extends EntityBase {
     }
   ],
   foreignKeys: [
+    {
+      name: 'occurrence_selection_condition',
+      properties: ['selectionConditionId'],
+      mappedEntity: 'BomConfigCondition',
+      mappedProperties: ['id']
+    },
     // 修订必须属于子件（US-507 AC#11）：MATCH SIMPLE 让 imprecise（childRevisionId NULL）放行
     {
       name: 'child_revision_belongs_to_item',
@@ -477,6 +488,8 @@ export class BomLineOccurrence extends EntityBase {
   usageProbability!: string | null;
   equivQty!: string | null;
   operationSeq!: number | null;
+  /** 委外供料标记，随导入导出契约保留。 */
+  supplyToVendor!: boolean;
   unitFrom!: number | null;
   unitTo!: number | null;
   lotCodes!: string | null;
@@ -911,8 +924,16 @@ export class BomConfigChar extends EntityBase {
   tableName: 'config_char_value',
   repository: 'BomRepository',
   properties: [
-    { name: 'charId', type: PropertyType.string },
+    { name: 'charId', type: PropertyType.uuid },
     { name: 'value', type: PropertyType.string }
+  ],
+  foreignKeys: [
+    {
+      name: 'config_value_belongs_to_char',
+      properties: ['charId'],
+      mappedEntity: 'BomConfigChar',
+      mappedProperties: ['id']
+    }
   ],
   indexes: [{ name: 'config_char_value_char_value', properties: ['charId', 'value'], unique: true }]
 })
@@ -934,7 +955,8 @@ export class BomConfigCharValue extends EntityBase {
     { name: 'orgId', type: PropertyType.string },
     { name: 'expression', type: PropertyType.string },
     { name: 'grammarVersion', type: PropertyType.string }
-  ]
+  ],
+  indexes: [{ name: 'config_condition_org_id', properties: ['orgId', 'id'], unique: true }]
 })
 export class BomConfigCondition extends EntityBase {
   orgId!: string;
@@ -955,8 +977,22 @@ export class BomConfigCondition extends EntityBase {
     { name: 'orgId', type: PropertyType.string },
     { name: 'code', type: PropertyType.string },
     { name: 'kind', type: PropertyType.string },
-    { name: 'leftConditionId', type: PropertyType.string },
-    { name: 'rightConditionId', type: PropertyType.string }
+    { name: 'leftConditionId', type: PropertyType.uuid },
+    { name: 'rightConditionId', type: PropertyType.uuid }
+  ],
+  foreignKeys: [
+    {
+      name: 'config_constraint_left_condition',
+      properties: ['orgId', 'leftConditionId'],
+      mappedEntity: 'BomConfigCondition',
+      mappedProperties: ['orgId', 'id']
+    },
+    {
+      name: 'config_constraint_right_condition',
+      properties: ['orgId', 'rightConditionId'],
+      mappedEntity: 'BomConfigCondition',
+      mappedProperties: ['orgId', 'id']
+    }
   ],
   indexes: [{ name: 'config_constraint_org_code', properties: ['orgId', 'code'], unique: true }]
 })

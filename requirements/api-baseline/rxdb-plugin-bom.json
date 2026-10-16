@@ -118,6 +118,10 @@
         "kind": "both"
       },
       {
+        "name": "BomImportResult",
+        "kind": "type"
+      },
+      {
         "name": "BomItem",
         "kind": "both"
       },
@@ -422,6 +426,10 @@
         "kind": "value"
       },
       {
+        "name": "exportBom",
+        "kind": "value"
+      },
+      {
         "name": "ExportRowBatch",
         "kind": "type"
       },
@@ -435,6 +443,14 @@
       },
       {
         "name": "ExtAttrDefShape",
+        "kind": "type"
+      },
+      {
+        "name": "ExtAttrQueryFilter",
+        "kind": "type"
+      },
+      {
+        "name": "ExtAttrScope",
         "kind": "type"
       },
       {
@@ -452,6 +468,10 @@
       {
         "name": "ExtWriteMode",
         "kind": "type"
+      },
+      {
+        "name": "filterByAttr",
+        "kind": "value"
       },
       {
         "name": "FORMULA_GRAMMAR_VERSION",
@@ -475,6 +495,10 @@
       },
       {
         "name": "IMPORT_KINDS",
+        "kind": "value"
+      },
+      {
+        "name": "importBomDraft",
         "kind": "value"
       },
       {

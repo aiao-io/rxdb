@@ -1,12 +1,14 @@
 /**
- * @fileoverview US-521 ERP/MRP 集成契约的纯函数级测试（导出契约 + 导入解析/校验）
+ * @fileoverview US-521 ERP/MRP 契约与双后端原子导入、同快照导出回归。
  *
- * 不接事务/执行面：只测契约形状（AC#1）、导出拒绝（AC#8）、十进制字段规则（AC#14）、
+ * 覆盖契约形状（AC#1）、导出拒绝（AC#8）、十进制字段规则（AC#14）、
  * 导入三类预检——重复（AC#10/#11）、依赖缺失（AC#13）、环诊断（AC#2/#12），以及
  * 诊断与输入行序无关（AC#5/#6）。两种行序的断言用「诊断集合相等」而非数组相等。
  */
 
 import { describe, expect, it } from 'vitest';
+import { BomHeader, BomItem, BomItemRevision } from '../entities.js';
+import { bomSqlDialectFor } from '../resolve/bom-sql.js';
 import {
   BomExportRejectedError,
   EXPORT_CONTRACT_VERSION,
@@ -17,6 +19,7 @@ import {
   type BomExportPayload,
   type ExportTable
 } from '../resolve/export-contract.js';
+import { loadHistory } from '../resolve/history-loader.js';
 import {
   BomImportContractError,
   DECIMAL_FIELDS,
@@ -29,7 +32,9 @@ import {
   type ImportKind,
   type ImportRecord
 } from '../resolve/import-contract.js';
+import { exportBom, importBomDraft } from '../resolve/integration.js';
 import { BomDecimalFormatError } from '../types.js';
+import { createBomTestAdapter, disposeBomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 /* ------------------------------------------------------------------ 构造器 */
 
@@ -406,7 +411,8 @@ describe('US-521 导入契约解析（import-contract.parseImportPayload）', ()
       const key = naturalKeyFor(kind, data);
       const parsed = parseNaturalKey(key);
       expect(parsed.kind).toBe(kind);
-      expect(parsed.parts).toEqual(Object.values(data).map(value => String(value)));
+      expect(naturalKeyFor(kind, data)).toBe(key);
+      expect(parsed.parts[0]).toBe(String(data['itemNo']));
     }
     expect(() => parseNaturalKey('垃圾文本')).toThrow(BomImportContractError);
     expect(() => parseNaturalKey('["bogus"]')).toThrow(BomImportContractError);
@@ -464,6 +470,16 @@ describe('US-521 导入校验（import-contract.validateImportRecords）', () =>
       expect(diagnostic.message).toContain('q-2');
     }
     assertOrderIndependent(batch, emptyExisting());
+  });
+
+  it('序列下界与批次集合进入发生项自然键，批次集合顺序不改变自然键', () => {
+    const old = occurrenceOf('A001', 'RevA', 10, '2024-01-01', 'B001', 'old', { unitTo: 136 });
+    const next = occurrenceOf('A001', 'RevA', 10, '2024-01-01', 'B001', 'next', { unitFrom: 137 });
+    expect(naturalKeyFor('occurrence', old)).not.toBe(naturalKeyFor('occurrence', next));
+    expect(naturalKeyFor('occurrence', { ...old, lotCodes: '["B","A"]' })).toBe(
+      naturalKeyFor('occurrence', { ...old, lotCodes: '["A","B","A"]' })
+    );
+    expect(validate([...validBatch().filter(record => record.kind !== 'occurrence'), old, next]).ok).toBe(true);
   });
 
   it('AC#13 行引用的头不在本批也不在库 → 依赖缺失；两种行序同诊断', () => {
@@ -580,3 +596,368 @@ describe('US-521 导入校验（import-contract.validateImportRecords）', () =>
     expect(result.diagnostics.some(diagnostic => diagnostic.message.includes('父修订'))).toBe(true);
   });
 });
+
+for (const backend of ['wa-sqlite', 'pglite'] satisfies BomTestBackend[]) {
+  describe(`US-521 原子导入与快照导出 [${backend}]`, () => {
+    it('AC#5/#6/#14：逐行收集结构与存储错误，千行整批回滚且诊断与行序无关', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const batch: Record<string, unknown>[] = Array.from({ length: 1000 }, (_, index) => ({
+          kind: 'item',
+          source_ref: `row-${index}`,
+          itemNo: `I-${index}`
+        }));
+        batch[9]['unitPrice'] = 1.25;
+        batch[499]['uomConversion'] = '-1';
+        const forward = await importBomDraft(adapter, batch);
+        const reverse = await importBomDraft(adapter, [...batch].reverse());
+        expect(forward.committed).toBe(false);
+        expect(forward.diagnostics).toEqual(reverse.diagnostics);
+        expect(forward.diagnostics).toHaveLength(2);
+        expect(forward.diagnostics.map(row => row.message).join('|')).toMatch(/row-9/);
+        expect(forward.diagnostics.map(row => row.message).join('|')).toMatch(/row-499/);
+        const result = await adapter.rawQuery(`SELECT COUNT(*) FROM ${bomSqlDialectFor(backend).table('item')}`);
+        expect(Number(result.rows[0][0])).toBe(0);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    }, 60000);
+
+    it('AC#7/#15：导入保留草稿，99 位号可导入但发布 qty100 被拒绝', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const batch = validBatch().map(record =>
+          record.kind === 'revision' ? { ...record, effectiveFrom: '2099-01-01' } : record
+        );
+        const occurrence = batch.find(record => record.kind === 'occurrence')!;
+        occurrence['qty'] = '100';
+        occurrence['designatorManaged'] = true;
+        for (let index = 0; index < 99; index += 1) {
+          batch.push(designatorOf('A001', 'RevA', 10, '2024-01-01', 'B001', `R${index}`, `d-${index}`));
+        }
+        const imported = await importBomDraft(adapter, batch);
+        expect(imported.committed).toBe(true);
+        expect(imported.headerIds).toHaveLength(1);
+        const header = (await adapter.getRepository(BomHeader).find({ where: { combinator: 'and', rules: [] } }))[0];
+        expect(header.state).toBe('draft');
+        const revisions = await adapter
+          .getRepository(BomItemRevision)
+          .find({ where: { combinator: 'and', rules: [] } });
+        expect(revisions.every(revision => revision.state === 'draft')).toBe(true);
+        for (const revision of revisions)
+          await adapter.getRepository(BomItemRevision).update(revision, { state: 'released' });
+        await expect(adapter.getRepository(BomHeader).update(header, { state: 'released' })).rejects.toThrow(
+          /99.*100|100.*99/
+        );
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+
+    it('AC#2/#10/#12：成对环与重复自然键诊断确定，错误批不留数据', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const batch = [...twoWayBatch(), itemOf('DUP', 'duplicate-a'), itemOf('DUP', 'duplicate-b')];
+        const forward = await importBomDraft(adapter, batch);
+        const reverse = await importBomDraft(adapter, [...batch].reverse());
+        expect(forward).toEqual(reverse);
+        expect(forward.committed).toBe(false);
+        expect(forward.diagnostics).toHaveLength(3);
+        const cycle = forward.diagnostics.find(row => row.message.includes('环'))!;
+        expect(cycle.message).toContain('o-ab');
+        expect(cycle.message).toContain('o-ba');
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+
+    it('AC#6：存储层区间重叠诊断使用源记录身份，两种行序逐字一致', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const batch = [...validBatch(), occurrenceOf('A001', 'RevA', 10, '2024-02-01', 'B001', 'overlap')];
+        const forward = await importBomDraft(adapter, batch);
+        const reversed = await importBomDraft(adapter, [...batch].reverse());
+        expect(forward).toEqual(reversed);
+        expect(forward.committed).toBe(false);
+        expect(forward.diagnostics).toHaveLength(1);
+        expect(forward.diagnostics[0].message).toContain('overlap');
+        expect(forward.diagnostics[0].message).toContain('o-ab');
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+
+    it('同键记录含 JSON number 时，全部参与者仍报 duplicate_key 且与行序无关', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const batch = [
+          ...validBatch(),
+          occurrenceOf('A001', 'RevA', 10, '2024-01-01', 'B001', 'numeric-duplicate', { qty: 2 })
+        ];
+        const result = await importBomDraft(adapter, batch);
+        expect(result).toEqual(await importBomDraft(adapter, [...batch].reverse()));
+        const duplicates = result.diagnostics.filter(row => row.message.includes('duplicate_key'));
+        expect(duplicates).toHaveLength(2);
+        expect(duplicates.map(row => row.message).join('|')).toMatch(/o-ab/);
+        expect(duplicates.map(row => row.message).join('|')).toMatch(/numeric-duplicate/);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+
+    it('草稿导入入口拒绝 ECN 标记与既有已发布头的成员写入', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const batch = validBatch();
+        const withEcn = batch.map(record =>
+          record.kind === 'occurrence' ? { ...record, ecnInId: '00000000-0000-4000-8000-000000000001' } : record
+        );
+        const rejected = await importBomDraft(adapter, withEcn);
+        expect(rejected.committed).toBe(false);
+        expect(rejected.diagnostics.some(row => row.message.includes('ECN'))).toBe(true);
+        expect((await importBomDraft(adapter, batch)).committed).toBe(true);
+        const header = (await adapter.getRepository(BomHeader).find({ where: { combinator: 'and', rules: [] } }))[0];
+        await adapter.getRepository(BomHeader).update(header, { state: 'released' });
+        const appended = await importBomDraft(adapter, [lineOf('A001', 'RevA', 20, 'append-released')]);
+        expect(appended.committed).toBe(false);
+        expect(appended.diagnostics[0].message).toMatch(/草稿|已发布/);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+
+    it('已落地子表：替代组及成员关联与工序分摊随草稿原子导入', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const batch = validBatch();
+        const occurrence = batch.find(record => record.kind === 'occurrence')!;
+        occurrence['substituteGroupCode'] = 'G';
+        occurrence['substituteRole'] = 'primary';
+        occurrence['substitutePriority'] = 1;
+        batch.push({
+          ...headerOf('A001', 'RevA', 'group'),
+          kind: 'substitute_group',
+          groupCode: 'G',
+          strategy: 'priority'
+        });
+        batch.push({
+          ...occurrenceOf('A001', 'RevA', 10, '2024-01-01', 'B001', 'split'),
+          kind: 'operation_split',
+          operationSeq: 10,
+          ratio: '1'
+        });
+        const imported = await importBomDraft(adapter, [...batch].reverse());
+        expect(imported.committed).toBe(true);
+        const dialect = bomSqlDialectFor(backend);
+        const result = await adapter.rawQuery(
+          `SELECT occ."substituteGroupId", g."code", s."ratio" FROM ${dialect.table('bom_line_occurrence')} occ JOIN ${dialect.table('bom_substitute_group')} g ON g."id" = occ."substituteGroupId" JOIN ${dialect.table('bom_line_operation_split')} s ON s."occurrenceId" = occ."id"`
+        );
+        expect(result.rows).toHaveLength(1);
+        expect(result.rows[0].slice(1)).toEqual(['G', '1']);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+
+    it('非 consume 发生项可追加位号与工序分摊，库内产出边不参与新增消耗边判环', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const initial = validBatch().map(record =>
+          record.kind === 'occurrence' ? { ...record, flowDirection: 'by_product' } : record
+        );
+        initial.push(lineOf('A001', 'RevA', 20, 'scrap-line'));
+        initial.push(occurrenceOf('A001', 'RevA', 20, '2024-01-01', 'B001', 'scrap', { flowDirection: 'scrap_out' }));
+        expect((await importBomDraft(adapter, initial)).committed).toBe(true);
+        const appended: Record<string, unknown>[] = [
+          headerOf('B001', 'RevA', 'reverse-header'),
+          lineOf('B001', 'RevA', 10, 'reverse-line'),
+          occurrenceOf('B001', 'RevA', 10, '2024-01-01', 'A001', 'reverse-consume')
+        ];
+        for (const lineNo of [10, 20]) {
+          appended.push(
+            designatorOf('A001', 'RevA', lineNo, '2024-01-01', 'B001', `D${lineNo}`, `designator-${lineNo}`)
+          );
+          appended.push({
+            ...occurrenceOf('A001', 'RevA', lineNo, '2024-01-01', 'B001', `split-${lineNo}`),
+            kind: 'operation_split',
+            operationSeq: 10,
+            ratio: '1'
+          });
+        }
+        expect(await importBomDraft(adapter, [...appended].reverse())).toMatchObject({
+          committed: true,
+          diagnostics: []
+        });
+        const dialect = bomSqlDialectFor(backend);
+        const result = await adapter.rawQuery(
+          `SELECT occ."flowDirection", d."designator", s."ratio" FROM ${dialect.table('bom_line_occurrence')} occ JOIN ${dialect.table('bom_line_designator')} d ON d."occurrenceId" = occ."id" JOIN ${dialect.table('bom_line_operation_split')} s ON s."occurrenceId" = occ."id" ORDER BY occ."flowDirection"`
+        );
+        expect(result.rows).toEqual([
+          ['by_product', 'D10', '1'],
+          ['scrap_out', 'D20', '1']
+        ]);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+
+    it('真实写入序列只用成功落库的边判环，保存失败的前序边不让后序边背锅', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const batch = twoWayBatch().map(record =>
+          record['source_ref'] === 'o-ab' ? { ...record, unitFrom: 0 } : record
+        );
+        const result = await importBomDraft(adapter, batch);
+        expect(result).toEqual(await importBomDraft(adapter, [...batch].reverse()));
+        expect(result.committed).toBe(false);
+        expect(result.diagnostics).toHaveLength(1);
+        expect(result.diagnostics[0].message).toMatch(/o-ab.*unitFrom|o-ab.*序列/);
+        expect(result.diagnostics.some(row => row.message.includes('o-ba'))).toBe(false);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+
+    it('AC#5/#13：多条缺路线引用在保存点内分别诊断，外层整批回滚', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const batch = validBatch().filter(record => record.kind === 'item' || record.kind === 'revision');
+        batch.push({
+          ...headerOf('A001', 'RevA', 'missing-routing-1'),
+          routingId: '00000000-0000-4000-8000-000000000001'
+        });
+        batch.push({
+          ...headerOf('A001', 'RevA', 'missing-routing-2'),
+          alternativeNo: 2,
+          routingId: '00000000-0000-4000-8000-000000000002'
+        });
+        const imported = await importBomDraft(adapter, batch);
+        expect(imported.committed).toBe(false);
+        expect(imported.diagnostics).toHaveLength(2);
+        expect(imported.diagnostics[0].message).toContain('missing-routing-1');
+        expect(imported.diagnostics[1].message).toContain('missing-routing-2');
+        const result = await adapter.rawQuery(`SELECT COUNT(*) FROM ${bomSqlDialectFor(backend).table('item')}`);
+        expect(Number(result.rows[0][0])).toBe(0);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+
+    it('手选替代导出补齐组内主件，导入新库后可完整发布', async () => {
+      const source = await createBomTestAdapter(backend);
+      let destination: Awaited<ReturnType<typeof createBomTestAdapter>> | undefined;
+      try {
+        const items: BomItem[] = [];
+        for (const itemNo of ['ROUND-P', 'ROUND-M', 'ROUND-S']) {
+          const item = new BomItem();
+          item.itemNo = itemNo;
+          await item.save();
+          items.push(item);
+        }
+        await loadHistory(source, {
+          batchNo: 'roundtrip-group',
+          revisions: items.map(item => ({ itemId: item.id, revisionNo: 'A', effectiveFrom: new Date('2099-01-01') })),
+          headers: [
+            {
+              revisionIndex: 0,
+              bomType: 'ebom',
+              orgId: 'org-x',
+              lines: items.slice(1).map((child, index) => ({
+                lineNo: (index + 1) * 10,
+                occurrences: [{ childItemId: child.id, qty: '1', effectiveFrom: new Date('2099-01-01') }]
+              })),
+              substituteGroups: [
+                {
+                  code: 'G',
+                  strategy: 'manual',
+                  allowMix: false,
+                  members: [
+                    { occurrenceIndex: 0, role: 'primary', equivQty: '1' },
+                    { occurrenceIndex: 1, role: 'substitute', equivQty: '1' }
+                  ]
+                }
+              ]
+            }
+          ]
+        });
+        const payload = await exportBom(
+          source,
+          {
+            bomType: 'ebom',
+            orgId: 'org-x',
+            asOfDate: new Date('2099-01-02'),
+            substituteSelections: { G: { memberKey: items[2].id } }
+          },
+          { parentItemId: items[0].id }
+        );
+        expect(payload.requirementLines).toHaveLength(1);
+        expect(payload.occurrences).toHaveLength(2);
+        destination = await createBomTestAdapter(backend);
+        const imported = await importBomDraft(destination, payload);
+        expect(imported).toMatchObject({ committed: true, diagnostics: [] });
+        for (const revision of await destination
+          .getRepository(BomItemRevision)
+          .find({ where: { combinator: 'and', rules: [] } })) {
+          await destination.getRepository(BomItemRevision).update(revision, { state: 'released' });
+        }
+        const header = (
+          await destination.getRepository(BomHeader).find({ where: { combinator: 'and', rules: [] } })
+        )[0];
+        await expect(destination.getRepository(BomHeader).update(header, { state: 'released' })).resolves.toBeDefined();
+      } finally {
+        if (destination !== undefined) await disposeBomTestAdapter(destination);
+        await disposeBomTestAdapter(source);
+      }
+    });
+
+    it('AC#3/#4/#8/#9/#14：导出数量与主数据同快照，供料标记不改变需求且两次完全一致', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const parent = new BomItem();
+        parent.itemNo = 'EXPORT-P';
+        await parent.save();
+        const child = new BomItem();
+        child.itemNo = 'EXPORT-C';
+        child.uomDecimals = 40;
+        await child.save();
+        const qty = '1.234567890123456789012345678901234';
+        await loadHistory(adapter, {
+          batchNo: 'export-batch',
+          revisions: [{ itemId: parent.id, revisionNo: 'A', effectiveFrom: new Date('2020-01-01') }],
+          headers: [
+            {
+              revisionIndex: 0,
+              bomType: 'ebom',
+              orgId: 'org-x',
+              lines: [
+                {
+                  lineNo: 10,
+                  occurrences: [
+                    { childItemId: child.id, qty, supplyToVendor: true, effectiveFrom: new Date('2020-01-01') }
+                  ]
+                }
+              ]
+            }
+          ]
+        });
+        const context = { bomType: 'ebom' as const, orgId: 'org-x', asOfDate: new Date('2021-01-01') };
+        const options = { plannedQty: { value: '1', uom: 'pcs' } };
+        const target = { parentItemId: parent.id };
+        const marked = await exportBom(adapter, context, target, options);
+        expect(marked.requirementLines).toHaveLength(1);
+        expect(marked.requirementLines[0].qty).toBe(qty);
+        const field = EXPORT_TABLE_COLUMNS.occurrence.indexOf('supplyToVendor');
+        expect((marked.occurrences[0] as unknown[])[field]).toBe(true);
+        expect((marked.occurrences[0] as unknown[])[EXPORT_TABLE_COLUMNS.occurrence.indexOf('qty')]).toBe(qty);
+        expect(JSON.stringify(await exportBom(adapter, context, target, options))).toBe(JSON.stringify(marked));
+        await expect(exportBom(adapter, context, target, { ...options, budgets: { depth: 0 } })).rejects.toThrow(
+          /截断/
+        );
+        const foreign = await exportBom(adapter, { ...context, orgId: 'org-other' }, target, options).catch(() => null);
+        expect(foreign === null || foreign.headers.length === 0).toBe(true);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+  });
+}

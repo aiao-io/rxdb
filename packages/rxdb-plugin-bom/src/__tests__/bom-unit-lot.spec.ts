@@ -15,8 +15,13 @@ import {
   buildUnitLotOverlapGuardSqlite,
   unitFromGtUnitToCheck
 } from '../backend/unit-lot-trigger-ddl.js';
-import { BomLine, BomLineOccurrence } from '../entities.js';
+import { BomHeader, BomItem, BomItemRevision, BomLine, BomLineOccurrence } from '../entities.js';
+import { rollupCost } from '../quantity/cost.js';
+import { explodeBom } from '../quantity/explosion.js';
+import { assertCompleteResolution, expandBom } from '../resolve/expansion.js';
+import { loadHistory } from '../resolve/history-loader.js';
 import { BomResolutionError } from '../resolve/resolution.js';
+import { resolveBom } from '../resolve/resolver.js';
 import {
   describeCandidates,
   effectiveDomainsOverlap,
@@ -28,6 +33,7 @@ import {
   unitIntervalOverlaps,
   type EffectiveDomain
 } from '../resolve/unit-lot.js';
+import { createBomTestAdapter, disposeBomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 const day = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
 
@@ -100,6 +106,9 @@ describe('序列 / 批次纯函数（US-518）', () => {
     expect(lotMatches(null, 'B1')).toBe(true);
     expect(lotMatches(null, 'B2')).toBe(true);
     expect(lotMatches(['B1'], undefined)).toBe(true);
+    expect(lotMatches([], undefined)).toBe(false);
+    expect(lotSetsOverlap(null, [])).toBe(false);
+    expect(lotSetsOverlap([], null)).toBe(false);
     // 集合相交口径：NULL 与任何集合相交，交集非空才相交
     expect(lotSetsOverlap(null, ['B2'])).toBe(true);
     expect(lotSetsOverlap(['B1', 'B2'], ['B2', 'B3'])).toBe(true);
@@ -227,3 +236,197 @@ describe('三维重叠触发器 DDL（US-518）', () => {
     expect(buildUnitLotOverlapGuardPg(metadata)).toEqual([]);
   });
 });
+
+for (const backend of ['wa-sqlite', 'pglite'] as const satisfies readonly BomTestBackend[]) {
+  describe(`序列批次真实存储与解析 [${backend}]`, () => {
+    it('AC#1/#6：136/137 分段、未指定时列候选，数量与结构同口径，成本拒绝', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const items: BomItem[] = [];
+        for (const name of ['unit-parent', 'unit-old', 'unit-new']) {
+          const item = new BomItem();
+          item.itemNo = name;
+          await item.save();
+          items.push(item);
+        }
+        const context = { bomType: 'ebom' as const, orgId: 'org-unit', asOfDate: day('2026-06-01') };
+        await loadHistory(adapter, {
+          batchNo: 'unit-fixture',
+          revisions: [{ itemId: items[0].id, revisionNo: 'A', effectiveFrom: day('2026-01-01') }],
+          headers: [
+            {
+              revisionIndex: 0,
+              bomType: 'ebom',
+              orgId: context.orgId,
+              costLotQty: '1',
+              lines: [
+                {
+                  lineNo: 10,
+                  occurrences: [
+                    { childItemId: items[1].id, qty: '1', effectiveFrom: day('2026-01-01'), unitTo: 136 },
+                    { childItemId: items[2].id, qty: '1', effectiveFrom: day('2026-01-01'), unitFrom: 137 }
+                  ]
+                }
+              ]
+            }
+          ]
+        });
+        const occurrenceTable = backend === 'pglite' ? '"bom"."bom_line_occurrence"' : '"bom$bom_line_occurrence"';
+        await expect(
+          adapter.rawQuery(`UPDATE ${occurrenceTable} SET "unitTo" = 135 WHERE "unitTo" = 136`)
+        ).rejects.toThrow(/写入协议|write_protocol/);
+        const target = { parentItemId: items[0].id };
+        for (const [unit, item] of [
+          [136, items[1]],
+          [137, items[2]]
+        ] as const) {
+          expect(
+            (await resolveBom(adapter, { ...context, unit }, target)).occurrences.map(row => row.childItemId)
+          ).toEqual([item.id]);
+          expect((await expandBom(adapter, { ...context, unit }, target)).nodes.map(row => row.itemId)).toEqual([
+            items[0].id,
+            item.id
+          ]);
+        }
+        const unresolved = await resolveBom(adapter, context, target);
+        expect(unresolved.occurrences).toEqual([]);
+        expect(unresolved.manifest.unresolved).toHaveLength(1);
+        expect(unresolved.manifest.unresolved[0].candidates).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ childItemId: items[1].id, unitFrom: null, unitTo: 136 }),
+            expect.objectContaining({ childItemId: items[2].id, unitFrom: 137, unitTo: null })
+          ])
+        );
+        expect(() => assertCompleteResolution(unresolved)).toThrow(/unit|序列/);
+        const explosion = await explodeBom(adapter, context, target, { plannedQty: { value: '1', uom: 'pcs' } });
+        expect(explosion.requirementLines).toEqual([]);
+        expect(explosion.manifest.unresolved).toHaveLength(1);
+        await expect(
+          rollupCost(adapter, { ...context, currency: 'CNY', rateDate: context.asOfDate }, target)
+        ).rejects.toThrow(/unit|序列/);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+
+    it('AC#2/#3：日期、序列、批次同时过滤，单个序列候选不要求 unit', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const items: BomItem[] = [];
+        for (const itemNo of ['lot-parent', 'lot-specific', 'lot-all']) {
+          const item = new BomItem();
+          item.itemNo = itemNo;
+          await item.save();
+          items.push(item);
+        }
+        await loadHistory(adapter, {
+          batchNo: 'lot-fixture',
+          revisions: [{ itemId: items[0].id, revisionNo: 'A', effectiveFrom: day('2026-01-01') }],
+          headers: [
+            {
+              revisionIndex: 0,
+              bomType: 'ebom',
+              orgId: 'org-lot',
+              lines: [
+                {
+                  lineNo: 10,
+                  occurrences: [
+                    {
+                      childItemId: items[1].id,
+                      qty: '1',
+                      effectiveFrom: day('2026-01-01'),
+                      effectiveTo: day('2026-12-01'),
+                      unitFrom: 137,
+                      unitTo: 200,
+                      lotCodes: '["B1"]'
+                    }
+                  ]
+                },
+                { lineNo: 20, occurrences: [{ childItemId: items[2].id, qty: '1', effectiveFrom: day('2026-01-01') }] }
+              ]
+            }
+          ]
+        });
+        const context = { bomType: 'ebom' as const, orgId: 'org-lot', asOfDate: day('2026-06-01'), unit: 137 };
+        const target = { parentItemId: items[0].id };
+        const run = async (patch: Partial<typeof context> & { lot?: string }) =>
+          (await resolveBom(adapter, { ...context, ...patch }, target)).occurrences.map(row => row.childItemId);
+        expect(await run({ lot: 'B1' })).toEqual([items[1].id, items[2].id]);
+        expect(await run({ lot: 'B2' })).toEqual([items[2].id]);
+        expect(await run({ lot: 'B1', unit: 136 })).toEqual([items[2].id]);
+        expect(await run({ lot: 'B1', asOfDate: day('2026-12-01') })).toEqual([items[2].id]);
+        const single = await resolveBom(adapter, { ...context, unit: undefined, lot: 'B1' }, target);
+        expect(single.occurrences).toHaveLength(2);
+        expect(single.manifest.unresolved).toEqual([]);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+
+    it('AC#4/#5/#7/#8/#9/#10：存储三维矩阵、区间 CHECK 与 UPDATE 兜底', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const parent = new BomItem();
+        parent.itemNo = 'matrix-parent';
+        await parent.save();
+        const child = new BomItem();
+        child.itemNo = 'matrix-child';
+        await child.save();
+        const revision = new BomItemRevision();
+        revision.itemId = parent.id;
+        revision.revisionNo = 'A';
+        await revision.save();
+        const header = new BomHeader();
+        header.parentRevisionId = revision.id;
+        header.bomType = 'ebom';
+        header.orgId = 'org-unit';
+        await header.save();
+        const create = async (lineId: string, patch: Partial<BomLineOccurrence>) => {
+          const occurrence = new BomLineOccurrence();
+          Object.assign(
+            occurrence,
+            {
+              lineId,
+              childItemId: child.id,
+              qty: '1',
+              effectiveFrom: day('2026-01-01'),
+              effectiveTo: day('2026-06-01'),
+              unitFrom: 1,
+              unitTo: 136
+            },
+            patch
+          );
+          await occurrence.save();
+          return occurrence;
+        };
+        const patches: Partial<BomLineOccurrence>[] = [
+          { unitFrom: 137, unitTo: null },
+          { effectiveFrom: day('2026-06-01'), effectiveTo: null },
+          { effectiveFrom: day('2026-06-01'), effectiveTo: null, unitFrom: 137, unitTo: null },
+          { lotCodes: '["B2"]' }
+        ];
+        for (const [index, patch] of patches.entries()) {
+          const line = new BomLine();
+          line.headerId = header.id;
+          line.lineNo = index + 10;
+          await line.save();
+          await create(line.id, { lotCodes: index === 3 ? '["B1"]' : null });
+          const candidate = await create(line.id, patch);
+          expect(candidate.id).toBeTruthy();
+        }
+        const line = new BomLine();
+        line.headerId = header.id;
+        line.lineNo = 50;
+        await line.save();
+        await create(line.id, {});
+        await expect(create(line.id, { unitFrom: 100, unitTo: 200 })).rejects.toThrow(/日期.*序列/);
+        await expect(create(line.id, { unitFrom: 200, unitTo: 100 })).rejects.toThrow(/check|CHECK|unit/i);
+        const adjacent = await create(line.id, { unitFrom: 137, unitTo: null });
+        adjacent.unitFrom = 100;
+        await expect(adjacent.save()).rejects.toThrow(/日期.*序列/);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+  });
+}

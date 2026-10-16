@@ -2,13 +2,13 @@
  * @fileoverview ERP/MRP 批量导入契约（US-521 导入段）
  *
  * 载荷是已解析的 JSON 记录数组（调用方先 `JSON.parse`），每条记录对应一行存储行，只覆盖
- * 导入 `draft` 头所需的六层：物料 → 修订 → 头 → 逻辑行 → 发生项 → 位号（US-521 范围边界；
- * 替代组、工序分摊等子表随所属故事落地后加入）。各层自然键 = 父对象自然键 + 本层标识列，
+ * 导入 `draft` 头所需的物料、修订、头、逻辑行、替代组、发生项、位号与工序分摊。
+ * 替代组成员由发生项的组引用与成员属性承载。各层自然键 = 父对象自然键 + 本层标识列，
  * 以 JSON 数组文本编码（无歧义、可解析回各段）；记录去冗余地把祖先身份列铺平携带。
  *
  * 本模块只做三类预检：自然键重复（AC#10/#11）、父记录依赖缺失（AC#13）、环违约（AC#2/#12）。
  * 应用层不复刻存储层规则（US-521 技术笔记「逐行诊断与原子回滚」）：十进制格式触发器、外键、
- * 区间排他、写入协议等其余违约由主会话按「实体依赖层排序 + 逐行 SAVEPOINT」的写入循环判定。
+ * 区间排他、写入协议等其余违约由事务门面按「实体依赖层排序 + 逐行 SAVEPOINT」的写入循环判定。
  * 诊断只按自然键点名（消息内带 `source_ref`，不按行号），全部收集后按自然键排序输出，
  * 与输入行序无关（AC#5/#6/#10/#12）。
  */
@@ -16,7 +16,16 @@
 import { BomError } from '../types.js';
 
 /** 导入记录层（与导出契约的同名层一一对应，见 export-contract.ts）。 */
-export const IMPORT_KINDS = ['item', 'revision', 'header', 'line', 'occurrence', 'designator'] as const;
+export const IMPORT_KINDS = [
+  'item',
+  'revision',
+  'header',
+  'line',
+  'substitute_group',
+  'occurrence',
+  'designator',
+  'operation_split'
+] as const;
 
 /** 导入记录层。 */
 export type ImportKind = (typeof IMPORT_KINDS)[number];
@@ -24,7 +33,7 @@ export type ImportKind = (typeof IMPORT_KINDS)[number];
 /**
  * 十进制字段清单（US-511 十进制值合同）：出现在记录里就必须是字符串，收到 JSON number 即拒绝
  * （AC#14——精度已在调用方的解析里丢失，不能装作没丢）；`null` 放行（可空字段）。
- * `ratio` 属 US-520 工序分摊子表，随子表落地后启用。
+ * `ratio` 属 US-520 工序分摊子表。
  */
 export const DECIMAL_FIELDS = [
   'qty',
@@ -60,7 +69,19 @@ const KEY_SEGMENT_FIELDS: Record<ImportKind, readonly string[]> = {
   revision: ['itemNo', 'revisionNo'],
   header: ['itemNo', 'revisionNo', 'bomType', 'orgId', 'alternativeNo'],
   line: ['itemNo', 'revisionNo', 'bomType', 'orgId', 'alternativeNo', 'lineNo'],
-  occurrence: ['itemNo', 'revisionNo', 'bomType', 'orgId', 'alternativeNo', 'lineNo', 'effectiveFrom', 'childItemNo'],
+  substitute_group: ['itemNo', 'revisionNo', 'bomType', 'orgId', 'alternativeNo', 'groupCode'],
+  occurrence: [
+    'itemNo',
+    'revisionNo',
+    'bomType',
+    'orgId',
+    'alternativeNo',
+    'lineNo',
+    'effectiveFrom',
+    'childItemNo',
+    'unitFrom',
+    'lotCodes'
+  ],
   designator: [
     'itemNo',
     'revisionNo',
@@ -70,7 +91,22 @@ const KEY_SEGMENT_FIELDS: Record<ImportKind, readonly string[]> = {
     'lineNo',
     'effectiveFrom',
     'childItemNo',
+    'unitFrom',
+    'lotCodes',
     'designator'
+  ],
+  operation_split: [
+    'itemNo',
+    'revisionNo',
+    'bomType',
+    'orgId',
+    'alternativeNo',
+    'lineNo',
+    'effectiveFrom',
+    'childItemNo',
+    'unitFrom',
+    'lotCodes',
+    'operationSeq'
   ]
 };
 
@@ -91,10 +127,15 @@ const normalizeKeySegment = (value: unknown): string => (value instanceof Date ?
 export const naturalKeyFor = (kind: ImportKind, data: Record<string, unknown>): string => {
   const segments = KEY_SEGMENT_FIELDS[kind].map(field => {
     const value = data[field];
+    if (field === 'unitFrom') return value == null ? '' : String(value);
+    if (field === 'lotCodes') {
+      const codes: unknown = typeof value === 'string' ? JSON.parse(value) : value;
+      return codes == null ? '' : JSON.stringify([...new Set(codes as string[])].sort());
+    }
     if (value === undefined || value === null || (typeof value === 'string' && value.length === 0)) {
       throw new BomImportContractError(`naturalKey(${kind}).${field}`, '自然键组成列缺失或为空');
     }
-    return normalizeKeySegment(value);
+    return field === 'effectiveFrom' ? new Date(String(value)).toISOString() : normalizeKeySegment(value);
   });
   return JSON.stringify([kind, ...segments]);
 };
@@ -172,11 +213,15 @@ const parseImportRecord = (raw: unknown, index: number): ImportRecord => {
     throw new BomImportContractError(`${where}.source_ref`, '必带非空字符串（稳定源记录标识，诊断按它点名）');
   }
   for (const field of KEY_SEGMENT_FIELDS[importKind]) {
+    if (field === 'unitFrom' || field === 'lotCodes') continue;
     const value = data[field];
     if (value === undefined || value === null || (typeof value === 'string' && value.length === 0)) {
       throw new BomImportContractError(`${where}.${field}`, '必填（自然键组成列）');
     }
-    if (typeof value === 'number' && (!Number.isFinite(value) || !Number.isInteger(value))) {
+    if (
+      (typeof value !== 'number' && typeof value !== 'string') ||
+      (typeof value === 'number' && (!Number.isFinite(value) || !Number.isInteger(value)))
+    ) {
       throw new BomImportContractError(`${where}.${field}`, '必须是有限整数或文本');
     }
   }
@@ -193,13 +238,16 @@ const parseImportRecord = (raw: unknown, index: number): ImportRecord => {
   return { kind: importKind, naturalKey: naturalKeyFor(importKind, data), data };
 };
 
-/** 库内已有的自然键集（按层；由主会话用 {@link naturalKeyFor} 构造，保证同口径）。 */
+/** 库内已有的自然键集（按层；由事务门面用 {@link naturalKeyFor} 构造，保证同口径）。 */
 export interface ExistingBomKeySets {
   items: Set<string>;
   revisions: Set<string>;
   headers: Set<string>;
   lines: Set<string>;
+  /** 全部发生项，供位号与工序分摊核对父依赖。 */
   occurrences: Set<string>;
+  /** 消耗边的发生项键；未提供时沿用 occurrences 的既有判环合同。 */
+  consumeOccurrences?: Set<string>;
 }
 
 /** 一条失败诊断：按自然键点名，消息内带 `source_ref`；与输入行序无关。 */
@@ -222,7 +270,9 @@ const KIND_TEXT: Record<ImportKind, string> = {
   header: '头',
   line: '逻辑行',
   occurrence: '发生项',
-  designator: '位号'
+  designator: '位号',
+  substitute_group: '替代组',
+  operation_split: '工序分摊'
 };
 
 /** 结构父层（物料为根，无父）。 */
@@ -232,7 +282,9 @@ const PARENT_KIND: Record<ImportKind, ImportKind | null> = {
   header: 'revision',
   line: 'header',
   occurrence: 'line',
-  designator: 'occurrence'
+  designator: 'occurrence',
+  substitute_group: 'header',
+  operation_split: 'occurrence'
 };
 
 /** 取某层的库内键集（父层不会超过 occurrence）。 */
@@ -249,6 +301,8 @@ const existingSetOf = (existing: ExistingBomKeySets, kind: ImportKind): Set<stri
     case 'occurrence':
       return existing.occurrences;
     case 'designator':
+    case 'substitute_group':
+    case 'operation_split':
       return null;
   }
 };
@@ -289,6 +343,13 @@ const compareText = (a: string, b: string): number =>
   a < b ? -1
   : a > b ? 1
   : 0;
+
+const duplicateIdentity = (record: ImportRecord): string => {
+  if (!['occurrence', 'designator', 'operation_split'].includes(record.kind)) return record.naturalKey;
+  const { parts } = parseNaturalKey(record.naturalKey);
+  const childIndex = KEY_SEGMENT_FIELDS[record.kind].indexOf('childItemNo');
+  return JSON.stringify([record.kind, ...parts.filter((_, index) => index !== childIndex)]);
+};
 
 /** 出边按（目标、属主）排序：DFS 选路与图构造顺序无关（诊断确定性）。 */
 const sortedEdgesOf = (graph: Map<string, GraphEdge[]>, node: string): GraphEdge[] =>
@@ -361,7 +422,7 @@ const findGraphPath = (
  *
  * 确定性口径（US-521 技术笔记「诊断的确定性」）：重复组与依赖失败者不进写入序列，其边不参与
  * 判环（存储层同样写不进去）；父记录在本批但因重复 / 自身依赖失败而不入序列时，本函数不重复
- * 诊断，由主会话 SAVEPOINT 循环按存储层拒绝报出。诊断全部收集后按自然键（再按消息文本）排序
+ * 诊断，由事务门面 SAVEPOINT 循环按存储层拒绝报出。诊断全部收集后按自然键（再按消息文本）排序
  * 输出，与输入行序无关。
  *
  * @param records - 已解析的导入记录（{@link parseImportPayload} 产出）
@@ -382,12 +443,19 @@ export const validateImportRecords = (
   const diagnosed = new Set<ImportRecord>();
 
   // 1. 自然键重复：组内全部失败，不挑赢家（AC#10/#11）
-  for (const [key, group] of byKey) {
+  const byIdentity = new Map<string, ImportRecord[]>();
+  for (const record of records) {
+    const key = duplicateIdentity(record);
+    const group = byIdentity.get(key);
+    if (group === undefined) byIdentity.set(key, [record]);
+    else group.push(record);
+  }
+  for (const group of byIdentity.values()) {
     if (group.length < 2) continue;
     const refs = [...new Set(group.map(refOf))].sort();
     for (const record of group) {
       diagnostics.push({
-        naturalKey: key,
+        naturalKey: record.naturalKey,
         kind: record.kind,
         message: `source_ref ${refOf(record)}：重复自然键（duplicate_key），全部参与者 source_ref：${refs.join('、')}`
       });
@@ -417,7 +485,9 @@ export const validateImportRecords = (
     header: new Set(),
     line: new Set(),
     occurrence: new Set(),
-    designator: new Set()
+    designator: new Set(),
+    substitute_group: new Set(),
+    operation_split: new Set()
   };
   for (const kind of IMPORT_KINDS) {
     for (const record of records) {
@@ -440,15 +510,25 @@ export const validateImportRecords = (
     .sort((a, b) => compareText(a.naturalKey, b.naturalKey));
   const occurrenceItemNoIndex = KEY_SEGMENT_FIELDS.occurrence.indexOf('itemNo');
   const occurrenceChildIndex = KEY_SEGMENT_FIELDS.occurrence.indexOf('childItemNo');
-  const graph = new Map<string, GraphEdge[]>();
-  for (const key of existing.occurrences) {
+  const graphs = new Map<string, Map<string, GraphEdge[]>>();
+  const graphFor = (bomType: string, orgId: string): Map<string, GraphEdge[]> => {
+    const key = JSON.stringify([bomType, orgId]);
+    let graph = graphs.get(key);
+    if (graph === undefined) {
+      graph = new Map();
+      graphs.set(key, graph);
+    }
+    return graph;
+  };
+  for (const key of existing.consumeOccurrences ?? existing.occurrences) {
     const { kind, parts } = parseNaturalKey(key);
     if (kind !== 'occurrence') {
       throw new BomImportContractError('existing.occurrences', `自然键不是发生项键：${key}`);
     }
-    addGraphEdge(graph, parts[occurrenceItemNoIndex], parts[occurrenceChildIndex], null);
+    addGraphEdge(graphFor(parts[2], parts[3]), parts[occurrenceItemNoIndex], parts[occurrenceChildIndex], null);
   }
   for (const record of occurrenceRecords) {
+    const graph = graphFor(String(record.data['bomType']), String(record.data['orgId']));
     const flowDirection = record.data['flowDirection'] ?? 'consume';
     if (flowDirection !== 'consume') continue;
     const parentItemNo = String(record.data['itemNo']);

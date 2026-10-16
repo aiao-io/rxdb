@@ -1,17 +1,18 @@
 /**
  * @fileoverview BOM 导出契约（US-521 导出段）
  *
- * 稳定、可逐字节复现的导出体：六层主数据按固定列序分桶（列序即契约，ERP/MRP 对接
+ * 稳定、可逐字节复现的导出体：主数据与子表按固定列序分桶（列序即契约，ERP/MRP 对接
  * 不靠读源码猜字段），十进制字段按 US-511 十进制值合同以规范十进制串承载。导出只接受
  * 完整结构：展开结果标 `truncated`（US-510）或 `unresolved`（US-508 / US-512 / US-518）
  * 即拒绝（AC#8，与 US-510 AC#11 / US-514 AC#11 同一裁决）。
  *
  * 一次导出的全部读取在同一个快照里完成、`exportedAt` 由调用方给定（本模块不读时钟）——
- * 两次同上下文导出之间无写入时逐字节一致（AC#9）。本模块不接事务/执行面，行批由主会话
+ * 两次同上下文导出之间无写入时逐字节一致（AC#9）。本模块不接事务/执行面，行批由事务门面
  * 的 SELECT（按 {@link EXPORT_TABLE_COLUMNS} 列序）产出后喂入 {@link serializeExportRows}。
  */
 
 import { DECIMAL_CANONICAL_RE } from '../decimal.utils.js';
+import type { OutputLine, PenetrationRecord, RequirementLine } from '../quantity/explosion.js';
 import { BomDecimalFormatError, BomError } from '../types.js';
 import { DECIMAL_FIELDS } from './import-contract.js';
 
@@ -19,11 +20,12 @@ import { DECIMAL_FIELDS } from './import-contract.js';
 export const EXPORT_CONTRACT_VERSION = '1';
 
 /** 导出层（与导入契约的同名层一一对应，见 import-contract.ts）。 */
-export type ExportTable = 'item' | 'revision' | 'header' | 'line' | 'occurrence' | 'designator';
+export type ExportTable =
+  'item' | 'revision' | 'header' | 'line' | 'occurrence' | 'designator' | 'substitute_group' | 'operation_split';
 
 /**
  * 导出体：`version` + 导出时点 + 组织维度（AC#4：`org_id` 在契约里显式）+ resolution
- * manifest（US-508 / AC#9）+ 六层行数组。行是**按 {@link EXPORT_TABLE_COLUMNS} 列序的
+ * manifest（US-508 / AC#9）+ 各层行数组。行是**按 {@link EXPORT_TABLE_COLUMNS} 列序的
  * 位置数组**，十进制字段为规范十进制串。
  */
 export interface BomExportPayload {
@@ -37,9 +39,14 @@ export interface BomExportPayload {
   lines: unknown[];
   occurrences: unknown[];
   designators: unknown[];
+  substituteGroups: unknown[];
+  operationSplits: unknown[];
+  requirementLines: RequirementLine[];
+  outputs: OutputLine[];
+  penetrations: PenetrationRecord[];
 }
 
-/** 一个层的一批行（主会话按同一层合并多次查询结果后分桶喂入）。 */
+/** 一个层的一批行（事务门面按同一层合并多次查询结果后分桶喂入）。 */
 export interface ExportRowBatch {
   table: ExportTable;
   values: unknown[][];
@@ -52,7 +59,7 @@ export interface ExportRowBatch {
  * - `occurrence` 的 `supply_to_vendor`（US-521 AC#3）：只多一个标记、不改展开的路径与
  *   数量，随行进入导出体，采购侧按它筛选即得委外供料清单；
  * - 引用列（如 `routingId`）按 US-521 口径导出：目标库须已有被引用对象，引用不到按依赖
- *   缺失失败（AC#13）；ECN 列、替代组、配置模型等子层首期不经本契约（US-521 范围边界）。
+ *   缺失失败（AC#13）；ECN 列与配置模型首期不经本契约（US-521 范围边界）。
  */
 export const EXPORT_TABLE_COLUMNS: Record<ExportTable, readonly string[]> = {
   item: [
@@ -118,6 +125,8 @@ export const EXPORT_TABLE_COLUMNS: Record<ExportTable, readonly string[]> = {
     'usageProbability',
     'equivQty',
     'operationSeq',
+    'substituteGroupCode',
+    'selectionConditionId',
     'unitFrom',
     'unitTo',
     'lotCodes',
@@ -132,7 +141,24 @@ export const EXPORT_TABLE_COLUMNS: Record<ExportTable, readonly string[]> = {
     'lineNo',
     'effectiveFrom',
     'childItemNo',
+    'unitFrom',
+    'lotCodes',
     'designator'
+  ],
+  substitute_group: ['itemNo', 'revisionNo', 'bomType', 'orgId', 'alternativeNo', 'groupCode', 'strategy', 'allowMix'],
+  operation_split: [
+    'itemNo',
+    'revisionNo',
+    'bomType',
+    'orgId',
+    'alternativeNo',
+    'lineNo',
+    'effectiveFrom',
+    'childItemNo',
+    'unitFrom',
+    'lotCodes',
+    'operationSeq',
+    'ratio'
   ]
 };
 
@@ -168,7 +194,17 @@ export const validateExportReady = (
     problems.push(`展开结果被截断（原因：${expansion.truncated.reason}），截断结构不是完整结构，不得导出`);
   }
   if (unresolved.length > 0) {
-    const named = unresolved.map(item => `${item.lineId}（候选 ${item.candidates.length} 项）`).join('、');
+    const named = unresolved
+      .map(item => {
+        const ids = item.candidates.flatMap(candidate => {
+          if (candidate === null || typeof candidate !== 'object') return [];
+          const row = candidate as Record<string, unknown>;
+          const id = row['occurrenceId'] ?? row['headerId'] ?? row['itemId'];
+          return id == null ? [] : [String(id)];
+        });
+        return `${item.lineId}（候选 ${item.candidates.length} 项）${ids.length > 0 ? `：${ids.join('、')}` : ''}`;
+      })
+      .join('、');
     problems.push(`存在未解析行：${named}，须由调用方裁决后重导`);
   }
   if (problems.length > 0) throw new BomExportRejectedError(problems.join('；'));
@@ -190,14 +226,19 @@ const normalizeCell = (value: unknown): unknown => (value instanceof Date ? valu
 /** 载荷分桶字段名。 */
 const BUCKET_OF: Record<
   ExportTable,
-  keyof Pick<BomExportPayload, 'items' | 'revisions' | 'headers' | 'lines' | 'occurrences' | 'designators'>
+  keyof Pick<
+    BomExportPayload,
+    'items' | 'revisions' | 'headers' | 'lines' | 'occurrences' | 'designators' | 'substituteGroups' | 'operationSplits'
+  >
 > = {
   item: 'items',
   revision: 'revisions',
   header: 'headers',
   line: 'lines',
   occurrence: 'occurrences',
-  designator: 'designators'
+  designator: 'designators',
+  substitute_group: 'substituteGroups',
+  operation_split: 'operationSplits'
 };
 
 /** 某层十进制列的列下标（契约列序 ∩ {@link DECIMAL_FIELDS}）。 */
@@ -241,7 +282,12 @@ export const serializeExportRows = (rows: ExportRowBatch[], meta: ExportSerializ
     headers: [],
     lines: [],
     occurrences: [],
-    designators: []
+    designators: [],
+    substituteGroups: [],
+    operationSplits: [],
+    requirementLines: [],
+    outputs: [],
+    penetrations: []
   };
   for (const batch of rows) {
     const columns = EXPORT_TABLE_COLUMNS[batch.table];

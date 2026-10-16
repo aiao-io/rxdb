@@ -37,10 +37,10 @@
 
 ### D4. 扩展属性（US-519）
 
-- `ext` 列：`bom_item` / `bom_header` / `bom_line_occurrence` 各加一列（SQLite TEXT、PGlite jsonb）；JSON 文本由入口序列化/解析（无 json 列引擎面）。
+- `ext` 列：`bom_item` / `bom_header` / `bom_line_occurrence` 各加一列（SQLite/PGlite 均为 JSON 文本）；入口序列化/解析，PGlite 查询显式转 jsonb（无 JSON 专用属性类型的引擎面）。
 - `BomAttrDef` 实体：`(code, appliesTo)` 唯一（同一 code 可跨作用域，AC#6）+ `dataType` / `required` / `enumValues` / `unit`。
 - 写入期校验在 TS 层（BomRepository 的 create/update 面）：非法枚举值、作用域越界、必填缺失（新写入与完整更新）都拒绝并点名。
-- 查询面 `filterByAttr(table, defs, filters)`：按 `attr_def.data_type` 比较；缺字段与 null 等价；`exists` 对二者为假；其余比较对缺字段不匹配（含 `ne`）；类型不符拒绝。SQLite 用 JSON 函数（json_extract）、PGlite 用 jsonb 操作符——同一过滤同一结果（conformance 用例）。
+- 查询面 `filterByAttr(adapter, scope, filters)`（自动读取 `attr_def`）：按 `attr_def.data_type` 比较；缺字段与 null 等价；`exists` 对二者为假；其余比较对缺字段不匹配（含 `ne`）；类型不符拒绝。SQLite 用 JSON 函数（json_extract）、PGlite 用 jsonb 操作符——同一过滤同一结果（conformance 用例）。
 
 ### D5. 导出导入契约（US-521）
 
@@ -50,7 +50,7 @@
 
 ### D6. demo 阶段 E（US-525 AC#17~#20）
 
-- 种子 E 层：B-01 的 `attr_def`（rohs 必填枚举）+ B-01 的 `ext` 演示；SC-100 某行挂旧/新件序列区间（136/137）；特征「颜色」红/蓝 + 条件「颜色=红」行 + 互斥约束；导出导入演示复用现有树。
+- 种子 E 层：B-01 的 `attr_def`（rohs 必填枚举）+ B-01 的 `ext` 演示；SC-100 经 ECN-2026-017 在 2026-10-16 接入 UNIT-DEMO 子装配（同一逻辑行旧/新件序列区间 136/137）、CONFIG-DEMO 配置子装配与 B-01；特征「颜色」红/蓝 + 条件「颜色=红」行 + 互斥约束；导出导入演示复用现有树。
 - 页面四块：扩展属性面板（写值/过滤）、序列批次展开（`unit` 输入）、配置选择面板（选择/冲突/缺参）、导出导入面板（导出下载 + 导入文件 + 诊断列表）。
 - e2e 第 18~21 条对应 AC#17~#20。
 
@@ -63,4 +63,28 @@
 
 ## 任务分解（tasks.md 概要）
 
-T001 文档；T002 配置四实体 + 条件解析器（红→绿）；T003 解析过滤与 manifest（US-517 消费面）；T004 序列/批次列 + CHECK + 三维重叠触发器；T005 ResolutionContext 扩展与 unresolved 候选；T006 attr_def + ext 三列 + 写入校验；T007 过滤查询双后端一致；T008 导出契约；T009 批量导入（原子 + 诊断）；T010 导入子表与发布；T011 种子 E 层 + golden E；T012 demo 面板 + e2e；T013-T015 门禁/回写/提交。
+T001-T003 文档、共享实体与触发器打底；T004-T008 六页应用与配置、有效性、属性、导入导出并行实现；T009-T012 集成、整机 E 层种子与 21 条 e2e；T013-T016 门禁、故事回写与提交；T017-T020 收敛审计发现的解析、仓储、导入导出及消费面缺口。
+
+## Constitution Check 与验证方法
+
+- 质量：strict 编译、ESLint 零警告、公共导出 TSDoc；领域约束用单一保存/解析校验入口。
+- 测试：新增双后端真实写入与解析回归先红，再补实现；完整插件覆盖率四项 ≥ 80%；演示 21 条端到端用例。
+- 体验：演示按 US-525 为单端 Angular；US-522 三框架绑定独立排期。六页及新增面板具备加载、空、错误状态与有标签的原生输入。
+- 性能：在本地 Chromium 记录首屏；Node/PGlite 在连接并预热后测量解析/展开/导出/单条保存与千行导入耗时。单查询 < 16ms、单记录操作 < 100ms；千行导入按批量事务单独报告耗时；依赖构建日志记录包 gzip 体积。测量结果写入 quickstart，超预算明确记录原因。
+
+## 本轮红阶段记录（2026-10-16）
+
+新增 SQLite/PGlite 真实回归已失败：单层解析未消费配置/序列，序列反向区间未拒绝，属性保存校验未触发，领域导入导出模块不存在；E 种子旧件/新件使用同一物料。后续实现复用这些失败回归验证。
+
+## 收口实现决策
+
+- 扩展属性的物理列沿用 RxDB 当前字符串属性映射：两端均保存 JSON 文本，PGlite 查询显式转换为 `jsonb` 后比较；`filterByAttr` 根据元数据确定类型。此处实现 jsonb 查询语义，不为 BOM 改动整个存储引擎的属性类型映射。
+- 后端 DDL 在插件连接阶段动态加载，公共 API 与 `connect()` 的完成语义保持不变。包体积区分入口静态依赖与连接后累计下载，不能只报主文件或把分块当成减少总字节。
+- 导入拒绝 ECN/history 旁路及对已发布头的成员写入；PGlite 在事务开始将外键检查改为 immediate，确保保存点能收集每一行的失败。
+- 导出已选替代组时同时保留当前有效的所有候选与主件，需求数组仍使用调用方选择后的数量结果；导入诊断将本批随机 ID 替换为稳定自然键与源标识。
+
+## 门禁必要修复
+
+全量 e2e 暴露 React QueryBuilder 在 StrictMode 清理并重建服务后跳过同引用 initialQuery 的缺陷：列表仍标记筛选，重开的面板却没有条件。沿用 `apps/dev-rxdb-react-e2e/src/entity-model.spec.ts`「筛选弹层按条件重查，重置后恢复全量」作为既有失败回归，清理服务时同步清除初值引用标记，不改变 API。复验该回归、模型包测试与整个 React e2e 套件。
+
+网站首页生产 SSR 暴露 `code-editor-react` 构建产物错误包含开发版 `jsxDEV`：Nx 在进程内推断 Vite 配置时留下 `NODE_ENV=development`，后续构建继承后生成开发调用，生产 React 中该函数不可用。库配置在 `command === 'build'` 时显式选择生产 JSX；沿用原失败的 `website:site-build` 和完整 `website:build` 回归，不覆盖调用环境、不绕过缓存或 SSG。

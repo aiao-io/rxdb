@@ -83,7 +83,7 @@ export const unitIntervalMatches = (
   unit: number | undefined
 ): boolean => {
   if (unit === undefined) return true;
-  if (unitFrom !== null && unit < unitFrom) return false;
+  if (unit < (unitFrom ?? 1)) return false;
   if (unitTo !== null && unit > unitTo) return false;
   return true;
 };
@@ -95,6 +95,7 @@ export const unitIntervalMatches = (
  * @param lot - 查询批次；未给 = 全部批次（恒真）
  */
 export const lotMatches = (lotCodes: string[] | null, lot: string | undefined): boolean => {
+  if (lotCodes?.length === 0) return false;
   if (lot === undefined) return true;
   if (lotCodes === null) return true;
   return lotCodes.includes(lot);
@@ -118,6 +119,7 @@ export const unitIntervalOverlaps = (a: [number | null, number | null], b: [numb
  * 两个批次集合是否相交（NULL = 全部批次，与任何集合相交）。
  */
 export const lotSetsOverlap = (a: string[] | null, b: string[] | null): boolean => {
+  if (a?.length === 0 || b?.length === 0) return false;
   if (a === null || b === null) return true;
   return a.some(code => b.includes(code));
 };

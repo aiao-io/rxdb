@@ -79,6 +79,8 @@ export interface HistoryOccurrenceInput {
   uomConversion?: string | null;
   phantomOverride?: boolean | null;
   designatorManaged?: boolean;
+  /** 委外供料标记（US-521）。 */
+  supplyToVendor?: boolean;
   /** 位号清单（US-507 阶段 C：随发生项 draft 装载，发布转移校验位号数 = qty）。 */
   designators?: HistoryDesignatorInput[];
   /** 确定性装载的显式 id（US-525 种子）。 */
@@ -305,6 +307,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
           occurrence.uomConversion = occurrenceInput.uomConversion ?? null;
           occurrence.phantomOverride = occurrenceInput.phantomOverride ?? null;
           occurrence.designatorManaged = occurrenceInput.designatorManaged ?? false;
+          occurrence.supplyToVendor = occurrenceInput.supplyToVendor ?? false;
           occurrence.flowDirection = occurrenceInput.flowDirection ?? 'consume';
           occurrence.operationSeq = occurrenceInput.operationSeq ?? null;
           occurrence.unitFrom = occurrenceInput.unitFrom ?? null;

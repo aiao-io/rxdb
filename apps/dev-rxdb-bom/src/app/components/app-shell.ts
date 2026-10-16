@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, effect, inject, OnInit, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { BomDemoService } from '../bom-demo.service';
 
@@ -57,6 +57,9 @@ interface NavItem {
           </div>
         </header>
         <main class="content">
+          @if (connectionError()) {
+            <div class="error-box connection-error" role="alert">{{ connectionError() }}。可重置数据库后重试。</div>
+          }
           <router-outlet />
         </main>
       </div>
@@ -223,6 +226,52 @@ interface NavItem {
         overflow-y: auto;
         background: var(--color-bg);
       }
+
+      .connection-error {
+        margin: var(--space-4);
+      }
+
+      @media (max-width: 760px) {
+        .shell {
+          flex-direction: column;
+        }
+        .sidebar {
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--color-border);
+        }
+        .brand {
+          display: none;
+        }
+        .nav {
+          flex-direction: row;
+          gap: var(--space-2);
+          padding: var(--space-2);
+          overflow-x: auto;
+        }
+        .nav-section {
+          flex-direction: row;
+        }
+        .nav-section-title {
+          display: none;
+        }
+        .nav-item {
+          white-space: nowrap;
+        }
+        .workspace {
+          min-height: 0;
+        }
+        .header {
+          height: auto;
+          min-height: 56px;
+          padding: var(--space-2) var(--space-3);
+          flex-wrap: wrap;
+          gap: var(--space-2);
+        }
+        .header-sub {
+          display: none;
+        }
+      }
     `
   ]
 })
@@ -232,6 +281,7 @@ export class AppShell implements OnInit {
   readonly ready = this.service.ready;
   readonly itemCount = this.service.itemCount;
   readonly resetting = signal(false);
+  readonly connectionError = signal('');
 
   /** 侧边栏分区导航：核心（概览/展开）+ 场景（时间轴/双图映射/成本卷算/反查）。 */
   readonly sections: { label: string; items: NavItem[] }[] = [
@@ -253,17 +303,26 @@ export class AppShell implements OnInit {
     }
   ];
 
+  constructor() {
+    effect(() => {
+      if (this.ready()) this.connectionError.set('');
+    });
+  }
+
   ngOnInit(): void {
     // 壳统一连接既有库（页面重载路径：插件触发器幂等安装，种子行原样可用）
-    void this.service.connectExisting().catch(() => undefined);
+    void this.service.connectExisting().catch(error => this.connectionError.set(String(error)));
   }
 
   /** 顶栏重置：清库重装种子后整页重载，让各页本地信号回到初始态（服务信号已由 hydrate 刷新）。 */
   async resetAll(): Promise<void> {
     this.resetting.set(true);
+    this.connectionError.set('');
     try {
       await this.service.resetAndSeed();
       window.location.reload();
+    } catch (error) {
+      this.connectionError.set(String(error));
     } finally {
       this.resetting.set(false);
     }

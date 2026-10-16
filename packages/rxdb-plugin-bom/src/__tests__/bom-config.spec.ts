@@ -8,6 +8,9 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { BomConfigChar, BomConfigCharValue, BomConfigCondition, BomConfigConstraint, BomItem } from '../entities.js';
+import { rollupCost } from '../quantity/cost.js';
+import { explodeBom } from '../quantity/explosion.js';
 import {
   BomConfigError,
   BomConfigSyntaxError,
@@ -22,6 +25,10 @@ import {
   validateConditionReferences,
   type ConfigConstraintInput
 } from '../resolve/config-validate.js';
+import { expandBom, whereUsed } from '../resolve/expansion.js';
+import { loadHistory } from '../resolve/history-loader.js';
+import { resolveBom } from '../resolve/resolver.js';
+import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 /** 捕获函数抛出的错误（「应当抛出」断言）。 */
 const caught = (action: () => unknown): Error => {
@@ -131,6 +138,7 @@ describe('可配置销售 BOM 纯函数（US-517）', () => {
       expect(evaluateCondition(ast, { 颜色: ['蓝'] })).toBe(false);
       expect(evaluateCondition(ast, {})).toBe(false);
       expect(evaluateCondition(ast, { 颜色: [] })).toBe(false);
+      expect(evaluateCondition(parseCondition('constructor = 红').ast, {})).toBe(false);
     });
 
     it('!= 要求选中集合不含该值（未选中的特征也算不含）', () => {
@@ -202,6 +210,15 @@ describe('可配置销售 BOM 纯函数（US-517）', () => {
       );
     });
 
+    it('值必须归属于当前特征，其他特征已知的同名值不能冒用', () => {
+      const values = new Map([
+        ['颜色', new Set(['红', '蓝'])],
+        ['尺寸', new Set(['大', '小'])]
+      ]);
+      expect(() => validateConditionReferences('颜色 = 大', knownChars, values)).toThrow(/未知值「大」/);
+      expect(() => validateConditionReferences('颜色 = 红', knownChars, values)).not.toThrow();
+    });
+
     it('多个未知标识一次性点名', () => {
       expect(() => validateConditionReferences('温度 = 绿', knownChars, knownValues)).toThrow(
         /未知特征「温度」（第 1 行第 1 列）；未知值「绿」（第 1 行第 6 列）/
@@ -222,6 +239,7 @@ describe('可配置销售 BOM 纯函数（US-517）', () => {
       expect(checkConfigCompleteness({ 颜色: ['红'] }, ['颜色'])).toEqual([]);
       expect(checkConfigCompleteness({ 颜色: ['红'] }, ['颜色', '尺寸'])).toEqual(['尺寸']);
       expect(checkConfigCompleteness({}, [])).toEqual([]);
+      expect(checkConfigCompleteness({}, ['constructor'])).toEqual(['constructor']);
     });
 
     it('顺序随必选清单，重复 code 只报告一次', () => {
@@ -237,7 +255,7 @@ describe('可配置销售 BOM 纯函数（US-517）', () => {
 
     it('exclude 互斥：两侧同时满足即冲突', () => {
       expect(checkConfigConflicts([exclude], { 颜色: ['红'], 尺寸: ['大'] })).toEqual([
-        '约束「红大互斥」：左/右条件同时满足'
+        '约束「红大互斥」：左/右条件同时满足（颜色 = 红；尺寸 = 大）'
       ]);
       expect(checkConfigConflicts([exclude], { 颜色: ['红'], 尺寸: ['小'] })).toEqual([]);
       expect(checkConfigConflicts([exclude], { 颜色: ['蓝'], 尺寸: ['大'] })).toEqual([]);
@@ -246,7 +264,7 @@ describe('可配置销售 BOM 纯函数（US-517）', () => {
 
     it('require 蕴含：左满足而右不满足即冲突', () => {
       expect(checkConfigConflicts([require], { 颜色: ['红'], 尺寸: ['小'] })).toEqual([
-        '约束「红必大」：左条件满足而右条件不满足'
+        '约束「红必大」：左条件满足而右条件不满足（颜色 = 红；尺寸 = 大）'
       ]);
       expect(checkConfigConflicts([require], { 颜色: ['红'], 尺寸: ['大'] })).toEqual([]);
       expect(checkConfigConflicts([require], { 颜色: ['蓝'], 尺寸: ['小'] })).toEqual([]);
@@ -261,8 +279,8 @@ describe('可配置销售 BOM 纯函数（US-517）', () => {
         rightAst: parseCondition('电池 in (10Ah, 15Ah)').ast
       };
       expect(checkConfigConflicts([exclude, another], { 颜色: ['红'], 尺寸: ['大'], 电池: ['10Ah'] })).toEqual([
-        '约束「红大互斥」：左/右条件同时满足',
-        '约束「电池禁红」：左/右条件同时满足'
+        '约束「红大互斥」：左/右条件同时满足（颜色 = 红；尺寸 = 大）',
+        '约束「电池禁红」：左/右条件同时满足（颜色 = 红；电池 in (10Ah, 15Ah)）'
       ]);
     });
   });
@@ -281,3 +299,149 @@ describe('可配置销售 BOM 纯函数（US-517）', () => {
     });
   });
 });
+
+const configFixture = async (adapter: BomTestAdapter) => {
+  const orgId = "org-config-'quoted";
+  const parent = new BomItem();
+  parent.itemNo = 'config-parent';
+  await parent.save();
+  const child = new BomItem();
+  child.itemNo = 'config-child';
+  child.unitPrice = '2';
+  child.priceUom = 'pcs';
+  child.priceCurrency = 'CNY';
+  await child.save();
+  const char = new BomConfigChar();
+  char.orgId = orgId;
+  char.code = '颜色';
+  char.required = true;
+  await char.save();
+  for (const text of ['红', '蓝']) {
+    const value = new BomConfigCharValue();
+    value.charId = char.id;
+    value.value = text;
+    await value.save();
+  }
+  const conditions: BomConfigCondition[] = [];
+  for (const text of ['红', '蓝']) {
+    const condition = new BomConfigCondition();
+    condition.orgId = orgId;
+    condition.expression = `颜色 = ${text}`;
+    condition.grammarVersion = '1';
+    await condition.save();
+    conditions.push(condition);
+  }
+  const constraint = new BomConfigConstraint();
+  constraint.orgId = orgId;
+  constraint.code = '红蓝互斥';
+  constraint.kind = 'exclude';
+  constraint.leftConditionId = conditions[0].id;
+  constraint.rightConditionId = conditions[1].id;
+  await constraint.save();
+  const asOfDate = new Date('2026-06-01T00:00:00.000Z');
+  await loadHistory(adapter, {
+    batchNo: 'config-fixture',
+    revisions: [{ itemId: parent.id, revisionNo: 'A', effectiveFrom: asOfDate }],
+    headers: [
+      {
+        revisionIndex: 0,
+        bomType: 'sales',
+        orgId,
+        costLotQty: '1',
+        lines: [
+          {
+            lineNo: 10,
+            occurrences: [
+              { childItemId: child.id, qty: '1', effectiveFrom: asOfDate, selectionConditionId: conditions[0].id }
+            ]
+          }
+        ]
+      }
+    ]
+  });
+  return { parent, child, conditions, context: { bomType: 'sales' as const, orgId, asOfDate } };
+};
+
+for (const backend of ['wa-sqlite', 'pglite'] as const satisfies readonly BomTestBackend[]) {
+  describe(`配置解析集成 [${backend}]`, () => {
+    it('AC#1/#4/#7：同图按配置过滤，单层、多层、反查同口径且 manifest 可重现', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const { parent, child, context } = await configFixture(adapter);
+        const target = { parentItemId: parent.id };
+        const red = { ...context, configSelection: { 颜色: ['红'] } };
+        const blue = { ...context, configSelection: { 颜色: ['蓝'] } };
+        const resolved = await resolveBom(adapter, red, target);
+        expect(resolved.occurrences.map(row => row.childItemId)).toEqual([child.id]);
+        expect(await resolveBom(adapter, red, target)).toEqual(resolved);
+        expect(resolved.manifest.context.configSelection).toEqual({ 颜色: ['红'] });
+        expect((await resolveBom(adapter, blue, target)).occurrences).toEqual([]);
+        expect(
+          (await rollupCost(adapter, { ...red, currency: 'CNY', rateDate: red.asOfDate }, target)).root.unitCost
+        ).toBe('2');
+        expect(
+          (await rollupCost(adapter, { ...blue, currency: 'CNY', rateDate: blue.asOfDate }, target)).root.unitCost
+        ).toBe('0');
+        expect((await expandBom(adapter, blue, target)).nodes.map(row => row.itemId)).toEqual([parent.id]);
+        expect((await whereUsed(adapter, blue, { childItemId: child.id })).nodes).toEqual([]);
+        expect(
+          (await explodeBom(adapter, blue, target, { plannedQty: { value: '1', uom: 'pcs' } })).requirementLines
+        ).toEqual([]);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+
+    it('AC#6：红色正向与蓝色反向仍按并集环拒绝', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const { parent, child, conditions, context } = await configFixture(adapter);
+        await expect(
+          loadHistory(adapter, {
+            batchNo: 'config-reverse-cycle',
+            revisions: [{ itemId: child.id, revisionNo: 'A', effectiveFrom: context.asOfDate }],
+            headers: [
+              {
+                revisionIndex: 0,
+                bomType: 'sales',
+                orgId: context.orgId,
+                lines: [
+                  {
+                    lineNo: 10,
+                    occurrences: [
+                      {
+                        childItemId: parent.id,
+                        qty: '1',
+                        effectiveFrom: context.asOfDate,
+                        selectionConditionId: conditions[1].id
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          })
+        ).rejects.toThrow(/环|cycle/i);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+
+    it('AC#2/#3：配置缺失与互斥冲突在所有解析入口拒绝，点名两侧条件', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const { parent, context } = await configFixture(adapter);
+        const target = { parentItemId: parent.id };
+        await expect(resolveBom(adapter, context, target)).rejects.toThrow(/配置不完整.*颜色/);
+        const conflict = { ...context, configSelection: { 颜色: ['红', '蓝'] } };
+        await expect(resolveBom(adapter, conflict, target)).rejects.toThrow(/红蓝互斥.*颜色.*红.*颜色.*蓝/);
+        await expect(expandBom(adapter, conflict, target)).rejects.toThrow(/红蓝互斥/);
+        await expect(explodeBom(adapter, conflict, target, { plannedQty: { value: '1', uom: 'pcs' } })).rejects.toThrow(
+          /红蓝互斥/
+        );
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+  });
+}

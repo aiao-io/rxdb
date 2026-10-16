@@ -28,31 +28,24 @@ import {
 } from '../types.js';
 
 describe('resolveBomBackend（AC#6）', () => {
-  it('http / supabase 显式 fail-fast：能力缺席不静默降级', () => {
+  it('http / supabase 显式 fail-fast：能力缺席不静默降级', async () => {
     for (const name of ['http', 'supabase'] as const) {
-      let caught: unknown;
-      try {
-        resolveBomBackend(name);
-      } catch (error) {
-        caught = error;
-      }
-      expect(caught).toBeInstanceOf(BomBackendCapabilityError);
-      expect(String((caught as BomBackendCapabilityError).message)).toContain('无写入期环约束');
-      // 降级路径可达：错误里点名 DDL 导出入口
-      expect(String((caught as BomBackendCapabilityError).message)).toContain('cycleConstraintDdlForRemotePg');
+      await expect(resolveBomBackend(name)).rejects.toBeInstanceOf(BomBackendCapabilityError);
+      await expect(resolveBomBackend(name)).rejects.toThrow('无写入期环约束');
+      await expect(resolveBomBackend(name)).rejects.toThrow('cycleConstraintDdlForRemotePg');
     }
   });
 
-  it('不认识的适配器同样显式拒绝，不落到默认 DDL', () => {
-    expect(() => resolveBomBackend('memory')).toThrow(BomBackendCapabilityError);
-    expect(() => resolveBomBackend(undefined)).toThrow(BomBackendCapabilityError);
+  it('不认识的适配器同样显式拒绝，不落到默认 DDL', async () => {
+    await expect(resolveBomBackend('memory')).rejects.toBeInstanceOf(BomBackendCapabilityError);
+    await expect(resolveBomBackend(undefined)).rejects.toBeInstanceOf(BomBackendCapabilityError);
   });
 
-  it('SQLite 家族与 pglite 返回各自触发器构造器', () => {
+  it('SQLite 家族与 pglite 返回各自触发器构造器', async () => {
     for (const name of ['wa-sqlite', 'sqlite', 'sqlite-wasm', 'sqliteai', 'sqlite-tauri', 'sqlite-electron']) {
-      expect(resolveBomBackend(name)).toBe(buildSqliteBomTriggerDdl);
+      expect(await resolveBomBackend(name)).toBe(buildSqliteBomTriggerDdl);
     }
-    expect(resolveBomBackend('pglite')).toBe(buildPgBomTriggerDdl);
+    expect(await resolveBomBackend('pglite')).toBe(buildPgBomTriggerDdl);
   });
 
   it('构造器对发生项元数据产出非空 DDL（判环触发器在列）', () => {

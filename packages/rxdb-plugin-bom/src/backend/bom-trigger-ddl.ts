@@ -14,7 +14,10 @@
  */
 
 import { EntityMetadata, getEntityColumnName, quoteSqlIdentifier } from '@aiao/rxdb';
+import { BOM_CYCLE_DEPTH_LIMIT } from './constants.js';
 import { buildUnitLotOverlapGuardPg, buildUnitLotOverlapGuardSqlite } from './unit-lot-trigger-ddl.js';
+
+export { BOM_CYCLE_DEPTH_LIMIT } from './constants.js';
 
 /** SQLite 物理表名：`namespace$tableName`（与 sqlite-core 的表名约定一致）。 */
 const sqliteTableRef = (metadata: EntityMetadata): string =>
@@ -34,12 +37,6 @@ const PUBLISH_VALIDATION = (subject: string, detail: string): string =>
   `rxdb:bom_publish_validation:${subject}:${detail}`;
 const DECIMAL_FORMAT = (field: string, detail?: string): string =>
   `rxdb:bom_decimal_format:${field}${detail ? `:${detail}` : ''}`;
-
-/**
- * 判环递归 CTE 的深度硬上限（US-509 AC#3）：无闭包表时的兜底。触上限即报错，
- * 不静默通过——脏数据（超深链）与真环都无法在受限深度内判定时，拒绝是唯一诚实的结果。
- */
-export const BOM_CYCLE_DEPTH_LIMIT = 128;
 
 /** 环错误消息前缀（US-509「环错误码」：归一为 BomCycleError，携带路径）。 */
 const CYCLE = (path: string): string => `rxdb:bom_cycle:${path}`;
@@ -337,6 +334,12 @@ const SQLITE_OCCURRENCE_PROTOCOL_COLUMNS = [
   'usageProbability',
   'equivQty',
   'operationSeq',
+  'supplyToVendor',
+  'unitFrom',
+  'unitTo',
+  'lotCodes',
+  'selectionConditionId',
+  'ext',
   'ecnInId'
 ] as const;
 
@@ -1675,6 +1678,12 @@ const PG_OCCURRENCE_PROTOCOL_COLUMNS = [
   'usageProbability',
   'equivQty',
   'operationSeq',
+  'supplyToVendor',
+  'unitFrom',
+  'unitTo',
+  'lotCodes',
+  'selectionConditionId',
+  'ext',
   'ecnInId'
 ] as const;
 

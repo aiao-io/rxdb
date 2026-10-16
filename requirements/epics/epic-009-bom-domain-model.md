@@ -158,6 +158,8 @@ owner 于 2026-10-12 决定解锁，**驱动者 = 需要一个完整功能的 BO
 > [US-516](../stories/domain/US-516-ebom-mbom-mapping.md)、
 > [US-524](../stories/domain/US-524-routing-master-model.md)、
 > [US-525](../stories/domain/US-525-bom-end-to-end-demo.md)。
+> **截至 2026-10-16：第 8 步已交付**（US-517 / US-518 / US-521 全部 AC、US-519 AC#1/#2/#4/#5/#6、US-525 阶段 E）：配置与三维有效性统一解析、元数据属性校验、同快照导出及整批原子草稿导入、六页演示应用与 21 条 e2e；插件 554 条双后端回归通过。阶段 F / US-523 与 US-522 三框架绑定留在后续，US-519 AC#3/#7 仍等 US-030 阶段 D。
+>
 > 第 1～4 步合起来就是最小可演示闭环：建 BOM → 按视图解析 → 多级展开 → where-used 反查 → 拒绝成环 → 数量与手算一致。
 > 这个闭环的**验收手段**是 [US-525](../stories/domain/US-525-bom-end-to-end-demo.md) 阶段 A：
 > 各故事的 AC 都是单点断言，而组合错误（乘序、二次过滤、穿透后继承）只在一份贯穿的数据集上显形。

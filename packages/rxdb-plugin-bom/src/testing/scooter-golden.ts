@@ -237,11 +237,19 @@ export const SCOOTER_GOLDEN_D: {
 };
 
 /**
- * SC-100 阶段 E 的 golden（US-525 AC#17~#19）：序列有效性（UNIT-DEMO 同一逻辑行
- * 136/137 两段）与配置选择（CONFIG-DEMO 行挂「颜色 = 红」条件）手写。
+ * SC-100 阶段 E 的 golden（US-525 AC#17~#19）：ECN-2026-017 从 2026-10-16 起
+ * 追加序列组件、配置组件与 B-01。四个新增外购叶子均为 1 CNY/pcs；红配置在阶段 D
+ * 成本上加 3，蓝配置加 2，序列旧新件等价。独立演示头与整机共用同一份结构。
  */
 export const SCOOTER_GOLDEN_E: {
   context: { bomType: 'ebom'; orgId: 'org-x'; asOfDate: string };
+  assembly: {
+    rootKey: string;
+    rootLines: { lineNo: number; itemKey: string }[];
+    redUnitCost: string;
+    blueUnitCost: string;
+    counts: { items: number; occurrences: number; ecns: number; batches: number };
+  };
   unitDemo: { rootKey: string; unit136: { items: string[]; qty: string }; unit137: { items: string[]; qty: string } };
   configDemo: {
     rootKey: string;
@@ -251,12 +259,23 @@ export const SCOOTER_GOLDEN_E: {
     conflictError: RegExp;
   };
 } = {
-  context: { bomType: 'ebom', orgId: 'org-x', asOfDate: '2026-10-15' },
+  context: { bomType: 'ebom', orgId: 'org-x', asOfDate: '2026-10-16' },
+  assembly: {
+    rootKey: 'SC-100',
+    rootLines: [
+      { lineNo: 80, itemKey: 'UNIT-DEMO' },
+      { lineNo: 90, itemKey: 'CONFIG-DEMO' },
+      { lineNo: 100, itemKey: 'B-01' }
+    ],
+    redUnitCost: '42.12040816326530612244897959183674',
+    blueUnitCost: '41.12040816326530612244897959183674',
+    counts: { items: 41, occurrences: 42, ecns: 4, batches: 4 }
+  },
   unitDemo: {
     rootKey: 'UNIT-DEMO',
     // 旧段（unit ≤ 136）与新段（unit ≥ 137）各入选一行；两段不同发生项
-    unit136: { items: ['UNIT-PART'], qty: '1' },
-    unit137: { items: ['UNIT-PART'], qty: '1' }
+    unit136: { items: ['UNIT-PART-OLD'], qty: '1' },
+    unit137: { items: ['UNIT-PART-NEW'], qty: '1' }
   },
   configDemo: {
     rootKey: 'CONFIG-DEMO',

@@ -7,14 +7,18 @@
  */
 
 import { describe, expect, it } from 'vitest';
+import { BomAttrDef, BomItem } from '../entities.js';
+import { bomSqlDialectFor } from '../resolve/bom-sql.js';
 import {
   BomExtAttrError,
   buildExtFilterSql,
+  filterByAttr,
   normalizeExtValue,
   validateExtWrite,
   type ExtAttrDefShape,
   type ExtFilter
 } from '../resolve/ext-attr.js';
+import { createBomTestAdapter, disposeBomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 /** 构造一条 attr_def 声明（appliesTo 默认 item）。 */
 const attrDef = (code: string, dataType: string, overrides: Partial<ExtAttrDefShape> = {}): ExtAttrDefShape => ({
@@ -141,12 +145,12 @@ describe('buildExtFilterSql', () => {
     expect(sqlite).toContain(`json_extract("ext", '$.rohs') = 'yes'`);
     expect(sqlite).toContain(`json_extract("ext", '$.leadDays') >= 3`);
     expect(sqlite).toContain(`json_extract("ext", '$.active') = TRUE`);
-    expect(sqlite).toContain(`json_extract("ext", '$.validFrom') < '2026-06-01'`);
+    expect(sqlite).toContain(`julianday(json_extract("ext", '$.validFrom')) < julianday('2026-06-01')`);
     const pglite = buildExtFilterSql('pglite', '', FILTERS).sql;
-    expect(pglite).toContain(`"ext"->>'rohs' = 'yes'`);
-    expect(pglite).toContain(`("ext"->'leadDays')::numeric >= 3`);
-    expect(pglite).toContain(`("ext"->'active')::boolean = TRUE`);
-    expect(pglite).toContain(`"ext"->>'validFrom' < '2026-06-01'`);
+    expect(pglite).toContain(`("ext")::jsonb->>'rohs' = 'yes'`);
+    expect(pglite).toContain(`(NULLIF(("ext")::jsonb->'leadDays', 'null'::jsonb))::numeric >= 3`);
+    expect(pglite).toContain(`(NULLIF(("ext")::jsonb->'active', 'null'::jsonb))::boolean = TRUE`);
+    expect(pglite).toContain(`(("ext")::jsonb->>'validFrom')::timestamptz < '2026-06-01'`);
   });
 
   it('缺字段 / null 语义：ne 对二者均不匹配（IS NOT NULL AND 形态，含 ne 的契约）', () => {
@@ -157,7 +161,9 @@ describe('buildExtFilterSql', () => {
     const pglite = buildExtFilterSql('pglite', '', [
       { code: 'active', op: 'ne', value: false, dataType: 'boolean' }
     ]).sql;
-    expect(pglite).toContain(`("ext"->'active')::boolean IS NOT NULL AND ("ext"->'active')::boolean <> FALSE`);
+    expect(pglite).toContain(
+      `(NULLIF(("ext")::jsonb->'active', 'null'::jsonb))::boolean IS NOT NULL AND (NULLIF(("ext")::jsonb->'active', 'null'::jsonb))::boolean <> FALSE`
+    );
   });
 
   it('exists 对缺字段与 null 均为假（IS NOT NULL 形态）', () => {
@@ -165,7 +171,7 @@ describe('buildExtFilterSql', () => {
       `json_extract("ext", '$.rohs') IS NOT NULL`
     );
     expect(buildExtFilterSql('pglite', '', [{ code: 'rohs', op: 'exists', dataType: 'string' }]).sql).toContain(
-      `"ext"->>'rohs' IS NOT NULL`
+      `("ext")::jsonb->>'rohs' IS NOT NULL`
     );
   });
 
@@ -221,3 +227,83 @@ describe('buildExtFilterSql', () => {
     expect(sql).toContain(`json_extract("ext", '$.active') IS NOT NULL`);
   });
 });
+
+for (const backend of ['wa-sqlite', 'pglite'] satisfies BomTestBackend[]) {
+  describe(`US-519 写入与查询 [${backend}]`, () => {
+    it('AC#1/#5：真实写入拒绝非法枚举与缺必填，读取和局部更新既有数据仍允许', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        const legacy = new BomItem();
+        legacy.itemNo = 'legacy';
+        await legacy.save();
+        const def = new BomAttrDef();
+        def.code = 'rohs';
+        def.dataType = 'string';
+        def.appliesTo = 'item';
+        def.enumValues = '["yes","no"]';
+        def.required = true;
+        await def.save();
+        const invalid = new BomItem();
+        invalid.itemNo = 'invalid';
+        invalid.ext = '{"rohs":"maybe"}';
+        await expect(invalid.save()).rejects.toThrow(/rohs.*yes.*no/);
+        invalid.ext = null;
+        await expect(invalid.save()).rejects.toThrow(/rohs/);
+        legacy.description = '更新描述';
+        await expect(legacy.save()).resolves.toBeDefined();
+        legacy.ext = '{}';
+        await expect(legacy.save()).rejects.toThrow(/rohs/);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+
+    it('AC#4：数值/布尔 null 与缺字段两端均不匹配，日期按时点比较', async () => {
+      const adapter = await createBomTestAdapter(backend);
+      try {
+        for (const [code, dataType] of [
+          ['n', 'number'],
+          ['b', 'boolean'],
+          ['d', 'date']
+        ] as const) {
+          const def = new BomAttrDef();
+          def.code = code;
+          def.dataType = dataType;
+          def.appliesTo = 'item';
+          await def.save();
+        }
+        for (const [itemNo, ext] of [
+          ['missing', '{}'],
+          ['null', '{"n":null,"b":null,"d":null}'],
+          ['present', '{"n":3,"b":true,"d":"2026-01-01T00:00:00+08:00"}']
+        ]) {
+          const item = new BomItem();
+          item.itemNo = itemNo;
+          item.ext = ext;
+          await item.save();
+        }
+        const dialect = bomSqlDialectFor(adapter.name);
+        const filters: ExtFilter[][] = [
+          [{ code: 'n', op: 'exists', dataType: 'number' }],
+          [{ code: 'b', op: 'ne', dataType: 'boolean', value: false }],
+          [{ code: 'd', op: 'lt', dataType: 'date', value: '2026-01-01T00:00:00Z' }]
+        ];
+        for (const filter of filters) {
+          const { sql } = buildExtFilterSql(backend === 'pglite' ? 'pglite' : 'sqlite', '', filter);
+          const result = await adapter.rawQuery(`SELECT "itemNo" FROM ${dialect.table('item')} WHERE ${sql}`);
+          expect(result.rows).toEqual([['present']]);
+          const matches = await filterByAttr(
+            adapter,
+            'item',
+            filter.map(({ code, op, value }) => ({ code, op, value }))
+          );
+          expect(matches.map(row => row['itemNo'])).toEqual(['present']);
+        }
+        await expect(filterByAttr(adapter, 'item', [{ code: 'n', op: 'eq', value: '3' }])).rejects.toThrow(/n/);
+        await expect(filterByAttr(adapter, 'item', [{ code: 'unknown', op: 'exists' }])).rejects.toThrow(/unknown/);
+      } finally {
+        await disposeBomTestAdapter(adapter);
+      }
+    });
+  });
+}

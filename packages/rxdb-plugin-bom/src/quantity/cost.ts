@@ -10,9 +10,9 @@
  */
 
 import type { BomLocalAdapter } from '../resolve/bom-adapter.js';
-import { bomSqlDialectFor } from '../resolve/bom-sql.js';
+import { bomSqlDialectFor, buildAlternativeHeadersSql, buildParentRevisionSql } from '../resolve/bom-sql.js';
 import type { ResolutionContext } from '../resolve/resolution.js';
-import { assertContext, type BomQueryExecutor, type ResolveTarget } from '../resolve/resolver.js';
+import { assertContext, columnIndexOf, type BomQueryExecutor, type ResolveTarget } from '../resolve/resolver.js';
 import {
   decimalAdd,
   decimalDiv,
@@ -37,7 +37,7 @@ import {
 import { convertUom } from './uom.js';
 
 /** 成本卷算的上下文：评估日 + 币种 + 费率日（与 as_of_date 一并进缓存键）。 */
-export interface CostRollupContext {
+export interface CostRollupContext extends ResolutionContext {
   bomType: 'ebom' | 'mbom' | 'sales';
   orgId: string;
   asOfDate: Date;
@@ -317,6 +317,10 @@ export const rollupCost = async (
     bomType: context.bomType,
     orgId: context.orgId,
     asOfDate: context.asOfDate,
+    alternativeNo: context.alternativeNo,
+    configSelection: context.configSelection,
+    unit: context.unit,
+    lot: context.lot,
     substituteSelections: context.substituteSelections,
     substituteAvailabilities: context.substituteAvailabilities
   };
@@ -325,39 +329,45 @@ export const rollupCost = async (
 
     // 根：父修订选择（同 explodeBom 的根解析）
     const q: CostQuery = (executor as unknown as BomQueryExecutor).query.bind(executor) as unknown as CostQuery;
-    const revisionRows = await queryRows(
-      q,
-      target.parentRevisionId !== undefined ?
-        `SELECT r."id" AS "revisionId", r."itemId" AS "itemId" FROM ${dialect.table('item_revision')} r WHERE r."id" = '${target.parentRevisionId}'`
-      : `SELECT r."id" AS "revisionId", r."itemId" AS "itemId" FROM ${dialect.table('item_revision')} r WHERE r."itemId" = '${target.parentItemId}' AND r."state" = 'released' AND r."effectiveFrom" <= '${context.asOfDate.toISOString()}' ORDER BY r."effectiveFrom" DESC LIMIT 1`
-    );
-    if (revisionRows.length === 0) {
+    const parentSql = buildParentRevisionSql(dialect, {
+      itemId: target.parentItemId ?? '',
+      asOfDate: context.asOfDate,
+      explicitRevisionId: target.parentRevisionId
+    });
+    const parentResult = await query(parentSql.sql, parentSql.params);
+    const parent = parentResult.rows[0];
+    if (parent === undefined || parent[columnIndexOf(parentResult.columns, 'state')] !== 'released') {
       throw new BomCostError('根修订', '评估日没有已发布修订');
     }
-    const parentRevisionId = String(revisionRows[0][0]);
-    const parentItemId = String(revisionRows[0][1]);
-
-    // 根头（同 explodeBom 的头选择）
-    const headerRows = await queryRows(
-      q,
-      `SELECT h."id" AS "headerId", h."baseUom" AS "baseUom", h."baseQty" AS "baseQty", h."assemblyScrap" AS "assemblyScrap",` +
-        ` h."assemblyScrapConvention" AS "assemblyScrapConvention", h."costLotQty" AS "costLotQty", h."routingId" AS "routingId"` +
-        ` FROM ${dialect.table('bom_header')} h WHERE h."state" = 'released' AND h."parentRevisionId" = '${parentRevisionId}' AND h."bomType" = '${context.bomType}' AND h."orgId" = '${context.orgId}'` +
-        ` AND h."alternativeNo" = 1 LIMIT 1`
+    const parentRevisionId = String(parent[columnIndexOf(parentResult.columns, 'revisionId')]);
+    const parentItemId = String(parent[columnIndexOf(parentResult.columns, 'itemId')]);
+    const headersSql = buildAlternativeHeadersSql(dialect, {
+      parentRevisionId,
+      bomType: context.bomType,
+      orgId: context.orgId
+    });
+    const headersResult = await query(headersSql.sql, headersSql.params);
+    const headerRows = headersResult.rows.filter(
+      row =>
+        context.alternativeNo === undefined ||
+        Number(row[columnIndexOf(headersResult.columns, 'alternativeNo')]) === context.alternativeNo
     );
-    if (headerRows.length === 0) {
-      throw new BomCostError('根头', '评估日没有已发布 BOM 头');
-    }
+    if (headerRows.length !== 1)
+      throw new BomCostError(
+        '根头',
+        headerRows.length === 0 ? '评估日没有已发布 BOM 头' : '存在未裁决的备选，请指定 alternativeNo'
+      );
+    const readHeader = (name: string): unknown => headerRows[0][columnIndexOf(headersResult.columns, name)];
     const rootHeader: HeaderMeta = {
-      headerId: String(headerRows[0][0]),
+      headerId: String(readHeader('headerId')),
       parentItemId,
       parentRevisionId,
-      baseUom: String(headerRows[0][1]),
-      baseQty: String(headerRows[0][2]),
-      assemblyScrap: String(headerRows[0][3]),
-      assemblyScrapConvention: String(headerRows[0][4]) as 'additive' | 'yield',
-      costLotQty: headerRows[0][5] === null ? null : String(headerRows[0][5]),
-      routingId: headerRows[0][6] === null ? null : String(headerRows[0][6])
+      baseUom: String(readHeader('baseUom')),
+      baseQty: String(readHeader('baseQty')),
+      assemblyScrap: String(readHeader('assemblyScrap')),
+      assemblyScrapConvention: String(readHeader('assemblyScrapConvention')) as 'additive' | 'yield',
+      costLotQty: readHeader('costLotQty') === null ? null : String(readHeader('costLotQty')),
+      routingId: readHeader('routingId') === null ? null : String(readHeader('routingId'))
     };
 
     // 根批量：显式 batchQty（归一到基准单位）或 cost_lot_qty
@@ -393,11 +403,13 @@ export const rollupCost = async (
 
     /** 本层 batch_cost（不缓存；子件单位成本经 {@link unitCostOf} 缓存）。 */
     const batchCostOf = async (headerMeta: HeaderMeta, L: Decimal): Promise<Decimal> => {
-      const rows =
-        (await fetchHeaderRows(query, dialect, resolutionContext, [headerMeta.headerId])).get(headerMeta.headerId) ??
-        [];
+      const byHeader = await fetchHeaderRows(query, dialect, resolutionContext, [headerMeta.headerId]);
+      const rows = byHeader.get(headerMeta.headerId) ?? [];
       const effectiveRows = selectTierRows(rows, L);
-      if (!effectiveRows.some(row => row.flowDirection === 'consume')) {
+      if (
+        !effectiveRows.some(row => row.flowDirection === 'consume') &&
+        !(rows.length === 0 && byHeader.has(headerMeta.headerId))
+      ) {
         throw new BomCostError(`头 ${headerMeta.headerId}`, '没有 consume 行（无投入），不能构成成本层级');
       }
       // P′ = 装配损耗后的计划量（加工量与副产缩放共用）
@@ -595,9 +607,8 @@ export const rollupCost = async (
 
     // 明细树：根按请求批量展开；children 按各自的本层需求批量展开（unit_cost 共享缓存）
     const buildDetail = async (headerMeta: HeaderMeta, L: Decimal): Promise<CostNodeDetail> => {
-      const rows =
-        (await fetchHeaderRows(query, dialect, resolutionContext, [headerMeta.headerId])).get(headerMeta.headerId) ??
-        [];
+      const byHeader = await fetchHeaderRows(query, dialect, resolutionContext, [headerMeta.headerId]);
+      const rows = byHeader.get(headerMeta.headerId) ?? [];
       const effectiveRows = selectTierRows(rows, L);
       const pPrime = scrap(L, headerMeta.assemblyScrap, headerMeta.assemblyScrapConvention);
       const routingOps: LayerRoutingOp[] = [];

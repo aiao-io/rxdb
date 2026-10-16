@@ -107,7 +107,7 @@ export class BomDemoService {
     asOfDate: string,
     plannedQty: string,
     rootKey = 'SC-100',
-    effectivity: { unit?: number; lot?: string; configSelection?: Record<string, string[]> } = {}
+    effectivity: { unit?: number; lot?: string; configSelection?: Record<string, string[]> } = { unit: 137 }
   ): Promise<ExplosionResult> {
     if (!this.rxdb) throw new Error('demo 未就绪');
     return this.rxdb.bom.explodeBom(
@@ -117,9 +117,9 @@ export class BomDemoService {
         asOfDate: new Date(`${asOfDate}T00:00:00.000Z`),
         unit: effectivity.unit,
         lot: effectivity.lot,
-        configSelection: effectivity.configSelection
+        configSelection: effectivity.configSelection ?? { 颜色: ['红'] }
       },
-      { parentItemId: goldenItemId(rootKey) },
+      { parentItemId: this.#itemId(rootKey) },
       { plannedQty: { value: plannedQty, uom: 'pcs' } }
     );
   }
@@ -151,33 +151,56 @@ export class BomDemoService {
     return rows.length > 0 && rows[0][0] !== null ? String(rows[0][0]) : '{}';
   }
 
-  /** 导出演示（US-525 AC#20）：展开结果 + manifest 的契约 JSON（十进制字段为字符串）。 */
-  async exportBom(asOfDate: string): Promise<{ json: string } | { error: string }> {
-    if (!this.rxdb) return { error: 'demo 未就绪' };
-    const { EXPORT_CONTRACT_VERSION } = await import('@aiao/rxdb-plugin-bom');
-    try {
-      const expansion = await this.rxdb.bom.explodeBom(
-        { bomType: 'ebom', orgId: 'org-x', asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) },
-        { parentItemId: goldenItemId('SC-100') },
-        { plannedQty: { value: '1', uom: 'pcs' } }
-      );
-      const payload = {
-        version: EXPORT_CONTRACT_VERSION,
-        exportedAt: `${asOfDate}T00:00:00.000Z`,
+  /** 按声明的属性类型过滤物料，缺字段与显式空值由查询合同统一处理。 */
+  async filterExt(op: 'eq' | 'ne', value: string): Promise<{ itemNo: string; ext: string }[]> {
+    if (!this.rxdb) throw new Error('demo 未就绪');
+    const rows = await this.rxdb.bom.filterByAttr('item', [{ code: 'rohs', op, value }]);
+    return rows.map(row => ({ itemNo: String(row['itemNo']), ext: String(row['ext']) }));
+  }
+
+  /** 导出领域合同的完整快照，十进制字段与解析依据随文件交付。 */
+  async exportBom(asOfDate: string, rootKey: string, plannedQty: string, unit?: number): Promise<string> {
+    if (!this.rxdb) throw new Error('demo 未就绪');
+    const payload = await this.rxdb.bom.exportBom(
+      {
+        bomType: 'ebom',
         orgId: 'org-x',
-        manifest: expansion.manifest,
-        requirementLines: expansion.requirementLines.map(line => ({
-          itemId: line.itemId,
-          qty: line.qty,
-          uom: line.uom,
-          path: line.path
-        })),
-        outputs: expansion.outputs.map(output => ({ itemId: output.itemId, qty: output.qty, uom: output.uom, direction: output.direction }))
-      };
-      return { json: JSON.stringify(payload, null, 2) };
-    } catch (error) {
-      return { error: String(error) };
+        asOfDate: new Date(`${asOfDate}T00:00:00.000Z`),
+        unit,
+        configSelection: { 颜色: ['红'] }
+      },
+      { parentItemId: this.#itemId(rootKey) },
+      { plannedQty: { value: plannedQty, uom: 'pcs' } }
+    );
+    return JSON.stringify(payload, null, 2);
+  }
+
+  /** 导入文件至草稿，返回整批结果与逐条诊断。 */
+  async importBom(payload: unknown) {
+    if (!this.rxdb) throw new Error('demo 未就绪');
+    return this.rxdb.bom.importBomDraft(payload);
+  }
+
+  /** 显式发布导入成功的修订与头，再刷新可展开物料清单。 */
+  async publishImported(headerIds: string[], effectiveFrom: string): Promise<void> {
+    if (headerIds.length === 0) throw new Error('没有可发布的导入草稿');
+    const headers = await firstValueFrom(BomHeader.find({ where: { combinator: 'and', rules: [] } }));
+    const revisions = await firstValueFrom(BomItemRevision.find({ where: { combinator: 'and', rules: [] } }));
+    const importedHeaders = headerIds.map(id => {
+      const header = headers.find(value => value.id === id);
+      if (!header) throw new Error(`导入草稿不存在：${id}`);
+      return header;
+    });
+    for (const header of importedHeaders) {
+      const revision = revisions.find(value => value.id === header.parentRevisionId);
+      if (!revision) throw new Error(`导入修订不存在：${header.parentRevisionId}`);
+      revision.effectiveFrom = new Date(`${effectiveFrom}T00:00:00.000Z`);
+      revision.state = 'released';
+      await revision.save();
+      header.state = 'released';
+      await header.save();
     }
+    await this.#loadItemNos();
   }
 
   /** EBOM / MBOM 双图展开（US-525 AC#13：SHEET-ASSY 钣金外壳两张图）。 */
@@ -445,6 +468,7 @@ export class BomDemoService {
       const seat2 = new BomItem();
       (seat2 as unknown as { id: string }).id = seat2Id;
       seat2.itemNo = 'SEAT-LIVE';
+      seat2.ext = JSON.stringify({ rohs: 'yes' });
       await seat2.save();
       const table = (name: string): string => `"bom$${name}"`;
       const scHeader = (await this.adapter!.rawQuery(
@@ -459,7 +483,11 @@ export class BomDemoService {
       );
       const seatLine = new BomLine();
       seatLine.headerId = scHeaderId;
-      seatLine.lineNo = 60 + Math.floor(Math.random() * 1000);
+      const nextLine = (await this.adapter!.rawQuery(
+        `SELECT MAX("lineNo") + 10 FROM ${table('bom_line')} WHERE "headerId" = '${scHeaderId}'`
+      )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
+      const nextLineRows = 'results' in nextLine ? nextLine.results[0].rows : nextLine.rows;
+      seatLine.lineNo = Number(nextLineRows[0][0]);
       seatLine.ecnInId = ecn.id;
       await seatLine.save();
       const seatOcc = new BomLineOccurrence();
@@ -664,5 +692,11 @@ export class BomDemoService {
     if (!headers[0]) await header.save();
     this.demoHeaderId = header.id;
     this.demoRevisionId = revision.id;
+  }
+
+  #itemId(itemNo: string): string {
+    const entry = [...this.itemNos()].find(([, value]) => value === itemNo);
+    if (!entry) throw new Error(`物料不存在：${itemNo}`);
+    return entry[0];
   }
 }

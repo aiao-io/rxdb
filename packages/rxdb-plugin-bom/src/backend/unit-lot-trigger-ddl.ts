@@ -78,15 +78,19 @@ const unitOverlap = (a: string, b: string): string =>
 
 /** SQLite 侧批次集合相交：任一侧 NULL = 全部批次；否则经 `json_each` 求集合交集。 */
 const sqliteLotOverlap = (a: string, b: string): string =>
+  `((${a}."lotCodes" IS NULL OR json_array_length(${a}."lotCodes") > 0) AND ` +
+  `(${b}."lotCodes" IS NULL OR json_array_length(${b}."lotCodes") > 0) AND ` +
   `(${a}."lotCodes" IS NULL OR ${b}."lotCodes" IS NULL OR EXISTS (` +
   `SELECT 1 FROM json_each(${a}."lotCodes") ja WHERE EXISTS (` +
-  `SELECT 1 FROM json_each(${b}."lotCodes") jb WHERE jb.value = ja.value)))`;
+  `SELECT 1 FROM json_each(${b}."lotCodes") jb WHERE jb.value = ja.value))))`;
 
 /** PGlite 侧批次集合相交：任一侧 NULL = 全部批次；否则经 `jsonb_array_elements_text` 求集合交集。 */
 const pgLotOverlap = (a: string, b: string): string =>
+  `((${a}."lotCodes" IS NULL OR jsonb_array_length(${a}."lotCodes"::jsonb) > 0) AND ` +
+  `(${b}."lotCodes" IS NULL OR jsonb_array_length(${b}."lotCodes"::jsonb) > 0) AND ` +
   `(${a}."lotCodes" IS NULL OR ${b}."lotCodes" IS NULL OR EXISTS (` +
   `SELECT 1 FROM jsonb_array_elements_text(${a}."lotCodes"::jsonb) AS ja(x) WHERE EXISTS (` +
-  `SELECT 1 FROM jsonb_array_elements_text(${b}."lotCodes"::jsonb) AS jb(y) WHERE jb.y = ja.x)))`;
+  `SELECT 1 FROM jsonb_array_elements_text(${b}."lotCodes"::jsonb) AS jb(y) WHERE jb.y = ja.x))))`;
 
 // -----------------------------------------------------[ 消息 detail 文本 ]
 

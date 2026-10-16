@@ -13,7 +13,7 @@
 
 import { BomItem } from '../entities.js';
 import type { BomLocalAdapter } from '../resolve/bom-adapter.js';
-import { loadHistory } from '../resolve/history-loader.js';
+import { loadHistory, type HistoryBatchInput } from '../resolve/history-loader.js';
 
 /** 种子批次号（常量：确定性装载的归属，US-525 AC#1）。 */
 export const SCOOTER_SEED_BATCH_NO = 'scooter-seed-a';
@@ -998,10 +998,16 @@ export const loadScooterDatasetD = async (adapter: BomLocalAdapter, itemIds: Sco
 /**
  * SC-100 种子阶段 E 层（US-525 AC#17~#19）：扩展属性声明（rohs 必填枚举）、
  * 序列有效性演示头（同一逻辑行 136/137 两段）、配置模型（颜色红蓝 + 条件 + 互斥约束）。
- * 全部为 E 层新物料与新头，不改写下层。
+ * E 层经历史 ECN 从 2026-10-16 起挂入 SC-100，先前评估日的结构保持不变。
  */
 export const SCOOTER_DATASET_E: {
   items: ScooterItemSpec[];
+  pricePatches: { itemKey: string; unitPrice: string; priceUom: string }[];
+  assembly: {
+    ecnNo: string;
+    effectiveFrom: string;
+    lines: { lineNo: number; childKey: string }[];
+  };
   attrDefs: {
     code: string;
     dataType: 'string' | 'number' | 'boolean' | 'date';
@@ -1025,7 +1031,29 @@ export const SCOOTER_DATASET_E: {
     }[];
   }[];
 } = {
-  items: [{ key: 'B-01' }, { key: 'UNIT-DEMO' }, { key: 'UNIT-PART' }, { key: 'CONFIG-DEMO' }, { key: 'CONFIG-PART' }],
+  items: [
+    { key: 'B-01' },
+    { key: 'UNIT-DEMO' },
+    { key: 'UNIT-PART-OLD' },
+    { key: 'UNIT-PART-NEW' },
+    { key: 'CONFIG-DEMO' },
+    { key: 'CONFIG-PART' }
+  ],
+  pricePatches: [
+    { itemKey: 'B-01', unitPrice: '1', priceUom: 'pcs' },
+    { itemKey: 'UNIT-PART-OLD', unitPrice: '1', priceUom: 'pcs' },
+    { itemKey: 'UNIT-PART-NEW', unitPrice: '1', priceUom: 'pcs' },
+    { itemKey: 'CONFIG-PART', unitPrice: '1', priceUom: 'pcs' }
+  ],
+  assembly: {
+    ecnNo: 'ECN-2026-017',
+    effectiveFrom: '2026-10-16',
+    lines: [
+      { lineNo: 80, childKey: 'UNIT-DEMO' },
+      { lineNo: 90, childKey: 'CONFIG-DEMO' },
+      { lineNo: 100, childKey: 'B-01' }
+    ]
+  },
   attrDefs: [{ code: 'rohs', dataType: 'string', required: true, enumValues: ['yes', 'no'], appliesTo: 'item' }],
   extPatches: [{ itemKey: 'B-01', ext: { rohs: 'yes' } }],
   configChars: [{ code: '颜色', required: true, values: ['红', '蓝'] }],
@@ -1039,8 +1067,8 @@ export const SCOOTER_DATASET_E: {
       // 序列有效性演示：同一逻辑行两段（日期相同、序列 [1,136] / [137,∞) 不相交，三维判定允许并存）
       itemKey: 'UNIT-DEMO',
       occurrences: [
-        { childKey: 'UNIT-PART', effectiveFrom: '2026-06-01', unitTo: 136 },
-        { childKey: 'UNIT-PART', effectiveFrom: '2026-06-01', unitFrom: 137 }
+        { childKey: 'UNIT-PART-OLD', effectiveFrom: '2026-06-01', unitTo: 136 },
+        { childKey: 'UNIT-PART-NEW', effectiveFrom: '2026-06-01', unitFrom: 137 }
       ]
     },
     {
@@ -1071,6 +1099,12 @@ export const loadScooterDatasetE = async (adapter: BomLocalAdapter, itemIds: Sco
     item.stockUom = spec.stockUom ?? 'pcs';
     item.uomDecimals = spec.uomDecimals ?? 0;
     item.uomConversion = spec.uomConversion ?? null;
+    const price = SCOOTER_DATASET_E.pricePatches.find(patch => patch.itemKey === spec.key);
+    if (price !== undefined) {
+      item.unitPrice = price.unitPrice;
+      item.priceUom = price.priceUom;
+      item.priceCurrency = 'CNY';
+    }
     writable.createdAt = new Date(SCOOTER_SEED_TIMESTAMP);
     writable.updatedAt = new Date(SCOOTER_SEED_TIMESTAMP);
     await item.save();
@@ -1145,6 +1179,17 @@ export const loadScooterDatasetE = async (adapter: BomLocalAdapter, itemIds: Sco
     id: deterministicId('batch:scooter-seed-e'),
     createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
     updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
+    ecns: [
+      {
+        id: deterministicId(`ecn:${SCOOTER_DATASET_E.assembly.ecnNo}`),
+        ecnNo: SCOOTER_DATASET_E.assembly.ecnNo,
+        state: 'released',
+        effectiveDate: new Date(`${SCOOTER_DATASET_E.assembly.effectiveFrom}T00:00:00.000Z`),
+        reason: 'US-525 阶段 E：整机追加序列、配置与 rohs 部件',
+        createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+        updatedAt: new Date(SCOOTER_SEED_TIMESTAMP)
+      }
+    ],
     revisions: SCOOTER_DATASET_E.headers.map(header => ({
       id: deterministicId(`revision:${header.itemKey}:A`),
       itemId: itemIds[header.itemKey]!,
@@ -1186,13 +1231,36 @@ export const loadScooterDatasetE = async (adapter: BomLocalAdapter, itemIds: Sco
       ]
     })),
     headerOverlays: (() => {
-      const patches: { headerId: string; headerPatch: { costLotQty: string } }[] = [];
+      const patches: NonNullable<HistoryBatchInput['headerOverlays']> = [];
       for (const header of SCOOTER_DATASET_E.headers) {
         patches.push({
           headerId: deterministicId(`header:${header.itemKey}:A`),
           headerPatch: { costLotQty: '1' }
         });
       }
+      patches.push({
+        headerId: deterministicId('header:SC-100:A'),
+        lines: SCOOTER_DATASET_E.assembly.lines.map(line => ({
+          id: deterministicId(`line:SC-100:E:${line.lineNo}`),
+          createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+          updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
+          lineNo: line.lineNo,
+          ecnInId: deterministicId(`ecn:${SCOOTER_DATASET_E.assembly.ecnNo}`),
+          occurrences: [
+            {
+              id: deterministicId(`occurrence:SC-100:E:${line.lineNo}:0`),
+              createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+              updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
+              childItemId: itemIds[line.childKey]!,
+              qty: '1',
+              uom: 'pcs',
+              flowDirection: 'consume',
+              effectiveFrom: new Date(`${SCOOTER_DATASET_E.assembly.effectiveFrom}T00:00:00.000Z`),
+              ecnInId: deterministicId(`ecn:${SCOOTER_DATASET_E.assembly.ecnNo}`)
+            }
+          ]
+        }))
+      });
       return patches;
     })()
   });

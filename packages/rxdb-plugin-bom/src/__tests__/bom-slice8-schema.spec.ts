@@ -51,6 +51,16 @@ for (const backend of BACKENDS) {
     it('选择条件 / 依赖约束 / attr_def：建表与保存', async () => {
       const adapter = await createBomTestAdapter(backend);
       try {
+        const char = new BomConfigChar();
+        char.orgId = 'org-x';
+        char.code = '颜色';
+        await char.save();
+        for (const value of ['红', '蓝']) {
+          const option = new BomConfigCharValue();
+          option.charId = char.id;
+          option.value = value;
+          await option.save();
+        }
         const condition = new BomConfigCondition();
         condition.orgId = 'org-x';
         condition.expression = '颜色 = 红';
@@ -90,6 +100,11 @@ for (const backend of BACKENDS) {
     it('行发生项新列：unitFrom/unitTo/lotCodes/selectionConditionId/ext 可写可读', async () => {
       const adapter = await createBomTestAdapter(backend);
       try {
+        const def = new BomAttrDef();
+        def.code = 'rohs';
+        def.dataType = 'string';
+        def.appliesTo = 'bom_line_occurrence';
+        await def.save();
         const item = new BomItem();
         item.itemNo = 'schema-item';
         await item.save();

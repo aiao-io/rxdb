@@ -20,7 +20,13 @@ import {
   buildParentsOfItemsSql,
   type BomSqlDialect
 } from './bom-sql.js';
-import { BomResolutionError, type ResolutionContext, type ResolutionResult } from './resolution.js';
+import { filterResolutionRows } from './config-validate.js';
+import {
+  BomResolutionError,
+  type ResolutionContext,
+  type ResolutionResult,
+  type UnresolvedAlternative
+} from './resolution.js';
 import { assertContext, columnIndexOf, normalizeDate, type BomQueryExecutor, type ResolveTarget } from './resolver.js';
 
 /** 展开 / 反查预算（US-510 AC#1/#10）：深度、展开数、返回路径数，任一触顶即截断。 */
@@ -66,6 +72,7 @@ export interface ExpansionNode {
 export interface ExpansionResult {
   context: ResolutionContext;
   nodes: ExpansionNode[];
+  unresolved?: UnresolvedAlternative[];
   /** 触顶的预算项；null 表示未被截断（完整结果）。 */
   truncated: { reason: TruncationReason } | null;
 }
@@ -150,12 +157,48 @@ const checkBudgets = (
   return null;
 };
 
+const filteredQueryRows = async (
+  query: BomQueryExecutor['query'],
+  dialect: BomSqlDialect,
+  context: ResolutionContext,
+  result: { columns: string[]; rows: unknown[][] },
+  unresolved: UnresolvedAlternative[]
+): Promise<unknown[][]> => {
+  const read = (row: unknown[], name: string): unknown => row[columnIndexOf(result.columns, name)];
+  const nullableNumber = (row: unknown[], name: string): number | null =>
+    read(row, name) === null ? null : Number(read(row, name));
+  const nullableString = (row: unknown[], name: string): string | null =>
+    read(row, name) === null ? null : String(read(row, name));
+  const filtered = await filterResolutionRows(
+    query,
+    dialect,
+    context,
+    result.rows.map(row => ({
+      row,
+      headerId: String(read(row, 'headerId')),
+      alternativeNo: Number(read(row, 'alternativeNo')),
+      parentItemId: String(read(row, 'parentItemId')),
+      parentRevisionId: String(read(row, 'parentRevisionId')),
+      lineId: String(read(row, 'lineId')),
+      occurrenceId: String(read(row, 'occurrenceId')),
+      childItemId: String(read(row, 'childItemId')),
+      unitFrom: nullableNumber(row, 'unitFrom'),
+      unitTo: nullableNumber(row, 'unitTo'),
+      lotCodes: nullableString(row, 'lotCodes'),
+      selectionConditionId: nullableString(row, 'selectionConditionId')
+    })),
+    unresolved
+  );
+  return filtered.map(row => row.row);
+};
+
 /** 按前沿修订集取一层子件发生项（分块 IN）。 */
 const fetchChildren = async (
   query: BomQueryExecutor['query'],
   dialect: BomSqlDialect,
   context: ResolutionContext,
-  revisionIds: string[]
+  revisionIds: string[],
+  unresolved: UnresolvedAlternative[]
 ): Promise<ChildRow[]> => {
   const rows: ChildRow[] = [];
   for (let offset = 0; offset < revisionIds.length; offset += CHUNK_SIZE) {
@@ -167,7 +210,7 @@ const fetchChildren = async (
       revisionIds: chunk
     });
     const result = await query(built.sql, built.params);
-    for (const row of result.rows) {
+    for (const row of await filteredQueryRows(query, dialect, context, result, unresolved)) {
       rows.push({
         parentRevisionId: String(row[columnIndexOf(result.columns, 'parentRevisionId')]),
         lineNo: Number(row[columnIndexOf(result.columns, 'lineNo')]),
@@ -192,7 +235,8 @@ const fetchParents = async (
   query: BomQueryExecutor['query'],
   dialect: BomSqlDialect,
   context: ResolutionContext,
-  itemIds: string[]
+  itemIds: string[],
+  unresolved: UnresolvedAlternative[]
 ): Promise<UsageRow[]> => {
   const rows: UsageRow[] = [];
   for (let offset = 0; offset < itemIds.length; offset += CHUNK_SIZE) {
@@ -204,7 +248,7 @@ const fetchParents = async (
       itemIds: chunk
     });
     const result = await query(built.sql, built.params);
-    for (const row of result.rows) {
+    for (const row of await filteredQueryRows(query, dialect, context, result, unresolved)) {
       rows.push({
         parentItemId: String(row[columnIndexOf(result.columns, 'parentItemId')]),
         parentRevisionId: String(row[columnIndexOf(result.columns, 'parentRevisionId')]),
@@ -250,10 +294,11 @@ const expandLevel = async (
   frontier: { nodeIndex: number; revisionId: string }[],
   nodes: readonly ExpansionNode[],
   budget: ResolvedBudgets,
-  signal?: AbortSignal
+  signal: AbortSignal | undefined,
+  unresolved: UnresolvedAlternative[]
 ): Promise<ExpandLevelStep> => {
   const revisionIds = [...new Set(frontier.map(entry => entry.revisionId))];
-  const byParent = groupChildrenByParent(await fetchChildren(query, dialect, context, revisionIds));
+  const byParent = groupChildrenByParent(await fetchChildren(query, dialect, context, revisionIds, unresolved));
   const added: ExpansionNode[] = [];
   const next: ExpandLevelStep['next'] = [];
   for (const entry of frontier) {
@@ -288,10 +333,11 @@ const usageLevel = async (
   frontier: { nodeIndex: number | null; itemId: string }[],
   nodes: readonly ExpansionNode[],
   budget: ResolvedBudgets,
-  signal?: AbortSignal
+  signal: AbortSignal | undefined,
+  unresolved: UnresolvedAlternative[]
 ): Promise<UsageLevelStep> => {
   const itemIds = [...new Set(frontier.map(entry => entry.itemId))];
-  const byChild = groupUsageByChild(await fetchParents(query, dialect, context, itemIds));
+  const byChild = groupUsageByChild(await fetchParents(query, dialect, context, itemIds, unresolved));
   const added: ExpansionNode[] = [];
   const next: UsageLevelStep['next'] = [];
   for (const entry of frontier) {
@@ -372,9 +418,10 @@ export const expandBom = async (
       }
     ];
     let truncated: ExpansionResult['truncated'] = null;
+    const unresolved: UnresolvedAlternative[] = [];
     let frontier: { nodeIndex: number; revisionId: string }[] = [{ nodeIndex: 0, revisionId: parentRevisionId }];
     while (frontier.length > 0) {
-      const step = await expandLevel(query, dialect, context, frontier, nodes, budget, options.signal);
+      const step = await expandLevel(query, dialect, context, frontier, nodes, budget, options.signal, unresolved);
       nodes.push(...step.added);
       if (step.truncated !== null) {
         truncated = step.truncated;
@@ -382,7 +429,7 @@ export const expandBom = async (
       }
       frontier = step.next;
     }
-    return { context, nodes, truncated };
+    return { context, nodes, truncated, ...(unresolved.length > 0 ? { unresolved } : {}) };
   }, false);
 };
 
@@ -409,9 +456,10 @@ export const whereUsed = async (
     const query = (executor as unknown as BomQueryExecutor).query.bind(executor);
     const nodes: ExpansionNode[] = [];
     let truncated: ExpansionResult['truncated'] = null;
+    const unresolved: UnresolvedAlternative[] = [];
     let frontier: { nodeIndex: number | null; itemId: string }[] = [{ nodeIndex: null, itemId: target.childItemId }];
     while (frontier.length > 0) {
-      const step = await usageLevel(query, dialect, context, frontier, nodes, budget, options.signal);
+      const step = await usageLevel(query, dialect, context, frontier, nodes, budget, options.signal, unresolved);
       nodes.push(...step.added);
       if (step.truncated !== null) {
         truncated = step.truncated;
@@ -419,7 +467,7 @@ export const whereUsed = async (
       }
       frontier = step.next;
     }
-    return { context, nodes, truncated };
+    return { context, nodes, truncated, ...(unresolved.length > 0 ? { unresolved } : {}) };
   }, false);
 };
 
@@ -433,7 +481,10 @@ export const assertCompleteResolution = (result: ResolutionResult | ExpansionRes
   if ('truncated' in result && result.truncated !== null) {
     throw new BomTruncationError(result.truncated.reason);
   }
-  if ('manifest' in result && result.manifest.unresolved.length > 0) {
+  const unresolved = 'manifest' in result ? result.manifest.unresolved : (result.unresolved ?? []);
+  if (unresolved.length > 0) {
+    const reason = unresolved.find(entry => entry.reason !== undefined)?.reason;
+    if (reason !== undefined) throw new BomResolutionError(reason, `存在未解析的序列 / 批次候选：请先指定 ${reason}`);
     throw new BomResolutionError(
       'alternativeNo',
       '存在未裁决的备选：先选 alternativeNo 再交给数量 / 成本 / 导出消费方'

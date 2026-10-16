@@ -34,7 +34,7 @@
 - [x] T012 插件接线收尾（rxdb.bom 门面 explodeBom、api-baseline 更新、lint/typecheck/test、覆盖率 ≥ 80%）
 - [x] T013 affected full（272 任务）+ 修复
 - [x] T014 故事回写（US-511 阶段 A/C/B1 勾选 + 关闭记录；epic/roadmap/status-overview 第 3 步记录）+ specs/013 quickstart
-- [ ] T015 提交
+- [x] T015 提交
 
 ## Dependencies and implementation strategy
 

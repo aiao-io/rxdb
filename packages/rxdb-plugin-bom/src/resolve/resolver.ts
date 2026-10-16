@@ -13,6 +13,7 @@ import {
   buildParentRevisionSql,
   buildResolvedOccurrencesSql
 } from './bom-sql.js';
+import { filterResolutionRows } from './config-validate.js';
 import {
   BomResolutionError,
   ResolutionContext,
@@ -58,6 +59,9 @@ export const assertContext = (context: ResolutionContext): void => {
   }
   if (!context.bomType) throw new BomResolutionError('bomType', '必填');
   if (!context.orgId) throw new BomResolutionError('orgId', '必填');
+  if (context.unit !== undefined && (!Number.isSafeInteger(context.unit) || context.unit < 1)) {
+    throw new BomResolutionError('unit', '序列号必须是从 1 起的安全整数');
+  }
 };
 
 /**
@@ -118,7 +122,7 @@ export const resolveBom = async (
         headers.filter(header => header.alternativeNo === context.alternativeNo)
       : headers;
 
-    const unresolved =
+    const unresolved: ResolutionManifest['unresolved'] =
       selectedHeaders.length > 1 ?
         [
           {
@@ -143,7 +147,30 @@ export const resolveBom = async (
       });
       const occResult = await query(occSql.sql, occSql.params);
       const cols = occResult.columns;
-      for (const row of occResult.rows) {
+      const filtered = await filterResolutionRows(
+        query,
+        dialect,
+        context,
+        occResult.rows.map(row => ({
+          row,
+          headerId: selectedHeaders[0].headerId,
+          alternativeNo: selectedHeaders[0].alternativeNo,
+          parentItemId,
+          parentRevisionId,
+          lineId: String(row[columnIndexOf(cols, 'lineId')]),
+          occurrenceId: String(row[columnIndexOf(cols, 'occurrenceId')]),
+          childItemId: String(row[columnIndexOf(cols, 'childItemId')]),
+          unitFrom: row[columnIndexOf(cols, 'unitFrom')] === null ? null : Number(row[columnIndexOf(cols, 'unitFrom')]),
+          unitTo: row[columnIndexOf(cols, 'unitTo')] === null ? null : Number(row[columnIndexOf(cols, 'unitTo')]),
+          lotCodes: row[columnIndexOf(cols, 'lotCodes')] === null ? null : String(row[columnIndexOf(cols, 'lotCodes')]),
+          selectionConditionId:
+            row[columnIndexOf(cols, 'selectionConditionId')] === null ?
+              null
+            : String(row[columnIndexOf(cols, 'selectionConditionId')])
+        })),
+        unresolved
+      );
+      for (const { row } of filtered) {
         const occurrence: ResolvedLineOccurrence = {
           lineId: String(row[columnIndexOf(cols, 'lineId')]),
           lineNo: Number(row[columnIndexOf(cols, 'lineNo')]),

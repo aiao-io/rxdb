@@ -2,7 +2,9 @@ import type { ExplosionResult, PenetrationRecord, RequirementLine } from '@aiao/
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { BomDemoService } from '../../bom-demo.service';
+import { ConfigPanel } from '../../components/config-panel';
 import { DemoChecks } from '../../components/demo-checks';
+import { IntegrationPanel } from '../../components/integration-panel';
 import { ReqTree } from '../../components/req-tree';
 import { StepPanel } from '../../components/step-panel';
 
@@ -13,13 +15,12 @@ interface ExplosionView {
 }
 
 /**
- * 展开专项页：EBOM 展开 + 七步算式面板，页底附校验演示（直连写入环/位号发布/替代组发布）。
- * 与概览页共用 bom-req-tree / bom-step-panel / bom-demo-checks 组件。
+ * 展开专项页：EBOM 树与七步算式、配置选择、导入导出及保存/发布校验演示。
  */
 @Component({
   selector: 'bom-explosion-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DemoChecks, FormsModule, ReqTree, StepPanel],
+  imports: [ConfigPanel, DemoChecks, FormsModule, IntegrationPanel, ReqTree, StepPanel],
   templateUrl: './explosion.page.html'
 })
 export class ExplosionPage {
@@ -31,6 +32,7 @@ export class ExplosionPage {
   readonly asOfDate = signal('2026-09-22');
   readonly plannedQty = signal('1');
   readonly rootKey = signal('SC-100');
+  readonly unit = signal<number | null>(137);
   readonly view = signal<ExplosionView | null>(null);
   readonly explodeError = signal('');
   readonly busy = signal(false);
@@ -39,8 +41,11 @@ export class ExplosionPage {
   async runExplode(): Promise<void> {
     this.busy.set(true);
     this.explodeError.set('');
+    this.view.set(null);
     try {
-      const result = await this.service.explode(this.asOfDate(), this.plannedQty(), this.rootKey());
+      const result = await this.service.explode(this.asOfDate(), this.plannedQty(), this.rootKey(), {
+        unit: this.unit() ?? undefined
+      });
       this.view.set({ result, selected: null });
     } catch (error) {
       this.explodeError.set(String(error));

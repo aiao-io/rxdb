@@ -446,6 +446,25 @@ pre {
   word-break: break-all;
 }
 
+.status-success {
+  color: var(--color-success);
+}
+
+.diagnostics {
+  padding: var(--space-3) var(--space-6);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.diagnostics li + li {
+  margin-top: var(--space-2);
+}
+
 .empty-state {
   padding: var(--space-5);
   border: 1px dashed var(--color-border-strong);

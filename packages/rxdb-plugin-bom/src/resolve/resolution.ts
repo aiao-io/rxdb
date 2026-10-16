@@ -66,7 +66,17 @@ export interface ResolvedLineOccurrence {
 export interface UnresolvedAlternative {
   parentItemId: string;
   parentRevisionId: string;
-  candidates: { headerId: string; alternativeNo: number }[];
+  reason?: 'unit' | 'lot';
+  lineId?: string;
+  candidates: {
+    headerId: string;
+    alternativeNo: number;
+    occurrenceId?: string;
+    childItemId?: string;
+    unitFrom?: number | null;
+    unitTo?: number | null;
+    lotCodes?: string[] | null;
+  }[];
 }
 
 /** 解析 manifest：命中的头、发生项 ID、每条发生项解析所得子件修订与上下文。 */

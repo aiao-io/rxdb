@@ -2,15 +2,15 @@
 
 **Feature Branch**: `claude/bom-related-work-77235b`
 **Created**: 2026-10-16
-**Status**: Draft
+**Status**: Implemented
 
-**Input**: 首轮切片第 1~7 步已交付（建图 → 视图 → 展开 → 反查 → 数量 → 时间轴 → 双图与卷算，affected 全绿）；本步两件事：① 把 `dev-rxdb-bom` 从「验收面板」升级为**产品级应用**（参照 `dev-rxdb-angular` 的壳、导航、视觉与交互质量）；② 按 [epic 切片表](../../../requirements/epics/epic-009-bom-domain-model.md#首轮可开工切片) 第 5 步与 [US-525 阶段 E](../../../requirements/stories/domain/US-525-bom-end-to-end-demo.md) 的引导，交付配置选择、序列/批次有效性、扩展属性与导入导出。
+**Input**: 首轮切片第 1~7 步已交付（建图 → 视图 → 展开 → 反查 → 数量 → 时间轴 → 双图与卷算，affected 全绿）；本步两件事：① 把 `dev-rxdb-bom` 从「验收面板」升级为**产品级应用**（参照 `dev-rxdb-angular` 的壳、导航、视觉与交互质量）；② 按 [epic 切片表](../../requirements/epics/epic-009-bom-domain-model.md#首轮可开工切片) 第 5 步与 [US-525 阶段 E](../../requirements/stories/domain/US-525-bom-end-to-end-demo.md) 的引导，交付配置选择、序列/批次有效性、扩展属性与导入导出。
 
-- [US-517 可配置销售 BOM](../../../requirements/stories/domain/US-517-configurable-sales-bom.md) — 全部 AC#1~#7
-- [US-518 序列 / 批次有效性](../../../requirements/stories/domain/US-518-bom-unit-lot-effectivity.md) — 全部 AC#1~#10
-- [US-519 扩展属性](../../../requirements/stories/domain/US-519-bom-extension-attributes.md) — AC#1/#2/#4/#5/#6（AC#3/#7 等 US-030 阶段 D）
-- [US-521 ERP/MRP 导出与导入](../../../requirements/stories/domain/US-521-bom-erp-mrp-integration.md) — 全部 AC#1~#15
-- [US-525 BOM 端到端 demo](../../../requirements/stories/domain/US-525-bom-end-to-end-demo.md) — 阶段 E（AC#17~#20）
+- [US-517 可配置销售 BOM](../../requirements/stories/domain/US-517-configurable-sales-bom.md) — 全部 AC#1~#7
+- [US-518 序列 / 批次有效性](../../requirements/stories/domain/US-518-bom-unit-lot-effectivity.md) — 全部 AC#1~#10
+- [US-519 扩展属性](../../requirements/stories/domain/US-519-bom-extension-attributes.md) — AC#1/#2/#4/#5/#6（AC#3/#7 等 US-030 阶段 D）
+- [US-521 ERP/MRP 导出与导入](../../requirements/stories/domain/US-521-bom-erp-mrp-integration.md) — 全部 AC#1~#15
+- [US-525 BOM 端到端 demo](../../requirements/stories/domain/US-525-bom-end-to-end-demo.md) — 阶段 E（AC#17~#20）
 
 ## 用户故事与优先级
 
@@ -45,7 +45,7 @@
 
 ### US3 扩展属性（US-519 AC#1/#2/#4/#5/#6，Priority: P1）
 
-- `item` / `bom_header` / `bom_line_occurrence` 各带 `ext`（PGlite jsonb / SQLite JSON 文本）；逻辑行不带（行级值随时间变化，落在发生项层）。
+- `item` / `bom_header` / `bom_line_occurrence` 各带 `ext`（双后端均沿用引擎 JSON 文本列，PGlite 查询显式转 jsonb）；逻辑行不带（行级值随时间变化，落在发生项层）。
 - `attr_def` 元数据表：`code` / `data_type` / `required` / `enum_values` / `applies_to` / `unit`；`applies_to` = `item` / `bom_header` / `bom_line_occurrence`。
 - 写入期按 `attr_def` 校验（非法枚举值拒绝并给合法取值、作用域越界拒绝、必填缺失在新写入/完整更新时拒绝、局部更新不触碰扩展属性不强制补齐）。
 - 查询语义契约：`eq` / `ne` / `in` / `lt` / `lte` / `gt` / `gte` / `exists`；缺字段与显式 null 等价、`exists` 对二者都为假、其余比较对缺字段一律不匹配（含 `ne`）；类型不符即拒绝查询；SQLite 与 PGlite 同一过滤同一结果。

@@ -439,7 +439,7 @@ export const parseCondition = (expression: string): { ast: ConditionAst } => {
 export const evaluateCondition = (ast: ConditionAst, selection: Record<string, string[]>): boolean => {
   switch (ast.kind) {
     case 'atom': {
-      const selected = selection[ast.charCode] ?? [];
+      const selected = Object.hasOwn(selection, ast.charCode) ? selection[ast.charCode] : [];
       switch (ast.op) {
         case 'eq':
           return selected.includes(ast.value);

@@ -7,12 +7,17 @@
  */
 
 import type { EntityType, RxDB } from '@aiao/rxdb';
-import { Repository } from '@aiao/rxdb';
-import { firstValueFrom } from 'rxjs';
+import { getEntityMetadata, Repository } from '@aiao/rxdb';
 import { normalizeDecimalString } from './decimal.utils.js';
-import { BomAttrDef, BomLineOccurrence } from './entities.js';
+import { BomLineOccurrence } from './entities.js';
+import { bomSqlDialectFor, type BomSqlDialect } from './resolve/bom-sql.js';
+import { BomConfigError, CONDITION_GRAMMAR_VERSION } from './resolve/config-condition.js';
+import { validateConditionReferences } from './resolve/config-validate.js';
 import { attachUnionOnlyMark } from './resolve/cycle-analysis.js';
-import { validateExtWrite, type ExtAttrDefShape, type ExtWriteMode } from './resolve/ext-attr.js';
+import { normalizeExtValue, validateExtWrite, type ExtAttrDefShape, type ExtWriteMode } from './resolve/ext-attr.js';
+import { BomResolutionError } from './resolve/resolution.js';
+import type { BomQueryExecutor } from './resolve/resolver.js';
+import { parseLotCodes } from './resolve/unit-lot.js';
 import { BomCycleError, normalizeBomError } from './types.js';
 
 /** 需要入口规范化的十进制字段（US-511 按十进制值合同扩列）。 */
@@ -48,28 +53,108 @@ const EXT_APPLIES_TO: Record<string, 'item' | 'bom_header' | 'bom_line_occurrenc
   BomLineOccurrence: 'bom_line_occurrence'
 };
 
-/** 读取 appliesTo 的 attr_def 声明并校验 ext（缺声明 = 无约束）。 */
-const validateExtByDefs = async (
-  rxdb: RxDB,
-  appliesTo: 'item' | 'bom_header' | 'bom_line_occurrence',
-  ext: Record<string, unknown>,
-  mode: ExtWriteMode
+const readRows = async (
+  query: BomQueryExecutor['query'],
+  sql: string,
+  params: unknown[] = []
+): Promise<Record<string, unknown>[]> => {
+  const result = await query(sql, params);
+  return result.rows.map(row => Object.fromEntries(result.columns.map((column, index) => [column, row[index]])));
+};
+
+const validateConditionWrite = async (
+  query: BomQueryExecutor['query'],
+  dialect: BomSqlDialect,
+  data: Record<string, unknown>
 ): Promise<void> => {
-  void rxdb;
-  const defs = await firstValueFrom(
-    BomAttrDef.find({
-      where: { combinator: 'and', rules: [{ field: 'appliesTo', operator: '=', value: appliesTo }] }
-    })
-  ).catch(() => [] as BomAttrDef[]);
-  if (defs.length === 0) return;
-  const shapes: ExtAttrDefShape[] = defs.map(def => ({
-    code: def.code,
-    dataType: def.dataType,
-    required: def.required,
-    enumValues: def.enumValues === null ? null : (JSON.parse(def.enumValues) as string[]),
-    appliesTo: def.appliesTo
-  }));
-  validateExtWrite(shapes, appliesTo, ext, mode);
+  if (data['grammarVersion'] !== CONDITION_GRAMMAR_VERSION) {
+    throw new BomConfigError('grammarVersion', `不支持选择条件语法版本「${String(data['grammarVersion'])}」`);
+  }
+  const chars = await readRows(
+    query,
+    `SELECT "id", "code" FROM ${dialect.table('config_char')} WHERE "orgId" = ${dialect.placeholder(0)}`,
+    [data['orgId']]
+  );
+  const values = await readRows(
+    query,
+    `SELECT v."charId", v."value" FROM ${dialect.table('config_char_value')} v JOIN ${dialect.table('config_char')} c ON c."id" = v."charId" WHERE c."orgId" = ${dialect.placeholder(0)}`,
+    [data['orgId']]
+  );
+  const known = new Map(
+    chars.map(char => [
+      String(char['code']),
+      new Set(values.filter(value => value['charId'] === char['id']).map(value => String(value['value'])))
+    ])
+  );
+  validateConditionReferences(String(data['expression']), new Set(known.keys()), known);
+};
+
+const conditionById = async (
+  query: BomQueryExecutor['query'],
+  dialect: BomSqlDialect,
+  id: unknown,
+  orgId: unknown
+): Promise<Record<string, unknown>> => {
+  const conditions = await readRows(
+    query,
+    `SELECT * FROM ${dialect.table('config_condition')} WHERE "id" = ${dialect.placeholder(0)}`,
+    [id]
+  );
+  const condition = conditions[0];
+  if (condition === undefined || condition['orgId'] !== orgId) {
+    throw new BomConfigError('conditionId', `选择条件「${String(id)}」不存在或不属于组织「${String(orgId)}」`);
+  }
+  await validateConditionWrite(query, dialect, condition);
+  return condition;
+};
+
+/** 仓储与批量导入共用保存期校验，所有查询由调用方提供的执行器执行。 */
+export const validateBomWrite = async (
+  query: BomQueryExecutor['query'],
+  dialect: BomSqlDialect,
+  entityName: string,
+  data: Record<string, unknown>,
+  mode: ExtWriteMode,
+  touchesExt = true
+): Promise<void> => {
+  const appliesTo = EXT_APPLIES_TO[entityName];
+  if (appliesTo !== undefined && touchesExt) {
+    const defs = await readRows(
+      query,
+      `SELECT "code", "dataType", "required", "enumValues", "appliesTo" FROM ${dialect.table('attr_def')}`
+    );
+    const shapes: ExtAttrDefShape[] = defs.map(def => ({
+      code: String(def['code']),
+      dataType: String(def['dataType']),
+      required: Boolean(def['required']),
+      enumValues: def['enumValues'] == null ? null : (JSON.parse(String(def['enumValues'])) as string[]),
+      appliesTo: String(def['appliesTo'])
+    }));
+    const ext = data['ext'] == null ? {} : (JSON.parse(normalizeExtValue(data['ext'])) as Record<string, unknown>);
+    validateExtWrite(shapes, appliesTo, ext, mode);
+    if (data['ext'] != null) data['ext'] = normalizeExtValue(ext);
+  }
+  if (entityName === 'BomConfigCondition') await validateConditionWrite(query, dialect, data);
+  if (entityName === 'BomConfigConstraint') {
+    if (data['kind'] !== 'exclude' && data['kind'] !== 'require')
+      throw new BomConfigError('kind', '约束种类必须是 exclude / require');
+    await conditionById(query, dialect, data['leftConditionId'], data['orgId']);
+    await conditionById(query, dialect, data['rightConditionId'], data['orgId']);
+  }
+  if (entityName !== 'BomLineOccurrence') return;
+  for (const field of ['unitFrom', 'unitTo']) {
+    const value = data[field];
+    if (value != null && (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 1))
+      throw new BomResolutionError(field, '序列区间边界必须是安全正整数');
+  }
+  if (data['lotCodes'] != null) parseLotCodes(String(data['lotCodes']));
+  if (data['selectionConditionId'] == null) return;
+  const headers = await readRows(
+    query,
+    `SELECT h."orgId" FROM ${dialect.table('bom_line')} l JOIN ${dialect.table('bom_header')} h ON h."id" = l."headerId" WHERE l."id" = ${dialect.placeholder(0)}`,
+    [data['lineId']]
+  );
+  await conditionById(query, dialect, data['selectionConditionId'], headers[0]?.['orgId']);
 };
 
 const rethrowBomError = async (rxdb: RxDB, cause: unknown, attempted?: Record<string, unknown>): Promise<never> => {
@@ -90,11 +175,14 @@ const rethrowBomError = async (rxdb: RxDB, cause: unknown, attempted?: Record<st
 export class BomRepository<T extends EntityType = EntityType> extends Repository<T> {
   override async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
     normalizeDecimalFields(entity as unknown as Record<string, unknown>);
-    const appliesTo = EXT_APPLIES_TO[entity.constructor.name];
-    const ext = (entity as unknown as Record<string, unknown>)['ext'];
-    if (appliesTo !== undefined && ext !== undefined && ext !== null) {
-      await validateExtByDefs(this.rxdb, appliesTo, JSON.parse(String(ext)) as Record<string, unknown>, 'create');
-    }
+    const data = entity as unknown as Record<string, unknown>;
+    await validateBomWrite(
+      this.rawQuery.bind(this),
+      bomSqlDialectFor(this.rxdb.localAdapterSync?.name),
+      getEntityMetadata(this.EntityType).name,
+      data,
+      'create'
+    );
     try {
       return await super.create(entity);
     } catch (error) {
@@ -118,12 +206,21 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
   }
 
   override async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
-    // 扩展属性（US-519）：触碰 ext 即按 attr_def 完整校验（局部更新的其余列不强制必填）
-    const appliesTo = EXT_APPLIES_TO[entity.constructor.name];
     const patchRecord = patch as unknown as Record<string, unknown>;
-    if (appliesTo !== undefined && patchRecord['ext'] !== undefined && patchRecord['ext'] !== null) {
-      await validateExtByDefs(this.rxdb, appliesTo, JSON.parse(String(patchRecord['ext'])) as Record<string, unknown>, 'update-complete');
-    }
+    const data = new Proxy(patchRecord, {
+      get: (target, property) =>
+        property in target ?
+          target[property as string]
+        : (entity as unknown as Record<string, unknown>)[property as string]
+    });
+    await validateBomWrite(
+      this.rawQuery.bind(this),
+      bomSqlDialectFor(this.rxdb.localAdapterSync?.name),
+      getEntityMetadata(this.EntityType).name,
+      data,
+      'update-complete',
+      'ext' in patchRecord
+    );
     // 规范化只在插件入口：patch 里的十进制字段同样经规范串入存储
     for (const [field, value] of Object.entries(patch)) {
       if ((DECIMAL_FIELDS as readonly string[]).includes(field) && value !== undefined && value !== null) {
