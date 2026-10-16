@@ -18,6 +18,7 @@ import {
   type SwitchVersionActions
 } from '@aiao/rxdb';
 import { isEqual } from '@aiao/utils';
+import { find_branch_path_to_root, forkPointOf } from './find-switch-branch-step.js';
 import {
   branch_not_found_error,
   find_source_changes,
@@ -78,10 +79,13 @@ export interface BranchComparison {
  *
  * @remarks
  * 合并是单向覆盖：UPDATE 只写补丁里的字段、INSERT 走 `INSERT OR REPLACE`、DELETE 按主键删。
+ * 「分叉以来」指两条线分开以来：基准是源 tip 与目标 tip 的最近公共祖先点（merge base），不是源分支自己的
+ * 分叉点——目标是源的后代、比源分叉得更早、或与源隔着中间分支时，两者不是同一点。
  *
  * - `overwrite`：源要写的业务字段里，有目标分叉以来改过、且两边取值不同的；`fields` 是会被盖掉的那些
  * - `delete_edited`：源删了这个实体，目标分叉以来改过它；`fields` 是目标改过的业务字段，会随实体一起没了
- * - `update_deleted`：源改了这个实体，目标分叉以来删了它；UPDATE 找不到行，这次更新落空
+ * - `update_deleted`：源改了这个实体，目标里却没有这一行——目标分叉以来删了它，或者它是两边分开之后
+ *   由源的上游分支建的（合并只搬源分支自有的变更，建它的那一条带不过去）；UPDATE 找不到行，这次更新落空
  * - `revive_deleted`：源删后重建了这个实体，目标分叉以来删了它；合并会把它重新建出来
  */
 export type MergePreviewConflict =
@@ -239,49 +243,73 @@ export const compare_branches = async (
 
 /** 预览一个实体要用到的三次增量。 */
 interface MergeSides {
-  /** 源分支要落的操作（压缩后） */
+  /** 源分支要落的操作（压缩后）；它同时给出源 tip 上这些实体的值 */
   readonly incoming: SwitchVersionActions;
-  /** 源分支 tip → 分叉点：分叉点上的值 */
+  /** 源分支 tip → 合并基准：这一段碰过的实体在基准上的值 */
   readonly base: SwitchVersionActions;
-  /** 分叉点 → 目标分支 tip：目标分叉以来的改动 */
+  /** 合并基准 → 目标分支 tip：目标分叉以来的改动 */
   readonly target: SwitchVersionActions;
 }
 
-/** 目标分支现在有没有这个实体、现在的值是什么。 */
+/** 一个实体在合并基准上、在目标现在各是什么样。 */
 interface TargetState {
-  /** 目标分叉以来碰过它 */
-  readonly touched: boolean;
-  /** 分叉点上有它 */
+  /** 合并基准上有它 */
   readonly existedAtBase: boolean;
-  /** 目标现在有它 */
-  readonly exists: boolean;
+  /** 目标现在的值；目标里没有它时为 `undefined` */
+  readonly current: Row | undefined;
   /**
-   * 目标分叉以来的净改动：取值与分叉点不同的字段。改了又改回原值的不算——
-   * 源把它写成什么都不会丢掉目标的任何东西
+   * 目标分叉以来的净改动：取值与基准不同的字段。改了又改回原值的不算——
+   * 源把它写成什么都不会丢掉目标的任何东西。删后重建时，基准有、新行没有的字段也算（值为 `undefined`）
    */
   readonly net: Row;
-  /** 目标现在的值：分叉点的值叠上分叉以来的改动 */
-  readonly current: Row;
 }
 
+/**
+ * 这个实体在合并基准上的值；基准上没有它时为 `undefined`。
+ *
+ * @remarks
+ * 「源 tip → 基准」这一段删过或建过它，就以那一段的结果为准；只改过字段，就在源 tip 的值上
+ * 换回那些字段在基准上的值。这一段完全没碰过它，基准上的值就是源 tip 上的值：源是目标的祖先时，
+ * 合并会把源分支在基准之前的那段历史也重放一遍，那些实体只出现在 `incoming` 里。
+ */
+const baseRowOf = (sides: MergeSides, key: string): Row | undefined => {
+  const atSourceTip = valuesAt(sides.incoming, key);
+  if (!touches(sides.base, key)) return atSourceTip;
+  if (!sides.base.updates.has(key)) return valuesAt(sides.base, key);
+  return { ...atSourceTip, ...valuesAt(sides.base, key) };
+};
+
+/**
+ * 这个实体在目标现在的值；目标里没有它时为 `undefined`。
+ *
+ * @remarks
+ * 分叉以来没碰过就是基准上的值，只改了字段就是基准叠上改动。删后重建（或目标自己新建）是整行替换，
+ * 现在的值就是新行：叠在基准上的话，基准有、新行没有的字段会留成幻影。
+ */
+const currentRowOf = (sides: MergeSides, key: string, baseRow: Row | undefined): Row | undefined => {
+  if (!touches(sides.target, key)) return baseRow;
+  const changed = valuesAt(sides.target, key);
+  if (!changed || sides.target.inserts.has(key)) return changed;
+  return { ...baseRow, ...changed };
+};
+
 const targetStateOf = (sides: MergeSides, key: string): TargetState => {
-  const baseRow = valuesAt(sides.base, key);
+  const baseRow = baseRowOf(sides, key);
   const changed = valuesAt(sides.target, key) ?? {};
-  const touched = touches(sides.target, key);
-  const exists = touched ? valuesAt(sides.target, key) !== undefined : baseRow !== undefined;
-  const netFields = Object.keys(changed).filter(field => !baseRow || !isEqual(changed[field], baseRow[field]));
+  // 整行替换时把基准上的字段也拿来比：新行里没了的字段，是目标把它删了，同样是净改动
+  const fields =
+    sides.target.inserts.has(key) ? [...Object.keys(baseRow ?? {}), ...Object.keys(changed)] : Object.keys(changed);
+  const netFields = [...new Set(fields)].filter(field => !isEqual(changed[field], baseRow?.[field]));
   return {
-    touched,
     existedAtBase: baseRow !== undefined,
-    exists,
-    net: pick(changed, netFields),
-    current: { ...baseRow, ...changed }
+    current: currentRowOf(sides, key, baseRow),
+    net: pick(changed, netFields)
   };
 };
 
-/** 源的 UPDATE：目标删了它就落空；目标净改过的业务字段被写成别的值就是覆盖。 */
+/** 源的 UPDATE：目标里没有这一行就落空；目标净改过的业务字段被写成别的值就是覆盖。 */
 const updateConflict = (patch: Row, target: TargetState): MergePreviewConflict | null => {
-  if (target.touched && !target.exists) return { kind: 'update_deleted' };
+  if (!target.current) return { kind: 'update_deleted' };
   const fields = differingBusinessFields(
     Object.keys(patch).filter(field => Object.hasOwn(target.net, field)),
     patch,
@@ -292,14 +320,17 @@ const updateConflict = (patch: Row, target: TargetState): MergePreviewConflict |
 
 /** 源的 DELETE：目标净改过的业务字段会随实体一起没了。 */
 const deleteConflict = (target: TargetState): MergePreviewConflict | null => {
-  if (!target.exists) return null;
+  if (!target.current) return null;
   const fields = Object.keys(target.net).filter(field => !BOOKKEEPING.has(field));
   return fields.length > 0 ? { kind: 'delete_edited', fields } : null;
 };
 
-/** 源的 INSERT（整行替换）：目标删了它就是重建；目标净改过的业务字段被换成别的值就是覆盖。 */
+/**
+ * 源的 INSERT（整行替换）：目标里没有它时，基准上有就是目标分叉以来删了、合并会把它建回来，
+ * 基准上也没有就是普通的新建；目标净改过的业务字段被换成别的值就是覆盖。
+ */
 const insertConflict = (row: Row, target: TargetState): MergePreviewConflict | null => {
-  if (target.touched && !target.exists) return target.existedAtBase ? { kind: 'revive_deleted' } : null;
+  if (!target.current) return target.existedAtBase ? { kind: 'revive_deleted' } : null;
   const fields = differingBusinessFields(Object.keys(target.net), row, target.net);
   return fields.length > 0 ? { kind: 'overwrite', fields } : null;
 };
@@ -308,7 +339,7 @@ const insertConflict = (row: Row, target: TargetState): MergePreviewConflict | n
 const previewEntry = (sides: MergeSides, key: string): MergePreviewEntry => {
   const identity = identityOf(key);
   const target = targetStateOf(sides, key);
-  const current = target.exists ? target.current : null;
+  const current = target.current ?? null;
   const written = valuesAt(sides.incoming, key);
   if (sides.incoming.inserts.has(key) && written) {
     return {
@@ -337,11 +368,34 @@ const previewEntry = (sides: MergeSides, key: string): MergePreviewEntry => {
   };
 };
 
-/** 源分支长出来的那一点：父分支停在 `fromChangeId`；源分支是根时就是它自己的起点。 */
-const sourceForkPoint = (source: RxDBBranch, branches: readonly RxDBBranch[]): BranchPoint =>
-  source.parentId ?
-    { branch: branchOf(branches, source.parentId), changeId: source.fromChangeId ?? null }
-  : { branch: source, changeId: null };
+/**
+ * 一个变更点在自己父链上第 `index` 条分支上看到的位置：在它自己那条分支上是它停的变更，
+ * 在祖先上是往下一级子分支的分叉点。
+ */
+const positionOn = (point: BranchPoint, path: readonly RxDBBranch[], index: number): number =>
+  index === 0 ? (point.changeId ?? forkPointOf(point.branch)) : forkPointOf(path[index - 1]);
+
+/**
+ * 源 tip 与目标 tip 的最近公共祖先点（merge base）：两条父链上的第一条公共分支，停在两边在它上面
+ * 看到的位置里较早的那个。
+ *
+ * @remarks
+ * 两边不在同一棵树上时（`syncBranches` 会原样落下远端 `parentId` 为空的分支，库里于是不止一个根），
+ * 与 `find_switch_branch_step` 的「经根」同一口径：两边都是从空库长出来的，基准就是空库——源那棵树的根停在 0。
+ */
+const mergeBasePoint = (branches: readonly RxDBBranch[], source: BranchPoint, target: BranchPoint): BranchPoint => {
+  const branchMap = new Map(branches.map(branch => [branch.id, branch]));
+  const sourcePath = find_branch_path_to_root(source.branch, branchMap);
+  const targetPath = find_branch_path_to_root(target.branch, branchMap);
+  const sourceIndex = sourcePath.findIndex(branch => targetPath.some(candidate => candidate.id === branch.id));
+  if (sourceIndex === -1) return { branch: sourcePath[sourcePath.length - 1], changeId: 0 };
+  const common = sourcePath[sourceIndex];
+  const targetIndex = targetPath.findIndex(branch => branch.id === common.id);
+  return {
+    branch: common,
+    changeId: Math.min(positionOn(source, sourcePath, sourceIndex), positionOn(target, targetPath, targetIndex))
+  };
+};
 
 /**
  * 预览把一条分支合并进另一条会落什么。
@@ -355,8 +409,17 @@ const sourceForkPoint = (source: RxDBBranch, branches: readonly RxDBBranch[]): B
  *
  * @remarks
  * 源分支的改动与合并取法相同（{@link find_source_changes}）、按同一份逻辑压缩（{@link squash_source_changes}），
- * 条目因此就是合并真正落的操作。基准是源分支的分叉点：目标「分叉以来的改动」是分叉点到目标 tip 的增量，
- * 分叉点上的值取源分支 tip 到分叉点的增量。
+ * 条目因此就是合并真正落的操作。
+ *
+ * 基准是源 tip 与目标 tip 的最近公共祖先点（merge base）：目标「分叉以来的改动」是基准到目标 tip 的增量，
+ * 基准上的值取源 tip 到基准的增量（这一段没碰过的实体，基准上的值就是源 tip 上的值）。不取源分支自己的分叉点：
+ * 目标是源的后代、比源分叉得更早、或源是孙分支合进祖分支时，「源的分叉点 → 目标 tip」里混着不属于目标自己的
+ * 改动（源自己的历史、两边分开之后上游的改动），会把目标从没碰过的字段误报成覆盖。最常见的「子分支合回父分支」
+ * 里，两者是同一点。
+ *
+ * 几次读（源分支的变更、两次增量）不在同一个事务里：预览期间另有合并或切换落库，结果可能由两个时刻的变更日志
+ * 拼成。不为此开事务：`mergeBranch()` 自己也是在事务外读源分支的变更、再开事务写，预览只是合并前的提示、不写库，
+ * 读得再一致也保证不了随后那次合并落的就是预览的这些。
  *
  * @internal
  */
@@ -377,13 +440,13 @@ export const preview_merge = async (
   const merged = strategy === 'normal' ? sourceChanges.length : netCount;
   if (netCount === 0) return { sourceBranchId, targetBranchId, strategy, merged, entries: [] };
 
-  const fork = sourceForkPoint(source, branches);
   const sourceTip = await branch_tip_point(readers.changeRepository, source);
   const targetTip = await branch_tip_point(readers.changeRepository, targetBranch);
+  const mergeBase = mergeBasePoint(branches, sourceTip, targetTip);
   const sides: MergeSides = {
     incoming,
-    base: await compute_branch_transition_actions(readers.changeRepository, branches, sourceTip, fork),
-    target: await compute_branch_transition_actions(readers.changeRepository, branches, fork, targetTip)
+    base: await compute_branch_transition_actions(readers.changeRepository, branches, sourceTip, mergeBase),
+    target: await compute_branch_transition_actions(readers.changeRepository, branches, mergeBase, targetTip)
   };
   const entries = touchedKeys(incoming).map(key => previewEntry(sides, key));
   return { sourceBranchId, targetBranchId, strategy, merged, entries };

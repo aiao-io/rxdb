@@ -1,18 +1,10 @@
 <script lang="ts" setup>
 import type { RxDB } from '@aiao/rxdb';
-import type { WorktreeView } from '@aiao/rxdb-plugin-working-tree';
 import { Eye } from '@lucide/vue';
 import { computed, ref } from 'vue';
-import { readOnlyCatalog } from '../utils/read-only-checkout';
+import { readOnlyCatalog, type ReadOnlyViewerState } from '../utils/read-only-checkout';
 import DialogShell from './DialogShell.vue';
 import ReadOnlyEntityPane from './ReadOnlyEntityPane.vue';
-
-/** 只读检出位查看器的状态；页面持有，本组件只做展示。 */
-export interface ReadOnlyViewerState {
-  readonly view: WorktreeView;
-  /** 横幅里的检出目标，见 `readOnlyTargetLabel` */
-  readonly label: string;
-}
 
 /**
  * 只读检出位查看器（US-313）：不切换分支，以只读方式浏览另一条分支或一个提交的完整数据。
@@ -23,6 +15,7 @@ export interface ReadOnlyViewerState {
  * 它们在快照里是此刻的内容，不随检出的分支或提交。
  */
 const props = defineProps<{
+  /** 页面持有的查看器状态（见 `ReadOnlyViewerSession`），本组件只做展示 */
   viewer: ReadOnlyViewerState | null;
   /** 主实例：「不随版本」按它的实体元数据判 */
   mainRxdb: RxDB;

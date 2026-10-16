@@ -42,6 +42,10 @@
         "kind": "type"
       },
       {
+        "name": "breaksReadOnly",
+        "kind": "value"
+      },
+      {
         "name": "buildVersionedDomain",
         "kind": "value"
       },
@@ -199,10 +203,6 @@
       },
       {
         "name": "commitWorkingTree",
-        "kind": "value"
-      },
-      {
-        "name": "containsWriteStatement",
         "kind": "value"
       },
       {

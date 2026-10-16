@@ -176,6 +176,10 @@ export {
 } from './sqlite-client.utils.js';
 export type { ChangeRecordEvent } from './sqlite-client.utils.js';
 
+// OPFS 库打开时等「同步访问句柄仍被占用」退去（US-221）：sqlite-wasm 的 opfs 档与 wa-sqlite 的 OPFSCoopSyncVFS 共用
+export { isOpfsAccessHandleBusy, openOpfsWithRetry, releaseOpfsCoopSyncHandles } from './opfs-open-retry.js';
+export type { OpfsOpenRetryOptions } from './opfs-open-retry.js';
+
 // FTS5 DDL 工具（被 @aiao/rxdb-plugin-search 消费）
 export {
   FTS_BIGRAM_SQL_FUNCTION,

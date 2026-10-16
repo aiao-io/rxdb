@@ -9,8 +9,7 @@ import type {
   WorkingTreeDiffEntry,
   WorkingTreeRestoreFailureReason,
   WorkingTreeRestoreSessionInfo,
-  WorktreeTarget,
-  WorktreeView
+  WorktreeTarget
 } from '@aiao/rxdb-plugin-working-tree';
 import { CommitValidationError, WorkingTreeDirtyError, WorktreeUnavailableError } from '@aiao/rxdb-plugin-working-tree';
 import {
@@ -56,13 +55,17 @@ import {
 import { WorkingTreeDiffViewerComponent } from './components/diff-viewer.component';
 import { WorkingTreeHistoryListComponent } from './components/history-list.component';
 import { MergeDialogState, WorkingTreeMergeDialogComponent } from './components/merge-dialog.component';
-import { WorkingTreeReadOnlyViewerComponent, type ReadOnlyViewerState } from './components/read-only-viewer.component';
+import { WorkingTreeReadOnlyViewerComponent } from './components/read-only-viewer.component';
 import type { BranchDiffLoad } from './working-tree.branch-diff';
 import { diffEntryKey } from './working-tree.diff-format';
 import { startDragResize } from './working-tree.drag';
 import { gdEntryPath } from './working-tree.gd';
 import { keepLastGood } from './working-tree.keep-last-good';
-import { READ_ONLY_REJECTION_TEXT, readOnlyTargetLabel } from './working-tree.read-only-checkout';
+import {
+  READ_ONLY_REJECTION_TEXT,
+  ReadOnlyViewerSession,
+  type ReadOnlyViewerState
+} from './working-tree.read-only-checkout';
 
 const AUTHOR_ID = 'demo-author';
 
@@ -143,8 +146,16 @@ export default class WorkingTreePage implements OnInit {
   /** 只读请求的代号：对话框关掉或换了参数之后，迟到的结果不落进新状态。 */
   #mergePreviewRequest = 0;
   #compareRequest = 0;
-  /** 开着的只读检出位（US-313）：离开页面与迟到的刷新都按它收尾。 */
-  #readOnlyView: WorktreeView | null = null;
+  /**
+   * 只读检出位查看器的会话（US-313）：迟到的打开与刷新结果由它当场关掉，离开页面时 dispose。
+   * 回调只是把状态接到 `$readOnlyViewer` / `$readOnlyRefreshing` 与 toast 上。
+   */
+  readonly #readOnlySession = new ReadOnlyViewerSession({
+    open: target => this.worktrees.open(target),
+    onViewerChange: viewer => this.$readOnlyViewer.set(viewer),
+    onRefreshingChange: refreshing => this.$readOnlyRefreshing.set(refreshing),
+    onError: error => this.showToast('error', readOnlyRejectionOf(error))
+  });
   private readonly createdAt = performance.now();
   private readonly destroyRef = inject(DestroyRef);
   private readonly toastTimer = new ResettableTimer();
@@ -176,7 +187,7 @@ export default class WorkingTreePage implements OnInit {
   readonly $mergeDialog = signal<MergeDialogState | null>(null);
   readonly $mergePreview = signal<BranchDiffLoad<MergePreview>>({ phase: 'loading' });
   readonly $compareDialog = signal<CompareDialogState | null>(null);
-  /** 只读检出位查看器（US-313） */
+  /** 只读检出位查看器（US-313）：两份状态都由 `#readOnlySession` 经回调写进来。 */
   readonly $readOnlyViewer = signal<ReadOnlyViewerState | null>(null);
   readonly $readOnlyRefreshing = signal(false);
   /** 应用内确认框请求（替代原生 confirm）。 */
@@ -284,10 +295,8 @@ export default class WorkingTreePage implements OnInit {
       this.toastTimer.clear();
       clearInterval(this.fetchedTicker);
       // 离开页面时关掉还开着的只读检出位：会话归属的快照库没人看了，留着只能等下一次回收。
-      // 页面已经销毁，没有地方显示提示，失败只打到控制台
-      void this.#readOnlyView
-        ?.close()
-        .catch((error: unknown) => console.error('[working-tree] 关闭只读检出位失败', error));
+      // 打开、刷新途中迟到的结果也由会话当场关掉；页面已经销毁，关闭失败只打到控制台
+      this.#readOnlySession.dispose();
     });
     this.fetchedTicker = setInterval(() => this.$now.set(Date.now()), 15000);
     effect(() => {
@@ -825,45 +834,23 @@ export default class WorkingTreePage implements OnInit {
 
   // ── 只读检出位（US-313）──────────────────────────────────
 
-  /** 打开只读检出位：不切换分支，在查看器里浏览目标的完整数据。会话归属，关掉查看器即删快照库。 */
+  /**
+   * 打开只读检出位：不切换分支，在查看器里浏览目标的完整数据。会话归属，关掉查看器即删快照库。
+   * 快照建好之前又点了别的目标、关了查看器或离开页面，这次的结果由会话当场关掉（见 `ReadOnlyViewerSession`）。
+   */
   async openReadOnly(target: WorktreeTarget): Promise<void> {
     this.$branchMenuOpen.set(false);
-    try {
-      const view = await this.worktrees.open(target);
-      this.#readOnlyView = view;
-      this.$readOnlyViewer.set({ view, label: readOnlyTargetLabel(target) });
-    } catch (error) {
-      this.showToast('error', readOnlyRejectionOf(error));
-    }
+    await this.#readOnlySession.open(target);
   }
 
   /** 按建立时的目标重建快照：主库此后的写入这才看得见。 */
-  async refreshReadOnly(): Promise<void> {
-    const current = this.$readOnlyViewer();
-    if (current === null) return;
-    this.$readOnlyRefreshing.set(true);
-    try {
-      const next = await current.view.refresh();
-      // 刷新途中查看器被关掉了：新建出来的这个没人看，当场关掉，不把查看器又弹回来
-      if (this.#readOnlyView !== current.view) {
-        void next.close().catch((error: unknown) => this.showToast('error', readOnlyRejectionOf(error)));
-        return;
-      }
-      this.#readOnlyView = next;
-      this.$readOnlyViewer.set({ view: next, label: current.label });
-    } catch (error) {
-      this.showToast('error', readOnlyRejectionOf(error));
-    } finally {
-      this.$readOnlyRefreshing.set(false);
-    }
+  refreshReadOnly(): Promise<void> {
+    return this.#readOnlySession.refresh();
   }
 
   /** 关掉查看器：断开只读实例，删快照库与登记。 */
   closeReadOnly(): void {
-    const view = this.#readOnlyView;
-    this.#readOnlyView = null;
-    this.$readOnlyViewer.set(null);
-    if (view !== null) void view.close().catch((error: unknown) => this.showToast('error', readOnlyRejectionOf(error)));
+    this.#readOnlySession.close();
   }
 
   // ── 私有辅助（成员排序规则：私有方法放最后） ──────────────

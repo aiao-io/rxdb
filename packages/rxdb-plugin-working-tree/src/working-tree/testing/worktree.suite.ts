@@ -392,6 +392,15 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
         expect(adapter.rawQuery, '后端没有 rawQuery').toBeDefined();
         const table = await adapter.transaction(async executor => executor.tableRef(ViewTask), false);
         await expect(adapter.rawQuery!(`DELETE FROM ${table}`)).rejects.toBeInstanceOf(RxDBReadOnlyError);
+        // 会话设置能把引擎封印解开（SQLite 系的 `query_only`、PGlite 的只读默认值），raw 入口一律拒
+        for (const sql of ['PRAGMA query_only = 0', 'SET SESSION default_transaction_read_only = off']) {
+          await expect(adapter.rawQuery!(sql)).rejects.toBeInstanceOf(RxDBReadOnlyError);
+        }
+        // PGlite 能在一条读语句里改会话默认值，raw 门认不出它；改掉之后的事务也得照样只读。
+        // SQLite 系没有这个函数，报错即可——结果不论，只看下面的写还拒不拒
+        await Promise.allSettled([
+          adapter.rawQuery!("SELECT set_config('default_transaction_read_only', 'off', false)")
+        ]);
         // 执行器写不经核心写入口，也不经挂载点：只剩引擎封印
         const intruder = view.rxdb.entityManager.instantiate(ViewTask);
         intruder.title = '越权';
@@ -564,6 +573,15 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
         expect(await tablesOf(attached.rxdb, attached)).toEqual(viewed);
         const again = await persistent.workingTree.checkouts.attach(view.id).catch(e => e);
         expect((again as WorktreeUnavailableError).reason).toBe('in_use');
+
+        // 登记行还在、快照库却被删了：再 attach 连上的是一个新建的空库，要报 not_found，不能交回一张张空表
+        const snapshotAdapter = await localAdapterOf(attached.rxdb);
+        await attached.release();
+        views.splice(views.indexOf(attached), 1);
+        await snapshotAdapter.dropStorage!();
+        const lost = await persistent.workingTree.checkouts.attach(view.id).catch(e => e);
+        expect((lost as WorktreeUnavailableError).reason).toBe('not_found');
+        expect(await persistent.workingTree.checkouts.list()).toEqual([]);
       });
     });
 

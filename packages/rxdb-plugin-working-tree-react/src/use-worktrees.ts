@@ -19,7 +19,8 @@ interface WorktreesSlot {
  * @remarks
  * 四个状态字段与核心的 `WorktreeAsyncStates` 一一对应，方法签名与插件包 `WorktreeManager` 上的同名方法一致。
  * 方法引用稳定（同一个库跨 render 复用同一组闭包），状态字段随相位变化产生新对象。
- * 三端等价实现：Angular `useWorktrees()`（`Signal`）、Vue `useWorktrees()`（`ComputedRef`）。
+ * 三端同名、同字段、同签名：Angular `useWorktrees()`（`Signal`）、Vue `useWorktrees()`（`ComputedRef`）。
+ * `RxDBProvider` 换了库时四格回到初态，旧库迟到的结果丢弃；Angular / Vue 的入口绑定创建时的库，换库靠重建组件。
  *
  * 打开得到的视图把 `view.rxdb` 交给 `RxDBProvider`，现有的查询 hook 照用；查询要用 `view.entityOf()` 换过的类。
  *

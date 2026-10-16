@@ -8,6 +8,9 @@ import { createSqliteClient } from '../create_sqlite_client.js';
  * @remarks
  * 真实 module Worker、真实 OPFS。占句柄的是 `opfs-handle-holder.worker.ts`：它只开句柄、不拿 VFS 的 Web Lock，
  * 正是刷新时「锁已放、句柄还没关」的现场，不靠真实刷新的时序。
+ *
+ * 只占库文件、不占旁文件，是故意的：第一次打开时 VFS 并行去开库文件与 `-journal` / `-wal`，库文件先失败，另外两个后开出来、
+ * 没人关。同一个 Worker 里的重试要先交出这两个句柄才打得开（`releaseOpfsCoopSyncHandles`），这条路径由此必走。
  */
 
 const liveWorkers: Worker[] = [];
@@ -44,6 +47,24 @@ const holdAccessHandle = async (fileName: string): Promise<() => Promise<void>> 
   };
 };
 
+const sleep = (ms: number) => new Promise<void>(resolve => setTimeout(resolve, ms));
+
+const opfsFileExists = (root: FileSystemDirectoryHandle, name: string): Promise<boolean> =>
+  root.getFileHandle(name).then(
+    () => true,
+    () => false
+  );
+
+/**
+ * 等客户端第一次打开撞上被占的库文件：VFS 先在 OPFS 根目录建出 `-wal`，紧接着去开三个文件的句柄，库文件那个当场失败。
+ * 见到 `-wal` 再等一段远长于这几步的时间，第一次打开必然已经失败；不靠 Worker 启动快慢去赌时序。
+ */
+const firstAttemptFailed = async (dbName: string): Promise<void> => {
+  const root = await navigator.storage.getDirectory();
+  while (!(await opfsFileExists(root, `${dbName}.sqlite-wal`))) await sleep(10);
+  await sleep(200);
+};
+
 const opfsOptions = (workerInstance: Worker) => ({
   vfs: 'opfs' as const,
   wasmUrl: sqliteWasmUrl,
@@ -57,13 +78,18 @@ afterEach(() => {
 });
 
 describe('US-221 · 库文件的同步访问句柄被另一个上下文占着', () => {
-  it('占着的一方随后释放：打开等到释放后成功', { timeout: 15000 }, async () => {
+  it('第一次打开撞上占用之后才释放：重试交出失败那次留下的句柄，等到释放后打开成功', { timeout: 15000 }, async () => {
     const dbName = `us221-released-${Date.now()}`;
     const release = await holdAccessHandle(`${dbName}.sqlite`);
-    const releasing = new Promise<void>(resolve => setTimeout(() => void release().then(resolve), 300));
+    const releaseAfterFirstAttempt = async () => {
+      await firstAttemptFailed(dbName);
+      await release();
+    };
 
-    const client = await createSqliteClient(dbName, opfsOptions(spawnSqliteWorker()));
-    await releasing;
+    const [client] = await Promise.all([
+      createSqliteClient(dbName, opfsOptions(spawnSqliteWorker())),
+      releaseAfterFirstAttempt()
+    ]);
     await client.execute('CREATE TABLE t(v TEXT)');
     await client.execute('INSERT INTO t VALUES (?)', ['opened-after-release']);
     const result = await client.execute('SELECT v FROM t');

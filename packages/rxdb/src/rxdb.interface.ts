@@ -118,6 +118,10 @@ export interface RxDBOptions {
    *
    * 只读实例被当作可写实例旁边的视图：一个实体类同时登记在两者上时（核心系统实体每个实例都登记），
    * `RxDBBranch.find()` 这类静态调用落到可写的那个，不再报多实例。
+   *
+   * 无上下文的裸构造走同一条解析：在只读实例的代码里 `new RxDBBranch()` 再 `save()`，实体归的是可写实例，
+   * 写会落进**它的**库，只读实例的写防线看不见这一笔。要在只读实例上建实体，经它的
+   * `entityManager.instantiate()` / `createEntityRef()`。
    */
   readOnly?: boolean;
 

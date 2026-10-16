@@ -7,9 +7,13 @@
  * @module sqlite-load.utils
  */
 
-import { RxDBAdapterSqliteError } from '@aiao/rxdb-adapter-sqlite-core';
+import {
+  isOpfsAccessHandleBusy,
+  openOpfsWithRetry,
+  releaseOpfsCoopSyncHandles,
+  RxDBAdapterSqliteError
+} from '@aiao/rxdb-adapter-sqlite-core';
 import { initSQLiteCore, type InitSQLiteOptions, type SQLiteDBCore } from '@subframe7536/sqlite-wasm';
-import { isOpfsAccessHandleBusy, openOpfsWithRetry } from './opfs-open-retry.js';
 import { LoadModuleOptions, SupportVFS } from './sqlite.interface.js';
 
 interface VFSConfig {
@@ -171,18 +175,40 @@ const buildStorageOptions = async (dbName: string, options: LoadModuleOptions): 
 };
 
 /**
+ * 打开一次 `opfs` 库；失败时交出这一次的 VFS 留下的同步访问句柄。
+ *
+ * @remarks
+ * `opfs` 档是 `OPFSCoopSyncVFS`：打开失败留下的句柄要等垃圾回收才放开，同一个 Worker 里的重试会撞上自己
+ * （见 {@link releaseOpfsCoopSyncHandles}）。VFS 在 `open_v2` 之前经 `beforeOpen` 交到这里；没走到那一步就没有句柄可交。
+ */
+const openOpfsOnce = async (storage: InitSQLiteOptions): Promise<SQLiteDBCore> => {
+  let vfs: object | undefined;
+  try {
+    return await initSQLiteCore({
+      ...storage,
+      beforeOpen: opened => {
+        vfs = opened;
+      }
+    });
+  } catch (error) {
+    if (vfs) releaseOpfsCoopSyncHandles(vfs);
+    throw error;
+  }
+};
+
+/**
  * 加载并初始化 @subframe7536/sqlite-wasm
  *
  * @returns 返回 `SQLiteDBCore`，包含 `sqlite`、`pointer`（db）、`vfs` 等字段
  *
  * @remarks
  * `opfs` 打开失败为 `SQLITE_CANTOPEN` 时退避重试：整页刷新时上一个页面可能还占着库文件的同步访问句柄
- * （见 {@link openOpfsWithRetry}）。每次重试都新建 VFS 与连接；配置类错误在打开之前就抛出，不重试。
+ * （见 {@link openOpfsWithRetry}）。每次重试都新建 VFS 与连接，失败那次的句柄先交出去；配置类错误在打开之前就抛出，不重试。
  */
 export const sqliteLoad = async (dbName: string, options: LoadModuleOptions): Promise<SQLiteDBCore> => {
   checkVFSConfig(options);
-  const open = async () => initSQLiteCore(await buildStorageOptions(dbName, options));
-  if ((options.vfs ?? 'idb') !== 'opfs') return open();
+  if ((options.vfs ?? 'idb') !== 'opfs') return initSQLiteCore(await buildStorageOptions(dbName, options));
   const fileName = sqliteFileName(dbName);
+  const open = async () => openOpfsOnce(await buildStorageOptions(dbName, options));
   return openOpfsWithRetry(open, { fileName, isAccessHandleBusy: () => isOpfsAccessHandleBusy(fileName) });
 };

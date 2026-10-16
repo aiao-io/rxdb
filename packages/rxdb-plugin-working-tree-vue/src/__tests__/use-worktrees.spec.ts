@@ -6,7 +6,7 @@
  * 只有容器形态不同 —— Vue 是 `ComputedRef`。桩只桩到 `RxDB.workingTree.checkouts` 那一层。
  */
 import type { RxDB } from '@aiao/rxdb';
-import type { Worktree, WorktreeView } from '@aiao/rxdb-plugin-working-tree';
+import { WORKTREE_INITIAL_ASYNC_STATES, type Worktree, type WorktreeView } from '@aiao/rxdb-plugin-working-tree';
 import { mount } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useWorktrees, type WorktreesResource } from '../use-worktrees';
@@ -87,5 +87,18 @@ describe('useWorktrees', () => {
 
   it('库没装工作树插件：抛错', () => {
     expect(() => mountWithProvider({} as RxDB)).toThrow(/workingTree\.checkouts/);
+  });
+});
+
+describe('tri-framework-api.md §3 清单守卫', () => {
+  // 三端 README 说「任一端加减成员都会红」，靠的就是这一段：比的是整个成员集合，不只是在不在场。
+  // 状态格的名字取自核心的初值表，核心加减一格、而某一端没跟上，这里当场红。
+  const METHODS = ['attach', 'list', 'open', 'prune'] as const;
+
+  it('四个方法加四格状态，一个不多一个不少；四格与核心 WorktreeAsyncStates 同名同数', () => {
+    const { worktrees } = createFixture();
+
+    expect(Object.keys(worktrees).sort()).toEqual([...METHODS, ...Object.keys(WORKTREE_INITIAL_ASYNC_STATES)].sort());
+    for (const method of METHODS) expect(typeof worktrees[method]).toBe('function');
   });
 });

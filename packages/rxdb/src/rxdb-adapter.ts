@@ -754,6 +754,10 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    *
    * @remarks
    * 兜住绕过核心写入口、直接打到适配器的写。SQLite 系是 `PRAGMA query_only`，PGlite 是只读事务。
+   *
+   * 封印是连接（PGlite 是每个事务）上的状态，raw 入口上能改它的会话设置由只读钩子拒掉；
+   * 经执行器下发的语句（`adapter.transaction(executor => executor.query(…))`）是适配器自己的通道，
+   * 封印本身就是从这里落下的，也就拦不住从这里解开——只读检出位防的是误写，不是蓄意改连接配置的代码。
    */
   sealWorktreeReadOnly?(): Promise<void>;
 

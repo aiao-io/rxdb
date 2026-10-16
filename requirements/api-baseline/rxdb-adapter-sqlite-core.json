@@ -318,6 +318,10 @@
         "kind": "type"
       },
       {
+        "name": "isOpfsAccessHandleBusy",
+        "kind": "value"
+      },
+      {
         "name": "isReadOnlyStatement",
         "kind": "value"
       },
@@ -394,7 +398,15 @@
         "kind": "type"
       },
       {
+        "name": "openOpfsWithRetry",
+        "kind": "value"
+      },
+      {
         "name": "OpfsFallback",
+        "kind": "type"
+      },
+      {
+        "name": "OpfsOpenRetryOptions",
         "kind": "type"
       },
       {
@@ -415,6 +427,10 @@
       },
       {
         "name": "releaseComlinkProxy",
+        "kind": "value"
+      },
+      {
+        "name": "releaseOpfsCoopSyncHandles",
         "kind": "value"
       },
       {

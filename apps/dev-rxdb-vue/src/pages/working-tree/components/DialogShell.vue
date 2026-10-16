@@ -1,5 +1,6 @@
 <script lang="ts" setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
+import { restoreFocus, trapTabKey } from '../utils/focus-trap';
 
 /**
  * 模态对话框外壳：合并、对比与只读检出位查看器共用（GitHub Desktop 对话框形态：白面板圆角描边、半透明背板）。
@@ -7,6 +8,10 @@ import { onMounted, ref } from 'vue';
  * @remarks
  * 背板与面板是**兄弟**节点。背板是 `role="button"`（点它关闭），而按钮的子孙不许可聚焦——
  * 背板包着面板就是 axe 的 `nested-interactive` 违规。打开时焦点移进面板，面板里任意处按 Escape 关闭。
+ *
+ * 面板是焦点陷阱：Tab / Shift+Tab 在面板里首尾回绕，键盘走不到背板与页面上（见 `trapTabKey`）。
+ * 关闭时焦点还给打开前持有它的元素，但只在它还在文档里时还：合并、对比与只读检出位查看器都从会关掉的
+ * 菜单打开，对话框关闭时那个菜单项早已不在，焦点就留给浏览器（见 `restoreFocus`）。
  */
 withDefaults(
   defineProps<{
@@ -25,8 +30,17 @@ const emit = defineEmits<{
 }>();
 
 const panel = ref<HTMLElement | null>(null);
+/** 打开前持有焦点的元素：挂载后、焦点移进面板之前记下，关闭时还给它 */
+let opener: Element | null = null;
 
-onMounted(() => panel.value?.focus());
+onMounted(() => {
+  opener = document.activeElement;
+  panel.value?.focus();
+});
+onUnmounted(() => restoreFocus(opener));
+
+/** 面板里的 Tab / Shift+Tab 首尾回绕 */
+const trapTab = (event: KeyboardEvent): void => trapTabKey(event.currentTarget as HTMLElement, event);
 </script>
 
 <template>
@@ -45,6 +59,7 @@ onMounted(() => panel.value?.focus());
       :class="size === 'wide' ? 'max-w-5xl' : 'max-w-lg'"
       ref="panel"
       :style="{ background: 'var(--gd-panel)' }"
+      @keydown="trapTab"
       @keydown.escape="emit('closeRequested')"
       :aria-labelledby="labelledBy"
       aria-modal="true"

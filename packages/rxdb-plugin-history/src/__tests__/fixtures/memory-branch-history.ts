@@ -18,7 +18,8 @@ interface MemoryChange {
   readonly entityId: string;
   readonly patch: MemoryRow | null;
   readonly inversePatch: MemoryRow | null;
-  readonly revertChangeId: number | null;
+  /** 撤销只改这一列（{@link MemoryBranchHistory.revert}），所以它不是只读的 */
+  revertChangeId: number | null;
 }
 
 /** 夹具里一条分支行用到的字段。 */
@@ -104,6 +105,18 @@ export class MemoryBranchHistory {
     this.#branches.push({ id, parentId, fromChangeId: fromChangeId ?? this.#tipOf(parentId), activated: false });
   }
 
+  /**
+   * 再建一棵树的根：`parentId` 为空的分支。
+   *
+   * @param id - 分支 id
+   *
+   * @remarks
+   * 本地建库只有一个根（`main`），但 `syncBranches` 会原样落下远端 `parentId` 为空的分支，库里于是不止一棵树。
+   */
+  root(id: string): void {
+    this.#branches.push({ id, parentId: null, fromChangeId: null, activated: false });
+  }
+
   /** 把 active 标记挪到这条分支（只改标记；数据视图由测试自己的判定基准负责）。 */
   activate(id: string): void {
     for (const branch of this.#branches) branch.activated = branch.id === id;
@@ -124,6 +137,21 @@ export class MemoryBranchHistory {
     const current = this.stateOf(branchId).get(entityId);
     if (!current) throw new Error(`夹具：分支 ${branchId} 上没有 ${entityId}，不能 DELETE`);
     return this.#push(branchId, 'DELETE', entityId, null, { ...current });
+  }
+
+  /**
+   * 撤销一条变更：只给原行打上 `revertChangeId` 标记，不产生新的变更行。
+   *
+   * @param changeId - 要撤销的变更
+   *
+   * @remarks
+   * 与 `undo-redo-apply.ts` 同一个语义：标记值取下一个序号（真实撤销同样推进变更序列），
+   * 此后所有按 `revertChangeId = null` 过滤的查询都看不见这一行。
+   */
+  revert(changeId: number): void {
+    const change = this.#changes.find(candidate => candidate.id === changeId);
+    if (!change) throw new Error(`夹具：没有变更 ${changeId}`);
+    change.revertChangeId = this.#nextChangeId++;
   }
 
   /**

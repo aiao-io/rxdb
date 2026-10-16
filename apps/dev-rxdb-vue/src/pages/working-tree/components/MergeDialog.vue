@@ -22,7 +22,7 @@ export interface MergeDialogState {
  */
 defineProps<{
   dialog: MergeDialogState | null;
-  activeBranch?: string;
+  activeBranch: string;
   /** 按当前策略读的合并预览；读失败不挡合并 */
   preview: BranchDiffLoad<MergePreview>;
   error: string | null;
@@ -159,7 +159,7 @@ const emit = defineEmits<{
         v-if="preview.phase === 'success' && preview.value.merged > 0"
         :empty-text="`These changes cancel out; nothing on ${activeBranch} changes.`"
         :entries="preview.value.entries"
-        :target="activeBranch ?? ''"
+        :target="activeBranch"
         label="Merge preview"
       />
     </section>

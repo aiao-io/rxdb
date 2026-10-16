@@ -77,7 +77,8 @@ export const conflictText = (conflict: MergePreviewConflict, target: string): st
     case 'delete_edited':
       return `Deletes it, discarding ${target}'s changes to ${conflict.fields.join(', ')}`;
     case 'update_deleted':
-      return `${target} deleted it, so these changes are dropped`;
+      // 目标里没有这一行：分叉以来删了它，或者它是两边分开之后由源的上游分支建的——两种情形合并都落空
+      return `${target} doesn't have it, so these changes are dropped`;
     case 'revive_deleted':
       return `${target} deleted it; merging brings it back`;
   }

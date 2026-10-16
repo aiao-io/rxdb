@@ -32,7 +32,8 @@ interface WorkingTreeSlot {
  * / `useMemo` 的依赖数组；状态字段则随每一次相位变化产生新对象，这正是重渲染的触发源。
  *
  * 三端等价实现：Angular `useWorkingTree()`（`Signal`）、Vue `useWorkingTree()`
- * （`ComputedRef`），字段名、方法名与语义完全一致，只是容器形态不同。
+ * （`ComputedRef`），字段名、方法名与语义完全一致，只是容器形态不同。`RxDBProvider` 换了库时
+ * 十二格回到初态，旧库迟到的结果丢弃；Angular / Vue 的入口绑定创建时的库，换库靠重建组件。
  *
  * `restore()` 的四个被拒成因走**返回值**而不是异常，`restoreState` 因此也**没有 empty**：
  * 「被拒」与「一条都没恢复」都是结果，不是「没有结果」。`restoreSessionState` 的空则只有一个

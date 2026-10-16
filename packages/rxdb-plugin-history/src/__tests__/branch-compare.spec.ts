@@ -54,6 +54,39 @@ const seeded = () => {
   return history;
 };
 
+/** 条目上标识一个夹具实体的三个字段。 */
+const identity = (entityId: string) => ({ namespace: MEMORY_NAMESPACE, entity: MEMORY_ENTITY, entityId });
+
+/** {@link branchy} 里的全部分支。 */
+const BRANCHY_BRANCHES = ['main', 'a', 'b', 'a-child', 'empty'];
+
+/**
+ * 父子、兄弟、跨多级都有的一段历史：a 与 b 从 main 的不同点分出（a 早、b 晚），a-child 长在 a 上，
+ * empty 是 b 上一条自有变更都没有的分支；分出之后 main 自己还在改。
+ */
+const branchy = () => {
+  const history = new MemoryBranchHistory();
+  history.insert('main', 't1', { title: 'a', n: 1 });
+  history.insert('main', 't2', { title: 'b', n: 1 });
+  history.branch('a', 'main');
+  history.update('a', 't1', { title: 'a1' });
+  history.insert('a', 't3', { title: 'c', n: 0 });
+  history.update('main', 't2', { n: 2 });
+  history.branch('b', 'main');
+  history.delete('b', 't1');
+  history.update('b', 't2', { title: 'b2' });
+  history.branch('a-child', 'a');
+  history.update('a-child', 't3', { n: 9 });
+  history.insert('a-child', 't4', { title: 'd', n: 4 });
+  history.update('main', 't1', { n: 7 });
+  history.branch('empty', 'b');
+  return history;
+};
+
+/** 两两有序配对，不含自己配自己。 */
+const orderedPairs = (ids: readonly string[]): [string, string][] =>
+  ids.flatMap(from => ids.filter(to => to !== from).map((to): [string, string] => [from, to]));
+
 describe('compare_branches', () => {
   it('从同一个点分出、谁都没改：没有条目', async () => {
     const history = seeded();
@@ -139,25 +172,9 @@ describe('compare_branches', () => {
   });
 
   it('父子、兄弟、跨多级：任意两条分支的结果都等于两侧真实状态之差', async () => {
-    const history = new MemoryBranchHistory();
-    history.insert('main', 't1', { title: 'a', n: 1 });
-    history.insert('main', 't2', { title: 'b', n: 1 });
-    history.branch('a', 'main');
-    history.update('a', 't1', { title: 'a1' });
-    history.insert('a', 't3', { title: 'c', n: 0 });
-    history.update('main', 't2', { n: 2 });
-    history.branch('b', 'main');
-    history.delete('b', 't1');
-    history.update('b', 't2', { title: 'b2' });
-    history.branch('a-child', 'a');
-    history.update('a-child', 't3', { n: 9 });
-    history.insert('a-child', 't4', { title: 'd', n: 4 });
-    history.update('main', 't1', { n: 7 });
-    history.branch('empty', 'b');
-
-    const branches = ['main', 'a', 'b', 'a-child', 'empty'];
-    for (const from of branches) {
-      for (const to of branches) {
+    const history = branchy();
+    for (const from of BRANCHY_BRANCHES) {
+      for (const to of BRANCHY_BRANCHES) {
         const result = await compare_branches(history.readers(), from, to);
         expect(result.entries, `${from} → ${to}`).toEqual(expectedDiff(history.stateOf(from), history.stateOf(to)));
       }
@@ -339,7 +356,7 @@ describe('preview_merge', () => {
     expect(entry?.inversePatch).toEqual(history.stateOf('main').get('t1'));
   });
 
-  it('目标不是源的父分支：分叉以来的改动从源的分叉点算', async () => {
+  it('目标是从同一点分出的兄弟分支：基准就是两边共同的分叉点', async () => {
     const history = seeded();
     history.branch('sibling', 'main');
     history.update('sibling', 't1', { title: 'sibling' });
@@ -351,6 +368,255 @@ describe('preview_merge', () => {
       ['t1', { kind: 'overwrite', fields: ['title'] }],
       ['t2', null]
     ]);
+  });
+
+  it('目标侧删后重建：inversePatch 是重建后的整行，不留基准上的幻影字段；重建行删掉的字段算净改动', async () => {
+    const history = new MemoryBranchHistory();
+    history.insert('main', 't1', { title: 'a', done: false, updatedAt: 1 });
+    history.insert('main', 't2', { title: 'b', done: false, updatedAt: 1 });
+    history.insert('main', 't3', { title: 'c', done: false, updatedAt: 1 });
+    history.branch('feature', 'main');
+    // 目标把三条都删后重建：t1、t2 的重建行少了基准上有的 done（实体演进掉了它），t3 字段集不变、只改了标题
+    history.delete('main', 't1');
+    history.insert('main', 't1', { title: 'a', updatedAt: 2 });
+    history.delete('main', 't2');
+    history.insert('main', 't2', { title: 'b', updatedAt: 2 });
+    history.delete('main', 't3');
+    history.insert('main', 't3', { title: 'rebuilt', done: false, updatedAt: 2 });
+    history.delete('feature', 't1');
+    history.update('feature', 't2', { done: true });
+    history.update('feature', 't3', { title: 'from-feature', done: true });
+
+    const preview = await preview_merge(history.readers(), 'feature', 'main');
+    const current = history.stateOf('main');
+    expect(preview.entries).toEqual([
+      {
+        ...identity('t1'),
+        operation: 'DELETE',
+        patch: null,
+        inversePatch: current.get('t1'),
+        conflict: { kind: 'delete_edited', fields: ['done'] }
+      },
+      {
+        ...identity('t2'),
+        operation: 'UPDATE',
+        patch: { done: true },
+        inversePatch: { done: undefined },
+        conflict: { kind: 'overwrite', fields: ['done'] }
+      },
+      {
+        ...identity('t3'),
+        operation: 'UPDATE',
+        patch: { title: 'from-feature', done: true },
+        inversePatch: { title: 'rebuilt', done: false },
+        conflict: { kind: 'overwrite', fields: ['title'] }
+      }
+    ]);
+    expect(preview.entries[0]?.inversePatch).not.toHaveProperty('done');
+  });
+
+  it('源是目标的父分支（main → dev → feature，把 dev 合进 feature）：源自己的历史不算目标的改动', async () => {
+    const history = new MemoryBranchHistory();
+    history.insert('main', 't1', { title: 'a' });
+    history.insert('main', 't2', { title: 'a' });
+    history.branch('dev', 'main');
+    history.update('dev', 't1', { title: 'b' });
+    history.update('dev', 't2', { title: 'b' });
+    history.branch('feature', 'dev');
+    history.update('dev', 't1', { title: 'c' });
+    history.update('dev', 't2', { title: 'c' });
+    history.update('feature', 't2', { title: 'feature' });
+
+    // t1：feature 从没改过它，'b' 是 dev 自己的历史；t2：feature 分开以来改成了 'feature'，会被盖掉
+    const preview = await preview_merge(history.readers(), 'dev', 'feature');
+    expect(preview.entries).toEqual([
+      { ...identity('t1'), operation: 'UPDATE', patch: { title: 'c' }, inversePatch: { title: 'b' }, conflict: null },
+      {
+        ...identity('t2'),
+        operation: 'UPDATE',
+        patch: { title: 'c' },
+        inversePatch: { title: 'feature' },
+        conflict: { kind: 'overwrite', fields: ['title'] }
+      }
+    ]);
+  });
+
+  it('源是根分支（把 main 合进子分支 feature）：主线自己的历史不算目标的改动，目标分开以来的改动照常标出', async () => {
+    const history = new MemoryBranchHistory();
+    history.insert('main', 't1', { title: 'a', done: false });
+    history.insert('main', 't2', { title: 'b', done: false });
+    history.insert('main', 't3', { title: 'c', done: false });
+    history.insert('main', 't4', { title: 'd', done: false });
+    history.branch('feature', 'main');
+    // t1：主线分开之后改的，feature 没碰；t2：两边改的不是同一字段，但重放的 INSERT 是整行替换；
+    // t3：feature 删了，重放它的 INSERT 会把它建回来；t4：分开之前建的、谁都没再碰
+    history.update('main', 't1', { done: true });
+    history.update('feature', 't2', { title: 'feature' });
+    history.update('main', 't2', { done: true });
+    history.delete('feature', 't3');
+
+    // 根分支没有分叉点，合并重放它的全部历史：条目是四条 INSERT
+    const preview = await preview_merge(history.readers(), 'main', 'feature');
+    const current = history.stateOf('feature');
+    expect(preview.entries).toEqual([
+      {
+        ...identity('t1'),
+        operation: 'INSERT',
+        patch: { title: 'a', done: true },
+        inversePatch: current.get('t1'),
+        conflict: null
+      },
+      {
+        ...identity('t2'),
+        operation: 'INSERT',
+        patch: { title: 'b', done: true },
+        inversePatch: current.get('t2'),
+        conflict: { kind: 'overwrite', fields: ['title'] }
+      },
+      {
+        ...identity('t3'),
+        operation: 'INSERT',
+        patch: { title: 'c', done: false },
+        inversePatch: null,
+        conflict: { kind: 'revive_deleted' }
+      },
+      {
+        ...identity('t4'),
+        operation: 'INSERT',
+        patch: { title: 'd', done: false },
+        inversePatch: current.get('t4'),
+        conflict: null
+      }
+    ]);
+  });
+
+  it('孙分支合进祖分支：中间分支的历史不算目标的改动；源改了中间分支才建的实体，目标里没有这一行，更新落空', async () => {
+    const history = new MemoryBranchHistory();
+    history.insert('main', 't1', { title: 'a', done: false });
+    history.branch('dev', 'main');
+    history.update('dev', 't1', { title: 'dev' });
+    history.insert('dev', 't2', { title: 'dev-only' });
+    history.branch('feature', 'dev');
+    history.update('feature', 't1', { title: 'feature' });
+    history.update('feature', 't2', { title: 'feature' });
+    history.update('main', 't1', { done: true });
+
+    // 合并只搬 feature 自己的变更：t1 的标题 main 从没改过；t2 是 dev 建的，main 里没有，UPDATE 找不到行
+    const preview = await preview_merge(history.readers(), 'feature', 'main');
+    expect(preview.entries).toEqual([
+      {
+        ...identity('t1'),
+        operation: 'UPDATE',
+        patch: { title: 'feature' },
+        inversePatch: { title: 'a' },
+        conflict: null
+      },
+      {
+        ...identity('t2'),
+        operation: 'UPDATE',
+        patch: { title: 'feature' },
+        inversePatch: null,
+        conflict: { kind: 'update_deleted' }
+      }
+    ]);
+  });
+
+  it('兄弟分支里目标分叉得更早：两边分开之后主线上的改动不算目标的改动', async () => {
+    const history = new MemoryBranchHistory();
+    history.insert('main', 't1', { title: 'a' });
+    history.branch('early', 'main');
+    history.update('main', 't1', { title: 'main' });
+    history.branch('late', 'main');
+    history.update('late', 't1', { title: 'late' });
+
+    const preview = await preview_merge(history.readers(), 'late', 'early');
+    expect(preview.entries).toEqual([
+      { ...identity('t1'), operation: 'UPDATE', patch: { title: 'late' }, inversePatch: { title: 'a' }, conflict: null }
+    ]);
+  });
+
+  it('目标自己一条变更都没有、停在它的分叉点：基准就是那一点，它的上游后来的改动不算', async () => {
+    const history = new MemoryBranchHistory();
+    history.insert('main', 't1', { title: 'a' });
+    history.branch('dev', 'main');
+    history.branch('feature', 'dev');
+    history.update('feature', 't1', { title: 'feature' });
+    history.update('main', 't1', { title: 'main' });
+
+    const preview = await preview_merge(history.readers(), 'feature', 'dev');
+    expect(preview.entries).toEqual([
+      {
+        ...identity('t1'),
+        operation: 'UPDATE',
+        patch: { title: 'feature' },
+        inversePatch: { title: 'a' },
+        conflict: null
+      }
+    ]);
+  });
+
+  it('两棵树没有公共分支（多个根）：基准是空库，与切换「经根」同一口径', async () => {
+    const history = new MemoryBranchHistory();
+    history.insert('main', 't1', { title: 'same' });
+    history.root('remote');
+    history.insert('remote', 't1', { title: 'same' });
+    history.insert('remote', 't2', { title: 'remote-only' });
+    history.branch('remote-child', 'remote');
+    history.update('remote-child', 't1', { title: 'child' });
+    history.update('remote-child', 't2', { title: 'child' });
+
+    // 没有共同的历史，main 的 t1 整行都是它自己建的：被写成别的值就是覆盖，哪怕它碰巧与对面的基准同值
+    const preview = await preview_merge(history.readers(), 'remote-child', 'main');
+    expect(preview.entries).toEqual([
+      {
+        ...identity('t1'),
+        operation: 'UPDATE',
+        patch: { title: 'child' },
+        inversePatch: { title: 'same' },
+        conflict: { kind: 'overwrite', fields: ['title'] }
+      },
+      {
+        ...identity('t2'),
+        operation: 'UPDATE',
+        patch: { title: 'child' },
+        inversePatch: null,
+        conflict: { kind: 'update_deleted' }
+      }
+    ]);
+  });
+
+  it('任意两条分支之间的预览：inversePatch 都是目标现在的值（父子、兄弟、跨多级、根合进子）', async () => {
+    const history = branchy();
+    for (const [source, target] of orderedPairs(BRANCHY_BRANCHES)) {
+      const current = history.stateOf(target);
+      const { entries } = await preview_merge(history.readers(), source, target);
+      for (const entry of entries) {
+        const row = current.get(String(entry.entityId));
+        const expected = row && entry.operation === 'UPDATE' ? pick(row, Object.keys(entry.patch ?? {})) : row;
+        expect(entry.inversePatch, `${source} → ${target}：${String(entry.entityId)}`).toEqual(expected ?? null);
+      }
+    }
+  });
+
+  it('源分支里被撤销的变更：merged 不计它，条目里也没有它（两种策略都是）', async () => {
+    const history = seeded();
+    history.update('feature', 't1', { title: 'kept' });
+    history.revert(history.update('feature', 't1', { title: 'undone' }));
+    history.revert(history.insert('feature', 't3', { title: 'undone' }));
+
+    for (const strategy of ['squash', 'normal'] as const) {
+      const preview = await preview_merge(history.readers(), 'feature', 'main', { strategy });
+      expect(preview.merged, strategy).toBe(1);
+      expect(preview.entries, strategy).toEqual([
+        {
+          ...identity('t1'),
+          operation: 'UPDATE',
+          patch: { title: 'kept' },
+          inversePatch: { title: 'a' },
+          conflict: null
+        }
+      ]);
+    }
   });
 
   it('合并进自己、源分支不存在：与 mergeBranch 同一句报错', async () => {

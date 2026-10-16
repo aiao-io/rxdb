@@ -771,7 +771,8 @@ const resolveEntityManager = (EntityType: EntityType): EntityManager => {
   if (!managers || managers.size === 0) throw new RxDBError(`Entity '${entityName}' needs an initialized RxDB`);
   if (managers.size === 1) return managers.values().next().value!;
   // 只读实例是可写实例旁边的视图（如只读检出位的快照实例，US-313）。两者共用的类——核心系统实体每个实例都登记——
-  // 静态调用指的是可写的那个；可写的不止一个才是真歧义
+  // 静态调用指的是可写的那个；可写的不止一个才是真歧义。一个可写的都没有（只剩几个只读实例）同样无从选，
+  // 照旧报多实例：「改用 rxdb.entityManager 或 repository」对只读实例一样成立
   const writable = [...managers].filter(manager => !manager.rxdb.readOnly);
   if (writable.length === 1) return writable[0];
   throw new RxDBError(

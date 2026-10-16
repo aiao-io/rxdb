@@ -8,15 +8,14 @@ import type {
   WorkingTreeDiffEntry,
   WorkingTreeRestoreFailureReason,
   WorkingTreeRestoreSessionInfo,
-  WorktreeTarget,
-  WorktreeView
+  WorktreeTarget
 } from '@aiao/rxdb-plugin-working-tree';
 import { CommitValidationError, WorkingTreeDirtyError, WorktreeUnavailableError } from '@aiao/rxdb-plugin-working-tree';
 import { useWorkingTree, useWorktrees } from '@aiao/rxdb-plugin-working-tree-react';
 import { useFindAll, useRxDB } from '@aiao/rxdb-react';
 import clsx from 'clsx';
 import { Check, ChevronDown, FolderGit2, GitBranch, RefreshCw } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useResettableTimeout } from '../../hooks/useResettableTimeout';
 import { WorkingTreeBranchMenu } from './components/BranchMenu';
@@ -32,13 +31,13 @@ import {
 import { WorkingTreeDiffViewer } from './components/DiffViewer';
 import { WorkingTreeHistoryList } from './components/HistoryList';
 import { WorkingTreeMergeDialog, type MergeDialogState } from './components/MergeDialog';
-import { WorkingTreeReadOnlyViewer, type ReadOnlyViewerState } from './components/ReadOnlyViewer';
+import { WorkingTreeReadOnlyViewer } from './components/ReadOnlyViewer';
 import type { BranchDiffLoad } from './utils/branch-diff';
 import { diffEntryKey } from './utils/diff-format';
 import { startDragResize } from './utils/drag';
 import { gdEntryPath } from './utils/gd';
 import { useKeepLastGood } from './utils/keep-last-good';
-import { READ_ONLY_REJECTION_TEXT, readOnlyTargetLabel } from './utils/read-only-checkout';
+import { READ_ONLY_REJECTION_TEXT, ReadOnlyViewerSession, type ReadOnlyViewerState } from './utils/read-only-checkout';
 
 const AUTHOR_ID = 'demo-author';
 
@@ -126,10 +125,11 @@ export default function WorkingTreePage(): React.JSX.Element {
   const [mergeDialog, setMergeDialog] = useState<MergeDialogState | null>(null);
   const [mergePreview, setMergePreview] = useState<BranchDiffLoad<MergePreview>>({ phase: 'loading' });
   const [compareDialog, setCompareDialog] = useState<CompareDialogState | null>(null);
-  /** 只读检出位查看器（US-313）；`readOnlyView` 同步记着开着的视图，离开页面与迟到的刷新都按它收尾。 */
+  /** 只读检出位查看器（US-313）：两份状态都由 `readOnlySession` 经回调写进来。 */
   const [readOnlyViewer, setReadOnlyViewer] = useState<ReadOnlyViewerState | null>(null);
   const [readOnlyRefreshing, setReadOnlyRefreshing] = useState(false);
-  const readOnlyView = useRef<WorktreeView | null>(null);
+  /** 只读检出位查看器的会话：挂载副作用里建好（见下文），事件处理执行时一定在 */
+  const readOnlySession = useRef<ReadOnlyViewerSession>(null);
   /** 只读请求的代号：对话框关掉或换了参数之后，迟到的结果不落进新状态。 */
   const mergePreviewRequest = useRef(0);
   const compareRequest = useRef(0);
@@ -164,6 +164,12 @@ export default function WorkingTreePage(): React.JSX.Element {
   // 渲染期间调用会随着组件重渲染而漂（react-hooks/purity）。
   const mountedAt = useRef(0);
   const toastTimer = useResettableTimeout();
+
+  /** 单条 toast，3s 自动消失；新 toast 顶掉上一条。声明在副作用之前：只读查看器会话的报错回调要用它。 */
+  const showToast = (type: 'success' | 'error', message: string) => {
+    setToast({ type, message });
+    toastTimer.schedule(() => setToast(null), 3000);
+  };
 
   const status = tree.statusState;
   const enabledState = tree.isEnabledState;
@@ -247,16 +253,21 @@ export default function WorkingTreePage(): React.JSX.Element {
     return () => clearInterval(ticker);
   }, []);
 
-  // 离开页面时关掉还开着的只读检出位：会话归属的快照库没人看了，留着只能等下一次回收。
-  // 页面已经卸载，没有地方显示提示，失败只打到控制台
-  useEffect(
-    () => () => {
-      void readOnlyView.current
-        ?.close()
-        .catch((error: unknown) => console.error('[working-tree] 关闭只读检出位失败', error));
-    },
-    []
-  );
+  // 只读检出位查看器的会话：迟到的打开与刷新结果由它当场关掉；卸载时 dispose，关掉还开着的视图——
+  // 会话归属的快照库没人看了，留着只能等下一次回收。每次挂载新建一个（StrictMode 的模拟卸载会 dispose
+  // 掉上一个）；回调经 Effect Event 读最新一次 render 的 `worktrees.open` 与 toast，会话不必跟着重建
+  const openWorktree = useEffectEvent((target: WorktreeTarget) => worktrees.open(target));
+  const reportReadOnlyError = useEffectEvent((error: unknown) => showToast('error', readOnlyRejectionOf(error)));
+  useEffect(() => {
+    const session = new ReadOnlyViewerSession({
+      open: target => openWorktree(target),
+      onViewerChange: setReadOnlyViewer,
+      onRefreshingChange: setReadOnlyRefreshing,
+      onError: error => reportReadOnlyError(error)
+    });
+    readOnlySession.current = session;
+    return () => session.dispose();
+  }, []);
 
   // 列表一刷新就自动选中第一条，右栏不至于空着——GitHub Desktop 打开仓库时
   // 也是默认展示第一个文件的 diff。用户手动选中的键还在列表里就不动它。
@@ -822,53 +833,20 @@ export default function WorkingTreePage(): React.JSX.Element {
 
   // ── 只读检出位（US-313）──────────────────────────────────
 
-  /** 打开只读检出位：不切换分支，在查看器里浏览目标的完整数据。会话归属，关掉查看器即删快照库。 */
+  /**
+   * 打开只读检出位：不切换分支，在查看器里浏览目标的完整数据。会话归属，关掉查看器即删快照库。
+   * 快照建好之前又点了别的目标、关了查看器或离开页面，这次的结果由会话当场关掉（见 `ReadOnlyViewerSession`）。
+   */
   const openReadOnly = async (target: WorktreeTarget) => {
     setBranchMenuOpen(false);
-    try {
-      const view = await worktrees.open(target);
-      readOnlyView.current = view;
-      setReadOnlyViewer({ view, label: readOnlyTargetLabel(target) });
-    } catch (error) {
-      showToast('error', readOnlyRejectionOf(error));
-    }
+    await readOnlySession.current!.open(target);
   };
 
   /** 按建立时的目标重建快照：主库此后的写入这才看得见。 */
-  const refreshReadOnly = async () => {
-    const current = readOnlyViewer;
-    if (current === null) return;
-    setReadOnlyRefreshing(true);
-    try {
-      const next = await current.view.refresh();
-      // 刷新途中查看器被关掉了：新建出来的这个没人看，当场关掉，不把查看器又弹回来
-      if (readOnlyView.current !== current.view) {
-        void next.close().catch((error: unknown) => showToast('error', readOnlyRejectionOf(error)));
-        return;
-      }
-      readOnlyView.current = next;
-      setReadOnlyViewer({ view: next, label: current.label });
-    } catch (error) {
-      showToast('error', readOnlyRejectionOf(error));
-    } finally {
-      setReadOnlyRefreshing(false);
-    }
-  };
+  const refreshReadOnly = () => readOnlySession.current!.refresh();
 
   /** 关掉查看器：断开只读实例，删快照库与登记。 */
-  const closeReadOnly = () => {
-    const view = readOnlyView.current;
-    readOnlyView.current = null;
-    setReadOnlyViewer(null);
-    if (view !== null) void view.close().catch((error: unknown) => showToast('error', readOnlyRejectionOf(error)));
-  };
-
-  // ── Toast ─────────────────────────────────────────────────
-
-  const showToast = (type: 'success' | 'error', message: string) => {
-    setToast({ type, message });
-    toastTimer.schedule(() => setToast(null), 3000);
-  };
+  const closeReadOnly = () => readOnlySession.current!.close();
 
   return (
     <div className='page-host gd-workspace flex h-full flex-col overflow-hidden' data-testid='working-tree-page'>

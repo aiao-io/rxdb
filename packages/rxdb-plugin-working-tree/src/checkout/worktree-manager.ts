@@ -6,7 +6,7 @@
  *
  * 1. 校验目标、写登记行（`building`）——先登记再建库，崩在后面任何一步，回收时都按登记行找得到库；
  * 2. 连上快照实例（建表在这一步，不占着主库）；主库一笔事务里算增量、读业务表、写进快照库；
- *    快照库封成只读；
+ *    快照库里写下建完的哨兵（`attach()` 靠它认出「库已经不在、连上的是新建的空库」），再封成只读；
  * 3. 登记行转 `ready`，记下主库当时停在哪。
  *
  * 关闭是反过来：断开快照实例、删快照库、删登记行，最后还锁。锁一直握在打开它的上下文手里，
@@ -30,6 +30,8 @@ import {
   connectSnapshotDatabase,
   createSnapshotDatabase,
   importSnapshot,
+  isSnapshotComplete,
+  markSnapshotComplete,
   sealSnapshot
 } from './worktree-snapshot.js';
 import { isReclaimCandidate } from './worktree-startup-reclaim.js';
@@ -153,8 +155,8 @@ export class WorktreeManager {
    *
    * @param id - 检出位 id（{@link WorktreeManager.list} 里那一行）
    * @returns 打开着的视图
-   * @throws {@link WorktreeUnavailableError} `in_use`：它正在别处打开着；`not_found`：没有这个持久、已建完的检出位；
-   * `schema_mismatch`：建它之后应用的实体结构变了，要重新打开一个
+   * @throws {@link WorktreeUnavailableError} `in_use`：它正在别处打开着；`not_found`：没有这个持久、已建完的检出位，
+   * 或者登记行还在、快照库却已经不在了（此时连带回收登记行）；`schema_mismatch`：建它之后应用的实体结构变了，要重新打开一个
    */
   async attach(id: string): Promise<WorktreeView> {
     const worktrees = this.#requireOptions();
@@ -180,6 +182,12 @@ export class WorktreeManager {
         worktrees
       );
       const snapshotAdapter = await connectSnapshotDatabase(snapshot);
+      if (!(await isSnapshotComplete(snapshotAdapter))) {
+        // 连上的是这一刻才建出来的空库：快照库已经不在了。连同登记行一起回收，免得下一次 attach() 又交回一张张空表；
+        // 回收失败不盖住这句报错，登记行留给下一次 attach() 再收
+        await Promise.allSettled([this.#discard(id, snapshot, snapshotAdapter)]);
+        throw new WorktreeUnavailableError('not_found', `检出位 ${id} 的快照库已经不在了`);
+      }
       await sealSnapshot(snapshotAdapter);
       await this.#runEnabled(async executor => {
         await executor.getRepository(Worktree).update(await findRecord(executor, id), { lastAccessedAt: new Date() });
@@ -276,6 +284,7 @@ export class WorktreeManager {
       const source = await this.#runEnabled((executor, adapter) =>
         importSnapshot(executor, adapter, built, copied, identity.target)
       );
+      await markSnapshotComplete(built, snapshotAdapter);
       await sealSnapshot(snapshotAdapter);
       await this.#runEnabled(async executor => {
         const record = await findRecord(executor, identity.id);
@@ -283,11 +292,24 @@ export class WorktreeManager {
       });
       return this.#view(identity, built, snapshotAdapter, release);
     } catch (error) {
-      // 清理失败不盖住原错：没清掉的登记行与快照库在下次 prune() 时按登记行回收。
-      // 没连上的快照库一个字节都不删：连接失败可能正是标记迁移发现它不是快照库
-      await Promise.allSettled([this.#discard(identity.id, snapshot, snapshotAdapter)]);
+      // 清理失败不盖住原错：没清掉的登记行与快照库在下次 prune() 时按登记行回收
+      await Promise.allSettled([this.#abandon(identity.id, snapshot, snapshotAdapter)]);
       throw error;
     }
+  }
+
+  /**
+   * 没建成的检出位怎么收尾：连上过的照常删库、删登记行；没连上的只断开，登记行留作 `building`。
+   *
+   * @remarks
+   * 没连上的快照库一个字节都不删：连接失败可能正是标记迁移发现它不是快照库。可存储也可能已经建出来了——
+   * 适配器在连接期建库，迁移或建表失败时库已落盘。这时再删登记行，就是先删登记、后（不）删库，
+   * 留下一个谁也找不到的库（见 `worktree.entity.ts` 的顺序不变量）。登记行留着，下一次 `prune()` 按它重连：
+   * 标记迁移要么证明那是快照库（删掉），要么报 `adapter_mismatch`（不是快照库，不删，行留着等人处理）。
+   */
+  async #abandon(id: string, snapshot: RxDB | undefined, snapshotAdapter: LocalRxDBAdapter | undefined): Promise<void> {
+    if (snapshot && snapshotAdapter) return this.#discard(id, snapshot, snapshotAdapter);
+    await snapshot?.disconnectAll();
   }
 
   #view(
@@ -315,7 +337,14 @@ export class WorktreeManager {
       entityOf: EntityClass => worktreeEntityOf(snapshot, EntityClass),
       refresh: async () => {
         const next = await this.open(identity.target, { owner: identity.owner });
-        await settle(true);
+        try {
+          await settle(true);
+        } catch (error) {
+          // 旧视图没收干净（删库撞上占用等）：新视图交不出去，调用方拿不到也关不掉它，一并关掉再报错。
+          // 关它失败不盖住原错：锁已放开，会话归属的留给 prune() 回收，持久归属的还能 attach() 再打开
+          await Promise.allSettled([next.close()]);
+          throw error;
+        }
         return next;
       },
       close: () => settle(true),
@@ -323,10 +352,10 @@ export class WorktreeManager {
     };
   }
 
-  /** 断开快照实例、删快照库、删登记行：先删库再删登记。没连上的快照库不删。 */
-  async #discard(id: string, snapshot: RxDB | undefined, snapshotAdapter: LocalRxDBAdapter | undefined): Promise<void> {
-    await snapshot?.disconnectAll();
-    if (snapshotAdapter) await snapshotAdapter.dropStorage!();
+  /** 断开快照实例、删快照库、删登记行：先删库再删登记。只收连上过的快照库，没连上的见 `#abandon`。 */
+  async #discard(id: string, snapshot: RxDB, snapshotAdapter: LocalRxDBAdapter): Promise<void> {
+    await snapshot.disconnectAll();
+    await snapshotAdapter.dropStorage!();
     await this.#unregister(id);
   }
 

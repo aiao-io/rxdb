@@ -72,7 +72,7 @@ describe('conflictText', () => {
     expect(conflictText({ kind: 'delete_edited', fields: ['title'] }, 'main')).toBe(
       "Deletes it, discarding main's changes to title"
     );
-    expect(conflictText({ kind: 'update_deleted' }, 'main')).toBe('main deleted it, so these changes are dropped');
+    expect(conflictText({ kind: 'update_deleted' }, 'main')).toBe("main doesn't have it, so these changes are dropped");
     expect(conflictText({ kind: 'revive_deleted' }, 'main')).toBe('main deleted it; merging brings it back');
   });
 });

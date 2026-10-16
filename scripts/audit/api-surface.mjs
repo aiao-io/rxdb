@@ -526,7 +526,10 @@ const NAMING = {
     'ENTITY_BOOKKEEPING_FIELDS',
     // US-313 从 `@aiao/rxdb/testing` 提到主入口：同一页面开第二个实例（只读检出位的快照库、失败现场的导入库）
     // 都要它绕开「一个实体类只能注册到一个实例」。它是实体登记的通用工具，与提交能力无关。
+    // `CloneEntityClassesOptions` 是它的入参形状，理由与 `EntityMutationsOptions` 同族：包外要给这个对象起名，
+    // 不导出就只能写 `Parameters<typeof cloneEntityClasses>[1]` 或照抄一份结构。
     'cloneEntityClasses',
+    'CloneEntityClassesOptions',
     // US-313 的只读实例（`RxDBOptions.readOnly`）在公开写入口抛它。只读是实例层的属性，与同族的
     // `RxDBMissingPluginError` 等实例错误并列；叫 `WorkingTree*` 等于宣称只读实例是工作树能力的一部分。
     'RxDBReadOnlyError'

@@ -1,20 +1,13 @@
 import type { RxDB } from '@aiao/rxdb';
 import { EntityList } from '@aiao/rxdb-model-react';
-import type { WorktreeView } from '@aiao/rxdb-plugin-working-tree';
 import { RxDBProvider } from '@aiao/rxdb-react';
 import { Eye } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { readOnlyCatalog } from '../utils/read-only-checkout';
+import { readOnlyCatalog, type ReadOnlyViewerState } from '../utils/read-only-checkout';
 import { WorkingTreeDialogShell } from './DialogShell';
 
-/** 只读检出位查看器的状态；页面持有，本组件只做展示。 */
-export interface ReadOnlyViewerState {
-  readonly view: WorktreeView;
-  /** 横幅里的检出目标，见 `readOnlyTargetLabel` */
-  readonly label: string;
-}
-
 interface WorkingTreeReadOnlyViewerProps {
+  /** 页面持有的查看器状态（见 `ReadOnlyViewerSession`），本组件只做展示 */
   readonly viewer: ReadOnlyViewerState | null;
   /** 主实例：「不随版本」按它的实体元数据判 */
   readonly mainRxdb: RxDB;

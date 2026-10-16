@@ -156,7 +156,8 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
     （不解密、信封原样写，加密列遇到明文直接抛）；不派发事件、不进缓存；装了捕获钩子就拒绝（不进受信写矩阵）
   - `adoptWorktreeEncryption(source)`：快照适配器沿用主适配器的密钥环——信封的 AAD 含 `databaseNamespace`（即库名），
     快照库自己的库名解不开；同一基类的实例之间可直接交接
-  - `sealWorktreeReadOnly()`：SQLite `PRAGMA query_only = 1`；PGlite `SET default_transaction_read_only = on`
+  - `sealWorktreeReadOnly()`：SQLite `PRAGMA query_only = 1`；PGlite `SET default_transaction_read_only = on`，且此后每个事务
+    开头 `SET TRANSACTION READ ONLY`——会话默认值能被一条 `SELECT set_config(…)` 改掉，事务级只读在事务执行过查询之后就改不回来
   - `dropStorage()`（阶段 C）：断开之后才删，库不存在时什么都不做。PGlite 删 `memory` 与 `idb://`（IndexedDB 库
     `/pglite/<库名>` 连同恢复簿记），别的上下文还开着就拒绝；sqlite-wasm 的 `idb` 系删独立的 IndexedDB 库，`opfs` 删库文件与旁文件；
     wa-sqlite 的 IDB 系 VFS 在以 VFS 命名的共用库里按路径删记录（那个库别的库也在用，不能整库删），OPFS 系删库文件与旁文件；
@@ -173,7 +174,10 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
 - **只读三层**：(1) 核心：`RxDBOptions.readOnly`、`RxDB.readOnly`，`Repository.create/update/remove/reorder`、
   `EntityManager` 的 save / saveMany / removeMany 与 `notifyExternalUpdate` 在权限判定之前抛 `RxDBReadOnlyError`；
   (2) 建完后给快照适配器装只读捕获钩子：`mergeChanges` / `switchBranch` / `upsertMany` / `deleteByIds` / 外部通知一律拒，
-  raw 写沿用 `raw-write-judgment.ts` 的写语句判定、SELECT 放行；(3) 引擎封印兜住直接打到适配器的写（如图的边）。
+  raw 写沿用 `raw-write-judgment.ts` 的写语句判定、SELECT 放行，另拒 `PRAGMA` / `SET`（引擎封印本身就是一条会话状态，
+  一句 `PRAGMA query_only = 0` 就能解开；主库口径里它们在白名单上）；(3) 引擎封印兜住直接打到适配器的写（如图的边）。
+  经执行器下发的语句（`adapter.transaction(executor => executor.query(…))`）是适配器自己的通道，封印防不住从这里解开——
+  只读检出位防的是误写，不是蓄意改连接配置的代码。
   SQLite 系封印之后开事务改用延迟的 `BEGIN`：Electron 宿主默认的 `BEGIN IMMEDIATE` 要拿写锁，`query_only` 下连读事务都开不了。
 - **多对多中间表**：生成的中间表元数据不带 `log`，默认记日志；两端都是 `log: false` 时中间表也不记
   （快照实例的实体全是 `log: false` 的克隆，否则封印后 SQLite 带日志的事务要重建它的触发器，会被拒）。
@@ -197,7 +201,10 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
   `close()` 断开、删库、删登记行再还锁；`release()` 只断开与还锁，持久归属的留给 `attach()`、会话归属的留给 `prune()`。
   `prune()` 以 `ifAvailable` 试锁，拿到且归属为 `session` 或仍是 `building` 的才回收；`persistent` 且 `ready` 的保留。
   回收前先用空实体集连一次快照库：标记迁移在不是快照库的已有库上当场失败，工厂配错指到主库存储时报错而不是把主库删掉；
-  建快照失败时没连上的库一个字节都不删，理由相同。启动清理的判定放在连接期本来就开的引导事务里（`bootstrapExisting()`）：读一次登记表，再用 `navigator.locks.query()` 看候选的锁有没有人持有，确有孤儿才在适配器连上之后（`adapterConnected$`）跑一次 `prune()`。不在连上之后无条件回收：另一个连接的 `connect()` 开头先拿系统迁移的排他锁、拿不到就失败，连上之后多开的那一笔事务正赶上它时它就连不上（Angular demo 失败现场归档的第二连接因此挂过，e2e 稳定复现）。
+  建快照失败时没连上的库一个字节都不删，理由相同，但登记行留作 `building` 交给下一次 `prune()`——适配器在连接期建库，
+  连接失败时库可能已经落盘，删了登记行就是一个谁也找不到的库。建快照的最后一步（封印之前）在快照库自己的 `rxdb_migration`
+  里写一行哨兵：连一个不存在的库就是建一个空库，标记迁移在新库上不跑 `up()`，`attach()` 连上之后查不到哨兵即 `not_found`
+  并连带回收登记行，而不是交回一张张空表。`refresh()` 收不干净旧视图时（删库撞上占用）把新视图一并关掉再报错。启动清理的判定放在连接期本来就开的引导事务里（`bootstrapExisting()`）：读一次登记表，再用 `navigator.locks.query()` 看候选的锁有没有人持有，确有孤儿才在适配器连上之后（`adapterConnected$`）跑一次 `prune()`。不在连上之后无条件回收：另一个连接的 `connect()` 开头先拿系统迁移的排他锁、拿不到就失败，连上之后多开的那一笔事务正赶上它时它就连不上（Angular demo 失败现场归档的第二连接因此挂过，e2e 稳定复现）。
   Node 26 起自带 `navigator.locks`（进程即会话），原先「Node 没有 Web Locks 就拒绝 `session`」不再需要；运行时真没有时报
   `locks_unavailable`。`attach()` 校验 `schemaFingerprint`，应用的实体结构变了报 `schema_mismatch`。
   后台回收失败只打到控制台：没有调用方接得住，留下的快照库下一个连接纪元再试。

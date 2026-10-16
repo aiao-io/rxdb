@@ -1,5 +1,5 @@
 import type { BranchComparison, MergePreview } from '@aiao/rxdb-plugin-history';
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
 import CompareDialog, { type CompareDialogState } from './CompareDialog.vue';
 import MergeDialog, { type MergeDialogState } from './MergeDialog.vue';
@@ -9,7 +9,7 @@ import MergeDialog, { type MergeDialogState } from './MergeDialog.vue';
  *
  * @remarks
  * 预览只是参考：读失败只显示错误，合并照常能点。两个对话框共用一个外壳：背板与面板是兄弟节点，
- * 打开时焦点进面板，面板里按 Escape 关闭。
+ * 打开时焦点进面板，面板里按 Escape 关闭，Tab 在面板里首尾回绕，关闭后焦点还给打开前持有它的元素。
  */
 
 const dialog: MergeDialogState = { sourceBranchId: 'feature', strategy: 'squash', deleteSource: false };
@@ -61,6 +61,12 @@ const mountCompareDialog = (comparison: CompareDialogState['comparison']) => {
 const accessibleName = (wrapper: VueWrapper): string => {
   const id = wrapper.get('[role="dialog"]').attributes('aria-labelledby') ?? '';
   return document.getElementById(id)?.textContent?.trim() ?? '';
+};
+
+/** 焦点放到 `element` 上按一下 Tab（`shiftKey` 为 Shift+Tab）。 */
+const pressTab = async (element: Omit<DOMWrapper<Element>, 'exists'>, shiftKey = false): Promise<void> => {
+  (element.element as HTMLElement).focus();
+  await element.trigger('keydown', { key: 'Tab', shiftKey });
 };
 
 describe('MergeDialog 的预览', () => {
@@ -121,6 +127,30 @@ describe('MergeDialog 的预览', () => {
 
     const backdrop = wrapper.get('[aria-label="Close dialog"]').element;
     expect(backdrop.contains(wrapper.get('[role="dialog"]').element)).toBe(false);
+  });
+
+  it('焦点陷阱：Tab 从最后一个控件回到第一个，Shift+Tab 从第一个或面板本身去最后一个', async () => {
+    const wrapper = mountMergeDialog();
+    const first = wrapper.get('[data-testid="wt-merge-strategy-squash"]');
+    const last = wrapper.get('[data-testid="wt-merge-confirm"]');
+
+    await pressTab(last);
+    expect(document.activeElement).toBe(first.element);
+    await pressTab(first, true);
+    expect(document.activeElement).toBe(last.element);
+    await pressTab(wrapper.get('[role="dialog"]'), true);
+    expect(document.activeElement).toBe(last.element);
+  });
+
+  it('关闭后焦点还给打开前持有它的元素', async () => {
+    const opener = document.body.appendChild(document.createElement('button'));
+    opener.focus();
+    const wrapper = mountMergeDialog();
+    expect(document.activeElement).toBe(wrapper.get('[role="dialog"]').element);
+
+    await wrapper.setProps({ dialog: null });
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
   });
 });
 

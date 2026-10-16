@@ -6,10 +6,11 @@
  * 被别的连接挡住要报错而不是一直等，OPFS 的同步访问句柄在 Worker 退出后还会占一会儿，要按退避重试。
  */
 
+import { OPFS_OPEN_RETRY_DELAYS_MS } from '../opfs-open-retry.js';
 import { RxDBAdapterSqliteError } from '../sqlite-core.utils.js';
 
 /** 退避时长（毫秒），与 OPFS 打开重试同一组：句柄通常在百毫秒内放开。 */
-const OPFS_REMOVE_RETRY_DELAYS_MS: readonly number[] = [50, 100, 200, 400, 800, 1600];
+const OPFS_REMOVE_RETRY_DELAYS_MS = OPFS_OPEN_RETRY_DELAYS_MS;
 
 /** 删 IndexedDB 库时被别的连接挡住多久就放弃。 */
 const IDB_BLOCKED_GRACE_MS = 3000;

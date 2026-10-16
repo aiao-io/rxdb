@@ -129,6 +129,9 @@ describe('只读实例（US-313）', () => {
       ],
       ['EntityManager.save()', c => c.rxdb.entityManager.save(fresh(c))],
       ['EntityManager.remove()', c => c.rxdb.entityManager.remove(stored(c, ReadOnlyNote))],
+      // 批量路径只有 `mutations()` 一道只读守卫：单条路径另有 Repository 守卫，这两条不经它
+      ['EntityManager.saveMany()', c => c.rxdb.entityManager.saveMany([fresh(c)])],
+      ['EntityManager.removeMany()', c => c.rxdb.entityManager.removeMany([stored(c, ReadOnlyNote)])],
       ['实体实例 save()', c => fresh(c).save()],
       ['实体实例 remove()', c => stored(c, ReadOnlyNote).remove()]
     ])('%s 抛 RxDBReadOnlyError，写没有发出', async (_label, run) => {

@@ -1,7 +1,9 @@
 import type { BranchComparison, MergePreview } from '@aiao/rxdb-plugin-history';
 import { fireEvent, render, screen } from '@testing-library/react';
+import { createPortal } from 'react-dom';
 import { describe, expect, it, vi } from 'vitest';
 import { WorkingTreeCompareDialog } from './CompareDialog';
+import { WorkingTreeDialogShell } from './DialogShell';
 import { WorkingTreeMergeDialog, type MergeDialogState } from './MergeDialog';
 
 /**
@@ -9,7 +11,8 @@ import { WorkingTreeMergeDialog, type MergeDialogState } from './MergeDialog';
  *
  * @remarks
  * 预览只是参考：读失败只显示错误，合并照常能点。两个对话框共用一个外壳：背板与面板是兄弟节点，
- * 打开时焦点进面板，面板里按 Escape 关闭。
+ * 打开时焦点进面板，面板里按 Escape 关闭，Tab 在面板里首尾回绕，关闭后焦点还给打开前持有它的元素。
+ * 外壳只认面板 DOM 里发出的按键是 React 端独有的一条（portal 里的按键沿组件树冒泡上来）。
  */
 
 const dialog: MergeDialogState = { sourceBranchId: 'feature', strategy: 'squash', deleteSource: false };
@@ -46,6 +49,12 @@ const renderMergeDialog = (props: Partial<Parameters<typeof WorkingTreeMergeDial
     />
   );
   return handlers;
+};
+
+/** 焦点放到 `element` 上按一下 Tab（`shiftKey` 为 Shift+Tab）。 */
+const pressTab = (element: HTMLElement, shiftKey = false): void => {
+  element.focus();
+  fireEvent.keyDown(element, { key: 'Tab', shiftKey });
 };
 
 describe('WorkingTreeMergeDialog 的预览', () => {
@@ -103,6 +112,39 @@ describe('WorkingTreeMergeDialog 的预览', () => {
     renderMergeDialog();
 
     expect(screen.getByRole('button', { name: 'Close dialog' }).contains(screen.getByRole('dialog'))).toBe(false);
+  });
+
+  it('焦点陷阱：Tab 从最后一个控件回到第一个，Shift+Tab 从第一个或面板本身去最后一个', () => {
+    renderMergeDialog();
+    const first = screen.getByTestId('wt-merge-strategy-squash');
+    const last = screen.getByTestId('wt-merge-confirm');
+
+    pressTab(last);
+    expect(document.activeElement).toBe(first);
+    pressTab(first, true);
+    expect(document.activeElement).toBe(last);
+    pressTab(screen.getByRole('dialog'), true);
+    expect(document.activeElement).toBe(last);
+  });
+
+  it('关闭后焦点还给打开前持有它的元素', () => {
+    const opener = document.body.appendChild(document.createElement('button'));
+    opener.focus();
+    const props = {
+      activeBranch: 'main',
+      error: null,
+      onCloseRequested: vi.fn(),
+      onConfirm: vi.fn(),
+      onDeleteSourceChange: vi.fn(),
+      onStrategyChange: vi.fn(),
+      preview: { phase: 'loading' } as const
+    };
+    const { rerender } = render(<WorkingTreeMergeDialog dialog={dialog} {...props} />);
+    expect(document.activeElement).toBe(screen.getByRole('dialog'));
+
+    rerender(<WorkingTreeMergeDialog dialog={null} {...props} />);
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
   });
 });
 
@@ -170,5 +212,24 @@ describe('WorkingTreeCompareDialog', () => {
     );
 
     expect(screen.getByTestId('wt-compare-error').textContent).toContain("Branch 'feature' not found");
+  });
+});
+
+describe('WorkingTreeDialogShell', () => {
+  it('portal 里冒上来的按键不归外壳管：Tab 不被拉回面板，Escape 不关外壳', () => {
+    const onCloseRequested = vi.fn();
+    // 面板里没有可聚焦元素：外壳若接了这一下 Tab，会把焦点拉回面板本身
+    render(
+      <WorkingTreeDialogShell labelledBy='wt-shell-title' onCloseRequested={onCloseRequested} testId='wt-shell'>
+        <h2 id='wt-shell-title'>Shell</h2>
+        {createPortal(<button type='button'>In portal</button>, document.body)}
+      </WorkingTreeDialogShell>
+    );
+    const inPortal = screen.getByRole('button', { name: 'In portal' });
+
+    pressTab(inPortal);
+    expect(document.activeElement).toBe(inPortal);
+    fireEvent.keyDown(inPortal, { key: 'Escape' });
+    expect(onCloseRequested).not.toHaveBeenCalled();
   });
 });

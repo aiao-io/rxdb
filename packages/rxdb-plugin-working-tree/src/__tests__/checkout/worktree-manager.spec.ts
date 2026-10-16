@@ -16,6 +16,8 @@ import {
   connectSnapshotDatabase,
   createSnapshotDatabase,
   importSnapshot,
+  isSnapshotComplete,
+  markSnapshotComplete,
   sealSnapshot
 } from '../../checkout/worktree-snapshot.js';
 import { Worktree } from '../../checkout/worktree.entity.js';
@@ -28,6 +30,8 @@ vi.mock('../../checkout/worktree-snapshot.js', () => ({
   createSnapshotDatabase: vi.fn(),
   connectSnapshotDatabase: vi.fn(),
   importSnapshot: vi.fn(),
+  isSnapshotComplete: vi.fn(),
+  markSnapshotComplete: vi.fn(),
   sealSnapshot: vi.fn()
 }));
 
@@ -107,6 +111,8 @@ beforeEach(() => {
     return adapter;
   });
   vi.mocked(importSnapshot).mockResolvedValue({ sourceBranchId: 'main', sourceChangeId: 4, targetChangeId: 9 });
+  vi.mocked(markSnapshotComplete).mockResolvedValue(undefined);
+  vi.mocked(isSnapshotComplete).mockResolvedValue(true);
   vi.mocked(sealSnapshot).mockResolvedValue(undefined);
 });
 
@@ -168,6 +174,11 @@ describe('WorktreeManager.open', () => {
     expect(rows[0].dbName).toMatch(/^wt-[0-9a-f]{24}$/);
     expect(view.rxdb).toBe(snapshot);
     expect(view.entityOf(ManagedNote)).toBe(ManagedNote);
+    // 哨兵写在封印之前：封印之后快照库就写不进了
+    expect(markSnapshotComplete).toHaveBeenCalledWith(snapshot, snapshotAdapters[0]);
+    expect(vi.mocked(markSnapshotComplete).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(sealSnapshot).mock.invocationCallOrder[0]
+    );
     expect(sealSnapshot).toHaveBeenCalledTimes(1);
 
     await view.close();
@@ -205,6 +216,23 @@ describe('WorktreeManager.open', () => {
     await expect(managerOf().open({ branchId: 'feature' })).rejects.toBe(failure);
     const snapshot = vi.mocked(createSnapshotDatabase).mock.results[0].value as ReturnType<typeof fakeSnapshot>;
     expect(snapshot.disconnectAll).toHaveBeenCalledTimes(1);
+    expect(rows).toEqual([]);
+  });
+
+  it('快照库没连上：只断开，登记行留作 building 交给 prune()——库可能已在连接期建出来了', async () => {
+    const failure = new Error('connect failed');
+    vi.mocked(connectSnapshotDatabase).mockRejectedValueOnce(failure);
+    const manager = managerOf();
+
+    await expect(manager.open({ branchId: 'feature' })).rejects.toBe(failure);
+    const snapshot = vi.mocked(createSnapshotDatabase).mock.results[0].value as ReturnType<typeof fakeSnapshot>;
+    expect(snapshot.disconnectAll).toHaveBeenCalledTimes(1);
+    expect(rows.map(row => row.state)).toEqual(['building']);
+    const pending = rows.map(row => row.id);
+
+    // 锁已放开：prune() 按登记行重连，确认是快照库之后删库、删登记行
+    expect(await manager.prune()).toEqual(pending);
+    expect(snapshotAdapters.at(-1)?.dropStorage).toHaveBeenCalledTimes(1);
     expect(rows).toEqual([]);
   });
 
@@ -267,6 +295,21 @@ describe('生命周期：锁、release、attach 与 prune（阶段 C）', () => 
     expect(await reasonOf(manager.attach(persistent.id))).toBe('schema_mismatch');
   });
 
+  it('attach()：登记行在、快照库已不在（连上的是新建的空库）：not_found，连带回收', async () => {
+    const manager = managerOf();
+    const view = await manager.open({ branchId: 'feature' }, { owner: 'persistent' });
+    await view.release();
+    vi.mocked(isSnapshotComplete).mockResolvedValueOnce(false);
+
+    expect(await reasonOf(manager.attach(view.id))).toBe('not_found');
+
+    expect(sealSnapshot).toHaveBeenCalledTimes(1);
+    expect(snapshotAdapters.at(-1)?.dropStorage).toHaveBeenCalledTimes(1);
+    expect(rows).toEqual([]);
+    // 锁随之放开：同一个 id 再 attach 不是 in_use，而是查无此行
+    expect(await reasonOf(manager.attach(view.id))).toBe('not_found');
+  });
+
   it('prune() 里有一个回收失败：其余照常回收，最后一起报出来', async () => {
     const manager = managerOf();
     const first = await manager.open({ branchId: 'feature' });
@@ -292,5 +335,21 @@ describe('WorktreeView.refresh', () => {
     expect(refreshed.target).toEqual({ branchId: 'feature' });
     expect(first.disconnectAll).toHaveBeenCalledTimes(1);
     expect((await manager.list()).map(record => record.id)).toEqual([refreshed.id]);
+  });
+
+  it('旧视图收尾失败（删库撞上占用）：新视图一并关掉再报错，不留调用方拿不到的检出位', async () => {
+    const manager = managerOf();
+    const view = await manager.open({ branchId: 'feature' });
+    const busy = new Error('database_busy');
+    vi.mocked(snapshotAdapters[0].dropStorage!).mockRejectedValueOnce(busy);
+
+    await expect(view.refresh()).rejects.toBe(busy);
+
+    const next = vi.mocked(createSnapshotDatabase).mock.results[1].value as ReturnType<typeof fakeSnapshot>;
+    expect(next.disconnectAll).toHaveBeenCalledTimes(1);
+    expect(snapshotAdapters[1].dropStorage).toHaveBeenCalledTimes(1);
+    // 只剩旧视图那一行：它的库没删掉，登记行照「先删库再删登记」留着给 prune()
+    expect(rows.map(row => row.id)).toEqual([view.id]);
+    expect(await manager.prune()).toEqual([view.id]);
   });
 });

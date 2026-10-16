@@ -17,7 +17,8 @@ import { computed, signal, Signal } from '@angular/core';
  *
  * @remarks
  * 四格状态与核心的 `WorktreeAsyncStates` 一一对应，各包一层 `Signal`；方法签名与插件包 `WorktreeManager`
- * 上的同名方法一致。三端等价实现：React `useWorktrees()`（渲染快照）、Vue `useWorktrees()`（`ComputedRef`）。
+ * 上的同名方法一致。三端同名、同字段、同签名：React `useWorktrees()`（渲染快照）、Vue `useWorktrees()`（`ComputedRef`）。
+ * 入口绑定创建时注入的库：注入器里的库不会换，换库就是重建组件（React 版在 Provider 换库时自己回到初态）。
  *
  * 打开得到的视图把 `view.rxdb` 经组件级 `{ provide: RxDB, useValue: view.rxdb }` 交给子树，现有的查询照用；
  * 查询要用 `view.entityOf()` 换过的类。

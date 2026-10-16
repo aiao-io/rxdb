@@ -189,6 +189,9 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   #notifyInfrastructureReady = false;
   #lifecycle_state: AdapterLifecycleState = 'bootstrap';
 
+  /** 已封成只读，此后每个事务都以只读事务开头；见 {@link RxDBAdapterPGlite.sealWorktreeReadOnly}。 */
+  #read_only_sealed = false;
+
   /** 加密 keyring（仅当至少一个 entity 声明加密列时初始化） */
   #keyring: Keyring | null = null;
 
@@ -341,9 +344,16 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
 
   /**
    * 把本库封成只读（只读检出位，US-313）：此后每个事务都是只读事务，写语句被 Postgres 拒绝。
+   *
+   * @remarks
+   * 会话默认值管不住本适配器开的事务：`SELECT set_config('default_transaction_read_only', 'off', false)`
+   * 是一条读语句，过得了只读钩子的 raw 门，执行之后新开的事务就是可写的。所以封印之后每个事务开头都
+   * `SET TRANSACTION READ ONLY`：事务执行过查询之后就改不回可写，`set_config('transaction_read_only', …)`
+   * 写在 `SELECT` 里因此当场报错。会话默认值留着，管的是不经事务的内部查询。
    */
   override async sealWorktreeReadOnly(): Promise<void> {
     await this.transaction(executor => executor.query('SET SESSION default_transaction_read_only = on'), false);
+    this.#read_only_sealed = true;
   }
 
   /** QueryCache：id → updatedAt。物理定位经 `resolveQueryCacheTarget`（PGL-012）。 */
@@ -957,6 +967,9 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     const runTransaction = (): Promise<unknown> =>
       client.transaction(async tx => {
         executor = new PGliteTransactionExecutor(this, tx, transactionId ?? crypto.randomUUID());
+
+        // 只读检出位的快照库：事务级只读，事务里的语句改不掉它（见 sealWorktreeReadOnly）
+        if (this.#read_only_sealed) await tx.query('SET TRANSACTION READ ONLY');
 
         // 延迟外键约束检查到事务提交时
         await tx.query('SET CONSTRAINTS ALL DEFERRED');

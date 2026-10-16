@@ -175,7 +175,7 @@ export interface MergeDialogState {
 })
 export class WorkingTreeMergeDialogComponent {
   readonly dialog = input<MergeDialogState | null>(null);
-  readonly activeBranch = input('');
+  readonly activeBranch = input.required<string>();
   /** 按当前策略读的合并预览；读失败不挡合并 */
   readonly preview = input<BranchDiffLoad<MergePreview>>({ phase: 'loading' });
   readonly error = input<string | null>(null);

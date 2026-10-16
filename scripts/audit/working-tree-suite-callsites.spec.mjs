@@ -41,7 +41,7 @@ const writeSourceFile = async (root, relPath, source) => {
   return file;
 };
 
-/** 造一棵「6 个包 × 2 套套件全都有调用点」的树。 */
+/** 造一棵「6 个包 × 3 套套件全都有调用点」的树。 */
 const writeCompleteMatrix = async root => {
   for (const pkg of V1_ADAPTER_PACKAGES) {
     for (const suite of CONFORMANCE_SUITE_NAMES) {
@@ -210,7 +210,7 @@ test('describe.skip 包住调用 = 假绿，判不合格', () => {
   assert.match(describeRejection(inspection), /describe\.skip/);
 });
 
-test('skipIf / runIf 同样不合格：条件运行会让 6×2 的矩阵在某些机器上悄悄缩水', () => {
+test('skipIf / runIf 同样不合格：条件运行会让 6×3 的矩阵在某些机器上悄悄缩水', () => {
   for (const modifier of ['skipIf', 'runIf', 'todo']) {
     const source = `import { ${COMMIT_SUITE} } from '${SUITE_ENTRY}';\n\ndescribe.${modifier}(x)('m', () => {\n  ${COMMIT_SUITE}({});\n});\n`;
 

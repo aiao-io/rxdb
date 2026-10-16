@@ -166,7 +166,7 @@ const WRITE_KEYWORDS: ReadonlySet<string> = new Set([
  * 反过来的读法会让绕过捕获变成一道语法题——只要把语句写得判定读不懂就行。
  *
  * 事务控制与 `PRAGMA` 在册：它们是适配器 raw 通道上的日常流量，且**够不到**业务表的行；
- * 漏掉它们会让启用提交能力等同于禁用事务。
+ * 漏掉它们会让启用提交能力等同于禁用事务。只读连接上这个前提不成立，见 {@link SESSION_STATE_LEADING_KEYWORDS}。
  */
 const NON_WRITE_LEADING_KEYWORDS: ReadonlySet<string> = new Set([
   'select',
@@ -186,6 +186,18 @@ const NON_WRITE_LEADING_KEYWORDS: ReadonlySet<string> = new Set([
   'end',
   'set'
 ]);
+
+/**
+ * 改会话状态的语句首词：只读连接上一律拒
+ *
+ * @remarks
+ * 它们在 {@link NON_WRITE_LEADING_KEYWORDS} 里，是因为主库上它们够不到业务表的行。只读检出位的快照库上
+ * 恰好相反：引擎封印本身就是一条会话状态（SQLite 系 `PRAGMA query_only = 1`，PGlite
+ * `SET SESSION default_transaction_read_only = on`），一句 `PRAGMA query_only = 0` 就把它解开，
+ * 之后执行器的写直通引擎。读类 `PRAGMA` 一并拒：`PRAGMA query_only(0)` 这种函数形写法同样是赋值，
+ * 按名字逐个放行又是一张会漂移的白名单，而只读视图用不着它们。
+ */
+const SESSION_STATE_LEADING_KEYWORDS: ReadonlySet<string> = new Set(['pragma', 'set']);
 
 /**
  * 各写形态的目标表位置；`create` 单列一条是因为它前面可以堆 `temp` / `unique` / `virtual`。
@@ -511,6 +523,13 @@ function isWriteStatement(words: readonly string[]): boolean {
   return !NON_WRITE_LEADING_KEYWORDS.has(leading);
 }
 
+/** 这条语句会改会话状态吗；见 {@link SESSION_STATE_LEADING_KEYWORDS}。 */
+function isSessionStatement(words: readonly string[]): boolean {
+  const leading = words[0];
+  if (leading === undefined) return false;
+  return SESSION_STATE_LEADING_KEYWORDS.has(leading);
+}
+
 /**
  * 这条写语句是哪种操作
  *
@@ -762,24 +781,33 @@ export function judgeRawWrite(sql: string, context: RawWriteJudgmentContext): Ra
 }
 
 /**
- * 这批语句里有没有会改数据的语句。
+ * 这批语句在只读连接上该不该拒：会改数据的语句，加上会改会话状态的 `PRAGMA` / `SET`。
  *
  * @param sql - 原始语句，可以是以分号分隔的语句批
- * @returns 有一条写语句即为 `true`；口径与 {@link judgeRawWrite} 的第 2 步相同
+ * @returns 有一条该拒即为 `true`；「会改数据」与 {@link judgeRawWrite} 的第 2 步同一口径
  *
  * @remarks
- * 只读检出位的只读钩子用它拦 raw 写（US-313）：那里没有版本化域可问，任何写都拒。
+ * 只读检出位的只读钩子用它拦 raw 调用（US-313）：那里没有版本化域可问，任何写都拒；会话设置也拒，
+ * 因为引擎封印本身就是一条会话状态，一句 `PRAGMA query_only = 0` 就能把它解开。
  */
-export function containsWriteStatement(sql: string): boolean {
-  return writeStatementsOf(sql).length > 0;
+export function breaksReadOnly(sql: string): boolean {
+  return statementsOf(sql).some(statement => {
+    const words = wordsOf(statement);
+    return isWriteStatement(words) || isSessionStatement(words);
+  });
 }
 
-/** 语句批里的写语句：整批切开逐条判，不只看第一条。 */
-function writeStatementsOf(sql: string): string[] {
+/** 语句批切开后的每一条（已归一化、去掉空语句）：整批逐条判，不只看第一条。 */
+function statementsOf(sql: string): string[] {
   return normalizeSql(sql)
     .split(';')
     .map(statement => statement.trim())
-    .filter(statement => statement.length > 0 && isWriteStatement(wordsOf(statement)));
+    .filter(statement => statement.length > 0);
+}
+
+/** 语句批里的写语句。 */
+function writeStatementsOf(sql: string): string[] {
+  return statementsOf(sql).filter(statement => isWriteStatement(wordsOf(statement)));
 }
 
 /**

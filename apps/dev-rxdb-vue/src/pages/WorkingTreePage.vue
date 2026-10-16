@@ -9,8 +9,7 @@ import type {
   WorkingTreeDiffEntry,
   WorkingTreeRestoreFailureReason,
   WorkingTreeRestoreSessionInfo,
-  WorktreeTarget,
-  WorktreeView
+  WorktreeTarget
 } from '@aiao/rxdb-plugin-working-tree';
 import { CommitValidationError, WorkingTreeDirtyError, WorktreeUnavailableError } from '@aiao/rxdb-plugin-working-tree';
 import { useWorkingTree, useWorktrees } from '@aiao/rxdb-plugin-working-tree-vue';
@@ -27,7 +26,7 @@ import ContextMenu from './working-tree/components/ContextMenu.vue';
 import DiffViewer from './working-tree/components/DiffViewer.vue';
 import HistoryList from './working-tree/components/HistoryList.vue';
 import MergeDialog, { type MergeDialogState } from './working-tree/components/MergeDialog.vue';
-import ReadOnlyViewer, { type ReadOnlyViewerState } from './working-tree/components/ReadOnlyViewer.vue';
+import ReadOnlyViewer from './working-tree/components/ReadOnlyViewer.vue';
 import type {
   WorkingTreeContextMenuItem,
   WorkingTreeContextMenuRequest,
@@ -37,7 +36,11 @@ import type { BranchDiffLoad } from './working-tree/utils/branch-diff';
 import { diffEntryKey } from './working-tree/utils/diff-format';
 import { startDragResize } from './working-tree/utils/drag';
 import { gdEntryPath } from './working-tree/utils/gd';
-import { READ_ONLY_REJECTION_TEXT, readOnlyTargetLabel } from './working-tree/utils/read-only-checkout';
+import {
+  READ_ONLY_REJECTION_TEXT,
+  ReadOnlyViewerSession,
+  type ReadOnlyViewerState
+} from './working-tree/utils/read-only-checkout';
 
 const AUTHOR_ID = 'demo-author';
 
@@ -113,11 +116,20 @@ const mergePreview = ref<BranchDiffLoad<MergePreview>>({ phase: 'loading' });
 const compareDialog = ref<CompareDialogState | null>(null);
 /**
  * 只读检出位查看器（US-313）。shallowRef：视图里是第二个 RxDB 实例，它的私有字段过不了深层响应式代理。
- * `readOnlyView` 同步记着开着的视图，离开页面与迟到的刷新都按它收尾。
+ * 两份状态都由 `readOnlySession` 经回调写进来：迟到的打开与刷新结果由它当场关掉，离开页面时 dispose。
  */
 const readOnlyViewer = shallowRef<ReadOnlyViewerState | null>(null);
 const readOnlyRefreshing = ref(false);
-let readOnlyView: WorktreeView | null = null;
+const readOnlySession = new ReadOnlyViewerSession({
+  open: target => worktrees.open(target),
+  onViewerChange: viewer => {
+    readOnlyViewer.value = viewer;
+  },
+  onRefreshingChange: refreshing => {
+    readOnlyRefreshing.value = refreshing;
+  },
+  onError: error => showToast('error', readOnlyRejectionOf(error))
+});
 /** 只读请求的代号：对话框关掉或换了参数之后，迟到的结果不落进新状态。 */
 let mergePreviewRequest = 0;
 let compareRequest = 0;
@@ -173,8 +185,8 @@ onBeforeUnmount(() => {
   if (toastTimer !== null) clearTimeout(toastTimer);
   clearInterval(fetchedTicker);
   // 离开页面时关掉还开着的只读检出位：会话归属的快照库没人看了，留着只能等下一次回收。
-  // 页面已经卸载，没有地方显示提示，失败只打到控制台
-  void readOnlyView?.close().catch((error: unknown) => console.error('[working-tree] 关闭只读检出位失败', error));
+  // 打开、刷新途中迟到的结果也由会话当场关掉；页面已经卸载，关闭失败只打到控制台
+  readOnlySession.dispose();
 });
 
 // ── 派生状态 ──────────────────────────────────────────────
@@ -800,45 +812,23 @@ function closeCompareDialog(): void {
 
 // ── 只读检出位（US-313）──────────────────────────────────
 
-/** 打开只读检出位：不切换分支，在查看器里浏览目标的完整数据。会话归属，关掉查看器即删快照库。 */
+/**
+ * 打开只读检出位：不切换分支，在查看器里浏览目标的完整数据。会话归属，关掉查看器即删快照库。
+ * 快照建好之前又点了别的目标、关了查看器或离开页面，这次的结果由会话当场关掉（见 `ReadOnlyViewerSession`）。
+ */
 async function openReadOnly(target: WorktreeTarget): Promise<void> {
   branchMenuOpen.value = false;
-  try {
-    const view = await worktrees.open(target);
-    readOnlyView = view;
-    readOnlyViewer.value = { view, label: readOnlyTargetLabel(target) };
-  } catch (error) {
-    showToast('error', readOnlyRejectionOf(error));
-  }
+  await readOnlySession.open(target);
 }
 
 /** 按建立时的目标重建快照：主库此后的写入这才看得见。 */
-async function refreshReadOnly(): Promise<void> {
-  const current = readOnlyViewer.value;
-  if (current === null) return;
-  readOnlyRefreshing.value = true;
-  try {
-    const next = await current.view.refresh();
-    // 刷新途中查看器被关掉了：新建出来的这个没人看，当场关掉，不把查看器又弹回来
-    if (readOnlyView !== current.view) {
-      void next.close().catch((error: unknown) => showToast('error', readOnlyRejectionOf(error)));
-      return;
-    }
-    readOnlyView = next;
-    readOnlyViewer.value = { view: next, label: current.label };
-  } catch (error) {
-    showToast('error', readOnlyRejectionOf(error));
-  } finally {
-    readOnlyRefreshing.value = false;
-  }
+function refreshReadOnly(): Promise<void> {
+  return readOnlySession.refresh();
 }
 
 /** 关掉查看器：断开只读实例，删快照库与登记。 */
 function closeReadOnly(): void {
-  const view = readOnlyView;
-  readOnlyView = null;
-  readOnlyViewer.value = null;
-  if (view !== null) void view.close().catch((error: unknown) => showToast('error', readOnlyRejectionOf(error)));
+  readOnlySession.close();
 }
 
 // ── 私有辅助 ──────────────────────────────────────────────

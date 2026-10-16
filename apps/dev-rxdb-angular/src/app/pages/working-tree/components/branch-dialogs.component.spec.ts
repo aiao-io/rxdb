@@ -10,7 +10,7 @@ import { WorkingTreeMergeDialogComponent, type MergeDialogState } from './merge-
  *
  * @remarks
  * 预览只是参考：读失败只显示错误，合并照常能点。两个对话框共用一个外壳：背板与面板是兄弟节点，
- * 打开时焦点进面板，面板里按 Escape 关闭。
+ * 打开时焦点进面板，面板里按 Escape 关闭，Tab 在面板里首尾回绕，关闭后焦点还给打开前持有它的元素。
  */
 
 const dialog: MergeDialogState = { sourceBranchId: 'feature', strategy: 'squash', deleteSource: false };
@@ -54,6 +54,12 @@ const accessibleName = (fixture: ComponentFixture<unknown>): string => {
 
 const pressEscape = (element: HTMLElement): void => {
   element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+};
+
+/** 焦点放到 `element` 上按一下 Tab（`shiftKey` 为 Shift+Tab）。 */
+const pressTab = (element: HTMLElement, shiftKey = false): void => {
+  element.focus();
+  element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true }));
 };
 
 const createMergeDialog = async (load: BranchDiffLoad<MergePreview> = { phase: 'success', value: preview }) => {
@@ -149,6 +155,31 @@ describe('WorkingTreeMergeDialogComponent 的预览', () => {
     const fixture = await createMergeDialog();
 
     expect(get(fixture, '[aria-label="Close dialog"]').contains(get(fixture, '[role="dialog"]'))).toBe(false);
+  });
+
+  it('焦点陷阱：Tab 从最后一个控件回到第一个，Shift+Tab 从第一个或面板本身去最后一个', async () => {
+    const fixture = await createMergeDialog();
+    const first = get(fixture, '[data-testid="wt-merge-strategy-squash"]');
+    const last = get(fixture, '[data-testid="wt-merge-confirm"]');
+
+    pressTab(last);
+    expect(document.activeElement).toBe(first);
+    pressTab(first, true);
+    expect(document.activeElement).toBe(last);
+    pressTab(get(fixture, '[role="dialog"]'), true);
+    expect(document.activeElement).toBe(last);
+  });
+
+  it('关闭后焦点还给打开前持有它的元素', async () => {
+    const opener = document.body.appendChild(document.createElement('button'));
+    opener.focus();
+    const fixture = await createMergeDialog();
+    expect(document.activeElement).toBe(get(fixture, '[role="dialog"]'));
+
+    fixture.componentRef.setInput('dialog', null);
+    fixture.detectChanges();
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
   });
 });
 

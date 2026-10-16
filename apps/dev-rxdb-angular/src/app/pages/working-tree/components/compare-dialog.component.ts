@@ -91,7 +91,7 @@ export interface CompareDialogState {
 })
 export class WorkingTreeCompareDialogComponent {
   readonly dialog = input<CompareDialogState | null>(null);
-  readonly activeBranch = input('');
+  readonly activeBranch = input.required<string>();
 
   readonly closeRequested = output<void>();
 

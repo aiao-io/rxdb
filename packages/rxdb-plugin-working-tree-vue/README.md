@@ -73,6 +73,10 @@ Vue `@aiao/rxdb-plugin-working-tree-vue`（本包） 的
 `useWorkingTree()` 与 `useWorktrees()` **同名、同字段、同方法签名**，只有状态容器形态不同（`Signal` / 渲染快照 / `ComputedRef`）。
 三个包各自的 spec 结尾都带一段 `tri-framework-api.md §3 清单守卫`，任一端加减成员都会红。
 
+唯一随框架而异的是**换库**：React 每次 render 重新取库，`RxDBProvider` 换了 `db` 时两个 hook 都回到初态、
+旧库迟到的结果丢弃；Angular 注入器里的库不会换，换库就是重建组件；Vue 在 `setup()` 里取一次库，
+`provideRxDB()` 的源换了库时入口仍指着旧库，要跟着换就给用它的组件加 `:key`，让它随库重建。
+
 ## 行为约定（三端一致）
 
 - **创建入口本身一次 IO 都不发**：十格状态初值全是 `idle`，只有真调了方法才去读库。

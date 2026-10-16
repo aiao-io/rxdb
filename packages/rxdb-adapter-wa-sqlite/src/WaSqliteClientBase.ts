@@ -49,6 +49,19 @@ export interface WaSqliteClientRuntime<TOptions extends object> {
   load(dbName: string, options: TOptions): Promise<LoadedWaSqliteClientRuntime>;
   resolve(dbName: string, options: TOptions): ResolvedWaSqliteClientOptions;
   initializationSql?(cacheSizeKb: number): string;
+  /**
+   * 执行打开，并决定打开失败后要不要整个重来。
+   *
+   * @param attempt - 一次完整的打开：`load` 新建模块与 VFS → `open_v2` → 初始化 SQL；失败时已关掉这一次的 VFS
+   * @param dbName - 库名
+   * @param options - 平台加载配置
+   * @returns `attempt` 的结果
+   *
+   * @remarks
+   * 重来就再调一次 `attempt`，不复用失败那次的模块与 VFS。浏览器对 `OPFSCoopSyncVFS` 按退避重试（US-221：整页刷新时
+   * 上一个页面还占着库文件的同步访问句柄）；不需要重试的平台直接 `attempt()`。
+   */
+  open<T>(attempt: () => Promise<T>, dbName: string, options: TOptions): Promise<T>;
 }
 
 const SHARED_HINT_LOCK_POLICY = 'shared+hint';
@@ -189,7 +202,11 @@ export class WaSqliteClientBase<TOptions extends object> extends EventDispatcher
 
   async #initialize(dbName: string, options: TOptions, cacheSize: number, identity: ClientIdentity): Promise<void> {
     try {
-      const connection = await this.#openConnection(dbName, options, cacheSize);
+      const connection = await this.runtime.open(
+        () => this.#openConnection(dbName, options, cacheSize),
+        dbName,
+        options
+      );
       if (this.#state.status !== 'initializing') {
         await closeConnection(connection);
         throw new Error(`${this.runtime.clientName} client has been disconnected`);

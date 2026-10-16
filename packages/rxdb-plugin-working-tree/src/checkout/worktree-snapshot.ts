@@ -5,6 +5,10 @@
  * 快照实例在主库事务之外先连好（建表、初始行都在那一步），主库只开一笔事务：
  * 在同一个事务里算增量、按页读出业务表，读一页往快照库写一页。行与增量因此对应同一个时刻。
  *
+ * 代价是这笔主库事务跨过全部页：建快照期间，本页对主库的其它读写在适配器队列里排在它后面，
+ * 别的上下文的写按各后端的锁语义等它结束（等不到就撞忙）。读页挪出这笔事务，就得另找办法让行与增量
+ * 对齐同一个时刻（AC1、AC5）；这里取一致性，并发窗口与快照大小成正比。
+ *
  * 快照库的写不解密也不加密：加密列按信封原样搬，快照实例与主实例共用一个密钥环。
  */
 
@@ -25,6 +29,7 @@ import {
   RxDB,
   RxDBBranch,
   RxDBChange,
+  RxDBMigration,
   SyncType
 } from '@aiao/rxdb';
 import { compute_switch_branch_actions, get_branch_max_change } from '@aiao/rxdb-plugin-history';
@@ -231,6 +236,50 @@ const deltaOf = async (
     { branchRepository: executor.getRepository(RxDBBranch), changeRepository: executor.getRepository(RxDBChange) },
     target.branchId
   );
+};
+
+/**
+ * 快照库建完的哨兵：一行记在快照库自己的 `rxdb_migration` 里。
+ *
+ * @remarks
+ * 「库还在不在」只能连上之后问：连一个不存在的库就是建一个空库，标记迁移在新库上只写成水位、`up()` 不跑，
+ * 连接照常成功。登记行在、库却没了（删库之后删登记行失败、存储被清掉、快照库开在内存档上又放开了），
+ * `attach()` 交回的就是一张张空表，还像打开成功。建快照的最后一步写下哨兵，`attach()` 连上先查它。
+ *
+ * 名字里不带库名：连上的是不是这个检出位的库，连接时标记迁移已经验过。
+ */
+const SNAPSHOT_COMPLETE_MARK = 'worktree-snapshot-complete';
+
+/**
+ * 在快照库里写下「建完了」的哨兵；在封印之前调用。
+ *
+ * @param snapshot - 快照实例
+ * @param adapter - 快照库适配器
+ */
+export const markSnapshotComplete = async (snapshot: RxDB, adapter: LocalRxDBAdapter): Promise<void> => {
+  const mark = snapshot.entityManager.instantiate(RxDBMigration);
+  mark.name = SNAPSHOT_COMPLETE_MARK;
+  mark.executedAt = new Date();
+  // 经执行器写：快照实例是只读实例，公开写入口一律拒，导入快照的行也走同一条路
+  await adapter.transaction(executor => executor.saveMany([mark]), false);
+};
+
+/**
+ * 快照库里有没有「建完了」的哨兵。
+ *
+ * @param adapter - 已连接的快照库适配器
+ * @returns 有哨兵；没有就是连接时新建出来的空库
+ */
+export const isSnapshotComplete = async (adapter: LocalRxDBAdapter): Promise<boolean> => {
+  const marks = await adapter.transaction(
+    executor =>
+      executor.getRepository(RxDBMigration).find({
+        where: { combinator: 'and', rules: [{ field: 'name', operator: '=', value: SNAPSHOT_COMPLETE_MARK }] },
+        limit: 1
+      }),
+    false
+  );
+  return marks.length > 0;
 };
 
 /**

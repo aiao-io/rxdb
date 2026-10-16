@@ -1,18 +1,10 @@
 import { RxDB } from '@aiao/rxdb';
-import type { WorktreeView } from '@aiao/rxdb-plugin-working-tree';
 import { NgComponentOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, Injector, input, output, signal } from '@angular/core';
 import { LucideEye as Eye, LucideDynamicIcon } from '@lucide/angular';
-import { readOnlyCatalog } from '../working-tree.read-only-checkout';
+import { readOnlyCatalog, type ReadOnlyViewerState } from '../working-tree.read-only-checkout';
 import { WorkingTreeDialogShellComponent } from './dialog-shell.component';
 import { WorkingTreeReadOnlyEntityPaneComponent } from './read-only-entity-pane.component';
-
-/** 只读检出位查看器的状态；页面持有，本组件只做展示。 */
-export interface ReadOnlyViewerState {
-  readonly view: WorktreeView;
-  /** 横幅里的检出目标，见 `readOnlyTargetLabel` */
-  readonly label: string;
-}
 
 /**
  * 只读检出位查看器（US-313）：不切换分支，以只读方式浏览另一条分支或一个提交的完整数据。
@@ -112,6 +104,7 @@ export interface ReadOnlyViewerState {
 export class WorkingTreeReadOnlyViewerComponent {
   readonly #injector = inject(Injector);
 
+  /** 页面持有的查看器状态（见 `ReadOnlyViewerSession`），本组件只做展示 */
   readonly viewer = input<ReadOnlyViewerState | null>(null);
   /** 主实例：「不随版本」按它的实体元数据判 */
   readonly mainRxdb = input.required<RxDB>();

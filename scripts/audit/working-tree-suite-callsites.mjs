@@ -322,7 +322,7 @@ const findNamedImport = (source, exportedName) => {
  *
  * - 深度：模块顶层（深度 0）的调用在 import 求值时就执行；落在任何一对花括号里的调用都要
  *   先有人调那个函数/进那个分支。「导入了就算覆盖」的整文件正则分不开这两者，于是把调用
- *   挪进一个谁都不调的函数，矩阵照样报 12/12 全绿，而那一格一条断言都没跑。
+ *   挪进一个谁都不调的函数，矩阵照样报 18/18 全绿，而那一格一条断言都没跑。
  * - 修饰符：`describe.skip('…', () => { suite(…) })` 里的调用确实在顶层之外，但它的病因是
  *   「被 skip 关掉了」而不是「没人调」，报错要说得出这一点，所以顺带记下包着它的那个修饰符。
  *
@@ -461,7 +461,7 @@ export const findPackageCallsites = async (packageDir, suiteName) => {
 /**
  * 三套套件是不是都还从 testing 入口导出。
  *
- * 套件改名时，这一条让门禁报「导出名变了」，而不是 12 条「缺调用点」——后者会把一次
+ * 套件改名时，这一条让门禁报「导出名变了」，而不是每个后端各一条「缺调用点」——后者会把一次
  * 重命名伪装成一场全面塌方，排查的人得先自己还原出真正发生了什么。
  *
  * @param {string} source `working-tree/testing/index.ts` 的源码
@@ -484,7 +484,7 @@ export const findMissingSuiteExports = source => {
 };
 
 /**
- * 全量：6 个 v1 适配器包 × 2 套套件。
+ * 全量：6 个 v1 适配器包 × 3 套套件。
  *
  * @param {{ packagesRoot: string }} options packages/ 目录绝对路径
  * @returns {Promise<{ packages: number, offenders: string[] }>} `packages` 是真正扫到的包数

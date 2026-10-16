@@ -55,6 +55,23 @@ describe('createReadOnlyCaptureHook', () => {
     await expect(hook.gateRawWrite('SELECT * FROM todo', execute)).resolves.toBe('rows');
   });
 
+  // 引擎封印就是一条会话状态：放行它们，一句话就把第三层防线关掉（评审 P1-1）
+  it.each([
+    'PRAGMA query_only = 0',
+    'pragma main.query_only(false)',
+    '/* 注释 */ PRAGMA query_only = 0',
+    'SELECT 1; PRAGMA query_only = 0',
+    'SET SESSION default_transaction_read_only = off',
+    'set transaction read write',
+    'PRAGMA table_info(todo)'
+  ])('会话设置 %s 拒绝且不下发', async sql => {
+    const hook = createReadOnlyCaptureHook();
+    const execute = vi.fn(async () => 'rows');
+
+    await expect(hook.gateRawWrite(sql, execute)).rejects.toBeInstanceOf(RxDBReadOnlyError);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it('外部通知拒绝，一条事件都不派发', () => {
     const hook = createReadOnlyCaptureHook();
     const notify = vi.fn();

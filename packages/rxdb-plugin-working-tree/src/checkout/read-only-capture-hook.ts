@@ -7,12 +7,15 @@
  * 批量合并、切分支、`upsertMany` / `deleteByIds`、raw 写与外部通知。它们落到引擎上也会被封印拒绝，
  * 在这里先拒是为了让调用方拿到类型化的错误，而不是一条后端各异的驱动错误。
  *
+ * raw 通道上的会话设置（`PRAGMA` / `SET`）是例外：引擎不拒它们，它们反倒能把封印解开，
+ * 所以这一层对它们是唯一的防线。
+ *
  * 挂载点 1（事务）放行：读也要开事务，事务里的写由第三层兜住。
  */
 
 import type { InterceptedBulkWrite, WorkingTreeCaptureHook } from '@aiao/rxdb';
 import { RxDBReadOnlyError } from '@aiao/rxdb';
-import { containsWriteStatement } from '../working-tree/raw-write-judgment.js';
+import { breaksReadOnly } from '../working-tree/raw-write-judgment.js';
 
 const BULK_WRITE_METHODS: Readonly<Record<InterceptedBulkWrite, string>> = {
   upsert_many: 'upsertMany',
@@ -34,7 +37,7 @@ export const createReadOnlyCaptureHook = (): WorkingTreeCaptureHook => ({
     throw new RxDBReadOnlyError(BULK_WRITE_METHODS[operation], entityName);
   },
   gateRawWrite: async (sql, execute) => {
-    if (containsWriteStatement(sql)) throw new RxDBReadOnlyError('rawQuery');
+    if (breaksReadOnly(sql)) throw new RxDBReadOnlyError('rawQuery');
     return execute();
   },
   gateExternalNotify: entityName => {

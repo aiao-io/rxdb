@@ -202,7 +202,33 @@ describe('sqlite-load.utils', () => {
         url: undefined,
         readonly: true
       });
-      expect(storageMocks.initSQLiteCore).toHaveBeenCalledWith(storage);
+      expect(storageMocks.initSQLiteCore).toHaveBeenCalledWith({ ...storage, beforeOpen: expect.any(Function) });
+    });
+
+    // US-221：OPFSCoopSyncVFS 打开失败时并行开出的旁文件句柄没人关，同一个 Worker 里的重试会撞上自己留下的句柄
+    it('opfs 打开撞 SQLITE_CANTOPEN：先交出失败那次 VFS 登记着的句柄，再整个重开', async () => {
+      class WorkerScope {
+        static [Symbol.hasInstance](value: unknown): boolean {
+          return value === globalThis;
+        }
+      }
+      vi.stubGlobal('WorkerGlobalScope', WorkerScope);
+      storageMocks.useOpfsStorage.mockReturnValue({ kind: 'opfs' });
+      const journal = { close: vi.fn() };
+      const failedVfs = { persistentFiles: new Map([['/db.sqlite-journal', { accessHandle: journal }]]) };
+      storageMocks.initSQLiteCore.mockImplementationOnce(async (options: { beforeOpen: (vfs: object) => void }) => {
+        options.beforeOpen(failedVfs);
+        throw Object.assign(new Error('sqlite3_open_v2'), { code: 14 });
+      });
+
+      await expect(sqliteLoad('db', { vfs: 'opfs', worker: true })).resolves.toEqual({ pointer: 1, sqlite: {} });
+
+      expect(storageMocks.useOpfsStorage).toHaveBeenCalledTimes(2);
+      expect(storageMocks.initSQLiteCore).toHaveBeenCalledTimes(2);
+      expect(journal.close).toHaveBeenCalledOnce();
+      expect(journal.close.mock.invocationCallOrder[0]).toBeLessThan(
+        storageMocks.initSQLiteCore.mock.invocationCallOrder[1]
+      );
     });
 
     it('fs-handle 缺少 fsRoot 时 fail-fast', async () => {

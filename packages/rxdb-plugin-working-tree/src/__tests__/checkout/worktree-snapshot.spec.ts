@@ -16,7 +16,15 @@ import type {
   WorktreeSnapshotImport,
   WorktreeSnapshotPage
 } from '@aiao/rxdb';
-import { Entity, EntityBase, getEntityMetadata, RxDBBranch, RxDB as RxDBClass, SyncType } from '@aiao/rxdb';
+import {
+  Entity,
+  EntityBase,
+  getEntityMetadata,
+  RxDBBranch,
+  RxDB as RxDBClass,
+  RxDBMigration,
+  SyncType
+} from '@aiao/rxdb';
 import { compute_switch_branch_actions } from '@aiao/rxdb-plugin-history';
 import { of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -27,6 +35,8 @@ import {
   connectSnapshotDatabase,
   createSnapshotDatabase,
   importSnapshot,
+  isSnapshotComplete,
+  markSnapshotComplete,
   sealSnapshot
 } from '../../checkout/worktree-snapshot.js';
 import { MockLocalAdapter } from '../fixtures/test-db-setup.js';
@@ -179,6 +189,52 @@ describe('createSnapshotDatabase', () => {
 
     expect(adapter).toBe(created);
     expect(created?.adoptWorktreeEncryption).toHaveBeenCalledWith(main);
+  });
+});
+
+describe('快照库建完的哨兵', () => {
+  /** 连上一个快照实例，交回它与替身适配器。 */
+  const connected = async (dbName: string) => {
+    let created: SnapshotCapableAdapter | undefined;
+    const snapshot = createSnapshotDatabase(mainAdapterNamed('mock'), dbName, [SnapshotNote], {
+      adapter: async db => {
+        created = new SnapshotCapableAdapter(db);
+        return created as unknown as LocalRxDBAdapter;
+      }
+    });
+    opened.push(snapshot);
+    const adapter = await connectSnapshotDatabase(snapshot);
+    return { snapshot, adapter, created: created! };
+  };
+
+  it('建完写一行进快照库自己的迁移表；经执行器写，不记日志', async () => {
+    const { snapshot, adapter, created } = await connected('main~wt~6');
+
+    await markSnapshotComplete(snapshot, adapter);
+
+    expect(created.transaction).toHaveBeenCalledWith(expect.any(Function), false);
+    const [[saved]] = created.saveMany.mock.calls;
+    expect(saved).toHaveLength(1);
+    expect(saved[0]).toBeInstanceOf(RxDBMigration);
+    expect(saved[0]).toMatchObject({ name: 'worktree-snapshot-complete' });
+  });
+
+  it('查得到这一行才算建完；连接时新建出来的空库查不到', async () => {
+    const { adapter, created } = await connected('main~wt~7');
+    const find = vi.fn<(options: unknown) => Promise<unknown[]>>(async () => []);
+    created.getRepository.mockImplementation(EntityClass => {
+      expect(EntityClass).toBe(RxDBMigration);
+      return { find } as never;
+    });
+
+    expect(await isSnapshotComplete(adapter)).toBe(false);
+    expect(find).toHaveBeenCalledWith({
+      where: { combinator: 'and', rules: [{ field: 'name', operator: '=', value: 'worktree-snapshot-complete' }] },
+      limit: 1
+    });
+
+    find.mockResolvedValueOnce([{ name: 'worktree-snapshot-complete' }]);
+    expect(await isSnapshotComplete(adapter)).toBe(true);
   });
 });
 
