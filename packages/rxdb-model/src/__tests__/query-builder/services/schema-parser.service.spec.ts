@@ -131,6 +131,19 @@ describe('SchemaParser', () => {
       expect(fields.map(field => field.displayName)).toEqual(['URL Value', 'HTTP Server', 'Created At']);
     });
 
+    it('长串连续大写输入应在线性时间内原样返回（CodeQL 多项式正则回归）', () => {
+      const long = 'A'.repeat(20000);
+      const longMetadata = {
+        ...metadata,
+        properties: [{ name: long, type: 'string' }],
+        propertyMap: new Map([[long, { name: long, type: 'string' }]])
+      } as unknown as EntityMetadata;
+
+      const fields = parser.parse(longMetadata);
+
+      expect(fields[0]?.displayName).toBe(long);
+    });
+
     it('应该默认排除外键', () => {
       const fields = parser.parse(metadata);
       const userIdField = fields.find(f => f.name === 'userId');
