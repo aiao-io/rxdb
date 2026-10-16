@@ -13,14 +13,14 @@
 
 ## 契合点：现有能力逐项映射
 
-| 产品功能         | 引擎现有能力                                                          | 出处                                                            |
-| ---------------- | --------------------------------------------------------------------- | --------------------------------------------------------------- |
-| 长时记忆         | 记忆 / 片段 / 会话即实体，本地留存；加密 keyring 保护私人记忆         | [epic-001](../epics/epic-001-core-mvp.md) · [US-803](../stories/future/US-803-local-encryption.md) |
-| 记忆检索         | FTS5（关键词）+ sqliteai 向量列与 AI SQL 函数（语义）——混合检索原语已交付 | [US-702](../stories/future/US-702-full-text-search.md) · [US-205](../stories/adapter/US-205-sqliteai-adapter.md) |
-| 运行日志 / 会话   | append 实体 + 活查询面板（任务、步骤、工具调用实时刷新）               | [epic-001](../epics/epic-001-core-mvp.md)                       |
-| 失败调试         | 会话录制回放（US-909 已交付）——agent run 的可观测性现成               | [US-909](../stories/future/US-909-session-replay-debugging.md)  |
-| 设置 / 表单       | `@aiao/rxdb-model` 驱动提示词、工具、模型配置页                       | [vision](../vision.md) 阶段 4                                   |
-| 数据安全         | 一致性备份与恢复（记忆是用户最不想丢的东西）                          | [US-217](../stories/adapter/US-217-local-database-backup-restore.md) |
+| 产品功能        | 引擎现有能力                                                              | 出处                                                                                                             |
+| --------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| 长时记忆        | 记忆 / 片段 / 会话即实体，本地留存；加密 keyring 保护私人记忆             | [epic-001](../epics/epic-001-core-mvp.md) · [US-803](../stories/future/US-803-local-encryption.md)               |
+| 记忆检索        | FTS5（关键词）+ sqliteai 向量列与 AI SQL 函数（语义）——混合检索原语已交付 | [US-702](../stories/future/US-702-full-text-search.md) · [US-205](../stories/adapter/US-205-sqliteai-adapter.md) |
+| 运行日志 / 会话 | append 实体 + 活查询面板（任务、步骤、工具调用实时刷新）                  | [epic-001](../epics/epic-001-core-mvp.md)                                                                        |
+| 失败调试        | 会话录制回放（US-909 已交付）——agent run 的可观测性现成                   | [US-909](../stories/future/US-909-session-replay-debugging.md)                                                   |
+| 设置 / 表单     | `@aiao/rxdb-model` 驱动提示词、工具、模型配置页                           | [vision](../vision.md) 阶段 4                                                                                    |
+| 数据安全        | 一致性备份与恢复（记忆是用户最不想丢的东西）                              | [US-217](../stories/adapter/US-217-local-database-backup-restore.md)                                             |
 
 ## 引擎缺口
 
@@ -67,6 +67,10 @@ rxdb 能提供的是「数据与分支的虚拟化」，不是进程沙箱。
 **立项形态**：虚拟环境**不单独立项**——独立做就是重造 E2B，复杂度爆炸（ENFP 陷阱）。
 作为智能体候选的子能力设计：立项时把 working-tree 包装成「agent 沙箱」API
 （会话分支、隔离写入、回滚、合并），价值待证判据是写出「agent 改坏数据无法回滚」的具体症状。
+
+Web 侧沙箱备选：WebContainers（StackBlitz 专有技术，浏览器内 Node 运行时 + 虚拟文件系统）——
+可作演示 / 教程 / agent 沙箱的可选项，**不作为核心依赖**：专有技术与开源哲学冲突，
+且对终端用户零价值（OPFS 已解决存储，WebContainers 解决的是 Node 进程）。
 
 ## 立项前置
 
