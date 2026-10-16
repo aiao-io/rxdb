@@ -8,10 +8,17 @@ import type {
   WorkingTreeCredentials,
   WorkingTreeDiffEntry,
   WorkingTreeRestoreFailureReason,
-  WorkingTreeRestoreSessionInfo
+  WorkingTreeRestoreSessionInfo,
+  WorktreeTarget,
+  WorktreeView
 } from '@aiao/rxdb-plugin-working-tree';
-import { CommitValidationError, WorkingTreeDirtyError } from '@aiao/rxdb-plugin-working-tree';
-import { useWorkingTree, type WorkingTreeResource } from '@aiao/rxdb-plugin-working-tree-angular';
+import { CommitValidationError, WorkingTreeDirtyError, WorktreeUnavailableError } from '@aiao/rxdb-plugin-working-tree';
+import {
+  useWorkingTree,
+  useWorktrees,
+  type WorkingTreeResource,
+  type WorktreesResource
+} from '@aiao/rxdb-plugin-working-tree-angular';
 import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -49,11 +56,13 @@ import {
 import { WorkingTreeDiffViewerComponent } from './components/diff-viewer.component';
 import { WorkingTreeHistoryListComponent } from './components/history-list.component';
 import { MergeDialogState, WorkingTreeMergeDialogComponent } from './components/merge-dialog.component';
+import { WorkingTreeReadOnlyViewerComponent, type ReadOnlyViewerState } from './components/read-only-viewer.component';
 import type { BranchDiffLoad } from './working-tree.branch-diff';
 import { diffEntryKey } from './working-tree.diff-format';
 import { startDragResize } from './working-tree.drag';
 import { gdEntryPath } from './working-tree.gd';
 import { keepLastGood } from './working-tree.keep-last-good';
+import { READ_ONLY_REJECTION_TEXT, readOnlyTargetLabel } from './working-tree.read-only-checkout';
 
 const AUTHOR_ID = 'demo-author';
 
@@ -83,6 +92,12 @@ const COMMIT_REJECTION_TEXT: Record<CommitValidationReason, string> = {
 
 /** `requireClean` 切换被拒的提示；GitHub Desktop 会在切换时拒绝脏工作树，同款语义。 */
 const DIRTY_SWITCH_TEXT = 'The working tree has uncommitted changes. Commit or discard them before switching branches.';
+
+/** 只读检出位打开、刷新失败的提示：认得的成因换成人话，别的错误原样给消息。 */
+const readOnlyRejectionOf = (error: unknown): string => {
+  if (error instanceof WorktreeUnavailableError) return READ_ONLY_REJECTION_TEXT[error.reason];
+  return error instanceof Error ? error.message : String(error);
+};
 
 /**
  * 工作树与提交历史页面 —— GitHub Desktop 形态的参考实现。
@@ -119,7 +134,8 @@ const DIRTY_SWITCH_TEXT = 'The working tree has uncommitted changes. Commit or d
     WorkingTreeContextMenuComponent,
     WorkingTreeDiffViewerComponent,
     WorkingTreeHistoryListComponent,
-    WorkingTreeMergeDialogComponent
+    WorkingTreeMergeDialogComponent,
+    WorkingTreeReadOnlyViewerComponent
   ]
 })
 export default class WorkingTreePage implements OnInit {
@@ -127,6 +143,8 @@ export default class WorkingTreePage implements OnInit {
   /** 只读请求的代号：对话框关掉或换了参数之后，迟到的结果不落进新状态。 */
   #mergePreviewRequest = 0;
   #compareRequest = 0;
+  /** 开着的只读检出位（US-313）：离开页面与迟到的刷新都按它收尾。 */
+  #readOnlyView: WorktreeView | null = null;
   private readonly createdAt = performance.now();
   private readonly destroyRef = inject(DestroyRef);
   private readonly toastTimer = new ResettableTimer();
@@ -134,6 +152,9 @@ export default class WorkingTreePage implements OnInit {
   private readonly fetchedTicker: ReturnType<typeof setInterval>;
 
   readonly tree: WorkingTreeResource = useWorkingTree();
+  readonly worktrees: WorktreesResource = useWorktrees();
+  /** 主实例：只读检出位查看器按它的实体元数据判「不随版本」 */
+  readonly mainRxdb: RxDB = this.#rxdb;
 
   readonly branches = useFindAll(RxDBBranch, {
     where: { combinator: 'and', rules: [] },
@@ -155,6 +176,9 @@ export default class WorkingTreePage implements OnInit {
   readonly $mergeDialog = signal<MergeDialogState | null>(null);
   readonly $mergePreview = signal<BranchDiffLoad<MergePreview>>({ phase: 'loading' });
   readonly $compareDialog = signal<CompareDialogState | null>(null);
+  /** 只读检出位查看器（US-313） */
+  readonly $readOnlyViewer = signal<ReadOnlyViewerState | null>(null);
+  readonly $readOnlyRefreshing = signal(false);
   /** 应用内确认框请求（替代原生 confirm）。 */
   readonly $confirm = signal<{ kind: 'discard'; message: string } | { kind: 'delete-branch'; branchId: string } | null>(
     null
@@ -259,6 +283,11 @@ export default class WorkingTreePage implements OnInit {
     this.destroyRef.onDestroy(() => {
       this.toastTimer.clear();
       clearInterval(this.fetchedTicker);
+      // 离开页面时关掉还开着的只读检出位：会话归属的快照库没人看了，留着只能等下一次回收。
+      // 页面已经销毁，没有地方显示提示，失败只打到控制台
+      void this.#readOnlyView
+        ?.close()
+        .catch((error: unknown) => console.error('[working-tree] 关闭只读检出位失败', error));
     });
     this.fetchedTicker = setInterval(() => this.$now.set(Date.now()), 15000);
     effect(() => {
@@ -357,7 +386,7 @@ export default class WorkingTreePage implements OnInit {
     });
   }
 
-  /** 分支行上的右键：切换 / 合并 / 对比 / 删除在前，分隔线后是复制分支名（GitHub Desktop 的分支右键菜单）。 */
+  /** 分支行上的右键：切换 / 合并 / 对比 / 只读打开 / 删除在前，分隔线后是复制分支名（GitHub Desktop 的分支右键菜单）。 */
   openBranchContextMenu(request: { target: RxDBBranch; event: MouseEvent }) {
     request.event.preventDefault();
     const branch = request.target;
@@ -366,27 +395,35 @@ export default class WorkingTreePage implements OnInit {
       items.push(
         { id: 'branch-switch', label: 'Switch', testId: 'wt-branch-menu-switch' },
         { id: 'branch-merge', label: `Merge into ${this.$activeBranch()}`, testId: 'wt-branch-menu-merge' },
-        { id: 'branch-compare', label: `Compare with ${this.$activeBranch()}`, testId: 'wt-branch-menu-compare' },
-        { id: 'branch-delete', label: 'Delete', danger: true, testId: 'wt-branch-menu-delete' },
-        { id: 'sep-1', label: '', separator: true }
+        { id: 'branch-compare', label: `Compare with ${this.$activeBranch()}`, testId: 'wt-branch-menu-compare' }
       );
     }
-    items.push({ id: 'branch-copy', label: 'Copy branch name', testId: 'wt-branch-menu-copy' });
+    // 当前分支也能只读打开：看的是它此刻的完整数据，工作树照常改
+    items.push({ id: 'branch-open-readonly', label: 'Open read-only', testId: 'wt-branch-menu-open-readonly' });
+    if (!branch.activated) {
+      items.push({ id: 'branch-delete', label: 'Delete', danger: true, testId: 'wt-branch-menu-delete' });
+    }
+    items.push(
+      { id: 'sep-1', label: '', separator: true },
+      { id: 'branch-copy', label: 'Copy branch name', testId: 'wt-branch-menu-copy' }
+    );
     this.$contextMenuTarget.set({ kind: 'branch', branchId: branch.id });
     this.$contextMenu.set({ x: request.event.clientX, y: request.event.clientY, items });
   }
 
-  /** 历史行上的右键：动作（恢复）在前，分隔线后是复制提交 id（GitHub Desktop 的菜单顺序）。 */
+  /** 历史行上的右键：动作（恢复、只读打开）在前，分隔线后是复制提交 id（GitHub Desktop 的菜单顺序）。 */
   openCommitContextMenu(request: WorkingTreeContextMenuRequest<CommitLogEntry>) {
     request.event.preventDefault();
     const items: WorkingTreeContextMenuItem[] = [];
     if (request.target.kind !== 'baseline' && request.target.kind !== 'branch_baseline') {
-      items.push(
-        { id: 'restore', label: 'Restore this version to working tree', testId: 'wt-restore' },
-        { id: 'sep-1', label: '', separator: true }
-      );
+      items.push({ id: 'restore', label: 'Restore this version to working tree', testId: 'wt-restore' });
     }
-    items.push({ id: 'copy-commit', label: 'Copy Commit ID' });
+    // 基线提交也能只读打开：那是分支刚建出来时的数据
+    items.push(
+      { id: 'commit-open-readonly', label: 'Open read-only', testId: 'wt-commit-menu-open-readonly' },
+      { id: 'sep-1', label: '', separator: true },
+      { id: 'copy-commit', label: 'Copy Commit ID' }
+    );
     this.$contextMenuTarget.set({ kind: 'commit', commitId: request.target.commitId });
     this.$contextMenu.set({ x: request.event.clientX, y: request.event.clientY, items });
   }
@@ -420,11 +457,17 @@ export default class WorkingTreePage implements OnInit {
         this.openMergeDialog(target.branchId);
       } else if (item.id === 'branch-compare') {
         this.openCompareDialog(target.branchId);
+      } else if (item.id === 'branch-open-readonly') {
+        void this.openReadOnly({ branchId: target.branchId });
       } else if (item.id === 'branch-delete') {
         this.requestRemoveBranch(target.branchId);
       } else if (item.id === 'branch-copy') {
         void this.copyText(target.branchId);
       }
+      return;
+    }
+    if (item.id === 'commit-open-readonly') {
+      if (target.kind === 'commit') void this.openReadOnly({ commitId: target.commitId });
       return;
     }
     if (item.id === 'restore') {
@@ -778,6 +821,49 @@ export default class WorkingTreePage implements OnInit {
   closeCompareDialog() {
     this.#compareRequest++;
     this.$compareDialog.set(null);
+  }
+
+  // ── 只读检出位（US-313）──────────────────────────────────
+
+  /** 打开只读检出位：不切换分支，在查看器里浏览目标的完整数据。会话归属，关掉查看器即删快照库。 */
+  async openReadOnly(target: WorktreeTarget): Promise<void> {
+    this.$branchMenuOpen.set(false);
+    try {
+      const view = await this.worktrees.open(target);
+      this.#readOnlyView = view;
+      this.$readOnlyViewer.set({ view, label: readOnlyTargetLabel(target) });
+    } catch (error) {
+      this.showToast('error', readOnlyRejectionOf(error));
+    }
+  }
+
+  /** 按建立时的目标重建快照：主库此后的写入这才看得见。 */
+  async refreshReadOnly(): Promise<void> {
+    const current = this.$readOnlyViewer();
+    if (current === null) return;
+    this.$readOnlyRefreshing.set(true);
+    try {
+      const next = await current.view.refresh();
+      // 刷新途中查看器被关掉了：新建出来的这个没人看，当场关掉，不把查看器又弹回来
+      if (this.#readOnlyView !== current.view) {
+        void next.close().catch((error: unknown) => this.showToast('error', readOnlyRejectionOf(error)));
+        return;
+      }
+      this.#readOnlyView = next;
+      this.$readOnlyViewer.set({ view: next, label: current.label });
+    } catch (error) {
+      this.showToast('error', readOnlyRejectionOf(error));
+    } finally {
+      this.$readOnlyRefreshing.set(false);
+    }
+  }
+
+  /** 关掉查看器：断开只读实例，删快照库与登记。 */
+  closeReadOnly(): void {
+    const view = this.#readOnlyView;
+    this.#readOnlyView = null;
+    this.$readOnlyViewer.set(null);
+    if (view !== null) void view.close().catch((error: unknown) => this.showToast('error', readOnlyRejectionOf(error)));
   }
 
   // ── 私有辅助（成员排序规则：私有方法放最后） ──────────────

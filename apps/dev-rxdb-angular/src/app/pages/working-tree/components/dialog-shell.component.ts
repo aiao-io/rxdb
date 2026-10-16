@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 
 /**
- * 模态对话框外壳：合并与对比两个对话框共用（GitHub Desktop 对话框形态：白面板圆角描边、半透明背板）。
+ * 模态对话框外壳：合并、对比与只读检出位查看器共用（GitHub Desktop 对话框形态：白面板圆角描边、半透明背板）。
  *
  * @remarks
  * 背板与面板是**兄弟**节点。背板是 `role="button"`（点它关闭），而按钮的子孙不许可聚焦——
@@ -31,10 +31,12 @@ import {
         tabindex="0"
       ></div>
       <div
-        class="relative max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-md border border-[var(--gd-border)] p-5 shadow-2xl outline-none"
+        class="relative max-h-[90dvh] w-full overflow-y-auto rounded-md border border-[var(--gd-border)] p-5 shadow-2xl outline-none"
         #panel
         [attr.aria-labelledby]="labelledBy()"
         [attr.data-testid]="testId()"
+        [class.max-w-5xl]="size() === 'wide'"
+        [class.max-w-lg]="size() !== 'wide'"
         [style.background]="'var(--gd-panel)'"
         (keydown.escape)="closeRequested.emit()"
         aria-modal="true"
@@ -53,6 +55,8 @@ export class WorkingTreeDialogShellComponent {
   readonly testId = input.required<string>();
   /** 标题元素的 id：对话框的可读名 */
   readonly labelledBy = input.required<string>();
+  /** 面板宽度：`wide` 给放得下实体表格的只读检出位查看器 */
+  readonly size = input<'default' | 'wide'>('default');
 
   readonly closeRequested = output<void>();
 

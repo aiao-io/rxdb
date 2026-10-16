@@ -1,6 +1,7 @@
 import { flushDraftsAndReadKeys, readCount, resetE2eState } from './e2e-utils.js';
 import { expect, test } from './fixtures.js';
 import { branchMenuAction, divergeBranches } from './working-tree-branches.js';
+import { browseReadOnly, readOnlyEntity, readOnlyTitles } from './working-tree-readonly.js';
 import { commit, openChanges, openHistory, openPanel, waitForAutoEnabled, writeTodo } from './working-tree-utils.js';
 
 /**
@@ -485,6 +486,63 @@ test.describe('合并预览与分支对比（US-312）', () => {
  * 分支下拉的输入法守卫：组字期间的 Enter 是「上屏」、Escape 是「取消组字」，都属于输入法，
  * 不能被当成提交或关闭吃掉。
  */
+/**
+ * 只读检出位（US-313）：不切换分支，以只读方式打开另一条分支、或当前分支上一个提交的完整数据。
+ */
+test.describe('只读检出位（US-313）', () => {
+  test.describe.configure({ mode: 'serial' });
+
+  test('分支行与历史行都能只读打开：浏览的是目标的数据，写入口不可用，关掉之后当前分支什么都没动', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+    await divergeBranches(page, {
+      branch: 'feature/readonly',
+      base: 'readonly-base',
+      onBranch: 'readonly-feature',
+      onMain: 'readonly-main'
+    });
+    const dialog = page.getByTestId('wt-readonly-dialog');
+
+    // ── 分支视图：feature 上的标题，main 的改动不在里面 ──
+    await branchMenuAction(page, 'feature/readonly', 'wt-branch-menu-open-readonly');
+    await expect(dialog).toBeVisible({ timeout: 30000 });
+    await expect(page.getByTestId('wt-readonly-banner')).toContainText('branch feature/readonly');
+    await browseReadOnly(page, 'public:Task', 'readonly-feature');
+    expect(await readOnlyTitles(page)).not.toContain('readonly-main');
+    // 只读实例上实体列表不出新增；存储文件是它此刻的内容，标「不随版本」
+    await expect(dialog.getByRole('button', { name: '+ 新增' })).toHaveCount(0);
+    await expect(readOnlyEntity(page, 'storage:StorageFileMeta').getByTestId('wt-readonly-unversioned')).toHaveText(
+      '不随版本'
+    );
+    await expect(readOnlyEntity(page, 'public:Task').getByTestId('wt-readonly-unversioned')).toHaveCount(0);
+
+    await page.getByTestId('wt-readonly-close').click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('main');
+    await expect(page.getByTestId('wt-status-clean')).toHaveText('干净');
+
+    // ── 提交视图：main 上第一条提交刚完成时的数据 ──
+    await openHistory(page);
+    await page.getByTestId('wt-commit-item').filter({ hasText: 'add readonly-base' }).click({ button: 'right' });
+    await page.getByTestId('wt-commit-menu-open-readonly').click();
+    await expect(dialog).toBeVisible({ timeout: 30000 });
+    await expect(page.getByTestId('wt-readonly-banner')).toContainText('commit ');
+    await browseReadOnly(page, 'public:Task', 'readonly-base');
+    expect(await readOnlyTitles(page)).not.toContain('readonly-main');
+    await page.getByTestId('wt-readonly-close').click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByTestId('wt-status-clean')).toHaveText('干净');
+
+    // ── AC3：主实例装着 workspace 插件，浏览只读视图不往它的草稿缓存里塞东西 ──
+    const keys = await flushDraftsAndReadKeys(page);
+    expect(
+      keys.some(key => key.split(':')[1] === 'Todo'),
+      '对照草稿没有落盘'
+    ).toBe(true);
+    expect(keys.filter(key => key.split(':')[1] === 'Task')).toEqual([]);
+  });
+});
+
 test.describe('分支下拉：输入法组字', () => {
   test('组字中的回车不提交、Escape 不收弹层与菜单；同一个事件去掉 isComposing 就照常生效', async ({ page }) => {
     await openPanel(page);

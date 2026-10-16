@@ -309,6 +309,15 @@
     (closeRequested)="closeCompareDialog()"
   />
 
+  <!-- ═══════════════════ 只读检出位查看器（US-313） ═══════════════════ -->
+  <app-working-tree-read-only-viewer
+    [mainRxdb]="mainRxdb"
+    [refreshing]="$readOnlyRefreshing()"
+    [viewer]="$readOnlyViewer()"
+    (closeRequested)="closeReadOnly()"
+    (refreshRequested)="refreshReadOnly()"
+  />
+
   <!-- ═══════════════════ 应用内确认框（替代原生 confirm，移动端样式一致） ═══════════════════ -->
   @if ($confirm(); as request) {
     <div
