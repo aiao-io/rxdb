@@ -73,6 +73,15 @@ describe('cloneEntityClasses 的 log 选项（US-313）', () => {
     expect(getEntityMetadata(ArticleClone).log).toBe(false);
     expect(getEntityMetadata(CloneM2MArticle).log).not.toBe(false);
   });
+
+  it('两端都不写变更日志时，生成的中间表也不写；源实例的中间表照旧', () => {
+    initDatabase('clone-m2m-log-main', [CloneM2MArticle, CloneM2MTag]);
+    const [ArticleClone, TagClone] = cloneEntityClasses([CloneM2MArticle, CloneM2MTag], { log: false });
+    initDatabase('clone-m2m-log-second', [ArticleClone, TagClone]);
+
+    expect(getEntityMetadata(junctionOf(ArticleClone, 'tags')!).log).toBe(false);
+    expect(getEntityMetadata(junctionOf(CloneM2MArticle, 'tags')!).log).not.toBe(false);
+  });
 });
 
 describe('cloneEntityClasses × 多对多', () => {
