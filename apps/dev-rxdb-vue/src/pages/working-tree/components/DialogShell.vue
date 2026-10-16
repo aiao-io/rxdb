@@ -2,18 +2,23 @@
 import { onMounted, ref } from 'vue';
 
 /**
- * 模态对话框外壳：合并与对比两个对话框共用（GitHub Desktop 对话框形态：白面板圆角描边、半透明背板）。
+ * 模态对话框外壳：合并、对比与只读检出位查看器共用（GitHub Desktop 对话框形态：白面板圆角描边、半透明背板）。
  *
  * @remarks
  * 背板与面板是**兄弟**节点。背板是 `role="button"`（点它关闭），而按钮的子孙不许可聚焦——
  * 背板包着面板就是 axe 的 `nested-interactive` 违规。打开时焦点移进面板，面板里任意处按 Escape 关闭。
  */
-defineProps<{
-  /** 面板的 `data-testid` */
-  testId: string;
-  /** 标题元素的 id：对话框的可读名 */
-  labelledBy: string;
-}>();
+withDefaults(
+  defineProps<{
+    /** 面板的 `data-testid` */
+    testId: string;
+    /** 标题元素的 id：对话框的可读名 */
+    labelledBy: string;
+    /** 面板宽度：`wide` 给放得下实体表格的只读检出位查看器 */
+    size?: 'default' | 'wide';
+  }>(),
+  { size: 'default' }
+);
 
 const emit = defineEmits<{
   (e: 'closeRequested'): void;
@@ -36,7 +41,8 @@ onMounted(() => panel.value?.focus());
       tabindex="0"
     ></div>
     <div
-      class="relative max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-md border border-[var(--gd-border)] p-5 shadow-2xl outline-none"
+      class="relative max-h-[90dvh] w-full overflow-y-auto rounded-md border border-[var(--gd-border)] p-5 shadow-2xl outline-none"
+      :class="size === 'wide' ? 'max-w-5xl' : 'max-w-lg'"
       ref="panel"
       :style="{ background: 'var(--gd-panel)' }"
       @keydown.escape="emit('closeRequested')"
