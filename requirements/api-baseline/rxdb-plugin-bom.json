@@ -38,7 +38,27 @@
         "kind": "both"
       },
       {
+        "name": "BomAttrDef",
+        "kind": "both"
+      },
+      {
         "name": "BomBackendCapabilityError",
+        "kind": "both"
+      },
+      {
+        "name": "BomConfigChar",
+        "kind": "both"
+      },
+      {
+        "name": "BomConfigCharValue",
+        "kind": "both"
+      },
+      {
+        "name": "BomConfigCondition",
+        "kind": "both"
+      },
+      {
+        "name": "BomConfigConstraint",
         "kind": "both"
       },
       {
