@@ -5,13 +5,15 @@
  * 判据只有一条：只读检出位里读到的，与「真的切过去读到的」逐行一致，而主实例一处都没动。
  * 比对去掉 `ENTITY_BOOKKEEPING_FIELDS`：切换写回的行 `updatedAt` 取写入时刻，快照复制的行保留原值。
  *
- * **调用点的义务**（{@link WorkingTreeConformanceSuiteContext.createDatabase}）：注册
+ * **调用点的义务**（{@link WorktreeConformanceSuiteContext.createDatabase}）：注册
  * {@link WORKTREE_CONFORMANCE_ENTITIES}，装上历史插件与带 `worktrees.adapter` 的工作树插件，
  * `enable()` 之后交回。密钥环由套件自己解锁（{@link WORKTREE_CONFORMANCE_KEY}）。
- * `worktrees.adapter` 要造**持久**存储的快照库：持久归属的检出位放开之后要能原样再打开（AC10），
- * `close()` / `prune()` 删的也得是真的存储。
+ * 持久归属的检出位放开之后要能原样再打开（AC10）：这条用例的库来自
+ * {@link WorktreeConformanceSuiteContext.createDatabaseWithPersistentSnapshots}，没给就用 `createDatabase`，
+ * 那时 `worktrees.adapter` 要造**持久**存储的快照库。快照库开在持久存储上很贵的后端（每个快照库一个 Worker），
+ * 平时给内存档、只在这条用例上给持久档。
  *
- * 与另外两套共用一个上下文形状：六个后端各写三个调用点，形状分叉的话写调用点的人就得逐套件回忆参数。
+ * 必填的上下文形状与另外两套相同：六个后端各写三个调用点，形状分叉的话写调用点的人就得逐套件回忆参数。
  *
  * @module @aiao/rxdb-plugin-working-tree/testing
  */
@@ -37,7 +39,7 @@ import {
 import { WorktreeUnavailableError } from '../../checkout/worktree-errors.js';
 import type { WorktreeView } from '../../checkout/worktree-manager.js';
 import type { WorktreeTarget } from '../../checkout/worktree-target.js';
-import type { WorkingTreeConformanceSuiteContext } from './suite-context.js';
+import type { WorktreeConformanceSuiteContext } from './suite-context.js';
 import {
   WORKTREE_CONFORMANCE_ENTITIES,
   WORKTREE_CONFORMANCE_KEY,
@@ -276,14 +278,20 @@ const mainEnvelopesOf = async (rxdb: RxDB, column: string): Promise<Set<unknown>
  * @param context - 后端接入点；调用点的义务见文件头
  * @returns 无；直接向当前 `describe` 作用域注册用例
  */
-export const worktreeConformanceSuite = (context: WorkingTreeConformanceSuiteContext): void => {
+export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContext): void => {
   describe(`[${context.name}] 只读检出位一致性`, () => {
     let database: RxDB;
     const views: WorktreeView[] = [];
 
+    /** 造一个库并解锁密钥环 */
+    const prepare = async (create: () => Promise<RxDB>): Promise<RxDB> => {
+      const created = await create();
+      await (await encryptionOf(created)).unlock({ keyBytes: WORKTREE_CONFORMANCE_KEY, idleTimeoutMs: 0 });
+      return created;
+    };
+
     beforeEach(async () => {
-      database = await context.createDatabase();
-      await (await encryptionOf(database)).unlock({ keyBytes: WORKTREE_CONFORMANCE_KEY, idleTimeoutMs: 0 });
+      database = await prepare(context.createDatabase);
     });
 
     afterEach(async () => {
@@ -539,18 +547,22 @@ export const worktreeConformanceSuite = (context: WorkingTreeConformanceSuiteCon
       });
 
       it('持久归属的检出位：放开之后还在登记里，attach() 原样打开；prune() 不碰它', async () => {
-        await seedTwoBranches(database);
-        const view = await database.workingTree.checkouts.open({ branchId: FEATURE }, { owner: 'persistent' });
+        const persistent =
+          context.createDatabaseWithPersistentSnapshots ?
+            await prepare(context.createDatabaseWithPersistentSnapshots)
+          : database;
+        await seedTwoBranches(persistent);
+        const view = await persistent.workingTree.checkouts.open({ branchId: FEATURE }, { owner: 'persistent' });
         const viewed = await tablesOf(view.rxdb, view);
         await view.release();
-        expect(await database.workingTree.checkouts.prune()).toEqual([]);
+        expect(await persistent.workingTree.checkouts.prune()).toEqual([]);
 
-        const attached = await database.workingTree.checkouts.attach(view.id);
+        const attached = await persistent.workingTree.checkouts.attach(view.id);
         views.push(attached);
 
         expect(attached).toMatchObject({ id: view.id, owner: 'persistent', target: { branchId: FEATURE } });
         expect(await tablesOf(attached.rxdb, attached)).toEqual(viewed);
-        const again = await database.workingTree.checkouts.attach(view.id).catch(e => e);
+        const again = await persistent.workingTree.checkouts.attach(view.id).catch(e => e);
         expect((again as WorktreeUnavailableError).reason).toBe('in_use');
       });
     });

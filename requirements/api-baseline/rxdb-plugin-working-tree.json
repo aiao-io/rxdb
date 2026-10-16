@@ -924,6 +924,10 @@
         "kind": "value"
       },
       {
+        "name": "WorktreeConformanceSuiteContext",
+        "kind": "type"
+      },
+      {
         "name": "WorktreeConformanceTask",
         "kind": "both"
       }

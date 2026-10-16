@@ -31,17 +31,30 @@ const memoryAdapterOptions = (): SqliteOptions => ({ batchTimeout: 1 });
 const worktreeWorkers = new Set<Worker>();
 
 /**
- * 给只读检出位的快照实例造适配器（US-313）：与本工厂持久档同一份连法（专用 Worker 里的 OPFS），
+ * 给只读检出位的快照实例造适配器（US-313）：与本工厂非持久档同一份连法，每个实例一个独立的内存库。
+ *
+ * @param db - 快照实例
+ * @returns 快照库的适配器
+ *
+ * @remarks
+ * 内存档：快照的读写与封印跟存储档位无关。持久档要一个快照库一个专用 Worker（OPFS 只在 Worker 里开），
+ * 整套检出位用例都那么建的话，浏览器内存涨到约四倍，见 {@link createSqliteOfficialPersistentWorktreeAdapter}。
+ */
+export const createSqliteOfficialWorktreeAdapter = (db: RxDB): RxDBAdapterSqlite =>
+  new RxDBAdapterSqlite(db, memoryAdapterOptions());
+
+/**
+ * 给只读检出位的快照实例造持久档适配器（US-313）：与本工厂持久档同一份连法（专用 Worker 里的 OPFS），
  * 每个快照实例一个 Worker、一个库文件。
  *
  * @param db - 快照实例
  * @returns 快照库的适配器
  *
  * @remarks
- * 持久档而不是内存：持久归属的检出位放开之后要能原样再打开，`close()` / `prune()` 删的也要是真存储。
+ * 只给「持久归属的检出位放开之后原样再打开」那条用例用（`createDatabaseWithPersistentSnapshots`）。
  * Worker 由 {@link terminateSqliteOfficialWorktreeWorkers} 收掉。
  */
-export const createSqliteOfficialWorktreeAdapter = (db: RxDB): RxDBAdapterSqlite => {
+export const createSqliteOfficialPersistentWorktreeAdapter = (db: RxDB): RxDBAdapterSqlite => {
   const worker = new Worker(new URL('./sqlite-official-test.worker', import.meta.url), {
     type: 'module',
     name: `${db.config.dbName}-worktree-worker`
@@ -56,7 +69,7 @@ export const createSqliteOfficialWorktreeAdapter = (db: RxDB): RxDBAdapterSqlite
   });
 };
 
-/** 终止 {@link createSqliteOfficialWorktreeAdapter} 建过的全部 Worker；在快照实例都断开之后调用。 */
+/** 终止 {@link createSqliteOfficialPersistentWorktreeAdapter} 建过的全部 Worker；在快照实例都断开之后调用。 */
 export const terminateSqliteOfficialWorktreeWorkers = (): void => {
   for (const worker of worktreeWorkers) worker.terminate();
   worktreeWorkers.clear();
