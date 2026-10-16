@@ -69,7 +69,7 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 
 ## 5 分钟跑通
 
-不用装环境，直接在浏览器里打开一个可编辑的最小 Todo（wa-sqlite · 装饰器实体 · 响应式查询 · IndexedDB 持久化）：
+不用装环境，直接在浏览器里打开一个可编辑的最小 Todo（wa-sqlite · 装饰器实体 · 响应式查询 · OPFS / IndexedDB 持久化）：
 
 - [React](https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/todo-react)
 - [Vue](https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/todo-vue)

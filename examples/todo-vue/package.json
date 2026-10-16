@@ -14,6 +14,8 @@
     "@aiao/rxdb-adapter-wa-sqlite": "^0.0.26",
     "@aiao/rxdb-plugin-graph": "^0.0.26",
     "@aiao/rxdb-vue": "^0.0.26",
+    "@aiao/utils": "^0.0.26",
+    "comlink": "^4.4.2",
     "rxjs": "^7.8.0",
     "vue": "^3.5.42",
     "wa-sqlite": "https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994"
