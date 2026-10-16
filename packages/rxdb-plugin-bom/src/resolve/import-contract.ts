@@ -163,12 +163,12 @@ const parseImportRecord = (raw: unknown, index: number): ImportRecord => {
     throw new BomImportContractError(where, '必须是 JSON 对象');
   }
   const data = raw as Record<string, unknown>;
-  const kind = data.kind;
+  const kind = data['kind'];
   if (typeof kind !== 'string' || !(IMPORT_KINDS as readonly string[]).includes(kind)) {
     throw new BomImportContractError(`${where}.kind`, `必须是 ${IMPORT_KINDS.join('/')} 之一`);
   }
   const importKind = kind as ImportKind;
-  if (typeof data.source_ref !== 'string' || data.source_ref.length === 0) {
+  if (typeof data['source_ref'] !== 'string' || data['source_ref'].length === 0) {
     throw new BomImportContractError(`${where}.source_ref`, '必带非空字符串（稳定源记录标识，诊断按它点名）');
   }
   for (const field of KEY_SEGMENT_FIELDS[importKind]) {
@@ -261,7 +261,7 @@ const parentRefOf = (record: ImportRecord): { kind: ImportKind; key: string } | 
 };
 
 /** 记录的 `source_ref`（parse 已保证非空字符串）。 */
-const refOf = (record: ImportRecord): string => String(record.data.source_ref);
+const refOf = (record: ImportRecord): string => String(record.data['source_ref']);
 
 /** 把边属主（批内记录自然键）还原为 `source_ref`。 */
 const refOfOwner = (byKey: Map<string, ImportRecord[]>, owner: string): string => {
@@ -449,10 +449,10 @@ export const validateImportRecords = (
     addGraphEdge(graph, parts[occurrenceItemNoIndex], parts[occurrenceChildIndex], null);
   }
   for (const record of occurrenceRecords) {
-    const flowDirection = record.data.flowDirection ?? 'consume';
+    const flowDirection = record.data['flowDirection'] ?? 'consume';
     if (flowDirection !== 'consume') continue;
-    const parentItemNo = String(record.data.itemNo);
-    const childItemNo = String(record.data.childItemNo);
+    const parentItemNo = String(record.data['itemNo']);
+    const childItemNo = String(record.data['childItemNo']);
     if (parentItemNo === childItemNo) {
       diagnostics.push({
         naturalKey: record.naturalKey,
