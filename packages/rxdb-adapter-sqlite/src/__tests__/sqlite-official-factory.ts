@@ -24,6 +24,18 @@ const terminateWorker = (rxdb: RxDB): void => {
   worker.terminate();
 };
 
+/** 非持久档的连法：主线程内存库。 */
+const memoryAdapterOptions = (): SqliteOptions => ({ batchTimeout: 1 });
+
+/**
+ * 给只读检出位的快照实例造适配器（US-313）：与本工厂非持久档同一份连法，每个实例一个独立的库。
+ *
+ * @param db - 快照实例
+ * @returns 快照库的适配器
+ */
+export const createSqliteOfficialWorktreeAdapter = (db: RxDB): RxDBAdapterSqlite =>
+  new RxDBAdapterSqlite(db, memoryAdapterOptions());
+
 export const sqliteOfficialFactory: AdapterFactory = {
   name: 'sqlite',
 
@@ -78,7 +90,7 @@ async function createSqliteOfficialAdapter(
         : undefined;
       if (worker) workers.set(db, worker);
       countingAdapter = new QueryCountingSqliteOfficialAdapter(db, {
-        batchTimeout: 1,
+        ...memoryAdapterOptions(),
         ...(worker ? { opfs: true, opfsFallback: 'throw' as const, worker: true, workerInstance: worker } : {})
       });
       return countingAdapter;

@@ -150,6 +150,15 @@ async function createDesktopAdapter(options?: Record<string, unknown>): Promise<
 }
 
 /** 驱动 `@aiao/rxdb-adapter-sqlite-core/testing` 共享套件的桌面适配器工厂。 */
+/**
+ * 给只读检出位的快照实例造适配器（US-313）：与本工厂同一个测试宿主，宿主按库名各开一个文件。
+ *
+ * @param db - 快照实例
+ * @returns 快照库的适配器
+ */
+export const createElectronWorktreeAdapter = (db: RxDB): RxDBAdapterElectron =>
+  new RxDBAdapterElectron(db, { transport: ensureHost().transport });
+
 export const electronAdapterFactory: AdapterFactory = {
   name: ADAPTER_NAME,
 

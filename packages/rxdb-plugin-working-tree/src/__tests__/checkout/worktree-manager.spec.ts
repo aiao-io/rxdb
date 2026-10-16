@@ -152,7 +152,8 @@ describe('WorktreeManager.open', () => {
         targetChangeId: 9
       })
     ]);
-    expect(rows[0].dbName).toMatch(new RegExp(`~wt~${view.id}$`));
+    // wa-sqlite 的库名上限与 Electron 宿主的字符集都容得下
+    expect(rows[0].dbName).toMatch(/^wt-[0-9a-f]{24}$/);
     expect(view.rxdb).toBe(snapshot);
     expect(view.entityOf(ManagedNote)).toBe(ManagedNote);
     expect(sealSnapshot).toHaveBeenCalledTimes(1);

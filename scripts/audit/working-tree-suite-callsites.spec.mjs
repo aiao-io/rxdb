@@ -19,6 +19,7 @@ import {
 
 const COMMIT_SUITE = 'workingTreeCommitConformanceSuite';
 const CAPTURE_SUITE = 'workingTreeCaptureConformanceSuite';
+const WORKTREE_SUITE = 'worktreeConformanceSuite';
 
 /** 一个合格调用点的最小形状：从入口具名导入 + 顶层调用。 */
 const callsite = suite =>
@@ -143,7 +144,7 @@ test('导入了但从没调用 = 不合格：「导出了但没人跑」等于�
 
 test('只写在函数体里、没人调那个函数 = 不合格', () => {
   // 门禁问的是「vitest 加载这个文件会不会把套件跑起来」，而不是「文件里出现过这个词吗」。
-  // 整文件正则分不开这两件事：把调用挪进一个谁都不调的函数，矩阵照样报 12/12 全绿，
+  // 整文件正则分不开这两件事：把调用挪进一个谁都不调的函数，矩阵照样报 18/18 全绿，
   // 而那一格实际上一条断言都没跑——这是这份门禁唯一会给出假绿的形态。
   const source = `import { ${COMMIT_SUITE} } from '${SUITE_ENTRY}';\n\nfunction neverCalled() {\n  ${COMMIT_SUITE}({});\n}\n`;
   const inspection = inspectSource(source, COMMIT_SUITE);
@@ -291,29 +292,33 @@ test('包目录没有 src/ 时按「没有调用点」处理，不抛异常', as
 // 套件导出名核对
 // ---------------------------------------------------------------------------
 
-test('两套套件都从 testing 入口导出时无缺失', () => {
-  const source = `export { ${CAPTURE_SUITE} } from './capture.suite.js';\nexport { ${COMMIT_SUITE} } from './commit.suite.js';\n`;
+test('三套套件都从 testing 入口导出时无缺失', () => {
+  const source = [
+    `export { ${CAPTURE_SUITE} } from './capture.suite.js';`,
+    `export { ${COMMIT_SUITE} } from './commit.suite.js';`,
+    `export { ${WORKTREE_SUITE} } from './worktree.suite.js';`
+  ].join('\n');
 
   assert.deepEqual(findMissingSuiteExports(source), []);
 });
 
-test('套件改名时报的是「导出名变了」，不是 12 条「缺调用点」', () => {
+test('套件改名时报的是「导出名变了」，不是一串「缺调用点」', () => {
   const source = `export { ${CAPTURE_SUITE} } from './capture.suite.js';\n`;
 
-  assert.deepEqual(findMissingSuiteExports(source), [COMMIT_SUITE]);
+  assert.deepEqual(findMissingSuiteExports(source), [COMMIT_SUITE, WORKTREE_SUITE]);
 });
 
 // ---------------------------------------------------------------------------
-// 全量：6 个包 × 2 套套件
+// 全量：6 个包 × 3 套套件
 // ---------------------------------------------------------------------------
 
-test('v1 运行矩阵冻结成 6 个后端 × 2 套套件', () => {
+test('v1 运行矩阵冻结成 6 个后端 × 3 套套件', () => {
   assert.equal(V1_ADAPTER_PACKAGES.length, 6);
-  assert.equal(CONFORMANCE_SUITE_NAMES.length, 2);
-  assert.deepEqual([...CONFORMANCE_SUITE_NAMES].sort(), [CAPTURE_SUITE, COMMIT_SUITE]);
+  assert.equal(CONFORMANCE_SUITE_NAMES.length, 3);
+  assert.deepEqual([...CONFORMANCE_SUITE_NAMES].sort(), [CAPTURE_SUITE, COMMIT_SUITE, WORKTREE_SUITE].sort());
 });
 
-test('6 个包各有两套调用点时全绿', async () => {
+test('6 个包各有三套调用点时全绿', async () => {
   await withTempRoot(async root => {
     await writeCompleteMatrix(root);
 

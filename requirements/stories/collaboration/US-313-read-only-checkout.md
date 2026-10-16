@@ -70,22 +70,22 @@ epic-006 多检出位[场景二](../../epics/epic-006-working-tree-commits.md#�
 
 ## 交付阶段
 
-| 阶段 | 交付                                                                                                                                                                                                                      | 状态 |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
-| A    | 核心前置（克隆实体类不再泄漏多对多中间表 ✅、`cloneEntityClasses` 公开 ✅、`readOnly` 与 `RxDBReadOnlyError`、生成类清单、快照原语声明）；PGlite 与 SQLite 系的快照原语；登记表；分支视图与只读实例；一致性套件接六个后端 | ⚠️   |
-| B    | 提交视图                                                                                                                                                                                                                  | ⬜   |
-| C    | 生命周期与回收：六个后端的 `dropStorage`、Web Locks、`prune()`、启动清理、`attach()`                                                                                                                                      | ⬜   |
-| D    | 三端绑定、三端 demo、文档                                                                                                                                                                                                 | ⬜   |
+| 阶段 | 交付                                                                                                                                                                                                                | 状态 |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
+| A    | 核心前置（克隆实体类不再泄漏多对多中间表、`cloneEntityClasses` 公开、`readOnly` 与 `RxDBReadOnlyError`、生成类清单、快照原语声明）；PGlite 与 SQLite 系的快照原语；登记表；分支视图与只读实例；一致性套件接六个后端 | ✅   |
+| B    | 提交视图                                                                                                                                                                                                            | ⬜   |
+| C    | 生命周期与回收：六个后端的 `dropStorage`、Web Locks、`prune()`、启动清理、`attach()`                                                                                                                                | ⬜   |
+| D    | 三端绑定、三端 demo、文档                                                                                                                                                                                           | ⬜   |
 
 ## 验收标准
 
 | #   | 阶段 | 前置条件                                       | 操作                                               | 预期结果                                                                                         | 状态 |
 | --- | ---- | ---------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------ | ---- |
-| 1   | A    | 两条分支各有提交与未提交变更                   | 打开另一条分支的只读检出位                         | 每张业务表与「切过去读到的数据」逐行一致；当前 active 分支、工作树、业务表都不变                 | ⬜   |
-| 2   | A    | 只读检出位已打开                               | 在它上面 save / remove / reorder / 批量写 / raw 写 | 公开写入口抛 `RxDBReadOnlyError`；适配器层的写被只读钩子与引擎封印拒绝；快照库与主库都不变       | ⬜   |
-| 3   | A    | 主实例装了 workspace 插件                      | 在只读实例上查询并实例化实体                       | 主实例实体缓存里没有这些实体；草稿缓存不新增条目                                                 | ⬜   |
-| 4   | A    | 有加密字段的实体                               | 打开只读检出位                                     | 快照库里每个密文都是主库已有信封的逐字节拷贝；建快照不调用密钥环                                 | ⬜   |
-| 5   | A    | 只读检出位已打开，主库随后又写入               | 读只读检出位；再 `refresh()`                       | 先读到的仍是建立时刻的数据；`refresh()` 后与新状态一致                                           | ⬜   |
+| 1   | A    | 两条分支各有提交与未提交变更                   | 打开另一条分支的只读检出位                         | 每张业务表与「切过去读到的数据」逐行一致；当前 active 分支、工作树、业务表都不变                 | ✅   |
+| 2   | A    | 只读检出位已打开                               | 在它上面 save / remove / reorder / 批量写 / raw 写 | 公开写入口抛 `RxDBReadOnlyError`；适配器层的写被只读钩子与引擎封印拒绝；快照库与主库都不变       | ✅   |
+| 3   | A    | 主实例装了 workspace 插件                      | 在只读实例上查询并实例化实体                       | 主实例实体缓存里没有这些实体；草稿缓存不新增条目                                                 | ⚠️   |
+| 4   | A    | 有加密字段的实体                               | 打开只读检出位                                     | 快照库里每个密文都是主库已有信封的逐字节拷贝；建快照不调用密钥环                                 | ✅   |
+| 5   | A    | 只读检出位已打开，主库随后又写入               | 读只读检出位；再 `refresh()`                       | 先读到的仍是建立时刻的数据；`refresh()` 后与新状态一致                                           | ✅   |
 | 6   | B    | 当前分支上一个可达的历史提交                   | 打开提交视图                                       | 已跟踪实体的数据与「那次 `commit()` 刚完成时读到的数据」逐行一致                                 | ⬜   |
 | 7   | B    | 不可达的提交                                   | 打开提交视图                                       | 拒绝，原因与 restore 的 `unreachable_target` 同口径                                              | ⬜   |
 | 8   | C    | 只读检出位已打开                               | `close()`                                          | 快照库与登记都删除                                                                               | ⬜   |
@@ -97,6 +97,10 @@ epic-006 多检出位[场景二](../../epics/epic-006-working-tree-commits.md#�
 | 14  | —    | 门禁                                           | 收尾                                               | 首批后端的真库比对、三端单测与 e2e、`audit:api-surface`（基线随提交）、`audit:requirements` 全绿 | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
+
+AC1～AC5 由 `worktreeConformanceSuite` 在六个后端上验（PGlite / sqlite-wasm / wa-sqlite / sqlite / sqliteai / Electron）。
+AC3 的保留：主实例实体缓存的隔离已验；workspace 草稿缓存这一半等阶段 D 的 demo（主实例装着 workspace）补 e2e，
+结构上它只收主实例 `EntityManager` 的实体，快照实例不装 workspace。
 
 ## 设计决定
 
@@ -124,7 +128,8 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
   按外层库名或常量命名，Worker 里的 `SqliteClient.init()` 已初始化就直接返回，第二个实例会悄悄连到主库上。
   插件选项 `worktrees: { adapter: db => …, plugins?: [...] }` 提供工厂，工厂按 `db.config.dbName` 定存储位置（先例：
   `rxdb-plugin-replay` 的 `createRecordingDb`）；`open()` 校验快照适配器与主适配器同名。快照库的逻辑库名为
-  `${主库 config.dbName}~wt~${id}`。
+  `wt-` 加 24 位十六进制（主库库名与检出位 id 的 SHA-256 前缀）：wa-sqlite 的 VFS 把库名限在 49 字节以内（含版本后缀），
+  Electron 宿主只认 `[A-Za-z0-9._@-]`，主库库名原样拼进去两边都会被拒。登记行记着库名，回收按登记行找库。
 - **快照实例**：克隆实体类（`log: false`，快照库不建变更日志触发器），`syncOverrides` 全部本地、`SyncType.None`，
   `multiInstance: false`，`readOnly: true`，外加一条只在快照库上登记的标记迁移，误打开主库时立即失败。只装读侧插件
   （tree、graph），不装 history / sync / workspace / working-tree / storage / search。实体缓存、NEW 事件天然按实例隔离。
@@ -148,6 +153,11 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
   `EntityManager` 的 save / saveMany / removeMany 与 `notifyExternalUpdate` 在权限判定之前抛 `RxDBReadOnlyError`；
   (2) 建完后给快照适配器装只读捕获钩子：`mergeChanges` / `switchBranch` / `upsertMany` / `deleteByIds` / 外部通知一律拒，
   raw 写沿用 `raw-write-judgment.ts` 的写语句判定、SELECT 放行；(3) 引擎封印兜住直接打到适配器的写（如图的边）。
+  SQLite 系封印之后开事务改用延迟的 `BEGIN`：Electron 宿主默认的 `BEGIN IMMEDIATE` 要拿写锁，`query_only` 下连读事务都开不了。
+- **多对多中间表**：生成的中间表元数据不带 `log`，默认记日志；两端都是 `log: false` 时中间表也不记
+  （快照实例的实体全是 `log: false` 的克隆，否则封印后 SQLite 带日志的事务要重建它的触发器，会被拒）。
+  一致性套件接多对多时还暴露了一个既有缺陷，已一并修掉：解绑后保存，中间行留在根实体的待删集合里，切走再切回来
+  那一行被切换插回，下一次哪怕只改一个标量的 `save()` 都会把它再删一遍。
 - **登记表**：`Worktree`（命名空间 `rxdb`，表 `rxdb_worktree`，`log: false`，系统权限，无外键）。字段：`id`、`kind`、`branchId`、
   `commitId`、`sourceBranchId`、`sourceChangeId`、`targetChangeId`、`dbName`、`owner`（`session` / `persistent`）、
   `state`（`building` / `ready`）、`schemaFingerprint`、`createdAt`、`lastAccessedAt`。既有库连接时由 `RxDB.#ensureSystemTables`
@@ -172,11 +182,16 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
 - `packages/rxdb/src/entity/clone-entity-classes.ts` — 公开的实体类克隆（关系表单独一份）
 - `packages/rxdb/src/RxDB.ts`、`rxdb.interface.ts`、`RxDBError.ts`、`repository/Repository.ts`、`entity/entity-manager.ts` — `readOnly` 与 `RxDBReadOnlyError`
 - `packages/rxdb/src/schema/SchemaManager.ts` — 生成类清单
-- `packages/rxdb/src/rxdb-adapter.ts` — 快照原语声明（`Worktree*` 类型）
-- `packages/rxdb-adapter-sqlite-core/`、`packages/rxdb-adapter-pglite/`（及 Electron 宿主）— 快照原语、引擎封印、`dropStorage`
+- `packages/rxdb/src/entity/many-to-many-entity.ts` — 两端都不记日志时中间表也不记
+- `packages/rxdb/src/entity/relation-cache.ts`、`entity-status.ts`、`entity-manager.ts` — 保存删掉的中间行不再待删
+- `packages/rxdb/src/rxdb-adapter.ts`、`worktree-snapshot.interface.ts` — 快照原语声明（`Worktree*` 类型）
+- `packages/rxdb-adapter-sqlite-core/src/worktree/`、`packages/rxdb-adapter-pglite/src/worktree/` 与两个适配器类 — 快照原语、
+  引擎封印；两边的 `convertSwitchResultToSql` 与写入值转换加信封直通开关；`dropStorage`（阶段 C，含 Electron 宿主）
 - `packages/rxdb-plugin-history/src/switch-branch-actions.ts` — 任意两点之间的增量计算（复用）
 - `packages/rxdb-plugin-working-tree/src/checkout/` — 登记表、建快照、只读钩子、提交视图、生命周期、`WorktreeManager`
-- `packages/rxdb-plugin-working-tree/src/working-tree/testing/` — 检出位一致性套件，接六个后端
+- `packages/rxdb-plugin-working-tree/src/working-tree/testing/` — 检出位一致性套件 `worktreeConformanceSuite`，接六个后端
+  （各后端 `src/__tests__/worktree-conformance.spec.ts`；快照库的适配器由各自测试工厂的 `create*WorktreeAdapter` 造）
+- `scripts/audit/working-tree-suite-callsites.mjs` — 调用点门禁从 6 × 2 扩到 6 × 3
 - `packages/rxdb-plugin-working-tree-{angular,react,vue}` — `useWorktrees()`
 - `apps/dev-rxdb-{angular,react,vue}` 与对应 `-e2e` — 只读视图与用例
 

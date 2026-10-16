@@ -2,7 +2,7 @@
  * scripts/audit/working-tree-suite-callsites.mjs
  *
  * 工作树一致性套件的**调用点**门禁：6 个 v1 适配器包各自都必须实际调用
- * `workingTreeCaptureConformanceSuite` 与 `workingTreeCommitConformanceSuite` 两套套件，
+ * `workingTreeCaptureConformanceSuite`、`workingTreeCommitConformanceSuite` 与 `worktreeConformanceSuite` 三套套件，
  * 缺一即失败（`git show f9528e8f:specs/001-working-tree-commits/contracts/conformance-suites.md` §0、SC-006）。
  *
  * 触发路径：`pnpm audit:suite-callsites`。
@@ -14,7 +14,7 @@
  * 为什么需要这条门禁：套件本体按 `*.suite.ts` 命名，因此被命名门禁与漂移扫描排除，
  * **vitest 也不收它**——套件写得再全，只要没有一个 `*.spec.ts` 去调它，它一条用例都不会跑。
  * 「导出了但没人跑」等于没覆盖，而这种没覆盖在 CI 上的形态是「全绿」，没有任何人会发现。
- * 运行矩阵是 6 × 2 = 12 个调用点，这条门禁就是那 12 个格子的唯一看守。
+ * 运行矩阵是 6 × 3 = 18 个调用点，这条门禁就是那 18 个格子的唯一看守。
  *
  * 为什么包清单写死而不从文件系统推导：这条门禁要回答的恰恰是「该有的在不在」。
  * 从 `packages/` 里扫出「有调用点的包」再校验它们有调用点，是一条永远为真的同义反复——
@@ -32,13 +32,18 @@ import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-/** 两套套件的公共入口；调用点必须从这里导入，不得深路径直连套件文件。 */
+/** 三套套件的公共入口；调用点必须从这里导入，不得深路径直连套件文件。 */
 export const SUITE_ENTRY = '@aiao/rxdb-plugin-working-tree/testing';
 
-/** conformance-suites.md §0 的两套套件，没有第三套。 */
+/**
+ * conformance-suites.md §0 的两套套件，加上只读检出位的一套（US-313）。
+ *
+ * 第三套与前两套同一个调用形状、同一份上下文类型；它不是「哪套是权威」的竞争者，而是另一块语义的验收。
+ */
 export const CONFORMANCE_SUITE_NAMES = Object.freeze([
   'workingTreeCaptureConformanceSuite',
-  'workingTreeCommitConformanceSuite'
+  'workingTreeCommitConformanceSuite',
+  'worktreeConformanceSuite'
 ]);
 
 /** v1 运行矩阵的 6 个后端，见 epic-006「启用与存储边界」。Tauri Rust host 不在 v1 内。 */
@@ -51,7 +56,7 @@ export const V1_ADAPTER_PACKAGES = Object.freeze([
   'rxdb-adapter-electron'
 ]);
 
-/** 两套套件的导出处，供 {@link findMissingSuiteExports} 核对改名。 */
+/** 三套套件的导出处，供 {@link findMissingSuiteExports} 核对改名。 */
 export const TESTING_ENTRY_FILE = 'rxdb-plugin-working-tree/src/working-tree/testing/index.ts';
 
 /** `/` 出现在这些字符之后时是正则开头，不是除号。 */
@@ -401,7 +406,7 @@ export const describeRejection = inspection => {
   // 禁用先于未调用：被 `describe.skip` 包住的调用同样不在模块顶层，可它的病因是「关掉了」
   // 而不是「没人调」，报成后者会把人支去找一个并不存在的缺失调用。
   if (inspection.disabledBy !== null) {
-    return `被 ${inspection.disabledBy} 关掉了：运行矩阵是 6 × 2，条件运行等于允许它在某些机器上悄悄缩水`;
+    return `被 ${inspection.disabledBy} 关掉了：运行矩阵是 6 × 3，条件运行等于允许它在某些机器上悄悄缩水`;
   }
   if (!inspection.called) return '导入了但未调用：模块顶层没有这次调用，「导出了但没人跑」等于没覆盖';
   return null;
@@ -454,7 +459,7 @@ export const findPackageCallsites = async (packageDir, suiteName) => {
 };
 
 /**
- * 两套套件是不是都还从 testing 入口导出。
+ * 三套套件是不是都还从 testing 入口导出。
  *
  * 套件改名时，这一条让门禁报「导出名变了」，而不是 12 条「缺调用点」——后者会把一次
  * 重命名伪装成一场全面塌方，排查的人得先自己还原出真正发生了什么。

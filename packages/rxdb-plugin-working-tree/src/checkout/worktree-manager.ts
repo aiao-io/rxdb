@@ -14,7 +14,7 @@
  */
 
 import type { EntityType, LocalRxDBAdapter, RxDB, TransactionExecutor } from '@aiao/rxdb';
-import { computeRxDBSchemaFingerprint, RxDBBranch, RxDBError, uuid } from '@aiao/rxdb';
+import { computeRxDBSchemaFingerprint, RxDBBranch, RxDBError, sha256Hex, uuid } from '@aiao/rxdb';
 import { classifyBranchMaterialization } from '../working-tree/branch-materialization.js';
 import { worktreeCopiedEntities, worktreeDeclaredEntities, worktreeEntityOf } from './worktree-entities.js';
 import { WorktreeUnavailableError } from './worktree-errors.js';
@@ -111,7 +111,7 @@ export class WorktreeManager {
     }
     const copied = worktreeCopiedEntities(this.#rxdb);
     const id = uuid();
-    const dbName = `${this.#rxdb.config.dbName}~wt~${id}`;
+    const dbName = snapshotDbNameOf(this.#rxdb.config.dbName, id);
     const mainAdapter = await this.#runEnabled(async (executor, adapter) => {
       assertSnapshotSource(adapter);
       await assertBranchReadable(executor, target.branchId);
@@ -204,6 +204,17 @@ export class WorktreeManager {
     });
   }
 }
+
+/**
+ * 快照库的逻辑库名：`wt-` 加 24 位十六进制，由主库库名与检出位 id 算出。
+ *
+ * @remarks
+ * 不把主库库名原样拼进去：wa-sqlite 的 VFS 把库名限在 49 字节以内（含 RxDB 追加的版本后缀），
+ * Electron 宿主只认 `[A-Za-z0-9._@-]`。哈希里带着主库库名，同一个存储命名空间里的两个主库不会撞名；
+ * 登记行记着这个名字，回收时按登记行找库，不靠从名字反推。
+ */
+const snapshotDbNameOf = (mainDbName: string, id: string): string =>
+  `wt-${sha256Hex(new TextEncoder().encode(`${mainDbName}\u0000${id}`)).slice(0, 24)}`;
 
 const findRecords = (executor: TransactionExecutor, id: string): Promise<Worktree[]> =>
   executor.getRepository(Worktree).find({

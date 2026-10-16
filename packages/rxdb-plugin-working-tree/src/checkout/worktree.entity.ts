@@ -68,7 +68,7 @@ export class Worktree {
   /** 快照停在目标分支的哪条变更上；没有自有变更或建完之前为 `null` */
   targetChangeId!: number | null;
 
-  /** 快照库的逻辑库名（交给快照实例的 `dbName`） */
+  /** 快照库的逻辑库名（交给快照实例的 `dbName`）；回收时按它找库 */
   dbName!: string;
 
   /** 归属 */

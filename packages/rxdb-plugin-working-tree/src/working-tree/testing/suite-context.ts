@@ -1,11 +1,12 @@
 /**
- * @fileoverview 两套 conformance 套件共享的调用上下文。
+ * @fileoverview 三套 conformance 套件共享的调用上下文。
  *
  * @remarks
  * 契约见 `git show f9528e8f:specs/001-working-tree-commits/contracts/conformance-suites.md` §0：
- * **两套具名套件，没有第三套**，两套的调用形状**完全一致**。形状一致不是美学要求——
- * 6 个适配器包各自要写两个调用点，形状一旦分叉，写调用点的人就得逐套件回忆参数名，
- * 而回忆错的代价是「套件导出了但没人跑」，那等于没覆盖。
+ * 捕获与提交两套具名套件，调用形状**完全一致**；只读检出位（US-313）的第三套沿用同一个形状。
+ * 形状一致不是美学要求——6 个适配器包各自要写三个调用点，形状一旦分叉，写调用点的人就得逐套件回忆参数名，
+ * 而回忆错的代价是「套件导出了但没人跑」，那等于没覆盖。各套件对 `createDatabase` 的额外要求
+ * （注册哪些实体、插件怎么配）写在各自的文件头里。
  *
  * 类型名用 `WorkingTree*` 前缀而非裸 `SuiteContext`：本文件经 `@aiao/rxdb-plugin-working-tree/testing`
  * 子路径对外导出，受 spec.md 的命名裁决约束（新导出只用 `Commit*` / `WorkingTree*`

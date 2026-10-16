@@ -25,6 +25,18 @@ const terminateWorker = (rxdb: RxDB): void => {
   worker.terminate();
 };
 
+/** 非持久档的连法：主线程内存库，引擎的 stderr 静音。 */
+const memoryAdapterOptions = (): SqliteaiOptions => ({ printErr: silentPrintErr });
+
+/**
+ * 给只读检出位的快照实例造适配器（US-313）：与本工厂非持久档同一份连法，每个实例一个独立的库。
+ *
+ * @param db - 快照实例
+ * @returns 快照库的适配器
+ */
+export const createSqliteaiWorktreeAdapter = (db: RxDB): RxDBAdapterSqliteai =>
+  new RxDBAdapterSqliteai(db, memoryAdapterOptions());
+
 export const sqliteaiFactory: AdapterFactory = {
   name: 'sqliteai',
 
@@ -83,7 +95,7 @@ async function createSqliteaiAdapter(options?: Record<string, unknown>): Promise
       countingAdapter = new QueryCountingSqliteaiAdapter(db, {
         ...(worker ?
           { opfs: true, opfsFallback: 'throw' as const, worker: true, workerInstance: worker }
-        : { printErr: silentPrintErr }),
+        : memoryAdapterOptions()),
         ...adapterOptions
       });
       return countingAdapter;

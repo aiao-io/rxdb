@@ -17,6 +17,18 @@ class QueryCountingSqliteWasmAdapter extends RxDBAdapterSqlite {
   }
 }
 
+/** 非持久档的连法：内存库。 */
+const memoryAdapterOptions = (): SqliteOptions => ({ vfs: 'memory', batchTimeout: 1, wasmUrl: sqliteWasmUrl });
+
+/**
+ * 给只读检出位的快照实例造适配器（US-313）：与本工厂非持久档同一份连法，每个实例一个独立的库。
+ *
+ * @param db - 快照实例
+ * @returns 快照库的适配器
+ */
+export const createSqliteWasmWorktreeAdapter = (db: RxDB): RxDBAdapterSqlite =>
+  new RxDBAdapterSqlite(db, memoryAdapterOptions());
+
 export const sqliteWasmFactory: AdapterFactory = {
   name: 'sqlite-wasm',
 
@@ -60,11 +72,10 @@ async function createSqliteWasmAdapter(options?: Record<string, unknown>) {
 
   let countingAdapter: QueryCountingSqliteWasmAdapter | undefined;
   rxdb.adapter('sqlite-wasm', async db => {
-    countingAdapter = new QueryCountingSqliteWasmAdapter(db, {
-      vfs: persistent ? 'idb' : 'memory',
-      batchTimeout: 1,
-      wasmUrl: persistent ? sqliteWasmAsyncUrl : sqliteWasmUrl
-    });
+    countingAdapter = new QueryCountingSqliteWasmAdapter(
+      db,
+      persistent ? { vfs: 'idb', batchTimeout: 1, wasmUrl: sqliteWasmAsyncUrl } : memoryAdapterOptions()
+    );
     return countingAdapter;
   });
 
