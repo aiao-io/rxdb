@@ -538,6 +538,15 @@ export class EntityStatus<T extends EntityType> implements IEntityStatus<T> {
       }
     }
     return entities;
+  }
+
+  /**
+   * 保存删掉的 Junction 不再待删；委托给 EntityRelationCache.forgetRemovedJunctions。
+   *
+   * @param junctions - 这次保存删掉的 Junction
+   */
+  forgetRemovedJunctions(junctions: Iterable<EntityInstanceType<EntityType>>): void {
+    this.#relations.forgetRemovedJunctions(junctions);
   } /**
    * 添加关系实体
    *

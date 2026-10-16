@@ -58,6 +58,20 @@ const flattenMutationEntities = <T extends EntityType>(bucket: Map<T, Set<Instan
   [...bucket.values()].flatMap(entities => [...entities]);
 
 /**
+ * 保存把解绑的 Junction 删掉之后，根实体不再把它们记作待删。
+ *
+ * @remarks
+ * 只在写成功之后调：失败时它们仍待删，下一次保存再删。
+ */
+const forgetRemovedJunctions = (
+  roots: readonly InstanceType<EntityType>[],
+  removed: readonly InstanceType<EntityType>[]
+): void => {
+  if (removed.length === 0) return;
+  for (const root of roots) getEntityStatus(root).forgetRemovedJunctions(removed);
+};
+
+/**
  * 实体管理器
  *
  * 负责管理实体的整个生命周期，包括：
@@ -413,6 +427,7 @@ export class EntityManager {
       });
       await this.mutations(options);
     }
+    forgetRemovedJunctions([entity], needRemoveEntities);
     return entity;
   }
 
@@ -431,7 +446,9 @@ export class EntityManager {
       needSaveEntities,
       needRemoveEntities
     });
-    return this.mutations(options);
+    const saved = await this.mutations(options);
+    forgetRemovedJunctions(entities, needRemoveEntities);
+    return saved;
   }
 
   /**

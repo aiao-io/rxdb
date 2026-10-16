@@ -139,6 +139,50 @@ describe('review entity audit', () => {
     expect([...submitted.remove.values()].flatMap(entities => [...entities])).toContain(junction);
   });
 
+  describe.each(['save', 'saveMany'] as const)('%s 删掉中间行之后放下它（切分支把它插回来不再二次删除）', method => {
+    it('落库成功：待删集合不再含这一行', async () => {
+      const db = setup();
+      const { owner, tag, relation, junctionType } = manyToMany(db);
+      owner.tags$.add(tag);
+      const junction = [...getEntityStatus(owner).getRelationCache(relation)].find(
+        entity => entity instanceof junctionType
+      );
+      if (!junction) throw new Error('No pending junction');
+      getEntityStatus(junction).local = true;
+      getEntityStatus(junction).modified = false;
+      owner.tags$.remove(tag);
+      vi.spyOn(db.entityManager, 'remove').mockResolvedValue(junction);
+      vi.spyOn(db.entityManager, 'mutations').mockResolvedValue([]);
+
+      await (method === 'save' ? db.entityManager.save(owner) : db.entityManager.saveMany([owner]));
+      // 切回另一条分支时这一行被重新插回库里，同一个实例重新成为库里的行
+      getEntityStatus(junction).local = true;
+
+      expect(getNeedRemoveEntities([owner])).toEqual([]);
+    });
+
+    it('落库失败：待删集合留着，下次保存再删', async () => {
+      const db = setup();
+      const { owner, tag, relation, junctionType } = manyToMany(db);
+      owner.tags$.add(tag);
+      const junction = [...getEntityStatus(owner).getRelationCache(relation)].find(
+        entity => entity instanceof junctionType
+      );
+      if (!junction) throw new Error('No pending junction');
+      getEntityStatus(junction).local = true;
+      getEntityStatus(junction).modified = false;
+      owner.tags$.remove(tag);
+      vi.spyOn(db.entityManager, 'remove').mockRejectedValue(new Error('write failed'));
+      vi.spyOn(db.entityManager, 'mutations').mockRejectedValue(new Error('write failed'));
+
+      await expect(
+        method === 'save' ? db.entityManager.save(owner) : db.entityManager.saveMany([owner])
+      ).rejects.toThrow('write failed');
+
+      expect(getNeedRemoveEntities([owner])).toEqual([junction]);
+    });
+  });
+
   it('reset followed by an edit in the same tick must publish the later edit', async () => {
     const db = setup();
     const child = db.entityManager.createEntityRef(ReviewChild, { id: uuid(), label: 'before' }, { local: true });
