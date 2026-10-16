@@ -24,4 +24,4 @@ base: main@94df0a04
 
 ## 结果
 
-首轮：15 个包未发现足以定级的行为问题；`rxdb-model` 发现 1 条 P2（默认字段标题对全大写缩写的实现与文档不一致）。二次评审：该 P2 已修复并复核（模型包 996/996 通过），残留 1 条 P3 缩写分词边界（`rxdb-model.md`）；另新确认 `rxdb` 核心 1 条 P2（游标分页重锚只比 id，`rxdb.md`，三端绑定同源）。各包的检查边界、发现和验证建议见同目录逐包报告。
+首轮：15 个包未发现足以定级的行为问题；`rxdb-model` 发现 1 条 P2（默认字段标题对全大写缩写的实现与文档不一致）。二次评审：该 P2 已修复并复核（模型包 996/996 通过），残留 1 条 P3 缩写分词边界（`rxdb-model.md`）；新确认 `rxdb` 核心 1 条 P2（游标分页重锚只比 id，`rxdb.md`，三端绑定同源）；补齐首轮未覆盖的 7 个包后，`rxdb-model-react` 确认 1 P1 + 2 P2（StrictMode 下表格不复建、initialQuery 丢弃、草稿不补建）、`rxdb-model-angular` 确认 1 P2（`#dialogData!` 空断言），其余 5 包（code-editor-react/vue、rxdb-model-vue、rxdb-client-generator、rxdb-test）复验干净。各包的检查边界、发现和验证建议见同目录逐包报告。

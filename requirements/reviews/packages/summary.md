@@ -10,7 +10,7 @@ secondPass: 2026-10-16
 
 ## 结果
 
-本轮覆盖 `packages/` 下 51 个包，每包一份报告。首轮静态评审确认 6 条问题（2 P1 + 4 P2）并在 `codex/packages-review` 分支完成修复；二次评审独立复核了全部修复，并扩展检查了 sqlite 家族、Tauri(Rust+TS)、Electron、HTTP、encrypted、miniprogram、Taro、search/querycache 与 core+三端绑定，新确认 24 条问题（1 P1 + 10 P2 + 13 P3）。
+本轮覆盖 `packages/` 下 51 个包，每包一份报告。首轮静态评审确认 6 条问题（2 P1 + 4 P2）并在 `codex/packages-review` 分支完成修复；二次评审独立复核了全部修复，并对 51 个包逐一做了第二轮源码走查（核心与框架、适配器、插件三组 + 首轮未覆盖的 7 个包补齐），新确认 28 条问题（2 P1 + 13 P2 + 13 P3）。
 
 ### 首轮 6 条问题：全部修复并经二次评审复核
 
@@ -28,6 +28,7 @@ secondPass: 2026-10-16
 | 等级 | 包 | 问题 | 证据锚点 |
 | --- | --- | --- | --- |
 | P1 | `rxdb-adapter-sqlite-core` | 加密列 + 自定义主键 `columnName`：写入 AAD 用空串、读取用真实 id → 行**永久不可读**，写入无报错（影响全部 sqlite 家族适配器） | `sqlite-core.utils.ts:391/711`、`insert_sql.ts:66`、`inserts_sql.ts:67`（对照 `update_sql.ts:46-47`） |
+| P1 | `rxdb-model-react` | StrictMode 开发模式下 `EntityTable` 永久空白：`tableReady` 卸载不复位，重挂后初始化守卫恒 false（Vue/Angular 均复位） | `entity-table.tsx:253-257、471-490`；对照 `EntityTable.vue:387` |
 | P2 | `rxdb-adapter-supabase` (S1) | `update()` 的 `updatedBy` 仍按物理列名写入属性名键 patch（`7ff0bc8c` 回退引入） | `SupabaseRepository.ts:208` |
 | P2 | `rxdb-adapter-supabase` (S2) | 批量写路径（`saveMany`/`mutations`/`mergeChanges`）无主键列映射；服务端 `rxdb_batch_upsert` 硬编码 `ON CONFLICT (id)` | `RxDBAdapterSupabase.ts:729-740`、`RxDBAdapterSupabase.utils.ts:35-78`、`docker/sql/04-rxdb-utils-functions.sql:39` |
 | P2 | `rxdb-adapter-supabase` (S5) | 树查询 `parent_column_name()` 用 columnName、CRUD 用属性名，父列口径不一致 | `SupabaseTreeRepository.ts:389-395` vs `SupabaseRepository.ts:37-48` |
@@ -38,6 +39,9 @@ secondPass: 2026-10-16
 | P2 | `rxdb-adapter-encrypted` | 序列化写侧宽松/读侧严格：类型不符值写入后永久不可读或静默写错（boolean truthiness） | `serialize.ts:41-50` vs `107-133`（回退行为被 spec 固化） |
 | P2 | `rxdb-adapter-electron` | 恢复标记清除失败 → 已完整落盘的恢复目录被当半成品删除 | `pglite-host-restore.ts:379-383、417-419、385-392、190-201` |
 | P2 | `rxdb`（+三端绑定） | 游标分页重锚只比 id 不比排序键值：排序键编辑 → 边界行跨页重复、后续行丢失 | `Repository.ts:391-401`；`useInfiniteScroll.ts:205`（React）/`238`（Vue）/`InfiniteScrollingList.ts:304`（Angular） |
+| P2 | `rxdb-model-react` | StrictMode 下 `initialQuery` 被静默丢弃：服务重建后 `lastAppliedInitialQueryRef` 不复位，新服务收不到初始条件（subquery-builder 同形） | `query-builder.tsx:68、89-115、126-133`；`subquery-builder.tsx:47、62-84、94-101` |
+| P2 | `rxdb-model-react` | create 模式草稿只在首帧创建，异步 `rxdb`（Promise/工厂 source）就绪后不补建——保存退化为 emit-only、关系绑定失效（Angular effect 补建 / Vue watch immediate 均覆盖） | `entity-detail.tsx:166-175、347-359、368-399` |
+| P2 | `rxdb-model-angular` | `metadataValue`/`formFieldsValue` 回退链以 `#dialogData!` 收尾：独立使用 + namespace/name 解析失败时模板变更检测抛 TypeError（React/Vue 降级为空标题） | `entity-detail.ts:240-242、245` |
 | P3 | `rxdb-model` (M1) | 缩写分词对 `IPv4Address`/`2FAuth` 形态仍有边界（已执行复现） | `schema-parser.service.ts:88-89` |
 | P3 | `rxdb-plugin-search` | success 订阅内重入 `loadMore()` 顶掉待执行 page-0 数据变更刷新 | `search-handle.ts:164-171、253-257、197-199` |
 | P3 | `rxdb-adapter-sqlite-core` | binary 种子值被内联成未加引号的 `1,2,3`，建表 SQL 语法错误 | `sqlite-core.utils.ts:588、601`、`create_tables_sql.ts:52` |
@@ -56,12 +60,12 @@ secondPass: 2026-10-16
 
 - 修复相关测试均以 node 模式复跑通过：PGlite JOIN spec 8/8、Supabase unit（transform + applyRuleGroup）67/67、rxdb-model 996/996、replay-vue 11/11、querycache 205/205；受影响包 `typecheck` 通过。
 - `nx test` 的 browser runner 在本 worktree 因 @vitest/browser-playwright 环境崩溃（与首轮记录一致），不能据此判定代码失败；Supabase 全量 612 例需 Docker `test-env`（本机不可用）未复跑。
-- 二次评审新确认的 24 条全部为静态证据定位 + 触发条件推演（部分经执行复现，如 TextDecoder 对照、缩写分词），未做修复，也未把静态结论冒充动态测试通过。
+- 二次评审新确认的 28 条全部为静态证据定位 + 触发条件推演（部分经执行复现，如 TextDecoder 对照、缩写分词、StrictMode 三端对照），未做修复，也未把静态结论冒充动态测试通过。
 
 ## 修复顺序建议
 
-1. 先修 P1：sqlite-core 加密 AAD 取主键值（`insert_sql`/`inserts_sql` 显式传 `primaryKey: entity.id`），补「自定义主键列 + 加密列」共享套件。
-2. 修 P2：按包独立可并行——Supabase 三处口径统一（S1 一行、S2 批量映射或契约声明、S5 父列口径）；三端 search 错误处理器对称；QueryCache `findById` 代次守卫；Tauri `batchTimeout` 上界与锁毒化；HTTP 回执时区门禁；encrypted 写侧严格性；Electron 恢复 commit 可重试；core 游标重锚比投影值。
+1. 先修 P1：sqlite-core 加密 AAD 取主键值（`insert_sql`/`inserts_sql` 显式传 `primaryKey: entity.id`），补「自定义主键列 + 加密列」共享套件；rxdb-model-react `EntityTable` 销毁清理复位 `tableReady`，补 StrictMode 双挂载回归。
+2. 修 P2：按包独立可并行——Supabase 三处口径统一（S1 一行、S2 批量映射或契约声明、S5 父列口径）；三端 search 错误处理器对称；QueryCache `findById` 代次守卫；Tauri `batchTimeout` 上界与锁毒化；HTTP 回执时区门禁；encrypted 写侧严格性；Electron 恢复 commit 可重试；core 游标重锚比投影值；rxdb-model-react 的 initialQuery/草稿补建与 rxdb-model-angular 的空回退。
 3. P3 批次：regex 锚定、尺寸前置检查、解码宽度、错误类别包装、登记回收等小修，多数有明确改法。
 4. 在 Node 26+ 环境串行执行 51 个包 lint/typecheck/test/build，补跑浏览器、真实 Supabase/PostgREST、PGlite JOIN、桌面/Tauri/小程序宿主测试；全部条目复核修复后按 `requirements/reviews/README.md` 规则删除条目。
 
