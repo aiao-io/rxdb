@@ -76,7 +76,8 @@
 候选分析的结论与决策过程记录在 [epic-009 的解锁记录](../epics/epic-009-bom-domain-model.md)，
 此处不复制内容。契合点一句话：车间弱网是常态（Local-first 刚需）、BOM 是带属性的多级 DAG
 （图/树插件 + 声明式约束，引擎缺口 US-030 / US-507 正为它补齐）、成本卷算吃响应式查询、
-ERP/MRP 对接走远端适配器。
+ERP/MRP 对接走远端适配器。对标：SAP S/4HANA / 用友 U8 / 金蝶云星空（ERP-BOM 模块）、
+PTC Windchill / Teamcenter（PLM）、西门子 Opcenter（MES）。
 
 ## 未深入候选（排队，非否决）
 
