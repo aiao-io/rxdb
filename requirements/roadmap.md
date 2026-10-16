@@ -10,13 +10,13 @@
 | 状态           | 数量   |
 | :------------- | :----- |
 | ✅ Done        | 75     |
-| 🚧 In Progress | 3      |
-| 👀 In Review   | 4      |
+| 🚧 In Progress | 2      |
+| 👀 In Review   | 5      |
 | 📝 Backlog     | 22     |
 | 🚫 Blocked     | 0      |
 | **未完成合计** | **29** |
 
-仓库还剩 **29 条**未关闭故事（3 In Progress + 4 In Review + 22 Backlog + 0 Blocked）。
+仓库还剩 **29 条**未关闭故事（2 In Progress + 5 In Review + 22 Backlog + 0 Blocked）。
 
 > 口径与 [status-overview 状态汇总](status-overview.md#状态汇总) 一致：YAML `status` 字段 `grep` 推导。
 > rxdb-model 实体模型库与三框架 UI 组件集没有故事文件，三框架代码已随 #62 合入；剩下的跨框架对拍、三端对称复核与文档
@@ -40,7 +40,7 @@
 | [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](stories/collaboration/US-311-unlogged-entities-scope.md)         | 👀 In Review   | 代码完成：草稿缓存不收系统表与关闭变更日志的实体，版本化域按 `log: false` 归第四类 untracked，storage 文档写明文件不随版本；剩代码评审与提交                                                                                                                                                                                                                                                                                                                                                                                                                                | 批次 3   |
 | [US-312 不切换分支就对比两条分支、预览一次合并（含覆盖标注）](stories/collaboration/US-312-branch-compare-merge-preview.md)    | 👀 In Review   | 代码完成：`compareBranches()` / `previewMerge()`（四类覆盖标注）与三端 demo 的合并预览、分支对比；剩代码评审与合入                                                                                                                                                                                                                                                                                                                                                                                                                                                          | 批次 3   |
 | [US-911 客户端国际化 / 本地化](stories/future/US-911-client-i18n.md)                                                           | 📝 Backlog     | 未立项（待 owner 定批次）；阶段 A（盘点与可行性）→ B（`@aiao/rxdb-i18n` 核心 + 三端 `useI18n()`）→ C（rxdb-model 去硬编码 + 三端 demo 切换器）均无硬前置、全本地能力；阶段 D（目录 QueryCache 分发 + DevTools 面板）复用已 Done 的 US-212 / US-023 / US-902，独立后置关闭。与 US-910 的协调点：fallback 链与「用户显示偏好」只实现一份；`rxdb-plugin-i18n`（数据翻译）与 `@aiao/rxdb-i18n`（UI 文案）包名重叠由 owner 裁决                                                                                                                                                  | 立项池   |
-| [US-221 OPFS 库在整页刷新后偶发打不开：上一个页面还占着同步访问句柄](stories/adapter/US-221-opfs-reload-access-handle-race.md) | 🚧 In Progress | 有界重试 + 连接失败提示 + 确定性浏览器用例                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | 批次 3   |
+| [US-221 OPFS 库在整页刷新后偶发打不开：上一个页面还占着同步访问句柄](stories/adapter/US-221-opfs-reload-access-handle-race.md) | 👀 In Review   | 代码完成：有界重试 + 连接失败提示 + 确定性浏览器用例与 e2e；剩代码评审与合入                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 批次 3   |
 | [US-313 只读检出位：不切换分支就打开另一条分支或一个可达提交的完整数据](stories/collaboration/US-313-read-only-checkout.md)    | 🚧 In Progress | 阶段 A～D：快照库与只读实例、提交视图、生命周期与回收、三端绑定与 demo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | 批次 3   |
 | [epic-009 BOM 领域模型](epics/epic-009-bom-domain-model.md) 19 条（已解锁 2026-10-12）                                         | 📝 Backlog     | 第 0 步复核决策 1～8 与演示范围（US-525 阶段 A～F）→ 首轮切片第 1～4 步 → 演示阶段 B～F 的消费方按前置接入；US-513 阶段 B 联产品与 US-519 AC#3 / #7 仍价值待证                                                                                                                                                                                                                                                                                                                                                                                                              | 批次 4   |
 

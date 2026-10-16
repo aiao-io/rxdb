@@ -1,7 +1,7 @@
 ---
 id: US-221
 title: OPFS 库在整页刷新后偶发打不开：上一个页面还占着同步访问句柄
-status: In Progress
+status: In Review
 priority: High
 epic: epic-004-future-features
 created: 2026-10-16
@@ -96,7 +96,7 @@ Web Lock 先释放、同步访问句柄后关闭，于是新页面落进上面�
 | 3   | 其它打开失败（`vfs ${vfs} not found`、OPFS 只能在 Worker 里用、非 `SQLITE_CANTOPEN` 的打开错误） | 打开             | 不重试，原样失败                                                                                 | ✅   |
 | 4   | demo（e2e 走 OPFS 的 React / Vue），另一个标签页占着库文件句柄，应用第一次打开撞上后放开         | 打开页面并写入   | 照常打开，能写能读                                                                               | ✅   |
 | 5   | 三端 demo，打开最终失败                                                                          | 进入受守卫的页面 | 应用壳显示「数据库打不开」与原因，带重新加载按钮；受守卫的路由不渲染、不被默认错误页换掉整个壳   | ✅   |
-| 6   | 门禁                                                                                             | 收尾             | sqlite-wasm 适配器单测与浏览器用例、三端单测与 e2e、`audit:requirements`、`nx format:check` 全绿 | ⬜   |
+| 6   | 门禁                                                                                             | 收尾             | sqlite-wasm 适配器单测与浏览器用例、三端单测与 e2e、`audit:requirements`、`nx format:check` 全绿 | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
