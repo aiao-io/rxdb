@@ -50,10 +50,11 @@ export function transform_row_to_entity<T extends EntityType>(
 ): InstanceType<T> {
   const entity = new EntityType() as InstanceType<T>;
 
-  for (const key of Object.keys(row)) {
-    const property = metadata.propertyMap.get(key);
-    Object.defineProperty(entity, key, {
-      value: property ? transform_value(row[key], property) : row[key],
+  for (const columnName of Object.keys(row)) {
+    const propertyName = metadata.columnNameToPropertyName?.get(columnName) ?? columnName;
+    const property = metadata.propertyMap.get(propertyName);
+    Object.defineProperty(entity, propertyName, {
+      value: property ? transform_value(row[columnName], property) : row[columnName],
       writable: true,
       enumerable: true,
       configurable: true

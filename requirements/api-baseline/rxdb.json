@@ -46,6 +46,10 @@
         "kind": "value"
       },
       {
+        "name": "assertNoEntityConstraintDrift",
+        "kind": "value"
+      },
+      {
         "name": "assertOptionalNonNegativeSafeInteger",
         "kind": "value"
       },
@@ -134,23 +138,11 @@
         "kind": "type"
       },
       {
-        "name": "buildConditionalUniqueName",
-        "kind": "value"
-      },
-      {
-        "name": "buildExclusionConstraintName",
-        "kind": "value"
-      },
-      {
         "name": "buildOfflineWriteRepositoryRules",
         "kind": "value"
       },
       {
         "name": "buildPushableRepositoryRules",
-        "kind": "value"
-      },
-      {
-        "name": "buildStorageConstraintName",
         "kind": "value"
       },
       {
@@ -174,19 +166,19 @@
         "kind": "value"
       },
       {
-        "name": "CHECK_COMPARABLE_TYPES",
+        "name": "CHECK_NAME_PREFIX",
         "kind": "value"
       },
       {
-        "name": "checkConstraintNameOf",
+        "name": "CHECK_OPERATORS",
         "kind": "value"
       },
       {
-        "name": "CheckLiteralResult",
-        "kind": "type"
+        "name": "checkConstraintName",
+        "kind": "value"
       },
       {
-        "name": "CheckOperatorName",
+        "name": "CheckOperator",
         "kind": "type"
       },
       {
@@ -218,7 +210,7 @@
         "kind": "value"
       },
       {
-        "name": "compileCheckRule",
+        "name": "compileCheckExpression",
         "kind": "value"
       },
       {
@@ -226,7 +218,39 @@
         "kind": "value"
       },
       {
+        "name": "compileConditionalUniqueIndex",
+        "kind": "value"
+      },
+      {
+        "name": "CompiledCheckConstraint",
+        "kind": "type"
+      },
+      {
+        "name": "CompiledConditionalUniqueIndex",
+        "kind": "type"
+      },
+      {
+        "name": "CompiledExclusionColumn",
+        "kind": "type"
+      },
+      {
+        "name": "CompiledExclusionConstraint",
+        "kind": "type"
+      },
+      {
+        "name": "CompiledExclusionRange",
+        "kind": "type"
+      },
+      {
+        "name": "compileExclusionConstraint",
+        "kind": "value"
+      },
+      {
         "name": "computeRxDBSchemaFingerprint",
+        "kind": "value"
+      },
+      {
+        "name": "conditionalUniqueIndexesOf",
         "kind": "value"
       },
       {
@@ -258,7 +282,7 @@
         "kind": "type"
       },
       {
-        "name": "CONSTRAINT_HASH_LENGTH",
+        "name": "CONSTRAINT_NAME_MAX_BYTES",
         "kind": "value"
       },
       {
@@ -292,6 +316,14 @@
       {
         "name": "DateTimeFormat",
         "kind": "type"
+      },
+      {
+        "name": "declaredCheckViolationOf",
+        "kind": "value"
+      },
+      {
+        "name": "declaresStorageConstraints",
+        "kind": "value"
       },
       {
         "name": "declareTrustedWrite",
@@ -414,6 +446,10 @@
         "kind": "type"
       },
       {
+        "name": "EntityConstraintDriftReport",
+        "kind": "type"
+      },
+      {
         "name": "EntityData",
         "kind": "type"
       },
@@ -427,6 +463,10 @@
       },
       {
         "name": "EntityExclusionMetadataOptions",
+        "kind": "type"
+      },
+      {
+        "name": "EntityExclusionRangeOptions",
         "kind": "type"
       },
       {
@@ -455,10 +495,6 @@
       },
       {
         "name": "EntityForeignKeyMetadataOptions",
-        "kind": "type"
-      },
-      {
-        "name": "EntityIndexMetadata",
         "kind": "type"
       },
       {
@@ -622,6 +658,10 @@
         "kind": "type"
       },
       {
+        "name": "EntityWriteStep",
+        "kind": "type"
+      },
+      {
         "name": "EnumProperty",
         "kind": "type"
       },
@@ -638,19 +678,51 @@
         "kind": "type"
       },
       {
-        "name": "EXCLUSION_RANGE_TYPES",
+        "name": "EXCLUSION_BOUNDS",
         "kind": "value"
       },
       {
-        "name": "exclusionConstraintNameOf",
+        "name": "EXCLUSION_NAME_PREFIX",
         "kind": "value"
       },
       {
-        "name": "ExclusionRangeDimension",
+        "name": "EXCLUSION_VIOLATION_MESSAGE_PREFIX",
+        "kind": "value"
+      },
+      {
+        "name": "ExclusionBounds",
         "kind": "type"
       },
       {
-        "name": "expectedStorageConstraintObjects",
+        "name": "ExclusionRangeConflict",
+        "kind": "type"
+      },
+      {
+        "name": "exclusionRangeExpressionPG",
+        "kind": "value"
+      },
+      {
+        "name": "ExclusionRangeKind",
+        "kind": "type"
+      },
+      {
+        "name": "exclusionTriggerNames",
+        "kind": "value"
+      },
+      {
+        "name": "ExclusionUpdateChange",
+        "kind": "type"
+      },
+      {
+        "name": "expectedCheckConstraintNames",
+        "kind": "value"
+      },
+      {
+        "name": "expectedConditionalUniqueIndexNames",
+        "kind": "value"
+      },
+      {
+        "name": "expectedExclusionConstraintNames",
         "kind": "value"
       },
       {
@@ -714,7 +786,15 @@
         "kind": "type"
       },
       {
+        "name": "findCheckByConstraintName",
+        "kind": "value"
+      },
+      {
         "name": "findCurrentSyncRecord",
+        "kind": "value"
+      },
+      {
+        "name": "findExclusionByConstraintName",
         "kind": "value"
       },
       {
@@ -858,6 +938,10 @@
         "kind": "value"
       },
       {
+        "name": "hashConstraintDefinition",
+        "kind": "value"
+      },
+      {
         "name": "hasRxDBBackupWebLocks",
         "kind": "value"
       },
@@ -886,10 +970,6 @@
         "kind": "type"
       },
       {
-        "name": "IEntityPropertyCheckable",
-        "kind": "type"
-      },
-      {
         "name": "IEntityStaticType",
         "kind": "type"
       },
@@ -900,6 +980,10 @@
       {
         "name": "IncrementalUpdateContext",
         "kind": "type"
+      },
+      {
+        "name": "inDriftScope",
+        "kind": "value"
       },
       {
         "name": "installWorkingTreeCapture",
@@ -954,7 +1038,7 @@
         "kind": "value"
       },
       {
-        "name": "isCheckConstraintViolation",
+        "name": "isConditionalUniqueIndex",
         "kind": "value"
       },
       {
@@ -978,7 +1062,7 @@
         "kind": "value"
       },
       {
-        "name": "isExclusionViolation",
+        "name": "isExclusionNarrowingUpdate",
         "kind": "value"
       },
       {
@@ -1182,15 +1266,7 @@
         "kind": "value"
       },
       {
-        "name": "normalizeEntityWriteConstraintError",
-        "kind": "value"
-      },
-      {
         "name": "normalizeManualOrderBy",
-        "kind": "value"
-      },
-      {
-        "name": "normalizeStorageConstraintError",
         "kind": "value"
       },
       {
@@ -1234,8 +1310,24 @@
         "kind": "type"
       },
       {
+        "name": "orderExclusionUpdates",
+        "kind": "value"
+      },
+      {
+        "name": "ordersWritesForExclusion",
+        "kind": "value"
+      },
+      {
         "name": "parseCapabilityWatermark",
         "kind": "value"
+      },
+      {
+        "name": "parseCheckConstraintViolation",
+        "kind": "value"
+      },
+      {
+        "name": "ParsedExclusionViolation",
+        "kind": "type"
       },
       {
         "name": "parseEntityFieldsDescriptor",
@@ -1247,6 +1339,10 @@
       },
       {
         "name": "parseEntityRecordValues",
+        "kind": "value"
+      },
+      {
+        "name": "parseExclusionViolation",
         "kind": "value"
       },
       {
@@ -1284,6 +1380,10 @@
       {
         "name": "PlainTextFormat",
         "kind": "type"
+      },
+      {
+        "name": "planMutationWrites",
+        "kind": "value"
       },
       {
         "name": "Plugin",
@@ -1454,6 +1554,10 @@
         "kind": "type"
       },
       {
+        "name": "referencedCheckFields",
+        "kind": "value"
+      },
+      {
         "name": "RefreshMatchRules",
         "kind": "type"
       },
@@ -1556,10 +1660,6 @@
       {
         "name": "RemoteRxDBChangeRepository",
         "kind": "type"
-      },
-      {
-        "name": "renderCheckLiteral",
-        "kind": "value"
       },
       {
         "name": "ReorderBetween",
@@ -2150,10 +2250,6 @@
         "kind": "type"
       },
       {
-        "name": "serializeExclusion",
-        "kind": "value"
-      },
-      {
         "name": "Sha256Hasher",
         "kind": "type"
       },
@@ -2186,19 +2282,11 @@
         "kind": "type"
       },
       {
-        "name": "sqlBigIntLiteral",
-        "kind": "value"
-      },
-      {
         "name": "sqlBooleanLiteral",
         "kind": "value"
       },
       {
         "name": "sqlIntegerLiteral",
-        "kind": "value"
-      },
-      {
-        "name": "sqlNumberLiteral",
         "kind": "value"
       },
       {
@@ -2210,8 +2298,12 @@
         "kind": "value"
       },
       {
-        "name": "StorageConstraintPrefix",
-        "kind": "type"
+        "name": "STORAGE_CONSTRAINT_NAME_PREFIXES",
+        "kind": "value"
+      },
+      {
+        "name": "storageConstraintName",
+        "kind": "value"
       },
       {
         "name": "StringArrayProperty",
@@ -2390,7 +2482,23 @@
         "kind": "value"
       },
       {
+        "name": "toCheckViolationError",
+        "kind": "value"
+      },
+      {
+        "name": "toCheckViolationErrorForRows",
+        "kind": "value"
+      },
+      {
         "name": "toEntitySyncResolver",
+        "kind": "value"
+      },
+      {
+        "name": "toExclusionViolationError",
+        "kind": "value"
+      },
+      {
+        "name": "toStorageConstraintViolationError",
         "kind": "value"
       },
       {
@@ -2487,6 +2595,10 @@
       },
       {
         "name": "uninstallWorkingTreeCapture",
+        "kind": "value"
+      },
+      {
+        "name": "UNIQUE_INDEX_NAME_PREFIX",
         "kind": "value"
       },
       {

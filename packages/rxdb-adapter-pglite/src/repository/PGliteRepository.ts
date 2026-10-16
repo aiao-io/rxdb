@@ -7,7 +7,7 @@ import {
   getEntityMetadata,
   getEntityStatus,
   IRepository,
-  normalizeEntityWriteConstraintError
+  toStorageConstraintViolationError
 } from '@aiao/rxdb';
 import generate_entity_delete_sql from '../entity/delete_sql.js';
 import generate_entity_insert_sql from '../entity/insert_sql.js';
@@ -58,14 +58,15 @@ export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase
       ...this.rxdb.context,
       encryption: this.adapter.encryptionContext
     });
+    let result;
     try {
-      const result = await this.adapter.writeQuery(sql, params);
-      await this.addQueryCache(result, true);
-      return entity;
+      result = await this.adapter.writeQuery(sql, params);
     } catch (error) {
-      // 存储约束违约归一（CHECK / 区间排他）：与 sqlite-core 同口径
-      throw normalizeEntityWriteConstraintError(error, this.metadata, { ...entity } as Record<string, unknown>) ?? error;
+      // 存储约束违约归一：CHECK（23514）→ RxDBCheckViolationError、区间排他（23P01）→ RxDBExclusionViolationError
+      throw toStorageConstraintViolationError(error, this.metadata, [entity as unknown as Record<string, unknown>]);
     }
+    await this.addQueryCache(result, true);
+    return entity;
   }
 
   async update(entity: InstanceType<T>, patch: Partial<InstanceType<T>>): Promise<InstanceType<T>> {
@@ -74,13 +75,14 @@ export class PGliteRepository<T extends EntityType> extends PGliteRepositoryBase
       updatedAt: getMonotonicUpdatedAt(entity),
       encryption: this.adapter.encryptionContext
     });
+    let result;
     try {
-      const result = await this.adapter.writeQuery(sql, params);
-      await this.addQueryCache(result, true);
-      return entity;
+      result = await this.adapter.writeQuery(sql, params);
     } catch (error) {
-      throw normalizeEntityWriteConstraintError(error, this.metadata, { ...entity, ...patch } as Record<string, unknown>) ?? error;
+      throw toStorageConstraintViolationError(error, this.metadata, [entity as unknown as Record<string, unknown>]);
     }
+    await this.addQueryCache(result, true);
+    return entity;
   }
 
   async remove(entity: InstanceType<T>): Promise<InstanceType<T>> {

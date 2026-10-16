@@ -687,15 +687,19 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
   reconcileEntityIndexes?(EntityTypes: EntityType[]): Promise<void>;
 
   /**
-   * 只读比对已有表与声明式存储约束（`ck_` / `uq_` / `ex_` 起头的对象）是否一致。
+   * 只读漂移检查：实体元数据声明的存储约束与库里的实际约束不一致时抛
+   * {@link RxDBConstraintDriftError}，列出缺失与多余的约束名（US-030 AC#10）。
    *
    * @remarks
-   * 在 `reconcileEntityIndexes` 的同一时机调用；不一致抛 {@link RxDBConstraintDriftError}，
-   * 列出缺失与多余的名字，**不自动补建**（补建由用户写进 `migrations`）。
-   * 可选成员：实体声明了约束（checks / 带 `where` 的唯一索引 / exclusions）而适配器
-   * 未实现本方法时，`RxDB.init()` 按「不支持」抛错，不静默降级为应用层校验（US-030 AC#6）。
+   * 与 {@link RxDBAdapterLocalBase.reconcileEntityIndexes} 同一时机调用（用户迁移与
+   * 缺表补建之后），但**只读、不自动补建**——补建由用户写进 `migrations`。
+   * 比对只纳入 `ck_` CHECK、`uq_` 条件唯一索引、`ex_` 区间排他三类对象。
+   *
+   * 缺席是契约允许的形态（与 `reconcileEntityIndexes` 一致）；但实体声明了
+   * `checks` / 条件唯一 `where` / `exclusions` 而适配器没有本方法时，`connect()` 按
+   * US-030 AC#6 报不支持，不做静默降级。
    */
-  checkEntityConstraintDrift?(EntityTypes: EntityType[]): Promise<void>;
+  checkEntityConstraints?(EntityTypes: EntityType[]): Promise<void>;
 
   abstract switchBranch(options: SwitchBranchOptions): Promise<void>;
 

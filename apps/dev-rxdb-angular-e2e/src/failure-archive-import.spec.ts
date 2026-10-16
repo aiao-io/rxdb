@@ -59,8 +59,8 @@ const discardAll = async (page: Page): Promise<void> => {
   await page.getByTestId('wt-refresh-status').click();
   await expect(page.getByTestId('wt-diff-phase')).toHaveText('success', { timeout: 30000 });
   await page.getByTestId('wt-diff-item').first().click({ button: 'right' });
-  page.once('dialog', dialog => void dialog.accept());
   await page.getByTestId('wt-discard').click();
+  await page.getByTestId('wt-confirm-ok').click();
   await expect(page.getByTestId('wt-status-clean')).toHaveText('干净', { timeout: 30000 });
 };
 

@@ -71,9 +71,11 @@ app-header,
   left: 0;
 }
 
-/* Mobile sidebar overlay */
+/* Mobile sidebar overlay
+   absolute 锚定 #layout-main（移动端 position:relative 的应用区）而不是视口：
+   无界嵌入（website）里 fixed inset-0 会盖到宿主导航栏上、遮罩也从视口顶起算。 */
 .sidebar-overlay {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
@@ -98,8 +100,11 @@ app-header,
     position: relative;
   }
 
-  aside {
-    position: fixed !important;
+  /* 只作用于应用壳的侧栏（#layout-main 的直接子级）：页面内容里的 aside
+     （历史侧栏、working-tree 面板等）不受这条移动端覆盖影响。
+     absolute 锚定 #layout-main 应用区而不是视口：无界嵌入里 fixed top:0 会被宿主导航栏压住 */
+  #layout-main > aside {
+    position: absolute !important;
     top: 0;
     left: 0;
     bottom: 0;
@@ -110,7 +115,7 @@ app-header,
     border-right: none !important;
   }
 
-  .left-menu-pinned aside {
+  #layout-main.left-menu-pinned > aside {
     width: 80vw !important;
     max-width: 280px !important;
     border-right: 1px solid color-mix(in oklch, var(--color-base-content), transparent 90%) !important;
@@ -156,6 +161,11 @@ app-header,
 
 .left-menu-pinned .rxdb-menu-item {
   opacity: 1;
+}
+
+/* 折叠轨（48px）里分组子项没有图标，收起整组避免空白行 */
+#layout-main:not(.left-menu-pinned) .menu-group details > ul {
+  display: none;
 }
 
 /* Logo hover effect */
@@ -997,6 +1007,16 @@ textarea.gd-input {
   }
 
   @media (max-width: 800px) {
+    /* 工具栏三段改为均分余宽：内联 px 宽度（320/230/200）合计 760px+，窄屏会把右段裁掉 */
+    .gd-toolbar {
+      flex-wrap: wrap;
+      height: auto;
+    }
+    .gd-toolbar-section {
+      flex: 1 1 0;
+      min-width: 0;
+      width: auto !important;
+    }
     .gd-toolbar-select,
     .gd-toolbar-refresh {
       gap: 5px;
@@ -1019,6 +1039,14 @@ textarea.gd-input {
     }
   }
   @media (max-width: 520px) {
+    /* 窄屏 split 双栏降级单列：每行「改前 / 改后」上下堆叠而不是左右各 ~95px */
+    .gd-split-row {
+      flex-direction: column;
+    }
+    .gd-split-cell + .gd-split-cell {
+      border-left: none;
+      border-top: 1px solid var(--gd-border);
+    }
     .gd-toolbar-select small {
       display: none;
     }
@@ -1090,5 +1118,23 @@ textarea.gd-input {
 
   .gd-toolbar-select[aria-expanded='true'] small {
     color: var(--gd-muted);
+  }
+}
+
+/* 触屏点击目标：迷你按钮与工作树紧凑行扩到接近 44px 建议值 */
+@media (pointer: coarse) {
+  .btn-xs {
+    min-height: 2.5rem;
+  }
+  .gd-menu-row,
+  .gd-row {
+    min-height: 2.75rem;
+  }
+  /* 分隔条 / 工具栏拖柄只有 5-6px，触屏下扩透明命中区（视觉不变） */
+  .gd-resizer::before,
+  .gd-toolbar-handle::before {
+    content: '';
+    position: absolute;
+    inset: 0 -7px;
   }
 }

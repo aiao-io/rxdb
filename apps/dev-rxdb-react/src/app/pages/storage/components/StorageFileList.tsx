@@ -1,5 +1,5 @@
 import { formatFileSize, STORAGE_TESTID } from '@aiao/utils';
-import { Download, Eye, FolderOpen, Trash2 } from 'lucide-react';
+import { Download, Eye, FolderOpen, Pen, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useRef } from 'react';
 import { canPreviewFile, getFileIcon, getFileIconColor, StorageBrowserItem } from '../utils/storage-utils';
 
@@ -11,6 +11,7 @@ interface Props {
   onDownload: (entry: StorageBrowserItem) => void;
   onDelete: (entry: StorageBrowserItem) => void;
   onPreview: (entry: StorageBrowserItem) => void;
+  onRename: (entry: StorageBrowserItem) => void;
   onContextMenu: (event: React.MouseEvent, entry: StorageBrowserItem) => void;
   onEntryClick: (entry: StorageBrowserItem, event: React.MouseEvent) => void;
 }
@@ -34,6 +35,7 @@ export function StorageFileList({
   onDownload,
   onDelete,
   onPreview,
+  onRename,
   onContextMenu,
   onEntryClick
 }: Props) {
@@ -82,7 +84,7 @@ export function StorageFileList({
         <tr>
           <th>Name</th>
           <th className='w-32'>Size</th>
-          <th className='w-40'>Modified</th>
+          <th className='hidden w-40 md:table-cell'>Modified</th>
           <th className='w-24'>Actions</th>
         </tr>
       </thead>
@@ -129,7 +131,7 @@ export function StorageFileList({
               >
                 {entry.kind === 'file' ? formatFileSize(entry.size || 0) : '-'}
               </td>
-              <td className='text-base-content/60 text-sm'>{formatDate(entry.lastModified)}</td>
+              <td className='text-base-content/60 hidden text-sm md:table-cell'>{formatDate(entry.lastModified)}</td>
               <td>
                 <div className='flex items-center gap-1'>
                   {entry.kind === 'directory' ?
@@ -182,6 +184,17 @@ export function StorageFileList({
                       </button>
                     </>
                   }
+                  <button
+                    className='btn btn-ghost btn-xs'
+                    data-testid='storage-rename-btn'
+                    onClick={event => {
+                      event.stopPropagation();
+                      onRename(entry);
+                    }}
+                    title='Rename'
+                  >
+                    <Pen size={14} />
+                  </button>
                   <button
                     className='btn btn-ghost btn-xs text-error'
                     data-testid={entry.kind === 'file' ? T.DELETE_BTN : undefined}

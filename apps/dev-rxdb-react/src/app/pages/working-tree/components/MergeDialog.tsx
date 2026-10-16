@@ -40,7 +40,7 @@ export function WorkingTreeMergeDialog({
 
   return (
     <div
-      className='fixed inset-0 z-50 flex items-center justify-center bg-black/50'
+      className='fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-3'
       onClick={onCloseRequested}
       onKeyDown={event => {
         if (event.key === 'Escape') onCloseRequested();
@@ -50,7 +50,7 @@ export function WorkingTreeMergeDialog({
       tabIndex={0}
     >
       <div
-        className='w-full max-w-md rounded-md border border-[var(--gd-border)] p-5 shadow-2xl'
+        className='max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-md border border-[var(--gd-border)] p-5 shadow-2xl'
         style={{ background: 'var(--gd-panel)' }}
         onClick={event => event.stopPropagation()}
         onKeyDown={event => event.stopPropagation()}

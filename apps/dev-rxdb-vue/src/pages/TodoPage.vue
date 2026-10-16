@@ -10,6 +10,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, type ComponentPublicIn
 import HistorySidebar from '../app/components/HistorySidebar.vue';
 import SyncRejectionsPanel from '../app/components/SyncRejectionsPanel.vue';
 import { pairVirtualRows } from '../app/utils/virtual-rows';
+import { useShowHistory } from '../app/composables/useShowHistory';
 
 const ITEM_SIZE = 48;
 
@@ -24,7 +25,7 @@ const currentTab = ref<'all' | 'active' | 'completed'>('all');
 const completedSort = ref<'asc' | 'desc'>('asc');
 const editingTodoIds = ref<Set<string>>(new Set());
 const editValues = ref<Map<string, string>>(new Map());
-const showHistory = ref(true);
+const { showHistory } = useShowHistory();
 const showStickyHeader = ref(false);
 const addingCount = ref<number | null>(null);
 // 拖拽中的起点与落点；null 表示没在拖
@@ -402,20 +403,22 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
               >
 
               <!-- Batch Add Dropdown -->
-              <div class="dropdown dropdown-end">
-                <button
+              <details class="dropdown dropdown-end">
+                <summary
                   class="btn btn-circle btn-sm"
                   aria-label="批量添加"
                   data-testid="todo-batch-add"
-                  tabindex="0"
                 >
                   <Plus :size="16" />
-                </button>
+                </summary>
                 <ul class="menu dropdown-content rounded-box bg-base-200 z-[1] w-40 p-2 shadow">
                   <li>
                     <button
                       :disabled="addingCount === 1"
-                      @click="addManyTodo(1)"
+                      @click="
+                        addManyTodo(1);
+                        ($event.target as HTMLElement).closest('details')?.removeAttribute('open');
+                      "
                       data-testid="todo-batch-option-1"
                     >
                       <span
@@ -428,7 +431,10 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                   <li>
                     <button
                       :disabled="addingCount === 10"
-                      @click="addManyTodo(10)"
+                      @click="
+                        addManyTodo(10);
+                        ($event.target as HTMLElement).closest('details')?.removeAttribute('open');
+                      "
                       data-testid="todo-batch-option-10"
                     >
                       <span
@@ -441,7 +447,10 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                   <li>
                     <button
                       :disabled="addingCount === 100"
-                      @click="addManyTodo(100)"
+                      @click="
+                        addManyTodo(100);
+                        ($event.target as HTMLElement).closest('details')?.removeAttribute('open');
+                      "
                       data-testid="todo-batch-option-100"
                     >
                       <span
@@ -454,7 +463,10 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                   <li>
                     <button
                       :disabled="addingCount === 1000"
-                      @click="addManyTodo(1000)"
+                      @click="
+                        addManyTodo(1000);
+                        ($event.target as HTMLElement).closest('details')?.removeAttribute('open');
+                      "
                       data-testid="todo-batch-option-1000"
                     >
                       <span
@@ -467,7 +479,10 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                   <li>
                     <button
                       :disabled="addingCount === 10000"
-                      @click="addManyTodo(10000)"
+                      @click="
+                        addManyTodo(10000);
+                        ($event.target as HTMLElement).closest('details')?.removeAttribute('open');
+                      "
                       data-testid="todo-batch-option-10000"
                     >
                       <span
@@ -478,7 +493,7 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                     </button>
                   </li>
                 </ul>
-              </div>
+              </details>
             </div>
 
             <div class="flex items-center gap-2">
@@ -750,7 +765,9 @@ const setEditInputRef = (id: string, el: Element | ComponentPublicInstance | nul
                   >
                     {{ todo.title }}
                   </div>
-                  <div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                  <div
+                    class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100"
+                  >
                     <button
                       class="btn btn-ghost btn-xs"
                       @click="e => startEditing(e, todo)"

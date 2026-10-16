@@ -3,8 +3,9 @@ import {
   EntityType,
   getEntityMetadata,
   getEntityStatus,
-  normalizeEntityWriteConstraintError,
-  RxDBMutationsMap
+  planMutationWrites,
+  RxDBMutationsMap,
+  toStorageConstraintViolationError
 } from '@aiao/rxdb';
 import { generate_entity_deletes_sql } from './entity/deletes_sql.js';
 import { generate_entity_inserts_sql, get_insert_column_count } from './entity/inserts_sql.js';
@@ -115,8 +116,7 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
   };
 
   // 创建 SQL
-  for (const [EntityType, entities_set] of mutations.create.entries()) {
-    const entities = Array.from(entities_set);
+  const apply_creates = async (EntityType: T, entities: InstanceType<T>[]) => {
     for (const entity of entities) {
       all_entities.add(entity);
       remember_entity_instance(EntityType, entity);
@@ -133,10 +133,13 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
       try {
         await adapter.query(insert_result.sql, insert_result.params);
       } catch (error) {
-        // 存储约束违约归一（CHECK / 区间排他）：多行 chunk 定位不到是哪一行，只补实体与列；
-        // 单行时再补冲突值（原生 CHECK 消息不带值）
-        const attempted = entitiesChunk.length === 1 ? ({ ...entitiesChunk[0] } as Record<string, unknown>) : {};
-        throw normalizeEntityWriteConstraintError(error, meta, attempted) ?? error;
+        // 存储约束违约归一（US-030）：CHECK 的冲突值——批量 INSERT 命中哪一行原生消息不说，
+        // 全部候选行的值并列；区间排他的双方区间来自触发器消息
+        throw toStorageConstraintViolationError(
+          error,
+          meta,
+          entitiesChunk as unknown as ReadonlyArray<Record<string, unknown>>
+        );
       }
     }
 
@@ -145,11 +148,10 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
       meta,
       entities.map(entity => entity.id)
     );
-  }
+  };
 
   // 更新 SQL
-  for (const [EntityType, entities_set] of mutations.update.entries()) {
-    const entities = Array.from(entities_set);
+  const apply_updates = async (EntityType: T, entities: InstanceType<T>[]) => {
     for (const entity of entities) {
       all_entities.add(entity);
       remember_entity_instance(EntityType, entity);
@@ -169,10 +171,7 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
       try {
         await adapter.query(updateResult.sql, updateResult.params);
       } catch (error) {
-        // UPDATE 的行值是 patch 合并后的形态：单列 CHECK 违约时补上冲突列与冲突值
-        throw (
-          normalizeEntityWriteConstraintError(error, meta, { ...entity, ...patch } as Record<string, unknown>) ?? error
-        );
+        throw toStorageConstraintViolationError(error, meta, [entity as unknown as Record<string, unknown>]);
       }
     }
 
@@ -181,17 +180,23 @@ export const rxdb_adapter_mutations = async <T extends EntityType = EntityType>(
       meta,
       entities.map(entity => entity.id)
     );
-  }
+  };
 
   // 删除 SQL
-  for (const [EntityType, entities_set] of mutations.remove.entries()) {
-    const entities = Array.from(entities_set);
+  const apply_removes = async (EntityType: T, entities: InstanceType<T>[]) => {
     for (const entity of entities) all_entities.add(entity);
     const meta = getEntityMetadata(EntityType);
     if (entities.length > 0) {
       const delete_sql = generate_entity_deletes_sql(meta, entities);
       await adapter.query(delete_sql);
     }
+  };
+
+  // 执行顺序：插入 → 更新 → 删除；声明了区间排他的实体，删除与更新提到全部插入之前
+  // （「截旧 + 新开」一起保存时不经过重叠的中间态，US-030 AC#14，见核心 planMutationWrites）
+  const apply = { create: apply_creates, update: apply_updates, remove: apply_removes };
+  for (const step of planMutationWrites(mutations)) {
+    await apply[step.kind](step.EntityType, step.entities);
   }
 
   // 更新 remove 实体状态（上面已加入 all_entities，这里只需同步状态）

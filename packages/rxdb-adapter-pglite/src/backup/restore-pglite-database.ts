@@ -14,6 +14,7 @@ import {
 import { PGlite } from '@electric-sql/pglite';
 import { firstValueFrom } from 'rxjs';
 import type { PGliteClientOptions } from '../pglite.interface.js';
+import { pgliteServerExtensionRequirementsOf } from '../pglite.utils.js';
 import { resolvePGliteInitOptions } from '../PGliteClient.js';
 import {
   pgliteBackupExtensions,
@@ -221,7 +222,12 @@ const restoreToMemory = async (
   const dbName = target.rxdb.config.dbName;
   const { state, feed } = feedFrom(session);
   const pg = new PGlite({
-    ...resolvePGliteInitOptions(dbName, target.options),
+    // 与正常打开装同一组服务端扩展：领取后这就是那个库的运行时
+    ...resolvePGliteInitOptions(
+      dbName,
+      target.options,
+      pgliteServerExtensionRequirementsOf(target.rxdb.config.entities)
+    ),
     dataDir: undefined,
     fs: new RestoreMemoryFs(feed)
   });
@@ -272,7 +278,11 @@ const writeIdbTarget = async (
   const { state, feed } = feedFrom(session);
   const fs = new RestoreIdbFs(name, feed);
   const pg = new PGlite({
-    ...resolvePGliteInitOptions(target.rxdb.config.dbName, target.options),
+    ...resolvePGliteInitOptions(
+      target.rxdb.config.dbName,
+      target.options,
+      pgliteServerExtensionRequirementsOf(target.rxdb.config.entities)
+    ),
     dataDir: undefined,
     fs
   });

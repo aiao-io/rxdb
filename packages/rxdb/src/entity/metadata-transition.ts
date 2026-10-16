@@ -6,9 +6,11 @@
 
 import { isArray, isFunction } from '@aiao/utils';
 import { tryGetEntityMetadata } from '../rxdb-utils.js';
+import { EntityCheckMetadata } from './check-constraint.js';
 import { mergeEntityPermissions } from './entity-permissions.js';
 import { AbstractEntityType, EntityType } from './entity.interface.js';
 import { setSafeObjectKey, setSafeObjectKeyLazyInitOnce } from './entity.utils.js';
+import { EntityExclusionMetadata } from './exclusion-constraint.js';
 import metadata_cascade_default from './metadata-cascade-default.js';
 import {
   EntityForeignKeyMetadata,
@@ -22,13 +24,7 @@ import {
   EntityRelationOneToOneMetadata,
   RelationKind
 } from './metadata-options.interface.js';
-import {
-  EntityCheckMetadata,
-  EntityExclusionMetadata,
-  EntityIndexMetadata,
-  EntityMetadata,
-  EntityMetadataType
-} from './metadata.interface.js';
+import { EntityIndexMetadata, EntityMetadata, EntityMetadataType } from './metadata.interface.js';
 
 const has_column_name_relation = (
   relationMetadata: EntityRelationMetadata | EntityRelationMetadataOptions
@@ -120,8 +116,8 @@ export const transitionMetadata = (
   const relationMap = new Map<string, EntityRelationMetadata>(); // 关系名到关系元数据的映射
   const indexMap = new Map<string, EntityIndexMetadata>(); // 索引名到索引元数据的映射
   const foreignKeyMap = new Map<string, EntityForeignKeyMetadata>();
-  const checkMap = new Map<string, EntityCheckMetadata>(); // 约束名到 CHECK 元数据的映射
-  const exclusionMap = new Map<string, EntityExclusionMetadata>(); // 约束名到排他元数据的映射
+  const checkMap = new Map<string, EntityCheckMetadata>(); // 约束 name 到 CHECK 元数据的映射
+  const exclusionMap = new Map<string, EntityExclusionMetadata>(); // 约束 name 到区间排他元数据的映射
 
   // 创建基础元数据对象，继承元数据选项的所有属性
   const metadata = { ...metadataOptions } as EntityMetadataType;
@@ -174,13 +170,17 @@ export const transitionMetadata = (
       const cloned = { ...property } as EntityPropertyMetadata;
       if (!cloned.columnName) cloned.columnName = cloned.name;
       propertyMap.set(cloned.name, cloned);
-      // 属性级 `check` 是省略 `field` 的语法糖：编译成以属性名为 `name` 的实体级 CHECK，
-      // 与显式 `checks` 同一张 Map 参与继承覆盖；同一实体里显式声明同名项时显式项获胜。
-      if (cloned.check) {
-        checkMap.set(cloned.name, {
-          name: cloned.name,
-          rule: { combinator: 'and', rules: [{ ...cloned.check, field: cloned.name }] }
+      // 属性级 check 语法糖：编译成以属性名为 name 的实体级 CHECK，同样参与按 name 的继承覆盖。
+      // 排在实体级 checks 之前：同一层里作者显式写的 checks 覆盖语法糖。
+      // 子实体重声明同一属性（不带 check）即摘除继承的语法糖——属性声明是「该属性的约束域」
+      // 的完整重定义，保留父约束会让子类被迫继承一条自己已改列的 CHECK。
+      if (property.check) {
+        checkMap.set(property.name, {
+          name: property.name,
+          rule: { combinator: 'and', rules: [{ field: property.name, ...property.check }] }
         });
+      } else {
+        checkMap.delete(property.name);
       }
     });
     meta.computedProperties?.forEach(property => {
@@ -234,10 +234,6 @@ export const transitionMetadata = (
           `实体 ${metadata.name} 的索引 ${d.name} 声明了 normalized 却没有 unique：normalized 只对唯一索引有意义`
         );
       }
-      // `where` 是条件**唯一**索引：非唯一索引上的 WHERE 同样没有可执行语义（不拦任何行）。
-      if (d.where && !d.unique) {
-        throw new Error(`实体 ${metadata.name} 的索引 ${d.name} 声明了 where 却没有 unique：where 只对唯一索引有意义`);
-      }
       indexMap.set(d.name, d);
     });
     meta.foreignKeys?.forEach(foreignKey => {
@@ -249,12 +245,18 @@ export const transitionMetadata = (
         mappedNamespace: foreignKey.mappedNamespace || namespace
       });
     });
-    // 显式 CHECK 在属性级 `check` 编译项**之后**处理：同一实体里同名时显式声明获胜。
+    // 处理 CHECK：与 indexes / foreignKeys 同一套按 name 的 Map 覆盖——子实体同名项覆盖父实体的，
+    // 异名项全部生效（US-030 AC#17）。
+    // 与 indexes 同口径**不克隆**：畸形条目（缺 rule / rules）由注册期校验
+    // `validateEntityMetadata` 以 `invalidCheck` 聚合上报，装饰期不做深层解包——解包会在
+    // 模块加载阶段崩掉，而不是给出可定位的违规条目。
     meta.checks?.forEach(check => {
-      checkMap.set(check.name, { ...check });
+      checkMap.set(check.name, check);
     });
+    // 处理区间排他：与 checks 同一套按 name 的 Map 覆盖、同样不克隆（畸形条目由注册期校验以
+    // invalidExclusion 聚合上报）。
     meta.exclusions?.forEach(exclusion => {
-      exclusionMap.set(exclusion.name, { ...exclusion });
+      exclusionMap.set(exclusion.name, exclusion);
     });
   });
 
@@ -288,8 +290,8 @@ export const transitionMetadata = (
   setSafeObjectKey(metadata, 'computedPropertyMap', computedPropertyMap); // 计算属性映射
   setSafeObjectKey(metadata, 'relationMap', relationMap); // 关系映射
   setSafeObjectKey(metadata, 'indexMap', indexMap); // 索引映射
-  setSafeObjectKey(metadata, 'checkMap', checkMap); // CHECK 约束映射
-  setSafeObjectKey(metadata, 'exclusionMap', exclusionMap); // 区间排他约束映射
+  setSafeObjectKey(metadata, 'checkMap', checkMap); // CHECK 约束映射（继承合并后的全集）
+  setSafeObjectKey(metadata, 'exclusionMap', exclusionMap); // 区间排他映射（继承合并后的全集）
 
   // 用规范化后的克隆对象回填「自身」数组（保持仅含本类定义的语义），
   // 避免直接引用未处理（无 columnName）的入参对象，同时不污染父类共享元数据
@@ -299,8 +301,8 @@ export const transitionMetadata = (
   );
   metadata.relations = metadata.relations.map(r => relationMap.get(r.name) as EntityRelationMetadata);
   metadata.foreignKeys = Array.from(foreignKeyMap.values());
-  metadata.checks = Array.from(checkMap.values());
-  metadata.exclusions = Array.from(exclusionMap.values());
+  metadata.checks = metadata.checks.map(c => checkMap.get(c.name) as EntityCheckMetadata);
+  metadata.exclusions = metadata.exclusions.map(e => exclusionMap.get(e.name) as EntityExclusionMetadata);
 
   // 加密属性映射 (004-local-field-encryption)
   // 仅收集 encrypted: true 的属性；不在此处校验冲突，校验由

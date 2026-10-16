@@ -3,6 +3,7 @@ import {
   EntityLocalRemovedEvent,
   EntityLocalUpdatedEvent,
   getEntityType,
+  toStorageConstraintViolationError,
   type EntityData,
   type EntityType,
   type RxDBChange,
@@ -40,6 +41,51 @@ const requirePatch = (patch: EntityData | null, label: string): EntityData => {
   return patch;
 };
 
+/**
+ * 执行一项插入 / 更新并回填结果；存储约束违约归一后原样上抛。
+ *
+ * @remarks
+ * 同步拉取遇本地约束拒绝远端行时，归一后的错误（CHECK / 区间排他）不被吞，消息点名实体与
+ * 约束名（US-030「与既有写入路径的交互」）。冲突值取自本项的 patch。
+ */
+const applySwitchWrite = async (sink: RxDBAdapterPGlite, action: SwitchVersionSqlItem): Promise<void> => {
+  try {
+    action.successResults = await executeSwitchStatements(sink, action.sql);
+  } catch (error) {
+    throw toStorageConstraintViolationError(
+      error,
+      action.metadata,
+      Array.from(action.changes.values()).map(change => change.patch ?? {})
+    );
+  }
+};
+
+/**
+ * 按 删除 → 插入 → 更新 的顺序应用一组切换 SQL，并回填各自的结果。
+ *
+ * @param sink - **当前事务**的门面（见 {@link execute_switch_actions} 的说明）
+ * @param switchAction - 已转换的 SQL 操作集合；`successResults` 就地写回
+ *
+ * @remarks
+ * 声明了区间排他的实体，其更新项（`beforeInserts`）提到全部插入之前：「截止旧行 + 新开一行」
+ * 一起重放时，先插新行就会经过重叠的中间态（US-030 AC#14，见核心 `exclusion-write-order`）。
+ * undo / redo / 同步拉取与切分支（`switch_branch`）共用这一份，顺序只写一次。
+ */
+export async function applySwitchActions(sink: RxDBAdapterPGlite, switchAction: SwitchVersionSqlResult): Promise<void> {
+  for (const deleteAction of switchAction.deletes) {
+    deleteAction.successResults = await executeSwitchStatements(sink, deleteAction.sql, deleteAction.params);
+  }
+  for (const updateAction of switchAction.updates.filter(action => action.beforeInserts)) {
+    await applySwitchWrite(sink, updateAction);
+  }
+  for (const insertAction of switchAction.inserts) {
+    await applySwitchWrite(sink, insertAction);
+  }
+  for (const updateAction of switchAction.updates.filter(action => !action.beforeInserts)) {
+    await applySwitchWrite(sink, updateAction);
+  }
+}
+
 export async function execute_switch_actions(
   adapter: RxDBAdapterPGlite,
   switchAction: SwitchVersionSqlResult,
@@ -61,36 +107,7 @@ export async function execute_switch_actions(
       if (removeTriggers) await executeSwitchStatements(sink, removeTriggers);
     }
 
-    for (const deleteAction of switchAction.deletes) {
-      deleteAction.successResults = await executeSwitchStatements(sink, deleteAction.sql, deleteAction.params);
-    }
-
-    // 含排他实体的批次先更新后插入：先截旧行再插新行，中间态不重叠（US-030 AC#14，
-    // 与 sqlite-core 同口径）；无排他实体的批次维持插入在前——更新的外键可能指向本批新插的行
-    const exclusionReorder = [...switchAction.deletes, ...switchAction.inserts, ...switchAction.updates].some(
-      action => action.metadata.exclusions.length > 0
-    );
-    const applyUpdate = async (updateAction: SwitchVersionSqlResult['updates'][number]): Promise<void> => {
-      updateAction.successResults = await executeSwitchStatements(sink, updateAction.sql);
-    };
-    const applyInsert = async (insertAction: SwitchVersionSqlResult['inserts'][number]): Promise<void> => {
-      insertAction.successResults = await executeSwitchStatements(sink, insertAction.sql);
-    };
-    if (exclusionReorder) {
-      for (const updateAction of switchAction.updates) {
-        await applyUpdate(updateAction);
-      }
-      for (const insertAction of switchAction.inserts) {
-        await applyInsert(insertAction);
-      }
-    } else {
-      for (const insertAction of switchAction.inserts) {
-        await applyInsert(insertAction);
-      }
-      for (const updateAction of switchAction.updates) {
-        await applyUpdate(updateAction);
-      }
-    }
+    await applySwitchActions(sink, switchAction);
 
     if (disableTriggers) {
       // 分支 id 必须经**本事务**读（见 readCurrentBranchId）：走 versionManager.getCurrentBranch()

@@ -2,7 +2,7 @@
   "compilerOptions": {
     "rootDir": "src",
     "outDir": "dist",
-    "tsBuildInfoFile": "dist/tsconfig.lib.tsbuildinfo",
+    "tsBuildInfoFile": "out-tsc/tsconfig.lib.tsbuildinfo",
     "emitDeclarationOnly": true,
     "types": ["node", "vite/client"]
   },
@@ -27,6 +27,12 @@
   "references": [
     {
       "path": "../utils/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-plugin-sync/tsconfig.lib.json"
+    },
+    {
+      "path": "../rxdb-plugin-history/tsconfig.lib.json"
     },
     {
       "path": "../rxdb/tsconfig.lib.json"

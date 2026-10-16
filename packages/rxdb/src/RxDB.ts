@@ -5,6 +5,7 @@ import { EntityManager } from './entity/entity-manager.js';
 import { assertSystemEntityPermissions } from './entity/entity-permissions.js';
 import { EntityType } from './entity/entity.interface.js';
 import { SyncType } from './entity/metadata-options.interface.js';
+import { selectPrimaryAdapter } from './entity/primary-adapter.js';
 import { assertNoSystemEntityOverride, snapshotSyncOverrides } from './entity/sync-override.js';
 import { RxDBTabsGateway } from './gateway/RxDBTabsGateway.js';
 import { ReachabilityMonitor } from './network/reachability.js';
@@ -64,6 +65,7 @@ import {
   runIsolated
 } from './rxdb.transaction.js';
 import type { EventListener, IRepositoryConfig, RxDBConfig, TransactionContext } from './rxdb.types.js';
+import { RxDBError, RxDBLocalAdapterCapabilityError } from './RxDBError.js';
 import { SchemaManager } from './schema/SchemaManager.js';
 import type { BranchMaterializationSource } from './sync-contract/branch-materialization-source.js';
 import { createEntitySyncResolver, type EntitySyncResolver } from './sync-contract/entity-sync-resolver.js';
@@ -71,6 +73,7 @@ import { SyncStateHub } from './sync-state.js';
 import { ACTIVE_BRANCH_KEY, MAIN_BRANCH_ID } from './system/active-branch-guard.js';
 import { RxDBBranch } from './system/branch.js';
 import { assertClaimedCapabilities } from './system/capability-watermark.js';
+import { declaresStorageConstraints } from './system/constraint-drift.js';
 import { createMigrationWatermarks, runMigrations } from './system/migration-runner.js';
 import { RxDBMigration } from './system/migration.js';
 import { createSystemMigrations } from './system/migrations/index.js';
@@ -1063,6 +1066,13 @@ export class RxDB {
       // 挡「断连已经发生，本链却刚从工厂里建出新实例」：放行就会 open 一条谁都不会关的连接——
       // disconnect() 清空 #adapter_map 的那一刻，这个实例还没被建出来。
       this.#assert_connect_alive(adapterName, epoch);
+      // US-030 AC#6：实体声明了存储约束（checks / 条件唯一 where / exclusions）而适配器没有
+      // 漂移检查能力（本地适配器未实现 checkEntityConstraints；远端适配器上主存储在它那里的实体），
+      // init 即抛错，不静默降级为应用层校验。
+      // 判定排在 adapter.connect() **之前**：它是纯元数据 + 能力判定，不需要连接；
+      // 放在 connect 之后抛错时已连上的适配器没有 disconnect 路径，SQLite 族的
+      // 文件存储锁会被占住，同一文件的第二个进程打不开。
+      this.#assert_storage_constraint_support(adapterName, adapter);
       await adapter.connect();
       // 建表与迁移是重活，且要写一条可能已被 disconnect() 关掉的连接，先拦一道。
       this.#assert_connect_alive(adapterName, epoch);
@@ -1112,6 +1122,9 @@ export class RxDB {
           await localAdapter.migrateSystemSchema();
           localAdapter.completeBootstrap();
         }
+        // 漂移检查（只读）排在索引收敛之前：不一致时 fail-fast，不先做任何写入。
+        // 与 reconcileEntityIndexes 同一时机——用户迁移与缺表补建之后（US-030 AC#10）。
+        await localAdapter.checkEntityConstraints?.(this.#config.entities);
         await localAdapter.reconcileEntityIndexes?.(this.#config.entities);
         // 声明式存储约束的漂移检查：与索引收敛同一时机（用户迁移与缺表补建之后）、只读比对。
         // 适配器未实现该方法而实体声明了约束 → 按「不支持」抛错（US-030 AC#6），不静默降级
@@ -2044,5 +2057,44 @@ export class RxDB {
     if (missingEntities.length > 0) {
       await adapter.createTables(missingEntities);
     }
+  }
+
+  /**
+   * US-030 AC#6：实体声明了存储约束（CHECK / 条件唯一索引 / 区间排他）而适配器没有漂移检查
+   * 能力时，`connect()` 即抛错。
+   *
+   * @remarks
+   * 漂移检查是 `checkEntityConstraints`（{@link RxDBAdapterLocalBase} 上的可选成员，
+   * 接口成员访问而非 duck-typed 字符串探测）。本地适配器缺该成员用仓库已有的类型化能力
+   * 错误 {@link RxDBLocalAdapterCapabilityError}。
+   *
+   * 远端适配器（supabase / http）不掌控 DDL，永远不实现它；但只有**主存储落在这个远端上**的
+   * 实体（remote-only）才算「声明落空」。「本地 + 远端同步」的实体由本地适配器承担约束，
+   * 远端只是同步对端——按「声明了就拒」处理会让整个同步应用连不上远端。
+   * 不静默降级为应用层校验：静默之后「不变量在存储层成立」就退回成一句只有门面守着的声明。
+   *
+   * 判定不建连接：调用方把它排在 `adapter.connect()` 之前，失败无需 disconnect，
+   * 不会占住 SQLite 族的文件存储锁。
+   */
+  #assert_storage_constraint_support(adapterName: string, adapter: IRxDBAdapter): void {
+    const declaring = this.#config.entities.filter(entity => declaresStorageConstraints(getEntityMetadata(entity)));
+    if (declaring.length === 0) return;
+    // 接口成员访问（RxDBAdapterLocalBase.checkEntityConstraints?）而非 duck-typed 字符串探测
+    const driftCapability = adapter as Pick<RxDBAdapterLocalBase, 'checkEntityConstraints'>;
+    if (typeof driftCapability.checkEntityConstraints === 'function') return;
+    if (isLocalAdapter(adapterName, this.#config)) {
+      throw new RxDBLocalAdapterCapabilityError(adapterName, ['checkEntityConstraints']);
+    }
+    const remotePrimary = declaring.filter(entity => {
+      const primary = selectPrimaryAdapter(this.entitySync.resolve(entity));
+      return primary?.kind === 'remote' && primary.adapter === adapterName;
+    });
+    if (remotePrimary.length === 0) return;
+    throw new RxDBError(
+      `适配器 '${adapterName}' 不支持声明式存储约束（checks / 条件唯一 where / exclusions）：` +
+        `远端适配器（supabase / http）不掌控 DDL。主存储在该适配器上的实体：` +
+        `${remotePrimary.map(entity => getEntityMetadata(entity).name).join('、')}。` +
+        `请把这些实体的主存储放在本地适配器上（本地 + 远端同步的实体由本地适配器承担约束）。`
+    );
   }
 }

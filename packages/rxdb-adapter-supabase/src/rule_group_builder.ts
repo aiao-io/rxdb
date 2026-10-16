@@ -111,6 +111,12 @@ function get_relation_metadata(
   return schemaManager.getEntityMetadata(relation.mappedEntity, relation.mappedNamespace ?? '') ?? fallback;
 }
 
+/** 解析主键物理列名；其余字段保持既有 Supabase 属性名契约。 */
+function resolve_column_name(field: string, metadata?: EntityMetadata): string {
+  if (field !== 'id' || !metadata) return field;
+  return metadata.propertyMap?.get('id')?.columnName ?? field;
+}
+
 function normalize_field_filter(field: string, operator: string, value: unknown): FieldFilterAst {
   const normalized = normalize_value(value);
 
@@ -182,30 +188,31 @@ function normalize_field_filter(field: string, operator: string, value: unknown)
   }
 }
 
-function emit_filter_ast(filter: FieldFilterAst): string {
+function emit_filter_ast(filter: FieldFilterAst, metadata?: EntityMetadata): string {
+  const field = resolve_column_name(filter.field, metadata);
   switch (filter.kind) {
     case 'comparison':
-      return `${filter.field}.${filter.operator}.${encode_filter_value(filter.value)}`;
+      return `${field}.${filter.operator}.${encode_filter_value(filter.value)}`;
     case 'list':
-      return `${filter.field}.${filter.negated ? 'not.' : ''}in.(${filter.values.map(encode_filter_value).join(',')})`;
+      return `${field}.${filter.negated ? 'not.' : ''}in.(${filter.values.map(encode_filter_value).join(',')})`;
     case 'pattern': {
       const value = `${filter.prefixWildcard ? '*' : ''}${filter.value}${filter.suffixWildcard ? '*' : ''}`;
-      return `${filter.field}.${filter.negated ? 'not.' : ''}ilike.${encode_filter_value(value)}`;
+      return `${field}.${filter.negated ? 'not.' : ''}ilike.${encode_filter_value(value)}`;
     }
     case 'range': {
       const min = encode_filter_value(filter.min);
       const max = encode_filter_value(filter.max);
-      const conditions = `${filter.field}.${filter.negated ? 'lt' : 'gte'}.${min},${filter.field}.${filter.negated ? 'gt' : 'lte'}.${max}`;
+      const conditions = `${field}.${filter.negated ? 'lt' : 'gte'}.${min},${field}.${filter.negated ? 'gt' : 'lte'}.${max}`;
       return `${filter.negated ? 'or' : 'and'}(${conditions})`;
     }
     case 'null':
-      return `${filter.field}.${filter.negated ? 'not.' : ''}is.null`;
+      return `${field}.${filter.negated ? 'not.' : ''}is.null`;
   }
 }
 
-function emit_rule_node<T>(rule: Rule<T> | RuleGroup<T>): string {
+function emit_rule_node<T>(rule: Rule<T> | RuleGroup<T>, metadata?: EntityMetadata): string {
   if (isRuleGroup(rule)) {
-    const conditions = rule.rules.map(item => emit_rule_node(item as Rule<T> | RuleGroup<T>));
+    const conditions = rule.rules.map(item => emit_rule_node(item as Rule<T> | RuleGroup<T>, metadata));
     return `${rule.combinator}(${conditions.join(',')})`;
   }
 
@@ -213,7 +220,7 @@ function emit_rule_node<T>(rule: Rule<T> | RuleGroup<T>): string {
   if (field.includes('.') || operator === 'exists' || operator === 'notExists') {
     throw new Error('Relation filters inside OR groups are not supported by PostgREST');
   }
-  return emit_filter_ast(normalize_field_filter(field, operator, value));
+  return emit_filter_ast(normalize_field_filter(field, operator, value), metadata);
 }
 
 /**
@@ -269,7 +276,7 @@ export function apply_rule_group<T, TQuery>(
   }
 
   // OR: 构建过滤字符串
-  const conditions = ruleGroup.rules.map(rule => emit_rule_node(rule as Rule<T> | RuleGroup<T>));
+  const conditions = ruleGroup.rules.map(rule => emit_rule_node(rule as Rule<T> | RuleGroup<T>, metadata));
   return builder.or(conditions.join(',')) as unknown as TQuery;
 }
 
@@ -297,7 +304,7 @@ function apply_rule<T>(
   }
 
   // 普通字段
-  return apply_field_filter(query, field, operator, value);
+  return apply_field_filter(query, resolve_column_name(field, metadata), operator, value);
 }
 
 /** 应用 EXISTS 规则 */
@@ -419,7 +426,10 @@ function apply_nested_conditions<T>(
     }
 
     // 普通字段：添加路径前缀
-    const prefixedField = path ? `${path}.${field}` : `${relationPath}.${field}`;
+    const prefixedField =
+      path ?
+        `${path}.${resolve_column_name(field, metadata)}`
+      : `${relationPath}.${resolve_column_name(field, metadata)}`;
     result = apply_field_filter(result, prefixedField, operator, value);
   }
 

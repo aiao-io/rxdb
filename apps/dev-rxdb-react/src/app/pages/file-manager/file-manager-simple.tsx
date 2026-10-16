@@ -34,6 +34,7 @@ import { extensionOptions } from '../../constants/file-extensions';
 import { useDragDrop } from '../../hooks/useDragDrop';
 import { useFileManagerStore } from '../../hooks/useFileManagerStore';
 import { useFileRenamePathGuard } from '../../hooks/useRenamePathGuard';
+import { useShowHistory } from '../../hooks/useShowHistory';
 import { getFileIcon } from '../../utils/file-icons';
 import { SortMode } from '../../utils/file-sorters';
 import { generateBatchFiles } from '../../utils/file-utils';
@@ -46,7 +47,7 @@ const isFolderNode = (node: SortableFileNode): boolean => node.type === 'folder'
 export function FileManagerSimplePage() {
   const rxdb = useRxDB();
   const fileRepository = useMemo(() => rxdb.entityManager.getRepository(SortableFileNode), [rxdb]);
-  const [showHistory, setShowHistory] = useState(true);
+  const [showHistory, setShowHistory] = useShowHistory();
   const [newName, setNewName] = useState('');
   const [newExtension, setNewExtension] = useState('.txt');
   const [loadingActions, setLoadingActions] = useState<Set<string>>(new Set());
@@ -185,22 +186,20 @@ export function FileManagerSimplePage() {
                 }
 
                 {/* 批量添加 */}
-                <div className='dropdown dropdown-end'>
-                  <button
-                    className='btn btn-circle btn-sm'
-                    aria-label='批量添加'
-                    data-testid='file-batch-add'
-                    tabIndex={0}
-                  >
+                <details className='dropdown dropdown-end'>
+                  <summary className='btn btn-circle btn-sm' aria-label='批量添加' data-testid='file-batch-add'>
                     <Plus size={16} />
-                  </button>
+                  </summary>
                   <ul tabIndex={0} className='dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow'>
                     {batchAddOptions.map(option => (
                       <li key={option.count}>
                         <button
                           data-testid={`file-batch-option-${option.count}`}
                           disabled={loadingActions.has('add_many')}
-                          onClick={() => handleAddMany(option.count, 'add_many')}
+                          onClick={e => {
+                            handleAddMany(option.count, 'add_many');
+                            e.currentTarget.closest('details')?.removeAttribute('open');
+                          }}
                         >
                           {loadingActions.has('add_many') && (
                             <span className='loading loading-spinner loading-xs'></span>
@@ -210,7 +209,7 @@ export function FileManagerSimplePage() {
                       </li>
                     ))}
                   </ul>
-                </div>
+                </details>
               </div>
 
               <div className='flex items-center gap-2'>
@@ -287,7 +286,7 @@ export function FileManagerSimplePage() {
             </div>
 
             {/* 搜索框和排序 */}
-            <div className='flex gap-2'>
+            <div className='flex flex-wrap gap-2'>
               <div className='relative flex-1'>
                 <Search className='text-base-content/50 absolute top-1/2 left-3 -translate-y-1/2' size={16} />
                 <input
@@ -346,7 +345,7 @@ export function FileManagerSimplePage() {
               )}
 
               <form
-                className='flex gap-2'
+                className='flex flex-wrap gap-2'
                 onSubmit={async e => {
                   e.preventDefault();
                   if (!newName.trim()) return;
@@ -503,52 +502,147 @@ export function FileManagerSimplePage() {
                       data-parent-id={file.parentId ?? ''}
                       data-testid='file-row'
                       style={{ paddingLeft: `${level * 20 + 8}px` }}
-                      draggable
-                      onDragStart={e => {
-                        e.dataTransfer.effectAllowed = 'move';
-                        e.dataTransfer.setData('text/plain', file.id);
-                        dragDrop.onDragStart(file.id);
+                      onPointerDown={e => {
+                        // 桌面鼠标：行本体起拖（阈值防点击闪烁）；触屏走手柄，避免与滚动冲突
+                        if (e.pointerType !== 'mouse') return;
+                        if ((e.target as HTMLElement).closest('button, a, input, select')) return;
+                        (e.currentTarget as HTMLElement).dataset.pendingDrag = JSON.stringify({
+                          x: e.clientX,
+                          y: e.clientY,
+                          id: file.id
+                        });
                       }}
-                      onDragOver={e => {
-                        e.preventDefault();
-                        const element = e.currentTarget as HTMLElement;
-                        const rect = element.getBoundingClientRect();
-                        const { isValid } = dragDrop.onDragOver(file, e.clientY, rect);
-                        e.dataTransfer.dropEffect = isValid ? 'move' : 'none';
-                      }}
-                      onDragLeave={e => {
-                        const target = e.currentTarget as HTMLElement;
-                        const related = e.relatedTarget as HTMLElement;
-                        if (!target.contains(related)) {
-                          dragDrop.onDragLeave();
+                      onPointerMove={e => {
+                        const rowEl = e.currentTarget as HTMLElement;
+                        const pending = rowEl.dataset.pendingDrag;
+                        if (pending) {
+                          const { x, y, id } = JSON.parse(pending) as { x: number; y: number; id: string };
+                          if (Math.hypot(e.clientX - x, e.clientY - y) > 4) {
+                            delete rowEl.dataset.pendingDrag;
+                            dragDrop.onDragStart(id);
+                            rowEl.setPointerCapture(e.pointerId);
+                          } else {
+                            return;
+                          }
                         }
+                        if (dragDrop.dragDropState.draggedItemId === null) return;
+                        const hit = document
+                          .elementFromPoint(e.clientX, e.clientY)
+                          ?.closest('[data-file-id]') as HTMLElement | null;
+                        if (!hit) {
+                          dragDrop.onDragLeave();
+                          return;
+                        }
+                        const target = files.find(m => m.id === hit.getAttribute('data-file-id'));
+                        if (!target) return;
+                        dragDrop.onDragOver(target, e.clientY, hit.getBoundingClientRect());
                       }}
-                      onDrop={async e => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        // 失败由 useDragDrop 经 runWrite 送进页内提示，这里不再有 catch / alert
-                        await dragDrop.onDrop(
-                          file,
+                      onPointerUp={e => {
+                        const rowEl = e.currentTarget as HTMLElement;
+                        if (rowEl.dataset.pendingDrag) {
+                          delete rowEl.dataset.pendingDrag;
+                          return;
+                        }
+                        if (dragDrop.dragDropState.draggedItemId === null) return;
+                        const hit = document
+                          .elementFromPoint(e.clientX, e.clientY)
+                          ?.closest('[data-file-id]') as HTMLElement | null;
+                        const target = hit ? files.find(m => m.id === hit.getAttribute('data-file-id')) : undefined;
+                        if (!target || !hit) {
+                          dragDrop.onDragEnd();
+                          return;
+                        }
+                        void dragDrop.onDrop(
+                          target,
                           folderId => {
-                            // 展开目标文件夹
                             if (!store.expandedIds.has(folderId)) {
                               store.toggleExpand(folderId);
                             }
                           },
-                          {
-                            mouseY: e.clientY,
-                            rect: (e.currentTarget as HTMLElement).getBoundingClientRect()
-                          }
+                          { mouseY: e.clientY, rect: hit.getBoundingClientRect() }
                         );
                       }}
-                      onDragEnd={() => dragDrop.onDragEnd()}
+                      onPointerCancel={e => {
+                        delete (e.currentTarget as HTMLElement).dataset.pendingDrag;
+                        if (dragDrop.dragDropState.draggedItemId !== null) dragDrop.onDragEnd();
+                      }}
                     >
-                      {/* Drag Handle */}
+                      {/* Drag Handle（pointer 起拖，触屏可用） */}
+
                       <button
-                        className='btn btn-ghost btn-xs cursor-grab p-0 opacity-0 group-hover:opacity-100'
+                        className='btn btn-ghost btn-xs cursor-grab touch-none p-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100'
+
                         data-testid='file-drag-handle'
+
                         title='拖拽排序'
+
                         onMouseDown={e => e.stopPropagation()}
+
+                        onClick={e => e.stopPropagation()}
+
+                        onPointerDown={e => {
+                          e.preventDefault();
+
+                          e.stopPropagation();
+
+                          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+
+                          dragDrop.onDragStart(file.id);
+                        }}
+
+                        onPointerMove={e => {
+                          if (dragDrop.dragDropState.draggedItemId === null) return;
+
+                          const row = document
+                            .elementFromPoint(e.clientX, e.clientY)
+                            ?.closest('[data-file-id]') as HTMLElement | null;
+
+                          if (!row) {
+                            dragDrop.onDragLeave();
+
+                            return;
+                          }
+
+                          const target = files.find(m => m.id === row.getAttribute('data-file-id'));
+
+                          if (!target) return;
+
+                          dragDrop.onDragOver(target, e.clientY, row.getBoundingClientRect());
+                        }}
+
+                        onPointerUp={e => {
+                          if (dragDrop.dragDropState.draggedItemId === null) return;
+
+                          const row = document
+                            .elementFromPoint(e.clientX, e.clientY)
+                            ?.closest('[data-file-id]') as HTMLElement | null;
+
+                          const target = row ? files.find(m => m.id === row.getAttribute('data-file-id')) : undefined;
+
+                          if (!target || !row) {
+                            dragDrop.onDragEnd();
+
+                            return;
+                          }
+
+                          void dragDrop.onDrop(
+                            target,
+
+                            folderId => {
+                              // 展开目标文件夹
+
+                              if (!store.expandedIds.has(folderId)) {
+                                store.toggleExpand(folderId);
+                              }
+                            },
+
+                            { mouseY: e.clientY, rect: row.getBoundingClientRect() }
+                          );
+                        }}
+
+                        onPointerCancel={() => {
+                          if (dragDrop.dragDropState.draggedItemId !== null) dragDrop.onDragEnd();
+                        }}
                       >
                         <GripVertical size={14} />
                       </button>
@@ -628,7 +722,7 @@ export function FileManagerSimplePage() {
                       }
 
                       {/* Actions */}
-                      <div className='flex gap-1 opacity-0 group-hover:opacity-100'>
+                      <div className='actions flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100'>
                         {isFolder && (
                           <button
                             className='btn btn-ghost btn-xs'

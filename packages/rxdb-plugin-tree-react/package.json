@@ -51,7 +51,8 @@
   "devDependencies": {
     "@aiao/rxdb": "workspace:*",
     "@aiao/rxdb-plugin-tree": "workspace:*",
-    "@aiao/rxdb-react": "workspace:*"
+    "@aiao/rxdb-react": "workspace:*",
+    "react": "^19.3.1"
   },
   "publishConfig": {
     "access": "public"

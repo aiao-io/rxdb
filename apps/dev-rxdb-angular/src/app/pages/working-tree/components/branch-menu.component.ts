@@ -7,6 +7,7 @@ import {
   effect,
   ElementRef,
   HostListener,
+  inject,
   input,
   model,
   output,
@@ -21,6 +22,7 @@ import {
   LucideGitBranch as GitBranch,
   LucideGitMerge as GitMerge,
   LucideDynamicIcon,
+  LucideMoreVertical as MoreVertical,
   LucidePlus as Plus,
   LucideSearch as Search,
   LucideTrash2 as Trash2
@@ -141,6 +143,7 @@ import { gdRelativeTime } from '../working-tree.gd';
           <div
             class="gd-menu gd-menu-flush absolute top-full left-0 z-40 flex flex-col overflow-y-auto"
             [style.height]="'calc(100vh - 50px)'"
+            [style.left.px]="popupLeft()"
             [style.width.px]="popupWidth()"
             aria-label="Branch list"
             data-testid="wt-branch-menu-popup"
@@ -213,6 +216,17 @@ import { gdRelativeTime } from '../working-tree.gd';
                         {{ gdRelativeTime(branchTime(branch)) }}
                       </span>
                     </button>
+                    <!-- 触屏没有右键：行尾 ⋯ 打开同一菜单（桌面端隐藏） -->
+                    <button
+                      class="gd-icon-btn hidden max-md:inline-flex pointer-coarse:inline-flex"
+                      (click)="openRowMenu($event, branch)"
+                      aria-label="更多操作"
+                      data-testid="wt-branch-more"
+                      title="更多操作（触屏）"
+                      type="button"
+                    >
+                      <svg [lucideIcon]="MoreVertical" size="14"></svg>
+                    </button>
                   </div>
                 </li>
               }
@@ -229,6 +243,16 @@ import { gdRelativeTime } from '../working-tree.gd';
   `
 })
 export class WorkingTreeBranchMenuComponent {
+  readonly #el = inject(ElementRef) as ElementRef<HTMLElement>;
+
+  /** 窄屏夹回：面板右缘不超出视口（右缘留 8px），左缘最多贴到视口左 8px。 */
+  readonly popupLeft = computed(() => {
+    const width = this.popupWidth();
+    const sectionLeft = this.#el.nativeElement.getBoundingClientRect().left;
+    // 面板相对段落 left:0 锚定：放得下为 0；放不下向左移，下界保证面板左缘 ≥ 视口左 8px
+    return Math.max(8 - sectionLeft, Math.min(0, window.innerWidth - sectionLeft - width - 8));
+  });
+
   readonly branches = input.required<readonly RxDBBranch[]>();
   readonly activeBranch = input('');
   /** 下拉面板宽：与仓库 foldout 同宽（页面把左栏宽传进来）。 */
@@ -244,6 +268,9 @@ export class WorkingTreeBranchMenuComponent {
   readonly switchBranch = output<string>();
   /** 行上右键；页面按条目拼菜单（切换 / 合并 / 删除 / 复制分支名）。 */
   readonly menuRequest = output<{ target: RxDBBranch; event: MouseEvent }>();
+
+  readonly MoreVertical = MoreVertical;
+
   /** 创建确认；分支名校验与建库调用由页面做，组件只负责把名字交出去。 */
   readonly createBranch = output<string>();
 
@@ -330,5 +357,18 @@ export class WorkingTreeBranchMenuComponent {
       return;
     }
     this.createBranch.emit(name);
+  }
+
+  /**
+   * 触屏没有右键：行尾 ⋯ 按钮按自身位置合成一次 contextmenu 请求，
+   * 打开与右键相同的菜单（桌面端按钮隐藏，仍走原生右键）。
+   */
+  openRowMenu(event: MouseEvent, branch: RxDBBranch): void {
+    event.stopPropagation();
+    const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.menuRequest.emit({
+      target: branch,
+      event: new MouseEvent('contextmenu', { clientX: rect.left, clientY: rect.bottom, bubbles: true })
+    });
   }
 }

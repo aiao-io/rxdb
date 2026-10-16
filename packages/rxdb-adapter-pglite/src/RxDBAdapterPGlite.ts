@@ -1,4 +1,5 @@
 import type {
+  EntityMetadata,
   EntityType,
   IRepository,
   IRxDBAdapter,
@@ -15,10 +16,13 @@ import {
   getEntityMetadata,
   getEntityStatus,
   MAIN_BRANCH_ID,
+  orderExclusionUpdates,
+  ordersWritesForExclusion,
   RxDB,
   RxDBAdapterLocalBase,
   RxDBBackupError,
   RxDBChange,
+  toStorageConstraintViolationError,
   TransactionFun
 } from '@aiao/rxdb';
 import {
@@ -50,15 +54,19 @@ import {
   PGliteClientOptions,
   PgliteTableColumn
 } from './pglite.interface.js';
-import { type EncryptionContext, quoteIdentifier, RxdbAdapterPGliteError } from './pglite.utils.js';
-import { btree_gist } from '@electric-sql/pglite/contrib/btree_gist';
+import {
+  type EncryptionContext,
+  pgliteServerExtensionRequirementsOf,
+  quoteIdentifier,
+  RxdbAdapterPGliteError
+} from './pglite.utils.js';
 import { asPGliteChangeEventSource, IPGliteClient, PGliteClient, resolvePGliteInitOptions } from './PGliteClient.js';
 import { resolveQueryCacheTarget, resolveUpdatedAtColumn } from './query-cache/query_cache_target.js';
 import { buildQueryCacheUpsertStatements } from './query-cache/upsert_many_sql.js';
 import { PGliteRepository } from './repository/PGliteRepository.js';
 import { PGliteTreeRepository } from './repository/PGliteTreeRepository.js';
 import { migrateSystemSchema } from './system/migrate_system_schema.js';
-import { checkPgliteConstraintDrift } from './table/constraint-drift.js';
+import { check_entity_constraints_pglite } from './table/check-entity-constraints.js';
 import { create_table_indexes_sql } from './table/create_table_sql.js';
 import { create_tables_statements } from './table/create_tables_sql.js';
 import { generateNotifyInfrastructureSQL, generateNotifyTriggerSQL } from './table/notify_function_sql.js';
@@ -79,6 +87,28 @@ import rxdb_adapter_switch_transaction_id from './version/switch_transaction_id.
  * `RxDB.connect()` 建表完成后调 {@link RxDBAdapterPGlite.completeBootstrap} 翻到 `ready`。
  */
 type AdapterLifecycleState = 'bootstrap' | 'ready' | 'closing' | 'closed';
+
+/**
+ * 一组同类型实体在 {@link RxDBAdapterPGlite.saveMany} 那条多行 UPSERT 里的行序。
+ *
+ * @remarks
+ * 区间排他按行即时检查，多行 UPSERT 按 VALUES 顺序逐行写。声明了区间排他的实体，已在库里的行
+ * 排在新行之前、其中收窄类最前——与 `mutations` 的「更新先于插入」同一口径（US-030 AC#14，
+ * 见核心 `planMutationWrites`），「截旧 + 新开」一起保存才不经过重叠的中间态。其余实体保持传入顺序。
+ */
+const upsertRowsOf = <T extends EntityType>(
+  metadata: EntityMetadata,
+  entities: InstanceType<T>[]
+): InstanceType<T>[] => {
+  if (!ordersWritesForExclusion(metadata)) return entities;
+  const stored = entities.filter(entity => getEntityStatus(entity).local);
+  const created = entities.filter(entity => !getEntityStatus(entity).local);
+  const updates = orderExclusionUpdates(metadata, stored, entity => {
+    const status = getEntityStatus(entity);
+    return { patch: status.patch, inversePatch: status.inversePatch };
+  });
+  return [...updates, ...created];
+};
 
 export { RxDBChangePipelineTimeoutError, type RxDBChangePipelineTimeoutDiagnostics } from './change-pipeline.types.js';
 
@@ -183,16 +213,6 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     private readonly options: PGliteClientOptions
   ) {
     super(rxdb);
-    // 区间排他（US-030 阶段 C）的 EXCLUDE USING gist 需要 `=` 的 GiST 运算符类。
-    // 只在实体声明了排他时注入：btree_gist 带 tarball bundle，经 vite 打包的 Node 应用会把
-    // 它内联成 data: URL，PGlite 的 nodefs 读不了（「Extension bundle not found」）——
-    // 恒注入会让所有 Node 端 PGlite 用户（如 dev-rxdb-http-server）在启动期崩掉。
-    if ((this.rxdb.config?.entities ?? []).some(entity => getEntityMetadata(entity).exclusions.length > 0)) {
-      this.options.extensions = {
-        ...(this.options.extensions ?? {}),
-        btree_gist
-      };
-    }
     this.#pipelineHost = this.#createPipelineHost();
   }
 
@@ -358,9 +378,19 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     await this.transaction(async executor => {
       for (const [EntityType, list] of groups.entries()) {
         const metadata = getEntityMetadata(EntityType);
+        const rows = upsertRowsOf(metadata, list);
         // 生成批量插入 SQL（使用 ON CONFLICT DO UPDATE 实现 UPSERT）
-        const sql = await generate_entity_upserts_sql(metadata, list, this.rxdb.context, this.encryptionContext);
-        await executor.query(sql);
+        const sql = await generate_entity_upserts_sql(metadata, rows, this.rxdb.context, this.encryptionContext);
+        try {
+          await executor.query(sql);
+        } catch (error) {
+          // 存储约束违约归一（US-030），与 mutations 路径同一口径
+          throw toStorageConstraintViolationError(
+            error,
+            metadata,
+            rows as unknown as ReadonlyArray<Record<string, unknown>>
+          );
+        }
       }
     });
     for (const entity of entities) {
@@ -387,6 +417,7 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
       await client.exec(notifySql);
       this.#notifyInfrastructureReady = true;
     }
+    await this.#ensureServerExtensions(client);
 
     const source = asPGliteChangeEventSource(client);
     if (source) {
@@ -475,9 +506,6 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
         return new PGliteRepository<T>(host, entity);
       case 'TreeRepository':
         return new PGliteTreeRepository<T>(host, entity);
-      // BOM 插件的适配器侧仓储就是默认仓储（入口规范化与错误归一在插件门面 BomRepository）
-      case 'BomRepository':
-        return new PGliteRepository<T>(host, entity);
       default:
         throw new RxdbAdapterPGliteError('Unsupported repository type: ' + meta.repository);
     }
@@ -494,10 +522,6 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
           break;
         case 'TreeRepository':
           repository = new PGliteTreeRepository<T>(this, entity);
-          break;
-        // BOM 插件的适配器侧仓储就是默认仓储（入口规范化与错误归一在插件门面 BomRepository）
-        case 'BomRepository':
-          repository = new PGliteRepository<T>(this, entity);
           break;
         default:
           throw new RxdbAdapterPGliteError('Unsupported repository type: ' + meta.repository);
@@ -556,8 +580,20 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     }, false);
   }
 
-  override async checkEntityConstraintDrift(EntityTypes: EntityType[]): Promise<void> {
-    await this.bootstrapTransaction(executor => checkPgliteConstraintDrift(executor, EntityTypes), false);
+  /**
+   * 只读漂移检查：元数据声明的存储约束与目录里的实际对象比对（US-030 AC#10）。
+   *
+   * @remarks
+   * 由核心在 `RxDB.connect()` 里、`reconcileEntityIndexes` 同一时机调用（用户迁移与
+   * 缺表补建之后）。比对 `ck_` CHECK、`uq_` 条件唯一索引、`ex_` 区间排他；不一致抛
+   * {@link RxDBConstraintDriftError}。
+   */
+  override async checkEntityConstraints(EntityTypes: EntityType[]): Promise<void> {
+    await this.bootstrapTransaction(async executor => {
+      // 传门面（executor）而非真实适配器：门面的 queryRaw 落在当前事务里；
+      // 真实适配器的 query 会重新入队排在自己身后，永久挂起。
+      await check_entity_constraints_pglite(executor as PGliteTransactionExecutor, EntityTypes);
+    }, false);
   }
 
   override async migrateSystemSchema(): Promise<void> {
@@ -751,7 +787,8 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    * @returns 尚未 `init()` 的客户端实例
    */
   protected createClient(): IPGliteClient {
-    return new PGliteClient();
+    // 有实体声明区间排他即装载 btree_gist（见 pglite-server-extensions.ts）
+    return new PGliteClient(pgliteServerExtensionRequirementsOf(this.rxdb.config.entities));
   }
 
   /**
@@ -910,6 +947,29 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   async #internal_query<T>(query: string, params?: unknown[], options?: QueryOptions): Promise<Results<T>> {
     const client = await this.#getClient();
     return client.query(query, params, options);
+  }
+
+  /**
+   * 在库里启用服务端扩展（`CREATE EXTENSION IF NOT EXISTS`，幂等）。
+   *
+   * @remarks
+   * 排在用户迁移与建表之前（`connect()` 里），用户迁移补建 `EXCLUDE` 约束时不必自己启用扩展。
+   * 运行时没装载扩展包（桌面端由主进程 `createRuntime` 建 PGlite，扩展归宿主应用装）时
+   * 在这里显式失败、点名缺什么，不留到第一次建表才报一条读不出原因的 SQL 错误（AC#6）。
+   */
+  async #ensureServerExtensions(client: IPGliteClient): Promise<void> {
+    if (!pgliteServerExtensionRequirementsOf(this.rxdb.config.entities).btreeGist) return;
+    try {
+      await client.exec('CREATE EXTENSION IF NOT EXISTS btree_gist');
+    } catch (error) {
+      throw new RxdbAdapterPGliteError(
+        '实体声明了区间排他（exclusions），需要 PGlite 的 btree_gist 扩展，但当前运行时没有装载它。' +
+          '浏览器 / Node 下适配器自动装载；桌面端请在主进程创建 PGlite 时装载 ' +
+          '@electric-sql/pglite/contrib/btree_gist。',
+        'MISSING_SERVER_EXTENSION',
+        error instanceof Error ? error : undefined
+      );
+    }
   }
 
   /**

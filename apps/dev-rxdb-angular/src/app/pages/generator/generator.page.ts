@@ -2,7 +2,7 @@ import { CodeEditor } from '@aiao/code-editor-angular';
 import { EntityMetadataOptions, PropertyType } from '@aiao/rxdb';
 import { RxDBClientGenerator, SourceFile } from '@aiao/rxdb-client-generator';
 import { TreeRepositoryGenerator } from '@aiao/rxdb-plugin-tree/generator';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { ThemeService } from '@modules/angular';
@@ -29,6 +29,8 @@ function downloadFile(filename: string, blob: Blob) {
 })
 export default class GeneratorPage {
   #themeService = inject(ThemeService);
+  /** 窄屏断点探测：<768px 时 as-split 改竖排（并排两个编辑器在手机上各只剩 ~150px，不可用）。 */
+  readonly #narrowMedia = window.matchMedia('(max-width: 768px)');
 
   protected readonly theme = this.#themeService.$currentThemeLightDark;
   protected readonly $selected_demo_index = signal(0);
@@ -63,6 +65,7 @@ export default class GeneratorPage {
   });
   protected readonly json = new FormControl<string>(JSON.stringify(this.demos[0], null, 2));
   protected readonly $json_value = toSignal(this.json.valueChanges, { initialValue: this.json.value || '' });
+  protected readonly $isNarrow = signal(false);
 
   $sources = signal<SourceFile[]>([]);
   $selected_source_index = signal<number>(0);
@@ -73,6 +76,10 @@ export default class GeneratorPage {
   });
 
   constructor() {
+    this.$isNarrow.set(this.#narrowMedia.matches);
+    const onNarrowChange = (event: MediaQueryListEvent) => this.$isNarrow.set(event.matches);
+    this.#narrowMedia.addEventListener('change', onNarrowChange);
+    inject(DestroyRef).onDestroy(() => this.#narrowMedia.removeEventListener('change', onNarrowChange));
     // 监听 JSON 变化并更新生成结果
     effect(() => {
       const value = this.$json_value();

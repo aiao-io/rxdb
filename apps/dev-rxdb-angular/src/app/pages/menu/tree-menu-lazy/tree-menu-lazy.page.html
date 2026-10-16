@@ -80,18 +80,18 @@
             <h1 class="text-2xl font-bold">Tree Menu - Lazy Load</h1>
             <div class="badge badge-primary" data-testid="menu-count">{{ menuCount }} 项</div>
 
-            <!-- 批量添加 -->
-            <div class="dropdown dropdown-end">
-              <button class="btn btn-sm btn-circle" aria-label="批量添加" data-testid="menu-batch-add">
+            <!-- 批量添加：details/summary 原生切换（触屏 tap 不产生 :focus，focus 驱动的 daisyUI dropdown 在移动端打不开） -->
+            <details class="dropdown dropdown-end" #batchDropdown>
+              <summary class="btn btn-sm btn-circle" aria-label="批量添加" data-testid="menu-batch-add">
                 <svg [lucideIcon]="Plus" [size]="16" />
-              </button>
+              </summary>
               <ul class="dropdown-content menu bg-base-100 rounded-box z-[1] w-52 p-2 shadow">
                 @for (option of batchAddOptions; track option.count) {
                   <li>
                     <button
                       [attr.data-testid]="'menu-batch-option-' + option.count"
                       [disabled]="option.action.isPending()"
-                      (click)="option.action.execute(option.count)"
+                      (click)="option.action.execute(option.count); batchDropdown.removeAttribute('open')"
                     >
                       @if (option.action.isPending()) {
                         <span class="loading loading-spinner loading-xs"></span>
@@ -101,7 +101,7 @@
                   </li>
                 }
               </ul>
-            </div>
+            </details>
           </div>
           <div class="flex items-center gap-2">
             <!-- Undo/Redo -->
@@ -164,7 +164,7 @@
         </div>
 
         <!-- 添加菜单 (根/子) -->
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
           <div class="join flex-1">
             @if (parentId) {
               <div
@@ -206,7 +206,7 @@
         </div>
 
         <!-- 搜索框 -->
-        <div class="flex gap-2">
+        <div class="flex flex-wrap gap-2">
           <div class="relative flex-1">
             <svg
               class="text-base-content/40 absolute top-1/2 left-3 -translate-y-1/2"
@@ -288,7 +288,6 @@
                     [attr.data-level]="node.level"
                     [attr.data-menu-id]="node.menu.id"
                     [attr.data-parent-id]="node.menu.parentId ?? ''"
-                    [attr.draggable]="true"
                     [class.dragging]="state.draggedItemId === node.menu.id"
                     [class.drop-after]="
                       state.targetItemId === node.menu.id && state.dropMode === 'after' && state.isValidTarget
@@ -302,19 +301,20 @@
                     "
                     [class.drop-invalid]="state.targetItemId === node.menu.id && !state.isValidTarget"
                     [style.padding-left.px]="node.level * 24"
-                    (dragend)="onDragEnd()"
-                    (dragleave)="onDragLeave($event)"
-                    (dragover)="onDragOver($event, node.menu)"
-                    (dragstart)="onDragStart($event, node.menu)"
-                    (drop)="onDrop($event, node.menu)"
                     data-testid="menu-row"
                   >
                     <div class="tree-node-content hover:bg-base-200 group flex items-center gap-2 rounded px-2 py-2">
                       <!-- 拖拽手柄 -->
                       <button
-                        class="btn btn-ghost btn-xs btn-square drag-handle opacity-0 transition-opacity group-hover:opacity-100"
+                        class="btn btn-ghost btn-xs btn-square drag-handle touch-none opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100"
+                        (click)="$event.stopPropagation()"
+                        (pointercancel)="onPointerUp($event)"
+                        (pointerdown)="startPointerDrag($event, node.menu)"
+                        (pointermove)="onPointerMove($event)"
+                        (pointerup)="onPointerUp($event)"
                         data-testid="menu-drag-handle"
                         title="拖拽排序"
+                        type="button"
                       >
                         <svg [lucideIcon]="GripVertical" [size]="14" />
                       </button>
@@ -373,7 +373,9 @@
                         }
 
                         <!-- 操作按钮 -->
-                        <div class="actions flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <div
+                          class="actions flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100"
+                        >
                           <!-- 添加子菜单 -->
                           <button
                             class="btn btn-ghost btn-xs"

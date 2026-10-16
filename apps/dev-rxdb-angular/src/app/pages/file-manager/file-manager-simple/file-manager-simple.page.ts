@@ -18,6 +18,7 @@ import {
   LucideFileVideo as FileVideo,
   LucideFolder as Folder,
   LucideFolderOpen as FolderOpen,
+  LucideGripVertical as GripVertical,
   LucideHistory as History,
   LucideDynamicIcon,
   LucidePen as Pen,
@@ -54,6 +55,7 @@ import { TreeFileDragDropStore } from '../utils/tree-file.store';
 })
 export default class FileManagerSimplePage extends TreeFileDragDropBase<typeof SortableFileNode> {
   // Lucide icons
+  readonly GripVertical = GripVertical;
   readonly ChevronDown = ChevronDown;
   readonly ChevronRight = ChevronRight;
   readonly ChevronsDown = ChevronsDown;

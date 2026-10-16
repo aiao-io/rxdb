@@ -4,9 +4,9 @@
  */
 
 import { SetRequired } from 'type-fest';
+import { EntityCheckMetadata } from './check-constraint.js';
+import { EntityExclusionMetadata } from './exclusion-constraint.js';
 import {
-  EntityCheckMetadataOptions,
-  EntityExclusionMetadataOptions,
   EntityForeignKeyMetadata,
   EntityIndexMetadataOptions,
   EntityMetadataOptions,
@@ -16,9 +16,6 @@ import {
 } from './metadata-options.interface.js';
 
 export type EntityIndexMetadata = EntityIndexMetadataOptions;
-
-export type EntityCheckMetadata = EntityCheckMetadataOptions;
-export type EntityExclusionMetadata = EntityExclusionMetadataOptions;
 
 /**
  * 实体元数据类型
@@ -104,14 +101,14 @@ export interface EntityMetadataType extends SetRequired<
   indexMap: Map<string, EntityIndexMetadata>;
 
   /**
-   * 实体所有 CHECK 约束的映射（含属性级 `check` 编译项）
-   * 键为约束名，值为约束元数据；继承时同名项子实体覆盖父实体
+   * 实体全部 CHECK 约束的映射（继承合并后的全集，含属性级 `check` 编译出的项）
+   * 键为作者给的约束 `name`，值为 CHECK 元数据
    */
   checkMap: Map<string, EntityCheckMetadata>;
 
   /**
-   * 实体所有区间排他约束的映射
-   * 键为约束名，值为约束元数据；继承时同名项子实体覆盖父实体
+   * 实体全部区间排他约束的映射（继承合并后的全集）
+   * 键为作者给的约束 `name`，值为区间排他元数据
    */
   exclusionMap: Map<string, EntityExclusionMetadata>;
 

@@ -61,6 +61,7 @@
   },
   "devDependencies": {
     "@aiao/rxdb-plugin-graph": "workspace:*",
-    "@aiao/rxdb-test": "workspace:*"
+    "@aiao/rxdb-test": "workspace:*",
+    "vue": "^3.5.44"
   }
 }

@@ -26,9 +26,9 @@
     "@aiao/rxdb-test": "workspace:*",
     "@aiao/rxdb-vue": "workspace:*",
     "@aiao/utils": "workspace:*",
-    "@lucide/vue": "^1.53.0",
+    "@lucide/vue": "^1.57.0",
     "@modules/wujie": "workspace:*",
-    "@tanstack/vue-virtual": "^3.13.39",
+    "@tanstack/vue-virtual": "^3.13.45",
     "@vueuse/rxjs": "^15.0.0",
     "ag-grid-community": "^36.2.0",
     "ag-grid-enterprise": "^36.2.0",
@@ -36,7 +36,7 @@
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
-    "daisyui": "^5.7.47",
+    "daisyui": "^5.7.50",
     "tailwindcss": "^4.3.3"
   }
 }

@@ -36,9 +36,13 @@ async function requireBox(locator: Locator, what: string): Promise<Box> {
  * @param position - 落点
  */
 export async function dragRowOver(page: Page, source: Locator, target: Locator, position: DropPosition): Promise<void> {
-  const handle = source.getByTestId('menu-drag-handle');
-  const hasHandle = (await handle.count()) > 0;
-  const from = await requireBox(hasHandle ? handle : source, '拖拽起点');
+  const menuHandle = source.getByTestId('menu-drag-handle');
+  const fileHandle = source.getByTestId('file-drag-handle');
+  const handle =
+    (await menuHandle.count()) > 0 ? menuHandle
+    : (await fileHandle.count()) > 0 ? fileHandle
+    : null;
+  const from = await requireBox(handle ?? source, '拖拽起点');
   const to = await requireBox(target, '拖拽目标行');
 
   const toX = to.x + to.width / 2;

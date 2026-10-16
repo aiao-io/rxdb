@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { RxDBBranch } from '@aiao/rxdb';
-import { Check, ChevronDown, ChevronRight, GitBranch, Plus, Search } from '@lucide/vue';
+import { Check, ChevronDown, ChevronRight, GitBranch, MoreVertical, Plus, Search } from '@lucide/vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { gdRelativeTime } from '../utils/gd';
 
@@ -28,8 +28,21 @@ import { gdRelativeTime } from '../utils/gd';
 const props = defineProps<{
   branches: readonly RxDBBranch[];
   activeBranch?: string;
-  popupWidth?: number;
+  popupWidth: number;
 }>();
+
+/**
+ * 触屏没有右键：行尾 ⋯ 按钮按自身位置合成一次 contextmenu 请求，
+ * 打开与右键相同的菜单（桌面端按钮隐藏，仍走原生右键）。
+ */
+function onTouchMenu(event: MouseEvent, target: unknown): void {
+  event.stopPropagation();
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  emit('menuRequest', {
+    target,
+    event: new MouseEvent('contextmenu', { clientX: rect.left, clientY: rect.bottom, bubbles: true })
+  } as never);
+}
 
 /** 下拉开合；创建弹层打开时恒为 false（两态互斥，避免两个弹层叠着）。 */
 const menuOpen = defineModel<boolean>('menuOpen', { default: false });
@@ -47,6 +60,19 @@ const emit = defineEmits<{
 
 /** 分支名筛选（大小写不敏感的子串匹配）。 */
 const filter = ref('');
+const popupEl = ref<HTMLElement | null>(null);
+const popupLeft = ref(0);
+
+// 窄屏夹回：面板右缘不超出视口（右缘留 8px），左缘最多贴到视口左 8px
+watch(menuOpen, async open => {
+  if (!open) return;
+  await nextTick();
+  const popup = popupEl.value;
+  const section = popup?.offsetParent as HTMLElement | null;
+  if (!popup || !section) return;
+  const sectionLeft = section.getBoundingClientRect().left;
+  popupLeft.value = Math.max(8 - sectionLeft, Math.min(0, window.innerWidth - sectionLeft - props.popupWidth - 8));
+});
 
 const createInput = ref<HTMLInputElement | null>(null);
 
@@ -214,9 +240,10 @@ function confirmCreate(): void {
         </div>
       </div>
       <div
+        ref="popupEl"
         class="gd-menu gd-menu-flush absolute top-full left-0 z-40 flex flex-col overflow-y-auto"
         v-else-if="menuOpen"
-        :style="{ height: 'calc(100vh - 50px)', width: popupWidth + 'px' }"
+        :style="{ height: 'calc(100vh - 50px)', width: popupWidth + 'px', left: popupLeft + 'px' }"
         aria-label="Branch list"
         data-testid="wt-branch-menu-popup"
         role="menu"
@@ -302,6 +329,17 @@ function confirmCreate(): void {
                 >
                   {{ gdRelativeTime(branchTime(branch)) }}
                 </span>
+              </button>
+              <!-- 触屏没有右键：行尾 ⋯ 打开同一菜单（桌面端隐藏） -->
+              <button
+                class="gd-icon-btn hidden max-md:inline-flex pointer-coarse:inline-flex"
+                @click="onTouchMenu($event, branch)"
+                aria-label="更多操作"
+                data-testid="wt-branch-more"
+                title="更多操作（触屏）"
+                type="button"
+              >
+                <MoreVertical :size="14" />
               </button>
             </div>
           </li>

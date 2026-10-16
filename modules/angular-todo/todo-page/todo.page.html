@@ -65,14 +65,18 @@
             <h1 class="text-2xl font-bold">Todos</h1>
             <div class="badge badge-primary" data-testid="todo-count">{{ $todo_count_left() }} 待办</div>
 
-            <!-- Batch Add Dropdown -->
-            <div class="dropdown dropdown-end">
-              <button class="btn btn-circle btn-sm" aria-label="批量添加" data-testid="todo-batch-add" tabindex="0">
+            <!-- Batch Add Dropdown：details/summary 原生切换（触屏 tap 不产生 :focus，focus 驱动的 daisyUI dropdown 在移动端打不开） -->
+            <details class="dropdown dropdown-end" #batchDropdown>
+              <summary class="btn btn-circle btn-sm" aria-label="批量添加" data-testid="todo-batch-add">
                 <svg [lucideIcon]="Plus" size="16"></svg>
-              </button>
+              </summary>
               <ul class="menu dropdown-content rounded-box bg-base-200 z-[1] w-40 p-2 shadow">
                 <li>
-                  <button [disabled]="add_1.isPending()" (click)="add_1.execute(1)" data-testid="todo-batch-option-1">
+                  <button
+                    [disabled]="add_1.isPending()"
+                    (click)="add_1.execute(1); batchDropdown.removeAttribute('open')"
+                    data-testid="todo-batch-option-1"
+                  >
                     @if (add_1.isPending()) {
                       <span class="loading loading-spinner loading-xs"></span>
                     }
@@ -80,7 +84,11 @@
                   </button>
                 </li>
                 <li>
-                  <button [disabled]="add_2.isPending()" (click)="add_2.execute(10)" data-testid="todo-batch-option-10">
+                  <button
+                    [disabled]="add_2.isPending()"
+                    (click)="add_2.execute(10); batchDropdown.removeAttribute('open')"
+                    data-testid="todo-batch-option-10"
+                  >
                     @if (add_2.isPending()) {
                       <span class="loading loading-spinner loading-xs"></span>
                     }
@@ -90,7 +98,7 @@
                 <li>
                   <button
                     [disabled]="add_3.isPending()"
-                    (click)="add_3.execute(100)"
+                    (click)="add_3.execute(100); batchDropdown.removeAttribute('open')"
                     data-testid="todo-batch-option-100"
                   >
                     @if (add_3.isPending()) {
@@ -102,7 +110,7 @@
                 <li>
                   <button
                     [disabled]="add_4.isPending()"
-                    (click)="add_4.execute(1000)"
+                    (click)="add_4.execute(1000); batchDropdown.removeAttribute('open')"
                     data-testid="todo-batch-option-1000"
                   >
                     @if (add_4.isPending()) {
@@ -114,7 +122,7 @@
                 <li>
                   <button
                     [disabled]="add_5.isPending()"
-                    (click)="add_5.execute(10000)"
+                    (click)="add_5.execute(10000); batchDropdown.removeAttribute('open')"
                     data-testid="todo-batch-option-10000"
                   >
                     @if (add_5.isPending()) {
@@ -124,7 +132,7 @@
                   </button>
                 </li>
               </ul>
-            </div>
+            </details>
           </div>
 
           <div class="flex items-center gap-2">
@@ -344,7 +352,9 @@
               >
                 {{ todo.title }}
               </div>
-              <div class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <div
+                class="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100"
+              >
                 <button
                   class="btn btn-ghost btn-xs"
                   (click)="todo_edit($event, liEle, todo)"

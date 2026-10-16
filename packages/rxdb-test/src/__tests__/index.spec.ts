@@ -59,6 +59,7 @@ describe('@aiao/rxdb-test public contract', () => {
   it('publishes only the declared runtime subpaths', () => {
     expect(Object.keys(packageJson.exports).sort()).toEqual([
       '.',
+      './check-constraint',
       './encrypted',
       './entities',
       './package.json',

@@ -1086,7 +1086,7 @@ defineExpose({
         -->
         <div
           ref="filterPanel"
-          class="border-base-300 bg-base-100 rxdb-filter-popover-panel rounded-lg border p-3 shadow-lg"
+          class="border-base-300 bg-base-100 rxdb-filter-popover-panel max-h-[70dvh] max-w-[calc(100vw-1rem)] overflow-auto rounded-lg border p-3 shadow-lg"
         >
           <QueryBuilder
             v-if="queryBuilderFields.length > 0"
@@ -1186,9 +1186,9 @@ defineExpose({
       v-if="createDialogData"
       height="80vh"
       min-height="300px"
-      min-width="400px"
+      min-width="min(400px, calc(100vw - 1rem))"
       panel-class="entity-detail-dialog"
-      width="720px"
+      width="min(720px, calc(100vw - 1rem))"
       @closed="onCreateDialogClosed"
     >
       <EntityDetail
@@ -1202,9 +1202,9 @@ defineExpose({
       v-if="viewDialogData"
       height="80vh"
       min-height="300px"
-      min-width="400px"
+      min-width="min(400px, calc(100vw - 1rem))"
       panel-class="entity-detail-dialog"
-      width="720px"
+      width="min(720px, calc(100vw - 1rem))"
       @closed="onViewDialogClosed"
     >
       <EntityDetail v-bind="viewDialogData" />
@@ -1215,9 +1215,9 @@ defineExpose({
       v-if="m2mDialogOpen"
       height="70vh"
       min-height="300px"
-      min-width="400px"
+      min-width="min(400px, calc(100vw - 1rem))"
       panel-class="entity-m2m-select-dialog"
-      width="720px"
+      width="min(720px, calc(100vw - 1rem))"
       @closed="m2mDialogOpen = false"
     >
       <EntityDialog

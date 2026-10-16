@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { injectRxDB } from '@aiao/rxdb-vue';
 import { formatFileSize, STORAGE_TESTID } from '@aiao/utils';
-import { Download, Eye, FolderOpen, Trash2 } from '@lucide/vue';
+import { Download, Eye, FolderOpen, Pen, Trash2 } from '@lucide/vue';
 import { onUnmounted, ref, watch } from 'vue';
 import {
   canPreviewFile,
@@ -22,6 +22,7 @@ const emit = defineEmits<{
   download: [entry: StorageBrowserItem];
   delete: [entry: StorageBrowserItem];
   preview: [entry: StorageBrowserItem];
+  rename: [entry: StorageBrowserItem];
   contextMenu: [payload: { event: MouseEvent; entry: StorageBrowserItem }];
   entryClick: [payload: { entry: StorageBrowserItem; event: MouseEvent }];
 }>();
@@ -172,7 +173,9 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
         </p>
       </div>
 
-      <div class="absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+      <div
+        class="absolute top-1 right-1 flex gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100"
+      >
         <template v-if="entry.kind === 'directory'">
           <button
             class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
@@ -208,6 +211,14 @@ function handleContextMenu(event: MouseEvent, entry: StorageBrowserItem) {
             <Download :size="12" />
           </button>
         </template>
+        <button
+          class="btn btn-circle btn-ghost btn-xs bg-base-100/80 backdrop-blur"
+          data-testid="storage-rename-btn"
+          @click.stop="emit('rename', entry)"
+          title="Rename"
+        >
+          <Pen :size="12" />
+        </button>
         <button
           class="btn btn-circle btn-ghost btn-xs bg-base-100/80 text-error backdrop-blur"
           :data-testid="entry.kind === 'file' ? T.DELETE_BTN : undefined"

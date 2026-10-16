@@ -12,8 +12,9 @@ import {
   EntityType,
   getEntityMetadata,
   getEntityStatus,
-  normalizeEntityWriteConstraintError,
-  RxDBMutationsMap
+  planMutationWrites,
+  RxDBMutationsMap,
+  toStorageConstraintViolationError
 } from '@aiao/rxdb';
 import generate_entity_deletes_sql from './entity/deletes_sql.js';
 import generate_entity_inserts_sql from './entity/inserts_sql.js';
@@ -102,8 +103,7 @@ export default async <T extends EntityType = EntityType>(
   const now = new Date();
 
   // ========== 处理 CREATE 操作 ==========
-  for (const [EntityType, entitiesSet] of mutations.create.entries()) {
-    const entities = Array.from(entitiesSet);
+  const applyCreates = async (EntityType: T, entities: InstanceType<T>[]) => {
     entities.forEach(e => all_entities.add(e));
     const meta = getEntityMetadata(EntityType);
 
@@ -117,9 +117,13 @@ export default async <T extends EntityType = EntityType>(
     try {
       await adapter.query(insertSql);
     } catch (error) {
-      // 存储约束违约归一（CHECK / 区间排他）：与 sqlite-core 同口径，多行时只补实体与列
-      const attempted = entities.length === 1 ? ({ ...entities[0] } as Record<string, unknown>) : {};
-      throw normalizeEntityWriteConstraintError(error, meta, attempted) ?? error;
+      // 存储约束违约归一（US-030）：CHECK 的冲突值——批量 INSERT 命中哪一行原生消息不说，
+      // 全部候选行的值并列；区间排他的双方区间来自 DETAIL
+      throw toStorageConstraintViolationError(
+        error,
+        meta,
+        entities as unknown as ReadonlyArray<Record<string, unknown>>
+      );
     }
 
     // 查询刚插入的数据
@@ -135,11 +139,10 @@ export default async <T extends EntityType = EntityType>(
       const data = await getEntityObjectFromResult(meta, row, adapter.encryptionContext);
       updateCachedEntity(repo, data);
     }
-  }
+  };
 
   // ========== 处理 UPDATE 操作（按 patch 分组优化）==========
-  for (const [EntityType, entitiesSet] of mutations.update.entries()) {
-    const entities = Array.from(entitiesSet);
+  const applyUpdates = async (EntityType: T, entities: InstanceType<T>[]) => {
     entities.forEach(e => all_entities.add(e));
     const meta = getEntityMetadata(EntityType);
 
@@ -157,10 +160,7 @@ export default async <T extends EntityType = EntityType>(
       try {
         await adapter.query(sql, params);
       } catch (error) {
-        throw (
-          normalizeEntityWriteConstraintError(error, meta, { ...entity, ...(status.patch || {}) } as Record<string, unknown>) ??
-          error
-        );
+        throw toStorageConstraintViolationError(error, meta, [entity as unknown as Record<string, unknown>]);
       }
     }
 
@@ -176,12 +176,11 @@ export default async <T extends EntityType = EntityType>(
       const data = await getEntityObjectFromResult(meta, row, adapter.encryptionContext);
       updateCachedEntity(repo, data);
     }
-  }
+  };
 
   // ========== 处理 DELETE 操作 ==========
-  for (const [EntityType, entitiesSet] of mutations.remove.entries()) {
-    const entities = Array.from(entitiesSet);
-    if (entities.length === 0) continue;
+  const applyRemoves = async (EntityType: T, entities: InstanceType<T>[]) => {
+    if (entities.length === 0) return;
     const meta = getEntityMetadata(EntityType);
 
     // 生成 DELETE SQL
@@ -198,6 +197,13 @@ export default async <T extends EntityType = EntityType>(
       status.removed = true;
       status.local = false; // 标记为已从数据库删除
     }
+  };
+
+  // 执行顺序：插入 → 更新 → 删除；声明了区间排他的实体，删除与更新提到全部插入之前
+  // （「截旧 + 新开」一起保存时不经过重叠的中间态，US-030 AC#14，见核心 planMutationWrites）
+  const apply = { create: applyCreates, update: applyUpdates, remove: applyRemoves };
+  for (const step of planMutationWrites(mutations)) {
+    await apply[step.kind](step.EntityType, step.entities);
   }
 
   return Array.from(all_entities);

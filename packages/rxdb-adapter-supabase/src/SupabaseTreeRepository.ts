@@ -107,6 +107,8 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
     );
     const tableName = this.metadata.tableName;
     const hasChildrenFeature = this.metadata.features?.tree?.hasChildren;
+    const primaryKeyColumn = this.primary_key_column();
+    const parentColumnName = this.parent_column_name();
     const schema = resolve_supabase_schema(this.metadata.namespace) ?? 'public';
     const tableClient = this.adapter.client.schema(schema).from(tableName);
     const results: InstanceType<T>[] = [];
@@ -117,7 +119,7 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
     // 根节点可能有任意多个，必须翻页。
     const loadRoots = async (): Promise<Record<string, unknown>[]> => {
       if (entityId != null) {
-        const { data, error, status } = await tableClient.select('*').eq('id', entityId).limit(1);
+        const { data, error, status } = await tableClient.select('*').eq(primaryKeyColumn, entityId).limit(1);
         assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to find descendants');
         return (data ?? []) as Record<string, unknown>[];
       }
@@ -125,7 +127,11 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
       return select_all_pages<Record<string, unknown>>(
         this.rxdb.reachability,
         (rangeFrom, rangeTo) =>
-          tableClient.select('*').is('parentId', null).order('id', { ascending: true }).range(rangeFrom, rangeTo),
+          tableClient
+            .select('*')
+            .is(parentColumnName, null)
+            .order(primaryKeyColumn, { ascending: true })
+            .range(rangeFrom, rangeTo),
         'Failed to find descendants'
       );
     };
@@ -144,8 +150,8 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
         const page = await select_all_pages<Record<string, unknown>>(
           this.rxdb.reachability,
           (rangeFrom, rangeTo) =>
-            this.applyWhere(tableClient.select('*').in('parentId', chunk), where)
-              .order('id', { ascending: true })
+            this.applyWhere(tableClient.select('*').in(parentColumnName, chunk), where)
+              .order(primaryKeyColumn, { ascending: true })
               .range(rangeFrom, rangeTo),
           'Failed to find descendants'
         );
@@ -172,9 +178,9 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
       return this.findParentsWithChildren(
         (chunk, rangeFrom, rangeTo) =>
           tableClient
-            .select('parentId')
-            .in('parentId', chunk)
-            .order('id', { ascending: true })
+            .select(parentColumnName)
+            .in(parentColumnName, chunk)
+            .order(primaryKeyColumn, { ascending: true })
             .range(rangeFrom, rangeTo),
         parentIds,
         'Failed to find descendants'
@@ -187,7 +193,7 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
     while (currentLevelNodes.length > 0 && (level === undefined || depth <= level)) {
       const nextParentIds: string[] = [];
       const uniqueCurrentLevel = currentLevelNodes.filter(node => {
-        const nodeId = String(node['id']);
+        const nodeId = String(node[primaryKeyColumn]);
         if (visited.has(nodeId)) {
           return false;
         }
@@ -212,7 +218,7 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
         const entity = this.transformRowToEntity(node);
 
         if (parentsWithChildren) {
-          (entity as Record<string, unknown>)['hasChildren'] = parentsWithChildren.has(String(node['id']));
+          (entity as Record<string, unknown>)['hasChildren'] = parentsWithChildren.has(String(node[primaryKeyColumn]));
         }
 
         results.push(entity);
@@ -243,6 +249,8 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
 
     const tableName = this.metadata.tableName;
     const hasChildrenFeature = this.metadata.features?.tree?.hasChildren;
+    const primaryKeyColumn = this.primary_key_column();
+    const parentColumnName = this.parent_column_name();
     const schema = resolve_supabase_schema(this.metadata.namespace) ?? 'public';
     const tableClient = () => this.adapter.client.schema(schema).from(tableName);
 
@@ -268,14 +276,14 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
       // where 只作用于往上的每一跳（递归成员），起点豁免：
       // 某一级祖先不匹配即断链，它上面的整条链都不再返回，即使更高处的节点自身匹配。
       // 与 findDescendants 及 sqlite-core 的 children_where 同一套语义。
-      const hopQuery = tableClient().select('*').eq('id', currentId);
+      const hopQuery = tableClient().select('*').eq(primaryKeyColumn, currentId);
       const { data, error, status } = await (currentLevel === 0 ? hopQuery : this.applyWhere(hopQuery, where)).limit(1);
       assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to find ancestors');
       const node = data?.[0] as Record<string, unknown> | undefined;
       if (!node) break;
 
       rows.push(node);
-      currentId = (node['parentId'] as RxDBEntityId | null | undefined) ?? null;
+      currentId = (node[parentColumnName] as RxDBEntityId | null | undefined) ?? null;
       currentLevel++;
     }
 
@@ -284,13 +292,13 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
     // hasChildren 批量判定，避免每个节点再来一次往返
     let parentsWithChildren: Set<string> | undefined;
     if (hasChildrenFeature) {
-      const ids = rows.map(node => node['id'] as string);
+      const ids = rows.map(node => String(node[primaryKeyColumn]));
       parentsWithChildren = await this.findParentsWithChildren(
         (chunk, rangeFrom, rangeTo) =>
           tableClient()
-            .select('parentId')
-            .in('parentId', chunk)
-            .order('id', { ascending: true })
+            .select(parentColumnName)
+            .in(parentColumnName, chunk)
+            .order(primaryKeyColumn, { ascending: true })
             .range(rangeFrom, rangeTo),
         ids,
         'Failed to find ancestors'
@@ -300,7 +308,7 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
     const results: InstanceType<T>[] = rows.map(node => {
       const entity = this.transformRowToEntity(node);
       if (parentsWithChildren) {
-        (entity as Record<string, unknown>)['hasChildren'] = parentsWithChildren.has(node['id'] as string);
+        (entity as Record<string, unknown>)['hasChildren'] = parentsWithChildren.has(String(node[primaryKeyColumn]));
       }
       return entity;
     });
@@ -359,11 +367,12 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
   /** 把一页子行里出现过的 parentId 记入结果集，并从待判定集合中移除 */
   private collectParents(page: unknown[], parents: Set<string>, pending: Set<string>): void {
     for (const row of page) {
-      const parentId = (row as Record<string, unknown>)['parentId'];
-      if (typeof parentId !== 'string') continue;
+      const parentId = (row as Record<string, unknown>)[this.parent_column_name()];
+      if (parentId == null) continue;
 
-      parents.add(parentId);
-      pending.delete(parentId);
+      const parentKey = String(parentId);
+      parents.add(parentKey);
+      pending.delete(parentKey);
     }
   }
 
@@ -375,5 +384,13 @@ export class SupabaseTreeRepository<T extends EntityType> extends SupabaseReposi
     delete entityRow['level'];
     const entity = transform_row_to_entity(this.EntityType, this.metadata, entityRow);
     return entity;
+  }
+
+  private parent_column_name(): string {
+    return (
+      this.metadata.relationMap?.get('parent')?.columnName ??
+      this.metadata.propertyMap?.get('parentId')?.columnName ??
+      'parentId'
+    );
   }
 }

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
 interface AppServiceContextType {
   sidebarPinned: boolean;
@@ -20,6 +20,14 @@ function getInitialSidebarState(): boolean {
 export function AppServiceProvider({ children }: { children: ReactNode }) {
   const [sidebarPinned, setSidebarPinned] = useState<boolean>(getInitialSidebarState());
   const [headerFloating] = useState<boolean>(getInitialSidebarState());
+
+  // 断点跨越（旋转 / 窗口缩放）时同步侧栏状态：移动端自动收起、桌面端自动展开。
+  useEffect(() => {
+    const media = window.matchMedia('(min-width: 768px)');
+    const onChange = (event: MediaQueryListEvent) => setSidebarPinned(event.matches);
+    media.addEventListener('change', onChange);
+    return () => media.removeEventListener('change', onChange);
+  }, []);
 
   const toggleSidebar = () => {
     setSidebarPinned(prev => !prev);

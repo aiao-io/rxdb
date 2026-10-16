@@ -29,7 +29,8 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
   fullHeaderRef = viewChild<ElementRef<HTMLElement>>('fullHeader');
   mainContainerRef = viewChild<ElementRef<HTMLElement>>('mainContainer');
 
-  readonly $show_history = signal<boolean>(true);
+  /** 历史侧栏：桌面默认展开；移动端浮层会挡住内容，默认收起（与 app 侧栏同口径 768px）。 */
+  readonly $show_history = signal<boolean>(window.innerWidth >= 768);
   readonly $show_sticky_header = signal<boolean>(false);
 
   readonly $search_keyword = signal<string>('');
@@ -102,6 +103,13 @@ export abstract class TreeMenuBase<C extends TreeMenuEntityConstructor> implemen
     protected entityClass: C,
     public readonly history: HistoryScopeAPI
   ) {
+    // 断点跨越（旋转 / 窗口缩放）时同步历史侧栏开合，与 AppService 的侧栏口径一致
+    if (typeof window !== 'undefined') {
+      const media = window.matchMedia('(min-width: 768px)');
+      const onChange = (event: MediaQueryListEvent) => this.$show_history.set(event.matches);
+      media.addEventListener('change', onChange);
+      this.destroyRef.onDestroy(() => media.removeEventListener('change', onChange));
+    }
     // 监听菜单标题变化，清除路径冲突警告。
     // 只追踪标题：重名时输入保留，追踪警告会让它一出现就被这里清掉
     effect(() => {

@@ -23,9 +23,10 @@ import HistorySidebar from '../../app/components/HistorySidebar.vue';
 import TreeWriteError from '../../app/components/TreeWriteError.vue';
 import { useDragDrop } from '../../app/composables/useDragDrop';
 import { useTreeMenuStore } from '../../app/composables/useTreeMenuStore';
+import { useShowHistory } from '../../app/composables/useShowHistory';
 
 const rxdb = useRxDB();
-const showHistory = ref(true);
+const { showHistory } = useShowHistory();
 const newTitle = ref('');
 const loadingActions = ref<Set<string>>(new Set());
 
@@ -90,46 +91,71 @@ const handleAddMenu = async () => {
   }
 };
 
-// 拖拽事件处理
-const handleDragStart = (e: DragEvent, menuId: string) => {
-  if (e.dataTransfer) {
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/plain', menuId);
-  }
-  dragDrop.onDragStart(menuId);
+// Pointer 拖拽（触屏可用；判定逻辑与原生 DnD 完全共用）
+const findRowAtPoint = (clientX: number, clientY: number) => {
+  const row = document.elementFromPoint(clientX, clientY)?.closest('[data-menu-id]') as HTMLElement | null;
+  const id = row?.getAttribute('data-menu-id');
+  return { row, target: id ? menus.value.find(m => m.id === id) : undefined };
 };
 
-const handleDragOver = (e: DragEvent, menu: SortableMenuSimple) => {
-  e.preventDefault();
-  const element = e.currentTarget as HTMLElement;
-  const rect = element.getBoundingClientRect();
-  const { isValid } = dragDrop.onDragOver(menu, e.clientY, rect);
-  if (e.dataTransfer) {
-    e.dataTransfer.dropEffect = isValid ? 'move' : 'none';
-  }
-};
-
-const handleDragLeave = (e: DragEvent) => {
-  const target = e.currentTarget as HTMLElement;
-  const related = e.relatedTarget as HTMLElement;
-  if (!target.contains(related)) {
-    dragDrop.onDragLeave();
-  }
-};
-
-const handleDrop = async (e: DragEvent, menu: SortableMenuSimple) => {
+const handlePointerDragStart = (e: PointerEvent, id: string) => {
   e.preventDefault();
   e.stopPropagation();
-  await dragDrop.onDrop(menu, menuId => {
-    // 展开目标菜单
+  (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  dragDrop.onDragStart(id);
+};
+
+const handleRowPointerDown = (e: PointerEvent, id: string) => {
+  if (e.pointerType !== 'mouse') return;
+  if ((e.target as HTMLElement).closest('button, a, input, select')) return;
+  const row = e.currentTarget as HTMLElement;
+  row.dataset.pendingDrag = JSON.stringify({ x: e.clientX, y: e.clientY, id });
+};
+
+const handlePointerMove = (e: PointerEvent) => {
+  const rowEl = e.currentTarget as HTMLElement;
+  const pending = rowEl.dataset.pendingDrag;
+  if (pending) {
+    const { x, y, id } = JSON.parse(pending) as { x: number; y: number; id: string };
+    if (Math.hypot(e.clientX - x, e.clientY - y) > 4) {
+      delete rowEl.dataset.pendingDrag;
+      dragDrop.onDragStart(id);
+      rowEl.setPointerCapture(e.pointerId);
+    } else {
+      return;
+    }
+  }
+  if (dragDrop.dragDropState.value.draggedItemId === null) return;
+  const { row, target } = findRowAtPoint(e.clientX, e.clientY);
+  if (!row || !target) {
+    dragDrop.onDragLeave();
+    return;
+  }
+  dragDrop.onDragOver(target, e.clientY, row.getBoundingClientRect());
+};
+
+const handlePointerUp = async (e: PointerEvent) => {
+  const rowEl = e.currentTarget as HTMLElement;
+  if (rowEl.dataset.pendingDrag) {
+    delete rowEl.dataset.pendingDrag;
+    return;
+  }
+  if (dragDrop.dragDropState.value.draggedItemId === null) return;
+  const { target } = findRowAtPoint(e.clientX, e.clientY);
+  if (!target) {
+    dragDrop.onDragEnd();
+    return;
+  }
+  await dragDrop.onDrop(target, menuId => {
     if (!store.expandedIds.value.has(menuId)) {
       store.toggleExpand(menuId);
     }
   });
 };
 
-const handleDragEnd = () => {
-  dragDrop.onDragEnd();
+const handlePointerCancel = (e: PointerEvent) => {
+  delete (e.currentTarget as HTMLElement).dataset.pendingDrag;
+  if (dragDrop.dragDropState.value.draggedItemId !== null) dragDrop.onDragEnd();
 };
 </script>
 
@@ -159,14 +185,14 @@ const handleDragEnd = () => {
               >
 
               <!-- 批量添加 -->
-              <div class="dropdown dropdown-end">
-                <button
+              <details class="dropdown dropdown-end">
+                <summary
                   class="btn btn-circle btn-sm"
                   aria-label="批量添加"
                   data-testid="menu-batch-add"
                 >
                   <Plus :size="16" />
-                </button>
+                </summary>
                 <ul class="dropdown-content menu rounded-box bg-base-100 z-10 w-52 p-2 shadow">
                   <li
                     v-for="{ count, label } in [
@@ -180,7 +206,10 @@ const handleDragEnd = () => {
                     <button
                       :data-testid="`menu-batch-option-${count}`"
                       :disabled="loadingActions.has(`add-${count}`)"
-                      @click="handleAddMany(count, `add-${count}`)"
+                      @click="
+                        handleAddMany(count, `add-${count}`);
+                        ($event.target as HTMLElement).closest('details')?.removeAttribute('open');
+                      "
                     >
                       <span
                         class="loading loading-spinner loading-xs"
@@ -190,7 +219,7 @@ const handleDragEnd = () => {
                     </button>
                   </li>
                 </ul>
-              </div>
+              </details>
             </div>
 
             <div class="flex items-center gap-2">
@@ -282,7 +311,7 @@ const handleDragEnd = () => {
 
           <!-- 添加菜单 (根/子) -->
           <form
-            class="flex gap-2"
+            class="flex flex-wrap gap-2"
             @submit.prevent="handleAddMenu"
           >
             <div class="join flex-1">
@@ -327,7 +356,7 @@ const handleDragEnd = () => {
           </form>
 
           <!-- Search Bar -->
-          <div class="flex gap-2">
+          <div class="flex flex-wrap gap-2">
             <div class="relative flex-1">
               <Search
                 class="text-base-content/40 absolute top-1/2 left-3 -translate-y-1/2"
@@ -435,20 +464,23 @@ const handleDragEnd = () => {
                   :data-parent-id="menu.parentId ?? ''"
                   :key="menu.id"
                   :style="{ paddingLeft: `${level * 20 + 8}px` }"
-                  @dragend="handleDragEnd"
-                  @dragleave="handleDragLeave"
-                  @dragover="handleDragOver($event, menu)"
-                  @dragstart="handleDragStart($event, menu.id)"
-                  @drop="handleDrop($event, menu)"
+                  @pointerdown="handleRowPointerDown($event, menu.id)"
+                  @pointermove="handlePointerMove"
+                  @pointerup="handlePointerUp"
+                  @pointercancel="handlePointerCancel"
                   data-testid="menu-row"
-                  draggable="true"
                 >
                   <!-- Drag Handle -->
                   <button
-                    class="btn btn-ghost btn-xs cursor-grab p-0 opacity-0 group-hover:opacity-100"
+                    class="btn btn-ghost btn-xs cursor-grab touch-none p-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100"
                     @mousedown.stop
+                    @click.stop
                     data-testid="menu-drag-handle"
                     title="拖拽排序"
+                    @pointerdown="handlePointerDragStart($event, menu.id)"
+                    @pointermove="handlePointerMove"
+                    @pointerup="handlePointerUp"
+                    @pointercancel="handlePointerCancel"
                   >
                     <GripVertical :size="14" />
                   </button>
@@ -502,7 +534,9 @@ const handleDragEnd = () => {
                   </span>
 
                   <!-- Actions -->
-                  <div class="flex gap-1 opacity-0 group-hover:opacity-100">
+                  <div
+                    class="actions flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 max-md:opacity-100 pointer-coarse:opacity-100"
+                  >
                     <button
                       class="btn btn-ghost btn-xs"
                       @click="

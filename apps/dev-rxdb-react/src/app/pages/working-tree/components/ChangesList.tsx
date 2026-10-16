@@ -1,5 +1,5 @@
 import type { WorkingTreeDiff, WorkingTreeDiffEntry, WorkingTreeQueryState } from '@aiao/rxdb-plugin-working-tree';
-import { Check, ChevronDown, FileDiff, ListFilter, Search } from 'lucide-react';
+import { Check, ChevronDown, FileDiff, ListFilter, MoreVertical, Search } from 'lucide-react';
 import { createElement, useEffect, useRef, useState } from 'react';
 import { diffEntryKey, formatPatchSummary } from '../utils/diff-format';
 import { gdEntryPath, gdOpColor, gdOpIcon, gdPathColor, gdTableName } from '../utils/gd';
@@ -44,6 +44,24 @@ interface WorkingTreeChangesListProps {
  * 没有暂存区（v1 硬裁决），所以行上没有 GitHub Desktop 的勾选框——列表只做「看」，
  * 「提交哪些」由提交框那句「提交全部未提交改动」说清。
  */
+
+/**
+ * 触屏没有右键：行尾 ⋯ 按钮按自身位置合成一次 contextmenu 请求，
+ * 打开与右键相同的菜单（桌面端按钮隐藏，仍走原生右键）。
+ */
+function touchMenuRequest<T>(event: React.MouseEvent, target: T): { target: T; event: React.MouseEvent } {
+  event.stopPropagation();
+  const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+  return {
+    target,
+    event: new MouseEvent('contextmenu', {
+      clientX: rect.left,
+      clientY: rect.bottom,
+      bubbles: true
+    }) as unknown as React.MouseEvent
+  };
+}
+
 export function WorkingTreeChangesList({
   diffState,
   selectedKey,
@@ -169,42 +187,55 @@ export function WorkingTreeChangesList({
           <ul data-testid='wt-diff-list'>
             {filteredEntries.map(entry => (
               <li key={diffEntryKey(entry)}>
-                <div
-                  className={`gd-row ${selectedKey === diffEntryKey(entry) ? 'gd-row-selected' : ''}`}
-                  aria-current={selectedKey === diffEntryKey(entry) ? 'true' : undefined}
-                  data-diff-key={diffEntryKey(entry)}
-                  onClick={() => onSelectEntry(entry)}
-                  onContextMenu={event => onMenuRequest({ target: entry, event })}
-                  onKeyDown={event => {
-                    if (event.key === 'Enter') onSelectEntry(entry);
-                  }}
-                  data-testid='wt-diff-item'
-                  role='button'
-                  tabIndex={0}
-                >
+                <div className='flex items-center'>
                   <div
-                    className='flex min-w-0 items-center gap-2'
-                    title={`${gdEntryPath(entry)} · ${formatPatchSummary(entry)}`}
+                    className={`gd-row min-w-0 flex-1 ${selectedKey === diffEntryKey(entry) ? 'gd-row-selected' : ''}`}
+                    aria-current={selectedKey === diffEntryKey(entry) ? 'true' : undefined}
+                    data-diff-key={diffEntryKey(entry)}
+                    onClick={() => onSelectEntry(entry)}
+                    onContextMenu={event => onMenuRequest({ target: entry, event })}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter') onSelectEntry(entry);
+                    }}
+                    data-testid='wt-diff-item'
+                    role='button'
+                    tabIndex={0}
                   >
-                    {/* 路径中间省略（GitHub Desktop 的文件列表同款）：前缀段照常截断，id 尾部保留结尾 */}
-                    <span
-                      className='gd-file-name flex min-w-0 flex-1 items-center'
-                      style={{ color: gdPathColor(entry.operation) }}
+                    <div
+                      className='flex min-w-0 items-center gap-2'
+                      title={`${gdEntryPath(entry)} · ${formatPatchSummary(entry)}`}
                     >
-                      {/* schema/实体 前缀永不省略（Todo 必须完整可见），只有 uuid 前段省略 */}
-                      <span className='shrink-0'>
-                        {entry.namespace}/{gdTableName(entry.entity)}/
+                      {/* 路径中间省略（GitHub Desktop 的文件列表同款）：前缀段照常截断，id 尾部保留结尾 */}
+                      <span
+                        className='gd-file-name flex min-w-0 flex-1 items-center'
+                        style={{ color: gdPathColor(entry.operation) }}
+                      >
+                        {/* schema/实体 前缀永不省略（Todo 必须完整可见），只有 uuid 前段省略 */}
+                        <span className='shrink-0'>
+                          {entry.namespace}/{gdTableName(entry.entity)}/
+                        </span>
+                        <span className='gd-truncate-tail min-w-0'>
+                          <span>{entry.entityId}</span>
+                        </span>
                       </span>
-                      <span className='gd-truncate-tail min-w-0'>
-                        <span>{entry.entityId}</span>
-                      </span>
-                    </span>
-                    {createElement(gdOpIcon(entry.operation), {
-                      className: 'shrink-0',
-                      size: 16,
-                      style: { color: gdOpColor(entry.operation) }
-                    })}
+                      {createElement(gdOpIcon(entry.operation), {
+                        className: 'shrink-0',
+                        size: 16,
+                        style: { color: gdOpColor(entry.operation) }
+                      })}
+                    </div>
                   </div>
+                  {/* 触屏没有右键：行尾 ⋯ 打开同一菜单（桌面端隐藏） */}
+                  <button
+                    className='gd-btn-ghost hidden max-md:inline-flex pointer-coarse:inline-flex'
+                    onClick={event => onMenuRequest(touchMenuRequest(event, entry))}
+                    aria-label='更多操作'
+                    data-testid='wt-diff-more'
+                    title='更多操作（触屏）'
+                    type='button'
+                  >
+                    <MoreVertical size={14} />
+                  </button>
                 </div>
               </li>
             ))}

@@ -93,6 +93,27 @@ describe('transform_row_to_entity', () => {
       expect(entity.id).toBe('my-special-id');
     });
 
+    it('自定义主键物理列应映射回 id 属性', () => {
+      const propertyMap = new Map(meta.propertyMap);
+      const id = propertyMap.get('id');
+      if (!id) throw new Error('Todo metadata has no id property');
+      propertyMap.set('id', { ...id, columnName: 'todo_key' });
+      const customMeta = {
+        ...meta,
+        propertyMap,
+        columnNameToPropertyName: new Map([...meta.columnNameToPropertyName, ['todo_key', 'id']])
+      };
+
+      const entity = transform_row_to_entity(Todo, customMeta, {
+        todo_key: 'custom-id',
+        title: 't',
+        completed: false
+      });
+
+      expect(entity.id).toBe('custom-id');
+      expect((entity as unknown as Record<string, unknown>)['todo_key']).toBeUndefined();
+    });
+
     it('元数据中不存在的字段原样赋值', () => {
       const row = { id: 'uuid-1', title: 't', completed: false, _extraField: 'extra' };
       const entity = transform_row_to_entity(Todo, meta, row) as Todo & { _extraField: string };

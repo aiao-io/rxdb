@@ -28,6 +28,12 @@ export interface SwitchVersionSqlItem {
    * 用于事件发送时获取精准的 patch/inversePatch
    */
   changes: Map<RxDBEntityId, { patch: EntityData | null; inversePatch: EntityData | null }>;
+
+  /**
+   * 更新项是否排在全部插入之前执行（声明了区间排他的实体，US-030 AC#14）。
+   * 语句已按「收窄类在前」排好，见核心 `orderExclusionUpdates`。
+   */
+  beforeInserts?: boolean;
 }
 
 /**
