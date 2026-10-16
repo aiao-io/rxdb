@@ -8,8 +8,9 @@
 
 原因是它们被**有意**排除在 monorepo 之外：
 
-- 根 [pnpm-workspace.yaml](../pnpm-workspace.yaml) 用 `- '!examples/*'` 排除本目录，
-  每个示例自带 `pnpm-workspace.yaml`（`packages: ['.']`）与独立 `pnpm-lock.yaml`，声明自身为 workspace 根；
+- 根 [pnpm-workspace.yaml](../pnpm-workspace.yaml) 用 `- '!examples/*'` 排除本目录；
+  新增的 `todo-*` 示例是普通 npm 工程，`angular-todo` 此前是独立 pnpm workspace
+  （自带 `pnpm-workspace.yaml` + `pnpm-lock.yaml`），已改为 npm；
 - 本目录下**没有任何 `project.json`**，因此 `nx affected` / `pnpm test-all` 都扫不到它们。
   注意别被重名误导：`pnpm nx show projects` 里的 `angular-todo` 指的是 [modules/angular-todo](../modules/angular-todo/)，
   与 [examples/angular-todo](./angular-todo/) 无关；
@@ -20,16 +21,40 @@
 
 ## 示例清单
 
-| 目录                            | 技术栈                 | 验证内容                                                    | 手工验证命令                              |
-| :------------------------------ | :--------------------- | :---------------------------------------------------------- | :---------------------------------------- |
-| [angular-todo](./angular-todo/) | Angular 21 + wa-sqlite | 本地 SQLite、响应式查询、批量写入、撤销/重做、OPFS/IDB 切换 | `pnpm install && pnpm build && pnpm test` |
+| 目录                            | 技术栈                 | 验证内容                                                        | 手工验证命令                   |
+| :------------------------------ | :--------------------- | :-------------------------------------------------------------- | :----------------------------- |
+| [todo-react](./todo-react/)     | React 19 + PGlite      | 装饰器实体、响应式查询、增删改、批量写、过滤、IndexedDB 持久化  | `npm install && npm run build` |
+| [todo-vue](./todo-vue/)         | Vue 3.5 + PGlite       | 同上（Vue 版）                                                  | `npm install && npm run build` |
+| [todo-angular](./todo-angular/) | Angular 22 + PGlite    | 同上（Angular 版）                                              | `npm install && npm run build` |
+| [angular-todo](./angular-todo/) | Angular 21 + wa-sqlite | 本地 SQLite、响应式查询、批量写入、撤销/重做、OPFS/IDB 切换      | `npm install && npm run build` |
 
-每个示例都是独立 pnpm workspace，**不要在仓库根安装它们**：
+`todo-react` / `todo-vue` / `todo-angular` 是最小 PGlite 示例，对应仓库 README「5 分钟跑通」，
+用 npm 管理依赖，可直接在 StackBlitz 一键打开。`angular-todo` 是更完整的 wa-sqlite 集成示例。
+
+每个示例都是**独立的 npm 工程**，**不要在仓库根安装它们**：
 
 ```bash
 cd examples/<示例目录>
-pnpm install
+npm install
+npm run dev    # todo-react / todo-vue；todo-angular / angular-todo 是 ng serve
 ```
+
+## StackBlitz 一键跑通
+
+用 GitHub 路径直接打开某个子目录：
+
+```
+https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/<目录>
+```
+
+三个 PGlite 示例依赖 `SharedArrayBuffer`（浏览器内 PostgreSQL 是 pthreads WASM），
+各自构建配置已加 COOP/COEP 响应头，请在 Chrome / Edge 打开预览。示例统一用 npm 而非 pnpm：
+StackBlitz WebContainer 里 pnpm 只支持 WASM 版，`packageManager` 字段会拉原生版导致
+`ERR_PNPM_UNSUPPORTED_RUNTIME`。
+
+`angular-todo` 仍用 wa-sqlite，其适配器 `@aiao/rxdb-adapter-wa-sqlite` 对 wa-sqlite 的依赖是
+GitHub tarball 直链（见下「插件拆分」），能否在 StackBlitz 装成取决于对 `codeload.github.com`
+的网络访问，因此未纳入「一键跑通」承诺。
 
 ## 插件拆分（US-025）与示例的滞后
 

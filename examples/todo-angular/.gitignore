@@ -1,0 +1,6 @@
+node_modules
+dist
+.angular
+out-tsc
+package-lock.json
+.DS_Store

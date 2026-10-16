@@ -1,6 +1,6 @@
-import { getEntityStatus, RxDB } from '@aiao/rxdb';
+import { getEntityStatus, type EntityStaticType, RxDB } from '@aiao/rxdb';
 import { useAction, useFindAll } from '@aiao/rxdb-angular';
-import { Todo, TodoStaticTypes } from '@aiao/rxdb-test/entities';
+import { Todo } from '../todo.entity';
 import { nextMacroTask } from '@aiao/utils';
 import { ScrollDispatcher, ScrollingModule } from '@angular/cdk/scrolling';
 import { AsyncPipe, isPlatformBrowser } from '@angular/common';
@@ -73,12 +73,18 @@ export default class TodoPage implements OnInit, AfterViewInit {
   readonly $show_sticky_header = signal(false);
 
   // 查询条件
-  readonly $todo_query_options = computed<TodoStaticTypes['findAllOptions']>(() => {
+  readonly $todo_query_options = computed<EntityStaticType<typeof Todo, 'findAllOptions'>>(() => {
     const current_tab = this.$current_tab();
-    const options: TodoStaticTypes['findAllOptions'] = {
+    const rules =
+      current_tab === 'active'
+        ? [{ field: 'completed', operator: '=', value: false }]
+        : current_tab === 'completed'
+          ? [{ field: 'completed', operator: '=', value: true }]
+          : [];
+    return {
       where: {
         combinator: 'and',
-        rules: [],
+        rules,
       },
       orderBy: [
         {
@@ -91,20 +97,6 @@ export default class TodoPage implements OnInit, AfterViewInit {
         },
       ],
     };
-    if (current_tab === 'active') {
-      options.where.rules.push({
-        field: 'completed',
-        operator: '=',
-        value: false,
-      });
-    } else if (current_tab === 'completed') {
-      options.where.rules.push({
-        field: 'completed',
-        operator: '=',
-        value: true,
-      });
-    }
-    return options;
   });
 
   // Resource

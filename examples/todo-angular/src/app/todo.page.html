@@ -1,0 +1,38 @@
+<main class="todo-app">
+  <h1>RxDB Todo</h1>
+  <form (submit)="add($event)">
+    <input [(ngModel)]="title" name="title" placeholder="What needs to be done?" />
+  </form>
+
+  <div class="filters">
+    @for (item of filters; track item) {
+      <button type="button" [class.active]="filter() === item" (click)="setFilter(item)">
+        {{ item }}
+      </button>
+    }
+  </div>
+
+  <ul class="todo-list">
+    @for (todo of todos.value(); track todo.id) {
+      <li [class.completed]="todo.completed">
+        <input type="checkbox" [checked]="todo.completed" (change)="toggle(todo)" />
+        <span>{{ todo.title }}</span>
+        <button type="button" (click)="remove(todo)">×</button>
+      </li>
+    }
+  </ul>
+
+  @if (todos.isLoading()) {
+    <p class="hint">Loading…</p>
+  }
+
+  <footer class="toolbar">
+    <span>{{ remaining() }} item{{ remaining() === 1 ? '' : 's' }} left</span>
+    <button type="button" [disabled]="todos.value().length === 0" (click)="toggleAll()">
+      {{ allCompleted() ? 'Uncheck all' : 'Check all' }}
+    </button>
+    <button type="button" [disabled]="completedTodos().length === 0" (click)="clearCompleted()">
+      Clear completed
+    </button>
+  </footer>
+</main>

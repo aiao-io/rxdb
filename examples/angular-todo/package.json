@@ -2,7 +2,6 @@
   "name": "angular-todo",
   "version": "0.0.0",
   "private": true,
-  "packageManager": "pnpm@10.34.6",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -26,7 +25,6 @@
     "@aiao/rxdb": "^0.0.24",
     "@aiao/rxdb-adapter-wa-sqlite": "^0.0.24",
     "@aiao/rxdb-angular": "^0.0.24",
-    "@aiao/rxdb-test": "^0.0.24",
     "@aiao/utils": "^0.0.24",
     "@angular/cdk": "^21.2.14",
     "@angular/common": "^21.2.25",

@@ -1,0 +1,27 @@
+{
+  "name": "todo-vue",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "start": "vite --host"
+  },
+  "dependencies": {
+    "@aiao/rxdb": "^0.0.26",
+    "@aiao/rxdb-adapter-pglite": "^0.0.26",
+    "@aiao/rxdb-plugin-graph": "^0.0.26",
+    "@aiao/rxdb-vue": "^0.0.26",
+    "@electric-sql/pglite": "^0.5.10",
+    "rxjs": "^7.8.0",
+    "vue": "^3.5.42"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.10",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.4",
+    "vue-tsc": "^3.3.13"
+  }
+}

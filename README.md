@@ -77,7 +77,6 @@ pnpm add @aiao/rxdb-react                                            # 或 @aiao
 ```ts
 import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
-import { PGlite } from '@electric-sql/pglite';
 
 @Entity({
   name: 'Todo',
@@ -86,17 +85,17 @@ import { PGlite } from '@electric-sql/pglite';
     { name: 'completed', type: PropertyType.boolean, default: false }
   ]
 })
-export class Todo extends EntityBase {}
+export class Todo extends EntityBase {
+  title!: string;
+  completed!: boolean;
+}
 
 const rxdb = new RxDB({
   dbName: 'demo',
   entities: [Todo],
   sync: { local: { adapter: 'pglite' }, type: SyncType.None }
 });
-rxdb.adapter(
-  'pglite',
-  async db => new RxDBAdapterPGlite(db, await PGlite.create({ dataDir: `idb://rxdb-${db.dbName}` }))
-);
+rxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'idb' })); // 数据落在浏览器 IndexedDB（idb://）
 await rxdb.connect('pglite');
 
 const todo = new Todo();
@@ -113,6 +112,11 @@ const { value: todos, isLoading } = useFind(Todo, {
 ```
 
 写入后 `todos` 自动更新，跨 Tab 同样生效。完整接线（Worker / WASM 路径 / 框架 provider）见[快速开始](https://rxdb.aiao.io/docs/getting-started/)。
+
+> 想直接在线跑？StackBlitz 一键打开 `examples/` 下的最小 Todo 示例（PGlite + 完整增删改查）：
+> [React](https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/todo-react) ·
+> [Vue](https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/todo-vue) ·
+> [Angular](https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/todo-angular)
 
 ## 现在有什么？
 

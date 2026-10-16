@@ -1,0 +1,29 @@
+{
+  "name": "todo-react",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "start": "vite --host"
+  },
+  "dependencies": {
+    "@aiao/rxdb": "^0.0.26",
+    "@aiao/rxdb-adapter-pglite": "^0.0.26",
+    "@aiao/rxdb-plugin-graph": "^0.0.26",
+    "@aiao/rxdb-react": "^0.0.26",
+    "@electric-sql/pglite": "^0.5.10",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "rxjs": "^7.8.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "~6.0.3",
+    "vite": "^8.3.4"
+  }
+}
