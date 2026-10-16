@@ -519,7 +519,10 @@ const NAMING = {
     // 工作树插件的 `UNTRACKED_BOOKKEEPING_FIELDS` 就是它，历史插件的分支对比与合并预览按同一份不把它们
     // 算作差异或覆盖——历史插件依赖不到工作树插件，两处各存一份迟早分叉。它说的是实体行上哪些列不表达
     // 用户意图，叫 `Commit*` / `WorkingTree*` 等于宣称分支对比是提交能力的一部分。
-    'ENTITY_BOOKKEEPING_FIELDS'
+    'ENTITY_BOOKKEEPING_FIELDS',
+    // US-313 从 `@aiao/rxdb/testing` 提到主入口：同一页面开第二个实例（只读检出位的快照库、失败现场的导入库）
+    // 都要它绕开「一个实体类只能注册到一个实例」。它是实体登记的通用工具，与提交能力无关。
+    'cloneEntityClasses'
   ],
   /** 全部包都不许有的新前缀 */
   bannedPrefixes: ['Index', 'Workspace'],

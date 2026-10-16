@@ -194,6 +194,10 @@
         "kind": "value"
       },
       {
+        "name": "cloneEntityClasses",
+        "kind": "value"
+      },
+      {
         "name": "CodeFormat",
         "kind": "type"
       },

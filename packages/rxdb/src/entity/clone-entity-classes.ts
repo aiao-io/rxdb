@@ -2,7 +2,8 @@
  * @fileoverview 实体类克隆：让同一组实体类同时注册到多个 RxDB 实例而互不干扰。
  *
  * @remarks
- * 适配器的集成套件要在一个进程里并发开好几个隔离实例，而实体类是**模块级单例**：
+ * 同一个页面里开第二个实例（只读检出位的快照库、失败现场的导入库）和适配器的集成套件
+ * 并发开几个隔离实例，都撞同一件事——实体类是**模块级单例**：
  * {@link https://github.com/aiao-io/rxdb | `EntityManager`} 注册时会往类与
  * `类.prototype` 上写实例相关的槽位，第二个实例注册同一个类就会撞上第一个实例留下的那份。
  * 克隆给每个实例一份**独立的构造器对象**，于是那些写各自落在各自的克隆体上。
@@ -18,8 +19,8 @@
  * 这里就是一次编译错误，而不是又一次安静的降级。
  */
 
-import type { EntityType } from '../entity/entity.interface.js';
 import { METADATA } from '../rxdb.private.js';
+import type { EntityType } from './entity.interface.js';
 
 /** 不随类复制的三个内建静态名：复制它们会把克隆体的身份也一起盖掉。 */
 const OWN_IDENTITY_NAMES: ReadonlySet<string> = new Set(['prototype', 'length', 'name']);
@@ -94,8 +95,8 @@ function copyStaticProperties(source: EntityType, target: EntityType): void {
  * 克隆体的元数据是一个**以源元数据为原型**的新对象，不是同一个引用：读取照常沿原型链走，
  * 而克隆体这一侧的写入停在自己身上，不会回流到源类或另一个实例的克隆体。
  *
- * 只给测试用。生产代码要多份实体注册应当各自声明实体类，而不是在运行时复制构造器——
- * 克隆体的类名是 `Clone`，出现在生产错误消息里毫无信息量。
+ * 克隆体的类名是 `<源类名>Clone`：与源类区分得开（两个实例的错误消息里不会是同一个名字），
+ * 又看得出它从哪个实体类来。
  *
  * @example
  * ```ts
@@ -108,6 +109,7 @@ function copyStaticProperties(source: EntityType, target: EntityType): void {
 export function cloneEntityClasses(entities: EntityType[]): EntityType[] {
   return entities.map(EntityClass => {
     const Clone: EntityType = class extends EntityClass {};
+    Object.defineProperty(Clone, 'name', { value: `${EntityClass.name}Clone`, configurable: true });
     const metadata = findMetadata(EntityClass);
     copyStaticProperties(EntityClass, Clone);
     if (metadata) {
