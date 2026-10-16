@@ -204,6 +204,7 @@ export * from './rxdb-events.js';
 export * from './rxdb-plugin-system.js';
 export * from './rxdb-plugin.js';
 export * from './rxdb-utils.js';
+export * from './worktree-snapshot.interface.js';
 // `addEventListener` 的形参与 `RxDBOptions` 的公开别名 —— 两者都出现在用户拿得到的
 // 签名上。整文件不转桶，其余成员仍是内部约定。
 export * from './rxdb.interface.js';

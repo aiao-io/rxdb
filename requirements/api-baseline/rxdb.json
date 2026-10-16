@@ -2706,6 +2706,22 @@
         "kind": "type"
       },
       {
+        "name": "WorktreeSnapshotCursor",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeSnapshotImport",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeSnapshotPage",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeSnapshotTable",
+        "kind": "type"
+      },
+      {
         "name": "WRITE_ENTRANCES",
         "kind": "value"
       },

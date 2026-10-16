@@ -283,8 +283,12 @@ function diffEntries(previous, current) {
 const NAMING = {
   /** 适用范围「`packages/rxdb` 核心共享契约」= 这一个包 */
   corePackage: 'rxdb',
-  /** 核心新增导出允许的前缀 */
-  corePrefixes: ['Commit', 'WorkingTree'],
+  /**
+   * 核心新增导出允许的前缀
+   *
+   * `Worktree` 是 epic-006 术语表里的检出位（US-313）：快照原语的形状由核心声明、两种后端各自实现。
+   */
+  corePrefixes: ['Commit', 'WorkingTree', 'Worktree'],
   /**
    * 前缀规则的**逐名**例外，不是放宽前缀。
    *

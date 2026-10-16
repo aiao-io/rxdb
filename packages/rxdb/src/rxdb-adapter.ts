@@ -13,6 +13,11 @@ import { SwitchVersionActions } from './sync-contract/VersionManager.interface.j
 import { RxDBChange } from './system/change.js';
 import { IRxDBChange, RemoteChange } from './system/system.interface.js';
 import type { TransactionExecutor } from './transaction/transaction-executor.interface.js';
+import type {
+  WorktreeSnapshotCursor,
+  WorktreeSnapshotImport,
+  WorktreeSnapshotPage
+} from './worktree-snapshot.interface.js';
 
 /**
  * 一次批量拉取里针对**单个实体**的水位线请求
@@ -700,6 +705,57 @@ export abstract class RxDBAdapterLocalBase extends RxDBAdapterBase {
    * US-030 AC#6 报不支持，不做静默降级。
    */
   checkEntityConstraints?(EntityTypes: EntityType[]): Promise<void>;
+
+  /**
+   * 读一页实体表的存储形态（只读检出位建快照，US-313）。
+   *
+   * @param executor - 主库上一个事务的执行器；一份快照的全部页从同一个事务读出，彼此一致
+   * @param EntityType - 主实例上的实体类
+   * @param after - 上一页的 {@link WorktreeSnapshotPage.next}；`null` 从头读
+   * @param limit - 本页最多几行
+   * @returns 一页存储形态的行，加密列保持信封、不解密
+   *
+   * @remarks
+   * 与 {@link RxDBAdapterLocalBase.importWorktreeSnapshot} 成对：页里的行只有同一种适配器认得。
+   * 与 {@link RxDBAdapterLocalBase.isEncryptedAtRest} 同属可选能力槽位：缺席是契约允许的形态，
+   * 工作树插件在这样的后端上打开检出位时报不支持。
+   */
+  readWorktreeSnapshotPage?(
+    executor: TransactionExecutor,
+    EntityType: EntityType,
+    after: WorktreeSnapshotCursor | null,
+    limit: number
+  ): Promise<WorktreeSnapshotPage>;
+
+  /**
+   * 把主库读出的行与增量写进本适配器的库（只读检出位建快照，US-313）。
+   *
+   * @param snapshot - 要复制的表与叠在上面的增量
+   *
+   * @remarks
+   * 一个事务：先原样插入每张表的行，再应用增量。不解密也不加密，加密列的值必须已是信封，
+   * 遇到明文直接抛；不派发事件、不进实体缓存。装着捕获运行时的库上拒绝：快照写不进受信写矩阵。
+   */
+  importWorktreeSnapshot?(snapshot: WorktreeSnapshotImport): Promise<void>;
+
+  /**
+   * 沿用主库适配器的密钥环（只读检出位，US-313）。
+   *
+   * @param source - 主库的适配器，与本适配器同一种后端
+   *
+   * @remarks
+   * 信封的 AAD 绑定库名，快照库的密文是主库信封的逐字节拷贝，只有主库的密钥环解得开。
+   * 在本适配器第一次连接之前调用。共用的是同一个对象：在快照实例上 `lock()` 也会锁住主库。
+   */
+  adoptWorktreeEncryption?(source: LocalRxDBAdapter): void;
+
+  /**
+   * 把本适配器的库封成只读（只读检出位，US-313）：此后的写语句在引擎层被拒。
+   *
+   * @remarks
+   * 兜住绕过核心写入口、直接打到适配器的写。SQLite 系是 `PRAGMA query_only`，PGlite 是只读事务。
+   */
+  sealWorktreeReadOnly?(): Promise<void>;
 
   abstract switchBranch(options: SwitchBranchOptions): Promise<void>;
 
