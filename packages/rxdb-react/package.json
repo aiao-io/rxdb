@@ -39,7 +39,9 @@
   "devDependencies": {
     "@aiao/rxdb-adapter-wa-sqlite": "workspace:*",
     "@aiao/rxdb-plugin-graph": "workspace:*",
-    "@aiao/rxdb-test": "workspace:*"
+    "@aiao/rxdb-test": "workspace:*",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
   },
   "peerDependencies": {
     "@aiao/rxdb-plugin-graph": "workspace:^",

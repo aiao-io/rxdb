@@ -55,6 +55,7 @@
     "vue": "^3.5.43"
   },
   "devDependencies": {
-    "@aiao/rxdb-plugin-replay": "workspace:*"
+    "@aiao/rxdb-plugin-replay": "workspace:*",
+    "vue": "^3.5.44"
   }
 }

@@ -54,6 +54,10 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },
+  "devDependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
   "dependencies": {
     "@aiao/code-editor": "workspace:^",
     "@codemirror/commands": "^6.11.1",
