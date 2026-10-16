@@ -61,7 +61,8 @@
     "@aiao/rxdb-plugin-history": "workspace:*",
     "@aiao/rxdb-test": "workspace:*",
     "@aiao/rxdb-vue": "workspace:*",
-    "vitest": "4.1.11"
+    "vitest": "4.1.11",
+    "vue": "^3.5.44"
   },
   "publishConfig": {
     "access": "public"

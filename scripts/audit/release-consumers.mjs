@@ -132,10 +132,10 @@ const COMBOS = [
       react: '^19.3.0',
       'react-dom': '^19.3.0',
       vue: '^3.5.43',
-      '@angular/core': '22.2.2',
-      '@angular/common': '22.2.2',
-      '@angular/platform-browser': '22.2.2',
-      '@angular/compiler': '22.2.2',
+      '@angular/core': '22.2.3',
+      '@angular/common': '22.2.3',
+      '@angular/platform-browser': '22.2.3',
+      '@angular/compiler': '22.2.3',
       ngxtension: '^7.0.1'
     }
   },

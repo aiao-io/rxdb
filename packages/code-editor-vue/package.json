@@ -53,6 +53,9 @@
   "peerDependencies": {
     "vue": "^3.5.43"
   },
+  "devDependencies": {
+    "vue": "^3.5.44"
+  },
   "dependencies": {
     "@aiao/code-editor": "workspace:^",
     "@codemirror/commands": "^6.11.1",
