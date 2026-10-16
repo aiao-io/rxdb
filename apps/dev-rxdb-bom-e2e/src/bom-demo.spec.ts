@@ -18,8 +18,8 @@ const clickButton = async (page: Page, text: string): Promise<void> => {
 const resetAndSeed = async (page: Page): Promise<void> => {
   await clickButton(page, '重置并装载种子');
   // 种子装载（wa-sqlite 启动 + 装载）需要数秒
-  // 阶段 D：A/B 层、C 层与 D 层各一个历史批次
-  await expect(page.getByTestId('row-counts')).toContainText('bom_history_batch=3', { timeout: 30000 });
+  // 阶段 E：A/B 层、C 层、D 层与 E 层各一个历史批次
+  await expect(page.getByTestId('row-counts')).toContainText('bom_history_batch=4', { timeout: 30000 });
 };
 
 const explode = async (page: Page): Promise<void> => {
@@ -39,9 +39,9 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     await resetAndSeed(page);
     const second = await page.getByTestId('row-counts').textContent();
     expect(second).toBe(first);
-    // 阶段 D：D 层种子再追加 8 个物料（双图/成本演示）、8 段发生项、1 张外壳换版 ECN
-    expect(second).toContain('item=35');
-    expect(second).toContain('bom_line_occurrence=36');
+    // 阶段 E：E 层种子再追加 5 个物料（扩展属性/序列/配置演示）、3 段发生项、2 张演示头
+    expect(second).toContain('item=40');
+    expect(second).toContain('bom_line_occurrence=39');
     expect(second).toContain('ecn=3');
     await expect(page.getByTestId('seed-info')).toContainText('scooter-seed-a');
     await expect(page.getByTestId('seed-info')).toContainText('2026-01-01T00:00:00.000Z');
