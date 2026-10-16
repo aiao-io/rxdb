@@ -58,6 +58,12 @@ export default defineConfig(() => ({
       }
     }
   },
+  resolve: {
+    // PGlite 0.5.10 顶层守卫式 `await import("node:module")`（node 环境才执行）：
+    // browser 测试转换链会静态解析到它（esbuild 系硬报错）；指向空模块即可——
+    // 守卫分支在浏览器永不执行
+    alias: { 'node:module': path.join(import.meta.dirname, 'src/__tests__/node-module-shim.js') }
+  },
   server: {
     headers: {
       'Cross-Origin-Opener-Policy': 'same-origin',
