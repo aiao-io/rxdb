@@ -639,7 +639,7 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
         map(data =>
           data.map(row => ({
             id: row[primaryKeyColumn] as string,
-            updatedAt: row.updatedAt as string
+            updatedAt: row['updatedAt'] as string
           }))
         )
       );
