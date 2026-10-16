@@ -2,15 +2,19 @@
 
 ## 结论
 
-🟢 未发现可定位的 P0/P1/P2/P3 问题。
+🟡 二次评审发现 1 条 P3：抖音构建的 `use strict` 检查匹配整个 app.js 文本而非顶层指令，依赖产物里的字符串字面量会误杀构建。
 
 ## 检查范围
 
-检查了 `package.json` 的 Node/Taro/Vite peer 与 `index`/`vite`/`runtime` exports、`project.json` build/typecheck/lint、README 的 weapp/tt/alipay 接入说明；走读 `assets-plugin.ts`、`build-target-plugin.ts`、`realm-plugin.ts`、`subframe-glue-plugin.ts`、`runtime.ts`、`constants.ts`、`vite.ts` 和 `src/__tests__/**`（资源发射、目标版本、真实全局对象绑定、Vite 配置及运行时入口）。
+检查了 `package.json` 的 Node/Taro/Vite peer 与 `index`/`vite`/`runtime` exports、`project.json` build/typecheck/lint、README 的 weapp/tt/alipay 接入说明；走读 `assets-plugin.ts`、`build-target-plugin.ts`、`realm-plugin.ts`、`subframe-glue-plugin.ts`、`runtime.ts`、`constants.ts`、`vite.ts` 和 `src/__tests__/**`（资源发射、目标版本、真实全局对象绑定、Vite 配置及运行时入口）。二次评审额外核对了发射资产路径与运行时期望（WASM/worker/glue 文件名）、支付宝 worker 协议对称性与 realm 注入位置。
 
 ## 发现
 
-无。插件对不支持的编译器/平台 fail-fast，WASM/随机 Worker 资产路径与 adapter 版本绑定，抖音/支付宝 globalThis realm 绑定有 strict 检查，构建目标仅抬高 Taro 默认值。
+### P3：抖音 `use strict` 检查匹配整个 app.js 文本，字符串字面量/注释/依赖内嵌指令会误杀构建
+
+- 证据：`src/realm-plugin.ts:83` `if (platform === 'tt' && /["']use strict["']/.test(app.code))` 无锚定——匹配产物里**任意位置**的引号文本；同文件 `afterDirective`（`56` 行）对顶层指令用的是锚定正则 `/^\s*(["'])use strict\1;?/`，两处口径不一。
+- 触发：任何依赖/业务代码在产物中生成 `var msg = "use strict";` 或注释/函数体内的 `'use strict'` 字面量 → 抖音构建失败并报误导性错误「入口 app.js 带了 use strict」（真实原因是字符串内容恰好命中）。
+- 建议：与 `afterDirective` 同口径，用 `/^\s*(["'])use strict\1;?/` 锚定顶层检测。
 
 ## 风险/未覆盖
 

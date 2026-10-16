@@ -1,6 +1,6 @@
 import { type ReorderTarget, type RxDBEntityId } from '@aiao/rxdb';
 import { ITreeEntity } from '@aiao/rxdb-plugin-tree';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { DragDropState, DropMode } from './drag-drop-types';
 import { isTargetInMovedSubtree, resolveTreeDrop, treeDropPosition } from './useDragDropService';
 import type { UseTreeWriteError } from './useTreeWriteError';
@@ -66,6 +66,12 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
     dropMode: null,
     isValidTarget: false
   });
+
+  // 一次物理拖放会同时触发 HTML5 `onDrop` 与 `onPointerUp` 两个处理器（各自调一次 `onDrop`）。
+  // 两次调用读到的都是同一 render 闭包里的 `dragDropState`，state 守卫拦不住同 tick 的重入——
+  // 后果是写入执行两遍、`onExpandFolder` 的 toggle 展开又折叠（拖进文件夹后目标保持折叠）。
+  // ref 不受闭包快照影响，在第一个 await 之前同步落记，第二次调用直接短路。
+  const dropHandledRef = useRef<RxDBEntityId | null>(null);
 
   // Get all descendants of a node
   const getDescendants = useCallback(
@@ -138,6 +144,8 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
   }, []);
 
   const onDragStart = useCallback((itemId: RxDBEntityId) => {
+    // 新一次拖动开始：作废上一次 drop 的防重入标记（同一行连续拖两次，id 相同）
+    dropHandledRef.current = null;
     setDragDropState({
       draggedItemId: itemId,
       targetItemId: null,
@@ -194,8 +202,10 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
       // 先取现场再复位：`draggedItem` / `dropMode` 来自本 state，复位后就拿不到了
       const draggedItem = visibleItems.find(m => m.id === dragDropState.draggedItemId);
       const dropMode = point ? dropModeAt(targetItem, point.mouseY, point.rect) : dragDropState.dropMode;
+      // 防重入：HTML5 drop 与 pointerup 会连发两次调用，第二次在第一个 await 之前就被短路
+      if (!draggedItem || !dropMode || dropHandledRef.current === draggedItem.id) return;
+      dropHandledRef.current = draggedItem.id;
       resetState();
-      if (!draggedItem || !dropMode) return;
 
       // 判定可能抛错（如 `getGroupIds` 的组未加载），与写入同走 runWrite 进页内提示，不逃成未处理拒绝
       const result = await runWrite('拖放', async () => {

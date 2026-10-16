@@ -39,9 +39,10 @@ created: 2026-10-16
 
 ## 高风险/需跟进项
 
-- `rxdb-plugin-querycache`：确认 1 条 P2 包元数据问题。README 要求 history + sync 是硬依赖，但 `package.json` 没有对应 peerDependencies；详见 `rxdb-plugin-querycache.md`。
-- `rxdb-plugin-replay-vue`：确认 1 条 P2 命令契约问题。README 承诺挂载前 seek 记忆，但实现丢失；详见 `rxdb-plugin-replay-vue.md`。
-- 其余 20 个包：本轮静态检查未确认 P0/P1/P2/P3；不是动态测试通过结论。
+- `rxdb-plugin-querycache`：首轮 P2（history/sync peer 缺失）已修复并复核（205/205 通过）；二次评审新确认 1 条 P2（`QueryCacheEngine.findById` 绕过作废代次检查）；详见 `rxdb-plugin-querycache.md`。
+- `rxdb-plugin-replay-vue`：首轮 P2（挂载前 seek 丢失）已修复并复核（11/11 通过，三端语义对齐）；无剩余问题。
+- `rxdb-plugin-search`：二次评审确认 1 条 P3（重入 `loadMore` 顶掉 page-0 刷新）；React/Vue 适配层各 1 条 P2（桥接流无 error 处理器，三端不对称）；详见各报告。
+- 其余包：二次评审未再确认 P0/P1/P2/P3；不是动态测试通过结论。
 
 ## 可复用的静态门禁证据
 

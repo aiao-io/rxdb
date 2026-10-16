@@ -7,7 +7,7 @@ status: StaticReview
 
 # rxdb-plugin-search-vue 代码评审
 
-**结论：🟡 静态检查未确认 P0/P1/P2/P3 缺陷；动态门禁待在受支持环境复跑。**
+**结论：🟡 二次评审确认 1 条 P2（与 React 端同源）；动态门禁待真实宿主复跑。**
 
 Vue `useSearch` 适配层。 当前基线为 `main@94df0a04`（2026-10-16）。本报告只记录本次检查结果，不替代修复单。
 
@@ -30,9 +30,11 @@ Vue `useSearch` 适配层。 当前基线为 `main@94df0a04`（2026-10-16）。�
 
 ## 发现
 
-### 无已确认问题
+### P2：桥接流的 error 未挂处理器，流损坏时走 RxJS `reportUnhandledError` 直接崩应用（三端不对称）
 
-逐项检查导出面、依赖声明、配置入口与 README 示例；未发现能够在当前源码中直接定位并复现、达到 P0–P3 登记门槛的问题。历史评审中已修复的条目未重复登记。
+- 证据：`src/use-search.ts:164-167` 对 `results$` / `state$` / `error$` / `hasMore$` 四个订阅都只传 next 回调；Angular 端 `packages/rxdb-plugin-search-angular/src/inject-search.ts:183-191` 的 `reportStreamFailure`（SRA-004）明确注释：任一兼容 `SearchSourceLike` 实现都可能让任一流进入 error，无 error 处理器时 RxJS 走 `reportUnhandledError`，Angular 的 `ErrorHandler` 与 error signal 都收不到，进程/应用可能直接崩溃。React 端同形（`packages/rxdb-plugin-search-react/src/use-search.ts:124-127`）。
+- 触发：任何结构兼容的 source 其 handle 的任一流 error → Vue/React 端未捕获异步异常（window `error` / 崩溃），UI 冻结在最后状态，`error` 状态不更新；Angular 端则路由 ErrorHandler 并完成清理。
+- 建议：两端镜像 Angular 的 `reportStreamFailure`（退订全部 + 路由到框架合适的处理），至少给四个订阅挂 error 回调统一退订与上报策略。
 
 ## 风险与未覆盖
 
