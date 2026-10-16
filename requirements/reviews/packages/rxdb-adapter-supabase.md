@@ -2,30 +2,54 @@
 
 ## 结论
 
-🔴 发现 1 个 P1、1 个 P2，均涉及已支持的实体 ID 类型/元数据在远端仓库中被丢失。
+🟡 首轮 1 P1 + 1 P2 已修复并经二次评审复核；二次评审新确认 4 条遗留问题（3 P2 + 1 P3），集中在自定义 `columnName` 配置的批量写路径与审计字段一致性。
 
 ## 检查范围
 
 检查了 `package.json` 的 Supabase/tree peer、`project.json` 的 test-env/test/sql-security target、README/RLS 接入说明；走读 `RxDBAdapterSupabase.ts`、`SupabaseRepository.ts`、`SupabaseTreeRepository.ts`、`transform.ts`、`rule_group_builder.ts`、`pagination.ts`、同步/推送/RLS/SQL 安全模块，并核对 `src/__tests__/**`（CRUD、sync、tree、分页、RLS 和回归探针）。
 
-## 发现
+## 已处理（二次评审复核）
 
-### P1：Supabase Repository 硬编码物理主键 `id`
+### P1：Supabase Repository 硬编码物理主键 `id` — 已修复（主键列映射）
 
-- 证据：`SupabaseRepository.ts:168-176` 的 `create()` 直接把实体对象 spread 后发送；`203-207` 的 `update()` 使用 `.eq('id', entity.id)`；`223-225` 的 `remove()` 使用 `.eq('id', ...)` 和 `.select('id')`。`SupabaseRepository.ts:95-99` 分页稳定排序也固定 `.order('id')`。此外 `transform.ts:53-60` 用返回行的物理列名直接查 `propertyMap` 并写回实体，没有使用已有的 `columnNameToPropertyName` 反向映射。
-- 影响：RxDB 元数据允许属性（包括主键 `id`）通过 `columnName` 映射到其他物理列（sqlite-core 的 `get_primary_key_column()` 已按 metadata 解析），但 Supabase 路径既不把 create 的属性名映射为物理列，也不按映射列更新/删除/排序，读回时还把物理列名当 JS 属性名。配置 `id`→`entity_id` 或 `firstName`→`first_name` 时，create 会提交错误列，update/remove/find 可能找不到行或返回带错误字段名的对象，超过一页的 find 还会按不存在的 `id` 排序。
-- 建议：集中使用 metadata 的属性↔物理列双向映射；create/update/remove/select/order 全部使用物理列，`transform_row_to_entity` 通过 `columnNameToPropertyName` 映射回 JS 属性。补充自定义属性/主键列的真实 Supabase CRUD、分页与转换测试。
+- 修复：`SupabaseRepository.ts` 的 `create/update/remove/find` 统一经 `primary_key_column()`（`propertyMap.get('id')?.columnName ?? 'id'`）映射物理主键列；`rule_group_builder.ts` 的 `resolve_column_name` 与 `RxDBAdapterSupabase.ts` 的 `fetchMetadata` / `executeDelete` / `#findByIdsInChunks` 同步跟进。
+- 契约校准：二次评审确认远端表 DDL 契约是**属性名即列名**（`docker/sql/03-business-tables.sql` 开头注释「字段名以实体属性名为准」，README:167「camelCase 列名加引号」）。首轮建议的「全字段 columnName 映射」会破坏该契约，故 `7ff0bc8c` 回退为「仅主键列映射、其余字段保持属性名」是正确方向。首轮 P1 原文把非主键字段也计入修复范围，属于过度外推。
+- 回归与验证：`applyRuleGroup.spec.ts` 新增自定义主键映射用例、`transform.spec.ts` 新增物理主键列映射回 `id` 用例；二次评审在 Node 26.7 下运行两份 spec：**67/67 通过**；`typecheck` 通过。
 
-### P2：数值/BigInt parentId 被 `hasChildren` 判定丢弃
+### P2：数值/BigInt parentId 被 `hasChildren` 判定丢弃 — 已修复
 
-- 证据：`SupabaseTreeRepository.ts:256-262` 明确按 `String(currentId)` 处理 `RxDBEntityId`，并注释承认 PostgREST 的 `parentId` 可能是 number 或 string；但 `collectParents()` 在 `360-367` 只接受 `typeof parentId === 'string'`，然后用字符串集合匹配。
-- 影响：实体 ID 合同包含 `string | number | bigint`。当数据库返回数值 parentId 时，`findParentsWithChildren()` 不会把父节点加入集合，树查询返回的 `hasChildren` 对非叶节点为 false；UI 展开按钮、增量树逻辑会错误地把有子节点的节点当叶子。当前 Supabase 测试只覆盖字符串 UUID，未覆盖数值 parentId/hasChildren。
-- 建议：以统一的实体 ID canonical 化函数（至少 `String(parentId)`，并保留 bigint 不丢精度）写入/比较集合；补 numeric、bigint parentId 与 `hasChildren` 回归。
+- 修复：`SupabaseTreeRepository.collectParents()`（`SupabaseTreeRepository.ts:368-377`）改为 `parentId == null` 判空 + `String(parentId)` 归一，与 `findDescendants`/`findAncestors` 的 `String(node[primaryKeyColumn])` 判据一致；数值/BigInt 父节点不再被误判为叶子。
+
+## 发现（二次评审新确认，尚未处理）
+
+### P2：`update()` 的 `updatedBy` 审计字段仍按物理列名写入，与属性名契约不一致（`7ff0bc8c` 回退引入）
+
+- 证据：`SupabaseRepository.ts:204-208`。`normalize_supabase_update` 已把整个 patch 归一为**属性名**键（与 `create()` 的 `entityData['createdBy']/['updatedBy']`、`executeUpsert` 的 `{...entity, updatedBy: userId}` 一致），唯独 208 行 `patchData[updatedBy.columnName] = userId` 用物理列名。基线 `94df0a04` 上 patch 整体以物理列名键控，这行是对的；回退后变成全文件唯一的例外。
+- 影响：`updatedBy` 声明自定义 `columnName`（如 `updated_by`）且 `context.userId` 存在时，update 请求体混入不存在的物理列 → PostgREST 400，带登录用户的每次 update 都失败；默认列名（`columnName === name`）无影响。
+- 建议：改为 `patchData['updatedBy'] = userId`，与 create/upsert 对齐；补自定义 `columnName` + userId 的 update 回归。
+
+### P2：批量写路径未做主键列映射，自定义主键支持不完整（`saveMany` / `mutations` / `mergeChanges`）
+
+- 证据：`RxDBAdapterSupabase.ts:729-740`（`executeUpsert` 直接 `{ ...entity, updatedBy: userId }`，无 `create()` 同款 `primaryKeyColumn !== 'id'` 重映射）；`RxDBAdapterSupabase.utils.ts:35-78`（`build_upsert_params` 原样下发实体）；`supabase.merge-changes.ts` 的 p_upserts/p_updates 载荷同样原样下发。服务端 `docker/sql/04-rxdb-utils-functions.sql:39` 的 `rxdb_batch_upsert` 硬编码 `ON CONFLICT (id)`，即使客户端补上映射，RPC 冲突目标也仍是 `id`。
+- 影响：主键 `columnName` 自定义时，单实体 CRUD / find / 分页 / 树查询已可用，但 `saveMany`、事务 `mutations` 与同步 `mergeChanges` 仍按 `id` 下发/判冲突 → PostgREST 列不存在错误或冲突目标错误。首轮修复声明「覆盖 CRUD」未含这三条批量路径。
+- 建议：二选一——(a) 把主键重映射补进 `executeUpsert`、`build_upsert_params` 与 merge payload，并让 `rxdb_batch_upsert` 接收冲突列参数（或按目标表解析）；(b) 在 README 明确声明「Supabase 适配器仅支持默认 `id` 主键列，`columnName` 只对查询路径生效」。无论哪种，需把批量路径与单实体路径的口径统一。
+
+### P2：树查询的 `parent_column_name()` 与 CRUD 的父列解析口径不一致
+
+- 证据：`SupabaseTreeRepository.ts:389-395` 用 `relationMap.get('parent')?.columnName ?? propertyMap.get('parentId')?.columnName ?? 'parentId'`（物理列名），而 `normalize_supabase_update`（`SupabaseRepository.ts:37-48`）把外键映射回**属性名** `parentId`。
+- 影响：`parentId` / parent 关系声明自定义 `columnName`（如 `parent_id`）时，update 写 `parentId`、树查询查 `parent_id`——同一部署下必有一侧打不中列。按「属性名即列名」契约，树查询应查 `parentId`；按 columnName 语义则 CRUD 应写 `parent_id`。当前实现两头各取一半。
+- 建议：与 P2（批量路径）一并裁定契约：要么父列统一走 columnName（CRUD 侧跟着改），要么统一走属性名（`parent_column_name()` 固定返回 `'parentId'`）。
+
+### P3：`#findByIdsInChunks` 回填 `id` 时保留物理键且绕过 `transform_row_to_entity`
+
+- 证据：`RxDBAdapterSupabase.ts:1023-1028`，`{ ...row, id: row[primaryKeyColumn] }` 未删除物理键（如 `todo_key`），且不做 Date/boolean 类型还原。首轮修复原本用 `transform_row_to_entity`，`7ff0bc8c` 为兼容性换回裸映射。
+- 影响：仅自定义主键列时出现：实体对象带多余枚举属性 `todo_key`；若这些对象再经 `saveMany` 下发，`{...entity}` 会把物理键一并送出。QueryCache `findByIds` 返回值的时间字段保持字符串形态（与基线一致，非回归）。
+- 建议：改为 `transform_row_to_entity`（其 `columnNameToPropertyName` 反向映射已能正确还原主键），或至少在自定义主键分支删除物理键。
 
 ## 风险/未覆盖
 
-未发现其他可定位问题。自定义主键列和数值 parentId 在 `src/__tests__` 中没有覆盖；真实 Supabase RLS/分页/多租户行为仍需 test-env。当前工作树 Nx daemon 返回 EPERM，Node 22 也低于仓库要求 Node >=26，未执行完整门禁。
+真实 Supabase RLS/分页/多租户行为仍需 `test-env`（本机 Docker 不可用，未跑 612 例全套）；自定义主键/数值树 ID 的真实 PostgREST 用例未补。
 
 ## 建议验证
 
-修复后执行 `pnpm nx run rxdb-adapter-supabase:test-env`、`pnpm nx test rxdb-adapter-supabase`、`pnpm nx run rxdb-adapter-supabase:sql-security-regressions`，并增加自定义主键/数值树 ID 的真实 PostgREST 用例。
+修复后执行 `pnpm nx run rxdb-adapter-supabase:test-env`、`pnpm nx test rxdb-adapter-supabase`、`pnpm nx run rxdb-adapter-supabase:sql-security-regressions`，并增加自定义主键 × saveMany/mutations/mergeChanges 与自定义 `updatedBy` 列名的真实 PostgREST 用例。

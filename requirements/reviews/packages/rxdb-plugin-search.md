@@ -7,7 +7,7 @@ status: StaticReview
 
 # rxdb-plugin-search 代码评审
 
-**结论：🟡 静态检查未确认 P0/P1/P2/P3 缺陷；动态门禁待在受支持环境复跑。**
+**结论：🟡 二次评审确认 1 条 P3；动态门禁待真实宿主复跑。**
 
 全文/模糊搜索、分页、后端接入与响应式状态机。 当前基线为 `main@94df0a04`（2026-10-16）。本报告只记录本次检查结果，不替代修复单。
 
@@ -32,9 +32,11 @@ status: StaticReview
 
 ## 发现
 
-### 无已确认问题
+### P3：success 订阅内重入 `loadMore()` 会顶掉已排队的 page-0 数据变更刷新
 
-逐项检查导出面、依赖声明、配置入口与 README 示例；未发现能够在当前源码中直接定位并复现、达到 P0–P3 登记门槛的问题。历史评审中已修复的条目未重复登记。
+- 证据：`src/core/search-handle.ts:164-171` `enqueueQuery` 无条件替换 `pendingQuery`；`253-257` `loadMore` 在状态为 success 时入队 `currentPage+1`；`197-199` 数据变更刷新入队 page 0。`173-176` 的注释自己记录了「success 订阅内 loadMore 紧随 clear/destroy」这类同步重入场景。
+- 触发：慢查询执行中（状态 loading）数据变更触发，其 page-0 刷新进 `pendingQuery`；随后在途查询完成、`results$` 同步发出，订阅者立刻调 `loadMore()`——此刻状态快照已是 success → 入队的 page-1 请求**替换**了待执行的 page-0 刷新（原请求的 waiter 被并入新请求，只 resolve 不执行）。泵只跑 page-1，把新一页追加到已过期的结果上；刷新被静默丢弃，陈旧结果要等下一次数据变更或 setQuery 才自愈。
+- 建议：`enqueueQuery` 收到 page>0 请求且待执行的是 page-0 刷新时，保留 page-0（如在 loadMore 结算后重入队刷新，或先跑 pending page-0）。
 
 ## 风险与未覆盖
 

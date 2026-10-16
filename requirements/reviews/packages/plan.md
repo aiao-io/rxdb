@@ -3,7 +3,7 @@ title: packages 全量代码评审计划
 status: Done
 created: 2026-10-16
 updated: 2026-10-16
-branch: codex/packages-review
+branch: claude/packages-review-second-pass-b6d52b（首轮 codex/packages-review）
 base: main@94df0a04
 ---
 
@@ -60,7 +60,8 @@ base: main@94df0a04
 ## 本轮结果
 
 - 51 个包均有独立报告。
-- 共确认 6 条问题：2 条 P1、4 条 P2；没有 P0/P3。
+- 首轮共确认 6 条问题：2 条 P1、4 条 P2；没有 P0/P3。已在 `codex/packages-review` 分支完成修复与回归。
 - 发现集中在自定义主键列映射（PGlite/Supabase）、Supabase 数值/BigInt 树 ID、模型缩写标题、QueryCache peer 元数据和 Replay Vue 挂载前 seek。
+- **二次评审（2026-10-16，本分支）**：6 条首轮问题全部复核为已修复（修复代码逐行走查 + Node 26.7 node 模式复跑对应测试：PGlite JOIN 8/8、Supabase unit 67/67、模型 996/996、Replay Vue 11/11、QueryCache 205/205）；同时新确认 24 条问题（1 P1 + 10 P2 + 13 P3），明细见 `summary.md`，未做修复。首轮 P1（Supabase）的「全字段 columnName 映射」建议经契约校准（属性名即列名，`docker/sql/03-business-tables.sql`）修正为「仅主键列映射」，批量写路径仍有残留。
 - `pnpm audit:docs-plugins` 与 `pnpm audit:conditions` 通过；构建入口审计因 worktree 没有构建产物无法判定。
-- Nx 动态门禁因当前 Node 22 低于仓库要求的 Node 26，且插件加载受限，留待支持环境串行复跑。
+- Nx 动态门禁：本 worktree 为 Node 26.7（满足仓库要求），受影响包 typecheck 与 node 模式单测已通过；browser runner 与 Supabase Docker test-env 受环境限制未复跑，逐包报告均如实标注。

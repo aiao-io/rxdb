@@ -2,7 +2,7 @@
 
 ## 结论
 
-🟡 发现 1 条 P2：默认字段标题生成器的缩写处理与自身文档不一致，会在查询构建器 UI 中拆散全大写缩写。其余模型、表格、编辑器、查询服务和测试未发现 P0/P1。
+🟡 首轮 P2 已修复并经二次评审复核；二次评审确认 1 条残留 P3（缩写分词对「缩写 + 数字 + 大写」形态的边界）。
 
 ## 检查范围
 
@@ -10,12 +10,15 @@
 
 ## 发现
 
-### P2：默认显示名把连续大写缩写拆成单字母
+### P2（已修复，二次评审复核）：默认显示名把连续大写缩写拆成单字母
 
-- 证据：`packages/rxdb-model/src/query-builder/services/schema-parser.service.ts:76-90` 的文档明确示例 `URLValue -> URL Value`，实现却对每个大写字母执行 `.replace(/([A-Z])/g, ' $1')`。输入 `URLValue` 的实际结果为 `U R L Value`（可由该纯表达式直接复现）。
-- 影响：未提供 `displayNameGenerator` 时，字段名含连续缩写（URL、HTTP、UUID 等）的查询字段标题和关系标题出现额外空格，用户看到的标签与公开契约不符；若依赖标题做快照/可访问名称，也会造成跨版本抖动。
-- 建议：采用连续大写 + 后续首字母边界的分词规则（例如 `([A-Z]+)([A-Z][a-z])` 与 `([a-z0-9])([A-Z])` 两步），补 `URLValue`、`HTTPServer`、`createdAt` 回归测试，并同步更新示例。
-- 验证：运行 `pnpm nx test rxdb-model` 并检查生成字段的 `displayName`；若需要单测筛选，先用 `pnpm nx test rxdb-model --help` 核对当前 runner 的参数。
+- 修复：`src/query-builder/services/schema-parser.service.ts:86-90` 改为两步分词 `([A-Z]+)([A-Z][a-z])` + `([a-z\d])([A-Z])`。文档示例 `URLValue → URL Value`、`IDCard → ID Card`、`createdAt → Created At`、纯缩写 `ABC` 均与文档一致（二次评审已执行验证）。回归：`schema-parser.service.spec.ts` 补缩写用例；Node 26.7 下本包全量测试 **996/996 通过**。原条目证据与影响见首轮记录（`git show 17368950:requirements/reviews/packages/rxdb-model.md`）。
+
+### P3（二次评审新确认）：缩写分词对「缩写 + 数字 + 大写」形态仍有边界
+
+- 证据：`schema-parser.service.ts:88-89` 的两步正则对 `IPv4Address` 得到 `I Pv4 Address`（第一步贪婪 `[A-Z]+` 从 `IP` 回退到 `I`+`Pv`）、对 `2FAuth` 得到 `2 F Auth`（第二步按 `[a-z\d])([A-Z]` 切开了前置 token 内的数字-大写边界），均已执行复现。
+- 影响：仅影响含此类形态的字段名标题（可感知的标签瑕疵），不涉及数据正确性。
+- 建议：数字-大写边界只在后随小写时才切（`([a-z\d])([A-Z](?=[a-z]))`），或对数字嵌入 token 做预处理。
 
 ## 风险/未覆盖
 

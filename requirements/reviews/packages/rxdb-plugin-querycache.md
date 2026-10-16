@@ -7,7 +7,7 @@ status: StaticReview
 
 # rxdb-plugin-querycache 代码评审
 
-**结论：🟡 发现 1 条 P2 包元数据问题；动态门禁待在受支持环境复跑。**
+**结论：🟡 首轮 P2 已修复并经二次评审复核；二次评审新确认 1 条 P2（`findById` 绕过作废代次检查）。**
 
 本地/远程查询缓存、SWR 与离线回落、写回路径。 当前基线为 `main@94df0a04`（2026-10-16）。本报告只记录本次检查结果，不替代修复单。
 
@@ -33,12 +33,16 @@ status: StaticReview
 
 ## 发现
 
-### P2：README 要求的 history/sync peer 未写入 package.json
+### P2（已修复，二次评审复核）：README 要求的 history/sync peer 未写入 package.json
 
-- **证据**：README 安装与运行约束明确要求同时安装 `@aiao/rxdb-plugin-history`、`@aiao/rxdb-plugin-sync`，且缺任一插件 `connect()` 就抛错（`packages/rxdb-plugin-querycache/README.md:12-16,42-47`）；插件运行期确实依赖 core 的 QueryCache 出站队列与 history 注入顺序（`packages/rxdb-plugin-querycache/src/plugin.ts:18-29`、`packages/rxdb-plugin-sync/src/plugin.ts:21-56`）。但 `package.json:53-59` 只声明 `@aiao/rxdb` peer，没有 history/sync peer 或 peerDependenciesMeta。
-- **影响**：npm/pnpm 消费者安装 QueryCache 包时不会得到缺失插件的 peer 警告；在 `connect()` 才收到 `RxDBMissingPluginError`，部署/锁文件审计无法表达这条硬依赖，容易把可提前发现的配置错误推迟到运行期。
-- **建议**：在 `peerDependencies` 增加 `@aiao/rxdb-plugin-history` 与 `@aiao/rxdb-plugin-sync`，使用与仓库一致的 `workspace:^` 发布替换规则；补一个发布 manifest 检查，确认两项在独立消费包的 peer 元数据中存在且版本范围与当前 release 对齐。不要通过 `inject` 绑定 QueryCache 插件自身，以免破坏 `connect()` 前的引擎护栏。
-- **验证**：构建 dist 后执行 `pnpm pack`，在临时消费者执行 `pnpm install ./aiao-rxdb-plugin-querycache-*.tgz`，检查 peer warning/manifest；随后分别只装缺 history 或 sync 的矩阵用例，确认安装阶段可见提示且连接阶段仍保留精确运行时错误。
+- 修复：`package.json` 的 `peerDependencies` 增加 `@aiao/rxdb-plugin-history` 与 `@aiao/rxdb-plugin-sync`（`workspace:^`）；`eslint.config.mjs` 加 `ignoredDependencies` 两项、`tsconfig.lib.json` 加两个 project reference、`pnpm-lock.yaml` 同步两个 importer。二次评审在 Node 26.7 下运行本包全量单测（`vitest run --browser.enabled=false`）：**205/205 通过**；typecheck 通过。原条目证据与影响见首轮记录（`git show 17368950:requirements/reviews/packages/rxdb-plugin-querycache.md`）。
+
+### P2（二次评审新确认）：`findById` 绕过作废代次检查，确认写入后可能被过期远端响应回退本地缓存
+
+- 证据：`src/QueryCacheEngine.ts:373-382` 的 `findByIds(...).pipe(switchMap(remoteData => this.localAdapter.upsertMany(...)))` 未捕获/校验 `#invalidationGeneration`；对照 `#pull`（`806-819`）与 `#evictOrphans`（`785-792`）都先取 `generation` 再 `#isCurrent` 守卫；`create/update/remove` 经 `invalidateInflight()` 递增代次（`query-cache-primary.ts:208、229、248`）。类文档（`174-188`）明言该代次正是为防「在途读晚到、回退已确认写入」而生。
+- 触发：`engine.findById(id)` 在途（远端请求已发出）；随后 `repo.update(id)` 完成（远端与本地缓存已到 V2、代次 +1）；V1 的 findById 响应晚到并 `upsertMany` 覆写 V2 → 已确认的写入被静默回退，直到该行下次全量同步（SWR `localCacheFirst` 会先吐 V1）。
+- 说明：当前仓库内没有 `QueryCacheEngine.findById` 的生产调用方（仅自身文档注释引用），属公开导出 API 的潜伏缺陷。
+- 建议：`findById` 顶部捕获 `const generation = this.#invalidationGeneration`，`upsertMany` 前 `#isCurrent(generation)` 守卫（镜像 `#pull`），或把 `findById` 路由进 `#pull`。
 
 ## 风险与未覆盖
 

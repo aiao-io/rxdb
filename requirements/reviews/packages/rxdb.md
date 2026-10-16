@@ -2,15 +2,19 @@
 
 ## 结论
 
-🟢 未发现足以定级为 P0-P2 的新问题。核心仓储、适配器生命周期、事务事件、插件调度和导出面均有针对性回归测试与生命周期注释。
+🟡 二次评审发现 1 条 P2：游标分页的重锚判据只比游标 id、不比排序键值，排序键被编辑时边界行会跨页重复、后续行丢失（三端无限滚动同源）。
 
 ## 检查范围
 
-检查 `RxDB.ts`、`Repository.ts`/`QueryManager.ts`、`rxdb.transaction.ts`、插件调度器、实体权限/约束、同步契约、backup/capture/system 目录及其 `src/__tests__`；核对 `package.json`、`project.json` 的 build/typecheck/test inputs、exports 和 SKILL 生成目标。
+检查 `RxDB.ts`、`Repository.ts`/`QueryManager.ts`、`rxdb.transaction.ts`、插件调度器、实体权限/约束、同步契约、backup/capture/system 目录及其 `src/__tests__`；核对 `package.json`、`project.json` 的 build/typecheck/test inputs、exports 和 SKILL 生成目标。二次评审额外核对了 `findByCursor` 的游标规则生成时机与三端无限滚动的重锚守卫。
 
 ## 发现
 
-无。仓储分页入口先校验非负安全整数并保留 `limit: 0`（`src/repository/Repository.ts:59-73,305-324`）；QueryCache 会话懒创建且 destroy 清理失效监听与计时器（`src/repository/Repository.ts:90-106,220-227`）；连接纪元在 disconnect 时作废在飞 connect（`src/RxDB.ts:1493-1510`）；事务事件在提交/回滚时隔离批量监听器错误（`src/rxdb.transaction.ts:34-53,88-143`）。
+### P2：`findByCursor` 的游标规则在订阅期只生成一次，排序键被编辑后重锚判据失效——边界行跨页重复、后续行丢失
+
+- 证据：`src/repository/Repository.ts:391-401` 中 `_generate_cursor_rule_group(normalized)` 在 `findByCursor` 调用期执行一次，把游标的**排序键取值**烘焙进 `new_where`，runner 闭包每次 refresh 复用同一份谓词；三端无限滚动的重锚守卫只比较游标 id：React `packages/rxdb-react/src/useInfiniteScroll.ts:205`、Vue `packages/rxdb-vue/src/useInfiniteScroll.ts:238`、Angular `packages/rxdb-angular/src/InfiniteScrollingList.ts:304`（`cursorId(...) !== cursorId(tail)` 即不重锚）。
+- 触发：`orderBy [name asc, id asc]`、limit 10、已加载两页；把第 1 页尾行（第 10 行的锚点）`name` 从 `Jade` 改成 `Jasmine`（仍在第 9 与第 11 行之间）。第 1 页重发后尾行 id 不变 → 不重锚；第 2 页沿用旧谓词 `name > 'Jade'`，改名后的锚点行自身落入第 2 页 → 第 10 行跨页重复、第 20 行从并集消失；此后第 2 页每次刷新持续用旧锚点，直到锚点行离开该页或用户手动 refresh。
+- 建议：重锚判据比较游标实体的 orderBy 投影值（不止 id），或把 `_generate_cursor_rule_group` 移进 runner 让每次重跑从活锚点实体重读当前排序键值。
 
 ## 风险/未覆盖
 

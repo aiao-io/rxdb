@@ -7,7 +7,7 @@ status: StaticReview
 
 # rxdb-plugin-replay-vue 代码评审
 
-**结论：🟡 发现 1 条 P2 组件命令契约问题；动态门禁待在受支持环境复跑。**
+**结论：🟢 首轮 P2 已修复并经二次评审复核；当前无剩余问题。**
 
 Vue `Replayer` 适配层。 当前基线为 `main@94df0a04`（2026-10-16）。本报告只记录本次检查结果，不替代修复单。
 
@@ -24,12 +24,9 @@ Vue `Replayer` 适配层。 当前基线为 `main@94df0a04`（2026-10-16）。�
 
 ## 发现
 
-### P2：Vue `Replayer` 在挂载前调用 `seek()` 会丢失目标时刻
+### P2（已修复，二次评审复核）：Vue `Replayer` 在挂载前调用 `seek()` 会丢失目标时刻
 
-- **证据**：公开文档承诺 `seek(ms)` 在加载完成前会记下目标时刻（`packages/rxdb-plugin-replay-vue/README.md:54-63`），组件注释也重复该契约（`src/replayer.ts:9-10`）。但 `setup()` 暴露的实现只在已有句柄时转发 `handle?.seek(timeMs)`，未保存 pending seek（`src/replayer.ts:50-91`）；`onMounted()` 创建句柄后也没有补发逻辑（`src/replayer.ts:61-70`）。
-- **影响**：父组件在同一挂载批次的 `onBeforeMount`/模板 ref 取到组件后调用 `seek(5000)` 时，Vue 端静默丢失目标，回放从默认位置开始；Angular/React 适配层已保存 pending 目标，三端行为不对称。
-- **建议**：增加 `pendingSeek`，挂载成功后将最后一次目标交给 `handle.seek()`；卸载/重新挂载时保留语义与 React/Angular 对齐，并补真实 Vue mount + template ref 的挂载前调用测试，覆盖多次 seek、session/replay 更新和卸载竞态。
-- **验证**：在现有 `replayer.spec.ts` 增加 deferred mount spy：挂载前调用 `seek(5000)`，断言首个句柄收到 5000；再调用 `seek(7000)` 断言只兑现最后目标，并在组件销毁/重新挂载后确认不会把旧会话目标误发给新会话。
+- 修复：`src/replayer.ts:54` 增加 `pendingSeek`；`seek` 先记录目标再转发（`91-94`），`onMounted` 创建句柄后兑现（`71`）。语义与 Angular（`replay-angular/src/replayer.component.ts:59、83、117-120`）和 React（`replay-react/src/replayer.tsx:62、79、106-109`）一致：挂载前只记「最后一次意图」、挂载兑现、之后直通、都不清空（React 注释说明 StrictMode 双挂载需要保留）。二次评审在 Node 26.7 下运行本包测试：**11/11 通过**（含新增的挂载前模板 ref seek 用例）。原条目证据与影响见首轮记录（`git show 17368950:requirements/reviews/packages/rxdb-plugin-replay-vue.md`）。
 
 ## 风险与未覆盖
 
