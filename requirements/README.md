@@ -46,6 +46,7 @@
 | `stories/`                                   | 按领域拆分的用户故事（**状态真相源**，含 `story.template.md`） |
 | `api-baseline/`                              | 各包公开 API 表面基线（由门禁生成与校验）                      |
 | `reviews/`                                   | review 模板与尚未处理的问题报告（修复后删除，留清理记录）      |
+| [domain-research/](domain-research/README.md) | 候选领域研究区：领域想法在成为用户故事之前的家（不是故事、不参与状态统计） |
 | `CONVENTIONS.md`                             | 命名 / 状态 / 写作规范（单一真相源）                           |
 
 `stories/` 子目录与编号段见 [CONVENTIONS.md](CONVENTIONS.md#文档类型与编号段)（唯一真相源，不在此重复）。
