@@ -10,8 +10,10 @@ publish = "website/build"
 NODE_VERSION = "26"
 
 [build.environment]
-# 禁用 pnpm 缓存，强制重新安装依赖
-PNPM_FLAGS = "--no-frozen-lockfile"
+# 冻结锁文件安装：与 GitHub CI / 本地一致。此前 --no-frozen-lockfile 会让依赖图在
+# Netlify 上自由漂移（nx@23.3.0 的 ngcli-adapter 因此解析不到 @angular-devkit/architect，
+# Angular 演示构建直接崩），锁定后依赖图与锁文件提交物一致。
+PNPM_FLAGS = "--frozen-lockfile"
 # 使用 HTTPS 协议克隆 Git 依赖
 GIT_SSH_COMMAND = "true"
 # 禁用 Nx Cloud（免费额度用完时构建会失败）
