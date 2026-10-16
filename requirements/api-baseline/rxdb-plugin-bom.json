@@ -30,7 +30,19 @@
         "kind": "value"
       },
       {
+        "name": "BomActivityRate",
+        "kind": "both"
+      },
+      {
+        "name": "BomActivityType",
+        "kind": "both"
+      },
+      {
         "name": "BomBackendCapabilityError",
+        "kind": "both"
+      },
+      {
+        "name": "BomCostError",
         "kind": "both"
       },
       {
@@ -79,6 +91,10 @@
       },
       {
         "name": "BomLineOperationSplit",
+        "kind": "both"
+      },
+      {
+        "name": "BomMapError",
         "kind": "both"
       },
       {
@@ -142,8 +158,36 @@
         "kind": "value"
       },
       {
+        "name": "confirmMapping",
+        "kind": "value"
+      },
+      {
         "name": "convertUom",
         "kind": "value"
+      },
+      {
+        "name": "CostCreditLine",
+        "kind": "type"
+      },
+      {
+        "name": "CostMaterialLine",
+        "kind": "type"
+      },
+      {
+        "name": "CostNodeDetail",
+        "kind": "type"
+      },
+      {
+        "name": "CostProcessingLine",
+        "kind": "type"
+      },
+      {
+        "name": "CostRollupContext",
+        "kind": "type"
+      },
+      {
+        "name": "CostRollupResult",
+        "kind": "type"
       },
       {
         "name": "cycleConstraintDdlForRemotePg",
@@ -294,6 +338,38 @@
         "kind": "value"
       },
       {
+        "name": "mappingCoverage",
+        "kind": "value"
+      },
+      {
+        "name": "MappingCoverageResult",
+        "kind": "type"
+      },
+      {
+        "name": "MappingGap",
+        "kind": "type"
+      },
+      {
+        "name": "mappingGaps",
+        "kind": "value"
+      },
+      {
+        "name": "MappingGapsResult",
+        "kind": "type"
+      },
+      {
+        "name": "MappingSaveInput",
+        "kind": "type"
+      },
+      {
+        "name": "MappingStep",
+        "kind": "type"
+      },
+      {
+        "name": "MapScopeInfo",
+        "kind": "type"
+      },
+      {
         "name": "normalizeBomError",
         "kind": "value"
       },
@@ -346,6 +422,10 @@
         "kind": "type"
       },
       {
+        "name": "rollupCost",
+        "kind": "value"
+      },
+      {
         "name": "roundToSignificant",
         "kind": "value"
       },
@@ -356,6 +436,10 @@
       {
         "name": "RxDBPluginBom",
         "kind": "both"
+      },
+      {
+        "name": "saveMapping",
+        "kind": "value"
       },
       {
         "name": "sqliteBomDialect",
@@ -416,7 +500,15 @@
         "kind": "value"
       },
       {
+        "name": "loadScooterDatasetD",
+        "kind": "value"
+      },
+      {
         "name": "SCOOTER_DATASET",
+        "kind": "value"
+      },
+      {
+        "name": "SCOOTER_DATASET_D",
         "kind": "value"
       },
       {

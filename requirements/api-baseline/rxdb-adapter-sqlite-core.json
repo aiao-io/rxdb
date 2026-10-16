@@ -1254,10 +1254,6 @@
         "kind": "value"
       },
       {
-        "name": "constraintSuite",
-        "kind": "value"
-      },
-      {
         "name": "createSqliteClientSuite",
         "kind": "value"
       },
