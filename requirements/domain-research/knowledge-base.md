@@ -8,15 +8,15 @@
 
 ## 契合点：现有能力逐项映射
 
-| 产品功能             | 引擎现有能力                                                                     | 出处                                                        |
-| -------------------- | -------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| 目录树 / 页面层级    | 树插件（单父邻接表），三端文件管理器 demo 已验证                                 | [capability-matrix](../capability-matrix.md) 跨框架矩阵     |
-| 全文搜索             | SQLite FTS5 + PGlite pg-tsvector 已交付，CJK bigram 函数已注册                   | [US-702](../stories/future/US-702-full-text-search.md) · [US-703](../stories/future/US-703-pglite-full-text-search.md) |
-| 语义搜索 / 本地 AI   | sqliteai 向量列 + AI SQL 函数支撑本地 RAG（vision 阶段 6 的底座）                | [US-205](../stories/adapter/US-205-sqliteai-adapter.md)     |
-| 隐私内容加密         | 加密 keyring 内建，非外层包装                                                    | [US-803](../stories/future/US-803-local-encryption.md)      |
-| 数据安全             | 一致性备份与恢复、实体操作权限模型                                               | [US-217](../stories/adapter/US-217-local-database-backup-restore.md) · [US-027](../stories/core/US-027-entity-permission-model.md) |
-| 离线编辑 + 多端同步  | Local-first + 双向同步，断网写入、回网合并                                        | [epic-002](../epics/epic-002-data-sync.md)                  |
-| 表单 / 详情 / 表格   | `@aiao/rxdb-model` 系列，模型直接驱动三端 UI                                     | [vision](../vision.md) 阶段 4                              |
+| 产品功能            | 引擎现有能力                                                      | 出处                                                                                                                               |
+| ------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| 目录树 / 页面层级   | 树插件（单父邻接表），三端文件管理器 demo 已验证                  | [capability-matrix](../capability-matrix.md) 跨框架矩阵                                                                            |
+| 全文搜索            | SQLite FTS5 + PGlite pg-tsvector 已交付，CJK bigram 函数已注册    | [US-702](../stories/future/US-702-full-text-search.md) · [US-703](../stories/future/US-703-pglite-full-text-search.md)             |
+| 语义搜索 / 本地 AI  | sqliteai 向量列 + AI SQL 函数支撑本地 RAG（vision 阶段 6 的底座） | [US-205](../stories/adapter/US-205-sqliteai-adapter.md)                                                                            |
+| 隐私内容加密        | 加密 keyring 内建，非外层包装                                     | [US-803](../stories/future/US-803-local-encryption.md)                                                                             |
+| 数据安全            | 一致性备份与恢复、实体操作权限模型                                | [US-217](../stories/adapter/US-217-local-database-backup-restore.md) · [US-027](../stories/core/US-027-entity-permission-model.md) |
+| 离线编辑 + 多端同步 | Local-first + 双向同步，断网写入、回网合并                        | [epic-002](../epics/epic-002-data-sync.md)                                                                                         |
+| 表单 / 详情 / 表格  | `@aiao/rxdb-model` 系列，模型直接驱动三端 UI                      | [vision](../vision.md) 阶段 4                                                                                                      |
 
 ## 引擎缺口
 

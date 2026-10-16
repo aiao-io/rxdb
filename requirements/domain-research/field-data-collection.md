@@ -8,15 +8,15 @@
 
 ## 契合点：现有能力逐项映射
 
-| 产品功能             | 引擎现有能力                                                              | 出处                                                         |
-| -------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| 采集表单             | 表单密集业务的主场：`@aiao/rxdb-model` 模型直接驱动三端表单 / 详情 / 表格  | [vision](../vision.md) 阶段 4                               |
-| 无网现场             | Local-first：断网录入、回网同步；HTTP 适配器 v1 的远端权威 + 本地行缓存    | [US-212](../stories/adapter/US-212-http-adapter.md)          |
-| 回传失效通知         | HTTP 适配器 changeFeed（SSE 只做失效通知并触发重查）                      | [US-023](../stories/core/US-023-querycache-remote-invalidation.md) |
-| 小程序端（微信 / 抖音 / 支付宝） | 小程序适配器（实验性）+ Taro 插件一行接入                          | [US-209](../stories/adapter/US-209-miniprogram-adapter.md) · [US-211](../stories/adapter/US-211-multi-miniprogram-platforms.md) · [US-219](../stories/adapter/US-219-taro-plugin.md) |
-| 敏感采集数据         | 加密 keyring 内建                                                        | [US-803](../stories/future/US-803-local-encryption.md)       |
-| 设备 / 资产层级      | 树插件（单父邻接表）                                                      | [capability-matrix](../capability-matrix.md)                 |
-| 数据安全             | 一致性备份与恢复                                                          | [US-217](../stories/adapter/US-217-local-database-backup-restore.md) |
+| 产品功能                         | 引擎现有能力                                                              | 出处                                                                                                                                                                                 |
+| -------------------------------- | ------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 采集表单                         | 表单密集业务的主场：`@aiao/rxdb-model` 模型直接驱动三端表单 / 详情 / 表格 | [vision](../vision.md) 阶段 4                                                                                                                                                        |
+| 无网现场                         | Local-first：断网录入、回网同步；HTTP 适配器 v1 的远端权威 + 本地行缓存   | [US-212](../stories/adapter/US-212-http-adapter.md)                                                                                                                                  |
+| 回传失效通知                     | HTTP 适配器 changeFeed（SSE 只做失效通知并触发重查）                      | [US-023](../stories/core/US-023-querycache-remote-invalidation.md)                                                                                                                   |
+| 小程序端（微信 / 抖音 / 支付宝） | 小程序适配器（实验性）+ Taro 插件一行接入                                 | [US-209](../stories/adapter/US-209-miniprogram-adapter.md) · [US-211](../stories/adapter/US-211-multi-miniprogram-platforms.md) · [US-219](../stories/adapter/US-219-taro-plugin.md) |
+| 敏感采集数据                     | 加密 keyring 内建                                                         | [US-803](../stories/future/US-803-local-encryption.md)                                                                                                                               |
+| 设备 / 资产层级                  | 树插件（单父邻接表）                                                      | [capability-matrix](../capability-matrix.md)                                                                                                                                         |
+| 数据安全                         | 一致性备份与恢复                                                          | [US-217](../stories/adapter/US-217-local-database-backup-restore.md)                                                                                                                 |
 
 ## 引擎缺口
 
