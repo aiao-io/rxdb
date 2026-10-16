@@ -17,7 +17,8 @@ const PAGE_HEADINGS = {
   时间轴: 'ECN 时间轴',
   双图映射: '双图映射',
   成本卷算: '成本卷算',
-  反查: '反查'
+  反查: '反查',
+  实例追溯: '实例追溯'
 } as const;
 
 const openPage = async (page: Page, name: keyof typeof PAGE_HEADINGS): Promise<void> => {
@@ -49,6 +50,11 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
   });
 
   test('AC#1 两遍 seed 的可见面逐字相同；批次号与基准是常量', async ({ page }) => {
+    await expect(page.locator('.header .badge')).toContainText('未装载种子');
+    await expect(page.locator('.connection-error')).toHaveCount(0);
+    await openPage(page, '实例追溯');
+    await expect(page.getByTestId('instance-root-select').locator('option')).toHaveCount(0);
+    await expect(page.getByTestId('instance-load')).toBeDisabled();
     await resetAndSeed(page);
     const paint = await page.evaluate(() =>
       performance.getEntriesByType('paint').map(entry => ({ name: entry.name, startTime: entry.startTime }))
@@ -66,10 +72,11 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     await resetAndSeed(page);
     const second = await page.getByTestId('row-counts').textContent();
     expect(second).toBe(first);
-    // 阶段 E：新增 6 个物料、2 张子装配头及 6 段发生项；ECN 将 E 层三个部位挂回整机。
+    // 阶段 E 接回三个部位；阶段 F 追加一个草稿来源与五条安装记录。
     expect(second).toContain('item=41');
-    expect(second).toContain('bom_line_occurrence=42');
+    expect(second).toContain('bom_line_occurrence=43');
     expect(second).toContain('ecn=4');
+    expect(second).toContain('bom_instance_node=5');
     await expect(page.getByTestId('seed-info')).toContainText('scooter-seed-a');
     await expect(page.getByTestId('seed-info')).toContainText('2026-01-01T00:00:00.000Z');
   });
@@ -487,5 +494,106 @@ test.describe('BOM demo（US-525 阶段 E）', () => {
     await page.getByTestId('root-select').selectOption('E-IMPORT-ROOT');
     await clickButton(page, '展开整机');
     await expect(page.locator('.requirement-row[data-item="E-IMPORT-CHILD"] .qty')).toHaveText('1 pcs');
+  });
+});
+
+test.describe('BOM demo（US-525 阶段 F）', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.goto(BASE);
+    await resetAndSeed(page);
+    await openPage(page, '实例追溯');
+  });
+
+  test('US-525 AC#21 两台 SC-100 的换件历史、序列批次追溯与固定实际修订', async ({ page }) => {
+    const root = page.getByTestId('instance-root-select');
+    const asOf = page.getByTestId('instance-as-of');
+    const tree = page.getByTestId('instance-tree');
+    const load = page.getByTestId('instance-load');
+    await root.selectOption({ label: 'SC-100 · SN-001' });
+    await asOf.fill('2026-10-17');
+    await load.click();
+    await expect(tree.locator('[data-serial="SN-001"][data-item="SC-100"]')).toHaveCount(1);
+    await expect(tree.locator('[data-serial="PACK-001"][data-item="BATT"][data-revision="A"]')).toHaveCount(1);
+    await root.selectOption({ label: 'SC-100 · SN-002' });
+    await load.click();
+    await expect(tree.locator('[data-serial="SN-002"][data-item="SC-100"]')).toHaveCount(1);
+    await expect(tree.locator('[data-serial="PACK-002"][data-item="BATT"]')).toHaveCount(1);
+
+    await page.getByTestId('instance-trace-kind').selectOption('lot');
+    await page.getByTestId('instance-trace-value').fill('PACK-LOT-A');
+    await page.getByTestId('instance-trace').click();
+    await expect(page.getByTestId('instance-trace-row')).toHaveCount(2);
+    await expect(page.getByTestId('instance-trace-row').filter({ hasText: 'SN-001' })).toHaveCount(1);
+    await expect(page.getByTestId('instance-trace-row').filter({ hasText: 'SN-002' })).toHaveCount(1);
+    await page.getByTestId('instance-trace-kind').selectOption('serial');
+    await page.getByTestId('instance-trace-value').fill('PACK-001');
+    await page.getByTestId('instance-trace').click();
+    await expect(page.getByTestId('instance-trace-row')).toHaveCount(1);
+    await expect(page.getByTestId('instance-trace-row')).toContainText('SN-001');
+
+    await root.selectOption({ label: 'SC-100 · SN-001' });
+    await page.getByTestId('instance-replace-date').fill('2026-11-01');
+    await page.getByTestId('instance-replace').click();
+    await expect(page.getByTestId('instance-action-result')).toContainText('换件成功');
+    await asOf.fill('2026-10-31');
+    await load.click();
+    await expect(tree.locator('[data-serial="PACK-001"]')).toHaveCount(1);
+    await expect(tree.locator('[data-serial="PACK-003"]')).toHaveCount(0);
+    await asOf.fill('2026-11-01');
+    await load.click();
+    await expect(tree.locator('[data-serial="PACK-001"]')).toHaveCount(0);
+    await expect(tree.locator('[data-serial="PACK-003"]')).toHaveCount(1);
+    await page.getByTestId('instance-history').check();
+    await load.click();
+    await expect(tree.locator('[data-serial="PACK-001"]')).toHaveCount(1);
+    await expect(tree.locator('[data-serial="PACK-001"]')).toContainText('2026-10-16');
+    await expect(tree.locator('[data-serial="PACK-001"]')).toContainText('2026-11-01');
+    await expect(tree.locator('[data-serial="PACK-003"]')).toHaveCount(1);
+    await page.getByTestId('instance-history').uncheck();
+
+    await page.getByTestId('instance-trace-kind').selectOption('lot');
+    await page.getByTestId('instance-trace-value').fill('PACK-LOT-A');
+    await page.getByTestId('instance-trace').click();
+    await expect(page.getByTestId('instance-trace-row')).toHaveCount(1);
+    await expect(page.getByTestId('instance-trace-row')).toContainText('SN-002');
+    await page.getByTestId('instance-trace-kind').selectOption('serial');
+    await page.getByTestId('instance-trace-value').fill('PACK-003');
+    await page.getByTestId('instance-trace').click();
+    await expect(page.getByTestId('instance-trace-row')).toHaveCount(1);
+    await expect(page.getByTestId('instance-trace-row')).toContainText('SN-001');
+
+    await asOf.fill('2099-01-02');
+    await load.click();
+    await expect(tree.locator('[data-serial="PACK-003"]')).toHaveCount(1);
+    await expect(tree.locator('[data-serial="PACK-001"]')).toHaveCount(0);
+    const installedBeforeRevision = await tree.innerText();
+    await page.getByTestId('instance-master-effective-date').fill('2099-01-01');
+    await page.getByTestId('instance-master-revise').click();
+    await expect(page.getByTestId('instance-master-result')).toContainText('BATT · B');
+    await expect(page.getByTestId('instance-master-result')).toContainText('发布成功');
+    await load.click();
+    await expect(tree).toHaveText(installedBeforeRevision, { useInnerText: true });
+    await expect(tree.locator('[data-serial="PACK-003"][data-revision="A"]')).toHaveCount(1);
+    await page.reload();
+    await expect(page.getByRole('heading', { name: '实例追溯', exact: true })).toBeVisible();
+    await root.selectOption({ label: 'SC-100 · SN-001' });
+    await asOf.fill('2099-01-02');
+    await load.click();
+    await expect(tree).toHaveText(installedBeforeRevision, { useInnerText: true });
+  });
+
+  test('US-525 AC#22 草稿来源直连删除被拒，点名发生项与一个实例引用且树不变', async ({ page }) => {
+    await page.getByTestId('instance-root-select').selectOption({ label: 'SC-100 · SN-002' });
+    await page.getByTestId('instance-as-of').fill('2026-10-17');
+    await page.getByTestId('instance-load').click();
+    const tree = page.getByTestId('instance-tree');
+    await expect(tree.locator('[data-item="CELL"]')).toHaveCount(1);
+    const before = await tree.innerText();
+    await page.getByTestId('instance-source-delete').click();
+    const result = page.getByTestId('instance-source-delete-result');
+    await expect(result).toContainText(deterministicId('occurrence:BATT:F:0'));
+    await expect(result).toContainText(/实例.*1|1.*实例/);
+    await page.getByTestId('instance-load').click();
+    await expect(tree).toHaveText(before, { useInnerText: true });
   });
 });

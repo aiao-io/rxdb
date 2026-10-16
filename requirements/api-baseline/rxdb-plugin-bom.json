@@ -26,6 +26,10 @@
         "kind": "value"
       },
       {
+        "name": "BOM_INSTANCE_PREFIX",
+        "kind": "value"
+      },
+      {
         "name": "BOM_PUBLISH_VALIDATION_PREFIX",
         "kind": "value"
       },
@@ -119,6 +123,42 @@
       },
       {
         "name": "BomImportResult",
+        "kind": "type"
+      },
+      {
+        "name": "BomInstanceError",
+        "kind": "both"
+      },
+      {
+        "name": "BomInstanceNode",
+        "kind": "both"
+      },
+      {
+        "name": "BomInstanceNodeView",
+        "kind": "type"
+      },
+      {
+        "name": "BomInstanceQueryOptions",
+        "kind": "type"
+      },
+      {
+        "name": "BomInstanceTraceMatch",
+        "kind": "type"
+      },
+      {
+        "name": "BomInstanceTraceResult",
+        "kind": "type"
+      },
+      {
+        "name": "BomInstanceTraceTarget",
+        "kind": "type"
+      },
+      {
+        "name": "BomInstanceTreeNode",
+        "kind": "type"
+      },
+      {
+        "name": "BomInstanceTreeResult",
         "kind": "type"
       },
       {
@@ -768,6 +808,10 @@
         "kind": "value"
       },
       {
+        "name": "loadScooterDatasetF",
+        "kind": "value"
+      },
+      {
         "name": "SCOOTER_DATASET",
         "kind": "value"
       },
@@ -777,6 +821,10 @@
       },
       {
         "name": "SCOOTER_DATASET_E",
+        "kind": "value"
+      },
+      {
+        "name": "SCOOTER_DATASET_F",
         "kind": "value"
       },
       {

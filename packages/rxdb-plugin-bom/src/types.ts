@@ -15,6 +15,13 @@ export class BomError extends Error {
   }
 }
 
+/** 实例安装事实、来源保护或实例查询的约束违约。 */
+export class BomInstanceError extends BomError {
+  constructor(readonly detail: string) {
+    super(`实例 BOM：${detail}`, 'BomInstanceError');
+  }
+}
+
 /**
  * 已发布头的写入协议违约（US-507 AC#10 / #13 / #14）。
  *
@@ -163,6 +170,8 @@ export class BomTruncationError extends BomError {
 
 /** SQLite 触发器消息前缀：写入协议。 */
 export const BOM_WRITE_PROTOCOL_PREFIX = 'rxdb:bom_write_protocol:';
+/** 实例约束前缀；与主数据环判定分开归一。 */
+export const BOM_INSTANCE_PREFIX = 'rxdb:bom_instance:';
 /** SQLite 触发器消息前缀：发布校验。 */
 export const BOM_PUBLISH_VALIDATION_PREFIX = 'rxdb:bom_publish_validation:';
 /** SQLite 触发器消息前缀：十进制格式。 */
@@ -195,6 +204,9 @@ const causeChainMessages = (cause: unknown): string =>
  */
 export const normalizeBomError = (cause: unknown): BomError | undefined => {
   const message = causeChainMessages(cause);
+  if (message.includes(BOM_INSTANCE_PREFIX)) {
+    return new BomInstanceError(message.split(BOM_INSTANCE_PREFIX)[1]?.trim() ?? '');
+  }
   if (message.includes(BOM_CYCLE_PREFIX)) {
     const payload = message.split(BOM_CYCLE_PREFIX)[1]?.split(/[\n']/)[0]?.trim() ?? '';
     // 深度上限消息不带路径段；真环路径以 `>` 分隔

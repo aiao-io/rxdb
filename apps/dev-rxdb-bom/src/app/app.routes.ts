@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
-/** 六页路由：概览（验收面板）/ 展开 / 时间轴 / 双图映射 / 成本卷算 / 反查。 */
+/** 物料与主数据专项页，以及独立的实例追溯页。 */
 export const appRoutes: Routes = [
   {
     path: '',
@@ -31,6 +31,11 @@ export const appRoutes: Routes = [
     path: 'where-used',
     title: '反查 · BOM 演示',
     loadComponent: () => import('./pages/where-used/where-used.page').then(m => m.WhereUsedPage)
+  },
+  {
+    path: 'instances',
+    title: '实例追溯 · BOM 演示',
+    loadComponent: () => import('./pages/instances/instances.page').then(m => m.InstancesPage)
   },
   { path: '**', redirectTo: '' }
 ];

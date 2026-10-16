@@ -10,7 +10,7 @@ interface NavItem {
 }
 
 /**
- * 应用壳：侧边栏（分区导航 6 项）+ 顶栏（应用名/种子状态徽标/重置按钮）+ 页面出口。
+ * 应用壳：侧边栏分区导航、顶栏状态与重置按钮、页面出口。
  * 壳统一负责既有库连接（页面重载路径），各页面只消费服务信号。
  */
 @Component({
@@ -51,7 +51,12 @@ interface NavItem {
           </div>
           <div class="header-actions">
             <span class="badge" [class.badge-neutral]="!ready()" [class.badge-success]="ready()">
-              {{ ready() ? '种子已就绪 · ' + itemCount() + ' 物料' : '连接中…' }}
+              {{
+                ready() ? '种子已就绪 · ' + itemCount() + ' 物料'
+                : connectionError() ? '连接失败'
+                : initializing() ? '连接中…'
+                : '未装载种子'
+              }}
             </span>
             <button class="btn btn-secondary" [disabled]="resetting()" (click)="resetAll()">重置数据库</button>
           </div>
@@ -282,8 +287,9 @@ export class AppShell implements OnInit {
   readonly itemCount = this.service.itemCount;
   readonly resetting = signal(false);
   readonly connectionError = signal('');
+  readonly initializing = signal(true);
 
-  /** 侧边栏分区导航：核心（概览/展开）+ 场景（时间轴/双图映射/成本卷算/反查）。 */
+  /** 侧边栏分区导航：物料核心页与主数据、实例追溯场景。 */
   readonly sections: { label: string; items: NavItem[] }[] = [
     {
       label: '核心',
@@ -298,7 +304,8 @@ export class AppShell implements OnInit {
         { path: '/timeline', label: '时间轴', exact: false },
         { path: '/mapping', label: '双图映射', exact: false },
         { path: '/cost', label: '成本卷算', exact: false },
-        { path: '/where-used', label: '反查', exact: false }
+        { path: '/where-used', label: '反查', exact: false },
+        { path: '/instances', label: '实例追溯', exact: false }
       ]
     }
   ];
@@ -311,7 +318,10 @@ export class AppShell implements OnInit {
 
   ngOnInit(): void {
     // 壳统一连接既有库（页面重载路径：插件触发器幂等安装，种子行原样可用）
-    void this.service.connectExisting().catch(error => this.connectionError.set(String(error)));
+    void this.service
+      .connectExisting()
+      .catch(error => this.connectionError.set(String(error)))
+      .finally(() => this.initializing.set(false));
   }
 
   /** 顶栏重置：清库重装种子后整页重载，让各页本地信号回到初始态（服务信号已由 hydrate 刷新）。 */

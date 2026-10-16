@@ -273,9 +273,9 @@ export const exportBom = async (
     const batches: ExportRowBatch[] = IMPORT_KINDS.map(kind => ({
       table: kind as ExportTable,
       values: selected[kind]
-        .slice()
-        .sort((left, right) => textOrder(naturalKeyFor(kind, left), naturalKeyFor(kind, right)))
-        .map(row => EXPORT_TABLE_COLUMNS[kind].map(column => canonicalCell(column, row[column])))
+        .map(row => ({ row, key: naturalKeyFor(kind, row) }))
+        .sort((left, right) => textOrder(left.key, right.key))
+        .map(({ row }) => EXPORT_TABLE_COLUMNS[kind].map(column => canonicalCell(column, row[column])))
     }));
     const payload = serializeExportRows(batches, {
       orgId: context.orgId,

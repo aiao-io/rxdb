@@ -23,7 +23,7 @@ import { Entity, EntityBase, PropertyType, RelationKind } from '@aiao/rxdb';
   properties: [
     { name: 'itemNo', type: PropertyType.string, unique: true },
     { name: 'description', type: PropertyType.string, nullable: true },
-    // 随物料走的属性挂 item（US-507 阶段 A）：为 US-523 实例 BOM 预留，本阶段不消费
+    // 序列化物料的实例安装记录必须带序列号（US-523）
     { name: 'serialized', type: PropertyType.boolean, default: false },
     // 数量语义（US-511 阶段 A）：库存单位与需求行取整小数位（默认件；缺换算率时按 AC#10 拒绝）
     { name: 'stockUom', type: PropertyType.string, default: 'pcs' },
@@ -736,6 +736,85 @@ export class BomLineOperationSplit extends EntityBase {
   occurrenceId!: string;
 }
 
+/** 实例的一次安装事实；实际修订与父子关系独立于主数据 BOM。 */
+@Entity({
+  name: 'BomInstanceNode',
+  namespace: 'bom',
+  tableName: 'bom_instance_node',
+  repository: 'BomRepository',
+  properties: [
+    { name: 'itemRevisionId', type: PropertyType.uuid },
+    { name: 'parentInstanceId', type: PropertyType.uuid, nullable: true },
+    { name: 'sourceOccurrenceId', type: PropertyType.uuid, nullable: true },
+    { name: 'serialNumber', type: PropertyType.string, nullable: true },
+    { name: 'lotCode', type: PropertyType.string, nullable: true },
+    { name: 'installedAt', type: PropertyType.date },
+    { name: 'removedAt', type: PropertyType.date, nullable: true }
+  ],
+  foreignKeys: [
+    {
+      name: 'instance_actual_revision',
+      properties: ['itemRevisionId'],
+      mappedEntity: 'BomItemRevision',
+      mappedProperties: ['id'],
+      onDelete: 'RESTRICT'
+    },
+    {
+      name: 'instance_parent',
+      properties: ['parentInstanceId'],
+      mappedEntity: 'BomInstanceNode',
+      mappedProperties: ['id'],
+      onDelete: 'RESTRICT'
+    },
+    {
+      name: 'instance_source_occurrence',
+      properties: ['sourceOccurrenceId'],
+      mappedEntity: 'BomLineOccurrence',
+      mappedProperties: ['id'],
+      onDelete: 'RESTRICT'
+    }
+  ],
+  checks: [
+    {
+      name: 'instance_installation_interval',
+      rule: { combinator: 'and', rules: [{ field: 'installedAt', operator: '<', ref: 'removedAt' }] }
+    },
+    {
+      name: 'instance_child_source',
+      rule: {
+        combinator: 'or',
+        rules: [
+          { field: 'parentInstanceId', operator: 'null' },
+          { field: 'sourceOccurrenceId', operator: 'notNull' }
+        ]
+      }
+    }
+  ],
+  exclusions: [
+    {
+      name: 'serial_installation',
+      equal: ['serialNumber'],
+      ranges: [{ from: 'installedAt', to: 'removedAt', bounds: '[)' }]
+    }
+  ],
+  indexes: [
+    { name: 'instance_serial_lookup', properties: ['serialNumber', 'installedAt'] },
+    { name: 'instance_parent_lookup', properties: ['parentInstanceId'] },
+    { name: 'instance_source_lookup', properties: ['sourceOccurrenceId'] },
+    { name: 'instance_lot_lookup', properties: ['lotCode'] },
+    { name: 'instance_revision_lookup', properties: ['itemRevisionId'] }
+  ]
+})
+export class BomInstanceNode extends EntityBase {
+  itemRevisionId!: string;
+  parentInstanceId!: string | null;
+  sourceOccurrenceId!: string | null;
+  serialNumber!: string | null;
+  lotCode!: string | null;
+  installedAt!: Date;
+  removedAt!: Date | null;
+}
+
 /** BOM 实体全集（触发器安装按此清单在 schema 里找实体）。 */
 
 /**
@@ -1046,6 +1125,7 @@ export const BOM_ENTITIES = [
   BomEcn,
   BomLine,
   BomLineOccurrence,
+  BomInstanceNode,
   BomLineDesignator,
   BomSubstituteGroup,
   BomWorkCenter,

@@ -4,6 +4,7 @@ import {
   BOM_ENTITIES,
   BomEcn,
   BomHeader,
+  BomInstanceNode,
   BomItem,
   BomItemRevision,
   BomLine,
@@ -14,6 +15,8 @@ import {
   mappingGaps,
   rollupCost,
   rxDBPluginBom,
+  type BomInstanceTraceResult,
+  type BomInstanceTreeResult,
   type CostRollupResult,
   type EcnDiffResult,
   type EcnImpactResult,
@@ -29,6 +32,8 @@ import {
   loadScooterDatasetC,
   loadScooterDatasetD,
   loadScooterDatasetE,
+  loadScooterDatasetF,
+  SCOOTER_DATASET_F,
   SCOOTER_SEED_BATCH_NO,
   SCOOTER_SEED_TIMESTAMP
 } from '@aiao/rxdb-plugin-bom/testing';
@@ -63,6 +68,9 @@ export class BomDemoService {
   readonly itemCount = computed(() => this.itemNos().size);
   /** ECN 清单（阶段 C：ecnId → { ecnNo, state, effectiveDate }）。 */
   readonly ecns = signal(new Map<string, { ecnNo: string; state: string; effectiveDate: string }>());
+  readonly instanceRoots = signal<{ id: string; itemNo: string; serialNumber: string | null }[]>([]);
+  readonly firstInstanceId = deterministicId('instance:SC-100:SN-001');
+  readonly protectedInstanceSourceId = deterministicId(SCOOTER_DATASET_F.sourceOccurrenceSeed);
 
   /** 重置并装载种子（两遍执行结果逐字节相同，AC#1）。 */
   async resetAndSeed(): Promise<void> {
@@ -91,6 +99,7 @@ export class BomDemoService {
     await loadScooterDatasetD(this.adapter!, itemIds);
     // 阶段 E：扩展属性 / 序列批次 / 配置选择演示输入
     await loadScooterDatasetE(this.adapter!, itemIds);
+    await loadScooterDatasetF(this.adapter!, itemIds);
     await this.#hydrate();
   }
 
@@ -99,7 +108,6 @@ export class BomDemoService {
     if (this.rxdb) return;
     this.ready.set(false);
     await this.#connect();
-    await this.#hydrate();
   }
 
   /** 按评估日与计划量展开（父修订按时点取最新；根物料可选，默认整机 SC-100）。 */
@@ -201,6 +209,86 @@ export class BomDemoService {
       await header.save();
     }
     await this.#loadItemNos();
+  }
+
+  /** 按安装事实查询整机；省略时点时保留全部安装历史。 */
+  async instanceTree(rootId: string, asOfDate?: string): Promise<BomInstanceTreeResult> {
+    if (!this.rxdb) throw new Error('demo 未就绪');
+    const options = asOfDate === undefined ? {} : { asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) };
+    return this.rxdb.bom.expandInstance(rootId, options);
+  }
+
+  /** 按实际序列号或批次追溯到安装它的整机。 */
+  async traceInstance(kind: 'serial' | 'lot', value: string, asOfDate?: string): Promise<BomInstanceTraceResult> {
+    if (!this.rxdb) throw new Error('demo 未就绪');
+    const target = kind === 'serial' ? { serialNumber: value } : { lotCode: value };
+    const options = asOfDate === undefined ? {} : { asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) };
+    return this.rxdb.bom.whereUsedInstance(target, options);
+  }
+
+  /** 依次截止旧电池安装、追加新电池安装，旧事实保持可查。 */
+  async replaceDemoInstance(installedAt: string): Promise<void> {
+    if (!this.rxdb) throw new Error('demo 未就绪');
+    const nodes = await firstValueFrom(
+      BomInstanceNode.find({
+        where: {
+          combinator: 'and',
+          rules: [{ field: 'id', operator: '=', value: deterministicId('instance:BATT:PACK-001') }]
+        }
+      })
+    );
+    const old = nodes[0];
+    if (!old) throw new Error('原电池安装记录不存在');
+    if (old.removedAt !== null) throw new Error('SN-001 已记录换件，请重置种子后重新演示');
+    const instant = new Date(`${installedAt}T00:00:00.000Z`);
+    old.removedAt = instant;
+    await old.save();
+    const replacement = this.rxdb.entityManager.instantiate(BomInstanceNode);
+    replacement.itemRevisionId = old.itemRevisionId;
+    replacement.parentInstanceId = old.parentInstanceId;
+    replacement.sourceOccurrenceId = old.sourceOccurrenceId;
+    replacement.serialNumber = 'PACK-003';
+    replacement.lotCode = 'PACK-LOT-B';
+    replacement.installedAt = instant;
+    replacement.removedAt = null;
+    await replacement.save();
+  }
+
+  /** 发布未来生效的电池 B 版，用实际查询回读发布结果。 */
+  async reviseDemoInstanceMaster(effectiveFrom: string): Promise<string> {
+    if (!this.rxdb) throw new Error('demo 未就绪');
+    const revision = this.rxdb.entityManager.instantiate(BomItemRevision);
+    revision.itemId = this.#itemId('BATT');
+    revision.revisionNo = 'B';
+    revision.effectiveFrom = new Date(`${effectiveFrom}T00:00:00.000Z`);
+    await revision.save();
+    revision.state = 'released';
+    await revision.save();
+    const resolved = await this.rxdb.bom.resolve(
+      {
+        bomType: 'ebom',
+        orgId: 'org-x',
+        asOfDate: revision.effectiveFrom,
+        unit: 137,
+        configSelection: { 颜色: ['红'] }
+      },
+      { parentItemId: this.#itemId('BATT') }
+    );
+    if (resolved.manifest.parentRevisionId !== revision.id) throw new Error('主数据未解析到新发布修订');
+    return `BATT · B 发布成功（生效日 ${effectiveFrom}）`;
+  }
+
+  /** 直连删除被实例引用的草稿来源，展示存储层的引用保护错误。 */
+  async deleteDemoInstanceSource(): Promise<string> {
+    if (!this.adapter) throw new Error('demo 未就绪');
+    try {
+      await this.adapter.rawQuery(
+        `DELETE FROM "bom$bom_line_occurrence" WHERE "id" = '${this.protectedInstanceSourceId}'`
+      );
+      return '来源删除成功';
+    } catch (error) {
+      return String(error);
+    }
   }
 
   /** EBOM / MBOM 双图展开（US-525 AC#13：SHEET-ASSY 钣金外壳两张图）。 */
@@ -369,7 +457,8 @@ export class BomDemoService {
       'bom_line_occurrence',
       'bom_line_designator',
       'bom_history_batch',
-      'ecn'
+      'ecn',
+      'bom_instance_node'
     ];
     const lines: string[] = [];
     for (const name of tables) {
@@ -568,9 +657,11 @@ export class BomDemoService {
   async #connect(): Promise<void> {
     if (this.rxdb) return;
     if (this.connectPromise) return this.connectPromise;
-    this.connectPromise = this.#doConnect().finally(() => {
-      this.connectPromise = undefined;
-    });
+    this.connectPromise = this.#doConnect()
+      .then(() => this.#hydrate())
+      .finally(() => {
+        this.connectPromise = undefined;
+      });
     return this.connectPromise;
   }
 
@@ -602,8 +693,24 @@ export class BomDemoService {
     await this.#loadItemNos();
     await this.#loadDesignators();
     await this.#loadEcns();
+    await this.#loadInstanceRoots();
+    if (this.itemCount() === 0) return;
     await this.#ensureDemoHeader();
     this.ready.set(true);
+  }
+
+  async #loadInstanceRoots(): Promise<void> {
+    if (!this.rxdb) throw new Error('demo 未就绪');
+    const result = await this.rxdb.bom.whereUsedInstance({ itemRevisionId: deterministicId('revision:SC-100:A') });
+    this.instanceRoots.set(
+      result.matches
+        .filter(match => match.node.parentInstanceId === null)
+        .map(match => ({
+          id: match.node.id,
+          itemNo: match.node.itemNo,
+          serialNumber: match.node.serialNumber
+        }))
+    );
   }
 
   async #loadEcns(): Promise<void> {

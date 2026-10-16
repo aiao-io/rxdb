@@ -8,24 +8,24 @@
 
 | 状态           | 数量 |
 | :------------- | :--- |
-| ✅ Done        | 82   |
-| 🚧 In Progress | 11   |
+| ✅ Done        | 84   |
+| 🚧 In Progress | 10   |
 | 👀 In Review   | 2    |
-| 📝 Backlog     | 5    |
+| 📝 Backlog     | 4    |
 | 🚫 Blocked     | 0    |
 | **合计**       | 100  |
 
 > 数字由 `grep -h "^status:" requirements/stories/*/US-*.md | sort | uniq -c` 推导，**请勿手写维护**；
 > 合计等于 `stories/*/US-*.md` 里带 `status:` frontmatter 的文件数；[US-904 阶段 A 可行性记录](stories/future/US-904-phase-a-evidence.md) 是证据留档，不计入故事总数。`🚫 Blocked` 只统计 YAML 显式 `status: Blocked`，不代表其余故事没有前置阻塞——见下方[前置阻塞](#前置阻塞不体现在-blocked-计数里)。
 >
-> BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；当前 5 条 Backlog 里 BOM 占 2 条（US-522 / US-523）；
+> BOM 领域模型 19 条于 2026-10-12 由 owner 解锁进批次 4（驱动者 = 完整功能的演示应用，见 [epic-009 解锁记录](epics/epic-009-bom-domain-model.md#价值待证整个-epic)）；当前 4 条 Backlog 里 BOM 占 1 条（US-522）；
 > [US-911](stories/future/US-911-client-i18n.md) 阶段 A～C 无硬前置、可开工，在立项池待 owner 定批次；[US-029](stories/core/US-029-rbac-owner-role-permission.md)
 > 仍标**价值待证**，按 [CONVENTIONS](CONVENTIONS.md#价值待证) 留在 Backlog 但不进任何排期批次；US-910 另因 Full/Filter/tombstone 同步夹具尚未就绪而暂不排期。
 > 可开工与暂不排期的故事在 YAML 里同为 `Backlog`，差别只在「有没有解锁条件」，读汇总数字时需要区分。
 
 图例：✅ Done · 🚧 In Progress · 👀 In Review · ⬜ Backlog · 🚫 Blocked
 
-## 进行中（11 条）
+## 进行中（10 条）
 
 | Story                                                                          | 进展                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -201,9 +201,9 @@ US-513 阶段 B 联产品与 US-519 AC#3 / #7（等 US-030 阶段 D）仍价值�
 - 🚧 [US-520 工艺路线挂接与工序投料分摊](stories/domain/US-520-bom-routing-operation.md) — 非 ECN 场景已交付（第 5 步，2026-10-14）：operation_seq + 分摊子表、发布合计校验、第 5 步累乘；AC#11 随 US-524 AC#7 — 只做挂接点，路线本体归 US-524
 - ✅ [US-521 ERP/MRP 集成契约](stories/domain/US-521-bom-erp-mrp-integration.md) — 第 8 步全部 AC 已交付（2026-10-16），插件双后端回归与阶段 E 演示联合验收通过
 - ⬜ [US-522 三框架 BOM 编辑与展开视图](stories/domain/US-522-bom-tri-framework-ui.md) — 单端缺失 = 未完成，故不按端拆故事
-- ⬜ [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md) — 实例结构（`parent_instance_id`）与主数据可达性分离；源发生项删除受限
+- ✅ [US-523 as-built / as-maintained 实例 BOM](stories/domain/US-523-bom-as-built-instance.md) — 第 9 步：实际安装事实、换件历史、序列/批次反查与来源保护；双后端各 10 万实例节点验证主数据隔离。
 - 🚧 [US-524 工艺路线本体：工序、工作中心、工时与费率](stories/domain/US-524-routing-master-model.md) — 阶段 A（除 AC#7 展开面）与 D 已交付（第 5 步，2026-10-14）、阶段 B/C 已交付（第 7 步，2026-10-16）：activity_type/activity_rate（生效区间排他唯一、按费率日取值、缺费率报缺失）、work_center 成本属性（overhead_rate/币种）、setup/run/fixed 工时模型与 time_uom 换算；US-520 与 US-514 加工费的那一端
-- 🚧 [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 阶段 A/B/C 已交付（第 4、5、6 步，2026-10-15）、阶段 D 已交付（第 7 步，2026-10-16）：SC-100 确定性种子 + 手写 golden + `apps/dev-rxdb-bom`（算式面板/评估日/直连写入/第 5 步/ECN 面板/双图并排 + 覆盖率缺口/卷算面板）+ `dev-rxdb-bom-e2e` 十七条 AC 用例（含双图、卷算 golden、缺成本报缺失三条）；阶段 E/F 各自等前置；**不新增抽象、也不解锁 Epic**，是首轮切片的验收手段；一份滑板车数据集贯穿全域 + 七步算式面板；第 8 步阶段 E 已交付：属性/序列/配置/导入导出面板，21 条 e2e 全绿，剩阶段 F
+- ✅ [US-525 BOM 端到端 demo：一份数据集走完全域](stories/domain/US-525-bom-end-to-end-demo.md) — 阶段 A～F 已交付：SC-100 一份数据集覆盖数量、ECN、双图、成本、配置、属性、集成与实例追溯；七页应用、23 条 e2e。US-522 可复用三框架绑定独立排期。
 
 ## 前置阻塞（不体现在 Blocked 计数里）
 

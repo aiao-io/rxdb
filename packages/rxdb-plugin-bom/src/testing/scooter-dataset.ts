@@ -11,6 +11,7 @@
  * 两遍装载读出的行逐字节相同，与宿主当日无关。
  */
 
+import type { EntityType, UUID } from '@aiao/rxdb';
 import { BomItem } from '../entities.js';
 import type { BomLocalAdapter } from '../resolve/bom-adapter.js';
 import { loadHistory, type HistoryBatchInput } from '../resolve/history-loader.js';
@@ -32,7 +33,7 @@ const fnv1a32 = (input: string): number => {
 };
 
 /** 由业务键确定性派生 uuid（v4 形状，两段 FNV-1a 哈希）。 */
-export const deterministicId = (seed: string): string => {
+export const deterministicId = (seed: string): UUID => {
   const first = fnv1a32(`${seed}:first`).toString(16).padStart(8, '0');
   const second = (fnv1a32(`${seed}:second`) & 0xffff).toString(16).padStart(4, '0');
   const third = (0x4000 | (fnv1a32(`${seed}:third`) & 0x0fff)).toString(16).padStart(4, '0');
@@ -1263,5 +1264,104 @@ export const loadScooterDatasetE = async (adapter: BomLocalAdapter, itemIds: Sco
       });
       return patches;
     })()
+  });
+};
+
+/** 阶段 F 的两台整机、实际电池与来源保护样本。 */
+export const SCOOTER_DATASET_F = {
+  installedAt: '2026-10-16T00:00:00.000Z',
+  sourceOccurrenceSeed: 'occurrence:BATT:F:0',
+  nodes: [
+    {
+      seed: 'instance:SC-100:SN-001',
+      itemKey: 'SC-100',
+      serialNumber: 'SN-001',
+      lotCode: null,
+      parentSeed: null,
+      sourceSeed: null
+    },
+    {
+      seed: 'instance:SC-100:SN-002',
+      itemKey: 'SC-100',
+      serialNumber: 'SN-002',
+      lotCode: null,
+      parentSeed: null,
+      sourceSeed: null
+    },
+    {
+      seed: 'instance:BATT:PACK-001',
+      itemKey: 'BATT',
+      serialNumber: 'PACK-001',
+      lotCode: 'PACK-LOT-A',
+      parentSeed: 'instance:SC-100:SN-001',
+      sourceSeed: 'occurrence:SC-100:A:3'
+    },
+    {
+      seed: 'instance:BATT:PACK-002',
+      itemKey: 'BATT',
+      serialNumber: 'PACK-002',
+      lotCode: 'PACK-LOT-A',
+      parentSeed: 'instance:SC-100:SN-002',
+      sourceSeed: 'occurrence:SC-100:A:3'
+    },
+    {
+      seed: 'instance:CELL:SN-002:F',
+      itemKey: 'CELL',
+      serialNumber: null,
+      lotCode: 'CELL-LOT-F',
+      parentSeed: 'instance:BATT:PACK-002',
+      sourceSeed: 'occurrence:BATT:F:0'
+    }
+  ]
+} as const;
+
+/** 装载独立安装事实，仅增加草稿来源样本并标记已有整机与电池为序列化物料。 */
+export const loadScooterDatasetF = async (adapter: BomLocalAdapter, itemIds: ScooterItemIds): Promise<void> => {
+  const { BomHeader, BomInstanceNode, BomItemRevision, BomLine, BomLineOccurrence } = await import('../entities.js');
+  const factory = adapter.rxdb?.entityManager;
+  if (!factory) throw new Error('阶段 F 种子需要实体构造门面');
+  const seeded = <T extends EntityType>(Entity: T, seed: string): InstanceType<T> =>
+    Object.assign(factory.instantiate(Entity), {
+      id: deterministicId(seed),
+      createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+      updatedAt: new Date(SCOOTER_SEED_TIMESTAMP)
+    });
+  await adapter.transaction(async executor => {
+    for (const itemKey of ['SC-100', 'BATT']) {
+      const itemId = itemIds[itemKey];
+      if (!itemId) throw new Error(`阶段 F 物料不存在：${itemKey}`);
+      await executor.query(`UPDATE ${executor.tableRef(BomItem)} SET "serialized" = TRUE WHERE "id" = '${itemId}'`);
+    }
+    const revision = seeded(BomItemRevision, 'revision:BATT:F');
+    revision.itemId = itemIds['BATT']!;
+    revision.revisionNo = 'F';
+    await executor.getRepository(BomItemRevision).create(revision);
+    const header = seeded(BomHeader, 'header:BATT:F');
+    header.parentRevisionId = revision.id;
+    header.bomType = 'ebom';
+    header.orgId = 'org-x';
+    await executor.getRepository(BomHeader).create(header);
+    const line = seeded(BomLine, 'line:BATT:F:0');
+    line.headerId = header.id;
+    line.lineNo = 10;
+    await executor.getRepository(BomLine).create(line);
+    const source = seeded(BomLineOccurrence, SCOOTER_DATASET_F.sourceOccurrenceSeed);
+    source.lineId = line.id;
+    source.childItemId = itemIds['CELL']!;
+    source.qty = '1';
+    source.uom = 'pcs';
+    source.effectiveFrom = new Date(SCOOTER_DATASET_F.installedAt);
+    await executor.getRepository(BomLineOccurrence).create(source);
+    for (const spec of SCOOTER_DATASET_F.nodes) {
+      const node = seeded(BomInstanceNode, spec.seed);
+      node.itemRevisionId = deterministicId(`revision:${spec.itemKey}:A`);
+      node.parentInstanceId = spec.parentSeed === null ? null : deterministicId(spec.parentSeed);
+      node.sourceOccurrenceId = spec.sourceSeed === null ? null : deterministicId(spec.sourceSeed);
+      node.serialNumber = spec.serialNumber;
+      node.lotCode = spec.lotCode;
+      node.installedAt = new Date(SCOOTER_DATASET_F.installedAt);
+      node.removedAt = null;
+      await executor.getRepository(BomInstanceNode).create(node);
+    }
   });
 };

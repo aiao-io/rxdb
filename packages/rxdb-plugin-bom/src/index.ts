@@ -26,6 +26,7 @@ export {
   BomEcn,
   BomHeader,
   BomHistoryBatch,
+  BomInstanceNode,
   BomItem,
   BomItemRevision,
   BomLine,
@@ -37,6 +38,15 @@ export {
   BomSubstituteGroup,
   BomWorkCenter
 } from './entities.js';
+export type {
+  BomInstanceNodeView,
+  BomInstanceQueryOptions,
+  BomInstanceTraceMatch,
+  BomInstanceTraceResult,
+  BomInstanceTraceTarget,
+  BomInstanceTreeNode,
+  BomInstanceTreeResult
+} from './instance.js';
 export { RxDBPluginBom, rxDBPluginBom } from './plugin.js';
 export {
   BomCostError,
@@ -190,12 +200,14 @@ export {
 export {
   BOM_CYCLE_PREFIX,
   BOM_DECIMAL_FORMAT_PREFIX,
+  BOM_INSTANCE_PREFIX,
   BOM_PUBLISH_VALIDATION_PREFIX,
   BOM_WRITE_PROTOCOL_PREFIX,
   BomBackendCapabilityError,
   BomCycleError,
   BomDecimalFormatError,
   BomError,
+  BomInstanceError,
   BomPublishValidationError,
   BomQuantityError,
   BomSyncUnsupportedError,

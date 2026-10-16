@@ -205,6 +205,20 @@ describe('EntityForm（真实组件）', () => {
     expect((wrapper.vm as unknown as EntityFormVM).formData['active']).toBe(false);
   });
 
+  it('普通文本未失焦时无关重绘保留输入，字段事件与提交使用新值', async () => {
+    const { wrapper, vm, fieldChanged, formSubmitted } = render({ data: { ...DATA, name: '' }, mode: 'create' });
+    const input = fieldset(wrapper, '名称').querySelector('input[type=text]') as HTMLInputElement;
+    input.value = 'e2e-invoice';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await wrapper.vm.$nextTick();
+    await wrapper.setProps({ showActions: false });
+
+    expect(input.value).toBe('e2e-invoice');
+    expect(fieldChanged()).toContainEqual({ field: 'name', type: 'string', value: 'e2e-invoice', previousValue: '' });
+    vm.onSubmit();
+    expect(formSubmitted().at(-1)).toMatchObject({ name: 'e2e-invoice' });
+  });
+
   it('number 输入解析为数字，stringArray 按逗号拆分', () => {
     const { vm, fieldChanged } = render();
 

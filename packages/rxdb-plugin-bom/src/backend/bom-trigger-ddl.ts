@@ -15,6 +15,8 @@
 
 import { EntityMetadata, getEntityColumnName, quoteSqlIdentifier } from '@aiao/rxdb';
 import { BOM_CYCLE_DEPTH_LIMIT } from './constants.js';
+import { buildPgInstanceNodeDdl, buildSqliteInstanceNodeDdl } from './instance-node-ddl.js';
+import { buildPgInstanceSourceDdl, buildSqliteInstanceSourceDdl } from './instance-source-ddl.js';
 import { buildUnitLotOverlapGuardPg, buildUnitLotOverlapGuardSqlite } from './unit-lot-trigger-ddl.js';
 
 export { BOM_CYCLE_DEPTH_LIMIT } from './constants.js';
@@ -1060,11 +1062,11 @@ const sqliteRoutingGuards = (metadata: EntityMetadata): string[] => {
     );
     // 分摊合计 = 1（按发生项分组；定点整数 10⁹）
     const totalSql =
-      `SELECT occ."id" || ':' || '0.' || substr('000000000' || CAST(SUM(CAST(substr(s."ratio" || '000000000', 3, 9) AS INTEGER)) AS TEXT), -9) AS "msg"` +
+      `SELECT occ."id" || ':' || '0.' || substr('000000000' || CAST(SUM(CAST(substr(replace(s."ratio", '.', '') || '000000000', 1, 10) AS INTEGER)) AS TEXT), -9) AS "msg"` +
       ` FROM ${split} s JOIN ${occurrence} occ ON occ."id" = s."occurrenceId" JOIN ${line} l ON l."id" = occ."lineId"` +
       ` WHERE l."headerId" = NEW."id"` +
       ` GROUP BY s."occurrenceId"` +
-      ` HAVING SUM(CAST(substr(s."ratio" || '000000000', 3, 9) AS INTEGER)) <> 1000000000` +
+      ` HAVING SUM(CAST(substr(replace(s."ratio", '.', '') || '000000000', 1, 10) AS INTEGER)) <> 1000000000` +
       ` LIMIT 1`;
     const totalMessage = `'${PUBLISH_VALIDATION('bom_header', '投料分摊合计 ≠ 1：')}' || (${totalSql})`;
     statements.push(
@@ -1337,11 +1339,11 @@ const sqliteEcnProjectionChecks = (
   );
 
   // 分摊合计（目标 ECN 引入的发生项，逐发生项定点合计 = 1）
-  const splitMessage = `'${PUBLISH_VALIDATION('ecn', '投料分摊合计 ≠ 1：')}' || s."occurrenceId" || ':' || '0.' || substr('000000000' || CAST(SUM(CAST(substr(s."ratio" || '000000000', 3, 9) AS INTEGER)) AS TEXT), -9)`;
+  const splitMessage = `'${PUBLISH_VALIDATION('ecn', '投料分摊合计 ≠ 1：')}' || s."occurrenceId" || ':' || '0.' || substr('000000000' || CAST(SUM(CAST(substr(replace(s."ratio", '.', '') || '000000000', 1, 10) AS INTEGER)) AS TEXT), -9)`;
   guards.push(
     `SELECT RAISE(ABORT, ${splitMessage}) FROM ${split} s JOIN ${occurrence} o ON o."id" = s."occurrenceId"` +
       ` WHERE o."ecnInId" = ${target} AND NOT (${historical})` +
-      ` GROUP BY s."occurrenceId" HAVING SUM(CAST(substr(s."ratio" || '000000000', 3, 9) AS INTEGER)) <> 1000000000 LIMIT 1;`
+      ` GROUP BY s."occurrenceId" HAVING SUM(CAST(substr(replace(s."ratio", '.', '') || '000000000', 1, 10) AS INTEGER)) <> 1000000000 LIMIT 1;`
   );
 
   // 替代组：每检查点活动成员非空时恰好一个 primary（空切片不校验，US-512 AC#14）
@@ -1432,6 +1434,8 @@ const sqliteMapNullRuleTriggers = (metadata: EntityMetadata): string[] => {
 /** 实体全部 SQLite 触发器 DDL（单条语句数组）。 */
 
 export const buildSqliteBomTriggerDdl = (metadata: EntityMetadata): string[] => [
+  ...buildSqliteInstanceNodeDdl(metadata),
+  ...buildSqliteInstanceSourceDdl(metadata),
   // 有效域三维重叠守卫创建最早 = 执行最晚（SQLite 同事件触发器逆创建序）：
   // 让 ECN 派生 / 行归属等更具体的违约先报，三维重叠作兜底
   ...buildUnitLotOverlapGuardSqlite(metadata),
@@ -2045,12 +2049,12 @@ const pgEcnProjectionChecks = (
     `    IF NOT (${historical}) THEN`,
     checkBlock(
       `SELECT '${PUBLISH_VALIDATION('ecn', '投料分摊合计 ≠ 1：')}' || s."occurrenceId" || ':' || ` +
-        `CASE WHEN length(SUM((substr(s."ratio" || '000000000', 3, 9))::bigint)::text) > 9` +
-        ` THEN left(SUM((substr(s."ratio" || '000000000', 3, 9))::bigint)::text, length(SUM((substr(s."ratio" || '000000000', 3, 9))::bigint)::text) - 9) || '.' || right(SUM((substr(s."ratio" || '000000000', 3, 9))::bigint)::text, 9)` +
-        ` ELSE '0.' || right(SUM((substr(s."ratio" || '000000000', 3, 9))::bigint)::text, 9) END` +
+        `CASE WHEN length(SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::bigint)::text) > 9` +
+        ` THEN left(SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::bigint)::text, length(SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::bigint)::text) - 9) || '.' || right(SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::bigint)::text, 9)` +
+        ` ELSE '0.' || right(SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::bigint)::text, 9) END` +
         ` FROM ${split} s JOIN ${occurrence} o ON o."id" = s."occurrenceId"` +
         ` WHERE o."ecnInId" = ${target}."id"` +
-        ` GROUP BY s."occurrenceId" HAVING SUM((substr(s."ratio" || '000000000', 3, 9))::bigint) <> 1000000000 LIMIT 1`
+        ` GROUP BY s."occurrenceId" HAVING SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::bigint) <> 1000000000 LIMIT 1`
     ),
     `    END IF;`
   );
@@ -2556,11 +2560,11 @@ const pgRoutingGuards = (metadata: EntityMetadata): string[] => {
     const operation = pgNamedTable(metadata, 'routing_operation');
     const seqMessage = PUBLISH_VALIDATION('bom_header', '投料工序 / 分摊行不在路由工序序集内（挂了必须可解析）');
     const totalExpr =
-      `(SELECT '0.' || right('000000000' || (SUM((substr(s."ratio" || '000000000', 3, 9))::integer))::text, 9)` +
+      `(SELECT '0.' || right('000000000' || (SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::integer))::text, 9)` +
       ` FROM ${split} s JOIN ${occurrence} occ ON occ."id" = s."occurrenceId" JOIN ${line} l ON l."id" = occ."lineId"` +
       ` WHERE l."headerId" = NEW."id"` +
       ` GROUP BY s."occurrenceId"` +
-      ` HAVING SUM((substr(s."ratio" || '000000000', 3, 9))::integer) <> 1000000000` +
+      ` HAVING SUM((substr(replace(s."ratio", '.', '') || '000000000', 1, 10))::integer) <> 1000000000` +
       ` LIMIT 1)`;
     const body =
       `  IF OLD."state" = 'draft' AND NEW."state" = 'released' THEN\n` +
@@ -2618,6 +2622,8 @@ const pgMapNullRuleFunction = (metadata: EntityMetadata): string[] => {
 /** 实体全部 PGlite 触发器 DDL（单条语句数组）。 */
 
 export const buildPgBomTriggerDdl = (metadata: EntityMetadata): string[] => [
+  ...buildPgInstanceNodeDdl(metadata),
+  ...buildPgInstanceSourceDdl(metadata),
   ...buildUnitLotOverlapGuardPg(metadata),
   ...pgStructuralFunction(metadata),
   ...pgPublishedRevisionFunction(metadata),

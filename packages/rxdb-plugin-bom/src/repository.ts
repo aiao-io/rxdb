@@ -6,10 +6,11 @@
  * BOM 触发器消息）归一为类型化错误类再上抛。
  */
 
-import type { EntityType, RxDB } from '@aiao/rxdb';
-import { getEntityMetadata, Repository } from '@aiao/rxdb';
+import type { EntityType, RxDB, TransactionExecutor } from '@aiao/rxdb';
+import { assertEntityOperationAllowed, getEntityMetadata, Repository } from '@aiao/rxdb';
+import { firstValueFrom } from 'rxjs';
 import { normalizeDecimalString } from './decimal.utils.js';
-import { BomLineOccurrence } from './entities.js';
+import { BomInstanceNode, BomLineDesignator } from './entities.js';
 import { bomSqlDialectFor, type BomSqlDialect } from './resolve/bom-sql.js';
 import { BomConfigError, CONDITION_GRAMMAR_VERSION } from './resolve/config-condition.js';
 import { validateConditionReferences } from './resolve/config-validate.js';
@@ -18,7 +19,7 @@ import { normalizeExtValue, validateExtWrite, type ExtAttrDefShape, type ExtWrit
 import { BomResolutionError } from './resolve/resolution.js';
 import type { BomQueryExecutor } from './resolve/resolver.js';
 import { parseLotCodes } from './resolve/unit-lot.js';
-import { BomCycleError, normalizeBomError } from './types.js';
+import { BomCycleError, BomInstanceError, normalizeBomError } from './types.js';
 
 /** 需要入口规范化的十进制字段（US-511 按十进制值合同扩列）。 */
 const DECIMAL_FIELDS = [
@@ -172,6 +173,19 @@ const rethrowBomError = async (rxdb: RxDB, cause: unknown, attempted?: Record<st
   throw normalized;
 };
 
+const assertOccurrenceUnreferenced = async (
+  executor: TransactionExecutor,
+  dialect: BomSqlDialect,
+  occurrenceId: string
+): Promise<void> => {
+  const result = await executor.query(
+    `SELECT COUNT(*) FROM ${executor.tableRef(BomInstanceNode)} WHERE "sourceOccurrenceId" = ${dialect.placeholder(0)}`,
+    [occurrenceId]
+  );
+  const references = Number(result.rows[0][0]);
+  if (references > 0) throw new BomInstanceError(`发生项 ${occurrenceId} 被 ${references} 个实例引用，禁止删除来源`);
+};
+
 export class BomRepository<T extends EntityType = EntityType> extends Repository<T> {
   override async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
     normalizeDecimalFields(entity as unknown as Record<string, unknown>);
@@ -191,15 +205,10 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
   }
 
   override async remove(entity: InstanceType<T>): Promise<InstanceType<T>> {
-    // 位号应用层级联：PGlite 0.5.8 的 DEFERRABLE FK CASCADE 不生效（探针：FK confdeltype 'c'
-    // 但删父行后子行仍在），行级触发器内 DML 同样不触发——两后端一致走应用层先删位号
-    if ((entity as unknown as Record<string, unknown>) instanceof BomLineOccurrence) {
-      const table =
-        this.rxdb.localAdapterSync?.name === 'pglite' ? '"bom"."bom_line_designator"' : '"bom$bom_line_designator"';
-      await this.rawQuery(`DELETE FROM ${table} WHERE "occurrenceId" = '${entity.id}'`);
-    }
+    assertEntityOperationAllowed(this.EntityType, 'delete');
     try {
-      return await super.remove(entity);
+      if (getEntityMetadata(this.EntityType).name !== 'BomLineOccurrence') return await super.remove(entity);
+      return await this.#removeOccurrence(entity);
     } catch (error) {
       return await rethrowBomError(this.rxdb, error);
     }
@@ -232,5 +241,19 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
     } catch (error) {
       return await rethrowBomError(this.rxdb, error, entity as unknown as Record<string, unknown>);
     }
+  }
+
+  async #removeOccurrence(entity: InstanceType<T>): Promise<InstanceType<T>> {
+    const adapter = await firstValueFrom(this.rxdb.localAdapter$);
+    const dialect = bomSqlDialectFor(adapter.name);
+    const hasInstances = this.rxdb.config.entities.includes(BomInstanceNode);
+    return adapter.transaction(async executor => {
+      if (hasInstances) await assertOccurrenceUnreferenced(executor, dialect, entity.id);
+      await executor.query(
+        `DELETE FROM ${executor.tableRef(BomLineDesignator)} WHERE "occurrenceId" = ${dialect.placeholder(0)}`,
+        [entity.id]
+      );
+      return executor.getRepository(this.EntityType).remove(entity);
+    });
   }
 }

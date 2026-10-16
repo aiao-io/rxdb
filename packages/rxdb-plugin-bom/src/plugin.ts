@@ -13,6 +13,12 @@ import { getEntityMetadata, RxDBPluginBase, SyncType } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
 import { firstValueFrom } from 'rxjs';
 import { BOM_ENTITIES } from './entities.js';
+import type {
+  BomInstanceQueryOptions,
+  BomInstanceTraceResult,
+  BomInstanceTraceTarget,
+  BomInstanceTreeResult
+} from './instance.js';
 import { rollupCost as runRollupCost, type CostRollupContext, type CostRollupResult } from './quantity/cost.js';
 import { explodeBom as runExplodeBom, type ExplosionOptions, type ExplosionResult } from './quantity/explosion.js';
 import { BomRepository } from './repository.js';
@@ -103,6 +109,23 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
    */
   resolve(context: ResolutionContext, target: ResolveTarget): Promise<ResolutionResult> {
     return firstValueFrom(this.rxdb.localAdapter$).then(adapter => resolveBom(adapter, context, target));
+  }
+
+  /** 按实际安装事实展开实例；省略时点时返回全部安装历史。 */
+  async expandInstance(rootId: string, options?: BomInstanceQueryOptions): Promise<BomInstanceTreeResult> {
+    const adapter = await firstValueFrom(this.rxdb.localAdapter$);
+    const { expandInstance } = await import('./instance.js');
+    return expandInstance(adapter, rootId, options);
+  }
+
+  /** 按实际序列号、批次或修订反查命中记录及其整机路径。 */
+  async whereUsedInstance(
+    target: BomInstanceTraceTarget,
+    options?: BomInstanceQueryOptions
+  ): Promise<BomInstanceTraceResult> {
+    const adapter = await firstValueFrom(this.rxdb.localAdapter$);
+    const { whereUsedInstance } = await import('./instance.js');
+    return whereUsedInstance(adapter, target, options);
   }
 
   /**

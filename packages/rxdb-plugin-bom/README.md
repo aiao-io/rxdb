@@ -21,6 +21,10 @@ BOM（物料清单）领域插件，提供修订、生效域、数量展开、�
 - **导出与导入**：`exportBom` 在一个快照中读取展开结果与涉及的主数据，拒绝截断与未解析结构；
   `importBomDraft` 接受带 `kind` / `source_ref` 的记录数组，或导出的完整载荷。
   导入逐行报告诊断，任何失败整批回滚；成功头保持草稿，调用方显式发布。
+- **实例追溯**：`BomInstanceNode` 保存一次安装的实际修订、序列/批次、父实例、来源与装拆区间。
+  `expandInstance` / `whereUsedInstance` 查询实际事实与完整祖先路径；不随主数据改版重新解析。
+  序列化物料必填序列号，同一序列号的安装区间不得重叠；换父/重装先截止旧区间再新增记录。
+  来源发生项被引用后禁止删除，ECN 撤回/取消同样受保护。
 
 ## 使用
 
@@ -45,7 +49,15 @@ const context = {
 };
 const payload = await rxdb.bom.exportBom(context, { parentItemId: rootItemId });
 const imported = await rxdb.bom.importBomDraft(records);
+
+const actual = await rxdb.bom.expandInstance(rootInstanceId, {
+  asOfDate: new Date('2026-10-17T00:00:00.000Z')
+});
+const trace = await rxdb.bom.whereUsedInstance({ lotCode: 'PACK-LOT-A' });
 ```
+
+实例查询省略 `asOfDate` 时返回历史；指定时点按半开装拆区间筛选，根可无来源，子节点必须有来源。
+实例与主数据分表，查询模块随实例 API 调用加载；`maxDepth` / `maxNodes` 触顶会显式标记 `truncated`。
 
 后端支持：`wa-sqlite` / `sqlite` / `sqlite-wasm` / `sqliteai` / `sqlite-tauri` / `sqlite-electron` /
 `pglite`。其余后端在插件安装期显式报 `BomBackendCapabilityError`，不做静默降级。

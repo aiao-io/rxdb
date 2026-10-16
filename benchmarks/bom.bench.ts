@@ -8,12 +8,21 @@ import { dirname, resolve } from 'node:path';
 
 import { RxDB, SyncType, type AdapterRepositoryConstructor } from '@aiao/rxdb';
 import { PGliteRepository, RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
-import { BOM_ENTITIES, BomHeader, BomItem, BomLine, BomLineOccurrence, rxDBPluginBom } from '@aiao/rxdb-plugin-bom';
+import {
+  BOM_ENTITIES,
+  BomHeader,
+  BomInstanceNode,
+  BomItem,
+  BomLine,
+  BomLineOccurrence,
+  rxDBPluginBom
+} from '@aiao/rxdb-plugin-bom';
 import { summarise } from './bench-stats.ts';
 
 const WARMUP = 5;
 const SAMPLES = 20;
 const READ_LINES = 100;
+const INSTANCE_NODES = 100;
 const IMPORT_LINES = 498;
 const QUERY_BUDGET_MS = 16;
 const SINGLE_SAVE_BUDGET_MS = 100;
@@ -148,6 +157,70 @@ const assertImported = (result: Awaited<ReturnType<RxDB['bom']['importBomDraft']
   }
 };
 
+const measureInstances = async (
+  rxdb: RxDB,
+  fixture: Awaited<ReturnType<typeof seedReadFixture>>
+): Promise<Measurement[]> => {
+  const childRevisionId = crypto.randomUUID();
+  await rxdb.bom.loadHistory({
+    batchNo: 'bom-benchmark-instance-revision',
+    revisions: [{ id: childRevisionId, itemId: fixture.child.id, revisionNo: 'A', effectiveFrom: AS_OF }],
+    headers: []
+  });
+  const resolved = await rxdb.bom.resolve(
+    { bomType: 'ebom', orgId: ORG_ID, asOfDate: AS_OF },
+    { parentItemId: fixture.parent.id }
+  );
+  const root = new BomInstanceNode();
+  root.itemRevisionId = fixture.revisionId;
+  root.serialNumber = 'BENCH-INSTANCE';
+  root.installedAt = AS_OF;
+  await root.save();
+  const createPart = (serialNumber: string, sourceOccurrenceId: string): BomInstanceNode => {
+    const node = new BomInstanceNode();
+    node.itemRevisionId = childRevisionId;
+    node.parentInstanceId = root.id;
+    node.sourceOccurrenceId = sourceOccurrenceId;
+    node.serialNumber = serialNumber;
+    node.lotCode = 'BENCH-INSTANCE-LOT';
+    node.installedAt = AS_OF;
+    return node;
+  };
+  for (let index = 0; index < INSTANCE_NODES - 1; index += 1) {
+    await createPart(`BENCH-INSTANCE-PART-${index}`, resolved.occurrences[index].occurrenceId).save();
+  }
+  const expand = await measure(
+    'expandInstance',
+    QUERY_BUDGET_MS,
+    () => () => rxdb.bom.expandInstance(root.id, { asOfDate: AS_OF }),
+    result => {
+      if (result.nodes.length !== INSTANCE_NODES || result.truncated) throw new Error('实例展开基准结构不完整');
+    }
+  );
+  const trace = await measure(
+    'whereUsedInstance',
+    QUERY_BUDGET_MS,
+    () => () => rxdb.bom.whereUsedInstance({ serialNumber: 'BENCH-INSTANCE-PART-0' }, { asOfDate: AS_OF }),
+    result => {
+      if (result.matches.length !== 1 || result.matches[0].path.length !== 2 || result.truncated) {
+        throw new Error('实例序列号反查未命中唯一整机路径');
+      }
+    }
+  );
+  const save = await measure(
+    'saveInstance',
+    SINGLE_SAVE_BUDGET_MS,
+    iteration => {
+      const node = createPart(`BENCH-INSTANCE-SAVE-${iteration}`, resolved.occurrences[0].occurrenceId);
+      return () => node.save();
+    },
+    result => {
+      if (!result.id) throw new Error('实例保存未返回安装记录标识');
+    }
+  );
+  return [expand, trace, save];
+};
+
 const run = async () => {
   const rxdb = await createDatabase();
   try {
@@ -215,6 +288,8 @@ const run = async () => {
       }
     );
 
+    const instanceMetrics = await measureInstances(rxdb, fixture);
+
     for (let iteration = 0; iteration < WARMUP; iteration += 1) {
       assertImported(await rxdb.bom.importBomDraft(importPayload(`WARMUP-${iteration}`, 1)));
     }
@@ -248,9 +323,10 @@ const run = async () => {
         releasedHeaders: 1,
         releasedLines: READ_LINES,
         releasedOccurrences: READ_LINES,
+        instanceNodes: INSTANCE_NODES,
         shape: 'single level, repeated child on distinct logical lines'
       },
-      metrics: [resolveMetric, explodeMetric, exportMetric, saveMetric],
+      metrics: [resolveMetric, explodeMetric, exportMetric, saveMetric, ...instanceMetrics],
       import: {
         samples: 1,
         warmupBatches: WARMUP,
