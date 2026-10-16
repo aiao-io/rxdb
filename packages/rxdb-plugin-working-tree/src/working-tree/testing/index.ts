@@ -27,3 +27,11 @@ export type {
   WorkingTreeHookStubs,
   WorkingTreeManagerStub
 } from './use-working-tree-fixtures.js';
+export {
+  WORKTREE_CONFORMANCE_ENTITIES,
+  WORKTREE_CONFORMANCE_KEY,
+  WorktreeConformanceLabel,
+  WorktreeConformanceSecret,
+  WorktreeConformanceTask
+} from './worktree-conformance-entities.js';
+export { worktreeConformanceSuite } from './worktree.suite.js';

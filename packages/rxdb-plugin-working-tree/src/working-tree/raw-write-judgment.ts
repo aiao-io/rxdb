@@ -756,13 +756,30 @@ function combine(verdicts: readonly StatementVerdict[]): RawWriteJudgment {
  */
 export function judgeRawWrite(sql: string, context: RawWriteJudgmentContext): RawWriteJudgment {
   if (!context.capabilityEnabled) return { kind: 'allow', step: 1, reason: 'capability_disabled' };
-  const statements = normalizeSql(sql)
-    .split(';')
-    .map(statement => statement.trim())
-    .filter(statement => statement.length > 0);
-  const writes = statements.filter(statement => isWriteStatement(wordsOf(statement)));
+  const writes = writeStatementsOf(sql);
   if (writes.length === 0) return { kind: 'allow', step: 2, reason: 'not_a_write' };
   return combine(writes.map(statement => judgeStatement(statement, context.domain)));
+}
+
+/**
+ * 这批语句里有没有会改数据的语句。
+ *
+ * @param sql - 原始语句，可以是以分号分隔的语句批
+ * @returns 有一条写语句即为 `true`；口径与 {@link judgeRawWrite} 的第 2 步相同
+ *
+ * @remarks
+ * 只读检出位的只读钩子用它拦 raw 写（US-313）：那里没有版本化域可问，任何写都拒。
+ */
+export function containsWriteStatement(sql: string): boolean {
+  return writeStatementsOf(sql).length > 0;
+}
+
+/** 语句批里的写语句：整批切开逐条判，不只看第一条。 */
+function writeStatementsOf(sql: string): string[] {
+  return normalizeSql(sql)
+    .split(';')
+    .map(statement => statement.trim())
+    .filter(statement => statement.length > 0 && isWriteStatement(wordsOf(statement)));
 }
 
 /**

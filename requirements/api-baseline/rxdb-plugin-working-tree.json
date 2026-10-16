@@ -202,6 +202,10 @@
         "kind": "value"
       },
       {
+        "name": "containsWriteStatement",
+        "kind": "value"
+      },
+      {
         "name": "createWorkingTreeActivationRow",
         "kind": "value"
       },
@@ -408,6 +412,10 @@
       {
         "name": "RxDBPluginWorkingTree",
         "kind": "both"
+      },
+      {
+        "name": "RxDBPluginWorkingTreeOptions",
+        "kind": "type"
       },
       {
         "name": "selectRestoreReplayPath",
@@ -682,6 +690,58 @@
         "kind": "both"
       },
       {
+        "name": "Worktree",
+        "kind": "both"
+      },
+      {
+        "name": "WorktreeAdapterFactory",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeBranchTarget",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeKind",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeManager",
+        "kind": "both"
+      },
+      {
+        "name": "WorktreeOptions",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeOwner",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeState",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeTarget",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeTransactionRunner",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeUnavailableError",
+        "kind": "both"
+      },
+      {
+        "name": "WorktreeUnavailableReason",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeView",
+        "kind": "type"
+      },
+      {
         "name": "WRITE_TARGET_CLASSES",
         "kind": "value"
       },
@@ -802,6 +862,30 @@
       {
         "name": "WorkingTreeManagerStub",
         "kind": "type"
+      },
+      {
+        "name": "WORKTREE_CONFORMANCE_ENTITIES",
+        "kind": "value"
+      },
+      {
+        "name": "WORKTREE_CONFORMANCE_KEY",
+        "kind": "value"
+      },
+      {
+        "name": "WorktreeConformanceLabel",
+        "kind": "both"
+      },
+      {
+        "name": "WorktreeConformanceSecret",
+        "kind": "both"
+      },
+      {
+        "name": "worktreeConformanceSuite",
+        "kind": "value"
+      },
+      {
+        "name": "WorktreeConformanceTask",
+        "kind": "both"
       }
     ]
   }

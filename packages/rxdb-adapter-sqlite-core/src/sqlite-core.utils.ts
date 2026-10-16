@@ -10,7 +10,7 @@ import {
   quoteSqlIdentifier,
   type RxDBEntityId
 } from '@aiao/rxdb';
-import { EncryptedDecryptError, EncryptedLockedError, type Keyring } from '@aiao/rxdb-adapter-encrypted';
+import { EncryptedDecryptError, EncryptedLockedError, isEnvelope, type Keyring } from '@aiao/rxdb-adapter-encrypted';
 import { isNil, isString } from '@aiao/utils';
 import type { SQLiteCompatibleType, SqliteDataType, SqliteResult } from './sqlite-core.interface.js';
 
@@ -24,6 +24,11 @@ export interface EncryptionContext {
   keyring: Keyring | null;
   namespace: string;
   resolveEntityMetadata?: (entity: string, namespace: string) => EntityMetadata | undefined;
+  /**
+   * 加密列的值已是信封：原样写下、不加密，遇到不是信封的值直接抛（只读检出位建快照，US-313）。
+   * 打开时不碰密钥环。
+   */
+  envelopePassthrough?: boolean;
 }
 
 /**
@@ -368,6 +373,44 @@ export class RxDBAdapterSqliteError extends Error {
 import { deserializeFromEnvelope, serializeForEnvelope } from '@aiao/rxdb-adapter-encrypted';
 
 /**
+ * 一个加密列落库的值。
+ *
+ * @param metadata - 实体元数据
+ * @param property - 加密列
+ * @param raw - 待写的值
+ * @param primaryKey - 行主键，进 AAD
+ * @param opts - 加密上下文
+ * @returns 信封；`null` / `undefined` 原样
+ * @throws {@link EncryptedLockedError} 要加密而密钥环未解锁时
+ * @throws TypeError 信封直通时值不是信封
+ */
+const encryptedColumnValue = async (
+  metadata: EntityMetadata,
+  property: EntityPropertyMetadata,
+  raw: unknown,
+  primaryKey: RxDBEntityId,
+  opts: EncryptionContext | undefined
+): Promise<SQLiteCompatibleType | undefined> => {
+  if (raw === null || raw === undefined) return raw;
+  if (opts?.envelopePassthrough === true) {
+    if (isEnvelope(raw)) return raw;
+    throw new TypeError(`${metadata.tableName}.${property.columnName} 要原样写下信封，拿到的却是明文`);
+  }
+  if (!opts?.keyring || opts.keyring.isLocked) {
+    throw new EncryptedLockedError({
+      message: `keyring is locked while writing encrypted column ${metadata.tableName}.${property.columnName}`
+    });
+  }
+  return opts.keyring.encrypt({
+    plaintext: serializeForEnvelope(raw, property),
+    entityNamespace: metadata.namespace,
+    tableName: metadata.tableName,
+    columnName: property.columnName,
+    primaryKey
+  });
+};
+
+/**
  * 将实体值转换为 SQLite 格式
  * @param metadata 实体元数据
  * @param entity 实体对象
@@ -427,24 +470,13 @@ export const transformEntityValueToSql = async (
     const property = propertyMap.get(key);
     if (property) {
       if (hasEncryption && property.encrypted === true) {
-        const raw = entity[key];
-        if (raw === null || raw === undefined) {
-          needSave[property.columnName] = raw === null ? null : undefined;
-          continue;
-        }
-        if (!opts?.keyring || opts.keyring.isLocked) {
-          throw new EncryptedLockedError({
-            message: `keyring is locked while writing encrypted column ${metadata.tableName}.${property.columnName}`
-          });
-        }
-        const plaintext = serializeForEnvelope(raw, property);
-        needSave[property.columnName] = await opts.keyring.encrypt({
-          plaintext,
-          entityNamespace: metadata.namespace,
-          tableName: metadata.tableName,
-          columnName: property.columnName,
-          primaryKey: primaryKeyValue
-        });
+        needSave[property.columnName] = await encryptedColumnValue(
+          metadata,
+          property,
+          entity[key],
+          primaryKeyValue,
+          opts
+        );
         continue;
       }
       needSave[property.columnName] = transformValueJsToSqlite(entity[key], property);
@@ -457,24 +489,7 @@ export const transformEntityValueToSql = async (
       const prop = propertyMap.get(propertyName);
       if (prop) {
         if (hasEncryption && prop.encrypted === true) {
-          const raw = entity[key];
-          if (raw === null || raw === undefined) {
-            needSave[key] = raw === null ? null : undefined;
-            continue;
-          }
-          if (!opts?.keyring || opts.keyring.isLocked) {
-            throw new EncryptedLockedError({
-              message: `keyring is locked while writing encrypted column ${metadata.tableName}.${prop.columnName}`
-            });
-          }
-          const plaintext = serializeForEnvelope(raw, prop);
-          needSave[key] = await opts.keyring.encrypt({
-            plaintext,
-            entityNamespace: metadata.namespace,
-            tableName: metadata.tableName,
-            columnName: prop.columnName,
-            primaryKey: primaryKeyValue
-          });
+          needSave[key] = await encryptedColumnValue(metadata, prop, entity[key], primaryKeyValue, opts);
           continue;
         }
         needSave[key] = transformValueJsToSqlite(entity[key], prop);

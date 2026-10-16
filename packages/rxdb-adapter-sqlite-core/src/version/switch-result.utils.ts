@@ -156,10 +156,27 @@ const getMetadata = (adapter: RxDBAdapterSqliteBase, key: string): EntityMetadat
 const hasNoWritableColumn = (metadata: EntityMetadata, patch: EntityData): boolean =>
   Object.keys(normalizeUpdateEntity(metadata, patch)).length === 0;
 
+/** {@link convertSwitchResultToSql} 的选项。 */
+export interface SwitchSqlOptions {
+  /**
+   * 加密列按信封原样写：不解密也不加密，遇到明文直接抛（只读检出位建快照，US-313）。
+   *
+   * @remarks
+   * 快照库的密文必须是主库信封的逐字节拷贝；解开再加密会换掉随机数，还要求密钥环已解锁。
+   */
+  readonly envelopePassthrough?: boolean;
+}
+
 export const convertSwitchResultToSql = async (
   adapter: RxDBAdapterSqliteBase,
-  actions: SwitchVersionActions
+  actions: SwitchVersionActions,
+  options: SwitchSqlOptions = {}
 ): Promise<SwitchVersionSqlResult> => {
+  const passthrough = options.envelopePassthrough === true;
+  const encryption =
+    passthrough ? { ...adapter.encryptionContext, envelopePassthrough: true } : adapter.encryptionContext;
+  const prepareEntityData = async (metadata: EntityMetadata, entityData: EntityData): Promise<EntityData> =>
+    passthrough ? entityData : decryptEntityDataForApply(adapter, metadata, entityData);
   const result: SwitchVersionSqlResult = { deletes: [], inserts: [], updates: [] };
 
   const deleteIdsByEntity = new Map<string, Set<RxDBEntityId>>();
@@ -210,7 +227,7 @@ export const convertSwitchResultToSql = async (
     const metadata = getMetadata(adapter, key);
     const statements: SqliteStatement[] = [];
     for (const rawEntity of rawEntities) {
-      const entityData = await decryptEntityDataForApply(adapter, metadata, rawEntity);
+      const entityData = await prepareEntityData(metadata, rawEntity);
       for (const [propertyName, property] of metadata.propertyMap) {
         if (entityData[propertyName] === undefined && property.default !== undefined) {
           entityData[propertyName] = typeof property.default === 'function' ? property.default() : property.default;
@@ -218,7 +235,7 @@ export const convertSwitchResultToSql = async (
       }
       const statement = await generate_entity_insert_sql(metadata, entityData, {
         useReplace: true,
-        encryption: adapter.encryptionContext
+        encryption
       });
       statements.push(toSqliteStatement(statement));
     }
@@ -275,7 +292,7 @@ export const convertSwitchResultToSql = async (
       changes.get(entity['id'] as RxDBEntityId)
     );
     for (const rawEntity of orderedEntities) {
-      const entityData = await decryptEntityDataForApply(adapter, metadata, rawEntity);
+      const entityData = await prepareEntityData(metadata, rawEntity);
       const { id, ...patch } = entityData;
       if (hasNoWritableColumn(metadata, patch)) continue;
       // 目标状态的 updatedAt（patch）与被替换状态的 updatedAt（inversePatch）都只是水位输入，
@@ -293,7 +310,7 @@ export const convertSwitchResultToSql = async (
       statements.push(
         toSqliteStatement(
           await update_sql(metadata, { id }, patch, {
-            encryption: adapter.encryptionContext,
+            encryption,
             updatedAt
           })
         )

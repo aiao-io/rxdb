@@ -18,6 +18,8 @@ import type { LocalRxDBAdapter, RxDB, TransactionExecutor } from '@aiao/rxdb';
 import { RxDBChange, RxDBError } from '@aiao/rxdb';
 import { firstValueFrom, Subject, type Observable } from 'rxjs';
 import { WORKING_TREE_CAPABILITY } from '../capability-identity.js';
+import { WorktreeManager } from '../checkout/worktree-manager.js';
+import type { WorktreeOptions } from '../checkout/worktree-options.js';
 import type { CommitCapabilityInfo } from '../commit/commit-capability.js';
 import {
   assertSupportedCommitCapability,
@@ -147,9 +149,19 @@ export class WorkingTreeManager {
   readonly commits$: Observable<WorkingTreeCommitEvent> = this.#commits.asObservable();
 
   /**
+   * 只读检出位（US-313）：不切换分支就以只读方式打开另一条分支的完整数据。
+   *
+   * @remarks
+   * 实例字段而不是方法，理由同 {@link WorkingTreeManager.commits$}：原型上的成员都是受管命令，
+   * 而且原型方法名不许匹配 `/checkout|detach/i`（commit 套件的守卫）。
+   */
+  readonly checkouts: WorktreeManager;
+
+  /**
    * 由插件构造器调用，一个 RxDB 实例一个。
    *
    * @param rxdb - 宿主实例；整个门面只持有它这一个引用
+   * @param worktrees - 插件的 `worktrees` 选项，交给 {@link WorkingTreeManager.checkouts}
    *
    * @remarks
    * 持整个 RxDB 而不是在这里就取出本地适配器：受管成员每次调用都要**当场**重新解析
@@ -157,8 +169,9 @@ export class WorkingTreeManager {
    * 适配器实例。构造那一刻取一次存下来，等于把门面钉死在第一个连接纪元上，
    * 症状是重连之后所有命令仍然写向已经废弃的那个适配器。
    */
-  constructor(rxdb: RxDB) {
+  constructor(rxdb: RxDB, worktrees?: WorktreeOptions) {
     this.#rxdb = rxdb;
+    this.checkouts = new WorktreeManager(rxdb, run => this.runEnabled(run), worktrees);
   }
 
   /**

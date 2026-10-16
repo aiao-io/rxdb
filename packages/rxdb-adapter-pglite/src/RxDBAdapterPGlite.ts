@@ -3,13 +3,18 @@ import type {
   EntityType,
   IRepository,
   IRxDBAdapter,
+  LocalRxDBAdapter,
   RawQueryResult,
   RestoreEntityOptions,
   RxDBBackupOptions,
   RxDBBackupResult,
   RxDBMutationsMap,
   SwitchBranchOptions,
-  SwitchVersionActions
+  SwitchVersionActions,
+  TransactionExecutor,
+  WorktreeSnapshotCursor,
+  WorktreeSnapshotImport,
+  WorktreeSnapshotPage
 } from '@aiao/rxdb';
 import {
   gateRawWrite,
@@ -71,12 +76,13 @@ import { create_table_indexes_sql } from './table/create_table_sql.js';
 import { create_tables_statements } from './table/create_tables_sql.js';
 import { generateNotifyInfrastructureSQL, generateNotifyTriggerSQL } from './table/notify_function_sql.js';
 import { PGliteTransactionExecutor } from './transaction/PGliteTransactionExecutor.js';
-import { execute_switch_actions } from './version/execute_switch_actions.js';
+import { applySwitchActions, execute_switch_actions } from './version/execute_switch_actions.js';
 import { executeSwitchStatements } from './version/execute_switch_statements.js';
 import { readBranchIdForNewTables } from './version/read_current_branch_id.js';
 import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { generateBranchTriggerSqlFor, switch_branch } from './version/switch_branch.js';
 import rxdb_adapter_switch_transaction_id from './version/switch_transaction_id.js';
+import { importSnapshotTable, readSnapshotPage } from './worktree/worktree-snapshot.js';
 
 /**
  * 适配器生命周期状态。
@@ -230,6 +236,65 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    */
   override isEncryptedAtRest(value: unknown): boolean {
     return isEnvelope(value);
+  }
+
+  /**
+   * 读一页存储形态的行（只读检出位建快照，US-313）。
+   *
+   * @param executor - 主库事务的执行器
+   * @param EntityType - 主实例上的实体类
+   * @param after - 上一页的游标；`null` 从头读
+   * @param limit - 本页最多几行
+   * @returns `to_jsonb` 文本的行，按主键分页
+   */
+  override readWorktreeSnapshotPage(
+    executor: TransactionExecutor,
+    EntityType: EntityType,
+    after: WorktreeSnapshotCursor | null,
+    limit: number
+  ): Promise<WorktreeSnapshotPage> {
+    return readSnapshotPage(executor, EntityType, after, limit);
+  }
+
+  /**
+   * 把主库读出的行与增量写进本库（只读检出位建快照，US-313）。
+   *
+   * @param snapshot - 要复制的表与叠在上面的增量
+   * @throws {@link RxdbAdapterPGliteError} 本库装着捕获运行时
+   *
+   * @remarks
+   * 一个事务，不派发事件：快照实例的实体都是 `log: false`，没有变更日志可推出事件。
+   * 增量与切分支同一份 SQL 生成，只是加密列走信封直通。
+   */
+  override async importWorktreeSnapshot(snapshot: WorktreeSnapshotImport): Promise<void> {
+    if (this.workingTreeCaptureHook) {
+      throw new RxdbAdapterPGliteError('importWorktreeSnapshot: 装着捕获运行时的库不能导入快照，快照写不进受信写矩阵');
+    }
+    const switchAction = await convertSwitchResultToSql(this, snapshot.actions, { envelopePassthrough: true });
+    await this.transaction(async executor => {
+      for (const table of snapshot.tables) await importSnapshotTable(executor, table);
+      await applySwitchActions((executor as PGliteTransactionExecutor).adapter, switchAction);
+    }, false);
+  }
+
+  /**
+   * 沿用主库适配器的密钥环（只读检出位，US-313）。
+   *
+   * @param source - 主库的 PGlite 适配器
+   * @throws {@link RxdbAdapterPGliteError} `source` 不是 PGlite 适配器
+   */
+  override adoptWorktreeEncryption(source: LocalRxDBAdapter): void {
+    if (!(source instanceof RxDBAdapterPGlite)) {
+      throw new RxdbAdapterPGliteError(`adoptWorktreeEncryption: 主库适配器 ${source.name} 不是 PGlite`);
+    }
+    this.#keyring = source.#keyring;
+  }
+
+  /**
+   * 把本库封成只读（只读检出位，US-313）：此后每个事务都是只读事务，写语句被 Postgres 拒绝。
+   */
+  override async sealWorktreeReadOnly(): Promise<void> {
+    await this.transaction(executor => executor.query('SET SESSION default_transaction_read_only = on'), false);
   }
 
   /** QueryCache：id → updatedAt。物理定位经 `resolveQueryCacheTarget`（PGL-012）。 */

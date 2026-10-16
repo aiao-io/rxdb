@@ -5,7 +5,7 @@
  * 插件本身只做三件事，其余全部语义在 `working-tree/` 与 `commit/` 两个目录里：
  *
  * 1. **挂入口**：`use()` 的那一刻把 {@link WorkingTreeManager} 定义成 `rxdb.workingTree`。
- * 2. **声明系统贡献**：10 张系统表、新库的初始行、既有库的引导迁移、既有库连接时的接通，
+ * 2. **声明系统贡献**：11 张系统表、新库的初始行、既有库的引导迁移、既有库连接时的接通，
  *    以及每条新分支的贡献行，一次性交给宿主按 {@link RxDBSystemContribution} 编排。
  *
  * 3. **接住别人的启用**：`install()` 里登记一个 `CAPABILITY_ENABLED` 监听器（FR-037），
@@ -25,6 +25,8 @@ import {
 } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
 import { PACKAGE_SPECIFIER, WORKING_TREE_CAPABILITY } from './capability-identity.js';
+import type { RxDBPluginWorkingTreeOptions } from './checkout/worktree-options.js';
+import { Worktree } from './checkout/worktree.entity.js';
 import { removeBranchCommitRows, writeNewBranchCommitRows } from './commit/branch-commit-rows.js';
 import { CommitBranchRef } from './commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from './commit/commit-capability-state.entity.js';
@@ -63,12 +65,14 @@ import { WorkingTreeState } from './working-tree/working-tree-state.entity.js';
 export const WORKING_TREE_CAPABILITY_VERSION = 1;
 
 /**
- * 本插件贡献的 10 张系统表，顺序即建表顺序。
+ * 本插件贡献的 11 张系统表，顺序即建表顺序。
  *
  * @remarks
- * 顺序照 `data-model.md` §1 的 1→10 抄，与一致性套件里那份手写清单
+ * 前 10 张照 `data-model.md` §1 的 1→10 抄，第 11 张是只读检出位的登记表（US-313）。与一致性套件里那份手写清单
  * （`working-tree/testing/capture.suite.ts` 的 `EPIC_006_SYSTEM_ENTITIES`）逐项一致。
  * 那份清单故意**不**从这里算差集：新增一张表必须先让它编译失败，逐条过一遍 §1.5 的三条断言。
+ *
+ * 既有库上不需要迁移：连接时核心补建缺的贡献表。
  */
 const WORKING_TREE_SYSTEM_ENTITIES: readonly EntityType[] = [
   CommitCapabilityState,
@@ -80,7 +84,8 @@ const WORKING_TREE_SYSTEM_ENTITIES: readonly EntityType[] = [
   WorkingTreeEntry,
   WorkingTreeRestoreSession,
   WorkingTreeMaterializationStage,
-  WorkingTreeMaterializationPage
+  WorkingTreeMaterializationPage,
+  Worktree
 ];
 
 /**
@@ -200,6 +205,7 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
    * 建插件对象，并把 `rxdb.workingTree` 挂上去。
    *
    * @param rxdb - 宿主实例
+   * @param options - 插件选项；`worktrees` 给只读检出位用
    *
    * @remarks
    * 挂载放在**构造器**而不是 `install()`：`use()` 里插件工厂是同步求值的，于是入口从 `use()`
@@ -212,11 +218,11 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
    * 可重定义的属性允许第二个插件实例在订阅者背后把它换掉。同一实例上已经挂过就直接返回，
    * 谁装的就是谁的——与 storage 插件的 `hasOwnProperty` 守卫同一条理由。
    */
-  constructor(rxdb: RxDB) {
+  constructor(rxdb: RxDB, options?: RxDBPluginWorkingTreeOptions) {
     super(rxdb);
     if (Object.prototype.hasOwnProperty.call(rxdb, 'workingTree')) return;
     Object.defineProperty(rxdb, 'workingTree', {
-      value: new WorkingTreeManager(rxdb),
+      value: new WorkingTreeManager(rxdb, options?.worktrees),
       enumerable: false,
       configurable: false,
       writable: false
@@ -232,7 +238,7 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
    * 另外三件事都**不**在这里，各有自己的时点：
    *
    * - `rxdb.workingTree` 在**构造时**挂上（见构造器），必须早于 `init()`；
-   * - 10 张表、初始行与引导迁移经 {@link RxDBPluginWorkingTree.system} 声明，由宿主在建表
+   * - 11 张表、初始行与引导迁移经 {@link RxDBPluginWorkingTree.system} 声明，由宿主在建表
    *   那一刻编排——走 `install()` 的贡献永远赶不上自己的表（见 {@link RxDBSystemContribution}）；
    * - 本连接自己的接通由 `bootstrapExisting()`（既有库读能力位）与
    *   {@link WorkingTreeManager.enable}（本连接刚启用）完成。
@@ -267,8 +273,19 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
   }
 }
 
-/** RxDB 工作树插件工厂。 */
-export const rxDBPluginWorkingTree: Plugin = (db: RxDB) => new RxDBPluginWorkingTree(db);
+/**
+ * RxDB 工作树插件工厂。
+ *
+ * @example
+ * ```ts
+ * rxdb.use(rxDBPluginWorkingTree, {
+ *   // 只读检出位的快照库：与主库同一种后端，按 db.config.dbName 给每个检出位单独的存储
+ *   worktrees: { adapter: db => new RxDBAdapterPGlite(db, { store: 'memory' }) }
+ * });
+ * ```
+ */
+export const rxDBPluginWorkingTree: Plugin<RxDBPluginWorkingTreeOptions> = (db, options) =>
+  new RxDBPluginWorkingTree(db, options);
 
 declare module '@aiao/rxdb' {
   interface RxDB {
