@@ -106,7 +106,7 @@ INVEST 检查清单:
   逐项列出），「运行时能力 × 适配器」表容纳非浏览器运行时。根 `README.md` 的小程序表述与包 README 的平台范围一致。
 - **AC#12 examples 定位声明**：现走「纳入 CI」分支——demo 已迁入 `apps/dev-rxdb-miniprogram/`
   并完整纳入 Nx，`lint` / `typecheck` / `build` 三个 target 进 CI（见实现文件表）；
-  原 `examples/taro-react-todo/` 已迁出（[examples/README.md](../../../examples/README.md) 记录）。
+  原 `examples/taro-react-todo/` 已迁出（`examples/` 目录现整体迁至 [aiao-io/rxdb-examples](https://github.com/aiao-io/rxdb-examples)）。
 
 ## 实现文件
 
