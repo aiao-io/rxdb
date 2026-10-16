@@ -318,6 +318,10 @@
         "kind": "value"
       },
       {
+        "name": "isWorktreeCommitTarget",
+        "kind": "value"
+      },
+      {
         "name": "judgeRawWrite",
         "kind": "value"
       },
@@ -699,6 +703,14 @@
       },
       {
         "name": "WorktreeBranchTarget",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeCommitTarget",
+        "kind": "type"
+      },
+      {
+        "name": "WorktreeCommitViewPlan",
         "kind": "type"
       },
       {

@@ -20,6 +20,7 @@ import { Entity, EntityBase, getEntityMetadata, RxDBBranch, RxDB as RxDBClass, S
 import { compute_switch_branch_actions } from '@aiao/rxdb-plugin-history';
 import { of } from 'rxjs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { commitViewActions, planCommitView } from '../../checkout/worktree-commit-view.js';
 import { WorktreeUnavailableError } from '../../checkout/worktree-errors.js';
 import {
   assertSnapshotSource,
@@ -29,6 +30,8 @@ import {
   sealSnapshot
 } from '../../checkout/worktree-snapshot.js';
 import { MockLocalAdapter } from '../fixtures/test-db-setup.js';
+
+vi.mock('../../checkout/worktree-commit-view.js', () => ({ planCommitView: vi.fn(), commitViewActions: vi.fn() }));
 
 vi.mock('@aiao/rxdb-plugin-history', async importOriginal => ({
   ...(await importOriginal<typeof import('@aiao/rxdb-plugin-history')>()),
@@ -208,7 +211,7 @@ describe('importSnapshot', () => {
       main as unknown as LocalRxDBAdapter,
       snapshotWith(target),
       [SnapshotNote],
-      'main'
+      { branchId: 'main' }
     );
 
     expect(compute_switch_branch_actions).not.toHaveBeenCalled();
@@ -247,7 +250,7 @@ describe('importSnapshot', () => {
       main as unknown as LocalRxDBAdapter,
       snapshotWith(target),
       [SnapshotNote],
-      'feature'
+      { branchId: 'feature' }
     );
 
     const [input] = target.importWorktreeSnapshot.mock.calls[0];
@@ -261,9 +264,45 @@ describe('importSnapshot', () => {
     const main = mainAdapterNamed('mock');
     const target = new SnapshotCapableAdapter(main.rxdb);
 
-    expect(await reasonOf(importSnapshot(executorWith([]), main, snapshotWith(target), [SnapshotNote], 'main'))).toBe(
-      'branch_not_found'
-    );
+    expect(
+      await reasonOf(importSnapshot(executorWith([]), main, snapshotWith(target), [SnapshotNote], { branchId: 'main' }))
+    ).toBe('branch_not_found');
+  });
+});
+
+describe('importSnapshot 的提交视图', () => {
+  it('增量取自往回推，在同一个事务里重新判一次可达；目标变更点为 null', async () => {
+    const main = mainAdapterNamed('mock') as unknown as SnapshotCapableAdapter;
+    main.readWorktreeSnapshotPage.mockResolvedValue({ rows: [], count: 0, next: null });
+    const plan = { branchId: 'main', path: ['c2'] };
+    vi.mocked(planCommitView).mockResolvedValue(plan);
+    const { namespace } = getEntityMetadata(SnapshotNote);
+    vi.mocked(commitViewActions).mockResolvedValue({
+      deletes: new Map(),
+      updates: new Map([[`${namespace}:SnapshotNote:1`, { patch: { title: 'a' }, inversePatch: { title: 'b' } }]]),
+      inserts: new Map()
+    });
+    const target = new SnapshotCapableAdapter(main.rxdb);
+    const executor = {
+      getRepository: (EntityClass: EntityType) => ({
+        find: async () => (EntityClass === RxDBBranch ? [{ id: 'main', activated: true }] : [])
+      })
+    } as unknown as TransactionExecutor;
+    const snapshot = {
+      localAdapter$: of(target),
+      schemaManager: { getEntityType: () => SnapshotNote }
+    } as unknown as RxDB;
+
+    const source = await importSnapshot(executor, main as unknown as LocalRxDBAdapter, snapshot, [SnapshotNote], {
+      commitId: 'c1'
+    });
+
+    expect(planCommitView).toHaveBeenCalledWith(executor, expect.anything(), 'c1');
+    expect(commitViewActions).toHaveBeenCalledWith(executor, expect.anything(), plan);
+    expect([...target.importWorktreeSnapshot.mock.calls[0][0].actions.updates.keys()]).toEqual([
+      `${namespace}:SnapshotNote:1`
+    ]);
+    expect(source).toEqual({ sourceBranchId: 'main', sourceChangeId: null, targetChangeId: null });
   });
 });
 

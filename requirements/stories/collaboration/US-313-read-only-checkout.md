@@ -73,7 +73,7 @@ epic-006 多检出位[场景二](../../epics/epic-006-working-tree-commits.md#�
 | 阶段 | 交付                                                                                                                                                                                                                | 状态 |
 | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---- |
 | A    | 核心前置（克隆实体类不再泄漏多对多中间表、`cloneEntityClasses` 公开、`readOnly` 与 `RxDBReadOnlyError`、生成类清单、快照原语声明）；PGlite 与 SQLite 系的快照原语；登记表；分支视图与只读实例；一致性套件接六个后端 | ✅   |
-| B    | 提交视图                                                                                                                                                                                                            | ⬜   |
+| B    | 提交视图                                                                                                                                                                                                            | ✅   |
 | C    | 生命周期与回收：六个后端的 `dropStorage`、Web Locks、`prune()`、启动清理、`attach()`                                                                                                                                | ⬜   |
 | D    | 三端绑定、三端 demo、文档                                                                                                                                                                                           | ⬜   |
 
@@ -86,8 +86,8 @@ epic-006 多检出位[场景二](../../epics/epic-006-working-tree-commits.md#�
 | 3   | A    | 主实例装了 workspace 插件                      | 在只读实例上查询并实例化实体                       | 主实例实体缓存里没有这些实体；草稿缓存不新增条目                                                 | ⚠️   |
 | 4   | A    | 有加密字段的实体                               | 打开只读检出位                                     | 快照库里每个密文都是主库已有信封的逐字节拷贝；建快照不调用密钥环                                 | ✅   |
 | 5   | A    | 只读检出位已打开，主库随后又写入               | 读只读检出位；再 `refresh()`                       | 先读到的仍是建立时刻的数据；`refresh()` 后与新状态一致                                           | ✅   |
-| 6   | B    | 当前分支上一个可达的历史提交                   | 打开提交视图                                       | 已跟踪实体的数据与「那次 `commit()` 刚完成时读到的数据」逐行一致                                 | ⬜   |
-| 7   | B    | 不可达的提交                                   | 打开提交视图                                       | 拒绝，原因与 restore 的 `unreachable_target` 同口径                                              | ⬜   |
+| 6   | B    | 当前分支上一个可达的历史提交                   | 打开提交视图                                       | 已跟踪实体的数据与「那次 `commit()` 刚完成时读到的数据」逐行一致                                 | ✅   |
+| 7   | B    | 不可达的提交                                   | 打开提交视图                                       | 拒绝，原因与 restore 的 `unreachable_target` 同口径                                              | ✅   |
 | 8   | C    | 只读检出位已打开                               | `close()`                                          | 快照库与登记都删除                                                                               | ⬜   |
 | 9   | C    | 标签页会话归属的检出位，所在标签页已关闭或崩溃 | 任一标签页启动，或调 `prune()`                     | 该检出位被回收；其它标签页仍在用的不受影响                                                       | ⬜   |
 | 10  | C    | 持久归属的检出位                               | 刷新页面                                           | 仍在登记里，可直接打开                                                                           | ⬜   |
@@ -98,7 +98,7 @@ epic-006 多检出位[场景二](../../epics/epic-006-working-tree-commits.md#�
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-AC1～AC5 由 `worktreeConformanceSuite` 在六个后端上验（PGlite / sqlite-wasm / wa-sqlite / sqlite / sqliteai / Electron）。
+AC1～AC7 由 `worktreeConformanceSuite` 在六个后端上验（PGlite / sqlite-wasm / wa-sqlite / sqlite / sqliteai / Electron）。
 AC3 的保留：主实例实体缓存的隔离已验；workspace 草稿缓存这一半等阶段 D 的 demo（主实例装着 workspace）补 e2e，
 结构上它只收主实例 `EntityManager` 的实体，快照实例不装 workspace。
 
@@ -165,8 +165,11 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
 - **提交视图**：`selectRestoreReplayPath()` 取可达路径（取不到即 `unreachable_target`，与 restore 同口径），
   `findFirstReplayIncompatibility(path)` 预检，`assertCommitGraphIntact`。算法：先把 active 分支的 `WorkingTreeEntry` 反向，
   回到 HEAD 的投影；再从 HEAD 沿路径往回，逐个提交反向应用它的变更单元；用 `get_switch_version_actions` 折叠后叠到当前分支的
-  快照上。有进行中或冲突的 restore 会话时拒绝（`restoring_working_tree`）。**推断**（阶段 B 先核实）：`inversePatch` 保留的是
-  每个字段第一次捕获的旧值；解码后的变更单元与 `RxDBChange` 解码同形。
+  快照上。有进行中或冲突的 restore 会话时拒绝（`restoring_working_tree`）：恢复出来的条目的 `inversePatch` 是目标提交自己的旧值，
+  不是 HEAD 的值，撤销它们回不到 HEAD。阶段 B 核实：工作树条目与提交单元都经 `decodeRxDBChangePatch` 解码，与变更日志同形，
+  切分支的 SQL 生成两者都吃；单元里的 `entityId` 是字符串（整数主键是编码信封），先 `decodeRxDBChangeEntityId` 还原再拼增量键。
+  同一身份在一条分支上至多一条工作树条目（唯一索引），撤销与顺序无关；跨提交按时间编号后逆向折叠，同一行取最早的旧值。
+  可达路径在建快照的那个主库事务里重新算一次：登记之后 HEAD 可能又前进了。实现：`checkout/worktree-commit-view.ts`。
 - **生命周期**：每个持有检出位的标签页拿共享 Web Lock `rxdb-worktree:${主库 config.dbName}:${id}`（建库期间也持有）；
   `prune()` 以 `ifAvailable` 试排他锁，拿到且归属为 `session` 或仍是 `building` 的就删库、删登记行；`persistent` 且 `ready` 的保留。
   `close()` 关本标签页的视图、放共享锁，排他锁空闲才删库与登记行。每个连接纪元第一次拿到本地适配器后在后台跑一次 `prune()`。

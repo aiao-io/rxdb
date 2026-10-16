@@ -29,10 +29,13 @@ import {
 } from '@aiao/rxdb';
 import { compute_switch_branch_actions, get_branch_max_change } from '@aiao/rxdb-plugin-history';
 import { firstValueFrom } from 'rxjs';
+import { createCommitWriteContext } from '../commit/commit-context.js';
 import { createReadOnlyCaptureHook } from './read-only-capture-hook.js';
+import { commitViewActions, planCommitView } from './worktree-commit-view.js';
 import { worktreeEntityOf } from './worktree-entities.js';
 import { WorktreeUnavailableError } from './worktree-errors.js';
 import type { WorktreeOptions } from './worktree-options.js';
+import { isWorktreeCommitTarget, type WorktreeTarget } from './worktree-target.js';
 
 /** 每页读多少行：页越大事务里攒的行越多，越小来回越多。 */
 const SNAPSHOT_PAGE_SIZE = 500;
@@ -43,7 +46,7 @@ export interface WorktreeSnapshotSource {
   readonly sourceBranchId: string;
   /** active 分支停在哪条变更上；没有自有变更时为 `null` */
   readonly sourceChangeId: number | null;
-  /** 目标分支停在哪条变更上；没有自有变更时为 `null` */
+  /** 分支视图里目标分支停在哪条变更上；没有自有变更、或提交视图时为 `null` */
   readonly targetChangeId: number | null;
 }
 
@@ -153,27 +156,24 @@ export const connectSnapshotDatabase = async (snapshot: RxDB): Promise<LocalRxDB
  * @param mainAdapter - 主库适配器
  * @param snapshot - 已连接的快照实例
  * @param copied - 要复制的表（主实例上的实体类）
- * @param branchId - 目标分支
+ * @param target - 检出位的 HEAD
  * @returns 主库此刻停在哪
+ * @throws {@link WorktreeUnavailableError} 主库没有 active 分支；提交视图在这个事务里不可达或不兼容了
  */
 export const importSnapshot = async (
   executor: TransactionExecutor,
   mainAdapter: LocalRxDBAdapter,
   snapshot: RxDB,
   copied: readonly EntityType[],
-  branchId: string
+  target: WorktreeTarget
 ): Promise<WorktreeSnapshotSource> => {
-  const branchRepository = executor.getRepository(RxDBBranch);
   const changeRepository = executor.getRepository(RxDBChange);
-  const [active] = await branchRepository.find({
+  const [active] = await executor.getRepository(RxDBBranch).find({
     where: { combinator: 'and', rules: [{ field: 'activated', operator: '=', value: true }] },
     limit: 1
   });
   if (!active) throw new WorktreeUnavailableError('branch_not_found', '主库没有 active 分支');
-  const actions =
-    active.id === branchId ?
-      emptyActions()
-    : await compute_switch_branch_actions({ branchRepository, changeRepository }, branchId);
+  const actions = await deltaOf(executor, mainAdapter, active.id, target);
   const snapshotAdapter = await firstValueFrom(snapshot.localAdapter$);
   await snapshotAdapter.importWorktreeSnapshot!({
     tables: copied.map(EntityClass => ({
@@ -185,8 +185,35 @@ export const importSnapshot = async (
   return {
     sourceBranchId: active.id,
     sourceChangeId: (await get_branch_max_change(changeRepository, active.id))?.id ?? null,
-    targetChangeId: (await get_branch_max_change(changeRepository, branchId))?.id ?? null
+    targetChangeId:
+      isWorktreeCommitTarget(target) ? null : (
+        ((await get_branch_max_change(changeRepository, target.branchId))?.id ?? null)
+      )
   };
+};
+
+/**
+ * 叠在当前分支快照上的增量。
+ *
+ * @remarks
+ * 分支视图与切分支同一口径（active tip → 目标 tip）；提交视图从当前数据往回推（见 `worktree-commit-view.ts`），
+ * 可达路径在这个事务里重新算：登记之后 HEAD 可能又前进了。
+ */
+const deltaOf = async (
+  executor: TransactionExecutor,
+  mainAdapter: LocalRxDBAdapter,
+  activeBranchId: string,
+  target: WorktreeTarget
+): Promise<SwitchVersionActions> => {
+  if (isWorktreeCommitTarget(target)) {
+    const { codec } = createCommitWriteContext(mainAdapter);
+    return commitViewActions(executor, codec, await planCommitView(executor, codec, target.commitId));
+  }
+  if (target.branchId === activeBranchId) return emptyActions();
+  return compute_switch_branch_actions(
+    { branchRepository: executor.getRepository(RxDBBranch), changeRepository: executor.getRepository(RxDBChange) },
+    target.branchId
+  );
 };
 
 /**

@@ -27,6 +27,7 @@ import type {
 import { ENTITY_BOOKKEEPING_FIELDS, getEntityMetadata, RxDBChange, RxDBReadOnlyError, uuid } from '@aiao/rxdb';
 import { WorktreeUnavailableError } from '../../checkout/worktree-errors.js';
 import type { WorktreeView } from '../../checkout/worktree-manager.js';
+import type { WorktreeTarget } from '../../checkout/worktree-target.js';
 import type { WorkingTreeConformanceSuiteContext } from './suite-context.js';
 import {
   WORKTREE_CONFORMANCE_ENTITIES,
@@ -112,16 +113,24 @@ const save = async <T extends EntityType>(
   return entity;
 };
 
-const commitAll = async (rxdb: RxDB, message: string): Promise<void> => {
+/** 工作树当前的三个捕获位。 */
+const credentialsOf = async (rxdb: RxDB) => {
   const status = await rxdb.workingTree.status();
-  const result = await rxdb.workingTree.commit(message, {
+  return {
     expectedBranch: { branchId: status.branchId, activationRevision: status.activationRevision },
     expectedHeadRevision: status.headRevision,
-    expectedWorkingTreeRevision: status.workingTreeRevision,
+    expectedWorkingTreeRevision: status.workingTreeRevision
+  };
+};
+
+const commitAll = async (rxdb: RxDB, message: string): Promise<string> => {
+  const result = await rxdb.workingTree.commit(message, {
+    ...(await credentialsOf(rxdb)),
     authorId: 'worktree-conformance',
     operationId: uuid()
   });
-  expect(result.ok, `提交「${message}」没落库`).toBe(true);
+  if (!result.ok) throw new Error(`提交「${message}」没落库：${JSON.stringify(result.conflict)}`);
+  return result.commitId;
 };
 
 const activeBranchOf = async (rxdb: RxDB): Promise<string | undefined> =>
@@ -167,7 +176,7 @@ const seedTwoBranches = async (rxdb: RxDB) => {
   await featureOnly.save();
   secret.note = '特性的秘密';
   await secret.save();
-  await commitAll(rxdb, 'feature work');
+  const featureCommitId = await commitAll(rxdb, 'feature work');
   // 特性分支上的未提交变更
   featureOnly.priority = 7;
   await featureOnly.save();
@@ -176,7 +185,7 @@ const seedTwoBranches = async (rxdb: RxDB) => {
   // 主线上的未提交变更
   shared.priority = 2;
   await shared.save();
-  return { main, shared, mainOnly, featureOnly, secret };
+  return { main, shared, mainOnly, featureOnly, secret, sharedLabel, featureCommitId };
 };
 
 /**
@@ -272,8 +281,10 @@ export const worktreeConformanceSuite = (context: WorkingTreeConformanceSuiteCon
       for (const view of views.splice(0)) await view.close();
     });
 
-    const open = async (branchId: string): Promise<WorktreeView> => {
-      const view = await database.workingTree.checkouts.open({ branchId });
+    const open = async (target: string | WorktreeTarget): Promise<WorktreeView> => {
+      const view = await database.workingTree.checkouts.open(
+        typeof target === 'string' ? { branchId: target } : target
+      );
       views.push(view);
       return view;
     };
@@ -414,6 +425,64 @@ export const worktreeConformanceSuite = (context: WorkingTreeConformanceSuiteCon
         await encryption.unlock({ keyBytes: WORKTREE_CONFORMANCE_KEY, idleTimeoutMs: 0 });
         const [viewSecret] = await rowsOf(view.rxdb, view.entityOf(WorktreeConformanceSecret));
         expect(viewSecret).toMatchObject({ id: secret.id, note: '特性的秘密' });
+      });
+    });
+
+    describe('提交视图（AC6、AC7）', () => {
+      it('当前分支上一个可达提交：已跟踪实体与那次 commit() 刚完成时读到的逐行一致', async () => {
+        const { shared, mainOnly, secret, sharedLabel } = await seedTwoBranches(database);
+        const target = await commitAll(database, '目标提交');
+        const atTarget = await tablesOf(database);
+
+        // 目标之后：一次提交改名、新建、改密文、删关联、删行，再留一批未提交变更
+        shared.title = '目标之后改名';
+        shared.labels$.remove(sharedLabel);
+        await shared.save();
+        const later = await save(database, WorktreeConformanceTask, { title: '目标之后新建', priority: 3 });
+        secret.note = '目标之后的秘密';
+        await secret.save();
+        await mainOnly.remove();
+        await commitAll(database, '目标之后');
+        later.priority = 9;
+        await later.save();
+        shared.done = true;
+        await shared.save();
+        const before = await mainStateOf(database);
+
+        const view = await open({ commitId: target });
+
+        expect(await tablesOf(view.rxdb, view)).toEqual(atTarget);
+        expect(await mainStateOf(database)).toEqual(before);
+        expect((await database.workingTree.checkouts.list()).map(record => [record.kind, record.commitId])).toEqual([
+          ['commit', target]
+        ]);
+      });
+
+      it('不在当前分支 HEAD 可达父链上的提交：unreachable_target，与 restore 同口径', async () => {
+        const { featureCommitId } = await seedTwoBranches(database);
+
+        const error = await database.workingTree.checkouts.open({ commitId: featureCommitId }).catch(e => e);
+        expect(error).toBeInstanceOf(WorktreeUnavailableError);
+        expect((error as WorktreeUnavailableError).reason).toBe('unreachable_target');
+        const restored = await database.workingTree.restore(
+          { commitId: featureCommitId },
+          await credentialsOf(database)
+        );
+        expect(restored).toMatchObject({ ok: false });
+        expect(await database.workingTree.checkouts.list()).toEqual([]);
+      });
+
+      it('有进行中的恢复：restoring_working_tree', async () => {
+        await seedTwoBranches(database);
+        const first = await commitAll(database, '第一');
+        const latest = await save(database, WorktreeConformanceTask, { title: '第二' });
+        expect(latest.id).toBeDefined();
+        await commitAll(database, '第二');
+        const restored = await database.workingTree.restore({ commitId: first }, await credentialsOf(database));
+        expect(restored).toMatchObject({ ok: true });
+
+        const error = await database.workingTree.checkouts.open({ commitId: first }).catch(e => e);
+        expect((error as WorktreeUnavailableError).reason).toBe('restoring_working_tree');
       });
     });
 

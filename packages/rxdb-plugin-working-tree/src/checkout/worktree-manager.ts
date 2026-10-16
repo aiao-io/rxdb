@@ -15,7 +15,9 @@
 
 import type { EntityType, LocalRxDBAdapter, RxDB, TransactionExecutor } from '@aiao/rxdb';
 import { computeRxDBSchemaFingerprint, RxDBBranch, RxDBError, sha256Hex, uuid } from '@aiao/rxdb';
+import { createCommitWriteContext } from '../commit/commit-context.js';
 import { classifyBranchMaterialization } from '../working-tree/branch-materialization.js';
+import { planCommitView } from './worktree-commit-view.js';
 import { worktreeCopiedEntities, worktreeDeclaredEntities, worktreeEntityOf } from './worktree-entities.js';
 import { WorktreeUnavailableError } from './worktree-errors.js';
 import type { WorktreeOptions } from './worktree-options.js';
@@ -26,16 +28,8 @@ import {
   importSnapshot,
   sealSnapshot
 } from './worktree-snapshot.js';
+import { isWorktreeCommitTarget, type WorktreeTarget } from './worktree-target.js';
 import { Worktree } from './worktree.entity.js';
-
-/** 检出位的 HEAD：一条分支。 */
-export interface WorktreeBranchTarget {
-  /** 目标分支 id；可以是 active 分支自己 */
-  readonly branchId: string;
-}
-
-/** 检出位的 HEAD。 */
-export type WorktreeTarget = WorktreeBranchTarget;
 
 /** 一个打开着的只读检出位。 */
 export interface WorktreeView {
@@ -98,11 +92,12 @@ export class WorktreeManager {
   }
 
   /**
-   * 以只读方式打开一条分支的完整数据，不切换分支、不动工作树。
+   * 以只读方式打开另一条分支，或当前分支上一个可达提交的完整数据；不切换分支、不动工作树。
    *
-   * @param target - 目标分支
+   * @param target - `{ branchId }` 分支视图，`{ commitId }` 提交视图
    * @returns 打开着的视图；用完 {@link WorktreeView.close}
-   * @throws {@link WorktreeUnavailableError} 没配置快照库、后端不支持、分支不存在或本地只有 metadata
+   * @throws {@link WorktreeUnavailableError} 没配置快照库、后端不支持；分支不存在或本地只有 metadata；
+   * 提交不可达、路径上有认不出的实体、或有进行中的恢复（与 `restore()` 同一口径）
    */
   async open(target: WorktreeTarget): Promise<WorktreeView> {
     const options = this.#options;
@@ -114,8 +109,8 @@ export class WorktreeManager {
     const dbName = snapshotDbNameOf(this.#rxdb.config.dbName, id);
     const mainAdapter = await this.#runEnabled(async (executor, adapter) => {
       assertSnapshotSource(adapter);
-      await assertBranchReadable(executor, target.branchId);
-      await executor.saveMany([this.#record(id, target, dbName, copied)]);
+      const branchId = await readableBranchOf(executor, adapter, target);
+      await executor.saveMany([this.#record({ id, target, branchId, dbName }, copied)]);
       return adapter;
     });
 
@@ -125,7 +120,7 @@ export class WorktreeManager {
       const snapshotAdapter = await connectSnapshotDatabase(snapshot);
       const built = snapshot;
       const source = await this.#runEnabled((executor, adapter) =>
-        importSnapshot(executor, adapter, built, copied, target.branchId)
+        importSnapshot(executor, adapter, built, copied, target)
       );
       await sealSnapshot(snapshotAdapter);
       await this.#runEnabled(async executor => {
@@ -154,14 +149,15 @@ export class WorktreeManager {
     );
   }
 
-  #record(id: string, target: WorktreeTarget, dbName: string, copied: readonly EntityType[]): Worktree {
+  #record(identity: WorktreeRecordIdentity, copied: readonly EntityType[]): Worktree {
+    const { id, target, branchId, dbName } = identity;
     const now = new Date();
     const record = this.#rxdb.entityManager.instantiate(Worktree);
     Object.assign(record, {
       id,
-      kind: 'branch',
-      branchId: target.branchId,
-      commitId: null,
+      kind: isWorktreeCommitTarget(target) ? 'commit' : 'branch',
+      branchId,
+      commitId: isWorktreeCommitTarget(target) ? target.commitId : null,
       sourceBranchId: null,
       sourceChangeId: null,
       targetChangeId: null,
@@ -215,6 +211,32 @@ export class WorktreeManager {
  */
 const snapshotDbNameOf = (mainDbName: string, id: string): string =>
   `wt-${sha256Hex(new TextEncoder().encode(`${mainDbName}\u0000${id}`)).slice(0, 24)}`;
+
+/** 登记行里由打开参数决定的那几列。 */
+interface WorktreeRecordIdentity {
+  readonly id: string;
+  readonly target: WorktreeTarget;
+  /** 分支视图是目标分支，提交视图是提交所在的 active 分支 */
+  readonly branchId: string;
+  readonly dbName: string;
+}
+
+/**
+ * 检出位的分支：校验目标读得出来，交回登记行要记的分支。
+ *
+ * @throws {@link WorktreeUnavailableError} 见 {@link WorktreeManager.open}
+ */
+const readableBranchOf = async (
+  executor: TransactionExecutor,
+  adapter: LocalRxDBAdapter,
+  target: WorktreeTarget
+): Promise<string> => {
+  if (isWorktreeCommitTarget(target)) {
+    return (await planCommitView(executor, createCommitWriteContext(adapter).codec, target.commitId)).branchId;
+  }
+  await assertBranchReadable(executor, target.branchId);
+  return target.branchId;
+};
 
 const findRecords = (executor: TransactionExecutor, id: string): Promise<Worktree[]> =>
   executor.getRepository(Worktree).find({

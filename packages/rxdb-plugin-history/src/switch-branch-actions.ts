@@ -220,9 +220,18 @@ const inverse_patch_all = (changes: RxDBChange[], actions?: SwitchVersionActions
   get_switch_version_actions(changes, false, actions);
 
 /**
- * 计算切换版本所需的操作
- * @param changes 需要计算的 changes
- * @param options
+ * 把一串变更折叠成切换版本要落的增删改。
+ *
+ * @param changes - 需要计算的变更；按 `id` 排序，正向从小到大、逆向从大到小
+ * @param isPatch - `true` 正向应用 `patch`，`false` 逆向应用 `inversePatch`
+ * @param actions - 叠加到的已有结果；缺省新建
+ * @returns 折叠后的增删改
+ *
+ * @remarks
+ * 导出给 `@aiao/rxdb-plugin-working-tree` 的只读检出位：提交视图把提交里的变更单元编好号交给这里逆向折叠，
+ * 与切分支、对比用同一份规则。
+ *
+ * @internal
  */
 export const get_switch_version_actions = (
   changes: RxDBChange[],

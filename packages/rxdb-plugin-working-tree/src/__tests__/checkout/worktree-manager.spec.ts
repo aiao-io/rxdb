@@ -9,6 +9,7 @@
 import type { EntityType, LocalRxDBAdapter, RxDB as RxDBInstance, TransactionExecutor } from '@aiao/rxdb';
 import { Entity, EntityBase, RxDB, RxDBBranch, RxDBError, SyncType } from '@aiao/rxdb';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { planCommitView } from '../../checkout/worktree-commit-view.js';
 import { WorktreeUnavailableError } from '../../checkout/worktree-errors.js';
 import { WorktreeManager, type WorktreeTransactionRunner } from '../../checkout/worktree-manager.js';
 import {
@@ -29,6 +30,8 @@ vi.mock('../../checkout/worktree-snapshot.js', () => ({
   importSnapshot: vi.fn(),
   sealSnapshot: vi.fn()
 }));
+
+vi.mock('../../checkout/worktree-commit-view.js', () => ({ planCommitView: vi.fn() }));
 
 vi.mock('../../working-tree/branch-materialization.js', async importOriginal => ({
   ...(await importOriginal<typeof import('../../working-tree/branch-materialization.js')>()),
@@ -90,7 +93,8 @@ beforeEach(() => {
       };
     }
   } as unknown as TransactionExecutor;
-  runEnabled = run => run(executor, {} as LocalRxDBAdapter);
+  // 提交视图要拿适配器造编解码上下文：它只在调用时才读 `rxdb` 上的两样
+  runEnabled = run => run(executor, { rxdb: { entityManager: {}, schemaManager: {} } } as unknown as LocalRxDBAdapter);
   vi.mocked(classifyBranchMaterialization).mockResolvedValue({ kind: 'materialized', ref: {} as never });
   vi.mocked(createSnapshotDatabase).mockImplementation(() => fakeSnapshot());
   vi.mocked(connectSnapshotDatabase).mockResolvedValue({} as LocalRxDBAdapter);
@@ -161,6 +165,27 @@ describe('WorktreeManager.open', () => {
     await view.close();
     await view.close();
     expect(snapshot.disconnectAll).toHaveBeenCalledTimes(1);
+    expect(rows).toEqual([]);
+  });
+
+  it('提交视图：先过 restore 同口径的预检，登记行记下提交与它所在的 active 分支', async () => {
+    vi.mocked(planCommitView).mockResolvedValue({ branchId: 'main', path: ['c2'] });
+    vi.mocked(importSnapshot).mockResolvedValue({ sourceBranchId: 'main', sourceChangeId: 7, targetChangeId: null });
+    const manager = managerOf();
+
+    const view = await manager.open({ commitId: 'c1' });
+
+    expect(planCommitView).toHaveBeenCalledWith(expect.anything(), expect.anything(), 'c1');
+    expect(vi.mocked(importSnapshot).mock.calls[0][4]).toEqual({ commitId: 'c1' });
+    expect(await manager.list()).toEqual([
+      expect.objectContaining({ id: view.id, kind: 'commit', branchId: 'main', commitId: 'c1', targetChangeId: null })
+    ]);
+  });
+
+  it('提交视图打不开：预检的原因原样抛出，不写登记行', async () => {
+    vi.mocked(planCommitView).mockRejectedValue(new WorktreeUnavailableError('unreachable_target', 'x'));
+
+    expect(await reasonOf(managerOf().open({ commitId: 'elsewhere' }))).toBe('unreachable_target');
     expect(rows).toEqual([]);
   });
 
