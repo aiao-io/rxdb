@@ -109,6 +109,16 @@ export interface RxDBOptions {
   multiInstance?: boolean;
 
   /**
+   * 只读实例
+   *
+   * @remarks
+   * 为 `true` 时，公开写入口（`Repository.create/update/remove/reorder`、`EntityManager` 的批量写与
+   * `notifyExternalUpdate`、实体实例的 `save()` / `remove()`）在写权限判定之前抛 {@link RxDBReadOnlyError}。
+   * 与 US-027 的权限一样只是快速失败：适配器与执行器层不判定。默认 `false`。
+   */
+  readOnly?: boolean;
+
+  /**
    * 升级脚本
    *
    * 按 `name.localeCompare` 顺序执行，已存在的会被跳过；

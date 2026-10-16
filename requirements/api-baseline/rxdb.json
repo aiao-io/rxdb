@@ -2182,6 +2182,10 @@
         "kind": "both"
       },
       {
+        "name": "RxDBReadOnlyError",
+        "kind": "both"
+      },
+      {
         "name": "RxDBRepositories",
         "kind": "type"
       },

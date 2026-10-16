@@ -490,6 +490,16 @@ export class RxDB {
   }
 
   /**
+   * 是否只读实例（{@link RxDBOptions.readOnly}）
+   *
+   * @remarks
+   * 只读实例的公开写入口一律抛 {@link RxDBReadOnlyError}；工作树插件的只读检出位用它打开快照库。
+   */
+  get readOnly(): boolean {
+    return this.#config.readOnly === true;
+  }
+
+  /**
    * 已登记的系统贡献，按注册顺序
    *
    * @remarks

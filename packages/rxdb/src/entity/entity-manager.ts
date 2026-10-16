@@ -7,7 +7,7 @@ import { EntityLocalNewEvent, EntityLocalUpdatedEvent } from '../rxdb-events.js'
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
 import { ENTITY_MANAGER, ENTITY_TYPE, PROXY, STATUS } from '../rxdb.private.js';
-import { RxDBError } from '../RxDBError.js';
+import { RxDBError, RxDBReadOnlyError } from '../RxDBError.js';
 import { SortOrderError } from '../sortable/sortable-error.js';
 import {
   appendBatchSortOrders,
@@ -450,10 +450,13 @@ export class EntityManager {
   /**
    * 批量修改实体（创建/更新/删除）
    * @param options 批量修改选项
+   * @throws {@link RxDBReadOnlyError} 只读实例；一条都不写
    * @throws {@link PermissionDeniedError} 批内有只许系统写的操作；清单列出全部违规，一条都不写
    * @throws {@link SortOrderError} 手动排序键不合法，或缺键创建 / 改分组字段落在 remote-only / QueryCache 主端；一条都不写
    */
   async mutations<T extends EntityType>(options: RxDBMutationsMap<T>) {
+    // 只读实例在一切判定之前拒绝（US-313）：只读检出位的快照库是另一条线建立时刻的数据，写进去对不上那条线
+    if (this.rxdb.readOnly) throw new RxDBReadOnlyError('mutations');
     // 批量与单条共用同一个主适配器选择器：`Repository.primary$` 也走
     // `selectPrimaryAdapterKind`。此前批量硬等 `localAdapter$`，remote-only 配置下那条流
     // 永不发射，`firstValueFrom` 静默挂起——调用方拿到一个不会 settle 的 Promise。
@@ -556,6 +559,7 @@ export class EntityManager {
    * @param EntityType 实体类型
    * @param id 实体 ID
    * @param patch 变更的字段
+   * @throws {@link RxDBReadOnlyError} 只读实例（同步抛出，一个事件都不派发）
    * @throws 已启用提交能力的库上、目标是版本化业务实体时，由捕获钩子抛出写拒绝错误；
    *   此时一条事件都不会派发
    *
@@ -578,6 +582,7 @@ export class EntityManager {
     patch: Readonly<Partial<InstanceType<T>>>
   ): void {
     const metadata = getEntityMetadata(EntityType);
+    if (this.rxdb.readOnly) throw new RxDBReadOnlyError('notifyExternalUpdate', metadata.name);
     const event = new EntityLocalUpdatedEvent([
       {
         type: 'UPDATE',
