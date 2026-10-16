@@ -7,6 +7,13 @@
  */
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+/** 单调递增行号（随机行号会与既有 fixture 行相撞，UNIQUE (headerId, lineNo) 偶发拒绝）。 */
+let lineNoCounter = 10_000;
+const nextLineNo = (): number => {
+  lineNoCounter += 1;
+  return lineNoCounter;
+};
+
 import { BomEcn, BomHeader, BomItem, BomLine, BomLineOccurrence } from '../entities.js';
 import { loadHistory } from '../resolve/history-loader.js';
 import { resolveBom } from '../resolve/resolver.js';
@@ -48,7 +55,7 @@ const setupReleasedHeader = async (
   await header.save();
   const line = new BomLine();
   line.headerId = header.id;
-  line.lineNo = 10 + Math.floor(Math.random() * 1000);
+  line.lineNo = nextLineNo();
   await line.save();
   const occurrence = new BomLineOccurrence();
   occurrence.lineId = line.id;
@@ -324,7 +331,7 @@ describe('US-515 ECN 变更管理', () => {
           );
           const memberLine = new BomLine();
           memberLine.headerId = draftHeader.id;
-          memberLine.lineNo = 20 + Math.floor(Math.random() * 1000);
+          memberLine.lineNo = nextLineNo();
           await memberLine.save();
           const member = new BomLineOccurrence();
           member.lineId = memberLine.id;
@@ -394,7 +401,7 @@ describe('US-515 ECN 变更管理', () => {
         await setupReleasedHeader(adapter, parent, child, '1', async draftHeader => {
           const managedLine = new BomLine();
           managedLine.headerId = draftHeader.id;
-          managedLine.lineNo = 20 + Math.floor(Math.random() * 1000);
+          managedLine.lineNo = nextLineNo();
           await managedLine.save();
           const occurrence = new BomLineOccurrence();
           occurrence.lineId = managedLine.id;
