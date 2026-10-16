@@ -67,14 +67,11 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
     isValidTarget: false
   });
 
-  /**
-   * 正在拖的那一项：与 state 同时写，立即可读。
-   *
-   * 手柄上的 pointerup 会冒泡到行：同一次放下，手柄与行的处理器在同一个事件里各调一次 `onDrop`，
-   * 而 state 要到下一次渲染才更新，两次读到的都是「还在拖」——写入发两遍，拖进文件夹时展开回调也跑两遍，
-   * 刚展开就被收起。放下时从这里取走拖拽项并清空，同一次放下的第二次调用就什么也拿不到。
-   */
-  const draggingRef = useRef<RxDBEntityId | null>(null);
+  // 一次物理拖放会同时触发 HTML5 `onDrop` 与 `onPointerUp` 两个处理器（各自调一次 `onDrop`）。
+  // 两次调用读到的都是同一 render 闭包里的 `dragDropState`，state 守卫拦不住同 tick 的重入——
+  // 后果是写入执行两遍、`onExpandFolder` 的 toggle 展开又折叠（拖进文件夹后目标保持折叠）。
+  // ref 不受闭包快照影响，在第一个 await 之前同步落记，第二次调用直接短路。
+  const dropHandledRef = useRef<RxDBEntityId | null>(null);
 
   // Get all descendants of a node
   const getDescendants = useCallback(
@@ -138,7 +135,6 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
   }, [dragDropState.draggedItemId, getDescendants]);
 
   const resetState = useCallback(() => {
-    draggingRef.current = null;
     setDragDropState({
       draggedItemId: null,
       targetItemId: null,
@@ -148,7 +144,8 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
   }, []);
 
   const onDragStart = useCallback((itemId: RxDBEntityId) => {
-    draggingRef.current = itemId;
+    // 新一次拖动开始：作废上一次 drop 的防重入标记（同一行连续拖两次，id 相同）
+    dropHandledRef.current = null;
     setDragDropState({
       draggedItemId: itemId,
       targetItemId: null,
@@ -195,8 +192,6 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
    * 引擎写入完成——上一次拖放的写入慢到下一次拖放已经开始时才回来（CI 上 OPFS 事务可达百毫秒级），
    * 会把新拖放刚建立的 `draggedItemId` / 落点高亮整个抹掉，下一次放下因此被静默吞掉。
    *
-   * 一次放下只执行一次：拖拽项从 `draggingRef` 取走即清空，同一事件里的第二次调用直接返回。
-   *
    * @param targetItem - 放下的目标行
    * @param onExpandFolder - 拖进成功后展开目标（`onExpandFolder` 绑定各页面 Set<string> 展开状态，folderId 语义上仍是 UUID）
    * @param point - 放下事件的光标纵坐标与目标行矩形；传入时按它与 `onDragOver` 同一判定函数重算落点，
@@ -204,12 +199,13 @@ export function useDragDrop<T extends ITreeEntity>(visibleItems: T[], options: D
    */
   const onDrop = useCallback(
     async (targetItem: T, onExpandFolder?: (folderId: string) => void, point?: { mouseY: number; rect: DOMRect }) => {
-      // 先取现场再复位：`draggedItem` 来自 `draggingRef`、`dropMode` 来自本 state，复位后就拿不到了
-      const draggedId = draggingRef.current;
-      const draggedItem = draggedId === null ? undefined : visibleItems.find(m => m.id === draggedId);
+      // 先取现场再复位：`draggedItem` / `dropMode` 来自本 state，复位后就拿不到了
+      const draggedItem = visibleItems.find(m => m.id === dragDropState.draggedItemId);
       const dropMode = point ? dropModeAt(targetItem, point.mouseY, point.rect) : dragDropState.dropMode;
+      // 防重入：HTML5 drop 与 pointerup 会连发两次调用，第二次在第一个 await 之前就被短路
+      if (!draggedItem || !dropMode || dropHandledRef.current === draggedItem.id) return;
+      dropHandledRef.current = draggedItem.id;
       resetState();
-      if (!draggedItem || !dropMode) return;
 
       // 判定可能抛错（如 `getGroupIds` 的组未加载），与写入同走 runWrite 进页内提示，不逃成未处理拒绝
       const result = await runWrite('拖放', async () => {

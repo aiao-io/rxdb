@@ -10,8 +10,21 @@ publish = "website/build"
 NODE_VERSION = "26"
 
 [build.environment]
-# 禁用 pnpm 缓存，强制重新安装依赖
-PNPM_FLAGS = "--no-frozen-lockfile"
+# Netlify 安装依赖时默认 NODE_ENV=production，pnpm 10 按此硬编码跳过 devDependencies
+# （无任何 CLI flag 可关闭），website 构建链上经根 devDependencies 进入依赖图的
+# @angular-devkit/architect、clsx 等会缺失。显式声明开发环境，让安装与 GitHub CI、
+# 本机一致。构建阶段的生产语义由 website/scripts/build-website.mjs 强制
+# （NODE_ENV=production 传给所有子进程），不受这里的 development 影响。
+NODE_ENV = "development"
+# 冻结锁文件安装：与 GitHub CI / 本地一致。store 指向 Netlify 构建缓存目录——
+# 失败构建不保存分支缓存，冷安装每次都要全量下载几个 GB 的依赖，registry 波动
+# 时安装阶段即崩（部署历史里 ~170s 的失败全在这里）；store 进缓存后下载成果
+# 跨构建保留，安装稳定且快。
+PNPM_FLAGS = "--frozen-lockfile --store-dir=/opt/build/cache/pnpm-store"
+# corepack 老版本缺少 2025 年后 npm registry 轮换的签名 key，验证 pnpm 10.1.0+
+# 时抛 Cannot find matching keyid。关闭完整性 key 校验绕开（HTTPS 下载仍由 TLS
+# 保护，Netlify 论坛验证过的 workaround）。
+COREPACK_INTEGRITY_KEYS = "0"
 # 使用 HTTPS 协议克隆 Git 依赖
 GIT_SSH_COMMAND = "true"
 # 禁用 Nx Cloud（免费额度用完时构建会失败）
