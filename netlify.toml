@@ -10,18 +10,11 @@ publish = "website/build"
 NODE_VERSION = "26"
 
 [build.environment]
-# 冻结锁文件安装：与 GitHub CI / 本地一致。此前 --no-frozen-lockfile 会让依赖图在
-# Netlify 上自由漂移（nx@23.3.0 的 ngcli-adapter 因此解析不到 @angular-devkit/architect，
-# Angular 演示构建直接崩），锁定后依赖图与锁文件提交物一致。
-PNPM_FLAGS = "--frozen-lockfile"
-# pnpm 在 NODE_ENV=production 时跳过 devDependencies，而 website 构建链上的
-# @angular-devkit/architect 只经根 devDependencies（@angular/build / @angular/cli /
-# angular-eslint）进入依赖图——这正是 Netlify 上该模块缺失的原因。显式声明开发环境，
-# 让 Netlify 安装与 GitHub CI、本机完全一致。
-NODE_ENV = "development"
-# corepack 下载 pnpm 时禁止交互确认：构建机无 TTY，提示挂起会拖到依赖安装超时。
-# 部署历史里 ~170s 的安装阶段失败与此吻合（跨分支间歇出现，registry 波动时必现）。
-COREPACK_ENABLE_DOWNLOAD_PROMPT = "0"
+# 对照实验：恢复到其他分支已验证成功的旧安装配置，用于归因 170-290s 的
+# 安装阶段失败。此前 --frozen-lockfile / NODE_ENV=development /
+# COREPACK_ENABLE_DOWNLOAD_PROMPT=0 的组合连续 5 次部署失败，而同时间段
+# 旧配置分支（bom-related-work 等）全部成功，需先排除配置变量。
+PNPM_FLAGS = "--no-frozen-lockfile"
 # 使用 HTTPS 协议克隆 Git 依赖
 GIT_SSH_COMMAND = "true"
 # 禁用 Nx Cloud（免费额度用完时构建会失败）
