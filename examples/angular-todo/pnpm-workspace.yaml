@@ -1,3 +1,0 @@
-# 独立示例工程：声明自身为 workspace 根，避免命中仓库根 monorepo
-packages:
-  - '.'

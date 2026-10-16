@@ -48,7 +48,6 @@ export function verifyManifestDependencies() {
   const manifests = [
     'package.json',
     'benchmarks/package.json',
-    'examples/angular-todo/package.json',
     'packages/rxdb-adapter-wa-sqlite/package.json',
     'packages/rxdb-adapter-miniprogram/package.json'
   ];
