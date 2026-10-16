@@ -1925,6 +1925,84 @@
         "version": "0.0.26"
       },
       {
+        "description": "Angular BOM 编辑与展开视图绑定。",
+        "framework": "angular",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-bom",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-bom-angular",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.26"
+      },
+      {
+        "description": "React BOM 编辑与展开视图绑定。",
+        "framework": "react",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-bom",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-bom-react",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.26"
+      },
+      {
+        "description": "Vue BOM 编辑与展开视图绑定。",
+        "framework": "vue",
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb-plugin-bom",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-bom-vue",
+        "role": "binding",
+        "slots": [],
+        "version": "0.0.26"
+      },
+      {
         "description": "> Implements: [US-503 图数据插件](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/plugin/US-503-graph-data.md)",
         "framework": null,
         "homepage": "https://rxdb.aiao.io/docs/plugins",
@@ -2978,7 +3056,7 @@
       }
     ]
   },
-  "digest": "5e238764c284ab34acbdc14dcf96eb1fe49e1bb2301e37256e659b51d877ffd3",
+  "digest": "8682c935900d6db84fe664dda6bb1efc4ad1954122707de749543ce833e75d00",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,
