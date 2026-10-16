@@ -112,6 +112,7 @@ PTC Windchill / Teamcenter（PLM）、西门子 Opcenter（MES）。
 | 2026-10-16 | 小程序内聊天否决；微信客户端复刻列为「研究中」                                      | 对话分析，见 [rejected-domains](rejected-domains.md) 与 [wechat-client](wechat-client.md) |
 | 2026-10-16 | 新增 5 类候选（学习 / 安全 / 运动 / 媒体 / 阅读）；学习工具从未深入升级为 Anki 候选 | 对话分析，见各候选文件与横向对比                                                          |
 | 2026-10-16 | 确立「零后端单机版」产品形态维度；新增智能体记忆 / 本地 AI 助手候选       | 对话分析，见横向对比「零后端可交付」列与 [local-ai-agent](local-ai-agent.md)             |
+| 2026-10-16 | 虚拟环境（agent 沙箱）不单独立项，作为智能体候选的子能力设计               | 对话分析：working-tree 是数据内核，OS 级沙箱对标 E2B 不是引擎的题 |
 
 ## 维护规则
 
