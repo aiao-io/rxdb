@@ -23,7 +23,12 @@ const day = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
 
 const CONTEXT = { bomType: 'ebom' as const, orgId: 'org-x', asOfDate: day('2026-01-01') };
 
-const makeItem = async (itemNo: string, stockUom = 'pcs', uomDecimals = 0, uomConversion: string | null = null): Promise<BomItem> => {
+const makeItem = async (
+  itemNo: string,
+  stockUom = 'pcs',
+  uomDecimals = 0,
+  uomConversion: string | null = null
+): Promise<BomItem> => {
   const item = new BomItem();
   item.itemNo = `${itemNo}-${Math.random().toString(36).slice(2, 6)}`;
   item.stockUom = stockUom;
@@ -70,7 +75,12 @@ for (const backend of BACKENDS) {
           occurrences: [{ child: leaf }]
         }
       ]);
-      const result = await explodeBom(adapter, CONTEXT, { parentItemId: finished.id }, { plannedQty: { value: '1', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
       const byItem = (item: BomItem) => result.requirementLines.filter(line => line.itemId === item.id);
       expect(byItem(byLine).length).toBe(0);
       expect(byItem(byRevision).length).toBe(1);
@@ -95,7 +105,12 @@ for (const backend of BACKENDS) {
           occurrences: [{ child: part, qty: '2' }]
         }
       ]);
-      const result = await explodeBom(adapter, CONTEXT, { parentItemId: finished.id }, { plannedQty: { value: '1', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
       // D=1000g → 穿透归一 1kg → P=1 → G=2×1/1=2 件（不是 2000）
       expect(result.requirementLines.length).toBe(1);
       expect(result.requirementLines[0].itemId).toBe(part.id);
@@ -130,7 +145,12 @@ for (const backend of BACKENDS) {
       ]);
       // plannedQty 0.5 kg → G_B=2×0.5/1=1 kg → P_B=1 kg → G_C=2×1/0.5=4 件
       // → 行级覆盖 1 盒=4 件 → P_C=1 盒（物料级 0.4 盒）→ G_D=3×1/1=3 件
-      const result = await explodeBom(adapter, CONTEXT, { parentItemId: finished.id }, { plannedQty: { value: '0.5', uom: 'kg' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '0.5', uom: 'kg' } }
+      );
       expect(result.requirementLines.length).toBe(1);
       expect(result.requirementLines[0].itemId).toBe(d.id);
       expect(result.requirementLines[0].qty).toBe('3');
@@ -166,7 +186,12 @@ for (const backend of BACKENDS) {
       // 声明物料级换算率（1 kg = 2 m → 率 2：2 m ÷ 2 = 1 kg）后放行
       part.uomConversion = '2';
       await part.save();
-      const converted = await explodeBom(adapter, CONTEXT, { parentItemId: finished.id }, { plannedQty: { value: '1', uom: 'pcs' } });
+      const converted = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
       expect(converted.requirementLines[0].qty).toBe('1');
       expect(converted.requirementLines[0].uom).toBe('kg');
     });

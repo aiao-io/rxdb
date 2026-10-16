@@ -7,10 +7,23 @@
  * 批次号由调用方给定（确定性，AC#18）；批次表只追加（触发器兜底，AC#14）。
  */
 
-import type { BomEntityFactory, BomLocalAdapter } from './bom-adapter.js';
 import type { EntityType } from '@aiao/rxdb';
-import { BomEcn, BomHeader, BomHistoryBatch, BomItemRevision, BomLine, BomLineDesignator, BomLineOccurrence, BomLineOperationSplit, BomRouting, BomRoutingOperation, BomSubstituteGroup, BomWorkCenter } from '../entities.js';
 import { normalizeDecimalString } from '../decimal.utils.js';
+import {
+  BomEcn,
+  BomHeader,
+  BomHistoryBatch,
+  BomItemRevision,
+  BomLine,
+  BomLineDesignator,
+  BomLineOccurrence,
+  BomLineOperationSplit,
+  BomRouting,
+  BomRoutingOperation,
+  BomSubstituteGroup,
+  BomWorkCenter
+} from '../entities.js';
+import type { BomEntityFactory, BomLocalAdapter } from './bom-adapter.js';
 import { BomType } from './resolution.js';
 
 /** 一条历史修订输入。 */
@@ -103,7 +116,14 @@ export interface HistoryHeaderInput {
   id?: string;
   createdAt?: Date;
   updatedAt?: Date;
-  lines: { lineNo: number; occurrences: HistoryOccurrenceInput[]; id?: string; createdAt?: Date; updatedAt?: Date; ecnInId?: string | null }[];
+  lines: {
+    lineNo: number;
+    occurrences: HistoryOccurrenceInput[];
+    id?: string;
+    createdAt?: Date;
+    updatedAt?: Date;
+    ecnInId?: string | null;
+  }[];
   /** 替代组（US-512，B 层种子）：成员按 occurrence 序号引用本头的行。 */
   substituteGroups?: {
     code: string;
@@ -111,7 +131,13 @@ export interface HistoryHeaderInput {
     allowMix?: boolean;
     id?: string;
     ecnInId?: string | null;
-    members: { occurrenceIndex: number; role: 'primary' | 'substitute'; probability?: string | null; priority?: number | null; equivQty?: string | null }[];
+    members: {
+      occurrenceIndex: number;
+      role: 'primary' | 'substitute';
+      probability?: string | null;
+      priority?: number | null;
+      equivQty?: string | null;
+    }[];
   }[];
   /** 工艺路线（US-524/520，B 层种子）：工序与行的投料工序/分摊。 */
   routing?: {
@@ -119,7 +145,11 @@ export interface HistoryHeaderInput {
     workCenterCode: string;
     workCenterId?: string;
     operations: { seq: number; scrap?: string; convention?: 'additive' | 'yield'; id?: string }[];
-    allocations: { occurrenceIndex: number; operationSeq?: number | null; splits: { operationSeq: number; ratio: string; id?: string }[] }[];
+    allocations: {
+      occurrenceIndex: number;
+      operationSeq?: number | null;
+      splits: { operationSeq: number; ratio: string; id?: string }[];
+    }[];
   };
 }
 
@@ -137,7 +167,14 @@ export interface HistoryBatchInput {
     /** 截止标记：行发生项 → 截止它的 ECN（effective_to 由 ECN 生效日派生）。 */
     cutoffs?: { occurrenceId: string; ecnId: string }[];
     /** 追加行（挂 ECN；矩阵在 open 批次下放行 released 历史 ECN）。 */
-    lines?: { lineNo: number; ecnInId?: string | null; occurrences: HistoryOccurrenceInput[]; id?: string; createdAt?: Date; updatedAt?: Date }[];
+    lines?: {
+      lineNo: number;
+      ecnInId?: string | null;
+      occurrences: HistoryOccurrenceInput[];
+      id?: string;
+      createdAt?: Date;
+      updatedAt?: Date;
+    }[];
     /** 既有逻辑行上追加发生项（改量 / 改版 = 截止 + 同逻辑行引入）。 */
     occurrenceAdds?: { lineId: string; occurrences: HistoryOccurrenceInput[] }[];
   }[];
@@ -159,9 +196,7 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
     // 多实例下 new Entity() 无法判目标库：经 entityManager.instantiate 构造（缺省时退化 new）
     const factory: BomEntityFactory | undefined = adapter.rxdb?.entityManager;
     const construct = <T extends EntityType>(EntityType: T, initData?: Partial<InstanceType<T>>): InstanceType<T> =>
-      factory ?
-        factory.instantiate(EntityType, initData)
-      : new (EntityType as unknown as new () => InstanceType<T>)();
+      factory ? factory.instantiate(EntityType, initData) : new (EntityType as unknown as new () => InstanceType<T>)();
     // 1. 开启态批次行（发布触发器据此跳过追溯检查）
     const batchEntity = construct(BomHistoryBatch);
     if (batch.id) (batchEntity as unknown as { id: string }).id = batch.id;
@@ -236,8 +271,10 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
         for (const occurrenceInput of lineInput.occurrences) {
           const occurrence = construct(BomLineOccurrence);
           if (occurrenceInput.id) (occurrence as unknown as { id: string }).id = occurrenceInput.id;
-          if (occurrenceInput.createdAt) (occurrence as unknown as { createdAt: Date }).createdAt = occurrenceInput.createdAt;
-          if (occurrenceInput.updatedAt) (occurrence as unknown as { updatedAt: Date }).updatedAt = occurrenceInput.updatedAt;
+          if (occurrenceInput.createdAt)
+            (occurrence as unknown as { createdAt: Date }).createdAt = occurrenceInput.createdAt;
+          if (occurrenceInput.updatedAt)
+            (occurrence as unknown as { updatedAt: Date }).updatedAt = occurrenceInput.updatedAt;
           occurrence.lineId = line.id;
           occurrence.childItemId = occurrenceInput.childItemId;
           occurrence.childRevisionId = occurrenceInput.childRevisionId ?? null;
@@ -253,7 +290,10 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
           occurrence.lotsizeTo = occurrenceInput.lotsizeTo ?? null;
           occurrence.componentScrap = normalizeDecimalString(occurrenceInput.componentScrap ?? '0', 'componentScrap');
           occurrence.componentScrapConvention = occurrenceInput.componentScrapConvention ?? 'additive';
-          occurrence.componentScrapFixed = normalizeDecimalString(occurrenceInput.componentScrapFixed ?? '0', 'componentScrapFixed');
+          occurrence.componentScrapFixed = normalizeDecimalString(
+            occurrenceInput.componentScrapFixed ?? '0',
+            'componentScrapFixed'
+          );
           occurrence.uomConversion = occurrenceInput.uomConversion ?? null;
           occurrence.phantomOverride = occurrenceInput.phantomOverride ?? null;
           occurrence.designatorManaged = occurrenceInput.designatorManaged ?? false;
@@ -270,8 +310,10 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
           for (const designator of occurrenceInput.designators ?? []) {
             const designatorEntity = construct(BomLineDesignator);
             if (designator.id) (designatorEntity as unknown as { id: string }).id = designator.id;
-            if (occurrenceInput.createdAt) (designatorEntity as unknown as { createdAt: Date }).createdAt = occurrenceInput.createdAt;
-            if (occurrenceInput.updatedAt) (designatorEntity as unknown as { updatedAt: Date }).updatedAt = occurrenceInput.updatedAt;
+            if (occurrenceInput.createdAt)
+              (designatorEntity as unknown as { createdAt: Date }).createdAt = occurrenceInput.createdAt;
+            if (occurrenceInput.updatedAt)
+              (designatorEntity as unknown as { updatedAt: Date }).updatedAt = occurrenceInput.updatedAt;
             designatorEntity.occurrenceId = occurrence.id;
             designatorEntity.designator = designator.designator;
             await executor.getRepository(BomLineDesignator).create(designatorEntity);
@@ -303,7 +345,8 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
       // B 层：工艺路线 + 工序 + 投料分摊（头挂 routingId）
       if (headerInput.routing) {
         const center = construct(BomWorkCenter);
-        if (headerInput.routing.workCenterId) (center as unknown as { id: string }).id = headerInput.routing.workCenterId;
+        if (headerInput.routing.workCenterId)
+          (center as unknown as { id: string }).id = headerInput.routing.workCenterId;
         center.code = headerInput.routing.workCenterCode;
         center.orgId = headerInput.orgId;
         await executor.getRepository(BomWorkCenter).create(center);
@@ -378,8 +421,10 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
         for (const occurrenceInput of inputs) {
           const occurrence = construct(BomLineOccurrence);
           if (occurrenceInput.id) (occurrence as unknown as { id: string }).id = occurrenceInput.id;
-          if (occurrenceInput.createdAt) (occurrence as unknown as { createdAt: Date }).createdAt = occurrenceInput.createdAt;
-          if (occurrenceInput.updatedAt) (occurrence as unknown as { updatedAt: Date }).updatedAt = occurrenceInput.updatedAt;
+          if (occurrenceInput.createdAt)
+            (occurrence as unknown as { createdAt: Date }).createdAt = occurrenceInput.createdAt;
+          if (occurrenceInput.updatedAt)
+            (occurrence as unknown as { updatedAt: Date }).updatedAt = occurrenceInput.updatedAt;
           occurrence.lineId = lineId;
           occurrence.childItemId = occurrenceInput.childItemId;
           occurrence.childRevisionId = occurrenceInput.childRevisionId ?? null;
@@ -395,7 +440,10 @@ export const loadHistory = async (adapter: BomLocalAdapter, batch: HistoryBatchI
           occurrence.lotsizeTo = occurrenceInput.lotsizeTo ?? null;
           occurrence.componentScrap = normalizeDecimalString(occurrenceInput.componentScrap ?? '0', 'componentScrap');
           occurrence.componentScrapConvention = occurrenceInput.componentScrapConvention ?? 'additive';
-          occurrence.componentScrapFixed = normalizeDecimalString(occurrenceInput.componentScrapFixed ?? '0', 'componentScrapFixed');
+          occurrence.componentScrapFixed = normalizeDecimalString(
+            occurrenceInput.componentScrapFixed ?? '0',
+            'componentScrapFixed'
+          );
           occurrence.uomConversion = occurrenceInput.uomConversion ?? null;
           occurrence.phantomOverride = occurrenceInput.phantomOverride ?? null;
           occurrence.designatorManaged = occurrenceInput.designatorManaged ?? false;

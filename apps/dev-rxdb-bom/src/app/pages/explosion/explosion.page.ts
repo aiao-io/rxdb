@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { DatePipe } from '@angular/common';
 import type { CostNodeDetail, ExplosionResult, PenetrationRecord, RequirementLine } from '@aiao/rxdb-plugin-bom';
 import { goldenItemId } from '@aiao/rxdb-plugin-bom/testing';
+import { DatePipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, inject, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { BomDemoService } from '../../bom-demo.service';
 
 /** 一次展开的页面状态（信号集）。 */
@@ -100,7 +100,9 @@ export class ExplosionPage implements OnInit {
     try {
       const result = await this.service.whereUsed(this.asOfDate(), goldenItemId('M3'));
       this.whereUsedLines.set(
-        result.nodes.map(node => `${node.path.length} 跳：${node.path.slice(0, 8).join(' → ')}（${this.itemNo(node.itemId)}）`)
+        result.nodes.map(
+          node => `${node.path.length} 跳：${node.path.slice(0, 8).join(' → ')}（${this.itemNo(node.itemId)}）`
+        )
       );
     } catch (error) {
       this.whereUsedLines.set([String(error)]);
@@ -206,7 +208,12 @@ export class ExplosionPage implements OnInit {
     this.busy.set(true);
     try {
       const diff = await this.service.ecnDiff(ecnId);
-      const kindLabel: Record<string, string> = { added: '新增', removed: '删除（截止）', qty_changed: '改量', child_changed: '改版' };
+      const kindLabel: Record<string, string> = {
+        added: '新增',
+        removed: '删除（截止）',
+        qty_changed: '改量',
+        child_changed: '改版'
+      };
       this.diffLines.set(
         diff.headers.flatMap(header =>
           header.entries.map(
@@ -274,7 +281,9 @@ export class ExplosionPage implements OnInit {
     try {
       const coverage = await this.service.mapCoverage(this.asOfDate());
       this.coverageLines.set([
-        ...coverage.covered.map(entry => `已覆盖：${this.itemNo(entry.lineId)}（路径 ${entry.pathKey.split('>').slice(0, 8).join(' → ')}）`),
+        ...coverage.covered.map(
+          entry => `已覆盖：${this.itemNo(entry.lineId)}（路径 ${entry.pathKey.split('>').slice(0, 8).join(' → ')}）`
+        ),
         ...coverage.uncovered.flatMap(entry =>
           entry.paths.map(path => `未覆盖：${this.itemNo(entry.lineId)}（路径 ${path.slice(0, 8).join(' → ')}）`)
         ),
@@ -295,7 +304,13 @@ export class ExplosionPage implements OnInit {
       this.gapLines.set(
         gaps.gaps.map(gap => {
           if (gap.undecidable !== null) return `无法判定：${gap.undecidable.reason}`;
-          const diff = gap.differences.map(entry => `${entry.kind === 'missing' ? '消失' : '变化'}：${entry.baseline.lineId.slice(0, 8)} → ${entry.current?.lineId.slice(0, 8) ?? '—'}`).join('；') || '（无差异）';
+          const diff =
+            gap.differences
+              .map(
+                entry =>
+                  `${entry.kind === 'missing' ? '消失' : '变化'}：${entry.baseline.lineId.slice(0, 8)} → ${entry.current?.lineId.slice(0, 8) ?? '—'}`
+              )
+              .join('；') || '（无差异）';
           const appeared = gap.appeared.length > 0 ? `；新出现：${gap.appeared.join('、')}` : '';
           return `映射 ${gap.mappingId.slice(0, 8)}：${diff}${appeared}`;
         })
@@ -323,16 +338,35 @@ export class ExplosionPage implements OnInit {
   }
 
   /** 七步算式面板的展示行（第 5 步未交付占位）。 */
-  stepRows(): { label: string; value: string; uom: string; source: string }[] {    const line = this.view()?.selected;
+  stepRows(): { label: string; value: string; uom: string; source: string }[] {
+    const line = this.view()?.selected;
     if (!line) return [];
     const steps = line.steps;
-    const phantomSource = steps.phantom.source === 'override' ? '行级 phantom_override' : steps.phantom.source === 'revision' ? '修订级 default_phantom' : '均未声明（按实体件）';
+    const phantomSource =
+      steps.phantom.source === 'override' ? '行级 phantom_override'
+      : steps.phantom.source === 'revision' ? '修订级 default_phantom'
+      : '均未声明（按实体件）';
     const rows = [
       { label: '1. P', value: steps.planned.value, uom: steps.planned.uom, source: '父计划量（头基准单位）' },
-      { label: "2. P'", value: steps.assemblyScrapped.value, uom: steps.assemblyScrapped.uom, source: 'h.assembly_scrap' },
+      {
+        label: "2. P'",
+        value: steps.assemblyScrapped.value,
+        uom: steps.assemblyScrapped.uom,
+        source: 'h.assembly_scrap'
+      },
       { label: '3. G', value: steps.gross.value, uom: steps.gross.uom, source: 'qty / qty_formula × P′ / h.base_qty' },
-      { label: "4. G'", value: steps.componentScrapped.value, uom: steps.componentScrapped.uom, source: 'l.component_scrap(+fixed)' },
-      { label: '5. G″', value: steps.operationScrapped?.value ?? '—', uom: steps.operationScrapped?.uom ?? '', source: steps.operationScrapped ? '投料工序（含）至末工序逐道累乘' : '工序损耗未交付（无路线行）' },
+      {
+        label: "4. G'",
+        value: steps.componentScrapped.value,
+        uom: steps.componentScrapped.uom,
+        source: 'l.component_scrap(+fixed)'
+      },
+      {
+        label: '5. G″',
+        value: steps.operationScrapped?.value ?? '—',
+        uom: steps.operationScrapped?.uom ?? '',
+        source: steps.operationScrapped ? '投料工序（含）至末工序逐道累乘' : '工序损耗未交付（无路线行）'
+      },
       { label: '6. D', value: steps.converted.value, uom: steps.converted.uom, source: '行 UoM → 子件库存单位' },
       { label: '7. 需求', value: line.qty, uom: line.uom, source: `phantom = ${phantomSource}（向上取整）` }
     ];
@@ -343,7 +377,13 @@ export class ExplosionPage implements OnInit {
 /** 卷算明细树拍平（模板无递归）：头节点 + 材料/加工/制费/抵减行，逐层缩进。 */
 const flattenCost = (itemNo: (id: string) => string, node: CostNodeDetail, depth = 0): CostFlatRow[] => {
   const rows: CostFlatRow[] = [
-    { depth, kind: 'head', itemNo: itemNo(node.itemId), label: `批次 ${node.batchCost}（${node.batchQty} ${node.baseUom}）· 单位 ${node.unitCost}`, amount: node.batchCost }
+    {
+      depth,
+      kind: 'head',
+      itemNo: itemNo(node.itemId),
+      label: `批次 ${node.batchCost}（${node.batchQty} ${node.baseUom}）· 单位 ${node.unitCost}`,
+      amount: node.batchCost
+    }
   ];
   for (const line of node.material) {
     rows.push({

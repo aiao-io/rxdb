@@ -8,8 +8,8 @@
 
 import { RxDBCheckViolationError } from '@aiao/rxdb';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { explodeBom } from '../quantity/explosion.js';
 import { BomHeader, BomItem, BomLine, BomLineOccurrence, BomSubstituteGroup } from '../entities.js';
+import { explodeBom } from '../quantity/explosion.js';
 import { loadHistory } from '../resolve/history-loader.js';
 import { BomDecimalFormatError, BomPublishValidationError, BomWriteProtocolError } from '../types.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
@@ -36,8 +36,7 @@ const setup = async (adapter: BomTestAdapter, parent: BomItem): Promise<BomHeade
   });
   const table = adapter.name === 'wa-sqlite' ? `"bom$item_revision"` : `"bom"."item_revision"`;
   const rows = (await adapter.rawQuery(`SELECT "id" FROM ${table} WHERE "itemId" = '${parent.id}'`)) as unknown as
-    | { results: { rows: unknown[][] }[] }
-    | { rows: unknown[][] };
+    { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
   const shape = 'results' in rows ? rows.results[0] : rows;
   const header = new BomHeader();
   header.parentRevisionId = String(shape.rows[0][0]);
@@ -174,12 +173,14 @@ for (const backend of BACKENDS) {
       line.lineNo = 500 + Math.floor(Math.random() * 100000);
       await line.save();
       const table = backend === 'wa-sqlite' ? `"bom$bom_line_occurrence"` : `"bom"."bom_line_occurrence"`;
-      const raw = await adapter.rawQuery(
-        `INSERT INTO ${table} ("id", "lineId", "childItemId", "qty", "uom", "effectiveFrom", "substituteGroupId", "usageProbability") VALUES ('${crypto.randomUUID()}', '${line.id}', '${child.id}', '1', 'pcs', '2026-01-01T00:00:00.000Z', '${group.id}', '0.5000000000000001')`
-      ).then(
-        () => null,
-        (error: unknown) => error
-      );
+      const raw = await adapter
+        .rawQuery(
+          `INSERT INTO ${table} ("id", "lineId", "childItemId", "qty", "uom", "effectiveFrom", "substituteGroupId", "usageProbability") VALUES ('${crypto.randomUUID()}', '${line.id}', '${child.id}', '1', 'pcs', '2026-01-01T00:00:00.000Z', '${group.id}', '0.5000000000000001')`
+        )
+        .then(
+          () => null,
+          (error: unknown) => error
+        );
       expect(raw).not.toBeNull();
       expect(String((raw as Error).message)).toContain('rxdb:bom_decimal_format:usageProbability');
     });
@@ -303,7 +304,11 @@ for (const backend of BACKENDS) {
       const header = await setup(adapter, parent);
       const group = await makeGroup(header);
       const a = await makeItem('sub-ro-a');
-      const member = await makeMember(header, group, a, { substituteRole: 'primary', usageProbability: null, equivQty: '2' });
+      const member = await makeMember(header, group, a, {
+        substituteRole: 'primary',
+        usageProbability: null,
+        equivQty: '2'
+      });
       expect(member.substituteRole).toBe('primary');
       expect(member.equivQty).toBe('2');
     });
@@ -320,7 +325,12 @@ for (const backend of BACKENDS) {
       await makeMember(header, group, c, { usageProbability: '0.2', equivQty: '0.5' });
       header.state = 'released';
       await header.save();
-      const result = await explodeBom(adapter, CONTEXT, { parentRevisionId: header.parentRevisionId }, { plannedQty: { value: '100', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentRevisionId: header.parentRevisionId },
+        { plannedQty: { value: '100', uom: 'pcs' } }
+      );
       const qtyOf = (item: BomItem): string => result.requirementLines.find(line => line.itemId === item.id)?.qty ?? '';
       expect(qtyOf(a)).toBe('50');
       expect(qtyOf(b)).toBe('60');
@@ -339,7 +349,12 @@ for (const backend of BACKENDS) {
       await makeMember(header, group, c, { usageProbability: null, substitutePriority: 2 });
       header.state = 'released';
       await header.save();
-      const result = await explodeBom(adapter, CONTEXT, { parentRevisionId: header.parentRevisionId }, { plannedQty: { value: '100', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentRevisionId: header.parentRevisionId },
+        { plannedQty: { value: '100', uom: 'pcs' } }
+      );
       expect(result.requirementLines.find(line => line.itemId === a.id)).toBeUndefined();
       expect(result.requirementLines.find(line => line.itemId === b.id)).toBeUndefined();
       expect(result.requirementLines.find(line => line.itemId === c.id)?.qty).toBe('100');
@@ -375,7 +390,12 @@ for (const backend of BACKENDS) {
       await makeMember(header, group, b, { usageProbability: null, substitutePriority: 1 });
       header.state = 'released';
       await header.save();
-      const result = await explodeBom(adapter, CONTEXT, { parentRevisionId: header.parentRevisionId }, { plannedQty: { value: '100', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentRevisionId: header.parentRevisionId },
+        { plannedQty: { value: '100', uom: 'pcs' } }
+      );
       expect(result.unresolved.length).toBe(1);
       expect(result.unresolved[0].groupCode).toBe(group.code);
       expect(result.unresolved[0].candidates.map(candidate => candidate.itemId).sort()).toEqual([a.id, b.id].sort());

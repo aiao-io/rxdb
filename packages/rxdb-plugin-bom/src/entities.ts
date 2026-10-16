@@ -326,7 +326,12 @@ export class BomLine extends EntityBase {
     // 位号管理（US-507 阶段 C）：发布转移要求位号数 = 名义 qty
     { name: 'designatorManaged', type: PropertyType.boolean, default: false },
     // 物料流方向（US-513 阶段 A）：只有 consume 进判环与需求展开
-    { name: 'flowDirection', type: PropertyType.enum, enum: ['consume', 'by_product', 'scrap_out'], default: 'consume' },
+    {
+      name: 'flowDirection',
+      type: PropertyType.enum,
+      enum: ['consume', 'by_product', 'scrap_out'],
+      default: 'consume'
+    },
     // 替代组成员（US-512）：primary 是原始需求对象，替代只从 primary 指向各 substitute
     { name: 'substituteRole', type: PropertyType.enum, enum: ['primary', 'substitute'], nullable: true },
     { name: 'substitutePriority', type: PropertyType.integer, nullable: true },
@@ -342,8 +347,20 @@ export class BomLine extends EntityBase {
       rule: {
         combinator: 'or',
         rules: [
-          { combinator: 'and', rules: [{ field: 'qty', operator: 'notNull' }, { field: 'qtyFormula', operator: 'null' }] },
-          { combinator: 'and', rules: [{ field: 'qty', operator: 'null' }, { field: 'qtyFormula', operator: 'notNull' }] }
+          {
+            combinator: 'and',
+            rules: [
+              { field: 'qty', operator: 'notNull' },
+              { field: 'qtyFormula', operator: 'null' }
+            ]
+          },
+          {
+            combinator: 'and',
+            rules: [
+              { field: 'qty', operator: 'null' },
+              { field: 'qtyFormula', operator: 'notNull' }
+            ]
+          }
         ]
       }
     },
@@ -595,7 +612,11 @@ export class BomWorkCenter extends EntityBase {
     }
   ],
   indexes: [
-    { name: 'revision_type_org_alternative', properties: ['parentRevisionId', 'bomType', 'orgId', 'alternativeNo'], unique: true }
+    {
+      name: 'revision_type_org_alternative',
+      properties: ['parentRevisionId', 'bomType', 'orgId', 'alternativeNo'],
+      unique: true
+    }
   ]
 })
 export class BomRouting extends EntityBase {
@@ -805,7 +826,11 @@ export class BomMapScope extends EntityBase {
   tableName: 'bom_map',
   repository: 'BomRepository',
   properties: [
-    { name: 'relation', type: PropertyType.enum, enum: ['one_to_one', 'split', 'merge', 'added', 'removed', 'resequenced'] },
+    {
+      name: 'relation',
+      type: PropertyType.enum,
+      enum: ['one_to_one', 'split', 'merge', 'added', 'removed', 'resequenced']
+    },
     { name: 'sourceLinePath', type: PropertyType.string, nullable: true },
     { name: 'targetOccurrenceId', type: PropertyType.string, nullable: true },
     { name: 'baselineSteps', type: PropertyType.string, nullable: true }
@@ -844,4 +869,22 @@ export class BomMap extends EntityBase {
 }
 
 /** BOM 实体全集（触发器安装按此清单在 schema 里找实体）。 */
-export const BOM_ENTITIES = [BomItem, BomItemRevision, BomHeader, BomHistoryBatch, BomEcn, BomLine, BomLineOccurrence, BomLineDesignator, BomSubstituteGroup, BomWorkCenter, BomActivityType, BomActivityRate, BomRouting, BomRoutingOperation, BomLineOperationSplit, BomMapScope, BomMap] as const;
+export const BOM_ENTITIES = [
+  BomItem,
+  BomItemRevision,
+  BomHeader,
+  BomHistoryBatch,
+  BomEcn,
+  BomLine,
+  BomLineOccurrence,
+  BomLineDesignator,
+  BomSubstituteGroup,
+  BomWorkCenter,
+  BomActivityType,
+  BomActivityRate,
+  BomRouting,
+  BomRoutingOperation,
+  BomLineOperationSplit,
+  BomMapScope,
+  BomMap
+] as const;

@@ -1,21 +1,30 @@
 <div class="page">
   <div class="toolbar panel">
-    <button (click)="resetAndSeed()" [disabled]="busy()">重置并装载种子</button>
-    <label>评估日（显式入参，不读系统时钟）<input type="date" [(ngModel)]="asOfDate" [value]="asOfDate()" data-testid="as-of-date" /></label>
-    <label>计划量 <input type="text" [(ngModel)]="plannedQty" style="width: 72px" /></label>
-    <label>根物料
-      <select data-testid="root-select" [(ngModel)]="rootKey">
+    <button [disabled]="busy()" (click)="resetAndSeed()">重置并装载种子</button>
+    <label>
+      评估日（显式入参，不读系统时钟）
+      <input [(ngModel)]="asOfDate" [value]="asOfDate()" data-testid="as-of-date" type="date" />
+    </label>
+    <label>
+      计划量
+      <input [(ngModel)]="plannedQty" style="width: 72px" type="text" />
+    </label>
+    <label>
+      根物料
+      <select [(ngModel)]="rootKey" data-testid="root-select">
         @for (key of itemNos().values(); track key) {
           <option [value]="key">{{ key }}</option>
         }
       </select>
     </label>
-    <button (click)="runExplode()" [disabled]="busy() || !ready()">展开整机</button>
+    <button [disabled]="busy() || !ready()" (click)="runExplode()">展开整机</button>
     <span data-testid="seed-info">批次 {{ seedBatchNo }} · 基准 {{ seedTimestamp }}</span>
   </div>
 
   @if (rowCounts()) {
-    <div class="panel" data-testid="row-counts"><pre>{{ rowCounts() }}</pre></div>
+    <div class="panel" data-testid="row-counts">
+      <pre>{{ rowCounts() }}</pre>
+    </div>
   }
 
   <div class="main">
@@ -25,7 +34,11 @@
         <div class="error-box">截断：{{ view()!.result.truncated!.reason }}</div>
       }
       @for (output of view()?.result.outputs; track output.path.join('>') + output.direction) {
-        <div class="requirement-row output" [attr.data-output]="itemNo(output.itemId)" [attr.data-direction]="output.direction">
+        <div
+          class="requirement-row output"
+          [attr.data-direction]="output.direction"
+          [attr.data-output]="itemNo(output.itemId)"
+        >
           <span class="qty" [attr.data-qty]="output.qty">{{ output.qty }} {{ output.uom }}</span>
           <span>{{ itemNo(output.itemId) }}</span>
           <span class="designators">产出（{{ output.direction === 'by_product' ? '副产' : '废料' }}）</span>
@@ -34,18 +47,20 @@
       @for (line of view()?.result.requirementLines; track line.path.join('>')) {
         <div
           class="requirement-row"
-          role="button"
-          tabindex="0"
+          [attr.data-item]="itemNo(line.itemId)"
           [class.selected]="view()!.selected === line"
           [style.paddingLeft.px]="8 + depth(line) * 20"
           (click)="select(line)"
           (keydown.enter)="select(line)"
-          [attr.data-item]="itemNo(line.itemId)"
+          role="button"
+          tabindex="0"
         >
           <span class="qty" [attr.data-qty]="line.qty">{{ line.qty }} {{ line.uom }}</span>
           <span>{{ itemNo(line.itemId) }}</span>
           @if (designatorsOf(line).length > 0) {
-            <span class="designators" [attr.data-designators]="designatorsOf(line).join(',')">位号：{{ designatorsOf(line).join(', ') }}</span>
+            <span class="designators" [attr.data-designators]="designatorsOf(line).join(',')">
+              位号：{{ designatorsOf(line).join(', ') }}
+            </span>
           }
         </div>
       }
@@ -67,7 +82,10 @@
         @for (penetration of penetrationsOn(view()!.selected!); track penetration.occurrenceId) {
           <div class="step-row" data-step="penetration">
             <span class="label">穿透</span>
-            <span class="value">{{ itemNo(penetration.childItemId) }} → P = {{ penetration.childPlanned.value }} {{ penetration.childPlanned.uom }}</span>
+            <span class="value">
+              {{ itemNo(penetration.childItemId) }} → P = {{ penetration.childPlanned.value }}
+              {{ penetration.childPlanned.uom }}
+            </span>
             <span class="label">判定</span>
             <span class="source">COALESCE(phantom_override, default_phantom) = {{ penetration.source }}</span>
           </div>
@@ -79,8 +97,8 @@
   <section class="panel">
     <h2>直连写入（存储层环约束，US-509 AC#5）</h2>
     <div class="toolbar">
-      <button (click)="runRawCycle()" [disabled]="busy() || !ready()">直连写入成环边（PCBA → SC-100）</button>
-      <button (click)="runFormCycle()" [disabled]="busy() || !ready()">表单写入同一条边</button>
+      <button [disabled]="busy() || !ready()" (click)="runRawCycle()">直连写入成环边（PCBA → SC-100）</button>
+      <button [disabled]="busy() || !ready()" (click)="runFormCycle()">表单写入同一条边</button>
     </div>
     @if (rawResult()) {
       <div class="error-box" data-testid="raw-cycle-result">{{ rawResult() }}</div>
@@ -93,7 +111,9 @@
   <section class="panel">
     <h2>位号发布校验（US-507 AC#5）</h2>
     <div class="toolbar">
-      <button (click)="publishDemoHeader()" [disabled]="busy() || !ready()">发布演示头（managed 行 qty=100、位号 39 个）</button>
+      <button [disabled]="busy() || !ready()" (click)="publishDemoHeader()">
+        发布演示头（managed 行 qty=100、位号 39 个）
+      </button>
     </div>
     @if (publishResult()) {
       <div class="error-box" data-testid="publish-result">{{ publishResult() }}</div>
@@ -103,7 +123,7 @@
   <section class="panel">
     <h2>替代组发布校验（US-525 AC#7 ②）</h2>
     <div class="toolbar">
-      <button (click)="runSubstituteDemo()" [disabled]="busy() || !ready()">发布 draft 组（概率 0.5/0.3）</button>
+      <button [disabled]="busy() || !ready()" (click)="runSubstituteDemo()">发布 draft 组（概率 0.5/0.3）</button>
     </div>
     @if (substituteResult()) {
       <div class="error-box" data-testid="substitute-result">{{ substituteResult() }}</div>
@@ -113,7 +133,7 @@
   <section class="panel">
     <h2>where-used 反查（M3 螺钉，US-510）</h2>
     <div class="toolbar">
-      <button (click)="runWhereUsed()" [disabled]="busy() || !ready()">反查 M3</button>
+      <button [disabled]="busy() || !ready()" (click)="runWhereUsed()">反查 M3</button>
     </div>
     @for (line of whereUsedLines(); track line) {
       <div class="where-used-row" data-testid="where-used-line">{{ line }}</div>
@@ -127,16 +147,20 @@
       <select id="ecn-select" [(ngModel)]="selectedEcnId" data-testid="ecn-select">
         <option [ngValue]="null">—</option>
         @for (entry of ecns().values(); track entry.ecnNo) {
-          <option [ngValue]="ecnsKey(entry.ecnNo)" [attr.data-state]="entry.state">{{ entry.ecnNo }}（{{ entry.state }}，{{ entry.effectiveDate }}）</option>
+          <option [attr.data-state]="entry.state" [ngValue]="ecnsKey(entry.ecnNo)">
+            {{ entry.ecnNo }}（{{ entry.state }}，{{ entry.effectiveDate }}）
+          </option>
         }
       </select>
-      <button (click)="runEcnImpact()" [disabled]="busy() || !ready() || !selectedEcnId()">查影响面</button>
-      <button (click)="runEcnDiff()" [disabled]="busy() || !ready() || !selectedEcnId()">查差异</button>
+      <button [disabled]="busy() || !ready() || !selectedEcnId()" (click)="runEcnImpact()">查影响面</button>
+      <button [disabled]="busy() || !ready() || !selectedEcnId()" (click)="runEcnDiff()">查差异</button>
     </div>
     <div class="toolbar">
-      <button (click)="runCreateAndReleaseEcn()" [disabled]="busy() || !ready()">现场新建并发布 ECN（改 3 张 BOM 5 行）</button>
-      <button (click)="runCancelLiveEcn()" [disabled]="busy() || !ready()">取消现场 ECN</button>
-      <button (click)="runCancelEffectiveEcn()" [disabled]="busy() || !ready()">对已生效种子 ECN 点取消</button>
+      <button [disabled]="busy() || !ready()" (click)="runCreateAndReleaseEcn()">
+        现场新建并发布 ECN（改 3 张 BOM 5 行）
+      </button>
+      <button [disabled]="busy() || !ready()" (click)="runCancelLiveEcn()">取消现场 ECN</button>
+      <button [disabled]="busy() || !ready()" (click)="runCancelEffectiveEcn()">对已生效种子 ECN 点取消</button>
     </div>
     @if (ecnActionResult()) {
       <div class="error-box" data-testid="ecn-action-result">{{ ecnActionResult() }}</div>
@@ -152,16 +176,20 @@
   <section class="panel">
     <h2>EBOM ↔ MBOM 双图与映射（US-525 AC#13）</h2>
     <div class="toolbar">
-      <button (click)="runDualExplode()" [disabled]="busy() || !ready()">双图并排展开</button>
-      <button (click)="runCoverage()" [disabled]="busy() || !ready()">查覆盖率</button>
-      <button (click)="runGaps()" [disabled]="busy() || !ready()">查跟进缺口</button>
+      <button [disabled]="busy() || !ready()" (click)="runDualExplode()">双图并排展开</button>
+      <button [disabled]="busy() || !ready()" (click)="runCoverage()">查覆盖率</button>
+      <button [disabled]="busy() || !ready()" (click)="runGaps()">查跟进缺口</button>
     </div>
     @if (dualView()) {
       <div class="dual">
         <div class="panel tree" data-testid="ebom-tree">
           <h3>EBOM（SHEET-ASSY）</h3>
           @for (line of dualView()!.ebom.requirementLines; track line.path.join('>')) {
-            <div class="requirement-row" [style.paddingLeft.px]="8 + depth(line) * 20" [attr.data-item]="itemNo(line.itemId)">
+            <div
+              class="requirement-row"
+              [attr.data-item]="itemNo(line.itemId)"
+              [style.paddingLeft.px]="8 + depth(line) * 20"
+            >
               <span class="qty">{{ line.qty }} {{ line.uom }}</span>
               <span>{{ itemNo(line.itemId) }}</span>
             </div>
@@ -170,7 +198,11 @@
         <div class="panel tree" data-testid="mbom-tree">
           <h3>MBOM（SHEET-ASSY-M）</h3>
           @for (line of dualView()!.mbom.requirementLines; track line.path.join('>')) {
-            <div class="requirement-row" [style.paddingLeft.px]="8 + depth(line) * 20" [attr.data-item]="itemNo(line.itemId)">
+            <div
+              class="requirement-row"
+              [attr.data-item]="itemNo(line.itemId)"
+              [style.paddingLeft.px]="8 + depth(line) * 20"
+            >
               <span class="qty">{{ line.qty }} {{ line.uom }}</span>
               <span>{{ itemNo(line.itemId) }}</span>
             </div>
@@ -189,19 +221,25 @@
   <section class="panel">
     <h2>成本卷算（US-525 AC#14 / #15）</h2>
     <div class="toolbar">
-      <label>卷算根
-        <select data-testid="cost-root-select" [(ngModel)]="costRootKey">
+      <label>
+        卷算根
+        <select [(ngModel)]="costRootKey" data-testid="cost-root-select">
           <option value="SC-100">SC-100</option>
           <option value="COST-DEMO">COST-DEMO（故意缺成本）</option>
         </select>
       </label>
-      <button (click)="runRollup()" [disabled]="busy() || !ready()">卷算</button>
+      <button [disabled]="busy() || !ready()" (click)="runRollup()">卷算</button>
     </div>
     @if (costError()) {
       <div class="error-box" data-testid="cost-error">{{ costError() }}</div>
     }
     @for (row of costRows(); track row.label + row.kind) {
-      <div class="cost-row" [attr.data-kind]="row.kind" [attr.data-item]="row.itemNo" [style.paddingLeft.px]="8 + row.depth * 20">
+      <div
+        class="cost-row"
+        [attr.data-item]="row.itemNo"
+        [attr.data-kind]="row.kind"
+        [style.paddingLeft.px]="8 + row.depth * 20"
+      >
         <span class="label">{{ row.label }}</span>
         @if (row.amount !== undefined) {
           <span class="qty" [attr.data-amount]="row.amount">{{ row.amount }}</span>

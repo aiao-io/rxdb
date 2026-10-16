@@ -25,13 +25,13 @@
 - `ExplosionStepTrace`：`{ label, value, uom, source }` 列表？——改为结构体：
   ```ts
   interface ExplosionSteps {
-    planned: { value: string; uom: string };            // P（头基准单位）
-    assemblyScrapped: { value: string; uom: string };   // P'
-    gross: { value: string; uom: string };              // G（行 UoM；定量/公式/阶梯标注）
-    componentScrapped: { value: string; uom: string };  // G'（含固定损耗）
-    converted: { value: string; uom: string };          // D（子件库存单位）
+    planned: { value: string; uom: string }; // P（头基准单位）
+    assemblyScrapped: { value: string; uom: string }; // P'
+    gross: { value: string; uom: string }; // G（行 UoM；定量/公式/阶梯标注）
+    componentScrapped: { value: string; uom: string }; // G'（含固定损耗）
+    converted: { value: string; uom: string }; // D（子件库存单位）
     phantom: { value: boolean; source: 'override' | 'revision' | null; revisionId: string | null };
-    childPlanned?: { value: string; uom: string };      // 穿透后作为子头 P（仅 phantom）
+    childPlanned?: { value: string; uom: string }; // 穿透后作为子头 P（仅 phantom）
   }
   ```
 - `RequirementLine` 加 `steps: ExplosionSteps`；`manifest` 已有 conversions 等。

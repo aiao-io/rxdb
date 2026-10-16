@@ -26,12 +26,14 @@
 ### D2. 保存期：派生区间与写入协议矩阵（存储层）
 
 **派生区间**（真相源唯一）：
+
 - 发生项 INSERT：`ecnInId` 非空 ⇒ `effectiveFrom` 必须恰等于该 ECN 的 `effectiveDate`（AC#5 手填冲突拒绝）；挂 draft ECN 是唯一允许挂的形态（挂 released ECN 的 INSERT 拒绝，AC#14）。
 - 打截止标记（`ecnOutId` 空 → X）：X 必须是 draft；本发生项 `ecnInId` 空或已发布（AC#16）、`effectiveTo` 当前为 NULL（AC#15）；同一语句 `effectiveTo` 收窄为 X 的生效日。
 - 手改 `effectiveFrom/To`（与派生值不一致）拒绝；`ecnOutId` X → NULL 时 `effectiveTo` 同步恢复 NULL（撤回 / 取消级联路径）。
 - 区间排他（US-030 阶段 C 已有）自动给出 AC#17/#18/#19 的写入顺序约束，不新增触发器。
 
 **矩阵放行**（扩展现有「已发布头全拒」守卫，行 / 发生项 / 位号 / 组 / 成员 / 分摊六处）：
+
 - 行 INSERT 挂 draft ECN；行 DELETE 仅当 `ecnInId` 指向 draft/cancelled ECN 且发生项已先删；行 UPDATE 仍全拒。
 - 发生项 INSERT 挂 draft ECN，且所属行 `ecnInId` 为空 / 已发布 / 等于本 ECN（AC#26 ① 不跨草稿引用）；`ecnOutId` 打标记 / 清标记按上节；其余 UPDATE（含改 qty、换子件）拒绝（AC#14/#22）。
 - 位号 / 分摊行 / 组成员：INSERT/DELETE 仅当所属发生项 `ecnInId` 挂 draft ECN（成员 INSERT 另查组的 `ecnInId` 归属，AC#26）；组 INSERT 挂 draft ECN；组 UPDATE 全拒。
@@ -41,6 +43,7 @@
 ### D3. 解析可见性（US-508 AC#12/#16）
 
 `bom-sql.ts` 四个已解析查询（resolved occurrences / header occurrences / children of revisions / parents of items）统一追加：
+
 - 引入侧：`occ.ecnInId IS NULL OR EXISTS (SELECT 1 FROM ecn e WHERE e.id = occ.ecnInId AND e.state = 'released')`；
 - 截止侧：`effectiveTo` 比较仅在 `ecnOutId IS NULL OR EXISTS(…released…)` 时生效，否则该行视为 `+∞`（未发布 ECN 的截止不截止）。
 - 可见性只看 `asOfDate` 与 ECN 状态，不读宿主当日（AC#16 拨钟断言）。
@@ -48,6 +51,7 @@
 ### D4. 三种转换的存储层入口（ecn 表 UPDATE 触发器）
 
 一个入口、三组 WHEN 分支（SQLite 分触发器、PG 分函数内 IF）：
+
 - `draft → released`：生效日 ≥ UTC 当日（追溯拒绝，AC#8；`historyBatchNo` 指向开启态批次时跳过——历史装载）；投影校验。
 - `released` 改 `effectiveDate`：未生效（生效日 > 当日）才可改（AC#7/#11）；不得越过同一逻辑行后继 ECN 的生效日（AC#20，点名后继 ECN）；级联更新（**收窄先于放宽**：新日期更晚先改引入行 from 再改截止行 to；更早则相反）；投影校验。
 - `released → cancelled`：未生效才可取消；被后续 ECN 截止的引入发生项存在则拒（AC#12 点名 B）；引入的逻辑行 / 组仍被其他 ECN 引用则拒（AC#26 ③ 点名 E2）；级联删除（位号 → 分摊 → 发生项 → 逻辑行，按 `ecnInId = OLD.id` 反查）+ 清截止标记恢复 `effectiveTo = NULL`；投影校验。
@@ -56,6 +60,7 @@
 ### D5. 转换后运行投影校验（发布 / 改期 / 取消共用）
 
 受影响头集合 = 该 ECN 引入/截止的发生项经行归属的头 ∪ 该 ECN 引入的逻辑行归属的头。对每个头，在投影上跑既有四类聚合的变体：
+
 - **投影成员**：`(ecnInId IS NULL OR ecnInId = 目标 ECN OR EXISTS(…released…))`；**采信区间**：`ecnOutId IS NULL OR = 目标 ECN OR EXISTS(…released…)` 时用存储 `effectiveTo`，否则视为 `+∞`。
 - **位号计数**：目标 ECN 引入的 `designatorManaged` 行位号数 = qty（逐行，AC#9，错误点名头 / 发生项）。
 - **替代组**（检查点切片法）：组内投影成员的 `effectiveFrom` ∪ 采信 `effectiveTo` 构成检查点集；每个检查点上：成员非空时恰好一个 primary（AC#9/US-512#9）、priority 无并列（AC#25）、proportional 定点合计 = 1（AC#23/#24/US-512#6）；**空切片不校验**（US-512#14）。错误给出切片边界与运行投影合计。
@@ -66,6 +71,7 @@
 ### D6. TS 查询 API（AC#1/#2）
 
 新文件 `resolve/ecn.ts`，插件门面挂 `ecnImpact` / `ecnDiff`：
+
 - `ecnImpact(ecnId)`：成员发生项 → 归属头 → 父物料，按 ECN 生效日（生效后结构）经 where-used 逻辑向上走到无父物料（整机），返回整机列表与命中路径（AC#1）。
 - `ecnDiff(ecnId)`：按 `生效日 - 1 天` 与 `生效日` 两个评估日对涉及的每个头各解析一次（复用 `buildResolvedOccurrencesSql`），按逻辑行对齐对比：新增（after 有 before 无的行）、删除（截止）、改量（同行 qty 变）、改版（同行 child 变，AC#2）。
 
@@ -82,13 +88,13 @@
 
 ## 风险与对策
 
-| 风险 | 对策 |
-| --- | --- |
-| 投影校验 SQL 在两后端口径漂移（切片边界、定点合计） | 双后端同一断言矩阵（vitest 参数化跑 SQLite + PGlite 两遍）；探针先验证 PGlite plpgsql 触发器内 DML 与 `date('now')` 语义 |
-| PGlite plpgsql 触发器函数里的多表级联 DML 受限 | 第 5 步探针已证「触发器内 DML 不触发」但可执行；若不支持多语句 DML，级联降级为 ecn UPDATE 语句前的同一事务应用层步骤（插件 API），直连 UPDATE 只做状态 + 校验（可见性规则兜底一致性）——实现时先探针再定 |
-| 改列类型 string→uuid 的既有库迁移 | PG 引擎迁移 ALTER；demo reset 全删重建；vitest 用新库；api-baseline 更新随提交 |
-| 检查点切片法的 SQL 规模 | 每个聚合一个独立触发器函数，SQLite / PG 各 ~60 行；用 LIMIT 1 + 单行错误消息点名冲突切片 |
-| 种子 C 层改写 A/B 层行的 `effectiveTo`（分层种子「不改写下层行」的字面冲突） | 打截止标记是 C 层 ECN 语义的必然（US-525 AC#11 就要求改 3 张 BOM 的 5 行）；golden 受影响路径显式分两段给值，「不受影响路径逐位不变」的断言范围相应收紧并在 quickstart 注明 |
+| 风险                                                                         | 对策                                                                                                                                                                                                    |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 投影校验 SQL 在两后端口径漂移（切片边界、定点合计）                          | 双后端同一断言矩阵（vitest 参数化跑 SQLite + PGlite 两遍）；探针先验证 PGlite plpgsql 触发器内 DML 与 `date('now')` 语义                                                                                |
+| PGlite plpgsql 触发器函数里的多表级联 DML 受限                               | 第 5 步探针已证「触发器内 DML 不触发」但可执行；若不支持多语句 DML，级联降级为 ecn UPDATE 语句前的同一事务应用层步骤（插件 API），直连 UPDATE 只做状态 + 校验（可见性规则兜底一致性）——实现时先探针再定 |
+| 改列类型 string→uuid 的既有库迁移                                            | PG 引擎迁移 ALTER；demo reset 全删重建；vitest 用新库；api-baseline 更新随提交                                                                                                                          |
+| 检查点切片法的 SQL 规模                                                      | 每个聚合一个独立触发器函数，SQLite / PG 各 ~60 行；用 LIMIT 1 + 单行错误消息点名冲突切片                                                                                                                |
+| 种子 C 层改写 A/B 层行的 `effectiveTo`（分层种子「不改写下层行」的字面冲突） | 打截止标记是 C 层 ECN 语义的必然（US-525 AC#11 就要求改 3 张 BOM 的 5 行）；golden 受影响路径显式分两段给值，「不受影响路径逐位不变」的断言范围相应收紧并在 quickstart 注明                             |
 
 ## 验证策略
 

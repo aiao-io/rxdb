@@ -29,21 +29,21 @@ import {
   buildParentRevisionSql,
   type BomSqlDialect
 } from '../resolve/bom-sql.js';
+import { BomResolutionError, type ResolutionContext, type UnresolvedAlternative } from '../resolve/resolution.js';
 import { assertContext, columnIndexOf, type BomQueryExecutor, type ResolveTarget } from '../resolve/resolver.js';
-import {
-  BomResolutionError,
-  type ResolutionContext,
-  type UnresolvedAlternative
-} from '../resolve/resolution.js';
 import { BomQuantityError, type TruncationReason } from '../types.js';
-import {
-  ceilToDecimalPlaces,
-  decimalFromCanonical,
-  decimalToCanonical,
-  type Decimal
-} from './decimal.js';
+import { ceilToDecimalPlaces, decimalFromCanonical, decimalToCanonical, type Decimal } from './decimal.js';
 import { FORMULA_GRAMMAR_VERSION } from './formula.js';
-import { allocateSubstituteShares, computeGross, computeLayerNet, computeOutputQuantity, scrap, selectTierRows, type LayerRoutingOp, type SubstituteMember } from './layer.js';
+import {
+  allocateSubstituteShares,
+  computeGross,
+  computeLayerNet,
+  computeOutputQuantity,
+  scrap,
+  selectTierRows,
+  type LayerRoutingOp,
+  type SubstituteMember
+} from './layer.js';
 import { convertUom } from './uom.js';
 
 /** 展开算法版本：34 位有效数字、half-even 中间量、七步顺序、需求行向上取整（改动即升版本）。 */
@@ -267,7 +267,8 @@ export const fetchHeaderRows = async (
         headerBaseUom: readString(row, result.columns, 'headerBaseUom'),
         headerBaseQty: readString(row, result.columns, 'headerBaseQty'),
         headerAssemblyScrap: readString(row, result.columns, 'headerAssemblyScrap'),
-        headerAssemblyScrapConvention: readString(row, result.columns, 'headerAssemblyScrapConvention') as 'additive' | 'yield',
+        headerAssemblyScrapConvention: readString(row, result.columns, 'headerAssemblyScrapConvention') as
+          'additive' | 'yield',
         headerRoutingId: readNullableString(row, result.columns, 'headerRoutingId'),
         lineNo: Number(row[columnIndexOf(result.columns, 'lineNo')]),
         occurrenceId: readString(row, result.columns, 'occurrenceId'),
@@ -289,13 +290,20 @@ export const fetchHeaderRows = async (
         flowDirection: readString(row, result.columns, 'flowDirection') as 'consume' | 'by_product' | 'scrap_out',
         substituteGroupId: readNullableString(row, result.columns, 'substituteGroupId'),
         substituteGroupCode: readNullableString(row, result.columns, 'substituteGroupCode'),
-        substituteStrategy: readNullableString(row, result.columns, 'substituteStrategy') as 'priority' | 'proportional' | 'manual' | null,
+        substituteStrategy: readNullableString(row, result.columns, 'substituteStrategy') as
+          'priority' | 'proportional' | 'manual' | null,
         substituteAllowMix: readNullableBool(row, result.columns, 'substituteAllowMix'),
         substituteRole: readNullableString(row, result.columns, 'substituteRole') as 'primary' | 'substitute' | null,
-        substitutePriority: row[columnIndexOf(result.columns, 'substitutePriority')] === null ? null : Number(row[columnIndexOf(result.columns, 'substitutePriority')]),
+        substitutePriority:
+          row[columnIndexOf(result.columns, 'substitutePriority')] === null ?
+            null
+          : Number(row[columnIndexOf(result.columns, 'substitutePriority')]),
         usageProbability: readNullableString(row, result.columns, 'usageProbability'),
         equivQty: readNullableString(row, result.columns, 'equivQty'),
-        operationSeq: row[columnIndexOf(result.columns, 'operationSeq')] === null ? null : Number(row[columnIndexOf(result.columns, 'operationSeq')]),
+        operationSeq:
+          row[columnIndexOf(result.columns, 'operationSeq')] === null ?
+            null
+          : Number(row[columnIndexOf(result.columns, 'operationSeq')]),
         childRevisionPhantom: readNullableBool(row, result.columns, 'childRevisionPhantom'),
         childStockUom: readString(row, result.columns, 'childStockUom'),
         childUomDecimals: Number(row[columnIndexOf(result.columns, 'childUomDecimals')]),
@@ -390,7 +398,10 @@ export const explodeBom = async (
     const parentResult = await query(parentSql.sql, parentSql.params);
     const parentRow = parentResult.rows[0];
     if (!parentRow) {
-      throw new BomResolutionError('parentRevisionId', target.parentRevisionId !== undefined ? '父修订不存在' : '评估日前没有已发布的最新修订');
+      throw new BomResolutionError(
+        'parentRevisionId',
+        target.parentRevisionId !== undefined ? '父修订不存在' : '评估日前没有已发布的最新修订'
+      );
     }
     const parentRevisionId = readString(parentRow, parentResult.columns, 'revisionId');
     const parentItemId = readString(parentRow, parentResult.columns, 'itemId');
@@ -409,7 +420,9 @@ export const explodeBom = async (
     }
     const selectedRootHeaders =
       context.alternativeNo !== undefined ?
-        rootHeaders.filter(row => Number(row[columnIndexOf(rootHeadersResult.columns, 'alternativeNo')]) === context.alternativeNo)
+        rootHeaders.filter(
+          row => Number(row[columnIndexOf(rootHeadersResult.columns, 'alternativeNo')]) === context.alternativeNo
+        )
       : rootHeaders;
     if (selectedRootHeaders.length === 0) {
       throw new BomResolutionError('parentRevisionId', '根修订在上下文下没有已发布头');
@@ -418,7 +431,10 @@ export const explodeBom = async (
     // 2. BFS 七步
     const conversions: ExplosionManifest['conversions'] = [];
     // 第 5 步的工序损耗与分摊数据（全量加载，按 routing / occurrence 分组）
-    const opsByRouting = new Map<string, { operationSeq: number; operationScrap: string; scrapConvention: 'additive' | 'yield' }[]>();
+    const opsByRouting = new Map<
+      string,
+      { operationSeq: number; operationScrap: string; scrapConvention: 'additive' | 'yield' }[]
+    >();
     const opsResult = await query(
       `SELECT "routingId", "operationSeq", "operationScrap", "scrapConvention" FROM ${dialect.table('routing_operation')} ORDER BY "operationSeq"`
     );
@@ -433,7 +449,9 @@ export const explodeBom = async (
       opsByRouting.set(routingId, list);
     }
     const splitsByOccurrence = new Map<string, { operationSeq: number; ratio: string }[]>();
-    const splitsResult = await query(`SELECT "occurrenceId", "operationSeq", "ratio" FROM ${dialect.table('bom_line_operation_split')}`);
+    const splitsResult = await query(
+      `SELECT "occurrenceId", "operationSeq", "ratio" FROM ${dialect.table('bom_line_operation_split')}`
+    );
     for (const row of splitsResult.rows) {
       const occurrenceId = readString(row, splitsResult.columns, 'occurrenceId');
       const list = splitsByOccurrence.get(occurrenceId) ?? [];
@@ -492,7 +510,11 @@ export const explodeBom = async (
           nodeRoutingOps.set(node.headerId, opsByRouting.get(rows[0].headerRoutingId) ?? []);
         }
         // 2. 装配损耗
-        const plannedPrime = scrap(node.plannedQty, rows[0]?.headerAssemblyScrap ?? '0', rows[0]?.headerAssemblyScrapConvention ?? 'additive');
+        const plannedPrime = scrap(
+          node.plannedQty,
+          rows[0]?.headerAssemblyScrap ?? '0',
+          rows[0]?.headerAssemblyScrapConvention ?? 'additive'
+        );
         // 3. 阶梯按损耗前 P 选行（普通行恒计入；共享实现，US-514 同源）
         let effectiveRows: ExplosionRow[];
         try {
@@ -508,7 +530,10 @@ export const explodeBom = async (
         }
 
         // 第 4~7 步的公共发射（闭包捕获本节点上下文）；返回触顶原因（调用方 break 外层循环）
-        const emitConsumeLine = async (row: ExplosionRow, gross: Decimal): Promise<{ truncated: TruncationReason | null }> => {
+        const emitConsumeLine = async (
+          row: ExplosionRow,
+          gross: Decimal
+        ): Promise<{ truncated: TruncationReason | null }> => {
           if (options.signal?.aborted) return { truncated: 'cancelled' };
           const depth = node.depth + 1;
           if (depth > budget.depth) return { truncated: 'depth' };
@@ -530,21 +555,29 @@ export const explodeBom = async (
           const hasOperation = layer.hasOperation;
           // 6. 单位换算（行 UoM → 子件库存 UoM）
           const rates = rowRates(row);
-          const demand = decimalFromCanonical(convertUom(decimalToCanonical(operationScrappedValue), row.occurrenceUom, row.childStockUom, rates));
+          const demand = decimalFromCanonical(
+            convertUom(decimalToCanonical(operationScrappedValue), row.occurrenceUom, row.childStockUom, rates)
+          );
           recordConversion(row.occurrenceUom, row.childStockUom, rates.lineRate ?? rates.itemRate ?? null);
           // 7. 穿透 / 产出需求行
           const phantomSource =
-            row.phantomOverride !== null ? 'override' as const
-            : row.childRevisionPhantom !== null ? 'revision' as const
-            : 'fallback' as const;
+            row.phantomOverride !== null ? ('override' as const)
+            : row.childRevisionPhantom !== null ? ('revision' as const)
+            : ('fallback' as const);
           const phantom = row.phantomOverride ?? row.childRevisionPhantom ?? false;
           if (phantom) {
             if (row.resolvedChildRevisionId === null) {
-              throw new BomQuantityError(`虚拟件 ${row.childItemId} 在评估日没有已发布修订，无法穿透`, [...node.path, row.occurrenceId]);
+              throw new BomQuantityError(`虚拟件 ${row.childItemId} 在评估日没有已发布修订，无法穿透`, [
+                ...node.path,
+                row.occurrenceId
+              ]);
             }
             const childHeader = await resolveChildHeader(query, dialect, context, row.resolvedChildRevisionId);
             if (childHeader === null) {
-              throw new BomQuantityError(`虚拟件 ${row.childItemId} 在当前上下文下没有已发布 BOM 头`, [...node.path, row.occurrenceId]);
+              throw new BomQuantityError(`虚拟件 ${row.childItemId} 在当前上下文下没有已发布 BOM 头`, [
+                ...node.path,
+                row.occurrenceId
+              ]);
             }
             const childPlanned = convertUom(decimalToCanonical(demand), row.childStockUom, childHeader.baseUom, rates);
             recordConversion(row.childStockUom, childHeader.baseUom, rates.lineRate ?? rates.itemRate ?? null);
@@ -581,7 +614,8 @@ export const explodeBom = async (
                 assemblyScrapped: { value: decimalToCanonical(plannedPrime), uom: node.baseUom },
                 gross: { value: decimalToCanonical(gross), uom: row.occurrenceUom },
                 componentScrapped: { value: decimalToCanonical(net), uom: row.occurrenceUom },
-                operationScrapped: hasOperation ? { value: decimalToCanonical(operationScrappedValue), uom: row.occurrenceUom } : null,
+                operationScrapped:
+                  hasOperation ? { value: decimalToCanonical(operationScrappedValue), uom: row.occurrenceUom } : null,
                 converted: { value: decimalToCanonical(demand), uom: row.childStockUom },
                 phantom: { value: phantom, source: phantomSource, revisionId: row.resolvedChildRevisionId }
               }
@@ -589,7 +623,12 @@ export const explodeBom = async (
             if (row.resolvedChildRevisionId !== null) {
               const childHeader = await resolveChildHeader(query, dialect, context, row.resolvedChildRevisionId);
               if (childHeader !== null) {
-                const childPlanned = convertUom(decimalToCanonical(rounded), row.childStockUom, childHeader.baseUom, rates);
+                const childPlanned = convertUom(
+                  decimalToCanonical(rounded),
+                  row.childStockUom,
+                  childHeader.baseUom,
+                  rates
+                );
                 recordConversion(row.childStockUom, childHeader.baseUom, rates.lineRate ?? rates.itemRate ?? null);
                 nextFrontier.push(
                   nodes.push({
@@ -621,7 +660,9 @@ export const explodeBom = async (
         // US-512 替代组：组内成员整体分摊，不走各自行的 qty
         const substituteRows = effectiveRows.filter(row => row.substituteGroupId !== null);
         // 反向流（by_product / scrap_out）已在上面循环进 outputs，这里只剩 consume 行
-        const plainRows = effectiveRows.filter(row => row.substituteGroupId === null && row.flowDirection === 'consume');
+        const plainRows = effectiveRows.filter(
+          row => row.substituteGroupId === null && row.flowDirection === 'consume'
+        );
         const substituteGroups = new Map<string, ExplosionRow[]>();
         for (const row of substituteRows) {
           const list = substituteGroups.get(row.substituteGroupId as string);
@@ -659,24 +700,30 @@ export const explodeBom = async (
           const allocated = (() => {
             try {
               return allocateSubstituteShares(
-                members.map(member => ({
-                  childItemId: member.childItemId,
-                  occurrenceId: member.occurrenceId,
-                  substituteRole: member.substituteRole,
-                  substitutePriority: member.substitutePriority,
-                  usageProbability: member.usageProbability,
-                  equivQty: member.equivQty,
-                  substituteGroupCode: member.substituteGroupCode ?? groupId.slice(0, 8),
-                  substituteStrategy: member.substituteStrategy ?? 'proportional',
-                  substituteAllowMix: member.substituteAllowMix ?? true,
-                  occurrenceUom: member.occurrenceUom
-                } satisfies SubstituteMember)),
+                members.map(
+                  member =>
+                    ({
+                      childItemId: member.childItemId,
+                      occurrenceId: member.occurrenceId,
+                      substituteRole: member.substituteRole,
+                      substitutePriority: member.substitutePriority,
+                      usageProbability: member.usageProbability,
+                      equivQty: member.equivQty,
+                      substituteGroupCode: member.substituteGroupCode ?? groupId.slice(0, 8),
+                      substituteStrategy: member.substituteStrategy ?? 'proportional',
+                      substituteAllowMix: member.substituteAllowMix ?? true,
+                      occurrenceUom: member.occurrenceUom
+                    }) satisfies SubstituteMember
+                ),
                 primaryGross,
                 context.substituteAvailabilities,
                 context.substituteSelections
               );
             } catch (error) {
-              throw new BomQuantityError(error instanceof Error ? error.message : String(error), [...node.path, primary.occurrenceId]);
+              throw new BomQuantityError(error instanceof Error ? error.message : String(error), [
+                ...node.path,
+                primary.occurrenceId
+              ]);
             }
           })();
           if (allocated.unresolved) {

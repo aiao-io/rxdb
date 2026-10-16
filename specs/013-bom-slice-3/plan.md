@@ -67,15 +67,15 @@
 
 ### 8. 测试矩阵（TDD，双后端）
 
-| 面 | 位置 |
-| --- | --- |
-| kernel / 公式 / 换算（纯单测） | `quantity/decimal.spec.ts`、`formula.spec.ts`、`uom.spec.ts`（34 位 golden、half-even、ceil、除零、参数缺失） |
-| 存储约束（AC#7/#12/#21/#25/#26） | `bom-quantity-schema.spec.ts`（直连 SQL 拒绝 + 入口保存） |
-| 七步 golden（AC#20/#22 展开段/#16/#17/#15/#2） | `bom-explosion.spec.ts`（双后端，golden 逐字断言） |
-| 阶梯（AC#6/#19/#24） | `bom-tier.spec.ts`（双后端，发布期校验直连触发） |
-| 损耗（AC#11/#12） | `bom-scrap.spec.ts` |
-| phantom（AC#4/#8/#9/#18） | `bom-phantom.spec.ts`（双后端） |
-| 单位换算（AC#5/#10） | `bom-uom.spec.ts`（双后端） |
+| 面                                             | 位置                                                                                                          |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| kernel / 公式 / 换算（纯单测）                 | `quantity/decimal.spec.ts`、`formula.spec.ts`、`uom.spec.ts`（34 位 golden、half-even、ceil、除零、参数缺失） |
+| 存储约束（AC#7/#12/#21/#25/#26）               | `bom-quantity-schema.spec.ts`（直连 SQL 拒绝 + 入口保存）                                                     |
+| 七步 golden（AC#20/#22 展开段/#16/#17/#15/#2） | `bom-explosion.spec.ts`（双后端，golden 逐字断言）                                                            |
+| 阶梯（AC#6/#19/#24）                           | `bom-tier.spec.ts`（双后端，发布期校验直连触发）                                                              |
+| 损耗（AC#11/#12）                              | `bom-scrap.spec.ts`                                                                                           |
+| phantom（AC#4/#8/#9/#18）                      | `bom-phantom.spec.ts`（双后端）                                                                               |
+| 单位换算（AC#5/#10）                           | `bom-uom.spec.ts`（双后端）                                                                                   |
 
 ### 9. 门禁与回写
 

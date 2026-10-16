@@ -35,8 +35,7 @@ for (const backend of BACKENDS) {
       await disposeBomTestAdapter(adapter).catch(() => undefined);
     });
 
-    const tableRef = (name: string): string =>
-      backend === 'wa-sqlite' ? `"bom$${name}"` : `"bom"."${name}"`;
+    const tableRef = (name: string): string => (backend === 'wa-sqlite' ? `"bom$${name}"` : `"bom"."${name}"`);
 
     /** 建已发布头（含一条 [2026-01-01, +∞) 的行发生项）；修订经 loadHistory 发布（过去生效日走审计通道）。 */
     const makeReleasedHeader = async (
@@ -48,9 +47,9 @@ for (const backend of BACKENDS) {
         revisions: [{ itemId: parent.id, revisionNo: 'A', effectiveFrom: day('2020-01-01') }],
         headers: []
       });
-      const rows = (await adapter.rawQuery(`SELECT "id" FROM ${tableRef('item_revision')} WHERE "itemId" = '${parent.id}'`)) as unknown as
-        | { results: { rows: unknown[][] }[] }
-        | { rows: unknown[][] };
+      const rows = (await adapter.rawQuery(
+        `SELECT "id" FROM ${tableRef('item_revision')} WHERE "itemId" = '${parent.id}'`
+      )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
       const shape = 'results' in rows ? rows.results[0] : rows;
       const revision = new BomItemRevision();
       (revision as unknown as { id: string }).id = String(shape.rows[0][0]);

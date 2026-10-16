@@ -8,11 +8,20 @@
  * 修订不串（AC#8）、定量行与 setup（AC#9）。
  */
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { firstValueFrom } from 'rxjs';
-import { BomActivityRate, BomActivityType, BomHeader, BomItem, BomItemRevision, BomRouting, BomRoutingOperation, BomWorkCenter } from '../entities.js';
-import { loadHistory } from '../resolve/history-loader.js';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import {
+  BomActivityRate,
+  BomActivityType,
+  BomHeader,
+  BomItem,
+  BomItemRevision,
+  BomRouting,
+  BomRoutingOperation,
+  BomWorkCenter
+} from '../entities.js';
 import { BomCostError, rollupCost, type CostRollupContext } from '../quantity/cost.js';
+import { loadHistory } from '../resolve/history-loader.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 const BACKENDS: BomTestBackend[] = ['wa-sqlite', 'pglite'];
@@ -49,7 +58,13 @@ for (const backend of BACKENDS) {
     /** 建物料（可选价格/换算）。 */
     const makeItem = async (
       key: string,
-      options: { stockUom?: string; uomConversion?: string | null; unitPrice?: string | null; priceUom?: string | null; creditPrice?: string | null } = {}
+      options: {
+        stockUom?: string;
+        uomConversion?: string | null;
+        unitPrice?: string | null;
+        priceUom?: string | null;
+        creditPrice?: string | null;
+      } = {}
     ): Promise<BomItem> => {
       const item = new BomItem();
       item.itemNo = `${key}-${Math.random().toString(36).slice(2, 8)}`;
@@ -66,8 +81,21 @@ for (const backend of BACKENDS) {
     /** 建修订 + 头（含行发生项；costLotQty 默认 '1'）。 */
     const makeHeader = async (
       parent: BomItem,
-      lines: { child: BomItem; qty: string; uom?: string; uomConversion?: string | null; isFixedQty?: boolean; flowDirection?: 'consume' | 'by_product' | 'scrap_out' }[],
-      options: { costLotQty?: string | null; baseUom?: string; baseQty?: string; assemblyScrap?: string; assemblyScrapConvention?: 'additive' | 'yield' } = {},
+      lines: {
+        child: BomItem;
+        qty: string;
+        uom?: string;
+        uomConversion?: string | null;
+        isFixedQty?: boolean;
+        flowDirection?: 'consume' | 'by_product' | 'scrap_out';
+      }[],
+      options: {
+        costLotQty?: string | null;
+        baseUom?: string;
+        baseQty?: string;
+        assemblyScrap?: string;
+        assemblyScrapConvention?: 'additive' | 'yield';
+      } = {},
       release = true
     ): Promise<{ revision: BomItemRevision; header: BomHeader }> => {
       // 修订经 loadHistory 发布（过去生效日走审计通道，绕过追溯拒绝）
@@ -153,7 +181,15 @@ for (const backend of BACKENDS) {
     const attachRouting = async (
       header: BomHeader,
       center: BomWorkCenter,
-      operations: { seq: number; setup?: string; run?: string; fixed?: string; timeUom?: string; scrap?: string; convention?: 'additive' | 'yield' }[]
+      operations: {
+        seq: number;
+        setup?: string;
+        run?: string;
+        fixed?: string;
+        timeUom?: string;
+        scrap?: string;
+        convention?: 'additive' | 'yield';
+      }[]
     ): Promise<void> => {
       const routing = new BomRouting();
       routing.parentRevisionId = header.parentRevisionId;
@@ -177,7 +213,6 @@ for (const backend of BACKENDS) {
       header.routingId = routing.id;
       await header.save();
     };
-
 
     it('AC#7 A 用 2B、B 用 3C、C 单价 1：A 材料恰为 6（不是双计数 12）', async () => {
       const c = await makeItem('c7', { unitPrice: '1' });
@@ -261,7 +296,12 @@ for (const backend of BACKENDS) {
       await attachRouting(headerA, center, [{ seq: 10, setup: '2', run: '1' }]);
       await releaseHeader(headerA);
       const at = async (batch: string): Promise<string> => {
-        const result = await rollupCost(adapter, COST_CTX, { parentRevisionId: headerA.parentRevisionId }, { value: batch, uom: 'pcs' });
+        const result = await rollupCost(
+          adapter,
+          COST_CTX,
+          { parentRevisionId: headerA.parentRevisionId },
+          { value: batch, uom: 'pcs' }
+        );
         return result.root.batchCost;
       };
       // L=1：材料 1 + 加工（2 + 1×1）= 4；L=10：材料 10 + 加工（2 + 1×10）= 22
@@ -279,7 +319,12 @@ for (const backend of BACKENDS) {
       const center = await makeCenter();
       await attachRouting(headerA, center, [{ seq: 10, setup: '2', run: '1' }]);
       await releaseHeader(headerA);
-      const result = await rollupCost(adapter, COST_CTX, { parentRevisionId: headerA.parentRevisionId }, { value: '100', uom: 'pcs' });
+      const result = await rollupCost(
+        adapter,
+        COST_CTX,
+        { parentRevisionId: headerA.parentRevisionId },
+        { value: '100', uom: 'pcs' }
+      );
       // 材料 110×0 = 0；加工 112 × 1 = 112
       expect(result.root.processing[0].hours).toBe('112');
       expect(result.root.batchCost).toBe('112');
@@ -293,7 +338,12 @@ for (const backend of BACKENDS) {
       await attachRouting(headerA, center, [{ seq: 10, setup: '2', run: '1', fixed: '3' }]);
       await releaseHeader(headerA);
       const at = async (batch: string): Promise<string> => {
-        const result = await rollupCost(adapter, COST_CTX, { parentRevisionId: headerA.parentRevisionId }, { value: batch, uom: 'pcs' });
+        const result = await rollupCost(
+          adapter,
+          COST_CTX,
+          { parentRevisionId: headerA.parentRevisionId },
+          { value: batch, uom: 'pcs' }
+        );
         return result.root.processing[0].hours;
       };
       expect(await at('1')).toBe('6');
@@ -307,7 +357,12 @@ for (const backend of BACKENDS) {
       const center = await makeCenter({ rate: '60', rateUom: 'h' });
       await attachRouting(headerA, center, [{ seq: 10, setup: '60', run: '30', timeUom: 'min' }]);
       await releaseHeader(headerA);
-      const result = await rollupCost(adapter, COST_CTX, { parentRevisionId: headerA.parentRevisionId }, { value: '10', uom: 'pcs' });
+      const result = await rollupCost(
+        adapter,
+        COST_CTX,
+        { parentRevisionId: headerA.parentRevisionId },
+        { value: '10', uom: 'pcs' }
+      );
       // (60 + 30×10) min = 360 min = 6 h；6 × 60 = 360
       expect(result.root.processing[0].rateHours).toBe('6');
       expect(result.root.processing[0].amount).toBe('360');
@@ -319,9 +374,9 @@ for (const backend of BACKENDS) {
       const center2 = await makeCenter({ rate: '60', rateUom: 'pcs' });
       await attachRouting(headerA2, center2, [{ seq: 10, setup: '60', timeUom: 'min' }]);
       await releaseHeader(headerA2);
-      await expect(
-        rollupCost(adapter, COST_CTX, { parentRevisionId: headerA2.parentRevisionId })
-      ).rejects.toThrow(/量纲不兼容/);
+      await expect(rollupCost(adapter, COST_CTX, { parentRevisionId: headerA2.parentRevisionId })).rejects.toThrow(
+        /量纲不兼容/
+      );
     });
 
     it('AC#6 缺成本：外购叶子无价格报缺失，不以 0 兜底', async () => {
@@ -329,9 +384,9 @@ for (const backend of BACKENDS) {
       const a = await makeItem('a6');
       const { header: headerA } = await makeHeader(a, [{ child: c, qty: '1' }]);
       await releaseHeader(headerA);
-      await expect(
-        rollupCost(adapter, COST_CTX, { parentRevisionId: headerA.parentRevisionId })
-      ).rejects.toThrow(/缺成本|BomCostError/);
+      await expect(rollupCost(adapter, COST_CTX, { parentRevisionId: headerA.parentRevisionId })).rejects.toThrow(
+        /缺成本|BomCostError/
+      );
       await expect(
         rollupCost(adapter, COST_CTX, { parentRevisionId: headerA.parentRevisionId })
       ).rejects.toBeInstanceOf(BomCostError);
@@ -355,9 +410,9 @@ for (const backend of BACKENDS) {
       }
       await attachRouting(headerA, center, [{ seq: 10, run: '1' }]);
       await releaseHeader(headerA);
-      await expect(
-        rollupCost(adapter, COST_CTX, { parentRevisionId: headerA.parentRevisionId })
-      ).rejects.toThrow(/币种/);
+      await expect(rollupCost(adapter, COST_CTX, { parentRevisionId: headerA.parentRevisionId })).rejects.toThrow(
+        /币种/
+      );
     });
 
     it('AC#4 环检出：写入期约束被绕过时卷算报错不死循环', async () => {
@@ -387,9 +442,7 @@ for (const backend of BACKENDS) {
       await releaseHeader(headerA);
       await releaseHeader(headerB);
       // A→B 与 B→A 成环：卷算报错不死循环
-      await expect(
-        rollupCost(adapter, COST_CTX, { parentRevisionId: headerA.parentRevisionId })
-      ).rejects.toThrow(/环/);
+      await expect(rollupCost(adapter, COST_CTX, { parentRevisionId: headerA.parentRevisionId })).rejects.toThrow(/环/);
     });
   });
 }
@@ -398,8 +451,12 @@ describe('成本卷算扩展（AC#2/#8/#11/#16）', () => {
   for (const backend of BACKENDS) {
     describe(`[${backend}]`, () => {
       let adapter: BomTestAdapter;
-      beforeAll(async () => { adapter = await createBomTestAdapter(backend); });
-      afterAll(async () => { await disposeBomTestAdapter(adapter).catch(() => undefined); });
+      beforeAll(async () => {
+        adapter = await createBomTestAdapter(backend);
+      });
+      afterAll(async () => {
+        await disposeBomTestAdapter(adapter).catch(() => undefined);
+      });
 
       const makeItem = async (key: string, options: { unitPrice?: string | null } = {}): Promise<BomItem> => {
         const item = new BomItem();
@@ -411,14 +468,30 @@ describe('成本卷算扩展（AC#2/#8/#11/#16）', () => {
         return item;
       };
 
-      const makeReleasedHeader = async (parent: BomItem, lines: { child: BomItem; qty: string; groupId?: string; role?: 'primary' | 'substitute'; probability?: string; equivQty?: string }[]): Promise<BomHeader> => {
+      const makeReleasedHeader = async (
+        parent: BomItem,
+        lines: {
+          child: BomItem;
+          qty: string;
+          groupId?: string;
+          role?: 'primary' | 'substitute';
+          probability?: string;
+          equivQty?: string;
+        }[]
+      ): Promise<BomHeader> => {
         await loadHistory(adapter, {
           batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
           revisions: [{ itemId: parent.id, revisionNo: 'A', effectiveFrom: day('2020-01-01') }],
           headers: []
         });
         const header = new BomHeader();
-        header.parentRevisionId = String(shapeRows(await adapter.rawQuery(`SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${parent.id}'`))[0][0]);
+        header.parentRevisionId = String(
+          shapeRows(
+            await adapter.rawQuery(
+              `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${parent.id}'`
+            )
+          )[0][0]
+        );
         header.bomType = 'ebom';
         header.orgId = 'org-x';
         header.costLotQty = '1';
@@ -457,7 +530,9 @@ describe('成本卷算扩展（AC#2/#8/#11/#16）', () => {
         const a = await makeItem('s2root');
         // 组：primary 0.5（equiv 1）、substitute 0.5（equiv 2）
         const { header: draftHeader } = await (async () => {
-          const rows = (await adapter.rawQuery(`SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${a.id}'`)) as unknown as { results: { rows: unknown[][] }[] };
+          const rows = (await adapter.rawQuery(
+            `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${a.id}'`
+          )) as unknown as { results: { rows: unknown[][] }[] };
           void rows;
           // 建头 + 组（在发布前）
           await loadHistory(adapter, {
@@ -466,7 +541,13 @@ describe('成本卷算扩展（AC#2/#8/#11/#16）', () => {
             headers: []
           });
           const header = new BomHeader();
-          header.parentRevisionId = String(shapeRows(await adapter.rawQuery(`SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${a.id}'`))[0][0]);
+          header.parentRevisionId = String(
+            shapeRows(
+              await adapter.rawQuery(
+                `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${a.id}'`
+              )
+            )[0][0]
+          );
           header.bomType = 'ebom';
           header.orgId = 'org-x';
           header.costLotQty = '1';
@@ -478,7 +559,10 @@ describe('成本卷算扩展（AC#2/#8/#11/#16）', () => {
           group.allowMix = true;
           await group.save();
           let lineNo = 10;
-          for (const [child, role, probability, equivQty] of [[primary, 'primary', '0.5', '1'], [alt, 'substitute', '0.5', '2']] as const) {
+          for (const [child, role, probability, equivQty] of [
+            [primary, 'primary', '0.5', '1'],
+            [alt, 'substitute', '0.5', '2']
+          ] as const) {
             const { BomLine, BomLineOccurrence } = await import('../entities.js');
             const bomLine = new BomLine();
             bomLine.headerId = header.id;
@@ -511,7 +595,10 @@ describe('成本卷算扩展（AC#2/#8/#11/#16）', () => {
         const x = await makeItem('x8', { unitPrice: '1' });
         const a = await makeItem('a8');
         const { header: headerA } = await (async () => {
-          const header = await makeReleasedHeader(a, [{ child: x, qty: '1' }, { child: x, qty: '1' }]);
+          const header = await makeReleasedHeader(a, [
+            { child: x, qty: '1' },
+            { child: x, qty: '1' }
+          ]);
           return { header };
         })();
         void headerA;
@@ -547,7 +634,13 @@ describe('成本卷算扩展（AC#2/#8/#11/#16）', () => {
             headers: []
           });
           const header = new BomHeader();
-          header.parentRevisionId = String(shapeRows(await adapter.rawQuery(`SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${a.id}'`))[0][0]);
+          header.parentRevisionId = String(
+            shapeRows(
+              await adapter.rawQuery(
+                `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${a.id}'`
+              )
+            )[0][0]
+          );
           header.bomType = 'ebom';
           header.orgId = 'org-x';
           header.costLotQty = '1';
@@ -570,7 +663,11 @@ describe('成本卷算扩展（AC#2/#8/#11/#16）', () => {
           routing.orgId = 'org-x';
           routing.validFrom = day('2020-01-01');
           await routing.save();
-          for (const [seq, scrap] of [[10, '0'], [20, '0.03'], [30, '0']] as const) {
+          for (const [seq, scrap] of [
+            [10, '0'],
+            [20, '0.03'],
+            [30, '0']
+          ] as const) {
             const op = new BomRoutingOperation();
             op.routingId = routing.id;
             op.operationSeq = seq;
@@ -587,7 +684,12 @@ describe('成本卷算扩展（AC#2/#8/#11/#16）', () => {
           await header.save();
           return { header };
         })();
-        const result = await rollupCost(adapter, COST_CTX, { parentRevisionId: header.parentRevisionId }, { value: '100', uom: 'pcs' });
+        const result = await rollupCost(
+          adapter,
+          COST_CTX,
+          { parentRevisionId: header.parentRevisionId },
+          { value: '100', uom: 'pcs' }
+        );
         expect(result.root.processing[0].rateHours).toBe('103');
         expect(result.root.processing[1].rateHours).toBe('103');
         expect(result.root.processing[2].rateHours).toBe('100');
@@ -606,7 +708,13 @@ describe('成本卷算扩展（AC#2/#8/#11/#16）', () => {
             headers: []
           });
           const header = new BomHeader();
-          header.parentRevisionId = String(shapeRows(await adapter.rawQuery(`SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${a.id}'`))[0][0]);
+          header.parentRevisionId = String(
+            shapeRows(
+              await adapter.rawQuery(
+                `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${a.id}'`
+              )
+            )[0][0]
+          );
           header.bomType = 'ebom';
           header.orgId = 'org-x';
           header.costLotQty = '1';
@@ -618,7 +726,10 @@ describe('成本卷算扩展（AC#2/#8/#11/#16）', () => {
           group.allowMix = true;
           await group.save();
           let lineNo = 10;
-          for (const [child, role] of [[primary, 'primary'], [alt, 'substitute']] as const) {
+          for (const [child, role] of [
+            [primary, 'primary'],
+            [alt, 'substitute']
+          ] as const) {
             const { BomLine, BomLineOccurrence } = await import('../entities.js');
             const bomLine = new BomLine();
             bomLine.headerId = header.id;
@@ -640,9 +751,7 @@ describe('成本卷算扩展（AC#2/#8/#11/#16）', () => {
           await header.save();
           return { header };
         })();
-        await expect(
-          rollupCost(adapter, COST_CTX, { parentRevisionId: header.parentRevisionId })
-        ).rejects.toThrow();
+        await expect(rollupCost(adapter, COST_CTX, { parentRevisionId: header.parentRevisionId })).rejects.toThrow();
       });
     });
   }

@@ -7,12 +7,12 @@
  * 存取与拒绝（US-511 AC#22 存储段 / AC#23）。
  */
 
-import { firstValueFrom } from 'rxjs';
 import { RxDBExclusionViolationError, uuid } from '@aiao/rxdb';
+import { firstValueFrom } from 'rxjs';
 import { afterAll, describe, expect, it } from 'vitest';
-import { BomDecimalFormatError, BomPublishValidationError, BomWriteProtocolError } from '../types.js';
-import { BomHeader, BomItem, BomItemRevision, BomLine, BomLineOccurrence } from '../entities.js';
 import { DECIMAL_CANONICAL_RE, normalizeDecimalString } from '../decimal.utils.js';
+import { BomHeader, BomItem, BomItemRevision, BomLine, BomLineOccurrence } from '../entities.js';
+import { BomDecimalFormatError, BomPublishValidationError, BomWriteProtocolError } from '../types.js';
 import { BomTestAdapter, createBomTestAdapter, disposeBomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 const BACKENDS: BomTestBackend[] = ['wa-sqlite', 'pglite'];
@@ -52,7 +52,6 @@ const rawRows = async (adapter: BomTestAdapter, sql: string): Promise<unknown[][
 const tableRef = (backend: BomTestBackend, table: string): string =>
   backend === 'wa-sqlite' ? `"bom$${table}"` : `"bom"."${table}"`;
 
-
 /** 建一套最小装配：item → revision → header（须在同一 RxDB 实例上，实体注册是全局单例）。 */
 const setup = async () => {
   const item = new BomItem();
@@ -88,7 +87,11 @@ const makeChildItem = async (prefix: string): Promise<BomItem> => {
 };
 
 /** 在逻辑行下建一个（未保存的）发生项。 */
-const makeOccurrence = (line: BomLine, item: BomItem, overrides: Partial<BomLineOccurrence> = {}): BomLineOccurrence => {
+const makeOccurrence = (
+  line: BomLine,
+  item: BomItem,
+  overrides: Partial<BomLineOccurrence> = {}
+): BomLineOccurrence => {
   const occurrence = new BomLineOccurrence();
   occurrence.lineId = line.id;
   occurrence.childItemId = item.id;
@@ -139,11 +142,23 @@ for (const backend of BACKENDS) {
       plain.itemId = item.id;
       await plain.save();
 
-      const phantomRow = (await rawRows(adapter, `SELECT "defaultPhantom" FROM ${tableRef(backend, 'item_revision')} WHERE "id" = '${phantom.id}'`))[0];
+      const phantomRow = (
+        await rawRows(
+          adapter,
+          `SELECT "defaultPhantom" FROM ${tableRef(backend, 'item_revision')} WHERE "id" = '${phantom.id}'`
+        )
+      )[0];
       expect(Boolean(phantomRow?.[0])).toBe(true);
-      const plainRow = (await rawRows(adapter, `SELECT "defaultPhantom" FROM ${tableRef(backend, 'item_revision')} WHERE "id" = '${plain.id}'`))[0];
+      const plainRow = (
+        await rawRows(
+          adapter,
+          `SELECT "defaultPhantom" FROM ${tableRef(backend, 'item_revision')} WHERE "id" = '${plain.id}'`
+        )
+      )[0];
       expect(Boolean(plainRow?.[0])).toBe(false);
-      const itemRow = (await rawRows(adapter, `SELECT "serialized" FROM ${tableRef(backend, 'item')} WHERE "id" = '${item.id}'`))[0];
+      const itemRow = (
+        await rawRows(adapter, `SELECT "serialized" FROM ${tableRef(backend, 'item')} WHERE "id" = '${item.id}'`)
+      )[0];
       expect(Boolean(itemRow?.[0])).toBe(true);
     });
 
@@ -176,7 +191,9 @@ for (const backend of BACKENDS) {
       await expect(extraLine.save()).rejects.toBeInstanceOf(BomWriteProtocolError);
 
       const direct = await settled(
-        adapter.rawQuery(`INSERT INTO ${tableRef(backend, 'bom_line')} ("id", "headerId", "lineNo") VALUES ('${uuid()}', '${header.id}', 30)`)
+        adapter.rawQuery(
+          `INSERT INTO ${tableRef(backend, 'bom_line')} ("id", "headerId", "lineNo") VALUES ('${uuid()}', '${header.id}', 30)`
+        )
       );
       expect(direct.ok).toBe(false);
       expect(String((direct as { error: Error }).error.message)).toContain('rxdb:bom_write_protocol');
@@ -215,7 +232,9 @@ for (const backend of BACKENDS) {
       await otherItem.save();
 
       const revisionMove = await settled(
-        adapter.rawQuery(`UPDATE ${tableRef(backend, 'item_revision')} SET "itemId" = '${otherItem.id}' WHERE "id" = '${revision.id}'`)
+        adapter.rawQuery(
+          `UPDATE ${tableRef(backend, 'item_revision')} SET "itemId" = '${otherItem.id}' WHERE "id" = '${revision.id}'`
+        )
       );
       expect(revisionMove.ok).toBe(false);
       expect(String((revisionMove as { error: Error }).error.message)).toContain('rxdb:bom_write_protocol:itemId');
@@ -247,12 +266,16 @@ for (const backend of BACKENDS) {
 
       // 已发布修订：直连 SQL 改 default_phantom / released→draft 均拒
       const phantom = await settled(
-        adapter.rawQuery(`UPDATE ${tableRef(backend, 'item_revision')} SET "revisionNo" = 'X' WHERE "id" = '${revision.id}'`)
+        adapter.rawQuery(
+          `UPDATE ${tableRef(backend, 'item_revision')} SET "revisionNo" = 'X' WHERE "id" = '${revision.id}'`
+        )
       );
       expect(phantom.ok).toBe(false);
       expect(String((phantom as { error: Error }).error.message)).toContain('rxdb:bom_write_protocol');
       const back = await settled(
-        adapter.rawQuery(`UPDATE ${tableRef(backend, 'item_revision')} SET "state" = 'draft' WHERE "id" = '${revision.id}'`)
+        adapter.rawQuery(
+          `UPDATE ${tableRef(backend, 'item_revision')} SET "state" = 'draft' WHERE "id" = '${revision.id}'`
+        )
       );
       expect(back.ok).toBe(false);
     });
@@ -263,12 +286,22 @@ for (const backend of BACKENDS) {
       const line = await addLine(header, 10);
       const occurrence = makeOccurrence(line, child, { qty: '1.5E-3' });
       await occurrence.save();
-      const stored = (await rawRows(adapter, `SELECT "qty" FROM ${tableRef(backend, 'bom_line_occurrence')} WHERE "id" = '${occurrence.id}'`))[0];
+      const stored = (
+        await rawRows(
+          adapter,
+          `SELECT "qty" FROM ${tableRef(backend, 'bom_line_occurrence')} WHERE "id" = '${occurrence.id}'`
+        )
+      )[0];
       expect(stored?.[0]).toBe('0.0015');
 
       occurrence.qty = '1.50';
       await occurrence.save();
-      const after = (await rawRows(adapter, `SELECT "qty" FROM ${tableRef(backend, 'bom_line_occurrence')} WHERE "id" = '${occurrence.id}'`))[0];
+      const after = (
+        await rawRows(
+          adapter,
+          `SELECT "qty" FROM ${tableRef(backend, 'bom_line_occurrence')} WHERE "id" = '${occurrence.id}'`
+        )
+      )[0];
       expect(after?.[0]).toBe('1.5');
     });
 
@@ -279,7 +312,12 @@ for (const backend of BACKENDS) {
       const line = await addLine(header, 10);
       const occurrence = makeOccurrence(line, child, { qty });
       await occurrence.save();
-      const stored = (await rawRows(adapter, `SELECT "qty" FROM ${tableRef(backend, 'bom_line_occurrence')} WHERE "id" = '${occurrence.id}'`))[0];
+      const stored = (
+        await rawRows(
+          adapter,
+          `SELECT "qty" FROM ${tableRef(backend, 'bom_line_occurrence')} WHERE "id" = '${occurrence.id}'`
+        )
+      )[0];
       expect(stored?.[0]).toBe(qty);
     });
 

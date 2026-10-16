@@ -62,7 +62,10 @@ export const convertUom = (value: string, from: string, to: string, rates: UomCo
   if (fromSeconds !== undefined && toSeconds !== undefined) {
     const source = decimalFromCanonical(value);
     // value 以 from 单位计：× from 秒数转到秒，÷ to 秒数转到 to 单位
-    const converted = decimalDiv(decimalMul(source, { coeff: BigInt(fromSeconds), exp: 0 }), { coeff: BigInt(toSeconds), exp: 0 });
+    const converted = decimalDiv(decimalMul(source, { coeff: BigInt(fromSeconds), exp: 0 }), {
+      coeff: BigInt(toSeconds),
+      exp: 0
+    });
     return decimalToCanonical(converted);
   }
   if (fromSeconds !== undefined || toSeconds !== undefined) {

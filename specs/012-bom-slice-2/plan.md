@@ -79,15 +79,15 @@
 
 ### 8. 测试矩阵（TDD）
 
-| 面 | 位置 |
-| --- | --- |
-| US-508 AC#1/#3~#8/#11/#17 | 插件 `bom-resolution.spec.ts`（双后端：跨 org、同日边界、草稿过滤、修订选择、缺日期拒绝、拨钟不变、unresolved、imprecise/precise manifest） |
-| AC#9/#10/#13/#14/#18 | 同上 + 触发器直连 SQL 断言（追溯发布、部分唯一、loadHistory 确定性、批次 append-only） |
-| AC#15 | wa-sqlite persistent + pglite idb 双实例交错写入 |
-| US-509 AC#1/#2/#3/#5/#10/#14/#17 | `bom-cycle.spec.ts`（双后端：真环+路径、自环、深度上限、直连 SQL、跨类型、草稿头反向边） |
-| AC#9 union_only | 同上（跨时段互斥反向边 → 插件 API 标记） |
-| AC#6/#7/#12 | 插件安装期断言（http/supabase fail-fast、DDL 文本、同步拒绝） |
-| US-510 AC#1/#2/#7/#10/#11 | `bom-expansion.spec.ts`（双后端：深度截断、12 整机反查、窗口滤除、菱形 10,000 截断、assertComplete 拒绝） |
+| 面                               | 位置                                                                                                                                        |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| US-508 AC#1/#3~#8/#11/#17        | 插件 `bom-resolution.spec.ts`（双后端：跨 org、同日边界、草稿过滤、修订选择、缺日期拒绝、拨钟不变、unresolved、imprecise/precise manifest） |
+| AC#9/#10/#13/#14/#18             | 同上 + 触发器直连 SQL 断言（追溯发布、部分唯一、loadHistory 确定性、批次 append-only）                                                      |
+| AC#15                            | wa-sqlite persistent + pglite idb 双实例交错写入                                                                                            |
+| US-509 AC#1/#2/#3/#5/#10/#14/#17 | `bom-cycle.spec.ts`（双后端：真环+路径、自环、深度上限、直连 SQL、跨类型、草稿头反向边）                                                    |
+| AC#9 union_only                  | 同上（跨时段互斥反向边 → 插件 API 标记）                                                                                                    |
+| AC#6/#7/#12                      | 插件安装期断言（http/supabase fail-fast、DDL 文本、同步拒绝）                                                                               |
+| US-510 AC#1/#2/#7/#10/#11        | `bom-expansion.spec.ts`（双后端：深度截断、12 整机反查、窗口滤除、菱形 10,000 截断、assertComplete 拒绝）                                   |
 
 ### 9. 门禁与回写
 
@@ -95,10 +95,10 @@ api-baseline 更新、覆盖率 ≥ 80%、affected full、故事回写（US-508 
 
 ## 风险与对策
 
-| 风险 | 对策 |
-| --- | --- |
+| 风险                                              | 对策                                                                                                    |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | 递归 CTE 在触发器内的性能（每次发生项写入扫全图） | 并集边是子查询物化（PG `AS MATERIALIZED`），第 1 步规模（< 10⁴ 边）可接受；US-510 阶段 B 换 O(1) 可达性 |
-| SQLite 触发器内 `WITH RECURSIVE` 与 `RAISE` 组合 | 探针先行；形态为 `SELECT RAISE(...) FROM (CTE) WHERE ...` |
-| PG 递归 CTE 与 plpgsql 变量绑定 | CTE 内用 `$1` 类占位符（plpgsql `USING` 或拼接）——实现期定形 |
-| 展开预算无法在 SQL 内早停 | 深度硬上限在 CTE；展开数 / 路径数在 TS BFS 结算（spec 第 13 条已论证 AC#10 的截断原因正确） |
-| 菱形 1M 路径测试耗时 | 一次性基准断言，两后端各 ≤ ~5s；必要时缩小为 2¹⁶ 结构另单测预算结算逻辑 |
+| SQLite 触发器内 `WITH RECURSIVE` 与 `RAISE` 组合  | 探针先行；形态为 `SELECT RAISE(...) FROM (CTE) WHERE ...`                                               |
+| PG 递归 CTE 与 plpgsql 变量绑定                   | CTE 内用 `$1` 类占位符（plpgsql `USING` 或拼接）——实现期定形                                            |
+| 展开预算无法在 SQL 内早停                         | 深度硬上限在 CTE；展开数 / 路径数在 TS BFS 结算（spec 第 13 条已论证 AC#10 的截断原因正确）             |
+| 菱形 1M 路径测试耗时                              | 一次性基准断言，两后端各 ≤ ~5s；必要时缩小为 2¹⁶ 结构另单测预算结算逻辑                                 |

@@ -50,7 +50,9 @@ for (const backend of BACKENDS) {
         headers: []
       });
       const revision = await firstValueFrom(
-        BomItemRevision.findOne({ where: { combinator: 'and', rules: [{ field: 'itemId', operator: '=', value: item.id }] } })
+        BomItemRevision.findOne({
+          where: { combinator: 'and', rules: [{ field: 'itemId', operator: '=', value: item.id }] }
+        })
       );
       if (!revision) throw new Error('makeItemWithRevision: loadHistory 后修订未找到');
       return { item, revision };
@@ -77,7 +79,11 @@ for (const backend of BACKENDS) {
     };
 
     /** 建 draft 头；成员写完后由调用方 releaseHeader（已发布头的成员写入受协议保护）。 */
-    const makeDraftHeader = async (revision: BomItemRevision, orgId = 'org-x', alternativeNo = 1): Promise<BomHeader> => {
+    const makeDraftHeader = async (
+      revision: BomItemRevision,
+      orgId = 'org-x',
+      alternativeNo = 1
+    ): Promise<BomHeader> => {
       const header = new BomHeader();
       header.parentRevisionId = revision.id;
       header.bomType = 'ebom';
@@ -94,7 +100,9 @@ for (const backend of BACKENDS) {
     };
 
     it('同一父件在两个 org 各有 BOM：按 org 解析互不串（AC#1）', async () => {
-      const { revision: parentRevision } = await makeItemWithRevision(`org-item-${Math.random().toString(36).slice(2, 6)}`);
+      const { revision: parentRevision } = await makeItemWithRevision(
+        `org-item-${Math.random().toString(36).slice(2, 6)}`
+      );
       const childX = (await makeItemWithRevision(`org-child-x-${Math.random().toString(36).slice(2, 6)}`)).item;
       const childY = (await makeItemWithRevision(`org-child-y-${Math.random().toString(36).slice(2, 6)}`)).item;
       const headerX = await makeDraftHeader(parentRevision, 'org-x');
@@ -137,7 +145,9 @@ for (const backend of BACKENDS) {
       await addOccurrence(header, child, { effectiveFrom: day('2026-10-01'), effectiveTo: null });
       await releaseHeader(header);
 
-      const result = await resolveBom(adapter, context({ asOfDate: day('2026-10-01') }), { parentRevisionId: revision.id });
+      const result = await resolveBom(adapter, context({ asOfDate: day('2026-10-01') }), {
+        parentRevisionId: revision.id
+      });
       expect(result.occurrences.length).toBe(1);
       expect(result.occurrences[0].effectiveFrom).toEqual(day('2026-10-01'));
     });
@@ -158,7 +168,11 @@ for (const backend of BACKENDS) {
     });
 
     it('父件有 D / E 两个已发布修订：按时点命中对应修订（AC#6）', async () => {
-      const { item, revision: revisionD } = await makeItemWithRevision(`rev-item-${Math.random().toString(36).slice(2, 6)}`, 'D', '2026-01-01');
+      const { item, revision: revisionD } = await makeItemWithRevision(
+        `rev-item-${Math.random().toString(36).slice(2, 6)}`,
+        'D',
+        '2026-01-01'
+      );
       await loadHistory(adapter, {
         batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
         revisions: [{ itemId: item.id, revisionNo: 'E', effectiveFrom: day('2026-06-01') }],
@@ -166,7 +180,13 @@ for (const backend of BACKENDS) {
       });
       const revisionE = (await firstValueFrom(
         BomItemRevision.findOne({
-          where: { combinator: 'and', rules: [{ field: 'itemId', operator: '=', value: item.id }, { field: 'revisionNo', operator: '=', value: 'E' }] }
+          where: {
+            combinator: 'and',
+            rules: [
+              { field: 'itemId', operator: '=', value: item.id },
+              { field: 'revisionNo', operator: '=', value: 'E' }
+            ]
+          }
         })
       ))!;
       const child = (await makeItemWithRevision(`rev-child-${Math.random().toString(36).slice(2, 6)}`)).item;
@@ -201,8 +221,12 @@ for (const backend of BACKENDS) {
       await addOccurrence(header, child);
       await releaseHeader(header);
 
-      const first = await resolveBom(adapter, context({ asOfDate: day('2026-06-01') }), { parentRevisionId: revision.id });
-      const second = await resolveBom(adapter, context({ asOfDate: day('2026-06-01') }), { parentRevisionId: revision.id });
+      const first = await resolveBom(adapter, context({ asOfDate: day('2026-06-01') }), {
+        parentRevisionId: revision.id
+      });
+      const second = await resolveBom(adapter, context({ asOfDate: day('2026-06-01') }), {
+        parentRevisionId: revision.id
+      });
       expect(JSON.stringify(second.manifest)).toBe(JSON.stringify(first.manifest));
       expect(second.occurrences.map(occurrence => occurrence.occurrenceId)).toEqual(
         first.occurrences.map(occurrence => occurrence.occurrenceId)
@@ -210,7 +234,9 @@ for (const backend of BACKENDS) {
     });
 
     it('imprecise / precise 解析分别记 manifest；imprecise 随新修订发布切换（AC#17）', async () => {
-      const { revision: parentRevision } = await makeItemWithRevision(`imp-item-${Math.random().toString(36).slice(2, 6)}`);
+      const { revision: parentRevision } = await makeItemWithRevision(
+        `imp-item-${Math.random().toString(36).slice(2, 6)}`
+      );
       const childItem = new BomItem();
       childItem.itemNo = `imp-child-${Math.random().toString(36).slice(2, 6)}`;
       await childItem.save();
@@ -250,7 +276,9 @@ for (const backend of BACKENDS) {
       await occurrencePrecise.save();
       await releaseHeader(header);
 
-      const beforeE = await resolveBom(adapter, context({ asOfDate: day('2026-06-01') }), { parentRevisionId: parentRevision.id });
+      const beforeE = await resolveBom(adapter, context({ asOfDate: day('2026-06-01') }), {
+        parentRevisionId: parentRevision.id
+      });
       expect(beforeE.occurrences.map(occurrence => occurrence.occurrenceId).sort()).toEqual(
         [occurrenceImprecise.id, occurrencePrecise.id].sort()
       );
@@ -266,11 +294,19 @@ for (const backend of BACKENDS) {
       });
       const revisionE = (await firstValueFrom(
         BomItemRevision.findOne({
-          where: { combinator: 'and', rules: [{ field: 'itemId', operator: '=', value: childItem.id }, { field: 'revisionNo', operator: '=', value: 'E' }] }
+          where: {
+            combinator: 'and',
+            rules: [
+              { field: 'itemId', operator: '=', value: childItem.id },
+              { field: 'revisionNo', operator: '=', value: 'E' }
+            ]
+          }
         })
       ))!;
 
-      const afterE = await resolveBom(adapter, context({ asOfDate: day('2026-08-01') }), { parentRevisionId: parentRevision.id });
+      const afterE = await resolveBom(adapter, context({ asOfDate: day('2026-08-01') }), {
+        parentRevisionId: parentRevision.id
+      });
       expect(
         afterE.manifest.childRevisions.find(entry => entry.occurrenceId === occurrenceImprecise.id)?.revisionId
       ).toBe(revisionE.id);

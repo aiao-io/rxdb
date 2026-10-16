@@ -129,7 +129,7 @@ for (const backend of BACKENDS) {
       let groupId = '';
       let memberA!: BomLineOccurrence;
       let memberB!: BomLineOccurrence;
-      const header = await setupReleasedHeader(parent, child, async (draftHeader) => {
+      const header = await setupReleasedHeader(parent, child, async draftHeader => {
         const group = new BomSubstituteGroup();
         group.headerId = draftHeader.id;
         group.code = `G-${Math.random().toString(36).slice(2, 6)}`;
@@ -156,7 +156,7 @@ for (const backend of BACKENDS) {
       const child = await makeItem('s24-c');
       let groupId = '';
       let memberA!: BomLineOccurrence;
-      const header = await setupReleasedHeader(parent, child, async (draftHeader) => {
+      const header = await setupReleasedHeader(parent, child, async draftHeader => {
         const group = new BomSubstituteGroup();
         group.headerId = draftHeader.id;
         group.code = `G-${Math.random().toString(36).slice(2, 6)}`;
@@ -196,7 +196,7 @@ for (const backend of BACKENDS) {
       let groupId = '';
       let memberB!: BomLineOccurrence;
       let memberC!: BomLineOccurrence;
-      const header = await setupReleasedHeader(parent, child, async (draftHeader) => {
+      const header = await setupReleasedHeader(parent, child, async draftHeader => {
         const group = new BomSubstituteGroup();
         group.headerId = draftHeader.id;
         group.code = `G-${Math.random().toString(36).slice(2, 6)}`;
@@ -237,7 +237,7 @@ for (const backend of BACKENDS) {
       let memberA!: BomLineOccurrence;
       let memberB!: BomLineOccurrence;
       let memberC!: BomLineOccurrence;
-      const header = await setupReleasedHeader(parent, child, async (draftHeader) => {
+      const header = await setupReleasedHeader(parent, child, async draftHeader => {
         const group = new BomSubstituteGroup();
         group.headerId = draftHeader.id;
         group.code = `G-${Math.random().toString(36).slice(2, 6)}`;
@@ -267,7 +267,7 @@ for (const backend of BACKENDS) {
       let groupId = '';
       void groupId;
       let memberA!: BomLineOccurrence;
-      await setupReleasedHeader(parent, child, async (draftHeader) => {
+      await setupReleasedHeader(parent, child, async draftHeader => {
         const group = new BomSubstituteGroup();
         group.headerId = draftHeader.id;
         group.code = `G-${Math.random().toString(36).slice(2, 6)}`;
@@ -292,7 +292,7 @@ for (const backend of BACKENDS) {
       let memberA!: BomLineOccurrence;
       let memberB!: BomLineOccurrence;
       void memberB;
-      const header = await setupReleasedHeader(parent, child, async (draftHeader) => {
+      const header = await setupReleasedHeader(parent, child, async draftHeader => {
         const group = new BomSubstituteGroup();
         group.headerId = draftHeader.id;
         group.code = `G-${Math.random().toString(36).slice(2, 6)}`;

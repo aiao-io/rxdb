@@ -15,8 +15,8 @@ import {
   getEntityMetadata,
   MigrationType,
   PropertyType,
-  RxDBConstraintDriftError,
   RxDBCheckViolationError,
+  RxDBConstraintDriftError,
   RxDBExclusionViolationError,
   SwitchVersionActions
 } from '@aiao/rxdb';
@@ -35,7 +35,9 @@ import type { AdapterFactory } from './adapter-factory.js';
     { name: 'unitFrom', type: PropertyType.integer, nullable: true },
     { name: 'unitTo', type: PropertyType.integer, nullable: true }
   ],
-  checks: [{ name: 'unit_range', rule: { combinator: 'and', rules: [{ field: 'unitFrom', operator: '<=', ref: 'unitTo' }] } }]
+  checks: [
+    { name: 'unit_range', rule: { combinator: 'and', rules: [{ field: 'unitFrom', operator: '<=', ref: 'unitTo' }] } }
+  ]
 })
 class CkItem extends EntityBase {
   qty!: string | null;
@@ -370,7 +372,10 @@ export function constraintSuite(factory: AdapterFactory) {
         // 「升级声明」后重连同一库：漂移检查必须在 init() 报错
         const newAdapter = await factory
           .createAdapter<RxDBAdapterSqliteBase>({ entities: [CkDriftNew], dbName: driftDbName, persistent: true })
-          .then(() => null, (cause: unknown) => cause);
+          .then(
+            () => null,
+            (cause: unknown) => cause
+          );
         expect(newAdapter).toBeInstanceOf(RxDBConstraintDriftError);
         const drift = newAdapter as RxDBConstraintDriftError;
         const expected = expectedStorageConstraintObjects(getEntityMetadata(CkDriftNew)).constraints;

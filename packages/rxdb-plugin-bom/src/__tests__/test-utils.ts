@@ -6,8 +6,8 @@ import { EntityType, RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
 import { BOM_ENTITIES, BomItem } from '../entities.js';
-import { loadHistory } from '../resolve/history-loader.js';
 import { rxDBPluginBom } from '../plugin.js';
+import { loadHistory } from '../resolve/history-loader.js';
 import { asyncWasmPath } from './wa-sqlite-wasm.js';
 
 export type BomTestBackend = 'wa-sqlite' | 'pglite';
@@ -22,9 +22,7 @@ export const createBomTestAdapter = async (
 ): Promise<BomTestAdapter> => {
   // 固定 dbName 用于「两个连接同一份存储」的快照一致性场景；persistent 走 IDBBatchAtomicVFS
   // （按名共享），memory 走 MemoryAsyncVFS（按实例独立）
-  const dbName =
-    options.dbName ??
-    `bom-test-${backend}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const dbName = options.dbName ?? `bom-test-${backend}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const rxdb = new RxDB({
     dbName,
     entities: [...entities],
@@ -94,7 +92,9 @@ export const buildQuantityFixture = async (
   options: { bomType?: 'ebom' | 'mbom' | 'sales'; orgId?: string; asOf?: string } = {}
 ): Promise<void> => {
   const day = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
-  const allItems = [...new Set(headers.flatMap(header => [header.item, ...header.occurrences.map(occurrence => occurrence.child)]))];
+  const allItems = [
+    ...new Set(headers.flatMap(header => [header.item, ...header.occurrences.map(occurrence => occurrence.child)]))
+  ];
   await loadHistory(adapter, {
     batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
     revisions: allItems.map(item => ({
@@ -116,7 +116,7 @@ export const buildQuantityFixture = async (
         occurrences: [
           {
             childItemId: occurrence.child.id,
-            qty: occurrence.qtyFormula ? null : occurrence.qty ?? '1',
+            qty: occurrence.qtyFormula ? null : (occurrence.qty ?? '1'),
             qtyFormula: occurrence.qtyFormula ?? null,
             formulaGrammarVersion: occurrence.qtyFormula ? '1' : null,
             isFixedQty: occurrence.isFixedQty ?? false,

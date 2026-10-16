@@ -50,7 +50,10 @@ export const checkPgliteConstraintDrift = async (
       executor.query(PG_CONSTRAINT_SQL, [schema]) as Promise<DriftQueryShape>,
       executor.query(PG_UQ_INDEX_SQL, [schema]) as Promise<DriftQueryShape>
     ])) {
-      const nameIndex = result.columns.indexOf('conname') !== -1 ? result.columns.indexOf('conname') : result.columns.indexOf('indexname');
+      const nameIndex =
+        result.columns.indexOf('conname') !== -1 ?
+          result.columns.indexOf('conname')
+        : result.columns.indexOf('indexname');
       if (nameIndex === -1) continue;
       for (const row of result.rows) {
         actual.add(String(row[nameIndex]));

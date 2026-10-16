@@ -34,13 +34,15 @@ const overlapFactor = (
 };
 
 /** 单条排他声明的冲突谓词：全部相等列 `=` 且全部区间维相交。 */
-const conflictPredicate = (metadata: EntityMetadata, exclusion: EntityExclusionMetadata, prefix: 'existing' | 'NEW'): string => {
+const conflictPredicate = (
+  metadata: EntityMetadata,
+  exclusion: EntityExclusionMetadata,
+  prefix: 'existing' | 'NEW'
+): string => {
   const other = prefix === 'existing' ? 'NEW' : 'existing';
   const quoted = (row: string, field: string): string =>
     `${row}.${quote_sql_identifier(getEntityColumnName(metadata, field) as string)}`;
-  const equals = exclusion.equal
-    .map(field => `${quoted(prefix, field)} = ${quoted(other, field)}`)
-    .join(' AND ');
+  const equals = exclusion.equal.map(field => `${quoted(prefix, field)} = ${quoted(other, field)}`).join(' AND ');
   const ranges = exclusion.ranges
     .map(range =>
       overlapFactor(

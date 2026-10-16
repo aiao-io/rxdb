@@ -17,8 +17,8 @@ import {
   BomRoutingOperation,
   BomWorkCenter
 } from '../entities.js';
-import { loadHistory } from '../resolve/history-loader.js';
 import { explodeBom } from '../quantity/explosion.js';
+import { loadHistory } from '../resolve/history-loader.js';
 import { BomDecimalFormatError, BomPublishValidationError } from '../types.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestAdapter, type BomTestBackend } from './test-utils.js';
 
@@ -46,8 +46,7 @@ const setup = async (adapter: BomTestAdapter, parent: BomItem): Promise<BomHeade
   });
   const table = adapter.name === 'wa-sqlite' ? `"bom$item_revision"` : `"bom"."item_revision"`;
   const rows = (await adapter.rawQuery(`SELECT "id" FROM ${table} WHERE "itemId" = '${parent.id}'`)) as unknown as
-    | { results: { rows: unknown[][] }[] }
-    | { rows: unknown[][] };
+    { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
   const shape = 'results' in rows ? rows.results[0] : rows;
   const header = new BomHeader();
   header.parentRevisionId = String(shape.rows[0][0]);
@@ -124,7 +123,9 @@ for (const backend of BACKENDS) {
           `SELECT "operationSeq", "workCenterId" FROM "bom$routing_operation" WHERE "routingId" = '${routing.id}' ORDER BY "operationSeq"`
         : `SELECT "operationSeq", "workCenterId" FROM "bom"."routing_operation" WHERE "routingId" = '${routing.id}' ORDER BY "operationSeq"`
       );
-      const shape = ('results' in (result as unknown as object) ? (result as unknown as { results: { rows: unknown[][] }[] }).results[0] : result) as unknown as { rows: unknown[][] };
+      const shape = ('results' in (result as unknown as object) ?
+        (result as unknown as { results: { rows: unknown[][] }[] }).results[0]
+      : result) as unknown as { rows: unknown[][] };
       expect(shape.rows.map(row => Number(row[0]))).toEqual([10, 20, 30]);
       expect(shape.rows.every(row => String(row[1]) === center.id)).toBe(true);
     });
@@ -301,8 +302,14 @@ for (const backend of BACKENDS) {
       }
       header.state = 'released';
       await header.save();
-      const result = await explodeBom(adapter, CONTEXT, { parentRevisionId: header.parentRevisionId }, { plannedQty: { value: '1', uom: 'pcs' } });
-      const qtyOf = (child: BomItem): string => result.requirementLines.find(line => line.itemId === child.id)?.qty ?? '';
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentRevisionId: header.parentRevisionId },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
+      const qtyOf = (child: BomItem): string =>
+        result.requirementLines.find(line => line.itemId === child.id)?.qty ?? '';
       // 10 投料经 20 的损耗 ×1.03；20 投料经自身 ×1.03；30 投料不经过 20
       expect(qtyOf(children[0])).toBe('103');
       expect(qtyOf(children[1])).toBe('103');
@@ -349,11 +356,19 @@ for (const backend of BACKENDS) {
       await occurrence.save();
       header.state = 'released';
       await header.save();
-      const result = await explodeBom(adapter, CONTEXT, { parentRevisionId: header.parentRevisionId }, { plannedQty: { value: '100', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentRevisionId: header.parentRevisionId },
+        { plannedQty: { value: '100', uom: 'pcs' } }
+      );
       const requirement = result.requirementLines.find(line => line.itemId === child.id);
       expect(requirement?.qty).toBe('221');
       // 第 5 步中间值：G'' = 216.4948453608247422680412371134021 × 1.02
-      expect(requirement?.steps.operationScrapped).toEqual({ value: '220.8247422680412371134020618556701', uom: 'pcs' });
+      expect(requirement?.steps.operationScrapped).toEqual({
+        value: '220.8247422680412371134020618556701',
+        uom: 'pcs'
+      });
     });
 
     it('US-520 AC#5 行挂不属于头路线的 operation_seq：保存即拒', async () => {
@@ -402,7 +417,10 @@ for (const backend of BACKENDS) {
       routing.orgId = 'org-x';
       routing.validFrom = day('2020-01-01');
       await routing.save();
-      for (const [seq, scrap] of [[10, '0.02'], [30, '0']] as const) {
+      for (const [seq, scrap] of [
+        [10, '0.02'],
+        [30, '0']
+      ] as const) {
         const operation = new BomRoutingOperation();
         operation.routingId = routing.id;
         operation.operationSeq = seq;
@@ -415,7 +433,10 @@ for (const backend of BACKENDS) {
       await header.save();
       const child = await makeItem('rt-8x-child', 'pcs', 1);
       const occurrence = await addOccurrence(header, child, { qty: '100' });
-      for (const [seq, ratio] of [[10, '0.6'], [30, '0.4']] as const) {
+      for (const [seq, ratio] of [
+        [10, '0.6'],
+        [30, '0.4']
+      ] as const) {
         const split = new BomLineOperationSplit();
         split.occurrenceId = occurrence.id;
         split.operationSeq = seq;
@@ -424,7 +445,12 @@ for (const backend of BACKENDS) {
       }
       header.state = 'released';
       await header.save();
-      const result = await explodeBom(adapter, CONTEXT, { parentRevisionId: header.parentRevisionId }, { plannedQty: { value: '1', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentRevisionId: header.parentRevisionId },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
       // 60×1.02=61.2 + 40 = 101.2（库存小数位 1 不取整）
       expect(result.requirementLines.find(line => line.itemId === child.id)?.qty).toBe('101.2');
     });
@@ -457,8 +483,12 @@ describe('US-524 阶段 B/C 费率与工时', () => {
   for (const backend of BACKENDS) {
     describe(`[${backend}]`, () => {
       let adapter: BomTestAdapter;
-      beforeAll(async () => { adapter = await createBomTestAdapter(backend); });
-      afterAll(async () => { await disposeBomTestAdapter(adapter).catch(() => undefined); });
+      beforeAll(async () => {
+        adapter = await createBomTestAdapter(backend);
+      });
+      afterAll(async () => {
+        await disposeBomTestAdapter(adapter).catch(() => undefined);
+      });
 
       it('AC#3 同一 (work_center, activity_type) 两段费率并存；同日起始的第二段拒绝', async () => {
         const { BomActivityRate, BomActivityType, BomWorkCenter } = await import('../entities.js');

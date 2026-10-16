@@ -8,10 +8,7 @@
 
 /** BOM 插件错误基类。 */
 export class BomError extends Error {
-  constructor(
-    message: string,
-    name: string = 'BomError'
-  ) {
+  constructor(message: string, name: string = 'BomError') {
     super(`[rxdb-plugin-bom] ${message}`);
     this.name = name;
     Object.setPrototypeOf(this, new.target.prototype);
@@ -114,7 +111,10 @@ export class BomSyncUnsupportedError extends BomError {
     /** 实体名。 */
     readonly entity: string
   ) {
-    super(`实体 ${entity} 声明了同步配置：BOM 实体首轮不参与同步（多写入端的环约束由 US-509 的本地触发器保证）`, 'BomSyncUnsupportedError');
+    super(
+      `实体 ${entity} 声明了同步配置：BOM 实体首轮不参与同步（多写入端的环约束由 US-509 的本地触发器保证）`,
+      'BomSyncUnsupportedError'
+    );
   }
 }
 

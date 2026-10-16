@@ -11,6 +11,7 @@
  * 触顶即停止并标 {@link ExpansionResult.truncated}（附触顶项）。
  */
 
+import { BomTruncationError, type TruncationReason } from '../types.js';
 import type { BomLocalAdapter } from './bom-adapter.js';
 import {
   bomSqlDialectFor,
@@ -19,9 +20,8 @@ import {
   buildParentsOfItemsSql,
   type BomSqlDialect
 } from './bom-sql.js';
-import { assertContext, columnIndexOf, normalizeDate, type BomQueryExecutor, type ResolveTarget } from './resolver.js';
 import { BomResolutionError, type ResolutionContext, type ResolutionResult } from './resolution.js';
-import { BomTruncationError, type TruncationReason } from '../types.js';
+import { assertContext, columnIndexOf, normalizeDate, type BomQueryExecutor, type ResolveTarget } from './resolver.js';
 
 /** 展开 / 反查预算（US-510 AC#1/#10）：深度、展开数、返回路径数，任一触顶即截断。 */
 export interface ExpansionBudgets {
@@ -177,7 +177,8 @@ const fetchChildren = async (
           row[columnIndexOf(result.columns, 'resolvedChildRevisionId')] === null ?
             null
           : String(row[columnIndexOf(result.columns, 'resolvedChildRevisionId')]),
-        qty: row[columnIndexOf(result.columns, 'qty')] === null ? null : String(row[columnIndexOf(result.columns, 'qty')]),
+        qty:
+          row[columnIndexOf(result.columns, 'qty')] === null ? null : String(row[columnIndexOf(result.columns, 'qty')]),
         effectiveFrom: normalizeDate(row[columnIndexOf(result.columns, 'effectiveFrom')]) as Date,
         effectiveTo: normalizeDate(row[columnIndexOf(result.columns, 'effectiveTo')])
       });
@@ -433,6 +434,9 @@ export const assertCompleteResolution = (result: ResolutionResult | ExpansionRes
     throw new BomTruncationError(result.truncated.reason);
   }
   if ('manifest' in result && result.manifest.unresolved.length > 0) {
-    throw new BomResolutionError('alternativeNo', '存在未裁决的备选：先选 alternativeNo 再交给数量 / 成本 / 导出消费方');
+    throw new BomResolutionError(
+      'alternativeNo',
+      '存在未裁决的备选：先选 alternativeNo 再交给数量 / 成本 / 导出消费方'
+    );
   }
 };

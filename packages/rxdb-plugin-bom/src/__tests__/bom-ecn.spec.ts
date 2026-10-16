@@ -39,8 +39,7 @@ const setupReleasedHeader = async (
 ): Promise<{ header: BomHeader; line: BomLine; occurrence: BomLineOccurrence }> => {
   const table = adapter.name === 'wa-sqlite' ? `"bom$item_revision"` : `"bom"."item_revision"`;
   const rows = (await adapter.rawQuery(`SELECT "id" FROM ${table} WHERE "itemId" = '${parent.id}'`)) as unknown as
-    | { results: { rows: unknown[][] }[] }
-    | { rows: unknown[][] };
+    { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
   const shape = 'results' in rows ? rows.results[0] : rows;
   const header = new BomHeader();
   header.parentRevisionId = String(shape.rows[0][0]);
@@ -148,9 +147,9 @@ describe('US-515 ECN 变更管理', () => {
         await adapter.rawQuery(
           `INSERT INTO ${table} ("id", "lineId", "childItemId", "qty", "uom", "effectiveFrom", "ecnInId", "createdAt", "updatedAt") VALUES ('${occurrenceId}', '${newLineId}', '${child.id}', '2', 'pcs', '2026-11-01T00:00:00.000Z', '${ecn.id}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
         );
-        const read = (await adapter.rawQuery(`SELECT "effectiveFrom" FROM ${table} WHERE "id" = '${occurrenceId}'`)) as unknown as
-          | { results: { rows: unknown[][] }[] }
-          | { rows: unknown[][] };
+        const read = (await adapter.rawQuery(
+          `SELECT "effectiveFrom" FROM ${table} WHERE "id" = '${occurrenceId}'`
+        )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
         const rows = 'results' in read ? read.results[0].rows : read.rows;
         // PGlite 返回 Date 对象、wa-sqlite 返回 ISO 文本：统一按日期值断言
         expect(new Date(String(rows[0][0])).toISOString().startsWith('2026-11-01')).toBe(true);
@@ -167,7 +166,9 @@ describe('US-515 ECN 变更管理', () => {
         // 已发布 ECN 挂行：INSERT 拒绝（矩阵只放行 draft）
         const ecn = await makeEcn('e14', day('2026-11-01'));
         const ecnTable = backend === 'wa-sqlite' ? '"bom$ecn"' : '"bom"."ecn"';
-        await adapter.rawQuery(`UPDATE ${ecnTable} SET "state" = 'released', "effectiveDate" = '2026-12-01T00:00:00.000Z' WHERE "id" = '${ecn.id}'`);
+        await adapter.rawQuery(
+          `UPDATE ${ecnTable} SET "state" = 'released', "effectiveDate" = '2026-12-01T00:00:00.000Z' WHERE "id" = '${ecn.id}'`
+        );
         await expect(
           adapter.rawQuery(
             `INSERT INTO ${table} ("id", "lineId", "childItemId", "qty", "uom", "effectiveFrom", "ecnInId", "createdAt", "updatedAt") VALUES ('${crypto.randomUUID()}', '${line.id}', '${child.id}', '3', 'pcs', '2026-12-01T00:00:00.000Z', '${ecn.id}', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
@@ -315,7 +316,7 @@ describe('US-515 ECN 变更管理', () => {
         const child = await makeItem(adapter, 'e22-c');
         // 替代组在草稿期建好（已发布头下插不挂 ECN 的组本身就是协议外形态）；配一个 primary 成员过发布校验
         let groupId = '';
-        const { header, occurrence } = await setupReleasedHeader(adapter, parent, child, '1', async (draftHeader) => {
+        const { header, occurrence } = await setupReleasedHeader(adapter, parent, child, '1', async draftHeader => {
           const groupTable = backend === 'wa-sqlite' ? '"bom$bom_substitute_group"' : '"bom"."bom_substitute_group"';
           groupId = crypto.randomUUID();
           await adapter.rawQuery(
@@ -376,7 +377,8 @@ describe('US-515 ECN 变更管理', () => {
           adapter.rawQuery(`UPDATE ${headerTable} SET "baseQty" = '2' WHERE "id" = '${header.id}'`)
         ).rejects.toThrow(/bom_write_protocol/);
         // 给非 ECN 发生项加工序分摊 → 拒
-        const splitTable = backend === 'wa-sqlite' ? '"bom$bom_line_operation_split"' : '"bom"."bom_line_operation_split"';
+        const splitTable =
+          backend === 'wa-sqlite' ? '"bom$bom_line_operation_split"' : '"bom"."bom_line_operation_split"';
         await expect(
           adapter.rawQuery(
             `INSERT INTO ${splitTable} ("id", "occurrenceId", "operationSeq", "ratio", "createdAt", "updatedAt") VALUES ('${crypto.randomUUID()}', '${occurrence.id}', 10, '0.5', '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z')`
@@ -389,7 +391,7 @@ describe('US-515 ECN 变更管理', () => {
         const child = await makeItem(adapter, 'e507-c');
         // managed 发生项与位号在草稿期建好再发布（新行，避免与基础行区间排他冲突）
         let designatorId = '';
-        await setupReleasedHeader(adapter, parent, child, '1', async (draftHeader) => {
+        await setupReleasedHeader(adapter, parent, child, '1', async draftHeader => {
           const managedLine = new BomLine();
           managedLine.headerId = draftHeader.id;
           managedLine.lineNo = 20 + Math.floor(Math.random() * 1000);
@@ -410,13 +412,14 @@ describe('US-515 ECN 变更管理', () => {
         });
         // 已发布头下删位号（发生项无 ECN）→ 拒
         const designatorTable = backend === 'wa-sqlite' ? '"bom$bom_line_designator"' : '"bom"."bom_line_designator"';
-        await expect(
-          adapter.rawQuery(`DELETE FROM ${designatorTable} WHERE "id" = '${designatorId}'`)
-        ).rejects.toThrow(/bom_write_protocol/);
+        await expect(adapter.rawQuery(`DELETE FROM ${designatorTable} WHERE "id" = '${designatorId}'`)).rejects.toThrow(
+          /bom_write_protocol/
+        );
       });
 
       /** 建「替换链」：已发布头的行 o1 [2026-01-01, +∞)，ECN 截止它并引入 o2。 */
-      const makeReplacement = async (        prefix: string,
+      const makeReplacement = async (
+        prefix: string,
         ecnDate: string,
         o2Qty = '2'
       ): Promise<{ header: BomHeader; line: BomLine; o1: BomLineOccurrence; o2: BomLineOccurrence; ecn: BomEcn }> => {
@@ -456,11 +459,14 @@ describe('US-515 ECN 变更管理', () => {
         await ecn.save();
         const table = backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"';
         const read = async (id: string): Promise<{ from: string; to: string | null }> => {
-          const rows = (await adapter.rawQuery(`SELECT "effectiveFrom", "effectiveTo" FROM ${table} WHERE "id" = '${id}'`)) as unknown as
-            | { results: { rows: unknown[][] }[] }
-            | { rows: unknown[][] };
+          const rows = (await adapter.rawQuery(
+            `SELECT "effectiveFrom", "effectiveTo" FROM ${table} WHERE "id" = '${id}'`
+          )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
           const shape = 'results' in rows ? rows.results[0].rows : rows.rows;
-          return { from: new Date(String(shape[0][0])).toISOString(), to: shape[0][1] === null ? null : new Date(String(shape[0][1])).toISOString() };
+          return {
+            from: new Date(String(shape[0][0])).toISOString(),
+            to: shape[0][1] === null ? null : new Date(String(shape[0][1])).toISOString()
+          };
         };
         expect((await read(o1.id)).to).toBe('2026-11-15T00:00:00.000Z');
         expect((await read(o2.id)).from).toBe('2026-11-15T00:00:00.000Z');
@@ -490,11 +496,14 @@ describe('US-515 ECN 变更管理', () => {
         ecnA.effectiveDate = day('2026-11-15');
         await ecnA.save();
         const table = backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"';
-        const rows = (await adapter.rawQuery(`SELECT "effectiveFrom", "effectiveTo" FROM ${table} ORDER BY "effectiveFrom"`)) as unknown as
-          | { results: { rows: unknown[][] }[] }
-          | { rows: unknown[][] };
+        const rows = (await adapter.rawQuery(
+          `SELECT "effectiveFrom", "effectiveTo" FROM ${table} ORDER BY "effectiveFrom"`
+        )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
         const shape = 'results' in rows ? rows.results[0].rows : rows.rows;
-        const intervals = shape.map((row: unknown[]) => [new Date(String(row[0])).toISOString(), row[1] === null ? null : new Date(String(row[1])).toISOString()]);
+        const intervals = shape.map((row: unknown[]) => [
+          new Date(String(row[0])).toISOString(),
+          row[1] === null ? null : new Date(String(row[1])).toISOString()
+        ]);
         expect(intervals).toContainEqual(['2026-01-01T00:00:00.000Z', '2026-11-15T00:00:00.000Z']);
         expect(intervals).toContainEqual(['2026-11-15T00:00:00.000Z', '2026-12-01T00:00:00.000Z']);
         expect(intervals).toContainEqual(['2026-12-01T00:00:00.000Z', null]);
@@ -508,9 +517,9 @@ describe('US-515 ECN 变更管理', () => {
         await ecn.save();
         // o2 已删除；o1 截止标记清、区间恢复 +∞
         const table = backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"';
-        const rows = (await adapter.rawQuery(`SELECT "id", "effectiveFrom", "effectiveTo", "ecnOutId" FROM ${table} WHERE "lineId" = '${o1.lineId}' ORDER BY "effectiveFrom"`)) as unknown as
-          | { results: { rows: unknown[][] }[] }
-          | { rows: unknown[][] };
+        const rows = (await adapter.rawQuery(
+          `SELECT "id", "effectiveFrom", "effectiveTo", "ecnOutId" FROM ${table} WHERE "lineId" = '${o1.lineId}' ORDER BY "effectiveFrom"`
+        )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
         const shape = 'results' in rows ? rows.results[0].rows : rows.rows;
         expect(shape).toHaveLength(1);
         expect(String(shape[0][0])).toBe(o1.id);
@@ -598,9 +607,9 @@ describe('US-515 ECN 变更管理', () => {
         // draft → cancelled（撤回）：行 60 与发生项全部删除，不留空逻辑行
         ecnE2.state = 'cancelled';
         await ecnE2.save();
-        const rows = (await adapter.rawQuery(`SELECT COUNT(*) FROM ${lineTable} WHERE "id" = '${line60Id}'`)) as unknown as
-          | { results: { rows: unknown[][] }[] }
-          | { rows: unknown[][] };
+        const rows = (await adapter.rawQuery(
+          `SELECT COUNT(*) FROM ${lineTable} WHERE "id" = '${line60Id}'`
+        )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
         const shape = 'results' in rows ? rows.results[0].rows : rows.rows;
         expect(Number(shape[0][0])).toBe(0);
         // 行号 60 释放后可由另一张 draft ECN 复用
@@ -632,9 +641,9 @@ describe('US-515 ECN 变更管理', () => {
         // ③ 取消 E1（发布后仍未生效）→ 拒点名 E2；E2 的发生项不受损
         e1.state = 'cancelled';
         await expect(e1.save()).rejects.toThrow(/引用|AC#26/);
-        const rows = (await adapter.rawQuery(`SELECT COUNT(*) FROM ${occurrenceTable} WHERE "id" = '${occId}'`)) as unknown as
-          | { results: { rows: unknown[][] }[] }
-          | { rows: unknown[][] };
+        const rows = (await adapter.rawQuery(
+          `SELECT COUNT(*) FROM ${occurrenceTable} WHERE "id" = '${occId}'`
+        )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
         const shape = 'results' in rows ? rows.results[0].rows : rows.rows;
         expect(Number(shape[0][0])).toBe(1);
       });

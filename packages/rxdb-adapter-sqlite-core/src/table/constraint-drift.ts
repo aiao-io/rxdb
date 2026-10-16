@@ -7,12 +7,7 @@
  * 不一致抛 {@link RxDBConstraintDriftError}，列出缺失与多余的名字，不自动补建。
  */
 
-import {
-  EntityType,
-  expectedStorageConstraintObjects,
-  getEntityMetadata,
-  RxDBConstraintDriftError
-} from '@aiao/rxdb';
+import { EntityType, expectedStorageConstraintObjects, getEntityMetadata, RxDBConstraintDriftError } from '@aiao/rxdb';
 
 /** 漂移检查要的最小执行面：bootstrapTransaction 的 executor 与单测替身都满足。 */
 export interface SqliteDriftQueryExecutor {

@@ -5,8 +5,8 @@
  * 发布转移校验位号数 = qty（错误给两个数）、非 managed 行不校验、已发布头位号增删改与改指拒绝。
  */
 
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { firstValueFrom } from 'rxjs';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { BomHeader, BomItem, BomLine, BomLineDesignator, BomLineOccurrence } from '../entities.js';
 import { explodeBom } from '../quantity/explosion.js';
 import { loadHistory } from '../resolve/history-loader.js';
@@ -36,9 +36,13 @@ const setup = async (
     headers: []
   });
   const revisionTable = adapter.name === 'wa-sqlite' ? `"bom$item_revision"` : `"bom"."item_revision"`;
-  const rows = (await adapter.rawQuery(`SELECT "id" FROM ${revisionTable} WHERE "itemId" = '${item.id}'`)) as unknown as {
-    results: { rows: unknown[][] }[];
-  } | { rows: unknown[][] };
+  const rows = (await adapter.rawQuery(
+    `SELECT "id" FROM ${revisionTable} WHERE "itemId" = '${item.id}'`
+  )) as unknown as
+    | {
+        results: { rows: unknown[][] }[];
+      }
+    | { rows: unknown[][] };
   const shape = 'results' in rows ? rows.results[0] : rows;
   const header = new BomHeader();
   header.parentRevisionId = String(shape.rows[0][0]);
@@ -85,13 +89,20 @@ for (const backend of BACKENDS) {
         await addDesignator(occurrence, `R${index}`);
       }
       const designators = await firstValueFrom(
-        BomLineDesignator.find({ where: { combinator: 'and', rules: [{ field: 'occurrenceId', operator: '=', value: occurrence.id }] } })
+        BomLineDesignator.find({
+          where: { combinator: 'and', rules: [{ field: 'occurrenceId', operator: '=', value: occurrence.id }] }
+        })
       );
       expect(designators.length).toBe(100);
       header.state = 'released';
       await header.save();
       // 需求量取 qty（100），位号数相等但语义上不经位号推导
-      const result = await explodeBom(adapter, CONTEXT, { parentRevisionId: header.parentRevisionId }, { plannedQty: { value: '1', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentRevisionId: header.parentRevisionId },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
       const line = result.requirementLines.find(entry => entry.itemId === child.id);
       expect(line?.qty).toBe('100');
     });
@@ -103,7 +114,9 @@ for (const backend of BACKENDS) {
       }
       // 草稿下逐条录入允许（同 describe 共享库，按 occurrenceId 过滤）
       const stored = await firstValueFrom(
-        BomLineDesignator.find({ where: { combinator: 'and', rules: [{ field: 'occurrenceId', operator: '=', value: occurrence.id }] } })
+        BomLineDesignator.find({
+          where: { combinator: 'and', rules: [{ field: 'occurrenceId', operator: '=', value: occurrence.id }] }
+        })
       );
       expect(stored.length).toBe(99);
       header.state = 'released';
@@ -133,7 +146,9 @@ for (const backend of BACKENDS) {
       await header.save();
       // 删除
       const existing = await firstValueFrom(
-        BomLineDesignator.find({ where: { combinator: 'and', rules: [{ field: 'occurrenceId', operator: '=', value: occurrence.id }] } })
+        BomLineDesignator.find({
+          where: { combinator: 'and', rules: [{ field: 'occurrenceId', operator: '=', value: occurrence.id }] }
+        })
       );
       const removed = await existing[0].remove().then(
         () => null,
@@ -166,7 +181,9 @@ for (const backend of BACKENDS) {
       expect(duplicate).not.toBeNull();
       await occurrence.remove();
       const remaining = await firstValueFrom(
-        BomLineDesignator.find({ where: { combinator: 'and', rules: [{ field: 'occurrenceId', operator: '=', value: occurrence.id }] } })
+        BomLineDesignator.find({
+          where: { combinator: 'and', rules: [{ field: 'occurrenceId', operator: '=', value: occurrence.id }] }
+        })
       );
       expect(remaining.length).toBe(0);
     });

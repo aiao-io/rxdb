@@ -77,7 +77,9 @@ for (const backend of BACKENDS) {
         headers: []
       });
       const apiError = await settled(
-        adapter.rawQuery(`UPDATE ${tableRef(backend, 'item_revision')} SET "state" = 'released' WHERE "id" = '${revisionId}'`)
+        adapter.rawQuery(
+          `UPDATE ${tableRef(backend, 'item_revision')} SET "state" = 'released' WHERE "id" = '${revisionId}'`
+        )
       );
       expect(apiError.ok).toBe(false);
     });
@@ -115,9 +117,7 @@ for (const backend of BACKENDS) {
             lines: [
               {
                 lineNo: 10,
-                occurrences: [
-                  { childItemId: child.id, qty: '2', effectiveFrom: day('2020-01-01') }
-                ]
+                occurrences: [{ childItemId: child.id, qty: '2', effectiveFrom: day('2020-01-01') }]
               }
             ]
           }
@@ -126,14 +126,18 @@ for (const backend of BACKENDS) {
 
       // 修订 / 头带批次号、已发布
       const rows = readRows(
-        await adapter.rawQuery(`SELECT "historyBatchNo", "state" FROM ${tableRef(backend, 'item_revision')} WHERE "itemId" = '${item.id}'`)
+        await adapter.rawQuery(
+          `SELECT "historyBatchNo", "state" FROM ${tableRef(backend, 'item_revision')} WHERE "itemId" = '${item.id}'`
+        )
       );
       expect(rows.length).toBe(1);
       expect(rows[0][0]).toBe(batchNo);
       expect(rows[0][1]).toBe('released');
 
       const batchRows = readRows(
-        await adapter.rawQuery(`SELECT "batchNo", "state" FROM ${tableRef(backend, 'bom_history_batch')} WHERE "batchNo" = '${batchNo}'`)
+        await adapter.rawQuery(
+          `SELECT "batchNo", "state" FROM ${tableRef(backend, 'bom_history_batch')} WHERE "batchNo" = '${batchNo}'`
+        )
       );
       expect(batchRows.length).toBe(1);
       expect(batchRows[0][1]).toBe('closed');
@@ -166,14 +170,18 @@ for (const backend of BACKENDS) {
       );
       expect(insert.ok).toBe(true);
       const publish = await settled(
-        adapter.rawQuery(`UPDATE ${tableRef(backend, 'item_revision')} SET "state" = 'released' WHERE "id" = '${revisionId}'`)
+        adapter.rawQuery(
+          `UPDATE ${tableRef(backend, 'item_revision')} SET "state" = 'released' WHERE "id" = '${revisionId}'`
+        )
       );
       expect(publish.ok).toBe(false);
       expect(String((publish as { error: Error }).error.message)).toContain('追溯生效');
 
       // 批次行改写（非 open→closed）与删除 → 拒绝
       const badUpdate = await settled(
-        adapter.rawQuery(`UPDATE ${tableRef(backend, 'bom_history_batch')} SET "state" = 'open' WHERE "batchNo" = '${batchNo}'`)
+        adapter.rawQuery(
+          `UPDATE ${tableRef(backend, 'bom_history_batch')} SET "state" = 'open' WHERE "batchNo" = '${batchNo}'`
+        )
       );
       expect(badUpdate.ok).toBe(false);
       expect(String((badUpdate as { error: Error }).error.message)).toContain('rxdb:bom_write_protocol');
@@ -223,5 +231,6 @@ for (const backend of BACKENDS) {
       expect(second).toEqual(first);
       expect(first[0]?.[0]).toBe('deterministic-batch-001');
       await secondAdapter.rxdb.disconnectAll();
-    });  });
+    });
+  });
 }

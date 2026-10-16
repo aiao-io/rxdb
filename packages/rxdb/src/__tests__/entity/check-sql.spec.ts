@@ -82,7 +82,13 @@ describe('CHECK 规则编译', () => {
       {
         combinator: 'or',
         rules: [
-          { combinator: 'and', rules: [{ field: 'qty', operator: 'notNull' }, { field: 'qtyFormula', operator: 'null' }] },
+          {
+            combinator: 'and',
+            rules: [
+              { field: 'qty', operator: 'notNull' },
+              { field: 'qtyFormula', operator: 'null' }
+            ]
+          },
           { field: 'flag', operator: '=', value: true }
         ]
       },
@@ -93,13 +99,21 @@ describe('CHECK 规则编译', () => {
 
   it('in / between / null 全形态', () => {
     const metadata = mkMetadata();
-    expect(compileCheckRuleGroup({ combinator: 'and', rules: [{ field: 'qty', operator: 'in', values: ['1', '2'] }] }, metadata)).toBe(
-      `("qty" IN ('1', '2'))`
-    );
     expect(
-      compileCheckRuleGroup({ combinator: 'and', rules: [{ field: 'unitFrom', operator: 'between', low: 0, high: 100 }] }, metadata)
+      compileCheckRuleGroup(
+        { combinator: 'and', rules: [{ field: 'qty', operator: 'in', values: ['1', '2'] }] },
+        metadata
+      )
+    ).toBe(`("qty" IN ('1', '2'))`);
+    expect(
+      compileCheckRuleGroup(
+        { combinator: 'and', rules: [{ field: 'unitFrom', operator: 'between', low: 0, high: 100 }] },
+        metadata
+      )
     ).toBe('("unitFrom" BETWEEN 0 AND 100)');
-    expect(compileCheckRuleGroup({ combinator: 'and', rules: [{ field: 'qty', operator: 'null' }] }, metadata)).toBe('("qty" IS NULL)');
+    expect(compileCheckRuleGroup({ combinator: 'and', rules: [{ field: 'qty', operator: 'null' }] }, metadata)).toBe(
+      '("qty" IS NULL)'
+    );
   });
 
   it('compileCheckConstraint 产出完整名称与谓词', () => {

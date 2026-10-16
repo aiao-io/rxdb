@@ -17,26 +17,46 @@ const day = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
 
 /** 把 rawQuery 双形状归一为行列。 */
 const shapeRows = (result: unknown): { columns: string[]; rows: unknown[][] } => {
-  const shaped = result as { results?: { columns: string[]; rows: unknown[][] }[]; columns?: string[]; rows?: unknown[] };
+  const shaped = result as {
+    results?: { columns: string[]; rows: unknown[][] }[];
+    columns?: string[];
+    rows?: unknown[];
+  };
   if (Array.isArray(shaped.results)) return shaped.results[0];
   return { columns: shaped.columns ?? [], rows: (shaped.rows ?? []) as unknown[][] };
 };
 
 /** 全表 dump（按主键排序的规范文本，逐字节比对用）。 */
 const dumpTables = async (adapter: BomTestAdapter): Promise<string> => {
-  const tableRef = adapter.name === 'wa-sqlite' ? (name: string): string => `"bom$${name}"` : (name: string): string => `"bom"."${name}"`;
+  const tableRef =
+    adapter.name === 'wa-sqlite' ?
+      (name: string): string => `"bom$${name}"`
+    : (name: string): string => `"bom"."${name}"`;
   const parts: string[] = [];
-  for (const name of ['item', 'item_revision', 'bom_header', 'bom_line', 'bom_line_occurrence', 'bom_line_designator', 'bom_history_batch']) {
+  for (const name of [
+    'item',
+    'item_revision',
+    'bom_header',
+    'bom_line',
+    'bom_line_occurrence',
+    'bom_line_designator',
+    'bom_history_batch'
+  ]) {
     const result = shapeRows(await adapter.rawQuery(`SELECT * FROM ${tableRef(name)} ORDER BY "id"`));
     parts.push(`== ${name}`);
     // updatedAt / createdBy 是引擎在每次 update 时强制刷新的系统列，不参与确定性比对
-    const kept = result.columns.map((column, index) => ({ column, index }))
+    const kept = result.columns
+      .map((column, index) => ({ column, index }))
       .filter(entry => entry.column !== 'updatedAt' && entry.column !== 'createdBy');
     for (const row of result.rows) {
-      parts.push(kept.map(({ column, index }) => {
-        const value = row[index];
-        return `${column}=${value instanceof Date ? value.toISOString() : String(value)}`;
-      }).join('|'));
+      parts.push(
+        kept
+          .map(({ column, index }) => {
+            const value = row[index];
+            return `${column}=${value instanceof Date ? value.toISOString() : String(value)}`;
+          })
+          .join('|')
+      );
     }
   }
   return parts.join('\n');
@@ -69,13 +89,15 @@ for (const backend of BACKENDS) {
       const created = await loadOnce();
       try {
         const r10kId = goldenItemId('R10K');
-        const table = (name: string): string => created.name === 'wa-sqlite' ? `"bom$${name}"` : `"bom"."${name}"`;
-        const rows = shapeRows(await created.rawQuery(
-          `SELECT l."lineNo", occ."qty", (SELECT COUNT(*) FROM ${table('bom_line_designator')} d WHERE d."occurrenceId" = occ."id") AS "designatorCount"` +
-          ` FROM ${table('bom_line_occurrence')} occ` +
-          ` JOIN ${table('bom_line')} l ON l."id" = occ."lineId"` +
-          ` WHERE occ."childItemId" = '${r10kId}' ORDER BY l."lineNo"`
-        ));
+        const table = (name: string): string => (created.name === 'wa-sqlite' ? `"bom$${name}"` : `"bom"."${name}"`);
+        const rows = shapeRows(
+          await created.rawQuery(
+            `SELECT l."lineNo", occ."qty", (SELECT COUNT(*) FROM ${table('bom_line_designator')} d WHERE d."occurrenceId" = occ."id") AS "designatorCount"` +
+              ` FROM ${table('bom_line_occurrence')} occ` +
+              ` JOIN ${table('bom_line')} l ON l."id" = occ."lineId"` +
+              ` WHERE occ."childItemId" = '${r10kId}' ORDER BY l."lineNo"`
+          )
+        );
         // A 层三条（lineNo 20/30/40）+ B 层 COVER-ASSY 的 primary 行（lineNo 10，无位号）
         expect(rows.rows.length).toBe(4);
         const pcbaRows = rows.rows.filter(row => [20, 30, 40].includes(Number(row[0])));
@@ -94,7 +116,11 @@ for (const backend of BACKENDS) {
       try {
         const result = await explodeBom(
           created,
-          { bomType: SCOOTER_GOLDEN.context.bomType, orgId: SCOOTER_GOLDEN.context.orgId, asOfDate: day(SCOOTER_GOLDEN.context.asOfDate) },
+          {
+            bomType: SCOOTER_GOLDEN.context.bomType,
+            orgId: SCOOTER_GOLDEN.context.orgId,
+            asOfDate: day(SCOOTER_GOLDEN.context.asOfDate)
+          },
           { parentItemId: goldenItemId(SCOOTER_GOLDEN.rootKey) },
           { plannedQty: { value: SCOOTER_GOLDEN.plannedQty.value, uom: SCOOTER_GOLDEN.plannedQty.uom } }
         );
@@ -119,7 +145,9 @@ for (const backend of BACKENDS) {
         expect(result.penetrations.length).toBe(SCOOTER_GOLDEN.penetrations.length);
         const penetration = result.penetrations[0];
         const goldenPenetration = SCOOTER_GOLDEN.penetrations[0];
-        expect(penetration.path.map(id => id).join('>')).toBe(goldenPenetration.pathKey.map(goldenOccurrenceId).join('>'));
+        expect(penetration.path.map(id => id).join('>')).toBe(
+          goldenPenetration.pathKey.map(goldenOccurrenceId).join('>')
+        );
         expect(penetration.childItemId).toBe(goldenItemId(goldenPenetration.itemKey));
         expect(penetration.source).toBe(goldenPenetration.source);
         expect(penetration.converted).toEqual(goldenPenetration.converted);
@@ -135,7 +163,11 @@ for (const backend of BACKENDS) {
         // A 层对账在同库 B 层装载后仍成立（加层不扰动旧结构）
         const aResult = await explodeBom(
           created,
-          { bomType: SCOOTER_GOLDEN.context.bomType, orgId: SCOOTER_GOLDEN.context.orgId, asOfDate: day(SCOOTER_GOLDEN.context.asOfDate) },
+          {
+            bomType: SCOOTER_GOLDEN.context.bomType,
+            orgId: SCOOTER_GOLDEN.context.orgId,
+            asOfDate: day(SCOOTER_GOLDEN.context.asOfDate)
+          },
           { parentItemId: goldenItemId(SCOOTER_GOLDEN.rootKey) },
           { plannedQty: { value: SCOOTER_GOLDEN.plannedQty.value, uom: SCOOTER_GOLDEN.plannedQty.uom } }
         );
@@ -145,7 +177,11 @@ for (const backend of BACKENDS) {
         for (const goldenSet of SCOOTER_GOLDEN_B.requirements) {
           const result = await explodeBom(
             created,
-            { bomType: SCOOTER_GOLDEN.context.bomType, orgId: SCOOTER_GOLDEN.context.orgId, asOfDate: day(SCOOTER_GOLDEN.context.asOfDate) },
+            {
+              bomType: SCOOTER_GOLDEN.context.bomType,
+              orgId: SCOOTER_GOLDEN.context.orgId,
+              asOfDate: day(SCOOTER_GOLDEN.context.asOfDate)
+            },
             { parentItemId: goldenItemId(goldenSet.rootKey) },
             { plannedQty: { value: goldenSet.plannedQty.value, uom: goldenSet.plannedQty.uom } }
           );

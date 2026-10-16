@@ -7,16 +7,25 @@
  * 卷算不重新实现数量逻辑——两处漂移的代价是成本与数量对不上账（US-514 技术笔记）。
  */
 
+import {
+  decimalAdd,
+  decimalCmp,
+  decimalDiv,
+  decimalFromCanonical,
+  decimalMul,
+  decimalSub,
+  decimalToCanonical,
+  type Decimal
+} from './decimal.js';
 import { evaluateFormula } from './formula.js';
-import { decimalAdd, decimalCmp, decimalDiv, decimalFromCanonical, decimalMul, decimalSub, decimalToCanonical, type Decimal } from './decimal.js';
 
 /** 损耗：加成制 x×(1+s)；良率制 x÷(1−s)（与爆炸引擎同定义，本模块持有避免循环依赖）。 */
 export const scrap = (value: Decimal, rate: string, convention: 'additive' | 'yield'): Decimal => {
   const s = decimalFromCanonical(rate);
   if (decimalCmp(s, { coeff: 0n, exp: 0 }) === 0) return value;
   return convention === 'additive' ?
-    decimalMul(value, decimalAdd({ coeff: 1n, exp: 0 }, s))
-  : decimalDiv(value, decimalSub({ coeff: 1n, exp: 0 }, s));
+      decimalMul(value, decimalAdd({ coeff: 1n, exp: 0 }, s))
+    : decimalDiv(value, decimalSub({ coeff: 1n, exp: 0 }, s));
 };
 
 /** 一道工序的损耗参数（与爆炸引擎的工序链同形状）。 */
@@ -52,9 +61,9 @@ export const computeGross = (row: LayerRow, context: LayerContext): Decimal => {
     row.qty !== null ?
       decimalFromCanonical(row.qty)
     : decimalFromCanonical(evaluateFormula(row.qtyFormula as string, context.formulaParams ?? {}));
-  return row.isFixedQty ?
-    quantity
-  : decimalMul(quantity, decimalDiv(plannedPrime(context), decimalFromCanonical(context.headerBaseQty)));
+  return row.isFixedQty ? quantity : (
+      decimalMul(quantity, decimalDiv(plannedPrime(context), decimalFromCanonical(context.headerBaseQty)))
+    );
 };
 
 const plannedPrime = (context: LayerContext): Decimal => context.plannedPrime;
@@ -180,12 +189,13 @@ export const allocateSubstituteShares = (
     return {
       shares: members.map(member => ({
         member,
-        gross: member.substituteRole === 'primary' ?
-          decimalMul(primaryGross, decimalFromCanonical(member.usageProbability ?? '0'))
-        : decimalMul(
-          decimalMul(primaryGross, decimalFromCanonical(member.usageProbability ?? '0')),
-          decimalFromCanonical(member.equivQty ?? '1')
-        )
+        gross:
+          member.substituteRole === 'primary' ?
+            decimalMul(primaryGross, decimalFromCanonical(member.usageProbability ?? '0'))
+          : decimalMul(
+              decimalMul(primaryGross, decimalFromCanonical(member.usageProbability ?? '0')),
+              decimalFromCanonical(member.equivQty ?? '1')
+            )
       }))
     };
   }
@@ -235,12 +245,15 @@ export const allocateSubstituteShares = (
       throw new Error(`manual 组 ${code} 的选择 ${selection.memberKey} 不是组成员`);
     }
     return {
-      shares: [{
-        member,
-        gross: member.substituteRole === 'primary' ?
-          primaryGross
-        : decimalMul(primaryGross, decimalFromCanonical(member.equivQty ?? '1'))
-      }]
+      shares: [
+        {
+          member,
+          gross:
+            member.substituteRole === 'primary' ?
+              primaryGross
+            : decimalMul(primaryGross, decimalFromCanonical(member.equivQty ?? '1'))
+        }
+      ]
     };
   }
   const allocatedMembers = Object.entries(selection.allocation ?? {}).filter(([, value]) => value !== '0');
@@ -253,9 +266,8 @@ export const allocateSubstituteShares = (
       const share = decimalMul(primaryGross, decimalFromCanonical(shareValue));
       return {
         member,
-        gross: member.substituteRole === 'primary' ?
-          share
-        : decimalMul(share, decimalFromCanonical(member.equivQty ?? '1'))
+        gross:
+          member.substituteRole === 'primary' ? share : decimalMul(share, decimalFromCanonical(member.equivQty ?? '1'))
       };
     })
   };

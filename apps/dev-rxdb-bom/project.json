@@ -9,21 +9,12 @@
   "prefix": "bom",
   "projectType": "application",
   "sourceRoot": "apps/dev-rxdb-bom/src",
-  "tags": [
-    "angular-app",
-    "demo"
-  ],
+  "tags": ["angular-app", "demo"],
   "targets": {
     "spec-typecheck": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "^build",
-        "^typecheck"
-      ],
-      "inputs": [
-        "default",
-        "^production"
-      ],
+      "dependsOn": ["^build", "^typecheck"],
+      "inputs": ["default", "^production"],
       "options": {
         "cwd": "apps/dev-rxdb-bom",
         "command": "tsc --build tsconfig.spec.json --pretty false"
@@ -38,17 +29,9 @@
     },
     "test": {
       "executor": "nx:run-commands",
-      "dependsOn": [
-        "^build",
-        "spec-typecheck"
-      ],
-      "inputs": [
-        "default",
-        "^production"
-      ],
-      "outputs": [
-        "{workspaceRoot}/coverage/apps/dev-rxdb-bom"
-      ],
+      "dependsOn": ["^build", "spec-typecheck"],
+      "inputs": ["default", "^production"],
+      "outputs": ["{workspaceRoot}/coverage/apps/dev-rxdb-bom"],
       "options": {
         "cwd": "apps/dev-rxdb-bom",
         "command": "vitest"
@@ -57,9 +40,7 @@
     "build": {
       "defaultConfiguration": "production",
       "executor": "@angular/build:application",
-      "outputs": [
-        "{options.outputPath}"
-      ],
+      "outputs": ["{options.outputPath}"],
       "options": {
         "allowedCommonJsDependencies": [],
         "assets": [
@@ -77,9 +58,7 @@
         "inlineStyleLanguage": "scss",
         "outputPath": "dist/apps/dev-rxdb-bom",
         "polyfills": [],
-        "styles": [
-          "apps/dev-rxdb-bom/src/styles.scss"
-        ],
+        "styles": ["apps/dev-rxdb-bom/src/styles.scss"],
         "tsConfig": "apps/dev-rxdb-bom/tsconfig.app.json",
         "externalDependencies": []
       },

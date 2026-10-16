@@ -98,7 +98,9 @@ for (const backend of BACKENDS) {
       const adapter = await loadOnce();
       try {
         const impact = await ecnImpact(adapter, deterministicId('ecn:ECN-2026-014'));
-        expect(impact.affectedItemIds.sort()).toEqual([goldenItemId('SC-100'), goldenItemId('PCBA'), goldenItemId('BATT')].sort());
+        expect(impact.affectedItemIds.sort()).toEqual(
+          [goldenItemId('SC-100'), goldenItemId('PCBA'), goldenItemId('BATT')].sort()
+        );
         expect(impact.topItems.map(top => top.itemId)).toContain(goldenItemId('SC-100'));
         // 路径非空
         const scooter = impact.topItems.find(top => top.itemId === goldenItemId('SC-100'));

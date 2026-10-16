@@ -34,10 +34,7 @@ describe('transitionMetadata 存储约束合并', () => {
   it('属性级 check 编译成以属性名为 name 的实体级 CHECK', () => {
     const metadata = transitionMetadata(
       mkOptions({
-        properties: [
-          stringProp('id', { primary: true }),
-          stringProp('qty', { check: { operator: 'notNull' } })
-        ]
+        properties: [stringProp('id', { primary: true }), stringProp('qty', { check: { operator: 'notNull' } })]
       })
     );
     const compiled = metadata.checkMap.get('qty');

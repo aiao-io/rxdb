@@ -8,13 +8,22 @@
  * DDL 幂等（`IF NOT EXISTS` / `CREATE OR REPLACE`），重连不产生第二份对象。
  */
 
-import { SyncType } from '@aiao/rxdb';
 import type { EntityType, IRxDBPlugin, Plugin, RxDB } from '@aiao/rxdb';
-import { getEntityMetadata, RxDBPluginBase } from '@aiao/rxdb';
+import { getEntityMetadata, RxDBPluginBase, SyncType } from '@aiao/rxdb';
 import type { LifecycleScope } from '@aiao/utils';
 import { firstValueFrom } from 'rxjs';
 import { buildPgBomTriggerDdl, buildSqliteBomTriggerDdl } from './backend/bom-trigger-ddl.js';
+import { BOM_ENTITIES } from './entities.js';
+import { rollupCost as runRollupCost, type CostRollupContext, type CostRollupResult } from './quantity/cost.js';
+import { explodeBom as runExplodeBom, type ExplosionOptions, type ExplosionResult } from './quantity/explosion.js';
+import { BomRepository } from './repository.js';
 import { cycleConstraintDdlForRemotePg } from './resolve/cycle-constraint-ddl.js';
+import {
+  ecnDiff as runEcnDiff,
+  ecnImpact as runEcnImpact,
+  type EcnDiffResult,
+  type EcnImpactResult
+} from './resolve/ecn.js';
 import {
   expandBom as runExpandBom,
   whereUsed as runWhereUsed,
@@ -22,14 +31,9 @@ import {
   type ExpansionResult,
   type WhereUsedTarget
 } from './resolve/expansion.js';
-import { explodeBom as runExplodeBom, type ExplosionOptions, type ExplosionResult } from './quantity/explosion.js';
-import { rollupCost as runRollupCost, type CostRollupContext, type CostRollupResult } from './quantity/cost.js';
-import { ecnDiff as runEcnDiff, ecnImpact as runEcnImpact, type EcnDiffResult, type EcnImpactResult } from './resolve/ecn.js';
 import { loadHistory, type HistoryBatchInput } from './resolve/history-loader.js';
-import { resolveBom, type ResolveTarget } from './resolve/resolver.js';
 import type { ResolutionContext, ResolutionResult } from './resolve/resolution.js';
-import { BOM_ENTITIES } from './entities.js';
-import { BomRepository } from './repository.js';
+import { resolveBom, type ResolveTarget } from './resolve/resolver.js';
 import { BomBackendCapabilityError, BomSyncUnsupportedError } from './types.js';
 
 /** SQLite 家族适配器名（与各适配器包的 `ADAPTER_NAME` 一致）。 */
@@ -66,7 +70,10 @@ export const resolveBomBackend = (adapterName: string | undefined): BomTriggerDd
   if (adapterName && SQLITE_ADAPTER_NAMES.has(adapterName)) return buildSqliteBomTriggerDdl;
   if (adapterName === 'http' || adapterName === 'supabase') {
     // US-509 AC#6：DDL 在远端，本仓发不出写入期环约束——显式声明能力缺席并 fail-fast
-    throw new BomBackendCapabilityError(adapterName, '无写入期环约束（DDL 在远端），可经 cycleConstraintDdlForRemotePg() 导出 DDL 自行部署');
+    throw new BomBackendCapabilityError(
+      adapterName,
+      '无写入期环约束（DDL 在远端），可经 cycleConstraintDdlForRemotePg() 导出 DDL 自行部署'
+    );
   }
   throw new BomBackendCapabilityError(adapterName ?? '(no local adapter)');
 };
@@ -130,8 +137,14 @@ export class RxDBPluginBom extends RxDBPluginBase implements IRxDBPlugin {
    * 成本卷算（US-514）：拓扑逆序单遍，材料 + 加工 + 制费 − 副产抵减，逐层明细可展开；
    * 缺成本/缺费率/币种不符/环/unresolved 即拒绝，不以 0 兜底。
    */
-  rollupCost(context: CostRollupContext, target: ResolveTarget, options?: { batchQty?: { value: string; uom: string } }): Promise<CostRollupResult> {
-    return firstValueFrom(this.rxdb.localAdapter$).then(adapter => runRollupCost(adapter, context, target, options?.batchQty));
+  rollupCost(
+    context: CostRollupContext,
+    target: ResolveTarget,
+    options?: { batchQty?: { value: string; uom: string } }
+  ): Promise<CostRollupResult> {
+    return firstValueFrom(this.rxdb.localAdapter$).then(adapter =>
+      runRollupCost(adapter, context, target, options?.batchQty)
+    );
   }
 
   /**

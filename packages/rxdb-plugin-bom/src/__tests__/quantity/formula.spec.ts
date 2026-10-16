@@ -6,8 +6,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { BomQuantityError } from '../../types.js';
 import { evaluateFormula, FORMULA_GRAMMAR_VERSION } from '../../quantity/formula.js';
+import { BomQuantityError } from '../../types.js';
 
 describe('公式求值器：四则与优先级', () => {
   it('四则与括号', () => {

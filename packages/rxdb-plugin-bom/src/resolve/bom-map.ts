@@ -52,9 +52,11 @@ export class BomMapError extends Error {
 /** 读范围。 */
 const readScope = async (adapter: BomLocalAdapter, scopeId: string): Promise<MapScopeInfo> => {
   const dialect = bomSqlDialectFor(adapter.name);
-  const rows = rawRows(await adapter.rawQuery?.(
-    `SELECT "id", "orgId", "ebomRootHeaderId", "mbomRootHeaderId" FROM ${dialect.table('bom_map_scope')} WHERE "id" = '${scopeId}'`
-  ));
+  const rows = rawRows(
+    await adapter.rawQuery?.(
+      `SELECT "id", "orgId", "ebomRootHeaderId", "mbomRootHeaderId" FROM ${dialect.table('bom_map_scope')} WHERE "id" = '${scopeId}'`
+    )
+  );
   if (rows.length === 0) throw new BomMapError('scopeId', `范围不存在：${scopeId}`);
   return {
     scopeId,
@@ -70,9 +72,11 @@ const lineHeader = async (
   lineId: string
 ): Promise<{ headerId: string; bomType: string; orgId: string }> => {
   const dialect = bomSqlDialectFor(adapter.name);
-  const rows = rawRows(await adapter.rawQuery?.(
-    `SELECT h."id", h."bomType", h."orgId" FROM ${dialect.table('bom_header')} h JOIN ${dialect.table('bom_line')} l ON l."headerId" = h."id" WHERE l."id" = '${lineId}'`
-  ));
+  const rows = rawRows(
+    await adapter.rawQuery?.(
+      `SELECT h."id", h."bomType", h."orgId" FROM ${dialect.table('bom_header')} h JOIN ${dialect.table('bom_line')} l ON l."headerId" = h."id" WHERE l."id" = '${lineId}'`
+    )
+  );
   if (rows.length === 0) throw new BomMapError('lineId', `逻辑行不存在：${lineId}`);
   return { headerId: String(rows[0][0]), bomType: String(rows[0][1]), orgId: String(rows[0][2]) };
 };
@@ -82,10 +86,7 @@ const lineHeader = async (
  * 目标头是该发生项可选到的子件头（precise 行只可达锁定的修订头；imprecise 行可达
  * 该物料全部已发布头——物料级并集图剪枝，不按生效期）。返回可达行集合。
  */
-const reachableSourceLines = async (
-  adapter: BomLocalAdapter,
-  scope: MapScopeInfo
-): Promise<Set<string>> => {
+const reachableSourceLines = async (adapter: BomLocalAdapter, scope: MapScopeInfo): Promise<Set<string>> => {
   const dialect = bomSqlDialectFor(adapter.name);
   const lineTable = dialect.table('bom_line');
   const occurrenceTable = dialect.table('bom_line_occurrence');
@@ -98,26 +99,33 @@ const reachableSourceLines = async (
     const current = frontier.shift() as { headerId: string };
     // 本头的全部行（含草稿 ECN 行？成员资格用「已存行」——不按生效期、不过滤 ECN：
     // 行定义是稳定身份；草稿头下的行也算成员（保存期成员资格与解析无关））
-    const lineRows = rawRows(await adapter.rawQuery?.(
-      `SELECT l."id" FROM ${lineTable} l WHERE l."headerId" = '${current.headerId}'`
-    ));
+    const lineRows = rawRows(
+      await adapter.rawQuery?.(`SELECT l."id" FROM ${lineTable} l WHERE l."headerId" = '${current.headerId}'`)
+    );
     for (const lineRow of lineRows) {
       const lineId = String(lineRow[0]);
       reachable.add(lineId);
       // 一跳子件头：行发生项（consume）→ 子件头
-      const occRows = rawRows(await adapter.rawQuery?.(
-        `SELECT occ."childItemId", occ."childRevisionId" FROM ${occurrenceTable} occ WHERE occ."lineId" = '${lineId}' AND occ."flowDirection" = 'consume'`
-      ));
+      const occRows = rawRows(
+        await adapter.rawQuery?.(
+          `SELECT occ."childItemId", occ."childRevisionId" FROM ${occurrenceTable} occ WHERE occ."lineId" = '${lineId}' AND occ."flowDirection" = 'consume'`
+        )
+      );
       for (const occRow of occRows) {
         const childItemId = String(occRow[0]);
         const childRevisionId = occRow[1] === null ? null : String(occRow[1]);
-        const headers = childRevisionId !== null ?
-          rawRows(await adapter.rawQuery?.(
-            `SELECT h."id" FROM ${headerTable} h JOIN ${revisionTable} r ON r."id" = h."parentRevisionId" WHERE r."itemId" = '${childItemId}' AND r."id" = '${childRevisionId}'`
-          ))
-        : rawRows(await adapter.rawQuery?.(
-          `SELECT h."id" FROM ${headerTable} h JOIN ${revisionTable} r ON r."id" = h."parentRevisionId" WHERE r."itemId" = '${childItemId}' AND r."state" = 'released'`
-        ));
+        const headers =
+          childRevisionId !== null ?
+            rawRows(
+              await adapter.rawQuery?.(
+                `SELECT h."id" FROM ${headerTable} h JOIN ${revisionTable} r ON r."id" = h."parentRevisionId" WHERE r."itemId" = '${childItemId}' AND r."id" = '${childRevisionId}'`
+              )
+            )
+          : rawRows(
+              await adapter.rawQuery?.(
+                `SELECT h."id" FROM ${headerTable} h JOIN ${revisionTable} r ON r."id" = h."parentRevisionId" WHERE r."itemId" = '${childItemId}' AND r."state" = 'released'`
+              )
+            );
         for (const headerRow of headers) {
           const childHeaderId = String(headerRow[0]);
           if (visitedHeaders.has(childHeaderId)) continue;
@@ -133,10 +141,7 @@ const reachableSourceLines = async (
 /**
  * 保存映射（US-516）：两侧类型/组织、范围成员资格、路径相邻与末元素；通过后落库。
  */
-export const saveMapping = async (
-  adapter: BomLocalAdapter,
-  input: MappingSaveInput
-): Promise<{ mapId: string }> => {
+export const saveMapping = async (adapter: BomLocalAdapter, input: MappingSaveInput): Promise<{ mapId: string }> => {
   const dialect = bomSqlDialectFor(adapter.name);
   const scope = await readScope(adapter, input.scopeId);
 
@@ -164,42 +169,59 @@ export const saveMapping = async (
   if (input.sourceLineId !== null && input.sourceLineId !== undefined) {
     const reachable = await reachableSourceLines(adapter, scope);
     if (!reachable.has(input.sourceLineId)) {
-      throw new BomMapError(`源行 ${input.sourceLineId}`, `不可由范围 EBOM 根头（${scope.ebomRootHeaderId}）到达，不是范围成员`);
+      throw new BomMapError(
+        `源行 ${input.sourceLineId}`,
+        `不可由范围 EBOM 根头（${scope.ebomRootHeaderId}）到达，不是范围成员`
+      );
     }
   }
 
   // 路径级映射（AC#13）：首元素是根头行、逐级相邻、末元素 = sourceLineId
   if (input.sourceLinePath !== null && input.sourceLinePath !== undefined && input.sourceLinePath.length > 0) {
     const path = input.sourceLinePath;
-    if (input.sourceLineId === null || input.sourceLineId === undefined || path[path.length - 1] !== input.sourceLineId) {
+    if (
+      input.sourceLineId === null ||
+      input.sourceLineId === undefined ||
+      path[path.length - 1] !== input.sourceLineId
+    ) {
       throw new BomMapError('sourceLinePath', '末元素必须等于 sourceLineId');
     }
     // 首元素所在头必须是范围根头
     const first = await lineHeader(adapter, path[0]);
     if (first.headerId !== scope.ebomRootHeaderId) {
-      throw new BomMapError('sourceLinePath', `首元素所在头 ${first.headerId} 不是范围 EBOM 根头 ${scope.ebomRootHeaderId}`);
+      throw new BomMapError(
+        'sourceLinePath',
+        `首元素所在头 ${first.headerId} 不是范围 EBOM 根头 ${scope.ebomRootHeaderId}`
+      );
     }
     // 逐级相邻：前一行存在某个 consume 发生项，后一行所在头是该发生项可选到的子件头
     for (let index = 1; index < path.length; index++) {
       const prevLineId = path[index - 1];
       const nextLineId = path[index];
       const next = await lineHeader(adapter, nextLineId);
-      const occRows = rawRows(await adapter.rawQuery?.(
-        `SELECT occ."childItemId", occ."childRevisionId" FROM ${dialect.table('bom_line_occurrence')} occ WHERE occ."lineId" = '${prevLineId}' AND occ."flowDirection" = 'consume'`
-      ));
+      const occRows = rawRows(
+        await adapter.rawQuery?.(
+          `SELECT occ."childItemId", occ."childRevisionId" FROM ${dialect.table('bom_line_occurrence')} occ WHERE occ."lineId" = '${prevLineId}' AND occ."flowDirection" = 'consume'`
+        )
+      );
       const headerTable = dialect.table('bom_header');
       const revisionTable = dialect.table('item_revision');
       let adjacent = false;
       for (const occRow of occRows) {
         const childItemId = String(occRow[0]);
         const childRevisionId = occRow[1] === null ? null : String(occRow[1]);
-        const headers = childRevisionId !== null ?
-          rawRows(await adapter.rawQuery?.(
-            `SELECT h."id" FROM ${headerTable} h JOIN ${revisionTable} r ON r."id" = h."parentRevisionId" WHERE r."itemId" = '${childItemId}' AND r."id" = '${childRevisionId}'`
-          ))
-        : rawRows(await adapter.rawQuery?.(
-          `SELECT h."id" FROM ${headerTable} h JOIN ${revisionTable} r ON r."id" = h."parentRevisionId" WHERE r."itemId" = '${childItemId}' AND r."state" = 'released'`
-        ));
+        const headers =
+          childRevisionId !== null ?
+            rawRows(
+              await adapter.rawQuery?.(
+                `SELECT h."id" FROM ${headerTable} h JOIN ${revisionTable} r ON r."id" = h."parentRevisionId" WHERE r."itemId" = '${childItemId}' AND r."id" = '${childRevisionId}'`
+              )
+            )
+          : rawRows(
+              await adapter.rawQuery?.(
+                `SELECT h."id" FROM ${headerTable} h JOIN ${revisionTable} r ON r."id" = h."parentRevisionId" WHERE r."itemId" = '${childItemId}' AND r."state" = 'released'`
+              )
+            );
         if (headers.some(row => String(row[0]) === next.headerId)) {
           adjacent = true;
           break;
@@ -219,7 +241,8 @@ export const saveMapping = async (
   mapping.relation = input.relation;
   mapping.sourceLineId = input.sourceLineId ?? null;
   mapping.targetLineId = input.targetLineId ?? null;
-  mapping.sourceLinePath = input.sourceLinePath !== null && input.sourceLinePath !== undefined ? JSON.stringify(input.sourceLinePath) : null;
+  mapping.sourceLinePath =
+    input.sourceLinePath !== null && input.sourceLinePath !== undefined ? JSON.stringify(input.sourceLinePath) : null;
   await mapping.save();
   void mapTable;
   return { mapId: mapping.id };
@@ -242,9 +265,11 @@ const readMappings = async (
   scopeId: string
 ): Promise<{ id: string; relation: string; sourceLineId: string | null; sourceLinePath: string[] | null }[]> => {
   const dialect = bomSqlDialectFor(adapter.name);
-  const rows = rawRows(await adapter.rawQuery?.(
-    `SELECT "id", "relation", "sourceLineId", "sourceLinePath" FROM ${dialect.table('bom_map')} WHERE "scopeId" = '${scopeId}'`
-  ));
+  const rows = rawRows(
+    await adapter.rawQuery?.(
+      `SELECT "id", "relation", "sourceLineId", "sourceLinePath" FROM ${dialect.table('bom_map')} WHERE "scopeId" = '${scopeId}'`
+    )
+  );
   return rows.map(row => ({
     id: String(row[0]),
     relation: String(row[1]),
@@ -259,9 +284,11 @@ const lineIdOfOccurrence = async (adapter: BomLocalAdapter, occurrenceIds: strin
   const map = new Map<string, string>();
   if (occurrenceIds.length === 0) return map;
   const inList = occurrenceIds.map(id => `'${id}'`).join(', ');
-  const rows = rawRows(await adapter.rawQuery?.(
-    `SELECT occ."id", occ."lineId" FROM ${dialect.table('bom_line_occurrence')} occ WHERE occ."id" IN (${inList})`
-  ));
+  const rows = rawRows(
+    await adapter.rawQuery?.(
+      `SELECT occ."id", occ."lineId" FROM ${dialect.table('bom_line_occurrence')} occ WHERE occ."id" IN (${inList})`
+    )
+  );
   for (const row of rows) map.set(String(row[0]), String(row[1]));
   return map;
 };
@@ -280,9 +307,11 @@ export const mappingCoverage = async (
   const mappings = await readMappings(adapter, scopeId);
   // EBOM 根头的父修订（展开入口）
   const dialect = bomSqlDialectFor(adapter.name);
-  const rootRows = rawRows(await adapter.rawQuery?.(
-    `SELECT h."parentRevisionId" FROM ${dialect.table('bom_header')} h WHERE h."id" = '${scope.ebomRootHeaderId}'`
-  ));
+  const rootRows = rawRows(
+    await adapter.rawQuery?.(
+      `SELECT h."parentRevisionId" FROM ${dialect.table('bom_header')} h WHERE h."id" = '${scope.ebomRootHeaderId}'`
+    )
+  );
   if (rootRows.length === 0) throw new BomMapError('scope', 'EBOM 根头不存在');
   const rootRevisionId = String(rootRows[0][0]);
   const { expandBom } = await import('./expansion.js');
@@ -296,7 +325,9 @@ export const mappingCoverage = async (
     throw new BomMapError('覆盖率', `展开触顶（${expansion.truncated.reason}），无法判定覆盖率`);
   }
   // 展开路径 → 行序列（occurrenceId → lineId；节点行 = node.occurrenceId）
-  const occurrenceIds = [...new Set(expansion.nodes.flatMap(node => [...node.path, ...(node.occurrenceId ? [node.occurrenceId] : [])]))];
+  const occurrenceIds = [
+    ...new Set(expansion.nodes.flatMap(node => [...node.path, ...(node.occurrenceId ? [node.occurrenceId] : [])]))
+  ];
   const lineOfOcc = await lineIdOfOccurrence(adapter, occurrenceIds);
   const linePaths = new Map<string, string[][]>();
   for (const node of expansion.nodes) {
@@ -309,9 +340,11 @@ export const mappingCoverage = async (
     linePaths.set(leafLineId, list);
   }
   // 根头的行（expandBom 不含根头行）：以空前缀路径登记
-  const rootLineRows = rawRows(await adapter.rawQuery?.(
-    `SELECT l."id" FROM ${dialect.table('bom_line')} l WHERE l."headerId" = '${scope.ebomRootHeaderId}'`
-  ));
+  const rootLineRows = rawRows(
+    await adapter.rawQuery?.(
+      `SELECT l."id" FROM ${dialect.table('bom_line')} l WHERE l."headerId" = '${scope.ebomRootHeaderId}'`
+    )
+  );
   for (const row of rootLineRows) {
     const rootLineId = String(row[0]);
     const list = linePaths.get(rootLineId) ?? [];
@@ -397,7 +430,7 @@ export interface MappingGapsResult {
 
 /** 从展开结果收集「到源行为止」的解析步骤（行级 = 全部路径并集；路径级 = 一条路径）。 */
 const collectSteps = (
-  expansion: Awaited<ReturnType<typeof import('./expansion.js')['expandBom']>>,
+  expansion: Awaited<ReturnType<(typeof import('./expansion.js'))['expandBom']>>,
   lineOfOcc: Map<string, string>,
   sourceLineId: string,
   sourceLinePath: string[] | null
@@ -416,7 +449,11 @@ const collectSteps = (
       const occurrenceId = node.path[index];
       const lineId = linePath[index];
       if (sourceLinePath === null) {
-        steps.set(`${lineId}:${occurrenceId}`, { lineId, occurrenceId, revisionId: index === node.path.length - 1 ? node.revisionId : null });
+        steps.set(`${lineId}:${occurrenceId}`, {
+          lineId,
+          occurrenceId,
+          revisionId: index === node.path.length - 1 ? node.revisionId : null
+        });
       } else {
         // 路径级：到源行为止（含源行）
         if (lineId === sourceLineId || linePath.slice(0, index).includes(sourceLineId)) {
@@ -440,17 +477,21 @@ const rootLineSteps = async (
   context: ResolutionContext
 ): Promise<MappingStep[]> => {
   const dialect = bomSqlDialectFor(adapter.name);
-  const rows = rawRows(await adapter.rawQuery?.(
-    `SELECT occ."id" FROM ${dialect.table('bom_line_occurrence')} occ WHERE occ."lineId" = '${sourceLineId}'`
-  ));
+  const rows = rawRows(
+    await adapter.rawQuery?.(
+      `SELECT occ."id" FROM ${dialect.table('bom_line_occurrence')} occ WHERE occ."lineId" = '${sourceLineId}'`
+    )
+  );
   // 发生项按解析上下文过滤：窗口 + ECN 可见性——根头行在展开时已过同样的过滤（expandBom 的
   // 首层）——这里取「评估日窗口内」的发生项（与 expandBom 的首层同口径）
-  const visible = rawRows(await adapter.rawQuery?.(
-    `SELECT occ."id" FROM ${dialect.table('bom_line_occurrence')} occ` +
-    ` WHERE occ."lineId" = '${sourceLineId}' AND occ."effectiveFrom" <= '${context.asOfDate.toISOString()}'` +
-    ` AND (occ."effectiveTo" IS NULL OR occ."effectiveTo" > '${context.asOfDate.toISOString()}')` +
-    ` AND (occ."ecnInId" IS NULL OR EXISTS (SELECT 1 FROM ${dialect.table('ecn')} e WHERE e."id" = occ."ecnInId" AND e."state" = 'released'))`
-  ));
+  const visible = rawRows(
+    await adapter.rawQuery?.(
+      `SELECT occ."id" FROM ${dialect.table('bom_line_occurrence')} occ` +
+        ` WHERE occ."lineId" = '${sourceLineId}' AND occ."effectiveFrom" <= '${context.asOfDate.toISOString()}'` +
+        ` AND (occ."effectiveTo" IS NULL OR occ."effectiveTo" > '${context.asOfDate.toISOString()}')` +
+        ` AND (occ."ecnInId" IS NULL OR EXISTS (SELECT 1 FROM ${dialect.table('ecn')} e WHERE e."id" = occ."ecnInId" AND e."state" = 'released'))`
+    )
+  );
   void rows;
   return visible.map(row => ({ lineId: sourceLineId, occurrenceId: String(row[0]), revisionId: null }));
 };
@@ -466,9 +507,11 @@ export const confirmMapping = async (
   context: ResolutionContext
 ): Promise<void> => {
   const dialect = bomSqlDialectFor(adapter.name);
-  const mapRows = rawRows(await adapter.rawQuery?.(
-    `SELECT "id", "relation", "sourceLineId", "sourceLinePath", "scopeId" FROM ${dialect.table('bom_map')} WHERE "id" = '${mappingId}'`
-  ));
+  const mapRows = rawRows(
+    await adapter.rawQuery?.(
+      `SELECT "id", "relation", "sourceLineId", "sourceLinePath", "scopeId" FROM ${dialect.table('bom_map')} WHERE "id" = '${mappingId}'`
+    )
+  );
   if (mapRows.length === 0) throw new BomMapError('mappingId', `映射不存在：${mappingId}`);
   const relation = String(mapRows[0][1]);
   const sourceLineId = mapRows[0][2] === null ? null : String(mapRows[0][2]);
@@ -483,9 +526,11 @@ export const confirmMapping = async (
   }
   const scope = await readScope(adapter, scopeId);
   // 展开 + 步骤收集
-  const rootRows = rawRows(await adapter.rawQuery?.(
-    `SELECT h."parentRevisionId" FROM ${dialect.table('bom_header')} h WHERE h."id" = '${scope.ebomRootHeaderId}'`
-  ));
+  const rootRows = rawRows(
+    await adapter.rawQuery?.(
+      `SELECT h."parentRevisionId" FROM ${dialect.table('bom_header')} h WHERE h."id" = '${scope.ebomRootHeaderId}'`
+    )
+  );
   const { expandBom } = await import('./expansion.js');
   const expansion = await expandBom(adapter, context, { parentRevisionId: String(rootRows[0][0]) });
   const occurrenceIds = [...new Set(expansion.nodes.flatMap(node => node.path))];
@@ -513,9 +558,11 @@ export const mappingGaps = async (
   const scope = await readScope(adapter, scopeId);
   const mappings = await readMappings(adapter, scopeId);
   const dialect = bomSqlDialectFor(adapter.name);
-  const rootRows = rawRows(await adapter.rawQuery?.(
-    `SELECT h."parentRevisionId" FROM ${dialect.table('bom_header')} h WHERE h."id" = '${scope.ebomRootHeaderId}'`
-  ));
+  const rootRows = rawRows(
+    await adapter.rawQuery?.(
+      `SELECT h."parentRevisionId" FROM ${dialect.table('bom_header')} h WHERE h."id" = '${scope.ebomRootHeaderId}'`
+    )
+  );
   const { expandBom } = await import('./expansion.js');
   let expansion: Awaited<ReturnType<typeof expandBom>>;
   try {
@@ -557,9 +604,9 @@ export const mappingGaps = async (
   const gaps: MappingGap[] = [];
   for (const mapping of mappings) {
     if (mapping.relation === 'added' || mapping.sourceLineId === null) continue;
-    const baselineRows = rawRows(await adapter.rawQuery?.(
-      `SELECT "baselineSteps" FROM ${dialect.table('bom_map')} WHERE "id" = '${mapping.id}'`
-    ));
+    const baselineRows = rawRows(
+      await adapter.rawQuery?.(`SELECT "baselineSteps" FROM ${dialect.table('bom_map')} WHERE "id" = '${mapping.id}'`)
+    );
     if (baselineRows.length === 0 || baselineRows[0][0] === null) continue; // 未确认过，无基线不列缺口
     const baseline = JSON.parse(String(baselineRows[0][0])) as MappingStep[];
     const current = collectSteps(expansion, lineOfOcc, mapping.sourceLineId, mapping.sourceLinePath);
@@ -589,15 +636,19 @@ export const mappingGaps = async (
         continue;
       }
       for (const step of baselineSteps) {
-        const match = currentSteps.find(candidate =>
-          candidate.occurrenceId === step.occurrenceId && candidate.revisionId === step.revisionId
+        const match = currentSteps.find(
+          candidate => candidate.occurrenceId === step.occurrenceId && candidate.revisionId === step.revisionId
         );
         if (!match) {
           differences.push({ baseline: step, current: currentSteps[0], kind: 'changed' });
         }
       }
       for (const step of currentSteps) {
-        if (!baselineSteps.some(candidate => candidate.occurrenceId === step.occurrenceId && candidate.revisionId === step.revisionId)) {
+        if (
+          !baselineSteps.some(
+            candidate => candidate.occurrenceId === step.occurrenceId && candidate.revisionId === step.revisionId
+          )
+        ) {
           appeared.push(step);
         }
       }

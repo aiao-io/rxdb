@@ -103,7 +103,9 @@ const asError = (cause: unknown): Error | undefined => (cause instanceof Error ?
  * @param cause - 底层错误（适配器抛出的包装错误）
  * @returns 归一后的错误类；不是本模块认识的违约时返回 `undefined`（原样上抛）
  */
-export const normalizeStorageConstraintError = (cause: unknown): RxDBCheckViolationError | RxDBExclusionViolationError | undefined => {
+export const normalizeStorageConstraintError = (
+  cause: unknown
+): RxDBCheckViolationError | RxDBExclusionViolationError | undefined => {
   const checkName = checkConstraintNameOf(cause);
   if (checkName) return new RxDBCheckViolationError(checkName, undefined, undefined, undefined, asError(cause));
   const exclusionName = exclusionConstraintNameOf(cause);

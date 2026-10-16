@@ -8,15 +8,15 @@
  */
 
 import type { BomLocalAdapter } from './bom-adapter.js';
+import { bomSqlDialectFor, buildParentsOfItemsSql } from './bom-sql.js';
+import type { ResolutionContext, ResolutionResult, ResolvedLineOccurrence } from './resolution.js';
+import { resolveBom } from './resolver.js';
 
 /** rawQuery 是接口的可选成员（部分适配器不声明）：缺失即显式拒绝，不静默降级。 */
 const rawQuery = async (adapter: BomLocalAdapter, sql: string, params?: unknown[]): Promise<unknown> => {
   if (!adapter.rawQuery) throw new Error(`[rxdb-plugin-bom] 适配器 ${adapter.name} 缺少 rawQuery 读路径`);
   return adapter.rawQuery(sql, params);
 };
-import { bomSqlDialectFor, buildParentsOfItemsSql } from './bom-sql.js';
-import type { ResolutionContext, ResolutionResult, ResolvedLineOccurrence } from './resolution.js';
-import { resolveBom } from './resolver.js';
 
 /** ECN 影响面结果（AC#1）：被改的父物料 + 按 where-used 走到顶的整机与路径。 */
 export interface EcnImpactResult {
@@ -59,10 +59,11 @@ interface EcnRow {
 const readEcnRow = async (adapter: BomLocalAdapter, ecnId: string): Promise<EcnRow> => {
   const dialect = bomSqlDialectFor(adapter.name);
   const ecnTable = dialect.table('ecn');
-  const result = await rawQuery(adapter, 
+  const result = await rawQuery(
+    adapter,
     `SELECT "id", "ecnNo", "state", "effectiveDate" FROM ${ecnTable} WHERE "id" = '${ecnId}'`
   );
-  const shape = (result as { results: { rows: unknown[][] }[] } | { rows: unknown[][] });
+  const shape = result as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
   const rows = 'results' in shape ? shape.results[0].rows : shape.rows;
   if (rows.length === 0) throw new Error(`[rxdb-plugin-bom] ECN 不存在：${ecnId}`);
   return {
@@ -74,7 +75,10 @@ const readEcnRow = async (adapter: BomLocalAdapter, ecnId: string): Promise<EcnR
 };
 
 /** ECN 成员发生项归属头的父修订集合（影响面 / 差异的起点）。 */
-const affectedParentRevisions = async (adapter: BomLocalAdapter, ecnId: string): Promise<{ headerId: string; parentRevisionId: string }[]> => {
+const affectedParentRevisions = async (
+  adapter: BomLocalAdapter,
+  ecnId: string
+): Promise<{ headerId: string; parentRevisionId: string }[]> => {
   const dialect = bomSqlDialectFor(adapter.name);
   const occurrence = dialect.table('bom_line_occurrence');
   const line = dialect.table('bom_line');
@@ -91,7 +95,8 @@ const affectedParentRevisions = async (adapter: BomLocalAdapter, ecnId: string):
     `WHERE l."ecnInId" = '${ecnId}'`,
     `ORDER BY "headerId"`
   ].join('\n');
-  const result = (await rawQuery(adapter, sql)) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
+  const result = (await rawQuery(adapter, sql)) as unknown as
+    { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
   const rows = 'results' in result ? result.results[0].rows : result.rows;
   return rows.map(row => ({ headerId: String(row[0]), parentRevisionId: String(row[1]) }));
 };
@@ -109,9 +114,10 @@ export const ecnImpact = async (adapter: BomLocalAdapter, ecnId: string): Promis
     if (affectedRevisions.includes(parentRevisionId)) continue;
     affectedRevisions.push(parentRevisionId);
     const revision = dialect.table('item_revision');
-    const row = (await rawQuery(adapter, `SELECT "itemId" FROM ${revision} WHERE "id" = '${parentRevisionId}'`)) as unknown as
-      | { results: { rows: unknown[][] }[] }
-      | { rows: unknown[][] };
+    const row = (await rawQuery(
+      adapter,
+      `SELECT "itemId" FROM ${revision} WHERE "id" = '${parentRevisionId}'`
+    )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
     const rows = 'results' in row ? row.results[0].rows : row.rows;
     if (rows.length > 0) affectedItemIds.push(String(rows[0][0]));
   }
@@ -222,7 +228,10 @@ const alignByLine = (before: ResolutionResult, after: ResolutionResult): EcnDiff
       entries.push({ kind: 'added', lineId, lineNo, before: null, after: afterRow });
     } else if (afterRows.length === 0) {
       entries.push({ kind: 'removed', lineId, lineNo, before: beforeRow, after: null });
-    } else if (beforeRow?.childItemId !== afterRow?.childItemId || beforeRow?.resolvedChildRevisionId !== afterRow?.resolvedChildRevisionId) {
+    } else if (
+      beforeRow?.childItemId !== afterRow?.childItemId ||
+      beforeRow?.resolvedChildRevisionId !== afterRow?.resolvedChildRevisionId
+    ) {
       entries.push({ kind: 'child_changed', lineId, lineNo, before: beforeRow, after: afterRow });
     } else if (beforeRow?.qty !== afterRow?.qty) {
       entries.push({ kind: 'qty_changed', lineId, lineNo, before: beforeRow, after: afterRow });

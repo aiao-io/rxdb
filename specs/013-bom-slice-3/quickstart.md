@@ -4,15 +4,15 @@
 
 ## 交付物
 
-| 项 | 落点 |
-| --- | --- |
-| 十进制 kernel | `packages/rxdb-plugin-bom/src/quantity/decimal.ts` — 纯 BigInt 定点，34 位有效数字、half-even、`ceilToDecimalPlaces` |
-| 公式求值器 | `quantity/formula.ts` — 受限语法（字面量 / 四则 / 括号 / Unicode 命名参数），`FORMULA_GRAMMAR_VERSION = '1'` |
-| 单位换算 | `quantity/uom.ts` — metric 前缀标准系数 + 行级/物料级显式换算率（1 目标单位 = N 源单位，行级覆盖物料级），缺率拒绝 |
-| 七步展开 | `quantity/explosion.ts` — `explodeBom`（BFS + 预算结算复用 US-510 骨架），`EXPLOSION_ALGORITHM_VERSION = '1'` |
-| 实体扩展 | `entities.ts` — 头 / 行发生项 / 物料共 20 个新列 + 单行 CHECK（`qty_xor_formula` / `tier_columns_shape`） |
-| 存储触发器 | `backend/bom-trigger-ddl.ts` — 十进制格式字段化、良率损耗域、阶梯边界 15 位域（两后端保存期一致拒绝）、头发布阶梯切片校验（SQLite `CAST AS REAL` / PG `::numeric`） |
-| 测试 | 8 个新 spec（decimal / formula / uom 纯单测 + quantity-schema / explosion / tier / phantom 双后端集成），190/190 通过 |
+| 项            | 落点                                                                                                                                                                |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 十进制 kernel | `packages/rxdb-plugin-bom/src/quantity/decimal.ts` — 纯 BigInt 定点，34 位有效数字、half-even、`ceilToDecimalPlaces`                                                |
+| 公式求值器    | `quantity/formula.ts` — 受限语法（字面量 / 四则 / 括号 / Unicode 命名参数），`FORMULA_GRAMMAR_VERSION = '1'`                                                        |
+| 单位换算      | `quantity/uom.ts` — metric 前缀标准系数 + 行级/物料级显式换算率（1 目标单位 = N 源单位，行级覆盖物料级），缺率拒绝                                                  |
+| 七步展开      | `quantity/explosion.ts` — `explodeBom`（BFS + 预算结算复用 US-510 骨架），`EXPLOSION_ALGORITHM_VERSION = '1'`                                                       |
+| 实体扩展      | `entities.ts` — 头 / 行发生项 / 物料共 20 个新列 + 单行 CHECK（`qty_xor_formula` / `tier_columns_shape`）                                                           |
+| 存储触发器    | `backend/bom-trigger-ddl.ts` — 十进制格式字段化、良率损耗域、阶梯边界 15 位域（两后端保存期一致拒绝）、头发布阶梯切片校验（SQLite `CAST AS REAL` / PG `::numeric`） |
+| 测试          | 8 个新 spec（decimal / formula / uom 纯单测 + quantity-schema / explosion / tier / phantom 双后端集成），190/190 通过                                               |
 
 ## 测试与门禁（截至当日）
 

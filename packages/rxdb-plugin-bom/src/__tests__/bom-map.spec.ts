@@ -35,7 +35,12 @@ for (const backend of BACKENDS) {
     });
 
     /** 建物料 + 已发布修订 + 指定类型的已发布头（一行一个子件）。 */
-    const makeHeader = async (itemKey: string, bomType: 'ebom' | 'mbom', children: BomItem[], revisionNo = 'A'): Promise<{ item: BomItem; header: BomHeader; lines: BomLine[] }> => {
+    const makeHeader = async (
+      itemKey: string,
+      bomType: 'ebom' | 'mbom',
+      children: BomItem[],
+      revisionNo = 'A'
+    ): Promise<{ item: BomItem; header: BomHeader; lines: BomLine[] }> => {
       const item = new BomItem();
       item.itemNo = `${itemKey}-${Math.random().toString(36).slice(2, 8)}`;
       await item.save();
@@ -44,9 +49,13 @@ for (const backend of BACKENDS) {
         revisions: [{ itemId: item.id, revisionNo, effectiveFrom: day('2020-01-01') }],
         headers: []
       });
-      const revisionId = String(shapeRows(await adapter.rawQuery(
-        `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${item.id}' AND "revisionNo" = '${revisionNo}'`
-      ))[0][0]);
+      const revisionId = String(
+        shapeRows(
+          await adapter.rawQuery(
+            `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${item.id}' AND "revisionNo" = '${revisionNo}'`
+          )
+        )[0][0]
+      );
       const header = new BomHeader();
       header.parentRevisionId = revisionId;
       header.bomType = bomType;
@@ -172,8 +181,12 @@ describe('保存校验（AC#1/#10/#11/#12/#13/#15）', () => {
   for (const backend of BACKENDS) {
     describe(`[${backend}]`, () => {
       let adapter: BomTestAdapter;
-      beforeAll(async () => { adapter = await createBomTestAdapter(backend); });
-      afterAll(async () => { await disposeBomTestAdapter(adapter).catch(() => undefined); });
+      beforeAll(async () => {
+        adapter = await createBomTestAdapter(backend);
+      });
+      afterAll(async () => {
+        await disposeBomTestAdapter(adapter).catch(() => undefined);
+      });
 
       const makeItemOnly = async (key: string): Promise<BomItem> => {
         const item = new BomItem();
@@ -188,9 +201,11 @@ describe('保存校验（AC#1/#10/#11/#12/#13/#15）', () => {
         bomType: 'ebom' | 'mbom',
         children: (BomItem | { child: BomItem; revisionNo: string })[]
       ): Promise<{ header: BomHeader; lines: BomLine[] }> => {
-        const existing = shapeRows(await adapter.rawQuery(
-          `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${item.id}'`
-        ));
+        const existing = shapeRows(
+          await adapter.rawQuery(
+            `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${item.id}'`
+          )
+        );
         if (existing.length === 0) {
           await loadHistory(adapter, {
             batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
@@ -198,9 +213,13 @@ describe('保存校验（AC#1/#10/#11/#12/#13/#15）', () => {
             headers: []
           });
         }
-        const revisionId = String(shapeRows(await adapter.rawQuery(
-          `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${item.id}'`
-        ))[0][0]);
+        const revisionId = String(
+          shapeRows(
+            await adapter.rawQuery(
+              `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${item.id}'`
+            )
+          )[0][0]
+        );
         const header = new BomHeader();
         header.parentRevisionId = revisionId;
         header.bomType = bomType;
@@ -222,9 +241,11 @@ describe('保存校验（AC#1/#10/#11/#12/#13/#15）', () => {
           occurrence.effectiveFrom = day('2026-01-01');
           if (!(entry instanceof BomItem)) {
             // 锁版：childRevisionId 指向指定修订
-            const revRows = shapeRows(await adapter.rawQuery(
-              `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${child.id}' AND "revisionNo" = '${entry.revisionNo}'`
-            ));
+            const revRows = shapeRows(
+              await adapter.rawQuery(
+                `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${child.id}' AND "revisionNo" = '${entry.revisionNo}'`
+              )
+            );
             occurrence.childRevisionId = String(revRows[0][0]);
           }
           await occurrence.save();
@@ -248,12 +269,24 @@ describe('保存校验（AC#1/#10/#11/#12/#13/#15）', () => {
         scope.ebomRootHeaderId = ebom.header.id;
         scope.mbomRootHeaderId = mbom.header.id;
         await scope.save();
-        await saveMapping(adapter, { scopeId: scope.id, relation: 'split', sourceLineId: ebom.lines[0].id, targetLineId: mbom.lines[0].id });
-        await saveMapping(adapter, { scopeId: scope.id, relation: 'split', sourceLineId: ebom.lines[0].id, targetLineId: mbom.lines[1].id });
+        await saveMapping(adapter, {
+          scopeId: scope.id,
+          relation: 'split',
+          sourceLineId: ebom.lines[0].id,
+          targetLineId: mbom.lines[0].id
+        });
+        await saveMapping(adapter, {
+          scopeId: scope.id,
+          relation: 'split',
+          sourceLineId: ebom.lines[0].id,
+          targetLineId: mbom.lines[1].id
+        });
         // 双向可追溯：按源行 / 目标行都能查到映射
-        const rows = shapeRows(await adapter.rawQuery(
-          `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$bom_map"' : '"bom"."bom_map"'} WHERE "scopeId" = '${scope.id}'`
-        ));
+        const rows = shapeRows(
+          await adapter.rawQuery(
+            `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$bom_map"' : '"bom"."bom_map"'} WHERE "scopeId" = '${scope.id}'`
+          )
+        );
         expect(rows).toHaveLength(2);
       });
 
@@ -271,7 +304,12 @@ describe('保存校验（AC#1/#10/#11/#12/#13/#15）', () => {
         await scope.save();
         // 源行属 MBOM 头 → 拒
         await expect(
-          saveMapping(adapter, { scopeId: scope.id, relation: 'one_to_one', sourceLineId: mbom.lines[0].id, targetLineId: mbom.lines[0].id })
+          saveMapping(adapter, {
+            scopeId: scope.id,
+            relation: 'one_to_one',
+            sourceLineId: mbom.lines[0].id,
+            targetLineId: mbom.lines[0].id
+          })
         ).rejects.toThrow(/EBOM|类型/);
       });
 
@@ -290,9 +328,19 @@ describe('保存校验（AC#1/#10/#11/#12/#13/#15）', () => {
         scope.mbomRootHeaderId = mbomA.header.id;
         await scope.save();
         // C 的源行（父件 B）→ 目标行（父件 A）：即时父件不同，接受
-        await saveMapping(adapter, { scopeId: scope.id, relation: 'one_to_one', sourceLineId: ebomB.lines[0].id, targetLineId: mbomA.lines[0].id });
+        await saveMapping(adapter, {
+          scopeId: scope.id,
+          relation: 'one_to_one',
+          sourceLineId: ebomB.lines[0].id,
+          targetLineId: mbomA.lines[0].id
+        });
         // 反向：下沉
-        await saveMapping(adapter, { scopeId: scope.id, relation: 'one_to_one', sourceLineId: ebomA.lines[0].id, targetLineId: mbomA.lines[0].id });
+        await saveMapping(adapter, {
+          scopeId: scope.id,
+          relation: 'one_to_one',
+          sourceLineId: ebomA.lines[0].id,
+          targetLineId: mbomA.lines[0].id
+        });
       });
 
       it('AC#12 源行所在头不可由范围根件到达：拒绝', async () => {
@@ -310,7 +358,12 @@ describe('保存校验（AC#1/#10/#11/#12/#13/#15）', () => {
         scope.mbomRootHeaderId = mbom.header.id;
         await scope.save();
         await expect(
-          saveMapping(adapter, { scopeId: scope.id, relation: 'one_to_one', sourceLineId: outside.lines[0].id, targetLineId: mbom.lines[0].id })
+          saveMapping(adapter, {
+            scopeId: scope.id,
+            relation: 'one_to_one',
+            sourceLineId: outside.lines[0].id,
+            targetLineId: mbom.lines[0].id
+          })
         ).rejects.toThrow(/到达|成员/);
       });
 
@@ -345,8 +398,12 @@ describe('覆盖率查询（AC#5/#6/#13/#14）', () => {
   for (const backend of BACKENDS) {
     describe(`[${backend}]`, () => {
       let adapter: BomTestAdapter;
-      beforeAll(async () => { adapter = await createBomTestAdapter(backend); });
-      afterAll(async () => { await disposeBomTestAdapter(adapter).catch(() => undefined); });
+      beforeAll(async () => {
+        adapter = await createBomTestAdapter(backend);
+      });
+      afterAll(async () => {
+        await disposeBomTestAdapter(adapter).catch(() => undefined);
+      });
 
       const makeItemOnly = async (key: string): Promise<BomItem> => {
         const item = new BomItem();
@@ -360,9 +417,11 @@ describe('覆盖率查询（AC#5/#6/#13/#14）', () => {
         bomType: 'ebom' | 'mbom',
         children: BomItem[]
       ): Promise<{ header: BomHeader; lines: BomLine[] }> => {
-        const existing = shapeRows(await adapter.rawQuery(
-          `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${item.id}'`
-        ));
+        const existing = shapeRows(
+          await adapter.rawQuery(
+            `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${item.id}'`
+          )
+        );
         if (existing.length === 0) {
           await loadHistory(adapter, {
             batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
@@ -370,9 +429,13 @@ describe('覆盖率查询（AC#5/#6/#13/#14）', () => {
             headers: []
           });
         }
-        const revisionId = String(shapeRows(await adapter.rawQuery(
-          `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${item.id}'`
-        ))[0][0]);
+        const revisionId = String(
+          shapeRows(
+            await adapter.rawQuery(
+              `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${item.id}'`
+            )
+          )[0][0]
+        );
         const header = new BomHeader();
         header.parentRevisionId = revisionId;
         header.bomType = bomType;
@@ -414,8 +477,17 @@ describe('覆盖率查询（AC#5/#6/#13/#14）', () => {
         scope.mbomRootHeaderId = mbom.header.id;
         await scope.save();
         // 只映射 a 行
-        await saveMapping(adapter, { scopeId: scope.id, relation: 'one_to_one', sourceLineId: ebom.lines[0].id, targetLineId: mbom.lines[0].id });
-        const coverage = await mappingCoverage(adapter, scope.id, { bomType: 'ebom', orgId: 'org-x', asOfDate: day('2026-09-22') });
+        await saveMapping(adapter, {
+          scopeId: scope.id,
+          relation: 'one_to_one',
+          sourceLineId: ebom.lines[0].id,
+          targetLineId: mbom.lines[0].id
+        });
+        const coverage = await mappingCoverage(adapter, scope.id, {
+          bomType: 'ebom',
+          orgId: 'org-x',
+          asOfDate: day('2026-09-22')
+        });
         expect(coverage.covered).toHaveLength(1);
         expect(coverage.uncovered).toHaveLength(1);
         expect(coverage.uncovered[0].lineId).toBe(ebom.lines[1].id);
@@ -436,9 +508,23 @@ describe('覆盖率查询（AC#5/#6/#13/#14）', () => {
         scope.mbomRootHeaderId = mbomA.header.id;
         await scope.save();
         // EBOM 侧两条路径（根行 → B 行）全部覆盖：根行映射 + B 行映射
-        await saveMapping(adapter, { scopeId: scope.id, relation: 'one_to_one', sourceLineId: ebomA.lines[0].id, targetLineId: mbomA.lines[0].id });
-        await saveMapping(adapter, { scopeId: scope.id, relation: 'one_to_one', sourceLineId: ebomB.lines[0].id, targetLineId: mbomA.lines[0].id });
-        const coverage = await mappingCoverage(adapter, scope.id, { bomType: 'ebom', orgId: 'org-x', asOfDate: day('2026-09-22') });
+        await saveMapping(adapter, {
+          scopeId: scope.id,
+          relation: 'one_to_one',
+          sourceLineId: ebomA.lines[0].id,
+          targetLineId: mbomA.lines[0].id
+        });
+        await saveMapping(adapter, {
+          scopeId: scope.id,
+          relation: 'one_to_one',
+          sourceLineId: ebomB.lines[0].id,
+          targetLineId: mbomA.lines[0].id
+        });
+        const coverage = await mappingCoverage(adapter, scope.id, {
+          bomType: 'ebom',
+          orgId: 'org-x',
+          asOfDate: day('2026-09-22')
+        });
         // EBOM 层级：根行 + B 行都覆盖；MBOM 扁平只有一行
         expect(coverage.uncovered).toHaveLength(0);
         expect(coverage.covered).toHaveLength(2);
@@ -473,7 +559,11 @@ describe('覆盖率查询（AC#5/#6/#13/#14）', () => {
           targetLineId: mbom.lines[0].id,
           sourceLinePath: p1Path
         });
-        const coverage = await mappingCoverage(adapter, scope.id, { bomType: 'ebom', orgId: 'org-x', asOfDate: day('2026-09-22') });
+        const coverage = await mappingCoverage(adapter, scope.id, {
+          bomType: 'ebom',
+          orgId: 'org-x',
+          asOfDate: day('2026-09-22')
+        });
         // 同一 S 行：P1 路径已覆盖、P2 路径报未覆盖（路径级映射只覆盖 P1）
         const sEntry = coverage.uncovered.find(entry => entry.lineId === ebomS.lines[0].id);
         expect(sEntry).toBeDefined();
@@ -489,8 +579,12 @@ describe('跟进基线与缺口（AC#4/#7/#8/#20）', () => {
   for (const backend of BACKENDS) {
     describe(`[${backend}]`, () => {
       let adapter: BomTestAdapter;
-      beforeAll(async () => { adapter = await createBomTestAdapter(backend); });
-      afterAll(async () => { await disposeBomTestAdapter(adapter).catch(() => undefined); });
+      beforeAll(async () => {
+        adapter = await createBomTestAdapter(backend);
+      });
+      afterAll(async () => {
+        await disposeBomTestAdapter(adapter).catch(() => undefined);
+      });
 
       const makeItemOnly = async (key: string): Promise<BomItem> => {
         const item = new BomItem();
@@ -505,9 +599,11 @@ describe('跟进基线与缺口（AC#4/#7/#8/#20）', () => {
         children: BomItem[],
         qty = '1'
       ): Promise<{ header: BomHeader; lines: BomLine[] }> => {
-        const existing = shapeRows(await adapter.rawQuery(
-          `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${item.id}'`
-        ));
+        const existing = shapeRows(
+          await adapter.rawQuery(
+            `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${item.id}'`
+          )
+        );
         if (existing.length === 0) {
           await loadHistory(adapter, {
             batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
@@ -515,9 +611,13 @@ describe('跟进基线与缺口（AC#4/#7/#8/#20）', () => {
             headers: []
           });
         }
-        const revisionId = String(shapeRows(await adapter.rawQuery(
-          `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${item.id}'`
-        ))[0][0]);
+        const revisionId = String(
+          shapeRows(
+            await adapter.rawQuery(
+              `SELECT "id" FROM ${backend === 'wa-sqlite' ? '"bom$item_revision"' : '"bom"."item_revision"'} WHERE "itemId" = '${item.id}'`
+            )
+          )[0][0]
+        );
         const header = new BomHeader();
         header.parentRevisionId = revisionId;
         header.bomType = bomType;
@@ -577,9 +677,11 @@ describe('跟进基线与缺口（AC#4/#7/#8/#20）', () => {
         ecn.ecnNo = `G-ECN-${Math.random().toString(36).slice(2, 8)}`;
         ecn.effectiveDate = day('2026-11-01');
         await ecn.save();
-        const oldOccurrenceRows = shapeRows(await adapter.rawQuery(
-          `SELECT occ."id" FROM ${backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"'} occ WHERE occ."lineId" = '${ebomB.lines[0].id}'`
-        ));
+        const oldOccurrenceRows = shapeRows(
+          await adapter.rawQuery(
+            `SELECT occ."id" FROM ${backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"'} occ WHERE occ."lineId" = '${ebomB.lines[0].id}'`
+          )
+        );
         const oldOccurrenceId = String(oldOccurrenceRows[0][0]);
         await adapter.rawQuery(
           `UPDATE ${backend === 'wa-sqlite' ? '"bom$bom_line_occurrence"' : '"bom"."bom_line_occurrence"'} SET "ecnOutId" = '${ecn.id}', "effectiveTo" = '2026-11-01T00:00:00.000Z' WHERE "id" = '${oldOccurrenceId}'`

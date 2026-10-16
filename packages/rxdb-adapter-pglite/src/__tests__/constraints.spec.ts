@@ -12,8 +12,8 @@ import {
   EntityMetadataOptions,
   PropertyType,
   RxDB,
-  RxDBConstraintDriftError,
   RxDBCheckViolationError,
+  RxDBConstraintDriftError,
   RxDBExclusionViolationError,
   RxDBOptions,
   SyncType
@@ -28,7 +28,9 @@ import { RxDBAdapterPGlite } from '../RxDBAdapterPGlite.js';
     { name: 'unitFrom', type: PropertyType.integer, nullable: true },
     { name: 'unitTo', type: PropertyType.integer, nullable: true }
   ],
-  checks: [{ name: 'unit_range', rule: { combinator: 'and', rules: [{ field: 'unitFrom', operator: '<=', ref: 'unitTo' }] } }]
+  checks: [
+    { name: 'unit_range', rule: { combinator: 'and', rules: [{ field: 'unitFrom', operator: '<=', ref: 'unitTo' }] } }
+  ]
 })
 class PgCkItem extends EntityBase {
   qty!: string | null;
@@ -92,7 +94,10 @@ const day = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
 
 const databases = new Set<RxDB>();
 
-const createDatabase = async (entities: RxDBOptions['entities'], migrations?: RxDBOptions['migrations']): Promise<RxDBAdapterPGlite> => {
+const createDatabase = async (
+  entities: RxDBOptions['entities'],
+  migrations?: RxDBOptions['migrations']
+): Promise<RxDBAdapterPGlite> => {
   const database = new RxDB({
     dbName: `pgl-constraint-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
     entities,

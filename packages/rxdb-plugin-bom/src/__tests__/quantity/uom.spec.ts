@@ -6,8 +6,8 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { BomQuantityError } from '../../types.js';
 import { convertUom } from '../../quantity/uom.js';
+import { BomQuantityError } from '../../types.js';
 
 describe('单位换算：同量纲标准系数（AC#5 的标准系数段）', () => {
   it('g → kg 与 kg → g', () => {

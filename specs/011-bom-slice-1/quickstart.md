@@ -4,13 +4,13 @@
 
 ## 交付物
 
-| 项 | 落点 |
-| --- | --- |
-| US-030 阶段 A/B/C | `packages/rxdb/src/entity/`（类型 / 合并 / 校验 / 编译）、`system/sql-literal.ts`、`system/constraint-violations.ts`、`RxDBError.ts`（三个新错误类）、`RxDB.ts`（漂移检查调用点）、两适配器的建表 DDL / 排他触发器 / 漂移实现 / 写路径归一 |
-| SQLite ≥ 3.47 门槛 | `RxDBAdapterSqliteBase.connect()`（每实例一次、点名实际版本与门槛） |
-| Tauri rusqlite 0.33 | `packages/rxdb-adapter-tauri/rust/Cargo.toml` + 两份 Cargo.lock（SQLite 3.48.0），代码零改动 |
-| US-507 阶段 A/B | `packages/rxdb-plugin-bom`（新包）：五个实体、BomRepository、双后端触发器 DDL、十进制值合同 |
-| qty 存储段 | `decimal.utils.ts`（入口规范化）+ 双后端格式触发器（US-511 AC#22 ①/②、AC#23） |
+| 项                  | 落点                                                                                                                                                                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| US-030 阶段 A/B/C   | `packages/rxdb/src/entity/`（类型 / 合并 / 校验 / 编译）、`system/sql-literal.ts`、`system/constraint-violations.ts`、`RxDBError.ts`（三个新错误类）、`RxDB.ts`（漂移检查调用点）、两适配器的建表 DDL / 排他触发器 / 漂移实现 / 写路径归一 |
+| SQLite ≥ 3.47 门槛  | `RxDBAdapterSqliteBase.connect()`（每实例一次、点名实际版本与门槛）                                                                                                                                                                        |
+| Tauri rusqlite 0.33 | `packages/rxdb-adapter-tauri/rust/Cargo.toml` + 两份 Cargo.lock（SQLite 3.48.0），代码零改动                                                                                                                                               |
+| US-507 阶段 A/B     | `packages/rxdb-plugin-bom`（新包）：五个实体、BomRepository、双后端触发器 DDL、十进制值合同                                                                                                                                                |
+| qty 存储段          | `decimal.utils.ts`（入口规范化）+ 双后端格式触发器（US-511 AC#22 ①/②、AC#23）                                                                                                                                                              |
 
 ## 测试与门禁（截至当日）
 

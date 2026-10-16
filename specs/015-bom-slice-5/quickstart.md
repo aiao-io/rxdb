@@ -4,14 +4,14 @@
 
 ## 交付物
 
-| 项 | 落点 |
-| --- | --- |
-| US-513 阶段 A 多输出物料流 | `flow_direction` 三值列、判环/可达性只认 consume（US-509 AC#4 同批）、by_product 子件≠头父件发布校验、展开反向流（副产按 P' 缩放、scrap_out 进产出列表、「无投入」拒绝、自回流分列） |
-| US-512 非 ECN 替代组 | `bom_substitute_group` 实体 + 成员列（概率 9 位小数域）、发布转移切片聚合校验（定点整数 10⁹ 合计、错误还原规范串）、展开分流（proportional/priority/manual + `ResolutionContext` 扩展） |
-| US-524 阶段 A（除 AC#7 展开面）/D | `work_center` / `routing`（唯一键与 BOM 头对齐）/ `routing_operation`（工序损耗与各自 convention）、头挂 `routing_id` FK |
-| US-520 非 ECN 挂接与分摊 | 行 `operation_seq`（保存期工序校验）+ `bom_line_operation_split` 子表（互斥 AC#6、结构列 AC#9）、发布合计校验 |
-| US-511 B2 第 5 步 | 投料工序（含）至末工序逐道累乘、分摊每份额各自起算；`steps.operationScrapped`；算法版本 `'2'`；AC#1 的 34 位 golden `220.8247422680412371134020618556701` → 221 逐字断言 |
-| US-525 阶段 B | 种子 B 层（外壳下料 / 替代组 COVER-ASSY / 路线 PROCESS-01）+ 手写 golden（A 层路径逐位不变）+ 面板第 5 步 + e2e 三条 AC 用例（共 10 条） |
+| 项                                | 落点                                                                                                                                                                                    |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| US-513 阶段 A 多输出物料流        | `flow_direction` 三值列、判环/可达性只认 consume（US-509 AC#4 同批）、by_product 子件≠头父件发布校验、展开反向流（副产按 P' 缩放、scrap_out 进产出列表、「无投入」拒绝、自回流分列）    |
+| US-512 非 ECN 替代组              | `bom_substitute_group` 实体 + 成员列（概率 9 位小数域）、发布转移切片聚合校验（定点整数 10⁹ 合计、错误还原规范串）、展开分流（proportional/priority/manual + `ResolutionContext` 扩展） |
+| US-524 阶段 A（除 AC#7 展开面）/D | `work_center` / `routing`（唯一键与 BOM 头对齐）/ `routing_operation`（工序损耗与各自 convention）、头挂 `routing_id` FK                                                                |
+| US-520 非 ECN 挂接与分摊          | 行 `operation_seq`（保存期工序校验）+ `bom_line_operation_split` 子表（互斥 AC#6、结构列 AC#9）、发布合计校验                                                                           |
+| US-511 B2 第 5 步                 | 投料工序（含）至末工序逐道累乘、分摊每份额各自起算；`steps.operationScrapped`；算法版本 `'2'`；AC#1 的 34 位 golden `220.8247422680412371134020618556701` → 221 逐字断言                |
+| US-525 阶段 B                     | 种子 B 层（外壳下料 / 替代组 COVER-ASSY / 路线 PROCESS-01）+ 手写 golden（A 层路径逐位不变）+ 面板第 5 步 + e2e 三条 AC 用例（共 10 条）                                                |
 
 ## 测试与门禁（截至当日）
 

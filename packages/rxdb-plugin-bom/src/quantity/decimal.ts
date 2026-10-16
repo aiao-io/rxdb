@@ -101,8 +101,7 @@ export const decimalAdd = (a: Decimal, b: Decimal): Decimal => {
 /**
  * 减法（指数对齐后整数相减，收敛到 34 位）。
  */
-export const decimalSub = (a: Decimal, b: Decimal): Decimal =>
-  decimalAdd(a, { coeff: -b.coeff, exp: b.exp });
+export const decimalSub = (a: Decimal, b: Decimal): Decimal => decimalAdd(a, { coeff: -b.coeff, exp: b.exp });
 
 /**
  * 乘法（系数相乘、指数相加，收敛到 34 位）。
@@ -126,7 +125,7 @@ export const decimalDiv = (a: Decimal, b: Decimal): Decimal => {
   const numerator = a.coeff * pow10(scale);
   let quotient = numerator / b.coeff;
   const remainder = numerator % b.coeff;
-  const negative = (a.coeff < 0n) !== (b.coeff < 0n);
+  const negative = a.coeff < 0n !== b.coeff < 0n;
   const abs = negative ? -quotient : quotient;
   const absRemainder = negative ? -remainder : remainder;
   const absDivisor = b.coeff < 0n ? -b.coeff : b.coeff;

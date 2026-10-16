@@ -23,7 +23,15 @@ const CONTEXT = { bomType: 'ebom' as const, orgId: 'org-x', asOfDate: day('2026-
 const setup = async (
   adapter: BomTestAdapter,
   parentItem: BomItem
-): Promise<{ header: BomHeader; revisionItemId: string; addLine: (flow: 'consume' | 'by_product' | 'scrap_out', child: BomItem, overrides?: Partial<BomLineOccurrence>) => Promise<void> }> => {
+): Promise<{
+  header: BomHeader;
+  revisionItemId: string;
+  addLine: (
+    flow: 'consume' | 'by_product' | 'scrap_out',
+    child: BomItem,
+    overrides?: Partial<BomLineOccurrence>
+  ) => Promise<void>;
+}> => {
   await loadHistory(adapter, {
     batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
     revisions: [{ itemId: parentItem.id, revisionNo: 'A', effectiveFrom: day('2020-01-01') }],
@@ -31,8 +39,7 @@ const setup = async (
   });
   const table = adapter.name === 'wa-sqlite' ? `"bom$item_revision"` : `"bom"."item_revision"`;
   const rows = (await adapter.rawQuery(`SELECT "id" FROM ${table} WHERE "itemId" = '${parentItem.id}'`)) as unknown as
-    | { results: { rows: unknown[][] }[] }
-    | { rows: unknown[][] };
+    { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
   const shape = 'results' in rows ? rows.results[0] : rows;
   const header = new BomHeader();
   header.parentRevisionId = String(shape.rows[0][0]);
@@ -141,7 +148,12 @@ for (const backend of BACKENDS) {
       await addLine('by_product', s);
       await release(header);
       await expect(
-        explodeBom(adapter, CONTEXT, { parentRevisionId: header.parentRevisionId }, { plannedQty: { value: '1', uom: 'pcs' } })
+        explodeBom(
+          adapter,
+          CONTEXT,
+          { parentRevisionId: header.parentRevisionId },
+          { plannedQty: { value: '1', uom: 'pcs' } }
+        )
       ).rejects.toThrow(BomQuantityError);
     });
 
@@ -153,9 +165,18 @@ for (const backend of BACKENDS) {
       await addLine('consume', input, { qty: '2' });
       await addLine('scrap_out', waste, { qty: '0.5' });
       await release(header);
-      const result = await explodeBom(adapter, CONTEXT, { parentRevisionId: header.parentRevisionId }, { plannedQty: { value: '1', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentRevisionId: header.parentRevisionId },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
       expect(result.requirementLines.some(line => line.itemId === waste.id)).toBe(false);
-      expect(result.outputs.some(output => output.itemId === waste.id && output.direction === 'scrap_out' && output.qty === '0.5')).toBe(true);
+      expect(
+        result.outputs.some(
+          output => output.itemId === waste.id && output.direction === 'scrap_out' && output.qty === '0.5'
+        )
+      ).toBe(true);
     });
 
     it('AC#8 自回流：P 副产 S 又 consume S，接受且需求与产出分列', async () => {
@@ -165,7 +186,12 @@ for (const backend of BACKENDS) {
       await addLine('consume', s, { qty: '10' });
       await addLine('by_product', s, { qty: '3' });
       await release(header);
-      const result = await explodeBom(adapter, CONTEXT, { parentRevisionId: header.parentRevisionId }, { plannedQty: { value: '1', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentRevisionId: header.parentRevisionId },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
       expect(result.requirementLines.find(line => line.itemId === s.id)?.qty).toBe('10');
       expect(result.outputs.find(output => output.itemId === s.id)?.qty).toBe('3');
     });
@@ -184,7 +210,12 @@ for (const backend of BACKENDS) {
       await addLine('by_product', s, { qty: '10', uom: 'kg' });
       await release(header);
       const at = async (planned: string): Promise<{ r: string; s: string }> => {
-        const result = await explodeBom(adapter, CONTEXT, { parentRevisionId: header.parentRevisionId }, { plannedQty: { value: planned, uom: 'kg' } });
+        const result = await explodeBom(
+          adapter,
+          CONTEXT,
+          { parentRevisionId: header.parentRevisionId },
+          { plannedQty: { value: planned, uom: 'kg' } }
+        );
         return {
           r: result.requirementLines.find(line => line.itemId === r.id)?.qty ?? '',
           s: result.outputs.find(output => output.itemId === s.id)?.qty ?? ''

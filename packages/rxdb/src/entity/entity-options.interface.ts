@@ -19,7 +19,6 @@ import type {
   EntityPropertyMetadataOptions
 } from './property-types.interface.js';
 import type { EntityRelationMetadataOptions } from './relation-types.interface.js';
-import type { EntityCheckMetadataOptions, EntityExclusionMetadataOptions } from './storage-constraints.interface.js';
 import type { SyncOptions } from './sync-options.interface.js';
 
 /**

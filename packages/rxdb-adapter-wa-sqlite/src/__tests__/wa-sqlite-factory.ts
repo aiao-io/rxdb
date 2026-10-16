@@ -55,9 +55,7 @@ async function createWaSqliteAdapter(options?: Record<string, unknown>) {
   const entities = (rawOptions.entities ?? []).slice();
   const persistent = rawOptions.persistent === true;
   const plugins = rawOptions.plugins ?? [];
-  const dbName =
-    rawOptions.dbName ??
-    `wa-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const dbName = rawOptions.dbName ?? `wa-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   const rxdb = new RxDB({
     dbName,

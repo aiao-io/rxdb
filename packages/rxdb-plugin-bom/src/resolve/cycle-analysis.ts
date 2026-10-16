@@ -7,11 +7,11 @@
  * 错误码与路径，没有这个标记（有意的）。
  */
 
-import { firstValueFrom } from 'rxjs';
 import type { RxDB } from '@aiao/rxdb';
+import { firstValueFrom } from 'rxjs';
+import { BomCycleError } from '../types.js';
 import type { BomLocalAdapter } from './bom-adapter.js';
 import { bomSqlDialectFor } from './bom-sql.js';
-import { BomCycleError } from '../types.js';
 
 /** 一条边的发生项区间集合（半开 `[from, to)`，端点 NULL 无界）。 */
 interface EffectiveInterval {
@@ -61,10 +61,8 @@ const readEdgeIntervals = async (
   ].join('\n');
   // rawQuery 在接口上可选：本地适配器必有；缺席按无界处理（读不到区间就不标 unionOnly）
   if (!adapter.rawQuery) return [{ from: null, to: null }];
-  const result = (await adapter.rawQuery(sql, [
-    dialect.encode(parentItemId),
-    dialect.encode(childItemId)
-  ])) as { columns: string[]; rows: unknown[][] } | { results: { columns: string[]; rows: unknown[][] }[] };
+  const result = (await adapter.rawQuery(sql, [dialect.encode(parentItemId), dialect.encode(childItemId)])) as
+    { columns: string[]; rows: unknown[][] } | { results: { columns: string[]; rows: unknown[][] }[] };
   const shape = 'results' in result ? result.results[0] : result;
   const fromIndex = shape?.columns.indexOf('from') ?? -1;
   const toIndex = shape?.columns.indexOf('to') ?? -1;

@@ -29,7 +29,6 @@ import {
   RxDBAdapterName,
   RxDBAdapters
 } from './rxdb-adapter.js';
-import { RxDBLocalAdapterCapabilityError } from './RxDBError.js';
 import {
   RemoteEntityInvalidatedEvent,
   RxDBEvent,

@@ -4,12 +4,12 @@
 
 ## 交付物
 
-| 项 | 落点 |
-| --- | --- |
+| 项                                               | 落点                                                                                                                                                                                                                                     |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | US-508 视图解析（首轮 AC#1~#11/#13~#15/#17/#18） | `packages/rxdb-plugin-bom/src/resolve/`（`resolution.ts` 类型、`bom-sql.ts` 方言与 SQL、`resolver.ts`、`history-loader.ts`）；追溯发布双后端触发器 + `released_effective_from` 部分唯一索引；`BomHistoryBatch` 实体与 append-only 触发器 |
-| US-509 判环（首轮 AC#1~#3/#5~#7/#9~#12/#14/#17） | `backend/bom-trigger-ddl.ts`（双后端递归 CTE 判环触发器）、`resolve/cycle-analysis.ts`（`union_only` 区间分析）、`resolve/cycle-constraint-ddl.ts`（远端 PG DDL 导出）、`plugin.ts`（http/supabase fail-fast + 同步拒绝） |
-| US-510 阶段 A（AC#1/#2/#11 + AC#7/#10 下钻部分） | `resolve/expansion.ts`（BFS 逐层 `expandBom` / `whereUsed`、预算结算、`assertCompleteResolution`）、`bom-sql.ts`（按前沿集合的子件/使用方 SQL） |
-| 插件收尾 | `plugin.ts` 门面（`resolve` / `loadHistory` / `expandBom` / `whereUsed` / `cycleConstraintDdlForRemotePg`）、错误家族（`BomCycleError` / `BomTruncationError` 等）、`BomLocalAdapter` 最小适配器面、api-baseline 更新 |
+| US-509 判环（首轮 AC#1~#3/#5~#7/#9~#12/#14/#17） | `backend/bom-trigger-ddl.ts`（双后端递归 CTE 判环触发器）、`resolve/cycle-analysis.ts`（`union_only` 区间分析）、`resolve/cycle-constraint-ddl.ts`（远端 PG DDL 导出）、`plugin.ts`（http/supabase fail-fast + 同步拒绝）                |
+| US-510 阶段 A（AC#1/#2/#11 + AC#7/#10 下钻部分） | `resolve/expansion.ts`（BFS 逐层 `expandBom` / `whereUsed`、预算结算、`assertCompleteResolution`）、`bom-sql.ts`（按前沿集合的子件/使用方 SQL）                                                                                          |
+| 插件收尾                                         | `plugin.ts` 门面（`resolve` / `loadHistory` / `expandBom` / `whereUsed` / `cycleConstraintDdlForRemotePg`）、错误家族（`BomCycleError` / `BomTruncationError` 等）、`BomLocalAdapter` 最小适配器面、api-baseline 更新                    |
 
 ## 测试与门禁（截至当日）
 

@@ -148,10 +148,7 @@ const parseExpr = (context: ParseContext): Decimal => {
     if (!token || token.kind !== 'op' || (token.text !== '+' && token.text !== '-')) break;
     context.position += 1;
     const right = parseTerm(context);
-    value =
-      token.text === '+' ?
-        decimalAdd(value, right)
-      : decimalSub(value, right);
+    value = token.text === '+' ? decimalAdd(value, right) : decimalSub(value, right);
   }
   return value;
 };

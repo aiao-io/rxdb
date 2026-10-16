@@ -131,7 +131,12 @@ function golden(pathKey: string[], itemKey: string, qty: string, plannedUom = 'p
  * B 层新路径给出新值——手写，不由被测 kernel 生成。
  */
 export const SCOOTER_GOLDEN_B: {
-  requirements: { rootKey: string; plannedQty: GoldenStepValue; lines: GoldenRequirement[]; outputs: { itemKey: string; qty: string }[] }[];
+  requirements: {
+    rootKey: string;
+    plannedQty: GoldenStepValue;
+    lines: GoldenRequirement[];
+    outputs: { itemKey: string; qty: string }[];
+  }[];
 } = {
   requirements: [
     {

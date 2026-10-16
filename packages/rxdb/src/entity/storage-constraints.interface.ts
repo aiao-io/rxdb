@@ -15,7 +15,8 @@ import type { RuleGroupBase } from '../repository/query.interface.js';
  * 只收单行确定性比较：`exists` 系要子查询，`contains` / `startsWith` / `endsWith`
  * 系在两后端的单行语义不一致，一律在元数据期拒绝。
  */
-export type CheckOperatorName = '=' | '!=' | '<' | '>' | '<=' | '>=' | 'in' | 'notIn' | 'between' | 'notBetween' | 'null' | 'notNull';
+export type CheckOperatorName =
+  '=' | '!=' | '<' | '>' | '<=' | '>=' | 'in' | 'notIn' | 'between' | 'notBetween' | 'null' | 'notNull';
 
 /**
  * 单行约束规则（CHECK / `where` 的叶子）

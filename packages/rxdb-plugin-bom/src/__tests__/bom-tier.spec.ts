@@ -59,13 +59,23 @@ for (const backend of BACKENDS) {
           ]
         }
       ]);
-      const result = await explodeBom(adapter, CONTEXT, { parentItemId: finished.id }, { plannedQty: { value: '95', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '95', uom: 'pcs' } }
+      );
       expect(result.truncated).toBeNull();
       // 阶梯命中 [0,100) 行：G=1×114/1=114；普通行：3×114=342
       const quantities = result.requirementLines.map(line => line.qty).sort();
       expect(quantities).toEqual(['114', '342']);
       // P=100 命中 [100,∞)：阶梯 G=2×120=240；普通行 3×120=360
-      const atBoundary = await explodeBom(adapter, CONTEXT, { parentItemId: finished.id }, { plannedQty: { value: '100', uom: 'pcs' } });
+      const atBoundary = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '100', uom: 'pcs' } }
+      );
       expect(atBoundary.requirementLines.map(line => line.qty).sort()).toEqual(['240', '360']);
     });
 
@@ -75,9 +85,7 @@ for (const backend of BACKENDS) {
       await buildQuantityFixture(adapter, [
         {
           item: finished,
-          occurrences: [
-            { child: part, tierGroupNo: 'g9', lotsizeFrom: '0', lotsizeTo: '100', qty: '1' }
-          ]
+          occurrences: [{ child: part, tierGroupNo: 'g9', lotsizeFrom: '0', lotsizeTo: '100', qty: '1' }]
         }
       ]);
       try {
@@ -101,7 +109,12 @@ for (const backend of BACKENDS) {
           ]
         }
       ]);
-      const result = await explodeBom(adapter, CONTEXT, { parentItemId: finished.id }, { plannedQty: { value: '1', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
       expect(result.requirementLines.map(line => line.qty).sort()).toEqual(['120', '125']);
     });
 
@@ -119,7 +132,14 @@ for (const backend of BACKENDS) {
         await header.save();
         return header;
       };
-      const addTier = async (header: BomHeader, tierGroupNo: string, lotsizeFrom: string, lotsizeTo: string | null, effectiveFrom: string, effectiveTo: string | null): Promise<void> => {
+      const addTier = async (
+        header: BomHeader,
+        tierGroupNo: string,
+        lotsizeFrom: string,
+        lotsizeTo: string | null,
+        effectiveFrom: string,
+        effectiveTo: string | null
+      ): Promise<void> => {
         const child = await makeItem('pub-child');
         const line = new BomLine();
         line.headerId = header.id;
@@ -163,11 +183,22 @@ for (const backend of BACKENDS) {
         {
           item: finished,
           occurrences: [
-            { child: part, qty: '10', componentScrap: '0.5', componentScrapConvention: 'yield', componentScrapFixed: '1' }
+            {
+              child: part,
+              qty: '10',
+              componentScrap: '0.5',
+              componentScrapConvention: 'yield',
+              componentScrapFixed: '1'
+            }
           ]
         }
       ]);
-      const result = await explodeBom(adapter, CONTEXT, { parentItemId: finished.id }, { plannedQty: { value: '1', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
       // G'=10÷0.5=20 + 1 = 21
       expect(result.requirementLines[0].qty).toBe('21');
     });

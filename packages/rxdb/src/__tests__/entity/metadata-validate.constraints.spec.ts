@@ -45,7 +45,10 @@ describe('CHECK 声明校验', () => {
       const errors = validateChecks([
         { name: 'bad_op', rule: { combinator: 'and', rules: [{ field: 'qty', operator: operator as never }] } }
       ]);
-      expect(errors.some(error => error.rule === 'invalidCheck'), operator).toBe(true);
+      expect(
+        errors.some(error => error.rule === 'invalidCheck'),
+        operator
+      ).toBe(true);
     }
   });
 
@@ -60,7 +63,10 @@ describe('CHECK 声明校验', () => {
   it('ref 只能配比较操作符，且与字面量取值互斥', () => {
     const errors = validateChecks([
       { name: 'bad_ref', rule: { combinator: 'and', rules: [{ field: 'unitFrom', operator: 'in', ref: 'unitTo' }] } },
-      { name: 'both', rule: { combinator: 'and', rules: [{ field: 'unitFrom', operator: '<=', ref: 'unitTo', value: 1 }] } }
+      {
+        name: 'both',
+        rule: { combinator: 'and', rules: [{ field: 'unitFrom', operator: '<=', ref: 'unitTo', value: 1 }] }
+      }
     ]);
     expect(errors.filter(error => error.rule === 'invalidCheck').length).toBe(2);
   });
@@ -89,7 +95,10 @@ describe('CHECK 声明校验', () => {
 
   it('合法声明零违规，字段对字段与 null 组合通过（AC#8 的声明侧）', () => {
     const errors = validateChecks([
-      { name: 'unit_range', rule: { combinator: 'and', rules: [{ field: 'unitFrom', operator: '<=', ref: 'unitTo' }] } },
+      {
+        name: 'unit_range',
+        rule: { combinator: 'and', rules: [{ field: 'unitFrom', operator: '<=', ref: 'unitTo' }] }
+      },
       { name: 'qty_not_null', rule: { combinator: 'and', rules: [{ field: 'qty', operator: 'notNull' }] } }
     ]);
     expect(errors).toEqual([]);
@@ -100,7 +109,12 @@ describe('条件唯一 where 校验', () => {
   it('where 规则组复用 CHECK 白名单（非法操作符拒绝）', () => {
     const metadata = mkMetadata({
       indexes: [
-        { name: 'released_effective_from', properties: ['qty', 'name'], unique: true, where: { combinator: 'and', rules: [{ field: 'qty', operator: 'exists' as never }] } }
+        {
+          name: 'released_effective_from',
+          properties: ['qty', 'name'],
+          unique: true,
+          where: { combinator: 'and', rules: [{ field: 'qty', operator: 'exists' as never }] }
+        }
       ]
     });
     const errors = validateEntityMetadata(metadata);
@@ -123,21 +137,26 @@ describe('条件唯一 where 校验', () => {
 });
 
 describe('区间排他声明校验', () => {
-  const exclusion = (overrides: Record<string, unknown> = {}) => ({
-    name: 'occurrence_no_overlap',
-    equal: ['qty'],
-    ranges: [{ from: 'unitFrom', to: 'unitTo', bounds: '[)' }],
-    ...overrides
-  }) as NonNullable<EntityMetadataOptions['exclusions']>[number];
+  const exclusion = (overrides: Record<string, unknown> = {}) =>
+    ({
+      name: 'occurrence_no_overlap',
+      equal: ['qty'],
+      ranges: [{ from: 'unitFrom', to: 'unitTo', bounds: '[)' }],
+      ...overrides
+    }) as NonNullable<EntityMetadataOptions['exclusions']>[number];
 
   it('区间列限时间类与整数列', () => {
     const metadata = mkMetadata({ exclusions: [exclusion({ ranges: [{ from: 'qty', to: 'name', bounds: '[)' }] })] });
     const errors = validateEntityMetadata(metadata);
-    expect(errors.some(error => error.rule === 'invalidExclusion' && error.message.includes('只支持时间类与整数列'))).toBe(true);
+    expect(
+      errors.some(error => error.rule === 'invalidExclusion' && error.message.includes('只支持时间类与整数列'))
+    ).toBe(true);
   });
 
   it('bounds 限 [) 与 []', () => {
-    const metadata = mkMetadata({ exclusions: [exclusion({ ranges: [{ from: 'unitFrom', to: 'unitTo', bounds: '(]' }] })] });
+    const metadata = mkMetadata({
+      exclusions: [exclusion({ ranges: [{ from: 'unitFrom', to: 'unitTo', bounds: '(]' }] })]
+    });
     const errors = validateEntityMetadata(metadata);
     expect(errors.some(error => error.rule === 'invalidExclusion' && error.message.includes('bounds'))).toBe(true);
   });

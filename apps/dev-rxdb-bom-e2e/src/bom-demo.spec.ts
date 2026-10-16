@@ -6,8 +6,8 @@
  * where-used 全部路径（含虚拟件路径）。
  */
 
-import { expect, Page, test } from '@playwright/test';
 import { deterministicId } from '@aiao/rxdb-plugin-bom/testing';
+import { expect, Page, test } from '@playwright/test';
 
 const BASE = '/';
 
@@ -55,11 +55,7 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     const qtyValues = await r10kRows.locator('.qty').allTextContents();
     expect(qtyValues.map(text => text.trim())).toEqual(['2 pcs', '3 pcs', '1 pcs']);
     const designatorTexts = (await r10kRows.locator('.designators').allTextContents()).map(text => text.trim());
-    expect(designatorTexts).toEqual([
-      '位号：R1, R2',
-      '位号：R3, R4, R5',
-      '位号：R6'
-    ]);
+    expect(designatorTexts).toEqual(['位号：R1, R2', '位号：R3, R4, R5', '位号：R6']);
   });
 
   test('AC#3 位号 39/qty 100：草稿可存、发布拒绝且错误同时给两个数', async ({ page }) => {
@@ -101,7 +97,9 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     expect(formPath).toBe(rawPath);
   });
 
-  test('US-525 AC#7 替代组 proportional：COVER-ASSY 展开三件分摊 50/60/10；0.5/0.3 发布拒绝给 0.8', async ({ page }) => {
+  test('US-525 AC#7 替代组 proportional：COVER-ASSY 展开三件分摊 50/60/10；0.5/0.3 发布拒绝给 0.8', async ({
+    page
+  }) => {
     await resetAndSeed(page);
     // 根物料选 COVER-ASSY
     await page.getByTestId('root-select').selectOption({ label: 'COVER-ASSY' });
@@ -280,10 +278,15 @@ test.describe('BOM demo（US-525 阶段 A）', () => {
     await resetAndSeed(page);
     await page.getByTestId('as-of-date').fill('2026-10-15');
     await clickButton(page, '卷算');
-    await expect(page.locator('.cost-row[data-kind="head"]').first().locator('[data-amount]')).toHaveText('39.12040816326530612244897959183674', { timeout: 30000 });
+    await expect(page.locator('.cost-row[data-kind="head"]').first().locator('[data-amount]')).toHaveText(
+      '39.12040816326530612244897959183674',
+      { timeout: 30000 }
+    );
     // 重载后连接的是已有库：连接期安装全部触发器（幂等 DDL），映射与成本输入原样可用
     await page.reload();
     await clickButton(page, '双图并排展开');
-    await expect(page.getByTestId('mbom-tree').locator('.requirement-row[data-item="WIP-BEND"]')).toHaveCount(1, { timeout: 30000 });
+    await expect(page.getByTestId('mbom-tree').locator('.requirement-row[data-item="WIP-BEND"]')).toHaveCount(1, {
+      timeout: 30000
+    });
   });
 });

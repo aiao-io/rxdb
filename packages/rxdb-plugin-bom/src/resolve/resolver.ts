@@ -7,7 +7,12 @@
  */
 
 import type { BomLocalAdapter } from './bom-adapter.js';
-import { bomSqlDialectFor, buildAlternativeHeadersSql, buildParentRevisionSql, buildResolvedOccurrencesSql } from './bom-sql.js';
+import {
+  bomSqlDialectFor,
+  buildAlternativeHeadersSql,
+  buildParentRevisionSql,
+  buildResolvedOccurrencesSql
+} from './bom-sql.js';
 import {
   BomResolutionError,
   ResolutionContext,
@@ -144,12 +149,14 @@ export const resolveBom = async (
           lineNo: Number(row[columnIndexOf(cols, 'lineNo')]),
           occurrenceId: String(row[columnIndexOf(cols, 'occurrenceId')]),
           childItemId: String(row[columnIndexOf(cols, 'childItemId')]),
-          childRevisionId: row[columnIndexOf(cols, 'childRevisionId')] === null ?
-            null
-          : String(row[columnIndexOf(cols, 'childRevisionId')]),
-          resolvedChildRevisionId: row[columnIndexOf(cols, 'resolvedChildRevisionId')] === null ?
-            null
-          : String(row[columnIndexOf(cols, 'resolvedChildRevisionId')]),
+          childRevisionId:
+            row[columnIndexOf(cols, 'childRevisionId')] === null ?
+              null
+            : String(row[columnIndexOf(cols, 'childRevisionId')]),
+          resolvedChildRevisionId:
+            row[columnIndexOf(cols, 'resolvedChildRevisionId')] === null ?
+              null
+            : String(row[columnIndexOf(cols, 'resolvedChildRevisionId')]),
           qty: row[columnIndexOf(cols, 'qty')] === null ? null : String(row[columnIndexOf(cols, 'qty')]),
           effectiveFrom: normalizeDate(row[columnIndexOf(cols, 'effectiveFrom')]) as Date,
           effectiveTo: normalizeDate(row[columnIndexOf(cols, 'effectiveTo')])

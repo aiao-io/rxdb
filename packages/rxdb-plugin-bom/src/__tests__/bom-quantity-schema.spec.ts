@@ -79,7 +79,11 @@ for (const backend of BACKENDS) {
       const neither = await settled((await makeOccurrence(header, child, { qty: null })).save());
       expect(neither.ok).toBe(false);
       expect((neither as { error: unknown }).error).toBeInstanceOf(RxDBCheckViolationError);
-      const formulaOnly = await makeOccurrence(header, child, { qty: null, qtyFormula: '长*宽', formulaGrammarVersion: '1' });
+      const formulaOnly = await makeOccurrence(header, child, {
+        qty: null,
+        qtyFormula: '长*宽',
+        formulaGrammarVersion: '1'
+      });
       await expect(formulaOnly.save()).resolves.toBeDefined();
       expect(formulaOnly.qtyFormula).toBe('长*宽');
     });
@@ -126,17 +130,23 @@ for (const backend of BACKENDS) {
       );
       expect(rejected.ok).toBe(false);
       expect((rejected as { error: unknown }).error).toBeInstanceOf(BomDecimalFormatError);
-      expect(((rejected as { error: BomDecimalFormatError }).error).field).toBe('componentScrap');
-      await expect((await makeOccurrence(header, child, { componentScrap: '0.05', componentScrapConvention: 'yield' })).save()).resolves.toBeDefined();
-      await expect((await makeOccurrence(header, child, { componentScrap: '0', componentScrapConvention: 'yield' })).save()).resolves.toBeDefined();
-      await expect((await makeOccurrence(header, child, { componentScrap: '1', componentScrapConvention: 'additive' })).save()).resolves.toBeDefined();
+      expect((rejected as { error: BomDecimalFormatError }).error.field).toBe('componentScrap');
+      await expect(
+        (await makeOccurrence(header, child, { componentScrap: '0.05', componentScrapConvention: 'yield' })).save()
+      ).resolves.toBeDefined();
+      await expect(
+        (await makeOccurrence(header, child, { componentScrap: '0', componentScrapConvention: 'yield' })).save()
+      ).resolves.toBeDefined();
+      await expect(
+        (await makeOccurrence(header, child, { componentScrap: '1', componentScrapConvention: 'additive' })).save()
+      ).resolves.toBeDefined();
       // 装配损耗同型（头级）
       header.assemblyScrap = '1';
       header.assemblyScrapConvention = 'yield';
       const headerRejected = await settled(header.save());
       expect(headerRejected.ok).toBe(false);
       expect((headerRejected as { error: unknown }).error).toBeInstanceOf(BomDecimalFormatError);
-      expect(((headerRejected as { error: BomDecimalFormatError }).error).field).toBe('assemblyScrap');
+      expect((headerRejected as { error: BomDecimalFormatError }).error.field).toBe('assemblyScrap');
       header.assemblyScrap = '0.05';
       await expect(header.save()).resolves.toBeDefined();
     });
@@ -145,21 +155,33 @@ for (const backend of BACKENDS) {
       const { header, child } = await setup();
       // 15 位有效数字（14 位小数）与 15 位小数对照组、15 位整数对照组：接受
       await expect(
-        (await makeOccurrence(header, child, { tierGroupNo: 'g', lotsizeFrom: '1.00000000000001', lotsizeTo: '999999999999999' })).save()
+        (
+          await makeOccurrence(header, child, {
+            tierGroupNo: 'g',
+            lotsizeFrom: '1.00000000000001',
+            lotsizeTo: '999999999999999'
+          })
+        ).save()
       ).resolves.toBeDefined();
       await expect(
-        (await makeOccurrence(header, child, { tierGroupNo: 'g', lotsizeFrom: '0.000000000000001', lotsizeTo: '1' })).save()
+        (
+          await makeOccurrence(header, child, { tierGroupNo: 'g', lotsizeFrom: '0.000000000000001', lotsizeTo: '1' })
+        ).save()
       ).resolves.toBeDefined();
       // 16 位有效数字（15 位小数）：拒绝
       const sixteen = await settled(
-        (await makeOccurrence(header, child, { tierGroupNo: 'g', lotsizeFrom: '1.000000000000001', lotsizeTo: '1' })).save()
+        (
+          await makeOccurrence(header, child, { tierGroupNo: 'g', lotsizeFrom: '1.000000000000001', lotsizeTo: '1' })
+        ).save()
       );
       expect(sixteen.ok).toBe(false);
       expect((sixteen as { error: unknown }).error).toBeInstanceOf(BomDecimalFormatError);
-      expect(((sixteen as { error: BomDecimalFormatError }).error).field).toBe('lotsizeFrom');
+      expect((sixteen as { error: BomDecimalFormatError }).error.field).toBe('lotsizeFrom');
       // 16 位整数：拒绝
       const wide = await settled(
-        (await makeOccurrence(header, child, { tierGroupNo: 'g', lotsizeFrom: '1000000000000000', lotsizeTo: '1' })).save()
+        (
+          await makeOccurrence(header, child, { tierGroupNo: 'g', lotsizeFrom: '1000000000000000', lotsizeTo: '1' })
+        ).save()
       );
       expect(wide.ok).toBe(false);
       // 1 位有效数字但幅值越界（1e-400 规范化后小数部分 400 位）：拒绝
@@ -168,7 +190,7 @@ for (const backend of BACKENDS) {
       );
       expect(tiny.ok).toBe(false);
       expect((tiny as { error: unknown }).error).toBeInstanceOf(BomDecimalFormatError);
-      expect(((tiny as { error: BomDecimalFormatError }).error).field).toBe('lotsizeFrom');
+      expect((tiny as { error: BomDecimalFormatError }).error.field).toBe('lotsizeFrom');
     });
 
     it('直连 SQL 写非规范串到新十进制列仍被拒', async () => {

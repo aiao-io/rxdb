@@ -6,9 +6,110 @@
  * 存储层触发器（写入协议 / 结构列不可改 / 十进制格式）。
  */
 
-export { BOM_ENTITIES, BomActivityRate, BomActivityType, BomEcn, BomHeader, BomHistoryBatch, BomItem, BomItemRevision, BomLine, BomLineDesignator, BomLineOccurrence, BomLineOperationSplit, BomRouting, BomRoutingOperation, BomSubstituteGroup, BomWorkCenter } from './entities.js';
+export { BOM_CYCLE_DEPTH_LIMIT } from './backend/bom-trigger-ddl.js';
 export { DECIMAL_CANONICAL_RE, DECIMAL_MAX_SIGNIFICANT_DIGITS, normalizeDecimalString } from './decimal.utils.js';
+export {
+  BOM_ENTITIES,
+  BomActivityRate,
+  BomActivityType,
+  BomEcn,
+  BomHeader,
+  BomHistoryBatch,
+  BomItem,
+  BomItemRevision,
+  BomLine,
+  BomLineDesignator,
+  BomLineOccurrence,
+  BomLineOperationSplit,
+  BomRouting,
+  BomRoutingOperation,
+  BomSubstituteGroup,
+  BomWorkCenter
+} from './entities.js';
+export { RxDBPluginBom, rxDBPluginBom } from './plugin.js';
+export {
+  BomCostError,
+  rollupCost,
+  type CostCreditLine,
+  type CostMaterialLine,
+  type CostNodeDetail,
+  type CostProcessingLine,
+  type CostRollupContext,
+  type CostRollupResult
+} from './quantity/cost.js';
+export {
+  ceilToDecimalPlaces,
+  decimalAdd,
+  decimalCmp,
+  decimalDiv,
+  decimalFromCanonical,
+  decimalIsNegative,
+  decimalIsZero,
+  decimalMul,
+  decimalSub,
+  decimalToCanonical,
+  roundToSignificant,
+  type Decimal
+} from './quantity/decimal.js';
+export {
+  EXPLOSION_ALGORITHM_VERSION,
+  explodeBom,
+  type ExplosionManifest,
+  type ExplosionOptions,
+  type ExplosionResult,
+  type ExplosionStepValue,
+  type ExplosionSteps,
+  type OutputLine,
+  type PenetrationRecord,
+  type PlannedQuantity,
+  type RequirementLine
+} from './quantity/explosion.js';
+export { FORMULA_GRAMMAR_VERSION, evaluateFormula } from './quantity/formula.js';
+export { convertUom, type UomConversionRates } from './quantity/uom.js';
 export { BomRepository } from './repository.js';
+export {
+  BomMapError,
+  confirmMapping,
+  mappingCoverage,
+  mappingGaps,
+  saveMapping,
+  type MapScopeInfo,
+  type MappingCoverageResult,
+  type MappingGap,
+  type MappingGapsResult,
+  type MappingSaveInput,
+  type MappingStep
+} from './resolve/bom-map.js';
+export { bomSqlDialectFor, pgliteBomDialect, sqliteBomDialect, type BomSqlDialect } from './resolve/bom-sql.js';
+export { cycleConstraintDdlForRemotePg } from './resolve/cycle-constraint-ddl.js';
+export { ecnDiff, ecnImpact, type EcnDiffEntry, type EcnDiffResult, type EcnImpactResult } from './resolve/ecn.js';
+export {
+  assertCompleteResolution,
+  expandBom,
+  whereUsed,
+  type ExpansionBudgets,
+  type ExpansionNode,
+  type ExpansionOptions,
+  type ExpansionResult,
+  type WhereUsedTarget
+} from './resolve/expansion.js';
+export {
+  loadHistory,
+  type HistoryBatchInput,
+  type HistoryHeaderInput,
+  type HistoryOccurrenceInput,
+  type HistoryRevisionInput
+} from './resolve/history-loader.js';
+export {
+  BomResolutionError,
+  type BomType,
+  type ResolutionContext,
+  type ResolutionManifest,
+  type ResolutionResult,
+  type ResolvedLineOccurrence,
+  type UnresolvedAlternative
+} from './resolve/resolution.js';
+export { resolveBom, type ResolveTarget } from './resolve/resolver.js';
 export {
   BOM_CYCLE_PREFIX,
   BOM_DECIMAL_FORMAT_PREFIX,
@@ -26,87 +127,3 @@ export {
   normalizeBomError,
   type TruncationReason
 } from './types.js';
-export { BOM_CYCLE_DEPTH_LIMIT } from './backend/bom-trigger-ddl.js';
-export { rxDBPluginBom, RxDBPluginBom } from './plugin.js';
-export {
-  BomResolutionError,
-  type BomType,
-  type ResolutionContext,
-  type ResolutionManifest,
-  type ResolutionResult,
-  type ResolvedLineOccurrence,
-  type UnresolvedAlternative
-} from './resolve/resolution.js';
-export { resolveBom, type ResolveTarget } from './resolve/resolver.js';
-export {
-  assertCompleteResolution,
-  expandBom,
-  whereUsed,
-  type ExpansionBudgets,
-  type ExpansionNode,
-  type ExpansionOptions,
-  type ExpansionResult,
-  type WhereUsedTarget
-} from './resolve/expansion.js';
-export {
-  EXPLOSION_ALGORITHM_VERSION,
-  explodeBom,
-  type ExplosionManifest,
-  type ExplosionOptions,
-  type ExplosionResult,
-  type ExplosionSteps,
-  type ExplosionStepValue,
-  type OutputLine,
-  type PenetrationRecord,
-  type PlannedQuantity,
-  type RequirementLine
-} from './quantity/explosion.js';
-export { FORMULA_GRAMMAR_VERSION, evaluateFormula } from './quantity/formula.js';
-export {
-  BomCostError,
-  rollupCost,
-  type CostCreditLine,
-  type CostMaterialLine,
-  type CostNodeDetail,
-  type CostProcessingLine,
-  type CostRollupContext,
-  type CostRollupResult
-} from './quantity/cost.js';
-export { convertUom, type UomConversionRates } from './quantity/uom.js';
-export {
-  ceilToDecimalPlaces,
-  decimalAdd,
-  decimalCmp,
-  decimalDiv,
-  decimalFromCanonical,
-  decimalIsNegative,
-  decimalIsZero,
-  decimalMul,
-  decimalSub,
-  decimalToCanonical,
-  roundToSignificant,
-  type Decimal
-} from './quantity/decimal.js';
-export {
-  BomMapError,
-  confirmMapping,
-  mappingCoverage,
-  mappingGaps,
-  saveMapping,
-  type MappingCoverageResult,
-  type MappingGap,
-  type MappingGapsResult,
-  type MappingSaveInput,
-  type MappingStep,
-  type MapScopeInfo
-} from './resolve/bom-map.js';
-export {
-  loadHistory,
-  type HistoryBatchInput,
-  type HistoryHeaderInput,
-  type HistoryOccurrenceInput,
-  type HistoryRevisionInput
-} from './resolve/history-loader.js';
-export { bomSqlDialectFor, pgliteBomDialect, sqliteBomDialect, type BomSqlDialect } from './resolve/bom-sql.js';
-export { ecnDiff, ecnImpact, type EcnDiffEntry, type EcnDiffResult, type EcnImpactResult } from './resolve/ecn.js';
-export { cycleConstraintDdlForRemotePg } from './resolve/cycle-constraint-ddl.js';

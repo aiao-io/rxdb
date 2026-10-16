@@ -45,7 +45,10 @@ async function createSqliteWasmAdapter(options?: Record<string, unknown>) {
   const entities = (rawOptions.entities ?? []).slice();
   const persistent = rawOptions.persistent === true;
   const plugins = rawOptions.plugins ?? [];
-  const dbName = typeof rawOptions.dbName === 'string' ? rawOptions.dbName : `sw-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const dbName =
+    typeof rawOptions.dbName === 'string' ?
+      rawOptions.dbName
+    : `sw-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   const rxdb = new RxDB({
     dbName,

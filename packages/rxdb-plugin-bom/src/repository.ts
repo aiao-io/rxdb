@@ -6,10 +6,10 @@
  * BOM 触发器消息）归一为类型化错误类再上抛。
  */
 
-import { Repository } from '@aiao/rxdb';
 import type { EntityType, RxDB } from '@aiao/rxdb';
-import { BomLineOccurrence } from './entities.js';
+import { Repository } from '@aiao/rxdb';
 import { normalizeDecimalString } from './decimal.utils.js';
+import { BomLineOccurrence } from './entities.js';
 import { attachUnionOnlyMark } from './resolve/cycle-analysis.js';
 import { BomCycleError, normalizeBomError } from './types.js';
 
@@ -41,12 +41,13 @@ const normalizeDecimalFields = (entity: Record<string, unknown>): void => {
 const rethrowBomError = async (rxdb: RxDB, cause: unknown, attempted?: Record<string, unknown>): Promise<never> => {
   const normalized = normalizeBomError(cause) ?? cause;
   if (normalized instanceof BomCycleError) {
-    const interval = attempted ?
-      {
-        from: attempted['effectiveFrom'] instanceof Date ? (attempted['effectiveFrom'] as Date).getTime() : null,
-        to: attempted['effectiveTo'] instanceof Date ? (attempted['effectiveTo'] as Date).getTime() : null
-      }
-    : undefined;
+    const interval =
+      attempted ?
+        {
+          from: attempted['effectiveFrom'] instanceof Date ? (attempted['effectiveFrom'] as Date).getTime() : null,
+          to: attempted['effectiveTo'] instanceof Date ? (attempted['effectiveTo'] as Date).getTime() : null
+        }
+      : undefined;
     throw await attachUnionOnlyMark(rxdb, normalized, interval);
   }
   throw normalized;
@@ -66,7 +67,8 @@ export class BomRepository<T extends EntityType = EntityType> extends Repository
     // 位号应用层级联：PGlite 0.5.8 的 DEFERRABLE FK CASCADE 不生效（探针：FK confdeltype 'c'
     // 但删父行后子行仍在），行级触发器内 DML 同样不触发——两后端一致走应用层先删位号
     if ((entity as unknown as Record<string, unknown>) instanceof BomLineOccurrence) {
-      const table = this.rxdb.localAdapterSync?.name === 'pglite' ? '"bom"."bom_line_designator"' : '"bom$bom_line_designator"';
+      const table =
+        this.rxdb.localAdapterSync?.name === 'pglite' ? '"bom"."bom_line_designator"' : '"bom$bom_line_designator"';
       await this.rawQuery(`DELETE FROM ${table} WHERE "occurrenceId" = '${entity.id}'`);
     }
     try {

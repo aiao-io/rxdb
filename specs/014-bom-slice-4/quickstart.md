@@ -4,13 +4,13 @@
 
 ## 交付物
 
-| 项 | 落点 |
-| --- | --- |
+| 项                     | 落点                                                                                                                                                                        |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | US-507 阶段 C 位号子表 | `BomLineDesignator` 实体（`(occurrenceId, designator)` 唯一、级联删除）、`designator_managed` 列、已发布头协议扩展、发布转移位号计数校验（两后端，错误给位号数与 qty 两数） |
-| 七步中间值暴露 | `explodeBom` 需求行 `steps`（P/P'/G/G'/D/phantom 判定来源）+ `penetrations` 穿透记录（US-525 算式面板的展示输入） |
-| SC-100 确定性种子 | `packages/rxdb-plugin-bom/src/testing/scooter-dataset.ts`（id 业务键 FNV-1a 派生、时间戳固定基准、批次号常量）+ `scooter-golden.ts`（手写 golden，不由被测 kernel 生成） |
-| demo 应用 | `apps/dev-rxdb-bom`（Angular）：展开树 + 七步算式面板（第 5 步「工序损耗未交付」）+ 评估日显式输入 + 直连/表单双路径环演示 + 位号发布校验 + where-used 面板 |
-| e2e | `apps/dev-rxdb-bom-e2e`（playwright）：AC#1~#6 六条用例 + 既有库重开用例 |
+| 七步中间值暴露         | `explodeBom` 需求行 `steps`（P/P'/G/G'/D/phantom 判定来源）+ `penetrations` 穿透记录（US-525 算式面板的展示输入）                                                           |
+| SC-100 确定性种子      | `packages/rxdb-plugin-bom/src/testing/scooter-dataset.ts`（id 业务键 FNV-1a 派生、时间戳固定基准、批次号常量）+ `scooter-golden.ts`（手写 golden，不由被测 kernel 生成）    |
+| demo 应用              | `apps/dev-rxdb-bom`（Angular）：展开树 + 七步算式面板（第 5 步「工序损耗未交付」）+ 评估日显式输入 + 直连/表单双路径环演示 + 位号发布校验 + where-used 面板                 |
+| e2e                    | `apps/dev-rxdb-bom-e2e`（playwright）：AC#1~#6 六条用例 + 既有库重开用例                                                                                                    |
 
 ## 测试与门禁（截至当日）
 

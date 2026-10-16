@@ -12,7 +12,6 @@ import type { SetRequired } from 'type-fest';
 import type { CheckRuleGroup, PropertyCheckRule } from './check-constraint.js';
 import type { UUID } from './entity.interface.js';
 import type { ICascadeOptions } from './relation-types.interface.js';
-import type { CheckRuleGroup, PropertyCheckRule } from './storage-constraints.interface.js';
 
 /**
  * 值对象

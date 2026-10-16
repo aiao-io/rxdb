@@ -85,8 +85,12 @@ describe('checkSqliteConstraintDrift', () => {
 
   it('多余对象（uq_/ex_ 前缀）被点名', async () => {
     const executor = driftExecutor({
-      [`SELECT name FROM sqlite_master WHERE type = 'index' AND substr(name, 1, 3) = 'uq_'`]: [['uq_bom$ghost_stale_ab12cd34']],
-      [`SELECT name FROM sqlite_master WHERE type = 'trigger' AND substr(name, 1, 3) = 'ex_'`]: [['ex_bom$ghost_stale_ab12cd34_i']]
+      [`SELECT name FROM sqlite_master WHERE type = 'index' AND substr(name, 1, 3) = 'uq_'`]: [
+        ['uq_bom$ghost_stale_ab12cd34']
+      ],
+      [`SELECT name FROM sqlite_master WHERE type = 'trigger' AND substr(name, 1, 3) = 'ex_'`]: [
+        ['ex_bom$ghost_stale_ab12cd34_i']
+      ]
     });
     const cause = await checkSqliteConstraintDrift(executor, [CkDriftUnit]).then(
       () => null,

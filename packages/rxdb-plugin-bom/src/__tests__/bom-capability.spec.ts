@@ -12,6 +12,7 @@ import { buildPgBomTriggerDdl, buildSqliteBomTriggerDdl } from '../backend/bom-t
 import { BomItem, BomLineOccurrence } from '../entities.js';
 import { assertBomSyncNotDeclared, resolveBomBackend } from '../plugin.js';
 import { cycleConstraintDdlForRemotePg } from '../resolve/cycle-constraint-ddl.js';
+import { BomResolutionError } from '../resolve/resolution.js';
 import {
   BOM_CYCLE_PREFIX,
   BOM_DECIMAL_FORMAT_PREFIX,
@@ -25,7 +26,6 @@ import {
   BomWriteProtocolError,
   normalizeBomError
 } from '../types.js';
-import { BomResolutionError } from '../resolve/resolution.js';
 
 describe('resolveBomBackend（AC#6）', () => {
   it('http / supabase 显式 fail-fast：能力缺席不静默降级', () => {

@@ -123,7 +123,10 @@ export const renderCheckLiteral = (
       return { ok: true, sql: sqlBooleanLiteral(value) };
     }
     case PropertyType.date: {
-      const date = value instanceof Date ? value : typeof value === 'string' ? new Date(value) : undefined;
+      const date =
+        value instanceof Date ? value
+        : typeof value === 'string' ? new Date(value)
+        : undefined;
       if (!date || Number.isNaN(date.getTime())) return fail(`需要日期字面量，实际为 ${JSON.stringify(value)}`);
       return { ok: true, sql: sqlTimestampLiteral(date) };
     }
@@ -145,7 +148,11 @@ export const CHECK_COMPARABLE_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 /** 区间排他的区间维只接受时间类与整数列。 */
-export const EXCLUSION_RANGE_TYPES: ReadonlySet<string> = new Set([PropertyType.date, PropertyType.integer, PropertyType.bigint]);
+export const EXCLUSION_RANGE_TYPES: ReadonlySet<string> = new Set([
+  PropertyType.date,
+  PropertyType.integer,
+  PropertyType.bigint
+]);
 
 const COMPARISON_OPERATORS: ReadonlySet<string> = new Set(['=', '!=', '<', '>', '<=', '>=']);
 
@@ -238,7 +245,13 @@ export const serializeExclusion = (exclusion: EntityExclusionMetadata): string =
  * @param exclusion - 排他声明
  */
 export const buildExclusionConstraintName = (metadata: EntityMetadata, exclusion: EntityExclusionMetadata): string =>
-  buildStorageConstraintName('ex_', metadata.namespace, metadata.tableName, exclusion.name, serializeExclusion(exclusion));
+  buildStorageConstraintName(
+    'ex_',
+    metadata.namespace,
+    metadata.tableName,
+    exclusion.name,
+    serializeExclusion(exclusion)
+  );
 
 /**
  * 生成条件唯一索引的完整约束名（`uq_`）
@@ -247,11 +260,8 @@ export const buildExclusionConstraintName = (metadata: EntityMetadata, exclusion
  * @param indexName - 索引作者名
  * @param whereSql - 编译后的 `WHERE` 谓词
  */
-export const buildConditionalUniqueName = (
-  metadata: EntityMetadata,
-  indexName: string,
-  whereSql: string
-): string => buildStorageConstraintName('uq_', metadata.namespace, metadata.tableName, indexName, whereSql);
+export const buildConditionalUniqueName = (metadata: EntityMetadata, indexName: string, whereSql: string): string =>
+  buildStorageConstraintName('uq_', metadata.namespace, metadata.tableName, indexName, whereSql);
 
 /**
  * 实体声明的全部约束对象名（漂移比对的期望集合）
@@ -260,7 +270,9 @@ export const buildConditionalUniqueName = (
  * @returns `{ constraints, triggers }`：约束名（`ck_` / `uq_` / `ex_`，PG 侧的全部对象）与
  *   SQLite 排他触发器名（`ex_…_i` / `ex_…_u`，只存在于 SQLite 侧）
  */
-export const expectedStorageConstraintObjects = (metadata: EntityMetadata): { constraints: string[]; triggers: string[] } => {
+export const expectedStorageConstraintObjects = (
+  metadata: EntityMetadata
+): { constraints: string[]; triggers: string[] } => {
   const constraints: string[] = [];
   for (const check of metadata.checks) {
     constraints.push(compileCheckConstraint(metadata, check).name);

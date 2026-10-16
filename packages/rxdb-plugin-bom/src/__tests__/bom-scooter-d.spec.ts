@@ -9,7 +9,12 @@
 import { describe, expect, it } from 'vitest';
 import { rollupCost } from '../quantity/cost.js';
 import { decimalAdd, decimalFromCanonical, decimalToCanonical } from '../quantity/decimal.js';
-import { deterministicId, loadScooterDataset, loadScooterDatasetC, loadScooterDatasetD } from '../testing/scooter-dataset.js';
+import {
+  deterministicId,
+  loadScooterDataset,
+  loadScooterDatasetC,
+  loadScooterDatasetD
+} from '../testing/scooter-dataset.js';
 import { goldenItemId, SCOOTER_GOLDEN_D } from '../testing/scooter-golden.js';
 import { createBomTestAdapter, disposeBomTestAdapter, type BomTestBackend } from './test-utils.js';
 
@@ -19,7 +24,9 @@ const day = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
 
 /** 规范十进制串求和（断言用，不经 JS number）。 */
 const decimalSum = (amounts: string[]): string =>
-  decimalToCanonical(amounts.reduce((sum, amount) => decimalAdd(sum, decimalFromCanonical(amount)), decimalFromCanonical('0')));
+  decimalToCanonical(
+    amounts.reduce((sum, amount) => decimalAdd(sum, decimalFromCanonical(amount)), decimalFromCanonical('0'))
+  );
 
 /** rawQuery 双形状归一。 */
 const shapeRows = (result: unknown): unknown[][] => {
@@ -84,7 +91,13 @@ for (const backend of BACKENDS) {
         await expect(
           rollupCost(
             adapter,
-            { bomType: 'ebom', orgId: 'org-x', asOfDate: day('2026-10-15'), currency: 'CNY', rateDate: day('2026-10-15') },
+            {
+              bomType: 'ebom',
+              orgId: 'org-x',
+              asOfDate: day('2026-10-15'),
+              currency: 'CNY',
+              rateDate: day('2026-10-15')
+            },
             { parentItemId: goldenItemId('COST-DEMO') }
           )
         ).rejects.toThrow(/缺成本|缺失/);
@@ -103,15 +116,23 @@ for (const backend of BACKENDS) {
         const ebomHeaderId = deterministicId('header:SHEET-ASSY:A');
         const mbomHeaderId = deterministicId('header:SHEET-ASSY-M:A');
         const lineTable = backend === 'wa-sqlite' ? '"bom$bom_line"' : '"bom"."bom_line"';
-        const ebomLineId = String(shapeRows(await adapter.rawQuery(
-          `SELECT l."id" FROM ${lineTable} l WHERE l."headerId" = '${ebomHeaderId}' ORDER BY l."lineNo" ASC`
-        ))[0][0]);
-        const mbomLineIds = shapeRows(await adapter.rawQuery(
-          `SELECT l."id" FROM ${lineTable} l WHERE l."headerId" = '${mbomHeaderId}' ORDER BY l."lineNo" ASC`
-        )).map(row => String(row[0]));
-        const rows = shapeRows(await adapter.rawQuery(
-          `SELECT "relation", "sourceLineId", "targetLineId" FROM ${backend === 'wa-sqlite' ? '"bom$bom_map"' : '"bom"."bom_map"'} WHERE "scopeId" = '${scopeId}' ORDER BY "targetLineId"`
-        ));
+        const ebomLineId = String(
+          shapeRows(
+            await adapter.rawQuery(
+              `SELECT l."id" FROM ${lineTable} l WHERE l."headerId" = '${ebomHeaderId}' ORDER BY l."lineNo" ASC`
+            )
+          )[0][0]
+        );
+        const mbomLineIds = shapeRows(
+          await adapter.rawQuery(
+            `SELECT l."id" FROM ${lineTable} l WHERE l."headerId" = '${mbomHeaderId}' ORDER BY l."lineNo" ASC`
+          )
+        ).map(row => String(row[0]));
+        const rows = shapeRows(
+          await adapter.rawQuery(
+            `SELECT "relation", "sourceLineId", "targetLineId" FROM ${backend === 'wa-sqlite' ? '"bom$bom_map"' : '"bom"."bom_map"'} WHERE "scopeId" = '${scopeId}' ORDER BY "targetLineId"`
+          )
+        );
         expect(rows).toHaveLength(3);
         for (const row of rows) {
           expect(String(row[0])).toBe('split');

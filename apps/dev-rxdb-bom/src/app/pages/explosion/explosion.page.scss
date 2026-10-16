@@ -13,11 +13,26 @@
   gap: 16px;
 }
 
-.tree { max-height: 520px; overflow: auto; }
-.designators { color: #6b6b70; font-size: 12px; margin-left: 8px; }
-.where-used-row { padding: 4px 0; font-variant-numeric: tabular-nums; }
-.hint { color: #8e8e93; }
-pre { margin: 0; font-size: 12px; }
+.tree {
+  max-height: 520px;
+  overflow: auto;
+}
+.designators {
+  color: #6b6b70;
+  font-size: 12px;
+  margin-left: 8px;
+}
+.where-used-row {
+  padding: 4px 0;
+  font-variant-numeric: tabular-nums;
+}
+.hint {
+  color: #8e8e93;
+}
+pre {
+  margin: 0;
+  font-size: 12px;
+}
 
 /* 双图并排（US-525 AC#13） */
 .dual {

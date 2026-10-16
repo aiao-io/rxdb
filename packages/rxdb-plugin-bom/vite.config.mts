@@ -42,7 +42,13 @@ export default defineConfig(() => ({
     },
     rolldownOptions: {
       checks: { pluginTimings: false },
-      external: ['@aiao/rxdb', '@aiao/rxdb-adapter-sqlite-core', '@aiao/rxdb-adapter-wa-sqlite', '@aiao/rxdb-adapter-pglite', 'rxjs'],
+      external: [
+        '@aiao/rxdb',
+        '@aiao/rxdb-adapter-sqlite-core',
+        '@aiao/rxdb-adapter-wa-sqlite',
+        '@aiao/rxdb-adapter-pglite',
+        'rxjs'
+      ],
       input: {
         index: 'src/index.ts'
       },

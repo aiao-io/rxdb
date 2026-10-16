@@ -41,7 +41,12 @@ for (const backend of BACKENDS) {
     };
 
     /** 已发布头 + 一行发生项（qty 默认 1；挂 ECN 时区间按 ECN 生效日派生）。 */
-    const addLine = async (header: BomHeader, child: BomItem, qty: string, ecn?: BomEcn): Promise<BomLineOccurrence> => {
+    const addLine = async (
+      header: BomHeader,
+      child: BomItem,
+      qty: string,
+      ecn?: BomEcn
+    ): Promise<BomLineOccurrence> => {
       const line = new BomLine();
       line.headerId = header.id;
       line.lineNo = 10 + Math.floor(Math.random() * 10000);

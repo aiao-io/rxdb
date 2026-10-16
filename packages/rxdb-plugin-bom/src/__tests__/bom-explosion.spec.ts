@@ -6,8 +6,8 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { BomItem } from '../entities.js';
-import { loadHistory } from '../resolve/history-loader.js';
 import { explodeBom, type RequirementLine } from '../quantity/explosion.js';
+import { loadHistory } from '../resolve/history-loader.js';
 import { BomTestAdapter, createBomTestAdapter, disposeBomTestAdapter, type BomTestBackend } from './test-utils.js';
 
 const BACKENDS: BomTestBackend[] = ['wa-sqlite', 'pglite'];
@@ -17,7 +17,12 @@ const day = (iso: string): Date => new Date(`${iso}T00:00:00.000Z`);
 const CONTEXT = { bomType: 'ebom' as const, orgId: 'org-x', asOfDate: day('2026-01-01') };
 
 /** 建物料（含库存单位）。 */
-const makeItem = async (itemNo: string, stockUom = 'pcs', uomDecimals = 0, uomConversion: string | null = null): Promise<BomItem> => {
+const makeItem = async (
+  itemNo: string,
+  stockUom = 'pcs',
+  uomDecimals = 0,
+  uomConversion: string | null = null
+): Promise<BomItem> => {
   const item = new BomItem();
   item.itemNo = `${itemNo}-${Math.random().toString(36).slice(2, 6)}`;
   item.stockUom = stockUom;
@@ -50,7 +55,9 @@ interface FixtureHeader {
 /** 经 loadHistory 装载一层结构（全部已发布修订与头）。 */
 const buildFixture = async (adapter: BomTestAdapter, headers: FixtureHeader[]): Promise<void> => {
   // 同一子件可出现在多条边里：去重后建修订（部分唯一索引按 (itemId, effectiveFrom) 唯一）
-  const allItems = [...new Set(headers.flatMap(header => [header.item, ...header.occurrences.map(occurrence => occurrence.child)]))];
+  const allItems = [
+    ...new Set(headers.flatMap(header => [header.item, ...header.occurrences.map(occurrence => occurrence.child)]))
+  ];
   await loadHistory(adapter, {
     batchNo: `batch-${Math.random().toString(36).slice(2, 10)}`,
     revisions: allItems.map(item => ({ itemId: item.id, revisionNo: 'A', effectiveFrom: day('2020-01-01') })),
@@ -67,7 +74,7 @@ const buildFixture = async (adapter: BomTestAdapter, headers: FixtureHeader[]): 
         occurrences: [
           {
             childItemId: occurrence.child.id,
-            qty: occurrence.qtyFormula ? null : occurrence.qty ?? '1',
+            qty: occurrence.qtyFormula ? null : (occurrence.qty ?? '1'),
             qtyFormula: occurrence.qtyFormula ?? null,
             formulaGrammarVersion: occurrence.qtyFormula ? '1' : null,
             isFixedQty: occurrence.isFixedQty ?? false,
@@ -109,12 +116,15 @@ for (const backend of BACKENDS) {
           baseQty: '1',
           assemblyScrap: '0.05',
           assemblyScrapConvention: 'additive',
-          occurrences: [
-            { child: part, qty: '2', componentScrap: '0.03', componentScrapConvention: 'yield' }
-          ]
+          occurrences: [{ child: part, qty: '2', componentScrap: '0.03', componentScrapConvention: 'yield' }]
         }
       ]);
-      const result = await explodeBom(adapter, CONTEXT, { parentItemId: finished.id }, { plannedQty: { value: '100', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '100', uom: 'pcs' } }
+      );
       expect(result.truncated).toBeNull();
       expect(result.requirementLines.length).toBe(1);
       // P'=105、G=210、G'=210÷0.97=216.4948453608247422680412371134021 → 需求行 217（小数位 0）
@@ -144,8 +154,18 @@ for (const backend of BACKENDS) {
           occurrences: [{ child: part, qty: '5', isFixedQty: true }]
         }
       ]);
-      const small = await explodeBom(adapter, CONTEXT, { parentItemId: finished.id }, { plannedQty: { value: '100', uom: 'pcs' } });
-      const large = await explodeBom(adapter, CONTEXT, { parentItemId: finished.id }, { plannedQty: { value: '1000', uom: 'pcs' } });
+      const small = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '100', uom: 'pcs' } }
+      );
+      const large = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '1000', uom: 'pcs' } }
+      );
       expect(small.requirementLines[0].qty).toBe('5');
       expect(large.requirementLines[0].qty).toBe('5');
     });
@@ -162,7 +182,12 @@ for (const backend of BACKENDS) {
           ]
         }
       ]);
-      const result = await explodeBom(adapter, CONTEXT, { parentItemId: machine.id }, { plannedQty: { value: '1', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: machine.id },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
       expect(qtyOf(result.requirementLines, sub)).toEqual(['5', '5']);
     });
 
@@ -175,7 +200,12 @@ for (const backend of BACKENDS) {
           occurrences: [{ child: part, qty: '10.0001' }]
         }
       ]);
-      const result = await explodeBom(adapter, CONTEXT, { parentItemId: finished.id }, { plannedQty: { value: '1', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
       expect(result.requirementLines[0].qty).toBe('11');
     });
 
@@ -193,7 +223,12 @@ for (const backend of BACKENDS) {
           occurrences: [{ child: part, qty: '2' }]
         }
       ]);
-      const result = await explodeBom(adapter, CONTEXT, { parentItemId: finished.id }, { plannedQty: { value: '1', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
       expect(qtyOf(result.requirementLines, sub)).toEqual(['3']);
       expect(qtyOf(result.requirementLines, part)).toEqual(['6']);
     });
@@ -208,7 +243,12 @@ for (const backend of BACKENDS) {
           occurrences: [{ child: part, qty }]
         }
       ]);
-      const result = await explodeBom(adapter, CONTEXT, { parentItemId: finished.id }, { plannedQty: { value: '1', uom: 'pcs' } });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      );
       expect(result.requirementLines[0].qty).toBe(qty);
     });
 
@@ -221,10 +261,15 @@ for (const backend of BACKENDS) {
           occurrences: [{ child: part, qty: null, qtyFormula: '长*宽' }]
         }
       ]);
-      const result = await explodeBom(adapter, CONTEXT, { parentItemId: finished.id }, {
-        plannedQty: { value: '1', uom: 'pcs' },
-        params: { 长: '3', 宽: '4' }
-      });
+      const result = await explodeBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: finished.id },
+        {
+          plannedQty: { value: '1', uom: 'pcs' },
+          params: { 长: '3', 宽: '4' }
+        }
+      );
       expect(result.requirementLines[0].qty).toBe('12');
       expect(result.manifest.formulaParams).toEqual({ 长: '3', 宽: '4' });
       expect(result.manifest.formulaGrammarVersion).toBe('1');

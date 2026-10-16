@@ -7,10 +7,10 @@
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { BomItem, BomItemRevision } from '../entities.js';
+import { assertCompleteResolution, expandBom, whereUsed } from '../resolve/expansion.js';
 import { loadHistory } from '../resolve/history-loader.js';
-import { expandBom, whereUsed, assertCompleteResolution } from '../resolve/expansion.js';
-import { resolveBom } from '../resolve/resolver.js';
 import { BomResolutionError, type ResolutionContext, type ResolutionResult } from '../resolve/resolution.js';
+import { resolveBom } from '../resolve/resolver.js';
 import { BomTruncationError } from '../types.js';
 import { BomTestAdapter, createBomTestAdapter, disposeBomTestAdapter, type BomTestBackend } from './test-utils.js';
 
@@ -23,7 +23,10 @@ const CONTEXT = { bomType: 'ebom' as const, orgId: 'org-x', asOfDate: day('2026-
 /** 一张要装载的图：物料号列表 + 每张头下的子件边。 */
 interface GraphSpec {
   items: string[];
-  headers: { itemNo: string; occurrences: { childItemNo: string; effectiveFrom?: string; effectiveTo?: string | null }[] }[];
+  headers: {
+    itemNo: string;
+    occurrences: { childItemNo: string; effectiveFrom?: string; effectiveTo?: string | null }[];
+  }[];
 }
 
 /** 建物料 + 经 loadHistory 一次事务装载已发布修订 / 头 / 行发生项。 */
@@ -82,9 +85,7 @@ const diamondSpec = (count: number): GraphSpec => {
   for (let k = 1; k <= count; k++) {
     items.push(`b${k}`, `c${k}`, `d${k}`);
   }
-  const headers: GraphSpec['headers'] = [
-    { itemNo: 'r', occurrences: [{ childItemNo: 'b1' }, { childItemNo: 'c1' }] }
-  ];
+  const headers: GraphSpec['headers'] = [{ itemNo: 'r', occurrences: [{ childItemNo: 'b1' }, { childItemNo: 'c1' }] }];
   for (let k = 1; k <= count; k++) {
     headers.push({ itemNo: `b${k}`, occurrences: [{ childItemNo: `d${k}` }] });
     headers.push({ itemNo: `c${k}`, occurrences: [{ childItemNo: `d${k}` }] });
@@ -112,7 +113,12 @@ for (const backend of BACKENDS) {
 
     it('8 层链深度上限 5：层级与路径正确，truncated 原因深度（AC#1）', async () => {
       const items = await buildGraph(adapter, chainSpec(8));
-      const result = await expandBom(adapter, CONTEXT, { parentItemId: items.get('i1')!.id }, { budgets: { depth: 5 } });
+      const result = await expandBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: items.get('i1')!.id },
+        { budgets: { depth: 5 } }
+      );
       expect(result.truncated).toEqual({ reason: 'depth' });
       // 根 + 深度 1..5 共 6 个节点，最深节点的物料是第 6 个
       expect(result.nodes.length).toBe(6);
@@ -170,10 +176,15 @@ for (const backend of BACKENDS) {
           { itemNo: 'S', occurrences: [{ childItemNo: 'P', effectiveFrom: '2026-01-01', effectiveTo: '2026-10-01' }] }
         ]
       });
-      const at = (asOf: string) => expandBom(adapter, { ...CONTEXT, asOfDate: day(asOf) }, { parentItemId: items.get('M')!.id });
+      const at = (asOf: string) =>
+        expandBom(adapter, { ...CONTEXT, asOfDate: day(asOf) }, { parentItemId: items.get('M')!.id });
       const before = await at('2026-09-30');
       expect(before.truncated).toBeNull();
-      expect(before.nodes.map(node => node.itemId)).toEqual([items.get('M')!.id, items.get('S')!.id, items.get('P')!.id]);
+      expect(before.nodes.map(node => node.itemId)).toEqual([
+        items.get('M')!.id,
+        items.get('S')!.id,
+        items.get('P')!.id
+      ]);
       const after = await at('2026-10-01');
       expect(after.truncated).toBeNull();
       expect(after.nodes.map(node => node.itemId)).toEqual([items.get('M')!.id, items.get('S')!.id]);
@@ -192,7 +203,9 @@ for (const backend of BACKENDS) {
     });
 
     it('未知显式修订、草稿父修订、无修订物料与缺目标分别拒绝并点名', async () => {
-      await expect(expandBom(adapter, CONTEXT, { parentRevisionId: crypto.randomUUID() })).rejects.toThrow(BomResolutionError);
+      await expect(expandBom(adapter, CONTEXT, { parentRevisionId: crypto.randomUUID() })).rejects.toThrow(
+        BomResolutionError
+      );
       const item = new BomItem();
       item.itemNo = `draft-parent-${Math.random().toString(36).slice(2, 8)}`;
       await item.save();
@@ -200,7 +213,9 @@ for (const backend of BACKENDS) {
       draftRevision.revisionNo = 'A';
       draftRevision.itemId = item.id;
       await draftRevision.save();
-      await expect(expandBom(adapter, CONTEXT, { parentRevisionId: draftRevision.id })).rejects.toThrow(BomResolutionError);
+      await expect(expandBom(adapter, CONTEXT, { parentRevisionId: draftRevision.id })).rejects.toThrow(
+        BomResolutionError
+      );
       await expect(expandBom(adapter, CONTEXT, { parentItemId: item.id })).rejects.toThrow(BomResolutionError);
       await expect(expandBom(adapter, CONTEXT, {})).rejects.toThrow(BomResolutionError);
     });
@@ -218,9 +233,19 @@ for (const backend of BACKENDS) {
       const items = await buildGraph(adapter, chainSpec(8));
       const aborted = new AbortController();
       aborted.abort();
-      const cancelled = await expandBom(adapter, CONTEXT, { parentItemId: items.get('i1')!.id }, { signal: aborted.signal });
+      const cancelled = await expandBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: items.get('i1')!.id },
+        { signal: aborted.signal }
+      );
       expect(cancelled.truncated).toEqual({ reason: 'cancelled' });
-      const budget = await expandBom(adapter, CONTEXT, { parentItemId: items.get('i1')!.id }, { budgets: { expansions: 2 } });
+      const budget = await expandBom(
+        adapter,
+        CONTEXT,
+        { parentItemId: items.get('i1')!.id },
+        { budgets: { expansions: 2 } }
+      );
       expect(budget.truncated).toEqual({ reason: 'expansions' });
       expect(budget.nodes.length).toBe(3);
     });
@@ -304,7 +329,9 @@ for (const backend of BACKENDS) {
 
     it('resolveBom 边界：缺目标 / 未知显式修订 / 无修订物料 / 草稿父修订分别拒绝（US-508）', async () => {
       await expect(resolveBom(adapter, CONTEXT, {})).rejects.toThrow(BomResolutionError);
-      await expect(resolveBom(adapter, CONTEXT, { parentRevisionId: crypto.randomUUID() })).rejects.toThrow(BomResolutionError);
+      await expect(resolveBom(adapter, CONTEXT, { parentRevisionId: crypto.randomUUID() })).rejects.toThrow(
+        BomResolutionError
+      );
       const bare = new BomItem();
       bare.itemNo = `bare-${Math.random().toString(36).slice(2, 8)}`;
       await bare.save();
@@ -316,7 +343,9 @@ for (const backend of BACKENDS) {
       draftRevision.revisionNo = 'A';
       draftRevision.itemId = draftItem.id;
       await draftRevision.save();
-      await expect(resolveBom(adapter, CONTEXT, { parentRevisionId: draftRevision.id })).rejects.toThrow(BomResolutionError);
+      await expect(resolveBom(adapter, CONTEXT, { parentRevisionId: draftRevision.id })).rejects.toThrow(
+        BomResolutionError
+      );
     });
   });
 }

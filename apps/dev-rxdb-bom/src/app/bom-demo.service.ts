@@ -1,9 +1,38 @@
-import { computed, Injectable, signal } from '@angular/core';
 import { RxDB, SyncType } from '@aiao/rxdb';
 import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
+import {
+  BOM_ENTITIES,
+  BomEcn,
+  BomHeader,
+  BomItem,
+  BomItemRevision,
+  BomLine,
+  BomLineDesignator,
+  BomLineOccurrence,
+  BomSubstituteGroup,
+  mappingCoverage,
+  mappingGaps,
+  rollupCost,
+  rxDBPluginBom,
+  type CostRollupResult,
+  type EcnDiffResult,
+  type EcnImpactResult,
+  type ExpansionResult,
+  type ExplosionResult,
+  type MappingCoverageResult,
+  type MappingGapsResult
+} from '@aiao/rxdb-plugin-bom';
+import {
+  deterministicId,
+  goldenItemId,
+  loadScooterDataset,
+  loadScooterDatasetC,
+  loadScooterDatasetD,
+  SCOOTER_SEED_BATCH_NO,
+  SCOOTER_SEED_TIMESTAMP
+} from '@aiao/rxdb-plugin-bom/testing';
+import { computed, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { BOM_ENTITIES, BomEcn, BomHeader, BomItem, BomItemRevision, BomLine, BomLineDesignator, BomLineOccurrence, BomSubstituteGroup, mappingCoverage, mappingGaps, rollupCost, rxDBPluginBom, type CostRollupResult, type ExpansionResult, type ExplosionResult, type EcnDiffResult, type EcnImpactResult, type MappingCoverageResult, type MappingGapsResult } from '@aiao/rxdb-plugin-bom';
-import { deterministicId, goldenItemId, loadScooterDataset, loadScooterDatasetC, loadScooterDatasetD, SCOOTER_SEED_BATCH_NO, SCOOTER_SEED_TIMESTAMP } from '@aiao/rxdb-plugin-bom/testing';
 
 /** demo 库名（reset 删除的 IndexedDB 库）。 */
 export const BOM_DEMO_DB_NAME = 'dev-rxdb-bom';
@@ -85,8 +114,16 @@ export class BomDemoService {
     if (!this.rxdb) throw new Error('demo 未就绪');
     const ebomContext = { bomType: 'ebom' as const, orgId: 'org-x', asOfDate: new Date(`${asOfDate}T00:00:00.000Z`) };
     const [ebom, mbom] = await Promise.all([
-      this.rxdb.bom.explodeBom(ebomContext, { parentItemId: goldenItemId('SHEET-ASSY') }, { plannedQty: { value: '1', uom: 'pcs' } }),
-      this.rxdb.bom.explodeBom({ ...ebomContext, bomType: 'mbom' }, { parentItemId: goldenItemId('SHEET-ASSY-M') }, { plannedQty: { value: '1', uom: 'pcs' } })
+      this.rxdb.bom.explodeBom(
+        ebomContext,
+        { parentItemId: goldenItemId('SHEET-ASSY') },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      ),
+      this.rxdb.bom.explodeBom(
+        { ...ebomContext, bomType: 'mbom' },
+        { parentItemId: goldenItemId('SHEET-ASSY-M') },
+        { plannedQty: { value: '1', uom: 'pcs' } }
+      )
     ]);
     return { ebom, mbom };
   }
@@ -142,7 +179,11 @@ export class BomDemoService {
       group.code = 'G-DEMO';
       group.strategy = 'proportional';
       await group.save();
-      const addMember = async (childKey: string, role: 'primary' | 'substitute', probability: string): Promise<void> => {
+      const addMember = async (
+        childKey: string,
+        role: 'primary' | 'substitute',
+        probability: string
+      ): Promise<void> => {
         const line = new BomLine();
         line.headerId = draftHeader.id;
         line.lineNo = 10 + Math.floor(Math.random() * 100000);
@@ -206,7 +247,12 @@ export class BomDemoService {
     // 发布转移：存储层校验位号数 39 ≠ qty 100（经实体 API，走发布触发器）
     try {
       const headers = await firstValueFrom(
-        BomHeader.find({ where: { combinator: 'and', rules: [{ field: 'parentRevisionId', operator: '=', value: this.demoRevisionId ?? '' }] } })
+        BomHeader.find({
+          where: {
+            combinator: 'and',
+            rules: [{ field: 'parentRevisionId', operator: '=', value: this.demoRevisionId ?? '' }]
+          }
+        })
       );
       const header = headers[0];
       if (!header) return '演示头未找到';
@@ -221,10 +267,20 @@ export class BomDemoService {
   /** 行数统计（AC#1 的页面可见面：两遍 seed 后行数一致）。 */
   async dumpRowCounts(): Promise<string> {
     if (!this.adapter) return '';
-    const tables = ['item', 'item_revision', 'bom_header', 'bom_line', 'bom_line_occurrence', 'bom_line_designator', 'bom_history_batch', 'ecn'];
+    const tables = [
+      'item',
+      'item_revision',
+      'bom_header',
+      'bom_line',
+      'bom_line_occurrence',
+      'bom_line_designator',
+      'bom_history_batch',
+      'ecn'
+    ];
     const lines: string[] = [];
     for (const name of tables) {
-      const result = (await this.adapter.rawQuery(`SELECT COUNT(*) AS c FROM "bom$${name}"`)) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
+      const result = (await this.adapter.rawQuery(`SELECT COUNT(*) AS c FROM "bom$${name}"`)) as unknown as
+        { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
       const rows = 'results' in result ? result.results[0].rows : result.rows;
       lines.push(`${name}=${String(rows[0][0])}`);
     }
@@ -320,9 +376,9 @@ export class BomDemoService {
       seat2.itemNo = 'SEAT-LIVE';
       await seat2.save();
       const table = (name: string): string => `"bom$${name}"`;
-      const scHeader = (await this.adapter!.rawQuery(`SELECT h."id" FROM ${table('bom_header')} h JOIN ${table('item_revision')} r ON r."id" = h."parentRevisionId" WHERE r."itemId" = '${sc100}'`)) as unknown as
-        | { results: { rows: unknown[][] }[] }
-        | { rows: unknown[][] };
+      const scHeader = (await this.adapter!.rawQuery(
+        `SELECT h."id" FROM ${table('bom_header')} h JOIN ${table('item_revision')} r ON r."id" = h."parentRevisionId" WHERE r."itemId" = '${sc100}'`
+      )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
       const scHeaderRows = 'results' in scHeader ? scHeader.results[0].rows : scHeader.rows;
       const scHeaderId = String(scHeaderRows[0][0]);
       // ① SC-100：截止 WH-01 行（index 2）+ 新增 SEAT-LIVE 行
@@ -452,15 +508,19 @@ export class BomDemoService {
 
   async #loadEcns(): Promise<void> {
     if (!this.adapter) return;
-    const result = (await this.adapter.rawQuery(`SELECT "id", "ecnNo", "state", "effectiveDate" FROM "bom$ecn" ORDER BY "effectiveDate"`)) as unknown as
-      | { results: { rows: unknown[][] }[] }
-      | { rows: unknown[][] };
+    const result = (await this.adapter.rawQuery(
+      `SELECT "id", "ecnNo", "state", "effectiveDate" FROM "bom$ecn" ORDER BY "effectiveDate"`
+    )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
     const rows = 'results' in result ? result.results[0].rows : result.rows;
     this.ecns.set(
       new Map(
         rows.map(row => [
           String(row[0]),
-          { ecnNo: String(row[1]), state: String(row[2]), effectiveDate: new Date(String(row[3])).toISOString().slice(0, 10) }
+          {
+            ecnNo: String(row[1]),
+            state: String(row[2]),
+            effectiveDate: new Date(String(row[3])).toISOString().slice(0, 10)
+          }
         ])
       )
     );
@@ -468,14 +528,17 @@ export class BomDemoService {
 
   async #loadItemNos(): Promise<void> {
     if (!this.adapter) return;
-    const result = (await this.adapter.rawQuery(`SELECT "id", "itemNo" FROM "bom$item"`)) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
+    const result = (await this.adapter.rawQuery(`SELECT "id", "itemNo" FROM "bom$item"`)) as unknown as
+      { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
     const rows = 'results' in result ? result.results[0].rows : result.rows;
     this.itemNos.set(new Map(rows.map(row => [String(row[0]), String(row[1])])));
   }
 
   async #loadDesignators(): Promise<void> {
     if (!this.adapter) return;
-    const result = (await this.adapter.rawQuery(`SELECT "occurrenceId", "designator" FROM "bom$bom_line_designator" ORDER BY "designator"`)) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
+    const result = (await this.adapter.rawQuery(
+      `SELECT "occurrenceId", "designator" FROM "bom$bom_line_designator" ORDER BY "designator"`
+    )) as unknown as { results: { rows: unknown[][] }[] } | { rows: unknown[][] };
     const rows = 'results' in result ? result.results[0].rows : result.rows;
     const map = new Map<string, string[]>();
     for (const row of rows) {
@@ -494,26 +557,38 @@ export class BomDemoService {
     // 种子的已发布头占着 (revision, type, org, alternative) 唯一键——演示头挂独立的 draft 修订
     const existing = await firstValueFrom(
       BomItemRevision.find({
-        where: { combinator: 'and', rules: [{ field: 'itemId', operator: '=', value: pcbaId }, { field: 'revisionNo', operator: '=', value: 'E' }] }
+        where: {
+          combinator: 'and',
+          rules: [
+            { field: 'itemId', operator: '=', value: pcbaId },
+            { field: 'revisionNo', operator: '=', value: 'E' }
+          ]
+        }
       })
     );
-    const revision = existing[0] ?? (() => {
-      const created = new BomItemRevision();
-      created.revisionNo = 'E';
-      created.itemId = pcbaId;
-      return created;
-    })();
+    const revision =
+      existing[0] ??
+      (() => {
+        const created = new BomItemRevision();
+        created.revisionNo = 'E';
+        created.itemId = pcbaId;
+        return created;
+      })();
     if (!existing[0]) await revision.save();
     const headers = await firstValueFrom(
-      BomHeader.find({ where: { combinator: 'and', rules: [{ field: 'parentRevisionId', operator: '=', value: revision.id }] } })
+      BomHeader.find({
+        where: { combinator: 'and', rules: [{ field: 'parentRevisionId', operator: '=', value: revision.id }] }
+      })
     );
-    const header = headers[0] ?? (() => {
-      const created = new BomHeader();
-      created.parentRevisionId = revision.id;
-      created.bomType = 'ebom';
-      created.orgId = 'org-x';
-      return created;
-    })();
+    const header =
+      headers[0] ??
+      (() => {
+        const created = new BomHeader();
+        created.parentRevisionId = revision.id;
+        created.bomType = 'ebom';
+        created.orgId = 'org-x';
+        return created;
+      })();
     if (!headers[0]) await header.save();
     this.demoHeaderId = header.id;
     this.demoRevisionId = revision.id;

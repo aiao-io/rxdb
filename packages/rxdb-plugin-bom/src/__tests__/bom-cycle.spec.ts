@@ -253,7 +253,9 @@ for (const backend of BACKENDS) {
       await draftOccurrence(headerA, b, { effectiveFrom: day('2026-01-01'), effectiveTo: day('2026-10-01') });
       await release(headerA);
       const headerB = await makeDraftHeaderFor(b);
-      const result = await settled(draftOccurrence(headerB, a, { effectiveFrom: day('2026-10-01'), effectiveTo: null }));
+      const result = await settled(
+        draftOccurrence(headerB, a, { effectiveFrom: day('2026-10-01'), effectiveTo: null })
+      );
       expect(result.ok).toBe(false);
       const cycle = (result as { error: BomCycleError }).error;
       expect(cycle).toBeInstanceOf(BomCycleError);
