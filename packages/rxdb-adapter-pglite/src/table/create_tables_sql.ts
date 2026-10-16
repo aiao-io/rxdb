@@ -84,7 +84,6 @@ export async function create_tables_statements<T extends EntityType>(
   const triggerStatements: string[] = [];
   const insertStatements: string[] = [];
   const namespaces = new Set<string>();
-  let needsBtreeGist = false;
 
   for (const EntityType of EntityTypes) {
     const metadata = getEntityMetadata(EntityType);
@@ -93,10 +92,6 @@ export async function create_tables_statements<T extends EntityType>(
     // 有这一步，公开 helper 没有 —— 于是它的输出在干净库上必然报 `schema "shop" does not exist`。
     if (metadata.namespace && metadata.namespace !== 'public') {
       namespaces.add(metadata.namespace);
-    }
-    // EXCLUDE USING gist 的 `=` 运算符类来自 btree_gist，必须先于建表装载
-    if (metadata.exclusions.length > 0) {
-      needsBtreeGist = true;
     }
 
     // 1./2. CREATE TABLE 与外键/索引分开：后者必须等所有表建完
@@ -155,9 +150,6 @@ export async function create_tables_statements<T extends EntityType>(
 
   for (const namespace of namespaces) {
     appendStatement(schemaStatements, `CREATE SCHEMA IF NOT EXISTS "${namespace}"`);
-  }
-  if (needsBtreeGist) {
-    appendStatement(schemaStatements, 'CREATE EXTENSION IF NOT EXISTS btree_gist');
   }
 
   return [

@@ -88,47 +88,6 @@ export const sqlIntegerLiteral = (value: number): string => {
 };
 
 /**
- * 把有限数字拼成 SQL 数值字面量。
- *
- * @param value - 有限数字（CHECK / 部分索引 DDL 里的非整数字面量）
- * @returns 十进制或科学计数文本字面量，两端（PostgreSQL / SQLite）都是合法数值输入
- *
- * @remarks
- * 整数走 {@link sqlIntegerLiteral}（安全整数检查）；小数直接取 `String(value)` ——
- * JS 的数值转字符串是无损最短表示，两端都认科学计数法（如 `1e-7`），
- * 与查询路径的占位符绑定无关，只用于无占位符的 DDL。
- *
- * @throws {@link RxDBError} 值不是有限数时——`NaN` / `Infinity` 拼出来是标识符而不是数字
- */
-export const sqlNumberLiteral = (value: number): string => {
-  if (!Number.isFinite(value)) {
-    throw new RxDBError(`不是有限数，不能内联进 SQL：${String(value)}`);
-  }
-  if (Number.isInteger(value)) return sqlIntegerLiteral(value);
-  return String(value);
-};
-
-/** PostgreSQL `bigint` 的值域边界（含端点），超出即拼出两端行为不一致的字面量。 */
-const BIGINT_MIN = -(2n ** 63n);
-const BIGINT_MAX = 2n ** 63n - 1n;
-
-/**
- * 把 bigint 拼成 SQL 数值字面量。
- *
- * @param value - bigint 值（`PropertyType.bigint` 列的 CHECK 字面量）
- * @returns 十进制字面量
- *
- * @throws {@link RxDBError} 值超出有符号 64 位值域时：SQLite 的整数是 8 字节，
- *   PostgreSQL 的 `bigint` 同样，超出后两边会给出不同的错误甚至不同的结果
- */
-export const sqlBigIntLiteral = (value: bigint): string => {
-  if (value < BIGINT_MIN || value > BIGINT_MAX) {
-    throw new RxDBError(`超出有符号 64 位整数值域，不能内联进 SQL：${String(value)}`);
-  }
-  return String(value);
-};
-
-/**
  * 把布尔值拼成 SQL 布尔字面量。
  *
  * @param value - 布尔值

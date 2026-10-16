@@ -396,7 +396,7 @@ impl Engine {
         })
     }
 
-    /// 报告底层 SQLite 引擎版本，形如 `3.48.0`。
+    /// 报告底层 SQLite 引擎版本，形如 `3.46.1`。
     pub fn version(&mut self) -> HostResult<String> {
         self.assert_open()?;
         self.db()

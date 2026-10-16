@@ -10,8 +10,8 @@
     "code-editor-angular": {
       "statements": 98,
       "branches": 94,
-      "functions": 100,
-      "lines": 100
+      "functions": 96,
+      "lines": 99
     },
     "code-editor-react": {
       "statements": 97,
@@ -26,10 +26,10 @@
       "lines": 100
     },
     "rxdb": {
-      "statements": 94,
-      "branches": 91,
-      "functions": 94,
-      "lines": 94
+      "statements": 92,
+      "branches": 90,
+      "functions": 92,
+      "lines": 93
     },
     "rxdb-adapter-electron": {
       "statements": 93,
@@ -68,15 +68,15 @@
       "lines": 95
     },
     "rxdb-adapter-sqlite-core": {
-      "statements": 94,
-      "branches": 90,
-      "functions": 94,
-      "lines": 95
+      "statements": 96,
+      "branches": 91,
+      "functions": 96,
+      "lines": 97
     },
     "rxdb-adapter-sqlite-wasm": {
       "statements": 95,
       "branches": 89,
-      "functions": 98,
+      "functions": 97,
       "lines": 96
     },
     "rxdb-adapter-sqliteai": {
@@ -144,12 +144,6 @@
       "branches": 84,
       "functions": 81,
       "lines": 91
-    },
-    "rxdb-plugin-bom": {
-      "statements": 96,
-      "branches": 88,
-      "functions": 98,
-      "lines": 96
     },
     "rxdb-plugin-graph": {
       "statements": 97,
@@ -296,7 +290,7 @@
       "lines": 98
     },
     "utils": {
-      "statements": 96,
+      "statements": 95,
       "branches": 93,
       "functions": 96,
       "lines": 97

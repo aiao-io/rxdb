@@ -113,7 +113,7 @@ const createMigrationClient = (
     client: {
       execute,
       disconnect: vi.fn(async () => undefined),
-      version: vi.fn(async () => '3.53.1'),
+      version: vi.fn(async () => '3.46.0'),
       addEventListener: vi.fn()
     }
   };

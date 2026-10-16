@@ -150,7 +150,7 @@ function createClient(overrides: Partial<SqliteClientLike> = {}): SqliteClientLi
         BRANCH_TABLE_PATTERN.test(String(sql)) ? branchRow(String(sql)) : fallback(String(sql), bindings)
       ),
     disconnect: vi.fn().mockResolvedValue(undefined),
-    version: vi.fn().mockResolvedValue('3.53.1'),
+    version: vi.fn().mockResolvedValue('3.0.0'),
     addEventListener: vi.fn(),
     ...rest
   };
@@ -280,7 +280,7 @@ describe('RxDBAdapterSqliteBase', () => {
           : { sql: '', results: [], rowsAffected: 0, elapsed: 0 }
         ),
       disconnect: vi.fn().mockResolvedValue(undefined),
-      version: vi.fn().mockResolvedValue('3.53.1'),
+      version: vi.fn().mockResolvedValue('3.0.0'),
       addEventListener: vi.fn()
     };
     const adapter = new TestAdapter(rxdb, () => client);

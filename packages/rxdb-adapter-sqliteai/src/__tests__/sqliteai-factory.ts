@@ -1,4 +1,4 @@
-import { RxDB, SyncType, type EntityType, type MigrationType, type Plugin } from '@aiao/rxdb';
+import { RxDB, SyncType, type EntityType, type Plugin } from '@aiao/rxdb';
 import type { AdapterFactory } from '@aiao/rxdb-adapter-sqlite-core/testing';
 import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { queryCountOf, registerQueryCount, type EncryptedAdapterFactory } from '@aiao/rxdb-test/encrypted';
@@ -50,22 +50,16 @@ async function createSqliteaiAdapter(options?: Record<string, unknown>): Promise
     persistent?: boolean;
     plugins?: readonly Plugin[];
     remoteAdapter?: string;
-    dbName?: string;
-    migrations?: MigrationType[];
   };
   // `remoteAdapter` 与 `plugins` 必须在这里解构出去，不能留在 `adapterOptions` 里：那个对象整个
   // 展进 `SqliteaiOptions`，多带一个它不认识的键。
   const { entities: entitiesOption, persistent, plugins = [], remoteAdapter, ...adapterOptions } = rawOptions;
   const entities = (entitiesOption ?? []).slice();
-  const dbName =
-    typeof rawOptions.dbName === 'string' ?
-      rawOptions.dbName
-    : `sqliteai-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const dbName = `sqliteai-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const rxdb = new RxDB({
     dbName,
     context: { userId: 'userId' },
     entities,
-    migrations: rawOptions.migrations,
     sync: {
       local: { adapter: 'sqliteai' },
       // 捕获侧一致性调用点要传 remote：清单里的 QueryCache 实体要求**库级** sync 两侧齐全，

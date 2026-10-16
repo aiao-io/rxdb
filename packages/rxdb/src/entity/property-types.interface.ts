@@ -108,17 +108,6 @@ interface ISortable {
 }
 
 /**
- * 属性级 CHECK 声明面
- *
- * 属性接口共有、索引接口没有：`check` 是省略 `field` 的单条规则，
- * 编译成以属性名为 `name` 的实体级 CHECK（见 `transitionMetadata`）。
- * 只对单行确定性比较开放，操作符白名单见 {@link PropertyCheckRule}。
- */
-export interface IEntityPropertyCheckable {
-  check?: PropertyCheckRule;
-}
-
-/**
  * 实体属性类型枚举
  * 定义实体属性支持的数据类型
  */
@@ -208,7 +197,7 @@ export enum PropertyType {
  * 值按字符串持久化，`default` 通常传生成函数而非定值，
  * 否则同一张表的所有新行会共用一个写死的 UUID。
  */
-export interface UUIDProperty extends IEntityObject, IEntityPropertyCheckable, ISortable {
+export interface UUIDProperty extends IEntityObject, ISortable {
   /**
    * 是否为主键
    */
@@ -225,7 +214,7 @@ export interface UUIDProperty extends IEntityObject, IEntityPropertyCheckable, I
  * 长度校验属于业务层。需要受控取值集合用 {@link EnumProperty}，
  * 需要整段结构化数据用 {@link JSONProperty}，别拿字符串手动序列化。
  */
-export interface StringProperty extends IEntityObject, IEntityPropertyCheckable, ISortable {
+export interface StringProperty extends IEntityObject, ISortable {
   /**
    * 是否为主键
    */
@@ -264,7 +253,7 @@ export interface StringProperty extends IEntityObject, IEntityPropertyCheckable,
  *
  * `enum` 声明为 `readonly string[]`，用 `as const` 传入才能让实体字段推断成字面量联合而非 `string`。
  */
-export interface EnumProperty extends IEntityObject, IEntityPropertyCheckable, ISortable {
+export interface EnumProperty extends IEntityObject, ISortable {
   /**
    * 属性类型
    */
@@ -304,7 +293,7 @@ export interface EnumProperty extends IEntityObject, IEntityPropertyCheckable, I
  * 任何修改都要整体重新赋值（原地 `push` 不触发实体 Proxy，不会被持久化）。
  * 需要按元素查询或索引就改用一对多关系。
  */
-export interface NumberArrayProperty extends IEntityObject, IEntityPropertyCheckable, ISortable {
+export interface NumberArrayProperty extends IEntityObject, ISortable {
   type: PropertyType.numberArray | `${PropertyType.numberArray}`;
   default?: number[] | (() => number[]);
 }
@@ -319,7 +308,7 @@ export interface NumberArrayProperty extends IEntityObject, IEntityPropertyCheck
  *
  * `format` 有意排除了 `currency` / `percentage`——那两种语义蕴含小数精度，落在整数列上会静默丢位。
  */
-export interface IntegerProperty extends IEntityObject, IEntityPropertyCheckable, ISortable {
+export interface IntegerProperty extends IEntityObject, ISortable {
   primary?: boolean;
   type: PropertyType.integer | `${PropertyType.integer}`;
   default?: number | (() => number);
@@ -340,7 +329,7 @@ export interface IntegerProperty extends IEntityObject, IEntityPropertyCheckable
  * 运行时只接受 `bigint`，值域为 `-2^63` 至 `2^63 - 1`。SQLite family 与
  * PGlite 本地 adapter 支持持久化；Supabase remote 不支持。
  */
-export interface BigIntProperty extends IEntityObject, IEntityPropertyCheckable, ISortable {
+export interface BigIntProperty extends IEntityObject, ISortable {
   primary?: boolean;
   type: PropertyType.bigint | `${PropertyType.bigint}`;
   default?: bigint | (() => bigint);
@@ -354,7 +343,7 @@ export interface BigIntProperty extends IEntityObject, IEntityPropertyCheckable,
  * SQLite family 与 PGlite 本地 adapter 支持 `Uint8Array` 当前视图；Supabase
  * remote 不支持。
  */
-export interface BinaryProperty extends IEntityObject, IEntityPropertyCheckable {
+export interface BinaryProperty extends IEntityObject {
   type: PropertyType.binary | `${PropertyType.binary}`;
   default?: Uint8Array | (() => Uint8Array);
 }
@@ -371,7 +360,7 @@ export interface BinaryProperty extends IEntityObject, IEntityPropertyCheckable 
  * 适配器会在那里把哨兵就地换成客户端当前时间（见 `inserts_sql.ts`）。
  * 哨兵**不可以**出现在读回来的值里——`new Date('CURRENT_TIMESTAMP')` 是 Invalid Date。
  */
-export interface DateProperty extends IEntityObject, IEntityPropertyCheckable, ISortable {
+export interface DateProperty extends IEntityObject, ISortable {
   type: PropertyType.date | `${PropertyType.date}`;
   default?: Date | (() => Date) | 'CURRENT_TIMESTAMP';
   /**
@@ -388,14 +377,14 @@ export interface DateProperty extends IEntityObject, IEntityPropertyCheckable, I
  * SQLite 系没有原生布尔类型，落到 `0` / `1` 整数列并在读取时还原，
  * 所以裸 SQL 查询（`rawQuery`）里要按整数比较，不能写 `= true`。
  */
-export interface BooleanProperty extends IEntityObject, IEntityPropertyCheckable, ISortable {
+export interface BooleanProperty extends IEntityObject, ISortable {
   type: PropertyType.boolean | `${PropertyType.boolean}`;
   default?: boolean | (() => boolean);
 }
 /**
  * 字符串组
  */
-export interface StringArrayProperty extends IEntityObject, IEntityPropertyCheckable, ISortable {
+export interface StringArrayProperty extends IEntityObject, ISortable {
   type: PropertyType.stringArray | `${PropertyType.stringArray}`;
   default?: string[] | (() => string[]);
   /**
@@ -421,7 +410,7 @@ export interface StringArrayProperty extends IEntityObject, IEntityPropertyCheck
 /**
  * 数字组
  */
-export interface NumberProperty extends IEntityObject, IEntityPropertyCheckable, ISortable {
+export interface NumberProperty extends IEntityObject, ISortable {
   type: PropertyType.number | `${PropertyType.number}`;
   default?: number | (() => number);
   /**
@@ -444,7 +433,7 @@ export interface NumberProperty extends IEntityObject, IEntityPropertyCheckable,
  * 与 {@link JSONProperty} 的区别是它**要求预先声明** `properties`：值仍整体存一列，
  * 但每个键的类型与默认值是已知的，于是能参与类型推断。结构不固定时才用 JSON。
  */
-export interface KeyValueProperty extends IEntityObject, IEntityPropertyCheckable {
+export interface KeyValueProperty extends IEntityObject {
   type: PropertyType.keyValue | `${PropertyType.keyValue}`;
   default?: KeyValue | (() => KeyValue);
   properties: KeyValuePropertyMetadata[];
@@ -454,7 +443,7 @@ export interface KeyValueProperty extends IEntityObject, IEntityPropertyCheckabl
  * json
  * 存储任意 JSON 结构的数据，适用于灵活的数据模型或嵌套对象
  */
-export interface JSONProperty extends IEntityObject, IEntityPropertyCheckable {
+export interface JSONProperty extends IEntityObject {
   type: PropertyType.json | `${PropertyType.json}`;
   default?: Record<string, unknown> | (() => Record<string, unknown>);
 }
@@ -523,15 +512,6 @@ export type EntityPropertyMetadata =
  */
 export interface EntityIndexMetadataOptions extends IEntityObject {
   properties?: string[];
-  /**
-   * 条件索引的 `WHERE` 谓词（部分索引）
-   *
-   * @remarks
-   * 只对 `unique: true` 有意义，单独出现会在建元数据时抛错（不做静默降级）。
-   * 规则形状与 CHECK 同一份收窄后的 {@link CheckRuleGroup}、同一条字面量编译路径。
-   * 带 `where` 的唯一索引以 `uq_` 命名进约束漂移比对，`reconcileEntityIndexes` 补建时跳过。
-   */
-  where?: CheckRuleGroup;
   /**
    * 归一化唯一索引：索引的**每一列**都以 `lower(COALESCE(CAST(列 AS TEXT), ''))` 参与比较。
    *

@@ -20,5 +20,4 @@ export * from './cascade-options.interface.js';
 export * from './entity-options.interface.js';
 export * from './property-types.interface.js';
 export * from './relation-types.interface.js';
-export * from './storage-constraints.interface.js';
 export * from './sync-options.interface.js';
