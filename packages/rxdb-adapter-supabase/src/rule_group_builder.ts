@@ -111,12 +111,10 @@ function get_relation_metadata(
   return schemaManager.getEntityMetadata(relation.mappedEntity, relation.mappedNamespace ?? '') ?? fallback;
 }
 
-/** 把实体属性名解析成 Supabase 使用的物理列名。关系路径仍保留属性名供 PostgREST 嵌入。 */
+/** 解析主键物理列名；其余字段保持既有 Supabase 属性名契约。 */
 function resolve_column_name(field: string, metadata?: EntityMetadata): string {
-  if (!metadata) return field;
-  return (
-    metadata.propertyMap?.get(field)?.columnName ?? metadata.foreignKeyRelationMap?.get(field)?.columnName ?? field
-  );
+  if (field !== 'id' || !metadata) return field;
+  return metadata.propertyMap?.get('id')?.columnName ?? field;
 }
 
 function normalize_field_filter(field: string, operator: string, value: unknown): FieldFilterAst {

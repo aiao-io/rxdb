@@ -40,7 +40,7 @@ reviewed: 2026-10-16
 
 已在 `codex/packages-review` 工作树落地 6 条问题的代码修复：PGlite 关系 JOIN、Supabase 实体列映射与数值树 ID、模型缩写分词、QueryCache peer 元数据、Replay Vue 挂载前 `seek()`；同时补充了对应回归测试。当前尚未把问题标记为已解决，等待完整 Nx 门禁和真实 Supabase/宿主验证。
 
-已通过的最小回归：PGlite JOIN 8/8、模型 SchemaParser 23/23、Supabase RuleGroup 48/48。Replay Vue 与 Supabase 完整测试受新 worktree 缺少 workspace 包链接/浏览器依赖影响；Nx 项目图也被缺失的 Vite 插件阻断。
+已通过的验证：PGlite JOIN 8/8、模型 SchemaParser 23/23、模型包 996/996、Replay Vue 11/11、QueryCache 205/205、Supabase 全套 41 个测试文件 / 612 个测试、核心 RxDB 145 个测试文件 / 2554 个测试。affected 门禁的默认 coverage/browser runner 在当前环境仍有动态 coverage 模块和浏览器 worker 崩溃，关闭 coverage 后的行为测试已通过。
 
 ## 文档导航
 

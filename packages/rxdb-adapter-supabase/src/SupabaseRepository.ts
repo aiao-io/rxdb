@@ -3,14 +3,7 @@
  */
 
 import type { EntityMetadata, EntityType, IRepository, RuleGroup } from '@aiao/rxdb';
-import {
-  EntityStaticType,
-  getEntityMetadata,
-  isRuleGroup,
-  normalizeCreateEntity,
-  normalizeUpdateEntity,
-  RepositoryBase
-} from '@aiao/rxdb';
+import { EntityStaticType, getEntityMetadata, isRuleGroup, normalizeUpdateEntity, RepositoryBase } from '@aiao/rxdb';
 
 import { SupabaseDataError } from './errors.js';
 import { assert_postgrest_ok } from './postgrest-error.js';
@@ -28,7 +21,33 @@ interface RepositoryRuleView {
 }
 
 function normalize_supabase_update(metadata: EntityMetadata, patch: Record<string, unknown>): Record<string, unknown> {
-  return normalizeUpdateEntity(metadata, patch);
+  const normalized = normalizeUpdateEntity(metadata, patch);
+  const result: Record<string, unknown> = {};
+
+  for (const [propertyName, property] of metadata.propertyMap) {
+    if (!(property.columnName in normalized)) continue;
+    Object.defineProperty(result, propertyName, {
+      value: normalized[property.columnName],
+      writable: true,
+      enumerable: true,
+      configurable: true
+    });
+  }
+
+  const foreignKeyNames = metadata.foreignKeyNames ?? [];
+  const foreignKeyColumnNames = metadata.foreignKeyColumnNames ?? foreignKeyNames;
+  for (let index = 0; index < foreignKeyNames.length; index++) {
+    const columnName = foreignKeyColumnNames[index];
+    if (!(columnName in normalized)) continue;
+    Object.defineProperty(result, foreignKeyNames[index], {
+      value: normalized[columnName],
+      writable: true,
+      enumerable: true,
+      configurable: true
+    });
+  }
+
+  return result;
 }
 
 /**
@@ -147,13 +166,18 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
    * @throws {SupabaseDataError} 远端拒绝插入（主键冲突 / RLS / 约束等）
    */
   async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
-    const entityData = normalizeCreateEntity(this.metadata, entity) as Record<string, unknown>;
+    const entityData = { ...entity } as Record<string, unknown>;
+    const primaryKeyColumn = this.primary_key_column();
+    if (primaryKeyColumn !== 'id') {
+      entityData[primaryKeyColumn] = entity.id;
+      delete entityData['id'];
+    }
     const userId = this.rxdb.context.userId;
     if (userId) {
       const createdBy = this.metadata.propertyMap.get('createdBy');
       const updatedBy = this.metadata.propertyMap.get('updatedBy');
-      if (createdBy) entityData[createdBy.columnName] = userId;
-      if (updatedBy) entityData[updatedBy.columnName] = userId;
+      if (createdBy) entityData['createdBy'] = userId;
+      if (updatedBy) entityData['updatedBy'] = userId;
     }
 
     const { data, error, status } = await this.get_client().insert(entityData).select().single();
@@ -210,7 +234,8 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
       .select(primaryKeyColumn)
       .single();
     assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to remove entity');
-    if (data?.[primaryKeyColumn] !== entity.id)
+    const deletedRow = data as unknown as Record<string, unknown> | null;
+    if (deletedRow?.[primaryKeyColumn] !== entity.id)
       throw new SupabaseDataError('Failed to remove entity: deleted row did not match');
     return entity;
   }
@@ -242,11 +267,7 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
   }
 
   protected column_name(field: string): string {
-    return (
-      this.metadata.propertyMap?.get(field)?.columnName ??
-      this.metadata.foreignKeyRelationMap?.get(field)?.columnName ??
-      field
-    );
+    return field === 'id' ? this.primary_key_column() : field;
   }
 
   /**

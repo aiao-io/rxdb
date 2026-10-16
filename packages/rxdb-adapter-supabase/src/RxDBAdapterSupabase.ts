@@ -25,13 +25,7 @@ import type {
   RxDBMutationsMap,
   SwitchVersionActions
 } from '@aiao/rxdb';
-import {
-  getEntityMetadata,
-  getSyncConfig,
-  normalizeCreateEntity,
-  RxDBAdapterRemoteBase,
-  tryGetEntityStatus
-} from '@aiao/rxdb';
+import { getEntityMetadata, getSyncConfig, RxDBAdapterRemoteBase, tryGetEntityStatus } from '@aiao/rxdb';
 import { createClient, RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
 import { defer, from, map, Observable, of } from 'rxjs';
 import { resolveEntityScope, type EntityScope } from './entity_scope.js';
@@ -78,7 +72,6 @@ import {
 } from './supabase.rls.js';
 import { SupabaseRepository } from './SupabaseRepository.js';
 import { SupabaseTreeRepository } from './SupabaseTreeRepository.js';
-import { transform_row_to_entity } from './transform.js';
 
 export { ADAPTER_NAME, SUPABASE_SDK_VERSION };
 
@@ -730,24 +723,21 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
       const metadata = getEntityMetadata(EntityType);
       const client = this.getSchemaClient(metadata.namespace);
       const entities = Array.from(entitySet);
-      const createdByColumn = metadata.propertyMap.get('createdBy')?.columnName ?? 'createdBy';
-      const updatedByColumn = metadata.propertyMap.get('updatedBy')?.columnName ?? 'updatedBy';
       // saveMany 的实体可能既有新建也有已存在的，按 `status.local` 逐个判定 ——
       // 这与 `getEntityMutations` 划分 create/update 用的是同一个判据。
       // 已存在的行不下发 createdBy，否则 upsert 的 DO UPDATE SET 会覆写原作者。
       const data =
         userId ?
           entities.map(entity => {
-            const row: Record<string, unknown> = normalizeCreateEntity(metadata, entity);
-            row[updatedByColumn] = userId;
+            const row: Record<string, unknown> = { ...entity, updatedBy: userId };
             if (tryGetEntityStatus(entity)?.local) {
-              delete row[createdByColumn];
+              delete row['createdBy'];
             } else {
-              row[createdByColumn] = userId;
+              row['createdBy'] = userId;
             }
             return row;
           })
-        : entities.map(entity => normalizeCreateEntity(metadata, entity));
+        : entities;
 
       const result = await this.executeRetryableWrite(
         'upsert',
@@ -1032,8 +1022,8 @@ export class RxDBAdapterSupabase extends RxDBAdapterRemoteBase implements IRxDBA
 
       const batch = (data ?? []) as Record<string, unknown>[];
       rows.push(
-        ...(metadata && EntityType ?
-          batch.map(row => transform_row_to_entity(EntityType, metadata, row) as unknown as T)
+        ...(metadata && primaryKeyColumn !== 'id' ?
+          batch.map(row => ({ ...row, id: row[primaryKeyColumn] }) as T)
         : (batch as T[]))
       );
     }
