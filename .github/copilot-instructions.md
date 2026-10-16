@@ -12,7 +12,6 @@ Auto-generated from all feature plans. Last updated: 2026-04-15
 apps/
 benchmarks/
 docker/
-examples/
 modules/
 packages/
 requirements/
