@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { readCount, resetE2eState } from './e2e-utils.js';
 import { branchMenuAction, divergeBranches } from './working-tree-branches.js';
+import { browseReadOnly, readOnlyEntity, readOnlyTitles } from './working-tree-readonly.js';
 
 /**
  * @fileoverview `/working-tree` 面板的 git 工作流功能用例。
@@ -539,6 +540,55 @@ test.describe('合并预览与分支对比（US-312）', () => {
     await page.getByTestId('wt-compare-close').click();
     await expect(page.getByTestId('wt-compare-dialog')).toHaveCount(0);
     await expect(page.getByTestId('wt-status-branch')).toHaveText('main');
+  });
+});
+
+/**
+ * 只读检出位（US-313）：不切换分支，以只读方式打开另一条分支、或当前分支上一个提交的完整数据。
+ */
+test.describe('只读检出位（US-313）', () => {
+  test.describe.configure({ mode: 'serial' });
+
+  test('分支行与历史行都能只读打开：浏览的是目标的数据，写入口不可用，关掉之后当前分支什么都没动', async ({ page }) => {
+    await openPanel(page);
+    await waitForAutoEnabled(page);
+    await divergeBranches(page, {
+      branch: 'feature/readonly',
+      base: 'readonly-base',
+      onBranch: 'readonly-feature',
+      onMain: 'readonly-main'
+    });
+    const dialog = page.getByTestId('wt-readonly-dialog');
+
+    // ── 分支视图：feature 上的标题，main 的改动不在里面 ──
+    await branchMenuAction(page, 'feature/readonly', 'wt-branch-menu-open-readonly');
+    await expect(dialog).toBeVisible({ timeout: 30000 });
+    await expect(page.getByTestId('wt-readonly-banner')).toContainText('branch feature/readonly');
+    await browseReadOnly(page, 'public:Task', 'readonly-feature');
+    expect(await readOnlyTitles(page)).not.toContain('readonly-main');
+    // 只读实例上实体列表不出新增；存储文件是它此刻的内容，标「不随版本」
+    await expect(dialog.getByRole('button', { name: '+ 新增' })).toHaveCount(0);
+    await expect(readOnlyEntity(page, 'storage:StorageFileMeta').getByTestId('wt-readonly-unversioned')).toHaveText(
+      '不随版本'
+    );
+    await expect(readOnlyEntity(page, 'public:Task').getByTestId('wt-readonly-unversioned')).toHaveCount(0);
+
+    await page.getByTestId('wt-readonly-close').click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('main');
+    await expect(page.getByTestId('wt-status-clean')).toHaveText('干净');
+
+    // ── 提交视图：main 上第一条提交刚完成时的数据 ──
+    await openHistory(page);
+    await page.getByTestId('wt-commit-item').filter({ hasText: 'add readonly-base' }).click({ button: 'right' });
+    await page.getByTestId('wt-commit-menu-open-readonly').click();
+    await expect(dialog).toBeVisible({ timeout: 30000 });
+    await expect(page.getByTestId('wt-readonly-banner')).toContainText('commit ');
+    await browseReadOnly(page, 'public:Task', 'readonly-base');
+    expect(await readOnlyTitles(page)).not.toContain('readonly-main');
+    await page.getByTestId('wt-readonly-close').click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.getByTestId('wt-status-clean')).toHaveText('干净');
   });
 });
 
