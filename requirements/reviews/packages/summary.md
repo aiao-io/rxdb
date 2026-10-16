@@ -9,7 +9,7 @@ reviewed: 2026-10-16
 
 ## 结果
 
-本轮覆盖 `packages/` 下 51 个包，每包一份报告。静态源码、配置、公开入口、测试目录和 README 已按分组完成检查；没有修改生产代码、测试代码或依赖。
+本轮覆盖 `packages/` 下 51 个包，每包一份报告。静态源码、配置、公开入口、测试目录和 README 已按分组完成检查；初始评审先保留问题清单，随后在同一分支完成修复和回归验证。
 
 已确认 6 条问题：2 条 P1、4 条 P2；没有 P0 或 P3。
 
@@ -31,16 +31,16 @@ reviewed: 2026-10-16
 
 ## 修复顺序建议
 
-1. 先修 P1：抽取统一的 metadata 主键物理列解析，并覆盖 PGlite/Supabase 的关系、分页、CRUD、树查询和行转换。
-2. 修 P2：统一实体 ID canonical 化；修正 `rxdb-model` 缩写分词并补回归；把 QueryCache 的 history/sync 加入 peer 元数据并做独立打包消费验证。
+1. 先修 P1：抽取统一的 metadata 主键物理列解析，并覆盖 PGlite/Supabase 的关系、分页、CRUD、树查询和行转换（已完成）。
+2. 修 P2：统一实体 ID canonical 化；修正 `rxdb-model` 缩写分词并补回归；把 QueryCache 的 history/sync 加入 peer 元数据并做独立打包消费验证（已完成）。
 3. 在 Node 26+ 环境串行执行 51 个包的 lint/typecheck/test/build，补跑浏览器、真实 Supabase/PostgREST、PGlite JOIN、桌面/Tauri/小程序宿主测试。
 4. 修复完成后删除或归档对应报告中的问题条目，保留验证证据和回归测试链接。
 
 ## 本轮修复进度
 
-已在 `codex/packages-review` 工作树落地 6 条问题的代码修复：PGlite 关系 JOIN、Supabase 实体列映射与数值树 ID、模型缩写分词、QueryCache peer 元数据、Replay Vue 挂载前 `seek()`；同时补充了对应回归测试。当前尚未把问题标记为已解决，等待完整 Nx 门禁和真实 Supabase/宿主验证。
+已在 `codex/packages-review` 工作树落地 6 条问题的代码修复：PGlite 关系 JOIN、Supabase 主键列映射与数值树 ID、模型缩写分词、QueryCache peer 元数据、Replay Vue 挂载前 `seek()`；同时补充了对应回归测试。代码问题已完成验证，原始报告保留为审计记录。
 
-已通过的验证：PGlite JOIN 8/8、模型 SchemaParser 23/23、模型包 996/996、Replay Vue 11/11、QueryCache 205/205、Supabase 全套 41 个测试文件 / 612 个测试、核心 RxDB 145 个测试文件 / 2554 个测试。affected 门禁的默认 coverage/browser runner 在当前环境仍有动态 coverage 模块和浏览器 worker 崩溃，关闭 coverage 后的行为测试已通过。
+已通过的验证：PGlite JOIN 8/8、模型 SchemaParser 23/23、模型包 996/996、Replay Vue 11/11、QueryCache 205/205、Supabase 全套 41 个测试文件 / 612 个测试、核心 RxDB 145 个测试文件 / 2554 个测试；受影响项目的 build、typecheck、lint 也已通过，QueryCache 最终配置变更再次 lint 通过。`pnpm-lock.yaml` 已同步 QueryCache 的两个 workspace peer importer。完整 affected 的默认 coverage/browser runner 仍受当前 Node 22、coverage 动态模块和浏览器 worker 资源限制，关闭 coverage 后的行为测试已通过。
 
 ## 文档导航
 

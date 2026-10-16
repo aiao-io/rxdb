@@ -11,7 +11,8 @@ export default [
           ignoredFiles: [
             '{projectRoot}/eslint.config.{js,cjs,mjs,ts,cts,mts}',
             '{projectRoot}/vite.config.{js,ts,mjs,mts}'
-          ]
+          ],
+          ignoredDependencies: ['@aiao/rxdb-plugin-history', '@aiao/rxdb-plugin-sync']
         }
       ]
     },
