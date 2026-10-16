@@ -16,8 +16,11 @@ NODE_VERSION = "26"
 # 本机一致。构建阶段的生产语义由 website/scripts/build-website.mjs 强制
 # （NODE_ENV=production 传给所有子进程），不受这里的 development 影响。
 NODE_ENV = "development"
-# 冻结锁文件安装：与 GitHub CI / 本地一致。
-PNPM_FLAGS = "--frozen-lockfile"
+# 冻结锁文件安装：与 GitHub CI / 本地一致。store 指向 Netlify 构建缓存目录——
+# 失败构建不保存分支缓存，冷安装每次都要全量下载几个 GB 的依赖，registry 波动
+# 时安装阶段即崩（部署历史里 ~170s 的失败全在这里）；store 进缓存后下载成果
+# 跨构建保留，安装稳定且快。
+PNPM_FLAGS = "--frozen-lockfile --store-dir=/opt/build/cache/pnpm-store"
 # corepack 老版本缺少 2025 年后 npm registry 轮换的签名 key，验证 pnpm 10.1.0+
 # 时抛 Cannot find matching keyid。关闭完整性 key 校验绕开（HTTPS 下载仍由 TLS
 # 保护，Netlify 论坛验证过的 workaround）。
