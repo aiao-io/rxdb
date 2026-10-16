@@ -1,5 +1,6 @@
 import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
-import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
+import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
+import waSqliteAsync from 'wa-sqlite/dist/wa-sqlite-async.wasm?url';
 
 @Entity({
   name: 'Todo',
@@ -20,10 +21,11 @@ export function getRxdb(): RxDB {
   rxdb = new RxDB({
     dbName: 'todo',
     entities: [Todo],
-    // 跨 Tab 同步默认开启（multiInstance 默认为 true），两个标签页写同一份 idb:// 数据会互相推送。
-    sync: { local: { adapter: 'pglite' }, type: SyncType.None }
+    // 跨 Tab 同步默认开启（multiInstance 默认为 true），两个标签页写同一份 IndexedDB 数据会互相推送。
+    sync: { local: { adapter: 'wa-sqlite' }, type: SyncType.None }
   });
-  rxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'idb' }));
+  // IDBBatchAtomicVFS（默认）持久化到 IndexedDB、主线程运行；wasmPath 指向 async 构建。
+  rxdb.adapter('wa-sqlite', db => new RxDBAdapterWaSqlite(db, { wasmPath: waSqliteAsync }));
   rxdb.init();
   return rxdb;
 }

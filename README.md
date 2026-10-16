@@ -69,7 +69,7 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 
 ## 5 分钟跑通
 
-不用装环境，直接在浏览器里打开一个可编辑的最小 Todo（PGlite · 装饰器实体 · 响应式查询 · `idb://` 持久化）：
+不用装环境，直接在浏览器里打开一个可编辑的最小 Todo（wa-sqlite · 装饰器实体 · 响应式查询 · IndexedDB 持久化）：
 
 - [React](https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/todo-react)
 - [Vue](https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/todo-vue)
@@ -79,7 +79,8 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 
 ```ts
 import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
-import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
+import { RxDBAdapterWaSqlite } from '@aiao/rxdb-adapter-wa-sqlite';
+import waSqliteAsync from 'wa-sqlite/dist/wa-sqlite-async.wasm?url';
 
 @Entity({
   name: 'Todo',
@@ -93,9 +94,13 @@ class Todo extends EntityBase {
   completed!: boolean;
 }
 
-const rxdb = new RxDB({ dbName: 'demo', entities: [Todo], sync: { local: { adapter: 'pglite' }, type: SyncType.None } });
-rxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'idb' }));
-await rxdb.connect('pglite');
+const rxdb = new RxDB({
+  dbName: 'demo',
+  entities: [Todo],
+  sync: { local: { adapter: 'wa-sqlite' }, type: SyncType.None }
+});
+rxdb.adapter('wa-sqlite', db => new RxDBAdapterWaSqlite(db, { wasmPath: waSqliteAsync }));
+await rxdb.connect('wa-sqlite');
 await new Todo({ title: '读完 README' }).save();
 ```
 

@@ -1,6 +1,5 @@
 {
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
-  "version": 1,
   "cli": {
     "packageManager": "npm",
     "analytics": false
@@ -21,9 +20,9 @@
             "assets": [
               { "glob": "**/*", "input": "public" },
               {
-                "glob": "**/*.{wasm,data}",
-                "input": "./node_modules/@electric-sql/pglite/dist",
-                "output": "./pglite/"
+                "glob": "**/*.wasm",
+                "input": "./node_modules/wa-sqlite/dist",
+                "output": "./wa-sqlite/"
               }
             ],
             "styles": ["src/styles.css"],
@@ -53,16 +52,13 @@
               "buildTarget": "todo:build:production"
             },
             "development": {
-              "buildTarget": "todo:build:development",
-              "headers": {
-                "Cross-Origin-Opener-Policy": "same-origin",
-                "Cross-Origin-Embedder-Policy": "require-corp"
-              }
+              "buildTarget": "todo:build:development"
             }
           },
           "defaultConfiguration": "development"
         }
       }
     }
-  }
+  },
+  "version": 1
 }
