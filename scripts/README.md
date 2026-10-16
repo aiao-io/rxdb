@@ -83,7 +83,7 @@ check-workspace.mjs              →  .env 初始化 + rxdb-test 预构建（pos
 
 - **触发**：`package.json#preinstall` 第一段（包管理器解析前硬失败）；也可手动 `pnpm audit:wa-sqlite`。CI 上同样会跑（无 CI 跳过逻辑）。
 - **做什么**：
-  1. 读 `package.json / benchmarks/package.json / examples/angular-todo/package.json / packages/rxdb-adapter-wa-sqlite/package.json / packages/rxdb-adapter-miniprogram/package.json`，断言 `dependencies.wa-sqlite` 都锁定到 `https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994`；
+  1. 读 `package.json / benchmarks/package.json / packages/rxdb-adapter-wa-sqlite/package.json / packages/rxdb-adapter-miniprogram/package.json`，断言 `dependencies.wa-sqlite` 都锁定到 `https://codeload.github.com/rhashimoto/wa-sqlite/tar.gz/2bf1c59d89eb6497535a4217bc62fec68a0bb994`；
   2. 解析 `pnpm-lock.yaml` 中 `wa-sqlite@<url>` 段，断言 `tarball / integrity` 字段与上面的固定值一致，并扫掉任何 `codeload.github.com/.../refs/tags/`（即可变 tag URL）形态的残留；
   3. 断言 `packages/rxdb-adapter-miniprogram` 的 `dependencies['@subframe7536/sqlite-wasm']`（编入 FTS5 的 glue + wasm）是**精确版本**而非 `^`/`~`，在 `pnpm-lock.yaml` 里核对该版本的 SHA-512 integrity，并检查 [`subframe-glue.ts`](../packages/rxdb-adapter-miniprogram/src/subframe-glue.ts) import 的 glue 文件名与该版本配对。glue 只在 `./dist/*` 暴露且文件名带内容哈希，一次小版本升级就会让 import 指向不存在的文件——所以版本号与文件名必须成对更新，否则只能到运行时才炸；
   4. 传 `--archive <path-to-tgz>` 时，对下载的本地 tarball 再算一次 `sha512-<base64>`，与上面硬编码的完整性指纹对齐。

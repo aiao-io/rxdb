@@ -69,10 +69,13 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 
 ## 5 分钟跑通
 
-```bash
-pnpm add @aiao/rxdb @aiao/rxdb-adapter-pglite @electric-sql/pglite   # 浏览器内 PostgreSQL；SQLite 见文档
-pnpm add @aiao/rxdb-react                                            # 或 @aiao/rxdb-angular / @aiao/rxdb-vue
-```
+不用装环境，直接在浏览器里打开一个可编辑的最小 Todo（PGlite · 装饰器实体 · 响应式查询 · `idb://` 持久化）：
+
+- [React](https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/todo-react)
+- [Vue](https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/todo-vue)
+- [Angular](https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/todo-angular)
+
+核心代码就这几行——同一份声明同时生成表、类型与 Repository：
 
 ```ts
 import { Entity, EntityBase, PropertyType, RxDB, SyncType } from '@aiao/rxdb';
@@ -85,38 +88,18 @@ import { RxDBAdapterPGlite } from '@aiao/rxdb-adapter-pglite';
     { name: 'completed', type: PropertyType.boolean, default: false }
   ]
 })
-export class Todo extends EntityBase {
+class Todo extends EntityBase {
   title!: string;
   completed!: boolean;
 }
 
-const rxdb = new RxDB({
-  dbName: 'demo',
-  entities: [Todo],
-  sync: { local: { adapter: 'pglite' }, type: SyncType.None }
-});
-rxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'idb' })); // 数据落在浏览器 IndexedDB（idb://）
+const rxdb = new RxDB({ dbName: 'demo', entities: [Todo], sync: { local: { adapter: 'pglite' }, type: SyncType.None } });
+rxdb.adapter('pglite', db => new RxDBAdapterPGlite(db, { store: 'idb' }));
 await rxdb.connect('pglite');
-
-const todo = new Todo();
-todo.title = '读完 README';
-await todo.save(); // 同一份声明已生成表、类型与 Repository
+await new Todo({ title: '读完 README' }).save();
 ```
 
-```tsx
-import { useFind } from '@aiao/rxdb-react'; // Angular / Vue 同名 API
-
-const { value: todos, isLoading } = useFind(Todo, {
-  where: { combinator: 'and', rules: [{ field: 'completed', operator: '=', value: false }] }
-});
-```
-
-写入后 `todos` 自动更新，跨 Tab 同样生效。完整接线（Worker / WASM 路径 / 框架 provider）见[快速开始](https://rxdb.aiao.io/docs/getting-started/)。
-
-> 想直接在线跑？StackBlitz 一键打开 `examples/` 下的最小 Todo 示例（PGlite + 完整增删改查）：
-> [React](https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/todo-react) ·
-> [Vue](https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/todo-vue) ·
-> [Angular](https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/todo-angular)
+完整安装、三框架 `useFind` 响应式查询与 Worker / WASM 接线见[快速开始](https://rxdb.aiao.io/docs/getting-started/)。
 
 ## 现在有什么？
 

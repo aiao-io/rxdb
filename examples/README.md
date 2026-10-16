@@ -8,12 +8,10 @@
 
 原因是它们被**有意**排除在 monorepo 之外：
 
-- 根 [pnpm-workspace.yaml](../pnpm-workspace.yaml) 用 `- '!examples/*'` 排除本目录；
-  新增的 `todo-*` 示例是普通 npm 工程，`angular-todo` 此前是独立 pnpm workspace
-  （自带 `pnpm-workspace.yaml` + `pnpm-lock.yaml`），已改为 npm；
+- 根 [pnpm-workspace.yaml](../pnpm-workspace.yaml) 用 `- '!examples/*'` 排除本目录，
+  每个示例都是普通 npm 工程（无 lockfile）；
 - 本目录下**没有任何 `project.json`**，因此 `nx affected` / `pnpm test-all` 都扫不到它们。
-  注意别被重名误导：`pnpm nx show projects` 里的 `angular-todo` 指的是 [modules/angular-todo](../modules/angular-todo/)，
-  与 [examples/angular-todo](./angular-todo/) 无关；
+  注意 `pnpm nx show projects` 里的 `angular-todo` 是 [modules/angular-todo](../modules/angular-todo/)（Nx 项目），与本目录无关；
 - 它们依赖**已发布到 npm** 的 `@aiao/*` 版本，而不是仓库源码，所以仓库内的改动不会自动反映到示例里。
 
 这样做是为了让独立 Angular CLI 这类与 Nx 图不共存的工具链保持可用。
@@ -26,17 +24,16 @@
 | [todo-react](./todo-react/)     | React 19 + PGlite      | 装饰器实体、响应式查询、增删改、批量写、过滤、IndexedDB 持久化  | `npm install && npm run build` |
 | [todo-vue](./todo-vue/)         | Vue 3.5 + PGlite       | 同上（Vue 版）                                                  | `npm install && npm run build` |
 | [todo-angular](./todo-angular/) | Angular 22 + PGlite    | 同上（Angular 版）                                              | `npm install && npm run build` |
-| [angular-todo](./angular-todo/) | Angular 21 + wa-sqlite | 本地 SQLite、响应式查询、批量写入、撤销/重做、OPFS/IDB 切换      | `npm install && npm run build` |
 
 `todo-react` / `todo-vue` / `todo-angular` 是最小 PGlite 示例，对应仓库 README「5 分钟跑通」，
-用 npm 管理依赖，可直接在 StackBlitz 一键打开。`angular-todo` 是更完整的 wa-sqlite 集成示例。
+用 npm 管理依赖，可直接在 StackBlitz 一键打开。
 
 每个示例都是**独立的 npm 工程**，**不要在仓库根安装它们**：
 
 ```bash
 cd examples/<示例目录>
 npm install
-npm run dev    # todo-react / todo-vue；todo-angular / angular-todo 是 ng serve
+npm run dev    # todo-react / todo-vue；todo-angular 是 ng serve
 ```
 
 ## StackBlitz 一键跑通
@@ -51,28 +48,6 @@ https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/<目录>
 各自构建配置已加 COOP/COEP 响应头，请在 Chrome / Edge 打开预览。示例统一用 npm 而非 pnpm：
 StackBlitz WebContainer 里 pnpm 只支持 WASM 版，`packageManager` 字段会拉原生版导致
 `ERR_PNPM_UNSUPPORTED_RUNTIME`。
-
-`angular-todo` 仍用 wa-sqlite，其适配器 `@aiao/rxdb-adapter-wa-sqlite` 对 wa-sqlite 的依赖是
-GitHub tarball 直链（见下「插件拆分」），能否在 StackBlitz 装成取决于对 `codeload.github.com`
-的网络访问，因此未纳入「一键跑通」承诺。
-
-## 插件拆分（US-025）与示例的滞后
-
-仓库源码已把历史 / 同步 / 查询缓存等能力从核心 `@aiao/rxdb` 拆进
-`@aiao/rxdb-plugin-*`；`modules/angular-todo` 那份同源代码已经按新形态写成
-`import type {} from '@aiao/rxdb-plugin-history';` + `rxdb.use(rxDBPluginHistory)`。
-
-插件包已在 **0.0.26（2026-10-01）首次发布**（`@aiao/rxdb-plugin-history` /
-`@aiao/rxdb-plugin-sync` / `@aiao/rxdb-plugin-querycache`），原定的触发点已过，
-`examples/angular-todo` 现在应当跟上，但实际仍停在旧版本：它的 `package.json` 写的还是
-`"@aiao/rxdb": "^0.0.24"`——0.x 下 caret 只放行 patch 的同段，`^0.0.24` 就是
-`>=0.0.24 <0.0.25`，装到的永远是 0.0.24，示例因此仍直接用
-`rxdb.versionManager.history()`。升级是明确待办，照 `modules/angular-todo` 的写法跟进：
-
-1. `examples/angular-todo/package.json` 把 `@aiao/rxdb`（及其中要用到的其余 `@aiao/*` 依赖）升到 `0.0.26`，并加 `@aiao/rxdb-plugin-history`；
-2. `src/app/setup_rxdb.ts` 补 `rxdb.use(rxDBPluginHistory)`；
-3. `src/app/todo/todo.page.ts` 顶部补 `import type {} from '@aiao/rxdb-plugin-history';`
-   （`versionManager` 的三处调用本身不用动），照 `modules/angular-todo/todo-page/todo.page.ts` 抄。
 
 ## 已迁出：Taro 微信小程序示例
 
