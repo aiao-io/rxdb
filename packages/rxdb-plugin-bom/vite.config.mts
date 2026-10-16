@@ -74,7 +74,7 @@ export default defineConfig(() => ({
     }
   },
   optimizeDeps: {
-    include: ['fastest-levenshtein', 'ms', 'uuid'],
+    include: ['fastest-levenshtein', 'ms', 'uuid', '@electric-sql/pglite', '@electric-sql/pglite/contrib/btree_gist'],
     exclude: [
       '@aiao/rxdb-test',
       '@aiao/rxdb-test/entities',
