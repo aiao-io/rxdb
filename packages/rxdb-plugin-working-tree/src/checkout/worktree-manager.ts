@@ -32,6 +32,7 @@ import {
   importSnapshot,
   sealSnapshot
 } from './worktree-snapshot.js';
+import { isReclaimCandidate } from './worktree-startup-reclaim.js';
 import { isWorktreeCommitTarget, type WorktreeTarget } from './worktree-target.js';
 import { Worktree, type WorktreeOwner } from './worktree.entity.js';
 
@@ -218,7 +219,7 @@ export class WorktreeManager {
    * @remarks
    * 只碰拿得到锁的：别的标签页（或本页）正打开着的检出位，锁在它们手里。删库之前先用空实体集连一次快照库，
    * 标记迁移在不是快照库的已有库上会当场失败——工厂配错、指到了主库存储时，这里报错而不是把主库删掉。
-   * 每个连接纪元第一次连上本地适配器后，插件在后台跑一次。
+   * 连接期判定有孤儿（会话归属或没建完、且锁没人持有）时，插件在连上之后跑一次，见 `worktree-startup-reclaim.ts`。
    */
   async prune(): Promise<readonly string[]> {
     const worktrees = this.#requireOptions();
@@ -229,7 +230,7 @@ export class WorktreeManager {
     const pruned: string[] = [];
     const failures: unknown[] = [];
     for (const record of records) {
-      if (record.owner === 'persistent' && record.state === 'ready') continue;
+      if (!isReclaimCandidate(record)) continue;
       const release = await holdWorktreeLock(this.#lockName(record.id), true);
       if (!release) continue;
       try {
