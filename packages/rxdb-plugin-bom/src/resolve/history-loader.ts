@@ -98,6 +98,14 @@ export interface HistoryOccurrenceInput {
   /** ECN 引入 / 截止（US-515 阶段 C 种子）：区间须与 ECN 生效日一致（派生校验照常）。 */
   ecnInId?: string | null;
   ecnOutId?: string | null;
+  /** 序列 / 批次有效性（US-518）：三维有效域 = 日期 × 序列 × 批次。 */
+  unitFrom?: number | null;
+  unitTo?: number | null;
+  lotCodes?: string | null;
+  /** 配置选择条件（US-517）：行发生项挂条件 id。 */
+  selectionConditionId?: string | null;
+  /** 扩展属性（US-519）：JSON 文本。 */
+  ext?: string | null;
 }
 
 /** 一张历史头的输入：挂本批修订（按 `revisionIndex` 引用），含逻辑行与发生项。 */
