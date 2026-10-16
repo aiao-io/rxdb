@@ -1893,6 +1893,38 @@
         "version": "0.0.26"
       },
       {
+        "description": "> Implements: [US-507 BOM 图骨架](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/domain/US-507-bom-graph-skeleton.md)（epic-009 BOM 领域模型首轮切片）",
+        "framework": null,
+        "homepage": "https://rxdb.aiao.io/docs/plugins",
+        "hosts": [
+          "browser",
+          "node"
+        ],
+        "implementationDependencies": [
+          {
+            "kind": "peerDependencies",
+            "name": "@aiao/rxdb",
+            "optional": false,
+            "range": "workspace:^"
+          },
+          {
+            "kind": "dependencies",
+            "name": "@aiao/utils",
+            "optional": false,
+            "range": "workspace:^"
+          }
+        ],
+        "name": "@aiao/rxdb-plugin-bom",
+        "plugin": {
+          "class": "RxDBPluginBom",
+          "factory": "rxDBPluginBom",
+          "source": "src/plugin.ts"
+        },
+        "role": "plugin",
+        "slots": [],
+        "version": "0.0.26"
+      },
+      {
         "description": "> Implements: [US-503 图数据插件](https://github.com/aiao-io/rxdb/blob/main/requirements/stories/plugin/US-503-graph-data.md)",
         "framework": null,
         "homepage": "https://rxdb.aiao.io/docs/plugins",
@@ -2946,7 +2978,7 @@
       }
     ]
   },
-  "digest": "cf0a41073d728b37256069df076075b01a325299cc6e02b7db8a3950f81c4767",
+  "digest": "bd2046713eb471a9e6335740f9d79f5d52e70640f36181b7217396d4b35a6d64",
   "sample": {
     "compilerOptions": {
       "experimentalDecorators": true,

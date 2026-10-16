@@ -64,12 +64,18 @@ export const normalizeDecimalString = (input: unknown, field: string): string =>
   const mantissa = match[2];
   const exponentText = match[3];
   const exponent = exponentText ? Number(exponentText) : 0;
-  // `-0` 写作 `0`：值为零时符号无意义，先归零再拒绝其余负值（首期没有允许负值的字段）
-  if (sign === '-' && !/^0*\.?0*$/.test(mantissa)) {
+  // `-0` 写作 `0`：值为零时符号无意义，先归零再拒绝其余负值（首期没有允许负值的字段）。
+  // 全零判定不用正则（`0*\.?0*` 对长串是多项式回溯，CodeQL ReDoS 告警面）
+  const mantissaIsZero = [...mantissa].every(ch => ch === '0' || ch === '.');
+  if (sign === '-' && !mantissaIsZero) {
     throw new BomDecimalFormatError(field, '负值不受支持（首期没有允许负值的字段）');
   }
   const canonical = canonicalizePlain(expandExponent(mantissa, exponent));
-  const significant = canonical.replace('.', '').replace(/^0+/, '');
+  const withoutDot = canonical.replace('.', '');
+  // 去前导零走线性扫描（正则 `^0+` 同样是 ReDoS 告警面）
+  let firstNonZero = 0;
+  while (firstNonZero < withoutDot.length && withoutDot[firstNonZero] === '0') firstNonZero += 1;
+  const significant = withoutDot.slice(firstNonZero);
   if (significant.length > DECIMAL_MAX_SIGNIFICANT_DIGITS) {
     throw new BomDecimalFormatError(
       field,
