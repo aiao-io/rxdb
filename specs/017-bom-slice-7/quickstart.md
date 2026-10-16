@@ -19,6 +19,15 @@
 - 插件主入口补 bom-map 导出、testing 入口补 D 层装载；`nx sync` 刷新 tsconfig 引用
 - affected full — 后台运行中（88 项目，nx reset 后全量）
 
+## CI 收尾（setup lane 检查清单，本地等价复现）
+
+- `pnpm nx format:check`（**无 --base，全仓**——benchmarks 计时归档必须对齐 main 的格式化版本）
+- `pnpm audit:api-surface`（新导出先 `:update` 再提交基线）
+- `pnpm audit:package-graph`（改依赖/新增子路径后 `:update`）
+- `pnpm audit:requirements`（README 交付数与故事标题不得带日期；数字类跑 `:update`）
+- `pnpm audit:build-entries`（exports 声明的子路径必须有构建产出——vite `rolldownOptions.input` 加 `'testing/index'` 入口）
+- CodeQL：正则入口不得有多项式回溯（入口解析改手写状态机最稳）
+
 ## 排障记录（第 7 步踩过的坑）
 
 1. **e2e 目标本地缓存键不含 spec**：nx 的 `--skipNxCache` 只断开 Nx Cloud 远程缓存，本地缓存仍命中——spec 改断言后 e2e 反复跑旧代码（语法错误探针证明 playwright 根本没读磁盘文件）。根治：`project.json` 的 e2e 目标 inputs 显式纳入 `{projectRoot}/src/**/*.spec.ts` 与 playwright.config，再 `nx reset`。
