@@ -1851,6 +1851,12 @@ importers:
       '@aiao/rxdb':
         specifier: workspace:^
         version: link:../rxdb
+      '@aiao/rxdb-plugin-history':
+        specifier: workspace:^
+        version: link:../rxdb-plugin-history
+      '@aiao/rxdb-plugin-sync':
+        specifier: workspace:^
+        version: link:../rxdb-plugin-sync
       '@aiao/utils':
         specifier: workspace:^
         version: link:../utils

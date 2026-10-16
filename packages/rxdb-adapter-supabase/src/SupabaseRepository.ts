@@ -88,14 +88,14 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
 
       if (options.orderBy?.length) {
         for (const order of options.orderBy) {
-          query = query.order(order.field, this.order_options(order.field, order.sort));
+          query = query.order(this.column_name(order.field), this.order_options(order.field, order.sort));
         }
       }
 
       // 始终以 id 作为稳定排序兜底：无 orderBy 时 PostgREST 不保证跨 range 分页的顺序，
       // 否则结果集 > pageSize 时翻页会出现重复或丢行。
       if (!options.orderBy?.some((order: FindOrder) => order.field === 'id')) {
-        query = query.order('id', { ascending: true });
+        query = query.order(this.primary_key_column(), { ascending: true });
       }
 
       return query;
@@ -167,10 +167,17 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
    */
   async create(entity: InstanceType<T>): Promise<InstanceType<T>> {
     const entityData = { ...entity } as Record<string, unknown>;
+    const primaryKeyColumn = this.primary_key_column();
+    if (primaryKeyColumn !== 'id') {
+      entityData[primaryKeyColumn] = entity.id;
+      delete entityData['id'];
+    }
     const userId = this.rxdb.context.userId;
     if (userId) {
-      entityData['createdBy'] = userId;
-      entityData['updatedBy'] = userId;
+      const createdBy = this.metadata.propertyMap.get('createdBy');
+      const updatedBy = this.metadata.propertyMap.get('updatedBy');
+      if (createdBy) entityData['createdBy'] = userId;
+      if (updatedBy) entityData['updatedBy'] = userId;
     }
 
     const { data, error, status } = await this.get_client().insert(entityData).select().single();
@@ -202,7 +209,7 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
     }
     const { data, error, status } = await this.get_client()
       .update<Record<string, unknown>>(patchData)
-      .eq('id', entity.id)
+      .eq(this.primary_key_column(), entity.id)
       .select()
       .single();
     assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to update entity');
@@ -220,9 +227,16 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
    * @throws {SupabaseDataError} RLS 拒绝，或删除的行与目标 id 不符
    */
   async remove(entity: InstanceType<T>): Promise<InstanceType<T>> {
-    const { data, error, status } = await this.get_client().delete().eq('id', entity.id).select('id').single();
+    const primaryKeyColumn = this.primary_key_column();
+    const { data, error, status } = await this.get_client()
+      .delete()
+      .eq(primaryKeyColumn, entity.id)
+      .select(primaryKeyColumn)
+      .single();
     assert_postgrest_ok(this.rxdb.reachability, { error, status }, 'Failed to remove entity');
-    if (data?.id !== entity.id) throw new SupabaseDataError('Failed to remove entity: deleted row did not match');
+    const deletedRow = data as unknown as Record<string, unknown> | null;
+    if (deletedRow?.[primaryKeyColumn] !== entity.id)
+      throw new SupabaseDataError('Failed to remove entity: deleted row did not match');
     return entity;
   }
 
@@ -247,6 +261,14 @@ export class SupabaseRepository<T extends EntityType> extends RepositoryBase<T> 
   // ============================================
   // 私有方法
   // ============================================
+
+  protected primary_key_column(): string {
+    return this.metadata.propertyMap?.get('id')?.columnName ?? 'id';
+  }
+
+  protected column_name(field: string): string {
+    return field === 'id' ? this.primary_key_column() : field;
+  }
 
   /**
    * 排序选项：可空列显式写 NULLS 方向
