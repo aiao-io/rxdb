@@ -50,7 +50,8 @@ export default defineConfig(() => ({
         'rxjs'
       ],
       input: {
-        index: 'src/index.ts'
+        index: 'src/index.ts',
+        'testing/index': 'src/testing/index.ts'
       },
       output: {
         entryFileNames: chunkInfo => `${chunkInfo.name}.js`
