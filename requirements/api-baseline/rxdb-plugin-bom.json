@@ -740,11 +740,19 @@
         "kind": "value"
       },
       {
+        "name": "loadScooterDatasetE",
+        "kind": "value"
+      },
+      {
         "name": "SCOOTER_DATASET",
         "kind": "value"
       },
       {
         "name": "SCOOTER_DATASET_D",
+        "kind": "value"
+      },
+      {
+        "name": "SCOOTER_DATASET_E",
         "kind": "value"
       },
       {
