@@ -8,4 +8,3 @@ packages:
   - 'modules/recipes-domain'
   - 'website'
   - 'benchmarks'
-  - '!examples/*'

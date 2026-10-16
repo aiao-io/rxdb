@@ -71,9 +71,9 @@ RxDB 把这些能力统一到一份模型声明里：同一份实体定义，同
 
 不用装环境，直接在浏览器里打开一个可编辑的最小 Todo（wa-sqlite · 装饰器实体 · 响应式查询 · OPFS / IndexedDB 持久化）：
 
-- [React](https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/todo-react)
-- [Vue](https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/todo-vue)
-- [Angular](https://stackblitz.com/github/aiao-io/rxdb/tree/main/examples/todo-angular)
+- [React](https://stackblitz.com/~/github/aiao-io/rxdb-examples/tree/todo-react)
+- [Vue](https://stackblitz.com/~/github/aiao-io/rxdb-examples/tree/todo-vue)
+- [Angular](https://stackblitz.com/~/github/aiao-io/rxdb-examples/tree/todo-angular)
 
 核心代码就这几行——同一份声明同时生成表、类型与 Repository：
 
@@ -160,7 +160,6 @@ aiao/
 │   └── rxdb-devtools-extension-e2e/ # Devtools 扩展 E2E
 ├── benchmarks/                      # 性能测试
 ├── docker/                          # Docker 配置
-├── examples/                        # 集成演示
 ├── modules/                         # 内部共享模块（angular / angular-todo / e2e-parity / recipes-domain / rxdb-devtools-panel / wujie）
 ├── packages/                        # 核心库
 │   ├── rxdb/                        # 核心：模型、查询、适配器接口
