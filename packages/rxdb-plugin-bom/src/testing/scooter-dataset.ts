@@ -994,3 +994,206 @@ export const loadScooterDatasetD = async (adapter: BomLocalAdapter, itemIds: Sco
     void targetKey;
   }
 };
+
+/**
+ * SC-100 种子阶段 E 层（US-525 AC#17~#19）：扩展属性声明（rohs 必填枚举）、
+ * 序列有效性演示头（同一逻辑行 136/137 两段）、配置模型（颜色红蓝 + 条件 + 互斥约束）。
+ * 全部为 E 层新物料与新头，不改写下层。
+ */
+export const SCOOTER_DATASET_E: {
+  items: ScooterItemSpec[];
+  attrDefs: {
+    code: string;
+    dataType: 'string' | 'number' | 'boolean' | 'date';
+    required: boolean;
+    enumValues: string[] | null;
+    appliesTo: 'item' | 'bom_header' | 'bom_line_occurrence';
+  }[];
+  extPatches: { itemKey: string; ext: Record<string, unknown> }[];
+  configChars: { code: string; required: boolean; values: string[] }[];
+  configConditions: { seed: string; expression: string }[];
+  configConstraints: { code: string; kind: 'exclude' | 'require'; leftSeed: string; rightSeed: string }[];
+  headers: {
+    itemKey: string;
+    occurrences: {
+      childKey: string;
+      qty?: string;
+      effectiveFrom: string;
+      unitFrom?: number | null;
+      unitTo?: number | null;
+      selectionConditionSeed?: string;
+    }[];
+  }[];
+} = {
+  items: [{ key: 'B-01' }, { key: 'UNIT-DEMO' }, { key: 'UNIT-PART' }, { key: 'CONFIG-DEMO' }, { key: 'CONFIG-PART' }],
+  attrDefs: [{ code: 'rohs', dataType: 'string', required: true, enumValues: ['yes', 'no'], appliesTo: 'item' }],
+  extPatches: [{ itemKey: 'B-01', ext: { rohs: 'yes' } }],
+  configChars: [{ code: '颜色', required: true, values: ['红', '蓝'] }],
+  configConditions: [
+    { seed: 'cond:color-red', expression: '颜色 = 红' },
+    { seed: 'cond:color-blue', expression: '颜色 = 蓝' }
+  ],
+  configConstraints: [{ code: '红蓝互斥', kind: 'exclude', leftSeed: 'cond:color-red', rightSeed: 'cond:color-blue' }],
+  headers: [
+    {
+      // 序列有效性演示：同一逻辑行两段（日期相同、序列 [1,136] / [137,∞) 不相交，三维判定允许并存）
+      itemKey: 'UNIT-DEMO',
+      occurrences: [
+        { childKey: 'UNIT-PART', effectiveFrom: '2026-06-01', unitTo: 136 },
+        { childKey: 'UNIT-PART', effectiveFrom: '2026-06-01', unitFrom: 137 }
+      ]
+    },
+    {
+      // 配置选择演示：行挂「颜色 = 红」条件
+      itemKey: 'CONFIG-DEMO',
+      occurrences: [{ childKey: 'CONFIG-PART', effectiveFrom: '2026-06-01', selectionConditionSeed: 'cond:color-red' }]
+    }
+  ]
+};
+
+/**
+ * 装载 SC-100 种子 E 层（在 D 层之后调用）：新物料 → attr_def / 扩展属性 →
+ * 配置模型四实体 → 序列与条件演示头（经 loadHistory 的 open 批次通道）。
+ *
+ * @param adapter - 本地适配器（E 层写入经 loadHistory 审计通道）
+ * @param itemIds - A~D 层装载返回的业务键 → 物料 id 映射
+ */
+export const loadScooterDatasetE = async (adapter: BomLocalAdapter, itemIds: ScooterItemIds): Promise<void> => {
+  const { BomAttrDef, BomConfigChar, BomConfigCharValue, BomConfigCondition, BomConfigConstraint } =
+    await import('../entities.js');
+  // E 层新物料
+  for (const spec of SCOOTER_DATASET_E.items) {
+    if (itemIds[spec.key]) continue;
+    const item = new BomItem();
+    const writable = item as unknown as { id: string; createdAt: Date; updatedAt: Date };
+    writable.id = deterministicId(`item:${spec.key}`);
+    item.itemNo = spec.key;
+    item.stockUom = spec.stockUom ?? 'pcs';
+    item.uomDecimals = spec.uomDecimals ?? 0;
+    item.uomConversion = spec.uomConversion ?? null;
+    writable.createdAt = new Date(SCOOTER_SEED_TIMESTAMP);
+    writable.updatedAt = new Date(SCOOTER_SEED_TIMESTAMP);
+    await item.save();
+    itemIds[spec.key] = item.id;
+  }
+  // attr_def 声明（rohs 必填枚举）
+  for (const spec of SCOOTER_DATASET_E.attrDefs) {
+    const def = new BomAttrDef();
+    (def as unknown as { id: string }).id = deterministicId(`attr-def:${spec.code}:${spec.appliesTo}`);
+    def.code = spec.code;
+    def.dataType = spec.dataType;
+    def.required = spec.required;
+    def.enumValues = spec.enumValues === null ? null : JSON.stringify(spec.enumValues);
+    def.appliesTo = spec.appliesTo;
+    def.unit = null;
+    await def.save();
+  }
+  // 扩展属性（B-01 直接带合法 rohs）
+  for (const patch of SCOOTER_DATASET_E.extPatches) {
+    const itemTable = adapter.name === 'pglite' ? '"bom"."item"' : '"bom$item"';
+    const itemId = itemIds[patch.itemKey];
+    const existing = (await adapter.rawQuery?.(
+      `SELECT "ext" FROM ${itemTable} WHERE "id" = '${itemId}'`
+    )) as unknown as { results?: { rows: unknown[][] }[]; rows?: unknown[][] };
+    const rows = Array.isArray(existing.results) ? existing.results[0].rows : (existing.rows ?? []);
+    const current = rows.length > 0 && rows[0][0] !== null ? JSON.parse(String(rows[0][0])) : {};
+    await adapter.rawQuery?.(
+      `UPDATE ${itemTable} SET "ext" = '${JSON.stringify({ ...current, ...patch.ext }).replace(/'/g, "''")}' WHERE "id" = '${itemId}'`
+    );
+  }
+  // 配置模型四实体
+  const charIds = new Map<string, string>();
+  for (const spec of SCOOTER_DATASET_E.configChars) {
+    const char = new BomConfigChar();
+    (char as unknown as { id: string }).id = deterministicId(`config-char:${spec.code}`);
+    char.orgId = 'org-x';
+    char.code = spec.code;
+    char.required = spec.required;
+    await char.save();
+    charIds.set(spec.code, char.id);
+    for (const [valueIndex, value] of spec.values.entries()) {
+      const charValue = new BomConfigCharValue();
+      (charValue as unknown as { id: string }).id = deterministicId(`config-char-value:${spec.code}:${valueIndex}`);
+      charValue.charId = char.id;
+      charValue.value = value;
+      await charValue.save();
+    }
+  }
+  const conditionIds = new Map<string, string>();
+  for (const spec of SCOOTER_DATASET_E.configConditions) {
+    const condition = new BomConfigCondition();
+    (condition as unknown as { id: string }).id = deterministicId(spec.seed);
+    condition.orgId = 'org-x';
+    condition.expression = spec.expression;
+    condition.grammarVersion = '1';
+    await condition.save();
+    conditionIds.set(spec.seed, condition.id);
+  }
+  for (const spec of SCOOTER_DATASET_E.configConstraints) {
+    const constraint = new BomConfigConstraint();
+    (constraint as unknown as { id: string }).id = deterministicId(`config-constraint:${spec.code}`);
+    constraint.orgId = 'org-x';
+    constraint.code = spec.code;
+    constraint.kind = spec.kind;
+    constraint.leftConditionId = conditionIds.get(spec.leftSeed)!;
+    constraint.rightConditionId = conditionIds.get(spec.rightSeed)!;
+    await constraint.save();
+  }
+  // 序列与条件演示头（open 批次通道）
+  await loadHistory(adapter, {
+    batchNo: 'scooter-seed-e',
+    id: deterministicId('batch:scooter-seed-e'),
+    createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+    updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
+    revisions: SCOOTER_DATASET_E.headers.map(header => ({
+      id: deterministicId(`revision:${header.itemKey}:A`),
+      itemId: itemIds[header.itemKey]!,
+      revisionNo: 'A',
+      effectiveFrom: new Date('2026-01-01T00:00:00.000Z'),
+      defaultPhantom: false,
+      createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+      updatedAt: new Date(SCOOTER_SEED_TIMESTAMP)
+    })),
+    headers: SCOOTER_DATASET_E.headers.map((header, headerIndex) => ({
+      revisionIndex: headerIndex,
+      bomType: 'ebom',
+      orgId: 'org-x',
+      id: deterministicId(`header:${header.itemKey}:A`),
+      createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+      updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
+      lines: [
+        {
+          id: deterministicId(`line:${header.itemKey}:A:0`),
+          createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+          updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
+          lineNo: 10,
+          occurrences: header.occurrences.map((occurrence, occurrenceIndex) => ({
+            id: deterministicId(`occurrence:${header.itemKey}:A:0:${occurrenceIndex}`),
+            createdAt: new Date(SCOOTER_SEED_TIMESTAMP),
+            updatedAt: new Date(SCOOTER_SEED_TIMESTAMP),
+            childItemId: itemIds[occurrence.childKey]!,
+            qty: occurrence.qty ?? '1',
+            uom: 'pcs',
+            effectiveFrom: new Date(`${occurrence.effectiveFrom}T00:00:00.000Z`),
+            unitFrom: occurrence.unitFrom ?? null,
+            unitTo: occurrence.unitTo ?? null,
+            selectionConditionId:
+              occurrence.selectionConditionSeed !== undefined ?
+                conditionIds.get(occurrence.selectionConditionSeed)!
+              : null
+          }))
+        }
+      ]
+    })),
+    headerOverlays: (() => {
+      const patches: { headerId: string; headerPatch: { costLotQty: string } }[] = [];
+      for (const header of SCOOTER_DATASET_E.headers) {
+        patches.push({
+          headerId: deterministicId(`header:${header.itemKey}:A`),
+          headerPatch: { costLotQty: '1' }
+        });
+      }
+      return patches;
+    })()
+  });
+};

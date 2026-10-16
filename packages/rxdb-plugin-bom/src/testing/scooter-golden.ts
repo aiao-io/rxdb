@@ -235,3 +235,34 @@ export const SCOOTER_GOLDEN_D: {
   overhead: '0.2',
   creditTotal: '0.3'
 };
+
+/**
+ * SC-100 阶段 E 的 golden（US-525 AC#17~#19）：序列有效性（UNIT-DEMO 同一逻辑行
+ * 136/137 两段）与配置选择（CONFIG-DEMO 行挂「颜色 = 红」条件）手写。
+ */
+export const SCOOTER_GOLDEN_E: {
+  context: { bomType: 'ebom'; orgId: 'org-x'; asOfDate: string };
+  unitDemo: { rootKey: string; unit136: { items: string[]; qty: string }; unit137: { items: string[]; qty: string } };
+  configDemo: {
+    rootKey: string;
+    selectRed: { items: string[] };
+    selectBlue: { items: string[] };
+    missingError: RegExp;
+    conflictError: RegExp;
+  };
+} = {
+  context: { bomType: 'ebom', orgId: 'org-x', asOfDate: '2026-10-15' },
+  unitDemo: {
+    rootKey: 'UNIT-DEMO',
+    // 旧段（unit ≤ 136）与新段（unit ≥ 137）各入选一行；两段不同发生项
+    unit136: { items: ['UNIT-PART'], qty: '1' },
+    unit137: { items: ['UNIT-PART'], qty: '1' }
+  },
+  configDemo: {
+    rootKey: 'CONFIG-DEMO',
+    selectRed: { items: ['CONFIG-PART'] },
+    selectBlue: { items: [] },
+    missingError: /配置不完整/,
+    conflictError: /红蓝互斥/
+  }
+};

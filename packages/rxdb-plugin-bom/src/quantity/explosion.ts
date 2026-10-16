@@ -29,7 +29,8 @@ import {
   buildParentRevisionSql,
   type BomSqlDialect
 } from '../resolve/bom-sql.js';
-import { evaluateCondition, parseCondition } from '../resolve/config-condition.js';
+import { BomConfigError, evaluateCondition, extractCharCodes, parseCondition } from '../resolve/config-condition.js';
+import { checkConfigCompleteness } from '../resolve/config-validate.js';
 import { BomResolutionError, type ResolutionContext, type UnresolvedAlternative } from '../resolve/resolution.js';
 import { assertContext, columnIndexOf, type BomQueryExecutor, type ResolveTarget } from '../resolve/resolver.js';
 import { lotMatches, parseLotCodes, unitIntervalMatches } from '../resolve/unit-lot.js';
@@ -348,8 +349,8 @@ export const fetchHeaderRows = async (
       // 序列 / 批次维度（US-518）：有效域 = 日期 × 序列 × 批次三维的积
       if (!unitIntervalMatches(mapped.unitFrom, mapped.unitTo, context.unit)) continue;
       if (!lotMatches(parseLotCodes(mapped.lotCodes), context.lot)) continue;
-      // 配置条件（US-517）：行挂选择条件，按上下文配置求值
-      if (mapped.selectionConditionId !== null && !conditionTruth.has(mapped.selectionConditionId)) continue;
+      // 配置条件（US-517）：行挂选择条件，按上下文配置求值（假即落选）
+      if (mapped.selectionConditionId !== null && conditionTruth.get(mapped.selectionConditionId) !== true) continue;
       const list = byHeader.get(mapped.headerId);
       if (list) list.push(mapped);
       else byHeader.set(mapped.headerId, [mapped]);
@@ -469,6 +470,46 @@ export const explodeBom = async (
       throw new BomResolutionError('parentRevisionId', '根修订在上下文下没有已发布头');
     }
 
+    // 1.5 配置完整性（US-517 AC#3）：本图行挂的选择条件涉及的 required 特征未赋值即拒绝，
+    // 不静默产出部分结构（只按「本图行挂的条件」收敛，与配置无关的 BOM 不受影响）
+    {
+      const rootHeaderIds = selectedRootHeaders.map(row =>
+        String(row[columnIndexOf(rootHeadersResult.columns, 'headerId')])
+      );
+      const placeholders = rootHeaderIds.map((_, index) => `'${rootHeaderIds[index]}'`).join(', ');
+      if (placeholders.length > 0) {
+        const conditionIds = (
+          await query(
+            `SELECT DISTINCT occ."selectionConditionId" AS "conditionId" FROM ${dialect.table('bom_line_occurrence')} occ ` +
+              `JOIN ${dialect.table('bom_line')} l ON l."id" = occ."lineId" ` +
+              `WHERE l."headerId" IN (${placeholders}) AND occ."selectionConditionId" IS NOT NULL`
+          )
+        ).rows.map(row => String(row[0]));
+        if (conditionIds.length > 0) {
+          const condPlaceholders = conditionIds.map(id => `'${id}'`).join(', ');
+          const expressions = (
+            await query(
+              `SELECT c."expression" AS "expression" FROM ${dialect.table('config_condition')} c WHERE c."id" IN (${condPlaceholders})`
+            )
+          ).rows.map(row => String(row[0]));
+          const referencedChars = new Set(
+            expressions.flatMap(expression => extractCharCodes(parseCondition(expression).ast))
+          );
+          const requiredChars = (
+            await query(
+              `SELECT c."code" AS "code", c."required" AS "required" FROM ${dialect.table('config_char')} c WHERE c."orgId" = '${context.orgId}'`
+            )
+          ).rows
+            .filter(row => Boolean(row[1]) && referencedChars.has(String(row[0])))
+            .map(row => String(row[0]));
+          const missing = checkConfigCompleteness(context.configSelection ?? {}, requiredChars);
+          if (missing.length > 0) {
+            throw new BomConfigError('配置输入', `配置不完整：必选特征未赋值——${missing.join('、')}`);
+          }
+        }
+      }
+    }
+
     // 2. BFS 七步
     const conversions: ExplosionManifest['conversions'] = [];
     // 第 5 步的工序损耗与分摊数据（全量加载，按 routing / occurrence 分组）
@@ -566,6 +607,13 @@ export const explodeBom = async (
 
         // US-513：只有 consume 行进入七步需求链路；by_product / scrap_out 是反向物料流。
         // 「无投入」的头（有行但没有 consume 行）整次拒绝，不把空结果当成功。
+        // US-517/518 豁免：序列/批次/配置过滤后一行不剩的头是合法空结果（空配置），
+        // 不是「无投入」违约——只有带过滤上下文时才放行。
+        const hasEffectivityFilter =
+          context.unit !== undefined || context.lot !== undefined || context.configSelection !== undefined;
+        if (rows.length === 0 && hasEffectivityFilter) {
+          continue nodeLoop;
+        }
         if (!effectiveRows.some(row => row.flowDirection === 'consume')) {
           throw new BomQuantityError('头没有 consume 行（无投入）：副产与废料行不能单独构成层级', node.path);
         }

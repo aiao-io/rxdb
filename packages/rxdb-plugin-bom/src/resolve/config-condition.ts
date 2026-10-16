@@ -55,6 +55,22 @@ export class BomConfigSyntaxError extends BomConfigError {
  * 把字符偏移换算成「第 L 行第 C 列」（1 起）的人读位置；换行按 `\n` 计，
  * 列按 UTF-16 码元计（中文标识符一个字占一列）。
  */
+/** 提取条件 AST 引用的全部特征 code（配置完整性检查按「图中涉及」收敛，US-517 AC#3）。 */
+export const extractCharCodes = (ast: ConditionAst): string[] => {
+  const codes = new Set<string>();
+  const walk = (node: ConditionAst): void => {
+    if (node.kind === 'atom') {
+      codes.add(node.charCode);
+    } else if (node.kind === 'not') {
+      walk(node.operand);
+    } else {
+      for (const operand of node.operands) walk(operand);
+    }
+  };
+  walk(ast);
+  return [...codes];
+};
+
 export const positionText = (source: string, offset: number | undefined): string => {
   if (offset === undefined) return '';
   let line = 1;
