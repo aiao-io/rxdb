@@ -26,6 +26,7 @@ status: StaticReview
 - [`packages/rxdb-plugin-sync/src/__tests__/contracts/public-type-compatibility.spec.ts`]
 
 关键源码锚点：
+
 - [`src/plugin.ts:1-132`](../../../packages/rxdb-plugin-sync/src/plugin.ts#L1)
 - [`src/SyncManager.ts:1-690`](../../../packages/rxdb-plugin-sync/src/SyncManager.ts#L1)
 - [`src/pull.ts:1-260`](../../../packages/rxdb-plugin-sync/src/pull.ts#L1)

@@ -22,6 +22,7 @@ Angular 树查询 signal 适配层。 当前基线为 `main@94df0a04`（2026-10-
 - [`packages/rxdb-plugin-tree-angular/src/__tests__/use-tree.spec.ts`]
 
 关键源码锚点：
+
 - [`src/use-tree.ts:1-260`](../../../packages/rxdb-plugin-tree-angular/src/use-tree.ts#L1)
 - [`src/index.ts:1-14`](../../../packages/rxdb-plugin-tree-angular/src/index.ts#L1)
 - [`src/test-setup.ts:1-25`](../../../packages/rxdb-plugin-tree-angular/src/test-setup.ts#L1)

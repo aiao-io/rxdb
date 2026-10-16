@@ -23,6 +23,7 @@ Vue `useWorkingTree` composable 适配层。 当前基线为 `main@94df0a04`（2
 - [`packages/rxdb-plugin-working-tree-vue/src/__tests__/use-working-tree.spec.ts`]
 
 关键源码锚点：
+
 - [`src/use-working-tree.ts:1-190`](../../../packages/rxdb-plugin-working-tree-vue/src/use-working-tree.ts#L1)
 - [`src/index.ts:1-17`](../../../packages/rxdb-plugin-working-tree-vue/src/index.ts#L1)
 

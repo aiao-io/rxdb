@@ -26,6 +26,7 @@ status: StaticReview
 - [`packages/rxdb-plugin-storage/src/__tests__/module-load-without-encoding.spec.ts`]
 
 关键源码锚点：
+
 - [`src/plugin.ts:1-101`](../../../packages/rxdb-plugin-storage/src/plugin.ts#L1)
 - [`src/storage.service.ts:1-420`](../../../packages/rxdb-plugin-storage/src/storage.service.ts#L1)
 - [`src/storage.ops.ts:1-280`](../../../packages/rxdb-plugin-storage/src/storage.ops.ts#L1)

@@ -22,6 +22,7 @@ NEW 实体草稿缓存、IndexedDB 持久化与 BroadcastChannel 同步。 当�
 - [`packages/rxdb-plugin-workspace/src/__tests__/workspace.browser.spec.ts`]
 
 关键源码锚点：
+
 - [`src/RxDBPluginWorkspace.ts:1-983`](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L1)
 - [`src/workspace-entry.ts:1-180`](../../../packages/rxdb-plugin-workspace/src/workspace-entry.ts#L1)
 - [`src/workspace-store.ts:1-158`](../../../packages/rxdb-plugin-workspace/src/workspace-store.ts#L1)

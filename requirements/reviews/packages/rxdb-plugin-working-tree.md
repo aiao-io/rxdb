@@ -26,6 +26,7 @@ status: StaticReview
 - [`packages/rxdb-plugin-working-tree/src/__tests__/commit/commit-encrypted-at-rest-wiring.spec.ts`]
 
 关键源码锚点：
+
 - [`src/plugin.ts:1-289`](../../../packages/rxdb-plugin-working-tree/src/plugin.ts#L1)
 - [`src/working-tree/working-tree-facade.ts:1-563`](../../../packages/rxdb-plugin-working-tree/src/working-tree/working-tree-facade.ts#L1)
 - [`src/working-tree/raw-write-judgment.ts:1-799`](../../../packages/rxdb-plugin-working-tree/src/working-tree/raw-write-judgment.ts#L1)

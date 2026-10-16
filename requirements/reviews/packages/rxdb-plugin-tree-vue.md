@@ -22,6 +22,7 @@ Vue 树查询响应式适配层。 当前基线为 `main@94df0a04`（2026-10-16�
 - [`packages/rxdb-plugin-tree-vue/src/__tests__/use-tree.spec.ts`]
 
 关键源码锚点：
+
 - [`src/use-tree.ts:1-220`](../../../packages/rxdb-plugin-tree-vue/src/use-tree.ts#L1)
 - [`src/index.ts:1-13`](../../../packages/rxdb-plugin-tree-vue/src/index.ts#L1)
 

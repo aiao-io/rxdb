@@ -21,6 +21,7 @@ React `useWorkingTree` hook 适配层。 当前基线为 `main@94df0a04`（2026-
 - [`packages/rxdb-plugin-working-tree-react/src/__tests__/use-working-tree.spec.tsx`]
 
 关键源码锚点：
+
 - [`src/use-working-tree.ts:1-130`](../../../packages/rxdb-plugin-working-tree-react/src/use-working-tree.ts#L1)
 - [`src/index.ts:1-19`](../../../packages/rxdb-plugin-working-tree-react/src/index.ts#L1)
 

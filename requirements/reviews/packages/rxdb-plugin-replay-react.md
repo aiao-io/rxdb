@@ -20,6 +20,7 @@ React `Replayer` 适配层。 当前基线为 `main@94df0a04`（2026-10-16）。
 - [`packages/rxdb-plugin-replay-react/src/__tests__/replayer.spec.tsx`]
 
 关键源码锚点：
+
 - [`src/replayer.tsx:1-220`](../../../packages/rxdb-plugin-replay-react/src/replayer.tsx#L1)
 - [`src/index.ts:1-12`](../../../packages/rxdb-plugin-replay-react/src/index.ts#L1)
 

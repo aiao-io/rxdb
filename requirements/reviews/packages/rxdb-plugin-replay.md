@@ -26,6 +26,7 @@ rrweb 会话录制、持久化、续录、提交标记与回放。 当前基线�
 - [`packages/rxdb-plugin-replay/src/__tests__/optional-peer-types.spec.ts`]
 
 关键源码锚点：
+
 - [`src/plugin.ts:1-130`](../../../packages/rxdb-plugin-replay/src/plugin.ts#L1)
 - [`src/manager.ts:1-340`](../../../packages/rxdb-plugin-replay/src/manager.ts#L1)
 - [`src/recorder.ts:1-280`](../../../packages/rxdb-plugin-replay/src/recorder.ts#L1)

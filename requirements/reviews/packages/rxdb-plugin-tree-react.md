@@ -22,6 +22,7 @@ React 树查询状态适配层。 当前基线为 `main@94df0a04`（2026-10-16�
 - [`packages/rxdb-plugin-tree-react/src/__tests__/use-tree.spec.ts`]
 
 关键源码锚点：
+
 - [`src/use-tree.ts:1-220`](../../../packages/rxdb-plugin-tree-react/src/use-tree.ts#L1)
 - [`src/index.ts:1-15`](../../../packages/rxdb-plugin-tree-react/src/index.ts#L1)
 
