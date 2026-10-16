@@ -13,6 +13,39 @@ agent 会话与回放、codebase RAG 索引全在本地 SQLite 里；浏览器�
 社区以「Clone Test」检验退出路径）；Dyad / bolt.diy / Singulary / Onlook（本地开源 BYOK 路线）；
 Cursor / Windsurf（桌面 agent IDE）。产品位 = 「天然通过 Clone Test 的本地优先构建器」。
 
+## 对标深挖：Bolt.new / bolt.diy
+
+Bolt.new 是头号对标（2026 功能面实测口径）——交互闭环（prompt → 文件编辑 → 浏览器内 dev
+server 实时预览 → 「Fix with AI」自愈循环）、diff view、starter 模板、一键部署（Netlify /
+Cloudflare）、Supabase 集成、V2 多模型可选。bolt.diy 是其 MIT 开源分叉（StackBlitz Labs），
+证明 BYOK + 本地模型（Ollama）路线技术上走通，是本候选工程侧的对标。
+
+### Bolt 的弱点 = 本候选的差异位
+
+| Bolt 的弱点（2026 实测口径）                                             | 本候选的对应位（已交付能力背书）                                                                   |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| 项目不持久：无跨会话文件系统；bolt.diy 刷新即丢状态、SQLite 每次会话重置 | 项目文件在本地 OPFS SQLite，持久 + 多设备同步（[epic-002](../epics/epic-002-data-sync.md)）        |
+| 版本只有 undo / 快照，回滚靠重做                                         | working-tree commit graph：每次 AI 改动是 commit，可查询、可回滚、可开分支                         |
+| 无会话可观测，调试靠翻聊天记录                                           | 会话录制回放 + Replayer 三端组件（[US-909](../stories/future/US-909-session-replay-debugging.md)） |
+| 检索是平台闭源能力                                                       | sqliteai 向量 + FTS5 内建，codebase RAG 与项目数据在同一个库                                       |
+| GitHub 导出单向、Pro 才解锁                                              | 复制协议天然双向：fork、迁移、断网续写都是数据库操作                                               |
+| 生成物绑外部 DB（Supabase 手工配 key / RLS，生产常见翻车）               | 生成物自带 rxdb 零后端数据层——轻量路径绕开 WebContainer 的原因                                     |
+| token 计量、免费档绑模型                                                 | BYOK + 本地模型，bolt.diy 已验证可行                                                               |
+
+### 两个教训
+
+1. **护城河其实是提示词工程 + 模板库 + 评测**。bolt.diy 用户的一致差评：同型号输出质量明显
+   不如 Bolt.new，因为 StackBlitz 的 tuned system prompts、模板与预配置不开放。「引擎外成本」
+   里最致命的一条不是编译器沙箱，而是评测体系——它是品质分水岭。
+2. **别依赖 WebContainer**。bolt.diy 商用需 WebContainer license，原生模块（sharp、sqlite、
+   canvas）全被挡——本候选生成零后端应用，框架浏览器编译器 + iframe 即够，license 问题一起绕开。
+
+### 对标定位
+
+产品 UX 对标 Bolt.new（三栏布局、diff view、自愈循环、部署流）；工程路线参考 bolt.diy
+（BYOK 多 provider、Ollama 本地模型、Docker 自托管）；云项目存储、token 锁模型、
+WebContainer 依赖三样明确不抄。
+
 ## 两个形态（同一内核）
 
 | 形态                   | 宿主                  | 说明                                                                      |
@@ -59,7 +92,8 @@ Angular / React / Vue 任选，同一套数据层。
   浏览器内跑大模型仍然重
 - **编译与运行沙箱**：框架浏览器编译器 + iframe（轻量路径，见上）；WebContainer 不必要
 - **agent 编排循环**：prompt loop、工具调用、模型路由是应用层职责
-- **评测体系**：prompt / agent eval 是本赛道真正的长期成本，与引擎无关
+- **评测体系**：prompt / agent eval 是本赛道真正的长期成本，与引擎无关——bolt.diy 同型号
+  输出不如 Bolt.new 的差评即佐证（见上文对标深挖）
 
 ## 与兄弟候选的关系
 
