@@ -5,30 +5,6 @@
 
 ## 已否决
 
-### 小程序内聊天（微信小程序里做聊天功能）
-
-**否决理由**：实时语义全在引擎外 + 小程序端三个实测硬伤。
-
-- **实时是聊天的灵魂，引擎不提供**：有序送达、离线推送、已读回执是服务端权威语义；
-  引擎同步是异步合并模型，连 SSE 都明文限定「只做失效通知，不得变成长连接流」
-  （[US-212](../stories/adapter/US-212-http-adapter.md)）；工作树 / commit graph / 冲突解决
-  在纯 append 的聊天流里零收益——引擎最强的机制用不上，聊天最硬的刚需引擎没有
-- **存储配额 ~10 MiB**：小程序用户目录约 10 MiB 量级（抖音实测，覆盖写旧文件仍计配额、
-  无崩溃恢复，见 [可行性矩阵](../stories/adapter/miniprogram-platform-feasibility.md)），
-  聊天记录无限增长 vs 配额封顶，本地 SQLite 全量留存优势被砍没
-- **adapter 实验性**：微信 / 抖音 / 支付宝整体标「实验性」，Android 真机未验证
-  （[capability-matrix](../capability-matrix.md) 适配器能力对比）
-- **FTS 未放行**：`wa-sqlite-miniprogram` 的 FTS5 已编译但 registry `unverified`，
-  聊天记录搜索在小程序端抛 `SearchUnsupportedAdapterError`
-- **E2EE 假设下加密与搜索互斥**：端到端加密的聊天内容按「加密字段不进索引」原则
-  无法全文搜索（[vision](../vision.md) 阶段 6）；非 E2EE 的微信模式不触发此冲突，
-  见 [wechat-client](wechat-client.md) 关键设计修正
-- **生态现成**：微信生态内的客服场景有官方微信客服组件，自建通常不划算
-
-**可以沾的部分**：聊天作为**模块**挂在其他领域产品里（项目评论流、客服历史记录、
-通知中心）成立——rxdb 做本地消息缓存 + 会话列表响应式渲染，实时通道外接 WebSocket 或
-微信订阅消息。
-
 ### 大规模 BI / 报表分析
 
 **否决理由**：QueryCache 明确要求结果集有界——「适合用 `where` 收窄，而不是靠 `limit` 收窄」
