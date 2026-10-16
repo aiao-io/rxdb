@@ -111,6 +111,26 @@ describe('SchemaParser', () => {
       expect(nameField?.displayName).toBe('名称');
     });
 
+    it('应该保留连续大写缩写作为一个单词', () => {
+      const acronymMetadata = {
+        ...metadata,
+        properties: [
+          { name: 'URLValue', type: 'string' },
+          { name: 'HTTPServer', type: 'string' },
+          { name: 'createdAt', type: 'date' }
+        ],
+        propertyMap: new Map([
+          ['URLValue', { name: 'URLValue', type: 'string' }],
+          ['HTTPServer', { name: 'HTTPServer', type: 'string' }],
+          ['createdAt', { name: 'createdAt', type: 'date' }]
+        ])
+      } as unknown as EntityMetadata;
+
+      const fields = parser.parse(acronymMetadata);
+
+      expect(fields.map(field => field.displayName)).toEqual(['URL Value', 'HTTP Server', 'Created At']);
+    });
+
     it('应该默认排除外键', () => {
       const fields = parser.parse(metadata);
       const userIdField = fields.find(f => f.name === 'userId');

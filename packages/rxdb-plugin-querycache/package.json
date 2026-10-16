@@ -55,6 +55,8 @@
     "rxjs": "^7.8.2"
   },
   "peerDependencies": {
-    "@aiao/rxdb": "workspace:^"
+    "@aiao/rxdb": "workspace:^",
+    "@aiao/rxdb-plugin-history": "workspace:^",
+    "@aiao/rxdb-plugin-sync": "workspace:^"
   }
 }

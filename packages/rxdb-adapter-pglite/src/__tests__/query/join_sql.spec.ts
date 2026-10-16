@@ -102,6 +102,41 @@ class PgTestEntity4 extends EntityBase {}
 })
 class PgRelatedEntity4 extends EntityBase {}
 
+@Entity({
+  name: 'PgCustomKeyParent',
+  properties: [
+    { name: 'id', type: PropertyType.string, primary: true, columnName: 'parent_key' },
+    { name: 'name', type: PropertyType.string }
+  ],
+  relations: [
+    {
+      name: 'children',
+      kind: RelationKind.ONE_TO_MANY,
+      mappedEntity: 'PgCustomKeyChild',
+      mappedProperty: 'parent'
+    }
+  ]
+})
+class PgCustomKeyParent extends EntityBase {}
+
+@Entity({
+  name: 'PgCustomKeyChild',
+  properties: [
+    { name: 'id', type: PropertyType.string, primary: true, columnName: 'child_key' },
+    { name: 'title', type: PropertyType.string }
+  ],
+  relations: [
+    {
+      name: 'parent',
+      kind: RelationKind.MANY_TO_ONE,
+      mappedEntity: 'PgCustomKeyParent',
+      mappedProperty: 'children',
+      columnName: 'parent_ref'
+    }
+  ]
+})
+class PgCustomKeyChild extends EntityBase {}
+
 describe('join_sql 关系处理 (PGlite)', () => {
   let rxdb: RxDB;
   let adapter: RxDBAdapterPGlite;
@@ -119,6 +154,8 @@ describe('join_sql 关系处理 (PGlite)', () => {
         PgRelatedEntity3,
         PgTestEntity4,
         PgRelatedEntity4,
+        PgCustomKeyParent,
+        PgCustomKeyChild,
         Order,
         OrderItem,
         SKU,
@@ -248,5 +285,21 @@ describe('join_sql 关系处理 (PGlite)', () => {
       expect(result.joinSQL.length).toBeGreaterThan(0);
       expect(result.joinSQL).toContain('categories');
     });
+  });
+
+  it('关系 JOIN 应使用两端 metadata 的自定义主键物理列', () => {
+    const parentMeta = getEntityMetadata(PgCustomKeyParent);
+    const childJoin = build_rule_group_join_pg(adapter, parentMeta, {
+      combinator: 'and',
+      rules: [{ field: 'children.title', operator: '=', value: 'child' }]
+    });
+    expect(childJoin.joinSQL).toContain('"children"."parent_ref" = _."parent_key"');
+
+    const childMeta = getEntityMetadata(PgCustomKeyChild);
+    const parentJoin = build_rule_group_join_pg(adapter, childMeta, {
+      combinator: 'and',
+      rules: [{ field: 'parent.name', operator: '=', value: 'parent' }]
+    });
+    expect(parentJoin.joinSQL).toContain('"parent"."parent_key" = _."parent_ref"');
   });
 });
