@@ -12,14 +12,18 @@ import { act, cleanup, renderHook } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { useWorktrees } from '../use-worktrees.js';
 
-const createFixture = () => {
+const createDatabase = () => {
   const checkouts = {
     list: vi.fn<() => Promise<Worktree[]>>().mockResolvedValue([]),
     open: vi.fn<() => Promise<WorktreeView>>(),
     attach: vi.fn<() => Promise<WorktreeView>>(),
     prune: vi.fn<() => Promise<string[]>>()
   };
-  const rxdb = { workingTree: { checkouts } } as unknown as RxDB;
+  return { checkouts, rxdb: { workingTree: { checkouts } } as unknown as RxDB };
+};
+
+const createFixture = () => {
+  const { checkouts, rxdb } = createDatabase();
   const rendered = renderHook(() => useWorktrees(), {
     wrapper: ({ children }) => <RxDBProvider db={rxdb}>{children}</RxDBProvider>
   });
@@ -71,6 +75,32 @@ describe('useWorktrees', () => {
     });
 
     expect(worktrees().attachState).toEqual({ phase: 'error', error: failure });
+  });
+
+  it('换库：四格回到 idle，旧库迟到的结果不写进新库的状态', async () => {
+    const first = createDatabase();
+    const second = createDatabase();
+    let current = first.rxdb;
+    const rendered = renderHook(() => useWorktrees(), {
+      wrapper: ({ children }) => <RxDBProvider db={current}>{children}</RxDBProvider>
+    });
+    let resolve: (view: WorktreeView) => void = () => undefined;
+    first.checkouts.open.mockReturnValue(new Promise(done => (resolve = done)));
+    let running!: Promise<WorktreeView>;
+    act(() => void (running = rendered.result.current.open({ branchId: 'feature' })));
+    expect(rendered.result.current.openState.phase).toBe('loading');
+
+    current = second.rxdb;
+    rendered.rerender();
+    expect(rendered.result.current.openState.phase).toBe('idle');
+    await act(async () => {
+      resolve(viewStub);
+      await running;
+    });
+
+    expect(rendered.result.current.openState.phase).toBe('idle');
+    expect(rendered.result.current.listState.phase).toBe('idle');
+    expect(second.checkouts.list).not.toHaveBeenCalled();
   });
 
   it('库没装工作树插件：抛错', () => {
