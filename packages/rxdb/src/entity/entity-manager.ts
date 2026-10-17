@@ -7,7 +7,7 @@ import { EntityLocalNewEvent, EntityLocalUpdatedEvent } from '../rxdb-events.js'
 import { getEntityMetadata, getEntityStatus } from '../rxdb-utils.js';
 import { RxDB } from '../RxDB.js';
 import { ENTITY_MANAGER, ENTITY_TYPE, PROXY, STATUS } from '../rxdb.private.js';
-import { RxDBError } from '../RxDBError.js';
+import { RxDBError, RxDBReadOnlyError } from '../RxDBError.js';
 import { SortOrderError } from '../sortable/sortable-error.js';
 import {
   appendBatchSortOrders,
@@ -56,6 +56,20 @@ import entity_relation_helper from './relation-helper.js';
  */
 const flattenMutationEntities = <T extends EntityType>(bucket: Map<T, Set<InstanceType<T>>>): InstanceType<T>[] =>
   [...bucket.values()].flatMap(entities => [...entities]);
+
+/**
+ * 保存把解绑的 Junction 删掉之后，根实体不再把它们记作待删。
+ *
+ * @remarks
+ * 只在写成功之后调：失败时它们仍待删，下一次保存再删。
+ */
+const forgetRemovedJunctions = (
+  roots: readonly InstanceType<EntityType>[],
+  removed: readonly InstanceType<EntityType>[]
+): void => {
+  if (removed.length === 0) return;
+  for (const root of roots) getEntityStatus(root).forgetRemovedJunctions(removed);
+};
 
 /**
  * 实体管理器
@@ -413,6 +427,7 @@ export class EntityManager {
       });
       await this.mutations(options);
     }
+    forgetRemovedJunctions([entity], needRemoveEntities);
     return entity;
   }
 
@@ -431,7 +446,9 @@ export class EntityManager {
       needSaveEntities,
       needRemoveEntities
     });
-    return this.mutations(options);
+    const saved = await this.mutations(options);
+    forgetRemovedJunctions(entities, needRemoveEntities);
+    return saved;
   }
 
   /**
@@ -450,10 +467,13 @@ export class EntityManager {
   /**
    * 批量修改实体（创建/更新/删除）
    * @param options 批量修改选项
+   * @throws {@link RxDBReadOnlyError} 只读实例；一条都不写
    * @throws {@link PermissionDeniedError} 批内有只许系统写的操作；清单列出全部违规，一条都不写
    * @throws {@link SortOrderError} 手动排序键不合法，或缺键创建 / 改分组字段落在 remote-only / QueryCache 主端；一条都不写
    */
   async mutations<T extends EntityType>(options: RxDBMutationsMap<T>) {
+    // 只读实例在一切判定之前拒绝（US-313）：只读检出位的快照库是另一条线建立时刻的数据，写进去对不上那条线
+    if (this.rxdb.readOnly) throw new RxDBReadOnlyError('mutations');
     // 批量与单条共用同一个主适配器选择器：`Repository.primary$` 也走
     // `selectPrimaryAdapterKind`。此前批量硬等 `localAdapter$`，remote-only 配置下那条流
     // 永不发射，`firstValueFrom` 静默挂起——调用方拿到一个不会 settle 的 Promise。
@@ -556,6 +576,7 @@ export class EntityManager {
    * @param EntityType 实体类型
    * @param id 实体 ID
    * @param patch 变更的字段
+   * @throws {@link RxDBReadOnlyError} 只读实例（同步抛出，一个事件都不派发）
    * @throws 已启用提交能力的库上、目标是版本化业务实体时，由捕获钩子抛出写拒绝错误；
    *   此时一条事件都不会派发
    *
@@ -578,6 +599,7 @@ export class EntityManager {
     patch: Readonly<Partial<InstanceType<T>>>
   ): void {
     const metadata = getEntityMetadata(EntityType);
+    if (this.rxdb.readOnly) throw new RxDBReadOnlyError('notifyExternalUpdate', metadata.name);
     const event = new EntityLocalUpdatedEvent([
       {
         type: 'UPDATE',
@@ -747,12 +769,15 @@ const resolveEntityManager = (EntityType: EntityType): EntityManager => {
   const managers = entityManagers.get(EntityType);
   const entityName = getEntityMetadata(EntityType).name;
   if (!managers || managers.size === 0) throw new RxDBError(`Entity '${entityName}' needs an initialized RxDB`);
-  if (managers.size > 1) {
-    throw new RxDBError(
-      `Entity '${entityName}' is registered with multiple RxDB instances; use rxdb.entityManager or repository`
-    );
-  }
-  return managers.values().next().value!;
+  if (managers.size === 1) return managers.values().next().value!;
+  // 只读实例是可写实例旁边的视图（如只读检出位的快照实例，US-313）。两者共用的类——核心系统实体每个实例都登记——
+  // 静态调用指的是可写的那个；可写的不止一个才是真歧义。一个可写的都没有（只剩几个只读实例）同样无从选，
+  // 照旧报多实例：「改用 rxdb.entityManager 或 repository」对只读实例一样成立
+  const writable = [...managers].filter(manager => !manager.rxdb.readOnly);
+  if (writable.length === 1) return writable[0];
+  throw new RxDBError(
+    `Entity '${entityName}' is registered with multiple RxDB instances; use rxdb.entityManager or repository`
+  );
 };
 
 const withEntityManagerContext = <T>(EntityType: EntityType, manager: EntityManager, callback: () => T): T => {

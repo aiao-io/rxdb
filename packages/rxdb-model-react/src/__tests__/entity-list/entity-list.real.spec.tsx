@@ -10,7 +10,7 @@
  * React 测试经 DOM（按钮点击 / 键盘 / FakeListTable 事件）驱动，
  * 对应 Angular 侧直接调用组件方法的覆盖点。
  */
-import { Entity, EntityBase, PropertyType, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
+import { cloneEntityClasses, Entity, EntityBase, PropertyType, RelationKind, RxDB, type EntityType } from '@aiao/rxdb';
 import { isRowDragEnabled } from '@aiao/rxdb-model';
 import { RxDBProvider } from '@aiao/rxdb-react';
 import { Account, AuditLog, Contract, Invoice, Task, Todo } from '@aiao/rxdb-test/entities';
@@ -567,6 +567,38 @@ describe('EntityList（真实组件）', () => {
       expect(container.textContent).not.toContain('+ 新增');
       expect(tableOf().records[0]['_readonly']).toBeUndefined();
       expect(actionIconNames(1)).toEqual(['view-action', 'delete-action']);
+    });
+
+    it('只读实例（只读检出位，US-313）：不出新增，单元格无编辑器，操作列只剩查看', async () => {
+      // 克隆体是 Todo 的子类：收窄成 typeof Todo 才能带着字段 new 出来
+      const [ReadOnlyTodo] = cloneEntityClasses([Todo as unknown as EntityType]) as unknown as [typeof Todo];
+      const readOnly = createInMemoryRxdb([ReadOnlyTodo as unknown as EntityType], undefined, { readOnly: true });
+      await readOnly.connect(IN_MEMORY_ADAPTER_NAME);
+      const { firstValueFrom } = await import('rxjs');
+      const readOnlyAdapter = await firstValueFrom(readOnly.localAdapter$);
+      // 只读实例的公开写入口一律拒，灌数据走适配器层
+      await readOnlyAdapter.mutations({
+        create: new Map<EntityType, Set<EntityBase>>([
+          [ReadOnlyTodo as unknown as EntityType, new Set([new ReadOnlyTodo({ title: 'frozen' })])]
+        ]),
+        update: new Map(),
+        remove: new Map()
+      });
+
+      const { container } = render(
+        <RxDBProvider db={readOnly}>
+          <EntityList namespace='public' name='Todo' />
+        </RxDBProvider>
+      );
+      await waitFor(() => {
+        expect(tableOf().records).toHaveLength(1);
+      });
+
+      expect(container.textContent).not.toContain('+ 新增');
+      // 列上压根没有编辑器，不只是这一行不可编辑
+      expect((tableOf().columns[colOf('title') - 1] as Record<string, unknown>)['editor']).toBeUndefined();
+      expect(actionIconNames(1)).toEqual(['view-action']);
+      await readOnly.disconnectAll();
     });
 
     it('未声明 permissions 的实体照常提供新增', async () => {

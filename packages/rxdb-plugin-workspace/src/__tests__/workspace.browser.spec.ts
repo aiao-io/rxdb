@@ -46,11 +46,11 @@ interface DraftLike {
  * 元数据里的 `namespace:name` 保持一致，恢复路径的 `getEntityType()` 才认得出来。
  */
 const defineDraft = () => {
+  // 写变更日志（缺省 `log: true`）：草稿缓存只收这类实体，它们的保存与删除才派发 CREATE / REMOVE 收尾。
   @Entity({
     namespace: 'ws_it',
     name: 'Draft',
     tableName: 'ws_it_draft',
-    log: false,
     properties: [
       { name: 'title', type: PropertyType.string, required: true },
       { name: 'meta', type: PropertyType.json, nullable: true },
@@ -65,6 +65,21 @@ const defineDraft = () => {
   return Draft as unknown as (new (init?: Partial<DraftLike>) => DraftLike) & EntityType;
 };
 
+/** 关闭变更日志的实体，形同 storage 插件的 `StorageFileMeta`；类按夹具现造，理由同 {@link defineDraft}。 */
+const defineNote = () => {
+  @Entity({
+    namespace: 'ws_it',
+    name: 'Note',
+    tableName: 'ws_it_note',
+    log: false,
+    properties: [{ name: 'title', type: PropertyType.string, required: true }]
+  })
+  class Note extends EntityBase {
+    title!: string;
+  }
+  return Note as unknown as (new (init?: { title: string }) => { id: UUID; title: string }) & EntityType;
+};
+
 /**
  * 每个用例一套全新的 dbName。
  *
@@ -77,6 +92,7 @@ const nextDbName = (): string => `ws_it_${crypto.randomUUID().slice(0, 8)}`;
 
 interface Harness {
   Draft: ReturnType<typeof defineDraft>;
+  Note: ReturnType<typeof defineNote>;
   adapter: RxDBAdapterWaSqlite;
   /** 真正的 IndexedDB 库名 —— 带核心追加的版本后缀，不等于传进去的 dbName。 */
   idbName: string;
@@ -87,9 +103,10 @@ interface Harness {
 /** 建一套真实 RxDB：wa-sqlite 走纯内存 VFS，workspace 走真实 IndexedDB。 */
 const createHarness = async (dbName: string, options?: { autoSave?: boolean }): Promise<Harness> => {
   const Draft = defineDraft();
+  const Note = defineNote();
   const rxdb = new RxDB({
     dbName,
-    entities: [Draft],
+    entities: [Draft, Note],
     sync: { type: SyncType.None, local: { adapter: 'wa-sqlite' } }
   });
 
@@ -99,7 +116,7 @@ const createHarness = async (dbName: string, options?: { autoSave?: boolean }): 
   const adapter = (await rxdb.connect('wa-sqlite')) as RxDBAdapterWaSqlite;
   rxdb.init();
 
-  return { Draft, adapter, idbName: rxdb.config.dbName, rxdb, workspace: rxdb.workspace };
+  return { Draft, Note, adapter, idbName: rxdb.config.dbName, rxdb, workspace: rxdb.workspace };
 };
 
 /** 直接读真实 IndexedDB，绕开插件自身的内存缓存 —— 断言「到底落盘了什么」。 */
@@ -228,6 +245,19 @@ describe('RWS-009 真实 Entity / IndexedDB / BroadcastChannel 集成', () => {
       expect(value?.['dueAt']).toBeInstanceOf(Date);
       expect((value?.['dueAt'] as Date).toISOString()).toBe(dueAt.toISOString());
       expect(value?.['meta']).toEqual({ labels: ['a'], nested: { value: 'v1' } });
+    });
+
+    it('关闭变更日志的实体不进草稿缓存：它保存与删除都不发事件，草稿等不到收尾', async () => {
+      const { Note, idbName, workspace } = await open(nextDbName());
+      await workspace.ready;
+
+      // 真实构造器经 EntityManager 代理派发 NEW；它是 storage 的 `StorageFileMeta` 每上传一次都会走的那条路。
+      const note = new Note({ title: '不写变更日志' });
+      await settle();
+      await workspace.flush();
+
+      expect(workspace.list().filter(entry => entry.entity === 'Note')).toEqual([]);
+      expect((await readStore(idbName)).has(`ws_it:Note:${note.id}`)).toBe(false);
     });
 
     it('discard 会把草稿从内存与真实 IndexedDB 一起删掉', async () => {

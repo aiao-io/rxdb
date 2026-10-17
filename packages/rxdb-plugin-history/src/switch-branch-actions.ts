@@ -83,15 +83,74 @@ export const compute_switch_branch_actions = async (
     throw new RxDBError('Cannot switch to the same branch');
   }
 
-  const currentChange = await get_branch_max_change(changeRepository, current_branch.id);
-  const nextChange = await get_branch_max_change(changeRepository, next_branch.id);
+  return compute_branch_transition_actions(
+    changeRepository,
+    all_branches,
+    await branch_tip_point(changeRepository, current_branch),
+    await branch_tip_point(changeRepository, next_branch)
+  );
+};
 
+/**
+ * 一条分支上的一个变更点：分支行，与停在它的哪条变更上。
+ *
+ * @internal
+ */
+export interface BranchPoint {
+  /** 分支行 */
+  readonly branch: RxDBBranch;
+  /** 停在哪条变更上；`null` 即停在这条分支的分叉点（它一条自有变更都还没有） */
+  readonly changeId: number | null;
+}
+
+/**
+ * 一条分支当前停在哪：它的 tip。
+ *
+ * @param changeRepository - 见 {@link BranchChangeReader}
+ * @param branch - 分支行
+ * @returns tip 所在的变更点；没有自有变更时停在分叉点
+ *
+ * @internal
+ */
+export const branch_tip_point = async (
+  changeRepository: BranchChangeReader,
+  branch: RxDBBranch
+): Promise<BranchPoint> => ({
+  branch,
+  changeId: (await get_branch_max_change(changeRepository, branch.id))?.id ?? null
+});
+
+/**
+ * 从一个变更点走到另一个变更点要落的增删改。
+ *
+ * @param changeRepository - 见 {@link BranchChangeReader}
+ * @param branches - **全量**分支行（父链要能走到根）
+ * @param from - 起点
+ * @param to - 终点
+ * @returns 把起点的数据变成终点的数据要落的操作；`patch` 是终点上的值
+ *
+ * @remarks
+ * 切分支（active 分支 tip → 目标分支 tip）与分支对比、合并预览（任意两点）共用这一份：路径由
+ * {@link find_switch_branch_step} 算，每一段的变更按方向正向或逆向折叠。另写一份同义计算，迟早会在
+ * 「回滚标记算不算」「区间开不开」上与切换分叉，表现为对比说「一样」、切过去却不一样。
+ *
+ * 折叠结果里的 `inversePatch` 不是「起点上的值」：同一字段改过两次时，它会被后一条的反向补丁盖掉。
+ * 要起点上的值，就反过来再算一次，取那一次的 `patch`。
+ *
+ * @internal
+ */
+export const compute_branch_transition_actions = async (
+  changeRepository: BranchChangeReader,
+  branches: RxDBBranch[],
+  from: BranchPoint,
+  to: BranchPoint
+): Promise<SwitchVersionActions> => {
   const steps = find_switch_branch_step({
-    branches: all_branches,
-    currentBranch: current_branch,
-    currentChangeId: currentChange ? currentChange.id : null,
-    nextBranch: next_branch,
-    nextChangeId: nextChange ? nextChange.id : null
+    branches,
+    currentBranch: from.branch,
+    currentChangeId: from.changeId,
+    nextBranch: to.branch,
+    nextChangeId: to.changeId
   });
 
   const actions: SwitchVersionActions = {
@@ -161,9 +220,18 @@ const inverse_patch_all = (changes: RxDBChange[], actions?: SwitchVersionActions
   get_switch_version_actions(changes, false, actions);
 
 /**
- * 计算切换版本所需的操作
- * @param changes 需要计算的 changes
- * @param options
+ * 把一串变更折叠成切换版本要落的增删改。
+ *
+ * @param changes - 需要计算的变更；按 `id` 排序，正向从小到大、逆向从大到小
+ * @param isPatch - `true` 正向应用 `patch`，`false` 逆向应用 `inversePatch`
+ * @param actions - 叠加到的已有结果；缺省新建
+ * @returns 折叠后的增删改
+ *
+ * @remarks
+ * 导出给 `@aiao/rxdb-plugin-working-tree` 的只读检出位：提交视图把提交里的变更单元编好号交给这里逆向折叠，
+ * 与切分支、对比用同一份规则。
+ *
+ * @internal
  */
 export const get_switch_version_actions = (
   changes: RxDBChange[],

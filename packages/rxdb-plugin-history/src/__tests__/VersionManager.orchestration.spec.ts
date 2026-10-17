@@ -37,8 +37,10 @@ const doubles = vi.hoisted(() => ({
     isIgnorable: vi.fn<(error: unknown) => boolean>()
   },
   delegates: {
+    compareBranches: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     createBranch: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     mergeBranch: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
+    previewMerge: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     removeBranch: vi.fn<(...args: unknown[]) => Promise<unknown>>(),
     getSwitchVersionActions: vi.fn<(...args: unknown[]) => unknown>(),
     switchBranchActions: vi.fn<(...args: unknown[]) => Promise<unknown>>()
@@ -106,6 +108,10 @@ vi.mock('../detached-event-error.js', () => ({
   isIgnorableDetachedVersionEventError: doubles.detachedError.isIgnorable
 }));
 
+vi.mock('../branch-compare.js', () => ({
+  compare_branches: doubles.delegates.compareBranches,
+  preview_merge: doubles.delegates.previewMerge
+}));
 vi.mock('../create-branch.js', () => ({ create_branch: doubles.delegates.createBranch }));
 vi.mock('../merge-branch.js', () => ({ merge_branch: doubles.delegates.mergeBranch }));
 vi.mock('../remove-branch.js', () => ({ remove_branch: doubles.delegates.removeBranch }));
@@ -460,5 +466,41 @@ describe('VersionManager 对协作模块的编排契约', () => {
 
     await expect(manager.mergeBranch('feature')).rejects.toThrow('No active branch found');
     expect(doubles.delegates.mergeBranch).not.toHaveBeenCalled();
+  });
+
+  it('compares and previews over the local repositories, with no events and no history reset', async () => {
+    const harness = createHarness();
+    const currentBranch = Object.assign(Object.create(RxDBBranch.prototype) as InstanceType<typeof RxDBBranch>, {
+      id: 'main',
+      activated: true
+    });
+    vi.spyOn(harness.manager, 'getCurrentBranch').mockResolvedValue(currentBranch);
+    const comparison = { fromBranchId: 'main', toBranchId: 'feature', entries: [] };
+    const preview = { sourceBranchId: 'feature', targetBranchId: 'main', strategy: 'normal', merged: 0, entries: [] };
+    doubles.delegates.compareBranches.mockResolvedValueOnce(comparison);
+    doubles.delegates.previewMerge.mockResolvedValueOnce(preview);
+
+    await expect(harness.manager.compareBranches('main', 'feature')).resolves.toBe(comparison);
+    await expect(harness.manager.previewMerge('feature', { strategy: 'normal' })).resolves.toBe(preview);
+
+    // 预览的目标取当前 active 分支，与 mergeBranch 同一个口径。
+    const readers = expect.objectContaining({
+      branchRepository: harness.localBranchRepository,
+      changeRepository: harness.localChangeRepository
+    });
+    expect(doubles.delegates.compareBranches).toHaveBeenCalledWith(readers, 'main', 'feature');
+    expect(doubles.delegates.previewMerge).toHaveBeenCalledWith(readers, 'feature', 'main', { strategy: 'normal' });
+    expect(harness.dispatchEvent).not.toHaveBeenCalled();
+    expect(doubles.history.clearUndoHistory).not.toHaveBeenCalled();
+  });
+
+  it('rejects preview when the active branch lookup yields no branch', async () => {
+    const { manager } = createHarness();
+    vi.spyOn(manager, 'getCurrentBranch').mockImplementation(
+      async () => undefined as unknown as InstanceType<typeof RxDBBranch>
+    );
+
+    await expect(manager.previewMerge('feature')).rejects.toThrow('No active branch found');
+    expect(doubles.delegates.previewMerge).not.toHaveBeenCalled();
   });
 });

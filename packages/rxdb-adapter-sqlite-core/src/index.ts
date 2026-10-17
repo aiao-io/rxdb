@@ -141,10 +141,12 @@ export { generate_table_trigger_sql } from './table/trigger_sql.js';
 // 版本管理
 export { dispatch_switch_events, execute_switch_actions } from './version/execute_switch_actions.js';
 export { convertSwitchResultToSql } from './version/switch-result.utils.js';
+// 各具体适配器的 `dropStorage()` 共用的删存储工具（只读检出位回收快照库，US-313）
 export type { SqliteStatement, SwitchVersionSqlItem, SwitchVersionSqlResult } from './version/switch-result.utils.js';
 export { generateSwitchBranchSql, generateSwitchBranchStatements, switch_branch } from './version/switch_branch.js';
 export { switch_transaction_id } from './version/switch_transaction_id.js';
 export { readCurrentBranchId, withTriggersDisabled, type SqlExecutor } from './version/with_triggers_disabled.js';
+export { deleteIndexedDatabase, removeOpfsFiles } from './worktree/drop-storage.js';
 
 // 事务结果处理
 export {
@@ -173,6 +175,10 @@ export {
   validateSqliteNumericOption
 } from './sqlite-client.utils.js';
 export type { ChangeRecordEvent } from './sqlite-client.utils.js';
+
+// OPFS 库打开时等「同步访问句柄仍被占用」退去（US-221）：sqlite-wasm 的 opfs 档与 wa-sqlite 的 OPFSCoopSyncVFS 共用
+export { isOpfsAccessHandleBusy, openOpfsWithRetry, releaseOpfsCoopSyncHandles } from './opfs-open-retry.js';
+export type { OpfsOpenRetryOptions } from './opfs-open-retry.js';
 
 // FTS5 DDL 工具（被 @aiao/rxdb-plugin-search 消费）
 export {

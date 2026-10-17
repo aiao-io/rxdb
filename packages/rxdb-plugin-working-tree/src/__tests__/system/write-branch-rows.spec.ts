@@ -52,7 +52,7 @@ describe('writeBranchRows', () => {
     const database = createDatabase();
     const plugin = new RxDBPluginWorkingTree(database);
     contribution = plugin.system;
-    // 十张表由本插件贡献，`instantiate()` 要它们已经进了 `config.entities`。
+    // 本插件的系统表由它贡献，`instantiate()` 要它们已经进了 `config.entities`。
     database.use(() => plugin);
     database.init();
     entityManager = database.entityManager;

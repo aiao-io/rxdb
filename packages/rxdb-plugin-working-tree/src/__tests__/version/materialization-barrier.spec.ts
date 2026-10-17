@@ -109,7 +109,7 @@ const BRANCH_GENERATION_SEQ = 4;
  */
 const FROZEN_FINGERPRINT = 'stage-fingerprint-frozen';
 
-/** 一个挂了 mock 适配器、已 `init()` 的宿主；十张系统表由插件贡献，必须早于 `init()` 进 `use()`。 */
+/** 一个挂了 mock 适配器、已 `init()` 的宿主；本插件的系统表由它贡献，必须早于 `init()` 进 `use()`。 */
 function createDatabase(): RxDB {
   const database = new RxDB({
     dbName: `rxdb-materialization-barrier-${Math.random().toString(36).slice(2)}`,

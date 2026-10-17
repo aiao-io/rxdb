@@ -480,7 +480,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    *
    * @param entityName - 实体名（不含命名空间）
    * @param namespace - 已知时按身份精确判；省略时按裸名判
-   * @returns `system` / `query_cache` / `versioned` 三者之一
+   * @returns `system` / `untracked` / `versioned` 三者之一
    *
    * @remarks
    * **先问域，域不认得才问系统表清单。** 域里只有业务实体（{@link createWorkingTreeCaptureRuntime}
@@ -499,7 +499,7 @@ export class WorkingTreeCaptureRuntime implements WorkingTreeCaptureHook {
    */
   targetClassOf(entityName: string, namespace?: string): WriteTargetClass {
     if (this.#isSystemTarget(entityName, namespace)) return 'system';
-    return this.#domain.classifyEntity(entityName, namespace) === 'untracked' ? 'query_cache' : 'versioned';
+    return this.#domain.classifyEntity(entityName, namespace) === 'untracked' ? 'untracked' : 'versioned';
   }
 
   /**
@@ -703,6 +703,7 @@ const toVersionedDomainEntityInput =
       entityName: metadata.name,
       namespace: metadata.namespace,
       physicalTableNames: adapter.physicalTableNames(metadata),
-      syncType: sync.type
+      syncType: sync.type,
+      log: metadata.log
     };
   };

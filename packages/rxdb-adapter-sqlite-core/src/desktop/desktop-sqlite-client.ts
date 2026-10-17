@@ -12,6 +12,7 @@ import { RxDBAdapterDesktopError } from './desktop-error.js';
 import {
   assertDesktopHostResponse,
   parseDesktopHostChangeEvent,
+  parseDesktopHostDropResult,
   parseDesktopHostHandshakeResult,
   parseDesktopHostOpenResult,
   type DesktopHostFileRequest,
@@ -202,6 +203,16 @@ const parseOpenResultOrClose = async (
   }
 };
 
+/** 没注入传输层就报 `host_unavailable`：往下走只会在第一次请求时炸出一个与原因无关的 `TypeError`。 */
+const assertTransportInjected = (transport: DesktopHostTransport): void => {
+  if (!isDesktopHostTransport(transport)) {
+    throw new RxDBAdapterDesktopError(
+      'host_unavailable',
+      'no desktop host transport was injected; the preload script must expose one before RxDB connects'
+    );
+  }
+};
+
 /** 把传输层的失败换成 `host_unavailable`；已经是桌面错误的原样抛出。 */
 const channelFailure =
   (payload: DesktopHostRequest) =>
@@ -282,12 +293,7 @@ export class DesktopSqliteClient implements SqliteClientLike {
     storage: DesktopSqliteFileStorage,
     options?: DesktopSqliteClientOptions
   ): Promise<DesktopSqliteClient> {
-    if (!isDesktopHostTransport(transport)) {
-      throw new RxDBAdapterDesktopError(
-        'host_unavailable',
-        'no desktop host transport was injected; the preload script must expose one before RxDB connects'
-      );
-    }
+    assertTransportInjected(transport);
     // renderer 侧先校验一次，非法配置连 IPC 都不用发；host 侧还会再校验一次。
     assertDesktopSqliteStorage(storage);
     // 先握手再 open：版本对不上时，磁盘上不该多出一个空库文件。
@@ -306,6 +312,28 @@ export class DesktopSqliteClient implements SqliteClientLike {
     client.#unsubscribe = transport.subscribe(message => client.#onMessage(message));
     await client.#awaitSubscription();
     return client;
+  }
+
+  /**
+   * 删掉 host 上的一个库文件及其日志旁文件（US-313：回收只读检出位的快照库）。
+   *
+   * @remarks
+   * 不依附会话，前置与 {@link DesktopSqliteClient.connect} 相同：传输层与存储先在 renderer 侧校验，
+   * 先握手再发——这条请求有副作用，版本对不上的 host 不该收到它。
+   *
+   * @param transport - 由 preload 或 worker 桥接提供的传输层
+   * @param storage - 要删的库
+   * @returns 库文件此前在不在
+   * @throws {@link RxDBAdapterDesktopError} 未注入传输层、配置非法、通道失败；host 上还有会话开着这个库时抛 `database_busy`
+   */
+  static async drop(transport: DesktopHostTransport, storage: DesktopSqliteFileStorage): Promise<boolean> {
+    assertTransportInjected(transport);
+    assertDesktopSqliteStorage(storage);
+    await negotiateProtocolVersion(transport);
+
+    const request = { kind: 'drop', storage } as const;
+    const answer = await transport.request(request).catch(channelFailure(request));
+    return parseDesktopHostDropResult(assertDesktopHostResponse('drop', answer).result).dropped;
   }
 
   /**

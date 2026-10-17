@@ -3,6 +3,7 @@ import { Suspense, useEffect, useRef } from 'react';
 import { Outlet, useNavigation } from 'react-router-dom';
 import { AppHeader } from './components/AppHeader';
 import { AppSidebar } from './components/AppSidebar';
+import { DbConnectionAlert } from './components/DbConnectionAlert';
 import LoadingBar, { LoadingBarRef } from './components/LoadingBar';
 import { AppServiceProvider, useAppService } from './hooks/useAppService';
 import { useTheme } from './hooks/useTheme';
@@ -41,6 +42,7 @@ function AppLayout() {
       <div className='flex h-full min-w-0 grow flex-col overflow-hidden' id='layout-container'>
         <AppHeader />
         <div id='layout-content' className='flex min-h-0 flex-1 flex-col overflow-auto'>
+          <DbConnectionAlert />
           <Suspense
             fallback={
               <div className='flex h-full items-center justify-center'>

@@ -169,7 +169,7 @@ describe('允许的那条路：原样透传，什么都不改', () => {
   it('QueryCache 实体：返回的就是写原语那一个实例', () => {
     const probe = writePrimitiveProbe();
 
-    const returned = gateBulkWrite(gateRequest({ entityName: 'ProductCache', targetClass: 'query_cache' }), probe.run);
+    const returned = gateBulkWrite(gateRequest({ entityName: 'ProductCache', targetClass: 'untracked' }), probe.run);
 
     expect(probe.built).toBe(1);
     expect(returned).toBe(probe.produced);
@@ -178,7 +178,7 @@ describe('允许的那条路：原样透传，什么都不改', () => {
   it('放行不等于开始写：订阅之前零副作用', () => {
     const probe = writePrimitiveProbe();
 
-    const returned = gateBulkWrite(gateRequest({ targetClass: 'query_cache' }), probe.run);
+    const returned = gateBulkWrite(gateRequest({ targetClass: 'untracked' }), probe.run);
     expect(probe.subscribed).toBe(0);
 
     returned.subscribe();

@@ -2,6 +2,18 @@
   "entries": {
     ".": [
       {
+        "name": "BranchComparison",
+        "kind": "type"
+      },
+      {
+        "name": "BranchDiffEntry",
+        "kind": "type"
+      },
+      {
+        "name": "BranchDiffOperation",
+        "kind": "type"
+      },
+      {
         "name": "compute_switch_branch_actions",
         "kind": "value"
       },
@@ -18,8 +30,28 @@
         "kind": "value"
       },
       {
+        "name": "get_switch_version_actions",
+        "kind": "value"
+      },
+      {
         "name": "isIgnorableDetachedVersionEventError",
         "kind": "value"
+      },
+      {
+        "name": "MergePreview",
+        "kind": "type"
+      },
+      {
+        "name": "MergePreviewConflict",
+        "kind": "type"
+      },
+      {
+        "name": "MergePreviewEntry",
+        "kind": "type"
+      },
+      {
+        "name": "MergePreviewOptions",
+        "kind": "type"
       },
       {
         "name": "PushInFlightRegistry",

@@ -224,7 +224,7 @@ export function createWorkingTreeScene(options: WorkingTreeSceneOptions = {}): W
   });
   const adapter = createMockAdapter(database);
   database.adapter('local', () => adapter);
-  // 十张系统表随 `@aiao/rxdb-plugin-working-tree` 走，核心的 `SYSTEM_ENTITIES` 里没有它们；
+  // 本插件的系统表随 `@aiao/rxdb-plugin-working-tree` 走，核心的 `SYSTEM_ENTITIES` 里没有它们；
   // `use()` 时核心才读插件的系统贡献并把这批实体登记进去。这一行漏了的话，下面
   // `entityManager.instantiate(CommitCapabilityState)` 抛的是「need init rxdb」——
   // 一条读不出主语的错，而九个用例文件全都经过这里。

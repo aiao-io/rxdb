@@ -1,8 +1,9 @@
 <script lang="ts" setup>
 import { RxDBBranch } from '@aiao/rxdb';
-import { Check, ChevronDown, ChevronRight, GitBranch, MoreVertical, Plus, Search } from '@lucide/vue';
+import { Check, ChevronDown, ChevronRight, GitBranch, GitMerge, MoreVertical, Plus, Search } from '@lucide/vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { gdRelativeTime } from '../utils/gd';
+import { isImeComposing } from '../utils/ime';
 
 /**
  * 顶部分支栏里的分支选择器，模仿 GitHub Desktop 的分支下拉。
@@ -16,14 +17,18 @@ import { gdRelativeTime } from '../utils/gd';
  * 下拉顶部带筛选框（GitHub Desktop 的分支下拉同样可以打字筛）：按名字子串过滤，
  * 大小写不敏感。当前分支行右端画 ✓（GitHub Desktop 的选中标记）。
  *
- * **点行立即切换**（GitHub Desktop 同款）：切走仍走 `requireClean` 的被拒路径——
- * demo 要演的「脏工作树被拒」这一步，被拒的 toast 就是行点击的结果。合并 / 删除
- * 收进每行右端的 ⋯ 按钮（GitHub Desktop 的分支行操作同样藏在行菜单里）。
+ * **点行立即切换**（GitHub Desktop 同款）：工作树有未提交改动时，页面弹「Switch branch」对话框问改动怎么办。
+ * 行上的右键（触屏是行尾 ⋯）只有复制分支名与删除，与 GitHub Desktop 的分支右键菜单一致；合并在下拉底部的
+ * 「Choose a branch to merge into 当前分支」（GitHub Desktop `branches-container.tsx` 的 merge-button-row）。
  *
  * **下拉必须左对齐（`left-0`）而不是右对齐。** 应用壳的侧栏展开后占 240px，
  * `#layout-container` 是 `overflow: auto` 的滚动容器；右对齐会让 w-72 的下拉
  * 向左伸进侧栏区域，被滚动容器裁剪——裁掉的那块恰好是操作按钮的位置，
  * 点击会被 fixed 背板吃掉（2026-09-18 实测复现，见 e2e）。
+ *
+ * ARIA：列表弹层是非模态的 `role="dialog"`，行是 `<ul>/<li>` 里的普通 `<button>`——弹层里还有
+ * 筛选框与新建按钮，`role="menu"` 只许装菜单项（axe `aria-required-children`）；当前分支的行按钮
+ * 带 `aria-current="true"`。回车提交与 Escape 关闭在输入法组字期间都让给输入法（见 `isImeComposing`）。
  */
 const props = defineProps<{
   branches: readonly RxDBBranch[];
@@ -52,8 +57,10 @@ const branchError = defineModel<string | null>('branchError', { default: null })
 
 const emit = defineEmits<{
   (e: 'switchBranch', branchId: string): void;
-  /** 行上右键；页面按条目拼菜单（切换 / 合并 / 删除 / 复制分支名）。 */
+  /** 行上右键；页面按条目拼菜单（复制分支名 / 删除）。 */
   (e: 'menuRequest', request: { target: RxDBBranch; event: MouseEvent }): void;
+  /** 下拉底部「Choose a branch to merge into 当前分支」：页面打开合并对话框，在里面挑来源 */
+  (e: 'mergeRequest'): void;
   /** 创建确认；分支名校验与建库调用由页面做，组件只负责把名字交出去。 */
   (e: 'createBranch', name: string): void;
 }>();
@@ -102,10 +109,10 @@ function toggleMenu(): void {
  * Escape 走 document 级监听而不是挂在容器 div 上：焦点在菜单/弹层的任意
  * 子元素上时事件都能冒泡到 document，而容器 div 挂交互 handler 会撞
  * `interactive-supports-focus` 的 lint 规则（div 不可聚焦）。
- * 只认 Escape（Angular 侧是 key 过滤的 `keydown.escape` 监听）：其余按键不关菜单。
+ * 只认 Escape：其余按键不关菜单；组字中的 Escape 是输入法在取消候选，也不关。
  */
 const onDocumentKeydown = (event: KeyboardEvent): void => {
-  if (event.key === 'Escape') closeAll();
+  if (event.key === 'Escape' && !isImeComposing(event)) closeAll();
 };
 
 onMounted(() => document.addEventListener('keydown', onDocumentKeydown));
@@ -144,6 +151,12 @@ function onNameInput(event: Event): void {
   branchError.value = null;
 }
 
+/** 名字框里的回车提交；组字中的回车是输入法在确认候选词，不提交。 */
+function onNameEnter(event: KeyboardEvent): void {
+  if (isImeComposing(event)) return;
+  confirmCreate();
+}
+
 /** 空名不往页面交：那是一条必然被拒的往返，错误就地呈现。 */
 function confirmCreate(): void {
   const name = branchName.value.trim();
@@ -162,7 +175,8 @@ function confirmCreate(): void {
         class="gd-toolbar-select"
         :aria-expanded="menuOpen"
         @click="toggleMenu"
-        aria-haspopup="true"
+        aria-controls="wt-branch-menu-popup"
+        aria-haspopup="dialog"
         data-testid="wt-branch-menu"
         type="button"
       >
@@ -206,7 +220,7 @@ function confirmCreate(): void {
             class="gd-input"
             :value="branchName"
             @input="onNameInput"
-            @keydown.enter="confirmCreate"
+            @keydown.enter="onNameEnter"
             data-testid="wt-branch-name"
             placeholder="feature/my-feature"
             ref="createInput"
@@ -246,7 +260,8 @@ function confirmCreate(): void {
         :style="{ height: 'calc(100vh - 50px)', width: popupWidth + 'px', left: popupLeft + 'px' }"
         aria-label="Branch list"
         data-testid="wt-branch-menu-popup"
-        role="menu"
+        id="wt-branch-menu-popup"
+        role="dialog"
       >
         <div class="flex items-center justify-between px-3 pt-1 pb-1.5">
           <span
@@ -288,11 +303,11 @@ function confirmCreate(): void {
             <div class="flex items-stretch">
               <button
                 class="gd-menu-row min-w-0 flex-1"
+                :aria-current="branch.activated ? 'true' : undefined"
                 :data-branch-id="branch.id"
                 @click="onRowClick(branch)"
                 @contextmenu="emit('menuRequest', { target: branch, event: $event })"
                 data-testid="wt-branch-item"
-                role="menuitem"
                 type="button"
               >
                 <!-- 当前分支：前导图标换成勾（GitHub Desktop 同款） -->
@@ -358,6 +373,23 @@ function confirmCreate(): void {
             No matching branches
           </li>
         </ul>
+        <!-- GitHub Desktop 的分支下拉底部：选一条分支合并进当前分支 -->
+        <div class="gd-menu-divider"></div>
+        <button
+          class="gd-menu-row w-full shrink-0"
+          :title="`Choose a branch to merge into ${activeBranch}`"
+          @click="emit('mergeRequest')"
+          data-testid="wt-branch-merge-into"
+          type="button"
+        >
+          <GitMerge
+            class="shrink-0"
+            :size="14"
+          />
+          <span class="min-w-0 flex-1 truncate text-left text-sm">
+            Choose a branch to merge into <strong>{{ activeBranch }}</strong>
+          </span>
+        </button>
       </div>
     </div>
   </div>

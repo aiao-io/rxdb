@@ -255,6 +255,8 @@ export interface TestDBOptions {
   dbName?: string;
   /** 要注册的实体类（默认使用 TEST_ENTITIES） */
   entities?: EntityType[];
+  /** 建只读实例（默认 `false`） */
+  readOnly?: boolean;
 }
 
 /**
@@ -272,11 +274,16 @@ export async function createTestDB(options: TestDBOptions = {}): Promise<{
   adapter: MockLocalAdapter;
   cleanup: () => Promise<void>;
 }> {
-  const { dbName = `test-db-${Date.now()}-${Math.random().toString(36).slice(2)}`, entities = TEST_ENTITIES } = options;
+  const {
+    dbName = `test-db-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+    entities = TEST_ENTITIES,
+    readOnly
+  } = options;
 
   const rxdbOptions: RxDBOptions = {
     dbName,
     entities,
+    readOnly,
     sync: {
       local: {
         adapter: 'sqlite'

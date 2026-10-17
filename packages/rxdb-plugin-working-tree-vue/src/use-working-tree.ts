@@ -36,7 +36,9 @@ import { computed, shallowRef, type ComputedRef } from 'vue';
  * `@aiao/rxdb-plugin-working-tree` 那一份类型，本包**不重定义**（tri-framework-api.md §1）。
  *
  * 三端等价实现：Angular `useWorkingTree()`（`Signal`）、React `useWorkingTree()`
- * （渲染快照），字段名、方法名与语义完全一致，只是容器形态不同。
+ * （渲染快照），字段名、方法名与语义完全一致，只是容器形态不同。入口绑定 `setup()` 时注入的库：
+ * `provideRxDB()` 的源换了库，这里仍指着旧库——要跟着换，给用它的组件加 `:key` 随库重建
+ * （React 版在 Provider 换库时自己回到初态）。
  *
  * `restore()` 的四个被拒成因走**返回值**而不是异常，`restoreState` 因此也**没有 empty**：
  * 「被拒」与「一条都没恢复」都是结果，不是「没有结果」。`restoreSessionState` 的空则只有一个

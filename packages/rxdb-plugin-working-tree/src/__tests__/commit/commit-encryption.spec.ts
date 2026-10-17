@@ -5,7 +5,7 @@
  * FR-038 有三句话：**持久化路径不得先解密再把明文写入新系统表**、
  * **摘要不得包含加密字段值**、**日志与错误不得包含加密字段值**。
  * 这份文件钉前两句和「错误」那半句；「日志」那半句由新系统表的 `log: false`
- * 承担，已由 `__tests__/system/working-tree-system-entities.spec.ts` 钉死，
+ * 承担，已由 `__tests__/system/system-entity-registration.spec.ts` 钉死，
  * 这里不重复一遍。codec 层的「加密列原样穿过」也已由
  * `__tests__/working-tree/working-tree-patch-codec.spec.ts`（T020）钉死；
  * 本文件守的是**它之后**那一段——commit 写入路径拿到已编码的 patch 之后还会不会再动它。
@@ -123,7 +123,7 @@ function createEntityManager(): EntityManager {
     sync: { local: { adapter: 'local' }, type: SyncType.None }
   });
   database.adapter('local', db => createMockAdapter(db));
-  // 十张系统表由插件贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
+  // 本插件的系统表由它贡献，必须赶在 `init()` 之前 `use()`：晚了核心会当场拒绝，
   // 而这些实体进不了 `config.entities` 时 `instantiate()` 抛的是「need init rxdb」。
   database.use(rxDBPluginWorkingTree);
   database.init();

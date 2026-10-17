@@ -37,6 +37,7 @@ import {
   type EntityType
 } from '@aiao/rxdb';
 import { describe, expect, it } from 'vitest';
+import { Worktree } from '../../checkout/worktree.entity.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from '../../commit/commit-capability-state.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
@@ -73,7 +74,7 @@ const createDatabase = (): RxDB => {
 const CONTRIBUTED: readonly EntityType[] = new RxDBPluginWorkingTree(createDatabase()).system.entities;
 
 /**
- * data-model.md §1 的 1→10 顺序，连同各自的物理表名。
+ * data-model.md §1 的 1→10 顺序，再加只读检出位的登记表（US-313），连同各自的物理表名。
  *
  * 表名一并断言：类名与 `tableName` 是两处独立书写的字符串，只对类名做断言的话，
  * 一个复制粘贴残留的 `tableName` 会一路活到真实数据库里。
@@ -88,15 +89,16 @@ const EXPECTED_ORDER: readonly (readonly [EntityType, string])[] = [
   [WorkingTreeEntry, 'rxdb_working_tree_entry'],
   [WorkingTreeRestoreSession, 'rxdb_working_tree_restore_session'],
   [WorkingTreeMaterializationStage, 'rxdb_working_tree_materialization_stage'],
-  [WorkingTreeMaterializationPage, 'rxdb_working_tree_materialization_page']
+  [WorkingTreeMaterializationPage, 'rxdb_working_tree_materialization_page'],
+  [Worktree, 'rxdb_worktree']
 ];
 
 describe('工作树与提交系统表登记', () => {
-  it('10 个类全部出现在系统贡献里，顺序与 data-model.md §1 的 1→10 一致（顺序即建表顺序）', () => {
+  it('11 个类全部出现在系统贡献里，顺序是 data-model.md §1 的 1→10 再加登记表（顺序即建表顺序）', () => {
     expect(CONTRIBUTED).toEqual(EXPECTED_ORDER.map(([EntityClass]) => EntityClass));
   });
 
-  it('use() 之后核心的登记簿当场认得这 10 张表', () => {
+  it('use() 之后核心的登记簿当场认得这 11 张表', () => {
     const database = createDatabase();
     database.use(rxDBPluginWorkingTree);
 

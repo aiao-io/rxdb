@@ -102,6 +102,10 @@
         "kind": "value"
       },
       {
+        "name": "deleteIndexedDatabase",
+        "kind": "value"
+      },
+      {
         "name": "describeSqliteDatabase",
         "kind": "value"
       },
@@ -314,6 +318,10 @@
         "kind": "type"
       },
       {
+        "name": "isOpfsAccessHandleBusy",
+        "kind": "value"
+      },
+      {
         "name": "isReadOnlyStatement",
         "kind": "value"
       },
@@ -390,7 +398,15 @@
         "kind": "type"
       },
       {
+        "name": "openOpfsWithRetry",
+        "kind": "value"
+      },
+      {
         "name": "OpfsFallback",
+        "kind": "type"
+      },
+      {
+        "name": "OpfsOpenRetryOptions",
         "kind": "type"
       },
       {
@@ -414,11 +430,19 @@
         "kind": "value"
       },
       {
+        "name": "releaseOpfsCoopSyncHandles",
+        "kind": "value"
+      },
+      {
         "name": "remove_all_triggers_sql",
         "kind": "value"
       },
       {
         "name": "remove_entity_ids_from_cache",
+        "kind": "value"
+      },
+      {
+        "name": "removeOpfsFiles",
         "kind": "value"
       },
       {
@@ -844,6 +868,14 @@
         "kind": "type"
       },
       {
+        "name": "DesktopHostDropRequest",
+        "kind": "type"
+      },
+      {
+        "name": "DesktopHostDropResult",
+        "kind": "type"
+      },
+      {
         "name": "DesktopHostExecuteRequest",
         "kind": "type"
       },
@@ -1109,6 +1141,10 @@
       },
       {
         "name": "parseDesktopHostChangeEvent",
+        "kind": "value"
+      },
+      {
+        "name": "parseDesktopHostDropResult",
         "kind": "value"
       },
       {

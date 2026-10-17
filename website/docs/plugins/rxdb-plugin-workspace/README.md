@@ -55,6 +55,7 @@ await db.workspace.flush(); // 显式等待 IndexedDB 写入
 - **未保存 UPDATE 暂存：未支持。** 全局 UPDATE 事件在写库成功之后派发，不代表 Proxy 中尚未保存的编辑
 - **restore / rollback：未支持。** NEW 草稿在安装时自动恢复；现有实体回滚需要完整 base/inverse patch 模型。当前只有 `discard(cacheId)`，没有 `restore()`
 - **DELETE 撤销：未支持。** REMOVE / CREATE 事件只负责清理对应 NEW 草稿
+- **不收草稿的实体**：系统表（核心与插件登记的），以及关闭变更日志（`@Entity({ log: false })`）的实体，如 storage 插件的文件元数据。后者保存与删除不派发 CREATE / REMOVE，草稿会一直等不到清理；旧版本留在 IndexedDB 里的这两类草稿在 `install()` 时删除
 - 依赖浏览器 `crypto.randomUUID()` 与 IndexedDB，不可在 SSR 渲染阶段构造插件
 - BroadcastChannel 不是鉴权边界，草稿也不加密：不要把不应落盘或不应暴露给同源脚本的数据放进草稿
 

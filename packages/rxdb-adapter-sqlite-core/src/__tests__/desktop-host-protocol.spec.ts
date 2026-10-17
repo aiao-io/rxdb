@@ -6,6 +6,7 @@ import {
   DESKTOP_HOST_MAX_SQL_LENGTH,
   DESKTOP_HOST_PROTOCOL_VERSION,
   parseDesktopHostChangeEvent,
+  parseDesktopHostDropResult,
   parseDesktopHostHandshakeResult,
   parseDesktopHostRequest
 } from '../desktop/desktop-host-protocol.js';
@@ -15,6 +16,7 @@ const sessionId = '7f1d2c3b-4a59-4e6f-8b0d-1e2f3a4b5c6d';
 
 const openRequest = { kind: 'open', storage: { engine: 'sqlite', databaseName: 'app.sqlite3' } };
 const executeRequest = { kind: 'execute', sessionId, sql: 'SELECT 1', bindings: [] };
+const dropRequest = { kind: 'drop', storage: { engine: 'sqlite', databaseName: 'app.sqlite3' } };
 
 describe('parseDesktopHostRequest', () => {
   it('accepts a well formed open request', () => {
@@ -27,7 +29,8 @@ describe('parseDesktopHostRequest', () => {
     ['version', { kind: 'version', sessionId }],
     ['close', { kind: 'close', sessionId }],
     ['mute', { kind: 'mute', sessionId, muted: true }],
-    ['unmute', { kind: 'mute', sessionId, muted: false }]
+    ['unmute', { kind: 'mute', sessionId, muted: false }],
+    ['drop', dropRequest]
   ])('accepts a well formed %s request', (_label, request) => {
     expect(parseDesktopHostRequest(request)).toEqual(request);
   });
@@ -64,7 +67,7 @@ describe('parseDesktopHostRequest', () => {
     ['a string', 'execute'],
     ['a number', 7],
     ['an array', []],
-    ['an unknown kind', { kind: 'drop', sessionId }],
+    ['an unknown kind', { kind: 'explode', sessionId }],
     ['a missing kind', { sessionId }],
     ['a prototype polluting kind', { kind: 'toString', sessionId }]
   ])('rejects %s', (_label, value) => {
@@ -170,6 +173,28 @@ describe('parseDesktopHostRequest', () => {
     const parsed = parseDesktopHostRequest({ ...executeRequest, extra: 'ignored' });
     expect(parsed).not.toHaveProperty('extra');
   });
+
+  // 删库与打开过同一道存储校验：库名是应用作用域内的逻辑名，绝不能被当成路径
+  it.each([
+    ['a drop without storage', { kind: 'drop' }, /protocol_violation/],
+    [
+      'a drop whose database name escapes the app scope',
+      { kind: 'drop', storage: { engine: 'sqlite', databaseName: '../escape' } },
+      /invalid_database_name/
+    ],
+    [
+      'a drop of an unsupported engine',
+      { kind: 'drop', storage: { engine: 'pglite', dataDirectoryName: 'pg' } },
+      /unsupported_runtime_engine/
+    ]
+  ])('rejects %s', (_label, value, code) => {
+    expect(() => parseDesktopHostRequest(value)).toThrowError(code);
+  });
+
+  it('lets only the storage of a drop across the boundary', () => {
+    const noisy = { ...dropRequest, sessionId, storage: { ...dropRequest.storage, extra: 'ignored' } };
+    expect(parseDesktopHostRequest(noisy)).toStrictEqual(dropRequest);
+  });
 });
 
 describe('parseDesktopHostChangeEvent', () => {
@@ -218,6 +243,21 @@ describe('parseDesktopHostHandshakeResult', () => {
     expect(() => parseDesktopHostHandshakeResult({ protocolVersion: skewed })).toThrowError(
       new RegExp(`${skewed}\\b.*\\b${DESKTOP_HOST_PROTOCOL_VERSION}\\b`)
     );
+  });
+});
+
+describe('parseDesktopHostDropResult', () => {
+  it.each([true, false])('accepts dropped: %s', dropped => {
+    expect(parseDesktopHostDropResult({ dropped })).toStrictEqual({ dropped });
+  });
+
+  // 「删没删」读不出布尔就是 host 答错了：把它当成 false 等于把一次协议违规吞成「库本来就不在」
+  it.each([
+    ['null', null],
+    ['a missing flag', {}],
+    ['a non-boolean flag', { dropped: 'true' }]
+  ])('rejects %s', (_label, value) => {
+    expect(() => parseDesktopHostDropResult(value)).toThrowError(/protocol_violation/);
   });
 });
 

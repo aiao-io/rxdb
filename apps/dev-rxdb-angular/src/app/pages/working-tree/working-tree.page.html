@@ -74,6 +74,7 @@
         [style.width.px]="$branchSectionWidth()"
         (createBranch)="createBranch($event)"
         (menuRequest)="openBranchContextMenu($event)"
+        (mergeRequest)="openMergeDialog(null)"
         (switchBranch)="switchBranch($event)"
       />
 
@@ -166,12 +167,23 @@
             (commit)="runCommit()"
           />
         } @else {
-          <app-working-tree-history-list
-            [commitsState]="tree.listCommitsState()"
-            [selectedCommitId]="$selectedCommitId()"
-            (menuRequest)="openCommitContextMenu($event)"
-            (selectEntry)="selectCommit($event)"
+          <!-- GitHub Desktop 的 History 顶部：选一条分支对比；对比时收起提交列表，清除即回到历史 -->
+          <app-working-tree-history-compare
+            [activeBranch]="$activeBranch()"
+            [branches]="$otherBranchIds()"
+            [compare]="$historyCompare()"
+            (clearRequested)="clearCompare()"
+            (mergeRequest)="openMergeDialog($event)"
+            (selectBranch)="compareWith($event)"
           />
+          @if ($historyCompare() === null) {
+            <app-working-tree-history-list
+              [commitsState]="tree.listCommitsState()"
+              [selectedCommitId]="$selectedCommitId()"
+              (menuRequest)="openCommitContextMenu($event)"
+              (selectEntry)="selectCommit($event)"
+            />
+          }
         }
       </aside>
 
@@ -293,12 +305,24 @@
   <!-- ═══════════════════ 合并对话框 ═══════════════════ -->
   <app-working-tree-merge-dialog
     [activeBranch]="$activeBranch()"
+    [branches]="$otherBranchIds()"
     [dialog]="$mergeDialog()"
     [error]="$mergeError()"
+    [preview]="$mergePreview()"
     (closeRequested)="closeMergeDialog()"
     (confirm)="executeMerge()"
     (deleteSourceChange)="setDeleteSource($event)"
+    (sourceChange)="setMergeSource($event)"
     (strategyChange)="setMergeStrategy($event)"
+  />
+
+  <!-- ═══════════════════ 带着未提交改动切分支（GitHub Desktop 的 Switch branch） ═══════════════════ -->
+  <app-working-tree-switch-branch-dialog
+    [activeBranch]="$activeBranch()"
+    [dialog]="$switchDialog()"
+    [switching]="$switching()"
+    (closeRequested)="closeSwitchDialog()"
+    (confirmRequested)="confirmSwitchLeavingChanges()"
   />
 
   <!-- ═══════════════════ 应用内确认框（替代原生 confirm，移动端样式一致） ═══════════════════ -->

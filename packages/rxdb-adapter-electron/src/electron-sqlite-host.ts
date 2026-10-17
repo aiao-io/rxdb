@@ -18,7 +18,9 @@ import {
   type DesktopHostResponse
 } from '@aiao/rxdb-adapter-sqlite-core/desktop-host';
 import { randomUUID } from 'node:crypto';
+import { rm } from 'node:fs/promises';
 import { NodeSqliteEngine } from './node-sqlite-engine.js';
+import { errnoOf, toHostIoError } from './pglite-host/pglite-host-data-dir.js';
 import { splitSqliteScript } from './sqlite-script.js';
 
 /**
@@ -61,6 +63,30 @@ const BUSY_RETRY_INITIAL_DELAY_MS = 1;
 
 /** 退避的上限（毫秒），避免长时间持锁时把重试拉成几秒一次。 */
 const BUSY_RETRY_MAX_DELAY_MS = 100;
+
+/** 库文件的日志旁文件：WAL 模式的 `-wal` / `-shm`，回滚日志模式的 `-journal`。 */
+const DATABASE_SIDECAR_SUFFIXES: readonly string[] = ['-wal', '-shm', '-journal'];
+
+/**
+ * 删一个库文件或旁文件。
+ *
+ * @param filePath - 物理路径
+ * @param label - 回给 renderer 的逻辑名：错误消息里不出现物理路径（AC#3）
+ * @returns 文件此前在不在
+ * @throws {@link RxDBAdapterDesktopError} 别的进程占着文件（Windows 上的 `EBUSY`）时抛 `database_busy`；其余按文件系统错误归类
+ */
+const removeDatabaseFile = async (filePath: string, label: string): Promise<boolean> => {
+  try {
+    await rm(filePath);
+    return true;
+  } catch (error) {
+    if (errnoOf(error) === 'ENOENT') return false;
+    if (errnoOf(error) === 'EBUSY') {
+      throw new RxDBAdapterDesktopError('database_busy', `${label} is held by another process`, { cause: error });
+    }
+    throw toHostIoError(error, `failed to remove ${label}`);
+  }
+};
 
 const delay = (ms: number): Promise<void> =>
   new Promise(resolve => {
@@ -158,7 +184,8 @@ const toErrorResponse = (error: unknown): DesktopHostResponse => {
  * @returns host 实例
  */
 export function createElectronSqliteHost(options: ElectronSqliteHostOptions): ElectronSqliteHost {
-  const sessions = new Map<string, NodeSqliteEngine>();
+  /** 会话表；记下逻辑库名，删库时据此判断「还有没有人开着」。 */
+  const sessions = new Map<string, { readonly engine: NodeSqliteEngine; readonly databaseName: string }>();
 
   const deliver = (sessionId: string, event: SqliteChangeEvent): void => {
     try {
@@ -169,11 +196,11 @@ export function createElectronSqliteHost(options: ElectronSqliteHostOptions): El
   };
 
   const requireSession = (sessionId: string): NodeSqliteEngine => {
-    const engine = sessions.get(sessionId);
-    if (!engine) {
+    const session = sessions.get(sessionId);
+    if (!session) {
       throw new RxDBAdapterDesktopError('session_closed', `session ${sessionId} is not open on this host`);
     }
-    return engine;
+    return session.engine;
   };
 
   const resolvePath = (databaseName: string): string => {
@@ -196,7 +223,7 @@ export function createElectronSqliteHost(options: ElectronSqliteHostOptions): El
       cacheSizeKb: options.cacheSizeKb,
       batchTimeout: request.batchTimeout
     });
-    sessions.set(sessionId, engine);
+    sessions.set(sessionId, { engine, databaseName });
     return {
       kind: 'open',
       result: {
@@ -214,6 +241,36 @@ export function createElectronSqliteHost(options: ElectronSqliteHostOptions): El
     sessions.delete(sessionId);
     engine.close();
     return { kind: 'close' };
+  };
+
+  /**
+   * 删一个库文件及其日志旁文件（US-313：回收只读检出位的快照库）。
+   *
+   * @remarks
+   * 本 host 上还有会话开着同名库就报 `database_busy`，一个字节都不删：会话没关时 unlink 掉文件，POSIX 下
+   * 那条连接会对着一个已经不在目录里的 inode 继续写，写进去的东西随连接关闭凭空消失。库名按小写比：
+   * 白名单只有 ASCII，而 macOS 与 Windows 的默认文件系统不分大小写，`App.sqlite3` 与 `app.sqlite3` 是同一个文件。
+   * 别的进程开着同一个文件这里看不见——快照库由检出位的 Web Lock 独占，发起删库的一方手里正握着它。
+   *
+   * 先删旁文件、最后删库文件：中途失败时留下的是一个还能再删一次的库文件；反过来先删库文件，
+   * 留下的孤儿日志会在下一个同名库打开时被当成热日志回放进去，把新库写坏。
+   */
+  const drop = async (request: Extract<DesktopHostRequest, { kind: 'drop' }>): Promise<DesktopHostResponse> => {
+    const { databaseName } = request.storage;
+    const folded = databaseName.toLowerCase();
+    for (const session of sessions.values()) {
+      if (session.databaseName.toLowerCase() === folded) {
+        throw new RxDBAdapterDesktopError(
+          'database_busy',
+          `desktop database ${databaseName} is still open on this host`
+        );
+      }
+    }
+    const filePath = resolvePath(databaseName);
+    for (const suffix of DATABASE_SIDECAR_SUFFIXES) {
+      await removeDatabaseFile(`${filePath}${suffix}`, `${databaseName}${suffix}`);
+    }
+    return { kind: 'drop', result: { dropped: await removeDatabaseFile(filePath, databaseName) } };
   };
 
   /**
@@ -271,6 +328,8 @@ export function createElectronSqliteHost(options: ElectronSqliteHostOptions): El
         return { kind: 'mute' };
       case 'execute':
         return execute(request);
+      case 'drop':
+        return drop(request);
       default: {
         const _exhaustive: never = request;
         // 走到这里说明校验层放进了一个本模块不认识的种类，按协议违规回给调用方。
@@ -294,7 +353,7 @@ export function createElectronSqliteHost(options: ElectronSqliteHostOptions): El
       return sessions.size;
     },
     closeAll: (): void => {
-      for (const engine of sessions.values()) engine.close();
+      for (const { engine } of sessions.values()) engine.close();
       sessions.clear();
     }
   };

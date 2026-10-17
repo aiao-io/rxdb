@@ -3,10 +3,15 @@ import type {
   EntityType,
   IRepository,
   IRxDBAdapter,
+  LocalRxDBAdapter,
   RxDBBackupHeldLock,
   RxDBBackupOptions,
   RxDBBackupResult,
-  RxDBRestoreResult
+  RxDBRestoreResult,
+  TransactionExecutor,
+  WorktreeSnapshotCursor,
+  WorktreeSnapshotImport,
+  WorktreeSnapshotPage
 } from '@aiao/rxdb';
 import {
   ACTIVE_BRANCH_KEY,
@@ -115,12 +120,13 @@ import { remove_all_triggers_sql } from './table/remove_trigger_sql.js';
 import { generate_table_trigger_sql } from './table/trigger_sql.js';
 import { SqliteTransactionExecutor } from './transaction/SqliteTransactionExecutor.js';
 import { remove_entity_ids_from_cache, transaction_sqlite_result } from './transaction_sqlite_result.js';
-import { execute_switch_actions } from './version/execute_switch_actions.js';
+import { applySwitchActions, execute_switch_actions } from './version/execute_switch_actions.js';
 import { read_current_branch_id } from './version/read_current_branch_id.js';
 import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { switch_branch } from './version/switch_branch.js';
 import { switch_transaction_id } from './version/switch_transaction_id.js';
 import { type SqlExecutor, withTriggersDisabled } from './version/with_triggers_disabled.js';
+import { importSnapshotTable, readSnapshotPage } from './worktree/worktree-snapshot.js';
 export type { AdapterEncryptionFacade, SqliteBaseOptions, SqliteClientLike } from './sqlite-core.types.js';
 
 /**
@@ -452,6 +458,8 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   #keyring: Keyring | null = null;
   #encryption_facade?: AdapterEncryptionFacade;
   #lifecycle_state: AdapterLifecycleState = 'bootstrap';
+  /** 这条连接已 `PRAGMA query_only = 1`，见 {@link RxDBAdapterSqliteBase.sealWorktreeReadOnly}。 */
+  #read_only_sealed = false;
   /** 宿主版本门槛只查一次（`SELECT sqlite_version()` 一次连接查一次即可）。 */
   #sqlite_host_version_checked = false;
   #change_error_listeners = new Set<SqliteChangeErrorListener>();
@@ -531,6 +539,66 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
    */
   override isEncryptedAtRest(value: unknown): boolean {
     return isEnvelope(value);
+  }
+
+  /**
+   * 读一页存储形态的行（只读检出位建快照，US-313）。
+   *
+   * @param executor - 主库事务的执行器
+   * @param EntityType - 主实例上的实体类
+   * @param after - 上一页的游标；`null` 从头读
+   * @param limit - 本页最多几行
+   * @returns SQLite 原值的行，按 rowid 分页
+   */
+  override readWorktreeSnapshotPage(
+    executor: TransactionExecutor,
+    EntityType: EntityType,
+    after: WorktreeSnapshotCursor | null,
+    limit: number
+  ): Promise<WorktreeSnapshotPage> {
+    return readSnapshotPage(executor, EntityType, after, limit);
+  }
+
+  /**
+   * 把主库读出的行与增量写进本库（只读检出位建快照，US-313）。
+   *
+   * @param snapshot - 要复制的表与叠在上面的增量
+   * @throws {@link RxDBAdapterSqliteError} 本库装着捕获运行时
+   *
+   * @remarks
+   * 一个事务，不派发事件：快照实例的实体都是 `log: false`，没有变更日志可推出事件。
+   * 增量与切分支同一份 SQL 生成，只是加密列走信封直通。
+   */
+  override async importWorktreeSnapshot(snapshot: WorktreeSnapshotImport): Promise<void> {
+    if (this.workingTreeCaptureHook) {
+      throw new RxDBAdapterSqliteError('importWorktreeSnapshot: 装着捕获运行时的库不能导入快照，快照写不进受信写矩阵');
+    }
+    const switchAction = await convertSwitchResultToSql(this, snapshot.actions, { envelopePassthrough: true });
+    await this.transaction(async executor => {
+      for (const table of snapshot.tables) await importSnapshotTable(executor, table);
+      await applySwitchActions(executor, switchAction);
+    }, false);
+  }
+
+  /**
+   * 沿用主库适配器的密钥环（只读检出位，US-313）。
+   *
+   * @param source - 主库的 SQLite 系适配器
+   * @throws {@link RxDBAdapterSqliteError} `source` 不是 SQLite 系适配器
+   */
+  override adoptWorktreeEncryption(source: LocalRxDBAdapter): void {
+    if (!(source instanceof RxDBAdapterSqliteBase)) {
+      throw new RxDBAdapterSqliteError(`adoptWorktreeEncryption: 主库适配器 ${source.name} 不是 SQLite 系`);
+    }
+    this.#keyring = source.#keyring;
+  }
+
+  /**
+   * 把本库封成只读（只读检出位，US-313）：此后这条连接上的写语句被 SQLite 拒绝。
+   */
+  override async sealWorktreeReadOnly(): Promise<void> {
+    await this.transaction(executor => executor.execute('PRAGMA query_only = 1'), false);
+    this.#read_only_sealed = true;
   }
 
   /**
@@ -1253,6 +1321,19 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
   }
 
   /**
+   * `dropStorage()` 的前置守卫：还连着就拒绝（只读检出位回收快照库，US-313）。
+   *
+   * @throws {@link RxDBAdapterSqliteError} 适配器还连着
+   *
+   * @remarks
+   * `dropStorage()` 落在各个具体适配器上而不是这里：库落在哪（IndexedDB 库名、OPFS 文件名、宿主上的文件）
+   * 只有它们知道，基类实现一份会被 Tauri、小程序这些不知道怎么删的子类原样继承。
+   */
+  protected assertDisconnectedForDrop(): void {
+    if (this.#client_promise) throw new RxDBAdapterSqliteError('dropStorage: 适配器还连着，先断开再删库');
+  }
+
+  /**
    * 当前配置对应的备份存储后端，决定 {@link backup} / {@link restore} 能否使用以及恢复走哪条路径。
    *
    * @remarks
@@ -1741,7 +1822,8 @@ export abstract class RxDBAdapterSqliteBase extends RxDBAdapterLocalBase impleme
         log_commit = switch_transaction_id(this, currentBranchId);
       }
 
-      const beginSql = (await client.beginTransactionSql?.()) ?? 'BEGIN;';
+      // 封成只读之后（只读检出位，US-313）开延迟事务：`BEGIN IMMEDIATE` 要拿写锁，`query_only` 下连读事务都开不了
+      const beginSql = this.#read_only_sealed ? 'BEGIN;' : ((await client.beginTransactionSql?.()) ?? 'BEGIN;');
       await client.execute(beginSql);
       transactionMayBeActive = true;
       await client.execute('PRAGMA defer_foreign_keys = ON;');

@@ -28,6 +28,13 @@ import {
   type RxDBBranchSwitchPreconditions,
   type TransactionExecutor
 } from '@aiao/rxdb';
+import {
+  compare_branches,
+  preview_merge,
+  type BranchComparison,
+  type MergePreview,
+  type MergePreviewOptions
+} from './branch-compare.js';
 import { create_branch } from './create-branch.js';
 import { isIgnorableDetachedVersionEventError } from './detached-event-error.js';
 import { HistoryManager } from './HistoryManager.js';
@@ -42,7 +49,7 @@ import { getEarliestRecordAt, getRxDBChangeEventId } from './version-manager.uti
  * 版本管理器
  *
  * 负责管理数据库的分支、撤销/重做与版本历史：
- * - 分支管理（创建、删除、切换、合并）
+ * - 分支管理（创建、删除、切换、合并），以及不切换就对比两条分支、预览一次合并
  * - 撤销/重做操作（数据库级别）
  * - Redo 栈的自动失效（当有新操作时）
  *
@@ -410,6 +417,56 @@ export class VersionManager {
       this.rxdb.dispatchEvent(new MergeBranchFailedEvent(sourceBranchId, targetBranchId));
       throw error;
     }
+  }
+
+  /**
+   * 对比两条分支当前状态的实体差异，不切换 active 分支、不写库。
+   *
+   * @param fromBranchId - 起点分支
+   * @param toBranchId - 终点分支
+   * @returns 有差异的实体；两侧一样（含同一条分支）时 `entries` 为空数组
+   * @throws {@link RxDBError} 任一分支不存在时
+   *
+   * @remarks
+   * 条目的 `patch` 是终点上的值、`inversePatch` 是起点上的值，与工作树 `diff()` 同一个语义。
+   * 取值原样来自变更日志，不解码；`remoteId` 与审计时间这类簿记字段（`ENTITY_BOOKKEEPING_FIELDS`）不算差异。
+   *
+   * @example
+   * ```ts
+   * // feature 相对当前分支 main 改了什么
+   * const { entries } = await rxdb.versionManager.compareBranches('main', 'feature');
+   * for (const entry of entries) console.log(entry.operation, entry.entity, entry.entityId, entry.patch);
+   * ```
+   */
+  async compareBranches(fromBranchId: string, toBranchId: string): Promise<BranchComparison> {
+    return compare_branches(await this.getLocalRepositories(), fromBranchId, toBranchId);
+  }
+
+  /**
+   * 预览把一条分支合并进当前 active 分支会落什么，不写库。
+   *
+   * @param sourceBranchId - 源分支
+   * @param options - 见 {@link MergePreviewOptions}；只有策略会影响 `merged`
+   * @returns 合并会落的实体、与随后 {@link mergeBranch} 一致的 `merged` 计数，以及覆盖标注
+   * @throws {@link RxDBError} 没有 active 分支、合并进自己或源分支不存在时，与 {@link mergeBranch} 同一句报错
+   *
+   * @remarks
+   * 合并是单向覆盖：目标分支分叉以来改过的业务字段会被源分支的值盖掉，源删了的实体连同目标的修改一起没了，
+   * 目标删了的实体上的源分支更新会落空。每个条目的 `conflict` 标出这几种情形，见 {@link MergePreviewConflict}。
+   *
+   * @example
+   * ```ts
+   * const preview = await rxdb.versionManager.previewMerge('feature');
+   * const overwritten = preview.entries.filter(entry => entry.conflict !== null);
+   * if (overwritten.length === 0) await rxdb.versionManager.mergeBranch('feature');
+   * ```
+   */
+  async previewMerge(sourceBranchId: string, options?: MergePreviewOptions): Promise<MergePreview> {
+    const currentBranch = await this.getCurrentBranch();
+    if (!currentBranch) {
+      throw new RxDBError('No active branch found');
+    }
+    return preview_merge(await this.getLocalRepositories(), sourceBranchId, currentBranch.id, options);
   }
 
   /**

@@ -5,7 +5,7 @@ status: Done
 priority: Medium
 epic: epic-004-future-features
 created: 2026-09-18
-updated: 2026-10-06
+updated: 2026-10-15
 tags: [future, replay, debugging, e2e, playwright-trace, working-tree, rrweb]
 ---
 
@@ -79,7 +79,7 @@ INVEST 检查清单:
    （按 spec 源码判断）。`dev-rxdb-angular` 的 working-tree 页已有 `listCommits` + `restore`、提交与整棵工作树 `discard()` 的界面
    （`working-tree.page.ts`，e2e `working-tree.spec.ts` 覆盖），导入归档后查看未提交条目、在 commit 之间来回不需要新界面。
 6. **同一个库里的新实体默认进版本化域**：[`versioned-domain.ts`](../../../packages/rxdb-plugin-working-tree/src/working-tree/versioned-domain.ts)
-   默认 tracked，untracked 只有三类，新增第四类须先改 [epic-006](../../epics/epic-006-working-tree-commits.md)「版本化域」
+   默认 tracked，untracked 只有 [epic-006](../../epics/epic-006-working-tree-commits.md)「版本化域」列出的几类，新增一类须先改该节
    （硬规则）。录制事件若作为普通实体写进启用了 working-tree 的库，每条事件都是一条未提交条目。插件可在 `connect()`
    之前经 `registerSystemEntities()`（[`system-entities.ts`](../../../packages/rxdb/src/system/system-entities.ts)）追加系统表，
    捕获按目标类别 `system` 跳过，working-tree 自己的十张表就走这条（读源码，未实测）。

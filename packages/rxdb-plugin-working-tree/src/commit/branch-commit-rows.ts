@@ -393,11 +393,11 @@ const readStagePages = async (
  *
  * @remarks
  * 与 {@link writeNewBranchCommitRows} 严格对称：一条分支在本能力里占了哪几张表，只有这一个
- * 模块知道。加第十一张表时要改的也只有这里与建行那一半——分散到 `remove-branch.ts` 去写的话，
+ * 模块知道。再加一张归分支所有的表时，要改的也只有这里与建行那一半——分散到 `remove-branch.ts` 去写的话，
  * `rxdb-plugin-history` 就得认识 `WorkingTreeEntry`，而那个方向的 import 是条依赖环
  * （nx 的图插件把静态 import 直接映射成依赖边）。
  *
- * **十张表里删六张，另外四张逐张都有不删的理由：**
+ * **十一张表里删六张，另外五张逐张都有不删的理由：**
  *
  * - `Commit` / `CommitChangeSet`：FR-044 明文要求保留。两张表上都**没有** `branchId` 列
  *   （可达性走 ref），所以「删干净这条分支」一旦被理解成「删掉它能看见的一切」，
@@ -405,6 +405,8 @@ const readStagePages = async (
  *   还写着原来的数，图校验从此永久报损坏。
  * - `WorkingTreeActivationState` / `CommitCapabilityState`：全库单例，不属于任何分支。
  *   跟着分支一起删掉之后，此后每一次 CAS 都取不到期望值，整个库再也提交不了。
+ * - `Worktree`：只读检出位是建立时刻的一份快照，分支删了它照样打得开；登记行跟着删，
+ *   它的快照库就成了没人认领的库（US-313）。
  *
  * **代际单调源一个数都不动。** 删一条分支就把 `branchGenerationSeq` 减回去看起来非常合理
  * ——号又空出来了。代价正是 §2.5 要治的 ABA：同名重建拿回同一个代际，持旧

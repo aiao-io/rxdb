@@ -42,7 +42,8 @@ import { computed, signal, Signal } from '@angular/core';
  * 本包**不重定义**（tri-framework-api.md §1）。
  *
  * 三端等价实现：React `useWorkingTree()`（渲染快照）、Vue `useWorkingTree()`
- * （`ComputedRef`），字段名、方法名与语义完全一致，只是容器形态不同。
+ * （`ComputedRef`），字段名、方法名与语义完全一致，只是容器形态不同。入口绑定创建时注入的库：
+ * 注入器里的库不会换，换库就是重建组件（React 版在 Provider 换库时自己回到初态）。
  *
  * `restore()` 的四个被拒成因走**返回值**而不是异常，`restoreState` 因此也**没有 empty**：
  * 「被拒」与「一条都没恢复」都是结果，不是「没有结果」。`restoreSessionState` 的空则只有一个

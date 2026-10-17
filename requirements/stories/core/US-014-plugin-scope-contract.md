@@ -5,7 +5,7 @@ status: Done
 priority: High
 epic: epic-008-lifecycle-scope
 created: 2026-08-15
-updated: 2026-10-06
+updated: 2026-10-15
 tags: [lifecycle, plugin, public-api, breaking-candidate]
 ---
 
@@ -58,7 +58,7 @@ graph 的 `install(scope)` 把注册挂进作用域（[plugin.ts:22-38](../../..
 
 **其三，workspace 的终态标志挡住了重连。** 改造前 `#destroyed` 是终态标志、从不复位，
 `readonly #indexedDBStore!: WorkspaceStore` 构造器之后**在类型上就无法重新赋值**。
-现在终态标志被作用域状态取代（[RxDBPluginWorkspace.ts:177-183](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L177-L183) 的注释与字段声明），
+现在终态标志被作用域状态取代（[RxDBPluginWorkspace.ts:173-179](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L173-L179) 的注释与字段声明），
 `destroy()` 只是 `#scope?.dispose()`、不再是终态（见 [`RxDBPluginWorkspace.destroy()`](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts)）。
 
 这三条的共同形状是同一个：**资源的获取点与释放点寿命不同**。它也是本故事的必要性来源——
@@ -397,7 +397,7 @@ D7 的第二条判据「改写了宿主的都必须移进 `install(scope)`」写
 
 前两行按 D7 原文都该搬进 `install(scope)`，但它们是 `configurable: false`，作用域释放时
 `Reflect.deleteProperty` 直接失败；而且搬进去之后第二个纪元重装会撞上
-[workspace:271-272](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L271-L272) 与
+[workspace:267-268](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L267-L268) 与
 [`searchPlugin`](../../../packages/rxdb-plugin-search/src/plugin.ts) 的
 「already installed」守卫——AC#2 的重连断言会直接变红。
 
@@ -427,7 +427,7 @@ D7 的第二条判据「改写了宿主的都必须移进 `install(scope)`」写
 #### D9 — 跨纪元存活的公开 Observable（`workspace.changes$`）
 
 D7 第 4 条要求「终态销毁的服务每纪元新建」，但 workspace 的
-[`readonly changes$ = this.#changes.asObservable()`](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L228)
+[`readonly changes$ = this.#changes.asObservable()`](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L224)
 是**公开 API**，改造前 `destroy()` 会 `#changes.complete()`（那两行已删，见 AC#11c）。
 若照 D7 第 4 条把 `#changes` 每纪元新建，**断连前拿到 `changes$` 的订阅者会永久停在一条已 complete 的流上**——
 应用层看不到任何错误，只是重连后再也收不到变更。这正是本 Epic 要消灭的那类静默失效。
@@ -462,7 +462,7 @@ D7 第 4 条要求「终态销毁的服务每纪元新建」，但 workspace 的
   本故事只要求把**副作用清单**部分交给作用域（AC#10），安装态语义的收敛留给 [US-015](./US-015-plugin-inject-dependency.md) 阶段 A。
   该枚举已随 US-015 阶段 A 删除，[`ready`](../../../packages/rxdb-plugin-search/src/plugin.ts) 的对外语义见 US-015 AC#12（连接纪元 deferred）
 - 但**终态标志必须删**（D8 判据其四 + AC#11b）：workspace 的 `#destroyed`
-  （删除由 [RxDBPluginWorkspace.ts:177](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L177) 的注释留证）表达的是
+  （删除由 [RxDBPluginWorkspace.ts:173](../../../packages/rxdb-plugin-workspace/src/RxDBPluginWorkspace.ts#L173) 的注释留证）表达的是
   「这个实例永远死了」，而实例现在要跨纪元存活。守卫改写为「当前纪元有没有活着的作用域」——
   由宿主传入 / 由 `install(scope)` 时记下的纪元状态回答，不再由插件自己记一个不可逆的布尔
 - workspace 的 `#task` / `#changes` 两个 Subject 归**实例**所有，作用域释放只 `unsubscribe()`

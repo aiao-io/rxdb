@@ -13,6 +13,7 @@ import { EncryptedUser } from '@aiao/rxdb-test/encrypted';
 import { Article, Comment, ENTITIES } from '@aiao/rxdb-test/entities';
 import { ENTITIES as shop_entities } from '@aiao/rxdb-test/shop';
 import { checkOPFSAvailable } from '@aiao/utils';
+import { connectLocalAdapter } from './db-connection';
 import { seedSearchParityData } from './search-parity-seed.js';
 
 let rxdb: RxDB | null | undefined;
@@ -74,6 +75,8 @@ export default () => {
   rxdb.use(rxDBPluginSearch, SEARCH_PLUGIN_CONFIG);
 
   rxdb.init();
+  // 启动时就连一次：连不上的原因经 connectLocalAdapter 登记、由应用壳显示，这里只防未处理的拒绝。
+  void connectLocalAdapter(rxdb).catch(() => undefined);
   // 空库在应用启动时自动初始化工作树；已有内容的库保持未启用，由 /working-tree 面板显式点击。
   // `enableIfEmpty()` 自会解析 localAdapter$（连接就绪后生效），这里 fire-and-forget 即可。
   if (typeof window !== 'undefined' && window.localStorage.getItem(WORKING_TREE_AUTO_ENABLE_SKIP_KEY) === null) {

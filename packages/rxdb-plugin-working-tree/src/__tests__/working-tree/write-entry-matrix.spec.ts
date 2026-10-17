@@ -119,9 +119,9 @@ describe('行 1 — 普通 CRUD / 显式事务 / Workspace 草稿 save()', () =>
   matrixCase(MATRIX_ROW.crud, '同一个入口写 QueryCache 实体 → 不进工作树', () => {
     // 入口身份没变，只是目标类变了。判定要是按调用方分派，这一条就得靠调用点自己判断——
     // 于是每个挂载点都得抄一遍 QueryCache 清单。
-    expect(classifyWriteEntrance(request({ entrance: 'crud', targetClass: 'query_cache' }))).toEqual({
+    expect(classifyWriteEntrance(request({ entrance: 'crud', targetClass: 'untracked' }))).toEqual({
       kind: 'no_capture',
-      reason: 'query_cache',
+      reason: 'untracked_target',
       revisionBump: false
     });
   });
@@ -294,13 +294,11 @@ describe('行 7 — metadata-only 目标分支的远端预取', () => {
 
 describe('行 8 — QueryCache 的 upsert/delete/孤儿清理与离线出站重放', () => {
   matrixCase(MATRIX_ROW.queryCache, 'QueryCache 维护 → 放行，且不进 baseline/status/diff/commit', () => {
-    expect(classifyWriteEntrance(request({ entrance: 'query_cache_maintenance', targetClass: 'query_cache' }))).toEqual(
-      {
-        kind: 'no_capture',
-        reason: 'query_cache',
-        revisionBump: false
-      }
-    );
+    expect(classifyWriteEntrance(request({ entrance: 'query_cache_maintenance', targetClass: 'untracked' }))).toEqual({
+      kind: 'no_capture',
+      reason: 'untracked_target',
+      revisionBump: false
+    });
   });
 
   matrixCase(MATRIX_ROW.queryCache, '缓存维护路径碰到版本化实体表 → 拒绝', () => {
@@ -358,9 +356,9 @@ describe('行 10 — upsertMany() / deleteByIds() 等 adapter 公开批量写方
   });
 
   matrixCase(MATRIX_ROW.bulkWrite, '目标是 QueryCache 实体表 → 放行', () => {
-    expect(classifyWriteEntrance(request({ entrance: 'bulk_write', targetClass: 'query_cache' }))).toEqual({
+    expect(classifyWriteEntrance(request({ entrance: 'bulk_write', targetClass: 'untracked' }))).toEqual({
       kind: 'no_capture',
-      reason: 'query_cache',
+      reason: 'untracked_target',
       revisionBump: false
     });
   });
@@ -378,9 +376,9 @@ describe('行 11 — EntityManager.notifyExternalUpdate()', () => {
   });
 
   matrixCase(MATRIX_ROW.notifyExternalUpdate, '对 QueryCache 实体行为不变', () => {
-    expect(classifyWriteEntrance(request({ entrance: 'notify_external_update', targetClass: 'query_cache' }))).toEqual({
+    expect(classifyWriteEntrance(request({ entrance: 'notify_external_update', targetClass: 'untracked' }))).toEqual({
       kind: 'no_capture',
-      reason: 'query_cache',
+      reason: 'untracked_target',
       revisionBump: false
     });
   });
@@ -424,13 +422,13 @@ describe('未知入口默认拒绝', () => {
   it('未登记的入口写 QueryCache → 放行', () => {
     // fail-closed 的保护对象是版本化业务表。把 QueryCache 一并拒了，等于让所有未登记的缓存维护
     // 路径开始报错，而缓存里没有任何需要保护的东西。
-    expect(classifyWriteEntrance(request({ entrance: 'unknown', targetClass: 'query_cache' })).kind).toBe('no_capture');
+    expect(classifyWriteEntrance(request({ entrance: 'unknown', targetClass: 'untracked' })).kind).toBe('no_capture');
   });
 
   it('`unknown` 本身在入口登记表里，且登记表无重复', () => {
     expect(WRITE_ENTRANCES).toContain('unknown');
     expect(new Set(WRITE_ENTRANCES).size).toBe(WRITE_ENTRANCES.length);
-    expect(new Set(WRITE_TARGET_CLASSES)).toEqual(new Set(['versioned', 'query_cache', 'system']));
+    expect(new Set(WRITE_TARGET_CLASSES)).toEqual(new Set(['versioned', 'untracked', 'system']));
   });
 });
 

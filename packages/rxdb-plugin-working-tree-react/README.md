@@ -53,13 +53,34 @@ export function CommitBar() {
 （`Readonly<WorkingTreeAsyncStates>`），可以直接解构；十个方法**引用稳定**，可以安全放进
 `useEffect` / `useMemo` 的依赖数组。
 
+## 只读检出位：`useWorktrees()`
+
+`useWorktrees()` 是工作树插件 `db.workingTree.checkouts` 的入口（US-313）：四格状态 `listState` / `openState` /
+`attachState` / `pruneState`，命令 `list()` / `open()` / `attach()` / `prune()`，签名与插件上的同名方法一致。
+打开、再打开、回收之后，以及视图的 `close()` / `release()` / `refresh()` 之后，都会顺带重读登记表；同一格后发的请求胜出。
+`useWorktrees()` 要在嵌套的 Provider **之外**调用：快照实例没装工作树插件。
+
+打开得到的视图把 `view.rxdb` 交给嵌套的 `RxDBProvider`，里面的查询 hook 与 rxdb-model 的实体列表照用：
+
+```tsx
+const worktrees = useWorktrees();
+const view = await worktrees.open({ branchId: 'feature' });
+return <RxDBProvider db={view.rxdb}>{children}</RxDBProvider>;
+```
+
+用完 `view.close()`：断开只读实例、删快照库与登记。
+
 ## 三端对称
 
 Angular [`@aiao/rxdb-plugin-working-tree-angular`](../rxdb-plugin-working-tree-angular) /
 React `@aiao/rxdb-plugin-working-tree-react`（本包） /
 Vue [`@aiao/rxdb-plugin-working-tree-vue`](../rxdb-plugin-working-tree-vue) 的
-`useWorkingTree()` **同名、同字段、同方法签名**，只有状态容器形态不同（`Signal` / 渲染快照 / `ComputedRef`）。
+`useWorkingTree()` 与 `useWorktrees()` **同名、同字段、同方法签名**，只有状态容器形态不同（`Signal` / 渲染快照 / `ComputedRef`）。
 三个包各自的 spec 结尾都带一段 `tri-framework-api.md §3 清单守卫`，任一端加减成员都会红。
+
+唯一随框架而异的是**换库**：React 每次 render 重新取库，`RxDBProvider` 换了 `db` 时两个 hook 都回到初态、
+旧库迟到的结果丢弃；Angular 注入器里的库不会换，换库就是重建组件；Vue 在 `setup()` 里取一次库，
+`provideRxDB()` 的源换了库时入口仍指着旧库，要跟着换就给用它的组件加 `:key`，让它随库重建。
 
 ## 行为约定（三端一致）
 

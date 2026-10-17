@@ -3,13 +3,18 @@ import type {
   EntityType,
   IRepository,
   IRxDBAdapter,
+  LocalRxDBAdapter,
   RawQueryResult,
   RestoreEntityOptions,
   RxDBBackupOptions,
   RxDBBackupResult,
   RxDBMutationsMap,
   SwitchBranchOptions,
-  SwitchVersionActions
+  SwitchVersionActions,
+  TransactionExecutor,
+  WorktreeSnapshotCursor,
+  WorktreeSnapshotImport,
+  WorktreeSnapshotPage
 } from '@aiao/rxdb';
 import {
   gateRawWrite,
@@ -38,6 +43,12 @@ import type { QueryOptions, Results } from '@electric-sql/pglite';
 import { defer, from, map, Observable, of, Subject } from 'rxjs';
 import { pgliteBackupExtensions, resolvePGliteBackupStorage } from './backup/pglite-backup-compat.js';
 import { writePGliteBackup } from './backup/pglite-backup.js';
+import { pgliteIdbDatabaseName } from './backup/pglite-restore-fs.js';
+import {
+  countPGliteStorageHolders,
+  deleteIdbDatabase,
+  deletePGliteStorageBookkeeping
+} from './backup/pglite-restore-lock.js';
 import {
   type ChangePipelineHost,
   drainPendingChangeHandlers,
@@ -71,12 +82,13 @@ import { create_table_indexes_sql } from './table/create_table_sql.js';
 import { create_tables_statements } from './table/create_tables_sql.js';
 import { generateNotifyInfrastructureSQL, generateNotifyTriggerSQL } from './table/notify_function_sql.js';
 import { PGliteTransactionExecutor } from './transaction/PGliteTransactionExecutor.js';
-import { execute_switch_actions } from './version/execute_switch_actions.js';
+import { applySwitchActions, execute_switch_actions } from './version/execute_switch_actions.js';
 import { executeSwitchStatements } from './version/execute_switch_statements.js';
 import { readBranchIdForNewTables } from './version/read_current_branch_id.js';
 import { convertSwitchResultToSql } from './version/switch-result.utils.js';
 import { generateBranchTriggerSqlFor, switch_branch } from './version/switch_branch.js';
 import rxdb_adapter_switch_transaction_id from './version/switch_transaction_id.js';
+import { importSnapshotTable, readSnapshotPage } from './worktree/worktree-snapshot.js';
 
 /**
  * 适配器生命周期状态。
@@ -87,6 +99,15 @@ import rxdb_adapter_switch_transaction_id from './version/switch_transaction_id.
  * `RxDB.connect()` 建表完成后调 {@link RxDBAdapterPGlite.completeBootstrap} 翻到 `ready`。
  */
 type AdapterLifecycleState = 'bootstrap' | 'ready' | 'closing' | 'closed';
+
+/**
+ * `dropStorage()` 删得掉的数据目录：内存与 `idb://`。
+ *
+ * @remarks
+ * 位置不由库名推导的存储（`opfs-ahp://`、文件目录）不知道该删哪里。
+ */
+const isDroppableDataDir = (dataDir: string | undefined): boolean =>
+  dataDir === undefined || dataDir === 'memory://' || dataDir.startsWith('idb://');
 
 /**
  * 一组同类型实体在 {@link RxDBAdapterPGlite.saveMany} 那条多行 UPSERT 里的行序。
@@ -168,6 +189,9 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
   #notifyInfrastructureReady = false;
   #lifecycle_state: AdapterLifecycleState = 'bootstrap';
 
+  /** 已封成只读，此后每个事务都以只读事务开头；见 {@link RxDBAdapterPGlite.sealWorktreeReadOnly}。 */
+  #read_only_sealed = false;
+
   /** 加密 keyring（仅当至少一个 entity 声明加密列时初始化） */
   #keyring: Keyring | null = null;
 
@@ -230,6 +254,106 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
    */
   override isEncryptedAtRest(value: unknown): boolean {
     return isEnvelope(value);
+  }
+
+  /**
+   * 读一页存储形态的行（只读检出位建快照，US-313）。
+   *
+   * @param executor - 主库事务的执行器
+   * @param EntityType - 主实例上的实体类
+   * @param after - 上一页的游标；`null` 从头读
+   * @param limit - 本页最多几行
+   * @returns `to_jsonb` 文本的行，按主键分页
+   */
+  override readWorktreeSnapshotPage(
+    executor: TransactionExecutor,
+    EntityType: EntityType,
+    after: WorktreeSnapshotCursor | null,
+    limit: number
+  ): Promise<WorktreeSnapshotPage> {
+    return readSnapshotPage(executor, EntityType, after, limit);
+  }
+
+  /**
+   * 把主库读出的行与增量写进本库（只读检出位建快照，US-313）。
+   *
+   * @param snapshot - 要复制的表与叠在上面的增量
+   * @throws {@link RxdbAdapterPGliteError} 本库装着捕获运行时
+   *
+   * @remarks
+   * 一个事务，不派发事件：快照实例的实体都是 `log: false`，没有变更日志可推出事件。
+   * 增量与切分支同一份 SQL 生成，只是加密列走信封直通。
+   */
+  override async importWorktreeSnapshot(snapshot: WorktreeSnapshotImport): Promise<void> {
+    if (this.workingTreeCaptureHook) {
+      throw new RxdbAdapterPGliteError('importWorktreeSnapshot: 装着捕获运行时的库不能导入快照，快照写不进受信写矩阵');
+    }
+    const switchAction = await convertSwitchResultToSql(this, snapshot.actions, { envelopePassthrough: true });
+    await this.transaction(async executor => {
+      for (const table of snapshot.tables) await importSnapshotTable(executor, table);
+      await applySwitchActions((executor as PGliteTransactionExecutor).adapter, switchAction);
+    }, false);
+  }
+
+  /**
+   * 沿用主库适配器的密钥环（只读检出位，US-313）。
+   *
+   * @param source - 主库的 PGlite 适配器
+   * @throws {@link RxdbAdapterPGliteError} `source` 不是 PGlite 适配器
+   */
+  override adoptWorktreeEncryption(source: LocalRxDBAdapter): void {
+    if (!(source instanceof RxDBAdapterPGlite)) {
+      throw new RxdbAdapterPGliteError(`adoptWorktreeEncryption: 主库适配器 ${source.name} 不是 PGlite`);
+    }
+    this.#keyring = source.#keyring;
+  }
+
+  /**
+   * 按当前数据目录，`dropStorage()` 删不删得掉本库（只读检出位建快照库之前问一次，US-313）。
+   *
+   * @returns 内存与 `idb://` 为 `true`；其余数据目录为 `false`
+   */
+  override canDropStorage(): boolean {
+    return isDroppableDataDir(resolvePGliteInitOptions(this.rxdb.config.dbName, this.options).dataDir);
+  }
+
+  /**
+   * 删掉本库的持久存储（只读检出位回收快照库，US-313）。
+   *
+   * @throws {@link RxdbAdapterPGliteError} 还连着、存储正被别的上下文持有，或存储不是 `memory` / `idb://`
+   *
+   * @remarks
+   * 内存库断开即无，什么都不做。`idb://` 删 IndexedDB 库 `/pglite/<库名>`，再删标记库里这个存储的恢复标记与
+   * 世代计数——库删了、簿记留着，同名重建的库会被当成「有人恢复到一半」。断开时客户端已亲手关掉 IdbFs
+   * 那条连接（见 `idbConnectionOf`），这里的 `deleteDatabase` 才不会卡在 `blocked`。
+   * 位置不由库名推导的存储（`opfs-ahp://`、文件目录）不知道该删哪里，报不支持。
+   */
+  override async dropStorage(): Promise<void> {
+    if (this.#client_promise) throw new RxdbAdapterPGliteError('dropStorage: 适配器还连着，先断开再删库');
+    const { dataDir } = resolvePGliteInitOptions(this.rxdb.config.dbName, this.options);
+    if (!isDroppableDataDir(dataDir)) {
+      throw new RxdbAdapterPGliteError(`dropStorage: 不支持删除存储 ${dataDir}，只支持 memory 与 idb://`);
+    }
+    if (dataDir === undefined || dataDir === 'memory://') return;
+    if ((await countPGliteStorageHolders(dataDir)) > 0) {
+      throw new RxdbAdapterPGliteError(`dropStorage: 存储 ${dataDir} 正被别的上下文打开着`);
+    }
+    await deleteIdbDatabase(pgliteIdbDatabaseName(dataDir.slice('idb://'.length)));
+    await deletePGliteStorageBookkeeping(dataDir);
+  }
+
+  /**
+   * 把本库封成只读（只读检出位，US-313）：此后每个事务都是只读事务，写语句被 Postgres 拒绝。
+   *
+   * @remarks
+   * 会话默认值管不住本适配器开的事务：`SELECT set_config('default_transaction_read_only', 'off', false)`
+   * 是一条读语句，过得了只读钩子的 raw 门，执行之后新开的事务就是可写的。所以封印之后每个事务开头都
+   * `SET TRANSACTION READ ONLY`：事务执行过查询之后就改不回可写，`set_config('transaction_read_only', …)`
+   * 写在 `SELECT` 里因此当场报错。会话默认值留着，管的是不经事务的内部查询。
+   */
+  override async sealWorktreeReadOnly(): Promise<void> {
+    await this.transaction(executor => executor.query('SET SESSION default_transaction_read_only = on'), false);
+    this.#read_only_sealed = true;
   }
 
   /** QueryCache：id → updatedAt。物理定位经 `resolveQueryCacheTarget`（PGL-012）。 */
@@ -843,6 +967,9 @@ export class RxDBAdapterPGlite extends RxDBAdapterLocalBase implements IRxDBAdap
     const runTransaction = (): Promise<unknown> =>
       client.transaction(async tx => {
         executor = new PGliteTransactionExecutor(this, tx, transactionId ?? crypto.randomUUID());
+
+        // 只读检出位的快照库：事务级只读，事务里的语句改不掉它（见 sealWorktreeReadOnly）
+        if (this.#read_only_sealed) await tx.query('SET TRANSACTION READ ONLY');
 
         // 延迟外键约束检查到事务提交时
         await tx.query('SET CONSTRAINTS ALL DEFERRED');

@@ -3,7 +3,7 @@
  * 工作空间插件核心实现，为尚未入库的 NEW 实体草稿提供缓存、持久化与恢复能力
  *
  * 工作原理：
- * - 监听实体本地事件：NEW 缓存草稿，CREATE / REMOVE 清理草稿
+ * - 监听实体本地事件：NEW 缓存草稿，CREATE / REMOVE 清理草稿；系统表与关闭变更日志（`log: false`）的实体不收
  * - 草稿写入 IndexedDB（`idb-keyval`），`install()` 时自动恢复
  * - 通过 BroadcastChannel 在同源标签页之间同步草稿增删
  * - 支持 autoSave 自动刷盘与 `flush()` 显式写入屏障
@@ -19,15 +19,11 @@ import {
   EntityLocalCreatedEvent,
   EntityLocalNewEvent,
   EntityLocalRemovedEvent,
-  getEntityMetadata,
+  getSystemEntityIdentities,
   IRxDBPlugin,
   Plugin,
-  RxDBBranch,
-  RxDBChange,
   RxDBEntityLocalEventData,
-  RxDBMigration,
   RxDBPluginBase,
-  RxDBSync,
   tryGetEntityStatus
 } from '@aiao/rxdb';
 import type { LifecycleScope, ScopeDisposer } from '@aiao/utils';
@@ -48,23 +44,23 @@ type WorkspaceSyncMessage =
 /** 插件监听的三类实体本地事件；登记与摘除必须走同一份清单，少一条就是泄漏。 */
 const ENTITY_EVENT_TYPES = [ENTITY_LOCAL_NEW_EVENT, ENTITY_LOCAL_REMOVE_EVENT, ENTITY_LOCAL_CREATE_EVENT] as const;
 
-const SYSTEM_ENTITY_IDENTITIES = new Set(
-  [RxDBBranch, RxDBChange, RxDBMigration, RxDBSync].map(EntityType => {
-    const { namespace, name } = getEntityMetadata(EntityType);
-    return `${namespace}:${name}`;
-  })
-);
-
-const isSystemEntityIdentity = (namespace: string, entity: string): boolean =>
-  SYSTEM_ENTITY_IDENTITIES.has(`${namespace}:${entity}`);
-
-const isLegacySystemEntry = (key: IDBValidKey, data: unknown): boolean => {
-  if (typeof key !== 'string' || typeof data !== 'object' || data === null || Array.isArray(data)) return false;
+/**
+ * 一条存量记录的实体身份；只认身份自洽的记录
+ *
+ * @param key - IndexedDB 里的键
+ * @param data - 键下的值
+ * @returns 键恰为 `${namespace}:${entity}:${data.id}` 时交出 `namespace` / `entity`，否则 `undefined`
+ *
+ * @remarks
+ * 键尾按记录里的 `id` 整段比对，不按 `:` 切：系统表的主键可以带冒号（`rxdb:RxDBSync:public:Todo:main`）。
+ * 对不上的记录可能只是撞了形，留给解码登记成坏记录，不当作可删的存量。
+ */
+const selfConsistentIdentity = (key: IDBValidKey, data: unknown): { namespace: string; entity: string } | undefined => {
+  if (typeof key !== 'string' || typeof data !== 'object' || data === null || Array.isArray(data)) return undefined;
+  const [namespace, entity] = key.split(':', 2);
+  if (!namespace || !entity) return undefined;
   const storedId = String((data as Record<string, unknown>)['id']);
-  return Array.from(SYSTEM_ENTITY_IDENTITIES).some(identity => {
-    const prefix = `${identity}:`;
-    return key.startsWith(prefix) && key.slice(prefix.length) === storedId;
-  });
+  return key === `${namespace}:${entity}:${storedId}` ? { namespace, entity } : undefined;
 };
 
 /**
@@ -547,9 +543,15 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
     // 那时的草稿归新纪元的 `install()` 恢复，不该由这一轮补写。
     if (this.#indexedDBStore !== store) return;
 
-    const legacySystemKeys = stored.filter(([key, data]) => isLegacySystemEntry(key, data)).map(([key]) => key);
-    if (legacySystemKeys.length > 0) {
-      await delMany(legacySystemKeys, store);
+    // 不收的实体（见 #accepts）留下的存量：旧版本漏判时写进来的，读到就删。
+    const excludedKeys = stored
+      .filter(([key, data]) => {
+        const identity = selfConsistentIdentity(key, data);
+        return identity !== undefined && !this.#accepts(identity.namespace, identity.entity);
+      })
+      .map(([key]) => key);
+    if (excludedKeys.length > 0) {
+      await delMany(excludedKeys, store);
       if (this.#indexedDBStore !== store) return;
     }
 
@@ -563,7 +565,7 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
 
     try {
       for (const [key, data] of stored) {
-        if (legacySystemKeys.includes(key)) continue;
+        if (excludedKeys.includes(key)) continue;
         const decoded = decodeWorkspaceEntry(key, data);
         if (!decoded.ok) {
           corruptedEntries.push({ key, reason: decoded.reason });
@@ -630,6 +632,29 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
       throw reason;
     }
   }
+  /**
+   * 草稿缓存收不收这个实体的草稿
+   *
+   * @param namespace - 实体命名空间
+   * @param entity - 实体名
+   * @returns 收则为 `true`
+   *
+   * @remarks
+   * 两类不收，本地 NEW、跨标签页的 `add` 与启动恢复都问这一处：
+   *
+   * - **系统表**：库自己的簿记，不是用户编辑。每次都读 `getSystemEntityIdentities()` 的活登记——插件贡献的
+   *   系统表在 `use()` 时才登记，模块加载期算一份快照会把它们全部漏掉（工作树插件的系统表就是这样在每次启用、
+   *   捕获、提交时都留下草稿）。
+   * - **关闭变更日志（`log: false`）的实体**：实体的 CREATE / REMOVE 事件只从变更日志派生，这类实体保存与删除
+   *   一个事件也不发，草稿在这里永远等不到收尾（storage 的 `StorageFileMeta` 每上传一次就留一条）。
+   *
+   * schema 里查不到的实体照收：跨标签页送来、本标签页没登记的实体，一直按未知实体保留。
+   */
+  #accepts(namespace: string, entity: string): boolean {
+    if (getSystemEntityIdentities().has(`${namespace}:${entity}`)) return false;
+    return this.rxdb.schemaManager.getEntityMetadata(entity, namespace)?.log !== false;
+  }
+
   #entityEventHandler = (event: EntityLocalCreatedEvent | EntityLocalRemovedEvent | EntityLocalNewEvent) => {
     const { entities } = event;
     entities.forEach(data => {
@@ -637,7 +662,7 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
         return;
       }
 
-      if (isSystemEntityIdentity(data.namespace, data.entity)) return;
+      if (!this.#accepts(data.namespace, data.entity)) return;
 
       const cacheId = get_cache_id(data);
       if (!parseWorkspaceCacheId(cacheId).ok) return;
@@ -695,6 +720,8 @@ export class RxDBPluginWorkspace extends RxDBPluginBase implements IRxDBPlugin {
     const EntityType = this.rxdb.schemaManager.getEntityType(entity, namespace);
 
     if (msg.type === 'add') {
+      // 旧版本的标签页会照旧广播不收的实体；入站与本地 NEW 同一个判定。
+      if (!this.#accepts(namespace, entity)) return;
       this.#unbindDraft(msg.cacheId);
       let draft: Record<string, unknown> = msg.data;
       if (EntityType) {

@@ -8,6 +8,7 @@ import AppToast from './components/AppToast.vue';
 import LoadingBar from './components/LoadingBar.vue';
 import { useAppService } from './composables/useAppService';
 import { useTheme } from './composables/useTheme';
+import DbConnectionAlert from './components/DbConnectionAlert.vue';
 import setup_rxdb from './rxdb/setup_rxdb_sqlite-wasm';
 
 const db = setup_rxdb();
@@ -65,6 +66,7 @@ router.onError(() => {
         class="flex min-h-0 flex-1 flex-col overflow-auto"
         id="layout-content"
       >
+        <DbConnectionAlert />
         <RouterView />
       </div>
     </div>
