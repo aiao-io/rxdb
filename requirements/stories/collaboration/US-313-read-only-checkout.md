@@ -5,7 +5,7 @@ status: In Review
 priority: Medium
 epic: epic-006-working-tree-commits
 created: 2026-10-16
-updated: 2026-10-16
+updated: 2026-10-17
 tags: [collaboration, branch, checkout, history, tri-framework]
 ---
 
@@ -56,10 +56,11 @@ epic-006 多检出位[场景二](../../epics/epic-006-working-tree-commits.md#�
 - **生命周期与回收**：显式关闭即删快照库与登记；标签页会话归属的检出位在会话消失后可回收；启动时清理孤儿（设计指点 8，对应 `git worktree prune`）。
   删库能力（`dropStorage`）在首批六个后端都新增：仓库里今天没有任何删库 API
 - **三端绑定**：Angular / React / Vue 同名同 API（设计指点 13）
-- **demo**：分支行与历史行菜单「Open read-only」打开只读视图；视图里有只读横幅，storage 的文件标注「不随版本」
 
 ### Out of Scope
 
+- 三端 demo 的入口：demo 的工作树页对齐 GitHub Desktop，它没有「只读打开」这类操作（3.6 起的 worktree 是可写的）；
+  demo 的 worktree 界面随可写检出位一起做（[US-314](US-314-writable-worktrees.md)）
 - 可写检出位（epic-006 分期阶段 5）与往非 active 线写的原语（阶段 4）
 - 实时：快照是建立时刻的数据，`refresh()` 即重建
 - 跨设备、进同步
@@ -75,7 +76,7 @@ epic-006 多检出位[场景二](../../epics/epic-006-working-tree-commits.md#�
 | A    | 核心前置（克隆实体类不再泄漏多对多中间表、`cloneEntityClasses` 公开、`readOnly` 与 `RxDBReadOnlyError`、生成类清单、快照原语声明）；PGlite 与 SQLite 系的快照原语；登记表；分支视图与只读实例；一致性套件接六个后端 | ✅   |
 | B    | 提交视图                                                                                                                                                                                                            | ✅   |
 | C    | 生命周期与回收：六个后端的 `dropStorage`、Web Locks、`prune()`、启动清理、`attach()`                                                                                                                                | ✅   |
-| D    | 三端绑定、三端 demo、文档                                                                                                                                                                                           | ✅   |
+| D    | 三端绑定、文档                                                                                                                                                                                                      | ✅   |
 
 ## 验收标准
 
@@ -91,26 +92,23 @@ epic-006 多检出位[场景二](../../epics/epic-006-working-tree-commits.md#�
 | 8   | C    | 只读检出位已打开                               | `close()`                                          | 快照库与登记都删除                                                                               | ✅   |
 | 9   | C    | 标签页会话归属的检出位，所在标签页已关闭或崩溃 | 任一标签页启动，或调 `prune()`                     | 该检出位被回收；其它标签页仍在用的不受影响                                                       | ✅   |
 | 10  | C    | 持久归属的检出位                               | 刷新页面                                           | 仍在登记里，可直接打开                                                                           | ✅   |
-| 11  | D    | 三端 demo                                      | 分支行 / 历史行菜单「Open read-only」              | 打开只读视图，能按实体浏览列表与详情；有只读横幅，写入口不可用；storage 文件标注「不随版本」     | ✅   |
-| 12  | D    | 三端绑定                                       | 对照三端 API                                       | 同名同 API（`tri-framework-check`）                                                              | ✅   |
-| 13  | D    | 三端 demo                                      | a11y 走查                                          | 只读视图 axe 零违规、键盘可达                                                                    | ✅   |
-| 14  | —    | 门禁                                           | 收尾                                               | 首批后端的真库比对、三端单测与 e2e、`audit:api-surface`（基线随提交）、`audit:requirements` 全绿 | ⬜   |
+| 11  | D    | 三端绑定                                       | 对照三端 API                                       | 同名同 API（`tri-framework-check`）                                                              | ✅   |
+| 12  | —    | 门禁                                           | 收尾                                               | 首批后端的真库比对、三端单测与 e2e、`audit:api-surface`（基线随提交）、`audit:requirements` 全绿 | ⬜   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
-阶段 D：三端绑定（AC12：三端入口同名导出 `useWorktrees` 与 `WorktreesResource`）、三端 demo 与文档已交付。
-AC11 / AC13 由三端 demo 的 e2e 与 a11y 用例验：分支视图与提交视图读到的是目标的数据、没有新增入口、存储文件标「不随版本」、
-关掉之后当前分支不变；查看器 axe 零违规、焦点进对话框、Escape 关闭。
+阶段 D：三端绑定（AC11：三端入口同名导出 `useWorktrees` 与 `WorktreesResource`）与文档已交付。
 AC1～AC10 由 `worktreeConformanceSuite` 在六个后端上验（PGlite / sqlite-wasm / wa-sqlite / sqlite / sqliteai / Electron）。
 AC8 的「快照库删除」另由六个后端各自的 `drop-storage.spec.ts` 对真实存储验；AC9 的「任一标签页启动」由插件的
 `worktree-startup-prune.spec.ts` 验：既有库的连接期判定有孤儿（会话归属或没建完、且锁没人持有）时，连上之后在后台回收一次；没有孤儿、未启用的库、没配快照库的实例与新库都不回收。
-AC3 的两半：主实例实体缓存的隔离由一致性套件验；workspace 草稿缓存由 Angular demo 的 e2e 验（主实例装着 workspace，
-浏览只读视图之后草稿缓存里没有 `Task` 的键；只有 Angular 的 e2e 工具读得到草稿仓库）。
+AC3 的两半都由一致性套件验：主实例实体缓存的隔离；草稿缓存——workspace 插件装在主实例上，新草稿只在主实例的
+`ENTITY_LOCAL_NEW` 上记（`ENTITY_LOCAL_CREATE` / `ENTITY_LOCAL_REMOVE` 是删草稿），套件断言在只读实例上查询、新建实例时，
+主实例上不派发业务实体的 NEW（新建实例那条 NEW 落在只读实例自己身上；打开时主库写登记行派发的是系统实体的事件，
+草稿缓存不收系统实体）。
 官方 sqlite 与 sqliteai 的快照库在一致性套件里平时用内存档，只有 AC10 那条用例经套件上下文的
 `createDatabaseWithPersistentSnapshots` 落到 OPFS：这两个后端的 OPFS 只能在专用 Worker 里开，一个快照库一个 Worker，
-整套用例都这么建时，覆盖率验收里 sqlite 组的 Chromium 内存从平均约 0.95 GB 涨到约 2.3 GB（峰值约 3.9 GB），
-CI 上四组浏览器并发跑时 sqlite 组三次里挂死两次（文件之间无声卡住，直到 15 分钟被杀）。改成只在 AC10 用 OPFS 之后
-回到平均约 0.95 GB；快照的读写与封印跟存储档位无关，真实存储的删除仍由 `drop-storage.spec.ts` 对 OPFS 验。
+整套用例都这么建时，覆盖率验收里 sqlite 组的 Chromium 内存从平均约 0.95 GB 涨到约 2.3 GB（峰值约 3.9 GB），只在 AC10
+用 OPFS 时约 0.95 GB。快照的读写与封印跟存储档位无关，真实存储的删除仍由 `drop-storage.spec.ts` 对 OPFS 验。
 
 ## 设计决定
 
@@ -127,6 +125,8 @@ owner 2026-10-16 确认，与 US-312 同在 PR #122 交付：
    AC6 判据为「那次提交刚完成时读到的已跟踪实体数据」——v1 的 restore 从不重写业务表，拿它当判据证明不了什么。
 6. **只读三层防线**：核心 `readOnly`、只读捕获钩子、引擎封印。
 7. **删库能力**：首批六个后端都新增 `dropStorage`；按当前配置删不掉的，由 `canDropStorage()` 在建快照之前拒绝。
+8. **demo 不提供只读入口**（owner 2026-10-17 确认）：三端 demo 的工作树页对齐 GitHub Desktop，它没有「只读打开」，
+   只看数据也不是用户会走的流程；只读检出位作为库能力交付，demo 的 worktree 界面随可写检出位做（[US-314](US-314-writable-worktrees.md)）。
 
 ## 技术笔记
 

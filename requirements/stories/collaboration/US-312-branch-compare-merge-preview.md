@@ -5,7 +5,7 @@ status: In Review
 priority: High
 epic: epic-006-working-tree-commits
 created: 2026-10-15
-updated: 2026-10-16
+updated: 2026-10-17
 tags: [collaboration, branch, merge, history, tri-framework]
 ---
 
@@ -14,7 +14,7 @@ INVEST 检查清单:
 - [x] Independent (独立): 只读积木已在历史插件里（切分支的增量计算、合并读源分支变更的那一半），不依赖任何检出位
 - [x] Negotiable (可协商): API 落点、覆盖标注的四类与 demo 范围由 owner 2026-10-15 确认
 - [x] Valuable (有价值): 合并没有预览，结果直接混进当前工作树，单向覆盖还会悄悄盖掉目标分支上的改动
-- [x] Estimable (可估算): 两个只读方法 + 三端各一个差异列表与对比对话框
+- [x] Estimable (可估算): 两个只读方法 + 三端各一个差异列表与 History 顶部的分支对比
 - [x] Small (小): 不写库、不改切换与合并的既有行为
 - [x] Testable (可测试): 预览与真实合并的结果逐条比对；三端 e2e 走查
 -->
@@ -50,7 +50,8 @@ epic-006 多检出位的[场景二](../../epics/epic-006-working-tree-commits.md
   合并与预览共用一份
 - 簿记字段清单（`remoteId` / `createdAt` / `updatedAt`）下沉到核心 `ENTITY_BOOKKEEPING_FIELDS`，工作树插件的
   `UNTRACKED_BOOKKEEPING_FIELDS` 改为引用它；对比与覆盖判定不把簿记字段算作差异
-- 三端 demo：合并对话框打开即显示预览与覆盖警告；分支行菜单加「Compare with 当前分支」打开对比对话框；
+- 三端 demo，入口对齐 GitHub Desktop：分支下拉底部「Choose a branch to merge into 当前分支」打开合并对话框，选好来源即显示
+  预览与覆盖警告；History 顶部「Select branch to compare…」选一条分支，侧栏即列出差异，底部可合并进当前分支；
   两处共用每端一个差异列表组件
 - 文档：历史插件的分支文档、CHANGELOG、epic-006 目标与分期表
 
@@ -62,23 +63,23 @@ epic-006 多检出位的[场景二](../../epics/epic-006-working-tree-commits.md
 
 ## 验收标准
 
-| #   | 前置条件                                                           | 操作                                      | 预期结果                                                                                                                                         | 状态 |
-| --- | ------------------------------------------------------------------ | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
-| 1   | 两条分支各自增、删、改过实体                                       | `compareBranches(a, b)`                   | 只在 b 有的实体为 INSERT（`patch` 是整行）、只在 a 有的为 DELETE（`inversePatch` 是整行）、两边都有且业务字段不同的为 UPDATE（两侧取值）；不切换 | ✅   |
-| 2   | 两边把同一字段改成同一个值，或只有簿记字段不同；两边都删了同一实体 | `compareBranches`                         | 不出条目                                                                                                                                         | ✅   |
-| 3   | 分支互为父子、兄弟或跨多级                                         | `compareBranches`                         | 结果与「切到 b 后的数据 − 切到 a 后的数据」逐条一致                                                                                              | ✅   |
-| 4   | 同一条分支；分支不存在                                             | `compareBranches(a, a)`；传不存在的 id    | 前者返回空条目；后者抛 `RxDBError`，与 `mergeBranch` 同一句报错                                                                                  | ✅   |
-| 5   | 源分支分叉以来有改动                                               | `previewMerge(source, { strategy })`      | `merged` 与随后 `mergeBranch(source, { strategy })` 返回的一致；条目就是合并会落的操作，`patch` 与合并写入的值一致                               | ✅   |
-| 6   | 源分支里先建后删的实体（幽灵操作）                                 | `previewMerge`                            | 不出条目，与压缩合并的过滤一致                                                                                                                   | ✅   |
-| 7   | 两边分叉以来都改了同一实体的同一业务字段且值不同                   | `previewMerge`                            | 该条标 `overwrite`，`fields` 列出会被盖掉的字段；值相同或只撞上簿记字段时不标                                                                    | ✅   |
-| 8   | 源分支删了实体，目标分支分叉以来改过它                             | `previewMerge`                            | 标 `delete_edited`，`fields` 列出目标改过的业务字段                                                                                              | ✅   |
-| 9   | 源分支改了实体，目标分支分叉以来删了它                             | `previewMerge`                            | 标 `update_deleted`（合并时这次更新落空）                                                                                                        | ✅   |
-| 10  | 源分支删后重建了实体，目标分支分叉以来删了它                       | `previewMerge`                            | 标 `revive_deleted`（合并会把它重新建出来）                                                                                                      | ✅   |
-| 11  | 任意预览、对比                                                     | 调用前后                                  | 不写任何表：`rxdb_change`、业务表、active 分支都不变                                                                                             | ✅   |
-| 12  | 三端 demo                                                          | 打开合并对话框                            | 显示将落的增删改与覆盖警告，换合并策略时计数跟着变；预览失败显示错误，不挡合并                                                                   | ✅   |
-| 13  | 三端 demo                                                          | 非当前分支行菜单「Compare with 当前分支」 | 打开对比对话框，列出差异；没有差异时显示空态                                                                                                     | ✅   |
-| 14  | 三端 demo                                                          | a11y 走查                                 | 合并对话框（带预览）与对比对话框 axe 零违规、键盘可达、Escape 关闭                                                                               | ✅   |
-| 15  | 门禁                                                               | 收尾                                      | 历史插件与 PGlite 单测、三端单测与 e2e、`audit:api-surface`（基线随提交）、`audit:requirements`、`nx format:check` 全绿                          | ✅   |
+| #   | 前置条件                                                           | 操作                                                               | 预期结果                                                                                                                                         | 状态 |
+| --- | ------------------------------------------------------------------ | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---- |
+| 1   | 两条分支各自增、删、改过实体                                       | `compareBranches(a, b)`                                            | 只在 b 有的实体为 INSERT（`patch` 是整行）、只在 a 有的为 DELETE（`inversePatch` 是整行）、两边都有且业务字段不同的为 UPDATE（两侧取值）；不切换 | ✅   |
+| 2   | 两边把同一字段改成同一个值，或只有簿记字段不同；两边都删了同一实体 | `compareBranches`                                                  | 不出条目                                                                                                                                         | ✅   |
+| 3   | 分支互为父子、兄弟或跨多级                                         | `compareBranches`                                                  | 结果与「切到 b 后的数据 − 切到 a 后的数据」逐条一致                                                                                              | ✅   |
+| 4   | 同一条分支；分支不存在                                             | `compareBranches(a, a)`；传不存在的 id                             | 前者返回空条目；后者抛 `RxDBError`，与 `mergeBranch` 同一句报错                                                                                  | ✅   |
+| 5   | 源分支分叉以来有改动                                               | `previewMerge(source, { strategy })`                               | `merged` 与随后 `mergeBranch(source, { strategy })` 返回的一致；条目就是合并会落的操作，`patch` 与合并写入的值一致                               | ✅   |
+| 6   | 源分支里先建后删的实体（幽灵操作）                                 | `previewMerge`                                                     | 不出条目，与压缩合并的过滤一致                                                                                                                   | ✅   |
+| 7   | 两边分叉以来都改了同一实体的同一业务字段且值不同                   | `previewMerge`                                                     | 该条标 `overwrite`，`fields` 列出会被盖掉的字段；值相同或只撞上簿记字段时不标                                                                    | ✅   |
+| 8   | 源分支删了实体，目标分支分叉以来改过它                             | `previewMerge`                                                     | 标 `delete_edited`，`fields` 列出目标改过的业务字段                                                                                              | ✅   |
+| 9   | 源分支改了实体，目标分支分叉以来删了它                             | `previewMerge`                                                     | 标 `update_deleted`（合并时这次更新落空）                                                                                                        | ✅   |
+| 10  | 源分支删后重建了实体，目标分支分叉以来删了它                       | `previewMerge`                                                     | 标 `revive_deleted`（合并会把它重新建出来）                                                                                                      | ✅   |
+| 11  | 任意预览、对比                                                     | 调用前后                                                           | 不写任何表：`rxdb_change`、业务表、active 分支都不变                                                                                             | ✅   |
+| 12  | 三端 demo                                                          | 分支下拉底部「Choose a branch to merge into 当前分支」，选一条来源 | 显示将落的增删改与覆盖警告，换合并策略时计数跟着变；预览失败显示错误，不挡合并                                                                   | ✅   |
+| 13  | 三端 demo                                                          | History 顶部「Select branch to compare…」选一条分支                | 侧栏列出差异，底部可合并进当前分支；没有差异时显示空态；清除即回到历史                                                                           | ✅   |
+| 14  | 三端 demo                                                          | a11y 走查                                                          | 合并对话框（带预览）与 History 的分支对比 axe 零违规、键盘可达，对话框 Escape 关闭                                                               | ✅   |
+| 15  | 门禁                                                               | 收尾                                                               | 历史插件与 PGlite 单测、三端单测与 e2e、`audit:api-surface`（基线随提交）、`audit:requirements`、`nx format:check` 全绿                          | ✅   |
 
 状态符号：⬜ 未开始 / ⚠️ 进行中或有保留 / ✅ 通过
 
@@ -103,10 +104,10 @@ epic-006 多检出位的[场景二](../../epics/epic-006-working-tree-commits.md
   - 目标删后重建是整行替换：目标现在的值就是新行，基准有、新行没有的字段算目标的净改动
 - **补丁不解码**：取值原样来自变更日志，与 `diff()` 同口径；加密字段保持密文信封。
 - **`merged` 跟策略走**：压缩为净操作数，逐条为源分支变更条数；条目恒为净效果，两种策略落库后的终态相同。
-- **demo 对话框外壳**：合并与对比对话框三端各共用一个外壳。原合并对话框的背板（`role="button"`）包着面板，一扫就是 axe
+- **demo 对话框外壳**：合并对话框与带改动切分支的 Switch branch 对话框三端各共用一个外壳。原合并对话框的背板（`role="button"`）包着面板，一扫就是 axe
   `nested-interactive`（此前没有用例在对话框打开时扫描）；改为背板与面板并列，打开时焦点进面板，面板里任意处按 Escape 关闭。
-- **demo 的读取不留旧结果**：预览随打开对话框与换策略各读一次，对比随打开读一次；每次读取带一个递增代号，
-  对话框关掉或参数变了之后才回来的结果直接丢弃。
+- **demo 的读取不留旧结果**：预览随选来源与换策略各读一次，对比随选分支读一次；每次读取带一个递增代号，
+  对话框关掉、对比被清除或参数变了之后才回来的结果直接丢弃。
 
 ## 实现文件
 
@@ -116,7 +117,7 @@ epic-006 多检出位的[场景二](../../epics/epic-006-working-tree-commits.md
 - `packages/rxdb-plugin-history/src/VersionManager.ts` — `compareBranches()` / `previewMerge()`
 - `packages/rxdb/src/entity/entity-bookkeeping.ts` — `ENTITY_BOOKKEEPING_FIELDS`
 - `packages/rxdb-adapter-pglite/src/__tests__/version/branch_compare.spec.ts` — 真后端上预览与合并逐条比对
-- `apps/dev-rxdb-{angular,react,vue}` 与对应 `-e2e` — 合并预览、对比对话框与用例
+- `apps/dev-rxdb-{angular,react,vue}` 与对应 `-e2e` — 合并预览、History 顶部的分支对比与用例
 
 ## References
 

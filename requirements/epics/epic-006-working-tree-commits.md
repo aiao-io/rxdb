@@ -656,6 +656,7 @@ raw 写路径，先补一条能证明身份的传递通道，判据见 `git show
 - [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](../stories/collaboration/US-311-unlogged-entities-scope.md) (High)
 - [US-312 不切换分支就对比两条分支、预览一次合并（含覆盖标注）](../stories/collaboration/US-312-branch-compare-merge-preview.md) (High) — 多检出位阶段 2
 - [US-313 只读检出位：不切换分支就打开另一条分支或一个可达提交的完整数据](../stories/collaboration/US-313-read-only-checkout.md) (Medium) — 多检出位阶段 3
+- [US-314 可写检出位与从提交建分支：对齐 GitHub Desktop 3.6 的 worktree](../stories/collaboration/US-314-writable-worktrees.md) (Medium) — 多检出位阶段 5
 
 ## 性能预算的口径
 
@@ -927,11 +928,12 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
 **阶段 2（[US-312](../stories/collaboration/US-312-branch-compare-merge-preview.md)）之后**，以上快照有四处变化：现状 2 的增量计算可以指定任意两点
 （`compute_branch_transition_actions`，切换与对比共用）；现状 5 里两条分支的**差异**可以不切换读到（`compareBranches()`），
 完整数据仍然没有；现状 6 的覆盖在合并前可见（`previewMerge()` 的四类标注），合并的写法不变；现状 10 的 demo 合并对话框
-打开即显示预览，分支菜单可以拿任一分支与当前分支对比。
+选好来源即显示预览，History 顶部可以拿任一分支与当前分支对比（入口对齐 GitHub Desktop）。
 
 **阶段 3（[US-313](../stories/collaboration/US-313-read-only-checkout.md)）之后**，现状 1 与现状 5 有了不切换的出路：
 `rxdb.workingTree.checkouts.open({ branchId } | { commitId })` 把另一条分支或当前分支上一个可达提交的**完整数据**建成只读快照库
-（与主库同一种后端、独立库名），用第二个只读实例浏览，active 分支与工作树都不动；三端 demo 的分支行与历史行菜单可以「Open read-only」。
+（与主库同一种后端、独立库名），用第二个只读实例浏览，active 分支与工作树都不动。只读检出位是库能力，三端 demo 不提供入口：
+demo 的工作树页对齐 GitHub Desktop（3.6 起的 worktree 是可写的），worktree 界面随可写检出位做（[US-314](../stories/collaboration/US-314-writable-worktrees.md)）。
 现状 9 照旧：DevTools 只连主实例。只读检出位在 PGlite 与 SQLite 系六个后端上验过一致性（检出位一致性套件），
 各后端新增了删库能力（`dropStorage()` / `canDropStorage()`）用来回收快照库。
 
@@ -1074,7 +1076,7 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
 | 2    | 只读的对比与合并预览 API（含覆盖标注）（[US-312](../stories/collaboration/US-312-branch-compare-merge-preview.md)）                                                                              | 场景二的对比部分         | 阶段 1                                                              | 不提供完整视图           |
 | 3    | 只读检出位：快照库 + 第二实例 + 生命周期与回收 + 三端绑定（[US-313](../stories/collaboration/US-313-read-only-checkout.md)）                                                                     | 场景二、场景一的只读部分 | 阶段 2                                                              | 不可写；不实时           |
 | 4    | 写进非 active 线的原语 + 隔离写入方 + 合并前覆盖检测                                                                                                                                             | 场景三                   | 具名使用方（批量导入或 agent），或 owner 判定「同步即变脏」不可接受 | 不改默认同步语义         |
-| 5    | 可写检出位（影子表或分库）                                                                                                                                                                       | 场景一                   | 具名需求                                                            | —                        |
+| 5    | 可写检出位（影子表或分库）与从提交建分支（[US-314](../stories/collaboration/US-314-writable-worktrees.md)）                                                                                      | 场景一                   | 具名需求                                                            | —                        |
 
 ## 非目标
 
