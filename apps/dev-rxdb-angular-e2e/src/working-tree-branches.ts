@@ -102,10 +102,3 @@ export const divergeBranches = async (page: Page, setup: DivergedBranches): Prom
   await onTodoPage(page, () => renameTodo(page, setup.base, setup.onMain));
   await commit(page, 'rename on main');
 };
-
-/** 在分支下拉里右键一条分支，点它菜单里的一项（合并、对比……）。 */
-export const branchMenuAction = async (page: Page, branchId: string, itemTestId: string): Promise<void> => {
-  await openBranchMenu(page);
-  await branchRow(page, branchId).click({ button: 'right' });
-  await page.getByTestId(itemTestId).click();
-};

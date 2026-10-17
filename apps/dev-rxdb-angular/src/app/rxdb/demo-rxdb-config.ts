@@ -6,7 +6,7 @@ import { rxDBPluginHistory } from '@aiao/rxdb-plugin-history';
 import { rxDBPluginSearch } from '@aiao/rxdb-plugin-search';
 import { rxDBPluginStorage } from '@aiao/rxdb-plugin-storage';
 import { rxDBPluginTree } from '@aiao/rxdb-plugin-tree';
-import { rxDBPluginWorkingTree, type WorktreeOptions } from '@aiao/rxdb-plugin-working-tree';
+import { rxDBPluginWorkingTree } from '@aiao/rxdb-plugin-working-tree';
 import { rxDBPluginWorkspace } from '@aiao/rxdb-plugin-workspace';
 import { EncryptedUser } from '@aiao/rxdb-test/encrypted';
 import { ENTITIES } from '@aiao/rxdb-test/entities';
@@ -63,14 +63,9 @@ export function demoRxDBOptions(dbName: string, entities: readonly EntityType[] 
  *
  * @param rxdb - 尚未 `init()` 的实例
  * @param createOptions - adapter 首次被取用时调用，返回存储参数（graph 仓库由这里注入）
- * @param worktrees - 只读检出位的快照库配置（US-313）；只有 dev 应用的主实例给，失败现场的第二连接不开检出位
  * @returns 同一个实例
  */
-export function useDemoPlugins(
-  rxdb: RxDB,
-  createOptions: () => Promise<SqliteOptions>,
-  worktrees?: WorktreeOptions
-): RxDB {
+export function useDemoPlugins(rxdb: RxDB, createOptions: () => Promise<SqliteOptions>): RxDB {
   rxdb
     .use(rxDBPluginGraph)
     .use(rxDBPluginHistory)
@@ -80,7 +75,7 @@ export function useDemoPlugins(
     // 只装不手动启用：`workingTree.enable()` 是数据库级的一次性开关（v1 无 `disable()`），
     // 按在这里等于替所有 demo 页做了这个决定。空库由启动时的 `enableIfEmpty()` 自动启用
     // （见 setup 里 `rxdb.init()` 之后那一行）；有内容的库保持未启用，启用走 /working-tree 面板的显式点击。
-    .use(rxDBPluginWorkingTree, worktrees === undefined ? undefined : { worktrees })
+    .use(rxDBPluginWorkingTree)
     .adapter(
       DEMO_ADAPTER_NAME,
       async db =>
@@ -101,23 +96,6 @@ export function useDemoPlugins(
  */
 export function mainThreadIdbOptions(baseHref: string): SqliteOptions {
   return { vfs: 'idb', wasmUrl: getSqliteWasmUrl(baseHref, 'idb') };
-}
-
-/**
- * 只读检出位的快照库配置（US-313）：主线程 IDB 连接，库名取快照实例自己的 `config.dbName`。
- *
- * @param baseHref - 应用的 `APP_BASE_HREF`
- * @returns 工作树插件的 `worktrees` 选项
- *
- * @remarks
- * 主库跑在 Worker / SharedWorker 里，SharedWorker 的名字还是常量：照搬主库的工厂，快照实例会连到主库上。
- * 主线程 IDB 存储 `dropStorage()` 删得掉，关闭检出位时快照库随之删除。快照实例只装读侧要的树插件。
- */
-export function demoWorktreeOptions(baseHref: string): WorktreeOptions {
-  return {
-    adapter: db => new RxDBAdapterSqlite(db, mainThreadIdbOptions(baseHref)),
-    plugins: [rxDBPluginTree]
-  };
 }
 
 /**

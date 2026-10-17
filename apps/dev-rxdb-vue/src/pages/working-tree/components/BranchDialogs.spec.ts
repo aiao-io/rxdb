@@ -1,14 +1,13 @@
-import type { BranchComparison, MergePreview } from '@aiao/rxdb-plugin-history';
+import type { MergePreview } from '@aiao/rxdb-plugin-history';
 import { mount, type DOMWrapper, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
-import CompareDialog, { type CompareDialogState } from './CompareDialog.vue';
 import MergeDialog, { type MergeDialogState } from './MergeDialog.vue';
 
 /**
- * @fileoverview 合并预览与对比对话框的展示契约（Angular / React 端同名 spec 的移植）。
+ * @fileoverview 合并对话框的展示契约：选来源分支与合并预览（Angular / React 端同名 spec 的移植）。
  *
  * @remarks
- * 预览只是参考：读失败只显示错误，合并照常能点。两个对话框共用一个外壳：背板与面板是兄弟节点，
+ * 预览只是参考：读失败只显示错误，合并照常能点。对话框外壳与别的对话框共用：背板与面板是兄弟节点，
  * 打开时焦点进面板，面板里按 Escape 关闭，Tab 在面板里首尾回绕，关闭后焦点还给打开前持有它的元素。
  */
 
@@ -42,16 +41,14 @@ afterEach(() => {
 const mountMergeDialog = (props: Partial<InstanceType<typeof MergeDialog>['$props']> = {}) => {
   const wrapper = mount(MergeDialog, {
     attachTo: document.body,
-    props: { activeBranch: 'main', dialog, error: null, preview: { phase: 'success', value: preview }, ...props }
-  });
-  mounted.push(wrapper);
-  return wrapper;
-};
-
-const mountCompareDialog = (comparison: CompareDialogState['comparison']) => {
-  const wrapper = mount(CompareDialog, {
-    attachTo: document.body,
-    props: { activeBranch: 'main', dialog: { branchId: 'feature', comparison } }
+    props: {
+      activeBranch: 'main',
+      branches: ['feature', 'other'],
+      dialog,
+      error: null,
+      preview: { phase: 'success', value: preview },
+      ...props
+    }
   });
   mounted.push(wrapper);
   return wrapper;
@@ -73,7 +70,7 @@ describe('MergeDialog 的预览', () => {
   it('成功：摘要、条目与覆盖说明；对话框以标题命名，焦点进面板', () => {
     const wrapper = mountMergeDialog();
 
-    expect(accessibleName(wrapper)).toBe('Merge branch');
+    expect(accessibleName(wrapper)).toBe('Merge into main');
     expect(document.activeElement).toBe(wrapper.get('[role="dialog"]').element);
     expect(wrapper.get('[data-testid="wt-merge-preview-summary"]').text()).toBe(
       'Merges 1 change from feature into main. 1 entity overlaps with changes made on main.'
@@ -131,7 +128,7 @@ describe('MergeDialog 的预览', () => {
 
   it('焦点陷阱：Tab 从最后一个控件回到第一个，Shift+Tab 从第一个或面板本身去最后一个', async () => {
     const wrapper = mountMergeDialog();
-    const first = wrapper.get('[data-testid="wt-merge-strategy-squash"]');
+    const first = wrapper.get('[data-testid="wt-merge-branch-filter"]');
     const last = wrapper.get('[data-testid="wt-merge-confirm"]');
 
     await pressTab(last);
@@ -154,47 +151,50 @@ describe('MergeDialog 的预览', () => {
   });
 });
 
-describe('CompareDialog', () => {
-  const comparison = (entries: BranchComparison['entries']): BranchComparison => ({
-    fromBranchId: 'main',
-    toBranchId: 'feature',
-    entries
+describe('MergeDialog 的选分支', () => {
+  it('列出能合并进来的分支，选中的那条标 aria-current；点一条交出它', async () => {
+    const wrapper = mountMergeDialog();
+
+    const items = wrapper.findAll('[data-testid="wt-merge-branch-item"]');
+    expect(items.map(item => [item.attributes('data-branch-id'), item.attributes('aria-current')])).toEqual([
+      ['feature', 'true'],
+      ['other', undefined]
+    ]);
+    await items[1].trigger('click');
+    expect(wrapper.emitted('sourceChange')).toEqual([['other']]);
   });
 
-  it('列出差异，字段读作「当前分支的值 → 那条分支的值」', () => {
-    const wrapper = mountCompareDialog({
-      phase: 'success',
-      value: comparison([
-        {
-          namespace: 'public',
-          entity: 'Todo',
-          entityId: 't1',
-          operation: 'UPDATE',
-          patch: { title: 'b' },
-          inversePatch: { title: 'a' }
-        }
-      ])
-    });
+  it('还没选来源：提示先选一条，不画预览与选项，合并置灰', () => {
+    const wrapper = mountMergeDialog({ dialog: { ...dialog, sourceBranchId: null }, preview: { phase: 'loading' } });
 
-    expect(accessibleName(wrapper)).toBe('Compare branches');
-    expect(wrapper.get('[data-testid="wt-compare-summary"]').text()).toBe('1 entity differs between main and feature.');
-    expect(wrapper.get('[data-testid="wt-branch-diff-item"]').text()).toContain('"a"');
-    expect(wrapper.get('[data-testid="wt-branch-diff-item"]').text()).toContain('"b"');
+    expect(wrapper.get('[data-testid="wt-merge-choose-hint"]').text()).toBe('Choose a branch to merge into main.');
+    expect(wrapper.find('[data-testid="wt-merge-preview"]').exists()).toBe(false);
+    expect(wrapper.find('[data-testid="wt-merge-strategy-squash"]').exists()).toBe(false);
+    expect(wrapper.get<HTMLButtonElement>('[data-testid="wt-merge-confirm"]').element.disabled).toBe(true);
   });
 
-  it('两侧一样：只有摘要，没有列表；Close 与 Escape 都请求关闭', async () => {
-    const wrapper = mountCompareDialog({ phase: 'success', value: comparison([]) });
+  it('筛选：按名字子串、大小写不敏感；一条都不剩时说没有匹配', async () => {
+    const wrapper = mountMergeDialog();
+    const filter = wrapper.get('[data-testid="wt-merge-branch-filter"]');
+    const ids = () =>
+      wrapper.findAll('[data-testid="wt-merge-branch-item"]').map(item => item.attributes('data-branch-id'));
 
-    expect(wrapper.get('[data-testid="wt-compare-summary"]').text()).toBe('No differences between main and feature.');
-    expect(wrapper.find('[data-testid="wt-branch-diff-list"]').exists()).toBe(false);
-    await wrapper.get('[data-testid="wt-compare-close"]').trigger('click');
-    await wrapper.get('[role="dialog"]').trigger('keydown', { key: 'Escape' });
-    expect(wrapper.emitted('closeRequested')).toHaveLength(2);
+    await filter.setValue('OTH');
+    expect(ids()).toEqual(['other']);
+
+    await filter.setValue('nope');
+    expect(ids()).toEqual([]);
+    expect(wrapper.get('[data-testid="wt-merge-branch-list"]').text()).toBe('No matching branches');
   });
 
-  it('读失败显示错误', () => {
-    const wrapper = mountCompareDialog({ phase: 'error', message: "Branch 'feature' not found" });
+  it('关掉再打开：筛选词不留，列表回到完整', async () => {
+    const wrapper = mountMergeDialog();
+    await wrapper.get('[data-testid="wt-merge-branch-filter"]').setValue('oth');
 
-    expect(wrapper.get('[data-testid="wt-compare-error"]').text()).toContain("Branch 'feature' not found");
+    await wrapper.setProps({ dialog: null });
+    await wrapper.setProps({ dialog });
+
+    expect(wrapper.get<HTMLInputElement>('[data-testid="wt-merge-branch-filter"]').element.value).toBe('');
+    expect(wrapper.findAll('[data-testid="wt-merge-branch-item"]')).toHaveLength(2);
   });
 });

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { RxDBBranch } from '@aiao/rxdb';
-import { Check, ChevronDown, ChevronRight, GitBranch, MoreVertical, Plus, Search } from '@lucide/vue';
+import { Check, ChevronDown, ChevronRight, GitBranch, GitMerge, MoreVertical, Plus, Search } from '@lucide/vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { gdRelativeTime } from '../utils/gd';
 import { isImeComposing } from '../utils/ime';
@@ -17,9 +17,9 @@ import { isImeComposing } from '../utils/ime';
  * 下拉顶部带筛选框（GitHub Desktop 的分支下拉同样可以打字筛）：按名字子串过滤，
  * 大小写不敏感。当前分支行右端画 ✓（GitHub Desktop 的选中标记）。
  *
- * **点行立即切换**（GitHub Desktop 同款）：切走仍走 `requireClean` 的被拒路径——
- * demo 要演的「脏工作树被拒」这一步，被拒的 toast 就是行点击的结果。合并 / 删除
- * 收进每行右端的 ⋯ 按钮（GitHub Desktop 的分支行操作同样藏在行菜单里）。
+ * **点行立即切换**（GitHub Desktop 同款）：工作树有未提交改动时，页面弹「Switch branch」对话框问改动怎么办。
+ * 行上的右键（触屏是行尾 ⋯）只有复制分支名与删除，与 GitHub Desktop 的分支右键菜单一致；合并在下拉底部的
+ * 「Choose a branch to merge into 当前分支」（GitHub Desktop `branches-container.tsx` 的 merge-button-row）。
  *
  * **下拉必须左对齐（`left-0`）而不是右对齐。** 应用壳的侧栏展开后占 240px，
  * `#layout-container` 是 `overflow: auto` 的滚动容器；右对齐会让 w-72 的下拉
@@ -57,8 +57,10 @@ const branchError = defineModel<string | null>('branchError', { default: null })
 
 const emit = defineEmits<{
   (e: 'switchBranch', branchId: string): void;
-  /** 行上右键；页面按条目拼菜单（切换 / 合并 / 删除 / 复制分支名）。 */
+  /** 行上右键；页面按条目拼菜单（复制分支名 / 删除）。 */
   (e: 'menuRequest', request: { target: RxDBBranch; event: MouseEvent }): void;
+  /** 下拉底部「Choose a branch to merge into 当前分支」：页面打开合并对话框，在里面挑来源 */
+  (e: 'mergeRequest'): void;
   /** 创建确认；分支名校验与建库调用由页面做，组件只负责把名字交出去。 */
   (e: 'createBranch', name: string): void;
 }>();
@@ -371,6 +373,23 @@ function confirmCreate(): void {
             No matching branches
           </li>
         </ul>
+        <!-- GitHub Desktop 的分支下拉底部：选一条分支合并进当前分支 -->
+        <div class="gd-menu-divider"></div>
+        <button
+          class="gd-menu-row w-full shrink-0"
+          :title="`Choose a branch to merge into ${activeBranch}`"
+          @click="emit('mergeRequest')"
+          data-testid="wt-branch-merge-into"
+          type="button"
+        >
+          <GitMerge
+            class="shrink-0"
+            :size="14"
+          />
+          <span class="min-w-0 flex-1 truncate text-left text-sm">
+            Choose a branch to merge into <strong>{{ activeBranch }}</strong>
+          </span>
+        </button>
       </div>
     </div>
   </div>

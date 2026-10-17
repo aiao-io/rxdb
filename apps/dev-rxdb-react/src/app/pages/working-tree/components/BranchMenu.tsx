@@ -1,6 +1,6 @@
 import { RxDBBranch } from '@aiao/rxdb';
 import clsx from 'clsx';
-import { Check, ChevronDown, ChevronRight, GitBranch, MoreVertical, Plus, Search } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, GitBranch, GitMerge, MoreVertical, Plus, Search } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { gdRelativeTime } from '../utils/gd';
 import { isImeComposing } from '../utils/ime';
@@ -19,8 +19,10 @@ interface WorkingTreeBranchMenuProps {
   readonly onCreateOpenChange: (open: boolean) => void;
   readonly onBranchNameChange: (name: string) => void;
   readonly onBranchErrorChange: (error: string | null) => void;
-  /** 行上右键；页面按条目拼菜单（切换 / 合并 / 删除 / 复制分支名）。 */
+  /** 行上右键；页面按条目拼菜单（复制分支名 / 删除）。 */
   readonly onMenuRequest: (request: { target: RxDBBranch; event: React.MouseEvent }) => void;
+  /** 下拉底部「Choose a branch to merge into 当前分支」：页面打开合并对话框，在里面挑来源 */
+  readonly onMergeRequest: () => void;
   /** 点行（非当前分支）立即切换。 */
   readonly onSwitchBranch: (branchId: string) => void;
   /** 创建确认；分支名校验与建库调用由页面做，组件只负责把名字交出去。 */
@@ -39,9 +41,9 @@ interface WorkingTreeBranchMenuProps {
  * 下拉顶部带筛选框（GitHub Desktop 的分支下拉同样可以打字筛）：按名字子串过滤，
  * 大小写不敏感。当前分支行右端画 ✓（GitHub Desktop 的选中标记）。
  *
- * **点行立即切换**（GitHub Desktop 同款）：切走仍走 `requireClean` 的被拒路径——
- * demo 要演的「脏工作树被拒」这一步，被拒的 toast 就是行点击的结果。合并 / 删除
- * 收进行的右键菜单（GitHub Desktop 的分支行操作同样藏在行菜单里）。
+ * **点行立即切换**（GitHub Desktop 同款）：工作树有未提交改动时，页面弹「Switch branch」对话框问改动怎么办。
+ * 行上的右键（触屏是行尾 ⋯）只有复制分支名与删除，与 GitHub Desktop 的分支右键菜单一致；合并在下拉底部的
+ * 「Choose a branch to merge into 当前分支」（GitHub Desktop `branches-container.tsx` 的 merge-button-row）。
  *
  * **下拉必须左对齐（`left-0`）而不是右对齐。** 应用壳的侧栏展开后占 240px，
  * 滚动容器里的右对齐下拉会向左伸进侧栏区域被裁剪——裁掉的那块恰好是操作按钮的
@@ -83,6 +85,7 @@ export function WorkingTreeBranchMenu({
   onCreateOpenChange,
   onMenuOpenChange,
   onMenuRequest,
+  onMergeRequest,
   onSwitchBranch
 }: WorkingTreeBranchMenuProps): React.JSX.Element {
   /** 分支名筛选（大小写不敏感的子串匹配）。 */
@@ -370,6 +373,20 @@ export function WorkingTreeBranchMenu({
                 </li>
               : null}
             </ul>
+            {/* GitHub Desktop 的分支下拉底部：选一条分支合并进当前分支 */}
+            <div className='gd-menu-divider'></div>
+            <button
+              className='gd-menu-row w-full shrink-0'
+              onClick={onMergeRequest}
+              data-testid='wt-branch-merge-into'
+              title={`Choose a branch to merge into ${activeBranch}`}
+              type='button'
+            >
+              <GitMerge className='shrink-0' size={14} />
+              <span className='min-w-0 flex-1 truncate text-left text-sm'>
+                Choose a branch to merge into <strong>{activeBranch}</strong>
+              </span>
+            </button>
           </div>
         : null}
       </div>

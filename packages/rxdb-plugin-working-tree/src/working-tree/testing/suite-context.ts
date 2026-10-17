@@ -51,7 +51,7 @@ export interface WorktreeConformanceSuiteContext extends WorkingTreeConformanceS
    * @remarks
    * 省略即用 `createDatabase`，那时它造的快照库本就要落在持久存储上。给了它，`createDatabase` 的快照库就可以放内存：
    * 官方 sqlite 与 sqliteai 的 OPFS 只能在专用 Worker 里开，每个快照库一个 Worker，整套用例几十个 Worker 建了又收，
-   * 本地实测这一组的浏览器内存从约 0.8 GB 涨到约 3.3 GB，覆盖率验收里四组浏览器并发时 sqlite 组偶发挂死。
+   * 本地实测这一组的浏览器内存从约 0.8 GB 涨到约 3.3 GB。
    * 快照的读写与封印跟存储档位无关，真实存储的删除由各后端自己的 `drop-storage.spec.ts` 对持久存储验。
    */
   readonly createDatabaseWithPersistentSnapshots?: () => Promise<RxDB>;

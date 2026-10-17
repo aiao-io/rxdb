@@ -3,27 +3,23 @@ import { onMounted, onUnmounted, ref } from 'vue';
 import { restoreFocus, trapTabKey } from '../utils/focus-trap';
 
 /**
- * 模态对话框外壳：合并、对比与只读检出位查看器共用（GitHub Desktop 对话框形态：白面板圆角描边、半透明背板）。
+ * 模态对话框外壳：合并对话框与 Switch branch 对话框共用（GitHub Desktop 对话框形态：白面板圆角描边、半透明背板）。
  *
  * @remarks
  * 背板与面板是**兄弟**节点。背板是 `role="button"`（点它关闭），而按钮的子孙不许可聚焦——
  * 背板包着面板就是 axe 的 `nested-interactive` 违规。打开时焦点移进面板，面板里任意处按 Escape 关闭。
  *
  * 面板是焦点陷阱：Tab / Shift+Tab 在面板里首尾回绕，键盘走不到背板与页面上（见 `trapTabKey`）。
- * 关闭时焦点还给打开前持有它的元素，但只在它还在文档里时还：合并、对比与只读检出位查看器都从会关掉的
- * 菜单打开，对话框关闭时那个菜单项早已不在，焦点就留给浏览器（见 `restoreFocus`）。
+ * 关闭时焦点还给打开前持有它的元素，但只在它还在文档里时还：从分支下拉打开的（底部的合并入口、点行切分支），
+ * 对话框关闭时那个下拉早已收起，焦点就留给浏览器；从 History 对比里的「Merge into」打开的，按钮还在，焦点还给它
+ * （见 `restoreFocus`）。
  */
-withDefaults(
-  defineProps<{
-    /** 面板的 `data-testid` */
-    testId: string;
-    /** 标题元素的 id：对话框的可读名 */
-    labelledBy: string;
-    /** 面板宽度：`wide` 给放得下实体表格的只读检出位查看器 */
-    size?: 'default' | 'wide';
-  }>(),
-  { size: 'default' }
-);
+defineProps<{
+  /** 面板的 `data-testid` */
+  testId: string;
+  /** 标题元素的 id：对话框的可读名 */
+  labelledBy: string;
+}>();
 
 const emit = defineEmits<{
   (e: 'closeRequested'): void;
@@ -55,8 +51,7 @@ const trapTab = (event: KeyboardEvent): void => trapTabKey(event.currentTarget a
       tabindex="0"
     ></div>
     <div
-      class="relative max-h-[90dvh] w-full overflow-y-auto rounded-md border border-[var(--gd-border)] p-5 shadow-2xl outline-none"
-      :class="size === 'wide' ? 'max-w-5xl' : 'max-w-lg'"
+      class="relative max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-md border border-[var(--gd-border)] p-5 shadow-2xl outline-none"
       ref="panel"
       :style="{ background: 'var(--gd-panel)' }"
       @keydown="trapTab"

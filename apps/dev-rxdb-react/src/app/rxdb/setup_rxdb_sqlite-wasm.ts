@@ -15,7 +15,6 @@ import { ENTITIES as shop_entities } from '@aiao/rxdb-test/shop';
 import { checkOPFSAvailable } from '@aiao/utils';
 import { connectLocalAdapter } from './db-connection';
 import { seedSearchParityData } from './search-parity-seed.js';
-import { createWorktreeSnapshotAdapter } from './worktree-snapshot-adapter';
 
 let rxdb: RxDB | null | undefined;
 const DEFAULT_DB_NAME = 'aiao';
@@ -47,10 +46,7 @@ export default () => {
     // 只装不手动启用：`workingTree.enable()` 是数据库级的一次性开关（v1 无 `disable()`），
     // 按在这里等于替所有 demo 页做了这个决定。空库由启动时的 `enableIfEmpty()` 自动启用
     // （见 `rxdb.init()` 之后那一行）；有内容的库保持未启用，启用走 /working-tree 面板的显式点击。
-    // `worktrees` 给只读检出位（US-313）：快照库走主线程 IndexedDB，快照实例只装读侧要的树插件。
-    .use(rxDBPluginWorkingTree, {
-      worktrees: { adapter: createWorktreeSnapshotAdapter, plugins: [rxDBPluginTree] }
-    })
+    .use(rxDBPluginWorkingTree)
     .adapter('sqlite-wasm', async db => {
       let options: SqliteOptions;
       const available = await checkOPFSAvailable();

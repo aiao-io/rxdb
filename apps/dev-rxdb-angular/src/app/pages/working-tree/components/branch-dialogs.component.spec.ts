@@ -1,15 +1,14 @@
-import type { BranchComparison, MergePreview } from '@aiao/rxdb-plugin-history';
+import type { MergePreview } from '@aiao/rxdb-plugin-history';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BranchDiffLoad } from '../working-tree.branch-diff';
-import { WorkingTreeCompareDialogComponent, type CompareDialogState } from './compare-dialog.component';
 import { WorkingTreeMergeDialogComponent, type MergeDialogState } from './merge-dialog.component';
 
 /**
- * @fileoverview 合并预览与对比对话框的展示契约（React / Vue 端同名 spec 的移植）。
+ * @fileoverview 合并对话框的展示契约：选来源分支与合并预览（React / Vue 端同名 spec 的移植）。
  *
  * @remarks
- * 预览只是参考：读失败只显示错误，合并照常能点。两个对话框共用一个外壳：背板与面板是兄弟节点，
+ * 预览只是参考：读失败只显示错误，合并照常能点。对话框外壳与别的对话框共用：背板与面板是兄弟节点，
  * 打开时焦点进面板，面板里按 Escape 关闭，Tab 在面板里首尾回绕，关闭后焦点还给打开前持有它的元素。
  */
 
@@ -62,9 +61,13 @@ const pressTab = (element: HTMLElement, shiftKey = false): void => {
   element.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true }));
 };
 
-const createMergeDialog = async (load: BranchDiffLoad<MergePreview> = { phase: 'success', value: preview }) => {
+const createMergeDialog = async (
+  load: BranchDiffLoad<MergePreview> = { phase: 'success', value: preview },
+  state: MergeDialogState = dialog
+) => {
   const fixture = TestBed.createComponent(WorkingTreeMergeDialogComponent);
-  fixture.componentRef.setInput('dialog', dialog);
+  fixture.componentRef.setInput('dialog', state);
+  fixture.componentRef.setInput('branches', ['feature', 'other']);
   fixture.componentRef.setInput('activeBranch', 'main');
   fixture.componentRef.setInput('preview', load);
   fixture.detectChanges();
@@ -72,18 +75,9 @@ const createMergeDialog = async (load: BranchDiffLoad<MergePreview> = { phase: '
   return fixture;
 };
 
-const createCompareDialog = async (comparison: CompareDialogState['comparison']) => {
-  const fixture = TestBed.createComponent(WorkingTreeCompareDialogComponent);
-  fixture.componentRef.setInput('dialog', { branchId: 'feature', comparison });
-  fixture.componentRef.setInput('activeBranch', 'main');
-  fixture.detectChanges();
-  await fixture.whenStable();
-  return fixture;
-};
-
 beforeEach(async () => {
   await TestBed.configureTestingModule({
-    imports: [WorkingTreeMergeDialogComponent, WorkingTreeCompareDialogComponent]
+    imports: [WorkingTreeMergeDialogComponent]
   }).compileComponents();
 });
 
@@ -95,7 +89,7 @@ describe('WorkingTreeMergeDialogComponent 的预览', () => {
   it('成功：摘要、条目与覆盖说明；对话框以标题命名，焦点进面板', async () => {
     const fixture = await createMergeDialog();
 
-    expect(accessibleName(fixture)).toBe('Merge branch');
+    expect(accessibleName(fixture)).toBe('Merge into main');
     expect(document.activeElement).toBe(get(fixture, '[role="dialog"]'));
     expect(textOf(get(fixture, '[data-testid="wt-merge-preview-summary"]'))).toBe(
       'Merges 1 change from feature into main. 1 entity overlaps with changes made on main.'
@@ -159,7 +153,7 @@ describe('WorkingTreeMergeDialogComponent 的预览', () => {
 
   it('焦点陷阱：Tab 从最后一个控件回到第一个，Shift+Tab 从第一个或面板本身去最后一个', async () => {
     const fixture = await createMergeDialog();
-    const first = get(fixture, '[data-testid="wt-merge-strategy-squash"]');
+    const first = get(fixture, '[data-testid="wt-merge-branch-filter"]');
     const last = get(fixture, '[data-testid="wt-merge-confirm"]');
 
     pressTab(last);
@@ -183,51 +177,68 @@ describe('WorkingTreeMergeDialogComponent 的预览', () => {
   });
 });
 
-describe('WorkingTreeCompareDialogComponent', () => {
-  const comparison = (entries: BranchComparison['entries']): BranchComparison => ({
-    fromBranchId: 'main',
-    toBranchId: 'feature',
-    entries
+describe('WorkingTreeMergeDialogComponent 的选分支', () => {
+  it('列出能合并进来的分支，选中的那条标 aria-current；点一条交出它', async () => {
+    const fixture = await createMergeDialog();
+    const chosen: string[] = [];
+    fixture.componentInstance.sourceChange.subscribe(id => chosen.push(id));
+
+    const items = [
+      ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[data-testid="wt-merge-branch-item"]')
+    ];
+    expect(items.map(item => [item.dataset['branchId'], item.getAttribute('aria-current')])).toEqual([
+      ['feature', 'true'],
+      ['other', null]
+    ]);
+    items[1].click();
+    expect(chosen).toEqual(['other']);
   });
 
-  it('列出差异，字段读作「当前分支的值 → 那条分支的值」', async () => {
-    const fixture = await createCompareDialog({
-      phase: 'success',
-      value: comparison([
-        {
-          namespace: 'public',
-          entity: 'Todo',
-          entityId: 't1',
-          operation: 'UPDATE',
-          patch: { title: 'b' },
-          inversePatch: { title: 'a' }
-        }
-      ])
-    });
+  it('还没选来源：提示先选一条，不画预览与选项，合并置灰', async () => {
+    const fixture = await createMergeDialog({ phase: 'loading' }, { ...dialog, sourceBranchId: null });
 
-    expect(accessibleName(fixture)).toBe('Compare branches');
-    expect(textOf(get(fixture, '[data-testid="wt-compare-summary"]'))).toBe(
-      '1 entity differs between main and feature.'
-    );
-    expect(textOf(get(fixture, '[data-testid="wt-branch-diff-item"]'))).toContain('"a"');
-    expect(textOf(get(fixture, '[data-testid="wt-branch-diff-item"]'))).toContain('"b"');
+    expect(textOf(get(fixture, '[data-testid="wt-merge-choose-hint"]'))).toBe('Choose a branch to merge into main.');
+    expect(find(fixture, '[data-testid="wt-merge-preview"]')).toBeNull();
+    expect(find(fixture, '[data-testid="wt-merge-strategy-squash"]')).toBeNull();
+    expect((get(fixture, '[data-testid="wt-merge-confirm"]') as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('两侧一样：只有摘要，没有列表；Close 与 Escape 都请求关闭', async () => {
-    const fixture = await createCompareDialog({ phase: 'success', value: comparison([]) });
-    const closeRequested = vi.fn();
-    fixture.componentInstance.closeRequested.subscribe(closeRequested);
+  it('筛选：按名字子串、大小写不敏感；一条都不剩时说没有匹配', async () => {
+    const fixture = await createMergeDialog();
+    const filter = get(fixture, '[data-testid="wt-merge-branch-filter"]') as HTMLInputElement;
+    const ids = () =>
+      [
+        ...(fixture.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[data-testid="wt-merge-branch-item"]')
+      ].map(item => item.dataset['branchId']);
 
-    expect(textOf(get(fixture, '[data-testid="wt-compare-summary"]'))).toBe('No differences between main and feature.');
-    expect(find(fixture, '[data-testid="wt-branch-diff-list"]')).toBeNull();
-    get(fixture, '[data-testid="wt-compare-close"]').click();
-    pressEscape(get(fixture, '[role="dialog"]'));
-    expect(closeRequested).toHaveBeenCalledTimes(2);
+    filter.value = 'OTH';
+    filter.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(ids()).toEqual(['other']);
+
+    filter.value = 'nope';
+    filter.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(ids()).toEqual([]);
+    expect(textOf(get(fixture, '[data-testid="wt-merge-branch-list"]'))).toBe('No matching branches');
   });
 
-  it('读失败显示错误', async () => {
-    const fixture = await createCompareDialog({ phase: 'error', message: "Branch 'feature' not found" });
+  it('关掉再打开：筛选词不留，列表回到完整', async () => {
+    const fixture = await createMergeDialog();
+    const filter = get(fixture, '[data-testid="wt-merge-branch-filter"]') as HTMLInputElement;
+    filter.value = 'oth';
+    filter.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
 
-    expect(textOf(get(fixture, '[data-testid="wt-compare-error"]'))).toContain("Branch 'feature' not found");
+    fixture.componentRef.setInput('dialog', null);
+    fixture.detectChanges();
+    fixture.componentRef.setInput('dialog', dialog);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    expect((get(fixture, '[data-testid="wt-merge-branch-filter"]') as HTMLInputElement).value).toBe('');
+    expect(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('[data-testid="wt-merge-branch-item"]')
+    ).toHaveLength(2);
   });
 });

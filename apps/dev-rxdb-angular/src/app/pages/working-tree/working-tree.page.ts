@@ -8,16 +8,10 @@ import type {
   WorkingTreeCredentials,
   WorkingTreeDiffEntry,
   WorkingTreeRestoreFailureReason,
-  WorkingTreeRestoreSessionInfo,
-  WorktreeTarget
+  WorkingTreeRestoreSessionInfo
 } from '@aiao/rxdb-plugin-working-tree';
-import { CommitValidationError, WorkingTreeDirtyError, WorktreeUnavailableError } from '@aiao/rxdb-plugin-working-tree';
-import {
-  useWorkingTree,
-  useWorktrees,
-  type WorkingTreeResource,
-  type WorktreesResource
-} from '@aiao/rxdb-plugin-working-tree-angular';
+import { CommitValidationError, WorkingTreeDirtyError } from '@aiao/rxdb-plugin-working-tree';
+import { useWorkingTree, type WorkingTreeResource } from '@aiao/rxdb-plugin-working-tree-angular';
 import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -46,26 +40,24 @@ import {
 } from './components/changes-list.component';
 import { WorkingTreeCommitBoxComponent } from './components/commit-box.component';
 import { WorkingTreeCommitDetailComponent } from './components/commit-detail.component';
-import { WorkingTreeCompareDialogComponent, type CompareDialogState } from './components/compare-dialog.component';
 import {
   WorkingTreeContextMenuComponent,
   type WorkingTreeContextMenuItem,
   type WorkingTreeContextMenuState
 } from './components/context-menu.component';
 import { WorkingTreeDiffViewerComponent } from './components/diff-viewer.component';
+import { WorkingTreeHistoryCompareComponent, type HistoryCompareState } from './components/history-compare.component';
 import { WorkingTreeHistoryListComponent } from './components/history-list.component';
 import { MergeDialogState, WorkingTreeMergeDialogComponent } from './components/merge-dialog.component';
-import { WorkingTreeReadOnlyViewerComponent } from './components/read-only-viewer.component';
+import {
+  WorkingTreeSwitchBranchDialogComponent,
+  type SwitchBranchDialogState
+} from './components/switch-branch-dialog.component';
 import type { BranchDiffLoad } from './working-tree.branch-diff';
 import { diffEntryKey } from './working-tree.diff-format';
 import { startDragResize } from './working-tree.drag';
 import { gdEntryPath } from './working-tree.gd';
 import { keepLastGood } from './working-tree.keep-last-good';
-import {
-  READ_ONLY_REJECTION_TEXT,
-  ReadOnlyViewerSession,
-  type ReadOnlyViewerState
-} from './working-tree.read-only-checkout';
 
 const AUTHOR_ID = 'demo-author';
 
@@ -91,15 +83,6 @@ const COMMIT_REJECTION_TEXT: Record<CommitValidationReason, string> = {
   missing_operation_id: 'The commit is missing an idempotency key and cannot be replayed safely.',
   empty_commit: 'The working tree has no changes to commit.',
   user_authored_system_commit: 'System baseline commits cannot carry user information.'
-};
-
-/** `requireClean` 切换被拒的提示；GitHub Desktop 会在切换时拒绝脏工作树，同款语义。 */
-const DIRTY_SWITCH_TEXT = 'The working tree has uncommitted changes. Commit or discard them before switching branches.';
-
-/** 只读检出位打开、刷新失败的提示：认得的成因换成人话，别的错误原样给消息。 */
-const readOnlyRejectionOf = (error: unknown): string => {
-  if (error instanceof WorktreeUnavailableError) return READ_ONLY_REJECTION_TEXT[error.reason];
-  return error instanceof Error ? error.message : String(error);
 };
 
 /**
@@ -133,12 +116,12 @@ const readOnlyRejectionOf = (error: unknown): string => {
     WorkingTreeChangesListComponent,
     WorkingTreeCommitBoxComponent,
     WorkingTreeCommitDetailComponent,
-    WorkingTreeCompareDialogComponent,
     WorkingTreeContextMenuComponent,
     WorkingTreeDiffViewerComponent,
+    WorkingTreeHistoryCompareComponent,
     WorkingTreeHistoryListComponent,
     WorkingTreeMergeDialogComponent,
-    WorkingTreeReadOnlyViewerComponent
+    WorkingTreeSwitchBranchDialogComponent
   ]
 })
 export default class WorkingTreePage implements OnInit {
@@ -146,16 +129,6 @@ export default class WorkingTreePage implements OnInit {
   /** 只读请求的代号：对话框关掉或换了参数之后，迟到的结果不落进新状态。 */
   #mergePreviewRequest = 0;
   #compareRequest = 0;
-  /**
-   * 只读检出位查看器的会话（US-313）：迟到的打开与刷新结果由它当场关掉，离开页面时 dispose。
-   * 回调只是把状态接到 `$readOnlyViewer` / `$readOnlyRefreshing` 与 toast 上。
-   */
-  readonly #readOnlySession = new ReadOnlyViewerSession({
-    open: target => this.worktrees.open(target),
-    onViewerChange: viewer => this.$readOnlyViewer.set(viewer),
-    onRefreshingChange: refreshing => this.$readOnlyRefreshing.set(refreshing),
-    onError: error => this.showToast('error', readOnlyRejectionOf(error))
-  });
   private readonly createdAt = performance.now();
   private readonly destroyRef = inject(DestroyRef);
   private readonly toastTimer = new ResettableTimer();
@@ -163,9 +136,6 @@ export default class WorkingTreePage implements OnInit {
   private readonly fetchedTicker: ReturnType<typeof setInterval>;
 
   readonly tree: WorkingTreeResource = useWorkingTree();
-  readonly worktrees: WorktreesResource = useWorktrees();
-  /** 主实例：只读检出位查看器按它的实体元数据判「不随版本」 */
-  readonly mainRxdb: RxDB = this.#rxdb;
 
   readonly branches = useFindAll(RxDBBranch, {
     where: { combinator: 'and', rules: [] },
@@ -186,10 +156,11 @@ export default class WorkingTreePage implements OnInit {
   readonly $branchError = signal<string | null>(null);
   readonly $mergeDialog = signal<MergeDialogState | null>(null);
   readonly $mergePreview = signal<BranchDiffLoad<MergePreview>>({ phase: 'loading' });
-  readonly $compareDialog = signal<CompareDialogState | null>(null);
-  /** 只读检出位查看器（US-313）：两份状态都由 `#readOnlySession` 经回调写进来。 */
-  readonly $readOnlyViewer = signal<ReadOnlyViewerState | null>(null);
-  readonly $readOnlyRefreshing = signal(false);
+  /** History 顶部的分支对比（GitHub Desktop 的「Select branch to compare…」）；没在对比时是 `null` */
+  readonly $historyCompare = signal<HistoryCompareState | null>(null);
+  /** 带着未提交改动切分支时的「Switch branch」对话框与它的切换进行中 */
+  readonly $switchDialog = signal<SwitchBranchDialogState | null>(null);
+  readonly $switching = signal(false);
   /** 应用内确认框请求（替代原生 confirm）。 */
   readonly $confirm = signal<{ kind: 'discard'; message: string } | { kind: 'delete-branch'; branchId: string } | null>(
     null
@@ -233,6 +204,13 @@ export default class WorkingTreePage implements OnInit {
 
   // ── 派生状态 ──────────────────────────────────────────────
   readonly $activeBranch = computed(() => this.branches.value().find(b => b.activated)?.id ?? '');
+  /** 当前分支以外的分支：合并对话框的来源列表与 History 的对比下拉共用 */
+  readonly $otherBranchIds = computed(() =>
+    this.branches
+      .value()
+      .filter(branch => !branch.activated)
+      .map(branch => branch.id)
+  );
 
   /**
    * 渲染用 diff / status：`loading` 相位不携带旧值，直接绑 `diffState` / `statusState`
@@ -294,9 +272,6 @@ export default class WorkingTreePage implements OnInit {
     this.destroyRef.onDestroy(() => {
       this.toastTimer.clear();
       clearInterval(this.fetchedTicker);
-      // 离开页面时关掉还开着的只读检出位：会话归属的快照库没人看了，留着只能等下一次回收。
-      // 打开、刷新途中迟到的结果也由会话当场关掉；页面已经销毁，关闭失败只打到控制台
-      this.#readOnlySession.dispose();
     });
     this.fetchedTicker = setInterval(() => this.$now.set(Date.now()), 15000);
     effect(() => {
@@ -395,44 +370,37 @@ export default class WorkingTreePage implements OnInit {
     });
   }
 
-  /** 分支行上的右键：切换 / 合并 / 对比 / 只读打开 / 删除在前，分隔线后是复制分支名（GitHub Desktop 的分支右键菜单）。 */
+  /**
+   * 分支行上的右键（GitHub Desktop 的分支右键菜单，`branch-list-item-context-menu.tsx`）：复制分支名，分隔线后是删除。
+   * 点行本身就是切换；合并在分支下拉底部，对比在 History 顶部。当前分支不能删，没有删除项。
+   */
   openBranchContextMenu(request: { target: RxDBBranch; event: MouseEvent }) {
     request.event.preventDefault();
     const branch = request.target;
-    const items: WorkingTreeContextMenuItem[] = [];
+    const items: WorkingTreeContextMenuItem[] = [
+      { id: 'branch-copy', label: 'Copy branch name', testId: 'wt-branch-menu-copy' }
+    ];
     if (!branch.activated) {
       items.push(
-        { id: 'branch-switch', label: 'Switch', testId: 'wt-branch-menu-switch' },
-        { id: 'branch-merge', label: `Merge into ${this.$activeBranch()}`, testId: 'wt-branch-menu-merge' },
-        { id: 'branch-compare', label: `Compare with ${this.$activeBranch()}`, testId: 'wt-branch-menu-compare' }
+        { id: 'sep-1', label: '', separator: true },
+        { id: 'branch-delete', label: 'Delete…', danger: true, testId: 'wt-branch-menu-delete' }
       );
     }
-    // 当前分支也能只读打开：看的是它此刻的完整数据，工作树照常改
-    items.push({ id: 'branch-open-readonly', label: 'Open read-only', testId: 'wt-branch-menu-open-readonly' });
-    if (!branch.activated) {
-      items.push({ id: 'branch-delete', label: 'Delete', danger: true, testId: 'wt-branch-menu-delete' });
-    }
-    items.push(
-      { id: 'sep-1', label: '', separator: true },
-      { id: 'branch-copy', label: 'Copy branch name', testId: 'wt-branch-menu-copy' }
-    );
     this.$contextMenuTarget.set({ kind: 'branch', branchId: branch.id });
     this.$contextMenu.set({ x: request.event.clientX, y: request.event.clientY, items });
   }
 
-  /** 历史行上的右键：动作（恢复、只读打开）在前，分隔线后是复制提交 id（GitHub Desktop 的菜单顺序）。 */
+  /** 历史行上的右键：动作（恢复）在前，分隔线后是复制提交 id（GitHub Desktop 的菜单顺序）。 */
   openCommitContextMenu(request: WorkingTreeContextMenuRequest<CommitLogEntry>) {
     request.event.preventDefault();
     const items: WorkingTreeContextMenuItem[] = [];
     if (request.target.kind !== 'baseline' && request.target.kind !== 'branch_baseline') {
-      items.push({ id: 'restore', label: 'Restore this version to working tree', testId: 'wt-restore' });
+      items.push(
+        { id: 'restore', label: 'Restore this version to working tree', testId: 'wt-restore' },
+        { id: 'sep-1', label: '', separator: true }
+      );
     }
-    // 基线提交也能只读打开：那是分支刚建出来时的数据
-    items.push(
-      { id: 'commit-open-readonly', label: 'Open read-only', testId: 'wt-commit-menu-open-readonly' },
-      { id: 'sep-1', label: '', separator: true },
-      { id: 'copy-commit', label: 'Copy Commit ID' }
-    );
+    items.push({ id: 'copy-commit', label: 'Copy Commit ID' });
     this.$contextMenuTarget.set({ kind: 'commit', commitId: request.target.commitId });
     this.$contextMenu.set({ x: request.event.clientX, y: request.event.clientY, items });
   }
@@ -460,23 +428,11 @@ export default class WorkingTreePage implements OnInit {
       return;
     }
     if (target.kind === 'branch') {
-      if (item.id === 'branch-switch') {
-        void this.switchBranch(target.branchId);
-      } else if (item.id === 'branch-merge') {
-        this.openMergeDialog(target.branchId);
-      } else if (item.id === 'branch-compare') {
-        this.openCompareDialog(target.branchId);
-      } else if (item.id === 'branch-open-readonly') {
-        void this.openReadOnly({ branchId: target.branchId });
-      } else if (item.id === 'branch-delete') {
+      if (item.id === 'branch-delete') {
         this.requestRemoveBranch(target.branchId);
       } else if (item.id === 'branch-copy') {
         void this.copyText(target.branchId);
       }
-      return;
-    }
-    if (item.id === 'commit-open-readonly') {
-      if (target.kind === 'commit') void this.openReadOnly({ commitId: target.commitId });
       return;
     }
     if (item.id === 'restore') {
@@ -710,27 +666,48 @@ export default class WorkingTreePage implements OnInit {
   }
 
   /**
-   * 切换分支，带 `requireClean`：工作树非空时被 `WorkingTreeDirtyError` 拒掉。
+   * 切换分支（GitHub Desktop 的点行即切）：先带 `requireClean` 切；工作树有未提交改动时被 `WorkingTreeDirtyError`
+   * 拒掉，这时弹「Switch branch」对话框问改动怎么办，确认见 {@link WorkingTreePage.confirmSwitchLeavingChanges}。
    *
-   * 不传 `requireClean` 的话切换照样发生（脏工作树按分支隔离保留，切走再切回原样还在），
-   * 但那把「先处理未提交改动」这个 git 流程里最关键的一步藏起来了——demo 要演的就是这一步。
-   * 无论成败都收起菜单：点行即切换（GitHub Desktop 同款），收起来让 toast 成为唯一的反馈。
+   * 不先单独查一次工作树：查完到切之间又有了改动，那次切换照样会被拒，对话框照样弹出来。
+   * 无论成败都收起菜单，结果由 toast 或对话框给出。
    */
   async switchBranch(branchId: string) {
     this.$branchMenuOpen.set(false);
     try {
       await this.tree.switchBranch(branchId, { requireClean: true });
-      this.showToast('success', `Switched to branch "${branchId}".`);
-      await this.refreshStatus();
-      await this.readCommits();
+      await this.#afterSwitch(branchId);
     } catch (e: unknown) {
-      this.showToast(
-        'error',
-        e instanceof WorkingTreeDirtyError ? DIRTY_SWITCH_TEXT
-        : e instanceof Error ? e.message
-        : 'Switch failed.'
-      );
+      if (e instanceof WorkingTreeDirtyError) {
+        this.$switchDialog.set({ targetBranchId: branchId });
+        return;
+      }
+      this.showToast('error', e instanceof Error ? e.message : 'Switch failed.');
     }
+  }
+
+  /**
+   * 「Switch branch」对话框确认「Leave my changes on 当前分支」：不带 `requireClean` 再切一次。
+   * 未提交改动按分支保存，留在原分支上，切回来原样还在。
+   */
+  async confirmSwitchLeavingChanges(): Promise<void> {
+    const dialog = this.$switchDialog();
+    if (dialog === null || this.$switching()) return;
+    this.$switching.set(true);
+    try {
+      await this.tree.switchBranch(dialog.targetBranchId);
+      this.$switchDialog.set(null);
+      await this.#afterSwitch(dialog.targetBranchId);
+    } catch (e: unknown) {
+      this.$switchDialog.set(null);
+      this.showToast('error', e instanceof Error ? e.message : 'Switch failed.');
+    } finally {
+      this.$switching.set(false);
+    }
+  }
+
+  closeSwitchDialog(): void {
+    this.$switchDialog.set(null);
   }
 
   requestRemoveBranch(branchId: string): void {
@@ -754,11 +731,25 @@ export default class WorkingTreePage implements OnInit {
 
   // ── 合并对话框 ────────────────────────────────────────────
 
-  openMergeDialog(sourceBranchId: string) {
+  /**
+   * 打开合并对话框（GitHub Desktop 的「Merge into 当前分支」）。从分支下拉底部进来时还没选来源（`null`），
+   * 在对话框里挑；从 History 的对比进来时带着那条分支。
+   */
+  openMergeDialog(sourceBranchId: string | null) {
     this.$branchMenuOpen.set(false);
     this.$mergeError.set(null);
+    this.#mergePreviewRequest++;
+    this.$mergePreview.set({ phase: 'loading' });
     this.$mergeDialog.set({ sourceBranchId, strategy: 'squash', deleteSource: false });
-    this.#loadMergePreview(sourceBranchId, 'squash');
+    if (sourceBranchId !== null) this.#loadMergePreview(sourceBranchId, 'squash');
+  }
+
+  /** 在合并对话框里换了来源：按当前策略重读预览。 */
+  setMergeSource(sourceBranchId: string) {
+    const cur = this.$mergeDialog();
+    if (!cur || cur.sourceBranchId === sourceBranchId) return;
+    this.$mergeDialog.set({ ...cur, sourceBranchId });
+    this.#loadMergePreview(sourceBranchId, cur.strategy);
   }
 
   closeMergeDialog() {
@@ -771,7 +762,7 @@ export default class WorkingTreePage implements OnInit {
     const cur = this.$mergeDialog();
     if (!cur || cur.strategy === strategy) return;
     this.$mergeDialog.set({ ...cur, strategy });
-    this.#loadMergePreview(cur.sourceBranchId, strategy);
+    if (cur.sourceBranchId !== null) this.#loadMergePreview(cur.sourceBranchId, strategy);
   }
 
   setDeleteSource(value: boolean) {
@@ -788,7 +779,7 @@ export default class WorkingTreePage implements OnInit {
    */
   async executeMerge() {
     const dialog = this.$mergeDialog();
-    if (!dialog) return;
+    if (!dialog || dialog.sourceBranchId === null) return;
     this.$mergeError.set(null);
     try {
       const result = await this.#rxdb.versionManager.mergeBranch(dialog.sourceBranchId, {
@@ -796,6 +787,8 @@ export default class WorkingTreePage implements OnInit {
         deleteSource: dialog.deleteSource
       });
       this.closeMergeDialog();
+      // 合并之后对比结果已经过时（来源还可能被一并删掉了）：回到历史
+      this.clearCompare();
       this.showToast(
         'success',
         `Merged ${result.merged} change(s) into the working tree of ${this.$activeBranch()}` +
@@ -807,50 +800,29 @@ export default class WorkingTreePage implements OnInit {
     }
   }
 
-  // ── 对比对话框 ────────────────────────────────────────────
+  // ── History 顶部的分支对比 ──────────────────────────────────
 
   /** 拿一条分支和当前分支对比（只读，不切换）：字段读作「当前分支的值 → 那条分支的值」。 */
-  openCompareDialog(branchId: string) {
-    this.$branchMenuOpen.set(false);
+  compareWith(branchId: string) {
     const request = ++this.#compareRequest;
-    this.$compareDialog.set({ branchId, comparison: { phase: 'loading' } });
+    this.$historyCompare.set({ branchId, comparison: { phase: 'loading' } });
     void this.#rxdb.versionManager.compareBranches(this.$activeBranch(), branchId).then(
       value => {
         if (request === this.#compareRequest)
-          this.$compareDialog.set({ branchId, comparison: { phase: 'success', value } });
+          this.$historyCompare.set({ branchId, comparison: { phase: 'success', value } });
       },
       (e: unknown) => {
         if (request !== this.#compareRequest) return;
         const message = e instanceof Error ? e.message : 'Compare failed.';
-        this.$compareDialog.set({ branchId, comparison: { phase: 'error', message } });
+        this.$historyCompare.set({ branchId, comparison: { phase: 'error', message } });
       }
     );
   }
 
-  closeCompareDialog() {
+  /** 清除对比，回到历史。 */
+  clearCompare() {
     this.#compareRequest++;
-    this.$compareDialog.set(null);
-  }
-
-  // ── 只读检出位（US-313）──────────────────────────────────
-
-  /**
-   * 打开只读检出位：不切换分支，在查看器里浏览目标的完整数据。会话归属，关掉查看器即删快照库。
-   * 快照建好之前又点了别的目标、关了查看器或离开页面，这次的结果由会话当场关掉（见 `ReadOnlyViewerSession`）。
-   */
-  async openReadOnly(target: WorktreeTarget): Promise<void> {
-    this.$branchMenuOpen.set(false);
-    await this.#readOnlySession.open(target);
-  }
-
-  /** 按建立时的目标重建快照：主库此后的写入这才看得见。 */
-  refreshReadOnly(): Promise<void> {
-    return this.#readOnlySession.refresh();
-  }
-
-  /** 关掉查看器：断开只读实例，删快照库与登记。 */
-  closeReadOnly(): void {
-    this.#readOnlySession.close();
+    this.$historyCompare.set(null);
   }
 
   // ── 私有辅助（成员排序规则：私有方法放最后） ──────────────
@@ -870,6 +842,15 @@ export default class WorkingTreePage implements OnInit {
   /** 按绝对宽度夹回 [MIN, MAX]。 */
   private clampAsideWidth(width: number): number {
     return Math.min(ASIDE_WIDTH_MAX, Math.max(ASIDE_WIDTH_MIN, width));
+  }
+
+  /** 切换落定之后：报一声，重读状态与历史。 */
+  async #afterSwitch(branchId: string): Promise<void> {
+    // 对比是拿「当前分支」比的，换了当前分支，旧结果就不对了
+    this.clearCompare();
+    this.showToast('success', `Switched to branch "${branchId}".`);
+    await this.refreshStatus();
+    await this.readCommits();
   }
 
   /** 按给定策略读一次合并预览（只读，不切换）；`merged` 跟着策略变，所以换策略要重读。 */
@@ -902,6 +883,8 @@ export default class WorkingTreePage implements OnInit {
     try {
       await this.#rxdb.versionManager.removeBranch(branchId);
       this.$branchMenuOpen.set(false);
+      // 删的正是 History 里在对比的那条：对比没有对象了，回到历史
+      if (this.$historyCompare()?.branchId === branchId) this.clearCompare();
       this.showToast('success', `Branch "${branchId}" deleted.`);
     } catch (e: unknown) {
       this.showToast('error', e instanceof Error ? e.message : 'Delete failed.');

@@ -30,6 +30,7 @@ import type {
 } from '@aiao/rxdb';
 import {
   ENTITY_BOOKKEEPING_FIELDS,
+  ENTITY_LOCAL_NEW_EVENT,
   getEntityMetadata,
   RxDBBranch,
   RxDBChange,
@@ -446,6 +447,48 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
 
         expect(viaStatic.map(branch => branch.id).sort()).toEqual(viaInstance.map(branch => branch.id).sort());
         expect(viaStatic.map(branch => branch.id)).toContain(FEATURE);
+      });
+
+      // 草稿缓存（`@aiao/rxdb-plugin-workspace`）装在主实例上，只在主实例的 NEW 事件上记新草稿（CREATE / REMOVE 是删草稿），
+      // 系统实体与不记日志的实体它不收（US-311）：只读实例上的查询与新建实例不能把业务实体的 NEW 派发到主实例，
+      // 否则预览实体会被当成新草稿。只看 NEW：有的后端经变更流派发 CREATE，播种时的那批会晚到，与只读实例无关
+      it('只读实例上的查询与实例化不在主实例上派发业务实体的 NEW', async () => {
+        await seedTwoBranches(database);
+        const business = new Set(
+          WORKTREE_CONFORMANCE_ENTITIES.map(EntityClass => {
+            const { namespace, name } = getEntityMetadata(EntityClass);
+            return `${namespace}:${name}`;
+          })
+        );
+        const seen: string[] = [];
+        const record = (event: { readonly entities: readonly { namespace: string; entity: string }[] }) => {
+          for (const { namespace, entity } of event.entities) seen.push(`${namespace}:${entity}`);
+        };
+        const fresh = uuid();
+        const seenOnView: string[] = [];
+        database.addEventListener(ENTITY_LOCAL_NEW_EVENT, record);
+        try {
+          const view = await open(FEATURE);
+          const ViewTask = view.entityOf(WorktreeConformanceTask);
+          view.rxdb.addEventListener(ENTITY_LOCAL_NEW_EVENT, event => {
+            for (const { id } of event.entities) seenOnView.push(String(id));
+          });
+          await firstValueFrom(
+            view.rxdb.entityManager.getRepository(ViewTask).findAll({ where: { combinator: 'and', rules: [] } })
+          );
+          view.rxdb.entityManager.instantiate(ViewTask, { id: fresh });
+          // NEW 在构造之后的微任务里才派发：等它派完再看
+          await Promise.resolve();
+        } finally {
+          database.removeEventListener(ENTITY_LOCAL_NEW_EVENT, record);
+        }
+
+        // 正对照：新建实例那条 NEW 确实派发了，只是落在只读实例自己身上
+        expect(seenOnView).toContain(fresh);
+        expect(
+          seen.filter(key => business.has(key)),
+          `主实例收到的 NEW：${seen.join(', ') || '无'}`
+        ).toEqual([]);
       });
     });
 

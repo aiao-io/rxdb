@@ -11,7 +11,7 @@ import { checkOPFSAvailable } from '@aiao/utils';
 import { APP_BASE_HREF, isPlatformBrowser } from '@angular/common';
 import { inject, PLATFORM_ID } from '@angular/core';
 import { connectLocalAdapter } from './db-connection';
-import { demoRxDBOptions, demoWorktreeOptions, getSqliteWasmUrl, useDemoPlugins } from './demo-rxdb-config';
+import { demoRxDBOptions, getSqliteWasmUrl, useDemoPlugins } from './demo-rxdb-config';
 import { getImportedDbName } from './imported-db';
 import { whenReplayEnabled } from './replay-toggle';
 
@@ -53,33 +53,29 @@ export default () => {
   const forceIdb = importedDbName !== null || window.location.port === '8200';
   const db = new RxDB(demoRxDBOptions(dbName));
   rxdb = db;
-  useDemoPlugins(
-    db,
-    async () => {
-      const opfsAvailable = !forceIdb && (await checkOPFSAvailable());
-      if (opfsAvailable) {
-        return {
-          vfs: 'opfs',
-          wasmUrl: getSqliteWasmUrl(baseHref, 'opfs'),
-          worker: true,
-          workerInstance: new Worker(new URL('./sqlite-wasm.worker', import.meta.url), {
-            type: 'module',
-            name: 'rxdb-sqlite-wasm-worker'
-          })
-        };
-      }
+  useDemoPlugins(db, async () => {
+    const opfsAvailable = !forceIdb && (await checkOPFSAvailable());
+    if (opfsAvailable) {
       return {
-        vfs: 'idb',
-        wasmUrl: getSqliteWasmUrl(baseHref, 'idb'),
-        sharedWorker: true,
-        sharedWorkerInstance: new SharedWorker(new URL('./sqlite-wasm-shared.worker', import.meta.url), {
+        vfs: 'opfs',
+        wasmUrl: getSqliteWasmUrl(baseHref, 'opfs'),
+        worker: true,
+        workerInstance: new Worker(new URL('./sqlite-wasm.worker', import.meta.url), {
           type: 'module',
-          name: 'rxdb-sqlite-wasm-shared-worker'
+          name: 'rxdb-sqlite-wasm-worker'
         })
       };
-    },
-    demoWorktreeOptions(baseHref)
-  );
+    }
+    return {
+      vfs: 'idb',
+      wasmUrl: getSqliteWasmUrl(baseHref, 'idb'),
+      sharedWorker: true,
+      sharedWorkerInstance: new SharedWorker(new URL('./sqlite-wasm-shared.worker', import.meta.url), {
+        type: 'module',
+        name: 'rxdb-sqlite-wasm-shared-worker'
+      })
+    };
+  });
 
   db.init();
   // 启动时就连一次：连不上的原因经 connectLocalAdapter 登记、由应用壳显示，这里只防未处理的拒绝。

@@ -6,7 +6,7 @@
  * 主库由本包的 {@link sqliteOfficialFactory} 建（内存档，历史插件由它装）。快照库平时用内存档
  * （{@link createSqliteOfficialWorktreeAdapter}）；「持久归属的检出位放开之后原样再打开」那条用例要真存储，
  * 经 `createDatabaseWithPersistentSnapshots` 换成持久档（{@link createSqliteOfficialPersistentWorktreeAdapter}：Worker 里的 OPFS）。
- * 持久档一个快照库一个专用 Worker，整套用例都那么建的话，浏览器内存涨到约四倍，覆盖率验收里四组浏览器并发时会挂死。
+ * 持久档一个快照库一个专用 Worker，整套用例都那么建的话，浏览器内存涨到约四倍。
  * 快照库的 Worker 在用例之间统一收掉；真实存储的删除由 `drop-storage.spec.ts` 验。
  */
 

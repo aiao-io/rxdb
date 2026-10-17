@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * @fileoverview VTable 接键盘焦点的隐藏输入框要有可读名（US-313 AC13：只读查看器里的实体列表 axe 零违规）。
+ * @fileoverview VTable 接键盘焦点的隐藏输入框要有可读名（axe `label`：没有它时读屏只念「编辑框，只读」）。
  */
 
 import { describe, expect, it } from 'vitest';
