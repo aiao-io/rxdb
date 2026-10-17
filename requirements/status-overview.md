@@ -164,7 +164,7 @@ US-305 的 AC US2-14 绿半边（真实新 bridge tag 上门禁转绿）由 [rel
 - 👀 [US-311 不写变更日志的实体与插件系统表退出草稿缓存与版本化域](stories/collaboration/US-311-unlogged-entities-scope.md) — 草稿缓存不收系统表与关闭变更日志的实体；版本化域第四类 untracked 的判据是 `log: false`；storage 文档写明文件不随版本；是多检出位阶段 1
 - 👀 [US-312 不切换分支就对比两条分支、预览一次合并（含覆盖标注）](stories/collaboration/US-312-branch-compare-merge-preview.md) — `compareBranches()` / `previewMerge()` 只读、不切换，预览标出四类覆盖；三端 demo 的合并预览与 History 顶部的分支对比；是多检出位阶段 2
 - 👀 [US-313 只读检出位：不切换分支就打开另一条分支或一个可达提交的完整数据](stories/collaboration/US-313-read-only-checkout.md) — 只读快照库 + 第二实例 + 生命周期与回收 + 三端绑定；是多检出位阶段 3，owner 2026-10-16 决定与 US-312 同在 #122 交付
-- ⬜ [US-314 可写检出位与从提交建分支：对齐 GitHub Desktop 3.6 的 worktree](stories/collaboration/US-314-writable-worktrees.md) — 可写检出位、从提交建分支与三端 demo 的 Worktree 下拉；是多检出位阶段 5，存储方案待定
+- ⬜ [US-314 可写检出位与从提交建分支：对齐 GitHub Desktop 3.6 的 worktree](stories/collaboration/US-314-writable-worktrees.md) — 可写检出位、从提交建分支与三端 demo 的 Worktree 下拉；是多检出位阶段 5，存储方案定为库内影子表
 
 多检出位（v1 之后）阶段 4～5 尚无故事认领，解锁条件见 [epic-006 分期与解锁条件](epics/epic-006-working-tree-commits.md#分期与解锁条件)。
 

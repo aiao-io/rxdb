@@ -12,9 +12,9 @@ tags: [collaboration, branch, worktree, history, tri-framework]
 <!--
 INVEST 检查清单:
 - [x] Independent (独立): 建在 US-313 的检出位登记与生命周期之上；不依赖往非 active 线写的原语（阶段 4）
-- [ ] Negotiable (可协商): 可写检出位的存储方案（影子表或分库）、提交图怎么在分支间共享，待 owner 定
+- [ ] Negotiable (可协商): 存储方案已定为库内影子表（[对比](US-314-storage-options.md)）；从提交建的分支怎么共享源分支的提交图、谁接收同步，待 owner 定
 - [x] Valuable (有价值): 今天换一条线就得先清空或带着改动切走当前工作树；历史里的提交建不了分支
-- [ ] Estimable (可估算): 存储方案定了才估得出
+- [x] Estimable (可估算): 粗估阶段 A 5～8 人日，阶段 B、C 合计约 40～55 人日（[分期](US-314-storage-options.md#分期)）
 - [ ] Small (小): 按交付阶段 A～C 拆
 - [x] Testable (可测试): 检出位上的读写与「切过去读写」逐行比对；三端 demo 的流程对照 GitHub Desktop 3.6
 -->
@@ -46,8 +46,8 @@ INVEST 检查清单:
 
 - **从提交建分支**：新分支的 HEAD 指向那个提交，业务表等于那个提交刚完成时的数据；三端 demo 的提交右键
   「Create branch from commit」与「Create a branch」对话框
-- **可写检出位**（epic-006 [分期](../../epics/epic-006-working-tree-commits.md#分期与解锁条件) 阶段 5）：库内的存储方案、
-  在检出位上写与提交、一条分支至多被一个可写检出位检出（epic-006 设计指点 2）、关闭与回收沿用 US-313 的登记与锁
+- **可写检出位**（epic-006 [分期](../../epics/epic-006-working-tree-commits.md#分期与解锁条件) 阶段 5）：库内影子表
+  （[存储方案](US-314-storage-options.md)）、在检出位上写与提交、一条分支至多被一个可写检出位检出（epic-006 设计指点 2）、关闭与回收沿用 US-313 的登记与锁
 - **三端绑定与三端 demo**：按 GitHub Desktop 3.6——Worktree 下拉分「Main worktree / Linked worktrees」两组、
   New Worktree…（名字 + 可选分支）、切换、Rename…、Delete…（有未提交改动时先确认）；分支右键「Checkout in new worktree…」
 
@@ -59,11 +59,11 @@ INVEST 检查清单:
 
 ## 交付阶段
 
-| 阶段 | 交付                                                                     | 状态 |
-| ---- | ------------------------------------------------------------------------ | ---- |
-| A    | 从提交建分支：库 API、六个后端一致性、三端 demo 的提交右键与建分支对话框 | ⬜   |
-| B    | 可写检出位：存储方案、读写与提交、分支独占、关闭与回收                   | ⬜   |
-| C    | 三端绑定与三端 demo 的 Worktree 下拉、New Worktree…、Rename… / Delete…   | ⬜   |
+| 阶段 | 交付                                                                                 | 状态 |
+| ---- | ------------------------------------------------------------------------------------ | ---- |
+| A    | 从提交建分支：库 API、六个后端一致性、三端 demo 的提交右键与建分支对话框             | ⬜   |
+| B    | 可写检出位：库内影子表的底座（B1）与完整语义（B2）、读写与提交、分支独占、关闭与回收 | ⬜   |
+| C    | 三端绑定与三端 demo 的 Worktree 下拉、New Worktree…、Rename… / Delete…               | ⬜   |
 
 ## 验收标准
 
@@ -87,8 +87,7 @@ INVEST 检查清单:
   与「工作树干净」冲突）。
 - **新分支的历史**：`createBranch` 从历史点分叉时给新分支写一个 `branch_baseline` 根（`commit/branch-commit-rows.ts`），
   历史从零开始；GitHub Desktop 的新分支与源分支共享那个提交之前的历史。要对齐就得让新分支的 HEAD 直接指向源提交。
-- **存储方案**：epic-006「多检出位」一节比较了只读快照库与库内影子表；可写检出位还要回答在检出位上提交、合并回主线、
-  schema 迁移与全文检索覆盖到每套表的代价。
+- **存储方案**：库内影子表（owner 2026-10-17 定）；与分库的对比、证据与分期见 [US-314-storage-options.md](US-314-storage-options.md)。
 - **GitHub Desktop 参照**（`desktop/desktop`）：`app/src/ui/branches/branch-list-item-context-menu.tsx`（Checkout in new worktree…）、
   `app/src/ui/history/commit-list.tsx`（Create branch from commit）、`app/src/ui/create-branch/create-branch-dialog.tsx`。
 

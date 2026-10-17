@@ -47,7 +47,7 @@ owner: jimmy
 - [ ] 不切换 active 分支就能对比两条分支、预览一次合并会改什么（[US-312](../stories/collaboration/US-312-branch-compare-merge-preview.md)，场景二）
 - [ ] 不切换 active 分支就能只读查看任一分支或可达提交的完整数据（[US-313](../stories/collaboration/US-313-read-only-checkout.md)，场景二）
 - [ ] 后台写入方写进自己的线，经审阅合并回主线，覆盖可见（**尚无故事认领**，场景三，价值待证）
-- [ ] 多个标签页各自检出可写的分支（**尚无故事认领**，场景一，价值待证）
+- [ ] 多个标签页各自检出可写的分支（[US-314](../stories/collaboration/US-314-writable-worktrees.md)，场景一，价值待证）
 
 ## 术语（与既有 Workspace 插件的命名冲突处置）
 
@@ -1076,7 +1076,7 @@ demo 的工作树页对齐 GitHub Desktop（3.6 起的 worktree 是可写的）�
 | 2    | 只读的对比与合并预览 API（含覆盖标注）（[US-312](../stories/collaboration/US-312-branch-compare-merge-preview.md)）                                                                              | 场景二的对比部分         | 阶段 1                                                              | 不提供完整视图           |
 | 3    | 只读检出位：快照库 + 第二实例 + 生命周期与回收 + 三端绑定（[US-313](../stories/collaboration/US-313-read-only-checkout.md)）                                                                     | 场景二、场景一的只读部分 | 阶段 2                                                              | 不可写；不实时           |
 | 4    | 写进非 active 线的原语 + 隔离写入方 + 合并前覆盖检测                                                                                                                                             | 场景三                   | 具名使用方（批量导入或 agent），或 owner 判定「同步即变脏」不可接受 | 不改默认同步语义         |
-| 5    | 可写检出位（影子表或分库）与从提交建分支（[US-314](../stories/collaboration/US-314-writable-worktrees.md)）                                                                                      | 场景一                   | 具名需求                                                            | —                        |
+| 5    | 可写检出位（库内影子表，[存储方案](../stories/collaboration/US-314-storage-options.md)）与从提交建分支（[US-314](../stories/collaboration/US-314-writable-worktrees.md)）                        | 场景一                   | 具名需求                                                            | —                        |
 
 ## 非目标
 
