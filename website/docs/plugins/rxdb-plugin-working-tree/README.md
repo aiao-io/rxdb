@@ -6,19 +6,20 @@
 
 ## 能力范围
 
-| 能力               | 说明                                                                                                                          |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| 写捕获             | 用户编辑落进工作树而不是直接改主数据；库自己的簿记写入（`rxdb_change` 等）不被捕获                                            |
-| `status()`         | 当前分支的未提交摘要：条目数、三个捕获位（revision）、来源分布                                                                |
-| `diff()`           | 逐条未提交改动；`entity` / `transaction` 两种粒度，支持分页游标                                                               |
-| `commit()`         | 把工作树里的**全部**未提交单元提交成一次快照；CAS 落败走返回值而非异常                                                        |
-| `discard()`        | 把工作树整体退回 HEAD                                                                                                         |
-| `listCommits()`    | 当前分支从 HEAD 沿父链可达的提交历史                                                                                          |
-| `restore()`        | 把一个可达历史提交的内容作为**新的未提交变更**写回工作树；不移动 HEAD、不删历史                                               |
-| `restoreSession()` | 当前分支那个尚未结束的恢复会话                                                                                                |
-| `commits$`         | 每次 `commit()` **确实写入了新 commit** 时发一次 `{ commitId, branchId }`，供录制回放等订阅方关联提交                         |
-| `switchBranch()`   | 切分支时可以要求「当前分支必须干净」「激活代际必须对得上」；挂在 `@aiao/rxdb-plugin-history` 的 `db.versionManager` 上        |
-| `checkouts`        | 只读检出位：不切换分支、不动工作树，以只读方式打开另一条分支或当前分支上一个可达提交的完整数据（见[只读检出位](#只读检出位)） |
+| 能力                       | 说明                                                                                                                                                 |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 写捕获                     | 用户编辑落进工作树而不是直接改主数据；库自己的簿记写入（`rxdb_change` 等）不被捕获                                                                   |
+| `status()`                 | 当前分支的未提交摘要：条目数、三个捕获位（revision）、来源分布                                                                                       |
+| `diff()`                   | 逐条未提交改动；`entity` / `transaction` 两种粒度，支持分页游标                                                                                      |
+| `commit()`                 | 把工作树里的**全部**未提交单元提交成一次快照；CAS 落败走返回值而非异常                                                                               |
+| `discard()`                | 把工作树整体退回 HEAD                                                                                                                                |
+| `listCommits()`            | 当前分支从 HEAD 沿父链可达的提交历史                                                                                                                 |
+| `restore()`                | 把一个可达历史提交的内容作为**新的未提交变更**写回工作树；不移动 HEAD、不删历史                                                                      |
+| `restoreSession()`         | 当前分支那个尚未结束的恢复会话                                                                                                                       |
+| `commits$`                 | 每次 `commit()` **确实写入了新 commit** 时发一次 `{ commitId, branchId }`，供录制回放等订阅方关联提交                                                |
+| `switchBranch()`           | 切分支时可以要求「当前分支必须干净」「激活代际必须对得上」；挂在 `@aiao/rxdb-plugin-history` 的 `db.versionManager` 上                               |
+| `checkouts`                | 只读检出位：不切换分支、不动工作树，以只读方式打开另一条分支或当前分支上一个可达提交的完整数据（见[只读检出位](#只读检出位)）                        |
+| `createBranchFromCommit()` | 从当前分支历史里的一个提交建分支：HEAD 就是那个提交、工作树为空，不切换；`checkBranchFromCommit()` 先问建不建得了（见[从提交建分支](#从提交建分支)） |
 
 ## 用之前要知道的六件事
 
@@ -450,6 +451,41 @@ v1 **没有自动 stash，也不携带脏工作树跨分支**：工作树属于�
 
 另一道前置不受 `requireClean` 控制：**目标分支的提交图必须完整**。它单独判、单独抛，`requireClean: false` 关不掉它——否则历史子系统的回放路径就能切进一份重放不出来的历史。
 
+## 从提交建分支
+
+### `createBranchFromCommit(branchId, commitId)` 与 `checkBranchFromCommit(commitId)`
+
+从当前分支历史里的一个提交建一条分支（US-314 阶段 A），与 git 的 `git branch <name> <commit>` 同义：新分支的 HEAD 就是那个提交，与原分支共享它之前的历史；工作树为空；切过去读到的是那次 `commit()` 刚完成时的业务表。当前分支一格都不动，它的未提交改动留在原地。
+
+**只建不切**——GitHub Desktop 的「Create branch from commit」建完会检出新分支，那一步由调用方接着调 `switchBranch()`：
+
+```typescript
+const check = await db.workingTree.checkBranchFromCommit(commitId);
+if (!check.ok) {
+  // check.reason：'unreachable_target' | 'fork_point_unknown' | 'history_rewritten'
+}
+
+const result = await db.workingTree.createBranchFromCommit('fix/login', commitId);
+if (result.ok) {
+  await db.versionManager.switchBranch(result.branch.id, { requireClean: true });
+}
+```
+
+`checkBranchFromCommit()` 不写任何东西，给界面在要名字之前先问一句；两次调用之间库可能变了，`createBranchFromCommit()` 会重判。被拒的三种成因都走**返回值**：
+
+| `reason`             | 含义                                                                                           |
+| -------------------- | ---------------------------------------------------------------------------------------------- |
+| `unreachable_target` | 提交不在当前分支 HEAD 的可达父链上，与 `restore()` 同名同义                                    |
+| `fork_point_unknown` | 提交没有记下分叉点：分叉点表出现之前的提交，或 metadata-only 分支首次物化写下的基线            |
+| `history_rewritten`  | 提交之后有过撤销或重做，改动了新分支要继承的那段变更日志，切过去读到的已经不是那次提交时的数据 |
+
+能力未启用、提交图损坏、分支 id 不可用或本地 / 远端已有同名分支，**抛错**，与 `createBranch()` 同文案。
+
+分叉点在提交时与提交同一事务记下（`rxdb_commit_fork_point`）：新分支挂在提交所在的分支上，在那一刻它停下的变更处分叉，数据由变更日志沿谱系折叠出来。两点与切分支今天的行为一致，要心里有数：
+
+- **不进变更日志的写会被带上**：提交之后的拉取、过期清理关着触发器写业务表，切换不会撤掉它们，新分支也就带着它们。
+- **建完之后再在父分支上撤销分叉点之前的变更**，新分支的数据跟着变，与任何一条子分支一样。
+
 ## 只读检出位
 
 不切换分支、不动工作树，以只读方式打开另一条分支或当前分支上一个可达提交的**完整数据**，用平常的查询与实体列表浏览（US-313）。`db.workingTree.checkouts` 把业务数据复制进一个独立的快照库，叠上从当前分支走到目标点的增量，再用第二个 RxDB 实例只读打开它。
@@ -542,11 +578,12 @@ await view.close(); // 断开只读实例，删快照库与登记
 
 ## 系统表
 
-十一张，顺序即建表顺序：
+十二张，顺序即建表顺序：
 
 `CommitCapabilityState`、`WorkingTreeActivationState`、`Commit`、`CommitChangeSet`、`CommitBranchRef`、
 `WorkingTreeState`、`WorkingTreeEntry`、`WorkingTreeRestoreSession`、`WorkingTreeMaterializationStage`、
-`WorkingTreeMaterializationPage`、`Worktree`（只读检出位登记表，`rxdb_worktree`，不记变更日志）。
+`WorkingTreeMaterializationPage`、`Worktree`（只读检出位登记表，`rxdb_worktree`）、`CommitForkPoint`
+（提交的分叉点，`rxdb_commit_fork_point`）。都不记变更日志。
 
 它们经 `registerSystemEntities()` 进入核心的系统表身份集，因此 `isSystemEntity()` 认得它们——`@aiao/rxdb-adapter-http` 等跨包消费者不会把它们当接入方数据推上远端。
 
@@ -671,22 +708,26 @@ const save = async (): Promise<void> => {
 
 `useWorkingTree()` 经 `useRxDB()` 取库，因此上游要有 `provideRxDB()`。十格状态各自装进 `ComputedRef`：模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。
 
-### 十格异步状态
+### 十四格异步状态
 
 三端共享同一份状态契约（`WorkingTreeAsyncStates`，定义在插件包而不是三个框架包里）：
 
-| 字段                  | 类型                                             | 说明                                                                               |
-| --------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| `isEnabledState`      | 命令态 `<boolean>`                               | `isEnabled()` 的状态                                                               |
-| `enableState`         | 命令态 `<CommitCapabilityInfo>`                  | `enable()` 的状态                                                                  |
-| `statusState`         | 查询态 `<WorkingTreeStatus>`                     | `status()` 的状态；**空即没有未提交变更**                                          |
-| `diffState`           | 查询态 `<WorkingTreeDiff>`                       | `diff()` 的状态；**空即没有可展示的改动**                                          |
-| `listCommitsState`    | 查询态 `<CommitLogPage>`                         | `listCommits()` 的状态；**空即还没有历史**                                         |
-| `commitState`         | 命令态 `<CommitResult>`                          | `commit()` 的状态；**没有 empty**                                                  |
-| `discardState`        | 命令态 `<WorkingTreeDiscardResult>`              | `discard()` 的状态；**没有 empty**                                                 |
-| `restoreState`        | 命令态 `<WorkingTreeRestoreResult>`              | `restore()` 的状态；**没有 empty** —— 四个被拒成因与 `restoredCount: 0` 都是结果   |
-| `restoreSessionState` | 查询态 `<WorkingTreeRestoreSessionInfo \| null>` | `restoreSession()` 的状态；**空即当前分支没有未结束的恢复会话**，且带着那个 `null` |
-| `switchBranchState`   | 命令态 `<void>`                                  | `switchBranch()` 的状态；**没有 empty** —— 切到当前分支是成功的 no-op              |
+| 字段                          | 类型                                               | 说明                                                                               |
+| ----------------------------- | -------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `isEnabledState`              | 命令态 `<boolean>`                                 | `isEnabled()` 的状态                                                               |
+| `enableState`                 | 命令态 `<CommitCapabilityInfo>`                    | `enable()` 的状态                                                                  |
+| `enableIfEmptyState`          | 命令态 `<WorkingTreeEnableIfEmptyResult>`          | `enableIfEmpty()` 的状态；**没有 empty** —— `not_empty` 是结果                     |
+| `statusState`                 | 查询态 `<WorkingTreeStatus>`                       | `status()` 的状态；**空即没有未提交变更**                                          |
+| `diffState`                   | 查询态 `<WorkingTreeDiff>`                         | `diff()` 的状态；**空即没有可展示的改动**                                          |
+| `listCommitsState`            | 查询态 `<CommitLogPage>`                           | `listCommits()` 的状态；**空即还没有历史**                                         |
+| `commitChangesState`          | 查询态 `<CommitChangeSetPage>`                     | `commitChanges()` 的状态；**空即这个提交没有变更单元**（基线节点）                 |
+| `commitState`                 | 命令态 `<CommitResult>`                            | `commit()` 的状态；**没有 empty**                                                  |
+| `discardState`                | 命令态 `<WorkingTreeDiscardResult>`                | `discard()` 的状态；**没有 empty**                                                 |
+| `restoreState`                | 命令态 `<WorkingTreeRestoreResult>`                | `restore()` 的状态；**没有 empty** —— 四个被拒成因与 `restoredCount: 0` 都是结果   |
+| `restoreSessionState`         | 查询态 `<WorkingTreeRestoreSessionInfo \| null>`   | `restoreSession()` 的状态；**空即当前分支没有未结束的恢复会话**，且带着那个 `null` |
+| `switchBranchState`           | 命令态 `<void>`                                    | `switchBranch()` 的状态；**没有 empty** —— 切到当前分支是成功的 no-op              |
+| `checkBranchFromCommitState`  | 命令态 `<WorkingTreeBranchFromCommitCheck>`        | `checkBranchFromCommit()` 的状态；**没有 empty** —— 能建与三种被拒成因都是结果     |
+| `createBranchFromCommitState` | 命令态 `<WorkingTreeCreateBranchFromCommitResult>` | `createBranchFromCommit()` 的状态；**没有 empty** —— 建好了与三种被拒成因都是结果  |
 
 查询态五相：`idle → loading → success / empty / error`；命令态四相（无 `empty`）。两条判别细节：
 
@@ -698,10 +739,11 @@ const save = async (): Promise<void> => {
 
 ### 行为约定（三端一致）
 
-- **创建入口本身一次 IO 都不发**：十格状态初值全是 `idle`，只有真调了方法才去读库。
+- **创建入口本身一次 IO 都不发**：十四格状态初值全是 `idle`，只有真调了方法才去读库。
 - **没有变更流**：状态只在经本入口发出的命令之后更新。别的标签页写进来的改动、直接走 `entity.save()` 的写入，都不会推一份新的 status 过来——要最新值就再调一次 `status()`。
 - 拿不到数据库时**抛错**，而不是返回一份「一切干净」的默认值。
-- `commit()` / `discard()` / `restore()` 的被拒走返回值（`result.ok === false`），不是异常；`switchBranch()` 的被拒**走异常**。
+- `commit()` / `discard()` / `restore()` / `checkBranchFromCommit()` / `createBranchFromCommit()` 的被拒走返回值（`result.ok === false`），不是异常；`switchBranch()` 的被拒**走异常**。
+- `createBranchFromCommit()` 不切换，也不重读 `status()`：当前分支的工作树一格都没动，切过去那一步的 `switchBranch()` 会重读。
 - `enable()` / `discard()` / `restore()` / `switchBranch()` 成功之后自动重读一次 `status()`——`switchBranch()` 重读回来的那份摘要属于**另一条**分支。
 - `switchBranch()` 挂在历史插件（`@aiao/rxdb-plugin-history`）的 `versionManager` 上而不是 `workingTree` 上，因此三端入口取的是整个 `RxDB`，不是只取 `db.workingTree`。
 - 类型与错误类一律从 `@aiao/rxdb-plugin-working-tree` 直接 import，绑定包**不重定义、也不再导出**。

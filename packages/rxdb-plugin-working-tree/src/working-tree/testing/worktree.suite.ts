@@ -15,6 +15,9 @@
  *
  * 必填的上下文形状与另外两套相同：六个后端各写三个调用点，形状分叉的话写调用点的人就得逐套件回忆参数。
  *
+ * 从提交建分支（US-314 阶段 A）也收在这里：判据同口径——切到新分支读到的，与那次 `commit()` 刚完成时读到的逐行一致。
+ * 这套的调用点建得了分支（`SyncType.None`），捕获套件那边建不了。
+ *
  * @module @aiao/rxdb-plugin-working-tree/testing
  */
 
@@ -40,6 +43,7 @@ import {
 import { WorktreeUnavailableError } from '../../checkout/worktree-errors.js';
 import type { WorktreeView } from '../../checkout/worktree-manager.js';
 import type { WorktreeTarget } from '../../checkout/worktree-target.js';
+import { CommitForkPoint } from '../../commit/commit-fork-point.entity.js';
 import type { WorktreeConformanceSuiteContext } from './suite-context.js';
 import {
   WORKTREE_CONFORMANCE_ENTITIES,
@@ -147,6 +151,18 @@ const commitAll = async (rxdb: RxDB, message: string): Promise<string> => {
 
 const activeBranchOf = async (rxdb: RxDB): Promise<string | undefined> =>
   (await rxdb.versionManager.getCurrentBranch())?.id;
+
+/** 库里全部分支的 id，排好序。 */
+const branchIdsOf = async (rxdb: RxDB): Promise<string[]> => {
+  const branches = await firstValueFrom(
+    rxdb.entityManager.getRepository(RxDBBranch).findAll({ where: { combinator: 'and', rules: [] } })
+  );
+  return branches.map(branch => branch.id).sort();
+};
+
+/** 当前分支历史里的提交 id，HEAD 在前。 */
+const historyOf = async (rxdb: RxDB): Promise<string[]> =>
+  (await rxdb.workingTree.listCommits()).entries.map(entry => entry.commitId);
 
 /** 两条分支各有提交与未提交变更（AC1 的前置条件）。 */
 const seedTwoBranches = async (rxdb: RxDB) => {
@@ -565,6 +581,136 @@ export const worktreeConformanceSuite = (context: WorktreeConformanceSuiteContex
 
         const error = await database.workingTree.checkouts.open({ commitId: first }).catch(e => e);
         expect((error as WorktreeUnavailableError).reason).toBe('restoring_working_tree');
+      });
+    });
+
+    describe('从提交建分支（US-314 AC1）', () => {
+      it('切到新分支逐行等于那次 commit() 刚完成时；HEAD 就是那个提交、工作树干净；原分支一格不动', async () => {
+        const { main, shared, mainOnly, secret, sharedLabel } = await seedTwoBranches(database);
+        const target = await commitAll(database, '目标提交');
+        const atTarget = await tablesOf(database);
+
+        // 目标之后：一次提交改名、新建、改密文、删关联、删行，再留一批未提交变更
+        shared.title = '目标之后改名';
+        shared.labels$.remove(sharedLabel);
+        await shared.save();
+        const later = await save(database, WorktreeConformanceTask, { title: '目标之后新建', priority: 3 });
+        secret.note = '目标之后的秘密';
+        await secret.save();
+        await mainOnly.remove();
+        await commitAll(database, '目标之后');
+        later.priority = 9;
+        await later.save();
+        const before = await mainStateOf(database);
+        const mainHistory = await historyOf(database);
+
+        await expect(database.workingTree.checkBranchFromCommit(target)).resolves.toEqual({ ok: true });
+        const created = await database.workingTree.createBranchFromCommit('from-target', target);
+
+        expect(created).toMatchObject({ ok: true, branch: { id: 'from-target', parentId: main, activated: false } });
+        expect(await mainStateOf(database)).toEqual(before);
+
+        await database.versionManager.switchBranch('from-target');
+        expect(await tablesOf(database)).toEqual(atTarget);
+        expect((await database.workingTree.status()).entryCount).toBe(0);
+        // 与原分支共享那个提交之前的历史，不是一个从零开始的分支基线
+        expect(await historyOf(database)).toEqual(mainHistory.slice(mainHistory.indexOf(target)));
+
+        await database.versionManager.switchBranch(main);
+        expect(await tablesOf(database)).toEqual(before.tables);
+        expect((await database.workingTree.status()).entryCount).toBe(before.status.entryCount);
+
+        await database.versionManager.switchBranch('from-target');
+        expect(await tablesOf(database)).toEqual(atTarget);
+      });
+
+      it('从继承段上的提交建：在特性分支上挑主线的提交，新分支挂在主线上', async () => {
+        const main = await activeBranchOf(database);
+        const task = await save(database, WorktreeConformanceTask, { title: '主线', priority: 1 });
+        const base = await commitAll(database, 'base');
+        const atBase = await tablesOf(database);
+        await database.versionManager.createBranch(FEATURE);
+        await database.versionManager.switchBranch(FEATURE);
+        task.title = '特性改名';
+        await task.save();
+        await save(database, WorktreeConformanceTask, { title: '只在特性' });
+        await commitAll(database, 'feature work');
+
+        const created = await database.workingTree.createBranchFromCommit('from-base', base);
+
+        expect(created).toMatchObject({ ok: true, branch: { parentId: main } });
+        await database.versionManager.switchBranch('from-base');
+        expect(await tablesOf(database)).toEqual(atBase);
+      });
+
+      it('从启用时写下的基线建：数据是启用那一刻的', async () => {
+        const atEnable = await tablesOf(database);
+        await save(database, WorktreeConformanceTask, { title: '启用之后' });
+        await commitAll(database, '启用之后');
+        const baseline = (await database.workingTree.listCommits()).entries.find(entry => entry.kind === 'baseline');
+        if (!baseline) throw new Error('当前分支的历史里没有启用基线');
+
+        await expect(
+          database.workingTree.createBranchFromCommit('from-baseline', baseline.commitId)
+        ).resolves.toMatchObject({ ok: true });
+        await database.versionManager.switchBranch('from-baseline');
+        expect(await tablesOf(database)).toEqual(atEnable);
+      });
+
+      it('提交之后撤销过它里面的变更：history_rewritten，不建分支；撤销提交之后的改动不受影响', async () => {
+        const task = await save(database, WorktreeConformanceTask, { title: '第一' });
+        const first = await commitAll(database, '第一');
+        task.title = '提交之后';
+        await task.save();
+
+        // 撤的是提交之后那一笔，不在新分支要继承的那段里
+        await database.versionManager.history().undo();
+        await expect(database.workingTree.checkBranchFromCommit(first)).resolves.toEqual({ ok: true });
+
+        // 再撤就撤到了那个提交里面
+        await database.versionManager.history().undo();
+        await expect(database.workingTree.checkBranchFromCommit(first)).resolves.toEqual({
+          ok: false,
+          reason: 'history_rewritten'
+        });
+        const branches = await branchIdsOf(database);
+        await expect(database.workingTree.createBranchFromCommit('rewritten', first)).resolves.toEqual({
+          ok: false,
+          reason: 'history_rewritten'
+        });
+        expect(await branchIdsOf(database)).toEqual(branches);
+      });
+
+      it('不可达：unreachable_target；没有分叉点记录：fork_point_unknown；重名与 createBranch 同文案；都不建分支', async () => {
+        const { featureCommitId } = await seedTwoBranches(database);
+        const target = await commitAll(database, '目标提交');
+        const branches = await branchIdsOf(database);
+
+        await expect(database.workingTree.createBranchFromCommit('unreachable', featureCommitId)).resolves.toEqual({
+          ok: false,
+          reason: 'unreachable_target'
+        });
+        await expect(database.workingTree.createBranchFromCommit(FEATURE, target)).rejects.toThrow(
+          `Branch id (${FEATURE}) already exists`
+        );
+
+        // 分叉点表出现之前的提交没有这一行
+        const adapter = await localAdapterOf(database);
+        await adapter.transaction(async executor => {
+          const rows = await executor
+            .getRepository(CommitForkPoint)
+            .find({ where: { combinator: 'and', rules: [{ field: 'id', operator: '=', value: target }] } });
+          await executor.removeMany(rows);
+        });
+        await expect(database.workingTree.checkBranchFromCommit(target)).resolves.toEqual({
+          ok: false,
+          reason: 'fork_point_unknown'
+        });
+        await expect(database.workingTree.createBranchFromCommit('old-commit', target)).resolves.toEqual({
+          ok: false,
+          reason: 'fork_point_unknown'
+        });
+        expect(await branchIdsOf(database)).toEqual(branches);
       });
     });
 

@@ -9,7 +9,7 @@ import { isImeComposing } from '../utils/ime';
  * 顶部分支栏里的分支选择器，模仿 GitHub Desktop 的分支下拉。
  *
  * @remarks
- * 下拉与创建弹层都是**内联**渲染（absolute 定位在按钮下方）而不是 overlay：
+ * 下拉是**内联**渲染（absolute 定位在按钮下方）而不是 overlay：
  * overlay 会把节点追加到 `<body>` 末尾，Tab 顺序上排在整页面板之后——键盘用户
  * 从触发按钮按 Tab 会直接跳进侧栏，永远走不进下拉。内联渲染让「按钮 → 筛选框 →
  * 新建 → 分支行 → ⋯」落在自然 DOM 顺序里，a11y 用例的纯 Tab 走查才走得通。
@@ -20,6 +20,7 @@ import { isImeComposing } from '../utils/ime';
  * **点行立即切换**（GitHub Desktop 同款）：工作树有未提交改动时，页面弹「Switch branch」对话框问改动怎么办。
  * 行上的右键（触屏是行尾 ⋯）只有复制分支名与删除，与 GitHub Desktop 的分支右键菜单一致；合并在下拉底部的
  * 「Choose a branch to merge into 当前分支」（GitHub Desktop `branches-container.tsx` 的 merge-button-row）。
+ * 「New branch」收起下拉、交给页面打开「Create a branch」对话框（与 History 右键的从提交建分支共用）。
  *
  * **下拉必须左对齐（`left-0`）而不是右对齐。** 应用壳的侧栏展开后占 240px，
  * `#layout-container` 是 `overflow: auto` 的滚动容器；右对齐会让 w-72 的下拉
@@ -28,7 +29,7 @@ import { isImeComposing } from '../utils/ime';
  *
  * ARIA：列表弹层是非模态的 `role="dialog"`，行是 `<ul>/<li>` 里的普通 `<button>`——弹层里还有
  * 筛选框与新建按钮，`role="menu"` 只许装菜单项（axe `aria-required-children`）；当前分支的行按钮
- * 带 `aria-current="true"`。回车提交与 Escape 关闭在输入法组字期间都让给输入法（见 `isImeComposing`）。
+ * 带 `aria-current="true"`。Escape 关闭在输入法组字期间让给输入法（见 `isImeComposing`）。
  */
 const props = defineProps<{
   branches: readonly RxDBBranch[];
@@ -49,11 +50,8 @@ function onTouchMenu(event: MouseEvent, target: unknown): void {
   } as never);
 }
 
-/** 下拉开合；创建弹层打开时恒为 false（两态互斥，避免两个弹层叠着）。 */
+/** 下拉开合 */
 const menuOpen = defineModel<boolean>('menuOpen', { default: false });
-const createOpen = defineModel<boolean>('createOpen', { default: false });
-const branchName = defineModel<string>('branchName', { default: '' });
-const branchError = defineModel<string | null>('branchError', { default: null });
 
 const emit = defineEmits<{
   (e: 'switchBranch', branchId: string): void;
@@ -61,8 +59,8 @@ const emit = defineEmits<{
   (e: 'menuRequest', request: { target: RxDBBranch; event: MouseEvent }): void;
   /** 下拉底部「Choose a branch to merge into 当前分支」：页面打开合并对话框，在里面挑来源 */
   (e: 'mergeRequest'): void;
-  /** 创建确认；分支名校验与建库调用由页面做，组件只负责把名字交出去。 */
-  (e: 'createBranch', name: string): void;
+  /** 「New branch」：页面打开「Create a branch」对话框 */
+  (e: 'createRequest'): void;
 }>();
 
 /** 分支名筛选（大小写不敏感的子串匹配）。 */
@@ -81,8 +79,6 @@ watch(menuOpen, async open => {
   popupLeft.value = Math.max(8 - sectionLeft, Math.min(0, window.innerWidth - sectionLeft - props.popupWidth - 8));
 });
 
-const createInput = ref<HTMLInputElement | null>(null);
-
 /** 筛出来的分支；空筛选 = 全量。 */
 const filteredBranches = computed(() => {
   const needle = filter.value.trim().toLowerCase();
@@ -90,17 +86,10 @@ const filteredBranches = computed(() => {
   return props.branches.filter(branch => branch.id.toLowerCase().includes(needle));
 });
 
-// 弹层一出现就把焦点送进名字输入框：创建分支是两步操作，第二步不能靠用户自己
-// 再点一下输入框（与旧实现同一个 effect 模式）。
-watch(createOpen, open => {
-  if (open) void nextTick(() => createInput.value?.focus());
-});
-
 function toggleMenu(): void {
   if (menuOpen.value) {
     closeAll();
   } else {
-    createOpen.value = false;
     menuOpen.value = true;
   }
 }
@@ -118,16 +107,14 @@ const onDocumentKeydown = (event: KeyboardEvent): void => {
 onMounted(() => document.addEventListener('keydown', onDocumentKeydown));
 onBeforeUnmount(() => document.removeEventListener('keydown', onDocumentKeydown));
 
-function openCreate(): void {
-  menuOpen.value = false;
-  branchName.value = '';
-  branchError.value = null;
-  createOpen.value = true;
+/** 「New branch」：先收起下拉，对话框由页面开 */
+function requestCreate(): void {
+  closeAll();
+  emit('createRequest');
 }
 
 function closeAll(): void {
   menuOpen.value = false;
-  createOpen.value = false;
   filter.value = '';
 }
 
@@ -143,28 +130,6 @@ function onRowClick(branch: RxDBBranch): void {
     return;
   }
   emit('switchBranch', branch.id);
-}
-
-/** 创建分支弹层的名字输入：每次键入清掉上一次的错误。 */
-function onNameInput(event: Event): void {
-  branchName.value = (event.target as HTMLInputElement).value;
-  branchError.value = null;
-}
-
-/** 名字框里的回车提交；组字中的回车是输入法在确认候选词，不提交。 */
-function onNameEnter(event: KeyboardEvent): void {
-  if (isImeComposing(event)) return;
-  confirmCreate();
-}
-
-/** 空名不往页面交：那是一条必然被拒的往返，错误就地呈现。 */
-function confirmCreate(): void {
-  const name = branchName.value.trim();
-  if (!name) {
-    branchError.value = 'Branch name is required.';
-    return;
-  }
-  emit('createBranch', name);
 }
 </script>
 
@@ -194,7 +159,7 @@ function confirmCreate(): void {
 
       <div
         class="fixed inset-0 z-30"
-        v-if="menuOpen || createOpen"
+        v-if="menuOpen"
         :style="{ background: 'rgba(0, 0, 0, 0.35)' }"
         @click="closeAll"
         @keydown.escape="closeAll"
@@ -204,59 +169,9 @@ function confirmCreate(): void {
       ></div>
 
       <div
-        class="gd-menu gd-menu-flush gd-branch-create-popover absolute top-full left-0 z-40 mt-1"
-        v-if="createOpen"
-        :style="{ width: popupWidth + 'px' }"
-        aria-label="Create a branch"
-        data-testid="wt-branch-create-popover"
-        role="dialog"
-      >
-        <div class="flex flex-col gap-2">
-          <div class="text-xs font-medium">
-            Create a branch
-            <span :style="{ color: 'var(--gd-muted)' }">from {{ activeBranch }}</span>
-          </div>
-          <input
-            class="gd-input"
-            :value="branchName"
-            @input="onNameInput"
-            @keydown.enter="onNameEnter"
-            data-testid="wt-branch-name"
-            placeholder="feature/my-feature"
-            ref="createInput"
-            type="text"
-          />
-          <p
-            class="text-xs text-red-600"
-            v-if="branchError !== null"
-            role="alert"
-          >
-            {{ branchError }}
-          </p>
-          <div class="flex justify-end gap-2">
-            <button
-              class="gd-btn-secondary"
-              @click="closeAll"
-              data-testid="wt-branch-create-cancel"
-              type="button"
-            >
-              Cancel
-            </button>
-            <button
-              class="gd-btn-primary"
-              @click="confirmCreate"
-              data-testid="wt-branch-create-confirm"
-              type="button"
-            >
-              Create
-            </button>
-          </div>
-        </div>
-      </div>
-      <div
         ref="popupEl"
         class="gd-menu gd-menu-flush absolute top-full left-0 z-40 flex flex-col overflow-y-auto"
-        v-else-if="menuOpen"
+        v-if="menuOpen"
         :style="{ height: 'calc(100vh - 50px)', width: popupWidth + 'px', left: popupLeft + 'px' }"
         aria-label="Branch list"
         data-testid="wt-branch-menu-popup"
@@ -271,7 +186,7 @@ function confirmCreate(): void {
           >
           <button
             class="gd-btn-ghost shrink-0"
-            @click="openCreate"
+            @click="requestCreate"
             data-testid="wt-branch-create"
             type="button"
           >

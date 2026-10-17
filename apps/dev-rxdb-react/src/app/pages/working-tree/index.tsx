@@ -26,6 +26,7 @@ import {
   type WorkingTreeContextMenuItem,
   type WorkingTreeContextMenuState
 } from './components/ContextMenu';
+import { WorkingTreeCreateBranchDialog, type CreateBranchDialogState } from './components/CreateBranchDialog';
 import { WorkingTreeDiffViewer } from './components/DiffViewer';
 import { WorkingTreeHistoryCompare, type HistoryCompareState } from './components/HistoryCompare';
 import { WorkingTreeHistoryList } from './components/HistoryList';
@@ -105,11 +106,13 @@ export default function WorkingTreePage(): React.JSX.Element {
   /** 提交草稿拆成摘要与描述两个框（GitHub Desktop 的 Summary / Description）。 */
   const [commitSummary, setCommitSummary] = useState('');
   const [commitDescription, setCommitDescription] = useState('');
-  // 分支菜单：开合、创建弹层、名字与错误都由页面持有，组件只做展示与转发
+  /** 分支下拉的开合；由页面持有，组件只做展示与转发 */
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
-  const [createPopoverOpen, setCreatePopoverOpen] = useState(false);
-  const [newBranchName, setNewBranchName] = useState('');
-  const [branchError, setBranchError] = useState<string | null>(null);
+  /** 「Create a branch」对话框（History 右键与分支下拉的 New branch 共用）：状态、名字、报错与进行中 */
+  const [createBranchDialog, setCreateBranchDialog] = useState<CreateBranchDialogState | null>(null);
+  const [createBranchName, setCreateBranchName] = useState('');
+  const [createBranchError, setCreateBranchError] = useState<string | null>(null);
+  const [creatingBranch, setCreatingBranch] = useState(false);
   const [mergeDialog, setMergeDialog] = useState<MergeDialogState | null>(null);
   const [mergePreview, setMergePreview] = useState<BranchDiffLoad<MergePreview>>({ phase: 'loading' });
   /** History 顶部的分支对比（GitHub Desktop 的「Select branch to compare…」）；没在对比时是 `null` */
@@ -358,7 +361,10 @@ export default function WorkingTreePage(): React.JSX.Element {
     setContextMenu({ x: request.event.clientX, y: request.event.clientY, items });
   };
 
-  /** 历史行上的右键：动作（恢复）在前，分隔线后是复制提交 id（GitHub Desktop 的菜单顺序）。 */
+  /**
+   * 历史行上的右键，照 GitHub Desktop 的分组：恢复在前，分隔线后是从这个提交建分支，再一条分隔线后是复制提交 id。
+   * 基线节点没有可恢复的内容，没有第一组；从它建分支照样可以（GitHub Desktop 这一项始终可点）。
+   */
   const openCommitContextMenu = (request: WorkingTreeContextMenuRequest<CommitLogEntry>) => {
     request.event.preventDefault();
     const items: WorkingTreeContextMenuItem[] = [];
@@ -368,7 +374,11 @@ export default function WorkingTreePage(): React.JSX.Element {
         { id: 'sep-1', label: '', separator: true }
       );
     }
-    items.push({ id: 'copy-commit', label: 'Copy Commit ID' });
+    items.push(
+      { id: 'create-branch', label: 'Create branch from commit', testId: 'wt-commit-create-branch' },
+      { id: 'sep-2', label: '', separator: true },
+      { id: 'copy-commit', label: 'Copy Commit ID' }
+    );
     setContextMenuTarget({ kind: 'commit', commitId: request.target.commitId });
     setContextMenu({ x: request.event.clientX, y: request.event.clientY, items });
   };
@@ -403,13 +413,16 @@ export default function WorkingTreePage(): React.JSX.Element {
       }
       return;
     }
+    if (target.kind !== 'commit') return;
+    // 右键不选中行（GitHub Desktop 同款），按右键目标 id 从已读历史里找回条目。
+    const commits = tree.listCommitsState;
+    if (commits.phase !== 'success' && commits.phase !== 'empty') return;
+    const entry = commits.value.entries.find(candidate => candidate.commitId === target.commitId) ?? null;
+    if (entry === null) return;
     if (item.id === 'restore') {
-      // 右键不选中行（GitHub Desktop 同款），按右键目标 id 从已读历史里找回条目。
-      if (target.kind !== 'commit') return;
-      const commits = tree.listCommitsState;
-      if (commits.phase !== 'success' && commits.phase !== 'empty') return;
-      const entry = commits.value.entries.find(candidate => candidate.commitId === target.commitId) ?? null;
-      if (entry !== null) void restoreEntry(entry);
+      void restoreEntry(entry);
+    } else if (item.id === 'create-branch') {
+      void openCreateBranch(entry, 'commit');
     }
   };
 
@@ -634,14 +647,75 @@ export default function WorkingTreePage(): React.JSX.Element {
 
   // ── 分支操作 ──────────────────────────────────────────────
 
-  const createBranch = async (name: string) => {
+  /**
+   * 分支下拉的「New branch」：从当前分支的 HEAD 建（GitHub Desktop 的新分支同样从当前提交出发）。
+   *
+   * 不用 `createBranch(name)`：它把当前分支的未提交改动复制一份给新分支，两边都留着——GitHub Desktop 的两个去处
+   * （留在原分支 / 带去新分支）都不是这样。从 HEAD 建出来的分支是干净的，改动留在原分支上，切过去时
+   * 「Switch branch」问的正是「Leave my changes」。HEAD 直接问门面取：经工作树入口取会把 History 的那一格换成一条。
+   */
+  const openNewBranch = async (): Promise<void> => {
     try {
-      await rxdb.versionManager.createBranch(name);
-      setCreatePopoverOpen(false);
-      setNewBranchName('');
-      showToast('success', `Branch "${name}" created.`);
+      const { entries } = await rxdb.workingTree.listCommits({ limit: 1 });
+      const head = entries[0];
+      if (head === undefined) {
+        showToast('error', `${activeBranch} has no commits to base a branch on yet.`);
+        return;
+      }
+      await openCreateBranch(head, 'branch');
     } catch (e: unknown) {
-      setBranchError(e instanceof Error ? e.message : '创建失败');
+      showToast('error', e instanceof Error ? e.message : 'Could not read the current commit.');
+    }
+  };
+
+  /**
+   * 打开「Create a branch」：先摆出对话框，再问这个提交建不建得了分支；迟到的预检不落进换了提交的对话框。
+   *
+   * 预检回来时比对的是**当前**的对话框：await 之后闭包里的 `createBranchDialog` 已是旧值，走函数式更新取现值。
+   */
+  const openCreateBranch = async (entry: CommitLogEntry, from: CreateBranchDialogState['from']): Promise<void> => {
+    const base = { commitId: entry.commitId, summary: entry.message.split('\n')[0] ?? '' };
+    setCreateBranchName('');
+    setCreateBranchError(null);
+    setCreateBranchDialog({ base, from, availability: 'checking' });
+    try {
+      const check = await tree.checkBranchFromCommit(base.commitId);
+      setCreateBranchDialog(dialog =>
+        dialog?.base.commitId === base.commitId ? { ...dialog, availability: check.ok ? 'ok' : check.reason } : dialog
+      );
+    } catch (e: unknown) {
+      setCreateBranchDialog(null);
+      showToast('error', e instanceof Error ? e.message : 'Could not check this commit.');
+    }
+  };
+
+  const closeCreateBranchDialog = (): void => {
+    setCreateBranchDialog(null);
+    setCreateBranchName('');
+    setCreateBranchError(null);
+  };
+
+  /**
+   * 「Create branch」：建好之后切过去（GitHub Desktop 建完总会检出新分支）。工作树有改动时切换被拒，
+   * 照常弹「Switch branch」；在那里取消的话分支已经建好、留在原分支上，与 GitHub Desktop 一致。
+   */
+  const confirmCreateBranch = async (name: string): Promise<void> => {
+    const dialog = createBranchDialog;
+    if (dialog === null || creatingBranch) return;
+    setCreatingBranch(true);
+    setCreateBranchError(null);
+    try {
+      const result = await tree.createBranchFromCommit(name, dialog.base.commitId);
+      if (!result.ok) {
+        setCreateBranchDialog({ ...dialog, availability: result.reason });
+        return;
+      }
+      closeCreateBranchDialog();
+      await switchBranch(name);
+    } catch (e: unknown) {
+      setCreateBranchError(e instanceof Error ? e.message : 'Could not create the branch.');
+    } finally {
+      setCreatingBranch(false);
     }
   };
 
@@ -906,16 +980,10 @@ export default function WorkingTreePage(): React.JSX.Element {
             <div className='gd-toolbar-section gd-branch-section' style={{ width: branchSectionWidth }}>
               <WorkingTreeBranchMenu
                 activeBranch={activeBranch}
-                branchError={branchError}
-                branchName={newBranchName}
                 branches={branches}
-                createOpen={createPopoverOpen}
                 menuOpen={branchMenuOpen}
                 popupWidth={branchSectionWidth < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : branchSectionWidth}
-                onBranchErrorChange={setBranchError}
-                onBranchNameChange={setNewBranchName}
-                onCreateBranch={name => void createBranch(name)}
-                onCreateOpenChange={setCreatePopoverOpen}
+                onCreateRequest={() => void openNewBranch()}
                 onMenuOpenChange={setBranchMenuOpen}
                 onMenuRequest={openBranchContextMenu}
                 onMergeRequest={() => openMergeDialog(null)}
@@ -1186,6 +1254,18 @@ export default function WorkingTreePage(): React.JSX.Element {
         onSourceChange={setMergeSource}
         onStrategyChange={setMergeStrategy}
         preview={mergePreview}
+      />
+
+      {/* ═══════════════════ 新建分支（GitHub Desktop 的 Create a branch） ═══════════════════ */}
+      <WorkingTreeCreateBranchDialog
+        activeBranch={activeBranch}
+        creating={creatingBranch}
+        dialog={createBranchDialog}
+        error={createBranchError}
+        name={createBranchName}
+        onCloseRequested={closeCreateBranchDialog}
+        onConfirmRequested={name => void confirmCreateBranch(name)}
+        onNameChange={setCreateBranchName}
       />
 
       {/* ═══════════════════ 带着未提交改动切分支（GitHub Desktop 的 Switch branch） ═══════════════════ */}

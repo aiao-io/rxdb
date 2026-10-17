@@ -49,7 +49,7 @@ import { rxDBPluginWorkingTree } from '../../plugin.js';
 import type { WorkingTreePatchCodecContext } from '../../working-tree/working-tree-patch-codec.js';
 import { encodeWorkingTreePatch } from '../../working-tree/working-tree-patch-codec.js';
 import { createMockAdapter } from '../fixtures/test-db-setup.js';
-import { createCommitGraphProbe } from './fixtures/commit-graph-probe.js';
+import { createCommitGraphProbe, seedRootBranch } from './fixtures/commit-graph-probe.js';
 
 /** 只应存在于**加密前**那个值里的串。它出现在任何别的地方都是泄漏。 */
 const SENTINEL = 'PLAINTEXT-SENTINEL-4f2c9a';
@@ -182,6 +182,7 @@ function createScene(): Scene {
   ref.status = 'ok';
   ref.corruptedAt = null;
   probe.seed(CommitBranchRef, [ref]);
+  seedRootBranch(probe, entityManager, ref.branchId);
   return { probe, entityManager, context: contextOf(entityManager) };
 }
 

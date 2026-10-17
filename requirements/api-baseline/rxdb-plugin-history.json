@@ -2,6 +2,10 @@
   "entries": {
     ".": [
       {
+        "name": "assert_branch_id_free_on_remote",
+        "kind": "value"
+      },
+      {
         "name": "BranchComparison",
         "kind": "type"
       },
@@ -23,6 +27,10 @@
       },
       {
         "name": "find_switch_branch_step",
+        "kind": "value"
+      },
+      {
+        "name": "forkPointOf",
         "kind": "value"
       },
       {
@@ -51,6 +59,10 @@
       },
       {
         "name": "MergePreviewOptions",
+        "kind": "type"
+      },
+      {
+        "name": "NewBranchRowInput",
         "kind": "type"
       },
       {
@@ -92,6 +104,10 @@
       {
         "name": "VersionManager",
         "kind": "type"
+      },
+      {
+        "name": "write_new_branch",
+        "kind": "value"
       }
     ]
   }

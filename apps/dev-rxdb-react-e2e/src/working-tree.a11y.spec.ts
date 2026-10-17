@@ -294,16 +294,18 @@ test.describe('Working Tree Page A11y', () => {
     expectReachedWithIndicator(menuReached, ['wt-branch-create', 'wt-branch-item', 'wt-branch-merge-into']);
     await page.keyboard.press('Escape');
 
-    // 建一条分支。点行是立即切换（GitHub Desktop 同款），复制分支名与删除收在
-    // 行的右键菜单里——菜单项是真按钮，也要能键盘走到。
+    // 建一条分支：「Create a branch」对话框，建完切过去（GitHub Desktop 同款）。点行是立即切换，复制分支名与删除收在
+    // 行的右键菜单里——菜单项是真按钮，也要能键盘走到。删除只给不是当前分支的行，所以右键 main。
     await page.getByTestId('wt-branch-menu').click();
     await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
     await page.getByTestId('wt-branch-create').click();
-    await page.getByTestId('wt-branch-name').fill('feature/a11y');
-    await page.getByTestId('wt-branch-create-confirm').click();
+    await page.getByTestId('wt-create-branch-name').fill('feature/a11y');
+    await expect(page.getByTestId('wt-create-branch-confirm')).toBeEnabled({ timeout: 30000 });
+    await page.getByTestId('wt-create-branch-confirm').click();
+    await expect(page.getByTestId('wt-status-branch')).toHaveText('feature/a11y', { timeout: 30000 });
     await page.getByTestId('wt-branch-menu').click();
     await expect(page.getByTestId('wt-branch-menu-popup')).toBeVisible({ timeout: 10000 });
-    await page.locator('[data-testid="wt-branch-item"][data-branch-id="feature/a11y"]').click({ button: 'right' });
+    await page.locator('[data-testid="wt-branch-item"][data-branch-id="main"]').click({ button: 'right' });
     await expect(page.getByTestId('wt-branch-menu-copy')).toBeVisible({ timeout: 10000 });
     // 右键不聚焦行：把焦点锚在菜单背板上（菜单项的前一个 Tab 停靠点），走查才收得到菜单项。
     await page.locator('[aria-label="Close context menu"]').focus();
@@ -336,7 +338,7 @@ test.describe('Working Tree Page A11y', () => {
     expectReachedWithIndicator(historyReached, ['wt-commit-item']);
   });
 
-  test('分支下拉：非模态 dialog 结构，列表与创建弹层打开时 axe 零违规', async ({ page }) => {
+  test('分支下拉：非模态 dialog 结构，列表与「Create a branch」对话框打开时 axe 零违规', async ({ page }) => {
     await openPanel(page);
     await waitForAutoEnabled(page);
 
@@ -360,9 +362,13 @@ test.describe('Working Tree Page A11y', () => {
     await expect(current).toHaveAttribute('aria-current', 'true');
     await scanPanel(page);
 
+    // New branch 收起下拉、打开模态对话框；焦点进名字框，Escape 关闭
     await page.getByTestId('wt-branch-create').click();
-    const dialog = page.getByTestId('wt-branch-create-popover');
+    const dialog = page.getByTestId('wt-create-branch-dialog');
     await expect(dialog).toHaveAttribute('role', 'dialog');
+    await expect(dialog).toHaveAttribute('aria-modal', 'true');
+    await expect(page.getByTestId('wt-create-branch-name')).toBeFocused();
+    await expect(page.getByTestId('wt-create-branch-confirm')).toBeDisabled();
     await scanPanel(page);
     await page.keyboard.press('Escape');
     await expect(dialog).toHaveCount(0);

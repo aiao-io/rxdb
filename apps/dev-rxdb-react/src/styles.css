@@ -428,9 +428,6 @@ app-header,
 .gd-menu-flush {
   border-radius: 0;
 }
-.gd-branch-create-popover {
-  padding: 12px;
-}
 .gd-menu-header {
   color: var(--gd-muted);
   font-size: 11px;

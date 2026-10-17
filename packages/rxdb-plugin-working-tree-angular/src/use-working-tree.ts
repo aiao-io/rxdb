@@ -15,7 +15,9 @@ import {
   type CommitOptions,
   type CommitResult,
   type WorkingTreeAsyncStates,
+  type WorkingTreeBranchFromCommitCheck,
   type WorkingTreeCommandState,
+  type WorkingTreeCreateBranchFromCommitResult,
   type WorkingTreeDiff,
   type WorkingTreeDiffOptions,
   type WorkingTreeDiscardOptions,
@@ -35,8 +37,8 @@ import { computed, signal, Signal } from '@angular/core';
  * {@link useWorkingTree} 的返回值。
  *
  * @remarks
- * 十二个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，只是每一项各自装进 `Signal`：
- * 模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。十二个方法的签名
+ * 十四个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，只是每一项各自装进 `Signal`：
+ * 模板只读了 `statusState` 时，一次 `diff()` 的相位变化不会让它重新求值。十四个方法的签名
  * 与插件包 `WorkingTreeManager`（`switchBranch` 那一个是 `VersionManager`）上的同名方法完全
  * 一致 —— 入参与返回值用的都是 `@aiao/rxdb-plugin-working-tree` 那一份类型，
  * 本包**不重定义**（tri-framework-api.md §1）。
@@ -81,6 +83,10 @@ export interface WorkingTreeResource {
   readonly restoreSessionState: Signal<WorkingTreeQueryState<WorkingTreeRestoreSessionInfo | null>>;
   /** 上一次 `switchBranch()` 的相位；**没有 empty** —— 切到当前分支是成功的 no-op */
   readonly switchBranchState: Signal<WorkingTreeCommandState<void>>;
+  /** 上一次 `checkBranchFromCommit()` 的相位；**没有 empty** —— 能建与三种被拒成因都是结果 */
+  readonly checkBranchFromCommitState: Signal<WorkingTreeCommandState<WorkingTreeBranchFromCommitCheck>>;
+  /** 上一次 `createBranchFromCommit()` 的相位；**没有 empty** —— 建好了与三种被拒成因都是结果 */
+  readonly createBranchFromCommitState: Signal<WorkingTreeCommandState<WorkingTreeCreateBranchFromCommitResult>>;
 
   /** 读取这个库启没启用提交能力。 */
   readonly isEnabled: () => Promise<boolean>;
@@ -109,6 +115,13 @@ export interface WorkingTreeResource {
   readonly restoreSession: () => Promise<WorkingTreeRestoreSessionInfo | null>;
   /** 切到另一条分支；被 `requireClean` 拒掉时抛 `WorkingTreeDirtyError`。成功后自动重读一次 status。 */
   readonly switchBranch: (branchId: string, options?: WorkingTreeSwitchBranchOptions) => Promise<void>;
+  /** 判一个可达提交能不能拿来建分支；三种被拒成因走返回值，不是异常。 */
+  readonly checkBranchFromCommit: (commitId: string) => Promise<WorkingTreeBranchFromCommitCheck>;
+  /** 从一个可达提交建分支，不切换、不重读 status；三种被拒成因走返回值，不是异常。 */
+  readonly createBranchFromCommit: (
+    branchId: string,
+    commitId: string
+  ) => Promise<WorkingTreeCreateBranchFromCommitResult>;
 }
 
 /**
@@ -149,10 +162,10 @@ export interface WorkingTreeResource {
  * ```
  *
  * @remarks
- * **必须在 Angular 注入上下文中调用** —— 它经 `useRxDB()` 取库。十二格状态挂在本次调用
+ * **必须在 Angular 注入上下文中调用** —— 它经 `useRxDB()` 取库。十四格状态挂在本次调用
  * 自己的 signal 上，没有跨组件共享的单例缓存。
  *
- * **创建入口本身一次 IO 都不发**：十二格初值全是 `idle`，只有真的调了方法才会去读库。
+ * **创建入口本身一次 IO 都不发**：十四格初值全是 `idle`，只有真的调了方法才会去读库。
  * 挂上就查会让每个只想拿到 `commit()` 的组件在挂载时白发一轮查询。
  *
  * **没有变更流**：状态只在经本入口发出的命令之后更新。别的标签页写进来的改动、
@@ -186,6 +199,8 @@ export const useWorkingTree = (): WorkingTreeResource => {
     restoreState: computed(() => states().restoreState),
     restoreSessionState: computed(() => states().restoreSessionState),
     switchBranchState: computed(() => states().switchBranchState),
+    checkBranchFromCommitState: computed(() => states().checkBranchFromCommitState),
+    createBranchFromCommitState: computed(() => states().createBranchFromCommitState),
     ...commands
   };
 };

@@ -45,6 +45,10 @@ import {
   type WorkingTreeContextMenuItem,
   type WorkingTreeContextMenuState
 } from './components/context-menu.component';
+import {
+  WorkingTreeCreateBranchDialogComponent,
+  type CreateBranchDialogState
+} from './components/create-branch-dialog.component';
 import { WorkingTreeDiffViewerComponent } from './components/diff-viewer.component';
 import { WorkingTreeHistoryCompareComponent, type HistoryCompareState } from './components/history-compare.component';
 import { WorkingTreeHistoryListComponent } from './components/history-list.component';
@@ -117,6 +121,7 @@ const COMMIT_REJECTION_TEXT: Record<CommitValidationReason, string> = {
     WorkingTreeCommitBoxComponent,
     WorkingTreeCommitDetailComponent,
     WorkingTreeContextMenuComponent,
+    WorkingTreeCreateBranchDialogComponent,
     WorkingTreeDiffViewerComponent,
     WorkingTreeHistoryCompareComponent,
     WorkingTreeHistoryListComponent,
@@ -149,11 +154,13 @@ export default class WorkingTreePage implements OnInit {
   /** 提交草稿拆成摘要与描述两个框（GitHub Desktop 的 Summary / Description）。 */
   readonly $commitSummary = signal('');
   readonly $commitDescription = signal('');
-  // 分支菜单：开合、创建弹层、名字与错误都交给 branch-menu 组件用 model() 双向持有
+  /** 分支下拉的开合，交给 branch-menu 组件用 model() 双向持有 */
   readonly $branchMenuOpen = signal(false);
-  readonly $createPopoverOpen = signal(false);
-  readonly $newBranchName = signal('');
-  readonly $branchError = signal<string | null>(null);
+  /** 「Create a branch」对话框（History 右键与分支下拉的 New branch 共用）：状态、名字、报错与进行中 */
+  readonly $createBranchDialog = signal<CreateBranchDialogState | null>(null);
+  readonly $createBranchName = signal('');
+  readonly $createBranchError = signal<string | null>(null);
+  readonly $creatingBranch = signal(false);
   readonly $mergeDialog = signal<MergeDialogState | null>(null);
   readonly $mergePreview = signal<BranchDiffLoad<MergePreview>>({ phase: 'loading' });
   /** History 顶部的分支对比（GitHub Desktop 的「Select branch to compare…」）；没在对比时是 `null` */
@@ -390,7 +397,10 @@ export default class WorkingTreePage implements OnInit {
     this.$contextMenu.set({ x: request.event.clientX, y: request.event.clientY, items });
   }
 
-  /** 历史行上的右键：动作（恢复）在前，分隔线后是复制提交 id（GitHub Desktop 的菜单顺序）。 */
+  /**
+   * 历史行上的右键，照 GitHub Desktop 的分组：恢复在前，分隔线后是从这个提交建分支，再一条分隔线后是复制提交 id。
+   * 基线节点没有可恢复的内容，没有第一组；从它建分支照样可以（GitHub Desktop 这一项始终可点）。
+   */
   openCommitContextMenu(request: WorkingTreeContextMenuRequest<CommitLogEntry>) {
     request.event.preventDefault();
     const items: WorkingTreeContextMenuItem[] = [];
@@ -400,7 +410,11 @@ export default class WorkingTreePage implements OnInit {
         { id: 'sep-1', label: '', separator: true }
       );
     }
-    items.push({ id: 'copy-commit', label: 'Copy Commit ID' });
+    items.push(
+      { id: 'create-branch', label: 'Create branch from commit', testId: 'wt-commit-create-branch' },
+      { id: 'sep-2', label: '', separator: true },
+      { id: 'copy-commit', label: 'Copy Commit ID' }
+    );
     this.$contextMenuTarget.set({ kind: 'commit', commitId: request.target.commitId });
     this.$contextMenu.set({ x: request.event.clientX, y: request.event.clientY, items });
   }
@@ -435,14 +449,14 @@ export default class WorkingTreePage implements OnInit {
       }
       return;
     }
-    if (item.id === 'restore') {
-      // 右键不选中行（GitHub Desktop 同款），按右键目标 id 从已读历史里找回条目。
-      if (target.kind !== 'commit') return;
-      const commits = this.tree.listCommitsState();
-      if (commits.phase !== 'success' && commits.phase !== 'empty') return;
-      const entry = commits.value.entries.find(candidate => candidate.commitId === target.commitId) ?? null;
-      if (entry !== null) void this.restoreEntry(entry);
-    }
+    if (target.kind !== 'commit') return;
+    // 右键不选中行（GitHub Desktop 同款），按右键目标 id 从已读历史里找回条目。
+    const commits = this.tree.listCommitsState();
+    if (commits.phase !== 'success' && commits.phase !== 'empty') return;
+    const entry = commits.value.entries.find(candidate => candidate.commitId === target.commitId) ?? null;
+    if (entry === null) return;
+    if (item.id === 'restore') void this.restoreEntry(entry);
+    else if (item.id === 'create-branch') void this.openCreateBranch(entry, 'commit');
   }
 
   /** 写剪贴板 + toast 反馈；失败不假装成功。 */
@@ -654,15 +668,72 @@ export default class WorkingTreePage implements OnInit {
 
   // ── 分支操作 ──────────────────────────────────────────────
 
-  async createBranch(name: string) {
+  /**
+   * 分支下拉的「New branch」：从当前分支的 HEAD 建（GitHub Desktop 的新分支同样从当前提交出发）。
+   *
+   * 不用 `createBranch(name)`：它把当前分支的未提交改动复制一份给新分支，两边都留着——GitHub Desktop 的两个去处
+   * （留在原分支 / 带去新分支）都不是这样。从 HEAD 建出来的分支是干净的，改动留在原分支上，切过去时
+   * 「Switch branch」问的正是「Leave my changes」。HEAD 直接问门面取：经工作树入口取会把 History 的那一格换成一条。
+   */
+  async openNewBranch(): Promise<void> {
     try {
-      await this.#rxdb.versionManager.createBranch(name);
-      this.$createPopoverOpen.set(false);
-      this.$newBranchName.set('');
-      this.showToast('success', `Branch "${name}" created.`);
+      const { entries } = await this.#rxdb.workingTree.listCommits({ limit: 1 });
+      const head = entries[0];
+      if (head === undefined) {
+        this.showToast('error', `${this.$activeBranch()} has no commits to base a branch on yet.`);
+        return;
+      }
+      await this.openCreateBranch(head, 'branch');
     } catch (e: unknown) {
-      this.$branchError.set(e instanceof Error ? e.message : '创建失败');
+      this.showToast('error', e instanceof Error ? e.message : 'Could not read the current commit.');
     }
+  }
+
+  /** 打开「Create a branch」：先摆出对话框，再问这个提交建不建得了分支；迟到的预检不落进换了提交的对话框。 */
+  async openCreateBranch(entry: CommitLogEntry, from: CreateBranchDialogState['from']): Promise<void> {
+    const base = { commitId: entry.commitId, summary: entry.message.split('\n')[0] ?? '' };
+    this.$createBranchName.set('');
+    this.$createBranchError.set(null);
+    this.$createBranchDialog.set({ base, from, availability: 'checking' });
+    try {
+      const check = await this.tree.checkBranchFromCommit(base.commitId);
+      const dialog = this.$createBranchDialog();
+      if (dialog?.base.commitId !== base.commitId) return;
+      this.$createBranchDialog.set({ ...dialog, availability: check.ok ? 'ok' : check.reason });
+    } catch (e: unknown) {
+      this.$createBranchDialog.set(null);
+      this.showToast('error', e instanceof Error ? e.message : 'Could not check this commit.');
+    }
+  }
+
+  /**
+   * 「Create branch」：建好之后切过去（GitHub Desktop 建完总会检出新分支）。工作树有改动时切换被拒，
+   * 照常弹「Switch branch」；在那里取消的话分支已经建好、留在原分支上，与 GitHub Desktop 一致。
+   */
+  async confirmCreateBranch(name: string): Promise<void> {
+    const dialog = this.$createBranchDialog();
+    if (dialog === null || this.$creatingBranch()) return;
+    this.$creatingBranch.set(true);
+    this.$createBranchError.set(null);
+    try {
+      const result = await this.tree.createBranchFromCommit(name, dialog.base.commitId);
+      if (!result.ok) {
+        this.$createBranchDialog.set({ ...dialog, availability: result.reason });
+        return;
+      }
+      this.closeCreateBranchDialog();
+      await this.switchBranch(name);
+    } catch (e: unknown) {
+      this.$createBranchError.set(e instanceof Error ? e.message : 'Could not create the branch.');
+    } finally {
+      this.$creatingBranch.set(false);
+    }
+  }
+
+  closeCreateBranchDialog(): void {
+    this.$createBranchDialog.set(null);
+    this.$createBranchName.set('');
+    this.$createBranchError.set(null);
   }
 
   /**

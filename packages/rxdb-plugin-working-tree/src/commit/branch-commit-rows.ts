@@ -31,6 +31,7 @@ import { WorkingTreeState } from '../working-tree/working-tree-state.entity.js';
 import { CommitBranchRef } from './commit-branch-ref.entity.js';
 import type { CommitPatchCodecContext } from './commit-codec.js';
 import type { CommitWriteContext } from './commit-context.js';
+import { readCommitForkPoint } from './commit-fork-point.js';
 import { readCommitBranchRef } from './list-commits.js';
 import { writeCommit } from './write-commit.js';
 
@@ -287,36 +288,81 @@ const anchorBranchBaseline = async (
 };
 
 /**
+ * 「从提交建分支」那一支（US-314）：新分支的 HEAD 就是点名的提交，工作树为空。
+ *
+ * @remarks
+ * **不写任何 commit，也不复制工作树条目**：新分支与源分支共享这个提交之前的历史（git 的 `git branch N <commit>`），
+ * 数据由变更日志在分叉点上给出，那一刻没有未提交的改动。
+ *
+ * 点名只是在库里已成立的候选里指一个：分支行上的 `(parentId, fromChangeId)` 必须正是这个提交记下的分叉点，
+ * 不符就抛、整条建分支回滚——HEAD 指着一个提交、数据却来自另一处分叉点的分支，切过去读到的与它的历史对不上。
+ * `headRevision` / `workingTreeRevision` 从 0 起，理由同 {@link copyCurrentMaterialization}。
+ */
+const shareNamedCommit = async (
+  executor: TransactionExecutor,
+  branch: RxDBBranch,
+  commitId: string,
+  rows: readonly [CommitBranchRef, WorkingTreeState]
+): Promise<void> => {
+  const [ref, state] = rows;
+  const forkPoint = await readCommitForkPoint(executor, commitId);
+  if (!forkPoint) {
+    throw new RxDBError(`提交 ${commitId} 没有分叉点记录，建不了从它出发的分支 ${branch.id}`);
+  }
+  const fromChangeId = branch.fromChangeId ?? null;
+  if (branch.parentId !== forkPoint.branchId || fromChangeId !== forkPoint.changeId) {
+    throw new RxDBError(
+      `新分支 ${branch.id} 的分叉点 (${branch.parentId}, ${fromChangeId}) 与提交 ${commitId} 记下的 ` +
+        `(${forkPoint.branchId}, ${forkPoint.changeId}) 不符：分支行与 HEAD 会指向两处不同的数据`
+    );
+  }
+  ref.headCommitId = commitId;
+  state.baseHeadCommitId = commitId;
+  state.entryCount = 0;
+  await executor.saveMany([ref, state]);
+};
+
+/**
  * 新建一条分支时，把它在提交侧的两行连同该继承的东西一并写下（FR-017）。
  *
  * @param executor - `create_branch` 那个写事务的执行器
  * @param entityManager - 用于 `instantiate()` 的实体管理器
  * @param branchId - 本次新建的分支 id
- * @throws {@link RxDBError} 分支行、激活态行、源分支的 ref 或状态行缺失时
+ * @param fromCommitId - 调用方点名的源提交（从提交建分支，US-314）；不点名时不传
+ * @throws {@link RxDBError} 分支行、激活态行、源分支的 ref 或状态行缺失时；点名的提交没有分叉点、或与分支行对不上时
  *
  * @remarks
- * 两条支线由**库里那两个值**判定，不看调用方用了哪个重载：分叉点
+ * 不点名时，两条支线由**库里那两个值**判定，不看调用方用了哪个重载：分叉点
  * （`rxdb_branch.fromChangeId`）等于源分支 tip（两边都没有变更时同样算相等）就是
  * 「当前物化状态」，否则就是历史点。`create_branch` 在调本函数之前就把 `parentId` /
  * `fromChangeId` 写进了同一个事务，再顺着入参把同样两个值传一遍等于让同一件事有两份
  * 可以互相漂移的真相；而按「传没传第二个实参」判的话，`createBranch(b, 源分支tip的id)`
  * 与 `createBranch(b)` 会对同一个状态给出两种答案。
  *
+ * 点名提交的那一支不能交给库里的值自动判：几个提交可以落在同一个分叉点上（只含拉取、恢复派生单元的提交），
+ * 自动共享也会改掉「从历史点分叉」今天的语义。点名之后仍以库里的值为准，见 {@link shareNamedCommit}。
+ *
  * 没有父分支的那条（`parentId` 为空）既没有可共享的 HEAD 也没有可复制的工作树，
  * 落下的就是 {@link createBranchCommitRows} 那两行原样——这不是兜底，是「无源可继承」。
  *
- * 代际在分流**之前**发放：两条支线都要用它，而 `branch_baseline` 那一支还要拿它做 CAS 条件
+ * 代际在分流**之前**发放：三条支线都要用它，而 `branch_baseline` 那一支还要拿它做 CAS 条件
  * 与幂等键的一半。
  */
 export const writeNewBranchCommitRows = async (
   executor: TransactionExecutor,
   entityManager: EntityManager,
-  branchId: string
+  branchId: string,
+  fromCommitId?: string
 ): Promise<void> => {
   const branch = await readBranchRow(executor, branchId);
   // 代际从单调源发放，不是「当前分支数 + 1」：删过分支之后后者会复用旧号，
   // 持旧 `(branchId, headRevision)` 的调用方就会误中同名重建的新分支（ABA）。
   const rows = createBranchCommitRows(entityManager, branchId, await allocateBranchGeneration(executor));
+
+  if (fromCommitId !== undefined) {
+    await shareNamedCommit(executor, branch, fromCommitId, rows);
+    return;
+  }
 
   const parentId = branch.parentId ?? null;
   if (parentId === null) {
@@ -397,12 +443,14 @@ const readStagePages = async (
  * `rxdb-plugin-history` 就得认识 `WorkingTreeEntry`，而那个方向的 import 是条依赖环
  * （nx 的图插件把静态 import 直接映射成依赖边）。
  *
- * **十一张表里删六张，另外五张逐张都有不删的理由：**
+ * **十二张表里删六张，另外六张逐张都有不删的理由：**
  *
  * - `Commit` / `CommitChangeSet`：FR-044 明文要求保留。两张表上都**没有** `branchId` 列
  *   （可达性走 ref），所以「删干净这条分支」一旦被理解成「删掉它能看见的一切」，
  *   删掉的就是别的分支也指着的节点，以及一个仍然可达的 commit 的内容——而 `changeSetCount`
  *   还写着原来的数，图校验从此永久报损坏。
+ * - `CommitForkPoint`：主键是提交 id，跟着提交走。它的 `branchId` 是提交时所在的分支，那条分支被删时
+ *   这个提交已不可能从任何分支的 HEAD 够到——还够得到它的分支都是那条分支的后代，有后代的分支删不掉。
  * - `WorkingTreeActivationState` / `CommitCapabilityState`：全库单例，不属于任何分支。
  *   跟着分支一起删掉之后，此后每一次 CAS 都取不到期望值，整个库再也提交不了。
  * - `Worktree`：只读检出位是建立时刻的一份快照，分支删了它照样打得开；登记行跟着删，

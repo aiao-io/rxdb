@@ -13,7 +13,7 @@ import {
 import { useRxDB } from '@aiao/rxdb-react';
 import { useCallback, useMemo, useState } from 'react';
 
-/** 十二格状态连同产生它的库：换库后旧库的写回凭 `database` 识别并丢弃。 */
+/** 十四格状态连同产生它的库：换库后旧库的写回凭 `database` 识别并丢弃。 */
 interface WorkingTreeSlot {
   readonly database: ReturnType<typeof useRxDB>;
   readonly states: WorkingTreeAsyncStates;
@@ -23,8 +23,8 @@ interface WorkingTreeSlot {
  * {@link useWorkingTree} 在当前 render 返回的工作树入口。
  *
  * @remarks
- * 十二个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，取值就是普通只读值，可以直接
- * 解构。十二个方法的签名与插件包 `WorkingTreeManager`（`switchBranch` 那一个是 `VersionManager`）
+ * 十四个状态字段与核心的 `WorkingTreeAsyncStates` 一一对应，取值就是普通只读值，可以直接
+ * 解构。十四个方法的签名与插件包 `WorkingTreeManager`（`switchBranch` 那一个是 `VersionManager`）
  * 上的同名方法完全一致 —— 入参与返回值用的都是 `@aiao/rxdb-plugin-working-tree` 那一份类型，
  * 本包**不重定义**（tri-framework-api.md §1）。
  *
@@ -33,7 +33,7 @@ interface WorkingTreeSlot {
  *
  * 三端等价实现：Angular `useWorkingTree()`（`Signal`）、Vue `useWorkingTree()`
  * （`ComputedRef`），字段名、方法名与语义完全一致，只是容器形态不同。`RxDBProvider` 换了库时
- * 十二格回到初态，旧库迟到的结果丢弃；Angular / Vue 的入口绑定创建时的库，换库靠重建组件。
+ * 十四格回到初态，旧库迟到的结果丢弃；Angular / Vue 的入口绑定创建时的库，换库靠重建组件。
  *
  * `restore()` 的四个被拒成因走**返回值**而不是异常，`restoreState` 因此也**没有 empty**：
  * 「被拒」与「一条都没恢复」都是结果，不是「没有结果」。`restoreSessionState` 的空则只有一个
@@ -69,7 +69,7 @@ export type WorkingTreeResource = Readonly<WorkingTreeAsyncStates> & WorkingTree
  * ```
  *
  * @remarks
- * **创建入口本身一次 IO 都不发**：十二格初值全是 `idle`，只有真的调了方法才会去读库。
+ * **创建入口本身一次 IO 都不发**：十四格初值全是 `idle`，只有真的调了方法才会去读库。
  * 挂上就查会让每个只想拿到 `commit()` 的组件在挂载时白发一轮查询 —— 而 React 下这还会
  * 在 `StrictMode` 里变成两轮。
  *

@@ -64,15 +64,12 @@
 
       <app-working-tree-branch-menu
         class="gd-toolbar-section gd-branch-section"
-        [(branchError)]="$branchError"
-        [(branchName)]="$newBranchName"
-        [(createOpen)]="$createPopoverOpen"
         [(menuOpen)]="$branchMenuOpen"
         [activeBranch]="$activeBranch()"
         [branches]="branches.value()"
         [popupWidth]="$branchSectionWidth() < MIN_DROPDOWN_WIDTH ? MIN_DROPDOWN_WIDTH : $branchSectionWidth()"
         [style.width.px]="$branchSectionWidth()"
-        (createBranch)="createBranch($event)"
+        (createRequest)="openNewBranch()"
         (menuRequest)="openBranchContextMenu($event)"
         (mergeRequest)="openMergeDialog(null)"
         (switchBranch)="switchBranch($event)"
@@ -314,6 +311,17 @@
     (deleteSourceChange)="setDeleteSource($event)"
     (sourceChange)="setMergeSource($event)"
     (strategyChange)="setMergeStrategy($event)"
+  />
+
+  <!-- ═══════════════════ 新建分支（GitHub Desktop 的 Create a branch） ═══════════════════ -->
+  <app-working-tree-create-branch-dialog
+    [(name)]="$createBranchName"
+    [activeBranch]="$activeBranch()"
+    [creating]="$creatingBranch()"
+    [dialog]="$createBranchDialog()"
+    [error]="$createBranchError()"
+    (closeRequested)="closeCreateBranchDialog()"
+    (confirmRequested)="confirmCreateBranch($event)"
   />
 
   <!-- ═══════════════════ 带着未提交改动切分支（GitHub Desktop 的 Switch branch） ═══════════════════ -->

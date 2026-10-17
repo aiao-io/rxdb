@@ -10,30 +10,24 @@ interface WorkingTreeBranchMenuProps {
   readonly activeBranch: string;
   /** 下拉面板宽：与仓库 foldout 同宽（页面把工具栏分支段宽传进来）。 */
   readonly popupWidth: number;
-  /** 下拉开合；创建弹层打开时恒为 false（两态互斥，避免两个弹层叠着）。 */
+  /** 下拉开合 */
   readonly menuOpen: boolean;
-  readonly createOpen: boolean;
-  readonly branchName: string;
-  readonly branchError: string | null;
   readonly onMenuOpenChange: (open: boolean) => void;
-  readonly onCreateOpenChange: (open: boolean) => void;
-  readonly onBranchNameChange: (name: string) => void;
-  readonly onBranchErrorChange: (error: string | null) => void;
   /** 行上右键；页面按条目拼菜单（复制分支名 / 删除）。 */
   readonly onMenuRequest: (request: { target: RxDBBranch; event: React.MouseEvent }) => void;
   /** 下拉底部「Choose a branch to merge into 当前分支」：页面打开合并对话框，在里面挑来源 */
   readonly onMergeRequest: () => void;
   /** 点行（非当前分支）立即切换。 */
   readonly onSwitchBranch: (branchId: string) => void;
-  /** 创建确认；分支名校验与建库调用由页面做，组件只负责把名字交出去。 */
-  readonly onCreateBranch: (name: string) => void;
+  /** 「New branch」：页面打开「Create a branch」对话框 */
+  readonly onCreateRequest: () => void;
 }
 
 /**
  * 顶部分支栏里的分支选择器，模仿 GitHub Desktop 的分支下拉。
  *
  * @remarks
- * 下拉与创建弹层都是**内联**渲染（absolute 定位在按钮下方）而不是 overlay：
+ * 下拉是**内联**渲染（absolute 定位在按钮下方）而不是 overlay：
  * overlay 会把节点追加到 `<body>` 末尾，Tab 顺序上排在整页面板之后——键盘用户
  * 从触发按钮按 Tab 会直接跳进侧栏，永远走不进下拉。内联渲染让「按钮 → 筛选框 →
  * 新建 → 分支行 → ⋯」落在自然 DOM 顺序里，a11y 用例的纯 Tab 走查才走得通。
@@ -44,6 +38,7 @@ interface WorkingTreeBranchMenuProps {
  * **点行立即切换**（GitHub Desktop 同款）：工作树有未提交改动时，页面弹「Switch branch」对话框问改动怎么办。
  * 行上的右键（触屏是行尾 ⋯）只有复制分支名与删除，与 GitHub Desktop 的分支右键菜单一致；合并在下拉底部的
  * 「Choose a branch to merge into 当前分支」（GitHub Desktop `branches-container.tsx` 的 merge-button-row）。
+ * 「New branch」收起下拉、交给页面打开「Create a branch」对话框（与 History 右键的从提交建分支共用）。
  *
  * **下拉必须左对齐（`left-0`）而不是右对齐。** 应用壳的侧栏展开后占 240px，
  * 滚动容器里的右对齐下拉会向左伸进侧栏区域被裁剪——裁掉的那块恰好是操作按钮的
@@ -51,7 +46,7 @@ interface WorkingTreeBranchMenuProps {
  *
  * ARIA：列表弹层是非模态的 `role="dialog"`，行是 `<ul>/<li>` 里的普通 `<button>`——弹层里还有
  * 筛选框与新建按钮，`role="menu"` 只许装菜单项（axe `aria-required-children`）；当前分支的行按钮
- * 带 `aria-current="true"`。回车提交与 Escape 关闭在输入法组字期间都让给输入法（见 `isImeComposing`）。
+ * 带 `aria-current="true"`。Escape 关闭在输入法组字期间让给输入法（见 `isImeComposing`）。
  */
 
 /**
@@ -73,16 +68,10 @@ function touchMenuRequest<T>(event: React.MouseEvent, target: T): { target: T; e
 
 export function WorkingTreeBranchMenu({
   activeBranch,
-  branchError,
-  branchName,
   branches,
-  createOpen,
   menuOpen,
   popupWidth,
-  onBranchErrorChange,
-  onBranchNameChange,
-  onCreateBranch,
-  onCreateOpenChange,
+  onCreateRequest,
   onMenuOpenChange,
   onMenuRequest,
   onMergeRequest,
@@ -90,7 +79,6 @@ export function WorkingTreeBranchMenu({
 }: WorkingTreeBranchMenuProps): React.JSX.Element {
   /** 分支名筛选（大小写不敏感的子串匹配）。 */
   const [filter, setFilter] = useState('');
-  const createInputRef = useRef<HTMLInputElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
   const [popupLeft, setPopupLeft] = useState(0);
 
@@ -106,19 +94,8 @@ export function WorkingTreeBranchMenu({
 
   const closeAll = () => {
     onMenuOpenChange(false);
-    onCreateOpenChange(false);
     setFilter('');
   };
-
-  // 弹层一出现就把焦点送进名字输入框：创建分支是两步操作，第二步不能靠用户自己
-  // 再点一下输入框（与 Angular 参考实现同一个 effect 模式）。
-  useEffect(() => {
-    if (createOpen) {
-      const timer = setTimeout(() => createInputRef.current?.focus(), 0);
-      return () => clearTimeout(timer);
-    }
-    return undefined;
-  }, [createOpen]);
 
   // Escape 走 document 级监听而不是挂在容器 div 上：焦点在菜单/弹层的任意子元素上时
   // 事件都能冒泡到 document，而容器 div 挂交互 handler 会撞 jsx-a11y 的
@@ -137,16 +114,14 @@ export function WorkingTreeBranchMenu({
     if (menuOpen) {
       closeAll();
     } else {
-      onCreateOpenChange(false);
       onMenuOpenChange(true);
     }
   };
 
-  const openCreate = () => {
-    onMenuOpenChange(false);
-    onBranchNameChange('');
-    onBranchErrorChange(null);
-    onCreateOpenChange(true);
+  /** 「New branch」：先收起下拉，对话框由页面开 */
+  const requestCreate = () => {
+    closeAll();
+    onCreateRequest();
   };
 
   /** 分支的展示时间：优先 updatedAt，没有就 createdAt。 */
@@ -159,16 +134,6 @@ export function WorkingTreeBranchMenu({
       return;
     }
     onSwitchBranch(branch.id);
-  };
-
-  /** 空名不往页面交：那是一条必然被拒的往返，错误就地呈现。 */
-  const confirmCreate = () => {
-    const name = branchName.trim();
-    if (!name) {
-      onBranchErrorChange('Branch name is required.');
-      return;
-    }
-    onCreateBranch(name);
   };
 
   // 筛出来的分支；空筛选 = 全量。
@@ -201,7 +166,7 @@ export function WorkingTreeBranchMenu({
           />
         </button>
 
-        {menuOpen || createOpen ?
+        {menuOpen ?
           <div
             className='fixed inset-0 z-30'
             style={{ background: 'rgba(0, 0, 0, 0.35)' }}
@@ -215,59 +180,7 @@ export function WorkingTreeBranchMenu({
           ></div>
         : null}
 
-        {createOpen ?
-          <div
-            className='gd-menu gd-menu-flush gd-branch-create-popover absolute top-full left-0 z-40 mt-1'
-            style={{ width: popupWidth }}
-            aria-label='Create a branch'
-            data-testid='wt-branch-create-popover'
-            role='dialog'
-          >
-            <div className='flex flex-col gap-2'>
-              <div className='text-xs font-medium'>
-                Create a branch <span style={{ color: 'var(--gd-muted)' }}>from {activeBranch}</span>
-              </div>
-              <input
-                className='gd-input'
-                ref={createInputRef}
-                onChange={event => {
-                  onBranchNameChange(event.target.value);
-                  onBranchErrorChange(null);
-                }}
-                onKeyDown={event => {
-                  if (event.key === 'Enter' && !isImeComposing(event.nativeEvent)) confirmCreate();
-                }}
-                data-testid='wt-branch-name'
-                placeholder='feature/my-feature'
-                type='text'
-                value={branchName}
-              />
-              {branchError !== null && (
-                <p className='text-xs text-red-600' role='alert'>
-                  {branchError}
-                </p>
-              )}
-              <div className='flex justify-end gap-2'>
-                <button
-                  className='gd-btn-secondary'
-                  onClick={closeAll}
-                  data-testid='wt-branch-create-cancel'
-                  type='button'
-                >
-                  Cancel
-                </button>
-                <button
-                  className='gd-btn-primary'
-                  onClick={confirmCreate}
-                  data-testid='wt-branch-create-confirm'
-                  type='button'
-                >
-                  Create
-                </button>
-              </div>
-            </div>
-          </div>
-        : menuOpen ?
+        {menuOpen ?
           <div
             ref={popupRef}
             className='gd-menu gd-menu-flush absolute top-full left-0 z-40 flex flex-col overflow-y-auto'
@@ -283,7 +196,7 @@ export function WorkingTreeBranchMenu({
               </span>
               <button
                 className='gd-btn-ghost shrink-0'
-                onClick={openCreate}
+                onClick={requestCreate}
                 data-testid='wt-branch-create'
                 type='button'
               >

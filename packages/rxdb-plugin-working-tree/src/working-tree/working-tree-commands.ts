@@ -1,5 +1,5 @@
 /**
- * @fileoverview 三端入口共用的**命令实现**：把 {@link WorkingTreeManager} 的十一个方法与
+ * @fileoverview 三端入口共用的**命令实现**：把 {@link WorkingTreeManager} 的十三个方法与
  * `versionManager.switchBranch()` 接到 {@link WorkingTreeAsyncStates} 上
  * （US-306 阶段 C、T110 与 T123，contracts/tri-framework-api.md §1/§4）。
  *
@@ -33,6 +33,10 @@ import {
   type WorkingTreeAsyncStates,
   type WorkingTreeStateSink
 } from './async-state.js';
+import type {
+  WorkingTreeBranchFromCommitCheck,
+  WorkingTreeCreateBranchFromCommitResult
+} from './branch-from-commit.js';
 import type { CommitOptions, CommitResult } from './commit-command.js';
 import type { WorkingTreeDiff, WorkingTreeDiffOptions } from './diff.js';
 import type { WorkingTreeDiscardOptions, WorkingTreeDiscardResult } from './discard-command.js';
@@ -59,7 +63,7 @@ export type WorkingTreeStatePatch = <K extends keyof WorkingTreeAsyncStates>(
 ) => void;
 
 /**
- * 三端入口对外暴露的十二个命令；签名与 {@link WorkingTreeManager}
+ * 三端入口对外暴露的十四个命令；签名与 {@link WorkingTreeManager}
  * （以及 `switchBranch` 那一个 {@link VersionManager}）上的同名方法一致。
  *
  * @remarks
@@ -98,6 +102,13 @@ export interface WorkingTreeCommands {
   readonly restoreSession: () => Promise<WorkingTreeRestoreSessionInfo | null>;
   /** 切到另一条分支；成功后顺带重读一次 status。被 `requireClean` 拒掉时**抛** `WorkingTreeDirtyError` */
   readonly switchBranch: (branchId: string, options?: WorkingTreeSwitchBranchOptions) => Promise<void>;
+  /** 判一个可达提交能不能拿来建分支；三种被拒成因走返回值，不是异常 */
+  readonly checkBranchFromCommit: (commitId: string) => Promise<WorkingTreeBranchFromCommitCheck>;
+  /** 从一个可达提交建分支，不切换；三种被拒成因走返回值，不是异常 */
+  readonly createBranchFromCommit: (
+    branchId: string,
+    commitId: string
+  ) => Promise<WorkingTreeCreateBranchFromCommitResult>;
 }
 
 /**
@@ -172,7 +183,7 @@ const assertWorkingTreeEntry = (database: RxDB): WorkingTreeManager => {
 };
 
 /**
- * 把十二个命令接到状态格子上。
+ * 把十四个命令接到状态格子上。
  *
  * @param database - 宿主库；命令取的是它的 `workingTree` 与 `versionManager` 两个入口
  * @param patch - 每一次相位变化的落点；见 {@link WorkingTreeStatePatch}
@@ -296,6 +307,15 @@ export const createWorkingTreeCommands = (database: RxDB, patch: WorkingTreeStat
       // 切过去之后那份摘要属于**另一条**分支：`branchId`、`entryCount`、三个 revision 全换了人。
       // 不重读的话面板上留着的是上一条分支的未提交计数，而用户正要按着它决定提不提交。
       await refreshStatus();
-    }
+    },
+
+    checkBranchFromCommit: commitId =>
+      trackWorkingTreeCommand(sinkFor('checkBranchFromCommitState'), () => workingTree.checkBranchFromCommit(commitId)),
+
+    // 不重读 status：新分支建好了，当前分支的工作树一格都没动。切过去由调用方接着调 `switchBranch()`，那一步会重读
+    createBranchFromCommit: (branchId, commitId) =>
+      trackWorkingTreeCommand(sinkFor('createBranchFromCommitState'), () =>
+        workingTree.createBranchFromCommit(branchId, commitId)
+      )
   };
 };

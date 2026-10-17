@@ -19,6 +19,7 @@ import type { EntityManager, EntityType, IRepository, TransactionExecutor, Trans
 import { RxDB, RxDBBranch, SyncType } from '@aiao/rxdb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
+import { CommitForkPoint } from '../../commit/commit-fork-point.entity.js';
 import { RxDBPluginWorkingTree } from '../../plugin.js';
 import { WorkingTreeActivationState } from '../../working-tree/working-tree-activation-state.entity.js';
 import { WorkingTreeState } from '../../working-tree/working-tree-state.entity.js';
@@ -45,6 +46,10 @@ describe('writeBranchRows', () => {
   let activationRows: WorkingTreeActivationState[];
   let activationRepository: { find: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn> };
   let branchRepository: { find: ReturnType<typeof vi.fn> };
+  /** `create_branch` 先写下的那一行分支；点名提交那一组用例改它的分叉点 */
+  let branchRow: RxDBBranch;
+  /** 分叉点表的「内容」；只有点名提交的那一支会读它 */
+  let forkPoints: CommitForkPoint[];
   let saved: InstanceType<EntityType>[];
   let executor: TransactionExecutor;
 
@@ -73,7 +78,7 @@ describe('writeBranchRows', () => {
     // （共享源 HEAD / 锚一个 branch_baseline）正是从它的 `parentId` / `fromChangeId` 上判的。
     // 这里给的是一条**无父**分支：本文件守的是「两行落没落下、代际怎么发」，
     // 继承什么归 `__tests__/version/switch-branch-working-tree.spec.ts`。
-    const branchRow = entityManager.instantiate(RxDBBranch);
+    branchRow = entityManager.instantiate(RxDBBranch);
     branchRow.id = 'feature-x';
     branchRow.activated = false;
     branchRow.activeKey = null;
@@ -82,6 +87,7 @@ describe('writeBranchRows', () => {
     branchRow.parentId = null;
     branchRow.fromChangeId = null;
     branchRepository = { find: vi.fn(async () => [branchRow]) };
+    forkPoints = [];
 
     saved = [];
     executor = {
@@ -102,6 +108,7 @@ describe('writeBranchRows', () => {
       getRepository: (EntityClass: unknown) =>
         (EntityClass === WorkingTreeActivationState ? activationRepository
         : EntityClass === RxDBBranch ? branchRepository
+        : EntityClass === CommitForkPoint ? { find: vi.fn(async () => forkPoints) }
         : { find: vi.fn(async () => []) }) as unknown as IRepository<EntityType>,
       saveMany: vi.fn(async (entities: InstanceType<EntityType>[]) => {
         saved.push(...entities);
@@ -165,6 +172,62 @@ describe('writeBranchRows', () => {
     // 所以既要看到单调源真的前进了，也要看到它不是经 ORM 前进的。
     expect(activationRow.branchGenerationSeq).toBe(4);
     expect(activationRepository.update).not.toHaveBeenCalled();
+  });
+
+  describe('点名源提交（从提交建分支，US-314）', () => {
+    const forkPointRow = (overrides: Partial<CommitForkPoint> = {}): CommitForkPoint => {
+      const row = entityManager.instantiate(CommitForkPoint);
+      Object.assign(row, {
+        id: 'commit-1',
+        branchId: 'main',
+        changeId: 7,
+        revertedCount: 0,
+        maxRevertChangeId: null,
+        ...overrides
+      });
+      return row;
+    };
+    const createFromCommit = () =>
+      contribution.writeBranchRows(entityManager, { executor, branchId: 'feature-x', fromCommitId: 'commit-1' });
+
+    // `create_branch` 照那个提交记下的分叉点写分支行：在 main 的变更 7 处分出去
+    beforeEach(() => {
+      branchRow.parentId = 'main';
+      branchRow.fromChangeId = 7;
+    });
+
+    it('HEAD 就是那个提交、工作树为空：不写提交，也不复制条目', async () => {
+      forkPoints = [forkPointRow()];
+
+      await createFromCommit();
+
+      const ref = saved.find(row => row instanceof CommitBranchRef) as CommitBranchRef | undefined;
+      const state = saved.find(row => row instanceof WorkingTreeState) as WorkingTreeState | undefined;
+      expect({ head: ref?.headCommitId, headRevision: ref?.headRevision, generation: ref?.generation }).toEqual({
+        head: 'commit-1',
+        headRevision: 0,
+        generation: 4
+      });
+      expect({
+        base: state?.baseHeadCommitId,
+        revision: state?.workingTreeRevision,
+        entryCount: state?.entryCount
+      }).toEqual({ base: 'commit-1', revision: 0, entryCount: 0 });
+      expect(saved.filter(row => !(row instanceof CommitBranchRef) && !(row instanceof WorkingTreeState))).toEqual([]);
+    });
+
+    it('点名的提交没有分叉点记录：抛错，一行都不写', async () => {
+      await expect(createFromCommit()).rejects.toThrow('commit-1');
+      expect(saved).toEqual([]);
+    });
+
+    // HEAD 指着一个提交、数据却来自另一处分叉点：切过去读到的与它的历史对不上
+    it('分支行上的分叉点与那个提交记下的对不上：抛错，一行都不写', async () => {
+      forkPoints = [forkPointRow({ changeId: 8 })];
+
+      await expect(createFromCommit()).rejects.toThrow('不符');
+      expect(saved).toEqual([]);
+    });
   });
 
   it('激活态行缺失时抛错，不凭空补一行', async () => {

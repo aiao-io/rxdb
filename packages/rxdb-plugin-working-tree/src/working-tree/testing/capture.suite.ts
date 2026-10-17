@@ -64,6 +64,7 @@ import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from '../../commit/commit-capability-state.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
 import { CommitErrorCode } from '../../commit/commit-error-codes.js';
+import { CommitForkPoint } from '../../commit/commit-fork-point.entity.js';
 import { Commit } from '../../commit/commit.entity.js';
 import { WorkingTreeCaptureRuntime } from '../capture-hook.js';
 import { assertColdReplayInvariant, type ColdReplayRow, type ColdReplaySnapshot } from '../cold-replay.js';
@@ -639,10 +640,11 @@ const identityOf = (EntityClass: EntityType): string => {
 const PRE_EPIC_006_SYSTEM_ENTITIES: readonly EntityType[] = [RxDBBranch, RxDBChange, RxDBMigration, RxDBSync];
 
 /**
- * epic-006 新增的 11 张系统表
+ * epic-006 新增的 12 张系统表
  *
  * @remarks
- * 前 10 张照 `data-model.md` §1 的 1→10 抄，第 11 张是只读检出位的登记表（US-313），与 {@link SYSTEM_ENTITIES} 里那一段一致。
+ * 前 10 张照 `data-model.md` §1 的 1→10 抄，第 11 张是只读检出位的登记表（US-313），第 12 张是提交的分叉点（US-314），
+ * 与 {@link SYSTEM_ENTITIES} 里那一段一致。
  *
  * **这份清单是故意手写的**，不从 `SYSTEM_ENTITIES` 里算差集：算出来的话，新增一张系统表会被
  * 自动收编进来，而 §1.5 的三条断言（登记、`log === false`、不引用 `rxdb_change`）恰恰是
@@ -659,7 +661,8 @@ const EPIC_006_SYSTEM_ENTITIES: readonly EntityType[] = [
   WorkingTreeRestoreSession,
   WorkingTreeMaterializationStage,
   WorkingTreeMaterializationPage,
-  Worktree
+  Worktree,
+  CommitForkPoint
 ];
 
 /**
@@ -1610,7 +1613,7 @@ export const workingTreeCaptureConformanceSuite = (context: WorkingTreeConforman
         expect(getEntityMetadata(WorkingTreeEntry).tableName).toBe('rxdb_working_tree_entry');
         expect(getEntityMetadata(CommitChangeSet).tableName).toBe('rxdb_commit_change_set');
 
-        // 十一张一起断言而不是只断言点名的两张：另外九张现在也确实不引用它，把范围收窄到两张
+        // 十二张一起断言而不是只断言点名的两张：另外十张现在也确实不引用它，把范围收窄到两张
         // 等于给「下一张新表引用 rxdb_change」留门，而那正是这条契约要堵死的形态。
         for (const EntityClass of EPIC_006_SYSTEM_ENTITIES) {
           const mapped = getEntityMetadata(EntityClass).relations.map(relation => relation.mappedEntity);

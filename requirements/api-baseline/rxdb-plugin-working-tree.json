@@ -498,6 +498,14 @@
         "kind": "type"
       },
       {
+        "name": "WorkingTreeBranchFromCommitCheck",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeBranchFromCommitRejection",
+        "kind": "type"
+      },
+      {
         "name": "WorkingTreeCapabilityDisabledError",
         "kind": "both"
       },
@@ -539,6 +547,10 @@
       },
       {
         "name": "WorkingTreeCommitEvent",
+        "kind": "type"
+      },
+      {
+        "name": "WorkingTreeCreateBranchFromCommitResult",
         "kind": "type"
       },
       {

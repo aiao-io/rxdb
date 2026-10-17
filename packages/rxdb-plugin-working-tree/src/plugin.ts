@@ -5,7 +5,7 @@
  * 插件本身只做三件事，其余全部语义在 `working-tree/` 与 `commit/` 两个目录里：
  *
  * 1. **挂入口**：`use()` 的那一刻把 {@link WorkingTreeManager} 定义成 `rxdb.workingTree`。
- * 2. **声明系统贡献**：11 张系统表、新库的初始行、既有库的引导迁移、既有库连接时的接通，
+ * 2. **声明系统贡献**：12 张系统表、新库的初始行、既有库的引导迁移、既有库连接时的接通，
  *    以及每条新分支的贡献行，一次性交给宿主按 {@link RxDBSystemContribution} 编排。
  *
  * 3. **接住别人的启用**：`install()` 里登记一个 `CAPABILITY_ENABLED` 监听器（FR-037），
@@ -34,6 +34,7 @@ import { CommitBranchRef } from './commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from './commit/commit-capability-state.entity.js';
 import { isCommitCapabilityEnabled } from './commit/commit-capability.js';
 import { CommitChangeSet } from './commit/commit-change-set.entity.js';
+import { CommitForkPoint } from './commit/commit-fork-point.entity.js';
 import { latchBranchCorruption } from './commit/commit-graph-guard.js';
 import { Commit } from './commit/commit.entity.js';
 import {
@@ -67,10 +68,11 @@ import { WorkingTreeState } from './working-tree/working-tree-state.entity.js';
 export const WORKING_TREE_CAPABILITY_VERSION = 1;
 
 /**
- * 本插件贡献的 11 张系统表，顺序即建表顺序。
+ * 本插件贡献的 12 张系统表，顺序即建表顺序。
  *
  * @remarks
- * 前 10 张照 `data-model.md` §1 的 1→10 抄，第 11 张是只读检出位的登记表（US-313）。与一致性套件里那份手写清单
+ * 前 10 张照 `data-model.md` §1 的 1→10 抄，第 11 张是只读检出位的登记表（US-313），第 12 张是提交的分叉点（US-314）。
+ * 与一致性套件里那份手写清单
  * （`working-tree/testing/capture.suite.ts` 的 `EPIC_006_SYSTEM_ENTITIES`）逐项一致。
  * 那份清单故意**不**从这里算差集：新增一张表必须先让它编译失败，逐条过一遍 §1.5 的三条断言。
  *
@@ -87,7 +89,8 @@ const WORKING_TREE_SYSTEM_ENTITIES: readonly EntityType[] = [
   WorkingTreeRestoreSession,
   WorkingTreeMaterializationStage,
   WorkingTreeMaterializationPage,
-  Worktree
+  Worktree,
+  CommitForkPoint
 ];
 
 /** 连接期的启动清理判定要回给插件实例的两件事（只读检出位，US-313）。 */
@@ -182,10 +185,11 @@ const createSystemContribution = (rxdb: RxDB, startup: StartupReclaimHooks): RxD
     if (!adapter) return;
     await latchBranchCorruption(adapter, error);
   },
-  writeBranchRows: (entityManager, { executor, branchId }) =>
+  writeBranchRows: (entityManager, { executor, branchId, fromCommitId }) =>
     // 「这两行里装的是什么」全在 `branch-commit-rows.ts`：共享源分支 HEAD、复制一份独立工作树，
-    // 还是给历史分叉点写一个 `branch_baseline` 锚点，判据是库里那两个值（FR-017）。
-    writeNewBranchCommitRows(executor, entityManager, branchId),
+    // 还是给历史分叉点写一个 `branch_baseline` 锚点，判据是库里那两个值（FR-017）；
+    // 点名了源提交（从提交建分支，US-314）就让 HEAD 指向它，仍以库里的分叉点核对。
+    writeNewBranchCommitRows(executor, entityManager, branchId, fromCommitId),
   removeBranchRows: ({ executor, branchId }) =>
     // 建行与删行同住一个模块：「一条分支在本能力里占了哪几张表」只有那里知道，
     // 而两半分家的那一天，新加的表会只在其中一半里被记得（FR-044）。
@@ -264,7 +268,7 @@ export class RxDBPluginWorkingTree extends RxDBPluginBase implements IRxDBPlugin
    * 另外三件事都**不**在这里，各有自己的时点：
    *
    * - `rxdb.workingTree` 在**构造时**挂上（见构造器），必须早于 `init()`；
-   * - 11 张表、初始行与引导迁移经 {@link RxDBPluginWorkingTree.system} 声明，由宿主在建表
+   * - 12 张表、初始行与引导迁移经 {@link RxDBPluginWorkingTree.system} 声明，由宿主在建表
    *   那一刻编排——走 `install()` 的贡献永远赶不上自己的表（见 {@link RxDBSystemContribution}）；
    * - 本连接自己的接通由 `bootstrapExisting()`（既有库读能力位）与
    *   {@link WorkingTreeManager.enable}（本连接刚启用）完成。

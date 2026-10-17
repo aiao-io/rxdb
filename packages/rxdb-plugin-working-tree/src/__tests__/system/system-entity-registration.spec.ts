@@ -41,6 +41,7 @@ import { Worktree } from '../../checkout/worktree.entity.js';
 import { CommitBranchRef } from '../../commit/commit-branch-ref.entity.js';
 import { CommitCapabilityState } from '../../commit/commit-capability-state.entity.js';
 import { CommitChangeSet } from '../../commit/commit-change-set.entity.js';
+import { CommitForkPoint } from '../../commit/commit-fork-point.entity.js';
 import { Commit } from '../../commit/commit.entity.js';
 import { RxDBPluginWorkingTree, rxDBPluginWorkingTree } from '../../plugin.js';
 import { WorkingTreeActivationState } from '../../working-tree/working-tree-activation-state.entity.js';
@@ -74,7 +75,7 @@ const createDatabase = (): RxDB => {
 const CONTRIBUTED: readonly EntityType[] = new RxDBPluginWorkingTree(createDatabase()).system.entities;
 
 /**
- * data-model.md §1 的 1→10 顺序，再加只读检出位的登记表（US-313），连同各自的物理表名。
+ * data-model.md §1 的 1→10 顺序，再加只读检出位的登记表（US-313）与提交的分叉点（US-314），连同各自的物理表名。
  *
  * 表名一并断言：类名与 `tableName` 是两处独立书写的字符串，只对类名做断言的话，
  * 一个复制粘贴残留的 `tableName` 会一路活到真实数据库里。
@@ -90,15 +91,16 @@ const EXPECTED_ORDER: readonly (readonly [EntityType, string])[] = [
   [WorkingTreeRestoreSession, 'rxdb_working_tree_restore_session'],
   [WorkingTreeMaterializationStage, 'rxdb_working_tree_materialization_stage'],
   [WorkingTreeMaterializationPage, 'rxdb_working_tree_materialization_page'],
-  [Worktree, 'rxdb_worktree']
+  [Worktree, 'rxdb_worktree'],
+  [CommitForkPoint, 'rxdb_commit_fork_point']
 ];
 
 describe('工作树与提交系统表登记', () => {
-  it('11 个类全部出现在系统贡献里，顺序是 data-model.md §1 的 1→10 再加登记表（顺序即建表顺序）', () => {
+  it('12 个类全部出现在系统贡献里，顺序是 data-model.md §1 的 1→10 再加登记表与分叉点（顺序即建表顺序）', () => {
     expect(CONTRIBUTED).toEqual(EXPECTED_ORDER.map(([EntityClass]) => EntityClass));
   });
 
-  it('use() 之后核心的登记簿当场认得这 11 张表', () => {
+  it('use() 之后核心的登记簿当场认得这 12 张表', () => {
     const database = createDatabase();
     database.use(rxDBPluginWorkingTree);
 
@@ -111,7 +113,7 @@ describe('工作树与提交系统表登记', () => {
     }
   });
 
-  it('10 个类一律 namespace=rxdb、log=false，且表名与 data-model.md §1 一致', () => {
+  it('12 个类一律 namespace=rxdb、log=false，且表名与 data-model.md §1 一致', () => {
     for (const [EntityClass, tableName] of EXPECTED_ORDER) {
       const metadata = getEntityMetadata(EntityClass);
       expect({ namespace: metadata.namespace, tableName: metadata.tableName, log: metadata.log }).toEqual({

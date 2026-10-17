@@ -12,7 +12,12 @@ import {
   type TransactionExecutor
 } from '@aiao/rxdb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { create_branch, get_current_branch_last_change } from '../create-branch.js';
+import {
+  assert_branch_id_free_on_remote,
+  create_branch,
+  get_current_branch_last_change,
+  write_new_branch
+} from '../create-branch.js';
 import { VersionManager } from '../VersionManager.js';
 import { createMockAdapter } from './fixtures/test-db-setup.js';
 import { createTransactionExecutorStub } from './fixtures/transaction-executor-stub.js';
@@ -27,6 +32,10 @@ interface BranchRowsCall {
   readonly executor: RxDBBranchCreationContext['executor'];
   /** 调用发生时，本次事务已经写过多少行——用来判定「排在分支行之后」。 */
   readonly branchRowsWrittenBefore: number;
+  /** 上下文里点名的源提交 */
+  readonly fromCommitId: string | undefined;
+  /** 上下文里有没有 `fromCommitId` 这个键：不点名时连键都不该有 */
+  readonly hasFromCommitId: boolean;
 }
 
 /**
@@ -57,8 +66,14 @@ function createRecordingContribution(
     createInitialRows: () => [],
     createMigrations: () => [],
     bootstrapExisting: async () => undefined,
-    writeBranchRows: async (_entityManager, { executor, branchId }) => {
-      calls.push({ branchId, executor, branchRowsWrittenBefore: countCreatedBranches() });
+    writeBranchRows: async (_entityManager, context) => {
+      calls.push({
+        branchId: context.branchId,
+        executor: context.executor,
+        branchRowsWrittenBefore: countCreatedBranches(),
+        fromCommitId: context.fromCommitId,
+        hasFromCommitId: 'fromCommitId' in context
+      });
       await impl?.();
     },
     // 本文件只压 `create_branch` 那一侧的接缝；删分支的清理与切换分支的前置判定分别由
@@ -281,6 +296,98 @@ describe('create_branch', () => {
       activated: false,
       activeKey: null
     });
+  });
+
+  it('createBranch 不点名提交：贡献方拿到的上下文里连 fromCommitId 这个键都没有', async () => {
+    systemContributions.push(
+      createRecordingContribution('alpha', branchRowsCalls, () => mockBranchRepository.create.mock.calls.length)
+    );
+    seedSourceBranch();
+
+    await create_branch(mockVersion, 'feature-x');
+
+    expect(branchRowsCalls.map(call => call.hasFromCommitId)).toEqual([false]);
+  });
+});
+
+describe('write_new_branch', () => {
+  let rxdb: RxDB;
+  let branchRepository: { create: ReturnType<typeof vi.fn> };
+  let executor: TransactionExecutor;
+  let calls: BranchRowsCall[];
+
+  beforeEach(() => {
+    calls = [];
+    branchRepository = { create: vi.fn(async (entity: object) => entity) };
+    executor = createTransactionExecutorStub({ getRepository: () => branchRepository });
+    rxdb = {
+      entityManager: createEntityManager(),
+      systemContributions: [
+        createRecordingContribution('alpha', calls, () => branchRepository.create.mock.calls.length)
+      ]
+    } as unknown as RxDB;
+  });
+
+  // 从提交建分支（US-314）的分叉点由调用方按那个提交记下的位置给出，`(feature, null)` 这种
+  // 「停在 feature 自己的分叉点上」的位置 `createBranch(id, fromChangeId)` 表达不了，所以这里收显式的两个值
+  it('分支行按给定的父分支与分叉点写下，点名的提交原样交给贡献方', async () => {
+    const branch = await write_new_branch(rxdb, executor, {
+      branchId: 'from-commit',
+      parentId: 'feature',
+      fromChangeId: null,
+      fromCommitId: 'commit-1'
+    });
+
+    expect({
+      id: branch.id,
+      parentId: branch.parentId,
+      fromChangeId: branch.fromChangeId,
+      activated: branch.activated,
+      activeKey: branch.activeKey,
+      local: branch.local,
+      remote: branch.remote
+    }).toEqual({
+      id: 'from-commit',
+      parentId: 'feature',
+      fromChangeId: null,
+      activated: false,
+      activeKey: null,
+      local: true,
+      remote: false
+    });
+    expect(branchRepository.create).toHaveBeenCalledWith(branch);
+    expect(
+      calls.map(call => ({
+        branchId: call.branchId,
+        fromCommitId: call.fromCommitId,
+        sameExecutor: call.executor === executor,
+        branchRowsWrittenBefore: call.branchRowsWrittenBefore
+      }))
+    ).toEqual([{ branchId: 'from-commit', fromCommitId: 'commit-1', sameExecutor: true, branchRowsWrittenBefore: 1 }]);
+  });
+});
+
+describe('assert_branch_id_free_on_remote', () => {
+  const versionWith = (remote: SyncConfigStub['remote'], branchExists?: (branchId: string) => Promise<boolean>) => {
+    const getRemoteRepositories = vi.fn().mockResolvedValue({ adapter: branchExists ? { branchExists } : {} });
+    const version = { rxdb: { config: { sync: { remote } } }, getRemoteRepositories } as unknown as VersionManager;
+    return { version, getRemoteRepositories };
+  };
+
+  it('远端已有同名分支：抛错', async () => {
+    const { version } = versionWith({ adapter: 'supabase' }, async () => true);
+
+    await expect(assert_branch_id_free_on_remote(version, 'taken')).rejects.toThrow(
+      'Branch id (taken) already exists on remote'
+    );
+  });
+
+  it('没配远端：一个请求都不发', async () => {
+    const { version, getRemoteRepositories } = versionWith(undefined);
+
+    await assert_branch_id_free_on_remote(version, 'free');
+
+    expect(getRemoteRepositories).not.toHaveBeenCalled();
   });
 });
 

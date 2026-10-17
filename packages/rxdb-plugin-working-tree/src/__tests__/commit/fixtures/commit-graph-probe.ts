@@ -4,7 +4,7 @@
  * @remarks
  * 它**不是**内存数据库，而且刻意不长成数据库：`find()` 只认
  * `{ combinator: 'and' | 'or', rules: [...] }` 里这一小撮算子——
- * `'=' | '!=' | 'in' | 'notIn' | 'null' | 'notNull' | '>'`，外加 `orderBy` / `limit`，
+ * `'=' | '!=' | 'in' | 'notIn' | 'null' | 'notNull' | '>' | '<='`，外加 `orderBy` / `limit`，
  * 遇到别的**直接抛**。
  *
  * 「只支持一点点、其余抛错」是这个替身能被信任的全部理由。若改成「不认识就返回全部」
@@ -19,8 +19,8 @@
  * 真实 SQL 行为由 `workingTreeCommitConformanceSuite`（T042/T043）在六个后端上验证。
  */
 
-import type { EntityType, IRepository, RuleGroup, TransactionExecutor } from '@aiao/rxdb';
-import { getEntityMetadata } from '@aiao/rxdb';
+import type { EntityManager, EntityType, IRepository, RuleGroup, TransactionExecutor } from '@aiao/rxdb';
+import { getEntityMetadata, RxDBBranch } from '@aiao/rxdb';
 import { vi } from 'vitest';
 import { fakeTableRef } from '../../fixtures/fake-table-ref.js';
 
@@ -74,6 +74,13 @@ const matchesRule = (row: Record<string, unknown>, rule: ProbeRule): boolean => 
     // 发出的查询形状，而「支持的每一种形状都有人真的在用」正是它敢被信任的前提。
     case '>':
       return compareGreaterThan(rule.field, actual, rule.value);
+    // 提交时记分叉点（`commit-fork-point.ts`）沿谱系读回滚状态，每一段是「这条分支上不晚于某个变更 id」。
+    // 同样只认数字对数字：`<=` 只出现在变更 id 上
+    case '<=':
+      if (typeof actual !== 'number' || typeof rule.value !== 'number') {
+        throw new Error(`commit-graph-probe: '<=' on field '${rule.field}' supports number-with-number only`);
+      }
+      return actual <= rule.value;
     default:
       throw new Error(`commit-graph-probe: unsupported operator '${rule.operator}' on field '${rule.field}'`);
   }
@@ -113,6 +120,28 @@ const sortRows = <T>(rows: readonly T[], orderBy: readonly OrderBySpec[] | undef
     return String(a).localeCompare(String(b)) * direction;
   });
 };
+
+/**
+ * 往探针里塞一行没有父分支的分支行。
+ *
+ * @param probe - 布景用的探针
+ * @param entityManager - 用于 `instantiate()` 的实体管理器
+ * @param branchId - 分支 id；与布景里那一行 ref 的 `branchId` 相同
+ *
+ * @remarks
+ * 真实库里每一行 ref 都配一行分支行。`writeCommit` 记分叉点时要沿父链走（US-314），只布 ref 不布分支行的场景
+ * 会在那一步报「分支不在库里」——那是布景缺了一行，不是实现的错。
+ */
+export function seedRootBranch(probe: CommitGraphProbe, entityManager: EntityManager, branchId: string): void {
+  const branch = entityManager.instantiate(RxDBBranch);
+  branch.id = branchId;
+  branch.activated = true;
+  branch.local = true;
+  branch.remote = false;
+  branch.parentId = null;
+  branch.fromChangeId = null;
+  probe.seed(RxDBBranch, [branch]);
+}
 
 /** 一次 `find()` 的原样记录，供断言「查了哪张表、用了什么条件」。 */
 export interface ProbeFindCall {

@@ -15,7 +15,8 @@
  */
 
 import type { LocalRxDBAdapter, RxDB, TransactionExecutor } from '@aiao/rxdb';
-import { RxDBChange, RxDBError } from '@aiao/rxdb';
+import { assertUsableBranchId, RxDBChange, RxDBError } from '@aiao/rxdb';
+import { assert_branch_id_free_on_remote, write_new_branch } from '@aiao/rxdb-plugin-history';
 import { firstValueFrom, Subject, type Observable } from 'rxjs';
 import { WORKING_TREE_CAPABILITY } from '../capability-identity.js';
 import { WorktreeManager } from '../checkout/worktree-manager.js';
@@ -33,6 +34,12 @@ import { CommitErrorCode } from '../commit/commit-error-codes.js';
 import { latchBranchCorruption } from '../commit/commit-graph-guard.js';
 import { readCommitLogPage, type CommitLogOptions, type CommitLogPage } from '../commit/commit-log.js';
 import { ENABLE_MIGRATION_OPERATION_ID, runEnableMigration } from '../commit/enable-migration.js';
+import {
+  assertBranchIdFreeLocally,
+  planBranchFromCommit,
+  type WorkingTreeBranchFromCommitCheck,
+  type WorkingTreeCreateBranchFromCommitResult
+} from './branch-from-commit.js';
 import { installWorkingTreeCapture } from './capture-install.js';
 import { readActiveBranchToken } from './capture-runtime.js';
 import { runCommitWorkingTree, type CommitOptions, type CommitResult } from './commit-command.js';
@@ -445,6 +452,67 @@ export class WorkingTreeManager {
     return this.runEnabled(async executor => {
       const token = await readActiveBranchToken(executor);
       return readActiveRestoreSession(executor, token.branchId);
+    });
+  }
+
+  /**
+   * 判一个提交能不能拿来建分支（US-314 阶段 A），不写任何东西。
+   *
+   * @param commitId - 当前分支历史里的一个提交
+   * @returns 见 {@link WorkingTreeBranchFromCommitCheck}；三种被拒成因都是 `ok: false` 的**返回值**
+   * @throws {@link WorkingTreeCapabilityDisabledError} 这个库还没启用提交能力
+   * @throws {@link CommitGraphCorruptedError} 当前分支的提交图已损坏（FR-051）
+   *
+   * @remarks
+   * 给界面在要名字之前先问一句：建不了的提交，对话框直接写明原因。判定与 {@link createBranchFromCommit} 是同一份，
+   * 但两次调用之间库可能变了，建的那一次会重判。
+   */
+  async checkBranchFromCommit(commitId: string): Promise<WorkingTreeBranchFromCommitCheck> {
+    return this.runEnabled(async executor => {
+      const plan = await planBranchFromCommit(executor, commitId);
+      return plan.ok ? { ok: true } : plan;
+    });
+  }
+
+  /**
+   * 从当前分支历史里的一个提交建分支（US-314 阶段 A），不切换。
+   *
+   * @param branchId - 新分支的 id
+   * @param commitId - 当前分支历史里的一个提交
+   * @returns 见 {@link WorkingTreeCreateBranchFromCommitResult}；三种被拒成因都是 `ok: false` 的**返回值**
+   * @throws {@link WorkingTreeCapabilityDisabledError} 这个库还没启用提交能力
+   * @throws {@link CommitGraphCorruptedError} 当前分支的提交图已损坏（FR-051）
+   * @throws {@link RxDBError} 分支 id 不可用、本地或远端已有同名分支时，与 `createBranch()` 同文案
+   *
+   * @remarks
+   * 新分支的 HEAD 就是这个提交、工作树为空，切过去读到的是那次 `commit()` 刚完成时的业务表；当前分支一格都不动，
+   * 它的未提交改动也留在原地。与 git 的 `git branch <name> <commit>` 同义，GitHub Desktop 的「Create branch from commit」
+   * 建完会切过去——那一步由调用方接着调 `switchBranch()`。
+   *
+   * 两笔受管事务夹着远端查重：远端查重是网络往返，放进事务会让并发度 1 的写队列被一次 RTT 堵住（同 `createBranch()`）；
+   * 第一笔把能力门禁、参数校验与判定放在远端往返之前，第二笔重判之后在同一笔事务里写分支行与 ref、工作树状态两行。
+   *
+   * 不进日志的写（拉取、过期清理）切换时不会撤掉：提交之后发生过这类写，新分支会带着它们，与切分支今天的行为一致。
+   */
+  async createBranchFromCommit(branchId: string, commitId: string): Promise<WorkingTreeCreateBranchFromCommitResult> {
+    const precheck = await this.runEnabled(async executor => {
+      assertUsableBranchId(branchId);
+      await assertBranchIdFreeLocally(executor, branchId);
+      return planBranchFromCommit(executor, commitId);
+    });
+    if (!precheck.ok) return precheck;
+    await assert_branch_id_free_on_remote(this.#rxdb.versionManager, branchId);
+    return this.runEnabled(async executor => {
+      await assertBranchIdFreeLocally(executor, branchId);
+      const plan = await planBranchFromCommit(executor, commitId);
+      if (!plan.ok) return plan;
+      const branch = await write_new_branch(this.#rxdb, executor, {
+        branchId,
+        parentId: plan.forkPoint.branchId,
+        fromChangeId: plan.forkPoint.changeId,
+        fromCommitId: commitId
+      });
+      return { ok: true, branch };
     });
   }
 

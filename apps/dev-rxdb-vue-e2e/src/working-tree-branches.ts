@@ -37,6 +37,24 @@ const switchToBranch = async (page: Page, branchId: string): Promise<void> => {
   await expect(page.getByTestId('wt-status-branch')).toHaveText(branchId, { timeout: 30000 });
 };
 
+/**
+ * 分支下拉的「New branch」：在「Create a branch」对话框里填名字建分支，建完停在新分支上（GitHub Desktop 同款）。
+ *
+ * @remarks
+ * 只在工作树干净时用：有改动的话建完会弹「Switch branch」，那一支由调用方自己走。Create 要等对话框里的预检回来才能点。
+ */
+export const createBranchFromDropdown = async (page: Page, branchId: string): Promise<void> => {
+  await openBranchMenu(page);
+  await page.getByTestId('wt-branch-create').click();
+  const dialog = page.getByTestId('wt-create-branch-dialog');
+  await expect(dialog).toBeVisible({ timeout: 10000 });
+  await page.getByTestId('wt-create-branch-name').fill(branchId);
+  await expect(page.getByTestId('wt-create-branch-confirm')).toBeEnabled({ timeout: 30000 });
+  await page.getByTestId('wt-create-branch-confirm').click();
+  await expect(dialog).toHaveCount(0, { timeout: 30000 });
+  await expect(page.getByTestId('wt-status-branch')).toHaveText(branchId, { timeout: 30000 });
+};
+
 const commitAll = async (page: Page, message: string): Promise<void> => {
   await page.getByTestId('wt-commit-message').fill(message);
   await page.getByTestId('wt-commit').click();
@@ -91,11 +109,7 @@ export const divergeBranches = async (page: Page, setup: DivergedBranches): Prom
     await addTodo(page, setup.base);
   });
   await commitAll(page, `add ${setup.base}`);
-  await openBranchMenu(page);
-  await page.getByTestId('wt-branch-create').click();
-  await page.getByTestId('wt-branch-name').fill(setup.branch);
-  await page.getByTestId('wt-branch-create-confirm').click();
-  await switchToBranch(page, setup.branch);
+  await createBranchFromDropdown(page, setup.branch);
 
   await onTodoPage(page, async () => {
     await renameTodo(page, setup.base, setup.onBranch);

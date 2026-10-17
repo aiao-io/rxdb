@@ -221,17 +221,18 @@ CRUD 的前置条件，多标签页下所有在途 `save()` 都会失败，与 F
 US-306 US2-AC8（其他 realm 编辑同一实体属正常行为）直接冲突。`activationRevision` 则相反：它是调用方捕获型，
 因为「实体属于哪个分支」必须以读取时的分支为准，这正是 `stale_active_branch` 的判据。
 
-| 操作                      | 同一事务必须校验                                                       | 成功后递增                                    |
-| ------------------------- | ---------------------------------------------------------------------- | --------------------------------------------- |
-| 普通 INSERT/UPDATE/DELETE | active branch token（捕获型）；working-tree revision 读改写            | working-tree revision                         |
-| remote entity apply       | active branch token（捕获型）、sync 水位；working-tree revision 读改写 | 有实体净变化时递增 working-tree revision      |
-| merge / undo / redo       | active branch token、expected working-tree + 操作自身 revision         | 有逻辑工作树变化时递增 working-tree revision  |
-| commit                    | active branch token、expected head + working-tree revision             | head、working-tree revision                   |
-| restore                   | active branch token、expected head + working-tree revision             | working-tree revision                         |
-| discard                   | active branch token、expected head + working-tree revision             | working-tree revision                         |
-| switch branch             | expected activation revision、来源/目标分支状态或物化快照              | activation revision                           |
-| create branch             | active branch token、来源 head + working-tree revision                 | 新 ref/state 从 revision 0 开始；来源状态不变 |
-| remove branch             | expected activation revision、目标 ref/state revision、非 active       | 原子删除目标可变状态；revision 不复用         |
+| 操作                      | 同一事务必须校验                                                              | 成功后递增                                                   |
+| ------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| 普通 INSERT/UPDATE/DELETE | active branch token（捕获型）；working-tree revision 读改写                   | working-tree revision                                        |
+| remote entity apply       | active branch token（捕获型）、sync 水位；working-tree revision 读改写        | 有实体净变化时递增 working-tree revision                     |
+| merge / undo / redo       | active branch token、expected working-tree + 操作自身 revision                | 有逻辑工作树变化时递增 working-tree revision                 |
+| commit                    | active branch token、expected head + working-tree revision                    | head、working-tree revision                                  |
+| restore                   | active branch token、expected head + working-tree revision                    | working-tree revision                                        |
+| discard                   | active branch token、expected head + working-tree revision                    | working-tree revision                                        |
+| switch branch             | expected activation revision、来源/目标分支状态或物化快照                     | activation revision                                          |
+| create branch             | active branch token、来源 head + working-tree revision                        | 新 ref/state 从 revision 0 开始；来源状态不变                |
+| create branch from commit | active branch token；目标在 HEAD 可达父链上、分叉点之前那段谱系的回滚状态未变 | 新 ref/state 从 revision 0 开始、HEAD 是该提交；来源状态不变 |
+| remove branch             | expected activation revision、目标 ref/state revision、非 active              | 原子删除目标可变状态；revision 不复用                        |
 
 commit 成功后工作树清空并以新 HEAD 为基线，不存在需要 rebase 的残量。
 **commit 会因并发编辑而失败**：它捕获 `workingTreeRevision`，另一个 Tab 的 `save()` 推进该值即返回
@@ -936,6 +937,12 @@ review 不接受冻结的中位数时，改这条例外或改设计，不得在�
 demo 的工作树页对齐 GitHub Desktop（3.6 起的 worktree 是可写的），worktree 界面随可写检出位做（[US-314](../stories/collaboration/US-314-writable-worktrees.md)）。
 现状 9 照旧：DevTools 只连主实例。只读检出位在 PGlite 与 SQLite 系六个后端上验过一致性（检出位一致性套件），
 各后端新增了删库能力（`dropStorage()` / `canDropStorage()`）用来回收快照库。
+
+**阶段 5 的从提交建分支（[US-314](../stories/collaboration/US-314-writable-worktrees.md) 阶段 A）之后**，提交在同一事务里记下分叉点，
+`rxdb.workingTree.createBranchFromCommit()` 从当前分支历史里的一个提交建分支：HEAD 就是那个提交、工作树为空，切过去读到那次
+`commit()` 刚完成时的数据。从提交建分支不复制工作树，所以上面 revision 矩阵里它只核对 HEAD 可达与分叉点之前的回滚状态，
+不核对来源的 head 与 working-tree revision。三端 demo 的 History 右键与分支下拉的 New branch 共用 GitHub Desktop 的
+「Create a branch」对话框。
 
 ### 三类场景
 
