@@ -74,6 +74,35 @@ pnpm nx bench-sortable-batch benchmarks
 pnpm nx search-ci benchmarks
 ```
 
+### 浏览器 Git 选型基准
+
+```bash
+NX_NO_CLOUD=true pnpm nx run benchmarks:test-git-benchmark
+NX_NO_CLOUD=true pnpm nx run benchmarks:bench-git --output-style=static --skipRemoteCache
+```
+
+需要本机 Git 和 Playwright Chromium。运行器只监听 loopback，创建临时 Git HTTP 远端与独立浏览器上下文，
+结束后清理临时目录。结果写入 `reports/browser-git-latest.json`，包含版本、源码摘要、机器信息和逐轮数据。
+
+默认每种配置串行运行五次，轮换正反顺序；两个确定性仓库为 100 / 1000 个 4 KiB 普通文本文件。
+MEMFS 对照统一使用 Emscripten FS 实现；OPFS 对照包含 isomorphic-git 的无整库缓存异步薄桥，
+以及 wasm-git 的 pthreads / JSPI / Asyncify。后两者会预载整个仓库到 MEMFS，不应把热 status 的差异
+全部归因于 Git 引擎。
+
+操作覆盖 clone、干净 / 修改 status、十文件暂存与提交、checkout；OPFS 还包含 Worker 重建、
+恢复和首次 status。先检查 tree OID 与文件字节，再解读耗时。快速等长改写、上游覆盖写入与重开脏状态
+作为独立正确性结果保留；基准完成不等于候选可以直接用于产品。
+
+可用环境变量调整实验，例如：
+
+```bash
+GIT_BENCH_PROFILES=large GIT_BENCH_ATTEMPTS=5 NX_NO_CLOUD=true pnpm nx run benchmarks:bench-git
+GIT_BENCH_CONFIGS=isomorphic-memfs,wasm-memfs NX_NO_CLOUD=true pnpm nx run benchmarks:bench-git
+```
+
+`large` 为 3000 文件；`GIT_BENCH_REPORT` 可指定另一个 JSON 输出路径。报告提供中位数和范围；五个样本
+的最近秩 p95 等于最大值，不作为稳定尾延迟或 CI 性能门禁。WASM linear memory 不包含完整 JS 堆或峰值 RSS。
+
 ## 项目结构
 
 ```text
