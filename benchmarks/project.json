@@ -4,39 +4,31 @@
   "name": "benchmarks",
   "projectType": "application",
   "sourceRoot": "benchmarks/src",
-  "tags": ["react-app"],
+  "tags": [
+    "react-app"
+  ],
   "targets": {
-    "benchmark-bom-reach-prototype": {
+    "test-git-benchmark": {
       "executor": "nx:run-commands",
-      "cache": false,
-      "dependsOn": [{ "projects": ["rxdb-plugin-bom", "rxdb-adapter-pglite"], "target": "build" }],
       "options": {
         "cwd": "benchmarks",
-        "command": "node --expose-gc --experimental-strip-types bom-reach.bench.ts --reach-prototype"
+        "command": "pnpm exec vitest run --config vite.config.mts scripts/git-benchmark-*.spec.mjs"
       }
     },
-    "benchmark-bom-reach": {
+    "bench-git": {
       "executor": "nx:run-commands",
       "cache": false,
-      "dependsOn": [{ "projects": ["rxdb-plugin-bom", "rxdb-adapter-pglite"], "target": "build" }],
       "options": {
         "cwd": "benchmarks",
-        "command": "node --expose-gc --experimental-strip-types bom-reach.bench.ts"
-      }
-    },
-    "benchmark-bom": {
-      "executor": "nx:run-commands",
-      "cache": false,
-      "dependsOn": [{ "projects": ["rxdb-plugin-bom", "rxdb-adapter-pglite"], "target": "build" }],
-      "options": {
-        "cwd": "benchmarks",
-        "command": "node --experimental-strip-types bom.bench.ts"
+        "command": "node scripts/git-browser-benchmark.mjs"
       }
     },
     "typecheck": {
       "executor": "nx:run-commands",
       "//dependsOn": "tsconfig.base.json 把 @aiao/rxdb-test/entities、/shop 映射到 packages/rxdb-test/dist，typecheck 读的是依赖的构建产物而不是源码。不声明 ^build 时，`nx affected -t typecheck build --parallel` 会把本目标和 rxdb-test:build 排进同一批，后者写 dist 前先清空，tsc 正好读到空目录，报出一串 TS2307 以及由未解析类型级联出的 TS2345/TS18046。全仓所有其它 typecheck 目标都声明了 build 依赖，只有这里漏了。",
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "options": {
         "cwd": "benchmarks",
         "command": "pnpm run typecheck"
@@ -44,7 +36,9 @@
     },
     "build-website": {
       "executor": "nx:run-commands",
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "options": {
         "cwd": "benchmarks",
         "commands": [
@@ -56,7 +50,9 @@
     },
     "search-ci": {
       "executor": "nx:run-commands",
-      "dependsOn": ["^build"],
+      "dependsOn": [
+        "^build"
+      ],
       "options": {
         "cwd": "benchmarks",
         "command": "node scripts/search-ci.mjs"
@@ -64,7 +60,10 @@
     },
     "bench-encryption": {
       "executor": "nx:run-commands",
-      "dependsOn": ["typecheck", "^build"],
+      "dependsOn": [
+        "typecheck",
+        "^build"
+      ],
       "options": {
         "cwd": "benchmarks",
         "command": "node --experimental-strip-types encryption.bench.ts"
@@ -72,7 +71,10 @@
     },
     "bench-hot-path": {
       "executor": "nx:run-commands",
-      "dependsOn": ["typecheck", "^build"],
+      "dependsOn": [
+        "typecheck",
+        "^build"
+      ],
       "options": {
         "cwd": "benchmarks",
         "command": "node --experimental-strip-types non-encrypted-hot-path.bench.ts"
@@ -80,7 +82,10 @@
     },
     "bench-working-tree": {
       "executor": "nx:run-commands",
-      "dependsOn": ["typecheck", "^build"],
+      "dependsOn": [
+        "typecheck",
+        "^build"
+      ],
       "options": {
         "cwd": "benchmarks",
         "command": "node --experimental-strip-types working-tree.bench.ts"
@@ -88,7 +93,10 @@
     },
     "bench-push-receipts": {
       "executor": "nx:run-commands",
-      "dependsOn": ["typecheck", "^build"],
+      "dependsOn": [
+        "typecheck",
+        "^build"
+      ],
       "options": {
         "cwd": "benchmarks",
         "command": "node --experimental-strip-types push-receipts.bench.ts"
@@ -96,10 +104,64 @@
     },
     "bench-sortable-batch": {
       "executor": "nx:run-commands",
-      "dependsOn": ["typecheck", "^build"],
+      "dependsOn": [
+        "typecheck",
+        "^build"
+      ],
       "options": {
         "cwd": "benchmarks",
         "command": "node --experimental-strip-types sortable-batch-append.bench.ts"
+      }
+    },
+    "benchmark-bom-reach-prototype": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": [
+            "rxdb-plugin-bom",
+            "rxdb-adapter-pglite"
+          ],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "benchmarks",
+        "command": "node --expose-gc --experimental-strip-types bom-reach.bench.ts --reach-prototype"
+      }
+    },
+    "benchmark-bom-reach": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": [
+            "rxdb-plugin-bom",
+            "rxdb-adapter-pglite"
+          ],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "benchmarks",
+        "command": "node --expose-gc --experimental-strip-types bom-reach.bench.ts"
+      }
+    },
+    "benchmark-bom": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "dependsOn": [
+        {
+          "projects": [
+            "rxdb-plugin-bom",
+            "rxdb-adapter-pglite"
+          ],
+          "target": "build"
+        }
+      ],
+      "options": {
+        "cwd": "benchmarks",
+        "command": "node --experimental-strip-types bom.bench.ts"
       }
     }
   }
